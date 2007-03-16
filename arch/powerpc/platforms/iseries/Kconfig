@@ -1,3 +1,7 @@
+config PPC_ISERIES
+	bool "IBM Legacy iSeries"
+	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_INDIRECT_IO
 
 menu "iSeries device drivers"
 	depends on PPC_ISERIES

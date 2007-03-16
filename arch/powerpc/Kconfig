@@ -404,77 +404,14 @@ config QUICC_ENGINE
 	  Selecting this option means that you wish to build a kernel
 	  for a machine with a QE coprocessor.
 
-config PPC_PSERIES
-	depends on PPC_MULTIPLATFORM && PPC64
-	bool "IBM pSeries & new (POWER5-based) iSeries"
-	select MPIC
-	select PPC_I8259
-	select PPC_RTAS
-	select RTAS_ERROR_LOGGING
-	select PPC_UDBG_16550
-	select PPC_NATIVE
-	default y
-
-config PPC_ISERIES
-	bool "IBM Legacy iSeries"
-	depends on PPC_MULTIPLATFORM && PPC64
-	select PPC_INDIRECT_IO
-
-config PPC_CHRP
-	bool "Common Hardware Reference Platform (CHRP) based machines"
-	depends on PPC_MULTIPLATFORM && PPC32
-	select MPIC
-	select PPC_I8259
-	select PPC_INDIRECT_PCI
-	select PPC_RTAS
-	select PPC_MPC106
-	select PPC_UDBG_16550
-	select PPC_NATIVE
-	default y
-
+source "arch/powerpc/platforms/pseries/Kconfig"
+source "arch/powerpc/platforms/iseries/Kconfig"
+source "arch/powerpc/platforms/chrp/Kconfig"
 source "arch/powerpc/platforms/52xx/Kconfig"
 source "arch/powerpc/platforms/powermac/Kconfig"
-
-config PPC_PREP
-	bool "PowerPC Reference Platform (PReP) based machines"
-	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
-	select MPIC
-	select PPC_I8259
-	select PPC_INDIRECT_PCI
-	select PPC_UDBG_16550
-	select PPC_NATIVE
-	default n
-
-config PPC_MAPLE
-	depends on PPC_MULTIPLATFORM && PPC64
-	bool "Maple 970FX Evaluation Board"
-	select MPIC
-	select U3_DART
-	select MPIC_BROKEN_U3
-	select GENERIC_TBSYNC
-	select PPC_UDBG_16550
-	select PPC_970_NAP
-	select PPC_NATIVE
-	select PPC_RTAS
-	select MMIO_NVRAM
-	select ATA_NONSTANDARD if ATA
-	default n
-	help
-          This option enables support for the Maple 970FX Evaluation Board.
-	  For more information, refer to <http://www.970eval.com>
-
-config PPC_PASEMI
-	depends on PPC_MULTIPLATFORM && PPC64
-	bool "PA Semi SoC-based platforms"
-	default n
-	select MPIC
-	select PPC_UDBG_16550
-	select GENERIC_TBSYNC
-	select PPC_NATIVE
-	help
-	  This option enables support for PA Semi's PWRficient line
-	  of SoC processors, including PA6T-1682M
-
+source "arch/powerpc/platforms/prep/Kconfig"
+source "arch/powerpc/platforms/maple/Kconfig"
+source "arch/powerpc/platforms/pasemi/Kconfig"
 source arch/powerpc/platforms/celleb/Kconfig
 source arch/powerpc/platforms/ps3/Kconfig
 source arch/powerpc/platforms/cell/Kconfig
@@ -657,7 +594,6 @@ source arch/powerpc/platforms/83xx/Kconfig
 source arch/powerpc/platforms/85xx/Kconfig
 source arch/powerpc/platforms/86xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
-source arch/powerpc/platforms/pasemi/Kconfig
 
 menu "Kernel options"
 
@@ -762,7 +698,6 @@ config IRQ_ALL_CPUS
 	  CPU.  Generally saying Y is safe, although some problems have been
 	  reported with SMP Power Macintoshes with this option enabled.
 
-source "arch/powerpc/platforms/pseries/Kconfig"
 
 config NUMA
 	bool "NUMA support"
@@ -833,8 +768,6 @@ config PROC_DEVICETREE
 	  This option adds a device-tree directory under /proc which contains
 	  an image of the device tree that the kernel copies from Open
 	  Firmware or other boot firmware. If unsure, say Y here.
-
-source "arch/powerpc/platforms/prep/Kconfig"
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
@@ -1132,7 +1065,6 @@ source "fs/Kconfig"
 
 source "arch/powerpc/sysdev/qe_lib/Kconfig"
 
-source "arch/powerpc/platforms/iseries/Kconfig"
 
 source "lib/Kconfig"
 
