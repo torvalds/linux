@@ -151,10 +151,10 @@ int __init register_nfs_fs(void)
 	if (ret < 0)
 		goto error_0;
 
-#ifdef CONFIG_NFS_V4
 	ret = nfs_register_sysctl();
 	if (ret < 0)
 		goto error_1;
+#ifdef CONFIG_NFS_V4
 	ret = register_filesystem(&nfs4_fs_type);
 	if (ret < 0)
 		goto error_2;
@@ -165,9 +165,9 @@ int __init register_nfs_fs(void)
 #ifdef CONFIG_NFS_V4
 error_2:
 	nfs_unregister_sysctl();
+#endif
 error_1:
 	unregister_filesystem(&nfs_fs_type);
-#endif
 error_0:
 	return ret;
 }
