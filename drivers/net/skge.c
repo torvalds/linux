@@ -105,7 +105,8 @@ static const int txqaddr[] = { Q_XA1, Q_XA2 };
 static const int rxqaddr[] = { Q_R1, Q_R2 };
 static const u32 rxirqmask[] = { IS_R1_F, IS_R2_F };
 static const u32 txirqmask[] = { IS_XA1_F, IS_XA2_F };
-static const u32 irqmask[] = { IS_R1_F|IS_XA1_F, IS_R2_F|IS_XA2_F };
+static const u32 napimask[] = { IS_R1_F|IS_XA1_F, IS_R2_F|IS_XA2_F };
+static const u32 portmask[] = { IS_PORT_1, IS_PORT_2 };
 
 static int skge_get_regs_len(struct net_device *dev)
 {
@@ -2504,6 +2505,11 @@ static int skge_up(struct net_device *dev)
 	skge_write8(hw, Q_ADDR(rxqaddr[port], Q_CSR), CSR_START | CSR_IRQ_CL_F);
 	skge_led(skge, LED_MODE_ON);
 
+	spin_lock_irq(&hw->hw_lock);
+	hw->intr_mask |= portmask[port];
+	skge_write32(hw, B0_IMSK, hw->intr_mask);
+	spin_unlock_irq(&hw->hw_lock);
+
 	netif_poll_enable(dev);
 	return 0;
 
@@ -2532,6 +2538,13 @@ static int skge_down(struct net_device *dev)
 	netif_stop_queue(dev);
 	if (hw->chip_id == CHIP_ID_GENESIS && hw->phy_type == SK_PHY_XMAC)
 		cancel_delayed_work(&skge->link_thread);
+
+	netif_poll_disable(dev);
+
+	spin_lock_irq(&hw->hw_lock);
+	hw->intr_mask &= ~portmask[port];
+	skge_write32(hw, B0_IMSK, hw->intr_mask);
+	spin_unlock_irq(&hw->hw_lock);
 
 	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_OFF);
 	if (hw->chip_id == CHIP_ID_GENESIS)
@@ -2574,8 +2587,6 @@ static int skge_down(struct net_device *dev)
 	}
 
 	skge_led(skge, LED_MODE_OFF);
-
-	netif_poll_disable(dev);
 
 	netif_tx_lock_bh(dev);
 	skge_tx_clean(dev);
@@ -3051,7 +3062,7 @@ static int skge_poll(struct net_device *dev, int *budget)
 
 	spin_lock_irqsave(&hw->hw_lock, flags);
 	__netif_rx_complete(dev);
-	hw->intr_mask |= irqmask[skge->port];
+	hw->intr_mask |= napimask[skge->port];
   	skge_write32(hw, B0_IMSK, hw->intr_mask);
 	skge_read32(hw, B0_IMSK);
 	spin_unlock_irqrestore(&hw->hw_lock, flags);
@@ -3415,10 +3426,9 @@ static int skge_reset(struct skge_hw *hw)
 	else
 		hw->ram_size = t8 * 4096;
 
-	hw->intr_mask = IS_HW_ERR | IS_PORT_1;
-	if (hw->ports > 1)
-		hw->intr_mask |= IS_PORT_2;
+	hw->intr_mask = IS_HW_ERR;
 
+	/* Use PHY IRQ for all but fiber based Genesis board */
 	if (!(hw->chip_id == CHIP_ID_GENESIS && hw->phy_type == SK_PHY_XMAC))
 		hw->intr_mask |= IS_EXT_REG;
 
