@@ -149,12 +149,6 @@ unsigned long *sparc64_valid_addr_bitmap __read_mostly;
 unsigned long kern_base __read_mostly;
 unsigned long kern_size __read_mostly;
 
-/* get_new_mmu_context() uses "cache + 1".  */
-DEFINE_SPINLOCK(ctx_alloc_lock);
-unsigned long tlb_context_cache = CTX_FIRST_VERSION - 1;
-#define CTX_BMAP_SLOTS (1UL << (CTX_NR_BITS - 6))
-unsigned long mmu_context_bmap[CTX_BMAP_SLOTS];
-
 /* Initial ramdisk setup */
 extern unsigned long sparc_ramdisk_image64;
 extern unsigned int sparc_ramdisk_image;
@@ -700,6 +694,13 @@ void __flush_dcache_range(unsigned long start, unsigned long end)
 	}
 }
 #endif /* DCACHE_ALIASING_POSSIBLE */
+
+/* get_new_mmu_context() uses "cache + 1".  */
+DEFINE_SPINLOCK(ctx_alloc_lock);
+unsigned long tlb_context_cache = CTX_FIRST_VERSION - 1;
+#define MAX_CTX_NR	(1UL << CTX_NR_BITS)
+#define CTX_BMAP_SLOTS	BITS_TO_LONGS(MAX_CTX_NR)
+DECLARE_BITMAP(mmu_context_bmap, MAX_CTX_NR);
 
 /* Caller does TLB context flushing on local CPU if necessary.
  * The caller also ensures that CTX_VALID(mm->context) is false.
