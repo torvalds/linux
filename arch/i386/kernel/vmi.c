@@ -23,7 +23,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/license.h>
 #include <linux/cpu.h>
 #include <linux/bootmem.h>
 #include <linux/mm.h>
@@ -48,7 +47,6 @@ typedef u64 __attribute__((regparm(2))) (VROMLONGFUNC)(int);
    (((VROMLONGFUNC *)(rom->func)) (arg))
 
 static struct vrom_header *vmi_rom;
-static int license_gplok;
 static int disable_pge;
 static int disable_pse;
 static int disable_sep;
@@ -629,13 +627,14 @@ static inline int __init check_vmi_rom(struct vrom_header *rom)
 		rom->api_version_maj, rom->api_version_min,
 		pci->rom_version_maj, pci->rom_version_min);
 
-        license_gplok = license_is_gpl_compatible(license);
-        if (!license_gplok) {
-                printk(KERN_WARNING "VMI: ROM license '%s' taints kernel... "
-		       "inlining disabled\n",
-                       license);
-                add_taint(TAINT_PROPRIETARY_MODULE);
-        }
+	/* Don't allow BSD/MIT here for now because we don't want to end up
+	   with any binary only shim layers */
+	if (strcmp(license, "GPL") && strcmp(license, "GPL v2")) {
+		printk(KERN_WARNING "VMI: Non GPL license `%s' found for ROM. Not used.\n",
+			license);
+		return 0;
+	}
+
 	return 1;
 }
 
