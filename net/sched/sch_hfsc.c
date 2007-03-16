@@ -195,20 +195,6 @@ struct hfsc_sched
 	struct timer_list wd_timer;		/* watchdog timer */
 };
 
-/*
- * macros
- */
-#ifdef CONFIG_NET_SCH_CLK_GETTIMEOFDAY
-#include <linux/time.h>
-#undef PSCHED_GET_TIME
-#define PSCHED_GET_TIME(stamp)						\
-do {									\
-	struct timeval tv;						\
-	do_gettimeofday(&tv);						\
-	(stamp) = 1ULL * USEC_PER_SEC * tv.tv_sec + tv.tv_usec;		\
-} while (0)
-#endif
-
 #define	HT_INFINITY	0xffffffffffffffffULL	/* infinite time value */
 
 
@@ -394,28 +380,17 @@ cftree_update(struct hfsc_class *cl)
  *	ism: (psched_us/byte) << ISM_SHIFT
  *	dx: psched_us
  *
- * Clock source resolution (CONFIG_NET_SCH_CLK_*)
- *  JIFFIES: for 48<=HZ<=1534 resolution is between 0.63us and 1.27us.
- *  CPU: resolution is between 0.5us and 1us.
- *  GETTIMEOFDAY: resolution is exactly 1us.
+ * The clock source resolution with ktime is 1.024us.
  *
  * sm and ism are scaled in order to keep effective digits.
  * SM_SHIFT and ISM_SHIFT are selected to keep at least 4 effective
  * digits in decimal using the following table.
  *
- * Note: We can afford the additional accuracy (altq hfsc keeps at most
- * 3 effective digits) thanks to the fact that linux clock is bounded
- * much more tightly.
- *
  *  bits/sec      100Kbps     1Mbps     10Mbps     100Mbps    1Gbps
  *  ------------+-------------------------------------------------------
- *  bytes/0.5us   6.25e-3    62.5e-3    625e-3     6250e-e    62500e-3
- *  bytes/us      12.5e-3    125e-3     1250e-3    12500e-3   125000e-3
- *  bytes/1.27us  15.875e-3  158.75e-3  1587.5e-3  15875e-3   158750e-3
+ *  bytes/1.024us 12.8e-3    128e-3     1280e-3    12800e-3   128000e-3
  *
- *  0.5us/byte    160        16         1.6        0.16       0.016
- *  us/byte       80         8          0.8        0.08       0.008
- *  1.27us/byte   63         6.3        0.63       0.063      0.0063
+ *  1.024us/byte  78.125     7.8125     0.78125    0.078125   0.0078125
  */
 #define	SM_SHIFT	20
 #define	ISM_SHIFT	18

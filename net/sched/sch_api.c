@@ -1175,15 +1175,12 @@ reclassify:
 	return -1;
 }
 
-static int psched_us_per_tick = 1;
-static int psched_tick_per_us = 1;
-
 #ifdef CONFIG_PROC_FS
 static int psched_show(struct seq_file *seq, void *v)
 {
 	seq_printf(seq, "%08x %08x %08x %08x\n",
-		      psched_tick_per_us, psched_us_per_tick,
-		      1000000, HZ);
+		   (u32)NSEC_PER_USEC, (u32)PSCHED_US2NS(1),
+		   1000000, HZ);
 
 	return 0;
 }
@@ -1202,79 +1199,9 @@ static const struct file_operations psched_fops = {
 };
 #endif
 
-#ifdef CONFIG_NET_SCH_CLK_CPU
-psched_tdiff_t psched_clock_per_hz;
-int psched_clock_scale;
-EXPORT_SYMBOL(psched_clock_per_hz);
-EXPORT_SYMBOL(psched_clock_scale);
-
-psched_time_t psched_time_base;
-cycles_t psched_time_mark;
-EXPORT_SYMBOL(psched_time_mark);
-EXPORT_SYMBOL(psched_time_base);
-
-/*
- * Periodically adjust psched_time_base to avoid overflow
- * with 32-bit get_cycles(). Safe up to 4GHz CPU.
- */
-static void psched_tick(unsigned long);
-static DEFINE_TIMER(psched_timer, psched_tick, 0, 0);
-
-static void psched_tick(unsigned long dummy)
-{
-	if (sizeof(cycles_t) == sizeof(u32)) {
-		psched_time_t dummy_stamp;
-		PSCHED_GET_TIME(dummy_stamp);
-		psched_timer.expires = jiffies + 1*HZ;
-		add_timer(&psched_timer);
-	}
-}
-
-int __init psched_calibrate_clock(void)
-{
-	psched_time_t stamp, stamp1;
-	struct timeval tv, tv1;
-	psched_tdiff_t delay;
-	long rdelay;
-	unsigned long stop;
-
-	psched_tick(0);
-	stop = jiffies + HZ/10;
-	PSCHED_GET_TIME(stamp);
-	do_gettimeofday(&tv);
-	while (time_before(jiffies, stop)) {
-		barrier();
-		cpu_relax();
-	}
-	PSCHED_GET_TIME(stamp1);
-	do_gettimeofday(&tv1);
-
-	delay = PSCHED_TDIFF(stamp1, stamp);
-	rdelay = tv1.tv_usec - tv.tv_usec;
-	rdelay += (tv1.tv_sec - tv.tv_sec)*1000000;
-	if (rdelay > delay)
-		return -1;
-	delay /= rdelay;
-	psched_tick_per_us = delay;
-	while ((delay>>=1) != 0)
-		psched_clock_scale++;
-	psched_us_per_tick = 1<<psched_clock_scale;
-	psched_clock_per_hz = (psched_tick_per_us*(1000000/HZ))>>psched_clock_scale;
-	return 0;
-}
-#endif
-
 static int __init pktsched_init(void)
 {
 	struct rtnetlink_link *link_p;
-
-#ifdef CONFIG_NET_SCH_CLK_CPU
-	if (psched_calibrate_clock() < 0)
-		return -1;
-#elif defined(CONFIG_NET_SCH_CLK_JIFFIES)
-	psched_tick_per_us = HZ<<PSCHED_JSCALE;
-	psched_us_per_tick = 1000000;
-#endif
 
 	link_p = rtnetlink_links[PF_UNSPEC];
 
