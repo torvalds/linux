@@ -612,7 +612,7 @@ static unsigned long cbq_undelay_prio(struct cbq_sched_data *q, int prio)
 	unsigned long sched = now;
 
 	if (cl_prev == NULL)
-		return now;
+		return 0;
 
 	do {
 		cl = cl_prev->next_alive;
