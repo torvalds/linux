@@ -55,13 +55,13 @@ static int btrfs_cow_block(struct btrfs_root *root,
 		root->node = cow;
 		cow->count++;
 		if (buf != root->commit_root)
-			btrfs_free_extent(root, buf->blocknr, 1);
+			btrfs_free_extent(root, buf->blocknr, 1, 1);
 		btrfs_block_release(root, buf);
 	} else {
 		btrfs_set_node_blockptr(&parent->node, parent_slot,
 					cow->blocknr);
 		BUG_ON(list_empty(&parent->dirty));
-		btrfs_free_extent(root, buf->blocknr, 1);
+		btrfs_free_extent(root, buf->blocknr, 1, 1);
 	}
 	btrfs_block_release(root, buf);
 	return 0;
@@ -311,7 +311,7 @@ static int balance_level(struct btrfs_root *root, struct btrfs_path *path,
 		/* once for the root ptr */
 		btrfs_block_release(root, mid_buf);
 		clean_tree_block(root, mid_buf);
-		return btrfs_free_extent(root, blocknr, 1);
+		return btrfs_free_extent(root, blocknr, 1, 1);
 	}
 	parent = &parent_buf->node;
 
@@ -352,7 +352,7 @@ static int balance_level(struct btrfs_root *root, struct btrfs_path *path,
 			wret = del_ptr(root, path, level + 1, pslot + 1);
 			if (wret)
 				ret = wret;
-			wret = btrfs_free_extent(root, blocknr, 1);
+			wret = btrfs_free_extent(root, blocknr, 1, 1);
 			if (wret)
 				ret = wret;
 		} else {
@@ -388,7 +388,7 @@ static int balance_level(struct btrfs_root *root, struct btrfs_path *path,
 		wret = del_ptr(root, path, level + 1, pslot);
 		if (wret)
 			ret = wret;
-		wret = btrfs_free_extent(root, blocknr, 1);
+		wret = btrfs_free_extent(root, blocknr, 1, 1);
 		if (wret)
 			ret = wret;
 	} else {
@@ -1310,7 +1310,7 @@ int btrfs_del_item(struct btrfs_root *root, struct btrfs_path *path)
 			wret = del_ptr(root, path, 1, path->slots[1]);
 			if (wret)
 				ret = wret;
-			wret = btrfs_free_extent(root, leaf_buf->blocknr, 1);
+			wret = btrfs_free_extent(root, leaf_buf->blocknr, 1, 1);
 			if (wret)
 				ret = wret;
 		}
@@ -1348,7 +1348,7 @@ int btrfs_del_item(struct btrfs_root *root, struct btrfs_path *path)
 				if (wret)
 					ret = wret;
 				btrfs_block_release(root, leaf_buf);
-				wret = btrfs_free_extent(root, blocknr, 1);
+				wret = btrfs_free_extent(root, blocknr, 1, 1);
 				if (wret)
 					ret = wret;
 			} else {

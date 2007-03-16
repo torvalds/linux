@@ -658,7 +658,8 @@ static inline u8 *btrfs_leaf_data(struct btrfs_leaf *l)
 
 struct btrfs_buffer *btrfs_alloc_free_block(struct btrfs_root *root);
 int btrfs_inc_ref(struct btrfs_root *root, struct btrfs_buffer *buf);
-int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks);
+int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks,
+		      int pin);
 int btrfs_search_slot(struct btrfs_root *root, struct btrfs_key *key,
 		struct btrfs_path *p, int ins_len, int cow);
 void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);

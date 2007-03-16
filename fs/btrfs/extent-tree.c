@@ -95,6 +95,7 @@ int btrfs_inc_ref(struct btrfs_root *root, struct btrfs_buffer *buf)
 int btrfs_finish_extent_commit(struct btrfs_root *root)
 {
 	unsigned long gang[8];
+	u64 first = 0;
 	int ret;
 	int i;
 
@@ -104,11 +105,13 @@ int btrfs_finish_extent_commit(struct btrfs_root *root)
 						 ARRAY_SIZE(gang));
 		if (!ret)
 			break;
+		if (!first)
+			first = gang[0];
 		for (i = 0; i < ret; i++) {
 			radix_tree_delete(&root->pinned_radix, gang[i]);
 		}
 	}
-	root->last_insert.objectid = 0;
+	root->last_insert.objectid = first;
 	root->last_insert.offset = 0;
 	return 0;
 }
@@ -140,7 +143,8 @@ static int finish_current_insert(struct btrfs_root *extent_root)
 /*
  * remove an extent from the root, returns 0 on success
  */
-static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
+static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks,
+			 int pin)
 {
 	struct btrfs_path path;
 	struct btrfs_key key;
@@ -150,6 +154,7 @@ static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 	struct btrfs_key ins;
 	u32 refs;
 
+	BUG_ON(pin && num_blocks != 1);
 	key.objectid = blocknr;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
@@ -170,7 +175,7 @@ static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 	refs = btrfs_extent_refs(ei) - 1;
 	btrfs_set_extent_refs(ei, refs);
 	if (refs == 0) {
-		if (!root->ref_cows) {
+		if (pin) {
 			int err;
 			radix_tree_preload(GFP_KERNEL);
 			err = radix_tree_insert(&extent_root->pinned_radix,
@@ -179,8 +184,7 @@ static int __free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 			radix_tree_preload_end();
 		}
 		ret = btrfs_del_item(extent_root, &path);
-		if (root != extent_root &&
-		    extent_root->last_insert.objectid > blocknr)
+		if (!pin && extent_root->last_insert.objectid > blocknr)
 			extent_root->last_insert.objectid = blocknr;
 		if (ret)
 			BUG();
@@ -208,7 +212,8 @@ static int del_pending_extents(struct btrfs_root *extent_root)
 		if (!ret)
 			break;
 		for (i = 0; i < ret; i++) {
-			ret = __free_extent(extent_root, gang[i]->blocknr, 1);
+			ret = __free_extent(extent_root,
+					    gang[i]->blocknr, 1, 1);
 			radix_tree_tag_clear(&extent_root->cache_radix,
 						gang[i]->blocknr,
 						CTREE_EXTENT_PENDING_DEL);
@@ -230,7 +235,8 @@ static int run_pending(struct btrfs_root *extent_root)
 /*
  * remove an extent from the root, returns 0 on success
  */
-int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
+int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks,
+		      int pin)
 {
 	struct btrfs_root *extent_root = root->extent_root;
 	struct btrfs_buffer *t;
@@ -243,7 +249,7 @@ int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks)
 				   CTREE_EXTENT_PENDING_DEL);
 		return 0;
 	}
-	ret = __free_extent(root, blocknr, num_blocks);
+	ret = __free_extent(root, blocknr, num_blocks, pin);
 	pending_ret = run_pending(root->extent_root);
 	return ret ? ret : pending_ret;
 }
@@ -451,7 +457,7 @@ static int walk_down_tree(struct btrfs_root *root,
 		ret = lookup_block_ref(root, blocknr, &refs);
 		if (refs != 1 || *level == 1) {
 			path->slots[*level]++;
-			ret = btrfs_free_extent(root, blocknr, 1);
+			ret = btrfs_free_extent(root, blocknr, 1, 1);
 			BUG_ON(ret);
 			continue;
 		}
@@ -464,7 +470,7 @@ static int walk_down_tree(struct btrfs_root *root,
 		path->slots[*level] = 0;
 	}
 out:
-	ret = btrfs_free_extent(root, path->nodes[*level]->blocknr, 1);
+	ret = btrfs_free_extent(root, path->nodes[*level]->blocknr, 1, 1);
 	btrfs_block_release(root, path->nodes[*level]);
 	path->nodes[*level] = NULL;
 	*level += 1;
@@ -492,7 +498,7 @@ static int walk_up_tree(struct btrfs_root *root, struct btrfs_path *path,
 			return 0;
 		} else {
 			ret = btrfs_free_extent(root,
-					  path->nodes[*level]->blocknr, 1);
+					  path->nodes[*level]->blocknr, 1, 1);
 			btrfs_block_release(root, path->nodes[*level]);
 			path->nodes[*level] = NULL;
 			*level = i + 1;
