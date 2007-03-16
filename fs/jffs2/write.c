@@ -507,8 +507,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 	uint32_t alloclen;
 	int ret;
 
-	if (1 /* alternative branch needs testing */ ||
-	    !jffs2_can_mark_obsolete(c)) {
+	if (!jffs2_can_mark_obsolete(c)) {
 		/* We can't mark stuff obsolete on the medium. We need to write a deletion dirent */
 
 		rd = jffs2_alloc_raw_dirent();
