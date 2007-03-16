@@ -1182,6 +1182,13 @@ platforms are moved over to use the flattened-device-tree model.
     - phy-handle : The phandle for the PHY connected to this ethernet
       controller.
 
+  Recommended properties:
+
+    - linux,network-index : This is the intended "index" of this
+      network device.  This is used by the bootwrapper to interpret
+      MAC addresses passed by the firmware when no information other
+      than indices is available to associate an address with a device.
+
   Example:
 
 	ethernet@24000 {
@@ -1549,6 +1556,12 @@ platforms are moved over to use the flattened-device-tree model.
    Required properties for network device_type:
    - mac-address : list of bytes representing the ethernet address.
    - phy-handle : The phandle for the PHY connected to this controller.
+
+   Recommended properties:
+   - linux,network-index : This is the intended "index" of this
+     network device.  This is used by the bootwrapper to interpret
+     MAC addresses passed by the firmware when no information other
+     than indices is available to associate an address with a device.
 
    Example:
 	ucc@2000 {
