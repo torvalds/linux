@@ -251,6 +251,7 @@ static int software_resume(void)
 	error = swsusp_read();
 	if (error) {
 		swsusp_free();
+		platform_finish();
 		goto Thaw;
 	}
 
