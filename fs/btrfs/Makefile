@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -Werror
 headers = radix-tree.h ctree.h disk-io.h kerncompat.h print-tree.h list.h
 objects = ctree.o disk-io.o radix-tree.o mkfs.o extent-tree.o print-tree.o \
 	  root-tree.o dir-item.o hash.o file-item.o inode-item.o
@@ -14,7 +14,7 @@ check=sparse $(CHECKFLAGS)
 	$(check) $<
 	$(CC) $(CFLAGS) -c $<
 
-all: tester debug-tree quick-test dir-test
+all: tester debug-tree quick-test dir-test tags
 
 debug-tree: $(objects) debug-tree.o
 	gcc $(CFLAGS) -o debug-tree $(objects) debug-tree.o

@@ -5,6 +5,7 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "print-tree.h"
+#include "transaction.h"
 
 /* for testing only */
 int next_key(int i, int max_key) {
@@ -25,10 +26,12 @@ int main(int ac, char **av) {
 	struct btrfs_path path;
 	struct btrfs_super_block super;
 	struct btrfs_root *root;
+	struct btrfs_trans_handle *trans;
 
 	radix_tree_init();
 
 	root = open_ctree("dbfile", &super);
+	trans = btrfs_start_transaction(root, 1);
 	srand(55);
 	ins.flags = 0;
 	btrfs_set_key_type(&ins, BTRFS_STRING_ITEM_KEY);
@@ -41,12 +44,12 @@ int main(int ac, char **av) {
 			fprintf(stderr, "insert %d:%d\n", num, i);
 		ins.objectid = num;
 		ins.offset = 0;
-		ret = btrfs_insert_item(root, &ins, buf, strlen(buf));
+		ret = btrfs_insert_item(trans, root, &ins, buf, strlen(buf));
 		if (!ret)
 			tree_size++;
 		free(buf);
 		if (i == run_size - 5) {
-			btrfs_commit_transaction(root, &super);
+			btrfs_commit_transaction(trans, root, &super);
 		}
 
 	}
@@ -61,7 +64,7 @@ int main(int ac, char **av) {
 		btrfs_init_path(&path);
 		if (i % 10000 == 0)
 			fprintf(stderr, "search %d:%d\n", num, i);
-		ret = btrfs_search_slot(root, &ins, &path, 0, 0);
+		ret = btrfs_search_slot(trans, root, &ins, &path, 0, 0);
 		if (ret) {
 			btrfs_print_tree(root, root->node);
 			printf("unable to find %d\n", num);
@@ -83,11 +86,11 @@ int main(int ac, char **av) {
 		num = next_key(i, max_key);
 		ins.objectid = num;
 		btrfs_init_path(&path);
-		ret = btrfs_search_slot(root, &ins, &path, -1, 1);
+		ret = btrfs_search_slot(trans, root, &ins, &path, -1, 1);
 		if (!ret) {
 			if (i % 10000 == 0)
 				fprintf(stderr, "del %d:%d\n", num, i);
-			ret = btrfs_del_item(root, &path);
+			ret = btrfs_del_item(trans, root, &path);
 			if (ret != 0)
 				BUG();
 			tree_size--;
@@ -104,7 +107,7 @@ int main(int ac, char **av) {
 		ins.objectid = num;
 		if (i % 10000 == 0)
 			fprintf(stderr, "insert %d:%d\n", num, i);
-		ret = btrfs_insert_item(root, &ins, buf, strlen(buf));
+		ret = btrfs_insert_item(trans, root, &ins, buf, strlen(buf));
 		if (!ret)
 			tree_size++;
 		free(buf);
@@ -119,7 +122,7 @@ int main(int ac, char **av) {
 		btrfs_init_path(&path);
 		if (i % 10000 == 0)
 			fprintf(stderr, "search %d:%d\n", num, i);
-		ret = btrfs_search_slot(root, &ins, &path, 0, 0);
+		ret = btrfs_search_slot(trans, root, &ins, &path, 0, 0);
 		if (ret) {
 			btrfs_print_tree(root, root->node);
 			printf("unable to find %d\n", num);
@@ -134,7 +137,7 @@ int main(int ac, char **av) {
 		int slot;
 		ins.objectid = (u64)-1;
 		btrfs_init_path(&path);
-		ret = btrfs_search_slot(root, &ins, &path, -1, 1);
+		ret = btrfs_search_slot(trans, root, &ins, &path, -1, 1);
 		if (ret == 0)
 			BUG();
 
@@ -150,7 +153,7 @@ int main(int ac, char **av) {
 			btrfs_disk_key_to_cpu(&last, &leaf->items[slot].key);
 			if (tree_size % 10000 == 0)
 				printf("big del %d:%d\n", tree_size, i);
-			ret = btrfs_del_item(root, &path);
+			ret = btrfs_del_item(trans, root, &path);
 			if (ret != 0) {
 				printf("del_item returned %d\n", ret);
 				BUG();
@@ -165,7 +168,7 @@ int main(int ac, char **av) {
 	printf("map before commit\n");
 	btrfs_print_tree(root->extent_root, root->extent_root->node);
 	*/
-	btrfs_commit_transaction(root, &super);
+	btrfs_commit_transaction(trans, root, &super);
 	printf("tree size is now %d\n", tree_size);
 	printf("root %p commit root %p\n", root->node, root->commit_root);
 	printf("map tree\n");

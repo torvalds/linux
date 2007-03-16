@@ -9,6 +9,7 @@
 #include "radix-tree.h"
 #include "ctree.h"
 #include "disk-io.h"
+#include "transaction.h"
 
 static int allocated_blocks = 0;
 int cache_max = 10000;
@@ -107,7 +108,8 @@ struct btrfs_buffer *read_tree_block(struct btrfs_root *root, u64 blocknr)
 	return buf;
 }
 
-int dirty_tree_block(struct btrfs_root *root, struct btrfs_buffer *buf)
+int dirty_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		     struct btrfs_buffer *buf)
 {
 	if (!list_empty(&buf->dirty))
 		return 0;
@@ -116,7 +118,8 @@ int dirty_tree_block(struct btrfs_root *root, struct btrfs_buffer *buf)
 	return 0;
 }
 
-int clean_tree_block(struct btrfs_root *root, struct btrfs_buffer *buf)
+int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		     struct btrfs_buffer *buf)
 {
 	if (!list_empty(&buf->dirty)) {
 		list_del_init(&buf->dirty);
@@ -125,7 +128,8 @@ int clean_tree_block(struct btrfs_root *root, struct btrfs_buffer *buf)
 	return 0;
 }
 
-int write_tree_block(struct btrfs_root *root, struct btrfs_buffer *buf)
+int write_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		     struct btrfs_buffer *buf)
 {
 	u64 blocknr = buf->blocknr;
 	loff_t offset = blocknr * root->blocksize;
@@ -139,7 +143,8 @@ int write_tree_block(struct btrfs_root *root, struct btrfs_buffer *buf)
 	return 0;
 }
 
-static int __commit_transaction(struct btrfs_root *root)
+static int __commit_transaction(struct btrfs_trans_handle *trans, struct
+				btrfs_root *root)
 {
 	struct btrfs_buffer *b;
 	int ret = 0;
@@ -147,7 +152,7 @@ static int __commit_transaction(struct btrfs_root *root)
 	while(!list_empty(&root->trans)) {
 		b = list_entry(root->trans.next, struct btrfs_buffer, dirty);
 		list_del_init(&b->dirty);
-		wret = write_tree_block(root, b);
+		wret = write_tree_block(trans, root, b);
 		if (wret)
 			ret = wret;
 		btrfs_block_release(root, b);
@@ -155,8 +160,9 @@ static int __commit_transaction(struct btrfs_root *root)
 	return ret;
 }
 
-static int commit_extent_and_tree_roots(struct btrfs_root *tree_root,
-					struct btrfs_root *extent_root)
+static int commit_extent_and_tree_roots(struct btrfs_trans_handle *trans,
+					struct btrfs_root *tree_root, struct
+					btrfs_root *extent_root)
 {
 	int ret;
 	u64 old_extent_block;
@@ -167,24 +173,24 @@ static int commit_extent_and_tree_roots(struct btrfs_root *tree_root,
 			break;
 		btrfs_set_root_blocknr(&extent_root->root_item,
 				       extent_root->node->blocknr);
-		ret = btrfs_update_root(tree_root,
+		ret = btrfs_update_root(trans, tree_root,
 					&extent_root->root_key,
 					&extent_root->root_item);
 		BUG_ON(ret);
 	}
-	__commit_transaction(extent_root);
-	__commit_transaction(tree_root);
+	__commit_transaction(trans, extent_root);
+	__commit_transaction(trans, tree_root);
 	return 0;
 }
 
-int btrfs_commit_transaction(struct btrfs_root *root,
-			     struct btrfs_super_block *s)
+int btrfs_commit_transaction(struct btrfs_trans_handle *trans, struct
+			     btrfs_root *root, struct btrfs_super_block *s)
 {
 	int ret = 0;
 	struct btrfs_buffer *snap = root->commit_root;
 	struct btrfs_key snap_key;
 
-	ret = __commit_transaction(root);
+	ret = __commit_transaction(trans, root);
 	BUG_ON(ret);
 
 	if (root->commit_root == root->node)
@@ -194,23 +200,24 @@ int btrfs_commit_transaction(struct btrfs_root *root,
 	root->root_key.offset++;
 
 	btrfs_set_root_blocknr(&root->root_item, root->node->blocknr);
-	ret = btrfs_insert_root(root->tree_root, &root->root_key,
+	ret = btrfs_insert_root(trans, root->tree_root, &root->root_key,
 				&root->root_item);
 	BUG_ON(ret);
 
-	ret = commit_extent_and_tree_roots(root->tree_root, root->extent_root);
+	ret = commit_extent_and_tree_roots(trans, root->tree_root,
+					   root->extent_root);
 	BUG_ON(ret);
 
-        write_ctree_super(root, s);
-	btrfs_finish_extent_commit(root->extent_root);
-	btrfs_finish_extent_commit(root->tree_root);
+	write_ctree_super(trans, root, s);
+	btrfs_finish_extent_commit(trans, root->extent_root);
+	btrfs_finish_extent_commit(trans, root->tree_root);
 
 	root->commit_root = root->node;
 	root->node->count++;
-	ret = btrfs_drop_snapshot(root, snap);
+	ret = btrfs_drop_snapshot(trans, root, snap);
 	BUG_ON(ret);
 
-	ret = btrfs_del_root(root->tree_root, &snap_key);
+	ret = btrfs_del_root(trans, root->tree_root, &snap_key);
 	BUG_ON(ret);
 
 	return ret;
@@ -312,7 +319,8 @@ struct btrfs_root *open_ctree(char *filename, struct btrfs_super_block *super)
 	return root;
 }
 
-int write_ctree_super(struct btrfs_root *root, struct btrfs_super_block *s)
+int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
+		      *root, struct btrfs_super_block *s)
 {
 	int ret;
 	btrfs_set_super_root(s, root->tree_root->node->blocknr);
@@ -338,10 +346,14 @@ static int drop_cache(struct btrfs_root *root)
 int close_ctree(struct btrfs_root *root, struct btrfs_super_block *s)
 {
 	int ret;
-	btrfs_commit_transaction(root, s);
-	ret = commit_extent_and_tree_roots(root->tree_root, root->extent_root);
+	struct btrfs_trans_handle *trans;
+
+	trans = root->running_transaction;
+	btrfs_commit_transaction(trans, root, s);
+	ret = commit_extent_and_tree_roots(trans, root->tree_root,
+					   root->extent_root);
 	BUG_ON(ret);
-	write_ctree_super(root, s);
+	write_ctree_super(trans, root, s);
 	drop_cache(root->extent_root);
 	drop_cache(root->tree_root);
 	drop_cache(root);

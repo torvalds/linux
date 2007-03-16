@@ -4,6 +4,8 @@
 #include "list.h"
 #include "kerncompat.h"
 
+struct btrfs_trans_handle;
+
 #define BTRFS_MAGIC "_BtRfS_M"
 
 #define BTRFS_ROOT_TREE_OBJECTID 1
@@ -200,6 +202,7 @@ struct btrfs_root {
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;
 	u32 blocksize;
+	struct btrfs_trans_handle *running_transaction;
 };
 
 /* the lower bits in the key flags defines the item type */
@@ -656,34 +659,46 @@ static inline u8 *btrfs_leaf_data(struct btrfs_leaf *l)
 	((type *)(btrfs_leaf_data(leaf) + \
 	btrfs_item_offset((leaf)->items + (slot))))
 
-struct btrfs_buffer *btrfs_alloc_free_block(struct btrfs_root *root);
-int btrfs_inc_ref(struct btrfs_root *root, struct btrfs_buffer *buf);
-int btrfs_free_extent(struct btrfs_root *root, u64 blocknr, u64 num_blocks,
-		      int pin);
-int btrfs_search_slot(struct btrfs_root *root, struct btrfs_key *key,
-		struct btrfs_path *p, int ins_len, int cow);
+struct btrfs_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
+					    struct btrfs_root *root);
+int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		  struct btrfs_buffer *buf);
+int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
+		      *root, u64 blocknr, u64 num_blocks, int pin);
+int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
+		      *root, struct btrfs_key *key, struct btrfs_path *p, int
+		      ins_len, int cow);
 void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);
 void btrfs_init_path(struct btrfs_path *p);
-int btrfs_del_item(struct btrfs_root *root, struct btrfs_path *path);
-int btrfs_insert_item(struct btrfs_root *root, struct btrfs_key *key,
-		void *data, u32 data_size);
-int btrfs_insert_empty_item(struct btrfs_root *root, struct btrfs_path *path,
-			    struct btrfs_key *cpu_key, u32 data_size);
+int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		   struct btrfs_path *path);
+int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root
+		      *root, struct btrfs_key *key, void *data, u32 data_size);
+int btrfs_insert_empty_item(struct btrfs_trans_handle *trans, struct btrfs_root
+			    *root, struct btrfs_path *path, struct btrfs_key
+			    *cpu_key, u32 data_size);
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_root *root, struct btrfs_leaf *leaf);
-int btrfs_drop_snapshot(struct btrfs_root *root, struct btrfs_buffer *snap);
-int btrfs_finish_extent_commit(struct btrfs_root *root);
-int btrfs_del_root(struct btrfs_root *root, struct btrfs_key *key);
-int btrfs_insert_root(struct btrfs_root *root, struct btrfs_key *key,
-		      struct btrfs_root_item *item);
-int btrfs_update_root(struct btrfs_root *root, struct btrfs_key *key,
-		      struct btrfs_root_item *item);
-int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
-			struct btrfs_root_item *item, struct btrfs_key *key);
-int btrfs_insert_dir_item(struct btrfs_root *root, char *name, int name_len,
-			  u64 dir, u64 objectid, u8 type);
-int btrfs_lookup_dir_item(struct btrfs_root *root, struct btrfs_path *path,
-			  u64 dir, char *name, int name_len, int mod);
+int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
+			*root, struct btrfs_buffer *snap);
+int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
+			       btrfs_root *root);
+int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		   struct btrfs_key *key);
+int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root
+		      *root, struct btrfs_key *key, struct btrfs_root_item
+		      *item);
+int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
+		      *root, struct btrfs_key *key, struct btrfs_root_item
+		      *item);
+int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
+			 btrfs_root_item *item, struct btrfs_key *key);
+int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
+			  *root, char *name, int name_len, u64 dir, u64
+			  objectid, u8 type);
+int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
+			  *root, struct btrfs_path *path, u64 dir, char *name,
+			  int name_len, int mod);
 int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
 			      char *name, int name_len);
 #endif

@@ -5,9 +5,11 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "hash.h"
+#include "transaction.h"
 
-int btrfs_insert_dir_item(struct btrfs_root *root, char *name, int name_len,
-			  u64 dir, u64 objectid, u8 type)
+int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
+			  *root, char *name, int name_len, u64 dir, u64
+			  objectid, u8 type)
 {
 	int ret = 0;
 	struct btrfs_path path;
@@ -23,7 +25,7 @@ int btrfs_insert_dir_item(struct btrfs_root *root, char *name, int name_len,
 	BUG_ON(ret);
 	btrfs_init_path(&path);
 	data_size = sizeof(*dir_item) + name_len;
-	ret = btrfs_insert_empty_item(root, &path, &key, data_size);
+	ret = btrfs_insert_empty_item(trans, root, &path, &key, data_size);
 	if (ret)
 		goto out;
 
@@ -40,8 +42,9 @@ out:
 	return ret;
 }
 
-int btrfs_lookup_dir_item(struct btrfs_root *root, struct btrfs_path *path,
-			  u64 dir, char *name, int name_len, int mod)
+int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
+			  *root, struct btrfs_path *path, u64 dir, char *name,
+			  int name_len, int mod)
 {
 	int ret;
 	struct btrfs_key key;
@@ -53,12 +56,13 @@ int btrfs_lookup_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
 	ret = btrfs_name_hash(name, name_len, &key.offset);
 	BUG_ON(ret);
-	ret = btrfs_search_slot(root, &key, path, ins_len, cow);
+	ret = btrfs_search_slot(trans, root, &key, path, ins_len, cow);
 	return ret;
 }
 
-int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
-			      char *name, int name_len)
+int btrfs_match_dir_item_name(struct btrfs_root *root,
+			      struct btrfs_path *path, char
+			      *name, int name_len)
 {
 	struct btrfs_dir_item *dir_item;
 	char *name_ptr;

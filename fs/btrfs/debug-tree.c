@@ -5,6 +5,7 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "print-tree.h"
+#include "transaction.h"
 
 int main(int ac, char **av) {
 	struct btrfs_super_block super;

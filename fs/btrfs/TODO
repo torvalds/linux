@@ -8,6 +8,8 @@
 * Add block mapping tree (simple dm layer)
 * Add simple tree locking (semaphore per tree)
 * Make allocator smarter
+* Only pin blocks allocated in this transaction
+* Add transaction handles
 * Do actual block accounting
 * Check compat and incompat flags on the inode
 * Port into the kernel

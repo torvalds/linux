@@ -20,7 +20,7 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 	search_key.offset = (u32)-1;
 
 	btrfs_init_path(&path);
-	ret = btrfs_search_slot(root, &search_key, &path, 0, 0);
+	ret = btrfs_search_slot(NULL, root, &search_key, &path, 0, 0);
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret == 0);
@@ -40,8 +40,9 @@ out:
 	return ret;
 }
 
-int btrfs_update_root(struct btrfs_root *root, struct btrfs_key *key,
-		      struct btrfs_root_item *item)
+int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
+		      *root, struct btrfs_key *key, struct btrfs_root_item
+		      *item)
 {
 	struct btrfs_path path;
 	struct btrfs_leaf *l;
@@ -49,7 +50,7 @@ int btrfs_update_root(struct btrfs_root *root, struct btrfs_key *key,
 	int slot;
 
 	btrfs_init_path(&path);
-	ret = btrfs_search_slot(root, key, &path, 0, 1);
+	ret = btrfs_search_slot(trans, root, key, &path, 0, 1);
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret != 0);
@@ -62,26 +63,28 @@ out:
 	return ret;
 }
 
-int btrfs_insert_root(struct btrfs_root *root, struct btrfs_key *key,
-		      struct btrfs_root_item *item)
+int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root
+		      *root, struct btrfs_key *key, struct btrfs_root_item
+		      *item)
 {
 	int ret;
-	ret = btrfs_insert_item(root, key, item, sizeof(*item));
+	ret = btrfs_insert_item(trans, root, key, item, sizeof(*item));
 	BUG_ON(ret);
 	return ret;
 }
 
-int btrfs_del_root(struct btrfs_root *root, struct btrfs_key *key)
+int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		   struct btrfs_key *key)
 {
 	struct btrfs_path path;
 	int ret;
 
 	btrfs_init_path(&path);
-	ret = btrfs_search_slot(root, key, &path, -1, 1);
+	ret = btrfs_search_slot(trans, root, key, &path, -1, 1);
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret != 0);
-	ret = btrfs_del_item(root, &path);
+	ret = btrfs_del_item(trans, root, &path);
 out:
 	btrfs_release_path(root, &path);
 	return ret;
