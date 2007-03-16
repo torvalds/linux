@@ -627,7 +627,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	/* We have to remove fragment header from datagram and to relocate
 	 * header in order to calculate ICV correctly. */
-	skb_network_header(head)[fq->nhoffset] = head->h.raw[0];
+	skb_network_header(head)[fq->nhoffset] = skb_transport_header(head)[0];
 	memmove(head->head + sizeof(struct frag_hdr), head->head,
 		(head->data - head->head) - sizeof(struct frag_hdr));
 	head->mac.raw += sizeof(struct frag_hdr);
@@ -787,7 +787,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 
 	skb_set_transport_header(clone, fhoff);
 	hdr = ipv6_hdr(clone);
-	fhdr = (struct frag_hdr *)clone->h.raw;
+	fhdr = (struct frag_hdr *)skb_transport_header(clone);
 
 	if (!(fhdr->frag_off & htons(0xFFF9))) {
 		DEBUGP("Invalid fragment offset\n");

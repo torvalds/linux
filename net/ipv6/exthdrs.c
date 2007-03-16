@@ -506,7 +506,7 @@ looped_back:
 		kfree_skb(skb);
 		*skbp = skb = skb2;
 		opt = IP6CB(skb2);
-		hdr = (struct ipv6_rt_hdr *) skb2->h.raw;
+		hdr = (struct ipv6_rt_hdr *)skb_transport_header(skb2);
 	}
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
