@@ -722,7 +722,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	dev->i2c_bus[2].dev = dev;
 	dev->i2c_bus[2].reg_stat  = I2C3_STAT;
 	dev->i2c_bus[2].reg_ctrl  = I2C3_CTRL;
-	dev->i2c_bus[2].reg_addr  = I2C2_ADDR;
+	dev->i2c_bus[2].reg_addr  = I2C3_ADDR;
 	dev->i2c_bus[2].reg_rdata = I2C3_RDATA;
 	dev->i2c_bus[2].reg_wdata = I2C3_WDATA;
 	dev->i2c_bus[2].i2c_period = (0x07 << 24); /* 1.95MHz */
