@@ -127,8 +127,8 @@ struct tbf_sched_data
 	long	tokens;			/* Current number of B tokens */
 	long	ptokens;		/* Current number of P tokens */
 	psched_time_t	t_c;		/* Time check-point */
-	struct timer_list wd_timer;	/* Watchdog timer */
 	struct Qdisc	*qdisc;		/* Inner qdisc, default - bfifo queue */
+	struct qdisc_watchdog watchdog;	/* Watchdog timer */
 };
 
 #define L2T(q,L)   ((q)->R_tab->data[(L)>>(q)->R_tab->rate.cell_log])
@@ -185,14 +185,6 @@ static unsigned int tbf_drop(struct Qdisc* sch)
 	return len;
 }
 
-static void tbf_watchdog(unsigned long arg)
-{
-	struct Qdisc *sch = (struct Qdisc*)arg;
-
-	sch->flags &= ~TCQ_F_THROTTLED;
-	netif_schedule(sch->dev);
-}
-
 static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
@@ -202,7 +194,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 
 	if (skb) {
 		psched_time_t now;
-		long toks, delay;
+		long toks;
 		long ptoks = 0;
 		unsigned int len = skb->len;
 
@@ -230,12 +222,8 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 			return skb;
 		}
 
-		delay = PSCHED_US2JIFFIE(max_t(long, -toks, -ptoks));
-
-		if (delay == 0)
-			delay = 1;
-
-		mod_timer(&q->wd_timer, jiffies+delay);
+		qdisc_watchdog_schedule(&q->watchdog,
+					now + max_t(long, -toks, -ptoks));
 
 		/* Maybe we have a shorter packet in the queue,
 		   which can be sent now. It sounds cool,
@@ -254,7 +242,6 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 			sch->qstats.drops++;
 		}
 
-		sch->flags |= TCQ_F_THROTTLED;
 		sch->qstats.overlimits++;
 	}
 	return NULL;
@@ -269,8 +256,7 @@ static void tbf_reset(struct Qdisc* sch)
 	PSCHED_GET_TIME(q->t_c);
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
-	sch->flags &= ~TCQ_F_THROTTLED;
-	del_timer(&q->wd_timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 }
 
 static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
@@ -378,10 +364,7 @@ static int tbf_init(struct Qdisc* sch, struct rtattr *opt)
 		return -EINVAL;
 
 	PSCHED_GET_TIME(q->t_c);
-	init_timer(&q->wd_timer);
-	q->wd_timer.function = tbf_watchdog;
-	q->wd_timer.data = (unsigned long)sch;
-
+	qdisc_watchdog_init(&q->watchdog, sch);
 	q->qdisc = &noop_qdisc;
 
 	return tbf_change(sch, opt);
@@ -391,7 +374,7 @@ static void tbf_destroy(struct Qdisc *sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
-	del_timer(&q->wd_timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 
 	if (q->P_tab)
 		qdisc_put_rtab(q->P_tab);
