@@ -348,7 +348,7 @@ static int ufs_trunc_tindirect(struct inode *inode)
 	}
 
 	for (i = tindirect_block ; i < uspi->s_apb ; i++) {
-		tind = ubh_get_addr32 (tind_bh, i);
+		tind = ubh_get_data_ptr(uspi, tind_bh, i);
 		retry |= ufs_trunc_dindirect(inode, UFS_NDADDR + 
 			uspi->s_apb + ((i + 1) << uspi->s_2apbshift), tind);
 		ubh_mark_buffer_dirty(tind_bh);
