@@ -23,6 +23,8 @@
 #include <linux/module.h>
 #include <linux/rwsem.h>
 #include <asm/uaccess.h>
+#include <linux/seq_file.h>
+#include <linux/debugfs.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -40,14 +42,22 @@ struct gfs2_gl_hash_bucket {
         struct hlist_head hb_list;
 };
 
+struct glock_iter {
+	int hash;                     /* hash bucket index         */
+	struct gfs2_sbd *sdp;         /* incore superblock         */
+	struct gfs2_glock *gl;        /* current glock struct      */
+	struct hlist_head *hb_list;   /* current hash bucket ptr   */
+	struct seq_file *seq;         /* sequence file for debugfs */
+	char string[512];             /* scratch space             */
+};
+
 typedef void (*glock_examiner) (struct gfs2_glock * gl);
 
 static int gfs2_dump_lockstate(struct gfs2_sbd *sdp);
-static int dump_glock(struct gfs2_glock *gl);
-static int dump_inode(struct gfs2_inode *ip);
 static void gfs2_glock_xmote_th(struct gfs2_holder *gh);
 static void gfs2_glock_drop_th(struct gfs2_glock *gl);
 static DECLARE_RWSEM(gfs2_umount_flush_sem);
+static struct dentry *gfs2_root;
 
 #define GFS2_GL_HASH_SHIFT      15
 #define GFS2_GL_HASH_SIZE       (1 << GFS2_GL_HASH_SHIFT)
@@ -1109,6 +1119,20 @@ find_holder_by_owner(struct list_head *head, struct task_struct *owner)
 	return NULL;
 }
 
+static void print_dbg(struct glock_iter *gi, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	if (gi) {
+		vsprintf(gi->string, fmt, args);
+		seq_printf(gi->seq, gi->string);
+	}
+	else
+		vprintk(fmt, args);
+	va_end(args);
+}
+
 /**
  * add_to_queue - Add a holder to the wait queue (but look for recursion)
  * @gh: the holder structure to add
@@ -1849,31 +1873,32 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait)
  * Returns: 0 on success, -ENOBUFS when we run out of space
  */
 
-static int dump_holder(char *str, struct gfs2_holder *gh)
+static int dump_holder(struct glock_iter *gi, char *str,
+		       struct gfs2_holder *gh)
 {
 	unsigned int x;
-	int error = -ENOBUFS;
 
-	printk(KERN_INFO "  %s\n", str);
-	printk(KERN_INFO "    owner = %ld\n",
+	print_dbg(gi, "  %s\n", str);
+	print_dbg(gi, "    owner = %ld\n",
 		   (gh->gh_owner) ? (long)gh->gh_owner->pid : -1);
-	printk(KERN_INFO "    gh_state = %u\n", gh->gh_state);
-	printk(KERN_INFO "    gh_flags =");
+	print_dbg(gi, "    gh_state = %u\n", gh->gh_state);
+	print_dbg(gi, "    gh_flags =");
 	for (x = 0; x < 32; x++)
 		if (gh->gh_flags & (1 << x))
-			printk(" %u", x);
-	printk(" \n");
-	printk(KERN_INFO "    error = %d\n", gh->gh_error);
-	printk(KERN_INFO "    gh_iflags =");
+			print_dbg(gi, " %u", x);
+	print_dbg(gi, " \n");
+	print_dbg(gi, "    error = %d\n", gh->gh_error);
+	print_dbg(gi, "    gh_iflags =");
 	for (x = 0; x < 32; x++)
 		if (test_bit(x, &gh->gh_iflags))
-			printk(" %u", x);
-	printk(" \n");
-	print_symbol(KERN_INFO "    initialized at: %s\n", gh->gh_ip);
+			print_dbg(gi, " %u", x);
+	print_dbg(gi, " \n");
+	if (gi)
+		print_dbg(gi, "    initialized at: 0x%x\n", gh->gh_ip);
+	else
+		print_symbol(KERN_INFO "    initialized at: %s\n", gh->gh_ip);
 
-	error = 0;
-
-	return error;
+	return 0;
 }
 
 /**
@@ -1883,25 +1908,20 @@ static int dump_holder(char *str, struct gfs2_holder *gh)
  * Returns: 0 on success, -ENOBUFS when we run out of space
  */
 
-static int dump_inode(struct gfs2_inode *ip)
+static int dump_inode(struct glock_iter *gi, struct gfs2_inode *ip)
 {
 	unsigned int x;
-	int error = -ENOBUFS;
 
-	printk(KERN_INFO "  Inode:\n");
-	printk(KERN_INFO "    num = %llu %llu\n",
-		    (unsigned long long)ip->i_num.no_formal_ino,
-		    (unsigned long long)ip->i_num.no_addr);
-	printk(KERN_INFO "    type = %u\n", IF2DT(ip->i_inode.i_mode));
-	printk(KERN_INFO "    i_flags =");
+	print_dbg(gi, "  Inode:\n");
+	print_dbg(gi, "    num = %llu/%llu\n",
+		    ip->i_num.no_formal_ino, ip->i_num.no_addr);
+	print_dbg(gi, "    type = %u\n", IF2DT(ip->i_inode.i_mode));
+	print_dbg(gi, "    i_flags =");
 	for (x = 0; x < 32; x++)
 		if (test_bit(x, &ip->i_flags))
-			printk(" %u", x);
-	printk(" \n");
-
-	error = 0;
-
-	return error;
+			print_dbg(gi, " %u", x);
+	print_dbg(gi, " \n");
+	return 0;
 }
 
 /**
@@ -1912,7 +1932,7 @@ static int dump_inode(struct gfs2_inode *ip)
  * Returns: 0 on success, -ENOBUFS when we run out of space
  */
 
-static int dump_glock(struct gfs2_glock *gl)
+static int dump_glock(struct glock_iter *gi, struct gfs2_glock *gl)
 {
 	struct gfs2_holder *gh;
 	unsigned int x;
@@ -1920,66 +1940,66 @@ static int dump_glock(struct gfs2_glock *gl)
 
 	spin_lock(&gl->gl_spin);
 
-	printk(KERN_INFO "Glock 0x%p (%u, %llu)\n", gl, gl->gl_name.ln_type,
-	       (unsigned long long)gl->gl_name.ln_number);
-	printk(KERN_INFO "  gl_flags =");
+	print_dbg(gi, "Glock 0x%p (%u, %llu)\n", gl, gl->gl_name.ln_type,
+		   (unsigned long long)gl->gl_name.ln_number);
+	print_dbg(gi, "  gl_flags =");
 	for (x = 0; x < 32; x++) {
 		if (test_bit(x, &gl->gl_flags))
-			printk(" %u", x);
+			print_dbg(gi, " %u", x);
 	}
-	printk(" \n");
-	printk(KERN_INFO "  gl_ref = %d\n", atomic_read(&gl->gl_ref));
-	printk(KERN_INFO "  gl_state = %u\n", gl->gl_state);
-	printk(KERN_INFO "  gl_owner = %s\n", gl->gl_owner->comm);
-	print_symbol(KERN_INFO "  gl_ip = %s\n", gl->gl_ip);
-	printk(KERN_INFO "  req_gh = %s\n", (gl->gl_req_gh) ? "yes" : "no");
-	printk(KERN_INFO "  req_bh = %s\n", (gl->gl_req_bh) ? "yes" : "no");
-	printk(KERN_INFO "  lvb_count = %d\n", atomic_read(&gl->gl_lvb_count));
-	printk(KERN_INFO "  object = %s\n", (gl->gl_object) ? "yes" : "no");
-	printk(KERN_INFO "  le = %s\n",
+	print_dbg(gi, " \n");
+	print_dbg(gi, "  gl_ref = %d\n", atomic_read(&gl->gl_ref));
+	print_dbg(gi, "  gl_state = %u\n", gl->gl_state);
+	print_dbg(gi, "  gl_owner = %s\n", gl->gl_owner->comm);
+	print_dbg(gi, "  gl_ip = %lu\n", gl->gl_ip);
+	print_dbg(gi, "  req_gh = %s\n", (gl->gl_req_gh) ? "yes" : "no");
+	print_dbg(gi, "  req_bh = %s\n", (gl->gl_req_bh) ? "yes" : "no");
+	print_dbg(gi, "  lvb_count = %d\n", atomic_read(&gl->gl_lvb_count));
+	print_dbg(gi, "  object = %s\n", (gl->gl_object) ? "yes" : "no");
+	print_dbg(gi, "  le = %s\n",
 		   (list_empty(&gl->gl_le.le_list)) ? "no" : "yes");
-	printk(KERN_INFO "  reclaim = %s\n",
-		    (list_empty(&gl->gl_reclaim)) ? "no" : "yes");
+	print_dbg(gi, "  reclaim = %s\n",
+		   (list_empty(&gl->gl_reclaim)) ? "no" : "yes");
 	if (gl->gl_aspace)
-		printk(KERN_INFO "  aspace = 0x%p nrpages = %lu\n", gl->gl_aspace,
-		       gl->gl_aspace->i_mapping->nrpages);
+		print_dbg(gi, "  aspace = 0x%p nrpages = %lu\n", gl->gl_aspace,
+			   gl->gl_aspace->i_mapping->nrpages);
 	else
-		printk(KERN_INFO "  aspace = no\n");
-	printk(KERN_INFO "  ail = %d\n", atomic_read(&gl->gl_ail_count));
+		print_dbg(gi, "  aspace = no\n");
+	print_dbg(gi, "  ail = %d\n", atomic_read(&gl->gl_ail_count));
 	if (gl->gl_req_gh) {
-		error = dump_holder("Request", gl->gl_req_gh);
+		error = dump_holder(gi, "Request", gl->gl_req_gh);
 		if (error)
 			goto out;
 	}
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
-		error = dump_holder("Holder", gh);
+		error = dump_holder(gi, "Holder", gh);
 		if (error)
 			goto out;
 	}
 	list_for_each_entry(gh, &gl->gl_waiters1, gh_list) {
-		error = dump_holder("Waiter1", gh);
+		error = dump_holder(gi, "Waiter1", gh);
 		if (error)
 			goto out;
 	}
 	list_for_each_entry(gh, &gl->gl_waiters2, gh_list) {
-		error = dump_holder("Waiter2", gh);
+		error = dump_holder(gi, "Waiter2", gh);
 		if (error)
 			goto out;
 	}
 	list_for_each_entry(gh, &gl->gl_waiters3, gh_list) {
-		error = dump_holder("Waiter3", gh);
+		error = dump_holder(gi, "Waiter3", gh);
 		if (error)
 			goto out;
 	}
 	if (gl->gl_ops == &gfs2_inode_glops && gl->gl_object) {
 		if (!test_bit(GLF_LOCK, &gl->gl_flags) &&
-		    list_empty(&gl->gl_holders)) {
-			error = dump_inode(gl->gl_object);
+			list_empty(&gl->gl_holders)) {
+			error = dump_inode(gi, gl->gl_object);
 			if (error)
 				goto out;
 		} else {
 			error = -ENOBUFS;
-			printk(KERN_INFO "  Inode: busy\n");
+			print_dbg(gi, "  Inode: busy\n");
 		}
 	}
 
@@ -2014,7 +2034,7 @@ static int gfs2_dump_lockstate(struct gfs2_sbd *sdp)
 			if (gl->gl_sbd != sdp)
 				continue;
 
-			error = dump_glock(gl);
+			error = dump_glock(NULL, gl);
 			if (error)
 				break;
 		}
@@ -2043,3 +2063,171 @@ int __init gfs2_glock_init(void)
 	return 0;
 }
 
+static int gfs2_glock_iter_next(struct glock_iter *gi)
+{
+	while (1) {
+		if (!gi->hb_list) {  /* If we don't have a hash bucket yet */
+			gi->hb_list = &gl_hash_table[gi->hash].hb_list;
+			if (hlist_empty(gi->hb_list)) {
+				gi->hash++;
+				gi->hb_list = NULL;
+				if (gi->hash >= GFS2_GL_HASH_SIZE)
+					return 1;
+				else
+					continue;
+			}
+			if (!hlist_empty(gi->hb_list)) {
+				gi->gl = list_entry(gi->hb_list->first,
+						    struct gfs2_glock,
+						    gl_list);
+			}
+		} else {
+			if (gi->gl->gl_list.next == NULL) {
+				gi->hash++;
+				gi->hb_list = NULL;
+				continue;
+			}
+			gi->gl = list_entry(gi->gl->gl_list.next,
+					    struct gfs2_glock, gl_list);
+		}
+		if (gi->gl)
+			break;
+	}
+	return 0;
+}
+
+static void gfs2_glock_iter_free(struct glock_iter *gi)
+{
+	kfree(gi);
+}
+
+static struct glock_iter *gfs2_glock_iter_init(struct gfs2_sbd *sdp)
+{
+	struct glock_iter *gi;
+
+	gi = kmalloc(sizeof (*gi), GFP_KERNEL);
+	if (!gi)
+		return NULL;
+
+	gi->sdp = sdp;
+	gi->hash = 0;
+	gi->gl = NULL;
+	gi->hb_list = NULL;
+	gi->seq = NULL;
+	memset(gi->string, 0, sizeof(gi->string));
+
+	if (gfs2_glock_iter_next(gi)) {
+		gfs2_glock_iter_free(gi);
+		return NULL;
+	}
+
+	return gi;
+}
+
+static void *gfs2_glock_seq_start(struct seq_file *file, loff_t *pos)
+{
+	struct glock_iter *gi;
+	loff_t n = *pos;
+
+	gi = gfs2_glock_iter_init(file->private);
+	if (!gi)
+		return NULL;
+
+	while (n--) {
+		if (gfs2_glock_iter_next(gi)) {
+			gfs2_glock_iter_free(gi);
+			return NULL;
+		}
+	}
+
+	return gi;
+}
+
+static void *gfs2_glock_seq_next(struct seq_file *file, void *iter_ptr,
+				 loff_t *pos)
+{
+	struct glock_iter *gi = iter_ptr;
+
+	(*pos)++;
+
+	if (gfs2_glock_iter_next(gi)) {
+		gfs2_glock_iter_free(gi);
+		return NULL;
+	}
+
+	return gi;
+}
+
+static void gfs2_glock_seq_stop(struct seq_file *file, void *iter_ptr)
+{
+	/* nothing for now */
+}
+
+static int gfs2_glock_seq_show(struct seq_file *file, void *iter_ptr)
+{
+	struct glock_iter *gi = iter_ptr;
+
+	gi->seq = file;
+	dump_glock(gi, gi->gl);
+
+	return 0;
+}
+
+static struct seq_operations gfs2_glock_seq_ops = {
+	.start = gfs2_glock_seq_start,
+	.next  = gfs2_glock_seq_next,
+	.stop  = gfs2_glock_seq_stop,
+	.show  = gfs2_glock_seq_show,
+};
+
+static int gfs2_debugfs_open(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq;
+	int ret;
+
+	ret = seq_open(file, &gfs2_glock_seq_ops);
+	if (ret)
+		return ret;
+
+	seq = file->private_data;
+	seq->private = inode->i_private;
+
+	return 0;
+}
+
+static const struct file_operations gfs2_debug_fops = {
+	.owner   = THIS_MODULE,
+	.open    = gfs2_debugfs_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release
+};
+
+int gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
+{
+	sdp->debugfs_dentry = debugfs_create_file(sdp->sd_table_name,
+						  S_IFREG | S_IRUGO,
+						  gfs2_root, sdp,
+						  &gfs2_debug_fops);
+	if (!sdp->debugfs_dentry)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp)
+{
+	if (sdp->debugfs_dentry)
+		debugfs_remove(sdp->debugfs_dentry);
+}
+
+int gfs2_register_debugfs(void)
+{
+	gfs2_root = debugfs_create_dir("gfs2", NULL);
+	return gfs2_root ? 0 : -ENOMEM;
+}
+
+void gfs2_unregister_debugfs(void)
+{
+	debugfs_remove(gfs2_root);
+}

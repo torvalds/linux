@@ -103,6 +103,8 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		goto fail_unregister;
 
+	gfs2_register_debugfs();
+
 	printk("GFS2 (built %s %s) installed\n", __DATE__, __TIME__);
 
 	return 0;
@@ -130,6 +132,7 @@ fail:
 
 static void __exit exit_gfs2_fs(void)
 {
+	gfs2_unregister_debugfs();
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
 

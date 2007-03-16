@@ -135,5 +135,9 @@ void gfs2_scand_internal(struct gfs2_sbd *sdp);
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait);
 
 int __init gfs2_glock_init(void);
+int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
+void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
+int gfs2_register_debugfs(void);
+void gfs2_unregister_debugfs(void);
 
 #endif /* __GLOCK_DOT_H__ */
