@@ -1188,19 +1188,7 @@ mptscsih_suspend(struct pci_dev *pdev, pm_message_t state)
 int
 mptscsih_resume(struct pci_dev *pdev)
 {
-	MPT_ADAPTER 		*ioc = pci_get_drvdata(pdev);
-	struct Scsi_Host 	*host = ioc->sh;
-	MPT_SCSI_HOST		*hd;
-
 	mpt_resume(pdev);
-
-	if(!host)
-		return 0;
-
-	hd = (MPT_SCSI_HOST *)host->hostdata;
-	if(!hd)
-		return 0;
-
 	return 0;
 }
 
