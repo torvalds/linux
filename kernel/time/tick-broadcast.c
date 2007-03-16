@@ -307,12 +307,19 @@ int tick_resume_broadcast(void)
 	spin_lock_irqsave(&tick_broadcast_lock, flags);
 
 	bc = tick_broadcast_device.evtdev;
-	if (bc) {
-		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC &&
-		    !cpus_empty(tick_broadcast_mask))
-			tick_broadcast_start_periodic(bc);
 
-		broadcast = cpu_isset(smp_processor_id(), tick_broadcast_mask);
+	if (bc) {
+		switch (tick_broadcast_device.mode) {
+		case TICKDEV_MODE_PERIODIC:
+			if(!cpus_empty(tick_broadcast_mask))
+				tick_broadcast_start_periodic(bc);
+			broadcast = cpu_isset(smp_processor_id(),
+					      tick_broadcast_mask);
+			break;
+		case TICKDEV_MODE_ONESHOT:
+			broadcast = tick_resume_broadcast_oneshot(bc);
+			break;
+		}
 	}
 	spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 
@@ -345,6 +352,16 @@ static int tick_broadcast_set_event(ktime_t expires, int force)
 		now = ktime_get();
 		expires = ktime_add(now, ktime_set(0, bc->min_delta_ns));
 	}
+}
+
+int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
+{
+	clockevents_set_mode(bc, CLOCK_EVT_MODE_ONESHOT);
+
+	if(!cpus_empty(tick_broadcast_oneshot_mask))
+		tick_broadcast_set_event(ktime_get(), 1);
+
+	return cpu_isset(smp_processor_id(), tick_broadcast_oneshot_mask);
 }
 
 /*
