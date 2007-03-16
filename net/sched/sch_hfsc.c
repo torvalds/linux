@@ -59,7 +59,6 @@
 #include <linux/skbuff.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/init.h>
@@ -192,7 +191,7 @@ struct hfsc_sched
 	struct list_head droplist;		/* active leaf class list (for
 						   dropping) */
 	struct sk_buff_head requeue;		/* requeued packet */
-	struct timer_list wd_timer;		/* watchdog timer */
+	struct qdisc_watchdog watchdog;		/* watchdog timer */
 };
 
 #define	HT_INFINITY	0xffffffffffffffffULL	/* infinite time value */
@@ -1434,21 +1433,11 @@ hfsc_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 }
 
 static void
-hfsc_watchdog(unsigned long arg)
-{
-	struct Qdisc *sch = (struct Qdisc *)arg;
-
-	sch->flags &= ~TCQ_F_THROTTLED;
-	netif_schedule(sch->dev);
-}
-
-static void
-hfsc_schedule_watchdog(struct Qdisc *sch, u64 cur_time)
+hfsc_schedule_watchdog(struct Qdisc *sch)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
 	struct hfsc_class *cl;
 	u64 next_time = 0;
-	long delay;
 
 	if ((cl = eltree_get_minel(q)) != NULL)
 		next_time = cl->cl_e;
@@ -1457,11 +1446,7 @@ hfsc_schedule_watchdog(struct Qdisc *sch, u64 cur_time)
 			next_time = q->root.cl_cfmin;
 	}
 	WARN_ON(next_time == 0);
-	delay = next_time - cur_time;
-	delay = PSCHED_US2JIFFIE(delay);
-
-	sch->flags |= TCQ_F_THROTTLED;
-	mod_timer(&q->wd_timer, jiffies + delay);
+	qdisc_watchdog_schedule(&q->watchdog, next_time);
 }
 
 static int
@@ -1498,9 +1483,7 @@ hfsc_init_qdisc(struct Qdisc *sch, struct rtattr *opt)
 
 	list_add(&q->root.hlist, &q->clhash[hfsc_hash(q->root.classid)]);
 
-	init_timer(&q->wd_timer);
-	q->wd_timer.function = hfsc_watchdog;
-	q->wd_timer.data = (unsigned long)sch;
+	qdisc_watchdog_init(&q->watchdog, sch);
 
 	return 0;
 }
@@ -1570,8 +1553,7 @@ hfsc_reset_qdisc(struct Qdisc *sch)
 	__skb_queue_purge(&q->requeue);
 	q->eligible = RB_ROOT;
 	INIT_LIST_HEAD(&q->droplist);
-	del_timer(&q->wd_timer);
-	sch->flags &= ~TCQ_F_THROTTLED;
+	qdisc_watchdog_cancel(&q->watchdog);
 	sch->q.qlen = 0;
 }
 
@@ -1587,7 +1569,7 @@ hfsc_destroy_qdisc(struct Qdisc *sch)
 			hfsc_destroy_class(sch, cl);
 	}
 	__skb_queue_purge(&q->requeue);
-	del_timer(&q->wd_timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 }
 
 static int
@@ -1673,7 +1655,7 @@ hfsc_dequeue(struct Qdisc *sch)
 		cl = vttree_get_minvt(&q->root, cur_time);
 		if (cl == NULL) {
 			sch->qstats.overlimits++;
-			hfsc_schedule_watchdog(sch, cur_time);
+			hfsc_schedule_watchdog(sch);
 			return NULL;
 		}
 	}
