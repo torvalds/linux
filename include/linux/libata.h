@@ -427,6 +427,7 @@ struct ata_queued_cmd {
 	int			dma_dir;
 
 	unsigned int		pad_len;
+	unsigned int		sect_size;
 
 	unsigned int		nbytes;
 	unsigned int		curbytes;
@@ -1182,6 +1183,7 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->n_elem = 0;
 	qc->err_mask = 0;
 	qc->pad_len = 0;
+	qc->sect_size = ATA_SECT_SIZE;
 
 	ata_tf_init(qc->dev, &qc->tf);
 

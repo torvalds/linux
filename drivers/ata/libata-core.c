@@ -4106,10 +4106,10 @@ void ata_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
 
 
 /**
- *	ata_pio_sector - Transfer ATA_SECT_SIZE (512 bytes) of data.
+ *	ata_pio_sector - Transfer a sector of data.
  *	@qc: Command on going
  *
- *	Transfer ATA_SECT_SIZE of data from/to the ATA device.
+ *	Transfer qc->sect_size bytes of data from/to the ATA device.
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -4124,7 +4124,7 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	unsigned int offset;
 	unsigned char *buf;
 
-	if (qc->curbytes == qc->nbytes - ATA_SECT_SIZE)
+	if (qc->curbytes == qc->nbytes - qc->sect_size)
 		ap->hsm_task_state = HSM_ST_LAST;
 
 	page = sg[qc->cursg].page;
@@ -4144,17 +4144,17 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 		buf = kmap_atomic(page, KM_IRQ0);
 
 		/* do the actual data transfer */
-		ap->ops->data_xfer(qc->dev, buf + offset, ATA_SECT_SIZE, do_write);
+		ap->ops->data_xfer(qc->dev, buf + offset, qc->sect_size, do_write);
 
 		kunmap_atomic(buf, KM_IRQ0);
 		local_irq_restore(flags);
 	} else {
 		buf = page_address(page);
-		ap->ops->data_xfer(qc->dev, buf + offset, ATA_SECT_SIZE, do_write);
+		ap->ops->data_xfer(qc->dev, buf + offset, qc->sect_size, do_write);
 	}
 
-	qc->curbytes += ATA_SECT_SIZE;
-	qc->cursg_ofs += ATA_SECT_SIZE;
+	qc->curbytes += qc->sect_size;
+	qc->cursg_ofs += qc->sect_size;
 
 	if (qc->cursg_ofs == (&sg[qc->cursg])->length) {
 		qc->cursg++;
@@ -4163,10 +4163,10 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_pio_sectors - Transfer one or many 512-byte sectors.
+ *	ata_pio_sectors - Transfer one or many sectors.
  *	@qc: Command on going
  *
- *	Transfer one or many ATA_SECT_SIZE of data from/to the
+ *	Transfer one or many sectors of data from/to the
  *	ATA device for the DRQ request.
  *
  *	LOCKING:
@@ -4181,7 +4181,7 @@ static void ata_pio_sectors(struct ata_queued_cmd *qc)
 
 		WARN_ON(qc->dev->multi_count == 0);
 
-		nsect = min((qc->nbytes - qc->curbytes) / ATA_SECT_SIZE,
+		nsect = min((qc->nbytes - qc->curbytes) / qc->sect_size,
 			    qc->dev->multi_count);
 		while (nsect--)
 			ata_pio_sector(qc);
