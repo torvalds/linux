@@ -212,7 +212,7 @@ repeat:
 			brelse (result);
 			goto repeat;
 		} else {
-			*phys = tmp + blockoff;
+			*phys = uspi->s_sbbase + tmp + blockoff;
 			return NULL;
 		}
 	}
@@ -282,9 +282,9 @@ repeat:
 	}
 
 	if (!phys) {
-		result = sb_getblk(sb, tmp + blockoff);
+		result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
 	} else {
-		*phys = tmp + blockoff;
+		*phys = uspi->s_sbbase + tmp + blockoff;
 		result = NULL;
 		*err = 0;
 		*new = 1;
@@ -368,7 +368,7 @@ repeat:
 			brelse (result);
 			goto repeat;
 		} else {
-			*phys = tmp + blockoff;
+			*phys = uspi->s_sbbase + tmp + blockoff;
 			goto out;
 		}
 	}
@@ -389,9 +389,9 @@ repeat:
 
 
 	if (!phys) {
-		result = sb_getblk(sb, tmp + blockoff);
+		result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
 	} else {
-		*phys = tmp + blockoff;
+		*phys = uspi->s_sbbase + tmp + blockoff;
 		*new = 1;
 	}
 

@@ -482,8 +482,9 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 	if (result) {
 		ufs_clear_frags(inode, result + oldcount, newcount - oldcount,
 				locked_page != NULL);
-		ufs_change_blocknr(inode, fragment - oldcount, oldcount, tmp,
-				   result, locked_page);
+		ufs_change_blocknr(inode, fragment - oldcount, oldcount,
+				   uspi->s_sbbase + tmp,
+				   uspi->s_sbbase + result, locked_page);
 		ufs_cpu_to_data_ptr(sb, p, result);
 		*err = 0;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
