@@ -18,4 +18,39 @@ config MPC82xx_ADS
 
 endchoice
 
+config PQ2ADS
+	bool
+	depends on ADS8272
+	default y
+
+config ADS8272
+	bool
+
+config 8260
+	bool "CPM2 Support" if WILLOW
+	depends on 6xx
+	default y if PQ2FADS
+	help
+	  The MPC8260 is a typical embedded CPU made by Motorola.  Selecting
+	  this option means that you wish to build a kernel for a machine with
+	  an 8260 class CPU.
+
+config 8272
+	bool
+	depends on 6xx
+	default y if ADS8272
+	select 8260
+	help
+	  The MPC8272 CPM has a different internal dpram setup than other CPM2
+	  devices
+
+config CPM2
+	bool
+	depends on 8260 || MPC8560 || MPC8555
+	default y
+	help
+	  The CPM2 (Communications Processor Module) is a coprocessor on
+	  embedded CPUs made by Motorola.  Selecting this option means that
+	  you wish to build a kernel for a machine with a CPM2 coprocessor
+	  on it (826x, 827x, 8560).
 endmenu
