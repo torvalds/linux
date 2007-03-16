@@ -184,10 +184,19 @@ int scsi_delete_timer(struct scsi_cmnd *scmd)
  **/
 void scsi_times_out(struct scsi_cmnd *scmd)
 {
+	enum scsi_eh_timer_return (* eh_timed_out)(struct scsi_cmnd *);
+
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
 	if (scmd->device->host->transportt->eh_timed_out)
-		switch (scmd->device->host->transportt->eh_timed_out(scmd)) {
+		eh_timed_out = scmd->device->host->transportt->eh_timed_out;
+	else if (scmd->device->host->hostt->eh_timed_out)
+		eh_timed_out = scmd->device->host->hostt->eh_timed_out;
+	else
+		eh_timed_out = NULL;
+
+	if (eh_timed_out)
+		switch (eh_timed_out(scmd)) {
 		case EH_HANDLED:
 			__scsi_done(scmd);
 			return;
