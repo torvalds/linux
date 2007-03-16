@@ -606,7 +606,6 @@ struct yuv_playback_info
 
 	int lace_mode;
 	int lace_threshold;
-	int lace_threshold_last;
 	int lace_sync_field;
 
 	atomic_t next_dma_frame;

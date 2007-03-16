@@ -613,15 +613,18 @@ static void ivtv_yuv_handle_vertical(struct ivtv *itv, struct yuv_frame_info *wi
 	}
 
 	itv->yuv_info.frame_interlaced_last = itv->yuv_info.frame_interlaced;
-	itv->yuv_info.lace_threshold_last = itv->yuv_info.lace_threshold;
 }
 
 /* Modify the supplied coordinate information to fit the visible osd area */
 static u32 ivtv_yuv_window_setup (struct ivtv *itv, struct yuv_frame_info *window)
 {
-	int osd_crop;
+	int osd_crop, lace_threshold;
 	u32 osd_scale;
 	u32 yuv_update = 0;
+
+	lace_threshold = itv->yuv_info.lace_threshold;
+	if (lace_threshold < 0)
+		lace_threshold = itv->yuv_info.decode_height - 1;
 
 	/* Work out the lace settings */
 	switch (itv->yuv_info.lace_mode) {
@@ -639,7 +642,7 @@ static u32 ivtv_yuv_window_setup (struct ivtv *itv, struct yuv_frame_info *windo
 			break;
 
 		case IVTV_YUV_MODE_AUTO:
-			if (window->tru_h <= itv->yuv_info.lace_threshold || window->tru_h > 576 || window->tru_w > 720){
+			if (window->tru_h <= lace_threshold || window->tru_h > 576 || window->tru_w > 720){
 				itv->yuv_info.frame_interlaced = 0;
 				if ((window->tru_h < 512) ||
 				  (window->tru_h > 576 && window->tru_h < 1021) ||
