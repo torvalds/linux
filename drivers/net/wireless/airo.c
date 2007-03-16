@@ -2740,8 +2740,6 @@ static int airo_networks_allocate(struct airo_info *ai)
 
 static void airo_networks_free(struct airo_info *ai)
 {
-	if (!ai->networks)
-		return;
 	kfree(ai->networks);
 	ai->networks = NULL;
 }
