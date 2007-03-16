@@ -1107,8 +1107,6 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	if (prop)
 		pbm->chip_revision = *(int *) prop->value;
 
-	pci_determine_mem_io_space(pbm);
-
 	pbm->parent = p;
 	pbm->prom_node = dp;
 	pbm->name = dp->full_name;
@@ -1116,6 +1114,8 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	printk("%s: PSYCHO PCI Bus Module ver[%x:%x]\n",
 	       pbm->name,
 	       pbm->chip_version, pbm->chip_revision);
+
+	pci_determine_mem_io_space(pbm);
 
 	prop = of_find_property(dp, "bus-range", NULL);
 	busrange = prop->value;
