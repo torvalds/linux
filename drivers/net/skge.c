@@ -2576,7 +2576,11 @@ static int skge_down(struct net_device *dev)
 	skge_led(skge, LED_MODE_OFF);
 
 	netif_poll_disable(dev);
+
+	netif_tx_lock_bh(dev);
 	skge_tx_clean(dev);
+	netif_tx_unlock_bh(dev);
+
 	skge_rx_clean(skge);
 
 	kfree(skge->rx_ring.start);
@@ -2721,7 +2725,6 @@ static void skge_tx_clean(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_element *e;
 
-	netif_tx_lock_bh(dev);
 	for (e = skge->tx_ring.to_clean; e != skge->tx_ring.to_use; e = e->next) {
 		struct skge_tx_desc *td = e->desc;
 		skge_tx_free(skge, e, td->control);
@@ -2730,7 +2733,6 @@ static void skge_tx_clean(struct net_device *dev)
 
 	skge->tx_ring.to_clean = e;
 	netif_wake_queue(dev);
-	netif_tx_unlock_bh(dev);
 }
 
 static void skge_tx_timeout(struct net_device *dev)
