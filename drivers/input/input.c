@@ -1024,14 +1024,8 @@ EXPORT_SYMBOL(input_allocate_device);
  */
 void input_free_device(struct input_dev *dev)
 {
-	if (dev) {
-
-		mutex_lock(&dev->mutex);
-		dev->name = dev->phys = dev->uniq = NULL;
-		mutex_unlock(&dev->mutex);
-
+	if (dev)
 		input_put_device(dev);
-	}
 }
 EXPORT_SYMBOL(input_free_device);
 
