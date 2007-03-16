@@ -2185,10 +2185,28 @@ static void console_callback(struct work_struct *ignored)
 	release_console_sem();
 }
 
-void set_console(int nr)
+int set_console(int nr)
 {
+	struct vc_data *vc = vc_cons[fg_console].d;
+
+	if (!vc_cons_allocated(nr) || vt_dont_switch ||
+		(vc->vt_mode.mode == VT_AUTO && vc->vc_mode == KD_GRAPHICS)) {
+
+		/*
+		 * Console switch will fail in console_callback() or
+		 * change_console() so there is no point scheduling
+		 * the callback
+		 *
+		 * Existing set_console() users don't check the return
+		 * value so this shouldn't break anything
+		 */
+		return -EINVAL;
+	}
+
 	want_console = nr;
 	schedule_console_callback();
+
+	return 0;
 }
 
 struct tty_driver *console_driver;
