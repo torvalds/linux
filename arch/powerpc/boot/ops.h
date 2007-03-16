@@ -91,7 +91,8 @@ static inline int getprop(void *devp, const char *name, void *buf, int buflen)
 	return (dt_ops.getprop) ? dt_ops.getprop(devp, name, buf, buflen) : -1;
 }
 
-static inline int setprop(void *devp, const char *name, void *buf, int buflen)
+static inline int setprop(void *devp, const char *name,
+                          const void *buf, int buflen)
 {
 	return (dt_ops.setprop) ? dt_ops.setprop(devp, name, buf, buflen) : -1;
 }
