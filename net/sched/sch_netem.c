@@ -54,7 +54,7 @@
 
 struct netem_sched_data {
 	struct Qdisc	*qdisc;
-	struct timer_list timer;
+	struct qdisc_watchdog watchdog;
 
 	u32 latency;
 	u32 loss;
@@ -284,7 +284,7 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 			sch->flags &= ~TCQ_F_THROTTLED;
 			return skb;
 		} else {
-			psched_tdiff_t delay = PSCHED_TDIFF(cb->time_to_send, now);
+			qdisc_watchdog_schedule(&q->watchdog, cb->time_to_send);
 
 			if (q->qdisc->ops->requeue(skb, q->qdisc) != NET_XMIT_SUCCESS) {
 				qdisc_tree_decrease_qlen(q->qdisc, 1);
@@ -292,22 +292,10 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 				printk(KERN_ERR "netem: queue discpline %s could not requeue\n",
 				       q->qdisc->ops->id);
 			}
-
-			mod_timer(&q->timer, jiffies + PSCHED_US2JIFFIE(delay));
-			sch->flags |= TCQ_F_THROTTLED;
 		}
 	}
 
 	return NULL;
-}
-
-static void netem_watchdog(unsigned long arg)
-{
-	struct Qdisc *sch = (struct Qdisc *)arg;
-
-	pr_debug("netem_watchdog qlen=%d\n", sch->q.qlen);
-	sch->flags &= ~TCQ_F_THROTTLED;
-	netif_schedule(sch->dev);
 }
 
 static void netem_reset(struct Qdisc *sch)
@@ -316,8 +304,7 @@ static void netem_reset(struct Qdisc *sch)
 
 	qdisc_reset(q->qdisc);
 	sch->q.qlen = 0;
-	sch->flags &= ~TCQ_F_THROTTLED;
-	del_timer_sync(&q->timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 }
 
 /* Pass size change message down to embedded FIFO */
@@ -567,9 +554,7 @@ static int netem_init(struct Qdisc *sch, struct rtattr *opt)
 	if (!opt)
 		return -EINVAL;
 
-	init_timer(&q->timer);
-	q->timer.function = netem_watchdog;
-	q->timer.data = (unsigned long) sch;
+	qdisc_watchdog_init(&q->watchdog, sch);
 
 	q->qdisc = qdisc_create_dflt(sch->dev, &tfifo_qdisc_ops,
 				     TC_H_MAKE(sch->handle, 1));
@@ -590,7 +575,7 @@ static void netem_destroy(struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
 
-	del_timer_sync(&q->timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 	qdisc_destroy(q->qdisc);
 	kfree(q->delay_dist);
 }
