@@ -624,11 +624,11 @@ out what values are bad when it hangs.
 2A00
       bits 0:2
 	osd colour mode
+	  000 = 8 bit indexed
 	  001 = 16 bit (565)
 	  010 = 15 bit (555)
 	  011 = 12 bit (444)
 	  100 = 32 bit (8888)
-	  101 = 8 bit indexed
 
       bits 4:5
 	osd display bpp
@@ -676,9 +676,11 @@ out what values are bad when it hangs.
      completely transparent. When using 565, 555 or 444 colour modes, the
      colour key is always 16 bits wide. The colour to key on is set in Reg 2A18.
 
-     Local alpha is a per-pixel 256 step transparency, with 0 being transparent
-     and 255 being solid. This is only available in 32 bit & 8 bit indexed
-     colour modes.
+     Local alpha works differently depending on the colour mode. For 32bpp & 8
+     bit indexed, local alpha is a per-pixel 256 step transparency, with 0 being
+     transparent and 255 being solid. For the 16bpp modes 555 & 444, the unused
+     bit(s) act as a simple transparency switch, with 0 being solid & 1 being
+     fully transparent. There is no local alpha support for 16bit 565.
 
      Global alpha is a 256 step transparency that applies to the entire osd,
      with 0 being transparent & 255 being solid.
@@ -811,5 +813,5 @@ out what values are bad when it hangs.
 
 --------------------------------------------------------------------------------
 
-v0.3 - 2 February 2007 - Ian Armstrong (ian@iarmst.demon.co.uk)
+v0.4 - 12 March 2007 - Ian Armstrong (ian@iarmst.demon.co.uk)
 
