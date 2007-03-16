@@ -112,7 +112,7 @@ struct cbq_class
 
 	/* Overlimit strategy parameters */
 	void			(*overlimit)(struct cbq_class *cl);
-	long			penalty;
+	psched_tdiff_t		penalty;
 
 	/* General scheduler (WRR) parameters */
 	long			allot;
@@ -143,7 +143,7 @@ struct cbq_class
 	psched_time_t		undertime;
 	long			avgidle;
 	long			deficit;	/* Saved deficit for WRR */
-	unsigned long		penalized;
+	psched_time_t		penalized;
 	struct gnet_stats_basic bstats;
 	struct gnet_stats_queue qstats;
 	struct gnet_stats_rate_est rate_est;
@@ -180,7 +180,7 @@ struct cbq_sched_data
 	psched_time_t		now_rt;		/* Cached real time */
 	unsigned		pmask;
 
-	struct timer_list	delay_timer;
+	struct hrtimer		delay_timer;
 	struct qdisc_watchdog	watchdog;	/* Watchdog timer,
 						   started when CBQ has
 						   backlog, but cannot
@@ -549,7 +549,8 @@ static void cbq_ovl_delay(struct cbq_class *cl)
 	psched_tdiff_t delay = PSCHED_TDIFF(cl->undertime, q->now);
 
 	if (!cl->delayed) {
-		unsigned long sched = jiffies;
+		psched_time_t sched = q->now;
+		ktime_t expires;
 
 		delay += cl->offtime;
 		if (cl->avgidle < 0)
@@ -559,14 +560,18 @@ static void cbq_ovl_delay(struct cbq_class *cl)
 		PSCHED_TADD2(q->now, delay, cl->undertime);
 
 		if (delay > 0) {
-			sched += PSCHED_US2JIFFIE(delay) + cl->penalty;
+			sched += delay + cl->penalty;
 			cl->penalized = sched;
 			cl->cpriority = TC_CBQ_MAXPRIO;
 			q->pmask |= (1<<TC_CBQ_MAXPRIO);
-			if (del_timer(&q->delay_timer) &&
-			    (long)(q->delay_timer.expires - sched) > 0)
-				q->delay_timer.expires = sched;
-			add_timer(&q->delay_timer);
+
+			expires = ktime_set(0, 0);
+			expires = ktime_add_ns(expires, PSCHED_US2NS(sched));
+			if (hrtimer_try_to_cancel(&q->delay_timer) &&
+			    ktime_to_ns(ktime_sub(q->delay_timer.expires,
+						  expires)) > 0)
+				q->delay_timer.expires = expires;
+			hrtimer_restart(&q->delay_timer);
 			cl->delayed = 1;
 			cl->xstats.overactions++;
 			return;
@@ -583,7 +588,7 @@ static void cbq_ovl_lowprio(struct cbq_class *cl)
 {
 	struct cbq_sched_data *q = qdisc_priv(cl->qdisc);
 
-	cl->penalized = jiffies + cl->penalty;
+	cl->penalized = q->now + cl->penalty;
 
 	if (cl->cpriority != cl->priority2) {
 		cl->cpriority = cl->priority2;
@@ -604,19 +609,19 @@ static void cbq_ovl_drop(struct cbq_class *cl)
 	cbq_ovl_classic(cl);
 }
 
-static unsigned long cbq_undelay_prio(struct cbq_sched_data *q, int prio)
+static psched_tdiff_t cbq_undelay_prio(struct cbq_sched_data *q, int prio,
+				       psched_time_t now)
 {
 	struct cbq_class *cl;
 	struct cbq_class *cl_prev = q->active[prio];
-	unsigned long now = jiffies;
-	unsigned long sched = now;
+	psched_time_t sched = now;
 
 	if (cl_prev == NULL)
 		return 0;
 
 	do {
 		cl = cl_prev->next_alive;
-		if ((long)(now - cl->penalized) > 0) {
+		if (now - cl->penalized > 0) {
 			cl_prev->next_alive = cl->next_alive;
 			cl->next_alive = NULL;
 			cl->cpriority = cl->priority;
@@ -632,30 +637,34 @@ static unsigned long cbq_undelay_prio(struct cbq_sched_data *q, int prio)
 			}
 
 			cl = cl_prev->next_alive;
-		} else if ((long)(sched - cl->penalized) > 0)
+		} else if (sched - cl->penalized > 0)
 			sched = cl->penalized;
 	} while ((cl_prev = cl) != q->active[prio]);
 
-	return (long)(sched - now);
+	return sched - now;
 }
 
-static void cbq_undelay(unsigned long arg)
+static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 {
-	struct Qdisc *sch = (struct Qdisc*)arg;
-	struct cbq_sched_data *q = qdisc_priv(sch);
-	long delay = 0;
+	struct cbq_sched_data *q = container_of(timer, struct cbq_sched_data,
+						delay_timer);
+	struct Qdisc *sch = q->watchdog.qdisc;
+	psched_time_t now;
+	psched_tdiff_t delay = 0;
 	unsigned pmask;
+
+	PSCHED_GET_TIME(now);
 
 	pmask = q->pmask;
 	q->pmask = 0;
 
 	while (pmask) {
 		int prio = ffz(~pmask);
-		long tmp;
+		psched_tdiff_t tmp;
 
 		pmask &= ~(1<<prio);
 
-		tmp = cbq_undelay_prio(q, prio);
+		tmp = cbq_undelay_prio(q, prio, now);
 		if (tmp > 0) {
 			q->pmask |= 1<<prio;
 			if (tmp < delay || delay == 0)
@@ -664,12 +673,16 @@ static void cbq_undelay(unsigned long arg)
 	}
 
 	if (delay) {
-		q->delay_timer.expires = jiffies + delay;
-		add_timer(&q->delay_timer);
+		ktime_t time;
+
+		time = ktime_set(0, 0);
+		time = ktime_add_ns(time, PSCHED_US2NS(now + delay));
+		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS);
 	}
 
 	sch->flags &= ~TCQ_F_THROTTLED;
 	netif_schedule(sch->dev);
+	return HRTIMER_NORESTART;
 }
 
 
@@ -1265,7 +1278,7 @@ cbq_reset(struct Qdisc* sch)
 	q->tx_class = NULL;
 	q->tx_borrowed = NULL;
 	qdisc_watchdog_cancel(&q->watchdog);
-	del_timer(&q->delay_timer);
+	hrtimer_cancel(&q->delay_timer);
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	PSCHED_GET_TIME(q->now);
 	q->now_rt = q->now;
@@ -1367,7 +1380,7 @@ static int cbq_set_overlimit(struct cbq_class *cl, struct tc_cbq_ovl *ovl)
 	default:
 		return -EINVAL;
 	}
-	cl->penalty = (ovl->penalty*HZ)/1000;
+	cl->penalty = ovl->penalty;
 	return 0;
 }
 
@@ -1435,8 +1448,7 @@ static int cbq_init(struct Qdisc *sch, struct rtattr *opt)
 	q->link.stats_lock = &sch->dev->queue_lock;
 
 	qdisc_watchdog_init(&q->watchdog, sch);
-	init_timer(&q->delay_timer);
-	q->delay_timer.data = (unsigned long)sch;
+	hrtimer_init(&q->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	q->delay_timer.function = cbq_undelay;
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	PSCHED_GET_TIME(q->now);
@@ -1514,7 +1526,7 @@ static __inline__ int cbq_dump_ovl(struct sk_buff *skb, struct cbq_class *cl)
 	opt.strategy = cl->ovl_strategy;
 	opt.priority2 = cl->priority2+1;
 	opt.pad = 0;
-	opt.penalty = (cl->penalty*1000)/HZ;
+	opt.penalty = cl->penalty;
 	RTA_PUT(skb, TCA_CBQ_OVL_STRATEGY, sizeof(opt), &opt);
 	return skb->len;
 
