@@ -938,6 +938,20 @@ static void __init trim_pavail(unsigned long *cur_size_p,
 	}
 }
 
+/* About pages_avail, this is the value we will use to calculate
+ * the zholes_size[] argument given to free_area_init_node().  The
+ * page allocator uses this to calculate nr_kernel_pages,
+ * nr_all_pages and zone->present_pages.  On NUMA it is used
+ * to calculate zone->min_unmapped_pages and zone->min_slab_pages.
+ *
+ * So this number should really be set to what the page allocator
+ * actually ends up with.  This means:
+ * 1) It should include bootmem map pages, we'll release those.
+ * 2) It should not include the kernel image, except for the
+ *    __init sections which we will also release.
+ * 3) It should include the initrd image, since we'll release
+ *    that too.
+ */
 static unsigned long __init bootmem_init(unsigned long *pages_avail,
 					 unsigned long phys_base)
 {
@@ -1024,7 +1038,6 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 			initrd_start, initrd_end);
 #endif
 		reserve_bootmem(initrd_start, size);
-		*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 		initrd_start += PAGE_OFFSET;
 		initrd_end += PAGE_OFFSET;
@@ -1037,6 +1050,11 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 	reserve_bootmem(kern_base, kern_size);
 	*pages_avail -= PAGE_ALIGN(kern_size) >> PAGE_SHIFT;
 
+	/* Add back in the initmem pages. */
+	size = ((unsigned long)(__init_end) & PAGE_MASK) -
+		PAGE_ALIGN((unsigned long)__init_begin);
+	*pages_avail += size >> PAGE_SHIFT;
+
 	/* Reserve the bootmem map.   We do not account for it
 	 * in pages_avail because we will release that memory
 	 * in free_all_bootmem.
@@ -1047,7 +1065,6 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 		    (bootmap_pfn << PAGE_SHIFT), size);
 #endif
 	reserve_bootmem((bootmap_pfn << PAGE_SHIFT), size);
-	*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 	for (i = 0; i < pavail_ents; i++) {
 		unsigned long start_pfn, end_pfn;
@@ -1539,6 +1556,10 @@ void __init mem_init(void)
 #ifdef CONFIG_DEBUG_BOOTMEM
 	prom_printf("mem_init: Calling free_all_bootmem().\n");
 #endif
+
+	/* We subtract one to account for the mem_map_zero page
+	 * allocated below.
+	 */
 	totalram_pages = num_physpages = free_all_bootmem() - 1;
 
 	/*
