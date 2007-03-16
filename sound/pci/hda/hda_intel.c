@@ -1087,6 +1087,10 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw.rates = hinfo->rates;
 	snd_pcm_limit_hw_rates(runtime);
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
+				   128);
+	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
+				   128);
 	if ((err = hinfo->ops.open(hinfo, apcm->codec, substream)) < 0) {
 		azx_release_device(azx_dev);
 		mutex_unlock(&chip->open_mutex);
