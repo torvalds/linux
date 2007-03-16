@@ -142,13 +142,10 @@ static void hp_sdc_mlc_isr (int irq, void *dev_id,
 
 static int hp_sdc_mlc_in(hil_mlc *mlc, suseconds_t timeout)
 {
-	unsigned long flags;
 	struct hp_sdc_mlc_priv_s *priv;
 	int rc = 2;
 
 	priv = mlc->priv;
-
-	write_lock_irqsave(&mlc->lock, flags);
 
 	/* Try to down the semaphore */
 	if (down_trylock(&mlc->isem)) {
@@ -178,20 +175,15 @@ static int hp_sdc_mlc_in(hil_mlc *mlc, suseconds_t timeout)
  wasup:
 	up(&mlc->isem);
 	rc = 0;
-	goto done;
  done:
-	write_unlock_irqrestore(&mlc->lock, flags);
 	return rc;
 }
 
 static int hp_sdc_mlc_cts(hil_mlc *mlc)
 {
 	struct hp_sdc_mlc_priv_s *priv;
-	unsigned long flags;
 
 	priv = mlc->priv;
-
-	write_lock_irqsave(&mlc->lock, flags);
 
 	/* Try to down the semaphores -- they should be up. */
 	BUG_ON(down_trylock(&mlc->isem));
@@ -221,25 +213,20 @@ static int hp_sdc_mlc_cts(hil_mlc *mlc)
 	priv->tseq[2] = 1;
 	priv->tseq[3] = 0;
 	priv->tseq[4] = 0;
-	hp_sdc_enqueue_transaction(&priv->trans);
+	__hp_sdc_enqueue_transaction(&priv->trans);
  busy:
-	write_unlock_irqrestore(&mlc->lock, flags);
 	return 1;
  done:
 	priv->trans.act.semaphore = &mlc->osem;
 	up(&mlc->csem);
-	write_unlock_irqrestore(&mlc->lock, flags);
 	return 0;
 }
 
 static void hp_sdc_mlc_out(hil_mlc *mlc)
 {
 	struct hp_sdc_mlc_priv_s *priv;
-	unsigned long flags;
 
 	priv = mlc->priv;
-
-	write_lock_irqsave(&mlc->lock, flags);
 
 	/* Try to down the semaphore -- it should be up. */
 	BUG_ON(down_trylock(&mlc->osem));
@@ -250,7 +237,7 @@ static void hp_sdc_mlc_out(hil_mlc *mlc)
  do_data:
 	if (priv->emtestmode) {
 		up(&mlc->osem);
-		goto done;
+		return;
 	}
 	/* Shouldn't be sending commands when loop may be busy */
 	BUG_ON(down_trylock(&mlc->csem));
@@ -313,8 +300,6 @@ static void hp_sdc_mlc_out(hil_mlc *mlc)
 	}
  enqueue:
 	hp_sdc_enqueue_transaction(&priv->trans);
- done:
-	write_unlock_irqrestore(&mlc->lock, flags);
 }
 
 static int __init hp_sdc_mlc_init(void)

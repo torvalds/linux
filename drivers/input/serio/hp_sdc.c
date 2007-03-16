@@ -100,6 +100,7 @@ EXPORT_SYMBOL(hp_sdc_release_timer_irq);
 EXPORT_SYMBOL(hp_sdc_release_hil_irq);
 EXPORT_SYMBOL(hp_sdc_release_cooked_irq);
 
+EXPORT_SYMBOL(__hp_sdc_enqueue_transaction);
 EXPORT_SYMBOL(hp_sdc_enqueue_transaction);
 EXPORT_SYMBOL(hp_sdc_dequeue_transaction);
 
@@ -593,17 +594,14 @@ unsigned long hp_sdc_put(void)
 }
 
 /******* Functions called in either user or kernel context ****/
-int hp_sdc_enqueue_transaction(hp_sdc_transaction *this)
+int __hp_sdc_enqueue_transaction(hp_sdc_transaction *this)
 {
-	unsigned long flags;
 	int i;
 
 	if (this == NULL) {
-		tasklet_schedule(&hp_sdc.task);
+		BUG();
 		return -EINVAL;
 	}
-
-	write_lock_irqsave(&hp_sdc.lock, flags);
 
 	/* Can't have same transaction on queue twice */
 	for (i = 0; i < HP_SDC_QUEUE_LEN; i++)
@@ -617,19 +615,27 @@ int hp_sdc_enqueue_transaction(hp_sdc_transaction *this)
 	for (i = 0; i < HP_SDC_QUEUE_LEN; i++)
 		if (hp_sdc.tq[i] == NULL) {
 			hp_sdc.tq[i] = this;
-			write_unlock_irqrestore(&hp_sdc.lock, flags);
 			tasklet_schedule(&hp_sdc.task);
 			return 0;
 		}
 
-	write_unlock_irqrestore(&hp_sdc.lock, flags);
 	printk(KERN_WARNING PREFIX "No free slot to add transaction.\n");
 	return -EBUSY;
 
  fail:
-	write_unlock_irqrestore(&hp_sdc.lock,flags);
 	printk(KERN_WARNING PREFIX "Transaction add failed: transaction already queued?\n");
 	return -EINVAL;
+}
+
+int hp_sdc_enqueue_transaction(hp_sdc_transaction *this) {
+	unsigned long flags;
+	int ret;
+
+	write_lock_irqsave(&hp_sdc.lock, flags);
+	ret = __hp_sdc_enqueue_transaction(this);
+	write_unlock_irqrestore(&hp_sdc.lock,flags);
+
+	return ret;
 }
 
 int hp_sdc_dequeue_transaction(hp_sdc_transaction *this)

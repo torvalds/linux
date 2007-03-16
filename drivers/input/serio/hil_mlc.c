@@ -716,7 +716,9 @@ static int hilse_donode(hil_mlc *mlc)
 		break;
 
 	case HILSE_CTS:
+		write_lock_irqsave(&mlc->lock, flags);
 		nextidx = mlc->cts(mlc) ? node->bad : node->good;
+		write_unlock_irqrestore(&mlc->lock, flags);
 		break;
 
 	default:
