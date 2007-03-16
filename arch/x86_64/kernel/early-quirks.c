@@ -16,7 +16,7 @@
 #include <asm/proto.h>
 #include <asm/dma.h>
 
-static void via_bugs(void)
+static void __init via_bugs(void)
 {
 #ifdef CONFIG_IOMMU
 	if ((end_pfn > MAX_DMA32_PFN ||  force_iommu) &&
@@ -36,7 +36,7 @@ static int __init nvidia_hpet_check(struct acpi_table_header *header)
 }
 #endif
 
-static void nvidia_bugs(void)
+static void __init nvidia_bugs(void)
 {
 #ifdef CONFIG_ACPI
 	/*
@@ -62,7 +62,7 @@ static void nvidia_bugs(void)
 
 }
 
-static void ati_bugs(void)
+static void __init ati_bugs(void)
 {
 	if (timer_over_8254 == 1) {
 		timer_over_8254 = 0;
@@ -88,7 +88,7 @@ struct chipset {
 	void (*f)(void);
 };
 
-static struct chipset early_qrk[] = {
+static struct __initdata chipset early_qrk[] = {
 	{ PCI_VENDOR_ID_NVIDIA, nvidia_bugs },
 	{ PCI_VENDOR_ID_VIA, via_bugs },
 	{ PCI_VENDOR_ID_ATI, ati_bugs },

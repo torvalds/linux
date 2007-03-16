@@ -99,7 +99,7 @@ extern int force_iommu, no_iommu;
 extern int iommu_detected;
 #ifdef CONFIG_IOMMU
 extern void gart_iommu_init(void);
-extern void gart_parse_options(char *);
+extern void __init gart_parse_options(char *);
 extern void iommu_hole_init(void);
 extern int fallback_aper_order;
 extern int fallback_aper_force;
