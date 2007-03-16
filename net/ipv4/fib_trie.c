@@ -1527,7 +1527,6 @@ static int trie_leaf_remove(struct trie *t, t_key key)
 	t->revision++;
 	t->size--;
 
-	preempt_disable();
 	tp = NODE_PARENT(n);
 	tnode_free((struct tnode *) n);
 
@@ -1537,7 +1536,6 @@ static int trie_leaf_remove(struct trie *t, t_key key)
 		rcu_assign_pointer(t->trie, trie_rebalance(t, tp));
 	} else
 		rcu_assign_pointer(t->trie, NULL);
-	preempt_enable();
 
 	return 1;
 }
