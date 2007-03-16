@@ -580,7 +580,8 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 	 *	Copy the IP header
 	 */
 
-	skb->nh.raw = skb_put(skb, ihl);
+	skb_set_network_header(skb, skb->tail - skb->data);
+	skb_put(skb, ihl);
 	memcpy(skb->data,pkt->data,ihl);
 	ip_hdr(skb)->protocol = 0;			/* Flag to the kernel this is a route add */
 	msg = (struct igmpmsg *)skb_network_header(skb);

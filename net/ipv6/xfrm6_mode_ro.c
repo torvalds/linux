@@ -53,7 +53,8 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 	iph = ipv6_hdr(skb);
 
 	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
-	skb->nh.raw = prevhdr - x->props.header_len;
+	skb_set_network_header(skb,
+			       (prevhdr - x->props.header_len) - skb->data);
 	skb_set_transport_header(skb, hdr_len);
 	memmove(skb->data, iph, hdr_len);
 	return 0;

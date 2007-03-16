@@ -1905,7 +1905,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 
 		skb_reserve(nskb, headroom);
 		skb_reset_mac_header(nskb);
-		nskb->nh.raw = nskb->data + skb->mac_len;
+		skb_set_network_header(nskb, skb->mac_len);
 		nskb->h.raw = nskb->nh.raw + (skb->h.raw - skb->nh.raw);
 		memcpy(skb_put(nskb, doffset), skb->data, doffset);
 

@@ -2357,8 +2357,12 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 		*vlan_encapsulated_proto = htons(ETH_P_IP);
 	}
 
-	iph = (struct iphdr *)skb_put(skb, sizeof(struct iphdr));
-	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
+	skb_set_network_header(skb, skb->tail - skb->data);
+	skb->h.raw = skb->nh.raw + sizeof(struct iphdr);
+	skb_put(skb, sizeof(struct iphdr) + sizeof(struct udphdr));
+
+	iph = ip_hdr(skb);
+	udph = udp_hdr(skb);
 
 	memcpy(eth, pkt_dev->hh, 12);
 	*(__be16 *) & eth[12] = protocol;
@@ -2387,12 +2391,11 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	iph->check = 0;
 	iph->check = ip_fast_csum((void *)iph, iph->ihl);
 	skb->protocol = protocol;
-	skb->mac.raw = ((u8 *) iph) - 14 - pkt_dev->nr_labels*sizeof(u32) -
-		VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev);
+	skb->mac.raw = (skb->nh.raw - ETH_HLEN -
+			pkt_dev->nr_labels * sizeof(u32) -
+			VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev));
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
-	skb->nh.raw = (unsigned char *)iph;
-	skb->h.raw = (unsigned char *)udph;
 
 	if (pkt_dev->nfrags <= 0)
 		pgh = (struct pktgen_hdr *)skb_put(skb, datalen);
@@ -2693,8 +2696,12 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 		*vlan_encapsulated_proto = htons(ETH_P_IPV6);
 	}
 
-	iph = (struct ipv6hdr *)skb_put(skb, sizeof(struct ipv6hdr));
-	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
+	skb_set_network_header(skb, skb->tail - skb->data);
+	skb->h.raw = skb->nh.raw + sizeof(struct ipv6hdr);
+	skb_put(skb, sizeof(struct ipv6hdr) + sizeof(struct udphdr));
+
+	iph = ipv6_hdr(skb);
+	udph = udp_hdr(skb);
 
 	memcpy(eth, pkt_dev->hh, 12);
 	*(__be16 *) & eth[12] = protocol;
@@ -2731,13 +2738,12 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	ipv6_addr_copy(&iph->daddr, &pkt_dev->cur_in6_daddr);
 	ipv6_addr_copy(&iph->saddr, &pkt_dev->cur_in6_saddr);
 
-	skb->mac.raw = ((u8 *) iph) - 14 - pkt_dev->nr_labels*sizeof(u32) -
-		VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev);
+	skb->mac.raw = (skb->nh.raw - ETH_HLEN -
+			pkt_dev->nr_labels * sizeof(u32) -
+			VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev));
 	skb->protocol = protocol;
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
-	skb->nh.raw = (unsigned char *)iph;
-	skb->h.raw = (unsigned char *)udph;
 
 	if (pkt_dev->nfrags <= 0)
 		pgh = (struct pktgen_hdr *)skb_put(skb, datalen);
