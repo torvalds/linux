@@ -215,13 +215,14 @@ int gpio_direction_input(unsigned pin)
 }
 EXPORT_SYMBOL(gpio_direction_input);
 
-int gpio_direction_output(unsigned pin)
+int gpio_direction_output(unsigned pin, int value)
 {
 	void __iomem	*pio = pin_to_controller(pin);
 	unsigned	mask = pin_to_mask(pin);
 
 	if (!pio || !(__raw_readl(pio + PIO_PSR) & mask))
 		return -EINVAL;
+	__raw_writel(mask, pio + (value ? PIO_SODR : PIO_CODR));
 	__raw_writel(mask, pio + PIO_OER);
 	return 0;
 }

@@ -105,11 +105,14 @@ setting up a platform_device using the GPIO, is mark its direction:
 
 	/* set as input or output, returning 0 or negative errno */
 	int gpio_direction_input(unsigned gpio);
-	int gpio_direction_output(unsigned gpio);
+	int gpio_direction_output(unsigned gpio, int value);
 
 The return value is zero for success, else a negative errno.  It should
 be checked, since the get/set calls don't have error returns and since
 misconfiguration is possible.  (These calls could sleep.)
+
+For output GPIOs, the value provided becomes the initial output value.
+This helps avoid signal glitching during system startup.
 
 Setting the direction can fail if the GPIO number is invalid, or when
 that particular GPIO can't be used in that mode.  It's generally a bad

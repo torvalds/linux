@@ -113,8 +113,9 @@ static inline int gpio_direction_input(unsigned gpio)
 	return __gpio_set_direction(gpio, 1);
 }
 
-static inline int gpio_direction_output(unsigned gpio)
+static inline int gpio_direction_output(unsigned gpio, int value)
 {
+	omap_set_gpio_dataout(gpio, value);
 	return __gpio_set_direction(gpio, 0);
 }
 
