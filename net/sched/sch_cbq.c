@@ -181,11 +181,11 @@ struct cbq_sched_data
 	unsigned		pmask;
 
 	struct timer_list	delay_timer;
-	struct timer_list	wd_timer;	/* Watchdog timer,
+	struct qdisc_watchdog	watchdog;	/* Watchdog timer,
 						   started when CBQ has
 						   backlog, but cannot
 						   transmit just now */
-	long			wd_expires;
+	psched_tdiff_t		wd_expires;
 	int			toplevel;
 	u32			hgenerator;
 };
@@ -602,14 +602,6 @@ static void cbq_ovl_drop(struct cbq_class *cl)
 			cl->qdisc->q.qlen--;
 	cl->xstats.overactions++;
 	cbq_ovl_classic(cl);
-}
-
-static void cbq_watchdog(unsigned long arg)
-{
-	struct Qdisc *sch = (struct Qdisc*)arg;
-
-	sch->flags &= ~TCQ_F_THROTTLED;
-	netif_schedule(sch->dev);
 }
 
 static unsigned long cbq_undelay_prio(struct cbq_sched_data *q, int prio)
@@ -1063,13 +1055,9 @@ cbq_dequeue(struct Qdisc *sch)
 
 	if (sch->q.qlen) {
 		sch->qstats.overlimits++;
-		if (q->wd_expires) {
-			long delay = PSCHED_US2JIFFIE(q->wd_expires);
-			if (delay <= 0)
-				delay = 1;
-			mod_timer(&q->wd_timer, jiffies + delay);
-			sch->flags |= TCQ_F_THROTTLED;
-		}
+		if (q->wd_expires)
+			qdisc_watchdog_schedule(&q->watchdog,
+						q->now + q->wd_expires);
 	}
 	return NULL;
 }
@@ -1276,7 +1264,7 @@ cbq_reset(struct Qdisc* sch)
 	q->pmask = 0;
 	q->tx_class = NULL;
 	q->tx_borrowed = NULL;
-	del_timer(&q->wd_timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 	del_timer(&q->delay_timer);
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	PSCHED_GET_TIME(q->now);
@@ -1446,9 +1434,7 @@ static int cbq_init(struct Qdisc *sch, struct rtattr *opt)
 	q->link.minidle = -0x7FFFFFFF;
 	q->link.stats_lock = &sch->dev->queue_lock;
 
-	init_timer(&q->wd_timer);
-	q->wd_timer.data = (unsigned long)sch;
-	q->wd_timer.function = cbq_watchdog;
+	qdisc_watchdog_init(&q->watchdog, sch);
 	init_timer(&q->delay_timer);
 	q->delay_timer.data = (unsigned long)sch;
 	q->delay_timer.function = cbq_undelay;
