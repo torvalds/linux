@@ -64,6 +64,16 @@ typedef long	psched_tdiff_t;
 #define PSCHED_IS_PASTPERFECT(t)	((t) == 0)
 #define	PSCHED_AUDIT_TDIFF(t)
 
+struct qdisc_watchdog {
+	struct hrtimer	timer;
+	struct Qdisc	*qdisc;
+};
+
+extern void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc);
+extern void qdisc_watchdog_schedule(struct qdisc_watchdog *wd,
+				    psched_time_t expires);
+extern void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);
+
 extern struct Qdisc_ops pfifo_qdisc_ops;
 extern struct Qdisc_ops bfifo_qdisc_ops;
 
