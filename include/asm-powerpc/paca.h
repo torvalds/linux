@@ -70,6 +70,7 @@ struct paca_struct {
 	s16 hw_cpu_id;			/* Physical processor number */
 	u8 cpu_start;			/* At startup, processor spins until */
 					/* this becomes non-zero. */
+	struct slb_shadow *slb_shadow_ptr;
 
 	/*
 	 * Now, starting in cacheline 2, the exception save areas
@@ -101,8 +102,6 @@ struct paca_struct {
 	u64 user_time;			/* accumulated usermode TB ticks */
 	u64 system_time;		/* accumulated system TB ticks */
 	u64 startpurr;			/* PURR/TB value snapshot */
-
-	struct slb_shadow *slb_shadow_ptr;
 };
 
 extern struct paca_struct paca[];
