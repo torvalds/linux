@@ -51,9 +51,6 @@ typedef long	psched_tdiff_t;
 #define PSCHED_GET_TIME(stamp) \
 	((stamp) = PSCHED_NS2US(ktime_to_ns(ktime_get())))
 
-#define PSCHED_US2JIFFIE(usecs)		usecs_to_jiffies(PSCHED_US2NS((usecs)) / NSEC_PER_USEC)
-#define PSCHED_JIFFIE2US(delay)		PSCHED_NS2US(jiffies_to_usecs((delay)) * NSEC_PER_USEC)
-
 #define PSCHED_TDIFF(tv1, tv2)		(long)((tv1) - (tv2))
 #define PSCHED_TDIFF_SAFE(tv1, tv2, bound) \
 					min_t(long long, (tv1) - (tv2), bound)

@@ -434,8 +434,8 @@ m2sm(u32 m)
 	u64 sm;
 
 	sm = ((u64)m << SM_SHIFT);
-	sm += PSCHED_JIFFIE2US(HZ) - 1;
-	do_div(sm, PSCHED_JIFFIE2US(HZ));
+	sm += PSCHED_TICKS_PER_SEC - 1;
+	do_div(sm, PSCHED_TICKS_PER_SEC);
 	return sm;
 }
 
@@ -448,7 +448,7 @@ m2ism(u32 m)
 	if (m == 0)
 		ism = HT_INFINITY;
 	else {
-		ism = ((u64)PSCHED_JIFFIE2US(HZ) << ISM_SHIFT);
+		ism = ((u64)PSCHED_TICKS_PER_SEC << ISM_SHIFT);
 		ism += m - 1;
 		do_div(ism, m);
 	}
@@ -461,7 +461,7 @@ d2dx(u32 d)
 {
 	u64 dx;
 
-	dx = ((u64)d * PSCHED_JIFFIE2US(HZ));
+	dx = ((u64)d * PSCHED_TICKS_PER_SEC);
 	dx += USEC_PER_SEC - 1;
 	do_div(dx, USEC_PER_SEC);
 	return dx;
@@ -473,7 +473,7 @@ sm2m(u64 sm)
 {
 	u64 m;
 
-	m = (sm * PSCHED_JIFFIE2US(HZ)) >> SM_SHIFT;
+	m = (sm * PSCHED_TICKS_PER_SEC) >> SM_SHIFT;
 	return (u32)m;
 }
 
@@ -484,7 +484,7 @@ dx2d(u64 dx)
 	u64 d;
 
 	d = dx * USEC_PER_SEC;
-	do_div(d, PSCHED_JIFFIE2US(HZ));
+	do_div(d, PSCHED_TICKS_PER_SEC);
 	return (u32)d;
 }
 
