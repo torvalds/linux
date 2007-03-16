@@ -29,6 +29,7 @@ initrd=
 dtb=
 dts=
 cacheit=
+gzip=.gz
 
 # cross-compilation prefix
 CROSS=
@@ -42,7 +43,7 @@ tmpdir=.
 usage() {
     echo 'Usage: wrapper [-o output] [-p platform] [-i initrd]' >&2
     echo '       [-d devtree] [-s tree.dts] [-c] [-C cross-prefix]' >&2
-    echo '       [-D datadir] [-W workingdir] [vmlinux]' >&2
+    echo '       [-D datadir] [-W workingdir] [--no-gzip] [vmlinux]' >&2
     exit 1
 }
 
@@ -91,6 +92,9 @@ while [ "$#" -gt 0 ]; do
 	[ "$#" -gt 0 ] || usage
 	tmpdir="$1"
 	;;
+    --no-gzip)
+        gzip=
+        ;;
     -?)
 	usage
 	;;
@@ -142,13 +146,19 @@ esac
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
 if [ -z "$cacheit" -o ! -f "$vmz.gz" -o "$vmz.gz" -ot "$kernel" ]; then
     ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
-    gzip -f -9 "$vmz.$$"
+
+    if [ -n "$gzip" ]; then
+        gzip -f -9 "$vmz.$$"
+    fi
+
     if [ -n "$cacheit" ]; then
-	mv -f "$vmz.$$.gz" "$vmz.gz"
+	mv -f "$vmz.$$$gzip" "$vmz$gzip"
     else
 	vmz="$vmz.$$"
     fi
 fi
+
+vmz="$vmz$gzip"
 
 case "$platform" in
 uboot)
@@ -159,9 +169,9 @@ uboot)
 	version="-n Linux-$version"
     fi
     mkimage -A ppc -O linux -T kernel -C gzip -a 00000000 -e 00000000 \
-	$version -d "$vmz.gz" "$ofile"
+	$version -d "$vmz" "$ofile"
     if [ -z "$cacheit" ]; then
-	rm -f $vmz.gz
+	rm -f "$vmz"
     fi
     exit 0
     ;;
@@ -173,9 +183,9 @@ addsec() {
 	--set-section-flags=$3=contents,alloc,load,readonly,data
 }
 
-addsec $tmp "$vmz.gz" $ksection $object/empty.o
+addsec $tmp "$vmz" $ksection $object/empty.o
 if [ -z "$cacheit" ]; then
-    rm -f "$vmz.gz"
+    rm -f "$vmz"
 fi
 
 if [ -n "$initrd" ]; then
