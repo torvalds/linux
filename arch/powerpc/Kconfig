@@ -475,54 +475,9 @@ config PPC_PASEMI
 	  This option enables support for PA Semi's PWRficient line
 	  of SoC processors, including PA6T-1682M
 
-config PPC_CELL
-	bool
-	default n
-
-config PPC_CELL_NATIVE
-	bool
-	select PPC_CELL
-	select PPC_DCR_MMIO
-	select PPC_OF_PLATFORM_PCI
-	select PPC_INDIRECT_IO
-	select PPC_NATIVE
-	select MPIC
-	default n
-
-config PPC_IBM_CELL_BLADE
-	bool "IBM Cell Blade"
-	depends on PPC_MULTIPLATFORM && PPC64
-	select PPC_CELL_NATIVE
-	select PPC_RTAS
-	select MMIO_NVRAM
-	select PPC_UDBG_16550
-	select UDBG_RTAS_CONSOLE
-
-config PPC_PS3
-	bool "Sony PS3 (incomplete)"
-	depends on PPC_MULTIPLATFORM && PPC64
-	select PPC_CELL
-	select USB_ARCH_HAS_OHCI
-	select USB_OHCI_LITTLE_ENDIAN
-	select USB_OHCI_BIG_ENDIAN_MMIO
-	select USB_ARCH_HAS_EHCI
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	help
-	  This option enables support for the Sony PS3 game console
-	  and other platforms using the PS3 hypervisor.
-	  Support for this platform is not yet complete, so
-	  enabling this will not result in a bootable kernel on a
-	  PS3 system.
-
-config PPC_CELLEB
-	bool "Toshiba's Cell Reference Set 'Celleb' Architecture"
-	depends on PPC_MULTIPLATFORM && PPC64
-	select PPC_CELL
-	select PPC_OF_PLATFORM_PCI
-	select HAS_TXX9_SERIAL
-	select PPC_UDBG_BEAT
-	select USB_OHCI_BIG_ENDIAN_MMIO
-	select USB_EHCI_BIG_ENDIAN_MMIO
+source arch/powerpc/platforms/celleb/Kconfig
+source arch/powerpc/platforms/ps3/Kconfig
+source arch/powerpc/platforms/cell/Kconfig
 
 config PPC_NATIVE
 	bool
@@ -702,8 +657,6 @@ source arch/powerpc/platforms/83xx/Kconfig
 source arch/powerpc/platforms/85xx/Kconfig
 source arch/powerpc/platforms/86xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
-source arch/powerpc/platforms/cell/Kconfig
-source arch/powerpc/platforms/ps3/Kconfig
 source arch/powerpc/platforms/pasemi/Kconfig
 
 menu "Kernel options"
