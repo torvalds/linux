@@ -826,7 +826,7 @@ static u64 ata_id_n_sectors(const u16 *id)
 /**
  *	ata_id_to_dma_mode	-	Identify DMA mode from id block
  *	@dev: device to identify
- *	@mode: mode to assume if we cannot tell
+ *	@unknown: mode to assume if we cannot tell
  *
  *	Set up the timing values for the device based upon the identify
  *	reported values for the DMA mode. This function is used by drivers
