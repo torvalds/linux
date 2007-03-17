@@ -294,6 +294,10 @@ static int balance_level(struct btrfs_trans_handle *trans, struct btrfs_root
 		parent_buf = path->nodes[level + 1];
 	pslot = path->slots[level + 1];
 
+	/*
+	 * deal with the case where there is only one pointer in the root
+	 * by promoting the node below to a root
+	 */
 	if (!parent_buf) {
 		struct btrfs_buffer *child;
 		u64 blocknr = mid_buf->blocknr;
@@ -1043,6 +1047,7 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	int ret;
 	int wret;
 
+	/* first try to make some room by pushing left and right */
 	wret = push_leaf_left(trans, root, path, data_size);
 	if (wret < 0)
 		return wret;
