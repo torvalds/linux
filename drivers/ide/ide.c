@@ -177,11 +177,7 @@ DECLARE_MUTEX(ide_cfg_sem);
 static int ide_scan_direction; /* THIS was formerly 2.2.x pci=reverse */
 #endif
 
-#ifdef CONFIG_IDEDMA_AUTO
 int noautodma = 0;
-#else
-int noautodma = 1;
-#endif
 
 EXPORT_SYMBOL(noautodma);
 

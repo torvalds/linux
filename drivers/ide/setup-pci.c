@@ -505,11 +505,6 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, ide_pci_device_t *d, ide_hwi
 		}
 	}
 }
-
-#ifndef CONFIG_IDEDMA_PCI_AUTO
-#warning CONFIG_IDEDMA_PCI_AUTO=n support is obsolete, and will be removed soon.
-#endif
-
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI*/
 
 /**
