@@ -26,7 +26,8 @@ struct device;
 
 #define RAM_OFFSET_MASK 0x3fffffffUL
 
-static dma_addr_t plat_map_dma_mem(struct device *dev, void *addr, size_t size)
+static inline dma_addr_t plat_map_dma_mem(struct device *dev, void *addr,
+	size_t size)
 {
 	dma_addr_t pa = virt_to_phys(addr) & RAM_OFFSET_MASK;
 
@@ -59,7 +60,7 @@ static unsigned long plat_dma_addr_to_phys(dma_addr_t dma_addr)
 	return addr;
 }
 
-static void plat_unmap_dma_mem(dma_addr_t dma_addr)
+static inline void plat_unmap_dma_mem(dma_addr_t dma_addr)
 {
 }
 

@@ -23,8 +23,8 @@
 
 extern int rtlx_open(int index, int can_sleep);
 extern int rtlx_release(int index);
-extern ssize_t rtlx_read(int index, void *buff, size_t count, int user);
-extern ssize_t rtlx_write(int index, void *buffer, size_t count, int user);
+extern ssize_t rtlx_read(int index, void __user *buff, size_t count);
+extern ssize_t rtlx_write(int index, const void __user *buffer, size_t count);
 extern unsigned int rtlx_read_poll(int index, int can_sleep);
 extern unsigned int rtlx_write_poll(int index);
 

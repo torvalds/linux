@@ -31,4 +31,7 @@ extern void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
  */
 extern int install_sigtramp(unsigned int __user *tramp, unsigned int syscall);
 
+/* Check and clear pending FPU exceptions in saved CSR */
+extern int fpcsr_pending(unsigned int __user *fpcsr);
+
 #endif	/* __SIGNAL_COMMON_H */
