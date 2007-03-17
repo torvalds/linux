@@ -463,6 +463,7 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 	memcpy(n->cb, skb->cb, sizeof(skb->cb));
 	C(len);
 	C(data_len);
+	C(mac_len);
 	C(csum);
 	C(local_df);
 	n->cloned = 1;
