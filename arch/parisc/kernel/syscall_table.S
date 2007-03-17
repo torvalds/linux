@@ -400,6 +400,7 @@
 	ENTRY_SAME(epoll_pwait)
 	ENTRY_COMP(statfs64)
 	ENTRY_COMP(fstatfs64)
+	ENTRY_COMP(kexec_load)		/* 300 */
 	/* Nothing yet */
 
 #undef ENTRY_SAME

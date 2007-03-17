@@ -792,8 +792,9 @@
 #define __NR_epoll_pwait	(__NR_Linux + 297)
 #define __NR_statfs64		(__NR_Linux + 298)
 #define __NR_fstatfs64		(__NR_Linux + 299)
+#define __NR_kexec_load		(__NR_Linux + 300)
 
-#define __NR_Linux_syscalls     (__NR_fstatfs64 + 1)
+#define __NR_Linux_syscalls     (__NR_kexec_load + 1)
 
 #define HPUX_GATEWAY_ADDR       0xC0000004
 #define LINUX_GATEWAY_ADDR      0x100
