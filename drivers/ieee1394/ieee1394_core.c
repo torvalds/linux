@@ -859,12 +859,9 @@ static void fill_async_lock_resp(struct hpsb_packet *packet, int rcode, int extc
 	packet->data_size = length;
 }
 
-#define PREP_REPLY_PACKET(length) \
-		packet = create_reply_packet(host, data, length); \
-		if (packet == NULL) break
-
 static void handle_incoming_packet(struct hpsb_host *host, int tcode,
-				   quadlet_t *data, size_t size, int write_acked)
+				   quadlet_t *data, size_t size,
+				   int write_acked)
 {
 	struct hpsb_packet *packet;
 	int length, rcode, extcode;
@@ -874,74 +871,72 @@ static void handle_incoming_packet(struct hpsb_host *host, int tcode,
 	u16 flags = (u16) data[0];
 	u64 addr;
 
-	/* big FIXME - no error checking is done for an out of bounds length */
+	/* FIXME?
+	 * Out-of-bounds lengths are left for highlevel_read|write to cap. */
 
 	switch (tcode) {
 	case TCODE_WRITEQ:
 		addr = (((u64)(data[1] & 0xffff)) << 32) | data[2];
-		rcode = highlevel_write(host, source, dest, data+3,
+		rcode = highlevel_write(host, source, dest, data + 3,
 					addr, 4, flags);
-
-		if (!write_acked
-		    && (NODEID_TO_NODE(data[0] >> 16) != NODE_MASK)
-		    && (rcode >= 0)) {
-			/* not a broadcast write, reply */
-			PREP_REPLY_PACKET(0);
-			fill_async_write_resp(packet, rcode);
-			send_packet_nocare(packet);
-		}
-		break;
+		goto handle_write_request;
 
 	case TCODE_WRITEB:
 		addr = (((u64)(data[1] & 0xffff)) << 32) | data[2];
-		rcode = highlevel_write(host, source, dest, data+4,
-					addr, data[3]>>16, flags);
-
-		if (!write_acked
-		    && (NODEID_TO_NODE(data[0] >> 16) != NODE_MASK)
-		    && (rcode >= 0)) {
-			/* not a broadcast write, reply */
-			PREP_REPLY_PACKET(0);
+		rcode = highlevel_write(host, source, dest, data + 4,
+					addr, data[3] >> 16, flags);
+handle_write_request:
+		if (rcode < 0 || write_acked ||
+		    NODEID_TO_NODE(data[0] >> 16) == NODE_MASK)
+			return;
+		/* not a broadcast write, reply */
+		packet = create_reply_packet(host, data, 0);
+		if (packet) {
 			fill_async_write_resp(packet, rcode);
 			send_packet_nocare(packet);
 		}
-		break;
+		return;
 
 	case TCODE_READQ:
 		addr = (((u64)(data[1] & 0xffff)) << 32) | data[2];
 		rcode = highlevel_read(host, source, &buffer, addr, 4, flags);
+		if (rcode < 0)
+			return;
 
-		if (rcode >= 0) {
-			PREP_REPLY_PACKET(0);
+		packet = create_reply_packet(host, data, 0);
+		if (packet) {
 			fill_async_readquad_resp(packet, rcode, buffer);
 			send_packet_nocare(packet);
 		}
-		break;
+		return;
 
 	case TCODE_READB:
 		length = data[3] >> 16;
-		PREP_REPLY_PACKET(length);
+		packet = create_reply_packet(host, data, length);
+		if (!packet)
+			return;
 
 		addr = (((u64)(data[1] & 0xffff)) << 32) | data[2];
 		rcode = highlevel_read(host, source, packet->data, addr,
 				       length, flags);
-
-		if (rcode >= 0) {
-			fill_async_readblock_resp(packet, rcode, length);
-			send_packet_nocare(packet);
-		} else {
+		if (rcode < 0) {
 			hpsb_free_packet(packet);
+			return;
 		}
-		break;
+		fill_async_readblock_resp(packet, rcode, length);
+		send_packet_nocare(packet);
+		return;
 
 	case TCODE_LOCK_REQUEST:
 		length = data[3] >> 16;
 		extcode = data[3] & 0xffff;
 		addr = (((u64)(data[1] & 0xffff)) << 32) | data[2];
 
-		PREP_REPLY_PACKET(8);
+		packet = create_reply_packet(host, data, 8);
+		if (!packet)
+			return;
 
-		if ((extcode == 0) || (extcode >= 7)) {
+		if (extcode == 0 || extcode >= 7) {
 			/* let switch default handle error */
 			length = 0;
 		}
@@ -949,12 +944,12 @@ static void handle_incoming_packet(struct hpsb_host *host, int tcode,
 		switch (length) {
 		case 4:
 			rcode = highlevel_lock(host, source, packet->data, addr,
-					       data[4], 0, extcode,flags);
+					       data[4], 0, extcode, flags);
 			fill_async_lock_resp(packet, rcode, extcode, 4);
 			break;
 		case 8:
-			if ((extcode != EXTCODE_FETCH_ADD)
-			    && (extcode != EXTCODE_LITTLE_ADD)) {
+			if (extcode != EXTCODE_FETCH_ADD &&
+			    extcode != EXTCODE_LITTLE_ADD) {
 				rcode = highlevel_lock(host, source,
 						       packet->data, addr,
 						       data[5], data[4],
@@ -978,20 +973,16 @@ static void handle_incoming_packet(struct hpsb_host *host, int tcode,
 			break;
 		default:
 			rcode = RCODE_TYPE_ERROR;
-			fill_async_lock_resp(packet, rcode,
-					     extcode, 0);
+			fill_async_lock_resp(packet, rcode, extcode, 0);
 		}
 
-		if (rcode >= 0) {
-			send_packet_nocare(packet);
-		} else {
+		if (rcode < 0)
 			hpsb_free_packet(packet);
-		}
-		break;
+		else
+			send_packet_nocare(packet);
+		return;
 	}
-
 }
-#undef PREP_REPLY_PACKET
 
 /**
  * hpsb_packet_received - hand over received packet to the core
