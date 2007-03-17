@@ -662,7 +662,7 @@ static int __init parse_memmap_opt(char *p)
 }
 early_param("memmap", parse_memmap_opt);
 
-void finish_e820_parsing(void)
+void __init finish_e820_parsing(void)
 {
 	if (userdef) {
 		printk(KERN_INFO "user-defined physical RAM map:\n");

@@ -560,7 +560,7 @@ ia32_sys_call_table:
 	.quad sys_sched_yield
 	.quad sys_sched_get_priority_max
 	.quad sys_sched_get_priority_min  /* 160 */
-	.quad sys_sched_rr_get_interval
+	.quad sys32_sched_rr_get_interval
 	.quad compat_sys_nanosleep
 	.quad sys_mremap
 	.quad sys_setresuid16

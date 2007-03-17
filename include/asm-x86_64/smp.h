@@ -7,6 +7,7 @@
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/bitops.h>
+#include <linux/init.h>
 extern int disable_apic;
 
 #include <asm/fixmap.h>
@@ -68,7 +69,7 @@ extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern void prefill_possible_map(void);
 extern unsigned num_processors;
-extern unsigned disabled_cpus;
+extern unsigned __cpuinitdata disabled_cpus;
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 
