@@ -59,8 +59,10 @@ unsigned long kern_linear_pte_xor[2] __read_mostly;
  */
 unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
 
+#ifndef CONFIG_DEBUG_PAGEALLOC
 /* A special kernel TSB for 4MB and 256MB linear mappings.  */
 struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
+#endif
 
 #define MAX_BANKS	32
 
@@ -1301,7 +1303,12 @@ static void __init tsb_phys_patch(void)
 }
 
 /* Don't mark as init, we give this to the Hypervisor.  */
-static struct hv_tsb_descr ktsb_descr[2];
+#ifndef CONFIG_DEBUG_PAGEALLOC
+#define NUM_KTSB_DESCR	2
+#else
+#define NUM_KTSB_DESCR	1
+#endif
+static struct hv_tsb_descr ktsb_descr[NUM_KTSB_DESCR];
 extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
 
 static void __init sun4v_ktsb_init(void)
@@ -1340,6 +1347,7 @@ static void __init sun4v_ktsb_init(void)
 	ktsb_descr[0].tsb_base = ktsb_pa;
 	ktsb_descr[0].resv = 0;
 
+#ifndef CONFIG_DEBUG_PAGEALLOC
 	/* Second KTSB for 4MB/256MB mappings.  */
 	ktsb_pa = (kern_base +
 		   ((unsigned long)&swapper_4m_tsb[0] - KERNBASE));
@@ -1352,6 +1360,7 @@ static void __init sun4v_ktsb_init(void)
 	ktsb_descr[1].ctx_idx = 0;
 	ktsb_descr[1].tsb_base = ktsb_pa;
 	ktsb_descr[1].resv = 0;
+#endif
 }
 
 void __cpuinit sun4v_ktsb_register(void)
@@ -1364,7 +1373,7 @@ void __cpuinit sun4v_ktsb_register(void)
 	pa = kern_base + ((unsigned long)&ktsb_descr[0] - KERNBASE);
 
 	func = HV_FAST_MMU_TSB_CTX0;
-	arg0 = 2;
+	arg0 = NUM_KTSB_DESCR;
 	arg1 = pa;
 	__asm__ __volatile__("ta	%6"
 			     : "=&r" (func), "=&r" (arg0), "=&r" (arg1)
@@ -1393,7 +1402,9 @@ void __init paging_init(void)
 
 	/* Invalidate both kernel TSBs.  */
 	memset(swapper_tsb, 0x40, sizeof(swapper_tsb));
+#ifndef CONFIG_DEBUG_PAGEALLOC
 	memset(swapper_4m_tsb, 0x40, sizeof(swapper_4m_tsb));
+#endif
 
 	if (tlb_type == hypervisor)
 		sun4v_pgprot_init();
@@ -1725,8 +1736,13 @@ static void __init sun4u_pgprot_init(void)
 	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4U | __DIRTY_BITS_4U |
 		     __ACCESS_BITS_4U | _PAGE_E_4U);
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZBITS_4U) ^
+		0xfffff80000000000;
+#else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4U) ^
 		0xfffff80000000000;
+#endif
 	kern_linear_pte_xor[0] |= (_PAGE_CP_4U | _PAGE_CV_4U |
 				   _PAGE_P_4U | _PAGE_W_4U);
 
@@ -1769,13 +1785,23 @@ static void __init sun4v_pgprot_init(void)
 	_PAGE_E = _PAGE_E_4V;
 	_PAGE_CACHE = _PAGE_CACHE_4V;
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZBITS_4V) ^
+		0xfffff80000000000;
+#else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4V) ^
 		0xfffff80000000000;
+#endif
 	kern_linear_pte_xor[0] |= (_PAGE_CP_4V | _PAGE_CV_4V |
 				   _PAGE_P_4V | _PAGE_W_4V);
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	kern_linear_pte_xor[1] = (_PAGE_VALID | _PAGE_SZBITS_4V) ^
+		0xfffff80000000000;
+#else
 	kern_linear_pte_xor[1] = (_PAGE_VALID | _PAGE_SZ256MB_4V) ^
 		0xfffff80000000000;
+#endif
 	kern_linear_pte_xor[1] |= (_PAGE_CP_4V | _PAGE_CV_4V |
 				   _PAGE_P_4V | _PAGE_W_4V);
 
