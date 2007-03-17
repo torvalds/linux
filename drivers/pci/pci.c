@@ -1323,7 +1323,7 @@ pci_intx(struct pci_dev *pdev, int enable)
 
 /**
  * pci_msi_off - disables any msi or msix capabilities
- * @pdev: the PCI device to operate on
+ * @dev: the PCI device to operate on
  *
  * If you want to use msi see pci_enable_msi and friends.
  * This is a lower level primitive that allows us to disable
