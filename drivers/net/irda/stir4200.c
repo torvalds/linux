@@ -52,7 +52,6 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <net/irda/irda.h>
-#include <net/irda/irlap.h>
 #include <net/irda/irda_device.h>
 #include <net/irda/wrapper.h>
 #include <net/irda/crc.h>
