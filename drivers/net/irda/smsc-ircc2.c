@@ -315,6 +315,7 @@ static struct smsc_chip __initdata lpc_chips_flat[] =
 {
 	/* Base address 0x2E or 0x4E */
 	{ "47N227",	KEY55_1|FIR|SERx4,	0x5a, 0x00 },
+	{ "47N227",	KEY55_1|FIR|SERx4,	0x7a, 0x00 },
 	{ "47N267",	KEY55_1|FIR|SERx4,	0x5e, 0x00 },
 	{ NULL }
 };
