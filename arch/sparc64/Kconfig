@@ -136,18 +136,6 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-	  This allows applications to run more reliably even when the system is
-	  under load.
-
-	  Say Y here if you are building a kernel for a desktop, embedded
-	  or real-time system.  Say N if you are unsure.
-
 config NR_CPUS
 	int "Maximum number of CPUs (2-64)"
 	range 2 64
@@ -398,6 +386,8 @@ config SCHED_SMT
 	  SMT scheduler support improves the CPU scheduler's decision making
 	  when dealing with UltraSPARC cpus at a cost of slightly increased
 	  overhead in some places. If unsure say N here.
+
+source "kernel/Kconfig.preempt"
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
