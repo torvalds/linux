@@ -10,6 +10,27 @@
 
 #include "irnet_irda.h"		/* Private header */
 
+/*
+ * PPP disconnect work: we need to make sure we're in
+ * process context when calling ppp_unregister_channel().
+ */
+static void irnet_ppp_disconnect(struct work_struct *work)
+{
+	irnet_socket * self =
+		container_of(work, irnet_socket, disconnect_work);
+
+	if (self == NULL)
+		return;
+	/*
+	 * If we were connected, cleanup & close the PPP
+	 * channel, which will kill pppd (hangup) and the rest.
+	 */
+	if (self->ppp_open && !self->ttp_open && !self->ttp_connect) {
+		ppp_unregister_channel(&self->chan);
+		self->ppp_open = 0;
+	}
+}
+
 /************************* CONTROL CHANNEL *************************/
 /*
  * When ppp is not active, /dev/irnet act as a control channel.
@@ -498,6 +519,8 @@ irda_irnet_create(irnet_socket *	self)
   self->mask = irlmp_service_to_hint(S_LAN);
 #endif /* DISCOVERY_NOMASK */
   self->tx_flow = FLOW_START;	/* Flow control from IrTTP */
+
+  INIT_WORK(&self->disconnect_work, irnet_ppp_disconnect);
 
   DEXIT(IRDA_SOCK_TRACE, "\n");
   return(0);
@@ -1134,15 +1157,8 @@ irnet_disconnect_indication(void *	instance,
     {
       if(test_open)
 	{
-#ifdef MISSING_PPP_API
-	  /* ppp_unregister_channel() wants a user context, which we
-	   * are guaranteed to NOT have here. What are we supposed
-	   * to do here ? Jean II */
-	  /* If we were connected, cleanup & close the PPP channel,
-	   * which will kill pppd (hangup) and the rest */
-	  ppp_unregister_channel(&self->chan);
-	  self->ppp_open = 0;
-#endif
+	  /* ppp_unregister_channel() wants a user context. */
+	  schedule_work(&self->disconnect_work);
 	}
       else
 	{
