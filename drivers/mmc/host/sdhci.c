@@ -659,8 +659,7 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	pwr = SDHCI_POWER_ON;
 
 	switch (1 << power) {
-	case MMC_VDD_17_18:
-	case MMC_VDD_18_19:
+	case MMC_VDD_165_195:
 		pwr |= SDHCI_POWER_180;
 		break;
 	case MMC_VDD_29_30:
@@ -1280,7 +1279,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	if (caps & SDHCI_CAN_VDD_300)
 		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
 	if (caps & SDHCI_CAN_VDD_180)
-		mmc->ocr_avail |= MMC_VDD_17_18|MMC_VDD_18_19;
+		mmc->ocr_avail |= MMC_VDD_165_195;
 
 	if (mmc->ocr_avail == 0) {
 		printk(KERN_ERR "%s: Hardware doesn't report any "

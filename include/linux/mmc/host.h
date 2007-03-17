@@ -65,14 +65,7 @@ struct mmc_host {
 	unsigned int		f_max;
 	u32			ocr_avail;
 
-#define MMC_VDD_145_150		0x00000001	/* VDD voltage 1.45 - 1.50 */
-#define MMC_VDD_150_155		0x00000002	/* VDD voltage 1.50 - 1.55 */
-#define MMC_VDD_155_160		0x00000004	/* VDD voltage 1.55 - 1.60 */
-#define MMC_VDD_160_165		0x00000008	/* VDD voltage 1.60 - 1.65 */
-#define MMC_VDD_165_170		0x00000010	/* VDD voltage 1.65 - 1.70 */
-#define MMC_VDD_17_18		0x00000020	/* VDD voltage 1.7 - 1.8 */
-#define MMC_VDD_18_19		0x00000040	/* VDD voltage 1.8 - 1.9 */
-#define MMC_VDD_19_20		0x00000080	/* VDD voltage 1.9 - 2.0 */
+#define MMC_VDD_165_195		0x00000080	/* VDD voltage 1.65 - 1.95 */
 #define MMC_VDD_20_21		0x00000100	/* VDD voltage 2.0 ~ 2.1 */
 #define MMC_VDD_21_22		0x00000200	/* VDD voltage 2.1 ~ 2.2 */
 #define MMC_VDD_22_23		0x00000400	/* VDD voltage 2.2 ~ 2.3 */

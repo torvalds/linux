@@ -323,6 +323,17 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 
 	mmc_attach_bus(host, &mmc_ops);
 
+	/*
+	 * Sanity check the voltages that the card claims to
+	 * support.
+	 */
+	if (ocr & 0x7F) {
+		printk(KERN_WARNING "%s: card claims to support voltages "
+		       "below the defined range. These will be ignored.\n",
+		       mmc_hostname(host));
+		ocr &= ~0x7F;
+	}
+
 	host->ocr = mmc_select_voltage(host, ocr);
 
 	/*
