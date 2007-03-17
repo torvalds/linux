@@ -232,7 +232,6 @@ static __devexit int ixp4xx_pata_remove(struct platform_device *dev)
 	struct ata_host *host = platform_get_drvdata(dev);
 
 	ata_host_detach(host);
-	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }
