@@ -11,6 +11,7 @@
 #define _SYSFS_H_
 
 #include <linux/compiler.h>
+#include <linux/errno.h>
 #include <linux/list.h>
 #include <asm/atomic.h>
 
