@@ -260,6 +260,10 @@ struct mac_stats {
 	unsigned long serdes_signal_loss;
 	unsigned long xaui_pcs_ctc_err;
 	unsigned long xaui_pcs_align_change;
+
+	unsigned long num_toggled; /* # times toggled TxEn due to stuck TX */
+	unsigned long num_resets;  /* # times reset due to stuck TX */
+
 };
 
 struct tp_mib_stats {
@@ -400,6 +404,12 @@ struct adapter_params {
 	unsigned int rev;	/* chip revision */
 };
 
+enum {					    /* chip revisions */
+	T3_REV_A  = 0,
+	T3_REV_B  = 2,
+	T3_REV_B2 = 3,
+};
+
 struct trace_params {
 	u32 sip;
 	u32 sip_mask;
@@ -465,6 +475,10 @@ struct cmac {
 	struct adapter *adapter;
 	unsigned int offset;
 	unsigned int nucast;	/* # of address filters for unicast MACs */
+	unsigned int tcnt;
+	unsigned int xcnt;
+	unsigned int toggle_cnt;
+	unsigned int txen;
 	struct mac_stats stats;
 };
 
@@ -666,6 +680,7 @@ int t3_mac_set_address(struct cmac *mac, unsigned int idx, u8 addr[6]);
 int t3_mac_set_num_ucast(struct cmac *mac, int n);
 const struct mac_stats *t3_mac_update_stats(struct cmac *mac);
 int t3_mac_set_speed_duplex_fc(struct cmac *mac, int speed, int duplex, int fc);
+int t3b2_mac_watchdog_task(struct cmac *mac);
 
 void t3_mc5_prep(struct adapter *adapter, struct mc5 *mc5, int mode);
 int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
