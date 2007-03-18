@@ -247,10 +247,18 @@ sn_io_slot_fixup(struct pci_dev *dev)
 		addr = ((addr << 4) >> 4) | __IA64_UNCACHED_OFFSET;
 		dev->resource[idx].start = addr;
 		dev->resource[idx].end = addr + size;
+
+		/*
+		 * if it's already in the device structure, remove it before
+		 * inserting
+		 */
+		if (dev->resource[idx].parent && dev->resource[idx].parent->child)
+			release_resource(&dev->resource[idx]);
+
 		if (dev->resource[idx].flags & IORESOURCE_IO)
-			dev->resource[idx].parent = &ioport_resource;
+			insert_resource(&ioport_resource, &dev->resource[idx]);
 		else
-			dev->resource[idx].parent = &iomem_resource;
+			insert_resource(&iomem_resource, &dev->resource[idx]);
 		/* If ROM, mark as shadowed in PROM */
 		if (idx == PCI_ROM_RESOURCE)
 			dev->resource[idx].flags |= IORESOURCE_ROM_BIOS_COPY;
