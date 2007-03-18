@@ -382,14 +382,17 @@ void exit_thread(void)
 void flush_thread(void)
 {
 	struct task_struct *tsk = current;
-	struct thread_info *t = current_thread_info();
 
-	if (t->flags & _TIF_ABI_PENDING) {
-		t->flags ^= (_TIF_ABI_PENDING | _TIF_IA32);
-		if (t->flags & _TIF_IA32)
+	if (test_tsk_thread_flag(tsk, TIF_ABI_PENDING)) {
+		clear_tsk_thread_flag(tsk, TIF_ABI_PENDING);
+		if (test_tsk_thread_flag(tsk, TIF_IA32)) {
+			clear_tsk_thread_flag(tsk, TIF_IA32);
+		} else {
+			set_tsk_thread_flag(tsk, TIF_IA32);
 			current_thread_info()->status |= TS_COMPAT;
+		}
 	}
-	t->flags &= ~_TIF_DEBUG;
+	clear_tsk_thread_flag(tsk, TIF_DEBUG);
 
 	tsk->thread.debugreg0 = 0;
 	tsk->thread.debugreg1 = 0;
