@@ -14,6 +14,8 @@
 #include "mt352.h"
 #include "mt352_priv.h"
 #include "qt1010.h"
+#include "tda1004x.h"
+#include "tda827x.h"
 
 /* debug */
 static int dvb_usb_m920x_debug;
@@ -414,8 +416,40 @@ static int megasky_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static struct tda1004x_config digivox_tda10046_config = {
+	.demod_address = 0x08,
+	.invert = 0,
+	.invert_oclk = 0,
+	.ts_mode = TDA10046_TS_SERIAL,
+	.xtal_freq = TDA10046_XTAL_16M,
+	.if_freq = TDA10046_FREQ_045,
+	.agc_config = TDA10046_AGC_TDA827X,
+	.gpio_config = TDA10046_GPTRI,
+	.request_firmware = NULL,
+};
+
+static int digivox_tda10046_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	deb_rc("digivox_tda10046_frontend_attach!\n");
+
+	if ((adap->fe = dvb_attach(tda10046_attach, &digivox_tda10046_config,
+				   &adap->dev->i2c_adap)) == NULL)
+		return -EIO;
+
+	return 0;
+}
+
+static int digivox_tda8275_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
+		       NULL) == NULL)
+		return -ENODEV;
+	return 0;
+}
+
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties megasky_properties;
+static struct dvb_usb_device_properties digivox_mini_ii_properties;
 
 static int m920x_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -426,7 +460,8 @@ static int m920x_probe(struct usb_interface *intf,
 
 	deb_rc("Probed!\n");
 
-	if ((ret = dvb_usb_device_init(intf, &megasky_properties, THIS_MODULE, &d)) == 0)
+	if (((ret = dvb_usb_device_init(intf, &megasky_properties, THIS_MODULE, &d)) == 0) ||
+	    ((ret = dvb_usb_device_init(intf, &digivox_mini_ii_properties, THIS_MODULE, &d)) == 0))
 		goto found;
 
 	return ret;
@@ -451,6 +486,8 @@ found:
 
 static struct usb_device_id m920x_table [] = {
 		{ USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY580) },
+		{ USB_DEVICE(USB_VID_ANUBIS_ELECTRONIC,
+			     USB_PID_MSI_DIGI_VOX_MINI_II) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, m920x_table);
@@ -499,6 +536,50 @@ static struct dvb_usb_device_properties megasky_properties = {
 	.devices = {
 		{   "MSI Mega Sky 580 DVB-T USB2.0",
 			{ &m920x_table[0], NULL },
+			{ NULL },
+		}
+	}
+};
+
+static struct dvb_usb_device_properties digivox_mini_ii_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl = DEVICE_SPECIFIC,
+	.firmware = "dvb-usb-digivox-02.fw",
+	.download_firmware = m9206_firmware_download,
+
+	.size_of_priv     = sizeof(struct m9206_state),
+
+	.identify_state   = m920x_identify_state,
+	.num_adapters = 1,
+	.adapter = {{
+		.caps = DVB_USB_ADAP_HAS_PID_FILTER |
+		DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+
+		.pid_filter_count = 8,
+		.pid_filter       = m9206_pid_filter,
+		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
+
+		.frontend_attach  = digivox_tda10046_frontend_attach,
+		.tuner_attach     = digivox_tda8275_tuner_attach,
+
+		.stream = {
+			.type = USB_BULK,
+			.count = 8,
+			.endpoint = 0x81,
+			.u = {
+				.bulk = {
+					.buffersize = 0x4000,
+				}
+			}
+		},
+	}},
+	.i2c_algo         = &m9206_i2c_algo,
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "MSI DIGI VOX mini II DVB-T USB2.0",
+			{ &m920x_table[1], NULL },
 			{ NULL },
 		},
 	}
