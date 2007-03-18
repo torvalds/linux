@@ -1362,23 +1362,27 @@ static int set_rx_csum(struct net_device *dev, u32 data)
 
 static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 {
-	struct adapter *adapter = dev->priv;
+	const struct adapter *adapter = dev->priv;
+	const struct port_info *pi = netdev_priv(dev);
+	const struct qset_params *q = &adapter->params.sge.qset[pi->first_qset];
 
 	e->rx_max_pending = MAX_RX_BUFFERS;
 	e->rx_mini_max_pending = 0;
 	e->rx_jumbo_max_pending = MAX_RX_JUMBO_BUFFERS;
 	e->tx_max_pending = MAX_TXQ_ENTRIES;
 
-	e->rx_pending = adapter->params.sge.qset[0].fl_size;
-	e->rx_mini_pending = adapter->params.sge.qset[0].rspq_size;
-	e->rx_jumbo_pending = adapter->params.sge.qset[0].jumbo_size;
-	e->tx_pending = adapter->params.sge.qset[0].txq_size[0];
+	e->rx_pending = q->fl_size;
+	e->rx_mini_pending = q->rspq_size;
+	e->rx_jumbo_pending = q->jumbo_size;
+	e->tx_pending = q->txq_size[0];
 }
 
 static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 {
 	int i;
+	struct qset_params *q;
 	struct adapter *adapter = dev->priv;
+	const struct port_info *pi = netdev_priv(dev);
 
 	if (e->rx_pending > MAX_RX_BUFFERS ||
 	    e->rx_jumbo_pending > MAX_RX_JUMBO_BUFFERS ||
@@ -1393,9 +1397,8 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	if (adapter->flags & FULL_INIT_DONE)
 		return -EBUSY;
 
-	for (i = 0; i < SGE_QSETS; ++i) {
-		struct qset_params *q = &adapter->params.sge.qset[i];
-
+	q = &adapter->params.sge.qset[pi->first_qset];
+	for (i = 0; i < pi->nqsets; ++i, ++q) {
 		q->rspq_size = e->rx_mini_pending;
 		q->fl_size = e->rx_pending;
 		q->jumbo_size = e->rx_jumbo_pending;
