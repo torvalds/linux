@@ -57,7 +57,7 @@ static int drm_setup(drm_device_t * dev)
 	dev->magicfree.next = NULL;
 
 	/* prebuild the SAREA */
-	sareapage = max(SAREA_MAX, PAGE_SIZE);
+	sareapage = max_t(unsigned, SAREA_MAX, PAGE_SIZE);
 	i = drm_addmap(dev, 0, sareapage, _DRM_SHM, _DRM_CONTAINS_LOCK, &map);
 	if (i != 0)
 		return i;
