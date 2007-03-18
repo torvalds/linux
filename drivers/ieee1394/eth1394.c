@@ -820,8 +820,7 @@ static int ether1394_mac_addr(struct net_device *dev, void *p)
  ******************************************/
 
 /* Copied from net/ethernet/eth.c */
-static inline u16 ether1394_type_trans(struct sk_buff *skb,
-				       struct net_device *dev)
+static u16 ether1394_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct eth1394hdr *eth;
 	unsigned char *rawp;
@@ -855,10 +854,9 @@ static inline u16 ether1394_type_trans(struct sk_buff *skb,
 
 /* Parse an encapsulated IP1394 header into an ethernet frame packet.
  * We also perform ARP translation here, if need be.  */
-static inline u16 ether1394_parse_encap(struct sk_buff *skb,
-					struct net_device *dev,
-					nodeid_t srcid, nodeid_t destid,
-					u16 ether_type)
+static u16 ether1394_parse_encap(struct sk_buff *skb, struct net_device *dev,
+				 nodeid_t srcid, nodeid_t destid,
+				 u16 ether_type)
 {
 	struct eth1394_priv *priv = netdev_priv(dev);
 	u64 dest_hw;
@@ -939,7 +937,7 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 	return ret;
 }
 
-static inline int fragment_overlap(struct list_head *frag_list, int offset, int len)
+static int fragment_overlap(struct list_head *frag_list, int offset, int len)
 {
 	struct fragment_info *fi;
 
@@ -951,7 +949,7 @@ static inline int fragment_overlap(struct list_head *frag_list, int offset, int 
 	return 0;
 }
 
-static inline struct list_head *find_partial_datagram(struct list_head *pdgl, int dgl)
+static struct list_head *find_partial_datagram(struct list_head *pdgl, int dgl)
 {
 	struct partial_datagram *pd;
 
@@ -963,7 +961,7 @@ static inline struct list_head *find_partial_datagram(struct list_head *pdgl, in
 }
 
 /* Assumes that new fragment does not overlap any existing fragments */
-static inline int new_fragment(struct list_head *frag_info, int offset, int len)
+static int new_fragment(struct list_head *frag_info, int offset, int len)
 {
 	struct list_head *lh;
 	struct fragment_info *fi, *fi2, *new;
@@ -1015,10 +1013,9 @@ static inline int new_fragment(struct list_head *frag_info, int offset, int len)
 	return 0;
 }
 
-static inline int new_partial_datagram(struct net_device *dev,
-				       struct list_head *pdgl, int dgl,
-				       int dg_size, char *frag_buf,
-				       int frag_off, int frag_len)
+static int new_partial_datagram(struct net_device *dev, struct list_head *pdgl,
+				int dgl, int dg_size, char *frag_buf,
+				int frag_off, int frag_len)
 {
 	struct partial_datagram *new;
 
@@ -1055,8 +1052,8 @@ static inline int new_partial_datagram(struct net_device *dev,
 	return 0;
 }
 
-static inline int update_partial_datagram(struct list_head *pdgl, struct list_head *lh,
-					  char *frag_buf, int frag_off, int frag_len)
+static int update_partial_datagram(struct list_head *pdgl, struct list_head *lh,
+				   char *frag_buf, int frag_off, int frag_len)
 {
 	struct partial_datagram *pd = list_entry(lh, struct partial_datagram, list);
 
@@ -1073,11 +1070,13 @@ static inline int update_partial_datagram(struct list_head *pdgl, struct list_he
 	return 0;
 }
 
-static inline int is_datagram_complete(struct list_head *lh, int dg_size)
+static int is_datagram_complete(struct list_head *lh, int dg_size)
 {
-	struct partial_datagram *pd = list_entry(lh, struct partial_datagram, list);
-	struct fragment_info *fi = list_entry(pd->frag_info.next,
-					      struct fragment_info, list);
+	struct partial_datagram *pd;
+	struct fragment_info *fi;
+
+	pd = list_entry(lh, struct partial_datagram, list);
+	fi = list_entry(pd->frag_info.next, struct fragment_info, list);
 
 	return (fi->len == dg_size);
 }
@@ -1359,8 +1358,8 @@ static void ether1394_iso(struct hpsb_iso *iso)
  * speed, and unicast FIFO address information between the sender_unique_id
  * and the IP addresses.
  */
-static inline void ether1394_arp_to_1394arp(struct sk_buff *skb,
-					    struct net_device *dev)
+static void ether1394_arp_to_1394arp(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct eth1394_priv *priv = netdev_priv(dev);
 
@@ -1382,10 +1381,10 @@ static inline void ether1394_arp_to_1394arp(struct sk_buff *skb,
 
 /* We need to encapsulate the standard header with our own. We use the
  * ethernet header's proto for our own. */
-static inline unsigned int ether1394_encapsulate_prep(unsigned int max_payload,
-						      __be16 proto,
-						      union eth1394_hdr *hdr,
-						      u16 dg_size, u16 dgl)
+static unsigned int ether1394_encapsulate_prep(unsigned int max_payload,
+					       __be16 proto,
+					       union eth1394_hdr *hdr,
+					       u16 dg_size, u16 dgl)
 {
 	unsigned int adj_max_payload = max_payload - hdr_type_len[ETH1394_HDR_LF_UF];
 
@@ -1403,9 +1402,9 @@ static inline unsigned int ether1394_encapsulate_prep(unsigned int max_payload,
 	return((dg_size + (adj_max_payload - 1)) / adj_max_payload);
 }
 
-static inline unsigned int ether1394_encapsulate(struct sk_buff *skb,
-						 unsigned int max_payload,
-						 union eth1394_hdr *hdr)
+static unsigned int ether1394_encapsulate(struct sk_buff *skb,
+					  unsigned int max_payload,
+					  union eth1394_hdr *hdr)
 {
 	union eth1394_hdr *bufhdr;
 	int ftype = hdr->common.lf;
@@ -1445,7 +1444,7 @@ static inline unsigned int ether1394_encapsulate(struct sk_buff *skb,
 	return min(max_payload, skb->len);
 }
 
-static inline struct hpsb_packet *ether1394_alloc_common_packet(struct hpsb_host *host)
+static struct hpsb_packet *ether1394_alloc_common_packet(struct hpsb_host *host)
 {
 	struct hpsb_packet *p;
 
@@ -1458,10 +1457,9 @@ static inline struct hpsb_packet *ether1394_alloc_common_packet(struct hpsb_host
 	return p;
 }
 
-static inline int ether1394_prep_write_packet(struct hpsb_packet *p,
-					      struct hpsb_host *host,
-					      nodeid_t node, u64 addr,
-					      void * data, int tx_len)
+static int ether1394_prep_write_packet(struct hpsb_packet *p,
+				       struct hpsb_host *host, nodeid_t node,
+				       u64 addr, void * data, int tx_len)
 {
 	p->node_id = node;
 	p->data = NULL;
@@ -1488,9 +1486,9 @@ static inline int ether1394_prep_write_packet(struct hpsb_packet *p,
 	return 0;
 }
 
-static inline void ether1394_prep_gasp_packet(struct hpsb_packet *p,
-					      struct eth1394_priv *priv,
-					      struct sk_buff *skb, int length)
+static void ether1394_prep_gasp_packet(struct hpsb_packet *p,
+				       struct eth1394_priv *priv,
+				       struct sk_buff *skb, int length)
 {
 	p->header_size = 4;
 	p->tcode = TCODE_STREAM_DATA;
@@ -1512,7 +1510,7 @@ static inline void ether1394_prep_gasp_packet(struct hpsb_packet *p,
 	p->speed_code = priv->bc_sspd;
 }
 
-static inline void ether1394_free_packet(struct hpsb_packet *packet)
+static void ether1394_free_packet(struct hpsb_packet *packet)
 {
 	if (packet->tcode != TCODE_STREAM_DATA)
 		hpsb_free_tlabel(packet);
@@ -1556,7 +1554,7 @@ static int ether1394_send_packet(struct packet_task *ptask, unsigned int tx_len)
 
 
 /* Task function to be run when a datagram transmission is completed */
-static inline void ether1394_dg_complete(struct packet_task *ptask, int fail)
+static void ether1394_dg_complete(struct packet_task *ptask, int fail)
 {
 	struct sk_buff *skb = ptask->skb;
 	struct net_device *dev = skb->dev;
