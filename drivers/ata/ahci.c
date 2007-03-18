@@ -188,8 +188,10 @@ struct ahci_sg {
 };
 
 struct ahci_host_priv {
-	u32			cap;	/* cache of HOST_CAP register */
-	u32			port_map; /* cache of HOST_PORTS_IMPL reg */
+	u32			cap;		/* cap to use */
+	u32			port_map;	/* port map to use */
+	u32			saved_cap;	/* saved initial cap */
+	u32			saved_port_map;	/* saved initial port_map */
 };
 
 struct ahci_port_priv {
@@ -477,6 +479,65 @@ static inline void __iomem *ahci_port_base(void __iomem *base,
 	return base + 0x100 + (port * 0x80);
 }
 
+/**
+ *	ahci_save_initial_config - Save and fixup initial config values
+ *	@probe_ent: probe_ent of target device
+ *
+ *	Some registers containing configuration info might be setup by
+ *	BIOS and might be cleared on reset.  This function saves the
+ *	initial values of those registers into @hpriv such that they
+ *	can be restored after controller reset.
+ *
+ *	If inconsistent, config values are fixed up by this function.
+ *
+ *	LOCKING:
+ *	None.
+ */
+static void ahci_save_initial_config(struct ata_probe_ent *probe_ent)
+{
+	struct ahci_host_priv *hpriv = probe_ent->private_data;
+	void __iomem *mmio = probe_ent->iomap[AHCI_PCI_BAR];
+	u32 cap, port_map;
+
+	/* Values prefixed with saved_ are written back to host after
+	 * reset.  Values without are used for driver operation.
+	 */
+	hpriv->saved_cap = cap = readl(mmio + HOST_CAP);
+	hpriv->saved_port_map = port_map = readl(mmio + HOST_PORTS_IMPL);
+
+	/* fixup zero port_map */
+	if (!port_map) {
+		port_map = (1 << ahci_nr_ports(hpriv->cap)) - 1;
+		dev_printk(KERN_WARNING, probe_ent->dev,
+			   "PORTS_IMPL is zero, forcing 0x%x\n", port_map);
+
+		/* write the fixed up value to the PI register */
+		hpriv->saved_port_map = port_map;
+	}
+
+	/* record values to use during operation */
+	hpriv->cap = cap;
+	hpriv->port_map = port_map;
+}
+
+/**
+ *	ahci_restore_initial_config - Restore initial config
+ *	@mmio: MMIO base for the host
+ *	@hpriv: host private data
+ *
+ *	Restore initial config stored by ahci_save_initial_config().
+ *
+ *	LOCKING:
+ *	None.
+ */
+static void ahci_restore_initial_config(void __iomem *mmio,
+					struct ahci_host_priv *hpriv)
+{
+	writel(hpriv->saved_cap, mmio + HOST_CAP);
+	writel(hpriv->saved_port_map, mmio + HOST_PORTS_IMPL);
+	(void) readl(mmio + HOST_PORTS_IMPL);	/* flush */
+}
+
 static u32 ahci_scr_read (struct ata_port *ap, unsigned int sc_reg_in)
 {
 	unsigned int sc_reg;
@@ -653,12 +714,10 @@ static int ahci_deinit_port(void __iomem *port_mmio, u32 cap, const char **emsg)
 	return 0;
 }
 
-static int ahci_reset_controller(void __iomem *mmio, struct pci_dev *pdev)
+static int ahci_reset_controller(void __iomem *mmio, struct pci_dev *pdev,
+				 struct ahci_host_priv *hpriv)
 {
-	u32 cap_save, impl_save, tmp;
-
-	cap_save = readl(mmio + HOST_CAP);
-	impl_save = readl(mmio + HOST_PORTS_IMPL);
+	u32 tmp;
 
 	/* global controller reset */
 	tmp = readl(mmio + HOST_CTL);
@@ -683,18 +742,8 @@ static int ahci_reset_controller(void __iomem *mmio, struct pci_dev *pdev)
 	writel(HOST_AHCI_EN, mmio + HOST_CTL);
 	(void) readl(mmio + HOST_CTL);	/* flush */
 
-	/* These write-once registers are normally cleared on reset.
-	 * Restore BIOS values... which we HOPE were present before
-	 * reset.
-	 */
-	if (!impl_save) {
-		impl_save = (1 << ahci_nr_ports(cap_save)) - 1;
-		dev_printk(KERN_WARNING, &pdev->dev,
-			   "PORTS_IMPL is zero, forcing 0x%x\n", impl_save);
-	}
-	writel(cap_save, mmio + HOST_CAP);
-	writel(impl_save, mmio + HOST_PORTS_IMPL);
-	(void) readl(mmio + HOST_PORTS_IMPL);	/* flush */
+	/* some registers might be cleared on reset.  restore initial values */
+	ahci_restore_initial_config(mmio, hpriv);
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
 		u16 tmp16;
@@ -1432,7 +1481,7 @@ static int ahci_pci_device_resume(struct pci_dev *pdev)
 		return rc;
 
 	if (pdev->dev.power.power_state.event == PM_EVENT_SUSPEND) {
-		rc = ahci_reset_controller(mmio, pdev);
+		rc = ahci_reset_controller(mmio, pdev, hpriv);
 		if (rc)
 			return rc;
 
@@ -1543,12 +1592,10 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 	unsigned int i, cap_n_ports, using_dac;
 	int rc;
 
-	rc = ahci_reset_controller(mmio, pdev);
+	rc = ahci_reset_controller(mmio, pdev, hpriv);
 	if (rc)
 		return rc;
 
-	hpriv->cap = readl(mmio + HOST_CAP);
-	hpriv->port_map = readl(mmio + HOST_PORTS_IMPL);
 	cap_n_ports = ahci_nr_ports(hpriv->cap);
 
 	VPRINTK("cap 0x%x  port_map 0x%x  n_ports %d\n",
@@ -1739,6 +1786,8 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->private_data = hpriv;
 
 	/* initialize adapter */
+	ahci_save_initial_config(probe_ent);
+
 	rc = ahci_host_init(probe_ent);
 	if (rc)
 		return rc;
