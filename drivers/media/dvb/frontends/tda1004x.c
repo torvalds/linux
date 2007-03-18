@@ -657,8 +657,16 @@ static int tda10046_init(struct dvb_frontend* fe)
 		tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0xf0, 0x60);  // set AGC polarities
 		break;
 	}
+	if (state->config->ts_mode == 0) {
+		tda1004x_write_mask(state, TDA10046H_CONF_TRISTATE1, 0xc0, 0x40);
+		tda1004x_write_mask(state, 0x3a, 0x80, state->config->invert_oclk << 7);
+	} else {
+		tda1004x_write_mask(state, TDA10046H_CONF_TRISTATE1, 0xc0, 0x80);
+		tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0x10,
+							state->config->invert_oclk << 4);
+	}
 	tda1004x_write_byteI(state, TDA1004X_CONFADC2, 0x38);
-	tda1004x_write_byteI(state, TDA10046H_CONF_TRISTATE1, 0x79); // Turn IF AGC output on
+	tda1004x_write_mask (state, TDA10046H_CONF_TRISTATE1, 0x3e, 0x38); // Turn IF AGC output on
 	tda1004x_write_byteI(state, TDA10046H_AGC_TUN_MIN, 0);	  // }
 	tda1004x_write_byteI(state, TDA10046H_AGC_TUN_MAX, 0xff); // } AGC min/max values
 	tda1004x_write_byteI(state, TDA10046H_AGC_IF_MIN, 0);	  // }
@@ -668,7 +676,6 @@ static int tda10046_init(struct dvb_frontend* fe)
 	tda1004x_write_byteI(state, TDA1004X_CONF_TS1, 7); // MPEG2 interface config
 	tda1004x_write_byteI(state, TDA1004X_CONF_TS2, 0xc0); // MPEG2 interface config
 	// tda1004x_write_mask(state, 0x50, 0x80, 0x80);         // handle out of guard echoes
-	tda1004x_write_mask(state, 0x3a, 0x80, state->config->invert_oclk << 7);
 
 	return 0;
 }

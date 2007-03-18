@@ -61,6 +61,11 @@ enum tda10046_if {
 	TDA10046_FREQ_052,		/* low IF, 5.1667 MHZ for tda9889 */
 };
 
+enum tda10046_tsout {
+	TDA10046_TS_PARALLEL  = 0x00,	/* parallel transport stream, default */
+	TDA10046_TS_SERIAL    = 0x01,	/* serial transport stream */
+};
+
 struct tda1004x_config
 {
 	/* the demodulator's i2c address */
@@ -71,6 +76,9 @@ struct tda1004x_config
 
 	/* Does the OCLK signal need inverted? */
 	u8 invert_oclk;
+
+	/* parallel or serial transport stream */
+	enum tda10046_tsout ts_mode;
 
 	/* Xtal frequency, 4 or 16MHz*/
 	enum tda10046_xtal xtal_freq;
