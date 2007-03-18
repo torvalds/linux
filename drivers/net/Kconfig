@@ -486,8 +486,8 @@ config SGI_IOC3_ETH_HW_TX_CSUM
 	  enables offloading for checksums on transmit.  If unsure, say Y.
 
 config MIPS_SIM_NET
-	tristate "MIPS simulator Network device (EXPERIMENTAL)"
-	depends on MIPS_SIM && EXPERIMENTAL
+	tristate "MIPS simulator Network device"
+	depends on NET_ETHERNET && MIPS_SIM
 	help
 	  The MIPSNET device is a simple Ethernet network device which is
 	  emulated by the MIPS Simulator.
