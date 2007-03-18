@@ -2,8 +2,7 @@ menu "SoC Audio for the Intel PXA2xx"
 
 config SND_PXA2XX_SOC
 	tristate "SoC Audio for the Intel PXA2xx chip"
-	depends on ARCH_PXA && SND
-	select SND_PCM
+	depends on ARCH_PXA && SND_SOC
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the PXA2xx AC97, I2S or SSP interface. You will also need

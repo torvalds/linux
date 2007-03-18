@@ -1962,9 +1962,11 @@ static int snd_ac97_ad1888_downmix_put(struct snd_kcontrol *kcontrol, struct snd
 static void ad1888_update_jacks(struct snd_ac97 *ac97)
 {
 	unsigned short val = 0;
-	if (! is_shared_linein(ac97))
+	/* clear LODIS if shared jack is to be used for Surround out */
+	if (is_shared_linein(ac97))
 		val |= (1 << 12);
-	if (! is_shared_micin(ac97))
+	/* clear CLDIS if shared jack is to be used for C/LFE out */
+	if (is_shared_micin(ac97))
 		val |= (1 << 11);
 	/* shared Line-In */
 	snd_ac97_update_bits(ac97, AC97_AD_MISC, (1 << 11) | (1 << 12), val);
@@ -2136,8 +2138,9 @@ static const struct snd_kcontrol_new snd_ac97_ad1985_controls[] = {
 static void ad1985_update_jacks(struct snd_ac97 *ac97)
 {
 	ad1888_update_jacks(ac97);
+	/* clear OMS if shared jack is to be used for C/LFE out */
 	snd_ac97_update_bits(ac97, AC97_AD_SERIAL_CFG, 1 << 9,
-			     is_shared_micin(ac97) ? 0 : 1 << 9);
+			     is_shared_micin(ac97) ? 1 << 9 : 0);
 }
 
 static int patch_ad1985_specific(struct snd_ac97 *ac97)
@@ -2418,9 +2421,9 @@ static void ad1986_update_jacks(struct snd_ac97 *ac97)
 	unsigned short ser_val;
 
 	/* disable SURROUND and CENTER/LFE if not surround mode */
-	if (! is_surround_on(ac97))
+	if (!is_surround_on(ac97))
 		misc_val |= AC97_AD1986_SODIS;
-	if (! is_clfe_on(ac97))
+	if (!is_clfe_on(ac97))
 		misc_val |= AC97_AD1986_CLDIS;
 
 	/* select line input (default=LINE_IN, SURROUND or MIC_1/2) */
