@@ -272,6 +272,11 @@ void init_dialog(const char *backtitle)
 	color_setup(getenv("MENUCONFIG_COLOR"));
 }
 
+void set_dialog_backtitle(const char *backtitle)
+{
+	dlg.backtitle = backtitle;
+}
+
 void reset_dialog(void)
 {
 	initscr();		/* Init curses */
