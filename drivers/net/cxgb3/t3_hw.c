@@ -3244,15 +3244,17 @@ void early_hw_init(struct adapter *adapter, const struct adapter_info *ai)
 }
 
 /*
- * Reset the adapter.  PCIe cards lose their config space during reset, PCI-X
+ * Reset the adapter. 
+ * Older PCIe cards lose their config space during reset, PCI-X
  * ones don't.
  */
 int t3_reset_adapter(struct adapter *adapter)
 {
-	int i;
+	int i, save_and_restore_pcie = 
+	    adapter->params.rev < T3_REV_B2 && is_pcie(adapter);
 	uint16_t devid = 0;
 
-	if (is_pcie(adapter))
+	if (save_and_restore_pcie)
 		pci_save_state(adapter->pdev);
 	t3_write_reg(adapter, A_PL_RST, F_CRSTWRM | F_CRSTWRMMODE);
 
@@ -3270,7 +3272,7 @@ int t3_reset_adapter(struct adapter *adapter)
 	if (devid != 0x1425)
 		return -1;
 
-	if (is_pcie(adapter))
+	if (save_and_restore_pcie)
 		pci_restore_state(adapter->pdev);
 	return 0;
 }
