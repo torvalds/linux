@@ -75,6 +75,7 @@ config X86_ACPI_CPUFREQ_PROC_INTF
 config X86_P4_CLOCKMOD
 	tristate "Intel Pentium 4 clock modulation"
 	depends on EMBEDDED
+	select CPU_FREQ_TABLE
 	help
 	  This adds the clock modulation driver for Intel Pentium 4 / XEON
 	  processors.  When enabled it will lower CPU temperature by skipping
