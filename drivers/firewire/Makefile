@@ -5,6 +5,6 @@
 fw-core-objs := fw-card.o fw-topology.o fw-transaction.o fw-iso.o \
 	fw-device.o fw-device-cdev.o
 
-obj-$(CONFIG_FW) += fw-core.o
-obj-$(CONFIG_FW_OHCI) += fw-ohci.o
-obj-$(CONFIG_FW_SBP2) += fw-sbp2.o
+obj-$(CONFIG_FIREWIRE) += fw-core.o
+obj-$(CONFIG_FIREWIRE_OHCI) += fw-ohci.o
+obj-$(CONFIG_FIREWIRE_SBP2) += fw-sbp2.o

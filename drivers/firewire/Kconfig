@@ -3,7 +3,7 @@
 comment "An alternative FireWire stack is available with EXPERIMENTAL=y"
 	depends on EXPERIMENTAL=n
 
-config FW
+config FIREWIRE
 	tristate "IEEE 1394 (FireWire) support (JUJU alternative stack, experimental)"
 	depends on EXPERIMENTAL
 	help
@@ -24,9 +24,9 @@ config FW
 	  stack, or the classic stack (the ieee1394 driver, ohci1394 etc.)
 	  or both.
 
-config FW_OHCI
+config FIREWIRE_OHCI
 	tristate "Support for OHCI FireWire host controllers"
-	depends on PCI && FW
+	depends on PCI && FIREWIRE
 	help
 	  Enable this driver if you have a FireWire controller based
 	  on the OHCI specification.  For all practical purposes, this
@@ -39,9 +39,9 @@ config FW_OHCI
 	  blacklist either ohci1394 or fw-ohci to let hotplug load the desired
 	  driver.
 
-config FW_SBP2
+config FIREWIRE_SBP2
 	tristate "Support for storage devices (SBP-2 protocol driver)"
-	depends on FW && SCSI
+	depends on FIREWIRE && SCSI
 	help
 	  This option enables you to use SBP-2 devices connected to a
 	  FireWire bus.  SBP-2 devices include storage devices like
