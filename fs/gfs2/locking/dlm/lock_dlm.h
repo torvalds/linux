@@ -106,6 +106,7 @@ enum {
 struct gdlm_lock {
 	struct gdlm_ls		*ls;
 	struct lm_lockname	lockname;
+	struct gdlm_strname	strname;
 	char			*lvb;
 	struct dlm_lksb		lksb;
 
