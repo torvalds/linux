@@ -434,24 +434,8 @@ config BLK_DEV_IDEDMA_FORCED
 
 	  Generally say N here.
 
-config IDEDMA_PCI_AUTO
-	bool "Use PCI DMA by default when available"
-	---help---
-	  Prior to kernel version 2.1.112, Linux used to automatically use
-	  DMA for IDE drives and chipsets which support it. Due to concerns
-	  about a couple of cases where buggy hardware may have caused damage,
-	  the default is now to NOT use DMA automatically. To revert to the
-	  previous behaviour, say Y to this question.
-
-	  If you suspect your hardware is at all flakey, say N here.
-	  Do NOT email the IDE kernel people regarding this issue!
-
-	  It is normally safe to answer Y to this question unless your
-	  motherboard uses a VIA VP2 chipset, in which case you should say N.
-
 config IDEDMA_ONLYDISK
 	bool "Enable DMA only for disks "
-	depends on IDEDMA_PCI_AUTO
 	help
 	  This is used if you know your ATAPI Devices are going to fail DMA
 	  Transfers.
@@ -769,6 +753,14 @@ config BLK_DEV_TC86C001
 	help
 	This driver adds support for Toshiba TC86C001 GOKU-S chip.
 
+config BLK_DEV_CELLEB
+	tristate "Toshiba's Cell Reference Set IDE support"
+	depends on PPC_CELLEB
+	help
+	  This driver provides support for the built-in IDE controller on
+	  Toshiba Cell Reference Board.
+	  If unsure, say Y.
+
 endif
 
 config BLK_DEV_IDE_PMAC
@@ -799,14 +791,6 @@ config BLK_DEV_IDEDMA_PMAC
 	  Power Macintoshes and PowerBooks to use DMA (direct memory access)
 	  to transfer data to and from memory.  Saying Y is safe and improves
 	  performance.
-
-config BLK_DEV_IDE_CELLEB
-	bool "Toshiba's Cell Reference Set IDE support"
-	depends on PPC_CELLEB && IDE=y
-	help
-	  This driver provides support for the built-in IDE controller on
-	  Toshiba Cell Reference Board.
-	  If unsure, say Y.
 
 config BLK_DEV_IDE_SWARM
 	tristate "IDE for Sibyte evaluation boards"
@@ -850,19 +834,6 @@ config BLK_DEV_IDEDMA_ICS
 	help
 	  Say Y here if you want to add DMA (Direct Memory Access) support to
 	  the ICS IDE driver.
-
-config IDEDMA_ICS_AUTO
-	bool "Use ICS DMA by default"
-	depends on BLK_DEV_IDEDMA_ICS
-	help
-	  Prior to kernel version 2.1.112, Linux used to automatically use
-	  DMA for IDE drives and chipsets which support it. Due to concerns
-	  about a couple of cases where buggy hardware may have caused damage,
-	  the default is now to NOT use DMA automatically. To revert to the
-	  previous behaviour, say Y to this question.
-
-	  If you suspect your hardware is at all flakey, say N here.
-	  Do NOT email the IDE kernel people regarding this issue!
 
 config BLK_DEV_IDE_RAPIDE
 	tristate "RapIDE interface support"
@@ -1085,9 +1056,6 @@ config IDEDMA_IVB
 	  any of your problems, it could even cause more of them.
 
 	  It is normally safe to answer Y; however, the default is N.
-
-config IDEDMA_AUTO
-	def_bool IDEDMA_PCI_AUTO || IDEDMA_ICS_AUTO
 
 endif
 
