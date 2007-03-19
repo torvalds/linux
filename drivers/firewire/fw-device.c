@@ -562,8 +562,11 @@ static int update_unit(struct device *dev, void *data)
 	struct fw_unit *unit = fw_unit(dev);
 	struct fw_driver *driver = (struct fw_driver *)dev->driver;
 
-	if (is_fw_unit(dev) && driver != NULL && driver->update != NULL)
+	if (is_fw_unit(dev) && driver != NULL && driver->update != NULL) {
+		down(&dev->sem);
 		driver->update(unit);
+		up(&dev->sem);
+	}
 
 	return 0;
 }
