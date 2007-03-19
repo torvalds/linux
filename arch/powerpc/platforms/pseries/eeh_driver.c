@@ -342,13 +342,6 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 		return NULL;
 	}
 
-#if 0
-	/* We may get "permanent failure" messages on empty slots.
-	 * These are false alarms. Empty slots have no child dn. */
-	if ((event->state == pci_channel_io_perm_failure) && (frozen_device == NULL))
-		return;
-#endif
-
 	frozen_pdn = PCI_DN(frozen_dn);
 	frozen_pdn->eeh_freeze_count++;
 
@@ -363,12 +356,9 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	if (frozen_pdn->eeh_freeze_count > EEH_MAX_ALLOWED_FREEZES)
 		goto excess_failures;
 
-	/* If the reset state is a '5' and the time to reset is 0 (infinity)
-	 * or is more then 15 seconds, then mark this as a permanent failure.
-	 */
-	if ((event->state == pci_channel_io_perm_failure) &&
-	    ((event->time_unavail <= 0) ||
-	     (event->time_unavail > MAX_WAIT_FOR_RECOVERY*1000))) {
+	/* Get the current PCI slot state. */
+	rc = eeh_wait_for_slot_status (frozen_pdn, MAX_WAIT_FOR_RECOVERY*1000);
+	if (rc < 0) {
 		printk(KERN_WARNING "EEH: Permanent failure\n");
 		goto hard_fail;
 	}

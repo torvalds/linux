@@ -346,7 +346,6 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	int rets[3];
 	unsigned long flags;
 	struct pci_dn *pdn;
-	enum pci_channel_state state;
 	int rc = 0;
 
 	total_mmio_ffs++;
@@ -452,12 +451,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	eeh_mark_slot (dn, EEH_MODE_ISOLATED);
 	spin_unlock_irqrestore(&confirm_error_lock, flags);
 
-	state = pci_channel_io_normal;
-	if ((rets[0] == 1) || (rets[0] == 2) || (rets[0] == 4))
-		state = pci_channel_io_frozen;
-	if (rets[0] == 5)
-		state = pci_channel_io_perm_failure;
-	eeh_send_failure_event (dn, dev, state, rets[2]);
+	eeh_send_failure_event (dn, dev);
 
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure

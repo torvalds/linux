@@ -118,9 +118,7 @@ static void eeh_thread_launcher(struct work_struct *dummy)
  * (from a workqueue).
  */
 int eeh_send_failure_event (struct device_node *dn,
-                            struct pci_dev *dev,
-                            enum pci_channel_state state,
-                            int time_unavail)
+                            struct pci_dev *dev)
 {
 	unsigned long flags;
 	struct eeh_event *event;
@@ -144,8 +142,6 @@ int eeh_send_failure_event (struct device_node *dn,
 
 	event->dn = dn;
 	event->dev = dev;
-	event->state = state;
-	event->time_unavail = time_unavail;
 
 	/* We may or may not be called in an interrupt context */
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
