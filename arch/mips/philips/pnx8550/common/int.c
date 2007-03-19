@@ -83,16 +83,15 @@ static void timer_irqdispatch(int irq)
 
 asmlinkage void plat_irq_dispatch(void)
 {
-	unsigned int pending = read_c0_status() & read_c0_cause();
+	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & STATUSF_IP2)
 		hw0_irqdispatch(2);
 	else if (pending & STATUSF_IP7) {
 		if (read_c0_config7() & 0x01c0)
 			timer_irqdispatch(7);
-	}
-
-	spurious_interrupt();
+	} else
+		spurious_interrupt();
 }
 
 static inline void modify_cp0_intmask(unsigned clr_mask, unsigned set_mask)
