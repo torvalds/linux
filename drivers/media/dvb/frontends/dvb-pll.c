@@ -43,9 +43,9 @@ struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 	.min   = 177000000,
 	.max   = 858000000,
 	.iffreq= 36166667,
-	.count = 5,
+	.sleepdata = (u8[]){ 2, 0xb4, 0x03 },
+	.count = 4,
 	.entries = {
-		{          0, 166667, 0xb4, 0x03 }, /* go sleep */
 		{  443250000, 166667, 0xb4, 0x02 },
 		{  542000000, 166667, 0xb4, 0x08 },
 		{  771000000, 166667, 0xbc, 0x08 },
@@ -80,9 +80,9 @@ struct dvb_pll_desc dvb_pll_thomson_dtt759x = {
 	.max   = 896000000,
 	.setbw = thomson_dtt759x_bw,
 	.iffreq= 36166667,
-	.count = 6,
+	.sleepdata = (u8[]){ 2, 0x84, 0x03 },
+	.count = 5,
 	.entries = {
-		{          0, 166667, 0x84, 0x03 },
 		{  264000000, 166667, 0xb4, 0x02 },
 		{  470000000, 166667, 0xbc, 0x02 },
 		{  735000000, 166667, 0xbc, 0x08 },
@@ -97,9 +97,9 @@ struct dvb_pll_desc dvb_pll_lg_z201 = {
 	.min   = 174000000,
 	.max   = 862000000,
 	.iffreq= 36166667,
-	.count = 6,
+	.sleepdata = (u8[]){ 2, 0xbc, 0x03 },
+	.count = 5,
 	.entries = {
-		{          0, 166667, 0xbc, 0x03 },
 		{  157500000, 166667, 0xbc, 0x01 },
 		{  443250000, 166667, 0xbc, 0x02 },
 		{  542000000, 166667, 0xbc, 0x04 },
@@ -521,35 +521,27 @@ static int dvb_pll_release(struct dvb_frontend *fe)
 static int dvb_pll_sleep(struct dvb_frontend *fe)
 {
 	struct dvb_pll_priv *priv = fe->tuner_priv;
-	u8 buf[4];
-	struct i2c_msg msg =
-		{ .addr = priv->pll_i2c_address, .flags = 0,
-		  .buf = buf, .len = sizeof(buf) };
-	int i;
-	int result;
 
 	if (priv->i2c == NULL)
 		return -EINVAL;
 
-	for (i = 0; i < priv->pll_desc->count; i++) {
-		if (priv->pll_desc->entries[i].limit == 0)
-			break;
-	}
-	if (i == priv->pll_desc->count)
+	if (priv->pll_desc->sleepdata) {
+		struct i2c_msg msg = { .flags = 0,
+			.addr = priv->pll_i2c_address,
+			.buf = priv->pll_desc->sleepdata + 1,
+			.len = priv->pll_desc->sleepdata[0] };
+
+		int result;
+
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+		if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
+			return result;
+		}
 		return 0;
-
-	buf[0] = 0;
-	buf[1] = 0;
-	buf[2] = priv->pll_desc->entries[i].config;
-	buf[3] = priv->pll_desc->entries[i].cb;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
-		return result;
 	}
-
-	return 0;
+	/* Shouldn't be called when initdata is NULL, maybe BUG()? */
+	return -EINVAL;
 }
 
 static int dvb_pll_set_params(struct dvb_frontend *fe,
@@ -661,6 +653,7 @@ static int dvb_pll_init(struct dvb_frontend *fe)
 static struct dvb_tuner_ops dvb_pll_tuner_ops = {
 	.release = dvb_pll_release,
 	.sleep = dvb_pll_sleep,
+	.init = dvb_pll_init,
 	.set_params = dvb_pll_set_params,
 	.calc_regs = dvb_pll_calc_regs,
 	.get_frequency = dvb_pll_get_frequency,
@@ -703,8 +696,10 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 		sizeof(fe->ops.tuner_ops.info.name));
 	fe->ops.tuner_ops.info.frequency_min = desc->min;
 	fe->ops.tuner_ops.info.frequency_min = desc->max;
-	if (desc->initdata)
-		fe->ops.tuner_ops.init = dvb_pll_init;
+	if (!desc->initdata)
+		fe->ops.tuner_ops.init = NULL;
+	if (!desc->sleepdata)
+		fe->ops.tuner_ops.sleep = NULL;
 
 	fe->tuner_priv = priv;
 	return fe;

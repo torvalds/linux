@@ -15,6 +15,7 @@ struct dvb_pll_desc {
 	u32  iffreq;
 	void (*setbw)(u8 *buf, u32 freq, int bandwidth);
 	u8   *initdata;
+	u8   *sleepdata;
 	int  count;
 	struct {
 		u32 limit;
