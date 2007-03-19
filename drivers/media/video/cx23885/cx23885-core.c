@@ -270,7 +270,7 @@ struct sram_channel cx23887_sram_channels[] = {
 		.name		= "TS2 C",
 		.cmds_start	= 0x10140,
 		.ctrl_start	= 0x10680,
-		.cdt		= 0x10480,
+		.cdt		= 0x108d0,
 		.fifo_start	= 0x6000,
 		.fifo_size	= 0x1000,
 		.ptr1_reg	= DMA5_PTR1,
@@ -1095,15 +1095,12 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	 */
 	switch(cx23885_boards[dev->board].bridge) {
 	case CX23885_BRIDGE_885:
+	case CX23885_BRIDGE_887:
 		/* enable irqs */
 		dprintk(1, "%s() enabling TS int's and DMA\n", __FUNCTION__ );
 		cx_set(port->reg_ts_int_msk,  port->ts_int_msk_val);
 		cx_set(port->reg_dma_ctl, port->dma_ctl_val);
 		cx_set(PCI_INT_MSK, dev->pci_irqmask | port->pci_irqmask);
-		break;
-	case CX23885_BRIDGE_887:
-		// FIXME
-		dprintk(1, "%s() NOT enabling TS int's and DMA, NMI bug\n", __FUNCTION__ );
 		break;
 	default:
 		// FIXME: generate a sensible switch-default message
