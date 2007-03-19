@@ -367,8 +367,10 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	 */
 	if ((event->state == pci_channel_io_perm_failure) &&
 	    ((event->time_unavail <= 0) ||
-	     (event->time_unavail > MAX_WAIT_FOR_RECOVERY*1000)))
+	     (event->time_unavail > MAX_WAIT_FOR_RECOVERY*1000))) {
+		printk(KERN_WARNING "EEH: Permanent failure\n");
 		goto hard_fail;
+	}
 
 	eeh_slot_error_detail(frozen_pdn, 1 /* Temporary Error */);
 	printk(KERN_WARNING
@@ -390,8 +392,10 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	 */
 	if (result == PCI_ERS_RESULT_NONE) {
 		rc = eeh_reset_device(frozen_pdn, frozen_bus);
-		if (rc)
+		if (rc) {
+			printk(KERN_WARNING "EEH: Unable to reset, rc=%d\n", rc);
 			goto hard_fail;
+		}
 	}
 
 	/* If all devices reported they can proceed, then re-enable MMIO */
@@ -417,21 +421,27 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	}
 
 	/* If any device has a hard failure, then shut off everything. */
-	if (result == PCI_ERS_RESULT_DISCONNECT)
+	if (result == PCI_ERS_RESULT_DISCONNECT) {
+		printk(KERN_WARNING "EEH: Device driver gave up\n");
 		goto hard_fail;
+	}
 
 	/* If any device called out for a reset, then reset the slot */
 	if (result == PCI_ERS_RESULT_NEED_RESET) {
 		rc = eeh_reset_device(frozen_pdn, NULL);
-		if (rc)
+		if (rc) {
+			printk(KERN_WARNING "EEH: Cannot reset, rc=%d\n", rc);
 			goto hard_fail;
+		}
 		result = PCI_ERS_RESULT_NONE;
 		pci_walk_bus(frozen_bus, eeh_report_reset, &result);
 	}
 
 	/* All devices should claim they have recovered by now. */
-	if (result != PCI_ERS_RESULT_RECOVERED)
+	if (result != PCI_ERS_RESULT_RECOVERED) {
+		printk(KERN_WARNING "EEH: Not recovered\n");
 		goto hard_fail;
+	}
 
 	/* Tell all device drivers that they can resume operations */
 	pci_walk_bus(frozen_bus, eeh_report_resume, NULL);
