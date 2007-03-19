@@ -292,8 +292,8 @@ static inline void check_tnode(const struct tnode *tn)
 
 static int halve_threshold = 25;
 static int inflate_threshold = 50;
-static int halve_threshold_root = 15;
-static int inflate_threshold_root = 25;
+static int halve_threshold_root = 8;
+static int inflate_threshold_root = 15;
 
 
 static void __alias_free_mem(struct rcu_head *head)
