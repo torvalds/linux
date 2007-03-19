@@ -417,14 +417,14 @@ static ssize_t iowarrior_write(struct file *file,
 		if (!int_out_urb) {
 			retval = -ENOMEM;
 			dbg("%s Unable to allocate urb ", __func__);
-			goto error;
+			goto error_no_urb;
 		}
 		buf = usb_buffer_alloc(dev->udev, dev->report_size,
 				       GFP_KERNEL, &int_out_urb->transfer_dma);
 		if (!buf) {
 			retval = -ENOMEM;
 			dbg("%s Unable to allocate buffer ", __func__);
-			goto error;
+			goto error_no_buffer;
 		}
 		usb_fill_int_urb(int_out_urb, dev->udev,
 				 usb_sndintpipe(dev->udev,
@@ -459,7 +459,9 @@ static ssize_t iowarrior_write(struct file *file,
 error:
 	usb_buffer_free(dev->udev, dev->report_size, buf,
 			int_out_urb->transfer_dma);
+error_no_buffer:
 	usb_free_urb(int_out_urb);
+error_no_urb:
 	atomic_dec(&dev->write_busy);
 	wake_up_interruptible(&dev->write_wait);
 exit:
