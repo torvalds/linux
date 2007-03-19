@@ -1609,7 +1609,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 		return 0;
 	}
 
-	if (skb->len < (skb->h.th->doff<<2) || tcp_checksum_complete(skb))
+	if (skb->len < tcp_hdrlen(skb) || tcp_checksum_complete(skb))
 		goto csum_err;
 
 	if (sk->sk_state == TCP_LISTEN) {

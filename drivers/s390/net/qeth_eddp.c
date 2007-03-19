@@ -477,13 +477,13 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 						  skb_network_header(skb),
 						  ip_hdrlen(skb),
 						  skb->h.raw,
-						  skb->h.th->doff * 4);
+						  tcp_hdrlen(skb));
 	else
 		eddp = qeth_eddp_create_eddp_data(qhdr,
 						  skb_network_header(skb),
 						  sizeof(struct ipv6hdr),
 						  skb->h.raw,
-						  skb->h.th->doff * 4);
+						  tcp_hdrlen(skb));
 
 	if (eddp == NULL) {
 		QETH_DBF_TEXT(trace, 2, "eddpfcnm");
@@ -596,11 +596,11 @@ qeth_eddp_create_context_tcp(struct qeth_card *card, struct sk_buff *skb,
 		ctx = qeth_eddp_create_context_generic(card, skb,
 						       (sizeof(struct qeth_hdr) +
 						        ip_hdrlen(skb) +
-							skb->h.th->doff * 4));
+							tcp_hdrlen(skb)));
 	else if (skb->protocol == htons(ETH_P_IPV6))
 		ctx = qeth_eddp_create_context_generic(card, skb,
 			sizeof(struct qeth_hdr) + sizeof(struct ipv6hdr) +
-			skb->h.th->doff*4);
+			tcp_hdrlen(skb));
 	else
 		QETH_DBF_TEXT(trace, 2, "cetcpinv");
 

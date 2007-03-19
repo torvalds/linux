@@ -2887,7 +2887,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 				return err;
 		}
 
-		hdr_len = (skb_transport_offset(skb) + (skb->h.th->doff << 2));
+		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		mss = skb_shinfo(skb)->gso_size;
 		if (skb->protocol == htons(ETH_P_IP)) {
 			struct iphdr *iph = ip_hdr(skb);
@@ -3292,7 +3292,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		/* TSO Workaround for 82571/2/3 Controllers -- if skb->data
 		* points to just header, pull a few bytes of payload from
 		* frags into skb->data */
-		hdr_len = (skb_transport_offset(skb) + (skb->h.th->doff << 2));
+		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		if (skb->data_len && (hdr_len == (skb->len - skb->data_len))) {
 			switch (adapter->hw.mac_type) {
 				unsigned int pull_size;

@@ -1392,7 +1392,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	/* Check for TCP Segmentation Offload */
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss != 0) {
-		mss += ((skb->h.th->doff - 5) * 4);	/* TCP options */
+		mss += tcp_optlen(skb); /* TCP options */
 		mss += ip_hdrlen(skb) + sizeof(struct tcphdr);
 		mss += ETH_HLEN;
 

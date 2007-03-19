@@ -374,8 +374,7 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 {
 	if (desc->mss) {
 		desc->total_hdr_length = (sizeof(struct ethhdr) +
-					  ip_hdrlen(skb) +
-					  skb->h.th->doff * 4);
+					  ip_hdrlen(skb) + tcp_hdrlen(skb));
 		netxen_set_cmd_desc_opcode(desc, TX_TCP_LSO);
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (ip_hdr(skb)->protocol == IPPROTO_TCP) {

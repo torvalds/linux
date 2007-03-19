@@ -178,6 +178,16 @@ struct tcp_md5sig {
 #include <net/inet_connection_sock.h>
 #include <net/inet_timewait_sock.h>
 
+static inline unsigned int tcp_hdrlen(const struct sk_buff *skb)
+{
+	return skb->h.th->doff * 4;
+}
+
+static inline unsigned int tcp_optlen(const struct sk_buff *skb)
+{
+	return (skb->h.th->doff - 5) * 4;
+}
+
 /* This defines a selective acknowledgement block. */
 struct tcp_sack_block_wire {
 	__be32	start_seq;

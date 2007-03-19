@@ -1307,7 +1307,7 @@ static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
 
 			tso->tsopl |= (iph->ihl &
 				CSUM_PARAM_IPHL_MASK) << CSUM_PARAM_IPHL_SHIFT;
-			tso->tsopl |= ((skb->h.th->doff << 2) &
+			tso->tsopl |= (tcp_hdrlen(skb) &
 				TSO_PARAM_TCPHDRLEN_MASK) << TSO_PARAM_TCPHDRLEN_SHIFT;
 			tso->tsopl |= (skb_shinfo(skb)->gso_size &
 				TSO_PARAM_MSS_MASK) << TSO_PARAM_MSS_SHIFT;
@@ -1369,8 +1369,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter,
 
 	if (tcp_seg) {
 		/* TSO/GSO */
-		proto_hdr_len = (skb_transport_offset(skb) +
-				 (skb->h.th->doff << 2));
+		proto_hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		buffer_info->length = proto_hdr_len;
 		page = virt_to_page(skb->data);
 		offset = (unsigned long)skb->data & ~PAGE_MASK;
@@ -1563,7 +1562,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (mss) {
 		if (skb->protocol == htons(ETH_P_IP)) {
 			proto_hdr_len = (skb_transport_offset(skb) +
-					 (skb->h.th->doff << 2));
+					 tcp_hdrlen(skb));
 			if (unlikely(proto_hdr_len > len)) {
 				dev_kfree_skb_any(skb);
 				return NETDEV_TX_OK;

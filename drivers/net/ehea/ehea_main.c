@@ -1300,7 +1300,7 @@ static void write_swqe2_TSO(struct sk_buff *skb,
 	/* copy only eth/ip/tcp headers to immediate data and
 	 * the rest of skb->data to sg1entry
 	 */
-	headersize = ETH_HLEN + ip_hdrlen(skb) + (skb->h.th->doff * 4);
+	headersize = ETH_HLEN + ip_hdrlen(skb) + tcp_hdrlen(skb);
 
 	skb_data_size = skb->len - skb->data_len;
 

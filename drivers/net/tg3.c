@@ -3911,7 +3911,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		else {
 			struct iphdr *iph = ip_hdr(skb);
 
-			tcp_opt_len = ((skb->h.th->doff - 5) * 4);
+			tcp_opt_len = tcp_optlen(skb);
 			ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
 			iph->check = 0;
@@ -4065,7 +4065,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 			goto out_unlock;
 		}
 
-		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
+		tcp_opt_len = tcp_optlen(skb);
 		ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
 		hdr_len = ip_tcp_len + tcp_opt_len;

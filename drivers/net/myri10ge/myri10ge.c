@@ -2054,8 +2054,7 @@ again:
 		 * send loop that we are still in the
 		 * header portion of the TSO packet.
 		 * TSO header must be at most 134 bytes long */
-		cum_len = -(skb_transport_offset(skb) +
-			    (skb->h.th->doff << 2));
+		cum_len = -(skb_transport_offset(skb) + tcp_hdrlen(skb));
 
 		/* for TSO, pseudo_hdr_offset holds mss.
 		 * The firmware figures out where to put

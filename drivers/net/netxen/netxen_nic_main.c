@@ -779,7 +779,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		if (skb_shinfo(skb)->gso_size > 0) {
 
 			no_of_desc++;
-			if ((ip_hdrlen(skb) + skb->h.th->doff * 4 +
+			if ((ip_hdrlen(skb) + tcp_hdrlen(skb) +
 			     sizeof(struct ethhdr)) >
 			    (sizeof(struct cmd_desc_type0) - 2)) {
 				no_of_desc++;

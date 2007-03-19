@@ -4521,13 +4521,12 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		}
 
-		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
 		vlan_tag_flags |= TX_BD_FLAGS_SW_LSO;
 
 		tcp_opt_len = 0;
-		if (skb->h.th->doff > 5) {
-			tcp_opt_len = (skb->h.th->doff - 5) << 2;
-		}
+		if (skb->h.th->doff > 5)
+			tcp_opt_len = tcp_optlen(skb);
+
 		ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
 		iph = ip_hdr(skb);
