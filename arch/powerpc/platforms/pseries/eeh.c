@@ -367,6 +367,14 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 		goto dn_unlock;
 	}
 
+	/* Note that config-io to empty slots may fail;
+	 * they are empty when they don't have children. */
+	if ((rets[0] == 5) && (dn->child == NULL)) {
+		false_positives++;
+		rc = 0;
+		goto dn_unlock;
+	}
+
 	/* If EEH is not supported on this device, punt. */
 	if (rets[1] != 1) {
 		printk(KERN_WARNING "EEH: event on unsupported device, rc=%d dn=%s\n",
@@ -378,14 +386,6 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 
 	/* If not the kind of error we know about, punt. */
 	if (rets[0] != 2 && rets[0] != 4 && rets[0] != 5) {
-		false_positives++;
-		rc = 0;
-		goto dn_unlock;
-	}
-
-	/* Note that config-io to empty slots may fail;
-	 * we recognize empty because they don't have children. */
-	if ((rets[0] == 5) && (dn->child == NULL)) {
 		false_positives++;
 		rc = 0;
 		goto dn_unlock;
