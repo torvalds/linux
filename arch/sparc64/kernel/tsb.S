@@ -546,6 +546,7 @@ NGtsb_init:
 	subcc		%o1, 0x100, %o1
 	bne,pt		%xcc, 1b
 	 add		%o0, 0x100, %o0
+	membar		#Sync
 	retl
 	 wr		%g2, 0x0, %asi
 	.size		NGtsb_init, .-NGtsb_init
