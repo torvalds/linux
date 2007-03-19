@@ -26,6 +26,8 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/idr.h>
+#include <linux/rwsem.h>
+#include <asm/semaphore.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
 #include "fw-device.h"
