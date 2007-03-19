@@ -249,6 +249,7 @@ static void eeh_report_failure(struct pci_dev *dev, void *userdata)
 
 static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 {
+	struct device_node *dn;
 	int cnt, rc;
 
 	/* pcibios will clear the counter; save the value */
@@ -264,23 +265,20 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 	if (rc)
 		return rc;
 
- 	/* New-style config addrs might be shared across multiple devices,
- 	 * Walk over all functions on this device */
- 	if (pe_dn->eeh_pe_config_addr) {
- 		struct device_node *pe = pe_dn->node;
- 		pe = pe->parent->child;
- 		while (pe) {
- 			struct pci_dn *ppe = PCI_DN(pe);
- 			if (pe_dn->eeh_pe_config_addr == ppe->eeh_pe_config_addr) {
- 				rtas_configure_bridge(ppe);
- 				eeh_restore_bars(ppe);
- 			}
- 			pe = pe->sibling;
+	/* Walk over all functions on this device.  */
+	dn = pe_dn->node;
+	if (!pcibios_find_pci_bus(dn) && PCI_DN(dn->parent))
+		dn = dn->parent->child;
+
+	while (dn) {
+		struct pci_dn *ppe = PCI_DN(dn);
+		/* On Power4, always true because eeh_pe_config_addr=0 */
+		if (pe_dn->eeh_pe_config_addr == ppe->eeh_pe_config_addr) {
+			rtas_configure_bridge(ppe);
+			eeh_restore_bars(ppe);
  		}
- 	} else {
- 		rtas_configure_bridge(pe_dn);
- 		eeh_restore_bars(pe_dn);
- 	}
+		dn = dn->sibling;
+	}
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes, 

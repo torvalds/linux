@@ -282,7 +282,7 @@ void eeh_mark_slot (struct device_node *dn, int mode_flag)
 	dn = find_device_pe (dn);
 
 	/* Back up one, since config addrs might be shared */
-	if (PCI_DN(dn) && PCI_DN(dn)->eeh_pe_config_addr)
+	if (!pcibios_find_pci_bus(dn) && PCI_DN(dn->parent))
 		dn = dn->parent;
 
 	PCI_DN(dn)->eeh_mode |= mode_flag;
@@ -316,7 +316,7 @@ void eeh_clear_slot (struct device_node *dn, int mode_flag)
 	dn = find_device_pe (dn);
 	
 	/* Back up one, since config addrs might be shared */
-	if (PCI_DN(dn) && PCI_DN(dn)->eeh_pe_config_addr)
+	if (!pcibios_find_pci_bus(dn) && PCI_DN(dn->parent))
 		dn = dn->parent;
 
 	PCI_DN(dn)->eeh_mode &= ~mode_flag;
