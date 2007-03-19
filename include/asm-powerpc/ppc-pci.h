@@ -70,7 +70,7 @@ struct pci_dev *pci_get_device_by_addr(unsigned long addr);
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
 
 /**
- * rtas_pci_enableo - enable IO transfers for this slot
+ * rtas_pci_enable - enable IO transfers for this slot
  * @pdn:       pci device node
  * @function:  either EEH_THAW_MMIO or EEH_THAW_DMA 
  *
@@ -91,6 +91,7 @@ int rtas_pci_enable(struct pci_dn *pdn, int function);
  * Returns a non-zero value if the reset failed.
  */
 int rtas_set_slot_reset (struct pci_dn *);
+int eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs);
 
 /** 
  * eeh_restore_bars - Restore device configuration info.

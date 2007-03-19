@@ -76,6 +76,9 @@
  */
 #define EEH_MAX_FAILS	2100000
 
+/* Time to wait for a PCI slot to retport status, in milliseconds */
+#define PCI_BUS_RESET_WAIT_MSEC (60*1000)
+
 /* RTAS tokens */
 static int ibm_set_eeh_option;
 static int ibm_set_slot_reset;
@@ -166,6 +169,55 @@ static int read_slot_reset_state(struct pci_dn *pdn, int rets[])
 
 	return rtas_call(token, 3, outputs, rets, config_addr,
 			 BUID_HI(pdn->phb->buid), BUID_LO(pdn->phb->buid));
+}
+
+/**
+ * eeh_wait_for_slot_status - returns error status of slot
+ * @pdn pci device node
+ * @max_wait_msecs maximum number to millisecs to wait
+ *
+ * Return negative value if a permanent error, else return
+ * Partition Endpoint (PE) status value.
+ *
+ * If @max_wait_msecs is positive, then this routine will
+ * sleep until a valid status can be obtained, or until
+ * the max allowed wait time is exceeded, in which case
+ * a -2 is returned.
+ */
+int
+eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs)
+{
+	int rc;
+	int rets[3];
+	int mwait;
+
+	while (1) {
+		rc = read_slot_reset_state(pdn, rets);
+		if (rc) return rc;
+		if (rets[1] == 0) return -1;  /* EEH is not supported */
+
+		if (rets[0] != 5) return rets[0]; /* return actual status */
+
+		if (rets[2] == 0) return -1; /* permanently unavailable */
+
+		if (max_wait_msecs <= 0) return -1;
+
+		mwait = rets[2];
+		if (mwait <= 0) {
+			printk (KERN_WARNING
+			        "EEH: Firmware returned bad wait value=%d\n", mwait);
+			mwait = 1000;
+		} else if (mwait > 300*1000) {
+			printk (KERN_WARNING
+			        "EEH: Firmware is taking too long, time=%d\n", mwait);
+			mwait = 300*1000;
+		}
+		max_wait_msecs -= mwait;
+		msleep (mwait);
+	}
+
+	printk(KERN_WARNING "EEH: Timed out waiting for slot status\n");
+	return -2;
 }
 
 /**
@@ -459,38 +511,6 @@ EXPORT_SYMBOL(eeh_check_failure);
 /* The code below deals with error recovery */
 
 /**
- * eeh_slot_availability - returns error status of slot
- * @pdn pci device node
- *
- * Return negative value if a permanent error, else return
- * a number of milliseconds to wait until the PCI slot is
- * ready to be used.
- */
-static int
-eeh_slot_availability(struct pci_dn *pdn)
-{
-	int rc;
-	int rets[3];
-
-	rc = read_slot_reset_state(pdn, rets);
-
-	if (rc) return rc;
-
-	if (rets[1] == 0) return -1;  /* EEH is not supported */
-	if (rets[0] == 0) return 0;   /* Oll Korrect */
-	if (rets[0] == 5) {
-		if (rets[2] == 0) return -1; /* permanently unavailable */
-		return rets[2]; /* number of millisecs to wait */
-	}
-	if (rets[0] == 1)
-		return 250;
-
-	printk (KERN_ERR "EEH: Slot unavailable: rc=%d, rets=%d %d %d\n",
-		rc, rets[0], rets[1], rets[2]);
-	return -2;
-}
-
-/**
  * rtas_pci_enable - enable MMIO or DMA transfers for this slot
  * @pdn pci device node
  */
@@ -596,36 +616,24 @@ int rtas_set_slot_reset(struct pci_dn *pdn)
 {
 	int i, rc;
 
-	__rtas_set_slot_reset(pdn);
+	/* Take three shots at resetting the bus */
+	for (i=0; i<3; i++) {
+		__rtas_set_slot_reset(pdn);
 
-	/* Now double check with the firmware to make sure the device is
-	 * ready to be used; if not, wait for recovery. */
-	for (i=0; i<10; i++) {
-		rc = eeh_slot_availability (pdn);
+		rc = eeh_wait_for_slot_status(pdn, PCI_BUS_RESET_WAIT_MSEC);
 		if (rc == 0)
 			return 0;
-
-		if (rc == -2) {
-			printk (KERN_ERR "EEH: failed (%d) to reset slot %s\n",
-			        i, pdn->node->full_name);
-			__rtas_set_slot_reset(pdn);
-			continue;
-		}
 
 		if (rc < 0) {
 			printk (KERN_ERR "EEH: unrecoverable slot failure %s\n",
 			        pdn->node->full_name);
 			return -1;
 		}
-
-		msleep (rc+100);
+		printk (KERN_ERR "EEH: bus reset %d failed on slot %s\n",
+		        i+1, pdn->node->full_name);
 	}
 
-	rc = eeh_slot_availability (pdn);
-	if (rc)
-		printk (KERN_ERR "EEH: timeout resetting slot %s\n", pdn->node->full_name);
-
-	return rc;
+	return -1;
 }
 
 /* ------------------------------------------------------- */
