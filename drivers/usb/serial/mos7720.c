@@ -103,11 +103,9 @@ static void mos7720_interrupt_callback(struct urb *urb)
 {
 	int result;
 	int length;
-	__u32 *data;
-	unsigned int status;
+	__u8 *data;
 	__u8 sp1;
 	__u8 sp2;
-	__u8 st;
 
 	dbg("%s"," : Entering\n");
 
@@ -141,18 +139,19 @@ static void mos7720_interrupt_callback(struct urb *urb)
 	 * Byte 2 IIR Port 2 (port.number is 1)
 	 * Byte 3 --------------
 	 * Byte 4 FIFO status for both */
-	if (length && length > 4) {
+
+	/* the above description is inverted
+	 * 	oneukum 2007-03-14 */
+
+	if (unlikely(length != 4)) {
 		dbg("Wrong data !!!");
 		return;
 	}
 
-	status = *data;
+	sp1 = data[3];
+	sp2 = data[2];
 
-	sp1 = (status & 0xff000000)>>24;
-	sp2 = (status & 0x00ff0000)>>16;
-	st = status & 0x000000ff;
-
-	if ((sp1 & 0x01) || (sp2 & 0x01)) {
+	if ((sp1 | sp2) & 0x01) {
 		/* No Interrupt Pending in both the ports */
 		dbg("No Interrupt !!!");
 	} else {
