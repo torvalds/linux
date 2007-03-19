@@ -1329,6 +1329,7 @@ static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_e
 
 extern void sock_enable_timestamp(struct sock *sk);
 extern int sock_get_timestamp(struct sock *, struct timeval __user *);
+extern int sock_get_timestampns(struct sock *, struct timespec __user *);
 
 /* 
  *	Enable debug/info messages 

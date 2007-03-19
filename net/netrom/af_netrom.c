@@ -1209,6 +1209,12 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		release_sock(sk);
 		return ret;
 
+	case SIOCGSTAMPNS:
+		lock_sock(sk);
+		ret = sock_get_timestampns(sk, argp);
+		release_sock(sk);
+		return ret;
+
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
 	case SIOCGIFDSTADDR:

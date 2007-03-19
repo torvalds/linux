@@ -1545,6 +1545,8 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 		}
 		case SIOCGSTAMP:
 			return sock_get_timestamp(sk, (struct timeval __user *)arg);
+		case SIOCGSTAMPNS:
+			return sock_get_timestampns(sk, (struct timespec __user *)arg);
 
 #ifdef CONFIG_INET
 		case SIOCADDRT:

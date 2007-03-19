@@ -755,6 +755,9 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case SIOCGSTAMP:
 			err = sock_get_timestamp(sk, (struct timeval __user *)arg);
 			break;
+		case SIOCGSTAMPNS:
+			err = sock_get_timestampns(sk, (struct timespec __user *)arg);
+			break;
 		case SIOCADDRT:
 		case SIOCDELRT:
 		case SIOCRTMSG:

@@ -564,6 +564,30 @@ int compat_sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
 }
 EXPORT_SYMBOL(compat_sock_get_timestamp);
 
+int compat_sock_get_timestampns(struct sock *sk, struct timespec __user *userstamp)
+{
+	struct compat_timespec __user *ctv =
+			(struct compat_timespec __user*) userstamp;
+	int err = -ENOENT;
+	struct timespec ts;
+
+	if (!sock_flag(sk, SOCK_TIMESTAMP))
+		sock_enable_timestamp(sk);
+	ts = ktime_to_timespec(sk->sk_stamp);
+	if (ts.tv_sec == -1)
+		return err;
+	if (ts.tv_sec == 0) {
+		sk->sk_stamp = ktime_get_real();
+		ts = ktime_to_timespec(sk->sk_stamp);
+	}
+	err = 0;
+	if (put_user(ts.tv_sec, &ctv->tv_sec) ||
+			put_user(ts.tv_nsec, &ctv->tv_nsec))
+		err = -EFAULT;
+	return err;
+}
+EXPORT_SYMBOL(compat_sock_get_timestampns);
+
 asmlinkage long compat_sys_getsockopt(int fd, int level, int optname,
 				char __user *optval, int __user *optlen)
 {

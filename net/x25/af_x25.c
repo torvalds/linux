@@ -1280,6 +1280,12 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 				rc = sock_get_timestamp(sk,
 						(struct timeval __user *)argp);
 			break;
+		case SIOCGSTAMPNS:
+			rc = -EINVAL;
+			if (sk)
+				rc = sock_get_timestampns(sk,
+						(struct timespec __user *)argp);
+			break;
 		case SIOCGIFADDR:
 		case SIOCSIFADDR:
 		case SIOCGIFDSTADDR:
@@ -1520,6 +1526,12 @@ static int compat_x25_ioctl(struct socket *sock, unsigned int cmd,
 		if (sk)
 			rc = compat_sock_get_timestamp(sk,
 					(struct timeval __user*)argp);
+		break;
+	case SIOCGSTAMPNS:
+		rc = -EINVAL;
+		if (sk)
+			rc = compat_sock_get_timestampns(sk,
+					(struct timespec __user*)argp);
 		break;
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:

@@ -1296,6 +1296,9 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCGSTAMP:
 		return sock_get_timestamp(sk, (struct timeval __user *) argp);
 
+	case SIOCGSTAMPNS:
+		return sock_get_timestampns(sk, (struct timespec __user *) argp);
+
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
 	case SIOCGIFDSTADDR:
