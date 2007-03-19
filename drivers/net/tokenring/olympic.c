@@ -814,8 +814,6 @@ static void olympic_rx(struct net_device *dev)
 					olympic_priv->rx_ring_last_received += i ; 
 					olympic_priv->rx_ring_last_received &= (OLYMPIC_RX_RING_SIZE -1) ;  
 				} else  {
-					skb->dev = dev ; 
-
 					/* Optimise based upon number of buffers used. 
 			   	   	   If only one buffer is used we can simply swap the buffers around.
 			   	   	   If more than one then we must use the new buffer and copy the information
@@ -1440,7 +1438,6 @@ static void olympic_arb_cmd(struct net_device *dev)
 			next_ptr=readw(buf_ptr+offsetof(struct mac_receive_buffer,next)); 
 		} while (next_ptr && (buf_ptr=olympic_priv->olympic_lap + ntohs(next_ptr)));
 
-		mac_frame->dev = dev;
 		mac_frame->protocol = tr_type_trans(mac_frame, dev);
 
 		if (olympic_priv->olympic_network_monitor) { 

@@ -2168,7 +2168,6 @@ static void tms380tr_rcv_status_irq(struct net_device *dev)
 				}
 				else
 				{
-					skb->dev	= dev;
 					skb_put(skb, tp->MaxPacketSize);
 					rpl->SkbStat 	= SKB_DATA_COPY;
 					ReceiveDataPtr 	= rpl->MData;

@@ -933,8 +933,6 @@ static void xl_rx(struct net_device *dev)
 				return ; 				
 			}
 	
-			skb->dev = dev ; 
-
 			while (xl_priv->rx_ring_tail != temp_ring_loc) { 
 				copy_len = xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfraglen & 0x7FFF ; 
 				frame_length -= copy_len ;  
@@ -966,8 +964,6 @@ static void xl_rx(struct net_device *dev)
 				writel(ACK_INTERRUPT | UPCOMPACK | LATCH_ACK , xl_mmio + MMIO_COMMAND) ; 
 				return ; 
 			}
-
-			skb->dev = dev ; 
 
 			skb2 = xl_priv->rx_ring_skb[xl_priv->rx_ring_tail] ; 
 			pci_unmap_single(xl_priv->pdev, xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr, xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ; 

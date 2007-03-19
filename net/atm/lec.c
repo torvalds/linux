@@ -825,14 +825,16 @@ static void lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		if (!hlist_empty(&priv->lec_arp_empty_ones)) {
 			lec_arp_check_empties(priv, vcc, skb);
 		}
-		skb->dev = dev;
 		skb_pull(skb, 2);	/* skip lec_id */
 #ifdef CONFIG_TR
 		if (priv->is_trdev)
 			skb->protocol = tr_type_trans(skb, dev);
 		else
 #endif
+		{
+			skb->dev = dev;
 			skb->protocol = eth_type_trans(skb, dev);
+		}
 		priv->stats.rx_packets++;
 		priv->stats.rx_bytes += skb->len;
 		memset(ATM_SKB(skb), 0, sizeof(struct atm_skb_data));

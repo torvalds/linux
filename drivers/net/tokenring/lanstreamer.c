@@ -944,8 +944,6 @@ static void streamer_rx(struct net_device *dev)
 				printk(KERN_WARNING "%s: Not enough memory to copy packet to upper layers. \n",	dev->name);
 				streamer_priv->streamer_stats.rx_dropped++;
 			} else {	/* we allocated an skb OK */
-				skb->dev = dev;
-
 				if (buffer_cnt == 1) {
 					/* release the DMA mapping */
 					pci_unmap_single(streamer_priv->pci_dev, 
@@ -1607,7 +1605,6 @@ static void streamer_arb_cmd(struct net_device *dev)
 				      frame_data, buffer_len);
 		} while (next_ptr && (buff_off = next_ptr));
 
-		mac_frame->dev = dev;
 		mac_frame->protocol = tr_type_trans(mac_frame, dev);
 #if STREAMER_NETWORK_MONITOR
 		printk(KERN_WARNING "%s: Received MAC Frame, details: \n",

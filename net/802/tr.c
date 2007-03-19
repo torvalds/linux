@@ -193,6 +193,7 @@ __be16 tr_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct trllc *trllc;
 	unsigned riflen=0;
 
+	skb->dev = dev;
 	skb->mac.raw = skb->data;
 	trh = tr_hdr(skb);
 
