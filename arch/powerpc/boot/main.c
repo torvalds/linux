@@ -18,8 +18,6 @@
 #include "gunzip_util.h"
 #include "flatdevtree.h"
 
-extern void flush_cache(void *, unsigned long);
-
 extern char _start[];
 extern char __bss_start[];
 extern char _end[];
