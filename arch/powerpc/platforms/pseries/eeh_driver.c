@@ -158,7 +158,8 @@ static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 		return;
 
 	rc = driver->err_handler->slot_reset(dev);
-	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
+	if ((*res == PCI_ERS_RESULT_NONE) ||
+	    (*res == PCI_ERS_RESULT_RECOVERED)) *res = rc;
 	if (*res == PCI_ERS_RESULT_DISCONNECT &&
 	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 }
