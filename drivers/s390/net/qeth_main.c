@@ -2308,7 +2308,7 @@ qeth_rebuild_skb_fake_ll_tr(struct qeth_card *card, struct sk_buff *skb,
 	QETH_DBF_TEXT(trace,5,"skbfktr");
 	skb->mac.raw = skb->data - QETH_FAKE_LL_LEN_TR;
 	/* this is a fake ethernet header */
-	fake_hdr = (struct trh_hdr *) skb->mac.raw;
+	fake_hdr = tr_hdr(skb);
 
 	/* the destination MAC address */
 	switch (skb->pkt_type){

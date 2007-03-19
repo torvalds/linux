@@ -1440,16 +1440,17 @@ static void olympic_arb_cmd(struct net_device *dev)
 			next_ptr=readw(buf_ptr+offsetof(struct mac_receive_buffer,next)); 
 		} while (next_ptr && (buf_ptr=olympic_priv->olympic_lap + ntohs(next_ptr)));
 
+		mac_frame->dev = dev;
+		mac_frame->protocol = tr_type_trans(mac_frame, dev);
+
 		if (olympic_priv->olympic_network_monitor) { 
 			struct trh_hdr *mac_hdr ; 
 			printk(KERN_WARNING "%s: Received MAC Frame, details: \n",dev->name) ;
-			mac_hdr = (struct trh_hdr *)mac_frame->data ; 
+			mac_hdr = tr_hdr(mac_frame);
 			printk(KERN_WARNING "%s: MAC Frame Dest. Addr: %02x:%02x:%02x:%02x:%02x:%02x \n", dev->name , mac_hdr->daddr[0], mac_hdr->daddr[1], mac_hdr->daddr[2], mac_hdr->daddr[3], mac_hdr->daddr[4], mac_hdr->daddr[5]) ; 
 			printk(KERN_WARNING "%s: MAC Frame Srce. Addr: %02x:%02x:%02x:%02x:%02x:%02x \n", dev->name , mac_hdr->saddr[0], mac_hdr->saddr[1], mac_hdr->saddr[2], mac_hdr->saddr[3], mac_hdr->saddr[4], mac_hdr->saddr[5]) ; 
 		}
-		mac_frame->dev = dev ; 
-		mac_frame->protocol = tr_type_trans(mac_frame,dev);
-		netif_rx(mac_frame) ; 	
+		netif_rx(mac_frame);
 		dev->last_rx = jiffies;
 
 drop_frame:
