@@ -123,10 +123,14 @@ static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci)
 
 static void uhci_free_td(struct uhci_hcd *uhci, struct uhci_td *td)
 {
-	if (!list_empty(&td->list))
+	if (!list_empty(&td->list)) {
 		dev_warn(uhci_dev(uhci), "td %p still in list!\n", td);
-	if (!list_empty(&td->fl_list))
+		WARN_ON(1);
+	}
+	if (!list_empty(&td->fl_list)) {
 		dev_warn(uhci_dev(uhci), "td %p still in fl_list!\n", td);
+		WARN_ON(1);
+	}
 
 	dma_pool_free(uhci->td_pool, td, td->dma_handle);
 }
@@ -291,8 +295,10 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
 	WARN_ON(qh->state != QH_STATE_IDLE && qh->udev);
-	if (!list_empty(&qh->queue))
+	if (!list_empty(&qh->queue)) {
 		dev_warn(uhci_dev(uhci), "qh %p list not empty!\n", qh);
+		WARN_ON(1);
+	}
 
 	list_del(&qh->node);
 	if (qh->udev) {
@@ -740,9 +746,11 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 {
 	struct uhci_td *td, *tmp;
 
-	if (!list_empty(&urbp->node))
+	if (!list_empty(&urbp->node)) {
 		dev_warn(uhci_dev(uhci), "urb %p still on QH's list!\n",
 				urbp->urb);
+		WARN_ON(1);
+	}
 
 	list_for_each_entry_safe(td, tmp, &urbp->td_list, list) {
 		uhci_remove_td_from_urbp(td);
