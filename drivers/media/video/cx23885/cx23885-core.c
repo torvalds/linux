@@ -584,7 +584,6 @@ void cx23885_reset(struct cx23885_dev *dev)
 
 	mdelay(100);
 
-#if SRAM
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH01 ], 188*4, 0);
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH02 ], 128, 0);
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH03 ], 128, 0);
@@ -594,37 +593,6 @@ void cx23885_reset(struct cx23885_dev *dev)
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH07 ], 128, 0);
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH08 ], 128, 0);
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH09 ], 128, 0);
-
-#else
-	// FIXME: Put a pointer to the sram_channel table in cx23885_dev
-	// and stop all this ugly switch/if code
-	switch(cx23885_boards[dev->board].bridge) {
-	case CX23885_BRIDGE_885:
-		cx23885_sram_channel_setup(dev, &cx23885_sram_channels[ SRAM_CH01 ], 188*4, 0);
-		cx23885_sram_channel_setup(dev, &cx23885_sram_channels[ SRAM_CH02 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23885_sram_channels[ SRAM_CH03 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23885_sram_channels[ SRAM_CH04 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23885_sram_channels[ SRAM_CH05 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23885_sram_channels[ SRAM_CH06 ], 188*4, 0);
-		cx23885_sram_channel_setup(dev, &cx23885_sram_channels[ SRAM_CH07 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23885_sram_channels[ SRAM_CH08 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23885_sram_channels[ SRAM_CH09 ], 128, 0);
-		break;
-	case CX23885_BRIDGE_887:
-		cx23885_sram_channel_setup(dev, &cx23887_sram_channels[ SRAM_CH01 ], 188*4, 0);
-		cx23885_sram_channel_setup(dev, &cx23887_sram_channels[ SRAM_CH02 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23887_sram_channels[ SRAM_CH03 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23887_sram_channels[ SRAM_CH04 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23887_sram_channels[ SRAM_CH05 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23887_sram_channels[ SRAM_CH06 ], 188*4, 0);
-		cx23885_sram_channel_setup(dev, &cx23887_sram_channels[ SRAM_CH07 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23887_sram_channels[ SRAM_CH08 ], 128, 0);
-		cx23885_sram_channel_setup(dev, &cx23887_sram_channels[ SRAM_CH09 ], 128, 0);
-		break;
-	default:
-		printk(KERN_ERR "%s() error, default case", __FUNCTION__ );
-	}
-#endif
 
 	switch(dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
@@ -1019,38 +987,14 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	dprintk(1, "%s() w: %d, h: %d, f: %d\n", __FUNCTION__,
 			buf->vb.width, buf->vb.height, buf->vb.field);
 
-#if SRAM
 	/* setup fifo + format */
 	cx23885_sram_channel_setup(dev,
 		&dev->sram_channels[ port->sram_chno ],
 		port->ts_packet_size, buf->risc.dma);
-	if(debug > 5)
+	if(debug > 5) {
 		cx23885_sram_channel_dump(dev, &dev->sram_channels[ port->sram_chno ] );
-#else
-	// FIXME: Put a pointer to the sram_channel table in cx23885_dev
-	// and stop all this ugly switch/if code
-	switch(cx23885_boards[dev->board].bridge) {
-	case CX23885_BRIDGE_885:
-		cx23885_sram_channel_setup(dev,
-			&cx23885_sram_channels[ port->sram_chno ],
-			port->ts_packet_size, buf->risc.dma);
-		if(debug > 5)
-			cx23885_sram_channel_dump(dev, &cx23885_sram_channels[ port->sram_chno ] );
-		break;
-	case CX23885_BRIDGE_887:
-		cx23885_sram_channel_setup(dev,
-			&cx23887_sram_channels[ port->sram_chno ],
-			port->ts_packet_size, buf->risc.dma);
-		if(debug > 5)
-			cx23885_sram_channel_dump(dev, &cx23887_sram_channels[ port->sram_chno ] );
-		break;
-	default:
-		printk(KERN_ERR "%s() error, default case", __FUNCTION__ );
-	}
-#endif
-
-	if(debug > 5)
 		cx23885_risc_disasm(port, &buf->risc);
+	}
 
 	/* write TS length to chip */
 	cx_write(port->reg_lngth, buf->vb.width);
@@ -1323,18 +1267,8 @@ static void cx23885_timeout(unsigned long data)
 	dprintk(1, "%s()\n",__FUNCTION__);
 
 	if (debug > 5)
-#if SRAM
 		cx23885_sram_channel_dump(dev, &dev->sram_channels[ port->sram_chno ]);
-#else
-	{
-		// FIXME: Put a pointer to the sram_channel table in cx23885_dev
-		// and stop all this ugly switch/if code
-		if(cx23885_boards[dev->board].bridge == CX23885_BRIDGE_885)
-			cx23885_sram_channel_dump(dev, &cx23885_sram_channels[ port->sram_chno ]);
-		if(cx23885_boards[dev->board].bridge == CX23885_BRIDGE_887)
-			cx23885_sram_channel_dump(dev, &cx23887_sram_channels[ port->sram_chno ]);
-	}
-#endif
+
 	cx23885_stop_dma(port);
 	do_cancel_buffers(port, "timeout", 1);
 }
@@ -1431,12 +1365,7 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 		printk(KERN_ERR "%s: mpeg risc op code error\n", dev->name);
 
 		cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
-#if SRAM
 		cx23885_sram_channel_dump(dev, &dev->sram_channels[ port->sram_chno ]);
-#else
-		cx23885_sram_channel_dump(dev, &cx23885_sram_channels[ port->sram_chno ]);
-#endif
-
 
 	} else if (ts2_status & VID_C_MSK_RISCI1) {
 

@@ -44,8 +44,6 @@
 
 #define CX23885_MAXBOARDS 8
 
-#define SRAM 0
-
 /* Max number of inputs by card */
 #define MAX_CX23885_INPUT 8
 
