@@ -101,7 +101,8 @@ extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds
 
 wrapper		:=$(srctree)/$(src)/wrapper
-wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree)
+wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree) \
+			$(wrapper)
 
 #############
 # Bits for building various flavours of zImage
