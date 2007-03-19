@@ -100,6 +100,7 @@ static char *weakpages = NULL;
 static unsigned int bitflips = 0;
 static char *gravepages = NULL;
 static unsigned int rptwear = 0;
+static unsigned int overridesize = 0;
 
 module_param(first_id_byte,  uint, 0400);
 module_param(second_id_byte, uint, 0400);
@@ -121,8 +122,9 @@ module_param(weakpages,      charp, 0400);
 module_param(bitflips,       uint, 0400);
 module_param(gravepages,     charp, 0400);
 module_param(rptwear,        uint, 0400);
+module_param(overridesize,   uint, 0400);
 
-MODULE_PARM_DESC(first_id_byte,  "The fist byte returned by NAND Flash 'read ID' command (manufaturer ID)");
+MODULE_PARM_DESC(first_id_byte,  "The first byte returned by NAND Flash 'read ID' command (manufacturer ID)");
 MODULE_PARM_DESC(second_id_byte, "The second byte returned by NAND Flash 'read ID' command (chip ID)");
 MODULE_PARM_DESC(third_id_byte,  "The third byte returned by NAND Flash 'read ID' command");
 MODULE_PARM_DESC(fourth_id_byte, "The fourth byte returned by NAND Flash 'read ID' command");
@@ -149,6 +151,9 @@ MODULE_PARM_DESC(gravepages,     "Pages that lose data [: maximum reads (default
 				 " separated by commas e.g. 1401:2 means page 1401"
 				 " can be read only twice before failing");
 MODULE_PARM_DESC(rptwear,        "Number of erases inbetween reporting wear, if not zero");
+MODULE_PARM_DESC(overridesize,   "Specifies the NAND Flash size overriding the ID bytes. "
+				 "The size is specified in erase blocks and as the exponent of a power of two"
+				 " e.g. 5 means a size of 32 erase blocks");
 
 /* The largest possible page size */
 #define NS_LARGEST_PAGE_SIZE	2048
@@ -1959,6 +1964,8 @@ static int __init ns_init_module(void)
 	chip->verify_buf = ns_nand_verify_buf;
 	chip->read_word  = ns_nand_read_word;
 	chip->ecc.mode   = NAND_ECC_SOFT;
+	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */
+	/* and 'badblocks' parameters to work */
 	chip->options   |= NAND_SKIP_BBTSCAN;
 
 	/*
@@ -1997,6 +2004,18 @@ static int __init ns_init_module(void)
 		if (retval > 0)
 			retval = -ENXIO;
 		goto error;
+	}
+
+	if (overridesize) {
+		u_int32_t new_size = nsmtd->erasesize << overridesize;
+		if (new_size >> overridesize != nsmtd->erasesize) {
+			NS_ERR("overridesize is too big\n");
+			goto err_exit;
+		}
+		/* N.B. This relies on nand_scan not doing anything with the size before we change it */
+		nsmtd->size = new_size;
+		chip->chipsize = new_size;
+		chip->chip_shift = ffs(new_size) - 1;
 	}
 
 	if ((retval = setup_wear_reporting(nsmtd)) != 0)
