@@ -164,7 +164,10 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	if (!data)
 		goto nodata;
 
-	memset(skb, 0, offsetof(struct sk_buff, truesize));
+	/*
+	 * See comment in sk_buff definition, just before the 'tail' member
+	 */
+	memset(skb, 0, offsetof(struct sk_buff, tail));
 	skb->truesize = size + sizeof(struct sk_buff);
 	atomic_set(&skb->users, 1);
 	skb->head = data;
