@@ -438,7 +438,8 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	}
 
 	/* All devices should claim they have recovered by now. */
-	if (result != PCI_ERS_RESULT_RECOVERED) {
+	if ((result != PCI_ERS_RESULT_RECOVERED) &&
+	    (result != PCI_ERS_RESULT_NONE)) {
 		printk(KERN_WARNING "EEH: Not recovered\n");
 		goto hard_fail;
 	}
