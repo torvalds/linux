@@ -3525,8 +3525,8 @@ unpack_next:
                                 memcpy(skb_put(skb,len_of_data),
 					privptr->p_mtc_envelope,
 					len_of_data);
-                                skb->mac.raw=skb->data;
                                 skb->dev=dev;
+				skb_reset_mac_header(skb);
                                 skb->protocol=htons(ETH_P_IP);
                                 skb->ip_summed=CHECKSUM_UNNECESSARY;
                                 privptr->stats.rx_packets++;

@@ -753,7 +753,8 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 #ifdef CONFIG_NETFILTER_DEBUG
 	/* Be very paranoid. This probably won't happen anymore, but let's
 	 * keep the check just to be sure... */
-	if (skb->mac.raw < skb->head || skb->mac.raw + ETH_HLEN > skb->data) {
+	if (skb_mac_header(skb) < skb->head ||
+	    skb_mac_header(skb) + ETH_HLEN > skb->data) {
 		printk(KERN_CRIT "br_netfilter: Argh!! br_nf_post_routing: "
 		       "bad mac.raw pointer.\n");
 		goto print_error;
@@ -808,7 +809,7 @@ print_error:
 		if (realoutdev)
 			printk("[%s]", realoutdev->name);
 	}
-	printk(" head:%p, raw:%p, data:%p\n", skb->head, skb->mac.raw,
+	printk(" head:%p, raw:%p, data:%p\n", skb->head, skb_mac_header(skb),
 	       skb->data);
 	dump_stack();
 	return NF_ACCEPT;

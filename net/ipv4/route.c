@@ -1698,9 +1698,9 @@ static void ip_handle_martian_source(struct net_device *dev,
 		printk(KERN_WARNING "martian source %u.%u.%u.%u from "
 			"%u.%u.%u.%u, on dev %s\n",
 			NIPQUAD(daddr), NIPQUAD(saddr), dev->name);
-		if (dev->hard_header_len && skb->mac.raw) {
+		if (dev->hard_header_len && skb_mac_header_was_set(skb)) {
 			int i;
-			unsigned char *p = skb->mac.raw;
+			const unsigned char *p = skb_mac_header(skb);
 			printk(KERN_WARNING "ll header: ");
 			for (i = 0; i < dev->hard_header_len; i++, p++) {
 				printk("%02x", *p);

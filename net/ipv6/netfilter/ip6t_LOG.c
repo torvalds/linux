@@ -397,7 +397,7 @@ ip6t_log_packet(unsigned int pf,
 		printk("MAC=");
 		if (skb->dev && (len = skb->dev->hard_header_len) &&
 		    skb->mac.raw != skb->nh.raw) {
-			unsigned char *p = skb->mac.raw;
+			const unsigned char *p = skb_mac_header(skb);
 			int i;
 
 			if (skb->dev->type == ARPHRD_SIT &&
@@ -412,7 +412,8 @@ ip6t_log_packet(unsigned int pf,
 			printk(" ");
 
 			if (skb->dev->type == ARPHRD_SIT) {
-				struct iphdr *iph = (struct iphdr *)skb->mac.raw;
+				const struct iphdr *iph =
+					(struct iphdr *)skb_mac_header(skb);
 				printk("TUNNEL=%u.%u.%u.%u->%u.%u.%u.%u ",
 				       NIPQUAD(iph->saddr),
 				       NIPQUAD(iph->daddr));

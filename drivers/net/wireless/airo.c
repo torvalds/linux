@@ -2444,7 +2444,7 @@ static int add_airo_dev( struct net_device *dev );
 
 static int wll_header_parse(struct sk_buff *skb, unsigned char *haddr)
 {
-	memcpy(haddr, skb->mac.raw + 10, ETH_ALEN);
+	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN);
 	return ETH_ALEN;
 }
 

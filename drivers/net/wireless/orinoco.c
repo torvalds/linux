@@ -689,7 +689,7 @@ static void orinoco_stat_gather(struct net_device *dev,
 	/* Note : gcc will optimise the whole section away if
 	 * WIRELESS_SPY is not defined... - Jean II */
 	if (SPY_NUMBER(priv)) {
-		orinoco_spy_gather(dev, skb->mac.raw + ETH_ALEN,
+		orinoco_spy_gather(dev, skb_mac_header(skb) + ETH_ALEN,
 				   desc->signal, desc->silence);
 	}
 }

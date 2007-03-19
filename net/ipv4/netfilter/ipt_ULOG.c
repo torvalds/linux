@@ -251,9 +251,9 @@ static void ipt_ulog_packet(unsigned int hooknum,
 		*(pm->prefix) = '\0';
 
 	if (in && in->hard_header_len > 0
-	    && skb->mac.raw != (void *) skb->nh.iph
+	    && skb->mac.raw != skb->nh.raw
 	    && in->hard_header_len <= ULOG_MAC_LEN) {
-		memcpy(pm->mac, skb->mac.raw, in->hard_header_len);
+		memcpy(pm->mac, skb_mac_header(skb), in->hard_header_len);
 		pm->mac_len = in->hard_header_len;
 	} else
 		pm->mac_len = 0;

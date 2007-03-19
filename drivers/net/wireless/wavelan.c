@@ -2517,7 +2517,8 @@ wv_packet_read(struct net_device * dev, u16 buf_off, int sksize)
 	skb->protocol = eth_type_trans(skb, dev);
 
 #ifdef DEBUG_RX_INFO
-	wv_packet_info(skb->mac.raw, sksize, dev->name, "wv_packet_read");
+	wv_packet_info(skb_mac_header(skb), sksize, dev->name,
+		       "wv_packet_read");
 #endif				/* DEBUG_RX_INFO */
 
 	/* Statistics-gathering and associated stuff.
@@ -2553,7 +2554,7 @@ wv_packet_read(struct net_device * dev, u16 buf_off, int sksize)
 
 		/* Spying stuff */
 #ifdef IW_WIRELESS_SPY
-		wl_spy_gather(dev, skb->mac.raw + WAVELAN_ADDR_SIZE,
+		wl_spy_gather(dev, skb_mac_header(skb) + WAVELAN_ADDR_SIZE,
 			      stats);
 #endif /* IW_WIRELESS_SPY */
 #ifdef HISTOGRAM

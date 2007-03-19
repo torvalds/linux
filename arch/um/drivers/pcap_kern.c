@@ -36,7 +36,7 @@ static int pcap_read(int fd, struct sk_buff **skb,
 {
 	*skb = ether_adjust_skb(*skb, ETH_HEADER_OTHER);
 	if(*skb == NULL) return(-ENOMEM);
-	return(pcap_user_read(fd, (*skb)->mac.raw, 
+	return(pcap_user_read(fd, skb_mac_header(*skb),
 			      (*skb)->dev->mtu + ETH_HEADER_OTHER,
 			      (struct pcap_data *) &lp->user));
 }

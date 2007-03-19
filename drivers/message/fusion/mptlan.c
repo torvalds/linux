@@ -714,6 +714,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 	LANSendRequest_t *pSendReq;
 	SGETransaction32_t *pTrans;
 	SGESimple64_t *pSimple;
+	const unsigned char *mac;
 	dma_addr_t dma;
 	unsigned long flags;
 	int ctx;
@@ -784,6 +785,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 //			IOC_AND_NETDEV_NAMES_s_s(dev),
 //			ctx, skb, skb->data));
 
+	mac = skb_mac_header(skb);
 #ifdef QLOGIC_NAA_WORKAROUND
 {
 	struct NAA_Hosed *nh;
@@ -793,12 +795,12 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 	   drops. */
 	read_lock_irq(&bad_naa_lock);
 	for (nh = mpt_bad_naa; nh != NULL; nh=nh->next) {
-		if ((nh->ieee[0] == skb->mac.raw[0]) &&
-		    (nh->ieee[1] == skb->mac.raw[1]) &&
-		    (nh->ieee[2] == skb->mac.raw[2]) &&
-		    (nh->ieee[3] == skb->mac.raw[3]) &&
-		    (nh->ieee[4] == skb->mac.raw[4]) &&
-		    (nh->ieee[5] == skb->mac.raw[5])) {
+		if ((nh->ieee[0] == mac[0]) &&
+		    (nh->ieee[1] == mac[1]) &&
+		    (nh->ieee[2] == mac[2]) &&
+		    (nh->ieee[3] == mac[3]) &&
+		    (nh->ieee[4] == mac[4]) &&
+		    (nh->ieee[5] == mac[5])) {
 			cur_naa = nh->NAA;
 			dlprintk ((KERN_INFO "mptlan/sdu_send: using NAA value "
 				  "= %04x.\n", cur_naa));
@@ -810,12 +812,12 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	pTrans->TransactionDetails[0] = cpu_to_le32((cur_naa         << 16) |
-						    (skb->mac.raw[0] <<  8) |
-						    (skb->mac.raw[1] <<  0));
-	pTrans->TransactionDetails[1] = cpu_to_le32((skb->mac.raw[2] << 24) |
-						    (skb->mac.raw[3] << 16) |
-						    (skb->mac.raw[4] <<  8) |
-						    (skb->mac.raw[5] <<  0));
+						    (mac[0] <<  8) |
+						    (mac[1] <<  0));
+	pTrans->TransactionDetails[1] = cpu_to_le32((mac[2] << 24) |
+						    (mac[3] << 16) |
+						    (mac[4] <<  8) |
+						    (mac[5] <<  0));
 
 	pSimple = (SGESimple64_t *) &pTrans->TransactionDetails[2];
 

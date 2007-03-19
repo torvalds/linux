@@ -112,7 +112,7 @@ struct ethhdr {
 
 static inline struct ethhdr *eth_hdr(const struct sk_buff *skb)
 {
-	return (struct ethhdr *)skb->mac.raw;
+	return (struct ethhdr *)skb_mac_header(skb);
 }
 
 #ifdef CONFIG_SYSCTL

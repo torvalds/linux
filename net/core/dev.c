@@ -1232,7 +1232,7 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	}
 	rcu_read_unlock();
 
-	__skb_push(skb, skb->data - skb->mac.raw);
+	__skb_push(skb, skb->data - skb_mac_header(skb));
 
 	return segs;
 }

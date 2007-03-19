@@ -284,7 +284,7 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct 
 	 *	Incoming packets have ll header pulled,
 	 *	push it back.
 	 *
-	 *	For outgoing ones skb->data == skb->mac.raw
+	 *	For outgoing ones skb->data == skb_mac_header(skb)
 	 *	so that this procedure is noop.
 	 */
 
@@ -303,7 +303,7 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct 
 
 	spkt = &PACKET_SKB_CB(skb)->sa.pkt;
 
-	skb_push(skb, skb->data-skb->mac.raw);
+	skb_push(skb, skb->data - skb_mac_header(skb));
 
 	/*
 	 *	The SOCK_PACKET socket receives _all_ frames.
@@ -488,7 +488,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 		   never delivered to user.
 		 */
 		if (sk->sk_type != SOCK_DGRAM)
-			skb_push(skb, skb->data - skb->mac.raw);
+			skb_push(skb, skb->data - skb_mac_header(skb));
 		else if (skb->pkt_type == PACKET_OUTGOING) {
 			/* Special case: outgoing packets have ll header at head */
 			skb_pull(skb, skb->nh.raw - skb->data);
@@ -592,7 +592,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 
 	if (dev->hard_header) {
 		if (sk->sk_type != SOCK_DGRAM)
-			skb_push(skb, skb->data - skb->mac.raw);
+			skb_push(skb, skb->data - skb_mac_header(skb));
 		else if (skb->pkt_type == PACKET_OUTGOING) {
 			/* Special case: outgoing packets have ll header at head */
 			skb_pull(skb, skb->nh.raw - skb->data);

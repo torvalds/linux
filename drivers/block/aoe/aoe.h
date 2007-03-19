@@ -53,7 +53,7 @@ struct aoe_hdr {
 
 static inline struct aoe_hdr *aoe_hdr(const struct sk_buff *skb)
 {
-	return (struct aoe_hdr *)skb->mac.raw;
+	return (struct aoe_hdr *)skb_mac_header(skb);
 }
 #endif
 

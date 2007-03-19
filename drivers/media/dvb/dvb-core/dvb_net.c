@@ -174,7 +174,7 @@ static unsigned short dvb_net_eth_type_trans(struct sk_buff *skb,
 	struct ethhdr *eth;
 	unsigned char *rawp;
 
-	skb->mac.raw=skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb,dev->hard_header_len);
 	eth = eth_hdr(skb);
 

@@ -1484,7 +1484,7 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		     struct packet_type *pt, struct net_device *orig_dev)
 {
 	/* Expand any short form frames */
-	if (skb->mac.raw[2] == 1) {
+	if (skb_mac_header(skb)[2] == 1) {
 		struct ddpehdr *ddp;
 		/* Find our address */
 		struct atalk_addr *ap = atalk_find_dev_addr(dev);
@@ -1510,8 +1510,8 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		 * we write the network numbers !
 		 */
 
-		ddp->deh_dnode = skb->mac.raw[0];     /* From physical header */
-		ddp->deh_snode = skb->mac.raw[1];     /* From physical header */
+		ddp->deh_dnode = skb_mac_header(skb)[0];     /* From physical header */
+		ddp->deh_snode = skb_mac_header(skb)[1];     /* From physical header */
 
 		ddp->deh_dnet  = ap->s_net;	/* Network number */
 		ddp->deh_snet  = ap->s_net;

@@ -99,8 +99,8 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 
 	if (likely(eb_ptr->bearer)) {
 	       if (likely(!dev->promiscuity) ||
-		   !memcmp(buf->mac.raw,dev->dev_addr,ETH_ALEN) ||
-		   !memcmp(buf->mac.raw,dev->broadcast,ETH_ALEN)) {
+		   !memcmp(skb_mac_header(buf), dev->dev_addr, ETH_ALEN) ||
+		   !memcmp(skb_mac_header(buf), dev->broadcast, ETH_ALEN)) {
 			size = msg_size((struct tipc_msg *)buf->data);
 			skb_trim(buf, size);
 			if (likely(buf->len == size)) {

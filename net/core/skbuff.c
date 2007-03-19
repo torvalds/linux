@@ -1878,7 +1878,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 	struct sk_buff *segs = NULL;
 	struct sk_buff *tail = NULL;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
-	unsigned int doffset = skb->data - skb->mac.raw;
+	unsigned int doffset = skb->data - skb_mac_header(skb);
 	unsigned int offset = doffset;
 	unsigned int headroom;
 	unsigned int len;

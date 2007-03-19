@@ -51,7 +51,7 @@ struct vlan_ethhdr {
 
 static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 {
-	return (struct vlan_ethhdr *)skb->mac.raw;
+	return (struct vlan_ethhdr *)skb_mac_header(skb);
 }
 
 struct vlan_hdr {

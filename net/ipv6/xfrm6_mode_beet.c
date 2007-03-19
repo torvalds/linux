@@ -70,9 +70,9 @@ static int xfrm6_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	memmove(skb->data, skb->nh.raw, size);
 	skb->nh.raw = skb->data;
 
-	old_mac = skb->mac.raw;
+	old_mac = skb_mac_header(skb);
 	skb_set_mac_header(skb, -skb->mac_len);
-	memmove(skb->mac.raw, old_mac, skb->mac_len);
+	memmove(skb_mac_header(skb), old_mac, skb->mac_len);
 
 	ip6h = skb->nh.ipv6h;
 	ip6h->payload_len = htons(skb->len - size);

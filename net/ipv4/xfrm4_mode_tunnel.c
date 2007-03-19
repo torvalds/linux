@@ -126,9 +126,9 @@ static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 		skb->protocol = htons(ETH_P_IPV6);
 	}
 #endif
-	old_mac = skb->mac.raw;
+	old_mac = skb_mac_header(skb);
 	skb_set_mac_header(skb, -skb->mac_len);
-	memmove(skb->mac.raw, old_mac, skb->mac_len);
+	memmove(skb_mac_header(skb), old_mac, skb->mac_len);
 	skb->nh.raw = skb->data;
 	err = 0;
 
