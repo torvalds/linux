@@ -12,12 +12,12 @@ struct dvb_pll_desc {
 	char *name;
 	u32  min;
 	u32  max;
+	u32  iffreq;
 	void (*setbw)(u8 *buf, u32 freq, int bandwidth);
 	u8   *initdata;
 	int  count;
 	struct {
 		u32 limit;
-		u32 offset;
 		u32 stepsize;
 		u8  config;
 		u8  cb;
