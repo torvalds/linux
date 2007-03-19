@@ -32,7 +32,6 @@
 struct cx23885_board cx23885_boards[] = {
 	[CX23885_BOARD_UNKNOWN] = {
 		.name		= "UNKNOWN/GENERIC",
-		.bridge		= CX23885_BRIDGE_UNDEFINED,
 		.input          = {{
 			.type   = CX23885_VMUX_COMPOSITE1,
 			.vmux   = 0,
@@ -49,7 +48,6 @@ struct cx23885_board cx23885_boards[] = {
 	},
 	[CX23885_BOARD_HAUPPAUGE_HVR1800lp] = {
 		.name		= "Hauppauge WinTV-HVR1800lp",
-		.bridge		= CX23885_BRIDGE_885,
 		.portc		= CX23885_MPEG_DVB,
 		.input          = {{
 			.type   = CX23885_VMUX_TELEVISION,
@@ -71,7 +69,6 @@ struct cx23885_board cx23885_boards[] = {
 	},
 	[CX23885_BOARD_HAUPPAUGE_HVR1800] = {
 		.name		= "Hauppauge WinTV-HVR1800",
-		.bridge		= CX23885_BRIDGE_887,
 		.portc		= CX23885_MPEG_DVB,
 		.input          = {{
 			.type   = CX23885_VMUX_TELEVISION,

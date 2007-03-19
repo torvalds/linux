@@ -452,8 +452,8 @@ int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 	cx_write(ch->cnt2_reg, (lines*16) >> 3);
 	cx_write(ch->cnt1_reg, (bpl >> 3) -1);
 
-	dprintk(2,"[bridged %d] sram setup %s: bpl=%d lines=%d\n",
-		cx23885_boards[dev->board].bridge,
+	dprintk(2,"[bridge %d] sram setup %s: bpl=%d lines=%d\n",
+		dev->bridge,
 		ch->name,
 		bpl,
 		lines);
@@ -770,18 +770,16 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		dev->board, card[dev->nr] == dev->board ?
 		"insmod option" : "autodetected");
 
-	/* Configure the hardware internal memory for fifos */
-	switch(cx23885_boards[dev->board].bridge) {
-	case CX23885_BRIDGE_UNDEFINED:
-	case CX23885_BRIDGE_885:
-		dev->sram_channels = cx23885_sram_channels;
-		break;
-	case CX23885_BRIDGE_887:
+	/* Configure the internal memory */
+	if(dev->pci->device == 0x8880) {
+		dev->bridge = CX23885_BRIDGE_887;
 		dev->sram_channels = cx23887_sram_channels;
-		break;
-	default:
-		printk(KERN_ERR "%s() error, default case", __FUNCTION__ );
+	} else
+	if(dev->pci->device == 0x8852) {
+		dev->bridge = CX23885_BRIDGE_885;
+		dev->sram_channels = cx23885_sram_channels;
 	}
+	dprintk(1, "%s() Memory configured for PCIe bridge type %d\n", __FUNCTION__, dev->bridge);
 
 	/* init hardware */
 	cx23885_reset(dev);
@@ -1037,7 +1035,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	 * starting or stopping interrupts or dma. Avoid the bug for the time being,
 	 * enabling the developer to work on the demod/tuner locking work.
 	 */
-	switch(cx23885_boards[dev->board].bridge) {
+	switch(dev->bridge) {
 	case CX23885_BRIDGE_885:
 	case CX23885_BRIDGE_887:
 		/* enable irqs */

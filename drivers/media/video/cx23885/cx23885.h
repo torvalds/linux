@@ -101,11 +101,6 @@ struct cx23885_board {
 		CX23885_MPEG_UNDEFINED = 0,
 		CX23885_MPEG_DVB
 	} portc;
-	enum {
-		CX23885_BRIDGE_UNDEFINED = 0,
-		CX23885_BRIDGE_885 = 885,
-		CX23885_BRIDGE_887 = 887,
-	} bridge;
 	struct cx23885_input    input[MAX_CX23885_INPUT];
 };
 
@@ -210,6 +205,12 @@ struct cx23885_dev {
 
 	/* sram configuration */
 	struct sram_channel        *sram_channels;
+
+	enum {
+		CX23885_BRIDGE_UNDEFINED = 0,
+		CX23885_BRIDGE_885 = 885,
+		CX23885_BRIDGE_887 = 887,
+	} bridge;
 };
 
 #define SRAM_CH01  0 /* Video A */
