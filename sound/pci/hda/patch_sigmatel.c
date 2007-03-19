@@ -524,12 +524,6 @@ static unsigned int d945gtp5_pin_configs[10] = {
 	0x02a19320, 0x40000100,
 };
 
-static unsigned int macbook_pin_configs[10] = {
-	0x0321e230, 0x03a1e020, 0x400000fd, 0x9017e110,
-	0x400000fe, 0x0381e021, 0x1345e240, 0x13c5e22e,
-	0x400000fc, 0x400000fb,
-};
-
 static unsigned int macbook_pro_v1_pin_configs[10] = {
 	0x0321e230, 0x03a1e020, 0x9017e110, 0x01014010,
 	0x01a19021, 0x0381e021, 0x1345e240, 0x13c5e22e,
@@ -546,8 +540,8 @@ static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_D945_REF] = ref922x_pin_configs,
 	[STAC_D945GTP3] = d945gtp3_pin_configs,
 	[STAC_D945GTP5] = d945gtp5_pin_configs,
-	[STAC_MACMINI] = d945gtp5_pin_configs,
-	[STAC_MACBOOK] = macbook_pin_configs,
+	[STAC_MACMINI] = macbook_pro_v1_pin_configs,
+	[STAC_MACBOOK] = macbook_pro_v1_pin_configs,
 	[STAC_MACBOOK_PRO_V1] = macbook_pro_v1_pin_configs,
 	[STAC_MACBOOK_PRO_V2] = macbook_pro_v2_pin_configs,
 };
