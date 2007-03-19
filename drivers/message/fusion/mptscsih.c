@@ -1188,8 +1188,7 @@ mptscsih_suspend(struct pci_dev *pdev, pm_message_t state)
 int
 mptscsih_resume(struct pci_dev *pdev)
 {
-	mpt_resume(pdev);
-	return 0;
+	return mpt_resume(pdev);
 }
 
 #endif
