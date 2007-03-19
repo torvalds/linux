@@ -50,7 +50,7 @@
  *		Patrick McHardy <kaber@trash.net>
  */
 
-#define VERSION "0.407"
+#define VERSION "0.408"
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -458,6 +458,7 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	struct tnode *old_tn;
 	int inflate_threshold_use;
 	int halve_threshold_use;
+	int max_resize;
 
 	if (!tn)
 		return NULL;
@@ -558,7 +559,8 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 		inflate_threshold_use = inflate_threshold;
 
 	err = 0;
-	while ((tn->full_children > 0 &&
+	max_resize = 10;
+	while ((tn->full_children > 0 &&  max_resize-- &&
 	       50 * (tn->full_children + tnode_child_length(tn) - tn->empty_children) >=
 				inflate_threshold_use * tnode_child_length(tn))) {
 
@@ -571,6 +573,15 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 #endif
 			break;
 		}
+	}
+
+	if (max_resize < 0) {
+		if (!tn->parent)
+			printk(KERN_WARNING "Fix inflate_threshold_root. Now=%d size=%d bits\n",
+			       inflate_threshold_root, tn->bits);
+		else
+			printk(KERN_WARNING "Fix inflate_threshold. Now=%d size=%d bits\n",
+			       inflate_threshold, tn->bits);
 	}
 
 	check_tnode(tn);
@@ -589,7 +600,8 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 		halve_threshold_use = halve_threshold;
 
 	err = 0;
-	while (tn->bits > 1 &&
+	max_resize = 10;
+	while (tn->bits > 1 &&  max_resize-- &&
 	       100 * (tnode_child_length(tn) - tn->empty_children) <
 	       halve_threshold_use * tnode_child_length(tn)) {
 
@@ -604,6 +616,14 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 		}
 	}
 
+	if (max_resize < 0) {
+		if (!tn->parent)
+			printk(KERN_WARNING "Fix halve_threshold_root. Now=%d size=%d bits\n",
+			       halve_threshold_root, tn->bits);
+		else
+			printk(KERN_WARNING "Fix halve_threshold. Now=%d size=%d bits\n",
+			       halve_threshold, tn->bits);
+	}
 
 	/* Only one child remains */
 	if (tn->empty_children == tnode_child_length(tn) - 1)
