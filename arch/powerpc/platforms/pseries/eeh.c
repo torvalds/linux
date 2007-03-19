@@ -74,7 +74,7 @@
  * is broken and panic.  This sets the threshold for how many read
  * attempts we allow before panicking.
  */
-#define EEH_MAX_FAILS	100000
+#define EEH_MAX_FAILS	2100000
 
 /* RTAS tokens */
 static int ibm_set_eeh_option;
