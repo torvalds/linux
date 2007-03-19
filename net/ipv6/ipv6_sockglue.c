@@ -797,13 +797,32 @@ EXPORT_SYMBOL(compat_ipv6_setsockopt);
 #endif
 
 static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
-				  char __user *optval, int len)
+				  int optname, char __user *optval, int len)
 {
 	struct ipv6_opt_hdr *hdr;
 
-	if (!opt || !opt->hopopt)
+	if (!opt)
 		return 0;
-	hdr = opt->hopopt;
+
+	switch(optname) {
+	case IPV6_HOPOPTS:
+		hdr = opt->hopopt;
+		break;
+	case IPV6_RTHDRDSTOPTS:
+		hdr = opt->dst0opt;
+		break;
+	case IPV6_RTHDR:
+		hdr = (struct ipv6_opt_hdr *)opt->srcrt;
+		break;
+	case IPV6_DSTOPTS:
+		hdr = opt->dst1opt;
+		break;
+	default:
+		return -EINVAL;	/* should not happen */
+	}
+
+	if (!hdr)
+		return 0;
 
 	len = min_t(unsigned int, len, ipv6_optlen(hdr));
 	if (copy_to_user(optval, hdr, ipv6_optlen(hdr)))
@@ -946,7 +965,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 		lock_sock(sk);
 		len = ipv6_getsockopt_sticky(sk, np->opt,
-					     optval, len);
+					     optname, optval, len);
 		release_sock(sk);
 		return put_user(len, optlen);
 	}
