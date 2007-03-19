@@ -83,6 +83,7 @@ static int ibm_read_slot_reset_state;
 static int ibm_read_slot_reset_state2;
 static int ibm_slot_error_detail;
 static int ibm_get_config_addr_info;
+static int ibm_get_config_addr_info2;
 static int ibm_configure_bridge;
 
 int eeh_subsystem_enabled;
@@ -744,6 +745,38 @@ struct eeh_early_enable_info {
 	unsigned int buid_lo;
 };
 
+static int get_pe_addr (int config_addr,
+                        struct eeh_early_enable_info *info)
+{
+	unsigned int rets[3];
+	int ret;
+
+	/* Use latest config-addr token on power6 */
+	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
+		/* Make sure we have a PE in hand */
+		ret = rtas_call (ibm_get_config_addr_info2, 4, 2, rets,
+			config_addr, info->buid_hi, info->buid_lo, 1);
+		if (ret || (rets[0]==0))
+			return 0;
+
+		ret = rtas_call (ibm_get_config_addr_info2, 4, 2, rets,
+			config_addr, info->buid_hi, info->buid_lo, 0);
+		if (ret)
+			return 0;
+		return rets[0];
+	}
+
+	/* Use older config-addr token on power5 */
+	if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
+		ret = rtas_call (ibm_get_config_addr_info, 4, 2, rets,
+			config_addr, info->buid_hi, info->buid_lo, 0);
+		if (ret)
+			return 0;
+		return rets[0];
+	}
+	return 0;
+}
+
 /* Enable eeh for the given device node. */
 static void *early_enable_eeh(struct device_node *dn, void *data)
 {
@@ -810,15 +843,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 
 			/* If the newer, better, ibm,get-config-addr-info is supported, 
 			 * then use that instead. */
-			pdn->eeh_pe_config_addr = 0;
-			if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
-				ret = rtas_call (ibm_get_config_addr_info, 4, 2, rets, 
-					pdn->eeh_config_addr, 
-					info->buid_hi, info->buid_lo,
-					0);
-				if (ret == 0)
-					pdn->eeh_pe_config_addr = rets[0];
-			}
+			pdn->eeh_pe_config_addr = get_pe_addr(pdn->eeh_config_addr, info);
 
 			/* Some older systems (Power4) allow the
 			 * ibm,set-eeh-option call to succeed even on nodes
@@ -889,6 +914,7 @@ void __init eeh_init(void)
 	ibm_read_slot_reset_state = rtas_token("ibm,read-slot-reset-state");
 	ibm_slot_error_detail = rtas_token("ibm,slot-error-detail");
 	ibm_get_config_addr_info = rtas_token("ibm,get-config-addr-info");
+	ibm_get_config_addr_info2 = rtas_token("ibm,get-config-addr-info2");
 	ibm_configure_bridge = rtas_token ("ibm,configure-bridge");
 
 	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE)
