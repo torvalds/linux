@@ -303,7 +303,7 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 		skb_pull(*skb, sizeof (struct rfmon_header));
 
 	(*skb)->protocol = htons(ETH_P_802_2);
-	(*skb)->mac.raw = (*skb)->data;
+	skb_reset_mac_header(*skb);
 	(*skb)->pkt_type = PACKET_OTHERHOST;
 
 	return 0;

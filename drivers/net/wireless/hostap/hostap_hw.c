@@ -2217,7 +2217,7 @@ static void hostap_tx_callback(local_info_t *local,
 		memcpy(skb_put(skb, len), payload, len);
 
 	skb->dev = local->dev;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 
 	cb->func(skb, ok, cb->data);
 }

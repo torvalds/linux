@@ -391,7 +391,7 @@ static void pxa_irda_fir_irq_eif(struct pxa_irda *si, struct net_device *dev, in
 
 		/* Feed it to IrLAP  */
 		skb->dev = dev;
-		skb->mac.raw  = skb->data;
+		skb_reset_mac_header(skb);
 		skb->protocol = htons(ETH_P_IRDA);
 		netif_rx(skb);
 

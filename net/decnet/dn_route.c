@@ -1537,7 +1537,7 @@ int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void *arg)
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (skb == NULL)
 		return -ENOBUFS;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	cb = DN_SKB_CB(skb);
 
 	if (rta[RTA_SRC-1])

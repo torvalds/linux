@@ -364,7 +364,7 @@ static void fir_eof(struct stir_cb *stir)
 
 	skb_put(skb, len);
 
-	skb->mac.raw  = skb->data;
+	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IRDA);
 	skb->dev = stir->netdev;
 

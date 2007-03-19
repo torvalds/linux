@@ -1066,7 +1066,7 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 			   set by sender, so that the second statement is
 			   just protection against buggy protocols.
 			 */
-			skb2->mac.raw = skb2->data;
+			skb_reset_mac_header(skb2);
 
 			if (skb2->nh.raw < skb2->data ||
 			    skb2->nh.raw > skb2->tail) {
@@ -1206,7 +1206,7 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 
 	BUG_ON(skb_shinfo(skb)->frag_list);
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb->mac_len = skb->nh.raw - skb->data;
 	__skb_pull(skb, skb->mac_len);
 

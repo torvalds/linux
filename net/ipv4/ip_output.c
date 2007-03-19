@@ -95,7 +95,7 @@ __inline__ void ip_send_check(struct iphdr *iph)
 /* dev_loopback_xmit for use with netfilter. */
 static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 {
-	newskb->mac.raw = newskb->data;
+	skb_reset_mac_header(newskb);
 	__skb_pull(newskb, newskb->nh.raw - newskb->data);
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;

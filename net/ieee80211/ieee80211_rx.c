@@ -42,7 +42,7 @@ static void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
 
 	skb->dev = ieee->dev;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, ieee80211_get_hdrlen(fc));
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = __constant_htons(ETH_P_80211_RAW);
@@ -789,10 +789,11 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	if (skb2 != NULL) {
 		/* send to wireless media */
-		skb2->protocol = __constant_htons(ETH_P_802_3);
-		skb2->mac.raw = skb2->nh.raw = skb2->data;
-		/* skb2->nh.raw = skb2->data + ETH_HLEN; */
 		skb2->dev = dev;
+		skb2->protocol = __constant_htons(ETH_P_802_3);
+		skb_reset_mac_header(skb2);
+		skb2->nh.raw = skb2->data;
+		/* skb2->nh.raw = skb2->data + ETH_HLEN; */
 		dev_queue_xmit(skb2);
 	}
 #endif

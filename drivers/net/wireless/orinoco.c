@@ -770,7 +770,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 
 	/* Copy the 802.11 header to the skb */
 	memcpy(skb_put(skb, hdrlen), &(desc->frame_ctl), hdrlen);
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 
 	/* If any, copy the data from the card to the skb */
 	if (datalen > 0) {

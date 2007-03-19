@@ -834,7 +834,7 @@ static inline u16 ether1394_type_trans(struct sk_buff *skb,
 	struct eth1394hdr *eth;
 	unsigned char *rawp;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull (skb, ETH1394_HLEN);
 	eth = eth1394_hdr(skb);
 

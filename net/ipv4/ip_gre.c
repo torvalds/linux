@@ -616,7 +616,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 				offset += 4;
 		}
 
-		skb->mac.raw = skb->nh.raw;
+		skb_reset_mac_header(skb);
 		skb->nh.raw = __pskb_pull(skb, offset);
 		skb_postpull_rcsum(skb, skb->h.raw, offset);
 		skb->pkt_type = PACKET_HOST;

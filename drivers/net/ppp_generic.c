@@ -1685,7 +1685,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 			skb_pull_rcsum(skb, 2);
 			skb->dev = ppp->dev;
 			skb->protocol = htons(npindex_to_ethertype[npi]);
-			skb->mac.raw = skb->data;
+			skb_reset_mac_header(skb);
 			netif_rx(skb);
 			ppp->dev->last_rx = jiffies;
 		}

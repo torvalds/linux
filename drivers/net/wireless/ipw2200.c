@@ -8133,7 +8133,7 @@ static void ipw_handle_mgmt_packet(struct ipw_priv *priv,
 		skb->dev = priv->ieee->dev;
 
 		/* Point raw at the ieee80211_stats */
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 
 		skb->pkt_type = PACKET_OTHERHOST;
 		skb->protocol = __constant_htons(ETH_P_80211_STATS);

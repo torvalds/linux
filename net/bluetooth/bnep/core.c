@@ -326,7 +326,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 		return 0;
 	}
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 
 	/* Verify and pull out header */
 	if (!skb_pull(skb, __bnep_rx_hlen[type & BNEP_TYPE_MASK]))

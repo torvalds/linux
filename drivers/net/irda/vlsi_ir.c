@@ -595,7 +595,7 @@ static int vlsi_process_rx(struct vlsi_ring *r, struct ring_descr *rd)
 	rd->skb = NULL;
 	skb->dev = ndev;
 	memcpy(skb_put(skb,len), rd->buf, len);
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	if (in_interrupt())
 		netif_rx(skb);
 	else

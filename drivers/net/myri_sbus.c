@@ -368,7 +368,7 @@ static __be16 myri_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct ethhdr *eth;
 	unsigned char *rawp;
 
-	skb->mac.raw = (((unsigned char *)skb->data) + MYRI_PAD_LEN);
+	skb->mac.raw = skb->data + MYRI_PAD_LEN;
 	skb_pull(skb, dev->hard_header_len);
 	eth = eth_hdr(skb);
 

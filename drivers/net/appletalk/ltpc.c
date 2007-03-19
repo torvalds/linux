@@ -770,7 +770,7 @@ static int sendup_buffer (struct net_device *dev)
 	skb->data[0] = dnode;
 	skb->data[1] = snode;
 	skb->data[2] = llaptype;
-	skb->mac.raw = skb->data;	/* save pointer to llap header */
+	skb_reset_mac_header(skb);	/* save pointer to llap header */
 	skb_pull(skb,3);
 
 	/* copy ddp(s,e)hdr + contents */

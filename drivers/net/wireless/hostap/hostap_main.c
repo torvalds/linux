@@ -1063,7 +1063,8 @@ int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u16 stype,
 	meta->iface = netdev_priv(dev);
 
 	skb->dev = dev;
-	skb->mac.raw = skb->nh.raw = skb->data;
+	skb_reset_mac_header(skb);
+	skb->nh.raw = skb->data;
 	dev_queue_xmit(skb);
 
 	return 0;

@@ -458,7 +458,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	/* FIXME: tcpdump shows that pointer to mac header is 2 bytes earlier,
 	   than should be. What else should I set? */
 	skb_pull(skb, plen);
-	skb->mac.raw = ((char *) (skb->data)) - ETH_HLEN;
+	skb->mac.raw = skb->data - ETH_HLEN;
 	skb->pkt_type = PACKET_HOST;
 #ifdef CONFIG_BR2684_FAST_TRANS
 	skb->protocol = ((u16 *) skb->data)[-1];

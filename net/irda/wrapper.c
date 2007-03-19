@@ -256,7 +256,7 @@ async_bump(struct net_device *dev,
 
 	/* Feed it to IrLAP layer */
 	dataskb->dev = dev;
-	dataskb->mac.raw  = dataskb->data;
+	skb_reset_mac_header(dataskb);
 	dataskb->protocol = htons(ETH_P_IRDA);
 
 	netif_rx(dataskb);

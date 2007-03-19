@@ -37,7 +37,7 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	br->statistics.tx_packets++;
 	br->statistics.tx_bytes += skb->len;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
 	if (dest[0] & 1)

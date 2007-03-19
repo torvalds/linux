@@ -455,7 +455,7 @@ ctc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 			return;
 		}
 		skb_put(pskb, header->length);
-		pskb->mac.raw = pskb->data;
+		skb_reset_mac_header(pskb);
 		len -= header->length;
 		skb = dev_alloc_skb(pskb->len);
 		if (!skb) {
@@ -473,7 +473,7 @@ ctc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 			return;
 		}
 		memcpy(skb_put(skb, pskb->len), pskb->data, pskb->len);
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 		skb->dev = pskb->dev;
 		skb->protocol = pskb->protocol;
 		pskb->ip_summed = CHECKSUM_UNNECESSARY;

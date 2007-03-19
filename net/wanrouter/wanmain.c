@@ -339,7 +339,7 @@ __be16 wanrouter_type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb->protocol = ethertype;
 	skb->pkt_type = PACKET_HOST;	/*	Physically point to point */
 	skb_pull(skb, cnt);
-	skb->mac.raw  = skb->data;
+	skb_reset_mac_header(skb);
 	return ethertype;
 }
 

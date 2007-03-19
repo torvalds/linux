@@ -52,7 +52,7 @@ int llc_mac_hdr_init(struct sk_buff *skb,
 		if (da) {
 			memcpy(trh->daddr, da, dev->addr_len);
 			tr_source_route(skb, trh, dev);
-			skb->mac.raw = skb->data;
+			skb_reset_mac_header(skb);
 		}
 		break;
 	}

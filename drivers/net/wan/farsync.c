@@ -864,7 +864,7 @@ fst_tx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
 static __be16 farsync_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	skb->dev = dev;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb->pkt_type = PACKET_HOST;
 	return htons(ETH_P_CUST);
 }

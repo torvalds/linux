@@ -131,7 +131,7 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	skb->dev = dev;
-	skb->mac.raw = skb->data;	/* point to frame control (FC) */
+	skb_reset_mac_header(skb);	/* point to frame control (FC) */
 
 	if(fddi->hdr.llc_8022_1.dsap==0xe0)
 	{

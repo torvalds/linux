@@ -1412,7 +1412,7 @@ static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self)
 	self->stats.rx_bytes += len;
 
 	skb->dev = self->netdev;
-	skb->mac.raw  = skb->data;
+	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IRDA);
 	netif_rx(skb);
 }

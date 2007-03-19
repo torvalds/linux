@@ -2278,7 +2278,7 @@ qeth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	    (card->info.link_type == QETH_LINK_TYPE_LANE_TR))
 	 	return tr_type_trans(skb,dev);
 #endif /* CONFIG_TR */
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN );
 	eth = eth_hdr(skb);
 
@@ -2461,7 +2461,7 @@ qeth_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 	if (card->options.fake_ll)
 		qeth_rebuild_skb_fake_ll(card, skb, hdr);
 	else
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 	skb->ip_summed = card->options.checksum_type;
 	if (card->options.checksum_type == HW_CHECKSUMMING){
 		if ( (hdr->hdr.l3.ext_flags &

@@ -890,7 +890,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 		data = skb_put(skb, size);
 		memcpy(data, &pkt, size);
 
-		skb->mac.raw = data;
+		skb_reset_mac_header(skb);
 		skb->nh.raw = data + ETH_HLEN;
 		skb->protocol = pkt.type;
 		skb->priority = TC_PRIO_CONTROL;
@@ -1266,7 +1266,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	u8 *hash_start = NULL;
 	int res = 1;
 
-	skb->mac.raw = (unsigned char *)skb->data;
+	skb_reset_mac_header(skb);
 	eth_data = eth_hdr(skb);
 
 	/* make sure that the curr_active_slave and the slaves list do

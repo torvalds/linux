@@ -167,7 +167,7 @@ hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 
 	ret = skb->len - phdrlen;
 	skb->dev = dev;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, hdrlen);
 	if (prism_header)
 		skb_pull(skb, phdrlen);
@@ -1073,10 +1073,11 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 	if (skb2 != NULL) {
 		/* send to wireless media */
-		skb2->protocol = __constant_htons(ETH_P_802_3);
-		skb2->mac.raw = skb2->nh.raw = skb2->data;
-		/* skb2->nh.raw = skb2->data + ETH_HLEN; */
 		skb2->dev = dev;
+		skb2->protocol = __constant_htons(ETH_P_802_3);
+		skb_reset_mac_header(skb2);
+		skb2->nh.raw = skb2->data;
+		/* skb2->nh.raw = skb2->data + ETH_HLEN; */
 		dev_queue_xmit(skb2);
 	}
 

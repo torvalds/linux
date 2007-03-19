@@ -7,8 +7,8 @@
 
 static inline __be16 x25_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
-	skb->mac.raw = skb->data;
 	skb->dev = dev;
+	skb_reset_mac_header(skb);
 	skb->pkt_type = PACKET_HOST;
 	
 	return htons(ETH_P_X25);

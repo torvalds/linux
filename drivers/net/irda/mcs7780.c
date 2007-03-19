@@ -428,7 +428,7 @@ static void mcs_unwrap_mir(struct mcs_cb *mcs, __u8 *buf, int len)
 	skb_reserve(skb, 1);
 	memcpy(skb->data, buf, new_len);
 	skb_put(skb, new_len);
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IRDA);
 	skb->dev = mcs->netdev;
 
@@ -481,7 +481,7 @@ static void mcs_unwrap_fir(struct mcs_cb *mcs, __u8 *buf, int len)
 	skb_reserve(skb, 1);
 	memcpy(skb->data, buf, new_len);
 	skb_put(skb, new_len);
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IRDA);
 	skb->dev = mcs->netdev;
 

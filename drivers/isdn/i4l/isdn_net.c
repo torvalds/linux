@@ -1366,7 +1366,7 @@ isdn_net_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct ethhdr *eth;
 	unsigned char *rawp;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 	eth = eth_hdr(skb);
 
@@ -1786,7 +1786,7 @@ isdn_net_receive(struct net_device *ndev, struct sk_buff *skb)
 	}
 	skb->dev = ndev;
 	skb->pkt_type = PACKET_HOST;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 #ifdef ISDN_DEBUG_NET_DUMP
 	isdn_dumppkt("R:", skb->data, skb->len, 40);
 #endif

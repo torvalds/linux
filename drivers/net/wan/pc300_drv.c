@@ -1755,7 +1755,7 @@ cpc_trace(struct net_device *dev, struct sk_buff *skb_main, char rx_tx)
 
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_CUST);
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb->pkt_type = PACKET_HOST;
 	skb->len = 10 + skb_main->len;
 

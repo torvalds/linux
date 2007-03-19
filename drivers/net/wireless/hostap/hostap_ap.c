@@ -982,7 +982,8 @@ static void prism2_send_mgmt(struct net_device *dev,
 	meta->tx_cb_idx = tx_cb_idx;
 
 	skb->dev = dev;
-	skb->mac.raw = skb->nh.raw = skb->data;
+	skb_reset_mac_header(skb);
+	skb->nh.raw = skb->data;
 	dev_queue_xmit(skb);
 }
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */

@@ -1620,7 +1620,8 @@ static inline int rx_offload(struct t3cdev *tdev, struct sge_rspq *rq,
 			     unsigned int gather_idx)
 {
 	rq->offload_pkts++;
-	skb->mac.raw = skb->nh.raw = skb->h.raw = skb->data;
+	skb_reset_mac_header(skb);
+	skb->nh.raw = skb->h.raw = skb->data;
 
 	if (rq->polling) {
 		rx_gather[gather_idx++] = skb;

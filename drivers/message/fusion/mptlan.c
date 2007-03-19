@@ -753,7 +753,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 	/* Set the mac.raw pointer, since this apparently isn't getting
 	 * done before we get the skb. Pull the data pointer past the mac data.
 	 */
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, 12);
 
         dma = pci_map_single(mpt_dev->pcidev, skb->data, skb->len,
@@ -1549,7 +1549,7 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct mpt_lan_ohdr *fch = (struct mpt_lan_ohdr *)skb->data;
 	struct fcllc *fcllc;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, sizeof(struct mpt_lan_ohdr));
 
 	if (fch->dtype == htons(0xffff)) {

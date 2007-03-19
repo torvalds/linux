@@ -1125,7 +1125,7 @@ static int via_ircc_dma_receive_complete(struct via_ircc_cb *self,
 		self->stats.rx_bytes += len;
 		self->stats.rx_packets++;
 		skb->dev = self->netdev;
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 		skb->protocol = htons(ETH_P_IRDA);
 		netif_rx(skb);
 		return TRUE;
@@ -1198,7 +1198,7 @@ F01_E */
 		self->stats.rx_bytes += len;
 		self->stats.rx_packets++;
 		skb->dev = self->netdev;
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 		skb->protocol = htons(ETH_P_IRDA);
 		netif_rx(skb);
 
@@ -1244,7 +1244,7 @@ static int upload_rxdata(struct via_ircc_cb *self, int iobase)
 	self->stats.rx_bytes += len;
 	self->stats.rx_packets++;
 	skb->dev = self->netdev;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IRDA);
 	netif_rx(skb);
 	if (st_fifo->len < (MAX_RX_WINDOW + 2)) {
@@ -1313,7 +1313,7 @@ static int RxTimerHandler(struct via_ircc_cb *self, int iobase)
 			self->stats.rx_bytes += len;
 			self->stats.rx_packets++;
 			skb->dev = self->netdev;
-			skb->mac.raw = skb->data;
+			skb_reset_mac_header(skb);
 			skb->protocol = htons(ETH_P_IRDA);
 			netif_rx(skb);
 		}		//while

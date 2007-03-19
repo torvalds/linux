@@ -921,7 +921,7 @@ static void irda_usb_receive(struct urb *urb)
 
 	/* Ask the networking layer to queue the packet for the IrDA stack */
 	dataskb->dev = self->netdev;
-	dataskb->mac.raw  = dataskb->data;
+	skb_reset_mac_header(dataskb);
 	dataskb->protocol = htons(ETH_P_IRDA);
 	len = dataskb->len;
 	netif_rx(dataskb);

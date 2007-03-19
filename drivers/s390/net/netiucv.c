@@ -635,7 +635,7 @@ static void netiucv_unpack_skb(struct iucv_connection *conn,
 			return;
 		}
 		skb_put(pskb, header->next);
-		pskb->mac.raw = pskb->data;
+		skb_reset_mac_header(pskb);
 		skb = dev_alloc_skb(pskb->len);
 		if (!skb) {
 			PRINT_WARN("%s Out of memory in netiucv_unpack_skb\n",
@@ -646,7 +646,7 @@ static void netiucv_unpack_skb(struct iucv_connection *conn,
 			return;
 		}
 		memcpy(skb_put(skb, pskb->len), pskb->data, pskb->len);
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 		skb->dev = pskb->dev;
 		skb->protocol = pskb->protocol;
 		pskb->ip_summed = CHECKSUM_UNNECESSARY;

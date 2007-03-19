@@ -606,7 +606,7 @@ static int au1k_irda_rx(struct net_device *dev)
 				skb_put(skb, count-2);
 			memcpy(skb->data, (void *)pDB->vaddr, count-2);
 			skb->dev = dev;
-			skb->mac.raw = skb->data;
+			skb_reset_mac_header(skb);
 			skb->protocol = htons(ETH_P_IRDA);
 			netif_rx(skb);
 			prxd->count_0 = 0;

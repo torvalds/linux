@@ -237,7 +237,7 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	iface->stats.tx_packets++;
 	iface->stats.tx_bytes += skb->len;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	meta = (struct hostap_skb_tx_data *) skb->cb;
 	memset(meta, 0, sizeof(*meta));
 	meta->magic = HOSTAP_SKB_TX_DATA_MAGIC;

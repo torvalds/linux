@@ -131,7 +131,7 @@ __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 * set the raw address here.
 	 */
 	skb->dev = dev;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	hip = (struct hippi_hdr *)skb->mac.raw;
 	skb_pull(skb, HIPPI_HLEN);
 

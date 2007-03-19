@@ -93,7 +93,8 @@ void irlap_queue_xmit(struct irlap_cb *self, struct sk_buff *skb)
 {
 	/* Some common init stuff */
 	skb->dev = self->netdev;
-	skb->h.raw = skb->nh.raw = skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
+	skb->h.raw = skb->nh.raw = skb->data;
 	skb->protocol = htons(ETH_P_IRDA);
 	skb->priority = TC_PRIO_BESTEFFORT;
 

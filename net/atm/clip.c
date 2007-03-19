@@ -213,7 +213,7 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		return;
 	}
 	ATM_SKB(skb)->vcc = vcc;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	if (!clip_vcc->encap
 	    || skb->len < RFC1483LLC_LEN
 	    || memcmp(skb->data, llc_oui, sizeof (llc_oui)))
