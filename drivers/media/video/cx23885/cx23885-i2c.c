@@ -279,7 +279,7 @@ static int cx23885_algo_control(struct i2c_adapter *adap,
 
 static u32 cx23885_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_SMBUS_EMUL;
+	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
 static struct i2c_algorithm cx23885_i2c_algo_template = {
