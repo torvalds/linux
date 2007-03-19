@@ -96,7 +96,7 @@ static DECLARE_WAIT_QUEUE_HEAD(apm_waitqueue);
 static DECLARE_WAIT_QUEUE_HEAD(apm_suspend_waitqueue);
 static struct apm_user *	user_list;
 
-static int apm_notify_sleep(struct pmu_sleep_notifier *self, int when);
+static void apm_notify_sleep(struct pmu_sleep_notifier *self, int when);
 static struct pmu_sleep_notifier apm_sleep_notifier = {
 	apm_notify_sleep,
 	SLEEP_LEVEL_USERLAND,
@@ -352,7 +352,7 @@ static int do_open(struct inode * inode, struct file * filp)
  * doesn't provide a way to NAK, but this could be added
  * here.
  */
-static int wait_all_suspend(void)
+static void wait_all_suspend(void)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
@@ -366,24 +366,19 @@ static int wait_all_suspend(void)
 	remove_wait_queue(&apm_suspend_waitqueue, &wait);
 
 	DBG("apm_emu: wait_all_suspend() - complete !\n");
-	
-	return 1;
 }
 
-static int apm_notify_sleep(struct pmu_sleep_notifier *self, int when)
+static void apm_notify_sleep(struct pmu_sleep_notifier *self, int when)
 {
 	switch(when) {
 		case PBOOK_SLEEP_REQUEST:
 			queue_event(APM_SYS_SUSPEND, NULL);
-			if (!wait_all_suspend())
-				return PBOOK_SLEEP_REFUSE;
+			wait_all_suspend();
 			break;
-		case PBOOK_SLEEP_REJECT:
 		case PBOOK_WAKE:
 			queue_event(APM_NORMAL_RESUME, NULL);
 			break;
 	}
-	return PBOOK_SLEEP_OK;
 }
 
 #define APM_CRITICAL		10

@@ -257,7 +257,7 @@ static volatile struct dbdma_cmd *emergency_dbdma_cmd;
 /*
  * Stuff for restoring after a sleep.
  */
-static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when);
+static void awacs_sleep_notify(struct pmu_sleep_notifier *self, int when);
 struct pmu_sleep_notifier awacs_sleep_notifier = {
 	awacs_sleep_notify, SLEEP_LEVEL_SOUND,
 };
@@ -1419,7 +1419,7 @@ load_awacs(void)
  * Save state when going to sleep, restore it afterwards.
  */
 /* FIXME: sort out disabling/re-enabling of read stuff as well */
-static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
+static void awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 {
 	unsigned long flags;
 
@@ -1548,7 +1548,6 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 		spin_unlock_irqrestore(&dmasound.lock, flags);
 		UNLOCK();
 	}
-	return PBOOK_SLEEP_OK;
 }
 #endif /* CONFIG_PM */
 

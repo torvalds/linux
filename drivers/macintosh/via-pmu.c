@@ -1769,35 +1769,21 @@ EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 
 /* Sleep is broadcast last-to-first */
-static int
-broadcast_sleep(int when, int fallback)
+static void broadcast_sleep(int when)
 {
-	int ret = PBOOK_SLEEP_OK;
 	struct list_head *list;
 	struct pmu_sleep_notifier *notifier;
 
 	for (list = sleep_notifiers.prev; list != &sleep_notifiers;
 	     list = list->prev) {
 		notifier = list_entry(list, struct pmu_sleep_notifier, list);
-		ret = notifier->notifier_call(notifier, when);
-		if (ret != PBOOK_SLEEP_OK) {
-			printk(KERN_DEBUG "sleep %d rejected by %p (%p)\n",
-			       when, notifier, notifier->notifier_call);
-			for (; list != &sleep_notifiers; list = list->next) {
-				notifier = list_entry(list, struct pmu_sleep_notifier, list);
-				notifier->notifier_call(notifier, fallback);
-			}
-			return ret;
-		}
+		notifier->notifier_call(notifier, when);
 	}
-	return ret;
 }
 
 /* Wake is broadcast first-to-last */
-static int
-broadcast_wake(void)
+static void broadcast_wake(void)
 {
-	int ret = PBOOK_SLEEP_OK;
 	struct list_head *list;
 	struct pmu_sleep_notifier *notifier;
 
@@ -1806,7 +1792,6 @@ broadcast_wake(void)
 		notifier = list_entry(list, struct pmu_sleep_notifier, list);
 		notifier->notifier_call(notifier, PBOOK_WAKE);
 	}
-	return ret;
 }
 
 /*
@@ -2013,12 +1998,8 @@ pmac_suspend_devices(void)
 
 	pm_prepare_console();
 	
-	/* Notify old-style device drivers & userland */
-	ret = broadcast_sleep(PBOOK_SLEEP_REQUEST, PBOOK_SLEEP_REJECT);
-	if (ret != PBOOK_SLEEP_OK) {
-		printk(KERN_ERR "Sleep rejected by drivers\n");
-		return -EBUSY;
-	}
+	/* Notify old-style device drivers */
+	broadcast_sleep(PBOOK_SLEEP_REQUEST);
 
 	/* Sync the disks. */
 	/* XXX It would be nice to have some way to ensure that
@@ -2028,12 +2009,7 @@ pmac_suspend_devices(void)
 	 */
 	sys_sync();
 
-	/* Sleep can fail now. May not be very robust but useful for debugging */
-	ret = broadcast_sleep(PBOOK_SLEEP_NOW, PBOOK_WAKE);
-	if (ret != PBOOK_SLEEP_OK) {
-		printk(KERN_ERR "Driver sleep failed\n");
-		return -EBUSY;
-	}
+	broadcast_sleep(PBOOK_SLEEP_NOW);
 
 	/* Send suspend call to devices, hold the device core's dpm_sem */
 	ret = device_suspend(PMSG_SUSPEND);

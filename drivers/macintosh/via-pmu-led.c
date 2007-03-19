@@ -81,7 +81,7 @@ static struct led_classdev pmu_led = {
 };
 
 #ifdef CONFIG_PM
-static int pmu_led_sleep_call(struct pmu_sleep_notifier *self, int when)
+static void pmu_led_sleep_call(struct pmu_sleep_notifier *self, int when)
 {
 	unsigned long flags;
 
@@ -99,8 +99,6 @@ static int pmu_led_sleep_call(struct pmu_sleep_notifier *self, int when)
 		break;
 	}
 	spin_unlock_irqrestore(&pmu_blink_lock, flags);
-
-	return PBOOK_SLEEP_OK;
 }
 
 static struct pmu_sleep_notifier via_pmu_led_sleep_notif = {
