@@ -145,7 +145,7 @@ static void __init console_config(void)
 	char parity = '\0', bits = '\0', flow = '\0';
 	char *s;
 
-	if ((strstr(prom_getcmdline(), "console=ttyS")) == NULL) {
+	if ((strstr(prom_getcmdline(), "console=")) == NULL) {
 		s = prom_getenv("modetty0");
 		if (s) {
 			while (*s >= '0' && *s <= '9')
