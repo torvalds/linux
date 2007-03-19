@@ -117,6 +117,9 @@ config GENERIC_BUG
 	default y
 	depends on BUG
 
+config SYS_SUPPORTS_APM_EMULATION
+	bool
+
 config DEFAULT_UIMAGE
 	bool
 	help
