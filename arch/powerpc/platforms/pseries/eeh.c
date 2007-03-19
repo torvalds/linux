@@ -386,7 +386,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	}
 
 	/* If not the kind of error we know about, punt. */
-	if (rets[0] != 2 && rets[0] != 4 && rets[0] != 5) {
+	if (rets[0] != 1 && rets[0] != 2 && rets[0] != 4 && rets[0] != 5) {
 		false_positives++;
 		rc = 0;
 		goto dn_unlock;
@@ -401,7 +401,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	spin_unlock_irqrestore(&confirm_error_lock, flags);
 
 	state = pci_channel_io_normal;
-	if ((rets[0] == 2) || (rets[0] == 4))
+	if ((rets[0] == 1) || (rets[0] == 2) || (rets[0] == 4))
 		state = pci_channel_io_frozen;
 	if (rets[0] == 5)
 		state = pci_channel_io_perm_failure;
@@ -410,7 +410,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out. */
-	if (rets[0] != 5) dump_stack();
+	dump_stack();
 	return 1;
 
 dn_unlock:
