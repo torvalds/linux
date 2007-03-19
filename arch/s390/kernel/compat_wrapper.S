@@ -1676,3 +1676,9 @@ compat_sys_epoll_pwait_wrapper:
 	llgf	%r0,164(%r15)		# compat_size_t
 	stg	%r0,160(%r15)
 	jg	compat_sys_epoll_pwait
+
+	.globl	compat_sys_utimes_wrapper
+compat_sys_utimes_wrapper:
+	llgtr	%r2,%r2			# char *
+	llgtr	%r3,%r3			# struct compat_timeval *
+	jg	compat_sys_utimes

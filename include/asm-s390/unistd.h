@@ -250,8 +250,9 @@
 /* Number 310 is reserved for new sys_move_pages */
 #define __NR_getcpu		311
 #define __NR_epoll_pwait	312
+#define __NR_utimes		313
 
-#define NR_syscalls 313
+#define NR_syscalls 314
 
 /* 
  * There are some system calls that are not present on 64 bit, some
