@@ -819,10 +819,7 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			sc->resid=0;
 		case MPI_IOCSTATUS_SCSI_RECOVERED_ERROR:	/* 0x0040 */
 		case MPI_IOCSTATUS_SUCCESS:			/* 0x0000 */
-			if (scsi_status == MPI_SCSI_STATUS_BUSY)
-				sc->result = (DID_BUS_BUSY << 16) | scsi_status;
-			else
-				sc->result = (DID_OK << 16) | scsi_status;
+			sc->result = (DID_OK << 16) | scsi_status;
 			if (scsi_state == 0) {
 				;
 			} else if (scsi_state & MPI_SCSI_STATE_AUTOSENSE_VALID) {
