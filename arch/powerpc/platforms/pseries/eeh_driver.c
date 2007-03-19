@@ -300,7 +300,7 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 /* The longest amount of time to wait for a pci device
  * to come back on line, in seconds.
  */
-#define MAX_WAIT_FOR_RECOVERY 15
+#define MAX_WAIT_FOR_RECOVERY 150
 
 struct pci_dn * handle_eeh_events (struct eeh_event *event)
 {
@@ -393,6 +393,8 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
 		rc = rtas_pci_enable(frozen_pdn, EEH_THAW_MMIO);
 
+		if (rc < 0)
+			goto hard_fail;
 		if (rc) {
 			result = PCI_ERS_RESULT_NEED_RESET;
 		} else {
@@ -405,6 +407,8 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
 		rc = rtas_pci_enable(frozen_pdn, EEH_THAW_DMA);
 
+		if (rc < 0)
+			goto hard_fail;
 		if (rc)
 			result = PCI_ERS_RESULT_NEED_RESET;
 		else

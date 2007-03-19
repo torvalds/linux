@@ -527,8 +527,12 @@ rtas_pci_enable(struct pci_dn *pdn, int function)
 		            function);
 
 	if (rc)
-		printk(KERN_WARNING "EEH: Cannot enable function %d, err=%d dn=%s\n",
+		printk(KERN_WARNING "EEH: Unexpected state change %d, err=%d dn=%s\n",
 		        function, rc, pdn->node->full_name);
+
+	rc = eeh_wait_for_slot_status (pdn, PCI_BUS_RESET_WAIT_MSEC);
+	if ((rc == 4) && (function == EEH_THAW_MMIO))
+		return 0;
 
 	return rc;
 }
