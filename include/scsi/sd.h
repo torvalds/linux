@@ -52,6 +52,8 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt);
 static int  sd_probe(struct device *);
 static int  sd_remove(struct device *);
 static void sd_shutdown(struct device *dev);
+static int sd_suspend(struct device *dev, pm_message_t state);
+static int sd_resume(struct device *dev);
 static void sd_rescan(struct device *);
 static int  sd_init_command(struct scsi_cmnd *);
 static int  sd_issue_flush(struct device *, sector_t *);

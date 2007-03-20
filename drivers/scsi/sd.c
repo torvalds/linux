@@ -147,6 +147,20 @@ static ssize_t sd_store_cache_type(struct class_device *cdev, const char *buf,
 	return count;
 }
 
+static ssize_t sd_store_manage_start_stop(struct class_device *cdev,
+					  const char *buf, size_t count)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(cdev);
+	struct scsi_device *sdp = sdkp->device;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	sdp->manage_start_stop = simple_strtoul(buf, NULL, 10);
+
+	return count;
+}
+
 static ssize_t sd_store_allow_restart(struct class_device *cdev, const char *buf,
 				      size_t count)
 {
@@ -179,6 +193,14 @@ static ssize_t sd_show_fua(struct class_device *cdev, char *buf)
 	return snprintf(buf, 20, "%u\n", sdkp->DPOFUA);
 }
 
+static ssize_t sd_show_manage_start_stop(struct class_device *cdev, char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(cdev);
+	struct scsi_device *sdp = sdkp->device;
+
+	return snprintf(buf, 20, "%u\n", sdp->manage_start_stop);
+}
+
 static ssize_t sd_show_allow_restart(struct class_device *cdev, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(cdev);
@@ -192,6 +214,8 @@ static struct class_device_attribute sd_disk_attrs[] = {
 	__ATTR(FUA, S_IRUGO, sd_show_fua, NULL),
 	__ATTR(allow_restart, S_IRUGO|S_IWUSR, sd_show_allow_restart,
 	       sd_store_allow_restart),
+	__ATTR(manage_start_stop, S_IRUGO|S_IWUSR, sd_show_manage_start_stop,
+	       sd_store_manage_start_stop),
 	__ATTR_NULL,
 };
 
@@ -208,6 +232,8 @@ static struct scsi_driver sd_template = {
 		.name		= "sd",
 		.probe		= sd_probe,
 		.remove		= sd_remove,
+		.suspend	= sd_suspend,
+		.resume		= sd_resume,
 		.shutdown	= sd_shutdown,
 	},
 	.rescan			= sd_rescan,
@@ -1707,6 +1733,32 @@ static void scsi_disk_release(struct class_device *cdev)
 	kfree(sdkp);
 }
 
+static int sd_start_stop_device(struct scsi_device *sdp, int start)
+{
+	unsigned char cmd[6] = { START_STOP };	/* START_VALID */
+	struct scsi_sense_hdr sshdr;
+	int res;
+
+	if (start)
+		cmd[4] |= 1;	/* START */
+
+	if (!scsi_device_online(sdp))
+		return -ENODEV;
+
+	res = scsi_execute_req(sdp, cmd, DMA_NONE, NULL, 0, &sshdr,
+			       SD_TIMEOUT, SD_MAX_RETRIES);
+	if (res) {
+		printk(KERN_WARNING "FAILED\n  status = %x, message = %02x, "
+		       "host = %d, driver = %02x\n  ",
+		       status_byte(res), msg_byte(res),
+		       host_byte(res), driver_byte(res));
+		if (driver_byte(res) & DRIVER_SENSE)
+			scsi_print_sense_hdr("sd", &sshdr);
+	}
+
+	return res;
+}
+
 /*
  * Send a SYNCHRONIZE CACHE instruction down to the device through
  * the normal SCSI command structure.  Wait for the command to
@@ -1714,6 +1766,7 @@ static void scsi_disk_release(struct class_device *cdev)
  */
 static void sd_shutdown(struct device *dev)
 {
+	struct scsi_device *sdp = to_scsi_device(dev);
 	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
 
 	if (!sdkp)
@@ -1723,7 +1776,55 @@ static void sd_shutdown(struct device *dev)
 		sd_printk(KERN_NOTICE, sdkp, "Synchronizing SCSI cache\n");
 		sd_sync_cache(sdkp);
 	}
+
+	if (system_state != SYSTEM_RESTART && sdp->manage_start_stop) {
+		printk(KERN_NOTICE "Stopping disk %s: \n",
+		       sdkp->disk->disk_name);
+		sd_start_stop_device(sdp, 0);
+	}
+
 	scsi_disk_put(sdkp);
+}
+
+static int sd_suspend(struct device *dev, pm_message_t mesg)
+{
+	struct scsi_device *sdp = to_scsi_device(dev);
+	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
+	int ret;
+
+	if (!sdkp)
+		return 0;	/* this can happen */
+
+	if (sdkp->WCE) {
+		printk(KERN_NOTICE "Synchronizing SCSI cache for disk %s: \n",
+				sdkp->disk->disk_name);
+		ret = sd_sync_cache(sdkp);
+		if (ret)
+			return ret;
+	}
+
+	if (mesg.event == PM_EVENT_SUSPEND && sdp->manage_start_stop) {
+		printk(KERN_NOTICE "Stopping disk %s: \n",
+		       sdkp->disk->disk_name);
+		ret = sd_start_stop_device(sdp, 0);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int sd_resume(struct device *dev)
+{
+	struct scsi_device *sdp = to_scsi_device(dev);
+	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
+
+	if (!sdp->manage_start_stop)
+		return 0;
+
+	printk(KERN_NOTICE "Starting disk %s: \n", sdkp->disk->disk_name);
+
+	return sd_start_stop_device(sdp, 1);
 }
 
 /**
