@@ -57,6 +57,16 @@ DCCP_SOCKOPT_SEND_CSCOV is for the receiver and has a different meaning: it
 	coverage value are also acceptable. The higher the number, the more
 	restrictive this setting (see [RFC 4340, sec. 9.2.1]).
 
+The following two options apply to CCID 3 exclusively and are getsockopt()-only.
+In either case, a TFRC info struct (defined in <linux/tfrc.h>) is returned.
+DCCP_SOCKOPT_CCID_RX_INFO
+	Returns a `struct tfrc_rx_info' in optval; the buffer for optval and
+	optlen must be set to at least sizeof(struct tfrc_rx_info).
+DCCP_SOCKOPT_CCID_TX_INFO
+	Returns a `struct tfrc_tx_info' in optval; the buffer for optval and
+	optlen must be set to at least sizeof(struct tfrc_tx_info).
+
+
 Sysctl variables
 ================
 Several DCCP default parameters can be managed by the following sysctls
