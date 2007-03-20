@@ -187,7 +187,6 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 	 * unlink. */
 	spin_lock(&oi->ip_lock);
 	oi->ip_flags &= ~OCFS2_INODE_MAYBE_ORPHANED;
-	oi->ip_orphaned_slot = OCFS2_INVALID_SLOT;
 	spin_unlock(&oi->ip_lock);
 
 bail_add:
@@ -2220,9 +2219,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	/* Record which orphan dir our inode now resides
 	 * in. delete_inode will use this to determine which orphan
 	 * dir to lock. */
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	OCFS2_I(inode)->ip_orphaned_slot = osb->slot_num;
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
+	fe->i_orphaned_slot = cpu_to_le16(osb->slot_num);
 
 	mlog(0, "Inode %llu orphaned in slot %d\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno, osb->slot_num);

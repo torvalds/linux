@@ -225,11 +225,17 @@ static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
 	.flags		= 0,
 };
 
+static struct ocfs2_lock_res_ops ocfs2_inode_open_lops = {
+	.get_osb	= ocfs2_get_inode_osb,
+	.flags		= 0,
+};
+
 static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
 {
 	return lockres->l_type == OCFS2_LOCK_TYPE_META ||
 		lockres->l_type == OCFS2_LOCK_TYPE_DATA ||
-		lockres->l_type == OCFS2_LOCK_TYPE_RW;
+		lockres->l_type == OCFS2_LOCK_TYPE_RW ||
+		lockres->l_type == OCFS2_LOCK_TYPE_OPEN;
 }
 
 static inline struct inode *ocfs2_lock_res_inode(struct ocfs2_lock_res *lockres)
@@ -372,6 +378,9 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			break;
 		case OCFS2_LOCK_TYPE_DATA:
 			ops = &ocfs2_inode_data_lops;
+			break;
+		case OCFS2_LOCK_TYPE_OPEN:
+			ops = &ocfs2_inode_open_lops;
 			break;
 		default:
 			mlog_bug_on_msg(1, "type: %d\n", type);
@@ -1129,6 +1138,12 @@ int ocfs2_create_new_inode_locks(struct inode *inode)
 		goto bail;
 	}
 
+	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_open_lockres, 0, 0);
+	if (ret) {
+		mlog_errno(ret);
+		goto bail;
+	}
+
 bail:
 	mlog_exit(ret);
 	return ret;
@@ -1179,6 +1194,99 @@ void ocfs2_rw_unlock(struct inode *inode, int write)
 	if (!ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
 
+	mlog_exit_void();
+}
+
+/*
+ * ocfs2_open_lock always get PR mode lock.
+ */
+int ocfs2_open_lock(struct inode *inode)
+{
+	int status = 0;
+	struct ocfs2_lock_res *lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	BUG_ON(!inode);
+
+	mlog_entry_void();
+
+	mlog(0, "inode %llu take PRMODE open lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+
+	if (ocfs2_mount_local(osb))
+		goto out;
+
+	lockres = &OCFS2_I(inode)->ip_open_lockres;
+
+	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres,
+				    LKM_PRMODE, 0, 0);
+	if (status < 0)
+		mlog_errno(status);
+
+out:
+	mlog_exit(status);
+	return status;
+}
+
+int ocfs2_try_open_lock(struct inode *inode, int write)
+{
+	int status = 0, level;
+	struct ocfs2_lock_res *lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	BUG_ON(!inode);
+
+	mlog_entry_void();
+
+	mlog(0, "inode %llu try to take %s open lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+	     write ? "EXMODE" : "PRMODE");
+
+	if (ocfs2_mount_local(osb))
+		goto out;
+
+	lockres = &OCFS2_I(inode)->ip_open_lockres;
+
+	level = write ? LKM_EXMODE : LKM_PRMODE;
+
+	/*
+	 * The file system may already holding a PRMODE/EXMODE open lock.
+	 * Since we pass LKM_NOQUEUE, the request won't block waiting on
+	 * other nodes and the -EAGAIN will indicate to the caller that
+	 * this inode is still in use.
+	 */
+	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres,
+				    level, LKM_NOQUEUE, 0);
+
+out:
+	mlog_exit(status);
+	return status;
+}
+
+/*
+ * ocfs2_open_unlock unlock PR and EX mode open locks.
+ */
+void ocfs2_open_unlock(struct inode *inode)
+{
+	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_open_lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	mlog_entry_void();
+
+	mlog(0, "inode %llu drop open lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+
+	if (ocfs2_mount_local(osb))
+		goto out;
+
+	if(lockres->l_ro_holders)
+		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres,
+				     LKM_PRMODE);
+	if(lockres->l_ex_holders)
+		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres,
+				     LKM_EXMODE);
+
+out:
 	mlog_exit_void();
 }
 
@@ -2455,11 +2563,18 @@ int ocfs2_drop_inode_locks(struct inode *inode)
 	 * ocfs2_clear_inode has done it for us. */
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_data_lockres);
+			      &OCFS2_I(inode)->ip_open_lockres);
 	if (err < 0)
 		mlog_errno(err);
 
 	status = err;
+
+	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
+			      &OCFS2_I(inode)->ip_data_lockres);
+	if (err < 0)
+		mlog_errno(err);
+	if (err < 0 && !status)
+		status = err;
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
 			      &OCFS2_I(inode)->ip_meta_lockres);

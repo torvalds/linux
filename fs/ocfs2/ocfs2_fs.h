@@ -446,7 +446,9 @@ struct ocfs2_dinode {
 	__le32 i_ctime_nsec;
 	__le32 i_mtime_nsec;
 	__le32 i_attr;
-	__le32 i_reserved1;
+	__le16 i_orphaned_slot;		/* Only valid when OCFS2_ORPHANED_FL
+					   was set in i_flags */
+	__le16 i_reserved1;
 /*70*/	__le64 i_reserved2[8];
 /*B8*/	union {
 		__le64 i_pad1;		/* Generic way to refer to this

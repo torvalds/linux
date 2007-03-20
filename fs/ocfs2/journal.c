@@ -1306,7 +1306,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 				continue;
 
 			iter = ocfs2_iget(osb, le64_to_cpu(de->inode),
-					  OCFS2_FI_FLAG_NOLOCK);
+					  OCFS2_FI_FLAG_ORPHAN_RECOVERY);
 			if (IS_ERR(iter))
 				continue;
 
@@ -1418,7 +1418,6 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		/* Set the proper information to get us going into
 		 * ocfs2_delete_inode. */
 		oi->ip_flags |= OCFS2_INODE_MAYBE_ORPHANED;
-		oi->ip_orphaned_slot = slot;
 		spin_unlock(&oi->ip_lock);
 
 		iput(inode);

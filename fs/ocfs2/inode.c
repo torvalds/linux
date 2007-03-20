@@ -289,7 +289,6 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		     (unsigned long long)fe->i_blkno);
 
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
-	OCFS2_I(inode)->ip_orphaned_slot = OCFS2_INVALID_SLOT;
 	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
 
 	inode->i_nlink = le16_to_cpu(fe->i_links_count);
@@ -347,6 +346,9 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 
 		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_meta_lockres,
 					  OCFS2_LOCK_TYPE_META, 0, inode);
+
+		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_open_lockres,
+					  OCFS2_LOCK_TYPE_OPEN, 0, inode);
 	}
 
 	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_rw_lockres,
@@ -421,7 +423,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	 * cluster lock before trusting anything anyway.
 	 */
 	can_lock = !(args->fi_flags & OCFS2_FI_FLAG_SYSFILE)
-		&& !(args->fi_flags & OCFS2_FI_FLAG_NOLOCK)
+		&& !(args->fi_flags & OCFS2_FI_FLAG_ORPHAN_RECOVERY)
 		&& !ocfs2_mount_local(osb);
 
 	/*
@@ -438,11 +440,29 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 				  OCFS2_LOCK_TYPE_META,
 				  generation, inode);
 
+	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_open_lockres,
+				  OCFS2_LOCK_TYPE_OPEN,
+				  0, inode);
+
 	if (can_lock) {
+		status = ocfs2_open_lock(inode);
+		if (status) {
+			make_bad_inode(inode);
+			mlog_errno(status);
+			return status;
+		}
 		status = ocfs2_meta_lock(inode, NULL, 0);
 		if (status) {
 			make_bad_inode(inode);
 			mlog_errno(status);
+			return status;
+		}
+	}
+
+	if (args->fi_flags & OCFS2_FI_FLAG_ORPHAN_RECOVERY) {
+		status = ocfs2_try_open_lock(inode, 0);
+		if (status) {
+			make_bad_inode(inode);	
 			return status;
 		}
 	}
@@ -678,10 +698,10 @@ static int ocfs2_wipe_inode(struct inode *inode,
 	struct inode *orphan_dir_inode = NULL;
 	struct buffer_head *orphan_dir_bh = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_dinode *di;
 
-	/* We've already voted on this so it should be readonly - no
-	 * spinlock needed. */
-	orphaned_slot = OCFS2_I(inode)->ip_orphaned_slot;
+	di = (struct ocfs2_dinode *) di_bh->b_data;
+	orphaned_slot = le16_to_cpu(di->i_orphaned_slot);
 
 	status = ocfs2_check_orphan_recovery_state(osb, orphaned_slot);
 	if (status)
@@ -787,6 +807,35 @@ bail:
 	return ret;
 }
 
+static int ocfs2_request_delete(struct inode *inode)
+{
+	int status = 0;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	if (ocfs2_inode_is_new(inode))
+		return 0;
+
+	if (ocfs2_node_map_is_only(osb, &osb->mounted_map,
+				   osb->node_num))
+		return 0;
+	/*
+	 * This is how ocfs2 determines whether an inode is still live
+	 * within the cluster. Every node takes a shared read lock on
+	 * the inode open lock in ocfs2_read_locked_inode(). When we
+	 * get to ->delete_inode(), each node tries to convert it's
+	 * lock to an exclusive. Trylocks are serialized by the inode
+	 * meta data lock. If the upconvert suceeds, we know the inode
+	 * is no longer live and can be deleted.
+	 *
+	 * Though we call this with the meta data lock held, the
+	 * trylock keeps us from ABBA deadlock.
+	 */
+	status = ocfs2_try_open_lock(inode, 1);
+	if (status < 0 && status != -EAGAIN)
+		mlog_errno(status);
+	return status;
+}
+
 /* Query the cluster to determine whether we should wipe an inode from
  * disk or not.
  *
@@ -839,11 +888,11 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 		goto bail;
 	}
 
-	status = ocfs2_request_delete_vote(inode);
-	/* -EBUSY means that other nodes are still using the
+	status = ocfs2_request_delete(inode);
+	/* -EAGAIN means that other nodes are still using the
 	 * inode. We're done here though, so avoid doing anything on
 	 * disk and let them worry about deleting it. */
-	if (status == -EBUSY) {
+	if (status == -EAGAIN) {
 		status = 0;
 		mlog(0, "Skipping delete of %llu because it is in use on"
 		     "other nodes\n", (unsigned long long)oi->ip_blkno);
@@ -854,21 +903,10 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 		goto bail;
 	}
 
-	spin_lock(&oi->ip_lock);
-	if (oi->ip_orphaned_slot == OCFS2_INVALID_SLOT) {
-		/* Nobody knew which slot this inode was orphaned
-		 * into. This may happen during node death and
-		 * recovery knows how to clean it up so we can safely
-		 * ignore this inode for now on. */
-		mlog(0, "Nobody knew where inode %llu was orphaned!\n",
-		     (unsigned long long)oi->ip_blkno);
-	} else {
-		*wipe = 1;
-
-		mlog(0, "Inode %llu is ok to wipe from orphan dir %d\n",
-		     (unsigned long long)oi->ip_blkno, oi->ip_orphaned_slot);
-	}
-	spin_unlock(&oi->ip_lock);
+	*wipe = 1;
+	mlog(0, "Inode %llu is ok to wipe from orphan dir %u\n",
+	     (unsigned long long)oi->ip_blkno,
+	     le16_to_cpu(di->i_orphaned_slot));
 
 bail:
 	return status;
@@ -1001,11 +1039,16 @@ void ocfs2_clear_inode(struct inode *inode)
 	mlog_bug_on_msg(OCFS2_SB(inode->i_sb) == NULL,
 			"Inode=%lu\n", inode->i_ino);
 
+	/* For remove delete_inode vote, we hold open lock before,
+	 * now it is time to unlock PR and EX open locks. */
+	ocfs2_open_unlock(inode);
+
 	/* Do these before all the other work so that we don't bounce
 	 * the vote thread while waiting to destroy the locks. */
 	ocfs2_mark_lockres_freeing(&oi->ip_rw_lockres);
 	ocfs2_mark_lockres_freeing(&oi->ip_meta_lockres);
 	ocfs2_mark_lockres_freeing(&oi->ip_data_lockres);
+	ocfs2_mark_lockres_freeing(&oi->ip_open_lockres);
 
 	/* We very well may get a clear_inode before all an inodes
 	 * metadata has hit disk. Of course, we can't drop any cluster
@@ -1030,6 +1073,7 @@ void ocfs2_clear_inode(struct inode *inode)
 	ocfs2_lock_res_free(&oi->ip_rw_lockres);
 	ocfs2_lock_res_free(&oi->ip_meta_lockres);
 	ocfs2_lock_res_free(&oi->ip_data_lockres);
+	ocfs2_lock_res_free(&oi->ip_open_lockres);
 
 	ocfs2_metadata_cache_purge(inode);
 
@@ -1086,9 +1130,6 @@ void ocfs2_drop_inode(struct inode *inode)
 	mlog(0, "Drop inode %llu, nlink = %u, ip_flags = 0x%x\n",
 	     (unsigned long long)oi->ip_blkno, inode->i_nlink, oi->ip_flags);
 
-	/* Testing ip_orphaned_slot here wouldn't work because we may
-	 * not have gotten a delete_inode vote from any other nodes
-	 * yet. */
 	if (oi->ip_flags & OCFS2_INODE_MAYBE_ORPHANED)
 		generic_delete_inode(inode);
 	else

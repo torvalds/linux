@@ -34,6 +34,7 @@ struct ocfs2_inode_info
 	struct ocfs2_lock_res		ip_rw_lockres;
 	struct ocfs2_lock_res		ip_meta_lockres;
 	struct ocfs2_lock_res		ip_data_lockres;
+	struct ocfs2_lock_res		ip_open_lockres;
 
 	/* protects allocation changes on this inode. */
 	struct rw_semaphore		ip_alloc_sem;
@@ -119,8 +120,8 @@ void ocfs2_drop_inode(struct inode *inode);
 /* Flags for ocfs2_iget() */
 #define OCFS2_FI_FLAG_NOWAIT	0x1
 #define OCFS2_FI_FLAG_DELETE	0x2
-#define OCFS2_FI_FLAG_SYSFILE	0x4
-#define OCFS2_FI_FLAG_NOLOCK	0x8
+#define OCFS2_FI_FLAG_SYSFILE		0x4
+#define OCFS2_FI_FLAG_ORPHAN_RECOVERY	0x8
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, int flags);
 struct inode *ocfs2_ilookup_for_vote(struct ocfs2_super *osb,
 				     u64 blkno,
