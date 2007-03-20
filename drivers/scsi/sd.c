@@ -766,7 +766,9 @@ static int sd_sync_cache(struct scsi_disk *sdkp)
 			sd_print_sense_hdr(sdkp, &sshdr);
 	}
 
-	return res;
+	if (res)
+		return -EIO;
+	return 0;
 }
 
 static int sd_issue_flush(struct device *dev, sector_t *error_sector)
