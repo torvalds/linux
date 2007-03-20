@@ -202,6 +202,7 @@ struct quirk_printer_struct {
 
 #define USBLP_QUIRK_BIDIR	0x1	/* reports bidir but requires unidirectional mode (no INs/reads) */
 #define USBLP_QUIRK_USB_INIT	0x2	/* needs vendor USB init string */
+#define USBLP_QUIRK_BAD_CLASS	0x4	/* descriptor uses vendor-specific Class or SubClass */
 
 static const struct quirk_printer_struct quirk_printers[] = {
 	{ 0x03f0, 0x0004, USBLP_QUIRK_BIDIR }, /* HP DeskJet 895C */
@@ -218,6 +219,7 @@ static const struct quirk_printer_struct quirk_printers[] = {
 	{ 0x0409, 0xf0be, USBLP_QUIRK_BIDIR }, /* NEC Picty920 (HP OEM) */
 	{ 0x0409, 0xf1be, USBLP_QUIRK_BIDIR }, /* NEC Picty800 (HP OEM) */
 	{ 0x0482, 0x0010, USBLP_QUIRK_BIDIR }, /* Kyocera Mita FS 820, by zut <kernel@zut.de> */
+	{ 0x04b8, 0x0202, USBLP_QUIRK_BAD_CLASS }, /* Seiko Epson Receipt Printer M129C */
 	{ 0, 0 }
 };
 
@@ -1048,7 +1050,8 @@ static int usblp_select_alts(struct usblp *usblp)
 		ifd = &if_alt->altsetting[i];
 
 		if (ifd->desc.bInterfaceClass != 7 || ifd->desc.bInterfaceSubClass != 1)
-			continue;
+			if (!(usblp->quirks & USBLP_QUIRK_BAD_CLASS))
+				continue;
 
 		if (ifd->desc.bInterfaceProtocol < USBLP_FIRST_PROTOCOL ||
 		    ifd->desc.bInterfaceProtocol > USBLP_LAST_PROTOCOL)
@@ -1232,6 +1235,7 @@ static struct usb_device_id usblp_ids [] = {
 	{ USB_INTERFACE_INFO(7, 1, 1) },
 	{ USB_INTERFACE_INFO(7, 1, 2) },
 	{ USB_INTERFACE_INFO(7, 1, 3) },
+	{ USB_DEVICE(0x04b8, 0x0202) },	/* Seiko Epson Receipt Printer M129C */
 	{ }						/* Terminating entry */
 };
 

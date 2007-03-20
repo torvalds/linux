@@ -18,10 +18,6 @@
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x0c88, 0x17da) }, /* Kyocera Wireless KPC650/Passport */
-	{ USB_DEVICE(0x1410, 0x1110) }, /* Novatel Wireless Merlin CDMA */
-	{ USB_DEVICE(0x1410, 0x1130) }, /* Novatel Wireless S720 CDMA/EV-DO */
-	{ USB_DEVICE(0x1410, 0x2110) }, /* Novatel Wireless U720 CDMA/EV-DO */
-	{ USB_DEVICE(0x1410, 0x1430) },	/* Novatel Merlin XU870 HSDPA/3G */
 	{ USB_DEVICE(0x1410, 0x1100) }, /* ExpressCard34 Qualcomm 3G CDMA */
 	{ USB_DEVICE(0x413c, 0x8115) }, /* Dell Wireless HSDPA 5500 */
 	{ },

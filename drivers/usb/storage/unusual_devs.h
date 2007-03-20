@@ -1411,6 +1411,16 @@ UNUSUAL_DEV(  0x22b8, 0x3010, 0x0001, 0x0001,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
 
+/*
+ * Patch by Pete Zaitcev <zaitcev@redhat.com>
+ * Report by Mark Patton. Red Hat bz#208928.
+ */
+UNUSUAL_DEV(  0x22b8, 0x4810, 0x0001, 0x0001,
+		"Motorola",
+		"RAZR V3i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
 /* Reported by Radovan Garabik <garabik@kassiopeia.juls.savba.sk> */
 UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
 		"MPIO",

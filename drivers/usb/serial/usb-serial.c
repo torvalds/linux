@@ -138,6 +138,11 @@ static void destroy_serial(struct kref *kref)
 
 	dbg("%s - %s", __FUNCTION__, serial->type->description);
 
+	serial->type->shutdown(serial);
+
+	/* return the minor range that this device had */
+	return_serial(serial);
+
 	for (i = 0; i < serial->num_ports; ++i)
 		serial->port[i]->open_count = 0;
 
@@ -147,12 +152,6 @@ static void destroy_serial(struct kref *kref)
 			device_unregister(&serial->port[i]->dev);
 			serial->port[i] = NULL;
 		}
-
-	if (serial->type->shutdown)
-		serial->type->shutdown(serial);
-
-	/* return the minor range that this device had */
-	return_serial(serial);
 
 	/* If this is a "fake" port, we have to clean it up here, as it will
 	 * not get cleaned up in port_release() as it was never registered with
