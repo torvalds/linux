@@ -94,9 +94,9 @@ static inline void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hctx)
 	hctx->ccid3hctx_delta = min_t(u32, hctx->ccid3hctx_t_ipi / 2,
 					   TFRC_OPSYS_HALF_TIME_GRAN);
 
-	ccid3_pr_debug("t_ipi=%u, delta=%u, s=%u, X=%llu\n",
+	ccid3_pr_debug("t_ipi=%u, delta=%u, s=%u, X=%u\n",
 		       hctx->ccid3hctx_t_ipi, hctx->ccid3hctx_delta,
-		       hctx->ccid3hctx_s, hctx->ccid3hctx_x >> 6);
+		       hctx->ccid3hctx_s, (unsigned)(hctx->ccid3hctx_x >> 6));
 
 }
 /*
@@ -139,9 +139,11 @@ static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
 	}
 
 	if (hctx->ccid3hctx_x != old_x) {
-		ccid3_pr_debug("X_prev=%llu, X_now=%llu, X_calc=%u, "
-			       "X_recv=%llu\n", old_x >> 6, hctx->ccid3hctx_x >> 6,
-			       hctx->ccid3hctx_x_calc, hctx->ccid3hctx_x_recv >> 6);
+		ccid3_pr_debug("X_prev=%u, X_now=%u, X_calc=%u, "
+			       "X_recv=%u\n", (unsigned)(old_x >> 6),
+			       (unsigned)(hctx->ccid3hctx_x >> 6),
+			       hctx->ccid3hctx_x_calc,
+			       (unsigned)(hctx->ccid3hctx_x_recv >> 6));
 
 		ccid3_update_send_interval(hctx);
 	}
