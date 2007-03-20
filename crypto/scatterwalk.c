@@ -91,6 +91,8 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 		memcpy_dir(buf, vaddr, len_this_page, out);
 		scatterwalk_unmap(vaddr, out);
 
+		scatterwalk_advance(walk, nbytes);
+
 		if (nbytes == len_this_page)
 			break;
 
@@ -99,7 +101,5 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 
 		scatterwalk_pagedone(walk, out, 1);
 	}
-
-	scatterwalk_advance(walk, nbytes);
 }
 EXPORT_SYMBOL_GPL(scatterwalk_copychunks);
