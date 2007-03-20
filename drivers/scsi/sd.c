@@ -1733,10 +1733,11 @@ static void scsi_disk_release(struct class_device *cdev)
 	kfree(sdkp);
 }
 
-static int sd_start_stop_device(struct scsi_device *sdp, int start)
+static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 {
 	unsigned char cmd[6] = { START_STOP };	/* START_VALID */
 	struct scsi_sense_hdr sshdr;
+	struct scsi_device *sdp = sdkp->device;
 	int res;
 
 	if (start)
@@ -1748,12 +1749,10 @@ static int sd_start_stop_device(struct scsi_device *sdp, int start)
 	res = scsi_execute_req(sdp, cmd, DMA_NONE, NULL, 0, &sshdr,
 			       SD_TIMEOUT, SD_MAX_RETRIES);
 	if (res) {
-		printk(KERN_WARNING "FAILED\n  status = %x, message = %02x, "
-		       "host = %d, driver = %02x\n  ",
-		       status_byte(res), msg_byte(res),
-		       host_byte(res), driver_byte(res));
+		sd_printk(KERN_WARNING, sdkp, "START_STOP FAILED\n");
+		sd_print_result(sdkp, res);
 		if (driver_byte(res) & DRIVER_SENSE)
-			scsi_print_sense_hdr("sd", &sshdr);
+			sd_print_sense_hdr(sdkp, &sshdr);
 	}
 
 	return res;
@@ -1766,7 +1765,6 @@ static int sd_start_stop_device(struct scsi_device *sdp, int start)
  */
 static void sd_shutdown(struct device *dev)
 {
-	struct scsi_device *sdp = to_scsi_device(dev);
 	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
 
 	if (!sdkp)
@@ -1777,10 +1775,9 @@ static void sd_shutdown(struct device *dev)
 		sd_sync_cache(sdkp);
 	}
 
-	if (system_state != SYSTEM_RESTART && sdp->manage_start_stop) {
-		printk(KERN_NOTICE "Stopping disk %s: \n",
-		       sdkp->disk->disk_name);
-		sd_start_stop_device(sdp, 0);
+	if (system_state != SYSTEM_RESTART && sdkp->device->manage_start_stop) {
+		sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
+		sd_start_stop_device(sdkp, 0);
 	}
 
 	scsi_disk_put(sdkp);
@@ -1788,7 +1785,6 @@ static void sd_shutdown(struct device *dev)
 
 static int sd_suspend(struct device *dev, pm_message_t mesg)
 {
-	struct scsi_device *sdp = to_scsi_device(dev);
 	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
 	int ret;
 
@@ -1796,17 +1792,16 @@ static int sd_suspend(struct device *dev, pm_message_t mesg)
 		return 0;	/* this can happen */
 
 	if (sdkp->WCE) {
-		printk(KERN_NOTICE "Synchronizing SCSI cache for disk %s: \n",
-				sdkp->disk->disk_name);
+		sd_printk(KERN_NOTICE, sdkp, "Synchronizing SCSI cache\n");
 		ret = sd_sync_cache(sdkp);
 		if (ret)
 			return ret;
 	}
 
-	if (mesg.event == PM_EVENT_SUSPEND && sdp->manage_start_stop) {
-		printk(KERN_NOTICE "Stopping disk %s: \n",
-		       sdkp->disk->disk_name);
-		ret = sd_start_stop_device(sdp, 0);
+	if (mesg.event == PM_EVENT_SUSPEND &&
+	    sdkp->device->manage_start_stop) {
+		sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
+		ret = sd_start_stop_device(sdkp, 0);
 		if (ret)
 			return ret;
 	}
@@ -1816,15 +1811,14 @@ static int sd_suspend(struct device *dev, pm_message_t mesg)
 
 static int sd_resume(struct device *dev)
 {
-	struct scsi_device *sdp = to_scsi_device(dev);
 	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
 
-	if (!sdp->manage_start_stop)
+	if (!sdkp->device->manage_start_stop)
 		return 0;
 
-	printk(KERN_NOTICE "Starting disk %s: \n", sdkp->disk->disk_name);
+	sd_printk(KERN_NOTICE, sdkp, "Starting disk\n");
 
-	return sd_start_stop_device(sdp, 1);
+	return sd_start_stop_device(sdkp, 1);
 }
 
 /**
