@@ -89,24 +89,6 @@ void ocfs2_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_DIRSYNC;
 }
 
-struct inode *ocfs2_ilookup_for_vote(struct ocfs2_super *osb,
-				     u64 blkno,
-				     int delete_vote)
-{
-	struct ocfs2_find_inode_args args;
-
-	/* ocfs2_ilookup_for_vote should *only* be called from the
-	 * vote thread */
-	BUG_ON(current != osb->vote_task);
-
-	args.fi_blkno = blkno;
-	args.fi_flags = OCFS2_FI_FLAG_NOWAIT;
-	if (delete_vote)
-		args.fi_flags |= OCFS2_FI_FLAG_DELETE;
-	args.fi_ino = ino_from_blkno(osb->sb, blkno);
-	return ilookup5(osb->sb, args.fi_ino, ocfs2_find_actor, &args);
-}
-
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, int flags)
 {
 	struct inode *inode = NULL;
@@ -181,28 +163,6 @@ static int ocfs2_find_actor(struct inode *inode, void *opaque)
 
 	if (oi->ip_blkno != args->fi_blkno)
 		goto bail;
-
-	/* OCFS2_FI_FLAG_NOWAIT is *only* set from
-	 * ocfs2_ilookup_for_vote which won't create an inode for one
-	 * that isn't found. The vote thread which doesn't want to get
-	 * an inode which is in the process of going away - otherwise
-	 * the call to __wait_on_freeing_inode in find_inode_fast will
-	 * cause it to deadlock on an inode which may be waiting on a
-	 * vote (or lock release) in delete_inode */
-	if ((args->fi_flags & OCFS2_FI_FLAG_NOWAIT) &&
-	    (inode->i_state & (I_FREEING|I_CLEAR))) {
-		/* As stated above, we're not going to return an
-		 * inode.  In the case of a delete vote, the voting
-		 * code is going to signal the other node to go
-		 * ahead. Mark that state here, so this freeing inode
-		 * has the state when it gets to delete_inode. */
-		if (args->fi_flags & OCFS2_FI_FLAG_DELETE) {
-			spin_lock(&oi->ip_lock);
-			ocfs2_mark_inode_remotely_deleted(inode);
-			spin_unlock(&oi->ip_lock);
-		}
-		goto bail;
-	}
 
 	ret = 1;
 bail:

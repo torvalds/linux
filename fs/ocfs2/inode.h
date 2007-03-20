@@ -45,7 +45,6 @@ struct ocfs2_inode_info
 	u32				ip_clusters;
 	struct ocfs2_extent_map		ip_map;
 	struct list_head		ip_io_markers;
-	int				ip_orphaned_slot;
 
 	struct mutex			ip_io_mutex;
 
@@ -118,14 +117,9 @@ void ocfs2_delete_inode(struct inode *inode);
 void ocfs2_drop_inode(struct inode *inode);
 
 /* Flags for ocfs2_iget() */
-#define OCFS2_FI_FLAG_NOWAIT	0x1
-#define OCFS2_FI_FLAG_DELETE	0x2
 #define OCFS2_FI_FLAG_SYSFILE		0x4
 #define OCFS2_FI_FLAG_ORPHAN_RECOVERY	0x8
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, int flags);
-struct inode *ocfs2_ilookup_for_vote(struct ocfs2_super *osb,
-				     u64 blkno,
-				     int delete_vote);
 int ocfs2_inode_init_private(struct inode *inode);
 int ocfs2_inode_revalidate(struct dentry *dentry);
 int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
