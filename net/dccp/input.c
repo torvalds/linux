@@ -86,7 +86,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 	    dh->dccph_type == DCCP_PKT_SYNCACK) {
 		if (between48(DCCP_SKB_CB(skb)->dccpd_ack_seq,
 			      dp->dccps_awl, dp->dccps_awh) &&
-		    !before48(DCCP_SKB_CB(skb)->dccpd_seq, dp->dccps_swl))
+		    dccp_delta_seqno(dp->dccps_swl,
+				     DCCP_SKB_CB(skb)->dccpd_seq) >= 0)
 			dccp_update_gsr(sk, DCCP_SKB_CB(skb)->dccpd_seq);
 		else
 			return -1;
@@ -203,7 +204,8 @@ static int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		if (dp->dccps_role != DCCP_ROLE_CLIENT)
 			goto send_sync;
 check_seq:
-		if (!before48(DCCP_SKB_CB(skb)->dccpd_seq, dp->dccps_osr)) {
+		if (dccp_delta_seqno(dp->dccps_osr,
+				     DCCP_SKB_CB(skb)->dccpd_seq) >= 0) {
 send_sync:
 			dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
 				       DCCP_PKT_SYNC);
