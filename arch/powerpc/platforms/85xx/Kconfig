@@ -30,6 +30,12 @@ config MPC85xx_MDS
 	help
 	  This option enables support for the MPC85xx MDS board
 
+config MPC8544_DS
+	bool "Freescale MPC8544 DS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC8544 DS board
+
 endchoice
 
 config MPC8540
@@ -47,7 +53,8 @@ config MPC85xx
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
-	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS || MPC85xx_MDS
+	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS \
+		|| MPC85xx_MDS || MPC8544_DS
 
 config PPC_INDIRECT_PCI_BE
 	bool
