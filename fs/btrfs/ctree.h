@@ -219,6 +219,7 @@ struct btrfs_fs_info {
 	struct list_head cache;
 	u64 last_inode_alloc;
 	u64 last_inode_alloc_dirid;
+	u64 generation;
 	int cache_size;
 	int fp;
 	struct btrfs_trans_handle *running_transaction;
@@ -802,4 +803,9 @@ int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
 int btrfs_lookup_inode_map(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct btrfs_path *path,
 			   u64 objectid, int mod);
+int btrfs_insert_inode(struct btrfs_trans_handle *trans, struct btrfs_root
+		       *root, u64 objectid, struct btrfs_inode_item
+		       *inode_item);
+int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
+		       *root, struct btrfs_path *path, u64 objectid, int mod);
 #endif

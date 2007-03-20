@@ -226,6 +226,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans, struct
 
 	ret = btrfs_del_root(trans, root->fs_info->tree_root, &snap_key);
 	BUG_ON(ret);
+	root->fs_info->generation = root->root_key.offset + 1;
 
 	return ret;
 }
@@ -328,6 +329,7 @@ struct btrfs_root *open_ctree(char *filename, struct btrfs_super_block *super)
 	root->commit_root = root->node;
 	root->node->count++;
 	root->ref_cows = 1;
+	root->fs_info->generation = root->root_key.offset + 1;
 	return root;
 }
 
