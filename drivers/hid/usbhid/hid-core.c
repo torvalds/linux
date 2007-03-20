@@ -554,6 +554,11 @@ static void hid_io_error(struct hid_device *hid)
 	if (usb_get_intfdata(usbhid->intf) == NULL)
 		goto done;
 
+	/* If it has been a while since the last error, we'll assume
+	 * this a brand new error and reset the retry timeout. */
+	if (time_after(jiffies, usbhid->stop_retry + HZ/2))
+		usbhid->retry_delay = 0;
+
 	/* When an error occurs, retry at increasing intervals */
 	if (usbhid->retry_delay == 0) {
 		usbhid->retry_delay = 13;	/* Then 26, 52, 104, 104, ... */
