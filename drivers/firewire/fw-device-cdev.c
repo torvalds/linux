@@ -274,10 +274,11 @@ static int ioctl_get_info(struct client *client, void __user *arg)
 
 	if (get_info.rom != 0) {
 		void __user *uptr = u64_to_uptr(get_info.rom);
-		size_t length = min(get_info.rom_length,
-				    client->device->config_rom_length * 4);
+		size_t want = get_info.rom_length;
+		size_t have = client->device->config_rom_length * 4;
 
-		if (copy_to_user(uptr, client->device->config_rom, length))
+		if (copy_to_user(uptr, client->device->config_rom,
+				 min(want, have)))
 			return -EFAULT;
 	}
 	get_info.rom_length = client->device->config_rom_length * 4;

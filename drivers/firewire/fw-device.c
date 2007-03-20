@@ -240,7 +240,7 @@ show_rom_index_attribute(struct device *dev,
 	struct fw_unit *unit = fw_unit(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-			unit->directory - device->config_rom);
+			(int)(unit->directory - device->config_rom));
 }
 
 static struct device_attribute rom_index_attribute = {
