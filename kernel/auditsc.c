@@ -209,6 +209,9 @@ struct audit_context {
 	unsigned long	    personality;
 	int		    arch;
 
+	pid_t		    target_pid;
+	u32		    target_sid;
+
 #if AUDIT_DEBUG
 	int		    put_count;
 	int		    ino_count;
@@ -973,6 +976,23 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		audit_log_end(ab);
 	}
 
+	if (context->target_pid) {
+		ab =audit_log_start(context, GFP_KERNEL, AUDIT_OBJ_PID);
+		if (ab) {
+			char *s = NULL, *t;
+			u32 len;
+			if (selinux_sid_to_string(context->target_sid,
+						    &s, &len))
+				t = "(none)";
+			else
+				t = s;
+			audit_log_format(ab, "opid=%d obj=%s",
+					context->target_pid, t);
+			audit_log_end(ab);
+			kfree(s);
+		}
+	}
+
 	if (context->pwd && context->pwdmnt) {
 		ab = audit_log_start(context, GFP_KERNEL, AUDIT_CWD);
 		if (ab) {
@@ -1193,6 +1213,7 @@ void audit_syscall_exit(int valid, long return_code)
 	} else {
 		audit_free_names(context);
 		audit_free_aux(context);
+		context->target_pid = 0;
 		kfree(context->filterkey);
 		context->filterkey = NULL;
 		tsk->audit_context = context;
@@ -1878,6 +1899,14 @@ int audit_sockaddr(int len, void *a)
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 	return 0;
+}
+
+void __audit_ptrace(struct task_struct *t)
+{
+	struct audit_context *context = current->audit_context;
+
+	context->target_pid = t->pid;
+	selinux_get_task_sid(t, &context->target_sid);
 }
 
 /**

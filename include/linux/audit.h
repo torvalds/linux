@@ -91,6 +91,7 @@
 #define AUDIT_MQ_GETSETATTR	1315	/* POSIX MQ get/set attribute record type */
 #define AUDIT_KERNEL_OTHER	1316	/* For use by 3rd party modules */
 #define AUDIT_FD_PAIR		1317    /* audit record for pipe/socketpair */
+#define AUDIT_OBJ_PID		1318	/* ptrace target */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -352,6 +353,8 @@ extern void __audit_inode(const char *name, const struct inode *inode);
 extern void __audit_inode_child(const char *dname, const struct inode *inode,
 				const struct inode *parent);
 extern void __audit_inode_update(const struct inode *inode);
+extern void __audit_ptrace(struct task_struct *t);
+
 static inline int audit_dummy_context(void)
 {
 	void *p = current->audit_context;
@@ -375,6 +378,12 @@ static inline void audit_inode_child(const char *dname,
 static inline void audit_inode_update(const struct inode *inode) {
 	if (unlikely(!audit_dummy_context()))
 		__audit_inode_update(inode);
+}
+
+static inline void audit_ptrace(struct task_struct *t)
+{
+	if (unlikely(!audit_dummy_context()))
+		__audit_ptrace(t);
 }
 
 				/* Private API (for audit.c only) */
@@ -477,6 +486,7 @@ extern int audit_n_rules;
 #define audit_mq_timedreceive(d,l,p,t) ({ 0; })
 #define audit_mq_notify(d,n) ({ 0; })
 #define audit_mq_getsetattr(d,s) ({ 0; })
+#define audit_ptrace(t) ((void)0)
 #define audit_n_rules 0
 #endif
 
