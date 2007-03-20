@@ -10,7 +10,8 @@ struct btrfs_trans_handle;
 
 #define BTRFS_ROOT_TREE_OBJECTID 1
 #define BTRFS_EXTENT_TREE_OBJECTID 2
-#define BTRFS_FS_TREE_OBJECTID 3
+#define BTRFS_INODE_MAP_OBJECTID 3
+#define BTRFS_FS_TREE_OBJECTID 4
 
 /*
  * the key defines the order in the tree, and so it also defines (optimal)
@@ -178,6 +179,49 @@ struct btrfs_root_item {
 	__le64 block_limit;
 	__le64 blocks_used;
 	__le32 refs;
+} __attribute__ ((__packed__));
+
+struct btrfs_file_extent_item {
+	/*
+	 * disk space consumed by the extent, checksum blocks are included
+	 * in these numbers
+	 */
+	__le64 disk_blocknr;
+	__le64 disk_num_blocks;
+	/*
+	 * the logical offset in file bytes (no csums)
+	 * this extent record is for.  This allows a file extent to point
+	 * into the middle of an existing extent on disk, sharing it
+	 * between two snapshots (useful if some bytes in the middle of the
+	 * extent have changed
+	 */
+	__le64 offset;
+	/*
+	 * the logical number of file blocks (no csums included)
+	 */
+	__le64 num_blocks;
+} __attribute__ ((__packed__));
+
+struct btrfs_inode_map_item {
+	struct btrfs_disk_key key;
+} __attribute__ ((__packed__));
+
+struct btrfs_fs_info {
+	struct btrfs_root *fs_root;
+	struct btrfs_root *extent_root;
+	struct btrfs_root *tree_root;
+	struct btrfs_root *inode_root;
+	struct btrfs_key current_insert;
+	struct btrfs_key last_insert;
+	struct radix_tree_root cache_radix;
+	struct radix_tree_root pinned_radix;
+	struct list_head trans;
+	struct list_head cache;
+	u64 last_inode_alloc;
+	u64 last_inode_alloc_dirid;
+	int cache_size;
+	int fp;
+	struct btrfs_trans_handle *running_transaction;
 };
 
 /*
@@ -188,21 +232,12 @@ struct btrfs_root_item {
 struct btrfs_root {
 	struct btrfs_buffer *node;
 	struct btrfs_buffer *commit_root;
-	struct btrfs_root *extent_root;
-	struct btrfs_root *tree_root;
-	struct btrfs_key current_insert;
-	struct btrfs_key last_insert;
-	int fp;
-	struct radix_tree_root cache_radix;
-	struct radix_tree_root pinned_radix;
-	struct list_head trans;
-	struct list_head cache;
-	int cache_size;
-	int ref_cows;
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;
+	struct btrfs_fs_info *fs_info;
 	u32 blocksize;
-	struct btrfs_trans_handle *running_transaction;
+	int ref_cows;
+	u32 type;
 };
 
 /* the lower bits in the key flags defines the item type */
@@ -240,11 +275,17 @@ struct btrfs_root {
  * are used, and how many references there are to each block
  */
 #define BTRFS_EXTENT_ITEM_KEY	6
+
+/*
+ * the inode map records which inode numbers are in use and where
+ * they actually live on disk
+ */
+#define BTRFS_INODE_MAP_ITEM_KEY 7
 /*
  * string items are for debugging.  They just store a short string of
  * data in the FS
  */
-#define BTRFS_STRING_ITEM_KEY	7
+#define BTRFS_STRING_ITEM_KEY	8
 
 static inline u64 btrfs_inode_generation(struct btrfs_inode_item *i)
 {
@@ -654,6 +695,57 @@ static inline u8 *btrfs_leaf_data(struct btrfs_leaf *l)
 {
 	return (u8 *)l->items;
 }
+
+static inline u64 btrfs_file_extent_disk_blocknr(struct btrfs_file_extent_item
+						 *e)
+{
+	return le64_to_cpu(e->disk_blocknr);
+}
+
+static inline void btrfs_set_file_extent_disk_blocknr(struct
+						      btrfs_file_extent_item
+						      *e, u64 val)
+{
+	e->disk_blocknr = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_file_extent_disk_num_blocks(struct
+						    btrfs_file_extent_item *e)
+{
+	return le64_to_cpu(e->disk_num_blocks);
+}
+
+static inline void btrfs_set_file_extent_disk_num_blocks(struct
+							 btrfs_file_extent_item
+							 *e, u64 val)
+{
+	e->disk_num_blocks = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_file_extent_offset(struct btrfs_file_extent_item *e)
+{
+	return le64_to_cpu(e->offset);
+}
+
+static inline void btrfs_set_file_extent_offset(struct btrfs_file_extent_item
+						*e, u64 val)
+{
+	e->offset = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_file_extent_num_blocks(struct btrfs_file_extent_item
+					       *e)
+{
+	return le64_to_cpu(e->num_blocks);
+}
+
+static inline void btrfs_set_file_extent_num_blocks(struct
+						    btrfs_file_extent_item *e,
+						    u64 val)
+{
+	e->num_blocks = cpu_to_le64(val);
+}
+
 /* helper function to cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type) \
 	((type *)(btrfs_leaf_data(leaf) + \
@@ -701,4 +793,13 @@ int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  int name_len, int mod);
 int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
 			      char *name, int name_len);
+int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *fs_root,
+			     u64 dirid, u64 *objectid);
+int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root,
+			   u64 objectid, struct btrfs_key *location);
+int btrfs_lookup_inode_map(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root, struct btrfs_path *path,
+			   u64 objectid, int mod);
 #endif

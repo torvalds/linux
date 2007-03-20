@@ -35,13 +35,15 @@ static int inc_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_key ins;
 	u32 refs;
 
-	find_free_extent(trans, root->extent_root, 0, 0, (u64)-1, &ins);
+	find_free_extent(trans, root->fs_info->extent_root, 0, 0, (u64)-1,
+			 &ins);
 	btrfs_init_path(&path);
 	key.objectid = blocknr;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	key.offset = 1;
-	ret = btrfs_search_slot(trans, root->extent_root, &key, &path, 0, 1);
+	ret = btrfs_search_slot(trans, root->fs_info->extent_root, &key, &path,
+				0, 1);
 	if (ret != 0)
 		BUG();
 	BUG_ON(ret != 0);
@@ -51,9 +53,9 @@ static int inc_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_extent_refs(item, refs + 1);
 
 	BUG_ON(list_empty(&path.nodes[0]->dirty));
-	btrfs_release_path(root->extent_root, &path);
-	finish_current_insert(trans, root->extent_root);
-	run_pending(trans, root->extent_root);
+	btrfs_release_path(root->fs_info->extent_root, &path);
+	finish_current_insert(trans, root->fs_info->extent_root);
+	run_pending(trans, root->fs_info->extent_root);
 	return 0;
 }
 
@@ -70,13 +72,14 @@ static int lookup_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
 	key.offset = 1;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
-	ret = btrfs_search_slot(trans, root->extent_root, &key, &path, 0, 0);
+	ret = btrfs_search_slot(trans, root->fs_info->extent_root, &key, &path,
+				0, 0);
 	if (ret != 0)
 		BUG();
 	l = &path.nodes[0]->leaf;
 	item = btrfs_item_ptr(l, path.slots[0], struct btrfs_extent_item);
 	*refs = btrfs_extent_refs(item);
-	btrfs_release_path(root->extent_root, &path);
+	btrfs_release_path(root->fs_info->extent_root, &path);
 	return 0;
 }
 
@@ -107,19 +110,20 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 	int i;
 
 	while(1) {
-		ret = radix_tree_gang_lookup(&root->pinned_radix,
-						 (void **)gang, 0,
-						 ARRAY_SIZE(gang));
+		ret = radix_tree_gang_lookup(&root->fs_info->pinned_radix,
+					     (void **)gang, 0,
+					     ARRAY_SIZE(gang));
 		if (!ret)
 			break;
 		if (!first)
 			first = gang[0];
 		for (i = 0; i < ret; i++) {
-			radix_tree_delete(&root->pinned_radix, gang[i]);
+			radix_tree_delete(&root->fs_info->pinned_radix,
+					  gang[i]);
 		}
 	}
-	root->last_insert.objectid = first;
-	root->last_insert.offset = 0;
+	root->fs_info->last_insert.objectid = first;
+	root->fs_info->last_insert.offset = 0;
 	return 0;
 }
 
@@ -138,13 +142,14 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 	ins.flags = 0;
 	btrfs_set_key_type(&ins, BTRFS_EXTENT_ITEM_KEY);
 
-	for (i = 0; i < extent_root->current_insert.flags; i++) {
-		ins.objectid = extent_root->current_insert.objectid + i;
+	for (i = 0; i < extent_root->fs_info->current_insert.flags; i++) {
+		ins.objectid = extent_root->fs_info->current_insert.objectid +
+				i;
 		ret = btrfs_insert_item(trans, extent_root, &ins, &extent_item,
 					sizeof(extent_item));
 		BUG_ON(ret);
 	}
-	extent_root->current_insert.offset = 0;
+	extent_root->fs_info->current_insert.offset = 0;
 	return 0;
 }
 
@@ -156,7 +161,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 {
 	struct btrfs_path path;
 	struct btrfs_key key;
-	struct btrfs_root *extent_root = root->extent_root;
+	struct btrfs_root *extent_root = root->fs_info->extent_root;
 	int ret;
 	struct btrfs_extent_item *ei;
 	struct btrfs_key ins;
@@ -186,14 +191,16 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		if (pin) {
 			int err;
 			radix_tree_preload(GFP_KERNEL);
-			err = radix_tree_insert(&extent_root->pinned_radix,
-					  blocknr, (void *)blocknr);
+			err = radix_tree_insert(
+					&extent_root->fs_info->pinned_radix,
+					blocknr, (void *)blocknr);
 			BUG_ON(err);
 			radix_tree_preload_end();
 		}
 		ret = btrfs_del_item(trans, extent_root, &path);
-		if (!pin && extent_root->last_insert.objectid > blocknr)
-			extent_root->last_insert.objectid = blocknr;
+		if (!pin && extent_root->fs_info->last_insert.objectid >
+		    blocknr)
+			extent_root->fs_info->last_insert.objectid = blocknr;
 		if (ret)
 			BUG();
 	}
@@ -214,18 +221,19 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 	int i;
 
 	while(1) {
-		ret = radix_tree_gang_lookup_tag(&extent_root->cache_radix,
-						 (void **)gang, 0,
-						 ARRAY_SIZE(gang),
-						 CTREE_EXTENT_PENDING_DEL);
+		ret = radix_tree_gang_lookup_tag(
+					&extent_root->fs_info->cache_radix,
+					(void **)gang, 0,
+					ARRAY_SIZE(gang),
+					CTREE_EXTENT_PENDING_DEL);
 		if (!ret)
 			break;
 		for (i = 0; i < ret; i++) {
 			ret = __free_extent(trans, extent_root,
 					    gang[i]->blocknr, 1, 1);
-			radix_tree_tag_clear(&extent_root->cache_radix,
-						gang[i]->blocknr,
-						CTREE_EXTENT_PENDING_DEL);
+			radix_tree_tag_clear(&extent_root->fs_info->cache_radix,
+					     gang[i]->blocknr,
+					     CTREE_EXTENT_PENDING_DEL);
 			btrfs_block_release(extent_root, gang[i]);
 		}
 	}
@@ -235,8 +243,8 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 static int run_pending(struct btrfs_trans_handle *trans, struct btrfs_root
 		       *extent_root)
 {
-	while(radix_tree_tagged(&extent_root->cache_radix,
-			        CTREE_EXTENT_PENDING_DEL))
+	while(radix_tree_tagged(&extent_root->fs_info->cache_radix,
+				CTREE_EXTENT_PENDING_DEL))
 		del_pending_extents(trans, extent_root);
 	return 0;
 }
@@ -248,19 +256,19 @@ static int run_pending(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, u64 blocknr, u64 num_blocks, int pin)
 {
-	struct btrfs_root *extent_root = root->extent_root;
+	struct btrfs_root *extent_root = root->fs_info->extent_root;
 	struct btrfs_buffer *t;
 	int pending_ret;
 	int ret;
 
 	if (root == extent_root) {
 		t = find_tree_block(root, blocknr);
-		radix_tree_tag_set(&root->cache_radix, blocknr,
+		radix_tree_tag_set(&root->fs_info->cache_radix, blocknr,
 				   CTREE_EXTENT_PENDING_DEL);
 		return 0;
 	}
 	ret = __free_extent(trans, root, blocknr, num_blocks, pin);
-	pending_ret = run_pending(trans, root->extent_root);
+	pending_ret = run_pending(trans, root->fs_info->extent_root);
 	return ret ? ret : pending_ret;
 }
 
@@ -285,12 +293,12 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	u64 test_block;
 	int start_found;
 	struct btrfs_leaf *l;
-	struct btrfs_root * root = orig_root->extent_root;
+	struct btrfs_root * root = orig_root->fs_info->extent_root;
 	int total_needed = num_blocks;
 
 	total_needed += (btrfs_header_level(&root->node->node.header) + 1) * 3;
-	if (root->last_insert.objectid > search_start)
-		search_start = root->last_insert.objectid;
+	if (root->fs_info->last_insert.objectid > search_start)
+		search_start = root->fs_info->last_insert.objectid;
 
 	ins->flags = 0;
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
@@ -353,16 +361,17 @@ check_pending:
 	BUG_ON(ins->objectid < search_start);
 	for (test_block = ins->objectid;
 	     test_block < ins->objectid + total_needed; test_block++) {
-		if (radix_tree_lookup(&root->pinned_radix, test_block)) {
+		if (radix_tree_lookup(&root->fs_info->pinned_radix,
+				      test_block)) {
 			search_start = test_block + 1;
 			goto check_failed;
 		}
 	}
-	BUG_ON(root->current_insert.offset);
-	root->current_insert.offset = total_needed - num_blocks;
-	root->current_insert.objectid = ins->objectid + num_blocks;
-	root->current_insert.flags = 0;
-	root->last_insert.objectid = ins->objectid;
+	BUG_ON(root->fs_info->current_insert.offset);
+	root->fs_info->current_insert.offset = total_needed - num_blocks;
+	root->fs_info->current_insert.objectid = ins->objectid + num_blocks;
+	root->fs_info->current_insert.flags = 0;
+	root->fs_info->last_insert.objectid = ins->objectid;
 	ins->offset = num_blocks;
 	return 0;
 error:
@@ -383,20 +392,20 @@ static int alloc_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 {
 	int ret;
 	int pending_ret;
-	struct btrfs_root *extent_root = root->extent_root;
+	struct btrfs_root *extent_root = root->fs_info->extent_root;
 	struct btrfs_extent_item extent_item;
 
 	btrfs_set_extent_refs(&extent_item, 1);
 	btrfs_set_extent_owner(&extent_item, owner);
 
 	if (root == extent_root) {
-		BUG_ON(extent_root->current_insert.offset == 0);
+		BUG_ON(extent_root->fs_info->current_insert.offset == 0);
 		BUG_ON(num_blocks != 1);
-		BUG_ON(extent_root->current_insert.flags ==
-		       extent_root->current_insert.offset);
+		BUG_ON(extent_root->fs_info->current_insert.flags ==
+		       extent_root->fs_info->current_insert.offset);
 		ins->offset = 1;
-		ins->objectid = extent_root->current_insert.objectid +
-				extent_root->current_insert.flags++;
+		ins->objectid = extent_root->fs_info->current_insert.objectid +
+				extent_root->fs_info->current_insert.flags++;
 		return 0;
 	}
 	ret = find_free_extent(trans, root, num_blocks, search_start,

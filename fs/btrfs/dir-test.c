@@ -45,13 +45,26 @@ static int ins_one(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	int ret;
 	char buf[128];
 	unsigned long oid;
+	u64 objectid;
 	struct btrfs_path path;
+	struct btrfs_key inode_map;
 
 	find_num(radix, &oid, 0);
 	sprintf(buf, "str-%lu", oid);
 
+	ret = btrfs_find_free_objectid(trans, root, dir_oid + 1, &objectid);
+	if (ret)
+		goto error;
+
+	inode_map.objectid = objectid;
+	inode_map.flags = 0;
+	inode_map.offset = 0;
+
+	ret = btrfs_insert_inode_map(trans, root, objectid, &inode_map);
+	if (ret)
+		goto error;
 	ret = btrfs_insert_dir_item(trans, root, buf, strlen(buf), dir_oid,
-				    file_oid, 1);
+				    objectid, 1);
 	if (ret)
 		goto error;
 
@@ -120,6 +133,53 @@ static int insert_dup(struct btrfs_trans_handle *trans, struct btrfs_root
 	return 0;
 }
 
+static int del_dir_item(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root,
+			struct radix_tree_root *radix,
+			unsigned long radix_index,
+			struct btrfs_path *path)
+{
+	int ret;
+	unsigned long *ptr;
+	u64 file_objectid;
+	struct btrfs_dir_item *di;
+	struct btrfs_path map_path;
+
+	/* find the inode number of the file */
+	di = btrfs_item_ptr(&path->nodes[0]->leaf, path->slots[0],
+			    struct btrfs_dir_item);
+	file_objectid = btrfs_dir_objectid(di);
+
+	/* delete the directory item */
+	ret = btrfs_del_item(trans, root, path);
+	if (ret)
+		goto out;
+
+	/* delete the inode mapping */
+	btrfs_init_path(&map_path);
+	ret = btrfs_lookup_inode_map(trans, root, &map_path, file_objectid, -1);
+	if (ret)
+		goto out_release;
+	ret = btrfs_del_item(trans, root->fs_info->inode_root, &map_path);
+	if (ret)
+		goto out_release;
+
+	if (root->fs_info->last_inode_alloc > file_objectid)
+		root->fs_info->last_inode_alloc = file_objectid;
+	btrfs_release_path(root, &map_path);
+	ptr = radix_tree_delete(radix, radix_index);
+	if (!ptr) {
+		ret = -5555;
+		goto out;
+	}
+	return 0;
+out_release:
+	btrfs_release_path(root, &map_path);
+out:
+	printf("failed to delete %lu %d\n", radix_index, ret);
+	return -1;
+}
+
 static int del_one(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct radix_tree_root *radix)
 {
@@ -127,7 +187,6 @@ static int del_one(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	char buf[128];
 	unsigned long oid;
 	struct btrfs_path path;
-	unsigned long *ptr;
 
 	ret = find_num(radix, &oid, 1);
 	if (ret < 0)
@@ -138,19 +197,14 @@ static int del_one(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 				    strlen(buf), -1);
 	if (ret)
 		goto out_release;
-	ret = btrfs_del_item(trans, root, &path);
+
+	ret = del_dir_item(trans, root, radix, oid, &path);
 	if (ret)
 		goto out_release;
 	btrfs_release_path(root, &path);
-	ptr = radix_tree_delete(radix, oid);
-	if (!ptr) {
-		ret = -5555;
-		goto out;
-	}
-	return 0;
+	return ret;
 out_release:
 	btrfs_release_path(root, &path);
-out:
 	printf("failed to delete %lu %d\n", oid, ret);
 	return -1;
 }
@@ -162,6 +216,8 @@ static int lookup_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	char buf[128];
 	int ret;
 	unsigned long oid;
+	u64 objectid;
+	struct btrfs_dir_item *di;
 
 	ret = find_num(radix, &oid, 1);
 	if (ret < 0)
@@ -170,6 +226,14 @@ static int lookup_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_init_path(&path);
 	ret = btrfs_lookup_dir_item(trans, root, &path, dir_oid, buf,
 				    strlen(buf), 0);
+	if (!ret) {
+		di = btrfs_item_ptr(&path.nodes[0]->leaf, path.slots[0],
+				    struct btrfs_dir_item);
+		objectid = btrfs_dir_objectid(di);
+		btrfs_release_path(root, &path);
+		btrfs_init_path(&path);
+		ret = btrfs_lookup_inode_map(trans, root, &path, objectid, 0);
+	}
 	btrfs_release_path(root, &path);
 	if (ret) {
 		printf("unable to find key %lu\n", oid);
@@ -210,7 +274,6 @@ static int empty_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 	u32 found_len;
 	int ret;
 	int slot;
-	int *ptr;
 	int count = 0;
 	char buf[128];
 	struct btrfs_dir_item *di;
@@ -241,7 +304,7 @@ static int empty_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 		BUG_ON(found_len > 128);
 		buf[found_len] = '\0';
 		found = atoi(buf + 4);
-		ret = btrfs_del_item(trans, root, &path);
+		ret = del_dir_item(trans, root, radix, found, &path);
 		count++;
 		if (ret) {
 			fprintf(stderr,
@@ -250,14 +313,10 @@ static int empty_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 			return -1;
 		}
 		btrfs_release_path(root, &path);
-		ptr = radix_tree_delete(radix, found);
-		if (!ptr)
-			goto error;
 		if (!keep_running)
 			break;
 	}
 	return 0;
-error:
 	fprintf(stderr, "failed to delete from the radix %lu\n", found);
 	return -1;
 }

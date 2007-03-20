@@ -172,7 +172,8 @@ int main(int ac, char **av) {
 	printf("tree size is now %d\n", tree_size);
 	printf("root %p commit root %p\n", root->node, root->commit_root);
 	printf("map tree\n");
-	btrfs_print_tree(root->extent_root, root->extent_root->node);
+	btrfs_print_tree(root->fs_info->extent_root,
+			 root->fs_info->extent_root->node);
 	close_ctree(root, &super);
 	return 0;
 }

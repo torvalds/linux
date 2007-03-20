@@ -13,8 +13,8 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 	struct btrfs_extent_item *ei;
 	struct btrfs_root_item *ri;
 	struct btrfs_dir_item *di;
+	struct btrfs_inode_map_item *mi;
 	u32 type;
-	u32 namelen;
 
 	printf("leaf %Lu total ptrs %d free space %d\n",
 		btrfs_header_blocknr(&l->header), nr,
@@ -34,15 +34,13 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 		case BTRFS_INODE_ITEM_KEY:
 			break;
 		case BTRFS_DIR_ITEM_KEY:
-			namelen = btrfs_item_size(l->items + i) - sizeof(*di);
 			di = btrfs_item_ptr(l, i, struct btrfs_dir_item);
 			printf("\t\tdir oid %Lu flags %u type %u\n",
 				btrfs_dir_objectid(di),
 				btrfs_dir_flags(di),
 				btrfs_dir_type(di));
 			printf("\t\tname %.*s\n",
-				namelen, (char *)(di + 1));
-
+			       btrfs_dir_name_len(di),(char *)(di + 1));
 			break;
 		case BTRFS_ROOT_ITEM_KEY:
 			ri = btrfs_item_ptr(l, i, struct btrfs_root_item);
@@ -53,6 +51,13 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 			ei = btrfs_item_ptr(l, i, struct btrfs_extent_item);
 			printf("\t\textent data refs %u owner %Lu\n",
 				btrfs_extent_refs(ei), btrfs_extent_owner(ei));
+			break;
+		case BTRFS_INODE_MAP_ITEM_KEY:
+			mi = btrfs_item_ptr(l, i, struct btrfs_inode_map_item);
+			printf("\t\tinode map key %Lu %u %Lu\n",
+			       btrfs_disk_key_objectid(&mi->key),
+			       btrfs_disk_key_flags(&mi->key),
+			       btrfs_disk_key_offset(&mi->key));
 			break;
 		case BTRFS_STRING_ITEM_KEY:
 			printf("\t\titem data %.*s\n", btrfs_item_size(item),

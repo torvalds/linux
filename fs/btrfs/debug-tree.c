@@ -15,8 +15,13 @@ int main(int ac, char **av) {
 	printf("fs tree\n");
 	btrfs_print_tree(root, root->node);
 	printf("map tree\n");
-	btrfs_print_tree(root->extent_root, root->extent_root->node);
+	btrfs_print_tree(root->fs_info->extent_root,
+			 root->fs_info->extent_root->node);
+	printf("inode tree\n");
+	btrfs_print_tree(root->fs_info->inode_root,
+			 root->fs_info->inode_root->node);
 	printf("root tree\n");
-	btrfs_print_tree(root->tree_root, root->tree_root->node);
+	btrfs_print_tree(root->fs_info->tree_root,
+			 root->fs_info->tree_root->node);
 	return 0;
 }
