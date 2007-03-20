@@ -461,7 +461,6 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 	list_add(&page->link, &vcpu->kvm->active_mmu_pages);
 	ASSERT(is_empty_shadow_page(page->page_hpa));
 	page->slot_bitmap = 0;
-	page->global = 1;
 	page->multimapped = 0;
 	page->parent_pte = parent_pte;
 	--vcpu->kvm->n_free_mmu_pages;
@@ -927,11 +926,6 @@ static void paging_new_cr3(struct kvm_vcpu *vcpu)
 	kvm_arch_ops->set_cr3(vcpu, vcpu->mmu.root_hpa);
 }
 
-static void mark_pagetable_nonglobal(void *shadow_pte)
-{
-	page_header(__pa(shadow_pte))->global = 0;
-}
-
 static inline void set_pte_common(struct kvm_vcpu *vcpu,
 			     u64 *shadow_pte,
 			     gpa_t gaddr,
@@ -948,9 +942,6 @@ static inline void set_pte_common(struct kvm_vcpu *vcpu,
 	paddr = gpa_to_hpa(vcpu, gaddr & PT64_BASE_ADDR_MASK);
 
 	*shadow_pte |= access_bits;
-
-	if (!(*shadow_pte & PT_GLOBAL_MASK))
-		mark_pagetable_nonglobal(shadow_pte);
 
 	if (is_error_hpa(paddr)) {
 		*shadow_pte |= gaddr;

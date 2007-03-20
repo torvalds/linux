@@ -136,7 +136,6 @@ struct kvm_mmu_page {
 	unsigned long slot_bitmap; /* One bit set per slot which has memory
 				    * in this shadow page.
 				    */
-	int global;              /* Set if all ptes in this page are global */
 	int multimapped;         /* More than one parent_pte? */
 	int root_count;          /* Currently serving as active root */
 	union {
