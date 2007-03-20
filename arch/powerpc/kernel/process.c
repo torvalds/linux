@@ -567,7 +567,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	kregs->nip = *((unsigned long *)ret_from_fork);
 #else
 	kregs->nip = (unsigned long)ret_from_fork;
-	p->thread.last_syscall = -1;
 #endif
 
 	return 0;

@@ -77,7 +77,6 @@ int main(void)
 	DEFINE(KSP_VSID, offsetof(struct thread_struct, ksp_vsid));
 #else /* CONFIG_PPC64 */
 	DEFINE(PGDIR, offsetof(struct thread_struct, pgdir));
-	DEFINE(LAST_SYSCALL, offsetof(struct thread_struct, last_syscall));
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 	DEFINE(THREAD_DBCR0, offsetof(struct thread_struct, dbcr0));
 	DEFINE(PT_PTRACED, PT_PTRACED);
