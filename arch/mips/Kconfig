@@ -542,6 +542,8 @@ config QEMU
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select NR_CPUS_DEFAULT_1
+	select SYS_SUPPORTS_SMP
 	help
 	  Qemu is a software emulator which among other architectures also
 	  can simulate a MIPS32 4Kc system.  This patch adds support for the
@@ -1805,6 +1807,9 @@ config SMP
 config SYS_SUPPORTS_SMP
 	bool
 
+config NR_CPUS_DEFAULT_1
+	bool
+
 config NR_CPUS_DEFAULT_2
 	bool
 
@@ -1825,8 +1830,9 @@ config NR_CPUS_DEFAULT_64
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-64)"
-	range 2 64
+	range 1 64 if NR_CPUS_DEFAULT_1
 	depends on SMP
+	default "1" if NR_CPUS_DEFAULT_1
 	default "2" if NR_CPUS_DEFAULT_2
 	default "4" if NR_CPUS_DEFAULT_4
 	default "8" if NR_CPUS_DEFAULT_8
@@ -1837,10 +1843,13 @@ config NR_CPUS
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  The maximum supported value is 32 for 32-bit
 	  kernel and 64 for 64-bit kernels; the minimum value which makes
-	  sense is 2.
+	  sense is 1 for Qemu (useful only for kernel debugging purposes)
+	  and 2 for all others.
 
 	  This is purely to save memory - each supported CPU adds
-	  approximately eight kilobytes to the kernel image.
+	  approximately eight kilobytes to the kernel image.  For best
+	  performance should round up your number of processors to the next
+	  power of two.
 
 #
 # Timer Interrupt Frequency Configuration

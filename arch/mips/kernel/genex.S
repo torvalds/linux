@@ -181,13 +181,13 @@ NESTED(except_vec_vi, 0, sp)
 	 * during service by SMTC kernel, we also want to
 	 * pass the IM value to be cleared.
 	 */
-EXPORT(except_vec_vi_mori)
+FEXPORT(except_vec_vi_mori)
 	ori	a0, $0, 0
 #endif /* CONFIG_MIPS_MT_SMTC */
-EXPORT(except_vec_vi_lui)
+FEXPORT(except_vec_vi_lui)
 	lui	v0, 0		/* Patched */
 	j	except_vec_vi_handler
-EXPORT(except_vec_vi_ori)
+FEXPORT(except_vec_vi_ori)
 	 ori	v0, 0		/* Patched */
 	.set	pop
 	END(except_vec_vi)
@@ -220,7 +220,17 @@ NESTED(except_vec_vi_handler, 0, sp)
 	_ehb
 #endif /* CONFIG_MIPS_MT_SMTC */
 	CLI
+#ifdef CONFIG_TRACE_IRQFLAGS
+	move	s0, v0
+#ifdef CONFIG_MIPS_MT_SMTC
+	move	s1, a0
+#endif
 	TRACE_IRQS_OFF
+#ifdef CONFIG_MIPS_MT_SMTC
+	move	a0, s1
+#endif
+	move	v0, s0
+#endif
 
 	LONG_L	s0, TI_REGS($28)
 	LONG_S	sp, TI_REGS($28)

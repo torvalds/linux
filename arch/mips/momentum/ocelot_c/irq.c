@@ -64,7 +64,7 @@ extern void ll_cpci_irq(void);
 
 asmlinkage void plat_irq_dispatch(void)
 {
-	unsigned int pending = read_c0_cause() & read_c0_status();
+	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 
 	if (pending & STATUSF_IP0)
 		do_IRQ(0);

@@ -48,7 +48,7 @@
 
 asmlinkage void plat_irq_dispatch(void)
 {
-	unsigned int pending = read_c0_status() & read_c0_cause();
+	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & STATUSF_IP4)		/* int2 hardware line (timer) */
 		do_IRQ(4);
