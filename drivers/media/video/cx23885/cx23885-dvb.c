@@ -84,7 +84,8 @@ static struct s5h1409_config hauppauge_hvr1800lp_config = {
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
 	.gpio          = S5H1409_GPIO_OFF,
 	.if_freq       = 44000,
-	.inversion     = S5H1409_INVERSION_OFF
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING
 };
 
 static struct s5h1409_config hauppauge_hvr1800_config = {
@@ -92,7 +93,8 @@ static struct s5h1409_config hauppauge_hvr1800_config = {
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
 	.gpio          = S5H1409_GPIO_ON,
 	.if_freq       = 44000,
-	.inversion     = S5H1409_INVERSION_OFF
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING
 };
 
 
