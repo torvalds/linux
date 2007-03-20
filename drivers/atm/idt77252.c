@@ -1839,7 +1839,6 @@ push_rx_skb(struct idt77252_dev *card, struct sk_buff *skb, int queue)
 		skb_put(skb, SAR_FB_SIZE_3);
 		break;
 	default:
-		dev_kfree_skb(skb);
 		return -1;
 	}
 
