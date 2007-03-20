@@ -38,7 +38,7 @@
 #include <linux/version.h>
 #include <linux/mutex.h>
 
-#define CX88_VERSION_CODE KERNEL_VERSION(0,0,6)
+#define CX23885_VERSION_CODE KERNEL_VERSION(0,0,1)
 
 #define UNSET (-1U)
 
@@ -67,14 +67,6 @@ enum cx23885_itype {
 	CX23885_VMUX_DVB,
 	CX23885_VMUX_DEBUG,
 	CX23885_RADIO,
-};
-
-struct cx23885_fmt {
-	char  *name;
-	u32   fourcc;          /* v4l2 format id */
-	int   depth;
-	int   flags;
-	u32   cxformat;
 };
 
 /* buffer for one video frame */
