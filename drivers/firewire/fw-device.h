@@ -41,7 +41,7 @@ struct fw_device {
 	struct device device;
 	struct list_head link;
 	struct list_head client_list;
-	__be32 *config_rom;
+	u32 *config_rom;
 	size_t config_rom_length;
 	int config_rom_retries;
 	struct delayed_work work;
