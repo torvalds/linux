@@ -181,10 +181,8 @@ int scsi_complete_async_scans(void)
 	return 0;
 }
 
-#ifdef MODULE
 /* Only exported for the benefit of scsi_wait_scan */
 EXPORT_SYMBOL_GPL(scsi_complete_async_scans);
-#endif
 
 /**
  * scsi_unlock_floptical - unlock device via a special MODE SENSE command
