@@ -88,6 +88,7 @@ NGbzero_loop:
 	bne,pt		%xcc, NGbzero_loop
 	 add		%o0, 64, %o0
 
+	membar		#Sync
 	wr		%o4, 0x0, %asi
 	brz,pn		%o1, NGbzero_done
 NGbzero_medium:
