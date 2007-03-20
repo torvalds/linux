@@ -30,9 +30,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_PURR);
 	
 /*
  * postcall is performed immediately before function return which
- * allows liberal use of volatile registers.
+ * allows liberal use of volatile registers.  We branch around this
+ * in early init (eg when populating the MMU hashtable) by using an
+ * unconditional cpu feature.
  */
 #define HCALL_INST_POSTCALL					\
+BEGIN_FTR_SECTION;						\
+	b	1f;						\
+END_FTR_SECTION(0, 1);						\
 	ld	r4,STK_PARM(r3)(r1);	/* validate opcode */	\
 	cmpldi	cr7,r4,MAX_HCALL_OPCODE;			\
 	bgt-	cr7,1f;						\
