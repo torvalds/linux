@@ -239,7 +239,7 @@ static int snd_sb8_resume(struct device *dev, unsigned int n)
 }
 #endif
 
-#define SND_SB8_DRIVER	"snd_sb8"
+#define DEV_NAME "sb8"
 
 static struct isa_driver snd_sb8_driver = {
 	.match		= snd_sb8_match,
@@ -250,7 +250,7 @@ static struct isa_driver snd_sb8_driver = {
 	.resume		= snd_sb8_resume,
 #endif
 	.driver		= {
-		.name	= SND_SB8_DRIVER
+		.name	= DEV_NAME 
 	},
 };
 

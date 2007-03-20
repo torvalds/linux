@@ -2318,7 +2318,7 @@ static int snd_es18xx_isa_resume(struct device *dev, unsigned int n)
 }
 #endif
 
-#define ES18XX_DRIVER	"snd_es18xx"
+#define DEV_NAME "es18xx"
 
 static struct isa_driver snd_es18xx_isa_driver = {
 	.match		= snd_es18xx_isa_match,
@@ -2329,7 +2329,7 @@ static struct isa_driver snd_es18xx_isa_driver = {
 	.resume		= snd_es18xx_isa_resume,
 #endif
 	.driver		= {
-		.name	= ES18XX_DRIVER
+		.name	= DEV_NAME
 	},
 };
 

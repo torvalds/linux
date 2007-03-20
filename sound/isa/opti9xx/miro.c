@@ -137,8 +137,6 @@ struct snd_miro {
 
 static void snd_miro_proc_init(struct snd_miro * miro);
 
-#define DRIVER_NAME "snd-miro"
-
 static char * snd_opti9xx_names[] = {
 	"unkown",
 	"82C928", "82C929",
@@ -1423,13 +1421,15 @@ static int __devexit snd_miro_remove(struct device *devptr, unsigned int dev)
 	return 0;
 }
 
+#define DEV_NAME "miro"
+
 static struct isa_driver snd_miro_driver = {
 	.match		= snd_miro_match,
 	.probe		= snd_miro_probe,
 	.remove		= __devexit_p(snd_miro_remove),
 	/* FIXME: suspend/resume */
 	.driver		= {
-		.name	= DRIVER_NAME
+		.name	= DEV_NAME
 	},
 };
 

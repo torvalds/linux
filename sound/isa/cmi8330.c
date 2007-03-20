@@ -601,7 +601,7 @@ static int snd_cmi8330_isa_resume(struct device *dev, unsigned int n)
 }
 #endif
 
-#define CMI8330_DRIVER	"snd_cmi8330"
+#define DEV_NAME	"cmi8330"
 
 static struct isa_driver snd_cmi8330_driver = {
 	.match		= snd_cmi8330_isa_match,
@@ -612,7 +612,7 @@ static struct isa_driver snd_cmi8330_driver = {
 	.resume		= snd_cmi8330_isa_resume,
 #endif
 	.driver		= {
-		.name	= CMI8330_DRIVER
+		.name	= DEV_NAME
 	},
 };
 

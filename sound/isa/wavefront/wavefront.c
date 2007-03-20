@@ -633,7 +633,7 @@ static int __devexit snd_wavefront_isa_remove(struct device *devptr,
 	return 0;
 }
 
-#define WAVEFRONT_DRIVER	"snd_wavefront"
+#define DEV_NAME "wavefront"
 
 static struct isa_driver snd_wavefront_driver = {
 	.match		= snd_wavefront_isa_match,
@@ -641,7 +641,7 @@ static struct isa_driver snd_wavefront_driver = {
 	.remove		= __devexit_p(snd_wavefront_isa_remove),
 	/* FIXME: suspend, resume */
 	.driver		= {
-		.name	= WAVEFRONT_DRIVER
+		.name	= DEV_NAME
 	},
 };
 

@@ -947,7 +947,7 @@ static int snd_opl3sa2_isa_resume(struct device *dev, unsigned int n)
 }
 #endif
 
-#define OPL3SA2_DRIVER	"snd_opl3sa2"
+#define DEV_NAME "opl3sa2"
 
 static struct isa_driver snd_opl3sa2_isa_driver = {
 	.match		= snd_opl3sa2_isa_match,
@@ -958,7 +958,7 @@ static struct isa_driver snd_opl3sa2_isa_driver = {
 	.resume		= snd_opl3sa2_isa_resume,
 #endif
 	.driver		= {
-		.name	= OPL3SA2_DRIVER
+		.name	= DEV_NAME
 	},
 };
 

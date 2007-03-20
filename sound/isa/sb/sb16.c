@@ -615,9 +615,9 @@ static int snd_sb16_isa_resume(struct device *dev, unsigned int n)
 #endif
 
 #ifdef SNDRV_SBAWE
-#define SND_SB16_DRIVER	"snd_sbawe"
+#define DEV_NAME "sbawe"
 #else
-#define SND_SB16_DRIVER	"snd_sb16"
+#define DEV_NAME "sb16"
 #endif
 
 static struct isa_driver snd_sb16_isa_driver = {
@@ -629,7 +629,7 @@ static struct isa_driver snd_sb16_isa_driver = {
 	.resume		= snd_sb16_isa_resume,
 #endif
 	.driver		= {
-		.name	= SND_SB16_DRIVER
+		.name	= DEV_NAME
 	},
 };
 

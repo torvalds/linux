@@ -75,10 +75,10 @@ MODULE_SUPPORTED_DEVICE("{{Crystal Semiconductors,CS4235},"
 
 #ifdef CS4232
 #define IDENT "CS4232"
-#define CS423X_DRIVER "snd_cs4232"
+#define DEV_NAME "cs4232"
 #else
 #define IDENT "CS4236+"
-#define CS423X_DRIVER "snd_cs4236"
+#define DEV_NAME "cs4236"
 #endif
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
@@ -630,7 +630,7 @@ static struct isa_driver cs423x_isa_driver = {
 	.resume		= snd_cs423x_isa_resume,
 #endif
 	.driver		= {
-		.name	= CS423X_DRIVER
+		.name	= DEV_NAME
 	},
 };
 

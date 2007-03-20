@@ -334,7 +334,7 @@ static int snd_sgalaxy_resume(struct device *pdev, unsigned int n)
 }
 #endif
 
-#define SND_SGALAXY_DRIVER	"snd_sgalaxy"
+#define DEV_NAME "sgalaxy"
 
 static struct isa_driver snd_sgalaxy_driver = {
 	.match		= snd_sgalaxy_match,
@@ -345,7 +345,7 @@ static struct isa_driver snd_sgalaxy_driver = {
 	.resume		= snd_sgalaxy_resume,
 #endif
 	.driver		= {
-		.name	= SND_SGALAXY_DRIVER
+		.name	= DEV_NAME
 	},
 };
 

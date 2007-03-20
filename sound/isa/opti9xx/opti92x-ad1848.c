@@ -280,10 +280,10 @@ MODULE_DEVICE_TABLE(pnp_card, snd_opti9xx_pnpids);
 #endif	/* CONFIG_PNP */
 
 #ifdef OPTi93X
-#define DRIVER_NAME	"snd-card-opti93x"
+#define DEV_NAME "opti93x"
 #else
-#define DRIVER_NAME	"snd-card-opti92x"
-#endif	/* OPTi93X */
+#define DEV_NAME "opti92x"
+#endif
 
 static char * snd_opti9xx_names[] = {
 	"unkown",
@@ -1289,7 +1289,7 @@ static int snd_opti93x_create(struct snd_card *card, struct snd_opti9xx *chip,
 	}
 	codec->dma2 = chip->dma2;
 
-	if (request_irq(chip->irq, snd_opti93x_interrupt, IRQF_DISABLED, DRIVER_NAME" - WSS", codec)) {
+	if (request_irq(chip->irq, snd_opti93x_interrupt, IRQF_DISABLED, DEV_NAME" - WSS", codec)) {
 		snd_printk(KERN_ERR "opti9xx: can't grab IRQ %d\n", chip->irq);
 		snd_opti93x_free(codec);
 		return -EBUSY;
@@ -2015,7 +2015,7 @@ static struct isa_driver snd_opti9xx_driver = {
 	.remove		= __devexit_p(snd_opti9xx_isa_remove),
 	/* FIXME: suspend/resume */
 	.driver		= {
-		.name	= DRIVER_NAME
+		.name	= DEV_NAME
 	},
 };
 

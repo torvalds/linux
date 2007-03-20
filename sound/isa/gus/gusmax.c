@@ -358,7 +358,7 @@ static int __devexit snd_gusmax_remove(struct device *devptr, unsigned int dev)
 	return 0;
 }
 
-#define GUSMAX_DRIVER	"snd_gusmax"
+#define DEV_NAME "gusmax"
 
 static struct isa_driver snd_gusmax_driver = {
 	.match		= snd_gusmax_match,
@@ -366,7 +366,7 @@ static struct isa_driver snd_gusmax_driver = {
 	.remove		= __devexit_p(snd_gusmax_remove),
 	/* FIXME: suspend/resume */
 	.driver		= {
-		.name	= GUSMAX_DRIVER
+		.name	= DEV_NAME
 	},
 };
 

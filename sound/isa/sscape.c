@@ -1296,7 +1296,7 @@ static int __devexit snd_sscape_remove(struct device *devptr, unsigned int dev)
 	return 0;
 }
 
-#define SSCAPE_DRIVER	"snd_sscape"
+#define DEV_NAME "sscape"
 
 static struct isa_driver snd_sscape_driver = {
 	.match		= snd_sscape_match,
@@ -1304,7 +1304,7 @@ static struct isa_driver snd_sscape_driver = {
 	.remove		= __devexit_p(snd_sscape_remove),
 	/* FIXME: suspend/resume */
 	.driver		= {
-		.name	= SSCAPE_DRIVER
+		.name	= DEV_NAME
 	},
 };
 
