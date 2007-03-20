@@ -170,8 +170,12 @@ static int omninet_open (struct usb_serial_port *port, struct file *filp)
 		      port->read_urb->transfer_buffer, port->read_urb->transfer_buffer_length,
 		      omninet_read_bulk_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
-	if (result)
+	if (result) {
 		err("%s - failed submitting read urb, error %d", __FUNCTION__, result);
+		/* open failed - all allocations must be freed */
+		kfree(od);
+		usb_set_serial_port_data(port, NULL);
+	}
 
 	return result;
 }
