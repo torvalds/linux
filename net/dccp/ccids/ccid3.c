@@ -33,7 +33,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
 #include "../ccid.h"
 #include "../dccp.h"
 #include "lib/packet_history.h"
@@ -52,6 +51,9 @@ static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
 static struct dccp_li_hist *ccid3_li_hist;
 
+/*
+ *	Transmitter Half-Connection Routines
+ */
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 {
@@ -641,10 +643,50 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 	dccp_tx_hist_purge(ccid3_tx_hist, &hctx->ccid3hctx_hist);
 }
 
-/*
- * RX Half Connection methods
- */
+static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
+{
+	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
+	/* Listen socks doesn't have a private CCID block */
+	if (sk->sk_state == DCCP_LISTEN)
+		return;
+
+	BUG_ON(hctx == NULL);
+
+	info->tcpi_rto = hctx->ccid3hctx_t_rto;
+	info->tcpi_rtt = hctx->ccid3hctx_rtt;
+}
+
+static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
+				  u32 __user *optval, int __user *optlen)
+{
+	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	const void *val;
+
+	/* Listen socks doesn't have a private CCID block */
+	if (sk->sk_state == DCCP_LISTEN)
+		return -EINVAL;
+
+	switch (optname) {
+	case DCCP_SOCKOPT_CCID_TX_INFO:
+		if (len < sizeof(hctx->ccid3hctx_tfrc))
+			return -EINVAL;
+		len = sizeof(hctx->ccid3hctx_tfrc);
+		val = &hctx->ccid3hctx_tfrc;
+		break;
+	default:
+		return -ENOPROTOOPT;
+	}
+
+	if (put_user(len, optlen) || copy_to_user(optval, val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
+/*
+ *	Receiver Half-Connection Routines
+ */
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 {
@@ -1129,20 +1171,6 @@ static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_rcv_rtt  = hcrx->ccid3hcrx_rtt;
 }
 
-static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
-{
-	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-
-	/* Listen socks doesn't have a private CCID block */
-	if (sk->sk_state == DCCP_LISTEN)
-		return;
-
-	BUG_ON(hctx == NULL);
-
-	info->tcpi_rto = hctx->ccid3hctx_t_rto;
-	info->tcpi_rtt = hctx->ccid3hctx_rtt;
-}
-
 static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 				  u32 __user *optval, int __user *optlen)
 {
@@ -1159,33 +1187,6 @@ static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 			return -EINVAL;
 		len = sizeof(hcrx->ccid3hcrx_tfrc);
 		val = &hcrx->ccid3hcrx_tfrc;
-		break;
-	default:
-		return -ENOPROTOOPT;
-	}
-
-	if (put_user(len, optlen) || copy_to_user(optval, val, len))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
-				  u32 __user *optval, int __user *optlen)
-{
-	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	const void *val;
-
-	/* Listen socks doesn't have a private CCID block */
-	if (sk->sk_state == DCCP_LISTEN)
-		return -EINVAL;
-
-	switch (optname) {
-	case DCCP_SOCKOPT_CCID_TX_INFO:
-		if (len < sizeof(hctx->ccid3hctx_tfrc))
-			return -EINVAL;
-		len = sizeof(hctx->ccid3hctx_tfrc);
-		val = &hctx->ccid3hctx_tfrc;
 		break;
 	default:
 		return -ENOPROTOOPT;
