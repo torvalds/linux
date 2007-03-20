@@ -82,19 +82,13 @@ static void ccid3_hc_tx_set_state(struct sock *sk,
 }
 
 /*
- * Recalculate scheduled nominal send time t_nom, inter-packet interval
- * t_ipi, and delta value. Should be called after each change to X.
+ * Recalculate t_ipi and delta (should be called whenever X changes)
  */
-static inline void ccid3_update_send_time(struct ccid3_hc_tx_sock *hctx)
+static inline void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hctx)
 {
-	timeval_sub_usecs(&hctx->ccid3hctx_t_nom, hctx->ccid3hctx_t_ipi);
-
 	/* Calculate new t_ipi = s / X_inst (X_inst is in 64 * bytes/second) */
 	hctx->ccid3hctx_t_ipi = scaled_div(hctx->ccid3hctx_s,
 					   hctx->ccid3hctx_x >> 6);
-
-	/* Update nominal send time with regard to the new t_ipi */
-	timeval_add_usecs(&hctx->ccid3hctx_t_nom, hctx->ccid3hctx_t_ipi);
 
 	/* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
 	hctx->ccid3hctx_delta = min_t(u32, hctx->ccid3hctx_t_ipi / 2,
@@ -119,8 +113,6 @@ static inline void ccid3_update_send_time(struct ccid3_hc_tx_sock *hctx)
  *       fine-grained resolution of sending rates. This requires scaling by 2^6
  *       throughout the code. Only X_calc is unscaled (in bytes/second).
  *
- * If X has changed, we also update the scheduled send time t_now,
- * the inter-packet interval t_ipi, and the delta value.
  */
 static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
 
@@ -151,7 +143,7 @@ static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
 			       "X_recv=%llu\n", old_x >> 6, hctx->ccid3hctx_x >> 6,
 			       hctx->ccid3hctx_x_calc, hctx->ccid3hctx_x_recv >> 6);
 
-		ccid3_update_send_time(hctx);
+		ccid3_update_send_interval(hctx);
 	}
 }
 
@@ -161,14 +153,12 @@ static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
  */
 static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
 {
-	hctx->ccid3hctx_s = hctx->ccid3hctx_s == 0 ? len :
-			    (9 * hctx->ccid3hctx_s + len) / 10;
-	/*
-	 * Note: We could do a potential optimisation here - when `s' changes,
-	 *	 recalculate sending rate and consequently t_ipi, t_delta, and
-	 *	 t_now. This is however non-standard, and the benefits are not
-	 *	 clear, so it is currently left out.
-	 */
+	const u16 old_s = hctx->ccid3hctx_s;
+
+	hctx->ccid3hctx_s = old_s == 0 ? len : (9 * old_s + len) / 10;
+
+	if (hctx->ccid3hctx_s != old_s)
+		ccid3_update_send_interval(hctx);
 }
 
 /*
@@ -228,7 +218,7 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 		/* The value of R is still undefined and so we can not recompute
 		 * the timout value. Keep initial value as per [RFC 4342, 5]. */
 		t_nfb = TFRC_INITIAL_TIMEOUT;
-		ccid3_update_send_time(hctx);
+		ccid3_update_send_interval(hctx);
 		break;
 	case TFRC_SSTATE_FBACK:
 		/*
@@ -334,8 +324,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
 
 		/* Set initial sending rate X/s to 1pps (X is scaled by 2^6) */
-		ccid3_hc_tx_update_s(hctx, skb->len);
-		hctx->ccid3hctx_x = hctx->ccid3hctx_s;
+		hctx->ccid3hctx_x = hctx->ccid3hctx_s = skb->len;
 		hctx->ccid3hctx_x <<= 6;
 
 		/* First timeout, according to [RFC 3448, 4.2], is 1 second */
@@ -484,7 +473,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			hctx->ccid3hctx_x    = scaled_div(w_init << 6, r_sample);
 			hctx->ccid3hctx_t_ld = now;
 
-			ccid3_update_send_time(hctx);
+			ccid3_update_send_interval(hctx);
 
 			ccid3_pr_debug("%s(%p), s=%u, MSS=%u, w_init=%u, "
 				       "R_sample=%dus, X=%u\n", dccp_role(sk),
