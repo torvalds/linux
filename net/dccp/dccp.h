@@ -113,9 +113,12 @@ static inline void dccp_inc_seqno(u64 *seqno)
 	*seqno = ADD48(*seqno, 1);
 }
 
-static inline u64 dccp_delta_seqno(u64 seqno1, u64 seqno2)
+/* signed mod-2^48 distance: pos. if seqno1 < seqno2, neg. if seqno1 > seqno2 */
+static inline s64 dccp_delta_seqno(const u64 seqno1, const u64 seqno2)
 {
-	return ((seqno2 << 16) - (seqno1 << 16)) >> 16;
+	u64 delta = SUB48(seqno2, seqno1);
+
+	return TO_SIGNED48(delta);
 }
 
 /* is seq1 < seq2 ? */
