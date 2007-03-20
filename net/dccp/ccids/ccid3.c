@@ -82,6 +82,21 @@ static void ccid3_hc_tx_set_state(struct sock *sk,
 }
 
 /*
+ * Compute the initial sending rate X_init according to RFC 3390:
+ *	w_init   =    min(4 * MSS, max(2 * MSS, 4380 bytes))
+ *	X_init   =    w_init / RTT
+ * For consistency with other parts of the code, X_init is scaled by 2^6.
+ */
+static inline u64 rfc3390_initial_rate(struct sock *sk)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+	const __u32 w_init = min(4 * dp->dccps_mss_cache,
+				 max(2 * dp->dccps_mss_cache, 4380U));
+
+	return scaled_div(w_init << 6, ccid3_hc_tx_sk(sk)->ccid3hctx_rtt);
+}
+
+/*
  * Recalculate t_ipi and delta (should be called whenever X changes)
  */
 static inline void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hctx)
@@ -469,20 +484,16 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			/*
 			 * Larger Initial Windows [RFC 4342, sec. 5]
 			 */
-			__u32 w_init = min(4 * dp->dccps_mss_cache,
-					   max(2 * dp->dccps_mss_cache, 4380U));
 			hctx->ccid3hctx_rtt  = r_sample;
-			hctx->ccid3hctx_x    = scaled_div(w_init << 6, r_sample);
+			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
 			hctx->ccid3hctx_t_ld = now;
 
 			ccid3_update_send_interval(hctx);
 
-			ccid3_pr_debug("%s(%p), s=%u, MSS=%u, w_init=%u, "
+			ccid3_pr_debug("%s(%p), s=%u, MSS=%u, "
 				       "R_sample=%dus, X=%u\n", dccp_role(sk),
 				       sk, hctx->ccid3hctx_s,
-				       dp->dccps_mss_cache,
-				       w_init,
-				       (int)r_sample,
+				       dp->dccps_mss_cache, (int)r_sample,
 				       (unsigned)(hctx->ccid3hctx_x >> 6));
 
 			ccid3_hc_tx_set_state(sk, TFRC_SSTATE_FBACK);
