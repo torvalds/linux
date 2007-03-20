@@ -577,3 +577,43 @@ discard:
 }
 
 EXPORT_SYMBOL_GPL(dccp_rcv_state_process);
+
+/**
+ * dccp_sample_rtt  -  Sample RTT from packet exchange
+ *
+ * @sk:     connected dccp_sock
+ * @t_recv: receive timestamp of packet with timestamp echo
+ * @t_hist: packet history timestamp or NULL
+ */
+u32 dccp_sample_rtt(struct sock *sk, struct timeval *t_recv,
+				     struct timeval *t_hist)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_options_received *or = &dp->dccps_options_received;
+	suseconds_t delta;
+
+	if (t_hist == NULL) {
+		if (!or->dccpor_timestamp_echo) {
+			DCCP_WARN("packet without timestamp echo\n");
+			return DCCP_SANE_RTT_MAX;
+		}
+		timeval_sub_usecs(t_recv, or->dccpor_timestamp_echo * 10);
+		delta = timeval_usecs(t_recv);
+	} else
+		delta = timeval_delta(t_recv, t_hist);
+
+	delta -= or->dccpor_elapsed_time * 10;		/* either set or 0 */
+
+	if (unlikely(delta <= 0)) {
+		DCCP_WARN("unusable RTT sample %ld, using min\n", (long)delta);
+		return DCCP_SANE_RTT_MIN;
+	}
+	if (unlikely(delta - (suseconds_t)DCCP_SANE_RTT_MAX > 0)) {
+		DCCP_WARN("RTT sample %ld too large, using max\n", (long)delta);
+		return DCCP_SANE_RTT_MAX;
+	}
+
+	return delta;
+}
+
+EXPORT_SYMBOL_GPL(dccp_sample_rtt);

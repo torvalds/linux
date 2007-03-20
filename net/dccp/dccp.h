@@ -71,10 +71,14 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 /* RFC 1122, 4.2.3.1 initial RTO value */
 #define DCCP_TIMEOUT_INIT ((unsigned)(3 * HZ))
 
+#define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
+
+/* bounds for sampled RTT values from packet exchanges (in usec) */
+#define DCCP_SANE_RTT_MIN	100
+#define DCCP_SANE_RTT_MAX	(4 * USEC_PER_SEC)
+
 /* Maximal interval between probes for local resources.  */
 #define DCCP_RESOURCE_PROBE_INTERVAL ((unsigned)(HZ / 2U))
-
-#define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
 
 /* sysctl variables for DCCP */
 extern int  sysctl_dccp_request_retries;
@@ -292,6 +296,8 @@ extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);
 extern int	   dccp_invalid_packet(struct sk_buff *skb);
+extern u32	   dccp_sample_rtt(struct sock *sk, struct timeval *t_recv,
+						    struct timeval *t_history);
 
 static inline int dccp_bad_service_code(const struct sock *sk,
 					const __be32 service)
