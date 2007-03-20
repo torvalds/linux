@@ -99,6 +99,11 @@ static inline void ccid3_update_send_time(struct ccid3_hc_tx_sock *hctx)
 	/* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
 	hctx->ccid3hctx_delta = min_t(u32, hctx->ccid3hctx_t_ipi / 2,
 					   TFRC_OPSYS_HALF_TIME_GRAN);
+
+	ccid3_pr_debug("t_ipi=%u, delta=%u, s=%u, X=%llu\n",
+		       hctx->ccid3hctx_t_ipi, hctx->ccid3hctx_delta,
+		       hctx->ccid3hctx_s, hctx->ccid3hctx_x >> 6);
+
 }
 /*
  * Update X by
@@ -141,8 +146,13 @@ static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
 		hctx->ccid3hctx_t_ld = *now;
 	}
 
-	if (hctx->ccid3hctx_x != old_x)
+	if (hctx->ccid3hctx_x != old_x) {
+		ccid3_pr_debug("X_prev=%llu, X_now=%llu, X_calc=%u, "
+			       "X_recv=%llu\n", old_x >> 6, hctx->ccid3hctx_x >> 6,
+			       hctx->ccid3hctx_x_calc, hctx->ccid3hctx_x_recv >> 6);
+
 		ccid3_update_send_time(hctx);
+	}
 }
 
 /*
@@ -339,6 +349,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
 		delay = timeval_delta(&hctx->ccid3hctx_t_nom, &now);
+		ccid3_pr_debug("delay=%ld\n", (long)delay);
 		/*
 		 *	Scheduling of packet transmissions [RFC 3448, 4.6]
 		 *
