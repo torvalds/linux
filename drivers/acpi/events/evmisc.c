@@ -196,11 +196,15 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 		notify_info->notify.value = (u16) notify_value;
 		notify_info->notify.handler_obj = handler_obj;
 
-		acpi_ex_relinquish_interpreter();
+		acpi_ex_exit_interpreter();
 
 		acpi_ev_notify_dispatch(notify_info);
 
-		acpi_ex_reacquire_interpreter();
+		status = acpi_ex_enter_interpreter();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+
 	}
 
 	if (!handler_obj) {

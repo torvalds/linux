@@ -66,6 +66,7 @@ ACPI_MODULE_NAME("exsystem")
 acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 {
 	acpi_status status;
+	acpi_status status2;
 
 	ACPI_FUNCTION_TRACE(ex_system_wait_semaphore);
 
@@ -78,7 +79,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 
 		/* We must wait, so unlock the interpreter */
 
-		acpi_ex_relinquish_interpreter();
+		acpi_ex_exit_interpreter();
 
 		status = acpi_os_wait_semaphore(semaphore, 1, timeout);
 
@@ -88,7 +89,13 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 
 		/* Reacquire the interpreter */
 
-		acpi_ex_reacquire_interpreter();
+		status2 = acpi_ex_enter_interpreter();
+		if (ACPI_FAILURE(status2)) {
+
+			/* Report fatal error, could not acquire interpreter */
+
+			return_ACPI_STATUS(status2);
+		}
 	}
 
 	return_ACPI_STATUS(status);
@@ -112,6 +119,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
 acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
 {
 	acpi_status status;
+	acpi_status status2;
 
 	ACPI_FUNCTION_TRACE(ex_system_wait_mutex);
 
@@ -124,7 +132,7 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
 
 		/* We must wait, so unlock the interpreter */
 
-		acpi_ex_relinquish_interpreter();
+		acpi_ex_exit_interpreter();
 
 		status = acpi_os_acquire_mutex(mutex, timeout);
 
@@ -134,7 +142,13 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
 
 		/* Reacquire the interpreter */
 
-		acpi_ex_reacquire_interpreter();
+		status2 = acpi_ex_enter_interpreter();
+		if (ACPI_FAILURE(status2)) {
+
+			/* Report fatal error, could not acquire interpreter */
+
+			return_ACPI_STATUS(status2);
+		}
 	}
 
 	return_ACPI_STATUS(status);
@@ -195,18 +209,20 @@ acpi_status acpi_ex_system_do_stall(u32 how_long)
 
 acpi_status acpi_ex_system_do_suspend(acpi_integer how_long)
 {
+	acpi_status status;
+
 	ACPI_FUNCTION_ENTRY();
 
 	/* Since this thread will sleep, we must release the interpreter */
 
-	acpi_ex_relinquish_interpreter();
+	acpi_ex_exit_interpreter();
 
 	acpi_os_sleep(how_long);
 
 	/* And now we must get the interpreter again */
 
-	acpi_ex_reacquire_interpreter();
-	return (AE_OK);
+	status = acpi_ex_enter_interpreter();
+	return (status);
 }
 
 /*******************************************************************************
