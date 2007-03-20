@@ -466,20 +466,20 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		if (hctx->ccid3hctx_state == TFRC_SSTATE_NO_FBACK) {
 			/*
 			 * Larger Initial Windows [RFC 4342, sec. 5]
-			 * We deviate in that we use `s' instead of `MSS'.
 			 */
-			__u64 w_init = min(4 * hctx->ccid3hctx_s,
-					   max(2 * hctx->ccid3hctx_s, 4380));
+			__u32 w_init = min(4 * dp->dccps_mss_cache,
+					   max(2 * dp->dccps_mss_cache, 4380U));
 			hctx->ccid3hctx_rtt  = r_sample;
 			hctx->ccid3hctx_x    = scaled_div(w_init << 6, r_sample);
 			hctx->ccid3hctx_t_ld = now;
 
 			ccid3_update_send_time(hctx);
 
-			ccid3_pr_debug("%s(%p), s=%u, w_init=%llu, "
+			ccid3_pr_debug("%s(%p), s=%u, MSS=%u, w_init=%u, "
 				       "R_sample=%dus, X=%u\n", dccp_role(sk),
 				       sk, hctx->ccid3hctx_s,
-				       (unsigned long long)w_init,
+				       dp->dccps_mss_cache,
+				       w_init,
 				       (int)r_sample,
 				       (unsigned)(hctx->ccid3hctx_x >> 6));
 
