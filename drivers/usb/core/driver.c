@@ -872,8 +872,10 @@ static int usb_resume_device(struct usb_device *udev)
 
 done:
 	// dev_dbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
-	if (status == 0)
+	if (status == 0) {
+		udev->autoresume_disabled = 0;
 		udev->dev.power.power_state.event = PM_EVENT_ON;
+	}
 	return status;
 }
 
@@ -970,7 +972,7 @@ static int autosuspend_check(struct usb_device *udev)
 	udev->do_remote_wakeup = device_may_wakeup(&udev->dev);
 	if (udev->pm_usage_cnt > 0)
 		return -EBUSY;
-	if (udev->autosuspend_delay < 0)
+	if (udev->autosuspend_delay < 0 || udev->autosuspend_disabled)
 		return -EPERM;
 
 	if (udev->actconfig) {
@@ -1116,6 +1118,8 @@ static int usb_resume_both(struct usb_device *udev)
 	struct usb_interface	*intf;
 	struct usb_device	*parent = udev->parent;
 
+	if (udev->auto_pm && udev->autoresume_disabled)
+		return -EPERM;
 	cancel_delayed_work(&udev->autosuspend);
 	if (udev->state == USB_STATE_NOTATTACHED)
 		return -ENODEV;
@@ -1486,9 +1490,14 @@ static int usb_suspend(struct device *dev, pm_message_t message)
 
 static int usb_resume(struct device *dev)
 {
+	struct usb_device	*udev;
+
 	if (!is_usb_device(dev))	/* Ignore PM for interfaces */
 		return 0;
-	return usb_external_resume_device(to_usb_device(dev));
+	udev = to_usb_device(dev);
+	if (udev->autoresume_disabled)
+		return -EPERM;
+	return usb_external_resume_device(udev);
 }
 
 #else

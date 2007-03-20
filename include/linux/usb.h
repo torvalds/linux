@@ -398,6 +398,8 @@ struct usb_device {
 
 	unsigned auto_pm:1;		/* autosuspend/resume in progress */
 	unsigned do_remote_wakeup:1;	/* remote wakeup should be enabled */
+	unsigned autosuspend_disabled:1; /* autosuspend and autoresume */
+	unsigned autoresume_disabled:1;  /*  disabled by the user */
 #endif
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
