@@ -1512,7 +1512,6 @@ static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 }
 
 extern void skb_init(void);
-extern void skb_add_mtu(int mtu);
 
 /**
  *	skb_get_timestamp - get timestamp from a skb

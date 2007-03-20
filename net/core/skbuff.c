@@ -157,7 +157,6 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	if (!skb)
 		goto out;
 
-	/* Get the DATA. Size must match skb_add_mtu(). */
 	size = SKB_DATA_ALIGN(size);
 	data = kmalloc_node_track_caller(size + sizeof(struct skb_shared_info),
 			gfp_mask, node);
@@ -1532,19 +1531,6 @@ void skb_insert(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head 
 	__skb_insert(newsk, old->prev, old, list);
 	spin_unlock_irqrestore(&list->lock, flags);
 }
-
-#if 0
-/*
- * 	Tune the memory allocator for a new MTU size.
- */
-void skb_add_mtu(int mtu)
-{
-	/* Must match allocation in alloc_skb */
-	mtu = SKB_DATA_ALIGN(mtu) + sizeof(struct skb_shared_info);
-
-	kmem_add_cache_size(mtu);
-}
-#endif
 
 static inline void skb_split_inside_header(struct sk_buff *skb,
 					   struct sk_buff* skb1,
