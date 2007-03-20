@@ -31,13 +31,9 @@
 					      __stringify(cond));          \
 			     } while (0)
 
-#ifdef MODULE
 #define DCCP_PRINTK(enable, fmt, args...)	do { if (enable)	     \
 							printk(fmt, ##args); \
 						} while(0)
-#else
-#define DCCP_PRINTK(enable, fmt, args...)	printk(fmt, ##args)
-#endif
 #define DCCP_PR_DEBUG(enable, fmt, a...)	DCCP_PRINTK(enable, KERN_DEBUG \
 						  "%s: " fmt, __FUNCTION__, ##a)
 
