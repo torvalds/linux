@@ -1388,11 +1388,9 @@ static int nv_alloc_rx(struct net_device *dev)
 			np->put_rx_ctx->skb = skb;
 			np->put_rx_ctx->dma = pci_map_single(np->pci_dev,
 							     skb->data,
-							(skb_end_pointer(skb) -
-							 skb->data),
+							     skb_tailroom(skb),
 							     PCI_DMA_FROMDEVICE);
-			np->put_rx_ctx->dma_len = (skb_end_pointer(skb) -
-						   skb->data);
+			np->put_rx_ctx->dma_len = skb_tailroom(skb);
 			np->put_rx.orig->buf = cpu_to_le32(np->put_rx_ctx->dma);
 			wmb();
 			np->put_rx.orig->flaglen = cpu_to_le32(np->rx_buf_sz | NV_RX_AVAIL);
@@ -1422,11 +1420,9 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 			np->put_rx_ctx->skb = skb;
 			np->put_rx_ctx->dma = pci_map_single(np->pci_dev,
 							     skb->data,
-							     (skb_end_pointer(skb) -
-							      skb->data),
+							     skb_tailroom(skb),
 							     PCI_DMA_FROMDEVICE);
-			np->put_rx_ctx->dma_len = (skb_end_pointer(skb) -
-						   skb->data);
+			np->put_rx_ctx->dma_len = skb_tailroom(skb);
 			np->put_rx.ex->bufhigh = cpu_to_le64(np->put_rx_ctx->dma) >> 32;
 			np->put_rx.ex->buflow = cpu_to_le64(np->put_rx_ctx->dma) & 0x0FFFFFFFF;
 			wmb();
@@ -4383,12 +4379,12 @@ static int nv_loopback_test(struct net_device *dev)
 		ret = 0;
 		goto out;
 	}
+	test_dma_addr = pci_map_single(np->pci_dev, tx_skb->data,
+				       skb_tailroom(tx_skb),
+				       PCI_DMA_FROMDEVICE);
 	pkt_data = skb_put(tx_skb, pkt_len);
 	for (i = 0; i < pkt_len; i++)
 		pkt_data[i] = (u8)(i & 0xff);
-	test_dma_addr = pci_map_single(np->pci_dev, tx_skb->data,
-				       (skb_end_pointer(tx_skb) -
-					tx_skb->data), PCI_DMA_FROMDEVICE);
 
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 		np->tx_ring.orig[0].buf = cpu_to_le32(test_dma_addr);
