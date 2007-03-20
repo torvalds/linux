@@ -287,7 +287,7 @@ MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
 static const struct hid_blacklist {
 	__u16 idVendor;
 	__u16 idProduct;
-	unsigned quirks;
+	__u32 quirks;
 } hid_blacklist[] = {
 
 	{ USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU, HID_QUIRK_2WHEEL_MOUSE_HACK_7 },
@@ -1063,7 +1063,8 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	struct usb_device *dev = interface_to_usbdev (intf);
 	struct hid_descriptor *hdesc;
 	struct hid_device *hid;
-	unsigned quirks = 0, rsize = 0;
+	__u32 quirks = 0;
+	unsigned rsize = 0;
 	char *rdesc;
 	int n, len, insize = 0;
 	struct usbhid_device *usbhid;
