@@ -112,16 +112,21 @@ void dma_free_coherent(struct device *dev, size_t size,
 }
 EXPORT_SYMBOL(dma_free_coherent);
 
-#if 0
 void *dma_alloc_writecombine(struct device *dev, size_t size,
 			     dma_addr_t *handle, gfp_t gfp)
 {
 	struct page *page;
+	dma_addr_t phys;
 
 	page = __dma_alloc(dev, size, handle, gfp);
+	if (!page)
+		return NULL;
+
+	phys = page_to_phys(page);
+	*handle = phys;
 
 	/* Now, map the page into P3 with write-combining turned on */
-	return __ioremap(page_to_phys(page), size, _PAGE_BUFFER);
+	return __ioremap(phys, size, _PAGE_BUFFER);
 }
 EXPORT_SYMBOL(dma_alloc_writecombine);
 
@@ -132,8 +137,7 @@ void dma_free_writecombine(struct device *dev, size_t size,
 
 	iounmap(cpu_addr);
 
-	page = bus_to_page(handle);
+	page = phys_to_page(handle);
 	__dma_free(dev, size, page, handle);
 }
 EXPORT_SYMBOL(dma_free_writecombine);
-#endif
