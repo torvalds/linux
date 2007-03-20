@@ -563,6 +563,14 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 	    dccp_insert_options_feat(sk, skb))
 		return -1;
 
+	/*
+	 * Obtain RTT sample from Request/Response exchange.
+	 * This is currently used in CCID 3 initialisation.
+	 */
+	if (DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_REQUEST &&
+	    dccp_insert_option_timestamp(sk, skb))
+		return -1;
+
 	/* XXX: insert other options when appropriate */
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len != 0) {

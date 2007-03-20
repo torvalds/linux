@@ -300,6 +300,14 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		if (dccp_parse_options(sk, skb))
 			goto out_invalid_packet;
 
+		/* Obtain RTT sample from SYN exchange (used by CCID 3) */
+		if (dp->dccps_options_received.dccpor_timestamp_echo) {
+			struct timeval now;
+
+			dccp_timestamp(sk, &now);
+			dp->dccps_syn_rtt = dccp_sample_rtt(sk, &now, NULL);
+		}
+
 		if (dccp_msk(sk)->dccpms_send_ack_vector &&
 		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
 				    DCCP_SKB_CB(skb)->dccpd_seq,

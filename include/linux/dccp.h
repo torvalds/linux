@@ -481,10 +481,12 @@ struct dccp_ackvec;
  * @dccps_hc_rx_insert_options -
  * @dccps_hc_tx_insert_options -
  * @dccps_xmit_timer - timer for when CCID is not ready to send
+ * @dccps_syn_rtt - RTT sample from Request/Response exchange (in usecs)
  */
 struct dccp_sock {
 	/* inet_connection_sock has to be the first member of dccp_sock */
 	struct inet_connection_sock	dccps_inet_connection;
+#define dccps_syn_rtt			dccps_inet_connection.icsk_ack.lrcvtime
 	__u64				dccps_swl;
 	__u64				dccps_swh;
 	__u64				dccps_awl;
