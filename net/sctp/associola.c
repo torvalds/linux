@@ -1063,6 +1063,12 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		 */
 		sctp_ssnmap_clear(asoc->ssnmap);
 
+		/* Flush the ULP reassembly and ordered queue.
+		 * Any data there will now be stale and will
+		 * cause problems.
+		 */
+		sctp_ulpq_flush(&asoc->ulpq);
+
 	} else {
 		/* Add any peer addresses from the new association. */
 		list_for_each(pos, &new->peer.transport_addr_list) {
