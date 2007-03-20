@@ -707,8 +707,9 @@ static int
 find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 {
 	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
-	u8 prev_nhoff = (u8 *)&ipv6_hdr(skb)->nexthdr - skb->data;
-	int start = (u8 *)(ipv6_hdr(skb) + 1) - skb->data;
+	const int netoff = skb_network_offset(skb);
+	u8 prev_nhoff = netoff + offsetof(struct ipv6hdr, nexthdr);
+	int start = netoff + sizeof(struct ipv6hdr);
 	int len = skb->len - start;
 	u8 prevhdr = NEXTHDR_IPV6;
 
