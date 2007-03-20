@@ -1932,7 +1932,7 @@ static void lmc_softreset (lmc_softc_t * const sc) /*fold00*/
         sc->lmc_rxring[i].status = 0x80000000;
 
         /* used to be PKT_BUF_SZ now uses skb since we lose some to head room */
-        sc->lmc_rxring[i].length = skb_end_pointer(skb) - skb->data;
+        sc->lmc_rxring[i].length = skb_tailroom(skb);
 
         /* use to be tail which is dumb since you're thinking why write
          * to the end of the packj,et but since there's nothing there tail == data
