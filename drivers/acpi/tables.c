@@ -42,7 +42,9 @@ static char *mps_inti_flags_trigger[] = { "dfl", "edge", "res", "level" };
 
 static struct acpi_table_desc initial_tables[ACPI_MAX_TABLES] __initdata;
 
-void acpi_table_print_madt_entry(struct acpi_subtable_header * header)
+static int acpi_apic_instance __initdata = 2;
+
+void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 {
 	if (!header)
 		return;
@@ -183,8 +185,10 @@ acpi_table_parse_entries(char *id,
 	if (!handler)
 		return -EINVAL;
 
-	/* Locate the table (if exists). There should only be one. */
-	acpi_get_table(id, 0, &table_header);
+	if (strncmp(id, ACPI_SIG_MADT, 4) == 0)
+		acpi_get_table(id, acpi_apic_instance, &table_header);
+	else
+		acpi_get_table(id, 0, &table_header);
 
 	if (!table_header) {
 		printk(KERN_WARNING PREFIX "%4.4s not present\n", id);
@@ -237,15 +241,45 @@ acpi_table_parse_madt(enum acpi_madt_type id,
 int __init acpi_table_parse(char *id, acpi_table_handler handler)
 {
 	struct acpi_table_header *table = NULL;
+
 	if (!handler)
 		return -EINVAL;
 
-	acpi_get_table(id, 0, &table);
+	if (strncmp(id, ACPI_SIG_MADT, 4) == 0)
+		acpi_get_table(id, acpi_apic_instance, &table);
+	else
+		acpi_get_table(id, 0, &table);
+
 	if (table) {
 		handler(table);
 		return 0;
 	} else
 		return 1;
+}
+
+/* 
+ * The BIOS is supposed to supply a single APIC/MADT,
+ * but some report two.  Provide a knob to use either.
+ * (don't you wish instance 0 and 1 were not the same?)
+ */
+static void __init check_multiple_madt(void)
+{
+	struct acpi_table_header *table = NULL;
+
+	acpi_get_table(ACPI_SIG_MADT, 2, &table);
+	if (table) {
+		printk(KERN_WARNING PREFIX
+		       "BIOS bug: multiple APIC/MADT found,"
+		       " using %d\n", acpi_apic_instance);
+		printk(KERN_WARNING PREFIX
+		       "If \"acpi_apic_instance=%d\" works better, "
+		       "notify linux-acpi@vger.kernel.org\n",
+		       acpi_apic_instance ? 0 : 2);
+
+	} else
+		acpi_apic_instance = 0;
+
+	return;
 }
 
 /*
@@ -257,9 +291,22 @@ int __init acpi_table_parse(char *id, acpi_table_handler handler)
  * result: sdt_entry[] is initialized
  */
 
-
 int __init acpi_table_init(void)
 {
 	acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
+	check_multiple_madt();
 	return 0;
 }
+
+static int __init acpi_parse_apic_instance(char *str)
+{
+
+	acpi_apic_instance = simple_strtoul(str, NULL, 0);
+
+	printk(KERN_NOTICE PREFIX "Shall use APIC/MADT table %d\n",
+	       acpi_apic_instance);
+
+	return 0;
+}
+
+early_param("acpi_apic_instance", acpi_parse_apic_instance);

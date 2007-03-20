@@ -138,6 +138,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 			See also Documentation/pm.txt, pci=noacpi
 
+	acpi_apic_instance=	[ACPI, IOAPIC]
+			Format: <int>
+			2: use 2nd APIC table, if available
+			1,0: use 1st APIC table
+			default: 2
+
 	acpi_sleep=	[HW,ACPI] Sleep options
 			Format: { s3_bios, s3_mode }
 			See Documentation/power/video.txt
