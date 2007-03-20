@@ -149,11 +149,8 @@ static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
  */
 static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
 {
-	if (unlikely(len == 0))
-		ccid3_pr_debug("Packet payload length is 0 - not updating\n");
-	else
-		hctx->ccid3hctx_s = hctx->ccid3hctx_s == 0 ? len :
-				    (9 * hctx->ccid3hctx_s + len) / 10;
+	hctx->ccid3hctx_s = hctx->ccid3hctx_s == 0 ? len :
+			    (9 * hctx->ccid3hctx_s + len) / 10;
 	/*
 	 * Note: We could do a potential optimisation here - when `s' changes,
 	 *	 recalculate sending rate and consequently t_ipi, t_delta, and
