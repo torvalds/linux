@@ -351,18 +351,15 @@ void __init paging_init(void)
 #endif
 	kmap_coherent_init();
 
-#ifdef CONFIG_ISA
-	if (max_low_pfn >= MAX_DMA_PFN)
-		if (min_low_pfn >= MAX_DMA_PFN) {
-			zones_size[ZONE_DMA] = 0;
-			zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
-		} else {
-			zones_size[ZONE_DMA] = MAX_DMA_PFN - min_low_pfn;
-			zones_size[ZONE_NORMAL] = max_low_pfn - MAX_DMA_PFN;
-		}
+#ifdef CONFIG_ZONE_DMA
+	if (min_low_pfn < MAX_DMA_PFN && MAX_DMA_PFN <= max_low_pfn) {
+		zones_size[ZONE_DMA] = MAX_DMA_PFN - min_low_pfn;
+		zones_size[ZONE_NORMAL] = max_low_pfn - MAX_DMA_PFN;
+	} else if (max_low_pfn < MAX_DMA_PFN)
+		zones_size[ZONE_DMA] = max_low_pfn - min_low_pfn;
 	else
 #endif
-	zones_size[ZONE_DMA] = max_low_pfn - min_low_pfn;
+	zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
 
 #ifdef CONFIG_HIGHMEM
 	zones_size[ZONE_HIGHMEM] = highend_pfn - highstart_pfn;
