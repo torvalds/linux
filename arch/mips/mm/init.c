@@ -377,7 +377,7 @@ void __init paging_init(void)
 #ifdef CONFIG_FLATMEM
 	free_area_init(zones_size);
 #else
-	pfn = 0;
+	pfn = min_low_pfn;
 	for (i = 0; i < MAX_NR_ZONES; i++)
 		for (j = 0; j < zones_size[i]; j++, pfn++)
 			if (!page_is_ram(pfn))
