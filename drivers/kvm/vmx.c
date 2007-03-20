@@ -1394,7 +1394,7 @@ static int handle_triple_fault(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 }
 
-static int get_io_count(struct kvm_vcpu *vcpu, u64 *count)
+static int get_io_count(struct kvm_vcpu *vcpu, unsigned long *count)
 {
 	u64 inst;
 	gva_t rip;
@@ -1439,35 +1439,35 @@ static int get_io_count(struct kvm_vcpu *vcpu, u64 *count)
 done:
 	countr_size *= 8;
 	*count = vcpu->regs[VCPU_REGS_RCX] & (~0ULL >> (64 - countr_size));
+	//printk("cx: %lx\n", vcpu->regs[VCPU_REGS_RCX]);
 	return 1;
 }
 
 static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u64 exit_qualification;
+	int size, down, in, string, rep;
+	unsigned port;
+	unsigned long count;
+	gva_t address;
 
 	++kvm_stat.io_exits;
 	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
-	kvm_run->exit_reason = KVM_EXIT_IO;
-	if (exit_qualification & 8)
-		kvm_run->io.direction = KVM_EXIT_IO_IN;
-	else
-		kvm_run->io.direction = KVM_EXIT_IO_OUT;
-	kvm_run->io.size = (exit_qualification & 7) + 1;
-	kvm_run->io.string = (exit_qualification & 16) != 0;
-	kvm_run->io.string_down
-		= (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_DF) != 0;
-	kvm_run->io.rep = (exit_qualification & 32) != 0;
-	kvm_run->io.port = exit_qualification >> 16;
-	kvm_run->io.count = 1;
-	if (kvm_run->io.string) {
-		if (!get_io_count(vcpu, &kvm_run->io.count))
+	in = (exit_qualification & 8) != 0;
+	size = (exit_qualification & 7) + 1;
+	string = (exit_qualification & 16) != 0;
+	down = (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_DF) != 0;
+	count = 1;
+	rep = (exit_qualification & 32) != 0;
+	port = exit_qualification >> 16;
+	address = 0;
+	if (string) {
+		if (rep && !get_io_count(vcpu, &count))
 			return 1;
-		kvm_run->io.address = vmcs_readl(GUEST_LINEAR_ADDRESS);
-	} else
-		kvm_run->io.value = vcpu->regs[VCPU_REGS_RAX]; /* rax */
-	vcpu->pio_pending = 1;
-	return 0;
+		address = vmcs_readl(GUEST_LINEAR_ADDRESS);
+	}
+	return kvm_setup_pio(vcpu, kvm_run, in, size, count, string, down,
+			     address, rep, port);
 }
 
 static void

@@ -735,6 +735,15 @@ hpa_t gva_to_hpa(struct kvm_vcpu *vcpu, gva_t gva)
 	return gpa_to_hpa(vcpu, gpa);
 }
 
+struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
+{
+	gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, gva);
+
+	if (gpa == UNMAPPED_GVA)
+		return NULL;
+	return pfn_to_page(gpa_to_hpa(vcpu, gpa) >> PAGE_SHIFT);
+}
+
 static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
 }

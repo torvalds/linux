@@ -74,6 +74,8 @@
 
 #define IOPL_SHIFT 12
 
+#define KVM_PIO_PAGE_OFFSET 1
+
 /*
  * Address types:
  *
@@ -220,6 +222,18 @@ enum {
 	VCPU_SREG_LDTR,
 };
 
+struct kvm_pio_request {
+	unsigned long count;
+	int cur_count;
+	struct page *guest_pages[2];
+	unsigned guest_page_offset;
+	int in;
+	int size;
+	int string;
+	int down;
+	int rep;
+};
+
 struct kvm_vcpu {
 	struct kvm *kvm;
 	union {
@@ -275,7 +289,8 @@ struct kvm_vcpu {
 	int mmio_size;
 	unsigned char mmio_data[8];
 	gpa_t mmio_phys_addr;
-	int pio_pending;
+	struct kvm_pio_request pio;
+	void *pio_data;
 
 	int sigset_active;
 	sigset_t sigset;
@@ -421,6 +436,7 @@ hpa_t gpa_to_hpa(struct kvm_vcpu *vcpu, gpa_t gpa);
 #define HPA_ERR_MASK ((hpa_t)1 << HPA_MSB)
 static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
 hpa_t gva_to_hpa(struct kvm_vcpu *vcpu, gva_t gva);
+struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
 
 void kvm_emulator_want_group7_invlpg(void);
 
@@ -453,6 +469,9 @@ void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long value,
 
 struct x86_emulate_ctxt;
 
+int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+		  int size, unsigned long count, int string, int down,
+		  gva_t address, int rep, unsigned port);
 void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address);
 int emulate_clts(struct kvm_vcpu *vcpu);

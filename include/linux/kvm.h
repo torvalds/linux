@@ -86,16 +86,9 @@ struct kvm_run {
 #define KVM_EXIT_IO_OUT 1
 			__u8 direction;
 			__u8 size; /* bytes */
-			__u8 string;
-			__u8 string_down;
-			__u8 rep;
-			__u8 pad;
 			__u16 port;
-			__u64 count;
-			union {
-				__u64 address;
-				__u32 value;
-			};
+			__u32 count;
+			__u64 data_offset; /* relative to kvm_run start */
 		} io;
 		struct {
 		} debug;

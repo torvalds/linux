@@ -346,6 +346,17 @@ static void kvm_free_physmem(struct kvm *kvm)
 		kvm_free_physmem_slot(&kvm->memslots[i], NULL);
 }
 
+static void free_pio_guest_pages(struct kvm_vcpu *vcpu)
+{
+	int i;
+
+	for (i = 0; i < 2; ++i)
+		if (vcpu->pio.guest_pages[i]) {
+			__free_page(vcpu->pio.guest_pages[i]);
+			vcpu->pio.guest_pages[i] = NULL;
+		}
+}
+
 static void kvm_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu->vmcs)
@@ -357,6 +368,9 @@ static void kvm_free_vcpu(struct kvm_vcpu *vcpu)
 	kvm_arch_ops->vcpu_free(vcpu);
 	free_page((unsigned long)vcpu->run);
 	vcpu->run = NULL;
+	free_page((unsigned long)vcpu->pio_data);
+	vcpu->pio_data = NULL;
+	free_pio_guest_pages(vcpu);
 }
 
 static void kvm_free_vcpus(struct kvm *kvm)
@@ -1550,43 +1564,167 @@ void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
 
-static void complete_pio(struct kvm_vcpu *vcpu)
+static int pio_copy_data(struct kvm_vcpu *vcpu)
 {
-	struct kvm_io *io = &vcpu->run->io;
+	void *p = vcpu->pio_data;
+	void *q;
+	unsigned bytes;
+	int nr_pages = vcpu->pio.guest_pages[1] ? 2 : 1;
+
+	kvm_arch_ops->vcpu_put(vcpu);
+	q = vmap(vcpu->pio.guest_pages, nr_pages, VM_READ|VM_WRITE,
+		 PAGE_KERNEL);
+	if (!q) {
+		kvm_arch_ops->vcpu_load(vcpu);
+		free_pio_guest_pages(vcpu);
+		return -ENOMEM;
+	}
+	q += vcpu->pio.guest_page_offset;
+	bytes = vcpu->pio.size * vcpu->pio.cur_count;
+	if (vcpu->pio.in)
+		memcpy(q, p, bytes);
+	else
+		memcpy(p, q, bytes);
+	q -= vcpu->pio.guest_page_offset;
+	vunmap(q);
+	kvm_arch_ops->vcpu_load(vcpu);
+	free_pio_guest_pages(vcpu);
+	return 0;
+}
+
+static int complete_pio(struct kvm_vcpu *vcpu)
+{
+	struct kvm_pio_request *io = &vcpu->pio;
 	long delta;
+	int r;
 
 	kvm_arch_ops->cache_regs(vcpu);
 
 	if (!io->string) {
-		if (io->direction == KVM_EXIT_IO_IN)
-			memcpy(&vcpu->regs[VCPU_REGS_RAX], &io->value,
+		if (io->in)
+			memcpy(&vcpu->regs[VCPU_REGS_RAX], vcpu->pio_data,
 			       io->size);
 	} else {
+		if (io->in) {
+			r = pio_copy_data(vcpu);
+			if (r) {
+				kvm_arch_ops->cache_regs(vcpu);
+				return r;
+			}
+		}
+
 		delta = 1;
 		if (io->rep) {
-			delta *= io->count;
+			delta *= io->cur_count;
 			/*
 			 * The size of the register should really depend on
 			 * current address size.
 			 */
 			vcpu->regs[VCPU_REGS_RCX] -= delta;
 		}
-		if (io->string_down)
+		if (io->down)
 			delta = -delta;
 		delta *= io->size;
-		if (io->direction == KVM_EXIT_IO_IN)
+		if (io->in)
 			vcpu->regs[VCPU_REGS_RDI] += delta;
 		else
 			vcpu->regs[VCPU_REGS_RSI] += delta;
 	}
 
-	vcpu->pio_pending = 0;
 	vcpu->run->io_completed = 0;
 
 	kvm_arch_ops->decache_regs(vcpu);
 
-	kvm_arch_ops->skip_emulated_instruction(vcpu);
+	io->count -= io->cur_count;
+	io->cur_count = 0;
+
+	if (!io->count)
+		kvm_arch_ops->skip_emulated_instruction(vcpu);
+	return 0;
 }
+
+int kvm_setup_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+		  int size, unsigned long count, int string, int down,
+		  gva_t address, int rep, unsigned port)
+{
+	unsigned now, in_page;
+	int i;
+	int nr_pages = 1;
+	struct page *page;
+
+	vcpu->run->exit_reason = KVM_EXIT_IO;
+	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
+	vcpu->run->io.size = size;
+	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
+	vcpu->run->io.count = count;
+	vcpu->run->io.port = port;
+	vcpu->pio.count = count;
+	vcpu->pio.cur_count = count;
+	vcpu->pio.size = size;
+	vcpu->pio.in = in;
+	vcpu->pio.string = string;
+	vcpu->pio.down = down;
+	vcpu->pio.guest_page_offset = offset_in_page(address);
+	vcpu->pio.rep = rep;
+
+	if (!string) {
+		kvm_arch_ops->cache_regs(vcpu);
+		memcpy(vcpu->pio_data, &vcpu->regs[VCPU_REGS_RAX], 4);
+		kvm_arch_ops->decache_regs(vcpu);
+		return 0;
+	}
+
+	if (!count) {
+		kvm_arch_ops->skip_emulated_instruction(vcpu);
+		return 1;
+	}
+
+	now = min(count, PAGE_SIZE / size);
+
+	if (!down)
+		in_page = PAGE_SIZE - offset_in_page(address);
+	else
+		in_page = offset_in_page(address) + size;
+	now = min(count, (unsigned long)in_page / size);
+	if (!now) {
+		/*
+		 * String I/O straddles page boundary.  Pin two guest pages
+		 * so that we satisfy atomicity constraints.  Do just one
+		 * transaction to avoid complexity.
+		 */
+		nr_pages = 2;
+		now = 1;
+	}
+	if (down) {
+		/*
+		 * String I/O in reverse.  Yuck.  Kill the guest, fix later.
+		 */
+		printk(KERN_ERR "kvm: guest string pio down\n");
+		inject_gp(vcpu);
+		return 1;
+	}
+	vcpu->run->io.count = now;
+	vcpu->pio.cur_count = now;
+
+	for (i = 0; i < nr_pages; ++i) {
+		spin_lock(&vcpu->kvm->lock);
+		page = gva_to_page(vcpu, address + i * PAGE_SIZE);
+		if (page)
+			get_page(page);
+		vcpu->pio.guest_pages[i] = page;
+		spin_unlock(&vcpu->kvm->lock);
+		if (!page) {
+			inject_gp(vcpu);
+			free_pio_guest_pages(vcpu);
+			return 1;
+		}
+	}
+
+	if (!vcpu->pio.in)
+		return pio_copy_data(vcpu);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_setup_pio);
 
 static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
@@ -1602,9 +1740,11 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	vcpu->cr8 = kvm_run->cr8;
 
 	if (kvm_run->io_completed) {
-		if (vcpu->pio_pending)
-			complete_pio(vcpu);
-		else {
+		if (vcpu->pio.cur_count) {
+			r = complete_pio(vcpu);
+			if (r)
+				goto out;
+		} else {
 			memcpy(vcpu->mmio_data, kvm_run->mmio.data, 8);
 			vcpu->mmio_read_completed = 1;
 		}
@@ -1620,6 +1760,7 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	r = kvm_arch_ops->run(vcpu, kvm_run);
 
+out:
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
 
@@ -1995,9 +2136,12 @@ static struct page *kvm_vcpu_nopage(struct vm_area_struct *vma,
 
 	*type = VM_FAULT_MINOR;
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-	if (pgoff != 0)
+	if (pgoff == 0)
+		page = virt_to_page(vcpu->run);
+	else if (pgoff == KVM_PIO_PAGE_OFFSET)
+		page = virt_to_page(vcpu->pio_data);
+	else
 		return NOPAGE_SIGBUS;
-	page = virt_to_page(vcpu->run);
 	get_page(page);
 	return page;
 }
@@ -2094,6 +2238,12 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 		goto out_unlock;
 	vcpu->run = page_address(page);
 
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	r = -ENOMEM;
+	if (!page)
+		goto out_free_run;
+	vcpu->pio_data = page_address(page);
+
 	vcpu->host_fx_image = (char*)ALIGN((hva_t)vcpu->fx_buf,
 					   FX_IMAGE_ALIGN);
 	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
@@ -2123,6 +2273,9 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 
 out_free_vcpus:
 	kvm_free_vcpu(vcpu);
+out_free_run:
+	free_page((unsigned long)vcpu->run);
+	vcpu->run = NULL;
 out_unlock:
 	mutex_unlock(&vcpu->mutex);
 out:
@@ -2491,7 +2644,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = -EINVAL;
 		if (arg)
 			goto out;
-		r = PAGE_SIZE;
+		r = 2 * PAGE_SIZE;
 		break;
 	default:
 		;

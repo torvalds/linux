@@ -984,7 +984,7 @@ static int io_get_override(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static unsigned long io_adress(struct kvm_vcpu *vcpu, int ins, u64 *address)
+static unsigned long io_adress(struct kvm_vcpu *vcpu, int ins, gva_t *address)
 {
 	unsigned long addr_mask;
 	unsigned long *reg;
@@ -1028,40 +1028,38 @@ static unsigned long io_adress(struct kvm_vcpu *vcpu, int ins, u64 *address)
 static int io_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u32 io_info = vcpu->svm->vmcb->control.exit_info_1; //address size bug?
-	int _in = io_info & SVM_IOIO_TYPE_MASK;
+	int size, down, in, string, rep;
+	unsigned port;
+	unsigned long count;
+	gva_t address = 0;
 
 	++kvm_stat.io_exits;
 
 	vcpu->svm->next_rip = vcpu->svm->vmcb->control.exit_info_2;
 
-	kvm_run->exit_reason = KVM_EXIT_IO;
-	kvm_run->io.port = io_info >> 16;
-	kvm_run->io.direction = (_in) ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
-	kvm_run->io.size = ((io_info & SVM_IOIO_SIZE_MASK) >> SVM_IOIO_SIZE_SHIFT);
-	kvm_run->io.string = (io_info & SVM_IOIO_STR_MASK) != 0;
-	kvm_run->io.rep = (io_info & SVM_IOIO_REP_MASK) != 0;
-	kvm_run->io.count = 1;
+	in = (io_info & SVM_IOIO_TYPE_MASK) != 0;
+	port = io_info >> 16;
+	size = (io_info & SVM_IOIO_SIZE_MASK) >> SVM_IOIO_SIZE_SHIFT;
+	string = (io_info & SVM_IOIO_STR_MASK) != 0;
+	rep = (io_info & SVM_IOIO_REP_MASK) != 0;
+	count = 1;
+	down = (vcpu->svm->vmcb->save.rflags & X86_EFLAGS_DF) != 0;
 
-	if (kvm_run->io.string) {
+	if (string) {
 		unsigned addr_mask;
 
-		addr_mask = io_adress(vcpu, _in, &kvm_run->io.address);
+		addr_mask = io_adress(vcpu, in, &address);
 		if (!addr_mask) {
 			printk(KERN_DEBUG "%s: get io address failed\n",
 			       __FUNCTION__);
 			return 1;
 		}
 
-		if (kvm_run->io.rep) {
-			kvm_run->io.count
-				= vcpu->regs[VCPU_REGS_RCX] & addr_mask;
-			kvm_run->io.string_down = (vcpu->svm->vmcb->save.rflags
-						   & X86_EFLAGS_DF) != 0;
-		}
-	} else
-		kvm_run->io.value = vcpu->svm->vmcb->save.rax;
-	vcpu->pio_pending = 1;
-	return 0;
+		if (rep)
+			count = vcpu->regs[VCPU_REGS_RCX] & addr_mask;
+	}
+	return kvm_setup_pio(vcpu, kvm_run, in, size, count, string, down,
+			     address, rep, port);
 }
 
 static int nop_on_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
