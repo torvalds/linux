@@ -788,22 +788,6 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	vcpu->cr0 = cr0;
 }
 
-/*
- * Used when restoring the VM to avoid corrupting segment registers
- */
-static void vmx_set_cr0_no_modeswitch(struct kvm_vcpu *vcpu, unsigned long cr0)
-{
-	if (!vcpu->rmode.active && !(cr0 & CR0_PE_MASK))
-		enter_rmode(vcpu);
-
-	vcpu->rmode.active = ((cr0 & CR0_PE_MASK) == 0);
-	update_exception_bitmap(vcpu);
-	vmcs_writel(CR0_READ_SHADOW, cr0);
-	vmcs_writel(GUEST_CR0,
-		    (cr0 & ~KVM_GUEST_CR0_MASK) | KVM_VM_CR0_ALWAYS_ON);
-	vcpu->cr0 = cr0;
-}
-
 static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	vmcs_writel(GUEST_CR3, cr3);
@@ -2069,7 +2053,6 @@ static struct kvm_arch_ops vmx_arch_ops = {
 	.get_cs_db_l_bits = vmx_get_cs_db_l_bits,
 	.decache_cr0_cr4_guest_bits = vmx_decache_cr0_cr4_guest_bits,
 	.set_cr0 = vmx_set_cr0,
-	.set_cr0_no_modeswitch = vmx_set_cr0_no_modeswitch,
 	.set_cr3 = vmx_set_cr3,
 	.set_cr4 = vmx_set_cr4,
 #ifdef CONFIG_X86_64

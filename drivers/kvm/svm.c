@@ -1716,7 +1716,6 @@ static struct kvm_arch_ops svm_arch_ops = {
 	.get_cs_db_l_bits = svm_get_cs_db_l_bits,
 	.decache_cr0_cr4_guest_bits = svm_decache_cr0_cr4_guest_bits,
 	.set_cr0 = svm_set_cr0,
-	.set_cr0_no_modeswitch = svm_set_cr0,
 	.set_cr3 = svm_set_cr3,
 	.set_cr4 = svm_set_cr4,
 	.set_efer = svm_set_efer,
