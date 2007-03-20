@@ -144,9 +144,7 @@ static inline u64 max48(const u64 seq1, const u64 seq2)
 /* is seq1 next seqno after seq2 */
 static inline int follows48(const u64 seq1, const u64 seq2)
 {
-	int diff = (seq1 & 0xFFFF) - (seq2 & 0xFFFF);
-
-	return diff==1;
+	return dccp_delta_seqno(seq2, seq1) == 1;
 }
 
 enum {
