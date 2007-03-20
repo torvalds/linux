@@ -1151,7 +1151,9 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 		return ATA_EH_SOFTRESET;
 	}
 
-	if (!(qc->err_mask & AC_ERR_DEV))
+	if (stat & (ATA_ERR | ATA_DF))
+		qc->err_mask |= AC_ERR_DEV;
+	else
 		return 0;
 
 	switch (qc->dev->class) {

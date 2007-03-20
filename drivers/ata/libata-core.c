@@ -1270,12 +1270,16 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (ap->ops->post_internal_cmd)
 		ap->ops->post_internal_cmd(qc);
 
-	if ((qc->flags & ATA_QCFLAG_FAILED) && !qc->err_mask) {
-		if (ata_msg_warn(ap))
-			ata_dev_printk(dev, KERN_WARNING,
-				"zero err_mask for failed "
-				"internal command, assuming AC_ERR_OTHER\n");
-		qc->err_mask |= AC_ERR_OTHER;
+	/* perform minimal error analysis */
+	if (qc->flags & ATA_QCFLAG_FAILED) {
+		if (qc->result_tf.command & (ATA_ERR | ATA_DF))
+			qc->err_mask |= AC_ERR_DEV;
+
+		if (!qc->err_mask)
+			qc->err_mask |= AC_ERR_OTHER;
+
+		if (qc->err_mask & ~AC_ERR_OTHER)
+			qc->err_mask &= ~AC_ERR_OTHER;
 	}
 
 	/* finish up */

@@ -622,11 +622,8 @@ static void pdc_post_internal_cmd(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
-	if (qc->flags & ATA_QCFLAG_FAILED)
-		qc->err_mask |= AC_ERR_OTHER;
-
 	/* make DMA engine forget about the failed command */
-	if (qc->err_mask)
+	if (qc->flags & ATA_QCFLAG_FAILED)
 		pdc_reset_port(ap);
 }
 

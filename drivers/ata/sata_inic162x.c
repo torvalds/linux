@@ -488,7 +488,7 @@ static void inic_error_handler(struct ata_port *ap)
 static void inic_post_internal_cmd(struct ata_queued_cmd *qc)
 {
 	/* make DMA engine forget about the failed command */
-	if (qc->err_mask)
+	if (qc->flags & ATA_QCFLAG_FAILED)
 		inic_reset_port(inic_port_base(qc->ap));
 }
 

@@ -1430,10 +1430,7 @@ static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)
 	void __iomem *mmio = ap->host->iomap[AHCI_PCI_BAR];
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 
-	if (qc->flags & ATA_QCFLAG_FAILED)
-		qc->err_mask |= AC_ERR_OTHER;
-
-	if (qc->err_mask) {
+	if (qc->flags & ATA_QCFLAG_FAILED) {
 		/* make DMA engine forget about the failed command */
 		ahci_stop_engine(port_mmio);
 		ahci_start_engine(port_mmio);
