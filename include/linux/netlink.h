@@ -229,18 +229,6 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 #define NLMSG_PUT(skb, pid, seq, type, len) \
 	NLMSG_NEW(skb, pid, seq, type, len, 0)
 
-#define NLMSG_NEW_ANSWER(skb, cb, type, len, flags) \
-	NLMSG_NEW(skb, NETLINK_CB((cb)->skb).pid, \
-		  (cb)->nlh->nlmsg_seq, type, len, flags)
-
-#define NLMSG_END(skb, nlh) \
-({	(nlh)->nlmsg_len = skb_tail_pointer(skb) - (unsigned char *)(nlh); \
-	(skb)->len; })
-
-#define NLMSG_CANCEL(skb, nlh) \
-({	skb_trim(skb, (unsigned char *) (nlh) - (skb)->data); \
-	-1; })
-
 extern int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 			      struct nlmsghdr *nlh,
 			      int (*dump)(struct sk_buff *skb, struct netlink_callback*),
