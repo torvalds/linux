@@ -267,19 +267,24 @@ static int find_and_setup_root(struct btrfs_super_block *super,
 
 struct btrfs_root *open_ctree(char *filename, struct btrfs_super_block *super)
 {
+	int fp;
+
+	fp = open(filename, O_CREAT | O_RDWR, 0600);
+	if (fp < 0) {
+		return NULL;
+	}
+	return open_ctree_fd(fp, super);
+}
+
+struct btrfs_root *open_ctree_fd(int fp, struct btrfs_super_block *super)
+{
 	struct btrfs_root *root = malloc(sizeof(struct btrfs_root));
 	struct btrfs_root *extent_root = malloc(sizeof(struct btrfs_root));
 	struct btrfs_root *tree_root = malloc(sizeof(struct btrfs_root));
 	struct btrfs_root *inode_root = malloc(sizeof(struct btrfs_root));
 	struct btrfs_fs_info *fs_info = malloc(sizeof(*fs_info));
-	int fp;
 	int ret;
 
-	fp = open(filename, O_CREAT | O_RDWR, 0600);
-	if (fp < 0) {
-		free(root);
-		return NULL;
-	}
 	INIT_RADIX_TREE(&fs_info->cache_radix, GFP_KERNEL);
 	INIT_RADIX_TREE(&fs_info->pinned_radix, GFP_KERNEL);
 	INIT_LIST_HEAD(&fs_info->trans);

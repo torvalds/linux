@@ -1,9 +1,6 @@
 #ifndef __BTRFS__
 #define __BTRFS__
 
-#include "list.h"
-#include "kerncompat.h"
-
 struct btrfs_trans_handle;
 
 #define BTRFS_MAGIC "_BtRfS_M"
@@ -75,6 +72,7 @@ struct btrfs_super_block {
 	__le64 root;
 	__le64 total_blocks;
 	__le64 blocks_used;
+	__le64 root_dir_objectid;
 } __attribute__ ((__packed__));
 
 /*
@@ -691,6 +689,17 @@ static inline void btrfs_set_super_blocksize(struct btrfs_super_block *s,
 						u32 val)
 {
 	s->blocksize = cpu_to_le32(val);
+}
+
+static inline u64 btrfs_super_root_dir(struct btrfs_super_block *s)
+{
+	return le64_to_cpu(s->root_dir_objectid);
+}
+
+static inline void btrfs_set_super_root_dir(struct btrfs_super_block *s, u64
+					    val)
+{
+	s->root_dir_objectid = cpu_to_le64(val);
 }
 
 static inline u8 *btrfs_leaf_data(struct btrfs_leaf *l)

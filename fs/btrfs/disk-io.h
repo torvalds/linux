@@ -24,6 +24,7 @@ int clean_tree_block(struct btrfs_trans_handle *trans,
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans, struct btrfs_root
 			     *root, struct btrfs_super_block *s);
 struct btrfs_root *open_ctree(char *filename, struct btrfs_super_block *s);
+struct btrfs_root *open_ctree_fd(int fp, struct btrfs_super_block *super);
 int close_ctree(struct btrfs_root *root, struct btrfs_super_block *s);
 void btrfs_block_release(struct btrfs_root *root, struct btrfs_buffer *buf);
 int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root *root,

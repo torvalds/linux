@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "kerncompat.h"
-#include "radix-tree.h"
+#include <linux/module.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "hash.h"
@@ -21,7 +18,12 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	key.objectid = dir;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
-	ret = btrfs_name_hash(name, name_len, &key.offset);
+	if (name_len == 1 && *name == '.')
+		key.offset = 1;
+	else if (name_len == 2 && name[0] == '.' && name[1] == '.')
+		key.offset = 2;
+	else
+		ret = btrfs_name_hash(name, name_len, &key.offset);
 	BUG_ON(ret);
 	btrfs_init_path(&path);
 	data_size = sizeof(*dir_item) + name_len;

@@ -1,10 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "kerncompat.h"
-#include "radix-tree.h"
+#include <linux/module.h>
 #include "ctree.h"
 #include "disk-io.h"
-#include "print-tree.h"
 
 static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, int level);
