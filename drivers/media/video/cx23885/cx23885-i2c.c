@@ -29,7 +29,7 @@
 
 #include <media/v4l2-common.h>
 
-static unsigned int i2c_debug = 2;
+static unsigned int i2c_debug = 0;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
