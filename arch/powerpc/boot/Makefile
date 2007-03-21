@@ -76,7 +76,7 @@ $(obj)/zImage.lds $(obj)/zImage.coff.lds: $(obj)/%: $(srctree)/$(src)/%.S
 	@cp $< $@
 
 clean-files := $(zlib) $(zlibheader) $(zliblinuxheader) \
-		empty.c zImage zImage.coff.lds zImage.lds zImage.sandpoint
+		empty.c zImage.coff.lds zImage.lds
 
 quiet_cmd_bootcc = BOOTCC  $@
       cmd_bootcc = $(CROSS32CC) -Wp,-MD,$(depfile) $(BOOTCFLAGS) -c -o $@ $<
@@ -177,6 +177,7 @@ ifeq ($(CONFIG_PPC32),y)
 image-$(CONFIG_PPC_PMAC)	+= zImage.coff zImage.miboot
 endif
 
+initrd-  := $(patsubst zImage%, zImage.initrd%, $(image-n) $(image-))
 initrd-y := $(patsubst zImage%, zImage.initrd%, $(image-y))
 targets	+= $(image-y) $(initrd-y)
 
@@ -188,6 +189,5 @@ $(obj)/zImage.initrd:	$(addprefix $(obj)/, $(initrd-y))
 install: $(CONFIGURE) $(image-y)
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" $<
 
-clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.strip.gz)
-clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.bin.gz)
-clean-files += $(image-)
+clean-files += $(addprefix $(objtree)/, vmlinux.strip.gz vmlinux.bin.gz)
+clean-files += $(image-) $(initrd-) zImage zImage.initrd
