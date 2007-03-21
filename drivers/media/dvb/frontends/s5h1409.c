@@ -476,7 +476,7 @@ static int s5h1409_init (struct dvb_frontend* fe)
 	s5h1409_sleep(fe, 0);
 	s5h1409_register_reset(fe);
 
-	for (i=0; i<sizeof(init_tab) / sizeof (struct init_tab); i++)
+	for (i=0; i < ARRAY_SIZE(init_tab); i++)
 		s5h1409_writereg(state, init_tab[i].reg, init_tab[i].data);
 
 	/* The datasheet says that after initialisation, VSB is default */
@@ -542,7 +542,7 @@ static int s5h1409_qam256_lookup_snr(struct dvb_frontend* fe, u16* snr, u16 v)
 	int i, ret = -EINVAL;
 	dprintk("%s()\n", __FUNCTION__);
 
-	for (i=0; i<sizeof(qam256_snr_tab) / (sizeof(struct qam256_snr_tab)); i++) {
+	for (i=0; i < ARRAY_SIZE(qam256_snr_tab); i++) {
 		if (v < qam256_snr_tab[i].val) {
 			*snr = qam256_snr_tab[i].data;
 			ret = 0;
@@ -557,7 +557,7 @@ static int s5h1409_qam64_lookup_snr(struct dvb_frontend* fe, u16* snr, u16 v)
 	int i, ret = -EINVAL;
 	dprintk("%s()\n", __FUNCTION__);
 
-	for (i=0; i<sizeof(qam64_snr_tab) / (sizeof(struct qam64_snr_tab)); i++) {
+	for (i=0; i < ARRAY_SIZE(qam64_snr_tab); i++) {
 		if (v < qam64_snr_tab[i].val) {
 			*snr = qam64_snr_tab[i].data;
 			ret = 0;
@@ -572,7 +572,7 @@ static int s5h1409_vsb_lookup_snr(struct dvb_frontend* fe, u16* snr, u16 v)
 	int i, ret = -EINVAL;
 	dprintk("%s()\n", __FUNCTION__);
 
-	for (i=0; i<sizeof(vsb_snr_tab) / (sizeof(struct vsb_snr_tab)); i++) {
+	for (i=0; i < ARRAY_SIZE(vsb_snr_tab); i++) {
 		if (v > vsb_snr_tab[i].val) {
 			*snr = vsb_snr_tab[i].data;
 			ret = 0;
