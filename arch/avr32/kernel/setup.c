@@ -228,8 +228,8 @@ alloc_reserved_region(resource_size_t *start, resource_size_t size,
  * Board-specific code may use these variables to set up platform data
  * for the framebuffer driver if fbmem_size is nonzero.
  */
-static resource_size_t __initdata fbmem_start;
-static resource_size_t __initdata fbmem_size;
+resource_size_t __initdata fbmem_start;
+resource_size_t __initdata fbmem_size;
 
 /*
  * "fbmem=xxx[kKmM]" allocates the specified amount of boot memory for
@@ -561,13 +561,10 @@ void __init setup_arch (char **cmdline_p)
 
 	setup_bootmem();
 
-	board_setup_fbmem(fbmem_start, fbmem_size);
-
 #ifdef CONFIG_VT
 	conswitchp = &dummy_con;
 #endif
 
 	paging_init();
-
 	resource_init();
 }

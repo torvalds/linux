@@ -126,10 +126,10 @@ struct tagtable {
 
 extern struct tag *bootloader_tags;
 
+extern resource_size_t fbmem_start;
+extern resource_size_t fbmem_size;
 
 void setup_processor(void);
-extern void board_setup_fbmem(unsigned long fbmem_start,
-			      unsigned long fbmem_size);
 
 #endif /* !__ASSEMBLY__ */
 
