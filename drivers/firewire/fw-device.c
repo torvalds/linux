@@ -28,6 +28,7 @@
 #include <linux/idr.h>
 #include <linux/rwsem.h>
 #include <asm/semaphore.h>
+#include <linux/ctype.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
 #include "fw-device.h"
@@ -192,6 +193,129 @@ int fw_device_enable_phys_dma(struct fw_device *device)
 						     device->generation);
 }
 EXPORT_SYMBOL(fw_device_enable_phys_dma);
+
+struct config_rom_attribute {
+	struct device_attribute attr;
+	u32 key;
+};
+
+static ssize_t
+show_immediate(struct device *dev, struct device_attribute *dattr, char *buf)
+{
+	struct config_rom_attribute *attr =
+		container_of(dattr, struct config_rom_attribute, attr);
+	struct fw_csr_iterator ci;
+	u32 *dir;
+	int key, value;
+
+	if (is_fw_unit(dev))
+		dir = fw_unit(dev)->directory;
+	else
+		dir = fw_device(dev)->config_rom + 5;
+
+	fw_csr_iterator_init(&ci, dir);
+	while (fw_csr_iterator_next(&ci, &key, &value))
+		if (attr->key == key)
+			return snprintf(buf, buf ? PAGE_SIZE : 0,
+					"0x%06x\n", value);
+
+	return -ENOENT;
+}
+
+#define IMMEDIATE_ATTR(name, key)				\
+	{ __ATTR(name, S_IRUGO, show_immediate, NULL), key }
+
+static ssize_t
+show_text_leaf(struct device *dev, struct device_attribute *dattr, char *buf)
+{
+	struct config_rom_attribute *attr =
+		container_of(dattr, struct config_rom_attribute, attr);
+	struct fw_csr_iterator ci;
+	u32 *dir, *block = NULL, *p, *end;
+	int length, key, value, last_key = 0;
+	char *b;
+
+	if (is_fw_unit(dev))
+		dir = fw_unit(dev)->directory;
+	else
+		dir = fw_device(dev)->config_rom + 5;
+
+	fw_csr_iterator_init(&ci, dir);
+	while (fw_csr_iterator_next(&ci, &key, &value)) {
+		if (attr->key == last_key &&
+		    key == (CSR_DESCRIPTOR | CSR_LEAF))
+			block = ci.p - 1 + value;
+		last_key = key;
+	}
+
+	if (block == NULL)
+		return -ENOENT;
+
+	length = min(block[0] >> 16, 256U);
+	if (length < 3)
+		return -ENOENT;
+
+	if (block[1] != 0 || block[2] != 0)
+		/* Unknown encoding. */
+		return -ENOENT;
+
+	if (buf == NULL)
+		return length * 4;
+
+	b = buf;
+	end = &block[length + 1];
+	for (p = &block[3]; p < end; p++, b += 4)
+		* (u32 *) b = (__force u32) __cpu_to_be32(*p);
+
+	/* Strip trailing whitespace and add newline. */
+	while (b--, (isspace(*b) || *b == '\0') && b > buf);
+	strcpy(b + 1, "\n");
+
+	return b + 2 - buf;
+}
+
+#define TEXT_LEAF_ATTR(name, key)				\
+	{ __ATTR(name, S_IRUGO, show_text_leaf, NULL), key }
+
+static struct config_rom_attribute config_rom_attributes[] = {
+	IMMEDIATE_ATTR(vendor, CSR_VENDOR),
+	IMMEDIATE_ATTR(hardware_version, CSR_HARDWARE_VERSION),
+	IMMEDIATE_ATTR(specifier_id, CSR_SPECIFIER_ID),
+	IMMEDIATE_ATTR(version, CSR_VERSION),
+	IMMEDIATE_ATTR(model, CSR_MODEL),
+	TEXT_LEAF_ATTR(vendor_name, CSR_VENDOR),
+	TEXT_LEAF_ATTR(model_name, CSR_MODEL),
+	TEXT_LEAF_ATTR(hardware_version_name, CSR_HARDWARE_VERSION),
+};
+
+static void
+remove_config_rom_attributes(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(config_rom_attributes); i++)
+		device_remove_file(dev, &config_rom_attributes[i].attr);
+}
+
+static int
+add_config_rom_attributes(struct device *dev)
+{
+	struct device_attribute *attr;
+	int i, err = 0;
+
+	for (i = 0; i < ARRAY_SIZE(config_rom_attributes); i++) {
+		attr = &config_rom_attributes[i].attr;
+		if (attr->show(dev, attr, NULL) < 0)
+			continue;
+		err = device_create_file(dev, attr);
+		if (err < 0) {
+			remove_config_rom_attributes(dev);
+			break;
+		}
+	}
+
+	return err;
+}
 
 static ssize_t
 modalias_show(struct device *dev,
@@ -399,15 +523,26 @@ static void create_units(struct fw_device *device)
 		snprintf(unit->device.bus_id, sizeof unit->device.bus_id,
 			 "%s.%d", device->device.bus_id, i++);
 
-		if (device_register(&unit->device) < 0) {
-			kfree(unit);
-			continue;
-		}
+		if (device_register(&unit->device) < 0)
+			goto skip_unit;
+
+		if (add_config_rom_attributes(&unit->device) < 0)
+			goto skip_unregister;
+
+		continue;
+
+	skip_unregister:
+		device_unregister(&unit->device);
+	skip_unit:
+		kfree(unit);
 	}
 }
 
 static int shutdown_unit(struct device *device, void *data)
 {
+	struct fw_unit *unit = fw_unit(device);
+
+	remove_config_rom_attributes(&unit->device);
 	device_unregister(device);
 
 	return 0;
@@ -436,6 +571,8 @@ static void fw_device_shutdown(struct work_struct *work)
 	down_write(&fw_bus_type.subsys.rwsem);
 	idr_remove(&fw_device_idr, minor);
 	up_write(&fw_bus_type.subsys.rwsem);
+
+	remove_config_rom_attributes(&device->device);
 
 	fw_device_cdev_remove(device);
 	device_for_each_child(&device->device, NULL, shutdown_unit);
@@ -504,6 +641,10 @@ static void fw_device_init(struct work_struct *work)
 		goto error_with_cdev;
 	}
 
+	err = add_config_rom_attributes(&device->device);
+	if (err < 0)
+		goto error_with_register;
+
 	create_units(device);
 
 	/* Transition the device to running state.  If it got pulled
@@ -530,6 +671,8 @@ static void fw_device_init(struct work_struct *work)
 
 	return;
 
+ error_with_register:
+	device_unregister(&device->device);
  error_with_cdev:
 	down_write(&fw_bus_type.subsys.rwsem);
 	idr_remove(&fw_device_idr, minor);
