@@ -1687,31 +1687,37 @@ static inline int deliver_skb(struct sk_buff *skb,
 }
 
 #if defined(CONFIG_BRIDGE) || defined (CONFIG_BRIDGE_MODULE)
-int (*br_handle_frame_hook)(struct net_bridge_port *p, struct sk_buff **pskb);
+/* These hooks defined here for ATM */
 struct net_bridge;
 struct net_bridge_fdb_entry *(*br_fdb_get_hook)(struct net_bridge *br,
 						unsigned char *addr);
-void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent);
+void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent) __read_mostly;
 
-static __inline__ int handle_bridge(struct sk_buff **pskb,
-				    struct packet_type **pt_prev, int *ret,
-				    struct net_device *orig_dev)
+/*
+ * If bridge module is loaded call bridging hook.
+ *  returns NULL if packet was consumed.
+ */
+struct sk_buff *(*br_handle_frame_hook)(struct net_bridge_port *p,
+					struct sk_buff *skb) __read_mostly;
+static inline struct sk_buff *handle_bridge(struct sk_buff *skb,
+					    struct packet_type **pt_prev, int *ret,
+					    struct net_device *orig_dev)
 {
 	struct net_bridge_port *port;
 
-	if ((*pskb)->pkt_type == PACKET_LOOPBACK ||
-	    (port = rcu_dereference((*pskb)->dev->br_port)) == NULL)
-		return 0;
+	if (skb->pkt_type == PACKET_LOOPBACK ||
+	    (port = rcu_dereference(skb->dev->br_port)) == NULL)
+		return skb;
 
 	if (*pt_prev) {
-		*ret = deliver_skb(*pskb, *pt_prev, orig_dev);
+		*ret = deliver_skb(skb, *pt_prev, orig_dev);
 		*pt_prev = NULL;
 	}
 
-	return br_handle_frame_hook(port, pskb);
+	return br_handle_frame_hook(port, skb);
 }
 #else
-#define handle_bridge(skb, pt_prev, ret, orig_dev)	(0)
+#define handle_bridge(skb, pt_prev, ret, orig_dev)	(skb)
 #endif
 
 #ifdef CONFIG_NET_CLS_ACT
@@ -1818,7 +1824,8 @@ int netif_receive_skb(struct sk_buff *skb)
 ncls:
 #endif
 
-	if (handle_bridge(&skb, &pt_prev, &ret, orig_dev))
+	skb = handle_bridge(skb, &pt_prev, &ret, orig_dev);
+	if (!skb)
 		goto out;
 
 	type = skb->protocol;
