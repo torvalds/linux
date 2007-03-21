@@ -348,8 +348,7 @@ static struct device_attribute fw_unit_attributes[] = {
 };
 
 static ssize_t
-config_rom_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+config_rom_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev);
 
@@ -358,8 +357,20 @@ config_rom_show(struct device *dev,
 	return device->config_rom_length * 4;
 }
 
+static ssize_t
+guid_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fw_device *device = fw_device(dev);
+	u64 guid;
+
+	guid = ((u64)device->config_rom[3] << 32) | device->config_rom[4];
+
+	return snprintf(buf, PAGE_SIZE, "0x%016llx\n", guid);
+}
+
 static struct device_attribute fw_device_attributes[] = {
 	__ATTR_RO(config_rom),
+	__ATTR_RO(guid),
 	__ATTR_NULL,
 };
 
