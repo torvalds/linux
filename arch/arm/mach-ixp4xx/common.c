@@ -102,6 +102,29 @@ static signed char irq2gpio[32] = {
 	 7,  8,  9, 10, 11, 12, -1, -1,
 };
 
+int gpio_to_irq(int gpio)
+{
+	int irq;
+
+	for (irq = 0; irq < 32; irq++) {
+		if (irq2gpio[irq] == gpio)
+			return irq;
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(gpio_to_irq);
+
+int irq_to_gpio(int irq)
+{
+	int gpio = (irq < 32) ? irq2gpio[irq] : -EINVAL;
+
+	if (gpio == -1)
+		return -EINVAL;
+
+	return gpio;
+}
+EXPORT_SYMBOL(irq_to_gpio);
+
 static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 {
 	int line = irq2gpio[irq];
