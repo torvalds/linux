@@ -28,7 +28,6 @@
 #include <linux/suspend.h>
 
 #include "cx23885.h"
-#include "dvb-pll.h"
 #include <media/v4l2-common.h>
 
 #include "s5h1409.h"
