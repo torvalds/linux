@@ -350,8 +350,9 @@ static void aac_internal_transfer(struct scsi_cmnd *scsicmd, void *data, unsigne
 		buf = scsicmd->request_buffer;
 		transfer_len = min(scsicmd->request_bufflen, len + offset);
 	}
-
-	memcpy(buf + offset, data, transfer_len - offset);
+	transfer_len -= offset;
+	if (buf && transfer_len)
+		memcpy(buf + offset, data, transfer_len);
 
 	if (scsicmd->use_sg) 
 		kunmap_atomic(buf - sg->offset, KM_IRQ0);
