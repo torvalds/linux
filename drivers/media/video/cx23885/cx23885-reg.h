@@ -71,21 +71,14 @@ Channel manager Data Structure entry = 20 DWORD
 #define RISC_WRITECM		 0xC0000000
 #define RISC_WRITECR		 0xD0000000
 
-//#define RISC_SYNC_ODD		 0x80000000
-//#define RISC_SYNC_EVEN		 0x80000200
-//#define RISC_RESYNC_ODD		 0x80008000
-//#define RISC_RESYNC_EVEN	 0x80008200
 
-// Do we need these?
+/* Do we need these? */
 #define RISC_WRITEC		 0x50000000
 #define RISC_READC		 0xA0000000
 
-// Is this used?
+/* Is this used? */
 #define RISC_IMM		 0x00000001
 
-//#define RISC_CNT_NONE		 0x00000000
-//#define RISC_CNT_RSVR		 0x00020000
-//#define RISC_JMP_SRP         	 0x01
 
 /* Audio and Video Core */
 #define HOST_REG1		0x00000000

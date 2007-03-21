@@ -1043,10 +1043,6 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	cx_write(port->reg_gpcnt_ctl, 3);
 	q->count = 1;
 
-	/* A bug in the current 887 implementation, causes an NMI assert during
-	 * starting or stopping interrupts or dma. Avoid the bug for the time being,
-	 * enabling the developer to work on the demod/tuner locking work.
-	 */
 	switch(dev->bridge) {
 	case CX23885_BRIDGE_885:
 	case CX23885_BRIDGE_887:

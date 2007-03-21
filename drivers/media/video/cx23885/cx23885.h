@@ -47,8 +47,6 @@
 /* Max number of inputs by card */
 #define MAX_CX23885_INPUT 8
 
-//#define SHADOW_MAX 3
-
 #define BUFFER_TIMEOUT     (HZ)  /* 0.5 seconds */
 
 #define CX23885_BOARD_NOAUTO               UNSET
@@ -180,7 +178,6 @@ struct cx23885_dev {
 	int                        pci_bus, pci_slot;
 	u32                        __iomem *lmmio;
 	u8                         __iomem *bmmio;
-	//u32                        shadow[SHADOW_MAX];
 	int                        pci_irqmask;
 
 	/* I2C adapters: Master 1 & 2 (External) & Master 3 (Internal only) */

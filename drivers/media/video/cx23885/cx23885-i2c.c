@@ -267,12 +267,10 @@ static int detach_inform(struct i2c_client *client)
 void cx23885_call_i2c_clients(struct cx23885_i2c *bus,
 			      unsigned int cmd, void *arg)
 {
-//	struct cx23885_dev *dev = bus->dev;
-
 	if (bus->i2c_rc != 0)
 		return;
 
-		i2c_clients_command(&bus->i2c_adap, cmd, arg);
+	i2c_clients_command(&bus->i2c_adap, cmd, arg);
 }
 
 static int cx23885_algo_control(struct i2c_adapter *adap,
