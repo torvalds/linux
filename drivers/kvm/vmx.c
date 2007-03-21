@@ -864,7 +864,14 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	vmcs_writel(sf->base, var->base);
 	vmcs_write32(sf->limit, var->limit);
 	vmcs_write16(sf->selector, var->selector);
-	if (var->unusable)
+	if (vcpu->rmode.active && var->s) {
+		/*
+		 * Hack real-mode segments into vm86 compatibility.
+		 */
+		if (var->base == 0xffff0000 && var->selector == 0xf000)
+			vmcs_writel(sf->base, 0xf0000);
+		ar = 0xf3;
+	} else if (var->unusable)
 		ar = 1 << 16;
 	else {
 		ar = var->type & 15;
