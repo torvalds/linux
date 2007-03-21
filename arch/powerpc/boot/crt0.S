@@ -19,6 +19,8 @@ _zimage_start_opd:
 	.weak	_zimage_start
 	.globl	_zimage_start
 _zimage_start:
+	.globl	_zimage_start_lib
+_zimage_start_lib:
 	/* Work out the offset between the address we were linked at
 	   and the address where we're running. */
 	bl	1f
