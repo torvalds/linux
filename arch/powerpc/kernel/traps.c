@@ -90,6 +90,24 @@ EXPORT_SYMBOL(unregister_die_notifier);
  * Trap & Exception support
  */
 
+#ifdef CONFIG_PMAC_BACKLIGHT
+static void pmac_backlight_unblank(void)
+{
+	mutex_lock(&pmac_backlight_mutex);
+	if (pmac_backlight) {
+		struct backlight_properties *props;
+
+		props = &pmac_backlight->props;
+		props->brightness = props->max_brightness;
+		props->power = FB_BLANK_UNBLANK;
+		backlight_update_status(pmac_backlight);
+	}
+	mutex_unlock(&pmac_backlight_mutex);
+}
+#else
+static inline void pmac_backlight_unblank(void) { }
+#endif
+
 static DEFINE_SPINLOCK(die_lock);
 
 int die(const char *str, struct pt_regs *regs, long err)
@@ -104,18 +122,9 @@ int die(const char *str, struct pt_regs *regs, long err)
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-	if (machine_is(powermac) && pmac_backlight) {
-		struct backlight_properties *props;
+	if (machine_is(powermac))
+		pmac_backlight_unblank();
 
-		props = &pmac_backlight->props;
-		props->brightness = props->max_brightness;
-		props->power = FB_BLANK_UNBLANK;
-		backlight_update_status(pmac_backlight);
-	}
-	mutex_unlock(&pmac_backlight_mutex);
-#endif
 	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
 #ifdef CONFIG_PREEMPT
 	printk("PREEMPT ");
