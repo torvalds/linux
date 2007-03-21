@@ -95,8 +95,8 @@ static const struct usb_device_id pwc_device_table [] = {
 	{ USB_DEVICE(0x046D, 0x08B3) }, /* Logitech QuickCam Zoom (old model) */
 	{ USB_DEVICE(0x046D, 0x08B4) }, /* Logitech QuickCam Zoom (new model) */
 	{ USB_DEVICE(0x046D, 0x08B5) }, /* Logitech QuickCam Orbit/Sphere */
-	{ USB_DEVICE(0x046D, 0x08B6) }, /* Logitech (reserved) */
-	{ USB_DEVICE(0x046D, 0x08B7) }, /* Logitech (reserved) */
+	{ USB_DEVICE(0x046D, 0x08B6) }, /* Cisco VT Camera */
+	{ USB_DEVICE(0x046D, 0x08B7) }, /* Logitech ViewPort AV 100 */
 	{ USB_DEVICE(0x046D, 0x08B8) }, /* Logitech (reserved) */
 	{ USB_DEVICE(0x055D, 0x9000) }, /* Samsung MPC-C10 */
 	{ USB_DEVICE(0x055D, 0x9001) }, /* Samsung MPC-C30 */
@@ -1552,7 +1552,11 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			type_id = 740; /* CCD sensor */
 			break;
 		case 0x08b7:
-		case 0x08b8:
+			PWC_INFO("Logitech ViewPort AV 100 webcam detected.\n");
+			name = "Logitech ViewPort AV 100";
+			type_id = 740; /* CCD sensor */
+			break;
+		case 0x08b8: /* Where this released? */
 			PWC_INFO("Logitech QuickCam detected (reserved ID).\n");
 			name = "Logitech QuickCam (res.)";
 			type_id = 730; /* Assuming CMOS */
