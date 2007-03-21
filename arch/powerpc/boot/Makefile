@@ -85,24 +85,25 @@ quiet_cmd_bootas = BOOTAS  $@
       cmd_bootas = $(CROSS32CC) -Wp,-MD,$(depfile) $(BOOTAFLAGS) -c -o $@ $<
 
 quiet_cmd_bootar = BOOTAR  $@
-      cmd_bootar = $(CROSS32AR) -cr $@.$$$$ $^; mv $@.$$$$ $@
+      cmd_bootar = $(CROSS32AR) -cr $@.$$$$ $(filter-out FORCE,$^); mv $@.$$$$ $@
 
-$(patsubst %.c,%.o, $(filter %.c, $(src-boot))): %.o: %.c
+$(patsubst %.c,%.o, $(filter %.c, $(src-boot))): %.o: %.c FORCE
 	$(call if_changed_dep,bootcc)
-$(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S
+$(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S FORCE
 	$(call if_changed_dep,bootas)
 
-$(obj)/wrapper.a: $(obj-wlib)
-	$(call cmd,bootar)
+$(obj)/wrapper.a: $(obj-wlib) FORCE
+	$(call if_changed,bootar)
 
 hostprogs-y	:= addnote addRamDisk hack-coff mktree
 
+targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a)
 extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds
 
 wrapper		:=$(srctree)/$(src)/wrapper
 wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree) \
-			$(wrapper)
+			$(wrapper) FORCE
 
 #############
 # Bits for building various flavours of zImage
@@ -122,34 +123,34 @@ quiet_cmd_wrap_initrd = WRAP    $@
 				-i $(obj)/ramdisk.image.gz vmlinux
 
 $(obj)/zImage.chrp: vmlinux $(wrapperbits)
-	$(call cmd,wrap,chrp)
+	$(call if_changed,wrap,chrp)
 
 $(obj)/zImage.initrd.chrp: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,chrp)
+	$(call if_changed,wrap_initrd,chrp)
 
 $(obj)/zImage.pseries:	vmlinux $(wrapperbits)
-	$(call cmd,wrap,pseries)
+	$(call if_changed,wrap,pseries)
 
 $(obj)/zImage.initrd.pseries: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,pseries)
+	$(call if_changed,wrap_initrd,pseries)
 
 $(obj)/zImage.pmac: vmlinux $(wrapperbits)
-	$(call cmd,wrap,pmac)
+	$(call if_changed,wrap,pmac)
 
 $(obj)/zImage.initrd.pmac: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,pmac)
+	$(call if_changed,wrap_initrd,pmac)
 
 $(obj)/zImage.coff: vmlinux $(wrapperbits)
-	$(call cmd,wrap,pmaccoff)
+	$(call if_changed,wrap,pmaccoff)
 
 $(obj)/zImage.initrd.coff: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,pmaccoff)
+	$(call if_changed,wrap_initrd,pmaccoff)
 
 $(obj)/zImage.miboot: vmlinux $(wrapperbits)
-	$(call cmd,wrap,miboot)
+	$(call if_changed,wrap,miboot)
 
 $(obj)/zImage.initrd.miboot: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,miboot)
+	$(call if_changed,wrap_initrd,miboot)
 
 $(obj)/zImage.ps3: vmlinux
 	$(STRIP) -s -R .comment $< -o $@
@@ -158,7 +159,7 @@ $(obj)/zImage.initrd.ps3: vmlinux
 	@echo "  WARNING zImage.initrd.ps3 not supported (yet)"
 
 $(obj)/uImage: vmlinux $(wrapperbits)
-	$(call cmd,wrap,uboot)
+	$(call if_changed,wrap,uboot)
 
 image-$(CONFIG_PPC_PSERIES)		+= zImage.pseries
 image-$(CONFIG_PPC_MAPLE)		+= zImage.pseries
@@ -177,6 +178,7 @@ image-$(CONFIG_PPC_PMAC)	+= zImage.coff zImage.miboot
 endif
 
 initrd-y := $(patsubst zImage%, zImage.initrd%, $(image-y))
+targets	+= $(image-y) $(initrd-y)
 
 $(obj)/zImage:		$(addprefix $(obj)/, $(image-y))
 	@rm -f $@; ln $< $@
