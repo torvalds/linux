@@ -165,7 +165,7 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 		return -EINVAL;
 
 	/* if kernel STP is running, don't allow changes */
-	if (p->br->stp_enabled)
+	if (p->br->stp_enabled == BR_KERNEL_STP)
 		return -EBUSY;
 
 	if (!netif_running(dev) ||

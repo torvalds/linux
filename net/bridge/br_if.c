@@ -203,7 +203,7 @@ static struct net_device *new_bridge_dev(const char *name)
 	memcpy(br->group_addr, br_group_address, ETH_ALEN);
 
 	br->feature_mask = dev->features;
-	br->stp_enabled = 0;
+	br->stp_enabled = BR_NO_STP;
 	br->designated_root = br->bridge_id;
 	br->root_path_cost = 0;
 	br->root_port = 0;
