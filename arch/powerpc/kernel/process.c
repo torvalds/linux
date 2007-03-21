@@ -402,11 +402,11 @@ static void printbits(unsigned long val, struct regbit *bits)
 }
 
 #ifdef CONFIG_PPC64
-#define REG		"%016lX"
+#define REG		"%016lx"
 #define REGS_PER_LINE	4
 #define LAST_VOLATILE	13
 #else
-#define REG		"%08lX"
+#define REG		"%08lx"
 #define REGS_PER_LINE	8
 #define LAST_VOLATILE	12
 #endif
@@ -421,7 +421,7 @@ void show_regs(struct pt_regs * regs)
 	       regs, regs->trap, print_tainted(), init_utsname()->release);
 	printk("MSR: "REG" ", regs->msr);
 	printbits(regs->msr, msr_bits);
-	printk("  CR: %08lX  XER: %08lX\n", regs->ccr, regs->xer);
+	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
 	if (trap == 0x300 || trap == 0x600)
 		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
