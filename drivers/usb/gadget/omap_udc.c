@@ -296,6 +296,15 @@ omap_free_request(struct usb_ep *ep, struct usb_request *_req)
 
 /*-------------------------------------------------------------------------*/
 
+/*
+ * dma-coherent memory allocation (for dma-capable endpoints)
+ *
+ * NOTE: the dma_*_coherent() API calls suck.  Most implementations are
+ * (a) page-oriented, so small buffers lose big; and (b) asymmetric with
+ * respect to calls with irqs disabled:  alloc is safe, free is not.
+ * We currently work around (b), but not (a).
+ */
+
 static void *
 omap_alloc_buffer(
 	struct usb_ep	*_ep,
@@ -306,6 +315,9 @@ omap_alloc_buffer(
 {
 	void		*retval;
 	struct omap_ep	*ep;
+
+	if (!_ep)
+		return NULL;
 
 	ep = container_of(_ep, struct omap_ep, ep);
 	if (use_dma && ep->has_dma) {
@@ -326,6 +338,35 @@ omap_alloc_buffer(
 	return retval;
 }
 
+static DEFINE_SPINLOCK(buflock);
+static LIST_HEAD(buffers);
+
+struct free_record {
+	struct list_head	list;
+	struct device		*dev;
+	unsigned		bytes;
+	dma_addr_t		dma;
+};
+
+static void do_free(unsigned long ignored)
+{
+	spin_lock_irq(&buflock);
+	while (!list_empty(&buffers)) {
+		struct free_record	*buf;
+
+		buf = list_entry(buffers.next, struct free_record, list);
+		list_del(&buf->list);
+		spin_unlock_irq(&buflock);
+
+		dma_free_coherent(buf->dev, buf->bytes, buf, buf->dma);
+
+		spin_lock_irq(&buflock);
+	}
+	spin_unlock_irq(&buflock);
+}
+
+static DECLARE_TASKLET(deferred_free, do_free, 0);
+
 static void omap_free_buffer(
 	struct usb_ep	*_ep,
 	void		*buf,
@@ -333,13 +374,29 @@ static void omap_free_buffer(
 	unsigned	bytes
 )
 {
-	struct omap_ep	*ep;
+	if (!_ep) {
+		WARN_ON(1);
+		return;
+	}
 
-	ep = container_of(_ep, struct omap_ep, ep);
-	if (use_dma && _ep && ep->has_dma)
-		dma_free_coherent(ep->udc->gadget.dev.parent, bytes, buf, dma);
-	else
-		kfree (buf);
+	/* free memory into the right allocator */
+	if (dma != DMA_ADDR_INVALID) {
+		struct omap_ep		*ep;
+		struct free_record	*rec = buf;
+		unsigned long		flags;
+
+		ep = container_of(_ep, struct omap_ep, ep);
+
+		rec->dev = ep->udc->gadget.dev.parent;
+		rec->bytes = bytes;
+		rec->dma = dma;
+
+		spin_lock_irqsave(&buflock, flags);
+		list_add_tail(&rec->list, &buffers);
+		tasklet_schedule(&deferred_free);
+		spin_unlock_irqrestore(&buflock, flags);
+	} else
+		kfree(buf);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1691,12 +1748,38 @@ ep0out_status_stage:
 			udc->ep0_pending = 0;
 			break;
 		case USB_REQ_GET_STATUS:
+			/* USB_ENDPOINT_HALT status? */
+			if (u.r.bRequestType != (USB_DIR_IN|USB_RECIP_ENDPOINT))
+				goto intf_status;
+
+			/* ep0 never stalls */
+			if (!(w_index & 0xf))
+				goto zero_status;
+
+			/* only active endpoints count */
+			ep = &udc->ep[w_index & 0xf];
+			if (w_index & USB_DIR_IN)
+				ep += 16;
+			if (!ep->desc)
+				goto do_stall;
+
+			/* iso never stalls */
+			if (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC)
+				goto zero_status;
+
+			/* FIXME don't assume non-halted endpoints!! */
+			ERR("%s status, can't report\n", ep->ep.name);
+			goto do_stall;
+
+intf_status:
 			/* return interface status.  if we were pedantic,
 			 * we'd detect non-existent interfaces, and stall.
 			 */
 			if (u.r.bRequestType
 					!= (USB_DIR_IN|USB_RECIP_INTERFACE))
 				goto delegate;
+
+zero_status:
 			/* return two zero bytes */
 			UDC_EP_NUM_REG = UDC_EP_SEL|UDC_EP_DIR;
 			UDC_DATA_REG = 0;
@@ -2068,7 +2151,7 @@ static irqreturn_t omap_udc_iso_irq(int irq, void *_dev)
 
 /*-------------------------------------------------------------------------*/
 
-static inline int machine_needs_vbus_session(void)
+static inline int machine_without_vbus_sense(void)
 {
 	return (machine_is_omap_innovator()
 		|| machine_is_omap_osk()
@@ -2156,7 +2239,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	/* boards that don't have VBUS sensing can't autogate 48MHz;
 	 * can't enter deep sleep while a gadget driver is active.
 	 */
-	if (machine_needs_vbus_session())
+	if (machine_without_vbus_sense())
 		omap_vbus_session(&udc->gadget, 1);
 
 done:
@@ -2179,7 +2262,7 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(1);
 
-	if (machine_needs_vbus_session())
+	if (machine_without_vbus_sense())
 		omap_vbus_session(&udc->gadget, 0);
 
 	if (udc->transceiver)
@@ -2822,7 +2905,7 @@ static int __init omap_udc_probe(struct platform_device *pdev)
 		hmc = HMC_1510;
 		type = "(unknown)";
 
-		if (machine_is_omap_innovator() || machine_is_sx1()) {
+		if (machine_without_vbus_sense()) {
 			/* just set up software VBUS detect, and then
 			 * later rig it so we always report VBUS.
 			 * FIXME without really sensing VBUS, we can't
