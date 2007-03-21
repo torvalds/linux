@@ -2483,6 +2483,8 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE23 0x25f7
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE47 0x25fa
+#define PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_FIRST 0x140
+#define PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_LAST 0x142
 
 static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 {
@@ -2514,6 +2516,12 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 			   ((bridge->vendor == PCI_VENDOR_ID_SERVERWORKS
 			     && bridge->device ==
 			     PCI_DEVICE_ID_SERVERWORKS_HT2000_PCIE)
+			    /* ServerWorks HT2100 */
+			    || (bridge->vendor == PCI_VENDOR_ID_SERVERWORKS
+				&& bridge->device >=
+				PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_FIRST
+				&& bridge->device <=
+				PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_LAST)
 			    /* All Intel E5000 PCIE ports */
 			    || (bridge->vendor == PCI_VENDOR_ID_INTEL
 				&& bridge->device >=
