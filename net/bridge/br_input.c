@@ -129,7 +129,7 @@ struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
-		goto err;
+		goto drop;
 
 	if (unlikely(is_link_local(dest))) {
 		skb->pkt_type = PACKET_HOST;
@@ -138,22 +138,25 @@ struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 				NULL, br_handle_local_finish) == 0) ? skb : NULL;
 	}
 
-	if (p->state == BR_STATE_FORWARDING || p->state == BR_STATE_LEARNING) {
+	switch (p->state) {
+	case BR_STATE_FORWARDING:
+
 		if (br_should_route_hook) {
 			if (br_should_route_hook(&skb))
 				return skb;
 			dest = eth_hdr(skb)->h_dest;
 		}
-
+		/* fall through */
+	case BR_STATE_LEARNING:
 		if (!compare_ether_addr(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
 		NF_HOOK(PF_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 			br_handle_frame_finish);
-		return NULL;
+		break;
+	default:
+drop:
+		kfree_skb(skb);
 	}
-
-err:
-	kfree_skb(skb);
 	return NULL;
 }
