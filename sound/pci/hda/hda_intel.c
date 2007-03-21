@@ -198,6 +198,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define RIRB_INT_MASK		0x05
 
 /* STATESTS int mask: SD2,SD1,SD0 */
+#define AZX_MAX_CODECS		3
 #define STATESTS_INT_MASK	0x07
 
 /* SD_CTL bits */
@@ -991,7 +992,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 		return err;
 
 	codecs = 0;
-	for (c = 0; c < azx_max_codecs[chip->driver_type]; c++) {
+	for (c = 0; c < AZX_MAX_CODECS; c++) {
 		if ((chip->codec_mask & (1 << c)) & probe_mask) {
 			err = snd_hda_codec_new(chip->bus, c, NULL);
 			if (err < 0)
@@ -999,7 +1000,18 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 			codecs++;
 		}
 	}
-	if (! codecs) {
+	if (!codecs) {
+		/* probe additional slots if no codec is found */
+		for (; c < azx_max_codecs[chip->driver_type]; c++) {
+			if ((chip->codec_mask & (1 << c)) & probe_mask) {
+				err = snd_hda_codec_new(chip->bus, c, NULL);
+				if (err < 0)
+					continue;
+				codecs++;
+			}
+		}
+	}
+	if (!codecs) {
 		snd_printk(KERN_ERR SFX "no codecs initialized\n");
 		return -ENXIO;
 	}
