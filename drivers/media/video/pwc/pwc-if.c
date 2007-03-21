@@ -1547,6 +1547,10 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			features |= FEATURE_MOTOR_PANTILT;
 			break;
 		case 0x08b6:
+			PWC_INFO("Logitech/Cisco VT Camera webcam detected.\n");
+			name = "Cisco VT Camera";
+			type_id = 740; /* CCD sensor */
+			break;
 		case 0x08b7:
 		case 0x08b8:
 			PWC_INFO("Logitech QuickCam detected (reserved ID).\n");
