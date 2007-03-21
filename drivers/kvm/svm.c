@@ -511,7 +511,9 @@ static void init_vmcb(struct vmcb *vmcb)
 				(1ULL << INTERCEPT_VMSAVE) |
 				(1ULL << INTERCEPT_STGI) |
 				(1ULL << INTERCEPT_CLGI) |
-				(1ULL << INTERCEPT_SKINIT);
+				(1ULL << INTERCEPT_SKINIT) |
+				(1ULL << INTERCEPT_MONITOR) |
+				(1ULL << INTERCEPT_MWAIT);
 
 	control->iopm_base_pa = iopm_base;
 	control->msrpm_base_pa = msrpm_base;
@@ -1292,6 +1294,8 @@ static int (*svm_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[SVM_EXIT_STGI]				= invalid_op_interception,
 	[SVM_EXIT_CLGI]				= invalid_op_interception,
 	[SVM_EXIT_SKINIT]			= invalid_op_interception,
+	[SVM_EXIT_MONITOR]			= invalid_op_interception,
+	[SVM_EXIT_MWAIT]			= invalid_op_interception,
 };
 
 

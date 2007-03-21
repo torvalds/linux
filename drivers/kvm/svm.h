@@ -44,6 +44,9 @@ enum {
 	INTERCEPT_RDTSCP,
 	INTERCEPT_ICEBP,
 	INTERCEPT_WBINVD,
+	INTERCEPT_MONITOR,
+	INTERCEPT_MWAIT,
+	INTERCEPT_MWAIT_COND,
 };
 
 
@@ -298,6 +301,9 @@ struct __attribute__ ((__packed__)) vmcb {
 #define SVM_EXIT_RDTSCP		0x087
 #define SVM_EXIT_ICEBP		0x088
 #define SVM_EXIT_WBINVD		0x089
+#define SVM_EXIT_MONITOR	0x08a
+#define SVM_EXIT_MWAIT		0x08b
+#define SVM_EXIT_MWAIT_COND	0x08c
 #define SVM_EXIT_NPF  		0x400
 
 #define SVM_EXIT_ERR		-1
