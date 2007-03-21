@@ -576,7 +576,6 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	vcpu->svm->vmcb = page_address(page);
 	memset(vcpu->svm->vmcb, 0, PAGE_SIZE);
 	vcpu->svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
-	vcpu->svm->cr0 = 0x00000010;
 	vcpu->svm->asid_generation = 0;
 	memset(vcpu->svm->db_regs, 0, sizeof(vcpu->svm->db_regs));
 	init_vmcb(vcpu->svm->vmcb);
@@ -736,7 +735,6 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		}
 	}
 #endif
-	vcpu->svm->cr0 = cr0;
 	vcpu->cr0 = cr0;
 	cr0 |= CR0_PG_MASK | CR0_WP_MASK;
 	cr0 &= ~(CR0_CD_MASK | CR0_NW_MASK);

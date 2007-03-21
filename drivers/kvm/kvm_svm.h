@@ -28,8 +28,6 @@ struct vcpu_svm {
 	struct svm_cpu_data *svm_data;
 	uint64_t asid_generation;
 
-	unsigned long cr0;
-	unsigned long cr4;
 	unsigned long db_regs[NUM_DB_REGS];
 
 	u64 next_rip;
