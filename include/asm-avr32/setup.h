@@ -130,7 +130,6 @@ extern struct tag_mem_range *mem_ramdisk;
 
 extern struct tag *bootloader_tags;
 
-extern void setup_bootmem(void);
 extern void setup_processor(void);
 extern void board_setup_fbmem(unsigned long fbmem_start,
 			      unsigned long fbmem_size);
