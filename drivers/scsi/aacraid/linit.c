@@ -260,7 +260,6 @@ static int aac_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd
 		    (cmd->SCp.phase == AAC_OWNER_FIRMWARE))
 			return 0; /* Already owned by Adapter */
 	}
-	cmd->scsi_done = done;
 	cmd->SCp.phase = AAC_OWNER_LOWLEVEL;
 	return (aac_scsi_cmd(cmd) ? FAILED : 0);
 } 
@@ -461,15 +460,15 @@ static int aac_ioctl(struct scsi_device *sdev, int cmd, void __user * arg)
 
 static int aac_eh_abort(struct scsi_cmnd* cmd)
 {
-	struct Scsi_Host * host = cmd->device->host;
+	struct scsi_device * dev = cmd->device;
+	struct Scsi_Host * host = dev->host;
 	struct aac_dev * aac = (struct aac_dev *)host->hostdata;
 	int count;
 	int ret = FAILED;
 
 	printk(KERN_ERR "%s: Host adapter abort request (%d,%d,%d,%d)\n",
 		AAC_DRIVERNAME,
-		cmd->device->host->host_no, sdev_channel(cmd->device),
-		sdev_id(cmd->device), cmd->device->lun);
+		host->host_no, sdev_channel(dev), sdev_id(dev), dev->lun);
 	switch (cmd->cmnd[0]) {
 	case SERVICE_ACTION_IN:
 		if (!(aac->raw_io_interface) ||

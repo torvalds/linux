@@ -365,7 +365,6 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 	struct scsi_cmnd * scsicmd;
 
 	scsicmd = (struct scsi_cmnd *) context;
-	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
 	if (!aac_valid_context(scsicmd, fibptr))
 		return;
@@ -629,9 +628,9 @@ int aac_probe_container(struct aac_dev *dev, int cid)
 	if (_aac_probe_container(scsicmd, aac_probe_container_callback1) == 0)
 		while (scsicmd->device == scsidev)
 			schedule();
+	kfree(scsidev);
 	status = scsicmd->SCp.Status;
 	kfree(scsicmd);
-	kfree(scsidev);
 	return status;
 }
 
@@ -1321,7 +1320,6 @@ static void io_callback(void *context, struct fib * fibptr)
 	u32 cid;
 
 	scsicmd = (struct scsi_cmnd *) context;
-	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
 	if (!aac_valid_context(scsicmd, fibptr))
 		return;
@@ -1571,7 +1569,6 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 	struct scsi_cmnd *cmd;
 
 	cmd = context;
-	cmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
 	if (!aac_valid_context(cmd, fibptr))
 		return;
@@ -2127,7 +2124,6 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 	struct scsi_cmnd *scsicmd;
 
 	scsicmd = (struct scsi_cmnd *) context;
-	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
 	if (!aac_valid_context(scsicmd, fibptr))
 		return;
