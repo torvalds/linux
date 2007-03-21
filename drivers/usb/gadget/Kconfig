@@ -370,6 +370,7 @@ config USB_GADGETFS
 
 config USB_FILE_STORAGE
 	tristate "File-backed Storage Gadget"
+	depends on BLOCK
 	help
 	  The File-backed Storage Gadget acts as a USB Mass Storage
 	  disk drive.  As its storage repository it can use a regular
