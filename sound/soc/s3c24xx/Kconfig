@@ -1,5 +1,3 @@
-menu "SoC Audio for the Samsung S3C24XX"
-
 config SND_S3C24XX_SOC
 	tristate "SoC Audio for the Samsung S3C24XX chips"
 	depends on ARCH_S3C2410 && SND_SOC
@@ -10,6 +8,3 @@ config SND_S3C24XX_SOC
 
 config SND_S3C24XX_SOC_I2S
 	tristate
-
-endmenu
-
