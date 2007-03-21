@@ -88,10 +88,18 @@ unsigned int smtc_status = 0;
 
 /* Boot command line configuration overrides */
 
+static int vpe0limit;
 static int ipibuffers = 0;
 static int nostlb = 0;
 static int asidmask = 0;
 unsigned long smtc_asid_mask = 0xff;
+
+static int __init vpe0tcs(char *str)
+{
+	get_option(&str, &vpe0limit);
+
+	return 1;
+}
 
 static int __init ipibufs(char *str)
 {
@@ -125,6 +133,7 @@ static int __init asidmask_set(char *str)
 	return 1;
 }
 
+__setup("vpe0tcs=", vpe0tcs);
 __setup("ipibufs=", ipibufs);
 __setup("nostlb", stlb_disable);
 __setup("asidmask=", asidmask_set);
@@ -340,7 +349,7 @@ static void smtc_tc_setup(int vpe, int tc, int cpu)
 
 void mipsmt_prepare_cpus(void)
 {
-	int i, vpe, tc, ntc, nvpe, tcpervpe, slop, cpu;
+	int i, vpe, tc, ntc, nvpe, tcpervpe[NR_CPUS], slop, cpu;
 	unsigned long flags;
 	unsigned long val;
 	int nipi;
@@ -401,8 +410,39 @@ void mipsmt_prepare_cpus(void)
 		ntc = NR_CPUS;
 	if (tclimit > 0 && ntc > tclimit)
 		ntc = tclimit;
-	tcpervpe = ntc / nvpe;
-	slop = ntc % nvpe;	/* Residual TCs, < NVPE */
+	slop = ntc % nvpe;
+	for (i = 0; i < nvpe; i++) {
+		tcpervpe[i] = ntc / nvpe;
+		if (slop) {
+			if((slop - i) > 0) tcpervpe[i]++;
+		}
+	}
+	/* Handle command line override for VPE0 */
+	if (vpe0limit > ntc) vpe0limit = ntc;
+	if (vpe0limit > 0) {
+		int slopslop;
+		if (vpe0limit < tcpervpe[0]) {
+		    /* Reducing TC count - distribute to others */
+		    slop = tcpervpe[0] - vpe0limit;
+		    slopslop = slop % (nvpe - 1);
+		    tcpervpe[0] = vpe0limit;
+		    for (i = 1; i < nvpe; i++) {
+			tcpervpe[i] += slop / (nvpe - 1);
+			if(slopslop && ((slopslop - (i - 1) > 0)))
+				tcpervpe[i]++;
+		    }
+		} else if (vpe0limit > tcpervpe[0]) {
+		    /* Increasing TC count - steal from others */
+		    slop = vpe0limit - tcpervpe[0];
+		    slopslop = slop % (nvpe - 1);
+		    tcpervpe[0] = vpe0limit;
+		    for (i = 1; i < nvpe; i++) {
+			tcpervpe[i] -= slop / (nvpe - 1);
+			if(slopslop && ((slopslop - (i - 1) > 0)))
+				tcpervpe[i]--;
+		    }
+		}
+	}
 
 	/* Set up shared TLB */
 	smtc_configure_tlb();
@@ -416,7 +456,7 @@ void mipsmt_prepare_cpus(void)
 		if (vpe != 0)
 			printk(", ");
 		printk("VPE %d: TC", vpe);
-		for (i = 0; i < tcpervpe; i++) {
+		for (i = 0; i < tcpervpe[vpe]; i++) {
 			/*
 			 * TC 0 is bound to VPE 0 at reset,
 			 * and is presumably executing this
@@ -428,15 +468,6 @@ void mipsmt_prepare_cpus(void)
 			}
 			printk(" %d", tc);
 			tc++;
-		}
-		if (slop) {
-			if (tc != 0) {
-				smtc_tc_setup(vpe, tc, cpu);
-				cpu++;
-			}
-			printk(" %d", tc);
-			tc++;
-			slop--;
 		}
 		if (vpe != 0) {
 			/*
