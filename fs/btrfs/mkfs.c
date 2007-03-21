@@ -1,4 +1,8 @@
 #define _XOPEN_SOURCE 500
+#ifndef __CHECKER__
+#include <sys/ioctl.h>
+#include <sys/mount.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -9,6 +13,17 @@
 #include "radix-tree.h"
 #include "ctree.h"
 #include "disk-io.h"
+
+#ifdef __CHECKER__
+#define BLKGETSIZE64 0
+static inline int ioctl(int fd, int define, u64 *size) { return 0; }
+#endif
+
+#if 0
+#if defined(__linux__) && defined(_IOR) && !defined(BLKGETSIZE64)
+#   define BLKGETSIZE64 _IOR(0x12, 114, __u64)
+#endif
+#endif
 
 int mkfs(int fd, u64 num_blocks, u32 blocksize)
 {
@@ -27,7 +42,7 @@ int mkfs(int fd, u64 num_blocks, u32 blocksize)
 	strcpy((char *)(&super.magic), BTRFS_MAGIC);
 	btrfs_set_super_blocksize(&super, blocksize);
 	btrfs_set_super_total_blocks(&super, num_blocks);
-	btrfs_set_super_blocks_used(&super, 0);
+	btrfs_set_super_blocks_used(&super, start_block + 5);
 
 	block = malloc(blocksize);
 	memset(block, 0, blocksize);
@@ -160,3 +175,81 @@ int mkfs(int fd, u64 num_blocks, u32 blocksize)
 		return -1;
 	return 0;
 }
+
+u64 device_size(int fd, struct stat *st)
+{
+	u64 size;
+	if (S_ISREG(st->st_mode)) {
+		return st->st_size;
+	}
+	if (!S_ISBLK(st->st_mode)) {
+		return 0;
+	}
+	if (ioctl(fd, BLKGETSIZE64, &size) >= 0) {
+		return size;
+	}
+	return 0;
+}
+
+int main(int ac, char **av)
+{
+	char *file;
+	u64 block_count = 0;
+	int fd;
+	struct stat st;
+	int ret;
+	int i;
+	char *buf = malloc(4096);
+	if (ac >= 2) {
+		file = av[1];
+		if (ac == 3) {
+			block_count = atoi(av[2]);
+			if (!block_count) {
+				fprintf(stderr, "error finding block count\n");
+				exit(1);
+			}
+		}
+	} else {
+		fprintf(stderr, "usage: mkfs.btrfs file [block count]\n");
+		exit(1);
+	}
+	fd = open(file, O_RDWR);
+	if (fd < 0) {
+		fprintf(stderr, "unable to open %s\n", file);
+		exit(1);
+	}
+	ret = fstat(fd, &st);
+	if (ret < 0) {
+		fprintf(stderr, "unable to stat %s\n", file);
+		exit(1);
+	}
+	if (block_count == 0) {
+		block_count = device_size(fd, &st);
+		if (block_count == 0) {
+			fprintf(stderr, "unable to find %s size\n", file);
+			exit(1);
+		}
+	}
+	block_count /= 4096;
+	if (block_count < 256) {
+		fprintf(stderr, "device %s is too small\n", file);
+		exit(1);
+	}
+	memset(buf, 0, 4096);
+	for(i = 0; i < 6; i++) {
+		ret = write(fd, buf, 4096);
+		if (ret != 4096) {
+			fprintf(stderr, "unable to zero fill device\n");
+			exit(1);
+		}
+	}
+	ret = mkfs(fd, block_count, 4096);
+	if (ret) {
+		fprintf(stderr, "error during mkfs %d\n", ret);
+		exit(1);
+	}
+	printf("fs created on %s blocksize %d blocks %Lu\n",
+	       file, 4096, block_count);
+	return 0;
+}
+

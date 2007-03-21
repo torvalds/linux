@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS = -g -Wall -Werror
 headers = radix-tree.h ctree.h disk-io.h kerncompat.h print-tree.h list.h \
 	  transaction.h
-objects = ctree.o disk-io.o radix-tree.o mkfs.o extent-tree.o print-tree.o \
+objects = ctree.o disk-io.o radix-tree.o extent-tree.o print-tree.o \
 	  root-tree.o dir-item.o hash.o file-item.o inode-item.o \
 	  inode-map.o \
 
@@ -16,7 +16,10 @@ check=sparse $(CHECKFLAGS)
 	$(check) $<
 	$(CC) $(CFLAGS) -c $<
 
-all: tester debug-tree quick-test dir-test tags
+all: tester debug-tree quick-test dir-test tags mkfs.btrfs
+
+mkfs.btrfs: $(objects) mkfs.o
+	gcc $(CFLAGS) -o mkfs.btrfs $(objects) mkfs.o
 
 debug-tree: $(objects) debug-tree.o
 	gcc $(CFLAGS) -o debug-tree $(objects) debug-tree.o

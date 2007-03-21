@@ -223,6 +223,7 @@ struct btrfs_fs_info {
 	int cache_size;
 	int fp;
 	struct btrfs_trans_handle *running_transaction;
+	struct btrfs_super_block *disk_super;
 };
 
 /*

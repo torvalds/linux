@@ -425,8 +425,6 @@ int main(int ac, char **av)
 	struct btrfs_trans_handle *trans;
 	radix_tree_init();
 
-	printf("removing old tree\n");
-	unlink("dbfile");
 	root = open_ctree("dbfile", &super);
 	trans = btrfs_start_transaction(root, 1);
 

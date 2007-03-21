@@ -293,20 +293,15 @@ struct btrfs_root *open_ctree(char *filename, struct btrfs_super_block *super)
 	fs_info->inode_root = inode_root;
 	fs_info->last_inode_alloc = 0;
 	fs_info->last_inode_alloc_dirid = 0;
+	fs_info->disk_super = super;
 	memset(&fs_info->current_insert, 0, sizeof(fs_info->current_insert));
 	memset(&fs_info->last_insert, 0, sizeof(fs_info->last_insert));
 
 	ret = pread(fp, super, sizeof(struct btrfs_super_block),
 		     BTRFS_SUPER_INFO_OFFSET);
 	if (ret == 0 || btrfs_super_root(super) == 0) {
-		printf("making new FS!\n");
-		ret = mkfs(fp, 0, 1024);
-		if (ret)
-			return NULL;
-		ret = pread(fp, super, sizeof(struct btrfs_super_block),
-			     BTRFS_SUPER_INFO_OFFSET);
-		if (ret != sizeof(struct btrfs_super_block))
-			return NULL;
+		BUG();
+		return NULL;
 	}
 	BUG_ON(ret < 0);
 

@@ -10,8 +10,17 @@
 int main(int ac, char **av) {
 	struct btrfs_super_block super;
 	struct btrfs_root *root;
+
+	if (ac != 2) {
+		fprintf(stderr, "usage: %s device\n", av[0]);
+		exit(1);
+	}
 	radix_tree_init();
-	root = open_ctree("dbfile", &super);
+	root = open_ctree(av[1], &super);
+	if (!root) {
+		fprintf(stderr, "unable to open %s\n", av[1]);
+		exit(1);
+	}
 	printf("fs tree\n");
 	btrfs_print_tree(root, root->node);
 	printf("map tree\n");
@@ -23,5 +32,7 @@ int main(int ac, char **av) {
 	printf("root tree\n");
 	btrfs_print_tree(root->fs_info->tree_root,
 			 root->fs_info->tree_root->node);
+	printf("total blocks %Lu\n", btrfs_super_total_blocks(&super));
+	printf("blocks used %Lu\n", btrfs_super_blocks_used(&super));
 	return 0;
 }

@@ -134,6 +134,8 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 	struct btrfs_extent_item extent_item;
 	int i;
 	int ret;
+	u64 super_blocks_used;
+	struct btrfs_fs_info *info = extent_root->fs_info;
 
 	btrfs_set_extent_refs(&extent_item, 1);
 	btrfs_set_extent_owner(&extent_item,
@@ -145,6 +147,9 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 	for (i = 0; i < extent_root->fs_info->current_insert.flags; i++) {
 		ins.objectid = extent_root->fs_info->current_insert.objectid +
 				i;
+		super_blocks_used = btrfs_super_blocks_used(info->disk_super);
+		btrfs_set_super_blocks_used(info->disk_super,
+					    super_blocks_used + 1);
 		ret = btrfs_insert_item(trans, extent_root, &ins, &extent_item,
 					sizeof(extent_item));
 		BUG_ON(ret);
@@ -161,7 +166,8 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 {
 	struct btrfs_path path;
 	struct btrfs_key key;
-	struct btrfs_root *extent_root = root->fs_info->extent_root;
+	struct btrfs_fs_info *info = root->fs_info;
+	struct btrfs_root *extent_root = info->extent_root;
 	int ret;
 	struct btrfs_extent_item *ei;
 	struct btrfs_key ins;
@@ -188,15 +194,18 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	refs = btrfs_extent_refs(ei) - 1;
 	btrfs_set_extent_refs(ei, refs);
 	if (refs == 0) {
+		u64 super_blocks_used;
 		if (pin) {
 			int err;
 			radix_tree_preload(GFP_KERNEL);
-			err = radix_tree_insert(
-					&extent_root->fs_info->pinned_radix,
-					blocknr, (void *)blocknr);
+			err = radix_tree_insert(&info->pinned_radix,
+						blocknr, (void *)blocknr);
 			BUG_ON(err);
 			radix_tree_preload_end();
 		}
+		super_blocks_used = btrfs_super_blocks_used(info->disk_super);
+		btrfs_set_super_blocks_used(info->disk_super,
+					    super_blocks_used - num_blocks);
 		ret = btrfs_del_item(trans, extent_root, &path);
 		if (!pin && extent_root->fs_info->last_insert.objectid >
 		    blocknr)
@@ -392,7 +401,9 @@ static int alloc_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 {
 	int ret;
 	int pending_ret;
-	struct btrfs_root *extent_root = root->fs_info->extent_root;
+	u64 super_blocks_used;
+	struct btrfs_fs_info *info = root->fs_info;
+	struct btrfs_root *extent_root = info->extent_root;
 	struct btrfs_extent_item extent_item;
 
 	btrfs_set_extent_refs(&extent_item, 1);
@@ -413,6 +424,9 @@ static int alloc_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (ret)
 		return ret;
 
+	super_blocks_used = btrfs_super_blocks_used(info->disk_super);
+	btrfs_set_super_blocks_used(info->disk_super, super_blocks_used +
+				    num_blocks);
 	ret = btrfs_insert_item(trans, extent_root, ins, &extent_item,
 				sizeof(extent_item));
 
