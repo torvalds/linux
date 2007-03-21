@@ -835,7 +835,7 @@ static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 	           pci->device, pci->subsystem_vendor, pci->subsystem_device);
 	snd_printk(KERN_DEBUG "please mail id, board name, and, "
 		   "if it works, the correct digital_rate option to "
-		   "<alsa-devel@lists.sf.net>\n");
+		   "<alsa-devel@alsa-project.org>\n");
 	return 32000; /* default rate */
 }
 

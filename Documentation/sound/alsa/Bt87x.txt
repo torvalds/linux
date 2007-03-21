@@ -36,8 +36,8 @@ recorded data is not right, try to specify the digital_rate option with
 other values than the default 32000 (often it's 44100 or 64000).
 
 If you have an unknown card, please mail the ID and board name to
-<alsa-devel@lists.sf.net>, regardless of whether audio capture works or
-not, so that future versions of this driver know about your card.
+<alsa-devel@alsa-project.org>, regardless of whether audio capture works
+or not, so that future versions of this driver know about your card.
 
 
 Audio modes

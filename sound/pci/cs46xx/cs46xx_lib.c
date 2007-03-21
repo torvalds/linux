@@ -3107,7 +3107,7 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 	snd_printk(KERN_ERR "ERROR: snd-cs46xx: never read ISV3 & ISV4 from AC'97\n");
 	snd_printk(KERN_ERR "       Try reloading the ALSA driver, if you find something\n");
         snd_printk(KERN_ERR "       broken or not working on your soundcard upon\n");
-	snd_printk(KERN_ERR "       this message please report to alsa-devel@lists.sourceforge.net\n");
+	snd_printk(KERN_ERR "       this message please report to alsa-devel@alsa-project.org\n");
 
 	return -EIO;
 #endif

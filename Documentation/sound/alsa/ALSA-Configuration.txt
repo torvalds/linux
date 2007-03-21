@@ -2051,4 +2051,4 @@ Links and Addresses
        https://bugtrack.alsa-project.org/bugs/
 
   ALSA Developers ML
-       mailto:alsa-devel@lists.sourceforge.net
+       mailto:alsa-devel@alsa-project.org
