@@ -191,21 +191,45 @@ find_free_region(const struct resource *mem, resource_size_t size,
 	return target;
 }
 
+static int __init
+alloc_reserved_region(resource_size_t *start, resource_size_t size,
+		      resource_size_t align, const char *name)
+{
+	struct resource *mem;
+	resource_size_t target;
+	int ret;
+
+	for (mem = system_ram; mem; mem = mem->sibling) {
+		target = find_free_region(mem, size, align);
+		if (target <= mem->end) {
+			ret = add_reserved_region(target, target + size - 1,
+						  name);
+			if (!ret)
+				*start = target;
+			return ret;
+		}
+	}
+
+	return -ENOMEM;
+}
+
 /*
  * Early framebuffer allocation. Works as follows:
  *   - If fbmem_size is zero, nothing will be allocated or reserved.
  *   - If fbmem_start is zero when setup_bootmem() is called,
- *     fbmem_size bytes will be allocated from the bootmem allocator.
+ *     a block of fbmem_size bytes will be reserved before bootmem
+ *     initialization. It will be aligned to the largest page size
+ *     that fbmem_size is a multiple of.
  *   - If fbmem_start is nonzero, an area of size fbmem_size will be
- *     reserved at the physical address fbmem_start if necessary. If
- *     the area isn't in a memory region known to the kernel, it will
- *     be left alone.
+ *     reserved at the physical address fbmem_start if possible. If
+ *     it collides with other reserved memory, a different block of
+ *     same size will be allocated, just as if fbmem_start was zero.
  *
  * Board-specific code may use these variables to set up platform data
  * for the framebuffer driver if fbmem_size is nonzero.
  */
-static unsigned long __initdata fbmem_start;
-static unsigned long __initdata fbmem_size;
+static resource_size_t __initdata fbmem_start;
+static resource_size_t __initdata fbmem_size;
 
 /*
  * "fbmem=xxx[kKmM]" allocates the specified amount of boot memory for
@@ -219,9 +243,39 @@ static unsigned long __initdata fbmem_size;
  */
 static int __init early_parse_fbmem(char *p)
 {
+	int ret;
+	unsigned long align;
+
 	fbmem_size = memparse(p, &p);
-	if (*p == '@')
+	if (*p == '@') {
 		fbmem_start = memparse(p, &p);
+		ret = add_reserved_region(fbmem_start,
+					  fbmem_start + fbmem_size - 1,
+					  "Framebuffer");
+		if (ret) {
+			printk(KERN_WARNING
+			       "Failed to reserve framebuffer memory\n");
+			fbmem_start = 0;
+		}
+	}
+
+	if (!fbmem_start) {
+		if ((fbmem_size & 0x000fffffUL) == 0)
+			align = 0x100000;	/* 1 MiB */
+		else if ((fbmem_size & 0x0000ffffUL) == 0)
+			align = 0x10000;	/* 64 KiB */
+		else
+			align = 0x1000;		/* 4 KiB */
+
+		ret = alloc_reserved_region(&fbmem_start, fbmem_size,
+					    align, "Framebuffer");
+		if (ret) {
+			printk(KERN_WARNING
+			       "Failed to allocate framebuffer memory\n");
+			fbmem_size = 0;
+		}
+	}
+
 	return 0;
 }
 early_param("fbmem", early_parse_fbmem);
