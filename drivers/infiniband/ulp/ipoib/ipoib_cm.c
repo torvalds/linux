@@ -452,7 +452,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 			   skb->len, tx->mtu);
 		++priv->stats.tx_dropped;
 		++priv->stats.tx_errors;
-		ipoib_cm_skb_too_long(dev, skb, tx->mtu - INFINIBAND_ALEN);
+		ipoib_cm_skb_too_long(dev, skb, tx->mtu - IPOIB_ENCAP_LEN);
 		return;
 	}
 
