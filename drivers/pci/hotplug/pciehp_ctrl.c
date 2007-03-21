@@ -351,7 +351,7 @@ static void pciehp_power_thread(struct work_struct *work)
 	kfree(info);
 }
 
-void queue_pushbutton_work(struct work_struct *work)
+void pciehp_queue_pushbutton_work(struct work_struct *work)
 {
 	struct slot *p_slot = container_of(work, struct slot, work.work);
 	struct power_work_info *info;

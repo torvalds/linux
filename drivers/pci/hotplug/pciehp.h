@@ -158,7 +158,7 @@ extern u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl);
 extern u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
 extern int pciehp_configure_device(struct slot *p_slot);
 extern int pciehp_unconfigure_device(struct slot *p_slot);
-extern void queue_pushbutton_work(struct work_struct *work);
+extern void pciehp_queue_pushbutton_work(struct work_struct *work);
 int pcie_init(struct controller *ctrl, struct pcie_device *dev);
 
 static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
