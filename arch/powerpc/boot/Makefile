@@ -116,50 +116,10 @@ CROSSWRAP := -C "$(CROSS_COMPILE)"
 endif
 endif
 
+# args (to if_changed): 1 = (this rule), 2 = platform, 3 = dts 4=dtb 5=initrd
 quiet_cmd_wrap	= WRAP    $@
-      cmd_wrap	=$(CONFIG_SHELL) $(wrapper) -c -o $@ -p $2 $(CROSSWRAP) vmlinux
-quiet_cmd_wrap_initrd = WRAP    $@
-      cmd_wrap_initrd =$(CONFIG_SHELL) $(wrapper) -c -o $@ -p $2 $(CROSSWRAP) \
-				-i $(obj)/ramdisk.image.gz vmlinux
-
-$(obj)/zImage.chrp: vmlinux $(wrapperbits)
-	$(call if_changed,wrap,chrp)
-
-$(obj)/zImage.initrd.chrp: vmlinux $(wrapperbits)
-	$(call if_changed,wrap_initrd,chrp)
-
-$(obj)/zImage.pseries:	vmlinux $(wrapperbits)
-	$(call if_changed,wrap,pseries)
-
-$(obj)/zImage.initrd.pseries: vmlinux $(wrapperbits)
-	$(call if_changed,wrap_initrd,pseries)
-
-$(obj)/zImage.pmac: vmlinux $(wrapperbits)
-	$(call if_changed,wrap,pmac)
-
-$(obj)/zImage.initrd.pmac: vmlinux $(wrapperbits)
-	$(call if_changed,wrap_initrd,pmac)
-
-$(obj)/zImage.coff: vmlinux $(wrapperbits)
-	$(call if_changed,wrap,pmaccoff)
-
-$(obj)/zImage.initrd.coff: vmlinux $(wrapperbits)
-	$(call if_changed,wrap_initrd,pmaccoff)
-
-$(obj)/zImage.miboot: vmlinux $(wrapperbits)
-	$(call if_changed,wrap,miboot)
-
-$(obj)/zImage.initrd.miboot: vmlinux $(wrapperbits)
-	$(call if_changed,wrap_initrd,miboot)
-
-$(obj)/zImage.ps3: vmlinux
-	$(STRIP) -s -R .comment $< -o $@
-
-$(obj)/zImage.initrd.ps3: vmlinux
-	@echo "  WARNING zImage.initrd.ps3 not supported (yet)"
-
-$(obj)/uImage: vmlinux $(wrapperbits)
-	$(call if_changed,wrap,uboot)
+      cmd_wrap	=$(CONFIG_SHELL) $(wrapper) -c -o $@ -p $2 $(CROSSWRAP) \
+		$(if $3, -s $3)$(if $4, -d $4)$(if $5, -i $5) vmlinux
 
 image-$(CONFIG_PPC_PSERIES)		+= zImage.pseries
 image-$(CONFIG_PPC_MAPLE)		+= zImage.pseries
@@ -179,7 +139,28 @@ endif
 
 initrd-  := $(patsubst zImage%, zImage.initrd%, $(image-n) $(image-))
 initrd-y := $(patsubst zImage%, zImage.initrd%, $(image-y))
+initrd-y := $(filter-out $(image-y), $(initrd-y))
 targets	+= $(image-y) $(initrd-y)
+
+$(addprefix $(obj)/, $(initrd-y)): $(obj)/ramdisk.image.gz
+
+# Don't put the ramdisk on the pattern rule; when its missing make will try
+# the pattern rule with less dependencies that also matches (even with the
+# hard dependency listed).
+$(obj)/zImage.initrd.%: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,$*,,,$(obj)/ramdisk.image.gz)
+
+$(obj)/zImage.%: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,$*)
+
+$(obj)/zImage.ps3: vmlinux
+	$(STRIP) -s -R .comment $< -o $@
+
+$(obj)/zImage.initrd.ps3: vmlinux
+	@echo "  WARNING zImage.initrd.ps3 not supported (yet)"
+
+$(obj)/uImage: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,uboot)
 
 $(obj)/zImage:		$(addprefix $(obj)/, $(image-y))
 	@rm -f $@; ln $< $@
