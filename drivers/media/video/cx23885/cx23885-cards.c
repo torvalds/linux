@@ -171,7 +171,8 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 
 	if (dev->i2c_bus[0].i2c_rc == 0) {
 		dev->i2c_bus[0].i2c_client.addr = 0xa0 >> 1;
-		tveeprom_read(&dev->i2c_bus[0].i2c_client, eeprom, sizeof(eeprom));
+		tveeprom_read(&dev->i2c_bus[0].i2c_client,
+			      eeprom, sizeof(eeprom));
 	}
 
 	switch (dev->board) {

@@ -183,7 +183,7 @@ struct cx23885_dev {
 	//u32                        shadow[SHADOW_MAX];
 	int                        pci_irqmask;
 
-	/* I2C adapters: Master 1 and 2 (External) and Master 3 (Internal only) */
+	/* I2C adapters: Master 1 & 2 (External) & Master 3 (Internal only) */
 	struct cx23885_i2c         i2c_bus[3];
 
 	int                        nr;
@@ -268,17 +268,22 @@ extern void cx23885_card_setup_pre_i2c(struct cx23885_dev *dev);
 extern int cx23885_dvb_register(struct cx23885_tsport *port);
 extern int cx23885_dvb_unregister(struct cx23885_tsport *port);
 
-extern int cx23885_buf_prepare(struct videobuf_queue *q, struct cx23885_tsport *port,
-			struct cx23885_buffer *buf, enum v4l2_field field);
+extern int cx23885_buf_prepare(struct videobuf_queue *q,
+			       struct cx23885_tsport *port,
+			       struct cx23885_buffer *buf,
+			       enum v4l2_field field);
 
-extern void cx23885_buf_queue(struct cx23885_tsport *port, struct cx23885_buffer *buf);
-extern void cx23885_free_buffer(struct videobuf_queue *q, struct cx23885_buffer *buf);
+extern void cx23885_buf_queue(struct cx23885_tsport *port,
+			      struct cx23885_buffer *buf);
+extern void cx23885_free_buffer(struct videobuf_queue *q,
+				struct cx23885_buffer *buf);
 
 /* ----------------------------------------------------------- */
 /* cx23885-i2c.c                                                */
 extern int cx23885_i2c_register(struct cx23885_i2c *bus);
 extern int cx23885_i2c_unregister(struct cx23885_i2c *bus);
-extern void cx23885_call_i2c_clients(struct cx23885_i2c *bus, unsigned int cmd, void *arg);
+extern void cx23885_call_i2c_clients(struct cx23885_i2c *bus, unsigned int cmd,
+				     void *arg);
 
 /*
  * Local variables:
