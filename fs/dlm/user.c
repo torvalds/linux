@@ -286,11 +286,34 @@ static int device_user_unlock(struct dlm_user_proc *proc,
 	return error;
 }
 
+static int create_misc_device(struct dlm_ls *ls, char *name)
+{
+	int error, len;
+
+	error = -ENOMEM;
+	len = strlen(name) + strlen(name_prefix) + 2;
+	ls->ls_device.name = kzalloc(len, GFP_KERNEL);
+	if (!ls->ls_device.name)
+		goto fail;
+
+	snprintf((char *)ls->ls_device.name, len, "%s_%s", name_prefix,
+		 name);
+	ls->ls_device.fops = &device_fops;
+	ls->ls_device.minor = MISC_DYNAMIC_MINOR;
+
+	error = misc_register(&ls->ls_device);
+	if (error) {
+		kfree(ls->ls_device.name);
+	}
+fail:
+	return error;
+}
+
 static int device_create_lockspace(struct dlm_lspace_params *params)
 {
 	dlm_lockspace_t *lockspace;
 	struct dlm_ls *ls;
-	int error, len;
+	int error;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -304,29 +327,14 @@ static int device_create_lockspace(struct dlm_lspace_params *params)
 	if (!ls)
 		return -ENOENT;
 
-	error = -ENOMEM;
-	len = strlen(params->name) + strlen(name_prefix) + 2;
-	ls->ls_device.name = kzalloc(len, GFP_KERNEL);
-	if (!ls->ls_device.name)
-		goto fail;
-	snprintf((char *)ls->ls_device.name, len, "%s_%s", name_prefix,
-		 params->name);
-	ls->ls_device.fops = &device_fops;
-	ls->ls_device.minor = MISC_DYNAMIC_MINOR;
-
-	error = misc_register(&ls->ls_device);
-	if (error) {
-		kfree(ls->ls_device.name);
-		goto fail;
-	}
-
-	error = ls->ls_device.minor;
+	error = create_misc_device(ls, params->name);
 	dlm_put_lockspace(ls);
-	return error;
 
- fail:
-	dlm_put_lockspace(ls);
-	dlm_release_lockspace(lockspace, 0);
+	if (error)
+		dlm_release_lockspace(lockspace, 0);
+	else
+		error = ls->ls_device.minor;
+
 	return error;
 }
 
@@ -343,6 +351,10 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 	if (!ls)
 		return -ENOENT;
 
+	/* Deregister the misc device first, so we don't have
+	 * a device that's not attached to a lockspace. If
+	 * dlm_release_lockspace fails then we can recreate it
+	 */
 	error = misc_deregister(&ls->ls_device);
 	if (error) {
 		dlm_put_lockspace(ls);
@@ -361,6 +373,8 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 
 	dlm_put_lockspace(ls);
 	error = dlm_release_lockspace(lockspace, force);
+	if (error)
+		create_misc_device(ls, ls->ls_name);
  out:
 	return error;
 }
