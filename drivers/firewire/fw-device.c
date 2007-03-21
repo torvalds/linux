@@ -138,9 +138,6 @@ fw_unit_uevent(struct device *dev, char **envp, int num_envp,
 	int length = 0;
 	int i = 0;
 
-	if (!is_fw_unit(dev))
-		goto out;
-
 	get_modalias(unit, modalias, sizeof modalias);
 
 	if (add_uevent_var(envp, num_envp, &i,
@@ -148,7 +145,6 @@ fw_unit_uevent(struct device *dev, char **envp, int num_envp,
 			   "MODALIAS=%s", modalias))
 		return -ENOMEM;
 
- out:
 	envp[i] = NULL;
 
 	return 0;
@@ -157,7 +153,6 @@ fw_unit_uevent(struct device *dev, char **envp, int num_envp,
 struct bus_type fw_bus_type = {
 	.name = "firewire",
 	.match = fw_unit_match,
-	.uevent = fw_unit_uevent,
 };
 EXPORT_SYMBOL(fw_bus_type);
 
@@ -199,8 +194,8 @@ int fw_device_enable_phys_dma(struct fw_device *device)
 EXPORT_SYMBOL(fw_device_enable_phys_dma);
 
 static ssize_t
-show_modalias_attribute(struct device *dev,
-			struct device_attribute *attr, char *buf)
+modalias_show(struct device *dev,
+	      struct device_attribute *attr, char *buf)
 {
 	struct fw_unit *unit = fw_unit(dev);
 	int length;
@@ -211,30 +206,9 @@ show_modalias_attribute(struct device *dev,
 	return length + 1;
 }
 
-static struct device_attribute modalias_attribute = {
-	.attr = { .name = "modalias", .mode = S_IRUGO, },
-	.show = show_modalias_attribute,
-};
-
 static ssize_t
-show_config_rom_attribute(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	struct fw_device *device = fw_device(dev);
-
-	memcpy(buf, device->config_rom, device->config_rom_length * 4);
-
-	return device->config_rom_length * 4;
-}
-
-static struct device_attribute config_rom_attribute = {
-	.attr = {.name = "config_rom", .mode = S_IRUGO,},
-	.show = show_config_rom_attribute,
-};
-
-static ssize_t
-show_rom_index_attribute(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+rom_index_show(struct device *dev,
+	       struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev->parent);
 	struct fw_unit *unit = fw_unit(dev);
@@ -243,9 +217,26 @@ show_rom_index_attribute(struct device *dev,
 			(int)(unit->directory - device->config_rom));
 }
 
-static struct device_attribute rom_index_attribute = {
-	.attr = { .name = "rom_index", .mode = S_IRUGO, },
-	.show = show_rom_index_attribute,
+static struct device_attribute fw_unit_attributes[] = {
+	__ATTR_RO(modalias),
+	__ATTR_RO(rom_index),
+	__ATTR_NULL,
+};
+
+static ssize_t
+config_rom_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fw_device *device = fw_device(dev);
+
+	memcpy(buf, device->config_rom, device->config_rom_length * 4);
+
+	return device->config_rom_length * 4;
+}
+
+static struct device_attribute fw_device_attributes[] = {
+	__ATTR_RO(config_rom),
+	__ATTR_NULL,
 };
 
 struct read_quadlet_callback_data {
@@ -370,9 +361,15 @@ static void fw_unit_release(struct device *dev)
 	kfree(unit);
 }
 
+static struct device_type fw_unit_type = {
+	.attrs		= fw_unit_attributes,
+	.uevent		= fw_unit_uevent,
+	.release	= fw_unit_release,
+};
+
 static int is_fw_unit(struct device *dev)
 {
-	return dev->release == fw_unit_release;
+	return dev->type == &fw_unit_type;
 }
 
 static void create_units(struct fw_device *device)
@@ -397,7 +394,7 @@ static void create_units(struct fw_device *device)
 
 		unit->directory = ci.p + value - 1;
 		unit->device.bus = &fw_bus_type;
-		unit->device.release = fw_unit_release;
+		unit->device.type = &fw_unit_type;
 		unit->device.parent = &device->device;
 		snprintf(unit->device.bus_id, sizeof unit->device.bus_id,
 			 "%s.%d", device->device.bus_id, i++);
@@ -406,27 +403,12 @@ static void create_units(struct fw_device *device)
 			kfree(unit);
 			continue;
 		}
-
-		if (device_create_file(&unit->device, &modalias_attribute) < 0) {
-			device_unregister(&unit->device);
-			kfree(unit);
-		}
-
-		if (device_create_file(&unit->device, &rom_index_attribute) < 0) {
-			device_unregister(&unit->device);
-			kfree(unit);
-		}
 	}
 }
 
 static int shutdown_unit(struct device *device, void *data)
 {
-	struct fw_unit *unit = fw_unit(device);
-
-	if (is_fw_unit(device)) {
-		device_remove_file(&unit->device, &modalias_attribute);
-		device_unregister(&unit->device);
-	}
+	device_unregister(device);
 
 	return 0;
 }
@@ -456,10 +438,14 @@ static void fw_device_shutdown(struct work_struct *work)
 	up_write(&fw_bus_type.subsys.rwsem);
 
 	fw_device_cdev_remove(device);
-	device_remove_file(&device->device, &config_rom_attribute);
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 	device_unregister(&device->device);
 }
+
+static struct device_type fw_device_type = {
+	.attrs		= fw_device_attributes,
+	.release	= fw_device_release,
+};
 
 /* These defines control the retry behavior for reading the config
  * rom.  It shouldn't be necessary to tweak these; if the device
@@ -507,7 +493,7 @@ static void fw_device_init(struct work_struct *work)
 		goto error;
 
 	device->device.bus = &fw_bus_type;
-	device->device.release = fw_device_release;
+	device->device.type = &fw_device_type;
 	device->device.parent = device->card->device;
 	device->device.devt = MKDEV(fw_cdev_major, minor);
 	snprintf(device->device.bus_id, sizeof device->device.bus_id,
@@ -516,11 +502,6 @@ static void fw_device_init(struct work_struct *work)
 	if (device_add(&device->device)) {
 		fw_error("Failed to add device.\n");
 		goto error_with_cdev;
-	}
-
-	if (device_create_file(&device->device, &config_rom_attribute) < 0) {
-		fw_error("Failed to create config rom file.\n");
-		goto error_with_device;
 	}
 
 	create_units(device);
@@ -549,8 +530,6 @@ static void fw_device_init(struct work_struct *work)
 
 	return;
 
- error_with_device:
-	device_del(&device->device);
  error_with_cdev:
 	down_write(&fw_bus_type.subsys.rwsem);
 	idr_remove(&fw_device_idr, minor);
