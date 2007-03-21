@@ -158,6 +158,8 @@ static inline void exit(void)
 		platform_ops.exit();
 	for(;;);
 }
+#define fatal(args...) { printf(args); exit(); }
+
 
 #define BSS_STACK(size) \
 	static char _bss_stack[size]; \

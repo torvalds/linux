@@ -52,18 +52,14 @@ void gunzip_start(struct gunzip_state *state, void *src, int srclen)
 		int r, flags;
 
 		state->s.workspace = state->scratch;
-		if (zlib_inflate_workspacesize() > sizeof(state->scratch)) {
-			printf("insufficient scratch space for gunzip\n\r");
-			exit();
-		}
+		if (zlib_inflate_workspacesize() > sizeof(state->scratch))
+			fatal("insufficient scratch space for gunzip\n\r");
 
 		/* skip header */
 		hdrlen = 10;
 		flags = hdr[3];
-		if (hdr[2] != Z_DEFLATED || (flags & RESERVED) != 0) {
-			printf("bad gzipped data\n\r");
-			exit();
-		}
+		if (hdr[2] != Z_DEFLATED || (flags & RESERVED) != 0)
+			fatal("bad gzipped data\n\r");
 		if ((flags & EXTRA_FIELD) != 0)
 			hdrlen = 12 + hdr[10] + (hdr[11] << 8);
 		if ((flags & ORIG_NAME) != 0)
@@ -74,16 +70,12 @@ void gunzip_start(struct gunzip_state *state, void *src, int srclen)
 				;
 		if ((flags & HEAD_CRC) != 0)
 			hdrlen += 2;
-		if (hdrlen >= srclen) {
-			printf("gunzip_start: ran out of data in header\n\r");
-			exit();
-		}
+		if (hdrlen >= srclen)
+			fatal("gunzip_start: ran out of data in header\n\r");
 
 		r = zlib_inflateInit2(&state->s, -MAX_WBITS);
-		if (r != Z_OK) {
-			printf("inflateInit2 returned %d\n\r", r);
-			exit();
-		}
+		if (r != Z_OK)
+			fatal("inflateInit2 returned %d\n\r", r);
 	}
 
 	state->s.next_in = src + hdrlen;
@@ -117,10 +109,8 @@ int gunzip_partial(struct gunzip_state *state, void *dst, int dstlen)
 		state->s.next_out = dst;
 		state->s.avail_out = dstlen;
 		r = zlib_inflate(&state->s, Z_FULL_FLUSH);
-		if (r != Z_OK && r != Z_STREAM_END) {
-			printf("inflate returned %d msg: %s\n\r", r, state->s.msg);
-			exit();
-		}
+		if (r != Z_OK && r != Z_STREAM_END)
+			fatal("inflate returned %d msg: %s\n\r", r, state->s.msg);
 		len = state->s.next_out - (unsigned char *)dst;
 	} else {
 		/* uncompressed image */
@@ -151,10 +141,8 @@ void gunzip_exactly(struct gunzip_state *state, void *dst, int dstlen)
 	int len;
 
 	len  = gunzip_partial(state, dst, dstlen);
-	if (len < dstlen) {
-		printf("gunzip_block: ran out of data\n\r");
-		exit();
-	}
+	if (len < dstlen)
+		fatal("gunzip_block: ran out of data\n\r");
 }
 
 /**

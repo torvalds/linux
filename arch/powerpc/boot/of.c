@@ -212,10 +212,9 @@ static void *of_vmlinux_alloc(unsigned long size)
 {
 	void *p = malloc(size);
 
-	if (!p) {
-		printf("Can't allocate memory for kernel image!\n\r");
-		exit();
-	}
+	if (!p)
+		fatal("Can't allocate memory for kernel image!\n\r");
+
 	return p;
 }
 

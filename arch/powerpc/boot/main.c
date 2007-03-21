@@ -118,10 +118,9 @@ static struct addr_range prep_kernel(void)
 	gunzip_start(&gzstate, vmlinuz_addr, vmlinuz_size);
 	gunzip_exactly(&gzstate, elfheader, sizeof(elfheader));
 
-	if (!parse_elf64(elfheader, &ei) && !parse_elf32(elfheader, &ei)) {
-		printf("Error: not a valid PPC32 or PPC64 ELF file!\n\r");
-		exit();
-	}
+	if (!parse_elf64(elfheader, &ei) && !parse_elf32(elfheader, &ei))
+		fatal("Error: not a valid PPC32 or PPC64 ELF file!\n\r");
+
 	if (platform_ops.image_hdr)
 		platform_ops.image_hdr(elfheader);
 
@@ -135,11 +134,9 @@ static struct addr_range prep_kernel(void)
 	if (platform_ops.vmlinux_alloc) {
 		addr = platform_ops.vmlinux_alloc(ei.memsize);
 	} else {
-		if ((unsigned long)_start < ei.memsize) {
-			printf("Insufficient memory for kernel at address 0!"
+		if ((unsigned long)_start < ei.memsize)
+			fatal("Insufficient memory for kernel at address 0!"
 			       " (_start=%lx)\n\r", _start);
-			exit();
-		}
 	}
 
 	/* Finally, gunzip the kernel */
@@ -189,11 +186,9 @@ static struct addr_range prep_initrd(struct addr_range vmlinux,
 		printf("Allocating 0x%lx bytes for initrd ...\n\r",
 		       initrd_size);
 		initrd_addr = (unsigned long)malloc(initrd_size);
-		if (! initrd_addr) {
-			printf("Can't allocate memory for initial "
+		if (! initrd_addr)
+			fatal("Can't allocate memory for initial "
 			       "ramdisk !\n\r");
-			exit();
-		}
 		printf("Relocating initrd 0x%p <- 0x%p (0x%lx bytes)\n\r",
 		       initrd_addr, old_addr, initrd_size);
 		memmove((void *)initrd_addr, old_addr, initrd_size);
@@ -203,10 +198,8 @@ static struct addr_range prep_initrd(struct addr_range vmlinux,
 
 	/* Tell the kernel initrd address via device tree */
 	devp = finddevice("/chosen");
-	if (! devp) {
-		printf("Device tree has no chosen node!\n\r");
-		exit();
-	}
+	if (! devp)
+		fatal("Device tree has no chosen node!\n\r");
 
 	initrd_start = (u32)initrd_addr;
 	initrd_end = (u32)initrd_addr + initrd_size;
@@ -303,7 +296,6 @@ void start(void *sp)
 		kentry((unsigned long)initrd.addr, initrd.size,
 		       loader_info.promptr);
 
-	/* console closed so printf below may not work */
-	printf("Error: Linux kernel returned to zImage boot wrapper!\n\r");
-	exit();
+	/* console closed so printf in fatal below may not work */
+	fatal("Error: Linux kernel returned to zImage boot wrapper!\n\r");
 }
