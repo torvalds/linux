@@ -767,35 +767,6 @@ bail:
 	return ret;
 }
 
-static int ocfs2_request_delete(struct inode *inode)
-{
-	int status = 0;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-
-	if (ocfs2_inode_is_new(inode))
-		return 0;
-
-	if (ocfs2_node_map_is_only(osb, &osb->mounted_map,
-				   osb->node_num))
-		return 0;
-	/*
-	 * This is how ocfs2 determines whether an inode is still live
-	 * within the cluster. Every node takes a shared read lock on
-	 * the inode open lock in ocfs2_read_locked_inode(). When we
-	 * get to ->delete_inode(), each node tries to convert it's
-	 * lock to an exclusive. Trylocks are serialized by the inode
-	 * meta data lock. If the upconvert suceeds, we know the inode
-	 * is no longer live and can be deleted.
-	 *
-	 * Though we call this with the meta data lock held, the
-	 * trylock keeps us from ABBA deadlock.
-	 */
-	status = ocfs2_try_open_lock(inode, 1);
-	if (status < 0 && status != -EAGAIN)
-		mlog_errno(status);
-	return status;
-}
-
 /* Query the cluster to determine whether we should wipe an inode from
  * disk or not.
  *
@@ -848,10 +819,19 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 		goto bail;
 	}
 
-	status = ocfs2_request_delete(inode);
-	/* -EAGAIN means that other nodes are still using the
-	 * inode. We're done here though, so avoid doing anything on
-	 * disk and let them worry about deleting it. */
+	/*
+	 * This is how ocfs2 determines whether an inode is still live
+	 * within the cluster. Every node takes a shared read lock on
+	 * the inode open lock in ocfs2_read_locked_inode(). When we
+	 * get to ->delete_inode(), each node tries to convert it's
+	 * lock to an exclusive. Trylocks are serialized by the inode
+	 * meta data lock. If the upconvert suceeds, we know the inode
+	 * is no longer live and can be deleted.
+	 *
+	 * Though we call this with the meta data lock held, the
+	 * trylock keeps us from ABBA deadlock.
+	 */
+	status = ocfs2_try_open_lock(inode, 1);
 	if (status == -EAGAIN) {
 		status = 0;
 		mlog(0, "Skipping delete of %llu because it is in use on"
