@@ -153,7 +153,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 #ifdef CONFIG_NUMA
 		printk("NUMA ");
 #endif
-		printk("%s\n", ppc_md.name ? "" : ppc_md.name);
+		printk("%s\n", ppc_md.name ? ppc_md.name : "");
 
 		print_modules();
 		show_regs(regs);
