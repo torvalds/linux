@@ -506,7 +506,8 @@ void __init setup_boot_APIC_clock(void)
 			apic_printk(APIC_VERBOSE, "... jiffies result ok\n");
 		else
 			local_apic_timer_verify_ok = 0;
-	}
+	} else
+		local_irq_enable();
 
 	if (!local_apic_timer_verify_ok) {
 		printk(KERN_WARNING
