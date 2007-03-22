@@ -674,10 +674,26 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 	return status;
 }
 
-void pci_disable_msix(struct pci_dev* dev)
+static void msix_free_all_irqs(struct pci_dev *dev)
 {
 	int irq, head, tail = 0;
 
+	irq = head = dev->first_msi_irq;
+	while (head != tail) {
+		tail = get_irq_msi(irq)->link.tail;
+
+		BUG_ON(irq_has_action(irq));
+
+		if (irq != head)
+			msi_free_irq(dev, irq);
+		irq = tail;
+	}
+	msi_free_irq(dev, irq);
+	dev->first_msi_irq = 0;
+}
+
+void pci_disable_msix(struct pci_dev* dev)
+{
 	if (!pci_msi_enable)
 		return;
 	if (!dev)
@@ -690,18 +706,7 @@ void pci_disable_msix(struct pci_dev* dev)
 	pci_intx(dev, 1);		/* enable intx */
 	dev->msix_enabled = 0;
 
-	irq = head = dev->first_msi_irq;
-	while (head != tail) {
-		tail = get_irq_msi(irq)->link.tail;
-
-		BUG_ON(irq_has_action(irq));
-
-		if (irq != head)	/* Release MSI-X irq */
-			msi_free_irq(dev, irq);
-		irq = tail;
-	}
-	msi_free_irq(dev, irq);
-	dev->first_msi_irq = 0;
+	msix_free_all_irqs(dev);
 }
 
 /**
@@ -722,23 +727,9 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 		BUG_ON(irq_has_action(dev->first_msi_irq));
 		msi_free_irq(dev, dev->first_msi_irq);
 	}
-	if (dev->msix_enabled) {
-		int irq, head, tail = 0;
-		void __iomem *base = NULL;
 
-		irq = head = dev->first_msi_irq;
-		while (head != tail) {
-			tail = get_irq_msi(irq)->link.tail;
-			base = get_irq_msi(irq)->mask_base;
-
-			BUG_ON(irq_has_action(irq));
-
-			if (irq != head) /* Release MSI-X irq */
-				msi_free_irq(dev, irq);
-			irq = tail;
-		}
-		msi_free_irq(dev, irq);
-	}
+	if (dev->msix_enabled)
+		msix_free_all_irqs(dev);
 }
 
 void pci_no_msi(void)
