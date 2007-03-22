@@ -205,31 +205,22 @@ static struct addr_range prep_initrd(struct addr_range vmlinux, void *chosen,
  * edit the command line passed to vmlinux (by setting /chosen/bootargs).
  * The buffer is put in it's own section so that tools may locate it easier.
  */
-static char builtin_cmdline[COMMAND_LINE_SIZE]
+static char cmdline[COMMAND_LINE_SIZE]
 	__attribute__((__section__("__builtin_cmdline")));
 
-static void get_cmdline(char *buf, int size)
+static void prep_cmdline(void *chosen)
 {
-	void *devp;
-	int len = strlen(builtin_cmdline);
+	if (cmdline[0] == '\0')
+		getprop(chosen, "bootargs", cmdline, COMMAND_LINE_SIZE-1);
 
-	buf[0] = '\0';
+	printf("\n\rLinux/PowerPC load: %s", cmdline);
+	/* If possible, edit the command line */
+	if (console_ops.edit_cmdline)
+		console_ops.edit_cmdline(cmdline, COMMAND_LINE_SIZE);
+	printf("\n\r");
 
-	if (len > 0) { /* builtin_cmdline overrides dt's /chosen/bootargs */
-		len = min(len, size-1);
-		strncpy(buf, builtin_cmdline, len);
-		buf[len] = '\0';
-	}
-	else if ((devp = finddevice("/chosen")))
-		getprop(devp, "bootargs", buf, size);
-}
-
-static void set_cmdline(char *buf)
-{
-	void *devp;
-
-	if ((devp = finddevice("/chosen")))
-		setprop(devp, "bootargs", buf, strlen(buf) + 1);
+	/* Put the command line back into the devtree for the kernel */
+	setprop_str(chosen, "bootargs", cmdline);
 }
 
 struct platform_ops platform_ops;
@@ -241,9 +232,15 @@ void start(void)
 {
 	struct addr_range vmlinux, initrd;
 	kernel_entry_t kentry;
-	char cmdline[COMMAND_LINE_SIZE];
 	unsigned long ft_addr = 0;
 	void *chosen;
+
+	/* Do this first, because malloc() could clobber the loader's
+	 * command line.  Only use the loader command line if a
+	 * built-in command line wasn't set by an external tool */
+	if ((loader_info.cmdline_len > 0) && (cmdline[0] == '\0'))
+		memmove(cmdline, loader_info.cmdline,
+			min(loader_info.cmdline_len, COMMAND_LINE_SIZE-1));
 
 	if (console_ops.open && (console_ops.open() < 0))
 		exit();
@@ -261,18 +258,7 @@ void start(void)
 	vmlinux = prep_kernel();
 	initrd = prep_initrd(vmlinux, chosen,
 			     loader_info.initrd_addr, loader_info.initrd_size);
-
-	/* If cmdline came from zimage wrapper or if we can edit the one
-	 * in the dt, print it out and edit it, if possible.
-	 */
-	if ((strlen(builtin_cmdline) > 0) || console_ops.edit_cmdline) {
-		get_cmdline(cmdline, COMMAND_LINE_SIZE);
-		printf("\n\rLinux/PowerPC load: %s", cmdline);
-		if (console_ops.edit_cmdline)
-			console_ops.edit_cmdline(cmdline, COMMAND_LINE_SIZE);
-		printf("\n\r");
-		set_cmdline(cmdline);
-	}
+	prep_cmdline(chosen);
 
 	printf("Finalizing device tree...");
 	if (dt_ops.finalize)

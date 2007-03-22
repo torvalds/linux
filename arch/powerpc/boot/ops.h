@@ -70,6 +70,8 @@ struct serial_console_data {
 struct loader_info {
 	void *promptr;
 	unsigned long initrd_addr, initrd_size;
+	char *cmdline;
+	int cmdline_len;
 };
 extern struct loader_info loader_info;
 
