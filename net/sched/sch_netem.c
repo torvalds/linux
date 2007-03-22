@@ -57,19 +57,20 @@ struct netem_sched_data {
 	struct Qdisc	*qdisc;
 	struct qdisc_watchdog watchdog;
 
-	u32 latency;
+	psched_tdiff_t latency;
+	psched_tdiff_t jitter;
+
 	u32 loss;
 	u32 limit;
 	u32 counter;
 	u32 gap;
-	u32 jitter;
 	u32 duplicate;
 	u32 reorder;
 	u32 corrupt;
 
 	struct crndstate {
-		unsigned long last;
-		unsigned long rho;
+		u32 last;
+		u32 rho;
 	} delay_cor, loss_cor, dup_cor, reorder_cor, corrupt_cor;
 
 	struct disttable {
@@ -96,7 +97,7 @@ static void init_crandom(struct crndstate *state, unsigned long rho)
  * Next number depends on last value.
  * rho is scaled to avoid floating point.
  */
-static unsigned long get_crandom(struct crndstate *state)
+static u32 get_crandom(struct crndstate *state)
 {
 	u64 value, rho;
 	unsigned long answer;
@@ -115,11 +116,13 @@ static unsigned long get_crandom(struct crndstate *state)
  * std deviation sigma.  Uses table lookup to approximate the desired
  * distribution, and a uniformly-distributed pseudo-random source.
  */
-static long tabledist(unsigned long mu, long sigma,
-		      struct crndstate *state, const struct disttable *dist)
+static psched_tdiff_t tabledist(psched_tdiff_t mu, psched_tdiff_t sigma,
+				struct crndstate *state,
+				const struct disttable *dist)
 {
-	long t, x;
-	unsigned long rnd;
+	psched_tdiff_t x;
+	long t;
+	u32 rnd;
 
 	if (sigma == 0)
 		return mu;
