@@ -25,7 +25,6 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <net/sock.h>
@@ -1077,14 +1076,9 @@ nlmsg_failure:
 
 static int __init tc_action_init(void)
 {
-	struct rtnetlink_link *link_p = rtnetlink_links[PF_UNSPEC];
-
-	if (link_p) {
-		link_p[RTM_NEWACTION-RTM_BASE].doit = tc_ctl_action;
-		link_p[RTM_DELACTION-RTM_BASE].doit = tc_ctl_action;
-		link_p[RTM_GETACTION-RTM_BASE].doit = tc_ctl_action;
-		link_p[RTM_GETACTION-RTM_BASE].dumpit = tc_dump_action;
-	}
+	rtnl_register(PF_UNSPEC, RTM_NEWACTION, tc_ctl_action, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELACTION, tc_ctl_action, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETACTION, tc_ctl_action, tc_dump_action);
 
 	return 0;
 }
