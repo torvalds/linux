@@ -538,7 +538,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	 * (see Section 6.2.1)
 	 */
 	t->cwnd = min(4*asoc->pathmtu, max_t(__u32, 2*asoc->pathmtu, 4380));
-	t->ssthresh = SCTP_DEFAULT_MAXWINDOW;
+	t->ssthresh = asoc->peer.i.a_rwnd;
 	t->rto = asoc->rto_initial;
 	t->rtt = 0;
 	t->srtt = 0;
