@@ -4,6 +4,7 @@
  * sensor.
  *
  * Copyright 2006 One Laptop Per Child Association, Inc.
+ * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
  *
  * Written by Jonathan Corbet, corbet@lwn.net.
  *

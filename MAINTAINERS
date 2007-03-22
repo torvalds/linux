@@ -873,6 +873,12 @@ W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Maintained
 
+CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
+P:   	Jonathan Corbet
+M:	corbet@lwn.net
+L:	video4linux-list@redhat.com
+S:	Maintained
+
 CALGARY x86-64 IOMMU
 P:	Muli Ben-Yehuda
 M:	muli@il.ibm.com
@@ -2524,6 +2530,12 @@ S:	Maintained
 OMNIKEY CARDMAN 4040 DRIVER
 P:	Harald Welte
 M:	laforge@gnumonks.org
+S:	Maintained
+
+OMNIVISION OV7670 SENSOR DRIVER
+P:   	Jonathan Corbet
+M:	corbet@lwn.net
+L:	video4linux-list@redhat.com
 S:	Maintained
 
 ONSTREAM SCSI TAPE DRIVER

@@ -5,6 +5,8 @@
  * by Jonathan Corbet with substantial inspiration from Mark
  * McClelland's ovcamchip code.
  *
+ * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
+ *
  * This file may be distributed under the terms of the GNU General
  * Public License, version 2.
  */
