@@ -550,6 +550,7 @@ int pci_enable_msi(struct pci_dev* dev)
 	status = msi_capability_init(dev);
 	return status;
 }
+EXPORT_SYMBOL(pci_enable_msi);
 
 void pci_disable_msi(struct pci_dev* dev)
 {
@@ -581,6 +582,7 @@ void pci_disable_msi(struct pci_dev* dev)
 
 	dev->first_msi_irq = 0;
 }
+EXPORT_SYMBOL(pci_disable_msi);
 
 static int msi_free_irq(struct pci_dev* dev, int irq)
 {
@@ -673,6 +675,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 	status = msix_capability_init(dev, entries, nvec);
 	return status;
 }
+EXPORT_SYMBOL(pci_enable_msix);
 
 static void msix_free_all_irqs(struct pci_dev *dev)
 {
@@ -706,6 +709,7 @@ void pci_disable_msix(struct pci_dev* dev)
 
 	msix_free_all_irqs(dev);
 }
+EXPORT_SYMBOL(pci_disable_msix);
 
 /**
  * msi_remove_pci_irq_vectors - reclaim MSI(X) irqs to unused state
@@ -732,8 +736,3 @@ void pci_no_msi(void)
 {
 	pci_msi_enable = 0;
 }
-
-EXPORT_SYMBOL(pci_enable_msi);
-EXPORT_SYMBOL(pci_disable_msi);
-EXPORT_SYMBOL(pci_enable_msix);
-EXPORT_SYMBOL(pci_disable_msix);
