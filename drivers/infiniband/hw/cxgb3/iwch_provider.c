@@ -545,11 +545,14 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 		php = to_iwch_pd(pd);
 	if (mr_rereg_mask & IB_MR_REREG_ACCESS)
 		mh.attr.perms = iwch_ib_to_tpt_access(acc);
-	if (mr_rereg_mask & IB_MR_REREG_TRANS)
+	if (mr_rereg_mask & IB_MR_REREG_TRANS) {
 		ret = build_phys_page_list(buffer_list, num_phys_buf,
 					   iova_start,
 					   &total_size, &npages,
 					   &shift, &page_list);
+		if (ret)
+			return ret;
+	}
 
 	ret = iwch_reregister_mem(rhp, php, &mh, shift, page_list, npages);
 	kfree(page_list);
