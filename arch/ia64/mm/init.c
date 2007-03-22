@@ -648,6 +648,22 @@ count_reserved_pages (u64 start, u64 end, void *arg)
 	return 0;
 }
 
+int
+find_max_min_low_pfn (unsigned long start, unsigned long end, void *arg)
+{
+	unsigned long pfn_start, pfn_end;
+#ifdef CONFIG_FLATMEM
+	pfn_start = (PAGE_ALIGN(__pa(start))) >> PAGE_SHIFT;
+	pfn_end = (PAGE_ALIGN(__pa(end - 1))) >> PAGE_SHIFT;
+#else
+	pfn_start = GRANULEROUNDDOWN(__pa(start)) >> PAGE_SHIFT;
+	pfn_end = GRANULEROUNDUP(__pa(end - 1)) >> PAGE_SHIFT;
+#endif
+	min_low_pfn = min(min_low_pfn, pfn_start);
+	max_low_pfn = max(max_low_pfn, pfn_end);
+	return 0;
+}
+
 /*
  * Boot command-line option "nolwsys" can be used to disable the use of any light-weight
  * system call handler.  When this option is in effect, all fsyscalls will end up bubbling

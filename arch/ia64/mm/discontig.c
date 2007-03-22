@@ -88,9 +88,6 @@ static int __init build_node_maps(unsigned long start, unsigned long len,
 		bdp->node_low_pfn = max(epfn, bdp->node_low_pfn);
 	}
 
-	min_low_pfn = min(min_low_pfn, bdp->node_boot_start>>PAGE_SHIFT);
-	max_low_pfn = max(max_low_pfn, bdp->node_low_pfn);
-
 	return 0;
 }
 
@@ -438,6 +435,7 @@ void __init find_memory(void)
 	/* These actually end up getting called by call_pernode_memory() */
 	efi_memmap_walk(filter_rsvd_memory, build_node_maps);
 	efi_memmap_walk(filter_rsvd_memory, find_pernode_space);
+	efi_memmap_walk(find_max_min_low_pfn, NULL);
 
 	for_each_online_node(node)
 		if (mem_data[node].bootmem_data.node_low_pfn) {

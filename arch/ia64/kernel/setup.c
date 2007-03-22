@@ -692,12 +692,15 @@ struct seq_operations cpuinfo_op = {
 	.show =		show_cpuinfo
 };
 
-static char brandname[128];
+#define MAX_BRANDS	8
+static char brandname[MAX_BRANDS][128];
 
 static char * __cpuinit
 get_model_name(__u8 family, __u8 model)
 {
+	static int overflow;
 	char brand[128];
+	int i;
 
 	memcpy(brand, "Unknown", 8);
 	if (ia64_pal_get_brand_info(brand)) {
@@ -709,12 +712,17 @@ get_model_name(__u8 family, __u8 model)
 			case 2: memcpy(brand, "Madison up to 9M cache", 23); break;
 		}
 	}
-	if (brandname[0] == '\0')
-		return strcpy(brandname, brand);
-	else if (strcmp(brandname, brand) == 0)
-		return brandname;
-	else
-		return kstrdup(brand, GFP_KERNEL);
+	for (i = 0; i < MAX_BRANDS; i++)
+		if (strcmp(brandname[i], brand) == 0)
+			return brandname[i];
+	for (i = 0; i < MAX_BRANDS; i++)
+		if (brandname[i][0] == '\0')
+			return strcpy(brandname[i], brand);
+	if (overflow++ == 0)
+		printk(KERN_ERR
+		       "%s: Table overflow. Some processor model information will be missing\n",
+		       __FUNCTION__);
+	return "Unknown";
 }
 
 static void __cpuinit
