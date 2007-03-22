@@ -44,8 +44,6 @@
 #include <asm/ibmebus.h>
 #include <asm/abs_addr.h>
 
-#define MAX_LOC_CODE_LENGTH 80
-
 static struct device ibmebus_bus_device = { /* fake "parent" device */
 	.bus_id = "ibmebus",
 };
@@ -253,7 +251,7 @@ static void ibmebus_add_devices_by_id(struct of_device_id *idt)
 	return;
 }
 
-static int ibmebus_match_helper_name(struct device *dev, void *data)
+static int ibmebus_match_name(struct device *dev, void *data)
 {
 	const struct ibmebus_dev *ebus_dev = to_ibmebus_dev(dev);
 	const char *name;
@@ -280,7 +278,7 @@ static void ibmebus_remove_devices_by_id(struct of_device_id *idt)
 	while (strlen(idt->name) > 0) {
 		while ((dev = bus_find_device(&ibmebus_bus_type, NULL,
 					      (void*)idt->name,
-					      ibmebus_match_helper_name))) {
+					      ibmebus_match_name))) {
 			ibmebus_unregister_device(dev);
 		}
 		idt++;
@@ -371,17 +369,30 @@ static struct device_attribute ibmebus_dev_attrs[] = {
 	__ATTR_NULL
 };
 
-static int ibmebus_match_helper_loc_code(struct device *dev, void *data)
+static int ibmebus_match_path(struct device *dev, void *data)
 {
-	const struct ibmebus_dev *ebus_dev = to_ibmebus_dev(dev);
-	const char *loc_code;
+	int rc;
+	struct device_node *dn =
+		of_node_get(to_ibmebus_dev(dev)->ofdev.node);
 
-	loc_code = of_get_property(ebus_dev->ofdev.node, "ibm,loc-code", NULL);
+	rc = (dn->full_name && (strcasecmp((char*)data, dn->full_name) == 0));
 
-	if (loc_code && (strcmp(data, loc_code) == 0))
-		return 1;
+	of_node_put(dn);
+	return rc;
+}
 
-	return 0;
+static char *ibmebus_chomp(const char *in, size_t count)
+{
+	char *out = (char*)kmalloc(count + 1, GFP_KERNEL);
+	if (!out)
+		return NULL;
+
+	memcpy(out, in, count);
+	out[count] = '\0';
+	if (out[count - 1] == '\n')
+		out[count - 1] = '\0';
+
+	return out;
 }
 
 static ssize_t ibmebus_store_probe(struct bus_type *bus,
@@ -389,65 +400,59 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 {
 	struct device_node *dn = NULL;
 	struct ibmebus_dev *dev;
-	const char *loc_code;
-	char parm[MAX_LOC_CODE_LENGTH];
+	char *path;
+	ssize_t rc;
 
-	if (count >= MAX_LOC_CODE_LENGTH)
-		return -EINVAL;
-	memcpy(parm, buf, count);
-	parm[count] = '\0';
-	if (parm[count-1] == '\n')
-		parm[count-1] = '\0';
+	path = ibmebus_chomp(buf, count);
+	if (!path)
+		return -ENOMEM;
 
-	if (bus_find_device(&ibmebus_bus_type, NULL, parm,
-			     ibmebus_match_helper_loc_code)) {
-		printk(KERN_WARNING "%s: loc_code %s has already been probed\n",
-		       __FUNCTION__, parm);
-		return -EINVAL;
+	if (bus_find_device(&ibmebus_bus_type, NULL, path,
+			     ibmebus_match_path)) {
+		printk(KERN_WARNING "%s: %s has already been probed\n",
+		       __FUNCTION__, path);
+		rc = -EINVAL;
+		goto out;
 	}
 
-	while ((dn = of_find_all_nodes(dn))) {
-		loc_code = of_get_property(dn, "ibm,loc-code", NULL);
-		if (loc_code && (strncmp(loc_code, parm, count) == 0)) {
-			dev = ibmebus_register_device_node(dn);
-			if (IS_ERR(dev)) {
-				of_node_put(dn);
-				return PTR_ERR(dev);
-			} else
-				return count; /* success */
-		}
+	if ((dn = of_find_node_by_path(path))) {
+		dev = ibmebus_register_device_node(dn);
+		of_node_put(dn);
+		rc = IS_ERR(dev) ? PTR_ERR(dev) : count;
+	} else {
+		printk(KERN_WARNING "%s: no such device node: %s\n",
+		       __FUNCTION__, path);
+		rc = -ENODEV;
 	}
 
-	/* if we drop out of the loop, the loc code was invalid */
-	printk(KERN_WARNING "%s: no device with loc_code %s found\n",
-	       __FUNCTION__, parm);
-	return -ENODEV;
+out:
+	kfree(path);
+	return rc;
 }
 
 static ssize_t ibmebus_store_remove(struct bus_type *bus,
 				    const char *buf, size_t count)
 {
 	struct device *dev;
-	char parm[MAX_LOC_CODE_LENGTH];
+	char *path;
 
-	if (count >= MAX_LOC_CODE_LENGTH)
-		return -EINVAL;
-	memcpy(parm, buf, count);
-	parm[count] = '\0';
-	if (parm[count-1] == '\n')
-		parm[count-1] = '\0';
+	path = ibmebus_chomp(buf, count);
+	if (!path)
+		return -ENOMEM;
 
-	/* The location code is unique, so we will find one device at most */
-	if ((dev = bus_find_device(&ibmebus_bus_type, NULL, parm,
-				   ibmebus_match_helper_loc_code))) {
+	if ((dev = bus_find_device(&ibmebus_bus_type, NULL, path,
+				   ibmebus_match_path))) {
 		ibmebus_unregister_device(dev);
+
+		kfree(path);
+		return count;
 	} else {
-		printk(KERN_WARNING "%s: loc_code %s not on the bus\n",
-		       __FUNCTION__, parm);
+		printk(KERN_WARNING "%s: %s not on the bus\n",
+		       __FUNCTION__, path);
+
+		kfree(path);
 		return -ENODEV;
 	}
-
-	return count;
 }
 
 static struct bus_attribute ibmebus_bus_attrs[] = {
