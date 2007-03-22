@@ -239,7 +239,7 @@ static u32 dn_fib_rule_default_pref(void)
 	return 0;
 }
 
-int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
+static int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	return fib_rules_dump(skb, cb, AF_DECnet);
 }
@@ -264,10 +264,12 @@ void __init dn_fib_rules_init(void)
 {
 	list_add_tail(&default_rule.common.list, &dn_fib_rules);
 	fib_rules_register(&dn_fib_rules_ops);
+	rtnl_register(PF_DECnet, RTM_GETRULE, NULL, dn_fib_dump_rules);
 }
 
 void __exit dn_fib_rules_cleanup(void)
 {
+	rtnl_unregister(PF_DECnet, RTM_GETRULE);
 	fib_rules_unregister(&dn_fib_rules_ops);
 }
 

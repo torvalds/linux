@@ -1447,24 +1447,6 @@ static const struct file_operations dn_dev_seq_fops = {
 
 #endif /* CONFIG_PROC_FS */
 
-static struct rtnetlink_link dnet_rtnetlink_table[RTM_NR_MSGTYPES] =
-{
-	[RTM_NEWADDR  - RTM_BASE] = { .doit	= dn_nl_newaddr,	},
-	[RTM_DELADDR  - RTM_BASE] = { .doit	= dn_nl_deladdr,	},
-	[RTM_GETADDR  - RTM_BASE] = { .dumpit	= dn_nl_dump_ifaddr,	},
-#ifdef CONFIG_DECNET_ROUTER
-	[RTM_NEWROUTE - RTM_BASE] = { .doit	= dn_fib_rtm_newroute,	},
-	[RTM_DELROUTE - RTM_BASE] = { .doit	= dn_fib_rtm_delroute,	},
-	[RTM_GETROUTE - RTM_BASE] = { .doit	= dn_cache_getroute,
-				      .dumpit	= dn_fib_dump,		},
-	[RTM_GETRULE  - RTM_BASE] = { .dumpit	= dn_fib_dump_rules,	},
-#else
-	[RTM_GETROUTE - RTM_BASE] = { .doit	= dn_cache_getroute,
-				      .dumpit	= dn_cache_dump,	},
-#endif
-
-};
-
 static int __initdata addr[2];
 module_param_array(addr, int, NULL, 0444);
 MODULE_PARM_DESC(addr, "The DECnet address of this machine: area,node");
@@ -1485,7 +1467,9 @@ void __init dn_dev_init(void)
 
 	dn_dev_devices_on();
 
-	rtnetlink_links[PF_DECnet] = dnet_rtnetlink_table;
+	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL);
+	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL);
+	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr);
 
 	proc_net_fops_create("decnet_dev", S_IRUGO, &dn_dev_seq_fops);
 
@@ -1500,8 +1484,6 @@ void __init dn_dev_init(void)
 
 void __exit dn_dev_cleanup(void)
 {
-	rtnetlink_links[PF_DECnet] = NULL;
-
 #ifdef CONFIG_SYSCTL
 	{
 		int i;
