@@ -723,27 +723,21 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 		msi_free_irq(dev, dev->first_msi_irq);
 	}
 	if (dev->msix_enabled) {
-		int irq, head, tail = 0, warning = 0;
+		int irq, head, tail = 0;
 		void __iomem *base = NULL;
 
 		irq = head = dev->first_msi_irq;
 		while (head != tail) {
 			tail = get_irq_msi(irq)->link.tail;
 			base = get_irq_msi(irq)->mask_base;
-			if (irq_has_action(irq))
-				warning = 1;
-			else if (irq != head) /* Release MSI-X irq */
+
+			BUG_ON(irq_has_action(irq));
+
+			if (irq != head) /* Release MSI-X irq */
 				msi_free_irq(dev, irq);
 			irq = tail;
 		}
 		msi_free_irq(dev, irq);
-		if (warning) {
-			iounmap(base);
-			printk(KERN_WARNING "PCI: %s: msi_remove_pci_irq_vectors() "
-			       "called without free_irq() on all MSI-X irqs\n",
-			       pci_name(dev));
-			BUG_ON(warning > 0);
-		}
 	}
 }
 
