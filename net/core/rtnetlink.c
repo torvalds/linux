@@ -963,16 +963,11 @@ static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
 {
 	[RTM_GETADDR     - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
 	[RTM_GETROUTE    - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
-	[RTM_NEWNEIGH    - RTM_BASE] = { .doit   = neigh_add		 },
-	[RTM_DELNEIGH    - RTM_BASE] = { .doit   = neigh_delete		 },
-	[RTM_GETNEIGH    - RTM_BASE] = { .dumpit = neigh_dump_info	 },
 #ifdef CONFIG_FIB_RULES
 	[RTM_NEWRULE     - RTM_BASE] = { .doit   = fib_nl_newrule	 },
 	[RTM_DELRULE     - RTM_BASE] = { .doit   = fib_nl_delrule	 },
 #endif
 	[RTM_GETRULE     - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
-	[RTM_GETNEIGHTBL - RTM_BASE] = { .dumpit = neightbl_dump_info	 },
-	[RTM_SETNEIGHTBL - RTM_BASE] = { .doit   = neightbl_set		 },
 };
 
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)
