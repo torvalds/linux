@@ -868,3 +868,8 @@ MODULE_AUTHOR("Aapo Tahkola <aet@rasterburn.org>");
 MODULE_DESCRIPTION("DVB Driver for ULI M920x");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
+
+/*
+ * Local variables:
+ * c-basic-offset: 8
+ */
