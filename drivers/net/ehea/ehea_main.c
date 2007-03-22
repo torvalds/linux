@@ -2559,11 +2559,8 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 	int i = 0;
 
 	lhea_dn = adapter->ebus_dev->ofdev.node;
-	do {
-		eth_dn = of_get_next_child(lhea_dn, eth_dn);
-		if (!eth_dn)
-			break;
-
+	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
+		
 		dn_log_port_id = (u32*)get_property(eth_dn, "ibm,hea-port-no",
 						    NULL);
 		if (!dn_log_port_id) {
@@ -2580,9 +2577,7 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 				  adapter->port[i]->netdev->name, 
 				  *dn_log_port_id);
 		i++;
-	} while (eth_dn);
-
-	of_node_put(lhea_dn);
+	};
 
 	/* Check for succesfully set up ports */
 	for (i = 0; i < EHEA_MAX_PORTS; i++)
@@ -2603,21 +2598,14 @@ static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter,
 	u32 *dn_log_port_id;
 
 	lhea_dn = adapter->ebus_dev->ofdev.node;
-	do {
-		eth_dn = of_get_next_child(lhea_dn, eth_dn);
-		if (!eth_dn)
-			break;
-
+	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
+		
 		dn_log_port_id = (u32*)get_property(eth_dn, "ibm,hea-port-no",
 						    NULL);
-
 		if (dn_log_port_id)
 			if (*dn_log_port_id == logical_port_id)
 				return eth_dn;
-
-	} while (eth_dn);
-
-	of_node_put(lhea_dn);
+	};
 
 	return NULL;
 }
@@ -2652,6 +2640,8 @@ static ssize_t ehea_probe_port(struct device *dev,
 	}
 		
 	port = ehea_setup_single_port(adapter, logical_port_id, eth_dn);
+
+	of_node_put(eth_dn);
 
 	if (port) {
 		for (i=0; i < EHEA_MAX_PORTS; i++)
@@ -2728,6 +2718,11 @@ static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
 	u64 *adapter_handle;
 	int ret;
 
+	if (!dev || !dev->ofdev.node) {
+		ehea_error("Invalid ibmebus device probed");
+		return -EINVAL;
+	}
+
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		ret = -ENOMEM;
@@ -2770,6 +2765,7 @@ static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
 	adapter->neq = ehea_create_eq(adapter,
 				      EHEA_NEQ, EHEA_MAX_ENTRIES_EQ, 1);
 	if (!adapter->neq) {
+		ret = -EIO;
 		dev_err(&dev->ofdev.dev, "NEQ creation failed");
 		goto out_free_res;
 	}
@@ -2786,10 +2782,13 @@ static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
 	}
 
 	adapter->ehea_wq = create_workqueue("ehea_wq");
-	if (!adapter->ehea_wq)
+	if (!adapter->ehea_wq) {
+		ret = -EIO;
 		goto out_free_irq;
+	}
 
-	if (ehea_create_device_sysfs(dev))
+	ret = ehea_create_device_sysfs(dev);
+	if (ret)
 		goto out_kill_wq;
 
 	ret = ehea_setup_ports(adapter);
