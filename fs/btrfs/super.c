@@ -141,7 +141,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	struct btrfs_inode_item *inode_item;
 	struct btrfs_root *root = btrfs_sb(inode->i_sb);
 	int ret;
-printk("read locked inode %lu\n", inode->i_ino);
 	btrfs_init_path(&path);
 	ret = btrfs_lookup_inode(NULL, root, &path, inode->i_ino, 0);
 	if (ret) {
@@ -152,7 +151,6 @@ printk("read locked inode %lu\n", inode->i_ino);
 				  path.slots[0],
 				  struct btrfs_inode_item);
 
-printk("found locked inode %lu\n", inode->i_ino);
 	inode->i_mode = btrfs_inode_mode(inode_item);
 	inode->i_nlink = btrfs_inode_nlink(inode_item);
 	inode->i_uid = btrfs_inode_uid(inode_item);
@@ -166,7 +164,6 @@ printk("found locked inode %lu\n", inode->i_ino);
 	inode->i_ctime.tv_nsec = btrfs_timespec_nsec(&inode_item->ctime);
 	inode->i_blocks = btrfs_inode_nblocks(inode_item);
 	inode->i_generation = btrfs_inode_generation(inode_item);
-printk("about to release\n");
 	btrfs_release_path(root, &path);
 	switch (inode->i_mode & S_IFMT) {
 #if 0
@@ -176,19 +173,15 @@ printk("about to release\n");
 		break;
 #endif
 	case S_IFREG:
-printk("inode %lu now a file\n", inode->i_ino);
 		break;
 	case S_IFDIR:
-printk("inode %lu now a directory\n", inode->i_ino);
 		inode->i_op = &btrfs_dir_inode_operations;
 		inode->i_fop = &btrfs_dir_file_operations;
 		break;
 	case S_IFLNK:
-printk("inode %lu now a link\n", inode->i_ino);
 		// inode->i_op = &page_symlink_inode_operations;
 		break;
 	}
-printk("returning!\n");
 	return;
 }
 
@@ -232,7 +225,6 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(ret);
 	inode = NULL;
 	if (ino) {
-printk("lookup on %.*s returns %lu\n", dentry->d_name.len, dentry->d_name.name, ino);
 		inode = iget(dir->i_sb, ino);
 		if (!inode)
 			return ERR_PTR(-EACCES);
@@ -257,7 +249,6 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	int over;
 
 	key.objectid = inode->i_ino;
-printk("readdir on dir %Lu pos %Lu\n", key.objectid, filp->f_pos);
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
 	key.offset = filp->f_pos;
@@ -266,15 +257,12 @@ printk("readdir on dir %Lu pos %Lu\n", key.objectid, filp->f_pos);
 	if (ret < 0) {
 		goto err;
 	}
-printk("first ret %d\n", ret);
 	advance = filp->f_pos > 0 && ret != 0;
 	while(1) {
 		leaf = btrfs_buffer_leaf(path.nodes[0]);
 		nritems = btrfs_header_nritems(&leaf->header);
 		slot = path.slots[0];
-printk("leaf %Lu nritems %lu slot %d\n", path.nodes[0]->b_blocknr, nritems, slot);
 		if (advance) {
-printk("advancing!\n");
 			if (slot == nritems -1) {
 				ret = btrfs_next_leaf(root, &path);
 				if (ret)
@@ -282,7 +270,6 @@ printk("advancing!\n");
 				leaf = btrfs_buffer_leaf(path.nodes[0]);
 				nritems = btrfs_header_nritems(&leaf->header);
 				slot = path.slots[0];
-printk("2leaf %Lu nritems %lu slot %d\n", path.nodes[0]->b_blocknr, nritems, slot);
 			} else {
 				slot++;
 				path.slots[0]++;
@@ -290,15 +277,11 @@ printk("2leaf %Lu nritems %lu slot %d\n", path.nodes[0]->b_blocknr, nritems, slo
 		}
 		advance = 1;
 		item = leaf->items + slot;
-printk("item key %Lu %u %Lu\n", btrfs_disk_key_objectid(&item->key),
-       btrfs_disk_key_flags(&item->key), btrfs_disk_key_offset(&item->key));
 		if (btrfs_disk_key_objectid(&item->key) != key.objectid)
 			break;
 		if (btrfs_disk_key_type(&item->key) != BTRFS_DIR_ITEM_KEY)
 			continue;
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
-printk("filldir name %.*s, objectid %Lu\n", btrfs_dir_name_len(di),
-       (const char *)(di + 1), btrfs_dir_objectid(di));
 		over = filldir(dirent, (const char *)(di + 1),
 			       btrfs_dir_name_len(di),
 			       btrfs_disk_key_offset(&item->key),
@@ -307,7 +290,6 @@ printk("filldir name %.*s, objectid %Lu\n", btrfs_dir_name_len(di),
 			break;
 		filp->f_pos = btrfs_disk_key_offset(&item->key) + 1;
 	}
-printk("filldir all done\n");
 	ret = 0;
 err:
 	btrfs_release_path(root, &path);

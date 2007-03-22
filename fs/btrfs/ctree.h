@@ -5,6 +5,7 @@
 #include <linux/fs.h>
 
 struct btrfs_trans_handle;
+struct btrfs_transaction;
 
 #define BTRFS_MAGIC "_BtRfS_M"
 
@@ -224,10 +225,11 @@ struct btrfs_fs_info {
 	u64 last_inode_alloc;
 	u64 last_inode_alloc_dirid;
 	u64 generation;
-	struct btrfs_trans_handle *running_transaction;
+	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block *disk_super;
 	struct buffer_head *sb_buffer;
 	struct super_block *sb;
+	struct mutex trans_mutex;
 };
 
 /*

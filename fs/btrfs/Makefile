@@ -3,7 +3,7 @@ ifneq ($(KERNELRELEASE),)
 
 obj-m  := btrfs.o
 btrfs-y := super.o ctree.o extent-tree.o print-tree.o root-tree.o dir-item.o \
-	   hash.o file-item.o inode-item.o inode-map.o disk-io.o
+	   hash.o file-item.o inode-item.o inode-map.o disk-io.o transaction.o
 
 #btrfs-y := ctree.o disk-io.o radix-tree.o extent-tree.o print-tree.o \
 #	  root-tree.o dir-item.o hash.o file-item.o inode-item.o \
