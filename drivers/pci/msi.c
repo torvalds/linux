@@ -676,7 +676,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 
 void pci_disable_msix(struct pci_dev* dev)
 {
-	int irq, head, tail = 0, warning = 0;
+	int irq, head, tail = 0;
 
 	if (!pci_msi_enable)
 		return;
@@ -693,19 +693,14 @@ void pci_disable_msix(struct pci_dev* dev)
 	irq = head = dev->first_msi_irq;
 	while (head != tail) {
 		tail = get_irq_msi(irq)->link.tail;
-		if (irq_has_action(irq))
-			warning = 1;
-		else if (irq != head)	/* Release MSI-X irq */
+
+		BUG_ON(irq_has_action(irq));
+
+		if (irq != head)	/* Release MSI-X irq */
 			msi_free_irq(dev, irq);
 		irq = tail;
 	}
 	msi_free_irq(dev, irq);
-	if (warning) {
-		printk(KERN_WARNING "PCI: %s: pci_disable_msix() called without "
-			"free_irq() on all MSI-X irqs\n",
-			pci_name(dev));
-		BUG_ON(warning > 0);
-	}
 	dev->first_msi_irq = 0;
 }
 
