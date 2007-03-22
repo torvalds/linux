@@ -546,19 +546,19 @@ static int ehea_poll(struct net_device *dev, int *budget)
 		cqe = ehea_poll_rq1(pr->qp, &wqe_index);
 		cqe_skb = ehea_poll_cq(pr->send_cq);
 
-		if (!cqe && !cqe_skb) 
+		if (!cqe && !cqe_skb)
 			return 0;
 
-		if (!netif_rx_reschedule(dev, dev->quota)) 
+		if (!netif_rx_reschedule(dev, dev->quota))
 			return 0;
 	}
-	
+
 	cqe = ehea_proc_rwqes(dev, pr, budget);
 	cqe_skb = ehea_proc_cqes(pr, 300);
 
 	if (cqe || cqe_skb)
 		pr->poll_counter++;
-       
+
 	return 1;
 }
 
@@ -1011,7 +1011,7 @@ static int ehea_configure_port(struct ehea_port *port)
 		else
 			cb0->default_qpn_arr[i] =
 				port->port_res[0].qp->init_attr.qp_nr;
-	
+
 	if (netif_msg_ifup(port))
 		ehea_dump(cb0, sizeof(*cb0), "ehea_configure_port");
 
@@ -1033,52 +1033,35 @@ out:
 	return ret;
 }
 
-static int ehea_gen_smrs(struct ehea_port_res *pr)
+int ehea_gen_smrs(struct ehea_port_res *pr)
 {
-	u64 hret;
+	int ret;
 	struct ehea_adapter *adapter = pr->port->adapter;
 
-	hret = ehea_h_register_smr(adapter->handle, adapter->mr.handle,
-				   adapter->mr.vaddr, EHEA_MR_ACC_CTRL,
-				   adapter->pd, &pr->send_mr);
-	if (hret != H_SUCCESS)
+	ret = ehea_gen_smr(adapter, &adapter->mr, &pr->send_mr);
+	if (ret)
 		goto out;
 
-	hret = ehea_h_register_smr(adapter->handle, adapter->mr.handle,
-				   adapter->mr.vaddr, EHEA_MR_ACC_CTRL,
-				   adapter->pd, &pr->recv_mr);
-	if (hret != H_SUCCESS)
-		goto out_freeres;
+	ret = ehea_gen_smr(adapter, &adapter->mr, &pr->recv_mr);
+	if (ret)
+		goto out_free;
 
 	return 0;
 
-out_freeres:
-	hret = ehea_h_free_resource(adapter->handle, pr->send_mr.handle);
-	if (hret != H_SUCCESS)
-		ehea_error("failed freeing SMR");
+out_free:
+	ehea_rem_mr(&pr->send_mr);
 out:
+	ehea_error("Generating SMRS failed\n");
 	return -EIO;
 }
 
-static int ehea_rem_smrs(struct ehea_port_res *pr)
+int ehea_rem_smrs(struct ehea_port_res *pr)
 {
-	struct ehea_adapter *adapter = pr->port->adapter;
-	int ret = 0;
-	u64 hret;
-
-	hret = ehea_h_free_resource(adapter->handle, pr->send_mr.handle);
-	if (hret != H_SUCCESS) {
-		ret = -EIO;
-		ehea_error("failed freeing send SMR for pr=%p", pr);
-	}
-
-	hret = ehea_h_free_resource(adapter->handle, pr->recv_mr.handle);
-	if (hret != H_SUCCESS) {
-		ret = -EIO;
-		ehea_error("failed freeing recv SMR for pr=%p", pr);
-	}
-
-	return ret;
+	if ((ehea_rem_mr(&pr->send_mr))
+	    || (ehea_rem_mr(&pr->recv_mr)))
+		return -EIO;
+	else
+		return 0;
 }
 
 static int ehea_init_q_skba(struct ehea_q_skb_arr *q_skba, int max_q_entries)
@@ -2243,7 +2226,7 @@ static int ehea_down(struct net_device *dev)
 	ehea_free_interrupts(dev);
 
 	for (i = 0; i < port->num_def_qps; i++)
-		while (test_bit(__LINK_STATE_RX_SCHED, 
+		while (test_bit(__LINK_STATE_RX_SCHED,
 				&port->port_res[i].d_netdev->state))
 			msleep(1);
 
@@ -2418,7 +2401,7 @@ static struct device *ehea_register_port(struct ehea_port *port,
 		ehea_error("failed to register attributes, ret=%d", ret);
 		goto out_unreg_of_dev;
 	}
-	
+
 	return &port->ofdev.dev;
 
 out_unreg_of_dev:
@@ -2517,7 +2500,7 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	}
 
 	ret = ehea_get_jumboframe_status(port, &jumbo);
-	if (ret) 
+	if (ret)
 		ehea_error("failed determining jumbo frame status for %s",
 			   port->netdev->name);
 
@@ -2560,7 +2543,7 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 
 	lhea_dn = adapter->ebus_dev->ofdev.node;
 	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
-		
+
 		dn_log_port_id = (u32*)get_property(eth_dn, "ibm,hea-port-no",
 						    NULL);
 		if (!dn_log_port_id) {
@@ -2574,7 +2557,7 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 							  eth_dn);
 		if (adapter->port[i])
 			ehea_info("%s -> logical port id #%d",
-				  adapter->port[i]->netdev->name, 
+				  adapter->port[i]->netdev->name,
 				  *dn_log_port_id);
 		i++;
 	};
@@ -2590,8 +2573,8 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 	return -EINVAL;
 }
 
-static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter, 
-					   u32 logical_port_id) 
+static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter,
+					   u32 logical_port_id)
 {
 	struct device_node *lhea_dn;
 	struct device_node *eth_dn = NULL;
@@ -2599,7 +2582,7 @@ static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter,
 
 	lhea_dn = adapter->ebus_dev->ofdev.node;
 	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
-		
+
 		dn_log_port_id = (u32*)get_property(eth_dn, "ibm,hea-port-no",
 						    NULL);
 		if (dn_log_port_id)
@@ -2631,14 +2614,14 @@ static ssize_t ehea_probe_port(struct device *dev,
 			  port->netdev->name);
 		return -EINVAL;
 	}
-	
+
 	eth_dn = ehea_get_eth_dn(adapter, logical_port_id);
 
 	if (!eth_dn) {
 		ehea_info("no logical port with id %d found", logical_port_id);
 		return -EINVAL;
 	}
-		
+
 	port = ehea_setup_single_port(adapter, logical_port_id, eth_dn);
 
 	of_node_put(eth_dn);
@@ -2652,8 +2635,8 @@ static ssize_t ehea_probe_port(struct device *dev,
 
 		ehea_info("added %s (logical port id=%d)", port->netdev->name,
 			  logical_port_id);
-	} else 
-		return -EIO;	       
+	} else
+		return -EIO;
 
 	return (ssize_t) count;
 }
@@ -2748,7 +2731,7 @@ static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
 
 	dev->ofdev.dev.driver_data = adapter;
 
-	ret = ehea_reg_mr_adapter(adapter);
+	ret = ehea_reg_kernel_mr(adapter, &adapter->mr);
 	if (ret) {
 		dev_err(&dev->ofdev.dev, "reg_mr_adapter failed\n");
 		goto out_free_ad;
@@ -2813,7 +2796,7 @@ out_kill_eq:
 	ehea_destroy_eq(adapter->neq);
 
 out_free_res:
-	ehea_h_free_resource(adapter->handle, adapter->mr.handle);
+	ehea_rem_mr(&adapter->mr);
 
 out_free_ad:
 	kfree(adapter);
@@ -2824,7 +2807,6 @@ out:
 static int __devexit ehea_remove(struct ibmebus_dev *dev)
 {
 	struct ehea_adapter *adapter = dev->ofdev.dev.driver_data;
-	u64 hret;
 	int i;
 
 	for (i = 0; i < EHEA_MAX_PORTS; i++)
@@ -2841,12 +2823,7 @@ static int __devexit ehea_remove(struct ibmebus_dev *dev)
 	tasklet_kill(&adapter->neq_tasklet);
 
 	ehea_destroy_eq(adapter->neq);
-
-	hret = ehea_h_free_resource(adapter->handle, adapter->mr.handle);
-	if (hret) {
-		dev_err(&dev->ofdev.dev, "free_resource_mr failed");
-		return -EIO;
-	}
+	ehea_rem_mr(&adapter->mr);
 	kfree(adapter);
 	return 0;
 }

@@ -39,7 +39,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0053"
+#define DRV_VERSION	"EHEA_0054"
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -309,6 +309,7 @@ struct ehea_cq {
  * Memory Region
  */
 struct ehea_mr {
+	struct ehea_adapter *adapter;
 	u64 handle;
 	u64 vaddr;
 	u32 lkey;

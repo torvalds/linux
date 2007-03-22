@@ -361,7 +361,12 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter * adapter, u32 pd,
 
 int ehea_destroy_qp(struct ehea_qp *qp);
 
-int ehea_reg_mr_adapter(struct ehea_adapter *adapter);
+int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr);
+
+int ehea_gen_smr(struct ehea_adapter *adapter, struct ehea_mr *old_mr,
+		 struct ehea_mr *shared_mr);
+
+int ehea_rem_mr(struct ehea_mr *mr);
 
 void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle);
 
