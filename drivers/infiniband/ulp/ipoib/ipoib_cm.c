@@ -1095,7 +1095,7 @@ static void ipoib_cm_stale_task(struct work_struct *work)
 		/* List if sorted by LRU, start from tail,
 		 * stop when we see a recently used entry */
 		p = list_entry(priv->cm.passive_ids.prev, typeof(*p), list);
-		if (time_after_eq(jiffies, p->jiffies + IPOIB_CM_RX_TIMEOUT))
+		if (time_before_eq(jiffies, p->jiffies + IPOIB_CM_RX_TIMEOUT))
 			break;
 		list_del_init(&p->list);
 		spin_unlock_irqrestore(&priv->lock, flags);
