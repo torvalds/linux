@@ -296,10 +296,16 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 {
 	struct qdisc_watchdog *wd = container_of(timer, struct qdisc_watchdog,
 						 timer);
+	struct net_device *dev = wd->qdisc->dev;
 
 	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
 	smp_wmb();
-	netif_schedule(wd->qdisc->dev);
+	if (spin_trylock(&dev->queue_lock)) {
+		qdisc_run(dev);
+		spin_unlock(&dev->queue_lock);
+	} else
+		netif_schedule(dev);
+
 	return HRTIMER_NORESTART;
 }
 
