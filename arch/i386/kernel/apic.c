@@ -28,6 +28,7 @@
 #include <linux/clockchips.h>
 #include <linux/acpi_pmtmr.h>
 #include <linux/module.h>
+#include <linux/dmi.h>
 
 #include <asm/atomic.h>
 #include <asm/smp.h>
@@ -61,6 +62,8 @@ static int enable_local_apic __initdata = 0;
 
 /* Local APIC timer verification ok */
 static int local_apic_timer_verify_ok;
+/* Disable local APIC timer from the kernel commandline or via dmi quirk */
+static int local_apic_timer_disabled;
 
 /*
  * Debug level, exported for io_apic.c
@@ -266,6 +269,32 @@ static void __devinit setup_APIC_timer(void)
 }
 
 /*
+ * Detect systems with known broken BIOS implementations
+ */
+static int __init lapic_check_broken_bios(struct dmi_system_id *d)
+{
+	printk(KERN_NOTICE "%s detected: disabling lapic timer.\n",
+		       d->ident);
+	local_apic_timer_disabled = 1;
+	return 0;
+}
+
+static struct dmi_system_id __initdata broken_bios_dmi_table[] = {
+	{
+		/*
+		 * BIOS exports only C1 state, but uses deeper power
+		 * modes behind the kernels back.
+		 */
+		  .callback = lapic_check_broken_bios,
+		  .ident = "HP nx6325",
+		  .matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6325"),
+		  },
+	 },
+	 {}
+};
+
+/*
  * In this functions we calibrate APIC bus clocks to the external timer.
  *
  * We want to do the calibration only once since we want to have local timer
@@ -339,6 +368,22 @@ void __init setup_boot_APIC_clock(void)
 	unsigned long deltaj;
 	long delta, deltapm;
 	int pm_referenced = 0;
+
+	/* Detect know broken systems */
+	dmi_check_system(broken_bios_dmi_table);
+
+	/*
+	 * The local apic timer can be disabled via the kernel
+	 * commandline or from the dmi quirk above. Register the lapic
+	 * timer as a dummy clock event source on SMP systems, so the
+	 * broadcast mechanism is used. On UP systems simply ignore it.
+	 */
+	if (local_apic_timer_disabled) {
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1)
+			setup_APIC_timer();
+		return;
+	}
 
 	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
 		    "calibrating APIC timer ...\n");
@@ -1178,6 +1223,13 @@ static int __init parse_nolapic(char *arg)
 	return 0;
 }
 early_param("nolapic", parse_nolapic);
+
+static int __init parse_disable_lapic_timer(char *arg)
+{
+	local_apic_timer_disabled = 1;
+	return 0;
+}
+early_param("nolapic_timer", parse_disable_lapic_timer);
 
 static int __init apic_set_verbosity(char *str)
 {
