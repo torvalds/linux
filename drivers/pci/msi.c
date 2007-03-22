@@ -573,8 +573,6 @@ void pci_disable_msi(struct pci_dev* dev)
 		return;
 	}
 
-	BUG_ON(irq_has_action(dev->first_msi_irq));
-
 	default_irq = entry->msi_attrib.default_irq;
 	msi_free_irq(dev, dev->first_msi_irq);
 
@@ -589,6 +587,8 @@ static int msi_free_irq(struct pci_dev* dev, int irq)
 	struct msi_desc *entry;
 	int head, entry_nr, type;
 	void __iomem *base;
+
+	BUG_ON(irq_has_action(irq));
 
 	entry = get_irq_msi(irq);
 	if (!entry || entry->dev != dev) {
@@ -682,8 +682,6 @@ static void msix_free_all_irqs(struct pci_dev *dev)
 	while (head != tail) {
 		tail = get_irq_msi(irq)->link.tail;
 
-		BUG_ON(irq_has_action(irq));
-
 		if (irq != head)
 			msi_free_irq(dev, irq);
 		irq = tail;
@@ -723,10 +721,8 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 	if (!pci_msi_enable || !dev)
  		return;
 
-	if (dev->msi_enabled) {
-		BUG_ON(irq_has_action(dev->first_msi_irq));
+	if (dev->msi_enabled)
 		msi_free_irq(dev, dev->first_msi_irq);
-	}
 
 	if (dev->msix_enabled)
 		msix_free_all_irqs(dev);
