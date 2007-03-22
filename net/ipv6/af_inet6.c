@@ -945,6 +945,8 @@ static void __exit inet6_exit(void)
 {
 	/* First of all disallow new sockets creation. */
 	sock_unregister(PF_INET6);
+	/* Disallow any further netlink messages */
+	rtnl_unregister_all(PF_INET6);
 
 	/* Cleanup code parts. */
 	ipv6_packet_cleanup();

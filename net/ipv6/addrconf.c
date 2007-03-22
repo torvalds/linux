@@ -3613,23 +3613,6 @@ errout:
 		rtnl_set_sk_err(RTNLGRP_IPV6_PREFIX, err);
 }
 
-static struct rtnetlink_link inet6_rtnetlink_table[RTM_NR_MSGTYPES] = {
-	[RTM_GETLINK - RTM_BASE] = { .dumpit	= inet6_dump_ifinfo, },
-	[RTM_NEWADDR - RTM_BASE] = { .doit	= inet6_rtm_newaddr, },
-	[RTM_DELADDR - RTM_BASE] = { .doit	= inet6_rtm_deladdr, },
-	[RTM_GETADDR - RTM_BASE] = { .doit	= inet6_rtm_getaddr,
-				     .dumpit	= inet6_dump_ifaddr, },
-	[RTM_GETMULTICAST - RTM_BASE] = { .dumpit = inet6_dump_ifmcaddr, },
-	[RTM_GETANYCAST - RTM_BASE] = { .dumpit	= inet6_dump_ifacaddr, },
-	[RTM_NEWROUTE - RTM_BASE] = { .doit	= inet6_rtm_newroute, },
-	[RTM_DELROUTE - RTM_BASE] = { .doit	= inet6_rtm_delroute, },
-	[RTM_GETROUTE - RTM_BASE] = { .doit	= inet6_rtm_getroute,
-				      .dumpit	= inet6_dump_fib, },
-#ifdef CONFIG_IPV6_MULTIPLE_TABLES
-	[RTM_GETRULE  - RTM_BASE] = { .dumpit   = fib6_rules_dump,   },
-#endif
-};
-
 static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 {
 	inet6_ifa_notify(event ? : RTM_NEWADDR, ifp);
@@ -4149,7 +4132,18 @@ int __init addrconf_init(void)
 	register_netdevice_notifier(&ipv6_dev_notf);
 
 	addrconf_verify(0);
-	rtnetlink_links[PF_INET6] = inet6_rtnetlink_table;
+
+	err = __rtnl_register(PF_INET6, RTM_GETLINK, NULL, inet6_dump_ifinfo);
+	if (err < 0)
+		goto errout;
+
+	/* Only the first call to __rtnl_register can fail */
+	__rtnl_register(PF_INET6, RTM_NEWADDR, inet6_rtm_newaddr, NULL);
+	__rtnl_register(PF_INET6, RTM_DELADDR, inet6_rtm_deladdr, NULL);
+	__rtnl_register(PF_INET6, RTM_GETADDR, inet6_rtm_getaddr, inet6_dump_ifaddr);
+	__rtnl_register(PF_INET6, RTM_GETMULTICAST, NULL, inet6_dump_ifmcaddr);
+	__rtnl_register(PF_INET6, RTM_GETANYCAST, NULL, inet6_dump_ifacaddr);
+
 #ifdef CONFIG_SYSCTL
 	addrconf_sysctl.sysctl_header =
 		register_sysctl_table(addrconf_sysctl.addrconf_root_dir);
@@ -4157,6 +4151,10 @@ int __init addrconf_init(void)
 #endif
 
 	return 0;
+errout:
+	unregister_netdevice_notifier(&ipv6_dev_notf);
+
+	return err;
 }
 
 void __exit addrconf_cleanup(void)
@@ -4168,7 +4166,6 @@ void __exit addrconf_cleanup(void)
 
 	unregister_netdevice_notifier(&ipv6_dev_notf);
 
-	rtnetlink_links[PF_INET6] = NULL;
 #ifdef CONFIG_SYSCTL
 	addrconf_sysctl_unregister(&ipv6_devconf_dflt);
 	addrconf_sysctl_unregister(&ipv6_devconf);

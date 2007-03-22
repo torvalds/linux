@@ -2015,7 +2015,7 @@ errout:
 	return err;
 }
 
-int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct fib6_config cfg;
 	int err;
@@ -2027,7 +2027,7 @@ int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	return ip6_route_del(&cfg);
 }
 
-int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct fib6_config cfg;
 	int err;
@@ -2164,7 +2164,7 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 		     prefix, NLM_F_MULTI);
 }
 
-int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
+static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct nlattr *tb[RTA_MAX+1];
 	struct rt6_info *rt;
@@ -2508,6 +2508,10 @@ void __init ip6_route_init(void)
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	fib6_rules_init();
 #endif
+
+	__rtnl_register(PF_INET6, RTM_NEWROUTE, inet6_rtm_newroute, NULL);
+	__rtnl_register(PF_INET6, RTM_DELROUTE, inet6_rtm_delroute, NULL);
+	__rtnl_register(PF_INET6, RTM_GETROUTE, inet6_rtm_getroute, NULL);
 }
 
 void ip6_route_cleanup(void)
