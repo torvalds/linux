@@ -961,9 +961,6 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 
 static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
 {
-	[RTM_GETLINK     - RTM_BASE] = { .doit   = rtnl_getlink,
-					 .dumpit = rtnl_dump_ifinfo	 },
-	[RTM_SETLINK     - RTM_BASE] = { .doit   = rtnl_setlink		 },
 	[RTM_GETADDR     - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
 	[RTM_GETROUTE    - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
 	[RTM_NEWNEIGH    - RTM_BASE] = { .doit   = neigh_add		 },
@@ -1024,8 +1021,9 @@ void __init rtnetlink_init(void)
 		panic("rtnetlink_init: cannot initialize rtnetlink\n");
 	netlink_set_nonroot(NETLINK_ROUTE, NL_NONROOT_RECV);
 	register_netdevice_notifier(&rtnetlink_dev_notifier);
-	rtnetlink_links[PF_UNSPEC] = link_rtnetlink_table;
-	rtnetlink_links[PF_PACKET] = link_rtnetlink_table;
+
+	rtnl_register(PF_UNSPEC, RTM_GETLINK, rtnl_getlink, rtnl_dump_ifinfo);
+	rtnl_register(PF_UNSPEC, RTM_SETLINK, rtnl_setlink, NULL);
 }
 
 EXPORT_SYMBOL(__rta_fill);
