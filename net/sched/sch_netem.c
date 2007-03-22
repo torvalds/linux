@@ -429,7 +429,8 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 	/* for compatiablity with earlier versions.
 	 * if gap is set, need to assume 100% probablity
 	 */
-	q->reorder = ~0;
+	if (q->gap)
+		q->reorder = ~0;
 
 	/* Handle nested options after initial queue options.
 	 * Should have put all options in nested format but too late now.
