@@ -29,7 +29,6 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/netlink.h>
@@ -616,18 +615,11 @@ rtattr_failure: __attribute__ ((unused))
 
 static int __init tc_filter_init(void)
 {
-	struct rtnetlink_link *link_p = rtnetlink_links[PF_UNSPEC];
+	rtnl_register(PF_UNSPEC, RTM_NEWTFILTER, tc_ctl_tfilter, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELTFILTER, tc_ctl_tfilter, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETTFILTER, tc_ctl_tfilter,
+						 tc_dump_tfilter);
 
-	/* Setup rtnetlink links. It is made here to avoid
-	   exporting large number of public symbols.
-	 */
-
-	if (link_p) {
-		link_p[RTM_NEWTFILTER-RTM_BASE].doit = tc_ctl_tfilter;
-		link_p[RTM_DELTFILTER-RTM_BASE].doit = tc_ctl_tfilter;
-		link_p[RTM_GETTFILTER-RTM_BASE].doit = tc_ctl_tfilter;
-		link_p[RTM_GETTFILTER-RTM_BASE].dumpit = tc_dump_tfilter;
-	}
 	return 0;
 }
 
