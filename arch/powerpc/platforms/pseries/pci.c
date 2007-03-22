@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 
+#include <asm/eeh.h>
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
 #include <asm/ppc-pci.h>
