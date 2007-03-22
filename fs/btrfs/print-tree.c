@@ -17,7 +17,6 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 	printk("leaf %Lu total ptrs %d free space %d\n",
 		btrfs_header_blocknr(&l->header), nr,
 		btrfs_leaf_free_space(root, l));
-	fflush(stdout);
 	for (i = 0 ; i < nr ; i++) {
 		item = l->items + i;
 		type = btrfs_disk_key_type(&item->key);
@@ -67,10 +66,10 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 				btrfs_leaf_data(l) + btrfs_item_offset(item));
 			break;
 		};
-		fflush(stdout);
 	}
 }
-void btrfs_print_tree(struct btrfs_root *root, struct btrfs_buffer *t)
+
+void btrfs_print_tree(struct btrfs_root *root, struct buffer_head *t)
 {
 	int i;
 	u32 nr;
@@ -78,16 +77,16 @@ void btrfs_print_tree(struct btrfs_root *root, struct btrfs_buffer *t)
 
 	if (!t)
 		return;
-	c = &t->node;
+	c = btrfs_buffer_node(t);
 	nr = btrfs_header_nritems(&c->header);
 	if (btrfs_is_leaf(c)) {
 		btrfs_print_leaf(root, (struct btrfs_leaf *)c);
 		return;
 	}
-	printk("node %Lu level %d total ptrs %d free spc %u\n", t->blocknr,
-	        btrfs_header_level(&c->header), nr,
-		(u32)BTRFS_NODEPTRS_PER_BLOCK(root) - nr);
-	fflush(stdout);
+	printk("node %Lu level %d total ptrs %d free spc %u\n",
+	       btrfs_header_blocknr(&c->header),
+	       btrfs_header_level(&c->header), nr,
+	       (u32)BTRFS_NODEPTRS_PER_BLOCK(root) - nr);
 	for (i = 0; i < nr; i++) {
 		printk("\tkey %d (%Lu %u %Lu) block %Lu\n",
 		       i,
@@ -95,12 +94,11 @@ void btrfs_print_tree(struct btrfs_root *root, struct btrfs_buffer *t)
 		       c->ptrs[i].key.flags,
 		       c->ptrs[i].key.offset,
 		       btrfs_node_blockptr(c, i));
-		fflush(stdout);
 	}
 	for (i = 0; i < nr; i++) {
-		struct btrfs_buffer *next_buf = read_tree_block(root,
+		struct buffer_head *next_buf = read_tree_block(root,
 						btrfs_node_blockptr(c, i));
-		struct btrfs_node *next = &next_buf->node;
+		struct btrfs_node *next = btrfs_buffer_node(next_buf);
 		if (btrfs_is_leaf(next) &&
 		    btrfs_header_level(&c->header) != 1)
 			BUG();

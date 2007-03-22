@@ -21,7 +21,7 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret == 0);
-	l = &path.nodes[0]->leaf;
+	l = btrfs_buffer_leaf(path.nodes[0]);
 	BUG_ON(path.slots[0] == 0);
 	slot = path.slots[0] - 1;
 	if (btrfs_disk_key_objectid(&l->items[slot].key) != objectid) {
@@ -51,7 +51,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (ret < 0)
 		goto out;
 	BUG_ON(ret != 0);
-	l = &path.nodes[0]->leaf;
+	l = btrfs_buffer_leaf(path.nodes[0]);
 	slot = path.slots[0];
 	memcpy(btrfs_item_ptr(l, slot, struct btrfs_root_item), item,
 		sizeof(*item));

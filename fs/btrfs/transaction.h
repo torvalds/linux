@@ -10,7 +10,7 @@ struct btrfs_trans_handle {
 static inline struct btrfs_trans_handle *
 btrfs_start_transaction(struct btrfs_root *root, int num_blocks)
 {
-	struct btrfs_trans_handle *h = malloc(sizeof(*h));
+	struct btrfs_trans_handle *h = kmalloc(sizeof(*h), GFP_NOFS);
 	h->transid = root->root_key.offset;
 	h->blocks_reserved = num_blocks;
 	h->blocks_used = 0;
@@ -21,7 +21,7 @@ static inline void btrfs_free_transaction(struct btrfs_root *root,
 					  struct btrfs_trans_handle *handle)
 {
 	memset(handle, 0, sizeof(*handle));
-	free(handle);
+	kfree(handle);
 }
 
 #endif

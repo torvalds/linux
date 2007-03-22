@@ -10,6 +10,7 @@
  * License.
  */
 
+#include <linux/types.h>
 #define DELTA 0x9E3779B9
 
 static void TEA_transform(__u32 buf[2], __u32 const in[])
@@ -62,6 +63,14 @@ int btrfs_name_hash(const char *name, int len, u64 *hash_result)
 	__u32	minor_hash = 0;
 	const char	*p;
 	__u32		in[8], buf[2];
+
+	if (len == 1 && *name == '.') {
+		*hash_result = 1;
+		return 0;
+	} else if (len == 2 && name[0] == '.' && name[1] == '.') {
+		*hash_result = 2;
+		return 0;
+	}
 
 	/* Initialize the default seed for the hash checksum functions */
 	buf[0] = 0x67452301;

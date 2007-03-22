@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <linux/buffer_head.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
@@ -8,13 +9,18 @@
 #include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
 #include "ctree.h"
+#include "disk-io.h"
 
 #define BTRFS_SUPER_MAGIC 0x9123682E
+
+static struct inode_operations btrfs_dir_inode_operations;
+static struct super_operations btrfs_super_ops;
+static struct file_operations btrfs_dir_file_operations;
+
 #if 0
 /* some random number */
 
 static struct super_operations ramfs_ops;
-static struct inode_operations ramfs_dir_inode_operations;
 
 static struct backing_dev_info ramfs_backing_dev_info = {
 	.ra_pages	= 0,	/* No readahead */
@@ -129,46 +135,243 @@ static struct inode_operations ramfs_dir_inode_operations = {
 };
 #endif
 
-struct inode *btrfs_get_inode(struct super_block *sb, int mode, dev_t dev)
+static void btrfs_read_locked_inode(struct inode *inode)
 {
-	struct inode * inode = new_inode(sb);
-
-	if (inode) {
-		inode->i_mode = mode;
-		inode->i_uid = current->fsuid;
-		inode->i_gid = current->fsgid;
-		inode->i_blocks = 0;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	struct btrfs_path path;
+	struct btrfs_inode_item *inode_item;
+	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	int ret;
+printk("read locked inode %lu\n", inode->i_ino);
+	btrfs_init_path(&path);
+	ret = btrfs_lookup_inode(NULL, root, &path, inode->i_ino, 0);
+	if (ret) {
+		make_bad_inode(inode);
+		return;
 	}
-	return inode;
+	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
+				  path.slots[0],
+				  struct btrfs_inode_item);
+
+printk("found locked inode %lu\n", inode->i_ino);
+	inode->i_mode = btrfs_inode_mode(inode_item);
+	inode->i_nlink = btrfs_inode_nlink(inode_item);
+	inode->i_uid = btrfs_inode_uid(inode_item);
+	inode->i_gid = btrfs_inode_gid(inode_item);
+	inode->i_size = btrfs_inode_size(inode_item);
+	inode->i_atime.tv_sec = btrfs_timespec_sec(&inode_item->atime);
+	inode->i_atime.tv_nsec = btrfs_timespec_nsec(&inode_item->atime);
+	inode->i_mtime.tv_sec = btrfs_timespec_sec(&inode_item->mtime);
+	inode->i_mtime.tv_nsec = btrfs_timespec_nsec(&inode_item->mtime);
+	inode->i_ctime.tv_sec = btrfs_timespec_sec(&inode_item->ctime);
+	inode->i_ctime.tv_nsec = btrfs_timespec_nsec(&inode_item->ctime);
+	inode->i_blocks = btrfs_inode_nblocks(inode_item);
+	inode->i_generation = btrfs_inode_generation(inode_item);
+printk("about to release\n");
+	btrfs_release_path(root, &path);
+	switch (inode->i_mode & S_IFMT) {
+#if 0
+	default:
+		init_special_inode(inode, inode->i_mode,
+				   btrfs_inode_rdev(inode_item));
+		break;
+#endif
+	case S_IFREG:
+printk("inode %lu now a file\n", inode->i_ino);
+		break;
+	case S_IFDIR:
+printk("inode %lu now a directory\n", inode->i_ino);
+		inode->i_op = &btrfs_dir_inode_operations;
+		inode->i_fop = &btrfs_dir_file_operations;
+		break;
+	case S_IFLNK:
+printk("inode %lu now a link\n", inode->i_ino);
+		// inode->i_op = &page_symlink_inode_operations;
+		break;
+	}
+printk("returning!\n");
+	return;
 }
 
-static struct super_operations btrfs_ops = {
-	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
-};
+static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
+			      ino_t *ino)
+{
+	const char *name = dentry->d_name.name;
+	int namelen = dentry->d_name.len;
+	struct btrfs_dir_item *di;
+	struct btrfs_path path;
+	struct btrfs_root *root = btrfs_sb(dir->i_sb);
+	int ret;
+
+	btrfs_init_path(&path);
+	ret = btrfs_lookup_dir_item(NULL, root, &path, dir->i_ino, name,
+				    namelen, 0);
+	if (ret) {
+		*ino = 0;
+		goto out;
+	}
+	di = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]), path.slots[0],
+			    struct btrfs_dir_item);
+	*ino = btrfs_dir_objectid(di);
+out:
+	btrfs_release_path(root, &path);
+	return ret;
+}
+
+static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
+				   struct nameidata *nd)
+{
+	struct inode * inode;
+	ino_t ino;
+	int ret;
+
+	if (dentry->d_name.len > BTRFS_NAME_LEN)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	ret = btrfs_inode_by_name(dir, dentry, &ino);
+	if (ret < 0)
+		return ERR_PTR(ret);
+	inode = NULL;
+	if (ino) {
+printk("lookup on %.*s returns %lu\n", dentry->d_name.len, dentry->d_name.name, ino);
+		inode = iget(dir->i_sb, ino);
+		if (!inode)
+			return ERR_PTR(-EACCES);
+	}
+	return d_splice_alias(inode, dentry);
+}
+
+static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
+{
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	struct btrfs_item *item;
+	struct btrfs_dir_item *di;
+	struct btrfs_key key;
+	struct btrfs_path path;
+	int ret;
+	u32 nritems;
+	struct btrfs_leaf *leaf;
+	int slot;
+	int advance;
+	unsigned char d_type = DT_UNKNOWN;
+	int over;
+
+	key.objectid = inode->i_ino;
+printk("readdir on dir %Lu pos %Lu\n", key.objectid, filp->f_pos);
+	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
+	key.offset = filp->f_pos;
+	btrfs_init_path(&path);
+	ret = btrfs_search_slot(NULL, root, &key, &path, 0, 0);
+	if (ret < 0) {
+		goto err;
+	}
+printk("first ret %d\n", ret);
+	advance = filp->f_pos > 0 && ret != 0;
+	while(1) {
+		leaf = btrfs_buffer_leaf(path.nodes[0]);
+		nritems = btrfs_header_nritems(&leaf->header);
+		slot = path.slots[0];
+printk("leaf %Lu nritems %lu slot %d\n", path.nodes[0]->b_blocknr, nritems, slot);
+		if (advance) {
+printk("advancing!\n");
+			if (slot == nritems -1) {
+				ret = btrfs_next_leaf(root, &path);
+				if (ret)
+					break;
+				leaf = btrfs_buffer_leaf(path.nodes[0]);
+				nritems = btrfs_header_nritems(&leaf->header);
+				slot = path.slots[0];
+printk("2leaf %Lu nritems %lu slot %d\n", path.nodes[0]->b_blocknr, nritems, slot);
+			} else {
+				slot++;
+				path.slots[0]++;
+			}
+		}
+		advance = 1;
+		item = leaf->items + slot;
+printk("item key %Lu %u %Lu\n", btrfs_disk_key_objectid(&item->key),
+       btrfs_disk_key_flags(&item->key), btrfs_disk_key_offset(&item->key));
+		if (btrfs_disk_key_objectid(&item->key) != key.objectid)
+			break;
+		if (btrfs_disk_key_type(&item->key) != BTRFS_DIR_ITEM_KEY)
+			continue;
+		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
+printk("filldir name %.*s, objectid %Lu\n", btrfs_dir_name_len(di),
+       (const char *)(di + 1), btrfs_dir_objectid(di));
+		over = filldir(dirent, (const char *)(di + 1),
+			       btrfs_dir_name_len(di),
+			       btrfs_disk_key_offset(&item->key),
+			       btrfs_dir_objectid(di), d_type);
+		if (over)
+			break;
+		filp->f_pos = btrfs_disk_key_offset(&item->key) + 1;
+	}
+printk("filldir all done\n");
+	ret = 0;
+err:
+	btrfs_release_path(root, &path);
+	return ret;
+}
+
+static void btrfs_put_super (struct super_block * sb)
+{
+	struct btrfs_root *root = btrfs_sb(sb);
+	int ret;
+
+	ret = close_ctree(root);
+	if (ret) {
+		printk("close ctree returns %d\n", ret);
+	}
+	sb->s_fs_info = NULL;
+}
 
 static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 {
 	struct inode * inode;
-	struct dentry * root;
+	struct dentry * root_dentry;
+	struct btrfs_super_block *disk_super;
+	struct buffer_head *bh;
+	struct btrfs_root *root;
 
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = BTRFS_SUPER_MAGIC;
-	sb->s_op = &btrfs_ops;
+	sb->s_op = &btrfs_super_ops;
 	sb->s_time_gran = 1;
-	inode = btrfs_get_inode(sb, S_IFDIR | 0755, 0);
+
+	bh = sb_bread(sb, BTRFS_SUPER_INFO_OFFSET / sb->s_blocksize);
+	if (!bh) {
+		printk("btrfs: unable to read on disk super\n");
+		return -EIO;
+	}
+	disk_super = (struct btrfs_super_block *)bh->b_data;
+	root = open_ctree(sb, bh, disk_super);
+	sb->s_fs_info = root;
+	if (!root) {
+		printk("btrfs: open_ctree failed\n");
+		return -EIO;
+	}
+	printk("read in super total blocks %Lu root %Lu\n",
+	       btrfs_super_total_blocks(disk_super),
+	       btrfs_super_root_dir(disk_super));
+
+	inode = iget_locked(sb, btrfs_super_root_dir(disk_super));
 	if (!inode)
 		return -ENOMEM;
+	if (inode->i_state & I_NEW) {
+		btrfs_read_locked_inode(inode);
+		unlock_new_inode(inode);
+	}
 
-	root = d_alloc_root(inode);
-	if (!root) {
+	root_dentry = d_alloc_root(inode);
+	if (!root_dentry) {
 		iput(inode);
 		return -ENOMEM;
 	}
-	sb->s_root = root;
+	sb->s_root = root_dentry;
+
 	return 0;
 }
 
@@ -186,6 +389,24 @@ static struct file_system_type btrfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+
+static struct super_operations btrfs_super_ops = {
+	.statfs		= simple_statfs,
+	.drop_inode	= generic_delete_inode,
+	.put_super	= btrfs_put_super,
+	.read_inode	= btrfs_read_locked_inode,
+};
+
+static struct inode_operations btrfs_dir_inode_operations = {
+	.lookup		= btrfs_lookup,
+};
+
+static struct file_operations btrfs_dir_file_operations = {
+	.llseek		= generic_file_llseek,
+	.read		= generic_read_dir,
+	.readdir	= btrfs_readdir,
+};
+
 
 static int __init init_btrfs_fs(void)
 {

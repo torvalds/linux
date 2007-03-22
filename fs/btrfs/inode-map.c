@@ -15,7 +15,7 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	int ret;
 	u64 hole_size = 0;
 	int slot = 0;
-	u64 last_ino;
+	u64 last_ino = 0;
 	int start_found;
 	struct btrfs_leaf *l;
 	struct btrfs_root *root = fs_root->fs_info->inode_root;
@@ -40,7 +40,7 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 		path.slots[0]--;
 
 	while (1) {
-		l = &path.nodes[0]->leaf;
+		l = btrfs_buffer_leaf(path.nodes[0]);
 		slot = path.slots[0];
 		if (slot >= btrfs_header_nritems(&l->header)) {
 			ret = btrfs_next_leaf(root, &path);
@@ -105,8 +105,8 @@ int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	inode_item = btrfs_item_ptr(&path.nodes[0]->leaf, path.slots[0],
-				  struct btrfs_inode_map_item);
+	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
+				    path.slots[0], struct btrfs_inode_map_item);
 	btrfs_cpu_key_to_disk(&inode_item->key, location);
 out:
 	btrfs_release_path(inode_root, &path);

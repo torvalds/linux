@@ -1,165 +1,67 @@
-#define _XOPEN_SOURCE 500
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include "kerncompat.h"
-#include "radix-tree.h"
+#include <linux/module.h>
+#include <linux/fs.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
 
-static int allocated_blocks = 0;
-int cache_max = 10000;
-
-static int check_tree_block(struct btrfs_root *root, struct btrfs_buffer *buf)
+static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 {
-	if (buf->blocknr != btrfs_header_blocknr(&buf->node.header))
+	struct btrfs_node *node = btrfs_buffer_node(buf);
+	if (buf->b_blocknr != btrfs_header_blocknr(&node->header))
 		BUG();
-	if (root->node && btrfs_header_parentid(&buf->node.header) !=
-	    btrfs_header_parentid(&root->node->node.header))
+	if (root->node && btrfs_header_parentid(&node->header) !=
+	    btrfs_header_parentid(btrfs_buffer_header(root->node)))
 		BUG();
 	return 0;
 }
 
-static int free_some_buffers(struct btrfs_root *root)
+struct buffer_head *alloc_tree_block(struct btrfs_root *root, u64 blocknr)
 {
-	struct list_head *node, *next;
-	struct btrfs_buffer *b;
-	if (root->fs_info->cache_size < cache_max)
-		return 0;
-	list_for_each_safe(node, next, &root->fs_info->cache) {
-		b = list_entry(node, struct btrfs_buffer, cache);
-		if (b->count == 1) {
-			BUG_ON(!list_empty(&b->dirty));
-			list_del_init(&b->cache);
-			btrfs_block_release(root, b);
-			if (root->fs_info->cache_size < cache_max)
-				break;
-		}
-	}
-	return 0;
+	return sb_getblk(root->fs_info->sb, blocknr);
 }
 
-struct btrfs_buffer *alloc_tree_block(struct btrfs_root *root, u64 blocknr)
+struct buffer_head *find_tree_block(struct btrfs_root *root, u64 blocknr)
 {
-	struct btrfs_buffer *buf;
-	int ret;
+	return sb_getblk(root->fs_info->sb, blocknr);
+}
 
-	buf = malloc(sizeof(struct btrfs_buffer) + root->blocksize);
+struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
+{
+	struct buffer_head *buf = sb_bread(root->fs_info->sb, blocknr);
+
 	if (!buf)
 		return buf;
-	allocated_blocks++;
-	buf->blocknr = blocknr;
-	buf->count = 2;
-	INIT_LIST_HEAD(&buf->dirty);
-	free_some_buffers(root);
-	radix_tree_preload(GFP_KERNEL);
-	ret = radix_tree_insert(&root->fs_info->cache_radix, blocknr, buf);
-	radix_tree_preload_end();
-	list_add_tail(&buf->cache, &root->fs_info->cache);
-	root->fs_info->cache_size++;
-	if (ret) {
-		free(buf);
-		return NULL;
-	}
-	return buf;
-}
-
-struct btrfs_buffer *find_tree_block(struct btrfs_root *root, u64 blocknr)
-{
-	struct btrfs_buffer *buf;
-	buf = radix_tree_lookup(&root->fs_info->cache_radix, blocknr);
-	if (buf) {
-		buf->count++;
-	} else {
-		buf = alloc_tree_block(root, blocknr);
-		if (!buf) {
-			BUG();
-			return NULL;
-		}
-	}
-	return buf;
-}
-
-struct btrfs_buffer *read_tree_block(struct btrfs_root *root, u64 blocknr)
-{
-	loff_t offset = blocknr * root->blocksize;
-	struct btrfs_buffer *buf;
-	int ret;
-
-	buf = radix_tree_lookup(&root->fs_info->cache_radix, blocknr);
-	if (buf) {
-		buf->count++;
-	} else {
-		buf = alloc_tree_block(root, blocknr);
-		if (!buf)
-			return NULL;
-		ret = pread(root->fs_info->fp, &buf->node, root->blocksize,
-			    offset);
-		if (ret != root->blocksize) {
-			free(buf);
-			return NULL;
-		}
-	}
 	if (check_tree_block(root, buf))
 		BUG();
 	return buf;
 }
 
 int dirty_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		     struct btrfs_buffer *buf)
+		     struct buffer_head *buf)
 {
-	if (!list_empty(&buf->dirty))
-		return 0;
-	list_add_tail(&buf->dirty, &root->fs_info->trans);
-	buf->count++;
+	mark_buffer_dirty(buf);
 	return 0;
 }
 
 int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		     struct btrfs_buffer *buf)
+		     struct buffer_head *buf)
 {
-	if (!list_empty(&buf->dirty)) {
-		list_del_init(&buf->dirty);
-		btrfs_block_release(root, buf);
-	}
+	clear_buffer_dirty(buf);
 	return 0;
 }
 
 int write_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		     struct btrfs_buffer *buf)
+		     struct buffer_head *buf)
 {
-	u64 blocknr = buf->blocknr;
-	loff_t offset = blocknr * root->blocksize;
-	int ret;
-
-	if (buf->blocknr != btrfs_header_blocknr(&buf->node.header))
-		BUG();
-	ret = pwrite(root->fs_info->fp, &buf->node, root->blocksize, offset);
-	if (ret != root->blocksize)
-		return ret;
+	mark_buffer_dirty(buf);
 	return 0;
 }
 
 static int __commit_transaction(struct btrfs_trans_handle *trans, struct
 				btrfs_root *root)
 {
-	struct btrfs_buffer *b;
-	int ret = 0;
-	int wret;
-	while(!list_empty(&root->fs_info->trans)) {
-		b = list_entry(root->fs_info->trans.next, struct btrfs_buffer,
-			       dirty);
-		list_del_init(&b->dirty);
-		wret = write_tree_block(trans, root, b);
-		if (wret)
-			ret = wret;
-		btrfs_block_release(root, b);
-	}
-	return ret;
+	filemap_write_and_wait(root->fs_info->sb->s_bdev->bd_inode->i_mapping);
+	return 0;
 }
 
 static int commit_tree_roots(struct btrfs_trans_handle *trans,
@@ -172,17 +74,17 @@ static int commit_tree_roots(struct btrfs_trans_handle *trans,
 	struct btrfs_root *inode_root = fs_info->inode_root;
 
 	btrfs_set_root_blocknr(&inode_root->root_item,
-			       inode_root->node->blocknr);
+			       inode_root->node->b_blocknr);
 	ret = btrfs_update_root(trans, tree_root,
 				&inode_root->root_key,
 				&inode_root->root_item);
 	BUG_ON(ret);
 	while(1) {
 		old_extent_block = btrfs_root_blocknr(&extent_root->root_item);
-		if (old_extent_block == extent_root->node->blocknr)
+		if (old_extent_block == extent_root->node->b_blocknr)
 			break;
 		btrfs_set_root_blocknr(&extent_root->root_item,
-				       extent_root->node->blocknr);
+				       extent_root->node->b_blocknr);
 		ret = btrfs_update_root(trans, tree_root,
 					&extent_root->root_key,
 					&extent_root->root_item);
@@ -195,7 +97,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans, struct
 			     btrfs_root *root, struct btrfs_super_block *s)
 {
 	int ret = 0;
-	struct btrfs_buffer *snap = root->commit_root;
+	struct buffer_head *snap = root->commit_root;
 	struct btrfs_key snap_key;
 
 	if (root->commit_root == root->node)
@@ -204,7 +106,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans, struct
 	memcpy(&snap_key, &root->root_key, sizeof(snap_key));
 	root->root_key.offset++;
 
-	btrfs_set_root_blocknr(&root->root_item, root->node->blocknr);
+	btrfs_set_root_blocknr(&root->root_item, root->node->b_blocknr);
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root,
 				&root->root_key, &root->root_item);
 	BUG_ON(ret);
@@ -220,7 +122,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans, struct
 	btrfs_finish_extent_commit(trans, root->fs_info->tree_root);
 
 	root->commit_root = root->node;
-	root->node->count++;
+	get_bh(root->node);
 	ret = btrfs_drop_snapshot(trans, root, snap);
 	BUG_ON(ret);
 
@@ -234,7 +136,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans, struct
 static int __setup_root(struct btrfs_super_block *super,
 			struct btrfs_root *root,
 			struct btrfs_fs_info *fs_info,
-			u64 objectid, int fp)
+			u64 objectid)
 {
 	root->node = NULL;
 	root->commit_root = NULL;
@@ -250,11 +152,11 @@ static int find_and_setup_root(struct btrfs_super_block *super,
 			       struct btrfs_root *tree_root,
 			       struct btrfs_fs_info *fs_info,
 			       u64 objectid,
-			       struct btrfs_root *root, int fp)
+			       struct btrfs_root *root)
 {
 	int ret;
 
-	__setup_root(super, root, fs_info, objectid, fp);
+	__setup_root(super, root, fs_info, objectid);
 	ret = btrfs_find_last_root(tree_root, objectid,
 				   &root->root_item, &root->root_key);
 	BUG_ON(ret);
@@ -265,32 +167,26 @@ static int find_and_setup_root(struct btrfs_super_block *super,
 	return 0;
 }
 
-struct btrfs_root *open_ctree(char *filename, struct btrfs_super_block *super)
+struct btrfs_root *open_ctree(struct super_block *sb,
+			      struct buffer_head *sb_buffer,
+			      struct btrfs_super_block *disk_super)
 {
-	int fp;
-
-	fp = open(filename, O_CREAT | O_RDWR, 0600);
-	if (fp < 0) {
-		return NULL;
-	}
-	return open_ctree_fd(fp, super);
-}
-
-struct btrfs_root *open_ctree_fd(int fp, struct btrfs_super_block *super)
-{
-	struct btrfs_root *root = malloc(sizeof(struct btrfs_root));
-	struct btrfs_root *extent_root = malloc(sizeof(struct btrfs_root));
-	struct btrfs_root *tree_root = malloc(sizeof(struct btrfs_root));
-	struct btrfs_root *inode_root = malloc(sizeof(struct btrfs_root));
-	struct btrfs_fs_info *fs_info = malloc(sizeof(*fs_info));
+	struct btrfs_root *root = kmalloc(sizeof(struct btrfs_root),
+					  GFP_NOFS);
+	struct btrfs_root *extent_root = kmalloc(sizeof(struct btrfs_root),
+						 GFP_NOFS);
+	struct btrfs_root *tree_root = kmalloc(sizeof(struct btrfs_root),
+					       GFP_NOFS);
+	struct btrfs_root *inode_root = kmalloc(sizeof(struct btrfs_root),
+						GFP_NOFS);
+	struct btrfs_fs_info *fs_info = kmalloc(sizeof(*fs_info),
+						GFP_NOFS);
 	int ret;
 
-	INIT_RADIX_TREE(&fs_info->cache_radix, GFP_KERNEL);
+	/* FIXME: don't be stupid */
+	if (!btrfs_super_root(disk_super))
+		return NULL;
 	INIT_RADIX_TREE(&fs_info->pinned_radix, GFP_KERNEL);
-	INIT_LIST_HEAD(&fs_info->trans);
-	INIT_LIST_HEAD(&fs_info->cache);
-	fs_info->cache_size = 0;
-	fs_info->fp = fp;
 	fs_info->running_transaction = NULL;
 	fs_info->fs_root = root;
 	fs_info->tree_root = tree_root;
@@ -298,36 +194,31 @@ struct btrfs_root *open_ctree_fd(int fp, struct btrfs_super_block *super)
 	fs_info->inode_root = inode_root;
 	fs_info->last_inode_alloc = 0;
 	fs_info->last_inode_alloc_dirid = 0;
-	fs_info->disk_super = super;
+	fs_info->disk_super = disk_super;
+	fs_info->sb_buffer = sb_buffer;
+	fs_info->sb = sb;
 	memset(&fs_info->current_insert, 0, sizeof(fs_info->current_insert));
 	memset(&fs_info->last_insert, 0, sizeof(fs_info->last_insert));
 
-	ret = pread(fp, super, sizeof(struct btrfs_super_block),
-		     BTRFS_SUPER_INFO_OFFSET);
-	if (ret == 0 || btrfs_super_root(super) == 0) {
-		BUG();
-		return NULL;
-	}
-	BUG_ON(ret < 0);
-
-	__setup_root(super, tree_root, fs_info, BTRFS_ROOT_TREE_OBJECTID, fp);
-	tree_root->node = read_tree_block(tree_root, btrfs_super_root(super));
+	__setup_root(disk_super, tree_root, fs_info, BTRFS_ROOT_TREE_OBJECTID);
+	tree_root->node = read_tree_block(tree_root,
+					  btrfs_super_root(disk_super));
 	BUG_ON(!tree_root->node);
 
-	ret = find_and_setup_root(super, tree_root, fs_info,
-				  BTRFS_EXTENT_TREE_OBJECTID, extent_root, fp);
+	ret = find_and_setup_root(disk_super, tree_root, fs_info,
+				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
 	BUG_ON(ret);
 
-	ret = find_and_setup_root(super, tree_root, fs_info,
-				  BTRFS_INODE_MAP_OBJECTID, inode_root, fp);
+	ret = find_and_setup_root(disk_super, tree_root, fs_info,
+				  BTRFS_INODE_MAP_OBJECTID, inode_root);
 	BUG_ON(ret);
 
-	ret = find_and_setup_root(super, tree_root, fs_info,
-				  BTRFS_FS_TREE_OBJECTID, root, fp);
+	ret = find_and_setup_root(disk_super, tree_root, fs_info,
+				  BTRFS_FS_TREE_OBJECTID, root);
 	BUG_ON(ret);
 
 	root->commit_root = root->node;
-	root->node->count++;
+	get_bh(root->node);
 	root->ref_cows = 1;
 	root->fs_info->generation = root->root_key.offset + 1;
 	return root;
@@ -336,8 +227,11 @@ struct btrfs_root *open_ctree_fd(int fp, struct btrfs_super_block *super)
 int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_super_block *s)
 {
+	return 0;
+#if 0
 	int ret;
-	btrfs_set_super_root(s, root->fs_info->tree_root->node->blocknr);
+	btrfs_set_super_root(s, root->fs_info->tree_root->node->b_blocknr);
+
 	ret = pwrite(root->fs_info->fp, s, sizeof(*s),
 		     BTRFS_SUPER_INFO_OFFSET);
 	if (ret != sizeof(*s)) {
@@ -345,35 +239,38 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 		return ret;
 	}
 	return 0;
+#endif
 }
 
 static int drop_cache(struct btrfs_root *root)
 {
+	return 0;
+#if 0
 	while(!list_empty(&root->fs_info->cache)) {
-		struct btrfs_buffer *b = list_entry(root->fs_info->cache.next,
-						    struct btrfs_buffer,
+		struct buffer_head *b = list_entry(root->fs_info->cache.next,
+						    struct buffer_head,
 						    cache);
 		list_del_init(&b->cache);
 		btrfs_block_release(root, b);
 	}
 	return 0;
+#endif
 }
-int close_ctree(struct btrfs_root *root, struct btrfs_super_block *s)
+
+int close_ctree(struct btrfs_root *root)
 {
 	int ret;
 	struct btrfs_trans_handle *trans;
 
 	trans = root->fs_info->running_transaction;
-	btrfs_commit_transaction(trans, root, s);
+	btrfs_commit_transaction(trans, root, root->fs_info->disk_super);
 	ret = commit_tree_roots(trans, root->fs_info);
 	BUG_ON(ret);
 	ret = __commit_transaction(trans, root);
 	BUG_ON(ret);
-	write_ctree_super(trans, root, s);
+	write_ctree_super(trans, root, root->fs_info->disk_super);
 	drop_cache(root);
-	BUG_ON(!list_empty(&root->fs_info->trans));
 
-	close(root->fs_info->fp);
 	if (root->node)
 		btrfs_block_release(root, root->node);
 	if (root->fs_info->extent_root->node)
@@ -386,29 +283,17 @@ int close_ctree(struct btrfs_root *root, struct btrfs_super_block *s)
 		btrfs_block_release(root->fs_info->tree_root,
 				    root->fs_info->tree_root->node);
 	btrfs_block_release(root, root->commit_root);
-	free(root);
-	printf("on close %d blocks are allocated\n", allocated_blocks);
+	btrfs_block_release(root, root->fs_info->sb_buffer);
+	kfree(root->fs_info->extent_root);
+	kfree(root->fs_info->inode_root);
+	kfree(root->fs_info->tree_root);
+	kfree(root->fs_info);
+	kfree(root);
 	return 0;
 }
 
-void btrfs_block_release(struct btrfs_root *root, struct btrfs_buffer *buf)
+void btrfs_block_release(struct btrfs_root *root, struct buffer_head *buf)
 {
-	buf->count--;
-	if (buf->count < 0)
-		BUG();
-	if (buf->count == 0) {
-		BUG_ON(!list_empty(&buf->cache));
-		BUG_ON(!list_empty(&buf->dirty));
-		if (!radix_tree_lookup(&root->fs_info->cache_radix,
-				       buf->blocknr))
-			BUG();
-		radix_tree_delete(&root->fs_info->cache_radix, buf->blocknr);
-		memset(buf, 0, sizeof(*buf));
-		free(buf);
-		BUG_ON(allocated_blocks == 0);
-		allocated_blocks--;
-		BUG_ON(root->fs_info->cache_size == 0);
-		root->fs_info->cache_size--;
-	}
+	brelse(buf);
 }
 
