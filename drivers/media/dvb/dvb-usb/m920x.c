@@ -587,6 +587,7 @@ static struct m9206_inits tvwalkertwin_rc_init [] = {
 static struct dvb_usb_device_properties megasky_properties;
 static struct dvb_usb_device_properties digivox_mini_ii_properties;
 static struct dvb_usb_device_properties tvwalkertwin_properties;
+static struct dvb_usb_device_properties dposh_properties;
 static struct m9206_inits megasky_rc_init [];
 static struct m9206_inits tvwalkertwin_rc_init [];
 
@@ -622,6 +623,11 @@ static int m920x_probe(struct usb_interface *intf,
 		if ((ret = dvb_usb_device_init(intf, &tvwalkertwin_properties,
 			THIS_MODULE, &d)) == 0) {
 			rc_init_seq = tvwalkertwin_rc_init;
+			goto found;
+		}
+
+		if ((ret = dvb_usb_device_init(intf, &dposh_properties, THIS_MODULE, &d)) == 0) {
+			/* Remote controller not supported yet. */
 			goto found;
 		}
 
@@ -663,6 +669,8 @@ static struct usb_device_id m920x_table [] = {
 			     USB_PID_LIFEVIEW_TV_WALKER_TWIN_COLD) },
 		{ USB_DEVICE(USB_VID_ANUBIS_ELECTRONIC,
 			     USB_PID_LIFEVIEW_TV_WALKER_TWIN_WARM) },
+		{ USB_DEVICE(USB_VID_DPOSH, USB_PID_DPOSH_M9206_COLD) },
+		{ USB_DEVICE(USB_VID_DPOSH, USB_PID_DPOSH_M9206_WARM) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, m920x_table);
@@ -833,6 +841,47 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 		    .warm_ids = { &m920x_table[3], NULL },
 		},
 	}
+};
+
+static struct dvb_usb_device_properties dposh_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl = DEVICE_SPECIFIC,
+	.firmware = "dvb-usb-dposh-01.fw",
+	.download_firmware = m9206_firmware_download,
+
+	/* Remote controller not supported yet. */
+
+	.size_of_priv     = sizeof(struct m9206_state),
+
+	.identify_state   = m920x_identify_state,
+	.num_adapters = 1,
+	.adapter = {{
+			 /* Nardware pid filters don't work with this device/firmware. */
+
+			 .frontend_attach  = megasky_mt352_frontend_attach,
+			 .tuner_attach     = megasky_qt1010_tuner_attach,
+
+			 .stream = {
+				 .type = USB_BULK,
+				 .count = 8,
+				 .endpoint = 0x81,
+				 .u = {
+					  .bulk = {
+						  .buffersize = 512,
+					  }
+				  }
+			 },
+		 }},
+	.i2c_algo         = &m9206_i2c_algo,
+
+	.num_device_descs = 1,
+	.devices = {
+		 {   .name = "Dposh DVB-T USB2.0",
+		     .cold_ids = { &m920x_table[4], NULL },
+		     .warm_ids = { &m920x_table[5], NULL },
+		 },
+	 }
 };
 
 static struct usb_driver m920x_driver = {
