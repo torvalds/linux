@@ -479,22 +479,28 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
  */
 struct fifo_sched_data {
 	u32 limit;
+	psched_time_t oldest;
 };
 
 static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 	struct sk_buff_head *list = &sch->q;
-	const struct netem_skb_cb *ncb
-		= (const struct netem_skb_cb *)nskb->cb;
+	psched_time_t tnext = ((struct netem_skb_cb *)nskb->cb)->time_to_send;
 	struct sk_buff *skb;
 
 	if (likely(skb_queue_len(list) < q->limit)) {
+		/* Optimize for add at tail */
+		if (likely(skb_queue_empty(list) || !PSCHED_TLESS(tnext, q->oldest))) {
+			q->oldest = tnext;
+			return qdisc_enqueue_tail(nskb, sch);
+		}
+
 		skb_queue_reverse_walk(list, skb) {
 			const struct netem_skb_cb *cb
 				= (const struct netem_skb_cb *)skb->cb;
 
-			if (!PSCHED_TLESS(ncb->time_to_send, cb->time_to_send))
+			if (!PSCHED_TLESS(tnext, cb->time_to_send))
 				break;
 		}
 
@@ -507,7 +513,7 @@ static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 		return NET_XMIT_SUCCESS;
 	}
 
-	return qdisc_drop(nskb, sch);
+	return qdisc_reshape_fail(nskb, sch);
 }
 
 static int tfifo_init(struct Qdisc *sch, struct rtattr *opt)
@@ -523,6 +529,7 @@ static int tfifo_init(struct Qdisc *sch, struct rtattr *opt)
 	} else
 		q->limit = max_t(u32, sch->dev->tx_queue_len, 1);
 
+	PSCHED_SET_PASTPERFECT(q->oldest);
 	return 0;
 }
 
