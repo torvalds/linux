@@ -96,6 +96,11 @@ static inline int setprop(void *devp, const char *name,
 {
 	return (dt_ops.setprop) ? dt_ops.setprop(devp, name, buf, buflen) : -1;
 }
+#define setprop_val(devp, name, val) \
+	do { \
+		typeof(val) x = (val); \
+		setprop((devp), (name), &x, sizeof(x)); \
+	} while (0)
 
 static inline int setprop_str(void *devp, const char *name, const char *buf)
 {
@@ -140,6 +145,14 @@ static inline void *find_node_by_devtype(const void *prev,
 {
 	return find_node_by_prop_value_str(prev, "device_type", type);
 }
+
+void dt_fixup_memory(u64 start, u64 size);
+void dt_fixup_cpu_clocks(u32 cpufreq, u32 tbfreq, u32 busfreq);
+void dt_fixup_clock(const char *path, u32 freq);
+void __dt_fixup_mac_addresses(u32 startindex, ...);
+#define dt_fixup_mac_addresses(...) \
+	__dt_fixup_mac_addresses(0, __VA_ARGS__, NULL)
+
 
 static inline void *malloc(u32 size)
 {

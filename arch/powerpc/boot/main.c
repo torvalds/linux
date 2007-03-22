@@ -153,13 +153,10 @@ static struct addr_range prep_kernel(void)
 	return (struct addr_range){addr, ei.memsize};
 }
 
-static struct addr_range prep_initrd(struct addr_range vmlinux,
+static struct addr_range prep_initrd(struct addr_range vmlinux, void *chosen,
 				     unsigned long initrd_addr,
 				     unsigned long initrd_size)
 {
-	void *devp;
-	u32 initrd_start, initrd_end;
-
 	/* If we have an image attached to us, it overrides anything
 	 * supplied by the loader. */
 	if (_initrd_end > _initrd_start) {
@@ -198,16 +195,8 @@ static struct addr_range prep_initrd(struct addr_range vmlinux,
 	printf("initrd head: 0x%lx\n\r", *((unsigned long *)initrd_addr));
 
 	/* Tell the kernel initrd address via device tree */
-	devp = finddevice("/chosen");
-	if (! devp)
-		fatal("Device tree has no chosen node!\n\r");
-
-	initrd_start = (u32)initrd_addr;
-	initrd_end = (u32)initrd_addr + initrd_size;
-
-	setprop(devp, "linux,initrd-start", &initrd_start,
-		sizeof(initrd_start));
-	setprop(devp, "linux,initrd-end", &initrd_end, sizeof(initrd_end));
+	setprop_val(chosen, "linux,initrd-start", (u32)(initrd_addr));
+	setprop_val(chosen, "linux,initrd-end", (u32)(initrd_addr+initrd_size));
 
 	return (struct addr_range){(void *)initrd_addr, initrd_size};
 }
@@ -254,6 +243,7 @@ void start(void)
 	kernel_entry_t kentry;
 	char cmdline[COMMAND_LINE_SIZE];
 	unsigned long ft_addr = 0;
+	void *chosen;
 
 	if (console_ops.open && (console_ops.open() < 0))
 		exit();
@@ -263,9 +253,14 @@ void start(void)
 	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r",
 	       _start, get_sp());
 
+	/* Ensure that the device tree has a /chosen node */
+	chosen = finddevice("/chosen");
+	if (!chosen)
+		chosen = create_node(NULL, "chosen");
+
 	vmlinux = prep_kernel();
-	initrd = prep_initrd(vmlinux, loader_info.initrd_addr,
-			     loader_info.initrd_size);
+	initrd = prep_initrd(vmlinux, chosen,
+			     loader_info.initrd_addr, loader_info.initrd_size);
 
 	/* If cmdline came from zimage wrapper or if we can edit the one
 	 * in the dt, print it out and edit it, if possible.
