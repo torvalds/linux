@@ -572,18 +572,15 @@ void pci_disable_msi(struct pci_dev* dev)
 	if (!entry || !entry->dev || entry->msi_attrib.type != PCI_CAP_ID_MSI) {
 		return;
 	}
-	if (irq_has_action(dev->first_msi_irq)) {
-		printk(KERN_WARNING "PCI: %s: pci_disable_msi() called without "
-		       "free_irq() on MSI irq %d\n",
-		       pci_name(dev), dev->first_msi_irq);
-		BUG_ON(irq_has_action(dev->first_msi_irq));
-	} else {
-		default_irq = entry->msi_attrib.default_irq;
-		msi_free_irq(dev, dev->first_msi_irq);
 
-		/* Restore dev->irq to its default pin-assertion irq */
-		dev->irq = default_irq;
-	}
+	BUG_ON(irq_has_action(dev->first_msi_irq));
+
+	default_irq = entry->msi_attrib.default_irq;
+	msi_free_irq(dev, dev->first_msi_irq);
+
+	/* Restore dev->irq to its default pin-assertion irq */
+	dev->irq = default_irq;
+
 	dev->first_msi_irq = 0;
 }
 
