@@ -88,5 +88,4 @@ _zimage_start_lib:
 	bl	platform_init
 
 	/* Call start */
-	mr	r3,r1
 	b	start

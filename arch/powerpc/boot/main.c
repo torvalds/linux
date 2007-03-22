@@ -17,6 +17,7 @@
 #include "ops.h"
 #include "gunzip_util.h"
 #include "flatdevtree.h"
+#include "reg.h"
 
 extern char _start[];
 extern char __bss_start[];
@@ -247,7 +248,7 @@ struct dt_ops dt_ops;
 struct console_ops console_ops;
 struct loader_info loader_info;
 
-void start(void *sp)
+void start(void)
 {
 	struct addr_range vmlinux, initrd;
 	kernel_entry_t kentry;
@@ -260,7 +261,7 @@ void start(void *sp)
 		platform_ops.fixups();
 
 	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r",
-	       _start, sp);
+	       _start, get_sp());
 
 	vmlinux = prep_kernel();
 	initrd = prep_initrd(vmlinux, loader_info.initrd_addr,
