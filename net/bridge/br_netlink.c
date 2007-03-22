@@ -11,8 +11,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/rtnetlink.h>
-#include <net/netlink.h>
+#include <net/rtnetlink.h>
 #include "br_private.h"
 
 static inline size_t br_nlmsg_size(void)
@@ -179,18 +178,19 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 }
 
 
-static struct rtnetlink_link bridge_rtnetlink_table[RTM_NR_MSGTYPES] = {
-	[RTM_GETLINK - RTM_BASE] = { .dumpit	= br_dump_ifinfo, },
-	[RTM_SETLINK - RTM_BASE] = { .doit      = br_rtm_setlink, },
-};
-
-void __init br_netlink_init(void)
+int __init br_netlink_init(void)
 {
-	rtnetlink_links[PF_BRIDGE] = bridge_rtnetlink_table;
+	if (__rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL, br_dump_ifinfo))
+		return -ENOBUFS;
+
+	/* Only the first call to __rtnl_register can fail */
+	__rtnl_register(PF_BRIDGE, RTM_SETLINK, br_rtm_setlink, NULL);
+
+	return 0;
 }
 
 void __exit br_netlink_fini(void)
 {
-	rtnetlink_links[PF_BRIDGE] = NULL;
+	rtnl_unregister_all(PF_BRIDGE);
 }
 

@@ -235,7 +235,7 @@ extern void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent);
 
 
 /* br_netlink.c */
-extern void br_netlink_init(void);
+extern int br_netlink_init(void);
 extern void br_netlink_fini(void);
 extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 
