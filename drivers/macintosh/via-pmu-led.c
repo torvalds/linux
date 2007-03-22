@@ -122,7 +122,9 @@ static int __init via_pmu_led_init(void)
 	if (model == NULL)
 		return -ENODEV;
 	if (strncmp(model, "PowerBook", strlen("PowerBook")) != 0 &&
-	    strncmp(model, "iBook", strlen("iBook")) != 0) {
+	    strncmp(model, "iBook", strlen("iBook")) != 0 &&
+	    strcmp(model, "PowerMac7,2") != 0 &&
+	    strcmp(model, "PowerMac7,3") != 0) {
 		of_node_put(dt);
 		/* ignore */
 		return -ENODEV;
