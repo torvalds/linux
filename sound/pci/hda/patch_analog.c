@@ -741,8 +741,9 @@ static struct hda_verb ad1986a_init_verbs[] = {
 
 /* additional verbs for 3-stack model */
 static struct hda_verb ad1986a_3st_init_verbs[] = {
- 	/* Mic and line-in selectors */
-	{0x0f, AC_VERB_SET_CONNECT_SEL, 0x2},
+	/* Mic selector, mix C/LFE (backmic) and Mic (frontmic) */
+	{0x0f, AC_VERB_SET_CONNECT_SEL, 0x4},
+ 	/* Line-in selectors */
 	{0x10, AC_VERB_SET_CONNECT_SEL, 0x1},
  	{ } /* end */
 };
