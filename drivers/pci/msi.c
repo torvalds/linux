@@ -24,19 +24,7 @@
 #include "pci.h"
 #include "msi.h"
 
-static struct kmem_cache* msi_cachep;
-
 static int pci_msi_enable = 1;
-
-static int msi_cache_init(void)
-{
-	msi_cachep = kmem_cache_create("msi_cache", sizeof(struct msi_desc),
-					0, SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!msi_cachep)
-		return -ENOMEM;
-
-	return 0;
-}
 
 static void msi_set_enable(struct pci_dev *dev, int enable)
 {
@@ -221,28 +209,12 @@ void unmask_msi_irq(unsigned int irq)
 
 static int msi_free_irq(struct pci_dev* dev, int irq);
 
-static int msi_init(void)
-{
-	static int status = -ENOMEM;
-
-	if (!status)
-		return status;
-
-	status = msi_cache_init();
-	if (status < 0) {
-		pci_msi_enable = 0;
-		printk(KERN_WARNING "PCI: MSI cache init failed\n");
-		return status;
-	}
-
-	return status;
-}
 
 static struct msi_desc* alloc_msi_entry(void)
 {
 	struct msi_desc *entry;
 
-	entry = kmem_cache_zalloc(msi_cachep, GFP_KERNEL);
+	entry = kzalloc(sizeof(struct msi_desc), GFP_KERNEL);
 	if (!entry)
 		return NULL;
 
@@ -368,7 +340,7 @@ static int msi_capability_init(struct pci_dev *dev)
 	/* Configure MSI capability structure */
 	irq = arch_setup_msi_irq(dev, entry);
 	if (irq < 0) {
-		kmem_cache_free(msi_cachep, entry);
+		kfree(entry);
 		return irq;
 	}
 	entry->link.head = irq;
@@ -441,7 +413,7 @@ static int msix_capability_init(struct pci_dev *dev,
 		/* Configure MSI-X capability structure */
 		irq = arch_setup_msi_irq(dev, entry);
 		if (irq < 0) {
-			kmem_cache_free(msi_cachep, entry);
+			kfree(entry);
 			break;
 		}
  		entries[i].vector = irq;
@@ -530,10 +502,6 @@ int pci_enable_msi(struct pci_dev* dev)
 	if (pci_msi_supported(dev) < 0)
 		return -EINVAL;
 
-	status = msi_init();
-	if (status < 0)
-		return status;
-
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	if (!pos)
 		return -EINVAL;
@@ -604,7 +572,7 @@ static int msi_free_irq(struct pci_dev* dev, int irq)
 	get_irq_msi(entry->link.tail)->link.head = entry->link.head;
 
 	arch_teardown_msi_irq(irq);
-	kmem_cache_free(msi_cachep, entry);
+	kfree(entry);
 
 	if (type == PCI_CAP_ID_MSIX) {
 		writel(1, base + entry_nr * PCI_MSIX_ENTRY_SIZE +
@@ -640,10 +608,6 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 
 	if (!entries || pci_msi_supported(dev) < 0)
  		return -EINVAL;
-
-	status = msi_init();
-	if (status < 0)
-		return status;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
 	if (!pos)
