@@ -64,4 +64,13 @@ struct m9206_state {
 	int filtering_enabled;
 	int rep_count;
 };
+
+/* Initialisation data for the m920x
+ */
+
+struct m9206_inits {
+	u16 address;
+	u8  data;
+};
+
 #endif
