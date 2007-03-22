@@ -273,6 +273,10 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 	struct netem_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
 
+	smp_mb();
+	if (sch->flags & TCQ_F_THROTTLED)
+		return NULL;
+
 	skb = q->qdisc->dequeue(q->qdisc);
 	if (skb) {
 		const struct netem_skb_cb *cb
@@ -285,18 +289,17 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 		if (PSCHED_TLESS(cb->time_to_send, now)) {
 			pr_debug("netem_dequeue: return skb=%p\n", skb);
 			sch->q.qlen--;
-			sch->flags &= ~TCQ_F_THROTTLED;
 			return skb;
-		} else {
-			qdisc_watchdog_schedule(&q->watchdog, cb->time_to_send);
-
-			if (q->qdisc->ops->requeue(skb, q->qdisc) != NET_XMIT_SUCCESS) {
-				qdisc_tree_decrease_qlen(q->qdisc, 1);
-				sch->qstats.drops++;
-				printk(KERN_ERR "netem: queue discpline %s could not requeue\n",
-				       q->qdisc->ops->id);
-			}
 		}
+
+		if (unlikely(q->qdisc->ops->requeue(skb, q->qdisc) != NET_XMIT_SUCCESS)) {
+			qdisc_tree_decrease_qlen(q->qdisc, 1);
+			sch->qstats.drops++;
+			printk(KERN_ERR "netem: %s could not requeue\n",
+			       q->qdisc->ops->id);
+		}
+
+		qdisc_watchdog_schedule(&q->watchdog, cb->time_to_send);
 	}
 
 	return NULL;
