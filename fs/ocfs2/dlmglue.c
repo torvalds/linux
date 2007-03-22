@@ -1495,8 +1495,7 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	if (S_ISLNK(inode->i_mode) && !oi->ip_clusters)
 		inode->i_blocks = 0;
 	else
-		inode->i_blocks =
-			ocfs2_align_bytes_to_sectors(i_size_read(inode));
+		inode->i_blocks = ocfs2_inode_sector_count(inode);
 
 	inode->i_uid     = be32_to_cpu(lvb->lvb_iuid);
 	inode->i_gid     = be32_to_cpu(lvb->lvb_igid);

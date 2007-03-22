@@ -1271,7 +1271,7 @@ ssize_t ocfs2_buffered_write_cluster(struct file *file, loff_t pos,
 		i_size_write(inode, pos);
 		mark_inode_dirty(inode);
 	}
-	inode->i_blocks = ocfs2_align_bytes_to_sectors((u64)(i_size_read(inode)));
+	inode->i_blocks = ocfs2_inode_sector_count(inode);
 	di->i_size = cpu_to_le64((u64)i_size_read(inode));
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);

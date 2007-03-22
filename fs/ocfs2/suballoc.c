@@ -381,8 +381,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 					     le32_to_cpu(fe->i_clusters)));
 	spin_unlock(&OCFS2_I(alloc_inode)->ip_lock);
 	i_size_write(alloc_inode, le64_to_cpu(fe->i_size));
-	alloc_inode->i_blocks =
-		ocfs2_align_bytes_to_sectors(i_size_read(alloc_inode));
+	alloc_inode->i_blocks = ocfs2_inode_sector_count(alloc_inode);
 
 	status = 0;
 bail:

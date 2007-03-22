@@ -650,25 +650,17 @@ static int ocfs2_force_read_journal(struct inode *inode)
 {
 	int status = 0;
 	int i;
-	u64 v_blkno, p_blkno, p_blocks;
+	u64 v_blkno, p_blkno, p_blocks, num_blocks;
 #define CONCURRENT_JOURNAL_FILL 32ULL
 	struct buffer_head *bhs[CONCURRENT_JOURNAL_FILL];
 
 	mlog_entry_void();
 
-	BUG_ON(inode->i_blocks !=
-		     ocfs2_align_bytes_to_sectors(i_size_read(inode)));
-
 	memset(bhs, 0, sizeof(struct buffer_head *) * CONCURRENT_JOURNAL_FILL);
 
-	mlog(0, "Force reading %llu blocks\n",
-		(unsigned long long)(inode->i_blocks >>
-			(inode->i_sb->s_blocksize_bits - 9)));
-
+	num_blocks = ocfs2_blocks_for_bytes(inode->i_sb, inode->i_size);
 	v_blkno = 0;
-	while (v_blkno <
-	       (inode->i_blocks >> (inode->i_sb->s_blocksize_bits - 9))) {
-
+	while (v_blkno < num_blocks) {
 		status = ocfs2_extent_map_get_blocks(inode, v_blkno,
 						     &p_blkno, &p_blocks, NULL);
 		if (status < 0) {

@@ -221,6 +221,9 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		goto bail;
 	}
 
+	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
+	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
+
 	inode->i_version = 1;
 	inode->i_generation = le32_to_cpu(fe->i_generation);
 	inode->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
@@ -232,8 +235,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	if (S_ISLNK(inode->i_mode) && !fe->i_clusters)
 		inode->i_blocks = 0;
 	else
-		inode->i_blocks =
-			ocfs2_align_bytes_to_sectors(le64_to_cpu(fe->i_size));
+		inode->i_blocks = ocfs2_inode_sector_count(inode);
 	inode->i_mapping->a_ops = &ocfs2_aops;
 	inode->i_atime.tv_sec = le64_to_cpu(fe->i_atime);
 	inode->i_atime.tv_nsec = le32_to_cpu(fe->i_atime_nsec);
@@ -247,9 +249,6 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		     "ip_blkno %llu != i_blkno %llu!\n",
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 		     (unsigned long long)fe->i_blkno);
-
-	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
-	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
 
 	inode->i_nlink = le16_to_cpu(fe->i_links_count);
 
@@ -1243,7 +1242,7 @@ void ocfs2_refresh_inode(struct inode *inode,
 	if (S_ISLNK(inode->i_mode) && le32_to_cpu(fe->i_clusters) == 0)
 		inode->i_blocks = 0;
 	else
-		inode->i_blocks = ocfs2_align_bytes_to_sectors(i_size_read(inode));
+		inode->i_blocks = ocfs2_inode_sector_count(inode);
 	inode->i_atime.tv_sec = le64_to_cpu(fe->i_atime);
 	inode->i_atime.tv_nsec = le32_to_cpu(fe->i_atime_nsec);
 	inode->i_mtime.tv_sec = le64_to_cpu(fe->i_mtime);

@@ -216,7 +216,7 @@ int ocfs2_set_inode_size(handle_t *handle,
 
 	mlog_entry_void();
 	i_size_write(inode, new_i_size);
-	inode->i_blocks = ocfs2_align_bytes_to_sectors(new_i_size);
+	inode->i_blocks = ocfs2_inode_sector_count(inode);
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 
 	status = ocfs2_mark_inode_dirty(handle, inode, fe_bh);

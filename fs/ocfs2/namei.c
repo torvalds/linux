@@ -285,7 +285,7 @@ static int ocfs2_fill_new_dir(struct ocfs2_super *osb,
 
 	i_size_write(inode, inode->i_sb->s_blocksize);
 	inode->i_nlink = 2;
-	inode->i_blocks = ocfs2_align_bytes_to_sectors(inode->i_sb->s_blocksize);
+	inode->i_blocks = ocfs2_inode_sector_count(inode);
 	status = ocfs2_mark_inode_dirty(handle, inode, fe_bh);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1688,7 +1688,7 @@ static int ocfs2_symlink(struct inode *dir,
 			goto bail;
 		}
 		i_size_write(inode, newsize);
-		inode->i_blocks = ocfs2_align_bytes_to_sectors(newsize);
+		inode->i_blocks = ocfs2_inode_sector_count(inode);
 	} else {
 		inode->i_op = &ocfs2_fast_symlink_inode_operations;
 		memcpy((char *) fe->id2.i_symlink, symname, l);
