@@ -462,7 +462,6 @@ static void set_audio(struct tuner *t)
 	char* mode;
 
 	t->tda827x_lpsel = 0;
-	mode = "xx";
 	if (t->std & V4L2_STD_MN) {
 		t->sgIF = 92;
 		t->tda8290_easy_mode = 0x01;
@@ -492,8 +491,12 @@ static void set_audio(struct tuner *t)
 		t->sgIF = 20;
 		t->tda8290_easy_mode = 0x40;
 		mode = "LC";
+	} else {
+		t->sgIF = 124;
+		t->tda8290_easy_mode = 0x10;
+		mode = "xx";
 	}
-    tuner_dbg("setting tda8290 to system %s\n", mode);
+	tuner_dbg("setting tda8290 to system %s\n", mode);
 }
 
 static void set_tv_freq(struct i2c_client *c, unsigned int freq)
@@ -636,6 +639,7 @@ int tda8290_init(struct i2c_client *c)
 	t->has_signal = has_signal;
 	t->standby = standby;
 	t->tda827x_lpsel = 0;
+	t->mode = V4L2_TUNER_ANALOG_TV;
 
 	tda8290_init_tuner(c);
 	tda8290_init_if(c);
