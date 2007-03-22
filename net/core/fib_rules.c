@@ -374,7 +374,7 @@ int fib_rules_dump(struct sk_buff *skb, struct netlink_callback *cb, int family)
 		return -EAFNOSUPPORT;
 
 	rcu_read_lock();
-	list_for_each_entry(rule, ops->rules_list, list) {
+	list_for_each_entry_rcu(rule, ops->rules_list, list) {
 		if (idx < cb->args[0])
 			goto skip;
 
