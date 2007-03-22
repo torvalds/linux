@@ -108,7 +108,7 @@ static inline void *alloc_remap(int nid, unsigned long size)
 #endif /* CONFIG_HAVE_ARCH_ALLOC_REMAP */
 
 extern unsigned long __meminitdata nr_kernel_pages;
-extern unsigned long nr_all_pages;
+extern unsigned long __meminitdata nr_all_pages;
 
 extern void *alloc_large_system_hash(const char *tablename,
 				     unsigned long bucketsize,
