@@ -8,6 +8,9 @@ config VIDEO_CX23885
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
+	select VIDEO_BUF_DVB
+	select DVB_TUNER_MT2131 if !DVB_FE_CUSTOMISE
+	select DVB_S5H1409 if !DVB_FE_CUSTOMISE
 	---help---
 	  This is a video4linux driver for Conexant 23885 based
 	  TV cards.
