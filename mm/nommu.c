@@ -826,6 +826,11 @@ unsigned long do_mmap_pgoff(struct file *file,
 		unsigned long pglen = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		unsigned long vmpglen;
 
+		/* suppress VMA sharing for shared regions */
+		if (vm_flags & VM_SHARED &&
+		    capabilities & BDI_CAP_MAP_DIRECT)
+			goto dont_share_VMAs;
+
 		for (rb = rb_first(&nommu_vma_tree); rb; rb = rb_next(rb)) {
 			vma = rb_entry(rb, struct vm_area_struct, vm_rb);
 
@@ -859,6 +864,7 @@ unsigned long do_mmap_pgoff(struct file *file,
 			goto shared;
 		}
 
+	dont_share_VMAs:
 		vma = NULL;
 
 		/* obtain the address at which to make a shared mapping
