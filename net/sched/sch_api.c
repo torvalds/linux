@@ -27,7 +27,6 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -1239,28 +1238,16 @@ static const struct file_operations psched_fops = {
 
 static int __init pktsched_init(void)
 {
-	struct rtnetlink_link *link_p;
-
-	link_p = rtnetlink_links[PF_UNSPEC];
-
-	/* Setup rtnetlink links. It is made here to avoid
-	   exporting large number of public symbols.
-	 */
-
-	if (link_p) {
-		link_p[RTM_NEWQDISC-RTM_BASE].doit = tc_modify_qdisc;
-		link_p[RTM_DELQDISC-RTM_BASE].doit = tc_get_qdisc;
-		link_p[RTM_GETQDISC-RTM_BASE].doit = tc_get_qdisc;
-		link_p[RTM_GETQDISC-RTM_BASE].dumpit = tc_dump_qdisc;
-		link_p[RTM_NEWTCLASS-RTM_BASE].doit = tc_ctl_tclass;
-		link_p[RTM_DELTCLASS-RTM_BASE].doit = tc_ctl_tclass;
-		link_p[RTM_GETTCLASS-RTM_BASE].doit = tc_ctl_tclass;
-		link_p[RTM_GETTCLASS-RTM_BASE].dumpit = tc_dump_tclass;
-	}
-
 	register_qdisc(&pfifo_qdisc_ops);
 	register_qdisc(&bfifo_qdisc_ops);
 	proc_net_fops_create("psched", 0, &psched_fops);
+
+	rtnl_register(PF_UNSPEC, RTM_NEWQDISC, tc_modify_qdisc, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELQDISC, tc_get_qdisc, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETQDISC, tc_get_qdisc, tc_dump_qdisc);
+	rtnl_register(PF_UNSPEC, RTM_NEWTCLASS, tc_ctl_tclass, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELTCLASS, tc_ctl_tclass, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETTCLASS, tc_ctl_tclass, tc_dump_tclass);
 
 	return 0;
 }
