@@ -959,12 +959,6 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 	} while (qlen);
 }
 
-static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
-{
-	[RTM_GETADDR     - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
-	[RTM_GETROUTE    - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
-};
-
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
@@ -1014,6 +1008,9 @@ void __init rtnetlink_init(void)
 
 	rtnl_register(PF_UNSPEC, RTM_GETLINK, rtnl_getlink, rtnl_dump_ifinfo);
 	rtnl_register(PF_UNSPEC, RTM_SETLINK, rtnl_setlink, NULL);
+
+	rtnl_register(PF_UNSPEC, RTM_GETADDR, NULL, rtnl_dump_all);
+	rtnl_register(PF_UNSPEC, RTM_GETROUTE, NULL, rtnl_dump_all);
 }
 
 EXPORT_SYMBOL(__rta_fill);
