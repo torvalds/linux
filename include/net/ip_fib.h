@@ -215,10 +215,6 @@ extern void fib_select_default(const struct flowi *flp, struct fib_result *res);
 /* Exported by fib_frontend.c */
 extern struct nla_policy rtm_ipv4_policy[];
 extern void		ip_fib_init(void);
-extern int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
-extern int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
-extern int inet_rtm_getroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
-extern int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb);
 extern int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			       struct net_device *dev, __be32 *spec_dst, u32 *itag);
 extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res);
@@ -235,8 +231,6 @@ extern __be32  __fib_res_prefsrc(struct fib_result *res);
 extern struct fib_table *fib_hash_init(u32 id);
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-extern int fib4_rules_dump(struct sk_buff *skb, struct netlink_callback *cb);
-
 extern void __init fib4_rules_init(void);
 
 #ifdef CONFIG_NET_CLS_ROUTE

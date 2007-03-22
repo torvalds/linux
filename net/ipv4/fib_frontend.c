@@ -34,7 +34,6 @@
 #include <linux/if_addr.h>
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
-#include <linux/netlink.h>
 #include <linux/init.h>
 #include <linux/list.h>
 
@@ -46,6 +45,7 @@
 #include <net/icmp.h>
 #include <net/arp.h>
 #include <net/ip_fib.h>
+#include <net/rtnetlink.h>
 
 #define FFprint(a...) printk(KERN_DEBUG a)
 
@@ -540,7 +540,7 @@ errout:
 	return err;
 }
 
-int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct fib_config cfg;
 	struct fib_table *tb;
@@ -561,7 +561,7 @@ errout:
 	return err;
 }
 
-int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct fib_config cfg;
 	struct fib_table *tb;
@@ -582,7 +582,7 @@ errout:
 	return err;
 }
 
-int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
+static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
@@ -925,6 +925,10 @@ void __init ip_fib_init(void)
 	register_netdevice_notifier(&fib_netdev_notifier);
 	register_inetaddr_notifier(&fib_inetaddr_notifier);
 	nl_fib_lookup_init();
+
+	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL);
+	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL);
+	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib);
 }
 
 EXPORT_SYMBOL(inet_addr_type);

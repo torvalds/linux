@@ -274,7 +274,7 @@ nla_put_failure:
 	return -ENOBUFS;
 }
 
-int fib4_rules_dump(struct sk_buff *skb, struct netlink_callback *cb)
+static int fib4_rule_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	return fib_rules_dump(skb, cb, AF_INET);
 }
@@ -327,4 +327,6 @@ void __init fib4_rules_init(void)
 	list_add_tail(&default_rule.common.list, &fib4_rules);
 
 	fib_rules_register(&fib4_rules_ops);
+
+	rtnl_register(PF_INET, RTM_GETRULE, NULL, fib4_rule_dump);
 }
