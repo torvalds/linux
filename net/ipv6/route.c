@@ -308,7 +308,7 @@ static inline void rt6_probe(struct rt6_info *rt)
 /*
  * Default Router Selection (RFC 2461 6.3.6)
  */
-static int inline rt6_check_dev(struct rt6_info *rt, int oif)
+static inline int rt6_check_dev(struct rt6_info *rt, int oif)
 {
 	struct net_device *dev = rt->rt6i_dev;
 	int ret = 0;
@@ -328,7 +328,7 @@ static int inline rt6_check_dev(struct rt6_info *rt, int oif)
 	return ret;
 }
 
-static int inline rt6_check_neigh(struct rt6_info *rt)
+static inline int rt6_check_neigh(struct rt6_info *rt)
 {
 	struct neighbour *neigh = rt->rt6i_nexthop;
 	int m = 0;

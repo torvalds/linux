@@ -2025,7 +2025,7 @@ nlmsg_failure:
 	return -1;
 }
 
-static int inline xfrm_sa_len(struct xfrm_state *x)
+static inline int xfrm_sa_len(struct xfrm_state *x)
 {
 	int l = 0;
 	if (x->aalg)

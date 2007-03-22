@@ -61,7 +61,7 @@ static int brnf_filter_vlan_tagged __read_mostly = 1;
 #define brnf_filter_vlan_tagged 1
 #endif
 
-static __be16 inline vlan_proto(const struct sk_buff *skb)
+static inline __be16 vlan_proto(const struct sk_buff *skb)
 {
 	return vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
 }

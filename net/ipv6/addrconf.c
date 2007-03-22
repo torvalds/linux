@@ -804,7 +804,7 @@ struct ipv6_saddr_score {
 #define IPV6_SADDR_SCORE_LABEL		0x0020
 #define IPV6_SADDR_SCORE_PRIVACY	0x0040
 
-static int inline ipv6_saddr_preferred(int type)
+static inline int ipv6_saddr_preferred(int type)
 {
 	if (type & (IPV6_ADDR_MAPPED|IPV6_ADDR_COMPATv4|
 		    IPV6_ADDR_LOOPBACK|IPV6_ADDR_RESERVED))
@@ -813,7 +813,7 @@ static int inline ipv6_saddr_preferred(int type)
 }
 
 /* static matching label */
-static int inline ipv6_saddr_label(const struct in6_addr *addr, int type)
+static inline int ipv6_saddr_label(const struct in6_addr *addr, int type)
 {
  /*
   * 	prefix (longest match)	label
@@ -3318,7 +3318,7 @@ errout:
 		rtnl_set_sk_err(RTNLGRP_IPV6_IFADDR, err);
 }
 
-static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
+static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 				__s32 *array, int bytes)
 {
 	BUG_ON(bytes < (DEVCONF_MAX * 4));
