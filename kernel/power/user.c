@@ -368,9 +368,12 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		if (error) {
 			printk(KERN_ERR "Failed to suspend some devices.\n");
 		} else {
-			/* Enter S3, system is already frozen */
-			suspend_enter(PM_SUSPEND_MEM);
-
+			error = disable_nonboot_cpus();
+			if (!error) {
+				/* Enter S3, system is already frozen */
+				suspend_enter(PM_SUSPEND_MEM);
+				enable_nonboot_cpus();
+			}
 			/* Wake up devices */
 			device_resume();
 		}
