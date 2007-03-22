@@ -525,12 +525,7 @@ void pci_disable_msi(struct pci_dev* dev)
 	struct msi_desc *entry;
 	int default_irq;
 
-	if (!pci_msi_enable)
-		return;
-	if (!dev)
-		return;
-
-	if (!dev->msi_enabled)
+	if (!pci_msi_enable || !dev || !dev->msi_enabled)
 		return;
 
 	msi_set_enable(dev, 0);
@@ -656,12 +651,7 @@ static void msix_free_all_irqs(struct pci_dev *dev)
 
 void pci_disable_msix(struct pci_dev* dev)
 {
-	if (!pci_msi_enable)
-		return;
-	if (!dev)
-		return;
-
-	if (!dev->msix_enabled)
+	if (!pci_msi_enable || !dev || !dev->msix_enabled)
 		return;
 
 	msix_set_enable(dev, 0);
