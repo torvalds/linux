@@ -719,13 +719,8 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
  		return;
 
 	if (dev->msi_enabled) {
-		if (irq_has_action(dev->first_msi_irq)) {
-			printk(KERN_WARNING "PCI: %s: msi_remove_pci_irq_vectors() "
-			       "called without free_irq() on MSI irq %d\n",
-			       pci_name(dev), dev->first_msi_irq);
-			BUG_ON(irq_has_action(dev->first_msi_irq));
-		} else /* Release MSI irq assigned to this device */
-			msi_free_irq(dev, dev->first_msi_irq);
+		BUG_ON(irq_has_action(dev->first_msi_irq));
+		msi_free_irq(dev, dev->first_msi_irq);
 	}
 	if (dev->msix_enabled) {
 		int irq, head, tail = 0, warning = 0;
