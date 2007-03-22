@@ -136,7 +136,7 @@ static struct addr_range prep_kernel(void)
 	} else {
 		if ((unsigned long)_start < ei.memsize)
 			fatal("Insufficient memory for kernel at address 0!"
-			       " (_start=%lx)\n\r", _start);
+			       " (_start=%p)\n\r", _start);
 	}
 
 	/* Finally, gunzip the kernel */
@@ -145,7 +145,7 @@ static struct addr_range prep_kernel(void)
 	/* discard up to the actual load data */
 	gunzip_discard(&gzstate, ei.elfoffset - sizeof(elfheader));
 	len = gunzip_finish(&gzstate, addr, ei.memsize);
-	printf("done 0x%lx bytes\n\r", len);
+	printf("done 0x%x bytes\n\r", len);
 
 	flush_cache(addr, ei.loadsize);
 
@@ -189,7 +189,7 @@ static struct addr_range prep_initrd(struct addr_range vmlinux,
 		if (! initrd_addr)
 			fatal("Can't allocate memory for initial "
 			       "ramdisk !\n\r");
-		printf("Relocating initrd 0x%p <- 0x%p (0x%lx bytes)\n\r",
+		printf("Relocating initrd 0x%lx <- 0x%p (0x%lx bytes)\n\r",
 		       initrd_addr, old_addr, initrd_size);
 		memmove((void *)initrd_addr, old_addr, initrd_size);
 	}
