@@ -179,6 +179,8 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	int executable_stack;
 	int retval, i;
 
+	kdebug("____ LOAD %d ____", current->pid);
+
 	memset(&exec_params, 0, sizeof(exec_params));
 	memset(&interp_params, 0, sizeof(interp_params));
 
@@ -941,8 +943,11 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 
 		if (mm) {
 			if (phdr->p_flags & PF_X) {
-				mm->start_code = seg->addr;
-				mm->end_code = seg->addr + phdr->p_memsz;
+				if (!mm->start_code) {
+					mm->start_code = seg->addr;
+					mm->end_code = seg->addr +
+						phdr->p_memsz;
+				}
 			} else if (!mm->start_data) {
 				mm->start_data = seg->addr;
 #ifndef CONFIG_MMU
@@ -1123,8 +1128,10 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 
 		if (mm) {
 			if (phdr->p_flags & PF_X) {
-				mm->start_code = maddr;
-				mm->end_code = maddr + phdr->p_memsz;
+				if (!mm->start_code) {
+					mm->start_code = maddr;
+					mm->end_code = maddr + phdr->p_memsz;
+				}
 			} else if (!mm->start_data) {
 				mm->start_data = maddr;
 				mm->end_data = maddr + phdr->p_memsz;
