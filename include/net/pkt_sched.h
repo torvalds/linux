@@ -59,7 +59,6 @@ typedef long	psched_tdiff_t;
 #define PSCHED_TADD(tv, delta)		((tv) += (delta))
 #define PSCHED_SET_PASTPERFECT(t)	((t) = 0)
 #define PSCHED_IS_PASTPERFECT(t)	((t) == 0)
-#define	PSCHED_AUDIT_TDIFF(t)
 
 struct qdisc_watchdog {
 	struct hrtimer	timer;

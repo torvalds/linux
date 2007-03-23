@@ -820,8 +820,6 @@ cbq_update(struct cbq_sched_data *q)
 			idle -= L2T(&q->link, len);
 			idle += L2T(cl, len);
 
-			PSCHED_AUDIT_TDIFF(idle);
-
 			PSCHED_TADD2(q->now, idle, cl->undertime);
 		} else {
 			/* Underlimit */
