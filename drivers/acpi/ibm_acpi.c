@@ -28,7 +28,7 @@
  *  2006-11-22	0.13	new maintainer
  *  			changelog now lives in git commit history, and will
  *  			not be updated further in-file.
- *  
+ *
  *  2005-08-17  0.12	fix compilation on 2.6.13-rc kernels
  *  2005-03-17	0.11	support for 600e, 770x
  *			    thanks to Jamie Lentin <lentinj@dial.pipex.com>
@@ -38,7 +38,7 @@
  *			experimental brightness control
  *			experimental volume control
  *			experimental fan enable/disable
- *  2005-01-16	0.10	fix module loading on R30, R31 
+ *  2005-01-16	0.10	fix module loading on R30, R31
  *  2005-01-16	0.9	support for 570, R30, R31
  *			ultrabay support on A22p, A3x
  *			limit arg for cmos, led, beep, drop experimental status
@@ -161,7 +161,7 @@ IBM_HANDLE(dock, root, "\\_SB.GDCK",	/* X30, X31, X40 */
 #ifdef CONFIG_ACPI_IBM_BAY
 IBM_HANDLE(bay, root, "\\_SB.PCI.IDE.SECN.MAST",	/* 570 */
 	   "\\_SB.PCI0.IDE0.IDES.IDSM",	/* 600e/x, 770e, 770x */
-	   "\\_SB.PCI0.SATA.SCND.MSTR",	/* T60, X60, Z60 */ 
+	   "\\_SB.PCI0.SATA.SCND.MSTR",	/* T60, X60, Z60 */
 	   "\\_SB.PCI0.IDE0.SCND.MSTR",	/* all others */
     );				/* A21e, R30, R31 */
 

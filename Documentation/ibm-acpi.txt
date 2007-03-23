@@ -21,7 +21,7 @@ detailed description):
 
 	- Fn key combinations
 	- Bluetooth enable and disable
-	- video output switching, expansion control	
+	- video output switching, expansion control
 	- ThinkLight on and off
 	- limited docking and undocking
 	- UltraBay eject
@@ -472,7 +472,7 @@ This feature dumps the values of 256 embedded controller
 registers. Values which have changed since the last time the registers
 were dumped are marked with a star:
 
-[root@x40 ibm-acpi]# cat /proc/acpi/ibm/ecdump 
+[root@x40 ibm-acpi]# cat /proc/acpi/ibm/ecdump
 EC       +00 +01 +02 +03 +04 +05 +06 +07 +08 +09 +0a +0b +0c +0d +0e +0f
 EC 0x00:  a7  47  87  01  fe  96  00  08  01  00  cb  00  00  00  40  00
 EC 0x10:  00  00  ff  ff  f4  3c  87  09  01  ff  42  01  ff  ff  0d  00
@@ -503,7 +503,7 @@ vary. The second ensures that the fan-related values do vary, since
 the fan speed fluctuates a bit. The third will (hopefully) mark the
 fan register with a star:
 
-[root@x40 ibm-acpi]# cat /proc/acpi/ibm/ecdump 
+[root@x40 ibm-acpi]# cat /proc/acpi/ibm/ecdump
 EC       +00 +01 +02 +03 +04 +05 +06 +07 +08 +09 +0a +0b +0c +0d +0e +0f
 EC 0x00:  a7  47  87  01  fe  96  00  08  01  00  cb  00  00  00  40  00
 EC 0x10:  00  00  ff  ff  f4  3c  87  09  01  ff  42  01  ff  ff  0d  00
