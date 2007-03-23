@@ -3066,11 +3066,10 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 
 SONY VAIO CONTROL DEVICE DRIVER
-P:	Stelian Pop
-M:	stelian@popies.net
 P:	Mattia Dongili
 M:	malattia@linux.it
-W:	http://popies.net/sonypi/
+L:	linux-acpi@vger.kernel.org
+W:	http://www.linux.it/~malattia/wiki/index.php/Sony_drivers
 S:	Maintained
 
 SOUND

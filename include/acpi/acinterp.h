@@ -446,13 +446,9 @@ acpi_ex_copy_integer_to_buffer_field(union acpi_operand_object *source_desc,
 /*
  * exutils - interpreter/scanner utilities
  */
-void acpi_ex_enter_interpreter(void);
+acpi_status acpi_ex_enter_interpreter(void);
 
 void acpi_ex_exit_interpreter(void);
-
-void acpi_ex_reacquire_interpreter(void);
-
-void acpi_ex_relinquish_interpreter(void);
 
 void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc);
 

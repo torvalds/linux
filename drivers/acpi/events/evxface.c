@@ -768,9 +768,11 @@ acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle)
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Must lock interpreter to prevent race conditions */
+	status = acpi_ex_enter_interpreter();
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
-	acpi_ex_enter_interpreter();
 	status = acpi_ev_acquire_global_lock(timeout);
 	acpi_ex_exit_interpreter();
 
