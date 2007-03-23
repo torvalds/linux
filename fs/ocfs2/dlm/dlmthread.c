@@ -256,20 +256,14 @@ static void dlm_run_purge_list(struct dlm_ctxt *dlm,
 			break;
 		}
 
-		mlog(0, "removing lockres %.*s:%p from purgelist\n",
-		     lockres->lockname.len, lockres->lockname.name, lockres);
-		list_del_init(&lockres->purge);
-		dlm_lockres_put(lockres);
-		dlm->purge_count--;
+		dlm_lockres_get(lockres);
 
 		/* This may drop and reacquire the dlm spinlock if it
 		 * has to do migration. */
-		mlog(0, "calling dlm_purge_lockres!\n");
-		dlm_lockres_get(lockres);
 		if (dlm_purge_lockres(dlm, lockres))
 			BUG();
+
 		dlm_lockres_put(lockres);
-		mlog(0, "DONE calling dlm_purge_lockres!\n");
 
 		/* Avoid adding any scheduling latencies */
 		cond_resched_lock(&dlm->spinlock);
