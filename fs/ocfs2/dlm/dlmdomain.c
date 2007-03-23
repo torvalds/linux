@@ -657,6 +657,8 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 		dlm_kick_thread(dlm, NULL);
 
 		while (dlm_migrate_all_locks(dlm)) {
+			/* Give dlm_thread time to purge the lockres' */
+			msleep(500);
 			mlog(0, "%s: more migration to do\n", dlm->name);
 		}
 		dlm_mark_domain_leaving(dlm);
