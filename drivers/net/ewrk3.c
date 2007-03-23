@@ -414,9 +414,8 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 	icr &= 0x70;
 	outb(icr, EWRK3_ICR);	/* Disable all the IRQs */
 
-	if (nicsr == (CSR_TXD | CSR_RXD))
+	if (nicsr != (CSR_TXD | CSR_RXD))
 		return -ENXIO;
-
 
 	/* Check that the EEPROM is alive and well and not living on Pluto... */
 	for (chksum = 0, i = 0; i < EEPROM_MAX; i += 2) {
