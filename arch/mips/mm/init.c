@@ -123,7 +123,7 @@ static void __init kmap_coherent_init(void)
 static inline void kmap_coherent_init(void) {}
 #endif
 
-static inline void *kmap_coherent(struct page *page, unsigned long addr)
+void *kmap_coherent(struct page *page, unsigned long addr)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr, flags, entrylo;
@@ -177,7 +177,7 @@ static inline void *kmap_coherent(struct page *page, unsigned long addr)
 
 #define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
 
-static inline void kunmap_coherent(struct page *page)
+void kunmap_coherent(struct page *page)
 {
 #ifndef CONFIG_MIPS_MT_SMTC
 	unsigned int wired;
