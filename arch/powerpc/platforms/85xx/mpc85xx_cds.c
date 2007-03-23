@@ -69,6 +69,37 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 		return PCIBIOS_SUCCESSFUL;
 }
 
+static void mpc85xx_cds_restart(char *cmd)
+{
+	struct pci_dev *dev;
+	u_char tmp;
+
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686,
+					NULL))) {
+
+		/* Use the VIA Super Southbridge to force a PCI reset */
+		pci_read_config_byte(dev, 0x47, &tmp);
+		pci_write_config_byte(dev, 0x47, tmp | 1);
+
+		/* Flush the outbound PCI write queues */
+		pci_read_config_byte(dev, 0x47, &tmp);
+
+		/*
+		 *  At this point, the harware reset should have triggered.
+		 *  However, if it doesn't work for some mysterious reason,
+		 *  just fall through to the default reset below.
+		 */
+
+		pci_dev_put(dev);
+	}
+
+	/*
+	 *  If we can't find the VIA chip (maybe the P2P bridge is disabled)
+	 *  or the VIA chip reset didn't work, just use the default reset.
+	 */
+	mpc85xx_restart(NULL);
+}
+
 static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 {
 	u_char c;
@@ -304,7 +335,11 @@ define_machine(mpc85xx_cds) {
 	.init_IRQ	= mpc85xx_cds_pic_init,
 	.show_cpuinfo	= mpc85xx_cds_show_cpuinfo,
 	.get_irq	= mpic_get_irq,
+#ifdef CONFIG_PCI
+	.restart	= mpc85xx_cds_restart,
+#else
 	.restart	= mpc85xx_restart,
+#endif
 	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
