@@ -724,11 +724,8 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		if (NFNL_MSG_TYPE(nlh->nlmsg_type) == IPCTNL_MSG_CT_GET_CTRZERO)
 			return -ENOTSUPP;
 #endif
-		err = netlink_dump_start(ctnl, skb, nlh, ctnetlink_dump_table,
-					 ctnetlink_done);
-		if (err == 0)
-			err = -EINTR;
-		return err;
+		return netlink_dump_start(ctnl, skb, nlh, ctnetlink_dump_table,
+					  ctnetlink_done);
 	}
 
 	if (nfattr_bad_size(cda, CTA_MAX, cta_min))
@@ -1266,12 +1263,9 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 		return -EINVAL;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-		err = netlink_dump_start(ctnl, skb, nlh,
-					 ctnetlink_exp_dump_table,
-					 ctnetlink_done);
-		if (err == 0)
-			err = -EINTR;
-		return err;
+		return netlink_dump_start(ctnl, skb, nlh,
+					  ctnetlink_exp_dump_table,
+					  ctnetlink_done);
 	}
 
 	if (cda[CTA_EXPECT_MASTER-1])

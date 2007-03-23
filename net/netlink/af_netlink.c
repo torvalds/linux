@@ -1426,7 +1426,12 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 
 	netlink_dump(sk);
 	sock_put(sk);
-	return 0;
+
+	/* We successfully started a dump, by returning -EINTR we
+	 * signal the queue mangement to interrupt processing of
+	 * any netlink messages so userspace gets a chance to read
+	 * the results. */
+	return -EINTR;
 }
 
 void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)

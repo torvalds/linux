@@ -323,11 +323,8 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (ops->dumpit == NULL)
 			return -EOPNOTSUPP;
 
-		err = netlink_dump_start(genl_sock, skb, nlh,
-					 ops->dumpit, ops->done);
-		if (err == 0)
-			err = -EINTR;
-		return err;
+		return netlink_dump_start(genl_sock, skb, nlh,
+					  ops->dumpit, ops->done);
 	}
 
 	if (ops->doit == NULL)

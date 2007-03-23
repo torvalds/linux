@@ -859,7 +859,6 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	int min_len;
 	int family;
 	int type;
-	int err;
 
 	type = nlh->nlmsg_type;
 	if (type > RTM_MAX)
@@ -888,10 +887,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (dumpit == NULL)
 			return -EINVAL;
 
-		err = netlink_dump_start(rtnl, skb, nlh, dumpit, NULL);
-		if (err == 0)
-			err = -EINTR;
-		return err;
+		return netlink_dump_start(rtnl, skb, nlh, dumpit, NULL);
 	}
 
 	memset(rta_buf, 0, (rtattr_max * sizeof(struct rtattr *)));

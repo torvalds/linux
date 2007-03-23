@@ -1856,7 +1856,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct rtattr *xfrma[XFRMA_MAX];
 	struct xfrm_link *link;
-	int type, min_len, err;
+	int type, min_len;
 
 	type = nlh->nlmsg_type;
 	if (type > XFRM_MSG_MAX)
@@ -1875,10 +1875,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (link->dump == NULL)
 			return -EINVAL;
 
-		err = netlink_dump_start(xfrm_nl, skb, nlh, link->dump, NULL);
-		if (err == 0)
-			err = -EINTR;
-		return err;
+		return netlink_dump_start(xfrm_nl, skb, nlh, link->dump, NULL);
 	}
 
 	memset(xfrma, 0, sizeof(xfrma));

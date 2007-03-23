@@ -818,8 +818,6 @@ static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -ENOENT;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-		int err;
-
 		if (nlmsg_attrlen(nlh, hdrlen)) {
 			struct nlattr *attr;
 
@@ -831,11 +829,8 @@ static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				return -EINVAL;
 		}
 
-		err = netlink_dump_start(idiagnl, skb, nlh,
-					 inet_diag_dump, NULL);
-		if (err == 0)
-			err = -EINTR;
-		return err;
+		return netlink_dump_start(idiagnl, skb, nlh,
+					  inet_diag_dump, NULL);
 	}
 
 	return inet_diag_get_exact(skb, nlh);
