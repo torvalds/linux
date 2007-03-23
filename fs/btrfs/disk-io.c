@@ -116,6 +116,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->sb_buffer = sb_buffer;
 	fs_info->sb = sb;
 	mutex_init(&fs_info->trans_mutex);
+	mutex_init(&fs_info->fs_mutex);
 	memset(&fs_info->current_insert, 0, sizeof(fs_info->current_insert));
 	memset(&fs_info->last_insert, 0, sizeof(fs_info->last_insert));
 

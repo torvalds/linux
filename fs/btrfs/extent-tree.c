@@ -168,9 +168,10 @@ static int pin_down_block(struct btrfs_root *root, u64 blocknr, int tag)
 	BUG_ON(!bh);
 	err = radix_tree_insert(&root->fs_info->pinned_radix,
 				blocknr, bh);
-	BUG_ON(err);
-	if (err)
+	if (err && err != -EEXIST) {
+		BUG();
 		return err;
+	}
 	radix_tree_tag_set(&root->fs_info->pinned_radix, blocknr,
 			   tag);
 	return 0;

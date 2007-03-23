@@ -453,23 +453,19 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	int err;
 
+	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	inode = btrfs_new_inode(trans, dir, mode);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
-		return err;
+		goto out_unlock;
 	// FIXME mark the inode dirty
 	err = btrfs_add_nondir(trans, dentry, inode);
 	dir->i_sb->s_dirt = 1;
 	btrfs_end_transaction(trans, root);
+out_unlock:
+	mutex_unlock(&root->fs_info->fs_mutex);
 	return err;
-}
-
-static void btrfs_write_super(struct super_block *sb)
-{
-	sb->s_dirt = 0;
-printk("btrfs write_super!\n");
-	filemap_flush(sb->s_bdev->bd_inode->i_mapping);
 }
 
 static int btrfs_sync_fs(struct super_block *sb, int wait)
@@ -479,16 +475,28 @@ static int btrfs_sync_fs(struct super_block *sb, int wait)
 	int ret;
 
 	sb->s_dirt = 0;
-	return 0;
+	if (!wait) {
+		filemap_flush(sb->s_bdev->bd_inode->i_mapping);
+		return 0;
+	}
+	filemap_write_and_wait(sb->s_bdev->bd_inode->i_mapping);
 
 	root = btrfs_sb(sb);
+	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	sb->s_dirt = 0;
 	BUG_ON(ret);
 printk("btrfs sync_fs\n");
+	mutex_unlock(&root->fs_info->fs_mutex);
 	return 0;
 }
+
+static void btrfs_write_super(struct super_block *sb)
+{
+	btrfs_sync_fs(sb, 1);
+}
+
 
 static int btrfs_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
