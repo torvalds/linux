@@ -111,7 +111,7 @@ struct nfgenmsg {
 struct nfnl_callback
 {
 	int (*call)(struct sock *nl, struct sk_buff *skb, 
-		struct nlmsghdr *nlh, struct nfattr *cda[], int *errp);
+		struct nlmsghdr *nlh, struct nfattr *cda[]);
 	u_int16_t attr_count;	/* number of nfattr's */
 };
 

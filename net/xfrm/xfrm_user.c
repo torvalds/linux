@@ -1852,46 +1852,39 @@ static struct xfrm_link {
 	[XFRM_MSG_MIGRATE     - XFRM_MSG_BASE] = { .doit = xfrm_do_migrate    },
 };
 
-static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
+static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct rtattr *xfrma[XFRMA_MAX];
 	struct xfrm_link *link;
-	int type, min_len;
+	int type, min_len, err;
 
 	type = nlh->nlmsg_type;
-
-	/* Unknown message: reply with EINVAL */
 	if (type > XFRM_MSG_MAX)
-		goto err_einval;
+		return -EINVAL;
 
 	type -= XFRM_MSG_BASE;
 	link = &xfrm_dispatch[type];
 
 	/* All operations require privileges, even GET */
-	if (security_netlink_recv(skb, CAP_NET_ADMIN)) {
-		*errp = -EPERM;
-		return -1;
-	}
+	if (security_netlink_recv(skb, CAP_NET_ADMIN))
+		return -EPERM;
 
 	if ((type == (XFRM_MSG_GETSA - XFRM_MSG_BASE) ||
 	     type == (XFRM_MSG_GETPOLICY - XFRM_MSG_BASE)) &&
 	    (nlh->nlmsg_flags & NLM_F_DUMP)) {
 		if (link->dump == NULL)
-			goto err_einval;
+			return -EINVAL;
 
-		if ((*errp = netlink_dump_start(xfrm_nl, skb, nlh,
-						link->dump, NULL)) != 0) {
-			return -1;
-		}
-
-		netlink_queue_skip(nlh, skb);
-		return -1;
+		err = netlink_dump_start(xfrm_nl, skb, nlh, link->dump, NULL);
+		if (err == 0)
+			err = -EINTR;
+		return err;
 	}
 
 	memset(xfrma, 0, sizeof(xfrma));
 
 	if (nlh->nlmsg_len < (min_len = xfrm_msg_min[type]))
-		goto err_einval;
+		return -EINVAL;
 
 	if (nlh->nlmsg_len > min_len) {
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
@@ -1901,7 +1894,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *err
 			unsigned short flavor = attr->rta_type;
 			if (flavor) {
 				if (flavor > XFRMA_MAX)
-					goto err_einval;
+					return -EINVAL;
 				xfrma[flavor - 1] = attr;
 			}
 			attr = RTA_NEXT(attr, attrlen);
@@ -1909,14 +1902,9 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *err
 	}
 
 	if (link->doit == NULL)
-		goto err_einval;
-	*errp = link->doit(skb, nlh, xfrma);
+		return -EINVAL;
 
-	return *errp;
-
-err_einval:
-	*errp = -EINVAL;
-	return -1;
+	return link->doit(skb, nlh, xfrma);
 }
 
 static void xfrm_netlink_rcv(struct sock *sk, int len)

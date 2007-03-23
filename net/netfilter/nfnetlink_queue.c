@@ -783,7 +783,7 @@ static const int nfqa_verdict_min[NFQA_MAX] = {
 
 static int
 nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
-		   struct nlmsghdr *nlh, struct nfattr *nfqa[], int *errp)
+		   struct nlmsghdr *nlh, struct nfattr *nfqa[])
 {
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
@@ -848,7 +848,7 @@ err_out_put:
 
 static int
 nfqnl_recv_unsupp(struct sock *ctnl, struct sk_buff *skb,
-		  struct nlmsghdr *nlh, struct nfattr *nfqa[], int *errp)
+		  struct nlmsghdr *nlh, struct nfattr *nfqa[])
 {
 	return -ENOTSUPP;
 }
@@ -865,7 +865,7 @@ static struct nf_queue_handler nfqh = {
 
 static int
 nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
-		  struct nlmsghdr *nlh, struct nfattr *nfqa[], int *errp)
+		  struct nlmsghdr *nlh, struct nfattr *nfqa[])
 {
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);

@@ -195,17 +195,14 @@ int nfnetlink_unicast(struct sk_buff *skb, u_int32_t pid, int flags)
 EXPORT_SYMBOL_GPL(nfnetlink_unicast);
 
 /* Process one complete nfnetlink message. */
-static int nfnetlink_rcv_msg(struct sk_buff *skb,
-				    struct nlmsghdr *nlh, int *errp)
+static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct nfnl_callback *nc;
 	struct nfnetlink_subsystem *ss;
-	int type, err = 0;
+	int type, err;
 
-	if (security_netlink_recv(skb, CAP_NET_ADMIN)) {
-		*errp = -EPERM;
-		return -1;
-	}
+	if (security_netlink_recv(skb, CAP_NET_ADMIN))
+		return -EPERM;
 
 	/* Only requests are handled by kernel now. */
 	if (!(nlh->nlmsg_flags & NLM_F_REQUEST))
@@ -227,12 +224,12 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb,
 		ss = nfnetlink_get_subsys(type);
 		if (!ss)
 #endif
-			goto err_inval;
+			return -EINVAL;
 	}
 
 	nc = nfnetlink_find_client(type, ss);
 	if (!nc)
-		goto err_inval;
+		return -EINVAL;
 
 	{
 		u_int16_t attr_count =
@@ -243,16 +240,9 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb,
 
 		err = nfnetlink_check_attributes(ss, nlh, cda);
 		if (err < 0)
-			goto err_inval;
-
-		err = nc->call(nfnl, skb, nlh, cda, errp);
-		*errp = err;
-		return err;
+			return err;
+		return nc->call(nfnl, skb, nlh, cda);
 	}
-
-err_inval:
-	*errp = -EINVAL;
-	return -1;
 }
 
 static void nfnetlink_rcv(struct sock *sk, int len)

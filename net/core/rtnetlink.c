@@ -852,8 +852,7 @@ static int rtattr_max;
 
 /* Process one rtnetlink message. */
 
-static __inline__ int
-rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
+static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	rtnl_doit_func doit;
 	int sz_idx, kind;
@@ -863,10 +862,8 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 	int err;
 
 	type = nlh->nlmsg_type;
-
-	/* Unknown message: reply with EINVAL */
 	if (type > RTM_MAX)
-		goto err_inval;
+		return -EINVAL;
 
 	type -= RTM_BASE;
 
@@ -875,40 +872,33 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 		return 0;
 
 	family = ((struct rtgenmsg*)NLMSG_DATA(nlh))->rtgen_family;
-	if (family >= NPROTO) {
-		*errp = -EAFNOSUPPORT;
-		return -1;
-	}
+	if (family >= NPROTO)
+		return -EAFNOSUPPORT;
 
 	sz_idx = type>>2;
 	kind = type&3;
 
-	if (kind != 2 && security_netlink_recv(skb, CAP_NET_ADMIN)) {
-		*errp = -EPERM;
-		return -1;
-	}
+	if (kind != 2 && security_netlink_recv(skb, CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {
 		rtnl_dumpit_func dumpit;
 
 		dumpit = rtnl_get_dumpit(family, type);
 		if (dumpit == NULL)
-			goto err_inval;
+			return -EINVAL;
 
-		if ((*errp = netlink_dump_start(rtnl, skb, nlh,
-						dumpit, NULL)) != 0) {
-			return -1;
-		}
-
-		netlink_queue_skip(nlh, skb);
-		return -1;
+		err = netlink_dump_start(rtnl, skb, nlh, dumpit, NULL);
+		if (err == 0)
+			err = -EINTR;
+		return err;
 	}
 
 	memset(rta_buf, 0, (rtattr_max * sizeof(struct rtattr *)));
 
 	min_len = rtm_min[sz_idx];
 	if (nlh->nlmsg_len < min_len)
-		goto err_inval;
+		return -EINVAL;
 
 	if (nlh->nlmsg_len > min_len) {
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
@@ -918,7 +908,7 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 			unsigned flavor = attr->rta_type;
 			if (flavor) {
 				if (flavor > rta_max[sz_idx])
-					goto err_inval;
+					return -EINVAL;
 				rta_buf[flavor-1] = attr;
 			}
 			attr = RTA_NEXT(attr, attrlen);
@@ -927,15 +917,9 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 
 	doit = rtnl_get_doit(family, type);
 	if (doit == NULL)
-		goto err_inval;
-	err = doit(skb, nlh, (void *)&rta_buf[0]);
+		return -EINVAL;
 
-	*errp = err;
-	return err;
-
-err_inval:
-	*errp = -EINVAL;
-	return -1;
+	return doit(skb, nlh, (void *)&rta_buf[0]);
 }
 
 static void rtnetlink_rcv(struct sock *sk, int len)

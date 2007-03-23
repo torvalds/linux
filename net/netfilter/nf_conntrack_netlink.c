@@ -661,7 +661,7 @@ static const size_t cta_min[CTA_MAX] = {
 
 static int
 ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
-			struct nlmsghdr *nlh, struct nfattr *cda[], int *errp)
+			struct nlmsghdr *nlh, struct nfattr *cda[])
 {
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
@@ -709,7 +709,7 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 
 static int
 ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
-			struct nlmsghdr *nlh, struct nfattr *cda[], int *errp)
+			struct nlmsghdr *nlh, struct nfattr *cda[])
 {
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
@@ -720,22 +720,15 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	int err = 0;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-		u32 rlen;
-
 #ifndef CONFIG_NF_CT_ACCT
 		if (NFNL_MSG_TYPE(nlh->nlmsg_type) == IPCTNL_MSG_CT_GET_CTRZERO)
 			return -ENOTSUPP;
 #endif
-		if ((*errp = netlink_dump_start(ctnl, skb, nlh,
-						ctnetlink_dump_table,
-						ctnetlink_done)) != 0)
-			return -EINVAL;
-
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		skb_pull(skb, rlen);
-		return 0;
+		err = netlink_dump_start(ctnl, skb, nlh, ctnetlink_dump_table,
+					 ctnetlink_done);
+		if (err == 0)
+			err = -EINTR;
+		return err;
 	}
 
 	if (nfattr_bad_size(cda, CTA_MAX, cta_min))
@@ -1009,7 +1002,7 @@ err:
 
 static int
 ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
-			struct nlmsghdr *nlh, struct nfattr *cda[], int *errp)
+			struct nlmsghdr *nlh, struct nfattr *cda[])
 {
 	struct nf_conntrack_tuple otuple, rtuple;
 	struct nf_conntrack_tuple_hash *h = NULL;
@@ -1260,7 +1253,7 @@ static const size_t cta_min_exp[CTA_EXPECT_MAX] = {
 
 static int
 ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
-		     struct nlmsghdr *nlh, struct nfattr *cda[], int *errp)
+		     struct nlmsghdr *nlh, struct nfattr *cda[])
 {
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_expect *exp;
@@ -1273,17 +1266,12 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 		return -EINVAL;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-		u32 rlen;
-
-		if ((*errp = netlink_dump_start(ctnl, skb, nlh,
-						ctnetlink_exp_dump_table,
-						ctnetlink_done)) != 0)
-			return -EINVAL;
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		skb_pull(skb, rlen);
-		return 0;
+		err = netlink_dump_start(ctnl, skb, nlh,
+					 ctnetlink_exp_dump_table,
+					 ctnetlink_done);
+		if (err == 0)
+			err = -EINTR;
+		return err;
 	}
 
 	if (cda[CTA_EXPECT_MASTER-1])
@@ -1330,7 +1318,7 @@ out:
 
 static int
 ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
-		     struct nlmsghdr *nlh, struct nfattr *cda[], int *errp)
+		     struct nlmsghdr *nlh, struct nfattr *cda[])
 {
 	struct nf_conntrack_expect *exp, *tmp;
 	struct nf_conntrack_tuple tuple;
@@ -1464,7 +1452,7 @@ out:
 
 static int
 ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
-		     struct nlmsghdr *nlh, struct nfattr *cda[], int *errp)
+		     struct nlmsghdr *nlh, struct nfattr *cda[])
 {
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_expect *exp;

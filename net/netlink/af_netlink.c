@@ -1463,7 +1463,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 }
 
 static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
-						     struct nlmsghdr *, int *))
+						     struct nlmsghdr *))
 {
 	struct nlmsghdr *nlh;
 	int err;
@@ -1483,13 +1483,11 @@ static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 		if (nlh->nlmsg_type < NLMSG_MIN_TYPE)
 			goto skip;
 
-		if (cb(skb, nlh, &err) < 0) {
-			/* Not an error, but we have to interrupt processing
-			 * here. Note: that in this case we do not pull
-			 * message from skb, it will be processed later.
-			 */
-			if (err == 0)
-				return -1;
+		err = cb(skb, nlh);
+		if (err == -EINTR) {
+			/* Not an error, but we interrupt processing */
+			netlink_queue_skip(nlh, skb);
+			return err;
 		}
 skip:
 		if (nlh->nlmsg_flags & NLM_F_ACK || err)
@@ -1515,9 +1513,14 @@ skip:
  *
  * qlen must be initialized to 0 before the initial entry, afterwards
  * the function may be called repeatedly until qlen reaches 0.
+ *
+ * The callback function may return -EINTR to signal that processing
+ * of netlink messages shall be interrupted. In this case the message
+ * currently being processed will NOT be requeued onto the receive
+ * queue.
  */
 void netlink_run_queue(struct sock *sk, unsigned int *qlen,
-		       int (*cb)(struct sk_buff *, struct nlmsghdr *, int *))
+		       int (*cb)(struct sk_buff *, struct nlmsghdr *))
 {
 	struct sk_buff *skb;
 
