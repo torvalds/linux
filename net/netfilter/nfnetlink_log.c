@@ -919,10 +919,8 @@ struct iter_state {
 	unsigned int bucket;
 };
 
-static struct hlist_node *get_first(struct seq_file *seq)
+static struct hlist_node *get_first(struct iter_state *st)
 {
-	struct iter_state *st = seq->private;
-
 	if (!st)
 		return NULL;
 
@@ -933,10 +931,8 @@ static struct hlist_node *get_first(struct seq_file *seq)
 	return NULL;
 }
 
-static struct hlist_node *get_next(struct seq_file *seq, struct hlist_node *h)
+static struct hlist_node *get_next(struct iter_state *st, struct hlist_node *h)
 {
-	struct iter_state *st = seq->private;
-
 	h = h->next;
 	while (!h) {
 		if (++st->bucket >= INSTANCE_BUCKETS)
@@ -947,13 +943,13 @@ static struct hlist_node *get_next(struct seq_file *seq, struct hlist_node *h)
 	return h;
 }
 
-static struct hlist_node *get_idx(struct seq_file *seq, loff_t pos)
+static struct hlist_node *get_idx(struct iter_state *st, loff_t pos)
 {
 	struct hlist_node *head;
-	head = get_first(seq);
+	head = get_first(st);
 
 	if (head)
-		while (pos && (head = get_next(seq, head)))
+		while (pos && (head = get_next(st, head)))
 			pos--;
 	return pos ? NULL : head;
 }
@@ -961,13 +957,13 @@ static struct hlist_node *get_idx(struct seq_file *seq, loff_t pos)
 static void *seq_start(struct seq_file *seq, loff_t *pos)
 {
 	read_lock_bh(&instances_lock);
-	return get_idx(seq, *pos);
+	return get_idx(seq->private, *pos);
 }
 
 static void *seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
 	(*pos)++;
-	return get_next(s, v);
+	return get_next(s->private, v);
 }
 
 static void seq_stop(struct seq_file *s, void *v)
