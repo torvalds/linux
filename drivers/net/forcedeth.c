@@ -2050,8 +2050,9 @@ static void nv_tx_timeout(struct net_device *dev)
 		nv_drain_tx(dev);
 		nv_init_tx(dev);
 		setup_hw_rings(dev, NV_SETUP_TX_RING);
-		netif_wake_queue(dev);
 	}
+
+	netif_wake_queue(dev);
 
 	/* 4) restart tx engine */
 	nv_start_tx(dev);
