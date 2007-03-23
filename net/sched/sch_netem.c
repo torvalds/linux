@@ -218,7 +218,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 				  &q->delay_cor, q->delay_dist);
 
 		PSCHED_GET_TIME(now);
-		PSCHED_TADD2(now, delay, cb->time_to_send);
+		cb->time_to_send = now + delay;
 		++q->counter;
 		ret = q->qdisc->enqueue(skb, q->qdisc);
 	} else {

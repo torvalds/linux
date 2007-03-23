@@ -55,8 +55,6 @@ typedef long	psched_tdiff_t;
 #define PSCHED_TDIFF_SAFE(tv1, tv2, bound) \
 					min_t(long long, (tv1) - (tv2), bound)
 #define PSCHED_TLESS(tv1, tv2)		((tv1) < (tv2))
-#define PSCHED_TADD2(tv, delta, tv_res) ((tv_res) = (tv) + (delta))
-#define PSCHED_TADD(tv, delta)		((tv) += (delta))
 #define PSCHED_SET_PASTPERFECT(t)	((t) = 0)
 #define PSCHED_IS_PASTPERFECT(t)	((t) == 0)
 

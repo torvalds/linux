@@ -387,7 +387,7 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 
 		PSCHED_GET_TIME(now);
 		incr = PSCHED_TDIFF(now, q->now_rt);
-		PSCHED_TADD2(q->now, incr, now);
+		now = q->now + incr;
 
 		do {
 			if (PSCHED_TLESS(cl->undertime, now)) {
@@ -492,7 +492,7 @@ static void cbq_ovl_classic(struct cbq_class *cl)
 			cl->avgidle = cl->minidle;
 		if (delay <= 0)
 			delay = 1;
-		PSCHED_TADD2(q->now, delay, cl->undertime);
+		cl->undertime = q->now + delay;
 
 		cl->xstats.overactions++;
 		cl->delayed = 1;
@@ -558,7 +558,7 @@ static void cbq_ovl_delay(struct cbq_class *cl)
 			delay -= (-cl->avgidle) - ((-cl->avgidle) >> cl->ewma_log);
 		if (cl->avgidle < cl->minidle)
 			cl->avgidle = cl->minidle;
-		PSCHED_TADD2(q->now, delay, cl->undertime);
+		cl->undertime = q->now + delay;
 
 		if (delay > 0) {
 			sched += delay + cl->penalty;
@@ -820,7 +820,7 @@ cbq_update(struct cbq_sched_data *q)
 			idle -= L2T(&q->link, len);
 			idle += L2T(cl, len);
 
-			PSCHED_TADD2(q->now, idle, cl->undertime);
+			cl->undertime = q->now + idle;
 		} else {
 			/* Underlimit */
 
@@ -1018,12 +1018,12 @@ cbq_dequeue(struct Qdisc *sch)
 		   cbq_time = max(real_time, work);
 		 */
 		incr2 = L2T(&q->link, q->tx_len);
-		PSCHED_TADD(q->now, incr2);
+		q->now += incr2;
 		cbq_update(q);
 		if ((incr -= incr2) < 0)
 			incr = 0;
 	}
-	PSCHED_TADD(q->now, incr);
+	q->now += incr;
 	q->now_rt = now;
 
 	for (;;) {
