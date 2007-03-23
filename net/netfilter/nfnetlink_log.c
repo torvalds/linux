@@ -825,7 +825,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			}
 
 			instance_destroy(inst);
-			break;
+			goto out;
 		case NFULNL_CFG_CMD_PF_BIND:
 			UDEBUG("registering log handler for pf=%u\n", pf);
 			ret = nf_log_register(pf, &nfulnl_logger);
