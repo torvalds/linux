@@ -1858,9 +1858,6 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *err
 	struct xfrm_link *link;
 	int type, min_len;
 
-	if (!(nlh->nlmsg_flags & NLM_F_REQUEST))
-		return 0;
-
 	type = nlh->nlmsg_type;
 
 	/* A control message: ignore them */

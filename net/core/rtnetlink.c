@@ -862,10 +862,6 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 	int type;
 	int err;
 
-	/* Only requests are handled by kernel now */
-	if (!(nlh->nlmsg_flags&NLM_F_REQUEST))
-		return 0;
-
 	type = nlh->nlmsg_type;
 
 	/* A control message: ignore them */
