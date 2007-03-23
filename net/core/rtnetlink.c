@@ -122,10 +122,10 @@ static rtnl_doit_func rtnl_get_doit(int protocol, int msgindex)
 	struct rtnl_link *tab;
 
 	tab = rtnl_msg_handlers[protocol];
-	if (tab == NULL || tab->doit == NULL)
+	if (tab == NULL || tab[msgindex].doit == NULL)
 		tab = rtnl_msg_handlers[PF_UNSPEC];
 
-	return tab ? tab->doit : NULL;
+	return tab ? tab[msgindex].doit : NULL;
 }
 
 static rtnl_dumpit_func rtnl_get_dumpit(int protocol, int msgindex)
@@ -133,10 +133,10 @@ static rtnl_dumpit_func rtnl_get_dumpit(int protocol, int msgindex)
 	struct rtnl_link *tab;
 
 	tab = rtnl_msg_handlers[protocol];
-	if (tab == NULL || tab->dumpit == NULL)
+	if (tab == NULL || tab[msgindex].dumpit == NULL)
 		tab = rtnl_msg_handlers[PF_UNSPEC];
 
-	return tab ? tab->dumpit : NULL;
+	return tab ? tab[msgindex].dumpit : NULL;
 }
 
 /**
