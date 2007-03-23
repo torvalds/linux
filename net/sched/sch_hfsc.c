@@ -629,9 +629,7 @@ rtsc_min(struct runtime_sc *rtsc, struct internal_sc *isc, u64 x, u64 y)
 static void
 init_ed(struct hfsc_class *cl, unsigned int next_len)
 {
-	u64 cur_time;
-
-	PSCHED_GET_TIME(cur_time);
+	u64 cur_time = psched_get_time();
 
 	/* update the deadline curve */
 	rtsc_min(&cl->cl_deadline, &cl->cl_rsc, cur_time, cl->cl_cumul);
@@ -754,7 +752,7 @@ init_vf(struct hfsc_class *cl, unsigned int len)
 			if (cl->cl_flags & HFSC_USC) {
 				/* class has upper limit curve */
 				if (cur_time == 0)
-					PSCHED_GET_TIME(cur_time);
+					cur_time = psched_get_time();
 
 				/* update the ulimit curve */
 				rtsc_min(&cl->cl_ulimit, &cl->cl_usc, cur_time,
@@ -1038,7 +1036,7 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 			if (cl->cl_parent == NULL && parentid != TC_H_ROOT)
 				return -EINVAL;
 		}
-		PSCHED_GET_TIME(cur_time);
+		cur_time = psched_get_time();
 
 		sch_tree_lock(sch);
 		if (rsc != NULL)
@@ -1639,7 +1637,7 @@ hfsc_dequeue(struct Qdisc *sch)
 	if ((skb = __skb_dequeue(&q->requeue)))
 		goto out;
 
-	PSCHED_GET_TIME(cur_time);
+	cur_time = psched_get_time();
 
 	/*
 	 * if there are eligible classes, use real-time criteria.

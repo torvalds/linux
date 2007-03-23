@@ -156,7 +156,7 @@ static inline int red_is_idling(struct red_parms *p)
 
 static inline void red_start_of_idle_period(struct red_parms *p)
 {
-	PSCHED_GET_TIME(p->qidlestart);
+	p->qidlestart = psched_get_time();
 }
 
 static inline void red_end_of_idle_period(struct red_parms *p)
@@ -177,7 +177,7 @@ static inline unsigned long red_calc_qavg_from_idle_time(struct red_parms *p)
 	long us_idle;
 	int  shift;
 
-	PSCHED_GET_TIME(now);
+	now = psched_get_time();
 	us_idle = psched_tdiff_bounded(now, p->qidlestart, p->Scell_max);
 
 	/*

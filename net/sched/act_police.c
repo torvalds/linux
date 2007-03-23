@@ -241,7 +241,7 @@ override:
 	if (ret != ACT_P_CREATED)
 		return ret;
 
-	PSCHED_GET_TIME(police->tcfp_t_c);
+	police->tcfp_t_c = psched_get_time();
 	police->tcf_index = parm->index ? parm->index :
 		tcf_hash_new_index(&police_idx_gen, &police_hash_info);
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
@@ -296,8 +296,7 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 			return police->tcfp_result;
 		}
 
-		PSCHED_GET_TIME(now);
-
+		now = psched_get_time();
 		toks = psched_tdiff_bounded(now, police->tcfp_t_c,
 					    police->tcfp_burst);
 		if (police->tcfp_P_tab) {
@@ -495,7 +494,7 @@ struct tcf_police *tcf_police_locate(struct rtattr *rta, struct rtattr *est)
 	}
 	if (police->tcfp_P_tab)
 		police->tcfp_ptoks = L2T_P(police, police->tcfp_mtu);
-	PSCHED_GET_TIME(police->tcfp_t_c);
+	police->tcfp_t_c = psched_get_time();
 	police->tcf_index = parm->index ? parm->index :
 		tcf_police_new_index();
 	police->tcf_action = parm->action;
@@ -543,7 +542,7 @@ int tcf_police(struct sk_buff *skb, struct tcf_police *police)
 			return police->tcfp_result;
 		}
 
-		PSCHED_GET_TIME(now);
+		now = psched_get_time();
 		toks = psched_tdiff_bounded(now, police->tcfp_t_c,
 					    police->tcfp_burst);
 		if (police->tcfp_P_tab) {

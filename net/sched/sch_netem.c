@@ -217,7 +217,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		delay = tabledist(q->latency, q->jitter,
 				  &q->delay_cor, q->delay_dist);
 
-		PSCHED_GET_TIME(now);
+		now = psched_get_time();
 		cb->time_to_send = now + delay;
 		++q->counter;
 		ret = q->qdisc->enqueue(skb, q->qdisc);
@@ -226,7 +226,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		 * Do re-ordering by putting one out of N packets at the front
 		 * of the queue.
 		 */
-		PSCHED_GET_TIME(cb->time_to_send);
+		cb->time_to_send = psched_get_time();
 		q->counter = 0;
 		ret = q->qdisc->ops->requeue(skb, q->qdisc);
 	}
@@ -281,11 +281,9 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 	if (skb) {
 		const struct netem_skb_cb *cb
 			= (const struct netem_skb_cb *)skb->cb;
-		psched_time_t now;
+		psched_time_t now = psched_get_time();
 
 		/* if more time remaining? */
-		PSCHED_GET_TIME(now);
-
 		if (cb->time_to_send <= now) {
 			pr_debug("netem_dequeue: return skb=%p\n", skb);
 			sch->q.qlen--;

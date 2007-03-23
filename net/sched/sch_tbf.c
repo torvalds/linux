@@ -199,8 +199,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 		long ptoks = 0;
 		unsigned int len = skb->len;
 
-		PSCHED_GET_TIME(now);
-
+		now = psched_get_time();
 		toks = psched_tdiff_bounded(now, q->t_c, q->buffer);
 
 		if (q->P_tab) {
@@ -254,7 +253,7 @@ static void tbf_reset(struct Qdisc* sch)
 
 	qdisc_reset(q->qdisc);
 	sch->q.qlen = 0;
-	PSCHED_GET_TIME(q->t_c);
+	q->t_c = psched_get_time();
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
 	qdisc_watchdog_cancel(&q->watchdog);
@@ -364,7 +363,7 @@ static int tbf_init(struct Qdisc* sch, struct rtattr *opt)
 	if (opt == NULL)
 		return -EINVAL;
 
-	PSCHED_GET_TIME(q->t_c);
+	q->t_c = psched_get_time();
 	qdisc_watchdog_init(&q->watchdog, sch);
 	q->qdisc = &noop_qdisc;
 

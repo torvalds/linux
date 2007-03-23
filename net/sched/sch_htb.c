@@ -965,7 +965,7 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 
 	if (!sch->q.qlen)
 		goto fin;
-	PSCHED_GET_TIME(q->now);
+	q->now = psched_get_time();
 
 	next_event = q->now + 5 * PSCHED_TICKS_PER_SEC;
 	q->nwc_hit = 0;
@@ -1274,7 +1274,7 @@ static void htb_parent_to_leaf(struct htb_class *cl, struct Qdisc *new_q)
 	parent->un.leaf.prio = parent->prio;
 	parent->tokens = parent->buffer;
 	parent->ctokens = parent->cbuffer;
-	PSCHED_GET_TIME(parent->t_c);
+	parent->t_c = psched_get_time();
 	parent->cmode = HTB_CAN_SEND;
 }
 
@@ -1471,7 +1471,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		cl->tokens = hopt->buffer;
 		cl->ctokens = hopt->cbuffer;
 		cl->mbuffer = 60 * PSCHED_TICKS_PER_SEC;	/* 1min */
-		PSCHED_GET_TIME(cl->t_c);
+		cl->t_c = psched_get_time();
 		cl->cmode = HTB_CAN_SEND;
 
 		/* attach to the hash list and parent's family */

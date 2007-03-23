@@ -385,7 +385,7 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 		psched_time_t now;
 		psched_tdiff_t incr;
 
-		PSCHED_GET_TIME(now);
+		now = psched_get_time();
 		incr = now - q->now_rt;
 		now = q->now + incr;
 
@@ -654,7 +654,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 	psched_tdiff_t delay = 0;
 	unsigned pmask;
 
-	PSCHED_GET_TIME(now);
+	now = psched_get_time();
 
 	pmask = q->pmask;
 	q->pmask = 0;
@@ -1003,7 +1003,7 @@ cbq_dequeue(struct Qdisc *sch)
 	psched_time_t now;
 	psched_tdiff_t incr;
 
-	PSCHED_GET_TIME(now);
+	now = psched_get_time();
 	incr = now - q->now_rt;
 
 	if (q->tx_class) {
@@ -1277,7 +1277,7 @@ cbq_reset(struct Qdisc* sch)
 	qdisc_watchdog_cancel(&q->watchdog);
 	hrtimer_cancel(&q->delay_timer);
 	q->toplevel = TC_CBQ_MAXLEVEL;
-	PSCHED_GET_TIME(q->now);
+	q->now = psched_get_time();
 	q->now_rt = q->now;
 
 	for (prio = 0; prio <= TC_CBQ_MAXPRIO; prio++)
@@ -1448,7 +1448,7 @@ static int cbq_init(struct Qdisc *sch, struct rtattr *opt)
 	hrtimer_init(&q->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	q->delay_timer.function = cbq_undelay;
 	q->toplevel = TC_CBQ_MAXLEVEL;
-	PSCHED_GET_TIME(q->now);
+	q->now = psched_get_time();
 	q->now_rt = q->now;
 
 	cbq_link_class(&q->link);

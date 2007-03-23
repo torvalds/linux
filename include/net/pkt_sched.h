@@ -48,10 +48,12 @@ typedef long	psched_tdiff_t;
 #define PSCHED_NS2US(x)			((x) >> 10)
 
 #define PSCHED_TICKS_PER_SEC		PSCHED_NS2US(NSEC_PER_SEC)
-#define PSCHED_GET_TIME(stamp) \
-	((stamp) = PSCHED_NS2US(ktime_to_ns(ktime_get())))
-
 #define PSCHED_PASTPERFECT		0
+
+static inline psched_time_t psched_get_time(void)
+{
+	return PSCHED_NS2US(ktime_to_ns(ktime_get()));
+}
 
 static inline psched_tdiff_t
 psched_tdiff_bounded(psched_time_t tv1, psched_time_t tv2, psched_time_t bound)
