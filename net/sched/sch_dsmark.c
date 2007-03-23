@@ -412,16 +412,10 @@ static void dsmark_reset(struct Qdisc *sch)
 static void dsmark_destroy(struct Qdisc *sch)
 {
 	struct dsmark_qdisc_data *p = PRIV(sch);
-	struct tcf_proto *tp;
 
 	DPRINTK("dsmark_destroy(sch %p,[qdisc %p])\n", sch, p);
 
-	while (p->filter_list) {
-		tp = p->filter_list;
-		p->filter_list = tp->next;
-		tcf_destroy(tp);
-	}
-
+	tcf_destroy_chain(p->filter_list);
 	qdisc_destroy(p->q);
 	kfree(p->mask);
 }

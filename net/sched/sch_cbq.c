@@ -1717,23 +1717,13 @@ static unsigned long cbq_get(struct Qdisc *sch, u32 classid)
 	return 0;
 }
 
-static void cbq_destroy_filters(struct cbq_class *cl)
-{
-	struct tcf_proto *tp;
-
-	while ((tp = cl->filter_list) != NULL) {
-		cl->filter_list = tp->next;
-		tcf_destroy(tp);
-	}
-}
-
 static void cbq_destroy_class(struct Qdisc *sch, struct cbq_class *cl)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 
 	BUG_TRAP(!cl->filters);
 
-	cbq_destroy_filters(cl);
+	tcf_destroy_chain(cl->filter_list);
 	qdisc_destroy(cl->q);
 	qdisc_put_rtab(cl->R_tab);
 #ifdef CONFIG_NET_ESTIMATOR
@@ -1760,7 +1750,7 @@ cbq_destroy(struct Qdisc* sch)
 	 */
 	for (h = 0; h < 16; h++)
 		for (cl = q->classes[h]; cl; cl = cl->next)
-			cbq_destroy_filters(cl);
+			tcf_destroy_chain(cl->filter_list);
 
 	for (h = 0; h < 16; h++) {
 		struct cbq_class *next;

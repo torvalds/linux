@@ -1236,16 +1236,6 @@ static unsigned long htb_get(struct Qdisc *sch, u32 classid)
 	return (unsigned long)cl;
 }
 
-static void htb_destroy_filters(struct tcf_proto **fl)
-{
-	struct tcf_proto *tp;
-
-	while ((tp = *fl) != NULL) {
-		*fl = tp->next;
-		tcf_destroy(tp);
-	}
-}
-
 static inline int htb_parent_last_child(struct htb_class *cl)
 {
 	if (!cl->parent)
@@ -1289,7 +1279,7 @@ static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 	qdisc_put_rtab(cl->rate);
 	qdisc_put_rtab(cl->ceil);
 
-	htb_destroy_filters(&cl->filter_list);
+	tcf_destroy_chain(cl->filter_list);
 
 	while (!list_empty(&cl->children))
 		htb_destroy_class(sch, list_entry(cl->children.next,
@@ -1321,7 +1311,7 @@ static void htb_destroy(struct Qdisc *sch)
 	   and surprisingly it worked in 2.4. But it must precede it
 	   because filter need its target class alive to be able to call
 	   unbind_filter on it (without Oops). */
-	htb_destroy_filters(&q->filter_list);
+	tcf_destroy_chain(q->filter_list);
 
 	while (!list_empty(&q->root))
 		htb_destroy_class(sch, list_entry(q->root.next,

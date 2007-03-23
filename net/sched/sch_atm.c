@@ -158,19 +158,6 @@ static unsigned long atm_tc_bind_filter(struct Qdisc *sch,
 	return atm_tc_get(sch,classid);
 }
 
-
-static void destroy_filters(struct atm_flow_data *flow)
-{
-	struct tcf_proto *filter;
-
-	while ((filter = flow->filter_list)) {
-		DPRINTK("destroy_filters: destroying filter %p\n",filter);
-		flow->filter_list = filter->next;
-		tcf_destroy(filter);
-	}
-}
-
-
 /*
  * atm_tc_put handles all destructions, including the ones that are explicitly
  * requested (atm_tc_destroy, etc.). The assumption here is that we never drop
@@ -195,7 +182,7 @@ static void atm_tc_put(struct Qdisc *sch, unsigned long cl)
 	*prev = flow->next;
 	DPRINTK("atm_tc_put: qdisc %p\n",flow->q);
 	qdisc_destroy(flow->q);
-	destroy_filters(flow);
+	tcf_destroy_chain(flow->filter_list);
 	if (flow->sock) {
 		DPRINTK("atm_tc_put: f_count %d\n",
 		    file_count(flow->sock->file));
@@ -611,7 +598,7 @@ static void atm_tc_destroy(struct Qdisc *sch)
 	DPRINTK("atm_tc_destroy(sch %p,[qdisc %p])\n",sch,p);
 	/* races ? */
 	while ((flow = p->flows)) {
-		destroy_filters(flow);
+		tcf_destroy_chain(flow->filter_list);
 		if (flow->ref > 1)
 			printk(KERN_ERR "atm_destroy: %p->ref = %d\n",flow,
 			    flow->ref);

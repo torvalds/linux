@@ -1122,22 +1122,11 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 }
 
 static void
-hfsc_destroy_filters(struct tcf_proto **fl)
-{
-	struct tcf_proto *tp;
-
-	while ((tp = *fl) != NULL) {
-		*fl = tp->next;
-		tcf_destroy(tp);
-	}
-}
-
-static void
 hfsc_destroy_class(struct Qdisc *sch, struct hfsc_class *cl)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
 
-	hfsc_destroy_filters(&cl->filter_list);
+	tcf_destroy_chain(cl->filter_list);
 	qdisc_destroy(cl->qdisc);
 #ifdef CONFIG_NET_ESTIMATOR
 	gen_kill_estimator(&cl->bstats, &cl->rate_est);

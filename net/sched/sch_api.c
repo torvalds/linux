@@ -1220,6 +1220,24 @@ reclassify:
 	return -1;
 }
 
+void tcf_destroy(struct tcf_proto *tp)
+{
+	tp->ops->destroy(tp);
+	module_put(tp->ops->owner);
+	kfree(tp);
+}
+
+void tcf_destroy_chain(struct tcf_proto *fl)
+{
+	struct tcf_proto *tp;
+
+	while ((tp = fl) != NULL) {
+		fl = tp->next;
+		tcf_destroy(tp);
+	}
+}
+EXPORT_SYMBOL(tcf_destroy_chain);
+
 #ifdef CONFIG_PROC_FS
 static int psched_show(struct seq_file *seq, void *v)
 {

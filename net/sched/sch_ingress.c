@@ -346,14 +346,9 @@ static void ingress_reset(struct Qdisc *sch)
 static void ingress_destroy(struct Qdisc *sch)
 {
 	struct ingress_qdisc_data *p = PRIV(sch);
-	struct tcf_proto *tp;
 
 	DPRINTK("ingress_destroy(sch %p,[qdisc %p])\n", sch, p);
-	while (p->filter_list) {
-		tp = p->filter_list;
-		p->filter_list = tp->next;
-		tcf_destroy(tp);
-	}
+	tcf_destroy_chain(p->filter_list);
 #if 0
 /* for future use */
 	qdisc_destroy(p->q);
