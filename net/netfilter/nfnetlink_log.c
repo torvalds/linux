@@ -195,19 +195,13 @@ out_unlock:
 static int __nfulnl_send(struct nfulnl_instance *inst);
 
 static void
-_instance_destroy2(struct nfulnl_instance *inst, int lock)
+__instance_destroy(struct nfulnl_instance *inst)
 {
 	/* first pull it out of the global list */
-	if (lock)
-		write_lock_bh(&instances_lock);
-
 	UDEBUG("removing instance %p (queuenum=%u) from hash\n",
 		inst, inst->group_num);
 
 	hlist_del(&inst->hlist);
-
-	if (lock)
-		write_unlock_bh(&instances_lock);
 
 	/* then flush all pending packets from skb */
 
@@ -230,15 +224,11 @@ _instance_destroy2(struct nfulnl_instance *inst, int lock)
 }
 
 static inline void
-__instance_destroy(struct nfulnl_instance *inst)
-{
-	_instance_destroy2(inst, 0);
-}
-
-static inline void
 instance_destroy(struct nfulnl_instance *inst)
 {
-	_instance_destroy2(inst, 1);
+	write_lock_bh(&instances_lock);
+	__instance_destroy(inst);
+	write_unlock_bh(&instances_lock);
 }
 
 static int
