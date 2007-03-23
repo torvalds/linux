@@ -590,7 +590,6 @@ nfulnl_log_packet(unsigned int pf,
 	struct nfulnl_instance *inst;
 	const struct nf_loginfo *li;
 	unsigned int qthreshold;
-	unsigned int nlbufsiz;
 	unsigned int plen;
 
 	if (li_user && li_user->type == NF_LOG_TYPE_ULOG)
@@ -666,13 +665,8 @@ nfulnl_log_packet(unsigned int pf,
 		return;
 	}
 
-	if (size > inst->nlbufsiz)
-		nlbufsiz = size;
-	else
-		nlbufsiz = inst->nlbufsiz;
-
 	if (!inst->skb) {
-		if (!(inst->skb = nfulnl_alloc_skb(nlbufsiz, size))) {
+		if (!(inst->skb = nfulnl_alloc_skb(inst->nlbufsiz, size))) {
 			UDEBUG("error in nfulnl_alloc_skb(%u, %u)\n",
 				inst->nlbufsiz, size);
 			goto alloc_failure;
@@ -688,7 +682,7 @@ nfulnl_log_packet(unsigned int pf,
 			instance_put(inst);
 		__nfulnl_send(inst);
 
-		if (!(inst->skb = nfulnl_alloc_skb(nlbufsiz, size))) {
+		if (!(inst->skb = nfulnl_alloc_skb(inst->nlbufsiz, size))) {
 			UDEBUG("error in nfulnl_alloc_skb(%u, %u)\n",
 				inst->nlbufsiz, size);
 			goto alloc_failure;
