@@ -1734,10 +1734,6 @@ _STATIC(__boot_from_prom)
 	/* We never return */
 	trap
 
-/*
- * At this point, r3 contains the physical address we are running at,
- * returned by prom_init()
- */
 _STATIC(__after_prom_start)
 
 /*
