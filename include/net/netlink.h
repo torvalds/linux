@@ -171,6 +171,7 @@ enum {
 	NLA_MSECS,
 	NLA_NESTED,
 	NLA_NUL_STRING,
+	NLA_BINARY,
 	__NLA_TYPE_MAX,
 };
 
@@ -188,12 +189,13 @@ enum {
  *    NLA_STRING           Maximum length of string
  *    NLA_NUL_STRING       Maximum length of string (excluding NUL)
  *    NLA_FLAG             Unused
+ *    NLA_BINARY           Maximum length of attribute payload
  *    All other            Exact length of attribute payload
  *
  * Example:
  * static struct nla_policy my_policy[ATTR_MAX+1] __read_mostly = {
  * 	[ATTR_FOO] = { .type = NLA_U16 },
- *	[ATTR_BAR] = { .type = NLA_STRING, len = BARSIZ },
+ *	[ATTR_BAR] = { .type = NLA_STRING, .len = BARSIZ },
  *	[ATTR_BAZ] = { .len = sizeof(struct mystruct) },
  * };
  */
