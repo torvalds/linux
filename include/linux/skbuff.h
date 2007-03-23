@@ -87,11 +87,12 @@
 
 struct net_device;
 
-#ifdef CONFIG_NETFILTER
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 struct nf_conntrack {
 	atomic_t use;
 	void (*destroy)(struct nf_conntrack *);
 };
+#endif
 
 #ifdef CONFIG_BRIDGE_NETFILTER
 struct nf_bridge_info {
@@ -104,8 +105,6 @@ struct nf_bridge_info {
 	unsigned int mask;
 	unsigned long data[32 / sizeof(unsigned long)];
 };
-#endif
-
 #endif
 
 struct sk_buff_head {
@@ -276,15 +275,13 @@ struct sk_buff {
 	__be16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
-#ifdef CONFIG_NETFILTER
-	struct nf_conntrack	*nfct;
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	struct nf_conntrack	*nfct;
 	struct sk_buff		*nfct_reasm;
 #endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif
-#endif /* CONFIG_NETFILTER */
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT
@@ -1558,7 +1555,7 @@ static inline unsigned int skb_checksum_complete(struct sk_buff *skb)
 		__skb_checksum_complete(skb);
 }
 
-#ifdef CONFIG_NETFILTER
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 static inline void nf_conntrack_put(struct nf_conntrack *nfct)
 {
 	if (nfct && atomic_dec_and_test(&nfct->use))
@@ -1569,7 +1566,6 @@ static inline void nf_conntrack_get(struct nf_conntrack *nfct)
 	if (nfct)
 		atomic_inc(&nfct->use);
 }
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 static inline void nf_conntrack_get_reasm(struct sk_buff *skb)
 {
 	if (skb)
@@ -1595,9 +1591,9 @@ static inline void nf_bridge_get(struct nf_bridge_info *nf_bridge)
 #endif /* CONFIG_BRIDGE_NETFILTER */
 static inline void nf_reset(struct sk_buff *skb)
 {
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	nf_conntrack_put(skb->nfct);
 	skb->nfct = NULL;
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	nf_conntrack_put_reasm(skb->nfct_reasm);
 	skb->nfct_reasm = NULL;
 #endif
@@ -1610,10 +1606,10 @@ static inline void nf_reset(struct sk_buff *skb)
 /* Note: This doesn't put any conntrack and bridge info in dst. */
 static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src)
 {
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	dst->nfct = src->nfct;
 	nf_conntrack_get(src->nfct);
 	dst->nfctinfo = src->nfctinfo;
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	dst->nfct_reasm = src->nfct_reasm;
 	nf_conntrack_get_reasm(src->nfct_reasm);
 #endif
@@ -1625,8 +1621,8 @@ static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src)
 
 static inline void nf_copy(struct sk_buff *dst, const struct sk_buff *src)
 {
-	nf_conntrack_put(dst->nfct);
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_conntrack_put(dst->nfct);
 	nf_conntrack_put_reasm(dst->nfct_reasm);
 #endif
 #ifdef CONFIG_BRIDGE_NETFILTER
@@ -1634,12 +1630,6 @@ static inline void nf_copy(struct sk_buff *dst, const struct sk_buff *src)
 #endif
 	__nf_copy(dst, src);
 }
-
-#else /* CONFIG_NETFILTER */
-static inline void nf_reset(struct sk_buff *skb) {}
-static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src) {}
-static inline void nf_copy(struct sk_buff *dst, const struct sk_buff *src) {}
-#endif /* CONFIG_NETFILTER */
 
 #ifdef CONFIG_NETWORK_SECMARK
 static inline void skb_copy_secmark(struct sk_buff *to, const struct sk_buff *from)

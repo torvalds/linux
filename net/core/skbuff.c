@@ -325,14 +325,12 @@ void __kfree_skb(struct sk_buff *skb)
 		WARN_ON(in_irq());
 		skb->destructor(skb);
 	}
-#ifdef CONFIG_NETFILTER
-	nf_conntrack_put(skb->nfct);
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_conntrack_put(skb->nfct);
 	nf_conntrack_put_reasm(skb->nfct_reasm);
 #endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	nf_bridge_put(skb->nf_bridge);
-#endif
 #endif
 /* XXX: IS this still necessary? - JHS */
 #ifdef CONFIG_NET_SCHED
