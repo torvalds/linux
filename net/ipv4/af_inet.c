@@ -87,6 +87,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/random.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -217,6 +218,16 @@ out:
 	return err;
 }
 
+u32 inet_ehash_secret;
+EXPORT_SYMBOL(inet_ehash_secret);
+
+void build_ehash_secret(void)
+{
+	while (!inet_ehash_secret)
+		get_random_bytes(&inet_ehash_secret, 4);
+}
+EXPORT_SYMBOL(build_ehash_secret);
+
 /*
  *	Create an inet socket.
  */
@@ -232,6 +243,11 @@ static int inet_create(struct socket *sock, int protocol)
 	char answer_no_check;
 	int try_loading_module = 0;
 	int err;
+
+	if (sock->type != SOCK_RAW &&
+	    sock->type != SOCK_DGRAM &&
+	    !inet_ehash_secret)
+		build_ehash_secret();
 
 	sock->state = SS_UNCONNECTED;
 
