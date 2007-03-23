@@ -393,6 +393,7 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, int family) {}
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 extern void (*ip_ct_attach)(struct sk_buff *, struct sk_buff *);
 extern void nf_ct_attach(struct sk_buff *, struct sk_buff *);
+extern void (*nf_ct_destroy)(struct nf_conntrack *);
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 #endif

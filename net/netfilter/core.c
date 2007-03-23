@@ -260,7 +260,22 @@ void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb)
 	}
 }
 EXPORT_SYMBOL(nf_ct_attach);
-#endif
+
+void (*nf_ct_destroy)(struct nf_conntrack *);
+EXPORT_SYMBOL(nf_ct_destroy);
+
+void nf_conntrack_destroy(struct nf_conntrack *nfct)
+{
+	void (*destroy)(struct nf_conntrack *);
+
+	rcu_read_lock();
+	destroy = rcu_dereference(nf_ct_destroy);
+	BUG_ON(destroy == NULL);
+	destroy(nfct);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(nf_conntrack_destroy);
+#endif /* CONFIG_NF_CONNTRACK */
 
 #ifdef CONFIG_PROC_FS
 struct proc_dir_entry *proc_net_netfilter;

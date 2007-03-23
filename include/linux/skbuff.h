@@ -90,7 +90,6 @@ struct net_device;
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 struct nf_conntrack {
 	atomic_t use;
-	void (*destroy)(struct nf_conntrack *);
 };
 #endif
 
@@ -1556,10 +1555,11 @@ static inline unsigned int skb_checksum_complete(struct sk_buff *skb)
 }
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+extern void nf_conntrack_destroy(struct nf_conntrack *nfct);
 static inline void nf_conntrack_put(struct nf_conntrack *nfct)
 {
 	if (nfct && atomic_dec_and_test(&nfct->use))
-		nfct->destroy(nfct);
+		nf_conntrack_destroy(nfct);
 }
 static inline void nf_conntrack_get(struct nf_conntrack *nfct)
 {
