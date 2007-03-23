@@ -438,7 +438,6 @@ void spu_deactivate(struct spu_context *ctx)
 void spu_yield(struct spu_context *ctx)
 {
 	struct spu *spu;
-	int need_yield = 0;
 
 	if (mutex_trylock(&ctx->state_mutex)) {
 		if ((spu = ctx->spu) != NULL) {
@@ -447,13 +446,10 @@ void spu_yield(struct spu_context *ctx)
 				pr_debug("%s: yielding SPU %d NODE %d\n",
 					 __FUNCTION__, spu->number, spu->node);
 				spu_deactivate(ctx);
-				need_yield = 1;
 			}
 		}
 		mutex_unlock(&ctx->state_mutex);
 	}
-	if (unlikely(need_yield))
-		yield();
 }
 
 int __init spu_sched_init(void)
