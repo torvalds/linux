@@ -66,7 +66,9 @@
 static void queue_comp_task(struct ehca_cq *__cq);
 
 static struct ehca_comp_pool* pool;
+#ifdef CONFIG_HOTPLUG_CPU
 static struct notifier_block comp_pool_callback_nb;
+#endif
 
 static inline void comp_event_callback(struct ehca_cq *cq)
 {
@@ -733,6 +735,7 @@ static void take_over_work(struct ehca_comp_pool *pool,
 
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static int comp_pool_callback(struct notifier_block *nfb,
 			      unsigned long action,
 			      void *hcpu)
@@ -775,6 +778,7 @@ static int comp_pool_callback(struct notifier_block *nfb,
 
 	return NOTIFY_OK;
 }
+#endif
 
 int ehca_create_comp_pool(void)
 {
@@ -805,9 +809,11 @@ int ehca_create_comp_pool(void)
 		}
 	}
 
+#ifdef CONFIG_HOTPLUG_CPU
 	comp_pool_callback_nb.notifier_call = comp_pool_callback;
 	comp_pool_callback_nb.priority =0;
 	register_cpu_notifier(&comp_pool_callback_nb);
+#endif
 
 	printk(KERN_INFO "eHCA scaling code enabled\n");
 
@@ -821,7 +827,9 @@ void ehca_destroy_comp_pool(void)
 	if (!ehca_scaling_code)
 		return;
 
+#ifdef CONFIG_HOTPLUG_CPU
 	unregister_cpu_notifier(&comp_pool_callback_nb);
+#endif
 
 	for (i = 0; i < NR_CPUS; i++) {
 		if (cpu_online(i))
