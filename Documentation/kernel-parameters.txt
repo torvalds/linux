@@ -780,7 +780,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	lapic		[IA-32,APIC] Enable the local APIC even if BIOS
 			disabled it.
 
-	lapic_timer_c2_ok	[IA-32,APIC] trust the local apic timer in
+	lapic_timer_c2_ok	[IA-32,x86-64,APIC] trust the local apic timer in
 			C2 power state.
 
 	lasi=		[HW,SCSI] PARISC LASI driver for the 53c700 chip

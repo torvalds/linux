@@ -47,6 +47,10 @@ int apic_calibrate_pmtmr __initdata;
 
 int disable_apic_timer __initdata;
 
+/* Local APIC timer works in C2? */
+int local_apic_timer_c2_ok;
+EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
+
 static struct resource *ioapic_resources;
 static struct resource lapic_resource = {
 	.name = "Local APIC",
@@ -1191,6 +1195,13 @@ static __init int setup_nolapic(char *str)
 	return setup_disableapic(str);
 } 
 early_param("nolapic", setup_nolapic);
+
+static int __init parse_lapic_timer_c2_ok(char *arg)
+{
+	local_apic_timer_c2_ok = 1;
+	return 0;
+}
+early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
 
 static __init int setup_noapictimer(char *str) 
 { 
