@@ -40,56 +40,9 @@ struct block2mtd_dev {
 static LIST_HEAD(blkmtd_device_list);
 
 
-#define PAGE_READAHEAD 64
-static void cache_readahead(struct address_space *mapping, int index)
+static struct page* page_read(struct address_space *mapping, int index)
 {
 	filler_t *filler = (filler_t*)mapping->a_ops->readpage;
-	int i, pagei;
-	unsigned ret = 0;
-	unsigned long end_index;
-	struct page *page;
-	LIST_HEAD(page_pool);
-	struct inode *inode = mapping->host;
-	loff_t isize = i_size_read(inode);
-
-	if (!isize) {
-		INFO("iSize=0 in cache_readahead\n");
-		return;
-	}
-
-	end_index = ((isize - 1) >> PAGE_CACHE_SHIFT);
-
-	read_lock_irq(&mapping->tree_lock);
-	for (i = 0; i < PAGE_READAHEAD; i++) {
-		pagei = index + i;
-		if (pagei > end_index) {
-			INFO("Overrun end of disk in cache readahead\n");
-			break;
-		}
-		page = radix_tree_lookup(&mapping->page_tree, pagei);
-		if (page && (!i))
-			break;
-		if (page)
-			continue;
-		read_unlock_irq(&mapping->tree_lock);
-		page = page_cache_alloc_cold(mapping);
-		read_lock_irq(&mapping->tree_lock);
-		if (!page)
-			break;
-		page->index = pagei;
-		list_add(&page->lru, &page_pool);
-		ret++;
-	}
-	read_unlock_irq(&mapping->tree_lock);
-	if (ret)
-		read_cache_pages(mapping, &page_pool, filler, NULL);
-}
-
-
-static struct page* page_readahead(struct address_space *mapping, int index)
-{
-	filler_t *filler = (filler_t*)mapping->a_ops->readpage;
-	cache_readahead(mapping, index);
 	return read_cache_page(mapping, index, filler, NULL);
 }
 
@@ -105,14 +58,14 @@ static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
 	u_long *max;
 
 	while (pages) {
-		page = page_readahead(mapping, index);
+		page = page_read(mapping, index);
 		if (!page)
 			return -ENOMEM;
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		max = (u_long*)page_address(page) + PAGE_SIZE;
-		for (p=(u_long*)page_address(page); p<max; p++)
+		max = page_address(page) + PAGE_SIZE;
+		for (p=page_address(page); p<max; p++)
 			if (*p != -1UL) {
 				lock_page(page);
 				memset(page_address(page), 0xff, PAGE_SIZE);
@@ -174,8 +127,7 @@ static int block2mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 			cpylen = len;	// this page
 		len = len - cpylen;
 
-		//      Get page
-		page = page_readahead(dev->blkdev->bd_inode->i_mapping, index);
+		page = page_read(dev->blkdev->bd_inode->i_mapping, index);
 		if (!page)
 			return -ENOMEM;
 		if (IS_ERR(page))
@@ -213,8 +165,7 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
 			cpylen = len;			// this page
 		len = len - cpylen;
 
-		//	Get page
-		page = page_readahead(mapping, index);
+		page = page_read(mapping, index);
 		if (!page)
 			return -ENOMEM;
 		if (IS_ERR(page))
@@ -308,9 +259,9 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 		/* We might not have rootfs mounted at this point. Try
 		   to resolve the device name by other means. */
 
-		dev_t dev = name_to_dev_t(devname);
-		if (dev != 0) {
-			bdev = open_by_devnum(dev, FMODE_WRITE | FMODE_READ);
+		dev_t devt = name_to_dev_t(devname);
+		if (devt) {
+			bdev = open_by_devnum(devt, FMODE_WRITE | FMODE_READ);
 		}
 	}
 #endif
