@@ -341,16 +341,14 @@ static void tcp_vegas_get_info(struct sock *sk, u32 ext,
 {
 	const struct vegas *ca = inet_csk_ca(sk);
 	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		struct tcpvegas_info *info;
+		struct tcpvegas_info info = {
+			.tcpv_enabled = ca->doing_vegas_now,
+			.tcpv_rttcnt = ca->cntRTT,
+			.tcpv_rtt = ca->baseRTT,
+			.tcpv_minrtt = ca->minRTT,
+		};
 
-		info = RTA_DATA(__RTA_PUT(skb, INET_DIAG_VEGASINFO,
-					  sizeof(*info)));
-
-		info->tcpv_enabled = ca->doing_vegas_now;
-		info->tcpv_rttcnt = ca->cntRTT;
-		info->tcpv_rtt = ca->baseRTT;
-		info->tcpv_minrtt = ca->minRTT;
-	rtattr_failure:	;
+		nla_put(skb, INET_DIAG_VEGASINFO, sizeof(info), &info);
 	}
 }
 
