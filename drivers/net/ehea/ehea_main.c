@@ -327,6 +327,13 @@ static int ehea_treat_poll_error(struct ehea_port_res *pr, int rq,
 {
 	struct sk_buff *skb;
 
+	if (cqe->status & EHEA_CQE_STAT_ERR_TCP)
+		pr->p_stats.err_tcp_cksum++;
+	if (cqe->status & EHEA_CQE_STAT_ERR_IP)
+		pr->p_stats.err_ip_cksum++;
+	if (cqe->status & EHEA_CQE_STAT_ERR_CRC)
+		pr->p_stats.err_frame_crc++;
+
 	if (netif_msg_rx_err(pr->port)) {
 		ehea_error("CQE Error for QP %d", pr->qp->init_attr.qp_nr);
 		ehea_dump(cqe, sizeof(*cqe), "CQE");
@@ -428,7 +435,7 @@ static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
 			else
 				netif_receive_skb(skb);
 		} else {
-			pr->p_state.poll_receive_errors++;
+			pr->p_stats.poll_receive_errors++;
 			port_reset = ehea_treat_poll_error(pr, rq, cqe,
 							   &processed_rq2,
 							   &processed_rq3);
@@ -449,34 +456,15 @@ static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
 	return cqe;
 }
 
-static void ehea_free_sent_skbs(struct ehea_cqe *cqe, struct ehea_port_res *pr)
-{
-	struct sk_buff *skb;
-	int index, max_index_mask, i;
-
-	index = EHEA_BMASK_GET(EHEA_WR_ID_INDEX, cqe->wr_id);
-	max_index_mask = pr->sq_skba.len - 1;
-	for (i = 0; i < EHEA_BMASK_GET(EHEA_WR_ID_REFILL, cqe->wr_id); i++) {
-		skb = pr->sq_skba.arr[index];
-		if (likely(skb)) {
-			dev_kfree_skb(skb);
-			pr->sq_skba.arr[index] = NULL;
-		} else {
-			ehea_error("skb=NULL, wr_id=%lX, loop=%d, index=%d",
-				   cqe->wr_id, i, index);
-		}
-		index--;
-		index &= max_index_mask;
-	}
-}
-
 static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 {
+	struct sk_buff *skb;
 	struct ehea_cq *send_cq = pr->send_cq;
 	struct ehea_cqe *cqe;
 	int quota = my_quota;
 	int cqe_counter = 0;
 	int swqe_av = 0;
+	int index;
 	unsigned long flags;
 
 	cqe = ehea_poll_cq(send_cq);
@@ -498,8 +486,13 @@ static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 			ehea_dump(cqe, sizeof(*cqe), "CQE");
 
 		if (likely(EHEA_BMASK_GET(EHEA_WR_ID_TYPE, cqe->wr_id)
-			   == EHEA_SWQE2_TYPE))
-			ehea_free_sent_skbs(cqe, pr);
+			   == EHEA_SWQE2_TYPE)) {
+
+			index = EHEA_BMASK_GET(EHEA_WR_ID_INDEX, cqe->wr_id);
+			skb = pr->sq_skba.arr[index];
+			dev_kfree_skb(skb);
+			pr->sq_skba.arr[index] = NULL;
+		}
 
 		swqe_av += EHEA_BMASK_GET(EHEA_WR_ID_REFILL, cqe->wr_id);
 		quota--;
@@ -1092,8 +1085,6 @@ static int ehea_init_port_res(struct ehea_port *port, struct ehea_port_res *pr,
 	memset(pr, 0, sizeof(struct ehea_port_res));
 
 	pr->port = port;
-	spin_lock_init(&pr->send_lock);
-	spin_lock_init(&pr->recv_lock);
 	spin_lock_init(&pr->xmit_lock);
 	spin_lock_init(&pr->netif_queue);
 
@@ -1811,7 +1802,6 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	pr = &port->port_res[ehea_hash_skb(skb, port->num_tx_qps)];
 
-
 	if (!spin_trylock(&pr->xmit_lock))
 		return NETDEV_TX_BUSY;
 
@@ -1841,6 +1831,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		swqe->wr_id =
 			EHEA_BMASK_SET(EHEA_WR_ID_TYPE, EHEA_SWQE2_TYPE)
 		      | EHEA_BMASK_SET(EHEA_WR_ID_COUNT, pr->swqe_id_counter)
+		      | EHEA_BMASK_SET(EHEA_WR_ID_REFILL, 1)
 		      | EHEA_BMASK_SET(EHEA_WR_ID_INDEX, pr->sq_skba.index);
 		pr->sq_skba.arr[pr->sq_skba.index] = skb;
 
@@ -1849,14 +1840,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		lkey = pr->send_mr.lkey;
 		ehea_xmit2(skb, dev, swqe, lkey);
-
-		if (pr->swqe_count >= (EHEA_SIG_IV_LONG - 1)) {
-			swqe->wr_id |= EHEA_BMASK_SET(EHEA_WR_ID_REFILL,
-						      EHEA_SIG_IV_LONG);
-			swqe->tx_control |= EHEA_SWQE_SIGNALLED_COMPLETION;
-			pr->swqe_count = 0;
-		} else
-			pr->swqe_count += 1;
+		swqe->tx_control |= EHEA_SWQE_SIGNALLED_COMPLETION;
 	}
 	pr->swqe_id_counter += 1;
 
@@ -1876,6 +1860,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(atomic_read(&pr->swqe_avail) <= 1)) {
 		spin_lock_irqsave(&pr->netif_queue, flags);
 		if (unlikely(atomic_read(&pr->swqe_avail) <= 1)) {
+			pr->p_stats.queue_stopped++;
 			netif_stop_queue(dev);
 			pr->queue_stopped = 1;
 		}

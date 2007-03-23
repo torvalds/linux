@@ -39,7 +39,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0054"
+#define DRV_VERSION	"EHEA_0055"
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -79,7 +79,6 @@
 #define EHEA_L_PKT_SIZE         256	/* low latency */
 
 /* Send completion signaling */
-#define EHEA_SIG_IV_LONG           1
 
 /* Protection Domain Identifier */
 #define EHEA_PD_ID        0xaabcdeff
@@ -106,11 +105,7 @@
 #define EHEA_CACHE_LINE          128
 
 /* Memory Regions */
-#define EHEA_MR_MAX_TX_PAGES   20
-#define EHEA_MR_TX_DATA_PN      3
 #define EHEA_MR_ACC_CTRL       0x00800000
-#define EHEA_RWQES_PER_MR_RQ2  10
-#define EHEA_RWQES_PER_MR_RQ3  10
 
 #define EHEA_WATCH_DOG_TIMEOUT 10*HZ
 
@@ -318,17 +313,12 @@ struct ehea_mr {
 /*
  * Port state information
  */
-struct port_state {
-	int poll_max_processed;
+struct port_stats {
 	int poll_receive_errors;
-	int ehea_poll;
 	int queue_stopped;
-	int min_swqe_avail;
-	u64 sqc_stop_sum;
-	int pkt_send;
-	int pkt_xmit;
-	int send_tasklet;
-	int nwqe;
+	int err_tcp_cksum;
+	int err_ip_cksum;
+	int err_frame_crc;
 };
 
 #define EHEA_IRQ_NAME_SIZE 20
@@ -347,6 +337,7 @@ struct ehea_q_skb_arr {
  * Port resources
  */
 struct ehea_port_res {
+	struct port_stats p_stats;
 	struct ehea_mr send_mr;       	/* send memory region */
 	struct ehea_mr recv_mr;       	/* receive memory region */
 	spinlock_t xmit_lock;
@@ -358,7 +349,6 @@ struct ehea_port_res {
 	struct ehea_cq *recv_cq;
 	struct ehea_eq *eq;
 	struct net_device *d_netdev;
-	spinlock_t send_lock;
 	struct ehea_q_skb_arr rq1_skba;
 	struct ehea_q_skb_arr rq2_skba;
 	struct ehea_q_skb_arr rq3_skba;
@@ -368,11 +358,8 @@ struct ehea_port_res {
 	int swqe_refill_th;
 	atomic_t swqe_avail;
 	int swqe_ll_count;
-	int swqe_count;
 	u32 swqe_id_counter;
 	u64 tx_packets;
-	spinlock_t recv_lock;
-	struct port_state p_state;
 	u64 rx_packets;
 	u32 poll_counter;
 };
