@@ -1379,7 +1379,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	spin_lock_init(&mp->lock);
 
-	port_num = pd->port_number;
+	port_num = mp->port_num = pd->port_number;
 
 	/* set default config values */
 	eth_port_uc_addr_get(dev, dev->dev_addr);
@@ -1410,8 +1410,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	duplex = pd->duplex;
 	speed = pd->speed;
-
-	mp->port_num = port_num;
 
 	/* Hook up MII support for ethtool */
 	mp->mii.dev = dev;
