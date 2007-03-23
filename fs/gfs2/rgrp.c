@@ -27,6 +27,7 @@
 #include "trans.h"
 #include "ops_file.h"
 #include "util.h"
+#include "log.h"
 
 #define BFITNOENT ((u32)~0)
 
@@ -941,9 +942,13 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 			rgd = gfs2_rgrpd_get_first(sdp);
 
 		if (rgd == begin) {
-			if (++loops >= 2 || !skipped)
+			if (++loops >= 3)
 				return -ENOSPC;
+			if (!skipped)
+				loops++;
 			flags = 0;
+			if (loops == 2)
+				gfs2_log_flush(sdp, NULL);
 		}
 	}
 
