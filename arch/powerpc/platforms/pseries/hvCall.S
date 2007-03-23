@@ -30,9 +30,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_PURR);
 	
 /*
  * postcall is performed immediately before function return which
- * allows liberal use of volatile registers.
+ * allows liberal use of volatile registers.  We branch around this
+ * in early init (eg when populating the MMU hashtable) by using an
+ * unconditional cpu feature.
  */
 #define HCALL_INST_POSTCALL					\
+BEGIN_FTR_SECTION;						\
+	b	1f;						\
+END_FTR_SECTION(0, 1);						\
 	ld	r4,STK_PARM(r3)(r1);	/* validate opcode */	\
 	cmpldi	cr7,r4,MAX_HCALL_OPCODE;			\
 	bgt-	cr7,1f;						\
@@ -117,6 +122,40 @@ _GLOBAL(plpar_hcall)
 	std	r7, 24(r12)
 
 	HCALL_INST_POSTCALL
+
+	lwz	r0,8(r1)
+	mtcrf	0xff,r0
+
+	blr				/* return r3 = status */
+
+/*
+ * plpar_hcall_raw can be called in real mode. kexec/kdump need some
+ * hypervisor calls to be executed in real mode. So plpar_hcall_raw
+ * does not access the per cpu hypervisor call statistics variables,
+ * since these variables may not be present in the RMO region.
+ */
+_GLOBAL(plpar_hcall_raw)
+	HMT_MEDIUM
+
+	mfcr	r0
+	stw	r0,8(r1)
+
+	std     r4,STK_PARM(r4)(r1)     /* Save ret buffer */
+
+	mr	r4,r5
+	mr	r5,r6
+	mr	r6,r7
+	mr	r7,r8
+	mr	r8,r9
+	mr	r9,r10
+
+	HVSC				/* invoke the hypervisor */
+
+	ld	r12,STK_PARM(r4)(r1)
+	std	r4,  0(r12)
+	std	r5,  8(r12)
+	std	r6, 16(r12)
+	std	r7, 24(r12)
 
 	lwz	r0,8(r1)
 	mtcrf	0xff,r0
