@@ -30,7 +30,6 @@
 #include <linux/param.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
-#include <linux/ide.h>
 #include <linux/irq.h>
 #include <linux/spinlock.h>
 

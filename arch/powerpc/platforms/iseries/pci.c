@@ -24,7 +24,6 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/ide.h>
 #include <linux/pci.h>
 
 #include <asm/io.h>
