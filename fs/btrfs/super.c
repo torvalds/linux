@@ -473,7 +473,10 @@ static int btrfs_sync_fs(struct super_block *sb, int wait)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root;
 	int ret;
+
 	sb->s_dirt = 0;
+	return 0;
+
 	root = btrfs_sb(sb);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);

@@ -467,7 +467,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 		return NULL;
 	}
 	buf = find_tree_block(root, ins.objectid);
-	dirty_tree_block(trans, root, buf);
+	set_buffer_uptodate(buf);
 	return buf;
 }
 
