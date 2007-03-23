@@ -395,9 +395,9 @@ fw_card_add(struct fw_card *card,
 	card->link_speed = link_speed;
 	card->guid = guid;
 
-	/* FIXME: add #define's for phy registers. */
 	/* Activate link_on bit and contender bit in our self ID packets.*/
-	if (card->driver->update_phy_reg(card, 4, 0, 0x80 | 0x40) < 0)
+	if (card->driver->update_phy_reg(card, 4, 0,
+					 PHY_LINK_ACTIVE | PHY_CONTENDER) < 0)
 		return -EIO;
 
 	/* The subsystem grabs a reference when the card is added and
@@ -483,7 +483,8 @@ static struct fw_card_driver dummy_driver = {
 void
 fw_core_remove_card(struct fw_card *card)
 {
-	card->driver->update_phy_reg(card, 4, 0x80 | 0x40, 0);
+	card->driver->update_phy_reg(card, 4,
+				     PHY_LINK_ACTIVE | PHY_CONTENDER, 0);
 	fw_core_initiate_bus_reset(card, 1);
 
 	down_write(&fw_bus_type.subsys.rwsem);
@@ -531,6 +532,11 @@ EXPORT_SYMBOL(fw_card_put);
 int
 fw_core_initiate_bus_reset(struct fw_card *card, int short_reset)
 {
-	return card->driver->update_phy_reg(card, short_reset ? 5 : 1, 0, 0x40);
+	int reg = short_reset ? 5 : 1;
+	/* The following values happen to be the same bit. However be
+	 * explicit for clarity. */
+	int bit = short_reset ? PHY_BUS_SHORT_RESET : PHY_BUS_RESET;
+
+	return card->driver->update_phy_reg(card, reg, 0, bit);
 }
 EXPORT_SYMBOL(fw_core_initiate_bus_reset);

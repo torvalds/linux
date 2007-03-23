@@ -107,6 +107,12 @@
 #define PHY_PACKET_LINK_ON	0x1
 #define PHY_PACKET_SELF_ID	0x2
 
+/* Bit fields _within_ the PHY registers. */
+#define PHY_LINK_ACTIVE		0x80
+#define PHY_CONTENDER		0x40
+#define PHY_BUS_RESET		0x40
+#define PHY_BUS_SHORT_RESET	0x40
+
 #define CSR_REGISTER_BASE		0xfffff0000000ULL
 
 /* register offsets relative to CSR_REGISTER_BASE */
