@@ -99,6 +99,8 @@ enum sctp_optname {
 #define SCTP_CONTEXT SCTP_CONTEXT
 	SCTP_FRAGMENT_INTERLEAVE,
 #define SCTP_FRAGMENT_INTERLEAVE SCTP_FRAGMENT_INTERLEAVE
+	SCTP_PARTIAL_DELIVERY_POINT,	/* Set/Get partial delivery point */
+#define SCTP_PARTIAL_DELIVERY_POINT SCTP_PARTIAL_DELIVERY_POINT
 
 	/* Internal Socket Options. Some of the sctp library functions are 
 	 * implemented using these socket options.

@@ -177,6 +177,15 @@ int sctp_clear_pd(struct sock *sk, struct sctp_association *asoc)
 	return 0;
 }
 
+/* Set the pd_mode on the socket and ulpq */
+static void sctp_ulpq_set_pd(struct sctp_ulpq *ulpq)
+{
+	struct sctp_sock *sp = sctp_sk(ulpq->asoc->base.sk);
+
+	atomic_inc(&sp->pd_mode);
+	ulpq->pd_mode = 1;
+}
+
 /* Clear the pd_mode and restart any pending messages waiting for delivery. */
 static int sctp_ulpq_clear_pd(struct sctp_ulpq *ulpq)
 {
@@ -401,6 +410,11 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_u
 	struct sk_buff *first_frag = NULL;
 	__u32 ctsn, next_tsn;
 	struct sctp_ulpevent *retval = NULL;
+	struct sk_buff *pd_first = NULL;
+	struct sk_buff *pd_last = NULL;
+	size_t pd_len = 0;
+	struct sctp_association *asoc;
+	u32 pd_point;
 
 	/* Initialized to 0 just to avoid compiler warning message.  Will
 	 * never be used with this value. It is referenced only after it
@@ -416,6 +430,10 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_u
 	 * we expect to find the remaining middle fragments and the last
 	 * fragment in order. If not, first_frag is reset to NULL and we
 	 * start the next pass when we find another first fragment.
+	 *
+	 * There is a potential to do partial delivery if user sets
+	 * SCTP_PARTIAL_DELIVERY_POINT option. Lets count some things here
+	 * to see if can do PD.
 	 */
 	skb_queue_walk(&ulpq->reasm, pos) {
 		cevent = sctp_skb2event(pos);
@@ -423,14 +441,32 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_u
 
 		switch (cevent->msg_flags & SCTP_DATA_FRAG_MASK) {
 		case SCTP_DATA_FIRST_FRAG:
+			/* If this "FIRST_FRAG" is the first
+			 * element in the queue, then count it towards
+			 * possible PD.
+			 */
+			if (pos == ulpq->reasm.next) {
+			    pd_first = pos;
+			    pd_last = pos;
+			    pd_len = pos->len;
+			} else {
+			    pd_first = NULL;
+			    pd_last = NULL;
+			    pd_len = 0;
+			}
+
 			first_frag = pos;
 			next_tsn = ctsn + 1;
 			break;
 
 		case SCTP_DATA_MIDDLE_FRAG:
-			if ((first_frag) && (ctsn == next_tsn))
+			if ((first_frag) && (ctsn == next_tsn)) {
 				next_tsn++;
-			else
+				if (pd_first) {
+				    pd_last = pos;
+				    pd_len += pos->len;
+				}
+			} else
 				first_frag = NULL;
 			break;
 
@@ -441,7 +477,28 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_u
 				first_frag = NULL;
 			break;
 		};
+	}
 
+	asoc = ulpq->asoc;
+	if (pd_first) {
+		/* Make sure we can enter partial deliver.
+		 * We can trigger partial delivery only if framgent
+		 * interleave is set, or the socket is not already
+		 * in  partial delivery.
+		 */
+		if (!sctp_sk(asoc->base.sk)->frag_interleave &&
+		    atomic_read(&sctp_sk(asoc->base.sk)->pd_mode))
+			goto done;
+
+		cevent = sctp_skb2event(pd_first);
+		pd_point = sctp_sk(asoc->base.sk)->pd_point;
+		if (pd_point && pd_point <= pd_len) {
+			retval = sctp_make_reassembled_event(&ulpq->reasm,
+							     pd_first,
+							     pd_last);
+			if (retval)
+				sctp_ulpq_set_pd(ulpq);
+		}
 	}
 done:
 	return retval;
@@ -882,8 +939,7 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 		/* Send event to the ULP.   */
 		if (event) {
 			sctp_ulpq_tail_event(ulpq, event);
-			atomic_inc(&sp->pd_mode);
-			ulpq->pd_mode = 1;
+			sctp_ulpq_set_pd(ulpq);
 			return;
 		}
 	}

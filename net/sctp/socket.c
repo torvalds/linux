@@ -2832,6 +2832,32 @@ static int sctp_setsockopt_fragment_interleave(struct sock *sk,
 	return 0;
 }
 
+/*
+ * 7.1.25.  Set or Get the sctp partial delivery point
+ *       (SCTP_PARTIAL_DELIVERY_POINT)
+ * This option will set or get the SCTP partial delivery point.  This
+ * point is the size of a message where the partial delivery API will be
+ * invoked to help free up rwnd space for the peer.  Setting this to a
+ * lower value will cause partial delivery's to happen more often.  The
+ * calls argument is an integer that sets or gets the partial delivery
+ * point.
+ */
+static int sctp_setsockopt_partial_delivery_point(struct sock *sk,
+						  char __user *optval,
+						  int optlen)
+{
+	u32 val;
+
+	if (optlen != sizeof(u32))
+		return -EINVAL;
+	if (get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	sctp_sk(sk)->pd_point = val;
+
+	return 0; /* is this the right error code? */
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -2910,6 +2936,9 @@ SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
 
 	case SCTP_DELAYED_ACK_TIME:
 		retval = sctp_setsockopt_delayed_ack_time(sk, optval, optlen);
+		break;
+	case SCTP_PARTIAL_DELIVERY_POINT:
+		retval = sctp_setsockopt_partial_delivery_point(sk, optval, optlen);
 		break;
 
 	case SCTP_INITMSG:
@@ -4602,6 +4631,30 @@ static int sctp_getsockopt_fragment_interleave(struct sock *sk, int len,
 	return 0;
 }
 
+/*
+ * 7.1.25.  Set or Get the sctp partial delivery point
+ * (chapter and verse is quoted at sctp_setsockopt_partial_delivery_point())
+ */
+static int sctp_getsockopt_partial_delivery_point(struct sock *sk, int len,
+						  char __user *optval,
+						  int __user *optlen)
+{
+        u32 val;
+
+	if (len < sizeof(u32))
+		return -EINVAL;
+
+	len = sizeof(u32);
+
+	val = sctp_sk(sk)->pd_point;
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return -ENOTSUPP;
+}
+
 SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 				char __user *optval, int __user *optlen)
 {
@@ -4717,6 +4770,10 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 	case SCTP_FRAGMENT_INTERLEAVE:
 		retval = sctp_getsockopt_fragment_interleave(sk, len, optval,
 							     optlen);
+		break;
+	case SCTP_PARTIAL_DELIVERY_POINT:
+		retval = sctp_getsockopt_partial_delivery_point(sk, len, optval,
+								optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;

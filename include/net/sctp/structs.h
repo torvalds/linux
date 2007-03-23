@@ -307,6 +307,7 @@ struct sctp_sock {
 	__u8 v4mapped;
 	__u8 frag_interleave;
 	__u32 adaptation_ind;
+	__u32 pd_point;
 
 	atomic_t pd_mode;
 	/* Receive to here while partial delivery is in effect. */
