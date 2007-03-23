@@ -810,13 +810,13 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 					       NETLINK_CB(skb).pid);
 			if (!inst) {
 				ret = -EINVAL;
-				goto out_put;
+				goto out;
 			}
 			break;
 		case NFULNL_CFG_CMD_UNBIND:
 			if (!inst) {
 				ret = -ENODEV;
-				goto out_put;
+				goto out;
 			}
 
 			if (inst->peer_pid != NETLINK_CB(skb).pid) {
@@ -849,7 +849,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 				"group=%u pid=%u =>ENOENT\n",
 				group_num, NETLINK_CB(skb).pid);
 			ret = -ENOENT;
-			goto out_put;
+			goto out;
 		}
 
 		if (inst->peer_pid != NETLINK_CB(skb).pid) {
