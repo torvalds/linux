@@ -806,68 +806,48 @@ done:
 	return skb->len;
 }
 
-static inline int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	if (!(nlh->nlmsg_flags&NLM_F_REQUEST))
-		return 0;
+	int hdrlen = sizeof(struct inet_diag_req);
 
-	if (nlh->nlmsg_type >= INET_DIAG_GETSOCK_MAX)
-		goto err_inval;
+	if (nlh->nlmsg_type >= INET_DIAG_GETSOCK_MAX ||
+	    nlmsg_len(nlh) < hdrlen)
+		return -EINVAL;
 
 	if (inet_diag_table[nlh->nlmsg_type] == NULL)
 		return -ENOENT;
 
-	if (NLMSG_LENGTH(sizeof(struct inet_diag_req)) > skb->len)
-		goto err_inval;
-
-	if (nlh->nlmsg_flags&NLM_F_DUMP) {
-		if (nlh->nlmsg_len >
-		    (4 + NLMSG_SPACE(sizeof(struct inet_diag_req)))) {
-			struct rtattr *rta = (void *)(NLMSG_DATA(nlh) +
-						 sizeof(struct inet_diag_req));
-			if (rta->rta_type != INET_DIAG_REQ_BYTECODE ||
-			    rta->rta_len < 8 ||
-			    rta->rta_len >
-			    (nlh->nlmsg_len -
-			     NLMSG_SPACE(sizeof(struct inet_diag_req))))
-				goto err_inval;
-			if (inet_diag_bc_audit(RTA_DATA(rta), RTA_PAYLOAD(rta)))
-				goto err_inval;
-		}
-		return netlink_dump_start(idiagnl, skb, nlh,
-					  inet_diag_dump, NULL);
-	} else
-		return inet_diag_get_exact(skb, nlh);
-
-err_inval:
-	return -EINVAL;
-}
-
-
-static inline void inet_diag_rcv_skb(struct sk_buff *skb)
-{
-	if (skb->len >= NLMSG_SPACE(0)) {
+	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		int err;
-		struct nlmsghdr *nlh = nlmsg_hdr(skb);
 
-		if (nlh->nlmsg_len < sizeof(*nlh) ||
-		    skb->len < nlh->nlmsg_len)
-			return;
-		err = inet_diag_rcv_msg(skb, nlh);
-		if (err || nlh->nlmsg_flags & NLM_F_ACK)
-			netlink_ack(skb, nlh, err);
+		if (nlmsg_attrlen(nlh, hdrlen)) {
+			struct nlattr *attr;
+
+			attr = nlmsg_find_attr(nlh, hdrlen,
+					       INET_DIAG_REQ_BYTECODE);
+			if (attr == NULL ||
+			    nla_len(attr) < sizeof(struct inet_diag_bc_op) ||
+			    inet_diag_bc_audit(nla_data(attr), nla_len(attr)))
+				return -EINVAL;
+		}
+
+		err = netlink_dump_start(idiagnl, skb, nlh,
+					 inet_diag_dump, NULL);
+		if (err == 0)
+			err = -EINTR;
+		return err;
 	}
+
+	return inet_diag_get_exact(skb, nlh);
 }
 
 static void inet_diag_rcv(struct sock *sk, int len)
 {
-	struct sk_buff *skb;
-	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
+	unsigned int qlen = 0;
 
-	while (qlen-- && (skb = skb_dequeue(&sk->sk_receive_queue))) {
-		inet_diag_rcv_skb(skb);
-		kfree_skb(skb);
-	}
+	do {
+		netlink_run_queue(sk, &qlen, &inet_diag_rcv_msg);
+	} while (qlen);
 }
 
 static DEFINE_SPINLOCK(inet_diag_register_lock);
