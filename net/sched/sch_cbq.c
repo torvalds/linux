@@ -386,7 +386,7 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 		psched_tdiff_t incr;
 
 		PSCHED_GET_TIME(now);
-		incr = PSCHED_TDIFF(now, q->now_rt);
+		incr = now - q->now_rt;
 		now = q->now + incr;
 
 		do {
@@ -474,7 +474,7 @@ cbq_requeue(struct sk_buff *skb, struct Qdisc *sch)
 static void cbq_ovl_classic(struct cbq_class *cl)
 {
 	struct cbq_sched_data *q = qdisc_priv(cl->qdisc);
-	psched_tdiff_t delay = PSCHED_TDIFF(cl->undertime, q->now);
+	psched_tdiff_t delay = cl->undertime - q->now;
 
 	if (!cl->delayed) {
 		delay += cl->offtime;
@@ -509,7 +509,7 @@ static void cbq_ovl_classic(struct cbq_class *cl)
 		psched_tdiff_t base_delay = q->wd_expires;
 
 		for (b = cl->borrow; b; b = b->borrow) {
-			delay = PSCHED_TDIFF(b->undertime, q->now);
+			delay = b->undertime - q->now;
 			if (delay < base_delay) {
 				if (delay <= 0)
 					delay = 1;
@@ -547,7 +547,7 @@ static void cbq_ovl_rclassic(struct cbq_class *cl)
 static void cbq_ovl_delay(struct cbq_class *cl)
 {
 	struct cbq_sched_data *q = qdisc_priv(cl->qdisc);
-	psched_tdiff_t delay = PSCHED_TDIFF(cl->undertime, q->now);
+	psched_tdiff_t delay = cl->undertime - q->now;
 
 	if (!cl->delayed) {
 		psched_time_t sched = q->now;
@@ -776,7 +776,7 @@ cbq_update(struct cbq_sched_data *q)
 			 idle = (now - last) - last_pktlen/rate
 		 */
 
-		idle = PSCHED_TDIFF(q->now, cl->last);
+		idle = q->now - cl->last;
 		if ((unsigned long)idle > 128*1024*1024) {
 			avgidle = cl->maxidle;
 		} else {
@@ -1004,7 +1004,7 @@ cbq_dequeue(struct Qdisc *sch)
 	psched_tdiff_t incr;
 
 	PSCHED_GET_TIME(now);
-	incr = PSCHED_TDIFF(now, q->now_rt);
+	incr = now - q->now_rt;
 
 	if (q->tx_class) {
 		psched_tdiff_t incr2;
@@ -1650,7 +1650,7 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	cl->xstats.undertime = 0;
 
 	if (cl->undertime != PSCHED_PASTPERFECT)
-		cl->xstats.undertime = PSCHED_TDIFF(cl->undertime, q->now);
+		cl->xstats.undertime = cl->undertime - q->now;
 
 	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||
 #ifdef CONFIG_NET_ESTIMATOR
