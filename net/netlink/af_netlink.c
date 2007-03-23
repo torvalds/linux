@@ -396,7 +396,6 @@ static int netlink_create(struct socket *sock, int protocol)
 {
 	struct module *module = NULL;
 	struct netlink_sock *nlk;
-	unsigned int groups;
 	int err = 0;
 
 	sock->state = SS_UNCONNECTED;
@@ -418,7 +417,6 @@ static int netlink_create(struct socket *sock, int protocol)
 	if (nl_table[protocol].registered &&
 	    try_module_get(nl_table[protocol].module))
 		module = nl_table[protocol].module;
-	groups = nl_table[protocol].groups;
 	netlink_unlock_table();
 
 	if ((err = __netlink_create(sock, protocol)) < 0)
