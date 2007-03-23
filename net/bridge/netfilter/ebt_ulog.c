@@ -297,9 +297,7 @@ static int __init ebt_ulog_init(void)
 
 	/* initialize ulog_buffers */
 	for (i = 0; i < EBT_ULOG_MAXNLGROUPS; i++) {
-		init_timer(&ulog_buffers[i].timer);
-		ulog_buffers[i].timer.function = ulog_timer;
-		ulog_buffers[i].timer.data = i;
+		setup_timer(&ulog_buffers[i].timer, ulog_timer, i);
 		spin_lock_init(&ulog_buffers[i].lock);
 	}
 

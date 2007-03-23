@@ -158,10 +158,7 @@ instance_create(u_int16_t group_num, int pid)
 	/* needs to be two, since we _put() after creation */
 	atomic_set(&inst->use, 2);
 
-	init_timer(&inst->timer);
-	inst->timer.function = nfulnl_timer;
-	inst->timer.data = (unsigned long)inst;
-	/* don't start timer yet. (re)start it  with every packet */
+	setup_timer(&inst->timer, nfulnl_timer, (unsigned long)inst);
 
 	inst->peer_pid = pid;
 	inst->group_num = group_num;

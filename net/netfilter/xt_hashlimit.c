@@ -216,10 +216,8 @@ static int htable_create(struct xt_hashlimit_info *minfo, int family)
 	hinfo->pde->proc_fops = &dl_file_ops;
 	hinfo->pde->data = hinfo;
 
-	init_timer(&hinfo->timer);
+	setup_timer(&hinfo->timer, htable_gc, (unsigned long )hinfo);
 	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);
-	hinfo->timer.data = (unsigned long )hinfo;
-	hinfo->timer.function = htable_gc;
 	add_timer(&hinfo->timer);
 
 	spin_lock_bh(&hashlimit_lock);

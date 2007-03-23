@@ -353,9 +353,7 @@ nf_ct_frag6_create(unsigned int hash, __be32 id, struct in6_addr *src,				   str
 	ipv6_addr_copy(&fq->saddr, src);
 	ipv6_addr_copy(&fq->daddr, dst);
 
-	init_timer(&fq->timer);
-	fq->timer.function = nf_ct_frag6_expire;
-	fq->timer.data = (long) fq;
+	setup_timer(&fq->timer, nf_ct_frag6_expire, (unsigned long)fq);
 	spin_lock_init(&fq->lock);
 	atomic_set(&fq->refcnt, 1);
 
@@ -870,8 +868,7 @@ int nf_ct_frag6_init(void)
 	nf_ct_frag6_hash_rnd = (u32) ((num_physpages ^ (num_physpages>>7)) ^
 				   (jiffies ^ (jiffies >> 6)));
 
-	init_timer(&nf_ct_frag6_secret_timer);
-	nf_ct_frag6_secret_timer.function = nf_ct_frag6_secret_rebuild;
+	setup_timer(&nf_ct_frag6_secret_timer, nf_ct_frag6_secret_rebuild, 0);
 	nf_ct_frag6_secret_timer.expires = jiffies
 					   + nf_ct_frag6_secret_interval;
 	add_timer(&nf_ct_frag6_secret_timer);

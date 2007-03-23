@@ -376,11 +376,8 @@ static int __init ipt_ulog_init(void)
 	}
 
 	/* initialize ulog_buffers */
-	for (i = 0; i < ULOG_MAXNLGROUPS; i++) {
-		init_timer(&ulog_buffers[i].timer);
-		ulog_buffers[i].timer.function = ulog_timer;
-		ulog_buffers[i].timer.data = i;
-	}
+	for (i = 0; i < ULOG_MAXNLGROUPS; i++)
+		setup_timer(&ulog_buffers[i].timer, ulog_timer, i);
 
 	nflognl = netlink_kernel_create(NETLINK_NFLOG, ULOG_MAXNLGROUPS, NULL,
 					THIS_MODULE);

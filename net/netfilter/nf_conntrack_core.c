@@ -620,9 +620,8 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 	conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	conntrack->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
 	/* Don't set timer yet: wait for confirmation */
-	init_timer(&conntrack->timeout);
-	conntrack->timeout.data = (unsigned long)conntrack;
-	conntrack->timeout.function = death_by_timeout;
+	setup_timer(&conntrack->timeout, death_by_timeout,
+		    (unsigned long)conntrack);
 	read_unlock_bh(&nf_ct_cache_lock);
 
 	return conntrack;
