@@ -201,7 +201,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 
 		PSCHED_GET_TIME(now);
 
-		toks = PSCHED_TDIFF_SAFE(now, q->t_c, q->buffer);
+		toks = psched_tdiff_bounded(now, q->t_c, q->buffer);
 
 		if (q->P_tab) {
 			ptoks = toks + q->ptokens;

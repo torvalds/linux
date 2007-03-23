@@ -298,8 +298,8 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 
 		PSCHED_GET_TIME(now);
 
-		toks = PSCHED_TDIFF_SAFE(now, police->tcfp_t_c,
-					 police->tcfp_burst);
+		toks = psched_tdiff_bounded(now, police->tcfp_t_c,
+					    police->tcfp_burst);
 		if (police->tcfp_P_tab) {
 			ptoks = toks + police->tcfp_ptoks;
 			if (ptoks > (long)L2T_P(police, police->tcfp_mtu))
@@ -544,8 +544,8 @@ int tcf_police(struct sk_buff *skb, struct tcf_police *police)
 		}
 
 		PSCHED_GET_TIME(now);
-		toks = PSCHED_TDIFF_SAFE(now, police->tcfp_t_c,
-					 police->tcfp_burst);
+		toks = psched_tdiff_bounded(now, police->tcfp_t_c,
+					    police->tcfp_burst);
 		if (police->tcfp_P_tab) {
 			ptoks = toks + police->tcfp_ptoks;
 			if (ptoks > (long)L2T_P(police, police->tcfp_mtu))

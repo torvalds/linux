@@ -178,7 +178,7 @@ static inline unsigned long red_calc_qavg_from_idle_time(struct red_parms *p)
 	int  shift;
 
 	PSCHED_GET_TIME(now);
-	us_idle = PSCHED_TDIFF_SAFE(now, p->qidlestart, p->Scell_max);
+	us_idle = psched_tdiff_bounded(now, p->qidlestart, p->Scell_max);
 
 	/*
 	 * The problem: ideally, average length queue recalcultion should
