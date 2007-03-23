@@ -857,7 +857,7 @@ static int onenand_transfer_auto_oob(struct mtd_info *mtd, uint8_t *buf, int col
 			int n = ed - st;
 			memcpy(buf, oob_buf + st, n);
 			buf += n;
-		} else
+		} else if (column == 0)
 			break;
 	}
 	return 0;
@@ -1302,7 +1302,7 @@ static int onenand_fill_auto_oob(struct mtd_info *mtd, u_char *oob_buf,
 			int n = ed - st;
 			memcpy(oob_buf + st, buf, n);
 			buf += n;
-		} else
+		} else if (column == 0)
 			break;
 	}
 	return 0;
