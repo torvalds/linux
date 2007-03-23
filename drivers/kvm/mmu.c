@@ -568,6 +568,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     gva_t gaddr,
 					     unsigned level,
 					     int metaphysical,
+					     unsigned hugepage_access,
 					     u64 *parent_pte)
 {
 	union kvm_mmu_page_role role;
@@ -581,6 +582,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	role.glevels = vcpu->mmu.root_level;
 	role.level = level;
 	role.metaphysical = metaphysical;
+	role.hugepage_access = hugepage_access;
 	if (vcpu->mmu.root_level <= PT32_ROOT_LEVEL) {
 		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
 		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
@@ -780,7 +782,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, hpa_t p)
 				>> PAGE_SHIFT;
 			new_table = kvm_mmu_get_page(vcpu, pseudo_gfn,
 						     v, level - 1,
-						     1, &table[index]);
+						     1, 0, &table[index]);
 			if (!new_table) {
 				pgprintk("nonpaging_map: ENOMEM\n");
 				return -ENOMEM;
@@ -835,7 +837,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 
 		ASSERT(!VALID_PAGE(root));
 		page = kvm_mmu_get_page(vcpu, root_gfn, 0,
-					PT64_ROOT_LEVEL, 0, NULL);
+					PT64_ROOT_LEVEL, 0, 0, NULL);
 		root = page->page_hpa;
 		++page->root_count;
 		vcpu->mmu.root_hpa = root;
@@ -852,7 +854,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 			root_gfn = 0;
 		page = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 					PT32_ROOT_LEVEL, !is_paging(vcpu),
-					NULL);
+					0, NULL);
 		root = page->page_hpa;
 		++page->root_count;
 		vcpu->mmu.pae_root[i] = root | PT_PRESENT_MASK;
