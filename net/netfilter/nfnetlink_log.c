@@ -660,19 +660,11 @@ nfulnl_log_packet(unsigned int pf,
 		break;
 
 	default:
-		spin_unlock_bh(&inst->lock);
-		instance_put(inst);
-		return;
+		goto unlock_and_release;
 	}
 
-	if (!inst->skb) {
-		if (!(inst->skb = nfulnl_alloc_skb(inst->nlbufsiz, size))) {
-			UDEBUG("error in nfulnl_alloc_skb(%u, %u)\n",
-				inst->nlbufsiz, size);
-			goto alloc_failure;
-		}
-	} else if (inst->qlen >= qthreshold ||
-		   size > skb_tailroom(inst->skb)) {
+	if (inst->qlen >= qthreshold ||
+	    (inst->skb && size > skb_tailroom(inst->skb))) {
 		/* either the queue len is too high or we don't have
 		 * enough room in the skb left. flush to userspace. */
 		UDEBUG("flushing old skb\n");
@@ -681,12 +673,12 @@ nfulnl_log_packet(unsigned int pf,
 		if (del_timer(&inst->timer))
 			instance_put(inst);
 		__nfulnl_send(inst);
+	}
 
-		if (!(inst->skb = nfulnl_alloc_skb(inst->nlbufsiz, size))) {
-			UDEBUG("error in nfulnl_alloc_skb(%u, %u)\n",
-				inst->nlbufsiz, size);
+	if (!inst->skb) {
+		inst->skb = nfulnl_alloc_skb(inst->nlbufsiz, size);
+		if (!inst->skb)
 			goto alloc_failure;
-		}
 	}
 
 	UDEBUG("qlen %d, qthreshold %d\n", inst->qlen, qthreshold);
