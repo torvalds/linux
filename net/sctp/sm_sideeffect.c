@@ -464,7 +464,7 @@ static void sctp_cmd_init_failed(sctp_cmd_seq_t *commands,
 	struct sctp_ulpevent *event;
 
 	event = sctp_ulpevent_make_assoc_change(asoc,0, SCTP_CANT_STR_ASSOC,
-						(__u16)error, 0, 0,
+						(__u16)error, 0, 0, NULL,
 						GFP_ATOMIC);
 
 	if (event)
@@ -492,8 +492,13 @@ static void sctp_cmd_assoc_failed(sctp_cmd_seq_t *commands,
 	/* Cancel any partial delivery in progress. */
 	sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
 
-	event = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_COMM_LOST,
-						(__u16)error, 0, 0,
+	if (event_type == SCTP_EVENT_T_CHUNK && subtype.chunk == SCTP_CID_ABORT)
+		event = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_COMM_LOST,
+						(__u16)error, 0, 0, chunk,
+						GFP_ATOMIC);
+	else
+		event = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_COMM_LOST,
+						(__u16)error, 0, 0, NULL,
 						GFP_ATOMIC);
 	if (event)
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
