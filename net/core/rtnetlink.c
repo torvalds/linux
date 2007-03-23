@@ -621,7 +621,8 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		if (err < 0)
 			goto errout;
 
-		iw += IW_EV_POINT_OFF;
+		/* Payload is at an offset in buffer */
+		iw = iw_buf + IW_EV_POINT_OFF;
 	}
 #endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
 
