@@ -1579,7 +1579,7 @@ void bcm43xx_radio_set_tx_iq(struct bcm43xx_private *bcm)
 	
 	for (i = 0; i < 5; i++) {
 		for (j = 0; j < 5; j++) {
-			if (tmp == (data_high[i] << 4 | data_low[j])) {
+			if (tmp == (data_high[i] | data_low[j])) {
 				bcm43xx_phy_write(bcm, 0x0069, (i - j) << 8 | 0x00C0);
 				return;
 			}
