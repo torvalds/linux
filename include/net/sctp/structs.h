@@ -276,6 +276,7 @@ struct sctp_sock {
 	__u32 default_context;
 	__u32 default_timetolive;
 	__u32 default_rcv_context;
+	int max_burst;
 
 	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
 	 * the destination address every heartbeat interval. This value

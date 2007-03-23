@@ -1042,7 +1042,7 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_cookie_preserve_enable 	= 1;
 
 	/* Max.Burst		    - 4 */
-	sctp_max_burst 			= SCTP_MAX_BURST;
+	sctp_max_burst 			= SCTP_DEFAULT_MAX_BURST;
 
 	/* Association.Max.Retrans  - 10 attempts
 	 * Path.Max.Retrans         - 5  attempts (per destination address)
