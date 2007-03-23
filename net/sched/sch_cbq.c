@@ -738,7 +738,7 @@ cbq_update_toplevel(struct cbq_sched_data *q, struct cbq_class *cl,
 	if (cl && q->toplevel >= borrowed->level) {
 		if (cl->q->q.qlen > 1) {
 			do {
-				if (PSCHED_IS_PASTPERFECT(borrowed->undertime)) {
+				if (borrowed->undertime == PSCHED_PASTPERFECT) {
 					q->toplevel = borrowed->level;
 					return;
 				}
@@ -824,7 +824,7 @@ cbq_update(struct cbq_sched_data *q)
 		} else {
 			/* Underlimit */
 
-			PSCHED_SET_PASTPERFECT(cl->undertime);
+			cl->undertime = PSCHED_PASTPERFECT;
 			if (avgidle > cl->maxidle)
 				cl->avgidle = cl->maxidle;
 			else
@@ -845,7 +845,7 @@ cbq_under_limit(struct cbq_class *cl)
 	if (cl->tparent == NULL)
 		return cl;
 
-	if (PSCHED_IS_PASTPERFECT(cl->undertime) || q->now >= cl->undertime) {
+	if (cl->undertime == PSCHED_PASTPERFECT || q->now >= cl->undertime) {
 		cl->delayed = 0;
 		return cl;
 	}
@@ -868,8 +868,7 @@ cbq_under_limit(struct cbq_class *cl)
 		}
 		if (cl->level > q->toplevel)
 			return NULL;
-	} while (!PSCHED_IS_PASTPERFECT(cl->undertime) &&
-		 q->now < cl->undertime);
+	} while (cl->undertime != PSCHED_PASTPERFECT && q->now < cl->undertime);
 
 	cl->delayed = 0;
 	return cl;
@@ -1054,11 +1053,11 @@ cbq_dequeue(struct Qdisc *sch)
 		*/
 
 		if (q->toplevel == TC_CBQ_MAXLEVEL &&
-		    PSCHED_IS_PASTPERFECT(q->link.undertime))
+		    q->link.undertime == PSCHED_PASTPERFECT)
 			break;
 
 		q->toplevel = TC_CBQ_MAXLEVEL;
-		PSCHED_SET_PASTPERFECT(q->link.undertime);
+		q->link.undertime = PSCHED_PASTPERFECT;
 	}
 
 	/* No packets in scheduler or nobody wants to give them to us :-(
@@ -1289,7 +1288,7 @@ cbq_reset(struct Qdisc* sch)
 			qdisc_reset(cl->q);
 
 			cl->next_alive = NULL;
-			PSCHED_SET_PASTPERFECT(cl->undertime);
+			cl->undertime = PSCHED_PASTPERFECT;
 			cl->avgidle = cl->maxidle;
 			cl->deficit = cl->quantum;
 			cl->cpriority = cl->priority;
@@ -1650,7 +1649,7 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	cl->xstats.avgidle = cl->avgidle;
 	cl->xstats.undertime = 0;
 
-	if (!PSCHED_IS_PASTPERFECT(cl->undertime))
+	if (cl->undertime != PSCHED_PASTPERFECT)
 		cl->xstats.undertime = PSCHED_TDIFF(cl->undertime, q->now);
 
 	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||

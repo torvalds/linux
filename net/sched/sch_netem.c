@@ -532,7 +532,7 @@ static int tfifo_init(struct Qdisc *sch, struct rtattr *opt)
 	} else
 		q->limit = max_t(u32, sch->dev->tx_queue_len, 1);
 
-	PSCHED_SET_PASTPERFECT(q->oldest);
+	q->oldest = PSCHED_PASTPERFECT;
 	return 0;
 }
 

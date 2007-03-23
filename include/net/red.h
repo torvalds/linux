@@ -151,7 +151,7 @@ static inline void red_set_parms(struct red_parms *p,
 
 static inline int red_is_idling(struct red_parms *p)
 {
-	return !PSCHED_IS_PASTPERFECT(p->qidlestart);
+	return p->qidlestart != PSCHED_PASTPERFECT;
 }
 
 static inline void red_start_of_idle_period(struct red_parms *p)
@@ -161,7 +161,7 @@ static inline void red_start_of_idle_period(struct red_parms *p)
 
 static inline void red_end_of_idle_period(struct red_parms *p)
 {
-	PSCHED_SET_PASTPERFECT(p->qidlestart);
+	p->qidlestart = PSCHED_PASTPERFECT;
 }
 
 static inline void red_restart(struct red_parms *p)

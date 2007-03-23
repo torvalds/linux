@@ -54,8 +54,7 @@ typedef long	psched_tdiff_t;
 #define PSCHED_TDIFF(tv1, tv2)		(long)((tv1) - (tv2))
 #define PSCHED_TDIFF_SAFE(tv1, tv2, bound) \
 					min_t(long long, (tv1) - (tv2), bound)
-#define PSCHED_SET_PASTPERFECT(t)	((t) = 0)
-#define PSCHED_IS_PASTPERFECT(t)	((t) == 0)
+#define PSCHED_PASTPERFECT		0
 
 struct qdisc_watchdog {
 	struct hrtimer	timer;
