@@ -1887,7 +1887,13 @@ typedef struct {
 						      calls including posix open
 						      and posix unlink */ 
 #ifdef CONFIG_CIFS_POSIX
-#define CIFS_UNIX_CAP_MASK              0x0000003b
+/* Can not set pathnames cap yet until we send new posix create SMB since
+   otherwise server can treat such handles opened with older ntcreatex
+   (by a new client which knows how to send posix path ops)
+   as non-posix handles (can affect write behavior with byte range locks.
+   We can add back in POSIX_PATH_OPS cap when Posix Create/Mkdir finished */
+/* #define CIFS_UNIX_CAP_MASK              0x0000003b */
+#define CIFS_UNIX_CAP_MASK              0x0000001b 
 #else 
 #define CIFS_UNIX_CAP_MASK              0x00000013
 #endif /* CONFIG_CIFS_POSIX */
