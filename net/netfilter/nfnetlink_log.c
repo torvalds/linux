@@ -360,9 +360,6 @@ __nfulnl_send(struct nfulnl_instance *inst)
 {
 	int status;
 
-	if (!inst->skb)
-		return 0;
-
 	if (inst->qlen > 1)
 		inst->lastnlh->nlmsg_type = NLMSG_DONE;
 
@@ -386,7 +383,8 @@ static void nfulnl_timer(unsigned long data)
 	UDEBUG("timer function called, flushing buffer\n");
 
 	spin_lock_bh(&inst->lock);
-	__nfulnl_send(inst);
+	if (inst->skb)
+		__nfulnl_send(inst);
 	spin_unlock_bh(&inst->lock);
 	instance_put(inst);
 }
