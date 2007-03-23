@@ -390,7 +390,7 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 		now = q->now + incr;
 
 		do {
-			if (PSCHED_TLESS(cl->undertime, now)) {
+			if (cl->undertime < now) {
 				q->toplevel = cl->level;
 				return;
 			}
@@ -845,8 +845,7 @@ cbq_under_limit(struct cbq_class *cl)
 	if (cl->tparent == NULL)
 		return cl;
 
-	if (PSCHED_IS_PASTPERFECT(cl->undertime) ||
-	    !PSCHED_TLESS(q->now, cl->undertime)) {
+	if (PSCHED_IS_PASTPERFECT(cl->undertime) || q->now >= cl->undertime) {
 		cl->delayed = 0;
 		return cl;
 	}
@@ -870,7 +869,7 @@ cbq_under_limit(struct cbq_class *cl)
 		if (cl->level > q->toplevel)
 			return NULL;
 	} while (!PSCHED_IS_PASTPERFECT(cl->undertime) &&
-		 PSCHED_TLESS(q->now, cl->undertime));
+		 q->now < cl->undertime);
 
 	cl->delayed = 0;
 	return cl;

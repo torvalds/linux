@@ -286,7 +286,7 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 		/* if more time remaining? */
 		PSCHED_GET_TIME(now);
 
-		if (!PSCHED_TLESS(now, cb->time_to_send)) {
+		if (cb->time_to_send <= now) {
 			pr_debug("netem_dequeue: return skb=%p\n", skb);
 			sch->q.qlen--;
 			return skb;
@@ -494,7 +494,7 @@ static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 
 	if (likely(skb_queue_len(list) < q->limit)) {
 		/* Optimize for add at tail */
-		if (likely(skb_queue_empty(list) || !PSCHED_TLESS(tnext, q->oldest))) {
+		if (likely(skb_queue_empty(list) || tnext >= q->oldest)) {
 			q->oldest = tnext;
 			return qdisc_enqueue_tail(nskb, sch);
 		}
@@ -503,7 +503,7 @@ static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 			const struct netem_skb_cb *cb
 				= (const struct netem_skb_cb *)skb->cb;
 
-			if (!PSCHED_TLESS(tnext, cb->time_to_send))
+			if (tnext >= cb->time_to_send)
 				break;
 		}
 
