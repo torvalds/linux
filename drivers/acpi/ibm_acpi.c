@@ -78,43 +78,12 @@
  *  2004-08-09	0.1	initial release, support for X series
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/string.h>
-
-#include <linux/proc_fs.h>
-#include <linux/backlight.h>
-#include <linux/fb.h>
-#include <asm/uaccess.h>
-
-#include <linux/dmi.h>
-#include <linux/jiffies.h>
-#include <linux/workqueue.h>
-
-#include <acpi/acpi_drivers.h>
-#include <acpi/acnamesp.h>
-
-#define IBM_NAME "ibm"
-#define IBM_DESC "IBM ThinkPad ACPI Extras"
-#define IBM_FILE "ibm_acpi"
-#define IBM_URL "http://ibm-acpi.sf.net/"
+#include "ibm_acpi.h"
 
 MODULE_AUTHOR("Borislav Deianov, Henrique de Moraes Holschuh");
 MODULE_DESCRIPTION(IBM_DESC);
 MODULE_VERSION(IBM_VERSION);
 MODULE_LICENSE("GPL");
-
-#define IBM_DIR IBM_NAME
-
-#define IBM_LOG IBM_FILE ": "
-#define IBM_ERR	   KERN_ERR    IBM_LOG
-#define IBM_NOTICE KERN_NOTICE IBM_LOG
-#define IBM_INFO   KERN_INFO   IBM_LOG
-#define IBM_DEBUG  KERN_DEBUG  IBM_LOG
-
-#define IBM_MAX_ACPI_ARGS 3
 
 #define __unused __attribute__ ((unused))
 
@@ -206,22 +175,6 @@ IBM_HANDLE(gfan, ec, "GFAN",	/* 570 */
 IBM_HANDLE(sfan, ec, "SFAN",	/* 570 */
 	   "JFNS",		/* 770x-JL */
     );				/* all others */
-
-#define IBM_HKEY_HID	"IBM0068"
-#define IBM_PCI_HID	"PNP0A03"
-
-enum thermal_access_mode {
-	IBMACPI_THERMAL_NONE = 0,	/* No thermal support */
-	IBMACPI_THERMAL_ACPI_TMP07,	/* Use ACPI TMP0-7 */
-	IBMACPI_THERMAL_ACPI_UPDT,	/* Use ACPI TMP0-7 with UPDT */
-	IBMACPI_THERMAL_TPEC_8,		/* Use ACPI EC regs, 8 sensors */
-	IBMACPI_THERMAL_TPEC_16,	/* Use ACPI EC regs, 16 sensors */
-};
-
-#define IBMACPI_MAX_THERMAL_SENSORS 16	/* Max thermal sensors supported */
-struct ibm_thermal_sensors_struct {
-	s32 temp[IBMACPI_MAX_THERMAL_SENSORS];
-};
 
 /*
  * FAN ACCESS MODES
@@ -323,71 +276,11 @@ struct ibm_thermal_sensors_struct {
  * 	but the ACPI tables just mention level 7.
  */
 
-enum fan_status_access_mode {
-	IBMACPI_FAN_NONE = 0,		/* No fan status or control */
-	IBMACPI_FAN_RD_ACPI_GFAN,	/* Use ACPI GFAN */
-	IBMACPI_FAN_RD_TPEC,		/* Use ACPI EC regs 0x2f, 0x84-0x85 */
-};
-
-enum fan_control_access_mode {
-	IBMACPI_FAN_WR_NONE = 0,	/* No fan control */
-	IBMACPI_FAN_WR_ACPI_SFAN,	/* Use ACPI SFAN */
-	IBMACPI_FAN_WR_TPEC,		/* Use ACPI EC reg 0x2f */
-	IBMACPI_FAN_WR_ACPI_FANS,	/* Use ACPI FANS and EC reg 0x2f */
-};
-
-enum fan_control_commands {
-	IBMACPI_FAN_CMD_SPEED 	= 0x0001,	/* speed command */
-	IBMACPI_FAN_CMD_LEVEL 	= 0x0002,	/* level command  */
-	IBMACPI_FAN_CMD_ENABLE	= 0x0004,	/* enable/disable cmd,
-						 * and also watchdog cmd */
-};
-
-enum {					/* Fan control constants */
-	fan_status_offset = 0x2f,	/* EC register 0x2f */
-	fan_rpm_offset = 0x84,		/* EC register 0x84: LSB, 0x85 MSB (RPM)
-					 * 0x84 must be read before 0x85 */
-
-	IBMACPI_FAN_EC_DISENGAGED 	= 0x40,	/* EC mode: tachometer
-						 * disengaged */
-	IBMACPI_FAN_EC_AUTO		= 0x80, /* EC mode: auto fan
-						 * control */
-};
-
 static char *ibm_thinkpad_ec_found = NULL;
-
-struct ibm_struct {
-	char *name;
-	char param[32];
-
-	char *hid;
-	struct acpi_driver *driver;
-
-	int (*init) (void);
-	int (*read) (char *);
-	int (*write) (char *);
-	void (*exit) (void);
-
-	void (*notify) (struct ibm_struct *, u32);
-	acpi_handle *handle;
-	int type;
-	struct acpi_device *device;
-
-	int driver_registered;
-	int proc_created;
-	int init_called;
-	int notify_installed;
-
-	int experimental;
-};
 
 static struct proc_dir_entry *proc_dir = NULL;
 
 static struct backlight_device *ibm_backlight_device = NULL;
-
-#define onoff(status,bit) ((status) & (1 << (bit)) ? "on" : "off")
-#define enabled(status,bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
-#define strlencmp(a,b) (strncmp((a), (b), strlen(b)))
 
 static int acpi_evalf(acpi_handle handle,
 		      void *res, char *method, char *fmt, ...)
@@ -774,13 +667,6 @@ static int wan_write(char *buf)
 
 	return 0;
 }
-
-enum video_access_mode {
-	IBMACPI_VIDEO_NONE = 0,
-	IBMACPI_VIDEO_570,	/* 570 */
-	IBMACPI_VIDEO_770,	/* 600e/x, 770e, 770x */
-	IBMACPI_VIDEO_NEW,	/* all others */
-};
 
 static enum video_access_mode video_supported;
 static int video_orig_autosw;
@@ -1248,12 +1134,6 @@ static int cmos_write(char *buf)
 	return 0;
 }
 
-enum led_access_mode {
-	IBMACPI_LED_NONE = 0,
-	IBMACPI_LED_570,	/* 570 */
-	IBMACPI_LED_OLD,	/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
-	IBMACPI_LED_NEW,	/* all others */
-};
 static enum led_access_mode led_supported;
 
 static int led_init(void)
@@ -1309,10 +1189,6 @@ static const int led_sled_arg1[] = { 0, 1, 3 };
 static const int led_exp_hlbl[] = { 0, 0, 1 };	/* led# * */
 static const int led_exp_hlcl[] = { 0, 1, 1 };	/* led# * */
 static const int led_led_arg1[] = { 0, 0x80, 0xc0 };
-
-#define IBMACPI_LED_EC_HLCL 0x0c
-#define IBMACPI_LED_EC_HLBL 0x0d
-#define IBMACPI_LED_EC_HLMS 0x0e
 
 static int led_write(char *buf)
 {
@@ -1629,8 +1505,6 @@ static int ecdump_write(char *buf)
 	return 0;
 }
 
-static int brightness_offset = 0x31;
-
 static int brightness_get(struct backlight_device *bd)
 {
 	u8 level;
@@ -1658,9 +1532,6 @@ static int brightness_read(char *p)
 
 	return len;
 }
-
-#define TP_CMOS_BRIGHTNESS_UP	4
-#define TP_CMOS_BRIGHTNESS_DOWN	5
 
 static int brightness_set(int value)
 {
@@ -1752,8 +1623,6 @@ static void brightness_exit(void)
 	}
 }
 
-static int volume_offset = 0x30;
-
 static int volume_read(char *p)
 {
 	int len = 0;
@@ -1771,10 +1640,6 @@ static int volume_read(char *p)
 
 	return len;
 }
-
-#define TP_CMOS_VOLUME_DOWN	0
-#define TP_CMOS_VOLUME_UP	1
-#define TP_CMOS_VOLUME_MUTE	2
 
 static int volume_write(char *buf)
 {
@@ -2562,8 +2427,6 @@ static int __init register_ibmacpi_subdriver(struct ibm_struct *ibm)
 
 	return ret;
 }
-
-static void ibm_exit(struct ibm_struct *ibm);
 
 static int __init ibm_init(struct ibm_struct *ibm)
 {
