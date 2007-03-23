@@ -51,8 +51,8 @@
 #include "mv643xx_eth.h"
 
 /* Static function declarations */
-static void eth_port_uc_addr_get(struct net_device *dev,
-						unsigned char *MacAddr);
+static void eth_port_uc_addr_get(unsigned int port_num, unsigned char *p_addr);
+static void eth_port_uc_addr_set(unsigned int port_num, unsigned char *p_addr);
 static void eth_port_set_multicast_list(struct net_device *);
 static void mv643xx_eth_port_enable_tx(unsigned int port_num,
 						unsigned int queues);
@@ -1381,7 +1381,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	port_num = mp->port_num = pd->port_number;
 
 	/* set default config values */
-	eth_port_uc_addr_get(dev, dev->dev_addr);
+	eth_port_uc_addr_get(port_num, dev->dev_addr);
 	mp->rx_ring_size = MV643XX_ETH_PORT_DEFAULT_RECEIVE_QUEUE_SIZE;
 	mp->tx_ring_size = MV643XX_ETH_PORT_DEFAULT_TRANSMIT_QUEUE_SIZE;
 
@@ -1839,26 +1839,9 @@ static void eth_port_start(struct net_device *dev)
 }
 
 /*
- * eth_port_uc_addr_set - This function Set the port Unicast address.
- *
- * DESCRIPTION:
- *		This function Set the port Ethernet MAC address.
- *
- * INPUT:
- *	unsigned int	eth_port_num	Port number.
- *	char *		p_addr		Address to be set
- *
- * OUTPUT:
- *	Set MAC address low and high registers. also calls
- *	eth_port_set_filter_table_entry() to set the unicast
- *	table with the proper information.
- *
- * RETURN:
- *	N/A.
- *
+ * eth_port_uc_addr_set - Write a MAC address into the port's hw registers
  */
-static void eth_port_uc_addr_set(unsigned int eth_port_num,
-							unsigned char *p_addr)
+static void eth_port_uc_addr_set(unsigned int port_num, unsigned char *p_addr)
 {
 	unsigned int mac_h;
 	unsigned int mac_l;
@@ -1868,40 +1851,24 @@ static void eth_port_uc_addr_set(unsigned int eth_port_num,
 	mac_h = (p_addr[0] << 24) | (p_addr[1] << 16) | (p_addr[2] << 8) |
 							(p_addr[3] << 0);
 
-	mv_write(MV643XX_ETH_MAC_ADDR_LOW(eth_port_num), mac_l);
-	mv_write(MV643XX_ETH_MAC_ADDR_HIGH(eth_port_num), mac_h);
+	mv_write(MV643XX_ETH_MAC_ADDR_LOW(port_num), mac_l);
+	mv_write(MV643XX_ETH_MAC_ADDR_HIGH(port_num), mac_h);
 
-	/* Accept frames of this address */
-	table = MV643XX_ETH_DA_FILTER_UNICAST_TABLE_BASE(eth_port_num);
+	/* Accept frames with this address */
+	table = MV643XX_ETH_DA_FILTER_UNICAST_TABLE_BASE(port_num);
 	eth_port_set_filter_table_entry(table, p_addr[5] & 0x0f);
 }
 
 /*
- * eth_port_uc_addr_get - This function retrieves the port Unicast address
- * (MAC address) from the ethernet hw registers.
- *
- * DESCRIPTION:
- *		This function retrieves the port Ethernet MAC address.
- *
- * INPUT:
- *	unsigned int	eth_port_num	Port number.
- *	char		*MacAddr	pointer where the MAC address is stored
- *
- * OUTPUT:
- *	Copy the MAC address to the location pointed to by MacAddr
- *
- * RETURN:
- *	N/A.
- *
+ * eth_port_uc_addr_get - Read the MAC address from the port's hw registers
  */
-static void eth_port_uc_addr_get(struct net_device *dev, unsigned char *p_addr)
+static void eth_port_uc_addr_get(unsigned int port_num, unsigned char *p_addr)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int mac_h;
 	unsigned int mac_l;
 
-	mac_h = mv_read(MV643XX_ETH_MAC_ADDR_HIGH(mp->port_num));
-	mac_l = mv_read(MV643XX_ETH_MAC_ADDR_LOW(mp->port_num));
+	mac_h = mv_read(MV643XX_ETH_MAC_ADDR_HIGH(port_num));
+	mac_l = mv_read(MV643XX_ETH_MAC_ADDR_LOW(port_num));
 
 	p_addr[0] = (mac_h >> 24) & 0xff;
 	p_addr[1] = (mac_h >> 16) & 0xff;
