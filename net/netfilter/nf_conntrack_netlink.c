@@ -6,9 +6,6 @@
  * (C) 2003 by Patrick Mchardy <kaber@trash.net>
  * (C) 2005-2006 by Pablo Neira Ayuso <pablo@eurodev.net>
  *
- * I've reworked this stuff to use attributes instead of conntrack
- * structures. 5.44 am. I need more tea. --pablo 05/07/11.
- *
  * Initial connection tracking via netlink development funded and
  * generally made possible by Network Robots, Inc. (www.networkrobots.com)
  *
@@ -16,8 +13,6 @@
  *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
- *
- * Derived from ip_conntrack_netlink.c: Port by Pablo Neira Ayuso (05/11/14)
  */
 
 #include <linux/init.h>

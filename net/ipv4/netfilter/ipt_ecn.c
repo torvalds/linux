@@ -1,7 +1,5 @@
 /* IP tables module for matching the value of the IPv4 and TCP ECN bits
  *
- * ipt_ecn.c,v 1.3 2002/05/29 15:09:00 laforge Exp
- *
  * (C) 2002 by Harald Welte <laforge@gnumonks.org>
  *
  * This program is free software; you can redistribute it and/or modify

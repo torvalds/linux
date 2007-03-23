@@ -11,18 +11,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 2001-11-06: First try. Working with ip_queue.c for IPv4 and trying
- *             to adapt it to IPv6
- *             HEAVILY based in ipqueue.c by James Morris. It's just
- *             a little modified version of it, so he's nearly the
- *             real coder of this.
- *             Few changes needed, mainly the hard_routing code and
- *             the netlink socket protocol (we're NETLINK_IP6_FW).
- * 2002-06-25: Code cleanup. [JM: ported cleanup over from ip_queue.c]
- * 2005-02-04: Added /proc counter for dropped packets; fixed so
- *             packets aren't delivered to user space if they're going
- *             to be dropped.
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>

@@ -2,20 +2,6 @@
  * netfilter module for userspace packet logging daemons
  *
  * (C) 2000-2004 by Harald Welte <laforge@netfilter.org>
- *
- * 2000/09/22 ulog-cprange feature added
- * 2001/01/04 in-kernel queue as proposed by Sebastian Zander
- * 						<zander@fokus.gmd.de>
- * 2001/01/30 per-rule nlgroup conflicts with global queue.
- *            nlgroup now global (sysctl)
- * 2001/04/19 ulog-queue reworked, now fixed buffer size specified at
- * 	      module loadtime -HW
- * 2002/07/07 remove broken nflog_rcv() function -HW
- * 2002/08/29 fix shifted/unshifted nlgroup bug -HW
- * 2002/10/30 fix uninitialized mac_len field - <Anders K. Pedersen>
- * 2004/10/25 fix erroneous calculation of 'len' parameter to NLMSG_PUT
- *	      resulting in bogus 'error during NLMSG_PUT' messages.
- *
  * (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
  *
@@ -42,8 +28,6 @@
  * flushtimeout:
  *   Specify, after how many hundredths of a second the queue should be
  *   flushed even if it is not full yet.
- *
- * ipt_ULOG.c,v 1.22 2002/10/30 09:07:31 laforge Exp
  */
 
 #include <linux/module.h>

@@ -10,11 +10,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 2006-01-26 Harald Welte <laforge@netfilter.org>
- * 	- Add optional local and global sequence number to detect lost
- * 	  events from userspace
- *
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>

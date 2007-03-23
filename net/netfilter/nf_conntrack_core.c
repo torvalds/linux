@@ -9,24 +9,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 23 Apr 2001: Harald Welte <laforge@gnumonks.org>
- *	- new API and handling of conntrack/nat helpers
- *	- now capable of multiple expectations for one master
- * 16 Jul 2002: Harald Welte <laforge@gnumonks.org>
- *	- add usage/reference counts to ip_conntrack_expect
- *	- export ip_conntrack[_expect]_{find_get,put} functions
- * 16 Dec 2003: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- generalize L3 protocol denendent part.
- * 23 Mar 2004: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- add support various size of conntrack structures.
- * 26 Jan 2006: Harald Welte <laforge@netfilter.org>
- * 	- restructure nf_conn (introduce nf_conn_help)
- * 	- redesign 'features' how they were originally intended
- * 26 Feb 2006: Pablo Neira Ayuso <pablo@eurodev.net>
- * 	- add support for L3 protocol module load on demand.
- *
- * Derived from net/ipv4/netfilter/ip_conntrack_core.c
  */
 
 #include <linux/types.h>

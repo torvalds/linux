@@ -38,10 +38,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Author: James Morris <jmorris@intercode.com.au>
- *
- * Updates:
- * 2000-08-06: Convert to new helper API (Harald Welte).
- *
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>

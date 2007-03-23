@@ -1,14 +1,5 @@
 /* Kernel module to match connection tracking byte counter.
  * GPL (C) 2002 Martin Devera (devik@cdi.cz).
- *
- * 2004-07-20 Harald Welte <laforge@netfilter.org>
- * 	- reimplemented to use per-connection accounting counters
- * 	- add functionality to match number of packets
- * 	- add functionality to match average packet size
- * 	- add support to match directions seperately
- * 2005-10-16 Harald Welte <laforge@netfilter.org>
- * 	- Port to x_tables
- *
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>

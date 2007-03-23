@@ -7,12 +7,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 19 Jan 2002 Harald Welte <laforge@gnumonks.org>
- * 	- increase module usage count as soon as we have rules inside
- * 	  a table
- * 08 Oct 2005 Harald Welte <lafore@netfilter.org>
- * 	- Generalize into "x_tables" layer and "{ip,ip6,arp}_tables"
  */
 #include <linux/cache.h>
 #include <linux/capability.h>

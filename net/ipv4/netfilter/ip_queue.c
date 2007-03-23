@@ -8,18 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 2000-03-27: Simplified code (thanks to Andi Kleen for clues).
- * 2000-05-20: Fixed notifier problems (following Miguel Freitas' report).
- * 2000-06-19: Fixed so nfmark is copied to metadata (reported by Sebastian
- *             Zander).
- * 2000-08-01: Added Nick Williams' MAC support.
- * 2002-06-25: Code cleanup.
- * 2005-01-10: Added /proc counter for dropped packets; fixed so
- *             packets aren't delivered to user space if they're going
- *             to be dropped.
- * 2005-05-26: local_bh_{disable,enable} around nf_reinject (Harald Welte)
- *
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>

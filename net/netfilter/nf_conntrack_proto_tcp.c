@@ -4,24 +4,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>:
- *	- Real stateful connection tracking
- *	- Modified state transitions table
- *	- Window scaling support added
- *	- SACK support added
- *
- * Willy Tarreau:
- *	- State table bugfixes
- *	- More robust state changes
- *	- Tuning timer parameters
- *
- * 27 Oct 2004: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- genelized Layer 3 protocol part.
- *
- * Derived from net/ipv4/netfilter/ip_conntrack_proto_tcp.c
- *
- * version 2.2
  */
 
 #include <linux/types.h>

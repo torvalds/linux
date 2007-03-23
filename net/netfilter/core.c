@@ -5,10 +5,6 @@
  * way.
  *
  * Rusty Russell (C)2000 -- This code is GPL.
- *
- * February 2000: Modified by James Morris to have 1 queue per protocol.
- * 15-Mar-2000:   Added NF_REPEAT --RR.
- * 08-May-2003:	  Internal logging interface added by Jozsef Kadlecsik.
  */
 #include <linux/kernel.h>
 #include <linux/netfilter.h>

@@ -7,21 +7,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 010320 Martin Josefsson <gandalf@wlug.westbo.se>
- * 	* copied ipt_BALANCE.c to ipt_SAME.c and changed a few things.
- * 010728 Martin Josefsson <gandalf@wlug.westbo.se>
- * 	* added --nodst to not include destination-ip in new source
- * 	  calculations.
- *	* added some more sanity-checks.
- * 010729 Martin Josefsson <gandalf@wlug.westbo.se>
- * 	* fixed a buggy if-statement in same_check(), should have
- * 	  used ntohl() but didn't.
- * 	* added support for multiple ranges. IPT_SAME_MAX_RANGE is
- * 	  defined in linux/include/linux/netfilter_ipv4/ipt_SAME.h
- * 	  and is currently set to 10.
- * 	* added support for 1-address range, nice to have now that
- * 	  we have multiple ranges.
  */
 #include <linux/types.h>
 #include <linux/ip.h>

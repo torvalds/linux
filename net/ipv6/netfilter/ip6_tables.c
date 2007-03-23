@@ -7,15 +7,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 19 Jan 2002 Harald Welte <laforge@gnumonks.org>
- * 	- increase module usage count as soon as we have rules inside
- * 	  a table
- * 06 Jun 2002 Andras Kis-Szabo <kisza@sch.bme.hu>
- *      - new extension header parser code
- * 15 Oct 2005 Harald Welte <laforge@netfilter.org>
- * 	- Unification of {ip,ip6}_tables into x_tables
- * 	- Removed tcp and udp code, since it's not ipv6 specific
  */
 
 #include <linux/capability.h>

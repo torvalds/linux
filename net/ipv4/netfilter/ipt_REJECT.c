@@ -1,7 +1,5 @@
 /*
  * This is a module which is used for rejecting packets.
- * Added support for customized reject packets (Jozsef Kadlecsik).
- * Added support for ICMP type-3-code-13 (Maciej Soltysiak). [RFC 1812]
  */
 
 /* (C) 1999-2001 Paul `Rusty' Russell

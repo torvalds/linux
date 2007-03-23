@@ -8,8 +8,6 @@
  * published by the Free Software Foundation.
  *
  * See RFC2474 for a description of the DSCP field within the IP Header.
- *
- * xt_DSCP.c,v 1.8 2002/08/06 18:41:57 laforge Exp
 */
 
 #include <linux/module.h>

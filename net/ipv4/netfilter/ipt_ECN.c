@@ -5,8 +5,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * ipt_ECN.c,v 1.5 2002/08/18 19:36:51 laforge Exp
 */
 
 #include <linux/in.h>
