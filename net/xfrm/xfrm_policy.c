@@ -2089,7 +2089,7 @@ void xfrm_audit_log(uid_t auid, u32 sid, int type, int result,
 					sizeof(struct in6_addr));
 			}
 			audit_log_format(audit_buf,
-					 " src=" NIP6_FMT "dst=" NIP6_FMT,
+					 " src=" NIP6_FMT " dst=" NIP6_FMT,
 					 NIP6(saddr6), NIP6(daddr6));
 		}
 		break;

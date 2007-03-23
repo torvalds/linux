@@ -93,7 +93,7 @@ void route4_reset_fastmap(struct net_device *dev, struct route4_head *head, u32 
 	spin_unlock_bh(&dev->queue_lock);
 }
 
-static void __inline__
+static inline void
 route4_set_fastmap(struct route4_head *head, u32 id, int iif,
 		   struct route4_filter *f)
 {

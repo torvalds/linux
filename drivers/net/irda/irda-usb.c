@@ -1057,6 +1057,8 @@ static int stir421x_fw_upload(struct irda_usb_cb *self,
 
 		if (ret < 0)
 			break;
+
+		mdelay(10);
 	}
 
 	kfree(patch_block);
