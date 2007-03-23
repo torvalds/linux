@@ -204,10 +204,6 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (security_netlink_recv(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	/* Only requests are handled by kernel now. */
-	if (!(nlh->nlmsg_flags & NLM_F_REQUEST))
-		return 0;
-
 	/* All the messages must at least contain nfgenmsg */
 	if (nlh->nlmsg_len < NLMSG_SPACE(sizeof(struct nfgenmsg)))
 		return 0;
