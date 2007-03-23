@@ -1206,6 +1206,14 @@
 
 #define A_TP_RX_TRC_KEY0 0x120
 
+#define A_TP_TX_DROP_CNT_CH0 0x12d
+
+#define S_TXDROPCNTCH0RCVD    0
+#define M_TXDROPCNTCH0RCVD    0xffff
+#define V_TXDROPCNTCH0RCVD(x) ((x) << S_TXDROPCNTCH0RCVD)
+#define G_TXDROPCNTCH0RCVD(x) (((x) >> S_TXDROPCNTCH0RCVD) & \
+			       M_TXDROPCNTCH0RCVD)
+
 #define A_ULPRX_CTL 0x500
 
 #define S_ROUND_ROBIN    4
@@ -1834,6 +1842,8 @@
 #define V_TXPAUSEEN(x) ((x) << S_TXPAUSEEN)
 #define F_TXPAUSEEN    V_TXPAUSEEN(1U)
 
+#define A_XGM_TX_PAUSE_QUANTA 0x808
+
 #define A_XGM_RX_CTRL 0x80c
 
 #define S_RXEN    0
@@ -1919,6 +1929,11 @@
 #define F_DISERRFRAMES    V_DISERRFRAMES(1U)
 
 #define A_XGM_TXFIFO_CFG 0x888
+
+#define S_TXIPG    13
+#define M_TXIPG    0xff
+#define V_TXIPG(x) ((x) << S_TXIPG)
+#define G_TXIPG(x) (((x) >> S_TXIPG) & M_TXIPG)
 
 #define S_TXFIFOTHRESH    4
 #define M_TXFIFOTHRESH    0x1ff
@@ -2189,6 +2204,13 @@
 #define F_CMULOCK    V_CMULOCK(1U)
 
 #define A_XGM_RX_MAX_PKT_SIZE_ERR_CNT 0x9a4
+
+#define A_XGM_TX_SPI4_SOP_EOP_CNT 0x9a8
+
+#define S_TXSPI4SOPCNT    16
+#define M_TXSPI4SOPCNT    0xffff
+#define V_TXSPI4SOPCNT(x) ((x) << S_TXSPI4SOPCNT)
+#define G_TXSPI4SOPCNT(x) (((x) >> S_TXSPI4SOPCNT) & M_TXSPI4SOPCNT)
 
 #define A_XGM_RX_SPI4_SOP_EOP_CNT 0x9ac
 

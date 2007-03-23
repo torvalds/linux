@@ -42,6 +42,7 @@
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/rtnetlink.h>
+#include <linux/firmware.h>
 #include <asm/uaccess.h>
 
 #include "common.h"
@@ -707,6 +708,28 @@ static void bind_qsets(struct adapter *adap)
 	}
 }
 
+#define FW_FNAME "t3fw-%d.%d.bin"
+
+static int upgrade_fw(struct adapter *adap)
+{
+	int ret;
+	char buf[64];
+	const struct firmware *fw;
+	struct device *dev = &adap->pdev->dev;
+
+	snprintf(buf, sizeof(buf), FW_FNAME, FW_VERSION_MAJOR,
+		 FW_VERSION_MINOR);
+	ret = request_firmware(&fw, buf, dev);
+	if (ret < 0) {
+		dev_err(dev, "could not upgrade firmware: unable to load %s\n",
+			buf);
+		return ret;
+	}
+	ret = t3_load_fw(adap, fw->data, fw->size);
+	release_firmware(fw);
+	return ret;
+}
+
 /**
  *	cxgb_up - enable the adapter
  *	@adapter: adapter being enabled
@@ -723,6 +746,8 @@ static int cxgb_up(struct adapter *adap)
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
 		err = t3_check_fw_version(adap);
+		if (err == -EINVAL)
+			err = upgrade_fw(adap);
 		if (err)
 			goto out;
 
@@ -1031,7 +1056,11 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"VLANinsertions     ",
 	"TxCsumOffload      ",
 	"RxCsumGood         ",
-	"RxDrops            "
+	"RxDrops            ",
+
+	"CheckTXEnToggled   ",
+	"CheckResets        ",
+
 };
 
 static int get_stats_count(struct net_device *dev)
@@ -1145,6 +1174,9 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_TX_CSUM);
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_RX_CSUM_GOOD);
 	*data++ = s->rx_cong_drops;
+
+	*data++ = s->num_toggled;
+	*data++ = s->num_resets;
 }
 
 static inline void reg_block_dump(struct adapter *ap, void *buf,
@@ -1362,23 +1394,27 @@ static int set_rx_csum(struct net_device *dev, u32 data)
 
 static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 {
-	struct adapter *adapter = dev->priv;
+	const struct adapter *adapter = dev->priv;
+	const struct port_info *pi = netdev_priv(dev);
+	const struct qset_params *q = &adapter->params.sge.qset[pi->first_qset];
 
 	e->rx_max_pending = MAX_RX_BUFFERS;
 	e->rx_mini_max_pending = 0;
 	e->rx_jumbo_max_pending = MAX_RX_JUMBO_BUFFERS;
 	e->tx_max_pending = MAX_TXQ_ENTRIES;
 
-	e->rx_pending = adapter->params.sge.qset[0].fl_size;
-	e->rx_mini_pending = adapter->params.sge.qset[0].rspq_size;
-	e->rx_jumbo_pending = adapter->params.sge.qset[0].jumbo_size;
-	e->tx_pending = adapter->params.sge.qset[0].txq_size[0];
+	e->rx_pending = q->fl_size;
+	e->rx_mini_pending = q->rspq_size;
+	e->rx_jumbo_pending = q->jumbo_size;
+	e->tx_pending = q->txq_size[0];
 }
 
 static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 {
 	int i;
+	struct qset_params *q;
 	struct adapter *adapter = dev->priv;
+	const struct port_info *pi = netdev_priv(dev);
 
 	if (e->rx_pending > MAX_RX_BUFFERS ||
 	    e->rx_jumbo_pending > MAX_RX_JUMBO_BUFFERS ||
@@ -1393,9 +1429,8 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	if (adapter->flags & FULL_INIT_DONE)
 		return -EBUSY;
 
-	for (i = 0; i < SGE_QSETS; ++i) {
-		struct qset_params *q = &adapter->params.sge.qset[i];
-
+	q = &adapter->params.sge.qset[pi->first_qset];
+	for (i = 0; i < pi->nqsets; ++i, ++q) {
 		q->rspq_size = e->rx_mini_pending;
 		q->fl_size = e->rx_pending;
 		q->jumbo_size = e->rx_jumbo_pending;
@@ -2067,6 +2102,40 @@ static void check_link_status(struct adapter *adapter)
 	}
 }
 
+static void check_t3b2_mac(struct adapter *adapter)
+{
+	int i;
+
+	rtnl_lock();                      /* synchronize with ifdown */
+	for_each_port(adapter, i) {
+		struct net_device *dev = adapter->port[i];
+		struct port_info *p = netdev_priv(dev);
+		int status;
+
+		if (!netif_running(dev))
+			continue;
+
+		status = 0;
+		if (netif_running(dev))
+			status = t3b2_mac_watchdog_task(&p->mac);
+		if (status == 1)
+			p->mac.stats.num_toggled++;
+		else if (status == 2) {
+			struct cmac *mac = &p->mac;
+
+			t3_mac_set_mtu(mac, dev->mtu);
+			t3_mac_set_address(mac, 0, dev->dev_addr);
+			cxgb_set_rxmode(dev);
+			t3_link_start(&p->phy, mac, &p->link_config);
+			t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
+			t3_port_intr_enable(adapter, p->port_id);
+			p->mac.stats.num_resets++;
+		}
+	}
+	rtnl_unlock();
+}
+
+
 static void t3_adap_check_task(struct work_struct *work)
 {
 	struct adapter *adapter = container_of(work, struct adapter,
@@ -2086,6 +2155,9 @@ static void t3_adap_check_task(struct work_struct *work)
 		mac_stats_update(adapter);
 		adapter->check_task_cnt = 0;
 	}
+
+	if (p->rev == T3_REV_B2)
+		check_t3b2_mac(adapter);
 
 	/* Schedule the next check update if any port is active. */
 	spin_lock(&adapter->work_lock);

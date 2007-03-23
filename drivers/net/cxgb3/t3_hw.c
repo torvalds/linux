@@ -681,7 +681,8 @@ enum {
 	SF_ERASE_SECTOR = 0xd8,	/* erase sector */
 
 	FW_FLASH_BOOT_ADDR = 0x70000,	/* start address of FW in flash */
-	FW_VERS_ADDR = 0x77ffc	/* flash address holding FW version */
+	FW_VERS_ADDR = 0x77ffc,    /* flash address holding FW version */
+	FW_MIN_SIZE = 8            /* at least version and csum */
 };
 
 /**
@@ -935,7 +936,7 @@ int t3_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size)
 	const u32 *p = (const u32 *)fw_data;
 	int ret, addr, fw_sector = FW_FLASH_BOOT_ADDR >> 16;
 
-	if (size & 3)
+	if ((size & 3) || size < FW_MIN_SIZE)
 		return -EINVAL;
 	if (size > FW_VERS_ADDR + 8 - FW_FLASH_BOOT_ADDR)
 		return -EFBIG;
@@ -3243,15 +3244,17 @@ void early_hw_init(struct adapter *adapter, const struct adapter_info *ai)
 }
 
 /*
- * Reset the adapter.  PCIe cards lose their config space during reset, PCI-X
+ * Reset the adapter. 
+ * Older PCIe cards lose their config space during reset, PCI-X
  * ones don't.
  */
 int t3_reset_adapter(struct adapter *adapter)
 {
-	int i;
+	int i, save_and_restore_pcie = 
+	    adapter->params.rev < T3_REV_B2 && is_pcie(adapter);
 	uint16_t devid = 0;
 
-	if (is_pcie(adapter))
+	if (save_and_restore_pcie)
 		pci_save_state(adapter->pdev);
 	t3_write_reg(adapter, A_PL_RST, F_CRSTWRM | F_CRSTWRMMODE);
 
@@ -3269,7 +3272,7 @@ int t3_reset_adapter(struct adapter *adapter)
 	if (devid != 0x1425)
 		return -1;
 
-	if (is_pcie(adapter))
+	if (save_and_restore_pcie)
 		pci_restore_state(adapter->pdev);
 	return 0;
 }

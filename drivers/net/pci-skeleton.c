@@ -710,8 +710,8 @@ match:
 		tp->chipset,
 		rtl_chip_info[tp->chipset].name);
 
-	i = register_netdev (dev);
-	if (i)
+	rc = register_netdev (dev);
+	if (rc)
 		goto err_out_unmap;
 
 	DPRINTK ("EXIT, returning 0\n");

@@ -71,7 +71,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.2.0"
+#define MYRI10GE_VERSION_STR "1.3.0-1.226"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -234,7 +234,7 @@ static int myri10ge_msi = 1;	/* enable msi by default */
 module_param(myri10ge_msi, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_msi, "Enable Message Signalled Interrupts\n");
 
-static int myri10ge_intr_coal_delay = 25;
+static int myri10ge_intr_coal_delay = 75;
 module_param(myri10ge_intr_coal_delay, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_intr_coal_delay, "Interrupt coalescing delay\n");
 
@@ -279,7 +279,7 @@ static int myri10ge_fill_thresh = 256;
 module_param(myri10ge_fill_thresh, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_fill_thresh, "Number of empty rx slots allowed\n");
 
-static int myri10ge_wcfifo = 1;
+static int myri10ge_wcfifo = 0;
 module_param(myri10ge_wcfifo, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_wcfifo, "Enable WC Fifo when WC is enabled\n");
 
@@ -905,6 +905,14 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 		    (rx->page_offset + bytes <= MYRI10GE_ALLOC_SIZE)) {
 			/* we can use part of previous page */
 			get_page(rx->page);
+#if MYRI10GE_ALLOC_SIZE > 4096
+			/* Firmware cannot cross 4K boundary.. */
+			if ((rx->page_offset >> 12) !=
+			    ((rx->page_offset + bytes - 1) >> 12)) {
+				rx->page_offset =
+				    (rx->page_offset + bytes) & ~4095;
+			}
+#endif
 		} else {
 			/* we need a new page */
 			page =
@@ -2483,6 +2491,8 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE23 0x25f7
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE47 0x25fa
+#define PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_FIRST 0x140
+#define PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_LAST 0x142
 
 static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 {
@@ -2514,6 +2524,12 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 			   ((bridge->vendor == PCI_VENDOR_ID_SERVERWORKS
 			     && bridge->device ==
 			     PCI_DEVICE_ID_SERVERWORKS_HT2000_PCIE)
+			    /* ServerWorks HT2100 */
+			    || (bridge->vendor == PCI_VENDOR_ID_SERVERWORKS
+				&& bridge->device >=
+				PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_FIRST
+				&& bridge->device <=
+				PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_LAST)
 			    /* All Intel E5000 PCIE ports */
 			    || (bridge->vendor == PCI_VENDOR_ID_INTEL
 				&& bridge->device >=
