@@ -260,16 +260,13 @@ static void tcp_westwood_info(struct sock *sk, u32 ext,
 {
 	const struct westwood *ca = inet_csk_ca(sk);
 	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		struct rtattr *rta;
-		struct tcpvegas_info *info;
+		struct tcpvegas_info info = {
+			.tcpv_enabled = 1,
+			.tcpv_rtt = jiffies_to_usecs(ca->rtt),
+			.tcpv_minrtt = jiffies_to_usecs(ca->rtt_min),
+		};
 
-		rta = __RTA_PUT(skb, INET_DIAG_VEGASINFO, sizeof(*info));
-		info = RTA_DATA(rta);
-		info->tcpv_enabled = 1;
-		info->tcpv_rttcnt = 0;
-		info->tcpv_rtt = jiffies_to_usecs(ca->rtt);
-		info->tcpv_minrtt = jiffies_to_usecs(ca->rtt_min);
-	rtattr_failure:	;
+		nla_put(skb, INET_DIAG_VEGASINFO, sizeof(info), &info);
 	}
 }
 
