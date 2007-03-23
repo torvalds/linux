@@ -38,7 +38,7 @@ static inline int gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
 	/* Look in glock's list of holders for one with current task as owner */
 	spin_lock(&gl->gl_spin);
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
-		if (gh->gh_owner == current) {
+		if (gh->gh_owner_pid == current->pid) {
 			locked = 1;
 			break;
 		}

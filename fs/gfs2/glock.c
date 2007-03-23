@@ -25,6 +25,8 @@
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/module.h>
+#include <linux/kallsyms.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -54,6 +56,7 @@ struct glock_iter {
 typedef void (*glock_examiner) (struct gfs2_glock * gl);
 
 static int gfs2_dump_lockstate(struct gfs2_sbd *sdp);
+static int dump_glock(struct glock_iter *gi, struct gfs2_glock *gl);
 static void gfs2_glock_xmote_th(struct gfs2_glock *gl, struct gfs2_holder *gh);
 static void gfs2_glock_drop_th(struct gfs2_glock *gl);
 static DECLARE_RWSEM(gfs2_umount_flush_sem);
@@ -64,6 +67,7 @@ static struct dentry *gfs2_root;
 #define GFS2_GL_HASH_MASK       (GFS2_GL_HASH_SIZE - 1)
 
 static struct gfs2_gl_hash_bucket gl_hash_table[GFS2_GL_HASH_SIZE];
+static struct dentry *gfs2_root;
 
 /*
  * Despite what you might think, the numbers below are not arbitrary :-)
@@ -312,7 +316,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	atomic_set(&gl->gl_ref, 1);
 	gl->gl_state = LM_ST_UNLOCKED;
 	gl->gl_hash = hash;
-	gl->gl_owner = NULL;
+	gl->gl_owner_pid = 0;
 	gl->gl_ip = 0;
 	gl->gl_ops = glops;
 	gl->gl_req_gh = NULL;
@@ -376,7 +380,7 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 	INIT_LIST_HEAD(&gh->gh_list);
 	gh->gh_gl = gl;
 	gh->gh_ip = (unsigned long)__builtin_return_address(0);
-	gh->gh_owner = current;
+	gh->gh_owner_pid = current->pid;
 	gh->gh_state = state;
 	gh->gh_flags = flags;
 	gh->gh_error = 0;
@@ -601,7 +605,7 @@ static void gfs2_glmutex_lock(struct gfs2_glock *gl)
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
 		list_add_tail(&gh.gh_list, &gl->gl_waiters1);
 	} else {
-		gl->gl_owner = current;
+		gl->gl_owner_pid = current->pid;
 		gl->gl_ip = (unsigned long)__builtin_return_address(0);
 		clear_bit(HIF_WAIT, &gh.gh_iflags);
 		smp_mb();
@@ -628,7 +632,7 @@ static int gfs2_glmutex_trylock(struct gfs2_glock *gl)
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
 		acquired = 0;
 	} else {
-		gl->gl_owner = current;
+		gl->gl_owner_pid = current->pid;
 		gl->gl_ip = (unsigned long)__builtin_return_address(0);
 	}
 	spin_unlock(&gl->gl_spin);
@@ -646,7 +650,7 @@ static void gfs2_glmutex_unlock(struct gfs2_glock *gl)
 {
 	spin_lock(&gl->gl_spin);
 	clear_bit(GLF_LOCK, &gl->gl_flags);
-	gl->gl_owner = NULL;
+	gl->gl_owner_pid = 0;
 	gl->gl_ip = 0;
 	run_queue(gl);
 	BUG_ON(!spin_is_locked(&gl->gl_spin));
@@ -999,12 +1003,12 @@ static int glock_wait_internal(struct gfs2_holder *gh)
 }
 
 static inline struct gfs2_holder *
-find_holder_by_owner(struct list_head *head, struct task_struct *owner)
+find_holder_by_owner(struct list_head *head, pid_t pid)
 {
 	struct gfs2_holder *gh;
 
 	list_for_each_entry(gh, head, gh_list) {
-		if (gh->gh_owner == owner)
+		if (gh->gh_owner_pid == pid)
 			return gh;
 	}
 
@@ -1036,24 +1040,24 @@ static void add_to_queue(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_holder *existing;
 
-	BUG_ON(!gh->gh_owner);
+	BUG_ON(!gh->gh_owner_pid);
 	if (test_and_set_bit(HIF_WAIT, &gh->gh_iflags))
 		BUG();
 
-	existing = find_holder_by_owner(&gl->gl_holders, gh->gh_owner);
+	existing = find_holder_by_owner(&gl->gl_holders, gh->gh_owner_pid);
 	if (existing) {
 		print_symbol(KERN_WARNING "original: %s\n", existing->gh_ip);
-		printk(KERN_INFO "pid : %d\n", existing->gh_owner->pid);
+		printk(KERN_INFO "pid : %d\n", existing->gh_owner_pid);
 		printk(KERN_INFO "lock type : %d lock state : %d\n",
 				existing->gh_gl->gl_name.ln_type, existing->gh_gl->gl_state);
 		print_symbol(KERN_WARNING "new: %s\n", gh->gh_ip);
-		printk(KERN_INFO "pid : %d\n", gh->gh_owner->pid);
+		printk(KERN_INFO "pid : %d\n", gh->gh_owner_pid);
 		printk(KERN_INFO "lock type : %d lock state : %d\n",
 				gl->gl_name.ln_type, gl->gl_state);
 		BUG();
 	}
 
-	existing = find_holder_by_owner(&gl->gl_waiters3, gh->gh_owner);
+	existing = find_holder_by_owner(&gl->gl_waiters3, gh->gh_owner_pid);
 	if (existing) {
 		print_symbol(KERN_WARNING "original: %s\n", existing->gh_ip);
 		print_symbol(KERN_WARNING "new: %s\n", gh->gh_ip);
@@ -1756,6 +1760,22 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait)
  *  Diagnostic routines to help debug distributed deadlock
  */
 
+static void gfs2_print_symbol(struct glock_iter *gi, const char *fmt,
+                              unsigned long address)
+{
+/* when sprint_symbol becomes available in the new kernel, replace this */
+/* function with:
+        char buffer[KSYM_SYMBOL_LEN];
+
+        sprint_symbol(buffer, address);
+        print_dbg(gi, fmt, buffer);
+*/
+        if (gi)
+                print_dbg(gi, fmt, address);
+        else
+                print_symbol(fmt, address);
+}
+
 /**
  * dump_holder - print information about a glock holder
  * @str: a string naming the type of holder
@@ -1768,10 +1788,18 @@ static int dump_holder(struct glock_iter *gi, char *str,
 		       struct gfs2_holder *gh)
 {
 	unsigned int x;
+	struct task_struct *gh_owner;
 
 	print_dbg(gi, "  %s\n", str);
-	print_dbg(gi, "    owner = %ld\n",
-		   (gh->gh_owner) ? (long)gh->gh_owner->pid : -1);
+	if (gh->gh_owner_pid) {
+		print_dbg(gi, "    owner = %ld ", (long)gh->gh_owner_pid);
+		gh_owner = find_task_by_pid(gh->gh_owner_pid);
+		if (gh_owner)
+			print_dbg(gi, "(%s)\n", gh_owner->comm);
+		else
+			print_dbg(gi, "(ended)\n");
+	} else
+		print_dbg(gi, "    owner = -1\n");
 	print_dbg(gi, "    gh_state = %u\n", gh->gh_state);
 	print_dbg(gi, "    gh_flags =");
 	for (x = 0; x < 32; x++)
@@ -1784,10 +1812,7 @@ static int dump_holder(struct glock_iter *gi, char *str,
 		if (test_bit(x, &gh->gh_iflags))
 			print_dbg(gi, " %u", x);
 	print_dbg(gi, " \n");
-	if (gi)
-		print_dbg(gi, "    initialized at: 0x%x\n", gh->gh_ip);
-	else
-		print_symbol(KERN_INFO "    initialized at: %s\n", gh->gh_ip);
+        gfs2_print_symbol(gi, "    initialized at: %s\n", gh->gh_ip);
 
 	return 0;
 }
@@ -1828,6 +1853,7 @@ static int dump_glock(struct glock_iter *gi, struct gfs2_glock *gl)
 	struct gfs2_holder *gh;
 	unsigned int x;
 	int error = -ENOBUFS;
+	struct task_struct *gl_owner;
 
 	spin_lock(&gl->gl_spin);
 
@@ -1838,10 +1864,21 @@ static int dump_glock(struct glock_iter *gi, struct gfs2_glock *gl)
 		if (test_bit(x, &gl->gl_flags))
 			print_dbg(gi, " %u", x);
 	}
+	if (!test_bit(GLF_LOCK, &gl->gl_flags))
+		print_dbg(gi, " (unlocked)");
 	print_dbg(gi, " \n");
 	print_dbg(gi, "  gl_ref = %d\n", atomic_read(&gl->gl_ref));
 	print_dbg(gi, "  gl_state = %u\n", gl->gl_state);
-	print_dbg(gi, "  gl_owner = %s\n", gl->gl_owner->comm);
+	if (gl->gl_owner_pid) {
+		gl_owner = find_task_by_pid(gl->gl_owner_pid);
+		if (gl_owner)
+			print_dbg(gi, "  gl_owner = pid %d (%s)\n",
+				  gl->gl_owner_pid, gl_owner->comm);
+		else
+			print_dbg(gi, "  gl_owner = %d (ended)\n",
+				  gl->gl_owner_pid);
+	} else
+		print_dbg(gi, "  gl_owner = -1\n");
 	print_dbg(gi, "  gl_ip = %lu\n", gl->gl_ip);
 	print_dbg(gi, "  req_gh = %s\n", (gl->gl_req_gh) ? "yes" : "no");
 	print_dbg(gi, "  req_bh = %s\n", (gl->gl_req_bh) ? "yes" : "no");

@@ -127,7 +127,7 @@ struct gfs2_holder {
 	struct list_head gh_list;
 
 	struct gfs2_glock *gh_gl;
-	struct task_struct *gh_owner;
+	pid_t gh_owner_pid;
 	unsigned int gh_state;
 	unsigned gh_flags;
 
@@ -155,7 +155,7 @@ struct gfs2_glock {
 	unsigned int gl_hash;
 	unsigned int gl_demote_state; /* state requested by remote node */
 	unsigned long gl_demote_time; /* time of first demote request */
-	struct task_struct *gl_owner;
+	pid_t gl_owner_pid;
 	unsigned long gl_ip;
 	struct list_head gl_holders;
 	struct list_head gl_waiters1;	/* HIF_MUTEX */
