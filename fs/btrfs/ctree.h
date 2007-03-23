@@ -52,6 +52,7 @@ struct btrfs_key {
 struct btrfs_header {
 	u8 fsid[16]; /* FS specific uuid */
 	__le64 blocknr; /* which block this node is supposed to live in */
+	__le64 generation;
 	__le64 parentid; /* objectid of the tree root */
 	__le32 csum;
 	__le32 ham;
@@ -600,6 +601,17 @@ static inline void btrfs_set_header_blocknr(struct btrfs_header *h, u64 blocknr)
 	h->blocknr = cpu_to_le64(blocknr);
 }
 
+static inline u64 btrfs_header_generation(struct btrfs_header *h)
+{
+	return le64_to_cpu(h->generation);
+}
+
+static inline void btrfs_set_header_generation(struct btrfs_header *h,
+					       u64 val)
+{
+	h->generation = cpu_to_le64(val);
+}
+
 static inline u64 btrfs_header_parentid(struct btrfs_header *h)
 {
 	return le64_to_cpu(h->parentid);
@@ -839,7 +851,7 @@ int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  *root, struct btrfs_path *path, u64 dir,
 			  const char *name, int name_len, int mod);
 int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
-			      char *name, int name_len);
+			      const char *name, int name_len);
 int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *fs_root,
 			     u64 dirid, u64 *objectid);

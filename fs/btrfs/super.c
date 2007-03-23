@@ -199,7 +199,7 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 	btrfs_init_path(&path);
 	ret = btrfs_lookup_dir_item(NULL, root, &path, dir->i_ino, name,
 				    namelen, 0);
-	if (ret) {
+	if (ret || !btrfs_match_dir_item_name(root, &path, name, namelen)) {
 		*ino = 0;
 		goto out;
 	}
@@ -247,7 +247,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	int slot;
 	int advance;
 	unsigned char d_type = DT_UNKNOWN;
-	int over;
+	int over = 0;
 
 	key.objectid = inode->i_ino;
 	key.flags = 0;
@@ -258,7 +258,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (ret < 0) {
 		goto err;
 	}
-	advance = filp->f_pos > 0 && ret != 0;
+	advance = 0;
 	while(1) {
 		leaf = btrfs_buffer_leaf(path.nodes[0]);
 		nritems = btrfs_header_nritems(&leaf->header);
@@ -282,13 +282,17 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 		if (btrfs_disk_key_type(&item->key) != BTRFS_DIR_ITEM_KEY)
 			continue;
+		if (btrfs_disk_key_offset(&item->key) < filp->f_pos)
+			continue;
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		over = filldir(dirent, (const char *)(di + 1),
 			       btrfs_dir_name_len(di),
 			       btrfs_disk_key_offset(&item->key),
 			       btrfs_dir_objectid(di), d_type);
-		if (over)
+		if (over) {
+			filp->f_pos = btrfs_disk_key_offset(&item->key);
 			break;
+		}
 		filp->f_pos = btrfs_disk_key_offset(&item->key) + 1;
 	}
 	ret = 0;
@@ -425,7 +429,6 @@ static int btrfs_add_link(struct btrfs_trans_handle *trans,
 				    dentry->d_name.name, dentry->d_name.len,
 				    dentry->d_parent->d_inode->i_ino,
 				    inode->i_ino, 0);
-	BUG_ON(ret);
 	return ret;
 }
 
@@ -466,6 +469,7 @@ static void btrfs_write_super(struct super_block *sb)
 {
 	sb->s_dirt = 0;
 printk("btrfs write_super!\n");
+	filemap_flush(sb->s_bdev->bd_inode->i_mapping);
 }
 
 static int btrfs_sync_fs(struct super_block *sb, int wait)

@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include "ctree.h"
 #include "disk-io.h"
+#include "transaction.h"
 
 static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, int level);
@@ -39,7 +40,8 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct buffer_head *cow;
 	struct btrfs_node *cow_node;
 
-	if (buffer_dirty(buf)) {
+	if (btrfs_header_generation(btrfs_buffer_header(buf)) ==
+				    trans->transid) {
 		*cow_ret = buf;
 		return 0;
 	}
@@ -47,6 +49,7 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 	cow_node = btrfs_buffer_node(cow);
 	memcpy(cow_node, btrfs_buffer_node(buf), root->blocksize);
 	btrfs_set_header_blocknr(&cow_node->header, cow->b_blocknr);
+	btrfs_set_header_generation(&cow_node->header, trans->transid);
 	*cow_ret = cow;
 	mark_buffer_dirty(cow);
 	btrfs_inc_ref(trans, root, buf);
@@ -661,6 +664,7 @@ static int insert_new_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_nritems(&c->header, 1);
 	btrfs_set_header_level(&c->header, level);
 	btrfs_set_header_blocknr(&c->header, t->b_blocknr);
+	btrfs_set_header_generation(&c->header, trans->transid);
 	btrfs_set_header_parentid(&c->header,
 	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
 	lower = btrfs_buffer_node(path->nodes[level-1]);
@@ -750,6 +754,7 @@ static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 	split = btrfs_buffer_node(split_buffer);
 	btrfs_set_header_flags(&split->header, btrfs_header_flags(&c->header));
 	btrfs_set_header_blocknr(&split->header, split_buffer->b_blocknr);
+	btrfs_set_header_generation(&split->header, trans->transid);
 	btrfs_set_header_parentid(&split->header,
 	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
 	mid = (c_nritems + 1) / 2;
@@ -1096,6 +1101,7 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 	btrfs_set_header_nritems(&right->header, nritems - mid);
 	btrfs_set_header_blocknr(&right->header, right_buffer->b_blocknr);
+	btrfs_set_header_generation(&right->header, trans->transid);
 	btrfs_set_header_level(&right->header, 0);
 	btrfs_set_header_parentid(&right->header,
 	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
