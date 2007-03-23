@@ -879,6 +879,7 @@ static __u32 get_ftdi_divisor(struct usb_serial_port * port)
 		break;
 	case FT232BM: /* FT232BM chip */
 	case FT2232C: /* FT2232C chip */
+	case FT232RL:
 		if (baud <= 3000000) {
 			div_value = ftdi_232bm_baud_to_divisor(baud);
 		} else {
@@ -1021,9 +1022,12 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 		/* (It might be a BM because of the iSerialNumber bug,
 		 * but it will still work as an AM device.) */
 		priv->chip_type = FT8U232AM;
-	} else {
+	} else if (version < 0x600) {
 		/* Assume its an FT232BM (or FT245BM) */
 		priv->chip_type = FT232BM;
+	} else {
+		/* Assume its an FT232R  */
+		priv->chip_type = FT232RL;
 	}
 	info("Detected %s", ftdi_chip_name[priv->chip_type]);
 }
