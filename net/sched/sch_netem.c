@@ -102,7 +102,7 @@ static u32 get_crandom(struct crndstate *state)
 	u64 value, rho;
 	unsigned long answer;
 
-	if (state->rho == 0)	/* no correllation */
+	if (state->rho == 0)	/* no correlation */
 		return net_random();
 
 	value = net_random();
@@ -432,8 +432,8 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 	q->loss = qopt->loss;
 	q->duplicate = qopt->duplicate;
 
-	/* for compatiablity with earlier versions.
-	 * if gap is set, need to assume 100% probablity
+	/* for compatibility with earlier versions.
+	 * if gap is set, need to assume 100% probability
 	 */
 	if (q->gap)
 		q->reorder = ~0;
