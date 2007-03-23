@@ -322,7 +322,6 @@ void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
 	ktime_t time;
 
 	wd->qdisc->flags |= TCQ_F_THROTTLED;
-	smp_wmb();
 	time = ktime_set(0, 0);
 	time = ktime_add_ns(time, PSCHED_US2NS(expires));
 	hrtimer_start(&wd->timer, time, HRTIMER_MODE_ABS);
@@ -333,7 +332,6 @@ void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
 {
 	hrtimer_cancel(&wd->timer);
 	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
-	smp_wmb();
 }
 EXPORT_SYMBOL(qdisc_watchdog_cancel);
 
