@@ -2039,6 +2039,10 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *                     SPP_HB_DEMAND - Request a user initiated heartbeat
  *                     to be made immediately.
  *
+ *                     SPP_HB_TIME_IS_ZERO - Specify's that the time for
+ *                     heartbeat delayis to be set to the value of 0
+ *                     milliseconds.
+ *
  *                     SPP_PMTUD_ENABLE - This field will enable PMTU
  *                     discovery upon the specified address. Note that
  *                     if the address feild is empty then all addresses
@@ -2081,13 +2085,30 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 			return error;
 	}
 
-	if (params->spp_hbinterval) {
-		if (trans) {
-			trans->hbinterval = msecs_to_jiffies(params->spp_hbinterval);
-		} else if (asoc) {
-			asoc->hbinterval = msecs_to_jiffies(params->spp_hbinterval);
-		} else {
-			sp->hbinterval = params->spp_hbinterval;
+	/* Note that unless the spp_flag is set to SPP_HB_ENABLE the value of
+	 * this field is ignored.  Note also that a value of zero indicates
+	 * the current setting should be left unchanged.
+	 */
+	if (params->spp_flags & SPP_HB_ENABLE) {
+
+		/* Re-zero the interval if the SPP_HB_TIME_IS_ZERO is
+		 * set.  This lets us use 0 value when this flag
+		 * is set.
+		 */
+		if (params->spp_flags & SPP_HB_TIME_IS_ZERO)
+			params->spp_hbinterval = 0;
+
+		if (params->spp_hbinterval ||
+		    (params->spp_flags & SPP_HB_TIME_IS_ZERO)) {
+			if (trans) {
+				trans->hbinterval =
+				    msecs_to_jiffies(params->spp_hbinterval);
+			} else if (asoc) {
+				asoc->hbinterval =
+				    msecs_to_jiffies(params->spp_hbinterval);
+			} else {
+				sp->hbinterval = params->spp_hbinterval;
+			}
 		}
 	}
 
@@ -2104,7 +2125,12 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 		}
 	}
 
-	if (params->spp_pathmtu) {
+	/* When Path MTU discovery is disabled the value specified here will
+	 * be the "fixed" path mtu (i.e. the value of the spp_flags field must
+	 * include the flag SPP_PMTUD_DISABLE for this field to have any
+	 * effect).
+	 */
+	if ((params->spp_flags & SPP_PMTUD_DISABLE) && params->spp_pathmtu) {
 		if (trans) {
 			trans->pathmtu = params->spp_pathmtu;
 			sctp_assoc_sync_pmtu(asoc);
@@ -2135,7 +2161,11 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 		}
 	}
 
-	if (params->spp_sackdelay) {
+	/* Note that unless the spp_flag is set to SPP_SACKDELAY_ENABLE the
+	 * value of this field is ignored.  Note also that a value of zero
+	 * indicates the current setting should be left unchanged.
+	 */
+	if ((params->spp_flags & SPP_SACKDELAY_ENABLE) && params->spp_sackdelay) {
 		if (trans) {
 			trans->sackdelay =
 				msecs_to_jiffies(params->spp_sackdelay);
@@ -2163,7 +2193,11 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 		}
 	}
 
-	if (params->spp_pathmaxrxt) {
+	/* Note that unless the spp_flag is set to SPP_PMTUD_ENABLE the value
+	 * of this field is ignored.  Note also that a value of zero
+	 * indicates the current setting should be left unchanged.
+	 */
+	if ((params->spp_flags & SPP_PMTUD_ENABLE) && params->spp_pathmaxrxt) {
 		if (trans) {
 			trans->pathmaxrxt = params->spp_pathmaxrxt;
 		} else if (asoc) {
