@@ -1196,6 +1196,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	struct cifsFileInfo *open_file = NULL;
 	FILE_BASIC_INFO time_buf;
 	int set_time = FALSE;
+	int set_dosattr = FALSE;
 	__u64 mode = 0xFFFFFFFFFFFFFFFFULL;
 	__u64 uid = 0xFFFFFFFFFFFFFFFFULL;
 	__u64 gid = 0xFFFFFFFFFFFFFFFFULL;
@@ -1332,15 +1333,23 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	else if (attrs->ia_valid & ATTR_MODE) {
 		rc = 0;
 		if ((mode & S_IWUGO) == 0) /* not writeable */ {
-			if ((cifsInode->cifsAttrs & ATTR_READONLY) == 0)
+			if ((cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
+				set_dosattr = TRUE;
 				time_buf.Attributes =
 					cpu_to_le32(cifsInode->cifsAttrs |
 						    ATTR_READONLY);
+			}
 		} else if ((mode & S_IWUGO) == S_IWUGO) {
-			if (cifsInode->cifsAttrs & ATTR_READONLY)
+			if (cifsInode->cifsAttrs & ATTR_READONLY) {
+				set_dosattr = TRUE;
 				time_buf.Attributes =
 					cpu_to_le32(cifsInode->cifsAttrs &
 						    (~ATTR_READONLY));
+				/* Windows ignores set to zero */
+				if(time_buf.Attributes == 0)
+					time_buf.Attributes |= 
+						cpu_to_le32(ATTR_NORMAL);
+			}
 		}
 		/* BB to be implemented -
 		   via Windows security descriptors or streams */
@@ -1378,7 +1387,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	} else
 		time_buf.ChangeTime = 0;
 
-	if (set_time || time_buf.Attributes) {
+	if (set_time || set_dosattr) {
 		time_buf.CreationTime = 0;	/* do not change */
 		/* In the future we should experiment - try setting timestamps
 		   via Handle (SetFileInfo) instead of by path */
