@@ -438,6 +438,7 @@ do_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 
 	for (addridx = addr; addridx < (addr + size); addridx += 4) {
 		ret = do_rom_fast_read(adapter, addridx, (int *)bytes);
+		*(int *)bytes = cpu_to_le32(*(int *)bytes);
 		if (ret != 0)
 			break;
 		bytes += 4;
@@ -497,7 +498,7 @@ static inline int do_rom_fast_write_words(struct netxen_adapter *adapter,
 		int timeout = 0;
 		int data;
 
-		data = *(u32*)bytes;
+		data = le32_to_cpu((*(u32*)bytes));
 
 		ret = do_rom_fast_write(adapter, addridx, data);
 		if (ret < 0)
