@@ -55,6 +55,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	slot = path.slots[0];
 	memcpy(btrfs_item_ptr(l, slot, struct btrfs_root_item), item,
 		sizeof(*item));
+	mark_buffer_dirty(path.nodes[0]);
 out:
 	btrfs_release_path(root, &path);
 	return ret;

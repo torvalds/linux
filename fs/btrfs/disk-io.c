@@ -145,19 +145,20 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root)
 {
-	return 0;
-#if 0
-	int ret;
-	btrfs_set_super_root(s, root->fs_info->tree_root->node->b_blocknr);
-
-	ret = pwrite(root->fs_info->fp, s, sizeof(*s),
-		     BTRFS_SUPER_INFO_OFFSET);
-	if (ret != sizeof(*s)) {
-		fprintf(stderr, "failed to write new super block err %d\n", ret);
-		return ret;
+	struct buffer_head *bh = root->fs_info->sb_buffer;
+	btrfs_set_super_root(root->fs_info->disk_super,
+			     root->fs_info->tree_root->node->b_blocknr);
+	lock_buffer(bh);
+	clear_buffer_dirty(bh);
+	bh->b_end_io = end_buffer_write_sync;
+	get_bh(bh);
+	submit_bh(WRITE, bh);
+	wait_on_buffer(bh);
+	if (!buffer_uptodate(bh)) {
+		WARN_ON(1);
+		return -EIO;
 	}
 	return 0;
-#endif
 }
 
 int close_ctree(struct btrfs_root *root)

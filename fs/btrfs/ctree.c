@@ -39,7 +39,7 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct buffer_head *cow;
 	struct btrfs_node *cow_node;
 
-	if (!buffer_dirty(buf)) {
+	if (buffer_dirty(buf)) {
 		*cow_ret = buf;
 		return 0;
 	}
@@ -48,6 +48,7 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 	memcpy(cow_node, btrfs_buffer_node(buf), root->blocksize);
 	btrfs_set_header_blocknr(&cow_node->header, cow->b_blocknr);
 	*cow_ret = cow;
+	mark_buffer_dirty(cow);
 	btrfs_inc_ref(trans, root, buf);
 	if (buf == root->node) {
 		root->node = cow;
@@ -58,7 +59,7 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 	} else {
 		btrfs_set_node_blockptr(btrfs_buffer_node(parent), parent_slot,
 					cow->b_blocknr);
-		BUG_ON(!buffer_dirty(parent));
+		mark_buffer_dirty(parent);
 		btrfs_free_extent(trans, root, buf->b_blocknr, 1, 1);
 	}
 	btrfs_block_release(root, buf);
@@ -362,7 +363,7 @@ static int balance_level(struct btrfs_trans_handle *trans, struct btrfs_root
 			memcpy(&parent->ptrs[pslot + 1].key,
 				&right->ptrs[0].key,
 				sizeof(struct btrfs_disk_key));
-			BUG_ON(!buffer_dirty(parent_buf));
+			mark_buffer_dirty(parent_buf);
 		}
 	}
 	if (btrfs_header_nritems(&mid->header) == 1) {
@@ -398,7 +399,7 @@ static int balance_level(struct btrfs_trans_handle *trans, struct btrfs_root
 		/* update the parent key to reflect our changes */
 		memcpy(&parent->ptrs[pslot].key, &mid->ptrs[0].key,
 		       sizeof(struct btrfs_disk_key));
-		BUG_ON(!buffer_dirty(parent_buf));
+		mark_buffer_dirty(parent_buf);
 	}
 
 	/* update the path */
@@ -539,7 +540,7 @@ static int fixup_low_keys(struct btrfs_trans_handle *trans, struct btrfs_root
 			break;
 		t = btrfs_buffer_node(path->nodes[i]);
 		memcpy(&t->ptrs[tslot].key, key, sizeof(*key));
-		BUG_ON(!buffer_dirty(path->nodes[i]));
+		mark_buffer_dirty(path->nodes[i]);
 		if (tslot != 0)
 			break;
 	}
@@ -583,8 +584,8 @@ static int push_node_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 	btrfs_set_header_nritems(&src->header, src_nritems - push_items);
 	btrfs_set_header_nritems(&dst->header, dst_nritems + push_items);
-	BUG_ON(!buffer_dirty(src_buf));
-	BUG_ON(!buffer_dirty(dst_buf));
+	mark_buffer_dirty(src_buf);
+	mark_buffer_dirty(dst_buf);
 	return ret;
 }
 
@@ -631,8 +632,8 @@ static int balance_node_right(struct btrfs_trans_handle *trans, struct
 	btrfs_set_header_nritems(&src->header, src_nritems - push_items);
 	btrfs_set_header_nritems(&dst->header, dst_nritems + push_items);
 
-	BUG_ON(!buffer_dirty(src_buf));
-	BUG_ON(!buffer_dirty(dst_buf));
+	mark_buffer_dirty(src_buf);
+	mark_buffer_dirty(dst_buf);
 	return ret;
 }
 
@@ -669,6 +670,9 @@ static int insert_new_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		lower_key = &lower->ptrs[0].key;
 	memcpy(&c->ptrs[0].key, lower_key, sizeof(struct btrfs_disk_key));
 	btrfs_set_node_blockptr(c, 0, path->nodes[level - 1]->b_blocknr);
+
+	mark_buffer_dirty(t);
+
 	/* the super has an extra ref to root->node */
 	btrfs_block_release(root, root->node);
 	root->node = t;
@@ -708,7 +712,7 @@ static int insert_ptr(struct btrfs_trans_handle *trans, struct btrfs_root
 	memcpy(&lower->ptrs[slot].key, key, sizeof(struct btrfs_disk_key));
 	btrfs_set_node_blockptr(lower, slot, blocknr);
 	btrfs_set_header_nritems(&lower->header, nritems + 1);
-	BUG_ON(!buffer_dirty(path->nodes[level]));
+	mark_buffer_dirty(path->nodes[level]);
 	return 0;
 }
 
@@ -755,7 +759,8 @@ static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_nritems(&c->header, mid);
 	ret = 0;
 
-	BUG_ON(!buffer_dirty(t));
+	mark_buffer_dirty(t);
+	mark_buffer_dirty(split_buffer);
 	wret = insert_ptr(trans, root, path, &split->ptrs[0].key,
 			  split_buffer->b_blocknr, path->slots[level + 1] + 1,
 			  level + 1);
@@ -886,11 +891,11 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	left_nritems -= push_items;
 	btrfs_set_header_nritems(&left->header, left_nritems);
 
-	BUG_ON(!buffer_dirty(left_buf));
-	BUG_ON(!buffer_dirty(right_buf));
+	mark_buffer_dirty(left_buf);
+	mark_buffer_dirty(right_buf);
 	memcpy(&upper_node->ptrs[slot + 1].key,
 		&right->items[0].key, sizeof(struct btrfs_disk_key));
-	BUG_ON(!buffer_dirty(upper));
+	mark_buffer_dirty(upper);
 
 	/* then fixup the leaf pointer in the path */
 	if (path->slots[0] >= left_nritems) {
@@ -1004,8 +1009,8 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		push_space = btrfs_item_offset(right->items + i);
 	}
 
-	BUG_ON(!buffer_dirty(t));
-	BUG_ON(!buffer_dirty(right_buf));
+	mark_buffer_dirty(t);
+	mark_buffer_dirty(right_buf);
 
 	wret = fixup_low_keys(trans, root, path, &right->items[0].key, 1);
 	if (wret)
@@ -1115,8 +1120,8 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 			  right_buffer->b_blocknr, path->slots[1] + 1, 1);
 	if (wret)
 		ret = wret;
-	BUG_ON(!buffer_dirty(right_buffer));
-	BUG_ON(!buffer_dirty(l_buf));
+	mark_buffer_dirty(right_buffer);
+	mark_buffer_dirty(l_buf);
 	BUG_ON(path->slots[0] != slot);
 	if (mid <= slot) {
 		btrfs_block_release(root, path->nodes[0]);
@@ -1202,12 +1207,12 @@ int btrfs_insert_empty_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_item_offset(leaf->items + slot, data_end - data_size);
 	btrfs_set_item_size(leaf->items + slot, data_size);
 	btrfs_set_header_nritems(&leaf->header, nritems + 1);
+	mark_buffer_dirty(leaf_buf);
 
 	ret = 0;
 	if (slot == 0)
 		ret = fixup_low_keys(trans, root, path, &disk_key, 1);
 
-	BUG_ON(!buffer_dirty(leaf_buf));
 	if (btrfs_leaf_free_space(root, leaf) < 0)
 		BUG();
 	check_leaf(root, path, 0);
@@ -1233,6 +1238,7 @@ int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		ptr = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
 				     path.slots[0], u8);
 		memcpy(ptr, data, data_size);
+		mark_buffer_dirty(path.nodes[0]);
 	}
 	btrfs_release_path(root, &path);
 	return ret;
@@ -1273,7 +1279,7 @@ static int del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		if (wret)
 			ret = wret;
 	}
-	BUG_ON(!buffer_dirty(parent));
+	mark_buffer_dirty(parent);
 	return ret;
 }
 
@@ -1368,8 +1374,11 @@ int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 				if (wret)
 					ret = wret;
 			} else {
+				mark_buffer_dirty(leaf_buf);
 				btrfs_block_release(root, leaf_buf);
 			}
+		} else {
+			mark_buffer_dirty(leaf_buf);
 		}
 	}
 	return ret;

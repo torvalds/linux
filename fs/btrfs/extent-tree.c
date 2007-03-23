@@ -49,6 +49,7 @@ static int inc_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
 	item = btrfs_item_ptr(l, path.slots[0], struct btrfs_extent_item);
 	refs = btrfs_extent_refs(item);
 	btrfs_set_extent_refs(item, refs + 1);
+	mark_buffer_dirty(path.nodes[0]);
 
 	btrfs_release_path(root->fs_info->extent_root, &path);
 	finish_current_insert(trans, root->fs_info->extent_root);
@@ -103,7 +104,7 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			       btrfs_root *root)
 {
-	unsigned long gang[8];
+	struct buffer_head *gang[8];
 	u64 first = 0;
 	int ret;
 	int i;
@@ -116,13 +117,15 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 		if (!ret)
 			break;
 		if (!first)
-			first = gang[0];
+			first = gang[0]->b_blocknr;
 		for (i = 0; i < ret; i++) {
 			radix_tree_delete(&root->fs_info->pinned_radix,
-					  gang[i]);
+					  gang[i]->b_blocknr);
+			brelse(gang[i]);
 		}
 	}
-	root->fs_info->last_insert.objectid = first;
+	if (root->fs_info->last_insert.objectid > first)
+		root->fs_info->last_insert.objectid = first;
 	root->fs_info->last_insert.offset = 0;
 	return 0;
 }
@@ -161,8 +164,10 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 static int pin_down_block(struct btrfs_root *root, u64 blocknr, int tag)
 {
 	int err;
+	struct buffer_head *bh = sb_getblk(root->fs_info->sb, blocknr);
+	BUG_ON(!bh);
 	err = radix_tree_insert(&root->fs_info->pinned_radix,
-				blocknr, (void *)blocknr);
+				blocknr, bh);
 	BUG_ON(err);
 	if (err)
 		return err;
@@ -217,6 +222,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		if (ret)
 			BUG();
 	}
+	mark_buffer_dirty(path.nodes[0]);
 	btrfs_release_path(extent_root, &path);
 	finish_current_insert(trans, extent_root);
 	return ret;
@@ -232,7 +238,7 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 	int ret;
 	int wret;
 	int err = 0;
-	unsigned long gang[4];
+	struct buffer_head *gang[4];
 	int i;
 	struct radix_tree_root *radix = &extent_root->fs_info->pinned_radix;
 
@@ -245,10 +251,12 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 		if (!ret)
 			break;
 		for (i = 0; i < ret; i++) {
-			radix_tree_tag_set(radix, gang[i], CTREE_EXTENT_PINNED);
-			radix_tree_tag_clear(radix, gang[i],
+			radix_tree_tag_set(radix, gang[i]->b_blocknr,
+					   CTREE_EXTENT_PINNED);
+			radix_tree_tag_clear(radix, gang[i]->b_blocknr,
 					     CTREE_EXTENT_PENDING_DEL);
-			wret = __free_extent(trans, extent_root, gang[i], 1);
+			wret = __free_extent(trans, extent_root,
+					     gang[i]->b_blocknr, 1);
 			if (wret)
 				err = wret;
 		}

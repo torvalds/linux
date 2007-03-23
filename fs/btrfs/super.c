@@ -10,6 +10,7 @@
 #include <linux/backing-dev.h>
 #include "ctree.h"
 #include "disk-io.h"
+#include "transaction.h"
 
 #define BTRFS_SUPER_MAGIC 0x9123682E
 
@@ -357,6 +358,131 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	return 0;
 }
 
+static void fill_inode_item(struct btrfs_inode_item *item,
+			    struct inode *inode)
+{
+	btrfs_set_inode_uid(item, inode->i_uid);
+	btrfs_set_inode_gid(item, inode->i_gid);
+	btrfs_set_inode_size(item, inode->i_size);
+	btrfs_set_inode_mode(item, inode->i_mode);
+	btrfs_set_inode_nlink(item, inode->i_nlink);
+	btrfs_set_timespec_sec(&item->atime, inode->i_atime.tv_sec);
+	btrfs_set_timespec_nsec(&item->atime, inode->i_atime.tv_nsec);
+	btrfs_set_timespec_sec(&item->mtime, inode->i_mtime.tv_sec);
+	btrfs_set_timespec_nsec(&item->mtime, inode->i_mtime.tv_nsec);
+	btrfs_set_timespec_sec(&item->ctime, inode->i_ctime.tv_sec);
+	btrfs_set_timespec_nsec(&item->ctime, inode->i_ctime.tv_nsec);
+	btrfs_set_inode_nblocks(item, inode->i_blocks);
+	btrfs_set_inode_generation(item, inode->i_generation);
+}
+
+static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
+				     struct inode *dir, int mode)
+{
+	struct inode *inode;
+	struct btrfs_inode_item inode_item;
+	struct btrfs_root *root = btrfs_sb(dir->i_sb);
+	struct btrfs_key key;
+	int ret;
+	u64 objectid;
+
+	inode = new_inode(dir->i_sb);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	ret = btrfs_find_free_objectid(trans, root, dir->i_ino, &objectid);
+	BUG_ON(ret);
+
+	inode->i_uid = current->fsuid;
+	inode->i_gid = current->fsgid;
+	inode->i_mode = mode;
+	inode->i_ino = objectid;
+	inode->i_blocks = 0;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
+	fill_inode_item(&inode_item, inode);
+
+
+	key.objectid = objectid;
+	key.flags = 0;
+	key.offset = 0;
+	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
+	ret = btrfs_insert_inode_map(trans, root, objectid, &key);
+	BUG_ON(ret);
+
+	ret = btrfs_insert_inode(trans, root, objectid, &inode_item);
+	BUG_ON(ret);
+
+	insert_inode_hash(inode);
+	// FIXME mark_inode_dirty(inode)
+	return inode;
+}
+
+static int btrfs_add_link(struct btrfs_trans_handle *trans,
+			    struct dentry *dentry, struct inode *inode)
+{
+	int ret;
+	ret = btrfs_insert_dir_item(trans, btrfs_sb(inode->i_sb),
+				    dentry->d_name.name, dentry->d_name.len,
+				    dentry->d_parent->d_inode->i_ino,
+				    inode->i_ino, 0);
+	BUG_ON(ret);
+	return ret;
+}
+
+static int btrfs_add_nondir(struct btrfs_trans_handle *trans,
+			    struct dentry *dentry, struct inode *inode)
+{
+	int err = btrfs_add_link(trans, dentry, inode);
+	if (!err) {
+		d_instantiate(dentry, inode);
+		return 0;
+	}
+	inode_dec_link_count(inode);
+	iput(inode);
+	return err;
+}
+
+static int btrfs_create(struct inode *dir, struct dentry *dentry,
+			int mode, struct nameidata *nd)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = btrfs_sb(dir->i_sb);
+	struct inode *inode;
+	int err;
+
+	trans = btrfs_start_transaction(root, 1);
+	inode = btrfs_new_inode(trans, dir, mode);
+	err = PTR_ERR(inode);
+	if (IS_ERR(inode))
+		return err;
+	// FIXME mark the inode dirty
+	err = btrfs_add_nondir(trans, dentry, inode);
+	dir->i_sb->s_dirt = 1;
+	btrfs_end_transaction(trans, root);
+	return err;
+}
+
+static void btrfs_write_super(struct super_block *sb)
+{
+	sb->s_dirt = 0;
+printk("btrfs write_super!\n");
+}
+
+static int btrfs_sync_fs(struct super_block *sb, int wait)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root;
+	int ret;
+	sb->s_dirt = 0;
+	root = btrfs_sb(sb);
+	trans = btrfs_start_transaction(root, 1);
+	ret = btrfs_commit_transaction(trans, root);
+	sb->s_dirt = 0;
+	BUG_ON(ret);
+printk("btrfs sync_fs\n");
+	return 0;
+}
+
 static int btrfs_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
@@ -377,10 +503,13 @@ static struct super_operations btrfs_super_ops = {
 	.drop_inode	= generic_delete_inode,
 	.put_super	= btrfs_put_super,
 	.read_inode	= btrfs_read_locked_inode,
+	.write_super	= btrfs_write_super,
+	.sync_fs	= btrfs_sync_fs,
 };
 
 static struct inode_operations btrfs_dir_inode_operations = {
 	.lookup		= btrfs_lookup,
+	.create		= btrfs_create,
 };
 
 static struct file_operations btrfs_dir_file_operations = {

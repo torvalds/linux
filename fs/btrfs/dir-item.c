@@ -5,7 +5,7 @@
 #include "transaction.h"
 
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
-			  *root, char *name, int name_len, u64 dir, u64
+			  *root, const char *name, int name_len, u64 dir, u64
 			  objectid, u8 type)
 {
 	int ret = 0;
@@ -35,6 +35,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_dir_name_len(dir_item, name_len);
 	name_ptr = (char *)(dir_item + 1);
 	memcpy(name_ptr, name, name_len);
+	mark_buffer_dirty(path.nodes[0]);
 out:
 	btrfs_release_path(root, &path);
 	return ret;

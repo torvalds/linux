@@ -3,6 +3,7 @@
 * Fix ENOSPC handling
 * make a real mkfs and superblock
 * Do checksumming
+* Use a real check instead of mark_buffer_dirty
 * Define FS objects in terms of different item types
 * Add block mapping tree (simple dm layer)
 * Add simple tree locking (semaphore per tree)

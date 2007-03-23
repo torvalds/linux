@@ -25,7 +25,7 @@ static int join_transaction(struct btrfs_root *root)
 		init_waitqueue_head(&cur_trans->writer_wait);
 		init_waitqueue_head(&cur_trans->commit_wait);
 		cur_trans->in_commit = 0;
-		cur_trans->use_count = 0;
+		cur_trans->use_count = 1;
 		cur_trans->commit_done = 0;
 	}
 	cur_trans->num_writers++;
@@ -56,7 +56,7 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	struct btrfs_transaction *cur_trans;
 	mutex_lock(&root->fs_info->trans_mutex);
 	cur_trans = root->fs_info->running_transaction;
-	WARN_ON(cur_trans->num_writers <= 1);
+	WARN_ON(cur_trans->num_writers < 1);
 	if (waitqueue_active(&cur_trans->writer_wait))
 		wake_up(&cur_trans->writer_wait);
 	cur_trans->num_writers--;
@@ -155,10 +155,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	cur_trans = root->fs_info->running_transaction;
 	root->fs_info->running_transaction = NULL;
-	mutex_unlock(&root->fs_info->trans_mutex);
 
-	memcpy(&snap_key, &root->root_key, sizeof(snap_key));
-	root->root_key.offset++;
+	if (root->node != root->commit_root) {
+		memcpy(&snap_key, &root->root_key, sizeof(snap_key));
+		root->root_key.offset++;
+	}
+
+	mutex_unlock(&root->fs_info->trans_mutex);
 
 	if (btrfs_root_blocknr(&root->root_item) != root->node->b_blocknr) {
 		btrfs_set_root_blocknr(&root->root_item, root->node->b_blocknr);

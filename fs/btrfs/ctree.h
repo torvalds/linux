@@ -833,7 +833,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
 			 btrfs_root_item *item, struct btrfs_key *key);
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
-			  *root, char *name, int name_len, u64 dir, u64
+			  *root, const char *name, int name_len, u64 dir, u64
 			  objectid, u8 type);
 int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  *root, struct btrfs_path *path, u64 dir,
