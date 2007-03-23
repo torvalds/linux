@@ -286,7 +286,7 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 		/* if more time remaining? */
 		PSCHED_GET_TIME(now);
 
-		if (PSCHED_TLESS(cb->time_to_send, now)) {
+		if (!PSCHED_TLESS(now, cb->time_to_send)) {
 			pr_debug("netem_dequeue: return skb=%p\n", skb);
 			sch->q.qlen--;
 			return skb;
