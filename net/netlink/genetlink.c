@@ -304,9 +304,6 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct genlmsghdr *hdr = nlmsg_data(nlh);
 	int hdrlen, err = -EINVAL;
 
-	if (nlh->nlmsg_type < NLMSG_MIN_TYPE)
-		goto ignore;
-
 	family = genl_family_find_byid(nlh->nlmsg_type);
 	if (family == NULL) {
 		err = -ENOENT;
@@ -363,9 +360,6 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	*errp = err = ops->doit(skb, &info);
 	return err;
-
-ignore:
-	return 0;
 
 errout:
 	*errp = err;

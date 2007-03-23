@@ -1860,10 +1860,6 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *err
 
 	type = nlh->nlmsg_type;
 
-	/* A control message: ignore them */
-	if (type < XFRM_MSG_BASE)
-		return 0;
-
 	/* Unknown message: reply with EINVAL */
 	if (type > XFRM_MSG_MAX)
 		goto err_einval;

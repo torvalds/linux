@@ -864,10 +864,6 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 
 	type = nlh->nlmsg_type;
 
-	/* A control message: ignore them */
-	if (type < RTM_BASE)
-		return 0;
-
 	/* Unknown message: reply with EINVAL */
 	if (type > RTM_MAX)
 		goto err_inval;
