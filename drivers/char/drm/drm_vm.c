@@ -175,8 +175,7 @@ static __inline__ struct page *drm_do_vm_shm_nopage(struct vm_area_struct *vma,
 
 	offset = address - vma->vm_start;
 	i = (unsigned long)map->handle + offset;
-	page = (map->type == _DRM_CONSISTENT) ?
-		virt_to_page((void *)i) : vmalloc_to_page((void *)i);
+	page = vmalloc_to_page((void *)i);
 	if (!page)
 		return NOPAGE_SIGBUS;
 	get_page(page);
@@ -651,10 +650,15 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 			  vma->vm_start, vma->vm_end, map->offset + offset);
 		vma->vm_ops = &drm_vm_ops;
 		break;
-	case _DRM_SHM:
 	case _DRM_CONSISTENT:
-		/* Consistent memory is really like shared memory. It's only
-		 * allocate in a different way */
+		/* Consistent memory is really like shared memory. But
+		 * it's allocated in a different way, so avoid nopage */
+		if (remap_pfn_range(vma, vma->vm_start,
+		    page_to_pfn(virt_to_page(map->handle)),
+		    vma->vm_end - vma->vm_start, vma->vm_page_prot))
+			return -EAGAIN;
+	/* fall through to _DRM_SHM */
+	case _DRM_SHM:
 		vma->vm_ops = &drm_vm_shm_ops;
 		vma->vm_private_data = (void *)map;
 		/* Don't let this area swap.  Change when
