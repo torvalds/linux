@@ -152,6 +152,28 @@ out:
 
 EXPORT_SYMBOL_GPL(fib_rules_lookup);
 
+static int validate_rulemsg(struct fib_rule_hdr *frh, struct nlattr **tb,
+			    struct fib_rules_ops *ops)
+{
+	int err = -EINVAL;
+
+	if (frh->src_len)
+		if (tb[FRA_SRC] == NULL ||
+		    frh->src_len > (ops->addr_size * 8) ||
+		    nla_len(tb[FRA_SRC]) != ops->addr_size)
+			goto errout;
+
+	if (frh->dst_len)
+		if (tb[FRA_DST] == NULL ||
+		    frh->dst_len > (ops->addr_size * 8) ||
+		    nla_len(tb[FRA_DST]) != ops->addr_size)
+			goto errout;
+
+	err = 0;
+errout:
+	return err;
+}
+
 int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct fib_rule_hdr *frh = nlmsg_data(nlh);
@@ -170,6 +192,10 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	}
 
 	err = nlmsg_parse(nlh, sizeof(*frh), tb, FRA_MAX, ops->policy);
+	if (err < 0)
+		goto errout;
+
+	err = validate_rulemsg(frh, tb, ops);
 	if (err < 0)
 		goto errout;
 
@@ -257,6 +283,10 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	}
 
 	err = nlmsg_parse(nlh, sizeof(*frh), tb, FRA_MAX, ops->policy);
+	if (err < 0)
+		goto errout;
+
+	err = validate_rulemsg(frh, tb, ops);
 	if (err < 0)
 		goto errout;
 
