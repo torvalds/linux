@@ -193,6 +193,14 @@ static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
 	},
 	{
 		.callback = set_bf_sort,
+		.ident = "Dell PowerEdge R900",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge R900"),
+		},
+	},
+	{
+		.callback = set_bf_sort,
 		.ident = "HP ProLiant BL20p G3",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
