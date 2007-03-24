@@ -459,7 +459,7 @@ struct linux_smonblock {
 	register signed int __a2 __asm__("$5") = (int) (long) (a2);	\
 	register signed int __a3 __asm__("$6") = (int) (long) (a3);	\
 	register signed int __a4 __asm__("$7") = (int) (long) (a4);	\
-	register signed int __a5 = (a5);				\
+	register signed int __a5 = (int) (long) (a5);			\
 	long __vec = (long) romvec->dest;				\
 	__asm__ __volatile__(						\
 	"dsubu\t$29, 32\n\t"						\
