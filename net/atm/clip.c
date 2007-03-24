@@ -261,14 +261,6 @@ static void clip_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 	spin_unlock_irqrestore(&PRIV(dev)->xoff_lock, flags);
 }
 
-static void clip_neigh_destroy(struct neighbour *neigh)
-{
-	DPRINTK("clip_neigh_destroy (neigh %p)\n", neigh);
-	if (NEIGH2ENTRY(neigh)->vccs)
-		printk(KERN_CRIT "clip_neigh_destroy: vccs != NULL !!!\n");
-	NEIGH2ENTRY(neigh)->vccs = (void *) NEIGHBOR_DEAD;
-}
-
 static void clip_neigh_solicit(struct neighbour *neigh, struct sk_buff *skb)
 {
 	DPRINTK("clip_neigh_solicit (neigh %p, skb %p)\n", neigh, skb);
@@ -342,7 +334,6 @@ static struct neigh_table clip_tbl = {
 	/* parameters are copied from ARP ... */
 	.parms = {
 		.tbl 			= &clip_tbl,
-		.neigh_destructor	= clip_neigh_destroy,
 		.base_reachable_time 	= 30 * HZ,
 		.retrans_time 		= 1 * HZ,
 		.gc_staletime 		= 60 * HZ,

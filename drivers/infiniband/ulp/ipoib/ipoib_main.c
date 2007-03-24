@@ -814,7 +814,7 @@ static void ipoib_set_mcast_list(struct net_device *dev)
 	queue_work(ipoib_workqueue, &priv->restart_task);
 }
 
-static void ipoib_neigh_destructor(struct neighbour *n)
+static void ipoib_neigh_cleanup(struct neighbour *n)
 {
 	struct ipoib_neigh *neigh;
 	struct ipoib_dev_priv *priv = netdev_priv(n->dev);
@@ -822,7 +822,7 @@ static void ipoib_neigh_destructor(struct neighbour *n)
 	struct ipoib_ah *ah = NULL;
 
 	ipoib_dbg(priv,
-		  "neigh_destructor for %06x " IPOIB_GID_FMT "\n",
+		  "neigh_cleanup for %06x " IPOIB_GID_FMT "\n",
 		  IPOIB_QPN(n->ha),
 		  IPOIB_GID_RAW_ARG(n->ha + 4));
 
@@ -874,7 +874,7 @@ void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh)
 
 static int ipoib_neigh_setup_dev(struct net_device *dev, struct neigh_parms *parms)
 {
-	parms->neigh_destructor = ipoib_neigh_destructor;
+	parms->neigh_cleanup = ipoib_neigh_cleanup;
 
 	return 0;
 }
