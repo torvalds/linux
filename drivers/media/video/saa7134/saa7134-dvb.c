@@ -1177,6 +1177,8 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.init(dev->dvb.frontend);
 		if (dev->dvb.frontend->ops.sleep)
 			dev->dvb.frontend->ops.sleep(dev->dvb.frontend);
+		if (dev->dvb.frontend->ops.tuner_ops.sleep)
+			dev->dvb.frontend->ops.tuner_ops.sleep(dev->dvb.frontend);
 	}
 	return ret;
 }

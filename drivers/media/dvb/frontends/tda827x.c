@@ -91,6 +91,7 @@ static int tda827xo_set_params(struct dvb_frontend *fe,
 	int i, tuner_freq, if_freq;
 	u32 N;
 
+	dprintk("%s:\n", __FUNCTION__);
 	switch (params->u.ofdm.bandwidth) {
 	case BANDWIDTH_6_MHZ:
 		if_freq = 4000000;
@@ -159,6 +160,7 @@ static int tda827xo_sleep(struct dvb_frontend *fe)
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
 
+	dprintk("%s:\n", __FUNCTION__);
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(priv->i2c_adap, &msg, 1);
@@ -222,6 +224,7 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 	int i, tuner_freq, if_freq;
 	u32 N;
 
+	dprintk("%s:\n", __FUNCTION__);
 	if (priv->cfg && priv->cfg->lna_gain)
 		priv->cfg->lna_gain(fe, 1);
 	msleep(20);
@@ -350,6 +353,7 @@ static int tda827xa_sleep(struct dvb_frontend *fe)
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
 
+	dprintk("%s:\n", __FUNCTION__);
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
@@ -388,13 +392,32 @@ static int tda827x_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 static int tda827x_init(struct dvb_frontend *fe)
 {
 	struct tda827x_priv *priv = fe->tuner_priv;
-
+	dprintk("%s:\n", __FUNCTION__);
 	if (priv->cfg && priv->cfg->init)
 		priv->cfg->init(fe);
 
 	return 0;
 }
 
+static int tda827x_probe_version(struct dvb_frontend *fe);
+
+static int tda827x_initial_init(struct dvb_frontend *fe)
+{
+	int ret;
+	ret = tda827x_probe_version(fe);
+	if (ret)
+		return ret;
+	return fe->ops.tuner_ops.init(fe);
+}
+
+static int tda827x_initial_sleep(struct dvb_frontend *fe)
+{
+	int ret;
+	ret = tda827x_probe_version(fe);
+	if (ret)
+		return ret;
+	return fe->ops.tuner_ops.sleep(fe);
+}
 
 static struct dvb_tuner_ops tda827xo_tuner_ops = {
 	.info = {
@@ -404,8 +427,8 @@ static struct dvb_tuner_ops tda827xo_tuner_ops = {
 		.frequency_step =    250000
 	},
 	.release = tda827x_release,
-	.init = tda827x_init,
-	.sleep = tda827xo_sleep,
+	.init = tda827x_initial_init,
+	.sleep = tda827x_initial_sleep,
 	.set_params = tda827xo_set_params,
 	.get_frequency = tda827x_get_frequency,
 	.get_bandwidth = tda827x_get_bandwidth,
@@ -426,26 +449,36 @@ static struct dvb_tuner_ops tda827xa_tuner_ops = {
 	.get_bandwidth = tda827x_get_bandwidth,
 };
 
+static int tda827x_probe_version(struct dvb_frontend *fe)
+{	u8 data;
+	struct tda827x_priv *priv = fe->tuner_priv;
+	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = I2C_M_RD,
+			       .buf = &data, .len = 1 };
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+	if (i2c_transfer(priv->i2c_adap, &msg, 1) != 1) {
+		printk("%s: could not read from tuner at addr: 0x%02x\n",
+		       __FUNCTION__, msg.addr << 1);
+		return -EIO;
+	}
+	if ((data & 0x3c) == 0) {
+		dprintk("tda827x tuner found\n");
+		fe->ops.tuner_ops.init  = tda827x_init;
+		fe->ops.tuner_ops.sleep = tda827xo_sleep;
+	} else {
+		dprintk("tda827xa tuner found\n");
+		memcpy(&fe->ops.tuner_ops, &tda827xa_tuner_ops, sizeof(struct dvb_tuner_ops));
+	}
+	return 0;
+}
+
 struct dvb_frontend *tda827x_attach(struct dvb_frontend *fe, int addr,
 				    struct i2c_adapter *i2c,
 				    struct tda827x_config *cfg)
 {
 	struct tda827x_priv *priv = NULL;
-	u8 data;
-	u8 sb_msg[] = { 0x30, 0xd0 };
-	struct i2c_msg msg = { .addr = addr, .flags = I2C_M_RD,
-			       .buf = &data, .len = 1 };
+
 	dprintk("%s:\n", __FUNCTION__);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	if (i2c_transfer(i2c, &msg, 1) != 1) {
-		printk("%s: could not read from tuner at addr: 0x%02x\n",
-		       __FUNCTION__, addr << 1);
-		return NULL;
-	}
-
 	priv = kzalloc(sizeof(struct tda827x_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return NULL;
@@ -453,25 +486,13 @@ struct dvb_frontend *tda827x_attach(struct dvb_frontend *fe, int addr,
 	priv->i2c_addr = addr;
 	priv->i2c_adap = i2c;
 	priv->cfg = cfg;
+	memcpy(&fe->ops.tuner_ops, &tda827xo_tuner_ops, sizeof(struct dvb_tuner_ops));
 
-	msg.flags = 0;
-	msg.buf = sb_msg;
-	msg.len = sizeof(sb_msg);
-
-	if ((data & 0x3c) == 0) {
-		dprintk("tda827x tuner found\n");
-		memcpy(&fe->ops.tuner_ops, &tda827xo_tuner_ops, sizeof(struct dvb_tuner_ops));
-	} else {
-		dprintk("tda827xa tuner found\n");
-		memcpy(&fe->ops.tuner_ops, &tda827xa_tuner_ops, sizeof(struct dvb_tuner_ops));
-		sb_msg[1] = 0x90;
-	}
 	fe->tuner_priv = priv;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(i2c, &msg, 1);
+
 	return fe;
 }
+
 EXPORT_SYMBOL(tda827x_attach);
 
 module_param(debug, int, 0644);
