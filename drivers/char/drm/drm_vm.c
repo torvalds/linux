@@ -633,16 +633,11 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 		vma->vm_page_prot = drm_io_prot(map->type, vma);
 #ifdef __sparc__
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       (map->offset + offset) >> PAGE_SHIFT,
-				       vma->vm_end - vma->vm_start,
-				       vma->vm_page_prot))
-#else
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       (map->offset + offset) >> PAGE_SHIFT,
-				       vma->vm_end - vma->vm_start,
-				       vma->vm_page_prot))
 #endif
+		if (io_remap_pfn_range(vma, vma->vm_start,
+				       (map->offset + offset) >> PAGE_SHIFT,
+				       vma->vm_end - vma->vm_start,
+				       vma->vm_page_prot))
 			return -EAGAIN;
 		DRM_DEBUG("   Type = %d; start = 0x%lx, end = 0x%lx,"
 			  " offset = 0x%lx\n",
