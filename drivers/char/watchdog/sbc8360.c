@@ -333,18 +333,17 @@ static int __init sbc8360_init(void)
 	int res;
 	unsigned long int mseconds = 60000;
 
-	spin_lock_init(&sbc8360_lock);
-	res = misc_register(&sbc8360_miscdev);
-	if (res) {
-		printk(KERN_ERR PFX "failed to register misc device\n");
-		goto out_nomisc;
+	if (timeout < 0 || timeout > 63) {
+		printk(KERN_ERR PFX "Invalid timeout index (must be 0-63).\n");
+		res = -EINVAL;
+		goto out;
 	}
 
 	if (!request_region(SBC8360_ENABLE, 1, "SBC8360")) {
 		printk(KERN_ERR PFX "ENABLE method I/O %X is not available.\n",
 		       SBC8360_ENABLE);
 		res = -EIO;
-		goto out_noenablereg;
+		goto out;
 	}
 	if (!request_region(SBC8360_BASETIME, 1, "SBC8360")) {
 		printk(KERN_ERR PFX
@@ -360,10 +359,11 @@ static int __init sbc8360_init(void)
 		goto out_noreboot;
 	}
 
-	if (timeout < 0 || timeout > 63) {
-		printk(KERN_ERR PFX "Invalid timeout index (must be 0-63).\n");
-		res = -EINVAL;
-		goto out_noreboot;
+	spin_lock_init(&sbc8360_lock);
+	res = misc_register(&sbc8360_miscdev);
+	if (res) {
+		printk(KERN_ERR PFX "failed to register misc device\n");
+		goto out_nomisc;
 	}
 
 	wd_margin = wd_times[timeout][0];
@@ -383,13 +383,13 @@ static int __init sbc8360_init(void)
 
 	return 0;
 
-      out_noreboot:
-	release_region(SBC8360_ENABLE, 1);
-	release_region(SBC8360_BASETIME, 1);
-      out_noenablereg:
-      out_nobasetimereg:
-	misc_deregister(&sbc8360_miscdev);
       out_nomisc:
+	unregister_reboot_notifier(&sbc8360_notifier);
+      out_noreboot:
+	release_region(SBC8360_BASETIME, 1);
+      out_nobasetimereg:
+	release_region(SBC8360_ENABLE, 1);
+      out:
 	return res;
 }
 

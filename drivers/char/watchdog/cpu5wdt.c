@@ -220,15 +220,15 @@ static int __devinit cpu5wdt_init(void)
 	if ( verbose )
 		printk(KERN_DEBUG PFX "port=0x%x, verbose=%i\n", port, verbose);
 
-	if ( (err = misc_register(&cpu5wdt_misc)) < 0 ) {
-		printk(KERN_ERR PFX "misc_register failed\n");
-		goto no_misc;
-	}
-
 	if ( !request_region(port, CPU5WDT_EXTENT, PFX) ) {
 		printk(KERN_ERR PFX "request_region failed\n");
 		err = -EBUSY;
 		goto no_port;
+	}
+
+	if ( (err = misc_register(&cpu5wdt_misc)) < 0 ) {
+		printk(KERN_ERR PFX "misc_register failed\n");
+		goto no_misc;
 	}
 
 	/* watchdog reboot? */
@@ -250,9 +250,9 @@ static int __devinit cpu5wdt_init(void)
 
 	return 0;
 
-no_port:
-	misc_deregister(&cpu5wdt_misc);
 no_misc:
+	release_region(port, CPU5WDT_EXTENT);
+no_port:
 	return err;
 }
 
