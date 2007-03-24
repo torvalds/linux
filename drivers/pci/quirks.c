@@ -963,6 +963,13 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237, k8t_sound_ho
  * bridge. Unfortunately, this device has no subvendor/subdevice ID. So it 
  * becomes necessary to do this tweak in two steps -- I've chosen the Host
  * bridge as trigger.
+ *
+ * Note that we used to unhide the SMBus that way on Toshiba laptops
+ * (Satellite A40 and Tecra M2) but then found that the thermal management
+ * was done by SMM code, which could cause unsynchronized concurrent
+ * accesses to the SMBus registers, with potentially bad effects. Thus you
+ * should be very careful when adding new entries: if SMM is accessing the
+ * Intel SMBus, this is a very good reason to leave it hidden.
  */
 static int asus_hides_smbus;
 
@@ -1038,17 +1045,6 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 		else if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB)
 			switch (dev->subsystem_device) {
 			case 0x099c: /* HP Compaq nx6110 */
-				asus_hides_smbus = 1;
-			}
-	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_TOSHIBA)) {
-		if (dev->device == PCI_DEVICE_ID_INTEL_82855GM_HB)
-			switch(dev->subsystem_device) {
-			case 0x0001: /* Toshiba Satellite A40 */
-				asus_hides_smbus = 1;
-			}
-		else if (dev->device == PCI_DEVICE_ID_INTEL_82855PM_HB)
-			switch(dev->subsystem_device) {
-			case 0x0001: /* Toshiba Tecra M2 */
 				asus_hides_smbus = 1;
 			}
        } else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG)) {
