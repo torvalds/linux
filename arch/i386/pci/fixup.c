@@ -354,7 +354,7 @@ static void __devinit pci_fixup_video(struct pci_dev *pdev)
 		printk(KERN_DEBUG "Boot video device is %s\n", pci_name(pdev));
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_video);
+DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_video);
 
 /*
  * Some Toshiba laptops need extra code to enable their TI TSB43AB22/A.
