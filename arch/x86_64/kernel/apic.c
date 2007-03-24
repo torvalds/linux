@@ -934,9 +934,17 @@ EXPORT_SYMBOL(switch_APIC_timer_to_ipi);
 
 void smp_send_timer_broadcast_ipi(void)
 {
+	int cpu = smp_processor_id();
 	cpumask_t mask;
 
 	cpus_and(mask, cpu_online_map, timer_interrupt_broadcast_ipi_mask);
+
+	if (cpu_isset(cpu, mask)) {
+		cpu_clear(cpu, mask);
+		add_pda(apic_timer_irqs, 1);
+		smp_local_timer_interrupt();
+	}
+
 	if (!cpus_empty(mask)) {
 		send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
 	}
