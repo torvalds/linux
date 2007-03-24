@@ -243,7 +243,7 @@ struct sbmac_softc {
 	 * Controller-specific things
 	 */
 
-	volatile void __iomem *sbm_base;          /* MAC's base address */
+	void __iomem		*sbm_base;          /* MAC's base address */
 	sbmac_state_t    sbm_state;         /* current state */
 
 	volatile void __iomem	*sbm_macenable;	/* MAC Enable Register */

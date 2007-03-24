@@ -228,7 +228,7 @@ static int __init sb1250_pcibios_init(void)
 	/*
 	 * See if the PCI bus has been configured by the firmware.
 	 */
-	reg = *((volatile uint64_t *) IOADDR(A_SCD_SYSTEM_CFG));
+	reg = __raw_readq(IOADDR(A_SCD_SYSTEM_CFG));
 	if (!(reg & M_SYS_PCI_HOST)) {
 		sb1250_bus_status |= PCI_DEVICE_MODE;
 	} else {
