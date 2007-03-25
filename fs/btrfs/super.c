@@ -146,6 +146,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	ret = btrfs_lookup_inode(NULL, root, &path, inode->i_ino, 0);
 	if (ret) {
 		make_bad_inode(inode);
+		btrfs_release_path(root, &path);
 		return;
 	}
 	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),

@@ -165,13 +165,23 @@ static int pin_down_block(struct btrfs_root *root, u64 blocknr, int tag)
 {
 	int err;
 	struct buffer_head *bh = sb_getblk(root->fs_info->sb, blocknr);
+	struct btrfs_header *header;
 	BUG_ON(!bh);
+
+	header = btrfs_buffer_header(bh);
+	if (btrfs_header_generation(header) ==
+	    root->fs_info->running_transaction->transid) {
+		return 0;
+	}
+
 	err = radix_tree_insert(&root->fs_info->pinned_radix,
 				blocknr, bh);
 	if (err && err != -EEXIST) {
 		BUG();
 		return err;
 	}
+	if (err == -EEXIST)
+		brelse(bh);
 	radix_tree_tag_set(&root->fs_info->pinned_radix, blocknr,
 			   tag);
 	return 0;
@@ -181,7 +191,7 @@ static int pin_down_block(struct btrfs_root *root, u64 blocknr, int tag)
  * remove an extent from the root, returns 0 on success
  */
 static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
-			 *root, u64 blocknr, u64 num_blocks)
+			 *root, u64 blocknr, u64 num_blocks, int pin)
 {
 	struct btrfs_path path;
 	struct btrfs_key key;
@@ -213,12 +223,18 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_extent_refs(ei, refs);
 	if (refs == 0) {
 		u64 super_blocks_used;
+
+		if (pin) {
+			ret = pin_down_block(root, blocknr,
+					     CTREE_EXTENT_PINNED);
+			BUG_ON(ret);
+		}
+
 		super_blocks_used = btrfs_super_blocks_used(info->disk_super);
 		btrfs_set_super_blocks_used(info->disk_super,
 					    super_blocks_used - num_blocks);
 		ret = btrfs_del_item(trans, extent_root, &path);
-		if (extent_root->fs_info->last_insert.objectid >
-		    blocknr)
+		if (extent_root->fs_info->last_insert.objectid > blocknr)
 			extent_root->fs_info->last_insert.objectid = blocknr;
 		if (ret)
 			BUG();
@@ -257,7 +273,7 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 			radix_tree_tag_clear(radix, gang[i]->b_blocknr,
 					     CTREE_EXTENT_PENDING_DEL);
 			wret = __free_extent(trans, extent_root,
-					     gang[i]->b_blocknr, 1);
+					     gang[i]->b_blocknr, 1, 0);
 			if (wret)
 				err = wret;
 		}
@@ -281,11 +297,7 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		pin_down_block(root, blocknr, CTREE_EXTENT_PENDING_DEL);
 		return 0;
 	}
-	if (pin) {
-		ret = pin_down_block(root, blocknr, CTREE_EXTENT_PINNED);
-		BUG_ON(ret);
-	}
-	ret = __free_extent(trans, root, blocknr, num_blocks);
+	ret = __free_extent(trans, root, blocknr, num_blocks, pin);
 	pending_ret = del_pending_extents(trans, root->fs_info->extent_root);
 	return ret ? ret : pending_ret;
 }

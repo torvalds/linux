@@ -4,12 +4,15 @@
 #include "disk-io.h"
 #include "transaction.h"
 
-
+static int total_trans = 0;
 static void put_transaction(struct btrfs_transaction *transaction)
 {
 	transaction->use_count--;
-	if (transaction->use_count == 0)
+	if (transaction->use_count == 0) {
+		WARN_ON(total_trans == 0);
+		total_trans--;
 		kfree(transaction);
+	}
 }
 
 static int join_transaction(struct btrfs_root *root)
@@ -18,6 +21,7 @@ static int join_transaction(struct btrfs_root *root)
 	cur_trans = root->fs_info->running_transaction;
 	if (!cur_trans) {
 		cur_trans = kmalloc(sizeof(*cur_trans), GFP_NOFS);
+		total_trans++;
 		BUG_ON(!cur_trans);
 		root->fs_info->running_transaction = cur_trans;
 		cur_trans->num_writers = 0;
@@ -108,7 +112,6 @@ static int wait_for_commit(struct btrfs_root *root,
 			   struct btrfs_transaction *commit)
 {
 	DEFINE_WAIT(wait);
-	commit->use_count++;
 	while(!commit->commit_done) {
 		prepare_to_wait(&commit->commit_wait, &wait,
 				TASK_UNINTERRUPTIBLE);
@@ -126,7 +129,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
 	int ret = 0;
-	struct buffer_head *snap = root->commit_root;
+	struct buffer_head *snap;
 	struct btrfs_key snap_key;
 	struct btrfs_transaction *cur_trans;
 	DEFINE_WAIT(wait);
@@ -153,15 +156,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	}
 	finish_wait(&trans->transaction->writer_wait, &wait);
 
-	cur_trans = root->fs_info->running_transaction;
-	root->fs_info->running_transaction = NULL;
-
 	if (root->node != root->commit_root) {
 		memcpy(&snap_key, &root->root_key, sizeof(snap_key));
 		root->root_key.offset++;
 	}
 
-	mutex_unlock(&root->fs_info->trans_mutex);
 
 	if (btrfs_root_blocknr(&root->root_item) != root->node->b_blocknr) {
 		btrfs_set_root_blocknr(&root->root_item, root->node->b_blocknr);
@@ -173,17 +172,24 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = btrfs_commit_tree_roots(trans, root);
 	BUG_ON(ret);
 
+	cur_trans = root->fs_info->running_transaction;
+	root->fs_info->running_transaction = NULL;
+	mutex_unlock(&root->fs_info->trans_mutex);
+
 	ret = btrfs_write_and_wait_transaction(trans, root);
 	BUG_ON(ret);
 
 	write_ctree_super(trans, root);
-	btrfs_finish_extent_commit(trans, root->fs_info->extent_root);
-	btrfs_finish_extent_commit(trans, root->fs_info->tree_root);
+	btrfs_finish_extent_commit(trans, root);
+	mutex_lock(&root->fs_info->trans_mutex);
 	put_transaction(cur_trans);
+	put_transaction(cur_trans);
+	mutex_unlock(&root->fs_info->trans_mutex);
 	kfree(trans);
 
 	if (root->node != root->commit_root) {
 		trans = btrfs_start_transaction(root, 1);
+		snap = root->commit_root;
 		root->commit_root = root->node;
 		get_bh(root->node);
 		ret = btrfs_drop_snapshot(trans, root, snap);
@@ -191,10 +197,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_del_root(trans, root->fs_info->tree_root,
 				     &snap_key);
-		BUG_ON(ret);
-		root->fs_info->generation = root->root_key.offset + 1;
-		ret = btrfs_end_transaction(trans, root);
-		BUG_ON(ret);
+		BUG_ON(ret); root->fs_info->generation = root->root_key.offset + 1; ret = btrfs_end_transaction(trans, root); BUG_ON(ret);
+		printk("at free, total trans %d\n", total_trans);
 	}
 
 	return ret;
