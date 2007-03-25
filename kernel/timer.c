@@ -695,15 +695,28 @@ static unsigned long cmp_next_hrtimer_event(unsigned long now,
 {
 	ktime_t hr_delta = hrtimer_get_next_event();
 	struct timespec tsdelta;
+	unsigned long delta;
 
 	if (hr_delta.tv64 == KTIME_MAX)
 		return expires;
 
-	if (hr_delta.tv64 <= TICK_NSEC)
-		return now;
+	/*
+	 * Expired timer available, let it expire in the next tick
+	 */
+	if (hr_delta.tv64 <= 0)
+		return now + 1;
 
 	tsdelta = ktime_to_timespec(hr_delta);
-	now += timespec_to_jiffies(&tsdelta);
+	delta = timespec_to_jiffies(&tsdelta);
+	/*
+	 * Take rounding errors in to account and make sure, that it
+	 * expires in the next tick. Otherwise we go into an endless
+	 * ping pong due to tick_nohz_stop_sched_tick() retriggering
+	 * the timer softirq
+	 */
+	if (delta < 1)
+		delta = 1;
+	now += delta;
 	if (time_before(now, expires))
 		return now;
 	return expires;
