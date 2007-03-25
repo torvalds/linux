@@ -2184,7 +2184,6 @@ static void cafe_pci_remove(struct pci_dev *pdev)
 
 
 static struct pci_device_id cafe_ids[] = {
-	{ PCI_DEVICE(0x1148, 0x4340) }, /* Temporary ID on devel board */
 	{ PCI_DEVICE(0x11ab, 0x4100) }, /* Eventual real ID */
 	{ PCI_DEVICE(0x11ab, 0x4102) }, /* Really eventual real ID */
 	{ 0, }
