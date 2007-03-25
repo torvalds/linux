@@ -459,7 +459,6 @@ static void init_vmcb(struct vmcb *vmcb)
 {
 	struct vmcb_control_area *control = &vmcb->control;
 	struct vmcb_save_area *save = &vmcb->save;
-	u64 tsc;
 
 	control->intercept_cr_read = 	INTERCEPT_CR0_MASK |
 					INTERCEPT_CR3_MASK |
@@ -517,8 +516,7 @@ static void init_vmcb(struct vmcb *vmcb)
 
 	control->iopm_base_pa = iopm_base;
 	control->msrpm_base_pa = msrpm_base;
-	rdtscll(tsc);
-	control->tsc_offset = -tsc;
+	control->tsc_offset = 0;
 	control->int_ctl = V_INTR_MASKING_MASK;
 
 	init_seg(&save->es);
@@ -606,11 +604,26 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 
 static void svm_vcpu_load(struct kvm_vcpu *vcpu)
 {
-	get_cpu();
+	int cpu;
+
+	cpu = get_cpu();
+	if (unlikely(cpu != vcpu->cpu)) {
+		u64 tsc_this, delta;
+
+		/*
+		 * Make sure that the guest sees a monotonically
+		 * increasing TSC.
+		 */
+		rdtscll(tsc_this);
+		delta = vcpu->host_tsc - tsc_this;
+		vcpu->svm->vmcb->control.tsc_offset += delta;
+		vcpu->cpu = cpu;
+	}
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 {
+	rdtscll(vcpu->host_tsc);
 	put_cpu();
 }
 
