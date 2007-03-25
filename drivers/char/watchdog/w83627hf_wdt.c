@@ -1,5 +1,8 @@
 /*
- *	w83627hf WDT driver
+ *	w83627hf/thf WDT driver
+ *
+ *	(c) Copyright 2007 Vlad Drukker <vlad@storewiz.com>
+ *		added support for W83627THF.
  *
  *	(c) Copyright 2003 Pádraig Brady <P@draigBrady.com>
  *
@@ -39,7 +42,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#define WATCHDOG_NAME "w83627hf WDT"
+#define WATCHDOG_NAME "w83627hf/thf WDT"
 #define PFX WATCHDOG_NAME ": "
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
 
@@ -50,7 +53,7 @@ static spinlock_t io_lock;
 /* You must set this - there is no sane way to probe for this board. */
 static int wdt_io = 0x2E;
 module_param(wdt_io, int, 0);
-MODULE_PARM_DESC(wdt_io, "w83627hf WDT io port (default 0x2E)");
+MODULE_PARM_DESC(wdt_io, "w83627hf/thf WDT io port (default 0x2E)");
 
 static int timeout = WATCHDOG_TIMEOUT;	/* in seconds */
 module_param(timeout, int, 0);
@@ -71,8 +74,18 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" _
 static void
 w83627hf_select_wd_register(void)
 {
+	unsigned char c;
 	outb_p(0x87, WDT_EFER); /* Enter extended function mode */
 	outb_p(0x87, WDT_EFER); /* Again according to manual */
+
+	outb(0x20, WDT_EFER); 	/* check chip version	*/
+	c = inb(WDT_EFDR);
+	if (c == 0x82) {	/* W83627THF 		*/
+		outb_p(0x2b, WDT_EFER); /* select GPIO3 */
+		c = ((inb_p(WDT_EFDR) & 0xf7) | 0x04); /* select WDT0 */
+		outb_p(0x2b, WDT_EFER);
+		outb_p(c, WDT_EFDR);	/* set GPIO3 to WDT0 */
+	}
 
 	outb_p(0x07, WDT_EFER); /* point to logical device number reg */
 	outb_p(0x08, WDT_EFDR); /* select logical device 8 (GPIO2) */
@@ -311,7 +324,7 @@ wdt_init(void)
 
 	spin_lock_init(&io_lock);
 
-	printk(KERN_INFO "WDT driver for the Winbond(TM) W83627HF Super I/O chip initialising.\n");
+	printk(KERN_INFO "WDT driver for the Winbond(TM) W83627HF/THF Super I/O chip initialising.\n");
 
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);
@@ -367,5 +380,5 @@ module_exit(wdt_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pádraig Brady <P@draigBrady.com>");
-MODULE_DESCRIPTION("w83627hf WDT driver");
+MODULE_DESCRIPTION("w83627hf/thf WDT driver");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
