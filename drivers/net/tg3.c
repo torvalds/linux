@@ -3568,32 +3568,34 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id)
 	 * Reading the PCI State register will confirm whether the
 	 * interrupt is ours and will flush the status block.
 	 */
-	if ((sblk->status & SD_STATUS_UPDATED) ||
-	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
-		/*
-		 * Writing any value to intr-mbox-0 clears PCI INTA# and
-		 * chip-internal interrupt pending events.
-		 * Writing non-zero to intr-mbox-0 additional tells the
-		 * NIC to stop sending us irqs, engaging "in-intr-handler"
-		 * event coalescing.
-		 */
-		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     0x00000001);
-		if (tg3_irq_sync(tp))
+	if (unlikely(!(sblk->status & SD_STATUS_UPDATED))) {
+		if ((tp->tg3_flags & TG3_FLAG_CHIP_RESETTING) ||
+		    (tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
+			handled = 0;
 			goto out;
-		sblk->status &= ~SD_STATUS_UPDATED;
-		if (likely(tg3_has_work(tp))) {
-			prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
-			netif_rx_schedule(dev);		/* schedule NAPI poll */
-		} else {
-			/* No work, shared interrupt perhaps?  re-enable
-			 * interrupts, and flush that PCI write
-			 */
-			tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     	0x00000000);
 		}
-	} else {	/* shared interrupt */
-		handled = 0;
+	}
+
+	/*
+	 * Writing any value to intr-mbox-0 clears PCI INTA# and
+	 * chip-internal interrupt pending events.
+	 * Writing non-zero to intr-mbox-0 additional tells the
+	 * NIC to stop sending us irqs, engaging "in-intr-handler"
+	 * event coalescing.
+	 */
+	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	if (tg3_irq_sync(tp))
+		goto out;
+	sblk->status &= ~SD_STATUS_UPDATED;
+	if (likely(tg3_has_work(tp))) {
+		prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
+		netif_rx_schedule(dev);		/* schedule NAPI poll */
+	} else {
+		/* No work, shared interrupt perhaps?  re-enable
+		 * interrupts, and flush that PCI write
+		 */
+		tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+			       0x00000000);
 	}
 out:
 	return IRQ_RETVAL(handled);
@@ -3611,31 +3613,33 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id)
 	 * Reading the PCI State register will confirm whether the
 	 * interrupt is ours and will flush the status block.
 	 */
-	if ((sblk->status_tag != tp->last_tag) ||
-	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
-		/*
-		 * writing any value to intr-mbox-0 clears PCI INTA# and
-		 * chip-internal interrupt pending events.
-		 * writing non-zero to intr-mbox-0 additional tells the
-		 * NIC to stop sending us irqs, engaging "in-intr-handler"
-		 * event coalescing.
-		 */
-		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     0x00000001);
-		if (tg3_irq_sync(tp))
+	if (unlikely(sblk->status_tag == tp->last_tag)) {
+		if ((tp->tg3_flags & TG3_FLAG_CHIP_RESETTING) ||
+		    (tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
+			handled = 0;
 			goto out;
-		if (netif_rx_schedule_prep(dev)) {
-			prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
-			/* Update last_tag to mark that this status has been
-			 * seen. Because interrupt may be shared, we may be
-			 * racing with tg3_poll(), so only update last_tag
-			 * if tg3_poll() is not scheduled.
-			 */
-			tp->last_tag = sblk->status_tag;
-			__netif_rx_schedule(dev);
 		}
-	} else {	/* shared interrupt */
-		handled = 0;
+	}
+
+	/*
+	 * writing any value to intr-mbox-0 clears PCI INTA# and
+	 * chip-internal interrupt pending events.
+	 * writing non-zero to intr-mbox-0 additional tells the
+	 * NIC to stop sending us irqs, engaging "in-intr-handler"
+	 * event coalescing.
+	 */
+	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	if (tg3_irq_sync(tp))
+		goto out;
+	if (netif_rx_schedule_prep(dev)) {
+		prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
+		/* Update last_tag to mark that this status has been
+		 * seen. Because interrupt may be shared, we may be
+		 * racing with tg3_poll(), so only update last_tag
+		 * if tg3_poll() is not scheduled.
+		 */
+		tp->last_tag = sblk->status_tag;
+		__netif_rx_schedule(dev);
 	}
 out:
 	return IRQ_RETVAL(handled);
@@ -4823,6 +4827,19 @@ static int tg3_chip_reset(struct tg3 *tp)
 	if (write_op == tg3_write_flush_reg32)
 		tp->write32 = tg3_write32;
 
+	/* Prevent the irq handler from reading or writing PCI registers
+	 * during chip reset when the memory enable bit in the PCI command
+	 * register may be cleared.  The chip does not generate interrupt
+	 * at this time, but the irq handler may still be called due to irq
+	 * sharing or irqpoll.
+	 */
+	tp->tg3_flags |= TG3_FLAG_CHIP_RESETTING;
+	tp->hw_status->status = 0;
+	tp->hw_status->status_tag = 0;
+	tp->last_tag = 0;
+	smp_mb();
+	synchronize_irq(tp->pdev->irq);
+
 	/* do the reset */
 	val = GRC_MISC_CFG_CORECLK_RESET;
 
@@ -4903,6 +4920,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 	pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, val);
 
 	pci_restore_state(tp->pdev);
+
+	tp->tg3_flags &= ~TG3_FLAG_CHIP_RESETTING;
 
 	/* Make sure PCI-X relaxed ordering bit is clear. */
 	pci_read_config_dword(tp->pdev, TG3PCI_X_CAPS, &val);
