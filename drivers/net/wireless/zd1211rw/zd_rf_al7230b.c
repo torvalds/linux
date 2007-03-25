@@ -183,12 +183,12 @@ static int al7230b_set_channel(struct zd_rf *rf, u8 channel)
 	const u32 *rv = chan_rv[channel-1];
 	struct zd_chip *chip = zd_rf_to_chip(rf);
 
-	struct zd_ioreq16 ioreqs_1[] = {
+	static const struct zd_ioreq16 ioreqs_1[] = {
 		{ CR128, 0x14 }, { CR129, 0x12 }, { CR130, 0x10 },
 		{ CR38,  0x38 }, { CR136, 0xdf },
 	};
 
-	struct zd_ioreq16 ioreqs_2[] = {
+	static const struct zd_ioreq16 ioreqs_2[] = {
 		/* PLL_ON */
 		{ CR251, 0x3f },
 		{ CR203, 0x06 }, { CR240, 0x08 },

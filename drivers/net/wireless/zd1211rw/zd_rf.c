@@ -23,7 +23,7 @@
 #include "zd_ieee80211.h"
 #include "zd_chip.h"
 
-static const char *rfs[] = {
+static const char * const rfs[] = {
 	[0]		= "unknown RF0",
 	[1]		= "unknown RF1",
 	[UW2451_RF]	= "UW2451_RF",
