@@ -1,5 +1,5 @@
 /*
- * TCP CUBIC: Binary Increase Congestion control for TCP v2.0
+ * TCP CUBIC: Binary Increase Congestion control for TCP v2.1
  *
  * This is from the implementation of CUBIC TCP in
  * Injong Rhee, Lisong Xu.
@@ -214,7 +214,9 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 	if (ca->delay_min > 0) {
 		/* max increment = Smax * rtt / 0.1  */
 		min_cnt = (cwnd * HZ * 8)/(10 * max_increment * ca->delay_min);
-		if (ca->cnt < min_cnt)
+
+		/* use concave growth when the target is above the origin */
+		if (ca->cnt < min_cnt && t >= ca->bic_K)
 			ca->cnt = min_cnt;
 	}
 
@@ -400,4 +402,4 @@ module_exit(cubictcp_unregister);
 MODULE_AUTHOR("Sangtae Ha, Stephen Hemminger");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CUBIC TCP");
-MODULE_VERSION("2.0");
+MODULE_VERSION("2.1");
