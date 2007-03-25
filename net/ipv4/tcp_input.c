@@ -979,8 +979,10 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int i;
 	int first_sack_index;
 
-	if (!tp->sacked_out)
+	if (!tp->sacked_out) {
 		tp->fackets_out = 0;
+		tp->highest_sack = tp->snd_una;
+	}
 	prior_fackets = tp->fackets_out;
 
 	/* Check for D-SACK. */
@@ -1217,6 +1219,10 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 
 				if (fack_count > tp->fackets_out)
 					tp->fackets_out = fack_count;
+
+				if (after(TCP_SKB_CB(skb)->seq,
+				    tp->highest_sack))
+					tp->highest_sack = TCP_SKB_CB(skb)->seq;
 			} else {
 				if (dup_sack && (sacked&TCPCB_RETRANS))
 					reord = min(fack_count, reord);
