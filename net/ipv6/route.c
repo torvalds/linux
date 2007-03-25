@@ -363,55 +363,76 @@ static int rt6_score_route(struct rt6_info *rt, int oif,
 	return m;
 }
 
-static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
-				   int strict)
+static struct rt6_info *find_match(struct rt6_info *rt, int oif, int strict,
+				   int *mpri, struct rt6_info *match)
 {
-	struct rt6_info *match = NULL, *last = NULL;
-	struct rt6_info *rt, *rt0 = *head;
-	u32 metric;
+	int m;
+
+	if (rt6_check_expired(rt))
+		goto out;
+
+	m = rt6_score_route(rt, oif, strict);
+	if (m < 0)
+		goto out;
+
+	if (m > *mpri) {
+		if (strict & RT6_LOOKUP_F_REACHABLE)
+			rt6_probe(match);
+		*mpri = m;
+		match = rt;
+	} else if (strict & RT6_LOOKUP_F_REACHABLE) {
+		rt6_probe(rt);
+	}
+
+out:
+	return match;
+}
+
+static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
+				     struct rt6_info *rr_head,
+				     u32 metric, int oif, int strict)
+{
+	struct rt6_info *rt, *match;
 	int mpri = -1;
 
-	RT6_TRACE("%s(head=%p(*head=%p), oif=%d)\n",
-		  __FUNCTION__, head, head ? *head : NULL, oif);
+	match = NULL;
+	for (rt = rr_head; rt && rt->rt6i_metric == metric;
+	     rt = rt->u.dst.rt6_next)
+		match = find_match(rt, oif, strict, &mpri, match);
+	for (rt = fn->leaf; rt && rt != rr_head && rt->rt6i_metric == metric;
+	     rt = rt->u.dst.rt6_next)
+		match = find_match(rt, oif, strict, &mpri, match);
 
-	for (rt = rt0, metric = rt0->rt6i_metric;
-	     rt && rt->rt6i_metric == metric && (!last || rt != rt0);
-	     rt = rt->u.dst.rt6_next) {
-		int m;
+	return match;
+}
 
-		if (rt6_check_expired(rt))
-			continue;
+static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
+{
+	struct rt6_info *match, *rt0;
 
-		last = rt;
+	RT6_TRACE("%s(fn->leaf=%p, oif=%d)\n",
+		  __FUNCTION__, fn->leaf, oif);
 
-		m = rt6_score_route(rt, oif, strict);
-		if (m < 0)
-			continue;
+	rt0 = fn->rr_ptr;
+	if (!rt0)
+		fn->rr_ptr = rt0 = fn->leaf;
 
-		if (m > mpri) {
-			if (strict & RT6_LOOKUP_F_REACHABLE)
-				rt6_probe(match);
-			match = rt;
-			mpri = m;
-		} else if (strict & RT6_LOOKUP_F_REACHABLE) {
-			rt6_probe(rt);
-		}
-	}
+	match = find_rr_leaf(fn, rt0, rt0->rt6i_metric, oif, strict);
 
 	if (!match &&
-	    (strict & RT6_LOOKUP_F_REACHABLE) &&
-	    last && last != rt0) {
+	    (strict & RT6_LOOKUP_F_REACHABLE)) {
+		struct rt6_info *next = rt0->u.dst.rt6_next;
+
 		/* no entries matched; do round-robin */
-		static DEFINE_SPINLOCK(lock);
-		spin_lock(&lock);
-		*head = rt0->u.dst.rt6_next;
-		rt0->u.dst.rt6_next = last->u.dst.rt6_next;
-		last->u.dst.rt6_next = rt0;
-		spin_unlock(&lock);
+		if (!next || next->rt6i_metric != rt0->rt6i_metric)
+			next = fn->leaf;
+
+		if (next != rt0)
+			fn->rr_ptr = next;
 	}
 
-	RT6_TRACE("%s() => %p, score=%d\n",
-		  __FUNCTION__, match, mpri);
+	RT6_TRACE("%s() => %p\n",
+		  __FUNCTION__, match);
 
 	return (match ? match : &ip6_null_entry);
 }
@@ -657,7 +678,7 @@ restart_2:
 	fn = fib6_lookup(&table->tb6_root, &fl->fl6_dst, &fl->fl6_src);
 
 restart:
-	rt = rt6_select(&fn->leaf, fl->iif, strict | reachable);
+	rt = rt6_select(fn, fl->iif, strict | reachable);
 	BACKTRACK(&fl->fl6_src);
 	if (rt == &ip6_null_entry ||
 	    rt->rt6i_flags & RTF_CACHE)
@@ -752,7 +773,7 @@ restart_2:
 	fn = fib6_lookup(&table->tb6_root, &fl->fl6_dst, &fl->fl6_src);
 
 restart:
-	rt = rt6_select(&fn->leaf, fl->oif, strict | reachable);
+	rt = rt6_select(fn, fl->oif, strict | reachable);
 	BACKTRACK(&fl->fl6_src);
 	if (rt == &ip6_null_entry ||
 	    rt->rt6i_flags & RTF_CACHE)
