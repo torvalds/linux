@@ -2111,6 +2111,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	cam->v4ldev = cafe_v4l_template;
 	cam->v4ldev.debug = 0;
 //	cam->v4ldev.debug = V4L2_DEBUG_IOCTL_ARG;
+	cam->v4ldev.dev = &pdev->dev;
 	ret = video_register_device(&cam->v4ldev, VFL_TYPE_GRABBER, -1);
 	if (ret)
 		goto out_smbus;
