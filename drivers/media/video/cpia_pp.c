@@ -62,7 +62,6 @@ static int cpia_pp_close(void *privdata);
 #define PPCPIA_PARPORT_OFF -2
 #define PPCPIA_PARPORT_NONE -1
 
-#ifdef MODULE
 static int parport_nr[PARPORT_MAX] = {[0 ... PARPORT_MAX - 1] = PPCPIA_PARPORT_UNSPEC};
 static char *parport[PARPORT_MAX] = {NULL,};
 
@@ -72,11 +71,6 @@ MODULE_LICENSE("GPL");
 
 module_param_array(parport, charp, NULL, 0);
 MODULE_PARM_DESC(parport, "'auto' or a list of parallel port numbers. Just like lp.");
-#else
-static int parport_nr[PARPORT_MAX] __initdata =
-	{[0 ... PARPORT_MAX - 1] = PPCPIA_PARPORT_UNSPEC};
-static int parport_ptr = 0;
-#endif
 
 struct pp_cam_entry {
 	struct pardevice *pdev;
@@ -819,7 +813,7 @@ static struct parport_driver cpia_pp_driver = {
 	.detach = cpia_pp_detach,
 };
 
-static int cpia_pp_init(void)
+static int __init cpia_pp_init(void)
 {
 	printk(KERN_INFO "%s v%d.%d.%d\n",ABOUT,
 	       CPIA_PP_MAJ_VER,CPIA_PP_MIN_VER,CPIA_PP_PATCH_VER);
@@ -838,8 +832,7 @@ static int cpia_pp_init(void)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
+static int __init cpia_init(void)
 {
 	if (parport[0]) {
 		/* The user gave some parameters.  Let's see what they were. */
@@ -866,38 +859,11 @@ int init_module(void)
 	return cpia_pp_init();
 }
 
-void cleanup_module(void)
+static void __exit cpia_cleanup(void)
 {
-	parport_unregister_driver (&cpia_pp_driver);
+	parport_unregister_driver(&cpia_pp_driver);
 	return;
 }
 
-#else /* !MODULE */
-
-static int __init cpia_pp_setup(char *str)
-{
-	int err;
-
-	if (!strncmp(str, "parport", 7)) {
-		int n = simple_strtoul(str + 7, NULL, 10);
-		if (parport_ptr < PARPORT_MAX) {
-			parport_nr[parport_ptr++] = n;
-		} else {
-			LOG("too many ports, %s ignored.\n", str);
-		}
-	} else if (!strcmp(str, "auto")) {
-		parport_nr[0] = PPCPIA_PARPORT_AUTO;
-	} else if (!strcmp(str, "none")) {
-		parport_nr[parport_ptr++] = PPCPIA_PARPORT_NONE;
-	}
-
-	err=cpia_pp_init();
-	if (err)
-		return err;
-
-	return 1;
-}
-
-__setup("cpia_pp=", cpia_pp_setup);
-
-#endif /* !MODULE */
+module_init(cpia_init);
+module_exit(cpia_cleanup);
