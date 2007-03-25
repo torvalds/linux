@@ -3,8 +3,8 @@
  * for Intersil Prism2/2.5/3.
  *
  * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
- * <jkmaline@cc.hut.fi>
- * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * <j@w1.fi>
+ * Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
  *
  * Adaption to a generic IEEE 802.11 stack by James Ketrenos
  * <jketreno@linux.intel.com>

@@ -1582,9 +1582,9 @@ S:	Supported
 
 HOST AP DRIVER
 P:	Jouni Malinen
-M:	jkmaline@cc.hut.fi
+M:	j@w1.fi
+L:	hostap@shmoo.com (subscribers-only)
 L:	linux-wireless@vger.kernel.org
-L:	hostap@shmoo.com
 W:	http://hostap.epitest.fi/
 S:	Maintained
 

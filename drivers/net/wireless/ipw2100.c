@@ -28,8 +28,8 @@
 
   Portions of this file are based on the Host AP project,
   Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
-    <jkmaline@cc.hut.fi>
-  Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+    <j@w1.fi>
+  Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
 
   Portions of ipw2100_mod_firmware_load, ipw2100_do_mod_firmware_load, and
   ipw2100_fw_load are loosely based on drivers/sound/sound_firmware.c

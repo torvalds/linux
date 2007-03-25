@@ -1,7 +1,7 @@
 /*
  * Host AP crypt: host-based CCMP encryption implementation for Host AP driver
  *
- * Copyright (c) 2003-2004, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2004, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
