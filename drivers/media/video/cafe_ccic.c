@@ -37,7 +37,7 @@
 
 #include "cafe_ccic-regs.h"
 
-#define CAFE_VERSION 0x000001
+#define CAFE_VERSION 0x000002
 
 
 /*
@@ -2188,6 +2188,45 @@ static void cafe_pci_remove(struct pci_dev *pdev)
 }
 
 
+#ifdef CONFIG_PM
+/*
+ * Basic power management.
+ */
+static int cafe_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct cafe_camera *cam = cafe_find_by_pdev(pdev);
+	int ret;
+
+	ret = pci_save_state(pdev);
+	if (ret)
+		return ret;
+	cafe_ctlr_stop_dma(cam);
+	cafe_ctlr_power_down(cam);
+	pci_disable_device(pdev);
+	return 0;
+}
+
+
+static int cafe_pci_resume(struct pci_dev *pdev)
+{
+	struct cafe_camera *cam = cafe_find_by_pdev(pdev);
+	int ret = 0;
+
+	ret = pci_restore_state(pdev);
+	if (ret)
+		return ret;
+	pci_enable_device(pdev);
+	cafe_ctlr_init(cam);
+	cafe_ctlr_power_up(cam);
+	set_bit(CF_CONFIG_NEEDED, &cam->flags);
+	if (cam->state == S_SPECREAD)
+		cam->state = S_IDLE;  /* Don't bother restarting */
+	else if (cam->state == S_SINGLEREAD || cam->state == S_STREAMING)
+		ret = cafe_read_setup(cam, cam->state);
+	return ret;
+}
+
+#endif  /* CONFIG_PM */
 
 
 static struct pci_device_id cafe_ids[] = {
@@ -2203,6 +2242,10 @@ static struct pci_driver cafe_pci_driver = {
 	.id_table = cafe_ids,
 	.probe = cafe_pci_probe,
 	.remove = cafe_pci_remove,
+#ifdef CONFIG_PM
+	.suspend = cafe_pci_suspend,
+	.resume = cafe_pci_resume,
+#endif
 };
 
 
