@@ -3,7 +3,6 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/skbuff.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -25,8 +24,7 @@ struct hpsb_host {
 
 	atomic_t generation;
 
-	struct sk_buff_head pending_packet_queue;
-
+	struct list_head pending_packets;
 	struct timer_list timeout;
 	unsigned long timeout_interval;
 

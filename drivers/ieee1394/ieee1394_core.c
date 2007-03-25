@@ -30,7 +30,6 @@
 #include <linux/moduleparam.h>
 #include <linux/bitops.h>
 #include <linux/kdev_t.h>
-#include <linux/skbuff.h>
 #include <linux/suspend.h>
 #include <linux/kthread.h>
 #include <linux/preempt.h>
@@ -103,6 +102,8 @@ static void queue_packet_complete(struct hpsb_packet *packet);
  *
  * Set the task that runs when a packet completes. You cannot call this more
  * than once on a single packet before it is sent.
+ *
+ * Typically, the complete @routine is responsible to call hpsb_free_packet().
  */
 void hpsb_set_packet_complete_task(struct hpsb_packet *packet,
 				   void (*routine)(void *), void *data)
@@ -115,12 +116,12 @@ void hpsb_set_packet_complete_task(struct hpsb_packet *packet,
 
 /**
  * hpsb_alloc_packet - allocate new packet structure
- * @data_size: size of the data block to be allocated
+ * @data_size: size of the data block to be allocated, in bytes
  *
  * This function allocates, initializes and returns a new &struct hpsb_packet.
- * It can be used in interrupt context.  A header block is always included, its
- * size is big enough to contain all possible 1394 headers.  The data block is
- * only allocated when @data_size is not zero.
+ * It can be used in interrupt context.  A header block is always included and
+ * initialized with zeros.  Its size is big enough to contain all possible 1394
+ * headers.  The data block is only allocated if @data_size is not zero.
  *
  * For packets for which responses will be received the @data_size has to be big
  * enough to contain the response's data block since no further allocation
@@ -135,49 +136,41 @@ void hpsb_set_packet_complete_task(struct hpsb_packet *packet,
  */
 struct hpsb_packet *hpsb_alloc_packet(size_t data_size)
 {
-	struct hpsb_packet *packet = NULL;
-	struct sk_buff *skb;
+	struct hpsb_packet *packet;
 
 	data_size = ((data_size + 3) & ~3);
 
-	skb = alloc_skb(data_size + sizeof(*packet), GFP_ATOMIC);
-	if (skb == NULL)
+	packet = kzalloc(sizeof(*packet) + data_size, GFP_ATOMIC);
+	if (!packet)
 		return NULL;
 
-	memset(skb->data, 0, data_size + sizeof(*packet));
-
-	packet = (struct hpsb_packet *)skb->data;
-	packet->skb = skb;
-
-	packet->header = packet->embedded_header;
 	packet->state = hpsb_unused;
 	packet->generation = -1;
 	INIT_LIST_HEAD(&packet->driver_list);
+	INIT_LIST_HEAD(&packet->queue);
 	atomic_set(&packet->refcnt, 1);
 
 	if (data_size) {
-		packet->data = (quadlet_t *)(skb->data + sizeof(*packet));
-		packet->data_size = data_size;
+		packet->data = packet->embedded_data;
+		packet->allocated_data_size = data_size;
 	}
-
 	return packet;
 }
-
 
 /**
  * hpsb_free_packet - free packet and data associated with it
  * @packet: packet to free (is NULL safe)
  *
- * This function will free packet->data and finally the packet itself.
+ * Frees @packet->data only if it was allocated through hpsb_alloc_packet().
  */
 void hpsb_free_packet(struct hpsb_packet *packet)
 {
 	if (packet && atomic_dec_and_test(&packet->refcnt)) {
-		BUG_ON(!list_empty(&packet->driver_list));
-		kfree_skb(packet->skb);
+		BUG_ON(!list_empty(&packet->driver_list) ||
+		       !list_empty(&packet->queue));
+		kfree(packet);
 	}
 }
-
 
 /**
  * hpsb_reset_bus - initiate bus reset on the given host
@@ -494,6 +487,8 @@ void hpsb_selfid_complete(struct hpsb_host *host, int phyid, int isroot)
 	highlevel_host_reset(host);
 }
 
+static spinlock_t pending_packets_lock = SPIN_LOCK_UNLOCKED;
+
 /**
  * hpsb_packet_sent - notify core of sending a packet
  *
@@ -509,24 +504,24 @@ void hpsb_packet_sent(struct hpsb_host *host, struct hpsb_packet *packet,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&host->pending_packet_queue.lock, flags);
+	spin_lock_irqsave(&pending_packets_lock, flags);
 
 	packet->ack_code = ackcode;
 
 	if (packet->no_waiter || packet->state == hpsb_complete) {
 		/* if packet->no_waiter, must not have a tlabel allocated */
-		spin_unlock_irqrestore(&host->pending_packet_queue.lock, flags);
+		spin_unlock_irqrestore(&pending_packets_lock, flags);
 		hpsb_free_packet(packet);
 		return;
 	}
 
 	atomic_dec(&packet->refcnt);	/* drop HC's reference */
-	/* here the packet must be on the host->pending_packet_queue */
+	/* here the packet must be on the host->pending_packets queue */
 
 	if (ackcode != ACK_PENDING || !packet->expect_response) {
 		packet->state = hpsb_complete;
-		__skb_unlink(packet->skb, &host->pending_packet_queue);
-		spin_unlock_irqrestore(&host->pending_packet_queue.lock, flags);
+		list_del_init(&packet->queue);
+		spin_unlock_irqrestore(&pending_packets_lock, flags);
 		queue_packet_complete(packet);
 		return;
 	}
@@ -534,7 +529,7 @@ void hpsb_packet_sent(struct hpsb_host *host, struct hpsb_packet *packet,
 	packet->state = hpsb_pending;
 	packet->sendtime = jiffies;
 
-	spin_unlock_irqrestore(&host->pending_packet_queue.lock, flags);
+	spin_unlock_irqrestore(&pending_packets_lock, flags);
 
 	mod_timer(&host->timeout, jiffies + host->timeout_interval);
 }
@@ -609,12 +604,16 @@ int hpsb_send_packet(struct hpsb_packet *packet)
 	WARN_ON(packet->no_waiter && packet->expect_response);
 
 	if (!packet->no_waiter || packet->expect_response) {
+		unsigned long flags;
+
 		atomic_inc(&packet->refcnt);
 		/* Set the initial "sendtime" to 10 seconds from now, to
 		   prevent premature expiry.  If a packet takes more than
 		   10 seconds to hit the wire, we have bigger problems :) */
 		packet->sendtime = jiffies + 10 * HZ;
-		skb_queue_tail(&host->pending_packet_queue, packet->skb);
+		spin_lock_irqsave(&pending_packets_lock, flags);
+		list_add_tail(&packet->queue, &host->pending_packets);
+		spin_unlock_irqrestore(&pending_packets_lock, flags);
 	}
 
 	if (packet->node_id == host->node_id) {
@@ -690,86 +689,97 @@ static void send_packet_nocare(struct hpsb_packet *packet)
 	}
 }
 
+static size_t packet_size_to_data_size(size_t packet_size, size_t header_size,
+				       size_t buffer_size, int tcode)
+{
+	size_t ret = packet_size <= header_size ? 0 : packet_size - header_size;
+
+	if (unlikely(ret > buffer_size))
+		ret = buffer_size;
+
+	if (unlikely(ret + header_size != packet_size))
+		HPSB_ERR("unexpected packet size %d (tcode %d), bug?",
+			 packet_size, tcode);
+	return ret;
+}
 
 static void handle_packet_response(struct hpsb_host *host, int tcode,
 				   quadlet_t *data, size_t size)
 {
-	struct hpsb_packet *packet = NULL;
-	struct sk_buff *skb;
-	int tcode_match = 0;
-	int tlabel;
+	struct hpsb_packet *packet;
+	int tlabel = (data[0] >> 10) & 0x3f;
+	size_t header_size;
 	unsigned long flags;
 
-	tlabel = (data[0] >> 10) & 0x3f;
+	spin_lock_irqsave(&pending_packets_lock, flags);
 
-	spin_lock_irqsave(&host->pending_packet_queue.lock, flags);
+	list_for_each_entry(packet, &host->pending_packets, queue)
+		if (packet->tlabel == tlabel &&
+		    packet->node_id == (data[1] >> 16))
+			goto found;
 
-	skb_queue_walk(&host->pending_packet_queue, skb) {
-		packet = (struct hpsb_packet *)skb->data;
-		if ((packet->tlabel == tlabel)
-		    && (packet->node_id == (data[1] >> 16))){
-			break;
-		}
+	spin_unlock_irqrestore(&pending_packets_lock, flags);
+	HPSB_DEBUG("unsolicited response packet received - %s",
+		   "no tlabel match");
+	dump_packet("contents", data, 16, -1);
+	return;
 
-		packet = NULL;
-	}
-
-	if (packet == NULL) {
-		HPSB_DEBUG("unsolicited response packet received - no tlabel match");
-		dump_packet("contents", data, 16, -1);
-		spin_unlock_irqrestore(&host->pending_packet_queue.lock, flags);
-		return;
-	}
-
+found:
 	switch (packet->tcode) {
 	case TCODE_WRITEQ:
 	case TCODE_WRITEB:
-		if (tcode != TCODE_WRITE_RESPONSE)
+		if (unlikely(tcode != TCODE_WRITE_RESPONSE))
 			break;
-		tcode_match = 1;
-		memcpy(packet->header, data, 12);
-		break;
+		header_size = 12;
+		size = 0;
+		goto dequeue;
+
 	case TCODE_READQ:
-		if (tcode != TCODE_READQ_RESPONSE)
+		if (unlikely(tcode != TCODE_READQ_RESPONSE))
 			break;
-		tcode_match = 1;
-		memcpy(packet->header, data, 16);
-		break;
+		header_size = 16;
+		size = 0;
+		goto dequeue;
+
 	case TCODE_READB:
-		if (tcode != TCODE_READB_RESPONSE)
+		if (unlikely(tcode != TCODE_READB_RESPONSE))
 			break;
-		tcode_match = 1;
-		BUG_ON(packet->skb->len - sizeof(*packet) < size - 16);
-		memcpy(packet->header, data, 16);
-		memcpy(packet->data, data + 4, size - 16);
-		break;
+		header_size = 16;
+		size = packet_size_to_data_size(size, header_size,
+						packet->allocated_data_size,
+						tcode);
+		goto dequeue;
+
 	case TCODE_LOCK_REQUEST:
-		if (tcode != TCODE_LOCK_RESPONSE)
+		if (unlikely(tcode != TCODE_LOCK_RESPONSE))
 			break;
-		tcode_match = 1;
-		size = min((size - 16), (size_t)8);
-		BUG_ON(packet->skb->len - sizeof(*packet) < size);
-		memcpy(packet->header, data, 16);
-		memcpy(packet->data, data + 4, size);
-		break;
+		header_size = 16;
+		size = packet_size_to_data_size(min(size, (size_t)(16 + 8)),
+						header_size,
+						packet->allocated_data_size,
+						tcode);
+		goto dequeue;
 	}
 
-	if (!tcode_match) {
-		spin_unlock_irqrestore(&host->pending_packet_queue.lock, flags);
-		HPSB_INFO("unsolicited response packet received - tcode mismatch");
-		dump_packet("contents", data, 16, -1);
-		return;
-	}
+	spin_unlock_irqrestore(&pending_packets_lock, flags);
+	HPSB_DEBUG("unsolicited response packet received - %s",
+		   "tcode mismatch");
+	dump_packet("contents", data, 16, -1);
+	return;
 
-	__skb_unlink(skb, &host->pending_packet_queue);
+dequeue:
+	list_del_init(&packet->queue);
+	spin_unlock_irqrestore(&pending_packets_lock, flags);
 
 	if (packet->state == hpsb_queued) {
 		packet->sendtime = jiffies;
 		packet->ack_code = ACK_PENDING;
 	}
-
 	packet->state = hpsb_complete;
-	spin_unlock_irqrestore(&host->pending_packet_queue.lock, flags);
+
+	memcpy(packet->header, data, header_size);
+	if (size)
+		memcpy(packet->data, data + 4, size);
 
 	queue_packet_complete(packet);
 }
@@ -783,6 +793,7 @@ static struct hpsb_packet *create_reply_packet(struct hpsb_host *host,
 	p = hpsb_alloc_packet(dsize);
 	if (unlikely(p == NULL)) {
 		/* FIXME - send data_error response */
+		HPSB_ERR("out of memory, cannot send response packet");
 		return NULL;
 	}
 
@@ -832,7 +843,6 @@ static void fill_async_readblock_resp(struct hpsb_packet *packet, int rcode,
 static void fill_async_write_resp(struct hpsb_packet *packet, int rcode)
 {
 	PREP_ASYNC_HEAD_RCODE(TCODE_WRITE_RESPONSE);
-	packet->header[2] = 0;
 	packet->header_size = 12;
 	packet->data_size = 0;
 }
@@ -1002,8 +1012,8 @@ void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
 {
 	int tcode;
 
-	if (host->in_bus_reset) {
-		HPSB_INFO("received packet during reset; ignoring");
+	if (unlikely(host->in_bus_reset)) {
+		HPSB_DEBUG("received packet during reset; ignoring");
 		return;
 	}
 
@@ -1037,23 +1047,27 @@ void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
 		break;
 
 	default:
-		HPSB_NOTICE("received packet with bogus transaction code %d",
-			    tcode);
+		HPSB_DEBUG("received packet with bogus transaction code %d",
+			   tcode);
 		break;
 	}
 }
 
-
 static void abort_requests(struct hpsb_host *host)
 {
-	struct hpsb_packet *packet;
-	struct sk_buff *skb;
+	struct hpsb_packet *packet, *p;
+	struct list_head tmp;
+	unsigned long flags;
 
 	host->driver->devctl(host, CANCEL_REQUESTS, 0);
 
-	while ((skb = skb_dequeue(&host->pending_packet_queue)) != NULL) {
-		packet = (struct hpsb_packet *)skb->data;
+	INIT_LIST_HEAD(&tmp);
+	spin_lock_irqsave(&pending_packets_lock, flags);
+	list_splice_init(&host->pending_packets, &tmp);
+	spin_unlock_irqrestore(&pending_packets_lock, flags);
 
+	list_for_each_entry_safe(packet, p, &tmp, queue) {
+		list_del_init(&packet->queue);
 		packet->state = hpsb_complete;
 		packet->ack_code = ACKX_ABORTED;
 		queue_packet_complete(packet);
@@ -1063,87 +1077,90 @@ static void abort_requests(struct hpsb_host *host)
 void abort_timedouts(unsigned long __opaque)
 {
 	struct hpsb_host *host = (struct hpsb_host *)__opaque;
-	unsigned long flags;
-	struct hpsb_packet *packet;
-	struct sk_buff *skb;
-	unsigned long expire;
+	struct hpsb_packet *packet, *p;
+	struct list_head tmp;
+	unsigned long flags, expire, j;
 
 	spin_lock_irqsave(&host->csr.lock, flags);
 	expire = host->csr.expire;
 	spin_unlock_irqrestore(&host->csr.lock, flags);
 
-	/* Hold the lock around this, since we aren't dequeuing all
-	 * packets, just ones we need. */
-	spin_lock_irqsave(&host->pending_packet_queue.lock, flags);
+	j = jiffies;
+	INIT_LIST_HEAD(&tmp);
+	spin_lock_irqsave(&pending_packets_lock, flags);
 
-	while (!skb_queue_empty(&host->pending_packet_queue)) {
-		skb = skb_peek(&host->pending_packet_queue);
-
-		packet = (struct hpsb_packet *)skb->data;
-
-		if (time_before(packet->sendtime + expire, jiffies)) {
-			__skb_unlink(skb, &host->pending_packet_queue);
-			packet->state = hpsb_complete;
-			packet->ack_code = ACKX_TIMEOUT;
-			queue_packet_complete(packet);
-		} else {
+	list_for_each_entry_safe(packet, p, &host->pending_packets, queue) {
+		if (time_before(packet->sendtime + expire, j))
+			list_move_tail(&packet->queue, &tmp);
+		else
 			/* Since packets are added to the tail, the oldest
 			 * ones are first, always. When we get to one that
 			 * isn't timed out, the rest aren't either. */
 			break;
-		}
 	}
+	if (!list_empty(&host->pending_packets))
+		mod_timer(&host->timeout, j + host->timeout_interval);
 
-	if (!skb_queue_empty(&host->pending_packet_queue))
-		mod_timer(&host->timeout, jiffies + host->timeout_interval);
+	spin_unlock_irqrestore(&pending_packets_lock, flags);
 
-	spin_unlock_irqrestore(&host->pending_packet_queue.lock, flags);
+	list_for_each_entry_safe(packet, p, &tmp, queue) {
+		list_del_init(&packet->queue);
+		packet->state = hpsb_complete;
+		packet->ack_code = ACKX_TIMEOUT;
+		queue_packet_complete(packet);
+	}
 }
 
-
-/* Kernel thread and vars, which handles packets that are completed. Only
- * packets that have a "complete" function are sent here. This way, the
- * completion is run out of kernel context, and doesn't block the rest of
- * the stack. */
 static struct task_struct *khpsbpkt_thread;
-static struct sk_buff_head hpsbpkt_queue;
+static LIST_HEAD(hpsbpkt_queue);
 
 static void queue_packet_complete(struct hpsb_packet *packet)
 {
+	unsigned long flags;
+
 	if (packet->no_waiter) {
 		hpsb_free_packet(packet);
 		return;
 	}
 	if (packet->complete_routine != NULL) {
-		skb_queue_tail(&hpsbpkt_queue, packet->skb);
+		spin_lock_irqsave(&pending_packets_lock, flags);
+		list_add_tail(&packet->queue, &hpsbpkt_queue);
+		spin_unlock_irqrestore(&pending_packets_lock, flags);
 		wake_up_process(khpsbpkt_thread);
 	}
 	return;
 }
 
+/*
+ * Kernel thread which handles packets that are completed.  This way the
+ * packet's "complete" function is asynchronously run in process context.
+ * Only packets which have a "complete" function may be sent here.
+ */
 static int hpsbpkt_thread(void *__hi)
 {
-	struct sk_buff *skb;
-	struct hpsb_packet *packet;
-	void (*complete_routine)(void*);
-	void *complete_data;
+	struct hpsb_packet *packet, *p;
+	struct list_head tmp;
+	int may_schedule;
 
 	current->flags |= PF_NOFREEZE;
 
 	while (!kthread_should_stop()) {
-		while ((skb = skb_dequeue(&hpsbpkt_queue)) != NULL) {
-			packet = (struct hpsb_packet *)skb->data;
 
-			complete_routine = packet->complete_routine;
-			complete_data = packet->complete_data;
+		INIT_LIST_HEAD(&tmp);
+		spin_lock_irq(&pending_packets_lock);
+		list_splice_init(&hpsbpkt_queue, &tmp);
+		spin_unlock_irq(&pending_packets_lock);
 
-			packet->complete_routine = packet->complete_data = NULL;
-
-			complete_routine(complete_data);
+		list_for_each_entry_safe(packet, p, &tmp, queue) {
+			list_del_init(&packet->queue);
+			packet->complete_routine(packet->complete_data);
 		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (!skb_peek(&hpsbpkt_queue))
+		spin_lock_irq(&pending_packets_lock);
+		may_schedule = list_empty(&hpsbpkt_queue);
+		spin_unlock_irq(&pending_packets_lock);
+		if (may_schedule)
 			schedule();
 		__set_current_state(TASK_RUNNING);
 	}
@@ -1153,8 +1170,6 @@ static int hpsbpkt_thread(void *__hi)
 static int __init ieee1394_init(void)
 {
 	int i, ret;
-
-	skb_queue_head_init(&hpsbpkt_queue);
 
 	/* non-fatal error */
 	if (hpsb_init_config_roms()) {

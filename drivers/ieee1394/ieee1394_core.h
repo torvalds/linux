@@ -4,7 +4,6 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/list.h>
-#include <linux/skbuff.h>
 #include <linux/types.h>
 #include <asm/atomic.h>
 
@@ -13,7 +12,7 @@
 
 struct hpsb_packet {
 	/* This struct is basically read-only for hosts with the exception of
-	 * the data buffer contents and xnext - see below. */
+	 * the data buffer contents and driver_list. */
 
 	/* This can be used for host driver internal linking.
 	 *
@@ -49,35 +48,27 @@ struct hpsb_packet {
 	/* Speed to transmit with: 0 = 100Mbps, 1 = 200Mbps, 2 = 400Mbps */
 	unsigned speed_code:2;
 
-	/*
-	 * *header and *data are guaranteed to be 32-bit DMAable and may be
-	 * overwritten to allow in-place byte swapping.  Neither of these is
-	 * CRCed (the sizes also don't include CRC), but contain space for at
-	 * least one additional quadlet to allow in-place CRCing.  The memory is
-	 * also guaranteed to be DMA mappable.
-	 */
-	quadlet_t *header;
-	quadlet_t *data;
-	size_t header_size;
-	size_t data_size;
-
 	struct hpsb_host *host;
 	unsigned int generation;
 
 	atomic_t refcnt;
+	struct list_head queue;
 
 	/* Function (and possible data to pass to it) to call when this
 	 * packet is completed.  */
 	void (*complete_routine)(void *);
 	void *complete_data;
 
-	/* XXX This is just a hack at the moment */
-	struct sk_buff *skb;
-
 	/* Store jiffies for implementing bus timeouts. */
 	unsigned long sendtime;
 
-	quadlet_t embedded_header[5];
+	/* Sizes are in bytes. *data can be DMA-mapped. */
+	size_t allocated_data_size;	/* as allocated */
+	size_t data_size;		/* as filled in */
+	size_t header_size;		/* as filled in, not counting the CRC */
+	quadlet_t *data;
+	quadlet_t header[5];
+	quadlet_t embedded_data[0];	/* keep as last member */
 };
 
 void hpsb_set_packet_complete_task(struct hpsb_packet *packet,
