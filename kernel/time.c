@@ -452,6 +452,7 @@ struct timespec ns_to_timespec(const s64 nsec)
 
 	return ts;
 }
+EXPORT_SYMBOL(ns_to_timespec);
 
 /**
  * ns_to_timeval - Convert nanoseconds to timeval
