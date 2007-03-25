@@ -203,13 +203,6 @@ static void inject_ud(struct kvm_vcpu *vcpu)
 						UD_VECTOR;
 }
 
-static void inject_db(struct kvm_vcpu *vcpu)
-{
-	vcpu->svm->vmcb->control.event_inj = 	SVM_EVTINJ_VALID |
-						SVM_EVTINJ_TYPE_EXEPT |
-						DB_VECTOR;
-}
-
 static int is_page_fault(uint32_t info)
 {
 	info &= SVM_EVTINJ_VEC_MASK | SVM_EVTINJ_TYPE_MASK | SVM_EVTINJ_VALID;
