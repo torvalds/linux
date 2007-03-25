@@ -187,6 +187,104 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	return;
 }
 
+static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
+{
+	struct btrfs_path path;
+	struct btrfs_root *root;
+	struct btrfs_trans_handle *trans;
+	const char *name = dentry->d_name.name;
+	int name_len = dentry->d_name.len;
+	int ret;
+	u64 objectid;
+	struct btrfs_dir_item *di;
+
+	btrfs_init_path(&path);
+	root = btrfs_sb(dir->i_sb);
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+
+	ret = btrfs_lookup_dir_item(trans, root, &path, dir->i_ino,
+				    name, name_len, -1);
+	if (ret < 0)
+		goto err;
+	if (ret > 0) {
+		ret = -ENOENT;
+		goto err;
+	}
+	di = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]), path.slots[0],
+			    struct btrfs_dir_item);
+	objectid = btrfs_dir_objectid(di);
+
+	ret = btrfs_del_item(trans, root, &path);
+	BUG_ON(ret);
+	dentry->d_inode->i_ctime = dir->i_ctime;
+err:
+	btrfs_release_path(root, &path);
+	btrfs_end_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	if (ret == 0)
+		inode_dec_link_count(dentry->d_inode);
+	return ret;
+}
+
+static int btrfs_free_inode(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root,
+			    struct inode *inode)
+{
+	u64 objectid = inode->i_ino;
+	struct btrfs_path path;
+	struct btrfs_inode_map_item *map;
+	struct btrfs_key stat_data_key;
+	int ret;
+	clear_inode(inode);
+	btrfs_init_path(&path);
+	ret = btrfs_lookup_inode_map(trans, root, &path, objectid, -1);
+	if (ret) {
+		if (ret > 0)
+			ret = -ENOENT;
+		btrfs_release_path(root, &path);
+		goto error;
+	}
+	map = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]), path.slots[0],
+			    struct btrfs_inode_map_item);
+	btrfs_disk_key_to_cpu(&stat_data_key, &map->key);
+	ret = btrfs_del_item(trans, root->fs_info->inode_root, &path);
+	BUG_ON(ret);
+	btrfs_release_path(root, &path);
+	btrfs_init_path(&path);
+
+	ret = btrfs_lookup_inode(trans, root, &path, objectid, -1);
+	BUG_ON(ret);
+	ret = btrfs_del_item(trans, root, &path);
+	BUG_ON(ret);
+	btrfs_release_path(root, &path);
+error:
+	return ret;
+}
+
+static void btrfs_delete_inode(struct inode *inode)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	truncate_inode_pages(&inode->i_data, 0);
+	if (is_bad_inode(inode)) {
+		goto no_delete;
+	}
+	inode->i_size = 0;
+	if (inode->i_blocks)
+		WARN_ON(1);
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	btrfs_free_inode(trans, root, inode);
+	btrfs_end_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return;
+no_delete:
+	clear_inode(inode);
+}
+
+
 static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 			      ino_t *ino)
 {
@@ -272,6 +370,13 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				leaf = btrfs_buffer_leaf(path.nodes[0]);
 				nritems = btrfs_header_nritems(&leaf->header);
 				slot = path.slots[0];
+#if 0
+				page_cache_readahead(
+				     inode->i_sb->s_bdev->bd_inode->i_mapping,
+				     &filp->f_ra, filp,
+				     path.nodes[0]->b_blocknr >>
+				     (PAGE_CACHE_SHIFT - inode->i_blkbits), 1);
+#endif
 			} else {
 				slot++;
 				path.slots[0]++;
@@ -441,8 +546,6 @@ static int btrfs_add_nondir(struct btrfs_trans_handle *trans,
 		d_instantiate(dentry, inode);
 		return 0;
 	}
-	inode_dec_link_count(inode);
-	iput(inode);
 	return err;
 }
 
@@ -453,6 +556,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	struct btrfs_root *root = btrfs_sb(dir->i_sb);
 	struct inode *inode;
 	int err;
+	int drop_inode = 0;
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
@@ -462,10 +566,16 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	// FIXME mark the inode dirty
 	err = btrfs_add_nondir(trans, dentry, inode);
+	if (err)
+		drop_inode = 1;
 	dir->i_sb->s_dirt = 1;
 	btrfs_end_transaction(trans, root);
 out_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
+	if (drop_inode) {
+		inode_dec_link_count(inode);
+		iput(inode);
+	}
 	return err;
 }
 
@@ -516,7 +626,7 @@ static struct file_system_type btrfs_fs_type = {
 
 static struct super_operations btrfs_super_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.delete_inode	= btrfs_delete_inode,
 	.put_super	= btrfs_put_super,
 	.read_inode	= btrfs_read_locked_inode,
 	.write_super	= btrfs_write_super,
@@ -526,6 +636,7 @@ static struct super_operations btrfs_super_ops = {
 static struct inode_operations btrfs_dir_inode_operations = {
 	.lookup		= btrfs_lookup,
 	.create		= btrfs_create,
+	.unlink		= btrfs_unlink,
 };
 
 static struct file_operations btrfs_dir_file_operations = {
