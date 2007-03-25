@@ -39,13 +39,26 @@
 #include <asm/arch/time.h>
 
 /*
- * The EP80219 and IQ31244 use the same machine ID.  To find out
- * which of the two we're running on, we look at the processor ID.
+ * Until March of 2007 iq31244 platforms and ep80219 platforms shared the
+ * same machine id, and the processor type was used to select board type.
+ * However this assumption breaks for an iq80219 board which is an iop219
+ * processor on an iq31244 board.  The force_ep80219 flag has been added
+ * for old boot loaders using the iq31244 machine id for an ep80219 platform.
  */
+static int force_ep80219;
+
 static int is_80219(void)
 {
 	extern int processor_id;
 	return !!((processor_id & 0xffffffe0) == 0x69052e20);
+}
+
+static int is_ep80219(void)
+{
+	if (machine_is_ep80219() || force_ep80219)
+		return 1;
+	else
+		return 0;
 }
 
 
@@ -54,7 +67,7 @@ static int is_80219(void)
  */
 static void __init iq31244_timer_init(void)
 {
-	if (is_80219()) {
+	if (is_ep80219()) {
 		/* 33.333 MHz crystal.  */
 		iop_init_time(200000000);
 	} else {
@@ -165,12 +178,18 @@ static struct hw_pci iq31244_pci __initdata = {
 
 static int __init iq31244_pci_init(void)
 {
-	if (machine_is_iq31244()) {
+	if (is_ep80219())
+		pci_common_init(&ep80219_pci);
+	else if (machine_is_iq31244()) {
 		if (is_80219()) {
-			pci_common_init(&ep80219_pci);
-		} else {
-			pci_common_init(&iq31244_pci);
+			printk("note: iq31244 board type has been selected\n");
+			printk("note: to select ep80219 operation:\n");
+			printk("\t1/ specify \"force_ep80219\" on the kernel"
+				" command line\n");
+			printk("\t2/ update boot loader to pass"
+				" the ep80219 id: %d\n", MACH_TYPE_EP80219);
 		}
+		pci_common_init(&iq31244_pci);
 	}
 
 	return 0;
@@ -277,11 +296,35 @@ static void __init iq31244_init_machine(void)
 	platform_device_register(&iq31244_flash_device);
 	platform_device_register(&iq31244_serial_device);
 
-	if (is_80219())
+	if (is_ep80219())
 		pm_power_off = ep80219_power_off;
 }
 
+static int __init force_ep80219_setup(char *str)
+{
+	force_ep80219 = 1;
+	return 1;
+}
+
+__setup("force_ep80219", force_ep80219_setup);
+
 MACHINE_START(IQ31244, "Intel IQ31244")
+	/* Maintainer: Intel Corp. */
+	.phys_io	= IQ31244_UART,
+	.io_pg_offst	= ((IQ31244_UART) >> 18) & 0xfffc,
+	.boot_params	= 0xa0000100,
+	.map_io		= iq31244_map_io,
+	.init_irq	= iop32x_init_irq,
+	.timer		= &iq31244_timer,
+	.init_machine	= iq31244_init_machine,
+MACHINE_END
+
+/* There should have been an ep80219 machine identifier from the beginning.
+ * Boot roms older than March 2007 do not know the ep80219 machine id.  Pass
+ * "force_ep80219" on the kernel command line, otherwise iq31244 operation
+ * will be selected.
+ */
+MACHINE_START(EP80219, "Intel EP80219")
 	/* Maintainer: Intel Corp. */
 	.phys_io	= IQ31244_UART,
 	.io_pg_offst	= ((IQ31244_UART) >> 18) & 0xfffc,
