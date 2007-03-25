@@ -6321,8 +6321,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		      RDMAC_MODE_ADDROFLOW_ENAB | RDMAC_MODE_FIFOOFLOW_ENAB |
 		      RDMAC_MODE_FIFOURUN_ENAB | RDMAC_MODE_FIFOOREAD_ENAB |
 		      RDMAC_MODE_LNGREAD_ENAB);
-	if (tp->tg3_flags & TG3_FLAG_SPLIT_MODE)
-		rdmac_mode |= RDMAC_MODE_SPLIT_ENABLE;
 
 	/* If statement applies to 5705 and 5750 PCI devices only */
 	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
@@ -6495,9 +6493,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
 			val &= ~(PCIX_CAPS_SPLIT_MASK | PCIX_CAPS_BURST_MASK);
 			val |= (PCIX_CAPS_MAX_BURST_CPIOB << PCIX_CAPS_BURST_SHIFT);
-			if (tp->tg3_flags & TG3_FLAG_SPLIT_MODE)
-				val |= (tp->split_mode_max_reqs <<
-					PCIX_CAPS_SPLIT_SHIFT);
 		}
 		tw32(TG3PCI_X_CAPS, val);
 	}
@@ -10863,14 +10858,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	grc_misc_cfg = tr32(GRC_MISC_CFG);
 	grc_misc_cfg &= GRC_MISC_CFG_BOARD_ID_MASK;
 
-	/* Broadcom's driver says that CIOBE multisplit has a bug */
-#if 0
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 &&
-	    grc_misc_cfg == GRC_MISC_CFG_BOARD_ID_5704CIOBE) {
-		tp->tg3_flags |= TG3_FLAG_SPLIT_MODE;
-		tp->split_mode_max_reqs = SPLIT_MODE_5704_MAX_REQ;
-	}
-#endif
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
 	    (grc_misc_cfg == GRC_MISC_CFG_BOARD_ID_5788 ||
 	     grc_misc_cfg == GRC_MISC_CFG_BOARD_ID_5788M))
@@ -11968,14 +11955,12 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		       i == 5 ? '\n' : ':');
 
 	printk(KERN_INFO "%s: RXcsums[%d] LinkChgREG[%d] "
-	       "MIirq[%d] ASF[%d] Split[%d] WireSpeed[%d] "
-	       "TSOcap[%d] \n",
+	       "MIirq[%d] ASF[%d] WireSpeed[%d] TSOcap[%d]\n",
 	       dev->name,
 	       (tp->tg3_flags & TG3_FLAG_RX_CHECKSUMS) != 0,
 	       (tp->tg3_flags & TG3_FLAG_USE_LINKCHG_REG) != 0,
 	       (tp->tg3_flags & TG3_FLAG_USE_MI_INTERRUPT) != 0,
 	       (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0,
-	       (tp->tg3_flags & TG3_FLAG_SPLIT_MODE) != 0,
 	       (tp->tg3_flags2 & TG3_FLG2_NO_ETH_WIRE_SPEED) == 0,
 	       (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) != 0);
 	printk(KERN_INFO "%s: dma_rwctrl[%08x] dma_mask[%d-bit]\n",
