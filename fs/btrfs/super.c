@@ -332,6 +332,34 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
+static void reada_leaves(struct btrfs_root *root, struct btrfs_path *path)
+{
+	struct buffer_head *bh;
+	struct btrfs_node *node;
+	int i;
+	int nritems;
+	u64 objectid;
+	u64 item_objectid;
+	u64 blocknr;
+	int slot;
+
+	if (!path->nodes[1])
+		return;
+	node = btrfs_buffer_node(path->nodes[1]);
+	slot = path->slots[1];
+	objectid = btrfs_disk_key_objectid(&node->ptrs[slot].key);
+	nritems = btrfs_header_nritems(&node->header);
+	for (i = slot; i < nritems; i++) {
+		item_objectid = btrfs_disk_key_objectid(&node->ptrs[i].key);
+		if (item_objectid != objectid)
+			break;
+		blocknr = btrfs_node_blockptr(node, i);
+		bh = sb_getblk(root->fs_info->sb, blocknr);
+		ll_rw_block(READ, 1, &bh);
+		brelse(bh);
+	}
+
+}
 static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -358,6 +386,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		goto err;
 	}
 	advance = 0;
+	reada_leaves(root, &path);
 	while(1) {
 		leaf = btrfs_buffer_leaf(path.nodes[0]);
 		nritems = btrfs_header_nritems(&leaf->header);
@@ -370,13 +399,8 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				leaf = btrfs_buffer_leaf(path.nodes[0]);
 				nritems = btrfs_header_nritems(&leaf->header);
 				slot = path.slots[0];
-#if 0
-				page_cache_readahead(
-				     inode->i_sb->s_bdev->bd_inode->i_mapping,
-				     &filp->f_ra, filp,
-				     path.nodes[0]->b_blocknr >>
-				     (PAGE_CACHE_SHIFT - inode->i_blkbits), 1);
-#endif
+				if (path.nodes[1] && path.slots[1] == 0)
+					reada_leaves(root, &path);
 			} else {
 				slot++;
 				path.slots[0]++;
