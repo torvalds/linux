@@ -1049,6 +1049,8 @@ static int validate_classes(struct policydb *p)
 
 	for (i = 1; i < kdefs->cts_len; i++) {
 		def_class = kdefs->class_to_string[i];
+		if (!def_class)
+			continue;
 		if (i > p->p_classes.nprim) {
 			printk(KERN_INFO
 			       "security:  class %s not defined in policy\n",
