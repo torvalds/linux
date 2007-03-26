@@ -1014,8 +1014,7 @@ struct eeprom_data {
 
 /* Transmit and Receive Buffers */
 #define NUM_LBUFQ_ENTRIES   	128
-#define JUMBO_NUM_LBUFQ_ENTRIES   	\
-(NUM_LBUFQ_ENTRIES/(JUMBO_MTU_SIZE/NORMAL_MTU_SIZE))
+#define JUMBO_NUM_LBUFQ_ENTRIES 32
 #define NUM_SBUFQ_ENTRIES   	64
 #define QL_SMALL_BUFFER_SIZE    32
 #define QL_ADDR_ELE_PER_BUFQ_ENTRY \

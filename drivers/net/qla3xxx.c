@@ -1933,17 +1933,18 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 		u16 checksum = le16_to_cpu(ib_ip_rsp_ptr->checksum);
 		if (checksum & 
 			(IB_IP_IOCB_RSP_3032_ICE | 
-			 IB_IP_IOCB_RSP_3032_CE | 
-			 IB_IP_IOCB_RSP_3032_NUC)) {
+			 IB_IP_IOCB_RSP_3032_CE)) { 
 			printk(KERN_ERR
 			       "%s: Bad checksum for this %s packet, checksum = %x.\n",
 			       __func__,
 			       ((checksum & 
 				IB_IP_IOCB_RSP_3032_TCP) ? "TCP" :
 				"UDP"),checksum);
-		} else if (checksum & IB_IP_IOCB_RSP_3032_TCP) {
+		} else if ((checksum & IB_IP_IOCB_RSP_3032_TCP) ||
+				(checksum & IB_IP_IOCB_RSP_3032_UDP &&
+				!(checksum & IB_IP_IOCB_RSP_3032_NUC))) {
 			skb2->ip_summed = CHECKSUM_UNNECESSARY;
-		} 
+		}
 	}
 	skb2->dev = qdev->ndev;
 	skb2->protocol = eth_type_trans(skb2, qdev->ndev);
@@ -3039,15 +3040,6 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 			goto out;
 		}
 
-		if (qdev->mac_index)
-			ql_write_page0_reg(qdev,
-					   &port_regs->mac1MaxFrameLengthReg,
-					   qdev->max_frame_size);
-		else
-			ql_write_page0_reg(qdev,
-					   &port_regs->mac0MaxFrameLengthReg,
-					   qdev->max_frame_size);
-
 		value = qdev->nvram_data.tcpMaxWindowSize;
 		ql_write_page0_reg(qdev, &port_regs->tcpMaxWindow, value);
 
@@ -3067,6 +3059,14 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 		ql_sem_unlock(qdev, QL_FLASH_SEM_MASK);
 	}
 
+	if (qdev->mac_index)
+		ql_write_page0_reg(qdev,
+				   &port_regs->mac1MaxFrameLengthReg,
+				   qdev->max_frame_size);
+	else
+		ql_write_page0_reg(qdev,
+					   &port_regs->mac0MaxFrameLengthReg,
+					   qdev->max_frame_size);
 
 	if(ql_sem_spinlock(qdev, QL_PHY_GIO_SEM_MASK,
 			(QL_RESOURCE_BITS_BASE_CODE | (qdev->mac_index) *
@@ -3137,7 +3137,8 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 	if (qdev->device_id == QL3032_DEVICE_ID) {
 		value =
 		    (QL3032_PORT_CONTROL_EF | QL3032_PORT_CONTROL_KIE |
-		     QL3032_PORT_CONTROL_EIv6 | QL3032_PORT_CONTROL_EIv4);
+		     QL3032_PORT_CONTROL_EIv6 | QL3032_PORT_CONTROL_EIv4 |
+			QL3032_PORT_CONTROL_ET);
 		ql_write_page0_reg(qdev, &port_regs->functionControl,
 				   ((value << 16) | value));
 	} else {
