@@ -2217,12 +2217,7 @@ static int ql_send_map(struct ql3_adapter *qdev,
 	int seg_cnt, seg = 0;
 	int frag_cnt = (int)skb_shinfo(skb)->nr_frags;
 
-	seg_cnt = tx_cb->seg_count = ql_get_seg_count(qdev,
-						      (skb_shinfo(skb)->nr_frags));
-	if(seg_cnt == -1) {
-		printk(KERN_ERR PFX"%s: invalid segment count!\n",__func__);
-		return NETDEV_TX_BUSY;
-	}
+	seg_cnt = tx_cb->seg_count;
 	/*
 	 * Map the skb buffer first.
 	 */
@@ -2278,7 +2273,7 @@ static int ql_send_map(struct ql3_adapter *qdev,
 				pci_unmap_addr_set(&tx_cb->map[seg], mapaddr,
 						   map);
 				pci_unmap_len_set(&tx_cb->map[seg], maplen,
-						  len);
+						  sizeof(struct oal));
 				oal_entry = (struct oal_entry *)oal;
 				oal++;
 				seg++;
