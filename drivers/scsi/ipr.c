@@ -3770,7 +3770,8 @@ static int ipr_device_reset(struct ipr_ioa_cfg *ioa_cfg,
  * Return value:
  *	0 on success / non-zero on failure
  **/
-static int ipr_sata_reset(struct ata_port *ap, unsigned int *classes)
+static int ipr_sata_reset(struct ata_port *ap, unsigned int *classes,
+				unsigned long deadline)
 {
 	struct ipr_sata_port *sata_port = ap->private_data;
 	struct ipr_ioa_cfg *ioa_cfg = sata_port->ioa_cfg;
