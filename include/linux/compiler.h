@@ -15,8 +15,8 @@
 # define __acquire(x)	__context__(x,1)
 # define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
-extern void __chk_user_ptr(void __user *);
-extern void __chk_io_ptr(void __iomem *);
+extern void __chk_user_ptr(const void __user *);
+extern void __chk_io_ptr(const void __iomem *);
 #else
 # define __user
 # define __kernel
