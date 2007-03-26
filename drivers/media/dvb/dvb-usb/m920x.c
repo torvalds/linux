@@ -22,45 +22,6 @@ static int dvb_usb_m920x_debug;
 module_param_named(debug,dvb_usb_m920x_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
-static struct dvb_usb_rc_key megasky_rc_keys [] = {
-	{ 0x0, 0x12, KEY_POWER },
-	{ 0x0, 0x1e, KEY_CYCLEWINDOWS }, /* min/max */
-	{ 0x0, 0x02, KEY_CHANNELUP },
-	{ 0x0, 0x05, KEY_CHANNELDOWN },
-	{ 0x0, 0x03, KEY_VOLUMEUP },
-	{ 0x0, 0x06, KEY_VOLUMEDOWN },
-	{ 0x0, 0x04, KEY_MUTE },
-	{ 0x0, 0x07, KEY_OK }, /* TS */
-	{ 0x0, 0x08, KEY_STOP },
-	{ 0x0, 0x09, KEY_MENU }, /* swap */
-	{ 0x0, 0x0a, KEY_REWIND },
-	{ 0x0, 0x1b, KEY_PAUSE },
-	{ 0x0, 0x1f, KEY_FASTFORWARD },
-	{ 0x0, 0x0c, KEY_RECORD },
-	{ 0x0, 0x0d, KEY_CAMERA }, /* screenshot */
-	{ 0x0, 0x0e, KEY_COFFEE }, /* "MTS" */
-};
-
-static struct dvb_usb_rc_key tvwalkertwin_rc_keys [] = {
-	{ 0x0, 0x01, KEY_ZOOM }, /* Full Screen */
-	{ 0x0, 0x02, KEY_CAMERA }, /* snapshot */
-	{ 0x0, 0x03, KEY_MUTE },
-	{ 0x0, 0x04, KEY_REWIND },
-	{ 0x0, 0x05, KEY_PLAYPAUSE }, /* Play/Pause */
-	{ 0x0, 0x06, KEY_FASTFORWARD },
-	{ 0x0, 0x07, KEY_RECORD },
-	{ 0x0, 0x08, KEY_STOP },
-	{ 0x0, 0x09, KEY_TIME }, /* Timeshift */
-	{ 0x0, 0x0c, KEY_COFFEE }, /* Recall */
-	{ 0x0, 0x0e, KEY_CHANNELUP },
-	{ 0x0, 0x12, KEY_POWER },
-	{ 0x0, 0x15, KEY_MENU }, /* source */
-	{ 0x0, 0x18, KEY_CYCLEWINDOWS }, /* TWIN PIP */
-	{ 0x0, 0x1a, KEY_CHANNELDOWN },
-	{ 0x0, 0x1b, KEY_VOLUMEDOWN },
-	{ 0x0, 0x1e, KEY_VOLUMEUP },
-};
-
 static inline int m9206_read(struct usb_device *udev, u8 request, u16 value,
 			     u16 index, void *data, int size)
 {
@@ -259,7 +220,7 @@ static struct i2c_algorithm m9206_i2c_algo = {
 	.functionality = m9206_i2c_func,
 };
 
-
+/* pid filter */
 static int m9206_set_filter(struct dvb_usb_adapter *adap,
 			    int type, int idx, int pid)
 {
@@ -419,6 +380,7 @@ static int m920x_identify_state(struct usb_device *udev,
 	return 0;
 }
 
+/* demod configurations */
 static int megasky_mt352_demod_init(struct dvb_frontend *fe)
 {
 	u8 config[] = { CONFIG, 0x3d };
@@ -450,36 +412,6 @@ static struct mt352_config megasky_mt352_config = {
 	.demod_init = megasky_mt352_demod_init,
 };
 
-static int megasky_mt352_frontend_attach(struct dvb_usb_adapter *adap)
-{
-	deb_rc("megasky_frontend_attach!\n");
-
-	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config,
-				   &adap->dev->i2c_adap)) == NULL)
-		return -EIO;
-
-	return 0;
-}
-
-static struct qt1010_config megasky_qt1010_config = {
-	.i2c_address = 0x62
-};
-
-static int megasky_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
-{
-	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
-		       &megasky_qt1010_config) == NULL)
-		return -ENODEV;
-
-	return 0;
-}
-
-static struct m9206_inits megasky_rc_init [] = {
-	{ M9206_RC_INIT2, 0xa8 },
-	{ M9206_RC_INIT1, 0x51 },
-	{ } /* terminating entry */
-};
-
 static struct tda1004x_config digivox_tda10046_config = {
 	.demod_address = 0x08,
 	.invert = 0,
@@ -491,32 +423,6 @@ static struct tda1004x_config digivox_tda10046_config = {
 	.gpio_config = TDA10046_GPTRI,
 	.request_firmware = NULL,
 };
-
-static int digivox_tda10046_frontend_attach(struct dvb_usb_adapter *adap)
-{
-	deb_rc("digivox_tda10046_frontend_attach!\n");
-
-	if ((adap->fe = dvb_attach(tda10046_attach, &digivox_tda10046_config,
-				   &adap->dev->i2c_adap)) == NULL)
-		return -EIO;
-
-	return 0;
-}
-
-static int digivox_tda8275_tuner_attach(struct dvb_usb_adapter *adap)
-{
-	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
-		       NULL) == NULL)
-		return -ENODEV;
-	return 0;
-}
-
-/* LifeView TV Walker Twin has 1 x M9206, 2 x TDA10046, 2 x TDA8275A
- * TDA10046 #0 is located at i2c address 0x08
- * TDA10046 #1 is located at i2c address 0x0b
- * TDA8275A #0 is located at i2c address 0x60
- * TDA8275A #1 is located at i2c address 0x61
- */
 
 static struct tda1004x_config tvwalkertwin_0_tda10046_config = {
 	.demod_address = 0x08,
@@ -541,6 +447,41 @@ static struct tda1004x_config tvwalkertwin_1_tda10046_config = {
 	.gpio_config = TDA10046_GPTRI,
 	.request_firmware = NULL, /* uses firmware EEPROM */
 };
+
+/* tuner configurations */
+static struct qt1010_config megasky_qt1010_config = {
+	.i2c_address = 0x62
+};
+
+/* Callbacks for DVB USB */
+static int megasky_mt352_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	deb_rc("megasky_frontend_attach!\n");
+
+	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config,
+				   &adap->dev->i2c_adap)) == NULL)
+		return -EIO;
+
+	return 0;
+}
+
+static int digivox_tda10046_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	deb_rc("digivox_tda10046_frontend_attach!\n");
+
+	if ((adap->fe = dvb_attach(tda10046_attach, &digivox_tda10046_config,
+				   &adap->dev->i2c_adap)) == NULL)
+		return -EIO;
+
+	return 0;
+}
+
+/* LifeView TV Walker Twin has 1 x M9206, 2 x TDA10046, 2 x TDA8275A
+ * TDA10046 #0 is located at i2c address 0x08
+ * TDA10046 #1 is located at i2c address 0x0b
+ * TDA8275A #0 is located at i2c address 0x60
+ * TDA8275A #1 is located at i2c address 0x61
+ */
 
 static int tvwalkertwin_0_tda10046_frontend_attach(struct dvb_usb_adapter *adap)
 {
@@ -569,6 +510,23 @@ static int tvwalkertwin_1_tda10046_frontend_attach(struct dvb_usb_adapter *adap)
 	deb_rc("Attached demod 1 at address %02x\n",
 	       tvwalkertwin_1_tda10046_config.demod_address);
 
+	return 0;
+}
+
+static int megasky_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
+		       &megasky_qt1010_config) == NULL)
+		return -ENODEV;
+
+	return 0;
+}
+
+static int digivox_tda8275_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
+		       NULL) == NULL)
+		return -ENODEV;
 	return 0;
 }
 
@@ -602,6 +560,13 @@ static int tvwalkertwin_1_tda8275_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+/* device-specific initialization */
+static struct m9206_inits megasky_rc_init [] = {
+	{ M9206_RC_INIT2, 0xa8 },
+	{ M9206_RC_INIT1, 0x51 },
+	{ } /* terminating entry */
+};
+
 static struct m9206_inits tvwalkertwin_rc_init [] = {
 	{ M9206_RC_INIT2, 0x00 },
 	{ M9206_RC_INIT1, 0xef },
@@ -611,14 +576,51 @@ static struct m9206_inits tvwalkertwin_rc_init [] = {
 	{ } /* terminating entry */
 };
 
+/* ir keymaps */
+static struct dvb_usb_rc_key megasky_rc_keys [] = {
+	{ 0x0, 0x12, KEY_POWER },
+	{ 0x0, 0x1e, KEY_CYCLEWINDOWS }, /* min/max */
+	{ 0x0, 0x02, KEY_CHANNELUP },
+	{ 0x0, 0x05, KEY_CHANNELDOWN },
+	{ 0x0, 0x03, KEY_VOLUMEUP },
+	{ 0x0, 0x06, KEY_VOLUMEDOWN },
+	{ 0x0, 0x04, KEY_MUTE },
+	{ 0x0, 0x07, KEY_OK }, /* TS */
+	{ 0x0, 0x08, KEY_STOP },
+	{ 0x0, 0x09, KEY_MENU }, /* swap */
+	{ 0x0, 0x0a, KEY_REWIND },
+	{ 0x0, 0x1b, KEY_PAUSE },
+	{ 0x0, 0x1f, KEY_FASTFORWARD },
+	{ 0x0, 0x0c, KEY_RECORD },
+	{ 0x0, 0x0d, KEY_CAMERA }, /* screenshot */
+	{ 0x0, 0x0e, KEY_COFFEE }, /* "MTS" */
+};
+
+static struct dvb_usb_rc_key tvwalkertwin_rc_keys [] = {
+	{ 0x0, 0x01, KEY_ZOOM }, /* Full Screen */
+	{ 0x0, 0x02, KEY_CAMERA }, /* snapshot */
+	{ 0x0, 0x03, KEY_MUTE },
+	{ 0x0, 0x04, KEY_REWIND },
+	{ 0x0, 0x05, KEY_PLAYPAUSE }, /* Play/Pause */
+	{ 0x0, 0x06, KEY_FASTFORWARD },
+	{ 0x0, 0x07, KEY_RECORD },
+	{ 0x0, 0x08, KEY_STOP },
+	{ 0x0, 0x09, KEY_TIME }, /* Timeshift */
+	{ 0x0, 0x0c, KEY_COFFEE }, /* Recall */
+	{ 0x0, 0x0e, KEY_CHANNELUP },
+	{ 0x0, 0x12, KEY_POWER },
+	{ 0x0, 0x15, KEY_MENU }, /* source */
+	{ 0x0, 0x18, KEY_CYCLEWINDOWS }, /* TWIN PIP */
+	{ 0x0, 0x1a, KEY_CHANNELDOWN },
+	{ 0x0, 0x1b, KEY_VOLUMEDOWN },
+	{ 0x0, 0x1e, KEY_VOLUMEUP },
+};
+
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties megasky_properties;
 static struct dvb_usb_device_properties digivox_mini_ii_properties;
 static struct dvb_usb_device_properties tvwalkertwin_properties;
 static struct dvb_usb_device_properties dposh_properties;
-
-static struct m9206_inits megasky_rc_init [];
-static struct m9206_inits tvwalkertwin_rc_init [];
 
 static int m920x_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -800,7 +802,6 @@ static struct dvb_usb_device_properties digivox_mini_ii_properties = {
 };
 
 /* LifeView TV Walker Twin support by Nick Andrew <nick@nick-andrew.net> */
-
 static struct dvb_usb_device_properties tvwalkertwin_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
