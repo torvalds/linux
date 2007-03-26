@@ -1124,17 +1124,40 @@ static int set_io_32bit(ide_drive_t *drive, int arg)
 static int set_using_dma (ide_drive_t *drive, int arg)
 {
 #ifdef CONFIG_BLK_DEV_IDEDMA
+	ide_hwif_t *hwif = drive->hwif;
+	int err = -EPERM;
+
 	if (!drive->id || !(drive->id->capability & 1))
-		return -EPERM;
-	if (HWIF(drive)->ide_dma_check == NULL)
-		return -EPERM;
+		goto out;
+
+	if (hwif->ide_dma_check == NULL)
+		goto out;
+
+	err = -EBUSY;
+	if (ide_spin_wait_hwgroup(drive))
+		goto out;
+	/*
+	 * set ->busy flag, unlock and let it ride
+	 */
+	hwif->hwgroup->busy = 1;
+	spin_unlock_irq(&ide_lock);
+
+	err = 0;
+
 	if (arg) {
-		if (ide_set_dma(drive))
-			return -EIO;
-		if (HWIF(drive)->ide_dma_on(drive)) return -EIO;
+		if (ide_set_dma(drive) || hwif->ide_dma_on(drive))
+			err = -EIO;
 	} else
 		ide_dma_off(drive);
-	return 0;
+
+	/*
+	 * lock, clear ->busy flag and unlock before leaving
+	 */
+	spin_lock_irq(&ide_lock);
+	hwif->hwgroup->busy = 0;
+	spin_unlock_irq(&ide_lock);
+out:
+	return err;
 #else
 	return -EPERM;
 #endif
