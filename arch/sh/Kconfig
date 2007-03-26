@@ -243,6 +243,12 @@ config SH_7619_SOLUTION_ENGINE
 	help
 	  Select 7619 SolutionEngine if configuring for a Hitachi SH7619
 	  evaluation board.
+	
+config SH_LBOX_RE2
+	bool "L-BOX RE2"
+	select CPU_SUBTYPE_SH7751R
+	help
+	  Select L-BOX RE2 if configuring for the NTT COMWARE L-BOX RE2.
 
 config SH_UNKNOWN
 	bool "BareCPU"

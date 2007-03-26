@@ -110,6 +110,7 @@ machdir-$(CONFIG_SH_TITAN)			:= titan
 machdir-$(CONFIG_SH_SHMIN)			:= shmin
 machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= se/7206
 machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= se/7619
+machdir-$(CONFIG_SH_LBOX_RE2)			:= lboxre2
 machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
 
 incdir-y			:= $(notdir $(machdir-y))

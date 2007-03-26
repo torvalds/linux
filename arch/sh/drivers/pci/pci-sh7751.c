@@ -194,7 +194,7 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 	 * DMA interrupts...
 	 */
 
-#ifdef CONFIG_SH_RTS7751R2D
+#if defined(CONFIG_SH_RTS7751R2D) || defined(CONFIG_SH_LBOX_RE2)
 	pci_fixup_pcic();
 #endif
 
