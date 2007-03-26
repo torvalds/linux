@@ -561,8 +561,10 @@ static void ether1394_add_host (struct hpsb_host *host)
 	struct eth1394_priv *priv;
 	u64 fifo_addr;
 
-	if (!(host->config_roms & HPSB_CONFIG_ROM_ENTRY_IP1394))
+	if (hpsb_config_rom_ip1394_add(host) != 0) {
+		ETH1394_PRINT_G(KERN_ERR, "Can't add IP-over-1394 ROM entry\n");
 		return;
+	}
 
 	fifo_addr = hpsb_allocate_and_register_addrspace(
 			&eth1394_highlevel, host, &addr_ops,
@@ -570,6 +572,7 @@ static void ether1394_add_host (struct hpsb_host *host)
 			CSR1212_INVALID_ADDR_SPACE, CSR1212_INVALID_ADDR_SPACE);
 	if (fifo_addr == CSR1212_INVALID_ADDR_SPACE) {
 		ETH1394_PRINT_G(KERN_ERR, "Cannot register CSR space\n");
+		hpsb_config_rom_ip1394_remove(host);
 		return;
 	}
 
@@ -649,6 +652,7 @@ out:
 	if (hi)
 		hpsb_destroy_hostinfo(&eth1394_highlevel, host);
 	hpsb_unregister_addrspace(&eth1394_highlevel, host, fifo_addr);
+	hpsb_config_rom_ip1394_remove(host);
 }
 
 /* Remove a card from our list */
@@ -662,6 +666,7 @@ static void ether1394_remove_host (struct hpsb_host *host)
 		return;
 	priv = netdev_priv(hi->dev);
 	hpsb_unregister_addrspace(&eth1394_highlevel, host, priv->local_fifo);
+	hpsb_config_rom_ip1394_remove(host);
 	if (priv->iso)
 		hpsb_iso_shutdown(priv->iso);
 	unregister_netdev(hi->dev);

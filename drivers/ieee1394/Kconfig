@@ -34,23 +34,6 @@ config IEEE1394_VERBOSEDEBUG
 	  Say Y if you really want or need the debugging output, everyone
 	  else says N.
 
-config IEEE1394_EXTRA_CONFIG_ROMS
-	bool "Build in extra config rom entries for certain functionality"
-	depends on IEEE1394
-	help
-	  Some IEEE1394 functionality depends on extra config rom entries
-	  being available in the host adapters CSR. These options will
-	  allow you to choose which ones.
-
-config IEEE1394_CONFIG_ROM_IP1394
-	bool "IP-1394 Entry"
-	depends on IEEE1394_EXTRA_CONFIG_ROMS && IEEE1394
-	help
-	  Adds an entry for using IP-over-1394. If you want to use your
-	  IEEE1394 bus as a network for IP systems (including interacting
-	  with MacOSX and WinXP IP-over-1394), enable this option and the
-	  eth1394 option below.
-
 comment "Device Drivers"
 	depends on IEEE1394
 
@@ -120,11 +103,15 @@ config IEEE1394_SBP2_PHYS_DMA
 	  This option is buggy and currently broken on some architectures.
 	  If unsure, say N.
 
+config IEEE1394_ETH1394_ROM_ENTRY
+	depends on IEEE1394
+	bool
+	default n
+
 config IEEE1394_ETH1394
-	tristate "Ethernet over 1394"
+	tristate "IP over 1394"
 	depends on IEEE1394 && EXPERIMENTAL && INET
-	select IEEE1394_CONFIG_ROM_IP1394
-	select IEEE1394_EXTRA_CONFIG_ROMS
+	select IEEE1394_ETH1394_ROM_ENTRY
 	help
 	  This driver implements a functional majority of RFC 2734: IPv4 over
 	  1394.  It will provide IP connectivity with implementations of RFC
@@ -132,6 +119,8 @@ config IEEE1394_ETH1394
 	  older versions of this driver found in stock kernels prior to 2.6.3.
 	  This driver is still considered experimental.  It does not yet support
 	  MCAP, therefore multicast support is significantly limited.
+
+	  The module is called eth1394 although it does not emulate Ethernet.
 
 config IEEE1394_DV1394
 	tristate "OHCI-DV I/O support (deprecated)"

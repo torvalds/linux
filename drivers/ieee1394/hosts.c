@@ -180,7 +180,7 @@ int hpsb_add_host(struct hpsb_host *host)
 {
 	if (hpsb_default_host_entry(host))
 		return -ENOMEM;
-	hpsb_add_extra_config_roms(host);
+
 	highlevel_add_host(host);
 	return 0;
 }
@@ -202,7 +202,6 @@ void hpsb_remove_host(struct hpsb_host *host)
 
 	host->driver = &dummy_driver;
 	highlevel_remove_host(host);
-	hpsb_remove_extra_config_roms(host);
 
 	class_device_unregister(&host->class_dev);
 	device_unregister(&host->device);
