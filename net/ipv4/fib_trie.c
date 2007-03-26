@@ -1123,6 +1123,9 @@ err:
 	return fa_head;
 }
 
+/*
+ * Caller must hold RTNL.
+ */
 static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
@@ -1540,6 +1543,9 @@ static int trie_leaf_remove(struct trie *t, t_key key)
 	return 1;
 }
 
+/*
+ * Caller must hold RTNL.
+ */
 static int fn_trie_delete(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
@@ -1718,6 +1724,9 @@ up:
 	return NULL; /* Ready. Root of trie */
 }
 
+/*
+ * Caller must hold RTNL.
+ */
 static int fn_trie_flush(struct fib_table *tb)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
