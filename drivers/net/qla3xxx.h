@@ -293,6 +293,16 @@ struct net_rsp_iocb {
 
 #define MII_SCAN_REGISTER 0x00000001
 
+#define PHY_ID_0_REG    2
+#define PHY_ID_1_REG    3
+
+#define PHY_OUI_1_MASK       0xfc00
+#define PHY_MODEL_MASK       0x03f0
+
+/*  Address for the Agere Phy */
+#define MII_AGERE_ADDR_1  0x00001000
+#define MII_AGERE_ADDR_2  0x00001100
+
 /* 32-bit ispControlStatus */
 enum {
 	ISP_CONTROL_NP_MASK = 0x0003,
@@ -789,6 +799,7 @@ enum {
 	PHY_CTRL_LOOPBACK = 0x4000,
 
 	PETBI_CONTROL_REG = 0x00,
+	PETBI_CTRL_ALL_PARAMS = 0x7140,
 	PETBI_CTRL_SOFT_RESET = 0x8000,
 	PETBI_CTRL_AUTO_NEG = 0x1000,
 	PETBI_CTRL_RESTART_NEG = 0x0200,
@@ -811,6 +822,23 @@ enum {
 	PETBI_EXPANSION_REG = 0x06,
 	PETBI_EXP_PAGE_RX = 0x0002,
 
+	PHY_GIG_CONTROL = 9,
+	PHY_GIG_ENABLE_MAN = 0x1000,  /* Enable Master/Slave Manual Config*/
+	PHY_GIG_SET_MASTER = 0x0800,  /* Set Master (slave if clear)*/
+	PHY_GIG_ALL_PARAMS = 0x0300,
+	PHY_GIG_ADV_1000F = 0x0200,
+	PHY_GIG_ADV_1000H = 0x0100,
+
+	PHY_NEG_ADVER = 4,
+	PHY_NEG_ALL_PARAMS = 0x0fe0,
+	PHY_NEG_ASY_PAUSE =  0x0800,
+	PHY_NEG_SYM_PAUSE =  0x0400,
+	PHY_NEG_ADV_SPEED =  0x01e0,
+	PHY_NEG_ADV_100F =   0x0100,
+	PHY_NEG_ADV_100H =   0x0080,
+	PHY_NEG_ADV_10F =    0x0040,
+	PHY_NEG_ADV_10H =    0x0020,
+
 	PETBI_TBI_CTRL = 0x11,
 	PETBI_TBI_RESET = 0x8000,
 	PETBI_TBI_AUTO_SENSE = 0x0100,
@@ -826,8 +854,7 @@ enum {
 	PHY_AUX_RESET_STICK = 0x0002,
 	PHY_NEG_PAUSE = 0x0400,
 	PHY_CTRL_SOFT_RESET = 0x8000,
-	PHY_NEG_ADVER = 4,
-	PHY_NEG_ADV_SPEED = 0x01e0,
+	PHY_CTRL_AUTO_NEG = 0x1000,
 	PHY_CTRL_RESTART_NEG = 0x0200,
 };
 enum {
@@ -892,6 +919,7 @@ enum {EEPROM_SIZE = FM93C86A_SIZE_16,
 	u16 pauseThreshold_mac;
 	u16 resumeThreshold_mac;
 	u16 portConfiguration;
+#define PORT_CONFIG_DEFAULT                 0xf700
 #define PORT_CONFIG_AUTO_NEG_ENABLED        0x8000
 #define PORT_CONFIG_SYM_PAUSE_ENABLED       0x4000
 #define PORT_CONFIG_FULL_DUPLEX_ENABLED     0x2000
@@ -1259,6 +1287,7 @@ struct ql3_adapter {
 	struct delayed_work tx_timeout_work;
 	u32 max_frame_size;
 	u32 device_id;
+	u16 phyType;
 };
 
 #endif				/* _QLA3XXX_H_ */
