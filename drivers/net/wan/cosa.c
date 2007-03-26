@@ -773,7 +773,7 @@ static int sppp_rx_done(struct channel_data *chan)
 	}
 	chan->rx_skb->protocol = htons(ETH_P_WAN_PPP);
 	chan->rx_skb->dev = chan->pppdev.dev;
-	skb_reset_mac_header(chan->rx_skb)
+	skb_reset_mac_header(chan->rx_skb);
 	chan->stats.rx_packets++;
 	chan->stats.rx_bytes += chan->cosa->rxsize;
 	netif_rx(chan->rx_skb);
