@@ -963,11 +963,6 @@ static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
 {
 	[RTM_GETADDR     - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
 	[RTM_GETROUTE    - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
-#ifdef CONFIG_FIB_RULES
-	[RTM_NEWRULE     - RTM_BASE] = { .doit   = fib_nl_newrule	 },
-	[RTM_DELRULE     - RTM_BASE] = { .doit   = fib_nl_delrule	 },
-#endif
-	[RTM_GETRULE     - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
 };
 
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)

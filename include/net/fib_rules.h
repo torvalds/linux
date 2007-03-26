@@ -5,7 +5,7 @@
 #include <linux/netdevice.h>
 #include <linux/fib_rules.h>
 #include <net/flow.h>
-#include <net/netlink.h>
+#include <net/rtnetlink.h>
 
 struct fib_rule
 {
@@ -99,10 +99,6 @@ extern int			fib_rules_lookup(struct fib_rules_ops *,
 						 struct flowi *, int flags,
 						 struct fib_lookup_arg *);
 
-extern int			fib_nl_newrule(struct sk_buff *,
-					       struct nlmsghdr *, void *);
-extern int			fib_nl_delrule(struct sk_buff *,
-					       struct nlmsghdr *, void *);
 extern int			fib_rules_dump(struct sk_buff *,
 					       struct netlink_callback *, int);
 #endif
