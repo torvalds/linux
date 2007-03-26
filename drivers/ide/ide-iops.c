@@ -583,8 +583,12 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 	if(!(drive->id->hw_config & 0x4000))
 		return 0;
 #endif /* CONFIG_IDEDMA_IVB */
-	if (!(drive->id->hw_config & 0x2000))
-		return 0;
+	/*
+	 * FIXME:
+	 * - change master/slave IDENTIFY order
+	 * - force bit13 (80c cable present) check
+	 *   (unless the slave device is pre-ATA3)
+	 */
 	return 1;
 }
 
