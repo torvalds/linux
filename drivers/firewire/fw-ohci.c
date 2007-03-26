@@ -628,6 +628,7 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 
 	driver_data = (struct driver_data *) &d[3];
 	driver_data->packet = packet;
+	packet->driver_data = driver_data;
 	
 	if (packet->payload_length > 0) {
 		payload_bus =
