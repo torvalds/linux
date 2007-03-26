@@ -12,6 +12,7 @@
 #include <linux/netdevice.h>
 #include <net/ip.h>
 #include <net/act_api.h>
+#include <net/netlink.h>
 #include <net/pkt_cls.h>
 #include <net/route.h>
 
@@ -495,7 +496,7 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

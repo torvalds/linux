@@ -33,6 +33,7 @@
 #include <linux/notifier.h>
 
 #include <linux/netfilter.h>
+#include <net/netlink.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_expect.h>
@@ -306,7 +307,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 
 nlmsg_failure:
 nfattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -1169,7 +1170,7 @@ ctnetlink_exp_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 
 nlmsg_failure:
 nfattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

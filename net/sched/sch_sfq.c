@@ -30,6 +30,7 @@
 #include <linux/notifier.h>
 #include <linux/init.h>
 #include <net/ip.h>
+#include <net/netlink.h>
 #include <linux/ipv6.h>
 #include <net/route.h>
 #include <linux/skbuff.h>
@@ -476,7 +477,7 @@ static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

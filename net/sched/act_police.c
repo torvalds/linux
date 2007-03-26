@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <net/sock.h>
 #include <net/act_api.h>
+#include <net/netlink.h>
 
 #define L2T(p,L)   ((p)->tcfp_R_tab->data[(L)>>(p)->tcfp_R_tab->rate.cell_log])
 #define L2T_P(p,L) ((p)->tcfp_P_tab->data[(L)>>(p)->tcfp_P_tab->rate.cell_log])
@@ -88,7 +89,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 				err = tcf_action_dump_1(skb, a, 0, 0);
 			if (err < 0) {
 				index--;
-				skb_trim(skb, (u8*)r - skb->data);
+				nlmsg_trim(skb, r);
 				goto done;
 			}
 			r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
@@ -102,7 +103,7 @@ done:
 	return n_i;
 
 rtattr_failure:
-	skb_trim(skb, (u8*)r - skb->data);
+	nlmsg_trim(skb, r);
 	goto done;
 }
 #endif
@@ -355,7 +356,7 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -598,7 +599,7 @@ int tcf_police_dump(struct sk_buff *skb, struct tcf_police *police)
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

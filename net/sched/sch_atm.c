@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/file.h> /* for fput */
+#include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/sock.h>
 
@@ -665,7 +666,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb,b-skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 static int

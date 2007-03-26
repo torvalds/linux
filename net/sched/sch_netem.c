@@ -22,6 +22,7 @@
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 
+#include <net/netlink.h>
 #include <net/pkt_sched.h>
 
 #define VERSION "1.2"
@@ -616,7 +617,7 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

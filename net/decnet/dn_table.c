@@ -28,6 +28,7 @@
 #include <asm/uaccess.h>
 #include <linux/route.h> /* RTF_xxx */
 #include <net/neighbour.h>
+#include <net/netlink.h>
 #include <net/dst.h>
 #include <net/flow.h>
 #include <net/fib_rules.h>
@@ -349,7 +350,7 @@ static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -EMSGSIZE;
 }
 

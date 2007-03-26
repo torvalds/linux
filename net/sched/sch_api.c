@@ -36,6 +36,7 @@
 #include <linux/bitops.h>
 #include <linux/hrtimer.h>
 
+#include <net/netlink.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 
@@ -852,7 +853,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -1081,7 +1082,7 @@ static int tc_fill_tclass(struct sk_buff *skb, struct Qdisc *q,
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

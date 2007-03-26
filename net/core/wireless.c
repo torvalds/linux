@@ -1957,7 +1957,7 @@ static inline int rtnetlink_fill_iwinfo(struct sk_buff *	skb,
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

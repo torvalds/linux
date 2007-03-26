@@ -628,7 +628,7 @@ out:
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -1182,7 +1182,7 @@ out:
 	return 0;
 
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -1367,7 +1367,7 @@ static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, struct km_eve
 
 rtattr_failure:
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -1767,7 +1767,7 @@ static int build_migrate(struct sk_buff *skb, struct xfrm_migrate *m,
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -1956,7 +1956,7 @@ static int build_expire(struct sk_buff *skb, struct xfrm_state *x, struct km_eve
 	return skb->len;
 
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -2157,7 +2157,7 @@ static int build_acquire(struct sk_buff *skb, struct xfrm_state *x,
 	return skb->len;
 
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -2268,7 +2268,7 @@ static int build_polexpire(struct sk_buff *skb, struct xfrm_policy *xp,
 	return skb->len;
 
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -2427,7 +2427,7 @@ static int build_report(struct sk_buff *skb, u8 proto,
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

@@ -27,6 +27,7 @@
 #include <net/inet_hashtables.h>
 #include <net/inet_timewait_sock.h>
 #include <net/inet6_hashtables.h>
+#include <net/netlink.h>
 
 #include <linux/inet.h>
 #include <linux/stddef.h>
@@ -152,7 +153,7 @@ static int inet_csk_diag_fill(struct sock *sk,
 
 rtattr_failure:
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -EMSGSIZE;
 }
 
@@ -208,7 +209,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	nlh->nlmsg_len = skb_tail_pointer(skb) - previous_tail;
 	return skb->len;
 nlmsg_failure:
-	skb_trim(skb, previous_tail - skb->data);
+	nlmsg_trim(skb, previous_tail);
 	return -EMSGSIZE;
 }
 
@@ -579,7 +580,7 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 	return skb->len;
 
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

@@ -630,7 +630,7 @@ static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

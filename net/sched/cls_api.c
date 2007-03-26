@@ -32,6 +32,8 @@
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
+#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
@@ -345,7 +347,7 @@ tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp, unsigned long fh,
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

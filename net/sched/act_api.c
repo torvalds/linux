@@ -31,6 +31,7 @@
 #include <net/sock.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
+#include <net/netlink.h>
 
 void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 {
@@ -98,7 +99,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 			err = tcf_action_dump_1(skb, a, 0, 0);
 			if (err < 0) {
 				index--;
-				skb_trim(skb, (u8*)r - skb->data);
+				nlmsg_trim(skb, r);
 				goto done;
 			}
 			r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
@@ -114,7 +115,7 @@ done:
 	return n_i;
 
 rtattr_failure:
-	skb_trim(skb, (u8*)r - skb->data);
+	nlmsg_trim(skb, r);
 	goto done;
 }
 
@@ -144,7 +145,7 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 
 	return n_i;
 rtattr_failure:
-	skb_trim(skb, (u8*)r - skb->data);
+	nlmsg_trim(skb, r);
 	return -EINVAL;
 }
 
@@ -440,7 +441,7 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	}
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -467,7 +468,7 @@ tcf_action_dump(struct sk_buff *skb, struct tc_action *act, int bind, int ref)
 rtattr_failure:
 	err = -EINVAL;
 errout:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return err;
 }
 
@@ -658,7 +659,7 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 
 rtattr_failure:
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -1059,7 +1060,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 		x->rta_len = skb_tail_pointer(skb) - (u8 *)x;
 		ret = skb->len;
 	} else
-		skb_trim(skb, (u8*)x - skb->data);
+		nlmsg_trim(skb, x);
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	if (NETLINK_CB(cb->skb).pid && ret)
@@ -1070,7 +1071,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 rtattr_failure:
 nlmsg_failure:
 	module_put(a_o->owner);
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return skb->len;
 }
 

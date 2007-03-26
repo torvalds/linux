@@ -548,7 +548,7 @@ static inline void *nlmsg_get_pos(struct sk_buff *skb)
  *
  * Trims the message to the provided mark. Returns -1.
  */
-static inline int nlmsg_trim(struct sk_buff *skb, void *mark)
+static inline int nlmsg_trim(struct sk_buff *skb, const void *mark)
 {
 	if (mark)
 		skb_trim(skb, (unsigned char *) mark - skb->data);

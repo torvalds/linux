@@ -50,6 +50,7 @@
 #include <linux/skbuff.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
+#include <net/netlink.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <linux/rbtree.h>
@@ -1128,7 +1129,7 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	return skb->len;
 rtattr_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
-	skb_trim(skb, skb_tail_pointer(skb) - skb->data);
+	nlmsg_trim(skb, skb_tail_pointer(skb));
 	return -1;
 }
 
@@ -1164,7 +1165,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	return skb->len;
 rtattr_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
