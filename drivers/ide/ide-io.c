@@ -519,21 +519,24 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq, u8 
 	if ((stat & DRQ_STAT) && rq_data_dir(rq) == READ && hwif->err_stops_fifo == 0)
 		try_to_flush_leftover_data(drive);
 
-	if (hwif->INB(IDE_STATUS_REG) & (BUSY_STAT|DRQ_STAT))
-		/* force an abort */
-		hwif->OUTB(WIN_IDLEIMMEDIATE, IDE_COMMAND_REG);
-
-	if (rq->errors >= ERROR_MAX || blk_noretry_request(rq))
+	if (rq->errors >= ERROR_MAX || blk_noretry_request(rq)) {
 		ide_kill_rq(drive, rq);
-	else {
-		if ((rq->errors & ERROR_RESET) == ERROR_RESET) {
-			++rq->errors;
-			return ide_do_reset(drive);
-		}
-		if ((rq->errors & ERROR_RECAL) == ERROR_RECAL)
-			drive->special.b.recalibrate = 1;
-		++rq->errors;
+		return ide_stopped;
 	}
+
+	if (hwif->INB(IDE_STATUS_REG) & (BUSY_STAT|DRQ_STAT))
+		rq->errors |= ERROR_RESET;
+
+	if ((rq->errors & ERROR_RESET) == ERROR_RESET) {
+		++rq->errors;
+		return ide_do_reset(drive);
+	}
+
+	if ((rq->errors & ERROR_RECAL) == ERROR_RECAL)
+		drive->special.b.recalibrate = 1;
+
+	++rq->errors;
+
 	return ide_stopped;
 }
 
@@ -1024,6 +1027,13 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 	}
 	if (!drive->special.all) {
 		ide_driver_t *drv;
+
+		/*
+		 * We reset the drive so we need to issue a SETFEATURES.
+		 * Do it _after_ do_special() restored device parameters.
+		 */
+		if (drive->current_speed == 0xff)
+			ide_config_drive_speed(drive, drive->desired_speed);
 
 		if (rq->cmd_type == REQ_TYPE_ATA_CMD ||
 		    rq->cmd_type == REQ_TYPE_ATA_TASK ||

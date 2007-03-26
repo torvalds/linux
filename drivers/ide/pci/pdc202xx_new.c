@@ -255,7 +255,7 @@ static int config_chipset_for_dma(ide_drive_t *drive)
 		printk(KERN_WARNING "%s reduced to Ultra33 mode.\n", drive->name);
 	}
 
-	if (drive->media != ide_disk)
+	if (drive->media != ide_disk && drive->media != ide_cdrom)
 		return 0;
 
 	if (id->capability & 4) {
@@ -545,6 +545,7 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
 
+	hwif->atapi_dma  = 1;
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
 
