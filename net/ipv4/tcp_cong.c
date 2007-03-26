@@ -12,6 +12,8 @@
 #include <linux/list.h>
 #include <net/tcp.h>
 
+int sysctl_tcp_max_ssthresh = 0;
+
 static DEFINE_SPINLOCK(tcp_cong_list_lock);
 static LIST_HEAD(tcp_cong_list);
 
@@ -274,10 +276,13 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 
 
 /*
- * Linear increase during slow start
+ * Slow start (exponential increase) with
+ * RFC3742 Limited Slow Start (fast linear increase) support.
  */
 void tcp_slow_start(struct tcp_sock *tp)
 {
+	int cnt = 0;
+
 	if (sysctl_tcp_abc) {
 		/* RFC3465: Slow Start
 		 * TCP sender SHOULD increase cwnd by the number of
@@ -286,17 +291,25 @@ void tcp_slow_start(struct tcp_sock *tp)
 		 */
 		if (tp->bytes_acked < tp->mss_cache)
 			return;
-
-		/* We MAY increase by 2 if discovered delayed ack */
-		if (sysctl_tcp_abc > 1 && tp->bytes_acked >= 2*tp->mss_cache) {
-			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-				tp->snd_cwnd++;
-		}
 	}
+
+	if (sysctl_tcp_max_ssthresh > 0 &&
+	    tp->snd_cwnd > sysctl_tcp_max_ssthresh)
+		cnt += sysctl_tcp_max_ssthresh>>1;
+	else
+		cnt += tp->snd_cwnd;
+
+	/* RFC3465: We MAY increase by 2 if discovered delayed ack */
+	if (sysctl_tcp_abc > 1 && tp->bytes_acked >= 2*tp->mss_cache)
+		cnt <<= 1;
 	tp->bytes_acked = 0;
 
-	if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-		tp->snd_cwnd++;
+	tp->snd_cwnd_cnt += cnt;
+	while (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
+		tp->snd_cwnd_cnt -= tp->snd_cwnd;
+		if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+			tp->snd_cwnd++;
+	}
 }
 EXPORT_SYMBOL_GPL(tcp_slow_start);
 
