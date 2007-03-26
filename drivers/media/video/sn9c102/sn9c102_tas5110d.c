@@ -1,8 +1,8 @@
 /***************************************************************************
- * Plug-in for TAS5110C1B image sensor connected to the SN9C1xx PC Camera  *
+ * Plug-in for TAS5110D image sensor connected to the SN9C1xx PC Camera    *
  * Controllers                                                             *
  *                                                                         *
- * Copyright (C) 2004-2007 by Luca Risolia <luca.risolia@studio.unibo.it>  *
+ * Copyright (C) 2007 by Luca Risolia <luca.risolia@studio.unibo.it>       *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -22,44 +22,25 @@
 #include "sn9c102_sensor.h"
 
 
-static int tas5110c1b_init(struct sn9c102_device* cam)
+static int tas5110d_init(struct sn9c102_device* cam)
 {
 	int err = 0;
 
 	err += sn9c102_write_reg(cam, 0x01, 0x01);
-	err += sn9c102_write_reg(cam, 0x44, 0x01);
-	err += sn9c102_write_reg(cam, 0x00, 0x10);
-	err += sn9c102_write_reg(cam, 0x00, 0x11);
+	err += sn9c102_write_reg(cam, 0x04, 0x01);
 	err += sn9c102_write_reg(cam, 0x0a, 0x14);
 	err += sn9c102_write_reg(cam, 0x60, 0x17);
 	err += sn9c102_write_reg(cam, 0x06, 0x18);
 	err += sn9c102_write_reg(cam, 0xfb, 0x19);
 
-	err += sn9c102_i2c_write(cam, 0xc0, 0x80);
+	err += sn9c102_i2c_write(cam, 0x9a, 0xca);
 
 	return err;
 }
 
 
-static int tas5110c1b_set_ctrl(struct sn9c102_device* cam,
-			       const struct v4l2_control* ctrl)
-{
-	int err = 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
-		err += sn9c102_i2c_write(cam, 0x20, 0xf6 - ctrl->value);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return err ? -EIO : 0;
-}
-
-
-static int tas5110c1b_set_crop(struct sn9c102_device* cam,
-			       const struct v4l2_rect* rect)
+static int tas5110d_set_crop(struct sn9c102_device* cam,
+			     const struct v4l2_rect* rect)
 {
 	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
 	int err = 0;
@@ -69,22 +50,20 @@ static int tas5110c1b_set_crop(struct sn9c102_device* cam,
 	err += sn9c102_write_reg(cam, h_start, 0x12);
 	err += sn9c102_write_reg(cam, v_start, 0x13);
 
-	/* Don't change ! */
 	err += sn9c102_write_reg(cam, 0x14, 0x1a);
 	err += sn9c102_write_reg(cam, 0x0a, 0x1b);
-	err += sn9c102_write_reg(cam, sn9c102_pread_reg(cam, 0x19), 0x19);
 
 	return err;
 }
 
 
-static int tas5110c1b_set_pix_format(struct sn9c102_device* cam,
+static int tas5110d_set_pix_format(struct sn9c102_device* cam,
 				     const struct v4l2_pix_format* pix)
 {
 	int err = 0;
 
 	if (pix->pixelformat == V4L2_PIX_FMT_SN9C10X)
-		err += sn9c102_write_reg(cam, 0x2b, 0x19);
+		err += sn9c102_write_reg(cam, 0x3b, 0x19);
 	else
 		err += sn9c102_write_reg(cam, 0xfb, 0x19);
 
@@ -92,27 +71,15 @@ static int tas5110c1b_set_pix_format(struct sn9c102_device* cam,
 }
 
 
-static struct sn9c102_sensor tas5110c1b = {
-	.name = "TAS5110C1B",
+static struct sn9c102_sensor tas5110d = {
+	.name = "TAS5110D",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
 	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102,
 	.sysfs_ops = SN9C102_I2C_WRITE,
 	.frequency = SN9C102_I2C_100KHZ,
-	.interface = SN9C102_I2C_3WIRES,
-	.init = &tas5110c1b_init,
-	.qctrl = {
-		{
-			.id = V4L2_CID_GAIN,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "global gain",
-			.minimum = 0x00,
-			.maximum = 0xf6,
-			.step = 0x01,
-			.default_value = 0x40,
-			.flags = 0,
-		},
-	},
-	.set_ctrl = &tas5110c1b_set_ctrl,
+	.interface = SN9C102_I2C_2WIRES,
+	.i2c_slave_id = 0x61,
+	.init = &tas5110d_init,
 	.cropcap = {
 		.bounds = {
 			.left = 0,
@@ -127,31 +94,28 @@ static struct sn9c102_sensor tas5110c1b = {
 			.height = 288,
 		},
 	},
-	.set_crop = &tas5110c1b_set_crop,
+	.set_crop = &tas5110d_set_crop,
 	.pix_format = {
 		.width = 352,
 		.height = 288,
 		.pixelformat = V4L2_PIX_FMT_SBGGR8,
 		.priv = 8,
 	},
-	.set_pix_format = &tas5110c1b_set_pix_format
+	.set_pix_format = &tas5110d_set_pix_format
 };
 
 
-int sn9c102_probe_tas5110c1b(struct sn9c102_device* cam)
+int sn9c102_probe_tas5110d(struct sn9c102_device* cam)
 {
-	const struct usb_device_id tas5110c1b_id_table[] = {
-		{ USB_DEVICE(0x0c45, 0x6001), },
-		{ USB_DEVICE(0x0c45, 0x6005), },
-		{ USB_DEVICE(0x0c45, 0x60ab), },
+	const struct usb_device_id tas5110d_id_table[] = {
+		{ USB_DEVICE(0x0c45, 0x6007), },
 		{ }
 	};
 
-	/* Sensor detection is based on USB pid/vid */
-	if (!sn9c102_match_id(cam, tas5110c1b_id_table))
+	if (!sn9c102_match_id(cam, tas5110d_id_table))
 		return -ENODEV;
 
-	sn9c102_attach_sensor(cam, &tas5110c1b);
+	sn9c102_attach_sensor(cam, &tas5110d);
 
 	return 0;
 }

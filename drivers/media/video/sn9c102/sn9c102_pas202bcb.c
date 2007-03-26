@@ -28,9 +28,6 @@
 #include "sn9c102_sensor.h"
 
 
-static struct sn9c102_sensor pas202bcb;
-
-
 static int pas202bcb_init(struct sn9c102_device* cam)
 {
 	int err = 0;
@@ -38,12 +35,12 @@ static int pas202bcb_init(struct sn9c102_device* cam)
 	switch (sn9c102_get_bridge(cam)) {
 	case BRIDGE_SN9C101:
 	case BRIDGE_SN9C102:
-	err += sn9c102_write_reg(cam, 0x00, 0x10);
-	err += sn9c102_write_reg(cam, 0x00, 0x11);
-	err += sn9c102_write_reg(cam, 0x00, 0x14);
-	err += sn9c102_write_reg(cam, 0x20, 0x17);
-	err += sn9c102_write_reg(cam, 0x30, 0x19);
-	err += sn9c102_write_reg(cam, 0x09, 0x18);
+		err += sn9c102_write_reg(cam, 0x00, 0x10);
+		err += sn9c102_write_reg(cam, 0x00, 0x11);
+		err += sn9c102_write_reg(cam, 0x00, 0x14);
+		err += sn9c102_write_reg(cam, 0x20, 0x17);
+		err += sn9c102_write_reg(cam, 0x30, 0x19);
+		err += sn9c102_write_reg(cam, 0x09, 0x18);
 		break;
 	case BRIDGE_SN9C103:
 		err += sn9c102_write_reg(cam, 0x00, 0x02);

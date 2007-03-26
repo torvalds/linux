@@ -22,9 +22,6 @@
 #include "sn9c102_sensor.h"
 
 
-static struct sn9c102_sensor ov7660;
-
-
 static int ov7660_init(struct sn9c102_device* cam)
 {
 	int err = 0;

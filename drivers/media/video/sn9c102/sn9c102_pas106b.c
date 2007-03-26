@@ -23,9 +23,6 @@
 #include "sn9c102_sensor.h"
 
 
-static struct sn9c102_sensor pas106b;
-
-
 static int pas106b_init(struct sn9c102_device* cam)
 {
 	int err = 0;
@@ -172,7 +169,7 @@ static int pas106b_set_pix_format(struct sn9c102_device* cam,
 static struct sn9c102_sensor pas106b = {
 	.name = "PAS106B",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
-	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102 | BRIDGE_SN9C103,
+	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102,
 	.sysfs_ops = SN9C102_I2C_READ | SN9C102_I2C_WRITE,
 	.frequency = SN9C102_I2C_400KHZ | SN9C102_I2C_100KHZ,
 	.interface = SN9C102_I2C_2WIRES,
