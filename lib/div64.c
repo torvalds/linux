@@ -58,4 +58,26 @@ uint32_t __div64_32(uint64_t *n, uint32_t base)
 
 EXPORT_SYMBOL(__div64_32);
 
+/* 64bit divisor, dividend and result. dynamic precision */
+uint64_t div64_64(uint64_t dividend, uint64_t divisor)
+{
+	uint32_t d = divisor;
+
+	if (divisor > 0xffffffffULL) {
+		unsigned int shift = fls(divisor >> 32);
+
+		d = divisor >> shift;
+		dividend >>= shift;
+	}
+
+	/* avoid 64 bit division if possible */
+	if (dividend >> 32)
+		do_div(dividend, d);
+	else
+		dividend = (uint32_t) dividend / d;
+
+	return dividend;
+}
+EXPORT_SYMBOL(div64_64);
+
 #endif /* BITS_PER_LONG == 32 */
