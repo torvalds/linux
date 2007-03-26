@@ -757,10 +757,16 @@ static void ap_scan_bus(struct work_struct *unused)
 				      (void *)(unsigned long)qid,
 				      __ap_scan_bus);
 		rc = ap_query_queue(qid, &queue_depth, &device_type);
-		if (dev && rc) {
-			put_device(dev);
-			device_unregister(dev);
-			continue;
+		if (dev) {
+			ap_dev = to_ap_dev(dev);
+			spin_lock_bh(&ap_dev->lock);
+			if (rc || ap_dev->unregistered) {
+				spin_unlock_bh(&ap_dev->lock);
+				put_device(dev);
+				device_unregister(dev);
+				continue;
+			} else
+				spin_unlock_bh(&ap_dev->lock);
 		}
 		if (dev) {
 			put_device(dev);
@@ -994,7 +1000,7 @@ void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg)
 			ap_dev->unregistered = 1;
 	} else {
 		ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
-		rc = 0;
+		rc = -ENODEV;
 	}
 	spin_unlock_bh(&ap_dev->lock);
 	if (rc == -ENODEV)
@@ -1044,18 +1050,12 @@ static void ap_poll_timeout(unsigned long unused)
  */
 static int __ap_poll_all(struct ap_device *ap_dev, unsigned long *flags)
 {
-	int rc;
-
 	spin_lock(&ap_dev->lock);
 	if (!ap_dev->unregistered) {
-		rc = ap_poll_queue(ap_dev, flags);
-		if (rc)
+		if (ap_poll_queue(ap_dev, flags))
 			ap_dev->unregistered = 1;
-	} else
-		rc = 0;
+	}
 	spin_unlock(&ap_dev->lock);
-	if (rc)
-		device_unregister(&ap_dev->device);
 	return 0;
 }
 
