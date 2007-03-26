@@ -375,11 +375,11 @@ packet_fails_filter(__be16 type, struct br2684_vcc *brvcc, struct sk_buff *skb)
 {
 	if (brvcc->filter.netmask == 0)
 		return 0;			/* no filter in place */
-	if (type == __constant_htons(ETH_P_IP) &&
+	if (type == htons(ETH_P_IP) &&
 	    (((struct iphdr *) (skb->data))->daddr & brvcc->filter.
 	     netmask) == brvcc->filter.prefix)
 		return 0;
-	if (type == __constant_htons(ETH_P_ARP))
+	if (type == htons(ETH_P_ARP))
 		return 0;
 	/* TODO: we should probably filter ARPs too.. don't want to have
 	 *   them returning values that don't make sense, or is that ok?
