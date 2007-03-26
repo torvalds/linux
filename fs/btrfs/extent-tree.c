@@ -1,5 +1,4 @@
 #include <linux/module.h>
-#include <linux/radix-tree.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "print-tree.h"
@@ -12,15 +11,6 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 				 btrfs_root *extent_root);
 static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 			       btrfs_root *extent_root);
-/*
- * pending extents are blocks that we're trying to allocate in the extent
- * map while trying to grow the map because of other allocations.  To avoid
- * recursing, they are tagged in the radix tree and cleaned up after
- * other allocations are done.  The pending tag is also used in the same
- * manner for deletes.
- */
-#define CTREE_EXTENT_PENDING_DEL 0
-#define CTREE_EXTENT_PINNED 1
 
 static int inc_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
 			 *root, u64 blocknr)
@@ -104,24 +94,21 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			       btrfs_root *root)
 {
-	struct buffer_head *gang[8];
+	unsigned long gang[8];
 	u64 first = 0;
 	int ret;
 	int i;
+	struct radix_tree_root *pinned_radix = &root->fs_info->pinned_radix;
 
 	while(1) {
-		ret = radix_tree_gang_lookup_tag(&root->fs_info->pinned_radix,
-					     (void **)gang, 0,
-					     ARRAY_SIZE(gang),
-					     CTREE_EXTENT_PINNED);
+		ret = find_first_radix_bit(pinned_radix, gang,
+					   ARRAY_SIZE(gang));
 		if (!ret)
 			break;
 		if (!first)
-			first = gang[0]->b_blocknr;
+			first = gang[0];
 		for (i = 0; i < ret; i++) {
-			radix_tree_delete(&root->fs_info->pinned_radix,
-					  gang[i]->b_blocknr);
-			brelse(gang[i]);
+			clear_radix_bit(pinned_radix, gang[i]);
 		}
 	}
 	if (root->fs_info->last_insert.objectid > first)
@@ -161,29 +148,27 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 	return 0;
 }
 
-static int pin_down_block(struct btrfs_root *root, u64 blocknr, int tag)
+static int pin_down_block(struct btrfs_root *root, u64 blocknr, int pending)
 {
 	int err;
-	struct buffer_head *bh = sb_getblk(root->fs_info->sb, blocknr);
 	struct btrfs_header *header;
-	BUG_ON(!bh);
+	struct buffer_head *bh;
 
-	header = btrfs_buffer_header(bh);
-	if (btrfs_header_generation(header) ==
-	    root->fs_info->running_transaction->transid) {
-		return 0;
-	}
-
-	err = radix_tree_insert(&root->fs_info->pinned_radix,
-				blocknr, bh);
-	if (err && err != -EEXIST) {
-		BUG();
-		return err;
-	}
-	if (err == -EEXIST)
+	bh = sb_find_get_block(root->fs_info->sb, blocknr);
+	if (bh) {
+		header = btrfs_buffer_header(bh);
+		if (btrfs_header_generation(header) ==
+		    root->fs_info->running_transaction->transid) {
+			brelse(bh);
+			return 0;
+		}
 		brelse(bh);
-	radix_tree_tag_set(&root->fs_info->pinned_radix, blocknr,
-			   tag);
+	}
+	if (pending)
+		err = set_radix_bit(&root->fs_info->pending_del_radix, blocknr);
+	else
+		err = set_radix_bit(&root->fs_info->pinned_radix, blocknr);
+	BUG_ON(err);
 	return 0;
 }
 
@@ -225,8 +210,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		u64 super_blocks_used;
 
 		if (pin) {
-			ret = pin_down_block(root, blocknr,
-					     CTREE_EXTENT_PINNED);
+			ret = pin_down_block(root, blocknr, 0);
 			BUG_ON(ret);
 		}
 
@@ -255,25 +239,26 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 	int ret;
 	int wret;
 	int err = 0;
-	struct buffer_head *gang[4];
+	unsigned long gang[4];
 	int i;
-	struct radix_tree_root *radix = &extent_root->fs_info->pinned_radix;
+	struct radix_tree_root *pending_radix;
+	struct radix_tree_root *pinned_radix;
+
+	pending_radix = &extent_root->fs_info->pending_del_radix;
+	pinned_radix = &extent_root->fs_info->pinned_radix;
 
 	while(1) {
-		ret = radix_tree_gang_lookup_tag(
-					&extent_root->fs_info->pinned_radix,
-					(void **)gang, 0,
-					ARRAY_SIZE(gang),
-					CTREE_EXTENT_PENDING_DEL);
+		ret = find_first_radix_bit(pending_radix, gang,
+					   ARRAY_SIZE(gang));
 		if (!ret)
 			break;
 		for (i = 0; i < ret; i++) {
-			radix_tree_tag_set(radix, gang[i]->b_blocknr,
-					   CTREE_EXTENT_PINNED);
-			radix_tree_tag_clear(radix, gang[i]->b_blocknr,
-					     CTREE_EXTENT_PENDING_DEL);
+			wret = set_radix_bit(pinned_radix, gang[i]);
+			BUG_ON(wret);
+			wret = clear_radix_bit(pending_radix, gang[i]);
+			BUG_ON(wret);
 			wret = __free_extent(trans, extent_root,
-					     gang[i]->b_blocknr, 1, 0);
+					     gang[i], 1, 0);
 			if (wret)
 				err = wret;
 		}
@@ -294,7 +279,7 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	if (root == extent_root) {
 		t = find_tree_block(root, blocknr);
-		pin_down_block(root, blocknr, CTREE_EXTENT_PENDING_DEL);
+		pin_down_block(root, blocknr, 1);
 		return 0;
 	}
 	ret = __free_extent(trans, root, blocknr, num_blocks, pin);
@@ -393,7 +378,7 @@ check_pending:
 	BUG_ON(ins->objectid < search_start);
 	for (test_block = ins->objectid;
 	     test_block < ins->objectid + total_needed; test_block++) {
-		if (radix_tree_lookup(&root->fs_info->pinned_radix,
+		if (test_radix_bit(&root->fs_info->pinned_radix,
 				      test_block)) {
 			search_start = test_block + 1;
 			goto check_failed;

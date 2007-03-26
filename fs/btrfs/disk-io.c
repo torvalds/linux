@@ -104,7 +104,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	/* FIXME: don't be stupid */
 	if (!btrfs_super_root(disk_super))
 		return NULL;
-	INIT_RADIX_TREE(&fs_info->pinned_radix, GFP_KERNEL);
+	init_bit_radix(&fs_info->pinned_radix);
+	init_bit_radix(&fs_info->pending_del_radix);
 	fs_info->running_transaction = NULL;
 	fs_info->fs_root = root;
 	fs_info->tree_root = tree_root;

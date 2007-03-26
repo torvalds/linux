@@ -1,8 +1,8 @@
 #ifndef __BTRFS__
 #define __BTRFS__
 
-#include <linux/radix-tree.h>
 #include <linux/fs.h>
+#include "bit-radix.h"
 
 struct btrfs_trans_handle;
 struct btrfs_transaction;
@@ -222,6 +222,7 @@ struct btrfs_fs_info {
 	struct btrfs_root *inode_root;
 	struct btrfs_key current_insert;
 	struct btrfs_key last_insert;
+	struct radix_tree_root pending_del_radix;
 	struct radix_tree_root pinned_radix;
 	u64 last_inode_alloc;
 	u64 last_inode_alloc_dirid;
