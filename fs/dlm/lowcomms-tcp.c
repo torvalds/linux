@@ -319,8 +319,6 @@ static int receive_from_sock(struct connection *con)
 
 	if (ret <= 0)
 		goto out_close;
-	if (ret == -EAGAIN)
-		goto out_resched;
 
 	if (ret == len)
 		call_again_soon = 1;
