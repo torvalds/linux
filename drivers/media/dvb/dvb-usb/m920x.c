@@ -36,7 +36,7 @@ static inline int m9206_read(struct usb_device *udev, u8 request, u16 value,
 	}
 
 	if (ret != size) {
-		deb_rc("m920x_read = no data\n");
+		deb("m920x_read = no data\n");
 		return -EIO;
 	}
 
@@ -61,19 +61,19 @@ static int m9206_init(struct dvb_usb_device *d, struct m9206_inits *rc_seq)
 
 	/* Remote controller init. */
 	if (d->props.rc_query) {
-		deb_rc("Initialising remote control\n");
+		deb("Initialising remote control\n");
 		while (rc_seq->address) {
 			if ((ret = m9206_write(d->udev, M9206_CORE,
 					       rc_seq->data,
 					       rc_seq->address)) != 0) {
-				deb_rc("Initialising remote control failed\n");
+				deb("Initialising remote control failed\n");
 				return ret;
 			}
 
 			rc_seq++;
 		}
 
-		deb_rc("Initialising remote control success\n");
+		deb("Initialising remote control success\n");
 	}
 
 	return ret;
@@ -125,15 +125,14 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 				goto unlock;
 
 			default:
-				deb_rc("Unexpected rc state %02x\n",
-				       rc_state[0]);
+				deb("Unexpected rc state %02x\n", rc_state[0]);
 				*state = REMOTE_NO_KEY_PRESSED;
 				goto unlock;
 			}
 		}
 
 	if (rc_state[1] != 0)
-		deb_rc("Unknown rc key %02x\n", rc_state[1]);
+		deb("Unknown rc key %02x\n", rc_state[1]);
 
 	*state = REMOTE_NO_KEY_PRESSED;
 
@@ -313,11 +312,11 @@ static int m9206_firmware_download(struct usb_device *udev,
 
 	if ((ret = m9206_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
 		goto done;
-	deb_rc("%x %x %x %x\n", read[0], read[1], read[2], read[3]);
+	deb("%x %x %x %x\n", read[0], read[1], read[2], read[3]);
 
 	if ((ret = m9206_read(udev, M9206_FW, 0x0, 0x0, read, 1)) != 0)
 		goto done;
-	deb_rc("%x\n", read[0]);
+	deb("%x\n", read[0]);
 
 	for (pass = 0; pass < 2; pass++) {
 		for (i = 0; i + (sizeof(u16) * 3) < fw->size;) {
@@ -339,7 +338,7 @@ static int m9206_firmware_download(struct usb_device *udev,
 					    USB_TYPE_VENDOR | USB_DIR_OUT,
 					    value, index, buff, size, 20);
 				if (ret != size) {
-					deb_rc("error while uploading fw!\n");
+					deb("error while uploading fw!\n");
 					ret = -EIO;
 					goto done;
 				}
@@ -348,7 +347,7 @@ static int m9206_firmware_download(struct usb_device *udev,
 			i += size;
 		}
 		if (i != fw->size) {
-			deb_rc("bad firmware file!\n");
+			deb("bad firmware file!\n");
 			ret = -EINVAL;
 			goto done;
 		}
@@ -358,7 +357,7 @@ static int m9206_firmware_download(struct usb_device *udev,
 
 	/* m9206 will disconnect itself from the bus after this. */
 	(void) m9206_write(udev, M9206_CORE, 0x01, M9206_FW_GO);
-	deb_rc("firmware uploaded!\n");
+	deb("firmware uploaded!\n");
 
  done:
 	kfree(buff);
@@ -401,7 +400,7 @@ static int m920x_mt352_demod_init(struct dvb_frontend *fe)
 	mt352_write(fe, unk1, ARRAY_SIZE(unk1));
 	mt352_write(fe, unk2, ARRAY_SIZE(unk2));
 
-	deb_rc("Demod init!\n");
+	deb("Demod init!\n");
 
 	return 0;
 }
@@ -444,7 +443,7 @@ static struct qt1010_config m920x_qt1010_config = {
 /* Callbacks for DVB USB */
 static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb_rc("%s\n",__FUNCTION__);
+	deb("%s\n",__FUNCTION__);
 
 	if ((adap->fe = dvb_attach(mt352_attach, &m920x_mt352_config,
 				   &adap->dev->i2c_adap)) == NULL)
@@ -455,7 +454,7 @@ static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb_rc("%s\n",__FUNCTION__);
+	deb("%s\n",__FUNCTION__);
 
 	if ((adap->fe = dvb_attach(tda10046_attach,
 				   &m920x_tda10046_08_config,
@@ -467,7 +466,7 @@ static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda10046_0b_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb_rc("%s\n",__FUNCTION__);
+	deb("%s\n",__FUNCTION__);
 
 	if ((adap->fe = dvb_attach(tda10046_attach,
 				   &m920x_tda10046_0b_config,
@@ -479,7 +478,7 @@ static int m920x_tda10046_0b_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb_rc("%s\n",__FUNCTION__);
+	deb("%s\n",__FUNCTION__);
 
 	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
 		       &m920x_qt1010_config) == NULL)
@@ -490,7 +489,7 @@ static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb_rc("%s\n",__FUNCTION__);
+	deb("%s\n",__FUNCTION__);
 
 	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
 		       NULL) == NULL)
@@ -501,7 +500,7 @@ static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda8275_61_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb_rc("%s\n",__FUNCTION__);
+	deb("%s\n",__FUNCTION__);
 
 	if (dvb_attach(tda827x_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
 		       NULL) == NULL)
@@ -581,7 +580,7 @@ static int m920x_probe(struct usb_interface *intf,
 	struct m9206_inits *rc_init_seq = NULL;
 	int bInterfaceNumber = intf->cur_altsetting->desc.bInterfaceNumber;
 
-	deb_rc("Probing for m920x device at interface %d\n", bInterfaceNumber);
+	deb("Probing for m920x device at interface %d\n", bInterfaceNumber);
 
 	if (bInterfaceNumber == 0) {
 		/* Single-tuner device, or first interface on
@@ -629,7 +628,7 @@ static int m920x_probe(struct usb_interface *intf,
  found:
 	alt = usb_altnum_to_altsetting(intf, 1);
 	if (alt == NULL) {
-		deb_rc("No alt found!\n");
+		deb("No alt found!\n");
 		return -ENODEV;
 	}
 

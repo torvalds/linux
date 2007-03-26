@@ -4,7 +4,7 @@
 #define DVB_USB_LOG_PREFIX "m920x"
 #include "dvb-usb.h"
 
-#define deb_rc(args...)   dprintk(dvb_usb_m920x_debug,0x01,args)
+#define deb(args...)   dprintk(dvb_usb_m920x_debug,0x01,args)
 
 #define M9206_CORE	0x22
 #define M9206_RC_STATE	0xff51
