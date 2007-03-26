@@ -1381,7 +1381,7 @@ asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr,
 
 	err = sock_attach_fd(newsock, newfile);
 	if (err < 0)
-		goto out_fd;
+		goto out_fd_simple;
 
 	err = security_socket_accept(sock, newsock);
 	if (err)
@@ -1414,6 +1414,11 @@ out_put:
 	fput_light(sock->file, fput_needed);
 out:
 	return err;
+out_fd_simple:
+	sock_release(newsock);
+	put_filp(newfile);
+	put_unused_fd(newfd);
+	goto out_put;
 out_fd:
 	fput(newfile);
 	put_unused_fd(newfd);
