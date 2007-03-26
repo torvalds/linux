@@ -22,7 +22,7 @@ static int dvb_usb_m920x_debug;
 module_param_named(debug,dvb_usb_m920x_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
-static inline int m9206_read(struct usb_device *udev, u8 request, u16 value,
+static inline int m920x_read(struct usb_device *udev, u8 request, u16 value,
 			     u16 index, void *data, int size)
 {
 	int ret;
@@ -43,7 +43,7 @@ static inline int m9206_read(struct usb_device *udev, u8 request, u16 value,
 	return 0;
 }
 
-static inline int m9206_write(struct usb_device *udev, u8 request,
+static inline int m920x_write(struct usb_device *udev, u8 request,
 			      u16 value, u16 index)
 {
 	int ret;
@@ -55,7 +55,7 @@ static inline int m9206_write(struct usb_device *udev, u8 request,
 	return ret;
 }
 
-static int m9206_init(struct dvb_usb_device *d, struct m9206_inits *rc_seq)
+static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 {
 	int ret = 0;
 
@@ -63,7 +63,7 @@ static int m9206_init(struct dvb_usb_device *d, struct m9206_inits *rc_seq)
 	if (d->props.rc_query) {
 		deb("Initialising remote control\n");
 		while (rc_seq->address) {
-			if ((ret = m9206_write(d->udev, M9206_CORE,
+			if ((ret = m920x_write(d->udev, M9206_CORE,
 					       rc_seq->data,
 					       rc_seq->address)) != 0) {
 				deb("Initialising remote control failed\n");
@@ -79,17 +79,17 @@ static int m9206_init(struct dvb_usb_device *d, struct m9206_inits *rc_seq)
 	return ret;
 }
 
-static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	struct m9206_state *m = d->priv;
+	struct m920x_state *m = d->priv;
 	int i, ret = 0;
 	u8 rc_state[2];
 
-	if ((ret = m9206_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE,
+	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE,
 			      rc_state, 1)) != 0)
 		goto unlock;
 
-	if ((ret = m9206_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY,
+	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY,
 			      rc_state + 1, 1)) != 0)
 		goto unlock;
 
@@ -142,7 +142,7 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 }
 
 /* I2C */
-static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
+static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			  int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
@@ -168,7 +168,7 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		}
 		/* Send START & address/RW bit */
 		if (!(msg[i].flags & I2C_M_NOSTART)) {
-			if ((ret = m9206_write(d->udev, M9206_I2C,
+			if ((ret = m920x_write(d->udev, M9206_I2C,
 					(msg[i].addr << 1) |
 					(msg[i].flags & I2C_M_RD ? 0x01 : 0),
 					       0x80)) != 0)
@@ -182,7 +182,7 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				int stop = (i+1 == num && j+1 == msg[i].len)
 					? 0x40 : 0x01;
 
-				if ((ret = m9206_read(d->udev, M9206_I2C, 0x0,
+				if ((ret = m920x_read(d->udev, M9206_I2C, 0x0,
 						      0x20|stop,
 						      &msg[i].buf[j], 1)) != 0)
 					goto unlock;
@@ -193,7 +193,7 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				int stop = (i+1 == num && j+1 == msg[i].len)
 					? 0x40 : 0x00;
 
-				if ((ret = m9206_write(d->udev, M9206_I2C,
+				if ((ret = m920x_write(d->udev, M9206_I2C,
 						       msg[i].buf[j],
 						       stop)) != 0)
 					goto unlock;
@@ -209,18 +209,18 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	return ret;
 }
 
-static u32 m9206_i2c_func(struct i2c_adapter *adapter)
+static u32 m920x_i2c_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm m9206_i2c_algo = {
-	.master_xfer   = m9206_i2c_xfer,
-	.functionality = m9206_i2c_func,
+static struct i2c_algorithm m920x_i2c_algo = {
+	.master_xfer   = m920x_i2c_xfer,
+	.functionality = m920x_i2c_func,
 };
 
 /* pid filter */
-static int m9206_set_filter(struct dvb_usb_adapter *adap,
+static int m920x_set_filter(struct dvb_usb_adapter *adap,
 			    int type, int idx, int pid)
 {
 	int ret = 0;
@@ -230,20 +230,20 @@ static int m9206_set_filter(struct dvb_usb_adapter *adap,
 
 	pid |= 0x8000;
 
-	if ((ret = m9206_write(adap->dev->udev, M9206_FILTER, pid,
+	if ((ret = m920x_write(adap->dev->udev, M9206_FILTER, pid,
 			       (type << 8) | (idx * 4) )) != 0)
 		return ret;
 
-	if ((ret = m9206_write(adap->dev->udev, M9206_FILTER, 0,
+	if ((ret = m920x_write(adap->dev->udev, M9206_FILTER, 0,
 			       (type << 8) | (idx * 4) )) != 0)
 		return ret;
 
 	return ret;
 }
 
-static int m9206_update_filters(struct dvb_usb_adapter *adap)
+static int m920x_update_filters(struct dvb_usb_adapter *adap)
 {
-	struct m9206_state *m = adap->dev->priv;
+	struct m920x_state *m = adap->dev->priv;
 	int enabled = m->filtering_enabled;
 	int i, ret = 0, filter = 0;
 
@@ -252,14 +252,14 @@ static int m9206_update_filters(struct dvb_usb_adapter *adap)
 			enabled = 0;
 
 	/* Disable all filters */
-	if ((ret = m9206_set_filter(adap, 0x81, 1, enabled)) != 0)
+	if ((ret = m920x_set_filter(adap, 0x81, 1, enabled)) != 0)
 		return ret;
 
 	for (i = 0; i < M9206_MAX_FILTERS; i++)
-		if ((ret = m9206_set_filter(adap, 0x81, i + 2, 0)) != 0)
+		if ((ret = m920x_set_filter(adap, 0x81, i + 2, 0)) != 0)
 			return ret;
 
-	if ((ret = m9206_set_filter(adap, 0x82, 0, 0x0)) != 0)
+	if ((ret = m920x_set_filter(adap, 0x82, 0, 0x0)) != 0)
 		return ret;
 
 	/* Set */
@@ -268,7 +268,7 @@ static int m9206_update_filters(struct dvb_usb_adapter *adap)
 			if (m->filters[i] == 0)
 				continue;
 
-			if ((ret = m9206_set_filter(adap, 0x81, filter + 2,
+			if ((ret = m920x_set_filter(adap, 0x81, filter + 2,
 						    m->filters[i])) != 0)
 				return ret;
 
@@ -276,32 +276,32 @@ static int m9206_update_filters(struct dvb_usb_adapter *adap)
 		}
 	}
 
-	if ((ret = m9206_set_filter(adap, 0x82, 0, 0x02f5)) != 0)
+	if ((ret = m920x_set_filter(adap, 0x82, 0, 0x02f5)) != 0)
 		return ret;
 
 	return ret;
 }
 
-static int m9206_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int m920x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	struct m9206_state *m = adap->dev->priv;
+	struct m920x_state *m = adap->dev->priv;
 
 	m->filtering_enabled = onoff ? 1 : 0;
 
-	return m9206_update_filters(adap);
+	return m920x_update_filters(adap);
 }
 
-static int m9206_pid_filter(struct dvb_usb_adapter *adap,
+static int m920x_pid_filter(struct dvb_usb_adapter *adap,
 			    int index, u16 pid, int onoff)
 {
-	struct m9206_state *m = adap->dev->priv;
+	struct m920x_state *m = adap->dev->priv;
 
 	m->filters[index] = onoff ? pid : 0;
 
-	return m9206_update_filters(adap);
+	return m920x_update_filters(adap);
 }
 
-static int m9206_firmware_download(struct usb_device *udev,
+static int m920x_firmware_download(struct usb_device *udev,
 				   const struct firmware *fw)
 {
 	u16 value, index, size;
@@ -310,11 +310,11 @@ static int m9206_firmware_download(struct usb_device *udev,
 
 	buff = kmalloc(65536, GFP_KERNEL);
 
-	if ((ret = m9206_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
+	if ((ret = m920x_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
 		goto done;
 	deb("%x %x %x %x\n", read[0], read[1], read[2], read[3]);
 
-	if ((ret = m9206_read(udev, M9206_FW, 0x0, 0x0, read, 1)) != 0)
+	if ((ret = m920x_read(udev, M9206_FW, 0x0, 0x0, read, 1)) != 0)
 		goto done;
 	deb("%x\n", read[0]);
 
@@ -355,8 +355,8 @@ static int m9206_firmware_download(struct usb_device *udev,
 
 	msleep(36);
 
-	/* m9206 will disconnect itself from the bus after this. */
-	(void) m9206_write(udev, M9206_CORE, 0x01, M9206_FW_GO);
+	/* m920x will disconnect itself from the bus after this. */
+	(void) m920x_write(udev, M9206_CORE, 0x01, M9206_FW_GO);
 	deb("firmware uploaded!\n");
 
  done:
@@ -510,13 +510,13 @@ static int m920x_tda8275_61_tuner_attach(struct dvb_usb_adapter *adap)
 }
 
 /* device-specific initialization */
-static struct m9206_inits megasky_rc_init [] = {
+static struct m920x_inits megasky_rc_init [] = {
 	{ M9206_RC_INIT2, 0xa8 },
 	{ M9206_RC_INIT1, 0x51 },
 	{ } /* terminating entry */
 };
 
-static struct m9206_inits tvwalkertwin_rc_init [] = {
+static struct m920x_inits tvwalkertwin_rc_init [] = {
 	{ M9206_RC_INIT2, 0x00 },
 	{ M9206_RC_INIT1, 0xef },
 	{ 0xff28,         0x00 },
@@ -577,7 +577,7 @@ static int m920x_probe(struct usb_interface *intf,
 	struct dvb_usb_device *d;
 	struct usb_host_interface *alt;
 	int ret;
-	struct m9206_inits *rc_init_seq = NULL;
+	struct m920x_inits *rc_init_seq = NULL;
 	int bInterfaceNumber = intf->cur_altsetting->desc.bInterfaceNumber;
 
 	deb("Probing for m920x device at interface %d\n", bInterfaceNumber);
@@ -637,7 +637,7 @@ static int m920x_probe(struct usb_interface *intf,
 	if (ret < 0)
 		return ret;
 
-	if ((ret = m9206_init(d, rc_init_seq)) != 0)
+	if ((ret = m920x_init(d, rc_init_seq)) != 0)
 		return ret;
 
 	return ret;
@@ -662,14 +662,14 @@ static struct dvb_usb_device_properties megasky_properties = {
 
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = "dvb-usb-megasky-02.fw",
-	.download_firmware = m9206_firmware_download,
+	.download_firmware = m920x_firmware_download,
 
 	.rc_interval      = 100,
 	.rc_key_map       = megasky_rc_keys,
 	.rc_key_map_size  = ARRAY_SIZE(megasky_rc_keys),
-	.rc_query         = m9206_rc_query,
+	.rc_query         = m920x_rc_query,
 
-	.size_of_priv     = sizeof(struct m9206_state),
+	.size_of_priv     = sizeof(struct m920x_state),
 
 	.identify_state   = m920x_identify_state,
 	.num_adapters = 1,
@@ -678,8 +678,8 @@ static struct dvb_usb_device_properties megasky_properties = {
 			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 
 		.pid_filter_count = 8,
-		.pid_filter       = m9206_pid_filter,
-		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
+		.pid_filter       = m920x_pid_filter,
+		.pid_filter_ctrl  = m920x_pid_filter_ctrl,
 
 		.frontend_attach  = m920x_mt352_frontend_attach,
 		.tuner_attach     = m920x_qt1010_tuner_attach,
@@ -695,7 +695,7 @@ static struct dvb_usb_device_properties megasky_properties = {
 			}
 		},
 	}},
-	.i2c_algo         = &m9206_i2c_algo,
+	.i2c_algo         = &m920x_i2c_algo,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -711,9 +711,9 @@ static struct dvb_usb_device_properties digivox_mini_ii_properties = {
 
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = "dvb-usb-digivox-02.fw",
-	.download_firmware = m9206_firmware_download,
+	.download_firmware = m920x_firmware_download,
 
-	.size_of_priv     = sizeof(struct m9206_state),
+	.size_of_priv     = sizeof(struct m920x_state),
 
 	.identify_state   = m920x_identify_state,
 	.num_adapters = 1,
@@ -722,8 +722,8 @@ static struct dvb_usb_device_properties digivox_mini_ii_properties = {
 			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 
 		.pid_filter_count = 8,
-		.pid_filter       = m9206_pid_filter,
-		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
+		.pid_filter       = m920x_pid_filter,
+		.pid_filter_ctrl  = m920x_pid_filter_ctrl,
 
 		.frontend_attach  = m920x_tda10046_08_frontend_attach,
 		.tuner_attach     = m920x_tda8275_60_tuner_attach,
@@ -739,7 +739,7 @@ static struct dvb_usb_device_properties digivox_mini_ii_properties = {
 			}
 		},
 	}},
-	.i2c_algo         = &m9206_i2c_algo,
+	.i2c_algo         = &m920x_i2c_algo,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -763,14 +763,14 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = "dvb-usb-tvwalkert.fw",
-	.download_firmware = m9206_firmware_download,
+	.download_firmware = m920x_firmware_download,
 
 	.rc_interval      = 100,
 	.rc_key_map       = tvwalkertwin_rc_keys,
 	.rc_key_map_size  = ARRAY_SIZE(tvwalkertwin_rc_keys),
-	.rc_query         = m9206_rc_query,
+	.rc_query         = m920x_rc_query,
 
-	.size_of_priv     = sizeof(struct m9206_state),
+	.size_of_priv     = sizeof(struct m920x_state),
 
 	.identify_state   = m920x_identify_state,
 	.num_adapters = 2,
@@ -779,8 +779,8 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 
 		.pid_filter_count = 8,
-		.pid_filter       = m9206_pid_filter,
-		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
+		.pid_filter       = m920x_pid_filter,
+		.pid_filter_ctrl  = m920x_pid_filter_ctrl,
 
 		.frontend_attach  = m920x_tda10046_08_frontend_attach,
 		.tuner_attach     = m920x_tda8275_60_tuner_attach,
@@ -799,8 +799,8 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 
 		.pid_filter_count = 8,
-		.pid_filter       = m9206_pid_filter,
-		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
+		.pid_filter       = m920x_pid_filter,
+		.pid_filter_ctrl  = m920x_pid_filter_ctrl,
 
 		.frontend_attach  = m920x_tda10046_0b_frontend_attach,
 		.tuner_attach     = m920x_tda8275_61_tuner_attach,
@@ -816,7 +816,7 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 			}
 		},
 	}},
-	.i2c_algo         = &m9206_i2c_algo,
+	.i2c_algo         = &m920x_i2c_algo,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -832,9 +832,9 @@ static struct dvb_usb_device_properties dposh_properties = {
 
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = "dvb-usb-dposh-01.fw",
-	.download_firmware = m9206_firmware_download,
+	.download_firmware = m920x_firmware_download,
 
-	.size_of_priv     = sizeof(struct m9206_state),
+	.size_of_priv     = sizeof(struct m920x_state),
 
 	.identify_state   = m920x_identify_state,
 	.num_adapters = 1,
@@ -855,7 +855,7 @@ static struct dvb_usb_device_properties dposh_properties = {
 			}
 		},
 	}},
-	.i2c_algo         = &m9206_i2c_algo,
+	.i2c_algo         = &m920x_i2c_algo,
 
 	.num_device_descs = 1,
 	.devices = {

@@ -59,7 +59,7 @@ What any other bits might mean, or how to get the slave's ACK/NACK
 response to a write, is unknown.
 */
 
-struct m9206_state {
+struct m920x_state {
 	u16 filters[M9206_MAX_FILTERS];
 	int filtering_enabled;
 	int rep_count;
@@ -68,7 +68,7 @@ struct m9206_state {
 /* Initialisation data for the m920x
  */
 
-struct m9206_inits {
+struct m920x_inits {
 	u16 address;
 	u8  data;
 };
