@@ -106,8 +106,8 @@
   #define IRQ_RECORDING			0x0002
   #define IRQ_MPU401			0x0010
   #define IRQ_TIMER			0x0020 /* DirectX timer */
-  #define IRQ_UNKNOWN1			0x0040 /* probably unused */
-  #define IRQ_UNKNOWN2			0x0080 /* probably unused */
+  #define IRQ_UNKNOWN1			0x0040 /* probably unused, or possibly I2S port? or gameport IRQ? */
+  #define IRQ_UNKNOWN2			0x0080 /* probably unused, or possibly I2S port? or gameport IRQ? */
 #define IDX_IO_66H		0x66    /* writing 0xffff returns 0x0000 */
 #define IDX_IO_SOME_VALUE	0x68	/* this is set to e.g. 0x3ff or 0x300, and writable; maybe some buffer limit, but I couldn't find out more, PU:0x00ff */
 #define IDX_IO_6AH		0x6A	/* this WORD can be set to have bits 0x0028 activated (FIXME: correct??); actually inhibits PCM playback!!! maybe power management?? */
