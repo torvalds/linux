@@ -103,8 +103,10 @@ config BLK_DEV_IDE_SATA
 	---help---
 	  There are two drivers for Serial ATA controllers.
 
-	  The main driver, "libata", exists inside the SCSI subsystem
-	  and supports most modern SATA controllers.
+	  The main driver, "libata", uses the SCSI subsystem
+	  and supports most modern SATA controllers. In order to use it
+	  you may take a look at "Serial ATA (prod) and Parallel ATA
+	  (experimental) drivers".
 
 	  The IDE driver (which you are currently configuring) supports
 	  a few first-generation SATA controllers.
