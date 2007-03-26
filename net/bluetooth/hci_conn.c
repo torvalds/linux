@@ -72,11 +72,11 @@ void hci_acl_connect(struct hci_conn *conn)
 			inquiry_entry_age(ie) <= INQUIRY_ENTRY_AGE_MAX) {
 		cp.pscan_rep_mode = ie->data.pscan_rep_mode;
 		cp.pscan_mode     = ie->data.pscan_mode;
-		cp.clock_offset   = ie->data.clock_offset | __cpu_to_le16(0x8000);
+		cp.clock_offset   = ie->data.clock_offset | cpu_to_le16(0x8000);
 		memcpy(conn->dev_class, ie->data.dev_class, 3);
 	}
 
-	cp.pkt_type = __cpu_to_le16(hdev->pkt_type & ACL_PTYPE_MASK);
+	cp.pkt_type = cpu_to_le16(hdev->pkt_type & ACL_PTYPE_MASK);
 	if (lmp_rswitch_capable(hdev) && !(hdev->link_mode & HCI_LM_MASTER))
 		cp.role_switch	= 0x01;
 	else
@@ -107,7 +107,7 @@ void hci_acl_disconn(struct hci_conn *conn, __u8 reason)
 
 	conn->state = BT_DISCONN;
 
-	cp.handle = __cpu_to_le16(conn->handle);
+	cp.handle = cpu_to_le16(conn->handle);
 	cp.reason = reason;
 	hci_send_cmd(conn->hdev, OGF_LINK_CTL,
 				OCF_DISCONNECT, sizeof(cp), &cp);
@@ -123,8 +123,8 @@ void hci_add_sco(struct hci_conn *conn, __u16 handle)
 	conn->state = BT_CONNECT;
 	conn->out = 1;
 
-	cp.pkt_type = __cpu_to_le16(hdev->pkt_type & SCO_PTYPE_MASK);
-	cp.handle   = __cpu_to_le16(handle);
+	cp.pkt_type = cpu_to_le16(hdev->pkt_type & SCO_PTYPE_MASK);
+	cp.handle   = cpu_to_le16(handle);
 
 	hci_send_cmd(hdev, OGF_LINK_CTL, OCF_ADD_SCO, sizeof(cp), &cp);
 }
@@ -348,7 +348,7 @@ int hci_conn_auth(struct hci_conn *conn)
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
 		struct hci_cp_auth_requested cp;
-		cp.handle = __cpu_to_le16(conn->handle);
+		cp.handle = cpu_to_le16(conn->handle);
 		hci_send_cmd(conn->hdev, OGF_LINK_CTL, OCF_AUTH_REQUESTED, sizeof(cp), &cp);
 	}
 	return 0;
@@ -368,7 +368,7 @@ int hci_conn_encrypt(struct hci_conn *conn)
 
 	if (hci_conn_auth(conn)) {
 		struct hci_cp_set_conn_encrypt cp;
-		cp.handle  = __cpu_to_le16(conn->handle);
+		cp.handle  = cpu_to_le16(conn->handle);
 		cp.encrypt = 1;
 		hci_send_cmd(conn->hdev, OGF_LINK_CTL, OCF_SET_CONN_ENCRYPT, sizeof(cp), &cp);
 	}
@@ -383,7 +383,7 @@ int hci_conn_change_link_key(struct hci_conn *conn)
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
 		struct hci_cp_change_conn_link_key cp;
-		cp.handle = __cpu_to_le16(conn->handle);
+		cp.handle = cpu_to_le16(conn->handle);
 		hci_send_cmd(conn->hdev, OGF_LINK_CTL, OCF_CHANGE_CONN_LINK_KEY, sizeof(cp), &cp);
 	}
 	return 0;
@@ -423,7 +423,7 @@ void hci_conn_enter_active_mode(struct hci_conn *conn)
 
 	if (!test_and_set_bit(HCI_CONN_MODE_CHANGE_PEND, &conn->pend)) {
 		struct hci_cp_exit_sniff_mode cp;
-		cp.handle = __cpu_to_le16(conn->handle);
+		cp.handle = cpu_to_le16(conn->handle);
 		hci_send_cmd(hdev, OGF_LINK_POLICY,
 				OCF_EXIT_SNIFF_MODE, sizeof(cp), &cp);
 	}
@@ -452,21 +452,21 @@ void hci_conn_enter_sniff_mode(struct hci_conn *conn)
 
 	if (lmp_sniffsubr_capable(hdev) && lmp_sniffsubr_capable(conn)) {
 		struct hci_cp_sniff_subrate cp;
-		cp.handle             = __cpu_to_le16(conn->handle);
-		cp.max_latency        = __constant_cpu_to_le16(0);
-		cp.min_remote_timeout = __constant_cpu_to_le16(0);
-		cp.min_local_timeout  = __constant_cpu_to_le16(0);
+		cp.handle             = cpu_to_le16(conn->handle);
+		cp.max_latency        = cpu_to_le16(0);
+		cp.min_remote_timeout = cpu_to_le16(0);
+		cp.min_local_timeout  = cpu_to_le16(0);
 		hci_send_cmd(hdev, OGF_LINK_POLICY,
 				OCF_SNIFF_SUBRATE, sizeof(cp), &cp);
 	}
 
 	if (!test_and_set_bit(HCI_CONN_MODE_CHANGE_PEND, &conn->pend)) {
 		struct hci_cp_sniff_mode cp;
-		cp.handle       = __cpu_to_le16(conn->handle);
-		cp.max_interval = __cpu_to_le16(hdev->sniff_max_interval);
-		cp.min_interval = __cpu_to_le16(hdev->sniff_min_interval);
-		cp.attempt      = __constant_cpu_to_le16(4);
-		cp.timeout      = __constant_cpu_to_le16(1);
+		cp.handle       = cpu_to_le16(conn->handle);
+		cp.max_interval = cpu_to_le16(hdev->sniff_max_interval);
+		cp.min_interval = cpu_to_le16(hdev->sniff_min_interval);
+		cp.attempt      = cpu_to_le16(4);
+		cp.timeout      = cpu_to_le16(1);
 		hci_send_cmd(hdev, OGF_LINK_POLICY,
 				OCF_SNIFF_MODE, sizeof(cp), &cp);
 	}
