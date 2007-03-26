@@ -96,23 +96,17 @@ static void bictcp_init(struct sock *sk)
  */
 static u32 cubic_root(u64 a)
 {
-	u32 x, x1;
+	u32 x;
 
 	/* Initial estimate is based on:
 	 * cbrt(x) = exp(log(x) / 3)
 	 */
 	x = 1u << (fls64(a)/3);
 
-	/*
-	 * Iteration based on:
-	 *                         2
-	 * x    = ( 2 * x  +  a / x  ) / 3
-	 *  k+1          k         k
-	 */
-	do {
-		x1 = x;
-		x = (2 * x + (uint32_t) div64_64(a, x*x)) / 3;
-	} while (abs(x1 - x) > 1);
+	/* converges to 32 bits in 3 iterations */
+	x = (2 * x + (u32)div64_64(a, (u64)x*(u64)x)) / 3;
+	x = (2 * x + (u32)div64_64(a, (u64)x*(u64)x)) / 3;
+	x = (2 * x + (u32)div64_64(a, (u64)x*(u64)x)) / 3;
 
 	return x;
 }
