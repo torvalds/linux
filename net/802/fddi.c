@@ -100,7 +100,7 @@ static int fddi_rebuild_header(struct sk_buff	*skb)
 	struct fddihdr *fddi = (struct fddihdr *)skb->data;
 
 #ifdef CONFIG_INET
-	if (fddi->hdr.llc_snap.ethertype == __constant_htons(ETH_P_IP))
+	if (fddi->hdr.llc_snap.ethertype == htons(ETH_P_IP))
 		/* Try to get ARP to resolve the header and fill destination address */
 		return arp_find(fddi->daddr, skb);
 	else
@@ -135,7 +135,7 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 	if(fddi->hdr.llc_8022_1.dsap==0xe0)
 	{
 		skb_pull(skb, FDDI_K_8022_HLEN-3);
-		type = __constant_htons(ETH_P_802_2);
+		type = htons(ETH_P_802_2);
 	}
 	else
 	{
