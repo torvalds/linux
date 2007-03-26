@@ -9,4 +9,4 @@ snd-usb-lib-objs := usbmidi.o
 obj-$(CONFIG_SND_USB_AUDIO) += snd-usb-audio.o snd-usb-lib.o
 obj-$(CONFIG_SND_USB_USX2Y) += snd-usb-lib.o
 
-obj-$(CONFIG_SND) += usx2y/
+obj-$(CONFIG_SND) += usx2y/ caiaq/
