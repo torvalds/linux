@@ -82,6 +82,8 @@ int ns16550_console_init(void *devp, struct serial_console_data *scdp);
 void *simple_alloc_init(char *base, u32 heap_size, u32 granularity,
 		u32 max_allocs);
 extern void flush_cache(void *, unsigned long);
+int dt_xlate_reg(void *node, int res, unsigned long *addr,
+                 unsigned long *size);
 
 static inline void *finddevice(const char *name)
 {
