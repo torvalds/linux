@@ -437,9 +437,8 @@ static void kvm_mmu_free_page(struct kvm_vcpu *vcpu, hpa_t page_hpa)
 	struct kvm_mmu_page *page_head = page_header(page_hpa);
 
 	ASSERT(is_empty_shadow_page(page_hpa));
-	list_del(&page_head->link);
 	page_head->page_hpa = page_hpa;
-	list_add(&page_head->link, &vcpu->free_pages);
+	list_move(&page_head->link, &vcpu->free_pages);
 	++vcpu->kvm->n_free_mmu_pages;
 }
 
@@ -457,8 +456,7 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 		return NULL;
 
 	page = list_entry(vcpu->free_pages.next, struct kvm_mmu_page, link);
-	list_del(&page->link);
-	list_add(&page->link, &vcpu->kvm->active_mmu_pages);
+	list_move(&page->link, &vcpu->kvm->active_mmu_pages);
 	ASSERT(is_empty_shadow_page(page->page_hpa));
 	page->slot_bitmap = 0;
 	page->multimapped = 0;
@@ -670,10 +668,8 @@ static void kvm_mmu_zap_page(struct kvm_vcpu *vcpu,
 	if (!page->root_count) {
 		hlist_del(&page->hash_link);
 		kvm_mmu_free_page(vcpu, page->page_hpa);
-	} else {
-		list_del(&page->link);
-		list_add(&page->link, &vcpu->kvm->active_mmu_pages);
-	}
+	} else
+		list_move(&page->link, &vcpu->kvm->active_mmu_pages);
 }
 
 static int kvm_mmu_unprotect_page(struct kvm_vcpu *vcpu, gfn_t gfn)
