@@ -585,6 +585,35 @@ int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 	return result;
 }
 
+/*
+ * called from sock_recv_timestamp() if sock_flag(sk, SOCK_RCVTSTAMP)
+ */
+void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
+	struct sk_buff *skb)
+{
+	ktime_t kt = skb->tstamp;
+
+	if (!sock_flag(sk, SOCK_RCVTSTAMPNS)) {
+		struct timeval tv;
+		/* Race occurred between timestamp enabling and packet
+		   receiving.  Fill in the current time for now. */
+		if (kt.tv64 == 0)
+			kt = ktime_get_real();
+		skb->tstamp = kt;
+		tv = ktime_to_timeval(kt);
+		put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMP, sizeof(tv), &tv);
+	} else {
+		struct timespec ts;
+		/* Race occurred between timestamp enabling and packet
+		   receiving.  Fill in the current time for now. */
+		if (kt.tv64 == 0)
+			kt = ktime_get_real();
+		skb->tstamp = kt;
+		ts = ktime_to_timespec(kt);
+		put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPNS, sizeof(ts), &ts);
+	}
+}
+
 static inline int __sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 				 struct msghdr *msg, size_t size, int flags)
 {

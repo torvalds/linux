@@ -60,5 +60,7 @@
 #define SO_ACCEPTCONN		30
 #define SO_PEERSEC		31
 #define SO_PASSSEC		34
+#define SO_TIMESTAMPNS		35
+#define SCM_TIMESTAMPNS		SO_TIMESTAMPNS
 
 #endif	/* _XTENSA_SOCKET_H */

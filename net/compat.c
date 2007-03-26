@@ -215,6 +215,7 @@ Efault:
 int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *data)
 {
 	struct compat_timeval ctv;
+	struct compat_timespec cts;
 	struct compat_cmsghdr __user *cm = (struct compat_cmsghdr __user *) kmsg->msg_control;
 	struct compat_cmsghdr cmhdr;
 	int cmlen;
@@ -229,7 +230,14 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 		ctv.tv_sec = tv->tv_sec;
 		ctv.tv_usec = tv->tv_usec;
 		data = &ctv;
-		len = sizeof(struct compat_timeval);
+		len = sizeof(ctv);
+	}
+	if (level == SOL_SOCKET && type == SO_TIMESTAMPNS) {
+		struct timespec *ts = (struct timespec *)data;
+		cts.tv_sec = ts->tv_sec;
+		cts.tv_nsec = ts->tv_nsec;
+		data = &cts;
+		len = sizeof(cts);
 	}
 
 	cmlen = CMSG_COMPAT_LEN(len);

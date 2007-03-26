@@ -521,11 +521,18 @@ set_rcvbuf:
 		break;
 
 	case SO_TIMESTAMP:
+	case SO_TIMESTAMPNS:
 		if (valbool)  {
+			if (optname == SO_TIMESTAMP)
+				sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
+			else
+				sock_set_flag(sk, SOCK_RCVTSTAMPNS);
 			sock_set_flag(sk, SOCK_RCVTSTAMP);
 			sock_enable_timestamp(sk);
-		} else
+		} else {
 			sock_reset_flag(sk, SOCK_RCVTSTAMP);
+			sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
+		}
 		break;
 
 	case SO_RCVLOWAT:
@@ -715,7 +722,12 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case SO_TIMESTAMP:
-		v.val = sock_flag(sk, SOCK_RCVTSTAMP);
+		v.val = sock_flag(sk, SOCK_RCVTSTAMP) &&
+				!sock_flag(sk, SOCK_RCVTSTAMPNS);
+		break;
+
+	case SO_TIMESTAMPNS:
+		v.val = sock_flag(sk, SOCK_RCVTSTAMPNS);
 		break;
 
 	case SO_RCVTIMEO:

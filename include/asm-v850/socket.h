@@ -49,5 +49,7 @@
 
 #define SO_PEERSEC		31
 #define SO_PASSSEC		34
+#define SO_TIMESTAMPNS		35
+#define SCM_TIMESTAMPNS		SO_TIMESTAMPNS
 
 #endif /* __V850_SOCKET_H__ */
