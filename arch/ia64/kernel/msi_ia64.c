@@ -68,7 +68,7 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct msi_msg	msg;
 	unsigned long	dest_phys_id;
-	unsigned int	irq, vector;
+	int	irq, vector;
 
 	irq = create_irq();
 	if (irq < 0)
