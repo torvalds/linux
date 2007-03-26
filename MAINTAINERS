@@ -2928,9 +2928,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
 SCTP PROTOCOL
+P:	Vlad Yasevich
+M:	vladislav.yasevich@hp.com
 P:	Sridhar Samudrala
 M:	sri@us.ibm.com
 L:	lksctp-developers@lists.sourceforge.net
+W:	http://lksctp.sourceforge.net
 S:	Supported
 
 SCx200 CPU SUPPORT

@@ -2530,6 +2530,35 @@ static struct net_device_stats *gem_get_stats(struct net_device *dev)
 	return &gp->net_stats;
 }
 
+static int gem_set_mac_address(struct net_device *dev, void *addr)
+{
+	struct sockaddr *macaddr = (struct sockaddr *) addr;
+	struct gem *gp = dev->priv;
+	unsigned char *e = &dev->dev_addr[0];
+
+	if (!is_valid_ether_addr(macaddr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	if (!netif_running(dev) || !netif_device_present(dev)) {
+		/* We'll just catch it later when the
+		 * device is up'd or resumed.
+		 */
+		memcpy(dev->dev_addr, macaddr->sa_data, dev->addr_len);
+		return 0;
+	}
+
+	mutex_lock(&gp->pm_mutex);
+	memcpy(dev->dev_addr, macaddr->sa_data, dev->addr_len);
+	if (gp->running) {
+		writel((e[4] << 8) | e[5], gp->regs + MAC_ADDR0);
+		writel((e[2] << 8) | e[3], gp->regs + MAC_ADDR1);
+		writel((e[0] << 8) | e[1], gp->regs + MAC_ADDR2);
+	}
+	mutex_unlock(&gp->pm_mutex);
+
+	return 0;
+}
+
 static void gem_set_multicast(struct net_device *dev)
 {
 	struct gem *gp = dev->priv;
@@ -3122,6 +3151,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	dev->change_mtu = gem_change_mtu;
 	dev->irq = pdev->irq;
 	dev->dma = 0;
+	dev->set_mac_address = gem_set_mac_address;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = gem_poll_controller;
 #endif

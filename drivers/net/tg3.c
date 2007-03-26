@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.74"
-#define DRV_MODULE_RELDATE	"February 20, 2007"
+#define DRV_MODULE_VERSION	"3.75"
+#define DRV_MODULE_RELDATE	"March 23, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3568,32 +3568,34 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id)
 	 * Reading the PCI State register will confirm whether the
 	 * interrupt is ours and will flush the status block.
 	 */
-	if ((sblk->status & SD_STATUS_UPDATED) ||
-	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
-		/*
-		 * Writing any value to intr-mbox-0 clears PCI INTA# and
-		 * chip-internal interrupt pending events.
-		 * Writing non-zero to intr-mbox-0 additional tells the
-		 * NIC to stop sending us irqs, engaging "in-intr-handler"
-		 * event coalescing.
-		 */
-		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     0x00000001);
-		if (tg3_irq_sync(tp))
+	if (unlikely(!(sblk->status & SD_STATUS_UPDATED))) {
+		if ((tp->tg3_flags & TG3_FLAG_CHIP_RESETTING) ||
+		    (tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
+			handled = 0;
 			goto out;
-		sblk->status &= ~SD_STATUS_UPDATED;
-		if (likely(tg3_has_work(tp))) {
-			prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
-			netif_rx_schedule(dev);		/* schedule NAPI poll */
-		} else {
-			/* No work, shared interrupt perhaps?  re-enable
-			 * interrupts, and flush that PCI write
-			 */
-			tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     	0x00000000);
 		}
-	} else {	/* shared interrupt */
-		handled = 0;
+	}
+
+	/*
+	 * Writing any value to intr-mbox-0 clears PCI INTA# and
+	 * chip-internal interrupt pending events.
+	 * Writing non-zero to intr-mbox-0 additional tells the
+	 * NIC to stop sending us irqs, engaging "in-intr-handler"
+	 * event coalescing.
+	 */
+	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	if (tg3_irq_sync(tp))
+		goto out;
+	sblk->status &= ~SD_STATUS_UPDATED;
+	if (likely(tg3_has_work(tp))) {
+		prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
+		netif_rx_schedule(dev);		/* schedule NAPI poll */
+	} else {
+		/* No work, shared interrupt perhaps?  re-enable
+		 * interrupts, and flush that PCI write
+		 */
+		tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+			       0x00000000);
 	}
 out:
 	return IRQ_RETVAL(handled);
@@ -3611,31 +3613,33 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id)
 	 * Reading the PCI State register will confirm whether the
 	 * interrupt is ours and will flush the status block.
 	 */
-	if ((sblk->status_tag != tp->last_tag) ||
-	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
-		/*
-		 * writing any value to intr-mbox-0 clears PCI INTA# and
-		 * chip-internal interrupt pending events.
-		 * writing non-zero to intr-mbox-0 additional tells the
-		 * NIC to stop sending us irqs, engaging "in-intr-handler"
-		 * event coalescing.
-		 */
-		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     0x00000001);
-		if (tg3_irq_sync(tp))
+	if (unlikely(sblk->status_tag == tp->last_tag)) {
+		if ((tp->tg3_flags & TG3_FLAG_CHIP_RESETTING) ||
+		    (tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
+			handled = 0;
 			goto out;
-		if (netif_rx_schedule_prep(dev)) {
-			prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
-			/* Update last_tag to mark that this status has been
-			 * seen. Because interrupt may be shared, we may be
-			 * racing with tg3_poll(), so only update last_tag
-			 * if tg3_poll() is not scheduled.
-			 */
-			tp->last_tag = sblk->status_tag;
-			__netif_rx_schedule(dev);
 		}
-	} else {	/* shared interrupt */
-		handled = 0;
+	}
+
+	/*
+	 * writing any value to intr-mbox-0 clears PCI INTA# and
+	 * chip-internal interrupt pending events.
+	 * writing non-zero to intr-mbox-0 additional tells the
+	 * NIC to stop sending us irqs, engaging "in-intr-handler"
+	 * event coalescing.
+	 */
+	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	if (tg3_irq_sync(tp))
+		goto out;
+	if (netif_rx_schedule_prep(dev)) {
+		prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
+		/* Update last_tag to mark that this status has been
+		 * seen. Because interrupt may be shared, we may be
+		 * racing with tg3_poll(), so only update last_tag
+		 * if tg3_poll() is not scheduled.
+		 */
+		tp->last_tag = sblk->status_tag;
+		__netif_rx_schedule(dev);
 	}
 out:
 	return IRQ_RETVAL(handled);
@@ -4823,6 +4827,19 @@ static int tg3_chip_reset(struct tg3 *tp)
 	if (write_op == tg3_write_flush_reg32)
 		tp->write32 = tg3_write32;
 
+	/* Prevent the irq handler from reading or writing PCI registers
+	 * during chip reset when the memory enable bit in the PCI command
+	 * register may be cleared.  The chip does not generate interrupt
+	 * at this time, but the irq handler may still be called due to irq
+	 * sharing or irqpoll.
+	 */
+	tp->tg3_flags |= TG3_FLAG_CHIP_RESETTING;
+	tp->hw_status->status = 0;
+	tp->hw_status->status_tag = 0;
+	tp->last_tag = 0;
+	smp_mb();
+	synchronize_irq(tp->pdev->irq);
+
 	/* do the reset */
 	val = GRC_MISC_CFG_CORECLK_RESET;
 
@@ -4903,6 +4920,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 	pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, val);
 
 	pci_restore_state(tp->pdev);
+
+	tp->tg3_flags &= ~TG3_FLAG_CHIP_RESETTING;
 
 	/* Make sure PCI-X relaxed ordering bit is clear. */
 	pci_read_config_dword(tp->pdev, TG3PCI_X_CAPS, &val);
@@ -6321,8 +6340,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		      RDMAC_MODE_ADDROFLOW_ENAB | RDMAC_MODE_FIFOOFLOW_ENAB |
 		      RDMAC_MODE_FIFOURUN_ENAB | RDMAC_MODE_FIFOOREAD_ENAB |
 		      RDMAC_MODE_LNGREAD_ENAB);
-	if (tp->tg3_flags & TG3_FLAG_SPLIT_MODE)
-		rdmac_mode |= RDMAC_MODE_SPLIT_ENABLE;
 
 	/* If statement applies to 5705 and 5750 PCI devices only */
 	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
@@ -6495,9 +6512,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
 			val &= ~(PCIX_CAPS_SPLIT_MASK | PCIX_CAPS_BURST_MASK);
 			val |= (PCIX_CAPS_MAX_BURST_CPIOB << PCIX_CAPS_BURST_SHIFT);
-			if (tp->tg3_flags & TG3_FLAG_SPLIT_MODE)
-				val |= (tp->split_mode_max_reqs <<
-					PCIX_CAPS_SPLIT_SHIFT);
 		}
 		tw32(TG3PCI_X_CAPS, val);
 	}
@@ -10863,14 +10877,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	grc_misc_cfg = tr32(GRC_MISC_CFG);
 	grc_misc_cfg &= GRC_MISC_CFG_BOARD_ID_MASK;
 
-	/* Broadcom's driver says that CIOBE multisplit has a bug */
-#if 0
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 &&
-	    grc_misc_cfg == GRC_MISC_CFG_BOARD_ID_5704CIOBE) {
-		tp->tg3_flags |= TG3_FLAG_SPLIT_MODE;
-		tp->split_mode_max_reqs = SPLIT_MODE_5704_MAX_REQ;
-	}
-#endif
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
 	    (grc_misc_cfg == GRC_MISC_CFG_BOARD_ID_5788 ||
 	     grc_misc_cfg == GRC_MISC_CFG_BOARD_ID_5788M))
@@ -11968,14 +11974,12 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		       i == 5 ? '\n' : ':');
 
 	printk(KERN_INFO "%s: RXcsums[%d] LinkChgREG[%d] "
-	       "MIirq[%d] ASF[%d] Split[%d] WireSpeed[%d] "
-	       "TSOcap[%d] \n",
+	       "MIirq[%d] ASF[%d] WireSpeed[%d] TSOcap[%d]\n",
 	       dev->name,
 	       (tp->tg3_flags & TG3_FLAG_RX_CHECKSUMS) != 0,
 	       (tp->tg3_flags & TG3_FLAG_USE_LINKCHG_REG) != 0,
 	       (tp->tg3_flags & TG3_FLAG_USE_MI_INTERRUPT) != 0,
 	       (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0,
-	       (tp->tg3_flags & TG3_FLAG_SPLIT_MODE) != 0,
 	       (tp->tg3_flags2 & TG3_FLG2_NO_ETH_WIRE_SPEED) == 0,
 	       (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) != 0);
 	printk(KERN_INFO "%s: dma_rwctrl[%08x] dma_mask[%d-bit]\n",

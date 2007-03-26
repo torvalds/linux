@@ -262,7 +262,7 @@ out:
 }
 
 /* Transmit-delay timer: used by the CCIDs to delay actual send time */
-void dccp_write_xmit_timer(unsigned long data)
+static void dccp_write_xmit_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
 	struct dccp_sock *dp = dccp_sk(sk);

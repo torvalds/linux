@@ -1750,10 +1750,10 @@ static int ing_filter(struct sk_buff *skb)
 
 		skb->tc_verd = SET_TC_AT(skb->tc_verd,AT_INGRESS);
 
-		spin_lock(&dev->ingress_lock);
+		spin_lock(&dev->queue_lock);
 		if ((q = dev->qdisc_ingress) != NULL)
 			result = q->enqueue(skb, q);
-		spin_unlock(&dev->ingress_lock);
+		spin_unlock(&dev->queue_lock);
 
 	}
 
