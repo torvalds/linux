@@ -381,7 +381,7 @@ static int m920x_identify_state(struct usb_device *udev,
 }
 
 /* demod configurations */
-static int megasky_mt352_demod_init(struct dvb_frontend *fe)
+static int m920x_mt352_demod_init(struct dvb_frontend *fe)
 {
 	u8 config[] = { CONFIG, 0x3d };
 	u8 clock[] = { CLOCK_CTL, 0x30 };
@@ -406,13 +406,13 @@ static int megasky_mt352_demod_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct mt352_config megasky_mt352_config = {
+static struct mt352_config m920x_mt352_config = {
 	.demod_address = 0x0f,
 	.no_tuner = 1,
-	.demod_init = megasky_mt352_demod_init,
+	.demod_init = m920x_mt352_demod_init,
 };
 
-static struct tda1004x_config digivox_tda10046_config = {
+static struct tda1004x_config m920x_tda10046_08_config = {
 	.demod_address = 0x08,
 	.invert = 0,
 	.invert_oclk = 0,
@@ -424,19 +424,7 @@ static struct tda1004x_config digivox_tda10046_config = {
 	.request_firmware = NULL,
 };
 
-static struct tda1004x_config tvwalkertwin_0_tda10046_config = {
-	.demod_address = 0x08,
-	.invert = 0,
-	.invert_oclk = 0,
-	.ts_mode = TDA10046_TS_SERIAL,
-	.xtal_freq = TDA10046_XTAL_16M,
-	.if_freq = TDA10046_FREQ_045,
-	.agc_config = TDA10046_AGC_TDA827X,
-	.gpio_config = TDA10046_GPTRI,
-	.request_firmware = NULL, /* uses firmware EEPROM */
-};
-
-static struct tda1004x_config tvwalkertwin_1_tda10046_config = {
+static struct tda1004x_config m920x_tda10046_0b_config = {
 	.demod_address = 0x0b,
 	.invert = 0,
 	.invert_oclk = 0,
@@ -449,113 +437,75 @@ static struct tda1004x_config tvwalkertwin_1_tda10046_config = {
 };
 
 /* tuner configurations */
-static struct qt1010_config megasky_qt1010_config = {
+static struct qt1010_config m920x_qt1010_config = {
 	.i2c_address = 0x62
 };
 
 /* Callbacks for DVB USB */
-static int megasky_mt352_frontend_attach(struct dvb_usb_adapter *adap)
+static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb_rc("megasky_frontend_attach!\n");
+	deb_rc("%s\n",__FUNCTION__);
 
-	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config,
+	if ((adap->fe = dvb_attach(mt352_attach, &m920x_mt352_config,
 				   &adap->dev->i2c_adap)) == NULL)
 		return -EIO;
 
 	return 0;
 }
 
-static int digivox_tda10046_frontend_attach(struct dvb_usb_adapter *adap)
+static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb_rc("digivox_tda10046_frontend_attach!\n");
-
-	if ((adap->fe = dvb_attach(tda10046_attach, &digivox_tda10046_config,
-				   &adap->dev->i2c_adap)) == NULL)
-		return -EIO;
-
-	return 0;
-}
-
-/* LifeView TV Walker Twin has 1 x M9206, 2 x TDA10046, 2 x TDA8275A
- * TDA10046 #0 is located at i2c address 0x08
- * TDA10046 #1 is located at i2c address 0x0b
- * TDA8275A #0 is located at i2c address 0x60
- * TDA8275A #1 is located at i2c address 0x61
- */
-
-static int tvwalkertwin_0_tda10046_frontend_attach(struct dvb_usb_adapter *adap)
-{
-	deb_rc("tvwalkertwin_0_tda10046_frontend_attach!\n");
+	deb_rc("%s\n",__FUNCTION__);
 
 	if ((adap->fe = dvb_attach(tda10046_attach,
-				   &tvwalkertwin_0_tda10046_config,
+				   &m920x_tda10046_08_config,
 				   &adap->dev->i2c_adap)) == NULL)
 		return -EIO;
-
-	deb_rc("Attached demod 0 at address %02x\n",
-	       tvwalkertwin_0_tda10046_config.demod_address);
 
 	return 0;
 }
 
-static int tvwalkertwin_1_tda10046_frontend_attach(struct dvb_usb_adapter *adap)
+static int m920x_tda10046_0b_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb_rc("tvwalkertwin_1_tda10046_frontend_attach!\n");
+	deb_rc("%s\n",__FUNCTION__);
 
 	if ((adap->fe = dvb_attach(tda10046_attach,
-				   &tvwalkertwin_1_tda10046_config,
+				   &m920x_tda10046_0b_config,
 				   &adap->dev->i2c_adap)) == NULL)
 		return -EIO;
-
-	deb_rc("Attached demod 1 at address %02x\n",
-	       tvwalkertwin_1_tda10046_config.demod_address);
 
 	return 0;
 }
 
-static int megasky_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
+static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
+	deb_rc("%s\n",__FUNCTION__);
+
 	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
-		       &megasky_qt1010_config) == NULL)
+		       &m920x_qt1010_config) == NULL)
 		return -ENODEV;
 
 	return 0;
 }
 
-static int digivox_tda8275_tuner_attach(struct dvb_usb_adapter *adap)
+static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 {
+	deb_rc("%s\n",__FUNCTION__);
+
 	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
 		       NULL) == NULL)
 		return -ENODEV;
-	return 0;
-}
-
-static int tvwalkertwin_0_tda8275_tuner_attach(struct dvb_usb_adapter *adap)
-{
-	int address = 0x60;
-
-	deb_rc("tvwalkertwin_0_tda8275_tuner_attach!\n");
-
-	if (dvb_attach(tda827x_attach, adap->fe, address, &adap->dev->i2c_adap,
-		       NULL) == NULL)
-		return -ENODEV;
-
-	deb_rc("Attached tuner 0 at address %02x\n", address);
 
 	return 0;
 }
 
-static int tvwalkertwin_1_tda8275_tuner_attach(struct dvb_usb_adapter *adap)
+static int m920x_tda8275_61_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	int address = 0x61;
+	deb_rc("%s\n",__FUNCTION__);
 
-	deb_rc("tvwalkertwin_1_tda8275_tuner_attach!\n");
-
-	if (dvb_attach(tda827x_attach, adap->fe, address, &adap->dev->i2c_adap,
+	if (dvb_attach(tda827x_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
 		       NULL) == NULL)
 		return -ENODEV;
-
-	deb_rc("Attached tuner 1 at address %02x\n", address);
 
 	return 0;
 }
@@ -676,7 +626,7 @@ static int m920x_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-found:
+ found:
 	alt = usb_altnum_to_altsetting(intf, 1);
 	if (alt == NULL) {
 		deb_rc("No alt found!\n");
@@ -732,8 +682,8 @@ static struct dvb_usb_device_properties megasky_properties = {
 		.pid_filter       = m9206_pid_filter,
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
 
-		.frontend_attach  = megasky_mt352_frontend_attach,
-		.tuner_attach     = megasky_qt1010_tuner_attach,
+		.frontend_attach  = m920x_mt352_frontend_attach,
+		.tuner_attach     = m920x_qt1010_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
@@ -776,8 +726,8 @@ static struct dvb_usb_device_properties digivox_mini_ii_properties = {
 		.pid_filter       = m9206_pid_filter,
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
 
-		.frontend_attach  = digivox_tda10046_frontend_attach,
-		.tuner_attach     = digivox_tda8275_tuner_attach,
+		.frontend_attach  = m920x_tda10046_08_frontend_attach,
+		.tuner_attach     = m920x_tda8275_60_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
@@ -801,7 +751,14 @@ static struct dvb_usb_device_properties digivox_mini_ii_properties = {
 	}
 };
 
-/* LifeView TV Walker Twin support by Nick Andrew <nick@nick-andrew.net> */
+/* LifeView TV Walker Twin support by Nick Andrew <nick@nick-andrew.net>
+ *
+ * LifeView TV Walker Twin has 1 x M9206, 2 x TDA10046, 2 x TDA8275A
+ * TDA10046 #0 is located at i2c address 0x08
+ * TDA10046 #1 is located at i2c address 0x0b
+ * TDA8275A #0 is located at i2c address 0x60
+ * TDA8275A #1 is located at i2c address 0x61
+ */
 static struct dvb_usb_device_properties tvwalkertwin_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
@@ -826,8 +783,8 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 		.pid_filter       = m9206_pid_filter,
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
 
-		.frontend_attach  = tvwalkertwin_0_tda10046_frontend_attach,
-		.tuner_attach     = tvwalkertwin_0_tda8275_tuner_attach,
+		.frontend_attach  = m920x_tda10046_08_frontend_attach,
+		.tuner_attach     = m920x_tda8275_60_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
@@ -846,8 +803,8 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 		.pid_filter       = m9206_pid_filter,
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
 
-		.frontend_attach  = tvwalkertwin_1_tda10046_frontend_attach,
-		.tuner_attach     = tvwalkertwin_1_tda8275_tuner_attach,
+		.frontend_attach  = m920x_tda10046_0b_frontend_attach,
+		.tuner_attach     = m920x_tda8275_61_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
@@ -885,8 +842,8 @@ static struct dvb_usb_device_properties dposh_properties = {
 	.adapter = {{
 		/* Hardware pid filters don't work with this device/firmware */
 
-		.frontend_attach  = megasky_mt352_frontend_attach,
-		.tuner_attach     = megasky_qt1010_tuner_attach,
+		.frontend_attach  = m920x_mt352_frontend_attach,
+		.tuner_attach     = m920x_qt1010_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
