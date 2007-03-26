@@ -20,13 +20,14 @@
 #include <linux/usb/serial.h>
 #include <asm/uaccess.h>
 
-static int generic_probe(struct usb_interface *interface,
-			 const struct usb_device_id *id);
-
 
 static int debug;
 
 #ifdef CONFIG_USB_SERIAL_GENERIC
+
+static int generic_probe(struct usb_interface *interface,
+			 const struct usb_device_id *id);
+
 static __u16 vendor  = 0x05f9;
 static __u16 product = 0xffff;
 
