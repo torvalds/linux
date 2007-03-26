@@ -171,9 +171,16 @@ int netlink_sendskb(struct sock *sk, struct sk_buff *skb, int protocol);
 
 /*
  *	skb should fit one page. This choice is good for headerless malloc.
+ *	But we should limit to 8K so that userspace does not have to
+ *	use enormous buffer sizes on recvmsg() calls just to avoid
+ *	MSG_TRUNC when PAGE_SIZE is very large.
  */
-#define NLMSG_GOODORDER 0
-#define NLMSG_GOODSIZE (SKB_MAX_ORDER(0, NLMSG_GOODORDER))
+#if PAGE_SIZE < 8192UL
+#define NLMSG_GOODSIZE	SKB_WITH_OVERHEAD(PAGE_SIZE)
+#else
+#define NLMSG_GOODSIZE	SKB_WITH_OVERHEAD(8192UL)
+#endif
+
 #define NLMSG_DEFAULT_SIZE (NLMSG_GOODSIZE - NLMSG_HDRLEN)
 
 
