@@ -258,7 +258,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	 * won't work for fault tolerant netware but does for the rest.
 	 */
 	if (*(unsigned short *)rawp == 0xFFFF) {
-		skb->protocol = __constant_htons(ETH_P_802_3);
+		skb->protocol = htons(ETH_P_802_3);
 		/* place it back on the queue to be handled by true layer 3 protocols.
 		 */
 
@@ -281,7 +281,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	/*
 	 *	Real 802.2 LLC
 	 */
-	skb->protocol = __constant_htons(ETH_P_802_2);
+	skb->protocol = htons(ETH_P_802_2);
 	/* place it back on the queue to be handled by upper layer protocols.
 	 */
 
@@ -448,7 +448,7 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * OTHER THINGS LIKE FDDI/TokenRing/802.3 SNAPs...
 	 */
 
-	if (veth->h_vlan_proto != __constant_htons(ETH_P_8021Q)) {
+	if (veth->h_vlan_proto != htons(ETH_P_8021Q)) {
 		int orig_headroom = skb_headroom(skb);
 		unsigned short veth_TCI;
 
