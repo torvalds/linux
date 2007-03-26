@@ -519,11 +519,9 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
 		BUG_ON(fibptr->done == 0);
 			
-		if((fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT)){
+		if(unlikely(fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT))
 			return -ETIMEDOUT;
-		} else {
-			return 0;
-		}
+		return 0;
 	}
 	/*
 	 *	If the user does not want a response than return success otherwise

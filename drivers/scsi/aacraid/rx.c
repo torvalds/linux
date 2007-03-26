@@ -5,7 +5,7 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,25 +57,25 @@ static irqreturn_t aac_rx_intr_producer(int irq, void *dev_id)
 	 *	been enabled.
 	 *	Check to see if this is our interrupt.  If it isn't just return
 	 */
-	if (intstat & ~(dev->OIMR)) {
+	if (likely(intstat & ~(dev->OIMR))) {
 		bellbits = rx_readl(dev, OutboundDoorbellReg);
-		if (bellbits & DoorBellPrintfReady) {
+		if (unlikely(bellbits & DoorBellPrintfReady)) {
 			aac_printf(dev, readl (&dev->IndexRegs->Mailbox[5]));
 			rx_writel(dev, MUnit.ODR,DoorBellPrintfReady);
 			rx_writel(dev, InboundDoorbellReg,DoorBellPrintfDone);
 		}
-		else if (bellbits & DoorBellAdapterNormCmdReady) {
+		else if (unlikely(bellbits & DoorBellAdapterNormCmdReady)) {
 			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdReady);
 			aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
 		}
-		else if (bellbits & DoorBellAdapterNormRespReady) {
+		else if (likely(bellbits & DoorBellAdapterNormRespReady)) {
 			rx_writel(dev, MUnit.ODR,DoorBellAdapterNormRespReady);
 			aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
 		}
-		else if (bellbits & DoorBellAdapterNormCmdNotFull) {
+		else if (unlikely(bellbits & DoorBellAdapterNormCmdNotFull)) {
 			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
 		}
-		else if (bellbits & DoorBellAdapterNormRespNotFull) {
+		else if (unlikely(bellbits & DoorBellAdapterNormRespNotFull)) {
 			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
 			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormRespNotFull);
 		}
@@ -88,11 +88,11 @@ static irqreturn_t aac_rx_intr_message(int irq, void *dev_id)
 {
 	struct aac_dev *dev = dev_id;
 	u32 Index = rx_readl(dev, MUnit.OutboundQueue);
-	if (Index == 0xFFFFFFFFL)
+	if (unlikely(Index == 0xFFFFFFFFL))
 		Index = rx_readl(dev, MUnit.OutboundQueue);
-	if (Index != 0xFFFFFFFFL) {
+	if (likely(Index != 0xFFFFFFFFL)) {
 		do {
-			if (aac_intr_normal(dev, Index)) {
+			if (unlikely(aac_intr_normal(dev, Index))) {
 				rx_writel(dev, MUnit.OutboundQueue, Index);
 				rx_writel(dev, MUnit.ODR, DoorBellAdapterNormRespReady);
 			}
@@ -204,7 +204,7 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command,
 		 */
 		msleep(1);
 	}
-	if (ok != 1) {
+	if (unlikely(ok != 1)) {
 		/*
 		 *	Restore interrupt mask even though we timed out
 		 */
@@ -319,12 +319,12 @@ static int aac_rx_check_health(struct aac_dev *dev)
 	/*
 	 *	Check to see if the board failed any self tests.
 	 */
-	if (status & SELF_TEST_FAILED)
+	if (unlikely(status & SELF_TEST_FAILED))
 		return -1;
 	/*
 	 *	Check to see if the board panic'd.
 	 */
-	if (status & KERNEL_PANIC) {
+	if (unlikely(status & KERNEL_PANIC)) {
 		char * buffer;
 		struct POSTSTATUS {
 			__le32 Post_Command;
@@ -333,15 +333,15 @@ static int aac_rx_check_health(struct aac_dev *dev)
 		dma_addr_t paddr, baddr;
 		int ret;
 
-		if ((status & 0xFF000000L) == 0xBC000000L)
+		if (likely((status & 0xFF000000L) == 0xBC000000L))
 			return (status >> 16) & 0xFF;
 		buffer = pci_alloc_consistent(dev->pdev, 512, &baddr);
 		ret = -2;
-		if (buffer == NULL)
+		if (unlikely(buffer == NULL))
 			return ret;
 		post = pci_alloc_consistent(dev->pdev,
 		  sizeof(struct POSTSTATUS), &paddr);
-		if (post == NULL) {
+		if (unlikely(post == NULL)) {
 			pci_free_consistent(dev->pdev, 512, buffer, baddr);
 			return ret;
 		}
@@ -353,7 +353,7 @@ static int aac_rx_check_health(struct aac_dev *dev)
 		  NULL, NULL, NULL, NULL, NULL);
 		pci_free_consistent(dev->pdev, sizeof(struct POSTSTATUS),
 		  post, paddr);
-		if ((buffer[0] == '0') && ((buffer[1] == 'x') || (buffer[1] == 'X'))) {
+		if (likely((buffer[0] == '0') && ((buffer[1] == 'x') || (buffer[1] == 'X')))) {
 			ret = (buffer[2] <= '9') ? (buffer[2] - '0') : (buffer[2] - 'A' + 10);
 			ret <<= 4;
 			ret += (buffer[3] <= '9') ? (buffer[3] - '0') : (buffer[3] - 'A' + 10);
@@ -364,7 +364,7 @@ static int aac_rx_check_health(struct aac_dev *dev)
 	/*
 	 *	Wait for the adapter to be up and running.
 	 */
-	if (!(status & KERNEL_UP_AND_RUNNING))
+	if (unlikely(!(status & KERNEL_UP_AND_RUNNING)))
 		return -3;
 	/*
 	 *	Everything is OK
@@ -419,9 +419,9 @@ static int aac_rx_deliver_message(struct fib * fib)
 	spin_unlock_irqrestore(q->lock, qflags);
 	for(;;) {
 		Index = rx_readl(dev, MUnit.InboundQueue);
-		if (Index == 0xFFFFFFFFL)
+		if (unlikely(Index == 0xFFFFFFFFL))
 			Index = rx_readl(dev, MUnit.InboundQueue);
-		if (Index != 0xFFFFFFFFL)
+		if (likely(Index != 0xFFFFFFFFL))
 			break;
 		if (--count == 0) {
 			spin_lock_irqsave(q->lock, qflags);
@@ -526,11 +526,8 @@ int _aac_rx_init(struct aac_dev *dev)
 {
 	unsigned long start;
 	unsigned long status;
-	int instance;
-	const char * name;
-
-	instance = dev->id;
-	name     = dev->name;
+	int instance = dev->id;
+	const char * name = dev->name;
 
 	if (aac_adapter_ioremap(dev, dev->base_size)) {
 		printk(KERN_WARNING "%s: unable to map adapter.\n", name);
@@ -568,8 +565,7 @@ int _aac_rx_init(struct aac_dev *dev)
 	 */
 	while (!((status = rx_readl(dev, MUnit.OMRx[0])) & KERNEL_UP_AND_RUNNING))
 	{
-		if(time_after(jiffies, start+startup_timeout*HZ))
-		{
+		if(time_after(jiffies, start+startup_timeout*HZ)) {
 			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %lx.\n", 
 					dev->name, instance, status);
 			goto error_iounmap;
