@@ -198,7 +198,7 @@ struct btrfs_file_extent_item {
 	__le64 disk_blocknr;
 	__le64 disk_num_blocks;
 	/*
-	 * the logical offset in file bytes (no csums)
+	 * the logical offset in file blocks (no csums)
 	 * this extent record is for.  This allows a file extent to point
 	 * into the middle of an existing extent on disk, sharing it
 	 * between two snapshots (useful if some bytes in the middle of the
@@ -812,12 +812,19 @@ static inline struct btrfs_root *btrfs_sb(struct super_block *sb)
 	((type *)(btrfs_leaf_data(leaf) + \
 	btrfs_item_offset((leaf)->items + (slot))))
 
+/* extent-item.c */
 struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					    struct btrfs_root *root);
+int btrfs_alloc_extent(struct btrfs_trans_handle *trans, struct btrfs_root
+			*root, u64 num_blocks, u64 search_start, u64
+			search_end, u64 owner, struct btrfs_key *ins);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct buffer_head *buf);
 int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, u64 blocknr, u64 num_blocks, int pin);
+int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
+			       btrfs_root *root);
+/* ctree.c */
 int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, struct btrfs_path *p, int
 		      ins_len, int cow);
@@ -834,8 +841,7 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_root *root, struct btrfs_leaf *leaf);
 int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			*root, struct buffer_head *snap);
-int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
-			       btrfs_root *root);
+/* root-item.c */
 int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_key *key);
 int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root
@@ -846,6 +852,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *item);
 int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
 			 btrfs_root_item *item, struct btrfs_key *key);
+/* dir-item.c */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  *root, const char *name, int name_len, u64 dir, u64
 			  objectid, u8 type);
@@ -854,6 +861,7 @@ int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  const char *name, int name_len, int mod);
 int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
 			      const char *name, int name_len);
+/* inode-map.c */
 int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *fs_root,
 			     u64 dirid, u64 *objectid);
@@ -863,9 +871,21 @@ int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
 int btrfs_lookup_inode_map(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct btrfs_path *path,
 			   u64 objectid, int mod);
+/* inode-item.c */
 int btrfs_insert_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 		       *root, u64 objectid, struct btrfs_inode_item
 		       *inode_item);
 int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 		       *root, struct btrfs_path *path, u64 objectid, int mod);
+
+/* file-item.c */
+int btrfs_alloc_file_extent(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       u64 objectid, u64 offset,
+			       u64 num_blocks, u64 hint_block,
+			       u64 *result);
+int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root,
+			     struct btrfs_path *path, u64 objectid,
+			     u64 blocknr, u64 num_blocks, int mod);
 #endif

@@ -8,6 +8,7 @@
 * Add block mapping tree (simple dm layer)
 * Add simple tree locking (semaphore per tree)
 * Make allocator smarter
+* Make directory hashing work on 32 bit
 * Do actual block accounting
 * Check compat and incompat flags on the inode
 * Add virtual filesystems, mountable snapshots

@@ -8,6 +8,7 @@
 #include <linux/string.h>
 #include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
+#include <linux/mpage.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -17,6 +18,9 @@
 static struct inode_operations btrfs_dir_inode_operations;
 static struct super_operations btrfs_super_ops;
 static struct file_operations btrfs_dir_file_operations;
+static struct inode_operations btrfs_file_inode_operations;
+static struct address_space_operations btrfs_aops;
+static struct file_operations btrfs_file_operations;
 
 static void btrfs_read_locked_inode(struct inode *inode)
 {
@@ -57,6 +61,9 @@ static void btrfs_read_locked_inode(struct inode *inode)
 		break;
 #endif
 	case S_IFREG:
+		inode->i_mapping->a_ops = &btrfs_aops;
+		inode->i_fop = &btrfs_file_operations;
+		inode->i_op = &btrfs_file_inode_operations;
 		break;
 	case S_IFDIR:
 		inode->i_op = &btrfs_dir_inode_operations;
@@ -214,35 +221,6 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
-static void reada_leaves(struct btrfs_root *root, struct btrfs_path *path)
-{
-	struct buffer_head *bh;
-	struct btrfs_node *node;
-	int i;
-	int nritems;
-	u64 objectid;
-	u64 item_objectid;
-	u64 blocknr;
-	int slot;
-
-	if (!path->nodes[1])
-		return;
-	node = btrfs_buffer_node(path->nodes[1]);
-	slot = path->slots[1];
-	objectid = btrfs_disk_key_objectid(&node->ptrs[slot].key);
-	nritems = btrfs_header_nritems(&node->header);
-	for (i = slot; i < nritems; i++) {
-		item_objectid = btrfs_disk_key_objectid(&node->ptrs[i].key);
-		if (item_objectid != objectid)
-			break;
-		blocknr = btrfs_node_blockptr(node, i);
-		bh = sb_getblk(root->fs_info->sb, blocknr);
-		ll_rw_block(READ, 1, &bh);
-		brelse(bh);
-	}
-
-}
-
 static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -269,21 +247,18 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		goto err;
 	}
 	advance = 0;
-	reada_leaves(root, &path);
 	while(1) {
 		leaf = btrfs_buffer_leaf(path.nodes[0]);
 		nritems = btrfs_header_nritems(&leaf->header);
 		slot = path.slots[0];
-		if (advance) {
-			if (slot == nritems -1) {
+		if (advance || slot >= nritems) {
+			if (slot >= nritems -1) {
 				ret = btrfs_next_leaf(root, &path);
 				if (ret)
 					break;
 				leaf = btrfs_buffer_leaf(path.nodes[0]);
 				nritems = btrfs_header_nritems(&leaf->header);
 				slot = path.slots[0];
-				if (path.nodes[1] && path.slots[1] == 0)
-					reada_leaves(root, &path);
 			} else {
 				slot++;
 				path.slots[0]++;
@@ -297,6 +272,8 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			continue;
 		if (btrfs_disk_key_offset(&item->key) < filp->f_pos)
 			continue;
+
+		advance = 1;
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		over = filldir(dirent, (const char *)(di + 1),
 			       btrfs_dir_name_len(di),
@@ -524,6 +501,11 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	err = btrfs_add_nondir(trans, dentry, inode);
 	if (err)
 		drop_inode = 1;
+	else {
+		inode->i_mapping->a_ops = &btrfs_aops;
+		inode->i_fop = &btrfs_file_operations;
+		inode->i_op = &btrfs_file_inode_operations;
+	}
 	dir->i_sb->s_dirt = 1;
 	btrfs_end_transaction(trans, root);
 out_unlock:
@@ -623,11 +605,124 @@ printk("btrfs sync_fs\n");
 	return 0;
 }
 
+static int btrfs_get_block(struct inode *inode, sector_t iblock,
+			   struct buffer_head *result, int create)
+{
+	int ret;
+	int err = 0;
+	u64 blocknr;
+	u64 extent_start = 0;
+	u64 extent_end = 0;
+	u64 objectid = inode->i_ino;
+	struct btrfs_path path;
+	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	struct btrfs_trans_handle *trans = NULL;
+	struct btrfs_file_extent_item *item;
+	struct btrfs_leaf *leaf;
+	struct btrfs_disk_key *found_key;
+
+	btrfs_init_path(&path);
+	mutex_lock(&root->fs_info->fs_mutex);
+	if (create)
+		trans = btrfs_start_transaction(root, 1);
+
+
+	ret = btrfs_lookup_file_extent(trans, root, &path,
+				       inode->i_ino, iblock, 1, 0);
+	if (ret < 0) {
+		btrfs_release_path(root, &path);
+		err = ret;
+		goto out;
+	}
+
+	if (ret != 0) {
+		if (path.slots[0] == 0) {
+			btrfs_release_path(root, &path);
+			goto allocate;
+		}
+		path.slots[0]--;
+	}
+
+	item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]), path.slots[0],
+			      struct btrfs_file_extent_item);
+	leaf = btrfs_buffer_leaf(path.nodes[0]);
+	blocknr = btrfs_file_extent_disk_blocknr(item);
+	blocknr += btrfs_file_extent_offset(item);
+
+	/* exact match found, use it */
+	if (ret == 0) {
+		err = 0;
+		map_bh(result, inode->i_sb, blocknr);
+		btrfs_release_path(root, &path);
+		goto out;
+	}
+
+	/* are we inside the extent that was found? */
+	found_key = &leaf->items[path.slots[0]].key;
+	if (btrfs_disk_key_objectid(found_key) != objectid ||
+	    btrfs_disk_key_type(found_key) != BTRFS_EXTENT_DATA_KEY) {
+		extent_end = 0;
+		extent_start = 0;
+		btrfs_release_path(root, &path);
+		goto allocate;
+	}
+
+	extent_start = btrfs_disk_key_offset(&leaf->items[path.slots[0]].key);
+	extent_start += btrfs_file_extent_offset(item);
+	extent_end = extent_start + btrfs_file_extent_num_blocks(item);
+	btrfs_release_path(root, &path);
+	if (iblock >= extent_start && iblock < extent_end) {
+		err = 0;
+		map_bh(result, inode->i_sb, blocknr + iblock - extent_start);
+		goto out;
+	}
+allocate:
+	/* ok, create a new extent */
+	if (!create) {
+		err = 0;
+		goto out;
+	}
+	ret = btrfs_alloc_file_extent(trans, root, objectid, iblock,
+				      1, extent_end, &blocknr);
+	if (ret) {
+		err = ret;
+		goto out;
+	}
+	map_bh(result, inode->i_sb, blocknr);
+
+out:
+	if (trans)
+		btrfs_end_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return err;
+}
+
+static int btrfs_prepare_write(struct file *file, struct page *page,
+			       unsigned from, unsigned to)
+{
+	return block_prepare_write(page, from, to, btrfs_get_block);
+}
+
 static void btrfs_write_super(struct super_block *sb)
 {
 	btrfs_sync_fs(sb, 1);
 }
 
+static int btrfs_readpage(struct file *file, struct page *page)
+{
+	return mpage_readpage(page, btrfs_get_block);
+}
+
+static int btrfs_readpages(struct file *file, struct address_space *mapping,
+			   struct list_head *pages, unsigned nr_pages)
+{
+	return mpage_readpages(mapping, pages, nr_pages, btrfs_get_block);
+}
+
+static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
+{
+	return block_write_full_page(page, btrfs_get_block, wbc);
+}
 
 static int btrfs_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
@@ -667,6 +762,31 @@ static struct file_operations btrfs_dir_file_operations = {
 	.readdir	= btrfs_readdir,
 };
 
+static struct address_space_operations btrfs_aops = {
+	.readpage	= btrfs_readpage,
+	.readpages	= btrfs_readpages,
+	.writepage	= btrfs_writepage,
+	.sync_page	= block_sync_page,
+	.prepare_write	= btrfs_prepare_write,
+	.commit_write	= generic_commit_write,
+};
+
+static struct inode_operations btrfs_file_inode_operations = {
+	.truncate	= NULL,
+};
+
+static struct file_operations btrfs_file_operations = {
+	.llseek		= generic_file_llseek,
+	.read		= do_sync_read,
+	.write		= do_sync_write,
+	.aio_read	= generic_file_aio_read,
+	.aio_write	= generic_file_aio_write,
+	.mmap		= generic_file_mmap,
+	.open		= generic_file_open,
+	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
+};
 
 static int __init init_btrfs_fs(void)
 {

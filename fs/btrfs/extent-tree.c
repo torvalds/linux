@@ -403,7 +403,7 @@ error:
  *
  * returns 0 if everything worked, non-zero otherwise.
  */
-static int alloc_extent(struct btrfs_trans_handle *trans, struct btrfs_root
+int btrfs_alloc_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 			*root, u64 num_blocks, u64 search_start, u64
 			search_end, u64 owner, struct btrfs_key *ins)
 {
@@ -458,7 +458,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	int ret;
 	struct buffer_head *buf;
 
-	ret = alloc_extent(trans, root, 1, 0, (unsigned long)-1,
+	ret = btrfs_alloc_extent(trans, root, 1, 0, (unsigned long)-1,
 		btrfs_header_parentid(btrfs_buffer_header(root->node)), &ins);
 	if (ret) {
 		BUG();
