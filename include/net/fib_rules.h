@@ -98,7 +98,4 @@ extern int			fib_rules_unregister(struct fib_rules_ops *);
 extern int			fib_rules_lookup(struct fib_rules_ops *,
 						 struct flowi *, int flags,
 						 struct fib_lookup_arg *);
-
-extern int			fib_rules_dump(struct sk_buff *,
-					       struct netlink_callback *, int);
 #endif

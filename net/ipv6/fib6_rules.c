@@ -216,11 +216,6 @@ nla_put_failure:
 	return -ENOBUFS;
 }
 
-static int fib6_rules_dump(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	return fib_rules_dump(skb, cb, AF_INET6);
-}
-
 static u32 fib6_rule_default_pref(void)
 {
 	return 0x3FFF;
@@ -255,11 +250,9 @@ void __init fib6_rules_init(void)
 	list_add_tail(&main_rule.common.list, &fib6_rules);
 
 	fib_rules_register(&fib6_rules_ops);
-	__rtnl_register(PF_INET6, RTM_GETRULE, NULL, fib6_rules_dump);
 }
 
 void fib6_rules_cleanup(void)
 {
-	rtnl_unregister(PF_INET6, RTM_GETRULE);
 	fib_rules_unregister(&fib6_rules_ops);
 }

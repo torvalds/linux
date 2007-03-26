@@ -393,19 +393,15 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-int fib_rules_dump(struct sk_buff *skb, struct netlink_callback *cb, int family)
+static int dump_rules(struct sk_buff *skb, struct netlink_callback *cb,
+		      struct fib_rules_ops *ops)
 {
 	int idx = 0;
 	struct fib_rule *rule;
-	struct fib_rules_ops *ops;
-
-	ops = lookup_rules_ops(family);
-	if (ops == NULL)
-		return -EAFNOSUPPORT;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(rule, ops->rules_list, list) {
-		if (idx < cb->args[0])
+		if (idx < cb->args[1])
 			goto skip;
 
 		if (fib_nl_fill_rule(skb, rule, NETLINK_CB(cb->skb).pid,
@@ -416,13 +412,44 @@ skip:
 		idx++;
 	}
 	rcu_read_unlock();
-	cb->args[0] = idx;
+	cb->args[1] = idx;
 	rules_ops_put(ops);
 
 	return skb->len;
 }
 
-EXPORT_SYMBOL_GPL(fib_rules_dump);
+static int fib_nl_dumprule(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct fib_rules_ops *ops;
+	int idx = 0, family;
+
+	family = rtnl_msg_family(cb->nlh);
+	if (family != AF_UNSPEC) {
+		/* Protocol specific dump request */
+		ops = lookup_rules_ops(family);
+		if (ops == NULL)
+			return -EAFNOSUPPORT;
+
+		return dump_rules(skb, cb, ops);
+	}
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ops, &rules_ops, list) {
+		if (idx < cb->args[0] || !try_module_get(ops->owner))
+			goto skip;
+
+		if (dump_rules(skb, cb, ops) < 0)
+			break;
+
+		cb->args[1] = 0;
+	skip:
+		idx++;
+	}
+	rcu_read_unlock();
+	cb->args[0] = idx;
+
+	return skb->len;
+}
 
 static void notify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
@@ -503,7 +530,7 @@ static int __init fib_rules_init(void)
 {
 	rtnl_register(PF_UNSPEC, RTM_NEWRULE, fib_nl_newrule, NULL);
 	rtnl_register(PF_UNSPEC, RTM_DELRULE, fib_nl_delrule, NULL);
-	rtnl_register(PF_UNSPEC, RTM_GETRULE, NULL, rtnl_dump_all);
+	rtnl_register(PF_UNSPEC, RTM_GETRULE, NULL, fib_nl_dumprule);
 
 	return register_netdevice_notifier(&fib_rules_notifier);
 }

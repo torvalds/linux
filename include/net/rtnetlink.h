@@ -15,4 +15,12 @@ extern int	rtnl_unregister(int protocol, int msgtype);
 extern void	rtnl_unregister_all(int protocol);
 extern int	rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb);
 
+static inline int rtnl_msg_family(struct nlmsghdr *nlh)
+{
+	if (nlmsg_len(nlh) >= sizeof(struct rtgenmsg))
+		return ((struct rtgenmsg *) nlmsg_data(nlh))->rtgen_family;
+	else
+		return AF_UNSPEC;
+}
+
 #endif
