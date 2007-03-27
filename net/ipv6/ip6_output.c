@@ -378,7 +378,7 @@ int ip6_forward(struct sk_buff *skb)
 		goto drop;
 	}
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_forward_csum(skb);
 
 	/*
 	 *	We DO NOT make any processing on

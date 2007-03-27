@@ -67,7 +67,7 @@ int ip_forward(struct sk_buff *skb)
 	if (skb->pkt_type != PACKET_HOST)
 		goto drop;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_forward_csum(skb);
 
 	/*
 	 *	According to the RFC, we must first decrease the TTL field. If
