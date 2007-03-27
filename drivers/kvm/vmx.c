@@ -1131,7 +1131,6 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->guest_msrs[j] = vcpu->host_msrs[j];
 		++vcpu->nmsrs;
 	}
-	printk(KERN_DEBUG "kvm: msrs: %d\n", vcpu->nmsrs);
 
 	nr_good_msrs = vcpu->nmsrs - NR_BAD_MSRS;
 	vmcs_writel(VM_ENTRY_MSR_LOAD_ADDR,
