@@ -289,7 +289,7 @@ ocotea_setup_arch(void)
 	 * from FPGA, because it can be changed by on-board switches
 	 * --ebs
 	 */
-	ibm440gx_get_clocks(&clocks, 33333333, 6 * 1843200);
+	ibm440gx_get_clocks(&clocks, 33300000, 6 * 1843200);
 	ocp_sys_info.opb_bus_freq = clocks.opb;
 
 	/* Setup TODC access */
