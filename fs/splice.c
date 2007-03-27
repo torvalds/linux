@@ -593,36 +593,6 @@ find_page:
 			goto out;
 	}
 
-	/*
-	 * We get here with the page locked. If the page is also
-	 * uptodate, we don't need to do more. If it isn't, we
-	 * may need to bring it in if we are not going to overwrite
-	 * the full page.
-	 */
-	if (!PageUptodate(page)) {
-		if (this_len < PAGE_CACHE_SIZE) {
-			ret = mapping->a_ops->readpage(file, page);
-			if (unlikely(ret))
-				goto out;
-
-			lock_page(page);
-
-			if (!PageUptodate(page)) {
-				/*
-				 * Page got invalidated, repeat.
-				 */
-				if (!page->mapping) {
-					unlock_page(page);
-					page_cache_release(page);
-					goto find_page;
-				}
-				ret = -EIO;
-				goto out;
-			}
-		} else
-			SetPageUptodate(page);
-	}
-
 	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
 	if (unlikely(ret)) {
 		loff_t isize = i_size_read(mapping->host);
