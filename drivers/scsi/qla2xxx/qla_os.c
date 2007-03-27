@@ -1707,6 +1707,7 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	scsi_host_put(ha->host);
 
+	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
 
@@ -1749,8 +1750,6 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 	if (ha->iobase)
 		iounmap(ha->iobase);
 	pci_release_regions(ha->pdev);
-
-	pci_disable_device(ha->pdev);
 }
 
 static inline void
