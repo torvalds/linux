@@ -7,6 +7,7 @@
 /* rule is permanent, and cannot be deleted */
 #define FIB_RULE_PERMANENT	1
 #define FIB_RULE_INVERT		2
+#define FIB_RULE_UNRESOLVED	4
 
 struct fib_rule_hdr
 {
@@ -29,7 +30,7 @@ enum
 	FRA_DST,	/* destination address */
 	FRA_SRC,	/* source address */
 	FRA_IFNAME,	/* interface name */
-	FRA_UNUSED1,
+	FRA_GOTO,	/* target to jump to (FR_ACT_GOTO) */
 	FRA_UNUSED2,
 	FRA_PRIORITY,	/* priority/preference */
 	FRA_UNUSED3,
@@ -51,7 +52,7 @@ enum
 {
 	FR_ACT_UNSPEC,
 	FR_ACT_TO_TBL,		/* Pass to fixed table */
-	FR_ACT_RES1,
+	FR_ACT_GOTO,		/* Jump to another rule */
 	FR_ACT_RES2,
 	FR_ACT_RES3,
 	FR_ACT_RES4,

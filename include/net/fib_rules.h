@@ -19,6 +19,8 @@ struct fib_rule
 	u32			flags;
 	u32			table;
 	u8			action;
+	u32			target;
+	struct fib_rule *	ctarget;
 	struct rcu_head		rcu;
 };
 
@@ -35,6 +37,8 @@ struct fib_rules_ops
 	struct list_head	list;
 	int			rule_size;
 	int			addr_size;
+	int			unresolved_rules;
+	int			nr_goto_rules;
 
 	int			(*action)(struct fib_rule *,
 					  struct flowi *, int,
@@ -66,7 +70,8 @@ struct fib_rules_ops
 	[FRA_PRIORITY]	= { .type = NLA_U32 }, \
 	[FRA_FWMARK]	= { .type = NLA_U32 }, \
 	[FRA_FWMASK]	= { .type = NLA_U32 }, \
-	[FRA_TABLE]     = { .type = NLA_U32 }
+	[FRA_TABLE]     = { .type = NLA_U32 }, \
+	[FRA_GOTO]	= { .type = NLA_U32 }
 
 static inline void fib_rule_get(struct fib_rule *rule)
 {
