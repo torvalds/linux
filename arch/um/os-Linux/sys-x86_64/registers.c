@@ -14,7 +14,7 @@
 
 /* These are set once at boot time and not changed thereafter */
 
-static unsigned long exec_regs[HOST_FRAME_SIZE];
+static unsigned long exec_regs[MAX_REG_NR];
 static unsigned long exec_fp_regs[HOST_FP_SIZE];
 
 void init_thread_registers(union uml_pt_regs *to)
@@ -72,7 +72,7 @@ void init_registers(int pid)
 
 void get_safe_registers(unsigned long *regs, unsigned long *fp_regs)
 {
-	memcpy(regs, exec_regs, HOST_FRAME_SIZE * sizeof(unsigned long));
+	memcpy(regs, exec_regs, sizeof(exec_regs));
 	if(fp_regs != NULL)
 		memcpy(fp_regs, exec_fp_regs,
 		       HOST_FP_SIZE * sizeof(unsigned long));
