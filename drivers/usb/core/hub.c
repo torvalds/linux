@@ -1859,6 +1859,7 @@ static int remote_wakeup(struct usb_device *udev)
 	usb_lock_device(udev);
 	if (udev->state == USB_STATE_SUSPENDED) {
 		dev_dbg(&udev->dev, "usb %sresume\n", "wakeup-");
+		usb_mark_last_busy(udev);
 		status = usb_external_resume_device(udev);
 	}
 	usb_unlock_device(udev);

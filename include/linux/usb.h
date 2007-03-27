@@ -398,6 +398,7 @@ struct usb_device {
 	struct delayed_work autosuspend; /* for delayed autosuspends */
 	struct mutex pm_mutex;		/* protects PM operations */
 
+	unsigned long last_busy;	/* time of last use */
 	int autosuspend_delay;		/* in jiffies */
 
 	unsigned auto_pm:1;		/* autosuspend/resume in progress */
@@ -443,6 +444,11 @@ static inline void usb_autopm_disable(struct usb_interface *intf)
 	usb_autopm_set_interface(intf);
 }
 
+static inline void usb_mark_last_busy(struct usb_device *udev)
+{
+	udev->last_busy = jiffies;
+}
+
 #else
 
 static inline int usb_autopm_set_interface(struct usb_interface *intf)
@@ -456,6 +462,8 @@ static inline void usb_autopm_put_interface(struct usb_interface *intf)
 static inline void usb_autopm_enable(struct usb_interface *intf)
 { }
 static inline void usb_autopm_disable(struct usb_interface *intf)
+{ }
+static inline void usb_mark_last_busy(struct usb_device *udev)
 { }
 #endif
 
