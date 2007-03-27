@@ -342,6 +342,9 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	}
 #endif
 
+	if (netif_running(dev) && netif_carrier_ok(dev))
+		ndev->if_flags |= IF_READY;
+
 	ipv6_mc_init_dev(ndev);
 	ndev->tstamp = jiffies;
 #ifdef CONFIG_SYSCTL
