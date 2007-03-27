@@ -3646,8 +3646,8 @@ static int run(mddev_t *mddev)
 
 	mddev->queue->unplug_fn = raid5_unplug_device;
 	mddev->queue->issue_flush_fn = raid5_issue_flush;
-	mddev->queue->backing_dev_info.congested_fn = raid5_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
+	mddev->queue->backing_dev_info.congested_fn = raid5_congested;
 
 	mddev->array_size =  mddev->size * (conf->previous_raid_disks -
 					    conf->max_degraded);
@@ -3678,6 +3678,7 @@ static int stop(mddev_t *mddev)
 	mddev->thread = NULL;
 	shrink_stripes(conf);
 	kfree(conf->stripe_hashtbl);
+	mddev->queue->backing_dev_info.congested_fn = NULL;
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	sysfs_remove_group(&mddev->kobj, &raid5_attrs_group);
 	kfree(conf->disks);
