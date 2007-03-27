@@ -450,8 +450,12 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 	if (rule->action == FR_ACT_GOTO && rule->ctarget == NULL)
 		frh->flags |= FIB_RULE_UNRESOLVED;
 
-	if (rule->ifname[0])
+	if (rule->ifname[0]) {
 		NLA_PUT_STRING(skb, FRA_IFNAME, rule->ifname);
+
+		if (rule->ifindex == -1)
+			frh->flags |= FIB_RULE_DEV_DETACHED;
+	}
 
 	if (rule->pref)
 		NLA_PUT_U32(skb, FRA_PRIORITY, rule->pref);
