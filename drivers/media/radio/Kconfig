@@ -3,7 +3,7 @@
 #
 
 menu "Radio Adapters"
-	depends on VIDEO_DEV!=n
+	depends on VIDEO_DEV
 
 config RADIO_CADET
 	tristate "ADS Cadet AM/FM Tuner"
