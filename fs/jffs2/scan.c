@@ -636,16 +636,17 @@ scan_more:
 
 		if (*(uint32_t *)(&buf[ofs-buf_ofs]) == 0xffffffff) {
 			uint32_t inbuf_ofs;
-			uint32_t empty_start;
+			uint32_t empty_start, scan_end;
 
 			empty_start = ofs;
 			ofs += 4;
+			scan_end = min_t(uint32_t, EMPTY_SCAN_SIZE(c->sector_size)/8, buf_len);
 
 			D1(printk(KERN_DEBUG "Found empty flash at 0x%08x\n", ofs));
 		more_empty:
 			inbuf_ofs = ofs - buf_ofs;
-			while (inbuf_ofs < buf_len) {
-				if (*(uint32_t *)(&buf[inbuf_ofs]) != 0xffffffff) {
+			while (inbuf_ofs < scan_end) {
+				if (unlikely(*(uint32_t *)(&buf[inbuf_ofs]) != 0xffffffff)) {
 					printk(KERN_WARNING "Empty flash at 0x%08x ends at 0x%08x\n",
 					       empty_start, ofs);
 					if ((err = jffs2_scan_dirty_space(c, jeb, ofs-empty_start)))
@@ -666,7 +667,11 @@ scan_more:
 				D1(printk(KERN_DEBUG "%d bytes at start of block seems clean... assuming all clean\n", EMPTY_SCAN_SIZE(c->sector_size)));
 				return BLK_STATE_CLEANMARKER;
 			}
-
+			if (!buf_size && (scan_end != buf_len)) {/* XIP/point case */
+				scan_end = buf_len;
+				goto more_empty;
+			}
+			
 			/* See how much more there is to read in this eraseblock... */
 			buf_len = min_t(uint32_t, buf_size, jeb->offset + c->sector_size - ofs);
 			if (!buf_len) {
@@ -676,6 +681,8 @@ scan_more:
 					  empty_start));
 				break;
 			}
+			/* point never reaches here */
+			scan_end = buf_len;
 			D1(printk(KERN_DEBUG "Reading another 0x%x at 0x%08x\n", buf_len, ofs));
 			err = jffs2_fill_scan_buf(c, buf, ofs, buf_len);
 			if (err)
