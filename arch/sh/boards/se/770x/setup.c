@@ -117,7 +117,7 @@ static int __init se_devices_setup(void)
 {
 	return platform_add_devices(se_devices, ARRAY_SIZE(se_devices));
 }
-__initcall(se_devices_setup);
+device_initcall(se_devices_setup);
 
 /*
  * The Machine Vector
@@ -133,6 +133,8 @@ struct sh_machine_vector mv_se __initmv = {
 	.mv_nr_irqs		= 61,
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705)
 	.mv_nr_irqs		= 86,
+#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
+	.mv_nr_irqs             = 104,
 #endif
 
 	.mv_inb			= se_inb,

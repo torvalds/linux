@@ -299,7 +299,8 @@ static void ubc_set_tracing(int asid, unsigned long pc)
 	ctrl_outl(0, UBC_BAMRA);
 
 	if (current_cpu_data.type == CPU_SH7729 ||
-	    current_cpu_data.type == CPU_SH7710) {
+	    current_cpu_data.type == CPU_SH7710 || 
+	    current_cpu_data.type == CPU_SH7712 ) {
 		ctrl_outw(BBR_INST | BBR_READ | BBR_CPU, UBC_BBRA);
 		ctrl_outl(BRCR_PCBA | BRCR_PCTE, UBC_BRCR);
 	} else {

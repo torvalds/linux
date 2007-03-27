@@ -27,6 +27,8 @@ int sh_pcic_io_dummy;
 static inline volatile __u16 *
 port2adr(unsigned int port)
 {
+	if (port & 0xff000000)
+		return ( volatile __u16 *) port;
 	if (port >= 0x2000)
 		return (volatile __u16 *) (PA_MRSHPC + (port - 0x2000));
 	else if (port >= 0x1000)

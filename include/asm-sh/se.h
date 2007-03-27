@@ -73,6 +73,7 @@
 #else
 #define IRQ_STNIC	10
 #endif
+#define IRQ_CFCARD    7
 
 #define __IO_PREFIX	se
 #include <asm/io_generic.h>

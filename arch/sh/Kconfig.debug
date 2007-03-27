@@ -33,6 +33,7 @@ config EARLY_SCIF_CONSOLE_PORT
 	default "0xffe00000" if CPU_SUBTYPE_SH7780
 	default "0xfffe9800" if CPU_SUBTYPE_SH7206
 	default "0xf8420000" if CPU_SUBTYPE_SH7619
+	default "0xa4400000" if CPU_SUBTYPE_SH7712
 	default "0xffe80000" if CPU_SH4
 
 config EARLY_PRINTK

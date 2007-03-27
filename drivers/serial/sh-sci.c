@@ -284,11 +284,22 @@ static void sci_init_pins_irda(struct uart_port *port, unsigned int cflag)
 #endif
 
 #if defined(SCIF_ONLY) || defined(SCI_AND_SCIF)
-#if defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7710)
+#if defined(CONFIG_CPU_SUBTYPE_SH7300) 
 /* SH7300 doesn't use RTS/CTS */
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 {
 	sci_out(port, SCFCR, 0);
+}
+#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
+static void sci_init_pins_scif(struct uart_port* port, unsigned int cflag)
+{
+	unsigned int fcr_val = 0;
+
+	set_sh771x_scif_pfc(port);
+	if (cflag & CRTSCTS) {
+		fcr_val |= SCFCR_MCE;
+	}
+	sci_out(port, SCFCR, fcr_val);
 }
 #elif defined(CONFIG_CPU_SH3)
 /* For SH7705, SH7706, SH7707, SH7709, SH7709A, SH7729 */
