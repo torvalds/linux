@@ -32,6 +32,7 @@ int btrfs_alloc_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_file_extent_disk_num_blocks(item, ins.offset);
 	btrfs_set_file_extent_offset(item, 0);
 	btrfs_set_file_extent_num_blocks(item, ins.offset);
+	btrfs_set_file_extent_generation(item, trans->transid);
 	mark_buffer_dirty(path.nodes[0]);
 	*result = ins.objectid;
 	btrfs_release_path(root, &path);

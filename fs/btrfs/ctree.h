@@ -192,6 +192,7 @@ struct btrfs_root_item {
 } __attribute__ ((__packed__));
 
 struct btrfs_file_extent_item {
+	__le64 generation;
 	/*
 	 * disk space consumed by the extent, checksum blocks are included
 	 * in these numbers
@@ -762,6 +763,18 @@ static inline void btrfs_set_file_extent_disk_blocknr(struct
 						      *e, u64 val)
 {
 	e->disk_blocknr = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_file_extent_generation(struct btrfs_file_extent_item *e)
+{
+	return le64_to_cpu(e->generation);
+}
+
+static inline void btrfs_set_file_extent_generation(struct
+						    btrfs_file_extent_item *e,
+						    u64 val)
+{
+	e->generation = cpu_to_le64(val);
 }
 
 static inline u64 btrfs_file_extent_disk_num_blocks(struct
