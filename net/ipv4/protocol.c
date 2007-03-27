@@ -45,7 +45,7 @@
 #include <net/ipip.h>
 #include <linux/igmp.h>
 
-struct net_protocol *inet_protos[MAX_INET_PROTOS];
+struct net_protocol *inet_protos[MAX_INET_PROTOS] ____cacheline_aligned_in_smp;
 static DEFINE_SPINLOCK(inet_proto_lock);
 
 /*
