@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 
 #include <asm/cpu.h>
@@ -14,6 +15,7 @@
 #include <asm/hazards.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
+#include <asm/mips-boards/maltaint.h>
 #include <asm/mipsregs.h>
 #include <asm/cacheflush.h>
 #include <asm/time.h>
@@ -812,12 +814,15 @@ void ipi_decode(struct smtc_ipi *pipi)
 	smtc_ipi_nq(&freeIPIq, pipi);
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
+		irq_enter();
+		kstat_this_cpu.irqs[MIPSCPU_INT_BASE + MIPSCPU_INT_CPUCTR]++;
 		/* Invoke Clock "Interrupt" */
 		ipi_timer_latch[dest_copy] = 0;
 #ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 		clock_hang_reported[dest_copy] = 0;
 #endif /* CONFIG_SMTC_IDLE_HOOK_DEBUG */
 		local_timer_interrupt(0, NULL);
+		irq_exit();
 		break;
 	case LINUX_SMP_IPI:
 		switch ((int)arg_copy) {
