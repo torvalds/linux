@@ -70,6 +70,8 @@ static inline int unshare_utsname(unsigned long unshare_flags,
 
 static inline int copy_utsname(int flags, struct task_struct *tsk)
 {
+	if (flags & CLONE_NEWUTS)
+		return -EINVAL;
 	return 0;
 }
 static inline void put_uts_ns(struct uts_namespace *ns)
