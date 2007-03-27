@@ -445,7 +445,7 @@ static int mptspi_target_alloc(struct scsi_target *starget)
 	return 0;
 }
 
-void
+static void
 mptspi_target_destroy(struct scsi_target *starget)
 {
 	if (starget->hostdata)
