@@ -3359,6 +3359,8 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
         { "WDC WD740ADFD-00",   NULL,		ATA_HORKAGE_NONCQ },
 	/* http://thread.gmane.org/gmane.linux.ide/14907 */
 	{ "FUJITSU MHT2060BH",	NULL,		ATA_HORKAGE_NONCQ },
+	/* NCQ is broken */
+	{ "Maxtor 6L250S0",     "BANC1G10",     ATA_HORKAGE_NONCQ },
 
 	/* Devices with NCQ limits */
 
