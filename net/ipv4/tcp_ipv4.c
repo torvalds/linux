@@ -88,7 +88,7 @@ int sysctl_tcp_low_latency __read_mostly;
 #define ICMP_MIN_LENGTH 8
 
 /* Socket used for sending RSTs */
-static struct socket *tcp_socket;
+static struct socket *tcp_socket __read_mostly;
 
 void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
 

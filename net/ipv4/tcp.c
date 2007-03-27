@@ -297,7 +297,7 @@ EXPORT_SYMBOL(tcp_sockets_allocated);
  * All the sk_stream_mem_schedule() is of this nature: accounting
  * is strict, actions are advisory and have some latency.
  */
-int tcp_memory_pressure;
+int tcp_memory_pressure __read_mostly;
 
 EXPORT_SYMBOL(tcp_memory_pressure);
 
