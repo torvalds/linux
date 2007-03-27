@@ -14,20 +14,6 @@
 #include "pci.h"
 
 /*
- *  Registration of PCI drivers and handling of hot-pluggable devices.
- */
-
-/* multithreaded probe logic */
-static int pci_multithread_probe =
-#ifdef CONFIG_PCI_MULTITHREAD_PROBE
-	1;
-#else
-	0;
-#endif
-__module_param_call("", pci_multithread_probe, param_set_bool, param_get_bool, &pci_multithread_probe, 0644);
-
-
-/*
  * Dynamic device IDs are disabled for !CONFIG_HOTPLUG
  */
 
@@ -569,7 +555,6 @@ struct bus_type pci_bus_type = {
 
 static int __init pci_driver_init(void)
 {
-	pci_bus_type.multithread_probe = pci_multithread_probe;
 	return bus_register(&pci_bus_type);
 }
 

@@ -124,10 +124,6 @@ initialization with a pointer to a structure describing the driver
 
 	err_handler	See Documentation/pci-error-recovery.txt
 
-	multithread_probe	Enable multi-threaded probe/scan. Driver must
-			provide its own locking/syncronization for init
-			operations if this is enabled.
-
 
 The ID table is an array of struct pci_device_id entries ending with an
 all-zero entry.  Each entry consists of:
