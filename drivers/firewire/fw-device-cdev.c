@@ -79,6 +79,7 @@ struct client {
 	u32 request_serial;
 	struct list_head event_list;
 	wait_queue_head_t wait;
+	u64 bus_reset_closure;
 
 	struct fw_iso_context *iso_context;
 	struct fw_iso_buffer buffer;
@@ -199,12 +200,13 @@ fw_device_op_read(struct file *file,
 
 static void
 fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
-		     struct fw_device *device)
+		     struct client *client)
 {
-	struct fw_card *card = device->card;
+	struct fw_card *card = client->device->card;
 
+	event->closure	     = client->bus_reset_closure;
 	event->type          = FW_CDEV_EVENT_BUS_RESET;
-	event->node_id       = device->node_id;
+	event->node_id       = client->device->node_id;
 	event->local_node_id = card->local_node->node_id;
 	event->bm_node_id    = 0; /* FIXME: We don't track the BM. */
 	event->irm_node_id   = card->irm_node->node_id;
@@ -232,7 +234,6 @@ static void
 queue_bus_reset_event(struct client *client)
 {
 	struct bus_reset *bus_reset;
-	struct fw_device *device = client->device;
 
 	bus_reset = kzalloc(sizeof *bus_reset, GFP_ATOMIC);
 	if (bus_reset == NULL) {
@@ -240,7 +241,7 @@ queue_bus_reset_event(struct client *client)
 		return;
 	}
 
-	fill_bus_reset_event(&bus_reset->reset, device);
+	fill_bus_reset_event(&bus_reset->reset, client);
 
 	queue_event(client, &bus_reset->event,
 		    &bus_reset->reset, sizeof bus_reset->reset, NULL, 0);
@@ -283,10 +284,11 @@ static int ioctl_get_info(struct client *client, void __user *arg)
 	}
 	get_info.rom_length = client->device->config_rom_length * 4;
 
+	client->bus_reset_closure = get_info.bus_reset_closure;
 	if (get_info.bus_reset != 0) {
 		void __user *uptr = u64_to_uptr(get_info.bus_reset);
 
-		fill_bus_reset_event(&bus_reset, client->device);
+		fill_bus_reset_event(&bus_reset, client);
 		if (copy_to_user(uptr, &bus_reset, sizeof bus_reset))
 			return -EFAULT;
 	}

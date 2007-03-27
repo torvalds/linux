@@ -74,7 +74,13 @@
  * event.  It's a 64-bit type so that it's a fixed size type big
  * enough to hold a pointer on all platforms. */
 
+struct fw_cdev_event_common {
+	__u64 closure;
+	__u32 type;
+};
+
 struct fw_cdev_event_bus_reset {
+	__u64 closure;
 	__u32 type;
 	__u32 node_id;
 	__u32 local_node_id;
@@ -85,29 +91,37 @@ struct fw_cdev_event_bus_reset {
 };
 
 struct fw_cdev_event_response {
+	__u64 closure;
 	__u32 type;
 	__u32 rcode;
-	__u64 closure;
 	__u32 length;
 	__u32 data[0];
 };
 
 struct fw_cdev_event_request {
+	__u64 closure;
 	__u32 type;
 	__u32 tcode;
 	__u64 offset;
-	__u64 closure;
 	__u32 serial;
 	__u32 length;
 	__u32 data[0];
 };
 
 struct fw_cdev_event_iso_interrupt {
+	__u64 closure;
 	__u32 type;
 	__u32 cycle;
-	__u64 closure;
 	__u32 header_length;	/* Length in bytes of following headers. */
 	__u32 header[0];
+};
+
+union fw_cdev_event {
+	struct fw_cdev_event_common common;
+	struct fw_cdev_event_bus_reset bus_reset;
+	struct fw_cdev_event_response response;
+	struct fw_cdev_event_request request;
+	struct fw_cdev_event_iso_interrupt iso_interrupt;
 };
 
 #define FW_CDEV_IOC_GET_INFO		_IO('#', 0x00)
@@ -145,8 +159,12 @@ struct fw_cdev_get_info {
 	__u64 rom;
 
 	/* If non-zero, a fw_cdev_event_bus_reset struct will be
-	 * copied here with the current state of the bus. */
+	 * copied here with the current state of the bus.  This does
+	 * not cause a bus reset to happen.  The value of closure in
+	 * this and sub-sequent bus reset events is set to
+	 * bus_reset_closure. */
 	__u64 bus_reset;
+	__u64 bus_reset_closure;
 
 	/* The index of the card this devices belongs to. */
 	__u32 card;
@@ -212,9 +230,9 @@ struct fw_cdev_iso_packet {
 };
 
 struct fw_cdev_queue_iso {
-	__u32 size;
 	__u64 packets;
 	__u64 data;
+	__u32 size;
 };
 
 struct fw_cdev_start_iso {
