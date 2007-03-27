@@ -333,6 +333,9 @@ config DEBUG_INFO
 	help
           If you say Y here the resulting kernel image will include
 	  debugging info resulting in a larger kernel image.
+	  This adds debug symbols to the kernel and modules (gcc -g), and
+	  is needed if you intend to use kernel crashdump or binary object
+	  tools like crash, kgdb, LKCD, gdb, etc on the kernel.
 	  Say Y here only if you plan to debug the kernel.
 
 	  If unsure, say N.
