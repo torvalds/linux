@@ -391,10 +391,8 @@ static int close_getadapter_fib(struct aac_dev * dev, void __user *arg)
 		/*
 		 *	Extract the fibctx from the input parameters
 		 */
-		if (fibctx->unique == (u32)(unsigned long)arg) {   
-			/* We found a winner */
+		if (fibctx->unique == (u32)(ptrdiff_t)arg) /* We found a winner */
 			break;
-		}
 		entry = entry->next;
 		fibctx = NULL;
 	}
