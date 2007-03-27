@@ -166,7 +166,7 @@ static void update_hop_count(struct fw_node *node)
 static struct fw_node *build_tree(struct fw_card *card,
 				  u32 *sid, int self_id_count)
 {
-	struct fw_node *node, *child, *local_node;
+	struct fw_node *node, *child, *local_node, *irm_node;
 	struct list_head stack, *h;
 	u32 *next_sid, *end, q;
 	int i, port_count, child_port_count, phy_id, parent_count, stack_depth;
@@ -178,7 +178,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 	stack_depth = 0;
 	end = sid + self_id_count;
 	phy_id = 0;
-	card->irm_node = NULL;
+	irm_node = NULL;
 	gap_count = self_id_gap_count(*sid);
 	topology_type = 0;
 
@@ -218,7 +218,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 			local_node = node;
 
 		if (self_id_contender(q))
-			card->irm_node = node;
+			irm_node = node;
 
 		if (node->phy_speed == SCODE_BETA)
 			topology_type |= FW_TOPOLOGY_B;
@@ -282,6 +282,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 	}
 
 	card->root_node = node;
+	card->irm_node = irm_node;
 	card->gap_count = gap_count;
 	card->topology_type = topology_type;
 
