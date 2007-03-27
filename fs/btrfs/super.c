@@ -81,11 +81,12 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	return;
 }
 
-static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
+static int btrfs_unlink_trans(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root,
+			      struct inode *dir,
+			      struct dentry *dentry)
 {
 	struct btrfs_path path;
-	struct btrfs_root *root;
-	struct btrfs_trans_handle *trans;
 	const char *name = dentry->d_name.name;
 	int name_len = dentry->d_name.len;
 	int ret;
@@ -93,10 +94,6 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct btrfs_dir_item *di;
 
 	btrfs_init_path(&path);
-	root = btrfs_sb(dir->i_sb);
-	mutex_lock(&root->fs_info->fs_mutex);
-	trans = btrfs_start_transaction(root, 1);
-
 	ret = btrfs_lookup_dir_item(trans, root, &path, dir->i_ino,
 				    name, name_len, -1);
 	if (ret < 0)
@@ -114,11 +111,96 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	dentry->d_inode->i_ctime = dir->i_ctime;
 err:
 	btrfs_release_path(root, &path);
-	btrfs_end_transaction(trans, root);
-	mutex_unlock(&root->fs_info->fs_mutex);
 	if (ret == 0)
 		inode_dec_link_count(dentry->d_inode);
 	return ret;
+}
+
+static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
+{
+	struct btrfs_root *root;
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	root = btrfs_sb(dir->i_sb);
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	ret = btrfs_unlink_trans(trans, root, dir, dentry);
+	btrfs_end_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return ret;
+}
+
+static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
+{
+	struct inode *inode = dentry->d_inode;
+	int err;
+	int ret;
+	struct btrfs_root *root = btrfs_sb(dir->i_sb);
+	struct btrfs_path path;
+	struct btrfs_key key;
+	struct btrfs_trans_handle *trans;
+	struct btrfs_disk_key *found_key;
+	struct btrfs_leaf *leaf;
+
+	btrfs_init_path(&path);
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	key.objectid = inode->i_ino;
+	key.offset = (u64)-1;
+	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
+	ret = btrfs_search_slot(trans, root, &key, &path, -1, 1);
+	if (ret < 0) {
+		err = ret;
+		goto out;
+	}
+
+	BUG_ON(ret == 0);
+	BUG_ON(path.slots[0] == 0);
+	path.slots[0]--;
+	leaf = btrfs_buffer_leaf(path.nodes[0]);
+	found_key = &leaf->items[path.slots[0]].key;
+	if (btrfs_disk_key_objectid(found_key) != inode->i_ino) {
+		err = -ENOENT;
+		goto out;
+	}
+	if (btrfs_disk_key_type(found_key) != BTRFS_DIR_ITEM_KEY ||
+	    btrfs_disk_key_offset(found_key) != 2) {
+		err = -ENOTEMPTY;
+		goto out;
+	}
+	ret = btrfs_del_item(trans, root, &path);
+	BUG_ON(ret);
+	btrfs_release_path(root, &path);
+	key.offset = 1;
+	ret = btrfs_search_slot(trans, root, &key, &path, -1, 1);
+	if (ret < 0) {
+		err = ret;
+		goto out;
+	}
+	if (ret > 0) {
+		err = -ENOTEMPTY;
+		goto out;
+	}
+	ret = btrfs_del_item(trans, root, &path);
+	if (ret) {
+		err = ret;
+		goto out;
+	}
+	btrfs_release_path(root, &path);
+
+	/* now the directory is empty */
+	err = btrfs_unlink_trans(trans, root, dir, dentry);
+	if (!err) {
+		inode->i_size = 0;
+	}
+out:
+	mutex_unlock(&root->fs_info->fs_mutex);
+	ret = btrfs_end_transaction(trans, root);
+	if (ret && !err)
+		err = ret;
+	return err;
 }
 
 static int btrfs_free_inode(struct btrfs_trans_handle *trans,
@@ -193,9 +275,6 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 			break;
 		if (btrfs_disk_key_offset(found_key) < inode->i_size)
 			break;
-		/* FIXME: add extent truncation */
-		if (btrfs_disk_key_offset(found_key) < inode->i_size)
-			break;
 		fi = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
 				    path.slots[0],
 				    struct btrfs_file_extent_item);
@@ -209,7 +288,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 		ret = btrfs_free_extent(trans, root, extent_start,
 					extent_num_blocks, 0);
 		BUG_ON(ret);
-		if (btrfs_disk_key_offset(found_key) == 0)
+		if (key.offset + 1 == 0)
 			break;
 	}
 	btrfs_release_path(root, &path);
@@ -852,6 +931,7 @@ static struct inode_operations btrfs_dir_inode_operations = {
 	.create		= btrfs_create,
 	.unlink		= btrfs_unlink,
 	.mkdir		= btrfs_mkdir,
+	.rmdir		= btrfs_rmdir,
 };
 
 static struct file_operations btrfs_dir_file_operations = {
