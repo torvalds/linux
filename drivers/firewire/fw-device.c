@@ -289,32 +289,29 @@ static struct config_rom_attribute config_rom_attributes[] = {
 };
 
 static void
-remove_config_rom_attributes(struct device *dev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(config_rom_attributes); i++)
-		device_remove_file(dev, &config_rom_attributes[i].attr);
-}
-
-static int
-add_config_rom_attributes(struct device *dev)
+init_fw_attribute_group(struct device *dev,
+			struct device_attribute *attrs,
+			struct fw_attribute_group *group)
 {
 	struct device_attribute *attr;
-	int i, err = 0;
+	int i, j;
+
+	for (j = 0; attrs[j].attr.name != NULL; j++)
+		group->attrs[j] = &attrs[j].attr;
 
 	for (i = 0; i < ARRAY_SIZE(config_rom_attributes); i++) {
 		attr = &config_rom_attributes[i].attr;
 		if (attr->show(dev, attr, NULL) < 0)
 			continue;
-		err = device_create_file(dev, attr);
-		if (err < 0) {
-			remove_config_rom_attributes(dev);
-			break;
-		}
+		group->attrs[j++] = &attr->attr;
 	}
 
-	return err;
+	BUG_ON(j >= ARRAY_SIZE(group->attrs));
+	group->attrs[j++] = NULL;
+	group->groups[0] = &group->group;
+	group->groups[1] = NULL;
+	group->group.attrs = group->attrs;
+	dev->groups = group->groups;
 }
 
 static ssize_t
@@ -497,7 +494,6 @@ static void fw_unit_release(struct device *dev)
 }
 
 static struct device_type fw_unit_type = {
-	.attrs		= fw_unit_attributes,
 	.uevent		= fw_unit_uevent,
 	.release	= fw_unit_release,
 };
@@ -534,16 +530,14 @@ static void create_units(struct fw_device *device)
 		snprintf(unit->device.bus_id, sizeof unit->device.bus_id,
 			 "%s.%d", device->device.bus_id, i++);
 
+		init_fw_attribute_group(&unit->device,
+					fw_unit_attributes,
+					&unit->attribute_group);
 		if (device_register(&unit->device) < 0)
 			goto skip_unit;
 
-		if (add_config_rom_attributes(&unit->device) < 0)
-			goto skip_unregister;
-
 		continue;
 
-	skip_unregister:
-		device_unregister(&unit->device);
 	skip_unit:
 		kfree(unit);
 	}
@@ -551,9 +545,6 @@ static void create_units(struct fw_device *device)
 
 static int shutdown_unit(struct device *device, void *data)
 {
-	struct fw_unit *unit = fw_unit(device);
-
-	remove_config_rom_attributes(&unit->device);
 	device_unregister(device);
 
 	return 0;
@@ -583,15 +574,12 @@ static void fw_device_shutdown(struct work_struct *work)
 	idr_remove(&fw_device_idr, minor);
 	up_write(&fw_bus_type.subsys.rwsem);
 
-	remove_config_rom_attributes(&device->device);
-
 	fw_device_cdev_remove(device);
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 	device_unregister(&device->device);
 }
 
 static struct device_type fw_device_type = {
-	.attrs		= fw_device_attributes,
 	.release	= fw_device_release,
 };
 
@@ -647,14 +635,13 @@ static void fw_device_init(struct work_struct *work)
 	snprintf(device->device.bus_id, sizeof device->device.bus_id,
 		 "fw%d", minor);
 
+	init_fw_attribute_group(&device->device,
+				fw_device_attributes,
+				&device->attribute_group);
 	if (device_add(&device->device)) {
 		fw_error("Failed to add device.\n");
 		goto error_with_cdev;
 	}
-
-	err = add_config_rom_attributes(&device->device);
-	if (err < 0)
-		goto error_with_register;
 
 	create_units(device);
 
@@ -682,8 +669,6 @@ static void fw_device_init(struct work_struct *work)
 
 	return;
 
- error_with_register:
-	device_unregister(&device->device);
  error_with_cdev:
 	down_write(&fw_bus_type.subsys.rwsem);
 	idr_remove(&fw_device_idr, minor);

@@ -32,6 +32,12 @@ enum fw_device_state {
 	FW_DEVICE_SHUTDOWN,
 };
 
+struct fw_attribute_group {
+	struct attribute_group *groups[2];
+	struct attribute_group group;
+	struct attribute *attrs[11];
+};
+
 struct fw_device {
 	atomic_t state;
 	struct fw_node *node;
@@ -45,6 +51,7 @@ struct fw_device {
 	size_t config_rom_length;
 	int config_rom_retries;
 	struct delayed_work work;
+	struct fw_attribute_group attribute_group;
 };
 
 static inline struct fw_device *
@@ -72,6 +79,7 @@ extern int fw_cdev_major;
 struct fw_unit {
 	struct device device;
 	u32 *directory;
+	struct fw_attribute_group attribute_group;
 };
 
 static inline struct fw_unit *
