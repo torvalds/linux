@@ -58,7 +58,6 @@ static inline int platform_prepare(void)
 
 static void power_down(suspend_disk_method_t mode)
 {
-	disable_nonboot_cpus();
 	switch(mode) {
 	case PM_DISK_PLATFORM:
 		if (pm_ops && pm_ops->enter) {
