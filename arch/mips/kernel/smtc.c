@@ -77,7 +77,7 @@ static struct smtc_ipi_q freeIPIq;
 
 void ipi_decode(struct smtc_ipi *);
 static void post_direct_ipi(int cpu, struct smtc_ipi *pipi);
-static void setup_cross_vpe_interrupts(void);
+static void setup_cross_vpe_interrupts(unsigned int nvpe);
 void init_smtc_stats(void);
 
 /* Global SMTC Status */
@@ -170,7 +170,10 @@ __setup("tintq=", tintq);
 
 int imstuckcount[2][8];
 /* vpemask represents IM/IE bits of per-VPE Status registers, low-to-high */
-int vpemask[2][8] = {{0,1,1,0,0,0,0,1},{0,1,0,0,0,0,0,1}};
+int vpemask[2][8] = {
+	{0, 0, 1, 0, 0, 0, 0, 1},
+	{0, 0, 0, 0, 0, 0, 0, 1}
+};
 int tcnoprog[NR_CPUS];
 static atomic_t idle_hook_initialized = {0};
 static int clock_hang_reported[NR_CPUS];
@@ -503,8 +506,7 @@ void mipsmt_prepare_cpus(void)
 
 	/* If we have multiple VPEs running, set up the cross-VPE interrupt */
 
-	if (nvpe > 1)
-		setup_cross_vpe_interrupts();
+	setup_cross_vpe_interrupts(nvpe);
 
 	/* Set up queue of free IPI "messages". */
 	nipi = NR_CPUS * IPIBUF_PER_CPU;
@@ -609,7 +611,12 @@ void smtc_cpus_done(void)
 int setup_irq_smtc(unsigned int irq, struct irqaction * new,
 			unsigned long hwmask)
 {
+	unsigned int vpe = current_cpu_data.vpe_id;
+
 	irq_hwmask[irq] = hwmask;
+#ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
+	vpemask[vpe][irq - MIPSCPU_INT_BASE] = 1;
+#endif
 
 	return setup_irq(irq, new);
 }
@@ -970,8 +977,11 @@ static void ipi_irq_dispatch(void)
 
 static struct irqaction irq_ipi;
 
-static void setup_cross_vpe_interrupts(void)
+static void setup_cross_vpe_interrupts(unsigned int nvpe)
 {
+	if (nvpe < 1)
+		return;
+
 	if (!cpu_has_vint)
 		panic("SMTC Kernel requires Vectored Interupt support");
 
