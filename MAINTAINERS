@@ -1585,12 +1585,6 @@ L:	i2c@lm-sensors.org
 T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
 S:	Maintained
 
-I2O
-P:	Markus Lidel
-M:	markus.lidel@shadowconnect.com
-W:	http://i2o.shadowconnect.com/
-S:	Maintained
-
 i386 BOOT CODE
 P:	Riley H. Williams
 M:	Riley@Williams.Name
