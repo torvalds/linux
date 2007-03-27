@@ -64,6 +64,7 @@ static struct hid_ff_initializer inits[] = {
 	{ 0x810, 0x0001, hid_plff_init },
 #endif
 #ifdef CONFIG_THRUSTMASTER_FF
+	{ 0x44f, 0xb300, hid_tmff_init },
 	{ 0x44f, 0xb304, hid_tmff_init },
 #endif
 #ifdef CONFIG_ZEROPLUS_FF
