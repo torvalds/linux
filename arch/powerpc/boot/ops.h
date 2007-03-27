@@ -158,6 +158,12 @@ void __dt_fixup_mac_addresses(u32 startindex, ...);
 	__dt_fixup_mac_addresses(0, __VA_ARGS__, NULL)
 
 
+static inline void *find_node_by_linuxphandle(const u32 linuxphandle)
+{
+	return find_node_by_prop_value(NULL, "linux,phandle",
+			(char *)&linuxphandle, sizeof(u32));
+}
+
 static inline void *malloc(u32 size)
 {
 	return (platform_ops.malloc) ? platform_ops.malloc(size) : NULL;
