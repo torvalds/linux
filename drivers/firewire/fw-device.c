@@ -592,8 +592,8 @@ static struct device_type fw_device_type = {
  * aggressive than that, since it scales pretty well; if 10 devices
  * are plugged in, they're all getting read within one second. */
 
-#define MAX_RETRIES	5
-#define RETRY_DELAY	(2 * HZ)
+#define MAX_RETRIES	10
+#define RETRY_DELAY	(3 * HZ)
 #define INITIAL_DELAY	(HZ / 2)
 
 static void fw_device_init(struct work_struct *work)
