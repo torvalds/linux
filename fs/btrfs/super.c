@@ -28,11 +28,15 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	struct btrfs_inode_item *inode_item;
 	struct btrfs_root *root = btrfs_sb(inode->i_sb);
 	int ret;
+
 	btrfs_init_path(&path);
+	mutex_lock(&root->fs_info->fs_mutex);
+
 	ret = btrfs_lookup_inode(NULL, root, &path, inode->i_ino, 0);
 	if (ret) {
-		make_bad_inode(inode);
 		btrfs_release_path(root, &path);
+		mutex_unlock(&root->fs_info->fs_mutex);
+		make_bad_inode(inode);
 		return;
 	}
 	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
@@ -53,6 +57,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	inode->i_blocks = btrfs_inode_nblocks(inode_item);
 	inode->i_generation = btrfs_inode_generation(inode_item);
 	btrfs_release_path(root, &path);
+	mutex_unlock(&root->fs_info->fs_mutex);
 	switch (inode->i_mode & S_IFMT) {
 #if 0
 	default:
@@ -151,20 +156,85 @@ error:
 	return ret;
 }
 
+static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root,
+				   struct inode *inode)
+{
+	int ret;
+	struct btrfs_path path;
+	struct btrfs_key key;
+	struct btrfs_disk_key *found_key;
+	struct btrfs_leaf *leaf;
+	struct btrfs_file_extent_item *fi;
+	u64 extent_start;
+	u64 extent_num_blocks;
+
+	/* FIXME, add redo link to tree so we don't leak on crash */
+	key.objectid = inode->i_ino;
+	key.offset = (u64)-1;
+	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
+	while(1) {
+		btrfs_init_path(&path);
+		ret = btrfs_search_slot(trans, root, &key, &path, -1, 1);
+		if (ret < 0) {
+			btrfs_release_path(root, &path);
+			goto error;
+		}
+		if (ret > 0) {
+			BUG_ON(path.slots[0] == 0);
+			path.slots[0]--;
+		}
+		leaf = btrfs_buffer_leaf(path.nodes[0]);
+		found_key = &leaf->items[path.slots[0]].key;
+		if (btrfs_disk_key_objectid(found_key) != inode->i_ino)
+			break;
+		if (btrfs_disk_key_type(found_key) != BTRFS_EXTENT_DATA_KEY)
+			break;
+		if (btrfs_disk_key_offset(found_key) < inode->i_size)
+			break;
+		/* FIXME: add extent truncation */
+		if (btrfs_disk_key_offset(found_key) < inode->i_size)
+			break;
+		fi = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
+				    path.slots[0],
+				    struct btrfs_file_extent_item);
+		extent_start = btrfs_file_extent_disk_blocknr(fi);
+		extent_num_blocks = btrfs_file_extent_disk_num_blocks(fi);
+		key.offset = btrfs_disk_key_offset(found_key) - 1;
+		ret = btrfs_del_item(trans, root, &path);
+		BUG_ON(ret);
+		inode->i_blocks -= btrfs_file_extent_num_blocks(fi) >> 9;
+		btrfs_release_path(root, &path);
+		ret = btrfs_free_extent(trans, root, extent_start,
+					extent_num_blocks, 0);
+		BUG_ON(ret);
+		if (btrfs_disk_key_offset(found_key) == 0)
+			break;
+	}
+	btrfs_release_path(root, &path);
+	ret = 0;
+error:
+	return ret;
+}
+
 static void btrfs_delete_inode(struct inode *inode)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	int ret;
+
 	truncate_inode_pages(&inode->i_data, 0);
 	if (is_bad_inode(inode)) {
 		goto no_delete;
 	}
 	inode->i_size = 0;
-	if (inode->i_blocks)
-		WARN_ON(1);
-
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
+	if (S_ISREG(inode->i_mode)) {
+		ret = btrfs_truncate_in_trans(trans, root, inode);
+		BUG_ON(ret);
+	}
 	btrfs_free_inode(trans, root, inode);
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
@@ -172,7 +242,6 @@ static void btrfs_delete_inode(struct inode *inode)
 no_delete:
 	clear_inode(inode);
 }
-
 
 static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 			      ino_t *ino)
@@ -688,6 +757,8 @@ allocate:
 		err = ret;
 		goto out;
 	}
+	inode->i_blocks += inode->i_sb->s_blocksize >> 9;
+	set_buffer_new(result);
 	map_bh(result, inode->i_sb, blocknr);
 
 out:
@@ -722,6 +793,30 @@ static int btrfs_readpages(struct file *file, struct address_space *mapping,
 static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	return nobh_writepage(page, btrfs_get_block, wbc);
+}
+
+static void btrfs_truncate(struct inode *inode)
+{
+	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	int ret;
+	struct btrfs_trans_handle *trans;
+
+	if (!S_ISREG(inode->i_mode))
+		return;
+	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
+		return;
+
+	nobh_truncate_page(inode->i_mapping, inode->i_size);
+
+	/* FIXME, add redo link to tree so we don't leak on crash */
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	ret = btrfs_truncate_in_trans(trans, root, inode);
+	BUG_ON(ret);
+	ret = btrfs_end_transaction(trans, root);
+	BUG_ON(ret);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	mark_inode_dirty(inode);
 }
 
 static int btrfs_get_sb(struct file_system_type *fs_type,
@@ -772,7 +867,7 @@ static struct address_space_operations btrfs_aops = {
 };
 
 static struct inode_operations btrfs_file_inode_operations = {
-	.truncate	= NULL,
+	.truncate	= btrfs_truncate,
 };
 
 static struct file_operations btrfs_file_operations = {

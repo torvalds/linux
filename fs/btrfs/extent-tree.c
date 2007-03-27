@@ -171,20 +171,21 @@ static int pin_down_block(struct btrfs_root *root, u64 blocknr, int pending)
 	struct btrfs_header *header;
 	struct buffer_head *bh;
 
-	bh = sb_find_get_block(root->fs_info->sb, blocknr);
-	if (bh) {
-		header = btrfs_buffer_header(bh);
-		if (btrfs_header_generation(header) ==
-		    root->fs_info->running_transaction->transid) {
+	if (!pending) {
+		bh = sb_find_get_block(root->fs_info->sb, blocknr);
+		if (bh) {
+			header = btrfs_buffer_header(bh);
+			if (btrfs_header_generation(header) ==
+			    root->fs_info->running_transaction->transid) {
+				brelse(bh);
+				return 0;
+			}
 			brelse(bh);
-			return 0;
 		}
-		brelse(bh);
-	}
-	if (pending)
-		err = set_radix_bit(&root->fs_info->pending_del_radix, blocknr);
-	else
 		err = set_radix_bit(&root->fs_info->pinned_radix, blocknr);
+	} else {
+		err = set_radix_bit(&root->fs_info->pending_del_radix, blocknr);
+	}
 	BUG_ON(err);
 	return 0;
 }
@@ -223,6 +224,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	BUG_ON(ei->refs == 0);
 	refs = btrfs_extent_refs(ei) - 1;
 	btrfs_set_extent_refs(ei, refs);
+	mark_buffer_dirty(path.nodes[0]);
 	if (refs == 0) {
 		u64 super_blocks_used;
 
@@ -240,7 +242,6 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		if (ret)
 			BUG();
 	}
-	mark_buffer_dirty(path.nodes[0]);
 	btrfs_release_path(extent_root, &path);
 	finish_current_insert(trans, extent_root);
 	return ret;
