@@ -899,5 +899,5 @@ int btrfs_alloc_file_extent(struct btrfs_trans_handle *trans,
 int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid,
-			     u64 blocknr, u64 num_blocks, int mod);
+			     u64 blocknr, int mod);
 #endif

@@ -697,7 +697,8 @@ static int btrfs_get_block(struct inode *inode, sector_t iblock,
 
 
 	ret = btrfs_lookup_file_extent(trans, root, &path,
-				       inode->i_ino, iblock, 1, 0);
+				       inode->i_ino,
+				       iblock << inode->i_blkbits, 0);
 	if (ret < 0) {
 		btrfs_release_path(root, &path);
 		err = ret;
@@ -737,6 +738,7 @@ static int btrfs_get_block(struct inode *inode, sector_t iblock,
 	}
 
 	extent_start = btrfs_disk_key_offset(&leaf->items[path.slots[0]].key);
+	extent_start = extent_start >> inode->i_blkbits;
 	extent_start += btrfs_file_extent_offset(item);
 	extent_end = extent_start + btrfs_file_extent_num_blocks(item);
 	btrfs_release_path(root, &path);
@@ -751,7 +753,8 @@ allocate:
 		err = 0;
 		goto out;
 	}
-	ret = btrfs_alloc_file_extent(trans, root, objectid, iblock,
+	ret = btrfs_alloc_file_extent(trans, root, objectid,
+				      iblock << inode->i_blkbits,
 				      1, extent_end, &blocknr);
 	if (ret) {
 		err = ret;
