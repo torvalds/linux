@@ -910,7 +910,7 @@ static struct notifier_block sparc64_cpufreq_notifier_block = {
 static int sparc64_next_event(unsigned long delta,
 			      struct clock_event_device *evt)
 {
-	return tick_ops->add_compare(delta);
+	return tick_ops->add_compare(delta) ? -ETIME : 0;
 }
 
 static void sparc64_timer_setup(enum clock_event_mode mode,
