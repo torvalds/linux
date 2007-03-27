@@ -54,7 +54,7 @@ enum
 	FR_ACT_UNSPEC,
 	FR_ACT_TO_TBL,		/* Pass to fixed table */
 	FR_ACT_GOTO,		/* Jump to another rule */
-	FR_ACT_RES2,
+	FR_ACT_NOP,		/* No operation */
 	FR_ACT_RES3,
 	FR_ACT_RES4,
 	FR_ACT_BLACKHOLE,	/* Drop without notification */

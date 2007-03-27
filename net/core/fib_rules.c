@@ -146,7 +146,9 @@ jumped:
 				rule = target;
 				goto jumped;
 			}
-		} else
+		} else if (rule->action == FR_ACT_NOP)
+			continue;
+		else
 			err = ops->action(rule, fl, flags, arg);
 
 		if (err != -EAGAIN) {
