@@ -218,13 +218,23 @@ out:
 	return err;
 }
 
-u32 inet_ehash_secret;
+u32 inet_ehash_secret __read_mostly;
 EXPORT_SYMBOL(inet_ehash_secret);
 
+/*
+ * inet_ehash_secret must be set exactly once
+ * Instead of using a dedicated spinlock, we (ab)use inetsw_lock
+ */
 void build_ehash_secret(void)
 {
-	while (!inet_ehash_secret)
-		get_random_bytes(&inet_ehash_secret, 4);
+	u32 rnd;
+	do {
+		get_random_bytes(&rnd, sizeof(rnd));
+	} while (rnd == 0);
+	spin_lock_bh(&inetsw_lock);
+	if (!inet_ehash_secret)
+		inet_ehash_secret = rnd;
+	spin_unlock_bh(&inetsw_lock);
 }
 EXPORT_SYMBOL(build_ehash_secret);
 
