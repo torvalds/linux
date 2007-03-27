@@ -73,7 +73,7 @@
 
 /* AK4114_REQ_FORMAT bits */
 #define AK4114_MONO		(1<<7)	/* Double Sampling Frequency Mode: 0 = stereo, 1 = mono */
-#define AK4114_DIF2		(1<<5)	/* Audio Data Control */
+#define AK4114_DIF2		(1<<6)	/* Audio Data Control */
 #define AK4114_DIF1		(1<<5)	/* Audio Data Control */
 #define AK4114_DIF0		(1<<4)	/* Audio Data Control */
 #define AK4114_DIF_16R		(0)				/* STDO: 16-bit, right justified */
