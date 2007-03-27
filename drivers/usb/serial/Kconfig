@@ -464,6 +464,16 @@ config USB_SERIAL_PL2303
 	  To compile this driver as a module, choose M here: the
 	  module will be called pl2303.
 
+config USB_SERIAL_OTI6858
+	tristate "USB Ours Technology Inc. OTi-6858 USB To RS232 Bridge Controller (EXPERIMENTAL)"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use the OTi-6858 single port USB to serial
+          converter device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called oti6858.
+
 config USB_SERIAL_HP4X
         tristate "USB HP4x Calculators support"
         depends on USB_SERIAL
