@@ -25,6 +25,7 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	if (fs_root->fs_info->last_inode_alloc_dirid == dirid)
 		search_start = fs_root->fs_info->last_inode_alloc;
 
+	search_start = max(search_start, BTRFS_FIRST_FREE_OBJECTID);
 	search_key.objectid = search_start;
 	search_key.flags = 0;
 	btrfs_set_key_type(&search_key, BTRFS_INODE_MAP_ITEM_KEY);

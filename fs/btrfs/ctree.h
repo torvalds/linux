@@ -9,10 +9,11 @@ struct btrfs_transaction;
 
 #define BTRFS_MAGIC "_BtRfS_M"
 
-#define BTRFS_ROOT_TREE_OBJECTID 1
-#define BTRFS_EXTENT_TREE_OBJECTID 2
-#define BTRFS_INODE_MAP_OBJECTID 3
-#define BTRFS_FS_TREE_OBJECTID 4
+#define BTRFS_ROOT_TREE_OBJECTID 1ULL
+#define BTRFS_EXTENT_TREE_OBJECTID 2ULL
+#define BTRFS_INODE_MAP_OBJECTID 3ULL
+#define BTRFS_FS_TREE_OBJECTID 4ULL
+#define BTRFS_FIRST_FREE_OBJECTID 5ULL
 
 /*
  * we can actually store much bigger names, but lets not confuse the rest

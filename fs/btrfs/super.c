@@ -700,7 +700,7 @@ out:
 static int btrfs_prepare_write(struct file *file, struct page *page,
 			       unsigned from, unsigned to)
 {
-	return block_prepare_write(page, from, to, btrfs_get_block);
+	return nobh_prepare_write(page, from, to, btrfs_get_block);
 }
 
 static void btrfs_write_super(struct super_block *sb)
@@ -721,7 +721,7 @@ static int btrfs_readpages(struct file *file, struct address_space *mapping,
 
 static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 {
-	return block_write_full_page(page, btrfs_get_block, wbc);
+	return nobh_writepage(page, btrfs_get_block, wbc);
 }
 
 static int btrfs_get_sb(struct file_system_type *fs_type,
@@ -768,7 +768,7 @@ static struct address_space_operations btrfs_aops = {
 	.writepage	= btrfs_writepage,
 	.sync_page	= block_sync_page,
 	.prepare_write	= btrfs_prepare_write,
-	.commit_write	= generic_commit_write,
+	.commit_write	= nobh_commit_write,
 };
 
 static struct inode_operations btrfs_file_inode_operations = {
