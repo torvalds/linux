@@ -1,12 +1,7 @@
 * cleanup, add more error checking, get rid of BUG_ONs
-* Make IO functions look more like the page cache
 * Fix ENOSPC handling
-* make a real mkfs and superblock
 * Do checksumming
-* Use a real check instead of mark_buffer_dirty
-* Define FS objects in terms of different item types
 * Add block mapping tree (simple dm layer)
-* Add simple tree locking (semaphore per tree)
 * Make allocator smarter
 * make level a field in header
 * add a block group to struct inode

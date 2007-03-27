@@ -59,7 +59,7 @@ struct btrfs_header {
 	__le32 ham;
 	__le16 nritems;
 	__le16 flags;
-	/* generation flags to be added */
+	u8 level;
 } __attribute__ ((__packed__));
 
 #define BTRFS_MAX_LEVEL 8
@@ -648,15 +648,13 @@ static inline void btrfs_set_header_flags(struct btrfs_header *h, u16 val)
 
 static inline int btrfs_header_level(struct btrfs_header *h)
 {
-	return btrfs_header_flags(h) & (BTRFS_MAX_LEVEL - 1);
+	return h->level;
 }
 
 static inline void btrfs_set_header_level(struct btrfs_header *h, int level)
 {
-	u16 flags;
 	BUG_ON(level > BTRFS_MAX_LEVEL);
-	flags = btrfs_header_flags(h) & ~(BTRFS_MAX_LEVEL - 1);
-	btrfs_set_header_flags(h, flags | level);
+	h->level = level;
 }
 
 static inline int btrfs_is_leaf(struct btrfs_node *n)
