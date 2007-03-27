@@ -294,7 +294,7 @@ static void aac_rx_notify_adapter(struct aac_dev *dev, u32 event)
  *	Start up processing on an i960 based AAC adapter
  */
 
-void aac_rx_start_adapter(struct aac_dev *dev)
+static void aac_rx_start_adapter(struct aac_dev *dev)
 {
 	struct aac_init *init;
 
