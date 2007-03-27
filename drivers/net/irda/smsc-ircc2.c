@@ -1162,7 +1162,7 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 		self->new_speed = speed;
 	}
 
-	memcpy(self->tx_buff.head, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, self->tx_buff.head, skb->len);
 
 	self->tx_buff.len = skb->len;
 	self->tx_buff.data = self->tx_buff.head;

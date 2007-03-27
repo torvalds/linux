@@ -3350,7 +3350,7 @@ static int tg3_rx(struct tg3 *tp, int budget)
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
-			memcpy(copy_skb->data, skb->data, len);
+			skb_copy_from_linear_data(skb, copy_skb->data, len);
 			pci_dma_sync_single_for_device(tp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
 
 			/* We'll reuse the original ring buffer. */

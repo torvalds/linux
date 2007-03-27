@@ -1927,7 +1927,8 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 		 * Copy the ethhdr from first buffer to second. This
 		 * is necessary for 3022 IP completions.
 		 */
-		memcpy(skb_push(skb2, size), skb1->data + VLAN_ID_LEN, size);
+		skb_copy_from_linear_data_offset(skb1, VLAN_ID_LEN,
+						 skb_push(skb2, size), size);
 	} else {
 		u16 checksum = le16_to_cpu(ib_ip_rsp_ptr->checksum);
 		if (checksum & 

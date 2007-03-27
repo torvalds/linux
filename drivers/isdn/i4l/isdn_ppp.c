@@ -1100,7 +1100,8 @@ isdn_ppp_push_higher(isdn_net_dev * net_dev, isdn_net_local * lp, struct sk_buff
 					goto drop_packet;
 				}
 				skb_put(skb, skb_old->len + 128);
-				memcpy(skb->data, skb_old->data, skb_old->len);
+				skb_copy_from_linear_data(skb_old, skb->data,
+							  skb_old->len);
 				if (net_dev->local->ppp_slot < 0) {
 					printk(KERN_ERR "%s: net_dev->local->ppp_slot(%d) out of range\n",
 						__FUNCTION__, net_dev->local->ppp_slot);
@@ -1902,7 +1903,9 @@ void isdn_ppp_mp_reassembly( isdn_net_dev * net_dev, isdn_net_local * lp,
 		while( from != to ) {
 			unsigned int len = from->len - MP_HEADER_LEN;
 
-			memcpy(skb_put(skb,len), from->data+MP_HEADER_LEN, len);
+			skb_copy_from_linear_data_offset(from, MP_HEADER_LEN,
+							 skb_put(skb,len),
+							 len);
 			frag = from->next;
 			isdn_ppp_mp_free_skb(mp, from);
 			from = frag; 

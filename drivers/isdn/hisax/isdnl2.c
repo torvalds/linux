@@ -1293,7 +1293,8 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 		oskb = skb;
 		skb = alloc_skb(oskb->len + i, GFP_ATOMIC);
 		memcpy(skb_put(skb, i), header, i);
-		memcpy(skb_put(skb, oskb->len), oskb->data, oskb->len);
+		skb_copy_from_linear_data(oskb,
+					  skb_put(skb, oskb->len), oskb->len);
 		dev_kfree_skb(oskb);
 	}
 	st->l2.l2l1(st, PH_PULL | INDICATION, skb);

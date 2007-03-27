@@ -1443,7 +1443,7 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (len <= 104) {
 		/* Short packet, let's copy it directly into the ring.  */
-		memcpy(desc->data, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, desc->data, skb->len);
 		if (len < ETH_ZLEN) {
 			/* Very short packet, pad with zeros at the end. */
 			memset(desc->data + len, 0, ETH_ZLEN - len);

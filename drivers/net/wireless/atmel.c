@@ -827,14 +827,14 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	if (priv->wep_is_on)
 		frame_ctl |= IEEE80211_FCTL_PROTECTED;
 	if (priv->operating_mode == IW_MODE_ADHOC) {
-		memcpy(&header.addr1, skb->data, 6);
+		skb_copy_from_linear_data(skb, &header.addr1, 6);
 		memcpy(&header.addr2, dev->dev_addr, 6);
 		memcpy(&header.addr3, priv->BSSID, 6);
 	} else {
 		frame_ctl |= IEEE80211_FCTL_TODS;
 		memcpy(&header.addr1, priv->CurrentBSSID, 6);
 		memcpy(&header.addr2, dev->dev_addr, 6);
-		memcpy(&header.addr3, skb->data, 6);
+		skb_copy_from_linear_data(skb, &header.addr3, 6);
 	}
 
 	if (priv->use_wpa)

@@ -1507,6 +1507,20 @@ static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 	return buffer;
 }
 
+static inline void skb_copy_from_linear_data(const struct sk_buff *skb,
+					     void *to,
+					     const unsigned int len)
+{
+	memcpy(to, skb->data, len);
+}
+
+static inline void skb_copy_from_linear_data_offset(const struct sk_buff *skb,
+						    const int offset, void *to,
+						    const unsigned int len)
+{
+	memcpy(to, skb->data + offset, len);
+}
+
 extern void skb_init(void);
 
 /**

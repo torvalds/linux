@@ -162,13 +162,16 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 
 			skb_put(newskb, init_wds ? skb->len + 6 : skb->len);
 			if (init_wds) {
-				memcpy(newskb->data + 6, skb->data, skb->len);
+				skb_copy_from_linear_data(skb,
+							  newskb->data + 6,
+							  skb->len);
 				memcpy(newskb->data, wds_mac, 6);
 #ifdef ISLPCI_ETH_DEBUG
 				printk("islpci_eth_transmit:wds_mac\n");
 #endif
 			} else
-				memcpy(newskb->data, skb->data, skb->len);
+				skb_copy_from_linear_data(skb, newskb->data,
+							  skb->len);
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 			DEBUG(SHOW_TRACING, "memcpy %p %p %i wds %i\n",
@@ -394,8 +397,10 @@ islpci_eth_receive(islpci_private *priv)
 			/* Update spy records */
 			wireless_spy_update(ndev, annex->addr2, &wstats);
 
-			memcpy(skb->data + sizeof (struct rfmon_header),
-			       skb->data, 2 * ETH_ALEN);
+			skb_copy_from_linear_data(skb,
+						  (skb->data +
+						   sizeof(struct rfmon_header)),
+						  2 * ETH_ALEN);
 			skb_pull(skb, sizeof (struct rfmon_header));
 		}
 		skb->protocol = eth_type_trans(skb, ndev);

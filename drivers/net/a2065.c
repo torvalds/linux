@@ -598,7 +598,7 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	ib->btx_ring [entry].length = (-len) | 0xf000;
 	ib->btx_ring [entry].misc = 0;
 
-	memcpy ((char *)&ib->tx_buf [entry][0], skb->data, skblen);
+	skb_copy_from_linear_data(skb, &ib->tx_buf [entry][0], skblen);
 
 	/* Clear the slack of the packet, do I need this? */
 	if (len != skblen)

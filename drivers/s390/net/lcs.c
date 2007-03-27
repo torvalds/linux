@@ -1576,7 +1576,7 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 	header->offset = card->tx_buffer->count;
 	header->type = card->lan_type;
 	header->slot = card->portno;
-	memcpy(header + 1, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, header + 1, skb->len);
 	spin_unlock(&card->lock);
 	card->stats.tx_bytes += skb->len;
 	card->stats.tx_packets++;

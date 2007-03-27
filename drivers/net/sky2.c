@@ -1971,7 +1971,7 @@ static struct sk_buff *receive_copy(struct sky2_port *sky2,
 		skb_reserve(skb, 2);
 		pci_dma_sync_single_for_cpu(sky2->hw->pdev, re->data_addr,
 					    length, PCI_DMA_FROMDEVICE);
-		memcpy(skb->data, re->skb->data, length);
+		skb_copy_from_linear_data(re->skb, skb->data, length);
 		skb->ip_summed = re->skb->ip_summed;
 		skb->csum = re->skb->csum;
 		pci_dma_sync_single_for_device(sky2->hw->pdev, re->data_addr,

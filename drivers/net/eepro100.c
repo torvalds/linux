@@ -1804,8 +1804,9 @@ speedo_rx(struct net_device *dev)
 				eth_copy_and_sum(skb, sp->rx_skbuff[entry]->data, pkt_len, 0);
 				skb_put(skb, pkt_len);
 #else
-				memcpy(skb_put(skb, pkt_len), sp->rx_skbuff[entry]->data,
-					   pkt_len);
+				skb_copy_from_linear_data(sp->rx_skbuff[entry],
+							  skb_put(skb, pkt_len),
+							  pkt_len);
 #endif
 				pci_dma_sync_single_for_device(sp->pdev, sp->rx_ring_dma[entry],
 											   sizeof(struct RxFD) + pkt_len,

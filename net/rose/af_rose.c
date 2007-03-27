@@ -1156,7 +1156,7 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 		int lg;
 
 		/* Save a copy of the Header */
-		memcpy(header, skb->data, ROSE_MIN_LEN);
+		skb_copy_from_linear_data(skb, header, ROSE_MIN_LEN);
 		skb_pull(skb, ROSE_MIN_LEN);
 
 		frontlen = skb_headroom(skb);
@@ -1176,7 +1176,7 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 			lg = (ROSE_PACLEN > skb->len) ? skb->len : ROSE_PACLEN;
 
 			/* Copy the user data */
-			memcpy(skb_put(skbn, lg), skb->data, lg);
+			skb_copy_from_linear_data(skb, skb_put(skbn, lg), lg);
 			skb_pull(skb, lg);
 
 			/* Duplicate the Header */

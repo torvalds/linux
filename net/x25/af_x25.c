@@ -951,7 +951,7 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	 *	Incoming Call User Data.
 	 */
 	if (skb->len >= 0) {
-		memcpy(makex25->calluserdata.cuddata, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, makex25->calluserdata.cuddata, skb->len);
 		makex25->calluserdata.cudlength = skb->len;
 	}
 

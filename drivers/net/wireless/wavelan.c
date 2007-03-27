@@ -2938,7 +2938,7 @@ static int wavelan_packet_xmit(struct sk_buff *skb, struct net_device * dev)
 	 * need to pad. Jean II */
 	if (skb->len < ETH_ZLEN) {
 		memset(data, 0, ETH_ZLEN);
-		memcpy(data, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, data, skb->len);
 		/* Write packet on the card */
 		if(wv_packet_write(dev, data, ETH_ZLEN))
 			return 1;	/* We failed */

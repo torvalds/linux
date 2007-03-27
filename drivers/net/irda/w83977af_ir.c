@@ -529,7 +529,7 @@ int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Decide if we should use PIO or DMA transfer */
 	if (self->io.speed > PIO_MAX_SPEED) {
 		self->tx_buff.data = self->tx_buff.head;
-		memcpy(self->tx_buff.data, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, self->tx_buff.data, skb->len);
 		self->tx_buff.len = skb->len;
 		
 		mtt = irda_get_mtt(skb);

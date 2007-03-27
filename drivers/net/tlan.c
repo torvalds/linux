@@ -1112,7 +1112,7 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 
 	if ( bbuf ) {
 		tail_buffer = priv->txBuffer + ( priv->txTail * TLAN_MAX_FRAME_SIZE );
-		memcpy( tail_buffer, skb->data, skb->len );
+		skb_copy_from_linear_data(skb, tail_buffer, skb->len);
 	} else {
 		tail_list->buffer[0].address = pci_map_single(priv->pciDev, skb->data, skb->len, PCI_DMA_TODEVICE);
 		TLan_StoreSKB(tail_list, skb);

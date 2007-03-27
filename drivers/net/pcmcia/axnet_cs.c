@@ -1136,7 +1136,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		ei_block_output(dev, length, skb->data, output_page);
 	else {
 		memset(packet, 0, ETH_ZLEN);
-		memcpy(packet, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, packet, skb->len);
 		ei_block_output(dev, length, packet, output_page);
 	}
 	

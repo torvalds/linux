@@ -697,7 +697,9 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 					}
 					else
 					{
-						memcpy(dest_addr,  priv->ule_skb->data, ETH_ALEN);
+						skb_copy_from_linear_data(priv->ule_skb,
+							      dest_addr,
+							      ETH_ALEN);
 						skb_pull(priv->ule_skb, ETH_ALEN);
 					}
 				}

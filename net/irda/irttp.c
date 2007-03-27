@@ -314,8 +314,8 @@ static inline void irttp_fragment_skb(struct tsap_cb *self,
 		skb_reserve(frag, self->max_header_size);
 
 		/* Copy data from the original skb into this fragment. */
-		memcpy(skb_put(frag, self->max_seg_size), skb->data,
-		       self->max_seg_size);
+		skb_copy_from_linear_data(skb, skb_put(frag, self->max_seg_size),
+			      self->max_seg_size);
 
 		/* Insert TTP header, with the more bit set */
 		frame = skb_push(frag, TTP_HEADER);

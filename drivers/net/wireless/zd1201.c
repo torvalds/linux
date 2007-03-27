@@ -807,10 +807,10 @@ static int zd1201_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	txbuf[4] = 0x00;
 	txbuf[5] = 0x00;
 
-	memcpy(txbuf+6, skb->data+12, skb->len-12);
+	skb_copy_from_linear_data_offset(skb, 12, txbuf + 6, skb->len - 12);
 	if (pad)
 		txbuf[skb->len-12+6]=0;
-	memcpy(txbuf+skb->len-12+6+pad, skb->data, 12);
+	skb_copy_from_linear_data(skb, txbuf + skb->len - 12 + 6 + pad, 12);
 	*(__be16*)&txbuf[skb->len+6+pad] = htons(skb->len-12+6);
 	txbuf[txbuflen-1] = 0;
 

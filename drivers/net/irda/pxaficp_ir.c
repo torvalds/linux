@@ -484,7 +484,7 @@ static int pxa_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		unsigned long mtt = irda_get_mtt(skb);
 
 		si->dma_tx_buff_len = skb->len;
-		memcpy(si->dma_tx_buff, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, si->dma_tx_buff, skb->len);
 
 		if (mtt)
 			while ((unsigned)(OSCR - si->last_oscr)/4 < mtt)

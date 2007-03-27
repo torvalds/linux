@@ -502,7 +502,7 @@ static void myri_rx(struct myri_eth *mp, struct net_device *dev)
 			copy_skb->dev = dev;
 			DRX(("resv_and_put "));
 			skb_put(copy_skb, len);
-			memcpy(copy_skb->data, skb->data, len);
+			skb_copy_from_linear_data(skb, copy_skb->data, len);
 
 			/* Reuse original ring buffer. */
 			DRX(("reuse "));

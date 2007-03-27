@@ -411,9 +411,9 @@ static int xircom_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			   sometimes sends more than you ask it to. */
 
 			memset(&card->tx_buffer[bufferoffsets[desc]/4],0,1536);
-			memcpy(&(card->tx_buffer[bufferoffsets[desc]/4]),skb->data,skb->len);
-
-
+			skb_copy_from_linear_data(skb,
+				  &(card->tx_buffer[bufferoffsets[desc] / 4]),
+						  skb->len);
 			/* FIXME: The specification tells us that the length we send HAS to be a multiple of
 			   4 bytes. */
 

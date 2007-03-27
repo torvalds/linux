@@ -746,7 +746,7 @@ slow_path:
 		/*
 		 *	Copy the packet header into the new buffer.
 		 */
-		memcpy(skb_network_header(frag), skb->data, hlen);
+		skb_copy_from_linear_data(skb, skb_network_header(frag), hlen);
 
 		/*
 		 *	Build fragment header.

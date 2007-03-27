@@ -913,7 +913,8 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 		if (skb->len <= WR_LEN - sizeof(*cpl)) {
 			q->sdesc[pidx].skb = NULL;
 			if (!skb->data_len)
-				memcpy(&d->flit[2], skb->data, skb->len);
+				skb_copy_from_linear_data(skb, &d->flit[2],
+							  skb->len);
 			else
 				skb_copy_bits(skb, 0, &d->flit[2], skb->len);
 
@@ -1771,7 +1772,7 @@ static struct sk_buff *get_packet(struct adapter *adap, struct sge_fl *fl,
 			__skb_put(skb, len);
 			pci_dma_sync_single_for_cpu(adap->pdev, mapping, len,
 						    PCI_DMA_FROMDEVICE);
-			memcpy(skb->data, sd->t.skb->data, len);
+			skb_copy_from_linear_data(sd->t.skb, skb->data, len);
 			pci_dma_sync_single_for_device(adap->pdev, mapping, len,
 						       PCI_DMA_FROMDEVICE);
 		} else if (!drop_thres)

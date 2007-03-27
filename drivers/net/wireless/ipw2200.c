@@ -10355,7 +10355,7 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 
 		rt_hdr->it_len = dst->len;
 
-		memcpy(skb_put(dst, len), src->data, len);
+		skb_copy_from_linear_data(src, skb_put(dst, len), len);
 
 		if (!ieee80211_rx(priv->prom_priv->ieee, dst, &dummystats))
 			dev_kfree_skb_any(dst);

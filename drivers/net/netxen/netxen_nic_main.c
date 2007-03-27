@@ -920,8 +920,10 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			/* copy the next 64 bytes - should be enough except
 			 * for pathological case
 			 */
-			memcpy((void *)hwdesc, (void *)(skb->data) +
-			       first_hdr_len, hdr_len - first_hdr_len);
+			skb_copy_from_linear_data_offset(skb, first_hdr_len,
+							 hwdesc,
+							 (hdr_len -
+							  first_hdr_len));
 			producer = get_next_index(producer, max_tx_desc_count);
 		}
 	}

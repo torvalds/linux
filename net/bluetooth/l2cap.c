@@ -2107,7 +2107,8 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 		if (!(conn->rx_skb = bt_skb_alloc(len, GFP_ATOMIC)))
 			goto drop;
 
-		memcpy(skb_put(conn->rx_skb, skb->len), skb->data, skb->len);
+		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
+			      skb->len);
 		conn->rx_len = len - skb->len;
 	} else {
 		BT_DBG("Cont: frag len %d (expecting %d)", skb->len, conn->rx_len);
@@ -2128,7 +2129,8 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 			goto drop;
 		}
 
-		memcpy(skb_put(conn->rx_skb, skb->len), skb->data, skb->len);
+		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
+			      skb->len);
 		conn->rx_len -= skb->len;
 
 		if (!conn->rx_len) {

@@ -993,7 +993,7 @@ static int vlsi_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			goto drop;
 		}
 		else
-			memcpy(rd->buf, skb->data, len);
+			skb_copy_from_linear_data(skb, rd->buf, len);
 	}
 
 	rd->skb = skb;			/* remember skb for tx-complete stats */

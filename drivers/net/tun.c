@@ -386,8 +386,8 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 		 *   - we are multicast promiscous.
 		 *   - we belong to the multicast group.
 		 */
-		memcpy(addr, skb->data,
-		       min_t(size_t, sizeof addr, skb->len));
+		skb_copy_from_linear_data(skb, addr, min_t(size_t, sizeof addr,
+								   skb->len));
 		bit_nr = ether_crc(sizeof addr, addr) >> 26;
 		if ((tun->if_flags & IFF_PROMISC) ||
 				memcmp(addr, tun->dev_addr, sizeof addr) == 0 ||

@@ -644,7 +644,7 @@ static int tms380tr_hardware_send_packet(struct sk_buff *skb, struct net_device 
 		dmabuf  = 0;
 		i 	= tp->TplFree->TPLIndex;
 		buf 	= tp->LocalTxBuffers[i];
-		memcpy(buf, skb->data, length);
+		skb_copy_from_linear_data(skb, buf, length);
 		newbuf 	= ((char *)buf - (char *)tp) + tp->dmabuffer;
 	}
 	else {

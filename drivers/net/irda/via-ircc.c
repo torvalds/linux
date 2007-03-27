@@ -925,8 +925,8 @@ static int via_ircc_hard_xmit_fir(struct sk_buff *skb,
 
 	self->tx_fifo.tail += skb->len;
 	self->stats.tx_bytes += skb->len;
-	memcpy(self->tx_fifo.queue[self->tx_fifo.free].start, skb->data,
-	       skb->len);
+	skb_copy_from_linear_data(skb,
+		      self->tx_fifo.queue[self->tx_fifo.free].start, skb->len);
 	self->tx_fifo.len++;
 	self->tx_fifo.free++;
 //F01   if (self->tx_fifo.len == 1) {

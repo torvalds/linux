@@ -2846,8 +2846,8 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 			      ctrl | TX_DESC_SOF, 0);
 		entry = TX_DESC_NEXT(ring, entry);
 
-		memcpy(tx_tiny_buf(cp, ring, entry), skb->data +
-		       len - tabort, tabort);
+		skb_copy_from_linear_data_offset(skb, len - tabort,
+			      tx_tiny_buf(cp, ring, entry), tabort);
 		mapping = tx_tiny_map(cp, ring, entry, tentry);
 		cas_write_txd(cp, ring, entry, mapping, tabort, ctrl,
 			      (nr_frags == 0));

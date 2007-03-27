@@ -534,7 +534,7 @@ static int sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 *    entry and the HPC got to the end of the chain before we
 	 *    added this new entry and restarted it.
 	 */
-	memcpy((char *)(long)td->buf_vaddr, skb->data, skblen);
+	skb_copy_from_linear_data(skb, (char *)(long)td->buf_vaddr, skblen);
 	if (len != skblen)
 		memset((char *)(long)td->buf_vaddr + skb->len, 0, len-skblen);
 	td->tdma.cntinfo = (len & HPCDMA_BCNT) |

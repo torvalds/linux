@@ -1062,7 +1062,7 @@ static inline struct sk_buff *get_packet(struct pci_dev *pdev,
 					    pci_unmap_addr(ce, dma_addr),
 					    pci_unmap_len(ce, dma_len),
 					    PCI_DMA_FROMDEVICE);
-		memcpy(skb->data, ce->skb->data, len);
+		skb_copy_from_linear_data(ce->skb, skb->data, len);
 		pci_dma_sync_single_for_device(pdev,
 					       pci_unmap_addr(ce, dma_addr),
 					       pci_unmap_len(ce, dma_len),

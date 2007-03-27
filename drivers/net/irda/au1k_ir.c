@@ -526,7 +526,7 @@ static int au1k_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	
 	if (aup->speed == 4000000) {
 		/* FIR */
-		memcpy((void *)pDB->vaddr, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, pDB->vaddr, skb->len);
 		ptxd->count_0 = skb->len & 0xff;
 		ptxd->count_1 = (skb->len >> 8) & 0xff;
 

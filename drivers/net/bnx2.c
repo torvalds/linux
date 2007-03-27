@@ -1884,10 +1884,8 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 				goto reuse_rx;
 
 			/* aligned copy */
-			memcpy(new_skb->data,
-				skb->data + bp->rx_offset - 2,
-				len + 2);
-
+			skb_copy_from_linear_data_offset(skb, bp->rx_offset - 2,
+				      new_skb->data, len + 2);
 			skb_reserve(new_skb, 2);
 			skb_put(new_skb, len);
 

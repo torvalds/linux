@@ -1344,7 +1344,7 @@ static int netdrv_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 	tp->tx_info[entry].skb = skb;
 	/* tp->tx_info[entry].mapping = 0; */
-	memcpy (tp->tx_buf[entry], skb->data, skb->len);
+	skb_copy_from_linear_data(skb, tp->tx_buf[entry], skb->len);
 
 	/* Note: the chip doesn't have auto-pad! */
 	NETDRV_W32 (TxStatus0 + (entry * sizeof(u32)),

@@ -915,7 +915,9 @@ xircom_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tp->tx_skbuff[entry] = skb;
 	if (tp->chip_id == X3201_3) {
-		memcpy(tp->tx_aligned_skbuff[entry]->data,skb->data,skb->len);
+		skb_copy_from_linear_data(skb,
+					  tp->tx_aligned_skbuff[entry]->data,
+					  skb->len);
 		tp->tx_ring[entry].buffer1 = virt_to_bus(tp->tx_aligned_skbuff[entry]->data);
 	} else
 		tp->tx_ring[entry].buffer1 = virt_to_bus(skb->data);

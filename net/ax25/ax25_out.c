@@ -150,7 +150,7 @@ void ax25_output(ax25_cb *ax25, int paclen, struct sk_buff *skb)
 				skb_reserve(skbn, frontlen + 2);
 				skb_set_network_header(skbn,
 						      skb_network_offset(skb));
-				memcpy(skb_put(skbn, len), skb->data, len);
+				skb_copy_from_linear_data(skb, skb_put(skbn, len), len);
 				p = skb_push(skbn, 2);
 
 				*p++ = AX25_P_SEGMENT;
@@ -164,7 +164,7 @@ void ax25_output(ax25_cb *ax25, int paclen, struct sk_buff *skb)
 				skb_reserve(skbn, frontlen + 1);
 				skb_set_network_header(skbn,
 						      skb_network_offset(skb));
-				memcpy(skb_put(skbn, len), skb->data, len);
+				skb_copy_from_linear_data(skb, skb_put(skbn, len), len);
 				p = skb_push(skbn, 1);
 				*p = AX25_P_TEXT;
 			}

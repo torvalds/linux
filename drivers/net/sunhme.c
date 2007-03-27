@@ -2061,7 +2061,7 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			hme_dma_sync_for_cpu(hp, dma_addr, len, DMA_FROMDEVICE);
-			memcpy(copy_skb->data, skb->data, len);
+			skb_copy_from_linear_data(skb, copy_skb->data, len);
 			hme_dma_sync_for_device(hp, dma_addr, len, DMA_FROMDEVICE);
 
 			/* Reuse original ring buffer. */

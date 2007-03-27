@@ -592,7 +592,7 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Avoid a race... */
 	qep->qe_block->qe_txd[entry].tx_flags = TXD_UPDATE;
 
-	memcpy(txbuf, skb->data, len);
+	skb_copy_from_linear_data(skb, txbuf, len);
 
 	qep->qe_block->qe_txd[entry].tx_addr = txbuf_dvma;
 	qep->qe_block->qe_txd[entry].tx_flags =

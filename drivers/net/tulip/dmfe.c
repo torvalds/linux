@@ -682,7 +682,7 @@ static int dmfe_start_xmit(struct sk_buff *skb, struct DEVICE *dev)
 
 	/* transmit this packet */
 	txptr = db->tx_insert_ptr;
-	memcpy(txptr->tx_buf_ptr, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, txptr->tx_buf_ptr, skb->len);
 	txptr->tdes1 = cpu_to_le32(0xe1000000 | skb->len);
 
 	/* Point to next transmit free descriptor */
@@ -989,7 +989,9 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 						skb = newskb;
 						/* size less than COPY_SIZE, allocate a rxlen SKB */
 						skb_reserve(skb, 2); /* 16byte align */
-						memcpy(skb_put(skb, rxlen), rxptr->rx_skb_ptr->data, rxlen);
+						skb_copy_from_linear_data(rxptr->rx_skb_ptr,
+							  skb_put(skb, rxlen),
+									  rxlen);
 						dmfe_reuse_skb(db, rxptr->rx_skb_ptr);
 					} else
 						skb_put(skb, rxlen);

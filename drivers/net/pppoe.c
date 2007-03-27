@@ -869,7 +869,8 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 			goto abort;
 
 		skb_reserve(skb2, dev->hard_header_len + sizeof(struct pppoe_hdr));
-		memcpy(skb_put(skb2, skb->len), skb->data, skb->len);
+		skb_copy_from_linear_data(skb, skb_put(skb2, skb->len),
+					  skb->len);
 	} else {
 		/* Make a clone so as to not disturb the original skb,
 		 * give dev_queue_xmit something it can free.

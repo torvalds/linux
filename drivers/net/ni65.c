@@ -1176,8 +1176,9 @@ static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
 		if( (unsigned long) (skb->data + skb->len) > 0x1000000) {
 #endif
 
-			memcpy((char *) p->tmdbounce[p->tmdbouncenum] ,(char *)skb->data,
-							 (skb->len > T_BUF_SIZE) ? T_BUF_SIZE : skb->len);
+			skb_copy_from_linear_data(skb, p->tmdbounce[p->tmdbouncenum],
+				      skb->len > T_BUF_SIZE ? T_BUF_SIZE :
+							      skb->len);
 			if (len > skb->len)
 				memset((char *)p->tmdbounce[p->tmdbouncenum]+skb->len, 0, len-skb->len);
 			dev_kfree_skb (skb);

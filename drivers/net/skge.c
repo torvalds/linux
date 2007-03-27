@@ -2950,7 +2950,7 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		pci_dma_sync_single_for_cpu(skge->hw->pdev,
 					    pci_unmap_addr(e, mapaddr),
 					    len, PCI_DMA_FROMDEVICE);
-		memcpy(skb->data, e->skb->data, len);
+		skb_copy_from_linear_data(e->skb, skb->data, len);
 		pci_dma_sync_single_for_device(skge->hw->pdev,
 					       pci_unmap_addr(e, mapaddr),
 					       len, PCI_DMA_FROMDEVICE);

@@ -317,7 +317,9 @@ void hdlcdrv_transmitter(struct net_device *dev, struct hdlcdrv_state *s)
 				dev_kfree_skb_irq(skb);
 				break;
 			}
-			memcpy(s->hdlctx.buffer, skb->data+1, pkt_len);
+			skb_copy_from_linear_data_offset(skb, 1,
+							 s->hdlctx.buffer,
+							 pkt_len);
 			dev_kfree_skb_irq(skb);
 			s->hdlctx.bp = s->hdlctx.buffer;
 			append_crc_ccitt(s->hdlctx.buffer, pkt_len);

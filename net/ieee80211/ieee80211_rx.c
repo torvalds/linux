@@ -606,12 +606,12 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		if (frag == 0) {
 			/* copy first fragment (including full headers) into
 			 * beginning of the fragment cache skb */
-			memcpy(skb_put(frag_skb, flen), skb->data, flen);
+			skb_copy_from_linear_data(skb, skb_put(frag_skb, flen), flen);
 		} else {
 			/* append frame payload to the end of the fragment
 			 * cache skb */
-			memcpy(skb_put(frag_skb, flen), skb->data + hdrlen,
-			       flen);
+			skb_copy_from_linear_data_offset(skb, hdrlen,
+				      skb_put(frag_skb, flen), flen);
 		}
 		dev_kfree_skb_any(skb);
 		skb = NULL;

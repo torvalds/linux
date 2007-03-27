@@ -583,7 +583,7 @@ static int uli526x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* transmit this packet */
 	txptr = db->tx_insert_ptr;
-	memcpy(txptr->tx_buf_ptr, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, txptr->tx_buf_ptr, skb->len);
 	txptr->tdes1 = cpu_to_le32(0xe1000000 | skb->len);
 
 	/* Point to next transmit free descriptor */

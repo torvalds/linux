@@ -1765,7 +1765,7 @@ cpc_trace(struct net_device *dev, struct sk_buff *skb_main, char rx_tx)
 	skb->data[7] = ']';
 	skb->data[8] = ':';
 	skb->data[9] = ' ';
-	memcpy(&skb->data[10], skb_main->data, skb_main->len);
+	skb_copy_from_linear_data(skb_main, &skb->data[10], skb_main->len);
 
 	netif_rx(skb);
 }

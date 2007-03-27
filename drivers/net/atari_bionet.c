@@ -453,7 +453,8 @@ bionet_send_packet(struct sk_buff *skb, struct net_device *dev) {
 		stdma_lock(bionet_intr, NULL);
 		local_irq_restore(flags);
 		if( !STRAM_ADDR(buf+length-1) ) {
-			memcpy(nic_packet->buffer, skb->data, length);
+			skb_copy_from_linear_data(skb, nic_packet->buffer,
+						  length);
 			buf = (unsigned long)&((struct nic_pkt_s *)phys_nic_packet)->buffer;
 		}
 

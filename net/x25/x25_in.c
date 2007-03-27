@@ -112,8 +112,9 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 			 *	Copy any Call User Data.
 			 */
 			if (skb->len >= 0) {
-				memcpy(x25->calluserdata.cuddata, skb->data,
-				       skb->len);
+				skb_copy_from_linear_data(skb,
+					      x25->calluserdata.cuddata,
+					      skb->len);
 				x25->calluserdata.cudlength = skb->len;
 			}
 			if (!sock_flag(sk, SOCK_DEAD))

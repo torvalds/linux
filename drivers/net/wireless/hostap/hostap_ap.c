@@ -1277,8 +1277,8 @@ static char * ap_auth_make_challenge(struct ap_data *ap)
 		return NULL;
 	}
 
-	memcpy(tmpbuf, skb->data + ap->crypt->extra_mpdu_prefix_len,
-	       WLAN_AUTH_CHALLENGE_LEN);
+	skb_copy_from_linear_data_offset(skb, ap->crypt->extra_mpdu_prefix_len,
+					 tmpbuf, WLAN_AUTH_CHALLENGE_LEN);
 	dev_kfree_skb(skb);
 
 	return tmpbuf;

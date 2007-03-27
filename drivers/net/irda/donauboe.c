@@ -1119,7 +1119,7 @@ dumpbufs(skb->data,skb->len,'>');
   else
     {
       len = skb->len;
-      memcpy (self->tx_bufs[self->txs], skb->data, len);
+      skb_copy_from_linear_data(skb, self->tx_bufs[self->txs], len);
     }
   self->ring->tx[self->txs].len = len & 0x0fff;
 
