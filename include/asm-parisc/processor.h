@@ -334,8 +334,8 @@ extern unsigned long get_wchan(struct task_struct *p);
 static inline int parisc_requires_coherency(void)
 {
 #ifdef CONFIG_PA8X00
-	/* FIXME: also pa8900 - when we see one */
-	return boot_cpu_data.cpu_type == mako;
+	return (boot_cpu_data.cpu_type == mako) ||
+		(boot_cpu_data.cpu_type == mako2);
 #else
 	return 0;
 #endif

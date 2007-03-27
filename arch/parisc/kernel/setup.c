@@ -225,6 +225,7 @@ static void __init parisc_proc_mkdir(void)
                 }
                 break;
 	case mako:
+	case mako2:
                 if (NULL == proc_mckinley_root)
                 {
                         proc_mckinley_root = proc_mkdir("bus/mckinley", NULL);
