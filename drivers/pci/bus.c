@@ -77,7 +77,7 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
  * This adds a single pci device to the global
  * device list and adds sysfs and procfs entries
  */
-int __devinit pci_bus_add_device(struct pci_dev *dev)
+int pci_bus_add_device(struct pci_dev *dev)
 {
 	int retval;
 	retval = device_add(&dev->dev);
@@ -105,7 +105,7 @@ int __devinit pci_bus_add_device(struct pci_dev *dev)
  *
  * Call hotplug for each new devices.
  */
-void __devinit pci_bus_add_devices(struct pci_bus *bus)
+void pci_bus_add_devices(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	int retval;
