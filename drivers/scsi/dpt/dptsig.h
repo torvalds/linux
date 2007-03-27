@@ -145,8 +145,8 @@ typedef unsigned long sigLONG;
 #define FT_LOGGER       12      /* Event Logger */
 #define FT_INSTALL      13      /* An Install Program */
 #define FT_LIBRARY      14      /* Storage Manager Real-Mode Calls */
-#define FT_RESOURCE 	15 	/* Storage Manager Resource File */
-#define FT_MODEM_DB  	16  	/* Storage Manager Modem Database */
+#define FT_RESOURCE	15	/* Storage Manager Resource File */
+#define FT_MODEM_DB	16	/* Storage Manager Modem Database */
 
 /* Filetype flags - sigBYTE dsFiletypeFlags;    FLAG BITS */
 /* ------------------------------------------------------------------ */
