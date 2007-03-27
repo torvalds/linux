@@ -298,6 +298,11 @@ static size_t fib4_rule_nlmsg_payload(struct fib_rule *rule)
 	       + nla_total_size(4); /* flow */
 }
 
+static void fib4_rule_flush_cache(void)
+{
+	rt_cache_flush(0);
+}
+
 static struct fib_rules_ops fib4_rules_ops = {
 	.family		= AF_INET,
 	.rule_size	= sizeof(struct fib4_rule),
@@ -309,6 +314,7 @@ static struct fib_rules_ops fib4_rules_ops = {
 	.fill		= fib4_rule_fill,
 	.default_pref	= fib4_rule_default_pref,
 	.nlmsg_payload	= fib4_rule_nlmsg_payload,
+	.flush_cache	= fib4_rule_flush_cache,
 	.nlgroup	= RTNLGRP_IPV4_RULE,
 	.policy		= fib4_rule_policy,
 	.rules_list	= &fib4_rules,

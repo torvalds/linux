@@ -59,6 +59,10 @@ struct fib_rules_ops
 	u32			(*default_pref)(void);
 	size_t			(*nlmsg_payload)(struct fib_rule *);
 
+	/* Called after modifications to the rules set, must flush
+	 * the route cache if one exists. */
+	void			(*flush_cache)(void);
+
 	int			nlgroup;
 	struct nla_policy	*policy;
 	struct list_head	*rules_list;

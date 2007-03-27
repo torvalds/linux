@@ -44,6 +44,12 @@ static void rules_ops_put(struct fib_rules_ops *ops)
 		module_put(ops->owner);
 }
 
+static void flush_route_cache(struct fib_rules_ops *ops)
+{
+	if (ops->flush_cache)
+		ops->flush_cache();
+}
+
 int fib_rules_register(struct fib_rules_ops *ops)
 {
 	int err = -EEXIST;
@@ -314,6 +320,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		list_add_rcu(&rule->list, ops->rules_list);
 
 	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).pid);
+	flush_route_cache(ops);
 	rules_ops_put(ops);
 	return 0;
 
@@ -404,6 +411,7 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		notify_rule_change(RTM_DELRULE, rule, ops, nlh,
 				   NETLINK_CB(skb).pid);
 		fib_rule_put(rule);
+		flush_route_cache(ops);
 		rules_ops_put(ops);
 		return 0;
 	}
