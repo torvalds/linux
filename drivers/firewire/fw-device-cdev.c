@@ -36,15 +36,15 @@
 #include "fw-device.h"
 #include "fw-device-cdev.h"
 
-/*
- * todo
- *
- * - bus resets sends a new packet with new generation and node id
- *
- */
-
 /* dequeue_event() just kfree()'s the event, so the event has to be
  * the first field in the struct. */
+
+struct client;
+struct client_resource {
+	struct list_head link;
+	void (*release)(struct client *client, struct client_resource *r);
+	u32 handle;
+};
 
 struct event {
 	struct { void *data; size_t size; } v[2];
@@ -60,7 +60,7 @@ struct response {
 	struct event event;
 	struct fw_transaction transaction;
 	struct client *client;
-	struct list_head link;
+	struct client_resource resource;
 	struct fw_cdev_event_response response;
 };
 
@@ -74,11 +74,7 @@ struct client {
 	struct fw_device *device;
 	spinlock_t lock;
 	u32 resource_handle;
-	struct list_head handler_list;
-	struct list_head request_list;
-	struct list_head transaction_list;
-	struct list_head descriptor_list;
-	u32 request_serial;
+	struct list_head resource_list;
 	struct list_head event_list;
 	wait_queue_head_t wait;
 	u64 bus_reset_closure;
@@ -118,10 +114,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 
 	client->device = fw_device_get(device);
 	INIT_LIST_HEAD(&client->event_list);
-	INIT_LIST_HEAD(&client->handler_list);
-	INIT_LIST_HEAD(&client->request_list);
-	INIT_LIST_HEAD(&client->transaction_list);
-	INIT_LIST_HEAD(&client->descriptor_list);
+	INIT_LIST_HEAD(&client->resource_list);
 	spin_lock_init(&client->lock);
 	init_waitqueue_head(&client->wait);
 
@@ -305,6 +298,53 @@ static int ioctl_get_info(struct client *client, void __user *arg)
 }
 
 static void
+add_client_resource(struct client *client, struct client_resource *resource)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&client->lock, flags);
+	list_add_tail(&resource->link, &client->resource_list);
+	resource->handle = client->resource_handle++;
+	spin_unlock_irqrestore(&client->lock, flags);
+}
+
+static int
+release_client_resource(struct client *client, u32 handle,
+			struct client_resource **resource)
+{
+	struct client_resource *r;
+	unsigned long flags;
+
+	spin_lock_irqsave(&client->lock, flags);
+	list_for_each_entry(r, &client->resource_list, link) {
+		if (r->handle == handle) {
+			list_del(&r->link);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&client->lock, flags);
+
+	if (&r->link == &client->resource_list)
+		return -EINVAL;
+
+	if (resource)
+		*resource = r;
+	else
+		r->release(client, r);
+
+	return 0;
+}
+
+static void
+release_transaction(struct client *client, struct client_resource *resource)
+{
+	struct response *response =
+		container_of(resource, struct response, resource);
+
+	fw_cancel_transaction(client->device->card, &response->transaction);
+}
+
+static void
 complete_transaction(struct fw_card *card, int rcode,
 		     void *payload, size_t length, void *data)
 {
@@ -319,7 +359,7 @@ complete_transaction(struct fw_card *card, int rcode,
 		       response->response.length);
 
 	spin_lock_irqsave(&client->lock, flags);
-	list_del(&response->link);
+	list_del(&response->resource.link);
 	spin_unlock_irqrestore(&client->lock, flags);
 
 	response->response.type   = FW_CDEV_EVENT_RESPONSE;
@@ -334,7 +374,6 @@ static ssize_t ioctl_send_request(struct client *client, void __user *arg)
 	struct fw_device *device = client->device;
 	struct fw_cdev_send_request request;
 	struct response *response;
-	unsigned long flags;
 
 	if (copy_from_user(&request, arg, sizeof request))
 		return -EFAULT;
@@ -358,9 +397,8 @@ static ssize_t ioctl_send_request(struct client *client, void __user *arg)
 		return -EFAULT;
 	}
 
-	spin_lock_irqsave(&client->lock, flags);
-	list_add_tail(&response->link, &client->transaction_list);
-	spin_unlock_irqrestore(&client->lock, flags);
+	response->resource.release = release_transaction;
+	add_client_resource(client, &response->resource);
 
 	fw_send_request(device->card, &response->transaction,
 			request.tcode & 0x1f,
@@ -381,21 +419,31 @@ struct address_handler {
 	struct fw_address_handler handler;
 	__u64 closure;
 	struct client *client;
-	struct list_head link;
+	struct client_resource resource;
 };
 
 struct request {
 	struct fw_request *request;
 	void *data;
 	size_t length;
-	u32 serial;
-	struct list_head link;
+	struct client_resource resource;
 };
 
 struct request_event {
 	struct event event;
 	struct fw_cdev_event_request request;
 };
+
+static void
+release_request(struct client *client, struct client_resource *resource)
+{
+	struct request *request =
+		container_of(resource, struct request, resource);
+
+	fw_send_response(client->device->card, request->request,
+			 RCODE_CONFLICT_ERROR);
+	kfree(request);
+}
 
 static void
 handle_request(struct fw_card *card, struct fw_request *r,
@@ -407,7 +455,6 @@ handle_request(struct fw_card *card, struct fw_request *r,
 	struct address_handler *handler = callback_data;
 	struct request *request;
 	struct request_event *e;
-	unsigned long flags;
 	struct client *client = handler->client;
 
 	request = kmalloc(sizeof *request, GFP_ATOMIC);
@@ -423,27 +470,35 @@ handle_request(struct fw_card *card, struct fw_request *r,
 	request->data    = payload;
 	request->length  = length;
 
-	spin_lock_irqsave(&client->lock, flags);
-	request->serial = client->request_serial++;
-	list_add_tail(&request->link, &client->request_list);
-	spin_unlock_irqrestore(&client->lock, flags);
+	request->resource.release = release_request;
+	add_client_resource(client, &request->resource);
 
 	e->request.type    = FW_CDEV_EVENT_REQUEST;
 	e->request.tcode   = tcode;
 	e->request.offset  = offset;
 	e->request.length  = length;
-	e->request.serial  = request->serial;
+	e->request.handle  = request->resource.handle;
 	e->request.closure = handler->closure;
 
 	queue_event(client, &e->event,
 		    &e->request, sizeof e->request, payload, length);
 }
 
+static void
+release_address_handler(struct client *client,
+			struct client_resource *resource)
+{
+	struct address_handler *handler =
+		container_of(resource, struct address_handler, resource);
+
+	fw_core_remove_address_handler(&handler->handler);
+	kfree(handler);
+}
+
 static int ioctl_allocate(struct client *client, void __user *arg)
 {
 	struct fw_cdev_allocate request;
 	struct address_handler *handler;
-	unsigned long flags;
 	struct fw_address_region region;
 
 	if (copy_from_user(&request, arg, sizeof request))
@@ -466,9 +521,12 @@ static int ioctl_allocate(struct client *client, void __user *arg)
 		return -EBUSY;
 	}
 
-	spin_lock_irqsave(&client->lock, flags);
-	list_add_tail(&handler->link, &client->handler_list);
-	spin_unlock_irqrestore(&client->lock, flags);
+	handler->resource.release = release_address_handler;
+	add_client_resource(client, &handler->resource);
+	request.handle = handler->resource.handle;
+
+	if (copy_to_user(arg, &request, sizeof request))
+		return -EFAULT;
 
 	return 0;
 }
@@ -476,57 +534,30 @@ static int ioctl_allocate(struct client *client, void __user *arg)
 static int ioctl_deallocate(struct client *client, void __user *arg)
 {
 	struct fw_cdev_deallocate request;
-	struct address_handler *handler;
-	unsigned long flags;
 
 	if (copy_from_user(&request, arg, sizeof request))
 		return -EFAULT;
 
-	spin_lock_irqsave(&client->lock, flags);
-	list_for_each_entry(handler, &client->handler_list, link) {
-		if (handler->handler.offset == request.offset) {
-			list_del(&handler->link);
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&client->lock, flags);
-
-	if (&handler->link == &client->handler_list)
-		return -EINVAL;
-
-	fw_core_remove_address_handler(&handler->handler);
-
-	return 0;
+	return release_client_resource(client, request.handle, NULL);
 }
 
 static int ioctl_send_response(struct client *client, void __user *arg)
 {
 	struct fw_cdev_send_response request;
+	struct client_resource *resource;
 	struct request *r;
-	unsigned long flags;
 
 	if (copy_from_user(&request, arg, sizeof request))
 		return -EFAULT;
-
-	spin_lock_irqsave(&client->lock, flags);
-	list_for_each_entry(r, &client->request_list, link) {
-		if (r->serial == request.serial) {
-			list_del(&r->link);
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&client->lock, flags);
-
-	if (&r->link == &client->request_list)
+	if (release_client_resource(client, request.handle, &resource) < 0)
 		return -EINVAL;
-
+	r = container_of(resource, struct request, resource);
 	if (request.length < r->length)
 		r->length = request.length;
 	if (copy_from_user(r->data, u64_to_uptr(request.data), r->length))
 		return -EFAULT;
 
 	fw_send_response(client->device->card, r->request, request.rcode);
-
 	kfree(r);
 
 	return 0;
@@ -547,16 +578,24 @@ static int ioctl_initiate_bus_reset(struct client *client, void __user *arg)
 
 struct descriptor {
 	struct fw_descriptor d;
-	struct list_head link;
-	u32 handle;
+	struct client_resource resource;
 	u32 data[0];
 };
+
+static void release_descriptor(struct client *client,
+			       struct client_resource *resource)
+{
+	struct descriptor *descriptor =
+		container_of(resource, struct descriptor, resource);
+
+	fw_core_remove_descriptor(&descriptor->d);
+	kfree(descriptor);
+}
 
 static int ioctl_add_descriptor(struct client *client, void __user *arg)
 {
 	struct fw_cdev_add_descriptor request;
 	struct descriptor *descriptor;
-	unsigned long flags;
 	int retval;
 
 	if (copy_from_user(&request, arg, sizeof request))
@@ -587,12 +626,10 @@ static int ioctl_add_descriptor(struct client *client, void __user *arg)
 		return retval;
 	}
 
-	spin_lock_irqsave(&client->lock, flags);
-	list_add_tail(&descriptor->link, &client->descriptor_list);
-	descriptor->handle = client->resource_handle++;
-	spin_unlock_irqrestore(&client->lock, flags);
+	descriptor->resource.release = release_descriptor;
+	add_client_resource(client, &descriptor->resource);
+	request.handle = descriptor->resource.handle;
 
-	request.handle = descriptor->handle;
 	if (copy_to_user(arg, &request, sizeof request))
 		return -EFAULT;
 
@@ -602,28 +639,11 @@ static int ioctl_add_descriptor(struct client *client, void __user *arg)
 static int ioctl_remove_descriptor(struct client *client, void __user *arg)
 {
 	struct fw_cdev_remove_descriptor request;
-	struct descriptor *d;
-	unsigned long flags;
 
 	if (copy_from_user(&request, arg, sizeof request))
 		return -EFAULT;
 
-	spin_lock_irqsave(&client->lock, flags);
-	list_for_each_entry(d, &client->descriptor_list, link) {
-		if (d->handle == request.handle) {
-			list_del(&d->link);
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&client->lock, flags);
-
-	if (&d->link == &client->descriptor_list)
-		return -EINVAL;
-
-	fw_core_remove_descriptor(&d->d);
-	kfree(d);
-
-	return 0;
+	return release_client_resource(client, request.handle, NULL);
 }
 
 static void
@@ -895,11 +915,8 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 static int fw_device_op_release(struct inode *inode, struct file *file)
 {
 	struct client *client = file->private_data;
-	struct address_handler *h, *next_h;
-	struct request *r, *next_r;
 	struct event *e, *next_e;
-	struct response *t, *next_t;
-	struct descriptor *d, *next_d;
+	struct client_resource *r, *next_r;
 	unsigned long flags;
 
 	if (client->buffer.pages)
@@ -908,26 +925,8 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	if (client->iso_context)
 		fw_iso_context_destroy(client->iso_context);
 
-	list_for_each_entry_safe(h, next_h, &client->handler_list, link) {
-		fw_core_remove_address_handler(&h->handler);
-		kfree(h);
-	}
-
-	list_for_each_entry_safe(r, next_r, &client->request_list, link) {
-		fw_send_response(client->device->card, r->request,
-				 RCODE_CONFLICT_ERROR);
-		kfree(r);
-	}
-
-	list_for_each_entry_safe(t, next_t, &client->transaction_list, link) {
-		fw_cancel_transaction(client->device->card, &t->transaction);
-		kfree(t);
-	}
-
-	list_for_each_entry_safe(d, next_d, &client->descriptor_list, link) {
-		fw_core_remove_descriptor(&d->d);
-		kfree(d);
-	}
+	list_for_each_entry_safe(r, next_r, &client->resource_list, link)
+		r->release(client, r);
 
 	/* FIXME: We should wait for the async tasklets to stop
 	 * running before freeing the memory. */

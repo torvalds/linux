@@ -103,7 +103,7 @@ struct fw_cdev_event_request {
 	__u32 type;
 	__u32 tcode;
 	__u64 offset;
-	__u32 serial;
+	__u32 handle;
 	__u32 length;
 	__u32 data[0];
 };
@@ -186,17 +186,18 @@ struct fw_cdev_send_response {
 	__u32 rcode;
 	__u32 length;
 	__u64 data;
-	__u32 serial;
+	__u32 handle;
 };
 
 struct fw_cdev_allocate {
 	__u64 offset;
 	__u64 closure;
 	__u32 length;
+	__u32 handle;
 };
 
 struct fw_cdev_deallocate {
-	__u64 offset;
+	__u32 handle;
 };
 
 #define FW_CDEV_LONG_RESET	0
