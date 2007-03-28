@@ -881,8 +881,8 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 		}
 		mpts = mtts = 1 << i;
 	} else {
-		mpts = dev->limits.num_mtt_segs;
-		mtts = dev->limits.num_mpts;
+		mtts = dev->limits.num_mtt_segs;
+		mpts = dev->limits.num_mpts;
 	}
 
 	if (!mthca_is_memfree(dev) &&
