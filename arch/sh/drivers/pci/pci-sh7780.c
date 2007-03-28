@@ -72,12 +72,27 @@ static int __init sh7780_pci_init(void)
 	}
 
 	/* Setup the INTC */
-	ctrl_outl(0x00200000, INTC_ICR0);	/* INTC SH-4 Mode */
-	ctrl_outl(0x00078000, INTC_INT2MSKCR);	/* enable PCIINTA - PCIINTD */
-	ctrl_outl(0x40000000, INTC_INTMSK1);	/* disable IRL4-7 Interrupt */
-	ctrl_outl(0x0000fffe, INTC_INTMSK2);	/* disable IRL4-7 Interrupt */
-	ctrl_outl(0x80000000, INTC_INTMSKCLR1);	/* enable IRL0-3 Interrupt */
-	ctrl_outl(0xfffe0000, INTC_INTMSKCLR2);	/* enable IRL0-3 Interrupt */
+	if (mach_is_7780se()) {
+		/* ICR0: IRL=use separately */
+		ctrl_outl(0x00C00020, INTC_ICR0);
+		/* ICR1: detect low level(for 2ndcut) */
+		ctrl_outl(0xAAAA0000, INTC_ICR1);
+		/* INTPRI: priority=3(all) */
+		ctrl_outl(0x33333333, INTC_INTPRI);
+	} else {
+		/* INTC SH-4 Mode */
+		ctrl_outl(0x00200000, INTC_ICR0);
+		/* enable PCIINTA - PCIINTD */
+		ctrl_outl(0x00078000, INTC_INT2MSKCR);
+		/* disable IRL4-7 Interrupt */
+		ctrl_outl(0x40000000, INTC_INTMSK1);
+		/* disable IRL4-7 Interrupt */
+		ctrl_outl(0x0000fffe, INTC_INTMSK2);
+		/* enable IRL0-3 Interrupt */
+		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
+		/* enable IRL0-3 Interrupt */
+		ctrl_outl(0xfffe0000, INTC_INTMSKCLR2);
+	}
 
 	if ((ret = sh4_pci_check_direct()) != 0)
 		return ret;
@@ -147,9 +162,8 @@ int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
 	 * DMA interrupts...
 	 */
 
-#ifdef CONFIG_SH_HIGHLANDER
+	/* Apply any last-minute PCIC fixups */
 	pci_fixup_pcic();
-#endif
 
 	/* SH7780 init done, set central function init complete */
 	/* use round robin mode to stop a device starving/overruning */

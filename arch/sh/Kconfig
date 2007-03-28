@@ -99,6 +99,14 @@ config SH_7751_SOLUTION_ENGINE
 	help
 	  Select 7751 SolutionEngine if configuring for a Hitachi SH7751
 	  evaluation board.
+	  
+config SH_7780_SOLUTION_ENGINE
+	bool "SolutionEngine7780"
+	select SOLUTION_ENGINE
+	select CPU_SUBTYPE_SH7780
+	help
+	  Select 7780 SolutionEngine if configuring for a Renesas SH7780
+	  evaluation board.
 
 config SH_7300_SOLUTION_ENGINE
 	bool "SolutionEngine7300"

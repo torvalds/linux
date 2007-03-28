@@ -89,6 +89,7 @@ core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 # Boards
 machdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se/770x
 machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se/7751
+machdir-$(CONFIG_SH_7780_SOLUTION_ENGINE)	:= se/7780
 machdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)	:= se/7300
 machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	:= se/7343
 machdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	:= se/73180
