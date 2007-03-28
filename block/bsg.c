@@ -58,6 +58,7 @@ enum {
 };
 
 #define BSG_DEFAULT_CMDS	64
+#define BSG_MAX_DEVS		32768
 
 #undef BSG_DEBUG
 
@@ -75,7 +76,7 @@ enum {
 #define BSG_MAJOR	(240)
 
 static DEFINE_MUTEX(bsg_mutex);
-static int bsg_device_nr;
+static int bsg_device_nr, bsg_minor_idx;
 
 #define BSG_LIST_SIZE	(8)
 #define bsg_list_idx(minor)	((minor) & (BSG_LIST_SIZE - 1))
@@ -957,14 +958,15 @@ void bsg_unregister_queue(struct request_queue *q)
 	class_device_destroy(bsg_class, MKDEV(BSG_MAJOR, bcd->minor));
 	bcd->class_dev = NULL;
 	list_del_init(&bcd->list);
+	bsg_device_nr--;
 	mutex_unlock(&bsg_mutex);
 }
 
 int bsg_register_queue(struct request_queue *q, char *name)
 {
-	struct bsg_class_device *bcd;
+	struct bsg_class_device *bcd, *__bcd;
 	dev_t dev;
-	int ret;
+	int ret = -EMFILE;
 	struct class_device *class_dev = NULL;
 
 	/*
@@ -978,10 +980,27 @@ int bsg_register_queue(struct request_queue *q, char *name)
 	INIT_LIST_HEAD(&bcd->list);
 
 	mutex_lock(&bsg_mutex);
-	dev = MKDEV(BSG_MAJOR, bsg_device_nr);
-	bcd->minor = bsg_device_nr;
-	bsg_device_nr++;
+	if (bsg_device_nr == BSG_MAX_DEVS) {
+		printk(KERN_ERR "bsg: too many bsg devices\n");
+		goto err;
+	}
+
+retry:
+	list_for_each_entry(__bcd, &bsg_class_list, list) {
+		if (__bcd->minor == bsg_minor_idx) {
+			bsg_minor_idx++;
+			if (bsg_minor_idx == BSG_MAX_DEVS)
+				bsg_minor_idx = 0;
+			goto retry;
+		}
+	}
+
+	bcd->minor = bsg_minor_idx++;
+	if (bsg_minor_idx == BSG_MAX_DEVS)
+		bsg_minor_idx = 0;
+
 	bcd->queue = q;
+	dev = MKDEV(BSG_MAJOR, bcd->minor);
 	class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", name);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
@@ -996,11 +1015,11 @@ int bsg_register_queue(struct request_queue *q, char *name)
 	}
 
 	list_add_tail(&bcd->list, &bsg_class_list);
+	bsg_device_nr++;
 
 	mutex_unlock(&bsg_mutex);
 	return 0;
 err:
-	bsg_device_nr--;
 	if (class_dev)
 		class_device_destroy(bsg_class, MKDEV(BSG_MAJOR, bcd->minor));
 	mutex_unlock(&bsg_mutex);
@@ -1030,6 +1049,11 @@ static struct class_interface bsg_intf = {
 	.remove	= bsg_remove,
 };
 
+static struct cdev bsg_cdev = {
+	.kobj   = {.name = "bsg", },
+	.owner  = THIS_MODULE,
+};
+
 static int __init bsg_init(void)
 {
 	int ret, i;
@@ -1050,10 +1074,19 @@ static int __init bsg_init(void)
 		return PTR_ERR(bsg_class);
 	}
 
-	ret = register_chrdev(BSG_MAJOR, "bsg", &bsg_fops);
+	ret = register_chrdev_region(MKDEV(BSG_MAJOR, 0), BSG_MAX_DEVS, "bsg");
 	if (ret) {
 		kmem_cache_destroy(bsg_cmd_cachep);
 		class_destroy(bsg_class);
+		return ret;
+	}
+
+	cdev_init(&bsg_cdev, &bsg_fops);
+	ret = cdev_add(&bsg_cdev, MKDEV(BSG_MAJOR, 0), BSG_MAX_DEVS);
+	if (ret) {
+		kmem_cache_destroy(bsg_cmd_cachep);
+		class_destroy(bsg_class);
+		unregister_chrdev_region(MKDEV(BSG_MAJOR, 0), BSG_MAX_DEVS);
 		return ret;
 	}
 
