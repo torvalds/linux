@@ -138,8 +138,10 @@ static void dlm_unregister_domain_handlers(struct dlm_ctxt *dlm);
 
 void __dlm_unhash_lockres(struct dlm_lock_resource *lockres)
 {
-	hlist_del_init(&lockres->hash_node);
-	dlm_lockres_put(lockres);
+	if (!hlist_unhashed(&lockres->hash_node)) {
+		hlist_del_init(&lockres->hash_node);
+		dlm_lockres_put(lockres);
+	}
 }
 
 void __dlm_insert_lockres(struct dlm_ctxt *dlm,
@@ -655,6 +657,8 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 		dlm_kick_thread(dlm, NULL);
 
 		while (dlm_migrate_all_locks(dlm)) {
+			/* Give dlm_thread time to purge the lockres' */
+			msleep(500);
 			mlog(0, "%s: more migration to do\n", dlm->name);
 		}
 		dlm_mark_domain_leaving(dlm);
