@@ -473,13 +473,13 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	}
 	disk_super = (struct btrfs_super_block *)bh->b_data;
 	root = open_ctree(sb, bh, disk_super);
-	sb->s_fs_info = root;
-	disk_super = root->fs_info->disk_super;
 
 	if (!root) {
 		printk("btrfs: open_ctree failed\n");
 		return -EIO;
 	}
+	sb->s_fs_info = root;
+	disk_super = root->fs_info->disk_super;
 	printk("read in super total blocks %Lu root %Lu\n",
 	       btrfs_super_total_blocks(disk_super),
 	       btrfs_super_root_dir(disk_super));

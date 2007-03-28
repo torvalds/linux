@@ -1,6 +1,8 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
+#include <linux/crypto.h>
+#include <linux/scatterlist.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -126,8 +128,51 @@ static int btree_get_block(struct inode *inode, sector_t iblock,
 	return 0;
 }
 
+static int csum_tree_block(struct btrfs_root * root, struct buffer_head *bh,
+			    int verify)
+{
+	struct btrfs_node *node = btrfs_buffer_node(bh);
+	struct scatterlist sg;
+	struct crypto_hash *tfm = root->fs_info->hash_tfm;
+	struct hash_desc desc;
+	int ret;
+	char result[32];
+
+	desc.tfm = tfm;
+	desc.flags = 0;
+	sg_init_one(&sg, bh->b_data + 32, bh->b_size - 32);
+	spin_lock(&root->fs_info->hash_lock);
+	ret = crypto_hash_digest(&desc, &sg, bh->b_size - 32, result);
+	spin_unlock(&root->fs_info->hash_lock);
+	if (ret) {
+		printk("sha256 digest failed\n");
+	}
+	if (verify) {
+		if (memcmp(node->header.csum, result, sizeof(result)))
+			printk("csum verify failed on %Lu\n", bh->b_blocknr);
+		return -EINVAL;
+	} else
+		memcpy(node->header.csum, result, sizeof(node->header.csum));
+	return 0;
+}
+
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
+	struct buffer_head *bh;
+	struct btrfs_root *root = btrfs_sb(page->mapping->host->i_sb);
+	struct buffer_head *head;
+
+	if (!page_has_buffers(page)) {
+		create_empty_buffers(page, root->fs_info->sb->s_blocksize,
+					(1 << BH_Dirty)|(1 << BH_Uptodate));
+	}
+	head = page_buffers(page);
+	bh = head;
+	do {
+		if (buffer_dirty(bh))
+			csum_tree_block(root, bh, 0);
+		bh = bh->b_this_page;
+	} while (bh != head);
 	return block_write_full_page(page, btree_get_block, wbc);
 }
 
@@ -157,6 +202,7 @@ struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh))
 			goto fail;
+		csum_tree_block(root, bh, 1);
 	} else {
 		unlock_buffer(bh);
 	}
@@ -233,8 +279,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 						GFP_NOFS);
 	int ret;
 
-	if (!btrfs_super_root(disk_super))
+	if (!btrfs_super_root(disk_super)) {
 		return NULL;
+	}
 	init_bit_radix(&fs_info->pinned_radix);
 	init_bit_radix(&fs_info->pending_del_radix);
 	sb_set_blocksize(sb, sb_buffer->b_size);
@@ -252,6 +299,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
+	fs_info->hash_tfm = crypto_alloc_hash("sha256", 0, CRYPTO_ALG_ASYNC);
+	if (!fs_info->hash_tfm) {
+		printk("failed to allocate sha256 hash\n");
+		return NULL;
+	}
+	spin_lock_init(&fs_info->hash_lock);
 
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
@@ -262,9 +315,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	fs_info->sb_buffer = read_tree_block(tree_root, sb_buffer->b_blocknr);
 
-	if (!fs_info->sb_buffer)
+	if (!fs_info->sb_buffer) {
+printk("failed2\n");
 		return NULL;
-
+	}
 	brelse(sb_buffer);
 	sb_buffer = NULL;
 	disk_super = (struct btrfs_super_block *)fs_info->sb_buffer->b_data;
@@ -300,6 +354,7 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 			     root->fs_info->tree_root->node->b_blocknr);
 	lock_buffer(bh);
 	clear_buffer_dirty(bh);
+	csum_tree_block(root, bh, 0);
 	bh->b_end_io = end_buffer_write_sync;
 	get_bh(bh);
 	submit_bh(WRITE, bh);
@@ -338,6 +393,7 @@ int close_ctree(struct btrfs_root *root)
 				    root->fs_info->tree_root->node);
 	btrfs_block_release(root, root->commit_root);
 	btrfs_block_release(root, root->fs_info->sb_buffer);
+	crypto_free_hash(root->fs_info->hash_tfm);
 	iput(root->fs_info->btree_inode);
 	kfree(root->fs_info->extent_root);
 	kfree(root->fs_info->inode_root);

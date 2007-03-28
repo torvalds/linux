@@ -51,11 +51,11 @@ struct btrfs_key {
  * every tree block (leaf or node) starts with this header.
  */
 struct btrfs_header {
+	__le32 csum[8];
 	u8 fsid[16]; /* FS specific uuid */
 	__le64 blocknr; /* which block this node is supposed to live in */
 	__le64 generation;
 	__le64 parentid; /* objectid of the tree root */
-	__le32 csum;
 	__le32 ham;
 	__le16 nritems;
 	__le16 flags;
@@ -75,9 +75,10 @@ struct buffer_head;
  * it currently lacks any block count etc etc
  */
 struct btrfs_super_block {
+	__le32 csum[8];
+	/* the first 3 fields must match struct btrfs_header */
 	u8 fsid[16];    /* FS specific uuid */
 	__le64 blocknr; /* this block number */
-	__le32 csum;
 	__le64 magic;
 	__le32 blocksize;
 	__le64 generation;
@@ -217,6 +218,7 @@ struct btrfs_inode_map_item {
 	struct btrfs_disk_key key;
 } __attribute__ ((__packed__));
 
+struct crypto_hash;
 struct btrfs_fs_info {
 	struct btrfs_root *fs_root;
 	struct btrfs_root *extent_root;
@@ -236,6 +238,8 @@ struct btrfs_fs_info {
 	struct inode *btree_inode;
 	struct mutex trans_mutex;
 	struct mutex fs_mutex;
+	struct crypto_hash *hash_tfm;
+	spinlock_t hash_lock;
 };
 
 /*
