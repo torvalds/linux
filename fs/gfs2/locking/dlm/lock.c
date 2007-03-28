@@ -266,7 +266,7 @@ unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 	}
 
 	if (error) {
-		log_debug("%s: gdlm_lock %x,%llx err=%d cur=%d req=%d lkf=%x "
+		log_error("%s: gdlm_lock %x,%llx err=%d cur=%d req=%d lkf=%x "
 			  "flags=%lx", ls->fsname, lp->lockname.ln_type,
 			  (unsigned long long)lp->lockname.ln_number, error,
 			  lp->cur, lp->req, lp->lkf, lp->flags);
@@ -294,7 +294,7 @@ static unsigned int gdlm_do_unlock(struct gdlm_lock *lp)
 	error = dlm_unlock(ls->dlm_lockspace, lp->lksb.sb_lkid, lkf, NULL, lp);
 
 	if (error) {
-		log_debug("%s: gdlm_unlock %x,%llx err=%d cur=%d req=%d lkf=%x "
+		log_error("%s: gdlm_unlock %x,%llx err=%d cur=%d req=%d lkf=%x "
 			  "flags=%lx", ls->fsname, lp->lockname.ln_type,
 			  (unsigned long long)lp->lockname.ln_number, error,
 			  lp->cur, lp->req, lp->lkf, lp->flags);
