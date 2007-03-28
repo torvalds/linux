@@ -136,7 +136,7 @@
 
 /*! [Begin] no source code translation */
 
-#if defined(__linux__)
+#if defined(_LINUX) || defined(__linux__)
 #include "aclinux.h"
 
 #elif defined(_AED_EFI)
