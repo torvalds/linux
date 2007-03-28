@@ -73,9 +73,11 @@ struct client {
 	u32 version;
 	struct fw_device *device;
 	spinlock_t lock;
+	u32 resource_handle;
 	struct list_head handler_list;
 	struct list_head request_list;
 	struct list_head transaction_list;
+	struct list_head descriptor_list;
 	u32 request_serial;
 	struct list_head event_list;
 	wait_queue_head_t wait;
@@ -119,6 +121,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&client->handler_list);
 	INIT_LIST_HEAD(&client->request_list);
 	INIT_LIST_HEAD(&client->transaction_list);
+	INIT_LIST_HEAD(&client->descriptor_list);
 	spin_lock_init(&client->lock);
 	init_waitqueue_head(&client->wait);
 
@@ -542,6 +545,87 @@ static int ioctl_initiate_bus_reset(struct client *client, void __user *arg)
 	return fw_core_initiate_bus_reset(client->device->card, short_reset);
 }
 
+struct descriptor {
+	struct fw_descriptor d;
+	struct list_head link;
+	u32 handle;
+	u32 data[0];
+};
+
+static int ioctl_add_descriptor(struct client *client, void __user *arg)
+{
+	struct fw_cdev_add_descriptor request;
+	struct descriptor *descriptor;
+	unsigned long flags;
+	int retval;
+
+	if (copy_from_user(&request, arg, sizeof request))
+		return -EFAULT;
+
+	if (request.length > 256)
+		return -EINVAL;
+
+	descriptor =
+		kmalloc(sizeof *descriptor + request.length * 4, GFP_KERNEL);
+	if (descriptor == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(descriptor->data,
+			   u64_to_uptr(request.data), request.length * 4)) {
+		kfree(descriptor);
+		return -EFAULT;
+	}
+
+	descriptor->d.length = request.length;
+	descriptor->d.immediate = request.immediate;
+	descriptor->d.key = request.key;
+	descriptor->d.data = descriptor->data;
+
+	retval = fw_core_add_descriptor(&descriptor->d);
+	if (retval < 0) {
+		kfree(descriptor);
+		return retval;
+	}
+
+	spin_lock_irqsave(&client->lock, flags);
+	list_add_tail(&descriptor->link, &client->descriptor_list);
+	descriptor->handle = client->resource_handle++;
+	spin_unlock_irqrestore(&client->lock, flags);
+
+	request.handle = descriptor->handle;
+	if (copy_to_user(arg, &request, sizeof request))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int ioctl_remove_descriptor(struct client *client, void __user *arg)
+{
+	struct fw_cdev_remove_descriptor request;
+	struct descriptor *d;
+	unsigned long flags;
+
+	if (copy_from_user(&request, arg, sizeof request))
+		return -EFAULT;
+
+	spin_lock_irqsave(&client->lock, flags);
+	list_for_each_entry(d, &client->descriptor_list, link) {
+		if (d->handle == request.handle) {
+			list_del(&d->link);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&client->lock, flags);
+
+	if (&d->link == &client->descriptor_list)
+		return -EINVAL;
+
+	fw_core_remove_descriptor(&d->d);
+	kfree(d);
+
+	return 0;
+}
+
 static void
 iso_callback(struct fw_iso_context *context, u32 cycle,
 	     size_t header_length, void *header, void *data)
@@ -731,6 +815,10 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 		return ioctl_send_response(client, arg);
 	case FW_CDEV_IOC_INITIATE_BUS_RESET:
 		return ioctl_initiate_bus_reset(client, arg);
+	case FW_CDEV_IOC_ADD_DESCRIPTOR:
+		return ioctl_add_descriptor(client, arg);
+	case FW_CDEV_IOC_REMOVE_DESCRIPTOR:
+		return ioctl_remove_descriptor(client, arg);
 	case FW_CDEV_IOC_CREATE_ISO_CONTEXT:
 		return ioctl_create_iso_context(client, arg);
 	case FW_CDEV_IOC_QUEUE_ISO:
@@ -811,6 +899,7 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	struct request *r, *next_r;
 	struct event *e, *next_e;
 	struct response *t, *next_t;
+	struct descriptor *d, *next_d;
 	unsigned long flags;
 
 	if (client->buffer.pages)
@@ -833,6 +922,11 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	list_for_each_entry_safe(t, next_t, &client->transaction_list, link) {
 		fw_cancel_transaction(client->device->card, &t->transaction);
 		kfree(t);
+	}
+
+	list_for_each_entry_safe(d, next_d, &client->descriptor_list, link) {
+		fw_core_remove_descriptor(&d->d);
+		kfree(d);
 	}
 
 	/* FIXME: We should wait for the async tasklets to stop

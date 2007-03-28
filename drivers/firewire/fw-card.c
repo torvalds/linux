@@ -160,7 +160,7 @@ fw_core_add_descriptor (struct fw_descriptor *desc)
 		i += (desc->data[i] >> 16) + 1;
 
 	if (i != desc->length)
-		return -1;
+		return -EINVAL;
 
 	down_write(&fw_bus_type.subsys.rwsem);
 

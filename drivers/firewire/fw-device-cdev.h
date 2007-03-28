@@ -130,10 +130,13 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_DEALLOCATE		_IO('#', 0x03)
 #define FW_CDEV_IOC_SEND_RESPONSE	_IO('#', 0x04)
 #define FW_CDEV_IOC_INITIATE_BUS_RESET	_IO('#', 0x05)
-#define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IO('#', 0x06)
-#define FW_CDEV_IOC_QUEUE_ISO		_IO('#', 0x07)
-#define FW_CDEV_IOC_START_ISO		_IO('#', 0x08)
-#define FW_CDEV_IOC_STOP_ISO		_IO('#', 0x09)
+#define FW_CDEV_IOC_ADD_DESCRIPTOR	_IO('#', 0x06)
+#define FW_CDEV_IOC_REMOVE_DESCRIPTOR	_IO('#', 0x07)
+
+#define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IO('#', 0x08)
+#define FW_CDEV_IOC_QUEUE_ISO		_IO('#', 0x09)
+#define FW_CDEV_IOC_START_ISO		_IO('#', 0x0a)
+#define FW_CDEV_IOC_STOP_ISO		_IO('#', 0x0b)
 
 /* FW_CDEV_VERSION History
  *
@@ -201,6 +204,18 @@ struct fw_cdev_deallocate {
 
 struct fw_cdev_initiate_bus_reset {
 	__u32 type;
+};
+
+struct fw_cdev_add_descriptor {
+	__u32 immediate;
+	__u32 key;
+	__u64 data;
+	__u32 length;
+	__u32 handle;
+};
+
+struct fw_cdev_remove_descriptor {
+	__u32 handle;
 };
 
 #define FW_CDEV_ISO_CONTEXT_TRANSMIT	0
