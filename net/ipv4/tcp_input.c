@@ -1776,7 +1776,7 @@ static void tcp_verify_retransmit_hint(struct tcp_sock *tp,
 	if ((tp->retransmit_skb_hint != NULL) &&
 	    before(TCP_SKB_CB(skb)->seq,
 	    TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
-		tp->retransmit_skb_hint = skb;
+		tp->retransmit_skb_hint = NULL;
 }
 
 /* Mark head of queue up as lost. */
