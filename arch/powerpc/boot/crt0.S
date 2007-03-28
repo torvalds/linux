@@ -65,10 +65,12 @@ _zimage_start_lib:
 	/* Clear the BSS */
 	lis	r9,__bss_start@ha
 	addi	r9,r9,__bss_start@l
+	add	r9,r0,r9
 	lis	r8,_end@ha
 	addi	r8,r8,_end@l
-	li	r0,0
-5:	stw	r0,0(r9)
+	add	r8,r0,r8
+	li	r10,0
+5:	stw	r10,0(r9)
 	addi	r9,r9,4
 	cmplw	cr0,r9,r8
 	blt	5b
@@ -79,7 +81,9 @@ _zimage_start_lib:
 	addi	r8,r8,_platform_stack_top@l
 	cmpwi	r8,0
 	beq	6f
+	add	r8,r0,r8
 	lwz	r1,0(r8)
+	add	r1,r0,r1
 	li	r0,0
 	stwu	r0,-16(r1)	/* establish a stack frame */
 6:
