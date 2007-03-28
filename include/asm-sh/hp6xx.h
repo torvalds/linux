@@ -10,9 +10,9 @@
  *
  */
 
-#define HP680_BTN_IRQ		IRQ0_IRQ
-#define HP680_TS_IRQ		IRQ3_IRQ
-#define HP680_HD64461_IRQ	IRQ4_IRQ
+#define HP680_BTN_IRQ		32            /* IRQ0_IRQ */
+#define HP680_TS_IRQ		35            /* IRQ3_IRQ */
+#define HP680_HD64461_IRQ	36            /* IRQ4_IRQ */
 
 #define DAC_LCD_BRIGHTNESS	0
 #define DAC_SPEAKER_VOLUME	1
