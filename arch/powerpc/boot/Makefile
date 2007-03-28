@@ -170,5 +170,11 @@ $(obj)/zImage.initrd:	$(addprefix $(obj)/, $(initrd-y))
 install: $(CONFIGURE) $(image-y)
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" $<
 
-clean-files += $(addprefix $(objtree)/, vmlinux.strip.gz vmlinux.bin.gz)
+# anything not in $(targets)
 clean-files += $(image-) $(initrd-) zImage zImage.initrd
+
+# clean up files cached by wrapper
+clean-kernel := vmlinux.strip vmlinux.bin
+clean-kernel += $(addsuffix .gz,$(clean-kernel))
+# If not absolute clean-files are relative to $(obj).
+clean-files += $(addprefix $(objtree)/, $(clean-kernel))

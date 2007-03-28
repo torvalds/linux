@@ -144,7 +144,7 @@ miboot|uboot)
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
-if [ -z "$cacheit" -o ! -f "$vmz.gz" -o "$vmz.gz" -ot "$kernel" ]; then
+if [ -z "$cacheit" -o ! -f "$vmz$gzip" -o "$vmz$gzip" -ot "$kernel" ]; then
     ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
 
     if [ -n "$gzip" ]; then
