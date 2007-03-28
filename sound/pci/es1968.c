@@ -1554,10 +1554,7 @@ static int snd_es1968_playback_open(struct snd_pcm_substream *substream)
 	runtime->hw = snd_es1968_playback;
 	runtime->hw.buffer_bytes_max = runtime->hw.period_bytes_max =
 		calc_available_memory_size(chip);
-#if 0
-	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
-				   1024);
-#endif
+
 	spin_lock_irq(&chip->substream_lock);
 	list_add(&es->list, &chip->substream_list);
 	spin_unlock_irq(&chip->substream_lock);
@@ -1613,10 +1610,8 @@ static int snd_es1968_capture_open(struct snd_pcm_substream *substream)
 	runtime->hw = snd_es1968_capture;
 	runtime->hw.buffer_bytes_max = runtime->hw.period_bytes_max =
 		calc_available_memory_size(chip) - 1024; /* keep MIXBUF size */
-#if 0
-	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
-				   1024);
-#endif
+	snd_pcm_hw_constraint_pow2(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES);
+
 	spin_lock_irq(&chip->substream_lock);
 	list_add(&es->list, &chip->substream_list);
 	spin_unlock_irq(&chip->substream_lock);
