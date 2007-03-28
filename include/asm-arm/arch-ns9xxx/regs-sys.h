@@ -48,6 +48,12 @@
 /* PLL Configuration register */
 #define SYS_PLL		__REG(0xa0900188)
 
+/* PLL FS status */
+#define SYS_PLL_FS		__REGBITS(24, 23)
+
+/* PLL ND status */
+#define SYS_PLL_ND		__REGBITS(20, 16)
+
 /* PLL Configuration register: PLL SW change */
 #define SYS_PLL_SWC		__REGBIT(15)
 #define SYS_PLL_SWC_NO			__REGVAL(SYS_PLL_SWC, 0)
