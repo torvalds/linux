@@ -82,9 +82,6 @@ DECLARE_EXPORT(__movstr);
 DECLARE_EXPORT(__movmem_i4_even);
 DECLARE_EXPORT(__movmem_i4_odd);
 DECLARE_EXPORT(__movmemSI12_i4);
-DECLARE_EXPORT(__sdivsi3_i4i);
-DECLARE_EXPORT(__udiv_qrnnd_16);
-DECLARE_EXPORT(__udivsi3_i4i);
 #else /* GCC 3.x */
 DECLARE_EXPORT(__movstr_i4_even);
 DECLARE_EXPORT(__movstr_i4_odd);
