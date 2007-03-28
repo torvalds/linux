@@ -291,6 +291,17 @@ config VSYSCALL
 	  For systems with an MMU that can afford to give up a page,
 	  (the default value) say Y.
 
+config NODES_SHIFT
+	int
+	default "1"
+	depends on NEED_MULTIPLE_NODES
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_4KB

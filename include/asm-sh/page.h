@@ -59,6 +59,7 @@ extern void (*clear_page)(void *to);
 extern void (*copy_page)(void *to, void *from);
 
 extern unsigned long shm_align_mask;
+extern unsigned long max_low_pfn, min_low_pfn;
 
 #ifdef CONFIG_MMU
 extern void clear_page_slow(void *to);
@@ -124,17 +125,16 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define PAGE_OFFSET		CONFIG_PAGE_OFFSET
 #define __pa(x)			((unsigned long)(x)-PAGE_OFFSET)
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
+#define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
-#define MAP_NR(addr)		(((unsigned long)(addr)-PAGE_OFFSET) >> PAGE_SHIFT)
-
-#define phys_to_page(phys)	(mem_map + (((phys)-__MEMORY_START) >> PAGE_SHIFT))
-#define page_to_phys(page)	(((page - mem_map) << PAGE_SHIFT) + __MEMORY_START)
+#define phys_to_page(phys)	(pfn_to_page(phys >> PAGE_SHIFT))
+#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 /* PFN start number, because of __MEMORY_START */
 #define PFN_START		(__MEMORY_START >> PAGE_SHIFT)
 #define ARCH_PFN_OFFSET		(PFN_START)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-#define pfn_valid(pfn)		(((pfn) - PFN_START) < max_mapnr)
+#define pfn_valid(pfn)		((pfn) >= min_low_pfn && (pfn) < max_low_pfn)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \

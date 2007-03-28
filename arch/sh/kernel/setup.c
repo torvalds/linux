@@ -4,7 +4,7 @@
  * This file handles the architecture-dependent parts of initialization
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002 - 2006 Paul Mundt
+ *  Copyright (C) 2002 - 2007 Paul Mundt
  */
 #include <linux/screen_info.h>
 #include <linux/ioport.h>
@@ -15,15 +15,18 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/utsname.h>
+#include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/pfn.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/sections.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/clock.h>
+#include <asm/mmu_context.h>
 
 extern void * __rd_start, * __rd_end;
 
@@ -202,13 +205,112 @@ static int __init sh_mv_setup(char **cmdline_p)
 	return 0;
 }
 
-void __init setup_arch(char **cmdline_p)
+/*
+ * Register fully available low RAM pages with the bootmem allocator.
+ */
+static void __init register_bootmem_low_pages(void)
+{
+	unsigned long curr_pfn, last_pfn, pages;
+
+	/*
+	 * We are rounding up the start address of usable memory:
+	 */
+	curr_pfn = PFN_UP(__MEMORY_START);
+
+	/*
+	 * ... and at the end of the usable range downwards:
+	 */
+	last_pfn = PFN_DOWN(__pa(memory_end));
+
+	if (last_pfn > max_low_pfn)
+		last_pfn = max_low_pfn;
+
+	pages = last_pfn - curr_pfn;
+	free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(pages));
+}
+
+void __init setup_bootmem_allocator(unsigned long start_pfn)
 {
 	unsigned long bootmap_size;
-	unsigned long start_pfn, max_pfn, max_low_pfn;
+
+	/*
+	 * Find a proper area for the bootmem bitmap. After this
+	 * bootstrap step all allocations (until the page allocator
+	 * is intact) must be done via bootmem_alloc().
+	 */
+	bootmap_size = init_bootmem_node(NODE_DATA(0), start_pfn,
+					 min_low_pfn, max_low_pfn);
+
+	register_bootmem_low_pages();
+
+	node_set_online(0);
+
+	/*
+	 * Reserve the kernel text and
+	 * Reserve the bootmem bitmap. We do this in two steps (first step
+	 * was init_bootmem()), because this catches the (definitely buggy)
+	 * case of us accidentally initializing the bootmem allocator with
+	 * an invalid RAM area.
+	 */
+	reserve_bootmem(__MEMORY_START+PAGE_SIZE,
+		(PFN_PHYS(start_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START);
+
+	/*
+	 * reserve physical page 0 - it's a special BIOS page on many boxes,
+	 * enabling clean reboots, SMP operation, laptop functions.
+	 */
+	reserve_bootmem(__MEMORY_START, PAGE_SIZE);
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
+	if (&__rd_start != &__rd_end) {
+		LOADER_TYPE = 1;
+		INITRD_START = PHYSADDR((unsigned long)&__rd_start) -
+					__MEMORY_START;
+		INITRD_SIZE = (unsigned long)&__rd_end -
+			      (unsigned long)&__rd_start;
+	}
+
+	if (LOADER_TYPE && INITRD_START) {
+		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
+			reserve_bootmem(INITRD_START + __MEMORY_START,
+					INITRD_SIZE);
+			initrd_start = INITRD_START + PAGE_OFFSET +
+					__MEMORY_START;
+			initrd_end = initrd_start + INITRD_SIZE;
+		} else {
+			printk("initrd extends beyond end of memory "
+			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
+				    INITRD_START + INITRD_SIZE,
+				    max_low_pfn << PAGE_SHIFT);
+			initrd_start = 0;
+		}
+	}
+#endif
+}
+
+#ifndef CONFIG_NEED_MULTIPLE_NODES
+static void __init setup_memory(void)
+{
+	unsigned long start_pfn;
+
+	/*
+	 * Partially used pages are not usable - thus
+	 * we are rounding upwards:
+	 */
+	start_pfn = PFN_UP(__pa(_end));
+	setup_bootmem_allocator(start_pfn);
+}
+#else
+extern void __init setup_memory(void);
+#endif
+
+void __init setup_arch(char **cmdline_p)
+{
+	enable_mmu();
 
 #ifdef CONFIG_CMDLINE_BOOL
-        strcpy(COMMAND_LINE, CONFIG_CMDLINE);
+	strcpy(COMMAND_LINE, CONFIG_CMDLINE);
 #endif
 
 	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
@@ -226,13 +328,14 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = (unsigned long) _end;
 
-	code_resource.start = (unsigned long)virt_to_phys(_text);
-	code_resource.end = (unsigned long)virt_to_phys(_etext)-1;
-	data_resource.start = (unsigned long)virt_to_phys(_etext);
-	data_resource.end = (unsigned long)virt_to_phys(_edata)-1;
+	code_resource.start = virt_to_phys(_text);
+	code_resource.end = virt_to_phys(_etext)-1;
+	data_resource.start = virt_to_phys(_etext);
+	data_resource.end = virt_to_phys(_edata)-1;
+
+	parse_early_param();
 
 	sh_mv_setup(cmdline_p);
-
 
 	/*
 	 * Find the highest page frame number we have available
@@ -243,87 +346,12 @@ void __init setup_arch(char **cmdline_p)
 	 * Determine low and high memory ranges:
 	 */
 	max_low_pfn = max_pfn;
+	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
 
-	/*
-	 * Partially used pages are not usable - thus
-	 * we are rounding upwards:
-	 */
-	start_pfn = PFN_UP(__pa(_end));
-
-	/*
-	 * Find a proper area for the bootmem bitmap. After this
-	 * bootstrap step all allocations (until the page allocator
-	 * is intact) must be done via bootmem_alloc().
-	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0), start_pfn,
-					 __MEMORY_START>>PAGE_SHIFT,
-					 max_low_pfn);
-	/*
-	 * Register fully available low RAM pages with the bootmem allocator.
-	 */
-	{
-		unsigned long curr_pfn, last_pfn, pages;
-
-		/*
-		 * We are rounding up the start address of usable memory:
-		 */
-		curr_pfn = PFN_UP(__MEMORY_START);
-		/*
-		 * ... and at the end of the usable range downwards:
-		 */
-		last_pfn = PFN_DOWN(__pa(memory_end));
-
-		if (last_pfn > max_low_pfn)
-			last_pfn = max_low_pfn;
-
-		pages = last_pfn - curr_pfn;
-		free_bootmem_node(NODE_DATA(0), PFN_PHYS(curr_pfn),
-				  PFN_PHYS(pages));
-	}
-
-
-	/*
-	 * Reserve the kernel text and
-	 * Reserve the bootmem bitmap. We do this in two steps (first step
-	 * was init_bootmem()), because this catches the (definitely buggy)
-	 * case of us accidentally initializing the bootmem allocator with
-	 * an invalid RAM area.
-	 */
-	reserve_bootmem_node(NODE_DATA(0), __MEMORY_START+PAGE_SIZE,
-		(PFN_PHYS(start_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START);
-
-	/*
-	 * reserve physical page 0 - it's a special BIOS page on many boxes,
-	 * enabling clean reboots, SMP operation, laptop functions.
-	 */
-	reserve_bootmem_node(NODE_DATA(0), __MEMORY_START, PAGE_SIZE);
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
-	if (&__rd_start != &__rd_end) {
-		LOADER_TYPE = 1;
-		INITRD_START = PHYSADDR((unsigned long)&__rd_start) -
-					__MEMORY_START;
-		INITRD_SIZE = (unsigned long)&__rd_end -
-			      (unsigned long)&__rd_start;
-	}
-
-	if (LOADER_TYPE && INITRD_START) {
-		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
-			reserve_bootmem_node(NODE_DATA(0), INITRD_START +
-						__MEMORY_START, INITRD_SIZE);
-			initrd_start = INITRD_START + PAGE_OFFSET +
-					__MEMORY_START;
-			initrd_end = initrd_start + INITRD_SIZE;
-		} else {
-			printk("initrd extends beyond end of memory "
-			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-				    INITRD_START + INITRD_SIZE,
-				    max_low_pfn << PAGE_SHIFT);
-			initrd_start = 0;
-		}
-	}
-#endif
+	nodes_clear(node_online_map);
+	setup_memory();
+	paging_init();
+	sparse_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -332,8 +360,6 @@ void __init setup_arch(char **cmdline_p)
 	/* Perform the machine specific initialisation */
 	if (likely(sh_mv.mv_setup))
 		sh_mv.mv_setup(cmdline_p);
-
-	paging_init();
 }
 
 struct sh_machine_vector* __init get_mv_byname(const char* name)
