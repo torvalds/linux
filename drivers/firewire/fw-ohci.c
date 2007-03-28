@@ -1362,28 +1362,32 @@ static int ohci_start_iso(struct fw_iso_context *base,
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct fw_ohci *ohci = ctx->context.ohci;
-	u32 cycle_match = 0;
+	u32 control, match;
 	int index;
 
 	if (ctx->base.type == FW_ISO_CONTEXT_TRANSMIT) {
 		index = ctx - ohci->it_context_list;
-		if (cycle > 0)
-			cycle_match = IT_CONTEXT_CYCLE_MATCH_ENABLE |
+		match = 0;
+		if (cycle >= 0)
+			match = IT_CONTEXT_CYCLE_MATCH_ENABLE |
 				(cycle & 0x7fff) << 16;
 
 		reg_write(ohci, OHCI1394_IsoXmitIntEventClear, 1 << index);
 		reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, 1 << index);
-		context_run(&ctx->context, cycle_match);
+		context_run(&ctx->context, match);
 	} else {
 		index = ctx - ohci->ir_context_list;
+		control = IR_CONTEXT_DUAL_BUFFER_MODE | IR_CONTEXT_ISOCH_HEADER;
+		match = (tags << 28) | (sync << 8) | ctx->base.channel;
+		if (cycle >= 0) {
+			match |= (cycle & 0x07fff) << 12;
+			control |= IR_CONTEXT_CYCLE_MATCH_ENABLE;
+		}
 
 		reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 1 << index);
 		reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, 1 << index);
-		reg_write(ohci, context_match(ctx->context.regs),
-			  (tags << 28) | (sync << 8) | ctx->base.channel);
-		context_run(&ctx->context,
-			    IR_CONTEXT_DUAL_BUFFER_MODE |
-			    IR_CONTEXT_ISOCH_HEADER);
+		reg_write(ohci, context_match(ctx->context.regs), match);
+		context_run(&ctx->context, control);
 	}
 
 	return 0;
