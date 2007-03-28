@@ -305,7 +305,7 @@ static int do_drive_get_GTF(struct ata_port *ap, int ix,
 	*gtf_address = 0UL;
 	*obj_loc = 0UL;
 
-	if (noacpi)
+	if (libata_noacpi)
 		return 0;
 
 	if (ata_msg_probe(ap))
@@ -531,7 +531,7 @@ static int do_drive_set_taskfiles(struct ata_port *ap,
 		ata_dev_printk(atadev, KERN_DEBUG, "%s: ENTER: port#: %d\n",
 			       __FUNCTION__, ap->port_no);
 
-	if (noacpi || !(ap->cbl == ATA_CBL_SATA))
+	if (libata_noacpi || !(ap->cbl == ATA_CBL_SATA))
 		return 0;
 
 	if (!ata_dev_enabled(atadev) || (ap->flags & ATA_FLAG_DISABLED))
@@ -574,7 +574,7 @@ int ata_acpi_exec_tfs(struct ata_port *ap)
 	unsigned long	gtf_address;
 	unsigned long	obj_loc;
 
-	if (noacpi)
+	if (libata_noacpi)
 		return 0;
 	/*
 	 * TBD - implement PATA support.  For now,
@@ -636,7 +636,7 @@ int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
 	struct acpi_object_list         input;
 	union acpi_object               in_params[1];
 
-	if (noacpi)
+	if (libata_noacpi)
 		return 0;
 
 	if (ata_msg_probe(ap))
