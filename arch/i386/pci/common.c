@@ -434,11 +434,13 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	if ((err = pcibios_enable_resources(dev, mask)) < 0)
 		return err;
 
-	return pcibios_enable_irq(dev);
+	if (!dev->msi_enabled)
+		return pcibios_enable_irq(dev);
+	return 0;
 }
 
 void pcibios_disable_device (struct pci_dev *dev)
 {
-	if (pcibios_disable_irq)
+	if (!dev->msi_enabled && pcibios_disable_irq)
 		pcibios_disable_irq(dev);
 }
