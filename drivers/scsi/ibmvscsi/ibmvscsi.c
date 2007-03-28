@@ -85,7 +85,7 @@
 static int max_id = 64;
 static int max_channel = 3;
 static int init_timeout = 5;
-static int max_requests = 50;
+static int max_requests = IBMVSCSI_MAX_REQUESTS_DEFAULT;
 
 #define IBMVSCSI_VERSION "1.5.8"
 
@@ -538,7 +538,8 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	int request_status;
 	int rc;
 
-	/* If we have exhausted our request limit, just fail this request.
+	/* If we have exhausted our request limit, just fail this request,
+	 * unless it is for a reset or abort.
 	 * Note that there are rare cases involving driver generated requests 
 	 * (such as task management requests) that the mid layer may think we
 	 * can handle more requests (can_queue) when we actually can't
@@ -551,9 +552,30 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 		 */
 		if (request_status < -1)
 			goto send_error;
-		/* Otherwise, if we have run out of requests */
-		else if (request_status < 0)
-			goto send_busy;
+		/* Otherwise, we may have run out of requests. */
+		/* Abort and reset calls should make it through.
+		 * Nothing except abort and reset should use the last two
+		 * slots unless we had two or less to begin with.
+		 */
+		else if (request_status < 2 &&
+		         evt_struct->iu.srp.cmd.opcode != SRP_TSK_MGMT) {
+			/* In the case that we have less than two requests
+			 * available, check the server limit as a combination
+			 * of the request limit and the number of requests
+			 * in-flight (the size of the send list).  If the
+			 * server limit is greater than 2, return busy so
+			 * that the last two are reserved for reset and abort.
+			 */
+			int server_limit = request_status;
+			struct srp_event_struct *tmp_evt;
+
+			list_for_each_entry(tmp_evt, &hostdata->sent, list) {
+				server_limit++;
+			}
+
+			if (server_limit > 2)
+				goto send_busy;
+		}
 	}
 
 	/* Copy the IU into the transfer area */
@@ -572,6 +594,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 
 		printk(KERN_ERR "ibmvscsi: send error %d\n",
 		       rc);
+		atomic_inc(&hostdata->request_limit);
 		goto send_error;
 	}
 
@@ -581,7 +604,8 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	unmap_cmd_data(&evt_struct->iu.srp.cmd, evt_struct, hostdata->dev);
 
 	free_event_struct(&hostdata->pool, evt_struct);
- 	return SCSI_MLQUEUE_HOST_BUSY;
+	atomic_inc(&hostdata->request_limit);
+	return SCSI_MLQUEUE_HOST_BUSY;
 
  send_error:
 	unmap_cmd_data(&evt_struct->iu.srp.cmd, evt_struct, hostdata->dev);
@@ -831,22 +855,15 @@ static void login_rsp(struct srp_event_struct *evt_struct)
 
 	printk(KERN_INFO "ibmvscsi: SRP_LOGIN succeeded\n");
 
-	if (evt_struct->xfer_iu->srp.login_rsp.req_lim_delta >
-	    (max_requests - 2))
-		evt_struct->xfer_iu->srp.login_rsp.req_lim_delta =
-		    max_requests - 2;
+	if (evt_struct->xfer_iu->srp.login_rsp.req_lim_delta < 0)
+		printk(KERN_ERR "ibmvscsi: Invalid request_limit.\n");
 
-	/* Now we know what the real request-limit is */
+	/* Now we know what the real request-limit is.
+	 * This value is set rather than added to request_limit because
+	 * request_limit could have been set to -1 by this client.
+	 */
 	atomic_set(&hostdata->request_limit,
 		   evt_struct->xfer_iu->srp.login_rsp.req_lim_delta);
-
-	hostdata->host->can_queue =
-	    evt_struct->xfer_iu->srp.login_rsp.req_lim_delta - 2;
-
-	if (hostdata->host->can_queue < 1) {
-		printk(KERN_ERR "ibmvscsi: Invalid request_limit_delta\n");
-		return;
-	}
 
 	/* If we had any pending I/Os, kick them */
 	scsi_unblock_requests(hostdata->host);
@@ -1483,7 +1500,7 @@ static struct scsi_host_template driver_template = {
 	.eh_abort_handler = ibmvscsi_eh_abort_handler,
 	.eh_device_reset_handler = ibmvscsi_eh_device_reset_handler,
 	.cmd_per_lun = 16,
-	.can_queue = 1,		/* Updated after SRP_LOGIN */
+	.can_queue = IBMVSCSI_MAX_REQUESTS_DEFAULT,
 	.this_id = -1,
 	.sg_tablesize = SG_ALL,
 	.use_clustering = ENABLE_CLUSTERING,
@@ -1503,6 +1520,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	vdev->dev.driver_data = NULL;
 
+	driver_template.can_queue = max_requests;
 	host = scsi_host_alloc(&driver_template, sizeof(*hostdata));
 	if (!host) {
 		printk(KERN_ERR "ibmvscsi: couldn't allocate host data\n");
