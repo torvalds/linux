@@ -1184,10 +1184,12 @@ hfsc_delete_class(struct Qdisc *sch, unsigned long arg)
 
 	sch_tree_lock(sch);
 
-	list_del(&cl->hlist);
 	list_del(&cl->siblings);
 	hfsc_adjust_levels(cl->cl_parent);
+
 	hfsc_purge_queue(sch, cl);
+	list_del(&cl->hlist);
+
 	if (--cl->refcnt == 0)
 		hfsc_destroy_class(sch, cl);
 

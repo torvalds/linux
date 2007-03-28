@@ -1380,14 +1380,14 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 
 	sch_tree_lock(sch);
 
-	/* delete from hash and active; remainder in destroy_class */
-	hlist_del_init(&cl->hlist);
-
 	if (!cl->level) {
 		qlen = cl->un.leaf.q->q.qlen;
 		qdisc_reset(cl->un.leaf.q);
 		qdisc_tree_decrease_qlen(cl->un.leaf.q, qlen);
 	}
+
+	/* delete from hash and active; remainder in destroy_class */
+	hlist_del_init(&cl->hlist);
 
 	if (cl->prio_activity)
 		htb_deactivate(q, cl);
