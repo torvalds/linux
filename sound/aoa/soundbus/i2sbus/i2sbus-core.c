@@ -23,9 +23,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
 MODULE_DESCRIPTION("Apple Soundbus: I2S support");
-/* for auto-loading, declare that we handle this weird
- * string that macio puts into the relevant device */
-MODULE_ALIAS("of:Ni2sTi2sC");
 
 static int force;
 module_param(force, int, 0444);
@@ -36,6 +33,8 @@ static struct of_device_id i2sbus_match[] = {
 	{ .name = "i2s" },
 	{ }
 };
+
+MODULE_DEVICE_TABLE(of, i2sbus_match);
 
 static int alloc_dbdma_descriptor_ring(struct i2sbus_dev *i2sdev,
 				       struct dbdma_command_mem *r,
