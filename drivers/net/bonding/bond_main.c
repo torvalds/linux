@@ -3640,9 +3640,8 @@ static struct net_device_stats *bond_get_stats(struct net_device *bond_dev)
 	read_lock_bh(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev->get_stats) {
-			sstats = slave->dev->get_stats(slave->dev);
-
+		sstats = slave->dev->get_stats(slave->dev);
+		if (sstats) {
 			stats->rx_packets += sstats->rx_packets;
 			stats->rx_bytes += sstats->rx_bytes;
 			stats->rx_errors += sstats->rx_errors;

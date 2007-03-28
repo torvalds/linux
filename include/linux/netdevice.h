@@ -323,6 +323,7 @@ struct net_device
 #define NETIF_F_VLAN_CHALLENGED	1024	/* Device cannot handle VLAN packets */
 #define NETIF_F_GSO		2048	/* Enable software GSO. */
 #define NETIF_F_LLTX		4096	/* LockLess TX */
+#define NETIF_F_INTERNAL_STATS	8192	/* Use stats structure in net_device */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
@@ -347,6 +348,7 @@ struct net_device
 
 
 	struct net_device_stats* (*get_stats)(struct net_device *dev);
+	struct net_device_stats	stats;
 
 	/* List of functions to handle Wireless Extensions (instead of ioctl).
 	 * See <net/iw_handler.h> for details. Jean II */
