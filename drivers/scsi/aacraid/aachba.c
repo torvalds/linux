@@ -1194,6 +1194,12 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			printk(KERN_INFO "%s%d: serial %x\n",
 				dev->name, dev->id,
 				le32_to_cpu(dev->adapter_info.serial[0]));
+		if (dev->supplement_adapter_info.VpdInfo.Tsid[0]) {
+			printk(KERN_INFO "%s%d: TSID %.*s\n",
+			  dev->name, dev->id,
+			  (int)sizeof(dev->supplement_adapter_info.VpdInfo.Tsid),
+			  dev->supplement_adapter_info.VpdInfo.Tsid);
+		}
 	}
 
 	dev->nondasd_support = 0;

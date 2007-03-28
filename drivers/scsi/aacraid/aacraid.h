@@ -843,10 +843,25 @@ struct aac_supplement_adapter_info
 	__le32	Version;
 	__le32	FeatureBits;
 	u8	SlotNumber;
-	u8	ReservedPad0[0];
+	u8	ReservedPad0[3];
 	u8	BuildDate[12];
 	__le32	CurrentNumberPorts;
-	__le32	ReservedGrowth[24];
+	struct {
+		u8	AssemblyPn[8];
+		u8	FruPn[8];
+		u8	BatteryFruPn[8];
+		u8	EcVersionString[8];
+		u8	Tsid[12];
+	}	VpdInfo;
+	__le32	FlashFirmwareRevision;
+	__le32	FlashFirmwareBuild;
+	__le32	RaidTypeMorphOptions;
+	__le32	FlashFirmwareBootRevision;
+	__le32	FlashFirmwareBootBuild;
+	u8	MfgPcbaSerialNo[12];
+	u8	MfgWWNName[8];
+	__le32	MoreFeatureBits;
+	__le32	ReservedGrowth[1];
 };
 #define AAC_FEATURE_FALCON	0x00000010
 #define AAC_SIS_VERSION_V3	3
