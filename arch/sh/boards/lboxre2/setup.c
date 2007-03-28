@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/pata_platform.h>
 #include <asm/machvec.h>
+#include <asm/addrspace.h>
 #include <asm/lboxre2.h>
 #include <asm/io.h>
 
@@ -53,7 +54,7 @@ static int __init lboxre2_devices_setup(void)
 	unsigned long paddrbase, psize;
 
 	/* open I/O area window */
-	paddrbase = virt_to_phys((void*)CONFIG_CF0_BASE_ADDR);
+	paddrbase = virt_to_phys((void*)PA_AREA5_IO);
 	psize = PAGE_SIZE;
 	prot = PAGE_KERNEL_PCC( 1 , _PAGE_PCC_IO16);
 	cf0_io_base = (u32)p3_ioremap(paddrbase, psize, prot.pgprot);
