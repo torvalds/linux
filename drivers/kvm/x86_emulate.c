@@ -833,8 +833,9 @@ done_prefixes:
 		dst.ptr = (unsigned long *)cr2;
 		dst.bytes = (d & ByteOp) ? 1 : op_bytes;
 		if (d & BitOp) {
-			dst.ptr += src.val / BITS_PER_LONG;
-			dst.bytes = sizeof(long);
+			unsigned long mask = ~(dst.bytes * 8 - 1);
+
+			dst.ptr = (void *)dst.ptr + (src.val & mask) / 8;
 		}
 		if (!(d & Mov) && /* optimisation - avoid slow emulated read */
 		    ((rc = ops->read_emulated((unsigned long)dst.ptr,
