@@ -48,49 +48,13 @@ struct diskparm
 
 
 /*
- *	DON'T CHANGE THE ORDER, this is set by the firmware
+ *	Firmware constants
  */
  
 #define		CT_NONE			0
-#define		CT_VOLUME		1
-#define		CT_MIRROR		2
-#define		CT_STRIPE		3
-#define		CT_RAID5		4
-#define		CT_SSRW			5
-#define		CT_SSRO			6
-#define		CT_MORPH		7
-#define		CT_PASSTHRU		8
-#define		CT_RAID4		9
-#define		CT_RAID10		10	/* stripe of mirror */
-#define		CT_RAID00		11	/* stripe of stripe */
-#define		CT_VOLUME_OF_MIRRORS	12	/* volume of mirror */
-#define		CT_PSEUDO_RAID		13	/* really raid4 */
-#define		CT_LAST_VOLUME_TYPE	14
 #define 	CT_OK        		218
-
-/*
- *	Types of objects addressable in some fashion by the client.
- *	This is a superset of those objects handled just by the filesystem
- *	and includes "raw" objects that an administrator would use to
- *	configure containers and filesystems.
- */
-
-#define		FT_REG		1	/* regular file */
-#define		FT_DIR		2	/* directory */
-#define		FT_BLK		3	/* "block" device - reserved */
-#define		FT_CHR		4	/* "character special" device - reserved */
-#define		FT_LNK		5	/* symbolic link */
-#define		FT_SOCK		6	/* socket */
-#define		FT_FIFO		7	/* fifo */
 #define		FT_FILESYS	8	/* ADAPTEC's "FSA"(tm) filesystem */
 #define		FT_DRIVE	9	/* physical disk - addressable in scsi by bus/id/lun */
-#define		FT_SLICE	10	/* virtual disk - raw volume - slice */
-#define		FT_PARTITION	11	/* FSA partition - carved out of a slice - building block for containers */
-#define		FT_VOLUME	12	/* Container - Volume Set */
-#define		FT_STRIPE	13	/* Container - Stripe Set */
-#define		FT_MIRROR	14	/* Container - Mirror Set */
-#define		FT_RAID5	15	/* Container - Raid 5 Set */
-#define		FT_DATABASE	16	/* Storage object with "foreign" content manager */
 
 /*
  *	Host side memory scatter gather list
@@ -1519,8 +1483,7 @@ struct aac_mntent {
 	struct creation_info	create_info;	/* if applicable */
 	__le32			capacity;
 	__le32			vol;    	/* substrate structure */
-	__le32			obj;	        /* FT_FILESYS, 
-						   FT_DATABASE, etc. */
+	__le32			obj;	        /* FT_FILESYS, etc. */
 	__le32			state;		/* unready for mounting, 
 						   readonly, etc. */
 	union aac_contentinfo	fileinfo;	/* Info specific to content 
