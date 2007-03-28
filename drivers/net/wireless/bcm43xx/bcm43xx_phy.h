@@ -48,6 +48,10 @@ void bcm43xx_raw_phy_unlock(struct bcm43xx_private *bcm);
 		local_irq_restore(flags);	\
 	} while (0)
 
+/* Card uses the loopback gain stuff */
+#define has_loopback_gain(phy) \
+        (((phy)->rev > 1) || ((phy)->connected))
+
 u16 bcm43xx_phy_read(struct bcm43xx_private *bcm, u16 offset);
 void bcm43xx_phy_write(struct bcm43xx_private *bcm, u16 offset, u16 val);
 
