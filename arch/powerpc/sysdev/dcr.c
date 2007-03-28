@@ -129,7 +129,7 @@ void dcr_unmap(dcr_host_t host, unsigned int dcr_n, unsigned int dcr_c)
 
 	if (h.token == NULL)
 		return;
-	h.token -= dcr_n * h.stride;
+	h.token += dcr_n * h.stride;
 	iounmap(h.token);
 	h.token = NULL;
 }
