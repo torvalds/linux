@@ -333,7 +333,10 @@ unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
 				  unsigned long sram_vstart,
 				  unsigned long sram_size,
 				  unsigned long start_avail,
-				  unsigned long size_avail) {}
+				  unsigned long size_avail)
+{
+	return 0;
+}
 
 
 #endif
