@@ -233,6 +233,7 @@ struct btrfs_fs_info {
 	struct btrfs_super_block *disk_super;
 	struct buffer_head *sb_buffer;
 	struct super_block *sb;
+	struct inode *btree_inode;
 	struct mutex trans_mutex;
 	struct mutex fs_mutex;
 };

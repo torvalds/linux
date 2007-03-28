@@ -21,7 +21,8 @@ static inline struct btrfs_header *btrfs_buffer_header(struct buffer_head *bh)
 }
 
 struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr);
-struct buffer_head *find_tree_block(struct btrfs_root *root, u64 blocknr);
+struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
+						 u64 blocknr);
 int write_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		     struct buffer_head *buf);
 int dirty_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -37,5 +38,5 @@ int close_ctree(struct btrfs_root *root);
 void btrfs_block_release(struct btrfs_root *root, struct buffer_head *buf);
 int write_ctree_super(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root);
-int mkfs(int fd, u64 num_blocks, u32 blocksize);
+struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr);
 #endif

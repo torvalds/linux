@@ -474,6 +474,8 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	disk_super = (struct btrfs_super_block *)bh->b_data;
 	root = open_ctree(sb, bh, disk_super);
 	sb->s_fs_info = root;
+	disk_super = root->fs_info->disk_super;
+
 	if (!root) {
 		printk("btrfs: open_ctree failed\n");
 		return -EIO;
@@ -734,15 +736,15 @@ static int btrfs_sync_fs(struct super_block *sb, int wait)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root;
 	int ret;
+	root = btrfs_sb(sb);
 
 	sb->s_dirt = 0;
 	if (!wait) {
-		filemap_flush(sb->s_bdev->bd_inode->i_mapping);
+		filemap_flush(root->fs_info->btree_inode->i_mapping);
 		return 0;
 	}
-	filemap_write_and_wait(sb->s_bdev->bd_inode->i_mapping);
+	filemap_write_and_wait(root->fs_info->btree_inode->i_mapping);
 
-	root = btrfs_sb(sb);
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);

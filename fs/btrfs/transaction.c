@@ -74,7 +74,7 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root)
 {
-	filemap_write_and_wait(root->fs_info->sb->s_bdev->bd_inode->i_mapping);
+	filemap_write_and_wait(root->fs_info->btree_inode->i_mapping);
 	return 0;
 }
 

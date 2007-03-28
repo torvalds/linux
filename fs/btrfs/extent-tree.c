@@ -172,8 +172,8 @@ static int pin_down_block(struct btrfs_root *root, u64 blocknr, int pending)
 	struct buffer_head *bh;
 
 	if (!pending) {
-		bh = sb_find_get_block(root->fs_info->sb, blocknr);
-		if (bh) {
+		bh = btrfs_find_tree_block(root, blocknr);
+		if (bh && buffer_uptodate(bh)) {
 			header = btrfs_buffer_header(bh);
 			if (btrfs_header_generation(header) ==
 			    root->fs_info->running_transaction->transid) {
@@ -291,12 +291,10 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, u64 blocknr, u64 num_blocks, int pin)
 {
 	struct btrfs_root *extent_root = root->fs_info->extent_root;
-	struct buffer_head *t;
 	int pending_ret;
 	int ret;
 
 	if (root == extent_root) {
-		t = find_tree_block(root, blocknr);
 		pin_down_block(root, blocknr, 1);
 		return 0;
 	}
@@ -482,7 +480,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 		BUG();
 		return NULL;
 	}
-	buf = find_tree_block(root, ins.objectid);
+	buf = btrfs_find_create_tree_block(root, ins.objectid);
 	set_buffer_uptodate(buf);
 	return buf;
 }

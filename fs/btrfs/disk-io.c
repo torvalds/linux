@@ -1,14 +1,17 @@
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/blkdev.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
 
+
 static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 {
 	struct btrfs_node *node = btrfs_buffer_node(buf);
-	if (buf->b_blocknr != btrfs_header_blocknr(&node->header))
+	if (buf->b_blocknr != btrfs_header_blocknr(&node->header)) {
 		BUG();
+	}
 	if (root->node && btrfs_header_parentid(&node->header) !=
 	    btrfs_header_parentid(btrfs_buffer_header(root->node))) {
 		BUG();
@@ -16,25 +19,154 @@ static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 	return 0;
 }
 
-struct buffer_head *alloc_tree_block(struct btrfs_root *root, u64 blocknr)
+struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr)
 {
-	return sb_getblk(root->fs_info->sb, blocknr);
+	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
+	int blockbits = root->fs_info->sb->s_blocksize_bits;
+	unsigned long index = blocknr >> (PAGE_CACHE_SHIFT - blockbits);
+	struct page *page;
+	struct buffer_head *bh;
+	struct buffer_head *head;
+	struct buffer_head *ret = NULL;
+
+	page = find_lock_page(mapping, index);
+	if (!page)
+		return NULL;
+
+	if (!page_has_buffers(page))
+		goto out_unlock;
+
+	head = page_buffers(page);
+	bh = head;
+	do {
+		if (buffer_mapped(bh) && bh->b_blocknr == blocknr) {
+			ret = bh;
+			get_bh(bh);
+			goto out_unlock;
+		}
+		bh = bh->b_this_page;
+	} while (bh != head);
+out_unlock:
+	unlock_page(page);
+	page_cache_release(page);
+	return ret;
 }
 
-struct buffer_head *find_tree_block(struct btrfs_root *root, u64 blocknr)
+struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
+						 u64 blocknr)
 {
-	return sb_getblk(root->fs_info->sb, blocknr);
+	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
+	int blockbits = root->fs_info->sb->s_blocksize_bits;
+	unsigned long index = blocknr >> (PAGE_CACHE_SHIFT - blockbits);
+	struct page *page;
+	struct buffer_head *bh;
+	struct buffer_head *head;
+	struct buffer_head *ret = NULL;
+	u64 first_block = index << (PAGE_CACHE_SHIFT - blockbits);
+	page = grab_cache_page(mapping, index);
+	if (!page)
+		return NULL;
+
+	wait_on_page_writeback(page);
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, root->fs_info->sb->s_blocksize, 0);
+	head = page_buffers(page);
+	bh = head;
+	do {
+		if (!buffer_mapped(bh)) {
+			bh->b_bdev = root->fs_info->sb->s_bdev;
+			bh->b_blocknr = first_block;
+			set_buffer_mapped(bh);
+		}
+		if (bh->b_blocknr == blocknr) {
+			ret = bh;
+			get_bh(bh);
+			goto out_unlock;
+		}
+		bh = bh->b_this_page;
+		first_block++;
+	} while (bh != head);
+out_unlock:
+	unlock_page(page);
+	page_cache_release(page);
+	return ret;
 }
+
+static sector_t max_block(struct block_device *bdev)
+{
+	sector_t retval = ~((sector_t)0);
+	loff_t sz = i_size_read(bdev->bd_inode);
+
+	if (sz) {
+		unsigned int size = block_size(bdev);
+		unsigned int sizebits = blksize_bits(size);
+		retval = (sz >> sizebits);
+	}
+	return retval;
+}
+
+static int btree_get_block(struct inode *inode, sector_t iblock,
+			   struct buffer_head *bh, int create)
+{
+	if (iblock >= max_block(inode->i_sb->s_bdev)) {
+		if (create)
+			return -EIO;
+
+		/*
+		 * for reads, we're just trying to fill a partial page.
+		 * return a hole, they will have to call get_block again
+		 * before they can fill it, and they will get -EIO at that
+		 * time
+		 */
+		return 0;
+	}
+	bh->b_bdev = inode->i_sb->s_bdev;
+	bh->b_blocknr = iblock;
+	set_buffer_mapped(bh);
+	return 0;
+}
+
+static int btree_writepage(struct page *page, struct writeback_control *wbc)
+{
+	return block_write_full_page(page, btree_get_block, wbc);
+}
+
+static int btree_readpage(struct file * file, struct page * page)
+{
+	return block_read_full_page(page, btree_get_block);
+}
+
+static struct address_space_operations btree_aops = {
+	.readpage	= btree_readpage,
+	.writepage	= btree_writepage,
+	.sync_page	= block_sync_page,
+};
 
 struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 {
-	struct buffer_head *buf = sb_bread(root->fs_info->sb, blocknr);
+	struct buffer_head *bh = NULL;
 
-	if (!buf)
-		return buf;
-	if (check_tree_block(root, buf))
+	bh = btrfs_find_create_tree_block(root, blocknr);
+	if (!bh)
+		return bh;
+	lock_buffer(bh);
+	if (!buffer_uptodate(bh)) {
+		get_bh(bh);
+		bh->b_end_io = end_buffer_read_sync;
+		submit_bh(READ, bh);
+		wait_on_buffer(bh);
+		if (!buffer_uptodate(bh))
+			goto fail;
+	} else {
+		unlock_buffer(bh);
+	}
+	if (check_tree_block(root, bh))
 		BUG();
-	return buf;
+	return bh;
+fail:
+	brelse(bh);
+	return NULL;
+
 }
 
 int dirty_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -101,11 +233,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 						GFP_NOFS);
 	int ret;
 
-	/* FIXME: don't be stupid */
 	if (!btrfs_super_root(disk_super))
 		return NULL;
 	init_bit_radix(&fs_info->pinned_radix);
 	init_bit_radix(&fs_info->pending_del_radix);
+	sb_set_blocksize(sb, sb_buffer->b_size);
 	fs_info->running_transaction = NULL;
 	fs_info->fs_root = root;
 	fs_info->tree_root = tree_root;
@@ -114,14 +246,30 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->last_inode_alloc = 0;
 	fs_info->last_inode_alloc_dirid = 0;
 	fs_info->disk_super = disk_super;
-	fs_info->sb_buffer = sb_buffer;
 	fs_info->sb = sb;
+	fs_info->btree_inode = new_inode(sb);
+	fs_info->btree_inode->i_ino = 1;
+	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
+	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
+	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
+
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
 	memset(&fs_info->current_insert, 0, sizeof(fs_info->current_insert));
 	memset(&fs_info->last_insert, 0, sizeof(fs_info->last_insert));
 
 	__setup_root(disk_super, tree_root, fs_info, BTRFS_ROOT_TREE_OBJECTID);
+
+	fs_info->sb_buffer = read_tree_block(tree_root, sb_buffer->b_blocknr);
+
+	if (!fs_info->sb_buffer)
+		return NULL;
+
+	brelse(sb_buffer);
+	sb_buffer = NULL;
+	disk_super = (struct btrfs_super_block *)fs_info->sb_buffer->b_data;
+	fs_info->disk_super = disk_super;
+
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super));
 	BUG_ON(!tree_root->node);
@@ -137,7 +285,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	ret = find_and_setup_root(disk_super, tree_root, fs_info,
 				  BTRFS_FS_TREE_OBJECTID, root);
 	BUG_ON(ret);
-
 	root->commit_root = root->node;
 	get_bh(root->node);
 	root->ref_cows = 1;
@@ -191,6 +338,7 @@ int close_ctree(struct btrfs_root *root)
 				    root->fs_info->tree_root->node);
 	btrfs_block_release(root, root->commit_root);
 	btrfs_block_release(root, root->fs_info->sb_buffer);
+	iput(root->fs_info->btree_inode);
 	kfree(root->fs_info->extent_root);
 	kfree(root->fs_info->inode_root);
 	kfree(root->fs_info->tree_root);
