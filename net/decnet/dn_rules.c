@@ -242,7 +242,7 @@ static u32 dn_fib_rule_default_pref(void)
 
 static void dn_fib_rule_flush_cache(void)
 {
-	dn_rt_cache_flush(0);
+	dn_rt_cache_flush(-1);
 }
 
 static struct fib_rules_ops dn_fib_rules_ops = {
