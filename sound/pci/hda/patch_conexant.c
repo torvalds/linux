@@ -632,11 +632,13 @@ static struct hda_verb cxt5045_init_verbs[] = {
 static struct hda_verb cxt5045_hp_sense_init_verbs[] = {
 	/* pin sensing on HP jack */
 	{0x11, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_HP_EVENT},
+	{ } /* end */
 };
 
 static struct hda_verb cxt5045_mic_sense_init_verbs[] = {
 	/* pin sensing on HP jack */
 	{0x12, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_MIC_EVENT},
+	{ } /* end */
 };
 
 #ifdef CONFIG_SND_DEBUG
