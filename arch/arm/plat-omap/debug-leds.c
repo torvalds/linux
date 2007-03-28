@@ -39,12 +39,6 @@ static struct h2p2_dbg_fpga __iomem	*fpga;
 static u16				led_state, hw_led_state;
 
 
-#ifdef	CONFIG_LEDS
-#define old_led_api()	1
-#else
-#define old_led_api()	0
-#endif
-
 #ifdef	CONFIG_LEDS_OMAP_DEBUG
 #define new_led_api()	1
 #else
@@ -202,7 +196,8 @@ struct dbg_led {
 static struct dbg_led dbg_leds[] = {
 	/* REVISIT at least H2 uses different timer & cpu leds... */
 #ifndef CONFIG_LEDS_TIMER
-	{ .mask = 1 << 0,  .cdev.name =  "d4:green", },		/* timer */
+	{ .mask = 1 << 0,  .cdev.name =  "d4:green",
+		.cdev.default_trigger = "heartbeat", },
 #endif
 #ifndef CONFIG_LEDS_CPU
 	{ .mask = 1 << 1,  .cdev.name =  "d5:green", },		/* !idle */
@@ -274,10 +269,10 @@ static int /* __init */ fpga_probe(struct platform_device *pdev)
 	fpga = ioremap(iomem->start, H2P2_DBG_FPGA_SIZE);
 	__raw_writew(~0, &fpga->leds);
 
-	if (old_led_api()) {
-		leds_event = h2p2_dbg_leds_event;
-		leds_event(led_start);
-	}
+#ifdef	CONFIG_LEDS
+	leds_event = h2p2_dbg_leds_event;
+	leds_event(led_start);
+#endif
 
 	if (new_led_api()) {
 		newled_init(&pdev->dev);
