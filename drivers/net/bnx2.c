@@ -54,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5.5"
-#define DRV_MODULE_RELDATE	"February 1, 2007"
+#define DRV_MODULE_VERSION	"1.5.6"
+#define DRV_MODULE_RELDATE	"March 28, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -2033,8 +2033,8 @@ bnx2_has_work(struct bnx2 *bp)
 	    (sblk->status_tx_quick_consumer_index0 != bp->hw_tx_cons))
 		return 1;
 
-	if (((sblk->status_attn_bits & STATUS_ATTN_BITS_LINK_STATE) != 0) !=
-	    bp->link_up)
+	if ((sblk->status_attn_bits & STATUS_ATTN_BITS_LINK_STATE) !=
+	    (sblk->status_attn_bits_ack & STATUS_ATTN_BITS_LINK_STATE))
 		return 1;
 
 	return 0;
