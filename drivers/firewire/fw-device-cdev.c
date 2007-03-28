@@ -711,7 +711,7 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 	struct fw_cdev_queue_iso request;
 	struct fw_cdev_iso_packet __user *p, *end, *next;
 	struct fw_iso_context *ctx = client->iso_context;
-	unsigned long payload, payload_end, header_length;
+	unsigned long payload, buffer_end, header_length;
 	int count;
 	struct {
 		struct fw_iso_packet packet;
@@ -732,11 +732,11 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 	 * and the request.data pointer is ignored.*/
 
 	payload = (unsigned long)request.data - client->vm_start;
-	payload_end = payload + (client->buffer.page_count << PAGE_SHIFT);
+	buffer_end = client->buffer.page_count << PAGE_SHIFT;
 	if (request.data == 0 || client->buffer.pages == NULL ||
-	    payload >= payload_end) {
+	    payload >= buffer_end) {
 		payload = 0;
-		payload_end = 0;
+		buffer_end = 0;
 	}
 
 	if (!access_ok(VERIFY_READ, request.packets, request.size))
@@ -773,7 +773,7 @@ static int ioctl_queue_iso(struct client *client, void __user *arg)
 		if (u.packet.skip && ctx->type == FW_ISO_CONTEXT_TRANSMIT &&
 		    u.packet.header_length + u.packet.payload_length > 0)
 			return -EINVAL;
-		if (payload + u.packet.payload_length > payload_end)
+		if (payload + u.packet.payload_length > buffer_end)
 			return -EINVAL;
 
 		if (fw_iso_context_queue(ctx, &u.packet,
