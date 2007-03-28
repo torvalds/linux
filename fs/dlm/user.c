@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2006-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -128,35 +128,30 @@ static void compat_output(struct dlm_lock_result *res,
 }
 #endif
 
+/* we could possibly check if the cancel of an orphan has resulted in the lkb
+   being removed and then remove that lkb from the orphans list and free it */
 
 void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 {
 	struct dlm_ls *ls;
 	struct dlm_user_args *ua;
 	struct dlm_user_proc *proc;
-	int remove_ownqueue = 0;
+	int eol = 0, ast_type;
 
-	/* dlm_clear_proc_locks() sets ORPHAN/DEAD flag on each
-	   lkb before dealing with it.  We need to check this
-	   flag before taking ls_clear_proc_locks mutex because if
-	   it's set, dlm_clear_proc_locks() holds the mutex. */
-
-	if (lkb->lkb_flags & (DLM_IFL_ORPHAN | DLM_IFL_DEAD)) {
-		/* log_print("user_add_ast skip1 %x", lkb->lkb_flags); */
+	if (lkb->lkb_flags & (DLM_IFL_ORPHAN | DLM_IFL_DEAD))
 		return;
-	}
 
 	ls = lkb->lkb_resource->res_ls;
 	mutex_lock(&ls->ls_clear_proc_locks);
 
 	/* If ORPHAN/DEAD flag is set, it means the process is dead so an ast
 	   can't be delivered.  For ORPHAN's, dlm_clear_proc_locks() freed
-	   lkb->ua so we can't try to use it. */
+	   lkb->ua so we can't try to use it.  This second check is necessary
+	   for cases where a completion ast is received for an operation that
+	   began before clear_proc_locks did its cancel/unlock. */
 
-	if (lkb->lkb_flags & (DLM_IFL_ORPHAN | DLM_IFL_DEAD)) {
-		/* log_print("user_add_ast skip2 %x", lkb->lkb_flags); */
+	if (lkb->lkb_flags & (DLM_IFL_ORPHAN | DLM_IFL_DEAD))
 		goto out;
-	}
 
 	DLM_ASSERT(lkb->lkb_astparam, dlm_print_lkb(lkb););
 	ua = (struct dlm_user_args *)lkb->lkb_astparam;
@@ -166,28 +161,42 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 		goto out;
 
 	spin_lock(&proc->asts_spin);
-	if (!(lkb->lkb_ast_type & (AST_COMP | AST_BAST))) {
+
+	ast_type = lkb->lkb_ast_type;
+	lkb->lkb_ast_type |= type;
+
+	if (!ast_type) {
 		kref_get(&lkb->lkb_ref);
 		list_add_tail(&lkb->lkb_astqueue, &proc->asts);
-		lkb->lkb_ast_type |= type;
 		wake_up_interruptible(&proc->wait);
 	}
+	if (type == AST_COMP && (ast_type & AST_COMP))
+		log_debug(ls, "ast overlap %x status %x %x",
+			  lkb->lkb_id, ua->lksb.sb_status, lkb->lkb_flags);
 
-	/* noqueue requests that fail may need to be removed from the
-	   proc's locks list, there should be a better way of detecting
-	   this situation than checking all these things... */
+	/* Figure out if this lock is at the end of its life and no longer
+	   available for the application to use.  The lkb still exists until
+	   the final ast is read.  A lock becomes EOL in three situations:
+	     1. a noqueue request fails with EAGAIN
+	     2. an unlock completes with EUNLOCK
+	     3. a cancel of a waiting request completes with ECANCEL
+	   An EOL lock needs to be removed from the process's list of locks.
+	   And we can't allow any new operation on an EOL lock.  This is
+	   not related to the lifetime of the lkb struct which is managed
+	   entirely by refcount. */
 
-	if (type == AST_COMP && lkb->lkb_grmode == DLM_LOCK_IV &&
-	    ua->lksb.sb_status == -EAGAIN && !list_empty(&lkb->lkb_ownqueue))
-		remove_ownqueue = 1;
-
-	/* unlocks or cancels of waiting requests need to be removed from the
-	   proc's unlocking list, again there must be a better way...  */
-
-	if (ua->lksb.sb_status == -DLM_EUNLOCK ||
+	if (type == AST_COMP &&
+	    lkb->lkb_grmode == DLM_LOCK_IV &&
+	    ua->lksb.sb_status == -EAGAIN)
+		eol = 1;
+	else if (ua->lksb.sb_status == -DLM_EUNLOCK ||
 	    (ua->lksb.sb_status == -DLM_ECANCEL &&
 	     lkb->lkb_grmode == DLM_LOCK_IV))
-		remove_ownqueue = 1;
+		eol = 1;
+	if (eol) {
+		lkb->lkb_ast_type &= ~AST_BAST;
+		lkb->lkb_flags |= DLM_IFL_ENDOFLIFE;
+	}
 
 	/* We want to copy the lvb to userspace when the completion
 	   ast is read if the status is 0, the lock has an lvb and
@@ -204,11 +213,13 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 
 	spin_unlock(&proc->asts_spin);
 
-	if (remove_ownqueue) {
+	if (eol) {
 		spin_lock(&ua->proc->locks_spin);
-		list_del_init(&lkb->lkb_ownqueue);
+		if (!list_empty(&lkb->lkb_ownqueue)) {
+			list_del_init(&lkb->lkb_ownqueue);
+			dlm_put_lkb(lkb);
+		}
 		spin_unlock(&ua->proc->locks_spin);
-		dlm_put_lkb(lkb);
 	}
  out:
 	mutex_unlock(&ls->ls_clear_proc_locks);

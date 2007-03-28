@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -459,6 +459,8 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 
 	INIT_LIST_HEAD(&ls->ls_waiters);
 	mutex_init(&ls->ls_waiters_mutex);
+	INIT_LIST_HEAD(&ls->ls_orphans);
+	mutex_init(&ls->ls_orphans_mutex);
 
 	INIT_LIST_HEAD(&ls->ls_nodes);
 	INIT_LIST_HEAD(&ls->ls_nodes_gone);
