@@ -29,6 +29,8 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_driver.h>
 #include <scsi/sg.h>
 
 static char bsg_version[] = "block layer sg (bsg) 0.4";
@@ -962,6 +964,8 @@ int bsg_register_queue(struct request_queue *q, char *name)
 {
 	struct bsg_class_device *bcd;
 	dev_t dev;
+	int ret;
+	struct class_device *class_dev = NULL;
 
 	/*
 	 * we need a proper transport to send commands, not a stacked device
@@ -978,21 +982,53 @@ int bsg_register_queue(struct request_queue *q, char *name)
 	bcd->minor = bsg_device_nr;
 	bsg_device_nr++;
 	bcd->queue = q;
-	bcd->class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", name);
-	if (!bcd->class_dev)
+	class_dev = class_device_create(bsg_class, NULL, dev, bcd->dev, "%s", name);
+	if (IS_ERR(class_dev)) {
+		ret = PTR_ERR(class_dev);
 		goto err;
+	}
+	bcd->class_dev = class_dev;
+
+	if (q->kobj.dentry) {
+		ret = sysfs_create_link(&q->kobj, &bcd->class_dev->kobj, "bsg");
+		if (ret)
+			goto err;
+	}
+
 	list_add_tail(&bcd->list, &bsg_class_list);
-	if (sysfs_create_link(&q->kobj, &bcd->class_dev->kobj, "bsg"))
-		goto err;
+
 	mutex_unlock(&bsg_mutex);
 	return 0;
 err:
 	bsg_device_nr--;
-	if (bcd->class_dev)
+	if (class_dev)
 		class_device_destroy(bsg_class, MKDEV(BSG_MAJOR, bcd->minor));
 	mutex_unlock(&bsg_mutex);
-	return -ENOMEM;
+	return ret;
 }
+
+static int bsg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
+{
+	int ret;
+	struct scsi_device *sdp = to_scsi_device(cl_dev->dev);
+	struct request_queue *rq = sdp->request_queue;
+
+	if (rq->kobj.parent)
+		ret = bsg_register_queue(rq, kobject_name(rq->kobj.parent));
+	else
+		ret = bsg_register_queue(rq, kobject_name(&sdp->sdev_gendev.kobj));
+	return ret;
+}
+
+static void bsg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
+{
+	bsg_unregister_queue(to_scsi_device(cl_dev->dev)->request_queue);
+}
+
+static struct class_interface bsg_intf = {
+	.add	= bsg_add,
+	.remove	= bsg_remove,
+};
 
 static int __init bsg_init(void)
 {
@@ -1021,6 +1057,15 @@ static int __init bsg_init(void)
 		return ret;
 	}
 
+	ret = scsi_register_interface(&bsg_intf);
+	if (ret) {
+		printk(KERN_ERR "bsg: failed register scsi interface %d\n", ret);
+		kmem_cache_destroy(bsg_cmd_cachep);
+		class_destroy(bsg_class);
+		unregister_chrdev(BSG_MAJOR, "bsg");
+		return ret;
+	}
+
 	printk(KERN_INFO "%s loaded\n", bsg_version);
 	return 0;
 }
@@ -1029,4 +1074,4 @@ MODULE_AUTHOR("Jens Axboe");
 MODULE_DESCRIPTION("Block layer SGSI generic (sg) driver");
 MODULE_LICENSE("GPL");
 
-subsys_initcall(bsg_init);
+device_initcall(bsg_init);
