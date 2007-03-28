@@ -458,7 +458,7 @@ static void bcm43xx_calc_nrssi_offset(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x005A, 0x0480);
 		bcm43xx_phy_write(bcm, 0x0059, 0x0810);
 		bcm43xx_phy_write(bcm, 0x0058, 0x000D);
-		if (phy->rev == 0) {
+		if (phy->analog == 0) {
 			bcm43xx_phy_write(bcm, 0x0003, 0x0122);
 		} else {
 			bcm43xx_phy_write(bcm, 0x000A,
@@ -570,9 +570,9 @@ void bcm43xx_calc_nrssi_slope(struct bcm43xx_private *bcm)
 		nrssi0 = (s16)bcm43xx_phy_read(bcm, 0x0027);
 		bcm43xx_radio_write16(bcm, 0x007A,
 				      bcm43xx_radio_read16(bcm, 0x007A) & 0x007F);
-		if (phy->rev >= 2) {
+		if (phy->analog >= 2) {
 			bcm43xx_write16(bcm, 0x03E6, 0x0040);
-		} else if (phy->rev == 0) {
+		} else if (phy->analog == 0) {
 			bcm43xx_write16(bcm, 0x03E6, 0x0122);
 		} else {
 			bcm43xx_write16(bcm, BCM43xx_MMIO_CHANNEL_EXT,
@@ -596,7 +596,7 @@ void bcm43xx_calc_nrssi_slope(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x0015, backup[5]);
 		bcm43xx_phy_write(bcm, 0x002A, backup[6]);
 		bcm43xx_synth_pu_workaround(bcm, radio->channel);
-		if (phy->rev != 0)
+		if (phy->analog != 0)
 			bcm43xx_write16(bcm, 0x03F4, backup[13]);
 
 		bcm43xx_phy_write(bcm, 0x0020, backup[7]);
@@ -692,7 +692,7 @@ void bcm43xx_calc_nrssi_slope(struct bcm43xx_private *bcm)
 
 		bcm43xx_radio_write16(bcm, 0x007A,
 				      bcm43xx_radio_read16(bcm, 0x007A) & 0x007F);
-		if (phy->rev >= 2) {
+		if (phy->analog >= 2) {
 			bcm43xx_phy_write(bcm, 0x0003,
 					  (bcm43xx_phy_read(bcm, 0x0003)
 					   & 0xFF9F) | 0x0040);
@@ -1579,7 +1579,7 @@ void bcm43xx_radio_set_tx_iq(struct bcm43xx_private *bcm)
 	
 	for (i = 0; i < 5; i++) {
 		for (j = 0; j < 5; j++) {
-			if (tmp == (data_high[i] << 4 | data_low[j])) {
+			if (tmp == (data_high[i] | data_low[j])) {
 				bcm43xx_phy_write(bcm, 0x0069, (i - j) << 8 | 0x00C0);
 				return;
 			}

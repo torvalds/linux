@@ -757,7 +757,7 @@ static void bcm43xx_phy_initb5(struct bcm43xx_private *bcm)
 	if (radio->version == 0x2050)
 		bcm43xx_phy_write(bcm, 0x0038, 0x0667);
 
-	if (phy->type == BCM43xx_PHYTYPE_G) {
+	if (phy->connected) {
 		if (radio->version == 0x2050) {
 			bcm43xx_radio_write16(bcm, 0x007A,
 					      bcm43xx_radio_read16(bcm, 0x007A)
@@ -1192,7 +1192,7 @@ static void bcm43xx_phy_initg(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x0811, 0x0400);
 		bcm43xx_phy_write(bcm, 0x0015, 0x00C0);
 	}
-	if (phy->connected) {
+	if (phy->rev >= 2 && phy->connected) {
 		tmp = bcm43xx_phy_read(bcm, 0x0400) & 0xFF;
 		if (tmp < 6) {
 			bcm43xx_phy_write(bcm, 0x04C2, 0x1816);

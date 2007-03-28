@@ -71,7 +71,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.3.0-1.226"
+#define MYRI10GE_VERSION_STR "1.3.0-1.227"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -2015,10 +2015,9 @@ again:
 	mss = 0;
 	max_segments = MXGEFW_MAX_SEND_DESC;
 
-	if (skb->len > (dev->mtu + ETH_HLEN)) {
+	if (skb_is_gso(skb)) {
 		mss = skb_shinfo(skb)->gso_size;
-		if (mss != 0)
-			max_segments = MYRI10GE_MAX_SEND_DESC_TSO;
+		max_segments = MYRI10GE_MAX_SEND_DESC_TSO;
 	}
 
 	if ((unlikely(avail < max_segments))) {

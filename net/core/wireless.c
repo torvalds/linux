@@ -2,7 +2,7 @@
  * This file implement the Wireless Extensions APIs.
  *
  * Authors :	Jean Tourrilhes - HPL - <jt@hpl.hp.com>
- * Copyright (c) 1997-2006 Jean Tourrilhes, All Rights Reserved.
+ * Copyright (c) 1997-2007 Jean Tourrilhes, All Rights Reserved.
  *
  * (As all part of the Linux kernel, this file is GPL)
  */
@@ -76,6 +76,9 @@
  *	o Change length in ESSID and NICK to strlen() instead of strlen()+1
  *	o Make standard_ioctl_num and standard_event_num unsigned
  *	o Remove (struct net_device *)->get_wireless_stats()
+ *
+ * v10 - 16.3.07 - Jean II
+ *	o Prevent leaking of kernel space in stream on 64 bits.
  */
 
 /***************************** INCLUDES *****************************/
@@ -425,6 +428,21 @@ static const int event_type_size[] = {
 	IW_EV_POINT_LEN,		/* Without variable payload */
 	IW_EV_PARAM_LEN,		/* IW_HEADER_TYPE_PARAM */
 	IW_EV_QUAL_LEN,			/* IW_HEADER_TYPE_QUAL */
+};
+
+/* Size (in bytes) of various events, as packed */
+static const int event_type_pk_size[] = {
+	IW_EV_LCP_PK_LEN,		/* IW_HEADER_TYPE_NULL */
+	0,
+	IW_EV_CHAR_PK_LEN,		/* IW_HEADER_TYPE_CHAR */
+	0,
+	IW_EV_UINT_PK_LEN,		/* IW_HEADER_TYPE_UINT */
+	IW_EV_FREQ_PK_LEN,		/* IW_HEADER_TYPE_FREQ */
+	IW_EV_ADDR_PK_LEN,		/* IW_HEADER_TYPE_ADDR */
+	0,
+	IW_EV_POINT_PK_LEN,		/* Without variable payload */
+	IW_EV_PARAM_PK_LEN,		/* IW_HEADER_TYPE_PARAM */
+	IW_EV_QUAL_PK_LEN,		/* IW_HEADER_TYPE_QUAL */
 };
 
 /************************ COMMON SUBROUTINES ************************/
@@ -1217,7 +1235,7 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 		memcpy(buffer + IW_EV_POINT_OFF, request, request_len);
 		/* Use our own copy of wrqu */
 		wrqu = (union iwreq_data *) (buffer + IW_EV_POINT_OFF
-					     + IW_EV_LCP_LEN);
+					     + IW_EV_LCP_PK_LEN);
 
 		/* No extra arguments. Trivial to handle */
 		ret = handler(dev, &info, wrqu, NULL);
@@ -1229,8 +1247,8 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 
 		/* Get a temp copy of wrqu (skip pointer) */
 		memcpy(((char *) &wrqu_point) + IW_EV_POINT_OFF,
-		       ((char *) request) + IW_EV_LCP_LEN,
-		       IW_EV_POINT_LEN - IW_EV_LCP_LEN);
+		       ((char *) request) + IW_EV_LCP_PK_LEN,
+		       IW_EV_POINT_LEN - IW_EV_LCP_PK_LEN);
 
 		/* Calculate space needed by arguments. Always allocate
 		 * for max space. Easier, and won't last long... */
@@ -1240,7 +1258,7 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 		   (wrqu_point.data.length > descr->max_tokens))
 			extra_size = (wrqu_point.data.length
 				      * descr->token_size);
-		buffer_size = extra_size + IW_EV_POINT_LEN + IW_EV_POINT_OFF;
+		buffer_size = extra_size + IW_EV_POINT_PK_LEN + IW_EV_POINT_OFF;
 #ifdef WE_RTNETLINK_DEBUG
 		printk(KERN_DEBUG "%s (WE.r) : Malloc %d bytes (%d bytes)\n",
 		       dev->name, extra_size, buffer_size);
@@ -1254,15 +1272,15 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 
 		/* Put wrqu in the right place (just before extra).
 		 * Leave space for IWE header and dummy pointer...
-		 * Note that IW_EV_LCP_LEN==4 bytes, so it's still aligned...
+		 * Note that IW_EV_LCP_PK_LEN==4 bytes, so it's still aligned.
 		 */
-		memcpy(buffer + IW_EV_LCP_LEN + IW_EV_POINT_OFF,
+		memcpy(buffer + IW_EV_LCP_PK_LEN + IW_EV_POINT_OFF,
 		       ((char *) &wrqu_point) + IW_EV_POINT_OFF,
-		       IW_EV_POINT_LEN - IW_EV_LCP_LEN);
-		wrqu = (union iwreq_data *) (buffer + IW_EV_LCP_LEN);
+		       IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
+		wrqu = (union iwreq_data *) (buffer + IW_EV_LCP_PK_LEN);
 
 		/* Extra comes logically after that. Offset +12 bytes. */
-		extra = buffer + IW_EV_POINT_OFF + IW_EV_POINT_LEN;
+		extra = buffer + IW_EV_POINT_OFF + IW_EV_POINT_PK_LEN;
 
 		/* Call the handler */
 		ret = handler(dev, &info, wrqu, extra);
@@ -1270,11 +1288,11 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 		/* Calculate real returned length */
 		extra_size = (wrqu->data.length * descr->token_size);
 		/* Re-adjust reply size */
-		request->len = extra_size + IW_EV_POINT_LEN;
+		request->len = extra_size + IW_EV_POINT_PK_LEN;
 
 		/* Put the iwe header where it should, i.e. scrap the
 		 * dummy pointer. */
-		memcpy(buffer + IW_EV_POINT_OFF, request, IW_EV_LCP_LEN);
+		memcpy(buffer + IW_EV_POINT_OFF, request, IW_EV_LCP_PK_LEN);
 
 #ifdef WE_RTNETLINK_DEBUG
 		printk(KERN_DEBUG "%s (WE.r) : Reply 0x%04X, hdr_len %d, tokens %d, extra_size %d, buffer_size %d\n", dev->name, cmd, hdr_len, wrqu->data.length, extra_size, buffer_size);
@@ -1331,10 +1349,10 @@ static inline int rtnetlink_standard_set(struct net_device *	dev,
 #endif	/* WE_RTNETLINK_DEBUG */
 
 	/* Extract fixed header from request. This is properly aligned. */
-	wrqu = &request->u;
+	wrqu = (union iwreq_data *) (((char *) request) + IW_EV_LCP_PK_LEN);
 
 	/* Check if wrqu is complete */
-	hdr_len = event_type_size[descr->header_type];
+	hdr_len = event_type_pk_size[descr->header_type];
 	if(request_len < hdr_len) {
 #ifdef WE_RTNETLINK_DEBUG
 		printk(KERN_DEBUG
@@ -1359,7 +1377,7 @@ static inline int rtnetlink_standard_set(struct net_device *	dev,
 
 		/* Put wrqu in the right place (skip pointer) */
 		memcpy(((char *) &wrqu_point) + IW_EV_POINT_OFF,
-		       wrqu, IW_EV_POINT_LEN - IW_EV_LCP_LEN);
+		       wrqu, IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
 		/* Don't forget about the event code... */
 		wrqu = &wrqu_point;
 
@@ -1483,7 +1501,7 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 		hdr_len = extra_size;
 		extra_size = 0;
 	} else {
-		hdr_len = IW_EV_POINT_LEN;
+		hdr_len = IW_EV_POINT_PK_LEN;
 	}
 
 	/* Check if wrqu is complete */
@@ -1514,7 +1532,7 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 		memcpy(buffer + IW_EV_POINT_OFF, request, request_len);
 		/* Use our own copy of wrqu */
 		wrqu = (union iwreq_data *) (buffer + IW_EV_POINT_OFF
-					     + IW_EV_LCP_LEN);
+					     + IW_EV_LCP_PK_LEN);
 
 		/* No extra arguments. Trivial to handle */
 		ret = handler(dev, &info, wrqu, (char *) wrqu);
@@ -1523,7 +1541,7 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 		char *	extra;
 
 		/* Buffer for full reply */
-		buffer_size = extra_size + IW_EV_POINT_LEN + IW_EV_POINT_OFF;
+		buffer_size = extra_size + IW_EV_POINT_PK_LEN + IW_EV_POINT_OFF;
 
 #ifdef WE_RTNETLINK_DEBUG
 		printk(KERN_DEBUG "%s (WE.r) : Malloc %d bytes (%d bytes)\n",
@@ -1538,15 +1556,15 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 
 		/* Put wrqu in the right place (just before extra).
 		 * Leave space for IWE header and dummy pointer...
-		 * Note that IW_EV_LCP_LEN==4 bytes, so it's still aligned...
+		 * Note that IW_EV_LCP_PK_LEN==4 bytes, so it's still aligned.
 		 */
-		memcpy(buffer + IW_EV_LCP_LEN + IW_EV_POINT_OFF,
-		       ((char *) request) + IW_EV_LCP_LEN,
-		       IW_EV_POINT_LEN - IW_EV_LCP_LEN);
-		wrqu = (union iwreq_data *) (buffer + IW_EV_LCP_LEN);
+		memcpy(buffer + IW_EV_LCP_PK_LEN + IW_EV_POINT_OFF,
+		       ((char *) request) + IW_EV_LCP_PK_LEN,
+		       IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
+		wrqu = (union iwreq_data *) (buffer + IW_EV_LCP_PK_LEN);
 
 		/* Extra comes logically after that. Offset +12 bytes. */
-		extra = buffer + IW_EV_POINT_OFF + IW_EV_POINT_LEN;
+		extra = buffer + IW_EV_POINT_OFF + IW_EV_POINT_PK_LEN;
 
 		/* Call the handler */
 		ret = handler(dev, &info, wrqu, extra);
@@ -1556,11 +1574,11 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 		if (!(descr->get_args & IW_PRIV_SIZE_FIXED))
 			extra_size = adjust_priv_size(descr->get_args, wrqu);
 		/* Re-adjust reply size */
-		request->len = extra_size + IW_EV_POINT_LEN;
+		request->len = extra_size + IW_EV_POINT_PK_LEN;
 
 		/* Put the iwe header where it should, i.e. scrap the
 		 * dummy pointer. */
-		memcpy(buffer + IW_EV_POINT_OFF, request, IW_EV_LCP_LEN);
+		memcpy(buffer + IW_EV_POINT_OFF, request, IW_EV_LCP_PK_LEN);
 
 #ifdef WE_RTNETLINK_DEBUG
 		printk(KERN_DEBUG "%s (WE.r) : Reply 0x%04X, hdr_len %d, tokens %d, extra_size %d, buffer_size %d\n", dev->name, cmd, hdr_len, wrqu->data.length, extra_size, buffer_size);
@@ -1641,14 +1659,14 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 	/* Does it fits in wrqu ? */
 	if((descr->set_args & IW_PRIV_SIZE_FIXED) &&
 	   (extra_size <= IFNAMSIZ)) {
-		hdr_len = IW_EV_LCP_LEN + extra_size;
+		hdr_len = IW_EV_LCP_PK_LEN + extra_size;
 		extra_size = 0;
 	} else {
-		hdr_len = IW_EV_POINT_LEN;
+		hdr_len = IW_EV_POINT_PK_LEN;
 	}
 
 	/* Extract fixed header from request. This is properly aligned. */
-	wrqu = &request->u;
+	wrqu = (union iwreq_data *) (((char *) request) + IW_EV_LCP_PK_LEN);
 
 	/* Check if wrqu is complete */
 	if(request_len < hdr_len) {
@@ -1675,7 +1693,7 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 
 		/* Put wrqu in the right place (skip pointer) */
 		memcpy(((char *) &wrqu_point) + IW_EV_POINT_OFF,
-		       wrqu, IW_EV_POINT_LEN - IW_EV_LCP_LEN);
+		       wrqu, IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
 
 		/* Does it fits within bounds ? */
 		if(wrqu_point.data.length > (descr->set_args &
@@ -1738,7 +1756,7 @@ int wireless_rtnetlink_get(struct net_device *	dev,
 	iw_handler		handler;
 
 	/* Check length */
-	if(len < IW_EV_LCP_LEN) {
+	if(len < IW_EV_LCP_PK_LEN) {
 		printk(KERN_DEBUG "%s (WE.r) : RtNetlink request too short (%d)\n",
 		       dev->name, len);
 		return -EINVAL;
@@ -1822,7 +1840,7 @@ int wireless_rtnetlink_set(struct net_device *	dev,
 	iw_handler		handler;
 
 	/* Check length */
-	if(len < IW_EV_LCP_LEN) {
+	if(len < IW_EV_LCP_PK_LEN) {
 		printk(KERN_DEBUG "%s (WE.r) : RtNetlink request too short (%d)\n",
 		       dev->name, len);
 		return -EINVAL;
