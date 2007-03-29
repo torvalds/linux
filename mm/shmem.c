@@ -402,26 +402,38 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
 /*
  * shmem_free_swp - free some swap entries in a directory
  *
- * @dir:   pointer to the directory
- * @edir:  pointer after last entry of the directory
+ * @dir:        pointer to the directory
+ * @edir:       pointer after last entry of the directory
+ * @punch_lock: pointer to spinlock when needed for the holepunch case
  */
-static int shmem_free_swp(swp_entry_t *dir, swp_entry_t *edir)
+static int shmem_free_swp(swp_entry_t *dir, swp_entry_t *edir,
+						spinlock_t *punch_lock)
 {
+	spinlock_t *punch_unlock = NULL;
 	swp_entry_t *ptr;
 	int freed = 0;
 
 	for (ptr = dir; ptr < edir; ptr++) {
 		if (ptr->val) {
+			if (unlikely(punch_lock)) {
+				punch_unlock = punch_lock;
+				punch_lock = NULL;
+				spin_lock(punch_unlock);
+				if (!ptr->val)
+					continue;
+			}
 			free_swap_and_cache(*ptr);
 			*ptr = (swp_entry_t){0};
 			freed++;
 		}
 	}
+	if (punch_unlock)
+		spin_unlock(punch_unlock);
 	return freed;
 }
 
-static int shmem_map_and_free_swp(struct page *subdir,
-		int offset, int limit, struct page ***dir)
+static int shmem_map_and_free_swp(struct page *subdir, int offset,
+		int limit, struct page ***dir, spinlock_t *punch_lock)
 {
 	swp_entry_t *ptr;
 	int freed = 0;
@@ -431,7 +443,8 @@ static int shmem_map_and_free_swp(struct page *subdir,
 		int size = limit - offset;
 		if (size > LATENCY_LIMIT)
 			size = LATENCY_LIMIT;
-		freed += shmem_free_swp(ptr+offset, ptr+offset+size);
+		freed += shmem_free_swp(ptr+offset, ptr+offset+size,
+							punch_lock);
 		if (need_resched()) {
 			shmem_swp_unmap(ptr);
 			if (*dir) {
@@ -482,6 +495,8 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 	int offset;
 	int freed;
 	int punch_hole;
+	spinlock_t *needs_lock;
+	spinlock_t *punch_lock;
 	unsigned long upper_limit;
 
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
@@ -495,6 +510,7 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 		limit = info->next_index;
 		upper_limit = SHMEM_MAX_INDEX;
 		info->next_index = idx;
+		needs_lock = NULL;
 		punch_hole = 0;
 	} else {
 		if (end + 1 >= inode->i_size) {	/* we may free a little more */
@@ -505,6 +521,7 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 			limit = (end + 1) >> PAGE_CACHE_SHIFT;
 			upper_limit = limit;
 		}
+		needs_lock = &info->lock;
 		punch_hole = 1;
 	}
 
@@ -521,7 +538,7 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 		size = limit;
 		if (size > SHMEM_NR_DIRECT)
 			size = SHMEM_NR_DIRECT;
-		nr_swaps_freed = shmem_free_swp(ptr+idx, ptr+size);
+		nr_swaps_freed = shmem_free_swp(ptr+idx, ptr+size, needs_lock);
 	}
 
 	/*
@@ -530,6 +547,19 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 	 */
 	if (!topdir || limit <= SHMEM_NR_DIRECT)
 		goto done2;
+
+	/*
+	 * The truncation case has already dropped info->lock, and we're safe
+	 * because i_size and next_index have already been lowered, preventing
+	 * access beyond.  But in the punch_hole case, we still need to take
+	 * the lock when updating the swap directory, because there might be
+	 * racing accesses by shmem_getpage(SGP_CACHE), shmem_unuse_inode or
+	 * shmem_writepage.  However, whenever we find we can remove a whole
+	 * directory page (not at the misaligned start or end of the range),
+	 * we first NULLify its pointer in the level above, and then have no
+	 * need to take the lock when updating its contents: needs_lock and
+	 * punch_lock (either pointing to info->lock or NULL) manage this.
+	 */
 
 	upper_limit -= SHMEM_NR_DIRECT;
 	limit -= SHMEM_NR_DIRECT;
@@ -552,7 +582,13 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 			diroff = ((idx - ENTRIES_PER_PAGEPAGE/2) %
 				ENTRIES_PER_PAGEPAGE) / ENTRIES_PER_PAGE;
 			if (!diroff && !offset && upper_limit >= stage) {
-				*dir = NULL;
+				if (needs_lock) {
+					spin_lock(needs_lock);
+					*dir = NULL;
+					spin_unlock(needs_lock);
+					needs_lock = NULL;
+				} else
+					*dir = NULL;
 				nr_pages_to_free++;
 				list_add(&middir->lru, &pages_to_free);
 			}
@@ -578,8 +614,16 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 			}
 			stage = idx + ENTRIES_PER_PAGEPAGE;
 			middir = *dir;
+			if (punch_hole)
+				needs_lock = &info->lock;
 			if (upper_limit >= stage) {
-				*dir = NULL;
+				if (needs_lock) {
+					spin_lock(needs_lock);
+					*dir = NULL;
+					spin_unlock(needs_lock);
+					needs_lock = NULL;
+				} else
+					*dir = NULL;
 				nr_pages_to_free++;
 				list_add(&middir->lru, &pages_to_free);
 			}
@@ -588,31 +632,37 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 			dir = shmem_dir_map(middir);
 			diroff = 0;
 		}
+		punch_lock = needs_lock;
 		subdir = dir[diroff];
-		if (subdir && page_private(subdir)) {
+		if (subdir && !offset && upper_limit-idx >= ENTRIES_PER_PAGE) {
+			if (needs_lock) {
+				spin_lock(needs_lock);
+				dir[diroff] = NULL;
+				spin_unlock(needs_lock);
+				punch_lock = NULL;
+			} else
+				dir[diroff] = NULL;
+			nr_pages_to_free++;
+			list_add(&subdir->lru, &pages_to_free);
+		}
+		if (subdir && page_private(subdir) /* has swap entries */) {
 			size = limit - idx;
 			if (size > ENTRIES_PER_PAGE)
 				size = ENTRIES_PER_PAGE;
 			freed = shmem_map_and_free_swp(subdir,
-						offset, size, &dir);
+					offset, size, &dir, punch_lock);
 			if (!dir)
 				dir = shmem_dir_map(middir);
 			nr_swaps_freed += freed;
-			if (offset)
+			if (offset || punch_lock) {
 				spin_lock(&info->lock);
-			set_page_private(subdir, page_private(subdir) - freed);
-			if (offset)
+				set_page_private(subdir,
+					page_private(subdir) - freed);
 				spin_unlock(&info->lock);
-			if (!punch_hole)
-				BUG_ON(page_private(subdir) > offset);
+			} else
+				BUG_ON(page_private(subdir) != freed);
 		}
-		if (offset)
-			offset = 0;
-		else if (subdir && upper_limit - idx >= ENTRIES_PER_PAGE) {
-			dir[diroff] = NULL;
-			nr_pages_to_free++;
-			list_add(&subdir->lru, &pages_to_free);
-		}
+		offset = 0;
 	}
 done1:
 	shmem_dir_unmap(dir);
