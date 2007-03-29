@@ -4473,6 +4473,9 @@ static void ipr_dump_ioasa(struct ipr_ioa_cfg *ioa_cfg,
 		if (ioasa->ilid != 0)
 			return;
 
+		if (!ipr_is_gscsi(res))
+			return;
+
 		if (ipr_error_table[error_index].log_ioasa == 0)
 			return;
 	}
@@ -4632,10 +4635,10 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 		return;
 	}
 
-	if (ipr_is_gscsi(res))
-		ipr_dump_ioasa(ioa_cfg, ipr_cmd, res);
-	else
+	if (!ipr_is_gscsi(res))
 		ipr_gen_sense(ipr_cmd);
+
+	ipr_dump_ioasa(ioa_cfg, ipr_cmd, res);
 
 	switch (ioasc & IPR_IOASC_IOASC_MASK) {
 	case IPR_IOASC_ABORTED_CMD_TERM_BY_HOST:
