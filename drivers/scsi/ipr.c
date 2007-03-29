@@ -4453,12 +4453,13 @@ static void ipr_dump_ioasa(struct ipr_ioa_cfg *ioa_cfg,
 {
 	int i;
 	u16 data_len;
-	u32 ioasc;
+	u32 ioasc, fd_ioasc;
 	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
 	__be32 *ioasa_data = (__be32 *)ioasa;
 	int error_index;
 
 	ioasc = be32_to_cpu(ioasa->ioasc) & IPR_IOASC_IOASC_MASK;
+	fd_ioasc = be32_to_cpu(ioasa->fd_ioasc) & IPR_IOASC_IOASC_MASK;
 
 	if (0 == ioasc)
 		return;
@@ -4466,7 +4467,10 @@ static void ipr_dump_ioasa(struct ipr_ioa_cfg *ioa_cfg,
 	if (ioa_cfg->log_level < IPR_DEFAULT_LOG_LEVEL)
 		return;
 
-	error_index = ipr_get_error(ioasc);
+	if (ioasc == IPR_IOASC_BUS_WAS_RESET && fd_ioasc)
+		error_index = ipr_get_error(fd_ioasc);
+	else
+		error_index = ipr_get_error(ioasc);
 
 	if (ioa_cfg->log_level < IPR_MAX_LOG_LEVEL) {
 		/* Don't log an error if the IOA already logged one */
