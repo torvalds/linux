@@ -170,7 +170,7 @@ EXPORT_SYMBOL(of_find_property);
  * Find a property with a given name for a given node
  * and return the value.
  */
-void *of_get_property(struct device_node *np, const char *name, int *lenp)
+const void *of_get_property(struct device_node *np, const char *name, int *lenp)
 {
 	struct property *pp = of_find_property(np,name,lenp);
 	return pp ? pp->value : NULL;

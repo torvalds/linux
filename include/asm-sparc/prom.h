@@ -89,7 +89,7 @@ extern struct property *of_find_property(struct device_node *np,
 					 const char *name,
 					 int *lenp);
 extern int of_device_is_compatible(struct device_node *device, const char *);
-extern void *of_get_property(struct device_node *node, const char *name,
+extern const void *of_get_property(struct device_node *node, const char *name,
 			     int *lenp);
 #define get_property(node,name,lenp) of_get_property(node,name,lenp)
 extern int of_set_property(struct device_node *node, const char *name, void *val, int len);
