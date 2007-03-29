@@ -1734,6 +1734,18 @@ config SUNRPC
 config SUNRPC_GSS
 	tristate
 
+config SUNRPC_BIND34
+	bool "Support for rpcbind versions 3 & 4 (EXPERIMENTAL)"
+	depends on SUNRPC && EXPERIMENTAL
+	help
+	  Provides kernel support for querying rpcbind servers via versions 3
+	  and 4 of the rpcbind protocol.  The kernel automatically falls back
+	  to version 2 if a remote rpcbind service does not support versions
+	  3 or 4.
+
+	  If unsure, say N to get traditional behavior (version 2 rpcbind
+	  requests only).
+
 config RPCSEC_GSS_KRB5
 	tristate "Secure RPC: Kerberos V mechanism (EXPERIMENTAL)"
 	depends on SUNRPC && EXPERIMENTAL

@@ -902,9 +902,11 @@ call_bind_status(struct rpc_task *task)
 				task->tk_pid);
 		break;
 	case -EPROTONOSUPPORT:
-		dprintk("RPC: %5u remote rpcbind version 2 unavailable\n",
+		dprintk("RPC: %5u remote rpcbind version unavailable, retrying\n",
 				task->tk_pid);
-		break;
+		task->tk_status = 0;
+		task->tk_action = call_bind;
+		return;
 	default:
 		dprintk("RPC: %5u unrecognized rpcbind error (%d)\n",
 				task->tk_pid, -task->tk_status);
