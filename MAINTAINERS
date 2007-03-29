@@ -198,10 +198,25 @@ L:	linux-sound@vger.kernel.org
 W:	http://www.stud.uni-karlsruhe.de/~uh1b/
 S:	Maintained
 
+IPS SCSI RAID DRIVER
+P:	Adaptec OEM Raid Solutions
+M:	aacraid@adaptec.com
+L:	linux-scsi@vger.kernel.org
+W:	http://www.adaptec.com/
+S:	Maintained
+
+DPT_I2O SCSI RAID DRIVER
+P:	Adaptec OEM Raid Solutions
+M:	aacraid@adaptec.com
+L:	linux-scsi@vger.kernel.org
+W:	http://www.adaptec.com/
+S:	Maintained
+
 AACRAID SCSI RAID DRIVER
 P:	Adaptec OEM Raid Solutions
+M:	aacraid@adaptec.com
 L:	linux-scsi@vger.kernel.org
-W:	http://linux.dell.com/storage.shtml
+W:	http://www.adaptec.com/
 S:	Supported
 
 ACPI
