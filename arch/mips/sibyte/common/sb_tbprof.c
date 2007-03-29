@@ -31,14 +31,29 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/errno.h>
-#include <linux/types.h>
 #include <linux/wait.h>
-
 #include <asm/io.h>
 #include <asm/sibyte/sb1250.h>
+
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#include <asm/sibyte/bcm1480_regs.h>
+#include <asm/sibyte/bcm1480_scd.h>
+#include <asm/sibyte/bcm1480_int.h>
+#elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 #include <asm/sibyte/sb1250_regs.h>
 #include <asm/sibyte/sb1250_scd.h>
 #include <asm/sibyte/sb1250_int.h>
+#else
+#error invalid SiByte UART configuation
+#endif
+
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#undef K_INT_TRACE_FREEZE
+#define K_INT_TRACE_FREEZE K_BCM1480_INT_TRACE_FREEZE
+#undef K_INT_PERF_CNT
+#define K_INT_PERF_CNT K_BCM1480_INT_PERF_CNT
+#endif
+
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
@@ -118,7 +133,7 @@ static struct sbprof_tb sbp;
 			: /* inputs */ \
 			: /* modifies */ "$8" )
 
-#define DEVNAME "bcm1250_tbprof"
+#define DEVNAME "sb_tbprof"
 
 #define TB_FULL (sbp.next_tb_sample == MAX_TB_SAMPLES)
 
@@ -132,6 +147,7 @@ static struct sbprof_tb sbp;
  * overflow.
  *
  * We map the interrupt for trace_buffer_freeze to handle it on CPU 0.
+ *
  */
 
 static u64 tb_period;
@@ -143,25 +159,36 @@ static void arm_tb(void)
 	u64 tb_options = M_SCD_TRACE_CFG_FREEZE_FULL;
 
 	/*
-	 * Generate an SCD_PERFCNT interrupt in TB_PERIOD Zclks to trigger
-	 *start of trace.  XXX vary sampling period
+	 * Generate an SCD_PERFCNT interrupt in TB_PERIOD Zclks to
+	 * trigger start of trace.  XXX vary sampling period
 	 */
 	__raw_writeq(0, IOADDR(A_SCD_PERF_CNT_1));
 	scdperfcnt = __raw_readq(IOADDR(A_SCD_PERF_CNT_CFG));
 
 	/*
-	 * Unfortunately, in Pass 2 we must clear all counters to knock down a
-	 * previous interrupt request.  This means that bus profiling requires
-	 * ALL of the SCD perf counters.
+	 * Unfortunately, in Pass 2 we must clear all counters to knock down
+	 * a previous interrupt request.  This means that bus profiling
+	 * requires ALL of the SCD perf counters.
 	 */
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	__raw_writeq((scdperfcnt & ~M_SPC_CFG_SRC1) |
+						/* keep counters 0,2,3,4,5,6,7 as is */
+		     V_SPC_CFG_SRC1(1),		/* counter 1 counts cycles */
+		     IOADDR(A_BCM1480_SCD_PERF_CNT_CFG0));
+	__raw_writeq(
+		     M_SPC_CFG_ENABLE |		/* enable counting */
+		     M_SPC_CFG_CLEAR |		/* clear all counters */
+		     V_SPC_CFG_SRC1(1),		/* counter 1 counts cycles */
+		     IOADDR(A_BCM1480_SCD_PERF_CNT_CFG1));
+#else
 	__raw_writeq((scdperfcnt & ~M_SPC_CFG_SRC1) |
 						/* keep counters 0,2,3 as is */
 		     M_SPC_CFG_ENABLE |		/* enable counting */
 		     M_SPC_CFG_CLEAR |		/* clear all counters */
 		     V_SPC_CFG_SRC1(1),		/* counter 1 counts cycles */
 		     IOADDR(A_SCD_PERF_CNT_CFG));
+#endif
 	__raw_writeq(next, IOADDR(A_SCD_PERF_CNT_1));
-
 	/* Reset the trace buffer */
 	__raw_writeq(M_SCD_TRACE_CFG_RESET, IOADDR(A_SCD_TRACE_CFG));
 #if 0 && defined(M_SCD_TRACE_CFG_FORCECNT)
@@ -190,38 +217,37 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id)
 			/* Subscripts decrease to put bundle in the order */
 			/*   t0 lo, t0 hi, t1 lo, t1 hi, t2 lo, t2 hi */
 			p[i - 1] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
-								/* read t2 hi */
+			/* read t2 hi */
 			p[i - 2] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
-								/* read t2 lo */
+			/* read t2 lo */
 			p[i - 3] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
-								/* read t1 hi */
+			/* read t1 hi */
 			p[i - 4] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
-								/* read t1 lo */
+			/* read t1 lo */
 			p[i - 5] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
-								/* read t0 hi */
+			/* read t0 hi */
 			p[i - 6] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
-								/* read t0 lo */
+			/* read t0 lo */
 		}
 		if (!sbp.tb_enable) {
 			pr_debug(DEVNAME ": tb_intr shutdown\n");
 			__raw_writeq(M_SCD_TRACE_CFG_RESET,
 				     IOADDR(A_SCD_TRACE_CFG));
 			sbp.tb_armed = 0;
-			wake_up(&sbp.tb_sync);
+			wake_up_interruptible(&sbp.tb_sync);
 		} else {
-			arm_tb();	/* knock down current interrupt and get another one later */
+			/* knock down current interrupt and get another one later */
+			arm_tb();
 		}
 	} else {
 		/* No more trace buffer samples */
 		pr_debug(DEVNAME ": tb_intr full\n");
 		__raw_writeq(M_SCD_TRACE_CFG_RESET, IOADDR(A_SCD_TRACE_CFG));
 		sbp.tb_armed = 0;
-		if (!sbp.tb_enable) {
-			wake_up(&sbp.tb_sync);
-		}
-		wake_up(&sbp.tb_read);
+		if (!sbp.tb_enable)
+			wake_up_interruptible(&sbp.tb_sync);
+		wake_up_interruptible(&sbp.tb_read);
 	}
-
 	return IRQ_HANDLED;
 }
 
@@ -250,8 +276,8 @@ static int sbprof_zbprof_start(struct file *filp)
 	sbp.next_tb_sample = 0;
 	filp->f_pos = 0;
 
-	err = request_irq(K_INT_TRACE_FREEZE, sbprof_tb_intr, 0,
-	                DEVNAME " trace freeze", &sbp);
+	err = request_irq (K_INT_TRACE_FREEZE, sbprof_tb_intr, 0,
+			   DEVNAME " trace freeze", &sbp);
 	if (err)
 		return -EBUSY;
 
@@ -263,23 +289,29 @@ static int sbprof_zbprof_start(struct file *filp)
 		     IOADDR(A_SCD_PERF_CNT_CFG));
 
 	/*
-	 * We grab this interrupt to prevent others from trying to use it, even
-	 * though we don't want to service the interrupts (they only feed into
-	 * the trace-on-interrupt mechanism)
+	 * We grab this interrupt to prevent others from trying to use
+         * it, even though we don't want to service the interrupts
+         * (they only feed into the trace-on-interrupt mechanism)
 	 */
-	err = request_irq(K_INT_PERF_CNT, sbprof_pc_intr, 0,
-	                DEVNAME " scd perfcnt", &sbp);
-	if (err)
-		goto out_free_irq;
+	if (request_irq(K_INT_PERF_CNT, sbprof_pc_intr, 0, DEVNAME " scd perfcnt", &sbp)) {
+		free_irq(K_INT_TRACE_FREEZE, &sbp);
+		return -EBUSY;
+	}
 
 	/*
-	 * I need the core to mask these, but the interrupt mapper to pass them
-	 * through.  I am exploiting my knowledge that cp0_status masks out
-	 * IP[5]. krw
+	 * I need the core to mask these, but the interrupt mapper to
+	 *  pass them through.  I am exploiting my knowledge that
+	 *  cp0_status masks out IP[5]. krw
 	 */
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	__raw_writeq(K_BCM1480_INT_MAP_I3,
+		     IOADDR(A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_L) +
+			    ((K_BCM1480_INT_PERF_CNT & 0x3f) << 3)));
+#else
 	__raw_writeq(K_INT_MAP_I3,
 		     IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MAP_BASE) +
 			    (K_INT_PERF_CNT << 3)));
+#endif
 
 	/* Initialize address traps */
 	__raw_writeq(0, IOADDR(A_ADDR_TRAP_UP_0));
@@ -298,7 +330,7 @@ static int sbprof_zbprof_start(struct file *filp)
 	__raw_writeq(0, IOADDR(A_ADDR_TRAP_CFG_3));
 
 	/* Initialize Trace Event 0-7 */
-	/*				when interrupt */
+	/*				when interrupt  */
 	__raw_writeq(M_SCD_TREVT_INTERRUPT, IOADDR(A_SCD_TRACE_EVENT_0));
 	__raw_writeq(0, IOADDR(A_SCD_TRACE_EVENT_1));
 	__raw_writeq(0, IOADDR(A_SCD_TRACE_EVENT_2));
@@ -324,24 +356,23 @@ static int sbprof_zbprof_start(struct file *filp)
 	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_7));
 
 	/* Now indicate the PERF_CNT interrupt as a trace-relevant interrupt */
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	__raw_writeq(1ULL << (K_BCM1480_INT_PERF_CNT & 0x3f),
+		     IOADDR(A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_TRACE_L)));
+#else
 	__raw_writeq(1ULL << K_INT_PERF_CNT,
 		     IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_TRACE)));
-
+#endif
 	arm_tb();
 
 	pr_debug(DEVNAME ": done starting\n");
 
 	return 0;
-
-out_free_irq:
-	free_irq(K_INT_TRACE_FREEZE, &sbp);
-
-	return err;
 }
 
 static int sbprof_zbprof_stop(void)
 {
-	int err;
+	int err = 0;
 
 	pr_debug(DEVNAME ": stopping\n");
 
@@ -365,7 +396,7 @@ static int sbprof_zbprof_stop(void)
 
 	pr_debug(DEVNAME ": done stopping\n");
 
-	return 0;
+	return err;
 }
 
 static int sbprof_tb_open(struct inode *inode, struct file *filp)
@@ -380,11 +411,9 @@ static int sbprof_tb_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 
 	memset(&sbp, 0, sizeof(struct sbprof_tb));
-
 	sbp.sbprof_tbbuf = vmalloc(MAX_TBSAMPLE_BYTES);
 	if (!sbp.sbprof_tbbuf)
 		return -ENOMEM;
-
 	memset(sbp.sbprof_tbbuf, 0, MAX_TBSAMPLE_BYTES);
 	init_waitqueue_head(&sbp.tb_sync);
 	init_waitqueue_head(&sbp.tb_read);
@@ -397,8 +426,9 @@ static int sbprof_tb_open(struct inode *inode, struct file *filp)
 
 static int sbprof_tb_release(struct inode *inode, struct file *filp)
 {
-	int minor = iminor(inode);
+	int minor;
 
+	minor = iminor(inode);
 	if (minor != 0 || !sbp.open)
 		return -ENODEV;
 
@@ -419,10 +449,10 @@ static ssize_t sbprof_tb_read(struct file *filp, char *buf,
 			      size_t size, loff_t *offp)
 {
 	int cur_sample, sample_off, cur_count, sample_left;
-	long  cur_off = *offp;
-	char *dest    =	 buf;
-	int   count   =	 0;
 	char *src;
+	int   count   =	 0;
+	char *dest    =	 buf;
+	long  cur_off = *offp;
 
 	if (!access_ok(VERIFY_WRITE, buf, size))
 		return -EFAULT;
@@ -445,7 +475,6 @@ static ssize_t sbprof_tb_read(struct file *filp, char *buf,
 			mutex_unlock(&sbp.lock);
 			return err;
 		}
-
 		pr_debug(DEVNAME ": read from sample %d, %d bytes\n",
 		         cur_sample, cur_count);
 		size -= cur_count;
@@ -461,45 +490,46 @@ static ssize_t sbprof_tb_read(struct file *filp, char *buf,
 		dest += cur_count;
 		count += cur_count;
 	}
-
 	*offp = cur_off;
 	mutex_unlock(&sbp.lock);
 
 	return count;
 }
 
-static long sbprof_tb_ioctl(struct file *filp, unsigned int command,
-	unsigned long arg)
+static long sbprof_tb_ioctl(struct file *filp,
+			    unsigned int command,
+			    unsigned long arg)
 {
-	int error = 0;
+	int err = 0;
 
 	switch (command) {
 	case SBPROF_ZBSTART:
 		mutex_lock(&sbp.lock);
-		error = sbprof_zbprof_start(filp);
+		err = sbprof_zbprof_start(filp);
 		mutex_unlock(&sbp.lock);
 		break;
 
 	case SBPROF_ZBSTOP:
 		mutex_lock(&sbp.lock);
-		error = sbprof_zbprof_stop();
+		err = sbprof_zbprof_stop();
 		mutex_unlock(&sbp.lock);
 		break;
 
-	case SBPROF_ZBWAITFULL:
-		error = wait_event_interruptible(sbp.tb_read, TB_FULL);
-		if (error)
+	case SBPROF_ZBWAITFULL: {
+		err = wait_event_interruptible(sbp.tb_read, TB_FULL);
+		if (err)
 			break;
 
-		error = put_user(TB_FULL, (int *) arg);
-		break;
-
-	default:
-		error = -EINVAL;
+		err = put_user(TB_FULL, (int *) arg);
 		break;
 	}
 
-	return error;
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+	return err;
 }
 
 static const struct file_operations sbprof_tb_fops = {
@@ -544,8 +574,8 @@ static int __init sbprof_tb_init(void)
 
 	sbp.open = 0;
 	tb_period = zbbus_mhz * 10000LL;
-	pr_info(DEVNAME ": initialized - tb_period = %lld\n", tb_period);
-
+	pr_info(DEVNAME ": initialized - tb_period = %lld\n",
+		(long long) tb_period);
 	return 0;
 
 out_class:
