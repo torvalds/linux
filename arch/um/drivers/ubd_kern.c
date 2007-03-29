@@ -109,10 +109,6 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 
 static DEFINE_MUTEX(ubd_lock);
 
-/* XXX - this made sense in 2.4 days, now it's only used as a boolean, and
- * probably it doesn't make sense even for that. */
-static int do_ubd;
-
 static int ubd_open(struct inode * inode, struct file * filp);
 static int ubd_release(struct inode * inode, struct file * file);
 static int ubd_ioctl(struct inode * inode, struct file * file,
@@ -169,6 +165,7 @@ struct ubd {
 	struct platform_device pdev;
 	struct request_queue *queue;
 	spinlock_t lock;
+	int active;
 };
 
 #define DEFAULT_COW { \
@@ -190,6 +187,7 @@ struct ubd {
 	.shared =		0, \
         .cow =			DEFAULT_COW, \
 	.lock =			SPIN_LOCK_UNLOCKED,	\
+	.active =		0, \
 }
 
 /* Protected by ubd_lock */
@@ -507,7 +505,6 @@ static void ubd_handler(void)
 	struct ubd *dev;
 	int n;
 
-	do_ubd = 0;
 	n = os_read_file(thread_fd, &req, sizeof(req));
 	if(n != sizeof(req)){
 		printk(KERN_ERR "Pid %d - spurious interrupt in ubd_handler, "
@@ -517,6 +514,7 @@ static void ubd_handler(void)
 
 	rq = req.req;
 	dev = rq->rq_disk->private_data;
+	dev->active = 0;
 
 	ubd_finish(rq, req.error);
 	reactivate_fd(thread_fd, UBD_IRQ);
@@ -1081,11 +1079,12 @@ static void do_ubd_request(request_queue_t *q)
 		}
 	}
 	else {
-		if(do_ubd || (req = elv_next_request(q)) == NULL)
+		struct ubd *dev = q->queuedata;
+		if(dev->active || (req = elv_next_request(q)) == NULL)
 			return;
 		err = prepare_request(req, &io_req);
 		if(!err){
-			do_ubd = 1;
+			dev->active = 1;
 			n = os_write_file(thread_fd, (char *) &io_req,
 					 sizeof(io_req));
 			if(n != sizeof(io_req))
