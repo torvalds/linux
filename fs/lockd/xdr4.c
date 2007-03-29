@@ -516,17 +516,24 @@ nlm4clt_decode_res(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 	return 0;
 }
 
+#if (NLMCLNT_OHSIZE > XDR_MAX_NETOBJ)
+#  error "NLM host name cannot be larger than XDR_MAX_NETOBJ!"
+#endif
+
+#if (NLMCLNT_OHSIZE > NLM_MAXSTRLEN)
+#  error "NLM host name cannot be larger than NLM's maximum string length!"
+#endif
+
 /*
  * Buffer requirements for NLM
  */
 #define NLM4_void_sz		0
 #define NLM4_cookie_sz		1+XDR_QUADLEN(NLM_MAXCOOKIELEN)
-#define NLM4_caller_sz		1+XDR_QUADLEN(NLM_MAXSTRLEN)
-#define NLM4_netobj_sz		1+XDR_QUADLEN(XDR_MAX_NETOBJ)
-/* #define NLM4_owner_sz		1+XDR_QUADLEN(NLM4_MAXOWNER) */
+#define NLM4_caller_sz		1+XDR_QUADLEN(NLMCLNT_OHSIZE)
+#define NLM4_owner_sz		1+XDR_QUADLEN(NLMCLNT_OHSIZE)
 #define NLM4_fhandle_sz		1+XDR_QUADLEN(NFS3_FHSIZE)
-#define NLM4_lock_sz		5+NLM4_caller_sz+NLM4_netobj_sz+NLM4_fhandle_sz
-#define NLM4_holder_sz		6+NLM4_netobj_sz
+#define NLM4_lock_sz		5+NLM4_caller_sz+NLM4_owner_sz+NLM4_fhandle_sz
+#define NLM4_holder_sz		6+NLM4_owner_sz
 
 #define NLM4_testargs_sz	NLM4_cookie_sz+1+NLM4_lock_sz
 #define NLM4_lockargs_sz	NLM4_cookie_sz+4+NLM4_lock_sz
