@@ -1544,7 +1544,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		dev->dev_addr[i] = last_phys_addr[i] + 1;
 #if defined(__sparc__)
 		if (pcp) {
-			unsigned char *addr;
+			const unsigned char *addr;
 			int len;
 
 			addr = of_get_property(pcp->prom_node,

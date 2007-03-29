@@ -2704,7 +2704,7 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 			dev->dev_addr[i] = macaddr[i];
 		macaddr[5]++;
 	} else {
-		unsigned char *addr;
+		const unsigned char *addr;
 		int len;
 
 		addr = of_get_property(dp, "local-mac-address", &len);
@@ -3081,7 +3081,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		macaddr[5]++;
 	} else {
 #ifdef CONFIG_SPARC
-		unsigned char *addr;
+		const unsigned char *addr;
 		int len;
 
 		if (qfe_slot != -1 &&
@@ -3300,7 +3300,7 @@ static int __devinit hme_sbus_probe(struct of_device *dev, const struct of_devic
 {
 	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
 	struct device_node *dp = dev->node;
-	char *model = of_get_property(dp, "model", NULL);
+	const char *model = of_get_property(dp, "model", NULL);
 	int is_qfe = (match->data != NULL);
 
 	if (!is_qfe && model && !strcmp(model, "SUNW,sbus-qfe"))

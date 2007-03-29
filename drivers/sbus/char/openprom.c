@@ -141,7 +141,7 @@ static int copyout(void __user *info, struct openpromio *opp, int len)
 
 static int opromgetprop(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize)
 {
-	void *pval;
+	const void *pval;
 	int len;
 
 	if (!dp ||
@@ -410,7 +410,7 @@ static int opiocget(void __user *argp, DATA *data)
 	struct opiocdesc op;
 	struct device_node *dp;
 	char *str;
-	void *pval;
+	const void *pval;
 	int err, len;
 
 	if (copy_from_user(&op, argp, sizeof(op)))

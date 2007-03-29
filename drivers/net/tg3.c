@@ -10996,7 +10996,7 @@ static int __devinit tg3_get_macaddr_sparc(struct tg3 *tp)
 	struct pcidev_cookie *pcp = pdev->sysdata;
 
 	if (pcp != NULL) {
-		unsigned char *addr;
+		const unsigned char *addr;
 		int len;
 
 		addr = of_get_property(pcp->prom_node, "local-mac-address",

@@ -35,7 +35,7 @@ struct sbus_bus *sbus_root;
 static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sdev)
 {
 	unsigned long base;
-	void *pval;
+	const void *pval;
 	int len, err;
 
 	sdev->prom_node = dp->node;
@@ -86,7 +86,7 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 
 static void __init sbus_bus_ranges_init(struct device_node *dp, struct sbus_bus *sbus)
 {
-	void *pval;
+	const void *pval;
 	int len;
 
 	pval = of_get_property(dp, "ranges", &len);

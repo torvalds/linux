@@ -2914,7 +2914,7 @@ static int __devinit gem_get_device_address(struct gem *gp)
 	int use_idprom = 1;
 
 	if (pcp != NULL) {
-		unsigned char *addr;
+		const unsigned char *addr;
 		int len;
 
 		addr = of_get_property(pcp->prom_node, "local-mac-address",
