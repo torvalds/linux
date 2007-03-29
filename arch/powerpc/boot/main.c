@@ -79,7 +79,10 @@ static struct addr_range prep_kernel(void)
 	       vmlinuz_addr, vmlinuz_addr+vmlinuz_size);
 	/* discard up to the actual load data */
 	gunzip_discard(&gzstate, ei.elfoffset - sizeof(elfheader));
-	len = gunzip_finish(&gzstate, addr, ei.memsize);
+	len = gunzip_finish(&gzstate, addr, ei.loadsize);
+	if (len != ei.loadsize)
+		fatal("ran out of data!  only got 0x%x of 0x%lx bytes.\n\r",
+				len, ei.loadsize);
 	printf("done 0x%x bytes\n\r", len);
 
 	flush_cache(addr, ei.loadsize);
