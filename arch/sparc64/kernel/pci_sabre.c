@@ -1015,12 +1015,12 @@ static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp
 
 void sabre_init(struct device_node *dp, char *model_name)
 {
-	struct linux_prom64_registers *pr_regs;
+	const struct linux_prom64_registers *pr_regs;
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
 	int tsbsize;
-	u32 *busrange;
-	u32 *vdma;
+	const u32 *busrange;
+	const u32 *vdma;
 	u32 upa_portid, dma_mask;
 	u64 clear_irq;
 

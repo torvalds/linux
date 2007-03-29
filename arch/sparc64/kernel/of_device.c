@@ -317,7 +317,7 @@ static unsigned int of_bus_default_get_flags(const u32 *addr)
 static int of_bus_pci_match(struct device_node *np)
 {
 	if (!strcmp(np->type, "pci") || !strcmp(np->type, "pciex")) {
-		char *model = of_get_property(np, "model", NULL);
+		const char *model = of_get_property(np, "model", NULL);
 
 		if (model && !strcmp(model, "SUNW,simba"))
 			return 0;
@@ -339,7 +339,7 @@ static int of_bus_pci_match(struct device_node *np)
 
 static int of_bus_simba_match(struct device_node *np)
 {
-	char *model = of_get_property(np, "model", NULL);
+	const char *model = of_get_property(np, "model", NULL);
 
 	if (model && !strcmp(model, "SUNW,simba"))
 		return 1;

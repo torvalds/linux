@@ -1490,11 +1490,11 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 			    struct device_node *dp, u32 portid,
 			    int chip_type)
 {
-	struct linux_prom64_registers *regs;
-	unsigned int *busrange;
+	const struct linux_prom64_registers *regs;
+	const unsigned int *busrange;
 	struct pci_pbm_info *pbm;
 	const char *chipset_name;
-	u32 *ino_bitmap;
+	const u32 *ino_bitmap;
 	int is_pbm_a;
 
 	switch (chip_type) {

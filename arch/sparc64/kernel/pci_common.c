@@ -54,7 +54,7 @@ static void pci_register_legacy_regions(struct resource *io_res,
 
 static void pci_register_iommu_region(struct pci_pbm_info *pbm)
 {
-	u32 *vdma = of_get_property(pbm->prom_node, "virtual-dma", NULL);
+	const u32 *vdma = of_get_property(pbm->prom_node, "virtual-dma", NULL);
 
 	if (vdma) {
 		struct resource *rp = kmalloc(sizeof(*rp), GFP_KERNEL);
@@ -73,7 +73,7 @@ static void pci_register_iommu_region(struct pci_pbm_info *pbm)
 
 void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 {
-	struct linux_prom_pci_ranges *pbm_ranges;
+	const struct linux_prom_pci_ranges *pbm_ranges;
 	int i, saw_mem, saw_io;
 	int num_pbm_ranges;
 
@@ -82,7 +82,7 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 	num_pbm_ranges = i / sizeof(*pbm_ranges);
 
 	for (i = 0; i < num_pbm_ranges; i++) {
-		struct linux_prom_pci_ranges *pr = &pbm_ranges[i];
+		const struct linux_prom_pci_ranges *pr = &pbm_ranges[i];
 		unsigned long a;
 		u32 parent_phys_hi, parent_phys_lo;
 		int type;

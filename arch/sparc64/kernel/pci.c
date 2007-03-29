@@ -551,7 +551,7 @@ void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	ranges = of_get_property(node, "ranges", &len);
 	simba = 0;
 	if (ranges == NULL) {
-		char *model = of_get_property(node, "model", NULL);
+		const char *model = of_get_property(node, "model", NULL);
 		if (model && !strcmp(model, "SUNW,simba")) {
 			simba = 1;
 		} else {
