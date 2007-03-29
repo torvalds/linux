@@ -50,7 +50,7 @@ MODULE_PARM_DESC(cidmode, "Call-ID mode");
 #define USB_M105_PRODUCT_ID	0x0009
 
 /* table of devices that work with this driver */
-static struct usb_device_id gigaset_table [] = {
+static const struct usb_device_id gigaset_table [] = {
 	{ USB_DEVICE(USB_M105_VENDOR_ID, USB_M105_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
@@ -860,7 +860,7 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	gigaset_unassign(cs);
 }
 
-static struct gigaset_ops ops = {
+static const struct gigaset_ops ops = {
 	gigaset_write_cmd,
 	gigaset_write_room,
 	gigaset_chars_in_buffer,
