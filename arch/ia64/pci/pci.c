@@ -568,7 +568,6 @@ pcibios_disable_device (struct pci_dev *dev)
 	BUG_ON(atomic_read(&dev->enable_cnt));
 	if (!dev->msi_enabled)
 		acpi_pci_irq_disable(dev);
-	return 0;
 }
 
 void
