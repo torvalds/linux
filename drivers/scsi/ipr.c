@@ -6390,6 +6390,7 @@ static int ipr_reset_start_bist(struct ipr_cmnd *ipr_cmd)
 	rc = pci_write_config_byte(ioa_cfg->pdev, PCI_BIST, PCI_BIST_START);
 
 	if (rc != PCIBIOS_SUCCESSFUL) {
+		pci_unblock_user_cfg_access(ipr_cmd->ioa_cfg->pdev);
 		ipr_cmd->ioasa.ioasc = cpu_to_be32(IPR_IOASC_PCI_ACCESS_ERROR);
 		rc = IPR_RC_JOB_CONTINUE;
 	} else {
