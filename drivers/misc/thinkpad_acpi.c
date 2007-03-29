@@ -79,7 +79,7 @@
  *  2004-08-09	0.1	initial release, support for X series
  */
 
-#include "ibm_acpi.h"
+#include "thinkpad_acpi.h"
 
 MODULE_AUTHOR("Borislav Deianov, Henrique de Moraes Holschuh");
 MODULE_DESCRIPTION(IBM_DESC);
