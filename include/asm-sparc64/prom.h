@@ -93,12 +93,14 @@ extern struct device_node *of_find_node_by_phandle(phandle handle);
 extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
-extern struct property *of_find_property(struct device_node *np,
+extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
-extern int of_device_is_compatible(struct device_node *device, const char *);
-extern const void *of_get_property(struct device_node *node, const char *name,
-				   int *lenp);
+extern int of_device_is_compatible(const struct device_node *device,
+				   const char *);
+extern const void *of_get_property(const struct device_node *node,
+			     const char *name,
+			     int *lenp);
 #define get_property(node,name,lenp) of_get_property(node,name,lenp)
 extern int of_set_property(struct device_node *node, const char *name, void *val, int len);
 extern int of_getintprop_default(struct device_node *np,
