@@ -481,7 +481,8 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 	long nr_swaps_freed = 0;
 	int offset;
 	int freed;
-	int punch_hole = 0;
+	int punch_hole;
+	unsigned long upper_limit;
 
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 	idx = (start + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
@@ -492,11 +493,18 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 	info->flags |= SHMEM_TRUNCATE;
 	if (likely(end == (loff_t) -1)) {
 		limit = info->next_index;
+		upper_limit = SHMEM_MAX_INDEX;
 		info->next_index = idx;
+		punch_hole = 0;
 	} else {
-		limit = (end + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-		if (limit > info->next_index)
-			limit = info->next_index;
+		if (end + 1 >= inode->i_size) {	/* we may free a little more */
+			limit = (inode->i_size + PAGE_CACHE_SIZE - 1) >>
+							PAGE_CACHE_SHIFT;
+			upper_limit = SHMEM_MAX_INDEX;
+		} else {
+			limit = (end + 1) >> PAGE_CACHE_SHIFT;
+			upper_limit = limit;
+		}
 		punch_hole = 1;
 	}
 
@@ -520,10 +528,10 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 	 * If there are no indirect blocks or we are punching a hole
 	 * below indirect blocks, nothing to be done.
 	 */
-	if (!topdir || (punch_hole && (limit <= SHMEM_NR_DIRECT)))
+	if (!topdir || limit <= SHMEM_NR_DIRECT)
 		goto done2;
 
-	BUG_ON(limit <= SHMEM_NR_DIRECT);
+	upper_limit -= SHMEM_NR_DIRECT;
 	limit -= SHMEM_NR_DIRECT;
 	idx = (idx > SHMEM_NR_DIRECT)? (idx - SHMEM_NR_DIRECT): 0;
 	offset = idx % ENTRIES_PER_PAGE;
@@ -543,7 +551,7 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 		if (*dir) {
 			diroff = ((idx - ENTRIES_PER_PAGEPAGE/2) %
 				ENTRIES_PER_PAGEPAGE) / ENTRIES_PER_PAGE;
-			if (!diroff && !offset) {
+			if (!diroff && !offset && upper_limit >= stage) {
 				*dir = NULL;
 				nr_pages_to_free++;
 				list_add(&middir->lru, &pages_to_free);
@@ -570,9 +578,11 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 			}
 			stage = idx + ENTRIES_PER_PAGEPAGE;
 			middir = *dir;
-			*dir = NULL;
-			nr_pages_to_free++;
-			list_add(&middir->lru, &pages_to_free);
+			if (upper_limit >= stage) {
+				*dir = NULL;
+				nr_pages_to_free++;
+				list_add(&middir->lru, &pages_to_free);
+			}
 			shmem_dir_unmap(dir);
 			cond_resched();
 			dir = shmem_dir_map(middir);
@@ -598,7 +608,7 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 		}
 		if (offset)
 			offset = 0;
-		else if (subdir && !page_private(subdir)) {
+		else if (subdir && upper_limit - idx >= ENTRIES_PER_PAGE) {
 			dir[diroff] = NULL;
 			nr_pages_to_free++;
 			list_add(&subdir->lru, &pages_to_free);
