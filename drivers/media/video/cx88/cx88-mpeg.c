@@ -366,7 +366,8 @@ static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 
 	if (debug || (status & mask & ~0xff))
 		cx88_print_irqbits(core->name, "irq mpeg ",
-				   cx88_mpeg_irqs, status, mask);
+				   cx88_mpeg_irqs, ARRAY_SIZE(cx88_mpeg_irqs),
+				   status, mask);
 
 	/* risc op code error */
 	if (status & (1 << 16)) {

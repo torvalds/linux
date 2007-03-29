@@ -232,7 +232,8 @@ static void cx8801_aud_irq(snd_cx88_card_t *chip)
 	cx_write(MO_AUD_INTSTAT, status);
 	if (debug > 1  ||  (status & mask & ~0xff))
 		cx88_print_irqbits(core->name, "irq aud",
-				   cx88_aud_irqs, status, mask);
+				   cx88_aud_irqs, ARRAY_SIZE(cx88_aud_irqs),
+				   status, mask);
 	/* risc op code error */
 	if (status & (1 << 16)) {
 		printk(KERN_WARNING "%s/0: audio risc op code error\n",core->name);

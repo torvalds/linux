@@ -1555,7 +1555,8 @@ static void cx8800_vid_irq(struct cx8800_dev *dev)
 	cx_write(MO_VID_INTSTAT, status);
 	if (irq_debug  ||  (status & mask & ~0xff))
 		cx88_print_irqbits(core->name, "irq vid",
-				   cx88_vid_irqs, status, mask);
+				   cx88_vid_irqs, ARRAY_SIZE(cx88_vid_irqs),
+				   status, mask);
 
 	/* risc op code error */
 	if (status & (1 << 16)) {
