@@ -37,7 +37,7 @@ int of_device_is_compatible(struct device_node *device, const char *compat)
 	const char* cp;
 	int cplen, l;
 
-	cp = (char *) of_get_property(device, "compatible", &cplen);
+	cp = of_get_property(device, "compatible", &cplen);
 	if (cp == NULL)
 		return 0;
 	while (cplen > 0) {
@@ -192,7 +192,7 @@ EXPORT_SYMBOL(of_getintprop_default);
 
 int of_n_addr_cells(struct device_node *np)
 {
-	int* ip;
+	const int* ip;
 	do {
 		if (np->parent)
 			np = np->parent;
@@ -207,7 +207,7 @@ EXPORT_SYMBOL(of_n_addr_cells);
 
 int of_n_size_cells(struct device_node *np)
 {
-	int* ip;
+	const int* ip;
 	do {
 		if (np->parent)
 			np = np->parent;
