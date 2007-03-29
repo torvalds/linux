@@ -1741,8 +1741,8 @@ static int ing_filter(struct sk_buff *skb)
 	if (dev->qdisc_ingress) {
 		__u32 ttl = (__u32) G_TC_RTTL(skb->tc_verd);
 		if (MAX_RED_LOOP < ttl++) {
-			printk(KERN_WARNING "Redir loop detected Dropping packet (%s->%s)\n",
-				skb->input_dev->name, skb->dev->name);
+			printk(KERN_WARNING "Redir loop detected Dropping packet (%d->%d)\n",
+				skb->iif, skb->dev->ifindex);
 			return TC_ACT_SHOT;
 		}
 
@@ -1775,8 +1775,8 @@ int netif_receive_skb(struct sk_buff *skb)
 	if (!skb->tstamp.off_sec)
 		net_timestamp(skb);
 
-	if (!skb->input_dev)
-		skb->input_dev = skb->dev;
+	if (!skb->iif)
+		skb->iif = skb->dev->ifindex;
 
 	orig_dev = skb_bond(skb);
 
