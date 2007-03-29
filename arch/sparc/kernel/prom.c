@@ -158,7 +158,7 @@ struct property *of_find_property(const struct device_node *np,
 	struct property *pp;
 
 	for (pp = np->properties; pp != 0; pp = pp->next) {
-		if (strcmp(pp->name, name) == 0) {
+		if (strcasecmp(pp->name, name) == 0) {
 			if (lenp != 0)
 				*lenp = pp->length;
 			break;
@@ -242,7 +242,7 @@ int of_set_property(struct device_node *dp, const char *name, void *val, int len
 	while (*prevp) {
 		struct property *prop = *prevp;
 
-		if (!strcmp(prop->name, name)) {
+		if (!strcasecmp(prop->name, name)) {
 			void *old_val = prop->value;
 			int ret;
 
