@@ -405,7 +405,7 @@ static unsigned char read_data(struct snd_ice1712 *ice, unsigned int gpio,
 	return data;
 }
 
-static unsigned char ap192_4wire_start(struct snd_ice1712 *ice)
+static unsigned int ap192_4wire_start(struct snd_ice1712 *ice)
 {
 	unsigned int tmp;
 
