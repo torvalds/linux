@@ -14,17 +14,17 @@
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/workqueue.h>
 
 #include "internal.h"
 
 struct cryptomgr_param {
-	struct work_struct work;
+	struct task_struct *thread;
 
 	struct rtattr *tb[CRYPTOA_MAX];
 
@@ -45,10 +45,9 @@ struct cryptomgr_param {
 	char template[CRYPTO_MAX_ALG_NAME];
 };
 
-static void cryptomgr_probe(struct work_struct *work)
+static int cryptomgr_probe(void *data)
 {
-	struct cryptomgr_param *param =
-		container_of(work, struct cryptomgr_param, work);
+	struct cryptomgr_param *param = data;
 	struct crypto_template *tmpl;
 	struct crypto_instance *inst;
 	int err;
@@ -72,7 +71,7 @@ static void cryptomgr_probe(struct work_struct *work)
 
 out:
 	kfree(param);
-	return;
+	module_put_and_exit(0);
 
 err:
 	crypto_larval_error(param->larval.name, param->type.data.type,
@@ -87,9 +86,12 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	const char *p;
 	unsigned int len;
 
+	if (!try_module_get(THIS_MODULE))
+		goto err;
+
 	param = kzalloc(sizeof(*param), GFP_KERNEL);
 	if (!param)
-		goto err;
+		goto err_put_module;
 
 	for (p = name; isalnum(*p) || *p == '-' || *p == '_'; p++)
 		;
@@ -101,11 +103,18 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	memcpy(param->template, name, len);
 
 	name = p + 1;
-	for (p = name; isalnum(*p) || *p == '-' || *p == '_'; p++)
-		;
+	len = 0;
+	for (p = name; *p; p++) {
+		for (; isalnum(*p) || *p == '-' || *p == '_' || *p == '('; p++)
+			;
 
-	len = p - name;
-	if (!len || *p != ')' || p[1])
+		if (*p != ')')
+			goto err_free_param;
+
+		len = p - name;
+	}
+
+	if (!len || name[len + 1])
 		goto err_free_param;
 
 	param->type.attr.rta_len = sizeof(param->type);
@@ -121,13 +130,16 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 
 	memcpy(param->larval.name, larval->alg.cra_name, CRYPTO_MAX_ALG_NAME);
 
-	INIT_WORK(&param->work, cryptomgr_probe);
-	schedule_work(&param->work);
+	param->thread = kthread_run(cryptomgr_probe, param, "cryptomgr");
+	if (IS_ERR(param->thread))
+		goto err_free_param;
 
 	return NOTIFY_STOP;
 
 err_free_param:
 	kfree(param);
+err_put_module:
+	module_put(THIS_MODULE);
 err:
 	return NOTIFY_OK;
 }
