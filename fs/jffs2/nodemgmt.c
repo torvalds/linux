@@ -172,6 +172,11 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 static void jffs2_close_nextblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
 
+	if (c->nextblock == NULL) {
+		D1(printk(KERN_DEBUG "jffs2_close_nextblock: Erase block at 0x%08x has already been placed in a list\n",
+		  jeb->offset));
+		return;
+	}
 	/* Check, if we have a dirty block now, or if it was dirty already */
 	if (ISDIRTY (jeb->wasted_size + jeb->dirty_size)) {
 		c->dirty_size += jeb->wasted_size;
