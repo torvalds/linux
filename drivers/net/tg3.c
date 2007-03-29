@@ -10993,7 +10993,7 @@ static int __devinit tg3_get_macaddr_sparc(struct tg3 *tp)
 	struct net_device *dev = tp->dev;
 	struct pci_dev *pdev = tp->pdev;
 	struct device_node *dp = pci_device_to_OF_node(pdev);
-	unsigned char *addr;
+	const unsigned char *addr;
 	int len;
 
 	addr = of_get_property(dp, "local-mac-address", &len);
