@@ -1177,10 +1177,6 @@ static int set_rtc_mmss(unsigned long nowtime)
 #define RTC_IS_OPEN		0x01	/* means /dev/rtc is in use	*/
 static unsigned char mini_rtc_status;	/* bitmapped status byte.	*/
 
-/* months start at 0 now */
-static unsigned char days_in_mo[] =
-{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-
 #define FEBRUARY	2
 #define	STARTOFTIME	1970
 #define SECDAY		86400L
@@ -1329,8 +1325,7 @@ static int mini_rtc_ioctl(struct inode *inode, struct file *file,
 
 	case RTC_SET_TIME:	/* Set the RTC */
 	    {
-		int year;
-		unsigned char leap_yr;
+		int year, days;
 
 		if (!capable(CAP_SYS_TIME))
 			return -EACCES;
@@ -1339,14 +1334,14 @@ static int mini_rtc_ioctl(struct inode *inode, struct file *file,
 			return -EFAULT;
 
 		year = wtime.tm_year + 1900;
-		leap_yr = ((!(year % 4) && (year % 100)) ||
-			   !(year % 400));
+		days = month_days[wtime.tm_mon] +
+		       ((wtime.tm_mon == 1) && leapyear(year));
 
-		if ((wtime.tm_mon < 0 || wtime.tm_mon > 11) || (wtime.tm_mday < 1))
+		if ((wtime.tm_mon < 0 || wtime.tm_mon > 11) ||
+		    (wtime.tm_mday < 1))
 			return -EINVAL;
 
-		if (wtime.tm_mday < 0 || wtime.tm_mday >
-		    (days_in_mo[wtime.tm_mon] + ((wtime.tm_mon == 1) && leap_yr)))
+		if (wtime.tm_mday < 0 || wtime.tm_mday > days)
 			return -EINVAL;
 
 		if (wtime.tm_hour < 0 || wtime.tm_hour >= 24 ||
