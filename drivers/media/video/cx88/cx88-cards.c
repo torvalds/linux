@@ -1790,7 +1790,7 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 		{ 0x03, 0x0C },
 	};
 
-	for (i = 0; i < 13; i++) {
+	for (i = 0; i < ARRAY_SIZE(init_bufs); i++) {
 		msg.buf = init_bufs[i];
 		msg.len = (i != 12 ? 5 : 2);
 		err = i2c_transfer(&core->i2c_adap, &msg, 1);
@@ -1917,12 +1917,21 @@ void cx88_card_setup(struct cx88_core *core)
 		if (0 == core->i2c_rc) {
 			/* enable tuner */
 			int i;
-			static const u8 buffer [] = { 0x10,0x12,0x13,0x04,0x16,0x00,0x14,0x04,0x017,0x00 };
+			static const u8 buffer [][2] = {
+				{0x10,0x12},
+				{0x13,0x04},
+				{0x16,0x00},
+				{0x14,0x04},
+				{0x17,0x00}
+			};
 			core->i2c_client.addr = 0x0a;
 
-			for (i = 0; i < 5; i++)
-				if (2 != i2c_master_send(&core->i2c_client,&buffer[i*2],2))
-					printk(KERN_WARNING "%s: Unable to enable tuner(%i).\n",
+			for (i = 0; i < ARRAY_SIZE(buffer); i++)
+				if (2 != i2c_master_send(&core->i2c_client,
+							buffer[i],2))
+					printk(KERN_WARNING
+						"%s: Unable to enable "
+						"tuner(%i).\n",
 						core->name, i);
 		}
 		break;
