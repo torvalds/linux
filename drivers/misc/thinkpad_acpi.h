@@ -1,5 +1,5 @@
 /*
- *  ibm_acpi.h - IBM ThinkPad ACPI Extras
+ *  thinkpad_acpi.h - ThinkPad ACPI Extras
  *
  *
  *  Copyright (C) 2004-2005 Borislav Deianov <borislav@users.sf.net>
@@ -21,8 +21,8 @@
  *  02110-1301, USA.
  */
 
-#ifndef __IBM_ACPI_H__
-#define __IBM_ACPI_H__
+#ifndef __THINKPAD_ACPI_H__
+#define __THINKPAD_ACPI_H__
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -47,12 +47,13 @@
  * Main driver
  */
 
-#define IBM_NAME "ibm"
-#define IBM_DESC "IBM ThinkPad ACPI Extras"
-#define IBM_FILE "ibm_acpi"
+#define IBM_NAME "thinkpad"
+#define IBM_DESC "ThinkPad ACPI Extras"
+#define IBM_FILE "thinkpad_acpi"
 #define IBM_URL "http://ibm-acpi.sf.net/"
 
-#define IBM_DIR IBM_NAME
+#define IBM_DIR "ibm"
+#define IBM_ACPI_EVENT_PREFIX "ibm"
 
 #define IBM_LOG IBM_FILE ": "
 #define IBM_ERR	   KERN_ERR    IBM_LOG
@@ -99,8 +100,8 @@ static void ibm_handle_init(char *name,
 
 /* procfs support */
 static struct proc_dir_entry *proc_dir;
-static int ibm_acpi_driver_init(void);
-static int ibm_acpi_driver_read(char *p);
+static int thinkpad_acpi_driver_init(void);
+static int thinkpad_acpi_driver_read(char *p);
 
 /* procfs helpers */
 static int dispatch_read(char *page, char **start, off_t off, int count,
@@ -434,4 +435,4 @@ static int wan_read(char *p);
 static int wan_write(char *buf);
 
 
-#endif /* __IBM_ACPI_H */
+#endif /* __THINKPAD_ACPI_H */

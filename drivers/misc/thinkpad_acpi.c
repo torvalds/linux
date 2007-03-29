@@ -1,5 +1,5 @@
 /*
- *  ibm_acpi.c - IBM ThinkPad ACPI Extras
+ *  thinkpad_acpi.c - ThinkPad ACPI Extras
  *
  *
  *  Copyright (C) 2004-2005 Borislav Deianov <borislav@users.sf.net>
@@ -21,10 +21,12 @@
  *  02110-1301, USA.
  */
 
-#define IBM_VERSION "0.13"
+#define IBM_VERSION "0.14"
 
 /*
  *  Changelog:
+ *  2007-03-27  0.14	renamed to thinkpad_acpi and moved to
+ *  			drivers/misc.
  *
  *  2006-11-22	0.13	new maintainer
  *  			changelog now lives in git commit history, and will
@@ -318,7 +320,9 @@ static int __init setup_notify(struct ibm_struct *ibm)
 	}
 
 	acpi_driver_data(ibm->device) = ibm;
-	sprintf(acpi_device_class(ibm->device), "%s/%s", IBM_NAME, ibm->name);
+	sprintf(acpi_device_class(ibm->device), "%s/%s",
+		IBM_ACPI_EVENT_PREFIX,
+		ibm->name);
 
 	status = acpi_install_notify_handler(*ibm->handle, ibm->type,
 					     dispatch_notify, ibm);
@@ -458,7 +462,7 @@ static char *next_cmd(char **cmds)
  * ibm-acpi init subdriver
  */
 
-static int ibm_acpi_driver_init(void)
+static int thinkpad_acpi_driver_init(void)
 {
 	printk(IBM_INFO "%s v%s\n", IBM_DESC, IBM_VERSION);
 	printk(IBM_INFO "%s\n", IBM_URL);
@@ -470,7 +474,7 @@ static int ibm_acpi_driver_init(void)
 	return 0;
 }
 
-static int ibm_acpi_driver_read(char *p)
+static int thinkpad_acpi_driver_read(char *p)
 {
 	int len = 0;
 
@@ -2440,8 +2444,8 @@ static struct proc_dir_entry *proc_dir = NULL;
 static struct ibm_struct ibms[] = {
 	{
 	 .name = "driver",
-	 .init = ibm_acpi_driver_init,
-	 .read = ibm_acpi_driver_read,
+	 .init = thinkpad_acpi_driver_init,
+	 .read = thinkpad_acpi_driver_read,
 	 },
 	{
 	 .name = "hotkey",

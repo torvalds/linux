@@ -1,17 +1,22 @@
-		    IBM ThinkPad ACPI Extras Driver
+		     ThinkPad ACPI Extras Driver
 
-                            Version 0.13
-                           31 December 2006
+                            Version 0.14
+                          March 26th, 2007
 
                Borislav Deianov <borislav@users.sf.net>
 	     Henrique de Moraes Holschuh <hmh@hmh.eng.br>
 		      http://ibm-acpi.sf.net/
 
 
-This is a Linux ACPI driver for the IBM ThinkPad laptops. It supports
-various features of these laptops which are accessible through the
-ACPI framework but not otherwise fully supported by the generic Linux
-ACPI drivers.
+This is a Linux driver for the IBM and Lenovo ThinkPad laptops. It
+supports various features of these laptops which are accessible
+through the ACPI and ACPI EC framework, but not otherwise fully
+supported by the generic Linux ACPI drivers.
+
+This driver used to be named ibm-acpi until kernel 2.6.21 and release
+0.13-20070314.  It used to be in the drivers/acpi tree, but it was
+moved to the drivers/misc tree and renamed to thinkpad-acpi for kernel
+2.6.22, and release 0.14.
 
 
 Status
@@ -43,6 +48,8 @@ Please include the following information in your report:
 
 	- ThinkPad model name
 	- a copy of your DSDT, from /proc/acpi/dsdt
+	- a copy of the output of dmidecode, with serial numbers
+	  and UUIDs masked off
 	- which driver features work and which don't
 	- the observed behavior of non-working features
 
@@ -53,8 +60,9 @@ Installation
 ------------
 
 If you are compiling this driver as included in the Linux kernel
-sources, simply enable the CONFIG_ACPI_IBM option (Power Management /
-ACPI / IBM ThinkPad Laptop Extras).
+sources, simply enable the CONFIG_THINKPAD_ACPI option, and optionally
+enable the CONFIG_THINKPAD_ACPI_BAY option if you want the
+thinkpad-specific bay functionality.
 
 Features
 --------
@@ -210,7 +218,7 @@ hot plugging of devices in the Linux ACPI framework. If the laptop was
 booted while not in the dock, the following message is shown in the
 logs:
 
-	Mar 17 01:42:34 aero kernel: ibm_acpi: dock device not present
+	Mar 17 01:42:34 aero kernel: thinkpad_acpi: dock device not present
 
 In this case, no dock-related events are generated but the dock and
 undock commands described below still work. They can be executed
@@ -270,7 +278,7 @@ This is due to the current lack of support for hot plugging of devices
 in the Linux ACPI framework. If the laptop was booted without the
 UltraBay, the following message is shown in the logs:
 
-	Mar 17 01:42:34 aero kernel: ibm_acpi: bay device not present
+	Mar 17 01:42:34 aero kernel: thinkpad_acpi: bay device not present
 
 In this case, no bay-related events are generated but the eject
 command described below still works. It can be executed manually or
@@ -637,12 +645,12 @@ range. The fan cannot be stopped or started with this command.
 
 The ThinkPad's ACPI DSDT code will reprogram the fan on its own when
 certain conditions are met.  It will override any fan programming done
-through ibm-acpi.
+through thinkpad-acpi.
 
-The ibm-acpi kernel driver can be programmed to revert the fan level
-to a safe setting if userspace does not issue one of the fan commands:
-"enable", "disable", "level" or "watchdog" within a configurable
-ammount of time.  To do this, use the "watchdog" command.
+The thinkpad-acpi kernel driver can be programmed to revert the fan
+level to a safe setting if userspace does not issue one of the fan
+commands: "enable", "disable", "level" or "watchdog" within a
+configurable ammount of time.  To do this, use the "watchdog" command.
 
 	echo 'watchdog <interval>' > /proc/acpi/ibm/fan
 
@@ -686,8 +694,8 @@ separating them with commas, for example:
 	echo enable,0xffff > /proc/acpi/ibm/hotkey
 	echo lcd_disable,crt_enable > /proc/acpi/ibm/video
 
-Commands can also be specified when loading the ibm_acpi module, for
-example:
+Commands can also be specified when loading the thinkpad-acpi module,
+for example:
 
-	modprobe ibm_acpi hotkey=enable,0xffff video=auto_disable
+	modprobe thinkpad_acpi hotkey=enable,0xffff video=auto_disable
 
