@@ -163,7 +163,7 @@ static int register_ibmacpi_subdriver(struct ibm_struct *ibm);
  * Bay subdriver
  */
 
-#ifdef CONFIG_ACPI_IBM_BAY
+#ifdef CONFIG_THINKPAD_ACPI_BAY
 static int bay_status_supported, bay_eject_supported;
 static int bay_status2_supported, bay_eject2_supported;
 
@@ -174,7 +174,7 @@ static int bay_init(void);
 static void bay_notify(struct ibm_struct *ibm, u32 event);
 static int bay_read(char *p);
 static int bay_write(char *buf);
-#endif /* CONFIG_ACPI_IBM_BAY */
+#endif /* CONFIG_THINKPAD_ACPI_BAY */
 
 
 /*
@@ -229,13 +229,13 @@ static int cmos_write(char *buf);
  */
 
 static acpi_handle pci_handle;
-#ifdef CONFIG_ACPI_IBM_DOCK
+#ifdef CONFIG_THINKPAD_ACPI_DOCK
 static acpi_handle dock_handle;
 
 static void dock_notify(struct ibm_struct *ibm, u32 event);
 static int dock_read(char *p);
 static int dock_write(char *buf);
-#endif /* CONFIG_ACPI_IBM_DOCK */
+#endif /* CONFIG_THINKPAD_ACPI_DOCK */
 
 
 /*

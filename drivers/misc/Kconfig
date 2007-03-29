@@ -122,40 +122,43 @@ config SONY_LAPTOP
 
 	  Read <file:Documentation/sony-laptop.txt> for more information.
 
-config ACPI_IBM
-	tristate "IBM ThinkPad Laptop Extras"
+config THINKPAD_ACPI
+	tristate "ThinkPad ACPI Laptop Extras"
 	depends on X86 && ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
-	  This is a Linux ACPI driver for the IBM ThinkPad laptops. It adds
+	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
 	  output switching, ThinkLight control, UltraBay eject and more.
-	  For more information about this driver see <file:Documentation/ibm-acpi.txt>
-	  and <http://ibm-acpi.sf.net/> .
+	  For more information about this driver see 
+	  <file:Documentation/thinkpad-acpi.txt> and <http://ibm-acpi.sf.net/> .
 
-	  If you have an IBM ThinkPad laptop, say Y or M here.
+	  This driver was formely known as ibm-acpi.
 
-config ACPI_IBM_DOCK
+	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
+
+config THINKPAD_ACPI_DOCK
 	bool "Legacy Docking Station Support"
-	depends on ACPI_IBM
+	depends on THINKPAD_ACPI
 	depends on ACPI_DOCK=n
 	default n
 	---help---
-	  Allows the ibm_acpi driver to handle docking station events.
-	  This support is obsoleted by CONFIG_HOTPLUG_PCI_ACPI.  It will
-	  allow locking and removing the laptop from the docking station,
-	  but will not properly connect PCI devices.
+	  Allows the thinkpad_acpi driver to handle docking station events.
+	  This support was made obsolete by the generic ACPI docking station
+	  support (CONFIG_ACPI_DOCK).  It will allow locking and removing the
+	  laptop from the docking station, but will not properly connect PCI
+	  devices.
 
 	  If you are not sure, say N here.
 
-config ACPI_IBM_BAY
+config THINKPAD_ACPI_BAY
 	bool "Legacy Removable Bay Support"
-	depends on ACPI_IBM
+	depends on THINKPAD_ACPI
 	default y
 	---help---
-	  Allows the ibm_acpi driver to handle removable bays.  It will allow
-	  disabling the device in the bay, and also generate notifications when
-	  the bay lever is ejected or inserted.
+	  Allows the thinkpad_acpi driver to handle removable bays.  It will
+	  eletrically disable the device in the bay, and also generate
+	  notifications when the bay lever is ejected or inserted.
 
 	  If you are not sure, say Y here.
 

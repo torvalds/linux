@@ -1040,7 +1040,7 @@ static int light_write(char *buf)
 /* don't list other alternatives as we install a notify handler on the 570 */
 IBM_HANDLE(pci, root, "\\_SB.PCI");	/* 570 */
 
-#ifdef CONFIG_ACPI_IBM_DOCK
+#ifdef CONFIG_THINKPAD_ACPI_DOCK
 
 IBM_HANDLE(dock, root, "\\_SB.GDCK",	/* X30, X31, X40 */
 	   "\\_SB.PCI0.DOCK",	/* 600e/x,770e,770x,A2xm/p,T20-22,X20-21 */
@@ -1111,13 +1111,13 @@ static int dock_write(char *buf)
 	return 0;
 }
 
-#endif /* CONFIG_ACPI_IBM_DOCK */
+#endif /* CONFIG_THINKPAD_ACPI_DOCK */
 
 /*************************************************************************
  * Bay subdriver
  */
 
-#ifdef CONFIG_ACPI_IBM_BAY
+#ifdef CONFIG_THINKPAD_ACPI_BAY
 static int bay_status_supported;
 static int bay_status2_supported;
 static int bay_eject_supported;
@@ -1208,7 +1208,7 @@ static int bay_write(char *buf)
 
 	return 0;
 }
-#endif /* CONFIG_ACPI_IBM_BAY */
+#endif /* CONFIG_THINKPAD_ACPI_BAY */
 
 /*************************************************************************
  * CMOS subdriver
@@ -2477,7 +2477,7 @@ static struct ibm_struct ibms[] = {
 	 .read = light_read,
 	 .write = light_write,
 	 },
-#ifdef CONFIG_ACPI_IBM_DOCK
+#ifdef CONFIG_THINKPAD_ACPI_DOCK
 	{
 	 .name = "dock",
 	 .read = dock_read,
@@ -2494,7 +2494,7 @@ static struct ibm_struct ibms[] = {
 	 .type = ACPI_SYSTEM_NOTIFY,
 	 },
 #endif
-#ifdef CONFIG_ACPI_IBM_BAY
+#ifdef CONFIG_THINKPAD_ACPI_BAY
 	{
 	 .name = "bay",
 	 .init = bay_init,
@@ -2504,7 +2504,7 @@ static struct ibm_struct ibms[] = {
 	 .handle = &bay_handle,
 	 .type = ACPI_SYSTEM_NOTIFY,
 	 },
-#endif /* CONFIG_ACPI_IBM_BAY */
+#endif /* CONFIG_THINKPAD_ACPI_BAY */
 	{
 	 .name = "cmos",
 	 .read = cmos_read,
@@ -2686,12 +2686,12 @@ IBM_PARAM(hotkey);
 IBM_PARAM(bluetooth);
 IBM_PARAM(video);
 IBM_PARAM(light);
-#ifdef CONFIG_ACPI_IBM_DOCK
+#ifdef CONFIG_THINKPAD_ACPI_DOCK
 IBM_PARAM(dock);
 #endif
-#ifdef CONFIG_ACPI_IBM_BAY
+#ifdef CONFIG_THINKPAD_ACPI_BAY
 IBM_PARAM(bay);
-#endif /* CONFIG_ACPI_IBM_BAY */
+#endif /* CONFIG_THINKPAD_ACPI_BAY */
 IBM_PARAM(cmos);
 IBM_PARAM(led);
 IBM_PARAM(beep);
@@ -2725,18 +2725,18 @@ static int __init acpi_ibm_init(void)
 	IBM_HANDLE_INIT(hkey);
 	IBM_HANDLE_INIT(lght);
 	IBM_HANDLE_INIT(cmos);
-#ifdef CONFIG_ACPI_IBM_DOCK
+#ifdef CONFIG_THINKPAD_ACPI_DOCK
 	IBM_HANDLE_INIT(dock);
 #endif
 	IBM_HANDLE_INIT(pci);
-#ifdef CONFIG_ACPI_IBM_BAY
+#ifdef CONFIG_THINKPAD_ACPI_BAY
 	IBM_HANDLE_INIT(bay);
 	if (bay_handle)
 		IBM_HANDLE_INIT(bay_ej);
 	IBM_HANDLE_INIT(bay2);
 	if (bay2_handle)
 		IBM_HANDLE_INIT(bay2_ej);
-#endif /* CONFIG_ACPI_IBM_BAY */
+#endif /* CONFIG_THINKPAD_ACPI_BAY */
 	IBM_HANDLE_INIT(beep);
 	IBM_HANDLE_INIT(ecrd);
 	IBM_HANDLE_INIT(ecwr);
