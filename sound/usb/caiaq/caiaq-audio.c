@@ -388,8 +388,8 @@ static void read_in_urb_mode2(struct snd_usb_caiaqdev *dev,
 				struct snd_pcm_runtime *rt = sub->runtime;
 				char *audio_buf = rt->dma_area;
 				int sz = frames_to_bytes(rt, rt->buffer_size);
-				audio_buf[dev->audio_in_buf_pos[stream]++] 
-					= usb_buf[i];
+				audio_buf[dev->audio_in_buf_pos[stream]++] =
+					usb_buf[i];
 				dev->period_in_count[stream]++;
 				if (dev->audio_in_buf_pos[stream] == sz)
 					dev->audio_in_buf_pos[stream] = 0;
@@ -436,19 +436,21 @@ static void fill_out_urb(struct snd_usb_caiaqdev *dev,
 	spin_lock(&dev->spinlock);
 	
 	for (i = 0; i < iso->length;) {
-		for (stream = 0; stream < dev->n_streams; stream++) {
+		for (stream = 0; stream < dev->n_streams; stream++, i++) {
 			sub = dev->sub_playback[stream];
 			if (sub) {
 				struct snd_pcm_runtime *rt = sub->runtime;
 				char *audio_buf = rt->dma_area;
 				int sz = frames_to_bytes(rt, rt->buffer_size);
-				usb_buf[i++] 
-				 = audio_buf[dev->audio_out_buf_pos[stream]++];
+				usb_buf[i] =
+					audio_buf[dev->audio_out_buf_pos[stream]];
+				dev->period_out_count[stream]++;
 				dev->audio_out_buf_pos[stream]++;
 				if (dev->audio_out_buf_pos[stream] == sz)
 					dev->audio_out_buf_pos[stream] = 0;
 			} else
-				usb_buf[i++] = 0;
+				usb_buf[i] = 0;
+		}
 
 		/* fill in the check bytes */
 		if (dev->spec.data_alignment == 2 &&
@@ -456,7 +458,6 @@ static void fill_out_urb(struct snd_usb_caiaqdev *dev,
 		    	(dev->n_streams * CHANNELS_PER_STREAM))
 		    for (stream = 0; stream < dev->n_streams; stream++, i++)
 		    	usb_buf[i] = MAKE_CHECKBYTE(dev, stream, i);
-		}
 	}
 
 	spin_unlock(&dev->spinlock);
