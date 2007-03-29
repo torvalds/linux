@@ -2970,20 +2970,20 @@ void __devinit bttv_idcard(struct bttv *btv)
 
 	if (UNSET != audiomux[0]) {
 		gpiobits = 0;
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < ARRAY_SIZE(bttv_tvcards->gpiomux); i++) {
 			bttv_tvcards[btv->c.type].gpiomux[i] = audiomux[i];
 			gpiobits |= audiomux[i];
 		}
 	} else {
 		gpiobits = audioall;
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < ARRAY_SIZE(bttv_tvcards->gpiomux); i++) {
 			bttv_tvcards[btv->c.type].gpiomux[i] = audioall;
 		}
 	}
 	bttv_tvcards[btv->c.type].gpiomask = (UNSET != gpiomask) ? gpiomask : gpiobits;
 	printk(KERN_INFO "bttv%d: gpio config override: mask=0x%x, mux=",
 	       btv->c.nr,bttv_tvcards[btv->c.type].gpiomask);
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < ARRAY_SIZE(bttv_tvcards->gpiomux); i++) {
 		printk("%s0x%x", i ? "," : "", bttv_tvcards[btv->c.type].gpiomux[i]);
 	}
 	printk("\n");
