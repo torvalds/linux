@@ -152,6 +152,7 @@ struct rpc_xprt {
 	unsigned long		state;		/* transport state */
 	unsigned char		shutdown   : 1,	/* being shut down */
 				resvport   : 1; /* use a reserved port */
+	unsigned int		bind_index;	/* bind function index */
 
 	/*
 	 * Connection of transports

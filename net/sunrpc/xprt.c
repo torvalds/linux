@@ -927,6 +927,7 @@ struct rpc_xprt *xprt_create_transport(int proto, struct sockaddr *ap, size_t si
 	xprt->timer.data = (unsigned long) xprt;
 	xprt->last_used = jiffies;
 	xprt->cwnd = RPC_INITCWND;
+	xprt->bind_index = 0;
 
 	rpc_init_wait_queue(&xprt->binding, "xprt_binding");
 	rpc_init_wait_queue(&xprt->pending, "xprt_pending");
