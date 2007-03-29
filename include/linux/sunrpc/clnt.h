@@ -122,8 +122,6 @@ struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 int		rpc_shutdown_client(struct rpc_clnt *);
 int		rpc_destroy_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
-void		rpc_getport(struct rpc_task *);
-int		rpc_register(u32, u32, int, unsigned short, int *);
 int		rpcb_register(u32, u32, int, unsigned short, int *);
 void		rpcb_getport(struct rpc_task *);
 
@@ -147,7 +145,6 @@ char *		rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
 /*
  * Helper function for NFSroot support
  */
-int		rpc_getport_external(struct sockaddr_in *, __u32, __u32, int);
 int		rpcb_getport_external(struct sockaddr_in *, __u32, __u32, int);
 
 #endif /* __KERNEL__ */
