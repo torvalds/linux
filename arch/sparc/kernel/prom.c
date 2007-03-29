@@ -32,7 +32,8 @@ static struct device_node *allnodes;
  */
 static DEFINE_RWLOCK(devtree_lock);
 
-int of_device_is_compatible(struct device_node *device, const char *compat)
+int of_device_is_compatible(const struct device_node *device,
+			    const char *compat)
 {
 	const char* cp;
 	int cplen, l;
@@ -150,7 +151,8 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 }
 EXPORT_SYMBOL(of_find_compatible_node);
 
-struct property *of_find_property(struct device_node *np, const char *name,
+struct property *of_find_property(const struct device_node *np,
+				  const char *name,
 				  int *lenp)
 {
 	struct property *pp;
@@ -170,7 +172,8 @@ EXPORT_SYMBOL(of_find_property);
  * Find a property with a given name for a given node
  * and return the value.
  */
-const void *of_get_property(struct device_node *np, const char *name, int *lenp)
+const void *of_get_property(const struct device_node *np, const char *name,
+			    int *lenp)
 {
 	struct property *pp = of_find_property(np,name,lenp);
 	return pp ? pp->value : NULL;
