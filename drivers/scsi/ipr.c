@@ -3846,6 +3846,8 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 		if (ipr_cmd->ioarcb.res_handle == res->cfgte.res_handle) {
 			if (ipr_cmd->scsi_cmd)
 				ipr_cmd->done = ipr_scsi_eh_done;
+			if (ipr_cmd->qc)
+				ipr_cmd->done = ipr_sata_eh_done;
 			if (ipr_cmd->qc && !(ipr_cmd->qc->flags & ATA_QCFLAG_FAILED)) {
 				ipr_cmd->qc->err_mask |= AC_ERR_TIMEOUT;
 				ipr_cmd->qc->flags |= ATA_QCFLAG_FAILED;
