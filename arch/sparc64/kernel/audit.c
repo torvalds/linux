@@ -28,6 +28,15 @@ static unsigned signal_class[] = {
 ~0U
 };
 
+int audit_classify_arch(int arch)
+{
+#ifdef CONFIG_SPARC32_COMPAT
+	if (arch == AUDIT_ARCH_SPARC)
+		return 1;
+#endif
+	return 0;
+}
+
 int audit_classify_syscall(int abi, unsigned syscall)
 {
 #ifdef CONFIG_SPARC32_COMPAT

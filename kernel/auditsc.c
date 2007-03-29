@@ -89,6 +89,9 @@ extern int audit_enabled;
 /* number of audit rules */
 int audit_n_rules;
 
+/* determines whether we collect data for signals sent */
+int audit_signals;
+
 /* When fs/namei.c:getname() is called, we store the pointer in name and
  * we don't let putname() free it (instead we free all of the saved
  * pointers at syscall exit time).
@@ -113,6 +116,9 @@ struct audit_aux_data {
 };
 
 #define AUDIT_AUX_IPCPERM	0
+
+/* Number of target pids per aux struct. */
+#define AUDIT_AUX_PIDS	16
 
 struct audit_aux_data_mq_open {
 	struct audit_aux_data	d;
@@ -181,6 +187,13 @@ struct audit_aux_data_path {
 	struct vfsmount		*mnt;
 };
 
+struct audit_aux_data_pids {
+	struct audit_aux_data	d;
+	pid_t			target_pid[AUDIT_AUX_PIDS];
+	u32			target_sid[AUDIT_AUX_PIDS];
+	int			pid_count;
+};
+
 /* The per-task audit context. */
 struct audit_context {
 	int		    dummy;	/* must be the first element */
@@ -201,6 +214,7 @@ struct audit_context {
 	struct vfsmount *   pwdmnt;
 	struct audit_context *previous; /* For nested syscalls */
 	struct audit_aux_data *aux;
+	struct audit_aux_data *aux_pids;
 
 				/* Save things to print about task_struct */
 	pid_t		    pid, ppid;
@@ -657,6 +671,10 @@ static inline void audit_free_aux(struct audit_context *context)
 		context->aux = aux->next;
 		kfree(aux);
 	}
+	while ((aux = context->aux_pids)) {
+		context->aux_pids = aux->next;
+		kfree(aux);
+	}
 }
 
 static inline void audit_zero_context(struct audit_context *context,
@@ -796,6 +814,29 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 		up_read(&mm->mmap_sem);
 	}
 	audit_log_task_context(ab);
+}
+
+static int audit_log_pid_context(struct audit_context *context, pid_t pid,
+				 u32 sid)
+{
+	struct audit_buffer *ab;
+	char *s = NULL;
+	u32 len;
+	int rc = 0;
+
+	ab = audit_log_start(context, GFP_KERNEL, AUDIT_OBJ_PID);
+	if (!ab)
+		return 1;
+
+	if (selinux_sid_to_string(sid, &s, &len)) {
+		audit_log_format(ab, "opid=%d obj=(none)", pid);
+		rc = 1;
+	} else
+		audit_log_format(ab, "opid=%d  obj=%s", pid, s);
+	audit_log_end(ab);
+	kfree(s);
+
+	return rc;
 }
 
 static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
@@ -976,22 +1017,20 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		audit_log_end(ab);
 	}
 
-	if (context->target_pid) {
-		ab =audit_log_start(context, GFP_KERNEL, AUDIT_OBJ_PID);
-		if (ab) {
-			char *s = NULL, *t;
-			u32 len;
-			if (selinux_sid_to_string(context->target_sid,
-						    &s, &len))
-				t = "(none)";
-			else
-				t = s;
-			audit_log_format(ab, "opid=%d obj=%s",
-					context->target_pid, t);
-			audit_log_end(ab);
-			kfree(s);
-		}
+	for (aux = context->aux_pids; aux; aux = aux->next) {
+		struct audit_aux_data_pids *axs = (void *)aux;
+		int i;
+
+		for (i = 0; i < axs->pid_count; i++)
+			if (audit_log_pid_context(context, axs->target_pid[i],
+						  axs->target_sid[i]))
+				call_panic = 1;
 	}
+
+	if (context->target_pid &&
+	    audit_log_pid_context(context, context->target_pid,
+				  context->target_sid))
+			call_panic = 1;
 
 	if (context->pwd && context->pwdmnt) {
 		ab = audit_log_start(context, GFP_KERNEL, AUDIT_CWD);
@@ -1213,7 +1252,10 @@ void audit_syscall_exit(int valid, long return_code)
 	} else {
 		audit_free_names(context);
 		audit_free_aux(context);
+		context->aux = NULL;
+		context->aux_pids = NULL;
 		context->target_pid = 0;
+		context->target_sid = 0;
 		kfree(context->filterkey);
 		context->filterkey = NULL;
 		tsk->audit_context = context;
@@ -1947,15 +1989,17 @@ int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt)
  * If the audit subsystem is being terminated, record the task (pid)
  * and uid that is doing that.
  */
-void __audit_signal_info(int sig, struct task_struct *t)
+int __audit_signal_info(int sig, struct task_struct *t)
 {
+	struct audit_aux_data_pids *axp;
+	struct task_struct *tsk = current;
+	struct audit_context *ctx = tsk->audit_context;
 	extern pid_t audit_sig_pid;
 	extern uid_t audit_sig_uid;
 	extern u32 audit_sig_sid;
 
-	if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1) {
-		struct task_struct *tsk = current;
-		struct audit_context *ctx = tsk->audit_context;
+	if (audit_pid && t->tgid == audit_pid &&
+	    (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1)) {
 		audit_sig_pid = tsk->pid;
 		if (ctx)
 			audit_sig_uid = ctx->loginuid;
@@ -1963,4 +2007,33 @@ void __audit_signal_info(int sig, struct task_struct *t)
 			audit_sig_uid = tsk->uid;
 		selinux_get_task_sid(tsk, &audit_sig_sid);
 	}
+
+	if (!audit_signals) /* audit_context checked in wrapper */
+		return 0;
+
+	/* optimize the common case by putting first signal recipient directly
+	 * in audit_context */
+	if (!ctx->target_pid) {
+		ctx->target_pid = t->tgid;
+		selinux_get_task_sid(t, &ctx->target_sid);
+		return 0;
+	}
+
+	axp = (void *)ctx->aux_pids;
+	if (!axp || axp->pid_count == AUDIT_AUX_PIDS) {
+		axp = kzalloc(sizeof(*axp), GFP_ATOMIC);
+		if (!axp)
+			return -ENOMEM;
+
+		axp->d.type = AUDIT_OBJ_PID;
+		axp->d.next = ctx->aux_pids;
+		ctx->aux_pids = (void *)axp;
+	}
+	BUG_ON(axp->pid_count > AUDIT_AUX_PIDS);
+
+	axp->target_pid[axp->pid_count] = t->tgid;
+	selinux_get_task_sid(t, &axp->target_sid[axp->pid_count]);
+	axp->pid_count++;
+
+	return 0;
 }

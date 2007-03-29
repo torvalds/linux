@@ -340,6 +340,7 @@ struct mqstat;
 #define AUDITSC_RESULT(x) ( ((long)(x))<0?AUDITSC_FAILURE:AUDITSC_SUCCESS )
 extern int __init audit_register_class(int class, unsigned *list);
 extern int audit_classify_syscall(int abi, unsigned syscall);
+extern int audit_classify_arch(int arch);
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
 				/* Public API */
@@ -458,6 +459,7 @@ static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 	return 0;
 }
 extern int audit_n_rules;
+extern int audit_signals;
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
@@ -490,6 +492,7 @@ extern int audit_n_rules;
 #define audit_mq_getsetattr(d,s) ({ 0; })
 #define audit_ptrace(t) ((void)0)
 #define audit_n_rules 0
+#define audit_signals 0
 #endif
 
 #ifdef CONFIG_AUDIT

@@ -28,6 +28,11 @@ static unsigned signal_class[] = {
 ~0U
 };
 
+int audit_classify_arch(int arch)
+{
+	return 0;
+}
+
 int audit_classify_syscall(int abi, unsigned syscall)
 {
 	switch(syscall) {
