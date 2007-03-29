@@ -37,7 +37,7 @@
 #include <asm/uaccess.h>
 
 #ifdef CONFIG_SPARC
-#include <asm/pbm.h>
+#include <asm/prom.h>
 #endif
 
 static char version[] __devinitdata =
@@ -1536,22 +1536,18 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	   that here as well. */
 	if (sum == 0  || sum == 6*0xff) {
 #if defined(CONFIG_SPARC)
-		struct pcidev_cookie *pcp = pdev->sysdata;
+		struct device_node *dp = pci_device_to_OF_node(pdev);
+		const unsigned char *addr;
+		int len;
 #endif
 		eeprom_missing = 1;
 		for (i = 0; i < 5; i++)
 			dev->dev_addr[i] = last_phys_addr[i];
 		dev->dev_addr[i] = last_phys_addr[i] + 1;
 #if defined(CONFIG_SPARC)
-		if (pcp) {
-			const unsigned char *addr;
-			int len;
-
-			addr = of_get_property(pcp->prom_node,
-					       "local-mac-address", &len);
-			if (addr && len == 6)
-				memcpy(dev->dev_addr, addr, 6);
-		}
+		addr = of_get_property(dp, "local-mac-address", &len);
+		if (addr && len == 6)
+			memcpy(dev->dev_addr, addr, 6);
 #endif
 #if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
 		if (last_irq)
