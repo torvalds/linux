@@ -21,6 +21,11 @@ unsigned s390_read_class[] = {
 ~0U
 };
 
+unsigned s390_signal_class[] = {
+#include <asm-generic/audit_signal.h>
+~0U
+};
+
 int s390_classify_syscall(unsigned syscall)
 {
 	switch(syscall) {

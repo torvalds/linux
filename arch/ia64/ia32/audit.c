@@ -20,6 +20,11 @@ unsigned ia32_read_class[] = {
 ~0U
 };
 
+unsigned ia32_signal_class[] = {
+#include <asm-generic/audit_signal.h>
+~0U
+};
+
 int ia32_classify_syscall(unsigned syscall)
 {
 	switch(syscall) {
