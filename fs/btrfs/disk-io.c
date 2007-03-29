@@ -69,7 +69,6 @@ struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 	if (!page)
 		return NULL;
 
-	wait_on_page_writeback(page);
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, root->fs_info->sb->s_blocksize, 0);
 	head = page_buffers(page);
@@ -300,11 +299,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->hash_tfm = crypto_alloc_hash("sha256", 0, CRYPTO_ALG_ASYNC);
-	if (!fs_info->hash_tfm) {
+	spin_lock_init(&fs_info->hash_lock);
+
+	if (!fs_info->hash_tfm || IS_ERR(fs_info->hash_tfm)) {
 		printk("failed to allocate sha256 hash\n");
 		return NULL;
 	}
-	spin_lock_init(&fs_info->hash_lock);
 
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
@@ -394,6 +394,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_block_release(root, root->commit_root);
 	btrfs_block_release(root, root->fs_info->sb_buffer);
 	crypto_free_hash(root->fs_info->hash_tfm);
+	truncate_inode_pages(root->fs_info->btree_inode->i_mapping, 0);
 	iput(root->fs_info->btree_inode);
 	kfree(root->fs_info->extent_root);
 	kfree(root->fs_info->inode_root);
