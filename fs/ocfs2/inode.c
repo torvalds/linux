@@ -1106,8 +1106,10 @@ struct buffer_head *ocfs2_bread(struct inode *inode,
 		return NULL;
 	}
 
+	down_read(&OCFS2_I(inode)->ip_alloc_sem);
 	tmperr = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL,
 					     NULL);
+	up_read(&OCFS2_I(inode)->ip_alloc_sem);
 	if (tmperr < 0) {
 		mlog_errno(tmperr);
 		goto fail;
