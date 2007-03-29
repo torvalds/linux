@@ -84,7 +84,8 @@ struct rpc_procinfo {
 	u32			p_proc;		/* RPC procedure number */
 	kxdrproc_t		p_encode;	/* XDR encode function */
 	kxdrproc_t		p_decode;	/* XDR decode function */
-	unsigned int		p_bufsiz;	/* req. buffer size */
+	unsigned int		p_arglen;	/* argument hdr length (u32) */
+	unsigned int		p_replen;	/* reply hdr length (u32) */
 	unsigned int		p_count;	/* call count */
 	unsigned int		p_timer;	/* Which RTT timer to use */
 	u32			p_statidx;	/* Which procedure to account */

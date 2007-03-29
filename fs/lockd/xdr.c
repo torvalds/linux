@@ -534,10 +534,6 @@ nlmclt_decode_res(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 #define NLM_res_sz		NLM_cookie_sz+1
 #define NLM_norep_sz		0
 
-#ifndef MAX
-# define MAX(a, b)		(((a) > (b))? (a) : (b))
-#endif
-
 /*
  * For NLM, a void procedure really returns nothing
  */
@@ -548,7 +544,8 @@ nlmclt_decode_res(struct rpc_rqst *req, __be32 *p, struct nlm_res *resp)
 	.p_proc      = NLMPROC_##proc,					\
 	.p_encode    = (kxdrproc_t) nlmclt_encode_##argtype,		\
 	.p_decode    = (kxdrproc_t) nlmclt_decode_##restype,		\
-	.p_bufsiz    = MAX(NLM_##argtype##_sz, NLM_##restype##_sz) << 2,	\
+	.p_arglen    = NLM_##argtype##_sz,				\
+	.p_replen    = NLM_##restype##_sz,				\
 	.p_statidx   = NLMPROC_##proc,					\
 	.p_name      = #proc,						\
 	}

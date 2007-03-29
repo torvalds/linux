@@ -84,7 +84,9 @@ struct rpc_rqst {
 	struct list_head	rq_list;
 
 	__u32 *			rq_buffer;	/* XDR encode buffer */
-	size_t			rq_bufsize;
+	size_t			rq_bufsize,
+				rq_callsize,
+				rq_rcvsize;
 
 	struct xdr_buf		rq_private_buf;		/* The receive buffer
 							 * used in the softirq.
