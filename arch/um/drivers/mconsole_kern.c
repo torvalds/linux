@@ -615,6 +615,9 @@ void mconsole_remove(struct mc_request *req)
 	err_msg = NULL;
 	err = (*dev->remove)(n, &err_msg);
 	switch(err){
+	case 0:
+		err_msg = "";
+		break;
 	case -ENODEV:
 		if(err_msg == NULL)
 			err_msg = "Device doesn't exist";
