@@ -66,9 +66,7 @@
 
 #ifdef CONFIG_SPARC
 #include <asm/idprom.h>
-#include <asm/openprom.h>
-#include <asm/oplib.h>
-#include <asm/pbm.h>
+#include <asm/prom.h>
 #endif
 
 #ifdef CONFIG_PPC_PMAC
@@ -2906,34 +2904,17 @@ static int __devinit gem_get_device_address(struct gem *gp)
 {
 #if defined(CONFIG_SPARC) || defined(CONFIG_PPC_PMAC)
 	struct net_device *dev = gp->dev;
-#endif
-
-#if defined(CONFIG_SPARC)
-	struct pci_dev *pdev = gp->pdev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	int use_idprom = 1;
-
-	if (pcp != NULL) {
-		const unsigned char *addr;
-		int len;
-
-		addr = of_get_property(pcp->prom_node, "local-mac-address",
-				       &len);
-		if (addr && len == 6) {
-			use_idprom = 0;
-			memcpy(dev->dev_addr, addr, 6);
-		}
-	}
-	if (use_idprom)
-		memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
-#elif defined(CONFIG_PPC_PMAC)
 	const unsigned char *addr;
 
 	addr = get_property(gp->of_node, "local-mac-address", NULL);
 	if (addr == NULL) {
+#ifdef CONFIG_SPARC
+		addr = idprom->id_ethaddr;
+#else
 		printk("\n");
 		printk(KERN_ERR "%s: can't get mac-address\n", dev->name);
 		return -1;
+#endif
 	}
 	memcpy(dev->dev_addr, addr, 6);
 #else
@@ -3091,7 +3072,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	/* On Apple, we want a reference to the Open Firmware device-tree
 	 * node. We use it for clock control.
 	 */
-#ifdef CONFIG_PPC_PMAC
+#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_SPARC)
 	gp->of_node = pci_device_to_OF_node(pdev);
 #endif
 
