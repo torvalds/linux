@@ -109,13 +109,13 @@ static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 		return 1;
 	if (k1.objectid < k2->objectid)
 		return -1;
-	if (k1.flags > k2->flags)
-		return 1;
-	if (k1.flags < k2->flags)
-		return -1;
 	if (k1.offset > k2->offset)
 		return 1;
 	if (k1.offset < k2->offset)
+		return -1;
+	if (k1.flags > k2->flags)
+		return 1;
+	if (k1.flags < k2->flags)
 		return -1;
 	return 0;
 }
@@ -1165,7 +1165,6 @@ int btrfs_insert_empty_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		BUG();
 	ret = btrfs_search_slot(trans, root, cpu_key, path, data_size, 1);
 	if (ret == 0) {
-		btrfs_release_path(root, path);
 		return -EEXIST;
 	}
 	if (ret < 0)

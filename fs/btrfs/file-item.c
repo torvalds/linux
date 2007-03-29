@@ -57,3 +57,63 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_search_slot(trans, root, &file_key, path, ins_len, cow);
 	return ret;
 }
+
+int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root,
+			  u64 objectid, u64 offset,
+			  char *data, size_t len)
+{
+	int ret;
+	struct btrfs_key file_key;
+	struct btrfs_path path;
+	struct btrfs_csum_item *item;
+
+	btrfs_init_path(&path);
+	file_key.objectid = objectid;
+	file_key.offset = offset;
+	file_key.flags = 0;
+	btrfs_set_key_type(&file_key, BTRFS_CSUM_ITEM_KEY);
+	ret = btrfs_insert_empty_item(trans, root, &path, &file_key,
+				      BTRFS_CSUM_SIZE);
+	if (ret != 0 && ret != -EEXIST)
+		goto fail;
+	item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]), path.slots[0],
+			      struct btrfs_csum_item);
+	ret = 0;
+	ret = btrfs_csum_data(root, data, len, item->csum);
+	mark_buffer_dirty(path.nodes[0]);
+fail:
+	btrfs_release_path(root, &path);
+	return ret;
+}
+
+int btrfs_csum_verify_file_block(struct btrfs_root *root,
+				 u64 objectid, u64 offset,
+				 char *data, size_t len)
+{
+	int ret;
+	struct btrfs_key file_key;
+	struct btrfs_path path;
+	struct btrfs_csum_item *item;
+	char result[BTRFS_CSUM_SIZE];
+
+	btrfs_init_path(&path);
+	file_key.objectid = objectid;
+	file_key.offset = offset;
+	file_key.flags = 0;
+	btrfs_set_key_type(&file_key, BTRFS_CSUM_ITEM_KEY);
+	ret = btrfs_search_slot(NULL, root, &file_key, &path, 0, 0);
+	if (ret)
+		goto fail;
+	item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]), path.slots[0],
+			      struct btrfs_csum_item);
+	ret = 0;
+	ret = btrfs_csum_data(root, data, len, result);
+	WARN_ON(ret);
+	if (memcmp(result, item->csum, BTRFS_CSUM_SIZE))
+		ret = 1;
+fail:
+	btrfs_release_path(root, &path);
+	return ret;
+}
+

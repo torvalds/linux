@@ -21,6 +21,9 @@ struct btrfs_transaction;
  */
 #define BTRFS_NAME_LEN 255
 
+/* 32 bytes in various csum fields */
+#define BTRFS_CSUM_SIZE 32
+
 /*
  * the key defines the order in the tree, and so it also defines (optimal)
  * block layout.  objectid corresonds to the inode number.  The flags
@@ -37,21 +40,21 @@ struct btrfs_transaction;
  */
 struct btrfs_disk_key {
 	__le64 objectid;
-	__le32 flags;
 	__le64 offset;
+	__le32 flags;
 } __attribute__ ((__packed__));
 
 struct btrfs_key {
 	u64 objectid;
-	u32 flags;
 	u64 offset;
+	u32 flags;
 } __attribute__ ((__packed__));
 
 /*
  * every tree block (leaf or node) starts with this header.
  */
 struct btrfs_header {
-	__le32 csum[8];
+	u8 csum[BTRFS_CSUM_SIZE];
 	u8 fsid[16]; /* FS specific uuid */
 	__le64 blocknr; /* which block this node is supposed to live in */
 	__le64 generation;
@@ -75,7 +78,7 @@ struct buffer_head;
  * it currently lacks any block count etc etc
  */
 struct btrfs_super_block {
-	__le32 csum[8];
+	u8 csum[BTRFS_CSUM_SIZE];
 	/* the first 3 fields must match struct btrfs_header */
 	u8 fsid[16];    /* FS specific uuid */
 	__le64 blocknr; /* this block number */
@@ -147,7 +150,7 @@ struct btrfs_extent_item {
 } __attribute__ ((__packed__));
 
 struct btrfs_inode_timespec {
-	__le32 sec;
+	__le64 sec;
 	__le32 nsec;
 } __attribute__ ((__packed__));
 
@@ -212,6 +215,10 @@ struct btrfs_file_extent_item {
 	 * the logical number of file blocks (no csums included)
 	 */
 	__le64 num_blocks;
+} __attribute__ ((__packed__));
+
+struct btrfs_csum_item {
+	u8 csum[BTRFS_CSUM_SIZE];
 } __attribute__ ((__packed__));
 
 struct btrfs_inode_map_item {
@@ -284,26 +291,31 @@ struct btrfs_root {
  */
 #define BTRFS_EXTENT_DATA_KEY	4
 /*
+ * csum items have the checksums for data in the extents
+ */
+#define BTRFS_CSUM_ITEM_KEY	5
+
+/*
  * root items point to tree roots.  There are typically in the root
  * tree used by the super block to find all the other trees
  */
-#define BTRFS_ROOT_ITEM_KEY	5
+#define BTRFS_ROOT_ITEM_KEY	6
 /*
  * extent items are in the extent map tree.  These record which blocks
  * are used, and how many references there are to each block
  */
-#define BTRFS_EXTENT_ITEM_KEY	6
+#define BTRFS_EXTENT_ITEM_KEY	7
 
 /*
  * the inode map records which inode numbers are in use and where
  * they actually live on disk
  */
-#define BTRFS_INODE_MAP_ITEM_KEY 7
+#define BTRFS_INODE_MAP_ITEM_KEY 8
 /*
  * string items are for debugging.  They just store a short string of
  * data in the FS
  */
-#define BTRFS_STRING_ITEM_KEY	8
+#define BTRFS_STRING_ITEM_KEY	9
 
 static inline u64 btrfs_inode_generation(struct btrfs_inode_item *i)
 {
@@ -407,15 +419,15 @@ static inline void btrfs_set_inode_compat_flags(struct btrfs_inode_item *i,
 	i->compat_flags = cpu_to_le16(val);
 }
 
-static inline u32 btrfs_timespec_sec(struct btrfs_inode_timespec *ts)
+static inline u64 btrfs_timespec_sec(struct btrfs_inode_timespec *ts)
 {
-	return le32_to_cpu(ts->sec);
+	return le64_to_cpu(ts->sec);
 }
 
 static inline void btrfs_set_timespec_sec(struct btrfs_inode_timespec *ts,
-					  u32 val)
+					  u64 val)
 {
-	ts->sec = cpu_to_le32(val);
+	ts->sec = cpu_to_le64(val);
 }
 
 static inline u32 btrfs_timespec_nsec(struct btrfs_inode_timespec *ts)
@@ -428,8 +440,6 @@ static inline void btrfs_set_timespec_nsec(struct btrfs_inode_timespec *ts,
 {
 	ts->nsec = cpu_to_le32(val);
 }
-
-
 
 static inline u64 btrfs_extent_owner(struct btrfs_extent_item *ei)
 {
@@ -905,4 +915,11 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid,
 			     u64 blocknr, int mod);
+int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root,
+			  u64 objectid, u64 offset,
+			  char *data, size_t len);
+int btrfs_csum_verify_file_block(struct btrfs_root *root,
+				 u64 objectid, u64 offset,
+				 char *data, size_t len);
 #endif

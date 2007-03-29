@@ -127,31 +127,46 @@ static int btree_get_block(struct inode *inode, sector_t iblock,
 	return 0;
 }
 
-static int csum_tree_block(struct btrfs_root * root, struct buffer_head *bh,
-			    int verify)
+int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
+		    char *result)
 {
-	struct btrfs_node *node = btrfs_buffer_node(bh);
 	struct scatterlist sg;
 	struct crypto_hash *tfm = root->fs_info->hash_tfm;
 	struct hash_desc desc;
 	int ret;
-	char result[32];
 
 	desc.tfm = tfm;
 	desc.flags = 0;
-	sg_init_one(&sg, bh->b_data + 32, bh->b_size - 32);
+	sg_init_one(&sg, data, len);
 	spin_lock(&root->fs_info->hash_lock);
-	ret = crypto_hash_digest(&desc, &sg, bh->b_size - 32, result);
+	ret = crypto_hash_digest(&desc, &sg, len, result);
 	spin_unlock(&root->fs_info->hash_lock);
 	if (ret) {
 		printk("sha256 digest failed\n");
 	}
+	return ret;
+}
+static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
+			   int verify)
+{
+	char result[BTRFS_CSUM_SIZE];
+	int ret;
+	struct btrfs_node *node;
+
+	ret = btrfs_csum_data(root, bh->b_data + BTRFS_CSUM_SIZE,
+			      bh->b_size - BTRFS_CSUM_SIZE, result);
+	if (ret)
+		return ret;
 	if (verify) {
-		if (memcmp(node->header.csum, result, sizeof(result)))
-			printk("csum verify failed on %Lu\n", bh->b_blocknr);
-		return -EINVAL;
-	} else
-		memcpy(node->header.csum, result, sizeof(node->header.csum));
+		if (memcmp(bh->b_data, result, BTRFS_CSUM_SIZE)) {
+			printk("checksum verify failed on %lu\n",
+			       bh->b_blocknr);
+			return 1;
+		}
+	} else {
+		node = btrfs_buffer_node(bh);
+		memcpy(&node->header.csum, result, BTRFS_CSUM_SIZE);
+	}
 	return 0;
 }
 

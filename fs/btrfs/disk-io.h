@@ -39,4 +39,6 @@ void btrfs_block_release(struct btrfs_root *root, struct buffer_head *buf);
 int write_ctree_super(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root);
 struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr);
+int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
+		    char *result);
 #endif

@@ -249,15 +249,16 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	struct btrfs_disk_key *found_key;
 	struct btrfs_leaf *leaf;
-	struct btrfs_file_extent_item *fi;
-	u64 extent_start;
-	u64 extent_num_blocks;
+	struct btrfs_file_extent_item *fi = NULL;
+	u64 extent_start = 0;
+	u64 extent_num_blocks = 0;
+	int found_extent;
 
 	/* FIXME, add redo link to tree so we don't leak on crash */
 	key.objectid = inode->i_ino;
 	key.offset = (u64)-1;
 	key.flags = 0;
-	btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
+	btrfs_set_key_type(&key, BTRFS_CSUM_ITEM_KEY);
 	while(1) {
 		btrfs_init_path(&path);
 		ret = btrfs_search_slot(trans, root, &key, &path, -1, 1);
@@ -273,25 +274,32 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 		found_key = &leaf->items[path.slots[0]].key;
 		if (btrfs_disk_key_objectid(found_key) != inode->i_ino)
 			break;
-		if (btrfs_disk_key_type(found_key) != BTRFS_EXTENT_DATA_KEY)
+		if (btrfs_disk_key_type(found_key) != BTRFS_CSUM_ITEM_KEY &&
+		    btrfs_disk_key_type(found_key) != BTRFS_EXTENT_DATA_KEY)
 			break;
 		if (btrfs_disk_key_offset(found_key) < inode->i_size)
 			break;
-		fi = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
-				    path.slots[0],
-				    struct btrfs_file_extent_item);
-		extent_start = btrfs_file_extent_disk_blocknr(fi);
-		extent_num_blocks = btrfs_file_extent_disk_num_blocks(fi);
-		key.offset = btrfs_disk_key_offset(found_key) - 1;
+		if (btrfs_disk_key_type(found_key) == BTRFS_EXTENT_DATA_KEY) {
+			fi = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
+					    path.slots[0],
+					    struct btrfs_file_extent_item);
+			extent_start = btrfs_file_extent_disk_blocknr(fi);
+			extent_num_blocks =
+				btrfs_file_extent_disk_num_blocks(fi);
+			inode->i_blocks -=
+				btrfs_file_extent_num_blocks(fi) >> 9;
+			found_extent = 1;
+		} else {
+			found_extent = 0;
+		}
 		ret = btrfs_del_item(trans, root, &path);
 		BUG_ON(ret);
-		inode->i_blocks -= btrfs_file_extent_num_blocks(fi) >> 9;
 		btrfs_release_path(root, &path);
-		ret = btrfs_free_extent(trans, root, extent_start,
-					extent_num_blocks, 0);
-		BUG_ON(ret);
-		if (key.offset + 1 == 0)
-			break;
+		if (found_extent) {
+			ret = btrfs_free_extent(trans, root, extent_start,
+						extent_num_blocks, 0);
+			BUG_ON(ret);
+		}
 	}
 	btrfs_release_path(root, &path);
 	ret = 0;
@@ -975,10 +983,24 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	int err = 0;
 	int ret;
 	int this_write;
+	struct inode *inode = file->f_path.dentry->d_inode;
 
 	for (i = 0; i < num_pages; i++) {
 		offset = pos & (PAGE_CACHE_SIZE -1);
 		this_write = min(PAGE_CACHE_SIZE - offset, write_bytes);
+		/* FIXME, one block at a time */
+
+		mutex_lock(&root->fs_info->fs_mutex);
+		trans = btrfs_start_transaction(root, 1);
+		btrfs_csum_file_block(trans, root, inode->i_ino,
+				      pages[i]->index << PAGE_CACHE_SHIFT,
+				      kmap(pages[i]), PAGE_CACHE_SIZE);
+		kunmap(pages[i]);
+		SetPageChecked(pages[i]);
+		ret = btrfs_end_transaction(trans, root);
+		BUG_ON(ret);
+		mutex_unlock(&root->fs_info->fs_mutex);
+
 		ret = nobh_commit_write(file, pages[i], offset,
 					 offset + this_write);
 		pos += this_write;
@@ -1022,7 +1044,7 @@ static int prepare_pages(struct btrfs_trans_handle *trans,
 		this_write = min(PAGE_CACHE_SIZE - offset, write_bytes);
 		ret = nobh_prepare_write(pages[i], offset,
 					 offset + this_write,
-					 btrfs_get_block_lock);
+					 btrfs_get_block);
 		pos += this_write;
 		if (ret) {
 			err = ret;
@@ -1051,7 +1073,6 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	size_t num_written = 0;
 	int err = 0;
 	int ret = 0;
-	struct btrfs_trans_handle *trans;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct btrfs_root *root = btrfs_sb(inode->i_sb);
 	struct page *pages[1];
@@ -1077,24 +1098,17 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		size_t write_bytes = min(count, PAGE_CACHE_SIZE - offset);
 		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
 					PAGE_CACHE_SHIFT;
-		mutex_lock(&root->fs_info->fs_mutex);
-		trans = btrfs_start_transaction(root, 1);
-
-		ret = prepare_pages(trans, root, file, pages, num_pages,
+		ret = prepare_pages(NULL, root, file, pages, num_pages,
 				    pos, write_bytes);
 		BUG_ON(ret);
 		ret = btrfs_copy_from_user(pos, num_pages,
 					   write_bytes, pages, buf);
 		BUG_ON(ret);
 
-		mutex_unlock(&root->fs_info->fs_mutex);
-
-		ret = dirty_and_release_pages(trans, root, file, pages,
+		ret = dirty_and_release_pages(NULL, root, file, pages,
 					      num_pages, pos, write_bytes);
 		BUG_ON(ret);
 		btrfs_drop_pages(pages, num_pages);
-
-		ret = btrfs_end_transaction(trans, root);
 
 		buf += write_bytes;
 		count -= write_bytes;
@@ -1109,6 +1123,118 @@ out:
 	*ppos = pos;
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;
+}
+
+static int btrfs_read_actor(read_descriptor_t *desc, struct page *page,
+			unsigned long offset, unsigned long size)
+{
+	char *kaddr;
+	unsigned long left, count = desc->count;
+
+	if (size > count)
+		size = count;
+
+	if (!PageChecked(page)) {
+		/* FIXME, do it per block */
+		struct btrfs_root *root = btrfs_sb(page->mapping->host->i_sb);
+		int ret = btrfs_csum_verify_file_block(root,
+					  page->mapping->host->i_ino,
+					  page->index << PAGE_CACHE_SHIFT,
+					  kmap(page), PAGE_CACHE_SIZE);
+		if (ret) {
+			printk("failed to verify ino %lu page %lu\n",
+			       page->mapping->host->i_ino,
+			       page->index);
+			memset(page_address(page), 0, PAGE_CACHE_SIZE);
+		}
+		SetPageChecked(page);
+		kunmap(page);
+	}
+	/*
+	 * Faults on the destination of a read are common, so do it before
+	 * taking the kmap.
+	 */
+	if (!fault_in_pages_writeable(desc->arg.buf, size)) {
+		kaddr = kmap_atomic(page, KM_USER0);
+		left = __copy_to_user_inatomic(desc->arg.buf,
+						kaddr + offset, size);
+		kunmap_atomic(kaddr, KM_USER0);
+		if (left == 0)
+			goto success;
+	}
+
+	/* Do it the slow way */
+	kaddr = kmap(page);
+	left = __copy_to_user(desc->arg.buf, kaddr + offset, size);
+	kunmap(page);
+
+	if (left) {
+		size -= left;
+		desc->error = -EFAULT;
+	}
+success:
+	desc->count = count - size;
+	desc->written += size;
+	desc->arg.buf += size;
+	return size;
+}
+
+/**
+ * btrfs_file_aio_read - filesystem read routine
+ * @iocb:	kernel I/O control block
+ * @iov:	io vector request
+ * @nr_segs:	number of segments in the iovec
+ * @pos:	current file position
+ */
+static ssize_t btrfs_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+				   unsigned long nr_segs, loff_t pos)
+{
+	struct file *filp = iocb->ki_filp;
+	ssize_t retval;
+	unsigned long seg;
+	size_t count;
+	loff_t *ppos = &iocb->ki_pos;
+
+	count = 0;
+	for (seg = 0; seg < nr_segs; seg++) {
+		const struct iovec *iv = &iov[seg];
+
+		/*
+		 * If any segment has a negative length, or the cumulative
+		 * length ever wraps negative then return -EINVAL.
+		 */
+		count += iv->iov_len;
+		if (unlikely((ssize_t)(count|iv->iov_len) < 0))
+			return -EINVAL;
+		if (access_ok(VERIFY_WRITE, iv->iov_base, iv->iov_len))
+			continue;
+		if (seg == 0)
+			return -EFAULT;
+		nr_segs = seg;
+		count -= iv->iov_len;	/* This segment is no good */
+		break;
+	}
+	retval = 0;
+	if (count) {
+		for (seg = 0; seg < nr_segs; seg++) {
+			read_descriptor_t desc;
+
+			desc.written = 0;
+			desc.arg.buf = iov[seg].iov_base;
+			desc.count = iov[seg].iov_len;
+			if (desc.count == 0)
+				continue;
+			desc.error = 0;
+			do_generic_file_read(filp, ppos, &desc,
+					     btrfs_read_actor);
+			retval += desc.written;
+			if (desc.error) {
+				retval = retval ?: desc.error;
+				break;
+			}
+		}
+	}
+	return retval;
 }
 
 static int btrfs_get_sb(struct file_system_type *fs_type,
@@ -1166,7 +1292,7 @@ static struct inode_operations btrfs_file_inode_operations = {
 static struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.aio_read       = generic_file_aio_read,
+	.aio_read       = btrfs_file_aio_read,
 	.write		= btrfs_file_write,
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
