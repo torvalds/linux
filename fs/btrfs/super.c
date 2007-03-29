@@ -9,6 +9,8 @@
 #include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
 #include <linux/mpage.h>
+#include <linux/swap.h>
+#include <linux/writeback.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -755,7 +757,7 @@ printk("btrfs sync_fs\n");
 	return 0;
 }
 
-static int btrfs_get_block(struct inode *inode, sector_t iblock,
+static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 			   struct buffer_head *result, int create)
 {
 	int ret;
@@ -772,7 +774,6 @@ static int btrfs_get_block(struct inode *inode, sector_t iblock,
 	struct btrfs_disk_key *found_key;
 
 	btrfs_init_path(&path);
-	mutex_lock(&root->fs_info->fs_mutex);
 	if (create)
 		trans = btrfs_start_transaction(root, 1);
 
@@ -848,6 +849,16 @@ allocate:
 out:
 	if (trans)
 		btrfs_end_transaction(trans, root);
+	return err;
+}
+
+static int btrfs_get_block(struct inode *inode, sector_t iblock,
+			   struct buffer_head *result, int create)
+{
+	int err;
+	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	mutex_lock(&root->fs_info->fs_mutex);
+	err = btrfs_get_block_lock(inode, iblock, result, create);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return err;
 }
@@ -855,7 +866,14 @@ out:
 static int btrfs_prepare_write(struct file *file, struct page *page,
 			       unsigned from, unsigned to)
 {
+	WARN_ON(1);
 	return nobh_prepare_write(page, from, to, btrfs_get_block);
+}
+static int btrfs_commit_write(struct file *file, struct page *page,
+			       unsigned from, unsigned to)
+{
+	WARN_ON(1);
+	return nobh_commit_write(file, page, from, to);
 }
 
 static void btrfs_write_super(struct super_block *sb)
@@ -903,6 +921,196 @@ static void btrfs_truncate(struct inode *inode)
 	mark_inode_dirty(inode);
 }
 
+static int btrfs_copy_from_user(loff_t pos, int num_pages, int write_bytes,
+				struct page **prepared_pages,
+				const char __user * buf)
+{
+	long page_fault = 0;
+	int i;
+	int offset = pos & (PAGE_CACHE_SIZE - 1);
+
+	for (i = 0; i < num_pages && write_bytes > 0; i++, offset = 0) {
+		size_t count = min_t(size_t,
+				     PAGE_CACHE_SIZE - offset, write_bytes);
+		struct page *page = prepared_pages[i];
+		fault_in_pages_readable(buf, count);
+
+		/* Copy data from userspace to the current page */
+		kmap(page);
+		page_fault = __copy_from_user(page_address(page) + offset,
+					      buf, count);
+		/* Flush processor's dcache for this page */
+		flush_dcache_page(page);
+		kunmap(page);
+		buf += count;
+		write_bytes -= count;
+
+		if (page_fault)
+			break;
+	}
+	return page_fault ? -EFAULT : 0;
+}
+
+static void btrfs_drop_pages(struct page **pages, size_t num_pages)
+{
+	size_t i;
+	for (i = 0; i < num_pages; i++) {
+		if (!pages[i])
+			break;
+		unlock_page(pages[i]);
+		mark_page_accessed(pages[i]);
+		page_cache_release(pages[i]);
+	}
+}
+static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root,
+				   struct file *file,
+				   struct page **pages,
+				   size_t num_pages,
+				   loff_t pos,
+				   size_t write_bytes)
+{
+	int i;
+	int offset;
+	int err = 0;
+	int ret;
+	int this_write;
+
+	for (i = 0; i < num_pages; i++) {
+		offset = pos & (PAGE_CACHE_SIZE -1);
+		this_write = min(PAGE_CACHE_SIZE - offset, write_bytes);
+		ret = nobh_commit_write(file, pages[i], offset,
+					 offset + this_write);
+		pos += this_write;
+		if (ret) {
+			err = ret;
+			goto failed;
+		}
+		WARN_ON(this_write > write_bytes);
+		write_bytes -= this_write;
+	}
+failed:
+	return err;
+}
+
+static int prepare_pages(struct btrfs_trans_handle *trans,
+			 struct btrfs_root *root,
+			 struct file *file,
+			 struct page **pages,
+			 size_t num_pages,
+			 loff_t pos,
+			 size_t write_bytes)
+{
+	int i;
+	unsigned long index = pos >> PAGE_CACHE_SHIFT;
+	struct inode *inode = file->f_path.dentry->d_inode;
+	int offset;
+	int err = 0;
+	int ret;
+	int this_write;
+	loff_t isize = i_size_read(inode);
+
+	memset(pages, 0, num_pages * sizeof(struct page *));
+
+	for (i = 0; i < num_pages; i++) {
+		pages[i] = grab_cache_page(inode->i_mapping, index + i);
+		if (!pages[i]) {
+			err = -ENOMEM;
+			goto failed_release;
+		}
+		offset = pos & (PAGE_CACHE_SIZE -1);
+		this_write = min(PAGE_CACHE_SIZE - offset, write_bytes);
+		ret = nobh_prepare_write(pages[i], offset,
+					 offset + this_write,
+					 btrfs_get_block_lock);
+		pos += this_write;
+		if (ret) {
+			err = ret;
+			goto failed_truncate;
+		}
+		WARN_ON(this_write > write_bytes);
+		write_bytes -= this_write;
+	}
+	return 0;
+
+failed_release:
+	btrfs_drop_pages(pages, num_pages);
+	return err;
+
+failed_truncate:
+	btrfs_drop_pages(pages, num_pages);
+	if (pos > isize)
+		vmtruncate(inode, isize);
+	return err;
+}
+
+static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	loff_t pos;
+	size_t num_written = 0;
+	int err = 0;
+	int ret = 0;
+	struct btrfs_trans_handle *trans;
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	struct page *pages[1];
+
+	if (file->f_flags & O_DIRECT)
+		return -EINVAL;
+	pos = *ppos;
+
+	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+	current->backing_dev_info = inode->i_mapping->backing_dev_info;
+	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
+	if (err)
+		goto out;
+	if (count == 0)
+		goto out;
+	err = remove_suid(file->f_path.dentry);
+	if (err)
+		goto out;
+	file_update_time(file);
+	mutex_lock(&inode->i_mutex);
+	while(count > 0) {
+		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
+		size_t write_bytes = min(count, PAGE_CACHE_SIZE - offset);
+		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
+					PAGE_CACHE_SHIFT;
+		mutex_lock(&root->fs_info->fs_mutex);
+		trans = btrfs_start_transaction(root, 1);
+
+		ret = prepare_pages(trans, root, file, pages, num_pages,
+				    pos, write_bytes);
+		BUG_ON(ret);
+		ret = btrfs_copy_from_user(pos, num_pages,
+					   write_bytes, pages, buf);
+		BUG_ON(ret);
+
+		mutex_unlock(&root->fs_info->fs_mutex);
+
+		ret = dirty_and_release_pages(trans, root, file, pages,
+					      num_pages, pos, write_bytes);
+		BUG_ON(ret);
+		btrfs_drop_pages(pages, num_pages);
+
+		ret = btrfs_end_transaction(trans, root);
+
+		buf += write_bytes;
+		count -= write_bytes;
+		pos += write_bytes;
+		num_written += write_bytes;
+
+		balance_dirty_pages_ratelimited(inode->i_mapping);
+		cond_resched();
+	}
+	mutex_unlock(&inode->i_mutex);
+out:
+	*ppos = pos;
+	current->backing_dev_info = NULL;
+	return num_written ? num_written : err;
+}
+
 static int btrfs_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
@@ -948,7 +1156,7 @@ static struct address_space_operations btrfs_aops = {
 	.writepage	= btrfs_writepage,
 	.sync_page	= block_sync_page,
 	.prepare_write	= btrfs_prepare_write,
-	.commit_write	= nobh_commit_write,
+	.commit_write	= btrfs_commit_write,
 };
 
 static struct inode_operations btrfs_file_inode_operations = {
@@ -958,14 +1166,10 @@ static struct inode_operations btrfs_file_inode_operations = {
 static struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read	= generic_file_aio_read,
-	.aio_write	= generic_file_aio_write,
+	.aio_read       = generic_file_aio_read,
+	.write		= btrfs_file_write,
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
-	.sendfile	= generic_file_sendfile,
-	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
 };
 
 static int __init init_btrfs_fs(void)
