@@ -480,12 +480,16 @@ static void ipr_reinit_ipr_cmnd(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
+	dma_addr_t dma_addr = be32_to_cpu(ioarcb->ioarcb_host_pci_addr);
 
 	memset(&ioarcb->cmd_pkt, 0, sizeof(struct ipr_cmd_pkt));
 	ioarcb->write_data_transfer_length = 0;
 	ioarcb->read_data_transfer_length = 0;
 	ioarcb->write_ioadl_len = 0;
 	ioarcb->read_ioadl_len = 0;
+	ioarcb->write_ioadl_addr =
+		cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, ioadl));
+	ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
 	ioasa->ioasc = 0;
 	ioasa->residual_data_len = 0;
 	ioasa->u.gata.status = 0;
@@ -4230,6 +4234,14 @@ static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
 
 		sglist = scsi_cmd->request_buffer;
 
+		if (ipr_cmd->dma_use_sg <= ARRAY_SIZE(ioarcb->add_data.u.ioadl)) {
+			ioadl = ioarcb->add_data.u.ioadl;
+			ioarcb->write_ioadl_addr =
+				cpu_to_be32(be32_to_cpu(ioarcb->ioarcb_host_pci_addr) +
+					    offsetof(struct ipr_ioarcb, add_data));
+			ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
+		}
+
 		for (i = 0; i < ipr_cmd->dma_use_sg; i++) {
 			ioadl[i].flags_and_data_len =
 				cpu_to_be32(ioadl_flags | sg_dma_len(&sglist[i]));
@@ -4260,6 +4272,11 @@ static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
 						     scsi_cmd->sc_data_direction);
 
 		if (likely(!pci_dma_mapping_error(ipr_cmd->dma_handle))) {
+			ioadl = ioarcb->add_data.u.ioadl;
+			ioarcb->write_ioadl_addr =
+				cpu_to_be32(be32_to_cpu(ioarcb->ioarcb_host_pci_addr) +
+					    offsetof(struct ipr_ioarcb, add_data));
+			ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
 			ipr_cmd->dma_use_sg = 1;
 			ioadl[0].flags_and_data_len =
 				cpu_to_be32(ioadl_flags | length | IPR_IOADL_FLAGS_LAST);
@@ -4346,11 +4363,9 @@ static void ipr_erp_done(struct ipr_cmnd *ipr_cmd)
  **/
 static void ipr_reinit_ipr_cmnd_for_erp(struct ipr_cmnd *ipr_cmd)
 {
-	struct ipr_ioarcb *ioarcb;
-	struct ipr_ioasa *ioasa;
-
-	ioarcb = &ipr_cmd->ioarcb;
-	ioasa = &ipr_cmd->ioasa;
+	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
+	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
+	dma_addr_t dma_addr = be32_to_cpu(ioarcb->ioarcb_host_pci_addr);
 
 	memset(&ioarcb->cmd_pkt, 0, sizeof(struct ipr_cmd_pkt));
 	ioarcb->write_data_transfer_length = 0;
@@ -4359,6 +4374,9 @@ static void ipr_reinit_ipr_cmnd_for_erp(struct ipr_cmnd *ipr_cmd)
 	ioarcb->read_ioadl_len = 0;
 	ioasa->ioasc = 0;
 	ioasa->residual_data_len = 0;
+	ioarcb->write_ioadl_addr =
+		cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, ioadl));
+	ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
 }
 
 /**

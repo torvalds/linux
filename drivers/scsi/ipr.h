@@ -422,9 +422,25 @@ struct ipr_ioarcb_ata_regs {
 	u8 ctl;
 }__attribute__ ((packed, aligned(4)));
 
+struct ipr_ioadl_desc {
+	__be32 flags_and_data_len;
+#define IPR_IOADL_FLAGS_MASK		0xff000000
+#define IPR_IOADL_GET_FLAGS(x) (be32_to_cpu(x) & IPR_IOADL_FLAGS_MASK)
+#define IPR_IOADL_DATA_LEN_MASK		0x00ffffff
+#define IPR_IOADL_GET_DATA_LEN(x) (be32_to_cpu(x) & IPR_IOADL_DATA_LEN_MASK)
+#define IPR_IOADL_FLAGS_READ		0x48000000
+#define IPR_IOADL_FLAGS_READ_LAST	0x49000000
+#define IPR_IOADL_FLAGS_WRITE		0x68000000
+#define IPR_IOADL_FLAGS_WRITE_LAST	0x69000000
+#define IPR_IOADL_FLAGS_LAST		0x01000000
+
+	__be32 address;
+}__attribute__((packed, aligned (8)));
+
 struct ipr_ioarcb_add_data {
 	union {
 		struct ipr_ioarcb_ata_regs regs;
+		struct ipr_ioadl_desc ioadl[5];
 		__be32 add_cmd_parms[10];
 	}u;
 }__attribute__ ((packed, aligned(4)));
@@ -455,21 +471,6 @@ struct ipr_ioarcb {
 	__be32 add_cmd_parms_len;
 	struct ipr_ioarcb_add_data add_data;
 }__attribute__((packed, aligned (4)));
-
-struct ipr_ioadl_desc {
-	__be32 flags_and_data_len;
-#define IPR_IOADL_FLAGS_MASK		0xff000000
-#define IPR_IOADL_GET_FLAGS(x) (be32_to_cpu(x) & IPR_IOADL_FLAGS_MASK)
-#define IPR_IOADL_DATA_LEN_MASK		0x00ffffff
-#define IPR_IOADL_GET_DATA_LEN(x) (be32_to_cpu(x) & IPR_IOADL_DATA_LEN_MASK)
-#define IPR_IOADL_FLAGS_READ		0x48000000
-#define IPR_IOADL_FLAGS_READ_LAST	0x49000000
-#define IPR_IOADL_FLAGS_WRITE		0x68000000
-#define IPR_IOADL_FLAGS_WRITE_LAST	0x69000000
-#define IPR_IOADL_FLAGS_LAST		0x01000000
-
-	__be32 address;
-}__attribute__((packed, aligned (8)));
 
 struct ipr_ioasa_vset {
 	__be32 failing_lba_hi;
