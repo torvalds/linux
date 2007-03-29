@@ -2284,7 +2284,7 @@ static int __init cs4231_init(void)
 			if (!strcmp(edev->prom_node->name, "SUNW,CS4231")) {
 				match = 1;
 			} else if (!strcmp(edev->prom_node->name, "audio")) {
-				char *compat;
+				const char *compat;
 
 				compat = of_get_property(edev->prom_node,
 							 "compatible", NULL);
