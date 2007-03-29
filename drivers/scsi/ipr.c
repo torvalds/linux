@@ -5128,7 +5128,7 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 	struct ipr_ioarcb_ata_regs *regs;
 
 	if (unlikely(!ioa_cfg->allow_cmds || ioa_cfg->ioa_is_dead))
-		return -EIO;
+		return AC_ERR_SYSTEM;
 
 	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
 	ioarcb = &ipr_cmd->ioarcb;
@@ -5173,7 +5173,7 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 
 	default:
 		WARN_ON(1);
-		return -1;
+		return AC_ERR_INVALID;
 	}
 
 	mb();
