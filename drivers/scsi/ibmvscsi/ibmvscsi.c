@@ -1354,6 +1354,27 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 	return rc;
 }
 
+/**
+ * ibmvscsi_slave_configure: Set the "allow_restart" flag for each disk.
+ * @sdev:	struct scsi_device device to configure
+ *
+ * Enable allow_restart for a device if it is a disk.  Adjust the
+ * queue_depth here also as is required by the documentation for
+ * struct scsi_host_template.
+ */
+static int ibmvscsi_slave_configure(struct scsi_device *sdev)
+{
+	struct Scsi_Host *shost = sdev->host;
+	unsigned long lock_flags = 0;
+
+	spin_lock_irqsave(shost->host_lock, lock_flags);
+	if (sdev->type == TYPE_DISK)
+		sdev->allow_restart = 1;
+	scsi_adjust_queue_depth(sdev, 0, shost->cmd_per_lun);
+	spin_unlock_irqrestore(shost->host_lock, lock_flags);
+	return 0;
+}
+
 /* ------------------------------------------------------------
  * sysfs attributes
  */
@@ -1499,6 +1520,7 @@ static struct scsi_host_template driver_template = {
 	.queuecommand = ibmvscsi_queuecommand,
 	.eh_abort_handler = ibmvscsi_eh_abort_handler,
 	.eh_device_reset_handler = ibmvscsi_eh_device_reset_handler,
+	.slave_configure = ibmvscsi_slave_configure,
 	.cmd_per_lun = 16,
 	.can_queue = IBMVSCSI_MAX_REQUESTS_DEFAULT,
 	.this_id = -1,
