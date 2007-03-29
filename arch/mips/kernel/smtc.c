@@ -999,10 +999,17 @@ static void setup_cross_vpe_interrupts(unsigned int nvpe)
 
 /*
  * SMTC-specific hacks invoked from elsewhere in the kernel.
+ *
+ * smtc_ipi_replay is called from raw_local_irq_restore which is only ever
+ * called with interrupts disabled.  We do rely on interrupts being disabled
+ * here because using spin_lock_irqsave()/spin_unlock_irqrestore() would
+ * result in a recursive call to raw_local_irq_restore().
  */
 
-void smtc_ipi_replay(void)
+static void __smtc_ipi_replay(void)
 {
+	unsigned int cpu = smp_processor_id();
+
 	/*
 	 * To the extent that we've ever turned interrupts off,
 	 * we may have accumulated deferred IPIs.  This is subtle.
@@ -1017,15 +1024,28 @@ void smtc_ipi_replay(void)
 	 * is clear, and we'll handle it as a real pseudo-interrupt
 	 * and not a pseudo-pseudo interrupt.
 	 */
-	if (IPIQ[smp_processor_id()].depth > 0) {
-		struct smtc_ipi *pipi;
-		extern void self_ipi(struct smtc_ipi *);
+	if (IPIQ[cpu].depth > 0) {
+		while (1) {
+			struct smtc_ipi_q *q = &IPIQ[cpu];
+			struct smtc_ipi *pipi;
+			extern void self_ipi(struct smtc_ipi *);
 
-		while ((pipi = smtc_ipi_dq(&IPIQ[smp_processor_id()]))) {
+			spin_lock(&q->lock);
+			pipi = __smtc_ipi_dq(q);
+			spin_unlock(&q->lock);
+			if (!pipi)
+				break;
+
 			self_ipi(pipi);
-			smtc_cpu_stats[smp_processor_id()].selfipis++;
+			smtc_cpu_stats[cpu].selfipis++;
 		}
 	}
+}
+
+void smtc_ipi_replay(void)
+{
+	raw_local_irq_disable();
+	__smtc_ipi_replay();
 }
 
 EXPORT_SYMBOL(smtc_ipi_replay);
@@ -1132,7 +1152,13 @@ void smtc_idle_loop_hook(void)
 	 * is in use, there should never be any.
 	 */
 #ifndef CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY
-	smtc_ipi_replay();
+	{
+		unsigned long flags;
+
+		local_irq_save(flags);
+		__smtc_ipi_replay();
+		local_irq_restore(flags);
+	}
 #endif /* CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY */
 }
 
