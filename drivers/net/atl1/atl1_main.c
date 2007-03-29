@@ -2320,6 +2320,16 @@ static void __devexit atl1_remove(struct pci_dev *pdev)
 		return;
 
 	adapter = netdev_priv(netdev);
+
+	/* Some atl1 boards lack persistent storage for their MAC, and get it
+	 * from the BIOS during POST.  If we've been messing with the MAC
+	 * address, we need to save the permanent one.
+	 */
+	if (memcmp(adapter->hw.mac_addr, adapter->hw.perm_mac_addr, ETH_ALEN)) {
+		memcpy(adapter->hw.mac_addr, adapter->hw.perm_mac_addr, ETH_ALEN);
+		atl1_set_mac_addr(&adapter->hw);
+	}
+
 	iowrite16(0, adapter->hw.hw_addr + REG_GPHY_ENABLE);
 	unregister_netdev(netdev);
 	pci_iounmap(pdev, adapter->hw.hw_addr);
