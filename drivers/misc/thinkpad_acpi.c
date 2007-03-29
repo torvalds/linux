@@ -86,6 +86,9 @@ MODULE_DESCRIPTION(IBM_DESC);
 MODULE_VERSION(IBM_VERSION);
 MODULE_LICENSE("GPL");
 
+/* Please remove this in year 2009 */
+MODULE_ALIAS("ibm_acpi");
+
 #define __unused __attribute__ ((unused))
 
 /****************************************************************************
