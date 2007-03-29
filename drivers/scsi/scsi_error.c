@@ -932,10 +932,12 @@ static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 	static unsigned char stu_command[6] = {START_STOP, 0, 0, 0, 1, 0};
 
 	if (scmd->device->allow_restart) {
-		int rtn;
+		int i, rtn = NEEDS_RETRY;
 
-		rtn = scsi_send_eh_cmnd(scmd, stu_command, 6,
-					START_UNIT_TIMEOUT, 0);
+		for (i = 0; rtn == NEEDS_RETRY && i < 2; i++)
+			rtn = scsi_send_eh_cmnd(scmd, stu_command, 6,
+						START_UNIT_TIMEOUT, 0);
+
 		if (rtn == SUCCESS)
 			return 0;
 	}
