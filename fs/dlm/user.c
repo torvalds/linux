@@ -56,6 +56,7 @@ struct dlm_write_request32 {
 	union  {
 		struct dlm_lock_params32 lock;
 		struct dlm_lspace_params lspace;
+		struct dlm_purge_params purge;
 	} i;
 };
 
@@ -92,6 +93,9 @@ static void compat_input(struct dlm_write_request *kb,
 		kb->i.lspace.flags = kb32->i.lspace.flags;
 		kb->i.lspace.minor = kb32->i.lspace.minor;
 		strcpy(kb->i.lspace.name, kb32->i.lspace.name);
+	} else if (kb->cmd == DLM_USER_PURGE) {
+		kb->i.purge.nodeid = kb32->i.purge.nodeid;
+		kb->i.purge.pid = kb32->i.purge.pid;
 	} else {
 		kb->i.lock.mode = kb32->i.lock.mode;
 		kb->i.lock.namelen = kb32->i.lock.namelen;
@@ -320,6 +324,22 @@ fail:
 	return error;
 }
 
+static int device_user_purge(struct dlm_user_proc *proc,
+			     struct dlm_purge_params *params)
+{
+	struct dlm_ls *ls;
+	int error;
+
+	ls = dlm_find_lockspace_local(proc->lockspace);
+	if (!ls)
+		return -ENOENT;
+
+	error = dlm_user_purge(ls, proc, params->nodeid, params->pid);
+
+	dlm_put_lockspace(ls);
+	return error;
+}
+
 static int device_create_lockspace(struct dlm_lspace_params *params)
 {
 	dlm_lockspace_t *lockspace;
@@ -520,6 +540,14 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 			goto out_sig;
 		}
 		error = device_remove_lockspace(&kbuf->i.lspace);
+		break;
+
+	case DLM_USER_PURGE:
+		if (!proc) {
+			log_print("no locking on control device");
+			goto out_sig;
+		}
+		error = device_user_purge(proc, &kbuf->i.purge);
 		break;
 
 	default:
