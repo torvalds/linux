@@ -112,16 +112,6 @@ POTENTIAL ATTRIBUTE ALIASING CASES
 
 	The /dev/mem mmap constraints apply.
 
-	However, since this is for mapping legacy MMIO space, WB access
-	does not make sense.  This matters on machines without legacy
-	VGA support: these machines may have WB memory for the entire
-	first megabyte (or even the entire first granule).
-
-	On these machines, we could mmap legacy_mem as WB, which would
-	be safe in terms of attribute aliasing, but X has no way of
-	knowing that it is accessing regular memory, not a frame buffer,
-	so the kernel should fail the mmap rather than doing it with WB.
-
     read/write of /dev/mem
 
 	This uses copy_from_user(), which implicitly uses a kernel
@@ -138,14 +128,20 @@ POTENTIAL ATTRIBUTE ALIASING CASES
 
     ioremap()
 
-	This returns a kernel identity mapping for use inside the
-	kernel.
+	This returns a mapping for use inside the kernel.
 
 	If the region is in kern_memmap, we should use the attribute
-	specified there.  Otherwise, if the EFI memory map reports that
-	the entire granule supports WB, we should use that (granules
-	that are partially reserved or occupied by firmware do not appear
-	in kern_memmap).  Otherwise, we should use a UC mapping.
+	specified there.
+
+	If the EFI memory map reports that the entire granule supports
+	WB, we should use that (granules that are partially reserved
+	or occupied by firmware do not appear in kern_memmap).
+
+	If the granule contains non-WB memory, but we can cover the
+	region safely with kernel page table mappings, we can use
+	ioremap_page_range() as most other architectures do.
+
+	Failing all of the above, we have to fall back to a UC mapping.
 
 PAST PROBLEM CASES
 
@@ -158,7 +154,7 @@ PAST PROBLEM CASES
       succeed.  It may create either WB or UC user mappings, depending
       on whether the region is in kern_memmap or the EFI memory map.
 
-    mmap of 0x0-0xA0000 /dev/mem by "hwinfo" on HP sx1000 with VGA enabled
+    mmap of 0x0-0x9FFFF /dev/mem by "hwinfo" on HP sx1000 with VGA enabled
 
       See https://bugzilla.novell.com/show_bug.cgi?id=140858.
 
@@ -171,28 +167,25 @@ PAST PROBLEM CASES
       so it is safe to use WB mappings.
 
       The kernel VGA driver may ioremap the VGA frame buffer at 0xA0000,
-      which will use a granule-sized UC mapping covering 0-0xFFFFF.  This
-      granule covers some WB-only memory, but since UC is non-speculative,
-      the processor will never generate an uncacheable reference to the
-      WB-only areas unless the driver explicitly touches them.
+      which uses a granule-sized UC mapping.  This granule will cover some
+      WB-only memory, but since UC is non-speculative, the processor will
+      never generate an uncacheable reference to the WB-only areas unless
+      the driver explicitly touches them.
 
     mmap of 0x0-0xFFFFF legacy_mem by "X"
 
-      If the EFI memory map reports this entire range as WB, there
-      is no VGA MMIO hole, and the mmap should fail or be done with
-      a WB mapping.
+      If the EFI memory map reports that the entire range supports the
+      same attributes, we can allow the mmap (and we will prefer WB if
+      supported, as is the case with HP sx[12]000 machines with VGA
+      disabled).
 
-      There's no easy way for X to determine whether the 0xA0000-0xBFFFF
-      region is a frame buffer or just memory, so I think it's best to
-      just fail this mmap request rather than using a WB mapping.  As
-      far as I know, there's no need to map legacy_mem with WB
-      mappings.
+      If EFI reports the range as partly WB and partly UC (as on sx[12]000
+      machines with VGA enabled), we must fail the mmap because there's no
+      safe attribute to use.
 
-      Otherwise, a UC mapping of the entire region is probably safe.
-      The VGA hole means the region will not be in kern_memmap.  The
-      HP sx1000 chipset doesn't support UC access to the memory surrounding
-      the VGA hole, but X doesn't need that area anyway and should not
-      reference it.
+      If EFI reports some of the range but not all (as on Intel firmware
+      that doesn't report the VGA frame buffer at all), we should fail the
+      mmap and force the user to map just the specific region of interest.
 
     mmap of 0xA0000-0xBFFFF legacy_mem by "X" on HP sx1000 with VGA disabled
 
@@ -201,6 +194,16 @@ PAST PROBLEM CASES
 
       This is a special case of the previous case, and the mmap should
       fail for the same reason as above.
+
+    read of /sys/devices/.../rom
+
+      For VGA devices, this may cause an ioremap() of 0xC0000.  This
+      used to be done with a UC mapping, because the VGA frame buffer
+      at 0xA0000 prevents use of a WB granule.  The UC mapping causes
+      an MCA on HP sx[12]000 chipsets.
+
+      We should use WB page table mappings to avoid covering the VGA
+      frame buffer.
 
 NOTES
 
