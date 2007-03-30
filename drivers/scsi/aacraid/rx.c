@@ -467,16 +467,19 @@ static int aac_rx_restart_adapter(struct aac_dev *dev, int bled)
 	if (bled)
 		printk(KERN_ERR "%s%d: adapter kernel panic'd %x.\n",
 			dev->name, dev->id, bled);
-	else
+	else {
 		bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
 		  0, 0, 0, 0, 0, 0, &var, NULL, NULL, NULL, NULL);
-	if (bled)
+		if (!bled && (var != 0x00000001))
+			bled = -EINVAL;
+	}
+	if (bled && (bled != -ETIMEDOUT))
 		bled = aac_adapter_sync_cmd(dev, IOP_RESET,
 		  0, 0, 0, 0, 0, 0, &var, NULL, NULL, NULL, NULL);
 
-	if (bled)
+	if (bled && (bled != -ETIMEDOUT))
 		return -EINVAL;
-	if (var == 0x3803000F) { /* USE_OTHER_METHOD */
+	if (bled || (var == 0x3803000F)) { /* USE_OTHER_METHOD */
 		rx_writel(dev, MUnit.reserved2, 3);
 		msleep(5000); /* Delay 5 seconds */
 		var = 0x00000001;
@@ -526,6 +529,7 @@ int _aac_rx_init(struct aac_dev *dev)
 {
 	unsigned long start;
 	unsigned long status;
+	int restart = 0;
 	int instance = dev->id;
 	const char * name = dev->name;
 
@@ -534,15 +538,19 @@ int _aac_rx_init(struct aac_dev *dev)
 		goto error_iounmap;
 	}
 
+	/* Failure to reset here is an option ... */
+	dev->OIMR = status = rx_readb (dev, MUnit.OIMR);
+	if ((((status & 0xff) != 0xff) || reset_devices) &&
+	  !aac_rx_restart_adapter(dev, 0))
+		++restart;
 	/*
 	 *	Check to see if the board panic'd while booting.
 	 */
 	status = rx_readl(dev, MUnit.OMRx[0]);
 	if (status & KERNEL_PANIC) {
-		if ((status = aac_rx_check_health(dev)) <= 0)
+		if (aac_rx_restart_adapter(dev, aac_rx_check_health(dev)))
 			goto error_iounmap;
-		if (aac_rx_restart_adapter(dev, status))
-			goto error_iounmap;
+		++restart;
 	}
 	/*
 	 *	Check to see if the board failed any self tests.
@@ -565,10 +573,22 @@ int _aac_rx_init(struct aac_dev *dev)
 	 */
 	while (!((status = rx_readl(dev, MUnit.OMRx[0])) & KERNEL_UP_AND_RUNNING))
 	{
-		if(time_after(jiffies, start+startup_timeout*HZ)) {
+		if ((restart &&
+		  (status & (KERNEL_PANIC|SELF_TEST_FAILED|MONITOR_PANIC))) ||
+		  time_after(jiffies, start+HZ*startup_timeout)) {
 			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %lx.\n", 
 					dev->name, instance, status);
 			goto error_iounmap;
+		}
+		if (!restart &&
+		  ((status & (KERNEL_PANIC|SELF_TEST_FAILED|MONITOR_PANIC)) ||
+		  time_after(jiffies, start + HZ *
+		  ((startup_timeout > 60)
+		    ? (startup_timeout - 60)
+		    : (startup_timeout / 2))))) {
+			if (likely(!aac_rx_restart_adapter(dev, aac_rx_check_health(dev))))
+				start = jiffies;
+			++restart;
 		}
 		msleep(1);
 	}
