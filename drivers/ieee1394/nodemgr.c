@@ -581,7 +581,7 @@ static void nodemgr_create_drv_files(struct hpsb_protocol_driver *driver)
 			goto fail;
 	return;
 fail:
-	HPSB_ERR("Failed to add sysfs attribute for driver %s", driver->name);
+	HPSB_ERR("Failed to add sysfs attribute");
 }
 
 
@@ -605,8 +605,7 @@ static void nodemgr_create_ne_dev_files(struct node_entry *ne)
 			goto fail;
 	return;
 fail:
-	HPSB_ERR("Failed to add sysfs attribute for node %016Lx",
-		 (unsigned long long)ne->guid);
+	HPSB_ERR("Failed to add sysfs attribute");
 }
 
 
@@ -620,7 +619,7 @@ static void nodemgr_create_host_dev_files(struct hpsb_host *host)
 			goto fail;
 	return;
 fail:
-	HPSB_ERR("Failed to add sysfs attribute for host %d", host->id);
+	HPSB_ERR("Failed to add sysfs attribute");
 }
 
 
@@ -680,8 +679,7 @@ static void nodemgr_create_ud_dev_files(struct unit_directory *ud)
 	}
 	return;
 fail:
-	HPSB_ERR("Failed to add sysfs attributes for unit %s",
-		 ud->device.bus_id);
+	HPSB_ERR("Failed to add sysfs attribute");
 }
 
 
@@ -1150,8 +1148,7 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 					       &dev_attr_ne_vendor_name_kv);
 
 		if (error && error != -EEXIST)
-			HPSB_ERR("Failed to add sysfs attribute for node "
-				 "%016Lx", (unsigned long long)ne->guid);
+			HPSB_ERR("Failed to add sysfs attribute");
 	}
 }
 
