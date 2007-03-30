@@ -557,7 +557,7 @@ static int btrfs_update_inode(struct btrfs_trans_handle *trans,
 				  struct btrfs_inode_item);
 
 	fill_inode_item(inode_item, inode);
-	mark_buffer_dirty(path.nodes[0]);
+	btrfs_mark_buffer_dirty(path.nodes[0]);
 failed:
 	btrfs_release_path(root, &path);
 	return 0;

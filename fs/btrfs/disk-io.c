@@ -8,6 +8,17 @@
 #include "disk-io.h"
 #include "transaction.h"
 
+#define PATTERN 0xDEADBEEFUL
+static inline void check_pattern(struct buffer_head *buf)
+{
+	if (buf->b_private != (void *)PATTERN)
+		WARN_ON(1);
+}
+
+static inline void set_pattern(struct buffer_head *buf)
+{
+	buf->b_private = (void *)PATTERN;
+}
 
 static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 {
@@ -51,8 +62,10 @@ struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr)
 	} while (bh != head);
 out_unlock:
 	unlock_page(page);
-	if (ret)
+	if (ret) {
 		touch_buffer(ret);
+		check_pattern(ret);
+	}
 	page_cache_release(page);
 	return ret;
 }
@@ -82,6 +95,7 @@ struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 			bh->b_bdev = root->fs_info->sb->s_bdev;
 			bh->b_blocknr = first_block;
 			set_buffer_mapped(bh);
+			set_pattern(bh);
 		}
 		if (bh->b_blocknr == blocknr) {
 			ret = bh;
@@ -225,6 +239,7 @@ struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 		if (!buffer_uptodate(bh))
 			goto fail;
 		csum_tree_block(root, bh, 1);
+		set_pattern(bh);
 	} else {
 		unlock_buffer(bh);
 	}
@@ -240,6 +255,7 @@ fail:
 int dirty_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		     struct buffer_head *buf)
 {
+	WARN_ON(atomic_read(&buf->b_count) == 0);
 	mark_buffer_dirty(buf);
 	return 0;
 }
@@ -247,6 +263,7 @@ int dirty_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		     struct buffer_head *buf)
 {
+	WARN_ON(atomic_read(&buf->b_count) == 0);
 	clear_buffer_dirty(buf);
 	return 0;
 }
@@ -431,6 +448,7 @@ int close_ctree(struct btrfs_root *root)
 
 void btrfs_block_release(struct btrfs_root *root, struct buffer_head *buf)
 {
+	check_pattern(buf);
 	brelse(buf);
 }
 

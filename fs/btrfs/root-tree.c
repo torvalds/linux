@@ -45,6 +45,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_leaf *l;
 	int ret;
 	int slot;
+	struct btrfs_root_item *update_item;
 
 	btrfs_init_path(&path);
 	ret = btrfs_search_slot(trans, root, key, &path, 0, 1);
@@ -53,9 +54,9 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	BUG_ON(ret != 0);
 	l = btrfs_buffer_leaf(path.nodes[0]);
 	slot = path.slots[0];
-	memcpy(btrfs_item_ptr(l, slot, struct btrfs_root_item), item,
-		sizeof(*item));
-	mark_buffer_dirty(path.nodes[0]);
+	update_item = btrfs_item_ptr(l, slot, struct btrfs_root_item);
+	btrfs_memcpy(root, l, update_item, item, sizeof(*item));
+	btrfs_mark_buffer_dirty(path.nodes[0]);
 out:
 	btrfs_release_path(root, &path);
 	return ret;

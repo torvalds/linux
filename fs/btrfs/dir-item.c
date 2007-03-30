@@ -34,10 +34,8 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_dir_flags(dir_item, 0);
 	btrfs_set_dir_name_len(dir_item, name_len);
 	name_ptr = (char *)(dir_item + 1);
-	memcpy(name_ptr, name, name_len);
-	if (name_ptr + name_len > path.nodes[0]->b_data + 4096)
-		WARN_ON(1);
-	mark_buffer_dirty(path.nodes[0]);
+	btrfs_memcpy(root, path.nodes[0]->b_data, name_ptr, name, name_len);
+	btrfs_mark_buffer_dirty(path.nodes[0]);
 out:
 	btrfs_release_path(root, &path);
 	return ret;

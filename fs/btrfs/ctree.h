@@ -2,6 +2,7 @@
 #define __BTRFS__
 
 #include <linux/fs.h>
+#include <linux/buffer_head.h>
 #include "bit-radix.h"
 
 struct btrfs_trans_handle;
@@ -832,6 +833,37 @@ static inline void btrfs_set_file_extent_num_blocks(struct
 static inline struct btrfs_root *btrfs_sb(struct super_block *sb)
 {
 	return sb->s_fs_info;
+}
+
+static inline void btrfs_check_bounds(void *vptr, size_t len,
+				     void *vcontainer, size_t container_len)
+{
+	char *ptr = vptr;
+	char *container = vcontainer;
+	WARN_ON(ptr < container);
+	WARN_ON(ptr + len > container + container_len);
+}
+
+static inline void btrfs_memcpy(struct btrfs_root *root,
+				void *dst_block,
+				void *dst, const void *src, size_t nr)
+{
+	btrfs_check_bounds(dst, nr, dst_block, root->fs_info->sb->s_blocksize);
+	memcpy(dst, src, nr);
+}
+
+static inline void btrfs_memmove(struct btrfs_root *root,
+				void *dst_block,
+				void *dst, void *src, size_t nr)
+{
+	btrfs_check_bounds(dst, nr, dst_block, root->fs_info->sb->s_blocksize);
+	memmove(dst, src, nr);
+}
+
+static inline void btrfs_mark_buffer_dirty(struct buffer_head *bh)
+{
+	WARN_ON(!atomic_read(&bh->b_count));
+	mark_buffer_dirty(bh);
 }
 
 /* helper function to cast into the data area of the leaf. */

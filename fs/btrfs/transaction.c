@@ -66,6 +66,7 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	cur_trans->num_writers--;
 	put_transaction(cur_trans);
 	mutex_unlock(&root->fs_info->trans_mutex);
+	memset(trans, 0, sizeof(*trans));
 	kfree(trans);
 	return 0;
 }

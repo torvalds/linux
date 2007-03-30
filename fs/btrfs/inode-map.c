@@ -109,7 +109,7 @@ int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
 	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
 				    path.slots[0], struct btrfs_inode_map_item);
 	btrfs_cpu_key_to_disk(&inode_item->key, location);
-	mark_buffer_dirty(path.nodes[0]);
+	btrfs_mark_buffer_dirty(path.nodes[0]);
 out:
 	btrfs_release_path(inode_root, &path);
 	return ret;

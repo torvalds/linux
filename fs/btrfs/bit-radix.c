@@ -16,12 +16,14 @@ int set_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 
 	bits = radix_tree_lookup(radix, slot);
 	if (!bits) {
-		bits = kmalloc(BIT_ARRAY_BYTES, GFP_NOIO);
+		bits = kmalloc(BIT_ARRAY_BYTES, GFP_NOFS);
 		if (!bits)
 			return -ENOMEM;
 		memset(bits + 1, 0, BIT_ARRAY_BYTES - sizeof(unsigned long));
 		bits[0] = slot;
+		radix_tree_preload(GFP_NOFS);
 		ret = radix_tree_insert(radix, slot, bits);
+		radix_tree_preload_end();
 		if (ret)
 			return ret;
 	}
@@ -59,7 +61,7 @@ int clear_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 	if (!bits)
 		return 0;
 	clear_bit(bit_slot, bits + 1);
-
+#if 0
 	for (i = 1; i < BIT_ARRAY_BYTES / sizeof(unsigned long); i++) {
 		if (bits[i]) {
 			empty = 0;
@@ -69,8 +71,11 @@ int clear_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 
 	if (empty) {
 		bits = radix_tree_delete(radix, slot);
+		synchronize_rcu();
 		BUG_ON(!bits);
+		kfree(bits);
 	}
+#endif
 	return 0;
 }
 

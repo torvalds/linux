@@ -34,7 +34,7 @@ int btrfs_alloc_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_file_extent_offset(item, 0);
 	btrfs_set_file_extent_num_blocks(item, ins.offset);
 	btrfs_set_file_extent_generation(item, trans->transid);
-	mark_buffer_dirty(path.nodes[0]);
+	btrfs_mark_buffer_dirty(path.nodes[0]);
 	*result = ins.objectid;
 	btrfs_release_path(root, &path);
 	return 0;
@@ -81,7 +81,7 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 			      struct btrfs_csum_item);
 	ret = 0;
 	ret = btrfs_csum_data(root, data, len, item->csum);
-	mark_buffer_dirty(path.nodes[0]);
+	btrfs_mark_buffer_dirty(path.nodes[0]);
 fail:
 	btrfs_release_path(root, &path);
 	return ret;
