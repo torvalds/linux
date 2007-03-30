@@ -1314,6 +1314,23 @@ void kvm_mmu_slot_remove_write_access(struct kvm_vcpu *vcpu, int slot)
 	}
 }
 
+void kvm_mmu_zap_all(struct kvm_vcpu *vcpu)
+{
+	destroy_kvm_mmu(vcpu);
+
+	while (!list_empty(&vcpu->kvm->active_mmu_pages)) {
+		struct kvm_mmu_page *page;
+
+		page = container_of(vcpu->kvm->active_mmu_pages.next,
+				    struct kvm_mmu_page, link);
+		kvm_mmu_zap_page(vcpu, page);
+	}
+
+	mmu_free_memory_caches(vcpu);
+	kvm_arch_ops->tlb_flush(vcpu);
+	init_kvm_mmu(vcpu);
+}
+
 #ifdef AUDIT
 
 static const char *audit_msg;
