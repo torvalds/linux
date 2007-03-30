@@ -109,6 +109,7 @@ static void basic_destroy(struct tcf_proto *tp)
 		list_del(&f->link);
 		basic_delete_filter(tp, f);
 	}
+	kfree(head);
 }
 
 static int basic_delete(struct tcf_proto *tp, unsigned long arg)
