@@ -683,7 +683,7 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 		return err;
 	}
 
-	if (!pci_dma_supported(pci,0xffffffff)) {
+	if (!pci_dma_supported(pci,DMA_32BIT_MASK)) {
 		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n",core->name);
 		err = -EIO;
 		cx88_core_put(core,pci);
