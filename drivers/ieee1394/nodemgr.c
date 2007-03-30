@@ -1145,13 +1145,14 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 		last_key_id = kv->key.id;
 	}
 
-	if (ne->vendor_name_kv &&
-	    device_create_file(&ne->device, &dev_attr_ne_vendor_name_kv))
-		goto fail;
-	return;
-fail:
-	HPSB_ERR("Failed to add sysfs attribute for node %016Lx",
-		 (unsigned long long)ne->guid);
+	if (ne->vendor_name_kv) {
+		int error = device_create_file(&ne->device,
+					       &dev_attr_ne_vendor_name_kv);
+
+		if (error && error != -EEXIST)
+			HPSB_ERR("Failed to add sysfs attribute for node "
+				 "%016Lx", (unsigned long long)ne->guid);
+	}
 }
 
 #ifdef CONFIG_HOTPLUG
