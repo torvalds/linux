@@ -3,6 +3,7 @@
 #include <linux/blkdev.h>
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
+#include <linux/swap.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -50,6 +51,8 @@ struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr)
 	} while (bh != head);
 out_unlock:
 	unlock_page(page);
+	if (ret)
+		touch_buffer(ret);
 	page_cache_release(page);
 	return ret;
 }
@@ -65,6 +68,7 @@ struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 	struct buffer_head *head;
 	struct buffer_head *ret = NULL;
 	u64 first_block = index << (PAGE_CACHE_SHIFT - blockbits);
+
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		return NULL;
@@ -89,6 +93,8 @@ struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 	} while (bh != head);
 out_unlock:
 	unlock_page(page);
+	if (ret)
+		touch_buffer(ret);
 	page_cache_release(page);
 	return ret;
 }
@@ -139,7 +145,7 @@ int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
 	desc.flags = 0;
 	sg_init_one(&sg, data, len);
 	spin_lock(&root->fs_info->hash_lock);
-	ret = crypto_hash_digest(&desc, &sg, len, result);
+	ret = crypto_hash_digest(&desc, &sg, 1, result);
 	spin_unlock(&root->fs_info->hash_lock);
 	if (ret) {
 		printk("sha256 digest failed\n");
@@ -153,6 +159,7 @@ static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 	int ret;
 	struct btrfs_node *node;
 
+	return 0;
 	ret = btrfs_csum_data(root, bh->b_data + BTRFS_CSUM_SIZE,
 			      bh->b_size - BTRFS_CSUM_SIZE, result);
 	if (ret)
@@ -165,17 +172,17 @@ static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 		}
 	} else {
 		node = btrfs_buffer_node(bh);
-		memcpy(&node->header.csum, result, BTRFS_CSUM_SIZE);
+		memcpy(node->header.csum, result, BTRFS_CSUM_SIZE);
 	}
 	return 0;
 }
 
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
+#if 0
 	struct buffer_head *bh;
 	struct btrfs_root *root = btrfs_sb(page->mapping->host->i_sb);
 	struct buffer_head *head;
-
 	if (!page_has_buffers(page)) {
 		create_empty_buffers(page, root->fs_info->sb->s_blocksize,
 					(1 << BH_Dirty)|(1 << BH_Uptodate));
@@ -187,6 +194,7 @@ static int btree_writepage(struct page *page, struct writeback_control *wbc)
 			csum_tree_block(root, bh, 0);
 		bh = bh->b_this_page;
 	} while (bh != head);
+#endif
 	return block_write_full_page(page, btree_get_block, wbc);
 }
 
@@ -312,6 +320,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
+	insert_inode_hash(fs_info->btree_inode);
+
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->hash_tfm = crypto_alloc_hash("sha256", 0, CRYPTO_ALG_ASYNC);
 	spin_lock_init(&fs_info->hash_lock);

@@ -197,8 +197,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_del_root(trans, root->fs_info->tree_root,
 				     &snap_key);
-		BUG_ON(ret); root->fs_info->generation = root->root_key.offset + 1; ret = btrfs_end_transaction(trans, root); BUG_ON(ret);
-		printk("at free, total trans %d\n", total_trans);
+		BUG_ON(ret);
+		root->fs_info->generation = root->root_key.offset + 1;
+		ret = btrfs_end_transaction(trans, root);
+		BUG_ON(ret);
 	}
 
 	return ret;

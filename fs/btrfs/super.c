@@ -361,13 +361,16 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 				   struct nameidata *nd)
 {
 	struct inode * inode;
+	struct btrfs_root *root = btrfs_sb(dir->i_sb);
 	ino_t ino;
 	int ret;
 
 	if (dentry->d_name.len > BTRFS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
+	mutex_lock(&root->fs_info->fs_mutex);
 	ret = btrfs_inode_by_name(dir, dentry, &ino);
+	mutex_unlock(&root->fs_info->fs_mutex);
 	if (ret < 0)
 		return ERR_PTR(ret);
 	inode = NULL;
@@ -395,6 +398,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	unsigned char d_type = DT_UNKNOWN;
 	int over = 0;
 
+	mutex_lock(&root->fs_info->fs_mutex);
 	key.objectid = inode->i_ino;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
@@ -446,6 +450,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	ret = 0;
 err:
 	btrfs_release_path(root, &path);
+	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret;
 }
 
@@ -667,8 +672,8 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		inode->i_op = &btrfs_file_inode_operations;
 	}
 	dir->i_sb->s_dirt = 1;
-	btrfs_end_transaction(trans, root);
 out_unlock:
+	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	if (drop_inode) {
 		inode_dec_link_count(inode);
