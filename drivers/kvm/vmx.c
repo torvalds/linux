@@ -926,9 +926,9 @@ static int init_rmode_tss(struct kvm* kvm)
 	gfn_t fn = rmode_tss_base(kvm) >> PAGE_SHIFT;
 	char *page;
 
-	p1 = _gfn_to_page(kvm, fn++);
-	p2 = _gfn_to_page(kvm, fn++);
-	p3 = _gfn_to_page(kvm, fn);
+	p1 = gfn_to_page(kvm, fn++);
+	p2 = gfn_to_page(kvm, fn++);
+	p3 = gfn_to_page(kvm, fn);
 
 	if (!p1 || !p2 || !p3) {
 		kvm_printf(kvm,"%s: gfn_to_page failed\n", __FUNCTION__);

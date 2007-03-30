@@ -390,13 +390,11 @@ static void rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct page *page;
-	struct kvm_memory_slot *slot;
 	struct kvm_rmap_desc *desc;
 	u64 *spte;
 
-	slot = gfn_to_memslot(kvm, gfn);
-	BUG_ON(!slot);
-	page = gfn_to_page(slot, gfn);
+	page = gfn_to_page(kvm, gfn);
+	BUG_ON(!page);
 
 	while (page_private(page)) {
 		if (!(page_private(page) & 1))
@@ -711,14 +709,12 @@ hpa_t safe_gpa_to_hpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 
 hpa_t gpa_to_hpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 {
-	struct kvm_memory_slot *slot;
 	struct page *page;
 
 	ASSERT((gpa & HPA_ERR_MASK) == 0);
-	slot = gfn_to_memslot(vcpu->kvm, gpa >> PAGE_SHIFT);
-	if (!slot)
+	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	if (!page)
 		return gpa | HPA_ERR_MASK;
-	page = gfn_to_page(slot, gpa >> PAGE_SHIFT);
 	return ((hpa_t)page_to_pfn(page) << PAGE_SHIFT)
 		| (gpa & (PAGE_SIZE-1));
 }

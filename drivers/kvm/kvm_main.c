@@ -420,12 +420,12 @@ static int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3)
 	u64 pdpte;
 	u64 *pdpt;
 	int ret;
-	struct kvm_memory_slot *memslot;
+	struct page *page;
 
 	spin_lock(&vcpu->kvm->lock);
-	memslot = gfn_to_memslot(vcpu->kvm, pdpt_gfn);
-	/* FIXME: !memslot - emulate? 0xff? */
-	pdpt = kmap_atomic(gfn_to_page(memslot, pdpt_gfn), KM_USER0);
+	page = gfn_to_page(vcpu->kvm, pdpt_gfn);
+	/* FIXME: !page - emulate? 0xff? */
+	pdpt = kmap_atomic(page, KM_USER0);
 
 	ret = 1;
 	for (i = 0; i < 4; ++i) {
@@ -861,6 +861,17 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_memslot);
 
+struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
+{
+	struct kvm_memory_slot *slot;
+
+	slot = gfn_to_memslot(kvm, gfn);
+	if (!slot)
+		return NULL;
+	return slot->phys_mem[gfn - slot->base_gfn];
+}
+EXPORT_SYMBOL_GPL(gfn_to_page);
+
 void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
@@ -899,20 +910,20 @@ static int emulator_read_std(unsigned long addr,
 		unsigned offset = addr & (PAGE_SIZE-1);
 		unsigned tocopy = min(bytes, (unsigned)PAGE_SIZE - offset);
 		unsigned long pfn;
-		struct kvm_memory_slot *memslot;
-		void *page;
+		struct page *page;
+		void *page_virt;
 
 		if (gpa == UNMAPPED_GVA)
 			return X86EMUL_PROPAGATE_FAULT;
 		pfn = gpa >> PAGE_SHIFT;
-		memslot = gfn_to_memslot(vcpu->kvm, pfn);
-		if (!memslot)
+		page = gfn_to_page(vcpu->kvm, pfn);
+		if (!page)
 			return X86EMUL_UNHANDLEABLE;
-		page = kmap_atomic(gfn_to_page(memslot, pfn), KM_USER0);
+		page_virt = kmap_atomic(page, KM_USER0);
 
-		memcpy(data, page + offset, tocopy);
+		memcpy(data, page_virt + offset, tocopy);
 
-		kunmap_atomic(page, KM_USER0);
+		kunmap_atomic(page_virt, KM_USER0);
 
 		bytes -= tocopy;
 		data += tocopy;
@@ -963,16 +974,14 @@ static int emulator_read_emulated(unsigned long addr,
 static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 			       unsigned long val, int bytes)
 {
-	struct kvm_memory_slot *m;
 	struct page *page;
 	void *virt;
 
 	if (((gpa + bytes - 1) >> PAGE_SHIFT) != (gpa >> PAGE_SHIFT))
 		return 0;
-	m = gfn_to_memslot(vcpu->kvm, gpa >> PAGE_SHIFT);
-	if (!m)
+	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	if (!page)
 		return 0;
-	page = gfn_to_page(m, gpa >> PAGE_SHIFT);
 	kvm_mmu_pre_write(vcpu, gpa, bytes);
 	mark_page_dirty(vcpu->kvm, gpa >> PAGE_SHIFT);
 	virt = kmap_atomic(page, KM_USER0);
@@ -2516,15 +2525,11 @@ static struct page *kvm_vm_nopage(struct vm_area_struct *vma,
 {
 	struct kvm *kvm = vma->vm_file->private_data;
 	unsigned long pgoff;
-	struct kvm_memory_slot *slot;
 	struct page *page;
 
 	*type = VM_FAULT_MINOR;
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-	slot = gfn_to_memslot(kvm, pgoff);
-	if (!slot)
-		return NOPAGE_SIGBUS;
-	page = gfn_to_page(slot, pgoff);
+	page = gfn_to_page(kvm, pgoff);
 	if (!page)
 		return NOPAGE_SIGBUS;
 	get_page(page);

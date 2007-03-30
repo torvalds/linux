@@ -443,11 +443,7 @@ void kvm_emulator_want_group7_invlpg(void);
 
 extern hpa_t bad_page_address;
 
-static inline struct page *gfn_to_page(struct kvm_memory_slot *slot, gfn_t gfn)
-{
-	return slot->phys_mem[gfn - slot->base_gfn];
-}
-
+struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
 void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
 
@@ -521,12 +517,6 @@ static inline int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 	if (unlikely(vcpu->kvm->n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
 		kvm_mmu_free_some_pages(vcpu);
 	return vcpu->mmu.page_fault(vcpu, gva, error_code);
-}
-
-static inline struct page *_gfn_to_page(struct kvm *kvm, gfn_t gfn)
-{
-	struct kvm_memory_slot *slot = gfn_to_memslot(kvm, gfn);
-	return (slot) ? slot->phys_mem[gfn - slot->base_gfn] : NULL;
 }
 
 static inline int is_long_mode(struct kvm_vcpu *vcpu)
