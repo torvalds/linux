@@ -160,13 +160,6 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 	int err;
 	struct snd_akm4xxx *ak;
 
-#if 0
-	for (err = 0; err < 0x20; err++)
-		juli_ak4114_read(ice, err);
-	juli_ak4114_write(ice, 0, 0x0f);
-	juli_ak4114_read(ice, 0);
-	juli_ak4114_read(ice, 1);
-#endif
 	err = snd_ak4114_create(ice->card,
 				juli_ak4114_read,
 				juli_ak4114_write,
