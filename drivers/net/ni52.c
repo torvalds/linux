@@ -1182,7 +1182,7 @@ static int ni52_send_packet(struct sk_buff *skb, struct net_device *dev)
 	else
 #endif
 	{
-		skb_copy_from_linear_data(skb, p->xmit_cbuffs[p->xmit_count], skb->len);
+		skb_copy_from_linear_data(skb, (char *) p->xmit_cbuffs[p->xmit_count], skb->len);
 		len = skb->len;
 		if (len < ETH_ZLEN) {
 			len = ETH_ZLEN;
