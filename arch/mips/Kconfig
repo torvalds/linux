@@ -1606,7 +1606,7 @@ config MIPS_MT_FPAFF
 
 config MIPS_MT_SMTC_INSTANT_REPLAY
 	bool "Low-latency Dispatch of Deferred SMTC IPIs"
-	depends on MIPS_MT_SMTC
+	depends on MIPS_MT_SMTC && !PREEMPT
 	default y
 	help
 	  SMTC pseudo-interrupts between TCs are deferred and queued

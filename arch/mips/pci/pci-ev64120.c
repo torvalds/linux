@@ -1,4 +1,5 @@
 #include <linux/pci.h>
+#include <asm/irq.h>
 
 int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
