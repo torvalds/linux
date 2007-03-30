@@ -659,8 +659,6 @@ pci_mmap_legacy_page_range(struct pci_bus *bus, struct vm_area_struct *vma)
 		return -EINVAL;
 	prot = phys_mem_access_prot(NULL, vma->vm_pgoff, size,
 				    vma->vm_page_prot);
-	if (pgprot_val(prot) != pgprot_val(pgprot_noncached(vma->vm_page_prot)))
-		return -EINVAL;
 
 	addr = pci_get_legacy_mem(bus);
 	if (IS_ERR(addr))
