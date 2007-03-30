@@ -51,7 +51,7 @@ struct bsg_class_device {
 	struct request_queue *queue;
 };
 
-extern int bsg_register_queue(struct request_queue *, char *);
+extern int bsg_register_queue(struct request_queue *, const char *);
 extern void bsg_unregister_queue(struct request_queue *);
 #else
 struct bsg_class_device { };

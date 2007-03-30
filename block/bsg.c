@@ -961,8 +961,9 @@ void bsg_unregister_queue(struct request_queue *q)
 	bsg_device_nr--;
 	mutex_unlock(&bsg_mutex);
 }
+EXPORT_SYMBOL_GPL(bsg_unregister_queue);
 
-int bsg_register_queue(struct request_queue *q, char *name)
+int bsg_register_queue(struct request_queue *q, const char *name)
 {
 	struct bsg_class_device *bcd, *__bcd;
 	dev_t dev;
@@ -1025,6 +1026,7 @@ err:
 	mutex_unlock(&bsg_mutex);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(bsg_register_queue);
 
 static int bsg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 {
