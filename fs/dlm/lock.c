@@ -85,6 +85,7 @@ static int _request_lock(struct dlm_rsb *r, struct dlm_lkb *lkb);
 static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 				    struct dlm_message *ms);
 static int receive_extralen(struct dlm_message *ms);
+static void do_purge(struct dlm_ls *ls, int nodeid, int pid);
 
 /*
  * Lock compatibilty matrix - thanks Steve
@@ -2987,6 +2988,11 @@ static void receive_remove(struct dlm_ls *ls, struct dlm_message *ms)
 	dlm_dir_remove_entry(ls, from_nodeid, ms->m_extra, len);
 }
 
+static void receive_purge(struct dlm_ls *ls, struct dlm_message *ms)
+{
+	do_purge(ls, ms->m_nodeid, ms->m_pid);
+}
+
 static void receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
@@ -3407,6 +3413,12 @@ int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery)
 
 	case DLM_MSG_LOOKUP_REPLY:
 		receive_lookup_reply(ls, ms);
+		break;
+
+	/* other messages */
+
+	case DLM_MSG_PURGE:
+		receive_purge(ls, ms);
 		break;
 
 	default:
@@ -4258,5 +4270,94 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 
 	mutex_unlock(&ls->ls_clear_proc_locks);
 	unlock_recovery(ls);
+}
+
+static void purge_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
+{
+	struct dlm_lkb *lkb, *safe;
+
+	while (1) {
+		lkb = NULL;
+		spin_lock(&proc->locks_spin);
+		if (!list_empty(&proc->locks)) {
+			lkb = list_entry(proc->locks.next, struct dlm_lkb,
+					 lkb_ownqueue);
+			list_del_init(&lkb->lkb_ownqueue);
+		}
+		spin_unlock(&proc->locks_spin);
+
+		if (!lkb)
+			break;
+
+		lkb->lkb_flags |= DLM_IFL_DEAD;
+		unlock_proc_lock(ls, lkb);
+		dlm_put_lkb(lkb); /* ref from proc->locks list */
+	}
+
+	spin_lock(&proc->locks_spin);
+	list_for_each_entry_safe(lkb, safe, &proc->unlocking, lkb_ownqueue) {
+		list_del_init(&lkb->lkb_ownqueue);
+		lkb->lkb_flags |= DLM_IFL_DEAD;
+		dlm_put_lkb(lkb);
+	}
+	spin_unlock(&proc->locks_spin);
+
+	spin_lock(&proc->asts_spin);
+	list_for_each_entry_safe(lkb, safe, &proc->asts, lkb_astqueue) {
+		list_del(&lkb->lkb_astqueue);
+		dlm_put_lkb(lkb);
+	}
+	spin_unlock(&proc->asts_spin);
+}
+
+/* pid of 0 means purge all orphans */
+
+static void do_purge(struct dlm_ls *ls, int nodeid, int pid)
+{
+	struct dlm_lkb *lkb, *safe;
+
+	mutex_lock(&ls->ls_orphans_mutex);
+	list_for_each_entry_safe(lkb, safe, &ls->ls_orphans, lkb_ownqueue) {
+		if (pid && lkb->lkb_ownpid != pid)
+			continue;
+		unlock_proc_lock(ls, lkb);
+		list_del_init(&lkb->lkb_ownqueue);
+		dlm_put_lkb(lkb);
+	}
+	mutex_unlock(&ls->ls_orphans_mutex);
+}
+
+static int send_purge(struct dlm_ls *ls, int nodeid, int pid)
+{
+	struct dlm_message *ms;
+	struct dlm_mhandle *mh;
+	int error;
+
+	error = _create_message(ls, sizeof(struct dlm_message), nodeid,
+				DLM_MSG_PURGE, &ms, &mh);
+	if (error)
+		return error;
+	ms->m_nodeid = nodeid;
+	ms->m_pid = pid;
+
+	return send_message(mh, ms);
+}
+
+int dlm_user_purge(struct dlm_ls *ls, struct dlm_user_proc *proc,
+		   int nodeid, int pid)
+{
+	int error = 0;
+
+	if (nodeid != dlm_our_nodeid()) {
+		error = send_purge(ls, nodeid, pid);
+	} else {
+		lock_recovery(ls);
+		if (pid == current->pid)
+			purge_proc_locks(ls, proc);
+		else
+			do_purge(ls, nodeid, pid);
+		unlock_recovery(ls);
+	}
+	return error;
 }
 

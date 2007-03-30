@@ -342,6 +342,7 @@ struct dlm_header {
 #define DLM_MSG_LOOKUP		11
 #define DLM_MSG_REMOVE		12
 #define DLM_MSG_LOOKUP_REPLY	13
+#define DLM_MSG_PURGE		14
 
 struct dlm_message {
 	struct dlm_header	m_header;
