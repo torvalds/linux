@@ -44,6 +44,10 @@ MODULE_LICENSE("GPL");
 #define KVM_EFER_LMA (1 << 10)
 #define KVM_EFER_LME (1 << 8)
 
+#define SVM_FEATURE_NPT  (1 << 0)
+#define SVM_FEATURE_LBRV (1 << 1)
+#define SVM_DEATURE_SVML (1 << 2)
+
 unsigned long iopm_base;
 unsigned long msrpm_base;
 
@@ -68,6 +72,7 @@ struct svm_cpu_data {
 };
 
 static DEFINE_PER_CPU(struct svm_cpu_data *, svm_data);
+static uint32_t svm_features;
 
 struct svm_init_data {
 	int cpu;
@@ -81,6 +86,11 @@ static u32 msrpm_ranges[] = {0, 0xc0000000, 0xc0010000};
 #define MSRS_IN_RANGE (MSRS_RANGE_SIZE * 8 / 2)
 
 #define MAX_INST_SIZE 15
+
+static inline u32 svm_has(u32 feat)
+{
+	return svm_features & feat;
+}
 
 static unsigned get_addr_size(struct kvm_vcpu *vcpu)
 {
@@ -302,6 +312,7 @@ static void svm_hardware_enable(void *garbage)
 	svm_data->asid_generation = 1;
 	svm_data->max_asid = cpuid_ebx(SVM_CPUID_FUNC) - 1;
 	svm_data->next_asid = svm_data->max_asid + 1;
+	svm_features = cpuid_edx(SVM_CPUID_FUNC);
 
 	asm volatile ( "sgdt %0" : "=m"(gdt_descr) );
 	gdt = (struct desc_struct *)gdt_descr.address;
@@ -511,6 +522,8 @@ static void init_vmcb(struct vmcb *vmcb)
 	control->msrpm_base_pa = msrpm_base;
 	control->tsc_offset = 0;
 	control->int_ctl = V_INTR_MASKING_MASK;
+	if (svm_has(SVM_FEATURE_LBRV))
+		control->lbr_ctl = 1ULL;
 
 	init_seg(&save->es);
 	init_seg(&save->ss);
