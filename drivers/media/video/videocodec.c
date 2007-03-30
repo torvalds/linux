@@ -348,6 +348,9 @@ videocodec_build_table (void)
 	kfree(videocodec_buf);
 	videocodec_buf = kmalloc(size, GFP_KERNEL);
 
+	if (!videocodec_buf)
+		return 0;
+
 	i = 0;
 	i += scnprintf(videocodec_buf + i, size - 1,
 		      "<S>lave or attached <M>aster name  type flags    magic    ");
