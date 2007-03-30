@@ -19,3 +19,4 @@ obj-$(CONFIG_SH_HIGHLANDER)		+= ops-r7780rp.o fixups-r7780rp.o
 obj-$(CONFIG_SH_TITAN)			+= ops-titan.o
 obj-$(CONFIG_SH_LANDISK)		+= ops-landisk.o
 obj-$(CONFIG_SH_LBOX_RE2)		+= ops-lboxre2.o fixups-lboxre2.o
+obj-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= ops-se7780.o fixups-se7780.o
