@@ -142,7 +142,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <int>
 			2: use 2nd APIC table, if available
 			1,0: use 1st APIC table
-			default: 2
+			default: 0
 
 	acpi_sleep=	[HW,ACPI] Sleep options
 			Format: { s3_bios, s3_mode }
