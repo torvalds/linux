@@ -687,9 +687,9 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	int err;
 
 	/* Rough check on arithmetic overflow,
-	   better check is made in ip6_build_xmit
+	   better check is made in ip6_append_data().
 	 */
-	if (len < 0)
+	if (len > INT_MAX)
 		return -EMSGSIZE;
 
 	/* Mirror BSD error message compatibility */
