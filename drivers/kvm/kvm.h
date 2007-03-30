@@ -51,6 +51,7 @@
 #define UNMAPPED_GVA (~(gpa_t)0)
 
 #define KVM_MAX_VCPUS 1
+#define KVM_ALIAS_SLOTS 4
 #define KVM_MEMORY_SLOTS 4
 #define KVM_NUM_MMU_PAGES 256
 #define KVM_MIN_FREE_MMU_PAGES 5
@@ -312,6 +313,12 @@ struct kvm_vcpu {
 	struct kvm_cpuid_entry cpuid_entries[KVM_MAX_CPUID_ENTRIES];
 };
 
+struct kvm_mem_alias {
+	gfn_t base_gfn;
+	unsigned long npages;
+	gfn_t target_gfn;
+};
+
 struct kvm_memory_slot {
 	gfn_t base_gfn;
 	unsigned long npages;
@@ -322,6 +329,8 @@ struct kvm_memory_slot {
 
 struct kvm {
 	spinlock_t lock; /* protects everything except vcpus */
+	int naliases;
+	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
 	int nmemslots;
 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS];
 	/*

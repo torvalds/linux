@@ -846,7 +846,73 @@ out:
 	return r;
 }
 
-struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
+/*
+ * Set a new alias region.  Aliases map a portion of physical memory into
+ * another portion.  This is useful for memory windows, for example the PC
+ * VGA region.
+ */
+static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
+					 struct kvm_memory_alias *alias)
+{
+	int r, n;
+	struct kvm_mem_alias *p;
+
+	r = -EINVAL;
+	/* General sanity checks */
+	if (alias->memory_size & (PAGE_SIZE - 1))
+		goto out;
+	if (alias->guest_phys_addr & (PAGE_SIZE - 1))
+		goto out;
+	if (alias->slot >= KVM_ALIAS_SLOTS)
+		goto out;
+	if (alias->guest_phys_addr + alias->memory_size
+	    < alias->guest_phys_addr)
+		goto out;
+	if (alias->target_phys_addr + alias->memory_size
+	    < alias->target_phys_addr)
+		goto out;
+
+	spin_lock(&kvm->lock);
+
+	p = &kvm->aliases[alias->slot];
+	p->base_gfn = alias->guest_phys_addr >> PAGE_SHIFT;
+	p->npages = alias->memory_size >> PAGE_SHIFT;
+	p->target_gfn = alias->target_phys_addr >> PAGE_SHIFT;
+
+	for (n = KVM_ALIAS_SLOTS; n > 0; --n)
+		if (kvm->aliases[n - 1].npages)
+			break;
+	kvm->naliases = n;
+
+	spin_unlock(&kvm->lock);
+
+	vcpu_load(&kvm->vcpus[0]);
+	spin_lock(&kvm->lock);
+	kvm_mmu_zap_all(&kvm->vcpus[0]);
+	spin_unlock(&kvm->lock);
+	vcpu_put(&kvm->vcpus[0]);
+
+	return 0;
+
+out:
+	return r;
+}
+
+static gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
+{
+	int i;
+	struct kvm_mem_alias *alias;
+
+	for (i = 0; i < kvm->naliases; ++i) {
+		alias = &kvm->aliases[i];
+		if (gfn >= alias->base_gfn
+		    && gfn < alias->base_gfn + alias->npages)
+			return alias->target_gfn + gfn - alias->base_gfn;
+	}
+	return gfn;
+}
+
+static struct kvm_memory_slot *__gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
 
@@ -859,13 +925,19 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(gfn_to_memslot);
+
+struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
+{
+	gfn = unalias_gfn(kvm, gfn);
+	return __gfn_to_memslot(kvm, gfn);
+}
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *slot;
 
-	slot = gfn_to_memslot(kvm, gfn);
+	gfn = unalias_gfn(kvm, gfn);
+	slot = __gfn_to_memslot(kvm, gfn);
 	if (!slot)
 		return NULL;
 	return slot->phys_mem[gfn - slot->base_gfn];
@@ -2508,6 +2580,17 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&log, argp, sizeof log))
 			goto out;
 		r = kvm_vm_ioctl_get_dirty_log(kvm, &log);
+		if (r)
+			goto out;
+		break;
+	}
+	case KVM_SET_MEMORY_ALIAS: {
+		struct kvm_memory_alias alias;
+
+		r = -EFAULT;
+		if (copy_from_user(&alias, argp, sizeof alias))
+			goto out;
+		r = kvm_vm_ioctl_set_memory_alias(kvm, &alias);
 		if (r)
 			goto out;
 		break;

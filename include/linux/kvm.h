@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 9
+#define KVM_API_VERSION 10
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
@@ -33,6 +33,13 @@ struct kvm_memory_region {
 /* for kvm_memory_region::flags */
 #define KVM_MEM_LOG_DIRTY_PAGES  1UL
 
+struct kvm_memory_alias {
+	__u32 slot;  /* this has a different namespace than memory slots */
+	__u32 flags;
+	__u64 guest_phys_addr;
+	__u64 memory_size;
+	__u64 target_phys_addr;
+};
 
 enum kvm_exit_reason {
 	KVM_EXIT_UNKNOWN          = 0,
@@ -261,6 +268,7 @@ struct kvm_signal_mask {
  */
 #define KVM_CREATE_VCPU           _IO(KVMIO,  0x41)
 #define KVM_GET_DIRTY_LOG         _IOW(KVMIO, 0x42, struct kvm_dirty_log)
+#define KVM_SET_MEMORY_ALIAS      _IOW(KVMIO, 0x43, struct kvm_memory_alias)
 
 /*
  * ioctls for vcpu fds
