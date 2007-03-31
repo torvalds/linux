@@ -59,8 +59,12 @@ EXPORT_SYMBOL_GPL(scatterwalk_map);
 static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
 				 unsigned int more)
 {
-	if (out)
-		flush_dcache_page(scatterwalk_page(walk));
+	if (out) {
+		struct page *page;
+
+		page = walk->sg->page + ((walk->offset - 1) >> PAGE_SHIFT);
+		flush_dcache_page(page);
+	}
 
 	if (more) {
 		walk->offset += PAGE_SIZE - 1;
