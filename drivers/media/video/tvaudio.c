@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/videodev.h>
 #include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/kthread.h>
