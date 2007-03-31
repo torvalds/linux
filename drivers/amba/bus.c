@@ -47,14 +47,13 @@ static int amba_match(struct device *dev, struct device_driver *drv)
 static int amba_uevent(struct device *dev, char **envp, int nr_env, char *buf, int bufsz)
 {
 	struct amba_device *pcdev = to_amba_device(dev);
+	int retval = 0, i = 0, len = 0;
 
-	if (nr_env < 2)
-		return -ENOMEM;
-
-	snprintf(buf, bufsz, "AMBA_ID=%08x", pcdev->periphid);
-	*envp++ = buf;
-	*envp++ = NULL;
-	return 0;
+	retval = add_uevent_var(envp, nr_env, &i,
+				buf, bufsz, &len,
+				"AMBA_ID=%08x", pcdev->periphid);
+	envp[i] = NULL;
+	return retval;
 }
 #else
 #define amba_uevent NULL
