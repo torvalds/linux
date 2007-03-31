@@ -1645,7 +1645,9 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		/* Ok.	We will be able to collapse the packet. */
 		tcp_unlink_write_queue(next_skb, sk);
 
-		memcpy(skb_put(skb, next_skb_size), next_skb->data, next_skb_size);
+		skb_copy_from_linear_data(next_skb,
+					  skb_put(skb, next_skb_size),
+					  next_skb_size);
 
 		if (next_skb->ip_summed == CHECKSUM_PARTIAL)
 			skb->ip_summed = CHECKSUM_PARTIAL;

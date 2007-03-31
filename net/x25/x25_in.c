@@ -56,14 +56,17 @@ static int x25_queue_rx_frame(struct sock *sk, struct sk_buff *skb, int more)
 		skb_reset_transport_header(skbn);
 
 		skbo = skb_dequeue(&x25->fragment_queue);
-		memcpy(skb_put(skbn, skbo->len), skbo->data, skbo->len);
+		skb_copy_from_linear_data(skbo, skb_put(skbn, skbo->len),
+					  skbo->len);
 		kfree_skb(skbo);
 
 		while ((skbo =
 			skb_dequeue(&x25->fragment_queue)) != NULL) {
 			skb_pull(skbo, (x25->neighbour->extended) ?
 					X25_EXT_MIN_LEN : X25_STD_MIN_LEN);
-			memcpy(skb_put(skbn, skbo->len), skbo->data, skbo->len);
+			skb_copy_from_linear_data(skbo,
+						  skb_put(skbn, skbo->len),
+						  skbo->len);
 			kfree_skb(skbo);
 		}
 

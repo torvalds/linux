@@ -66,7 +66,9 @@ static int ax25_rx_fragment(ax25_cb *ax25, struct sk_buff *skb)
 
 					/* Copy data from the fragments */
 					while ((skbo = skb_dequeue(&ax25->frag_queue)) != NULL) {
-						memcpy(skb_put(skbn, skbo->len), skbo->data, skbo->len);
+						skb_copy_from_linear_data(skbo,
+							  skb_put(skbn, skbo->len),
+									  skbo->len);
 						kfree_skb(skbo);
 					}
 
