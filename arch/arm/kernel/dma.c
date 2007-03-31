@@ -228,6 +228,7 @@ int dma_channel_active(dmach_t channel)
 {
 	return dma_chan[channel].active;
 }
+EXPORT_SYMBOL(dma_channel_active);
 
 void set_dma_page(dmach_t channel, char pagenr)
 {
