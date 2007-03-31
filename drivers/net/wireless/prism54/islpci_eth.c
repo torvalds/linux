@@ -136,7 +136,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 				printk("islpci_eth_transmit:wds_mac\n");
 #endif
 				memmove(skb->data + 6, src, skb->len);
-				memcpy(skb->data, wds_mac, 6);
+				skb_copy_to_linear_data(skb, wds_mac, 6);
 			} else {
 				memmove(skb->data, src, skb->len);
 			}
@@ -165,7 +165,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 				skb_copy_from_linear_data(skb,
 							  newskb->data + 6,
 							  skb->len);
-				memcpy(newskb->data, wds_mac, 6);
+				skb_copy_to_linear_data(newskb, wds_mac, 6);
 #ifdef ISLPCI_ETH_DEBUG
 				printk("islpci_eth_transmit:wds_mac\n");
 #endif

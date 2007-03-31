@@ -2178,7 +2178,8 @@ static void tms380tr_rcv_status_irq(struct net_device *dev)
 				|| rpl->SkbStat == SKB_DMA_DIRECT))
 			{
 				if(rpl->SkbStat == SKB_DATA_COPY)
-					memcpy(skb->data, ReceiveDataPtr, Length);
+					skb_copy_to_linear_data(skb, ReceiveDataPtr,
+						       Length);
 
 				/* Deliver frame to system */
 				rpl->Skb = NULL;

@@ -2095,10 +2095,14 @@ static void espibug_workaround_t204(unsigned long data)
 					0x0, 0x7, 0x43, 0x0, 0x0, 0x0
 				};
 
-				memcpy(skb->data + sizeof(struct cpl_tx_pkt),
-					ch_mac_addr, ETH_ALEN);
-				memcpy(skb->data + skb->len - 10,
-					ch_mac_addr, ETH_ALEN);
+				skb_copy_to_linear_data_offset(skb,
+						    sizeof(struct cpl_tx_pkt),
+							       ch_mac_addr,
+							       ETH_ALEN);
+				skb_copy_to_linear_data_offset(skb,
+							       skb->len - 10,
+							       ch_mac_addr,
+							       ETH_ALEN);
 				skb->cb[0] = 0xff;
 			}
 
@@ -2125,10 +2129,14 @@ static void espibug_workaround(unsigned long data)
 	                if (!skb->cb[0]) {
 	                        u8 ch_mac_addr[ETH_ALEN] =
 	                            {0x0, 0x7, 0x43, 0x0, 0x0, 0x0};
-	                        memcpy(skb->data + sizeof(struct cpl_tx_pkt),
-	                               ch_mac_addr, ETH_ALEN);
-	                        memcpy(skb->data + skb->len - 10, ch_mac_addr,
-	                               ETH_ALEN);
+	                        skb_copy_to_linear_data_offset(skb,
+						     sizeof(struct cpl_tx_pkt),
+							       ch_mac_addr,
+							       ETH_ALEN);
+	                        skb_copy_to_linear_data_offset(skb,
+							       skb->len - 10,
+							       ch_mac_addr,
+							       ETH_ALEN);
 	                        skb->cb[0] = 0xff;
 	                }
 

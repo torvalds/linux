@@ -604,7 +604,7 @@ static int au1k_irda_rx(struct net_device *dev)
 				skb_put(skb, count);
 			else
 				skb_put(skb, count-2);
-			memcpy(skb->data, (void *)pDB->vaddr, count-2);
+			skb_copy_to_linear_data(skb, pDB->vaddr, count - 2);
 			skb->dev = dev;
 			skb_reset_mac_header(skb);
 			skb->protocol = htons(ETH_P_IRDA);

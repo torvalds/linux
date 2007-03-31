@@ -1129,7 +1129,7 @@ int skb_store_bits(const struct sk_buff *skb, int offset, void *from, int len)
 	if ((copy = start - offset) > 0) {
 		if (copy > len)
 			copy = len;
-		memcpy(skb->data + offset, from, copy);
+		skb_copy_to_linear_data_offset(skb, offset, from, copy);
 		if ((len -= copy) == 0)
 			return 0;
 		offset += copy;

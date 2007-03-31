@@ -233,7 +233,7 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
 			"%lu)\n", skb->data, &msg->data,
 			(size_t) msg->embedded_bytes);
 
-		memcpy(skb->data, &msg->data, (size_t) msg->embedded_bytes);
+		skb_copy_to_linear_data(skb, &msg->data, (size_t)msg->embedded_bytes);
 	} else {
 		dev_dbg(xpnet, "transferring buffer to the skb->data area;\n\t"
 			"bte_copy(0x%p, 0x%p, %hu)\n", (void *)msg->buf_pa,

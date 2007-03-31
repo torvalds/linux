@@ -774,7 +774,7 @@ static int sendup_buffer (struct net_device *dev)
 	skb_pull(skb,3);
 
 	/* copy ddp(s,e)hdr + contents */
-	memcpy(skb->data,(void*)ltdmabuf,len);
+	skb_copy_to_linear_data(skb, ltdmabuf, len);
 
 	skb_reset_transport_header(skb);
 

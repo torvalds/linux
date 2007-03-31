@@ -1937,7 +1937,7 @@ int mac_drv_rx_init(struct s_smc *smc, int len, int fc,
 	}
 	skb_reserve(skb, 3);
 	skb_put(skb, len);
-	memcpy(skb->data, look_ahead, len);
+	skb_copy_to_linear_data(skb, look_ahead, len);
 
 	// deliver frame to system
 	skb->protocol = fddi_type_trans(skb, smc->os.dev);

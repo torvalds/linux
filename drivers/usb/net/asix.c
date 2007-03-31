@@ -352,7 +352,7 @@ static struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	skb_push(skb, 4);
 	packet_len = (((skb->len - 4) ^ 0x0000ffff) << 16) + (skb->len - 4);
 	cpu_to_le32s(&packet_len);
-	memcpy(skb->data, &packet_len, sizeof(packet_len));
+	skb_copy_to_linear_data(skb, &packet_len, sizeof(packet_len));
 
 	if ((skb->len % 512) == 0) {
 		cpu_to_le32s(&padbytes);

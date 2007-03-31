@@ -576,8 +576,8 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 					break;
 				}
 				skb2->len = sizeof(struct atmlec_msg);
-				memcpy(skb2->data, mesg,
-				       sizeof(struct atmlec_msg));
+				skb_copy_to_linear_data(skb2, mesg,
+							sizeof(*mesg));
 				atm_force_charge(priv->lecd, skb2->truesize);
 				sk = sk_atm(priv->lecd);
 				skb_queue_tail(&sk->sk_receive_queue, skb2);
@@ -1337,7 +1337,7 @@ static int lane2_resolve(struct net_device *dev, u8 *dst_mac, int force,
 		if (skb == NULL)
 			return -1;
 		skb->len = *sizeoftlvs;
-		memcpy(skb->data, *tlvs, *sizeoftlvs);
+		skb_copy_to_linear_data(skb, *tlvs, *sizeoftlvs);
 		retval = send_to_lecd(priv, l_arp_xmt, dst_mac, NULL, skb);
 	}
 	return retval;
@@ -1371,7 +1371,7 @@ static int lane2_associate_req(struct net_device *dev, u8 *lan_dst,
 	if (skb == NULL)
 		return 0;
 	skb->len = sizeoftlvs;
-	memcpy(skb->data, tlvs, sizeoftlvs);
+	skb_copy_to_linear_data(skb, tlvs, sizeoftlvs);
 	retval = send_to_lecd(priv, l_associate_req, NULL, NULL, skb);
 	if (retval != 0)
 		printk("lec.c: lane2_associate_req() failed\n");

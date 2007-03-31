@@ -648,7 +648,7 @@ nfqnl_mangle(void *data, int data_len, struct nfqnl_queue_entry *e)
 	}
 	if (!skb_make_writable(&e->skb, data_len))
 		return -ENOMEM;
-	memcpy(e->skb->data, data, data_len);
+	skb_copy_to_linear_data(e->skb, data, data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;
 	return 0;
 }

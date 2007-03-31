@@ -602,7 +602,7 @@ int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 		skb_put(skb, diff);
 		memmove(skb->data + o_offset + n_len,
 			skb->data + o_offset + o_len, o_left);
-		memcpy(skb->data + o_offset, n_buf, n_len);
+		skb_copy_to_linear_data_offset(skb, o_offset, n_buf, n_len);
 	}
 
 	/* must update the iph total length here */

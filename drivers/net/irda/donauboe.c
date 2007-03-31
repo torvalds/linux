@@ -1282,8 +1282,8 @@ dumpbufs(self->rx_bufs[self->rxs],len,'<');
                       skb_reserve (skb, 1);
 
                       skb_put (skb, len);
-                      memcpy (skb->data, self->rx_bufs[self->rxs], len);
-
+                      skb_copy_to_linear_data(skb, self->rx_bufs[self->rxs],
+					      len);
                       self->stats.rx_packets++;
                       skb->dev = self->netdev;
                       skb_reset_mac_header(skb);

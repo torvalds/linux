@@ -94,7 +94,8 @@ static void emulate_large_send_offload(struct sk_buff *skb)
 		skb_set_mac_header(nskb, -ETH_HLEN);
 		skb_reset_network_header(nskb);
 		iph = ip_hdr(nskb);
-		memcpy(nskb->data, skb_network_header(skb), doffset);
+		skb_copy_to_linear_data(nskb, skb_network_header(skb),
+					doffset);
 		if (skb_copy_bits(skb,
 				  doffset + offset,
 				  nskb->data + doffset,

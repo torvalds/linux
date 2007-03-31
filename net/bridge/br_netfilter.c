@@ -149,7 +149,8 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 	if (err)
 		return err;
 
-	memcpy(skb->data - header_size, skb->nf_bridge->data, header_size);
+	skb_copy_to_linear_data_offset(skb, -header_size,
+				       skb->nf_bridge->data, header_size);
 
 	if (skb->protocol == htons(ETH_P_8021Q))
 		__skb_push(skb, VLAN_HLEN);

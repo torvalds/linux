@@ -3889,7 +3889,7 @@ static int smctr_process_rx_packet(MAC_HEADER *rmf, __u16 size,
 
                 /* Slide data into a sleek skb. */
                 skb_put(skb, skb->len);
-                memcpy(skb->data, rmf, skb->len);
+                skb_copy_to_linear_data(skb, rmf, skb->len);
 
                 /* Update Counters */
                 tp->MacStat.rx_packets++;
@@ -4475,7 +4475,7 @@ static int smctr_rx_frame(struct net_device *dev)
 				if (skb) {
                                 	skb_put(skb, rx_size);
 
-                                	memcpy(skb->data, pbuff, rx_size);
+					skb_copy_to_linear_data(skb, pbuff, rx_size);
 
                                 	/* Update Counters */
                                 	tp->MacStat.rx_packets++;

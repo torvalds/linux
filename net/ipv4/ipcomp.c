@@ -66,7 +66,7 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->truesize += dlen - plen;
 	__skb_put(skb, dlen - plen);
-	memcpy(skb->data, scratch, dlen);
+	skb_copy_to_linear_data(skb, scratch, dlen);
 out:
 	put_cpu();
 	return err;

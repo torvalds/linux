@@ -239,7 +239,8 @@ async_bump(struct net_device *dev,
 
 	if(docopy) {
 		/* Copy data without CRC (lenght already checked) */
-		memcpy(newskb->data, rx_buff->data, rx_buff->len - 2);
+		skb_copy_to_linear_data(newskb, rx_buff->data,
+					rx_buff->len - 2);
 		/* Deliver this skb */
 		dataskb = newskb;
 	} else {

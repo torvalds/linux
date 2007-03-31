@@ -396,7 +396,9 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 			goto out;	/* atm_charge increments rx_drop */
 		}
 
-		memcpy(skb->data, skb_tail_pointer(sarb) - pdu_length, length);
+		skb_copy_to_linear_data(skb,
+					skb_tail_pointer(sarb) - pdu_length,
+					length);
 		__skb_put(skb, length);
 
 		vdbg("%s: sending skb 0x%p, skb->len %u, skb->truesize %u",

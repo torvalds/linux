@@ -786,15 +786,16 @@ static inline int msg_build(struct tipc_msg *hdr,
 	*buf = buf_acquire(sz);
 	if (!(*buf))
 		return -ENOMEM;
-	memcpy((*buf)->data, (unchar *)hdr, hsz);
+	skb_copy_to_linear_data(*buf, hdr, hsz);
 	for (res = 1, cnt = 0; res && (cnt < num_sect); cnt++) {
 		if (likely(usrmem))
 			res = !copy_from_user((*buf)->data + pos,
 					      msg_sect[cnt].iov_base,
 					      msg_sect[cnt].iov_len);
 		else
-			memcpy((*buf)->data + pos, msg_sect[cnt].iov_base,
-			       msg_sect[cnt].iov_len);
+			skb_copy_to_linear_data_offset(*buf, pos,
+						       msg_sect[cnt].iov_base,
+						       msg_sect[cnt].iov_len);
 		pos += msg_sect[cnt].iov_len;
 	}
 	if (likely(res))

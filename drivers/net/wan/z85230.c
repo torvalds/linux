@@ -1656,7 +1656,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 		else
 		{
 			skb_put(skb, ct);
-			memcpy(skb->data, rxb, ct);
+			skb_copy_to_linear_data(skb, rxb, ct);
 			c->stats.rx_packets++;
 			c->stats.rx_bytes+=ct;
 		}

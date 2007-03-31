@@ -173,7 +173,7 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct br2684_dev *brdev,
 	}
 	skb_push(skb, minheadroom);
 	if (brvcc->encaps == e_llc)
-		memcpy(skb->data, llc_oui_pid_pad, 10);
+		skb_copy_to_linear_data(skb, llc_oui_pid_pad, 10);
 	else
 		memset(skb->data, 0, 2);
 #endif /* FASTER_VERSION */

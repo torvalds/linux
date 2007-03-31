@@ -59,8 +59,8 @@ void nr_output(struct sock *sk, struct sk_buff *skb)
 
 			/* Duplicate the Transport Header */
 			skb_push(skbn, NR_TRANSPORT_LEN);
-			memcpy(skbn->data, transport, NR_TRANSPORT_LEN);
-
+			skb_copy_to_linear_data(skbn, transport,
+						NR_TRANSPORT_LEN);
 			if (skb->len > 0)
 				skbn->data[4] |= NR_MORE_FLAG;
 

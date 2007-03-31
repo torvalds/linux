@@ -367,9 +367,10 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 			BUG_ON(frag != last_frag);
 			frag_len = len - offset;
 		}
-		memcpy(skb->data + offset,
-		       bp->rx_buffers + (RX_BUFFER_SIZE * frag),
-		       frag_len);
+		skb_copy_to_linear_data_offset(skb, offset,
+					       (bp->rx_buffers +
+					        (RX_BUFFER_SIZE * frag)),
+					       frag_len);
 		offset += RX_BUFFER_SIZE;
 		bp->rx_ring[frag].addr &= ~MACB_BIT(RX_USED);
 		wmb();

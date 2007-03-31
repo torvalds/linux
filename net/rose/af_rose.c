@@ -1181,7 +1181,7 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 			/* Duplicate the Header */
 			skb_push(skbn, ROSE_MIN_LEN);
-			memcpy(skbn->data, header, ROSE_MIN_LEN);
+			skb_copy_to_linear_data(skbn, header, ROSE_MIN_LEN);
 
 			if (skb->len > 0)
 				skbn->data[2] |= M_BIT;

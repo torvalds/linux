@@ -1189,7 +1189,7 @@ F01_E */
 		skb_reserve(skb, 1);
 		skb_put(skb, len - 4);
 
-		memcpy(skb->data, self->rx_buff.data, len - 4);
+		skb_copy_to_linear_data(skb, self->rx_buff.data, len - 4);
 		IRDA_DEBUG(2, "%s(): len=%x.rx_buff=%p\n", __FUNCTION__,
 			   len - 4, self->rx_buff.data);
 
@@ -1234,7 +1234,7 @@ static int upload_rxdata(struct via_ircc_cb *self, int iobase)
 	}
 	skb_reserve(skb, 1);
 	skb_put(skb, len - 4 + 1);
-	memcpy(skb->data, self->rx_buff.data, len - 4 + 1);
+	skb_copy_to_linear_data(skb, self->rx_buff.data, len - 4 + 1);
 	st_fifo->tail++;
 	st_fifo->len++;
 	if (st_fifo->tail > MAX_RX_WINDOW)
@@ -1303,7 +1303,7 @@ static int RxTimerHandler(struct via_ircc_cb *self, int iobase)
 			}
 			skb_reserve(skb, 1);
 			skb_put(skb, len - 4);
-			memcpy(skb->data, self->rx_buff.data, len - 4);
+			skb_copy_to_linear_data(skb, self->rx_buff.data, len - 4);
 
 			IRDA_DEBUG(2, "%s(): len=%x.head=%x\n", __FUNCTION__,
 				   len - 4, st_fifo->head);

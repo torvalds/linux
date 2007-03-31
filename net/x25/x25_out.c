@@ -89,7 +89,7 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 
 			/* Duplicate the Header */
 			skb_push(skbn, header_len);
-			memcpy(skbn->data, header, header_len);
+			skb_copy_to_linear_data(skbn, header, header_len);
 
 			if (skb->len > 0) {
 				if (x25->neighbour->extended)
