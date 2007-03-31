@@ -407,7 +407,7 @@ static void quiesce_rx(struct adapter *adap)
 static int setup_sge_qsets(struct adapter *adap)
 {
 	int i, j, err, irq_idx = 0, qset_idx = 0, dummy_dev_idx = 0;
-	unsigned int ntxq = is_offload(adap) ? SGE_TXQ_PER_SET : 1;
+	unsigned int ntxq = SGE_TXQ_PER_SET;
 
 	if (adap->params.rev > 0 && !(adap->flags & USING_MSI))
 		irq_idx = -1;
@@ -922,7 +922,7 @@ static int cxgb_open(struct net_device *dev)
 		return err;
 
 	set_bit(pi->port_id, &adapter->open_device_map);
-	if (!ofld_disable) {
+	if (is_offload(adapter) && !ofld_disable) {
 		err = offload_open(dev);
 		if (err)
 			printk(KERN_WARNING
@@ -2270,9 +2270,9 @@ static void __devinit print_port_info(struct adapter *adap,
 
 		if (!test_bit(i, &adap->registered_device_map))
 			continue;
-		printk(KERN_INFO "%s: %s %s RNIC (rev %d) %s%s\n",
+		printk(KERN_INFO "%s: %s %s %sNIC (rev %d) %s%s\n",
 		       dev->name, ai->desc, pi->port_type->desc,
-		       adap->params.rev, buf,
+		       is_offload(adap) ? "R" : "", adap->params.rev, buf,
 		       (adap->flags & USING_MSIX) ? " MSI-X" :
 		       (adap->flags & USING_MSI) ? " MSI" : "");
 		if (adap->name == dev->name && adap->params.vpd.mclk)
