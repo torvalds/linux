@@ -721,7 +721,7 @@ static void bind_qsets(struct adapter *adap)
 	}
 }
 
-#define FW_FNAME "t3fw-%d.%d.bin"
+#define FW_FNAME "t3fw-%d.%d.%d.bin"
 
 static int upgrade_fw(struct adapter *adap)
 {
@@ -731,7 +731,7 @@ static int upgrade_fw(struct adapter *adap)
 	struct device *dev = &adap->pdev->dev;
 
 	snprintf(buf, sizeof(buf), FW_FNAME, FW_VERSION_MAJOR,
-		 FW_VERSION_MINOR);
+		 FW_VERSION_MINOR, FW_VERSION_MICRO);
 	ret = request_firmware(&fw, buf, dev);
 	if (ret < 0) {
 		dev_err(dev, "could not upgrade firmware: unable to load %s\n",
