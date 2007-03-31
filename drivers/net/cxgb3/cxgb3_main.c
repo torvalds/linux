@@ -185,16 +185,26 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_stat,
 			int speed, int duplex, int pause)
 {
 	struct net_device *dev = adapter->port[port_id];
+	struct port_info *pi = netdev_priv(dev);
+	struct cmac *mac = &pi->mac;
 
 	/* Skip changes from disabled ports. */
 	if (!netif_running(dev))
 		return;
 
 	if (link_stat != netif_carrier_ok(dev)) {
-		if (link_stat)
+		if (link_stat) {
+			t3_set_reg_field(adapter,
+					 A_XGM_TXFIFO_CFG + mac->offset,
+					 F_ENDROPPKT, 0);
 			netif_carrier_on(dev);
-		else
+		} else {
 			netif_carrier_off(dev);
+			t3_set_reg_field(adapter,
+					 A_XGM_TXFIFO_CFG + mac->offset,
+					 F_ENDROPPKT, F_ENDROPPKT);
+		}
+
 		link_report(dev);
 	}
 }
@@ -2119,7 +2129,7 @@ static void check_t3b2_mac(struct adapter *adapter)
 			continue;
 
 		status = 0;
-		if (netif_running(dev))
+		if (netif_running(dev) && netif_carrier_ok(dev))
 			status = t3b2_mac_watchdog_task(&p->mac);
 		if (status == 1)
 			p->mac.stats.num_toggled++;
