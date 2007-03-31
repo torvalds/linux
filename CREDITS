@@ -2286,14 +2286,14 @@ S: D-90453 Nuernberg
 S: Germany
 
 N: Arnaldo Carvalho de Melo
-E: acme@mandriva.com
 E: acme@ghostprotocols.net
+E: arnaldo.melo@gmail.com
+E: acme@redhat.com
 W: http://oops.ghostprotocols.net:81/blog/
 P: 1024D/9224DF01 D5DF E3BB E3C8 BCBB F8AD  841A B6AB 4681 9224 DF01
 D: IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
-S: Mandriva
-S: R. Tocantins, 89 - Cristo Rei
-S: 80050-430 - Curitiba - Paraná
+S: R. Brasílio Itiberê, 4270/1010 - Água Verde
+S: 80240-060 - Curitiba - Paraná
 S: Brazil
 
 N: Karsten Merker

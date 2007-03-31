@@ -384,7 +384,7 @@ S:	Supported
 
 APPLETALK NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
-M:	acme@conectiva.com.br
+M:	acme@ghostprotocols.net
 S:	Maintained
 
 ARC FRAMEBUFFER DRIVER
@@ -1034,9 +1034,8 @@ S:	Maintained
 
 CYCLADES 2X SYNC CARD DRIVER
 P:	Arnaldo Carvalho de Melo
-M:	acme@conectiva.com.br
-W:	http://advogato.org/person/acme
-L:	cycsyn-devel@bazar.conectiva.com.br
+M:	acme@ghostprotocols.net
+W:	http://oops.ghostprotocols.net:81/blog
 S:	Maintained
 
 CYCLADES ASYNC MUX DRIVER
@@ -1077,7 +1076,7 @@ S:	Maintained
 
 DCCP PROTOCOL
 P:	Arnaldo Carvalho de Melo
-M:	acme@mandriva.com
+M:	acme@ghostprotocols.net
 L:	dccp@vger.kernel.org
 W:	http://linux-net.osdl.org/index.php/DCCP
 S:	Maintained
@@ -1871,7 +1870,7 @@ S:	Supported
 
 IPX NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
-M:	acme@conectiva.com.br
+M:	acme@ghostprotocols.net
 L:	netdev@vger.kernel.org
 S:	Maintained
 
@@ -2108,7 +2107,7 @@ S:	Supported
 
 LLC (802.2)
 P:	Arnaldo Carvalho de Melo
-M:	acme@conectiva.com.br
+M:	acme@ghostprotocols.net
 S:	Maintained
 
 LINUX FOR 64BIT POWERPC
@@ -3766,8 +3765,8 @@ S:	Maintained
 
 WL3501 WIRELESS PCMCIA CARD DRIVER
 P:	Arnaldo Carvalho de Melo
-M:	acme@conectiva.com.br
-W:	http://advogato.org/person/acme
+M:	acme@ghostprotocols.net
+W:	http://oops.ghostprotocols.net:81/blog
 S:	Maintained
 
 X.25 NETWORK LAYER
