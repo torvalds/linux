@@ -21,6 +21,7 @@
 #include <linux/initrd.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/console.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -221,12 +222,37 @@ static int __init efika_probe(void)
 	return 1;
 }
 
+static void __init efika_init_early(void)
+{
+#ifdef CONFIG_SERIAL_MPC52xx
+	struct device_node *stdout_node;
+	const char *device_type;
+
+	if (strstr(cmd_line, "console="))
+		return;
+	/* find the boot console from /chosen/stdout */
+	if (!of_chosen)
+		return;
+	device_type = get_property(of_chosen, "linux,stdout-path", NULL);
+	if (!device_type)
+		return;
+	stdout_node = of_find_node_by_path(device_type);
+	if (stdout_node) {
+		device_type = get_property(stdout_node, "device_type", NULL);
+		if (device_type && strcmp(device_type, "serial") == 0)
+			add_preferred_console("ttyPSC", 0, NULL);
+		of_node_put(stdout_node);
+	}
+#endif
+}
+
 define_machine(efika)
 {
 	.name			= EFIKA_PLATFORM_NAME,
 	.probe			= efika_probe,
 	.setup_arch		= efika_setup_arch,
 	.init			= mpc52xx_declare_of_platform_devices,
+	.init_early		= efika_init_early,
 	.show_cpuinfo		= efika_show_cpuinfo,
 	.init_IRQ		= mpc52xx_init_irq,
 	.get_irq		= mpc52xx_get_irq,
