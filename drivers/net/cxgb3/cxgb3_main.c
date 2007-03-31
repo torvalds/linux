@@ -485,12 +485,14 @@ static ssize_t show_##name(struct device *d, struct device_attribute *attr, \
 static ssize_t set_nfilters(struct net_device *dev, unsigned int val)
 {
 	struct adapter *adap = dev->priv;
+	int min_tids = is_offload(adap) ? MC5_MIN_TIDS : 0;
 
 	if (adap->flags & FULL_INIT_DONE)
 		return -EBUSY;
 	if (val && adap->params.rev == 0)
 		return -EINVAL;
-	if (val > t3_mc5_size(&adap->mc5) - adap->params.mc5.nservers)
+	if (val > t3_mc5_size(&adap->mc5) - adap->params.mc5.nservers -
+	    min_tids)
 		return -EINVAL;
 	adap->params.mc5.nfilters = val;
 	return 0;
@@ -508,7 +510,8 @@ static ssize_t set_nservers(struct net_device *dev, unsigned int val)
 
 	if (adap->flags & FULL_INIT_DONE)
 		return -EBUSY;
-	if (val > t3_mc5_size(&adap->mc5) - adap->params.mc5.nfilters)
+	if (val > t3_mc5_size(&adap->mc5) - adap->params.mc5.nfilters -
+	    MC5_MIN_TIDS)
 		return -EINVAL;
 	adap->params.mc5.nservers = val;
 	return 0;

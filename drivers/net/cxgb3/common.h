@@ -358,6 +358,9 @@ enum {
 	MC5_MODE_72_BIT = 2
 };
 
+/* MC5 min active region size */
+enum { MC5_MIN_TIDS = 16 };
+
 struct vpd_params {
 	unsigned int cclk;
 	unsigned int mclk;
