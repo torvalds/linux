@@ -91,7 +91,7 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 		memcpy_dir(buf, vaddr, len_this_page, out);
 		scatterwalk_unmap(vaddr, out);
 
-		scatterwalk_advance(walk, nbytes);
+		scatterwalk_advance(walk, len_this_page);
 
 		if (nbytes == len_this_page)
 			break;
