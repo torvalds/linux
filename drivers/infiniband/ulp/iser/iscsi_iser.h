@@ -245,7 +245,6 @@ struct iser_conn {
 	wait_queue_head_t	     wait;          /* waitq for conn/disconn  */
 	atomic_t                     post_recv_buf_count; /* posted rx count   */
 	atomic_t                     post_send_buf_count; /* posted tx count   */
-	struct work_struct           comperror_work; /* conn term sleepable ctx*/
 	char 			     name[ISER_OBJECT_NAME_SIZE];
 	struct iser_page_vec         *page_vec;     /* represents SG to fmr maps*
 						     * maps serialized as tx is*/
