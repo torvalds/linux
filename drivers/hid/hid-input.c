@@ -431,6 +431,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x000: goto ignore;
 				case 0x034: map_key_clear(KEY_SLEEP);		break;
 				case 0x036: map_key_clear(BTN_MISC);		break;
+				/*
+				 * The next three are reported by Belkin wireless
+				 * keyboard (1020:0006). These values are "reserved"
+				 * in HUT 1.12.
+				 */
+				case 0x03a: map_key_clear(KEY_SOUND);           break;
+				case 0x03b: map_key_clear(KEY_CAMERA);          break;
+				case 0x03c: map_key_clear(KEY_DOCUMENTS);       break;
+
 				case 0x040: map_key_clear(KEY_MENU);		break;
 				case 0x045: map_key_clear(KEY_RADIO);		break;
 
