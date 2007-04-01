@@ -905,7 +905,7 @@ int main(int ac, char **av)
 	init_wsize();
 	reset_dialog();
 	init_dialog(NULL);
-	set_config_filename(".config");
+	set_config_filename(conf_get_configname());
 	do {
 		conf(&rootmenu);
 		dialog_clear();
