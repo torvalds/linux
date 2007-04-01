@@ -372,7 +372,7 @@
 #define __NR_move_pages			(__NR_SYSCALL_BASE+344)
 #define __NR_getcpu			(__NR_SYSCALL_BASE+345)
 					/* 346 for epoll_pwait */
-#define __NR_sys_kexec_load		(__NR_SYSCALL_BASE+347)
+#define __NR_kexec_load			(__NR_SYSCALL_BASE+347)
 
 /*
  * The following SWIs are ARM private.
