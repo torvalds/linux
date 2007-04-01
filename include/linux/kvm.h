@@ -126,6 +126,21 @@ struct kvm_regs {
 	__u64 rip, rflags;
 };
 
+/* for KVM_GET_FPU and KVM_SET_FPU */
+struct kvm_fpu {
+	__u8  fpr[8][16];
+	__u16 fcw;
+	__u16 fsw;
+	__u8  ftwx;  /* in fxsave format */
+	__u8  pad1;
+	__u16 last_opcode;
+	__u64 last_ip;
+	__u64 last_dp;
+	__u8  xmm[16][16];
+	__u32 mxcsr;
+	__u32 pad2;
+};
+
 struct kvm_segment {
 	__u64 base;
 	__u32 limit;
@@ -285,5 +300,7 @@ struct kvm_signal_mask {
 #define KVM_SET_MSRS              _IOW(KVMIO,  0x89, struct kvm_msrs)
 #define KVM_SET_CPUID             _IOW(KVMIO,  0x8a, struct kvm_cpuid)
 #define KVM_SET_SIGNAL_MASK       _IOW(KVMIO,  0x8b, struct kvm_signal_mask)
+#define KVM_GET_FPU               _IOR(KVMIO,  0x8c, struct kvm_fpu)
+#define KVM_SET_FPU               _IOW(KVMIO,  0x8d, struct kvm_fpu)
 
 #endif
