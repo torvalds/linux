@@ -744,6 +744,9 @@ static inline int pci_set_power_state(struct pci_dev *dev, pci_power_t state) { 
 static inline pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state) { return PCI_D0; }
 static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable) { return 0; }
 
+static inline int pci_request_regions(struct pci_dev *dev, const char *res_name) { return -EIO; }
+static inline void pci_release_regions(struct pci_dev *dev) { }
+
 #define pci_dma_burst_advice(pdev, strat, strategy_parameter) do { } while (0)
 
 static inline void pci_block_user_cfg_access(struct pci_dev *dev) { }
