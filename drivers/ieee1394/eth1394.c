@@ -208,37 +208,44 @@ static struct hpsb_highlevel eth1394_highlevel = {
 };
 
 
-/* This is called after an "ifup" */
-static int ether1394_open (struct net_device *dev)
+static int ether1394_recv_init(struct net_device *dev)
 {
 	struct eth1394_priv *priv = netdev_priv(dev);
-	int ret = 0;
+
+	priv->iso = hpsb_iso_recv_init(priv->host,
+				       ETHER1394_ISO_BUF_SIZE,
+				       ETHER1394_GASP_BUFFERS,
+				       priv->broadcast_channel,
+				       HPSB_ISO_DMA_PACKET_PER_BUFFER,
+				       1, ether1394_iso);
+	if (priv->iso == NULL) {
+		ETH1394_PRINT(KERN_ERR, dev->name,
+			      "Could not allocate isochronous receive "
+			      "context for the broadcast channel\n");
+		priv->bc_state = ETHER1394_BC_ERROR;
+		return -EAGAIN;
+	}
+
+	if (hpsb_iso_recv_start(priv->iso, -1, (1 << 3), -1) < 0)
+		priv->bc_state = ETHER1394_BC_STOPPED;
+	else
+		priv->bc_state = ETHER1394_BC_RUNNING;
+	return 0;
+}
+
+/* This is called after an "ifup" */
+static int ether1394_open(struct net_device *dev)
+{
+	struct eth1394_priv *priv = netdev_priv(dev);
+	int ret;
 
 	/* Something bad happened, don't even try */
 	if (priv->bc_state == ETHER1394_BC_ERROR) {
 		/* we'll try again */
-		priv->iso = hpsb_iso_recv_init(priv->host,
-					       ETHER1394_ISO_BUF_SIZE,
-					       ETHER1394_GASP_BUFFERS,
-					       priv->broadcast_channel,
-					       HPSB_ISO_DMA_PACKET_PER_BUFFER,
-					       1, ether1394_iso);
-		if (priv->iso == NULL) {
-			ETH1394_PRINT(KERN_ERR, dev->name,
-				      "Could not allocate isochronous receive "
-				      "context for the broadcast channel\n");
-			priv->bc_state = ETHER1394_BC_ERROR;
-			ret = -EAGAIN;
-		} else {
-			if (hpsb_iso_recv_start(priv->iso, -1, (1 << 3), -1) < 0)
-				priv->bc_state = ETHER1394_BC_STOPPED;
-			else
-				priv->bc_state = ETHER1394_BC_RUNNING;
-		}
+		ret = ether1394_recv_init(dev);
+		if (ret)
+			return ret;
 	}
-
-	if (ret)
-		return ret;
 
 	netif_start_queue (dev);
 	return 0;
@@ -628,23 +635,7 @@ static void ether1394_add_host (struct hpsb_host *host)
 	 * be checked when the eth device is opened. */
 	priv->broadcast_channel = host->csr.broadcast_channel & 0x3f;
 
-	priv->iso = hpsb_iso_recv_init(host,
-				       ETHER1394_ISO_BUF_SIZE,
-				       ETHER1394_GASP_BUFFERS,
-				       priv->broadcast_channel,
-				       HPSB_ISO_DMA_PACKET_PER_BUFFER,
-				       1, ether1394_iso);
-	if (priv->iso == NULL) {
-		ETH1394_PRINT(KERN_ERR, dev->name,
-			      "Could not allocate isochronous receive context "
-			      "for the broadcast channel\n");
-		priv->bc_state = ETHER1394_BC_ERROR;
-	} else {
-		if (hpsb_iso_recv_start(priv->iso, -1, (1 << 3), -1) < 0)
-			priv->bc_state = ETHER1394_BC_STOPPED;
-		else
-			priv->bc_state = ETHER1394_BC_RUNNING;
-	}
+	ether1394_recv_init(dev);
 	return;
 out:
 	if (dev)
