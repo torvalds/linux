@@ -21,6 +21,7 @@
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/file.h>
@@ -69,7 +70,6 @@ struct getdents_callback {
 };
 
 #define NAME_OFFSET(de) ((int) ((de)->d_name - (char __user *) (de)))
-#define ROUND_UP(x) (((x)+sizeof(long)-1) & ~(sizeof(long)-1))
 
 static int filldir(void * __buf, const char * name, int namlen, loff_t offset,
 		u64 ino, unsigned d_type)
@@ -77,7 +77,7 @@ static int filldir(void * __buf, const char * name, int namlen, loff_t offset,
 	struct hpux_dirent __user * dirent;
 	struct getdents_callback * buf = (struct getdents_callback *) __buf;
 	ino_t d_ino;
-	int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 1);
+	int reclen = ALIGN(NAME_OFFSET(dirent) + namlen + 1, sizeof(long));
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
@@ -102,7 +102,6 @@ static int filldir(void * __buf, const char * name, int namlen, loff_t offset,
 }
 
 #undef NAME_OFFSET
-#undef ROUND_UP
 
 int hpux_getdents(unsigned int fd, struct hpux_dirent __user *dirent, unsigned int count)
 {
