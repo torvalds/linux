@@ -183,7 +183,14 @@ int driver_register(struct device_driver * drv)
 void driver_unregister(struct device_driver * drv)
 {
 	bus_remove_driver(drv);
-	wait_for_completion(&drv->unloaded);
+	/*
+	 * If the driver is a module, we are probably in
+	 * the module unload path, and we want to wait
+	 * for everything to unload before we can actually
+	 * finish the unload.
+	 */
+	if (drv->owner)
+		wait_for_completion(&drv->unloaded);
 }
 
 /**
