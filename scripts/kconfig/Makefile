@@ -140,6 +140,7 @@ endif
 
 clean-files	:= lkc_defs.h qconf.moc .tmp_qtcheck \
 		   .tmp_gtkcheck zconf.tab.c lex.zconf.c zconf.hash.c
+clean-files     += mconf qconf gconf
 
 # Needed for systems without gettext
 KBUILD_HAVE_NLS := $(shell \
