@@ -1607,6 +1607,9 @@ u32 __tcp_select_window(struct sock *sk)
 		 */
 		if (window <= free_space - mss || window > free_space)
 			window = (free_space/mss)*mss;
+		else if (mss == full_space &&
+		         free_space > window + full_space/2)
+			window = free_space;
 	}
 
 	return window;
