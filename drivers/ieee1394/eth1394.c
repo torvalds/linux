@@ -1521,7 +1521,6 @@ static void ether1394_complete_cb(void *__ptask)
 /* Transmit a packet (called by kernel) */
 static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	gfp_t kmflags = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
 	struct eth1394hdr *eth;
 	struct eth1394_priv *priv = netdev_priv(dev);
 	__be16 proto;
@@ -1537,7 +1536,7 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 	struct eth1394_node_ref *node;
 	struct eth1394_node_info *node_info = NULL;
 
-	ptask = kmem_cache_alloc(packet_task_cache, kmflags);
+	ptask = kmem_cache_alloc(packet_task_cache, GFP_ATOMIC);
 	if (ptask == NULL) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1553,7 +1552,7 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 #endif
 
-	skb = skb_share_check(skb, kmflags);
+	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto fail;
