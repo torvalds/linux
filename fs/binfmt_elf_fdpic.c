@@ -1480,8 +1480,8 @@ static int elf_fdpic_dump_segments(struct file *file, struct mm_struct *mm,
 				DUMP_SEEK(file->f_pos + PAGE_SIZE);
 			}
 			else if (page == ZERO_PAGE(addr)) {
-				DUMP_SEEK(file->f_pos + PAGE_SIZE);
 				page_cache_release(page);
+				DUMP_SEEK(file->f_pos + PAGE_SIZE);
 			}
 			else {
 				void *kaddr;
