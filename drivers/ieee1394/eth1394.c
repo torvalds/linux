@@ -50,7 +50,6 @@
 
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
-#include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
@@ -494,10 +493,8 @@ static void ether1394_reset_priv(struct net_device *dev, int set_mtu)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-/* This function is called right before register_netdev */
 static void ether1394_init_dev(struct net_device *dev)
 {
-	/* Our functions */
 	dev->open		= ether1394_open;
 	dev->stop		= ether1394_stop;
 	dev->hard_start_xmit	= ether1394_tx;
@@ -510,10 +507,9 @@ static void ether1394_init_dev(struct net_device *dev)
 	dev->hard_header_cache	= ether1394_header_cache;
 	dev->header_cache_update= ether1394_header_cache_update;
 	dev->hard_header_parse	= ether1394_header_parse;
-	dev->set_mac_address	= NULL;
+
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
-	/* Some constants */
 	dev->watchdog_timeo	= ETHER1394_TIMEOUT;
 	dev->flags		= IFF_BROADCAST | IFF_MULTICAST;
 	dev->features		= NETIF_F_HIGHDMA;
@@ -521,7 +517,8 @@ static void ether1394_init_dev(struct net_device *dev)
 	dev->hard_header_len 	= ETH1394_HLEN;
 	dev->type		= ARPHRD_IEEE1394;
 
-	ether1394_reset_priv(dev, 1);
+	/* FIXME: This value was copied from ether_setup(). Is it too much? */
+	dev->tx_queue_len	= 1000;
 }
 
 /*
@@ -551,11 +548,7 @@ static void ether1394_add_host(struct hpsb_host *host)
 		return;
 	}
 
-	/* We should really have our own alloc_hpsbdev() function in
-	 * net_init.c instead of calling the one for ethernet then hijacking
-	 * it for ourselves.  That way we'd be a real networking device. */
-	dev = alloc_etherdev(sizeof (struct eth1394_priv));
-
+	dev = alloc_netdev(sizeof(*priv), "eth%d", ether1394_init_dev);
 	if (dev == NULL) {
 		ETH1394_PRINT_G(KERN_ERR, "Out of memory\n");
 		goto out;
@@ -568,21 +561,18 @@ static void ether1394_add_host(struct hpsb_host *host)
 #endif
 
 	priv = netdev_priv(dev);
-
 	INIT_LIST_HEAD(&priv->ip_node_list);
-
 	spin_lock_init(&priv->lock);
 	priv->host = host;
 	priv->local_fifo = fifo_addr;
 
 	hi = hpsb_create_hostinfo(&eth1394_highlevel, host, sizeof(*hi));
-
 	if (hi == NULL) {
 		ETH1394_PRINT_G(KERN_ERR, "Out of memory\n");
 		goto out;
 	}
 
-	ether1394_init_dev(dev);
+	ether1394_reset_priv(dev, 1);
 
 	if (register_netdev(dev)) {
 		ETH1394_PRINT_G(KERN_ERR, "Cannot register the driver\n");
