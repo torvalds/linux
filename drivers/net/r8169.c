@@ -66,6 +66,7 @@ VERSION 2.2LK	<2005/01/25>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 
+#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -486,6 +487,7 @@ static int rtl8169_rx_interrupt(struct net_device *, struct rtl8169_private *,
 				void __iomem *);
 static int rtl8169_change_mtu(struct net_device *dev, int new_mtu);
 static void rtl8169_down(struct net_device *dev);
+static void rtl8169_rx_clear(struct rtl8169_private *tp);
 
 #ifdef CONFIG_R8169_NAPI
 static int rtl8169_poll(struct net_device *dev, int *budget);
@@ -1751,16 +1753,10 @@ static int rtl8169_open(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct pci_dev *pdev = tp->pci_dev;
-	int retval;
+	int retval = -ENOMEM;
+
 
 	rtl8169_set_rxbufsize(tp, dev);
-
-	retval =
-	    request_irq(dev->irq, rtl8169_interrupt, IRQF_SHARED, dev->name, dev);
-	if (retval < 0)
-		goto out;
-
-	retval = -ENOMEM;
 
 	/*
 	 * Rx and Tx desscriptors needs 256 bytes alignment.
@@ -1769,18 +1765,25 @@ static int rtl8169_open(struct net_device *dev)
 	tp->TxDescArray = pci_alloc_consistent(pdev, R8169_TX_RING_BYTES,
 					       &tp->TxPhyAddr);
 	if (!tp->TxDescArray)
-		goto err_free_irq;
+		goto out;
 
 	tp->RxDescArray = pci_alloc_consistent(pdev, R8169_RX_RING_BYTES,
 					       &tp->RxPhyAddr);
 	if (!tp->RxDescArray)
-		goto err_free_tx;
+		goto err_free_tx_0;
 
 	retval = rtl8169_init_ring(dev);
 	if (retval < 0)
-		goto err_free_rx;
+		goto err_free_rx_1;
 
 	INIT_DELAYED_WORK(&tp->task, NULL);
+
+	smp_mb();
+
+	retval = request_irq(dev->irq, rtl8169_interrupt, IRQF_SHARED,
+			     dev->name, dev);
+	if (retval < 0)
+		goto err_release_ring_2;
 
 	rtl8169_hw_start(dev);
 
@@ -1790,14 +1793,14 @@ static int rtl8169_open(struct net_device *dev)
 out:
 	return retval;
 
-err_free_rx:
+err_release_ring_2:
+	rtl8169_rx_clear(tp);
+err_free_rx_1:
 	pci_free_consistent(pdev, R8169_RX_RING_BYTES, tp->RxDescArray,
 			    tp->RxPhyAddr);
-err_free_tx:
+err_free_tx_0:
 	pci_free_consistent(pdev, R8169_TX_RING_BYTES, tp->TxDescArray,
 			    tp->TxPhyAddr);
-err_free_irq:
-	free_irq(dev->irq, dev);
 	goto out;
 }
 
