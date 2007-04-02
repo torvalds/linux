@@ -61,6 +61,12 @@
 		cmp	r7, r3
 		beq	99f
 
+		@ picotux 200 : 963
+		mov	r3,	#(MACH_TYPE_PICOTUX2XX & 0xff)
+		orr	r3, r3, #(MACH_TYPE_PICOTUX2XX & 0xff00)
+		cmp	r7, r3
+		beq	99f
+
 		@ Ajeco 1ARM : 1075
 		mov	r3,	#(MACH_TYPE_ONEARM & 0xff)
 		orr	r3, r3, #(MACH_TYPE_ONEARM & 0xff00)
