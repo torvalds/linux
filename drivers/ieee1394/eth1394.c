@@ -167,8 +167,6 @@ static int ether1394_header_cache(struct neighbour *neigh, struct hh_cache *hh);
 static void ether1394_header_cache_update(struct hh_cache *hh,
 					  struct net_device *dev,
 					  unsigned char *haddr);
-static int ether1394_mac_addr(struct net_device *dev, void *p);
-
 static int ether1394_tx(struct sk_buff *skb, struct net_device *dev);
 static void ether1394_iso(struct hpsb_iso *iso);
 
@@ -512,7 +510,7 @@ static void ether1394_init_dev(struct net_device *dev)
 	dev->hard_header_cache	= ether1394_header_cache;
 	dev->header_cache_update= ether1394_header_cache_update;
 	dev->hard_header_parse	= ether1394_header_parse;
-	dev->set_mac_address	= ether1394_mac_addr;
+	dev->set_mac_address	= NULL;
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
 	/* Some constants */
@@ -752,16 +750,6 @@ static void ether1394_header_cache_update(struct hh_cache *hh,
 					  unsigned char * haddr)
 {
 	memcpy((u8 *)hh->hh_data + 16 - ETH1394_HLEN, haddr, dev->addr_len);
-}
-
-static int ether1394_mac_addr(struct net_device *dev, void *p)
-{
-	if (netif_running(dev))
-		return -EBUSY;
-
-	/* Not going to allow setting the MAC address, we really need to use
-	 * the real one supplied by the hardware */
-	 return -EINVAL;
 }
 
 /******************************************
