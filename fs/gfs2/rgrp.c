@@ -698,8 +698,6 @@ struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip)
  * @al: the struct gfs2_alloc structure describing the reservation
  *
  * If there's room for the requested blocks to be allocated from the RG:
- *   Sets the $al_reserved_data field in @al.
- *   Sets the $al_reserved_meta field in @al.
  *   Sets the $al_rgd field in @al.
  *
  * Returns: 1 on success (it fits), 0 on failure (it doesn't fit)
@@ -709,6 +707,9 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	int ret = 0;
+
+	if (rgd->rd_rg.rg_flags & GFS2_RGF_NOALLOC)
+		return 0;
 
 	spin_lock(&sdp->sd_rindex_spin);
 	if (rgd->rd_free_clone >= al->al_requested) {
