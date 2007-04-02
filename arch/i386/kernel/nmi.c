@@ -328,7 +328,7 @@ static int __init check_nmi_watchdog(void)
 	for_each_possible_cpu(cpu)
 		prev_nmi_count[cpu] = per_cpu(irq_stat, cpu).__nmi_count;
 	local_irq_enable();
-	mdelay((10*1000)/nmi_hz); // wait 10 ticks
+	mdelay((20*1000)/nmi_hz); // wait 20 ticks
 
 	for_each_possible_cpu(cpu) {
 #ifdef CONFIG_SMP
