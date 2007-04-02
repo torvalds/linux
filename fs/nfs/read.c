@@ -321,28 +321,6 @@ out_bad:
 	return -ENOMEM;
 }
 
-static int
-nfs_pagein_list(struct inode *inode, struct list_head *head, unsigned int rsize)
-{
-	struct nfs_pageio_descriptor desc;
-	unsigned int pages = 0;
-	int error = 0;
-
-	if (rsize < PAGE_CACHE_SIZE)
-		nfs_pageio_init(&desc, inode, nfs_pagein_multi, rsize, 0);
-	else
-		nfs_pageio_init(&desc, inode, nfs_pagein_one, rsize, 0);
-
-	nfs_pageio_add_list(&desc, head);
-	nfs_pageio_complete(&desc);
-	pages += (desc.pg_bytes_written + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-
-	nfs_async_read_error(head);
-	if (error >= 0)
-		return pages;
-	return error;
-}
-
 /*
  * This is the callback from RPC telling us whether a reply was
  * received or some error occurred (timeout or socket shutdown).
@@ -532,7 +510,7 @@ out_error:
 }
 
 struct nfs_readdesc {
-	struct list_head *head;
+	struct nfs_pageio_descriptor *pgio;
 	struct nfs_open_context *ctx;
 };
 
@@ -556,19 +534,21 @@ readpage_async_filler(void *data, struct page *page)
 	}
 	if (len < PAGE_CACHE_SIZE)
 		memclear_highpage_flush(page, len, PAGE_CACHE_SIZE - len);
-	nfs_list_add_request(new, desc->head);
+	nfs_pageio_add_request(desc->pgio, new);
 	return 0;
 }
 
 int nfs_readpages(struct file *filp, struct address_space *mapping,
 		struct list_head *pages, unsigned nr_pages)
 {
-	LIST_HEAD(head);
+	struct nfs_pageio_descriptor pgio;
 	struct nfs_readdesc desc = {
-		.head		= &head,
+		.pgio = &pgio,
 	};
 	struct inode *inode = mapping->host;
 	struct nfs_server *server = NFS_SERVER(inode);
+	size_t rsize = server->rsize;
+	unsigned long npages;
 	int ret = -ESTALE;
 
 	dprintk("NFS: nfs_readpages (%s/%Ld %d)\n",
@@ -587,13 +567,16 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	} else
 		desc.ctx = get_nfs_open_context((struct nfs_open_context *)
 				filp->private_data);
+	if (rsize < PAGE_CACHE_SIZE)
+		nfs_pageio_init(&pgio, inode, nfs_pagein_multi, rsize, 0);
+	else
+		nfs_pageio_init(&pgio, inode, nfs_pagein_one, rsize, 0);
+
 	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
-	if (!list_empty(&head)) {
-		int err = nfs_pagein_list(inode, &head, server->rsize);
-		if (!ret)
-			nfs_add_stats(inode, NFSIOS_READPAGES, err);
-			ret = err;
-	}
+
+	nfs_pageio_complete(&pgio);
+	npages = (pgio.pg_bytes_written + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	nfs_add_stats(inode, NFSIOS_READPAGES, npages);
 	put_nfs_open_context(desc.ctx);
 out:
 	return ret;

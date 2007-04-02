@@ -342,8 +342,8 @@ static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
  * Returns true if the request 'req' was successfully coalesced into the
  * existing list of pages 'desc'.
  */
-static int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
-				  struct nfs_page *req)
+int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
+			   struct nfs_page *req)
 {
 	while (!nfs_pageio_do_add_request(desc, req)) {
 		nfs_pageio_doio(desc);

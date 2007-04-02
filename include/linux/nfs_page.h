@@ -82,6 +82,8 @@ extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     int (*doio)(struct inode *, struct list_head *, size_t, int),
 			     size_t bsize,
 			     int how);
+extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,
+				   struct nfs_page *);
 extern	void nfs_pageio_add_list(struct nfs_pageio_descriptor *,
 				 struct list_head *);
 extern	void nfs_pageio_complete(struct nfs_pageio_descriptor *desc);
