@@ -128,6 +128,7 @@ struct device_driver {
 
 	struct module		* owner;
 	const char 		* mod_name;	/* used for built-in modules */
+	struct module_kobject	* mkobj;
 
 	int	(*probe)	(struct device * dev);
 	int	(*remove)	(struct device * dev);

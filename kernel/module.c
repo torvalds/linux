@@ -2384,8 +2384,13 @@ void module_add_driver(struct module *mod, struct device_driver *drv)
 
 		/* Lookup built-in module entry in /sys/modules */
 		mkobj = kset_find_obj(&module_subsys.kset, drv->mod_name);
-		if (mkobj)
+		if (mkobj) {
 			mk = container_of(mkobj, struct module_kobject, kobj);
+			/* remember our module structure */
+			drv->mkobj = mk;
+			/* kset_find_obj took a reference */
+			kobject_put(mkobj);
+		}
 	}
 
 	if (!mk)
@@ -2405,17 +2410,22 @@ EXPORT_SYMBOL(module_add_driver);
 
 void module_remove_driver(struct device_driver *drv)
 {
+	struct module_kobject *mk = NULL;
 	char *driver_name;
 
 	if (!drv)
 		return;
 
 	sysfs_remove_link(&drv->kobj, "module");
-	if (drv->owner && drv->owner->mkobj.drivers_dir) {
+
+	if (drv->owner)
+		mk = &drv->owner->mkobj;
+	else if (drv->mkobj)
+		mk = drv->mkobj;
+	if (mk && mk->drivers_dir) {
 		driver_name = make_driver_name(drv);
 		if (driver_name) {
-			sysfs_remove_link(drv->owner->mkobj.drivers_dir,
-					  driver_name);
+			sysfs_remove_link(mk->drivers_dir, driver_name);
 			kfree(driver_name);
 		}
 	}
