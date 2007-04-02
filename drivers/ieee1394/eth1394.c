@@ -196,9 +196,8 @@ static struct hpsb_highlevel eth1394_highlevel = {
 	.host_reset =	ether1394_host_reset,
 };
 
-static int ether1394_recv_init(struct net_device *dev)
+static int ether1394_recv_init(struct eth1394_priv *priv)
 {
-	struct eth1394_priv *priv = netdev_priv(dev);
 	unsigned int iso_buf_size;
 
 	/* FIXME: rawiso limits us to PAGE_SIZE */
@@ -212,9 +211,7 @@ static int ether1394_recv_init(struct net_device *dev)
 				       HPSB_ISO_DMA_PACKET_PER_BUFFER,
 				       1, ether1394_iso);
 	if (priv->iso == NULL) {
-		ETH1394_PRINT(KERN_ERR, dev->name,
-			      "Could not allocate isochronous receive "
-			      "context for the broadcast channel\n");
+		ETH1394_PRINT_G(KERN_ERR, "Failed to allocate IR context\n");
 		priv->bc_state = ETHER1394_BC_ERROR;
 		return -EAGAIN;
 	}
@@ -233,7 +230,7 @@ static int ether1394_open(struct net_device *dev)
 	int ret;
 
 	if (priv->bc_state == ETHER1394_BC_ERROR) {
-		ret = ether1394_recv_init(dev);
+		ret = ether1394_recv_init(priv);
 		if (ret)
 			return ret;
 	}
@@ -560,9 +557,7 @@ static void ether1394_add_host(struct hpsb_host *host)
 	dev = alloc_etherdev(sizeof (struct eth1394_priv));
 
 	if (dev == NULL) {
-		ETH1394_PRINT_G (KERN_ERR, "Out of memory trying to allocate "
-				 "etherdevice for IEEE 1394 device %s-%d\n",
-				 host->driver->name, host->id);
+		ETH1394_PRINT_G(KERN_ERR, "Out of memory\n");
 		goto out;
 	}
 
@@ -583,21 +578,19 @@ static void ether1394_add_host(struct hpsb_host *host)
 	hi = hpsb_create_hostinfo(&eth1394_highlevel, host, sizeof(*hi));
 
 	if (hi == NULL) {
-		ETH1394_PRINT_G (KERN_ERR, "Out of memory trying to create "
-				 "hostinfo for IEEE 1394 device %s-%d\n",
-				 host->driver->name, host->id);
+		ETH1394_PRINT_G(KERN_ERR, "Out of memory\n");
 		goto out;
 	}
 
 	ether1394_init_dev(dev);
 
-	if (register_netdev (dev)) {
-		ETH1394_PRINT (KERN_ERR, dev->name, "Error registering network driver\n");
+	if (register_netdev(dev)) {
+		ETH1394_PRINT_G(KERN_ERR, "Cannot register the driver\n");
 		goto out;
 	}
 
-	ETH1394_PRINT (KERN_INFO, dev->name, "IEEE-1394 IPv4 over 1394 Ethernet (fw-host%d)\n",
-		       host->id);
+	ETH1394_PRINT(KERN_INFO, dev->name, "IPv4 over IEEE 1394 (fw-host%d)\n",
+		      host->id);
 
 	hi->host = host;
 	hi->dev = dev;
@@ -606,7 +599,7 @@ static void ether1394_add_host(struct hpsb_host *host)
 	 * be checked when the eth device is opened. */
 	priv->broadcast_channel = host->csr.broadcast_channel & 0x3f;
 
-	ether1394_recv_init(dev);
+	ether1394_recv_init(priv);
 	return;
 out:
 	if (dev)
@@ -1084,7 +1077,7 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 
 		skb = dev_alloc_skb(len + dev->hard_header_len + 15);
 		if (!skb) {
-			HPSB_PRINT (KERN_ERR, "ether1394 rx: low on mem\n");
+			ETH1394_PRINT_G(KERN_ERR, "Out of memory\n");
 			priv->stats.rx_dropped++;
 			return -1;
 		}
@@ -1239,8 +1232,8 @@ static int ether1394_write(struct hpsb_host *host, int srcid, int destid,
 
 	hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
 	if (hi == NULL) {
-		ETH1394_PRINT_G(KERN_ERR, "Could not find net device for host %s\n",
-				host->driver->name);
+		ETH1394_PRINT_G(KERN_ERR, "No net device at fw-host%d\n",
+				host->id);
 		return RCODE_ADDRESS_ERROR;
 	}
 
@@ -1265,8 +1258,8 @@ static void ether1394_iso(struct hpsb_iso *iso)
 
 	hi = hpsb_get_hostinfo(&eth1394_highlevel, iso->host);
 	if (hi == NULL) {
-		ETH1394_PRINT_G(KERN_ERR, "Could not find net device for host %s\n",
-				iso->host->driver->name);
+		ETH1394_PRINT_G(KERN_ERR, "No net device at fw-host%d\n",
+				iso->host->id);
 		return;
 	}
 
@@ -1426,8 +1419,7 @@ static int ether1394_prep_write_packet(struct hpsb_packet *p,
 	p->expect_response = 1;
 
 	if (hpsb_get_tlabel(p)) {
-		ETH1394_PRINT_G(KERN_ERR, "No more tlabels left while sending "
-				"to node " NODE_BUS_FMT "\n", NODE_BUS_ARGS(host, node));
+		ETH1394_PRINT_G(KERN_ERR, "Out of tlabels\n");
 		return -1;
 	}
 	p->header[0] =
