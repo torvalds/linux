@@ -17,7 +17,6 @@
 #include <linux/nfs_page.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
-#include <linux/writeback.h>
 
 #define NFS_PARANOIA 1
 
@@ -354,25 +353,6 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 }
 
 /**
- * nfs_pageio_add_list - Split coalesced requests out from a list.
- * @desc: destination io descriptor
- * @head: source list
- *
- * Moves a maximum of 'nmax' elements from one list to another.
- * The elements are checked to ensure that they form a contiguous set
- * of pages, and that the RPC credentials are the same.
- */
-void nfs_pageio_add_list(struct nfs_pageio_descriptor *desc,
-			 struct list_head *head)
-{
-	while (!list_empty(head)) {
-		struct nfs_page *req = nfs_list_entry(head->next);
-		if (!nfs_pageio_add_request(desc, req))
-			break;
-	}
-}
-
-/**
  * nfs_pageio_complete - Complete I/O on an nfs_pageio_descriptor
  * @desc: pointer to io descriptor
  */
@@ -382,78 +362,6 @@ void nfs_pageio_complete(struct nfs_pageio_descriptor *desc)
 }
 
 #define NFS_SCAN_MAXENTRIES 16
-/**
- * nfs_scan_dirty - Scan the radix tree for dirty requests
- * @mapping: pointer to address space
- * @wbc: writeback_control structure
- * @dst: Destination list
- *
- * Moves elements from one of the inode request lists.
- * If the number of requests is set to 0, the entire address_space
- * starting at index idx_start, is scanned.
- * The requests are *not* checked to ensure that they form a contiguous set.
- * You must be holding the inode's req_lock when calling this function
- */
-long nfs_scan_dirty(struct address_space *mapping,
-			struct writeback_control *wbc,
-			struct list_head *dst)
-{
-	struct nfs_inode *nfsi = NFS_I(mapping->host);
-	struct nfs_page *pgvec[NFS_SCAN_MAXENTRIES];
-	struct nfs_page *req;
-	pgoff_t idx_start, idx_end;
-	long res = 0;
-	int found, i;
-
-	if (nfsi->ndirty == 0)
-		return 0;
-	if (wbc->range_cyclic) {
-		idx_start = 0;
-		idx_end = ULONG_MAX;
-	} else if (wbc->range_end == 0) {
-		idx_start = wbc->range_start >> PAGE_CACHE_SHIFT;
-		idx_end = ULONG_MAX;
-	} else {
-		idx_start = wbc->range_start >> PAGE_CACHE_SHIFT;
-		idx_end = wbc->range_end >> PAGE_CACHE_SHIFT;
-	}
-
-	for (;;) {
-		unsigned int toscan = NFS_SCAN_MAXENTRIES;
-
-		found = radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree,
-				(void **)&pgvec[0], idx_start, toscan,
-				NFS_PAGE_TAG_DIRTY);
-
-		/* Did we make progress? */
-		if (found <= 0)
-			break;
-
-		for (i = 0; i < found; i++) {
-			req = pgvec[i];
-			if (!wbc->range_cyclic && req->wb_index > idx_end)
-				goto out;
-
-			/* Try to lock request and mark it for writeback */
-			if (!nfs_set_page_writeback_locked(req))
-				goto next;
-			radix_tree_tag_clear(&nfsi->nfs_page_tree,
-					req->wb_index, NFS_PAGE_TAG_DIRTY);
-			nfsi->ndirty--;
-			nfs_list_remove_request(req);
-			nfs_list_add_request(req, dst);
-			res++;
-			if (res == LONG_MAX)
-				goto out;
-next:
-			idx_start = req->wb_index + 1;
-		}
-	}
-out:
-	WARN_ON ((nfsi->ndirty == 0) != list_empty(&nfsi->dirty));
-	return res;
-}
-
 /**
  * nfs_scan_list - Scan a list for matching requests
  * @nfsi: NFS inode

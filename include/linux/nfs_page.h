@@ -21,8 +21,7 @@
 /*
  * Valid flags for the radix tree
  */
-#define NFS_PAGE_TAG_DIRTY	0
-#define NFS_PAGE_TAG_WRITEBACK	1
+#define NFS_PAGE_TAG_WRITEBACK	0
 
 /*
  * Valid flags for a dirty buffer
@@ -72,9 +71,6 @@ extern	void nfs_clear_request(struct nfs_page *req);
 extern	void nfs_release_request(struct nfs_page *req);
 
 
-extern	long nfs_scan_dirty(struct address_space *mapping,
-				struct writeback_control *wbc,
-				struct list_head *dst);
 extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head, struct list_head *dst,
 			  unsigned long idx_start, unsigned int npages);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
@@ -84,8 +80,6 @@ extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     int how);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,
 				   struct nfs_page *);
-extern	void nfs_pageio_add_list(struct nfs_pageio_descriptor *,
-				 struct list_head *);
 extern	void nfs_pageio_complete(struct nfs_pageio_descriptor *desc);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
