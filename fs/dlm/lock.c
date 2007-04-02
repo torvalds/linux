@@ -580,7 +580,7 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 	/* counter can roll over so we must verify lkid is not in use */
 
 	while (lkid == 0) {
-		lkid = bucket | (ls->ls_lkbtbl[bucket].counter++ << 16);
+		lkid = (bucket << 16) | ls->ls_lkbtbl[bucket].counter++;
 
 		list_for_each_entry(tmp, &ls->ls_lkbtbl[bucket].list,
 				    lkb_idtbl_list) {
@@ -601,8 +601,8 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 
 static struct dlm_lkb *__find_lkb(struct dlm_ls *ls, uint32_t lkid)
 {
-	uint16_t bucket = lkid & 0xFFFF;
 	struct dlm_lkb *lkb;
+	uint16_t bucket = (lkid >> 16);
 
 	list_for_each_entry(lkb, &ls->ls_lkbtbl[bucket].list, lkb_idtbl_list) {
 		if (lkb->lkb_id == lkid)
@@ -614,7 +614,7 @@ static struct dlm_lkb *__find_lkb(struct dlm_ls *ls, uint32_t lkid)
 static int find_lkb(struct dlm_ls *ls, uint32_t lkid, struct dlm_lkb **lkb_ret)
 {
 	struct dlm_lkb *lkb;
-	uint16_t bucket = lkid & 0xFFFF;
+	uint16_t bucket = (lkid >> 16);
 
 	if (bucket >= ls->ls_lkbtbl_size)
 		return -EBADSLT;
@@ -644,7 +644,7 @@ static void kill_lkb(struct kref *kref)
 
 static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
-	uint16_t bucket = lkb->lkb_id & 0xFFFF;
+	uint16_t bucket = (lkb->lkb_id >> 16);
 
 	write_lock(&ls->ls_lkbtbl[bucket].lock);
 	if (kref_put(&lkb->lkb_ref, kill_lkb)) {
