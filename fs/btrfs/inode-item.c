@@ -7,7 +7,7 @@ int btrfs_insert_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 		       *root, u64 objectid, struct btrfs_inode_item
 		       *inode_item)
 {
-	struct btrfs_path path;
+	struct btrfs_path *path;
 	struct btrfs_key key;
 	int ret;
 	key.objectid = objectid;
@@ -15,10 +15,13 @@ int btrfs_insert_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
 	key.offset = 0;
 
-	btrfs_init_path(&path);
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+	btrfs_init_path(path);
 	ret = btrfs_insert_item(trans, root, &key, inode_item,
 				sizeof(*inode_item));
-	btrfs_release_path(root, &path);
+	btrfs_release_path(root, path);
+	btrfs_free_path(path);
 	return ret;
 }
 

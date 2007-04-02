@@ -9,7 +9,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  objectid, u8 type)
 {
 	int ret = 0;
-	struct btrfs_path path;
+	struct btrfs_path *path;
 	struct btrfs_dir_item *dir_item;
 	char *name_ptr;
 	struct btrfs_key key;
@@ -20,24 +20,26 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
 	ret = btrfs_name_hash(name, name_len, &key.offset);
 	BUG_ON(ret);
-	btrfs_init_path(&path);
+	path = btrfs_alloc_path();
+	btrfs_init_path(path);
 	data_size = sizeof(*dir_item) + name_len;
-	ret = btrfs_insert_empty_item(trans, root, &path, &key, data_size);
+	ret = btrfs_insert_empty_item(trans, root, path, &key, data_size);
 	if (ret)
 		goto out;
 
-	dir_item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
-				  path.slots[0],
+	dir_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
+				  path->slots[0],
 				  struct btrfs_dir_item);
 	btrfs_set_dir_objectid(dir_item, objectid);
 	btrfs_set_dir_type(dir_item, type);
 	btrfs_set_dir_flags(dir_item, 0);
 	btrfs_set_dir_name_len(dir_item, name_len);
 	name_ptr = (char *)(dir_item + 1);
-	btrfs_memcpy(root, path.nodes[0]->b_data, name_ptr, name, name_len);
-	btrfs_mark_buffer_dirty(path.nodes[0]);
+	btrfs_memcpy(root, path->nodes[0]->b_data, name_ptr, name, name_len);
+	btrfs_mark_buffer_dirty(path->nodes[0]);
 out:
-	btrfs_release_path(root, &path);
+	btrfs_release_path(root, path);
+	btrfs_free_path(path);
 	return ret;
 }
 
