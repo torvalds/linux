@@ -272,32 +272,6 @@ static void __devinit setup_APIC_timer(void)
 }
 
 /*
- * Detect systems with known broken BIOS implementations
- */
-static int __init lapic_check_broken_bios(struct dmi_system_id *d)
-{
-	printk(KERN_NOTICE "%s detected: disabling lapic timer.\n",
-		       d->ident);
-	local_apic_timer_disabled = 1;
-	return 0;
-}
-
-static struct dmi_system_id __initdata broken_bios_dmi_table[] = {
-	{
-		/*
-		 * BIOS exports only C1 state, but uses deeper power
-		 * modes behind the kernels back.
-		 */
-		  .callback = lapic_check_broken_bios,
-		  .ident = "HP nx6325",
-		  .matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6325"),
-		  },
-	 },
-	 {}
-};
-
-/*
  * In this functions we calibrate APIC bus clocks to the external timer.
  *
  * We want to do the calibration only once since we want to have local timer
@@ -372,12 +346,12 @@ void __init setup_boot_APIC_clock(void)
 	long delta, deltapm;
 	int pm_referenced = 0;
 
-	/* Detect know broken systems */
-	dmi_check_system(broken_bios_dmi_table);
+	if (boot_cpu_has(X86_FEATURE_LAPIC_TIMER_BROKEN))
+		local_apic_timer_disabled = 1;
 
 	/*
 	 * The local apic timer can be disabled via the kernel
-	 * commandline or from the dmi quirk above. Register the lapic
+	 * commandline or from the test above. Register the lapic
 	 * timer as a dummy clock event source on SMP systems, so the
 	 * broadcast mechanism is used. On UP systems simply ignore it.
 	 */
