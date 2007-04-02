@@ -63,9 +63,9 @@ struct kvm_ldttss_desc {
 struct svm_cpu_data {
 	int cpu;
 
-	uint64_t asid_generation;
-	uint32_t max_asid;
-	uint32_t next_asid;
+	u64 asid_generation;
+	u32 max_asid;
+	u32 next_asid;
 	struct kvm_ldttss_desc *tss_desc;
 
 	struct page *save_area;
