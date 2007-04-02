@@ -340,19 +340,12 @@ static struct eth1394_node_ref *eth1394_find_node_nodeid(struct list_head *inl,
 	return NULL;
 }
 
-static int eth1394_probe(struct device *dev)
+static int eth1394_new_node(struct eth1394_host_info *hi,
+			    struct unit_directory *ud)
 {
-	struct unit_directory *ud;
-	struct eth1394_host_info *hi;
 	struct eth1394_priv *priv;
 	struct eth1394_node_ref *new_node;
 	struct eth1394_node_info *node_info;
-
-	ud = container_of(dev, struct unit_directory, device);
-
-	hi = hpsb_get_hostinfo(&eth1394_highlevel, ud->ne->host);
-	if (!hi)
-		return -ENOENT;
 
 	new_node = kmalloc(sizeof(*new_node), GFP_KERNEL);
 	if (!new_node)
@@ -374,8 +367,20 @@ static int eth1394_probe(struct device *dev)
 
 	priv = netdev_priv(hi->dev);
 	list_add_tail(&new_node->list, &priv->ip_node_list);
-
 	return 0;
+}
+
+static int eth1394_probe(struct device *dev)
+{
+	struct unit_directory *ud;
+	struct eth1394_host_info *hi;
+
+	ud = container_of(dev, struct unit_directory, device);
+	hi = hpsb_get_hostinfo(&eth1394_highlevel, ud->ne->host);
+	if (!hi)
+		return -ENOENT;
+
+	return eth1394_new_node(hi, ud);
 }
 
 static int eth1394_remove(struct device *dev)
@@ -421,38 +426,17 @@ static int eth1394_update(struct unit_directory *ud)
 	struct eth1394_host_info *hi;
 	struct eth1394_priv *priv;
 	struct eth1394_node_ref *node;
-	struct eth1394_node_info *node_info;
 
 	hi = hpsb_get_hostinfo(&eth1394_highlevel, ud->ne->host);
 	if (!hi)
 		return -ENOENT;
 
 	priv = netdev_priv(hi->dev);
-
 	node = eth1394_find_node(&priv->ip_node_list, ud);
 	if (node)
 		return 0;
 
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
-
-	node_info = kmalloc(sizeof(*node_info), GFP_KERNEL);
-	if (!node_info) {
-		kfree(node);
-		return -ENOMEM;
-	}
-
-	spin_lock_init(&node_info->pdg.lock);
-	INIT_LIST_HEAD(&node_info->pdg.list);
-	node_info->pdg.sz = 0;
-
-	ud->device.driver_data = node_info;
-	node->ud = ud;
-
-	priv = netdev_priv(hi->dev);
-	list_add_tail(&node->list, &priv->ip_node_list);
-	return 0;
+	return eth1394_new_node(hi, ud);
 }
 
 static struct ieee1394_device_id eth1394_id_table[] = {
