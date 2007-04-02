@@ -59,6 +59,19 @@ struct cmos_rtc {
 
 static const char driver_name[] = "rtc_cmos";
 
+/* The RTC_INTR register may have e.g. RTC_PF set even if RTC_PIE is clear;
+ * always mask it against the irq enable bits in RTC_CONTROL.  Bit values
+ * are the same: PF==PIE, AF=AIE, UF=UIE; so RTC_IRQMASK works with both.
+ */
+#define	RTC_IRQMASK	(RTC_PF | RTC_AF | RTC_UF)
+
+static inline int is_intr(u8 rtc_intr)
+{
+	if (!(rtc_intr & RTC_IRQF))
+		return 0;
+	return rtc_intr & RTC_IRQMASK;
+}
+
 /*----------------------------------------------------------------*/
 
 static int cmos_read_time(struct device *dev, struct rtc_time *t)
@@ -188,7 +201,8 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	rtc_control &= ~RTC_AIE;
 	CMOS_WRITE(rtc_control, RTC_CONTROL);
 	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
-	if (rtc_intr)
+	rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
+	if (is_intr(rtc_intr))
 		rtc_update_irq(&cmos->rtc->class_dev, 1, rtc_intr);
 
 	/* update alarm */
@@ -207,7 +221,8 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 		rtc_control |= RTC_AIE;
 		CMOS_WRITE(rtc_control, RTC_CONTROL);
 		rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
-		if (rtc_intr)
+		rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
+		if (is_intr(rtc_intr))
 			rtc_update_irq(&cmos->rtc->class_dev, 1, rtc_intr);
 	}
 
@@ -287,7 +302,8 @@ cmos_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	}
 	CMOS_WRITE(rtc_control, RTC_CONTROL);
 	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
-	if (rtc_intr)
+	rtc_intr &= (rtc_control & RTC_IRQMASK) | RTC_IRQF;
+	if (is_intr(rtc_intr))
 		rtc_update_irq(&cmos->rtc->class_dev, 1, rtc_intr);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 	return 0;
@@ -353,12 +369,10 @@ static irqreturn_t cmos_interrupt(int irq, void *p)
 
 	spin_lock(&rtc_lock);
 	irqstat = CMOS_READ(RTC_INTR_FLAGS);
+	irqstat &= (CMOS_READ(RTC_CONTROL) & RTC_IRQMASK) | RTC_IRQF;
 	spin_unlock(&rtc_lock);
 
-	if (irqstat) {
-		/* NOTE: irqstat may have e.g. RTC_PF set
-		 * even when RTC_PIE is clear...
-		 */
+	if (is_intr(irqstat)) {
 		rtc_update_irq(p, 1, irqstat);
 		return IRQ_HANDLED;
 	} else
@@ -525,24 +539,25 @@ static int cmos_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	int		do_wake = device_may_wakeup(dev);
-	unsigned char	tmp, irqstat;
+	unsigned char	tmp;
 
 	/* only the alarm might be a wakeup event source */
 	spin_lock_irq(&rtc_lock);
 	cmos->suspend_ctrl = tmp = CMOS_READ(RTC_CONTROL);
 	if (tmp & (RTC_PIE|RTC_AIE|RTC_UIE)) {
+		unsigned char	irqstat;
+
 		if (do_wake)
 			tmp &= ~(RTC_PIE|RTC_UIE);
 		else
 			tmp &= ~(RTC_PIE|RTC_AIE|RTC_UIE);
 		CMOS_WRITE(tmp, RTC_CONTROL);
 		irqstat = CMOS_READ(RTC_INTR_FLAGS);
-	} else
-		irqstat = 0;
+		irqstat &= (tmp & RTC_IRQMASK) | RTC_IRQF;
+		if (is_intr(irqstat))
+			rtc_update_irq(&cmos->rtc->class_dev, 1, irqstat);
+	}
 	spin_unlock_irq(&rtc_lock);
-
-	if (irqstat)
-		rtc_update_irq(&cmos->rtc->class_dev, 1, irqstat);
 
 	/* ACPI HOOK:  enable ACPI_EVENT_RTC when (tmp & RTC_AIE)
 	 * ... it'd be best if we could do that under rtc_lock.
@@ -573,9 +588,10 @@ static int cmos_resume(struct device *dev)
 		spin_lock_irq(&rtc_lock);
 		CMOS_WRITE(tmp, RTC_CONTROL);
 		tmp = CMOS_READ(RTC_INTR_FLAGS);
-		spin_unlock_irq(&rtc_lock);
-		if (tmp)
+		tmp &= (cmos->suspend_ctrl & RTC_IRQMASK) | RTC_IRQF;
+		if (is_intr(tmp))
 			rtc_update_irq(&cmos->rtc->class_dev, 1, tmp);
+		spin_unlock_irq(&rtc_lock);
 	}
 
 	pr_debug("%s: resume, ctrl %02x\n",
@@ -594,7 +610,7 @@ static int cmos_resume(struct device *dev)
 /*----------------------------------------------------------------*/
 
 /* The "CMOS" RTC normally lives on the platform_bus.  On ACPI systems,
- * the device node may alternatively be created as a PNP device.
+ * the device node will always be created as a PNPACPI device.
  */
 
 #ifdef	CONFIG_PNPACPI
@@ -673,7 +689,7 @@ module_exit(cmos_exit);
 /*----------------------------------------------------------------*/
 
 /* Platform setup should have set up an RTC device, when PNPACPI is
- * unavailable ... this is the normal case, common even on PCs.
+ * unavailable ... this could happen even on (older) PCs.
  */
 
 static int __init cmos_platform_probe(struct platform_device *pdev)
