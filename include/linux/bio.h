@@ -276,7 +276,7 @@ extern struct bio_pair *bio_split(struct bio *bi, mempool_t *pool,
 extern mempool_t *bio_split_pool;
 extern void bio_pair_release(struct bio_pair *dbio);
 
-extern struct bio_set *bioset_create(int, int, int);
+extern struct bio_set *bioset_create(int, int);
 extern void bioset_free(struct bio_set *);
 
 extern struct bio *bio_alloc(gfp_t, int);
