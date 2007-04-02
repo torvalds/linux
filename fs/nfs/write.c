@@ -835,7 +835,7 @@ static void nfs_execute_write(struct nfs_write_data *data)
  * Generate multiple small requests to write out a single
  * contiguous dirty area on one page.
  */
-static int nfs_flush_multi(struct inode *inode, struct list_head *head, int how)
+static int nfs_flush_multi(struct inode *inode, struct list_head *head, size_t count, int how)
 {
 	struct nfs_page *req = nfs_list_entry(head->next);
 	struct page *page = req->wb_page;
@@ -847,7 +847,7 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, int how)
 
 	nfs_list_remove_request(req);
 
-	nbytes = req->wb_bytes;
+	nbytes = count;
 	do {
 		size_t len = min(nbytes, wsize);
 
@@ -862,23 +862,19 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, int how)
 
 	ClearPageError(page);
 	offset = 0;
-	nbytes = req->wb_bytes;
+	nbytes = count;
 	do {
 		data = list_entry(list.next, struct nfs_write_data, pages);
 		list_del_init(&data->pages);
 
 		data->pagevec[0] = page;
 
-		if (nbytes > wsize) {
-			nfs_write_rpcsetup(req, data, &nfs_write_partial_ops,
-					wsize, offset, how);
-			offset += wsize;
-			nbytes -= wsize;
-		} else {
-			nfs_write_rpcsetup(req, data, &nfs_write_partial_ops,
-					nbytes, offset, how);
-			nbytes = 0;
-		}
+		if (nbytes < wsize)
+			wsize = nbytes;
+		nfs_write_rpcsetup(req, data, &nfs_write_partial_ops,
+				   wsize, offset, how);
+		offset += wsize;
+		nbytes -= wsize;
 		nfs_execute_write(data);
 	} while (nbytes != 0);
 
@@ -904,26 +900,23 @@ out_bad:
  * This is the case if nfs_updatepage detects a conflicting request
  * that has been written but not committed.
  */
-static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
+static int nfs_flush_one(struct inode *inode, struct list_head *head, size_t count, int how)
 {
 	struct nfs_page		*req;
 	struct page		**pages;
 	struct nfs_write_data	*data;
-	unsigned int		count;
 
-	data = nfs_writedata_alloc(NFS_SERVER(inode)->wsize);
+	data = nfs_writedata_alloc(count);
 	if (!data)
 		goto out_bad;
 
 	pages = data->pagevec;
-	count = 0;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, &data->pages);
 		ClearPageError(req->wb_page);
 		*pages++ = req->wb_page;
-		count += req->wb_bytes;
 	}
 	req = nfs_list_entry(data->pages.next);
 
@@ -946,28 +939,22 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
 static int nfs_flush_list(struct inode *inode, struct list_head *head, int npages, int how)
 {
 	struct nfs_pageio_descriptor desc;
-	int (*flush_one)(struct inode *, struct list_head *, int);
 	int wpages = NFS_SERVER(inode)->wpages;
 	int wsize = NFS_SERVER(inode)->wsize;
-	int error;
 
-	flush_one = nfs_flush_one;
-	if (wsize < PAGE_CACHE_SIZE)
-		flush_one = nfs_flush_multi;
 	/* For single writes, FLUSH_STABLE is more efficient */
 	if (npages <= wpages && npages == NFS_I(inode)->npages
 			&& nfs_list_entry(head->next)->wb_bytes <= wsize)
 		how |= FLUSH_STABLE;
 
-	do {
-		nfs_pageio_init(&desc, wsize);
-		nfs_pageio_add_list(&desc, head);
-		error = flush_one(inode, &desc.pg_list, how);
-		if (error < 0)
-			goto out_err;
-	} while (!list_empty(head));
-	return 0;
-out_err:
+	if (wsize < PAGE_CACHE_SIZE)
+		nfs_pageio_init(&desc, inode, nfs_flush_multi, wsize, how);
+	else
+		nfs_pageio_init(&desc, inode, nfs_flush_one, wsize, how);
+	nfs_pageio_add_list(&desc, head);
+	nfs_pageio_complete(&desc);
+	if (desc.pg_error == 0)
+		return 0;
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
@@ -975,7 +962,7 @@ out_err:
 		nfs_end_page_writeback(req->wb_page);
 		nfs_clear_page_writeback(req);
 	}
-	return error;
+	return desc.pg_error;
 }
 
 /*

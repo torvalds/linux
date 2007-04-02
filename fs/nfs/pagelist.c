@@ -225,14 +225,26 @@ out:
 /**
  * nfs_pageio_init - initialise a page io descriptor
  * @desc: pointer to descriptor
- * @iosize: io block size
+ * @inode: pointer to inode
+ * @doio: pointer to io function
+ * @bsize: io block size
+ * @io_flags: extra parameters for the io function
  */
-void nfs_pageio_init(struct nfs_pageio_descriptor *desc, unsigned int bsize)
+void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
+		     struct inode *inode,
+		     int (*doio)(struct inode *, struct list_head *, size_t, int),
+		     unsigned int bsize,
+		     int io_flags)
 {
 	INIT_LIST_HEAD(&desc->pg_list);
+	desc->pg_bytes_written = 0;
 	desc->pg_count = 0;
 	desc->pg_bsize = bsize;
 	desc->pg_base = 0;
+	desc->pg_inode = inode;
+	desc->pg_doio = doio;
+	desc->pg_ioflags = io_flags;
+	desc->pg_error = 0;
 }
 
 /**
@@ -265,15 +277,15 @@ static int nfs_can_coalesce_requests(struct nfs_page *prev,
 }
 
 /**
- * nfs_pageio_add_request - Attempt to coalesce a request into a page list.
+ * nfs_pageio_do_add_request - Attempt to coalesce a request into a page list.
  * @desc: destination io descriptor
  * @req: request
  *
  * Returns true if the request 'req' was successfully coalesced into the
  * existing list of pages 'desc'.
  */
-static int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
-				  struct nfs_page *req)
+static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
+				     struct nfs_page *req)
 {
 	size_t newlen = req->wb_bytes;
 
@@ -301,6 +313,46 @@ static int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 	return 1;
 }
 
+/*
+ * Helper for nfs_pageio_add_request and nfs_pageio_complete
+ */
+static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
+{
+	if (!list_empty(&desc->pg_list)) {
+		int error = desc->pg_doio(desc->pg_inode,
+					  &desc->pg_list,
+					  desc->pg_count,
+					  desc->pg_ioflags);
+		if (error < 0)
+			desc->pg_error = error;
+		else
+			desc->pg_bytes_written += desc->pg_count;
+	}
+	if (list_empty(&desc->pg_list)) {
+		desc->pg_count = 0;
+		desc->pg_base = 0;
+	}
+}
+
+/**
+ * nfs_pageio_add_request - Attempt to coalesce a request into a page list.
+ * @desc: destination io descriptor
+ * @req: request
+ *
+ * Returns true if the request 'req' was successfully coalesced into the
+ * existing list of pages 'desc'.
+ */
+static int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
+				  struct nfs_page *req)
+{
+	while (!nfs_pageio_do_add_request(desc, req)) {
+		nfs_pageio_doio(desc);
+		if (desc->pg_error < 0)
+			return 0;
+	}
+	return 1;
+}
+
 /**
  * nfs_pageio_add_list - Split coalesced requests out from a list.
  * @desc: destination io descriptor
@@ -318,6 +370,15 @@ void nfs_pageio_add_list(struct nfs_pageio_descriptor *desc,
 		if (!nfs_pageio_add_request(desc, req))
 			break;
 	}
+}
+
+/**
+ * nfs_pageio_complete - Complete I/O on an nfs_pageio_descriptor
+ * @desc: pointer to io descriptor
+ */
+void nfs_pageio_complete(struct nfs_pageio_descriptor *desc)
+{
+	nfs_pageio_doio(desc);
 }
 
 #define NFS_SCAN_MAXENTRIES 16
