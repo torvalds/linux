@@ -291,6 +291,9 @@ static struct CARD {
 
 	{ 0x15409511, BTTV_BOARD_ACORP_Y878F, "Acorp Y878F" },
 
+	{ 0x53534149, BTTV_BOARD_SSAI_SECURITY, "SSAI Security Video Interface" },
+	{ 0x5353414a, BTTV_BOARD_SSAI_ULTRASOUND, "SSAI Ultrasound Video Interface" },
+
 	/* likely broken, vendor id doesn't match the other magic views ...
 	 * { 0xa0fca04f, BTTV_BOARD_MAGICTVIEW063, "Guillemot Maxi TV Video 3" }, */
 
@@ -2906,6 +2909,28 @@ struct tvcard bttv_tvcards[] = {
 		.pll            = PLL_28,
 		.has_radio      = 1,
 		.has_remote     = 1,
+	},
+	[BTTV_BOARD_SSAI_SECURITY] = {
+		.name		= "SSAI Security Video Interface",
+		.video_inputs	= 4,
+		.audio_inputs	= 0,
+		.tuner		= -1,
+		.svhs		= -1,
+		.muxsel		= { 0, 1, 2, 3 },
+		.tuner_type	= -1,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
+	[BTTV_BOARD_SSAI_ULTRASOUND] = {
+		.name		= "SSAI Ultrasound Video Interface",
+		.video_inputs	= 2,
+		.audio_inputs	= 0,
+		.tuner		= -1,
+		.svhs		= 1,
+		.muxsel		= { 2, 0, 1, 3 },
+		.tuner_type	= -1,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
 	},
 };
 

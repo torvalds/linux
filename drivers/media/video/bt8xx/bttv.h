@@ -168,6 +168,8 @@
 #define BTTV_BOARD_SABRENT_TVFM   	   0x8e
 #define BTTV_BOARD_HAUPPAUGE_IMPACTVCB     0x8f
 #define BTTV_BOARD_MACHTV_MAGICTV          0x90
+#define BTTV_BOARD_SSAI_SECURITY	   0x91
+#define BTTV_BOARD_SSAI_ULTRASOUND	   0x92
 
 /* more card-specific defines */
 #define PT2254_L_CHANNEL 0x10

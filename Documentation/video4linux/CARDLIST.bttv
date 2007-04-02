@@ -143,3 +143,5 @@
 142 -> Sabrent TV-FM (bttv version)
 143 -> Hauppauge ImpactVCB (bt878)                         [0070:13eb]
 144 -> MagicTV
+145 -> SSAI Security Video Interface                       [4149:5353]
+146 -> SSAI Ultrasound Video Interface                     [414a:5353]
