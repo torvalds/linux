@@ -472,7 +472,7 @@ static void ether1394_reset_priv(struct net_device *dev, int set_mtu)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	memset(priv->ud_list, 0, sizeof(struct node_entry*) * ALL_NODES);
+	memset(priv->ud_list, 0, sizeof(priv->ud_list));
 	priv->bc_maxpayload = 512;
 
 	/* Determine speed limit */
