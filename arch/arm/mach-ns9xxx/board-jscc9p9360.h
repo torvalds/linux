@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-ns9xxx/processor.h
+ * arch/arm/mach-ns9xxx/board-jscc9p9360.h
  *
  * Copyright (C) 2006 by Digi International Inc.
  * All rights reserved.
@@ -8,12 +8,6 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#ifndef __ASM_ARCH_PROCESSOR_H
-#define __ASM_ARCH_PROCESSOR_H
+#include <linux/init.h>
 
-#include <asm/mach-types.h>
-
-#define processor_is_ns9360()	(machine_is_cc9p9360dev()		\
-		|| machine_is_cc9p9360js())
-
-#endif /* ifndef __ASM_ARCH_PROCESSOR_H */
+void __init board_jscc9p9360_init_machine(void);
