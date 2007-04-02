@@ -354,13 +354,11 @@ static int eth1394_probe(struct device *dev)
 	if (!hi)
 		return -ENOENT;
 
-	new_node = kmalloc(sizeof(*new_node),
-			   in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+	new_node = kmalloc(sizeof(*new_node), GFP_KERNEL);
 	if (!new_node)
 		return -ENOMEM;
 
-	node_info = kmalloc(sizeof(*node_info),
-			    in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+	node_info = kmalloc(sizeof(*node_info), GFP_KERNEL);
 	if (!node_info) {
 		kfree(new_node);
 		return -ENOMEM;
@@ -435,13 +433,11 @@ static int eth1394_update(struct unit_directory *ud)
 	if (node)
 		return 0;
 
-	node = kmalloc(sizeof(*node),
-		       in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+	node = kmalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
 
-	node_info = kmalloc(sizeof(*node_info),
-			    in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+	node_info = kmalloc(sizeof(*node_info), GFP_KERNEL);
 	if (!node_info) {
 		kfree(node);
 		return -ENOMEM;
