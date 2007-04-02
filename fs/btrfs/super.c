@@ -1316,7 +1316,6 @@ static void btrfs_destroy_inode(struct inode *inode)
 	WARN_ON(ei->magic != 0xDEADBEEF);
 	WARN_ON(ei->magic2 != 0xDEADBEAF);
 	WARN_ON(!list_empty(&inode->i_dentry));
-	WARN_ON(inode->i_ino == 1);
 	WARN_ON(inode->i_data.nrpages);
 
 	ei->magic = 0;

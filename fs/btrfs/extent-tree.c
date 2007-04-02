@@ -249,8 +249,6 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		btrfs_set_super_blocks_used(info->disk_super,
 					    super_blocks_used - num_blocks);
 		ret = btrfs_del_item(trans, extent_root, path);
-		if (extent_root->fs_info->last_insert.objectid > blocknr)
-			extent_root->fs_info->last_insert.objectid = blocknr;
 		if (ret)
 			BUG();
 	}

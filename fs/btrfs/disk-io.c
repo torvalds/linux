@@ -160,7 +160,6 @@ static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 	int ret;
 	struct btrfs_node *node;
 
-	return 0;
 	ret = btrfs_csum_data(root, bh->b_data + BTRFS_CSUM_SIZE,
 			      bh->b_size - BTRFS_CSUM_SIZE, result);
 	if (ret)

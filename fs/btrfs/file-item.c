@@ -110,6 +110,7 @@ int btrfs_csum_verify_file_block(struct btrfs_root *root,
 	file_key.offset = offset;
 	file_key.flags = 0;
 	btrfs_set_key_type(&file_key, BTRFS_CSUM_ITEM_KEY);
+	mutex_lock(&root->fs_info->fs_mutex);
 	ret = btrfs_search_slot(NULL, root, &file_key, path, 0, 0);
 	if (ret)
 		goto fail;
@@ -123,6 +124,7 @@ int btrfs_csum_verify_file_block(struct btrfs_root *root,
 fail:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
+	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret;
 }
 
