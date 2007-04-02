@@ -4717,8 +4717,8 @@ static void fill_result_tf(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
-	ap->ops->tf_read(ap, &qc->result_tf);
 	qc->result_tf.flags = qc->tf.flags;
+	ap->ops->tf_read(ap, &qc->result_tf);
 }
 
 /**
