@@ -1178,6 +1178,8 @@ static struct platform_device omap_mpuio_device = {
 
 static inline void mpuio_init(void)
 {
+	platform_set_drvdata(&omap_mpuio_device, &gpio_bank_1610[0]);
+
 	if (platform_driver_register(&omap_mpuio_driver) == 0)
 		(void) platform_device_register(&omap_mpuio_device);
 }
