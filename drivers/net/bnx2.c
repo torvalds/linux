@@ -54,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5.6"
-#define DRV_MODULE_RELDATE	"March 28, 2007"
+#define DRV_MODULE_VERSION	"1.5.7"
+#define DRV_MODULE_RELDATE	"March 29, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -3099,20 +3099,18 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 
 	if ((align_start = (offset32 & 3))) {
 		offset32 &= ~3;
-		len32 += (4 - align_start);
+		len32 += align_start;
+		if (len32 < 4)
+			len32 = 4;
 		if ((rc = bnx2_nvram_read(bp, offset32, start, 4)))
 			return rc;
 	}
 
 	if (len32 & 3) {
-	       	if ((len32 > 4) || !align_start) {
-			align_end = 4 - (len32 & 3);
-			len32 += align_end;
-			if ((rc = bnx2_nvram_read(bp, offset32 + len32 - 4,
-				end, 4))) {
-				return rc;
-			}
-		}
+		align_end = 4 - (len32 & 3);
+		len32 += align_end;
+		if ((rc = bnx2_nvram_read(bp, offset32 + len32 - 4, end, 4)))
+			return rc;
 	}
 
 	if (align_start || align_end) {
@@ -3187,17 +3185,17 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 		if ((rc = bnx2_enable_nvram_write(bp)) != 0)
 			goto nvram_write_end;
 
-		/* Erase the page */
-		if ((rc = bnx2_nvram_erase_page(bp, page_start)) != 0)
-			goto nvram_write_end;
-
-		/* Re-enable the write again for the actual write */
-		bnx2_enable_nvram_write(bp);
-
 		/* Loop to write back the buffer data from page_start to
 		 * data_start */
 		i = 0;
 		if (bp->flash_info->buffered == 0) {
+			/* Erase the page */
+			if ((rc = bnx2_nvram_erase_page(bp, page_start)) != 0)
+				goto nvram_write_end;
+
+			/* Re-enable the write again for the actual write */
+			bnx2_enable_nvram_write(bp);
+
 			for (addr = page_start; addr < data_start;
 				addr += 4, i += 4) {
 

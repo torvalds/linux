@@ -143,7 +143,7 @@ int fib_rules_lookup(struct fib_rules_ops *ops, struct flowi *fl,
 		}
 	}
 
-	err = -ENETUNREACH;
+	err = -ESRCH;
 out:
 	rcu_read_unlock();
 
