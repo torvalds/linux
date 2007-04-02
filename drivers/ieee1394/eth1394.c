@@ -867,12 +867,12 @@ static u16 ether1394_parse_encap(struct sk_buff *skb, struct net_device *dev,
 static int fragment_overlap(struct list_head *frag_list, int offset, int len)
 {
 	struct fragment_info *fi;
+	int end = offset + len;
 
-	list_for_each_entry(fi, frag_list, list) {
-		if ( ! ((offset > (fi->offset + fi->len - 1)) ||
-		       ((offset + len - 1) < fi->offset)))
+	list_for_each_entry(fi, frag_list, list)
+		if (offset < fi->offset + fi->len && end > fi->offset)
 			return 1;
-	}
+
 	return 0;
 }
 
