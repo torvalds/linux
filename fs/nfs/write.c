@@ -945,9 +945,8 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
 
 static int nfs_flush_list(struct inode *inode, struct list_head *head, int npages, int how)
 {
-	LIST_HEAD(one_request);
+	struct nfs_pageio_descriptor desc;
 	int (*flush_one)(struct inode *, struct list_head *, int);
-	struct nfs_page	*req;
 	int wpages = NFS_SERVER(inode)->wpages;
 	int wsize = NFS_SERVER(inode)->wsize;
 	int error;
@@ -961,16 +960,16 @@ static int nfs_flush_list(struct inode *inode, struct list_head *head, int npage
 		how |= FLUSH_STABLE;
 
 	do {
-		nfs_coalesce_requests(head, &one_request, wpages);
-		req = nfs_list_entry(one_request.next);
-		error = flush_one(inode, &one_request, how);
+		nfs_pageio_init(&desc, wsize);
+		nfs_pageio_add_list(&desc, head);
+		error = flush_one(inode, &desc.pg_list, how);
 		if (error < 0)
 			goto out_err;
 	} while (!list_empty(head));
 	return 0;
 out_err:
 	while (!list_empty(head)) {
-		req = nfs_list_entry(head->next);
+		struct nfs_page *req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_redirty_request(req);
 		nfs_end_page_writeback(req->wb_page);

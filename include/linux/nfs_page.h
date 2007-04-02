@@ -48,6 +48,13 @@ struct nfs_page {
 	struct nfs_writeverf	wb_verf;	/* Commit cookie */
 };
 
+struct nfs_pageio_descriptor {
+	struct list_head	pg_list;
+	size_t			pg_count;
+	size_t			pg_bsize;
+	unsigned int		pg_base;
+};
+
 #define NFS_WBACK_BUSY(req)	(test_bit(PG_BUSY,&(req)->wb_flags))
 
 extern	struct nfs_page *nfs_create_request(struct nfs_open_context *ctx,
@@ -64,8 +71,10 @@ extern	long nfs_scan_dirty(struct address_space *mapping,
 				struct list_head *dst);
 extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head, struct list_head *dst,
 			  unsigned long idx_start, unsigned int npages);
-extern	int nfs_coalesce_requests(struct list_head *, struct list_head *,
-				  unsigned int);
+extern  void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
+			     size_t iosize);
+extern	void nfs_pageio_add_list(struct nfs_pageio_descriptor *,
+				 struct list_head *);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
 extern  int nfs_set_page_writeback_locked(struct nfs_page *req);

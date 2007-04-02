@@ -328,24 +328,26 @@ out_bad:
 }
 
 static int
-nfs_pagein_list(struct list_head *head, int rpages)
+nfs_pagein_list(struct list_head *head, unsigned int rsize)
 {
-	LIST_HEAD(one_request);
-	struct nfs_page		*req;
-	int			error = 0;
-	unsigned int		pages = 0;
+	struct nfs_pageio_descriptor desc;
+	struct nfs_page *req;
+	unsigned int pages = 0;
+	int error = 0;
 
 	while (!list_empty(head)) {
-		pages += nfs_coalesce_requests(head, &one_request, rpages);
-		req = nfs_list_entry(one_request.next);
-		error = nfs_pagein_one(&one_request, req->wb_context->dentry->d_inode);
+		nfs_pageio_init(&desc, rsize);
+		nfs_pageio_add_list(&desc, head);
+		req = nfs_list_entry(desc.pg_list.next);
+		error = nfs_pagein_one(&desc.pg_list, req->wb_context->dentry->d_inode);
 		if (error < 0)
 			break;
+		pages += (desc.pg_count + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	}
-	if (error >= 0)
-		return pages;
 
 	nfs_async_read_error(head);
+	if (error >= 0)
+		return pages;
 	return error;
 }
 
@@ -595,7 +597,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 				filp->private_data);
 	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
 	if (!list_empty(&head)) {
-		int err = nfs_pagein_list(&head, server->rpages);
+		int err = nfs_pagein_list(&head, server->rsize);
 		if (!ret)
 			nfs_add_stats(inode, NFSIOS_READPAGES, err);
 			ret = err;
