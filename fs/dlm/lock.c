@@ -2301,14 +2301,45 @@ int dlm_unlock(dlm_lockspace_t *lockspace,
  * receive_lookup_reply		send_lookup_reply
  */
 
+static int _create_message(struct dlm_ls *ls, int mb_len,
+			   int to_nodeid, int mstype,
+			   struct dlm_message **ms_ret,
+			   struct dlm_mhandle **mh_ret)
+{
+	struct dlm_message *ms;
+	struct dlm_mhandle *mh;
+	char *mb;
+
+	/* get_buffer gives us a message handle (mh) that we need to
+	   pass into lowcomms_commit and a message buffer (mb) that we
+	   write our data into */
+
+	mh = dlm_lowcomms_get_buffer(to_nodeid, mb_len, GFP_KERNEL, &mb);
+	if (!mh)
+		return -ENOBUFS;
+
+	memset(mb, 0, mb_len);
+
+	ms = (struct dlm_message *) mb;
+
+	ms->m_header.h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	ms->m_header.h_lockspace = ls->ls_global_id;
+	ms->m_header.h_nodeid = dlm_our_nodeid();
+	ms->m_header.h_length = mb_len;
+	ms->m_header.h_cmd = DLM_MSG;
+
+	ms->m_type = mstype;
+
+	*mh_ret = mh;
+	*ms_ret = ms;
+	return 0;
+}
+
 static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 			  int to_nodeid, int mstype,
 			  struct dlm_message **ms_ret,
 			  struct dlm_mhandle **mh_ret)
 {
-	struct dlm_message *ms;
-	struct dlm_mhandle *mh;
-	char *mb;
 	int mb_len = sizeof(struct dlm_message);
 
 	switch (mstype) {
@@ -2327,29 +2358,8 @@ static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 		break;
 	}
 
-	/* get_buffer gives us a message handle (mh) that we need to
-	   pass into lowcomms_commit and a message buffer (mb) that we
-	   write our data into */
-
-	mh = dlm_lowcomms_get_buffer(to_nodeid, mb_len, GFP_KERNEL, &mb);
-	if (!mh)
-		return -ENOBUFS;
-
-	memset(mb, 0, mb_len);
-
-	ms = (struct dlm_message *) mb;
-
-	ms->m_header.h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
-	ms->m_header.h_lockspace = r->res_ls->ls_global_id;
-	ms->m_header.h_nodeid = dlm_our_nodeid();
-	ms->m_header.h_length = mb_len;
-	ms->m_header.h_cmd = DLM_MSG;
-
-	ms->m_type = mstype;
-
-	*mh_ret = mh;
-	*ms_ret = ms;
-	return 0;
+	return _create_message(r->res_ls, mb_len, to_nodeid, mstype,
+			       ms_ret, mh_ret);
 }
 
 /* further lowcomms enhancements or alternate implementations may make
