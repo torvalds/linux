@@ -7,15 +7,18 @@ struct btrfs_transaction {
 	int in_commit;
 	int use_count;
 	int commit_done;
+	int magic;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
 };
 
 struct btrfs_trans_handle {
+	int magic;
 	u64 transid;
 	unsigned long blocks_reserved;
 	unsigned long blocks_used;
 	struct btrfs_transaction *transaction;
+	int magic2;
 };
 
 

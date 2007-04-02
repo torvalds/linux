@@ -8,18 +8,6 @@
 #include "disk-io.h"
 #include "transaction.h"
 
-#define PATTERN 0xDEADBEEFUL
-static inline void check_pattern(struct buffer_head *buf)
-{
-	if (buf->b_private != (void *)PATTERN)
-		WARN_ON(1);
-}
-
-static inline void set_pattern(struct buffer_head *buf)
-{
-	buf->b_private = (void *)PATTERN;
-}
-
 static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 {
 	struct btrfs_node *node = btrfs_buffer_node(buf);
@@ -35,6 +23,8 @@ static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 
 struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr)
 {
+	return sb_find_get_block(root->fs_info->sb, blocknr);
+#if 0
 	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
 	int blockbits = root->fs_info->sb->s_blocksize_bits;
 	unsigned long index = blocknr >> (PAGE_CACHE_SHIFT - blockbits);
@@ -42,6 +32,7 @@ struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr)
 	struct buffer_head *bh;
 	struct buffer_head *head;
 	struct buffer_head *ret = NULL;
+
 
 	page = find_lock_page(mapping, index);
 	if (!page)
@@ -64,15 +55,17 @@ out_unlock:
 	unlock_page(page);
 	if (ret) {
 		touch_buffer(ret);
-		check_pattern(ret);
 	}
 	page_cache_release(page);
 	return ret;
+#endif
 }
 
 struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 blocknr)
 {
+	return sb_getblk(root->fs_info->sb, blocknr);
+#if 0
 	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
 	int blockbits = root->fs_info->sb->s_blocksize_bits;
 	unsigned long index = blocknr >> (PAGE_CACHE_SHIFT - blockbits);
@@ -95,7 +88,6 @@ struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 			bh->b_bdev = root->fs_info->sb->s_bdev;
 			bh->b_blocknr = first_block;
 			set_buffer_mapped(bh);
-			set_pattern(bh);
 		}
 		if (bh->b_blocknr == blocknr) {
 			ret = bh;
@@ -111,6 +103,7 @@ out_unlock:
 		touch_buffer(ret);
 	page_cache_release(page);
 	return ret;
+#endif
 }
 
 static sector_t max_block(struct block_device *bdev)
@@ -225,6 +218,8 @@ static struct address_space_operations btree_aops = {
 
 struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 {
+	return sb_bread(root->fs_info->sb, blocknr);
+#if 0
 	struct buffer_head *bh = NULL;
 
 	bh = btrfs_find_create_tree_block(root, blocknr);
@@ -239,7 +234,6 @@ struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 		if (!buffer_uptodate(bh))
 			goto fail;
 		csum_tree_block(root, bh, 1);
-		set_pattern(bh);
 	} else {
 		unlock_buffer(bh);
 	}
@@ -250,6 +244,7 @@ fail:
 	brelse(bh);
 	return NULL;
 
+#endif
 }
 
 int dirty_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -268,14 +263,14 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	return 0;
 }
 
-static int __setup_root(struct btrfs_super_block *super,
+static int __setup_root(int blocksize,
 			struct btrfs_root *root,
 			struct btrfs_fs_info *fs_info,
 			u64 objectid)
 {
 	root->node = NULL;
 	root->commit_root = NULL;
-	root->blocksize = btrfs_super_blocksize(super);
+	root->blocksize = blocksize;
 	root->ref_cows = 0;
 	root->fs_info = fs_info;
 	memset(&root->root_key, 0, sizeof(root->root_key));
@@ -283,7 +278,7 @@ static int __setup_root(struct btrfs_super_block *super,
 	return 0;
 }
 
-static int find_and_setup_root(struct btrfs_super_block *super,
+static int find_and_setup_root(int blocksize,
 			       struct btrfs_root *tree_root,
 			       struct btrfs_fs_info *fs_info,
 			       u64 objectid,
@@ -291,7 +286,7 @@ static int find_and_setup_root(struct btrfs_super_block *super,
 {
 	int ret;
 
-	__setup_root(super, root, fs_info, objectid);
+	__setup_root(blocksize, root, fs_info, objectid);
 	ret = btrfs_find_last_root(tree_root, objectid,
 				   &root->root_item, &root->root_key);
 	BUG_ON(ret);
@@ -302,9 +297,7 @@ static int find_and_setup_root(struct btrfs_super_block *super,
 	return 0;
 }
 
-struct btrfs_root *open_ctree(struct super_block *sb,
-			      struct buffer_head *sb_buffer,
-			      struct btrfs_super_block *disk_super)
+struct btrfs_root *open_ctree(struct super_block *sb)
 {
 	struct btrfs_root *root = kmalloc(sizeof(struct btrfs_root),
 					  GFP_NOFS);
@@ -317,13 +310,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	struct btrfs_fs_info *fs_info = kmalloc(sizeof(*fs_info),
 						GFP_NOFS);
 	int ret;
+	struct btrfs_super_block *disk_super;
 
-	if (!btrfs_super_root(disk_super)) {
-		return NULL;
-	}
 	init_bit_radix(&fs_info->pinned_radix);
 	init_bit_radix(&fs_info->pending_del_radix);
-	sb_set_blocksize(sb, sb_buffer->b_size);
+	sb_set_blocksize(sb, 4096);
 	fs_info->running_transaction = NULL;
 	fs_info->fs_root = root;
 	fs_info->tree_root = tree_root;
@@ -331,55 +322,59 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->inode_root = inode_root;
 	fs_info->last_inode_alloc = 0;
 	fs_info->last_inode_alloc_dirid = 0;
-	fs_info->disk_super = disk_super;
 	fs_info->sb = sb;
+	fs_info->btree_inode = NULL;
+#if 0
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
+	fs_info->btree_inode->i_nlink = 1;
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
 	insert_inode_hash(fs_info->btree_inode);
-
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
+#endif
 	fs_info->hash_tfm = crypto_alloc_hash("sha256", 0, CRYPTO_ALG_ASYNC);
 	spin_lock_init(&fs_info->hash_lock);
-
 	if (!fs_info->hash_tfm || IS_ERR(fs_info->hash_tfm)) {
 		printk("failed to allocate sha256 hash\n");
 		return NULL;
 	}
-
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
 	memset(&fs_info->current_insert, 0, sizeof(fs_info->current_insert));
 	memset(&fs_info->last_insert, 0, sizeof(fs_info->last_insert));
 
-	__setup_root(disk_super, tree_root, fs_info, BTRFS_ROOT_TREE_OBJECTID);
-
-	fs_info->sb_buffer = read_tree_block(tree_root, sb_buffer->b_blocknr);
+	__setup_root(sb->s_blocksize, tree_root,
+		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
+	fs_info->sb_buffer = read_tree_block(tree_root,
+					     BTRFS_SUPER_INFO_OFFSET /
+					     sb->s_blocksize);
 
 	if (!fs_info->sb_buffer) {
 printk("failed2\n");
 		return NULL;
 	}
-	brelse(sb_buffer);
-	sb_buffer = NULL;
 	disk_super = (struct btrfs_super_block *)fs_info->sb_buffer->b_data;
+	if (!btrfs_super_root(disk_super)) {
+		return NULL;
+	}
 	fs_info->disk_super = disk_super;
-
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super));
 	BUG_ON(!tree_root->node);
 
-	ret = find_and_setup_root(disk_super, tree_root, fs_info,
+	mutex_lock(&fs_info->fs_mutex);
+	ret = find_and_setup_root(sb->s_blocksize, tree_root, fs_info,
 				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
 	BUG_ON(ret);
 
-	ret = find_and_setup_root(disk_super, tree_root, fs_info,
+	ret = find_and_setup_root(sb->s_blocksize, tree_root, fs_info,
 				  BTRFS_INODE_MAP_OBJECTID, inode_root);
 	BUG_ON(ret);
 
-	ret = find_and_setup_root(disk_super, tree_root, fs_info,
+	ret = find_and_setup_root(sb->s_blocksize, tree_root, fs_info,
 				  BTRFS_FS_TREE_OBJECTID, root);
+	mutex_unlock(&fs_info->fs_mutex);
 	BUG_ON(ret);
 	root->commit_root = root->node;
 	get_bh(root->node);
@@ -392,9 +387,11 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root)
 {
 	struct buffer_head *bh = root->fs_info->sb_buffer;
+
 	btrfs_set_super_root(root->fs_info->disk_super,
 			     root->fs_info->tree_root->node->b_blocknr);
 	lock_buffer(bh);
+	WARN_ON(atomic_read(&bh->b_count) < 1);
 	clear_buffer_dirty(bh);
 	csum_tree_block(root, bh, 0);
 	bh->b_end_io = end_buffer_write_sync;
@@ -413,6 +410,7 @@ int close_ctree(struct btrfs_root *root)
 	int ret;
 	struct btrfs_trans_handle *trans;
 
+	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_commit_transaction(trans, root);
 	/* run commit again to  drop the original snapshot */
@@ -421,6 +419,7 @@ int close_ctree(struct btrfs_root *root)
 	ret = btrfs_write_and_wait_transaction(NULL, root);
 	BUG_ON(ret);
 	write_ctree_super(NULL, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
 
 	if (root->node)
 		btrfs_block_release(root, root->node);
@@ -436,8 +435,8 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_block_release(root, root->commit_root);
 	btrfs_block_release(root, root->fs_info->sb_buffer);
 	crypto_free_hash(root->fs_info->hash_tfm);
-	truncate_inode_pages(root->fs_info->btree_inode->i_mapping, 0);
-	iput(root->fs_info->btree_inode);
+	// truncate_inode_pages(root->fs_info->btree_inode->i_mapping, 0);
+	// iput(root->fs_info->btree_inode);
 	kfree(root->fs_info->extent_root);
 	kfree(root->fs_info->inode_root);
 	kfree(root->fs_info->tree_root);
@@ -448,7 +447,6 @@ int close_ctree(struct btrfs_root *root)
 
 void btrfs_block_release(struct btrfs_root *root, struct buffer_head *buf)
 {
-	check_pattern(buf);
-	brelse(buf);
+	// brelse(buf);
 }
 

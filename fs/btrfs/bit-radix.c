@@ -4,6 +4,7 @@
 #define BIT_ARRAY_BYTES 256
 #define BIT_RADIX_BITS_PER_ARRAY ((BIT_ARRAY_BYTES - sizeof(unsigned long)) * 8)
 
+extern struct kmem_cache *btrfs_bit_radix_cachep;
 int set_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 {
 	unsigned long *bits;
@@ -16,7 +17,7 @@ int set_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 
 	bits = radix_tree_lookup(radix, slot);
 	if (!bits) {
-		bits = kmalloc(BIT_ARRAY_BYTES, GFP_NOFS);
+		bits = kmem_cache_alloc(btrfs_bit_radix_cachep, GFP_NOFS);
 		if (!bits)
 			return -ENOMEM;
 		memset(bits + 1, 0, BIT_ARRAY_BYTES - sizeof(unsigned long));
@@ -68,12 +69,10 @@ int clear_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 			break;
 		}
 	}
-
 	if (empty) {
 		bits = radix_tree_delete(radix, slot);
-		synchronize_rcu();
 		BUG_ON(!bits);
-		kfree(bits);
+		kmem_cache_free(btrfs_bit_radix_cachep, bits);
 	}
 #endif
 	return 0;

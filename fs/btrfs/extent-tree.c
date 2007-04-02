@@ -173,12 +173,16 @@ static int pin_down_block(struct btrfs_root *root, u64 blocknr, int pending)
 
 	if (!pending) {
 		bh = btrfs_find_tree_block(root, blocknr);
-		if (bh && buffer_uptodate(bh)) {
-			header = btrfs_buffer_header(bh);
-			if (btrfs_header_generation(header) ==
-			    root->fs_info->running_transaction->transid) {
-				btrfs_block_release(root, bh);
-				return 0;
+		if (bh) {
+			if (buffer_uptodate(bh)) {
+				u64 transid =
+				    root->fs_info->running_transaction->transid;
+				header = btrfs_buffer_header(bh);
+				if (btrfs_header_generation(header) ==
+				    transid) {
+					btrfs_block_release(root, bh);
+					return 0;
+				}
 			}
 			btrfs_block_release(root, bh);
 		}
@@ -539,6 +543,8 @@ static int walk_down_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 	 */
 	while(*level >= 0) {
 		cur = path->nodes[*level];
+		if (btrfs_header_level(btrfs_buffer_header(cur)) != *level)
+			WARN_ON(1);
 		if (path->slots[*level] >=
 		    btrfs_header_nritems(btrfs_buffer_header(cur)))
 			break;

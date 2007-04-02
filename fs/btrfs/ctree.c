@@ -16,6 +16,16 @@ static int balance_node_right(struct btrfs_trans_handle *trans, struct
 static int del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_path *path, int level, int slot);
 
+struct btrfs_path *btrfs_alloc_path(void)
+{
+	return kmem_cache_alloc(btrfs_path_cachep, GFP_NOFS);
+}
+
+void btrfs_free_path(struct btrfs_path *p)
+{
+	kmem_cache_free(btrfs_path_cachep, p);
+}
+
 inline void btrfs_init_path(struct btrfs_path *p)
 {
 	memset(p, 0, sizeof(*p));
@@ -47,17 +57,18 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 	cow = btrfs_alloc_free_block(trans, root);
 	cow_node = btrfs_buffer_node(cow);
+	if (buf->b_size != root->blocksize || cow->b_size != root->blocksize)
+		WARN_ON(1);
 	memcpy(cow_node, btrfs_buffer_node(buf), root->blocksize);
 	btrfs_set_header_blocknr(&cow_node->header, cow->b_blocknr);
 	btrfs_set_header_generation(&cow_node->header, trans->transid);
-	*cow_ret = cow;
-	btrfs_mark_buffer_dirty(cow);
 	btrfs_inc_ref(trans, root, buf);
 	if (buf == root->node) {
 		root->node = cow;
 		get_bh(cow);
-		if (buf != root->commit_root)
+		if (buf != root->commit_root) {
 			btrfs_free_extent(trans, root, buf->b_blocknr, 1, 1);
+		}
 		btrfs_block_release(root, buf);
 	} else {
 		btrfs_set_node_blockptr(btrfs_buffer_node(parent), parent_slot,
@@ -66,6 +77,7 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 		btrfs_free_extent(trans, root, buf->b_blocknr, 1, 1);
 	}
 	btrfs_block_release(root, buf);
+	*cow_ret = cow;
 	return 0;
 }
 
@@ -477,9 +489,12 @@ again:
 					       p->slots[level + 1],
 					       &cow_buf);
 			b = cow_buf;
+			c = btrfs_buffer_node(b);
 		}
 		BUG_ON(!cow && ins_len);
-		c = btrfs_buffer_node(b);
+		if (level != btrfs_header_level(&c->header))
+			WARN_ON(1);
+		level = btrfs_header_level(&c->header);
 		p->nodes[level] = b;
 		ret = check_block(root, p, level);
 		if (ret)
@@ -1257,19 +1272,22 @@ int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		      data_size)
 {
 	int ret = 0;
-	struct btrfs_path path;
+	struct btrfs_path *path;
 	u8 *ptr;
 
-	btrfs_init_path(&path);
-	ret = btrfs_insert_empty_item(trans, root, &path, cpu_key, data_size);
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+	btrfs_init_path(path);
+	ret = btrfs_insert_empty_item(trans, root, path, cpu_key, data_size);
 	if (!ret) {
-		ptr = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
-				     path.slots[0], u8);
-		btrfs_memcpy(root, path.nodes[0]->b_data,
+		ptr = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
+				     path->slots[0], u8);
+		btrfs_memcpy(root, path->nodes[0]->b_data,
 			     ptr, data, data_size);
-		btrfs_mark_buffer_dirty(path.nodes[0]);
+		btrfs_mark_buffer_dirty(path->nodes[0]);
 	}
-	btrfs_release_path(root, &path);
+	btrfs_release_path(root, path);
+	btrfs_free_path(path);
 	return ret;
 }
 

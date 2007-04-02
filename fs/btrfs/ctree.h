@@ -7,6 +7,7 @@
 
 struct btrfs_trans_handle;
 struct btrfs_transaction;
+extern struct kmem_cache *btrfs_path_cachep;
 
 #define BTRFS_MAGIC "_BtRfS_M"
 
@@ -888,6 +889,8 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, struct btrfs_path *p, int
 		      ins_len, int cow);
 void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);
+struct btrfs_path *btrfs_alloc_path(void);
+void btrfs_free_path(struct btrfs_path *p);
 void btrfs_init_path(struct btrfs_path *p);
 int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_path *path);
