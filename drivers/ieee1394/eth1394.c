@@ -1527,7 +1527,6 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 	nodeid_t dest_node;
 	eth1394_tx_type tx_type;
-	int ret = 0;
 	unsigned int tx_len;
 	unsigned int max_payload;
 	u16 dg_size;
@@ -1537,26 +1536,20 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 	struct eth1394_node_info *node_info = NULL;
 
 	ptask = kmem_cache_alloc(packet_task_cache, GFP_ATOMIC);
-	if (ptask == NULL) {
-		ret = -ENOMEM;
+	if (ptask == NULL)
 		goto fail;
-	}
 
 	/* XXX Ignore this for now. Noticed that when MacOSX is the IRM,
 	 * it does not set our validity bit. We need to compensate for
 	 * that somewhere else, but not in eth1394. */
 #if 0
-	if ((priv->host->csr.broadcast_channel & 0xc0000000) != 0xc0000000) {
-		ret = -EAGAIN;
+	if ((priv->host->csr.broadcast_channel & 0xc0000000) != 0xc0000000)
 		goto fail;
-	}
 #endif
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (!skb) {
-		ret = -ENOMEM;
+	if (!skb)
 		goto fail;
-	}
 
 	/* Get rid of the fake eth1394 header, but save a pointer */
 	eth = (struct eth1394hdr *)skb->data;
@@ -1583,16 +1576,13 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 
 		node = eth1394_find_node_guid(&priv->ip_node_list,
 					      be64_to_cpu(guid));
-		if (!node) {
-			ret = -EAGAIN;
+		if (!node)
 			goto fail;
-		}
+
 		node_info =
 		    (struct eth1394_node_info *)node->ud->device.driver_data;
-		if (node_info->fifo == CSR1212_INVALID_ADDR_SPACE) {
-			ret = -EAGAIN;
+		if (node_info->fifo == CSR1212_INVALID_ADDR_SPACE)
 			goto fail;
-		}
 
 		dest_node = node->ud->ne->nodeid;
 		max_payload = node_info->maxpayload;
@@ -1639,7 +1629,7 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 		goto fail;
 
 	netif_wake_queue(dev);
-	return 0;
+	return NETDEV_TX_OK;
 fail:
 	if (ptask)
 		kmem_cache_free(packet_task_cache, ptask);
@@ -1655,7 +1645,15 @@ fail:
 	if (netif_queue_stopped(dev))
 		netif_wake_queue(dev);
 
-	return 0;  /* returning non-zero causes serious problems */
+	/*
+	 * FIXME: According to a patch from 2003-02-26, "returning non-zero
+	 * causes serious problems" here, allegedly.  Before that patch,
+	 * -ERRNO was returned which is not appropriate under Linux 2.6.
+	 * Perhaps more needs to be done?  Stop the queue in serious
+	 * conditions and restart it elsewhere?
+	 */
+	/* return NETDEV_TX_BUSY; */
+	return NETDEV_TX_OK;
 }
 
 static void ether1394_get_drvinfo(struct net_device *dev,
