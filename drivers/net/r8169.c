@@ -2890,7 +2890,7 @@ static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
 	void __iomem *ioaddr = tp->mmio_addr;
 
 	if (!netif_running(dev))
-		goto out;
+		goto out_pci_suspend;
 
 	netif_device_detach(dev);
 	netif_stop_queue(dev);
@@ -2904,10 +2904,11 @@ static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	spin_unlock_irq(&tp->lock);
 
+out_pci_suspend:
 	pci_save_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), tp->wol_enabled);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-out:
+
 	return 0;
 }
 
@@ -2915,14 +2916,14 @@ static int rtl8169_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_enable_wake(pdev, PCI_D0, 0);
+
 	if (!netif_running(dev))
 		goto out;
 
 	netif_device_attach(dev);
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	pci_enable_wake(pdev, PCI_D0, 0);
 
 	rtl8169_schedule_work(dev, rtl8169_reset_task);
 out:
