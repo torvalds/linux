@@ -53,12 +53,14 @@ static ssize_t modalias_show (struct device *dev, struct device_attribute *attr,
 	buf += length;
 	while (cplen > 0) {
 		int l;
-		length += sprintf (buf, "C%s", compat);
-		buf += length;
+		l = sprintf (buf, "C%s", compat);
+		length += l;
+		buf += l;
 		l = strlen (compat) + 1;
 		compat += l;
 		cplen -= l;
 	}
+	length += sprintf(buf, "\n");
 
 	return length;
 }
