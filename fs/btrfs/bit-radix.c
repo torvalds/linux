@@ -62,7 +62,6 @@ int clear_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 	if (!bits)
 		return 0;
 	clear_bit(bit_slot, bits + 1);
-#if 0
 	for (i = 1; i < BIT_ARRAY_BYTES / sizeof(unsigned long); i++) {
 		if (bits[i]) {
 			empty = 0;
@@ -74,7 +73,6 @@ int clear_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 		BUG_ON(!bits);
 		kmem_cache_free(btrfs_bit_radix_cachep, bits);
 	}
-#endif
 	return 0;
 }
 

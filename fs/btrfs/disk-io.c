@@ -23,8 +23,6 @@ static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 
 struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr)
 {
-	return sb_find_get_block(root->fs_info->sb, blocknr);
-#if 0
 	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
 	int blockbits = root->fs_info->sb->s_blocksize_bits;
 	unsigned long index = blocknr >> (PAGE_CACHE_SHIFT - blockbits);
@@ -58,14 +56,11 @@ out_unlock:
 	}
 	page_cache_release(page);
 	return ret;
-#endif
 }
 
 struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 blocknr)
 {
-	return sb_getblk(root->fs_info->sb, blocknr);
-#if 0
 	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
 	int blockbits = root->fs_info->sb->s_blocksize_bits;
 	unsigned long index = blocknr >> (PAGE_CACHE_SHIFT - blockbits);
@@ -103,7 +98,6 @@ out_unlock:
 		touch_buffer(ret);
 	page_cache_release(page);
 	return ret;
-#endif
 }
 
 static sector_t max_block(struct block_device *bdev)
@@ -186,7 +180,6 @@ static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
-#if 0
 	struct buffer_head *bh;
 	struct btrfs_root *root = btrfs_sb(page->mapping->host->i_sb);
 	struct buffer_head *head;
@@ -201,7 +194,6 @@ static int btree_writepage(struct page *page, struct writeback_control *wbc)
 			csum_tree_block(root, bh, 0);
 		bh = bh->b_this_page;
 	} while (bh != head);
-#endif
 	return block_write_full_page(page, btree_get_block, wbc);
 }
 
@@ -218,8 +210,6 @@ static struct address_space_operations btree_aops = {
 
 struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 {
-	return sb_bread(root->fs_info->sb, blocknr);
-#if 0
 	struct buffer_head *bh = NULL;
 
 	bh = btrfs_find_create_tree_block(root, blocknr);
@@ -243,8 +233,6 @@ struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 fail:
 	brelse(bh);
 	return NULL;
-
-#endif
 }
 
 int dirty_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -323,8 +311,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->last_inode_alloc = 0;
 	fs_info->last_inode_alloc_dirid = 0;
 	fs_info->sb = sb;
-	fs_info->btree_inode = NULL;
-#if 0
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;
@@ -332,7 +318,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
 	insert_inode_hash(fs_info->btree_inode);
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
-#endif
 	fs_info->hash_tfm = crypto_alloc_hash("sha256", 0, CRYPTO_ALG_ASYNC);
 	spin_lock_init(&fs_info->hash_lock);
 	if (!fs_info->hash_tfm || IS_ERR(fs_info->hash_tfm)) {
@@ -435,8 +420,8 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_block_release(root, root->commit_root);
 	btrfs_block_release(root, root->fs_info->sb_buffer);
 	crypto_free_hash(root->fs_info->hash_tfm);
-	// truncate_inode_pages(root->fs_info->btree_inode->i_mapping, 0);
-	// iput(root->fs_info->btree_inode);
+	truncate_inode_pages(root->fs_info->btree_inode->i_mapping, 0);
+	iput(root->fs_info->btree_inode);
 	kfree(root->fs_info->extent_root);
 	kfree(root->fs_info->inode_root);
 	kfree(root->fs_info->tree_root);
@@ -447,6 +432,6 @@ int close_ctree(struct btrfs_root *root)
 
 void btrfs_block_release(struct btrfs_root *root, struct buffer_head *buf)
 {
-	// brelse(buf);
+	brelse(buf);
 }
 

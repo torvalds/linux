@@ -49,6 +49,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	ret = btrfs_lookup_inode(NULL, root, path, inode->i_ino, 0);
 	if (ret) {
 		btrfs_release_path(root, path);
+		btrfs_free_path(path);
 		mutex_unlock(&root->fs_info->fs_mutex);
 		make_bad_inode(inode);
 		return;
@@ -215,7 +216,6 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 		goto out;
 	}
 	btrfs_release_path(root, path);
-	btrfs_free_path(path);
 
 	/* now the directory is empty */
 	err = btrfs_unlink_trans(trans, root, dir, dentry);
@@ -223,6 +223,8 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 		inode->i_size = 0;
 	}
 out:
+	btrfs_release_path(root, path);
+	btrfs_free_path(path);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	ret = btrfs_end_transaction(trans, root);
 	if (ret && !err)
@@ -800,11 +802,10 @@ static int btrfs_sync_fs(struct super_block *sb, int wait)
 
 	sb->s_dirt = 0;
 	if (!wait) {
-		// filemap_flush(root->fs_info->btree_inode->i_mapping);
-		filemap_flush(root->fs_info->sb->s_bdev->bd_inode->i_mapping);
+		filemap_flush(root->fs_info->btree_inode->i_mapping);
 		return 0;
 	}
-	filemap_write_and_wait(root->fs_info->sb->s_bdev->bd_inode->i_mapping);
+	filemap_write_and_wait(root->fs_info->btree_inode->i_mapping);
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);

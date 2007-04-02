@@ -10,7 +10,7 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *fs_root,
 			     u64 dirid, u64 *objectid)
 {
-	struct btrfs_path path;
+	struct btrfs_path *path;
 	struct btrfs_key key;
 	int ret;
 	u64 hole_size = 0;
@@ -31,20 +31,22 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	btrfs_set_key_type(&search_key, BTRFS_INODE_MAP_ITEM_KEY);
 	search_key.offset = 0;
 
-	btrfs_init_path(&path);
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+	btrfs_init_path(path);
 	start_found = 0;
-	ret = btrfs_search_slot(trans, root, &search_key, &path, 0, 0);
+	ret = btrfs_search_slot(trans, root, &search_key, path, 0, 0);
 	if (ret < 0)
 		goto error;
 
-	if (path.slots[0] > 0)
-		path.slots[0]--;
+	if (path->slots[0] > 0)
+		path->slots[0]--;
 
 	while (1) {
-		l = btrfs_buffer_leaf(path.nodes[0]);
-		slot = path.slots[0];
+		l = btrfs_buffer_leaf(path->nodes[0]);
+		slot = path->slots[0];
 		if (slot >= btrfs_header_nritems(&l->header)) {
-			ret = btrfs_next_leaf(root, &path);
+			ret = btrfs_next_leaf(root, path);
 			if (ret == 0)
 				continue;
 			if (ret < 0)
@@ -72,17 +74,19 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 		}
 		start_found = 1;
 		last_ino = key.objectid + 1;
-		path.slots[0]++;
+		path->slots[0]++;
 	}
 	// FIXME -ENOSPC
 found:
 	root->fs_info->last_inode_alloc = *objectid;
 	root->fs_info->last_inode_alloc_dirid = dirid;
-	btrfs_release_path(root, &path);
+	btrfs_release_path(root, path);
+	btrfs_free_path(path);
 	BUG_ON(*objectid < search_start);
 	return 0;
 error:
-	btrfs_release_path(root, &path);
+	btrfs_release_path(root, path);
+	btrfs_free_path(path);
 	return ret;
 }
 
@@ -91,7 +95,7 @@ int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
 			   u64 objectid, struct btrfs_key *location)
 {
 	int ret = 0;
-	struct btrfs_path path;
+	struct btrfs_path *path;
 	struct btrfs_inode_map_item *inode_item;
 	struct btrfs_key key;
 	struct btrfs_root *inode_root = fs_root->fs_info->inode_root;
@@ -100,18 +104,21 @@ int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_INODE_MAP_ITEM_KEY);
 	key.offset = 0;
-	btrfs_init_path(&path);
-	ret = btrfs_insert_empty_item(trans, inode_root, &path, &key,
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+	btrfs_init_path(path);
+	ret = btrfs_insert_empty_item(trans, inode_root, path, &key,
 				      sizeof(struct btrfs_inode_map_item));
 	if (ret)
 		goto out;
 
-	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path.nodes[0]),
-				    path.slots[0], struct btrfs_inode_map_item);
+	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
+				    path->slots[0], struct btrfs_inode_map_item);
 	btrfs_cpu_key_to_disk(&inode_item->key, location);
-	btrfs_mark_buffer_dirty(path.nodes[0]);
+	btrfs_mark_buffer_dirty(path->nodes[0]);
 out:
-	btrfs_release_path(inode_root, &path);
+	btrfs_release_path(inode_root, path);
+	btrfs_free_path(path);
 	return ret;
 }
 
