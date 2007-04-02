@@ -135,7 +135,7 @@ static const dev_t base_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
 
 static DEFINE_SPINLOCK(port_lock);
 static struct ib_umad_port *umad_port[IB_UMAD_MAX_PORTS];
-static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS * 2);
+static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS);
 
 static void ib_umad_add_one(struct ib_device *device);
 static void ib_umad_remove_one(struct ib_device *device);
