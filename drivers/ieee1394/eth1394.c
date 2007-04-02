@@ -1023,7 +1023,7 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 	if (!ud) {
 		struct eth1394_node_ref *node;
 		node = eth1394_find_node_nodeid(&priv->ip_node_list, srcid);
-		if (!node) {
+		if (unlikely(!node)) {
 			HPSB_PRINT(KERN_ERR, "ether1394 rx: sender nodeid "
 				   "lookup failure: " NODE_BUS_FMT,
 				   NODE_BUS_ARGS(priv->host, srcid));
@@ -1048,7 +1048,7 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 		 * high level network layer. */
 
 		skb = dev_alloc_skb(len + dev->hard_header_len + 15);
-		if (!skb) {
+		if (unlikely(!skb)) {
 			ETH1394_PRINT_G(KERN_ERR, "Out of memory\n");
 			priv->stats.rx_dropped++;
 			return -1;
@@ -1203,7 +1203,7 @@ static int ether1394_write(struct hpsb_host *host, int srcid, int destid,
 	struct eth1394_host_info *hi;
 
 	hi = hpsb_get_hostinfo(&eth1394_highlevel, host);
-	if (hi == NULL) {
+	if (unlikely(!hi)) {
 		ETH1394_PRINT_G(KERN_ERR, "No net device at fw-host%d\n",
 				host->id);
 		return RCODE_ADDRESS_ERROR;
@@ -1229,7 +1229,7 @@ static void ether1394_iso(struct hpsb_iso *iso)
 	int nready;
 
 	hi = hpsb_get_hostinfo(&eth1394_highlevel, iso->host);
-	if (hi == NULL) {
+	if (unlikely(!hi)) {
 		ETH1394_PRINT_G(KERN_ERR, "No net device at fw-host%d\n",
 				iso->host->id);
 		return;
