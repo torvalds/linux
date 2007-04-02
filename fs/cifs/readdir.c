@@ -444,9 +444,6 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	cifsFile->invalidHandle = TRUE;
 	cifsFile->srch_inf.endOfSearch = FALSE;
 
-	if(file->f_path.dentry == NULL)
-		return -ENOENT;
-
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	if(cifs_sb == NULL)
 		return -EINVAL;
@@ -618,20 +615,10 @@ static int cifs_entry_is_dot(char *current_entry, struct cifsFileInfo *cfile)
    whether we can use the cached search results from the previous search */
 static int is_dir_changed(struct file * file)
 {
-	struct inode * inode;
-	struct cifsInodeInfo *cifsInfo;
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct cifsInodeInfo *cifsInfo = CIFS_I(inode);
 
-	if(file->f_path.dentry == NULL)
-		return 0;
-
-	inode = file->f_path.dentry->d_inode;
-
-	if(inode == NULL)
-		return 0;
-
-	cifsInfo = CIFS_I(inode);
-
-	if(cifsInfo->time == 0)
+	if (cifsInfo->time == 0)
 		return 1; /* directory was changed, perhaps due to unlink */
 	else
 		return 0;
@@ -851,9 +838,6 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 	if((scratch_buf == NULL) || (pfindEntry == NULL) || (pCifsF == NULL))
 		return -ENOENT;
 
-	if(file->f_path.dentry == NULL)
-		return -ENOENT;
-
 	rc = cifs_entry_is_dot(pfindEntry,pCifsF);
 	/* skip . and .. since we added them first */
 	if(rc != 0) 
@@ -996,11 +980,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	int max_len;
 
 	xid = GetXid();
-
-	if(file->f_path.dentry == NULL) {
-		FreeXid(xid);
-		return -EIO;
-	}
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;

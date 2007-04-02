@@ -529,8 +529,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		/* some applications poll for the file length in this strange
 		   way so we must seek to end on non-oplocked files by
 		   setting the revalidate time to zero */
-		if(file->f_path.dentry->d_inode)		
-			CIFS_I(file->f_path.dentry->d_inode)->time = 0;
+		CIFS_I(file->f_path.dentry->d_inode)->time = 0;
 
 		retval = cifs_revalidate(file->f_path.dentry);
 		if (retval < 0)

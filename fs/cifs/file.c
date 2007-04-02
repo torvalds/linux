@@ -792,12 +792,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	int xid, long_op;
 	struct cifsFileInfo *open_file;
 
-	if (file->f_path.dentry == NULL)
-		return -EBADF;
-
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	if (cifs_sb == NULL)
-		return -EBADF;
 
 	pTcon = cifs_sb->tcon;
 
@@ -807,14 +802,9 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 
 	if (file->private_data == NULL)
 		return -EBADF;
-	else
-		open_file = (struct cifsFileInfo *) file->private_data;
+	open_file = (struct cifsFileInfo *) file->private_data;
 	
 	xid = GetXid();
-	if (file->f_path.dentry->d_inode == NULL) {
-		FreeXid(xid);
-		return -EBADF;
-	}
 
 	if (*poffset > file->f_path.dentry->d_inode->i_size)
 		long_op = 2; /* writes past end of file can take a long time */
@@ -908,12 +898,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	int xid, long_op;
 	struct cifsFileInfo *open_file;
 
-	if (file->f_path.dentry == NULL)
-		return -EBADF;
-
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	if (cifs_sb == NULL)
-		return -EBADF;
 
 	pTcon = cifs_sb->tcon;
 
@@ -922,14 +907,9 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 
 	if (file->private_data == NULL)
 		return -EBADF;
-	else
-		open_file = (struct cifsFileInfo *)file->private_data;
+	open_file = (struct cifsFileInfo *)file->private_data;
 	
 	xid = GetXid();
-	if (file->f_path.dentry->d_inode == NULL) {
-		FreeXid(xid);
-		return -EBADF;
-	}
 
 	if (*poffset > file->f_path.dentry->d_inode->i_size)
 		long_op = 2; /* writes past end of file can take a long time */
@@ -957,11 +937,6 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 					return -EBADF;
 			}
 			if (open_file->invalidHandle) {
-				if ((file->f_path.dentry == NULL) ||
-				   (file->f_path.dentry->d_inode == NULL)) {
-					FreeXid(xid);
-					return total_written;
-				}
 				/* we could deadlock if we called
 				   filemap_fdatawait from here so tell
 				   reopen_file not to flush data to 
