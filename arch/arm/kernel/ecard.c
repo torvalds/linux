@@ -825,6 +825,7 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	ec->dev.bus = &ecard_bus_type;
 	ec->dev.dma_mask = &ec->dma_mask;
 	ec->dma_mask = (u64)0xffffffff;
+	ec->dev.coherent_dma_mask = ec->dma_mask;
 
 	if (slot < 4) {
 		ec_set_resource(ec, ECARD_RES_MEMC,
