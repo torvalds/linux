@@ -711,21 +711,13 @@ static int ether1394_header(struct sk_buff *skb, struct net_device *dev,
 static int ether1394_rebuild_header(struct sk_buff *skb)
 {
 	struct eth1394hdr *eth = (struct eth1394hdr *)skb->data;
-	struct net_device *dev = skb->dev;
 
-	switch (eth->h_proto) {
-
-#ifdef CONFIG_INET
-	case __constant_htons(ETH_P_IP):
+	if (eth->h_proto == htons(ETH_P_IP))
 		return arp_find((unsigned char *)&eth->h_dest, skb);
-#endif
-	default:
-		ETH1394_PRINT(KERN_DEBUG, dev->name,
-			      "unable to resolve type %04x addresses.\n",
-			      ntohs(eth->h_proto));
-		break;
-	}
 
+	ETH1394_PRINT(KERN_DEBUG, skb->dev->name,
+		      "unable to resolve type %04x addresses\n",
+		      ntohs(eth->h_proto));
 	return 0;
 }
 
