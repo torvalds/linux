@@ -258,10 +258,8 @@ static void ether1394_tx_timeout(struct net_device *dev)
 	struct hpsb_host *host =
 			((struct eth1394_priv *)netdev_priv(dev))->host;
 
-	ETH1394_PRINT(KERN_ERR, dev->name, "Timeout, resetting host %s\n",
-		      host->driver->name);
-	highlevel_host_reset(host);
-	netif_wake_queue(dev);
+	ETH1394_PRINT(KERN_ERR, dev->name, "Timeout, resetting host\n");
+	ether1394_host_reset(host);
 }
 
 static int ether1394_change_mtu(struct net_device *dev, int new_mtu)
