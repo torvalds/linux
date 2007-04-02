@@ -133,13 +133,13 @@ void osk_leds_event(led_event_t evt)
 		mistral_setled();
 		break;
 
-	case led_idle_start:
-		hw_led_state |= IDLE_LED;
+	case led_idle_start:	/* idle == off */
+		hw_led_state &= ~IDLE_LED;
 		mistral_setled();
 		break;
 
 	case led_idle_end:
-		hw_led_state &= ~IDLE_LED;
+		hw_led_state |= IDLE_LED;
 		mistral_setled();
 		break;
 
