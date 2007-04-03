@@ -94,6 +94,7 @@ static void msi_set_mask_bit(unsigned int irq, int flag)
 		int offset = entry->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE +
 			PCI_MSIX_ENTRY_VECTOR_CTRL_OFFSET;
 		writel(flag, entry->mask_base + offset);
+		readl(entry->mask_base + offset);
 		break;
 	}
 	default:
