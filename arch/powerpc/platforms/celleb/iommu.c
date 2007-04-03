@@ -37,7 +37,7 @@ static int __init find_dma_window(u64 *io_space_id, u64 *ioid,
 	const unsigned long *dma_window;
 
 	for_each_node_by_type(dn, "ioif") {
-		dma_window = get_property(dn, "toshiba,dma-window", NULL);
+		dma_window = of_get_property(dn, "toshiba,dma-window", NULL);
 		if (dma_window) {
 			*io_space_id = (dma_window[0] >> 32) & 0xffffffffUL;
 			*ioid = dma_window[0] & 0x7ffUL;

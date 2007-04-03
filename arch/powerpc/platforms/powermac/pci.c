@@ -70,11 +70,11 @@ static int __init fixup_one_level_bus_range(struct device_node *node, int higher
 		int len;
 
 		/* For PCI<->PCI bridges or CardBus bridges, we go down */
-		class_code = get_property(node, "class-code", NULL);
+		class_code = of_get_property(node, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		bus_range = get_property(node, "bus-range", &len);
+		bus_range = of_get_property(node, "bus-range", &len);
 		if (bus_range != NULL && len > 2 * sizeof(int)) {
 			if (bus_range[1] > higher)
 				higher = bus_range[1];
@@ -246,8 +246,8 @@ static int chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
 	if (np == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	vendor = get_property(np, "vendor-id", NULL);
-	device = get_property(np, "device-id", NULL);
+	vendor = of_get_property(np, "vendor-id", NULL);
+	device = of_get_property(np, "device-id", NULL);
 	if (vendor == NULL || device == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
@@ -691,17 +691,17 @@ static void __init fixup_nec_usb2(void)
 		const u32 *prop;
 		u8 bus, devfn;
 
-		prop = get_property(nec, "vendor-id", NULL);
+		prop = of_get_property(nec, "vendor-id", NULL);
 		if (prop == NULL)
 			continue;
 		if (0x1033 != *prop)
 			continue;
-		prop = get_property(nec, "device-id", NULL);
+		prop = of_get_property(nec, "device-id", NULL);
 		if (prop == NULL)
 			continue;
 		if (0x0035 != *prop)
 			continue;
-		prop = get_property(nec, "reg", NULL);
+		prop = of_get_property(nec, "reg", NULL);
 		if (prop == NULL)
 			continue;
 		devfn = (prop[0] >> 8) & 0xff;
@@ -909,7 +909,7 @@ static int __init add_bridge(struct device_node *dev)
 	has_address = (of_address_to_resource(dev, 0, &rsrc) == 0);
 
 	/* Get bus range if any */
-	bus_range = get_property(dev, "bus-range", &len);
+	bus_range = of_get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 		       " bus 0\n", dev->full_name);

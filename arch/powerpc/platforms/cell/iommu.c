@@ -291,9 +291,9 @@ static int cell_iommu_find_ioc(int nid, unsigned long *base)
 		const unsigned int *nidp;
 		const unsigned long *tmp;
 
-		nidp = get_property(np, "node-id", NULL);
+		nidp = of_get_property(np, "node-id", NULL);
 		if (nidp && *nidp == nid) {
-			tmp = get_property(np, "ioc-translation", NULL);
+			tmp = of_get_property(np, "ioc-translation", NULL);
 			if (tmp) {
 				*base = *tmp;
 				of_node_put(np);
@@ -430,7 +430,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	struct iommu_window *window;
 	const unsigned int *ioid;
 
-	ioid = get_property(np, "ioid", NULL);
+	ioid = of_get_property(np, "ioid", NULL);
 	if (ioid == NULL)
 		printk(KERN_WARNING "iommu: missing ioid for %s using 0\n",
 		       np->full_name);
@@ -549,7 +549,7 @@ static int __init cell_iommu_get_window(struct device_node *np,
 	unsigned long index;
 
 	/* Use ibm,dma-window if available, else, hard code ! */
-	dma_window = get_property(np, "ibm,dma-window", NULL);
+	dma_window = of_get_property(np, "ibm,dma-window", NULL);
 	if (dma_window == NULL) {
 		*base = 0;
 		*size = 0x80000000u;

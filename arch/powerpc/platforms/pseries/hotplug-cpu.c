@@ -143,7 +143,7 @@ static int pseries_add_processor(struct device_node *np)
 	int err = -ENOSPC, len, nthreads, i;
 	const u32 *intserv;
 
-	intserv = get_property(np, "ibm,ppc-interrupt-server#s", &len);
+	intserv = of_get_property(np, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
 		return 0;
 
@@ -203,7 +203,7 @@ static void pseries_remove_processor(struct device_node *np)
 	int len, nthreads, i;
 	const u32 *intserv;
 
-	intserv = get_property(np, "ibm,ppc-interrupt-server#s", &len);
+	intserv = of_get_property(np, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
 		return;
 

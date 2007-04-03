@@ -72,8 +72,8 @@ int default_machine_kexec_prepare(struct kimage *image)
 	/* We also should not overwrite the tce tables */
 	for (node = of_find_node_by_type(NULL, "pci"); node != NULL;
 			node = of_find_node_by_type(node, "pci")) {
-		basep = get_property(node, "linux,tce-base", NULL);
-		sizep = get_property(node, "linux,tce-size", NULL);
+		basep = of_get_property(node, "linux,tce-base", NULL);
+		sizep = of_get_property(node, "linux,tce-size", NULL);
 		if (basep == NULL || sizep == NULL)
 			continue;
 

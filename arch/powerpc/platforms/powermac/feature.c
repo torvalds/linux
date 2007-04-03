@@ -1057,8 +1057,8 @@ core99_reset_cpu(struct device_node *node, long param, long value)
 	if (np == NULL)
 		return -ENODEV;
 	for (np = np->child; np != NULL; np = np->sibling) {
-		const u32 *num = get_property(np, "reg", NULL);
-		const u32 *rst = get_property(np, "soft-reset", NULL);
+		const u32 *num = of_get_property(np, "reg", NULL);
+		const u32 *rst = of_get_property(np, "soft-reset", NULL);
 		if (num == NULL || rst == NULL)
 			continue;
 		if (param == *num) {
@@ -1095,7 +1095,7 @@ core99_usb_enable(struct device_node *node, long param, long value)
 	    macio->type != macio_intrepid)
 		return -ENODEV;
 
-	prop = get_property(node, "AAPL,clock-id", NULL);
+	prop = of_get_property(node, "AAPL,clock-id", NULL);
 	if (!prop)
 		return -ENODEV;
 	if (strncmp(prop, "usb0u048", 8) == 0)
@@ -1506,8 +1506,8 @@ static long g5_reset_cpu(struct device_node *node, long param, long value)
 	if (np == NULL)
 		return -ENODEV;
 	for (np = np->child; np != NULL; np = np->sibling) {
-		const u32 *num = get_property(np, "reg", NULL);
-		const u32 *rst = get_property(np, "soft-reset", NULL);
+		const u32 *num = of_get_property(np, "reg", NULL);
+		const u32 *rst = of_get_property(np, "soft-reset", NULL);
 		if (num == NULL || rst == NULL)
 			continue;
 		if (param == *num) {
@@ -2411,7 +2411,7 @@ static int __init probe_motherboard(void)
 	 */
 	dt = find_devices("device-tree");
 	if (dt != NULL)
-		model = get_property(dt, "model", NULL);
+		model = of_get_property(dt, "model", NULL);
 	for(i=0; model && i<(sizeof(pmac_mb_defs)/sizeof(struct pmac_mb_def)); i++) {
 	    if (strcmp(model, pmac_mb_defs[i].model_string) == 0) {
 		pmac_mb = pmac_mb_defs[i];
@@ -2509,7 +2509,7 @@ found:
 		if (np->sibling)
 			break;
 		/* Nap mode not supported if flush-on-lock property is present */
-		if (get_property(np, "flush-on-lock", NULL))
+		if (of_get_property(np, "flush-on-lock", NULL))
 			break;
 		powersave_nap = 1;
 		printk(KERN_DEBUG "Processor NAP mode on idle enabled.\n");
@@ -2558,7 +2558,7 @@ static void __init probe_uninorth(void)
 	if (uninorth_node == NULL)
 		return;
 
-	addrp = get_property(uninorth_node, "reg", NULL);
+	addrp = of_get_property(uninorth_node, "reg", NULL);
 	if (addrp == NULL)
 		return;
 	address = of_translate_address(uninorth_node, addrp);
@@ -2642,7 +2642,7 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 		return;
 	}
 	if (type == macio_keylargo || type == macio_keylargo2) {
-		const u32 *did = get_property(node, "device-id", NULL);
+		const u32 *did = of_get_property(node, "device-id", NULL);
 		if (*did == 0x00000025)
 			type = macio_pangea;
 		if (*did == 0x0000003e)
@@ -2655,7 +2655,7 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 	macio_chips[i].base	= base;
 	macio_chips[i].flags	= MACIO_FLAG_SCCB_ON | MACIO_FLAG_SCCB_ON;
 	macio_chips[i].name	= macio_names[type];
-	revp = get_property(node, "revision-id", NULL);
+	revp = of_get_property(node, "revision-id", NULL);
 	if (revp)
 		macio_chips[i].rev = *revp;
 	printk(KERN_INFO "Found a %s mac-io controller, rev: %d, mapped at 0x%p\n",
@@ -2706,8 +2706,8 @@ initial_serial_shutdown(struct device_node *np)
 	int port_type = PMAC_SCC_ASYNC;
 	int modem = 0;
 
-	slots = get_property(np, "slot-names", &len);
-	conn = get_property(np, "AAPL,connector", &len);
+	slots = of_get_property(np, "slot-names", &len);
+	conn = of_get_property(np, "AAPL,connector", &len);
 	if (conn && (strcmp(conn, "infrared") == 0))
 		port_type = PMAC_SCC_IRDA;
 	else if (device_is_compatible(np, "cobalt"))

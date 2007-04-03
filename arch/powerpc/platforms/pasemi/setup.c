@@ -137,7 +137,7 @@ static __init void pas_init_IRQ(void)
 	/* Find address list in /platform-open-pic */
 	root = of_find_node_by_path("/");
 	naddr = of_n_addr_cells(root);
-	opprop = get_property(root, "platform-open-pic", &opplen);
+	opprop = of_get_property(root, "platform-open-pic", &opplen);
 	if (!opprop) {
 		printk(KERN_ERR "No platform-open-pic property.\n");
 		of_node_put(root);

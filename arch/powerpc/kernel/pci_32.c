@@ -637,7 +637,7 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 
 	if (pci_bus >= pci_bus_count)
 		return;
-	bus_range = get_property(node, "bus-range", &len);
+	bus_range = of_get_property(node, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, "
 		       "assuming it starts at 0\n", node->full_name);
@@ -649,11 +649,11 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 		struct pci_dev* dev;
 		const unsigned int *class_code, *reg;
 	
-		class_code = get_property(node, "class-code", NULL);
+		class_code = of_get_property(node, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		reg = get_property(node, "reg", NULL);
+		reg = of_get_property(node, "reg", NULL);
 		if (!reg)
 			continue;
 		dev = pci_find_slot(pci_bus, ((reg[0] >> 8) & 0xff));
@@ -724,7 +724,7 @@ scan_OF_pci_childs(struct device_node* node, pci_OF_scan_iterator filter, void* 
 		 * a fake root for all functions of a multi-function device,
 		 * we go down them as well.
 		 */
-		class_code = get_property(node, "class-code", NULL);
+		class_code = of_get_property(node, "class-code", NULL);
 		if ((!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS)) &&
 			strcmp(node->name, "multifunc-device"))
@@ -744,7 +744,7 @@ static struct device_node *scan_OF_for_pci_dev(struct device_node *parent,
 	unsigned int psize;
 
 	while ((np = of_get_next_child(parent, np)) != NULL) {
-		reg = get_property(np, "reg", &psize);
+		reg = of_get_property(np, "reg", &psize);
 		if (reg == NULL || psize < 4)
 			continue;
 		if (((reg[0] >> 8) & 0xff) == devfn)
@@ -859,7 +859,7 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 	if (!scan_OF_pci_childs(((struct device_node*)hose->arch_data)->child,
 			find_OF_pci_device_filter, (void *)node))
 		return -ENODEV;
-	reg = get_property(node, "reg", NULL);
+	reg = of_get_property(node, "reg", NULL);
 	if (!reg)
 		return -ENODEV;
 	*bus = (reg[0] >> 16) & 0xff;
@@ -902,7 +902,7 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	 * that can have more than 3 ranges, fortunately using contiguous
 	 * addresses -- BenH
 	 */
-	dt_ranges = get_property(dev, "ranges", &rlen);
+	dt_ranges = of_get_property(dev, "ranges", &rlen);
 	if (!dt_ranges)
 		return;
 	/* Sanity check, though hopefully that never happens */

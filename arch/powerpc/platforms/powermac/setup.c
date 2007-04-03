@@ -134,12 +134,12 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "machine\t\t: ");
 	np = of_find_node_by_path("/");
 	if (np != NULL) {
-		pp = get_property(np, "model", NULL);
+		pp = of_get_property(np, "model", NULL);
 		if (pp != NULL)
 			seq_printf(m, "%s\n", pp);
 		else
 			seq_printf(m, "PowerMac\n");
-		pp = get_property(np, "compatible", &plen);
+		pp = of_get_property(np, "compatible", &plen);
 		if (pp != NULL) {
 			seq_printf(m, "motherboard\t:");
 			while (plen > 0) {
@@ -163,11 +163,13 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 	if (np == NULL)
 		np = of_find_node_by_type(NULL, "cache");
 	if (np != NULL) {
-		const unsigned int *ic = get_property(np, "i-cache-size", NULL);
-		const unsigned int *dc = get_property(np, "d-cache-size", NULL);
+		const unsigned int *ic =
+			of_get_property(np, "i-cache-size", NULL);
+		const unsigned int *dc =
+			of_get_property(np, "d-cache-size", NULL);
 		seq_printf(m, "L2 cache\t:");
 		has_l2cache = 1;
-		if (get_property(np, "cache-unified", NULL) != 0 && dc) {
+		if (of_get_property(np, "cache-unified", NULL) != 0 && dc) {
 			seq_printf(m, " %dK unified", *dc / 1024);
 		} else {
 			if (ic)
@@ -176,7 +178,7 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 				seq_printf(m, "%s %dK data",
 					   (ic? " +": ""), *dc / 1024);
 		}
-		pp = get_property(np, "ram-type", NULL);
+		pp = of_get_property(np, "ram-type", NULL);
 		if (pp)
 			seq_printf(m, " %s", pp);
 		seq_printf(m, "\n");
@@ -253,7 +255,7 @@ static void __init l2cr_init(void)
 			np = find_type_devices("cpu");
 		if (np != 0) {
 			const unsigned int *l2cr =
-				get_property(np, "l2cr-value", NULL);
+				of_get_property(np, "l2cr-value", NULL);
 			if (l2cr != 0) {
 				ppc_override_l2cr = 1;
 				ppc_override_l2cr_value = *l2cr;
@@ -285,7 +287,7 @@ static void __init pmac_setup_arch(void)
 	loops_per_jiffy = 50000000 / HZ;
 	cpu = of_find_node_by_type(NULL, "cpu");
 	if (cpu != NULL) {
-		fp = get_property(cpu, "clock-frequency", NULL);
+		fp = of_get_property(cpu, "clock-frequency", NULL);
 		if (fp != NULL) {
 			if (pvr >= 0x30 && pvr < 0x80)
 				/* PPC970 etc. */
@@ -302,7 +304,7 @@ static void __init pmac_setup_arch(void)
 
 	/* See if newworld or oldworld */
 	for (ic = NULL; (ic = of_find_all_nodes(ic)) != NULL; )
-		if (get_property(ic, "interrupt-controller", NULL))
+		if (of_get_property(ic, "interrupt-controller", NULL))
 			break;
 	if (ic) {
 		pmac_newworld = 1;

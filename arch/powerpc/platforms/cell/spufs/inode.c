@@ -571,7 +571,7 @@ spufs_init_isolated_loader(void)
 	if (!dn)
 		return;
 
-	loader = get_property(dn, "loader", &size);
+	loader = of_get_property(dn, "loader", &size);
 	if (!loader)
 		return;
 

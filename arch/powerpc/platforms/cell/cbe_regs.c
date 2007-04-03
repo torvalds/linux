@@ -174,16 +174,15 @@ void __init cbe_regs_init(void)
 			if (cbe_thread_map[i].cpu_node == cpu)
 				cbe_thread_map[i].regs = map;
 
-		prop = get_property(cpu, "pervasive", NULL);
+		prop = of_get_property(cpu, "pervasive", NULL);
 		if (prop != NULL)
 			map->pmd_regs = ioremap(prop->address, prop->len);
 
-		prop = get_property(cpu, "iic", NULL);
+		prop = of_get_property(cpu, "iic", NULL);
 		if (prop != NULL)
 			map->iic_regs = ioremap(prop->address, prop->len);
 
-		prop = (struct address_prop *)get_property(cpu, "mic-tm",
-							   NULL);
+		prop = of_get_property(cpu, "mic-tm", NULL);
 		if (prop != NULL)
 			map->mic_tm_regs = ioremap(prop->address, prop->len);
 	}

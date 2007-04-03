@@ -970,7 +970,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->spurious_vec  = intvec_top;
 
 	/* Check for "big-endian" in device-tree */
-	if (node && get_property(node, "big-endian", NULL) != NULL)
+	if (node && of_get_property(node, "big-endian", NULL) != NULL)
 		mpic->flags |= MPIC_BIG_ENDIAN;
 
 
@@ -986,13 +986,13 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	BUG_ON(paddr == 0 && node == NULL);
 
 	/* If no physical address passed in, check if it's dcr based */
-	if (paddr == 0 && get_property(node, "dcr-reg", NULL) != NULL)
+	if (paddr == 0 && of_get_property(node, "dcr-reg", NULL) != NULL)
 		mpic->flags |= MPIC_USES_DCR;
 
 #ifdef CONFIG_PPC_DCR
 	if (mpic->flags & MPIC_USES_DCR) {
 		const u32 *dbasep;
-		dbasep = get_property(node, "dcr-reg", NULL);
+		dbasep = of_get_property(node, "dcr-reg", NULL);
 		BUG_ON(dbasep == NULL);
 		mpic->dcr_base = *dbasep;
 		mpic->reg_type = mpic_access_dcr;
@@ -1006,7 +1006,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	 */
 	if (paddr == 0 && !(mpic->flags & MPIC_USES_DCR)) {
 		const u32 *reg;
-		reg = get_property(node, "reg", NULL);
+		reg = of_get_property(node, "reg", NULL);
 		BUG_ON(reg == NULL);
 		paddr = of_translate_address(node, reg);
 		BUG_ON(paddr == OF_BAD_ADDR);

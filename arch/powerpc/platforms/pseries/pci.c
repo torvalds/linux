@@ -40,7 +40,7 @@ void pcibios_name_device(struct pci_dev *dev)
 	 */
 	dn = pci_device_to_OF_node(dev);
 	if (dn) {
-		char *loc_code = get_property(dn, "ibm,loc-code", 0);
+		const char *loc_code = of_get_property(dn, "ibm,loc-code", 0);
 		if (loc_code) {
 			int loc_len = strlen(loc_code);
 			if (loc_len < sizeof(dev->dev.name)) {

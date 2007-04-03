@@ -80,7 +80,7 @@ static void __init mpc85xx_mds_setup_arch(void)
 	np = of_find_node_by_type(NULL, "cpu");
 	if (np != NULL) {
 		const unsigned int *fp =
-		    get_property(np, "clock-frequency", NULL);
+		    of_get_property(np, "clock-frequency", NULL);
 		if (fp != NULL)
 			loops_per_jiffy = *fp / HZ;
 		else

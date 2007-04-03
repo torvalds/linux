@@ -309,13 +309,13 @@ static int __devinit celleb_setup_fake_pci_device(struct device_node *node,
 		goto error;
 	}
 
-	name = get_property(node, "model", &rlen);
+	name = of_get_property(node, "model", &rlen);
 	if (!name) {
 		printk(KERN_ERR "PCI: model property not found.\n");
 		goto error;
 	}
 
-	wi4 = get_property(node, "reg", &rlen);
+	wi4 = of_get_property(node, "reg", &rlen);
 	if (wi4 == NULL)
 		goto error;
 
@@ -352,10 +352,10 @@ static int __devinit celleb_setup_fake_pci_device(struct device_node *node,
 	}
 	pr_debug("PCI: res assigned 0x%016lx\n", (unsigned long)*res);
 
-	wi0 = get_property(node, "device-id", NULL);
-	wi1 = get_property(node, "vendor-id", NULL);
-	wi2 = get_property(node, "class-code", NULL);
-	wi3 = get_property(node, "revision-id", NULL);
+	wi0 = of_get_property(node, "device-id", NULL);
+	wi1 = of_get_property(node, "vendor-id", NULL);
+	wi2 = of_get_property(node, "class-code", NULL);
+	wi3 = of_get_property(node, "revision-id", NULL);
 
 	celleb_config_write_fake(*config, PCI_DEVICE_ID, 2, wi0[0] & 0xffff);
 	celleb_config_write_fake(*config, PCI_VENDOR_ID, 2, wi1[0] & 0xffff);
@@ -376,7 +376,7 @@ static int __devinit celleb_setup_fake_pci_device(struct device_node *node,
 
 	celleb_setup_pci_base_addrs(hose, devno, fn, num_base_addr);
 
-	li = get_property(node, "interrupts", &rlen);
+	li = of_get_property(node, "interrupts", &rlen);
 	val = li[0];
 	celleb_config_write_fake(*config, PCI_INTERRUPT_PIN, 1, 1);
 	celleb_config_write_fake(*config, PCI_INTERRUPT_LINE, 1, val);
@@ -424,7 +424,7 @@ static int __devinit phb_set_bus_ranges(struct device_node *dev,
 	const int *bus_range;
 	unsigned int len;
 
-	bus_range = get_property(dev, "bus-range", &len);
+	bus_range = of_get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int))
 		return 1;
 
@@ -451,7 +451,7 @@ int __devinit celleb_setup_phb(struct pci_controller *phb)
 	struct device_node *node;
 	unsigned int rlen;
 
-	name = get_property(dev, "name", &rlen);
+	name = of_get_property(dev, "name", &rlen);
 	if (!name)
 		return 1;
 

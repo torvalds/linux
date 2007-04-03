@@ -70,7 +70,7 @@ static int __init smt_setup(void)
 	if (!options)
 		return -ENODEV;
 
-	val = get_property(options, "ibm,smt-snooze-delay", NULL);
+	val = of_get_property(options, "ibm,smt-snooze-delay", NULL);
 	if (!smt_snooze_cmdline && val) {
 		for_each_possible_cpu(cpu)
 			per_cpu(smt_snooze_delay, cpu) = *val;

@@ -112,7 +112,7 @@ void chrp_show_cpuinfo(struct seq_file *m)
 
 	root = find_path_device("/");
 	if (root)
-		model = get_property(root, "model", NULL);
+		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
 
 	/* longtrail (goldengate) stuff */
@@ -205,7 +205,8 @@ static void __init sio_init(void)
 	struct device_node *root;
 
 	if ((root = find_path_device("/")) &&
-	    !strncmp(get_property(root, "model", NULL), "IBM,LongTrail", 13)) {
+	    !strncmp(of_get_property(root, "model", NULL),
+			"IBM,LongTrail", 13)) {
 		/* logical device 0 (KBC/Keyboard) */
 		sio_fixup_irq("keyboard", 0, 1, 2);
 		/* select logical device 1 (KBC/Mouse) */
@@ -225,7 +226,7 @@ static void __init pegasos_set_l2cr(void)
 	/* Enable L2 cache if needed */
 	np = find_type_devices("cpu");
 	if (np != NULL) {
-		const unsigned int *l2cr = get_property(np, "l2cr", NULL);
+		const unsigned int *l2cr = of_get_property(np, "l2cr", NULL);
 		if (l2cr == NULL) {
 			printk ("Pegasos l2cr : no cpu l2cr property found\n");
 			return;
@@ -256,7 +257,7 @@ void __init chrp_setup_arch(void)
 	loops_per_jiffy = 50000000/HZ;
 
 	if (root)
-		machine = get_property(root, "model", NULL);
+		machine = of_get_property(root, "model", NULL);
 	if (machine && strncmp(machine, "Pegasos", 7) == 0) {
 		_chrp_type = _CHRP_Pegasos;
 	} else if (machine && strncmp(machine, "IBM", 3) == 0) {
@@ -360,7 +361,7 @@ static void __init chrp_find_openpic(void)
 		return;
 	root = of_find_node_by_path("/");
 	if (root) {
-		opprop = get_property(root, "platform-open-pic", &oplen);
+		opprop = of_get_property(root, "platform-open-pic", &oplen);
 		na = of_n_addr_cells(root);
 	}
 	if (opprop && oplen >= na * sizeof(unsigned int)) {
@@ -377,7 +378,7 @@ static void __init chrp_find_openpic(void)
 
 	printk(KERN_INFO "OpenPIC at %lx\n", opaddr);
 
-	iranges = get_property(np, "interrupt-ranges", &len);
+	iranges = of_get_property(np, "interrupt-ranges", &len);
 	if (iranges == NULL)
 		len = 0;	/* non-distributed mpic */
 	else
@@ -463,7 +464,7 @@ static void __init chrp_find_8259(void)
 	 * from anyway
 	 */
 	for (np = find_devices("pci"); np != NULL; np = np->next) {
-		const unsigned int *addrp = get_property(np,
+		const unsigned int *addrp = of_get_property(np,
 				"8259-interrupt-acknowledge", NULL);
 
 		if (addrp == NULL)
@@ -543,7 +544,7 @@ chrp_init2(void)
 	 */
 	device = find_devices("rtas");
 	if (device)
-		p = get_property(device, "rtas-event-scan-rate", NULL);
+		p = of_get_property(device, "rtas-event-scan-rate", NULL);
 	if (p && *p) {
 		/*
 		 * Arrange to call chrp_event_scan at least *p times

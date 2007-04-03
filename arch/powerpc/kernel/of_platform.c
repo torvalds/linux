@@ -178,7 +178,7 @@ static void of_platform_make_bus_id(struct of_device *dev)
 	 * and 'D' for MMIO DCRs.
 	 */
 #ifdef CONFIG_PPC_DCR
-	reg = get_property(node, "dcr-reg", NULL);
+	reg = of_get_property(node, "dcr-reg", NULL);
 	if (reg) {
 #ifdef CONFIG_PPC_DCR_NATIVE
 		snprintf(name, BUS_ID_SIZE, "d%x.%s",
@@ -198,7 +198,7 @@ static void of_platform_make_bus_id(struct of_device *dev)
 	/*
 	 * For MMIO, get the physical address
 	 */
-	reg = get_property(node, "reg", NULL);
+	reg = of_get_property(node, "reg", NULL);
 	if (reg) {
 		addr = of_translate_address(node, reg);
 		if (addr != OF_BAD_ADDR) {

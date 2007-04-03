@@ -67,7 +67,7 @@ static void celleb_show_cpuinfo(struct seq_file *m)
 
 	root = of_find_node_by_path("/");
 	if (root)
-		model = get_property(root, "model", NULL);
+		model = of_get_property(root, "model", NULL);
 	/* using "CHRP" is to trick anaconda into installing FCx into Celleb */
 	seq_printf(m, "machine\t\t: %s %s\n", celleb_machine_type, model);
 	of_node_put(root);

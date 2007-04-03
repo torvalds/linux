@@ -81,7 +81,7 @@ static void __init mpc7448_hpc2_setup_arch(void)
 	if (cpu != 0) {
 		const unsigned int *fp;
 
-		fp = get_property(cpu, "clock-frequency", NULL);
+		fp = of_get_property(cpu, "clock-frequency", NULL);
 		if (fp != 0)
 			loops_per_jiffy = *fp / HZ;
 		else
@@ -132,7 +132,7 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 	tsi_pic = of_find_node_by_type(NULL, "open-pic");
 	if (tsi_pic) {
 		unsigned int size;
-		const void *prop = get_property(tsi_pic, "reg", &size);
+		const void *prop = of_get_property(tsi_pic, "reg", &size);
 		mpic_paddr = of_translate_address(tsi_pic, prop);
 	}
 

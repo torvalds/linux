@@ -26,7 +26,7 @@
 unsigned int dcr_resource_start(struct device_node *np, unsigned int index)
 {
 	unsigned int ds;
-	const u32 *dr = get_property(np, "dcr-reg", &ds);
+	const u32 *dr = of_get_property(np, "dcr-reg", &ds);
 
 	if (dr == NULL || ds & 1 || index >= (ds / 8))
 		return 0;
@@ -37,7 +37,7 @@ unsigned int dcr_resource_start(struct device_node *np, unsigned int index)
 unsigned int dcr_resource_len(struct device_node *np, unsigned int index)
 {
 	unsigned int ds;
-	const u32 *dr = get_property(np, "dcr-reg", &ds);
+	const u32 *dr = of_get_property(np, "dcr-reg", &ds);
 
 	if (dr == NULL || ds & 1 || index >= (ds / 8))
 		return 0;
@@ -53,9 +53,9 @@ static struct device_node * find_dcr_parent(struct device_node * node)
 	const u32 *p;
 
 	for (par = of_node_get(node); par;) {
-		if (get_property(par, "dcr-controller", NULL))
+		if (of_get_property(par, "dcr-controller", NULL))
 			break;
-		p = get_property(par, "dcr-parent", NULL);
+		p = of_get_property(par, "dcr-parent", NULL);
 		tmp = par;
 		if (p == NULL)
 			par = of_get_parent(par);
@@ -80,13 +80,13 @@ u64 of_translate_dcr_address(struct device_node *dev,
 		return OF_BAD_ADDR;
 
 	/* Stride is not properly defined yet, default to 0x10 for Axon */
-	p = get_property(dp, "dcr-mmio-stride", NULL);
+	p = of_get_property(dp, "dcr-mmio-stride", NULL);
 	stride = (p == NULL) ? 0x10 : *p;
 
 	/* XXX FIXME: Which property name is to use of the 2 following ? */
-	p = get_property(dp, "dcr-mmio-range", NULL);
+	p = of_get_property(dp, "dcr-mmio-range", NULL);
 	if (p == NULL)
-		p = get_property(dp, "dcr-mmio-space", NULL);
+		p = of_get_property(dp, "dcr-mmio-space", NULL);
 	if (p == NULL)
 		return OF_BAD_ADDR;
 

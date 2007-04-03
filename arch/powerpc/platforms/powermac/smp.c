@@ -567,7 +567,7 @@ static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 		pmac_tb_clock_chip_host = pmac_i2c_find_bus(cc);
 		if (pmac_tb_clock_chip_host == NULL)
 			continue;
-		reg = get_property(cc, "reg", NULL);
+		reg = of_get_property(cc, "reg", NULL);
 		if (reg == NULL)
 			continue;
 		switch (*reg) {
@@ -695,7 +695,7 @@ static void __init smp_core99_setup(int ncpus)
 		struct device_node *cpus =
 			of_find_node_by_path("/cpus");
 		if (cpus &&
-		    get_property(cpus, "platform-cpu-timebase", NULL)) {
+		    of_get_property(cpus, "platform-cpu-timebase", NULL)) {
 			pmac_tb_freeze = smp_core99_pfunc_tb_freeze;
 			printk(KERN_INFO "Processor timebase sync using"
 			       " platform function\n");
@@ -712,7 +712,7 @@ static void __init smp_core99_setup(int ncpus)
 		core99_tb_gpio = KL_GPIO_TB_ENABLE;	/* default value */
 		cpu = of_find_node_by_type(NULL, "cpu");
 		if (cpu != NULL) {
-			tbprop = get_property(cpu, "timebase-enable", NULL);
+			tbprop = of_get_property(cpu, "timebase-enable", NULL);
 			if (tbprop)
 				core99_tb_gpio = *tbprop;
 			of_node_put(cpu);

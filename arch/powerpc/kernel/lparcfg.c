@@ -323,7 +323,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 
 	rtas_node = find_path_device("/rtas");
 	if (rtas_node)
-		lrdrp = get_property(rtas_node, "ibm,lrdr-capacity", NULL);
+		lrdrp = of_get_property(rtas_node, "ibm,lrdr-capacity", NULL);
 
 	if (lrdrp == NULL) {
 		partition_potential_processors = vdso_data->processorCount;
@@ -539,21 +539,22 @@ static int lparcfg_data(struct seq_file *m, void *v)
 
 	rootdn = find_path_device("/");
 	if (rootdn) {
-		tmp = get_property(rootdn, "model", NULL);
+		tmp = of_get_property(rootdn, "model", NULL);
 		if (tmp) {
 			model = tmp;
 			/* Skip "IBM," - see platforms/iseries/dt.c */
 			if (firmware_has_feature(FW_FEATURE_ISERIES))
 				model += 4;
 		}
-		tmp = get_property(rootdn, "system-id", NULL);
+		tmp = of_get_property(rootdn, "system-id", NULL);
 		if (tmp) {
 			system_id = tmp;
 			/* Skip "IBM," - see platforms/iseries/dt.c */
 			if (firmware_has_feature(FW_FEATURE_ISERIES))
 				system_id += 4;
 		}
-		lp_index_ptr = get_property(rootdn, "ibm,partition-no", NULL);
+		lp_index_ptr = of_get_property(rootdn, "ibm,partition-no",
+					NULL);
 		if (lp_index_ptr)
 			lp_index = *lp_index_ptr;
 	}

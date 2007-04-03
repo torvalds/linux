@@ -193,7 +193,7 @@ static struct ibmebus_dev* __devinit ibmebus_register_device_node(
 	const char *loc_code;
 	int length;
 
-	loc_code = get_property(dn, "ibm,loc-code", NULL);
+	loc_code = of_get_property(dn, "ibm,loc-code", NULL);
 	if (!loc_code) {
                 printk(KERN_WARNING "%s: node %s missing 'ibm,loc-code'\n",
 		       __FUNCTION__, dn->name ? dn->name : "<unknown>");
@@ -256,12 +256,11 @@ static void ibmebus_add_devices_by_id(struct of_device_id *idt)
 static int ibmebus_match_helper_name(struct device *dev, void *data)
 {
 	const struct ibmebus_dev *ebus_dev = to_ibmebus_dev(dev);
-	char *name;
+	const char *name;
 
-	name = (char*)get_property(
-		ebus_dev->ofdev.node, "name", NULL);
+	name = of_get_property(ebus_dev->ofdev.node, "name", NULL);
 
-	if (name && (strcmp((char*)data, name) == 0))
+	if (name && (strcmp(data, name) == 0))
 		return 1;
 
 	return 0;
@@ -363,7 +362,7 @@ static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	struct ibmebus_dev *ebus_dev = to_ibmebus_dev(dev);
-	char *name = (char*)get_property(ebus_dev->ofdev.node, "name", NULL);
+	const char *name = of_get_property(ebus_dev->ofdev.node, "name", NULL);
 	return sprintf(buf, "%s\n", name);
 }
 
@@ -375,12 +374,11 @@ static struct device_attribute ibmebus_dev_attrs[] = {
 static int ibmebus_match_helper_loc_code(struct device *dev, void *data)
 {
 	const struct ibmebus_dev *ebus_dev = to_ibmebus_dev(dev);
-	char *loc_code;
+	const char *loc_code;
 
-	loc_code = (char*)get_property(
-		ebus_dev->ofdev.node, "ibm,loc-code", NULL);
+	loc_code = of_get_property(ebus_dev->ofdev.node, "ibm,loc-code", NULL);
 
-	if (loc_code && (strcmp((char*)data, loc_code) == 0))
+	if (loc_code && (strcmp(data, loc_code) == 0))
 		return 1;
 
 	return 0;
@@ -391,7 +389,7 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 {
 	struct device_node *dn = NULL;
 	struct ibmebus_dev *dev;
-	char *loc_code;
+	const char *loc_code;
 	char parm[MAX_LOC_CODE_LENGTH];
 
 	if (count >= MAX_LOC_CODE_LENGTH)
@@ -409,7 +407,7 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 	}
 
 	while ((dn = of_find_all_nodes(dn))) {
-		loc_code = (char *)get_property(dn, "ibm,loc-code", NULL);
+		loc_code = of_get_property(dn, "ibm,loc-code", NULL);
 		if (loc_code && (strncmp(loc_code, parm, count) == 0)) {
 			dev = ibmebus_register_device_node(dn);
 			if (IS_ERR(dev)) {

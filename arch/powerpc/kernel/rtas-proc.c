@@ -450,7 +450,7 @@ static int ppc_rtas_sensors_show(struct seq_file *m, void *v)
 		int llen, offs;
 
 		sprintf (rstr, SENSOR_PREFIX"%04d", p->token);
-		loc = get_property(rtas_node, rstr, &llen);
+		loc = of_get_property(rtas_node, rstr, &llen);
 
 		/* A sensor may have multiple instances */
 		for (j = 0, offs = 0; j <= p->quant; j++) {
@@ -477,7 +477,7 @@ static int ppc_rtas_find_all_sensors(void)
 	const unsigned int *utmp;
 	int len, i;
 
-	utmp = get_property(rtas_node, "rtas-sensors", &len);
+	utmp = of_get_property(rtas_node, "rtas-sensors", &len);
 	if (utmp == NULL) {
 		printk (KERN_ERR "error: could not get rtas-sensors\n");
 		return 1;

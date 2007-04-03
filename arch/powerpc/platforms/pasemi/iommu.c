@@ -249,7 +249,7 @@ void iommu_init_early_pasemi(void)
 	iommu_off = 1;
 #else
 	iommu_off = of_chosen &&
-			get_property(of_chosen, "linux,iommu-off", NULL);
+			of_get_property(of_chosen, "linux,iommu-off", NULL);
 #endif
 	if (iommu_off) {
 		/* Direct I/O, IOMMU off */

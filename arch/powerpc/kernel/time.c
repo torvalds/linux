@@ -834,7 +834,7 @@ static int __init get_freq(char *name, int cells, unsigned long *val)
 	cpu = of_find_node_by_type(NULL, "cpu");
 
 	if (cpu) {
-		fp = get_property(cpu, name, NULL);
+		fp = of_get_property(cpu, name, NULL);
 		if (fp) {
 			found = 1;
 			*val = of_read_ulong(fp, cells);

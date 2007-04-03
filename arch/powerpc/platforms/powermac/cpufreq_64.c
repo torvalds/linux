@@ -410,7 +410,7 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 	/* Get first CPU node */
 	for (cpunode = NULL;
 	     (cpunode = of_get_next_child(cpus, cpunode)) != NULL;) {
-		const u32 *reg = get_property(cpunode, "reg", NULL);
+		const u32 *reg = of_get_property(cpunode, "reg", NULL);
 		if (reg == NULL || (*reg) != 0)
 			continue;
 		if (!strcmp(cpunode->type, "cpu"))
@@ -422,7 +422,7 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 	}
 
 	/* Check 970FX for now */
-	valp = get_property(cpunode, "cpu-version", NULL);
+	valp = of_get_property(cpunode, "cpu-version", NULL);
 	if (!valp) {
 		DBG("No cpu-version property !\n");
 		goto bail_noprops;
@@ -434,7 +434,7 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 	}
 
 	/* Look for the powertune data in the device-tree */
-	g5_pmode_data = get_property(cpunode, "power-mode-data",&psize);
+	g5_pmode_data = of_get_property(cpunode, "power-mode-data",&psize);
 	if (!g5_pmode_data) {
 		DBG("No power-mode-data !\n");
 		goto bail_noprops;
@@ -493,7 +493,7 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 	 * half freq in this version. So far, I haven't yet seen a machine
 	 * supporting anything else.
 	 */
-	valp = get_property(cpunode, "clock-frequency", NULL);
+	valp = of_get_property(cpunode, "clock-frequency", NULL);
 	if (!valp)
 		return -ENODEV;
 	max_freq = (*valp)/1000;
@@ -563,7 +563,7 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpus)
 	/* Lookup the cpuid eeprom node */
         cpuid = of_find_node_by_path("/u3@0,f8000000/i2c@f8001000/cpuid@a0");
 	if (cpuid != NULL)
-		eeprom = get_property(cpuid, "cpuid", NULL);
+		eeprom = of_get_property(cpuid, "cpuid", NULL);
 	if (eeprom == NULL) {
 		printk(KERN_ERR "cpufreq: Can't find cpuid EEPROM !\n");
 		rc = -ENODEV;
@@ -573,13 +573,13 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpus)
 	/* Lookup the i2c hwclock */
 	for (hwclock = NULL;
 	     (hwclock = of_find_node_by_name(hwclock, "i2c-hwclock")) != NULL;){
-		const char *loc = get_property(hwclock,
+		const char *loc = of_get_property(hwclock,
 				"hwctrl-location", NULL);
 		if (loc == NULL)
 			continue;
 		if (strcmp(loc, "CPU CLOCK"))
 			continue;
-		if (!get_property(hwclock, "platform-get-frequency", NULL))
+		if (!of_get_property(hwclock, "platform-get-frequency", NULL))
 			continue;
 		break;
 	}
@@ -638,7 +638,7 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpus)
 	 */
 
 	/* Get max frequency from device-tree */
-	valp = get_property(cpunode, "clock-frequency", NULL);
+	valp = of_get_property(cpunode, "clock-frequency", NULL);
 	if (!valp) {
 		printk(KERN_ERR "cpufreq: Can't find CPU frequency !\n");
 		rc = -ENODEV;

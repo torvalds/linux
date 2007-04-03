@@ -113,8 +113,8 @@ static void maple_restart(char *cmd)
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
 		goto fail;
 	}
-	maple_nvram_offset = get_property(sp, "restart-addr", NULL);
-	maple_nvram_command = get_property(sp, "restart-value", NULL);
+	maple_nvram_offset = of_get_property(sp, "restart-addr", NULL);
+	maple_nvram_command = of_get_property(sp, "restart-value", NULL);
 	of_node_put(sp);
 
 	/* send command */
@@ -140,8 +140,8 @@ static void maple_power_off(void)
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
 		goto fail;
 	}
-	maple_nvram_offset = get_property(sp, "power-off-addr", NULL);
-	maple_nvram_command = get_property(sp, "power-off-value", NULL);
+	maple_nvram_offset = of_get_property(sp, "power-off-addr", NULL);
+	maple_nvram_command = of_get_property(sp, "power-off-value", NULL);
 	of_node_put(sp);
 
 	/* send command */
@@ -249,7 +249,7 @@ static void __init maple_init_IRQ(void)
 	/* Find address list in /platform-open-pic */
 	root = of_find_node_by_path("/");
 	naddr = of_n_addr_cells(root);
-	opprop = get_property(root, "platform-open-pic", &opplen);
+	opprop = of_get_property(root, "platform-open-pic", &opplen);
 	if (opprop != 0) {
 		openpic_addr = of_read_number(opprop, naddr);
 		has_isus = (opplen > naddr);
@@ -260,7 +260,7 @@ static void __init maple_init_IRQ(void)
 	BUG_ON(openpic_addr == 0);
 
 	/* Check for a big endian MPIC */
-	if (get_property(np, "big-endian", NULL) != NULL)
+	if (of_get_property(np, "big-endian", NULL) != NULL)
 		flags |= MPIC_BIG_ENDIAN;
 
 	/* XXX Maple specific bits */

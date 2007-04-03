@@ -171,7 +171,7 @@ void iommu_devnode_init_iSeries(struct pci_dev *pdev, struct device_node *dn)
 {
 	struct iommu_table *tbl;
 	struct pci_dn *pdn = PCI_DN(dn);
-	const u32 *lsn = get_property(dn, "linux,logical-slot-number", NULL);
+	const u32 *lsn = of_get_property(dn, "linux,logical-slot-number", NULL);
 
 	BUG_ON(lsn == NULL);
 

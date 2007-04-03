@@ -314,14 +314,14 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 
 	if (!frozen_dn) {
 
-		location = get_property(event->dn, "ibm,loc-code", NULL);
+		location = of_get_property(event->dn, "ibm,loc-code", NULL);
 		location = location ? location : "unknown";
 		printk(KERN_ERR "EEH: Error: Cannot find partition endpoint "
 		                "for location=%s pci addr=%s\n",
 		        location, pci_name(event->dev));
 		return NULL;
 	}
-	location = get_property(frozen_dn, "ibm,loc-code", NULL);
+	location = of_get_property(frozen_dn, "ibm,loc-code", NULL);
 	location = location ? location : "unknown";
 
 	/* There are two different styles for coming up with the PE.

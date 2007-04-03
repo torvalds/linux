@@ -352,11 +352,12 @@ void __init smp_setup_cpu_maps(void)
 		const int *intserv;
 		int j, len = sizeof(u32), nthreads = 1;
 
-		intserv = get_property(dn, "ibm,ppc-interrupt-server#s", &len);
+		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
+				&len);
 		if (intserv)
 			nthreads = len / sizeof(int);
 		else {
-			intserv = get_property(dn, "reg", NULL);
+			intserv = of_get_property(dn, "reg", NULL);
 			if (!intserv)
 				intserv = &cpu;	/* assume logical == phys */
 		}
@@ -382,7 +383,7 @@ void __init smp_setup_cpu_maps(void)
 		num_addr_cell = of_n_addr_cells(dn);
 		num_size_cell = of_n_size_cells(dn);
 
-		ireg = get_property(dn, "ibm,lrdr-capacity", NULL);
+		ireg = of_get_property(dn, "ibm,lrdr-capacity", NULL);
 
 		if (!ireg)
 			goto out;
