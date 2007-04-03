@@ -400,8 +400,8 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 	}
 	if (allnextpp) {
 		*prev_pp = NULL;
-		np->name = get_property(np, "name", NULL);
-		np->type = get_property(np, "device_type", NULL);
+		np->name = of_get_property(np, "name", NULL);
+		np->type = of_get_property(np, "device_type", NULL);
 
 		if (!np->name)
 			np->name = "<NULL>";
@@ -1048,7 +1048,7 @@ prom_n_addr_cells(struct device_node* np)
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = get_property(np, "#address-cells", NULL);
+		ip = of_get_property(np, "#address-cells", NULL);
 		if (ip != NULL)
 			return *ip;
 	} while (np->parent);
@@ -1064,7 +1064,7 @@ prom_n_size_cells(struct device_node* np)
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = get_property(np, "#size-cells", NULL);
+		ip = of_get_property(np, "#size-cells", NULL);
 		if (ip != NULL)
 			return *ip;
 	} while (np->parent);
@@ -1136,7 +1136,7 @@ int device_is_compatible(const struct device_node *device, const char *compat)
 	const char* cp;
 	int cplen, l;
 
-	cp = get_property(device, "compatible", &cplen);
+	cp = of_get_property(device, "compatible", &cplen);
 	if (cp == NULL)
 		return 0;
 	while (cplen > 0) {
@@ -1547,8 +1547,8 @@ static int of_finish_dynamic_node(struct device_node *node)
 	int err = 0;
 	const phandle *ibm_phandle;
 
-	node->name = get_property(node, "name", NULL);
-	node->type = get_property(node, "device_type", NULL);
+	node->name = of_get_property(node, "name", NULL);
+	node->type = of_get_property(node, "device_type", NULL);
 
 	if (!parent) {
 		err = -ENODEV;
@@ -1562,7 +1562,7 @@ static int of_finish_dynamic_node(struct device_node *node)
 		return -ENODEV;
 
 	/* fix up new node's linux_phandle field */
-	if ((ibm_phandle = get_property(node, "ibm,phandle", NULL)))
+	if ((ibm_phandle = of_get_property(node, "ibm,phandle", NULL)))
 		node->linux_phandle = *ibm_phandle;
 
 out:
@@ -1625,13 +1625,13 @@ EXPORT_SYMBOL(of_find_property);
  * Find a property with a given name for a given node
  * and return the value.
  */
-const void *get_property(const struct device_node *np, const char *name,
+const void *of_get_property(const struct device_node *np, const char *name,
 			 int *lenp)
 {
 	struct property *pp = of_find_property(np,name,lenp);
 	return pp ? pp->value : NULL;
 }
-EXPORT_SYMBOL(get_property);
+EXPORT_SYMBOL(of_get_property);
 
 /*
  * Add a property to a node
@@ -1762,10 +1762,10 @@ struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 		/* Check for ibm,ppc-interrupt-server#s. If it doesn't exist
 		 * fallback to "reg" property and assume no threads
 		 */
-		intserv = get_property(np, "ibm,ppc-interrupt-server#s",
+		intserv = of_get_property(np, "ibm,ppc-interrupt-server#s",
 				&plen);
 		if (intserv == NULL) {
-			const u32 *reg = get_property(np, "reg", NULL);
+			const u32 *reg = of_get_property(np, "reg", NULL);
 			if (reg == NULL)
 				continue;
 			if (*reg == hardid) {

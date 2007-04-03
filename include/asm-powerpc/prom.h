@@ -165,9 +165,10 @@ extern void early_init_devtree(void *);
 extern int device_is_compatible(const struct device_node *device,
 				const char *);
 extern int machine_is_compatible(const char *compat);
-extern const void *get_property(const struct device_node *node,
+extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
+#define get_property(a, b, c)	of_get_property((a), (b), (c))
 extern void print_properties(struct device_node *node);
 extern int prom_n_addr_cells(struct device_node* np);
 extern int prom_n_size_cells(struct device_node* np);
