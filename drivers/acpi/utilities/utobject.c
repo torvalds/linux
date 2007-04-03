@@ -146,6 +146,48 @@ union acpi_operand_object *acpi_ut_create_internal_object_dbg(char *module_name,
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_create_package_object
+ *
+ * PARAMETERS:  Count               - Number of package elements
+ *
+ * RETURN:      Pointer to a new Package object, null on failure
+ *
+ * DESCRIPTION: Create a fully initialized package object
+ *
+ ******************************************************************************/
+
+union acpi_operand_object *acpi_ut_create_package_object(u32 count)
+{
+	union acpi_operand_object *package_desc;
+	union acpi_operand_object **package_elements;
+
+	ACPI_FUNCTION_TRACE_U32(ut_create_package_object, count);
+
+	/* Create a new Package object */
+
+	package_desc = acpi_ut_create_internal_object(ACPI_TYPE_PACKAGE);
+	if (!package_desc) {
+		return_PTR(NULL);
+	}
+
+	/*
+	 * Create the element array. Count+1 allows the array to be null
+	 * terminated.
+	 */
+	package_elements = ACPI_ALLOCATE_ZEROED((acpi_size)
+						(count + 1) * sizeof(void *));
+	if (!package_elements) {
+		ACPI_FREE(package_desc);
+		return_PTR(NULL);
+	}
+
+	package_desc->package.count = count;
+	package_desc->package.elements = package_elements;
+	return_PTR(package_desc);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_create_buffer_object
  *
  * PARAMETERS:  buffer_size            - Size of buffer to be created
