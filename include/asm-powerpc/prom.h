@@ -172,7 +172,7 @@ extern const void *of_get_property(const struct device_node *node,
 #define get_property(a, b, c)	of_get_property((a), (b), (c))
 extern void print_properties(struct device_node *node);
 extern int of_n_addr_cells(struct device_node* np);
-extern int prom_n_size_cells(struct device_node* np);
+extern int of_n_size_cells(struct device_node* np);
 extern int prom_n_intr_cells(struct device_node* np);
 extern void prom_get_irq_senses(unsigned char *senses, int off, int max);
 extern int prom_add_property(struct device_node* np, struct property* prop);

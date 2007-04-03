@@ -70,7 +70,7 @@ static void of_bus_default_count_cells(struct device_node *dev,
 	if (addrc)
 		*addrc = of_n_addr_cells(dev);
 	if (sizec)
-		*sizec = prom_n_size_cells(dev);
+		*sizec = of_n_size_cells(dev);
 }
 
 static u64 of_bus_default_map(u32 *addr, const u32 *range,
@@ -660,7 +660,7 @@ void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
 	dma_window += cells;
 
 	prop = get_property(dn, "ibm,#dma-size-cells", NULL);
-	cells = prop ? *(u32 *)prop : prom_n_size_cells(dn);
+	cells = prop ? *(u32 *)prop : of_n_size_cells(dn);
 	*size = of_read_number(dma_window, cells);
 }
 

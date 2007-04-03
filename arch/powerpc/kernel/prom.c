@@ -1056,8 +1056,7 @@ int of_n_addr_cells(struct device_node* np)
 }
 EXPORT_SYMBOL(of_n_addr_cells);
 
-int
-prom_n_size_cells(struct device_node* np)
+int of_n_size_cells(struct device_node* np)
 {
 	const int* ip;
 	do {
@@ -1070,7 +1069,7 @@ prom_n_size_cells(struct device_node* np)
 	/* No #size-cells property for the root node, default to 1 */
 	return 1;
 }
-EXPORT_SYMBOL(prom_n_size_cells);
+EXPORT_SYMBOL(of_n_size_cells);
 
 /**
  * Construct and return a list of the device_nodes with a given name.

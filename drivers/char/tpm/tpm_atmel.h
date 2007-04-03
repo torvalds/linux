@@ -54,7 +54,7 @@ static void __iomem * atmel_get_base_addr(unsigned long *base, int *region_size)
 
 	reg = get_property(dn, "reg", &reglen);
 	naddrc = of_n_addr_cells(dn);
-	nsizec = prom_n_size_cells(dn);
+	nsizec = of_n_size_cells(dn);
 
 	of_node_put(dn);
 
