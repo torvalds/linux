@@ -344,6 +344,8 @@ struct device_type {
 	int (*uevent)(struct device *dev, char **envp, int num_envp,
 		      char *buffer, int buffer_size);
 	void (*release)(struct device *dev);
+	int (*suspend)(struct device * dev, pm_message_t state);
+	int (*resume)(struct device * dev);
 };
 
 /* interface for exporting device attributes */
