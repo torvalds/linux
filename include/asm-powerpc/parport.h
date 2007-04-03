@@ -20,18 +20,18 @@ extern struct parport *parport_pc_probe_port (unsigned long int base,
 static int __devinit parport_pc_find_nonpci_ports (int autoirq, int autodma)
 {
 	struct device_node *np;
-	u32 *prop;
+	const u32 *prop;
 	u32 io1, io2;
 	int propsize;
 	int count = 0;
 	for (np = NULL; (np = of_find_compatible_node(np,
 						      "parallel",
 						      "pnpPNP,400")) != NULL;) {
-		prop = (u32 *)get_property(np, "reg", &propsize);
+		prop = of_get_property(np, "reg", &propsize);
 		if (!prop || propsize > 6*sizeof(u32))
 			continue;
 		io1 = prop[1]; io2 = prop[2];
-		prop = (u32 *)get_property(np, "interrupts", NULL);
+		prop = of_get_property(np, "interrupts", NULL);
 		if (!prop)
 			continue;
 		if (parport_pc_probe_port(io1, io2, prop[0], autodma, NULL) != NULL)
