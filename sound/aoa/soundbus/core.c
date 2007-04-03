@@ -61,9 +61,10 @@ static int soundbus_uevent(struct device *dev, char **envp, int num_envp,
 {
 	struct soundbus_dev * soundbus_dev;
 	struct of_device * of;
-	char *scratch, *compat, *compat2;
+	char *scratch;
+	const char *compat;
 	int i = 0;
-	int length, cplen, cplen2, seen = 0;
+	int length, cplen, seen = 0;
 
 	if (!dev)
 		return -ENODEV;
@@ -95,9 +96,7 @@ static int soundbus_uevent(struct device *dev, char **envp, int num_envp,
 	 * it's not really legal to split it out with commas. We split it
 	 * up using a number of environment variables instead. */
 
-	compat = (char *) get_property(of->node, "compatible", &cplen);
-	compat2 = compat;
-	cplen2= cplen;
+	compat = get_property(of->node, "compatible", &cplen);
 	while (compat && cplen > 0) {
 		envp[i++] = scratch;
 		length = scnprintf (scratch, buffer_size,

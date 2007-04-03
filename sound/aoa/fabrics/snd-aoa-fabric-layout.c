@@ -724,7 +724,7 @@ static int check_codec(struct aoa_codec *codec,
 		       struct layout_dev *ldev,
 		       struct codec_connect_info *cci)
 {
-	u32 *ref;
+	const u32 *ref;
 	char propname[32];
 	struct codec_connection *cc;
 
@@ -732,7 +732,7 @@ static int check_codec(struct aoa_codec *codec,
 	if (codec->node && (strcmp(codec->node->name, "codec") == 0)) {
 		snprintf(propname, sizeof(propname),
 			 "platform-%s-codec-ref", codec->name);
-		ref = (u32*)get_property(ldev->sound, propname, NULL);
+		ref = get_property(ldev->sound, propname, NULL);
 		if (!ref) {
 			printk(KERN_INFO "snd-aoa-fabric-layout: "
 				"required property %s not present\n", propname);

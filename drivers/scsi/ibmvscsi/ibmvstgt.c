@@ -897,7 +897,7 @@ static int get_system_info(void)
 {
 	struct device_node *rootdn;
 	const char *id, *model, *name;
-	unsigned int *num;
+	const unsigned int *num;
 
 	rootdn = find_path_device("/");
 	if (!rootdn)
@@ -912,7 +912,7 @@ static int get_system_info(void)
 	if (name)
 		strncpy(partition_name, name, sizeof(partition_name));
 
-	num = (unsigned int *) get_property(rootdn, "ibm,partition-no", NULL);
+	num = get_property(rootdn, "ibm,partition-no", NULL);
 	if (num)
 		partition_number = *num;
 

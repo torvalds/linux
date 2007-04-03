@@ -578,7 +578,7 @@ tas_mixer_ioctl(u_int cmd, u_long arg)
 }
 
 static void __init
-tas_init_frame_rates(unsigned int *prop, unsigned int l)
+tas_init_frame_rates(const unsigned int *prop, unsigned int l)
 {
 	int i ;
 	if (prop) {
@@ -2651,7 +2651,7 @@ get_expansion_type(void)
 */
 
 static void __init
-awacs_init_frame_rates(unsigned int *prop, unsigned int l)
+awacs_init_frame_rates(const unsigned int *prop, unsigned int l)
 {
 	int i ;
 	if (prop) {
@@ -2674,7 +2674,7 @@ awacs_init_frame_rates(unsigned int *prop, unsigned int l)
 }
 
 static void __init
-burgundy_init_frame_rates(unsigned int *prop, unsigned int l)
+burgundy_init_frame_rates(const unsigned int *prop, unsigned int l)
 {
 	int temp[9] ;
 	int i = 0 ;
@@ -2700,7 +2700,7 @@ if (i > 1){
 }
 
 static void __init
-daca_init_frame_rates(unsigned int *prop, unsigned int l)
+daca_init_frame_rates(const unsigned int *prop, unsigned int l)
 {
 	int temp[9] ;
 	int i = 0 ;
@@ -2727,7 +2727,7 @@ if (i > 1){
 }
 
 static void __init
-init_frame_rates(unsigned int *prop, unsigned int l)
+init_frame_rates(const unsigned int *prop, unsigned int l)
 {
 	switch (awacs_revision) {
 		case AWACS_TUMBLER:
@@ -2972,21 +2972,21 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 	*/
 
 	if (info) {
-		unsigned int *prop, l;
+		const unsigned int *prop;
+		unsigned int l;
 
 		sound_device_id = 0;
 		/* device ID appears post g3 b&w */
-		prop = (unsigned int *)get_property(info, "device-id", NULL);
+		prop = get_property(info, "device-id", NULL);
 		if (prop != 0)
 			sound_device_id = *prop;
 
 		/* look for a property saying what sample rates
 		   are available */
 
-		prop = (unsigned int *)get_property(info, "sample-rates", &l);
+		prop = get_property(info, "sample-rates", &l);
 		if (prop == 0)
-			prop = (unsigned int *) get_property
-				(info, "output-frame-rates", &l);
+			prop = get_property(info, "output-frame-rates", &l);
 
 		/* if it's there use it to set up frame rates */
 		init_frame_rates(prop, l) ;

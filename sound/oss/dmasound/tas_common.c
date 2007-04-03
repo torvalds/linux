@@ -190,7 +190,7 @@ tas_cleanup(void)
 int __init
 tas_init(int driver_id, const char *driver_name)
 {
-	u32* paddr;
+	const u32* paddr;
 
 	printk(KERN_INFO "tas driver [%s])\n", driver_name);
 
@@ -200,7 +200,7 @@ tas_init(int driver_id, const char *driver_name)
 	tas_node = find_devices("deq");
 	if (tas_node == NULL)
 		return -ENODEV;
-	paddr = (u32 *)get_property(tas_node, "i2c-address", NULL);
+	paddr = get_property(tas_node, "i2c-address", NULL);
 	if (paddr) {
 		tas_i2c_address = (*paddr) >> 1;
 		printk(KERN_INFO "using i2c address: 0x%x from device-tree\n",
