@@ -30,6 +30,7 @@
 #include <linux/mempool.h>
 #include <linux/delay.h>
 #include <linux/completion.h>
+#include <linux/kthread.h>
 #include <linux/pagevec.h>
 #include <linux/freezer.h>
 #include <asm/uaccess.h>
@@ -120,7 +121,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	struct mid_q_entry * mid_entry;
 	
 	spin_lock(&GlobalMid_Lock);
-	if(server->tcpStatus == CifsExiting) {
+	if( kthread_should_stop() ) {
 		/* the demux thread will exit normally 
 		next time through the loop */
 		spin_unlock(&GlobalMid_Lock);
@@ -182,7 +183,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	up(&server->tcpSem); 
 
-	while ((server->tcpStatus != CifsExiting) && (server->tcpStatus != CifsGood))
+	while ( (!kthread_should_stop()) && (server->tcpStatus != CifsGood))
 	{
 		try_to_freeze();
 		if(server->protocolType == IPV6) {
@@ -199,7 +200,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
 			spin_lock(&GlobalMid_Lock);
-			if(server->tcpStatus != CifsExiting)
+			if( !kthread_should_stop() )
 				server->tcpStatus = CifsGood;
 			server->sequence_number = 0;
 			spin_unlock(&GlobalMid_Lock);			
@@ -345,7 +346,6 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	int isMultiRsp;
 	int reconnect;
 
-	daemonize("cifsd");
 	allow_signal(SIGKILL);
 	current->flags |= PF_MEMALLOC;
 	server->tsk = current;	/* save process info to wake at shutdown */
@@ -361,7 +361,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			GFP_KERNEL);
 	}
 
-	while (server->tcpStatus != CifsExiting) {
+	while (!kthread_should_stop()) {
 		if (try_to_freeze())
 			continue;
 		if (bigbuf == NULL) {
@@ -400,7 +400,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		    kernel_recvmsg(csocket, &smb_msg,
 				 &iov, 1, 4, 0 /* BB see socket.h flags */);
 
-		if (server->tcpStatus == CifsExiting) {
+		if ( kthread_should_stop() ) {
 			break;
 		} else if (server->tcpStatus == CifsNeedReconnect) {
 			cFYI(1, ("Reconnect after server stopped responding"));
@@ -524,7 +524,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		     total_read += length) {
 			length = kernel_recvmsg(csocket, &smb_msg, &iov, 1,
 						pdu_length - total_read, 0);
-			if((server->tcpStatus == CifsExiting) ||
+			if( kthread_should_stop() ||
 			    (length == -EINTR)) {
 				/* then will exit */
 				reconnect = 2;
@@ -757,7 +757,6 @@ multi_t2_fnd:
 			GFP_KERNEL);
 	}
 	
-	complete_and_exit(&cifsd_complete, 0);
 	return 0;
 }
 
@@ -1850,10 +1849,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			so no need to spinlock this init of tcpStatus */
 			srvTcp->tcpStatus = CifsNew;
 			init_MUTEX(&srvTcp->tcpSem);
-			rc = (int)kernel_thread((void *)(void *)cifs_demultiplex_thread, srvTcp,
-				      CLONE_FS | CLONE_FILES | CLONE_VM);
-			if(rc < 0) {
-				rc = -ENOMEM;
+			srvTcp->tsk = kthread_run((void *)(void *)cifs_demultiplex_thread, srvTcp, "cifsd");
+			if( IS_ERR(srvTcp->tsk) ) {
+				rc = PTR_ERR(srvTcp->tsk);
+				cERROR(1,("error %d create cifsd thread", rc));
+				srvTcp->tsk = NULL;
 				sock_release(csocket);
 				kfree(volume_info.UNC);
 				kfree(volume_info.password);
@@ -2050,7 +2050,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			spin_unlock(&GlobalMid_Lock);
 			if(srvTcp->tsk) {
 				send_sig(SIGKILL,srvTcp->tsk,1);
-				wait_for_completion(&cifsd_complete);
+				kthread_stop(srvTcp->tsk);
 			}
 		}
 		 /* If find_unc succeeded then rc == 0 so we can not end */
@@ -2064,9 +2064,9 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					temp_rc = CIFSSMBLogoff(xid, pSesInfo);
 					/* if the socketUseCount is now zero */
 					if((temp_rc == -ESHUTDOWN) &&
-					   (pSesInfo->server->tsk)) {
+					   (pSesInfo->server) && (pSesInfo->server->tsk)) {
 						send_sig(SIGKILL,pSesInfo->server->tsk,1);
-						wait_for_completion(&cifsd_complete);
+						kthread_stop(pSesInfo->server->tsk);
 					}
 				} else
 					cFYI(1, ("No session or bad tcon"));
@@ -3316,7 +3316,7 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 				cFYI(1,("Waking up socket by sending it signal"));
 				if(cifsd_task) {
 					send_sig(SIGKILL,cifsd_task,1);
-					wait_for_completion(&cifsd_complete);
+					kthread_stop(cifsd_task);
 				}
 				rc = 0;
 			} /* else - we have an smb session
