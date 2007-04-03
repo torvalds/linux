@@ -451,7 +451,7 @@ static int bcm5421_init(struct mii_phy* phy)
 	if (phy->platform_data) {
 		struct device_node *np = of_get_parent(phy->platform_data);
 		int can_low_power = 1;
-		if (np == NULL || get_property(np, "no-autolowpower", NULL))
+		if (np == NULL || of_get_property(np, "no-autolowpower", NULL))
 			can_low_power = 0;
 		if (can_low_power) {
 			/* Enable automatic low-power */

@@ -29,8 +29,8 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 	int ret;
 
 	memset(port, 0, sizeof *port);
-	spd = get_property(np, "current-speed", NULL);
-	clk = get_property(np, "clock-frequency", NULL);
+	spd = of_get_property(np, "current-speed", NULL);
+	clk = of_get_property(np, "clock-frequency", NULL);
 	if (!clk) {
 		dev_warn(&ofdev->dev, "no clock-frequency property set\n");
 		return -ENODEV;

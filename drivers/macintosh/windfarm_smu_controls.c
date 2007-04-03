@@ -167,7 +167,7 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 	if (fct == NULL)
 		return NULL;
 	fct->ctrl.ops = &smu_fan_ops;
-	l = get_property(node, "location", NULL);
+	l = of_get_property(node, "location", NULL);
 	if (l == NULL)
 		goto fail;
 
@@ -224,17 +224,17 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 		goto fail;
 
 	/* Get min & max values*/
-	v = get_property(node, "min-value", NULL);
+	v = of_get_property(node, "min-value", NULL);
 	if (v == NULL)
 		goto fail;
 	fct->min = *v;
-	v = get_property(node, "max-value", NULL);
+	v = of_get_property(node, "max-value", NULL);
 	if (v == NULL)
 		goto fail;
 	fct->max = *v;
 
 	/* Get "reg" value */
-	reg = get_property(node, "reg", NULL);
+	reg = of_get_property(node, "reg", NULL);
 	if (reg == NULL)
 		goto fail;
 	fct->reg = *reg;

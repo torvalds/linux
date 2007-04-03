@@ -2336,7 +2336,7 @@ static int ehea_setup_single_port(struct ehea_port *port,
 	port->of_dev_node = dn;
 
 	/* Determine logical port id */
-	dn_log_port_id = get_property(dn, "ibm,hea-port-no", NULL);
+	dn_log_port_id = of_get_property(dn, "ibm,hea-port-no", NULL);
 
 	if (!dn_log_port_id) {
 		ehea_error("bad device node: dn_log_port_id=%p",
@@ -2502,7 +2502,7 @@ static int __devinit ehea_probe(struct ibmebus_dev *dev,
 		goto out;
 	}
 
-	adapter_handle = get_property(dev->ofdev.node, "ibm,hea-handle",
+	adapter_handle = of_get_property(dev->ofdev.node, "ibm,hea-handle",
 					    NULL);
 	if (adapter_handle)
 		adapter->handle = *adapter_handle;

@@ -2929,7 +2929,7 @@ static int __devinit gem_get_device_address(struct gem *gp)
 #elif defined(CONFIG_PPC_PMAC)
 	const unsigned char *addr;
 
-	addr = get_property(gp->of_node, "local-mac-address", NULL);
+	addr = of_get_property(gp->of_node, "local-mac-address", NULL);
 	if (addr == NULL) {
 		printk("\n");
 		printk(KERN_ERR "%s: can't get mac-address\n", dev->name);

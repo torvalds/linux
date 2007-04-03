@@ -674,7 +674,7 @@ static int read_eeprom(int cpu, struct mpu_data *out)
 		printk(KERN_ERR "therm_pm72: Failed to retrieve cpuid node from device-tree\n");
 		return -ENODEV;
 	}
-	data = get_property(np, "cpuid", &len);
+	data = of_get_property(np, "cpuid", &len);
 	if (data == NULL) {
 		printk(KERN_ERR "therm_pm72: Failed to retrieve cpuid property from device-tree\n");
 		of_node_put(np);
@@ -1337,7 +1337,7 @@ static int init_backside_state(struct backside_pid_state *state)
 	 */
 	u3 = of_find_node_by_path("/u3@0,f8000000");
 	if (u3 != NULL) {
-		const u32 *vers = get_property(u3, "device-rev", NULL);
+		const u32 *vers = of_get_property(u3, "device-rev", NULL);
 		if (vers)
 			if (((*vers) & 0x3f) < 0x34)
 				u3h = 0;
@@ -2129,8 +2129,8 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 			continue;
 
 		/* Lookup for a matching location */
-		loc = get_property(np, "location", NULL);
-		reg = get_property(np, "reg", NULL);
+		loc = of_get_property(np, "location", NULL);
+		reg = of_get_property(np, "reg", NULL);
 		if (loc == NULL || reg == NULL)
 			continue;
 		DBG(" matching location: %s, reg: 0x%08x\n", loc, *reg);

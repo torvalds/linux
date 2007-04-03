@@ -118,7 +118,7 @@ static int __init via_pmu_led_init(void)
 	dt = of_find_node_by_path("/");
 	if (dt == NULL)
 		return -ENODEV;
-	model = get_property(dt, "model", NULL);
+	model = of_get_property(dt, "model", NULL);
 	if (model == NULL)
 		return -ENODEV;
 	if (strncmp(model, "PowerBook", strlen("PowerBook")) != 0 &&

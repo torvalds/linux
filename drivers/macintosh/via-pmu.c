@@ -289,7 +289,7 @@ int __init find_via_pmu(void)
 	if (vias == NULL)
 		return 0;
 
-	reg = get_property(vias, "reg", NULL);
+	reg = of_get_property(vias, "reg", NULL);
 	if (reg == NULL) {
 		printk(KERN_ERR "via-pmu: No \"reg\" property !\n");
 		goto fail;
@@ -331,7 +331,7 @@ int __init find_via_pmu(void)
 		
 		gpiop = of_find_node_by_name(NULL, "gpio");
 		if (gpiop) {
-			reg = get_property(gpiop, "reg", NULL);
+			reg = of_get_property(gpiop, "reg", NULL);
 			if (reg)
 				gaddr = of_translate_address(gpiop, reg);
 			if (gaddr != OF_BAD_ADDR)
@@ -487,7 +487,7 @@ static int __init via_pmu_dev_init(void)
 		struct device_node* prim = find_devices("power-mgt");
 		const u32 *prim_info = NULL;
 		if (prim)
-			prim_info = get_property(prim, "prim-info", NULL);
+			prim_info = of_get_property(prim, "prim-info", NULL);
 		if (prim_info) {
 			/* Other stuffs here yet unknown */
 			pmu_battery_count = (prim_info[6] >> 16) & 0xff;

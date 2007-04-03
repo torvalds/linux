@@ -492,7 +492,7 @@ g4fan_init( void )
 
 	if( !(np=of_find_node_by_name(NULL, "power-mgt")) )
 		return -ENODEV;
-	info = get_property(np, "thermal-info", NULL);
+	info = of_get_property(np, "thermal-info", NULL);
 	of_node_put(np);
 
 	if( !info || !machine_is_compatible("PowerMac3,6") )

@@ -613,7 +613,7 @@ static int __devinit agp_uninorth_probe(struct pci_dev *pdev,
 		uninorth_node = of_find_node_by_name(NULL, "u3");
 	}
 	if (uninorth_node) {
-		const int *revprop = get_property(uninorth_node,
+		const int *revprop = of_get_property(uninorth_node,
 				"device-rev", NULL);
 		if (revprop != NULL)
 			uninorth_rev = *revprop & 0x3f;
