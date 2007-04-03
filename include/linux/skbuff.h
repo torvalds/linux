@@ -86,6 +86,7 @@
  */
 
 struct net_device;
+struct scatterlist;
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 struct nf_conntrack {
@@ -347,6 +348,11 @@ extern struct sk_buff *skb_realloc_headroom(struct sk_buff *skb,
 extern struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 				       int newheadroom, int newtailroom,
 				       gfp_t priority);
+extern int	       skb_to_sgvec(struct sk_buff *skb,
+				    struct scatterlist *sg, int offset,
+				    int len);
+extern int	       skb_cow_data(struct sk_buff *skb, int tailbits,
+				    struct sk_buff **trailer);
 extern int	       skb_pad(struct sk_buff *skb, int pad);
 #define dev_kfree_skb(a)	kfree_skb(a)
 extern void	      skb_over_panic(struct sk_buff *skb, int len,

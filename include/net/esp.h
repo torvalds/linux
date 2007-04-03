@@ -40,8 +40,6 @@ struct esp_data
 	} auth;
 };
 
-extern int skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len);
-extern int skb_cow_data(struct sk_buff *skb, int tailbits, struct sk_buff **trailer);
 extern void *pskb_put(struct sk_buff *skb, struct sk_buff *tail, int len);
 
 static inline int esp_mac_digest(struct esp_data *esp, struct sk_buff *skb,
