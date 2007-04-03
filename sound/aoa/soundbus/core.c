@@ -96,7 +96,7 @@ static int soundbus_uevent(struct device *dev, char **envp, int num_envp,
 	 * it's not really legal to split it out with commas. We split it
 	 * up using a number of environment variables instead. */
 
-	compat = get_property(of->node, "compatible", &cplen);
+	compat = of_get_property(of->node, "compatible", &cplen);
 	while (compat && cplen > 0) {
 		envp[i++] = scratch;
 		length = scnprintf (scratch, buffer_size,

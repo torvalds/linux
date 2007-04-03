@@ -1064,7 +1064,7 @@ static int onyx_i2c_attach(struct i2c_adapter *adapter)
 		if (device_is_compatible(dev, "pcm3052")) {
 			const u32 *addr;
 			printk(KERN_DEBUG PFX "found pcm3052\n");
-			addr = get_property(dev, "reg", NULL);
+			addr = of_get_property(dev, "reg", NULL);
 			if (!addr)
 				return -ENODEV;
 			return onyx_create(adapter, dev, (*addr)>>1);

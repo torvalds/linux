@@ -941,7 +941,7 @@ static int tas_i2c_attach(struct i2c_adapter *adapter)
 		if (device_is_compatible(dev, "tas3004")) {
 			const u32 *addr;
 			printk(KERN_DEBUG PFX "found tas3004\n");
-			addr = get_property(dev, "reg", NULL);
+			addr = of_get_property(dev, "reg", NULL);
 			if (!addr)
 				continue;
 			return tas_create(adapter, dev, ((*addr) >> 1) & 0x7f);
@@ -953,7 +953,7 @@ static int tas_i2c_attach(struct i2c_adapter *adapter)
 			const u32 *_addr;
 			u32 addr;
 			printk(KERN_DEBUG PFX "found 'deq' node\n");
-			_addr = (u32 *) get_property(dev, "i2c-address", NULL);
+			_addr = of_get_property(dev, "i2c-address", NULL);
 			if (!_addr)
 				continue;
 			addr = ((*_addr) >> 1) & 0x7f;

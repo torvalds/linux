@@ -357,7 +357,7 @@ setup_audio_gpio(const char *name, const char* compatible, int *gpio_addr, int* 
 	while(np != 0) {
 		if (name) {
 			const char *property =
-				get_property(np,"audio-gpio",NULL);
+				of_get_property(np,"audio-gpio",NULL);
 			if (property != 0 && strcmp(property,name) == 0)
 				break;
 		} else if (compatible && device_is_compatible(np, compatible))
@@ -366,11 +366,11 @@ setup_audio_gpio(const char *name, const char* compatible, int *gpio_addr, int* 
 	}
 	if (!np)
 		return -ENODEV;
-	pp = get_property(np, "AAPL,address", NULL);
+	pp = of_get_property(np, "AAPL,address", NULL);
 	if (!pp)
 		return -ENODEV;
 	*gpio_addr = (*pp) & 0x0000ffff;
-	pp = get_property(np, "audio-gpio-active-state", NULL);
+	pp = of_get_property(np, "audio-gpio-active-state", NULL);
 	if (pp)
 		*gpio_pol = *pp;
 	else
@@ -2977,16 +2977,16 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 
 		sound_device_id = 0;
 		/* device ID appears post g3 b&w */
-		prop = get_property(info, "device-id", NULL);
+		prop = of_get_property(info, "device-id", NULL);
 		if (prop != 0)
 			sound_device_id = *prop;
 
 		/* look for a property saying what sample rates
 		   are available */
 
-		prop = get_property(info, "sample-rates", &l);
+		prop = of_get_property(info, "sample-rates", &l);
 		if (prop == 0)
-			prop = get_property(info, "output-frame-rates", &l);
+			prop = of_get_property(info, "output-frame-rates", &l);
 
 		/* if it's there use it to set up frame rates */
 		init_frame_rates(prop, l) ;
