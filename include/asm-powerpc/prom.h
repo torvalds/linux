@@ -162,8 +162,9 @@ extern void of_detach_node(const struct device_node *);
 extern void finish_device_tree(void);
 extern void unflatten_device_tree(void);
 extern void early_init_devtree(void *);
-extern int device_is_compatible(const struct device_node *device,
+extern int of_device_is_compatible(const struct device_node *device,
 				const char *);
+#define device_is_compatible(d, c)	of_device_is_compatible((d), (c))
 extern int machine_is_compatible(const char *compat);
 extern const void *of_get_property(const struct device_node *node,
 				const char *name,

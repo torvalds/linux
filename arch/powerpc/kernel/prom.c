@@ -1131,7 +1131,8 @@ EXPORT_SYMBOL(find_all_nodes);
 /** Checks if the given "compat" string matches one of the strings in
  * the device's "compatible" property
  */
-int device_is_compatible(const struct device_node *device, const char *compat)
+int of_device_is_compatible(const struct device_node *device,
+		const char *compat)
 {
 	const char* cp;
 	int cplen, l;
@@ -1149,7 +1150,7 @@ int device_is_compatible(const struct device_node *device, const char *compat)
 
 	return 0;
 }
-EXPORT_SYMBOL(device_is_compatible);
+EXPORT_SYMBOL(of_device_is_compatible);
 
 
 /**
@@ -1163,7 +1164,7 @@ int machine_is_compatible(const char *compat)
 
 	root = of_find_node_by_path("/");
 	if (root) {
-		rc = device_is_compatible(root, compat);
+		rc = of_device_is_compatible(root, compat);
 		of_node_put(root);
 	}
 	return rc;
@@ -1184,7 +1185,7 @@ struct device_node *find_compatible_devices(const char *type,
 		if (type != NULL
 		    && !(np->type != 0 && strcasecmp(np->type, type) == 0))
 			continue;
-		if (device_is_compatible(np, compat)) {
+		if (of_device_is_compatible(np, compat)) {
 			*prevp = np;
 			prevp = &np->next;
 		}
@@ -1300,7 +1301,7 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 		if (type != NULL
 		    && !(np->type != 0 && strcasecmp(np->type, type) == 0))
 			continue;
-		if (device_is_compatible(np, compatible) && of_node_get(np))
+		if (of_device_is_compatible(np, compatible) && of_node_get(np))
 			break;
 	}
 	of_node_put(from);
