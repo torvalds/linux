@@ -698,7 +698,7 @@ static size_t packet_size_to_data_size(size_t packet_size, size_t header_size,
 		ret = buffer_size;
 
 	if (unlikely(ret + header_size != packet_size))
-		HPSB_ERR("unexpected packet size %d (tcode %d), bug?",
+		HPSB_ERR("unexpected packet size %zd (tcode %d), bug?",
 			 packet_size, tcode);
 	return ret;
 }
