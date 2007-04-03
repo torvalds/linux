@@ -97,3 +97,6 @@
 
 #define pud_ERROR(e) \
 	printk("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))
+
+#define remap_4k_pfn(vma, addr, pfn, prot)	\
+	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE, (prot))

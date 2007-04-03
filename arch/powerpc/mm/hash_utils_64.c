@@ -573,6 +573,27 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 	return pp;
 }
 
+/*
+ * Demote a segment to using 4k pages.
+ * For now this makes the whole process use 4k pages.
+ */
+void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
+{
+#ifdef CONFIG_PPC_64K_PAGES
+	if (mm->context.user_psize == MMU_PAGE_4K)
+		return;
+	mm->context.user_psize = MMU_PAGE_4K;
+	mm->context.sllp = SLB_VSID_USER | mmu_psize_defs[MMU_PAGE_4K].sllp;
+	get_paca()->context = mm->context;
+	slb_flush_and_rebolt();
+#ifdef CONFIG_SPE_BASE
+	spu_flush_all_slbs(mm);
+#endif
+#endif
+}
+
+EXPORT_SYMBOL_GPL(demote_segment_4k);
+
 /* Result code is:
  *  0 - handled
  *  1 - normal page fault
@@ -665,15 +686,19 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 #ifndef CONFIG_PPC_64K_PAGES
 	rc = __hash_page_4K(ea, access, vsid, ptep, trap, local);
 #else
+	/* If _PAGE_4K_PFN is set, make sure this is a 4k segment */
+	if (pte_val(*ptep) & _PAGE_4K_PFN) {
+		demote_segment_4k(mm, ea);
+		psize = MMU_PAGE_4K;
+	}
+
 	if (mmu_ci_restrictions) {
 		/* If this PTE is non-cacheable, switch to 4k */
 		if (psize == MMU_PAGE_64K &&
 		    (pte_val(*ptep) & _PAGE_NO_CACHE)) {
 			if (user_region) {
+				demote_segment_4k(mm, ea);
 				psize = MMU_PAGE_4K;
-				mm->context.user_psize = MMU_PAGE_4K;
-				mm->context.sllp = SLB_VSID_USER |
-					mmu_psize_defs[MMU_PAGE_4K].sllp;
 			} else if (ea < VMALLOC_END) {
 				/*
 				 * some driver did a non-cacheable mapping
@@ -756,16 +781,8 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	if (mmu_ci_restrictions) {
 		/* If this PTE is non-cacheable, switch to 4k */
 		if (mm->context.user_psize == MMU_PAGE_64K &&
-		    (pte_val(*ptep) & _PAGE_NO_CACHE)) {
-			mm->context.user_psize = MMU_PAGE_4K;
-			mm->context.sllp = SLB_VSID_USER |
-				mmu_psize_defs[MMU_PAGE_4K].sllp;
-			get_paca()->context = mm->context;
-			slb_flush_and_rebolt();
-#ifdef CONFIG_SPE_BASE
-			spu_flush_all_slbs(mm);
-#endif
-		}
+		    (pte_val(*ptep) & _PAGE_NO_CACHE))
+			demote_segment_4k(mm, ea);
 	}
 	if (mm->context.user_psize == MMU_PAGE_64K)
 		__hash_page_64K(ea, access, vsid, ptep, trap, local);

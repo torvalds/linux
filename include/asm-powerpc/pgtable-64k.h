@@ -35,6 +35,7 @@
 #define _PAGE_HPTE_SUB	0x0ffff000 /* combo only: sub pages HPTE bits */
 #define _PAGE_HPTE_SUB0	0x08000000 /* combo only: first sub page */
 #define _PAGE_COMBO	0x10000000 /* this is a combo 4k page */
+#define _PAGE_4K_PFN	0x20000000 /* PFN is for a single 4k page */
 #define _PAGE_F_SECOND  0x00008000 /* full page: hidx bits */
 #define _PAGE_F_GIX     0x00007000 /* full page: hidx bits */
 
@@ -92,6 +93,10 @@
 
 #define pte_pagesize_index(pte)	\
 	(((pte) & _PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
+
+#define remap_4k_pfn(vma, addr, pfn, prot)				\
+	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,		\
+			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN))
 
 #endif /*  __ASSEMBLY__ */
 #endif /* __KERNEL__ */
