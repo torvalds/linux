@@ -214,6 +214,8 @@ struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 	bh = btrfs_find_create_tree_block(root, blocknr);
 	if (!bh)
 		return bh;
+	if (buffer_uptodate(bh))
+		goto uptodate;
 	lock_buffer(bh);
 	if (!buffer_uptodate(bh)) {
 		get_bh(bh);
@@ -226,6 +228,7 @@ struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 	} else {
 		unlock_buffer(bh);
 	}
+uptodate:
 	if (check_tree_block(root, bh))
 		BUG();
 	return bh;
