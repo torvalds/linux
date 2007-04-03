@@ -77,7 +77,7 @@ static void __init fixup_bus_range(struct device_node *bridge)
 			       bridge->full_name);
 		return;
 	}
-	bus_range = (int *)prop->value;
+	bus_range = prop->value;
 	bus_range[1] = fixup_one_level_bus_range(bridge->child, bus_range[1]);
 }
 

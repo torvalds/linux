@@ -390,12 +390,13 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 		if (allnextpp) {
 			pp->name = "name";
 			pp->length = sz;
-			pp->value = (unsigned char *)(pp + 1);
+			pp->value = pp + 1;
 			*prev_pp = pp;
 			prev_pp = &pp->next;
 			memcpy(pp->value, ps, sz - 1);
 			((char *)pp->value)[sz - 1] = 0;
-			DBG("fixed up name for %s -> %s\n", pathp, pp->value);
+			DBG("fixed up name for %s -> %s\n", pathp,
+				(char *)pp->value);
 		}
 	}
 	if (allnextpp) {

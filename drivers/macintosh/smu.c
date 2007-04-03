@@ -952,7 +952,7 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 	prop->name = ((char *)prop) + tlen - 18;
 	sprintf(prop->name, "sdb-partition-%02x", id);
 	prop->length = len;
-	prop->value = (unsigned char *)hdr;
+	prop->value = hdr;
 	prop->next = NULL;
 
 	/* Read the datablock */

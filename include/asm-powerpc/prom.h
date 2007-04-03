@@ -71,7 +71,7 @@ typedef u32 ihandle;
 struct property {
 	char	*name;
 	int	length;
-	unsigned char *value;
+	void	*value;
 	struct property *next;
 };
 

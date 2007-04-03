@@ -692,8 +692,7 @@ static int pmf_add_functions(struct pmf_device *dev, void *driverdata)
 		name = pp->name + plen;
 		if (strlen(name) && pp->length >= 12)
 			count += pmf_add_function_prop(dev, driverdata, name,
-						       (u32 *)pp->value,
-						       pp->length);
+						       pp->value, pp->length);
 	}
 	return count;
 }

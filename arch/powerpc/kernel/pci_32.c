@@ -1012,7 +1012,7 @@ pci_create_OF_bus_map(void)
 		memset(of_prop, -1, sizeof(struct property) + 256);
 		of_prop->name = "pci-OF-bus-map";
 		of_prop->length = 256;
-		of_prop->value = (unsigned char *)&of_prop[1];
+		of_prop->value = &of_prop[1];
 		prom_add_property(find_path_device("/"), of_prop);
 	}
 }
