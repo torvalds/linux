@@ -1041,8 +1041,7 @@ void __init early_init_devtree(void *params)
 
 #undef printk
 
-int
-prom_n_addr_cells(struct device_node* np)
+int of_n_addr_cells(struct device_node* np)
 {
 	const int *ip;
 	do {
@@ -1055,7 +1054,7 @@ prom_n_addr_cells(struct device_node* np)
 	/* No #address-cells property for the root node, default to 1 */
 	return 1;
 }
-EXPORT_SYMBOL(prom_n_addr_cells);
+EXPORT_SYMBOL(of_n_addr_cells);
 
 int
 prom_n_size_cells(struct device_node* np)

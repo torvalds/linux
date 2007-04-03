@@ -201,7 +201,7 @@ static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 	if (!memory)
 		panic("numa.c: No memory nodes found!");
 
-	*n_addr_cells = prom_n_addr_cells(memory);
+	*n_addr_cells = of_n_addr_cells(memory);
 	*n_size_cells = prom_n_size_cells(memory);
 	of_node_put(memory);
 }

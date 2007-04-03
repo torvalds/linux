@@ -139,7 +139,7 @@ static void __init pseries_mpic_init_IRQ(void)
 	struct mpic *mpic;
 
 	np = of_find_node_by_path("/");
-	naddr = prom_n_addr_cells(np);
+	naddr = of_n_addr_cells(np);
 	opprop = get_property(np, "platform-open-pic", &opplen);
 	if (opprop != 0) {
 		openpic_addr = of_read_number(opprop, naddr);
@@ -193,7 +193,7 @@ static void __init pseries_mpic_init_IRQ(void)
 					    NULL);
 		if (addrp == NULL)
 			continue;
-		naddr = prom_n_addr_cells(np);
+		naddr = of_n_addr_cells(np);
 		intack = addrp[naddr-1];
 		if (naddr > 1)
 			intack |= ((unsigned long)addrp[naddr-2]) << 32;

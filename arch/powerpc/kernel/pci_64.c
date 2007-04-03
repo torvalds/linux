@@ -957,7 +957,7 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	int rlen = 0;
 	int memno = 0;
 	struct resource *res;
-	int np, na = prom_n_addr_cells(dev);
+	int np, na = of_n_addr_cells(dev);
 	unsigned long pci_addr, cpu_phys_addr;
 
 	np = na + 5;

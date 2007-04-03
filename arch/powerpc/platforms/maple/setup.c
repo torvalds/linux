@@ -248,7 +248,7 @@ static void __init maple_init_IRQ(void)
 
 	/* Find address list in /platform-open-pic */
 	root = of_find_node_by_path("/");
-	naddr = prom_n_addr_cells(root);
+	naddr = of_n_addr_cells(root);
 	opprop = get_property(root, "platform-open-pic", &opplen);
 	if (opprop != 0) {
 		openpic_addr = of_read_number(opprop, naddr);

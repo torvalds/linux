@@ -361,7 +361,7 @@ static void __init chrp_find_openpic(void)
 	root = of_find_node_by_path("/");
 	if (root) {
 		opprop = get_property(root, "platform-open-pic", &oplen);
-		na = prom_n_addr_cells(root);
+		na = of_n_addr_cells(root);
 	}
 	if (opprop && oplen >= na * sizeof(unsigned int)) {
 		opaddr = opprop[na-1];	/* assume 32-bit */
@@ -468,7 +468,7 @@ static void __init chrp_find_8259(void)
 
 		if (addrp == NULL)
 			continue;
-		chrp_int_ack = addrp[prom_n_addr_cells(np)-1];
+		chrp_int_ack = addrp[of_n_addr_cells(np)-1];
 		break;
 	}
 	if (np == NULL)

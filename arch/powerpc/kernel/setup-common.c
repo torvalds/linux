@@ -379,7 +379,7 @@ void __init smp_setup_cpu_maps(void)
 		int num_addr_cell, num_size_cell, maxcpus;
 		const unsigned int *ireg;
 
-		num_addr_cell = prom_n_addr_cells(dn);
+		num_addr_cell = of_n_addr_cells(dn);
 		num_size_cell = prom_n_size_cells(dn);
 
 		ireg = get_property(dn, "ibm,lrdr-capacity", NULL);

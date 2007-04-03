@@ -895,7 +895,7 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	int rlen = 0, orig_rlen;
 	int memno = 0;
 	struct resource *res;
-	int np, na = prom_n_addr_cells(dev);
+	int np, na = of_n_addr_cells(dev);
 	np = na + 5;
 
 	/* First we try to merge ranges to fix a problem with some pmacs

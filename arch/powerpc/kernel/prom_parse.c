@@ -68,7 +68,7 @@ static void of_bus_default_count_cells(struct device_node *dev,
 				       int *addrc, int *sizec)
 {
 	if (addrc)
-		*addrc = prom_n_addr_cells(dev);
+		*addrc = of_n_addr_cells(dev);
 	if (sizec)
 		*sizec = prom_n_size_cells(dev);
 }
@@ -654,7 +654,7 @@ void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
 	if (!prop)
 		prop = get_property(dn, "#address-cells", NULL);
 
-	cells = prop ? *(u32 *)prop : prom_n_addr_cells(dn);
+	cells = prop ? *(u32 *)prop : of_n_addr_cells(dn);
 	*phys = of_read_number(dma_window, cells);
 
 	dma_window += cells;
