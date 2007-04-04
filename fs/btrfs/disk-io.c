@@ -311,7 +311,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->extent_root = extent_root;
 	fs_info->inode_root = inode_root;
 	fs_info->last_inode_alloc = 0;
-	fs_info->last_inode_alloc_dirid = 0;
 	fs_info->sb = sb;
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;

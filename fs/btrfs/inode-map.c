@@ -22,17 +22,31 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	struct btrfs_key search_key;
 	u64 search_start = dirid;
 
-	if (fs_root->fs_info->last_inode_alloc_dirid == dirid)
-		search_start = fs_root->fs_info->last_inode_alloc;
-
-	search_start = max(search_start, BTRFS_FIRST_FREE_OBJECTID);
-	search_key.objectid = search_start;
-	search_key.flags = 0;
-	btrfs_set_key_type(&search_key, BTRFS_INODE_MAP_ITEM_KEY);
-	search_key.offset = 0;
-
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
+	search_key.flags = 0;
+	btrfs_set_key_type(&search_key, BTRFS_INODE_MAP_ITEM_KEY);
+
+	search_start = fs_root->fs_info->last_inode_alloc;
+	if (search_start == 0) {
+		struct btrfs_disk_key *last_key;
+		btrfs_init_path(path);
+		search_key.objectid = (u64)-1;
+		search_key.offset = (u64)-1;
+		ret = btrfs_search_slot(trans, root, &search_key, path, 0, 0);
+		if (ret < 0)
+			goto error;
+		BUG_ON(ret == 0);
+		if (path->slots[0] > 0)
+			path->slots[0]--;
+		l = btrfs_buffer_leaf(path->nodes[0]);
+		last_key = &l->items[path->slots[0]].key;
+		search_start = btrfs_disk_key_objectid(last_key);
+	}
+	search_start = max(search_start, BTRFS_FIRST_FREE_OBJECTID);
+	search_key.objectid = search_start;
+	search_key.offset = 0;
+
 	btrfs_init_path(path);
 	start_found = 0;
 	ret = btrfs_search_slot(trans, root, &search_key, path, 0, 0);
@@ -79,7 +93,6 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	// FIXME -ENOSPC
 found:
 	root->fs_info->last_inode_alloc = *objectid;
-	root->fs_info->last_inode_alloc_dirid = dirid;
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	BUG_ON(*objectid < search_start);

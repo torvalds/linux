@@ -339,13 +339,30 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	int total_needed = num_blocks;
 	int level;
 
+	path = btrfs_alloc_path();
+	ins->flags = 0;
+	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
+
 	level = btrfs_header_level(btrfs_buffer_header(root->node));
 	total_needed += (level + 1) * 3;
+	if (root->fs_info->last_insert.objectid == 0 && search_end == (u64)-1) {
+		struct btrfs_disk_key *last_key;
+		btrfs_init_path(path);
+		ins->objectid = (u64)-1;
+		ins->offset = (u64)-1;
+		ret = btrfs_search_slot(trans, root, ins, path, 0, 0);
+		if (ret < 0)
+			goto error;
+		BUG_ON(ret == 0);
+		if (path->slots[0] > 0)
+			path->slots[0]--;
+		l = btrfs_buffer_leaf(path->nodes[0]);
+		last_key = &l->items[path->slots[0]].key;
+		search_start = btrfs_disk_key_objectid(last_key);
+	}
 	if (root->fs_info->last_insert.objectid > search_start)
 		search_start = root->fs_info->last_insert.objectid;
 
-	ins->flags = 0;
-	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
 	path = btrfs_alloc_path();
 
 check_failed:

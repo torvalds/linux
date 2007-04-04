@@ -1,9 +1,7 @@
 * cleanup, add more error checking, get rid of BUG_ONs
 * Fix ENOSPC handling
-* Do checksumming
 * Add block mapping tree (simple dm layer)
 * Make allocator smarter
-* make level a field in header
 * add a block group to struct inode
 * Make directory hashing work on 32 bit
 * Make sure nobh stuff is working properly for cows
