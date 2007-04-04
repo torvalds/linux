@@ -100,7 +100,10 @@ enum sel_inos {
 	SEL_MEMBER,	/* compute polyinstantiation membership decision */
 	SEL_CHECKREQPROT, /* check requested protection, not kernel-applied one */
 	SEL_COMPAT_NET,	/* whether to use old compat network packet controls */
+	SEL_INO_NEXT,	/* The next inode number to use */
 };
+
+static unsigned long sel_last_ino = SEL_INO_NEXT - 1;
 
 #define SEL_INITCON_INO_OFFSET 	0x01000000
 #define SEL_INO_MASK		0x00ffffff
@@ -1237,6 +1240,7 @@ static int sel_make_avc_files(struct dentry *dir)
 			goto out;
 		}
 		inode->i_fop = files[i].ops;
+		inode->i_ino = ++sel_last_ino;
 		d_add(dentry, inode);
 	}
 out:
@@ -1304,6 +1308,7 @@ static int sel_make_dir(struct inode *dir, struct dentry *dentry)
 	}
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
+	inode->i_ino = ++sel_last_ino;
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
 	d_add(dentry, inode);
@@ -1366,6 +1371,7 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		ret = -ENOMEM;
 		goto err;
 	}
+	inode->i_ino = ++sel_last_ino;
 	isec = (struct inode_security_struct*)inode->i_security;
 	isec->sid = SECINITSID_DEVNULL;
 	isec->sclass = SECCLASS_CHR_FILE;
