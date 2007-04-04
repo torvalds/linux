@@ -136,8 +136,11 @@ static int btrfs_unlink_trans(struct btrfs_trans_handle *trans,
 err:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
-	if (ret == 0)
+	if (ret == 0) {
 		inode_dec_link_count(dentry->d_inode);
+		dir->i_size -= name_len;
+		mark_inode_dirty(dir);
+	}
 	return ret;
 }
 
@@ -290,6 +293,10 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	key.objectid = inode->i_ino;
 	key.offset = (u64)-1;
 	key.flags = 0;
+	/*
+	 * use BTRFS_CSUM_ITEM_KEY because it is larger than inline keys
+	 * or extent data
+	 */
 	btrfs_set_key_type(&key, BTRFS_CSUM_ITEM_KEY);
 	while(1) {
 		btrfs_init_path(path);
@@ -306,6 +313,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 		if (btrfs_disk_key_objectid(found_key) != inode->i_ino)
 			break;
 		if (btrfs_disk_key_type(found_key) != BTRFS_CSUM_ITEM_KEY &&
+		    btrfs_disk_key_type(found_key) != BTRFS_INLINE_DATA_KEY &&
 		    btrfs_disk_key_type(found_key) != BTRFS_EXTENT_DATA_KEY)
 			break;
 		if (btrfs_disk_key_offset(found_key) < inode->i_size)
@@ -1036,7 +1044,7 @@ static void btrfs_truncate(struct inode *inode)
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return;
 
-	nobh_truncate_page(inode->i_mapping, inode->i_size);
+	// nobh_truncate_page(inode->i_mapping, inode->i_size);
 
 	/* FIXME, add redo link to tree so we don't leak on crash */
 	mutex_lock(&root->fs_info->fs_mutex);
@@ -1309,7 +1317,9 @@ again:
 	}
 insert:
 	btrfs_release_path(root, path);
-	copy_size = min(write_bytes, (size_t)512);
+	copy_size = min(write_bytes,
+			(size_t)BTRFS_LEAF_DATA_SIZE(root) -
+			sizeof(struct btrfs_item) * 4);
 	ret = btrfs_insert_empty_item(trans, root, path, &key, copy_size);
 	BUG_ON(ret);
 	dst = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
