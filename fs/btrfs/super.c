@@ -816,6 +816,73 @@ printk("btrfs sync_fs\n");
 	return 0;
 }
 
+static int btrfs_get_block_inline(struct inode *inode, sector_t iblock,
+			   struct buffer_head *result, int create)
+{
+	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	struct btrfs_leaf *leaf;
+	int num_bytes = result->b_size;
+	int item_size;
+	int ret;
+	u64 pos;
+	char *ptr;
+	int copy_size;
+	int err = 0;
+	char *safe_ptr;
+	char *data_ptr;
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+
+	WARN_ON(create);
+	if (create) {
+		return 0;
+	}
+	pos = iblock << inode->i_blkbits;
+	key.objectid = inode->i_ino;
+	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_INLINE_DATA_KEY);
+	ptr = kmap(result->b_page);
+	safe_ptr = ptr;
+	ptr += (pos & (PAGE_CACHE_SIZE -1));
+again:
+	key.offset = pos;
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret) {
+		if (ret < 0)
+			err = ret;
+		else
+			err = 0;
+		goto out;
+	}
+	leaf = btrfs_buffer_leaf(path->nodes[0]);
+	item_size = btrfs_item_size(leaf->items + path->slots[0]);
+	copy_size = min(num_bytes, item_size);
+	data_ptr = btrfs_item_ptr(leaf, path->slots[0], char);
+	WARN_ON(safe_ptr + PAGE_CACHE_SIZE < ptr + copy_size);
+	memcpy(ptr, data_ptr, copy_size);
+	pos += copy_size;
+	num_bytes -= copy_size;
+	WARN_ON(num_bytes < 0);
+	ptr += copy_size;
+	btrfs_release_path(root, path);
+	if (num_bytes != 0) {
+		if (pos >= i_size_read(inode))
+			memset(ptr, 0, num_bytes);
+		else
+			goto again;
+	}
+	set_buffer_uptodate(result);
+	map_bh(result, inode->i_sb, 0);
+	err = 0;
+out:
+	btrfs_free_path(path);
+	kunmap(result->b_page);
+	return err;
+}
+
 static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 			   struct buffer_head *result, int create)
 {
@@ -918,7 +985,8 @@ static int btrfs_get_block(struct inode *inode, sector_t iblock,
 	int err;
 	struct btrfs_root *root = btrfs_sb(inode->i_sb);
 	mutex_lock(&root->fs_info->fs_mutex);
-	err = btrfs_get_block_lock(inode, iblock, result, create);
+	// err = btrfs_get_block_lock(inode, iblock, result, create);
+	err = btrfs_get_block_inline(inode, iblock, result, create);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return err;
 }
@@ -1177,6 +1245,170 @@ out:
 	return num_written ? num_written : err;
 }
 
+static ssize_t inline_one_page(struct btrfs_root *root, struct inode *inode,
+			   struct page *page, loff_t pos,
+			   size_t offset, size_t write_bytes)
+{
+	struct btrfs_path *path;
+	struct btrfs_trans_handle *trans;
+	struct btrfs_key key;
+	struct btrfs_leaf *leaf;
+	struct btrfs_key found_key;
+	int ret;
+	size_t copy_size = 0;
+	char *dst = NULL;
+	int err = 0;
+	size_t num_written = 0;
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	key.objectid = inode->i_ino;
+	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_INLINE_DATA_KEY);
+
+again:
+	key.offset = pos;
+	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
+	if (ret < 0) {
+		err = ret;
+		goto out;
+	}
+	if (ret == 0) {
+		leaf = btrfs_buffer_leaf(path->nodes[0]);
+		btrfs_disk_key_to_cpu(&found_key,
+				      &leaf->items[path->slots[0]].key);
+		copy_size = btrfs_item_size(leaf->items + path->slots[0]);
+		dst = btrfs_item_ptr(leaf, path->slots[0], char);
+		copy_size = min(write_bytes, copy_size);
+		goto copyit;
+	} else {
+		int slot = path->slots[0];
+		if (slot > 0) {
+			slot--;
+		}
+		// FIXME find max key
+		leaf = btrfs_buffer_leaf(path->nodes[0]);
+		btrfs_disk_key_to_cpu(&found_key,
+				      &leaf->items[slot].key);
+		if (found_key.objectid != inode->i_ino)
+			goto insert;
+		if (btrfs_key_type(&found_key) != BTRFS_INLINE_DATA_KEY)
+			goto insert;
+		copy_size = btrfs_item_size(leaf->items + slot);
+		if (found_key.offset + copy_size <= pos)
+			goto insert;
+		dst = btrfs_item_ptr(leaf, path->slots[0], char);
+		dst += pos - found_key.offset;
+		copy_size = copy_size - (pos - found_key.offset);
+		BUG_ON(copy_size < 0);
+		copy_size = min(write_bytes, copy_size);
+		WARN_ON(copy_size == 0);
+		goto copyit;
+	}
+insert:
+	btrfs_release_path(root, path);
+	copy_size = min(write_bytes, (size_t)512);
+	ret = btrfs_insert_empty_item(trans, root, path, &key, copy_size);
+	BUG_ON(ret);
+	dst = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
+			     path->slots[0], char);
+copyit:
+	WARN_ON(copy_size == 0);
+	WARN_ON(dst + copy_size >
+		btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
+						 path->slots[0], char) +
+		btrfs_item_size(btrfs_buffer_leaf(path->nodes[0])->items +
+						  path->slots[0]));
+	btrfs_memcpy(root, path->nodes[0]->b_data, dst,
+		     page_address(page) + offset, copy_size);
+	mark_buffer_dirty(path->nodes[0]);
+	btrfs_release_path(root, path);
+	pos += copy_size;
+	offset += copy_size;
+	num_written += copy_size;
+	write_bytes -= copy_size;
+	if (write_bytes)
+		goto again;
+out:
+	btrfs_free_path(path);
+	ret = btrfs_end_transaction(trans, root);
+	BUG_ON(ret);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return num_written ? num_written : err;
+}
+
+static ssize_t btrfs_file_inline_write(struct file *file,
+				       const char __user *buf,
+				       size_t count, loff_t *ppos)
+{
+	loff_t pos;
+	size_t num_written = 0;
+	int err = 0;
+	int ret = 0;
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct btrfs_root *root = btrfs_sb(inode->i_sb);
+	unsigned long page_index;
+
+	if (file->f_flags & O_DIRECT)
+		return -EINVAL;
+	pos = *ppos;
+
+	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+	current->backing_dev_info = inode->i_mapping->backing_dev_info;
+	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
+	if (err)
+		goto out;
+	if (count == 0)
+		goto out;
+	err = remove_suid(file->f_path.dentry);
+	if (err)
+		goto out;
+	file_update_time(file);
+	mutex_lock(&inode->i_mutex);
+	while(count > 0) {
+		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
+		size_t write_bytes = min(count, PAGE_CACHE_SIZE - offset);
+		struct page *page;
+
+		page_index = pos >> PAGE_CACHE_SHIFT;
+		page = grab_cache_page(inode->i_mapping, page_index);
+		if (!PageUptodate(page)) {
+			ret = mpage_readpage(page, btrfs_get_block);
+			BUG_ON(ret);
+			lock_page(page);
+		}
+		ret = btrfs_copy_from_user(pos, 1,
+					   write_bytes, &page, buf);
+		BUG_ON(ret);
+		write_bytes = inline_one_page(root, inode, page, pos,
+				      offset, write_bytes);
+		SetPageUptodate(page);
+		if (write_bytes > 0 && pos + write_bytes > inode->i_size) {
+			i_size_write(inode, pos + write_bytes);
+			mark_inode_dirty(inode);
+		}
+		page_cache_release(page);
+		unlock_page(page);
+		if (write_bytes < 0)
+			goto out_unlock;
+		buf += write_bytes;
+		count -= write_bytes;
+		pos += write_bytes;
+		num_written += write_bytes;
+
+		balance_dirty_pages_ratelimited(inode->i_mapping);
+		cond_resched();
+	}
+out_unlock:
+	mutex_unlock(&inode->i_mutex);
+out:
+	*ppos = pos;
+	current->backing_dev_info = NULL;
+	return num_written ? num_written : err;
+}
+
 static int btrfs_read_actor(read_descriptor_t *desc, struct page *page,
 			unsigned long offset, unsigned long size)
 {
@@ -1420,7 +1652,7 @@ static struct file_operations btrfs_dir_file_operations = {
 
 static struct address_space_operations btrfs_aops = {
 	.readpage	= btrfs_readpage,
-	.readpages	= btrfs_readpages,
+	// .readpages	= btrfs_readpages,
 	.writepage	= btrfs_writepage,
 	.sync_page	= block_sync_page,
 	.prepare_write	= btrfs_prepare_write,
@@ -1434,8 +1666,8 @@ static struct inode_operations btrfs_file_inode_operations = {
 static struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.aio_read       = btrfs_file_aio_read,
-	.write		= btrfs_file_write,
+	.aio_read       = generic_file_aio_read,
+	.write		= btrfs_file_inline_write,
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
 };

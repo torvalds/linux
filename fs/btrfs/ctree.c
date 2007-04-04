@@ -16,19 +16,24 @@ static int balance_node_right(struct btrfs_trans_handle *trans, struct
 static int del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_path *path, int level, int slot);
 
+inline void btrfs_init_path(struct btrfs_path *p)
+{
+	memset(p, 0, sizeof(*p));
+}
+
 struct btrfs_path *btrfs_alloc_path(void)
 {
-	return kmem_cache_alloc(btrfs_path_cachep, GFP_NOFS);
+	struct btrfs_path *path;
+	path = kmem_cache_alloc(btrfs_path_cachep, GFP_NOFS);
+	if (path)
+		btrfs_init_path(path);
+	return path;
 }
 
 void btrfs_free_path(struct btrfs_path *p)
 {
+	btrfs_release_path(NULL, p);
 	kmem_cache_free(btrfs_path_cachep, p);
-}
-
-inline void btrfs_init_path(struct btrfs_path *p)
-{
-	memset(p, 0, sizeof(*p));
 }
 
 void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
@@ -77,6 +82,7 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 		btrfs_free_extent(trans, root, buf->b_blocknr, 1, 1);
 	}
 	btrfs_block_release(root, buf);
+	mark_buffer_dirty(cow);
 	*cow_ret = cow;
 	return 0;
 }
