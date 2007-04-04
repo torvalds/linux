@@ -26,14 +26,10 @@ static int tas5110c1b_init(struct sn9c102_device* cam)
 {
 	int err = 0;
 
-	err += sn9c102_write_reg(cam, 0x01, 0x01);
-	err += sn9c102_write_reg(cam, 0x44, 0x01);
-	err += sn9c102_write_reg(cam, 0x00, 0x10);
-	err += sn9c102_write_reg(cam, 0x00, 0x11);
-	err += sn9c102_write_reg(cam, 0x0a, 0x14);
-	err += sn9c102_write_reg(cam, 0x60, 0x17);
-	err += sn9c102_write_reg(cam, 0x06, 0x18);
-	err += sn9c102_write_reg(cam, 0xfb, 0x19);
+	err = sn9c102_write_const_regs(cam, {0x01, 0x01}, {0x44, 0x01},
+				       {0x00, 0x10}, {0x00, 0x11},
+				       {0x0a, 0x14}, {0x60, 0x17},
+				       {0x06, 0x18}, {0xfb, 0x19});
 
 	err += sn9c102_i2c_write(cam, 0xc0, 0x80);
 

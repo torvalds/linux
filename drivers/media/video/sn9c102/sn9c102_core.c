@@ -209,26 +209,39 @@ static void sn9c102_queue_unusedframes(struct sn9c102_device* cam)
 }
 
 /*****************************************************************************/
-
-int sn9c102_write_regs(struct sn9c102_device* cam, u8* buff, u16 index)
+/*
+ * Write a sequence of count value/register pairs.  Returns -1 after the
+ * first failed write, or 0 for no errors.
+ */
+int sn9c102_write_regs(struct sn9c102_device* cam, const u8 valreg[][2],
+		       int count)
 {
 	struct usb_device* udev = cam->usbdev;
+	u8* value = cam->control_buffer;  /* Needed for DMA'able memory */
 	int i, res;
 
-	if (index + sizeof(buff) >= ARRAY_SIZE(cam->reg))
-		return -1;
+	for (i = 0; i < count; i++) {
+		u8 index = valreg[i][1];
 
-	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x08, 0x41,
-			      index, 0, buff, sizeof(buff),
-			      SN9C102_CTRL_TIMEOUT*sizeof(buff));
-	if (res < 0) {
-		DBG(3, "Failed to write registers (index 0x%02X, error %d)",
-		    index, res);
-		return -1;
+		/*
+		 * index is a u8, so it must be <256 and can't be out of range.
+		 * If we put in a check anyway, gcc annoys us with a warning
+		 * that our check is useless.  People get all uppity when they
+		 * see warnings in the kernel compile.
+		 */
+
+		*value = valreg[i][0];
+		res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				      0x08, 0x41, index, 0,
+				      value, 1, SN9C102_CTRL_TIMEOUT);
+		if (res < 0) {
+			DBG(3, "Failed to write a register (value 0x%02X, "
+			       "index 0x%02X, error %d)", *value, index, res);
+			return -1;
+		}
+
+		cam->reg[index] = *value;
 	}
-
-	for (i = 0; i < sizeof(buff); i++)
-		cam->reg[index+i] = buff[i];
 
 	return 0;
 }

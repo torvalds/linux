@@ -24,14 +24,11 @@
 
 static int hv7131d_init(struct sn9c102_device* cam)
 {
-	int err = 0;
+	int err;
 
-	err += sn9c102_write_reg(cam, 0x00, 0x10);
-	err += sn9c102_write_reg(cam, 0x00, 0x11);
-	err += sn9c102_write_reg(cam, 0x00, 0x14);
-	err += sn9c102_write_reg(cam, 0x60, 0x17);
-	err += sn9c102_write_reg(cam, 0x0e, 0x18);
-	err += sn9c102_write_reg(cam, 0xf2, 0x19);
+	err = sn9c102_write_const_regs(cam, {0x00, 0x10}, {0x00, 0x11},
+				       {0x00, 0x14}, {0x60, 0x17},
+				       {0x0e, 0x18}, {0xf2, 0x19});
 
 	err += sn9c102_i2c_write(cam, 0x01, 0x04);
 	err += sn9c102_i2c_write(cam, 0x02, 0x00);
@@ -247,11 +244,10 @@ static struct sn9c102_sensor hv7131d = {
 
 int sn9c102_probe_hv7131d(struct sn9c102_device* cam)
 {
-	int r0 = 0, r1 = 0, err = 0;
+	int r0 = 0, r1 = 0, err;
 
-	err += sn9c102_write_reg(cam, 0x01, 0x01);
-	err += sn9c102_write_reg(cam, 0x00, 0x01);
-	err += sn9c102_write_reg(cam, 0x28, 0x17);
+	err = sn9c102_write_const_regs(cam, {0x01, 0x01}, {0x00, 0x01},
+				       {0x28, 0x17});
 	if (err)
 		return -EIO;
 

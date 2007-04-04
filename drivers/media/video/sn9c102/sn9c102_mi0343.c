@@ -27,13 +27,10 @@ static int mi0343_init(struct sn9c102_device* cam)
 	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
 	int err = 0;
 
-	err += sn9c102_write_reg(cam, 0x00, 0x10);
-	err += sn9c102_write_reg(cam, 0x00, 0x11);
-	err += sn9c102_write_reg(cam, 0x0a, 0x14);
-	err += sn9c102_write_reg(cam, 0x40, 0x01);
-	err += sn9c102_write_reg(cam, 0x20, 0x17);
-	err += sn9c102_write_reg(cam, 0x07, 0x18);
-	err += sn9c102_write_reg(cam, 0xa0, 0x19);
+	err = sn9c102_write_const_regs(cam, {0x00, 0x10}, {0x00, 0x11},
+				       {0x0a, 0x14}, {0x40, 0x01},
+				       {0x20, 0x17}, {0x07, 0x18},
+				       {0xa0, 0x19});
 
 	err += sn9c102_i2c_try_raw_write(cam, s, 4, s->i2c_slave_id, 0x0d,
 					 0x00, 0x01, 0, 0);
@@ -338,9 +335,9 @@ int sn9c102_probe_mi0343(struct sn9c102_device* cam)
 	u8 data[5+1];
 	int err = 0;
 
-	err += sn9c102_write_reg(cam, 0x01, 0x01);
-	err += sn9c102_write_reg(cam, 0x00, 0x01);
-	err += sn9c102_write_reg(cam, 0x28, 0x17);
+	err = sn9c102_write_const_regs(cam, {0x01, 0x01}, {0x00, 0x01},
+				       {0x28, 0x17});
+
 	if (err)
 		return -EIO;
 
