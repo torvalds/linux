@@ -345,6 +345,9 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		return;
 	}
 
+	/* The summary is not recovered, so it must be disabled for this erase block */
+	jffs2_sum_disable_collecting(c->summary);
+
 	ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, nr_refile);
 	if (ret) {
 		printk(KERN_WARNING "Failed to allocate node refs for wbuf recovery. Data loss ensues.\n");
