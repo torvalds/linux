@@ -221,6 +221,14 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 
 	cdev_irb = &cdev->private->irb;
 
+	/*
+	 * If the clear function had been performed, all formerly pending
+	 * status at the subchannel has been cleared and we must not pass
+	 * intermediate accumulated status to the device driver.
+	 */
+	if (irb->scsw.fctl & SCSW_FCTL_CLEAR_FUNC)
+		memset(&cdev->private->irb, 0, sizeof(struct irb));
+
 	/* Copy bits which are valid only for the start function. */
 	if (irb->scsw.fctl & SCSW_FCTL_START_FUNC) {
 		/* Copy key. */
