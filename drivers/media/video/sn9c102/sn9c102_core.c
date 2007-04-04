@@ -1420,35 +1420,35 @@ static CLASS_DEVICE_ATTR(frame_header, S_IRUGO,
 
 static int sn9c102_create_sysfs(struct sn9c102_device* cam)
 {
-	struct video_device *v4ldev = cam->v4ldev;
+	struct class_device *classdev = &(cam->v4ldev->class_dev);
 	int err = 0;
 
-	if ((err = video_device_create_file(v4ldev, &class_device_attr_reg)))
+	if ((err = class_device_create_file(classdev, &class_device_attr_reg)))
 		goto err_out;
-	if ((err = video_device_create_file(v4ldev, &class_device_attr_val)))
+	if ((err = class_device_create_file(classdev, &class_device_attr_val)))
 		goto err_reg;
-	if ((err = video_device_create_file(v4ldev,
+	if ((err = class_device_create_file(classdev,
 					    &class_device_attr_frame_header)))
 		goto err_val;
 
 	if (cam->sensor.sysfs_ops) {
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						  &class_device_attr_i2c_reg)))
 			goto err_frame_header;
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						  &class_device_attr_i2c_val)))
 			goto err_i2c_reg;
 	}
 
 	if (cam->bridge == BRIDGE_SN9C101 || cam->bridge == BRIDGE_SN9C102) {
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						    &class_device_attr_green)))
 			goto err_i2c_val;
 	} else {
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						    &class_device_attr_blue)))
 			goto err_i2c_val;
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						    &class_device_attr_red)))
 			goto err_blue;
 	}
@@ -1456,19 +1456,19 @@ static int sn9c102_create_sysfs(struct sn9c102_device* cam)
 	return 0;
 
 err_blue:
-	video_device_remove_file(v4ldev, &class_device_attr_blue);
+	class_device_remove_file(classdev, &class_device_attr_blue);
 err_i2c_val:
 	if (cam->sensor.sysfs_ops)
-		video_device_remove_file(v4ldev, &class_device_attr_i2c_val);
+		class_device_remove_file(classdev, &class_device_attr_i2c_val);
 err_i2c_reg:
 	if (cam->sensor.sysfs_ops)
-		video_device_remove_file(v4ldev, &class_device_attr_i2c_reg);
+		class_device_remove_file(classdev, &class_device_attr_i2c_reg);
 err_frame_header:
-	video_device_remove_file(v4ldev, &class_device_attr_frame_header);
+	class_device_remove_file(classdev, &class_device_attr_frame_header);
 err_val:
-	video_device_remove_file(v4ldev, &class_device_attr_val);
+	class_device_remove_file(classdev, &class_device_attr_val);
 err_reg:
-	video_device_remove_file(v4ldev, &class_device_attr_reg);
+	class_device_remove_file(classdev, &class_device_attr_reg);
 err_out:
 	return err;
 }
