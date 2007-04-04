@@ -95,10 +95,8 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 
 	/* search the kset we belong to */
 	top_kobj = kobj;
-	if (!top_kobj->kset && top_kobj->parent) {
-		do {
-			top_kobj = top_kobj->parent;
-		} while (!top_kobj->kset && top_kobj->parent);
+	while (!top_kobj->kset && top_kobj->parent) {
+		top_kobj = top_kobj->parent;
 	}
 	if (!top_kobj->kset) {
 		pr_debug("kobject attempted to send uevent without kset!\n");
