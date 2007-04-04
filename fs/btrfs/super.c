@@ -824,6 +824,7 @@ printk("btrfs sync_fs\n");
 	return 0;
 }
 
+#if 0
 static int btrfs_get_block_inline(struct inode *inode, sector_t iblock,
 			   struct buffer_head *result, int create)
 {
@@ -890,6 +891,7 @@ out:
 	kunmap(result->b_page);
 	return err;
 }
+#endif
 
 static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 			   struct buffer_head *result, int create)
@@ -993,8 +995,8 @@ static int btrfs_get_block(struct inode *inode, sector_t iblock,
 	int err;
 	struct btrfs_root *root = btrfs_sb(inode->i_sb);
 	mutex_lock(&root->fs_info->fs_mutex);
-	// err = btrfs_get_block_lock(inode, iblock, result, create);
-	err = btrfs_get_block_inline(inode, iblock, result, create);
+	err = btrfs_get_block_lock(inode, iblock, result, create);
+	// err = btrfs_get_block_inline(inode, iblock, result, create);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return err;
 }
@@ -1002,13 +1004,11 @@ static int btrfs_get_block(struct inode *inode, sector_t iblock,
 static int btrfs_prepare_write(struct file *file, struct page *page,
 			       unsigned from, unsigned to)
 {
-	WARN_ON(1);
 	return nobh_prepare_write(page, from, to, btrfs_get_block);
 }
 static int btrfs_commit_write(struct file *file, struct page *page,
 			       unsigned from, unsigned to)
 {
-	WARN_ON(1);
 	return nobh_commit_write(file, page, from, to);
 }
 
@@ -1044,7 +1044,7 @@ static void btrfs_truncate(struct inode *inode)
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return;
 
-	// nobh_truncate_page(inode->i_mapping, inode->i_size);
+	nobh_truncate_page(inode->i_mapping, inode->i_size);
 
 	/* FIXME, add redo link to tree so we don't leak on crash */
 	mutex_lock(&root->fs_info->fs_mutex);
@@ -1253,6 +1253,7 @@ out:
 	return num_written ? num_written : err;
 }
 
+#if 0
 static ssize_t inline_one_page(struct btrfs_root *root, struct inode *inode,
 			   struct page *page, loff_t pos,
 			   size_t offset, size_t write_bytes)
@@ -1418,6 +1419,7 @@ out:
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;
 }
+#endif
 
 static int btrfs_read_actor(read_descriptor_t *desc, struct page *page,
 			unsigned long offset, unsigned long size)
@@ -1662,7 +1664,7 @@ static struct file_operations btrfs_dir_file_operations = {
 
 static struct address_space_operations btrfs_aops = {
 	.readpage	= btrfs_readpage,
-	// .readpages	= btrfs_readpages,
+	.readpages	= btrfs_readpages,
 	.writepage	= btrfs_writepage,
 	.sync_page	= block_sync_page,
 	.prepare_write	= btrfs_prepare_write,
@@ -1676,8 +1678,8 @@ static struct inode_operations btrfs_file_inode_operations = {
 static struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.aio_read       = generic_file_aio_read,
-	.write		= btrfs_file_inline_write,
+	.aio_read       = btrfs_file_aio_read,
+	.write		= btrfs_file_write,
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
 };
