@@ -421,49 +421,38 @@ static inline int read_unknown(struct jffs2_sb_info *c, struct jffs2_raw_node_re
  * 	    negative error code on failure.
  */
 static int read_more(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref,
-		     int right_size, int *rdlen, unsigned char *buf, unsigned char *bufstart)
+		     int needed_len, int *rdlen, unsigned char *buf)
 {
-	int right_len, err, len;
+	int err, to_read = needed_len - *rdlen;
 	size_t retlen;
 	uint32_t offs;
 
 	if (jffs2_is_writebuffered(c)) {
-		right_len = c->wbuf_pagesize - (bufstart - buf);
-		if (right_size + (int)(bufstart - buf) > c->wbuf_pagesize)
-			right_len += c->wbuf_pagesize;
-	} else
-		right_len = right_size;
+		int rem = to_read % c->wbuf_pagesize;
 
-	if (*rdlen == right_len)
-		return 0;
+		if (rem)
+			to_read += c->wbuf_pagesize - rem;
+	}
 
 	/* We need to read more data */
 	offs = ref_offset(ref) + *rdlen;
-	if (jffs2_is_writebuffered(c)) {
-		bufstart = buf + c->wbuf_pagesize;
-		len = c->wbuf_pagesize;
-	} else {
-		bufstart = buf + *rdlen;
-		len = right_size - *rdlen;
-	}
 
-	dbg_readinode("read more %d bytes\n", len);
+	dbg_readinode("read more %d bytes\n", to_read);
 
-	err = jffs2_flash_read(c, offs, len, &retlen, bufstart);
+	err = jffs2_flash_read(c, offs, to_read, &retlen, buf + *rdlen);
 	if (err) {
 		JFFS2_ERROR("can not read %d bytes from 0x%08x, "
-			"error code: %d.\n", len, offs, err);
+			"error code: %d.\n", to_read, offs, err);
 		return err;
 	}
 
-	if (retlen < len) {
+	if (retlen < to_read) {
 		JFFS2_ERROR("short read at %#08x: %zu instead of %d.\n",
-				offs, retlen, len);
+				offs, retlen, to_read);
 		return -EIO;
 	}
 
-	*rdlen = right_len;
-
+	*rdlen += to_read;
 	return 0;
 }
 
@@ -486,27 +475,9 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 
 	dbg_readinode("ino #%u\n", f->inocache->ino);
 
-	if (jffs2_is_writebuffered(c)) {
-		/*
-		 * If we have the write buffer, we assume the minimal I/O unit
-		 * is c->wbuf_pagesize. We implement some optimizations which in
-		 * this case and we need a temporary buffer of size =
-		 * 2*c->wbuf_pagesize bytes (see comments in read_dnode()).
-		 * Basically, we want to read not only the node header, but the
-		 * whole wbuf (NAND page in case of NAND) or 2, if the node
-		 * header overlaps the border between the 2 wbufs.
-		 */
-		len = 2*c->wbuf_pagesize;
-	} else {
-		/*
-		 * When there is no write buffer, the size of the temporary
-		 * buffer is the size of the larges node header.
-		 */
-		len = sizeof(union jffs2_node_union);
-	}
-
 	/* FIXME: in case of NOR and available ->point() this
 	 * needs to be fixed. */
+	len = sizeof(union jffs2_node_union) + c->wbuf_pagesize;
 	buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -516,8 +487,6 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 	if (!valid_ref && f->inocache->ino != 1)
 		JFFS2_WARNING("Eep. No valid nodes for ino #%u.\n", f->inocache->ino);
 	while (valid_ref) {
-		unsigned char *bufstart;
-
 		/* We can hold a pointer to a non-obsolete node without the spinlock,
 		   but _obsolete_ nodes may disappear at any time, if the block
 		   they're in gets erased. So if we mark 'ref' obsolete while we're
@@ -533,32 +502,31 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 		/*
 		 * At this point we don't know the type of the node we're going
 		 * to read, so we do not know the size of its header. In order
-		 * to minimize the amount of flash IO we assume the node has
-		 * size = JFFS2_MIN_NODE_HEADER.
+		 * to minimize the amount of flash IO we assume the header is
+		 * of size = JFFS2_MIN_NODE_HEADER.
 		 */
+		len = JFFS2_MIN_NODE_HEADER;
 		if (jffs2_is_writebuffered(c)) {
+			int end, rem;
+
 			/*
-			 * We treat 'buf' as 2 adjacent wbufs. We want to
-			 * adjust bufstart such as it points to the
-			 * beginning of the node within this wbuf.
+			 * We are about to read JFFS2_MIN_NODE_HEADER bytes,
+			 * but this flash has some minimal I/O unit. It is
+			 * possible that we'll need to read more soon, so read
+			 * up to the next min. I/O unit, in order not to
+			 * re-read the same min. I/O unit twice.
 			 */
-			bufstart = buf + (ref_offset(ref) % c->wbuf_pagesize);
-			/* We will read either one wbuf or 2 wbufs. */
-			len = c->wbuf_pagesize - (bufstart - buf);
-			if (JFFS2_MIN_NODE_HEADER + (int)(bufstart - buf) > c->wbuf_pagesize) {
-				/* The header spans the border of the first wbuf */
-				len += c->wbuf_pagesize;
-			}
-		} else {
-			bufstart = buf;
-			len = JFFS2_MIN_NODE_HEADER;
+			end = ref_offset(ref) + len;
+			rem = end % c->wbuf_pagesize;
+			if (rem)
+				end += c->wbuf_pagesize - rem;
+			len = end - ref_offset(ref);
 		}
 
 		dbg_readinode("read %d bytes at %#08x(%d).\n", len, ref_offset(ref), ref_flags(ref));
 
 		/* FIXME: point() */
-		err = jffs2_flash_read(c, ref_offset(ref), len,
-				       &retlen, bufstart);
+		err = jffs2_flash_read(c, ref_offset(ref), len, &retlen, buf);
 		if (err) {
 			JFFS2_ERROR("can not read %d bytes from 0x%08x, " "error code: %d.\n", len, ref_offset(ref), err);
 			goto free_out;
@@ -570,7 +538,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 			goto free_out;
 		}
 
-		node = (union jffs2_node_union *)bufstart;
+		node = (union jffs2_node_union *)buf;
 
 		/* No need to mask in the valid bit; it shouldn't be invalid */
 		if (je32_to_cpu(node->u.hdr_crc) != crc32(0, node, sizeof(node->u)-4)) {
@@ -596,7 +564,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 		case JFFS2_NODETYPE_DIRENT:
 
 			if (JFFS2_MIN_NODE_HEADER < sizeof(struct jffs2_raw_dirent)) {
-				err = read_more(c, ref, sizeof(struct jffs2_raw_dirent), &len, buf, bufstart);
+				err = read_more(c, ref, sizeof(struct jffs2_raw_dirent), &len, buf);
 				if (unlikely(err))
 					goto free_out;
 			}
@@ -616,7 +584,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 		case JFFS2_NODETYPE_INODE:
 
 			if (JFFS2_MIN_NODE_HEADER < sizeof(struct jffs2_raw_inode)) {
-				err = read_more(c, ref, sizeof(struct jffs2_raw_inode), &len, buf, bufstart);
+				err = read_more(c, ref, sizeof(struct jffs2_raw_inode), &len, buf);
 				if (unlikely(err))
 					goto free_out;
 			}
@@ -635,7 +603,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 
 		default:
 			if (JFFS2_MIN_NODE_HEADER < sizeof(struct jffs2_unknown_node)) {
-				err = read_more(c, ref, sizeof(struct jffs2_unknown_node), &len, buf, bufstart);
+				err = read_more(c, ref, sizeof(struct jffs2_unknown_node), &len, buf);
 				if (unlikely(err))
 					goto free_out;
 			}
