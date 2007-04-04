@@ -57,6 +57,11 @@
 #define ENCRYPT 1
 #define DECRYPT 0
 
+struct tcrypt_result {
+	struct completion completion;
+	int err;
+};
+
 static unsigned int IDX[8] = { IDX1, IDX2, IDX3, IDX4, IDX5, IDX6, IDX7, IDX8 };
 
 /*
@@ -82,6 +87,17 @@ static void hexdump(unsigned char *buf, unsigned int len)
 		printk("%02x", *buf++);
 
 	printk("\n");
+}
+
+static void tcrypt_complete(struct crypto_async_request *req, int err)
+{
+	struct tcrypt_result *res = req->data;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	res->err = err;
+	complete(&res->completion);
 }
 
 static void test_hash(char *algo, struct hash_testvec *template,
@@ -203,15 +219,14 @@ static void test_cipher(char *algo, int enc,
 {
 	unsigned int ret, i, j, k, temp;
 	unsigned int tsize;
-	unsigned int iv_len;
-	unsigned int len;
 	char *q;
-	struct crypto_blkcipher *tfm;
+	struct crypto_ablkcipher *tfm;
 	char *key;
 	struct cipher_testvec *cipher_tv;
-	struct blkcipher_desc desc;
+	struct ablkcipher_request *req;
 	struct scatterlist sg[8];
 	const char *e;
+	struct tcrypt_result result;
 
 	if (enc == ENCRYPT)
 	        e = "encryption";
@@ -232,15 +247,24 @@ static void test_cipher(char *algo, int enc,
 	memcpy(tvmem, template, tsize);
 	cipher_tv = (void *)tvmem;
 
-	tfm = crypto_alloc_blkcipher(algo, 0, CRYPTO_ALG_ASYNC);
+	init_completion(&result.completion);
+
+	tfm = crypto_alloc_ablkcipher(algo, 0, 0);
 
 	if (IS_ERR(tfm)) {
 		printk("failed to load transform for %s: %ld\n", algo,
 		       PTR_ERR(tfm));
 		return;
 	}
-	desc.tfm = tfm;
-	desc.flags = 0;
+
+	req = ablkcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		printk("failed to allocate request for %s\n", algo);
+		goto out;
+	}
+
+	ablkcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					tcrypt_complete, &result);
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
@@ -249,17 +273,17 @@ static void test_cipher(char *algo, int enc,
 			printk("test %u (%d bit key):\n",
 			j, cipher_tv[i].klen * 8);
 
-			crypto_blkcipher_clear_flags(tfm, ~0);
+			crypto_ablkcipher_clear_flags(tfm, ~0);
 			if (cipher_tv[i].wk)
-				crypto_blkcipher_set_flags(
+				crypto_ablkcipher_set_flags(
 					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 			key = cipher_tv[i].key;
 
-			ret = crypto_blkcipher_setkey(tfm, key,
-						      cipher_tv[i].klen);
+			ret = crypto_ablkcipher_setkey(tfm, key,
+						       cipher_tv[i].klen);
 			if (ret) {
 				printk("setkey() failed flags=%x\n",
-				       crypto_blkcipher_get_flags(tfm));
+				       crypto_ablkcipher_get_flags(tfm));
 
 				if (!cipher_tv[i].fail)
 					goto out;
@@ -268,19 +292,28 @@ static void test_cipher(char *algo, int enc,
 			sg_set_buf(&sg[0], cipher_tv[i].input,
 				   cipher_tv[i].ilen);
 
-			iv_len = crypto_blkcipher_ivsize(tfm);
-			if (iv_len)
-				crypto_blkcipher_set_iv(tfm, cipher_tv[i].iv,
-							iv_len);
+			ablkcipher_request_set_crypt(req, sg, sg,
+						     cipher_tv[i].ilen,
+						     cipher_tv[i].iv);
 
-			len = cipher_tv[i].ilen;
 			ret = enc ?
-				crypto_blkcipher_encrypt(&desc, sg, sg, len) :
-				crypto_blkcipher_decrypt(&desc, sg, sg, len);
+				crypto_ablkcipher_encrypt(req) :
+				crypto_ablkcipher_decrypt(req);
 
-			if (ret) {
-				printk("%s () failed flags=%x\n", e,
-				       desc.flags);
+			switch (ret) {
+			case 0:
+				break;
+			case -EINPROGRESS:
+			case -EBUSY:
+				ret = wait_for_completion_interruptible(
+					&result.completion);
+				if (!ret && !((ret = result.err))) {
+					INIT_COMPLETION(result.completion);
+					break;
+				}
+				/* fall through */
+			default:
+				printk("%s () failed err=%d\n", e, -ret);
 				goto out;
 			}
 
@@ -303,17 +336,17 @@ static void test_cipher(char *algo, int enc,
 			printk("test %u (%d bit key):\n",
 			j, cipher_tv[i].klen * 8);
 
-			crypto_blkcipher_clear_flags(tfm, ~0);
+			crypto_ablkcipher_clear_flags(tfm, ~0);
 			if (cipher_tv[i].wk)
-				crypto_blkcipher_set_flags(
+				crypto_ablkcipher_set_flags(
 					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 			key = cipher_tv[i].key;
 
-			ret = crypto_blkcipher_setkey(tfm, key,
-						      cipher_tv[i].klen);
+			ret = crypto_ablkcipher_setkey(tfm, key,
+						       cipher_tv[i].klen);
 			if (ret) {
 				printk("setkey() failed flags=%x\n",
-				       crypto_blkcipher_get_flags(tfm));
+				       crypto_ablkcipher_get_flags(tfm));
 
 				if (!cipher_tv[i].fail)
 					goto out;
@@ -329,19 +362,28 @@ static void test_cipher(char *algo, int enc,
 					   cipher_tv[i].tap[k]);
 			}
 
-			iv_len = crypto_blkcipher_ivsize(tfm);
-			if (iv_len)
-				crypto_blkcipher_set_iv(tfm, cipher_tv[i].iv,
-							iv_len);
+			ablkcipher_request_set_crypt(req, sg, sg,
+						     cipher_tv[i].ilen,
+						     cipher_tv[i].iv);
 
-			len = cipher_tv[i].ilen;
 			ret = enc ?
-				crypto_blkcipher_encrypt(&desc, sg, sg, len) :
-				crypto_blkcipher_decrypt(&desc, sg, sg, len);
+				crypto_ablkcipher_encrypt(req) :
+				crypto_ablkcipher_decrypt(req);
 
-			if (ret) {
-				printk("%s () failed flags=%x\n", e,
-				       desc.flags);
+			switch (ret) {
+			case 0:
+				break;
+			case -EINPROGRESS:
+			case -EBUSY:
+				ret = wait_for_completion_interruptible(
+					&result.completion);
+				if (!ret && !((ret = result.err))) {
+					INIT_COMPLETION(result.completion);
+					break;
+				}
+				/* fall through */
+			default:
+				printk("%s () failed err=%d\n", e, -ret);
 				goto out;
 			}
 
@@ -360,7 +402,8 @@ static void test_cipher(char *algo, int enc,
 	}
 
 out:
-	crypto_free_blkcipher(tfm);
+	crypto_free_ablkcipher(tfm);
+	ablkcipher_request_free(req);
 }
 
 static int test_cipher_jiffies(struct blkcipher_desc *desc, int enc, char *p,
@@ -832,7 +875,7 @@ static void test_available(void)
 
 	while (*name) {
 		printk("alg %s ", *name);
-		printk(crypto_has_alg(*name, 0, CRYPTO_ALG_ASYNC) ?
+		printk(crypto_has_alg(*name, 0, 0) ?
 		       "found\n" : "not found\n");
 		name++;
 	}
