@@ -102,6 +102,9 @@ enum sel_inos {
 	SEL_COMPAT_NET,	/* whether to use old compat network packet controls */
 };
 
+#define SEL_INITCON_INO_OFFSET 	0x01000000
+#define SEL_INO_MASK		0x00ffffff
+
 #define TMPBUFLEN	12
 static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
 				size_t count, loff_t *ppos)
@@ -1240,6 +1243,55 @@ out:
 	return ret;
 }
 
+static ssize_t sel_read_initcon(struct file * file, char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	struct inode *inode;
+	char *con;
+	u32 sid, len;
+	ssize_t ret;
+
+	inode = file->f_path.dentry->d_inode;
+	sid = inode->i_ino&SEL_INO_MASK;
+	ret = security_sid_to_context(sid, &con, &len);
+	if (ret < 0)
+		return ret;
+
+	ret = simple_read_from_buffer(buf, count, ppos, con, len);
+	kfree(con);
+	return ret;
+}
+
+static const struct file_operations sel_initcon_ops = {
+	.read		= sel_read_initcon,
+};
+
+static int sel_make_initcon_files(struct dentry *dir)
+{
+	int i, ret = 0;
+
+	for (i = 1; i <= SECINITSID_NUM; i++) {
+		struct inode *inode;
+		struct dentry *dentry;
+		dentry = d_alloc_name(dir, security_get_initial_sid_context(i));
+		if (!dentry) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		inode = sel_make_inode(dir->d_sb, S_IFREG|S_IRUGO);
+		if (!inode) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		inode->i_fop = &sel_initcon_ops;
+		inode->i_ino = i|SEL_INITCON_INO_OFFSET;
+		d_add(dentry, inode);
+	}
+out:
+	return ret;
+}
+
 static int sel_make_dir(struct inode *dir, struct dentry *dentry)
 {
 	int ret = 0;
@@ -1336,6 +1388,21 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 	ret = sel_make_avc_files(dentry);
 	if (ret)
 		goto err;
+
+	dentry = d_alloc_name(sb->s_root, "initial_contexts");
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = sel_make_dir(root_inode, dentry);
+	if (ret)
+		goto err;
+
+	ret = sel_make_initcon_files(dentry);
+	if (ret)
+		goto err;
+
 out:
 	return ret;
 err:

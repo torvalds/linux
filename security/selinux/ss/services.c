@@ -593,6 +593,13 @@ static int context_struct_to_string(struct context *context, char **scontext, u3
 
 #include "initial_sid_to_string.h"
 
+const char *security_get_initial_sid_context(u32 sid)
+{
+	if (unlikely(sid > SECINITSID_NUM))
+		return NULL;
+	return initial_sid_to_string[sid];
+}
+
 /**
  * security_sid_to_context - Obtain a context for a given SID.
  * @sid: security identifier, SID
