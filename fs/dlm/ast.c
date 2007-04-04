@@ -14,6 +14,7 @@
 #include "dlm_internal.h"
 #include "lock.h"
 #include "user.h"
+#include "ast.h"
 
 #define WAKE_ASTS  0
 
