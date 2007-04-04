@@ -1709,7 +1709,7 @@ static void __b44_set_rx_mode(struct net_device *dev)
 		bw32(bp, B44_RXCONFIG, val);
 	} else {
 		unsigned char zero[6] = {0, 0, 0, 0, 0, 0};
-		int i = 0;
+		int i = 1;
 
 		__b44_set_mac_addr(bp);
 

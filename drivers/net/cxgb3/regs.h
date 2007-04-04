@@ -1940,6 +1940,10 @@
 
 #define V_TXFIFOTHRESH(x) ((x) << S_TXFIFOTHRESH)
 
+#define S_ENDROPPKT    21
+#define V_ENDROPPKT(x) ((x) << S_ENDROPPKT)
+#define F_ENDROPPKT    V_ENDROPPKT(1U)
+
 #define A_XGM_SERDES_CTRL 0x890
 #define A_XGM_SERDES_CTRL0 0x8e0
 

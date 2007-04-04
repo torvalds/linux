@@ -471,7 +471,6 @@ const struct mac_stats *t3_mac_update_stats(struct cmac *mac)
 	RMON_UPDATE(mac, rx_symbol_errs, RX_SYM_CODE_ERR_FRAMES);
 
 	RMON_UPDATE(mac, rx_too_long, RX_OVERSIZE_FRAMES);
-	mac->stats.rx_too_long += RMON_READ(mac, A_XGM_RX_MAX_PKT_SIZE_ERR_CNT);
 
 	v = RMON_READ(mac, A_XGM_RX_MAX_PKT_SIZE_ERR_CNT);
 	if (mac->adapter->params.rev == T3_REV_B2)

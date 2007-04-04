@@ -328,6 +328,9 @@ int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 	unsigned int tcam_size = mc5->tcam_size;
 	struct adapter *adap = mc5->adapter;
 
+	if (!tcam_size)
+		return 0;
+
 	if (nroutes > MAX_ROUTES || nroutes + nservers + nfilters > tcam_size)
 		return -EINVAL;
 

@@ -2631,7 +2631,7 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 	q->txq[TXQ_ETH].stop_thres = nports *
 	    flits_to_desc(sgl_len(MAX_SKB_FRAGS + 1) + 3);
 
-	if (ntxq == 1) {
+	if (!is_offload(adapter)) {
 #ifdef USE_RX_PAGE
 		q->fl[0].buf_size = RX_PAGE_SIZE;
 #else

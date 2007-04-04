@@ -112,8 +112,7 @@ enum {
 };
 
 enum {
-	SUPPORTED_OFFLOAD = 1 << 24,
-	SUPPORTED_IRQ = 1 << 25
+	SUPPORTED_IRQ      = 1 << 24
 };
 
 enum {				/* adapter interrupt-maintained statistics */
@@ -358,6 +357,9 @@ enum {
 	MC5_MODE_72_BIT = 2
 };
 
+/* MC5 min active region size */
+enum { MC5_MIN_TIDS = 16 };
+
 struct vpd_params {
 	unsigned int cclk;
 	unsigned int mclk;
@@ -402,6 +404,7 @@ struct adapter_params {
 	unsigned int stats_update_period;	/* MAC stats accumulation period */
 	unsigned int linkpoll_period;	/* link poll period in 0.1s */
 	unsigned int rev;	/* chip revision */
+	unsigned int offload;
 };
 
 enum {					    /* chip revisions */
@@ -602,7 +605,7 @@ static inline int is_10G(const struct adapter *adap)
 
 static inline int is_offload(const struct adapter *adap)
 {
-	return adapter_info(adap)->caps & SUPPORTED_OFFLOAD;
+	return adap->params.offload;
 }
 
 static inline unsigned int core_ticks_per_usec(const struct adapter *adap)

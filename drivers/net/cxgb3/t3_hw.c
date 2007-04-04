@@ -438,23 +438,23 @@ static const struct adapter_info t3_adap_info[] = {
 	{2, 0, 0, 0,
 	 F_GPIO2_OEN | F_GPIO4_OEN |
 	 F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, F_GPIO3 | F_GPIO5,
-	 SUPPORTED_OFFLOAD,
+	 0,
 	 &mi1_mdio_ops, "Chelsio PE9000"},
 	{2, 0, 0, 0,
 	 F_GPIO2_OEN | F_GPIO4_OEN |
 	 F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, F_GPIO3 | F_GPIO5,
-	 SUPPORTED_OFFLOAD,
+	 0,
 	 &mi1_mdio_ops, "Chelsio T302"},
 	{1, 0, 0, 0,
 	 F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN | F_GPIO10_OEN |
 	 F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL, 0,
-	 SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_OFFLOAD,
+	 SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	 &mi1_mdio_ext_ops, "Chelsio T310"},
 	{2, 0, 0, 0,
 	 F_GPIO1_OEN | F_GPIO2_OEN | F_GPIO4_OEN | F_GPIO5_OEN | F_GPIO6_OEN |
 	 F_GPIO7_OEN | F_GPIO10_OEN | F_GPIO11_OEN | F_GPIO1_OUT_VAL |
 	 F_GPIO5_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL, 0,
-	 SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_OFFLOAD,
+	 SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	 &mi1_mdio_ext_ops, "Chelsio T320"},
 };
 
@@ -2900,6 +2900,9 @@ static int mc7_init(struct mc7 *mc7, unsigned int mc7_clock, int mem_type)
 	struct adapter *adapter = mc7->adapter;
 	const struct mc7_timing_params *p = &mc7_timings[mem_type];
 
+	if (!mc7->size)
+		return 0;
+
 	val = t3_read_reg(adapter, mc7->offset + A_MC7_CFG);
 	slow = val & F_SLOW;
 	width = G_WIDTH(val);
@@ -3100,8 +3103,10 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 	do {			/* wait for uP to initialize */
 		msleep(20);
 	} while (t3_read_reg(adapter, A_CIM_HOST_ACC_DATA) && --attempts);
-	if (!attempts)
+	if (!attempts) {
+		CH_ERR(adapter, "uP initialization timed out\n");
 		goto out_err;
+	}
 
 	err = 0;
 out_err:
@@ -3201,7 +3206,7 @@ static void __devinit mc7_prep(struct adapter *adapter, struct mc7 *mc7,
 	mc7->name = name;
 	mc7->offset = base_addr - MC7_PMRX_BASE_ADDR;
 	cfg = t3_read_reg(adapter, mc7->offset + A_MC7_CFG);
-	mc7->size = mc7_calc_size(cfg);
+	mc7->size = mc7->size = G_DEN(cfg) == M_DEN ? 0 : mc7_calc_size(cfg);
 	mc7->width = G_WIDTH(cfg);
 }
 
@@ -3228,6 +3233,7 @@ void early_hw_init(struct adapter *adapter, const struct adapter_info *ai)
 		     V_I2C_CLKDIV(adapter->params.vpd.cclk / 80 - 1));
 	t3_write_reg(adapter, A_T3DBG_GPIO_EN,
 		     ai->gpio_out | F_GPIO0_OEN | F_GPIO0_OUT_VAL);
+	t3_write_reg(adapter, A_MC5_DB_SERVER_INDEX, 0);
 
 	if (adapter->params.rev == 0 || !uses_xaui(adapter))
 		val |= F_ENRGMII;
@@ -3326,7 +3332,13 @@ int __devinit t3_prep_adapter(struct adapter *adapter,
 		p->tx_num_pgs = pm_num_pages(p->chan_tx_size, p->tx_pg_size);
 		p->ntimer_qs = p->cm_size >= (128 << 20) ||
 		    adapter->params.rev > 0 ? 12 : 6;
+	}
 
+	adapter->params.offload = t3_mc7_size(&adapter->pmrx) &&
+				  t3_mc7_size(&adapter->pmtx) &&
+				  t3_mc7_size(&adapter->cm);
+
+	if (is_offload(adapter)) {
 		adapter->params.mc5.nservers = DEFAULT_NSERVERS;
 		adapter->params.mc5.nfilters = adapter->params.rev > 0 ?
 		    DEFAULT_NFILTERS : 0;

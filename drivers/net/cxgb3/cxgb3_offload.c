@@ -553,7 +553,9 @@ int cxgb3_alloc_atid(struct t3cdev *tdev, struct cxgb3_client *client,
 	struct tid_info *t = &(T3C_DATA(tdev))->tid_maps;
 
 	spin_lock_bh(&t->atid_lock);
-	if (t->afree) {
+	if (t->afree &&
+	    t->atids_in_use + atomic_read(&t->tids_in_use) + MC5_MIN_TIDS <=
+	    t->ntids) {
 		union active_open_entry *p = t->afree;
 
 		atid = (p - t->atid_tab) + t->atid_base;
