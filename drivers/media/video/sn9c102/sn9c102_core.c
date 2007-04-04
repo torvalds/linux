@@ -499,7 +499,7 @@ static size_t sn9c102_sof_length(struct sn9c102_device* cam)
 static void*
 sn9c102_find_sof_header(struct sn9c102_device* cam, void* mem, size_t len)
 {
-	const char marker[6] = {0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
+	static const char marker[6] = {0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
 	const char *m = mem;
 	size_t soflen = 0, i, j;
 
@@ -544,7 +544,7 @@ sn9c102_find_sof_header(struct sn9c102_device* cam, void* mem, size_t len)
 static void*
 sn9c102_find_eof_header(struct sn9c102_device* cam, void* mem, size_t len)
 {
-	char eof_header[4][4] = {
+	static const u8 eof_header[4][4] = {
 		{0x00, 0x00, 0x00, 0x00},
 		{0x40, 0x00, 0x00, 0x00},
 		{0x80, 0x00, 0x00, 0x00},
@@ -574,7 +574,7 @@ sn9c102_find_eof_header(struct sn9c102_device* cam, void* mem, size_t len)
 static void
 sn9c102_write_jpegheader(struct sn9c102_device* cam, struct sn9c102_frame_t* f)
 {
-	static u8 jpeg_header[589] = {
+	static const u8 jpeg_header[589] = {
 		0xff, 0xd8, 0xff, 0xdb, 0x00, 0x84, 0x00, 0x06, 0x04, 0x05,
 		0x06, 0x05, 0x04, 0x06, 0x06, 0x05, 0x06, 0x07, 0x07, 0x06,
 		0x08, 0x0a, 0x10, 0x0a, 0x0a, 0x09, 0x09, 0x0a, 0x14, 0x0e,
