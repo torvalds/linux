@@ -105,6 +105,7 @@ enum sel_inos {
 static unsigned long sel_last_ino = SEL_INO_NEXT - 1;
 
 #define SEL_INITCON_INO_OFFSET 	0x01000000
+#define SEL_BOOL_INO_OFFSET	0x02000000
 #define SEL_INO_MASK		0x00ffffff
 
 #define TMPBUFLEN	12
@@ -782,8 +783,6 @@ static struct inode *sel_make_inode(struct super_block *sb, int mode)
 	return ret;
 }
 
-#define BOOL_INO_OFFSET 30
-
 static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 			     size_t count, loff_t *ppos)
 {
@@ -811,14 +810,14 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 	}
 
 	inode = filep->f_path.dentry->d_inode;
-	cur_enforcing = security_get_bool_value(inode->i_ino - BOOL_INO_OFFSET);
+	cur_enforcing = security_get_bool_value(inode->i_ino&SEL_INO_MASK);
 	if (cur_enforcing < 0) {
 		ret = cur_enforcing;
 		goto out;
 	}
 
 	length = scnprintf(page, PAGE_SIZE, "%d %d", cur_enforcing,
-			  bool_pending_values[inode->i_ino - BOOL_INO_OFFSET]);
+			  bool_pending_values[inode->i_ino&SEL_INO_MASK]);
 	ret = simple_read_from_buffer(buf, count, ppos, page, length);
 out:
 	mutex_unlock(&sel_mutex);
@@ -870,7 +869,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 		new_value = 1;
 
 	inode = filep->f_path.dentry->d_inode;
-	bool_pending_values[inode->i_ino - BOOL_INO_OFFSET] = new_value;
+	bool_pending_values[inode->i_ino&SEL_INO_MASK] = new_value;
 	length = count;
 
 out:
@@ -1034,7 +1033,7 @@ static int sel_make_bools(void)
 		isec->sid = sid;
 		isec->initialized = 1;
 		inode->i_fop = &sel_bool_ops;
-		inode->i_ino = i + BOOL_INO_OFFSET;
+		inode->i_ino = i|SEL_BOOL_INO_OFFSET;
 		d_add(dentry, inode);
 	}
 	bool_num = num;
