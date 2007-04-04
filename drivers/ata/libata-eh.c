@@ -982,26 +982,27 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
  *	RETURNS:
  *	0 on success, AC_ERR_* mask on failure
  */
-static unsigned int atapi_eh_request_sense(struct ata_device *dev,
-					   unsigned char *sense_buf)
+static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
 {
+	struct ata_device *dev = qc->dev;
+	unsigned char *sense_buf = qc->scsicmd->sense_buffer;
 	struct ata_port *ap = dev->ap;
 	struct ata_taskfile tf;
 	u8 cdb[ATAPI_CDB_LEN];
 
 	DPRINTK("ATAPI request sense\n");
 
-	ata_tf_init(dev, &tf);
-
 	/* FIXME: is this needed? */
 	memset(sense_buf, 0, SCSI_SENSE_BUFFERSIZE);
 
-	/* XXX: why tf_read here? */
-	ap->ops->tf_read(ap, &tf);
-
-	/* fill these in, for the case where they are -not- overwritten */
+	/* initialize sense_buf with the error register,
+	 * for the case where they are -not- overwritten
+	 */
 	sense_buf[0] = 0x70;
-	sense_buf[2] = tf.feature >> 4;
+	sense_buf[2] = qc->result_tf.feature >> 4;
+
+	/* some devices time out if garbage left in tf */ 
+	ata_tf_init(dev, &tf);
 
 	memset(cdb, 0, ATAPI_CDB_LEN);
 	cdb[0] = REQUEST_SENSE;
@@ -1165,8 +1166,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 
 	case ATA_DEV_ATAPI:
 		if (!(qc->ap->pflags & ATA_PFLAG_FROZEN)) {
-			tmp = atapi_eh_request_sense(qc->dev,
-						     qc->scsicmd->sense_buffer);
+			tmp = atapi_eh_request_sense(qc);
 			if (!tmp) {
 				/* ATA_QCFLAG_SENSE_VALID is used to
 				 * tell atapi_qc_complete() that sense

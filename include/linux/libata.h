@@ -311,15 +311,17 @@ enum {
 	ATA_HORKAGE_DIAGNOSTIC	= (1 << 0),	/* Failed boot diag */
 	ATA_HORKAGE_NODMA	= (1 << 1),	/* DMA problems */
 	ATA_HORKAGE_NONCQ	= (1 << 2),	/* Don't use NCQ */
+	ATA_HORKAGE_MAX_SEC_128	= (1 << 3),	/* Limit max sects to 128 */
+	ATA_HORKAGE_DMA_RW_ONLY	= (1 << 4),	/* ATAPI DMA for RW only */
 };
 
 enum hsm_task_states {
 	HSM_ST_IDLE,		/* no command on going */
+	HSM_ST_FIRST,		/* (waiting the device to)
+				   write CDB or first data block */
 	HSM_ST,			/* (waiting the device to) transfer data */
 	HSM_ST_LAST,		/* (waiting the device to) complete command */
 	HSM_ST_ERR,		/* error */
-	HSM_ST_FIRST,		/* (waiting the device to)
-				   write CDB or first data block */
 };
 
 enum ata_completion_errors {

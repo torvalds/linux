@@ -333,7 +333,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	scsi_cmd[8]  = args[3];
 	scsi_cmd[10] = args[4];
 	scsi_cmd[12] = args[5];
-	scsi_cmd[13] = args[6] & 0x0f;
+	scsi_cmd[13] = args[6] & 0x4f;
 	scsi_cmd[14] = args[0];
 
 	/* Good values for timeout and retries?  Values below
