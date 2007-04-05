@@ -969,7 +969,7 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 
 	if (size < rsize) {
 		dbg("report %d is too short, (%d < %d)", report->id, size, rsize);
-		return -1;
+		memset(data + size, 0, rsize - size);
 	}
 
 	if ((hid->claimed & HID_CLAIMED_HIDDEV) && hid->hiddev_report_event)
