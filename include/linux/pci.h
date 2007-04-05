@@ -190,6 +190,7 @@ struct pci_dev {
 	struct bin_attribute *res_attr[DEVICE_COUNT_RESOURCE]; /* sysfs file for resources */
 #ifdef CONFIG_PCI_MSI
 	unsigned int first_msi_irq;
+	struct list_head msi_list;
 #endif
 };
 

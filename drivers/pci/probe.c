@@ -857,6 +857,8 @@ struct pci_dev *alloc_pci_dev(void)
 	INIT_LIST_HEAD(&dev->global_list);
 	INIT_LIST_HEAD(&dev->bus_list);
 
+	pci_msi_init_pci_dev(dev);
+
 	return dev;
 }
 EXPORT_SYMBOL(alloc_pci_dev);

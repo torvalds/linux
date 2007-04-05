@@ -1,6 +1,8 @@
 #ifndef LINUX_MSI_H
 #define LINUX_MSI_H
 
+#include <linux/list.h>
+
 struct msi_msg {
 	u32	address_lo;	/* low 32 bits of msi message address */
 	u32	address_hi;	/* high 32 bits of msi message address */
@@ -24,10 +26,8 @@ struct msi_desc {
 		unsigned default_irq;	/* default pre-assigned irq	  */
 	}msi_attrib;
 
-	struct {
-		__u16	head;
-		__u16	tail;
-	}link;
+	unsigned int irq;
+	struct list_head list;
 
 	void __iomem *mask_base;
 	struct pci_dev *dev;
