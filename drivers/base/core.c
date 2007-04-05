@@ -296,6 +296,9 @@ out:
 static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
+	if (memcmp(buf, "add", 3) != 0)
+		dev_err(dev, "uevent: unsupported action-string; this will "
+			"be ignored in a future kernel version");
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 	return count;
 }
