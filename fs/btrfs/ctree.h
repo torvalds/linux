@@ -921,6 +921,10 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  *root, struct btrfs_path *path, u64 dir,
 			  const char *name, int name_len, int mod);
+int btrfs_lookup_dir_index_item(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				struct btrfs_path *path, u64 dir,
+				u64 objectid, int mod);
 int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
 			      const char *name, int name_len);
 /* inode-map.c */

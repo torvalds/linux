@@ -224,6 +224,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	btrfs_init_path(path);
+
 	ret = btrfs_search_slot(trans, extent_root, &key, path, -1, 1);
 	if (ret) {
 		printk("failed to find %Lu\n", key.objectid);
@@ -362,8 +363,6 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 	if (root->fs_info->last_insert.objectid > search_start)
 		search_start = root->fs_info->last_insert.objectid;
-
-	path = btrfs_alloc_path();
 
 check_failed:
 	btrfs_init_path(path);
