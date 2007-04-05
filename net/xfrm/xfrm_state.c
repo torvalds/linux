@@ -1371,7 +1371,8 @@ int xfrm_replay_check(struct xfrm_state *x, __be32 net_seq)
 		return 0;
 
 	diff = x->replay.seq - seq;
-	if (diff >= x->props.replay_window) {
+	if (diff >= min_t(unsigned int, x->props.replay_window,
+			  sizeof(x->replay.bitmap) * 8)) {
 		x->stats.replay_window++;
 		return -EINVAL;
 	}
