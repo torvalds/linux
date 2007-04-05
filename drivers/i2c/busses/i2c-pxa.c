@@ -887,14 +887,14 @@ static int i2c_pxa_probe(struct platform_device *dev)
 		pxa_gpio_mode(GPIO117_I2CSCL_MD);
 		pxa_gpio_mode(GPIO118_I2CSDA_MD);
 #endif
-		pxa_set_cken(CKEN14_I2C, 1);
+		pxa_set_cken(CKEN_I2C, 1);
 		break;
 #ifdef CONFIG_PXA27x
 	case 1:
 		local_irq_disable();
 		PCFR |= PCFR_PI2CEN;
 		local_irq_enable();
-		pxa_set_cken(CKEN15_PWRI2C, 1);
+		pxa_set_cken(CKEN_PWRI2C, 1);
 #endif
 	}
 
@@ -935,11 +935,11 @@ eadapt:
 ereqirq:
 	switch (dev->id) {
 	case 0:
-		pxa_set_cken(CKEN14_I2C, 0);
+		pxa_set_cken(CKEN_I2C, 0);
 		break;
 #ifdef CONFIG_PXA27x
 	case 1:
-		pxa_set_cken(CKEN15_PWRI2C, 0);
+		pxa_set_cken(CKEN_PWRI2C, 0);
 		local_irq_disable();
 		PCFR &= ~PCFR_PI2CEN;
 		local_irq_enable();
@@ -962,11 +962,11 @@ static int i2c_pxa_remove(struct platform_device *dev)
 	free_irq(i2c->irq, i2c);
 	switch (dev->id) {
 	case 0:
-		pxa_set_cken(CKEN14_I2C, 0);
+		pxa_set_cken(CKEN_I2C, 0);
 		break;
 #ifdef CONFIG_PXA27x
 	case 1:
-		pxa_set_cken(CKEN15_PWRI2C, 0);
+		pxa_set_cken(CKEN_PWRI2C, 0);
 		local_irq_disable();
 		PCFR &= ~PCFR_PI2CEN;
 		local_irq_enable();

@@ -803,7 +803,7 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	pr_debug("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
 
 	/* enable LCD controller clock */
-	pxa_set_cken(CKEN16_LCD, 1);
+	pxa_set_cken(CKEN_LCD, 1);
 
 	/* Sequence from 11.7.10 */
 	LCCR3 = fbi->reg_lccr3;
@@ -840,7 +840,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 	remove_wait_queue(&fbi->ctrlr_wait, &wait);
 
 	/* disable LCD controller clock */
-	pxa_set_cken(CKEN16_LCD, 0);
+	pxa_set_cken(CKEN_LCD, 0);
 }
 
 /*
