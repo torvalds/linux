@@ -983,7 +983,10 @@ static int autosuspend_check(struct usb_device *udev)
 
 #else
 
-#define autosuspend_check(udev)		0
+static inline int autosuspend_check(struct usb_device *udev)
+{
+	return 0;
+}
 
 #endif	/* CONFIG_USB_SUSPEND */
 
@@ -1041,7 +1044,6 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 		if (status < 0)
 			goto done;
 	}
-	cancel_delayed_work(&udev->autosuspend);
 
 	/* Suspend all the interfaces and then udev itself */
 	if (udev->actconfig) {
@@ -1062,9 +1064,16 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 			usb_resume_interface(intf);
 		}
 
+		/* Try another autosuspend when the interfaces aren't busy */
+		if (udev->auto_pm)
+			autosuspend_check(udev);
+
 	/* If the suspend succeeded, propagate it up the tree */
-	} else if (parent)
-		usb_autosuspend_device(parent);
+	} else {
+		cancel_delayed_work(&udev->autosuspend);
+		if (parent)
+			usb_autosuspend_device(parent);
+	}
 
  done:
 	// dev_dbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
@@ -1475,6 +1484,7 @@ int usb_external_resume_device(struct usb_device *udev)
 	usb_pm_lock(udev);
 	udev->auto_pm = 0;
 	status = usb_resume_both(udev);
+	udev->last_busy = jiffies;
 	usb_pm_unlock(udev);
 
 	/* Now that the device is awake, we can start trying to autosuspend
