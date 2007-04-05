@@ -459,15 +459,17 @@ static int msix_capability_init(struct pci_dev *dev,
 /**
  * pci_msi_check_device - check whether MSI may be enabled on a device
  * @dev: pointer to the pci_dev data structure of MSI device function
+ * @nvec: how many MSIs have been requested ?
  * @type: are we checking for MSI or MSI-X ?
  *
  * Look at global flags, the device itself, and its parent busses
  * to determine if MSI/-X are supported for the device. If MSI/-X is
  * supported return 0, else return an error code.
  **/
-static int pci_msi_check_device(struct pci_dev * dev, int type)
+static int pci_msi_check_device(struct pci_dev* dev, int nvec, int type)
 {
 	struct pci_bus *bus;
+	int ret;
 
 	/* MSI must be globally enabled and supported by the device */
 	if (!pci_msi_enable || !dev || dev->no_msi)
@@ -482,6 +484,10 @@ static int pci_msi_check_device(struct pci_dev * dev, int type)
 	for (bus = dev->bus; bus; bus = bus->parent)
 		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
 			return -EINVAL;
+
+	ret = arch_msi_check_device(dev, nvec, type);
+	if (ret)
+		return ret;
 
 	if (!pci_find_capability(dev, type))
 		return -EINVAL;
@@ -503,8 +509,9 @@ int pci_enable_msi(struct pci_dev* dev)
 {
 	int status;
 
-	if (pci_msi_check_device(dev, PCI_CAP_ID_MSI))
-		return -EINVAL;
+	status = pci_msi_check_device(dev, 1, PCI_CAP_ID_MSI);
+	if (status)
+		return status;
 
 	WARN_ON(!!dev->msi_enabled);
 
@@ -601,8 +608,12 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 	int i, j;
 	u16 control;
 
-	if (!entries || pci_msi_check_device(dev, PCI_CAP_ID_MSIX))
+	if (!entries)
  		return -EINVAL;
+
+	status = pci_msi_check_device(dev, nvec, PCI_CAP_ID_MSIX);
+	if (status)
+		return status;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
@@ -687,3 +698,13 @@ void pci_no_msi(void)
 {
 	pci_msi_enable = 0;
 }
+
+
+/* Arch hooks */
+
+int __attribute__ ((weak))
+arch_msi_check_device(struct pci_dev* dev, int nvec, int type)
+{
+	return 0;
+}
+
