@@ -306,25 +306,17 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 
 	mutex_lock(&file->mut);
 	while (list_empty(&file->event_list)) {
-		if (file->filp->f_flags & O_NONBLOCK) {
-			ret = -EAGAIN;
-			break;
-		}
-
-		if (signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-
-		prepare_to_wait(&file->poll_wait, &wait, TASK_INTERRUPTIBLE);
 		mutex_unlock(&file->mut);
-		schedule();
-		mutex_lock(&file->mut);
-		finish_wait(&file->poll_wait, &wait);
-	}
 
-	if (ret)
-		goto done;
+		if (file->filp->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
+		if (wait_event_interruptible(file->poll_wait,
+					     !list_empty(&file->event_list)))
+			return -ERESTARTSYS;
+
+		mutex_lock(&file->mut);
+	}
 
 	uevent = list_entry(file->event_list.next, struct ucma_event, list);
 
