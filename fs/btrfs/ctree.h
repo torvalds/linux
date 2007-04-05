@@ -239,6 +239,7 @@ struct btrfs_fs_info {
 	struct radix_tree_root pinned_radix;
 	u64 last_inode_alloc;
 	u64 generation;
+	u64 highest_inode;
 	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block *disk_super;
 	struct buffer_head *sb_buffer;
@@ -970,6 +971,8 @@ int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
 int btrfs_lookup_inode_map(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct btrfs_path *path,
 			   u64 objectid, int mod);
+int btrfs_find_highest_inode(struct btrfs_root *fs_root, u64 *objectid);
+
 /* inode-item.c */
 int btrfs_insert_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 		       *root, u64 objectid, struct btrfs_inode_item

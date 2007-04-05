@@ -311,6 +311,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->extent_root = extent_root;
 	fs_info->inode_root = inode_root;
 	fs_info->last_inode_alloc = 0;
+	fs_info->highest_inode = 0;
 	fs_info->sb = sb;
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
@@ -360,12 +361,15 @@ printk("failed2\n");
 
 	ret = find_and_setup_root(sb->s_blocksize, tree_root, fs_info,
 				  BTRFS_FS_TREE_OBJECTID, root);
-	mutex_unlock(&fs_info->fs_mutex);
 	BUG_ON(ret);
 	root->commit_root = root->node;
 	get_bh(root->node);
 	root->ref_cows = 1;
 	root->fs_info->generation = root->root_key.offset + 1;
+	ret = btrfs_find_highest_inode(root, &root->fs_info->last_inode_alloc);
+	if (ret == 0)
+		fs_info->highest_inode = fs_info->last_inode_alloc;
+	mutex_unlock(&fs_info->fs_mutex);
 	return root;
 }
 

@@ -3,6 +3,37 @@
 #include "disk-io.h"
 #include "transaction.h"
 
+int btrfs_find_highest_inode(struct btrfs_root *fs_root, u64 *objectid)
+{
+	struct btrfs_path *path;
+	int ret;
+	struct btrfs_leaf *l;
+	struct btrfs_root *root = fs_root->fs_info->inode_root;
+	struct btrfs_key search_key;
+	int slot;
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+
+	search_key.objectid = (u64)-1;
+	search_key.offset = (u64)-1;
+	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
+	if (ret < 0)
+		goto error;
+	BUG_ON(ret == 0);
+	if (path->slots[0] > 0) {
+		slot = path->slots[0] - 1;
+		l = btrfs_buffer_leaf(path->nodes[0]);
+		*objectid = btrfs_disk_key_objectid(&l->items[slot].key);
+	} else {
+		*objectid = BTRFS_FIRST_FREE_OBJECTID;
+	}
+	ret = 0;
+error:
+	btrfs_free_path(path);
+	return ret;
+}
+
 /*
  * walks the btree of allocated inodes and find a hole.
  */
@@ -28,21 +59,6 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	btrfs_set_key_type(&search_key, BTRFS_INODE_MAP_ITEM_KEY);
 
 	search_start = fs_root->fs_info->last_inode_alloc;
-	if (search_start == 0) {
-		struct btrfs_disk_key *last_key;
-		btrfs_init_path(path);
-		search_key.objectid = (u64)-1;
-		search_key.offset = (u64)-1;
-		ret = btrfs_search_slot(trans, root, &search_key, path, 0, 0);
-		if (ret < 0)
-			goto error;
-		BUG_ON(ret == 0);
-		if (path->slots[0] > 0)
-			path->slots[0]--;
-		l = btrfs_buffer_leaf(path->nodes[0]);
-		last_key = &l->items[path->slots[0]].key;
-		search_start = btrfs_disk_key_objectid(last_key);
-	}
 	search_start = max(search_start, BTRFS_FIRST_FREE_OBJECTID);
 	search_key.objectid = search_start;
 	search_key.offset = 0;
@@ -129,6 +145,8 @@ int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
 				    path->slots[0], struct btrfs_inode_map_item);
 	btrfs_cpu_key_to_disk(&inode_item->key, location);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
+	if (objectid > fs_root->fs_info->highest_inode)
+		fs_root->fs_info->highest_inode = objectid;
 out:
 	btrfs_release_path(inode_root, path);
 	btrfs_free_path(path);

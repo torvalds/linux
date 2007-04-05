@@ -92,6 +92,7 @@ int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	int cow = mod != 0;
 	struct btrfs_disk_key *found_key;
 	struct btrfs_leaf *leaf;
+	u32 overflow;
 
 	key.objectid = dir;
 	key.flags = 0;
@@ -119,8 +120,10 @@ int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		if (btrfs_match_dir_item_name(root, path, name, name_len))
 			return 0;
 
-		if (btrfs_disk_key_overflow(found_key) == 0)
+		overflow = btrfs_disk_key_overflow(found_key);
+		if (overflow == 0)
 			return 1;
+		btrfs_set_key_overflow(&key, overflow - 1);
 		btrfs_release_path(root, path);
 	}
 	return 1;
