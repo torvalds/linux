@@ -78,10 +78,11 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	protocol = iph->protocol;
 
 	if (unlikely(iph->protocol == IPPROTO_BEETPH)) {
-		struct ip_beet_phdr *ph = (struct ip_beet_phdr*)(iph + 1);
+		struct ip_beet_phdr *ph;
 
 		if (!pskb_may_pull(skb, sizeof(*ph)))
 			goto out;
+		ph = (struct ip_beet_phdr *)(skb->h.ipiph + 1);
 
 		phlen = sizeof(*ph) + ph->padlen;
 		optlen = ph->hdrlen * 8 - phlen;
@@ -90,6 +91,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 
 		if (!pskb_may_pull(skb, phlen + optlen))
 			goto out;
+		skb->len -= phlen + optlen;
 
 		ph_nexthdr = ph->nexthdr;
 	}
@@ -97,6 +99,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->nh.raw = skb->data + (phlen - sizeof(*iph));
 	memmove(skb->nh.raw, iph, sizeof(*iph));
 	skb->h.raw = skb->data + (phlen + optlen);
+	skb->data = skb->h.raw;
 
 	iph = skb->nh.iph;
 	iph->ihl = (sizeof(*iph) + optlen) / 4;
