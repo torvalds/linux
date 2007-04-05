@@ -138,7 +138,16 @@ static struct snd_akm4xxx akm_juli_dac __devinitdata = {
 
 static int __devinit juli_add_controls(struct snd_ice1712 *ice)
 {
-	return snd_ice1712_akm4xxx_build_controls(ice);
+	int err;
+	err = snd_ice1712_akm4xxx_build_controls(ice);
+	if (err < 0)
+		return err;
+	/* only capture SPDIF over AK4114 */
+	err = snd_ak4114_build(ice->spec.juli.ak4114, NULL,
+			       ice->pcm_pro->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 /*
