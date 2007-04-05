@@ -447,7 +447,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	mutex_lock(&root->fs_info->fs_mutex);
 	key.objectid = inode->i_ino;
 	key.flags = 0;
-	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
+	btrfs_set_key_type(&key, BTRFS_DIR_INDEX_KEY);
 	key.offset = filp->f_pos;
 	path = btrfs_alloc_path();
 	btrfs_init_path(path);
@@ -477,7 +477,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		item = leaf->items + slot;
 		if (btrfs_disk_key_objectid(&item->key) != key.objectid)
 			break;
-		if (btrfs_disk_key_type(&item->key) != BTRFS_DIR_ITEM_KEY)
+		if (btrfs_disk_key_type(&item->key) != BTRFS_DIR_INDEX_KEY)
 			continue;
 		if (btrfs_disk_key_offset(&item->key) < filp->f_pos)
 			continue;

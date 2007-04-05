@@ -282,41 +282,42 @@ struct btrfs_root {
  * for every name in a directory.
  */
 #define BTRFS_DIR_ITEM_KEY	2
+#define BTRFS_DIR_INDEX_KEY	3
 /*
  * inline data is file data that fits in the btree.
  */
-#define BTRFS_INLINE_DATA_KEY	3
+#define BTRFS_INLINE_DATA_KEY	4
 /*
  * extent data is for data that can't fit in the btree.  It points to
  * a (hopefully) huge chunk of disk
  */
-#define BTRFS_EXTENT_DATA_KEY	4
+#define BTRFS_EXTENT_DATA_KEY	5
 /*
  * csum items have the checksums for data in the extents
  */
-#define BTRFS_CSUM_ITEM_KEY	5
+#define BTRFS_CSUM_ITEM_KEY	6
 
 /*
  * root items point to tree roots.  There are typically in the root
  * tree used by the super block to find all the other trees
  */
-#define BTRFS_ROOT_ITEM_KEY	6
+#define BTRFS_ROOT_ITEM_KEY	7
 /*
  * extent items are in the extent map tree.  These record which blocks
  * are used, and how many references there are to each block
  */
-#define BTRFS_EXTENT_ITEM_KEY	7
+#define BTRFS_EXTENT_ITEM_KEY	8
 
 /*
  * the inode map records which inode numbers are in use and where
  * they actually live on disk
  */
-#define BTRFS_INODE_MAP_ITEM_KEY 8
+#define BTRFS_INODE_MAP_ITEM_KEY 9
 /*
  * string items are for debugging.  They just store a short string of
  * data in the FS
  */
-#define BTRFS_STRING_ITEM_KEY	9
+#define BTRFS_STRING_ITEM_KEY	10
 
 static inline u64 btrfs_inode_generation(struct btrfs_inode_item *i)
 {
