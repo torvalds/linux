@@ -952,8 +952,7 @@ static int jffs2_scan_inode_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 				 struct jffs2_raw_inode *ri, uint32_t ofs, struct jffs2_summary *s)
 {
 	struct jffs2_inode_cache *ic;
-	uint32_t ino = je32_to_cpu(ri->ino);
-	int err;
+	uint32_t crc, ino = je32_to_cpu(ri->ino);
 
 	D1(printk(KERN_DEBUG "jffs2_scan_inode_node(): Node at 0x%08x\n", ofs));
 
@@ -966,21 +965,22 @@ static int jffs2_scan_inode_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	   Which means that the _full_ amount of time to get to proper write mode with GC
 	   operational may actually be _longer_ than before. Sucks to be me. */
 
+	/* Check the node CRC in any case. */
+	crc = crc32(0, ri, sizeof(*ri)-8);
+	if (crc != je32_to_cpu(ri->node_crc)) {
+		printk(KERN_NOTICE "jffs2_scan_inode_node(): CRC failed on "
+		       "node at 0x%08x: Read 0x%08x, calculated 0x%08x\n",
+		       ofs, je32_to_cpu(ri->node_crc), crc);
+		/*
+		 * We believe totlen because the CRC on the node
+		 * _header_ was OK, just the node itself failed.
+		 */
+		return jffs2_scan_dirty_space(c, jeb,
+					      PAD(je32_to_cpu(ri->totlen)));
+	}
+
 	ic = jffs2_get_ino_cache(c, ino);
 	if (!ic) {
-		/* Inocache get failed. Either we read a bogus ino# or it's just genuinely the
-		   first node we found for this inode. Do a CRC check to protect against the former
-		   case */
-		uint32_t crc = crc32(0, ri, sizeof(*ri)-8);
-
-		if (crc != je32_to_cpu(ri->node_crc)) {
-			printk(KERN_NOTICE "jffs2_scan_inode_node(): CRC failed on node at 0x%08x: Read 0x%08x, calculated 0x%08x\n",
-			       ofs, je32_to_cpu(ri->node_crc), crc);
-			/* We believe totlen because the CRC on the node _header_ was OK, just the node itself failed. */
-			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(ri->totlen)))))
-				return err;
-			return 0;
-		}
 		ic = jffs2_scan_make_ino_cache(c, ino);
 		if (!ic)
 			return -ENOMEM;
