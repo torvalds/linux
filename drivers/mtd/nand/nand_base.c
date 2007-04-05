@@ -771,7 +771,7 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *ecc_code = chip->buffers->ecccode;
 	int *eccpos = chip->ecc.layout->eccpos;
 
-	nand_read_page_raw(mtd, chip, buf);
+	chip->ecc.read_page_raw(mtd, chip, buf);
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize)
 		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
@@ -1426,7 +1426,7 @@ static void nand_write_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	for (i = 0; i < chip->ecc.total; i++)
 		chip->oob_poi[eccpos[i]] = ecc_calc[i];
 
-	nand_write_page_raw(mtd, chip, buf);
+	chip->ecc.write_page_raw(mtd, chip, buf);
 }
 
 /**
