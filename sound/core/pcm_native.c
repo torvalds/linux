@@ -718,7 +718,8 @@ static int snd_pcm_action_group(struct action_ops *ops,
 
 	snd_pcm_group_for_each_entry(s, substream) {
 		if (do_lock && s != substream)
-			spin_lock(&s->self_group.lock);
+			spin_lock_nested(&s->self_group.lock,
+					 SINGLE_DEPTH_NESTING);
 		res = ops->pre_action(s, state);
 		if (res < 0)
 			goto _unlock;
