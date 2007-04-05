@@ -435,7 +435,7 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_bit_info,
 	.get =		snd_ak4114_in_bit_get,
-	.private_value = (6<<8) | AK4114_REG_RCS1,
+	.private_value = (6<<8) | AK4114_REG_RCS0,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -443,7 +443,15 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_bit_info,
 	.get =		snd_ak4114_in_bit_get,
-	.private_value = (3<<8) | AK4114_REG_RCS1,
+	.private_value = (3<<8) | AK4114_REG_RCS0,
+},
+{
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
+	.name =		"IEC958 PPL Lock Status",
+	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
+	.info =		snd_ak4114_in_bit_info,
+	.get =		snd_ak4114_in_bit_get,
+	.private_value = (1<<31) | (4<<8) | AK4114_REG_RCS0,
 }
 };
 
@@ -462,7 +470,7 @@ int snd_ak4114_build(struct ak4114 *ak4114,
 		kctl = snd_ctl_new1(&snd_ak4114_iec958_controls[idx], ak4114);
 		if (kctl == NULL)
 			return -ENOMEM;
-		if (!strstr(kctl->id.name, "Playback")) {
+		if (strstr(kctl->id.name, "Playback")) {
 			if (ply_substream == NULL) {
 				snd_ctl_free_one(kctl);
 				ak4114->kctls[idx] = NULL;
@@ -526,6 +534,9 @@ static void ak4114_notify(struct ak4114 *ak4114,
 	if (c0 & AK4114_DTSCD)
 		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[13]->id);
+	if (c0 & AK4114_UNLCK)
+		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &ak4114->kctls[14]->id);
 }
 
 int snd_ak4114_external_rate(struct ak4114 *ak4114)
@@ -587,7 +598,7 @@ static void ak4114_stats(struct work_struct *work)
 {
 	struct ak4114 *chip = container_of(work, struct ak4114, work.work);
 
-	if (chip->init)
+	if (!chip->init)
 		snd_ak4114_check_rate_and_errors(chip, 0);
 
 	schedule_delayed_work(&chip->work, HZ / 10);

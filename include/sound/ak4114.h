@@ -158,7 +158,7 @@
 #define AK4114_CHECK_NO_STAT	(1<<0)	/* no statistics */
 #define AK4114_CHECK_NO_RATE	(1<<1)	/* no rate check */
 
-#define AK4114_CONTROLS		14
+#define AK4114_CONTROLS		15
 
 typedef void (ak4114_write_t)(void *private_data, unsigned char addr, unsigned char data);
 typedef unsigned char (ak4114_read_t)(void *private_data, unsigned char addr);
