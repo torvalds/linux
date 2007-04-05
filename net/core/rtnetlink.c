@@ -862,7 +862,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	type = nlh->nlmsg_type;
 	if (type > RTM_MAX)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	type -= RTM_BASE;
 
@@ -885,7 +885,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 		dumpit = rtnl_get_dumpit(family, type);
 		if (dumpit == NULL)
-			return -EINVAL;
+			return -EOPNOTSUPP;
 
 		return netlink_dump_start(rtnl, skb, nlh, dumpit, NULL);
 	}
@@ -913,7 +913,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	doit = rtnl_get_doit(family, type);
 	if (doit == NULL)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	return doit(skb, nlh, (void *)&rta_buf[0]);
 }
