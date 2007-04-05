@@ -42,10 +42,9 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->nh.raw = skb_push(skb, x->props.header_len + hdrlen);
 	top_iph = skb->nh.iph;
-	hdrlen = iph->ihl * 4 - optlen;
-	skb->h.raw += hdrlen;
+	skb->h.raw += sizeof(*iph) - hdrlen;
 
-	memmove(top_iph, iph, hdrlen);
+	memmove(top_iph, iph, sizeof(*iph));
 	if (unlikely(optlen)) {
 		struct ip_beet_phdr *ph;
 
