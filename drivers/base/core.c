@@ -246,6 +246,53 @@ static struct kset_uevent_ops device_uevent_ops = {
 	.uevent =	dev_uevent,
 };
 
+static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct kobject *top_kobj;
+	struct kset *kset;
+	char *envp[32];
+	char data[PAGE_SIZE];
+	char *pos;
+	int i;
+	size_t count = 0;
+	int retval;
+
+	/* search the kset, the device belongs to */
+	top_kobj = &dev->kobj;
+	if (!top_kobj->kset && top_kobj->parent) {
+		do {
+			top_kobj = top_kobj->parent;
+		} while (!top_kobj->kset && top_kobj->parent);
+	}
+	if (!top_kobj->kset)
+		goto out;
+	kset = top_kobj->kset;
+	if (!kset->uevent_ops || !kset->uevent_ops->uevent)
+		goto out;
+
+	/* respect filter */
+	if (kset->uevent_ops && kset->uevent_ops->filter)
+		if (!kset->uevent_ops->filter(kset, &dev->kobj))
+			goto out;
+
+	/* let the kset specific function add its keys */
+	pos = data;
+	retval = kset->uevent_ops->uevent(kset, &dev->kobj,
+					  envp, ARRAY_SIZE(envp),
+					  pos, PAGE_SIZE);
+	if (retval)
+		goto out;
+
+	/* copy keys to file */
+	for (i = 0; envp[i]; i++) {
+		pos = &buf[count];
+		count += sprintf(pos, "%s\n", envp[i]);
+	}
+out:
+	return count;
+}
+
 static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
@@ -621,10 +668,11 @@ int device_add(struct device *dev)
 					     BUS_NOTIFY_ADD_DEVICE, dev);
 
 	dev->uevent_attr.attr.name = "uevent";
-	dev->uevent_attr.attr.mode = S_IWUSR;
+	dev->uevent_attr.attr.mode = S_IRUGO | S_IWUSR;
 	if (dev->driver)
 		dev->uevent_attr.attr.owner = dev->driver->owner;
 	dev->uevent_attr.store = store_uevent;
+	dev->uevent_attr.show = show_uevent;
 	error = device_create_file(dev, &dev->uevent_attr);
 	if (error)
 		goto attrError;
