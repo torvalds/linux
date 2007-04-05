@@ -225,9 +225,10 @@ MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
 #define USB_DEVICE_ID_LD_MACHINETEST	0x2040
 
 #define USB_VENDOR_ID_LOGITECH		0x046d
-#define USB_DEVICE_ID_LOGITECH_USB_RECEIVER	0xc101
-#define USB_DEVICE_ID_S510_USB_RECEIVER	0xc50c
-#define USB_DEVICE_ID_S510_USB_RECEIVER_2	0xc517
+#define USB_DEVICE_ID_LOGITECH_RECEIVER	0xc101
+#define USB_DEVICE_ID_S510_RECEIVER	0xc50c
+#define USB_DEVICE_ID_S510_RECEIVER_2	0xc517
+#define USB_DEVICE_ID_MX3000_RECEIVER	0xc513
 #define USB_DEVICE_ID_DINOVO_EDGE	0xc714
 
 #define USB_VENDOR_ID_MCC		0x09db
@@ -297,7 +298,7 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU, HID_QUIRK_2WHEEL_MOUSE_HACK_7 },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_MOUSE, HID_QUIRK_2WHEEL_MOUSE_HACK_5 },
 
-	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_USB_RECEIVER, HID_QUIRK_BAD_RELATIVE_KEYS },
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RECEIVER, HID_QUIRK_BAD_RELATIVE_KEYS },
 
 	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_GAMEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_PREDATOR, HID_QUIRK_BADPAD },
@@ -434,8 +435,9 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_FLAIR, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_302, HID_QUIRK_IGNORE },
 
-	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_USB_RECEIVER, HID_QUIRK_LOGITECH_S510_DESCRIPTOR },
-	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_USB_RECEIVER_2, HID_QUIRK_LOGITECH_S510_DESCRIPTOR },
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER, HID_QUIRK_LOGITECH_DESCRIPTOR },
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER, HID_QUIRK_LOGITECH_DESCRIPTOR },
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER_2, HID_QUIRK_LOGITECH_DESCRIPTOR },
 
 	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MIGHTYMOUSE, HID_QUIRK_MIGHTYMOUSE | HID_QUIRK_INVERT_HWHEEL },
 
@@ -1049,16 +1051,16 @@ static void hid_fixup_sony_ps3_controller(struct usb_device *dev, int ifnum)
 }
 
 /*
- * Logitech S510 keyboard sends in report #3 keys which are far
+ * Certain Logitech keyboards send in report #3 keys which are far
  * above the logical maximum described in descriptor. This extends
  * the original value of 0x28c of logical maximum to 0x104d
  */
-static void hid_fixup_s510_descriptor(unsigned char *rdesc, int rsize)
+static void hid_fixup_logitech_descriptor(unsigned char *rdesc, int rsize)
 {
 	if (rsize >= 90 && rdesc[83] == 0x26
 			&& rdesc[84] == 0x8c
 			&& rdesc[85] == 0x02) {
-		info("Fixing up Logitech S510 report descriptor");
+		info("Fixing up Logitech keyboard report descriptor");
 		rdesc[84] = rdesc[89] = 0x4d;
 		rdesc[85] = rdesc[90] = 0x10;
 	}
@@ -1138,8 +1140,8 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	if ((quirks & HID_QUIRK_CYMOTION))
 		hid_fixup_cymotion_descriptor(rdesc, rsize);
 
-	if (quirks & HID_QUIRK_LOGITECH_S510_DESCRIPTOR)
-		hid_fixup_s510_descriptor(rdesc, rsize);
+	if (quirks & HID_QUIRK_LOGITECH_DESCRIPTOR)
+		hid_fixup_logitech_descriptor(rdesc, rsize);
 
 #ifdef CONFIG_HID_DEBUG
 	printk(KERN_DEBUG __FILE__ ": report descriptor (size %u, read %d) = ", rsize, n);
