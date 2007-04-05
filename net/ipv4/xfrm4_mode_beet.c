@@ -83,24 +83,24 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 		if (!pskb_may_pull(skb, sizeof(*ph)))
 			goto out;
 
-		phlen = ph->hdrlen * 8;
-		optlen = phlen - ph->padlen - sizeof(*ph);
+		phlen = sizeof(*ph) + ph->padlen;
+		optlen = ph->hdrlen * 8 - phlen;
 		if (optlen < 0 || optlen & 3 || optlen > 250)
 			goto out;
 
-		if (!pskb_may_pull(skb, phlen))
+		if (!pskb_may_pull(skb, phlen + optlen))
 			goto out;
 
 		ph_nexthdr = ph->nexthdr;
 	}
 
-	skb_push(skb, sizeof(*iph) - phlen + optlen);
-	memmove(skb->data, skb->nh.raw, sizeof(*iph));
-	skb->nh.raw = skb->data;
+	skb->nh.raw = skb->data + (phlen - sizeof(*iph));
+	memmove(skb->nh.raw, iph, sizeof(*iph));
+	skb->h.raw = skb->data + (phlen + optlen);
 
 	iph = skb->nh.iph;
 	iph->ihl = (sizeof(*iph) + optlen) / 4;
-	iph->tot_len = htons(skb->len);
+	iph->tot_len = htons(skb->len + iph->ihl * 4);
 	iph->daddr = x->sel.daddr.a4;
 	iph->saddr = x->sel.saddr.a4;
 	if (ph_nexthdr)
