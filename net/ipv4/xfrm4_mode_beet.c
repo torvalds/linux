@@ -54,6 +54,8 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 		ph->padlen = 4 - (optlen & 4);
 		ph->hdrlen = (optlen + ph->padlen + sizeof(*ph)) / 8;
 		ph->nexthdr = top_iph->protocol;
+		if (ph->padlen)
+			memset(ph + 1, IPOPT_NOP, ph->padlen);
 
 		top_iph->protocol = IPPROTO_BEETPH;
 		top_iph->ihl = sizeof(struct iphdr) / 4;
