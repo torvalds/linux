@@ -3,7 +3,6 @@
 * Add block mapping tree (simple dm layer)
 * Make allocator smarter
 * add a block group to struct inode
-* Make directory hashing work on 32 bit
 * Make sure nobh stuff is working properly for cows
 * Do actual block accounting
 * Check compat and incompat flags on the inode

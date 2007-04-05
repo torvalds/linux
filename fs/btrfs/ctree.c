@@ -200,6 +200,10 @@ static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
 static int check_block(struct btrfs_root *root, struct btrfs_path *path,
 			int level)
 {
+	struct btrfs_node *node = btrfs_buffer_node(path->nodes[level]);
+	if (memcmp(node->header.fsid, root->fs_info->disk_super->fsid,
+		   sizeof(node->header.fsid)))
+		BUG();
 	if (level == 0)
 		return check_leaf(root, path, level);
 	return check_node(root, path, level);
@@ -687,6 +691,8 @@ static int insert_new_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_parentid(&c->header,
 	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
 	lower = btrfs_buffer_node(path->nodes[level-1]);
+	memcpy(c->header.fsid, root->fs_info->disk_super->fsid,
+	       sizeof(c->header.fsid));
 	if (btrfs_is_leaf(lower))
 		lower_key = &((struct btrfs_leaf *)lower)->items[0].key;
 	else
@@ -780,6 +786,8 @@ static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_generation(&split->header, trans->transid);
 	btrfs_set_header_parentid(&split->header,
 	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
+	memcpy(split->header.fsid, root->fs_info->disk_super->fsid,
+	       sizeof(split->header.fsid));
 	mid = (c_nritems + 1) / 2;
 	btrfs_memcpy(root, split, split->ptrs, c->ptrs + mid,
 		     (c_nritems - mid) * sizeof(struct btrfs_key_ptr));
@@ -1139,6 +1147,8 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_level(&right->header, 0);
 	btrfs_set_header_parentid(&right->header,
 	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
+	memcpy(right->header.fsid, root->fs_info->disk_super->fsid,
+	       sizeof(right->header.fsid));
 	if (mid <= slot) {
 		if (nritems == 1 ||
 		    leaf_space_used(l, mid, nritems - mid) + space_needed >
@@ -1229,6 +1239,8 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_level(&right->header, 0);
 	btrfs_set_header_parentid(&right->header,
 	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
+	memcpy(right->header.fsid, root->fs_info->disk_super->fsid,
+	       sizeof(right->header.fsid));
 	btrfs_cpu_key_to_disk(&disk_key, ins_key);
 	btrfs_set_header_nritems(&right->header, 0);
 	wret = insert_ptr(trans, root, path,

@@ -483,10 +483,8 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		if (btrfs_disk_key_objectid(&item->key) != key.objectid)
 			break;
 		if (btrfs_disk_key_offset(&item->key) >
-		    root->fs_info->highest_inode) {
-printk("stopping at highest inode %Lu\n", root->fs_info->highest_inode);
+		    root->fs_info->highest_inode)
 			break;
-		}
 		if (btrfs_disk_key_type(&item->key) != BTRFS_DIR_INDEX_KEY)
 			continue;
 		if (btrfs_disk_key_offset(&item->key) < filp->f_pos)
