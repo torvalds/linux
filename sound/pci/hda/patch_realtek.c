@@ -1916,6 +1916,17 @@ static int alc880_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
 }
 
+static int alc880_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   unsigned int stream_tag,
+					   unsigned int format,
+					   struct snd_pcm_substream *substream)
+{
+	struct alc_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout,
+					     stream_tag, format, substream);
+}
+
 static int alc880_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 					 struct hda_codec *codec,
 					 struct snd_pcm_substream *substream)
@@ -1984,7 +1995,8 @@ static struct hda_pcm_stream alc880_pcm_digital_playback = {
 	/* NID is set in alc_build_pcms */
 	.ops = {
 		.open = alc880_dig_playback_pcm_open,
-		.close = alc880_dig_playback_pcm_close
+		.close = alc880_dig_playback_pcm_close,
+		.prepare = alc880_dig_playback_pcm_prepare
 	},
 };
 

@@ -497,6 +497,17 @@ static int cmi9880_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
+static int cmi9880_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+					    struct hda_codec *codec,
+					    unsigned int stream_tag,
+					    unsigned int format,
+					    struct snd_pcm_substream *substream)
+{
+	struct cmi_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout, stream_tag,
+					     format, substream);
+}
+
 /*
  * Analog capture
  */
@@ -556,7 +567,8 @@ static struct hda_pcm_stream cmi9880_pcm_digital_playback = {
 	/* NID is set in cmi9880_build_pcms */
 	.ops = {
 		.open = cmi9880_dig_playback_pcm_open,
-		.close = cmi9880_dig_playback_pcm_close
+		.close = cmi9880_dig_playback_pcm_close,
+		.prepare = cmi9880_dig_playback_pcm_prepare
 	},
 };
 

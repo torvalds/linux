@@ -814,6 +814,17 @@ static int stac92xx_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
+static int stac92xx_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+					 struct hda_codec *codec,
+					 unsigned int stream_tag,
+					 unsigned int format,
+					 struct snd_pcm_substream *substream)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout,
+					     stream_tag, format, substream);
+}
+
 
 /*
  * Analog capture callbacks
@@ -848,7 +859,8 @@ static struct hda_pcm_stream stac92xx_pcm_digital_playback = {
 	/* NID is set in stac92xx_build_pcms */
 	.ops = {
 		.open = stac92xx_dig_playback_pcm_open,
-		.close = stac92xx_dig_playback_pcm_close
+		.close = stac92xx_dig_playback_pcm_close,
+		.prepare = stac92xx_dig_playback_pcm_prepare
 	},
 };
 

@@ -148,6 +148,11 @@ struct hda_multi_out {
 
 int snd_hda_multi_out_dig_open(struct hda_codec *codec, struct hda_multi_out *mout);
 int snd_hda_multi_out_dig_close(struct hda_codec *codec, struct hda_multi_out *mout);
+int snd_hda_multi_out_dig_prepare(struct hda_codec *codec,
+				  struct hda_multi_out *mout,
+				  unsigned int stream_tag,
+				  unsigned int format,
+				  struct snd_pcm_substream *substream);
 int snd_hda_multi_out_analog_open(struct hda_codec *codec, struct hda_multi_out *mout,
 				  struct snd_pcm_substream *substream);
 int snd_hda_multi_out_analog_prepare(struct hda_codec *codec, struct hda_multi_out *mout,

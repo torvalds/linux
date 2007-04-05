@@ -1114,10 +1114,14 @@ static int snd_hda_spdif_out_switch_put(struct snd_kcontrol *kcontrol, struct sn
 	change = codec->spdif_ctls != val;
 	if (change || codec->in_resume) {
 		codec->spdif_ctls = val;
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1, val & 0xff);
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    AC_AMP_SET_RIGHT | AC_AMP_SET_LEFT |
-				    AC_AMP_SET_OUTPUT | ((val & 1) ? 0 : 0x80));
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
+				    val & 0xff);
+		if (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP)
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AC_AMP_SET_RIGHT | AC_AMP_SET_LEFT |
+					    AC_AMP_SET_OUTPUT |
+					    ((val & 1) ? 0 : 0x80));
 	}
 	mutex_unlock(&codec->spdif_mutex);
 	return change;
@@ -1886,6 +1890,21 @@ int snd_hda_input_mux_put(struct hda_codec *codec, const struct hda_input_mux *i
  * Multi-channel / digital-out PCM helper functions
  */
 
+/* setup SPDIF output stream */
+static void setup_dig_out_stream(struct hda_codec *codec, hda_nid_t nid,
+				 unsigned int stream_tag, unsigned int format)
+{
+	/* turn off SPDIF once; otherwise the IEC958 bits won't be updated */
+	if (codec->spdif_ctls & AC_DIG1_ENABLE)
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
+				    codec->spdif_ctls & ~AC_DIG1_ENABLE & 0xff);
+	snd_hda_codec_setup_stream(codec, nid, stream_tag, 0, format);
+	/* turn on again (if needed) */
+	if (codec->spdif_ctls & AC_DIG1_ENABLE)
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
+				    codec->spdif_ctls & 0xff);
+}
+
 /*
  * open the digital out in the exclusive mode
  */
@@ -1897,6 +1916,18 @@ int snd_hda_multi_out_dig_open(struct hda_codec *codec, struct hda_multi_out *mo
 		return -EBUSY; /* already being used */
 	}
 	mout->dig_out_used = HDA_DIG_EXCLUSIVE;
+	mutex_unlock(&codec->spdif_mutex);
+	return 0;
+}
+
+int snd_hda_multi_out_dig_prepare(struct hda_codec *codec,
+				  struct hda_multi_out *mout,
+				  unsigned int stream_tag,
+				  unsigned int format,
+				  struct snd_pcm_substream *substream)
+{
+	mutex_lock(&codec->spdif_mutex);
+	setup_dig_out_stream(codec, mout->dig_out_nid, stream_tag, format);
 	mutex_unlock(&codec->spdif_mutex);
 	return 0;
 }
@@ -1942,9 +1973,8 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec, struct hda_multi_o
 		    snd_hda_is_supported_format(codec, mout->dig_out_nid, format) &&
 		    ! (codec->spdif_status & IEC958_AES0_NONAUDIO)) {
 			mout->dig_out_used = HDA_DIG_ANALOG_DUP;
-			/* setup digital receiver */
-			snd_hda_codec_setup_stream(codec, mout->dig_out_nid,
-						   stream_tag, 0, format);
+			setup_dig_out_stream(codec, mout->dig_out_nid,
+					     stream_tag, format);
 		} else {
 			mout->dig_out_used = 0;
 			snd_hda_codec_setup_stream(codec, mout->dig_out_nid, 0, 0, 0);

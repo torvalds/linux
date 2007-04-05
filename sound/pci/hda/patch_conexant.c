@@ -136,6 +136,18 @@ static int conexant_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
+static int conexant_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+					 struct hda_codec *codec,
+					 unsigned int stream_tag,
+					 unsigned int format,
+					 struct snd_pcm_substream *substream)
+{
+	struct conexant_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout,
+					     stream_tag,
+					     format, substream);
+}
+
 /*
  * Analog capture
  */
@@ -194,7 +206,8 @@ static struct hda_pcm_stream conexant_pcm_digital_playback = {
 	.nid = 0, /* fill later */
 	.ops = {
 		.open = conexant_dig_playback_pcm_open,
-		.close = conexant_dig_playback_pcm_close
+		.close = conexant_dig_playback_pcm_close,
+		.prepare = conexant_dig_playback_pcm_prepare
 	},
 };
 
