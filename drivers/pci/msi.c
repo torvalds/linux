@@ -269,7 +269,8 @@ static void __pci_restore_msix_state(struct pci_dev *dev)
 		msi_set_mask_bit(entry->irq, entry->msi_attrib.masked);
 	}
 
-	entry = get_irq_msi(dev->first_msi_irq);
+	BUG_ON(list_empty(&dev->msi_list));
+	entry = list_entry(dev->msi_list.next, struct msi_desc, list);
 	pos = entry->msi_attrib.pos;
 	pci_read_config_word(dev, pos + PCI_MSIX_FLAGS, &control);
 	control &= ~PCI_MSIX_FLAGS_MASKALL;
@@ -341,7 +342,6 @@ static int msi_capability_init(struct pci_dev *dev)
 	}
 	entry->irq = irq;
 	list_add(&entry->list, &dev->msi_list);
-	dev->first_msi_irq = irq;
 	set_irq_msi(irq, entry);
 
 	/* Set MSI enabled bits	 */
@@ -433,7 +433,6 @@ static int msix_capability_init(struct pci_dev *dev,
 			avail = -EBUSY;
 		return avail;
 	}
-	dev->first_msi_irq = entries[0].vector;
 	/* Set MSI-X enabled bits */
 	pci_intx(dev, 0);		/* disable intx */
 	msix_set_enable(dev, 1);
@@ -460,6 +459,14 @@ static int pci_msi_check_device(struct pci_dev* dev, int nvec, int type)
 	/* MSI must be globally enabled and supported by the device */
 	if (!pci_msi_enable || !dev || dev->no_msi)
 		return -EINVAL;
+
+	/*
+	 * You can't ask to have 0 or less MSIs configured.
+	 *  a) it's stupid ..
+	 *  b) the list manipulation code assumes nvec >= 1.
+	 */
+	if (nvec < 1)
+		return -ERANGE;
 
 	/* Any bridge which does NOT route MSI transactions from it's
 	 * secondary bus to it's primary bus must set NO_MSI flag on
@@ -525,18 +532,17 @@ void pci_disable_msi(struct pci_dev* dev)
 	pci_intx(dev, 1);		/* enable intx */
 	dev->msi_enabled = 0;
 
-	entry = get_irq_msi(dev->first_msi_irq);
-	if (!entry || !entry->dev || entry->msi_attrib.type != PCI_CAP_ID_MSI) {
+	BUG_ON(list_empty(&dev->msi_list));
+	entry = list_entry(dev->msi_list.next, struct msi_desc, list);
+	if (!entry->dev || entry->msi_attrib.type != PCI_CAP_ID_MSI) {
 		return;
 	}
 
 	default_irq = entry->msi_attrib.default_irq;
-	msi_free_irq(dev, dev->first_msi_irq);
+	msi_free_irq(dev, entry->irq);
 
 	/* Restore dev->irq to its default pin-assertion irq */
 	dev->irq = default_irq;
-
-	dev->first_msi_irq = 0;
 }
 EXPORT_SYMBOL(pci_disable_msi);
 
@@ -634,7 +640,6 @@ static void msix_free_all_irqs(struct pci_dev *dev)
 
 	list_for_each_entry(entry, &dev->msi_list, list)
 		msi_free_irq(dev, entry->irq);
-	dev->first_msi_irq = 0;
 }
 
 void pci_disable_msix(struct pci_dev* dev)
@@ -664,8 +669,12 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 	if (!pci_msi_enable || !dev)
  		return;
 
-	if (dev->msi_enabled)
-		msi_free_irq(dev, dev->first_msi_irq);
+	if (dev->msi_enabled) {
+		struct msi_desc *entry;
+		BUG_ON(list_empty(&dev->msi_list));
+		entry = list_entry(dev->msi_list.next, struct msi_desc, list);
+		msi_free_irq(dev, entry->irq);
+	}
 
 	if (dev->msix_enabled)
 		msix_free_all_irqs(dev);

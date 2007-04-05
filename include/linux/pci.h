@@ -189,7 +189,6 @@ struct pci_dev {
 	int rom_attr_enabled;		/* has display of the rom attribute been enabled? */
 	struct bin_attribute *res_attr[DEVICE_COUNT_RESOURCE]; /* sysfs file for resources */
 #ifdef CONFIG_PCI_MSI
-	unsigned int first_msi_irq;
 	struct list_head msi_list;
 #endif
 };
