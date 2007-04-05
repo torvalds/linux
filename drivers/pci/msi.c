@@ -457,15 +457,15 @@ static int msix_capability_init(struct pci_dev *dev,
 }
 
 /**
- * pci_msi_supported - check whether MSI may be enabled on device
+ * pci_msi_check_device - check whether MSI may be enabled on a device
  * @dev: pointer to the pci_dev data structure of MSI device function
  * @type: are we checking for MSI or MSI-X ?
  *
  * Look at global flags, the device itself, and its parent busses
- * to return 0 if MSI are supported for the device.
+ * to determine if MSI/-X are supported for the device. If MSI/-X is
+ * supported return 0, else return an error code.
  **/
-static
-int pci_msi_supported(struct pci_dev * dev, int type)
+static int pci_msi_check_device(struct pci_dev * dev, int type)
 {
 	struct pci_bus *bus;
 
@@ -503,7 +503,7 @@ int pci_enable_msi(struct pci_dev* dev)
 {
 	int status;
 
-	if (pci_msi_supported(dev, PCI_CAP_ID_MSI))
+	if (pci_msi_check_device(dev, PCI_CAP_ID_MSI))
 		return -EINVAL;
 
 	WARN_ON(!!dev->msi_enabled);
@@ -601,7 +601,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 	int i, j;
 	u16 control;
 
-	if (!entries || pci_msi_supported(dev, PCI_CAP_ID_MSIX))
+	if (!entries || pci_msi_check_device(dev, PCI_CAP_ID_MSIX))
  		return -EINVAL;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
