@@ -270,6 +270,10 @@ struct btrfs_root {
 #define BTRFS_KEY_TYPE_MAX	256
 #define BTRFS_KEY_TYPE_MASK	(BTRFS_KEY_TYPE_MAX - 1)
 
+#define BTRFS_KEY_OVERFLOW_MAX 128
+#define BTRFS_KEY_OVERFLOW_SHIFT 8
+#define BTRFS_KEY_OVERFLOW_MASK (0x7FULL << BTRFS_KEY_OVERFLOW_SHIFT)
+
 /*
  * inode items have the data typically returned from stat and store other
  * info about object characteristics.  There is one for every file and dir in
@@ -588,6 +592,19 @@ static inline void btrfs_set_disk_key_flags(struct btrfs_disk_key *disk,
 	disk->flags = cpu_to_le32(val);
 }
 
+static inline u32 btrfs_key_overflow(struct btrfs_key *key)
+{
+	u32 over = key->flags & BTRFS_KEY_OVERFLOW_MASK;
+	return over >> BTRFS_KEY_OVERFLOW_SHIFT;
+}
+
+static inline void btrfs_set_key_overflow(struct btrfs_key *key, u32 over)
+{
+	BUG_ON(over > BTRFS_KEY_OVERFLOW_MAX);
+	over = over << BTRFS_KEY_OVERFLOW_SHIFT;
+	key->flags = (key->flags & ~((u64)BTRFS_KEY_OVERFLOW_MASK)) | over;
+}
+
 static inline u32 btrfs_key_type(struct btrfs_key *key)
 {
 	return key->flags & BTRFS_KEY_TYPE_MASK;
@@ -609,6 +626,22 @@ static inline void btrfs_set_disk_key_type(struct btrfs_disk_key *key, u32 type)
 	u32 flags = btrfs_disk_key_flags(key);
 	BUG_ON(type >= BTRFS_KEY_TYPE_MAX);
 	flags = (flags & ~((u64)BTRFS_KEY_TYPE_MASK)) | type;
+	btrfs_set_disk_key_flags(key, flags);
+}
+
+static inline u32 btrfs_disk_key_overflow(struct btrfs_disk_key *key)
+{
+	u32 over = le32_to_cpu(key->flags) & BTRFS_KEY_OVERFLOW_MASK;
+	return over >> BTRFS_KEY_OVERFLOW_SHIFT;
+}
+
+static inline void btrfs_set_disK_key_overflow(struct btrfs_disk_key *key,
+					       u32 over)
+{
+	u32 flags = btrfs_disk_key_flags(key);
+	BUG_ON(over > BTRFS_KEY_OVERFLOW_MAX);
+	over = over << BTRFS_KEY_OVERFLOW_SHIFT;
+	flags = (flags & ~((u64)BTRFS_KEY_OVERFLOW_MASK)) | over;
 	btrfs_set_disk_key_flags(key, flags);
 }
 

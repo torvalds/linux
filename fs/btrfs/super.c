@@ -486,19 +486,18 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			continue;
 		if (btrfs_disk_key_offset(&item->key) < filp->f_pos)
 			continue;
-
+		filp->f_pos = btrfs_disk_key_offset(&item->key);
 		advance = 1;
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		over = filldir(dirent, (const char *)(di + 1),
 			       btrfs_dir_name_len(di),
 			       btrfs_disk_key_offset(&item->key),
 			       btrfs_dir_objectid(di), d_type);
-		if (over) {
-			filp->f_pos = btrfs_disk_key_offset(&item->key);
-			break;
-		}
-		filp->f_pos = btrfs_disk_key_offset(&item->key) + 1;
+		if (over)
+			goto nopos;
 	}
+	filp->f_pos++;
+nopos:
 	ret = 0;
 err:
 	btrfs_release_path(root, path);
