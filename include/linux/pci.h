@@ -193,6 +193,8 @@ struct pci_dev {
 #endif
 };
 
+extern struct pci_dev *alloc_pci_dev(void);
+
 #define pci_dev_g(n) list_entry(n, struct pci_dev, global_list)
 #define pci_dev_b(n) list_entry(n, struct pci_dev, bus_list)
 #define	to_pci_dev(n) container_of(n, struct pci_dev, dev)
