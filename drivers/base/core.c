@@ -28,20 +28,6 @@ int (*platform_notify)(struct device * dev) = NULL;
 int (*platform_notify_remove)(struct device * dev) = NULL;
 
 /*
- * Detect the LANANA-assigned LOCAL/EXPERIMENTAL majors
- */
-bool is_lanana_major(unsigned int major)
-{
-	if (major >= 60 && major <= 63)
-		return 1;
-	if (major >= 120 && major <= 127)
-		return 1;
-	if (major >= 240 && major <= 254)
-		return 1;
-	return 0;
-}
-
-/*
  * sysfs bindings for devices.
  */
 
