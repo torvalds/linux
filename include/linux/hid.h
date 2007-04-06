@@ -269,6 +269,7 @@ struct hid_item {
 #define HID_QUIRK_SONY_PS3_CONTROLLER		0x00080000
 #define HID_QUIRK_LOGITECH_DESCRIPTOR		0x00100000
 #define HID_QUIRK_DUPLICATE_USAGES		0x00200000
+#define HID_QUIRK_RESET_LEDS			0x00400000
 
 /*
  * This is the global environment of the parser. This information is

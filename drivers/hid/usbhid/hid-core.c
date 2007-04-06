@@ -129,6 +129,9 @@ MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
 #define USB_DEVICE_ID_CYPRESS_HIDCOM	0x5500
 #define USB_DEVICE_ID_CYPRESS_ULTRAMOUSE	0x7417
 
+#define USB_VENDOR_ID_DELL		0x413c
+#define USB_DEVICE_ID_DELL_W7658	0x2005
+
 #define USB_VENDOR_ID_DELORME		0x1163
 #define USB_DEVICE_ID_DELORME_EARTHMATE 0x0100
 #define USB_DEVICE_ID_DELORME_EM_LT20	0x0200
@@ -468,6 +471,8 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_JIS, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
 	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
 	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY, HID_QUIRK_POWERBOOK_HAS_FN | HID_QUIRK_IGNORE_MOUSE },
+
+	{ USB_VENDOR_ID_DELL, USB_DEVICE_ID_DELL_W7658, HID_QUIRK_RESET_LEDS },
 
 	{ 0, 0 }
 };
@@ -964,6 +969,44 @@ void usbhid_init_reports(struct hid_device *hid)
 }
 
 /*
+ * Reset LEDs which BIOS might have left on. For now, just NumLock (0x01).
+ */
+static int hid_find_field_early(struct hid_device *hid, unsigned int page,
+    unsigned int hid_code, struct hid_field **pfield)
+{
+	struct hid_report *report;
+	struct hid_field *field;
+	struct hid_usage *usage;
+	int i, j;
+
+	list_for_each_entry(report, &hid->report_enum[HID_OUTPUT_REPORT].report_list, list) {
+		for (i = 0; i < report->maxfield; i++) {
+			field = report->field[i];
+			for (j = 0; j < field->maxusage; j++) {
+				usage = &field->usage[j];
+				if ((usage->hid & HID_USAGE_PAGE) == page &&
+				    (usage->hid & 0xFFFF) == hid_code) {
+					*pfield = field;
+					return j;
+				}
+			}
+		}
+	}
+	return -1;
+}
+
+static void usbhid_set_leds(struct hid_device *hid)
+{
+	struct hid_field *field;
+	int offset;
+
+	if ((offset = hid_find_field_early(hid, HID_UP_LED, 0x01, &field)) != -1) {
+		hid_set_field(field, offset, 0);
+		usbhid_submit_report(hid, field->report, USB_DIR_OUT);
+	}
+}
+
+/*
  * Traverse the supplied list of reports and find the longest
  */
 static void hid_find_max_report(struct hid_device *hid, unsigned int type, int *max)
@@ -1348,6 +1391,8 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	usbhid_init_reports(hid);
 	hid_dump_device(hid);
+	if (hid->quirks & HID_QUIRK_RESET_LEDS)
+		usbhid_set_leds(hid);
 
 	if (!hidinput_connect(hid))
 		hid->claimed |= HID_CLAIMED_INPUT;
