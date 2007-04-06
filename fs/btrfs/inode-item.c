@@ -26,15 +26,27 @@ int btrfs_insert_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 }
 
 int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
-		       *root, struct btrfs_path *path, u64 objectid, int mod)
+		       *root, struct btrfs_path *path,
+		       struct btrfs_key *location, int mod)
 {
-	struct btrfs_key key;
 	int ins_len = mod < 0 ? -1 : 0;
 	int cow = mod != 0;
+	int ret;
+	int slot;
+	struct btrfs_leaf *leaf;
+	struct btrfs_key found_key;
 
-	key.objectid = objectid;
-	key.flags = 0;
-	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
-	key.offset = 0;
-	return btrfs_search_slot(trans, root, &key, path, ins_len, cow);
+	ret = btrfs_search_slot(trans, root, location, path, ins_len, cow);
+	if (ret > 0 && btrfs_key_type(location) == BTRFS_ROOT_ITEM_KEY &&
+	    location->offset == (u64)-1 && path->slots[0] != 0) {
+		slot = path->slots[0] - 1;
+		leaf = btrfs_buffer_leaf(path->nodes[0]);
+		btrfs_disk_key_to_cpu(&found_key, &leaf->items[slot].key);
+		if (found_key.objectid == location->objectid &&
+		    btrfs_key_type(&found_key) == btrfs_key_type(location)) {
+			path->slots[0]--;
+			return 0;
+		}
+	}
+	return ret;
 }

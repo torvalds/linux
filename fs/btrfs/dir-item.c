@@ -25,8 +25,8 @@ int insert_with_overflow(struct btrfs_trans_handle *trans, struct btrfs_root
 }
 
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
-			  *root, const char *name, int name_len, u64 dir, u64
-			  objectid, u8 type)
+			  *root, const char *name, int name_len, u64 dir,
+			  struct btrfs_key *location, u8 type)
 {
 	int ret = 0;
 	struct btrfs_path *path;
@@ -50,17 +50,21 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	dir_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
 				  path->slots[0],
 				  struct btrfs_dir_item);
-	btrfs_set_dir_objectid(dir_item, objectid);
+	btrfs_cpu_key_to_disk(&dir_item->location, location);
 	btrfs_set_dir_type(dir_item, type);
 	btrfs_set_dir_flags(dir_item, 0);
 	btrfs_set_dir_name_len(dir_item, name_len);
 	name_ptr = (char *)(dir_item + 1);
+	/* FIXME, use some real flag for selecting the extra index */
+	if (root == root->fs_info->tree_root)
+		goto out;
+
 	btrfs_memcpy(root, path->nodes[0]->b_data, name_ptr, name, name_len);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_release_path(root, path);
 
 	btrfs_set_key_type(&key, BTRFS_DIR_INDEX_KEY);
-	key.offset = objectid;
+	key.offset = location->objectid;
 	ret = insert_with_overflow(trans, root, path, &key, data_size);
 	// FIXME clear the dirindex bit
 	if (ret)
@@ -69,7 +73,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	dir_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
 				  path->slots[0],
 				  struct btrfs_dir_item);
-	btrfs_set_dir_objectid(dir_item, objectid);
+	btrfs_cpu_key_to_disk(&dir_item->location, location);
 	btrfs_set_dir_type(dir_item, type);
 	btrfs_set_dir_flags(dir_item, 0);
 	btrfs_set_dir_name_len(dir_item, name_len);

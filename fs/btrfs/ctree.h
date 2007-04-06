@@ -3,6 +3,7 @@
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
+#include <linux/kobject.h>
 #include "bit-radix.h"
 
 struct btrfs_trans_handle;
@@ -183,13 +184,15 @@ struct btrfs_inline_data_item {
 } __attribute__ ((__packed__));
 
 struct btrfs_dir_item {
-	__le64 objectid;
+	struct btrfs_disk_key location;
 	__le16 flags;
 	__le16 name_len;
 	u8 type;
 } __attribute__ ((__packed__));
 
 struct btrfs_root_item {
+	struct btrfs_inode_item inode;
+	__le64 root_dirid;
 	__le64 blocknr;
 	__le32 flags;
 	__le64 block_limit;
@@ -249,6 +252,7 @@ struct btrfs_fs_info {
 	struct mutex fs_mutex;
 	struct crypto_hash *hash_tfm;
 	spinlock_t hash_lock;
+	struct kobject kobj;
 };
 
 /*
@@ -504,16 +508,6 @@ static inline void btrfs_set_item_size(struct btrfs_item *item, u16 val)
 	item->size = cpu_to_le16(val);
 }
 
-static inline u64 btrfs_dir_objectid(struct btrfs_dir_item *d)
-{
-	return le64_to_cpu(d->objectid);
-}
-
-static inline void btrfs_set_dir_objectid(struct btrfs_dir_item *d, u64 val)
-{
-	d->objectid = cpu_to_le64(val);
-}
-
 static inline u16 btrfs_dir_flags(struct btrfs_dir_item *d)
 {
 	return le16_to_cpu(d->flags);
@@ -722,6 +716,16 @@ static inline u64 btrfs_root_blocknr(struct btrfs_root_item *item)
 static inline void btrfs_set_root_blocknr(struct btrfs_root_item *item, u64 val)
 {
 	item->blocknr = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_root_dirid(struct btrfs_root_item *item)
+{
+	return le64_to_cpu(item->root_dirid);
+}
+
+static inline void btrfs_set_root_dirid(struct btrfs_root_item *item, u64 val)
+{
+	item->root_dirid = cpu_to_le64(val);
 }
 
 static inline u32 btrfs_root_refs(struct btrfs_root_item *item)
@@ -950,8 +954,8 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
 			 btrfs_root_item *item, struct btrfs_key *key);
 /* dir-item.c */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
-			  *root, const char *name, int name_len, u64 dir, u64
-			  objectid, u8 type);
+			  *root, const char *name, int name_len, u64 dir,
+			  struct btrfs_key *location, u8 type);
 int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  *root, struct btrfs_path *path, u64 dir,
 			  const char *name, int name_len, int mod);
@@ -978,7 +982,8 @@ int btrfs_insert_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 		       *root, u64 objectid, struct btrfs_inode_item
 		       *inode_item);
 int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
-		       *root, struct btrfs_path *path, u64 objectid, int mod);
+		       *root, struct btrfs_path *path,
+		       struct btrfs_key *location, int mod);
 
 /* file-item.c */
 int btrfs_alloc_file_extent(struct btrfs_trans_handle *trans,
@@ -997,4 +1002,7 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 int btrfs_csum_verify_file_block(struct btrfs_root *root,
 				 u64 objectid, u64 offset,
 				 char *data, size_t len);
+/* super.c */
+extern struct subsystem btrfs_subsys;
+
 #endif

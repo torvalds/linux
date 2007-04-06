@@ -52,6 +52,8 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 		kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
 	int ret;
 
+	/* FIXME, use the right root */
+	root = root->fs_info->fs_root;
 	mutex_lock(&root->fs_info->trans_mutex);
 	ret = join_transaction(root);
 	BUG_ON(ret);
@@ -69,6 +71,10 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root)
 {
 	struct btrfs_transaction *cur_trans;
+
+	/* FIXME, use the right root */
+	root = root->fs_info->fs_root;
+
 	WARN_ON(trans->magic != TRANS_MAGIC);
 	WARN_ON(trans->magic2 != TRANS_MAGIC);
 	mutex_lock(&root->fs_info->trans_mutex);
@@ -147,6 +153,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	struct btrfs_key snap_key;
 	struct btrfs_transaction *cur_trans;
 	DEFINE_WAIT(wait);
+
+	/* FIXME, use the right root */
+	root = root->fs_info->fs_root;
 
 	mutex_lock(&root->fs_info->trans_mutex);
 	if (trans->transaction->in_commit) {

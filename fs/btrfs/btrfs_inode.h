@@ -3,6 +3,8 @@
 
 struct btrfs_inode {
 	u32 magic;
+	struct btrfs_root *root;
+	struct btrfs_key location;
 	struct inode vfs_inode;
 	u32 magic2;
 };

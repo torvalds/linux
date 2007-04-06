@@ -19,3 +19,10 @@
 * fsck
 * Scrub & defrag
 
+---
+metata FS ideas:
+mount metadata FS on /sys/fs/btrfs/dev/
+subvolumes in /sys/fs/btrfs/dev/fs/
+snapshots in /sys/fs/btrfs/dev/fs/snapshots
+mount -o bind
+ioctl to create a snapshot

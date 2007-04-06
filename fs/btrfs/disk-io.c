@@ -338,7 +338,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 					     sb->s_blocksize);
 
 	if (!fs_info->sb_buffer) {
-printk("failed2\n");
 		return NULL;
 	}
 	disk_super = (struct btrfs_super_block *)fs_info->sb_buffer->b_data;
@@ -369,6 +368,10 @@ printk("failed2\n");
 	ret = btrfs_find_highest_inode(root, &root->fs_info->last_inode_alloc);
 	if (ret == 0)
 		fs_info->highest_inode = fs_info->last_inode_alloc;
+	memset(&fs_info->kobj, 0, sizeof(fs_info->kobj));
+	kobj_set_kset_s(fs_info, btrfs_subsys);
+	kobject_set_name(&fs_info->kobj, "%s", sb->s_id);
+	kobject_register(&fs_info->kobj);
 	mutex_unlock(&fs_info->fs_mutex);
 	return root;
 }
@@ -430,7 +433,7 @@ int close_ctree(struct btrfs_root *root)
 	kfree(root->fs_info->extent_root);
 	kfree(root->fs_info->inode_root);
 	kfree(root->fs_info->tree_root);
-	kfree(root->fs_info);
+	kobject_unregister(&root->fs_info->kobj);
 	kfree(root);
 	return 0;
 }

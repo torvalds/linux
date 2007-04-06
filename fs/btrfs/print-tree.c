@@ -38,7 +38,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 		case BTRFS_DIR_ITEM_KEY:
 			di = btrfs_item_ptr(l, i, struct btrfs_dir_item);
 			printk("\t\tdir oid %Lu flags %u type %u\n",
-				btrfs_dir_objectid(di),
+				btrfs_disk_key_objectid(&di->location),
 				btrfs_dir_flags(di),
 				btrfs_dir_type(di));
 			printk("\t\tname %.*s\n",
