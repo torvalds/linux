@@ -62,10 +62,10 @@
 /*
  * Only first 32 sources are valid if running on IXP42x systems
  */
-#ifndef	CONFIG_CPU_IXP46X
-#define NR_IRQS			32
-#else
+#if defined(CONFIG_CPU_IXP46X) || defined(CONFIG_CPU_IXP43X)
 #define NR_IRQS			64
+#else
+#define NR_IRQS			32
 #endif
 
 #define	XSCALE_PMU_IRQ		(IRQ_IXP4XX_XSCALE_PMU)

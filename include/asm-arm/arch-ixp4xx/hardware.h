@@ -17,8 +17,8 @@
 #ifndef __ASM_ARCH_HARDWARE_H__
 #define __ASM_ARCH_HARDWARE_H__
 
-#define PCIBIOS_MIN_IO			0x00001000
-#define PCIBIOS_MIN_MEM			0x48000000
+#define PCIBIOS_MIN_IO		0x00001000
+#define PCIBIOS_MIN_MEM		(cpu_is_ixp43x() ? 0x40000000 : 0x48000000)
 
 /*
  * We override the standard dma-mask routines for bouncing.

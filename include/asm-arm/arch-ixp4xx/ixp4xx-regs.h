@@ -607,15 +607,43 @@
 
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
+/* Processor id value in CP15 Register 0 */
+#define IXP425_PROCESSOR_ID_VALUE	0x690541c0
+#define IXP435_PROCESSOR_ID_VALUE	0x69054040
+#define IXP465_PROCESSOR_ID_VALUE	0x69054200
+#define IXP4XX_PROCESSOR_ID_MASK	0xfffffff0
+
 #ifndef __ASSEMBLY__
+static inline int cpu_is_ixp42x(void)
+{
+	extern unsigned int processor_id;
+
+	if ((processor_id & IXP4XX_PROCESSOR_ID_MASK) ==
+	     IXP425_PROCESSOR_ID_VALUE )
+		return 1;
+
+	return 0;
+}
+
+static inline int cpu_is_ixp43x(void)
+{
+#ifdef CONFIG_CPU_IXP43X
+	extern unsigned int processor_id;
+
+	if ((processor_id & IXP4XX_PROCESSOR_ID_MASK) ==
+	     IXP435_PROCESSOR_ID_VALUE )
+		return 1;
+#endif
+	return 0;
+}
+
 static inline int cpu_is_ixp46x(void)
 {
 #ifdef CONFIG_CPU_IXP46X
-	unsigned int processor_id;
+	extern unsigned int processor_id;
 
-	asm("mrc p15, 0, %0, cr0, cr0, 0;" : "=r"(processor_id) :);
-
-	if ((processor_id & 0xffffff00) == 0x69054200)
+	if ((processor_id & IXP4XX_PROCESSOR_ID_MASK) ==
+	     IXP465_PROCESSOR_ID_VALUE )
 		return 1;
 #endif
 	return 0;
