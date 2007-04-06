@@ -545,8 +545,6 @@ pci_find_slot()			Find pci_dev corresponding to given bus and
 pci_set_power_state()		Set PCI Power Management state (0=D0 ... 3=D3)
 pci_find_capability()		Find specified capability in device's capability
 				list.
-pci_module_init()		Inline helper function for ensuring correct
-				pci_driver initialization and error handling.
 pci_resource_start()		Returns bus start address for a given PCI region
 pci_resource_end()		Returns bus end address for a given PCI region
 pci_resource_len()		Returns the byte length of a PCI region

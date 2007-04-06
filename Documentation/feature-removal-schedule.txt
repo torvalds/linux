@@ -117,13 +117,6 @@ Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	pci_module_init(driver)
-When:	January 2007
-Why:	Is replaced by pci_register_driver(pci_driver).
-Who:	Richard Knutsson <ricknu-0@student.ltu.se> and Greg Kroah-Hartman <gregkh@suse.de>
-
----------------------------
-
 What:	Usage of invalid timevals in setitimer
 When:	March 2007
 Why:	POSIX requires to validate timevals in the setitimer call. This

@@ -407,12 +407,6 @@ struct pci_driver {
 	.vendor = PCI_ANY_ID, .device = PCI_ANY_ID, \
 	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID
 
-/*
- * pci_module_init is obsolete, this stays here till we fix up all usages of it
- * in the tree.
- */
-#define pci_module_init	pci_register_driver
-
 /**
  * PCI_VDEVICE - macro used to describe a specific pci device in short form
  * @vend: the vendor name
