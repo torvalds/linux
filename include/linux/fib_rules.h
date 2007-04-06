@@ -5,10 +5,13 @@
 #include <linux/rtnetlink.h>
 
 /* rule is permanent, and cannot be deleted */
-#define FIB_RULE_PERMANENT	1
-#define FIB_RULE_INVERT		2
-#define FIB_RULE_UNRESOLVED	4
-#define FIB_RULE_DEV_DETACHED	8
+#define FIB_RULE_PERMANENT	0x00000001
+#define FIB_RULE_INVERT		0x00000002
+#define FIB_RULE_UNRESOLVED	0x00000004
+#define FIB_RULE_DEV_DETACHED	0x00000008
+
+/* try to find source address in routing lookups */
+#define FIB_RULE_FIND_SADDR	0x00010000
 
 struct fib_rule_hdr
 {
