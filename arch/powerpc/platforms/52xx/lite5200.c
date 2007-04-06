@@ -108,9 +108,11 @@ static void __init lite5200_setup_arch(void)
 	lite5200_setup_cpu();	/* Platorm specific */
 
 #ifdef CONFIG_PCI
-	np = of_find_node_by_type(np, "pci");
-	if (np)
+	np = of_find_node_by_type(NULL, "pci");
+	if (np) {
 		mpc52xx_add_bridge(np);
+		of_node_put(np);
+	}
 #endif
 
 #ifdef CONFIG_BLK_DEV_INITRD
