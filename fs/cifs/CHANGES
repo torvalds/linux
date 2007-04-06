@@ -9,7 +9,10 @@ from read-only back to read-write, reflect this change in default file mode
 (we had been leaving a file's mode read-only until the inode were reloaded).
 Allow setting of attribute back to ATTR_NORMAL (removing readonly dos attribute
 when archive dos attribute not set and we are changing mode back to writeable
-on server which does not support the Unix Extensions).
+on server which does not support the Unix Extensions).  Remove read only dos
+attribute on chmod when adding any write permission (ie on any of
+user/group/other (not all of user/group/other ie  0222) when
+mounted to windows.
 
 Version 1.47
 ------------

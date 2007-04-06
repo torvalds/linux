@@ -1339,17 +1339,17 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					cpu_to_le32(cifsInode->cifsAttrs |
 						    ATTR_READONLY);
 			}
-		} else if ((mode & S_IWUGO) == S_IWUGO) {
-			if (cifsInode->cifsAttrs & ATTR_READONLY) {
-				set_dosattr = TRUE;
-				time_buf.Attributes =
-					cpu_to_le32(cifsInode->cifsAttrs &
-						    (~ATTR_READONLY));
-				/* Windows ignores set to zero */
-				if(time_buf.Attributes == 0)
-					time_buf.Attributes |= 
-						cpu_to_le32(ATTR_NORMAL);
-			}
+		} else if (cifsInode->cifsAttrs & ATTR_READONLY) {
+			/* If file is readonly on server, we would
+			not be able to write to it - so if any write
+			bit is enabled for user or group or other we
+			need to at least try to remove r/o dos attr */
+			set_dosattr = TRUE;
+			time_buf.Attributes = cpu_to_le32(cifsInode->cifsAttrs &
+					    (~ATTR_READONLY));
+			/* Windows ignores set to zero */
+			if(time_buf.Attributes == 0)
+				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
 		}
 		/* BB to be implemented -
 		   via Windows security descriptors or streams */
