@@ -96,6 +96,19 @@ enum pci_channel_state {
 	pci_channel_io_perm_failure = (__force pci_channel_state_t) 3,
 };
 
+typedef unsigned int __bitwise pcie_reset_state_t;
+
+enum pcie_reset_state {
+	/* Reset is NOT asserted (Use to deassert reset) */
+	pcie_deassert_reset = (__force pcie_reset_state_t) 1,
+
+	/* Use #PERST to reset PCI-E device */
+	pcie_warm_reset = (__force pcie_reset_state_t) 2,
+
+	/* Use PCI-E Hot Reset to reset device */
+	pcie_hot_reset = (__force pcie_reset_state_t) 3
+};
+
 typedef unsigned short __bitwise pci_bus_flags_t;
 enum pci_bus_flags {
 	PCI_BUS_FLAGS_NO_MSI = (__force pci_bus_flags_t) 1,
@@ -532,6 +545,7 @@ static inline int pci_is_managed(struct pci_dev *pdev)
 
 void pci_disable_device(struct pci_dev *dev);
 void pci_set_master(struct pci_dev *dev);
+int pci_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state);
 #define HAVE_PCI_SET_MWI
 int __must_check pci_set_mwi(struct pci_dev *dev);
 void pci_clear_mwi(struct pci_dev *dev);

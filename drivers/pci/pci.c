@@ -892,6 +892,34 @@ pci_disable_device(struct pci_dev *dev)
 }
 
 /**
+ * pcibios_set_pcie_reset_state - set reset state for device dev
+ * @dev: the PCI-E device reset
+ * @state: Reset state to enter into
+ *
+ *
+ * Sets the PCI-E reset state for the device. This is the default
+ * implementation. Architecture implementations can override this.
+ */
+int __attribute__ ((weak)) pcibios_set_pcie_reset_state(struct pci_dev *dev,
+							enum pcie_reset_state state)
+{
+	return -EINVAL;
+}
+
+/**
+ * pci_set_pcie_reset_state - set reset state for device dev
+ * @dev: the PCI-E device reset
+ * @state: Reset state to enter into
+ *
+ *
+ * Sets the PCI reset state for the device.
+ */
+int pci_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
+{
+	return pcibios_set_pcie_reset_state(dev, state);
+}
+
+/**
  * pci_enable_wake - enable PCI device as wakeup event source
  * @dev: PCI device affected
  * @state: PCI state from which device will issue wakeup events
@@ -1427,4 +1455,5 @@ EXPORT_SYMBOL(pci_set_power_state);
 EXPORT_SYMBOL(pci_save_state);
 EXPORT_SYMBOL(pci_restore_state);
 EXPORT_SYMBOL(pci_enable_wake);
+EXPORT_SYMBOL_GPL(pci_set_pcie_reset_state);
 
