@@ -459,6 +459,18 @@ void clock_was_set(void)
 }
 
 /*
+ * During resume we might have to reprogram the high resolution timer
+ * interrupt (on the local CPU):
+ */
+void hres_timers_resume(void)
+{
+	WARN_ON_ONCE(num_online_cpus() > 1);
+
+	/* Retrigger the CPU local events: */
+	retrigger_next_event(NULL);
+}
+
+/*
  * Check, whether the timer is on the callback pending list
  */
 static inline int hrtimer_cb_pending(const struct hrtimer *timer)
