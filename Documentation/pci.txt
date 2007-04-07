@@ -163,9 +163,9 @@ echo "vendor device subvendor subdevice class class_mask driver_data" > \
 /sys/bus/pci/drivers/{driver}/new_id
 
 All fields are passed in as hexadecimal values (no leading 0x).
-Users need pass only as many fields as necessary:
-	o vendor, device, subvendor, and subdevice fields default
-	  to PCI_ANY_ID (FFFFFFFF),
+The vendor and device fields are mandatory, the others are optional. Users
+need pass only as many optional fields as necessary:
+	o subvendor and subdevice fields default to PCI_ANY_ID (FFFFFFFF)
 	o class and classmask fields default to 0
 	o driver_data defaults to 0UL.
 

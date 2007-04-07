@@ -52,7 +52,7 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 {
 	struct pci_dynid *dynid;
 	struct pci_driver *pdrv = to_pci_driver(driver);
-	__u32 vendor=PCI_ANY_ID, device=PCI_ANY_ID, subvendor=PCI_ANY_ID,
+	__u32 vendor, device, subvendor=PCI_ANY_ID,
 		subdevice=PCI_ANY_ID, class=0, class_mask=0;
 	unsigned long driver_data=0;
 	int fields=0;
@@ -61,7 +61,7 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	fields = sscanf(buf, "%x %x %x %x %x %x %lux",
 			&vendor, &device, &subvendor, &subdevice,
 			&class, &class_mask, &driver_data);
-	if (fields < 0)
+	if (fields < 2)
 		return -EINVAL;
 
 	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
