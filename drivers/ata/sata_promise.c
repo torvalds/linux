@@ -45,7 +45,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"2.04"
+#define DRV_VERSION	"2.05"
 
 
 enum {
@@ -650,9 +650,12 @@ static void pdc_error_intr(struct ata_port *ap, struct ata_queued_cmd *qc,
 			   | PDC_PCI_SYS_ERR | PDC1_PCI_PARITY_ERR))
 		ac_err_mask |= AC_ERR_HOST_BUS;
 
-	ehi->action |= ATA_EH_SOFTRESET;
+	if (sata_scr_valid(ap))
+		ehi->serror |= pdc_sata_scr_read(ap, SCR_ERROR);
+
 	qc->err_mask |= ac_err_mask;
-	ata_port_freeze(ap);
+
+	pdc_reset_port(ap);
 }
 
 static inline unsigned int pdc_host_intr( struct ata_port *ap,
