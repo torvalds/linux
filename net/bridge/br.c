@@ -37,7 +37,9 @@ static int __init br_init(void)
 		return -EADDRINUSE;
 	}
 
-	br_fdb_init();
+	err = br_fdb_init();
+	if (err)
+		goto err_out1;
 
 	err = br_netfilter_init();
 	if (err)
