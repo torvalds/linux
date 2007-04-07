@@ -833,6 +833,7 @@ int zd_chip_enable_rx(struct zd_chip *chip);
 void zd_chip_disable_rx(struct zd_chip *chip);
 int zd_chip_enable_hwint(struct zd_chip *chip);
 int zd_chip_disable_hwint(struct zd_chip *chip);
+int zd_chip_generic_patch_6m_band(struct zd_chip *chip, int channel);
 
 int zd_chip_set_rts_cts_rate_locked(struct zd_chip *chip,
 	u8 rts_rate, int preamble);

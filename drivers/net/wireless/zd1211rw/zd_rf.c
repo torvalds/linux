@@ -154,3 +154,17 @@ int zd_switch_radio_off(struct zd_rf *rf)
 		r = t;
 	return r;
 }
+
+int zd_rf_patch_6m_band_edge(struct zd_rf *rf, u8 channel)
+{
+	if (!rf->patch_6m_band_edge)
+		return 0;
+
+	return rf->patch_6m_band_edge(rf, channel);
+}
+
+int zd_rf_generic_patch_6m(struct zd_rf *rf, u8 channel)
+{
+	return zd_chip_generic_patch_6m_band(zd_rf_to_chip(rf), channel);
+}
+

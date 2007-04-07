@@ -615,15 +615,23 @@ static int patch_cr157(struct zd_chip *chip)
  * Vendor driver says: for FCC regulation, enabled per HWFeature 6M band edge
  * bit (for AL2230, AL2230S)
  */
-static int patch_6m_band_edge(struct zd_chip *chip, int channel)
+static int patch_6m_band_edge(struct zd_chip *chip, u8 channel)
+{
+	ZD_ASSERT(mutex_is_locked(&chip->mutex));
+	if (!chip->patch_6m_band_edge)
+		return 0;
+
+	return zd_rf_patch_6m_band_edge(&chip->rf, channel);
+}
+
+/* Generic implementation of 6M band edge patching, used by most RFs via
+ * zd_rf_generic_patch_6m() */
+int zd_chip_generic_patch_6m_band(struct zd_chip *chip, int channel)
 {
 	struct zd_ioreq16 ioreqs[] = {
 		{ CR128, 0x14 }, { CR129, 0x12 }, { CR130, 0x10 },
 		{ CR47,  0x1e },
 	};
-
-	if (!chip->patch_6m_band_edge || !chip->rf.patch_6m_band_edge)
-		return 0;
 
 	/* FIXME: Channel 11 is not the edge for all regulatory domains. */
 	if (channel == 1 || channel == 11)
