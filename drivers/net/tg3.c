@@ -4834,8 +4834,10 @@ static int tg3_chip_reset(struct tg3 *tp)
 	 * sharing or irqpoll.
 	 */
 	tp->tg3_flags |= TG3_FLAG_CHIP_RESETTING;
-	tp->hw_status->status = 0;
-	tp->hw_status->status_tag = 0;
+	if (tp->hw_status) {
+		tp->hw_status->status = 0;
+		tp->hw_status->status_tag = 0;
+	}
 	tp->last_tag = 0;
 	smp_mb();
 	synchronize_irq(tp->pdev->irq);
