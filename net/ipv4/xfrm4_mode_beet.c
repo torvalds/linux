@@ -42,10 +42,9 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->nh.raw = skb_push(skb, x->props.header_len + hdrlen);
 	top_iph = skb->nh.iph;
-	hdrlen = iph->ihl * 4 - optlen;
-	skb->h.raw += hdrlen;
+	skb->h.raw += sizeof(*iph) - hdrlen;
 
-	memmove(top_iph, iph, hdrlen);
+	memmove(top_iph, iph, sizeof(*iph));
 	if (unlikely(optlen)) {
 		struct ip_beet_phdr *ph;
 
@@ -55,6 +54,8 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 		ph->padlen = 4 - (optlen & 4);
 		ph->hdrlen = (optlen + ph->padlen + sizeof(*ph)) / 8;
 		ph->nexthdr = top_iph->protocol;
+		if (ph->padlen)
+			memset(ph + 1, IPOPT_NOP, ph->padlen);
 
 		top_iph->protocol = IPPROTO_BEETPH;
 		top_iph->ihl = sizeof(struct iphdr) / 4;
@@ -77,29 +78,32 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	protocol = iph->protocol;
 
 	if (unlikely(iph->protocol == IPPROTO_BEETPH)) {
-		struct ip_beet_phdr *ph = (struct ip_beet_phdr*)(iph + 1);
+		struct ip_beet_phdr *ph;
 
 		if (!pskb_may_pull(skb, sizeof(*ph)))
 			goto out;
+		ph = (struct ip_beet_phdr *)(skb->h.ipiph + 1);
 
-		phlen = ph->hdrlen * 8;
-		optlen = phlen - ph->padlen - sizeof(*ph);
+		phlen = sizeof(*ph) + ph->padlen;
+		optlen = ph->hdrlen * 8 - phlen;
 		if (optlen < 0 || optlen & 3 || optlen > 250)
 			goto out;
 
-		if (!pskb_may_pull(skb, phlen))
+		if (!pskb_may_pull(skb, phlen + optlen))
 			goto out;
+		skb->len -= phlen + optlen;
 
 		ph_nexthdr = ph->nexthdr;
 	}
 
-	skb_push(skb, sizeof(*iph) - phlen + optlen);
-	memmove(skb->data, skb->nh.raw, sizeof(*iph));
-	skb->nh.raw = skb->data;
+	skb->nh.raw = skb->data + (phlen - sizeof(*iph));
+	memmove(skb->nh.raw, iph, sizeof(*iph));
+	skb->h.raw = skb->data + (phlen + optlen);
+	skb->data = skb->h.raw;
 
 	iph = skb->nh.iph;
 	iph->ihl = (sizeof(*iph) + optlen) / 4;
-	iph->tot_len = htons(skb->len);
+	iph->tot_len = htons(skb->len + iph->ihl * 4);
 	iph->daddr = x->sel.daddr.a4;
 	iph->saddr = x->sel.saddr.a4;
 	if (ph_nexthdr)
