@@ -4691,7 +4691,6 @@ static const char stat_nam[] = "RSDTtZX";
 
 static void show_task(struct task_struct *p)
 {
-	struct task_struct *relative;
 	unsigned long free = 0;
 	unsigned state;
 
