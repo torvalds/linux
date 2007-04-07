@@ -35,7 +35,7 @@
 #include "ibmvscsi.h"
 
 #define	INITIAL_SRP_LIMIT	16
-#define	DEFAULT_MAX_SECTORS	512
+#define	DEFAULT_MAX_SECTORS	256
 
 #define	TGT_NAME	"ibmvstgt"
 
@@ -248,8 +248,8 @@ static int ibmvstgt_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 						  md[i].va + mdone);
 
 			if (err != H_SUCCESS) {
-				eprintk("rdma error %d %d\n", dir, slen);
-				goto out;
+				eprintk("rdma error %d %d %ld\n", dir, slen, err);
+				return -EIO;
 			}
 
 			mlen -= slen;
@@ -265,14 +265,13 @@ static int ibmvstgt_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 				if (sidx > nsg) {
 					eprintk("out of sg %p %d %d\n",
 						iue, sidx, nsg);
-					goto out;
+					return -EIO;
 				}
 			}
 		};
 
 		rest -= mlen;
 	}
-out:
 	return 0;
 }
 
@@ -282,18 +281,19 @@ static int ibmvstgt_cmd_done(struct scsi_cmnd *sc,
 	unsigned long flags;
 	struct iu_entry *iue = (struct iu_entry *) sc->SCp.ptr;
 	struct srp_target *target = iue->target;
+	int err = 0;
 
 	dprintk("%p %p %x %u\n", iue, target, vio_iu(iue)->srp.cmd.cdb[0],
 		cmd->usg_sg);
 
 	if (sc->use_sg)
-		srp_transfer_data(sc, &vio_iu(iue)->srp.cmd, ibmvstgt_rdma, 1, 1);
+		err = srp_transfer_data(sc, &vio_iu(iue)->srp.cmd, ibmvstgt_rdma, 1, 1);
 
 	spin_lock_irqsave(&target->lock, flags);
 	list_del(&iue->ilist);
 	spin_unlock_irqrestore(&target->lock, flags);
 
-	if (sc->result != SAM_STAT_GOOD) {
+	if (err|| sc->result != SAM_STAT_GOOD) {
 		eprintk("operation failed %p %d %x\n",
 			iue, sc->result, vio_iu(iue)->srp.cmd.cdb[0]);
 		send_rsp(iue, sc, HARDWARE_ERROR, 0x00);
@@ -493,7 +493,8 @@ static void process_iu(struct viosrp_crq *crq, struct srp_target *target)
 {
 	struct vio_port *vport = target_to_port(target);
 	struct iu_entry *iue;
-	long err, done;
+	long err;
+	int done = 1;
 
 	iue = srp_iu_get(target);
 	if (!iue) {
@@ -508,7 +509,6 @@ static void process_iu(struct viosrp_crq *crq, struct srp_target *target)
 
 	if (err != H_SUCCESS) {
 		eprintk("%ld transferring data error %p\n", err, iue);
-		done = 1;
 		goto out;
 	}
 
