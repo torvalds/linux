@@ -42,9 +42,11 @@ struct pvr2_sysfs {
 	struct class_device_attribute attr_v4l_minor_number;
 	struct class_device_attribute attr_v4l_radio_minor_number;
 	struct class_device_attribute attr_unit_number;
+	struct class_device_attribute attr_bus_info;
 	int v4l_minor_number_created_ok;
 	int v4l_radio_minor_number_created_ok;
 	int unit_number_created_ok;
+	int bus_info_created_ok;
 };
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
@@ -705,6 +707,10 @@ static void class_dev_destroy(struct pvr2_sysfs *sfp)
 	pvr2_sysfs_tear_down_debugifc(sfp);
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 	pvr2_sysfs_tear_down_controls(sfp);
+	if (sfp->bus_info_created_ok) {
+		class_device_remove_file(sfp->class_dev,
+					 &sfp->attr_bus_info);
+	}
 	if (sfp->v4l_minor_number_created_ok) {
 		class_device_remove_file(sfp->class_dev,
 					 &sfp->attr_v4l_minor_number);
@@ -732,6 +738,16 @@ static ssize_t v4l_minor_number_show(struct class_device *class_dev,char *buf)
 	return scnprintf(buf,PAGE_SIZE,"%d\n",
 			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
 						       pvr2_v4l_type_video));
+}
+
+
+static ssize_t bus_info_show(struct class_device *class_dev,char *buf)
+{
+	struct pvr2_sysfs *sfp;
+	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	if (!sfp) return -EINVAL;
+	return scnprintf(buf,PAGE_SIZE,"%s\n",
+			 pvr2_hdw_get_bus_info(sfp->channel.hdw));
 }
 
 
@@ -834,6 +850,20 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 		       __FUNCTION__, ret);
 	} else {
 		sfp->unit_number_created_ok = !0;
+	}
+
+	sfp->attr_bus_info.attr.owner = THIS_MODULE;
+	sfp->attr_bus_info.attr.name = "bus_info_str";
+	sfp->attr_bus_info.attr.mode = S_IRUGO;
+	sfp->attr_bus_info.show = bus_info_show;
+	sfp->attr_bus_info.store = NULL;
+	ret = class_device_create_file(sfp->class_dev,
+				       &sfp->attr_bus_info);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+	} else {
+		sfp->bus_info_created_ok = !0;
 	}
 
 	pvr2_sysfs_add_controls(sfp);

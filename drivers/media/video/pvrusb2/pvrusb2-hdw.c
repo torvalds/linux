@@ -1008,6 +1008,13 @@ unsigned long pvr2_hdw_get_sn(struct pvr2_hdw *hdw)
 	return hdw->serial_number;
 }
 
+
+const char *pvr2_hdw_get_bus_info(struct pvr2_hdw *hdw)
+{
+	return hdw->bus_info;
+}
+
+
 unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *hdw)
 {
 	return hdw->freqSelector ? hdw->freqValTelevision : hdw->freqValRadio;
@@ -2104,6 +2111,11 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	hdw->usb_intf = intf;
 	hdw->usb_dev = interface_to_usbdev(intf);
+
+	scnprintf(hdw->bus_info,sizeof(hdw->bus_info),
+		  "usb %s address %d",
+		  hdw->usb_dev->dev.bus_id,
+		  hdw->usb_dev->devnum);
 
 	ifnum = hdw->usb_intf->cur_altsetting->desc.bInterfaceNumber;
 	usb_set_interface(hdw->usb_dev,ifnum,0);
