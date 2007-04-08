@@ -180,6 +180,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 #ifndef __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 #define arch_enter_lazy_mmu_mode()	do {} while (0)
 #define arch_leave_lazy_mmu_mode()	do {} while (0)
+#define arch_flush_lazy_mmu_mode()	do {} while (0)
 #endif
 
 /*
@@ -193,6 +194,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 #ifndef __HAVE_ARCH_ENTER_LAZY_CPU_MODE
 #define arch_enter_lazy_cpu_mode()	do {} while (0)
 #define arch_leave_lazy_cpu_mode()	do {} while (0)
+#define arch_flush_lazy_cpu_mode()	do {} while (0)
 #endif
 
 /*
