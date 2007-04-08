@@ -77,6 +77,13 @@ pcibios_align_resource(void *data, struct resource *res,
 
 void __init register_pci_controller(struct pci_controller *hose)
 {
+	if (request_resource(&iomem_resource, hose->mem_resource) < 0)
+		goto out;
+	if (request_resource(&ioport_resource, hose->io_resource) < 0) {
+		release_resource(hose->mem_resource);
+		goto out;
+	}
+
 	*hose_tail = hose;
 	hose_tail = &hose->next;
 
@@ -87,6 +94,11 @@ void __init register_pci_controller(struct pci_controller *hose)
 		printk(KERN_WARNING
 		       "registering PCI controller with io_map_base unset\n");
 	}
+	return;
+
+out:
+	printk(KERN_WARNING
+	       "Skipping PCI bus scan due to resource conflict\n");
 }
 
 /* Most MIPS systems have straight-forward swizzling needs.  */
@@ -121,11 +133,6 @@ static int __init pcibios_init(void)
 	/* Scan all of the recorded PCI controllers.  */
 	for (next_busno = 0, hose = hose_head; hose; hose = hose->next) {
 
-		if (request_resource(&iomem_resource, hose->mem_resource) < 0)
-			goto out;
-		if (request_resource(&ioport_resource, hose->io_resource) < 0)
-			goto out_free_mem_resource;
-
 		if (!hose->iommu)
 			PCI_DMA_BUS_IS_PHYS = 1;
 
@@ -144,14 +151,6 @@ static int __init pcibios_init(void)
 				need_domain_info = 1;
 			}
 		}
-		continue;
-
-out_free_mem_resource:
-		release_resource(hose->mem_resource);
-
-out:
-		printk(KERN_WARNING
-		       "Skipping PCI bus scan due to resource conflict\n");
 	}
 
 	if (!pci_probe_only)
