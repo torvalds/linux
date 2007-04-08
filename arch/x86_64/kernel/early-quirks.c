@@ -88,7 +88,7 @@ struct chipset {
 	void (*f)(void);
 };
 
-static struct __initdata chipset early_qrk[] = {
+static struct chipset early_qrk[] __initdata = {
 	{ PCI_VENDOR_ID_NVIDIA, nvidia_bugs },
 	{ PCI_VENDOR_ID_VIA, via_bugs },
 	{ PCI_VENDOR_ID_ATI, ati_bugs },
