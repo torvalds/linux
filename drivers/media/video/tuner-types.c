@@ -1463,6 +1463,10 @@ struct tunertype tuners[] = {
 		.name   = "Philips TDA988[5,6,7] IF PLL Demodulator",
 		/* see tda9887.c for details */
 	},
+	[TUNER_TEA5761] = { /* Philips RADIO */
+		.name   = "Philips TEA5761 FM Radio",
+		/* see tea5767.c for details */
+	},
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);

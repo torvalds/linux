@@ -7,6 +7,10 @@ zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 tuner-objs	:=	tuner-core.o tuner-types.o tuner-simple.o \
 			mt20xx.o tda8290.o tea5767.o tda9887.o
 
+ifneq ($(CONFIG_TUNER_TEA5761),n)
+  tuner-objs += tea5761.o
+endif
+
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
 obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o

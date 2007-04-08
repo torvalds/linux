@@ -25,6 +25,9 @@
 
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
+#ifdef CONFIG_TUNER_5761
+	0x10,
+#endif
 	0x42, 0x43, 0x4a, 0x4b,			/* tda8290 */
 	0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
 	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
@@ -189,6 +192,16 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		}
 		t->mode_mask = T_RADIO;
 		break;
+#ifdef CONFIG_TUNER_5761
+	case TUNER_TEA5761:
+		if (tea5761_tuner_init(c) == EINVAL) {
+			t->type = TUNER_ABSENT;
+			t->mode_mask = T_UNINITIALIZED;
+			return -ENODEV;
+		}
+		t->mode_mask = T_RADIO;
+		break;
+#endif
 	case TUNER_PHILIPS_FMD1216ME_MK3:
 		buffer[0] = 0x0b;
 		buffer[1] = 0xdc;
@@ -460,6 +473,19 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	/* autodetection code based on the i2c addr */
 	if (!no_autodetect) {
 		switch (addr) {
+#ifdef CONFIG_TUNER_5761
+		case 0x10:
+			if (tea5761_autodetection(&t->i2c) != EINVAL) {
+				t->type = TUNER_TEA5761;
+				t->mode_mask = T_RADIO;
+				t->mode = T_STANDBY;
+				t->radio_freq = 87.5 * 16000; /* Sets freq to FM range */
+				default_mode_mask &= ~T_RADIO;
+
+				goto register_client;
+			}
+			break;
+#endif
 		case 0x42:
 		case 0x43:
 		case 0x4a:

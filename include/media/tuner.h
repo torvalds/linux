@@ -124,6 +124,7 @@ extern int tuner_debug;
 #define TUNER_THOMSON_FE6600		72	/* DViCO FusionHDTV DVB-T Hybrid */
 #define TUNER_SAMSUNG_TCPG_6121P30A     73 	/* Hauppauge PVR-500 PAL */
 #define TUNER_TDA9887                   74      /* This tuner should be used only internally */
+#define TUNER_TEA5761			75	/* Only FM Radio Tuner */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
@@ -233,10 +234,15 @@ extern int microtune_init(struct i2c_client *c);
 extern int xc3028_init(struct i2c_client *c);
 extern int tda8290_init(struct i2c_client *c);
 extern int tda8290_probe(struct i2c_client *c);
-extern int tea5767_tuner_init(struct i2c_client *c);
 extern int default_tuner_init(struct i2c_client *c);
+
 extern int tea5767_autodetection(struct i2c_client *c);
+extern int tea5767_tuner_init(struct i2c_client *c);
+
 extern int tda9887_tuner_init(struct i2c_client *c);
+
+extern int tea5761_tuner_init(struct i2c_client *c);
+extern int tea5761_autodetection(struct i2c_client *c);
 
 #define tuner_warn(fmt, arg...) do {\
 	printk(KERN_WARNING "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
