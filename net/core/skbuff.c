@@ -667,14 +667,15 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->data    += off;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb->end      = size;
+	off           = nhead;
 #else
 	skb->end      = skb->head + size;
+#endif
 	/* {transport,network,mac}_header and tail are relative to skb->head */
 	skb->tail	      += off;
 	skb->transport_header += off;
 	skb->network_header   += off;
 	skb->mac_header	      += off;
-#endif
 	skb->cloned   = 0;
 	skb->nohdr    = 0;
 	atomic_set(&skb_shinfo(skb)->dataref, 1);
