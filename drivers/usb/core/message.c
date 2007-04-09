@@ -1349,7 +1349,7 @@ static void release_interface(struct device *dev)
  *
  * This call is synchronous. The calling context must be able to sleep,
  * must own the device lock, and must not hold the driver model's USB
- * bus rwsem; usb device driver probe() methods cannot use this routine.
+ * bus mutex; usb device driver probe() methods cannot use this routine.
  *
  * Returns zero on success, or else the status code returned by the
  * underlying call that failed.  On successful completion, each interface
