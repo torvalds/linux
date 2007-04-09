@@ -64,7 +64,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	esph = (struct ip_esp_hdr *)(skb_network_header(skb) +
 				     top_iph->ihl * 4);
 	top_iph->tot_len = htons(skb->len + alen);
-	*(skb_tail_pointer(skb) - 1) = top_iph->protocol;
+	*(skb_tail_pointer(trailer) - 1) = top_iph->protocol;
 
 	/* this is non-NULL only with UDP Encapsulation */
 	if (x->encap) {

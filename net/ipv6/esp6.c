@@ -91,7 +91,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph = (struct ipv6hdr *)__skb_push(skb, hdr_len);
 	esph = (struct ipv6_esp_hdr *)skb_transport_header(skb);
 	top_iph->payload_len = htons(skb->len + alen - sizeof(*top_iph));
-	*(skb_tail_pointer(skb) - 1) = *skb_network_header(skb);
+	*(skb_tail_pointer(trailer) - 1) = *skb_network_header(skb);
 	*skb_network_header(skb) = IPPROTO_ESP;
 
 	esph->spi = x->id.spi;
