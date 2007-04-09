@@ -135,7 +135,26 @@ void br_fdb_cleanup(unsigned long _data)
 	mod_timer(&br->gc_timer, jiffies + HZ/10);
 }
 
+/* Completely flush all dynamic entries in forwarding database.*/
+void br_fdb_flush(struct net_bridge *br)
+{
+	int i;
 
+	spin_lock_bh(&br->hash_lock);
+	for (i = 0; i < BR_HASH_SIZE; i++) {
+		struct net_bridge_fdb_entry *f;
+		struct hlist_node *h, *n;
+		hlist_for_each_entry_safe(f, h, n, &br->hash[i], hlist) {
+			if (!f->is_static)
+				fdb_delete(f);
+		}
+	}
+	spin_unlock_bh(&br->hash_lock);
+}
+
+/* Flush all entries refering to a specific port.
+ * if do_all is set also flush static entries
+ */
 void br_fdb_delete_by_port(struct net_bridge *br,
 			   const struct net_bridge_port *p,
 			   int do_all)

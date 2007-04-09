@@ -309,6 +309,19 @@ static ssize_t store_group_addr(struct device *d,
 static DEVICE_ATTR(group_addr, S_IRUGO | S_IWUSR,
 		   show_group_addr, store_group_addr);
 
+static ssize_t store_flush(struct device *d,
+			   struct device_attribute *attr,
+			   const char *buf, size_t len)
+{
+	struct net_bridge *br = to_bridge(d);
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	br_fdb_flush(br);
+	return len;
+}
+static DEVICE_ATTR(flush, S_IWUSR, NULL, store_flush);
 
 static struct attribute *bridge_attrs[] = {
 	&dev_attr_forward_delay.attr,
@@ -328,6 +341,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_topology_change_timer.attr,
 	&dev_attr_gc_timer.attr,
 	&dev_attr_group_addr.attr,
+	&dev_attr_flush.attr,
 	NULL
 };
 
