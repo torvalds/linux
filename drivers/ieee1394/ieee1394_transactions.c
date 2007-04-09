@@ -12,6 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/hardirq.h>
 #include <linux/spinlock.h>
+#include <linux/sched.h>  /* because linux/wait.h is broken if CONFIG_SMP=n */
 #include <linux/wait.h>
 
 #include <asm/bug.h>
