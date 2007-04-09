@@ -86,7 +86,7 @@ int find_first_radix_bit(struct radix_tree_root *radix, unsigned long *retbits,
 	int i;
 	int total_found = 0;
 
-	ret = radix_tree_gang_lookup(radix, (void *)&gang, 0, ARRAY_SIZE(gang));
+	ret = radix_tree_gang_lookup(radix, (void **)gang, 0, ARRAY_SIZE(gang));
 	for (i = 0; i < ret && nr > 0; i++) {
 		found = 0;
 		bits = gang[i];

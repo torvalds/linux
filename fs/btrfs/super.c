@@ -436,7 +436,6 @@ int fixup_tree_root_location(struct btrfs_root *root,
 {
 	struct btrfs_path *path;
 	struct btrfs_root_item *ri;
-	int ret;
 
 	if (btrfs_key_type(location) != BTRFS_ROOT_ITEM_KEY)
 		return 0;
@@ -447,22 +446,19 @@ int fixup_tree_root_location(struct btrfs_root *root,
 	BUG_ON(!path);
 	mutex_lock(&root->fs_info->fs_mutex);
 
-	ret = btrfs_lookup_inode(NULL, root, path, location, 0);
-	if (ret)
-		goto out;
-	ri = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
-			  path->slots[0],
-			  struct btrfs_root_item);
+	*sub_root = btrfs_read_fs_root(root->fs_info, location);
+	if (IS_ERR(*sub_root))
+		return PTR_ERR(*sub_root);
+
+	ri = &(*sub_root)->root_item;
 	location->objectid = btrfs_root_dirid(ri);
 	location->flags = 0;
 	btrfs_set_key_type(location, BTRFS_INODE_ITEM_KEY);
 	location->offset = 0;
-	/* FIXME properly select the root */
-	*sub_root = root->fs_info->fs_root;
-out:
+
 	btrfs_free_path(path);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	return ret;
+	return 0;
 }
 
 
@@ -494,6 +490,15 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 		if (!inode)
 			return ERR_PTR(-EACCES);
 		if (inode->i_state & I_NEW) {
+			if (sub_root != root) {
+				ret = radix_tree_insert(
+						&root->fs_info->fs_roots_radix,
+						(unsigned long)sub_root,
+						sub_root);
+printk("adding new root for inode %lu\n", inode->i_ino);
+				igrab(inode);
+				sub_root->inode = inode;
+			}
 			BTRFS_I(inode)->root = sub_root;
 			memcpy(&BTRFS_I(inode)->location, &location,
 			       sizeof(location));
@@ -605,7 +610,7 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	struct inode * inode;
 	struct dentry * root_dentry;
 	struct btrfs_super_block *disk_super;
-	struct btrfs_root *root;
+	struct btrfs_root *tree_root;
 	struct btrfs_inode *bi;
 
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
@@ -613,14 +618,14 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	sb->s_op = &btrfs_super_ops;
 	sb->s_time_gran = 1;
 
-	root = open_ctree(sb);
+	tree_root = open_ctree(sb);
 
-	if (!root) {
+	if (!tree_root) {
 		printk("btrfs: open_ctree failed\n");
 		return -EIO;
 	}
-	sb->s_fs_info = root;
-	disk_super = root->fs_info->disk_super;
+	sb->s_fs_info = tree_root;
+	disk_super = tree_root->fs_info->disk_super;
 	printk("read in super total blocks %Lu root %Lu\n",
 	       btrfs_super_total_blocks(disk_super),
 	       btrfs_super_root_dir(disk_super));
@@ -630,7 +635,7 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	bi->location.objectid = inode->i_ino;
 	bi->location.offset = 0;
 	bi->location.flags = 0;
-	bi->root = root->fs_info->tree_root;
+	bi->root = tree_root;
 	btrfs_set_key_type(&bi->location, BTRFS_INODE_ITEM_KEY);
 
 	if (!inode)

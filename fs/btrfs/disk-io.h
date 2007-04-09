@@ -39,4 +39,6 @@ int write_ctree_super(struct btrfs_trans_handle *trans,
 struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr);
 int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
 		    char *result);
+struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
+				      struct btrfs_key *location);
 #endif

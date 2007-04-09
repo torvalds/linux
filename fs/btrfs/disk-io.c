@@ -4,9 +4,11 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <linux/swap.h>
+#include <linux/radix-tree.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
+#include "btrfs_inode.h"
 
 static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 {
@@ -180,7 +182,7 @@ static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct buffer_head *bh;
-	struct btrfs_root *root = btrfs_sb(page->mapping->host->i_sb);
+	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
 	struct buffer_head *head;
 	if (!page_has_buffers(page)) {
 		create_empty_buffers(page, root->fs_info->sb->s_blocksize,
@@ -259,10 +261,13 @@ static int __setup_root(int blocksize,
 			u64 objectid)
 {
 	root->node = NULL;
+	root->inode = NULL;
 	root->commit_root = NULL;
 	root->blocksize = blocksize;
 	root->ref_cows = 0;
 	root->fs_info = fs_info;
+	root->objectid = objectid;
+	root->last_trans = 0;
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	return 0;
@@ -287,10 +292,78 @@ static int find_and_setup_root(int blocksize,
 	return 0;
 }
 
+struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
+				      struct btrfs_key *location)
+{
+	struct btrfs_root *root;
+	struct btrfs_root *tree_root = fs_info->tree_root;
+	struct btrfs_path *path;
+	struct btrfs_leaf *l;
+	int ret = 0;
+
+printk("read_fs_root looking for %Lu %Lu %u\n", location->objectid, location->offset, location->flags);
+	root = kmalloc(sizeof(*root), GFP_NOFS);
+	if (!root) {
+printk("failed1\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	if (location->offset == (u64)-1) {
+		ret = find_and_setup_root(fs_info->sb->s_blocksize,
+					  fs_info->tree_root, fs_info,
+					  location->objectid, root);
+		if (ret) {
+printk("failed2\n");
+			kfree(root);
+			return ERR_PTR(ret);
+		}
+		goto insert;
+	}
+
+	__setup_root(fs_info->sb->s_blocksize, root, fs_info,
+		     location->objectid);
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+	ret = btrfs_search_slot(NULL, tree_root, location, path, 0, 0);
+	if (ret != 0) {
+printk("internal search_slot gives us %d\n", ret);
+		if (ret > 0)
+			ret = -ENOENT;
+		goto out;
+	}
+	l = btrfs_buffer_leaf(path->nodes[0]);
+	memcpy(&root->root_item,
+	       btrfs_item_ptr(l, path->slots[0], struct btrfs_root_item),
+	       sizeof(root->root_item));
+	memcpy(&root->root_key, location, sizeof(*location));
+	ret = 0;
+out:
+	btrfs_release_path(root, path);
+	btrfs_free_path(path);
+	if (ret) {
+		kfree(root);
+		return ERR_PTR(ret);
+	}
+	root->node = read_tree_block(root,
+				     btrfs_root_blocknr(&root->root_item));
+	BUG_ON(!root->node);
+insert:
+printk("inserting %p\n", root);
+	root->ref_cows = 1;
+	ret = radix_tree_insert(&fs_info->fs_roots_radix, (unsigned long)root,
+				root);
+	if (ret) {
+printk("radix_tree_insert gives us %d\n", ret);
+		brelse(root->node);
+		kfree(root);
+		return ERR_PTR(ret);
+	}
+printk("all worked\n");
+	return root;
+}
+
 struct btrfs_root *open_ctree(struct super_block *sb)
 {
-	struct btrfs_root *root = kmalloc(sizeof(struct btrfs_root),
-					  GFP_NOFS);
 	struct btrfs_root *extent_root = kmalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
 	struct btrfs_root *tree_root = kmalloc(sizeof(struct btrfs_root),
@@ -304,9 +377,9 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 
 	init_bit_radix(&fs_info->pinned_radix);
 	init_bit_radix(&fs_info->pending_del_radix);
+	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
 	sb_set_blocksize(sb, 4096);
 	fs_info->running_transaction = NULL;
-	fs_info->fs_root = root;
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
 	fs_info->inode_root = inode_root;
@@ -318,6 +391,9 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->btree_inode->i_nlink = 1;
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
+	BTRFS_I(fs_info->btree_inode)->root = tree_root;
+	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
+	       sizeof(struct btrfs_key));
 	insert_inode_hash(fs_info->btree_inode);
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->hash_tfm = crypto_alloc_hash("sha256", 0, CRYPTO_ALG_ASYNC);
@@ -337,13 +413,12 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 					     BTRFS_SUPER_INFO_OFFSET /
 					     sb->s_blocksize);
 
-	if (!fs_info->sb_buffer) {
+	if (!fs_info->sb_buffer)
 		return NULL;
-	}
 	disk_super = (struct btrfs_super_block *)fs_info->sb_buffer->b_data;
-	if (!btrfs_super_root(disk_super)) {
+	if (!btrfs_super_root(disk_super))
 		return NULL;
-	}
+
 	fs_info->disk_super = disk_super;
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super));
@@ -358,14 +433,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 				  BTRFS_INODE_MAP_OBJECTID, inode_root);
 	BUG_ON(ret);
 
-	ret = find_and_setup_root(sb->s_blocksize, tree_root, fs_info,
-				  BTRFS_FS_TREE_OBJECTID, root);
-	BUG_ON(ret);
-	root->commit_root = root->node;
-	get_bh(root->node);
-	root->ref_cows = 1;
-	root->fs_info->generation = root->root_key.offset + 1;
-	ret = btrfs_find_highest_inode(root, &root->fs_info->last_inode_alloc);
+	fs_info->generation = btrfs_super_generation(disk_super) + 1;
+	ret = btrfs_find_highest_inode(tree_root, &fs_info->last_inode_alloc);
 	if (ret == 0)
 		fs_info->highest_inode = fs_info->last_inode_alloc;
 	memset(&fs_info->kobj, 0, sizeof(fs_info->kobj));
@@ -373,7 +442,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	kobject_set_name(&fs_info->kobj, "%s", sb->s_id);
 	kobject_register(&fs_info->kobj);
 	mutex_unlock(&fs_info->fs_mutex);
-	return root;
+	return tree_root;
 }
 
 int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
@@ -398,12 +467,42 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 	return 0;
 }
 
+int del_fs_roots(struct btrfs_fs_info *fs_info)
+{
+	int ret;
+	struct btrfs_root *gang[8];
+	int i;
+
+	while(1) {
+		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+					     (void **)gang, 0,
+					     ARRAY_SIZE(gang));
+		if (!ret)
+			break;
+		for (i = 0; i < ret; i++) {
+			radix_tree_delete(&fs_info->fs_roots_radix,
+					  (unsigned long)gang[i]);
+			if (gang[i]->inode)
+				iput(gang[i]->inode);
+			else
+				printk("no inode for root %p\n", gang[i]);
+			if (gang[i]->node)
+				brelse(gang[i]->node);
+			if (gang[i]->commit_root)
+				brelse(gang[i]->commit_root);
+			kfree(gang[i]);
+		}
+	}
+	return 0;
+}
+
 int close_ctree(struct btrfs_root *root)
 {
 	int ret;
 	struct btrfs_trans_handle *trans;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	mutex_lock(&root->fs_info->fs_mutex);
+	mutex_lock(&fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_commit_transaction(trans, root);
 	/* run commit again to  drop the original snapshot */
@@ -412,29 +511,26 @@ int close_ctree(struct btrfs_root *root)
 	ret = btrfs_write_and_wait_transaction(NULL, root);
 	BUG_ON(ret);
 	write_ctree_super(NULL, root);
-	mutex_unlock(&root->fs_info->fs_mutex);
+	mutex_unlock(&fs_info->fs_mutex);
 
-	if (root->node)
-		btrfs_block_release(root, root->node);
-	if (root->fs_info->extent_root->node)
-		btrfs_block_release(root->fs_info->extent_root,
-				    root->fs_info->extent_root->node);
-	if (root->fs_info->inode_root->node)
-		btrfs_block_release(root->fs_info->inode_root,
-				    root->fs_info->inode_root->node);
-	if (root->fs_info->tree_root->node)
-		btrfs_block_release(root->fs_info->tree_root,
-				    root->fs_info->tree_root->node);
-	btrfs_block_release(root, root->commit_root);
-	btrfs_block_release(root, root->fs_info->sb_buffer);
-	crypto_free_hash(root->fs_info->hash_tfm);
-	truncate_inode_pages(root->fs_info->btree_inode->i_mapping, 0);
-	iput(root->fs_info->btree_inode);
-	kfree(root->fs_info->extent_root);
-	kfree(root->fs_info->inode_root);
-	kfree(root->fs_info->tree_root);
-	kobject_unregister(&root->fs_info->kobj);
-	kfree(root);
+	if (fs_info->extent_root->node)
+		btrfs_block_release(fs_info->extent_root,
+				    fs_info->extent_root->node);
+	if (fs_info->inode_root->node)
+		btrfs_block_release(fs_info->inode_root,
+				    fs_info->inode_root->node);
+	if (fs_info->tree_root->node)
+		btrfs_block_release(fs_info->tree_root,
+				    fs_info->tree_root->node);
+	btrfs_block_release(root, fs_info->sb_buffer);
+	crypto_free_hash(fs_info->hash_tfm);
+	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
+	iput(fs_info->btree_inode);
+	del_fs_roots(fs_info);
+	kfree(fs_info->extent_root);
+	kfree(fs_info->inode_root);
+	kfree(fs_info->tree_root);
+	kobject_unregister(&fs_info->kobj);
 	return 0;
 }
 

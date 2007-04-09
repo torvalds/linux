@@ -232,12 +232,12 @@ struct btrfs_inode_map_item {
 
 struct crypto_hash;
 struct btrfs_fs_info {
-	struct btrfs_root *fs_root;
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
 	struct btrfs_root *inode_root;
 	struct btrfs_key current_insert;
 	struct btrfs_key last_insert;
+	struct radix_tree_root fs_roots_radix;
 	struct radix_tree_root pending_del_radix;
 	struct radix_tree_root pinned_radix;
 	u64 last_inode_alloc;
@@ -266,6 +266,9 @@ struct btrfs_root {
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;
 	struct btrfs_fs_info *fs_info;
+	struct inode *inode;
+	u64 objectid;
+	u64 last_trans;
 	u32 blocksize;
 	int ref_cows;
 	u32 type;
@@ -595,7 +598,7 @@ static inline u32 btrfs_key_overflow(struct btrfs_key *key)
 
 static inline void btrfs_set_key_overflow(struct btrfs_key *key, u32 over)
 {
-	BUG_ON(over > BTRFS_KEY_OVERFLOW_MAX);
+	BUG_ON(over >= BTRFS_KEY_OVERFLOW_MAX);
 	over = over << BTRFS_KEY_OVERFLOW_SHIFT;
 	key->flags = (key->flags & ~((u64)BTRFS_KEY_OVERFLOW_MASK)) | over;
 }
@@ -634,7 +637,7 @@ static inline void btrfs_set_disK_key_overflow(struct btrfs_disk_key *key,
 					       u32 over)
 {
 	u32 flags = btrfs_disk_key_flags(key);
-	BUG_ON(over > BTRFS_KEY_OVERFLOW_MAX);
+	BUG_ON(over >= BTRFS_KEY_OVERFLOW_MAX);
 	over = over << BTRFS_KEY_OVERFLOW_SHIFT;
 	flags = (flags & ~((u64)BTRFS_KEY_OVERFLOW_MASK)) | over;
 	btrfs_set_disk_key_flags(key, flags);
@@ -746,6 +749,17 @@ static inline u64 btrfs_super_blocknr(struct btrfs_super_block *s)
 static inline void btrfs_set_super_blocknr(struct btrfs_super_block *s, u64 val)
 {
 	s->blocknr = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_super_generation(struct btrfs_super_block *s)
+{
+	return le64_to_cpu(s->generation);
+}
+
+static inline void btrfs_set_super_generation(struct btrfs_super_block *s,
+					      u64 val)
+{
+	s->generation = cpu_to_le64(val);
 }
 
 static inline u64 btrfs_super_root(struct btrfs_super_block *s)
