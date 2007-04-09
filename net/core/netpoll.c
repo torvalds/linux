@@ -86,7 +86,7 @@ static __sum16 checksum_udp(struct sk_buff *skb, struct udphdr *uh,
 {
 	__wsum psum;
 
-	if (uh->check == 0 || skb->ip_summed == CHECKSUM_UNNECESSARY)
+	if (uh->check == 0 || skb_csum_unnecessary(skb))
 		return 0;
 
 	psum = csum_tcpudp_nofold(saddr, daddr, ulen, IPPROTO_UDP, 0);

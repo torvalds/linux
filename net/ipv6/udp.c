@@ -153,7 +153,7 @@ try_again:
 			goto csum_copy_err;
 	}
 
-	if (skb->ip_summed == CHECKSUM_UNNECESSARY)
+	if (skb_csum_unnecessary(skb))
 		err = skb_copy_datagram_iovec(skb, sizeof(struct udphdr),
 					      msg->msg_iov, copied       );
 	else {
@@ -397,7 +397,7 @@ static inline int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh,
 			     skb->len, proto, skb->csum))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
+	if (!skb_csum_unnecessary(skb))
 		skb->csum = ~csum_unfold(csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 							 &ipv6_hdr(skb)->daddr,
 							 skb->len, proto, 0));

@@ -154,7 +154,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 	desc.offset = sizeof(struct udphdr);
 	desc.count = skb->len - desc.offset;
 
-	if (skb->ip_summed == CHECKSUM_UNNECESSARY)
+	if (skb_csum_unnecessary(skb))
 		goto no_checksum;
 
 	desc.csum = csum_partial(skb->data, desc.offset, skb->csum);

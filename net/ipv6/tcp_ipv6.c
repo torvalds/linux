@@ -1707,8 +1707,7 @@ static int tcp_v6_rcv(struct sk_buff **pskb)
 	if (!pskb_may_pull(skb, th->doff*4))
 		goto discard_it;
 
-	if ((skb->ip_summed != CHECKSUM_UNNECESSARY &&
-	     tcp_v6_checksum_init(skb)))
+	if (!skb_csum_unnecessary(skb) && tcp_v6_checksum_init(skb))
 		goto bad_packet;
 
 	th = tcp_hdr(skb);

@@ -681,8 +681,7 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 	}
 
 	/* Ensure the checksum is correct */
-	if (skb->ip_summed != CHECKSUM_UNNECESSARY &&
-	    ip_vs_checksum_complete(skb, ihl)) {
+	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
 		/* Failed checksum! */
 		IP_VS_DBG(1, "Forward ICMP: failed checksum from %d.%d.%d.%d!\n",
 			  NIPQUAD(iph->saddr));
@@ -921,8 +920,7 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 	verdict = NF_DROP;
 
 	/* Ensure the checksum is correct */
-	if (skb->ip_summed != CHECKSUM_UNNECESSARY &&
-	    ip_vs_checksum_complete(skb, ihl)) {
+	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
 		/* Failed checksum! */
 		IP_VS_DBG(1, "Incoming ICMP: failed checksum from %d.%d.%d.%d!\n",
 			  NIPQUAD(iph->saddr));

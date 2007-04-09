@@ -848,7 +848,7 @@ try_again:
 			goto csum_copy_err;
 	}
 
-	if (skb->ip_summed == CHECKSUM_UNNECESSARY)
+	if (skb_csum_unnecessary(skb))
 		err = skb_copy_datagram_iovec(skb, sizeof(struct udphdr),
 					      msg->msg_iov, copied       );
 	else {
@@ -1190,7 +1190,7 @@ static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
 				      proto, skb->csum))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
-	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
+	if (!skb_csum_unnecessary(skb))
 		skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
 					       skb->len, proto, 0);
 	/* Probably, we should checksum udp header (it should be in cache

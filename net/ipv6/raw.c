@@ -368,7 +368,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 				     skb->len, inet->num, skb->csum))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
-	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
+	if (!skb_csum_unnecessary(skb))
 		skb->csum = ~csum_unfold(csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 							 &ipv6_hdr(skb)->daddr,
 							 skb->len,
@@ -421,7 +421,7 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 		msg->msg_flags |= MSG_TRUNC;
 	}
 
-	if (skb->ip_summed==CHECKSUM_UNNECESSARY) {
+	if (skb_csum_unnecessary(skb)) {
 		err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
 	} else if (msg->msg_flags&MSG_TRUNC) {
 		if (__skb_checksum_complete(skb))

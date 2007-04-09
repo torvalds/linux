@@ -32,10 +32,11 @@
 #define HAVE_ALLOC_SKB		/* For the drivers to know */
 #define HAVE_ALIGNABLE_SKB	/* Ditto 8)		   */
 
+/* Don't change this without changing skb_csum_unnecessary! */
 #define CHECKSUM_NONE 0
-#define CHECKSUM_PARTIAL 1
-#define CHECKSUM_UNNECESSARY 2
-#define CHECKSUM_COMPLETE 3
+#define CHECKSUM_UNNECESSARY 1
+#define CHECKSUM_COMPLETE 2
+#define CHECKSUM_PARTIAL 3
 
 #define SKB_DATA_ALIGN(X)	(((X) + (SMP_CACHE_BYTES - 1)) & \
 				 ~(SMP_CACHE_BYTES - 1))
@@ -1572,6 +1573,11 @@ static inline void __net_timestamp(struct sk_buff *skb)
 extern __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len);
 extern __sum16 __skb_checksum_complete(struct sk_buff *skb);
 
+static inline int skb_csum_unnecessary(const struct sk_buff *skb)
+{
+	return skb->ip_summed & CHECKSUM_UNNECESSARY;
+}
+
 /**
  *	skb_checksum_complete - Calculate checksum of an entire packet
  *	@skb: packet to process
@@ -1590,8 +1596,8 @@ extern __sum16 __skb_checksum_complete(struct sk_buff *skb);
  */
 static inline unsigned int skb_checksum_complete(struct sk_buff *skb)
 {
-	return skb->ip_summed != CHECKSUM_UNNECESSARY &&
-		__skb_checksum_complete(skb);
+	return skb_csum_unnecessary(skb) ?
+	       0 : __skb_checksum_complete(skb);
 }
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)

@@ -4009,7 +4009,7 @@ static int tcp_copy_to_iovec(struct sock *sk, struct sk_buff *skb, int hlen)
 	int err;
 
 	local_bh_enable();
-	if (skb->ip_summed==CHECKSUM_UNNECESSARY)
+	if (skb_csum_unnecessary(skb))
 		err = skb_copy_datagram_iovec(skb, hlen, tp->ucopy.iov, chunk);
 	else
 		err = skb_copy_and_csum_datagram_iovec(skb, hlen,
@@ -4041,7 +4041,7 @@ static __sum16 __tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb
 
 static inline int tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb)
 {
-	return skb->ip_summed != CHECKSUM_UNNECESSARY &&
+	return !skb_csum_unnecessary(skb) &&
 		__tcp_checksum_complete_user(sk, skb);
 }
 
@@ -4059,7 +4059,7 @@ static int tcp_dma_try_early_copy(struct sock *sk, struct sk_buff *skb, int hlen
 	if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
 		tp->ucopy.dma_chan = get_softnet_dma();
 
-	if (tp->ucopy.dma_chan && skb->ip_summed == CHECKSUM_UNNECESSARY) {
+	if (tp->ucopy.dma_chan && skb_csum_unnecessary(skb)) {
 
 		dma_cookie = dma_skb_copy_datagram_iovec(tp->ucopy.dma_chan,
 			skb, hlen, tp->ucopy.iov, chunk, tp->ucopy.pinned_list);

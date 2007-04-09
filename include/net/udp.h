@@ -77,7 +77,7 @@ static inline __sum16 __udp_lib_checksum_complete(struct sk_buff *skb)
 
 static inline int udp_lib_checksum_complete(struct sk_buff *skb)
 {
-	return skb->ip_summed != CHECKSUM_UNNECESSARY &&
+	return !skb_csum_unnecessary(skb) &&
 		__udp_lib_checksum_complete(skb);
 }
 
