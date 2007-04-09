@@ -294,7 +294,6 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 		break;
 	case XFRM_MODE_BEET:
 		/* The worst case. */
-		mtu -= IPV4_BEET_PHMAXLEN;
 		mtu += min_t(u32, IPV4_BEET_PHMAXLEN, rem);
 		break;
 	}
@@ -409,6 +408,8 @@ static int esp_init_state(struct xfrm_state *x)
 	x->props.header_len = sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct iphdr);
+	else if (x->props.mode == XFRM_MODE_BEET)
+		x->props.header_len += IPV4_BEET_PHMAXLEN;
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
 

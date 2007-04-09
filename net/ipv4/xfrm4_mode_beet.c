@@ -40,7 +40,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (unlikely(optlen))
 		hdrlen += IPV4_BEET_PHMAXLEN - (optlen & 4);
 
-	skb_push(skb, x->props.header_len + hdrlen);
+	skb_push(skb, x->props.header_len - IPV4_BEET_PHMAXLEN + hdrlen);
 	skb_reset_network_header(skb);
 	top_iph = ip_hdr(skb);
 	skb->transport_header += sizeof(*iph) - hdrlen;
