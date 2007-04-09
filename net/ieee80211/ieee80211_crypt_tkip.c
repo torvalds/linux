@@ -465,7 +465,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: replay detected: STA=" MAC_FMT
+			IEEE80211_DEBUG_DROP("TKIP: replay detected: STA=" MAC_FMT
 			       " previous TSC %08x%04x received TSC "
 			       "%08x%04x\n", MAC_ARG(hdr->addr2),
 			       tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
@@ -507,7 +507,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			tkey->rx_phase1_done = 0;
 		}
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: ICV error detected: STA="
+			IEEE80211_DEBUG_DROP("TKIP: ICV error detected: STA="
 			       MAC_FMT "\n", MAC_ARG(hdr->addr2));
 		}
 		tkey->dot11RSNAStatsTKIPICVErrors++;
