@@ -1182,7 +1182,7 @@ static void inject_rmode_irq(struct kvm_vcpu *vcpu, int irq)
 	u16 sp =  vmcs_readl(GUEST_RSP);
 	u32 ss_limit = vmcs_read32(GUEST_SS_LIMIT);
 
-	if (sp > ss_limit || sp - 6 > sp) {
+	if (sp > ss_limit || sp < 6 ) {
 		vcpu_printf(vcpu, "%s: #SS, rsp 0x%lx ss 0x%lx limit 0x%x\n",
 			    __FUNCTION__,
 			    vmcs_readl(GUEST_RSP),
