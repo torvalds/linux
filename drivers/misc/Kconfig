@@ -112,12 +112,11 @@ config SONY_LAPTOP
 	depends on X86 && ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	  ---help---
-	  This mini-driver drives the SNC device present in the ACPI BIOS of
-	  the Sony Vaio laptops.
+	  This mini-driver drives the SNC and SPIC devices present in the ACPI
+	  BIOS of the Sony Vaio laptops.
 
-	  It gives access to some extra laptop functionalities. In its current
-	  form, this driver let the user set or query the screen brightness
-	  through the backlight subsystem and remove/apply power to some
+	  It gives access to some extra laptop functionalities like Bluetooth,
+	  screen brightness control, Fn keys and allows powering on/off some
 	  devices.
 
 	  Read <file:Documentation/sony-laptop.txt> for more information.
