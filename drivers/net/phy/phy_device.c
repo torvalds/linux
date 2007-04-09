@@ -208,15 +208,11 @@ struct phy_device *phy_attach(struct net_device *dev,
 	 * exist, and we should use the genphy driver. */
 	if (NULL == d->driver) {
 		int err;
-		down_write(&d->bus->subsys.rwsem);
 		d->driver = &genphy_driver.driver;
 
 		err = d->driver->probe(d);
-
 		if (err >= 0)
 			err = device_bind_driver(d);
-
-		up_write(&d->bus->subsys.rwsem);
 
 		if (err)
 			return ERR_PTR(err);
@@ -258,11 +254,8 @@ void phy_detach(struct phy_device *phydev)
 	 * was using the generic driver), we unbind the device
 	 * from the generic driver so that there's a chance a
 	 * real driver could be loaded */
-	if (phydev->dev.driver == &genphy_driver.driver) {
-		down_write(&phydev->dev.bus->subsys.rwsem);
+	if (phydev->dev.driver == &genphy_driver.driver)
 		device_release_driver(&phydev->dev);
-		up_write(&phydev->dev.bus->subsys.rwsem);
-	}
 }
 EXPORT_SYMBOL(phy_detach);
 

@@ -276,21 +276,15 @@ static int fixed_mdio_register_device(int number, int speed, int duplex)
 	   artificially, we are binding the driver here by hand;
 	   it will be the same for all the fixed phys anyway.
 	 */
-	down_write(&phydev->dev.bus->subsys.rwsem);
-
 	phydev->dev.driver = &fixed_mdio_driver.driver;
 
 	err = phydev->dev.driver->probe(&phydev->dev);
 	if(err < 0) {
 		printk(KERN_ERR "Phy %s: problems with fixed driver\n",phydev->dev.bus_id);
-		up_write(&phydev->dev.bus->subsys.rwsem);
 		goto probe_fail;
 	}
 
 	err = device_bind_driver(&phydev->dev);
-
-	up_write(&phydev->dev.bus->subsys.rwsem);
-
 	if (err)
 		goto probe_fail;
 
