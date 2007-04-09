@@ -22,7 +22,6 @@
 #include <linux/sysfs.h>
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
-#include <linux/rwsem.h>
 #include <linux/kref.h>
 #include <linux/kernel.h>
 #include <linux/wait.h>
@@ -177,7 +176,6 @@ extern struct kobject * kset_find_obj(struct kset *, const char *);
 
 struct subsystem {
 	struct kset		kset;
-	struct rw_semaphore	rwsem;
 };
 
 #define decl_subsys(_name,_type,_uevent_ops) \

@@ -652,7 +652,6 @@ struct kobject * kset_find_obj(struct kset * kset, const char * name)
 
 void subsystem_init(struct subsystem * s)
 {
-	init_rwsem(&s->rwsem);
 	kset_init(&s->kset);
 }
 
@@ -661,8 +660,7 @@ void subsystem_init(struct subsystem * s)
  *	@s:	the subsystem we're registering.
  *
  *	Once we register the subsystem, we want to make sure that 
- *	the kset points back to this subsystem for correct usage of 
- *	the rwsem. 
+ *	the kset points back to this subsystem.
  */
 
 int subsystem_register(struct subsystem * s)
