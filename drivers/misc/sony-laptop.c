@@ -35,6 +35,11 @@
 #include <acpi/acpi_bus.h>
 #include <asm/uaccess.h>
 
+#define LOG_PFX			KERN_WARNING "sony-laptop: "
+#define dprintk(msg...)		do {			\
+	if (debug) printk(KERN_WARNING LOG_PFX  msg);	\
+} while (0)
+
 #define SONY_NC_CLASS		"sony"
 #define SONY_NC_HID		"SNY5001"
 #define SONY_NC_DRIVER_NAME	"ACPI Sony Notebook Control Driver v0.4"
@@ -42,8 +47,6 @@
 /* the device uses 1-based values, while the backlight subsystem uses
    0-based values */
 #define SONY_MAX_BRIGHTNESS	8
-
-#define LOG_PFX			KERN_WARNING "sony-laptop: "
 
 MODULE_AUTHOR("Stelian Pop, Mattia Dongili");
 MODULE_DESCRIPTION(SONY_NC_DRIVER_NAME);
@@ -368,8 +371,7 @@ static struct backlight_ops sony_backlight_ops = {
  */
 static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 {
-	if (debug)
-		printk(LOG_PFX "sony_acpi_notify, event: %d\n", event);
+	dprintk("sony_acpi_notify, event: %d\n", event);
 	acpi_bus_generate_event(sony_nc_acpi_device, 1, event);
 }
 
@@ -472,9 +474,8 @@ static int sony_nc_add(struct acpi_device *device)
 			if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle,
 							 *item->acpiget,
 							 &handle))) {
-				if (debug)
-					printk(LOG_PFX "Found %s getter: %s\n",
-					       item->name, *item->acpiget);
+				dprintk("Found %s getter: %s\n",
+						item->name, *item->acpiget);
 				item->devattr.attr.mode |= S_IRUGO;
 				break;
 			}
@@ -485,9 +486,8 @@ static int sony_nc_add(struct acpi_device *device)
 			if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle,
 							 *item->acpiset,
 							 &handle))) {
-				if (debug)
-					printk(LOG_PFX "Found %s setter: %s\n",
-					       item->name, *item->acpiset);
+				dprintk("Found %s setter: %s\n",
+						item->name, *item->acpiset);
 				item->devattr.attr.mode |= S_IWUSR;
 				break;
 			}
