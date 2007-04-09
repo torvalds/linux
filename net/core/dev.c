@@ -1155,7 +1155,7 @@ EXPORT_SYMBOL(netif_device_attach);
 int skb_checksum_help(struct sk_buff *skb)
 {
 	__wsum csum;
-	int ret = 0, offset = skb_transport_offset(skb);
+	int ret = 0, offset;
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		goto out_set_summed;
@@ -1171,15 +1171,16 @@ int skb_checksum_help(struct sk_buff *skb)
 			goto out;
 	}
 
+	offset = skb->csum_start - skb_headroom(skb);
 	BUG_ON(offset > (int)skb->len);
 	csum = skb_checksum(skb, offset, skb->len-offset, 0);
 
-	offset = skb->tail - skb->transport_header;
+	offset = skb_headlen(skb) - offset;
 	BUG_ON(offset <= 0);
 	BUG_ON(skb->csum_offset + 2 > offset);
 
-	*(__sum16 *)(skb_transport_header(skb) +
-		     skb->csum_offset) = csum_fold(csum);
+	*(__sum16 *)(skb->head + skb->csum_start + skb->csum_offset) =
+		csum_fold(csum);
 out_set_summed:
 	skb->ip_summed = CHECKSUM_NONE;
 out:
@@ -1431,12 +1432,16 @@ int dev_queue_xmit(struct sk_buff *skb)
 	/* If packet is not checksummed and device does not support
 	 * checksumming for this protocol, complete checksumming here.
 	 */
-	if (skb->ip_summed == CHECKSUM_PARTIAL &&
-	    (!(dev->features & NETIF_F_GEN_CSUM) &&
-	     (!(dev->features & NETIF_F_IP_CSUM) ||
-	      skb->protocol != htons(ETH_P_IP))))
-		if (skb_checksum_help(skb))
-			goto out_kfree_skb;
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		skb_set_transport_header(skb, skb->csum_start -
+					      skb_headroom(skb));
+
+		if (!(dev->features & NETIF_F_GEN_CSUM) &&
+		    (!(dev->features & NETIF_F_IP_CSUM) ||
+		     skb->protocol != htons(ETH_P_IP)))
+			if (skb_checksum_help(skb))
+				goto out_kfree_skb;
+	}
 
 gso:
 	spin_lock_prefetch(&dev->queue_lock);

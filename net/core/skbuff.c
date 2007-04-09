@@ -1358,7 +1358,7 @@ void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 	long csstart;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		csstart = skb_transport_offset(skb);
+		csstart = skb->csum_start - skb_headroom(skb);
 	else
 		csstart = skb_headlen(skb);
 

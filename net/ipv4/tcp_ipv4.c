@@ -504,6 +504,7 @@ void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		th->check = ~tcp_v4_check(len, inet->saddr,
 					  inet->daddr, 0);
+		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
 		th->check = tcp_v4_check(len, inet->saddr, inet->daddr,
@@ -526,6 +527,7 @@ int tcp_v4_gso_send_check(struct sk_buff *skb)
 
 	th->check = 0;
 	th->check = ~tcp_v4_check(skb->len, iph->saddr, iph->daddr, 0);
+	skb->csum_start = skb_transport_header(skb) - skb->head;
 	skb->csum_offset = offsetof(struct tcphdr, check);
 	skb->ip_summed = CHECKSUM_PARTIAL;
 	return 0;
