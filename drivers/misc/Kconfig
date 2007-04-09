@@ -121,4 +121,10 @@ config SONY_LAPTOP
 
 	  Read <file:Documentation/sony-laptop.txt> for more information.
 
+config SONY_LAPTOP_OLD
+	bool "Sonypi compatibility"
+	depends on SONY_LAPTOP
+	  ---help---
+	  Build the sonypi driver compatibility code into the sony-laptop driver.
+
 endmenu
