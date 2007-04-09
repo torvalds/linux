@@ -311,7 +311,6 @@ done:
 	return NULL;
 
 found:
-	down_write(&dev->dev.bus->subsys.rwsem);
 	dev->card_link = clink;
 	dev->dev.driver = &drv->link.driver;
 	if (pnp_bus_type.probe(&dev->dev))
@@ -319,14 +318,11 @@ found:
 	if (device_bind_driver(&dev->dev))
 		goto err_out;
 
-	up_write(&dev->dev.bus->subsys.rwsem);
-
 	return dev;
 
 err_out:
 	dev->dev.driver = NULL;
 	dev->card_link = NULL;
-	up_write(&dev->dev.bus->subsys.rwsem);
 	return NULL;
 }
 
@@ -340,11 +336,9 @@ void pnp_release_card_device(struct pnp_dev * dev)
 	struct pnp_card_driver * drv = dev->card_link->driver;
 	if (!drv)
 		return;
-	down_write(&dev->dev.bus->subsys.rwsem);
 	drv->link.remove = &card_remove;
 	device_release_driver(&dev->dev);
 	drv->link.remove = &card_remove_first;
-	up_write(&dev->dev.bus->subsys.rwsem);
 }
 
 /*
