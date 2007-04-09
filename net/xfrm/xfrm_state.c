@@ -1667,37 +1667,17 @@ void xfrm_state_delete_tunnel(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_delete_tunnel);
 
-/*
- * This function is NOT optimal.  For example, with ESP it will give an
- * MTU that's usually two bytes short of being optimal.  However, it will
- * usually give an answer that's a multiple of 4 provided the input is
- * also a multiple of 4.
- */
 int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 {
-	int res = mtu;
+	int res;
 
-	res -= x->props.header_len;
-
-	for (;;) {
-		int m = res;
-
-		if (m < 68)
-			return 68;
-
-		spin_lock_bh(&x->lock);
-		if (x->km.state == XFRM_STATE_VALID &&
-		    x->type && x->type->get_max_size)
-			m = x->type->get_max_size(x, m);
-		else
-			m += x->props.header_len;
-		spin_unlock_bh(&x->lock);
-
-		if (m <= mtu)
-			break;
-		res -= (m - mtu);
-	}
-
+	spin_lock_bh(&x->lock);
+	if (x->km.state == XFRM_STATE_VALID &&
+	    x->type && x->type->get_mtu)
+		res = x->type->get_mtu(x, mtu);
+	else
+		res = mtu;
+	spin_unlock_bh(&x->lock);
 	return res;
 }
 

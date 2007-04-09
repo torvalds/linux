@@ -272,32 +272,34 @@ out:
 	return -EINVAL;
 }
 
-static u32 esp4_get_max_size(struct xfrm_state *x, int mtu)
+static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 {
 	struct esp_data *esp = x->data;
 	u32 blksize = ALIGN(crypto_blkcipher_blocksize(esp->conf.tfm), 4);
-	int enclen = 0;
+	u32 align = max_t(u32, blksize, esp->conf.padlen);
+	u32 rem;
+
+	mtu -= x->props.header_len + esp->auth.icv_trunc_len;
+	rem = mtu & (align - 1);
+	mtu &= ~(align - 1);
 
 	switch (x->props.mode) {
 	case XFRM_MODE_TUNNEL:
-		mtu = ALIGN(mtu +2, blksize);
 		break;
 	default:
 	case XFRM_MODE_TRANSPORT:
 		/* The worst case */
-		mtu = ALIGN(mtu + 2, 4) + blksize - 4;
+		mtu -= blksize - 4;
+		mtu += min_t(u32, blksize - 4, rem);
 		break;
 	case XFRM_MODE_BEET:
 		/* The worst case. */
-		enclen = IPV4_BEET_PHMAXLEN;
-		mtu = ALIGN(mtu + enclen + 2, blksize);
+		mtu -= IPV4_BEET_PHMAXLEN;
+		mtu += min_t(u32, IPV4_BEET_PHMAXLEN, rem);
 		break;
 	}
 
-	if (esp->conf.padlen)
-		mtu = ALIGN(mtu, esp->conf.padlen);
-
-	return mtu + x->props.header_len + esp->auth.icv_trunc_len - enclen;
+	return mtu - 2;
 }
 
 static void esp4_err(struct sk_buff *skb, u32 info)
@@ -340,6 +342,7 @@ static int esp_init_state(struct xfrm_state *x)
 {
 	struct esp_data *esp = NULL;
 	struct crypto_blkcipher *tfm;
+	u32 align;
 
 	/* null auth and encryption can have zero length keys */
 	if (x->aalg) {
@@ -421,7 +424,10 @@ static int esp_init_state(struct xfrm_state *x)
 		}
 	}
 	x->data = esp;
-	x->props.trailer_len = esp4_get_max_size(x, 0) - x->props.header_len;
+	align = ALIGN(crypto_blkcipher_blocksize(esp->conf.tfm), 4);
+	if (esp->conf.padlen)
+		align = max_t(u32, align, esp->conf.padlen);
+	x->props.trailer_len = align + 1 + esp->auth.icv_trunc_len;
 	return 0;
 
 error:
@@ -438,7 +444,7 @@ static struct xfrm_type esp_type =
 	.proto	     	= IPPROTO_ESP,
 	.init_state	= esp_init_state,
 	.destructor	= esp_destroy,
-	.get_max_size	= esp4_get_max_size,
+	.get_mtu	= esp4_get_mtu,
 	.input		= esp_input,
 	.output		= esp_output
 };
