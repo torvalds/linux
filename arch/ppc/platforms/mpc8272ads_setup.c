@@ -18,6 +18,7 @@
 #include <linux/ioport.h>
 #include <linux/fs_enet_pd.h>
 #include <linux/platform_device.h>
+#include <linux/phy.h>
 
 #include <asm/io.h>
 #include <asm/mpc8260.h>
@@ -30,10 +31,10 @@
 
 #include "pq2ads_pd.h"
 
-static void init_fcc1_ioports(void);
-static void init_fcc2_ioports(void);
-static void init_scc1_uart_ioports(void);
-static void init_scc4_uart_ioports(void);
+static void init_fcc1_ioports(struct fs_platform_info*);
+static void init_fcc2_ioports(struct fs_platform_info*);
+static void init_scc1_uart_ioports(struct fs_uart_platform_info*);
+static void init_scc4_uart_ioports(struct fs_uart_platform_info*);
 
 static struct fs_uart_platform_info mpc8272_uart_pdata[] = {
 	[fsid_scc1_uart] = {
@@ -103,7 +104,7 @@ static struct fs_platform_info mpc82xx_enet_pdata[] = {
 	},
 };
 
-static void init_fcc1_ioports(struct fs_platform_info*)
+static void init_fcc1_ioports(struct fs_platform_info* pdata)
 {
 	struct io_port *io;
 	u32 tempval;
@@ -144,7 +145,7 @@ static void init_fcc1_ioports(struct fs_platform_info*)
 	iounmap(immap);
 }
 
-static void init_fcc2_ioports(struct fs_platform_info*)
+static void init_fcc2_ioports(struct fs_platform_info* pdata)
 {
 	cpm2_map_t* immap = ioremap(CPM_MAP_ADDR, sizeof(cpm2_map_t));
 	u32 *bcsr = ioremap(BCSR_ADDR+12, sizeof(u32));
@@ -229,7 +230,7 @@ static void mpc8272ads_fixup_uart_pdata(struct platform_device *pdev,
 	}
 }
 
-static void init_scc1_uart_ioports(struct fs_uart_platform_info*)
+static void init_scc1_uart_ioports(struct fs_uart_platform_info* pdata)
 {
 	cpm2_map_t* immap = ioremap(CPM_MAP_ADDR, sizeof(cpm2_map_t));
 
@@ -246,7 +247,7 @@ static void init_scc1_uart_ioports(struct fs_uart_platform_info*)
 	iounmap(immap);
 }
 
-static void init_scc4_uart_ioports(struct fs_uart_platform_info*)
+static void init_scc4_uart_ioports(struct fs_uart_platform_info* pdata)
 {
 	cpm2_map_t* immap = ioremap(CPM_MAP_ADDR, sizeof(cpm2_map_t));
 
