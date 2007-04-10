@@ -764,8 +764,11 @@ static struct fw_driver sbp2_driver = {
 	.id_table = sbp2_id_table,
 };
 
-static unsigned int sbp2_status_to_sense_data(u8 * sbp2_status, u8 * sense_data)
+static unsigned int
+sbp2_status_to_sense_data(u8 *sbp2_status, u8 *sense_data)
 {
+	int sam_status;
+
 	sense_data[0] = 0x70;
 	sense_data[1] = 0x0;
 	sense_data[2] = sbp2_status[1];
@@ -783,22 +786,19 @@ static unsigned int sbp2_status_to_sense_data(u8 * sbp2_status, u8 * sense_data)
 	sense_data[14] = sbp2_status[12];
 	sense_data[15] = sbp2_status[13];
 
-	switch (sbp2_status[0] & 0x3f) {
+	sam_status = sbp2_status[0] & 0x3f;
+
+	switch (sam_status) {
 	case SAM_STAT_GOOD:
-		return DID_OK;
-
 	case SAM_STAT_CHECK_CONDITION:
-		/* return CHECK_CONDITION << 1 | DID_OK << 16; */
-		return DID_OK;
-
-	case SAM_STAT_BUSY:
-		return DID_BUS_BUSY;
-
 	case SAM_STAT_CONDITION_MET:
+	case SAM_STAT_BUSY:
 	case SAM_STAT_RESERVATION_CONFLICT:
 	case SAM_STAT_COMMAND_TERMINATED:
+		return DID_OK << 16 | sam_status;
+
 	default:
-		return DID_ERROR;
+		return DID_ERROR << 16;
 	}
 }
 
@@ -812,33 +812,31 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	int result;
 
 	if (status != NULL) {
-		if (status_get_dead(*status)) {
-			fw_notify("agent died, issuing agent reset\n");
+		if (status_get_dead(*status))
 			sbp2_agent_reset(unit);
-		}
 
 		switch (status_get_response(*status)) {
 		case SBP2_STATUS_REQUEST_COMPLETE:
-			result = DID_OK;
+			result = DID_OK << 16;
 			break;
 		case SBP2_STATUS_TRANSPORT_FAILURE:
-			result = DID_BUS_BUSY;
+			result = DID_BUS_BUSY << 16;
 			break;
 		case SBP2_STATUS_ILLEGAL_REQUEST:
 		case SBP2_STATUS_VENDOR_DEPENDENT:
 		default:
-			result = DID_ERROR;
+			result = DID_ERROR << 16;
 			break;
 		}
 
-		if (result == DID_OK && status_get_len(*status) > 1)
+		if (result == DID_OK << 16 && status_get_len(*status) > 1)
 			result = sbp2_status_to_sense_data(status_get_data(*status),
 							   orb->cmd->sense_buffer);
 	} else {
 		/* If the orb completes with status == NULL, something
 		 * went wrong, typically a bus reset happened mid-orb
 		 * or when sending the write (less likely). */
-		result = DID_BUS_BUSY;
+		result = DID_BUS_BUSY << 16;
 	}
 
 	dma_unmap_single(device->card->device, orb->base.request_bus,
@@ -859,9 +857,8 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 				 sizeof orb->request_buffer_bus,
 				 DMA_FROM_DEVICE);
 
-	orb->cmd->result = result << 16;
+	orb->cmd->result = result;
 	orb->done(orb->cmd);
-
 	kfree(orb);
 }
 
