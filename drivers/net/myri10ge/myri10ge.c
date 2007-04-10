@@ -900,19 +900,9 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 	/* try to refill entire ring */
 	while (rx->fill_cnt != (rx->cnt + rx->mask + 1)) {
 		idx = rx->fill_cnt & rx->mask;
-
-		if ((bytes < MYRI10GE_ALLOC_SIZE / 2) &&
-		    (rx->page_offset + bytes <= MYRI10GE_ALLOC_SIZE)) {
+		if (rx->page_offset + bytes <= MYRI10GE_ALLOC_SIZE) {
 			/* we can use part of previous page */
 			get_page(rx->page);
-#if MYRI10GE_ALLOC_SIZE > 4096
-			/* Firmware cannot cross 4K boundary.. */
-			if ((rx->page_offset >> 12) !=
-			    ((rx->page_offset + bytes - 1) >> 12)) {
-				rx->page_offset =
-				    (rx->page_offset + bytes) & ~4095;
-			}
-#endif
 		} else {
 			/* we need a new page */
 			page =
@@ -941,6 +931,13 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 
 		/* start next packet on a cacheline boundary */
 		rx->page_offset += SKB_DATA_ALIGN(bytes);
+
+#if MYRI10GE_ALLOC_SIZE > 4096
+		/* don't cross a 4KB boundary */
+		if ((rx->page_offset >> 12) !=
+		    ((rx->page_offset + bytes - 1) >> 12))
+			rx->page_offset = (rx->page_offset + 4096) & ~4095;
+#endif
 		rx->fill_cnt++;
 
 		/* copy 8 descriptors to the firmware at a time */
