@@ -770,6 +770,8 @@ static int cxgb_up(struct adapter *adap)
 		if (err)
 			goto out;
 
+		t3_write_reg(adap, A_ULPRX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
+		
 		err = setup_sge_qsets(adap);
 		if (err)
 			goto out;
