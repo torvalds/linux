@@ -115,14 +115,7 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *extent_root = fs_info->extent_root;
-	struct btrfs_root *inode_root = fs_info->inode_root;
 
-	btrfs_set_root_blocknr(&inode_root->root_item,
-			       inode_root->node->b_blocknr);
-	ret = btrfs_update_root(trans, tree_root,
-				&inode_root->root_key,
-				&inode_root->root_item);
-	BUG_ON(ret);
 	while(1) {
 		old_extent_block = btrfs_root_blocknr(&extent_root->root_item);
 		if (old_extent_block == extent_root->node->b_blocknr)

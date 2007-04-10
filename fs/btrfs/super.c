@@ -45,14 +45,6 @@ static struct inode_operations btrfs_file_inode_operations;
 static struct address_space_operations btrfs_aops;
 static struct file_operations btrfs_file_operations;
 
-static int check_inode(struct inode *inode)
-{
-	struct btrfs_inode *ei = BTRFS_I(inode);
-	WARN_ON(ei->magic != 0xDEADBEEF);
-	WARN_ON(ei->magic2 != 0xDEADBEAF);
-	return 0;
-}
-
 static void btrfs_read_locked_inode(struct inode *inode)
 {
 	struct btrfs_path *path;
@@ -66,15 +58,12 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	btrfs_init_path(path);
 	mutex_lock(&root->fs_info->fs_mutex);
 
-	check_inode(inode);
-
 	memcpy(&location, &BTRFS_I(inode)->location, sizeof(location));
 	ret = btrfs_lookup_inode(NULL, root, path, &location, 0);
 	if (ret) {
 		btrfs_free_path(path);
 		goto make_bad;
 	}
-	check_inode(inode);
 	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
 				  path->slots[0],
 				  struct btrfs_inode_item);
@@ -97,7 +86,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	inode_item = NULL;
 
 	mutex_unlock(&root->fs_info->fs_mutex);
-	check_inode(inode);
+
 	switch (inode->i_mode & S_IFMT) {
 #if 0
 	default:
@@ -121,7 +110,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 		// inode->i_op = &page_symlink_inode_operations;
 		break;
 	}
-	check_inode(inode);
 	return;
 
 make_bad:
@@ -272,10 +260,7 @@ static int btrfs_free_inode(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root,
 			    struct inode *inode)
 {
-	u64 objectid = inode->i_ino;
 	struct btrfs_path *path;
-	struct btrfs_inode_map_item *map;
-	struct btrfs_key stat_data_key;
 	int ret;
 
 	clear_inode(inode);
@@ -283,26 +268,11 @@ static int btrfs_free_inode(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	btrfs_init_path(path);
-	ret = btrfs_lookup_inode_map(trans, root, path, objectid, -1);
-	if (ret) {
-		if (ret > 0)
-			ret = -ENOENT;
-		goto error;
-	}
-	map = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
-			    struct btrfs_inode_map_item);
-	btrfs_disk_key_to_cpu(&stat_data_key, &map->key);
-	ret = btrfs_del_item(trans, root->fs_info->inode_root, path);
-	BUG_ON(ret);
-	btrfs_release_path(root, path);
-
 	ret = btrfs_lookup_inode(trans, root, path,
 				 &BTRFS_I(inode)->location, -1);
 	BUG_ON(ret);
 	ret = btrfs_del_item(trans, root, path);
 	BUG_ON(ret);
-error:
-	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -432,7 +402,6 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 out:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
-	check_inode(dir);
 	return ret;
 }
 
@@ -540,9 +509,7 @@ printk("adding new root for inode %lu root %p (found %p)\n", inode->i_ino, sub_r
 			btrfs_read_locked_inode(inode);
 			unlock_new_inode(inode);
 		}
-		check_inode(inode);
 	}
-	check_inode(dir);
 	return d_splice_alias(inode, dentry);
 }
 
@@ -566,7 +533,6 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	/* FIXME, use a real flag for deciding about the key type */
 	if (root->fs_info->tree_root == root)
 		key_type = BTRFS_DIR_ITEM_KEY;
-
 	mutex_lock(&root->fs_info->fs_mutex);
 	key.objectid = inode->i_ino;
 	key.flags = 0;
@@ -575,9 +541,8 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	path = btrfs_alloc_path();
 	btrfs_init_path(path);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0) {
+	if (ret < 0)
 		goto err;
-	}
 	advance = 0;
 	while(1) {
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
@@ -601,8 +566,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		if (btrfs_disk_key_objectid(&item->key) != key.objectid)
 			break;
 		if (key_type == BTRFS_DIR_INDEX_KEY &&
-		    btrfs_disk_key_offset(&item->key) >
-		    root->fs_info->highest_inode)
+		    btrfs_disk_key_offset(&item->key) > root->highest_inode)
 			break;
 		if (btrfs_disk_key_type(&item->key) != key_type)
 			continue;
@@ -707,7 +671,6 @@ static void fill_inode_item(struct btrfs_inode_item *item,
 	btrfs_set_timespec_nsec(&item->ctime, inode->i_ctime.tv_nsec);
 	btrfs_set_inode_nblocks(item, inode->i_blocks);
 	btrfs_set_inode_generation(item, inode->i_generation);
-	check_inode(inode);
 }
 
 static int btrfs_update_inode(struct btrfs_trans_handle *trans,
@@ -721,7 +684,6 @@ static int btrfs_update_inode(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	btrfs_init_path(path);
-
 	ret = btrfs_lookup_inode(trans, root, path,
 				 &BTRFS_I(inode)->location, 1);
 	if (ret) {
@@ -736,11 +698,11 @@ static int btrfs_update_inode(struct btrfs_trans_handle *trans,
 
 	fill_inode_item(inode_item, inode);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
+	ret = 0;
 failed:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
-	check_inode(inode);
-	return 0;
+	return ret;
 }
 
 static int btrfs_write_inode(struct inode *inode, int wait)
@@ -757,7 +719,6 @@ static int btrfs_write_inode(struct inode *inode, int wait)
 	else
 		btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	check_inode(inode);
 	return ret;
 }
 
@@ -767,7 +728,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	struct inode *inode;
 	struct btrfs_inode_item inode_item;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
-	struct btrfs_key *key;
+	struct btrfs_key *location;
 	int ret;
 	u64 objectid;
 
@@ -776,8 +737,6 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		return ERR_PTR(-ENOMEM);
 
 	BTRFS_I(inode)->root = BTRFS_I(dir)->root;
-	key = &BTRFS_I(inode)->location;
-	check_inode(inode);
 	ret = btrfs_find_free_objectid(trans, root, dir->i_ino, &objectid);
 	BUG_ON(ret);
 
@@ -788,20 +747,16 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	fill_inode_item(&inode_item, inode);
-
-	key->objectid = objectid;
-	key->flags = 0;
-	key->offset = 0;
-	btrfs_set_key_type(key, BTRFS_INODE_ITEM_KEY);
-	ret = btrfs_insert_inode_map(trans, root, objectid, key);
-	BUG_ON(ret);
+	location = &BTRFS_I(inode)->location;
+	location->objectid = objectid;
+	location->flags = 0;
+	location->offset = 0;
+	btrfs_set_key_type(location, BTRFS_INODE_ITEM_KEY);
 
 	ret = btrfs_insert_inode(trans, root, objectid, &inode_item);
 	BUG_ON(ret);
 
 	insert_inode_hash(inode);
-	check_inode(inode);
-	check_inode(dir);
 	return inode;
 }
 
@@ -825,8 +780,6 @@ static int btrfs_add_link(struct btrfs_trans_handle *trans,
 		ret = btrfs_update_inode(trans, root,
 					 dentry->d_parent->d_inode);
 	}
-	check_inode(inode);
-	check_inode(dentry->d_parent->d_inode);
 	return ret;
 }
 
@@ -840,7 +793,6 @@ static int btrfs_add_nondir(struct btrfs_trans_handle *trans,
 	}
 	if (err > 0)
 		err = -EEXIST;
-	check_inode(inode);
 	return err;
 }
 
@@ -872,8 +824,6 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 out_unlock:
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	check_inode(inode);
-	check_inode(dir);
 
 	if (drop_inode) {
 		inode_dec_link_count(inode);
@@ -1701,19 +1651,13 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	ret = btrfs_update_inode(trans, root, root->inode);
 	BUG_ON(ret);
 
-	ret = btrfs_find_free_objectid(trans, root, 0, &objectid);
+	ret = btrfs_find_free_objectid(trans, root->fs_info->tree_root,
+				       0, &objectid);
 	BUG_ON(ret);
 
 	memset(&new_root_item, 0, sizeof(new_root_item));
 	memcpy(&new_root_item, &root->root_item,
 	       sizeof(new_root_item));
-
-	key.objectid = objectid;
-	key.flags = 0;
-	key.offset = 0;
-	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
-	ret = btrfs_insert_inode_map(trans, root, objectid, &key);
-	BUG_ON(ret);
 
 	key.objectid = objectid;
 	key.offset = 1;
@@ -1791,21 +1735,14 @@ static struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei = kmem_cache_alloc(btrfs_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
-	ei->magic = 0xDEADBEEF;
-	ei->magic2 = 0xDEADBEAF;
 	return &ei->vfs_inode;
 }
 
 static void btrfs_destroy_inode(struct inode *inode)
 {
-	struct btrfs_inode *ei = BTRFS_I(inode);
-	WARN_ON(ei->magic != 0xDEADBEEF);
-	WARN_ON(ei->magic2 != 0xDEADBEAF);
 	WARN_ON(!list_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
 
-	ei->magic = 0;
-	ei->magic2 = 0;
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 

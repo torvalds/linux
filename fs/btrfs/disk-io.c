@@ -264,6 +264,8 @@ static int __setup_root(int blocksize,
 	root->fs_info = fs_info;
 	root->objectid = objectid;
 	root->last_trans = 0;
+	root->highest_inode = 0;
+	root->last_inode_alloc = 0;
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	return 0;
@@ -295,6 +297,7 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_path *path;
 	struct btrfs_leaf *l;
+	u64 highest_inode;
 	int ret = 0;
 
 printk("read_fs_root looking for %Lu %Lu %u\n", location->objectid, location->offset, location->flags);
@@ -354,6 +357,12 @@ printk("radix_tree_insert gives us %d\n", ret);
 		kfree(root);
 		return ERR_PTR(ret);
 	}
+	ret = btrfs_find_highest_inode(root, &highest_inode);
+	if (ret == 0) {
+		root->highest_inode = highest_inode;
+		root->last_inode_alloc = highest_inode;
+printk("highest inode is %Lu\n", highest_inode);
+	}
 printk("all worked\n");
 	return root;
 }
@@ -364,8 +373,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 						 GFP_NOFS);
 	struct btrfs_root *tree_root = kmalloc(sizeof(struct btrfs_root),
 					       GFP_NOFS);
-	struct btrfs_root *inode_root = kmalloc(sizeof(struct btrfs_root),
-						GFP_NOFS);
 	struct btrfs_fs_info *fs_info = kmalloc(sizeof(*fs_info),
 						GFP_NOFS);
 	int ret;
@@ -378,9 +385,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->running_transaction = NULL;
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
-	fs_info->inode_root = inode_root;
-	fs_info->last_inode_alloc = 0;
-	fs_info->highest_inode = 0;
 	fs_info->sb = sb;
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
@@ -425,14 +429,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
 	BUG_ON(ret);
 
-	ret = find_and_setup_root(sb->s_blocksize, tree_root, fs_info,
-				  BTRFS_INODE_MAP_OBJECTID, inode_root);
-	BUG_ON(ret);
-
 	fs_info->generation = btrfs_super_generation(disk_super) + 1;
-	ret = btrfs_find_highest_inode(tree_root, &fs_info->last_inode_alloc);
-	if (ret == 0)
-		fs_info->highest_inode = fs_info->last_inode_alloc;
 	memset(&fs_info->kobj, 0, sizeof(fs_info->kobj));
 	kobj_set_kset_s(fs_info, btrfs_subsys);
 	kobject_set_name(&fs_info->kobj, "%s", sb->s_id);
@@ -512,9 +509,6 @@ int close_ctree(struct btrfs_root *root)
 	if (fs_info->extent_root->node)
 		btrfs_block_release(fs_info->extent_root,
 				    fs_info->extent_root->node);
-	if (fs_info->inode_root->node)
-		btrfs_block_release(fs_info->inode_root,
-				    fs_info->inode_root->node);
 	if (fs_info->tree_root->node)
 		btrfs_block_release(fs_info->tree_root,
 				    fs_info->tree_root->node);
@@ -524,7 +518,6 @@ int close_ctree(struct btrfs_root *root)
 	iput(fs_info->btree_inode);
 	del_fs_roots(fs_info);
 	kfree(fs_info->extent_root);
-	kfree(fs_info->inode_root);
 	kfree(fs_info->tree_root);
 	kobject_unregister(&fs_info->kobj);
 	return 0;

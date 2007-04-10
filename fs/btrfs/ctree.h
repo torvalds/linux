@@ -14,9 +14,8 @@ extern struct kmem_cache *btrfs_path_cachep;
 
 #define BTRFS_ROOT_TREE_OBJECTID 1ULL
 #define BTRFS_EXTENT_TREE_OBJECTID 2ULL
-#define BTRFS_INODE_MAP_OBJECTID 3ULL
-#define BTRFS_FS_TREE_OBJECTID 4ULL
-#define BTRFS_FIRST_FREE_OBJECTID 5ULL
+#define BTRFS_FS_TREE_OBJECTID 3ULL
+#define BTRFS_FIRST_FREE_OBJECTID 4ULL
 
 /*
  * we can actually store much bigger names, but lets not confuse the rest
@@ -62,7 +61,6 @@ struct btrfs_header {
 	__le64 blocknr; /* which block this node is supposed to live in */
 	__le64 generation;
 	__le64 parentid; /* objectid of the tree root */
-	__le32 ham;
 	__le16 nritems;
 	__le16 flags;
 	u8 level;
@@ -226,23 +224,16 @@ struct btrfs_csum_item {
 	u8 csum[BTRFS_CSUM_SIZE];
 } __attribute__ ((__packed__));
 
-struct btrfs_inode_map_item {
-	u32 refs;
-} __attribute__ ((__packed__));
-
 struct crypto_hash;
 struct btrfs_fs_info {
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
-	struct btrfs_root *inode_root;
 	struct btrfs_key current_insert;
 	struct btrfs_key last_insert;
 	struct radix_tree_root fs_roots_radix;
 	struct radix_tree_root pending_del_radix;
 	struct radix_tree_root pinned_radix;
-	u64 last_inode_alloc;
 	u64 generation;
-	u64 highest_inode;
 	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block *disk_super;
 	struct buffer_head *sb_buffer;
@@ -272,6 +263,8 @@ struct btrfs_root {
 	u32 blocksize;
 	int ref_cows;
 	u32 type;
+	u64 highest_inode;
+	u64 last_inode_alloc;
 };
 
 /* the lower bits in the key flags defines the item type */
@@ -321,15 +314,10 @@ struct btrfs_root {
 #define BTRFS_EXTENT_ITEM_KEY	8
 
 /*
- * the inode map records which inode numbers are in use and where
- * they actually live on disk
- */
-#define BTRFS_INODE_MAP_ITEM_KEY 9
-/*
  * string items are for debugging.  They just store a short string of
  * data in the FS
  */
-#define BTRFS_STRING_ITEM_KEY	10
+#define BTRFS_STRING_ITEM_KEY	9
 
 static inline u64 btrfs_inode_generation(struct btrfs_inode_item *i)
 {
@@ -883,17 +871,6 @@ static inline void btrfs_set_file_extent_num_blocks(struct
 	e->num_blocks = cpu_to_le64(val);
 }
 
-static inline u32 btrfs_inode_map_refs(struct btrfs_inode_map_item *m)
-{
-	return le32_to_cpu(m->refs);
-}
-
-static inline void btrfs_set_inode_map_refs(struct btrfs_inode_map_item *m,
-					    u32 val)
-{
-	m->refs = cpu_to_le32(val);
-}
-
 static inline struct btrfs_root *btrfs_sb(struct super_block *sb)
 {
 	return sb->s_fs_info;
@@ -996,12 +973,6 @@ int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
 int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *fs_root,
 			     u64 dirid, u64 *objectid);
-int btrfs_insert_inode_map(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root,
-			   u64 objectid, struct btrfs_key *location);
-int btrfs_lookup_inode_map(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, struct btrfs_path *path,
-			   u64 objectid, int mod);
 int btrfs_find_highest_inode(struct btrfs_root *fs_root, u64 *objectid);
 
 /* inode-item.c */

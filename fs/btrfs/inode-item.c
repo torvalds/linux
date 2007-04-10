@@ -22,6 +22,8 @@ int btrfs_insert_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 				sizeof(*inode_item));
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
+	if (ret == 0 && objectid > root->highest_inode)
+		root->highest_inode = objectid;
 	return ret;
 }
 
