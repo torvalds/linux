@@ -128,7 +128,7 @@ static void mpc52xx_main_mask(unsigned int virq)
 
 	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
 
-	io_be_setbit(&intr->main_mask, 15 - l2irq);
+	io_be_setbit(&intr->main_mask, 16 - l2irq);
 }
 
 static void mpc52xx_main_unmask(unsigned int virq)
@@ -141,7 +141,7 @@ static void mpc52xx_main_unmask(unsigned int virq)
 
 	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
 
-	io_be_clrbit(&intr->main_mask, 15 - l2irq);
+	io_be_clrbit(&intr->main_mask, 16 - l2irq);
 }
 
 static struct irq_chip mpc52xx_main_irqchip = {
