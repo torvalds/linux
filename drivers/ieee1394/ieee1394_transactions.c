@@ -10,13 +10,16 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/compiler.h>
 #include <linux/hardirq.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/sched.h>  /* because linux/wait.h is broken if CONFIG_SMP=n */
 #include <linux/wait.h>
 
 #include <asm/bug.h>
 #include <asm/errno.h>
+#include <asm/system.h>
 
 #include "ieee1394.h"
 #include "ieee1394_types.h"
