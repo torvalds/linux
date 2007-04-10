@@ -131,7 +131,7 @@ static struct sk_buff *ipoib_cm_alloc_rx_skb(struct net_device *dev, int id, int
 		skb_fill_page_desc(skb, i, page, 0, PAGE_SIZE);
 
 		mapping[i + 1] = ib_dma_map_page(priv->ca, skb_shinfo(skb)->frags[i].page,
-						 0, PAGE_SIZE, DMA_TO_DEVICE);
+						 0, PAGE_SIZE, DMA_FROM_DEVICE);
 		if (unlikely(ib_dma_mapping_error(priv->ca, mapping[i + 1])))
 			goto partial_error;
 	}
