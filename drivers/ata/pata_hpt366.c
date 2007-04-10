@@ -169,7 +169,6 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr, cons
 
 /**
  *	hpt366_filter	-	mode selection filter
- *	@ap: ATA interface
  *	@adev: ATA device
  *
  *	Block UDMA on devices that cause trouble with this controller.
