@@ -1268,6 +1268,8 @@ static int prepare_pages(struct btrfs_trans_handle *trans,
 			 struct page **pages,
 			 size_t num_pages,
 			 loff_t pos,
+			 unsigned long first_index,
+			 unsigned long last_index,
 			 size_t write_bytes)
 {
 	int i;
@@ -1289,6 +1291,13 @@ static int prepare_pages(struct btrfs_trans_handle *trans,
 		}
 		offset = pos & (PAGE_CACHE_SIZE -1);
 		this_write = min(PAGE_CACHE_SIZE - offset, write_bytes);
+		if (!PageUptodate(pages[i]) &&
+		   (pages[i]->index == first_index ||
+		    pages[i]->index == last_index) && pos < isize) {
+			ret = mpage_readpage(pages[i], btrfs_get_block);
+			BUG_ON(ret);
+			lock_page(pages[i]);
+		}
 		ret = nobh_prepare_write(pages[i], offset,
 					 offset + this_write,
 					 btrfs_get_block);
@@ -1323,6 +1332,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct page *pages[1];
+	unsigned long first_index;
+	unsigned long last_index;
 
 	if (file->f_flags & O_DIRECT)
 		return -EINVAL;
@@ -1340,13 +1351,15 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		goto out;
 	file_update_time(file);
 	mutex_lock(&inode->i_mutex);
+	first_index = pos >> PAGE_CACHE_SHIFT;
+	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
 	while(count > 0) {
 		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
 		size_t write_bytes = min(count, PAGE_CACHE_SIZE - offset);
 		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
 					PAGE_CACHE_SHIFT;
 		ret = prepare_pages(NULL, root, file, pages, num_pages,
-				    pos, write_bytes);
+				    pos, first_index, last_index, write_bytes);
 		BUG_ON(ret);
 		ret = btrfs_copy_from_user(pos, num_pages,
 					   write_bytes, pages, buf);
