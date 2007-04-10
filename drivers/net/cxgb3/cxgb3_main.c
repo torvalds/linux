@@ -2119,7 +2119,9 @@ static void check_t3b2_mac(struct adapter *adapter)
 {
 	int i;
 
-	rtnl_lock();                      /* synchronize with ifdown */
+	if (!rtnl_trylock())	/* synchronize with ifdown */
+		return;
+
 	for_each_port(adapter, i) {
 		struct net_device *dev = adapter->port[i];
 		struct port_info *p = netdev_priv(dev);
