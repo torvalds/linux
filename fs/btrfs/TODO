@@ -8,6 +8,7 @@
 * Check compat and incompat flags on the inode
 * Add virtual filesystems, mountable snapshots
 * Get rid of struct ctree_path, limiting tree levels held at one time
+* EEXIST for dirs instead of hash overflow
 * Release
 * Do real tree locking
 * Add extent mirroring (backup copies of blocks)

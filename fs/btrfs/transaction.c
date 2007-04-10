@@ -64,7 +64,8 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 	if (root != root->fs_info->tree_root && root->last_trans <
 	    running_trans_id) {
 		radix_tree_tag_set(&root->fs_info->fs_roots_radix,
-				   (unsigned long)root, BTRFS_ROOT_TRANS_TAG);
+				   (unsigned long)root->root_key.objectid,
+				   BTRFS_ROOT_TRANS_TAG);
 		root->commit_root = root->node;
 		get_bh(root->node);
 	}
@@ -171,8 +172,9 @@ int add_dirty_roots(struct btrfs_trans_handle *trans,
 			break;
 		for (i = 0; i < ret; i++) {
 			root = gang[i];
-			radix_tree_tag_clear(radix, (unsigned long)root,
-					     BTRFS_ROOT_TRANS_TAG);
+			radix_tree_tag_clear(radix,
+				     (unsigned long)root->root_key.objectid,
+				     BTRFS_ROOT_TRANS_TAG);
 			if (root->commit_root == root->node) {
 				WARN_ON(root->node->b_blocknr !=
 					btrfs_root_blocknr(&root->root_item));

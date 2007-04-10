@@ -301,6 +301,12 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 	int ret = 0;
 
 printk("read_fs_root looking for %Lu %Lu %u\n", location->objectid, location->offset, location->flags);
+	root = radix_tree_lookup(&fs_info->fs_roots_radix,
+				 (unsigned long)location->objectid);
+	if (root) {
+printk("found %p in cache\n", root);
+		return root;
+	}
 	root = kmalloc(sizeof(*root), GFP_NOFS);
 	if (!root) {
 printk("failed1\n");
@@ -349,7 +355,8 @@ out:
 insert:
 printk("inserting %p\n", root);
 	root->ref_cows = 1;
-	ret = radix_tree_insert(&fs_info->fs_roots_radix, (unsigned long)root,
+	ret = radix_tree_insert(&fs_info->fs_roots_radix,
+				(unsigned long)root->root_key.objectid,
 				root);
 	if (ret) {
 printk("radix_tree_insert gives us %d\n", ret);
@@ -460,6 +467,20 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 	return 0;
 }
 
+static int free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
+{
+	radix_tree_delete(&fs_info->fs_roots_radix,
+			  (unsigned long)root->root_key.objectid);
+	if (root->inode)
+		iput(root->inode);
+	if (root->node)
+		brelse(root->node);
+	if (root->commit_root)
+		brelse(root->commit_root);
+	kfree(root);
+	return 0;
+}
+
 int del_fs_roots(struct btrfs_fs_info *fs_info)
 {
 	int ret;
@@ -472,19 +493,8 @@ int del_fs_roots(struct btrfs_fs_info *fs_info)
 					     ARRAY_SIZE(gang));
 		if (!ret)
 			break;
-		for (i = 0; i < ret; i++) {
-			radix_tree_delete(&fs_info->fs_roots_radix,
-					  (unsigned long)gang[i]);
-			if (gang[i]->inode)
-				iput(gang[i]->inode);
-			else
-				printk("no inode for root %p\n", gang[i]);
-			if (gang[i]->node)
-				brelse(gang[i]->node);
-			if (gang[i]->commit_root)
-				brelse(gang[i]->commit_root);
-			kfree(gang[i]);
-		}
+		for (i = 0; i < ret; i++)
+			free_fs_root(fs_info, gang[i]);
 	}
 	return 0;
 }
