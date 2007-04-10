@@ -166,6 +166,9 @@ define archhelp
   @echo '  *_defconfig     - Select default config from arch/$(ARCH)/configs'
 endef
 
+install:
+	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
+
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
