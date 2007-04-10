@@ -2487,6 +2487,10 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE23 0x25f7
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE47 0x25fa
+#define PCI_DEVICE_ID_INTEL_6300ESB_PCIEE1 0x3510
+#define PCI_DEVICE_ID_INTEL_6300ESB_PCIEE4 0x351b
+#define PCI_DEVICE_ID_INTEL_E3000_PCIE	0x2779
+#define PCI_DEVICE_ID_INTEL_E3010_PCIE	0x277a
 #define PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_FIRST 0x140
 #define PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_LAST 0x142
 
@@ -2526,6 +2530,18 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 				PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_FIRST
 				&& bridge->device <=
 				PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_LAST)
+			    /* All Intel E3000/E3010 PCIE ports */
+			    || (bridge->vendor == PCI_VENDOR_ID_INTEL
+				&& (bridge->device ==
+				    PCI_DEVICE_ID_INTEL_E3000_PCIE
+				    || bridge->device ==
+				    PCI_DEVICE_ID_INTEL_E3010_PCIE))
+			    /* All Intel 6310/6311/6321ESB PCIE ports */
+			    || (bridge->vendor == PCI_VENDOR_ID_INTEL
+				&& bridge->device >=
+				PCI_DEVICE_ID_INTEL_6300ESB_PCIEE1
+				&& bridge->device <=
+				PCI_DEVICE_ID_INTEL_6300ESB_PCIEE4)
 			    /* All Intel E5000 PCIE ports */
 			    || (bridge->vendor == PCI_VENDOR_ID_INTEL
 				&& bridge->device >=
