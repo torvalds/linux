@@ -305,9 +305,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		set_dabr(new->thread.dabr);
 		__get_cpu_var(current_dabr) = new->thread.dabr;
 	}
-
-	flush_tlb_pending();
-#endif
+#endif /* CONFIG_PPC64 */
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
