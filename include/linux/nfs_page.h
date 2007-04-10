@@ -55,7 +55,7 @@ struct nfs_pageio_descriptor {
 	unsigned int		pg_base;
 
 	struct inode		*pg_inode;
-	int			(*pg_doio)(struct inode *, struct list_head *, size_t, int);
+	int			(*pg_doio)(struct inode *, struct list_head *, unsigned int, size_t, int);
 	int 			pg_ioflags;
 	int			pg_error;
 };
@@ -75,7 +75,7 @@ extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head, struct 
 			  unsigned long idx_start, unsigned int npages);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
-			     int (*doio)(struct inode *, struct list_head *, size_t, int),
+			     int (*doio)(struct inode *, struct list_head *, unsigned int, size_t, int),
 			     size_t bsize,
 			     int how);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,

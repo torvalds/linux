@@ -18,6 +18,8 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 
+#include "internal.h"
+
 #define NFS_PARANOIA 1
 
 static struct kmem_cache *nfs_page_cachep;
@@ -231,7 +233,7 @@ out:
  */
 void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     struct inode *inode,
-		     int (*doio)(struct inode *, struct list_head *, size_t, int),
+		     int (*doio)(struct inode *, struct list_head *, unsigned int, size_t, int),
 		     unsigned int bsize,
 		     int io_flags)
 {
@@ -298,8 +300,10 @@ static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 		 * since nfs_flush_multi and nfs_pagein_multi assume you
 		 * can have only one struct nfs_page.
 		 */
+		if (desc->pg_bsize < PAGE_SIZE)
+			return 0;
 		newlen += desc->pg_count;
-		if (desc->pg_base + newlen > desc->pg_bsize)
+		if (newlen > desc->pg_bsize)
 			return 0;
 		prev = nfs_list_entry(desc->pg_list.prev);
 		if (!nfs_can_coalesce_requests(prev, req))
@@ -320,6 +324,8 @@ static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
 	if (!list_empty(&desc->pg_list)) {
 		int error = desc->pg_doio(desc->pg_inode,
 					  &desc->pg_list,
+					  nfs_page_array_len(desc->pg_base,
+							     desc->pg_count),
 					  desc->pg_count,
 					  desc->pg_ioflags);
 		if (error < 0)

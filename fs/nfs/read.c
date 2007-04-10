@@ -27,8 +27,8 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
-static int nfs_pagein_multi(struct inode *, struct list_head *, size_t, int);
-static int nfs_pagein_one(struct inode *, struct list_head *, size_t, int);
+static int nfs_pagein_multi(struct inode *, struct list_head *, unsigned int, size_t, int);
+static int nfs_pagein_one(struct inode *, struct list_head *, unsigned int, size_t, int);
 static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
 
@@ -37,9 +37,8 @@ static mempool_t *nfs_rdata_mempool;
 
 #define MIN_POOL_READ	(32)
 
-struct nfs_read_data *nfs_readdata_alloc(size_t len)
+struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 {
-	unsigned int pagecount = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_NOFS);
 
 	if (p) {
@@ -135,9 +134,9 @@ static int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 
 	nfs_list_add_request(new, &one_request);
 	if (NFS_SERVER(inode)->rsize < PAGE_CACHE_SIZE)
-		nfs_pagein_multi(inode, &one_request, len, 0);
+		nfs_pagein_multi(inode, &one_request, 1, len, 0);
 	else
-		nfs_pagein_one(inode, &one_request, len, 0);
+		nfs_pagein_one(inode, &one_request, 1, len, 0);
 	return 0;
 }
 
@@ -234,7 +233,7 @@ static void nfs_execute_read(struct nfs_read_data *data)
  * won't see the new data until our attribute cache is updated.  This is more
  * or less conventional NFS client behavior.
  */
-static int nfs_pagein_multi(struct inode *inode, struct list_head *head, size_t count, int flags)
+static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags)
 {
 	struct nfs_page *req = nfs_list_entry(head->next);
 	struct page *page = req->wb_page;
@@ -250,7 +249,7 @@ static int nfs_pagein_multi(struct inode *inode, struct list_head *head, size_t 
 	do {
 		size_t len = min(nbytes,rsize);
 
-		data = nfs_readdata_alloc(len);
+		data = nfs_readdata_alloc(1);
 		if (!data)
 			goto out_bad;
 		INIT_LIST_HEAD(&data->pages);
@@ -291,13 +290,13 @@ out_bad:
 	return -ENOMEM;
 }
 
-static int nfs_pagein_one(struct inode *inode, struct list_head *head, size_t count, int flags)
+static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags)
 {
 	struct nfs_page		*req;
 	struct page		**pages;
 	struct nfs_read_data	*data;
 
-	data = nfs_readdata_alloc(count);
+	data = nfs_readdata_alloc(npages);
 	if (!data)
 		goto out_bad;
 

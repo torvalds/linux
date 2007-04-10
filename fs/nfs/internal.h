@@ -231,3 +231,15 @@ unsigned int nfs_page_length(struct page *page)
 	}
 	return 0;
 }
+
+/*
+ * Determine the number of pages in an array of length 'len' and
+ * with a base offset of 'base'
+ */
+static inline
+unsigned int nfs_page_array_len(unsigned int base, size_t len)
+{
+	return ((unsigned long)len + (unsigned long)base +
+		PAGE_SIZE - 1) >> PAGE_SHIFT;
+}
+
