@@ -15,6 +15,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
+#include "ioctl.h"
 
 void btrfs_fsinfo_release(struct kobject *obj)
 {
@@ -25,6 +26,11 @@ void btrfs_fsinfo_release(struct kobject *obj)
 
 struct kobj_type btrfs_fsinfo_ktype = {
 	.release = btrfs_fsinfo_release,
+};
+
+struct btrfs_iget_args {
+	u64 ino;
+	struct btrfs_root *root;
 };
 
 decl_subsys(btrfs, &btrfs_fsinfo_ktype, NULL);
@@ -461,6 +467,34 @@ int fixup_tree_root_location(struct btrfs_root *root,
 	return 0;
 }
 
+int btrfs_init_locked_inode(struct inode *inode, void *p)
+{
+	struct btrfs_iget_args *args = p;
+	inode->i_ino = args->ino;
+	BTRFS_I(inode)->root = args->root;
+	return 0;
+}
+
+int btrfs_find_actor(struct inode *inode, void *opaque)
+{
+	struct btrfs_iget_args *args = opaque;
+	return (args->ino == inode->i_ino &&
+		args->root == BTRFS_I(inode)->root);
+}
+
+struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
+				struct btrfs_root *root)
+{
+	struct inode *inode;
+	struct btrfs_iget_args args;
+	args.ino = objectid;
+	args.root = root;
+
+	inode = iget5_locked(s, objectid, btrfs_find_actor,
+			     btrfs_init_locked_inode,
+			     (void *)&args);
+	return inode;
+}
 
 static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 				   struct nameidata *nd)
@@ -486,7 +520,8 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 			return ERR_PTR(ret);
 		if (ret > 0)
 			return ERR_PTR(-ENOENT);
-		inode = iget_locked(dir->i_sb, location.objectid);
+		inode = btrfs_iget_locked(dir->i_sb, location.objectid,
+					  sub_root);
 		if (!inode)
 			return ERR_PTR(-EACCES);
 		if (inode->i_state & I_NEW) {
@@ -495,7 +530,7 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 						&root->fs_info->fs_roots_radix,
 						(unsigned long)sub_root,
 						sub_root);
-printk("adding new root for inode %lu\n", inode->i_ino);
+printk("adding new root for inode %lu root %p (found %p)\n", inode->i_ino, sub_root, BTRFS_I(inode)->root);
 				igrab(inode);
 				sub_root->inode = inode;
 			}
@@ -630,7 +665,8 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	       btrfs_super_total_blocks(disk_super),
 	       btrfs_super_root_dir(disk_super));
 
-	inode = iget_locked(sb, btrfs_super_root_dir(disk_super));
+	inode = btrfs_iget_locked(sb, btrfs_super_root_dir(disk_super),
+				  tree_root);
 	bi = BTRFS_I(inode);
 	bi->location.objectid = inode->i_ino;
 	bi->location.offset = 0;
@@ -750,7 +786,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	inode->i_mode = mode;
 	inode->i_ino = objectid;
 	inode->i_blocks = 0;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	fill_inode_item(&inode_item, inode);
 
 	key->objectid = objectid;
@@ -1650,6 +1686,95 @@ static ssize_t btrfs_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	return retval;
 }
 
+static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_key key;
+	struct btrfs_root_item new_root_item;
+	int ret;
+	u64 objectid;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	BUG_ON(!trans);
+
+	ret = btrfs_update_inode(trans, root, root->inode);
+	BUG_ON(ret);
+
+	ret = btrfs_find_free_objectid(trans, root, 0, &objectid);
+	BUG_ON(ret);
+
+	memset(&new_root_item, 0, sizeof(new_root_item));
+	memcpy(&new_root_item, &root->root_item,
+	       sizeof(new_root_item));
+
+	key.objectid = objectid;
+	key.flags = 0;
+	key.offset = 0;
+	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
+	ret = btrfs_insert_inode_map(trans, root, objectid, &key);
+	BUG_ON(ret);
+
+	key.objectid = objectid;
+	key.offset = 1;
+	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+	btrfs_set_root_blocknr(&new_root_item, root->node->b_blocknr);
+
+	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
+				&new_root_item);
+	BUG_ON(ret);
+
+printk("adding snapshot name %.*s root %Lu %Lu %u\n", namelen, name, key.objectid, key.offset, key.flags);
+
+	/*
+	 * insert the directory item
+	 */
+	key.offset = (u64)-1;
+	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
+				    name, namelen,
+				    root->fs_info->sb->s_root->d_inode->i_ino,
+				    &key, 0);
+
+	BUG_ON(ret);
+
+	ret = btrfs_inc_root_ref(trans, root);
+	BUG_ON(ret);
+
+	ret = btrfs_commit_transaction(trans, root);
+	BUG_ON(ret);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return 0;
+}
+
+static int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
+		       cmd, unsigned long arg)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_ioctl_vol_args vol_args;
+	int ret;
+	int namelen;
+
+	if (!root->ref_cows)
+		return -EINVAL;
+	switch (cmd) {
+	case BTRFS_IOC_SNAP_CREATE:
+		if (copy_from_user(&vol_args,
+				   (struct btrfs_ioctl_vol_args __user *)arg,
+				   sizeof(vol_args)))
+			return -EFAULT;
+		namelen = strlen(vol_args.name);
+		if (namelen > BTRFS_VOL_NAME_MAX)
+			return -EINVAL;
+		ret = create_snapshot(root, vol_args.name, namelen);
+		WARN_ON(ret);
+		break;
+	default:
+		return -ENOTTY;
+	}
+	return 0;
+}
+
 static struct kmem_cache *btrfs_inode_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
 struct kmem_cache *btrfs_transaction_cachep;
@@ -1781,6 +1906,7 @@ static struct file_operations btrfs_dir_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= btrfs_readdir,
+	.ioctl		= btrfs_ioctl,
 };
 
 static struct address_space_operations btrfs_aops = {
@@ -1803,6 +1929,7 @@ static struct file_operations btrfs_file_operations = {
 	.write		= btrfs_file_write,
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
+	.ioctl		= btrfs_ioctl,
 };
 
 static int __init init_btrfs_fs(void)

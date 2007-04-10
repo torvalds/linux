@@ -227,7 +227,7 @@ struct btrfs_csum_item {
 } __attribute__ ((__packed__));
 
 struct btrfs_inode_map_item {
-	struct btrfs_disk_key key;
+	u32 refs;
 } __attribute__ ((__packed__));
 
 struct crypto_hash;
@@ -883,6 +883,17 @@ static inline void btrfs_set_file_extent_num_blocks(struct
 	e->num_blocks = cpu_to_le64(val);
 }
 
+static inline u32 btrfs_inode_map_refs(struct btrfs_inode_map_item *m)
+{
+	return le32_to_cpu(m->refs);
+}
+
+static inline void btrfs_set_inode_map_refs(struct btrfs_inode_map_item *m,
+					    u32 val)
+{
+	m->refs = cpu_to_le32(val);
+}
+
 static inline struct btrfs_root *btrfs_sb(struct super_block *sb)
 {
 	return sb->s_fs_info;
@@ -925,6 +936,8 @@ static inline void btrfs_mark_buffer_dirty(struct buffer_head *bh)
 	btrfs_item_offset((leaf)->items + (slot))))
 
 /* extent-item.c */
+int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root);
 struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					    struct btrfs_root *root);
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans, struct btrfs_root

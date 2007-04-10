@@ -16,10 +16,6 @@ static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 	if (buf->b_blocknr != btrfs_header_blocknr(&node->header)) {
 		BUG();
 	}
-	if (root->node && btrfs_header_parentid(&node->header) !=
-	    btrfs_header_parentid(btrfs_buffer_header(root->node))) {
-		BUG();
-	}
 	return 0;
 }
 

@@ -77,6 +77,12 @@ static int lookup_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
 	return 0;
 }
 
+int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root)
+{
+	return inc_block_ref(trans, root, root->node->b_blocknr, 1);
+}
+
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct buffer_head *buf)
 {
