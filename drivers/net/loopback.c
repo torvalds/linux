@@ -164,11 +164,9 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats loopback_stats;
-
 static struct net_device_stats *get_stats(struct net_device *dev)
 {
-	struct net_device_stats *stats = &loopback_stats;
+	struct net_device_stats *stats = &dev->stats;
 	unsigned long bytes = 0;
 	unsigned long packets = 0;
 	int i;
@@ -208,7 +206,6 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 struct net_device loopback_dev = {
 	.name	 		= "lo",
 	.get_stats		= &get_stats,
-	.priv			= &loopback_stats,
 	.mtu			= (16 * 1024) + 20 + 20 + 12,
 	.hard_start_xmit	= loopback_xmit,
 	.hard_header		= eth_header,
