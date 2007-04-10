@@ -411,12 +411,10 @@ checkentry(const char *tablename,
 				       "has invalid config pointer!\n");
 				return 0;
 			}
-			clusterip_config_entry_get(cipinfo->config);
 		} else {
 			/* Case B: This is a new rule referring to an existing
 			 * clusterip config. */
 			cipinfo->config = config;
-			clusterip_config_entry_get(cipinfo->config);
 		}
 	} else {
 		/* Case C: This is a completely new clusterip config */
