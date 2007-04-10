@@ -289,7 +289,7 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 	}
 
 	case VIDEO_CMD_STOP:
-		vc->flags &= ~(VIDEO_CMD_STOP_IMMEDIATELY|VIDEO_CMD_STOP_TO_BLACK);
+		vc->flags &= VIDEO_CMD_STOP_IMMEDIATELY|VIDEO_CMD_STOP_TO_BLACK;
 		if (vc->flags & VIDEO_CMD_STOP_IMMEDIATELY)
 			vc->stop.pts = 0;
 		if (try) break;
@@ -302,7 +302,7 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 		return ivtv_stop_v4l2_decode_stream(s, vc->flags, vc->stop.pts);
 
 	case VIDEO_CMD_FREEZE:
-		vc->flags &= ~VIDEO_CMD_FREEZE_TO_BLACK;
+		vc->flags &= VIDEO_CMD_FREEZE_TO_BLACK;
 		if (try) break;
 		if (itv->output_mode != OUT_MPG)
 			return -EBUSY;
@@ -1095,7 +1095,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			return ivtv_start_capture(id);
 
 		case V4L2_ENC_CMD_STOP:
-			enc->flags &= ~V4L2_ENC_CMD_STOP_AT_GOP_END;
+			enc->flags &= V4L2_ENC_CMD_STOP_AT_GOP_END;
 			if (try)
 				return 0;
 			ivtv_stop_capture(id, enc->flags & V4L2_ENC_CMD_STOP_AT_GOP_END);
