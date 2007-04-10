@@ -293,7 +293,8 @@ sbp2_status_write(struct fw_card *card, struct fw_request *request,
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(orb, &sd->orb_list, link) {
 		if (status_get_orb_high(status) == 0 &&
-		    status_get_orb_low(status) == orb->request_bus) {
+		    status_get_orb_low(status) == orb->request_bus &&
+		    orb->rcode == RCODE_COMPLETE) {
 			list_del(&orb->link);
 			break;
 		}
@@ -968,6 +969,8 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 		goto fail_alloc;
 	}
 
+	/* Initialize rcode to something not RCODE_COMPLETE. */
+	orb->base.rcode = -1;
 	orb->base.request_bus =
 		dma_map_single(device->card->device, &orb->request,
 			       sizeof orb->request, DMA_TO_DEVICE);
