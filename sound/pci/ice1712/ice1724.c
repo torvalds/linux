@@ -2345,6 +2345,14 @@ static int __devinit snd_vt1724_probe(struct pci_dev *pci,
 	}
 	c = &no_matched;
  __found:
+       /*
+        * VT1724 has separate DMAs for the analog and the SPDIF streams while
+        * ICE1712 has only one for both (mixed up).
+        *
+        * Confusingly the analog PCM is named "professional" here because it
+        * was called so in ice1712 driver, and vt1724 driver is derived from
+        * ice1712 driver.
+        */
 
 	if ((err = snd_vt1724_pcm_profi(ice, pcm_dev++)) < 0) {
 		snd_card_free(card);
