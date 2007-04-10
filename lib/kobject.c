@@ -174,6 +174,7 @@ int kobject_shadow_add(struct kobject * kobj, struct dentry *shadow_parent)
 	if (!*kobj->k_name) {
 		pr_debug("kobject attempted to be registered with no name!\n");
 		WARN_ON(1);
+		kobject_put(kobj);
 		return -EINVAL;
 	}
 	parent = kobject_get(kobj->parent);
