@@ -19,7 +19,7 @@ int btrfs_alloc_file_extent(struct btrfs_trans_handle *trans,
 	BUG_ON(!path);
 	btrfs_init_path(path);
 	ret = btrfs_alloc_extent(trans, root, num_blocks, hint_block,
-				 (u64)-1, objectid, &ins);
+				 (u64)-1, &ins);
 	BUG_ON(ret);
 	file_key.objectid = objectid;
 	file_key.offset = offset;

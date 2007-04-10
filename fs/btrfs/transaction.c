@@ -163,7 +163,6 @@ int add_dirty_roots(struct btrfs_trans_handle *trans,
 	int i;
 	int ret;
 	int err;
-printk("add dirty\n");
 	while(1) {
 		ret = radix_tree_gang_lookup_tag(radix, (void **)gang, 0,
 						 ARRAY_SIZE(gang),
@@ -188,7 +187,6 @@ printk("add dirty\n");
 			dirty->commit_root = root->commit_root;
 			root->commit_root = NULL;
 			dirty->root = root;
-printk("adding dirty root %Lu gen %Lu blocknr %Lu\n", root->root_key.objectid, root->root_key.offset, dirty->commit_root->b_blocknr);
 			root->root_key.offset = root->fs_info->generation;
 			btrfs_set_root_blocknr(&root->root_item,
 					       root->node->b_blocknr);
@@ -199,7 +197,6 @@ printk("adding dirty root %Lu gen %Lu blocknr %Lu\n", root->root_key.objectid, r
 			list_add(&dirty->list, list);
 		}
 	}
-printk("add dirty done\n");
 	return 0;
 }
 
@@ -213,12 +210,10 @@ int drop_dirty_roots(struct btrfs_root *tree_root, struct list_head *list)
 		dirty = list_entry(list->next, struct dirty_root, list);
 		list_del_init(&dirty->list);
 		trans = btrfs_start_transaction(tree_root, 1);
-printk("drop snapshot root %p, commit_root blocknr %Lu generation %Lu\n", dirty->root, dirty->commit_root->b_blocknr, dirty->snap_key.offset);
 		ret = btrfs_drop_snapshot(trans, dirty->root,
 					  dirty->commit_root);
 		BUG_ON(ret);
 
-printk("del root objectid %Lu, offset %Lu\n", dirty->snap_key.objectid, dirty->snap_key.offset);
 		ret = btrfs_del_root(trans, tree_root, &dirty->snap_key);
 		BUG_ON(ret);
 		ret = btrfs_end_transaction(trans, tree_root);
@@ -240,7 +235,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&root->fs_info->trans_mutex);
 	if (trans->transaction->in_commit) {
-printk("already in commit!, waiting\n");
 		cur_trans = trans->transaction;
 		trans->transaction->use_count++;
 		btrfs_end_transaction(trans, root);

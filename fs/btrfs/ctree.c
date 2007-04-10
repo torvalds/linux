@@ -688,8 +688,6 @@ static int insert_new_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_level(&c->header, level);
 	btrfs_set_header_blocknr(&c->header, t->b_blocknr);
 	btrfs_set_header_generation(&c->header, trans->transid);
-	btrfs_set_header_parentid(&c->header,
-	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
 	lower = btrfs_buffer_node(path->nodes[level-1]);
 	memcpy(c->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(c->header.fsid));
@@ -784,8 +782,6 @@ static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_level(&split->header, btrfs_header_level(&c->header));
 	btrfs_set_header_blocknr(&split->header, split_buffer->b_blocknr);
 	btrfs_set_header_generation(&split->header, trans->transid);
-	btrfs_set_header_parentid(&split->header,
-	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
 	memcpy(split->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(split->header.fsid));
 	mid = (c_nritems + 1) / 2;
@@ -1145,8 +1141,6 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_blocknr(&right->header, right_buffer->b_blocknr);
 	btrfs_set_header_generation(&right->header, trans->transid);
 	btrfs_set_header_level(&right->header, 0);
-	btrfs_set_header_parentid(&right->header,
-	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
 	memcpy(right->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(right->header.fsid));
 	if (mid <= slot) {
@@ -1237,8 +1231,6 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_blocknr(&right->header, right_buffer->b_blocknr);
 	btrfs_set_header_generation(&right->header, trans->transid);
 	btrfs_set_header_level(&right->header, 0);
-	btrfs_set_header_parentid(&right->header,
-	      btrfs_header_parentid(btrfs_buffer_header(root->node)));
 	memcpy(right->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(right->header.fsid));
 	btrfs_cpu_key_to_disk(&disk_key, ins_key);

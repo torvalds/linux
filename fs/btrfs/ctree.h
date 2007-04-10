@@ -60,7 +60,6 @@ struct btrfs_header {
 	u8 fsid[16]; /* FS specific uuid */
 	__le64 blocknr; /* which block this node is supposed to live in */
 	__le64 generation;
-	__le64 parentid; /* objectid of the tree root */
 	__le16 nritems;
 	__le16 flags;
 	u8 level;
@@ -147,7 +146,6 @@ struct btrfs_path {
  */
 struct btrfs_extent_item {
 	__le32 refs;
-	__le64 owner;
 } __attribute__ ((__packed__));
 
 struct btrfs_inode_timespec {
@@ -443,16 +441,6 @@ static inline void btrfs_set_timespec_nsec(struct btrfs_inode_timespec *ts,
 	ts->nsec = cpu_to_le32(val);
 }
 
-static inline u64 btrfs_extent_owner(struct btrfs_extent_item *ei)
-{
-	return le64_to_cpu(ei->owner);
-}
-
-static inline void btrfs_set_extent_owner(struct btrfs_extent_item *ei, u64 val)
-{
-	ei->owner = cpu_to_le64(val);
-}
-
 static inline u32 btrfs_extent_refs(struct btrfs_extent_item *ei)
 {
 	return le32_to_cpu(ei->refs);
@@ -650,17 +638,6 @@ static inline void btrfs_set_header_generation(struct btrfs_header *h,
 					       u64 val)
 {
 	h->generation = cpu_to_le64(val);
-}
-
-static inline u64 btrfs_header_parentid(struct btrfs_header *h)
-{
-	return le64_to_cpu(h->parentid);
-}
-
-static inline void btrfs_set_header_parentid(struct btrfs_header *h,
-					     u64 parentid)
-{
-	h->parentid = cpu_to_le64(parentid);
 }
 
 static inline u16 btrfs_header_nritems(struct btrfs_header *h)
@@ -919,7 +896,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					    struct btrfs_root *root);
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 			*root, u64 num_blocks, u64 search_start, u64
-			search_end, u64 owner, struct btrfs_key *ins);
+			search_end, struct btrfs_key *ins);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct buffer_head *buf);
 int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
