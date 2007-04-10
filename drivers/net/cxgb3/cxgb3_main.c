@@ -194,15 +194,13 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_stat,
 
 	if (link_stat != netif_carrier_ok(dev)) {
 		if (link_stat) {
-			t3_set_reg_field(adapter,
-					 A_XGM_TXFIFO_CFG + mac->offset,
-					 F_ENDROPPKT, 0);
+			t3_mac_enable(mac, MAC_DIRECTION_RX);
 			netif_carrier_on(dev);
 		} else {
 			netif_carrier_off(dev);
-			t3_set_reg_field(adapter,
-					 A_XGM_TXFIFO_CFG + mac->offset,
-					 F_ENDROPPKT, F_ENDROPPKT);
+			pi->phy.ops->power_down(&pi->phy, 1);
+			t3_mac_disable(mac, MAC_DIRECTION_RX);
+			t3_link_start(&pi->phy, mac, &pi->link_config);
 		}
 
 		link_report(dev);

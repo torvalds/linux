@@ -478,8 +478,11 @@ struct cmac {
 	struct adapter *adapter;
 	unsigned int offset;
 	unsigned int nucast;	/* # of address filters for unicast MACs */
-	unsigned int tcnt;
-	unsigned int xcnt;
+	unsigned int tx_tcnt;
+	unsigned int tx_xcnt;
+	u64 tx_mcnt;
+	unsigned int rx_xcnt;
+	u64 rx_mcnt;
 	unsigned int toggle_cnt;
 	unsigned int txen;
 	struct mac_stats stats;
