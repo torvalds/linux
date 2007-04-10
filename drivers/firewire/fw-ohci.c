@@ -662,7 +662,7 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 
 	/* If the context isn't already running, start it up. */
 	reg = reg_read(ctx->ohci, control_set(ctx->regs));
-	if ((reg & CONTEXT_ACTIVE) == 0)
+	if ((reg & CONTEXT_RUN) == 0)
 		context_run(ctx, 0);
 
 	return 0;
