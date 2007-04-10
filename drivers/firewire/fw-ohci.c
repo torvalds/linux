@@ -1257,7 +1257,13 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	p = db + 1;
 	end = p + header_length;
 	while (p < end && i + ctx->base.header_size <= PAGE_SIZE) {
-		memcpy(ctx->header + i, p + 4, ctx->base.header_size);
+		/* The iso header is byteswapped to little endian by
+		 * the controller, but the remaining header quadlets
+		 * are big endian.  We want to present all the headers
+		 * as big endian, so we have to swap the first
+		 * quadlet. */
+		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
+		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
 		i += ctx->base.header_size;
 		p += ctx->base.header_size + 4;
 	}
