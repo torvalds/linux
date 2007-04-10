@@ -1020,7 +1020,7 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 
 	ret = btrfs_lookup_file_extent(trans, root, path,
 				       inode->i_ino,
-				       iblock << inode->i_blkbits, 1);
+				       iblock << inode->i_blkbits, create);
 	if (ret < 0) {
 		err = ret;
 		goto out;
@@ -1046,7 +1046,8 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 	if (ret == 0) {
 		err = 0;
 		BUG_ON(btrfs_file_extent_disk_num_blocks(item) != 1);
-		if (btrfs_file_extent_generation(item) != trans->transid) {
+		if (create &&
+		    btrfs_file_extent_generation(item) != trans->transid) {
 			struct btrfs_key ins;
 			ret = btrfs_alloc_extent(trans, root, 1,
 						 blocknr, (u64)-1, &ins);
