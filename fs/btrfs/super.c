@@ -1020,7 +1020,7 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 
 	ret = btrfs_lookup_file_extent(trans, root, path,
 				       inode->i_ino,
-				       iblock << inode->i_blkbits, 0);
+				       iblock << inode->i_blkbits, 1);
 	if (ret < 0) {
 		err = ret;
 		goto out;
@@ -1040,9 +1040,25 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 	blocknr = btrfs_file_extent_disk_blocknr(item);
 	blocknr += btrfs_file_extent_offset(item);
 
-	/* exact match found, use it */
+	/* exact match found, use it, FIXME, deal with extents
+	 * other than the page size
+	 */
 	if (ret == 0) {
 		err = 0;
+		BUG_ON(btrfs_file_extent_disk_num_blocks(item) != 1);
+		if (btrfs_file_extent_generation(item) != trans->transid) {
+			struct btrfs_key ins;
+			ret = btrfs_alloc_extent(trans, root, 1,
+						 blocknr, (u64)-1, &ins);
+			BUG_ON(ret);
+			btrfs_set_file_extent_disk_blocknr(item, ins.objectid);
+			mark_buffer_dirty(path->nodes[0]);
+			ret = btrfs_free_extent(trans, root,
+						blocknr, 1, 0);
+			BUG_ON(ret);
+			blocknr = ins.objectid;
+
+		}
 		map_bh(result, inode->i_sb, blocknr);
 		goto out;
 	}
