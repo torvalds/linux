@@ -101,7 +101,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if (hdr->version != 6)
 		goto err;
 
-	skb->h.raw = skb->nh.raw + sizeof(*hdr);
+	skb->transport_header = skb->network_header + sizeof(*hdr);
 	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
 
 	pkt_len = ntohs(hdr->payload_len);

@@ -828,7 +828,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		old_iph = ip_hdr(skb);
 	}
 
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	skb_push(skb, gre_hlen);
 	skb_reset_network_header(skb);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));

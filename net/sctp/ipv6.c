@@ -132,14 +132,14 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	idev = in6_dev_get(skb->dev);
 
 	/* Fix up skb to look at the embedded net header. */
-	saveip = skb->nh.raw;
-	savesctp  = skb->h.raw;
+	saveip	 = skb->network_header;
+	savesctp = skb->transport_header;
 	skb_reset_network_header(skb);
 	skb_set_transport_header(skb, offset);
 	sk = sctp_err_lookup(AF_INET6, skb, sctp_hdr(skb), &asoc, &transport);
 	/* Put back, the original pointers. */
-	skb->nh.raw = saveip;
-	skb->h.raw = savesctp;
+	skb->network_header   = saveip;
+	skb->transport_header = savesctp;
 	if (!sk) {
 		ICMP6_INC_STATS_BH(idev, ICMP6_MIB_INERRORS);
 		goto out;

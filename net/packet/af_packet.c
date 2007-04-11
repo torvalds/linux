@@ -114,22 +114,22 @@ On receive:
 -----------
 
 Incoming, dev->hard_header!=NULL
-   mac.raw -> ll header
-   data    -> data
+   mac_header -> ll header
+   data       -> data
 
 Outgoing, dev->hard_header!=NULL
-   mac.raw -> ll header
-   data    -> ll header
+   mac_header -> ll header
+   data       -> ll header
 
 Incoming, dev->hard_header==NULL
-   mac.raw -> UNKNOWN position. It is very likely, that it points to ll header.
-	      PPP makes it, that is wrong, because introduce assymetry
-	      between rx and tx paths.
-   data    -> data
+   mac_header -> UNKNOWN position. It is very likely, that it points to ll
+		 header.  PPP makes it, that is wrong, because introduce
+                 assymetry between rx and tx paths.
+   data       -> data
 
 Outgoing, dev->hard_header==NULL
-   mac.raw -> data. ll header is still not built!
-   data    -> data
+   mac_header -> data. ll header is still not built!
+   data       -> data
 
 Resume
   If dev->hard_header==NULL we are unlikely to restore sensible ll header.
@@ -139,12 +139,12 @@ On transmit:
 ------------
 
 dev->hard_header != NULL
-   mac.raw -> ll header
-   data    -> ll header
+   mac_header -> ll header
+   data       -> ll header
 
 dev->hard_header == NULL (ll header is added by device, we cannot control it)
-   mac.raw -> data
-   data -> data
+   mac_header -> data
+   data       -> data
 
    We should set nh.raw on output to correct posistion,
    packet classifier depends on it.

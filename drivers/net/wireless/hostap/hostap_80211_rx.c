@@ -1077,7 +1077,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		skb2->protocol = __constant_htons(ETH_P_802_3);
 		skb_reset_mac_header(skb2);
 		skb_reset_network_header(skb2);
-		/* skb2->nh.raw += ETH_HLEN; */
+		/* skb2->network_header += ETH_HLEN; */
 		dev_queue_xmit(skb2);
 	}
 

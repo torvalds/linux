@@ -396,7 +396,7 @@ ip6t_log_packet(unsigned int pf,
 		/* MAC logging for input chain only. */
 		printk("MAC=");
 		if (skb->dev && (len = skb->dev->hard_header_len) &&
-		    skb->mac.raw != skb->nh.raw) {
+		    skb->mac_header != skb->network_header) {
 			const unsigned char *p = skb_mac_header(skb);
 			int i;
 

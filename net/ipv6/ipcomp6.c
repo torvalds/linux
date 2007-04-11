@@ -81,7 +81,7 @@ static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	/* Remove ipcomp header and decompress original payload */
 	iph = ipv6_hdr(skb);
 	ipch = (void *)skb->data;
-	skb->h.raw = skb->nh.raw + sizeof(*ipch);
+	skb->transport_header = skb->network_header + sizeof(*ipch);
 	__skb_pull(skb, sizeof(*ipch));
 
 	/* decompression */

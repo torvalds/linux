@@ -87,7 +87,7 @@ static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 	iph = ip_hdr(skb);
 	ipch = (void *)skb->data;
 	iph->protocol = ipch->nexthdr;
-	skb->h.raw = skb->nh.raw + sizeof(*ipch);
+	skb->transport_header = skb->network_header + sizeof(*ipch);
 	__skb_pull(skb, sizeof(*ipch));
 	err = ipcomp_decompress(x, skb);
 

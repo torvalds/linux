@@ -733,7 +733,8 @@ slow_path:
 		skb_put(frag, len + hlen + sizeof(struct frag_hdr));
 		skb_reset_network_header(frag);
 		fh = (struct frag_hdr *)(skb_network_header(frag) + hlen);
-		frag->h.raw = frag->nh.raw + hlen + sizeof(struct frag_hdr);
+		frag->transport_header = (frag->network_header + hlen +
+					  sizeof(struct frag_hdr));
 
 		/*
 		 *	Charge the memory for the fragment to any owner
@@ -761,7 +762,7 @@ slow_path:
 		/*
 		 *	Copy a block of the IP datagram.
 		 */
-		if (skb_copy_bits(skb, ptr, frag->h.raw, len))
+		if (skb_copy_bits(skb, ptr, skb_transport_header(skb), len))
 			BUG();
 		left -= len;
 
@@ -976,7 +977,7 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 		skb_reset_network_header(skb);
 
 		/* initialize protocol header pointer */
-		skb->h.raw = skb->nh.raw + fragheaderlen;
+		skb->transport_header = skb->network_header + fragheaderlen;
 
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum = 0;
@@ -1198,8 +1199,8 @@ alloc_new_skb:
 			data = skb_put(skb, fraglen);
 			skb_set_network_header(skb, exthdrlen);
 			data += fragheaderlen;
-			skb->h.raw = skb->nh.raw + fragheaderlen;
-
+			skb->transport_header = (skb->network_header +
+						 fragheaderlen);
 			if (fraggap) {
 				skb->csum = skb_copy_and_csum_bits(
 					skb_prev, maxfraglen,

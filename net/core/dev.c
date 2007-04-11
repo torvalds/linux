@@ -1077,7 +1077,7 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 				skb_reset_network_header(skb2);
 			}
 
-			skb2->h.raw = skb2->nh.raw;
+			skb2->transport_header = skb2->network_header;
 			skb2->pkt_type = PACKET_OUTGOING;
 			ptype->func(skb2, skb->dev, ptype, skb->dev);
 		}
@@ -1207,7 +1207,7 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	BUG_ON(skb_shinfo(skb)->frag_list);
 
 	skb_reset_mac_header(skb);
-	skb->mac_len = skb->nh.raw - skb->mac.raw;
+	skb->mac_len = skb->network_header - skb->mac_header;
 	__skb_pull(skb, skb->mac_len);
 
 	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
@@ -1774,7 +1774,7 @@ int netif_receive_skb(struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
-	skb->mac_len = skb->nh.raw - skb->mac.raw;
+	skb->mac_len = skb->network_header - skb->mac_header;
 
 	pt_prev = NULL;
 

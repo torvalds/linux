@@ -396,9 +396,9 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 	n->sk = NULL;
 	C(tstamp);
 	C(dev);
-	C(h);
-	C(nh);
-	C(mac);
+	C(transport_header);
+	C(network_header);
+	C(mac_header);
 	C(dst);
 	dst_clone(skb->dst);
 	C(sp);
@@ -461,9 +461,9 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #ifdef CONFIG_INET
 	new->sp		= secpath_get(old->sp);
 #endif
-	new->h.raw	= old->h.raw + offset;
-	new->nh.raw	= old->nh.raw + offset;
-	new->mac.raw	= old->mac.raw + offset;
+	new->transport_header = old->transport_header + offset;
+	new->network_header   = old->network_header + offset;
+	new->mac_header	      = old->mac_header + offset;
 	memcpy(new->cb, old->cb, sizeof(old->cb));
 	new->local_df	= old->local_df;
 	new->fclone	= SKB_FCLONE_UNAVAILABLE;
@@ -639,9 +639,9 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->end      = data + size;
 	skb->data    += off;
 	skb->tail    += off;
-	skb->mac.raw += off;
-	skb->h.raw   += off;
-	skb->nh.raw  += off;
+	skb->transport_header += off;
+	skb->network_header   += off;
+	skb->mac_header	      += off;
 	skb->cloned   = 0;
 	skb->nohdr    = 0;
 	atomic_set(&skb_shinfo(skb)->dataref, 1);
@@ -1906,7 +1906,8 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		skb_reserve(nskb, headroom);
 		skb_reset_mac_header(nskb);
 		skb_set_network_header(nskb, skb->mac_len);
-		nskb->h.raw = nskb->nh.raw + skb_network_header_len(skb);
+		nskb->transport_header = (nskb->network_header +
+					  skb_network_header_len(skb));
 		memcpy(skb_put(nskb, doffset), skb->data, doffset);
 
 		if (!sg) {

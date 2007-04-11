@@ -181,9 +181,9 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 		}
 	}
 	((struct iphdr*)work_buf)->protocol = ah->nexthdr;
-	skb->nh.raw += ah_hlen;
+	skb->network_header += ah_hlen;
 	memcpy(skb_network_header(skb), work_buf, ihl);
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	__skb_pull(skb, ah_hlen + ihl);
 
 	return 0;

@@ -174,7 +174,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 	skb->dev = nf_bridge->physindev;
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
-		skb->nh.raw -= VLAN_HLEN;
+		skb->network_header -= VLAN_HLEN;
 	}
 	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 		       br_handle_frame_finish, 1);
@@ -255,7 +255,7 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 	else {
 		if (skb->protocol == htons(ETH_P_8021Q)) {
 			skb_pull(skb, VLAN_HLEN);
-			skb->nh.raw += VLAN_HLEN;
+			skb->network_header += VLAN_HLEN;
 		}
 		skb->dst->output(skb);
 	}
@@ -325,7 +325,7 @@ bridged_dnat:
 				if (skb->protocol ==
 				    htons(ETH_P_8021Q)) {
 					skb_push(skb, VLAN_HLEN);
-					skb->nh.raw -= VLAN_HLEN;
+					skb->network_header -= VLAN_HLEN;
 				}
 				NF_HOOK_THRESH(PF_BRIDGE, NF_BR_PRE_ROUTING,
 					       skb, skb->dev, NULL,
@@ -344,7 +344,7 @@ bridged_dnat:
 	skb->dev = nf_bridge->physindev;
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
-		skb->nh.raw -= VLAN_HLEN;
+		skb->network_header -= VLAN_HLEN;
 	}
 	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 		       br_handle_frame_finish, 1);
@@ -497,7 +497,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 
 		if (skb->protocol == htons(ETH_P_8021Q)) {
 			skb_pull_rcsum(skb, VLAN_HLEN);
-			skb->nh.raw += VLAN_HLEN;
+			skb->network_header += VLAN_HLEN;
 		}
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
@@ -514,7 +514,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull_rcsum(skb, VLAN_HLEN);
-		skb->nh.raw += VLAN_HLEN;
+		skb->network_header += VLAN_HLEN;
 	}
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
@@ -595,7 +595,7 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 	}
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
-		skb->nh.raw -= VLAN_HLEN;
+		skb->network_header -= VLAN_HLEN;
 	}
 	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_FORWARD, skb, in,
 		       skb->dev, br_forward_finish, 1);
@@ -631,7 +631,7 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff **pskb,
 
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull(*pskb, VLAN_HLEN);
-		(*pskb)->nh.raw += VLAN_HLEN;
+		(*pskb)->network_header += VLAN_HLEN;
 	}
 
 	nf_bridge = skb->nf_bridge;
@@ -667,13 +667,13 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff **pskb,
 		if (!IS_VLAN_ARP(skb))
 			return NF_ACCEPT;
 		skb_pull(*pskb, VLAN_HLEN);
-		(*pskb)->nh.raw += VLAN_HLEN;
+		(*pskb)->network_header += VLAN_HLEN;
 	}
 
 	if (arp_hdr(skb)->ar_pln != 4) {
 		if (IS_VLAN_ARP(skb)) {
 			skb_push(*pskb, VLAN_HLEN);
-			(*pskb)->nh.raw -= VLAN_HLEN;
+			(*pskb)->network_header -= VLAN_HLEN;
 		}
 		return NF_ACCEPT;
 	}
@@ -723,7 +723,7 @@ static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff **pskb,
 	}
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
-		skb->nh.raw -= VLAN_HLEN;
+		skb->network_header -= VLAN_HLEN;
 	}
 
 	NF_HOOK(PF_BRIDGE, NF_BR_FORWARD, skb, realindev, skb->dev,
@@ -790,7 +790,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull(skb, VLAN_HLEN);
-		skb->nh.raw += VLAN_HLEN;
+		skb->network_header += VLAN_HLEN;
 	}
 
 	nf_bridge_save_header(skb);

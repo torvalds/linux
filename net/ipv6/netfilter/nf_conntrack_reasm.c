@@ -630,8 +630,8 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	skb_network_header(head)[fq->nhoffset] = skb_transport_header(head)[0];
 	memmove(head->head + sizeof(struct frag_hdr), head->head,
 		(head->data - head->head) - sizeof(struct frag_hdr));
-	head->mac.raw += sizeof(struct frag_hdr);
-	head->nh.raw += sizeof(struct frag_hdr);
+	head->mac_header += sizeof(struct frag_hdr);
+	head->network_header += sizeof(struct frag_hdr);
 
 	skb_shinfo(head)->frag_list = head->next;
 	skb_reset_transport_header(head);

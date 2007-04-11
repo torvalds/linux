@@ -399,7 +399,7 @@ ipt_log_packet(unsigned int pf,
 		/* MAC logging for input chain only. */
 		printk("MAC=");
 		if (skb->dev && skb->dev->hard_header_len
-		    && skb->mac.raw != skb->nh.raw) {
+		    && skb->mac_header != skb->network_header) {
 			int i;
 			const unsigned char *p = skb_mac_header(skb);
 			for (i = 0; i < skb->dev->hard_header_len; i++,p++)

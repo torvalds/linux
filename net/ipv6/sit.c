@@ -382,7 +382,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 	read_lock(&ipip6_lock);
 	if ((tunnel = ipip6_tunnel_lookup(iph->saddr, iph->daddr)) != NULL) {
 		secpath_reset(skb);
-		skb->mac.raw = skb->nh.raw;
+		skb->mac_header = skb->network_header;
 		skb_reset_network_header(skb);
 		IPCB(skb)->flags = 0;
 		skb->protocol = htons(ETH_P_IPV6);
@@ -553,7 +553,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		iph6 = ipv6_hdr(skb);
 	}
 
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	skb_push(skb, sizeof(struct iphdr));
 	skb_reset_network_header(skb);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));

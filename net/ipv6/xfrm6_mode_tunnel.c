@@ -55,8 +55,8 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 	top_iph = ipv6_hdr(skb);
-	skb->h.raw = skb->nh.raw + sizeof(struct ipv6hdr);
-	skb->nh.raw += offsetof(struct ipv6hdr, nexthdr);
+	skb->transport_header = skb->network_header + sizeof(struct ipv6hdr);
+	skb->network_header   += offsetof(struct ipv6hdr, nexthdr);
 
 	top_iph->version = 6;
 	if (xdst->route->ops->family == AF_INET6) {

@@ -316,8 +316,8 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	 *
 	 * To erase AH:
 	 * Keeping copy of cleared headers. After AH processing,
-	 * Moving the pointer of skb->nh.raw by using skb_pull as long as AH
-	 * header length. Then copy back the copy as long as hdr_len
+	 * Moving the pointer of skb->network_header by using skb_pull as long
+	 * as AH header length. Then copy back the copy as long as hdr_len
 	 * If destination header following AH exists, copy it into after [Ext2].
 	 *
 	 * |<>|[IPv6][Ext1][Ext2][Dest][Payload]
@@ -384,9 +384,9 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 		}
 	}
 
-	skb->nh.raw += ah_hlen;
+	skb->network_header += ah_hlen;
 	memcpy(skb_network_header(skb), tmp_hdr, hdr_len);
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	__skb_pull(skb, ah_hlen + hdr_len);
 
 	kfree(tmp_hdr);

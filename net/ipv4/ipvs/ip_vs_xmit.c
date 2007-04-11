@@ -323,7 +323,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct iphdr  *old_iph = ip_hdr(skb);
 	u8     tos = old_iph->tos;
 	__be16 df = old_iph->frag_off;
-	unsigned char *old_h = skb_transport_header(skb);
+	unsigned char *old_transport_header = skb->transport_header;
 	struct iphdr  *iph;			/* Our new IP header */
 	int    max_headroom;			/* The extra header space needed */
 	int    mtu;
@@ -381,7 +381,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		old_iph = ip_hdr(skb);
 	}
 
-	skb->h.raw = old_h;
+	skb->transport_header = old_transport_header;
 
 	/* fix old IP header checksum */
 	ip_send_check(old_iph);

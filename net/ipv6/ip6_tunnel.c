@@ -701,7 +701,7 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 			goto discard;
 		}
 		secpath_reset(skb);
-		skb->mac.raw = skb->nh.raw;
+		skb->mac_header = skb->network_header;
 		skb_reset_network_header(skb);
 		skb->protocol = htons(protocol);
 		skb->pkt_type = PACKET_HOST;
@@ -898,7 +898,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	dst_release(skb->dst);
 	skb->dst = dst_clone(dst);
 
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 
 	proto = fl->proto;
 	if (encap_limit >= 0) {

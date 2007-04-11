@@ -597,7 +597,7 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 	msg->im_msgtype = assert;
 	igmp->code 	=	0;
 	ip_hdr(skb)->tot_len = htons(skb->len);			/* Fix the length */
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	}
 
 	if (mroute_socket == NULL) {
@@ -1102,7 +1102,7 @@ static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 	struct iphdr *old_iph = ip_hdr(skb);
 
 	skb_push(skb, sizeof(struct iphdr));
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	skb_reset_network_header(skb);
 	iph = ip_hdr(skb);
 
@@ -1461,7 +1461,7 @@ int pim_rcv_v1(struct sk_buff * skb)
 	if (reg_dev == NULL)
 		goto drop;
 
-	skb->mac.raw = skb->nh.raw;
+	skb->mac_header = skb->network_header;
 	skb_pull(skb, (u8*)encap - skb->data);
 	skb_reset_network_header(skb);
 	skb->dev = reg_dev;
@@ -1517,7 +1517,7 @@ static int pim_rcv(struct sk_buff * skb)
 	if (reg_dev == NULL)
 		goto drop;
 
-	skb->mac.raw = skb->nh.raw;
+	skb->mac_header = skb->network_header;
 	skb_pull(skb, (u8*)encap - skb->data);
 	skb_reset_network_header(skb);
 	skb->dev = reg_dev;

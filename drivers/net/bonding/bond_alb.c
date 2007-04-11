@@ -896,7 +896,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 		memcpy(data, &pkt, size);
 
 		skb_reset_mac_header(skb);
-		skb->nh.raw = skb->mac.raw + ETH_HLEN;
+		skb->network_header = skb->mac_header + ETH_HLEN;
 		skb->protocol = pkt.type;
 		skb->priority = TC_PRIO_CONTROL;
 		skb->dev = slave->dev;

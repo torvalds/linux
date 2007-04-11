@@ -83,7 +83,7 @@ static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
 			/* Lifted from Gleb's VLAN code... */
 			memmove(skb->data - ETH_HLEN,
 				skb->data - VLAN_ETH_HLEN, 12);
-			skb->mac.raw += VLAN_HLEN;
+			skb->mac_header += VLAN_HLEN;
 		}
 	}
 

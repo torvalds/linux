@@ -297,7 +297,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	err = memcpy_fromiovecend((void *)iph, from, 0, length);
 	if (err)
 		goto error_fault;

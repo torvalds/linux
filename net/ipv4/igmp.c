@@ -333,7 +333,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 	((u8*)&pip[1])[2] = 0;
 	((u8*)&pip[1])[3] = 0;
 
-	skb->h.raw = skb->nh.raw + sizeof(struct iphdr) + 4;
+	skb->transport_header = skb->network_header + sizeof(struct iphdr) + 4;
 	skb_put(skb, sizeof(*pig));
 	pig = igmpv3_report_hdr(skb);
 	pig->type = IGMPV3_HOST_MEMBERSHIP_REPORT;

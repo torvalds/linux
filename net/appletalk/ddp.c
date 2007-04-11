@@ -1383,10 +1383,10 @@ free_it:
  *	@pt - packet type
  *
  *	Receive a packet (in skb) from device dev. This has come from the SNAP
- *	decoder, and on entry skb->h.raw is the DDP header, skb->len is the DDP
- *	header, skb->len is the DDP length. The physical headers have been
- *	extracted. PPP should probably pass frames marked as for this layer.
- *	[ie ARPHRD_ETHERTALK]
+ *	decoder, and on entry skb->transport_header is the DDP header, skb->len
+ *	is the DDP header, skb->len is the DDP length. The physical headers
+ *	have been extracted. PPP should probably pass frames marked as for this
+ *	layer.  [ie ARPHRD_ETHERTALK]
  */
 static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		     struct packet_type *pt, struct net_device *orig_dev)

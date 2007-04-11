@@ -69,8 +69,8 @@
  *	NONE: skb is checksummed by protocol or csum is not required.
  *
  *	PARTIAL: device is required to csum packet as seen by hard_start_xmit
- *	from skb->h.raw to the end and to record the checksum
- *	at skb->h.raw+skb->csum.
+ *	from skb->transport_header to the end and to record the checksum
+ *	at skb->transport_header + skb->csum.
  *
  *	Device must show its capabilities in dev->features, set
  *	at device setup time.
@@ -188,8 +188,8 @@ enum {
  *	@dev: Device we arrived on/are leaving by
  *	@iif: ifindex of device we arrived on
  *	@h: Transport layer header
- *	@nh: Network layer header
- *	@mac: Link layer header
+ *	@network_header: Network layer header
+ *	@mac_header: Link layer header
  *	@dst: destination entry
  *	@sp: the security path, used for xfrm
  *	@cb: Control buffer. Free for use by every layer. Put private vars here
@@ -236,18 +236,9 @@ struct sk_buff {
 	int			iif;
 	/* 4 byte hole on 64 bit*/
 
-	union {
-		unsigned char	*raw;
-	} h;
-
-	union {
-		unsigned char	*raw;
-	} nh;
-
-	union {
-	  	unsigned char 	*raw;
-	} mac;
-
+	unsigned char		*transport_header;
+	unsigned char		*network_header;
+	unsigned char		*mac_header;
 	struct  dst_entry	*dst;
 	struct	sec_path	*sp;
 
@@ -953,68 +944,68 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 
 static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 {
-	return skb->h.raw;
+	return skb->transport_header;
 }
 
 static inline void skb_reset_transport_header(struct sk_buff *skb)
 {
-	skb->h.raw = skb->data;
+	skb->transport_header = skb->data;
 }
 
 static inline void skb_set_transport_header(struct sk_buff *skb,
 					    const int offset)
 {
-	skb->h.raw = skb->data + offset;
+	skb->transport_header = skb->data + offset;
 }
 
 static inline int skb_transport_offset(const struct sk_buff *skb)
 {
-	return skb->h.raw - skb->data;
+	return skb->transport_header - skb->data;
 }
 
 static inline unsigned char *skb_network_header(const struct sk_buff *skb)
 {
-	return skb->nh.raw;
+	return skb->network_header;
 }
 
 static inline void skb_reset_network_header(struct sk_buff *skb)
 {
-	skb->nh.raw = skb->data;
+	skb->network_header = skb->data;
 }
 
 static inline void skb_set_network_header(struct sk_buff *skb, const int offset)
 {
-	skb->nh.raw = skb->data + offset;
+	skb->network_header = skb->data + offset;
 }
 
 static inline int skb_network_offset(const struct sk_buff *skb)
 {
-	return skb->nh.raw - skb->data;
+	return skb->network_header - skb->data;
 }
 
 static inline u32 skb_network_header_len(const struct sk_buff *skb)
 {
-	return skb->h.raw - skb->nh.raw;
+	return skb->transport_header - skb->network_header;
 }
 
 static inline unsigned char *skb_mac_header(const struct sk_buff *skb)
 {
-	return skb->mac.raw;
+	return skb->mac_header;
 }
 
 static inline int skb_mac_header_was_set(const struct sk_buff *skb)
 {
-	return skb->mac.raw != NULL;
+	return skb->mac_header != NULL;
 }
 
 static inline void skb_reset_mac_header(struct sk_buff *skb)
 {
-	skb->mac.raw = skb->data;
+	skb->mac_header = skb->data;
 }
 
 static inline void skb_set_mac_header(struct sk_buff *skb, const int offset)
 {
-	skb->mac.raw = skb->data + offset;
+	skb->mac_header = skb->data + offset;
 }
 
 /*

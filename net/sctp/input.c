@@ -522,14 +522,14 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	}
 
 	/* Fix up skb to look at the embedded net header. */
-	saveip = skb->nh.raw;
-	savesctp  = skb->h.raw;
+	saveip = skb->network_header;
+	savesctp = skb->transport_header;
 	skb_reset_network_header(skb);
 	skb_set_transport_header(skb, ihlen);
 	sk = sctp_err_lookup(AF_INET, skb, sctp_hdr(skb), &asoc, &transport);
 	/* Put back, the original pointers. */
-	skb->nh.raw = saveip;
-	skb->h.raw = savesctp;
+	skb->network_header = saveip;
+	skb->transport_header = savesctp;
 	if (!sk) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
 		return;

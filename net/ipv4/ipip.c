@@ -485,7 +485,7 @@ static int ipip_rcv(struct sk_buff *skb)
 
 		secpath_reset(skb);
 
-		skb->mac.raw = skb->nh.raw;
+		skb->mac_header = skb->network_header;
 		skb_reset_network_header(skb);
 		skb->protocol = htons(ETH_P_IP);
 		skb->pkt_type = PACKET_HOST;
@@ -617,7 +617,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		old_iph = ip_hdr(skb);
 	}
 
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	skb_push(skb, sizeof(struct iphdr));
 	skb_reset_network_header(skb);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));

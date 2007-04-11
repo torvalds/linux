@@ -33,7 +33,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	int hdrlen, optlen;
 
 	iph = ip_hdr(skb);
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 
 	hdrlen = 0;
 	optlen = iph->ihl * 4 - sizeof(*iph);
@@ -43,7 +43,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	skb_push(skb, x->props.header_len + hdrlen);
 	skb_reset_network_header(skb);
 	top_iph = ip_hdr(skb);
-	skb->h.raw += sizeof(*iph) - hdrlen;
+	skb->transport_header += sizeof(*iph) - hdrlen;
 
 	memmove(top_iph, iph, sizeof(*iph));
 	if (unlikely(optlen)) {

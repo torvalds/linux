@@ -2358,7 +2358,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	}
 
 	skb_set_network_header(skb, skb->tail - skb->data);
-	skb->h.raw = skb->nh.raw + sizeof(struct iphdr);
+	skb->transport_header = skb->network_header + sizeof(struct iphdr);
 	skb_put(skb, sizeof(struct iphdr) + sizeof(struct udphdr));
 
 	iph = ip_hdr(skb);
@@ -2391,9 +2391,9 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	iph->check = 0;
 	iph->check = ip_fast_csum((void *)iph, iph->ihl);
 	skb->protocol = protocol;
-	skb->mac.raw = (skb->nh.raw - ETH_HLEN -
-			pkt_dev->nr_labels * sizeof(u32) -
-			VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev));
+	skb->mac_header = (skb->network_header - ETH_HLEN -
+			   pkt_dev->nr_labels * sizeof(u32) -
+			   VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev));
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
 
@@ -2697,7 +2697,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	}
 
 	skb_set_network_header(skb, skb->tail - skb->data);
-	skb->h.raw = skb->nh.raw + sizeof(struct ipv6hdr);
+	skb->transport_header = skb->network_header + sizeof(struct ipv6hdr);
 	skb_put(skb, sizeof(struct ipv6hdr) + sizeof(struct udphdr));
 
 	iph = ipv6_hdr(skb);
@@ -2738,9 +2738,9 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	ipv6_addr_copy(&iph->daddr, &pkt_dev->cur_in6_daddr);
 	ipv6_addr_copy(&iph->saddr, &pkt_dev->cur_in6_saddr);
 
-	skb->mac.raw = (skb->nh.raw - ETH_HLEN -
-			pkt_dev->nr_labels * sizeof(u32) -
-			VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev));
+	skb->mac_header = (skb->network_header - ETH_HLEN -
+			   pkt_dev->nr_labels * sizeof(u32) -
+			   VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev));
 	skb->protocol = protocol;
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
