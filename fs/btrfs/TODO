@@ -6,9 +6,7 @@
 * Make sure nobh stuff is working properly for cows
 * Do actual block accounting
 * Check compat and incompat flags on the inode
-* Add virtual filesystems, mountable snapshots
 * Get rid of struct ctree_path, limiting tree levels held at one time
-* EEXIST for dirs instead of hash overflow
 * Release
 * Do real tree locking
 * Add extent mirroring (backup copies of blocks)
@@ -20,10 +18,3 @@
 * fsck
 * Scrub & defrag
 
----
-metata FS ideas:
-mount metadata FS on /sys/fs/btrfs/dev/
-subvolumes in /sys/fs/btrfs/dev/fs/
-snapshots in /sys/fs/btrfs/dev/fs/snapshots
-mount -o bind
-ioctl to create a snapshot
