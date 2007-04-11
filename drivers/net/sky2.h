@@ -741,6 +741,11 @@ enum {
 	TX_GMF_RP	= 0x0d70,/* 32 bit 	Tx GMAC FIFO Read Pointer */
 	TX_GMF_RSTP	= 0x0d74,/* 32 bit 	Tx GMAC FIFO Restart Pointer */
 	TX_GMF_RLEV	= 0x0d78,/* 32 bit 	Tx GMAC FIFO Read Level */
+
+	/* Threshold values for Yukon-EC Ultra and Extreme */
+	ECU_AE_THR	= 0x0070, /* Almost Empty Threshold */
+	ECU_TXFF_LEV	= 0x01a0, /* Tx BMU FIFO Level */
+	ECU_JUMBO_WM	= 0x0080, /* Jumbo Mode Watermark */
 };
 
 /* Descriptor Poll Timer Registers */
@@ -1633,6 +1638,9 @@ enum {
 
 	TX_VLAN_TAG_ON	= 1<<25,/* enable  VLAN tagging */
 	TX_VLAN_TAG_OFF	= 1<<24,/* disable VLAN tagging */
+
+	TX_JUMBO_ENA	= 1<<23,/* PCI Jumbo Mode enable (Yukon-EC Ultra) */
+	TX_JUMBO_DIS	= 1<<22,/* PCI Jumbo Mode enable (Yukon-EC Ultra) */
 
 	GMF_WSP_TST_ON	= 1<<18,/* Write Shadow Pointer Test On */
 	GMF_WSP_TST_OFF	= 1<<17,/* Write Shadow Pointer Test Off */
