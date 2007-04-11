@@ -194,15 +194,13 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_stat,
 
 	if (link_stat != netif_carrier_ok(dev)) {
 		if (link_stat) {
-			t3_set_reg_field(adapter,
-					 A_XGM_TXFIFO_CFG + mac->offset,
-					 F_ENDROPPKT, 0);
+			t3_mac_enable(mac, MAC_DIRECTION_RX);
 			netif_carrier_on(dev);
 		} else {
 			netif_carrier_off(dev);
-			t3_set_reg_field(adapter,
-					 A_XGM_TXFIFO_CFG + mac->offset,
-					 F_ENDROPPKT, F_ENDROPPKT);
+			pi->phy.ops->power_down(&pi->phy, 1);
+			t3_mac_disable(mac, MAC_DIRECTION_RX);
+			t3_link_start(&pi->phy, mac, &pi->link_config);
 		}
 
 		link_report(dev);
@@ -772,6 +770,8 @@ static int cxgb_up(struct adapter *adap)
 		if (err)
 			goto out;
 
+		t3_write_reg(adap, A_ULPRX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
+		
 		err = setup_sge_qsets(adap);
 		if (err)
 			goto out;
@@ -2119,7 +2119,9 @@ static void check_t3b2_mac(struct adapter *adapter)
 {
 	int i;
 
-	rtnl_lock();                      /* synchronize with ifdown */
+	if (!rtnl_trylock())	/* synchronize with ifdown */
+		return;
+
 	for_each_port(adapter, i) {
 		struct net_device *dev = adapter->port[i];
 		struct port_info *p = netdev_priv(dev);
