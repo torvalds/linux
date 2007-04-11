@@ -932,7 +932,7 @@ static int autosuspend_check(struct usb_device *udev)
 {
 	int			i;
 	struct usb_interface	*intf;
-	long			suspend_time;
+	unsigned long		suspend_time;
 
 	/* For autosuspend, fail fast if anything is in use or autosuspend
 	 * is disabled.  Also fail if any interfaces require remote wakeup
@@ -964,11 +964,18 @@ static int autosuspend_check(struct usb_device *udev)
 	/* If everything is okay but the device hasn't been idle for long
 	 * enough, queue a delayed autosuspend request.
 	 */
-	suspend_time -= jiffies;
-	if (suspend_time > 0) {
-		if (!timer_pending(&udev->autosuspend.timer))
+	if (time_after(suspend_time, jiffies)) {
+		if (!timer_pending(&udev->autosuspend.timer)) {
+
+			/* The value of jiffies may change between the
+			 * time_after() comparison above and the subtraction
+			 * below.  That's okay; the system behaves sanely
+			 * when a timer is registered for the present moment
+			 * or for the past.
+			 */
 			queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
-					suspend_time);
+					suspend_time - jiffies);
+			}
 		return -EAGAIN;
 	}
 	return 0;
