@@ -142,7 +142,8 @@ void gunzip_exactly(struct gunzip_state *state, void *dst, int dstlen)
 
 	len  = gunzip_partial(state, dst, dstlen);
 	if (len < dstlen)
-		fatal("gunzip_block: ran out of data\n\r");
+		fatal("\n\rgunzip_exactly: ran out of data!"
+				" Wanted %d, got %d.\n\r", dstlen, len);
 }
 
 /**
