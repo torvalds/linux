@@ -80,7 +80,7 @@ static int lookup_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root)
 {
-	return inc_block_ref(trans, root, root->node->b_blocknr, 1);
+	return inc_block_ref(trans, root, bh_blocknr(root->node), 1);
 }
 
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -563,7 +563,7 @@ static int walk_down_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	WARN_ON(*level < 0);
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
-	ret = lookup_block_ref(trans, root, path->nodes[*level]->b_blocknr,
+	ret = lookup_block_ref(trans, root, bh_blocknr(path->nodes[*level]),
 			       1, &refs);
 	BUG_ON(ret);
 	if (refs > 1)
@@ -607,7 +607,7 @@ out:
 	WARN_ON(*level < 0);
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
 	ret = btrfs_free_extent(trans, root,
-				path->nodes[*level]->b_blocknr, 1, 1);
+				bh_blocknr(path->nodes[*level]), 1, 1);
 	btrfs_block_release(root, path->nodes[*level]);
 	path->nodes[*level] = NULL;
 	*level += 1;
@@ -635,7 +635,7 @@ static int walk_up_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 			return 0;
 		} else {
 			ret = btrfs_free_extent(trans, root,
-						path->nodes[*level]->b_blocknr,
+						bh_blocknr(path->nodes[*level]),
 						1, 1);
 			BUG_ON(ret);
 			btrfs_block_release(root, path->nodes[*level]);

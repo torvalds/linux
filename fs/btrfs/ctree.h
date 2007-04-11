@@ -242,6 +242,7 @@ struct btrfs_fs_info {
 	struct radix_tree_root fs_roots_radix;
 	struct radix_tree_root pending_del_radix;
 	struct radix_tree_root pinned_radix;
+	struct radix_tree_root dev_radix;
 	u64 generation;
 	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block *disk_super;

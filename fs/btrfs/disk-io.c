@@ -10,10 +10,30 @@
 #include "transaction.h"
 #include "btrfs_inode.h"
 
+struct dev_lookup {
+	u64 block_start;
+	u64 num_blocks;
+	struct block_device *bdev;
+};
+
+u64 bh_blocknr(struct buffer_head *bh)
+{
+	int blkbits = bh->b_page->mapping->host->i_blkbits;
+	u64 blocknr = bh->b_page->index << (PAGE_CACHE_SHIFT - blkbits);
+	unsigned long offset;
+
+	if (PageHighMem(bh->b_page))
+		offset = (unsigned long)bh->b_data;
+	else
+		offset = bh->b_data - (char *)page_address(bh->b_page);
+	blocknr += offset >> (PAGE_CACHE_SHIFT - blkbits);
+	return blocknr;
+}
+
 static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 {
 	struct btrfs_node *node = btrfs_buffer_node(buf);
-	if (buf->b_blocknr != btrfs_header_blocknr(&node->header)) {
+	if (bh_blocknr(buf) != btrfs_header_blocknr(&node->header)) {
 		BUG();
 	}
 	return 0;
@@ -40,7 +60,7 @@ struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr)
 	head = page_buffers(page);
 	bh = head;
 	do {
-		if (buffer_mapped(bh) && bh->b_blocknr == blocknr) {
+		if (buffer_mapped(bh) && bh_blocknr(bh) == blocknr) {
 			ret = bh;
 			get_bh(bh);
 			goto out_unlock;
@@ -56,6 +76,33 @@ out_unlock:
 	return ret;
 }
 
+static int map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
+			     u64 logical)
+{
+	struct dev_lookup *lookup[2];
+	char b[BDEVNAME_SIZE];
+
+	int ret;
+
+	root = root->fs_info->dev_root;
+	ret = radix_tree_gang_lookup(&root->fs_info->dev_radix,
+				     (void **)lookup,
+				     (unsigned long)logical,
+				     ARRAY_SIZE(lookup));
+	if (ret == 0 || lookup[0]->block_start > logical ||
+	    lookup[0]->block_start + lookup[0]->num_blocks <= logical) {
+		ret = -ENOENT;
+		goto out;
+	}
+	bh->b_bdev = lookup[0]->bdev;
+	bh->b_blocknr = logical - lookup[0]->block_start;
+printk("logical mapping %Lu to %lu bdev  %s\n", logical, bh->b_blocknr, bdevname(bh->b_bdev, b));
+	set_buffer_mapped(bh);
+	ret = 0;
+out:
+	return ret;
+}
+
 struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 blocknr)
 {
@@ -66,6 +113,7 @@ struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 	struct buffer_head *bh;
 	struct buffer_head *head;
 	struct buffer_head *ret = NULL;
+	int err;
 	u64 first_block = index << (PAGE_CACHE_SHIFT - blockbits);
 
 	page = grab_cache_page(mapping, index);
@@ -78,11 +126,10 @@ struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 	bh = head;
 	do {
 		if (!buffer_mapped(bh)) {
-			bh->b_bdev = root->fs_info->sb->s_bdev;
-			bh->b_blocknr = first_block;
-			set_buffer_mapped(bh);
+			err = map_bh_to_logical(root, bh, first_block);
+			BUG_ON(err);
 		}
-		if (bh->b_blocknr == blocknr) {
+		if (bh_blocknr(bh) == blocknr) {
 			ret = bh;
 			get_bh(bh);
 			goto out_unlock;
@@ -98,38 +145,13 @@ out_unlock:
 	return ret;
 }
 
-static sector_t max_block(struct block_device *bdev)
-{
-	sector_t retval = ~((sector_t)0);
-	loff_t sz = i_size_read(bdev->bd_inode);
-
-	if (sz) {
-		unsigned int size = block_size(bdev);
-		unsigned int sizebits = blksize_bits(size);
-		retval = (sz >> sizebits);
-	}
-	return retval;
-}
-
 static int btree_get_block(struct inode *inode, sector_t iblock,
 			   struct buffer_head *bh, int create)
 {
-	if (iblock >= max_block(inode->i_sb->s_bdev)) {
-		if (create)
-			return -EIO;
-
-		/*
-		 * for reads, we're just trying to fill a partial page.
-		 * return a hole, they will have to call get_block again
-		 * before they can fill it, and they will get -EIO at that
-		 * time
-		 */
-		return 0;
-	}
-	bh->b_bdev = inode->i_sb->s_bdev;
-	bh->b_blocknr = iblock;
-	set_buffer_mapped(bh);
-	return 0;
+	int err;
+	struct btrfs_root *root = BTRFS_I(bh->b_page->mapping->host)->root;
+	err = map_bh_to_logical(root, bh, iblock);
+	return err;
 }
 
 int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
@@ -164,8 +186,8 @@ static int csum_tree_block(struct btrfs_root *root, struct buffer_head *bh,
 		return ret;
 	if (verify) {
 		if (memcmp(bh->b_data, result, BTRFS_CSUM_SIZE)) {
-			printk("checksum verify failed on %lu\n",
-			       bh->b_blocknr);
+			printk("checksum verify failed on %Lu\n",
+			       bh_blocknr(bh));
 			return 1;
 		}
 	} else {
@@ -386,10 +408,12 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 						GFP_NOFS);
 	int ret;
 	struct btrfs_super_block *disk_super;
+	struct dev_lookup *dev_lookup;
 
 	init_bit_radix(&fs_info->pinned_radix);
 	init_bit_radix(&fs_info->pending_del_radix);
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
+	INIT_RADIX_TREE(&fs_info->dev_radix, GFP_NOFS);
 	sb_set_blocksize(sb, 4096);
 	fs_info->running_transaction = NULL;
 	fs_info->tree_root = tree_root;
@@ -422,6 +446,13 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 
 	__setup_root(sb->s_blocksize, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
+
+	dev_lookup = kmalloc(sizeof(*dev_lookup), GFP_NOFS);
+	dev_lookup->block_start = 0;
+	dev_lookup->num_blocks = (u32)-2;
+	dev_lookup->bdev = sb->s_bdev;
+	ret = radix_tree_insert(&fs_info->dev_radix, (u32)-2, dev_lookup);
+	BUG_ON(ret);
 	fs_info->sb_buffer = read_tree_block(tree_root,
 					     BTRFS_SUPER_INFO_OFFSET /
 					     sb->s_blocksize);
@@ -431,6 +462,14 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	disk_super = (struct btrfs_super_block *)fs_info->sb_buffer->b_data;
 	if (!btrfs_super_root(disk_super))
 		return NULL;
+
+	radix_tree_delete(&fs_info->dev_radix, (u32)-2);
+	dev_lookup->block_start = btrfs_super_device_block_start(disk_super);
+	dev_lookup->num_blocks = btrfs_super_device_num_blocks(disk_super);
+	ret = radix_tree_insert(&fs_info->dev_radix,
+				dev_lookup->block_start +
+				dev_lookup->num_blocks, dev_lookup);
+	BUG_ON(ret);
 
 	fs_info->disk_super = disk_super;
 	dev_root->node = read_tree_block(tree_root,
@@ -459,7 +498,7 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct buffer_head *bh = root->fs_info->sb_buffer;
 
 	btrfs_set_super_root(root->fs_info->disk_super,
-			     root->fs_info->tree_root->node->b_blocknr);
+			     bh_blocknr(root->fs_info->tree_root->node));
 	lock_buffer(bh);
 	WARN_ON(atomic_read(&bh->b_count) < 1);
 	clear_buffer_dirty(bh);
@@ -506,6 +545,29 @@ int del_fs_roots(struct btrfs_fs_info *fs_info)
 	}
 	return 0;
 }
+static int free_dev_radix(struct btrfs_fs_info *fs_info)
+{
+	struct dev_lookup *lookup[8];
+	struct block_device *super_bdev = fs_info->sb->s_bdev;
+	int ret;
+	int i;
+	while(1) {
+		ret = radix_tree_gang_lookup(&fs_info->dev_radix,
+					     (void **)lookup, 0,
+					     ARRAY_SIZE(lookup));
+		if (!ret)
+			break;
+		for (i = 0; i < ret; i++) {
+			if (lookup[i]->bdev != super_bdev)
+				close_bdev_excl(lookup[i]->bdev);
+			radix_tree_delete(&fs_info->dev_radix,
+					  lookup[i]->block_start +
+					  lookup[i]->num_blocks);
+			kfree(lookup[i]);
+		}
+	}
+	return 0;
+}
 
 int close_ctree(struct btrfs_root *root)
 {
@@ -537,6 +599,8 @@ int close_ctree(struct btrfs_root *root)
 	crypto_free_hash(fs_info->hash_tfm);
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
 	iput(fs_info->btree_inode);
+
+	free_dev_radix(fs_info);
 	del_fs_roots(fs_info);
 	kfree(fs_info->extent_root);
 	kfree(fs_info->tree_root);

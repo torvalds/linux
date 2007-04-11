@@ -1700,7 +1700,7 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	leaf = btrfs_buffer_leaf(subvol);
 	btrfs_set_header_nritems(&leaf->header, 0);
 	btrfs_set_header_level(&leaf->header, 0);
-	btrfs_set_header_blocknr(&leaf->header, subvol->b_blocknr);
+	btrfs_set_header_blocknr(&leaf->header, bh_blocknr(subvol));
 	btrfs_set_header_generation(&leaf->header, trans->transid);
 	memcpy(leaf->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(leaf->header.fsid));
@@ -1713,7 +1713,7 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	btrfs_set_inode_nblocks(inode_item, 1);
 	btrfs_set_inode_mode(inode_item, S_IFDIR | 0755);
 
-	btrfs_set_root_blocknr(&root_item, subvol->b_blocknr);
+	btrfs_set_root_blocknr(&root_item, bh_blocknr(subvol));
 	btrfs_set_root_refs(&root_item, 1);
 
 	mark_buffer_dirty(subvol);
@@ -1803,7 +1803,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	key.offset = 1;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
-	btrfs_set_root_blocknr(&new_root_item, root->node->b_blocknr);
+	btrfs_set_root_blocknr(&new_root_item, bh_blocknr(root->node));
 
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				&new_root_item);

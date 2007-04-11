@@ -119,10 +119,10 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 
 	while(1) {
 		old_extent_block = btrfs_root_blocknr(&extent_root->root_item);
-		if (old_extent_block == extent_root->node->b_blocknr)
+		if (old_extent_block == bh_blocknr(extent_root->node))
 			break;
 		btrfs_set_root_blocknr(&extent_root->root_item,
-				       extent_root->node->b_blocknr);
+				       bh_blocknr(extent_root->node));
 		ret = btrfs_update_root(trans, tree_root,
 					&extent_root->root_key,
 					&extent_root->root_item);
@@ -176,7 +176,7 @@ int add_dirty_roots(struct btrfs_trans_handle *trans,
 				     (unsigned long)root->root_key.objectid,
 				     BTRFS_ROOT_TRANS_TAG);
 			if (root->commit_root == root->node) {
-				WARN_ON(root->node->b_blocknr !=
+				WARN_ON(bh_blocknr(root->node) !=
 					btrfs_root_blocknr(&root->root_item));
 				brelse(root->commit_root);
 				root->commit_root = NULL;
@@ -191,7 +191,7 @@ int add_dirty_roots(struct btrfs_trans_handle *trans,
 			dirty->root = root;
 			root->root_key.offset = root->fs_info->generation;
 			btrfs_set_root_blocknr(&root->root_item,
-					       root->node->b_blocknr);
+					       bh_blocknr(root->node));
 			err = btrfs_insert_root(trans, root->fs_info->tree_root,
 						&root->root_key,
 						&root->root_item);
