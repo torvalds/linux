@@ -463,17 +463,17 @@ static inline iw_handler get_handler(struct net_device *dev,
 	unsigned int	index;		/* *MUST* be unsigned */
 
 	/* Check if we have some wireless handlers defined */
-	if(dev->wireless_handlers == NULL)
+	if (dev->wireless_handlers == NULL)
 		return NULL;
 
 	/* Try as a standard command */
 	index = cmd - SIOCIWFIRST;
-	if(index < dev->wireless_handlers->num_standard)
+	if (index < dev->wireless_handlers->num_standard)
 		return dev->wireless_handlers->standard[index];
 
 	/* Try as a private command */
 	index = cmd - SIOCIWFIRSTPRIV;
-	if(index < dev->wireless_handlers->num_private)
+	if (index < dev->wireless_handlers->num_private)
 		return dev->wireless_handlers->private[index];
 
 	/* Not found */
@@ -487,7 +487,7 @@ static inline iw_handler get_handler(struct net_device *dev,
 static inline struct iw_statistics *get_wireless_stats(struct net_device *dev)
 {
 	/* New location */
-	if((dev->wireless_handlers != NULL) &&
+	if ((dev->wireless_handlers != NULL) &&
 	   (dev->wireless_handlers->get_wireless_stats != NULL))
 		return dev->wireless_handlers->get_wireless_stats(dev);
 
@@ -516,7 +516,7 @@ static inline struct iw_statistics *get_wireless_stats(struct net_device *dev)
  */
 static inline int call_commit_handler(struct net_device *	dev)
 {
-	if((netif_running(dev)) &&
+	if ((netif_running(dev)) &&
 	   (dev->wireless_handlers->standard[0] != NULL)) {
 		/* Call the commit handler on the driver */
 		return dev->wireless_handlers->standard[0](dev, NULL,
@@ -577,7 +577,7 @@ static int iw_handler_get_iwstats(struct net_device *		dev,
 		wrqu->data.length = sizeof(struct iw_statistics);
 
 		/* Check if we need to clear the updated flag */
-		if(wrqu->data.flags != 0)
+		if (wrqu->data.flags != 0)
 			stats->qual.updated &= ~IW_QUAL_ALL_UPDATED;
 		return 0;
 	} else
@@ -596,12 +596,12 @@ static int iw_handler_get_private(struct net_device *		dev,
 				  char *			extra)
 {
 	/* Check if the driver has something to export */
-	if((dev->wireless_handlers->num_private_args == 0) ||
+	if ((dev->wireless_handlers->num_private_args == 0) ||
 	   (dev->wireless_handlers->private_args == NULL))
 		return -EOPNOTSUPP;
 
 	/* Check if there is enough buffer up there */
-	if(wrqu->data.length < dev->wireless_handlers->num_private_args) {
+	if (wrqu->data.length < dev->wireless_handlers->num_private_args) {
 		/* User space can't know in advance how large the buffer
 		 * needs to be. Give it a hint, so that we can support
 		 * any size buffer we want somewhat efficiently... */
@@ -735,7 +735,7 @@ static int ioctl_standard_call(struct net_device *	dev,
 	int					ret = -EINVAL;
 
 	/* Get the description of the IOCTL */
-	if((cmd - SIOCIWFIRST) >= standard_ioctl_num)
+	if ((cmd - SIOCIWFIRST) >= standard_ioctl_num)
 		return -EOPNOTSUPP;
 	descr = &(standard_ioctl[cmd - SIOCIWFIRST]);
 
@@ -750,14 +750,14 @@ static int ioctl_standard_call(struct net_device *	dev,
 	info.flags = 0;
 
 	/* Check if we have a pointer to user space data or not */
-	if(descr->header_type != IW_HEADER_TYPE_POINT) {
+	if (descr->header_type != IW_HEADER_TYPE_POINT) {
 
 		/* No extra arguments. Trivial to handle */
 		ret = handler(dev, &info, &(iwr->u), NULL);
 
 #ifdef WE_SET_EVENT
 		/* Generate an event to notify listeners of the change */
-		if((descr->flags & IW_DESCR_FLAG_EVENT) &&
+		if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
 		   ((ret == 0) || (ret == -EIWCOMMIT)))
 			wireless_send_event(dev, cmd, &(iwr->u), NULL);
 #endif	/* WE_SET_EVENT */
@@ -800,19 +800,19 @@ static int ioctl_standard_call(struct net_device *	dev,
 		iwr->u.data.length -= essid_compat;
 
 		/* Check what user space is giving us */
-		if(IW_IS_SET(cmd)) {
+		if (IW_IS_SET(cmd)) {
 			/* Check NULL pointer */
-			if((iwr->u.data.pointer == NULL) &&
+			if ((iwr->u.data.pointer == NULL) &&
 			   (iwr->u.data.length != 0))
 				return -EFAULT;
 			/* Check if number of token fits within bounds */
-			if(iwr->u.data.length > descr->max_tokens)
+			if (iwr->u.data.length > descr->max_tokens)
 				return -E2BIG;
-			if(iwr->u.data.length < descr->min_tokens)
+			if (iwr->u.data.length < descr->min_tokens)
 				return -EINVAL;
 		} else {
 			/* Check NULL pointer */
-			if(iwr->u.data.pointer == NULL)
+			if (iwr->u.data.pointer == NULL)
 				return -EFAULT;
 			/* Save user space buffer size for checking */
 			user_length = iwr->u.data.length;
@@ -822,7 +822,7 @@ static int ioctl_standard_call(struct net_device *	dev,
 			 * implied by the test at the end. */
 
 			/* Support for very large requests */
-			if((descr->flags & IW_DESCR_FLAG_NOMAX) &&
+			if ((descr->flags & IW_DESCR_FLAG_NOMAX) &&
 			   (user_length > descr->max_tokens)) {
 				/* Allow userspace to GET more than max so
 				 * we can support any size GET requests.
@@ -848,7 +848,7 @@ static int ioctl_standard_call(struct net_device *	dev,
 		}
 
 		/* If it is a SET, get all the extra data in here */
-		if(IW_IS_SET(cmd) && (iwr->u.data.length != 0)) {
+		if (IW_IS_SET(cmd) && (iwr->u.data.length != 0)) {
 			err = copy_from_user(extra, iwr->u.data.pointer,
 					     iwr->u.data.length *
 					     descr->token_size);
@@ -871,7 +871,7 @@ static int ioctl_standard_call(struct net_device *	dev,
 		/* If we have something to return to the user */
 		if (!ret && IW_IS_GET(cmd)) {
 			/* Check if there is enough buffer up there */
-			if(user_length < iwr->u.data.length) {
+			if (user_length < iwr->u.data.length) {
 				kfree(extra);
 				return -E2BIG;
 			}
@@ -890,9 +890,9 @@ static int ioctl_standard_call(struct net_device *	dev,
 
 #ifdef WE_SET_EVENT
 		/* Generate an event to notify listeners of the change */
-		if((descr->flags & IW_DESCR_FLAG_EVENT) &&
+		if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
 		   ((ret == 0) || (ret == -EIWCOMMIT))) {
-			if(descr->flags & IW_DESCR_FLAG_RESTRICT)
+			if (descr->flags & IW_DESCR_FLAG_RESTRICT)
 				/* If the event is restricted, don't
 				 * export the payload */
 				wireless_send_event(dev, cmd, &(iwr->u), NULL);
@@ -907,7 +907,7 @@ static int ioctl_standard_call(struct net_device *	dev,
 	}
 
 	/* Call commit handler if needed and defined */
-	if(ret == -EIWCOMMIT)
+	if (ret == -EIWCOMMIT)
 		ret = call_commit_handler(dev);
 
 	/* Here, we will generate the appropriate event if needed */
@@ -944,8 +944,8 @@ static inline int ioctl_private_call(struct net_device *	dev,
 	int				ret = -EINVAL;
 
 	/* Get the description of the IOCTL */
-	for(i = 0; i < dev->wireless_handlers->num_private_args; i++)
-		if(cmd == dev->wireless_handlers->private_args[i].cmd) {
+	for (i = 0; i < dev->wireless_handlers->num_private_args; i++)
+		if (cmd == dev->wireless_handlers->private_args[i].cmd) {
 			descr = &(dev->wireless_handlers->private_args[i]);
 			break;
 		}
@@ -953,7 +953,7 @@ static inline int ioctl_private_call(struct net_device *	dev,
 #ifdef WE_IOCTL_DEBUG
 	printk(KERN_DEBUG "%s (WE) : Found private handler for 0x%04X\n",
 	       ifr->ifr_name, cmd);
-	if(descr) {
+	if (descr) {
 		printk(KERN_DEBUG "%s (WE) : Name %s, set %X, get %X\n",
 		       dev->name, descr->name,
 		       descr->set_args, descr->get_args);
@@ -961,11 +961,11 @@ static inline int ioctl_private_call(struct net_device *	dev,
 #endif	/* WE_IOCTL_DEBUG */
 
 	/* Compute the size of the set/get arguments */
-	if(descr != NULL) {
-		if(IW_IS_SET(cmd)) {
+	if (descr != NULL) {
+		if (IW_IS_SET(cmd)) {
 			int	offset = 0;	/* For sub-ioctls */
 			/* Check for sub-ioctl handler */
-			if(descr->name[0] == '\0')
+			if (descr->name[0] == '\0')
 				/* Reserve one int for sub-ioctl index */
 				offset = sizeof(__u32);
 
@@ -973,7 +973,7 @@ static inline int ioctl_private_call(struct net_device *	dev,
 			extra_size = get_priv_size(descr->set_args);
 
 			/* Does it fits in iwr ? */
-			if((descr->set_args & IW_PRIV_SIZE_FIXED) &&
+			if ((descr->set_args & IW_PRIV_SIZE_FIXED) &&
 			   ((extra_size + offset) <= IFNAMSIZ))
 				extra_size = 0;
 		} else {
@@ -981,7 +981,7 @@ static inline int ioctl_private_call(struct net_device *	dev,
 			extra_size = get_priv_size(descr->get_args);
 
 			/* Does it fits in iwr ? */
-			if((descr->get_args & IW_PRIV_SIZE_FIXED) &&
+			if ((descr->get_args & IW_PRIV_SIZE_FIXED) &&
 			   (extra_size <= IFNAMSIZ))
 				extra_size = 0;
 		}
@@ -992,7 +992,7 @@ static inline int ioctl_private_call(struct net_device *	dev,
 	info.flags = 0;
 
 	/* Check if we have a pointer to user space data or not. */
-	if(extra_size == 0) {
+	if (extra_size == 0) {
 		/* No extra arguments. Trivial to handle */
 		ret = handler(dev, &info, &(iwr->u), (char *) &(iwr->u));
 	} else {
@@ -1000,19 +1000,19 @@ static inline int ioctl_private_call(struct net_device *	dev,
 		int	err;
 
 		/* Check what user space is giving us */
-		if(IW_IS_SET(cmd)) {
+		if (IW_IS_SET(cmd)) {
 			/* Check NULL pointer */
-			if((iwr->u.data.pointer == NULL) &&
+			if ((iwr->u.data.pointer == NULL) &&
 			   (iwr->u.data.length != 0))
 				return -EFAULT;
 
 			/* Does it fits within bounds ? */
-			if(iwr->u.data.length > (descr->set_args &
+			if (iwr->u.data.length > (descr->set_args &
 						 IW_PRIV_SIZE_MASK))
 				return -E2BIG;
 		} else {
 			/* Check NULL pointer */
-			if(iwr->u.data.pointer == NULL)
+			if (iwr->u.data.pointer == NULL)
 				return -EFAULT;
 		}
 
@@ -1029,7 +1029,7 @@ static inline int ioctl_private_call(struct net_device *	dev,
 		}
 
 		/* If it is a SET, get all the extra data in here */
-		if(IW_IS_SET(cmd) && (iwr->u.data.length != 0)) {
+		if (IW_IS_SET(cmd) && (iwr->u.data.length != 0)) {
 			err = copy_from_user(extra, iwr->u.data.pointer,
 					     extra_size);
 			if (err) {
@@ -1071,7 +1071,7 @@ static inline int ioctl_private_call(struct net_device *	dev,
 
 
 	/* Call commit handler if needed and defined */
-	if(ret == -EIWCOMMIT)
+	if (ret == -EIWCOMMIT)
 		ret = call_commit_handler(dev);
 
 	return ret;
@@ -1098,51 +1098,50 @@ int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd)
 	/* A bunch of special cases, then the generic case...
 	 * Note that 'cmd' is already filtered in dev_ioctl() with
 	 * (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) */
-	switch(cmd)
-	{
-		case SIOCGIWSTATS:
-			/* Get Wireless Stats */
+	switch (cmd) {
+	case SIOCGIWSTATS:
+		/* Get Wireless Stats */
+		return ioctl_standard_call(dev,
+					   ifr,
+					   cmd,
+					   &iw_handler_get_iwstats);
+
+	case SIOCGIWPRIV:
+		/* Check if we have some wireless handlers defined */
+		if (dev->wireless_handlers != NULL) {
+			/* We export to user space the definition of
+			 * the private handler ourselves */
 			return ioctl_standard_call(dev,
 						   ifr,
 						   cmd,
-						   &iw_handler_get_iwstats);
-
-		case SIOCGIWPRIV:
-			/* Check if we have some wireless handlers defined */
-			if(dev->wireless_handlers != NULL) {
-				/* We export to user space the definition of
-				 * the private handler ourselves */
+						   &iw_handler_get_private);
+		}
+		// ## Fall-through for old API ##
+	default:
+		/* Generic IOCTL */
+		/* Basic check */
+		if (!netif_device_present(dev))
+			return -ENODEV;
+		/* New driver API : try to find the handler */
+		handler = get_handler(dev, cmd);
+		if (handler != NULL) {
+			/* Standard and private are not the same */
+			if (cmd < SIOCIWFIRSTPRIV)
 				return ioctl_standard_call(dev,
 							   ifr,
 							   cmd,
-							   &iw_handler_get_private);
-			}
-			// ## Fall-through for old API ##
-		default:
-			/* Generic IOCTL */
-			/* Basic check */
-			if (!netif_device_present(dev))
-				return -ENODEV;
-			/* New driver API : try to find the handler */
-			handler = get_handler(dev, cmd);
-			if(handler != NULL) {
-				/* Standard and private are not the same */
-				if(cmd < SIOCIWFIRSTPRIV)
-					return ioctl_standard_call(dev,
-								   ifr,
-								   cmd,
-								   handler);
-				else
-					return ioctl_private_call(dev,
-								  ifr,
-								  cmd,
-								  handler);
-			}
-			/* Old driver API : call driver ioctl handler */
-			if (dev->do_ioctl) {
-				return dev->do_ioctl(dev, ifr, cmd);
-			}
-			return -EOPNOTSUPP;
+							   handler);
+			else
+				return ioctl_private_call(dev,
+							  ifr,
+							  cmd,
+							  handler);
+		}
+		/* Old driver API : call driver ioctl handler */
+		if (dev->do_ioctl) {
+			return dev->do_ioctl(dev, ifr, cmd);
+		}
+		return -EOPNOTSUPP;
 	}
 	/* Not reached */
 	return -EINVAL;
@@ -1196,7 +1195,7 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 
 	/* Get the description of the Request */
 	cmd = request->cmd;
-	if((cmd - SIOCIWFIRST) >= standard_ioctl_num)
+	if ((cmd - SIOCIWFIRST) >= standard_ioctl_num)
 		return -EOPNOTSUPP;
 	descr = &(standard_ioctl[cmd - SIOCIWFIRST]);
 
@@ -1208,7 +1207,7 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 
 	/* Check if wrqu is complete */
 	hdr_len = event_type_size[descr->header_type];
-	if(request_len < hdr_len) {
+	if (request_len < hdr_len) {
 #ifdef WE_RTNETLINK_DEBUG
 		printk(KERN_DEBUG
 		       "%s (WE.r) : Wireless request too short (%d)\n",
@@ -1222,7 +1221,7 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 	info.flags = 0;
 
 	/* Check if we have extra data in the reply or not */
-	if(descr->header_type != IW_HEADER_TYPE_POINT) {
+	if (descr->header_type != IW_HEADER_TYPE_POINT) {
 
 		/* Create the kernel buffer that we will return.
 		 * It's at an offset to match the TYPE_POINT case... */
@@ -1254,7 +1253,7 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 		 * for max space. Easier, and won't last long... */
 		extra_size = descr->max_tokens * descr->token_size;
 		/* Support for very large requests */
-		if((descr->flags & IW_DESCR_FLAG_NOMAX) &&
+		if ((descr->flags & IW_DESCR_FLAG_NOMAX) &&
 		   (wrqu_point.data.length > descr->max_tokens))
 			extra_size = (wrqu_point.data.length
 				      * descr->token_size);
@@ -1299,7 +1298,7 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 #endif	/* WE_RTNETLINK_DEBUG */
 
 		/* Check if there is enough buffer up there */
-		if(wrqu_point.data.length < wrqu->data.length)
+		if (wrqu_point.data.length < wrqu->data.length)
 			ret = -E2BIG;
 	}
 
@@ -1309,7 +1308,7 @@ static int rtnetlink_standard_get(struct net_device *	dev,
 		*p_len = request->len;
 	} else {
 		/* Cleanup */
-		if(buffer)
+		if (buffer)
 			kfree(buffer);
 	}
 
@@ -1338,7 +1337,7 @@ static inline int rtnetlink_standard_set(struct net_device *	dev,
 
 	/* Get the description of the Request */
 	cmd = request->cmd;
-	if((cmd - SIOCIWFIRST) >= standard_ioctl_num)
+	if ((cmd - SIOCIWFIRST) >= standard_ioctl_num)
 		return -EOPNOTSUPP;
 	descr = &(standard_ioctl[cmd - SIOCIWFIRST]);
 
@@ -1353,7 +1352,7 @@ static inline int rtnetlink_standard_set(struct net_device *	dev,
 
 	/* Check if wrqu is complete */
 	hdr_len = event_type_pk_size[descr->header_type];
-	if(request_len < hdr_len) {
+	if (request_len < hdr_len) {
 #ifdef WE_RTNETLINK_DEBUG
 		printk(KERN_DEBUG
 		       "%s (WE.r) : Wireless request too short (%d)\n",
@@ -1367,7 +1366,7 @@ static inline int rtnetlink_standard_set(struct net_device *	dev,
 	info.flags = 0;
 
 	/* Check if we have extra data in the request or not */
-	if(descr->header_type != IW_HEADER_TYPE_POINT) {
+	if (descr->header_type != IW_HEADER_TYPE_POINT) {
 
 		/* No extra arguments. Trivial to handle */
 		ret = handler(dev, &info, wrqu, NULL);
@@ -1382,16 +1381,16 @@ static inline int rtnetlink_standard_set(struct net_device *	dev,
 		wrqu = &wrqu_point;
 
 		/* Check if number of token fits within bounds */
-		if(wrqu_point.data.length > descr->max_tokens)
+		if (wrqu_point.data.length > descr->max_tokens)
 			return -E2BIG;
-		if(wrqu_point.data.length < descr->min_tokens)
+		if (wrqu_point.data.length < descr->min_tokens)
 			return -EINVAL;
 
 		/* Real length of payload */
 		extra_len = wrqu_point.data.length * descr->token_size;
 
 		/* Check if request is self consistent */
-		if((request_len - hdr_len) < extra_len) {
+		if ((request_len - hdr_len) < extra_len) {
 #ifdef WE_RTNETLINK_DEBUG
 			printk(KERN_DEBUG "%s (WE.r) : Wireless request data too short (%d)\n",
 			       dev->name, extra_size);
@@ -1420,9 +1419,9 @@ static inline int rtnetlink_standard_set(struct net_device *	dev,
 
 #ifdef WE_SET_EVENT
 	/* Generate an event to notify listeners of the change */
-	if((descr->flags & IW_DESCR_FLAG_EVENT) &&
+	if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
 	   ((ret == 0) || (ret == -EIWCOMMIT))) {
-		if(descr->flags & IW_DESCR_FLAG_RESTRICT)
+		if (descr->flags & IW_DESCR_FLAG_RESTRICT)
 			/* If the event is restricted, don't
 			 * export the payload */
 			wireless_send_event(dev, cmd, wrqu, NULL);
@@ -1432,11 +1431,11 @@ static inline int rtnetlink_standard_set(struct net_device *	dev,
 #endif	/* WE_SET_EVENT */
 
 	/* Cleanup - I told you it wasn't that long ;-) */
-	if(extra)
+	if (extra)
 		kfree(extra);
 
 	/* Call commit handler if needed and defined */
-	if(ret == -EIWCOMMIT)
+	if (ret == -EIWCOMMIT)
 		ret = call_commit_handler(dev);
 
 	return ret;
@@ -1477,12 +1476,12 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 
 	/* Get the description of the Request */
 	cmd = request->cmd;
-	for(i = 0; i < dev->wireless_handlers->num_private_args; i++)
-		if(cmd == dev->wireless_handlers->private_args[i].cmd) {
+	for (i = 0; i < dev->wireless_handlers->num_private_args; i++)
+		if (cmd == dev->wireless_handlers->private_args[i].cmd) {
 			descr = &(dev->wireless_handlers->private_args[i]);
 			break;
 		}
-	if(descr == NULL)
+	if (descr == NULL)
 		return -EOPNOTSUPP;
 
 #ifdef WE_RTNETLINK_DEBUG
@@ -1496,7 +1495,7 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 	extra_size = get_priv_size(descr->get_args);
 
 	/* Does it fits in wrqu ? */
-	if((descr->get_args & IW_PRIV_SIZE_FIXED) &&
+	if ((descr->get_args & IW_PRIV_SIZE_FIXED) &&
 	   (extra_size <= IFNAMSIZ)) {
 		hdr_len = extra_size;
 		extra_size = 0;
@@ -1505,7 +1504,7 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 	}
 
 	/* Check if wrqu is complete */
-	if(request_len < hdr_len) {
+	if (request_len < hdr_len) {
 #ifdef WE_RTNETLINK_DEBUG
 		printk(KERN_DEBUG
 		       "%s (WE.r) : Wireless request too short (%d)\n",
@@ -1519,7 +1518,7 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 	info.flags = 0;
 
 	/* Check if we have a pointer to user space data or not. */
-	if(extra_size == 0) {
+	if (extra_size == 0) {
 
 		/* Create the kernel buffer that we will return.
 		 * It's at an offset to match the TYPE_POINT case... */
@@ -1591,7 +1590,7 @@ static inline int rtnetlink_private_get(struct net_device *	dev,
 		*p_len = request->len;
 	} else {
 		/* Cleanup */
-		if(buffer)
+		if (buffer)
 			kfree(buffer);
 	}
 
@@ -1632,12 +1631,12 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 
 	/* Get the description of the Request */
 	cmd = request->cmd;
-	for(i = 0; i < dev->wireless_handlers->num_private_args; i++)
-		if(cmd == dev->wireless_handlers->private_args[i].cmd) {
+	for (i = 0; i < dev->wireless_handlers->num_private_args; i++)
+		if (cmd == dev->wireless_handlers->private_args[i].cmd) {
 			descr = &(dev->wireless_handlers->private_args[i]);
 			break;
 		}
-	if(descr == NULL)
+	if (descr == NULL)
 		return -EOPNOTSUPP;
 
 #ifdef WE_RTNETLINK_DEBUG
@@ -1649,7 +1648,7 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 
 	/* Compute the size of the set arguments */
 	/* Check for sub-ioctl handler */
-	if(descr->name[0] == '\0')
+	if (descr->name[0] == '\0')
 		/* Reserve one int for sub-ioctl index */
 		offset = sizeof(__u32);
 
@@ -1657,7 +1656,7 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 	extra_size = get_priv_size(descr->set_args);
 
 	/* Does it fits in wrqu ? */
-	if((descr->set_args & IW_PRIV_SIZE_FIXED) &&
+	if ((descr->set_args & IW_PRIV_SIZE_FIXED) &&
 	   (extra_size <= IFNAMSIZ)) {
 		hdr_len = IW_EV_LCP_PK_LEN + extra_size;
 		extra_size = 0;
@@ -1669,7 +1668,7 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 	wrqu = (union iwreq_data *) (((char *) request) + IW_EV_LCP_PK_LEN);
 
 	/* Check if wrqu is complete */
-	if(request_len < hdr_len) {
+	if (request_len < hdr_len) {
 #ifdef WE_RTNETLINK_DEBUG
 		printk(KERN_DEBUG
 		       "%s (WE.r) : Wireless request too short (%d)\n",
@@ -1683,7 +1682,7 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 	info.flags = 0;
 
 	/* Check if we have a pointer to user space data or not. */
-	if(extra_size == 0) {
+	if (extra_size == 0) {
 
 		/* No extra arguments. Trivial to handle */
 		ret = handler(dev, &info, wrqu, (char *) wrqu);
@@ -1696,7 +1695,7 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 		       wrqu, IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
 
 		/* Does it fits within bounds ? */
-		if(wrqu_point.data.length > (descr->set_args &
+		if (wrqu_point.data.length > (descr->set_args &
 					     IW_PRIV_SIZE_MASK))
 			return -E2BIG;
 
@@ -1704,7 +1703,7 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 		extra_len = adjust_priv_size(descr->set_args, &wrqu_point);
 
 		/* Check if request is self consistent */
-		if((request_len - hdr_len) < extra_len) {
+		if ((request_len - hdr_len) < extra_len) {
 #ifdef WE_RTNETLINK_DEBUG
 			printk(KERN_DEBUG "%s (WE.r) : Wireless request data too short (%d)\n",
 			       dev->name, extra_size);
@@ -1734,7 +1733,7 @@ static inline int rtnetlink_private_set(struct net_device *	dev,
 	}
 
 	/* Call commit handler if needed and defined */
-	if(ret == -EIWCOMMIT)
+	if (ret == -EIWCOMMIT)
 		ret = call_commit_handler(dev);
 
 	return ret;
@@ -1756,21 +1755,21 @@ int wireless_rtnetlink_get(struct net_device *	dev,
 	iw_handler		handler;
 
 	/* Check length */
-	if(len < IW_EV_LCP_PK_LEN) {
+	if (len < IW_EV_LCP_PK_LEN) {
 		printk(KERN_DEBUG "%s (WE.r) : RtNetlink request too short (%d)\n",
 		       dev->name, len);
 		return -EINVAL;
 	}
 
 	/* ReCheck length (len may have padding) */
-	if(request->len > len) {
+	if (request->len > len) {
 		printk(KERN_DEBUG "%s (WE.r) : RtNetlink request len invalid (%d-%d)\n",
 		       dev->name, request->len, len);
 		return -EINVAL;
 	}
 
 	/* Only accept GET requests in here */
-	if(!IW_IS_GET(request->cmd))
+	if (!IW_IS_GET(request->cmd))
 		return -EOPNOTSUPP;
 
 	/* If command is `get the encoding parameters', check if
@@ -1782,16 +1781,16 @@ int wireless_rtnetlink_get(struct net_device *	dev,
 	}
 
 	/* Special cases */
-	if(request->cmd == SIOCGIWSTATS)
+	if (request->cmd == SIOCGIWSTATS)
 		/* Get Wireless Stats */
 		return rtnetlink_standard_get(dev,
 					      request,
 					      request->len,
 					      &iw_handler_get_iwstats,
 					      p_buf, p_len);
-	if(request->cmd == SIOCGIWPRIV) {
+	if (request->cmd == SIOCGIWPRIV) {
 		/* Check if we have some wireless handlers defined */
-		if(dev->wireless_handlers == NULL)
+		if (dev->wireless_handlers == NULL)
 			return -EOPNOTSUPP;
 		/* Get Wireless Stats */
 		return rtnetlink_standard_get(dev,
@@ -1807,9 +1806,9 @@ int wireless_rtnetlink_get(struct net_device *	dev,
 
 	/* Try to find the handler */
 	handler = get_handler(dev, request->cmd);
-	if(handler != NULL) {
+	if (handler != NULL) {
 		/* Standard and private are not the same */
-		if(request->cmd < SIOCIWFIRSTPRIV)
+		if (request->cmd < SIOCIWFIRSTPRIV)
 			return rtnetlink_standard_get(dev,
 						      request,
 						      request->len,
@@ -1840,21 +1839,21 @@ int wireless_rtnetlink_set(struct net_device *	dev,
 	iw_handler		handler;
 
 	/* Check length */
-	if(len < IW_EV_LCP_PK_LEN) {
+	if (len < IW_EV_LCP_PK_LEN) {
 		printk(KERN_DEBUG "%s (WE.r) : RtNetlink request too short (%d)\n",
 		       dev->name, len);
 		return -EINVAL;
 	}
 
 	/* ReCheck length (len may have padding) */
-	if(request->len > len) {
+	if (request->len > len) {
 		printk(KERN_DEBUG "%s (WE.r) : RtNetlink request len invalid (%d-%d)\n",
 		       dev->name, request->len, len);
 		return -EINVAL;
 	}
 
 	/* Only accept SET requests in here */
-	if(!IW_IS_SET(request->cmd))
+	if (!IW_IS_SET(request->cmd))
 		return -EOPNOTSUPP;
 
 	/* Basic check */
@@ -1863,9 +1862,9 @@ int wireless_rtnetlink_set(struct net_device *	dev,
 
 	/* New driver API : try to find the handler */
 	handler = get_handler(dev, request->cmd);
-	if(handler != NULL) {
+	if (handler != NULL) {
 		/* Standard and private are not the same */
-		if(request->cmd < SIOCIWFIRSTPRIV)
+		if (request->cmd < SIOCIWFIRSTPRIV)
 			return rtnetlink_standard_set(dev,
 						      request,
 						      request->len,
@@ -2015,17 +2014,17 @@ void wireless_send_event(struct net_device *	dev,
 	unsigned	cmd_index;		/* *MUST* be unsigned */
 
 	/* Get the description of the Event */
-	if(cmd <= SIOCIWLAST) {
+	if (cmd <= SIOCIWLAST) {
 		cmd_index = cmd - SIOCIWFIRST;
-		if(cmd_index < standard_ioctl_num)
+		if (cmd_index < standard_ioctl_num)
 			descr = &(standard_ioctl[cmd_index]);
 	} else {
 		cmd_index = cmd - IWEVFIRST;
-		if(cmd_index < standard_event_num)
+		if (cmd_index < standard_event_num)
 			descr = &(standard_event[cmd_index]);
 	}
 	/* Don't accept unknown events */
-	if(descr == NULL) {
+	if (descr == NULL) {
 		/* Note : we don't return an error to the driver, because
 		 * the driver would not know what to do about it. It can't
 		 * return an error to the user, because the event is not
@@ -2044,18 +2043,18 @@ void wireless_send_event(struct net_device *	dev,
 #endif	/* WE_EVENT_DEBUG */
 
 	/* Check extra parameters and set extra_len */
-	if(descr->header_type == IW_HEADER_TYPE_POINT) {
+	if (descr->header_type == IW_HEADER_TYPE_POINT) {
 		/* Check if number of token fits within bounds */
-		if(wrqu->data.length > descr->max_tokens) {
+		if (wrqu->data.length > descr->max_tokens) {
 			printk(KERN_ERR "%s (WE) : Wireless Event too big (%d)\n", dev->name, wrqu->data.length);
 			return;
 		}
-		if(wrqu->data.length < descr->min_tokens) {
+		if (wrqu->data.length < descr->min_tokens) {
 			printk(KERN_ERR "%s (WE) : Wireless Event too small (%d)\n", dev->name, wrqu->data.length);
 			return;
 		}
 		/* Calculate extra_len - extra is NULL for restricted events */
-		if(extra != NULL)
+		if (extra != NULL)
 			extra_len = wrqu->data.length * descr->token_size;
 		/* Always at an offset in wrqu */
 		wrqu_off = IW_EV_POINT_OFF;
@@ -2074,14 +2073,14 @@ void wireless_send_event(struct net_device *	dev,
 
 	/* Create temporary buffer to hold the event */
 	event = kmalloc(event_len, GFP_ATOMIC);
-	if(event == NULL)
+	if (event == NULL)
 		return;
 
 	/* Fill event */
 	event->len = event_len;
 	event->cmd = cmd;
 	memcpy(&event->u, ((char *) wrqu) + wrqu_off, hdr_len - IW_EV_LCP_LEN);
-	if(extra != NULL)
+	if (extra != NULL)
 		memcpy(((char *) event) + hdr_len, extra, extra_len);
 
 #ifdef WE_EVENT_RTNETLINK
@@ -2116,7 +2115,7 @@ void wireless_send_event(struct net_device *	dev,
 static inline struct iw_spy_data * get_spydata(struct net_device *dev)
 {
 	/* This is the new way */
-	if(dev->wireless_data)
+	if (dev->wireless_data)
 		return(dev->wireless_data->spy_data);
 	return NULL;
 }
@@ -2134,7 +2133,7 @@ int iw_handler_set_spy(struct net_device *	dev,
 	struct sockaddr *	address = (struct sockaddr *) extra;
 
 	/* Make sure driver is not buggy or using the old API */
-	if(!spydata)
+	if (!spydata)
 		return -EOPNOTSUPP;
 
 	/* Disable spy collection while we copy the addresses.
@@ -2151,11 +2150,11 @@ int iw_handler_set_spy(struct net_device *	dev,
 	smp_wmb();
 
 	/* Are there are addresses to copy? */
-	if(wrqu->data.length > 0) {
+	if (wrqu->data.length > 0) {
 		int i;
 
 		/* Copy addresses */
-		for(i = 0; i < wrqu->data.length; i++)
+		for (i = 0; i < wrqu->data.length; i++)
 			memcpy(spydata->spy_address[i], address[i].sa_data,
 			       ETH_ALEN);
 		/* Reset stats */
@@ -2199,23 +2198,23 @@ int iw_handler_get_spy(struct net_device *	dev,
 	int			i;
 
 	/* Make sure driver is not buggy or using the old API */
-	if(!spydata)
+	if (!spydata)
 		return -EOPNOTSUPP;
 
 	wrqu->data.length = spydata->spy_number;
 
 	/* Copy addresses. */
-	for(i = 0; i < spydata->spy_number; i++) 	{
+	for (i = 0; i < spydata->spy_number; i++) 	{
 		memcpy(address[i].sa_data, spydata->spy_address[i], ETH_ALEN);
 		address[i].sa_family = AF_UNIX;
 	}
 	/* Copy stats to the user buffer (just after). */
-	if(spydata->spy_number > 0)
+	if (spydata->spy_number > 0)
 		memcpy(extra  + (sizeof(struct sockaddr) *spydata->spy_number),
 		       spydata->spy_stat,
 		       sizeof(struct iw_quality) * spydata->spy_number);
 	/* Reset updated flags. */
-	for(i = 0; i < spydata->spy_number; i++)
+	for (i = 0; i < spydata->spy_number; i++)
 		spydata->spy_stat[i].updated &= ~IW_QUAL_ALL_UPDATED;
 	return 0;
 }
@@ -2233,7 +2232,7 @@ int iw_handler_set_thrspy(struct net_device *	dev,
 	struct iw_thrspy *	threshold = (struct iw_thrspy *) extra;
 
 	/* Make sure driver is not buggy or using the old API */
-	if(!spydata)
+	if (!spydata)
 		return -EOPNOTSUPP;
 
 	/* Just do it */
@@ -2263,7 +2262,7 @@ int iw_handler_get_thrspy(struct net_device *	dev,
 	struct iw_thrspy *	threshold = (struct iw_thrspy *) extra;
 
 	/* Make sure driver is not buggy or using the old API */
-	if(!spydata)
+	if (!spydata)
 		return -EOPNOTSUPP;
 
 	/* Just do it */
@@ -2327,7 +2326,7 @@ void wireless_spy_update(struct net_device *	dev,
 	int			match = -1;
 
 	/* Make sure driver is not buggy or using the old API */
-	if(!spydata)
+	if (!spydata)
 		return;
 
 #ifdef WE_SPY_DEBUG
@@ -2335,8 +2334,8 @@ void wireless_spy_update(struct net_device *	dev,
 #endif	/* WE_SPY_DEBUG */
 
 	/* Update all records that match */
-	for(i = 0; i < spydata->spy_number; i++)
-		if(!compare_ether_addr(address, spydata->spy_address[i])) {
+	for (i = 0; i < spydata->spy_number; i++)
+		if (!compare_ether_addr(address, spydata->spy_address[i])) {
 			memcpy(&(spydata->spy_stat[i]), wstats,
 			       sizeof(struct iw_quality));
 			match = i;
@@ -2346,15 +2345,15 @@ void wireless_spy_update(struct net_device *	dev,
 	 * To avoid event storms, we have a simple hysteresis : we generate
 	 * event only when we go under the low threshold or above the
 	 * high threshold. */
-	if(match >= 0) {
-		if(spydata->spy_thr_under[match]) {
-			if(wstats->level > spydata->spy_thr_high.level) {
+	if (match >= 0) {
+		if (spydata->spy_thr_under[match]) {
+			if (wstats->level > spydata->spy_thr_high.level) {
 				spydata->spy_thr_under[match] = 0;
 				iw_send_thrspy_event(dev, spydata,
 						     address, wstats);
 			}
 		} else {
-			if(wstats->level < spydata->spy_thr_low.level) {
+			if (wstats->level < spydata->spy_thr_low.level) {
 				spydata->spy_thr_under[match] = 1;
 				iw_send_thrspy_event(dev, spydata,
 						     address, wstats);

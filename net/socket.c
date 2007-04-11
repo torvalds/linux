@@ -1292,7 +1292,7 @@ asmlinkage long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
 	int err, fput_needed;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
-	if(sock) {
+	if (sock) {
 		err = move_addr_to_kernel(umyaddr, addrlen, address);
 		if (err >= 0) {
 			err = security_socket_bind(sock,

@@ -645,7 +645,7 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 	if (pkt_dev->nr_labels) {
 		unsigned i;
 		seq_printf(seq, "     mpls: ");
-		for(i = 0; i < pkt_dev->nr_labels; i++)
+		for (i = 0; i < pkt_dev->nr_labels; i++)
 			seq_printf(seq, "%08x%s", ntohl(pkt_dev->labels[i]),
 				   i == pkt_dev->nr_labels-1 ? "\n" : ", ");
 	}
@@ -750,7 +750,7 @@ static int hex32_arg(const char __user *user_buffer, unsigned long maxlen, __u32
 	int i = 0;
 	*num = 0;
 
-	for(; i < maxlen; i++) {
+	for (; i < maxlen; i++) {
 		char c;
 		*num <<= 4;
 		if (get_user(c, &user_buffer[i]))
@@ -858,7 +858,7 @@ static ssize_t get_labels(const char __user *buffer, struct pktgen_dev *pkt_dev)
 		n++;
 		if (n >= MAX_MPLS_LABELS)
 			return -E2BIG;
-	} while(c == ',');
+	} while (c == ',');
 
 	pkt_dev->nr_labels = n;
 	return i;
@@ -1487,7 +1487,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (len < 0) { return len; }
 		i += len;
 		offset = sprintf(pg_result, "OK: mpls=");
-		for(n = 0; n < pkt_dev->nr_labels; n++)
+		for (n = 0; n < pkt_dev->nr_labels; n++)
 			offset += sprintf(pg_result + offset,
 					  "%08x%s", ntohl(pkt_dev->labels[n]),
 					  n == pkt_dev->nr_labels-1 ? "" : ",");
@@ -2148,7 +2148,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 	if (pkt_dev->flags & F_MPLS_RND) {
 		unsigned i;
-		for(i = 0; i < pkt_dev->nr_labels; i++)
+		for (i = 0; i < pkt_dev->nr_labels; i++)
 			if (pkt_dev->labels[i] & MPLS_STACK_BOTTOM)
 				pkt_dev->labels[i] = MPLS_STACK_BOTTOM |
 					     ((__force __be32)random32() &
@@ -2281,7 +2281,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 static void mpls_push(__be32 *mpls, struct pktgen_dev *pkt_dev)
 {
 	unsigned i;
-	for(i = 0; i < pkt_dev->nr_labels; i++) {
+	for (i = 0; i < pkt_dev->nr_labels; i++) {
 		*mpls++ = pkt_dev->labels[i] & ~MPLS_STACK_BOTTOM;
 	}
 	mpls--;
@@ -2341,7 +2341,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 		mpls_push(mpls, pkt_dev);
 
 	if (pkt_dev->vlan_id != 0xffff) {
-		if(pkt_dev->svlan_id != 0xffff) {
+		if (pkt_dev->svlan_id != 0xffff) {
 			svlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
 			*svlan_tci = build_tci(pkt_dev->svlan_id,
 					       pkt_dev->svlan_cfi,
@@ -2677,7 +2677,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 		mpls_push(mpls, pkt_dev);
 
 	if (pkt_dev->vlan_id != 0xffff) {
-		if(pkt_dev->svlan_id != 0xffff) {
+		if (pkt_dev->svlan_id != 0xffff) {
 			svlan_tci = (__be16 *)skb_put(skb, sizeof(__be16));
 			*svlan_tci = build_tci(pkt_dev->svlan_id,
 					       pkt_dev->svlan_cfi,
