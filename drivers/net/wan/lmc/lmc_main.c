@@ -1668,7 +1668,7 @@ static int lmc_rx (struct net_device *dev) /*fold00*/
             skb->protocol = lmc_proto_type(sc, skb);
             skb->protocol = htons(ETH_P_WAN_PPP);
             skb_reset_mac_header(skb);
-//            skb->nh.raw = skb->data;
+            /* skb_reset_network_header(skb); */
             skb->dev = dev;
             lmc_proto_netif(sc, skb);
 
@@ -1706,7 +1706,7 @@ static int lmc_rx (struct net_device *dev) /*fold00*/
             
             nsb->protocol = lmc_proto_type(sc, skb);
             skb_reset_mac_header(nsb);
-//            nsb->nh.raw = nsb->data;
+            /* skb_reset_network_header(nsb); */
             nsb->dev = dev;
             lmc_proto_netif(sc, nsb);
         }

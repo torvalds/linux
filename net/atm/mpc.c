@@ -713,7 +713,7 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	skb_push(new_skb, eg->ctrl_info.DH_length);     /* add MAC header */
 	memcpy(new_skb->data, eg->ctrl_info.DLL_header, eg->ctrl_info.DH_length);
 	new_skb->protocol = eth_type_trans(new_skb, dev);
-	new_skb->nh.raw = new_skb->data;
+	skb_reset_network_header(new_skb);
 
 	eg->latest_ip_addr = new_skb->nh.iph->saddr;
 	eg->packets_rcvd++;

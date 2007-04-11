@@ -913,7 +913,7 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	pktlen = (__le16 *)skb_push(skb,2);
 	*pktlen = dn_htons(skb->len - 2);
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	dn_rt_finish_output(skb, dn_rt_all_rt_mcast, msg->id);
 }
@@ -1005,7 +1005,7 @@ static void dn_send_router_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	pktlen = (__le16 *)skb_push(skb, 2);
 	*pktlen = dn_htons(skb->len - 2);
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	if (dn_am_i_a_router(dn, dn_db, ifa)) {
 		struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);

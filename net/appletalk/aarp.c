@@ -539,7 +539,7 @@ int aarp_send_ddp(struct net_device *dev, struct sk_buff *skb,
 	int hash;
 	struct aarp_entry *a;
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	/* Check for LocalTalk first */
 	if (dev->type == ARPHRD_LOCALTLK) {

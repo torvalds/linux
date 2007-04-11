@@ -578,7 +578,7 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 		return NULL;
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 	arp = (struct arphdr *) skb_put(skb,sizeof(struct arphdr) + 2*(dev->addr_len+4));
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_ARP);

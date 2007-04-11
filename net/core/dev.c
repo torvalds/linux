@@ -1074,7 +1074,7 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 					printk(KERN_CRIT "protocol %04x is "
 					       "buggy, dev %s\n",
 					       skb2->protocol, dev->name);
-				skb2->nh.raw = skb2->data;
+				skb_reset_network_header(skb2);
 			}
 
 			skb2->h.raw = skb2->nh.raw;
@@ -1771,7 +1771,8 @@ int netif_receive_skb(struct sk_buff *skb)
 
 	__get_cpu_var(netdev_rx_stat).total++;
 
-	skb->h.raw = skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
+	skb->h.raw = skb->data;
 	skb->mac_len = skb->nh.raw - skb->mac.raw;
 
 	pt_prev = NULL;

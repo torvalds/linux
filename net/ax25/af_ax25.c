@@ -1548,7 +1548,7 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 	}
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	/* Add the PID if one is not supplied by the user in the skb */
 	if (!ax25->pidincl) {

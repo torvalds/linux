@@ -28,7 +28,7 @@ new_skb(ulong len)
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb) {
 		skb_reset_mac_header(skb);
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 		skb->protocol = __constant_htons(ETH_P_AOE);
 		skb->priority = 0;
 		skb->next = skb->prev = NULL;

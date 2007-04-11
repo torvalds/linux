@@ -799,7 +799,7 @@ static int pppoe_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	/* Reserve space for headers. */
 	skb_reserve(skb, dev->hard_header_len);
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	skb->dev = dev;
 
@@ -884,7 +884,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	memcpy(ph, &hdr, sizeof(struct pppoe_hdr));
 	skb2->protocol = __constant_htons(ETH_P_PPP_SES);
 
-	skb2->nh.raw = skb2->data;
+	skb_reset_network_header(skb2);
 
 	skb2->dev = dev;
 

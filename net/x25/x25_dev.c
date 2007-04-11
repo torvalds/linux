@@ -191,7 +191,7 @@ void x25_send_frame(struct sk_buff *skb, struct x25_neigh *nb)
 {
 	unsigned char *dptr;
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	switch (nb->dev->type) {
 		case ARPHRD_X25:

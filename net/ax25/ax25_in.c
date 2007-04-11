@@ -61,8 +61,8 @@ static int ax25_rx_fragment(ax25_cb *ax25, struct sk_buff *skb)
 					skb_reserve(skbn, AX25_MAX_HEADER_LEN);
 
 					skbn->dev   = ax25->ax25_dev->dev;
+					skb_reset_network_header(skbn);
 					skbn->h.raw = skbn->data;
-					skbn->nh.raw = skbn->data;
 
 					/* Copy data from the fragments */
 					while ((skbo = skb_dequeue(&ax25->frag_queue)) != NULL) {
@@ -123,7 +123,7 @@ int ax25_rx_iframe(ax25_cb *ax25, struct sk_buff *skb)
 
 		skb_pull(skb, 1);	/* Remove PID */
 		skb_reset_mac_header(skb);
-		skb->nh.raw   = skb->data;
+		skb_reset_network_header(skb);
 		skb->dev      = ax25->ax25_dev->dev;
 		skb->pkt_type = PACKET_HOST;
 		skb->protocol = htons(ETH_P_IP);
@@ -247,7 +247,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 		case AX25_P_IP:
 			skb_pull(skb,2);		/* drop PID/CTRL */
 			skb->h.raw    = skb->data;
-			skb->nh.raw   = skb->data;
+			skb_reset_network_header(skb);
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;
 			skb->protocol = htons(ETH_P_IP);
@@ -257,7 +257,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 		case AX25_P_ARP:
 			skb_pull(skb,2);
 			skb->h.raw    = skb->data;
-			skb->nh.raw   = skb->data;
+			skb_reset_network_header(skb);
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;
 			skb->protocol = htons(ETH_P_ARP);

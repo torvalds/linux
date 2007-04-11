@@ -82,7 +82,7 @@ static int xfrm6_output_one(struct sk_buff *skb)
 
 		spin_unlock_bh(&x->lock);
 
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 
 		if (!(skb->dst = dst_pop(dst))) {
 			err = -EHOSTUNREACH;

@@ -205,7 +205,7 @@ static void ax25_send_iframe(ax25_cb *ax25, struct sk_buff *skb, int poll_bit)
 	if (skb == NULL)
 		return;
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	if (ax25->modulus == AX25_MODULUS) {
 		frame = skb_push(skb, 1);

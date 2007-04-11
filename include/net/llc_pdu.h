@@ -235,7 +235,7 @@ static inline void llc_pdu_header_init(struct sk_buff *skb, u8 type,
 	struct llc_pdu_un *pdu;
 
 	skb_push(skb, hlen);
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 	pdu = llc_pdu_un_hdr(skb);
 	pdu->dsap = dsap;
 	pdu->ssap = ssap;

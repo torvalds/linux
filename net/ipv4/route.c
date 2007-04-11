@@ -2748,7 +2748,7 @@ int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 	   through good chunk of routing engine.
 	 */
 	skb_reset_mac_header(skb);
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	/* Bugfix: need to give ip_route_input enough of an IP header to not gag. */
 	skb->nh.iph->protocol = IPPROTO_ICMP;

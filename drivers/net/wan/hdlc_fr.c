@@ -590,7 +590,7 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	skb_put(skb, i);
 	skb->priority = TC_PRIO_CONTROL;
 	skb->dev = dev;
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	dev_queue_xmit(skb);
 }

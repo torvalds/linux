@@ -53,7 +53,7 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	skb_push(skb, x->props.header_len);
 	iph = skb->nh.ipv6h;
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 	top_iph = skb->nh.ipv6h;
 	skb->nh.raw = &top_iph->nexthdr;
 	skb->h.ipv6h = top_iph + 1;
@@ -111,7 +111,7 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	old_mac = skb_mac_header(skb);
 	skb_set_mac_header(skb, -skb->mac_len);
 	memmove(skb_mac_header(skb), old_mac, skb->mac_len);
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 	err = 0;
 
 out:

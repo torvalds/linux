@@ -615,7 +615,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 		flags = *skb->data;
 	}
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	/*
 	 * Weed out future version DECnet

@@ -345,7 +345,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 			goto out_unlock;
 
 		skb_reserve(skb, LL_RESERVED_SPACE(dev));
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 
 		eb = (struct ec_cb *)&skb->cb;
 

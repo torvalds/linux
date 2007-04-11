@@ -340,7 +340,7 @@ out:
 	dst_release(skb2->dst);
 	skb2->dst = NULL;
 	skb_pull(skb2, skb->data - (u8*)iph6);
-	skb2->nh.raw = skb2->data;
+	skb_reset_network_header(skb2);
 
 	/* Try to guess incoming interface */
 	rt6i = rt6_lookup(&iph6->saddr, NULL, NULL, 0);
@@ -383,7 +383,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 	if ((tunnel = ipip6_tunnel_lookup(iph->saddr, iph->daddr)) != NULL) {
 		secpath_reset(skb);
 		skb->mac.raw = skb->nh.raw;
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 		IPCB(skb)->flags = 0;
 		skb->protocol = htons(ETH_P_IPV6);
 		skb->pkt_type = PACKET_HOST;

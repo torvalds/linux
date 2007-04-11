@@ -405,7 +405,7 @@ out:
 	dst_release(skb2->dst);
 	skb2->dst = NULL;
 	skb_pull(skb2, skb->data - (u8*)eiph);
-	skb2->nh.raw = skb2->data;
+	skb_reset_network_header(skb2);
 
 	/* Try to guess incoming interface */
 	memset(&fl, 0, sizeof(fl));
@@ -487,7 +487,7 @@ static int ipip_rcv(struct sk_buff *skb)
 		secpath_reset(skb);
 
 		skb->mac.raw = skb->nh.raw;
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 		skb->protocol = htons(ETH_P_IP);
 		skb->pkt_type = PACKET_HOST;
 

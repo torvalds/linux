@@ -401,14 +401,14 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 * notable one here. This should really be fixed at the driver level.
 	 */
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	/* Try to align data part correctly */
 	if (dev->hard_header) {
 		skb->data -= dev->hard_header_len;
 		skb->tail -= dev->hard_header_len;
 		if (len < dev->hard_header_len)
-			skb->nh.raw = skb->data;
+			skb_reset_network_header(skb);
 	}
 
 	/* Returns -EFAULT on error */
@@ -768,7 +768,7 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto out_unlock;
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	if (dev->hard_header) {
 		int res;

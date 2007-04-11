@@ -735,7 +735,7 @@ slow_path:
 		ip6_copy_metadata(frag, skb);
 		skb_reserve(frag, LL_RESERVED_SPACE(rt->u.dst.dev));
 		skb_put(frag, len + hlen + sizeof(struct frag_hdr));
-		frag->nh.raw = frag->data;
+		skb_reset_network_header(frag);
 		fh = (struct frag_hdr*)(frag->data + hlen);
 		frag->h.raw = frag->data + hlen + sizeof(struct frag_hdr);
 
@@ -976,7 +976,7 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 		skb_put(skb,fragheaderlen + transhdrlen);
 
 		/* initialize network header pointer */
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 
 		/* initialize protocol header pointer */
 		skb->h.raw = skb->data + fragheaderlen;

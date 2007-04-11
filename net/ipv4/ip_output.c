@@ -593,7 +593,7 @@ slow_path:
 		ip_copy_metadata(skb2, skb);
 		skb_reserve(skb2, ll_rs);
 		skb_put(skb2, len + hlen);
-		skb2->nh.raw = skb2->data;
+		skb_reset_network_header(skb2);
 		skb2->h.raw = skb2->data + hlen;
 
 		/*
@@ -722,7 +722,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 		skb_put(skb,fragheaderlen + transhdrlen);
 
 		/* initialize network header pointer */
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 
 		/* initialize protocol header pointer */
 		skb->h.raw = skb->data + fragheaderlen;

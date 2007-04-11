@@ -474,7 +474,7 @@ out:
 	dst_release(skb2->dst);
 	skb2->dst = NULL;
 	skb_pull(skb2, skb->data - (u8*)eiph);
-	skb2->nh.raw = skb2->data;
+	skb_reset_network_header(skb2);
 
 	/* Try to guess incoming interface */
 	memset(&fl, 0, sizeof(fl));

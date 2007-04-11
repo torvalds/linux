@@ -525,7 +525,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	dst_release(skb2->dst);
 	skb2->dst = NULL;
 	skb_pull(skb2, offset);
-	skb2->nh.raw = skb2->data;
+	skb_reset_network_header(skb2);
 	eiph = skb2->nh.iph;
 
 	/* Try to guess incoming interface */
@@ -599,7 +599,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		dst_release(skb2->dst);
 		skb2->dst = NULL;
 		skb_pull(skb2, offset);
-		skb2->nh.raw = skb2->data;
+		skb_reset_network_header(skb2);
 
 		/* Try to guess incoming interface */
 		rt = rt6_lookup(&skb2->nh.ipv6h->saddr, NULL, 0, 0);
@@ -704,7 +704,7 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		}
 		secpath_reset(skb);
 		skb->mac.raw = skb->nh.raw;
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 		skb->protocol = htons(protocol);
 		skb->pkt_type = PACKET_HOST;
 		memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
