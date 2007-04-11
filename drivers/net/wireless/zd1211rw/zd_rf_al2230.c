@@ -358,6 +358,12 @@ int zd_rf_init_al2230(struct zd_rf *rf)
 {
 	struct zd_chip *chip = zd_rf_to_chip(rf);
 
+	if (chip->al2230s_bit) {
+		dev_err(zd_chip_dev(chip), "AL2230S devices are not yet "
+			"supported by this driver.\n");
+		return -ENODEV;
+	}
+
 	rf->switch_radio_off = al2230_switch_radio_off;
 	if (chip->is_zd1211b) {
 		rf->init_hw = zd1211b_al2230_init_hw;
