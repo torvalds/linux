@@ -288,6 +288,9 @@ enum {
 		          | Y2_IS_CHK_TXA1 | Y2_IS_CHK_RX1,
 	Y2_IS_PORT_2	= Y2_IS_IRQ_PHY2 | Y2_IS_IRQ_MAC2
 			  | Y2_IS_CHK_TXA2 | Y2_IS_CHK_RX2,
+	Y2_IS_ERROR     = Y2_IS_HW_ERR |
+			  Y2_IS_IRQ_MAC1 | Y2_IS_CHK_TXA1 | Y2_IS_CHK_RX1 |
+			  Y2_IS_IRQ_MAC2 | Y2_IS_CHK_TXA2 | Y2_IS_CHK_RX2,
 };
 
 /*	B2_IRQM_HWE_MSK	32 bit	IRQ Moderation HW Error Mask */
