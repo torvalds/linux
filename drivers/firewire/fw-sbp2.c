@@ -1076,7 +1076,7 @@ static int sbp2_scsi_abort(struct scsi_cmnd *cmd)
 	struct fw_unit *unit = (struct fw_unit *)cmd->device->host->hostdata[0];
 
 	fw_notify("sbp2_scsi_abort\n");
-
+	sbp2_agent_reset(unit);
 	sbp2_cancel_orbs(unit);
 
 	return SUCCESS;
