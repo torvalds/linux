@@ -419,6 +419,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 
 	/* VIA */
 	{ PCI_VDEVICE(VIA, 0x3349), board_ahci_vt8251 }, /* VIA VT8251 */
+	{ PCI_VDEVICE(VIA, 0x6287), board_ahci_vt8251 }, /* VIA VT8251 */
 
 	/* NVIDIA */
 	{ PCI_VDEVICE(NVIDIA, 0x044c), board_ahci },		/* MCP65 */
