@@ -2542,16 +2542,14 @@ static void sky2_reset(struct sky2_hw *hw)
 	int i;
 
 	/* disable ASF */
-	if (hw->chip_id <= CHIP_ID_YUKON_EC) {
-		if (hw->chip_id == CHIP_ID_YUKON_EX) {
-			status = sky2_read16(hw, HCU_CCSR);
-			status &= ~(HCU_CCSR_AHB_RST | HCU_CCSR_CPU_RST_MODE |
-				    HCU_CCSR_UC_STATE_MSK);
-			sky2_write16(hw, HCU_CCSR, status);
-		} else
-			sky2_write8(hw, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
-		sky2_write16(hw, B0_CTST, Y2_ASF_DISABLE);
-	}
+	if (hw->chip_id == CHIP_ID_YUKON_EX) {
+		status = sky2_read16(hw, HCU_CCSR);
+		status &= ~(HCU_CCSR_AHB_RST | HCU_CCSR_CPU_RST_MODE |
+			    HCU_CCSR_UC_STATE_MSK);
+		sky2_write16(hw, HCU_CCSR, status);
+	} else
+		sky2_write8(hw, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
+	sky2_write16(hw, B0_CTST, Y2_ASF_DISABLE);
 
 	/* do a SW reset */
 	sky2_write8(hw, B0_CTST, CS_RST_SET);
