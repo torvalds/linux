@@ -431,9 +431,8 @@ static void intel_i830_init_gtt_entries(void)
 
 	if (IS_I965) {
 		u32 pgetbl_ctl;
+		pgetbl_ctl = readl(intel_i830_private.registers+I810_PGETBL_CTL);
 
-		pci_read_config_dword(agp_bridge->dev, I810_PGETBL_CTL,
-				      &pgetbl_ctl);
 		/* The 965 has a field telling us the size of the GTT,
 		 * which may be larger than what is necessary to map the
 		 * aperture.
