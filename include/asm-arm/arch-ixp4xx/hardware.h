@@ -27,11 +27,8 @@
 
 #define pcibios_assign_all_busses()	1
 
-#if defined(CONFIG_CPU_IXP46X) && !defined(__ASSEMBLY__)
-extern unsigned int processor_id;
-#define cpu_is_ixp465() ((processor_id & 0xffffffc0) == 0x69054200)
-#else
-#define	cpu_is_ixp465()	(0)
+#ifndef __ASSEMBLER__
+#include <asm/arch/cpu.h>
 #endif
 
 /* Register locations and bits */
