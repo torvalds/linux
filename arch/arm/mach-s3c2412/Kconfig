@@ -47,6 +47,15 @@ config MACH_S3C2413
 	  machine_is_s3c2413() will work when MACH_SMDK2413 is
 	  selected
 
+config MACH_SMDK2412
+	bool "SMDK2412"
+	select MACH_SMDK2413
+	help
+	  Say Y here if you are using an SMDK2412
+
+	  Note, this shares support with SMDK2413, so will automatically
+	  select MACH_SMDK2413.
+
 config MACH_VSTMS
 	bool "VMSTMS"
 	select CPU_S3C2412
