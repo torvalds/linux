@@ -13,10 +13,11 @@ extern struct kmem_cache *btrfs_path_cachep;
 #define BTRFS_MAGIC "_BtRfS_M"
 
 #define BTRFS_ROOT_TREE_OBJECTID 1ULL
-#define BTRFS_EXTENT_TREE_OBJECTID 2ULL
-#define BTRFS_FS_TREE_OBJECTID 3ULL
-#define BTRFS_ROOT_TREE_DIR_OBJECTID 4ULL
-#define BTRFS_FIRST_FREE_OBJECTID 5ULL
+#define BTRFS_DEV_TREE_OBJECTID 2ULL
+#define BTRFS_EXTENT_TREE_OBJECTID 3ULL
+#define BTRFS_FS_TREE_OBJECTID 4ULL
+#define BTRFS_ROOT_TREE_DIR_OBJECTID 5ULL
+#define BTRFS_FIRST_FREE_OBJECTID 6ULL
 
 /*
  * we can actually store much bigger names, but lets not confuse the rest
@@ -90,6 +91,10 @@ struct btrfs_super_block {
 	__le64 total_blocks;
 	__le64 blocks_used;
 	__le64 root_dir_objectid;
+	/* fields below here vary with the underlying disk */
+	__le64 device_block_start;
+	__le64 device_num_blocks;
+	__le64 device_root;
 } __attribute__ ((__packed__));
 
 /*
@@ -223,10 +228,15 @@ struct btrfs_csum_item {
 	u8 csum[BTRFS_CSUM_SIZE];
 } __attribute__ ((__packed__));
 
+struct btrfs_device_item {
+	__le16 pathlen;
+} __attribute__ ((__packed__));
+
 struct crypto_hash;
 struct btrfs_fs_info {
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
+	struct btrfs_root *dev_root;
 	struct btrfs_key current_insert;
 	struct btrfs_key last_insert;
 	struct radix_tree_root fs_roots_radix;
@@ -313,10 +323,15 @@ struct btrfs_root {
 #define BTRFS_EXTENT_ITEM_KEY	8
 
 /*
+ * dev items list the devices that make up the FS
+ */
+#define BTRFS_DEV_ITEM_KEY	9
+
+/*
  * string items are for debugging.  They just store a short string of
  * data in the FS
  */
-#define BTRFS_STRING_ITEM_KEY	9
+#define BTRFS_STRING_ITEM_KEY	10
 
 static inline u64 btrfs_inode_generation(struct btrfs_inode_item *i)
 {
@@ -782,6 +797,40 @@ static inline void btrfs_set_super_root_dir(struct btrfs_super_block *s, u64
 	s->root_dir_objectid = cpu_to_le64(val);
 }
 
+static inline u64 btrfs_super_device_block_start(struct btrfs_super_block *s)
+{
+	return le64_to_cpu(s->device_block_start);
+}
+
+static inline void btrfs_set_super_device_block_start(struct btrfs_super_block
+						      *s, u64 val)
+{
+	s->device_block_start = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_super_device_num_blocks(struct btrfs_super_block *s)
+{
+	return le64_to_cpu(s->device_num_blocks);
+}
+
+static inline void btrfs_set_super_device_num_blocks(struct btrfs_super_block
+						     *s, u64 val)
+{
+	s->device_num_blocks = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_super_device_root(struct btrfs_super_block *s)
+{
+	return le64_to_cpu(s->device_root);
+}
+
+static inline void btrfs_set_super_device_root(struct btrfs_super_block
+						      *s, u64 val)
+{
+	s->device_root = cpu_to_le64(val);
+}
+
+
 static inline u8 *btrfs_leaf_data(struct btrfs_leaf *l)
 {
 	return (u8 *)l->items;
@@ -847,6 +896,17 @@ static inline void btrfs_set_file_extent_num_blocks(struct
 						    u64 val)
 {
 	e->num_blocks = cpu_to_le64(val);
+}
+
+static inline u16 btrfs_device_pathlen(struct btrfs_device_item *d)
+{
+	return le16_to_cpu(d->pathlen);
+}
+
+static inline void btrfs_set_device_pathlen(struct btrfs_device_item *d,
+						u16 val)
+{
+	d->pathlen = cpu_to_le16(val);
 }
 
 static inline struct btrfs_root *btrfs_sb(struct super_block *sb)

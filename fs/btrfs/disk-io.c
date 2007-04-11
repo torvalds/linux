@@ -378,6 +378,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 {
 	struct btrfs_root *extent_root = kmalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
+	struct btrfs_root *dev_root = kmalloc(sizeof(struct btrfs_root),
+						 GFP_NOFS);
 	struct btrfs_root *tree_root = kmalloc(sizeof(struct btrfs_root),
 					       GFP_NOFS);
 	struct btrfs_fs_info *fs_info = kmalloc(sizeof(*fs_info),
@@ -392,6 +394,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->running_transaction = NULL;
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
+	fs_info->dev_root = dev_root;
 	fs_info->sb = sb;
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
@@ -414,6 +417,9 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	memset(&fs_info->current_insert, 0, sizeof(fs_info->current_insert));
 	memset(&fs_info->last_insert, 0, sizeof(fs_info->last_insert));
 
+	__setup_root(sb->s_blocksize, dev_root,
+		     fs_info, BTRFS_DEV_TREE_OBJECTID);
+
 	__setup_root(sb->s_blocksize, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 	fs_info->sb_buffer = read_tree_block(tree_root,
@@ -427,6 +433,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 		return NULL;
 
 	fs_info->disk_super = disk_super;
+	dev_root->node = read_tree_block(tree_root,
+					  btrfs_super_device_root(disk_super));
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super));
 	BUG_ON(!tree_root->node);
@@ -519,6 +527,9 @@ int close_ctree(struct btrfs_root *root)
 	if (fs_info->extent_root->node)
 		btrfs_block_release(fs_info->extent_root,
 				    fs_info->extent_root->node);
+	if (fs_info->dev_root->node)
+		btrfs_block_release(fs_info->dev_root,
+				    fs_info->dev_root->node);
 	if (fs_info->tree_root->node)
 		btrfs_block_release(fs_info->tree_root,
 				    fs_info->tree_root->node);
