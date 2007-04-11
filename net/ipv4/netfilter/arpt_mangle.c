@@ -31,7 +31,7 @@ target(struct sk_buff **pskb,
 	}
 
 	arp = (*pskb)->nh.arph;
-	arpptr = (*pskb)->nh.raw + sizeof(*arp);
+	arpptr = skb_network_header(*pskb) + sizeof(*arp);
 	pln = arp->ar_pln;
 	hln = arp->ar_hln;
 	/* We assume that pln and hln were checked in the match */

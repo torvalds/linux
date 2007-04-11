@@ -563,7 +563,7 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 		 */
 		msg = (struct igmpmsg*)skb_push(skb, sizeof(struct iphdr));
 		skb->nh.raw = skb->h.raw = (u8*)msg;
-		memcpy(msg, pkt->nh.raw, sizeof(struct iphdr));
+		memcpy(msg, skb_network_header(pkt), sizeof(struct iphdr));
 		msg->im_msgtype = IGMPMSG_WHOLEPKT;
 		msg->im_mbz = 0;
 		msg->im_vif = reg_vif_num;

@@ -105,7 +105,7 @@ ipv4_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 		return -NF_DROP;
 	}
 
-	*dataoff = (*pskb)->nh.raw - (*pskb)->data + (*pskb)->nh.iph->ihl*4;
+	*dataoff = skb_network_offset(*pskb) + (*pskb)->nh.iph->ihl * 4;
 	*protonum = (*pskb)->nh.iph->protocol;
 
 	return NF_ACCEPT;
@@ -151,10 +151,9 @@ static unsigned int ipv4_conntrack_help(unsigned int hooknum,
 	if (!help || !help->helper)
 		return NF_ACCEPT;
 
-	return help->helper->help(pskb,
-			       (*pskb)->nh.raw - (*pskb)->data
-					       + (*pskb)->nh.iph->ihl*4,
-			       ct, ctinfo);
+	return help->helper->help(pskb, (skb_network_offset(*pskb) +
+					 (*pskb)->nh.iph->ihl * 4),
+				  ct, ctinfo);
 }
 
 static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,

@@ -386,7 +386,7 @@ static int dn_return_short(struct sk_buff *skb)
 	__le16 tmp;
 
 	/* Add back headers */
-	skb_push(skb, skb->data - skb->nh.raw);
+	skb_push(skb, skb->data - skb_network_header(skb));
 
 	if ((skb = skb_unshare(skb, GFP_ATOMIC)) == NULL)
 		return NET_RX_DROP;
@@ -425,7 +425,7 @@ static int dn_return_long(struct sk_buff *skb)
 	unsigned char tmp[ETH_ALEN];
 
 	/* Add back all headers */
-	skb_push(skb, skb->data - skb->nh.raw);
+	skb_push(skb, skb->data - skb_network_header(skb));
 
 	if ((skb = skb_unshare(skb, GFP_ATOMIC)) == NULL)
 		return NET_RX_DROP;

@@ -28,7 +28,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 	unsigned int nhoff;
 
 	nhoff = IP6CB(skb)->nhoff;
-	nexthdr = skb->nh.raw[nhoff];
+	nexthdr = skb_network_header(skb)[nhoff];
 
 	seq = 0;
 	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
@@ -58,7 +58,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 		if (nexthdr <= 0)
 			goto drop_unlock;
 
-		skb->nh.raw[nhoff] = nexthdr;
+		skb_network_header(skb)[nhoff] = nexthdr;
 
 		if (x->props.replay_window)
 			xfrm_replay_advance(x, seq);
@@ -113,7 +113,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 	} else {
 #ifdef CONFIG_NETFILTER
 		skb->nh.ipv6h->payload_len = htons(skb->len);
-		__skb_push(skb, skb->data - skb->nh.raw);
+		__skb_push(skb, skb->data - skb_network_header(skb));
 
 		NF_HOOK(PF_INET6, NF_IP6_PRE_ROUTING, skb, skb->dev, NULL,
 			ip6_rcv_finish);

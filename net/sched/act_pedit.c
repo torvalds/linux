@@ -136,7 +136,7 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 		}
 	}
 
-	pptr = skb->nh.raw;
+	pptr = skb_network_header(skb);
 
 	spin_lock(&p->tcf_lock);
 

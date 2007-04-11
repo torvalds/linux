@@ -284,7 +284,8 @@ static void mip6_addr_swap(struct sk_buff *skb)
 	if (opt->dsthao) {
 		off = ipv6_find_tlv(skb, opt->dsthao, IPV6_TLV_HAO);
 		if (likely(off >= 0)) {
-			hao = (struct ipv6_destopt_hao *)(skb->nh.raw + off);
+			hao = (struct ipv6_destopt_hao *)
+					(skb_network_header(skb) + off);
 			ipv6_addr_copy(&tmp, &iph->saddr);
 			ipv6_addr_copy(&iph->saddr, &hao->addr);
 			ipv6_addr_copy(&hao->addr, &tmp);

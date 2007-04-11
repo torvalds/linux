@@ -3778,9 +3778,11 @@ qeth_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	}
 	/* try something else */
 	if (skb->protocol == ETH_P_IPV6)
-		return (skb->nh.raw[24] == 0xff) ? RTN_MULTICAST : 0;
+		return (skb_network_header(skb)[24] == 0xff) ?
+				RTN_MULTICAST : 0;
 	else if (skb->protocol == ETH_P_IP)
-		return ((skb->nh.raw[16] & 0xf0) == 0xe0) ? RTN_MULTICAST : 0;
+		return ((skb_network_header(skb)[16] & 0xf0) == 0xe0) ?
+				RTN_MULTICAST : 0;
 	/* ... */
 	if (!memcmp(skb->data, skb->dev->broadcast, 6))
 		return RTN_BROADCAST;

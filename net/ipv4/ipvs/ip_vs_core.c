@@ -559,7 +559,8 @@ void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	struct iphdr *iph	 = skb->nh.iph;
 	unsigned int icmp_offset = iph->ihl*4;
-	struct icmphdr *icmph	 = (struct icmphdr *)(skb->nh.raw + icmp_offset);
+	struct icmphdr *icmph	 = (struct icmphdr *)(skb_network_header(skb) +
+						      icmp_offset);
 	struct iphdr *ciph	 = (struct iphdr *)(icmph + 1);
 
 	if (inout) {

@@ -227,7 +227,8 @@ void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 	serr->ee.ee_pad = 0;
 	serr->ee.ee_info = info;
 	serr->ee.ee_data = 0;
-	serr->addr_offset = (u8*)&(((struct ipv6hdr*)(icmph+1))->daddr) - skb->nh.raw;
+	serr->addr_offset = (u8 *)&(((struct ipv6hdr *)(icmph + 1))->daddr) -
+				  skb_network_header(skb);
 	serr->port = port;
 
 	skb->h.raw = payload;
@@ -264,7 +265,7 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info)
 	serr->ee.ee_pad = 0;
 	serr->ee.ee_info = info;
 	serr->ee.ee_data = 0;
-	serr->addr_offset = (u8*)&iph->daddr - skb->nh.raw;
+	serr->addr_offset = (u8 *)&iph->daddr - skb_network_header(skb);
 	serr->port = fl->fl_ip_dport;
 
 	skb->h.raw = skb->tail;
@@ -310,21 +311,24 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 
 	sin = (struct sockaddr_in6 *)msg->msg_name;
 	if (sin) {
+		const unsigned char *nh = skb_network_header(skb);
 		sin->sin6_family = AF_INET6;
 		sin->sin6_flowinfo = 0;
 		sin->sin6_port = serr->port;
 		sin->sin6_scope_id = 0;
 		if (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6) {
 			ipv6_addr_copy(&sin->sin6_addr,
-			  (struct in6_addr *)(skb->nh.raw + serr->addr_offset));
+				  (struct in6_addr *)(nh + serr->addr_offset));
 			if (np->sndflow)
-				sin->sin6_flowinfo = *(__be32*)(skb->nh.raw + serr->addr_offset - 24) & IPV6_FLOWINFO_MASK;
+				sin->sin6_flowinfo =
+					(*(__be32 *)(nh + serr->addr_offset - 24) &
+					 IPV6_FLOWINFO_MASK);
 			if (ipv6_addr_type(&sin->sin6_addr) & IPV6_ADDR_LINKLOCAL)
 				sin->sin6_scope_id = IP6CB(skb)->iif;
 		} else {
 			ipv6_addr_set(&sin->sin6_addr, 0, 0,
 				      htonl(0xffff),
-				      *(__be32*)(skb->nh.raw + serr->addr_offset));
+				      *(__be32 *)(nh + serr->addr_offset));
 		}
 	}
 
@@ -382,6 +386,7 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct inet6_skb_parm *opt = IP6CB(skb);
+	unsigned char *nh = skb_network_header(skb);
 
 	if (np->rxopt.bits.rxinfo) {
 		struct in6_pktinfo src_info;
@@ -401,14 +406,14 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 		put_cmsg(msg, SOL_IPV6, IPV6_TCLASS, sizeof(tclass), &tclass);
 	}
 
-	if (np->rxopt.bits.rxflow && (*(__be32*)skb->nh.raw & IPV6_FLOWINFO_MASK)) {
-		__be32 flowinfo = *(__be32*)skb->nh.raw & IPV6_FLOWINFO_MASK;
+	if (np->rxopt.bits.rxflow && (*(__be32 *)nh & IPV6_FLOWINFO_MASK)) {
+		__be32 flowinfo = *(__be32 *)nh & IPV6_FLOWINFO_MASK;
 		put_cmsg(msg, SOL_IPV6, IPV6_FLOWINFO, sizeof(flowinfo), &flowinfo);
 	}
 
 	/* HbH is allowed only once */
 	if (np->rxopt.bits.hopopts && opt->hop) {
-		u8 *ptr = skb->nh.raw + opt->hop;
+		u8 *ptr = nh + opt->hop;
 		put_cmsg(msg, SOL_IPV6, IPV6_HOPOPTS, (ptr[1]+1)<<3, ptr);
 	}
 
@@ -428,7 +433,7 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 
 		while (off <= opt->lastopt) {
 			unsigned len;
-			u8 *ptr = skb->nh.raw + off;
+			u8 *ptr = nh + off;
 
 			switch(nexthdr) {
 			case IPPROTO_DSTOPTS:
@@ -470,19 +475,19 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 		put_cmsg(msg, SOL_IPV6, IPV6_2292HOPLIMIT, sizeof(hlim), &hlim);
 	}
 	if (np->rxopt.bits.ohopopts && opt->hop) {
-		u8 *ptr = skb->nh.raw + opt->hop;
+		u8 *ptr = nh + opt->hop;
 		put_cmsg(msg, SOL_IPV6, IPV6_2292HOPOPTS, (ptr[1]+1)<<3, ptr);
 	}
 	if (np->rxopt.bits.odstopts && opt->dst0) {
-		u8 *ptr = skb->nh.raw + opt->dst0;
+		u8 *ptr = nh + opt->dst0;
 		put_cmsg(msg, SOL_IPV6, IPV6_2292DSTOPTS, (ptr[1]+1)<<3, ptr);
 	}
 	if (np->rxopt.bits.osrcrt && opt->srcrt) {
-		struct ipv6_rt_hdr *rthdr = (struct ipv6_rt_hdr *)(skb->nh.raw + opt->srcrt);
+		struct ipv6_rt_hdr *rthdr = (struct ipv6_rt_hdr *)(nh + opt->srcrt);
 		put_cmsg(msg, SOL_IPV6, IPV6_2292RTHDR, (rthdr->hdrlen+1) << 3, rthdr);
 	}
 	if (np->rxopt.bits.odstopts && opt->dst1) {
-		u8 *ptr = skb->nh.raw + opt->dst1;
+		u8 *ptr = nh + opt->dst1;
 		put_cmsg(msg, SOL_IPV6, IPV6_2292DSTOPTS, (ptr[1]+1)<<3, ptr);
 	}
 	return 0;

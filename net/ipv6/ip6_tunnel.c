@@ -995,9 +995,10 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	    !ip6_tnl_xmit_ctl(t) || ip6_tnl_addr_conflict(t, ipv6h))
 		return -1;
 
-	if ((offset = parse_tlv_tnl_enc_lim(skb, skb->nh.raw)) > 0) {
+	offset = parse_tlv_tnl_enc_lim(skb, skb_network_header(skb));
+	if (offset > 0) {
 		struct ipv6_tlv_tnl_enc_lim *tel;
-		tel = (struct ipv6_tlv_tnl_enc_lim *) &skb->nh.raw[offset];
+		tel = (struct ipv6_tlv_tnl_enc_lim *)&skb_network_header(skb)[offset];
 		if (tel->encap_limit == 0) {
 			icmpv6_send(skb, ICMPV6_PARAMPROB,
 				    ICMPV6_HDR_FIELD, offset + 2, skb->dev);

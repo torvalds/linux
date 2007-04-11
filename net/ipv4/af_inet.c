@@ -1184,7 +1184,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 		iph->id = htons(id++);
 		iph->tot_len = htons(skb->len - skb->mac_len);
 		iph->check = 0;
-		iph->check = ip_fast_csum(skb->nh.raw, iph->ihl);
+		iph->check = ip_fast_csum(skb_network_header(skb), iph->ihl);
 	} while ((skb = skb->next));
 
 out:

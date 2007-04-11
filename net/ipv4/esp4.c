@@ -57,9 +57,10 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	*(u8*)(trailer->tail + clen-skb->len - 2) = (clen - skb->len)-2;
 	pskb_put(skb, trailer, clen - skb->len);
 
-	__skb_push(skb, skb->data - skb->nh.raw);
+	__skb_push(skb, skb->data - skb_network_header(skb));
 	top_iph = skb->nh.iph;
-	esph = (struct ip_esp_hdr *)(skb->nh.raw + top_iph->ihl*4);
+	esph = (struct ip_esp_hdr *)(skb_network_header(skb) +
+				     top_iph->ihl * 4);
 	top_iph->tot_len = htons(skb->len + alen);
 	*(u8*)(trailer->tail - 1) = top_iph->protocol;
 
@@ -222,7 +223,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
-		struct udphdr *uh = (void *)(skb->nh.raw + ihl);
+		struct udphdr *uh = (void *)(skb_network_header(skb) + ihl);
 
 		/*
 		 * 1) if the NAT-T peer's IP or port changed then

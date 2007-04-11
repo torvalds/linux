@@ -106,7 +106,7 @@ struct arp_pkt {
 
 static inline struct arp_pkt *arp_pkt(const struct sk_buff *skb)
 {
-	return (struct arp_pkt *)skb->nh.raw;
+	return (struct arp_pkt *)skb_network_header(skb);
 }
 
 /* Forward declaration */

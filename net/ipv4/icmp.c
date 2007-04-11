@@ -484,7 +484,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 			u8 _inner_type, *itp;
 
 			itp = skb_header_pointer(skb_in,
-						 skb_in->nh.raw +
+						 skb_network_header(skb_in) +
 						 (iph->ihl << 2) +
 						 offsetof(struct icmphdr,
 							  type) -
@@ -536,7 +536,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	icmp_param.data.icmph.un.gateway = info;
 	icmp_param.data.icmph.checksum	 = 0;
 	icmp_param.skb	  = skb_in;
-	icmp_param.offset = skb_in->nh.raw - skb_in->data;
+	icmp_param.offset = skb_network_offset(skb_in);
 	icmp_out_count(icmp_param.data.icmph.type);
 	inet_sk(icmp_socket->sk)->tos = tos;
 	ipc.addr = iph->saddr;

@@ -261,8 +261,8 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 
 			if (rxopt->srcrt)
 				opt = ipv6_invert_rthdr(sk,
-					(struct ipv6_rt_hdr *)(pktopts->nh.raw +
-							       rxopt->srcrt));
+			  (struct ipv6_rt_hdr *)(skb_network_header(pktopts) +
+						 rxopt->srcrt));
 		}
 
 		if (opt != NULL && opt->srcrt != NULL) {
@@ -573,8 +573,8 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 
 		if (rxopt->srcrt)
 			opt = ipv6_invert_rthdr(sk,
-				(struct ipv6_rt_hdr *)(ireq6->pktopts->nh.raw +
-						       rxopt->srcrt));
+		   (struct ipv6_rt_hdr *)(skb_network_header(ireq6->pktopts) +
+					  rxopt->srcrt));
 	}
 
 	if (dst == NULL) {

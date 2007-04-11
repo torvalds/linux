@@ -53,8 +53,10 @@ static int xfrm6_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int ihl = skb->data - skb->h.raw;
 
-	if (skb->h.raw != skb->nh.raw)
-		skb->nh.raw = memmove(skb->h.raw, skb->nh.raw, ihl);
+	if (skb->h.raw != skb->nh.raw) {
+		memmove(skb->h.raw, skb_network_header(skb), ihl);
+		skb->nh.raw = skb->h.raw;
+	}
 	skb->nh.ipv6h->payload_len = htons(skb->len + ihl -
 					   sizeof(struct ipv6hdr));
 	skb->h.raw = skb->data;

@@ -960,6 +960,11 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 	skb->tail += len;
 }
 
+static inline unsigned char *skb_network_header(const struct sk_buff *skb)
+{
+	return skb->nh.raw;
+}
+
 static inline void skb_reset_network_header(struct sk_buff *skb)
 {
 	skb->nh.raw = skb->data;

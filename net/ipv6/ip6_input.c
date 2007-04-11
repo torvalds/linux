@@ -163,7 +163,7 @@ resubmit:
 	if (!pskb_pull(skb, skb->h.raw - skb->data))
 		goto discard;
 	nhoff = IP6CB(skb)->nhoff;
-	nexthdr = skb->nh.raw[nhoff];
+	nexthdr = skb_network_header(skb)[nhoff];
 
 	raw_sk = sk_head(&raw_v6_htable[nexthdr & (MAX_INET_PROTOS - 1)]);
 	if (raw_sk && !ipv6_raw_deliver(skb, nexthdr))
@@ -181,7 +181,7 @@ resubmit:
 			   indefinitely. */
 			nf_reset(skb);
 
-			skb_postpull_rcsum(skb, skb->nh.raw,
+			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb->h.raw - skb->nh.raw);
 			hdr = skb->nh.ipv6h;
 			if (ipv6_addr_is_multicast(&hdr->daddr) &&

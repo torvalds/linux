@@ -729,16 +729,18 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	dflags = XCT_MACTX_O | XCT_MACTX_ST | XCT_MACTX_SS | XCT_MACTX_CRC_PAD;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		const unsigned char *nh = skb_network_header(skb);
+
 		switch (skb->nh.iph->protocol) {
 		case IPPROTO_TCP:
 			dflags |= XCT_MACTX_CSUM_TCP;
 			dflags |= XCT_MACTX_IPH((skb->h.raw - skb->nh.raw) >> 2);
-			dflags |= XCT_MACTX_IPO(skb->nh.raw - skb->data);
+			dflags |= XCT_MACTX_IPO(nh - skb->data);
 			break;
 		case IPPROTO_UDP:
 			dflags |= XCT_MACTX_CSUM_UDP;
 			dflags |= XCT_MACTX_IPH((skb->h.raw - skb->nh.raw) >> 2);
-			dflags |= XCT_MACTX_IPO(skb->nh.raw - skb->data);
+			dflags |= XCT_MACTX_IPO(nh - skb->data);
 			break;
 		}
 	}

@@ -326,7 +326,7 @@ static inline unsigned char * tcf_get_base_ptr(struct sk_buff *skb, int layer)
 		case TCF_LAYER_LINK:
 			return skb->data;
 		case TCF_LAYER_NETWORK:
-			return skb->nh.raw;
+			return skb_network_header(skb);
 		case TCF_LAYER_TRANSPORT:
 			return skb->h.raw;
 	}

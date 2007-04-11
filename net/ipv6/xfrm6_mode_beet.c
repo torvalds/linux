@@ -67,7 +67,7 @@ static int xfrm6_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 		goto out;
 
 	skb_push(skb, size);
-	memmove(skb->data, skb->nh.raw, size);
+	memmove(skb->data, skb_network_header(skb), size);
 	skb_reset_network_header(skb);
 
 	old_mac = skb_mac_header(skb);

@@ -116,7 +116,7 @@ struct pppoe_hdr {
 
 static inline struct pppoe_hdr *pppoe_hdr(const struct sk_buff *skb)
 {
-	return (struct pppoe_hdr *)skb->nh.raw;
+	return (struct pppoe_hdr *)skb_network_header(skb);
 }
 
 struct pppoe_opt {

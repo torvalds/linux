@@ -166,10 +166,10 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 
 	ipch = (struct ipv6_comp_hdr *)start;
-	ipch->nexthdr = *skb->nh.raw;
+	ipch->nexthdr = *skb_network_header(skb);
 	ipch->flags = 0;
 	ipch->cpi = htons((u16 )ntohl(x->id.spi));
-	*skb->nh.raw = IPPROTO_COMP;
+	*skb_network_header(skb) = IPPROTO_COMP;
 
 out_ok:
 	return 0;

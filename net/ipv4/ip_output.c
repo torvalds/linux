@@ -503,7 +503,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 				frag->h.raw = frag->data;
 				__skb_push(frag, hlen);
 				skb_reset_network_header(frag);
-				memcpy(frag->nh.raw, iph, hlen);
+				memcpy(skb_network_header(frag), iph, hlen);
 				iph = frag->nh.iph;
 				iph->tot_len = htons(frag->len);
 				ip_copy_metadata(frag, skb);
@@ -607,7 +607,7 @@ slow_path:
 		 *	Copy the packet header into the new buffer.
 		 */
 
-		memcpy(skb2->nh.raw, skb->data, hlen);
+		memcpy(skb_network_header(skb2), skb->data, hlen);
 
 		/*
 		 *	Copy a block of the IP datagram.
@@ -1198,7 +1198,7 @@ int ip_push_pending_frames(struct sock *sk)
 	tail_skb = &(skb_shinfo(skb)->frag_list);
 
 	/* move skb->data to ip header from ext header */
-	if (skb->data < skb->nh.raw)
+	if (skb->data < skb_network_header(skb))
 		__skb_pull(skb, skb_network_offset(skb));
 	while ((tmp_skb = __skb_dequeue(&sk->sk_write_queue)) != NULL) {
 		__skb_pull(tmp_skb, skb->h.raw - skb->nh.raw);

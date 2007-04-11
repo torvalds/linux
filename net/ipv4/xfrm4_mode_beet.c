@@ -98,7 +98,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	}
 
 	skb->nh.raw = skb->data + (phlen - sizeof(*iph));
-	memmove(skb->nh.raw, iph, sizeof(*iph));
+	memmove(skb_network_header(skb), iph, sizeof(*iph));
 	skb->h.raw = skb->data + (phlen + optlen);
 	skb->data = skb->h.raw;
 
@@ -112,7 +112,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	else
 		iph->protocol = protocol;
 	iph->check = 0;
-	iph->check = ip_fast_csum(skb->nh.raw, iph->ihl);
+	iph->check = ip_fast_csum(skb_network_header(skb), iph->ihl);
 	err = 0;
 out:
 	return err;

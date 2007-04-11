@@ -872,7 +872,8 @@ typedef struct {
 static void
 isdn_net_log_skb(struct sk_buff * skb, isdn_net_local * lp)
 {
-	u_char *p = skb->nh.raw; /* hopefully, this was set correctly */
+	/* hopefully, this was set correctly */
+	const u_char *p = skb_network_header(skb);
 	unsigned short proto = ntohs(skb->protocol);
 	int data_ofs;
 	ip_ports *ipp;
@@ -880,7 +881,7 @@ isdn_net_log_skb(struct sk_buff * skb, isdn_net_local * lp)
 
 	addinfo[0] = '\0';
 	/* This check stolen from 2.1.72 dev_queue_xmit_nit() */
-	if (skb->nh.raw < skb->data || skb->nh.raw >= skb->tail) {
+	if (p < skb->data || p >= skb->tail) {
 		/* fall back to old isdn_net_log_packet method() */
 		char * buf = skb->data;
 

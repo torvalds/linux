@@ -203,7 +203,7 @@ struct llc_pdu_sn {
 
 static inline struct llc_pdu_sn *llc_pdu_sn_hdr(struct sk_buff *skb)
 {
-	return (struct llc_pdu_sn *)skb->nh.raw;
+	return (struct llc_pdu_sn *)skb_network_header(skb);
 }
 
 /* Un-numbered PDU format (3 bytes in length) */
@@ -215,7 +215,7 @@ struct llc_pdu_un {
 
 static inline struct llc_pdu_un *llc_pdu_un_hdr(struct sk_buff *skb)
 {
-	return (struct llc_pdu_un *)skb->nh.raw;
+	return (struct llc_pdu_un *)skb_network_header(skb);
 }
 
 /**

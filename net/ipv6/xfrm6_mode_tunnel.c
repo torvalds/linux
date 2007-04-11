@@ -87,9 +87,10 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err = -EINVAL;
 	const unsigned char *old_mac;
+	const unsigned char *nh = skb_network_header(skb);
 
-	if (skb->nh.raw[IP6CB(skb)->nhoff] != IPPROTO_IPV6
-	    && skb->nh.raw[IP6CB(skb)->nhoff] != IPPROTO_IPIP)
+	if (nh[IP6CB(skb)->nhoff] != IPPROTO_IPV6 &&
+	    nh[IP6CB(skb)->nhoff] != IPPROTO_IPIP)
 		goto out;
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto out;
@@ -98,7 +99,8 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 		goto out;
 
-	if (skb->nh.raw[IP6CB(skb)->nhoff] == IPPROTO_IPV6) {
+	nh = skb_network_header(skb);
+	if (nh[IP6CB(skb)->nhoff] == IPPROTO_IPV6) {
 		if (x->props.flags & XFRM_STATE_DECAP_DSCP)
 			ipv6_copy_dscp(skb->nh.ipv6h, skb->h.ipv6h);
 		if (!(x->props.flags & XFRM_STATE_NOECN))

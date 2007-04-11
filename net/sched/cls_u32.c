@@ -119,7 +119,7 @@ static int u32_classify(struct sk_buff *skb, struct tcf_proto *tp, struct tcf_re
 	} stack[TC_U32_MAXDEPTH];
 
 	struct tc_u_hnode *ht = (struct tc_u_hnode*)tp->root;
-	u8 *ptr = skb->nh.raw;
+	u8 *ptr = skb_network_header(skb);
 	struct tc_u_knode *n;
 	int sdepth = 0;
 	int off2 = 0;

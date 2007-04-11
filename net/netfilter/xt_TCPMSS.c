@@ -54,7 +54,7 @@ tcpmss_mangle_packet(struct sk_buff **pskb,
 		return -1;
 
 	tcplen = (*pskb)->len - tcphoff;
-	tcph = (struct tcphdr *)((*pskb)->nh.raw + tcphoff);
+	tcph = (struct tcphdr *)(skb_network_header(*pskb) + tcphoff);
 
 	/* Since it passed flags test in tcp match, we know it is is
 	   not a fragment, and has data >= tcp header length.  SYN
@@ -113,7 +113,7 @@ tcpmss_mangle_packet(struct sk_buff **pskb,
 			return -1;
 		kfree_skb(*pskb);
 		*pskb = newskb;
-		tcph = (struct tcphdr *)((*pskb)->nh.raw + tcphoff);
+		tcph = (struct tcphdr *)(skb_network_header(*pskb) + tcphoff);
 	}
 
 	skb_put((*pskb), TCPOLEN_MSS);

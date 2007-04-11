@@ -486,7 +486,9 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 			struct sk_buff *pktopts = treq->pktopts;
 			struct inet6_skb_parm *rxopt = IP6CB(pktopts);
 			if (rxopt->srcrt)
-				opt = ipv6_invert_rthdr(sk, (struct ipv6_rt_hdr*)(pktopts->nh.raw + rxopt->srcrt));
+				opt = ipv6_invert_rthdr(sk,
+			  (struct ipv6_rt_hdr *)(skb_network_header(pktopts) +
+						 rxopt->srcrt));
 		}
 
 		if (opt && opt->srcrt) {
@@ -1389,7 +1391,9 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	    opt == NULL && treq->pktopts) {
 		struct inet6_skb_parm *rxopt = IP6CB(treq->pktopts);
 		if (rxopt->srcrt)
-			opt = ipv6_invert_rthdr(sk, (struct ipv6_rt_hdr *)(treq->pktopts->nh.raw + rxopt->srcrt));
+			opt = ipv6_invert_rthdr(sk,
+		   (struct ipv6_rt_hdr *)(skb_network_header(treq->pktopts) +
+					  rxopt->srcrt));
 	}
 
 	if (dst == NULL) {

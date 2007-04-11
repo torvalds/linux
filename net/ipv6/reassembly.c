@@ -436,13 +436,18 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	if ((unsigned int)end > IPV6_MAXPLEN) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INHDRERRORS);
-		icmpv6_param_prob(skb,ICMPV6_HDR_FIELD, (u8*)&fhdr->frag_off - skb->nh.raw);
+		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
+				  ((u8 *)&fhdr->frag_off -
+				   skb_network_header(skb)));
 		return;
 	}
 
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		const unsigned char *nh = skb_network_header(skb);
 		skb->csum = csum_sub(skb->csum,
-				     csum_partial(skb->nh.raw, (u8*)(fhdr+1)-skb->nh.raw, 0));
+				     csum_partial(nh, (u8 *)(fhdr + 1) - nh,
+						  0));
+	}
 
 	/* Is this the final fragment? */
 	if (!(fhdr->frag_off & htons(IP6_MF))) {
@@ -605,7 +610,9 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	BUG_TRAP(FRAG6_CB(head)->offset == 0);
 
 	/* Unfragmented part is taken from the first segment. */
-	payload_len = (head->data - head->nh.raw) - sizeof(struct ipv6hdr) + fq->len - sizeof(struct frag_hdr);
+	payload_len = ((head->data - skb_network_header(head)) -
+		       sizeof(struct ipv6hdr) + fq->len -
+		       sizeof(struct frag_hdr));
 	if (payload_len > IPV6_MAXPLEN)
 		goto out_oversize;
 
@@ -639,7 +646,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	/* We have to remove fragment header from datagram and to relocate
 	 * header in order to calculate ICV correctly. */
 	nhoff = fq->nhoffset;
-	head->nh.raw[nhoff] = head->h.raw[0];
+	skb_network_header(head)[nhoff] = head->h.raw[0];
 	memmove(head->head + sizeof(struct frag_hdr), head->head,
 		(head->data - head->head) - sizeof(struct frag_hdr));
 	head->mac.raw += sizeof(struct frag_hdr);
@@ -647,7 +654,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 
 	skb_shinfo(head)->frag_list = head->next;
 	head->h.raw = head->data;
-	skb_push(head, head->data - head->nh.raw);
+	skb_push(head, head->data - skb_network_header(head));
 	atomic_sub(head->truesize, &ip6_frag_mem);
 
 	for (fp=head->next; fp; fp = fp->next) {
@@ -671,7 +678,9 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 
 	/* Yes, and fold redundant checksum back. 8) */
 	if (head->ip_summed == CHECKSUM_COMPLETE)
-		head->csum = csum_partial(head->nh.raw, head->h.raw-head->nh.raw, head->csum);
+		head->csum = csum_partial(skb_network_header(head),
+					  head->h.raw - head->nh.raw,
+					  head->csum);
 
 	rcu_read_lock();
 	IP6_INC_STATS_BH(__in6_dev_get(dev), IPSTATS_MIB_REASMOKS);
@@ -725,7 +734,7 @@ static int ipv6_frag_rcv(struct sk_buff **skbp)
 		skb->h.raw += sizeof(struct frag_hdr);
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_REASMOKS);
 
-		IP6CB(skb)->nhoff = (u8*)fhdr - skb->nh.raw;
+		IP6CB(skb)->nhoff = (u8 *)fhdr - skb_network_header(skb);
 		return 1;
 	}
 

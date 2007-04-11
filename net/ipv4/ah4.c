@@ -154,7 +154,7 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	ah = (struct ip_auth_hdr*)skb->data;
 	iph = skb->nh.iph;
 
-	ihl = skb->data - skb->nh.raw;
+	ihl = skb->data - skb_network_header(skb);
 	memcpy(work_buf, iph, ihl);
 
 	iph->ttl = 0;
@@ -181,7 +181,8 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 		}
 	}
 	((struct iphdr*)work_buf)->protocol = ah->nexthdr;
-	skb->h.raw = memcpy(skb->nh.raw += ah_hlen, work_buf, ihl);
+	skb->nh.raw += ah_hlen;
+	skb->h.raw = memcpy(skb_network_header(skb), work_buf, ihl);
 	__skb_pull(skb, ah_hlen + ihl);
 
 	return 0;

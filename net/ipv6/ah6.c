@@ -238,8 +238,8 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph = (struct ipv6hdr *)skb->data;
 	top_iph->payload_len = htons(skb->len - sizeof(*top_iph));
 
-	nexthdr = *skb->nh.raw;
-	*skb->nh.raw = IPPROTO_AH;
+	nexthdr = *skb_network_header(skb);
+	*skb_network_header(skb) = IPPROTO_AH;
 
 	/* When there are no extension headers, we only need to save the first
 	 * 8 bytes of the base IP header.
@@ -341,7 +341,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 		goto out;
 
-	hdr_len = skb->data - skb->nh.raw;
+	hdr_len = skb->data - skb_network_header(skb);
 	ah = (struct ipv6_auth_hdr*)skb->data;
 	ahp = x->data;
 	nexthdr = ah->nexthdr;
@@ -354,7 +354,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (!pskb_may_pull(skb, ah_hlen))
 		goto out;
 
-	tmp_hdr = kmemdup(skb->nh.raw, hdr_len, GFP_ATOMIC);
+	tmp_hdr = kmemdup(skb_network_header(skb), hdr_len, GFP_ATOMIC);
 	if (!tmp_hdr)
 		goto out;
 	if (ipv6_clear_mutable_options(skb->nh.ipv6h, hdr_len, XFRM_POLICY_IN))
@@ -382,7 +382,9 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 		}
 	}
 
-	skb->h.raw = memcpy(skb->nh.raw += ah_hlen, tmp_hdr, hdr_len);
+	skb->nh.raw += ah_hlen;
+	memcpy(skb_network_header(skb), tmp_hdr, hdr_len);
+	skb->h.raw = skb->nh.raw;
 	__skb_pull(skb, ah_hlen + hdr_len);
 
 	kfree(tmp_hdr);

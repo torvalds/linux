@@ -658,7 +658,7 @@ static struct sk_buff *ip_frag_reasm(struct ipq *qp, struct net_device *dev)
 	}
 
 	skb_shinfo(head)->frag_list = head->next;
-	skb_push(head, head->data - head->nh.raw);
+	skb_push(head, head->data - skb_network_header(head));
 	atomic_sub(head->truesize, &ip_frag_mem);
 
 	for (fp=head->next; fp; fp = fp->next) {

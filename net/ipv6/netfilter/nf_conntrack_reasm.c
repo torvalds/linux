@@ -408,11 +408,12 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 		return -1;
 	}
 
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		const unsigned char *nh = skb_network_header(skb);
 		skb->csum = csum_sub(skb->csum,
-				     csum_partial(skb->nh.raw,
-						  (u8*)(fhdr + 1) - skb->nh.raw,
+				     csum_partial(nh, (u8 *)(fhdr + 1) - nh,
 						  0));
+	}
 
 	/* Is this the final fragment? */
 	if (!(fhdr->frag_off & htons(IP6_MF))) {
@@ -583,7 +584,9 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	BUG_TRAP(NFCT_FRAG6_CB(head)->offset == 0);
 
 	/* Unfragmented part is taken from the first segment. */
-	payload_len = (head->data - head->nh.raw) - sizeof(struct ipv6hdr) + fq->len - sizeof(struct frag_hdr);
+	payload_len = ((head->data - skb_network_header(head)) -
+		       sizeof(struct ipv6hdr) + fq->len -
+		       sizeof(struct frag_hdr));
 	if (payload_len > IPV6_MAXPLEN) {
 		DEBUGP("payload len is too large.\n");
 		goto out_oversize;
@@ -624,7 +627,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	/* We have to remove fragment header from datagram and to relocate
 	 * header in order to calculate ICV correctly. */
-	head->nh.raw[fq->nhoffset] = head->h.raw[0];
+	skb_network_header(head)[fq->nhoffset] = head->h.raw[0];
 	memmove(head->head + sizeof(struct frag_hdr), head->head,
 		(head->data - head->head) - sizeof(struct frag_hdr));
 	head->mac.raw += sizeof(struct frag_hdr);
@@ -632,7 +635,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	skb_shinfo(head)->frag_list = head->next;
 	head->h.raw = head->data;
-	skb_push(head, head->data - head->nh.raw);
+	skb_push(head, head->data - skb_network_header(head));
 	atomic_sub(head->truesize, &nf_ct_frag6_mem);
 
 	for (fp=head->next; fp; fp = fp->next) {
@@ -653,7 +656,9 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	/* Yes, and fold redundant checksum back. 8) */
 	if (head->ip_summed == CHECKSUM_COMPLETE)
-		head->csum = csum_partial(head->nh.raw, head->h.raw-head->nh.raw, head->csum);
+		head->csum = csum_partial(skb_network_header(head),
+					  head->h.raw - head->nh.raw,
+					  head->csum);
 
 	fq->fragments = NULL;
 

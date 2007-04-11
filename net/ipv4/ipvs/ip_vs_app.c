@@ -338,7 +338,7 @@ static inline int app_tcp_pkt_out(struct ip_vs_conn *cp, struct sk_buff **pskb,
 	if (!ip_vs_make_skb_writable(pskb, tcp_offset + sizeof(*th)))
 		return 0;
 
-	th = (struct tcphdr *)((*pskb)->nh.raw + tcp_offset);
+	th = (struct tcphdr *)(skb_network_header(*pskb) + tcp_offset);
 
 	/*
 	 *	Remember seq number in case this pkt gets resized
@@ -413,7 +413,7 @@ static inline int app_tcp_pkt_in(struct ip_vs_conn *cp, struct sk_buff **pskb,
 	if (!ip_vs_make_skb_writable(pskb, tcp_offset + sizeof(*th)))
 		return 0;
 
-	th = (struct tcphdr *)((*pskb)->nh.raw + tcp_offset);
+	th = (struct tcphdr *)(skb_network_header(*pskb) + tcp_offset);
 
 	/*
 	 *	Remember seq number in case this pkt gets resized

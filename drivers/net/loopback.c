@@ -76,7 +76,8 @@ static DEFINE_PER_CPU(struct pcpu_lstats, pcpu_lstats);
 static void emulate_large_send_offload(struct sk_buff *skb)
 {
 	struct iphdr *iph = skb->nh.iph;
-	struct tcphdr *th = (struct tcphdr*)(skb->nh.raw + (iph->ihl * 4));
+	struct tcphdr *th = (struct tcphdr *)(skb_network_header(skb) +
+					      (iph->ihl * 4));
 	unsigned int doffset = (iph->ihl + th->doff) * 4;
 	unsigned int mtu = skb_shinfo(skb)->gso_size + doffset;
 	unsigned int offset = 0;
@@ -93,7 +94,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
 		skb_set_mac_header(nskb, -ETH_HLEN);
 		skb_reset_network_header(nskb);
 		iph = nskb->nh.iph;
-		memcpy(nskb->data, skb->nh.raw, doffset);
+		memcpy(nskb->data, skb_network_header(skb), doffset);
 		if (skb_copy_bits(skb,
 				  doffset + offset,
 				  nskb->data + doffset,
@@ -108,7 +109,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
 		nskb->pkt_type = skb->pkt_type;
 
-		th = (struct tcphdr*)(nskb->nh.raw + iph->ihl*4);
+		th = (struct tcphdr *)(skb_network_header(nskb) + iph->ihl * 4);
 		iph->tot_len = htons(frag_size + doffset);
 		iph->id = htons(id);
 		iph->check = 0;
