@@ -640,7 +640,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "features   : %s\n"
 		   "cpu number : %lu\n"
 		   "cpu regs   : %u\n"
-		   "cpu MHz    : %lu.%06lu\n"
+		   "cpu MHz    : %lu.%03lu\n"
 		   "itc MHz    : %lu.%06lu\n"
 		   "BogoMIPS   : %lu.%02lu\n",
 		   cpunum, c->vendor, c->family, c->model,
