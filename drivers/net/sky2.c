@@ -1899,6 +1899,9 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
 
+	if (new_mtu > ETH_DATA_LEN && hw->chip_id == CHIP_ID_YUKON_FE)
+		return -EINVAL;
+
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
 		return 0;
