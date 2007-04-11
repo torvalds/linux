@@ -23,7 +23,7 @@
 /* Not needed on 64bit architectures */
 #if BITS_PER_LONG == 32
 
-uint32_t __div64_32(uint64_t *n, uint32_t base)
+uint32_t __attribute__((weak)) __div64_32(uint64_t *n, uint32_t base)
 {
 	uint64_t rem = *n;
 	uint64_t b = base;
