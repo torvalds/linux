@@ -237,7 +237,6 @@ struct sk_buff {
 	/* 4 byte hole on 64 bit*/
 
 	union {
-		struct ipv6hdr	*ipv6h;
 		unsigned char	*raw;
 	} h;
 

@@ -228,6 +228,11 @@ static inline struct ipv6hdr *ipv6_hdr(const struct sk_buff *skb)
 	return (struct ipv6hdr *)skb_network_header(skb);
 }
 
+static inline struct ipv6hdr *ipipv6_hdr(const struct sk_buff *skb)
+{
+	return (struct ipv6hdr *)skb->h.raw;
+}
+
 /* 
    This structure contains results of exthdrs parsing
    as offsets from skb->nh.
