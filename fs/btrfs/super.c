@@ -1853,13 +1853,13 @@ static int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 		path = btrfs_alloc_path();
 		if (!path)
 			return -ENOMEM;
-		root_dirid = btrfs_root_dirid(
-				      &root->fs_info->tree_root->root_item);
+		root_dirid = root->fs_info->sb->s_root->d_inode->i_ino,
 		mutex_lock(&root->fs_info->fs_mutex);
 		ret = btrfs_lookup_dir_item(NULL, root->fs_info->tree_root,
 				    path, root_dirid,
 				    vol_args.name, namelen, 0);
 		mutex_unlock(&root->fs_info->fs_mutex);
+		btrfs_free_path(path);
 		if (ret == 0)
 			return -EEXIST;
 
