@@ -453,7 +453,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 			newtp->rx_opt.snd_wscale = newtp->rx_opt.rcv_wscale = 0;
 			newtp->window_clamp = min(newtp->window_clamp, 65535U);
 		}
-		newtp->snd_wnd = ntohs(skb->h.th->window) << newtp->rx_opt.snd_wscale;
+		newtp->snd_wnd = (ntohs(tcp_hdr(skb)->window) <<
+				  newtp->rx_opt.snd_wscale);
 		newtp->max_window = newtp->snd_wnd;
 
 		if (newtp->rx_opt.tstamp_ok) {
@@ -488,7 +489,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 			   struct request_sock *req,
 			   struct request_sock **prev)
 {
-	struct tcphdr *th = skb->h.th;
+	const struct tcphdr *th = tcp_hdr(skb);
 	__be32 flg = tcp_flag_word(th) & (TCP_FLAG_RST|TCP_FLAG_SYN|TCP_FLAG_ACK);
 	int paws_reject = 0;
 	struct tcp_options_received tmp_opt;
@@ -710,8 +711,8 @@ int tcp_child_process(struct sock *parent, struct sock *child,
 	int state = child->sk_state;
 
 	if (!sock_owned_by_user(child)) {
-		ret = tcp_rcv_state_process(child, skb, skb->h.th, skb->len);
-
+		ret = tcp_rcv_state_process(child, skb, tcp_hdr(skb),
+					    skb->len);
 		/* Wakeup parent, send SIGIO */
 		if (state == TCP_SYN_RECV && child->sk_state != state)
 			parent->sk_data_ready(parent, 0);

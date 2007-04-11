@@ -117,8 +117,8 @@ static __u32 tcp_v6_init_sequence(struct sk_buff *skb)
 {
 	return secure_tcpv6_sequence_number(ipv6_hdr(skb)->daddr.s6_addr32,
 					    ipv6_hdr(skb)->saddr.s6_addr32,
-					    skb->h.th->dest,
-					    skb->h.th->source);
+					    tcp_hdr(skb)->dest,
+					    tcp_hdr(skb)->source);
 }
 
 static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
@@ -509,7 +509,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 
 	skb = tcp_make_synack(sk, dst, req);
 	if (skb) {
-		struct tcphdr *th = skb->h.th;
+		struct tcphdr *th = tcp_hdr(skb);
 
 		th->check = tcp_v6_check(th, skb->len,
 					 &treq->loc_addr, &treq->rmt_addr,
@@ -838,7 +838,7 @@ static int tcp_v6_inbound_md5_hash (struct sock *sk, struct sk_buff *skb)
 	__u8 *hash_location = NULL;
 	struct tcp_md5sig_key *hash_expected;
 	struct ipv6hdr *ip6h = ipv6_hdr(skb);
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 	int length = (th->doff << 2) - sizeof (*th);
 	int genhash;
 	u8 *ptr;
@@ -946,7 +946,7 @@ static struct timewait_sock_ops tcp6_timewait_sock_ops = {
 static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		th->check = ~csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,  0);
@@ -967,7 +967,7 @@ static int tcp_v6_gso_send_check(struct sk_buff *skb)
 		return -EINVAL;
 
 	ipv6h = ipv6_hdr(skb);
-	th = skb->h.th;
+	th = tcp_hdr(skb);
 
 	th->check = 0;
 	th->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, skb->len,
@@ -979,7 +979,7 @@ static int tcp_v6_gso_send_check(struct sk_buff *skb)
 
 static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcphdr *th = skb->h.th, *t1;
+	struct tcphdr *th = tcp_hdr(skb), *t1;
 	struct sk_buff *buff;
 	struct flowi fl;
 	int tot_len = sizeof(*th);
@@ -1079,7 +1079,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 			    struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 ts)
 {
-	struct tcphdr *th = skb->h.th, *t1;
+	struct tcphdr *th = tcp_hdr(skb), *t1;
 	struct sk_buff *buff;
 	struct flowi fl;
 	int tot_len = sizeof(struct tcphdr);
@@ -1195,7 +1195,7 @@ static void tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req)
 static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 {
 	struct request_sock *req, **prev;
-	const struct tcphdr *th = skb->h.th;
+	const struct tcphdr *th = tcp_hdr(skb);
 	struct sock *nsk;
 
 	/* Find possible connection requests. */
@@ -1275,7 +1275,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	treq = inet6_rsk(req);
 	ipv6_addr_copy(&treq->rmt_addr, &ipv6_hdr(skb)->saddr);
 	ipv6_addr_copy(&treq->loc_addr, &ipv6_hdr(skb)->daddr);
-	TCP_ECN_create_request(req, skb->h.th);
+	TCP_ECN_create_request(req, tcp_hdr(skb));
 	treq->pktopts = NULL;
 	if (ipv6_opt_accepted(sk, skb) ||
 	    np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo ||
@@ -1528,14 +1528,14 @@ out:
 static __sum16 tcp_v6_checksum_init(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE) {
-		if (!tcp_v6_check(skb->h.th, skb->len, &ipv6_hdr(skb)->saddr,
+		if (!tcp_v6_check(tcp_hdr(skb), skb->len, &ipv6_hdr(skb)->saddr,
 				  &ipv6_hdr(skb)->daddr, skb->csum)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			return 0;
 		}
 	}
 
-	skb->csum = ~csum_unfold(tcp_v6_check(skb->h.th, skb->len,
+	skb->csum = ~csum_unfold(tcp_v6_check(tcp_hdr(skb), skb->len,
 					      &ipv6_hdr(skb)->saddr,
 					      &ipv6_hdr(skb)->daddr, 0));
 
@@ -1601,7 +1601,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
 		TCP_CHECK_TIMER(sk);
-		if (tcp_rcv_established(sk, skb, skb->h.th, skb->len))
+		if (tcp_rcv_established(sk, skb, tcp_hdr(skb), skb->len))
 			goto reset;
 		TCP_CHECK_TIMER(sk);
 		if (opt_skb)
@@ -1632,7 +1632,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	TCP_CHECK_TIMER(sk);
-	if (tcp_rcv_state_process(sk, skb, skb->h.th, skb->len))
+	if (tcp_rcv_state_process(sk, skb, tcp_hdr(skb), skb->len))
 		goto reset;
 	TCP_CHECK_TIMER(sk);
 	if (opt_skb)
@@ -1698,7 +1698,7 @@ static int tcp_v6_rcv(struct sk_buff **pskb)
 	if (!pskb_may_pull(skb, sizeof(struct tcphdr)))
 		goto discard_it;
 
-	th = skb->h.th;
+	th = tcp_hdr(skb);
 
 	if (th->doff < sizeof(struct tcphdr)/4)
 		goto bad_packet;
@@ -1709,7 +1709,7 @@ static int tcp_v6_rcv(struct sk_buff **pskb)
 	     tcp_v6_checksum_init(skb)))
 		goto bad_packet;
 
-	th = skb->h.th;
+	th = tcp_hdr(skb);
 	TCP_SKB_CB(skb)->seq = ntohl(th->seq);
 	TCP_SKB_CB(skb)->end_seq = (TCP_SKB_CB(skb)->seq + th->syn + th->fin +
 				    skb->len - th->doff*4);

@@ -1195,13 +1195,14 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 		iph = ip_hdr(skb);
 		iph->tot_len = 0;
 		iph->check = 0;
-		skb->h.th->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
-						      0, IPPROTO_TCP, 0);
+		tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
+							 iph->daddr, 0,
+							 IPPROTO_TCP, 0);
 		ipcss = skb_network_offset(skb);
 		ipcso = (void *)&(iph->check) - (void *)skb->data;
 		ipcse = skb_transport_offset(skb) - 1;
 		tucss = skb_transport_offset(skb);
-		tucso = (void *)&(skb->h.th->check) - (void *)skb->data;
+		tucso = (void *)&(tcp_hdr(skb)->check) - (void *)skb->data;
 		tucse = 0;
 
 		i = adapter->tx_ring.next_to_use;

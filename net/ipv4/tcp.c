@@ -425,7 +425,7 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			/* Subtract 1, if FIN is in queue. */
 			if (answ && !skb_queue_empty(&sk->sk_receive_queue))
 				answ -=
-		       ((struct sk_buff *)sk->sk_receive_queue.prev)->h.th->fin;
+		       tcp_hdr((struct sk_buff *)sk->sk_receive_queue.prev)->fin;
 		} else
 			answ = tp->urg_seq - tp->copied_seq;
 		release_sock(sk);
@@ -1016,9 +1016,9 @@ static inline struct sk_buff *tcp_recv_skb(struct sock *sk, u32 seq, u32 *off)
 
 	skb_queue_walk(&sk->sk_receive_queue, skb) {
 		offset = seq - TCP_SKB_CB(skb)->seq;
-		if (skb->h.th->syn)
+		if (tcp_hdr(skb)->syn)
 			offset--;
-		if (offset < skb->len || skb->h.th->fin) {
+		if (offset < skb->len || tcp_hdr(skb)->fin) {
 			*off = offset;
 			return skb;
 		}
@@ -1070,7 +1070,7 @@ int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 			if (offset != skb->len)
 				break;
 		}
-		if (skb->h.th->fin) {
+		if (tcp_hdr(skb)->fin) {
 			sk_eat_skb(sk, skb, 0);
 			++seq;
 			break;
@@ -1174,11 +1174,11 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 				break;
 			}
 			offset = *seq - TCP_SKB_CB(skb)->seq;
-			if (skb->h.th->syn)
+			if (tcp_hdr(skb)->syn)
 				offset--;
 			if (offset < skb->len)
 				goto found_ok_skb;
-			if (skb->h.th->fin)
+			if (tcp_hdr(skb)->fin)
 				goto found_fin_ok;
 			BUG_TRAP(flags & MSG_PEEK);
 			skb = skb->next;
@@ -1394,7 +1394,7 @@ skip_copy:
 		if (used + offset < skb->len)
 			continue;
 
-		if (skb->h.th->fin)
+		if (tcp_hdr(skb)->fin)
 			goto found_fin_ok;
 		if (!(flags & MSG_PEEK)) {
 			sk_eat_skb(sk, skb, copied_early);
@@ -1563,7 +1563,7 @@ void tcp_close(struct sock *sk, long timeout)
 	 */
 	while ((skb = __skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 		u32 len = TCP_SKB_CB(skb)->end_seq - TCP_SKB_CB(skb)->seq -
-			  skb->h.th->fin;
+			  tcp_hdr(skb)->fin;
 		data_was_unread += len;
 		__kfree_skb(skb);
 	}
@@ -2170,7 +2170,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	if (!pskb_may_pull(skb, sizeof(*th)))
 		goto out;
 
-	th = skb->h.th;
+	th = tcp_hdr(skb);
 	thlen = th->doff * 4;
 	if (thlen < sizeof(*th))
 		goto out;
@@ -2210,7 +2210,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	delta = htonl(oldlen + (thlen + len));
 
 	skb = segs;
-	th = skb->h.th;
+	th = tcp_hdr(skb);
 	seq = ntohl(th->seq);
 
 	do {
@@ -2224,7 +2224,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 
 		seq += len;
 		skb = skb->next;
-		th = skb->h.th;
+		th = tcp_hdr(skb);
 
 		th->seq = htonl(seq);
 		th->cwr = 0;

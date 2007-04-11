@@ -465,11 +465,12 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 		tcp_header_size += TCPOLEN_MD5SIG_ALIGNED;
 #endif
 
-	th = (struct tcphdr *) skb_push(skb, tcp_header_size);
-	skb->h.th = th;
+	skb_push(skb, tcp_header_size);
+	skb_reset_transport_header(skb);
 	skb_set_owner_w(skb, sk);
 
 	/* Build TCP header and checksum it. */
+	th = tcp_hdr(skb);
 	th->source		= inet->sport;
 	th->dest		= inet->dport;
 	th->seq			= htonl(tcb->seq);
@@ -524,7 +525,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 		tp->af_specific->calc_md5_hash(md5_hash_location,
 					       md5,
 					       sk, NULL, NULL,
-					       skb->h.th,
+					       tcp_hdr(skb),
 					       sk->sk_protocol,
 					       skb->len);
 	}
@@ -2128,8 +2129,10 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	if (md5)
 		tcp_header_size += TCPOLEN_MD5SIG_ALIGNED;
 #endif
-	skb->h.th = th = (struct tcphdr *) skb_push(skb, tcp_header_size);
+	skb_push(skb, tcp_header_size);
+	skb_reset_transport_header(skb);
 
+	th = tcp_hdr(skb);
 	memset(th, 0, sizeof(struct tcphdr));
 	th->syn = 1;
 	th->ack = 1;
@@ -2183,7 +2186,7 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 		tp->af_specific->calc_md5_hash(md5_hash_location,
 					       md5,
 					       NULL, dst, req,
-					       skb->h.th, sk->sk_protocol,
+					       tcp_hdr(skb), sk->sk_protocol,
 					       skb->len);
 	}
 #endif

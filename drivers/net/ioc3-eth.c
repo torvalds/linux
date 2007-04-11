@@ -1426,7 +1426,7 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 		if (proto == IPPROTO_TCP) {
 			csoff += offsetof(struct tcphdr, check);
-			skb->h.th->check = csum;
+			tcp_hdr(skb)->check = csum;
 		}
 
 		w0 = ETXD_DOCHECKSUM | (csoff << ETXD_CHKOFF_SHIFT);

@@ -416,7 +416,7 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
                        eddp->skb_offset += VLAN_HLEN;
 #endif /* CONFIG_QETH_VLAN */
        }
-	tcph = eddp->skb->h.th;
+	tcph = tcp_hdr(eddp->skb);
 	while (eddp->skb_offset < eddp->skb->len) {
 		data_len = min((int)skb_shinfo(eddp->skb)->gso_size,
 			       (int)(eddp->skb->len - eddp->skb_offset));

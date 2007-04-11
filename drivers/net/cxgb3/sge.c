@@ -901,7 +901,7 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 		    CPL_ETH_II : CPL_ETH_II_VLAN;
 		tso_info |= V_LSO_ETH_TYPE(eth_type) |
 		    V_LSO_IPHDR_WORDS(ip_hdr(skb)->ihl) |
-		    V_LSO_TCPHDR_WORDS(skb->h.th->doff);
+		    V_LSO_TCPHDR_WORDS(tcp_hdr(skb)->doff);
 		hdr->lso_info = htonl(tso_info);
 		flits = 3;
 	} else {

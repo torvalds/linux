@@ -1298,9 +1298,10 @@ static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
 
 			iph->tot_len = 0;
 			iph->check = 0;
-			skb->h.th->check = ~csum_tcpudp_magic(iph->saddr,
-							      iph->daddr, 0,
-							      IPPROTO_TCP, 0);
+			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
+								 iph->daddr, 0,
+								 IPPROTO_TCP,
+								 0);
 			ipofst = skb_network_offset(skb);
 			if (ipofst != ENET_HEADER_SIZE) /* 802.3 frame */
 				tso->tsopl |= 1 << TSO_PARAM_ETHTYPE_SHIFT;

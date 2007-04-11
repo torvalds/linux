@@ -4524,7 +4524,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vlan_tag_flags |= TX_BD_FLAGS_SW_LSO;
 
 		tcp_opt_len = 0;
-		if (skb->h.th->doff > 5)
+		if (tcp_hdr(skb)->doff > 5)
 			tcp_opt_len = tcp_optlen(skb);
 
 		ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
@@ -4532,9 +4532,9 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		iph = ip_hdr(skb);
 		iph->check = 0;
 		iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
-		skb->h.th->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
-						      0, IPPROTO_TCP, 0);
-
+		tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
+							 iph->daddr, 0,
+							 IPPROTO_TCP, 0);
 		if (tcp_opt_len || (iph->ihl > 5)) {
 			vlan_tag_flags |= ((iph->ihl - 5) +
 					   (tcp_opt_len >> 2)) << 8;

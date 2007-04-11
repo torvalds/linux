@@ -984,7 +984,7 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	ireq->wscale_ok = rx_opt->wscale_ok;
 	ireq->acked = 0;
 	ireq->ecn_ok = 0;
-	ireq->rmt_port = skb->h.th->source;
+	ireq->rmt_port = tcp_hdr(skb)->source;
 }
 
 extern void tcp_enter_memory_pressure(void);

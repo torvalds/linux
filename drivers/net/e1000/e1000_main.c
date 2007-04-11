@@ -2893,14 +2893,15 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 			struct iphdr *iph = ip_hdr(skb);
 			iph->tot_len = 0;
 			iph->check = 0;
-			skb->h.th->check = ~csum_tcpudp_magic(iph->saddr,
-							      iph->daddr, 0,
-							      IPPROTO_TCP, 0);
+			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
+								 iph->daddr, 0,
+								 IPPROTO_TCP,
+								 0);
 			cmd_length = E1000_TXD_CMD_IP;
 			ipcse = skb_transport_offset(skb) - 1;
 		} else if (skb->protocol == htons(ETH_P_IPV6)) {
 			ipv6_hdr(skb)->payload_len = 0;
-			skb->h.th->check =
+			tcp_hdr(skb)->check =
 				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 						 &ipv6_hdr(skb)->daddr,
 						 0, IPPROTO_TCP, 0);
@@ -2909,7 +2910,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		ipcss = skb_network_offset(skb);
 		ipcso = (void *)&(ip_hdr(skb)->check) - (void *)skb->data;
 		tucss = skb_transport_offset(skb);
-		tucso = (void *)&(skb->h.th->check) - (void *)skb->data;
+		tucso = (void *)&(tcp_hdr(skb)->check) - (void *)skb->data;
 		tucse = 0;
 
 		cmd_length |= (E1000_TXD_CMD_DEXT | E1000_TXD_CMD_TSE |

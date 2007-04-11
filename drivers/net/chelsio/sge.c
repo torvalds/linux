@@ -1872,7 +1872,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr->opcode = CPL_TX_PKT_LSO;
 		hdr->ip_csum_dis = hdr->l4_csum_dis = 0;
 		hdr->ip_hdr_words = ip_hdr(skb)->ihl;
-		hdr->tcp_hdr_words = skb->h.th->doff;
+		hdr->tcp_hdr_words = tcp_hdr(skb)->doff;
 		hdr->eth_type_mss = htons(MK_ETH_TYPE_MSS(eth_type,
 							  skb_shinfo(skb)->gso_size));
 		hdr->len = htonl(skb->len - sizeof(*hdr));

@@ -127,8 +127,8 @@ static inline __u32 tcp_v4_init_sequence(struct sk_buff *skb)
 {
 	return secure_tcp_sequence_number(ip_hdr(skb)->daddr,
 					  ip_hdr(skb)->saddr,
-					  skb->h.th->dest,
-					  skb->h.th->source);
+					  tcp_hdr(skb)->dest,
+					  tcp_hdr(skb)->source);
 }
 
 int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
@@ -499,7 +499,7 @@ out:
 void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		th->check = ~tcp_v4_check(len, inet->saddr,
@@ -522,7 +522,7 @@ int tcp_v4_gso_send_check(struct sk_buff *skb)
 		return -EINVAL;
 
 	iph = ip_hdr(skb);
-	th = skb->h.th;
+	th = tcp_hdr(skb);
 
 	th->check = 0;
 	th->check = ~tcp_v4_check(skb->len, iph->saddr, iph->daddr, 0);
@@ -546,7 +546,7 @@ int tcp_v4_gso_send_check(struct sk_buff *skb)
 
 static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 	struct {
 		struct tcphdr th;
 #ifdef CONFIG_TCP_MD5SIG
@@ -622,7 +622,7 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 			    struct sk_buff *skb, u32 seq, u32 ack,
 			    u32 win, u32 ts)
 {
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 	struct {
 		struct tcphdr th;
 		__be32 opt[(TCPOLEN_TSTAMP_ALIGNED >> 2)
@@ -745,7 +745,7 @@ static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
 	skb = tcp_make_synack(sk, dst, req);
 
 	if (skb) {
-		struct tcphdr *th = skb->h.th;
+		struct tcphdr *th = tcp_hdr(skb);
 
 		th->check = tcp_v4_check(skb->len,
 					 ireq->loc_addr,
@@ -781,7 +781,7 @@ static void syn_flood_warning(struct sk_buff *skb)
 		warntime = jiffies;
 		printk(KERN_INFO
 		       "possible SYN flooding on port %d. Sending cookies.\n",
-		       ntohs(skb->h.th->dest));
+		       ntohs(tcp_hdr(skb)->dest));
 	}
 }
 #endif
@@ -1134,7 +1134,7 @@ static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
 	__u8 *hash_location = NULL;
 	struct tcp_md5sig_key *hash_expected;
 	const struct iphdr *iph = ip_hdr(skb);
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 	int length = (th->doff << 2) - sizeof(struct tcphdr);
 	int genhash;
 	unsigned char *ptr;
@@ -1327,7 +1327,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq->rmt_addr = saddr;
 	ireq->opt = tcp_v4_save_options(sk, skb);
 	if (!want_cookie)
-		TCP_ECN_create_request(req, skb->h.th);
+		TCP_ECN_create_request(req, tcp_hdr(skb));
 
 	if (want_cookie) {
 #ifdef CONFIG_SYN_COOKIES
@@ -1375,7 +1375,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 			LIMIT_NETDEBUG(KERN_DEBUG "TCP: drop open "
 				       "request from %u.%u.%u.%u/%u\n",
 				       NIPQUAD(saddr),
-				       ntohs(skb->h.th->source));
+				       ntohs(tcp_hdr(skb)->source));
 			dst_release(dst);
 			goto drop_and_free;
 		}
@@ -1481,7 +1481,7 @@ exit:
 
 static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 	const struct iphdr *iph = ip_hdr(skb);
 	struct sock *nsk;
 	struct request_sock **prev;
@@ -1556,7 +1556,7 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
 		TCP_CHECK_TIMER(sk);
-		if (tcp_rcv_established(sk, skb, skb->h.th, skb->len)) {
+		if (tcp_rcv_established(sk, skb, tcp_hdr(skb), skb->len)) {
 			rsk = sk;
 			goto reset;
 		}
@@ -1582,7 +1582,7 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	TCP_CHECK_TIMER(sk);
-	if (tcp_rcv_state_process(sk, skb, skb->h.th, skb->len)) {
+	if (tcp_rcv_state_process(sk, skb, tcp_hdr(skb), skb->len)) {
 		rsk = sk;
 		goto reset;
 	}
@@ -1625,7 +1625,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct tcphdr)))
 		goto discard_it;
 
-	th = skb->h.th;
+	th = tcp_hdr(skb);
 
 	if (th->doff < sizeof(struct tcphdr) / 4)
 		goto bad_packet;
@@ -1640,7 +1640,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	     tcp_v4_checksum_init(skb)))
 		goto bad_packet;
 
-	th = skb->h.th;
+	th = tcp_hdr(skb);
 	iph = ip_hdr(skb);
 	TCP_SKB_CB(skb)->seq = ntohl(th->seq);
 	TCP_SKB_CB(skb)->end_seq = (TCP_SKB_CB(skb)->seq + th->syn + th->fin +

@@ -3922,7 +3922,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
 
-		skb->h.th->check = 0;
+		tcp_hdr(skb)->check = 0;
 
 	}
 	else if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -4080,14 +4080,13 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 		iph->check = 0;
 		iph->tot_len = htons(mss + hdr_len);
 		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
-			skb->h.th->check = 0;
+			tcp_hdr(skb)->check = 0;
 			base_flags &= ~TXD_FLAG_TCPUDP_CSUM;
-		}
-		else {
-			skb->h.th->check = ~csum_tcpudp_magic(iph->saddr,
-							      iph->daddr, 0,
-							      IPPROTO_TCP, 0);
-		}
+		} else
+			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
+								 iph->daddr, 0,
+								 IPPROTO_TCP,
+								 0);
 
 		if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO) ||
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705)) {

@@ -148,7 +148,7 @@ static void tcp_measure_rcv_mss(struct sock *sk,
 		     * to handle super-low mtu links fairly.
 		     */
 		    (len >= TCP_MIN_MSS + sizeof(struct tcphdr) &&
-		     !(tcp_flag_word(skb->h.th)&TCP_REMNANT))) {
+		     !(tcp_flag_word(tcp_hdr(skb)) & TCP_REMNANT))) {
 			/* Subtract also invariant (if peer is RFC compliant),
 			 * tcp header plus fixed timestamp option length.
 			 * Resulting "len" is MSS free of SACK jitter.
@@ -2559,9 +2559,9 @@ static int tcp_ack_update_window(struct sock *sk, struct tcp_sock *tp,
 				 struct sk_buff *skb, u32 ack, u32 ack_seq)
 {
 	int flag = 0;
-	u32 nwin = ntohs(skb->h.th->window);
+	u32 nwin = ntohs(tcp_hdr(skb)->window);
 
-	if (likely(!skb->h.th->syn))
+	if (likely(!tcp_hdr(skb)->syn))
 		nwin <<= tp->rx_opt.snd_wscale;
 
 	if (tcp_may_update_window(tp, ack, ack_seq, nwin)) {
@@ -2766,7 +2766,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 		if (TCP_SKB_CB(skb)->sacked)
 			flag |= tcp_sacktag_write_queue(sk, skb, prior_snd_una);
 
-		if (TCP_ECN_rcv_ecn_echo(tp, skb->h.th))
+		if (TCP_ECN_rcv_ecn_echo(tp, tcp_hdr(skb)))
 			flag |= FLAG_ECE;
 
 		tcp_ca_event(sk, CA_EVENT_SLOW_ACK);
@@ -2833,7 +2833,7 @@ uninteresting_ack:
 void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx, int estab)
 {
 	unsigned char *ptr;
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 	int length=(th->doff*4)-sizeof(struct tcphdr);
 
 	ptr = (unsigned char *)(th + 1);
@@ -2995,7 +2995,7 @@ static inline void tcp_replace_ts_recent(struct tcp_sock *tp, u32 seq)
 static int tcp_disordered_ack(const struct sock *sk, const struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 	u32 seq = TCP_SKB_CB(skb)->seq;
 	u32 ack = TCP_SKB_CB(skb)->ack_seq;
 
@@ -3357,8 +3357,8 @@ static void tcp_ofo_queue(struct sock *sk)
 		__skb_unlink(skb, &tp->out_of_order_queue);
 		__skb_queue_tail(&sk->sk_receive_queue, skb);
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		if (skb->h.th->fin)
-			tcp_fin(skb, sk, skb->h.th);
+		if (tcp_hdr(skb)->fin)
+			tcp_fin(skb, sk, tcp_hdr(skb));
 	}
 }
 
@@ -3366,7 +3366,7 @@ static int tcp_prune_queue(struct sock *sk);
 
 static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcphdr *th = skb->h.th;
+	struct tcphdr *th = tcp_hdr(skb);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int eaten = -1;
 
@@ -3605,7 +3605,7 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 		 * - bloated or contains data before "start" or
 		 *   overlaps to the next one.
 		 */
-		if (!skb->h.th->syn && !skb->h.th->fin &&
+		if (!tcp_hdr(skb)->syn && !tcp_hdr(skb)->fin &&
 		    (tcp_win_from_space(skb->truesize) > skb->len ||
 		     before(TCP_SKB_CB(skb)->seq, start) ||
 		     (skb->next != tail &&
@@ -3616,7 +3616,7 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 		start = TCP_SKB_CB(skb)->end_seq;
 		skb = skb->next;
 	}
-	if (skb == tail || skb->h.th->syn || skb->h.th->fin)
+	if (skb == tail || tcp_hdr(skb)->syn || tcp_hdr(skb)->fin)
 		return;
 
 	while (before(start, end)) {
@@ -3665,7 +3665,9 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 				__kfree_skb(skb);
 				NET_INC_STATS_BH(LINUX_MIB_TCPRCVCOLLAPSED);
 				skb = next;
-				if (skb == tail || skb->h.th->syn || skb->h.th->fin)
+				if (skb == tail ||
+				    tcp_hdr(skb)->syn ||
+				    tcp_hdr(skb)->fin)
 					return;
 			}
 		}
@@ -4072,7 +4074,7 @@ static int tcp_dma_try_early_copy(struct sock *sk, struct sk_buff *skb, int hlen
 		tcp_rcv_space_adjust(sk);
 
 		if ((tp->ucopy.len == 0) ||
-		    (tcp_flag_word(skb->h.th) & TCP_FLAG_PSH) ||
+		    (tcp_flag_word(tcp_hdr(skb)) & TCP_FLAG_PSH) ||
 		    (atomic_read(&sk->sk_rmem_alloc) > (sk->sk_rcvbuf >> 1))) {
 			tp->ucopy.wakeup = 1;
 			sk->sk_data_ready(sk, 0);

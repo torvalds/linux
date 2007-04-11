@@ -54,7 +54,7 @@ static inline void TCP_ECN_send(struct sock *sk, struct tcp_sock *tp,
 			INET_ECN_xmit(sk);
 			if (tp->ecn_flags&TCP_ECN_QUEUE_CWR) {
 				tp->ecn_flags &= ~TCP_ECN_QUEUE_CWR;
-				skb->h.th->cwr = 1;
+				tcp_hdr(skb)->cwr = 1;
 				skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
 			}
 		} else {
@@ -62,7 +62,7 @@ static inline void TCP_ECN_send(struct sock *sk, struct tcp_sock *tp,
 			INET_ECN_dontxmit(sk);
 		}
 		if (tp->ecn_flags & TCP_ECN_DEMAND_CWR)
-			skb->h.th->ece = 1;
+			tcp_hdr(skb)->ece = 1;
 	}
 }
 
@@ -70,7 +70,7 @@ static inline void TCP_ECN_send(struct sock *sk, struct tcp_sock *tp,
 
 static inline void TCP_ECN_accept_cwr(struct tcp_sock *tp, struct sk_buff *skb)
 {
-	if (skb->h.th->cwr)
+	if (tcp_hdr(skb)->cwr)
 		tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
 }
 
