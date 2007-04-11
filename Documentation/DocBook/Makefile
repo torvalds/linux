@@ -41,7 +41,7 @@ psdocs: $(PS)
 PDF := $(patsubst %.xml, %.pdf, $(BOOKS))
 pdfdocs: $(PDF)
 
-HTML := $(patsubst %.xml, %.html, $(BOOKS))
+HTML := $(sort $(patsubst %.xml, %.html, $(BOOKS)))
 htmldocs: $(HTML)
 
 MAN := $(patsubst %.xml, %.9, $(BOOKS))
