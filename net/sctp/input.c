@@ -513,7 +513,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	struct sctp_association *asoc = NULL;
 	struct sctp_transport *transport;
 	struct inet_sock *inet;
-	char *saveip, *savesctp;
+	sk_buff_data_t saveip, savesctp;
 	int err;
 
 	if (skb->len < ihlen + 8) {
@@ -527,7 +527,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	skb_reset_network_header(skb);
 	skb_set_transport_header(skb, ihlen);
 	sk = sctp_err_lookup(AF_INET, skb, sctp_hdr(skb), &asoc, &transport);
-	/* Put back, the original pointers. */
+	/* Put back, the original values. */
 	skb->network_header = saveip;
 	skb->transport_header = savesctp;
 	if (!sk) {

@@ -448,11 +448,12 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 
 static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 {
+#ifndef NET_SKBUFF_DATA_USES_OFFSET
 	/*
 	 *	Shift between the two data areas in bytes
 	 */
 	unsigned long offset = new->data - old->data;
-
+#endif
 	new->sk		= NULL;
 	new->dev	= old->dev;
 	new->priority	= old->priority;
@@ -461,9 +462,15 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #ifdef CONFIG_INET
 	new->sp		= secpath_get(old->sp);
 #endif
-	new->transport_header = old->transport_header + offset;
-	new->network_header   = old->network_header + offset;
-	new->mac_header	      = old->mac_header + offset;
+	new->transport_header = old->transport_header;
+	new->network_header   = old->network_header;
+	new->mac_header	      = old->mac_header;
+#ifndef NET_SKBUFF_DATA_USES_OFFSET
+	/* {transport,network,mac}_header are relative to skb->head */
+	new->transport_header += offset;
+	new->network_header   += offset;
+	new->mac_header	      += offset;
+#endif
 	memcpy(new->cb, old->cb, sizeof(old->cb));
 	new->local_df	= old->local_df;
 	new->fclone	= SKB_FCLONE_UNAVAILABLE;
@@ -639,9 +646,12 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->end      = data + size;
 	skb->data    += off;
 	skb->tail    += off;
+#ifndef NET_SKBUFF_DATA_USES_OFFSET
+	/* {transport,network,mac}_header are relative to skb->head */
 	skb->transport_header += off;
 	skb->network_header   += off;
 	skb->mac_header	      += off;
+#endif
 	skb->cloned   = 0;
 	skb->nohdr    = 0;
 	atomic_set(&skb_shinfo(skb)->dataref, 1);
