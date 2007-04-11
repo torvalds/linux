@@ -37,7 +37,7 @@
 #ifndef HPSB_DEBUG_TLABELS
 static
 #endif
-spinlock_t hpsb_tlabel_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(hpsb_tlabel_lock);
 
 static DECLARE_WAIT_QUEUE_HEAD(tlabel_wq);
 
