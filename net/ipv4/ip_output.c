@@ -503,7 +503,8 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 			if (frag) {
 				frag->ip_summed = CHECKSUM_NONE;
 				frag->h.raw = frag->data;
-				frag->nh.raw = __skb_push(frag, hlen);
+				__skb_push(frag, hlen);
+				skb_reset_network_header(frag);
 				memcpy(frag->nh.raw, iph, hlen);
 				iph = frag->nh.iph;
 				iph->tot_len = htons(frag->len);

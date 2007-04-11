@@ -385,7 +385,8 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* fix old IP header checksum */
 	ip_send_check(old_iph);
 
-	skb->nh.raw = skb_push(skb, sizeof(struct iphdr));
+	skb_push(skb, sizeof(struct iphdr));
+	skb_reset_network_header(skb);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 
 	/* drop old route */

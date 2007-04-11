@@ -32,7 +32,9 @@ static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	ihl = iph->ihl * 4;
 	skb->h.raw += ihl;
 
-	skb->nh.raw = memmove(skb_push(skb, x->props.header_len), iph, ihl);
+	skb_push(skb, x->props.header_len);
+	skb_reset_network_header(skb);
+	memmove(skb->nh.raw, iph, ihl);
 	return 0;
 }
 

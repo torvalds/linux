@@ -907,7 +907,8 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 		init_tel_txopt(&opt, encap_limit);
 		ipv6_push_nfrag_opts(skb, &opt.ops, &proto, NULL);
 	}
-	skb->nh.raw = skb_push(skb, sizeof(struct ipv6hdr));
+	skb_push(skb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(skb);
 	ipv6h = skb->nh.ipv6h;
 	*(__be32*)ipv6h = fl->fl6_flowlabel | htonl(0x60000000);
 	dsfield = INET_ECN_encapsulate(0, dsfield);

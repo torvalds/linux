@@ -1593,7 +1593,8 @@ int ipmr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait)
 			return -ENOMEM;
 		}
 
-		skb2->nh.raw = skb_push(skb2, sizeof(struct iphdr));
+		skb_push(skb2, sizeof(struct iphdr));
+		skb_reset_network_header(skb2);
 		skb2->nh.iph->ihl = sizeof(struct iphdr)>>2;
 		skb2->nh.iph->saddr = rt->rt_src;
 		skb2->nh.iph->daddr = rt->rt_dst;

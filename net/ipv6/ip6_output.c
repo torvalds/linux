@@ -191,7 +191,9 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 			ipv6_push_nfrag_opts(skb, opt, &proto, &first_hop);
 	}
 
-	hdr = skb->nh.ipv6h = (struct ipv6hdr*)skb_push(skb, sizeof(struct ipv6hdr));
+	skb_push(skb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(skb);
+	hdr = skb->nh.ipv6h;
 
 	/*
 	 *	Fill in the IPv6 header
@@ -626,7 +628,8 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 		__skb_pull(skb, hlen);
 		fh = (struct frag_hdr*)__skb_push(skb, sizeof(struct frag_hdr));
-		skb->nh.raw = __skb_push(skb, hlen);
+		__skb_push(skb, hlen);
+		skb_reset_network_header(skb);
 		memcpy(skb->nh.raw, tmp_hdr, hlen);
 
 		ipv6_select_ident(skb, fh);
@@ -649,7 +652,8 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 				frag->ip_summed = CHECKSUM_NONE;
 				frag->h.raw = frag->data;
 				fh = (struct frag_hdr*)__skb_push(frag, sizeof(struct frag_hdr));
-				frag->nh.raw = __skb_push(frag, hlen);
+				__skb_push(frag, hlen);
+				skb_reset_network_header(frag);
 				memcpy(frag->nh.raw, tmp_hdr, hlen);
 				offset += skb->len - hlen - sizeof(struct frag_hdr);
 				fh->nexthdr = nexthdr;
@@ -1346,7 +1350,9 @@ int ip6_push_pending_frames(struct sock *sk)
 	if (opt && opt->opt_nflen)
 		ipv6_push_nfrag_opts(skb, opt, &proto, &final_dst);
 
-	skb->nh.ipv6h = hdr = (struct ipv6hdr*) skb_push(skb, sizeof(struct ipv6hdr));
+	skb_push(skb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(skb);
+	hdr = skb->nh.ipv6h;
 
 	*(__be32*)hdr = fl->fl6_flowlabel |
 		     htonl(0x60000000 | ((int)np->cork.tclass << 20));
