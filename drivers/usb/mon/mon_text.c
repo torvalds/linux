@@ -124,8 +124,10 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
 	if (!usb_pipecontrol(urb->pipe) || ev_type != 'S')
 		return '-';
 
-	if (mbus->uses_dma && (urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
+	if (urb->dev->bus->uses_dma &&
+	    (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)) {
 		return mon_dmapeek(ep->setup, urb->setup_dma, SETUP_MAX);
+	}
 	if (urb->setup_packet == NULL)
 		return 'Z';	/* '0' would be not as pretty. */
 
@@ -160,8 +162,10 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 	 * contain non-NULL garbage in case the upper level promised to
 	 * set DMA for the HCD.
 	 */
-	if (mbus->uses_dma && (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP))
+	if (urb->dev->bus->uses_dma &&
+	    (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)) {
 		return mon_dmapeek(ep->data, urb->transfer_dma, len);
+	}
 
 	if (urb->transfer_buffer == NULL)
 		return 'Z';	/* '0' would be not as pretty. */
@@ -201,7 +205,7 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 	ep->type = ev_type;
 	ep->pipe = urb->pipe;
 	ep->id = (unsigned long) urb;
-	ep->busnum = rp->r.m_bus->u_bus->busnum;
+	ep->busnum = urb->dev->bus->busnum;
 	ep->tstamp = stamp;
 	ep->length = (ev_type == 'S') ?
 	    urb->transfer_buffer_length : urb->actual_length;
@@ -305,13 +309,11 @@ static struct mon_event_text *mon_text_fetch(struct mon_reader_text *rp,
 static int mon_text_open(struct inode *inode, struct file *file)
 {
 	struct mon_bus *mbus;
-	struct usb_bus *ubus;
 	struct mon_reader_text *rp;
 	int rc;
 
 	mutex_lock(&mon_lock);
 	mbus = inode->i_private;
-	ubus = mbus->u_bus;
 
 	rp = kzalloc(sizeof(struct mon_reader_text), GFP_KERNEL);
 	if (rp == NULL) {
@@ -335,8 +337,7 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	rp->r.rnf_error = mon_text_error;
 	rp->r.rnf_complete = mon_text_complete;
 
-	snprintf(rp->slab_name, SLAB_NAME_SZ, "mon%dt_%lx", ubus->busnum,
-	    (long)rp);
+	snprintf(rp->slab_name, SLAB_NAME_SZ, "mon_text_%p", rp);
 	rp->e_slab = kmem_cache_create(rp->slab_name,
 	    sizeof(struct mon_event_text), sizeof(long), 0,
 	    mon_text_ctor, NULL);
@@ -654,14 +655,14 @@ static const struct file_operations mon_fops_text_u = {
 	.release =	mon_text_release,
 };
 
-int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
+int mon_text_add(struct mon_bus *mbus, int busnum)
 {
 	struct dentry *d;
 	enum { NAMESZ = 10 };
 	char name[NAMESZ];
 	int rc;
 
-	rc = snprintf(name, NAMESZ, "%dt", ubus->busnum);
+	rc = snprintf(name, NAMESZ, "%dt", busnum);
 	if (rc <= 0 || rc >= NAMESZ)
 		goto err_print_t;
 	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_text_t);
@@ -669,7 +670,7 @@ int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 		goto err_create_t;
 	mbus->dent_t = d;
 
-	rc = snprintf(name, NAMESZ, "%du", ubus->busnum);
+	rc = snprintf(name, NAMESZ, "%du", busnum);
 	if (rc <= 0 || rc >= NAMESZ)
 		goto err_print_u;
 	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_text_u);
@@ -677,7 +678,7 @@ int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 		goto err_create_u;
 	mbus->dent_u = d;
 
-	rc = snprintf(name, NAMESZ, "%ds", ubus->busnum);
+	rc = snprintf(name, NAMESZ, "%ds", busnum);
 	if (rc <= 0 || rc >= NAMESZ)
 		goto err_print_s;
 	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_stat);

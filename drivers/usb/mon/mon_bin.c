@@ -356,8 +356,10 @@ static inline char mon_bin_get_setup(unsigned char *setupb,
 	if (!usb_pipecontrol(urb->pipe) || ev_type != 'S')
 		return '-';
 
-	if (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)
+	if (urb->dev->bus->uses_dma &&
+	    (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)) {
 		return mon_dmapeek(setupb, urb->setup_dma, SETUP_LEN);
+	}
 	if (urb->setup_packet == NULL)
 		return 'Z';
 
@@ -369,7 +371,8 @@ static char mon_bin_get_data(const struct mon_reader_bin *rp,
     unsigned int offset, struct urb *urb, unsigned int length)
 {
 
-	if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP) {
+	if (urb->dev->bus->uses_dma &&
+	    (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)) {
 		mon_dmapeek_vec(rp, offset, urb->transfer_dma, length);
 		return 0;
 	}
@@ -440,7 +443,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	/* We use the fact that usb_pipein() returns 0x80 */
 	ep->epnum = usb_pipeendpoint(urb->pipe) | usb_pipein(urb->pipe);
 	ep->devnum = usb_pipedevice(urb->pipe);
-	ep->busnum = rp->r.m_bus->u_bus->busnum;
+	ep->busnum = urb->dev->bus->busnum;
 	ep->id = (unsigned long) urb;
 	ep->ts_sec = ts.tv_sec;
 	ep->ts_usec = ts.tv_usec;
@@ -500,7 +503,7 @@ static void mon_bin_error(void *data, struct urb *urb, int error)
 	/* We use the fact that usb_pipein() returns 0x80 */
 	ep->epnum = usb_pipeendpoint(urb->pipe) | usb_pipein(urb->pipe);
 	ep->devnum = usb_pipedevice(urb->pipe);
-	ep->busnum = rp->r.m_bus->u_bus->busnum;
+	ep->busnum = urb->dev->bus->busnum;
 	ep->id = (unsigned long) urb;
 	ep->status = error;
 
@@ -515,7 +518,6 @@ static void mon_bin_error(void *data, struct urb *urb, int error)
 static int mon_bin_open(struct inode *inode, struct file *file)
 {
 	struct mon_bus *mbus;
-	struct usb_bus *ubus;
 	struct mon_reader_bin *rp;
 	size_t size;
 	int rc;
@@ -525,7 +527,7 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 		mutex_unlock(&mon_lock);
 		return -ENODEV;
 	}
-	if ((ubus = mbus->u_bus) == NULL) {
+	if (mbus != &mon_bus0 && mbus->u_bus == NULL) {
 		printk(KERN_ERR TAG ": consistency error on open\n");
 		mutex_unlock(&mon_lock);
 		return -ENODEV;
