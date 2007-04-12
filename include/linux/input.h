@@ -972,6 +972,9 @@ struct input_dev {
 	unsigned int users;
 
 	struct class_device cdev;
+	union {			/* temporarily so while we switching to struct device */
+		struct device *parent;
+	} dev;
 
 	struct list_head	h_list;
 	struct list_head	node;

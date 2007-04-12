@@ -1079,6 +1079,9 @@ int input_register_device(struct input_dev *dev)
 	snprintf(dev->cdev.class_id, sizeof(dev->cdev.class_id),
 		 "input%ld", (unsigned long) atomic_inc_return(&input_no) - 1);
 
+	if (!dev->cdev.dev)
+		dev->cdev.dev = dev->dev.parent;
+
 	error = class_device_add(&dev->cdev);
 	if (error)
 		return error;
