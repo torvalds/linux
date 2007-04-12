@@ -27,7 +27,7 @@ The exact capabilities of GPIOs vary between systems.  Common options:
   - Output values are writable (high=1, low=0).  Some chips also have
     options about how that value is driven, so that for example only one
     value might be driven ... supporting "wire-OR" and similar schemes
-    for the other value.
+    for the other value (notably, "open drain" signaling).
 
   - Input values are likewise readable (1, 0).  Some chips support readback
     of pins configured as "output", which is very useful in such "wire-OR"
@@ -246,6 +246,35 @@ Non-error values returned from irq_to_gpio() would most commonly be used
 with gpio_get_value(), for example to initialize or update driver state
 when the IRQ is edge-triggered.
 
+
+Emulating Open Drain Signals
+----------------------------
+Sometimes shared signals need to use "open drain" signaling, where only the
+low signal level is actually driven.  (That term applies to CMOS transistors;
+"open collector" is used for TTL.)  A pullup resistor causes the high signal
+level.  This is sometimes called a "wire-AND"; or more practically, from the
+negative logic (low=true) perspective this is a "wire-OR".
+
+One common example of an open drain signal is a shared active-low IRQ line.
+Also, bidirectional data bus signals sometimes use open drain signals.
+
+Some GPIO controllers directly support open drain outputs; many don't.  When
+you need open drain signaling but your hardware doesn't directly support it,
+there's a common idiom you can use to emulate it with any GPIO pin that can
+be used as either an input or an output:
+
+ LOW:	gpio_direction_output(gpio, 0) ... this drives the signal
+	and overrides the pullup.
+
+ HIGH:	gpio_direction_input(gpio) ... this turns off the output,
+	so the pullup (or some other device) controls the signal.
+
+If you are "driving" the signal high but gpio_get_value(gpio) reports a low
+value (after the appropriate rise time passes), you know some other component
+is driving the shared signal low.  That's not necessarily an error.  As one
+common example, that's how I2C clocks are stretched:  a slave that needs a
+slower clock delays the rising edge of SCK, and the I2C master adjusts its
+signaling rate accordingly.
 
 
 What do these conventions omit?
