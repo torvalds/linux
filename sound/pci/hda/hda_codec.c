@@ -1368,6 +1368,11 @@ static struct hda_rate_tbl rate_bits[] = {
 	{ 96000, SNDRV_PCM_RATE_96000, 0x0800 }, /* 2 x 48 */
 	{ 176400, SNDRV_PCM_RATE_176400, 0x5800 },/* 4 x 44 */
 	{ 192000, SNDRV_PCM_RATE_192000, 0x1800 }, /* 4 x 48 */
+#define AC_PAR_PCM_RATE_BITS	11
+	/* up to bits 10, 384kHZ isn't supported properly */
+
+	/* not autodetected value */
+	{ 9600, SNDRV_PCM_RATE_KNOT, 0x0400 }, /* 1/5 x 48 */
 
 	{ 0 } /* terminator */
 };
@@ -1461,7 +1466,7 @@ int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 
 	if (ratesp) {
 		u32 rates = 0;
-		for (i = 0; rate_bits[i].hz; i++) {
+		for (i = 0; i < AC_PAR_PCM_RATE_BITS; i++) {
 			if (val & (1 << i))
 				rates |= rate_bits[i].alsa_bits;
 		}
@@ -1555,13 +1560,13 @@ int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 	}
 
 	rate = format & 0xff00;
-	for (i = 0; rate_bits[i].hz; i++)
+	for (i = 0; i < AC_PAR_PCM_RATE_BITS; i++)
 		if (rate_bits[i].hda_fmt == rate) {
 			if (val & (1 << i))
 				break;
 			return 0;
 		}
-	if (! rate_bits[i].hz)
+	if (i >= AC_PAR_PCM_RATE_BITS)
 		return 0;
 
 	stream = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
