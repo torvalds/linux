@@ -14,7 +14,7 @@
 #include <linux/idr.h>
 
 #define DRIVER_NAME "tifm_core"
-#define DRIVER_VERSION "0.7"
+#define DRIVER_VERSION "0.8"
 
 static DEFINE_IDR(tifm_adapter_idr);
 static DEFINE_SPINLOCK(tifm_adapter_lock);
@@ -175,8 +175,7 @@ void tifm_free_device(struct device *dev)
 }
 EXPORT_SYMBOL(tifm_free_device);
 
-static void tifm_dummy_signal_irq(struct tifm_dev *sock,
-				  unsigned int sock_irq_status)
+static void tifm_dummy_event(struct tifm_dev *sock)
 {
 	return;
 }
@@ -191,7 +190,8 @@ struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm)
 		dev->dev.parent = fm->dev;
 		dev->dev.bus = &tifm_bus_type;
 		dev->dev.release = tifm_free_device;
-		dev->signal_irq = tifm_dummy_signal_irq;
+		dev->card_event = tifm_dummy_event;
+		dev->data_event = tifm_dummy_event;
 	}
 	return dev;
 }
@@ -249,7 +249,8 @@ static int tifm_device_remove(struct device *dev)
 	struct tifm_driver *drv = fm_dev->drv;
 
 	if (drv) {
-		fm_dev->signal_irq = tifm_dummy_signal_irq;
+		fm_dev->card_event = tifm_dummy_event;
+		fm_dev->data_event = tifm_dummy_event;
 		if (drv->remove)
 			drv->remove(fm_dev);
 		fm_dev->drv = NULL;

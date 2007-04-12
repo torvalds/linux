@@ -60,13 +60,6 @@ enum {
 	SOCK_MS_SYSTEM                 = 0x190,
 	SOCK_FIFO_ACCESS               = 0x200 };
 
-
-#define TIFM_IRQ_ENABLE           0x80000000
-#define TIFM_IRQ_SOCKMASK(x)      (x)
-#define TIFM_IRQ_CARDMASK(x)      ((x) << 8)
-#define TIFM_IRQ_FIFOMASK(x)      ((x) << 16)
-#define TIFM_IRQ_SETALL           0xffffffff
-
 #define TIFM_CTRL_LED             0x00000040
 #define TIFM_CTRL_FAST_CLK        0x00000100
 
@@ -90,8 +83,8 @@ struct tifm_dev {
 	tifm_media_id           media_id;
 	unsigned int            socket_id;
 
-	void                    (*signal_irq)(struct tifm_dev *sock,
-					      unsigned int sock_irq_status);
+	void          (*card_event)(struct tifm_dev *sock);
+	void          (*data_event)(struct tifm_dev *sock);
 
 	struct tifm_driver      *drv;
 	struct device           dev;

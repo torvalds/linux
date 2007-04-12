@@ -17,7 +17,7 @@
 #include <asm/io.h>
 
 #define DRIVER_NAME "tifm_sd"
-#define DRIVER_VERSION "0.7"
+#define DRIVER_VERSION "0.8"
 
 static int no_dma = 0;
 static int fixed_timeout = 0;
@@ -316,24 +316,38 @@ change_state:
 }
 
 /* Called from interrupt handler */
-static void tifm_sd_signal_irq(struct tifm_dev *sock,
-			       unsigned int sock_irq_status)
+static void tifm_sd_data_event(struct tifm_dev *sock)
 {
 	struct tifm_sd *host;
-	unsigned int host_status = 0, fifo_status = 0;
+	unsigned int fifo_status = 0;
+
+	spin_lock(&sock->lock);
+	host = mmc_priv((struct mmc_host*)tifm_get_drvdata(sock));
+
+	fifo_status = readl(sock->addr + SOCK_DMA_FIFO_STATUS);
+	writel(fifo_status, sock->addr + SOCK_DMA_FIFO_STATUS);
+
+	host->flags |= fifo_status & FIFO_RDY;
+
+	if (host->req)
+		tifm_sd_process_cmd(sock, host, 0);
+
+	dev_dbg(&sock->dev, "fifo_status %x\n", fifo_status);
+	spin_unlock(&sock->lock);
+
+}
+
+/* Called from interrupt handler */
+static void tifm_sd_card_event(struct tifm_dev *sock)
+{
+	struct tifm_sd *host;
+	unsigned int host_status = 0;
 	int error_code = 0;
 
 	spin_lock(&sock->lock);
 	host = mmc_priv((struct mmc_host*)tifm_get_drvdata(sock));
 
-	if (sock_irq_status & FIFO_EVENT) {
-		fifo_status = readl(sock->addr + SOCK_DMA_FIFO_STATUS);
-		writel(fifo_status, sock->addr + SOCK_DMA_FIFO_STATUS);
 
-		host->flags |= fifo_status & FIFO_RDY;
-	}
-
-	if (sock_irq_status & CARD_EVENT) {
 		host_status = readl(sock->addr + SOCK_MMCSD_STATUS);
 		writel(host_status, sock->addr + SOCK_MMCSD_STATUS);
 
@@ -377,13 +391,11 @@ static void tifm_sd_signal_irq(struct tifm_dev *sock,
 			host->written_blocks++;
 			host->flags &= ~CARD_BUSY;
 		}
-        }
 
 	if (host->req)
 		tifm_sd_process_cmd(sock, host, host_status);
 done:
-	dev_dbg(&sock->dev, "host_status %x, fifo_status %x\n",
-		host_status, fifo_status);
+	dev_dbg(&sock->dev, "host_status %x\n", host_status);
 	spin_unlock(&sock->lock);
 }
 
@@ -882,7 +894,8 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	mmc->max_blk_size = 2048;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
-	sock->signal_irq = tifm_sd_signal_irq;
+	sock->card_event = tifm_sd_card_event;
+	sock->data_event = tifm_sd_data_event;
 	rc = tifm_sd_initialize_host(host);
 
 	if (!rc)

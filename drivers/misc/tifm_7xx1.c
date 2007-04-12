@@ -14,7 +14,13 @@
 #include <linux/freezer.h>
 
 #define DRIVER_NAME "tifm_7xx1"
-#define DRIVER_VERSION "0.7"
+#define DRIVER_VERSION "0.8"
+
+#define TIFM_IRQ_ENABLE           0x80000000
+#define TIFM_IRQ_SOCKMASK(x)      (x)
+#define TIFM_IRQ_CARDMASK(x)      ((x) << 8)
+#define TIFM_IRQ_FIFOMASK(x)      ((x) << 16)
+#define TIFM_IRQ_SETALL           0xffffffff
 
 static void tifm_7xx1_eject(struct tifm_adapter *fm, struct tifm_dev *sock)
 {
@@ -31,7 +37,7 @@ static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 	struct tifm_adapter *fm = dev_id;
 	struct tifm_dev *sock;
 	unsigned int irq_status;
-	unsigned int sock_irq_status, cnt;
+	unsigned int cnt;
 
 	spin_lock(&fm->lock);
 	irq_status = readl(fm->addr + FM_INTERRUPT_STATUS);
@@ -45,12 +51,12 @@ static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 
 		for (cnt = 0; cnt < fm->num_sockets; cnt++) {
 			sock = fm->sockets[cnt];
-			sock_irq_status = (irq_status >> cnt)
-					  & (TIFM_IRQ_FIFOMASK(1)
-					     | TIFM_IRQ_CARDMASK(1));
-
-			if (sock && sock_irq_status)
-				sock->signal_irq(sock, sock_irq_status);
+			if (sock) {
+				if ((irq_status >> cnt) & TIFM_IRQ_FIFOMASK(1))
+					sock->data_event(sock);
+				if ((irq_status >> cnt) & TIFM_IRQ_CARDMASK(1))
+					sock->card_event(sock);
+			}
 		}
 
 		fm->socket_change_set |= irq_status
