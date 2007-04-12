@@ -262,6 +262,7 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_INTERACT;
 	input_dev->id.product = interact_type[i].id;
 	input_dev->id.version = 0x0100;
+	input_dev->dev.parent = &gameport->dev;
 
 	input_set_drvdata(input_dev, interact);
 

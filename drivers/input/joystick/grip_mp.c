@@ -599,7 +599,7 @@ static int register_slot(int slot, struct grip_mp *grip)
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_GRAVIS;
 	input_dev->id.product = 0x0100 + port->mode;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &grip->gameport->dev;
+	input_dev->dev.parent = &grip->gameport->dev;
 
 	input_set_drvdata(input_dev, grip);
 

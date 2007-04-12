@@ -231,7 +231,7 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_GUILLEMOT;
 	input_dev->id.product = guillemot_type[i].id;
 	input_dev->id.version = (int)data[14] << 8 | data[15];
-	input_dev->cdev.dev = &gameport->dev;
+	input_dev->dev.parent = &gameport->dev;
 
 	input_set_drvdata(input_dev, guillemot);
 

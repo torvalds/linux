@@ -211,7 +211,7 @@ static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->id.vendor = GAMEPORT_ID_VENDOR_CREATIVE;
 		input_dev->id.product = 0x0008;
 		input_dev->id.version = 0x0100;
-		input_dev->cdev.dev = &gameport->dev;
+		input_dev->dev.parent = &gameport->dev;
 
 		input_set_drvdata(input_dev, cobra);
 

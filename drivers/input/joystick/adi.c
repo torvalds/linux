@@ -424,7 +424,7 @@ static int adi_init_input(struct adi *adi, struct adi_port *port, int half)
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_LOGITECH;
 	input_dev->id.product = adi->id;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &port->gameport->dev;
+	input_dev->dev.parent = &port->gameport->dev;
 
 	input_set_drvdata(input_dev, port);
 

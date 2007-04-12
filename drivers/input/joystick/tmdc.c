@@ -326,7 +326,7 @@ static int tmdc_setup_port(struct tmdc *tmdc, int idx, unsigned char *data)
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_THRUSTMASTER;
 	input_dev->id.product = model->id;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &tmdc->gameport->dev;
+	input_dev->dev.parent = &tmdc->gameport->dev;
 
 	input_set_drvdata(input_dev, tmdc);
 

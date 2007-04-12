@@ -449,6 +449,7 @@ static int analog_init_device(struct analog_port *port, struct analog *analog, i
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_ANALOG;
 	input_dev->id.product = analog->mask >> 4;
 	input_dev->id.version = 0x0100;
+	input_dev->dev.parent = &port->gameport->dev;
 
 	input_set_drvdata(input_dev, port);
 

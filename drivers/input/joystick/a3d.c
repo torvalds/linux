@@ -314,7 +314,7 @@ static int a3d_connect(struct gameport *gameport, struct gameport_driver *drv)
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_MADCATZ;
 	input_dev->id.product = a3d->mode;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &gameport->dev;
+	input_dev->dev.parent = &gameport->dev;
 	input_dev->open = a3d_open;
 	input_dev->close = a3d_close;
 

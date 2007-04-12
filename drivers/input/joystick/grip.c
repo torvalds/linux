@@ -363,7 +363,7 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->id.vendor = GAMEPORT_ID_VENDOR_GRAVIS;
 		input_dev->id.product = grip->mode[i];
 		input_dev->id.version = 0x0100;
-		input_dev->cdev.dev = &gameport->dev;
+		input_dev->dev.parent = &gameport->dev;
 
 		input_set_drvdata(input_dev, grip);
 
