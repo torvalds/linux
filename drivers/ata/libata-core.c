@@ -1787,7 +1787,8 @@ int ata_dev_configure(struct ata_device *dev)
 	}
 
 	if (ata_device_blacklisted(dev) & ATA_HORKAGE_MAX_SEC_128)
-		dev->max_sectors = min(ATA_MAX_SECTORS_128, dev->max_sectors);
+		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
+					 dev->max_sectors);
 
 	/* limit ATAPI DMA to R/W commands only */
 	if (ata_device_blacklisted(dev) & ATA_HORKAGE_DMA_RW_ONLY)
