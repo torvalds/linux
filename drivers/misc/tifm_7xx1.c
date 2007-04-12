@@ -136,7 +136,6 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 					       media_switcher);
 	unsigned long flags;
 	unsigned char media_id;
-	char *card_name = "xx";
 	int cnt;
 	struct tifm_dev *sock;
 	unsigned int socket_change_set;
@@ -153,68 +152,45 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 		return;
 	}
 
-		for (cnt = 0; cnt < fm->num_sockets; cnt++) {
-			if (!(socket_change_set & (1 << cnt)))
-				continue;
-			sock = fm->sockets[cnt];
-			if (sock) {
-				printk(KERN_INFO DRIVER_NAME
-				       ": demand removing card from socket %d\n",
-				       cnt);
-				fm->sockets[cnt] = NULL;
-				spin_unlock_irqrestore(&fm->lock, flags);
-				device_unregister(&sock->dev);
-				spin_lock_irqsave(&fm->lock, flags);
-				writel(0x0e00,
-				       tifm_7xx1_sock_addr(fm->addr, cnt)
-				       + SOCK_CONTROL);
-			}
-
+	for (cnt = 0; cnt < fm->num_sockets; cnt++) {
+		if (!(socket_change_set & (1 << cnt)))
+			continue;
+		sock = fm->sockets[cnt];
+		if (sock) {
+			printk(KERN_INFO
+			       "%s : demand removing card from socket %u:%u\n",
+			       fm->cdev.class_id, fm->id, cnt);
+			fm->sockets[cnt] = NULL;
 			spin_unlock_irqrestore(&fm->lock, flags);
-			media_id = tifm_7xx1_toggle_sock_power(
-					tifm_7xx1_sock_addr(fm->addr, cnt));
-			if (media_id) {
-				sock = tifm_alloc_device(fm);
-				if (sock) {
-					sock->addr = tifm_7xx1_sock_addr(fm->addr,
-									 cnt);
-					sock->type = media_id;
-					sock->socket_id = cnt;
-					switch (media_id) {
-					case 1:
-						card_name = "xd";
-						break;
-					case 2:
-						card_name = "ms";
-						break;
-					case 3:
-						card_name = "sd";
-						break;
-					default:
-						tifm_free_device(&sock->dev);
-						spin_lock_irqsave(&fm->lock, flags);
-						continue;
-					}
-					snprintf(sock->dev.bus_id, BUS_ID_SIZE,
-						 "tifm_%s%u:%u", card_name,
-						 fm->id, cnt);
-					printk(KERN_INFO DRIVER_NAME
-					       ": %s card detected in socket %d\n",
-					       card_name, cnt);
-					if (!device_register(&sock->dev)) {
-						spin_lock_irqsave(&fm->lock, flags);
-						if (!fm->sockets[cnt]) {
-							fm->sockets[cnt] = sock;
-							sock = NULL;
-						}
-						spin_unlock_irqrestore(&fm->lock, flags);
-					}
-					if (sock)
-						tifm_free_device(&sock->dev);
-				}
-				spin_lock_irqsave(&fm->lock, flags);
-			}
+			device_unregister(&sock->dev);
+			spin_lock_irqsave(&fm->lock, flags);
+			writel(0x0e00, tifm_7xx1_sock_addr(fm->addr, cnt)
+			       + SOCK_CONTROL);
 		}
+
+		spin_unlock_irqrestore(&fm->lock, flags);
+
+		media_id = tifm_7xx1_toggle_sock_power(
+				tifm_7xx1_sock_addr(fm->addr, cnt));
+
+		// tifm_alloc_device will check if media_id is valid
+		sock = tifm_alloc_device(fm, cnt, media_id);
+		if (sock) {
+			sock->addr = tifm_7xx1_sock_addr(fm->addr, cnt);
+
+			if (!device_register(&sock->dev)) {
+				spin_lock_irqsave(&fm->lock, flags);
+				if (!fm->sockets[cnt]) {
+					fm->sockets[cnt] = sock;
+					sock = NULL;
+				}
+				spin_unlock_irqrestore(&fm->lock, flags);
+			}
+			if (sock)
+				tifm_free_device(&sock->dev);
+		}
+		spin_lock_irqsave(&fm->lock, flags);
+	}
 
 	writel(TIFM_IRQ_FIFOMASK(socket_change_set)
 	       | TIFM_IRQ_CARDMASK(socket_change_set),

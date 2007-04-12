@@ -131,7 +131,9 @@ void tifm_remove_adapter(struct tifm_adapter *fm);
 void tifm_free_adapter(struct tifm_adapter *fm);
 
 void tifm_free_device(struct device *dev);
-struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm);
+struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id,
+				   unsigned char type);
+
 int tifm_register_driver(struct tifm_driver *drv);
 void tifm_unregister_driver(struct tifm_driver *drv);
 void tifm_eject(struct tifm_dev *sock);

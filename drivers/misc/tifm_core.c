@@ -232,25 +232,40 @@ EXPORT_SYMBOL(tifm_free_adapter);
 
 void tifm_free_device(struct device *dev)
 {
-	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
-	kfree(fm_dev);
+	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
+	kfree(sock);
 }
 EXPORT_SYMBOL(tifm_free_device);
 
-struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm)
+struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id,
+				   unsigned char type)
 {
-	struct tifm_dev *dev = kzalloc(sizeof(struct tifm_dev), GFP_KERNEL);
+	struct tifm_dev *sock = NULL;
 
-	if (dev) {
-		spin_lock_init(&dev->lock);
+	if (!tifm_media_type_name(type, 0))
+		return sock;
 
-		dev->dev.parent = fm->cdev.dev;
-		dev->dev.bus = &tifm_bus_type;
-		dev->dev.release = tifm_free_device;
-		dev->card_event = tifm_dummy_event;
-		dev->data_event = tifm_dummy_event;
+	sock = kzalloc(sizeof(struct tifm_dev), GFP_KERNEL);
+	if (sock) {
+		spin_lock_init(&sock->lock);
+		sock->type = type;
+		sock->socket_id = id;
+		sock->card_event = tifm_dummy_event;
+		sock->data_event = tifm_dummy_event;
+
+		sock->dev.parent = fm->cdev.dev;
+		sock->dev.bus = &tifm_bus_type;
+		sock->dev.dma_mask = fm->cdev.dev->dma_mask;
+		sock->dev.release = tifm_free_device;
+
+		snprintf(sock->dev.bus_id, BUS_ID_SIZE,
+			 "tifm_%s%u:%u", tifm_media_type_name(type, 2),
+			 fm->id, id);
+		printk(KERN_INFO DRIVER_NAME
+		       ": %s card detected in socket %u:%u\n",
+		       tifm_media_type_name(type, 0), fm->id, id);
 	}
-	return dev;
+	return sock;
 }
 EXPORT_SYMBOL(tifm_alloc_device);
 
