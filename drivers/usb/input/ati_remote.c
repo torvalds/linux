@@ -120,6 +120,7 @@
  * behaviour.
  */
 #define FILTER_TIME	60 /* msec */
+#define REPEAT_DELAY	500 /* msec */
 
 static unsigned long channel_mask;
 module_param(channel_mask, ulong, 0644);
@@ -132,6 +133,10 @@ MODULE_PARM_DESC(debug, "Enable extra debug messages and information");
 static int repeat_filter = FILTER_TIME;
 module_param(repeat_filter, int, 0644);
 MODULE_PARM_DESC(repeat_filter, "Repeat filter time, default = 60 msec");
+
+static int repeat_delay = REPEAT_DELAY;
+module_param(repeat_delay, int, 0644);
+MODULE_PARM_DESC(repeat_delay, "Delay before sending repeats, default = 500 msec");
 
 #define dbginfo(dev, format, arg...) do { if (debug) dev_info(dev , format , ## arg); } while (0)
 #undef err
@@ -174,6 +179,8 @@ struct ati_remote {
 	unsigned char old_data[2];  /* Detect duplicate events */
 	unsigned long old_jiffies;
 	unsigned long acc_jiffies;  /* handle acceleration */
+	unsigned long first_jiffies;
+
 	unsigned int repeat_count;
 
 	char name[NAME_BUFSIZE];
@@ -501,21 +508,31 @@ static void ati_remote_input_report(struct urb *urb)
 	}
 
 	if (ati_remote_tbl[index].kind == KIND_FILTERED) {
+		unsigned long now = jiffies;
+
 		/* Filter duplicate events which happen "too close" together. */
 		if (ati_remote->old_data[0] == data[1] &&
 		    ati_remote->old_data[1] == data[2] &&
-		    time_before(jiffies, ati_remote->old_jiffies + msecs_to_jiffies(repeat_filter))) {
+		    time_before(now, ati_remote->old_jiffies +
+				     msecs_to_jiffies(repeat_filter))) {
 			ati_remote->repeat_count++;
 		} else {
 			ati_remote->repeat_count = 0;
+			ati_remote->first_jiffies = now;
 		}
 
 		ati_remote->old_data[0] = data[1];
 		ati_remote->old_data[1] = data[2];
-		ati_remote->old_jiffies = jiffies;
+		ati_remote->old_jiffies = now;
 
+		/* Ensure we skip at least the 4 first duplicate events (generated
+		 * by a single keypress), and continue skipping until repeat_delay
+		 * msecs have passed
+		 */
 		if (ati_remote->repeat_count > 0 &&
-		    ati_remote->repeat_count < 5)
+		    (ati_remote->repeat_count < 5 ||
+		     time_before(now, ati_remote->first_jiffies +
+				      msecs_to_jiffies(repeat_delay))))
 			return;
 
 
