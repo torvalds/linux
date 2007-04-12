@@ -142,14 +142,27 @@ static int tifm_device_resume(struct device *dev)
 
 #endif /* CONFIG_PM */
 
+static ssize_t type_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
+	return sprintf(buf, "%x", sock->type);
+}
+
+static struct device_attribute tifm_dev_attrs[] = {
+	__ATTR(type, S_IRUGO, type_show, NULL),
+	__ATTR_NULL
+};
+
 static struct bus_type tifm_bus_type = {
-	.name    = "tifm",
-	.match   = tifm_bus_match,
-	.uevent  = tifm_uevent,
-	.probe   = tifm_device_probe,
-	.remove  = tifm_device_remove,
-	.suspend = tifm_device_suspend,
-	.resume  = tifm_device_resume
+	.name           = "tifm",
+	.dev_attrs      = tifm_dev_attrs,
+	.match          = tifm_bus_match,
+	.uevent         = tifm_uevent,
+	.probe          = tifm_device_probe,
+	.remove         = tifm_device_remove,
+	.suspend        = tifm_device_suspend,
+	.resume         = tifm_device_resume
 };
 
 static void tifm_free(struct class_device *cdev)
