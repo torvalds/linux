@@ -50,7 +50,7 @@
 MODULE_AUTHOR("Miloslav Trmac <mitr@volny.cz>");
 MODULE_DESCRIPTION("Wistron laptop button driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.1");
+MODULE_VERSION("0.2");
 
 static int force; /* = 0; */
 module_param(force, bool, 0);
@@ -266,11 +266,11 @@ static int __init dmi_matched(struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct key_entry keymap_empty[] = {
+static struct key_entry keymap_empty[] __initdata = {
 	{ KE_END, 0 }
 };
 
-static struct key_entry keymap_fs_amilo_pro_v2000[] = {
+static struct key_entry keymap_fs_amilo_pro_v2000[] __initdata = {
 	{ KE_KEY,  0x01, {KEY_HELP} },
 	{ KE_KEY,  0x11, {KEY_PROG1} },
 	{ KE_KEY,  0x12, {KEY_PROG2} },
@@ -280,7 +280,7 @@ static struct key_entry keymap_fs_amilo_pro_v2000[] = {
 	{ KE_END,  0 }
 };
 
-static struct key_entry keymap_fujitsu_n3510[] = {
+static struct key_entry keymap_fujitsu_n3510[] __initdata = {
 	{ KE_KEY, 0x11, {KEY_PROG1} },
 	{ KE_KEY, 0x12, {KEY_PROG2} },
 	{ KE_KEY, 0x36, {KEY_WWW} },
@@ -292,7 +292,7 @@ static struct key_entry keymap_fujitsu_n3510[] = {
 	{ KE_END, 0 }
 };
 
-static struct key_entry keymap_wistron_ms2111[] = {
+static struct key_entry keymap_wistron_ms2111[] __initdata = {
 	{ KE_KEY,  0x11, {KEY_PROG1} },
 	{ KE_KEY,  0x12, {KEY_PROG2} },
 	{ KE_KEY,  0x13, {KEY_PROG3} },
@@ -301,7 +301,7 @@ static struct key_entry keymap_wistron_ms2111[] = {
 	{ KE_END, FE_MAIL_LED }
 };
 
-static struct key_entry keymap_wistron_md40100[] = {
+static struct key_entry keymap_wistron_md40100[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x31, {KEY_MAIL} },
@@ -310,7 +310,7 @@ static struct key_entry keymap_wistron_md40100[] = {
 	{ KE_END, FE_MAIL_LED | FE_WIFI_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_wistron_ms2141[] = {
+static struct key_entry keymap_wistron_ms2141[] __initdata = {
 	{ KE_KEY,  0x11, {KEY_PROG1} },
 	{ KE_KEY,  0x12, {KEY_PROG2} },
 	{ KE_WIFI, 0x30 },
@@ -323,7 +323,7 @@ static struct key_entry keymap_wistron_ms2141[] = {
 	{ KE_END,  0 }
 };
 
-static struct key_entry keymap_acer_aspire_1500[] = {
+static struct key_entry keymap_acer_aspire_1500[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x03, {KEY_POWER} },
 	{ KE_KEY, 0x11, {KEY_PROG1} },
@@ -336,7 +336,7 @@ static struct key_entry keymap_acer_aspire_1500[] = {
 	{ KE_END, FE_UNTESTED }
 };
 
-static struct key_entry keymap_acer_aspire_1600[] = {
+static struct key_entry keymap_acer_aspire_1600[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x03, {KEY_POWER} },
 	{ KE_KEY, 0x08, {KEY_MUTE} },
@@ -352,7 +352,7 @@ static struct key_entry keymap_acer_aspire_1600[] = {
 };
 
 /* 3020 has been tested */
-static struct key_entry keymap_acer_aspire_5020[] = {
+static struct key_entry keymap_acer_aspire_5020[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x03, {KEY_POWER} },
 	{ KE_KEY, 0x05, {KEY_SWITCHVIDEOMODE} }, /* Display selection */
@@ -366,7 +366,7 @@ static struct key_entry keymap_acer_aspire_5020[] = {
 	{ KE_END, FE_MAIL_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_acer_travelmate_2410[] = {
+static struct key_entry keymap_acer_travelmate_2410[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x6d, {KEY_POWER} },
 	{ KE_KEY, 0x11, {KEY_PROG1} },
@@ -379,7 +379,7 @@ static struct key_entry keymap_acer_travelmate_2410[] = {
 	{ KE_END, FE_MAIL_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_acer_travelmate_110[] = {
+static struct key_entry keymap_acer_travelmate_110[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x03, {KEY_POWER} },
@@ -396,7 +396,7 @@ static struct key_entry keymap_acer_travelmate_110[] = {
 	{ KE_END, FE_MAIL_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_acer_travelmate_300[] = {
+static struct key_entry keymap_acer_travelmate_300[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x03, {KEY_POWER} },
@@ -412,7 +412,7 @@ static struct key_entry keymap_acer_travelmate_300[] = {
 	{ KE_END, FE_MAIL_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_acer_travelmate_380[] = {
+static struct key_entry keymap_acer_travelmate_380[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x03, {KEY_POWER} }, /* not 370 */
@@ -426,7 +426,7 @@ static struct key_entry keymap_acer_travelmate_380[] = {
 };
 
 /* unusual map */
-static struct key_entry keymap_acer_travelmate_220[] = {
+static struct key_entry keymap_acer_travelmate_220[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x11, {KEY_MAIL} },
@@ -436,7 +436,7 @@ static struct key_entry keymap_acer_travelmate_220[] = {
 	{ KE_END, FE_WIFI_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_acer_travelmate_230[] = {
+static struct key_entry keymap_acer_travelmate_230[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x11, {KEY_PROG1} },
@@ -446,7 +446,7 @@ static struct key_entry keymap_acer_travelmate_230[] = {
 	{ KE_END, FE_WIFI_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_acer_travelmate_240[] = {
+static struct key_entry keymap_acer_travelmate_240[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x03, {KEY_POWER} },
@@ -460,7 +460,7 @@ static struct key_entry keymap_acer_travelmate_240[] = {
 	{ KE_END, FE_UNTESTED }
 };
 
-static struct key_entry keymap_acer_travelmate_350[] = {
+static struct key_entry keymap_acer_travelmate_350[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x11, {KEY_PROG1} },
@@ -471,7 +471,7 @@ static struct key_entry keymap_acer_travelmate_350[] = {
 	{ KE_END, FE_MAIL_LED | FE_WIFI_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_acer_travelmate_360[] = {
+static struct key_entry keymap_acer_travelmate_360[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x11, {KEY_PROG1} },
@@ -486,7 +486,7 @@ static struct key_entry keymap_acer_travelmate_360[] = {
 /* Wifi subsystem only activates the led. Therefore we need to pass
  * wifi event as a normal key, then userspace can really change the wifi state.
  * TODO we need to export led state to userspace (wifi and mail) */
-static struct key_entry keymap_acer_travelmate_610[] = {
+static struct key_entry keymap_acer_travelmate_610[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x11, {KEY_PROG1} },
@@ -498,7 +498,7 @@ static struct key_entry keymap_acer_travelmate_610[] = {
 	{ KE_END, FE_MAIL_LED | FE_WIFI_LED }
 };
 
-static struct key_entry keymap_acer_travelmate_630[] = {
+static struct key_entry keymap_acer_travelmate_630[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x03, {KEY_POWER} },
@@ -514,7 +514,7 @@ static struct key_entry keymap_acer_travelmate_630[] = {
 	{ KE_END, FE_MAIL_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_aopen_1559as[] = {
+static struct key_entry keymap_aopen_1559as[] __initdata = {
 	{ KE_KEY,  0x01, {KEY_HELP} },
 	{ KE_KEY,  0x06, {KEY_PROG3} },
 	{ KE_KEY,  0x11, {KEY_PROG1} },
@@ -525,7 +525,7 @@ static struct key_entry keymap_aopen_1559as[] = {
 	{ KE_END,  0 },
 };
 
-static struct key_entry keymap_fs_amilo_d88x0[] = {
+static struct key_entry keymap_fs_amilo_d88x0[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x08, {KEY_MUTE} },
 	{ KE_KEY, 0x31, {KEY_MAIL} },
@@ -536,7 +536,7 @@ static struct key_entry keymap_fs_amilo_d88x0[] = {
 	{ KE_END, FE_MAIL_LED | FE_WIFI_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_wistron_md2900[] = {
+static struct key_entry keymap_wistron_md2900[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x11, {KEY_PROG1} },
@@ -547,7 +547,7 @@ static struct key_entry keymap_wistron_md2900[] = {
 	{ KE_END, FE_MAIL_LED | FE_UNTESTED }
 };
 
-static struct key_entry keymap_wistron_md96500[] = {
+static struct key_entry keymap_wistron_md96500[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x05, {KEY_SWITCHVIDEOMODE} }, /* Display selection */
@@ -568,7 +568,7 @@ static struct key_entry keymap_wistron_md96500[] = {
 	{ KE_END, FE_UNTESTED }
 };
 
-static struct key_entry keymap_wistron_generic[] = {
+static struct key_entry keymap_wistron_generic[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x03, {KEY_POWER} },
@@ -920,6 +920,26 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 	{ NULL, }
 };
 
+/* Copy the good keymap, as the original ones are free'd */
+static int __init copy_keymap(void)
+{
+	const struct key_entry *key;
+	struct key_entry *new_keymap;
+	unsigned int length = 1;
+
+	for (key = keymap; key->type != KE_END; key++)
+		length++;
+
+	new_keymap = kmalloc(length * sizeof(struct key_entry), GFP_KERNEL);
+	if (!new_keymap)
+		return -ENOMEM;
+
+	memcpy(new_keymap, keymap, length * sizeof(struct key_entry));
+	keymap = new_keymap;
+
+	return 0;
+}
+
 static int __init select_keymap(void)
 {
 	dmi_check_system(dmi_ids);
@@ -940,7 +960,8 @@ static int __init select_keymap(void)
 		}
 		keymap = keymap_empty;
 	}
-	return 0;
+
+	return copy_keymap();
 }
 
  /* Input layer interface */
@@ -1203,6 +1224,7 @@ static void __exit wb_module_exit(void)
 	platform_device_unregister(wistron_device);
 	platform_driver_unregister(&wistron_driver);
 	unmap_bios();
+	kfree(keymap);
 }
 
 module_init(wb_module_init);
