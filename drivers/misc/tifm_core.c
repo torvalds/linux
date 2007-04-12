@@ -60,14 +60,54 @@ static int tifm_uevent(struct device *dev, char **envp, int num_envp,
 	return 0;
 }
 
+static int tifm_device_probe(struct device *dev)
+{
+	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
+	struct tifm_driver *drv = container_of(dev->driver, struct tifm_driver,
+					       driver);
+	int rc = -ENODEV;
+
+	get_device(dev);
+	if (dev->driver && drv->probe) {
+		rc = drv->probe(sock);
+		if (!rc)
+			return 0;
+	}
+	put_device(dev);
+	return rc;
+}
+
+static void tifm_dummy_event(struct tifm_dev *sock)
+{
+	return;
+}
+
+static int tifm_device_remove(struct device *dev)
+{
+	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
+	struct tifm_driver *drv = container_of(dev->driver, struct tifm_driver,
+					       driver);
+
+	if (dev->driver && drv->remove) {
+		sock->card_event = tifm_dummy_event;
+		sock->data_event = tifm_dummy_event;
+		drv->remove(sock);
+		sock->dev.driver = NULL;
+	}
+
+	put_device(dev);
+	return 0;
+}
+
 #ifdef CONFIG_PM
 
 static int tifm_device_suspend(struct device *dev, pm_message_t state)
 {
 	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
-	struct tifm_driver *drv = fm_dev->drv;
+	struct tifm_driver *drv = container_of(dev->driver, struct tifm_driver,
+					       driver);
 
-	if (drv && drv->suspend)
+	if (dev->driver && drv->suspend)
 		return drv->suspend(fm_dev, state);
 	return 0;
 }
@@ -75,9 +115,10 @@ static int tifm_device_suspend(struct device *dev, pm_message_t state)
 static int tifm_device_resume(struct device *dev)
 {
 	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
-	struct tifm_driver *drv = fm_dev->drv;
+	struct tifm_driver *drv = container_of(dev->driver, struct tifm_driver,
+					       driver);
 
-	if (drv && drv->resume)
+	if (dev->driver && drv->resume)
 		return drv->resume(fm_dev);
 	return 0;
 }
@@ -93,6 +134,8 @@ static struct bus_type tifm_bus_type = {
 	.name    = "tifm",
 	.match   = tifm_match,
 	.uevent  = tifm_uevent,
+	.probe   = tifm_device_probe,
+	.remove  = tifm_device_remove,
 	.suspend = tifm_device_suspend,
 	.resume  = tifm_device_resume
 };
@@ -175,11 +218,6 @@ void tifm_free_device(struct device *dev)
 }
 EXPORT_SYMBOL(tifm_free_device);
 
-static void tifm_dummy_event(struct tifm_dev *sock)
-{
-	return;
-}
-
 struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm)
 {
 	struct tifm_dev *dev = kzalloc(sizeof(struct tifm_dev), GFP_KERNEL);
@@ -218,55 +256,9 @@ void tifm_unmap_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 }
 EXPORT_SYMBOL(tifm_unmap_sg);
 
-static int tifm_device_probe(struct device *dev)
-{
-	struct tifm_driver *drv;
-	struct tifm_dev *fm_dev;
-	int rc = 0;
-	const tifm_media_id *id;
-
-	drv = container_of(dev->driver, struct tifm_driver, driver);
-	fm_dev = container_of(dev, struct tifm_dev, dev);
-	get_device(dev);
-	if (!fm_dev->drv && drv->probe && drv->id_table) {
-		rc = -ENODEV;
-		id = tifm_device_match(drv->id_table, fm_dev);
-		if (id)
-			rc = drv->probe(fm_dev);
-		if (rc >= 0) {
-			rc = 0;
-			fm_dev->drv = drv;
-		}
-	}
-	if (rc)
-		put_device(dev);
-	return rc;
-}
-
-static int tifm_device_remove(struct device *dev)
-{
-	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
-	struct tifm_driver *drv = fm_dev->drv;
-
-	if (drv) {
-		fm_dev->card_event = tifm_dummy_event;
-		fm_dev->data_event = tifm_dummy_event;
-		if (drv->remove)
-			drv->remove(fm_dev);
-		fm_dev->drv = NULL;
-	}
-
-	put_device(dev);
-	return 0;
-}
-
 int tifm_register_driver(struct tifm_driver *drv)
 {
 	drv->driver.bus = &tifm_bus_type;
-	drv->driver.probe = tifm_device_probe;
-	drv->driver.remove = tifm_device_remove;
-	drv->driver.suspend = tifm_device_suspend;
-	drv->driver.resume = tifm_device_resume;
 
 	return driver_register(&drv->driver);
 }

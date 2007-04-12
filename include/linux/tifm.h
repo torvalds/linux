@@ -86,7 +86,6 @@ struct tifm_dev {
 	void          (*card_event)(struct tifm_dev *sock);
 	void          (*data_event)(struct tifm_dev *sock);
 
-	struct tifm_driver      *drv;
 	struct device           dev;
 };
 
