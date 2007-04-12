@@ -266,7 +266,7 @@ static int sermouse_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.vendor  = sermouse->type;
 	input_dev->id.product = c;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &serio->dev;
+	input_dev->dev.parent = &serio->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
 	input_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT);

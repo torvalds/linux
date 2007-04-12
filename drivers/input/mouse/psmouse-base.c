@@ -1083,7 +1083,7 @@ static int psmouse_switch_protocol(struct psmouse *psmouse, const struct psmouse
 {
 	struct input_dev *input_dev = psmouse->dev;
 
-	input_dev->cdev.dev = &psmouse->ps2dev.serio->dev;
+	input_dev->dev.parent = &psmouse->ps2dev.serio->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
 	input_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
