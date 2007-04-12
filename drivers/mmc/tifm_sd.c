@@ -80,7 +80,6 @@ typedef enum {
 enum {
 	FIFO_RDY   = 0x0001,     /* hardware dependent value */
 	EJECT      = 0x0004,
-	EJECT_DONE = 0x0008,
 	CARD_BUSY  = 0x0010,
 	OPENDRAIN  = 0x0040,     /* hardware dependent value */
 	CARD_EVENT = 0x0100,     /* hardware dependent value */
@@ -99,7 +98,6 @@ struct tifm_sd {
 	struct tasklet_struct finish_tasklet;
 	struct timer_list     timer;
 	struct mmc_request    *req;
-	wait_queue_head_t     notify;
 
 	size_t                written_blocks;
 	size_t                buffer_size;
@@ -738,12 +736,6 @@ static void tifm_sd_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	/* chip_select : maybe later */
 	//vdd
 	//power is set before probe / after remove
-	//I believe, power_off when already marked for eject is sufficient to
-	// allow removal.
-	if ((host->flags & EJECT) && ios->power_mode == MMC_POWER_OFF) {
-		host->flags |= EJECT_DONE;
-		wake_up_all(&host->notify);
-	}
 
 	spin_unlock_irqrestore(&sock->lock, flags);
 }
@@ -854,7 +846,6 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	host->dev = sock;
 	host->timeout_jiffies = msecs_to_jiffies(1000);
 
-	init_waitqueue_head(&host->notify);
 	tasklet_init(&host->finish_tasklet,
 		     no_dma ? tifm_sd_end_cmd_nodma : tifm_sd_end_cmd,
 		     (unsigned long)host);
@@ -896,28 +887,32 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 	struct tifm_sd *host = mmc_priv(mmc);
 	unsigned long flags;
 
-	del_timer_sync(&host->timer);
-	writel(0, sock->addr + SOCK_MMCSD_INT_ENABLE);
-	mmiowb();
 	spin_lock_irqsave(&sock->lock, flags);
 	host->flags |= EJECT;
+	writel(0, sock->addr + SOCK_MMCSD_INT_ENABLE);
+	mmiowb();
+	spin_unlock_irqrestore(&sock->lock, flags);
+
+	tasklet_kill(&host->finish_tasklet);
+
+	spin_lock_irqsave(&sock->lock, flags);
 	if (host->req) {
 		writel(TIFM_FIFO_INT_SETALL,
 		       sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
 		writel(0, sock->addr + SOCK_DMA_FIFO_INT_ENABLE_SET);
+		host->req->cmd->error = MMC_ERR_TIMEOUT;
+		if (host->req->stop)
+			host->req->stop->error = MMC_ERR_TIMEOUT;
 		tasklet_schedule(&host->finish_tasklet);
 	}
 	spin_unlock_irqrestore(&sock->lock, flags);
-	wait_event_timeout(host->notify, host->flags & EJECT_DONE,
-			   host->timeout_jiffies);
-	tasklet_kill(&host->finish_tasklet);
 	mmc_remove_host(mmc);
+	dev_dbg(&sock->dev, "after remove\n");
 
 	/* The meaning of the bit majority in this constant is unknown. */
 	writel(0xfff8 & readl(sock->addr + SOCK_CONTROL),
 	       sock->addr + SOCK_CONTROL);
 
-	tifm_set_drvdata(sock, NULL);
 	mmc_free_host(mmc);
 }
 
