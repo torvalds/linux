@@ -2026,6 +2026,17 @@ static int sched(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	return 0;
 }
 
+static int set_tcb_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
+{
+	struct cpl_set_tcb_rpl *rpl = cplhdr(skb);
+
+	if (rpl->status != CPL_ERR_NONE) {
+		printk(KERN_ERR MOD "Unexpected SET_TCB_RPL status %u "
+		       "for tid %u\n", rpl->status, GET_TID(rpl));
+	}
+	return CPL_RET_BUF_DONE;
+}
+
 int __init iwch_cm_init(void)
 {
 	skb_queue_head_init(&rxq);
@@ -2053,6 +2064,7 @@ int __init iwch_cm_init(void)
 	t3c_handlers[CPL_ABORT_REQ_RSS] = sched;
 	t3c_handlers[CPL_RDMA_TERMINATE] = sched;
 	t3c_handlers[CPL_RDMA_EC_STATUS] = sched;
+	t3c_handlers[CPL_SET_TCB_RPL] = set_tcb_rpl;
 
 	/*
 	 * These are the real handlers that are called from a
