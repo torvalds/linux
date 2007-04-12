@@ -470,15 +470,15 @@ void autofs4_dentry_release(struct dentry *de)
 	if (inf) {
 		struct autofs_sb_info *sbi = autofs4_sbi(de->d_sb);
 
-		inf->dentry = NULL;
-		inf->inode = NULL;
-
 		if (sbi) {
 			spin_lock(&sbi->rehash_lock);
 			if (!list_empty(&inf->rehash))
 				list_del(&inf->rehash);
 			spin_unlock(&sbi->rehash_lock);
 		}
+
+		inf->dentry = NULL;
+		inf->inode = NULL;
 
 		autofs4_free_ino(inf);
 	}
