@@ -952,7 +952,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 
 	/* Set input device required ID information */
 	usb_to_input_id(gtco->usbdev, &input_dev->id);
-	input_dev->cdev.dev = &usbinterface->dev;
+	input_dev->dev.parent = &usbinterface->dev;
 
 	/* Setup the URB, it will be posted later on open of input device */
 	endpoint = &usbinterface->altsetting[0].endpoint[0].desc;

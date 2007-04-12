@@ -230,7 +230,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	wacom->wacom_wac = wacom_wac;
 	usb_to_input_id(dev, &input_dev->id);
 
-	input_dev->cdev.dev = &intf->dev;
+	input_dev->dev.parent = &intf->dev;
 
 	input_set_drvdata(input_dev, wacom);
 

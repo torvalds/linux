@@ -584,7 +584,7 @@ static int atp_probe(struct usb_interface *iface, const struct usb_device_id *id
 	input_dev->name = "appletouch";
 	input_dev->phys = dev->phys;
 	usb_to_input_id(dev->udev, &input_dev->id);
-	input_dev->cdev.dev = &iface->dev;
+	input_dev->dev.parent = &iface->dev;
 
 	input_set_drvdata(input_dev, dev);
 

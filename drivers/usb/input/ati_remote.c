@@ -662,7 +662,7 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 	idev->phys = ati_remote->phys;
 
 	usb_to_input_id(ati_remote->udev, &idev->id);
-	idev->cdev.dev = &ati_remote->udev->dev;
+	idev->dev.parent = &ati_remote->udev->dev;
 }
 
 static int ati_remote_initialize(struct ati_remote *ati_remote)

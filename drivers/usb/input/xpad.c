@@ -345,7 +345,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	input_dev->name = xpad_device[i].name;
 	input_dev->phys = xpad->phys;
 	usb_to_input_id(udev, &input_dev->id);
-	input_dev->cdev.dev = &intf->dev;
+	input_dev->dev.parent = &intf->dev;
 
 	input_set_drvdata(input_dev, xpad);
 

@@ -740,7 +740,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 	input_dev->name = usbtouch->name;
 	input_dev->phys = usbtouch->phys;
 	usb_to_input_id(udev, &input_dev->id);
-	input_dev->cdev.dev = &intf->dev;
+	input_dev->dev.parent = &intf->dev;
 
 	input_set_drvdata(input_dev, usbtouch);
 

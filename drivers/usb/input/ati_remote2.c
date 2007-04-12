@@ -362,7 +362,7 @@ static int ati_remote2_input_init(struct ati_remote2 *ar2)
 	idev->phys = ar2->phys;
 
 	usb_to_input_id(ar2->udev, &idev->id);
-	idev->cdev.dev = &ar2->udev->dev;
+	idev->dev.parent = &ar2->udev->dev;
 
 	retval = input_register_device(idev);
 	if (retval)

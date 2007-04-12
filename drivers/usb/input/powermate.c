@@ -359,7 +359,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 
 	input_dev->phys = pm->phys;
 	usb_to_input_id(udev, &input_dev->id);
-	input_dev->cdev.dev = &intf->dev;
+	input_dev->dev.parent = &intf->dev;
 
 	input_set_drvdata(input_dev, pm);
 
