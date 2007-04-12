@@ -67,6 +67,7 @@ enum {
 #define TIFM_SOCK_STATE_POWERED   0x00000080
 
 #define TIFM_FIFO_ENABLE          0x00000001 /* Meaning of this constant is unverified */
+#define TIFM_FIFO_READY           0x00000001 /* Meaning of this constant is unverified */
 #define TIFM_FIFO_INT_SETALL      0x0000ffff
 #define TIFM_FIFO_INTMASK         0x00000005 /* Meaning of this constant is unverified */
 
