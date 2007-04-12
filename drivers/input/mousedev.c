@@ -124,32 +124,33 @@ static void mousedev_touchpad_event(struct input_dev *dev, struct mousedev *mous
 	int size, tmp;
 	enum { FRACTION_DENOM = 128 };
 
-	if (mousedev->touch) {
-		size = dev->absmax[ABS_X] - dev->absmin[ABS_X];
-		if (size == 0)
-			size = 256 * 2;
+	switch (code) {
+		case ABS_X:
+			fx(0) = value;
+			if (mousedev->touch && mousedev->pkt_count >= 2) {
+				size = dev->absmax[ABS_X] - dev->absmin[ABS_X];
+				if (size == 0)
+					size = 256 * 2;
+				tmp = ((value - fx(2)) * (256 * FRACTION_DENOM)) / size;
+				tmp += mousedev->frac_dx;
+				mousedev->packet.dx = tmp / FRACTION_DENOM;
+				mousedev->frac_dx = tmp - mousedev->packet.dx * FRACTION_DENOM;
+			}
+			break;
 
-		switch (code) {
-			case ABS_X:
-				fx(0) = value;
-				if (mousedev->pkt_count >= 2) {
-					tmp = ((value - fx(2)) * (256 * FRACTION_DENOM)) / size;
-					tmp += mousedev->frac_dx;
-					mousedev->packet.dx = tmp / FRACTION_DENOM;
-					mousedev->frac_dx = tmp - mousedev->packet.dx * FRACTION_DENOM;
-				}
-				break;
-
-			case ABS_Y:
-				fy(0) = value;
-				if (mousedev->pkt_count >= 2) {
-					tmp = -((value - fy(2)) * (256 * FRACTION_DENOM)) / size;
-					tmp += mousedev->frac_dy;
-					mousedev->packet.dy = tmp / FRACTION_DENOM;
-					mousedev->frac_dy = tmp - mousedev->packet.dy * FRACTION_DENOM;
-				}
-				break;
-		}
+		case ABS_Y:
+			fy(0) = value;
+			if (mousedev->touch && mousedev->pkt_count >= 2) {
+				/* use X size to keep the same scale */
+				size = dev->absmax[ABS_X] - dev->absmin[ABS_X];
+				if (size == 0)
+					size = 256 * 2;
+				tmp = -((value - fy(2)) * (256 * FRACTION_DENOM)) / size;
+				tmp += mousedev->frac_dy;
+				mousedev->packet.dy = tmp / FRACTION_DENOM;
+				mousedev->frac_dy = tmp - mousedev->packet.dy * FRACTION_DENOM;
+			}
+			break;
 	}
 }
 
