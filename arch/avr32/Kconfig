@@ -111,6 +111,9 @@ choice
 config BOARD_ATSTK1000
 	bool "ATSTK1000 evaluation board"
 	select BOARD_ATSTK1002 if CPU_AT32AP7000
+
+config BOARD_ATNGW100
+	bool "ATNGW100 Network Gateway"
 endchoice
 
 choice
