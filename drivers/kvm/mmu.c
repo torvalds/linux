@@ -806,10 +806,12 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->mmu.pae_root[i];
 
-		ASSERT(VALID_PAGE(root));
-		root &= PT64_BASE_ADDR_MASK;
-		page = page_header(root);
-		--page->root_count;
+		if (root) {
+			ASSERT(VALID_PAGE(root));
+			root &= PT64_BASE_ADDR_MASK;
+			page = page_header(root);
+			--page->root_count;
+		}
 		vcpu->mmu.pae_root[i] = INVALID_PAGE;
 	}
 	vcpu->mmu.root_hpa = INVALID_PAGE;
@@ -840,9 +842,13 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		hpa_t root = vcpu->mmu.pae_root[i];
 
 		ASSERT(!VALID_PAGE(root));
-		if (vcpu->mmu.root_level == PT32E_ROOT_LEVEL)
+		if (vcpu->mmu.root_level == PT32E_ROOT_LEVEL) {
+			if (!is_present_pte(vcpu->pdptrs[i])) {
+				vcpu->mmu.pae_root[i] = 0;
+				continue;
+			}
 			root_gfn = vcpu->pdptrs[i] >> PAGE_SHIFT;
-		else if (vcpu->mmu.root_level == 0)
+		} else if (vcpu->mmu.root_level == 0)
 			root_gfn = 0;
 		page = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 					PT32_ROOT_LEVEL, !is_paging(vcpu),
