@@ -655,6 +655,16 @@ int synaptics_init(struct psmouse *psmouse)
 
 	set_input_params(psmouse->dev, priv);
 
+	/*
+	 * Encode touchpad model so that it can be used to set
+	 * input device->id.version and be visible to userspace.
+	 * Because version is __u16 we have to drop something.
+	 * Hardware info bits seem to be good candidates as they
+	 * are documented to be for Synaptics corp. internal use.
+	 */
+	psmouse->model = ((priv->model_id & 0x00ff0000) >> 8) |
+			  (priv->model_id & 0x000000ff);
+
 	psmouse->protocol_handler = synaptics_process_byte;
 	psmouse->set_rate = synaptics_set_rate;
 	psmouse->disconnect = synaptics_disconnect;
