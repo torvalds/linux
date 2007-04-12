@@ -1,8 +1,6 @@
-menu "Platform support"
-	depends on PPC_83xx
-
 choice
 	prompt "Machine Type"
+	depends on PPC_83xx
 	default MPC834x_MDS
 
 config MPC8313_RDB
@@ -77,5 +75,3 @@ config PPC_MPC836x
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
 	default y if MPC836x_MDS
-
-endmenu
