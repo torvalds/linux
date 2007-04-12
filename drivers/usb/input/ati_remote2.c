@@ -2,6 +2,7 @@
  * ati_remote2 - ATI/Philips USB RF remote driver
  *
  * Copyright (C) 2005 Ville Syrjala <syrjala@sci.fi>
+ * Copyright (C) 2007 Peter Stokes <linux@dadeos.freeserve.co.uk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2
@@ -11,12 +12,28 @@
 #include <linux/usb/input.h>
 
 #define DRIVER_DESC    "ATI/Philips USB RF remote driver"
-#define DRIVER_VERSION "0.1"
+#define DRIVER_VERSION "0.2"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR("Ville Syrjala <syrjala@sci.fi>");
 MODULE_LICENSE("GPL");
+
+/*
+ * ATI Remote Wonder II Channel Configuration
+ *
+ * The remote control can by assigned one of sixteen "channels" in order to facilitate
+ * the use of multiple remote controls within range of each other.
+ * A remote's "channel" may be altered by pressing and holding the "PC" button for
+ * approximately 3 seconds, after which the button will slowly flash the count of the
+ * currently configured "channel", using the numeric keypad enter a number between 1 and
+ * 16 and then the "PC" button again, the button will slowly flash the count of the
+ * newly configured "channel".
+ */
+
+static unsigned int channel_mask = 0xFFFF;
+module_param(channel_mask, uint, 0644);
+MODULE_PARM_DESC(channel_mask, "Bitmask of channels to accept <15:Channel16>...<1:Channel2><0:Channel1>");
 
 static unsigned int mode_mask = 0x1F;
 module_param(mode_mask, uint, 0644);
@@ -146,15 +163,23 @@ static void ati_remote2_input_mouse(struct ati_remote2 *ar2)
 {
 	struct input_dev *idev = ar2->idev;
 	u8 *data = ar2->buf[0];
+	int channel, mode;
 
-	if (data[0] > 4) {
+	channel = data[0] >> 4;
+
+	if (!((1 << channel) & channel_mask))
+		return;
+
+	mode = data[0] & 0x0F;
+
+	if (mode > 4) {
 		dev_err(&ar2->intf[0]->dev,
 			"Unknown mode byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
 		return;
 	}
 
-	if (!((1 << data[0]) & mode_mask))
+	if (!((1 << mode) & mode_mask))
 		return;
 
 	input_event(idev, EV_REL, REL_X, (s8) data[1]);
@@ -177,9 +202,16 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2)
 {
 	struct input_dev *idev = ar2->idev;
 	u8 *data = ar2->buf[1];
-	int hw_code, index;
+	int channel, mode, hw_code, index;
 
-	if (data[0] > 4) {
+	channel = data[0] >> 4;
+
+	if (!((1 << channel) & channel_mask))
+		return;
+
+	mode = data[0] & 0x0F;
+
+	if (mode > 4) {
 		dev_err(&ar2->intf[1]->dev,
 			"Unknown mode byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
@@ -199,16 +231,16 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2)
 		 * events for the mouse pad so we filter out any subsequent
 		 * events from the same mode key.
 		 */
-		if (ar2->mode == data[0])
+		if (ar2->mode == mode)
 			return;
 
 		if (data[1] == 0)
-			ar2->mode = data[0];
+			ar2->mode = mode;
 
-		hw_code |= data[0] << 8;
+		hw_code |= mode << 8;
 	}
 
-	if (!((1 << data[0]) & mode_mask))
+	if (!((1 << mode) & mode_mask))
 		return;
 
 	index = ati_remote2_lookup(hw_code);
@@ -379,6 +411,41 @@ static void ati_remote2_urb_cleanup(struct ati_remote2 *ar2)
 	}
 }
 
+static int ati_remote2_setup(struct ati_remote2 *ar2)
+{
+	int r, i, channel;
+
+	/*
+	 * Configure receiver to only accept input from remote "channel"
+	 *  channel == 0  -> Accept input from any remote channel
+	 *  channel == 1  -> Only accept input from remote channel 1
+	 *  channel == 2  -> Only accept input from remote channel 2
+	 *  ...
+	 *  channel == 16 -> Only accept input from remote channel 16
+	 */
+
+	channel = 0;
+	for (i = 0; i < 16; i++) {
+		if ((1 << i) & channel_mask) {
+			if (!(~(1 << i) & 0xFFFF & channel_mask))
+				channel = i + 1;
+			break;
+		}
+	}
+
+	r = usb_control_msg(ar2->udev, usb_sndctrlpipe(ar2->udev, 0),
+			    0x20,
+			    USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			    channel, 0x0, NULL, 0, USB_CTRL_SET_TIMEOUT);
+	if (r) {
+		dev_err(&ar2->udev->dev, "%s - failed to set channel due to error: %d\n",
+			__FUNCTION__, r);
+		return r;
+	}
+
+	return 0;
+}
+
 static int ati_remote2_probe(struct usb_interface *interface, const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
@@ -406,6 +473,10 @@ static int ati_remote2_probe(struct usb_interface *interface, const struct usb_d
 	ar2->ep[1] = &alt->endpoint[0].desc;
 
 	r = ati_remote2_urb_init(ar2);
+	if (r)
+		goto fail2;
+
+	r = ati_remote2_setup(ar2);
 	if (r)
 		goto fail2;
 
