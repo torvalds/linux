@@ -111,7 +111,7 @@ resubmit:
 
 static int usb_acecad_open(struct input_dev *dev)
 {
-	struct usb_acecad *acecad = dev->private;
+	struct usb_acecad *acecad = input_get_drvdata(dev);
 
 	acecad->irq->dev = acecad->usbdev;
 	if (usb_submit_urb(acecad->irq, GFP_KERNEL))
@@ -122,7 +122,7 @@ static int usb_acecad_open(struct input_dev *dev)
 
 static void usb_acecad_close(struct input_dev *dev)
 {
-	struct usb_acecad *acecad = dev->private;
+	struct usb_acecad *acecad = input_get_drvdata(dev);
 
 	usb_kill_urb(acecad->irq);
 }
@@ -186,7 +186,8 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	input_dev->phys = acecad->phys;
 	usb_to_input_id(dev, &input_dev->id);
 	input_dev->cdev.dev = &intf->dev;
-	input_dev->private = acecad;
+
+	input_set_drvdata(input_dev, acecad);
 
 	input_dev->open = usb_acecad_open;
 	input_dev->close = usb_acecad_close;

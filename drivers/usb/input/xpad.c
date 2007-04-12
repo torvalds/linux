@@ -267,7 +267,7 @@ exit:
 
 static int xpad_open (struct input_dev *dev)
 {
-	struct usb_xpad *xpad = dev->private;
+	struct usb_xpad *xpad = input_get_drvdata(dev);
 
 	xpad->irq_in->dev = xpad->udev;
 	if (usb_submit_urb(xpad->irq_in, GFP_KERNEL))
@@ -278,7 +278,7 @@ static int xpad_open (struct input_dev *dev)
 
 static void xpad_close (struct input_dev *dev)
 {
-	struct usb_xpad *xpad = dev->private;
+	struct usb_xpad *xpad = input_get_drvdata(dev);
 
 	usb_kill_urb(xpad->irq_in);
 }
@@ -346,7 +346,9 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	input_dev->phys = xpad->phys;
 	usb_to_input_id(udev, &input_dev->id);
 	input_dev->cdev.dev = &intf->dev;
-	input_dev->private = xpad;
+
+	input_set_drvdata(input_dev, xpad);
+
 	input_dev->open = xpad_open;
 	input_dev->close = xpad_close;
 

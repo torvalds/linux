@@ -122,7 +122,7 @@ void wacom_input_sync(void *wcombo)
 
 static int wacom_open(struct input_dev *dev)
 {
-	struct wacom *wacom = dev->private;
+	struct wacom *wacom = input_get_drvdata(dev);
 
 	wacom->irq->dev = wacom->usbdev;
 	if (usb_submit_urb(wacom->irq, GFP_KERNEL))
@@ -133,7 +133,7 @@ static int wacom_open(struct input_dev *dev)
 
 static void wacom_close(struct input_dev *dev)
 {
-	struct wacom *wacom = dev->private;
+	struct wacom *wacom = input_get_drvdata(dev);
 
 	usb_kill_urb(wacom->irq);
 }
@@ -231,7 +231,9 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_to_input_id(dev, &input_dev->id);
 
 	input_dev->cdev.dev = &intf->dev;
-	input_dev->private = wacom;
+
+	input_set_drvdata(input_dev, wacom);
+
 	input_dev->open = wacom_open;
 	input_dev->close = wacom_close;
 

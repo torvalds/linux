@@ -394,7 +394,7 @@ resubmit:
 
 static int keyspan_open(struct input_dev *dev)
 {
-	struct usb_keyspan *remote = dev->private;
+	struct usb_keyspan *remote = input_get_drvdata(dev);
 
 	remote->irq_urb->dev = remote->udev;
 	if (usb_submit_urb(remote->irq_urb, GFP_KERNEL))
@@ -405,7 +405,7 @@ static int keyspan_open(struct input_dev *dev)
 
 static void keyspan_close(struct input_dev *dev)
 {
-	struct usb_keyspan *remote = dev->private;
+	struct usb_keyspan *remote = input_get_drvdata(dev);
 
 	usb_kill_urb(remote->irq_urb);
 }
@@ -502,7 +502,8 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 		if (keyspan_key_table[i] != KEY_RESERVED)
 			set_bit(keyspan_key_table[i], input_dev->keybit);
 
-	input_dev->private = remote;
+	input_set_drvdata(input_dev, remote);
+
 	input_dev->open = keyspan_open;
 	input_dev->close = keyspan_close;
 

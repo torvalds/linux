@@ -252,7 +252,7 @@ static void powermate_pulse_led(struct powermate_device *pm, int static_brightne
 static int powermate_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int _value)
 {
 	unsigned int command = (unsigned int)_value;
-	struct powermate_device *pm = dev->private;
+	struct powermate_device *pm = input_get_drvdata(dev);
 
 	if (type == EV_MSC && code == MSC_PULSELED){
 		/*
@@ -360,7 +360,8 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	input_dev->phys = pm->phys;
 	usb_to_input_id(udev, &input_dev->id);
 	input_dev->cdev.dev = &intf->dev;
-	input_dev->private = pm;
+
+	input_set_drvdata(input_dev, pm);
 
 	input_dev->event = powermate_input_event;
 

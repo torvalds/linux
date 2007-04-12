@@ -466,7 +466,7 @@ exit:
 
 static int atp_open(struct input_dev *input)
 {
-	struct atp *dev = input->private;
+	struct atp *dev = input_get_drvdata(input);
 
 	if (usb_submit_urb(dev->urb, GFP_ATOMIC))
 		return -EIO;
@@ -477,7 +477,7 @@ static int atp_open(struct input_dev *input)
 
 static void atp_close(struct input_dev *input)
 {
-	struct atp *dev = input->private;
+	struct atp *dev = input_get_drvdata(input);
 
 	usb_kill_urb(dev->urb);
 	dev->open = 0;
@@ -586,7 +586,8 @@ static int atp_probe(struct usb_interface *iface, const struct usb_device_id *id
 	usb_to_input_id(dev->udev, &input_dev->id);
 	input_dev->cdev.dev = &iface->dev;
 
-	input_dev->private = dev;
+	input_set_drvdata(input_dev, dev);
+
 	input_dev->open = atp_open;
 	input_dev->close = atp_close;
 

@@ -100,7 +100,7 @@ MODULE_DEVICE_TABLE(usb, kbtab_ids);
 
 static int kbtab_open(struct input_dev *dev)
 {
-	struct kbtab *kbtab = dev->private;
+	struct kbtab *kbtab = input_get_drvdata(dev);
 
 	kbtab->irq->dev = kbtab->usbdev;
 	if (usb_submit_urb(kbtab->irq, GFP_KERNEL))
@@ -111,7 +111,7 @@ static int kbtab_open(struct input_dev *dev)
 
 static void kbtab_close(struct input_dev *dev)
 {
-	struct kbtab *kbtab = dev->private;
+	struct kbtab *kbtab = input_get_drvdata(dev);
 
 	usb_kill_urb(kbtab->irq);
 }
@@ -147,7 +147,8 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	input_dev->phys = kbtab->phys;
 	usb_to_input_id(dev, &input_dev->id);
 	input_dev->cdev.dev = &intf->dev;
-	input_dev->private = kbtab;
+
+	input_set_drvdata(input_dev, kbtab);
 
 	input_dev->open = kbtab_open;
 	input_dev->close = kbtab_close;

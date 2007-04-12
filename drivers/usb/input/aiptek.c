@@ -798,7 +798,7 @@ MODULE_DEVICE_TABLE(usb, aiptek_ids);
  */
 static int aiptek_open(struct input_dev *inputdev)
 {
-	struct aiptek *aiptek = inputdev->private;
+	struct aiptek *aiptek = input_get_drvdata(inputdev);
 
 	aiptek->urb->dev = aiptek->usbdev;
 	if (usb_submit_urb(aiptek->urb, GFP_KERNEL) != 0)
@@ -812,7 +812,7 @@ static int aiptek_open(struct input_dev *inputdev)
  */
 static void aiptek_close(struct input_dev *inputdev)
 {
-	struct aiptek *aiptek = inputdev->private;
+	struct aiptek *aiptek = input_get_drvdata(inputdev);
 
 	usb_kill_urb(aiptek->urb);
 }
@@ -2045,7 +2045,9 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	inputdev->phys = aiptek->features.usbPath;
 	usb_to_input_id(usbdev, &inputdev->id);
 	inputdev->cdev.dev = &intf->dev;
-	inputdev->private = aiptek;
+
+	input_set_drvdata(inputdev, aiptek);
+
 	inputdev->open = aiptek_open;
 	inputdev->close = aiptek_close;
 

@@ -502,7 +502,7 @@ static int input_ev(struct input_dev *dev, unsigned int type,
 
 static int input_open(struct input_dev *dev)
 {
-	struct yealink_dev *yld = dev->private;
+	struct yealink_dev *yld = input_get_drvdata(dev);
 	int i, ret;
 
 	dbg("%s", __FUNCTION__);
@@ -529,7 +529,7 @@ static int input_open(struct input_dev *dev)
 
 static void input_close(struct input_dev *dev)
 {
-	struct yealink_dev *yld = dev->private;
+	struct yealink_dev *yld = input_get_drvdata(dev);
 
 	usb_kill_urb(yld->urb_ctl);
 	usb_kill_urb(yld->urb_irq);
@@ -939,7 +939,8 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	usb_to_input_id(udev, &input_dev->id);
 	input_dev->cdev.dev = &intf->dev;
 
-	input_dev->private = yld;
+	input_set_drvdata(input_dev, yld);
+
 	input_dev->open = input_open;
 	input_dev->close = input_close;
 	/* input_dev->event = input_ev;	TODO */

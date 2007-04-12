@@ -318,7 +318,7 @@ static void ati_remote_dump(unsigned char *data, unsigned int len)
  */
 static int ati_remote_open(struct input_dev *inputdev)
 {
-	struct ati_remote *ati_remote = inputdev->private;
+	struct ati_remote *ati_remote = input_get_drvdata(inputdev);
 
 	/* On first open, submit the read urb which was set up previously. */
 	ati_remote->irq_urb->dev = ati_remote->udev;
@@ -336,7 +336,7 @@ static int ati_remote_open(struct input_dev *inputdev)
  */
 static void ati_remote_close(struct input_dev *inputdev)
 {
-	struct ati_remote *ati_remote = inputdev->private;
+	struct ati_remote *ati_remote = input_get_drvdata(inputdev);
 
 	usb_kill_urb(ati_remote->irq_urb);
 }
@@ -653,7 +653,8 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 		if (ati_remote_tbl[i].type == EV_KEY)
 			set_bit(ati_remote_tbl[i].code, idev->keybit);
 
-	idev->private = ati_remote;
+	input_set_drvdata(idev, ati_remote);
+
 	idev->open = ati_remote_open;
 	idev->close = ati_remote_close;
 

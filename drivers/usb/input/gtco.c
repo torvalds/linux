@@ -540,8 +540,7 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
  */
 static int gtco_input_open(struct input_dev *inputdev)
 {
-	struct gtco *device;
-	device = inputdev->private;
+	struct gtco *device = input_get_drvdata(inputdev);
 
 	device->urbinfo->dev = device->usbdev;
 	if (usb_submit_urb(device->urbinfo, GFP_KERNEL))
@@ -555,7 +554,7 @@ static int gtco_input_open(struct input_dev *inputdev)
  */
 static void gtco_input_close(struct input_dev *inputdev)
 {
-	struct gtco *device = inputdev->private;
+	struct gtco *device = input_get_drvdata(inputdev);
 
 	usb_kill_urb(device->urbinfo);
 }
@@ -569,9 +568,9 @@ static void gtco_input_close(struct input_dev *inputdev)
  *  placed in the struct gtco structure
  *
  */
-static void  gtco_setup_caps(struct input_dev  *inputdev)
+static void gtco_setup_caps(struct input_dev *inputdev)
 {
-	struct gtco *device = inputdev->private;
+	struct gtco *device = input_get_drvdata(inputdev);
 
 	/* Which events */
 	inputdev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_MSC);
@@ -945,7 +944,8 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	/* Set input device information */
 	input_dev->name = "GTCO_CalComp";
 	input_dev->phys = gtco->usbpath;
-	input_dev->private = gtco;
+
+	input_set_drvdata(input_dev, gtco);
 
 	/* Now set up all the input device capabilities */
 	gtco_setup_caps(input_dev);
