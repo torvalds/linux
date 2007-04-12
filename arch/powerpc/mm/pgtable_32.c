@@ -451,3 +451,55 @@ exit:
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+
+static int __change_page_attr(struct page *page, pgprot_t prot)
+{
+	pte_t *kpte;
+	pmd_t *kpmd;
+	unsigned long address;
+
+	BUG_ON(PageHighMem(page));
+	address = (unsigned long)page_address(page);
+
+	if (v_mapped_by_bats(address) || v_mapped_by_tlbcam(address))
+		return 0;
+	if (!get_pteptr(&init_mm, address, &kpte, &kpmd))
+		return -EINVAL;
+	set_pte_at(&init_mm, address, kpte, mk_pte(page, prot));
+	wmb();
+	flush_HPTE(0, address, pmd_val(*kpmd));
+	pte_unmap(kpte);
+
+	return 0;
+}
+
+/*
+ * Change the page attributes of an page in the linear mapping.
+ *
+ * THIS CONFLICTS WITH BAT MAPPINGS, DEBUG USE ONLY
+ */
+static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
+{
+	int i, err = 0;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	for (i = 0; i < numpages; i++, page++) {
+		err = __change_page_attr(page, prot);
+		if (err)
+			break;
+	}
+	local_irq_restore(flags);
+	return err;
+}
+
+
+void kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	if (PageHighMem(page))
+		return;
+
+	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
+}
+#endif /* CONFIG_DEBUG_PAGEALLOC */

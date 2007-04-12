@@ -64,6 +64,12 @@ extern void flush_dcache_phys_range(unsigned long start, unsigned long stop);
 	memcpy(dst, src, len)
 
 
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+/* internal debugging function */
+void kernel_map_pages(struct page *page, int numpages, int enable);
+#endif
+
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_POWERPC_CACHEFLUSH_H */
