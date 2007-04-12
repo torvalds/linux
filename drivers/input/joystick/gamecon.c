@@ -591,7 +591,7 @@ static void gc_timer(unsigned long private)
 
 static int gc_open(struct input_dev *dev)
 {
-	struct gc *gc = dev->private;
+	struct gc *gc = input_get_drvdata(dev);
 	int err;
 
 	err = mutex_lock_interruptible(&gc->mutex);
@@ -610,7 +610,7 @@ static int gc_open(struct input_dev *dev)
 
 static void gc_close(struct input_dev *dev)
 {
-	struct gc *gc = dev->private;
+	struct gc *gc = input_get_drvdata(dev);
 
 	mutex_lock(&gc->mutex);
 	if (!--gc->used) {
@@ -646,7 +646,8 @@ static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = pad_type;
 	input_dev->id.version = 0x0100;
-	input_dev->private = gc;
+
+	input_set_drvdata(input_dev, gc);
 
 	input_dev->open = gc_open;
 	input_dev->close = gc_close;
