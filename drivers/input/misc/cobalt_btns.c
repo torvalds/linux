@@ -50,14 +50,6 @@ static struct buttons_map buttons_map[] = {
 	{ 0x80000000, KEY_SELECT, },
 };
 
-static struct resource cobalt_buttons_resource __initdata = {
-	.start	= 0x1d000000,
-	.end	= 0x1d000003,
-	.flags	= IORESOURCE_MEM,
-};
-
-static struct platform_device *cobalt_buttons_device;
-
 static struct timer_list buttons_timer;
 
 static void handle_buttons(unsigned long data)
@@ -183,26 +175,12 @@ static struct platform_driver cobalt_buttons_driver = {
 
 static int __init cobalt_buttons_init(void)
 {
-	int retval;
-
-	cobalt_buttons_device = platform_device_register_simple("Cobalt buttons", -1,
-	                                                        &cobalt_buttons_resource, 1);
-	if (IS_ERR(cobalt_buttons_device)) {
-		retval = PTR_ERR(cobalt_buttons_device);
-		return retval;
-	}
-
-	retval = platform_driver_register(&cobalt_buttons_driver);
-	if (retval < 0)
-		platform_device_unregister(cobalt_buttons_device);
-
-	return retval;
+	return platform_driver_register(&cobalt_buttons_driver);
 }
 
 static void __exit cobalt_buttons_exit(void)
 {
 	platform_driver_unregister(&cobalt_buttons_driver);
-	platform_device_unregister(cobalt_buttons_device);
 }
 
 module_init(cobalt_buttons_init);
