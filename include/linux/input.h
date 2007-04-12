@@ -1049,7 +1049,7 @@ struct input_handler {
 	void *private;
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
-	struct input_handle* (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
+	int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
 
@@ -1101,6 +1101,9 @@ void input_unregister_device(struct input_dev *);
 
 int input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
+
+int input_register_handle(struct input_handle *);
+void input_unregister_handle(struct input_handle *);
 
 int input_grab_device(struct input_handle *);
 void input_release_device(struct input_handle *);

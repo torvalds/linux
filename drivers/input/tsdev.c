@@ -155,7 +155,7 @@ static int tsdev_open(struct inode *inode, struct file *file)
 		"for removal.\nSee Documentation/feature-removal-schedule.txt "
 		"for details.\n");
 
-	if (i >= TSDEV_MINORS || !tsdev_table[i & TSDEV_MINOR_MASK])
+	if (i >= TSDEV_MINORS)
 		return -ENODEV;
 
 	if (!(list = kzalloc(sizeof(struct tsdev_list), GFP_KERNEL)))
@@ -246,14 +246,14 @@ static int tsdev_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case TS_GET_CAL:
-		if (copy_to_user ((void __user *)arg, &tsdev->cal,
-				  sizeof (struct ts_calibration)))
+		if (copy_to_user((void __user *)arg, &tsdev->cal,
+				 sizeof (struct ts_calibration)))
 			retval = -EFAULT;
 		break;
 
 	case TS_SET_CAL:
-		if (copy_from_user (&tsdev->cal, (void __user *)arg,
-				    sizeof (struct ts_calibration)))
+		if (copy_from_user(&tsdev->cal, (void __user *)arg,
+				   sizeof (struct ts_calibration)))
 			retval = -EFAULT;
 		break;
 
@@ -370,23 +370,25 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 	wake_up_interruptible(&tsdev->wait);
 }
 
-static struct input_handle *tsdev_connect(struct input_handler *handler,
-					  struct input_dev *dev,
-					  const struct input_device_id *id)
+static int tsdev_connect(struct input_handler *handler, struct input_dev *dev,
+			 const struct input_device_id *id)
 {
 	struct tsdev *tsdev;
 	struct class_device *cdev;
+	dev_t devt;
 	int minor, delta;
+	int error;
 
 	for (minor = 0; minor < TSDEV_MINORS / 2 && tsdev_table[minor]; minor++);
 	if (minor >= TSDEV_MINORS / 2) {
 		printk(KERN_ERR
 		       "tsdev: You have way too many touchscreens\n");
-		return NULL;
+		return -ENFILE;
 	}
 
-	if (!(tsdev = kzalloc(sizeof(struct tsdev), GFP_KERNEL)))
-		return NULL;
+	tsdev = kzalloc(sizeof(struct tsdev), GFP_KERNEL);
+	if (!tsdev)
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&tsdev->list);
 	init_waitqueue_head(&tsdev->wait);
@@ -415,21 +417,43 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 
 	tsdev_table[minor] = tsdev;
 
-	cdev = class_device_create(&input_class, &dev->cdev,
-			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
-			dev->cdev.dev, tsdev->name);
+	devt = MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
+
+	cdev = class_device_create(&input_class, &dev->cdev, devt,
+				   dev->cdev.dev, tsdev->name);
+	if (IS_ERR(cdev)) {
+		error = PTR_ERR(cdev);
+		goto err_free_tsdev;
+	}
 
 	/* temporary symlink to keep userspace happy */
-	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
-			  tsdev->name);
+	error = sysfs_create_link(&input_class.subsys.kset.kobj,
+				  &cdev->kobj, tsdev->name);
+	if (error)
+		goto err_cdev_destroy;
 
-	return &tsdev->handle;
+	error = input_register_handle(&tsdev->handle);
+	if (error)
+		goto err_remove_link;
+
+	return 0;
+
+ err_remove_link:
+	sysfs_remove_link(&input_class.subsys.kset.kobj, tsdev->name);
+ err_cdev_destroy:
+	class_device_destroy(&input_class, devt);
+ err_free_tsdev:
+	tsdev_table[minor] = NULL;
+	kfree(tsdev);
+	return error;
 }
 
 static void tsdev_disconnect(struct input_handle *handle)
 {
 	struct tsdev *tsdev = handle->private;
 	struct tsdev_list *list;
+
+	input_unregister_handle(handle);
 
 	sysfs_remove_link(&input_class.subsys.kset.kobj, tsdev->name);
 	class_device_destroy(&input_class,

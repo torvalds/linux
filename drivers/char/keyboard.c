@@ -41,7 +41,6 @@
 #include <linux/input.h>
 #include <linux/reboot.h>
 
-static void kbd_disconnect(struct input_handle *handle);
 extern void ctrl_alt_del(void);
 
 /*
@@ -1260,11 +1259,11 @@ static void kbd_event(struct input_handle *handle, unsigned int event_type,
  * likes it, it can open it and get events from it. In this (kbd_connect)
  * function, we should decide which VT to bind that keyboard to initially.
  */
-static struct input_handle *kbd_connect(struct input_handler *handler,
-					struct input_dev *dev,
-					const struct input_device_id *id)
+static int kbd_connect(struct input_handler *handler, struct input_dev *dev,
+			const struct input_device_id *id)
 {
 	struct input_handle *handle;
+	int error;
 	int i;
 
 	for (i = KEY_RESERVED; i < BTN_MISC; i++)
@@ -1272,24 +1271,37 @@ static struct input_handle *kbd_connect(struct input_handler *handler,
 			break;
 
 	if (i == BTN_MISC && !test_bit(EV_SND, dev->evbit))
-		return NULL;
+		return -ENODEV;
 
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
-		return NULL;
+		return -ENOMEM;
 
 	handle->dev = dev;
 	handle->handler = handler;
 	handle->name = "kbd";
 
-	input_open_device(handle);
+	error = input_register_handle(handle);
+	if (error)
+		goto err_free_handle;
 
-	return handle;
+	error = input_open_device(handle);
+	if (error)
+		goto err_unregister_handle;
+
+	return 0;
+
+ err_unregister_handle:
+	input_unregister_handle(handle);
+ err_free_handle:
+	kfree(handle);
+	return error;
 }
 
 static void kbd_disconnect(struct input_handle *handle)
 {
 	input_close_device(handle);
+	input_unregister_handle(handle);
 	kfree(handle);
 }
 

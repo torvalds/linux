@@ -605,21 +605,24 @@ static const struct file_operations evdev_fops = {
 	.flush =	evdev_flush
 };
 
-static struct input_handle *evdev_connect(struct input_handler *handler, struct input_dev *dev,
-					  const struct input_device_id *id)
+static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
+			 const struct input_device_id *id)
 {
 	struct evdev *evdev;
 	struct class_device *cdev;
+	dev_t devt;
 	int minor;
+	int error;
 
 	for (minor = 0; minor < EVDEV_MINORS && evdev_table[minor]; minor++);
 	if (minor == EVDEV_MINORS) {
 		printk(KERN_ERR "evdev: no more free evdev devices\n");
-		return NULL;
+		return -ENFILE;
 	}
 
-	if (!(evdev = kzalloc(sizeof(struct evdev), GFP_KERNEL)))
-		return NULL;
+	evdev = kzalloc(sizeof(struct evdev), GFP_KERNEL);
+	if (!evdev)
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&evdev->list);
 	init_waitqueue_head(&evdev->wait);
@@ -634,21 +637,43 @@ static struct input_handle *evdev_connect(struct input_handler *handler, struct 
 
 	evdev_table[minor] = evdev;
 
-	cdev = class_device_create(&input_class, &dev->cdev,
-			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
-			dev->cdev.dev, evdev->name);
+	devt = MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
+
+	cdev = class_device_create(&input_class, &dev->cdev, devt,
+				   dev->cdev.dev, evdev->name);
+	if (IS_ERR(cdev)) {
+		error = PTR_ERR(cdev);
+		goto err_free_evdev;
+	}
 
 	/* temporary symlink to keep userspace happy */
-	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
-			  evdev->name);
+	error = sysfs_create_link(&input_class.subsys.kset.kobj,
+				  &cdev->kobj, evdev->name);
+	if (error)
+		goto err_cdev_destroy;
 
-	return &evdev->handle;
+	error = input_register_handle(&evdev->handle);
+	if (error)
+		goto err_remove_link;
+
+	return 0;
+
+ err_remove_link:
+	sysfs_remove_link(&input_class.subsys.kset.kobj, evdev->name);
+ err_cdev_destroy:
+	class_device_destroy(&input_class, devt);
+ err_free_evdev:
+	kfree(evdev);
+	evdev_table[minor] = NULL;
+	return error;
 }
 
 static void evdev_disconnect(struct input_handle *handle)
 {
 	struct evdev *evdev = handle->private;
 	struct evdev_list *list;
+
+	input_unregister_handle(handle);
 
 	sysfs_remove_link(&input_class.subsys.kset.kobj, evdev->name);
 	class_device_destroy(&input_class,

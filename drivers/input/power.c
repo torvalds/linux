@@ -41,14 +41,14 @@ static struct input_handler power_handler;
  * Power management can't be done in a interrupt context. So we have to
  * use keventd.
  */
-static int suspend_button_pushed = 0;
-static void suspend_button_task_handler(void *data)
+static int suspend_button_pushed;
+static void suspend_button_task_handler(struct work_struct *work)
 {
         udelay(200); /* debounce */
         suspend_button_pushed = 0;
 }
 
-static DECLARE_WORK(suspend_button_task, suspend_button_task_handler, NULL);
+static DECLARE_WORK(suspend_button_task, suspend_button_task_handler);
 
 static void power_event(struct input_handle *handle, unsigned int type,
 		        unsigned int code, int down)
@@ -63,9 +63,9 @@ static void power_event(struct input_handle *handle, unsigned int type,
 				printk("Powering down entire device\n");
 
 				if (!suspend_button_pushed) {
-                			suspend_button_pushed = 1;
-                        		schedule_work(&suspend_button_task);
-                		}
+					suspend_button_pushed = 1;
+					schedule_work(&suspend_button_task);
+				}
 				break;
 			case KEY_POWER:
 				/* Hum power down the machine. */
@@ -84,7 +84,7 @@ static void power_event(struct input_handle *handle, unsigned int type,
 					dev->state = PM_RESUME;
 				else
 					dev->state = PM_SUSPEND;
-				pm_send(dev->pm_dev, dev->state, dev);
+				 /* pm_send(dev->pm_dev, dev->state, dev); */
 				break;
 			case KEY_POWER:
 				/* Turn the input device off completely ? */
@@ -96,27 +96,41 @@ static void power_event(struct input_handle *handle, unsigned int type,
 	return;
 }
 
-static struct input_handle *power_connect(struct input_handler *handler,
-					  struct input_dev *dev,
-					  const struct input_device_id *id)
+static int power_connect(struct input_handler *handler, struct input_dev *dev,
+			 const struct input_device_id *id)
 {
 	struct input_handle *handle;
+	int error;
 
-	if (!(handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL)))
-		return NULL;
+	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
 
 	handle->dev = dev;
 	handle->handler = handler;
+	handle->name = "power";
 
-	input_open_device(handle);
+	error = input_register_handle(handle);
+	if (error)
+		goto err_free_handle;
 
-	printk(KERN_INFO "power.c: Adding power management to input layer\n");
-	return handle;
+	error = input_open_device(handle);
+	if (error)
+		goto err_unregister_handle;
+
+	return 0;
+
+ err_unregister_handle:
+	input_unregister_handle(handle);
+ err_free_handle:
+	kfree(handle);
+	return error;
 }
 
 static void power_disconnect(struct input_handle *handle)
 {
 	input_close_device(handle);
+	input_unregister_handle(handle);
 	kfree(handle);
 }
 
@@ -135,7 +149,7 @@ static const struct input_device_id power_ids[] = {
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
 		.evbit = { BIT(EV_PWR) },
 	},
-	{ }, 	/* Terminating entry */
+	{ },	/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(input, power_ids);

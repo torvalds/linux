@@ -624,23 +624,27 @@ static const struct file_operations mousedev_fops = {
 	.fasync =	mousedev_fasync,
 };
 
-static struct input_handle *mousedev_connect(struct input_handler *handler, struct input_dev *dev,
-					     const struct input_device_id *id)
+static int mousedev_connect(struct input_handler *handler, struct input_dev *dev,
+			    const struct input_device_id *id)
 {
 	struct mousedev *mousedev;
 	struct class_device *cdev;
-	int minor = 0;
+	dev_t devt;
+	int minor;
+	int error;
 
 	for (minor = 0; minor < MOUSEDEV_MINORS && mousedev_table[minor]; minor++);
 	if (minor == MOUSEDEV_MINORS) {
 		printk(KERN_ERR "mousedev: no more free mousedev devices\n");
-		return NULL;
+		return -ENFILE;
 	}
 
-	if (!(mousedev = kzalloc(sizeof(struct mousedev), GFP_KERNEL)))
-		return NULL;
+	mousedev = kzalloc(sizeof(struct mousedev), GFP_KERNEL);
+	if (!mousedev)
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&mousedev->list);
+	INIT_LIST_HEAD(&mousedev->mixdev_node);
 	init_waitqueue_head(&mousedev->wait);
 
 	mousedev->minor = minor;
@@ -651,26 +655,53 @@ static struct input_handle *mousedev_connect(struct input_handler *handler, stru
 	mousedev->handle.private = mousedev;
 	sprintf(mousedev->name, "mouse%d", minor);
 
-	if (mousedev_mix.open)
-		input_open_device(&mousedev->handle);
-
 	mousedev_table[minor] = mousedev;
 
-	cdev = class_device_create(&input_class, &dev->cdev,
-			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + minor),
-			dev->cdev.dev, mousedev->name);
+	devt = MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + minor),
+
+	cdev = class_device_create(&input_class, &dev->cdev, devt,
+				   dev->cdev.dev, mousedev->name);
+	if (IS_ERR(cdev)) {
+		error = PTR_ERR(cdev);
+		goto err_free_mousedev;
+	}
 
 	/* temporary symlink to keep userspace happy */
-	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
-			  mousedev->name);
+	error = sysfs_create_link(&input_class.subsys.kset.kobj,
+				  &cdev->kobj, mousedev->name);
+	if (error)
+		goto err_cdev_destroy;
 
-	return &mousedev->handle;
+	error = input_register_handle(&mousedev->handle);
+	if (error)
+		goto err_remove_link;
+
+	if (mousedev_mix.open) {
+		error = input_open_device(&mousedev->handle);
+		if (error)
+			goto err_unregister_handle;
+	}
+
+	return 0;
+
+ err_unregister_handle:
+	input_unregister_handle(&mousedev->handle);
+ err_remove_link:
+	sysfs_remove_link(&input_class.subsys.kset.kobj, mousedev->name);
+ err_cdev_destroy:
+	class_device_destroy(&input_class, devt);
+ err_free_mousedev:
+	mousedev_table[minor] = NULL;
+	kfree(mousedev);
+	return error;
 }
 
 static void mousedev_disconnect(struct input_handle *handle)
 {
 	struct mousedev *mousedev = handle->private;
 	struct mousedev_list *list;
+
+	input_unregister_handle(handle);
 
 	sysfs_remove_link(&input_class.subsys.kset.kobj, mousedev->name);
 	class_device_destroy(&input_class,

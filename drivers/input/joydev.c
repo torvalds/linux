@@ -465,21 +465,24 @@ static const struct file_operations joydev_fops = {
 	.fasync =	joydev_fasync,
 };
 
-static struct input_handle *joydev_connect(struct input_handler *handler, struct input_dev *dev,
-					   const struct input_device_id *id)
+static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
+			  const struct input_device_id *id)
 {
 	struct joydev *joydev;
 	struct class_device *cdev;
+	dev_t devt;
 	int i, j, t, minor;
+	int error;
 
 	for (minor = 0; minor < JOYDEV_MINORS && joydev_table[minor]; minor++);
 	if (minor == JOYDEV_MINORS) {
 		printk(KERN_ERR "joydev: no more free joydev devices\n");
-		return NULL;
+		return -ENFILE;
 	}
 
-	if (!(joydev = kzalloc(sizeof(struct joydev), GFP_KERNEL)))
-		return NULL;
+	joydev = kzalloc(sizeof(struct joydev), GFP_KERNEL);
+	if (!joydev)
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&joydev->list);
 	init_waitqueue_head(&joydev->wait);
@@ -534,21 +537,44 @@ static struct input_handle *joydev_connect(struct input_handler *handler, struct
 
 	joydev_table[minor] = joydev;
 
-	cdev = class_device_create(&input_class, &dev->cdev,
-			MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
-			dev->cdev.dev, joydev->name);
+	devt = MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
+
+	cdev = class_device_create(&input_class, &dev->cdev, devt,
+				   dev->cdev.dev, joydev->name);
+	if (IS_ERR(cdev)) {
+		error = PTR_ERR(cdev);
+		goto err_free_joydev;
+	}
 
 	/* temporary symlink to keep userspace happy */
-	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
-			  joydev->name);
+	error = sysfs_create_link(&input_class.subsys.kset.kobj,
+				  &cdev->kobj, joydev->name);
+	if (error)
+		goto err_cdev_destroy;
 
-	return &joydev->handle;
+	error = input_register_handle(&joydev->handle);
+	if (error)
+		goto err_remove_link;
+
+	return 0;
+
+ err_remove_link:
+	sysfs_remove_link(&input_class.subsys.kset.kobj, joydev->name);
+ err_cdev_destroy:
+	class_device_destroy(&input_class, devt);
+ err_free_joydev:
+	joydev_table[minor] = NULL;
+	kfree(joydev);
+	return error;
 }
+
 
 static void joydev_disconnect(struct input_handle *handle)
 {
 	struct joydev *joydev = handle->private;
 	struct joydev_list *list;
+
+	input_unregister_handle(handle);
 
 	sysfs_remove_link(&input_class.subsys.kset.kobj, joydev->name);
 	class_device_destroy(&input_class, MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));

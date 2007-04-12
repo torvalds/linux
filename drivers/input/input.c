@@ -380,12 +380,6 @@ static int input_default_setkeycode(struct input_dev *dev,
 }
 
 
-static void input_link_handle(struct input_handle *handle)
-{
-	list_add_tail(&handle->d_node, &handle->dev->h_list);
-	list_add_tail(&handle->h_node, &handle->handler->h_list);
-}
-
 #define MATCH_BIT(bit, max) \
 		for (i = 0; i < NBITS(max); i++) \
 			if ((id->bit[i] & dev->bit[i]) != id->bit[i]) \
@@ -431,6 +425,29 @@ static const struct input_device_id *input_match_device(const struct input_devic
 
 	return NULL;
 }
+
+static int input_attach_handler(struct input_dev *dev, struct input_handler *handler)
+{
+	const struct input_device_id *id;
+	int error;
+
+	if (handler->blacklist && input_match_device(handler->blacklist, dev))
+		return -ENODEV;
+
+	id = input_match_device(handler->id_table, dev);
+	if (!id)
+		return -ENODEV;
+
+	error = handler->connect(handler, dev, id);
+	if (error && error != -ENODEV)
+		printk(KERN_ERR
+			"input: failed to attach handler %s to device %s, "
+			"error: %d\n",
+			handler->name, kobject_name(&dev->cdev.kobj), error);
+
+	return error;
+}
+
 
 #ifdef CONFIG_PROC_FS
 
@@ -1032,9 +1049,7 @@ EXPORT_SYMBOL(input_free_device);
 int input_register_device(struct input_dev *dev)
 {
 	static atomic_t input_no = ATOMIC_INIT(0);
-	struct input_handle *handle;
 	struct input_handler *handler;
-	const struct input_device_id *id;
 	const char *path;
 	int error;
 
@@ -1074,13 +1089,7 @@ int input_register_device(struct input_dev *dev)
 	kfree(path);
 
 	list_for_each_entry(handler, &input_handler_list, node)
-		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
-			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id))) {
-					input_link_handle(handle);
-					if (handler->start)
-						handler->start(handle);
-				}
+		input_attach_handler(dev, handler);
 
 	input_wakeup_procfs_readers();
 
@@ -1090,7 +1099,7 @@ EXPORT_SYMBOL(input_register_device);
 
 void input_unregister_device(struct input_dev *dev)
 {
-	struct list_head *node, *next;
+	struct input_handle *handle, *next;
 	int code;
 
 	for (code = 0; code <= KEY_MAX; code++)
@@ -1100,12 +1109,9 @@ void input_unregister_device(struct input_dev *dev)
 
 	del_timer_sync(&dev->timer);
 
-	list_for_each_safe(node, next, &dev->h_list) {
-		struct input_handle * handle = to_handle(node);
-		list_del_init(&handle->d_node);
-		list_del_init(&handle->h_node);
+	list_for_each_entry_safe(handle, next, &dev->h_list, d_node)
 		handle->handler->disconnect(handle);
-	}
+	WARN_ON(!list_empty(&dev->h_list));
 
 	list_del_init(&dev->node);
 
@@ -1118,8 +1124,6 @@ EXPORT_SYMBOL(input_unregister_device);
 int input_register_handler(struct input_handler *handler)
 {
 	struct input_dev *dev;
-	struct input_handle *handle;
-	const struct input_device_id *id;
 
 	INIT_LIST_HEAD(&handler->h_list);
 
@@ -1133,13 +1137,7 @@ int input_register_handler(struct input_handler *handler)
 	list_add_tail(&handler->node, &input_handler_list);
 
 	list_for_each_entry(dev, &input_dev_list, node)
-		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
-			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id))) {
-					input_link_handle(handle);
-					if (handler->start)
-						handler->start(handle);
-				}
+		input_attach_handler(dev, handler);
 
 	input_wakeup_procfs_readers();
 	return 0;
@@ -1148,14 +1146,11 @@ EXPORT_SYMBOL(input_register_handler);
 
 void input_unregister_handler(struct input_handler *handler)
 {
-	struct list_head *node, *next;
+	struct input_handle *handle, *next;
 
-	list_for_each_safe(node, next, &handler->h_list) {
-		struct input_handle * handle = to_handle_h(node);
-		list_del_init(&handle->h_node);
-		list_del_init(&handle->d_node);
+	list_for_each_entry_safe(handle, next, &handler->h_list, h_node)
 		handler->disconnect(handle);
-	}
+	WARN_ON(!list_empty(&handler->h_list));
 
 	list_del_init(&handler->node);
 
@@ -1165,6 +1160,27 @@ void input_unregister_handler(struct input_handler *handler)
 	input_wakeup_procfs_readers();
 }
 EXPORT_SYMBOL(input_unregister_handler);
+
+int input_register_handle(struct input_handle *handle)
+{
+	struct input_handler *handler = handle->handler;
+
+	list_add_tail(&handle->d_node, &handle->dev->h_list);
+	list_add_tail(&handle->h_node, &handler->h_list);
+
+	if (handler->start)
+		handler->start(handle);
+
+	return 0;
+}
+EXPORT_SYMBOL(input_register_handle);
+
+void input_unregister_handle(struct input_handle *handle)
+{
+	list_del_init(&handle->h_node);
+	list_del_init(&handle->d_node);
+}
+EXPORT_SYMBOL(input_unregister_handle);
 
 static int input_open_file(struct inode *inode, struct file *file)
 {
