@@ -10,8 +10,6 @@
  */
 
 #include <linux/tifm.h>
-#include <linux/dma-mapping.h>
-#include <linux/freezer.h>
 
 #define DRIVER_NAME "tifm_7xx1"
 #define DRIVER_VERSION "0.8"
@@ -41,8 +39,7 @@ static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 {
 	struct tifm_adapter *fm = dev_id;
 	struct tifm_dev *sock;
-	unsigned int irq_status;
-	unsigned int cnt;
+	unsigned int irq_status, cnt;
 
 	spin_lock(&fm->lock);
 	irq_status = readl(fm->addr + FM_INTERRUPT_STATUS);
@@ -134,11 +131,10 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 {
 	struct tifm_adapter *fm = container_of(work, struct tifm_adapter,
 					       media_switcher);
+	struct tifm_dev *sock;
 	unsigned long flags;
 	unsigned char media_id;
-	int cnt;
-	struct tifm_dev *sock;
-	unsigned int socket_change_set;
+	unsigned int socket_change_set, cnt;
 
 	spin_lock_irqsave(&fm->lock, flags);
 	socket_change_set = fm->socket_change_set;

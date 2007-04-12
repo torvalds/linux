@@ -7,6 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
+ * Special thanks to Brad Campbell for extensive testing of this driver.
+ *
  */
 
 
@@ -39,6 +41,7 @@ module_param(fixed_timeout, bool, 0644);
 
 #define TIFM_MMCSD_ERRMASK    0x01e0   /* set bits: CCRC, CTO, DCRC, DTO */
 #define TIFM_MMCSD_EOC        0x0001   /* end of command phase  */
+#define TIFM_MMCSD_CD         0x0002   /* card detect           */
 #define TIFM_MMCSD_CB         0x0004   /* card enter busy state */
 #define TIFM_MMCSD_BRS        0x0008   /* block received/sent   */
 #define TIFM_MMCSD_EOFB       0x0010   /* card exit busy state  */
@@ -48,6 +51,8 @@ module_param(fixed_timeout, bool, 0644);
 #define TIFM_MMCSD_CCRC       0x0100   /* command crc error     */
 #define TIFM_MMCSD_AF         0x0400   /* fifo almost full      */
 #define TIFM_MMCSD_AE         0x0800   /* fifo almost empty     */
+#define TIFM_MMCSD_OCRB       0x1000   /* OCR busy              */
+#define TIFM_MMCSD_CIRQ       0x2000   /* card irq (cmd40/sdio) */
 #define TIFM_MMCSD_CERR       0x4000   /* card status error     */
 
 #define TIFM_MMCSD_ODTO       0x0040   /* open drain / extended timeout */
@@ -83,16 +88,16 @@ enum {
 };
 
 struct tifm_sd {
-	struct tifm_dev     *dev;
+	struct tifm_dev       *dev;
 
-	unsigned short      eject:1,
-			    open_drain:1,
-			    no_dma:1;
-	unsigned short      cmd_flags;
+	unsigned short        eject:1,
+			      open_drain:1,
+			      no_dma:1;
+	unsigned short        cmd_flags;
 
-	unsigned int        clk_freq;
-	unsigned int        clk_div;
-	unsigned long       timeout_jiffies;
+	unsigned int          clk_freq;
+	unsigned int          clk_div;
+	unsigned long         timeout_jiffies;
 
 	struct tasklet_struct finish_tasklet;
 	struct timer_list     timer;
@@ -627,7 +632,8 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 	if (host->req) {
-		printk(KERN_ERR DRIVER_NAME ": unfinished request detected\n");
+		printk(KERN_ERR "%s : unfinished request detected\n",
+		       sock->dev.bus_id);
 		spin_unlock_irqrestore(&sock->lock, flags);
 		goto err_out;
 	}
@@ -737,7 +743,8 @@ static void tifm_sd_end_cmd(unsigned long data)
 	host->req = NULL;
 
 	if (!mrq) {
-		printk(KERN_ERR DRIVER_NAME ": no request to complete?\n");
+		printk(KERN_ERR " %s : no request to complete?\n",
+		       sock->dev.bus_id);
 		spin_unlock_irqrestore(&sock->lock, flags);
 		return;
 	}
@@ -775,8 +782,10 @@ static void tifm_sd_abort(unsigned long data)
 {
 	struct tifm_sd *host = (struct tifm_sd*)data;
 
-	printk(KERN_ERR DRIVER_NAME
-	       ": card failed to respond for a long period of time\n");
+	printk(KERN_ERR
+	       "%s : card failed to respond for a long period of time "
+	       "(%x, %x)\n",
+	       host->dev->dev.bus_id, host->req->cmd->opcode, host->cmd_flags);
 
 	tifm_eject(host->dev);
 }
@@ -790,8 +799,11 @@ static void tifm_sd_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	spin_lock_irqsave(&sock->lock, flags);
 
-	dev_dbg(&sock->dev, "Setting bus width %d, power %d\n", ios->bus_width,
-		ios->power_mode);
+	dev_dbg(&sock->dev, "ios: clock = %u, vdd = %x, bus_mode = %x, "
+		"chip_select = %x, power_mode = %x, bus_width = %x\n",
+		ios->clock, ios->vdd, ios->bus_mode, ios->chip_select,
+		ios->power_mode, ios->bus_width);
+
 	if (ios->bus_width == MMC_BUS_WIDTH_4) {
 		writel(TIFM_MMCSD_4BBUS | readl(sock->addr + SOCK_MMCSD_CONFIG),
 		       sock->addr + SOCK_MMCSD_CONFIG);
@@ -937,7 +949,8 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 
 	if (!(TIFM_SOCK_STATE_OCCUPIED
 	      & readl(sock->addr + SOCK_PRESENT_STATE))) {
-		printk(KERN_WARNING DRIVER_NAME ": card gone, unexpectedly\n");
+		printk(KERN_WARNING "%s : card gone, unexpectedly\n",
+		       sock->dev.bus_id);
 		return rc;
 	}
 
@@ -974,11 +987,9 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 
 	if (!rc)
 		rc = mmc_add_host(mmc);
-	if (rc)
-		goto out_free_mmc;
+	if (!rc)
+		return 0;
 
-	return 0;
-out_free_mmc:
 	mmc_free_host(mmc);
 	return rc;
 }

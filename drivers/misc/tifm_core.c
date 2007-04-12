@@ -115,23 +115,23 @@ static int tifm_device_remove(struct device *dev)
 
 static int tifm_device_suspend(struct device *dev, pm_message_t state)
 {
-	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
+	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
 	struct tifm_driver *drv = container_of(dev->driver, struct tifm_driver,
 					       driver);
 
 	if (dev->driver && drv->suspend)
-		return drv->suspend(fm_dev, state);
+		return drv->suspend(sock, state);
 	return 0;
 }
 
 static int tifm_device_resume(struct device *dev)
 {
-	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
+	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
 	struct tifm_driver *drv = container_of(dev->driver, struct tifm_driver,
 					       driver);
 
 	if (dev->driver && drv->resume)
-		return drv->resume(fm_dev);
+		return drv->resume(sock);
 	return 0;
 }
 
@@ -155,14 +155,14 @@ static struct device_attribute tifm_dev_attrs[] = {
 };
 
 static struct bus_type tifm_bus_type = {
-	.name           = "tifm",
-	.dev_attrs      = tifm_dev_attrs,
-	.match          = tifm_bus_match,
-	.uevent         = tifm_uevent,
-	.probe          = tifm_device_probe,
-	.remove         = tifm_device_remove,
-	.suspend        = tifm_device_suspend,
-	.resume         = tifm_device_resume
+	.name      = "tifm",
+	.dev_attrs = tifm_dev_attrs,
+	.match     = tifm_bus_match,
+	.uevent    = tifm_uevent,
+	.probe     = tifm_device_probe,
+	.remove    = tifm_device_remove,
+	.suspend   = tifm_device_suspend,
+	.resume    = tifm_device_resume
 };
 
 static void tifm_free(struct class_device *cdev)
