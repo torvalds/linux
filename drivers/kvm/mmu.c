@@ -131,7 +131,7 @@ static int dbg = 1;
 	(((address) >> PT32_LEVEL_SHIFT(level)) & ((1 << PT32_LEVEL_BITS) - 1))
 
 
-#define PT64_BASE_ADDR_MASK (((1ULL << 52) - 1) & PAGE_MASK)
+#define PT64_BASE_ADDR_MASK (((1ULL << 52) - 1) & ~(u64)(PAGE_SIZE-1))
 #define PT64_DIR_BASE_ADDR_MASK \
 	(PT64_BASE_ADDR_MASK & ~((1ULL << (PAGE_SHIFT + PT64_LEVEL_BITS)) - 1))
 
@@ -406,8 +406,8 @@ static void rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
 			spte = desc->shadow_ptes[0];
 		}
 		BUG_ON(!spte);
-		BUG_ON((*spte & PT64_BASE_ADDR_MASK) !=
-		       page_to_pfn(page) << PAGE_SHIFT);
+		BUG_ON((*spte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT
+		       != page_to_pfn(page));
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		BUG_ON(!(*spte & PT_WRITABLE_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
@@ -1093,22 +1093,40 @@ out:
 	return r;
 }
 
+static void mmu_pre_write_zap_pte(struct kvm_vcpu *vcpu,
+				  struct kvm_mmu_page *page,
+				  u64 *spte)
+{
+	u64 pte;
+	struct kvm_mmu_page *child;
+
+	pte = *spte;
+	if (is_present_pte(pte)) {
+		if (page->role.level == PT_PAGE_TABLE_LEVEL)
+			rmap_remove(vcpu, spte);
+		else {
+			child = page_header(pte & PT64_BASE_ADDR_MASK);
+			mmu_page_remove_parent_pte(vcpu, child, spte);
+		}
+	}
+	*spte = 0;
+}
+
 void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
 {
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct kvm_mmu_page *page;
-	struct kvm_mmu_page *child;
 	struct hlist_node *node, *n;
 	struct hlist_head *bucket;
 	unsigned index;
 	u64 *spte;
-	u64 pte;
 	unsigned offset = offset_in_page(gpa);
 	unsigned pte_size;
 	unsigned page_offset;
 	unsigned misaligned;
 	int level;
 	int flooded = 0;
+	int npte;
 
 	pgprintk("%s: gpa %llx bytes %d\n", __FUNCTION__, gpa, bytes);
 	if (gfn == vcpu->last_pt_write_gfn) {
@@ -1144,22 +1162,26 @@ void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
 		}
 		page_offset = offset;
 		level = page->role.level;
+		npte = 1;
 		if (page->role.glevels == PT32_ROOT_LEVEL) {
-			page_offset <<= 1;          /* 32->64 */
+			page_offset <<= 1;	/* 32->64 */
+			/*
+			 * A 32-bit pde maps 4MB while the shadow pdes map
+			 * only 2MB.  So we need to double the offset again
+			 * and zap two pdes instead of one.
+			 */
+			if (level == PT32_ROOT_LEVEL) {
+				page_offset <<= 1;
+				npte = 2;
+			}
 			page_offset &= ~PAGE_MASK;
 		}
 		spte = __va(page->page_hpa);
 		spte += page_offset / sizeof(*spte);
-		pte = *spte;
-		if (is_present_pte(pte)) {
-			if (level == PT_PAGE_TABLE_LEVEL)
-				rmap_remove(vcpu, spte);
-			else {
-				child = page_header(pte & PT64_BASE_ADDR_MASK);
-				mmu_page_remove_parent_pte(vcpu, child, spte);
-			}
+		while (npte--) {
+			mmu_pre_write_zap_pte(vcpu, page, spte);
+			++spte;
 		}
-		*spte = 0;
 	}
 }
 

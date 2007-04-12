@@ -146,6 +146,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe,
 	spin_lock_init(&my_cq->spinlock);
 	spin_lock_init(&my_cq->cb_lock);
 	spin_lock_init(&my_cq->task_lock);
+	init_waitqueue_head(&my_cq->wait_completion);
 	my_cq->ownpid = current->tgid;
 
 	cq = &my_cq->ib_cq;
@@ -302,6 +303,16 @@ create_cq_exit1:
 	return cq;
 }
 
+static int get_cq_nr_events(struct ehca_cq *my_cq)
+{
+	int ret;
+	unsigned long flags;
+	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+	ret = my_cq->nr_events;
+	spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
+	return ret;
+}
+
 int ehca_destroy_cq(struct ib_cq *cq)
 {
 	u64 h_ret;
@@ -329,10 +340,11 @@ int ehca_destroy_cq(struct ib_cq *cq)
 	}
 
 	spin_lock_irqsave(&ehca_cq_idr_lock, flags);
-	while (my_cq->nr_callbacks) {
+	while (my_cq->nr_events) {
 		spin_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-		yield();
+		wait_event(my_cq->wait_completion, !get_cq_nr_events(my_cq));
 		spin_lock_irqsave(&ehca_cq_idr_lock, flags);
+		/* recheck nr_events to assure no cqe has just arrived */
 	}
 
 	idr_remove(&ehca_cq_idr, my_cq->token);

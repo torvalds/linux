@@ -632,7 +632,8 @@ static int uhci_start(struct usb_hcd *hcd)
 	 */
 	for (i = SKEL_ISO + 1; i < SKEL_ASYNC; ++i)
 		uhci->skelqh[i]->link = LINK_TO_QH(uhci->skel_async_qh);
-	uhci->skel_async_qh->link = uhci->skel_term_qh->link = UHCI_PTR_TERM;
+	uhci->skel_async_qh->link = UHCI_PTR_TERM;
+	uhci->skel_term_qh->link = LINK_TO_QH(uhci->skel_term_qh);
 
 	/* This dummy TD is to work around a bug in Intel PIIX controllers */
 	uhci_fill_td(uhci->term_td, 0, uhci_explen(0) |

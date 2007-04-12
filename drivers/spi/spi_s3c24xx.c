@@ -41,7 +41,7 @@ struct s3c24xx_spi {
 	int			 len;
 	int			 count;
 
-	int			(*set_cs)(struct s3c2410_spi_info *spi,
+	void			(*set_cs)(struct s3c2410_spi_info *spi,
 					  int cs, int pol);
 
 	/* data buffers */

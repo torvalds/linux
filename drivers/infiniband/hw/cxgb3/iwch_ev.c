@@ -47,12 +47,6 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 	struct iwch_qp_attributes attrs;
 	struct iwch_qp *qhp;
 
-	printk(KERN_ERR "%s - AE qpid 0x%x opcode %d status 0x%x "
-	       "type %d wrid.hi 0x%x wrid.lo 0x%x \n", __FUNCTION__,
-	       CQE_QPID(rsp_msg->cqe), CQE_OPCODE(rsp_msg->cqe),
-	       CQE_STATUS(rsp_msg->cqe), CQE_TYPE(rsp_msg->cqe),
-	       CQE_WRID_HI(rsp_msg->cqe), CQE_WRID_LOW(rsp_msg->cqe));
-
 	spin_lock(&rnicp->lock);
 	qhp = get_qhp(rnicp, CQE_QPID(rsp_msg->cqe));
 
@@ -72,6 +66,12 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 		spin_unlock(&rnicp->lock);
 		return;
 	}
+
+	printk(KERN_ERR "%s - AE qpid 0x%x opcode %d status 0x%x "
+	       "type %d wrid.hi 0x%x wrid.lo 0x%x \n", __FUNCTION__,
+	       CQE_QPID(rsp_msg->cqe), CQE_OPCODE(rsp_msg->cqe),
+	       CQE_STATUS(rsp_msg->cqe), CQE_TYPE(rsp_msg->cqe),
+	       CQE_WRID_HI(rsp_msg->cqe), CQE_WRID_LOW(rsp_msg->cqe));
 
 	atomic_inc(&qhp->refcnt);
 	spin_unlock(&rnicp->lock);

@@ -156,6 +156,8 @@ struct ia64_mca_notify_die {
 	int *monarch_cpu;
 };
 
+DECLARE_PER_CPU(u64, ia64_mca_pal_base);
+
 #else	/* __ASSEMBLY__ */
 
 #define IA64_MCA_CORRECTED	0x0	/* Error has been corrected by OS_MCA */

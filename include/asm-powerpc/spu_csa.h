@@ -221,8 +221,6 @@ struct spu_priv2_collapsed {
  * @spu_chnlcnt_RW: Array of saved channel counts.
  * @spu_chnldata_RW: Array of saved channel data.
  * @suspend_time: Time stamp when decrementer disabled.
- * @slb_esid_RW: Array of saved SLB esid entries.
- * @slb_vsid_RW: Array of saved SLB vsid entries.
  *
  * Structure representing the whole of the SPU
  * context save area (CSA).  This struct contains
@@ -245,8 +243,6 @@ struct spu_state {
 	u32 spu_mailbox_data[4];
 	u32 pu_mailbox_data[1];
 	unsigned long suspend_time;
-	u64 slb_esid_RW[8];
-	u64 slb_vsid_RW[8];
 	spinlock_t register_lock;
 };
 

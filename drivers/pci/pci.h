@@ -52,10 +52,8 @@ static inline void pci_no_msi(void) { }
 #endif
 
 #if defined(CONFIG_PCI_MSI) && defined(CONFIG_PM)
-int pci_save_msi_state(struct pci_dev *dev);
 void pci_restore_msi_state(struct pci_dev *dev);
 #else
-static inline int pci_save_msi_state(struct pci_dev *dev) { return 0; }
 static inline void pci_restore_msi_state(struct pci_dev *dev) {}
 #endif
 

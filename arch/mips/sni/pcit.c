@@ -271,7 +271,7 @@ static void pcit_hwint0(void)
 
 static void sni_pcit_hwint(void)
 {
-	u32 pending = (read_c0_cause() & read_c0_status());
+	u32 pending = read_c0_cause() & read_c0_status();
 
 	if (pending & C_IRQ1)
 		pcit_hwint1();
@@ -285,7 +285,7 @@ static void sni_pcit_hwint(void)
 
 static void sni_pcit_hwint_cplus(void)
 {
-	u32 pending = (read_c0_cause() & read_c0_status());
+	u32 pending = read_c0_cause() & read_c0_status();
 
 	if (pending & C_IRQ0)
 		pcit_hwint0();

@@ -19,12 +19,13 @@ extern void tick_setup_oneshot(struct clock_event_device *newdev,
 extern int tick_program_event(ktime_t expires, int force);
 extern void tick_oneshot_notify(void);
 extern int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *));
-
+extern void tick_resume_oneshot(void);
 # ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 extern void tick_broadcast_setup_oneshot(struct clock_event_device *bc);
 extern void tick_broadcast_oneshot_control(unsigned long reason);
 extern void tick_broadcast_switch_to_oneshot(void);
 extern void tick_shutdown_broadcast_oneshot(unsigned int *cpup);
+extern int tick_resume_broadcast_oneshot(struct clock_event_device *bc);
 # else /* BROADCAST */
 static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 {
@@ -43,6 +44,10 @@ void tick_setup_oneshot(struct clock_event_device *newdev,
 {
 	BUG();
 }
+static inline void tick_resume_oneshot(void)
+{
+	BUG();
+}
 static inline int tick_program_event(ktime_t expires, int force)
 {
 	return 0;
@@ -54,6 +59,10 @@ static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 }
 static inline void tick_broadcast_oneshot_control(unsigned long reason) { }
 static inline void tick_shutdown_broadcast_oneshot(unsigned int *cpup) { }
+static inline int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
+{
+	return 0;
+}
 #endif /* !TICK_ONESHOT */
 
 /*

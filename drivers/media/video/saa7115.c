@@ -961,7 +961,7 @@ static void saa711x_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 			reg |= 0x10;
 		} else if (std == V4L2_STD_NTSC_M_JP) {
 			reg |= 0x40;
-		} else if (std == V4L2_STD_SECAM) {
+		} else if (std & V4L2_STD_SECAM) {
 			reg |= 0x50;
 		}
 		saa711x_write(client, R_0E_CHROMA_CNTL_1, reg);

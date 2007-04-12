@@ -385,9 +385,11 @@ int kobject_move(struct kobject *kobj, struct kobject *new_parent)
 		goto out;
 	old_parent = kobj->parent;
 	kobj->parent = new_parent;
+	new_parent = NULL;
 	kobject_put(old_parent);
 	kobject_uevent_env(kobj, KOBJ_MOVE, envp);
 out:
+	kobject_put(new_parent);
 	kobject_put(kobj);
 	kfree(devpath_string);
 	kfree(devpath);

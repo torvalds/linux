@@ -1573,6 +1573,7 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 
 	      case PTRACE_DETACH:
 		/* detach a process that was attached. */
+		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		ret = ptrace_detach(child, data);
 		goto out_tsk;
 

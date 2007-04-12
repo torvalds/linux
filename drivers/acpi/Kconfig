@@ -7,6 +7,7 @@ menu "ACPI (Advanced Configuration and Power Interface) Support"
 	depends on !X86_VISWS
 	depends on !IA64_HP_SIM
 	depends on IA64 || X86
+	depends on PM
 
 config ACPI
 	bool "ACPI Support"
@@ -242,6 +243,17 @@ config ACPI_IBM_DOCK
 	  but will not properly connect PCI devices.
 
 	  If you are not sure, say N here.
+
+config ACPI_IBM_BAY
+	bool "Legacy Removable Bay Support"
+	depends on ACPI_IBM
+	default y
+	---help---
+	  Allows the ibm_acpi driver to handle removable bays.  It will allow
+	  disabling the device in the bay, and also generate notifications when
+	  the bay lever is ejected or inserted.
+
+	  If you are not sure, say Y here.
 
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"

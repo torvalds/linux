@@ -348,8 +348,7 @@ sn_scan_pcdp(void)
 			continue;	/* not PCI interconnect */
 
 		if (if_pci.translation & PCDP_PCI_TRANS_IOPORT)
-			vga_console_iobase =
-				if_pci.ioport_tra | __IA64_UNCACHED_OFFSET;
+			vga_console_iobase = if_pci.ioport_tra;
 
 		if (if_pci.translation & PCDP_PCI_TRANS_MMIO)
 			vga_console_membase =
@@ -397,6 +396,8 @@ void __init sn_setup(char **cmdline_p)
 	ia64_sn_set_os_feature(OSF_PCISEGMENT_ENABLE);
 	ia64_sn_set_os_feature(OSF_ACPI_ENABLE);
 
+	/* Load the new DSDT and SSDT tables into the global table list. */
+	acpi_table_init();
 
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
 	/*
@@ -427,7 +428,8 @@ void __init sn_setup(char **cmdline_p)
 	 * 	bus containing the VGA console.
 	 */
 	if (vga_console_iobase) {
-		io_space[0].mmio_base = vga_console_iobase;
+		io_space[0].mmio_base =
+			(unsigned long) ioremap(vga_console_iobase, 0);
 		io_space[0].sparse = 0;
 	}
 

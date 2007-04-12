@@ -268,6 +268,7 @@ static void acpi_timer_check_state(int state, struct acpi_processor *pr,
 				   struct acpi_processor_cx *cx)
 {
 	struct acpi_processor_power *pwr = &pr->power;
+	u8 type = local_apic_timer_c2_ok ? ACPI_STATE_C3 : ACPI_STATE_C2;
 
 	/*
 	 * Check, if one of the previous states already marked the lapic
@@ -276,7 +277,7 @@ static void acpi_timer_check_state(int state, struct acpi_processor *pr,
 	if (pwr->timer_broadcast_on_state < state)
 		return;
 
-	if (cx->type >= ACPI_STATE_C2)
+	if (cx->type >= type)
 		pr->power.timer_broadcast_on_state = state;
 }
 

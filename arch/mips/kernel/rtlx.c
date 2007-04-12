@@ -54,6 +54,7 @@ static struct chan_waitqueues {
 	wait_queue_head_t rt_queue;
 	wait_queue_head_t lx_queue;
 	atomic_t in_open;
+	struct mutex mutex;
 } channel_wqs[RTLX_CHANNELS];
 
 static struct irqaction irq;
@@ -146,7 +147,7 @@ static void stopping(int vpe)
 
 int rtlx_open(int index, int can_sleep)
 {
-	volatile struct rtlx_info **p;
+	struct rtlx_info **p;
 	struct rtlx_channel *chan;
 	enum rtlx_state state;
 	int ret = 0;
@@ -179,13 +180,24 @@ int rtlx_open(int index, int can_sleep)
 			}
 		}
 
+		smp_rmb();
 		if (*p == NULL) {
 			if (can_sleep) {
-				__wait_event_interruptible(channel_wqs[index].lx_queue,
-				                           *p != NULL,
-				                           ret);
-				if (ret)
+				DEFINE_WAIT(wait);
+
+				for (;;) {
+					prepare_to_wait(&channel_wqs[index].lx_queue, &wait, TASK_INTERRUPTIBLE);
+					smp_rmb();
+					if (*p != NULL)
+						break;
+					if (!signal_pending(current)) {
+						schedule();
+						continue;
+					}
+					ret = -ERESTARTSYS;
 					goto out_fail;
+				}
+				finish_wait(&channel_wqs[index].lx_queue, &wait);
 			} else {
 				printk(" *vpe_get_shared is NULL. "
 				       "Has an SP program been loaded?\n");
@@ -277,56 +289,52 @@ unsigned int rtlx_write_poll(int index)
 	return write_spacefree(chan->rt_read, chan->rt_write, chan->buffer_size);
 }
 
-static inline void copy_to(void *dst, void *src, size_t count, int user)
+ssize_t rtlx_read(int index, void __user *buff, size_t count, int user)
 {
-	if (user)
-		copy_to_user(dst, src, count);
-	else
-		memcpy(dst, src, count);
-}
-
-static inline void copy_from(void *dst, void *src, size_t count, int user)
-{
-	if (user)
-		copy_from_user(dst, src, count);
-	else
-		memcpy(dst, src, count);
-}
-
-ssize_t rtlx_read(int index, void *buff, size_t count, int user)
-{
-	size_t fl = 0L;
+	size_t lx_write, fl = 0L;
 	struct rtlx_channel *lx;
+	unsigned long failed;
 
 	if (rtlx == NULL)
 		return -ENOSYS;
 
 	lx = &rtlx->channel[index];
 
+	mutex_lock(&channel_wqs[index].mutex);
+	smp_rmb();
+	lx_write = lx->lx_write;
+
 	/* find out how much in total */
 	count = min(count,
-		     (size_t)(lx->lx_write + lx->buffer_size - lx->lx_read)
+		     (size_t)(lx_write + lx->buffer_size - lx->lx_read)
 		     % lx->buffer_size);
 
 	/* then how much from the read pointer onwards */
-	fl = min( count, (size_t)lx->buffer_size - lx->lx_read);
+	fl = min(count, (size_t)lx->buffer_size - lx->lx_read);
 
-	copy_to(buff, &lx->lx_buffer[lx->lx_read], fl, user);
+	failed = copy_to_user(buff, lx->lx_buffer + lx->lx_read, fl);
+	if (failed)
+		goto out;
 
 	/* and if there is anything left at the beginning of the buffer */
-	if ( count - fl )
-		copy_to (buff + fl, lx->lx_buffer, count - fl, user);
+	if (count - fl)
+		failed = copy_to_user(buff + fl, lx->lx_buffer, count - fl);
 
-	/* update the index */
-	lx->lx_read += count;
-	lx->lx_read %= lx->buffer_size;
+out:
+	count -= failed;
+
+	smp_wmb();
+	lx->lx_read = (lx->lx_read + count) % lx->buffer_size;
+	smp_wmb();
+	mutex_unlock(&channel_wqs[index].mutex);
 
 	return count;
 }
 
-ssize_t rtlx_write(int index, void *buffer, size_t count, int user)
+ssize_t rtlx_write(int index, const void __user *buffer, size_t count, int user)
 {
 	struct rtlx_channel *rt;
+	size_t rt_read;
 	size_t fl;
 
 	if (rtlx == NULL)
@@ -334,24 +342,35 @@ ssize_t rtlx_write(int index, void *buffer, size_t count, int user)
 
 	rt = &rtlx->channel[index];
 
+	mutex_lock(&channel_wqs[index].mutex);
+	smp_rmb();
+	rt_read = rt->rt_read;
+
 	/* total number of bytes to copy */
 	count = min(count,
-		    (size_t)write_spacefree(rt->rt_read, rt->rt_write,
-					    rt->buffer_size));
+		    (size_t)write_spacefree(rt_read, rt->rt_write, rt->buffer_size));
 
 	/* first bit from write pointer to the end of the buffer, or count */
 	fl = min(count, (size_t) rt->buffer_size - rt->rt_write);
 
-	copy_from (&rt->rt_buffer[rt->rt_write], buffer, fl, user);
+	failed = copy_from_user(rt->rt_buffer + rt->rt_write, buffer, fl);
+	if (failed)
+		goto out;
 
 	/* if there's any left copy to the beginning of the buffer */
-	if( count - fl )
-		copy_from (rt->rt_buffer, buffer + fl, count - fl, user);
+	if (count - fl) {
+		failed = copy_from_user(rt->rt_buffer, buffer + fl, count - fl);
+	}
 
-	rt->rt_write += count;
-	rt->rt_write %= rt->buffer_size;
+out:
+	count -= cailed;
 
-	return(count);
+	smp_wmb();
+	rt->rt_write = (rt->rt_write + count) % rt->buffer_size;
+	smp_wmb();
+	mutex_unlock(&channel_wqs[index].mutex);
+
+	return count;
 }
 
 
@@ -403,7 +422,7 @@ static ssize_t file_read(struct file *file, char __user * buffer, size_t count,
 		return 0;	// -EAGAIN makes cat whinge
 	}
 
-	return rtlx_read(minor, buffer, count, 1);
+	return rtlx_read(minor, buffer, count);
 }
 
 static ssize_t file_write(struct file *file, const char __user * buffer,
@@ -429,7 +448,7 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 			return ret;
 	}
 
-	return rtlx_write(minor, (void *)buffer, count, 1);
+	return rtlx_write(minor, buffer, count);
 }
 
 static const struct file_operations rtlx_fops = {
@@ -468,6 +487,7 @@ static int rtlx_module_init(void)
 		init_waitqueue_head(&channel_wqs[i].rt_queue);
 		init_waitqueue_head(&channel_wqs[i].lx_queue);
 		atomic_set(&channel_wqs[i].in_open, 0);
+		mutex_init(&channel_wqs[i].mutex);
 
 		dev = device_create(mt_class, NULL, MKDEV(major, i),
 		                    "%s%d", module_name, i);

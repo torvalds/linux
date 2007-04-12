@@ -41,7 +41,7 @@ struct spu_gang;
 
 /* ctx->sched_flags */
 enum {
-	SPU_SCHED_WAKE = 0,
+	SPU_SCHED_WAKE = 0, /* currently unused */
 };
 
 struct spu_context {
@@ -191,9 +191,7 @@ void spu_forget(struct spu_context *ctx);
 int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags);
 void spu_acquire_saved(struct spu_context *ctx);
 int spu_acquire_exclusive(struct spu_context *ctx);
-enum {
-	SPU_ACTIVATE_NOWAKE = 1,
-};
+
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);

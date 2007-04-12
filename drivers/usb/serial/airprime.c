@@ -18,11 +18,6 @@
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x0c88, 0x17da) }, /* Kyocera Wireless KPC650/Passport */
-	{ USB_DEVICE(0x1410, 0x1110) }, /* Novatel Wireless Merlin CDMA */
-	{ USB_DEVICE(0x1410, 0x1130) }, /* Novatel Wireless S720 CDMA/EV-DO */
-	{ USB_DEVICE(0x1410, 0x2110) }, /* Novatel Wireless U720 CDMA/EV-DO */
-	{ USB_DEVICE(0x1410, 0x1430) },	/* Novatel Merlin XU870 HSDPA/3G */
-	{ USB_DEVICE(0x1410, 0x1100) }, /* ExpressCard34 Qualcomm 3G CDMA */
 	{ USB_DEVICE(0x413c, 0x8115) }, /* Dell Wireless HSDPA 5500 */
 	{ },
 };
@@ -44,7 +39,42 @@ struct airprime_private {
 	int outstanding_urbs;
 	int throttled;
 	struct urb *read_urbp[NUM_READ_URBS];
+
+	/* Settings for the port */
+	int rts_state;	/* Handshaking pins (outputs) */
+	int dtr_state;
+	int cts_state;	/* Handshaking pins (inputs) */
+	int dsr_state;
+	int dcd_state;
+	int ri_state;
 };
+
+static int airprime_send_setup(struct usb_serial_port *port)
+{
+	struct usb_serial *serial = port->serial;
+	struct airprime_private *priv;
+
+	dbg("%s", __FUNCTION__);
+
+	if (port->number != 0)
+		return 0;
+
+	priv = usb_get_serial_port_data(port);
+
+	if (port->tty) {
+		int val = 0;
+		if (priv->dtr_state)
+			val |= 0x01;
+		if (priv->rts_state)
+			val |= 0x02;
+
+		return usb_control_msg(serial->dev,
+				usb_rcvctrlpipe(serial->dev, 0),
+				0x22,0x21,val,0,NULL,0,USB_CTRL_SET_TIMEOUT);
+	}
+
+	return 0;
+}
 
 static void airprime_read_bulk_callback(struct urb *urb)
 {
@@ -118,6 +148,10 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 		usb_set_serial_port_data(port, priv);
 	}
 
+	/* Set some sane defaults */
+	priv->rts_state = 1;
+	priv->dtr_state = 1;
+
 	for (i = 0; i < NUM_READ_URBS; ++i) {
 		buffer = kmalloc(buffer_size, GFP_KERNEL);
 		if (!buffer) {
@@ -151,6 +185,9 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 		/* remember this urb so we can kill it when the port is closed */
 		priv->read_urbp[i] = urb;
 	}
+
+	airprime_send_setup(port);
+
 	goto out;
 
  errout:
@@ -175,6 +212,11 @@ static void airprime_close(struct usb_serial_port *port, struct file * filp)
 	int i;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
+
+	priv->rts_state = 0;
+	priv->dtr_state = 0;
+
+	airprime_send_setup(port);
 
 	for (i = 0; i < NUM_READ_URBS; ++i) {
 		usb_kill_urb (priv->read_urbp[i]);

@@ -653,8 +653,7 @@ static int ehci_hub_control (
 	if (status & ~0xffff)	/* only if wPortChange is interesting */
 #endif
 		dbg_port (ehci, "GetStatus", wIndex + 1, temp);
-		// we "know" this alignment is good, caller used kmalloc()...
-		*((__le32 *) buf) = cpu_to_le32 (status);
+		put_unaligned(cpu_to_le32 (status), (__le32 *) buf);
 		break;
 	case SetHubFeature:
 		switch (wValue) {

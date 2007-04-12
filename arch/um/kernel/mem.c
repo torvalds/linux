@@ -64,8 +64,6 @@ static void setup_highmem(unsigned long highmem_start,
 
 void mem_init(void)
 {
-	max_low_pfn = (high_physmem - uml_physmem) >> PAGE_SHIFT;
-
 	/* clear the zero-page */
 	memset((void *) empty_zero_page, 0, PAGE_SIZE);
 
@@ -80,6 +78,7 @@ void mem_init(void)
 
 	/* this will put all low memory onto the freelists */
 	totalram_pages = free_all_bootmem();
+	max_low_pfn = totalram_pages;
 #ifdef CONFIG_HIGHMEM
 	totalhigh_pages = highmem >> PAGE_SHIFT;
 	totalram_pages += totalhigh_pages;

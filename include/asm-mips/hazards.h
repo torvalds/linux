@@ -52,6 +52,7 @@ ASMMACRO(tlb_probe_hazard,
 	 _ehb
 	)
 ASMMACRO(irq_enable_hazard,
+	 _ehb
 	)
 ASMMACRO(irq_disable_hazard,
 	_ehb

@@ -44,9 +44,11 @@ static inline int gpio_direction_input(unsigned gpio)
 	return 0;
 }
 
-static inline int gpio_direction_output(unsigned gpio)
+static inline int gpio_direction_output(unsigned gpio, int value)
 {
 	s3c2410_gpio_cfgpin(gpio, S3C2410_GPIO_OUTPUT);
+	/* REVISIT can we write the value first, to avoid glitching? */
+	s3c2410_gpio_setpin(gpio, value);
 	return 0;
 }
 

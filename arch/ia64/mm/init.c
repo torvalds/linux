@@ -155,7 +155,7 @@ ia64_set_rbs_bot (void)
 
 	if (stack_size > MAX_USER_STACK_SIZE)
 		stack_size = MAX_USER_STACK_SIZE;
-	current->thread.rbs_bot = STACK_TOP - stack_size;
+	current->thread.rbs_bot = PAGE_ALIGN(current->mm->start_stack - stack_size);
 }
 
 /*
@@ -645,6 +645,22 @@ count_reserved_pages (u64 start, u64 end, void *arg)
 		if (PageReserved(virt_to_page(start)))
 			++num_reserved;
 	*count += num_reserved;
+	return 0;
+}
+
+int
+find_max_min_low_pfn (unsigned long start, unsigned long end, void *arg)
+{
+	unsigned long pfn_start, pfn_end;
+#ifdef CONFIG_FLATMEM
+	pfn_start = (PAGE_ALIGN(__pa(start))) >> PAGE_SHIFT;
+	pfn_end = (PAGE_ALIGN(__pa(end - 1))) >> PAGE_SHIFT;
+#else
+	pfn_start = GRANULEROUNDDOWN(__pa(start)) >> PAGE_SHIFT;
+	pfn_end = GRANULEROUNDUP(__pa(end - 1)) >> PAGE_SHIFT;
+#endif
+	min_low_pfn = min(min_low_pfn, pfn_start);
+	max_low_pfn = max(max_low_pfn, pfn_end);
 	return 0;
 }
 

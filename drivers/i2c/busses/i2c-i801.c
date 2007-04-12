@@ -97,6 +97,7 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 				  int command, int hwpec);
 
 static unsigned long i801_smba;
+static unsigned char i801_original_hstcfg;
 static struct pci_driver i801_driver;
 static struct pci_dev *I801_dev;
 static int isich4;
@@ -510,6 +511,7 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	}
 
 	pci_read_config_byte(I801_dev, SMBHSTCFG, &temp);
+	i801_original_hstcfg = temp;
 	temp &= ~SMBHSTCFG_I2C_EN;	/* SMBus timing */
 	if (!(temp & SMBHSTCFG_HST_EN)) {
 		dev_info(&dev->dev, "Enabling SMBus device\n");
@@ -543,6 +545,7 @@ exit:
 static void __devexit i801_remove(struct pci_dev *dev)
 {
 	i2c_del_adapter(&i801_adapter);
+	pci_write_config_byte(I801_dev, SMBHSTCFG, i801_original_hstcfg);
 	pci_release_region(dev, SMBBAR);
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on
@@ -550,11 +553,33 @@ static void __devexit i801_remove(struct pci_dev *dev)
 	 */
 }
 
+#ifdef CONFIG_PM
+static int i801_suspend(struct pci_dev *dev, pm_message_t mesg)
+{
+	pci_save_state(dev);
+	pci_write_config_byte(dev, SMBHSTCFG, i801_original_hstcfg);
+	pci_set_power_state(dev, pci_choose_state(dev, mesg));
+	return 0;
+}
+
+static int i801_resume(struct pci_dev *dev)
+{
+	pci_set_power_state(dev, PCI_D0);
+	pci_restore_state(dev);
+	return pci_enable_device(dev);
+}
+#else
+#define i801_suspend NULL
+#define i801_resume NULL
+#endif
+
 static struct pci_driver i801_driver = {
 	.name		= "i801_smbus",
 	.id_table	= i801_ids,
 	.probe		= i801_probe,
 	.remove		= __devexit_p(i801_remove),
+	.suspend	= i801_suspend,
+	.resume		= i801_resume,
 };
 
 static int __init i2c_i801_init(void)

@@ -352,10 +352,13 @@ tcf_change_indev(struct tcf_proto *tp, char *indev, struct rtattr *indev_tlv)
 static inline int
 tcf_match_indev(struct sk_buff *skb, char *indev)
 {
+	struct net_device *dev;
+
 	if (indev[0]) {
-		if  (!skb->input_dev)
+		if  (!skb->iif)
 			return 0;
-		if (strcmp(indev, skb->input_dev->name))
+		dev = __dev_get_by_index(skb->iif);
+		if (!dev || strcmp(indev, dev->name))
 			return 0;
 	}
 

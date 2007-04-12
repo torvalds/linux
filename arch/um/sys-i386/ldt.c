@@ -394,7 +394,8 @@ static short * host_ldt_entries = NULL;
 static void ldt_get_host_info(void)
 {
 	long ret;
-	struct ldt_entry * ldt, *tmp;
+	struct ldt_entry * ldt;
+	short *tmp;
 	int i, size, k, order;
 
 	spin_lock(&host_ldt_lock);

@@ -212,7 +212,7 @@ static int tda10086_send_master_cmd (struct dvb_frontend* fe,
 	for(i=0; i< cmd->msg_len; i++) {
 		tda10086_write_byte(state, 0x48+i, cmd->msg[i]);
 	}
-	tda10086_write_byte(state, 0x36, 0x08 | ((cmd->msg_len + 1) << 4));
+	tda10086_write_byte(state, 0x36, 0x08 | ((cmd->msg_len - 1) << 4));
 
 	tda10086_diseqc_wait(state);
 

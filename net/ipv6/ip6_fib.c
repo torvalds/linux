@@ -658,6 +658,10 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 		ins = &iter->u.dst.rt6_next;
 	}
 
+	/* Reset round-robin state, if necessary */
+	if (ins == &fn->leaf)
+		fn->rr_ptr = NULL;
+
 	/*
 	 *	insert node
 	 */
@@ -1108,6 +1112,10 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	rt->rt6i_node = NULL;
 	rt6_stats.fib_rt_entries--;
 	rt6_stats.fib_discarded_routes++;
+
+	/* Reset round-robin state, if necessary */
+	if (fn->rr_ptr == rt)
+		fn->rr_ptr = NULL;
 
 	/* Adjust walkers */
 	read_lock(&fib6_walker_lock);

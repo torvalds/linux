@@ -60,9 +60,9 @@ unsigned long mp_lapic_addr = 0;
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_id = -1U;
 /* Internal processor count */
-unsigned int num_processors __initdata = 0;
+unsigned int num_processors __cpuinitdata = 0;
 
-unsigned disabled_cpus __initdata;
+unsigned disabled_cpus __cpuinitdata;
 
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;

@@ -196,11 +196,6 @@ static void icside_maskproc(ide_drive_t *drive, int mask)
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_ICS
-
-#ifndef CONFIG_IDEDMA_ICS_AUTO
-#warning CONFIG_IDEDMA_ICS_AUTO=n support is obsolete, and will be removed soon.
-#endif
-
 /*
  * SG-DMA support.
  *
@@ -474,12 +469,6 @@ static int icside_dma_lostirq(ide_drive_t *drive)
 
 static void icside_dma_init(ide_hwif_t *hwif)
 {
-	int autodma = 0;
-
-#ifdef CONFIG_IDEDMA_ICS_AUTO
-	autodma = 1;
-#endif
-
 	printk("    %s: SG-DMA", hwif->name);
 
 	hwif->atapi_dma		= 1;
@@ -489,7 +478,7 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->dmatable_cpu	= NULL;
 	hwif->dmatable_dma	= 0;
 	hwif->speedproc		= icside_set_speed;
-	hwif->autodma		= autodma;
+	hwif->autodma		= 1;
 
 	hwif->ide_dma_check	= icside_dma_check;
 	hwif->dma_host_off	= icside_dma_host_off;

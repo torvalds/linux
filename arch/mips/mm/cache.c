@@ -3,7 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1994 - 2003 by Ralf Baechle
+ * Copyright (C) 1994 - 2003, 07 by Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2007 MIPS Technologies, Inc.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -87,6 +88,19 @@ void __flush_dcache_page(struct page *page)
 }
 
 EXPORT_SYMBOL(__flush_dcache_page);
+
+void __flush_anon_page(struct page *page, unsigned long vmaddr)
+{
+	if (pages_do_alias((unsigned long)page_address(page), vmaddr)) {
+		void *kaddr;
+
+		kaddr = kmap_coherent(page, vmaddr);
+		flush_data_cache_page((unsigned long)kaddr);
+		kunmap_coherent(kaddr);
+	}
+}
+
+EXPORT_SYMBOL(__flush_anon_page);
 
 void __update_cache(struct vm_area_struct *vma, unsigned long address,
 	pte_t pte)

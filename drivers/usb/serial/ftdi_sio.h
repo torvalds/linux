@@ -27,6 +27,7 @@
 #define FTDI_8U232AM_PID 0x6001 /* Similar device to SIO above */
 #define FTDI_8U232AM_ALT_PID 0x6006 /* FTDI's alternate PID for above */
 #define FTDI_8U2232C_PID 0x6010 /* Dual channel device */
+#define FTDI_232RL_PID  0xFBFA  /* Product ID for FT232RL */
 #define FTDI_RELAIS_PID	0xFA10  /* Relais device from Rudolf Gugler */
 #define FTDI_NF_RIC_VID	0x0DCD	/* Vendor Id */
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
@@ -339,6 +340,12 @@
 #define FTDI_SUUNTO_SPORTS_PID	0xF680	/* Suunto Sports instrument */
 
 /*
+ * TTi (Thurlby Thandar Instruments)
+ */
+#define TTI_VID			0x103E	/* Vendor Id */
+#define TTI_QL355P_PID		0x03E8	/* TTi QL355P power supply */
+
+/*
  * Definitions for B&B Electronics products.
  */
 #define BANDB_VID		0x0856	/* B&B Electronics Vendor ID */
@@ -497,6 +504,19 @@
 #define TELLDUS_VID			0x1781	/* Vendor ID */
 #define TELLDUS_TELLSTICK_PID		0x0C30	/* RF control dongle 433 MHz using FT232RL */
 
+/*
+ * IBS elektronik product ids
+ * Submitted by Thomas Schleusener
+ */
+#define FTDI_IBS_US485_PID	0xff38  /* IBS US485 (USB<-->RS422/485 interface) */
+#define FTDI_IBS_PICPRO_PID	0xff39  /* IBS PIC-Programmer */
+#define FTDI_IBS_PCMCIA_PID	0xff3a  /* IBS Card reader for PCMCIA SRAM-cards */
+#define FTDI_IBS_PK1_PID	0xff3b  /* IBS PK1 - Particel counter */
+#define FTDI_IBS_RS232MON_PID	0xff3c  /* IBS RS232 - Monitor */
+#define FTDI_IBS_APP70_PID	0xff3d  /* APP 70 (dust monitoring system) */
+#define FTDI_IBS_PEDO_PID	0xff3e  /* IBS PEDO-Modem (RF modem 868.35 MHz) */
+#define FTDI_IBS_PROD_PID	0xff3f  /* future device */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
@@ -620,6 +640,7 @@ typedef enum {
 	FT8U232AM = 2,
 	FT232BM = 3,
 	FT2232C = 4,
+	FT232RL = 5,
 } ftdi_chip_type_t;
 
 typedef enum {

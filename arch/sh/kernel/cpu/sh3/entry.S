@@ -514,13 +514,16 @@ skip_save:
 
 interrupt_exception:
 	mov.l	1f, r9
+	mov.l	2f, r4
+	mov.l	@r4, r4
 	jmp	@r9
-	 nop
+	 mov	r15, r5
 	rts
 	 nop
 
 	.align 2
 1:	.long	do_IRQ
+2:	.long	INTEVT
 
 	.align	2
 ENTRY(exception_none)

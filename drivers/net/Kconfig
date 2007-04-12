@@ -2373,22 +2373,23 @@ config CHELSIO_T1_NAPI
 	  when the driver is receiving lots of packets from the card.
 
 config CHELSIO_T3
-        tristate "Chelsio Communications T3 10Gb Ethernet support"
-        depends on PCI
-        help
-          This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
-          adapters.
+	tristate "Chelsio Communications T3 10Gb Ethernet support"
+	depends on PCI
+	select FW_LOADER
+	help
+	  This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
+	  adapters.
 
-          For general information about Chelsio and our products, visit
-          our website at <http://www.chelsio.com>.
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
 
-          For customer support, please visit our customer support page at
-          <http://www.chelsio.com/support.htm>.
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.htm>.
 
-          Please send feedback to <linux-bugs@chelsio.com>.
+	  Please send feedback to <linux-bugs@chelsio.com>.
 
-          To compile this driver as a module, choose M here: the module
-          will be called cxgb3.
+	  To compile this driver as a module, choose M here: the module
+	  will be called cxgb3.
 
 config EHEA
 	tristate "eHEA Ethernet support"

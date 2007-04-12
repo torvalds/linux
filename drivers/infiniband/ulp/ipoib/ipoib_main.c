@@ -380,7 +380,7 @@ static void path_rec_completion(int status,
 	struct net_device *dev = path->dev;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_ah *ah = NULL;
-	struct ipoib_neigh *neigh;
+	struct ipoib_neigh *neigh, *tn;
 	struct sk_buff_head skqueue;
 	struct sk_buff *skb;
 	unsigned long flags;
@@ -418,7 +418,7 @@ static void path_rec_completion(int status,
 		while ((skb = __skb_dequeue(&path->queue)))
 			__skb_queue_tail(&skqueue, skb);
 
-		list_for_each_entry(neigh, &path->neigh_list, list) {
+		list_for_each_entry_safe(neigh, tn, &path->neigh_list, list) {
 			kref_get(&path->ah->ref);
 			neigh->ah = path->ah;
 			memcpy(&neigh->dgid.raw, &path->pathrec.dgid.raw,
@@ -814,7 +814,7 @@ static void ipoib_set_mcast_list(struct net_device *dev)
 	queue_work(ipoib_workqueue, &priv->restart_task);
 }
 
-static void ipoib_neigh_destructor(struct neighbour *n)
+static void ipoib_neigh_cleanup(struct neighbour *n)
 {
 	struct ipoib_neigh *neigh;
 	struct ipoib_dev_priv *priv = netdev_priv(n->dev);
@@ -822,7 +822,7 @@ static void ipoib_neigh_destructor(struct neighbour *n)
 	struct ipoib_ah *ah = NULL;
 
 	ipoib_dbg(priv,
-		  "neigh_destructor for %06x " IPOIB_GID_FMT "\n",
+		  "neigh_cleanup for %06x " IPOIB_GID_FMT "\n",
 		  IPOIB_QPN(n->ha),
 		  IPOIB_GID_RAW_ARG(n->ha + 4));
 
@@ -874,7 +874,7 @@ void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh)
 
 static int ipoib_neigh_setup_dev(struct net_device *dev, struct neigh_parms *parms)
 {
-	parms->neigh_destructor = ipoib_neigh_destructor;
+	parms->neigh_cleanup = ipoib_neigh_cleanup;
 
 	return 0;
 }

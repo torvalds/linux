@@ -167,7 +167,7 @@ static void *ipath_dma_alloc_coherent(struct ib_device *dev, size_t size,
 }
 
 static void ipath_dma_free_coherent(struct ib_device *dev, size_t size,
-				    void *cpu_addr, dma_addr_t dma_handle)
+				    void *cpu_addr, u64 dma_handle)
 {
 	free_pages((unsigned long) cpu_addr, get_order(size));
 }

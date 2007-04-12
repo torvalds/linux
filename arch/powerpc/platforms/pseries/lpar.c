@@ -378,7 +378,7 @@ static void pSeries_lpar_hptab_clear(void)
 
 	/* TODO: Use bulk call */
 	for (i = 0; i < hpte_count; i++)
-		plpar_pte_remove(0, i, 0, &dummy1, &dummy2);
+		plpar_pte_remove_raw(0, i, 0, &dummy1, &dummy2);
 }
 
 /*

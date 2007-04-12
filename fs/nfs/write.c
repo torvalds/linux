@@ -12,6 +12,7 @@
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/writeback.h>
+#include <linux/swap.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/nfs_fs.h>
@@ -38,7 +39,6 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context*,
 					    struct page *,
 					    unsigned int, unsigned int);
 static void nfs_mark_request_dirty(struct nfs_page *req);
-static int nfs_wait_on_write_congestion(struct address_space *, int);
 static long nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how);
 static const struct rpc_call_ops nfs_write_partial_ops;
 static const struct rpc_call_ops nfs_write_full_ops;
@@ -47,8 +47,6 @@ static const struct rpc_call_ops nfs_commit_ops;
 static struct kmem_cache *nfs_wdata_cachep;
 static mempool_t *nfs_wdata_mempool;
 static mempool_t *nfs_commit_mempool;
-
-static DECLARE_WAIT_QUEUE_HEAD(nfs_write_congestion);
 
 struct nfs_write_data *nfs_commit_alloc(void)
 {
@@ -211,6 +209,40 @@ static int wb_priority(struct writeback_control *wbc)
 }
 
 /*
+ * NFS congestion control
+ */
+
+int nfs_congestion_kb;
+
+#define NFS_CONGESTION_ON_THRESH 	(nfs_congestion_kb >> (PAGE_SHIFT-10))
+#define NFS_CONGESTION_OFF_THRESH	\
+	(NFS_CONGESTION_ON_THRESH - (NFS_CONGESTION_ON_THRESH >> 2))
+
+static void nfs_set_page_writeback(struct page *page)
+{
+	if (!test_set_page_writeback(page)) {
+		struct inode *inode = page->mapping->host;
+		struct nfs_server *nfss = NFS_SERVER(inode);
+
+		if (atomic_inc_return(&nfss->writeback) >
+				NFS_CONGESTION_ON_THRESH)
+			set_bdi_congested(&nfss->backing_dev_info, WRITE);
+	}
+}
+
+static void nfs_end_page_writeback(struct page *page)
+{
+	struct inode *inode = page->mapping->host;
+	struct nfs_server *nfss = NFS_SERVER(inode);
+
+	end_page_writeback(page);
+	if (atomic_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH) {
+		clear_bdi_congested(&nfss->backing_dev_info, WRITE);
+		congestion_end(WRITE);
+	}
+}
+
+/*
  * Find an associated nfs write request, and prepare to flush it out
  * Returns 1 if there was no write request, or if the request was
  * already tagged by nfs_set_page_dirty.Returns 0 if the request
@@ -247,7 +279,7 @@ static int nfs_page_mark_flush(struct page *page)
 	spin_unlock(req_lock);
 	if (test_and_set_bit(PG_FLUSHING, &req->wb_flags) == 0) {
 		nfs_mark_request_dirty(req);
-		set_page_writeback(page);
+		nfs_set_page_writeback(page);
 	}
 	ret = test_bit(PG_NEED_FLUSH, &req->wb_flags);
 	nfs_unlock_request(req);
@@ -302,13 +334,8 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	return err; 
 }
 
-/*
- * Note: causes nfs_update_request() to block on the assumption
- * 	 that the writeback is generated due to memory pressure.
- */
 int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
-	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	struct inode *inode = mapping->host;
 	int err;
 
@@ -317,20 +344,12 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	err = generic_writepages(mapping, wbc);
 	if (err)
 		return err;
-	while (test_and_set_bit(BDI_write_congested, &bdi->state) != 0) {
-		if (wbc->nonblocking)
-			return 0;
-		nfs_wait_on_write_congestion(mapping, 0);
-	}
 	err = nfs_flush_mapping(mapping, wbc, wb_priority(wbc));
 	if (err < 0)
 		goto out;
 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, err);
 	err = 0;
 out:
-	clear_bit(BDI_write_congested, &bdi->state);
-	wake_up_all(&nfs_write_congestion);
-	congestion_end(WRITE);
 	return err;
 }
 
@@ -360,7 +379,7 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 }
 
 /*
- * Insert a write request into an inode
+ * Remove a write request from an inode
  */
 static void nfs_inode_remove_request(struct nfs_page *req)
 {
@@ -531,10 +550,10 @@ static inline int nfs_scan_commit(struct inode *inode, struct list_head *dst, un
 }
 #endif
 
-static int nfs_wait_on_write_congestion(struct address_space *mapping, int intr)
+static int nfs_wait_on_write_congestion(struct address_space *mapping)
 {
+	struct inode *inode = mapping->host;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
-	DEFINE_WAIT(wait);
 	int ret = 0;
 
 	might_sleep();
@@ -542,30 +561,22 @@ static int nfs_wait_on_write_congestion(struct address_space *mapping, int intr)
 	if (!bdi_write_congested(bdi))
 		return 0;
 
-	nfs_inc_stats(mapping->host, NFSIOS_CONGESTIONWAIT);
+	nfs_inc_stats(inode, NFSIOS_CONGESTIONWAIT);
 
-	if (intr) {
-		struct rpc_clnt *clnt = NFS_CLIENT(mapping->host);
+	do {
+		struct rpc_clnt *clnt = NFS_CLIENT(inode);
 		sigset_t oldset;
 
 		rpc_clnt_sigmask(clnt, &oldset);
-		prepare_to_wait(&nfs_write_congestion, &wait, TASK_INTERRUPTIBLE);
-		if (bdi_write_congested(bdi)) {
-			if (signalled())
-				ret = -ERESTARTSYS;
-			else
-				schedule();
-		}
+		ret = congestion_wait_interruptible(WRITE, HZ/10);
 		rpc_clnt_sigunmask(clnt, &oldset);
-	} else {
-		prepare_to_wait(&nfs_write_congestion, &wait, TASK_UNINTERRUPTIBLE);
-		if (bdi_write_congested(bdi))
-			schedule();
-	}
-	finish_wait(&nfs_write_congestion, &wait);
+		if (ret == -ERESTARTSYS)
+			break;
+		ret = 0;
+	} while (bdi_write_congested(bdi));
+
 	return ret;
 }
-
 
 /*
  * Try to update any existing write request, or create one if there is none.
@@ -577,14 +588,15 @@ static int nfs_wait_on_write_congestion(struct address_space *mapping, int intr)
 static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 		struct page *page, unsigned int offset, unsigned int bytes)
 {
-	struct inode *inode = page->mapping->host;
+	struct address_space *mapping = page->mapping;
+	struct inode *inode = mapping->host;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page		*req, *new = NULL;
 	unsigned long		rqend, end;
 
 	end = offset + bytes;
 
-	if (nfs_wait_on_write_congestion(page->mapping, NFS_SERVER(inode)->flags & NFS_MOUNT_INTR))
+	if (nfs_wait_on_write_congestion(mapping))
 		return ERR_PTR(-ERESTARTSYS);
 	for (;;) {
 		/* Loop over all inode entries and see if we find
@@ -727,7 +739,7 @@ int nfs_updatepage(struct file *file, struct page *page,
 
 static void nfs_writepage_release(struct nfs_page *req)
 {
-	end_page_writeback(req->wb_page);
+	nfs_end_page_writeback(req->wb_page);
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 	if (!PageError(req->wb_page)) {
@@ -1042,12 +1054,12 @@ static void nfs_writeback_done_full(struct rpc_task *task, void *calldata)
 		if (task->tk_status < 0) {
 			nfs_set_pageerror(page);
 			req->wb_context->error = task->tk_status;
-			end_page_writeback(page);
+			nfs_end_page_writeback(page);
 			nfs_inode_remove_request(req);
 			dprintk(", error = %d\n", task->tk_status);
 			goto next;
 		}
-		end_page_writeback(page);
+		nfs_end_page_writeback(page);
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 		if (data->args.stable != NFS_UNSTABLE || data->verf.committed == NFS_FILE_SYNC) {
@@ -1513,6 +1525,26 @@ int __init nfs_init_writepagecache(void)
 						      nfs_wdata_cachep);
 	if (nfs_commit_mempool == NULL)
 		return -ENOMEM;
+
+	/*
+	 * NFS congestion size, scale with available memory.
+	 *
+	 *  64MB:    8192k
+	 * 128MB:   11585k
+	 * 256MB:   16384k
+	 * 512MB:   23170k
+	 *   1GB:   32768k
+	 *   2GB:   46340k
+	 *   4GB:   65536k
+	 *   8GB:   92681k
+	 *  16GB:  131072k
+	 *
+	 * This allows larger machines to have larger/more transfers.
+	 * Limit the default to 256M
+	 */
+	nfs_congestion_kb = (16*int_sqrt(totalram_pages)) << (PAGE_SHIFT-10);
+	if (nfs_congestion_kb > 256*1024)
+		nfs_congestion_kb = 256*1024;
 
 	return 0;
 }

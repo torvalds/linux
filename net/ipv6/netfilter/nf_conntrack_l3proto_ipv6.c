@@ -257,6 +257,7 @@ static unsigned int ipv6_conntrack_in(unsigned int hooknum,
 		}
 		nf_conntrack_get(reasm->nfct);
 		(*pskb)->nfct = reasm->nfct;
+		(*pskb)->nfctinfo = reasm->nfctinfo;
 		return NF_ACCEPT;
 	}
 

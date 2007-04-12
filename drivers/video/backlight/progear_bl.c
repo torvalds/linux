@@ -65,13 +65,13 @@ static int progearbl_probe(struct platform_device *pdev)
 	u8 temp;
 	struct backlight_device *progear_backlight_device;
 
-	pmu_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101, 0);
+	pmu_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101, NULL);
 	if (!pmu_dev) {
 		printk("ALI M7101 PMU not found.\n");
 		return -ENODEV;
 	}
 
-	sb_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, 0);
+	sb_dev = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 	if (!sb_dev) {
 		printk("ALI 1533 SB not found.\n");
 		pci_dev_put(pmu_dev);

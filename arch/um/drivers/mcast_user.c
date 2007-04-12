@@ -50,6 +50,14 @@ static void mcast_user_init(void *data, void *dev)
 	pri->dev = dev;
 }
 
+static void mcast_remove(void *data)
+{
+	struct mcast_data *pri = data;
+
+	kfree(pri->mcast_addr);
+	pri->mcast_addr = NULL;
+}
+
 static int mcast_open(void *data)
 {
 	struct mcast_data *pri = data;
@@ -157,7 +165,7 @@ const struct net_user_info mcast_user_info = {
 	.init		= mcast_user_init,
 	.open		= mcast_open,
 	.close	 	= mcast_close,
-	.remove	 	= NULL,
+	.remove	 	= mcast_remove,
 	.set_mtu	= mcast_set_mtu,
 	.add_address	= NULL,
 	.delete_address = NULL,

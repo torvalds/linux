@@ -874,8 +874,14 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 
 			if (status & (NV_ADMA_STAT_DONE |
 				      NV_ADMA_STAT_CPBERR)) {
-				u32 check_commands = notifier | notifier_error;
+				u32 check_commands;
 				int pos, error = 0;
+
+				if(ata_tag_valid(ap->active_tag))
+					check_commands = 1 << ap->active_tag;
+				else
+					check_commands = ap->sactive;
+
 				/** Check CPBs for completed commands */
 				while ((pos = ffs(check_commands)) && !error) {
 					pos--;

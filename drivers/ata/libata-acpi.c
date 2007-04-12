@@ -34,6 +34,13 @@ struct taskfile_array {
 	u8	tfa[REGS_PER_GTF];	/* regs. 0x1f1 - 0x1f7 */
 };
 
+/*
+ *	Helper - belongs in the PCI layer somewhere eventually
+ */
+static int is_pci_dev(struct device *dev)
+{
+	return (dev->bus == &pci_bus_type);
+}
 
 /**
  * sata_get_dev_handle - finds acpi_handle and PCI device.function
@@ -52,6 +59,9 @@ static int sata_get_dev_handle(struct device *dev, acpi_handle *handle,
 {
 	struct pci_dev	*pci_dev;
 	acpi_integer	addr;
+
+	if (!is_pci_dev(dev))
+		return -ENODEV;
 
 	pci_dev = to_pci_dev(dev);	/* NOTE: PCI-specific */
 	/* Please refer to the ACPI spec for the syntax of _ADR. */
@@ -84,7 +94,12 @@ static int pata_get_dev_handle(struct device *dev, acpi_handle *handle,
 	acpi_status status;
 	struct acpi_device_info	*dinfo = NULL;
 	int ret = -ENODEV;
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_dev *pdev;
+
+	if (!is_pci_dev(dev))
+		return -ENODEV;
+
+	pdev = to_pci_dev(dev);
 
 	bus = pdev->bus->number;
 	devnum = PCI_SLOT(pdev->devfn);
@@ -290,7 +305,7 @@ static int do_drive_get_GTF(struct ata_port *ap, int ix,
 	*gtf_address = 0UL;
 	*obj_loc = 0UL;
 
-	if (noacpi)
+	if (libata_noacpi)
 		return 0;
 
 	if (ata_msg_probe(ap))
@@ -516,7 +531,7 @@ static int do_drive_set_taskfiles(struct ata_port *ap,
 		ata_dev_printk(atadev, KERN_DEBUG, "%s: ENTER: port#: %d\n",
 			       __FUNCTION__, ap->port_no);
 
-	if (noacpi || !(ap->cbl == ATA_CBL_SATA))
+	if (libata_noacpi || !(ap->cbl == ATA_CBL_SATA))
 		return 0;
 
 	if (!ata_dev_enabled(atadev) || (ap->flags & ATA_FLAG_DISABLED))
@@ -559,7 +574,14 @@ int ata_acpi_exec_tfs(struct ata_port *ap)
 	unsigned long	gtf_address;
 	unsigned long	obj_loc;
 
-	if (noacpi)
+	if (libata_noacpi)
+		return 0;
+	/*
+	 * TBD - implement PATA support.  For now,
+	 * we should not run GTF on PATA devices since some
+	 * PATA require execution of GTM/STM before GTF.
+	 */
+	if (!(ap->cbl == ATA_CBL_SATA))
 		return 0;
 
 	for (ix = 0; ix < ATA_MAX_DEVICES; ix++) {
@@ -614,7 +636,7 @@ int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
 	struct acpi_object_list         input;
 	union acpi_object               in_params[1];
 
-	if (noacpi)
+	if (libata_noacpi)
 		return 0;
 
 	if (ata_msg_probe(ap))

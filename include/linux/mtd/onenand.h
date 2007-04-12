@@ -82,7 +82,8 @@ struct onenand_bufferram {
  * @wq:			[INTERN] wait queue to sleep on if a OneNAND
  *			operation is in progress
  * @state:		[INTERN] the current state of the OneNAND device
- * @page_buf:		data buffer
+ * @page_buf:		[INTERN] page main data buffer
+ * @oob_buf:		[INTERN] page oob data buffer
  * @subpagesize:	[INTERN] holds the subpagesize
  * @ecclayout:		[REPLACEABLE] the default ecc placement scheme
  * @bbm:		[REPLACEABLE] pointer to Bad Block Management
@@ -122,6 +123,7 @@ struct onenand_chip {
 	wait_queue_head_t	wq;
 	onenand_state_t		state;
 	unsigned char		*page_buf;
+	unsigned char		*oob_buf;
 
 	int			subpagesize;
 	struct nand_ecclayout	*ecclayout;
@@ -156,6 +158,7 @@ struct onenand_chip {
 #define ONENAND_HAS_CONT_LOCK		(0x0001)
 #define ONENAND_HAS_UNLOCK_ALL		(0x0002)
 #define ONENAND_PAGEBUF_ALLOC		(0x1000)
+#define ONENAND_OOBBUF_ALLOC		(0x2000)
 
 /*
  * OneNAND Flash Manufacturer ID Codes

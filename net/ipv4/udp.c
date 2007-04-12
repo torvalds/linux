@@ -1215,6 +1215,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 
 		if (ulen < sizeof(*uh) || pskb_trim_rcsum(skb, ulen))
 			goto short_packet;
+		uh = skb->h.uh;
 
 		udp4_csum_init(skb, uh);
 

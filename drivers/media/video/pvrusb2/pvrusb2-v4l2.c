@@ -808,11 +808,11 @@ static void pvr2_v4l2_destroy_no_lock(struct pvr2_v4l2 *vp)
 {
 	if (vp->dev_video) {
 		pvr2_v4l2_dev_destroy(vp->dev_video);
-		vp->dev_video = 0;
+		vp->dev_video = NULL;
 	}
 	if (vp->dev_radio) {
 		pvr2_v4l2_dev_destroy(vp->dev_radio);
-		vp->dev_radio = 0;
+		vp->dev_radio = NULL;
 	}
 
 	pvr2_trace(PVR2_TRACE_STRUCT,"Destroying pvr2_v4l2 id=%p",vp);
@@ -1138,7 +1138,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 {
 	int mindevnum;
 	int unit_number;
-	int *nr_ptr = 0;
+	int *nr_ptr = NULL;
 	dip->v4lp = vp;
 
 

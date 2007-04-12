@@ -4,6 +4,9 @@ menu "IOP32x Implementation Options"
 
 comment "IOP32x Platform Types"
 
+config MACH_EP80219
+	bool
+
 config MACH_GLANTANK
 	bool "Enable support for the IO-Data GLAN Tank"
 	help
@@ -19,6 +22,7 @@ config ARCH_IQ80321
 
 config ARCH_IQ31244
 	bool "Enable support for EP80219/IQ31244"
+	select MACH_EP80219
 	help
 	  Say Y here if you want to run your kernel on the Intel EP80219
 	  evaluation kit for the Intel 80219 processor (a IOP321 variant)

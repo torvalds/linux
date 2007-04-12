@@ -48,6 +48,15 @@ static inline void flush_dcache_page(struct page *page)
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
+#define ARCH_HAS_FLUSH_ANON_PAGE
+extern void __flush_anon_page(struct page *, unsigned long);
+static inline void flush_anon_page(struct vm_area_struct *vma,
+	struct page *page, unsigned long vmaddr)
+{
+	if (cpu_has_dc_aliases && PageAnon(page))
+		__flush_anon_page(page, vmaddr);
+}
+
 static inline void flush_icache_page(struct vm_area_struct *vma,
 	struct page *page)
 {
@@ -85,5 +94,8 @@ extern void (*flush_data_cache_page)(unsigned long addr);
 
 /* Run kernel code uncached, useful for cache probing functions. */
 unsigned long __init run_uncached(void *func);
+
+extern void *kmap_coherent(struct page *page, unsigned long addr);
+extern void kunmap_coherent(struct page *page);
 
 #endif /* _ASM_CACHEFLUSH_H */

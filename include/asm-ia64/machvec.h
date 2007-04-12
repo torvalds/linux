@@ -168,6 +168,7 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  define platform_setup_msi_irq	ia64_mv.setup_msi_irq
 #  define platform_teardown_msi_irq	ia64_mv.teardown_msi_irq
 #  define platform_pci_fixup_bus	ia64_mv.pci_fixup_bus
+#  define platform_kernel_launch_event	ia64_mv.kernel_launch_event
 # endif
 
 /* __attribute__((__aligned__(16))) is required to make size of the
@@ -269,6 +270,7 @@ struct ia64_machine_vector {
 	platform_setup_msi_irq,			\
 	platform_teardown_msi_irq,		\
 	platform_pci_fixup_bus,			\
+	platform_kernel_launch_event            \
 }
 
 extern struct ia64_machine_vector ia64_mv;

@@ -3,7 +3,7 @@
  *
  * CPU init code
  *
- * Copyright (C) 2002 - 2006  Paul Mundt
+ * Copyright (C) 2002 - 2007  Paul Mundt
  * Copyright (C) 2003  Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -48,8 +48,19 @@ static void __init cache_init(void)
 {
 	unsigned long ccr, flags;
 
-	if (current_cpu_data.type == CPU_SH_NONE)
-		panic("Unknown CPU");
+	/* First setup the rest of the I-cache info */
+	current_cpu_data.icache.entry_mask = current_cpu_data.icache.way_incr -
+				      current_cpu_data.icache.linesz;
+
+	current_cpu_data.icache.way_size = current_cpu_data.icache.sets *
+				    current_cpu_data.icache.linesz;
+
+	/* And the D-cache too */
+	current_cpu_data.dcache.entry_mask = current_cpu_data.dcache.way_incr -
+				      current_cpu_data.dcache.linesz;
+
+	current_cpu_data.dcache.way_size = current_cpu_data.dcache.sets *
+				    current_cpu_data.dcache.linesz;
 
 	jump_to_P2();
 	ccr = ctrl_inl(CCR);
@@ -199,6 +210,9 @@ asmlinkage void __init sh_cpu_init(void)
 {
 	/* First, probe the CPU */
 	detect_cpu_and_cache_system();
+
+	if (current_cpu_data.type == CPU_SH_NONE)
+		panic("Unknown CPU");
 
 	/* Init the cache */
 	cache_init();

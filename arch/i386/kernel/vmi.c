@@ -23,7 +23,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/license.h>
 #include <linux/cpu.h>
 #include <linux/bootmem.h>
 #include <linux/mm.h>
@@ -48,7 +47,6 @@ typedef u64 __attribute__((regparm(2))) (VROMLONGFUNC)(int);
    (((VROMLONGFUNC *)(rom->func)) (arg))
 
 static struct vrom_header *vmi_rom;
-static int license_gplok;
 static int disable_pge;
 static int disable_pse;
 static int disable_sep;
@@ -71,6 +69,7 @@ struct {
 	void (*flush_tlb)(int);
 	void (*set_initial_ap_state)(int, int);
 	void (*halt)(void);
+  	void (*set_lazy_mode)(int mode);
 } vmi_ops;
 
 /* XXX move this to alternative.h */
@@ -576,6 +575,26 @@ vmi_startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 }
 #endif
 
+static void vmi_set_lazy_mode(int mode)
+{
+	static DEFINE_PER_CPU(int, lazy_mode);
+
+	if (!vmi_ops.set_lazy_mode)
+		return;
+
+	/* Modes should never nest or overlap */
+	BUG_ON(__get_cpu_var(lazy_mode) && !(mode == PARAVIRT_LAZY_NONE ||
+					     mode == PARAVIRT_LAZY_FLUSH));
+
+	if (mode == PARAVIRT_LAZY_FLUSH) {
+		vmi_ops.set_lazy_mode(0);
+		vmi_ops.set_lazy_mode(__get_cpu_var(lazy_mode));
+	} else {
+		vmi_ops.set_lazy_mode(mode);
+		__get_cpu_var(lazy_mode) = mode;
+	}
+}
+
 static inline int __init check_vmi_rom(struct vrom_header *rom)
 {
 	struct pci_header *pci;
@@ -629,13 +648,14 @@ static inline int __init check_vmi_rom(struct vrom_header *rom)
 		rom->api_version_maj, rom->api_version_min,
 		pci->rom_version_maj, pci->rom_version_min);
 
-        license_gplok = license_is_gpl_compatible(license);
-        if (!license_gplok) {
-                printk(KERN_WARNING "VMI: ROM license '%s' taints kernel... "
-		       "inlining disabled\n",
-                       license);
-                add_taint(TAINT_PROPRIETARY_MODULE);
-        }
+	/* Don't allow BSD/MIT here for now because we don't want to end up
+	   with any binary only shim layers */
+	if (strcmp(license, "GPL") && strcmp(license, "GPL v2")) {
+		printk(KERN_WARNING "VMI: Non GPL license `%s' found for ROM. Not used.\n",
+			license);
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -805,7 +825,7 @@ static inline int __init activate_vmi(void)
 	para_wrap(load_esp0, vmi_load_esp0, set_kernel_stack, UpdateKernelStack);
 	para_fill(set_iopl_mask, SetIOPLMask);
 	para_fill(io_delay, IODelay);
-	para_fill(set_lazy_mode, SetLazyMode);
+	para_wrap(set_lazy_mode, vmi_set_lazy_mode, set_lazy_mode, SetLazyMode);
 
 	/* user and kernel flush are just handled with different flags to FlushTLB */
 	para_wrap(flush_tlb_user, vmi_flush_tlb_user, flush_tlb, FlushTLB);

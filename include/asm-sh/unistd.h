@@ -233,6 +233,7 @@
 #define __NR_fcntl64		221
 /* 223 is unused */
 #define __NR_gettid		224
+#define __NR_readahead		225
 #define __NR_setxattr		226
 #define __NR_lsetxattr		227
 #define __NR_fsetxattr		228

@@ -34,6 +34,7 @@ struct fib_rules_ops
 	int			family;
 	struct list_head	list;
 	int			rule_size;
+	int			addr_size;
 
 	int			(*action)(struct fib_rule *,
 					  struct flowi *, int,

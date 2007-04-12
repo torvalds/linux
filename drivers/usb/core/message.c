@@ -221,10 +221,15 @@ int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 
 	if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 			USB_ENDPOINT_XFER_INT) {
+		int interval;
+
+		if (usb_dev->speed == USB_SPEED_HIGH)
+			interval = 1 << min(15, ep->desc.bInterval - 1);
+		else
+			interval = ep->desc.bInterval;
 		pipe = (pipe & ~(3 << 30)) | (PIPE_INTERRUPT << 30);
 		usb_fill_int_urb(urb, usb_dev, pipe, data, len,
-				usb_api_blocking_completion, NULL,
-				ep->desc.bInterval);
+				usb_api_blocking_completion, NULL, interval);
 	} else
 		usb_fill_bulk_urb(urb, usb_dev, pipe, data, len,
 				usb_api_blocking_completion, NULL);

@@ -180,7 +180,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	}
 	if (res > 0)
 		return state;
-	if (!err)
+	if (err)
 	/* The partition is unrecognized. So report I/O errors if there were any */
 		res = err;
 	if (!res)
@@ -541,7 +541,7 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
 		return 0;
 	if (IS_ERR(state))	/* I/O error reading the partition table */
-		return PTR_ERR(state);
+		return -EIO;
 	for (p = 1; p < state->limit; p++) {
 		sector_t size = state->parts[p].size;
 		sector_t from = state->parts[p].from;

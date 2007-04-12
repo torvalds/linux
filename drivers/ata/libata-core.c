@@ -93,8 +93,8 @@ static int ata_probe_timeout = ATA_TMOUT_INTERNAL / HZ;
 module_param(ata_probe_timeout, int, 0444);
 MODULE_PARM_DESC(ata_probe_timeout, "Set ATA probing timeout (seconds)");
 
-int noacpi;
-module_param(noacpi, int, 0444);
+int libata_noacpi = 1;
+module_param_named(noacpi, libata_noacpi, int, 0444);
 MODULE_PARM_DESC(noacpi, "Disables the use of ACPI in suspend/resume when set");
 
 MODULE_AUTHOR("Jeff Garzik");
@@ -826,7 +826,7 @@ static u64 ata_id_n_sectors(const u16 *id)
 /**
  *	ata_id_to_dma_mode	-	Identify DMA mode from id block
  *	@dev: device to identify
- *	@mode: mode to assume if we cannot tell
+ *	@unknown: mode to assume if we cannot tell
  *
  *	Set up the timing values for the device based upon the identify
  *	reported values for the DMA mode. This function is used by drivers
@@ -1783,6 +1783,13 @@ int ata_dev_configure(struct ata_device *dev)
 		dev->udma_mask &= ATA_UDMA5;
 		dev->max_sectors = ATA_MAX_SECTORS;
 	}
+
+	if (ata_device_blacklisted(dev) & ATA_HORKAGE_MAX_SEC_128)
+		dev->max_sectors = min(ATA_MAX_SECTORS_128, dev->max_sectors);
+
+	/* limit ATAPI DMA to R/W commands only */
+	if (ata_device_blacklisted(dev) & ATA_HORKAGE_DMA_RW_ONLY)
+		dev->horkage |= ATA_HORKAGE_DMA_RW_ONLY;
 
 	if (ap->ops->dev_config)
 		ap->ops->dev_config(ap, dev);
@@ -3352,6 +3359,10 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "_NEC DV5800A", 	NULL,		ATA_HORKAGE_NODMA },
 	{ "SAMSUNG CD-ROM SN-124","N001",	ATA_HORKAGE_NODMA },
 
+	/* Weird ATAPI devices */
+	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_HORKAGE_MAX_SEC_128 |
+						ATA_HORKAGE_DMA_RW_ONLY },
+
 	/* Devices we expect to fail diagnostics */
 
 	/* Devices where NCQ should be avoided */
@@ -3359,6 +3370,15 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
         { "WDC WD740ADFD-00",   NULL,		ATA_HORKAGE_NONCQ },
 	/* http://thread.gmane.org/gmane.linux.ide/14907 */
 	{ "FUJITSU MHT2060BH",	NULL,		ATA_HORKAGE_NONCQ },
+	/* NCQ is broken */
+	{ "Maxtor 6L250S0",     "BANC1G10",     ATA_HORKAGE_NONCQ },
+	/* NCQ hard hangs device under heavier load, needs hard power cycle */
+	{ "Maxtor 6B250S0",	"BANC1B70",	ATA_HORKAGE_NONCQ },
+	/* Blacklist entries taken from Silicon Image 3124/3132
+	   Windows driver .inf file - also several Linux problem reports */
+	{ "HTS541060G9SA00",    "MB3OC60D",     ATA_HORKAGE_NONCQ, },
+	{ "HTS541080G9SA00",    "MB4OC60D",     ATA_HORKAGE_NONCQ, },
+	{ "HTS541010G9SA00",    "MBZOC60D",     ATA_HORKAGE_NONCQ, },
 
 	/* Devices with NCQ limits */
 
@@ -3455,7 +3475,8 @@ static void ata_dev_xfermask(struct ata_device *dev)
 			       "device is on DMA blacklist, disabling DMA\n");
 	}
 
-	if ((host->flags & ATA_HOST_SIMPLEX) && host->simplex_claimed != ap) {
+	if ((host->flags & ATA_HOST_SIMPLEX) &&
+            host->simplex_claimed && host->simplex_claimed != ap) {
 		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 		ata_dev_printk(dev, KERN_WARNING, "simplex DMA is claimed by "
 			       "other device, disabling DMA\n");
@@ -3668,6 +3689,26 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	int rc = 0; /* Assume ATAPI DMA is OK by default */
+
+	/* some drives can only do ATAPI DMA on read/write */
+	if (unlikely(qc->dev->horkage & ATA_HORKAGE_DMA_RW_ONLY)) {
+		struct scsi_cmnd *cmd = qc->scsicmd;
+		u8 *scsicmd = cmd->cmnd;
+
+		switch (scsicmd[0]) {
+		case READ_10:
+		case WRITE_10:
+		case READ_12:
+		case WRITE_12:
+		case READ_6:
+		case WRITE_6:
+			/* atapi dma maybe ok */
+			break;
+		default:
+			/* turn off atapi dma */
+			return 1;
+		}
+	}
 
 	if (ap->ops->check_atapi_dma)
 		rc = ap->ops->check_atapi_dma(qc);
@@ -4712,8 +4753,8 @@ static void fill_result_tf(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
-	ap->ops->tf_read(ap, &qc->result_tf);
 	qc->result_tf.flags = qc->tf.flags;
+	ap->ops->tf_read(ap, &qc->result_tf);
 }
 
 /**
@@ -5684,17 +5725,21 @@ static void ata_host_release(struct device *gendev, void *res)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		if (!ap)
-			continue;
-
-		if (ap->ops->port_stop)
+		if (ap && ap->ops->port_stop)
 			ap->ops->port_stop(ap);
-
-		scsi_host_put(ap->scsi_host);
 	}
 
 	if (host->ops->host_stop)
 		host->ops->host_stop(host);
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		if (ap)
+			scsi_host_put(ap->scsi_host);
+
+		host->ports[i] = NULL;
+	}
 
 	dev_set_drvdata(gendev, NULL);
 }

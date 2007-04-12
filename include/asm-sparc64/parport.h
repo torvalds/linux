@@ -19,6 +19,17 @@
  */
 #define HAS_DMA
 
+static DEFINE_SPINLOCK(dma_spin_lock);
+
+#define claim_dma_lock() \
+({	unsigned long flags; \
+	spin_lock_irqsave(&dma_spin_lock, flags); \
+	flags; \
+})
+
+#define release_dma_lock(__flags) \
+	spin_unlock_irqrestore(&dma_spin_lock, __flags);
+
 static struct sparc_ebus_info {
 	struct ebus_dma_info info;
 	unsigned int addr;

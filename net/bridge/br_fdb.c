@@ -197,8 +197,8 @@ struct net_bridge_fdb_entry *br_fdb_get(struct net_bridge *br,
 
 	rcu_read_lock();
 	fdb = __br_fdb_get(br, addr);
-	if (fdb)
-		atomic_inc(&fdb->use_count);
+	if (fdb && !atomic_inc_not_zero(&fdb->use_count))
+		fdb = NULL;
 	rcu_read_unlock();
 	return fdb;
 }

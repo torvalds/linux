@@ -1141,25 +1141,22 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 
 	err = -ENOMEM;
 	dentry = d_alloc(configfs_sb->s_root, &name);
-	if (!dentry)
-		goto out_release;
+	if (dentry) {
+		d_add(dentry, NULL);
 
-	d_add(dentry, NULL);
-
-	err = configfs_attach_group(sd->s_element, &group->cg_item,
-				    dentry);
-	if (!err)
-		dentry = NULL;
-	else
-		d_delete(dentry);
+		err = configfs_attach_group(sd->s_element, &group->cg_item,
+					    dentry);
+		if (err) {
+			d_delete(dentry);
+			dput(dentry);
+		}
+	}
 
 	mutex_unlock(&configfs_sb->s_root->d_inode->i_mutex);
 
-	if (dentry) {
-	    dput(dentry);
-out_release:
-	    unlink_group(group);
-	    configfs_release_fs();
+	if (err) {
+		unlink_group(group);
+		configfs_release_fs();
 	}
 
 	return err;

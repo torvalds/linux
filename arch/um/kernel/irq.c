@@ -142,6 +142,7 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 				     .events 		= events,
 				     .current_events 	= 0 } );
 
+	err = -EBUSY;
 	spin_lock_irqsave(&irq_lock, flags);
 	for (irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next) {
 		if ((irq_fd->fd == fd) && (irq_fd->type == type)) {

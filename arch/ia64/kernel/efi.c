@@ -971,6 +971,11 @@ efi_memmap_init(unsigned long *s, unsigned long *e)
 		if (!is_memory_available(md))
 			continue;
 
+#ifdef CONFIG_CRASH_DUMP
+		/* saved_max_pfn should ignore max_addr= command line arg */
+		if (saved_max_pfn < (efi_md_end(md) >> PAGE_SHIFT))
+			saved_max_pfn = (efi_md_end(md) >> PAGE_SHIFT);
+#endif
 		/*
 		 * Round ends inward to granule boundaries
 		 * Give trimmings to uncached allocator
@@ -1010,11 +1015,6 @@ efi_memmap_init(unsigned long *s, unsigned long *e)
 		} else
 			ae = efi_md_end(md);
 
-#ifdef CONFIG_CRASH_DUMP
-		/* saved_max_pfn should ignore max_addr= command line arg */
-		if (saved_max_pfn < (ae >> PAGE_SHIFT))
-			saved_max_pfn = (ae >> PAGE_SHIFT);
-#endif
 		/* keep within max_addr= and min_addr= command line arg */
 		as = max(as, min_addr);
 		ae = min(ae, max_addr);
@@ -1142,7 +1142,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 /* find a block of memory aligned to 64M exclude reserved regions
    rsvd_regions are sorted
  */
-unsigned long
+unsigned long __init
 kdump_find_rsvd_region (unsigned long size,
 		struct rsvd_region *r, int n)
 {

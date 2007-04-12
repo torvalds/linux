@@ -49,39 +49,45 @@ out:
 	return;
 }
 
+static inline int valid_stack_ptr(struct thread_info *tinfo, unsigned long p)
+{
+	return (p > (unsigned long)tinfo)
+		&& (p < (unsigned long)tinfo + THREAD_SIZE - 3);
+}
+
 #ifdef CONFIG_FRAME_POINTER
 static inline void __show_trace(struct task_struct *tsk, unsigned long *sp,
 				struct pt_regs *regs)
 {
-	unsigned long __user *fp;
-	unsigned long __user *last_fp = NULL;
+	unsigned long lr, fp;
+	struct thread_info *tinfo;
 
-	if (regs) {
-		fp = (unsigned long __user *)regs->r7;
-	} else if (tsk == current) {
-		register unsigned long __user *real_fp __asm__("r7");
-		fp = real_fp;
-	} else {
-		fp = (unsigned long __user *)tsk->thread.cpu_context.r7;
-	}
+	tinfo = (struct thread_info *)
+		((unsigned long)sp & ~(THREAD_SIZE - 1));
+
+	if (regs)
+		fp = regs->r7;
+	else if (tsk == current)
+		asm("mov %0, r7" : "=r"(fp));
+	else
+		fp = tsk->thread.cpu_context.r7;
 
 	/*
-	 * Walk the stack until (a) we get an exception, (b) the frame
-	 * pointer becomes zero, or (c) the frame pointer gets stuck
-	 * at the same value.
+	 * Walk the stack as long as the frame pointer (a) is within
+	 * the kernel stack of the task, and (b) it doesn't move
+	 * downwards.
 	 */
-	while (fp && fp != last_fp) {
-		unsigned long lr, new_fp = 0;
+	while (valid_stack_ptr(tinfo, fp)) {
+		unsigned long new_fp;
 
-		last_fp = fp;
-		if (__get_user(lr, fp))
-			break;
-		if (fp && __get_user(new_fp, fp + 1))
-			break;
-		fp = (unsigned long __user *)new_fp;
-
+		lr = *(unsigned long *)fp;
 		printk(" [<%08lx>] ", lr);
 		print_symbol("%s\n", lr);
+
+		new_fp = *(unsigned long *)(fp + 4);
+		if (new_fp <= fp)
+			break;
+		fp = new_fp;
 	}
 	printk("\n");
 }

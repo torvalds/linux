@@ -375,6 +375,7 @@ static void __devinit
 smp_callin (void)
 {
 	int cpuid, phys_id, itc_master;
+	struct cpuinfo_ia64 *last_cpuinfo, *this_cpuinfo;
 	extern void ia64_init_itm(void);
 	extern volatile int time_keeper_id;
 
@@ -424,7 +425,21 @@ smp_callin (void)
 	 * Get our bogomips.
 	 */
 	ia64_init_itm();
-	calibrate_delay();
+
+	/*
+	 * Delay calibration can be skipped if new processor is identical to the
+	 * previous processor.
+	 */
+	last_cpuinfo = cpu_data(cpuid - 1);
+	this_cpuinfo = local_cpu_data;
+	if (last_cpuinfo->itc_freq != this_cpuinfo->itc_freq ||
+	    last_cpuinfo->proc_freq != this_cpuinfo->proc_freq ||
+	    last_cpuinfo->features != this_cpuinfo->features ||
+	    last_cpuinfo->revision != this_cpuinfo->revision ||
+	    last_cpuinfo->family != this_cpuinfo->family ||
+	    last_cpuinfo->archrev != this_cpuinfo->archrev ||
+	    last_cpuinfo->model != this_cpuinfo->model)
+		calibrate_delay();
 	local_cpu_data->loops_per_jiffy = loops_per_jiffy;
 
 #ifdef CONFIG_IA32_SUPPORT

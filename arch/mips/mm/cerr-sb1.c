@@ -177,8 +177,8 @@ extern void check_bus_watcher(void);
 
 asmlinkage void sb1_cache_error(void)
 {
-	uint64_t cerr_dpa;
 	uint32_t errctl, cerr_i, cerr_d, dpalo, dpahi, eepc, res;
+	unsigned long long cerr_dpa;
 
 #ifdef CONFIG_SIBYTE_BW_TRACE
 	/* Freeze the trace buffer now */
@@ -329,8 +329,9 @@ static uint32_t extract_ic(unsigned short addr, int data)
 {
 	unsigned short way;
 	int valid;
-	uint64_t taglo, va, tlo_tmp;
 	uint32_t taghi, taglolo, taglohi;
+	unsigned long long taglo, va;
+	uint64_t tlo_tmp;
 	uint8_t lru;
 	int res = 0;
 
@@ -484,8 +485,8 @@ static uint32_t extract_dc(unsigned short addr, int data)
 {
 	int valid, way;
 	unsigned char state;
-	uint64_t taglo, pa;
 	uint32_t taghi, taglolo, taglohi;
+	unsigned long long taglo, pa;
 	uint8_t ecc, lru;
 	int res = 0;
 
@@ -535,8 +536,8 @@ static uint32_t extract_dc(unsigned short addr, int data)
 		}
 
 		if (data) {
-			uint64_t datalo;
 			uint32_t datalohi, datalolo, datahi;
+			unsigned long long datalo;
 			int offset;
 			char bad_ecc = 0;
 

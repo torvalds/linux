@@ -790,7 +790,7 @@ static void exit_notify(struct task_struct *tsk)
 	
 	pgrp = task_pgrp(tsk);
 	if ((task_pgrp(t) != pgrp) &&
-	    (task_session(t) != task_session(tsk)) &&
+	    (task_session(t) == task_session(tsk)) &&
 	    will_become_orphaned_pgrp(pgrp, tsk) &&
 	    has_stopped_jobs(pgrp)) {
 		__kill_pgrp_info(SIGHUP, SEND_SIG_PRIV, pgrp);

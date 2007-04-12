@@ -36,6 +36,8 @@
  /* 32KB cache, 4kb PAGE sizes need to check bit 12 */
 #define CACHE_ALIAS 0x00001000
 
+#define PG_mapped	PG_arch_1
+
 void flush_cache_all(void);
 void flush_cache_mm(struct mm_struct *mm);
 #define flush_cache_dup_mm(mm) flush_cache_mm(mm)

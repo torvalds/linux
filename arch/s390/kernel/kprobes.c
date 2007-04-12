@@ -167,7 +167,7 @@ static int __kprobes swap_instruction(void *aref)
 	 * shall not cross any page boundaries (vmalloc area!) when writing
 	 * the new instruction.
 	 */
-	addr = (u32 *)ALIGN((unsigned long)args->ptr, 4);
+	addr = (u32 *)((unsigned long)args->ptr & -4UL);
 	if ((unsigned long)args->ptr & 2)
 		instr = ((*addr) & 0xffff0000) | args->new;
 	else

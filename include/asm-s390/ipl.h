@@ -14,8 +14,12 @@
 #define IPL_PARM_BLK_FCP_LEN (sizeof(struct ipl_list_hdr) + \
 			      sizeof(struct ipl_block_fcp))
 
+#define IPL_PARM_BLK0_FCP_LEN (sizeof(struct ipl_block_fcp) + 8)
+
 #define IPL_PARM_BLK_CCW_LEN (sizeof(struct ipl_list_hdr) + \
 			      sizeof(struct ipl_block_ccw))
+
+#define IPL_PARM_BLK0_CCW_LEN (sizeof(struct ipl_block_ccw) + 8)
 
 #define IPL_MAX_SUPPORTED_VERSION (0)
 
@@ -58,6 +62,7 @@ struct ipl_block_ccw {
 	u8  vm_flags;
 	u8  reserved3[3];
 	u32 vm_parm_len;
+	u8  reserved4[80];
 } __attribute__((packed));
 
 struct ipl_parameter_block {

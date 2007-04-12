@@ -320,7 +320,7 @@ static int oom_kill_task(struct task_struct *p)
 	 * Don't kill the process if any threads are set to OOM_DISABLE
 	 */
 	do_each_thread(g, q) {
-		if (q->mm == mm && p->oomkilladj == OOM_DISABLE)
+		if (q->mm == mm && q->oomkilladj == OOM_DISABLE)
 			return 1;
 	} while_each_thread(g, q);
 

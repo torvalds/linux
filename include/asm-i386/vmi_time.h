@@ -54,7 +54,7 @@ extern unsigned long vmi_cpu_khz(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 extern void __init vmi_timer_setup_boot_alarm(void);
-extern void __init vmi_timer_setup_secondary_alarm(void);
+extern void __devinit vmi_timer_setup_secondary_alarm(void);
 extern void apic_vmi_timer_interrupt(void);
 #endif
 

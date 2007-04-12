@@ -28,6 +28,7 @@ config SHARP_PARAM
 
 config SHARPSL_PM
 	bool
+	select APM_EMULATION
 
 config SHARP_SCOOP
 	bool

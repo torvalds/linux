@@ -2564,8 +2564,8 @@ static int __init dv1394_init_module(void)
 	int ret;
 
 	printk(KERN_WARNING
-	       "WARNING: The dv1394 driver is unsupported and will be removed "
-	       "from Linux soon. Use raw1394 instead.\n");
+	       "NOTE: The dv1394 driver is unsupported and may be removed in a "
+	       "future Linux release. Use raw1394 instead.\n");
 
 	cdev_init(&dv1394_cdev, &dv1394_fops);
 	dv1394_cdev.owner = THIS_MODULE;

@@ -208,7 +208,7 @@ static struct ata_port_operations cs5520_port_ops = {
 static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	u8 pcicfg;
-	void *iomap[5];
+	void __iomem *iomap[5];
 	static struct ata_probe_ent probe[2];
 	int ports = 0;
 

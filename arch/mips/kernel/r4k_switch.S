@@ -48,8 +48,7 @@
 #ifndef CONFIG_CPU_HAS_LLSC
 	sw	zero, ll_bit
 #endif
-	mfc0	t1, CP0_STATUS
-	LONG_S	t1, THREAD_STATUS(a0)
+	mfc0	t2, CP0_STATUS
 	cpu_save_nonscratch a0
 	LONG_S	ra, THREAD_REG31(a0)
 
@@ -59,8 +58,8 @@
 	PTR_L	t3, TASK_THREAD_INFO(a0)
 	LONG_L	t0, TI_FLAGS(t3)
 	li	t1, _TIF_USEDFPU
-	and	t2, t0, t1
-	beqz	t2, 1f
+	and	t1, t0
+	beqz	t1, 1f
 	nor	t1, zero, t1
 
 	and	t0, t0, t1
@@ -73,10 +72,13 @@
 	li	t1, ~ST0_CU1
 	and	t0, t0, t1
 	LONG_S	t0, ST_OFF(t3)
+	/* clear thread_struct CU1 bit */
+	and	t2, t1
 
 	fpu_save_double a0 t0 t1		# c0_status passed in t0
 						# clobbers t1
 1:
+	LONG_S	t2, THREAD_STATUS(a0)
 
 	/*
 	 * The order of restoring the registers takes care of the race

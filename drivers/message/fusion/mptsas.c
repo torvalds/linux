@@ -815,7 +815,7 @@ mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 static int
 mptsas_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 {
-	MPT_SCSI_HOST	*hd = (MPT_SCSI_HOST *)ioc->sh->hostdata;
+	MPT_SCSI_HOST	*hd;
 	struct mptsas_target_reset_event *target_reset_list, *n;
 	int rc;
 
@@ -827,7 +827,10 @@ mptsas_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	if (reset_phase != MPT_IOC_POST_RESET)
 		goto out;
 
-	if (!hd || !hd->ioc)
+	if (!ioc->sh || !ioc->sh->hostdata)
+		goto out;
+	hd = (MPT_SCSI_HOST *)ioc->sh->hostdata;
+	if (!hd->ioc)
 		goto out;
 
 	if (list_empty(&hd->target_reset_list))

@@ -2424,8 +2424,8 @@ struct skge_hw {
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
 	u16		     phy_addr;
-	struct work_struct   phy_work;
-	struct mutex	     phy_mutex;
+	spinlock_t	     phy_lock;
+	struct tasklet_struct phy_task;
 };
 
 enum pause_control {
@@ -2457,7 +2457,7 @@ struct skge_port {
 
 	struct net_device_stats net_stats;
 
-	struct delayed_work  link_thread;
+	struct timer_list    link_timer;
 	enum pause_control   flow_control;
 	enum pause_status    flow_status;
 	u8		     rx_csum;

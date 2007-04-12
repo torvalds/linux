@@ -212,7 +212,7 @@ repeat:
 			brelse (result);
 			goto repeat;
 		} else {
-			*phys = tmp + blockoff;
+			*phys = uspi->s_sbbase + tmp + blockoff;
 			return NULL;
 		}
 	}
@@ -282,9 +282,9 @@ repeat:
 	}
 
 	if (!phys) {
-		result = sb_getblk(sb, tmp + blockoff);
+		result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
 	} else {
-		*phys = tmp + blockoff;
+		*phys = uspi->s_sbbase + tmp + blockoff;
 		result = NULL;
 		*err = 0;
 		*new = 1;
@@ -368,7 +368,7 @@ repeat:
 			brelse (result);
 			goto repeat;
 		} else {
-			*phys = tmp + blockoff;
+			*phys = uspi->s_sbbase + tmp + blockoff;
 			goto out;
 		}
 	}
@@ -389,9 +389,9 @@ repeat:
 
 
 	if (!phys) {
-		result = sb_getblk(sb, tmp + blockoff);
+		result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
 	} else {
-		*phys = tmp + blockoff;
+		*phys = uspi->s_sbbase + tmp + blockoff;
 		*new = 1;
 	}
 
@@ -668,12 +668,12 @@ static void ufs2_read_inode(struct inode *inode, struct ufs2_inode *ufs2_inode)
 	inode->i_gid = fs32_to_cpu(sb, ufs2_inode->ui_gid);
 
 	inode->i_size = fs64_to_cpu(sb, ufs2_inode->ui_size);
-	inode->i_atime.tv_sec = fs32_to_cpu(sb, ufs2_inode->ui_atime.tv_sec);
-	inode->i_ctime.tv_sec = fs32_to_cpu(sb, ufs2_inode->ui_ctime.tv_sec);
-	inode->i_mtime.tv_sec = fs32_to_cpu(sb, ufs2_inode->ui_mtime.tv_sec);
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
+	inode->i_atime.tv_sec = fs64_to_cpu(sb, ufs2_inode->ui_atime);
+	inode->i_ctime.tv_sec = fs64_to_cpu(sb, ufs2_inode->ui_ctime);
+	inode->i_mtime.tv_sec = fs64_to_cpu(sb, ufs2_inode->ui_mtime);
+	inode->i_atime.tv_nsec = fs32_to_cpu(sb, ufs2_inode->ui_atimensec);
+	inode->i_ctime.tv_nsec = fs32_to_cpu(sb, ufs2_inode->ui_ctimensec);
+	inode->i_mtime.tv_nsec = fs32_to_cpu(sb, ufs2_inode->ui_mtimensec);
 	inode->i_blocks = fs64_to_cpu(sb, ufs2_inode->ui_blocks);
 	inode->i_generation = fs32_to_cpu(sb, ufs2_inode->ui_gen);
 	ufsi->i_flags = fs32_to_cpu(sb, ufs2_inode->ui_flags);
@@ -803,12 +803,12 @@ static void ufs2_update_inode(struct inode *inode, struct ufs2_inode *ufs_inode)
 	ufs_inode->ui_gid = cpu_to_fs32(sb, inode->i_gid);
 
 	ufs_inode->ui_size = cpu_to_fs64(sb, inode->i_size);
-	ufs_inode->ui_atime.tv_sec = cpu_to_fs32(sb, inode->i_atime.tv_sec);
-	ufs_inode->ui_atime.tv_usec = 0;
-	ufs_inode->ui_ctime.tv_sec = cpu_to_fs32(sb, inode->i_ctime.tv_sec);
-	ufs_inode->ui_ctime.tv_usec = 0;
-	ufs_inode->ui_mtime.tv_sec = cpu_to_fs32(sb, inode->i_mtime.tv_sec);
-	ufs_inode->ui_mtime.tv_usec = 0;
+	ufs_inode->ui_atime = cpu_to_fs64(sb, inode->i_atime.tv_sec);
+	ufs_inode->ui_atimensec = cpu_to_fs32(sb, inode->i_atime.tv_nsec);
+	ufs_inode->ui_ctime = cpu_to_fs64(sb, inode->i_ctime.tv_sec);
+	ufs_inode->ui_ctimensec = cpu_to_fs32(sb, inode->i_ctime.tv_nsec);
+	ufs_inode->ui_mtime = cpu_to_fs64(sb, inode->i_mtime.tv_sec);
+	ufs_inode->ui_mtimensec = cpu_to_fs32(sb, inode->i_mtime.tv_nsec);
 
 	ufs_inode->ui_blocks = cpu_to_fs64(sb, inode->i_blocks);
 	ufs_inode->ui_flags = cpu_to_fs32(sb, ufsi->i_flags);

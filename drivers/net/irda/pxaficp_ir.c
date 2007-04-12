@@ -321,15 +321,22 @@ static void pxa_irda_fir_dma_tx_irq(int channel, void *data)
 		pxa_irda_set_speed(si, si->newspeed);
 		si->newspeed = 0;
 	} else {
+		int i = 64;
+
 		ICCR0 = 0;
 		pxa_irda_fir_dma_rx_start(si);
+		while ((ICSR1 & ICSR1_RNE) && i--)
+			(void)ICDR;
 		ICCR0 = ICCR0_ITR | ICCR0_RXE;
+
+		if (i < 0)
+			printk(KERN_ERR "pxa_ir: cannot clear Rx FIFO!\n");
 	}
 	netif_wake_queue(dev);
 }
 
 /* EIF(Error in FIFO/End in Frame) handler for FIR */
-static void pxa_irda_fir_irq_eif(struct pxa_irda *si, struct net_device *dev)
+static void pxa_irda_fir_irq_eif(struct pxa_irda *si, struct net_device *dev, int icsr0)
 {
 	unsigned int len, stat, data;
 
@@ -350,7 +357,7 @@ static void pxa_irda_fir_irq_eif(struct pxa_irda *si, struct net_device *dev)
 			}
 			if (stat & ICSR1_ROR) {
 				printk(KERN_DEBUG "pxa_ir: fir receive overrun\n");
-				si->stats.rx_frame_errors++;
+				si->stats.rx_over_errors++;
 			}
 		} else	{
 			si->dma_rx_buff[len++] = data;
@@ -362,7 +369,15 @@ static void pxa_irda_fir_irq_eif(struct pxa_irda *si, struct net_device *dev)
 
 	if (stat & ICSR1_EOF) {
 		/* end of frame. */
-		struct sk_buff *skb = alloc_skb(len+1,GFP_ATOMIC);
+		struct sk_buff *skb;
+
+		if (icsr0 & ICSR0_FRE) {
+			printk(KERN_ERR "pxa_ir: dropping erroneous frame\n");
+			si->stats.rx_dropped++;
+			return;
+		}
+
+		skb = alloc_skb(len+1,GFP_ATOMIC);
 		if (!skb)  {
 			printk(KERN_ERR "pxa_ir: fir out of memory for receive skb\n");
 			si->stats.rx_dropped++;
@@ -392,7 +407,7 @@ static irqreturn_t pxa_irda_fir_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct pxa_irda *si = netdev_priv(dev);
-	int icsr0;
+	int icsr0, i = 64;
 
 	/* stop RX DMA */
 	DCSR(si->rxdma) &= ~DCSR_RUN;
@@ -412,12 +427,17 @@ static irqreturn_t pxa_irda_fir_irq(int irq, void *dev_id)
 
 	if (icsr0 & ICSR0_EIF) {
 		/* An error in FIFO occured, or there is a end of frame */
-		pxa_irda_fir_irq_eif(si, dev);
+		pxa_irda_fir_irq_eif(si, dev, icsr0);
 	}
 
 	ICCR0 = 0;
 	pxa_irda_fir_dma_rx_start(si);
+	while ((ICSR1 & ICSR1_RNE) && i--)
+		(void)ICDR;
 	ICCR0 = ICCR0_ITR | ICCR0_RXE;
+
+	if (i < 0)
+		printk(KERN_ERR "pxa_ir: cannot clear Rx FIFO!\n");
 
 	return IRQ_HANDLED;
 }

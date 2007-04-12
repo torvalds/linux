@@ -214,7 +214,7 @@ int gpio_direction_input(unsigned int gpio)
 }
 EXPORT_SYMBOL(gpio_direction_input);
 
-int gpio_direction_output(unsigned int gpio)
+int gpio_direction_output(unsigned int gpio, int value)
 {
 	struct pio_device *pio;
 	unsigned int pin;
@@ -222,6 +222,8 @@ int gpio_direction_output(unsigned int gpio)
 	pio = gpio_to_pio(gpio);
 	if (!pio)
 		return -ENODEV;
+
+	gpio_set_value(gpio, value);
 
 	pin = gpio & 0x1f;
 	pio_writel(pio, OER, 1 << pin);

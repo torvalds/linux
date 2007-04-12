@@ -32,7 +32,6 @@ void __init prom_init(void)
 	char **arg = (char **) fw_arg1;
 	char **env = (char **) fw_arg2;
 	struct callvectors *cv = (struct callvectors *) fw_arg3;
-	uint32_t tmp;
 	int i;
 
 	/* save the PROM vectors for debugging use */

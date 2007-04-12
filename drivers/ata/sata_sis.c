@@ -354,7 +354,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	if (!(probe_ent->port_flags & SIS_FLAG_CFGSCR)) {
-		void *mmio;
+		void __iomem *mmio;
 
 		mmio = pcim_iomap(pdev, SIS_SCR_PCI_BAR, 0);
 		if (!mmio)

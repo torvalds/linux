@@ -10,6 +10,8 @@ config SND_SOC_AC97_BUS
 
 config SND_SOC
 	tristate "SoC audio support"
+	depends on SND
+	select SND_PCM
 	---help---
 
 	  If you want SoC support, you should say Y here and also to the

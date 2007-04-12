@@ -94,8 +94,13 @@
 /*
  * Convert back and forth between INTEVT and IRQ values.
  */
+#ifdef CONFIG_CPU_HAS_INTEVT
 #define evt2irq(evt)		(((evt) >> 5) - 16)
 #define irq2evt(irq)		(((irq) + 16) << 5)
+#else
+#define evt2irq(evt)		(evt)
+#define irq2evt(irq)		(irq)
+#endif
 
 /*
  * Simple Mask Register Support

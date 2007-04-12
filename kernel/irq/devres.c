@@ -54,7 +54,7 @@ int devm_request_irq(struct device *dev, unsigned int irq,
 
 	rc = request_irq(irq, handler, irqflags, devname, dev_id);
 	if (rc) {
-		kfree(dr);
+		devres_free(dr);
 		return rc;
 	}
 

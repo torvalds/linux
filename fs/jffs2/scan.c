@@ -734,6 +734,15 @@ scan_more:
 			ofs += 4;
 			continue;
 		}
+		/* Due to poor choice of crc32 seed, an all-zero node will have a correct CRC */
+		if (!je32_to_cpu(node->hdr_crc) && !je16_to_cpu(node->nodetype) &&
+		    !je16_to_cpu(node->magic) && !je32_to_cpu(node->totlen)) {
+			noisy_printk(&noise, "jffs2_scan_eraseblock(): All zero node header at 0x%08x.\n", ofs);
+			if ((err = jffs2_scan_dirty_space(c, jeb, 4)))
+				return err;
+			ofs += 4;
+			continue;
+		}
 
 		if (ofs + je32_to_cpu(node->totlen) >
 		    jeb->offset + c->sector_size) {

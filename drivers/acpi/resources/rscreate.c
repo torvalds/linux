@@ -191,6 +191,9 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 	user_prt = ACPI_CAST_PTR(struct acpi_pci_routing_table, buffer);
 
 	for (index = 0; index < number_of_elements; index++) {
+		int source_name_index = 2;
+		int source_index_index = 3;
+
 		/*
 		 * Point user_prt past this current structure
 		 *
@@ -261,10 +264,28 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		}
 
 		/*
+		 * If BIOS erroneously reversed the _PRT source_name and source_index,
+		 * then reverse them back.
+		 */
+		if (ACPI_GET_OBJECT_TYPE (sub_object_list[3]) != ACPI_TYPE_INTEGER) {
+			if (acpi_gbl_enable_interpreter_slack) {
+				source_name_index = 3;
+				source_index_index = 2;
+				printk(KERN_WARNING "ACPI: Handling Garbled _PRT entry\n");
+			} else {
+				ACPI_ERROR((AE_INFO,
+					"(PRT[%X].source_index) Need Integer, found %s",
+					index,
+					acpi_ut_get_object_type_name(sub_object_list[3])));
+				return_ACPI_STATUS(AE_BAD_DATA);
+			}
+		}
+
+		/*
 		 * 3) Third subobject: Dereference the PRT.source_name
 		 * The name may be unresolved (slack mode), so allow a null object
 		 */
-		obj_desc = sub_object_list[2];
+		obj_desc = sub_object_list[source_name_index];
 		if (obj_desc) {
 			switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 			case ACPI_TYPE_LOCAL_REFERENCE:
@@ -339,7 +360,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 		/* 4) Fourth subobject: Dereference the PRT.source_index */
 
-		obj_desc = sub_object_list[3];
+		obj_desc = sub_object_list[source_index_index];
 		if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->source_index = (u32) obj_desc->integer.value;
 		} else {

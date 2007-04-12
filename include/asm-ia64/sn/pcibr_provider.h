@@ -21,6 +21,7 @@
 #define IS_PCI_BRIDGE_ASIC(asic) (asic == PCIIO_ASIC_TYPE_PIC || \
                 asic == PCIIO_ASIC_TYPE_TIOCP)
 #define IS_PIC_SOFT(ps)     (ps->pbi_bridge_type == PCIBR_BRIDGETYPE_PIC)
+#define IS_TIOCP_SOFT(ps)   (ps->pbi_bridge_type == PCIBR_BRIDGETYPE_TIOCP)
 
 
 /*
@@ -53,8 +54,8 @@
  * Bridge PMU Address Transaltion Entry Attibutes
  */
 #define PCI32_ATE_V                     (0x1 << 0)
-#define PCI32_ATE_CO                    (0x1 << 1)
-#define PCI32_ATE_PREC                  (0x1 << 2)
+#define PCI32_ATE_CO                    (0x1 << 1)	/* PIC ASIC ONLY */
+#define PCI32_ATE_PIO                   (0x1 << 1)	/* TIOCP ASIC ONLY */
 #define PCI32_ATE_MSI                   (0x1 << 2)
 #define PCI32_ATE_PREF                  (0x1 << 3)
 #define PCI32_ATE_BAR                   (0x1 << 4)

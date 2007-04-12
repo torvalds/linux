@@ -275,6 +275,7 @@ config NF_CT_NETLINK
 	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && NF_CONNTRACK && NETFILTER_NETLINK
 	depends on NF_CONNTRACK!=y || NETFILTER_NETLINK!=m
+	depends on NF_NAT=n || NF_NAT
 	help
 	  This option enables support for a netlink-based userspace interface
 

@@ -79,11 +79,17 @@ static int __init blacklist_by_year(void)
 {
 	int year = dmi_get_year(DMI_BIOS_DATE);
 	/* Doesn't exist? Likely an old system */
-	if (year == -1)
+	if (year == -1) {
+		printk(KERN_ERR PREFIX "no DMI BIOS year, "
+			"acpi=force is required to enable ACPI\n" );
 		return 1;
+	}
 	/* 0? Likely a buggy new BIOS */
-	if (year == 0)
+	if (year == 0) {
+		printk(KERN_ERR PREFIX "DMI BIOS year==0, "
+			"assuming ACPI-capable machine\n" );
 		return 0;
+	}
 	if (year < CONFIG_ACPI_BLACKLIST_YEAR) {
 		printk(KERN_ERR PREFIX "BIOS age (%d) fails cutoff (%d), "
 		       "acpi=force is required to enable ACPI\n",

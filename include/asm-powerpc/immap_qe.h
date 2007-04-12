@@ -258,8 +258,9 @@ struct ucc_slow {
 	u8	uccs;		/* UCCx status register */
 	u8	res3[0x24];
 	__be16	utpt;
+	u8	res4[0x52];
 	u8	guemr;		/* UCC general extended mode register */
-	u8	res4[0x200 - 0x091];
+	u8	res5[0x200 - 0x091];
 } __attribute__ ((packed));
 
 /* QE UCC Fast */

@@ -704,7 +704,8 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		    x->props.mode   != mode ||
 		    x->props.family != family ||
 		    x->km.state     != XFRM_STATE_ACQ ||
-		    x->id.spi       != 0)
+		    x->id.spi       != 0 ||
+		    x->id.proto	    != proto)
 			continue;
 
 		switch (family) {
@@ -801,7 +802,8 @@ int xfrm_state_add(struct xfrm_state *x)
 
 	if (use_spi && x->km.seq) {
 		x1 = __xfrm_find_acq_byseq(x->km.seq);
-		if (x1 && xfrm_addr_cmp(&x1->id.daddr, &x->id.daddr, family)) {
+		if (x1 && ((x1->id.proto != x->id.proto) ||
+		    xfrm_addr_cmp(&x1->id.daddr, &x->id.daddr, family))) {
 			xfrm_state_put(x1);
 			x1 = NULL;
 		}
@@ -1369,7 +1371,8 @@ int xfrm_replay_check(struct xfrm_state *x, __be32 net_seq)
 		return 0;
 
 	diff = x->replay.seq - seq;
-	if (diff >= x->props.replay_window) {
+	if (diff >= min_t(unsigned int, x->props.replay_window,
+			  sizeof(x->replay.bitmap) * 8)) {
 		x->stats.replay_window++;
 		return -EINVAL;
 	}

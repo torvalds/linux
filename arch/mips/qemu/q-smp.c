@@ -46,3 +46,10 @@ void __init prom_prepare_cpus(unsigned int max_cpus)
 void prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 }
+
+void __init plat_smp_setup(void)
+{
+}
+void __init plat_prepare_cpus(unsigned int max_cpus)
+{
+}

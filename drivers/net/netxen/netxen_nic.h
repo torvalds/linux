@@ -232,6 +232,7 @@ enum {
 #define MPORT_SINGLE_FUNCTION_MODE 0x1111
 
 extern unsigned long long netxen_dma_mask;
+extern unsigned long last_schedule_time;
 
 /*
  * NetXen host-peg signal message structure

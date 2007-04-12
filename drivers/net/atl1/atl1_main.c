@@ -1328,7 +1328,7 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		cso = skb->h.raw - skb->data;
-		css = (skb->h.raw + skb->csum) - skb->data;
+		css = (skb->h.raw + skb->csum_offset) - skb->data;
 		if (unlikely(cso & 0x1)) {
 			printk(KERN_DEBUG "%s: payload offset != even number\n",
 				atl1_driver_name);
@@ -1562,7 +1562,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* mss will be nonzero if we're doing segment offload (TSO/GSO) */
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss) {
-		if (skb->protocol == ntohs(ETH_P_IP)) {
+		if (skb->protocol == htons(ETH_P_IP)) {
 			proto_hdr_len = ((skb->h.raw - skb->data) +
 					 (skb->h.th->doff << 2));
 			if (unlikely(proto_hdr_len > len)) {
@@ -2320,6 +2320,16 @@ static void __devexit atl1_remove(struct pci_dev *pdev)
 		return;
 
 	adapter = netdev_priv(netdev);
+
+	/* Some atl1 boards lack persistent storage for their MAC, and get it
+	 * from the BIOS during POST.  If we've been messing with the MAC
+	 * address, we need to save the permanent one.
+	 */
+	if (memcmp(adapter->hw.mac_addr, adapter->hw.perm_mac_addr, ETH_ALEN)) {
+		memcpy(adapter->hw.mac_addr, adapter->hw.perm_mac_addr, ETH_ALEN);
+		atl1_set_mac_addr(&adapter->hw);
+	}
+
 	iowrite16(0, adapter->hw.hw_addr + REG_GPHY_ENABLE);
 	unregister_netdev(netdev);
 	pci_iounmap(pdev, adapter->hw.hw_addr);

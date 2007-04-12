@@ -127,14 +127,6 @@ static void spu_remove_from_active_list(struct spu *spu)
 	mutex_unlock(&spu_prio->active_mutex[node]);
 }
 
-static inline void mm_needs_global_tlbie(struct mm_struct *mm)
-{
-	int nr = (NR_CPUS > 1) ? NR_CPUS : NR_CPUS + 1;
-
-	/* Global TLBIE broadcast required with SPEs. */
-	__cpus_setall(&mm->cpu_vm_mask, nr);
-}
-
 static BLOCKING_NOTIFIER_HEAD(spu_switch_notifier);
 
 static void spu_switch_notify(struct spu *spu, struct spu_context *ctx)
@@ -167,8 +159,7 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	ctx->spu = spu;
 	ctx->ops = &spu_hw_ops;
 	spu->pid = current->pid;
-	spu->mm = ctx->owner;
-	mm_needs_global_tlbie(spu->mm);
+	spu_associate_mm(spu, ctx->owner);
 	spu->ibox_callback = spufs_ibox_callback;
 	spu->wbox_callback = spufs_wbox_callback;
 	spu->stop_callback = spufs_stop_callback;
@@ -205,7 +196,7 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu->stop_callback = NULL;
 	spu->mfc_callback = NULL;
 	spu->dma_callback = NULL;
-	spu->mm = NULL;
+	spu_associate_mm(spu, NULL);
 	spu->pid = 0;
 	ctx->ops = &spu_backing_ops;
 	ctx->spu = NULL;
@@ -263,7 +254,6 @@ static void spu_prio_wait(struct spu_context *ctx)
 {
 	DEFINE_WAIT(wait);
 
-	set_bit(SPU_SCHED_WAKE, &ctx->sched_flags);
 	prepare_to_wait_exclusive(&ctx->stop_wq, &wait, TASK_INTERRUPTIBLE);
 	if (!signal_pending(current)) {
 		mutex_unlock(&ctx->state_mutex);
@@ -272,7 +262,6 @@ static void spu_prio_wait(struct spu_context *ctx)
 	}
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&ctx->stop_wq, &wait);
-	clear_bit(SPU_SCHED_WAKE, &ctx->sched_flags);
 }
 
 /**
@@ -292,7 +281,7 @@ static void spu_reschedule(struct spu *spu)
 	best = sched_find_first_bit(spu_prio->bitmap);
 	if (best < MAX_PRIO) {
 		struct spu_context *ctx = spu_grab_context(best);
-		if (ctx && test_bit(SPU_SCHED_WAKE, &ctx->sched_flags))
+		if (ctx)
 			wake_up(&ctx->stop_wq);
 	}
 	spin_unlock(&spu_prio->runq_lock);
@@ -414,8 +403,7 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 		}
 
 		spu_add_to_rq(ctx);
-		if (!(flags & SPU_ACTIVATE_NOWAKE))
-			spu_prio_wait(ctx);
+		spu_prio_wait(ctx);
 		spu_del_from_rq(ctx);
 	} while (!signal_pending(current));
 

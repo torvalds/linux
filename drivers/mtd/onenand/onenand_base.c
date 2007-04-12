@@ -4,6 +4,11 @@
  *  Copyright (C) 2005-2007 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
+ *  Credits:
+ *	Adrian Hunter <ext-adrian.hunter@nokia.com>:
+ *	auto-placement support, read-while load support, various fixes
+ *	Copyright (C) Nokia Corporation, 2007
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -831,7 +836,7 @@ static int onenand_transfer_auto_oob(struct mtd_info *mtd, uint8_t *buf, int col
 	int readcol = column;
 	int readend = column + thislen;
 	int lastgap = 0;
-	uint8_t *oob_buf = this->page_buf + mtd->writesize;
+	uint8_t *oob_buf = this->oob_buf;
 
 	for (free = this->ecclayout->oobfree; free->length; ++free) {
 		if (readcol >= lastgap)
@@ -849,7 +854,8 @@ static int onenand_transfer_auto_oob(struct mtd_info *mtd, uint8_t *buf, int col
 			int n = ed - st;
 			memcpy(buf, oob_buf + st, n);
 			buf += n;
-		}
+		} else
+			break;
 	}
 	return 0;
 }
@@ -947,9 +953,9 @@ static int onenand_do_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
 
 /**
  * onenand_read_oob - [MTD Interface] NAND write data and/or out-of-band
- * @mtd:	MTD device structure
- * @from:	offset to read from
- * @ops:	oob operation description structure
+ * @param mtd:		MTD device structure
+ * @param from:		offset to read from
+ * @param ops:		oob operation description structure
  */
 static int onenand_read_oob(struct mtd_info *mtd, loff_t from,
 			    struct mtd_oob_ops *ops)
@@ -1017,7 +1023,7 @@ static int onenand_bbt_wait(struct mtd_info *mtd, int state)
  * onenand_bbt_read_oob - [MTD Interface] OneNAND read out-of-band for bbt scan
  * @param mtd		MTD device structure
  * @param from		offset to read from
- * @param @ops		oob operation description structure
+ * @param ops		oob operation description structure
  *
  * OneNAND read out-of-band data from the spare area for bbt scan
  */
@@ -1093,7 +1099,7 @@ int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to)
 {
 	struct onenand_chip *this = mtd->priv;
-	char *readp = this->page_buf + mtd->writesize;
+	char oobbuf[64];
 	int status, i;
 
 	this->command(mtd, ONENAND_CMD_READOOB, to, mtd->oobsize);
@@ -1102,9 +1108,9 @@ static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to
 	if (status)
 		return status;
 
-	this->read_bufferram(mtd, ONENAND_SPARERAM, readp, 0, mtd->oobsize);
-	for(i = 0; i < mtd->oobsize; i++)
-		if (buf[i] != 0xFF && buf[i] != readp[i])
+	this->read_bufferram(mtd, ONENAND_SPARERAM, oobbuf, 0, mtd->oobsize);
+	for (i = 0; i < mtd->oobsize; i++)
+		if (buf[i] != 0xFF && buf[i] != oobbuf[i])
 			return -EBADMSG;
 
 	return 0;
@@ -1290,7 +1296,8 @@ static int onenand_fill_auto_oob(struct mtd_info *mtd, u_char *oob_buf,
 			int n = ed - st;
 			memcpy(oob_buf + st, buf, n);
 			buf += n;
-		}
+		} else
+			break;
 	}
 	return 0;
 }
@@ -1312,6 +1319,7 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 	struct onenand_chip *this = mtd->priv;
 	int column, ret = 0, oobsize;
 	int written = 0;
+	u_char *oobbuf;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write_oob: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
 
@@ -1331,7 +1339,7 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 	/* For compatibility with NAND: Do not allow write past end of page */
-	if (column + len > oobsize) {
+	if (unlikely(column + len > oobsize)) {
 		printk(KERN_ERR "onenand_write_oob: "
 		      "Attempt to write past end of page\n");
 		return -EINVAL;
@@ -1348,6 +1356,8 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_WRITING);
 
+	oobbuf = this->oob_buf;
+
 	/* Loop until all data write */
 	while (written < len) {
 		int thislen = min_t(int, oobsize, len - written);
@@ -1358,12 +1368,12 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 
 		/* We send data to spare ram with oobsize
 		 * to prevent byte access */
-		memset(this->page_buf, 0xff, mtd->oobsize);
+		memset(oobbuf, 0xff, mtd->oobsize);
 		if (mode == MTD_OOB_AUTO)
-			onenand_fill_auto_oob(mtd, this->page_buf, buf, column, thislen);
+			onenand_fill_auto_oob(mtd, oobbuf, buf, column, thislen);
 		else
-			memcpy(this->page_buf + column, buf, thislen);
-		this->write_bufferram(mtd, ONENAND_SPARERAM, this->page_buf, 0, mtd->oobsize);
+			memcpy(oobbuf + column, buf, thislen);
+		this->write_bufferram(mtd, ONENAND_SPARERAM, oobbuf, 0, mtd->oobsize);
 
 		this->command(mtd, ONENAND_CMD_PROGOOB, to, mtd->oobsize);
 
@@ -1375,7 +1385,7 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 			break;
 		}
 
-		ret = onenand_verify_oob(mtd, this->page_buf, to);
+		ret = onenand_verify_oob(mtd, oobbuf, to);
 		if (ret) {
 			printk(KERN_ERR "onenand_write_oob: verify failed %d\n", ret);
 			break;
@@ -1400,9 +1410,9 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 
 /**
  * onenand_write_oob - [MTD Interface] NAND write data and/or out-of-band
- * @mtd:	MTD device structure
- * @from:	offset to read from
- * @ops:	oob operation description structure
+ * @param mtd:		MTD device structure
+ * @param to:		offset to write
+ * @param ops:		oob operation description structure
  */
 static int onenand_write_oob(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops)
@@ -1616,6 +1626,7 @@ static int onenand_block_markbad(struct mtd_info *mtd, loff_t ofs)
  * @param mtd		MTD device structure
  * @param ofs		offset relative to mtd start
  * @param len		number of bytes to lock or unlock
+ * @param cmd		lock or unlock command
  *
  * Lock or unlock one or more blocks
  */
@@ -2117,10 +2128,11 @@ static void onenand_check_features(struct mtd_info *mtd)
 }
 
 /**
- * onenand_print_device_info - Print device ID
+ * onenand_print_device_info - Print device & version ID
  * @param device        device ID
+ * @param version	version ID
  *
- * Print device ID
+ * Print device & version ID
  */
 static void onenand_print_device_info(int device, int version)
 {
@@ -2320,14 +2332,24 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 
 	/* Allocate buffers, if necessary */
 	if (!this->page_buf) {
-		size_t len;
-		len = mtd->writesize + mtd->oobsize;
-		this->page_buf = kmalloc(len, GFP_KERNEL);
+		this->page_buf = kzalloc(mtd->writesize, GFP_KERNEL);
 		if (!this->page_buf) {
 			printk(KERN_ERR "onenand_scan(): Can't allocate page_buf\n");
 			return -ENOMEM;
 		}
 		this->options |= ONENAND_PAGEBUF_ALLOC;
+	}
+	if (!this->oob_buf) {
+		this->oob_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
+		if (!this->oob_buf) {
+			printk(KERN_ERR "onenand_scan(): Can't allocate oob_buf\n");
+			if (this->options & ONENAND_PAGEBUF_ALLOC) {
+				this->options &= ~ONENAND_PAGEBUF_ALLOC;
+				kfree(this->page_buf);
+			}
+			return -ENOMEM;
+		}
+		this->options |= ONENAND_OOBBUF_ALLOC;
 	}
 
 	this->state = FL_READY;
@@ -2367,6 +2389,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	for (i = 0; this->ecclayout->oobfree[i].length; i++)
 		this->ecclayout->oobavail +=
 			this->ecclayout->oobfree[i].length;
+	mtd->oobavail = this->ecclayout->oobavail;
 
 	mtd->ecclayout = this->ecclayout;
 
@@ -2424,9 +2447,11 @@ void onenand_release(struct mtd_info *mtd)
 		kfree(bbm->bbt);
 		kfree(this->bbm);
 	}
-	/* Buffer allocated by onenand_scan */
+	/* Buffers allocated by onenand_scan */
 	if (this->options & ONENAND_PAGEBUF_ALLOC)
 		kfree(this->page_buf);
+	if (this->options & ONENAND_OOBBUF_ALLOC)
+		kfree(this->oob_buf);
 }
 
 EXPORT_SYMBOL_GPL(onenand_scan);

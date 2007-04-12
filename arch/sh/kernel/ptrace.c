@@ -8,7 +8,6 @@
  * SuperH version:   Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
  *
  */
-
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -20,8 +19,7 @@
 #include <linux/slab.h>
 #include <linux/security.h>
 #include <linux/signal.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -59,6 +57,23 @@ static inline int put_stack_long(struct task_struct *task, int offset,
 	return 0;
 }
 
+static void ptrace_disable_singlestep(struct task_struct *child)
+{
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
+
+	/*
+	 * Ensure the UBC is not programmed at the next context switch.
+	 *
+	 * Normally this is not needed but there are sequences such as
+	 * singlestep, signal delivery, and continue that leave the
+	 * ubc_pc non-zero leading to spurious SIGTRAPs.
+	 */
+	if (child->thread.ubc_pc != 0) {
+		ubc_usercnt -= 1;
+		child->thread.ubc_pc = 0;
+	}
+}
+
 /*
  * Called by kernel/ptrace.c when detaching..
  *
@@ -66,7 +81,7 @@ static inline int put_stack_long(struct task_struct *task, int offset,
  */
 void ptrace_disable(struct task_struct *child)
 {
-	/* nothing to do.. */
+	ptrace_disable_singlestep(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -76,7 +91,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
+	case PTRACE_PEEKTEXT: /* read word at location addr. */
 	case PTRACE_PEEKDATA: {
 		unsigned long tmp;
 		int copied;
@@ -94,7 +109,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		unsigned long tmp;
 
 		ret = -EIO;
-		if ((addr & 3) || addr < 0 || 
+		if ((addr & 3) || addr < 0 ||
 		    addr > sizeof(struct user) - 3)
 			break;
 
@@ -129,7 +144,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 		ret = -EIO;
-		if ((addr & 3) || addr < 0 || 
+		if ((addr & 3) || addr < 0 ||
 		    addr > sizeof(struct user) - 3)
 			break;
 
@@ -156,6 +171,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		else
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+
+		ptrace_disable_singlestep(child);
+
 		child->exit_code = data;
 		wake_up_process(child);
 		ret = 0;
@@ -163,14 +181,15 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	}
 
 /*
- * make the child exit.  Best I can do is send it a sigkill. 
- * perhaps it should be put in the status that it wants to 
+ * make the child exit.  Best I can do is send it a sigkill.
+ * perhaps it should be put in the status that it wants to
  * exit.
  */
 	case PTRACE_KILL: {
 		ret = 0;
 		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
+		ptrace_disable_singlestep(child);
 		child->exit_code = SIGKILL;
 		wake_up_process(child);
 		break;
@@ -196,6 +215,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ubc_usercnt += 1;
 		child->thread.ubc_pc = pc;
 
+		set_tsk_thread_flag(child, TIF_SINGLESTEP);
 		child->exit_code = data;
 		/* give it a chance to run. */
 		wake_up_process(child);
@@ -248,14 +268,15 @@ asmlinkage void do_syscall_trace(void)
 {
 	struct task_struct *tsk = current;
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
+	if (!test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    !test_thread_flag(TIF_SINGLESTEP))
 		return;
 	if (!(tsk->ptrace & PT_PTRACED))
 		return;
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) &&
+				 !test_thread_flag(TIF_SINGLESTEP) ? 0x80 : 0));
 
 	/*
 	 * this isn't the same as continuing with a signal, but it will do

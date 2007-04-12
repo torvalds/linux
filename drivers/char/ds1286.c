@@ -197,6 +197,7 @@ static int ds1286_ioctl(struct inode *inode, struct file *file,
 
 		hrs = alm_tm.tm_hour;
 		min = alm_tm.tm_min;
+		sec = alm_tm.tm_sec;
 
 		if (hrs >= 24)
 			hrs = 0xff;
@@ -204,9 +205,11 @@ static int ds1286_ioctl(struct inode *inode, struct file *file,
 		if (min >= 60)
 			min = 0xff;
 
-		BIN_TO_BCD(sec);
-		BIN_TO_BCD(min);
-		BIN_TO_BCD(hrs);
+		if (sec != 0)
+			return -EINVAL;
+
+		min = BIN2BCD(min);
+		min = BIN2BCD(hrs);
 
 		spin_lock(&ds1286_lock);
 		rtc_write(hrs, RTC_HOURS_ALARM);

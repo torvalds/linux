@@ -452,10 +452,22 @@ store_rescan_field (struct device *dev, struct device_attribute *attr, const cha
 }
 static DEVICE_ATTR(rescan, S_IWUSR, NULL, store_rescan_field);
 
+static void sdev_store_delete_callback(struct device *dev)
+{
+	scsi_remove_device(to_scsi_device(dev));
+}
+
 static ssize_t sdev_store_delete(struct device *dev, struct device_attribute *attr, const char *buf,
 				 size_t count)
 {
-	scsi_remove_device(to_scsi_device(dev));
+	int rc;
+
+	/* An attribute cannot be unregistered by one of its own methods,
+	 * so we have to use this roundabout approach.
+	 */
+	rc = device_schedule_callback(dev, sdev_store_delete_callback);
+	if (rc)
+		count = rc;
 	return count;
 };
 static DEVICE_ATTR(delete, S_IWUSR, NULL, sdev_store_delete);

@@ -165,6 +165,7 @@ ENTRY(exception_handler)
 
 interrupt_entry:
 	mov	r9,r4
+	mov	r15,r5
 	mov.l	6f,r9
 	mov.l	7f,r8
 	jmp	@r8

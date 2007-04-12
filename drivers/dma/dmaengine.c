@@ -176,6 +176,7 @@ void dma_chan_cleanup(struct kref *kref)
 	chan->client = NULL;
 	kref_put(&chan->device->refcount, dma_async_device_cleanup);
 }
+EXPORT_SYMBOL(dma_chan_cleanup);
 
 static void dma_chan_free_rcu(struct rcu_head *rcu)
 {
@@ -261,6 +262,7 @@ struct dma_client *dma_async_client_register(dma_event_callback event_callback)
 
 	return client;
 }
+EXPORT_SYMBOL(dma_async_client_register);
 
 /**
  * dma_async_client_unregister - unregister a client and free the &dma_client
@@ -287,6 +289,7 @@ void dma_async_client_unregister(struct dma_client *client)
 	kfree(client);
 	dma_chans_rebalance();
 }
+EXPORT_SYMBOL(dma_async_client_unregister);
 
 /**
  * dma_async_client_chan_request - request DMA channels
@@ -304,6 +307,7 @@ void dma_async_client_chan_request(struct dma_client *client,
 	client->chans_desired = number;
 	dma_chans_rebalance();
 }
+EXPORT_SYMBOL(dma_async_client_chan_request);
 
 /**
  * dma_async_device_register - registers DMA devices found
@@ -346,6 +350,7 @@ int dma_async_device_register(struct dma_device *device)
 
 	return 0;
 }
+EXPORT_SYMBOL(dma_async_device_register);
 
 /**
  * dma_async_device_cleanup - function called when all references are released
@@ -390,23 +395,12 @@ void dma_async_device_unregister(struct dma_device *device)
 	kref_put(&device->refcount, dma_async_device_cleanup);
 	wait_for_completion(&device->done);
 }
+EXPORT_SYMBOL(dma_async_device_unregister);
 
 static int __init dma_bus_init(void)
 {
 	mutex_init(&dma_list_mutex);
 	return class_register(&dma_devclass);
 }
-
 subsys_initcall(dma_bus_init);
 
-EXPORT_SYMBOL(dma_async_client_register);
-EXPORT_SYMBOL(dma_async_client_unregister);
-EXPORT_SYMBOL(dma_async_client_chan_request);
-EXPORT_SYMBOL(dma_async_memcpy_buf_to_buf);
-EXPORT_SYMBOL(dma_async_memcpy_buf_to_pg);
-EXPORT_SYMBOL(dma_async_memcpy_pg_to_pg);
-EXPORT_SYMBOL(dma_async_memcpy_complete);
-EXPORT_SYMBOL(dma_async_memcpy_issue_pending);
-EXPORT_SYMBOL(dma_async_device_register);
-EXPORT_SYMBOL(dma_async_device_unregister);
-EXPORT_SYMBOL(dma_chan_cleanup);

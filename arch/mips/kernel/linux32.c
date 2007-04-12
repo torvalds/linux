@@ -311,6 +311,8 @@ asmlinkage int sys32_sched_rr_get_interval(compat_pid_t pid,
 	return ret;
 }
 
+#ifdef CONFIG_SYSVIPC
+
 asmlinkage long
 sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 {
@@ -367,6 +369,16 @@ sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 
 	return err;
 }
+
+#else
+
+asmlinkage long
+sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
+{
+	return -ENOSYS;
+}
+
+#endif /* CONFIG_SYSVIPC */
 
 #ifdef CONFIG_MIPS32_N32
 asmlinkage long sysn32_semctl(int semid, int semnum, int cmd, u32 arg)
@@ -563,50 +575,4 @@ _sys32_clone(nabi_no_regargs struct pt_regs regs)
 	child_tidptr = (int __user *) __dummy4;
 	return do_fork(clone_flags, newsp, &regs, 0,
 	               parent_tidptr, child_tidptr);
-}
-
-/*
- * Implement the event wait interface for the eventpoll file. It is the kernel
- * part of the user space epoll_pwait(2).
- */
-asmlinkage long compat_sys_epoll_pwait(int epfd,
-	struct epoll_event __user *events, int maxevents, int timeout,
-	const compat_sigset_t __user *sigmask, size_t sigsetsize)
-{
-	int error;
-	sigset_t ksigmask, sigsaved;
-
-	/*
-	 * If the caller wants a certain signal mask to be set during the wait,
-	 * we apply it here.
-	 */
-	if (sigmask) {
-		if (sigsetsize != sizeof(sigset_t))
-			return -EINVAL;
-		if (!access_ok(VERIFY_READ, sigmask, sizeof(ksigmask)))
-			return -EFAULT;
-		if (__copy_conv_sigset_from_user(&ksigmask, sigmask))
-			return -EFAULT;
-		sigdelsetmask(&ksigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
-		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
-	}
-
-	error = sys_epoll_wait(epfd, events, maxevents, timeout);
-
-	/*
-	 * If we changed the signal mask, we need to restore the original one.
-	 * In case we've got a signal while waiting, we do not restore the
-	 * signal mask yet, and we allow do_signal() to deliver the signal on
-	 * the way back to userspace, before the signal mask is restored.
-	 */
-	if (sigmask) {
-		if (error == -EINTR) {
-			memcpy(&current->saved_sigmask, &sigsaved,
-				sizeof(sigsaved));
-			set_thread_flag(TIF_RESTORE_SIGMASK);
-		} else
-			sigprocmask(SIG_SETMASK, &sigsaved, NULL);
-	}
-
-	return error;
 }

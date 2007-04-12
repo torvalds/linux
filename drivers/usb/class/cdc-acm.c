@@ -332,9 +332,9 @@ static void acm_rx_tasklet(unsigned long _acm)
 	if (!ACM_READY(acm))
 		return;
 
-	spin_lock(&acm->throttle_lock);
+	spin_lock_irqsave(&acm->throttle_lock, flags);
 	throttled = acm->throttle;
-	spin_unlock(&acm->throttle_lock);
+	spin_unlock_irqrestore(&acm->throttle_lock, flags);
 	if (throttled)
 		return;
 
@@ -352,9 +352,9 @@ next_buffer:
 	dbg("acm_rx_tasklet: procesing buf 0x%p, size = %d", buf, buf->size);
 
 	tty_buffer_request_room(tty, buf->size);
-	spin_lock(&acm->throttle_lock);
+	spin_lock_irqsave(&acm->throttle_lock, flags);
 	throttled = acm->throttle;
-	spin_unlock(&acm->throttle_lock);
+	spin_unlock_irqrestore(&acm->throttle_lock, flags);
 	if (!throttled)
 		tty_insert_flip_string(tty, buf->base, buf->size);
 	tty_flip_buffer_push(tty);

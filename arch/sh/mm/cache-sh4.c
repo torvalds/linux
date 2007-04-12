@@ -237,20 +237,10 @@ static inline void flush_cache_4096(unsigned long start,
 /*
  * Write back & invalidate the D-cache of the page.
  * (To avoid "alias" issues)
- *
- * This uses a lazy write-back on UP, which is explicitly
- * disabled on SMP.
  */
 void flush_dcache_page(struct page *page)
 {
-#ifndef CONFIG_SMP
-	struct address_space *mapping = page_mapping(page);
-
-	if (mapping && !mapping_mapped(mapping))
-		set_bit(PG_dcache_dirty, &page->flags);
-	else
-#endif
-	{
+	if (test_bit(PG_mapped, &page->flags)) {
 		unsigned long phys = PHYSADDR(page_address(page));
 		unsigned long addr = CACHE_OC_ADDRESS_ARRAY;
 		int i, n;

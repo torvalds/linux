@@ -112,8 +112,7 @@ enum {
 };
 
 enum {
-	SUPPORTED_OFFLOAD = 1 << 24,
-	SUPPORTED_IRQ = 1 << 25
+	SUPPORTED_IRQ      = 1 << 24
 };
 
 enum {				/* adapter interrupt-maintained statistics */
@@ -260,6 +259,10 @@ struct mac_stats {
 	unsigned long serdes_signal_loss;
 	unsigned long xaui_pcs_ctc_err;
 	unsigned long xaui_pcs_align_change;
+
+	unsigned long num_toggled; /* # times toggled TxEn due to stuck TX */
+	unsigned long num_resets;  /* # times reset due to stuck TX */
+
 };
 
 struct tp_mib_stats {
@@ -354,6 +357,9 @@ enum {
 	MC5_MODE_72_BIT = 2
 };
 
+/* MC5 min active region size */
+enum { MC5_MIN_TIDS = 16 };
+
 struct vpd_params {
 	unsigned int cclk;
 	unsigned int mclk;
@@ -398,6 +404,13 @@ struct adapter_params {
 	unsigned int stats_update_period;	/* MAC stats accumulation period */
 	unsigned int linkpoll_period;	/* link poll period in 0.1s */
 	unsigned int rev;	/* chip revision */
+	unsigned int offload;
+};
+
+enum {					    /* chip revisions */
+	T3_REV_A  = 0,
+	T3_REV_B  = 2,
+	T3_REV_B2 = 3,
 };
 
 struct trace_params {
@@ -465,6 +478,13 @@ struct cmac {
 	struct adapter *adapter;
 	unsigned int offset;
 	unsigned int nucast;	/* # of address filters for unicast MACs */
+	unsigned int tx_tcnt;
+	unsigned int tx_xcnt;
+	u64 tx_mcnt;
+	unsigned int rx_xcnt;
+	u64 rx_mcnt;
+	unsigned int toggle_cnt;
+	unsigned int txen;
 	struct mac_stats stats;
 };
 
@@ -588,7 +608,7 @@ static inline int is_10G(const struct adapter *adap)
 
 static inline int is_offload(const struct adapter *adap)
 {
-	return adapter_info(adap)->caps & SUPPORTED_OFFLOAD;
+	return adap->params.offload;
 }
 
 static inline unsigned int core_ticks_per_usec(const struct adapter *adap)
@@ -666,6 +686,7 @@ int t3_mac_set_address(struct cmac *mac, unsigned int idx, u8 addr[6]);
 int t3_mac_set_num_ucast(struct cmac *mac, int n);
 const struct mac_stats *t3_mac_update_stats(struct cmac *mac);
 int t3_mac_set_speed_duplex_fc(struct cmac *mac, int speed, int duplex, int fc);
+int t3b2_mac_watchdog_task(struct cmac *mac);
 
 void t3_mc5_prep(struct adapter *adapter, struct mc5 *mc5, int mode);
 int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,

@@ -63,8 +63,8 @@ static ssize_t
 spufs_mem_read(struct file *file, char __user *buffer,
 				size_t size, loff_t *pos)
 {
-	int ret;
 	struct spu_context *ctx = file->private_data;
+	ssize_t ret;
 
 	spu_acquire(ctx);
 	ret = __spufs_mem_read(ctx, buffer, size, pos);
@@ -74,25 +74,29 @@ spufs_mem_read(struct file *file, char __user *buffer,
 
 static ssize_t
 spufs_mem_write(struct file *file, const char __user *buffer,
-					size_t size, loff_t *pos)
+					size_t size, loff_t *ppos)
 {
 	struct spu_context *ctx = file->private_data;
 	char *local_store;
+	loff_t pos = *ppos;
 	int ret;
 
-	size = min_t(ssize_t, LS_SIZE - *pos, size);
-	if (size <= 0)
+	if (pos < 0)
+		return -EINVAL;
+	if (pos > LS_SIZE)
 		return -EFBIG;
-	*pos += size;
+	if (size > LS_SIZE - pos)
+		size = LS_SIZE - pos;
 
 	spu_acquire(ctx);
-
 	local_store = ctx->ops->get_ls(ctx);
-	ret = copy_from_user(local_store + *pos - size,
-			     buffer, size) ? -EFAULT : size;
-
+	ret = copy_from_user(local_store + pos, buffer, size);
 	spu_release(ctx);
-	return ret;
+
+	if (ret)
+		return -EFAULT;
+	*ppos = pos + size;
+	return size;
 }
 
 static unsigned long spufs_mem_mmap_nopfn(struct vm_area_struct *vma,

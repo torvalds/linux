@@ -325,10 +325,11 @@
 #define __NR_set_robust_list	300
 #define __NR_move_pages		301
 #define __NR_getcpu		302
+#define __NR_epoll_pwait	303
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		303
+#define __NR_syscalls		304
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls

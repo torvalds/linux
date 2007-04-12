@@ -4,6 +4,12 @@ Fix mtime bouncing around from local idea of last write times to remote time.
 Fix hang (in i_size_read) when simultaneous size update of same remote file
 on smp system corrupts sequence number. Do not reread unnecessarily partial page
 (which we are about to overwrite anyway) when writing out file opened rw.
+When DOS attribute of file on non-Unix server's file changes on the server side
+from read-only back to read-write, reflect this change in default file mode
+(we had been leaving a file's mode read-only until the inode were reloaded).
+Allow setting of attribute back to ATTR_NORMAL (removing readonly dos attribute
+when archive dos attribute not set and we are changing mode back to writeable
+on server which does not support the Unix Extensions).
 
 Version 1.47
 ------------

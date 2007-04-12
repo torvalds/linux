@@ -211,7 +211,7 @@ static struct workqueue_struct *led_workqueue;
 				     enum led_brightness value);	\
 	static void object##_led_update(struct work_struct *ignored);	\
 	static int object##_led_wk;					\
-	DECLARE_WORK(object##_led_work, object##_led_update);		\
+	static DECLARE_WORK(object##_led_work, object##_led_update);	\
 	static struct led_classdev object##_led = {			\
 		.name           = "asus:" ledname,			\
 		.brightness_set = object##_led_set,			\

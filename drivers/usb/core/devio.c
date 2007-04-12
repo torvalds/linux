@@ -912,7 +912,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	struct async *as;
 	struct usb_ctrlrequest *dr = NULL;
 	unsigned int u, totlen, isofrmlen;
-	int ret, interval = 0, ifnum = -1;
+	int ret, ifnum = -1;
 
 	if (uurb->flags & ~(USBDEVFS_URB_ISO_ASAP|USBDEVFS_URB_SHORT_NOT_OK|
 			   URB_NO_FSBR|URB_ZERO_PACKET))
@@ -992,7 +992,6 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 				!= USB_ENDPOINT_XFER_ISOC)
 			return -EINVAL;
-		interval = 1 << min (15, ep->desc.bInterval - 1);
 		isofrmlen = sizeof(struct usbdevfs_iso_packet_desc) * uurb->number_of_packets;
 		if (!(isopkt = kmalloc(isofrmlen, GFP_KERNEL)))
 			return -ENOMEM;
@@ -1021,10 +1020,6 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 				!= USB_ENDPOINT_XFER_INT)
 			return -EINVAL;
-		if (ps->dev->speed == USB_SPEED_HIGH)
-			interval = 1 << min (15, ep->desc.bInterval - 1);
-		else
-			interval = ep->desc.bInterval;
 		if (uurb->buffer_length > MAX_USBFS_BUFFER_SIZE)
 			return -EINVAL;
 		if (!access_ok((uurb->endpoint & USB_DIR_IN) ? VERIFY_WRITE : VERIFY_READ, uurb->buffer, uurb->buffer_length))
@@ -1053,7 +1048,11 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	as->urb->setup_packet = (unsigned char*)dr;
 	as->urb->start_frame = uurb->start_frame;
 	as->urb->number_of_packets = uurb->number_of_packets;
-	as->urb->interval = interval;
+	if (uurb->type == USBDEVFS_URB_TYPE_ISO ||
+			ps->dev->speed == USB_SPEED_HIGH)
+		as->urb->interval = 1 << min(15, ep->desc.bInterval - 1);
+	else
+		as->urb->interval = ep->desc.bInterval;
         as->urb->context = as;
         as->urb->complete = async_completed;
 	for (totlen = u = 0; u < uurb->number_of_packets; u++) {
