@@ -266,9 +266,12 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 	pg = pte_alloc_kernel(pd, va);
 	if (pg != 0) {
 		err = 0;
-		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT, __pgprot(flags)));
-		if (mem_init_done)
-			flush_HPTE(0, va, pmd_val(*pd));
+		/* The PTE should never be already set nor present in the
+		 * hash table
+		 */
+		BUG_ON(pte_val(*pg) & (_PAGE_PRESENT | _PAGE_HASHPTE));
+		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT,
+						     __pgprot(flags)));
 	}
 	return err;
 }
