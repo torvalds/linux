@@ -43,7 +43,7 @@ struct joydev {
 	char name[16];
 	struct input_handle handle;
 	wait_queue_head_t wait;
-	struct list_head list;
+	struct list_head client_list;
 	struct js_corr corr[ABS_MAX + 1];
 	struct JS_DATA_SAVE_TYPE glue;
 	int nabs;
@@ -55,7 +55,7 @@ struct joydev {
 	__s16 abs[ABS_MAX + 1];
 };
 
-struct joydev_list {
+struct joydev_client {
 	struct js_event buffer[JOYDEV_BUFFER_SIZE];
 	int head;
 	int tail;
@@ -87,7 +87,7 @@ static int joydev_correct(int value, struct js_corr *corr)
 static void joydev_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
 {
 	struct joydev *joydev = handle->private;
-	struct joydev_list *list;
+	struct joydev_client *client;
 	struct js_event event;
 
 	switch (type) {
@@ -115,15 +115,15 @@ static void joydev_event(struct input_handle *handle, unsigned int type, unsigne
 
 	event.time = jiffies_to_msecs(jiffies);
 
-	list_for_each_entry(list, &joydev->list, node) {
+	list_for_each_entry(client, &joydev->client_list, node) {
 
-		memcpy(list->buffer + list->head, &event, sizeof(struct js_event));
+		memcpy(client->buffer + client->head, &event, sizeof(struct js_event));
 
-		if (list->startup == joydev->nabs + joydev->nkey)
-			if (list->tail == (list->head = (list->head + 1) & (JOYDEV_BUFFER_SIZE - 1)))
-				list->startup = 0;
+		if (client->startup == joydev->nabs + joydev->nkey)
+			if (client->tail == (client->head = (client->head + 1) & (JOYDEV_BUFFER_SIZE - 1)))
+				client->startup = 0;
 
-		kill_fasync(&list->fasync, SIGIO, POLL_IN);
+		kill_fasync(&client->fasync, SIGIO, POLL_IN);
 	}
 
 	wake_up_interruptible(&joydev->wait);
@@ -132,9 +132,9 @@ static void joydev_event(struct input_handle *handle, unsigned int type, unsigne
 static int joydev_fasync(int fd, struct file *file, int on)
 {
 	int retval;
-	struct joydev_list *list = file->private_data;
+	struct joydev_client *client = file->private_data;
 
-	retval = fasync_helper(fd, file, on, &list->fasync);
+	retval = fasync_helper(fd, file, on, &client->fasync);
 
 	return retval < 0 ? retval : 0;
 }
@@ -145,60 +145,66 @@ static void joydev_free(struct joydev *joydev)
 	kfree(joydev);
 }
 
-static int joydev_release(struct inode * inode, struct file * file)
+static int joydev_release(struct inode *inode, struct file *file)
 {
-	struct joydev_list *list = file->private_data;
+	struct joydev_client *client = file->private_data;
+	struct joydev *joydev = client->joydev;
 
 	joydev_fasync(-1, file, 0);
 
-	list_del(&list->node);
+	list_del(&client->node);
+	kfree(client);
 
-	if (!--list->joydev->open) {
-		if (list->joydev->exist)
-			input_close_device(&list->joydev->handle);
+	if (!--joydev->open) {
+		if (joydev->exist)
+			input_close_device(&joydev->handle);
 		else
-			joydev_free(list->joydev);
+			joydev_free(joydev);
 	}
 
-	kfree(list);
 	return 0;
 }
 
 static int joydev_open(struct inode *inode, struct file *file)
 {
-	struct joydev_list *list;
+	struct joydev_client *client;
+	struct joydev *joydev;
 	int i = iminor(inode) - JOYDEV_MINOR_BASE;
 
-	if (i >= JOYDEV_MINORS || !joydev_table[i])
+	if (i >= JOYDEV_MINORS)
 		return -ENODEV;
 
-	if (!(list = kzalloc(sizeof(struct joydev_list), GFP_KERNEL)))
+	joydev = joydev_table[i];
+	if (!joydev || !joydev->exist)
+		return -ENODEV;
+
+	client = kzalloc(sizeof(struct joydev_client), GFP_KERNEL);
+	if (!client)
 		return -ENOMEM;
 
-	list->joydev = joydev_table[i];
-	list_add_tail(&list->node, &joydev_table[i]->list);
-	file->private_data = list;
+	client->joydev = joydev;
+	list_add_tail(&client->node, &joydev->client_list);
 
-	if (!list->joydev->open++)
-		if (list->joydev->exist)
-			input_open_device(&list->joydev->handle);
+	if (!joydev->open++ && joydev->exist)
+		input_open_device(&joydev->handle);
 
+	file->private_data = client;
 	return 0;
 }
 
-static ssize_t joydev_write(struct file * file, const char __user * buffer, size_t count, loff_t *ppos)
+static ssize_t joydev_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
 	return -EINVAL;
 }
 
 static ssize_t joydev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct joydev_list *list = file->private_data;
-	struct joydev *joydev = list->joydev;
+	struct joydev_client *client = file->private_data;
+	struct joydev *joydev = client->joydev;
 	struct input_dev *input = joydev->handle.dev;
 	int retval = 0;
 
-	if (!list->joydev->exist)
+	if (!joydev->exist)
 		return -ENODEV;
 
 	if (count < sizeof(struct js_event))
@@ -217,56 +223,55 @@ static ssize_t joydev_read(struct file *file, char __user *buf, size_t count, lo
 		if (copy_to_user(buf, &data, sizeof(struct JS_DATA_TYPE)))
 			return -EFAULT;
 
-		list->startup = 0;
-		list->tail = list->head;
+		client->startup = 0;
+		client->tail = client->head;
 
 		return sizeof(struct JS_DATA_TYPE);
 	}
 
-	if (list->startup == joydev->nabs + joydev->nkey &&
-	    list->head == list->tail && (file->f_flags & O_NONBLOCK))
+	if (client->startup == joydev->nabs + joydev->nkey &&
+	    client->head == client->tail && (file->f_flags & O_NONBLOCK))
 		return -EAGAIN;
 
-	retval = wait_event_interruptible(list->joydev->wait,
-					  !list->joydev->exist ||
-					  list->startup < joydev->nabs + joydev->nkey ||
-					  list->head != list->tail);
-
+	retval = wait_event_interruptible(joydev->wait,
+					  !joydev->exist ||
+					  client->startup < joydev->nabs + joydev->nkey ||
+					  client->head != client->tail);
 	if (retval)
 		return retval;
 
-	if (!list->joydev->exist)
+	if (!joydev->exist)
 		return -ENODEV;
 
-	while (list->startup < joydev->nabs + joydev->nkey && retval + sizeof(struct js_event) <= count) {
+	while (client->startup < joydev->nabs + joydev->nkey && retval + sizeof(struct js_event) <= count) {
 
 		struct js_event event;
 
 		event.time = jiffies_to_msecs(jiffies);
 
-		if (list->startup < joydev->nkey) {
+		if (client->startup < joydev->nkey) {
 			event.type = JS_EVENT_BUTTON | JS_EVENT_INIT;
-			event.number = list->startup;
+			event.number = client->startup;
 			event.value = !!test_bit(joydev->keypam[event.number], input->key);
 		} else {
 			event.type = JS_EVENT_AXIS | JS_EVENT_INIT;
-			event.number = list->startup - joydev->nkey;
+			event.number = client->startup - joydev->nkey;
 			event.value = joydev->abs[event.number];
 		}
 
 		if (copy_to_user(buf + retval, &event, sizeof(struct js_event)))
 			return -EFAULT;
 
-		list->startup++;
+		client->startup++;
 		retval += sizeof(struct js_event);
 	}
 
-	while (list->head != list->tail && retval + sizeof(struct js_event) <= count) {
+	while (client->head != client->tail && retval + sizeof(struct js_event) <= count) {
 
-		if (copy_to_user(buf + retval, list->buffer + list->tail, sizeof(struct js_event)))
+		if (copy_to_user(buf + retval, client->buffer + client->tail, sizeof(struct js_event)))
 			return -EFAULT;
 
-		list->tail = (list->tail + 1) & (JOYDEV_BUFFER_SIZE - 1);
+		client->tail = (client->tail + 1) & (JOYDEV_BUFFER_SIZE - 1);
 		retval += sizeof(struct js_event);
 	}
 
@@ -276,11 +281,12 @@ static ssize_t joydev_read(struct file *file, char __user *buf, size_t count, lo
 /* No kernel lock - fine */
 static unsigned int joydev_poll(struct file *file, poll_table *wait)
 {
-	struct joydev_list *list = file->private_data;
+	struct joydev_client *client = file->private_data;
+	struct joydev *joydev = client->joydev;
 
-	poll_wait(file, &list->joydev->wait, wait);
-	return ((list->head != list->tail || list->startup < list->joydev->nabs + list->joydev->nkey) ?
-		(POLLIN | POLLRDNORM) : 0) | (list->joydev->exist ? 0 : (POLLHUP | POLLERR));
+	poll_wait(file, &joydev->wait, wait);
+	return ((client->head != client->tail || client->startup < joydev->nabs + joydev->nkey) ?
+		(POLLIN | POLLRDNORM) : 0) | (joydev->exist ? 0 : (POLLHUP | POLLERR));
 }
 
 static int joydev_ioctl_common(struct joydev *joydev, unsigned int cmd, void __user *argp)
@@ -374,8 +380,8 @@ static int joydev_ioctl_common(struct joydev *joydev, unsigned int cmd, void __u
 #ifdef CONFIG_COMPAT
 static long joydev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct joydev_list *list = file->private_data;
-	struct joydev *joydev = list->joydev;
+	struct joydev_client *client = file->private_data;
+	struct joydev *joydev = client->joydev;
 	void __user *argp = (void __user *)arg;
 	s32 tmp32;
 	struct JS_DATA_SAVE_TYPE_32 ds32;
@@ -428,8 +434,8 @@ static long joydev_compat_ioctl(struct file *file, unsigned int cmd, unsigned lo
 
 static int joydev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct joydev_list *list = file->private_data;
-	struct joydev *joydev = list->joydev;
+	struct joydev_client *client = file->private_data;
+	struct joydev *joydev = client->joydev;
 	void __user *argp = (void __user *)arg;
 
 	if (!joydev->exist)
@@ -484,7 +490,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	if (!joydev)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&joydev->list);
+	INIT_LIST_HEAD(&joydev->client_list);
 	init_waitqueue_head(&joydev->wait);
 
 	joydev->minor = minor;
@@ -572,7 +578,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 static void joydev_disconnect(struct input_handle *handle)
 {
 	struct joydev *joydev = handle->private;
-	struct joydev_list *list;
+	struct joydev_client *client;
 
 	input_unregister_handle(handle);
 
@@ -583,8 +589,8 @@ static void joydev_disconnect(struct input_handle *handle)
 	if (joydev->open) {
 		input_close_device(handle);
 		wake_up_interruptible(&joydev->wait);
-		list_for_each_entry(list, &joydev->list, node)
-			kill_fasync(&list->fasync, SIGIO, POLL_HUP);
+		list_for_each_entry(client, &joydev->client_list, node)
+			kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 	} else
 		joydev_free(joydev);
 }
