@@ -377,7 +377,6 @@ source "arch/powerpc/platforms/Kconfig"
 
 source arch/powerpc/platforms/embedded6xx/Kconfig
 source arch/powerpc/platforms/4xx/Kconfig
-source arch/powerpc/platforms/85xx/Kconfig
 
 menu "Kernel options"
 

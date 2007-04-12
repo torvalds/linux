@@ -1,6 +1,6 @@
 menu "Platform support"
 	depends on PPC64 || CLASSIC32 || PPC_8xx || PPC_82xx || PPC_83xx || \
-			PPC_86xx
+			PPC_85xx || PPC_86xx
 
 choice
 	prompt "Machine type"
@@ -49,6 +49,7 @@ source arch/powerpc/platforms/cell/Kconfig
 source "arch/powerpc/platforms/8xx/Kconfig"
 source "arch/powerpc/platforms/82xx/Kconfig"
 source "arch/powerpc/platforms/83xx/Kconfig"
+source "arch/powerpc/platforms/85xx/Kconfig"
 source "arch/powerpc/platforms/86xx/Kconfig"
 
 config PPC_NATIVE
