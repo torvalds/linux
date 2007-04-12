@@ -1840,7 +1840,9 @@ static int add_disk(struct btrfs_root *root, char *name, int namelen)
 	u16 item_size;
 	u64 num_blocks;
 	u64 new_blocks;
+	u64 device_id;
 	int ret;
+
 printk("adding disk %s\n", name);
 	path = btrfs_alloc_path();
 	if (!path)
@@ -1875,9 +1877,14 @@ printk("insert failed %d\n", ret);
 				  path->slots[0], struct btrfs_device_item);
 	btrfs_set_device_pathlen(dev_item, namelen);
 	memcpy(dev_item + 1, name, namelen);
+
+	device_id = btrfs_super_last_device_id(root->fs_info->disk_super) + 1;
+	btrfs_set_super_last_device_id(root->fs_info->disk_super, device_id);
+	btrfs_set_device_id(dev_item, device_id);
 	mark_buffer_dirty(path->nodes[0]);
 
-	ret = btrfs_insert_dev_radix(root, bdev, num_blocks, new_blocks);
+	ret = btrfs_insert_dev_radix(root, bdev, device_id, num_blocks,
+				     new_blocks);
 
 	if (!ret) {
 		btrfs_set_super_total_blocks(root->fs_info->disk_super,

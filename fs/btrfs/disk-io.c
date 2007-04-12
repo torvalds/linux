@@ -13,11 +13,13 @@
 struct dev_lookup {
 	u64 block_start;
 	u64 num_blocks;
+	u64 device_id;
 	struct block_device *bdev;
 };
 
 int btrfs_insert_dev_radix(struct btrfs_root *root,
 			   struct block_device *bdev,
+			   u64 device_id,
 			   u64 block_start,
 			   u64 num_blocks)
 {
@@ -31,6 +33,7 @@ int btrfs_insert_dev_radix(struct btrfs_root *root,
 	lookup->block_start = block_start;
 	lookup->num_blocks = num_blocks;
 	lookup->bdev = bdev;
+	lookup->device_id = device_id;
 printk("inserting %s into dev radix %Lu %Lu\n", bdevname(bdev, b), block_start, num_blocks);
 
 	ret = radix_tree_insert(&root->fs_info->dev_radix, block_start +
@@ -418,17 +421,14 @@ printk("all worked\n");
 	return root;
 }
 
-int btrfs_open_disk(struct btrfs_root *root, u64 block_start, u64 num_blocks,
-		    char *filename, int name_len)
+static int btrfs_open_disk(struct btrfs_root *root, u64 device_id,
+			   u64 block_start, u64 num_blocks,
+			   char *filename, int name_len)
 {
 	char *null_filename;
 	struct block_device *bdev;
 	int ret;
 
-	if (block_start == 0) {
-printk("skipping disk with block_start == 0\n");
-return 0;
-	}
 	null_filename = kmalloc(name_len + 1, GFP_NOFS);
 	if (!null_filename)
 		return -ENOMEM;
@@ -441,7 +441,8 @@ return 0;
 		goto out;
 	}
 	set_blocksize(bdev, root->fs_info->sb->s_blocksize);
-	ret = btrfs_insert_dev_radix(root, bdev, block_start, num_blocks);
+	ret = btrfs_insert_dev_radix(root, bdev, device_id,
+				     block_start, num_blocks);
 	BUG_ON(ret);
 	ret = 0;
 out:
@@ -490,10 +491,14 @@ static int read_device_info(struct btrfs_root *root)
 		}
 		dev_item = btrfs_item_ptr(leaf, slot, struct btrfs_device_item);
 printk("found key %Lu %Lu\n", key.objectid, key.offset);
-		ret = btrfs_open_disk(root, key.objectid, key.offset,
-				      (char *)(dev_item + 1),
-				      btrfs_device_pathlen(dev_item));
-		BUG_ON(ret);
+		if (btrfs_device_id(dev_item) !=
+		    btrfs_super_device_id(root->fs_info->disk_super)) {
+			ret = btrfs_open_disk(root, btrfs_device_id(dev_item),
+					      key.objectid, key.offset,
+					      (char *)(dev_item + 1),
+					      btrfs_device_pathlen(dev_item));
+			BUG_ON(ret);
+		}
 		path->slots[0]++;
 	}
 	btrfs_free_path(path);
@@ -556,6 +561,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	dev_lookup->block_start = 0;
 	dev_lookup->num_blocks = (u32)-2;
 	dev_lookup->bdev = sb->s_bdev;
+	dev_lookup->device_id = 0;
 	ret = radix_tree_insert(&fs_info->dev_radix, (u32)-2, dev_lookup);
 	BUG_ON(ret);
 	fs_info->sb_buffer = read_tree_block(tree_root,
@@ -575,6 +581,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	radix_tree_delete(&fs_info->dev_radix, (u32)-2);
 	dev_lookup->block_start = btrfs_super_device_block_start(disk_super);
 	dev_lookup->num_blocks = btrfs_super_device_num_blocks(disk_super);
+	dev_lookup->device_id = btrfs_super_device_id(disk_super);
+
 	ret = radix_tree_insert(&fs_info->dev_radix,
 				dev_lookup->block_start +
 				dev_lookup->num_blocks - 1, dev_lookup);
@@ -659,6 +667,7 @@ int del_fs_roots(struct btrfs_fs_info *fs_info)
 	}
 	return 0;
 }
+
 static int free_dev_radix(struct btrfs_fs_info *fs_info)
 {
 	struct dev_lookup *lookup[8];
