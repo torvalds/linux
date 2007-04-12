@@ -16,6 +16,7 @@
 #define DRIVER_NAME "tifm_core"
 #define DRIVER_VERSION "0.8"
 
+static struct workqueue_struct *workqueue;
 static DEFINE_IDR(tifm_adapter_idr);
 static DEFINE_SPINLOCK(tifm_adapter_lock);
 
@@ -184,8 +185,7 @@ void tifm_free_adapter(struct tifm_adapter *fm)
 }
 EXPORT_SYMBOL(tifm_free_adapter);
 
-int tifm_add_adapter(struct tifm_adapter *fm,
-		     int (*mediathreadfn)(void *data))
+int tifm_add_adapter(struct tifm_adapter *fm)
 {
 	int rc;
 
@@ -197,16 +197,13 @@ int tifm_add_adapter(struct tifm_adapter *fm,
 	spin_unlock(&tifm_adapter_lock);
 	if (!rc) {
 		snprintf(fm->cdev.class_id, BUS_ID_SIZE, "tifm%u", fm->id);
-		fm->media_switcher = kthread_create(mediathreadfn,
-						    fm, "tifm/%u", fm->id);
+		rc = class_device_add(&fm->cdev);
 
-		if (!IS_ERR(fm->media_switcher))
-			return class_device_add(&fm->cdev);
-
-		spin_lock(&tifm_adapter_lock);
-		idr_remove(&tifm_adapter_idr, fm->id);
-		spin_unlock(&tifm_adapter_lock);
-		rc = -ENOMEM;
+		if (rc) {
+			spin_lock(&tifm_adapter_lock);
+			idr_remove(&tifm_adapter_idr, fm->id);
+			spin_unlock(&tifm_adapter_lock);
+		}
 	}
 	return rc;
 }
@@ -214,6 +211,7 @@ EXPORT_SYMBOL(tifm_add_adapter);
 
 void tifm_remove_adapter(struct tifm_adapter *fm)
 {
+	flush_workqueue(workqueue);
 	class_device_del(&fm->cdev);
 
 	spin_lock(&tifm_adapter_lock);
@@ -267,6 +265,12 @@ void tifm_unmap_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 }
 EXPORT_SYMBOL(tifm_unmap_sg);
 
+void tifm_queue_work(struct work_struct *work)
+{
+	queue_work(workqueue, work);
+}
+EXPORT_SYMBOL(tifm_queue_work);
+
 int tifm_register_driver(struct tifm_driver *drv)
 {
 	drv->driver.bus = &tifm_bus_type;
@@ -283,13 +287,25 @@ EXPORT_SYMBOL(tifm_unregister_driver);
 
 static int __init tifm_init(void)
 {
-	int rc = bus_register(&tifm_bus_type);
+	int rc;
 
-	if (!rc) {
-		rc = class_register(&tifm_adapter_class);
-		if (rc)
-			bus_unregister(&tifm_bus_type);
-	}
+	workqueue = create_freezeable_workqueue("tifm");
+	if (!workqueue)
+		return -ENOMEM;
+
+	rc = bus_register(&tifm_bus_type);
+
+	if (rc)
+		goto err_out_wq;
+
+	rc = class_register(&tifm_adapter_class);
+	if (!rc)
+		return 0;
+
+	bus_unregister(&tifm_bus_type);
+
+err_out_wq:
+	destroy_workqueue(workqueue);
 
 	return rc;
 }
@@ -298,6 +314,7 @@ static void __exit tifm_exit(void)
 {
 	class_unregister(&tifm_adapter_class);
 	bus_unregister(&tifm_bus_type);
+	destroy_workqueue(workqueue);
 }
 
 subsys_initcall(tifm_init);

@@ -111,11 +111,11 @@ struct tifm_adapter {
 	spinlock_t              lock;
 	unsigned int            irq_status;
 	unsigned int            socket_change_set;
-	wait_queue_head_t       change_set_notify;
 	unsigned int            id;
 	unsigned int            num_sockets;
+	struct completion       *finish_me;
 	struct tifm_dev         **sockets;
-	struct task_struct      *media_switcher;
+	struct work_struct      media_switcher;
 	struct class_device     cdev;
 	struct device           *dev;
 
@@ -125,7 +125,7 @@ struct tifm_adapter {
 struct tifm_adapter *tifm_alloc_adapter(void);
 void tifm_free_device(struct device *dev);
 void tifm_free_adapter(struct tifm_adapter *fm);
-int tifm_add_adapter(struct tifm_adapter *fm, int (*mediathreadfn)(void *data));
+int tifm_add_adapter(struct tifm_adapter *fm);
 void tifm_remove_adapter(struct tifm_adapter *fm);
 struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm);
 int tifm_register_driver(struct tifm_driver *drv);
@@ -135,7 +135,7 @@ int tifm_map_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		int direction);
 void tifm_unmap_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		   int direction);
-
+void tifm_queue_work(struct work_struct *work);
 
 static inline void *tifm_get_drvdata(struct tifm_dev *dev)
 {
