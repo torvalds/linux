@@ -35,8 +35,8 @@ struct property {
 };
 
 struct device_node {
-	char	*name;
-	char	*type;
+	const char	*name;
+	const char	*type;
 	phandle	node;
 	char	*path_component_name;
 	char	*full_name;
