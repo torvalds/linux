@@ -1097,6 +1097,16 @@ static inline void input_put_device(struct input_dev *dev)
 	class_device_put(&dev->cdev);
 }
 
+static inline void *input_get_drvdata(struct input_dev *dev)
+{
+	return dev->private;
+}
+
+static inline void input_set_drvdata(struct input_dev *dev, void *data)
+{
+	dev->private = data;
+}
+
 int input_register_device(struct input_dev *);
 void input_unregister_device(struct input_dev *);
 
