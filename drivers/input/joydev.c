@@ -170,6 +170,7 @@ static int joydev_open(struct inode *inode, struct file *file)
 	struct joydev_client *client;
 	struct joydev *joydev;
 	int i = iminor(inode) - JOYDEV_MINOR_BASE;
+	int error;
 
 	if (i >= JOYDEV_MINORS)
 		return -ENODEV;
@@ -185,8 +186,14 @@ static int joydev_open(struct inode *inode, struct file *file)
 	client->joydev = joydev;
 	list_add_tail(&client->node, &joydev->client_list);
 
-	if (!joydev->open++ && joydev->exist)
-		input_open_device(&joydev->handle);
+	if (!joydev->open++ && joydev->exist) {
+		error = input_open_device(&joydev->handle);
+		if (error) {
+			list_del(&client->node);
+			kfree(client);
+			return error;
+		}
+	}
 
 	file->private_data = client;
 	return 0;

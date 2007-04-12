@@ -130,6 +130,7 @@ static int evdev_open(struct inode *inode, struct file *file)
 	struct evdev_client *client;
 	struct evdev *evdev;
 	int i = iminor(inode) - EVDEV_MINOR_BASE;
+	int error;
 
 	if (i >= EVDEV_MINORS)
 		return -ENODEV;
@@ -146,8 +147,14 @@ static int evdev_open(struct inode *inode, struct file *file)
 	client->evdev = evdev;
 	list_add_tail(&client->node, &evdev->client_list);
 
-	if (!evdev->open++ && evdev->exist)
-		input_open_device(&evdev->handle);
+	if (!evdev->open++ && evdev->exist) {
+		error = input_open_device(&evdev->handle);
+		if (error) {
+			list_del(&client->node);
+			kfree(client);
+			return error;
+		}
+	}
 
 	file->private_data = client;
 	return 0;

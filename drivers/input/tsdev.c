@@ -151,6 +151,7 @@ static int tsdev_open(struct inode *inode, struct file *file)
 	int i = iminor(inode) - TSDEV_MINOR_BASE;
 	struct tsdev_client *client;
 	struct tsdev *tsdev;
+	int error;
 
 	printk(KERN_WARNING "tsdev (compaq touchscreen emulation) is scheduled "
 		"for removal.\nSee Documentation/feature-removal-schedule.txt "
@@ -171,8 +172,14 @@ static int tsdev_open(struct inode *inode, struct file *file)
 	client->raw = (i >= TSDEV_MINORS / 2) ? 1 : 0;
 	list_add_tail(&client->node, &tsdev->client_list);
 
-	if (!tsdev->open++ && tsdev->exist)
-		input_open_device(&tsdev->handle);
+	if (!tsdev->open++ && tsdev->exist) {
+		error = input_open_device(&tsdev->handle);
+		if (error) {
+			list_del(&client->node);
+			kfree(client);
+			return error;
+		}
+	}
 
 	file->private_data = client;
 	return 0;
