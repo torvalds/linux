@@ -2332,6 +2332,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 	vcpu->host_fx_image = (char*)ALIGN((hva_t)vcpu->fx_buf,
 					   FX_IMAGE_ALIGN);
 	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
+	vcpu->cr0 = 0x10;
 
 	r = kvm_arch_ops->vcpu_create(vcpu);
 	if (r < 0)
