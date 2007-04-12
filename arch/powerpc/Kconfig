@@ -380,7 +380,6 @@ source arch/powerpc/platforms/4xx/Kconfig
 source arch/powerpc/platforms/82xx/Kconfig
 source arch/powerpc/platforms/83xx/Kconfig
 source arch/powerpc/platforms/85xx/Kconfig
-source arch/powerpc/platforms/86xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
 
 menu "Kernel options"
@@ -635,6 +634,11 @@ config PPC_INDIRECT_PCI
 	bool
 	depends on PCI
 	default y if 40x || 44x
+	default n
+
+config PPC_INDIRECT_PCI_BE
+	bool
+	depends PPC_INDIRECT_PCI
 	default n
 
 config EISA
