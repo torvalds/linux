@@ -20,6 +20,14 @@
 #include "psmouse.h"
 #include "lifebook.h"
 
+static const char *desired_serio_phys;
+
+static int lifebook_set_serio_phys(struct dmi_system_id *d)
+{
+	desired_serio_phys = d->driver_data;
+	return 0;
+}
+
 static struct dmi_system_id lifebook_dmi_table[] = {
 	{
 		.ident = "FLORA-ie 55mi",
@@ -56,6 +64,8 @@ static struct dmi_system_id lifebook_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "CF-18"),
 		},
+		.callback = lifebook_set_serio_phys,
+		.driver_data = "isa0060/serio3",
 	},
 	{
 		.ident = "Lifebook B142",
@@ -137,6 +147,10 @@ int lifebook_detect(struct psmouse *psmouse, int set_properties)
 {
         if (!dmi_check_system(lifebook_dmi_table))
                 return -1;
+
+	if (desired_serio_phys &&
+	    strcmp(psmouse->ps2dev.serio->phys, desired_serio_phys))
+		return -1;
 
 	if (set_properties) {
 		psmouse->vendor = "Fujitsu";
