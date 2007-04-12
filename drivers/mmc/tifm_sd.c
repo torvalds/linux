@@ -665,32 +665,13 @@ static void tifm_sd_end_cmd_nodma(unsigned long data)
 	mmc_request_done(mmc, mrq);
 }
 
-static void tifm_sd_terminate(struct tifm_sd *host)
-{
-	struct tifm_dev *sock = host->dev;
-	unsigned long flags;
-
-	writel(0, sock->addr + SOCK_MMCSD_INT_ENABLE);
-	mmiowb();
-	spin_lock_irqsave(&sock->lock, flags);
-	host->flags |= EJECT;
-	if (host->req) {
-		writel(TIFM_FIFO_INT_SETALL,
-		       sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
-		writel(0, sock->addr + SOCK_DMA_FIFO_INT_ENABLE_SET);
-		tasklet_schedule(&host->finish_tasklet);
-	}
-	spin_unlock_irqrestore(&sock->lock, flags);
-}
-
 static void tifm_sd_abort(unsigned long data)
 {
 	struct tifm_sd *host = (struct tifm_sd*)data;
 
 	printk(KERN_ERR DRIVER_NAME
-	       ": card failed to respond for a long period of time");
+	       ": card failed to respond for a long period of time\n");
 
-	tifm_sd_terminate(host);
 	tifm_eject(host->dev);
 }
 
@@ -913,9 +894,20 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 {
 	struct mmc_host *mmc = tifm_get_drvdata(sock);
 	struct tifm_sd *host = mmc_priv(mmc);
+	unsigned long flags;
 
 	del_timer_sync(&host->timer);
-	tifm_sd_terminate(host);
+	writel(0, sock->addr + SOCK_MMCSD_INT_ENABLE);
+	mmiowb();
+	spin_lock_irqsave(&sock->lock, flags);
+	host->flags |= EJECT;
+	if (host->req) {
+		writel(TIFM_FIFO_INT_SETALL,
+		       sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
+		writel(0, sock->addr + SOCK_DMA_FIFO_INT_ENABLE_SET);
+		tasklet_schedule(&host->finish_tasklet);
+	}
+	spin_unlock_irqrestore(&sock->lock, flags);
 	wait_event_timeout(host->notify, host->flags & EJECT_DONE,
 			   host->timeout_jiffies);
 	tasklet_kill(&host->finish_tasklet);
