@@ -506,6 +506,7 @@ struct input_absinfo {
 #define KEY_VOICEMAIL		0x1ac
 #define KEY_ADDRESSBOOK		0x1ad
 #define KEY_MESSENGER		0x1ae
+#define KEY_DISPLAYTOGGLE	0x1af	/* Turn display (LCD) on and off */
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1
