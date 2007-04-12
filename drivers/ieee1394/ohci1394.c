@@ -2377,6 +2377,7 @@ static irqreturn_t ohci_irq_handler(int irq, void *dev_id)
 	if (event & OHCI1394_postedWriteErr) {
 		PRINT(KERN_ERR, "physical posted write error");
 		/* no recovery strategy yet, had to involve protocol drivers */
+		event &= ~OHCI1394_postedWriteErr;
 	}
 	if (event & OHCI1394_cycleTooLong) {
 		if(printk_ratelimit())
