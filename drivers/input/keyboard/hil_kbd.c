@@ -269,8 +269,6 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	if (!kbd->dev)
 		goto bail0;
 
-	kbd->dev->private = kbd;
-
 	if (serio_open(serio, drv))
 		goto bail1;
 

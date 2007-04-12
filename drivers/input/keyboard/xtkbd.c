@@ -109,7 +109,6 @@ static int xtkbd_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
 	input_dev->cdev.dev = &serio->dev;
-	input_dev->private = xtkbd;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
 	input_dev->keycode = xtkbd->keycode;

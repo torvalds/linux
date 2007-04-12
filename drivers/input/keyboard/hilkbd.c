@@ -215,7 +215,6 @@ hil_keyb_init(void)
 	hil_dev.dev = input_allocate_device();
 	if (!hil_dev.dev)
 		return -ENOMEM;
-	hil_dev.dev->private = &hil_dev;
 
 #if defined(CONFIG_HP300)
 	if (!hwreg_present((void *)(HILBASE + HIL_DATA))) {
