@@ -3,6 +3,7 @@ menu "Platform support"
 
 choice
 	prompt "Machine type"
+	depends on PPC64 || CLASSIC32
 	default PPC_MULTIPLATFORM
 
 config PPC_MULTIPLATFORM
@@ -137,6 +138,9 @@ config GENERIC_IOMAP
 	bool
 	default n
 
+menu "CPU Frequency support"
+	depends on PPC64 || CLASSIC32
+
 source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_PMAC
@@ -155,6 +159,7 @@ config CPU_FREQ_PMAC64
 	help
 	  This adds support for frequency switching on Apple iMac G5,
 	  and some of the more recent desktop G5 machines as well.
+endmenu
 
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
@@ -172,7 +177,7 @@ config PPC601_SYNC_FIX
 
 config TAU
 	bool "On-chip CPU temperature sensor support"
-	depends on 6xx
+	depends on CLASSIC32
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
 	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
