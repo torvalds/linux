@@ -335,7 +335,7 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	kbd->dev->id.vendor	= PCI_VENDOR_ID_HP;
 	kbd->dev->id.product	= 0x0001; /* TODO: get from kbd->rsc */
 	kbd->dev->id.version	= 0x0100; /* TODO: get from kbd->rsc */
-	kbd->dev->cdev.dev	= &serio->dev;
+	kbd->dev->dev.parent	= &serio->dev;
 
 	for (i = 0; i < 128; i++) {
 		set_bit(hil_kbd_set1[i], kbd->dev->keybit);

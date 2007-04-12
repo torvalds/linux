@@ -883,7 +883,7 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 	input_dev->id.product = atkbd->translated ? 1 : atkbd->set;
 	input_dev->id.version = atkbd->id;
 	input_dev->event = atkbd_event;
-	input_dev->cdev.dev = &atkbd->ps2dev.serio->dev;
+	input_dev->dev.parent = &atkbd->ps2dev.serio->dev;
 
 	input_set_drvdata(input_dev, atkbd);
 

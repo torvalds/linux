@@ -169,7 +169,7 @@ static int __devinit pxakbd_probe(struct platform_device *pdev)
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->open = pxakbd_open;
 	input_dev->close = pxakbd_close;
-	input_dev->cdev.dev = &pdev->dev;
+	input_dev->dev.parent = &pdev->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_REL);
 	input_dev->relbit[LONG(REL_WHEEL)] = BIT(REL_WHEEL);

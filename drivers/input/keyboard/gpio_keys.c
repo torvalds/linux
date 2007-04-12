@@ -65,7 +65,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 	input->name = pdev->name;
 	input->phys = "gpio-keys/input0";
-	input->cdev.dev = &pdev->dev;
+	input->dev.parent = &pdev->dev;
 
 	input->id.bustype = BUS_HOST;
 	input->id.vendor = 0x0001;
