@@ -363,8 +363,10 @@ asmlinkage int solaris_sysconf(int id)
 {
 	switch (id) {
 	case SOLARIS_CONFIG_NGROUPS:	return NGROUPS_MAX;
-	case SOLARIS_CONFIG_CHILD_MAX:	return -1; /* no limit */
-	case SOLARIS_CONFIG_OPEN_FILES:	return OPEN_MAX;
+	case SOLARIS_CONFIG_CHILD_MAX:
+		return current->signal->rlim[RLIMIT_NPROC].rlim_cur;
+	case SOLARIS_CONFIG_OPEN_FILES:
+		return current->signal->rlim[RLIMIT_NOFILE].rlim_cur;
 	case SOLARIS_CONFIG_POSIX_VER:	return 199309;
 	case SOLARIS_CONFIG_PAGESIZE:	return PAGE_SIZE;
 	case SOLARIS_CONFIG_XOPEN_VER:	return 3;
