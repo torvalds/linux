@@ -74,6 +74,7 @@ enum {
 #define TIFM_DMA_RESET            0x00000002 /* Meaning of this constant is unverified */
 #define TIFM_DMA_TX               0x00008000 /* Meaning of this constant is unverified */
 #define TIFM_DMA_EN               0x00000001 /* Meaning of this constant is unverified */
+#define TIFM_DMA_TSIZE            0x0000007f
 
 #define TIFM_TYPE_XD 1
 #define TIFM_TYPE_MS 2
