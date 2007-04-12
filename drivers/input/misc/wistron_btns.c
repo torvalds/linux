@@ -58,7 +58,7 @@ MODULE_PARM_DESC(force, "Load even if computer is not in database");
 
 static char *keymap_name; /* = NULL; */
 module_param_named(keymap, keymap_name, charp, 0);
-MODULE_PARM_DESC(keymap, "Keymap name, if it can't be autodetected");
+MODULE_PARM_DESC(keymap, "Keymap name, if it can't be autodetected [generic, 1557/MS2141]");
 
 static struct platform_device *wistron_device;
 
@@ -568,6 +568,42 @@ static struct key_entry keymap_wistron_md96500[] = {
 	{ KE_END, FE_UNTESTED }
 };
 
+static struct key_entry keymap_wistron_generic[] = {
+	{ KE_KEY, 0x01, {KEY_HELP} },
+	{ KE_KEY, 0x02, {KEY_CONFIG} },
+	{ KE_KEY, 0x03, {KEY_POWER} },
+	{ KE_KEY, 0x05, {KEY_SWITCHVIDEOMODE} }, /* Display selection */
+	{ KE_KEY, 0x06, {KEY_DISPLAYTOGGLE} }, /* Display on/off */
+	{ KE_KEY, 0x08, {KEY_MUTE} },
+	{ KE_KEY, 0x11, {KEY_PROG1} },
+	{ KE_KEY, 0x12, {KEY_PROG2} },
+	{ KE_KEY, 0x13, {KEY_PROG3} },
+	{ KE_KEY, 0x14, {KEY_MAIL} },
+	{ KE_KEY, 0x15, {KEY_WWW} },
+	{ KE_KEY, 0x20, {KEY_VOLUMEUP} },
+	{ KE_KEY, 0x21, {KEY_VOLUMEDOWN} },
+	{ KE_KEY, 0x22, {KEY_REWIND} },
+	{ KE_KEY, 0x23, {KEY_FORWARD} },
+	{ KE_KEY, 0x24, {KEY_PLAYPAUSE} },
+	{ KE_KEY, 0x25, {KEY_STOPCD} },
+	{ KE_KEY, 0x31, {KEY_MAIL} },
+	{ KE_KEY, 0x36, {KEY_WWW} },
+	{ KE_KEY, 0x37, {KEY_DISPLAYTOGGLE} }, /* Display on/off */
+	{ KE_KEY, 0x40, {KEY_WLAN} },
+	{ KE_KEY, 0x49, {KEY_CONFIG} },
+	{ KE_SW, 0x4a, {.sw = {SW_LID, 1}} }, /* lid close */
+	{ KE_SW, 0x4b, {.sw = {SW_LID, 0}} }, /* lid open */
+	{ KE_KEY, 0x6a, {KEY_CONFIG} },
+	{ KE_KEY, 0x6d, {KEY_POWER} },
+	{ KE_KEY, 0x71, {KEY_STOPCD} },
+	{ KE_KEY, 0x72, {KEY_PLAYPAUSE} },
+	{ KE_KEY, 0x74, {KEY_REWIND} },
+	{ KE_KEY, 0x78, {KEY_FORWARD} },
+	{ KE_WIFI, 0x30 },
+	{ KE_BLUETOOTH, 0x44 },
+	{ KE_END, 0 }
+};
+
 /*
  * If your machine is not here (which is currently rather likely), please send
  * a list of buttons and their key codes (reported when loading this module
@@ -886,15 +922,17 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 
 static int __init select_keymap(void)
 {
+	dmi_check_system(dmi_ids);
 	if (keymap_name != NULL) {
 		if (strcmp (keymap_name, "1557/MS2141") == 0)
 			keymap = keymap_wistron_ms2141;
+		else if (strcmp (keymap_name, "generic") == 0)
+			keymap = keymap_wistron_generic;
 		else {
 			printk(KERN_ERR "wistron_btns: Keymap unknown\n");
 			return -EINVAL;
 		}
 	}
-	dmi_check_system(dmi_ids);
 	if (keymap == NULL) {
 		if (!force) {
 			printk(KERN_ERR "wistron_btns: System unknown\n");
