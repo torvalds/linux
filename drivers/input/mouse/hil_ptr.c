@@ -259,8 +259,6 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	if (!ptr->dev)
 		goto bail0;
 
-	ptr->dev->private = ptr;
-
 	if (serio_open(serio, driver))
 		goto bail1;
 
