@@ -1,6 +1,4 @@
 menu "Platform support"
-	depends on PPC64 || CLASSIC32 || PPC_8xx || PPC_82xx || PPC_83xx || \
-			PPC_85xx || PPC_86xx
 
 choice
 	prompt "Machine type"
@@ -27,14 +25,6 @@ config APUS
 	  <http://linux-apus.sourceforge.net/>.
 endchoice
 
-config QUICC_ENGINE
-	bool
-	help
-	  The QUICC Engine (QE) is a new generation of communications
-	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
-	  Selecting this option means that you wish to build a kernel
-	  for a machine with a QE coprocessor.
-
 source "arch/powerpc/platforms/pseries/Kconfig"
 source "arch/powerpc/platforms/iseries/Kconfig"
 source "arch/powerpc/platforms/chrp/Kconfig"
@@ -43,14 +33,16 @@ source "arch/powerpc/platforms/powermac/Kconfig"
 source "arch/powerpc/platforms/prep/Kconfig"
 source "arch/powerpc/platforms/maple/Kconfig"
 source "arch/powerpc/platforms/pasemi/Kconfig"
-source arch/powerpc/platforms/celleb/Kconfig
-source arch/powerpc/platforms/ps3/Kconfig
-source arch/powerpc/platforms/cell/Kconfig
+source "arch/powerpc/platforms/celleb/Kconfig"
+source "arch/powerpc/platforms/ps3/Kconfig"
+source "arch/powerpc/platforms/cell/Kconfig"
 source "arch/powerpc/platforms/8xx/Kconfig"
 source "arch/powerpc/platforms/82xx/Kconfig"
 source "arch/powerpc/platforms/83xx/Kconfig"
 source "arch/powerpc/platforms/85xx/Kconfig"
 source "arch/powerpc/platforms/86xx/Kconfig"
+source "arch/powerpc/platforms/embedded6xx/Kconfig"
+#source "arch/powerpc/platforms/4xx/Kconfig
 
 config PPC_NATIVE
 	bool
@@ -74,6 +66,18 @@ config XICS
 	depends on PPC_PSERIES
 	bool
 	default y
+
+config MPIC
+	bool
+	default n
+
+config MPIC_WEIRD
+	bool
+	default n
+
+config PPC_I8259
+	bool
+	default n
 
 config U3_DART
 	bool
@@ -224,6 +228,14 @@ config TAU_AVERAGE
 	  /proc/cpuinfo.
 
 	  If in doubt, say N here.
+
+config QUICC_ENGINE
+	bool
+	help
+	  The QUICC Engine (QE) is a new generation of communications
+	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
+	  Selecting this option means that you wish to build a kernel
+	  for a machine with a QE coprocessor.
 
 config CPM2
 	bool

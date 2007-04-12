@@ -192,7 +192,6 @@ config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
 
-
 config E200
 	bool "Freescale e200"
 
@@ -375,9 +374,6 @@ source "init/Kconfig"
 
 source "arch/powerpc/platforms/Kconfig"
 
-source arch/powerpc/platforms/embedded6xx/Kconfig
-source arch/powerpc/platforms/4xx/Kconfig
-
 menu "Kernel options"
 
 config HIGHMEM
@@ -459,15 +455,6 @@ config CRASH_DUMP
 
 	  Don't change this unless you know what you are doing.
 
-config EMBEDDEDBOOT
-	bool
-	depends on 8xx || 8260
-	default y
-
-config PC_KEYBOARD
-	bool "PC PS/2 style Keyboard"
-	depends on 4xx || CPM2
-
 config PPCBUG_NVRAM
 	bool "Enable reading PPCBUG NVRAM during boot" if PPLUS || LOPEC
 	default y if PPC_PREP
@@ -480,7 +467,6 @@ config IRQ_ALL_CPUS
 	  multiple CPUs.  Saying N here will route all IRQs to the first
 	  CPU.  Generally saying Y is safe, although some problems have been
 	  reported with SMP Power Macintoshes with this option enabled.
-
 
 config NUMA
 	bool "NUMA support"
@@ -531,10 +517,10 @@ config PPC_64K_PAGES
 	depends on PPC64
 	help
 	  This option changes the kernel logical page size to 64k. On machines
-          without processor support for 64k pages, the kernel will simulate
-          them by loading each individual 4k page on demand transparently,
-          while on hardware with such support, it will be used to map
-          normal application pages.
+	  without processor support for 64k pages, the kernel will simulate
+	  them by loading each individual 4k page on demand transparently,
+	  while on hardware with such support, it will be used to map
+	  normal application pages.
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -613,18 +599,6 @@ config GENERIC_ISA_DMA
 	bool
 	depends on PPC64 || POWER4 || 6xx && !CPM2
 	default y
-
-config MPIC
-	bool
-	default n
-
-config MPIC_WEIRD
-	bool
-	default n
-
-config PPC_I8259
-	bool
-	default n
 
 config PPC_INDIRECT_PCI
 	bool
@@ -857,11 +831,10 @@ source "fs/Kconfig"
 
 source "arch/powerpc/sysdev/qe_lib/Kconfig"
 
-
 source "lib/Kconfig"
 
 menu "Instrumentation Support"
-        depends on EXPERIMENTAL
+	depends on EXPERIMENTAL
 
 source "arch/powerpc/oprofile/Kconfig"
 
