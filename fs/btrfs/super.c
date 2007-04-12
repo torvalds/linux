@@ -1073,6 +1073,7 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 
 		}
 		map_bh(result, inode->i_sb, blocknr);
+		btrfs_map_bh_to_logical(root, result, blocknr);
 		goto out;
 	}
 
@@ -1092,7 +1093,8 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 	extent_end = extent_start + btrfs_file_extent_num_blocks(item);
 	if (iblock >= extent_start && iblock < extent_end) {
 		err = 0;
-		map_bh(result, inode->i_sb, blocknr + iblock - extent_start);
+		btrfs_map_bh_to_logical(root, result, blocknr + iblock -
+					extent_start);
 		goto out;
 	}
 allocate:
@@ -1112,6 +1114,7 @@ allocate:
 	set_buffer_new(result);
 	map_bh(result, inode->i_sb, blocknr);
 
+	btrfs_map_bh_to_logical(root, result, blocknr);
 out:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
@@ -1151,12 +1154,6 @@ static void btrfs_write_super(struct super_block *sb)
 static int btrfs_readpage(struct file *file, struct page *page)
 {
 	return mpage_readpage(page, btrfs_get_block);
-}
-
-static int btrfs_readpages(struct file *file, struct address_space *mapping,
-			   struct list_head *pages, unsigned nr_pages)
-{
-	return mpage_readpages(mapping, pages, nr_pages, btrfs_get_block);
 }
 
 static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
@@ -1831,12 +1828,81 @@ printk("adding snapshot name %.*s root %Lu %Lu %u\n", namelen, name, key.objecti
 	return 0;
 }
 
+static int add_disk(struct btrfs_root *root, char *name, int namelen)
+{
+	struct block_device *bdev;
+	struct btrfs_path *path;
+	struct super_block *sb = root->fs_info->sb;
+	struct btrfs_root *dev_root = root->fs_info->dev_root;
+	struct btrfs_trans_handle *trans;
+	struct btrfs_device_item *dev_item;
+	struct btrfs_key key;
+	u16 item_size;
+	u64 num_blocks;
+	u64 new_blocks;
+	int ret;
+printk("adding disk %s\n", name);
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+	num_blocks = btrfs_super_total_blocks(root->fs_info->disk_super);
+	bdev = open_bdev_excl(name, O_RDWR, sb);
+	if (IS_ERR(bdev)) {
+		ret = PTR_ERR(bdev);
+printk("open bdev excl failed ret %d\n", ret);
+		goto out_nolock;
+	}
+	set_blocksize(bdev, sb->s_blocksize);
+	new_blocks = bdev->bd_inode->i_size >> sb->s_blocksize_bits;
+	key.objectid = num_blocks;
+	key.offset = new_blocks;
+	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_DEV_ITEM_KEY);
+
+	mutex_lock(&dev_root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(dev_root, 1);
+	item_size = sizeof(*dev_item) + namelen;
+printk("insert empty on %Lu %Lu %u size %d\n", num_blocks, new_blocks, key.flags, item_size);
+	ret = btrfs_insert_empty_item(trans, dev_root, path, &key, item_size);
+	if (ret) {
+printk("insert failed %d\n", ret);
+		close_bdev_excl(bdev);
+		if (ret > 0)
+			ret = -EEXIST;
+		goto out;
+	}
+	dev_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
+				  path->slots[0], struct btrfs_device_item);
+	btrfs_set_device_pathlen(dev_item, namelen);
+	memcpy(dev_item + 1, name, namelen);
+	mark_buffer_dirty(path->nodes[0]);
+
+	ret = btrfs_insert_dev_radix(root, bdev, num_blocks, new_blocks);
+
+	if (!ret) {
+		btrfs_set_super_total_blocks(root->fs_info->disk_super,
+					     num_blocks + new_blocks);
+		i_size_write(root->fs_info->btree_inode,
+			     (num_blocks + new_blocks) <<
+			     root->fs_info->btree_inode->i_blkbits);
+	}
+
+out:
+	ret = btrfs_commit_transaction(trans, dev_root);
+	BUG_ON(ret);
+	mutex_unlock(&root->fs_info->fs_mutex);
+out_nolock:
+	btrfs_free_path(path);
+
+	return ret;
+}
+
 static int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 		       cmd, unsigned long arg)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ioctl_vol_args vol_args;
-	int ret;
+	int ret = 0;
 	int namelen;
 	struct btrfs_path *path;
 	u64 root_dirid;
@@ -1869,10 +1935,21 @@ static int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 			ret = create_snapshot(root, vol_args.name, namelen);
 		WARN_ON(ret);
 		break;
+	case BTRFS_IOC_ADD_DISK:
+		if (copy_from_user(&vol_args,
+				   (struct btrfs_ioctl_vol_args __user *)arg,
+				   sizeof(vol_args)))
+			return -EFAULT;
+		namelen = strlen(vol_args.name);
+		if (namelen > BTRFS_VOL_NAME_MAX)
+			return -EINVAL;
+		vol_args.name[namelen] = '\0';
+		ret = add_disk(root, vol_args.name, namelen);
+		break;
 	default:
 		return -ENOTTY;
 	}
-	return 0;
+	return ret;
 }
 
 static struct kmem_cache *btrfs_inode_cachep;
@@ -2004,7 +2081,6 @@ static struct file_operations btrfs_dir_file_operations = {
 
 static struct address_space_operations btrfs_aops = {
 	.readpage	= btrfs_readpage,
-	.readpages	= btrfs_readpages,
 	.writepage	= btrfs_writepage,
 	.sync_page	= block_sync_page,
 	.prepare_write	= btrfs_prepare_write,

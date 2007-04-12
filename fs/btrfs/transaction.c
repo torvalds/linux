@@ -116,7 +116,13 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *extent_root = fs_info->extent_root;
+	struct btrfs_root *dev_root = fs_info->dev_root;
 
+	if (btrfs_super_device_root(fs_info->disk_super) !=
+	    bh_blocknr(dev_root->node)) {
+		btrfs_set_super_device_root(fs_info->disk_super,
+					    bh_blocknr(dev_root->node));
+	}
 	while(1) {
 		old_extent_block = btrfs_root_blocknr(&extent_root->root_item);
 		if (old_extent_block == bh_blocknr(extent_root->node))

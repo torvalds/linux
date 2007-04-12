@@ -42,4 +42,10 @@ int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
 struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 				      struct btrfs_key *location);
 u64 bh_blocknr(struct buffer_head *bh);
+int btrfs_insert_dev_radix(struct btrfs_root *root,
+			   struct block_device *bdev,
+			   u64 block_start,
+			   u64 num_blocks);
+int btrfs_map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
+			     u64 logical);
 #endif

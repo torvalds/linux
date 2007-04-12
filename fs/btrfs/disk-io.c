@@ -16,6 +16,28 @@ struct dev_lookup {
 	struct block_device *bdev;
 };
 
+int btrfs_insert_dev_radix(struct btrfs_root *root,
+			   struct block_device *bdev,
+			   u64 block_start,
+			   u64 num_blocks)
+{
+	struct dev_lookup *lookup;
+	char b[BDEVNAME_SIZE];
+	int ret;
+
+	lookup = kmalloc(sizeof(*lookup), GFP_NOFS);
+	if (!lookup)
+		return -ENOMEM;
+	lookup->block_start = block_start;
+	lookup->num_blocks = num_blocks;
+	lookup->bdev = bdev;
+printk("inserting %s into dev radix %Lu %Lu\n", bdevname(bdev, b), block_start, num_blocks);
+
+	ret = radix_tree_insert(&root->fs_info->dev_radix, block_start +
+				num_blocks - 1, lookup);
+	return ret;
+}
+
 u64 bh_blocknr(struct buffer_head *bh)
 {
 	int blkbits = bh->b_page->mapping->host->i_blkbits;
@@ -34,6 +56,8 @@ static int check_tree_block(struct btrfs_root *root, struct buffer_head *buf)
 {
 	struct btrfs_node *node = btrfs_buffer_node(buf);
 	if (bh_blocknr(buf) != btrfs_header_blocknr(&node->header)) {
+		printk(KERN_CRIT "bh_blocknr(buf) is %Lu, header is %Lu\n",
+		       bh_blocknr(buf), btrfs_header_blocknr(&node->header));
 		BUG();
 	}
 	return 0;
@@ -76,11 +100,10 @@ out_unlock:
 	return ret;
 }
 
-static int map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
+int btrfs_map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
 			     u64 logical)
 {
 	struct dev_lookup *lookup[2];
-	char b[BDEVNAME_SIZE];
 
 	int ret;
 
@@ -96,7 +119,6 @@ static int map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
 	}
 	bh->b_bdev = lookup[0]->bdev;
 	bh->b_blocknr = logical - lookup[0]->block_start;
-printk("logical mapping %Lu to %lu bdev  %s\n", logical, bh->b_blocknr, bdevname(bh->b_bdev, b));
 	set_buffer_mapped(bh);
 	ret = 0;
 out:
@@ -126,7 +148,7 @@ struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 	bh = head;
 	do {
 		if (!buffer_mapped(bh)) {
-			err = map_bh_to_logical(root, bh, first_block);
+			err = btrfs_map_bh_to_logical(root, bh, first_block);
 			BUG_ON(err);
 		}
 		if (bh_blocknr(bh) == blocknr) {
@@ -150,7 +172,7 @@ static int btree_get_block(struct inode *inode, sector_t iblock,
 {
 	int err;
 	struct btrfs_root *root = BTRFS_I(bh->b_page->mapping->host)->root;
-	err = map_bh_to_logical(root, bh, iblock);
+	err = btrfs_map_bh_to_logical(root, bh, iblock);
 	return err;
 }
 
@@ -396,6 +418,89 @@ printk("all worked\n");
 	return root;
 }
 
+int btrfs_open_disk(struct btrfs_root *root, u64 block_start, u64 num_blocks,
+		    char *filename, int name_len)
+{
+	char *null_filename;
+	struct block_device *bdev;
+	int ret;
+
+	if (block_start == 0) {
+printk("skipping disk with block_start == 0\n");
+return 0;
+	}
+	null_filename = kmalloc(name_len + 1, GFP_NOFS);
+	if (!null_filename)
+		return -ENOMEM;
+	memcpy(null_filename, filename, name_len);
+	null_filename[name_len] = '\0';
+
+	bdev = open_bdev_excl(null_filename, O_RDWR, root->fs_info->sb);
+	if (IS_ERR(bdev)) {
+		ret = PTR_ERR(bdev);
+		goto out;
+	}
+	set_blocksize(bdev, root->fs_info->sb->s_blocksize);
+	ret = btrfs_insert_dev_radix(root, bdev, block_start, num_blocks);
+	BUG_ON(ret);
+	ret = 0;
+out:
+	kfree(null_filename);
+	return ret;
+}
+
+static int read_device_info(struct btrfs_root *root)
+{
+	struct btrfs_path *path;
+	int ret;
+	struct btrfs_key key;
+	struct btrfs_leaf *leaf;
+	struct btrfs_device_item *dev_item;
+	int nritems;
+	int slot;
+
+	root = root->fs_info->dev_root;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+	key.objectid = 0;
+	key.offset = 0;
+	key.flags = 0;
+	btrfs_set_key_type(&key, BTRFS_DEV_ITEM_KEY);
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	leaf = btrfs_buffer_leaf(path->nodes[0]);
+	nritems = btrfs_header_nritems(&leaf->header);
+	while(1) {
+		slot = path->slots[0];
+		if (slot >= nritems) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret)
+				break;
+			leaf = btrfs_buffer_leaf(path->nodes[0]);
+			nritems = btrfs_header_nritems(&leaf->header);
+			slot = path->slots[0];
+		}
+		btrfs_disk_key_to_cpu(&key, &leaf->items[slot].key);
+		if (btrfs_key_type(&key) != BTRFS_DEV_ITEM_KEY) {
+			path->slots[0]++;
+			continue;
+		}
+		dev_item = btrfs_item_ptr(leaf, slot, struct btrfs_device_item);
+printk("found key %Lu %Lu\n", key.objectid, key.offset);
+		ret = btrfs_open_disk(root, key.objectid, key.offset,
+				      (char *)(dev_item + 1),
+				      btrfs_device_pathlen(dev_item));
+		BUG_ON(ret);
+		path->slots[0]++;
+	}
+	btrfs_free_path(path);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return 0;
+}
+
 struct btrfs_root *open_ctree(struct super_block *sb)
 {
 	struct btrfs_root *extent_root = kmalloc(sizeof(struct btrfs_root),
@@ -463,17 +568,26 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	if (!btrfs_super_root(disk_super))
 		return NULL;
 
+	i_size_write(fs_info->btree_inode,
+		     btrfs_super_total_blocks(disk_super) <<
+		     fs_info->btree_inode->i_blkbits);
+
 	radix_tree_delete(&fs_info->dev_radix, (u32)-2);
 	dev_lookup->block_start = btrfs_super_device_block_start(disk_super);
 	dev_lookup->num_blocks = btrfs_super_device_num_blocks(disk_super);
 	ret = radix_tree_insert(&fs_info->dev_radix,
 				dev_lookup->block_start +
-				dev_lookup->num_blocks, dev_lookup);
+				dev_lookup->num_blocks - 1, dev_lookup);
 	BUG_ON(ret);
 
 	fs_info->disk_super = disk_super;
+
 	dev_root->node = read_tree_block(tree_root,
 					  btrfs_super_device_root(disk_super));
+
+	ret = read_device_info(dev_root);
+	BUG_ON(ret);
+
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super));
 	BUG_ON(!tree_root->node);
@@ -562,7 +676,7 @@ static int free_dev_radix(struct btrfs_fs_info *fs_info)
 				close_bdev_excl(lookup[i]->bdev);
 			radix_tree_delete(&fs_info->dev_radix,
 					  lookup[i]->block_start +
-					  lookup[i]->num_blocks);
+					  lookup[i]->num_blocks - 1);
 			kfree(lookup[i]);
 		}
 	}
