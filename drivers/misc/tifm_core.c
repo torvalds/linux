@@ -19,42 +19,53 @@
 static DEFINE_IDR(tifm_adapter_idr);
 static DEFINE_SPINLOCK(tifm_adapter_lock);
 
-static tifm_media_id *tifm_device_match(tifm_media_id *ids,
-			struct tifm_dev *dev)
+static const char *tifm_media_type_name(unsigned char type, unsigned char nt)
 {
-	while (*ids) {
-		if (dev->media_id == *ids)
-			return ids;
-		ids++;
-	}
-	return NULL;
+	const char *card_type_name[3][3] = {
+		{ "SmartMedia/xD", "MemoryStick", "MMC/SD" },
+		{ "XD", "MS", "SD"},
+		{ "xd", "ms", "sd"}
+	};
+
+	if (nt > 2 || type < 1 || type > 3)
+		return NULL;
+	return card_type_name[nt][type - 1];
 }
 
-static int tifm_match(struct device *dev, struct device_driver *drv)
+static int tifm_dev_match(struct tifm_dev *sock, struct tifm_device_id *id)
 {
-	struct tifm_dev *fm_dev = container_of(dev, struct tifm_dev, dev);
-	struct tifm_driver *fm_drv;
-
-	fm_drv = container_of(drv, struct tifm_driver, driver);
-	if (!fm_drv->id_table)
-		return -EINVAL;
-	if (tifm_device_match(fm_drv->id_table, fm_dev))
+	if (sock->type == id->type)
 		return 1;
-	return -ENODEV;
+	return 0;
+}
+
+static int tifm_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
+	struct tifm_driver *fm_drv = container_of(drv, struct tifm_driver,
+						  driver);
+	struct tifm_device_id *ids = fm_drv->id_table;
+
+	if (ids) {
+		while (ids->type) {
+			if (tifm_dev_match(sock, ids))
+				return 1;
+			++ids;
+		}
+	}
+	return 0;
 }
 
 static int tifm_uevent(struct device *dev, char **envp, int num_envp,
 		       char *buffer, int buffer_size)
 {
-	struct tifm_dev *fm_dev;
+	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
 	int i = 0;
 	int length = 0;
-	const char *card_type_name[] = {"INV", "SM", "MS", "SD"};
 
-	if (!dev || !(fm_dev = container_of(dev, struct tifm_dev, dev)))
-		return -ENODEV;
 	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-			"TIFM_CARD_TYPE=%s", card_type_name[fm_dev->media_id]))
+			   "TIFM_CARD_TYPE=%s",
+			   tifm_media_type_name(sock->type, 1)))
 		return -ENOMEM;
 
 	return 0;
@@ -132,7 +143,7 @@ static int tifm_device_resume(struct device *dev)
 
 static struct bus_type tifm_bus_type = {
 	.name    = "tifm",
-	.match   = tifm_match,
+	.match   = tifm_bus_match,
 	.uevent  = tifm_uevent,
 	.probe   = tifm_device_probe,
 	.remove  = tifm_device_remove,

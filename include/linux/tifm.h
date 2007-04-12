@@ -74,13 +74,19 @@ enum {
 #define TIFM_DMA_TX               0x00008000 /* Meaning of this constant is unverified */
 #define TIFM_DMA_EN               0x00000001 /* Meaning of this constant is unverified */
 
-typedef enum {FM_NULL = 0, FM_XD = 0x01, FM_MS = 0x02, FM_SD = 0x03} tifm_media_id;
+#define TIFM_TYPE_XD 1
+#define TIFM_TYPE_MS 2
+#define TIFM_TYPE_SD 3
+
+struct tifm_device_id {
+	unsigned char type;
+};
 
 struct tifm_driver;
 struct tifm_dev {
 	char __iomem            *addr;
 	spinlock_t              lock;
-	tifm_media_id           media_id;
+	unsigned char           type;
 	unsigned int            socket_id;
 
 	void          (*card_event)(struct tifm_dev *sock);
@@ -90,7 +96,7 @@ struct tifm_dev {
 };
 
 struct tifm_driver {
-	tifm_media_id        *id_table;
+	struct tifm_device_id *id_table;
 	int                  (*probe)(struct tifm_dev *dev);
 	void                 (*remove)(struct tifm_dev *dev);
 	int                  (*suspend)(struct tifm_dev *dev,
@@ -140,9 +146,5 @@ static inline void tifm_set_drvdata(struct tifm_dev *dev, void *data)
 {
 	dev_set_drvdata(&dev->dev, data);
 }
-
-struct tifm_device_id {
-	tifm_media_id media_id;
-};
 
 #endif

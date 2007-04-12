@@ -73,7 +73,7 @@ static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static tifm_media_id tifm_7xx1_toggle_sock_power(char __iomem *sock_addr,
+static unsigned char tifm_7xx1_toggle_sock_power(char __iomem *sock_addr,
 						 int is_x2)
 {
 	unsigned int s_state;
@@ -90,7 +90,7 @@ static tifm_media_id tifm_7xx1_toggle_sock_power(char __iomem *sock_addr,
 
 	s_state = readl(sock_addr + SOCK_PRESENT_STATE);
 	if (!(TIFM_SOCK_STATE_OCCUPIED & s_state))
-		return FM_NULL;
+		return 0;
 
 	if (is_x2) {
 		writel((s_state & 7) | 0x0c00, sock_addr + SOCK_CONTROL);
@@ -129,7 +129,7 @@ static int tifm_7xx1_switch_media(void *data)
 {
 	struct tifm_adapter *fm = data;
 	unsigned long flags;
-	tifm_media_id media_id;
+	unsigned char media_id;
 	char *card_name = "xx";
 	int cnt, rc;
 	struct tifm_dev *sock;
@@ -184,7 +184,7 @@ static int tifm_7xx1_switch_media(void *data)
 				if (sock) {
 					sock->addr = tifm_7xx1_sock_addr(fm->addr,
 									 cnt);
-					sock->media_id = media_id;
+					sock->type = media_id;
 					sock->socket_id = cnt;
 					switch (media_id) {
 					case 1:
@@ -266,7 +266,7 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 	struct tifm_adapter *fm = pci_get_drvdata(dev);
 	int cnt, rc;
 	unsigned long flags;
-	tifm_media_id new_ids[fm->num_sockets];
+	unsigned char new_ids[fm->num_sockets];
 
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
@@ -285,10 +285,10 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 	fm->socket_change_set = 0;
 	for (cnt = 0; cnt < fm->num_sockets; cnt++) {
 		if (fm->sockets[cnt]) {
-			if (fm->sockets[cnt]->media_id == new_ids[cnt])
+			if (fm->sockets[cnt]->type == new_ids[cnt])
 				fm->socket_change_set |= 1 << cnt;
 
-			fm->sockets[cnt]->media_id = new_ids[cnt];
+			fm->sockets[cnt]->type = new_ids[cnt];
 		}
 	}
 
