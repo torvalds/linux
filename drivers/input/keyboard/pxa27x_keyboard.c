@@ -181,7 +181,7 @@ static int __devinit pxakbd_probe(struct platform_device *pdev)
 		}
 	}
 
-	error = request_irq(IRQ_KEYPAD, pxakbd_irq_handler, SA_INTERRUPT,
+	error = request_irq(IRQ_KEYPAD, pxakbd_irq_handler, IRQF_DISABLED,
 			    DRIVER_NAME, pdev);
 	if (error) {
 		printk(KERN_ERR "Cannot request keypad IRQ\n");
