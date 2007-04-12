@@ -28,6 +28,14 @@ static int lifebook_set_serio_phys(struct dmi_system_id *d)
 	return 0;
 }
 
+static unsigned char lifebook_use_6byte_proto;
+
+static int lifebook_set_6byte_proto(struct dmi_system_id *d)
+{
+	lifebook_use_6byte_proto = 1;
+	return 0;
+}
+
 static struct dmi_system_id lifebook_dmi_table[] = {
 	{
 		.ident = "FLORA-ie 55mi",
@@ -68,6 +76,14 @@ static struct dmi_system_id lifebook_dmi_table[] = {
 		.driver_data = "isa0060/serio3",
 	},
 	{
+		.ident = "Panasonic CF-28",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Matsushita"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CF-28"),
+		},
+		.callback = lifebook_set_6byte_proto,
+	},
+	{
 		.ident = "Lifebook B142",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B142"),
@@ -78,23 +94,53 @@ static struct dmi_system_id lifebook_dmi_table[] = {
 
 static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 {
-	unsigned char *packet = psmouse->packet;
 	struct input_dev *dev = psmouse->dev;
+	unsigned char *packet = psmouse->packet;
+	int relative_packet = packet[0] & 0x08;
 
-	if (psmouse->pktcnt != 3)
-		return PSMOUSE_GOOD_DATA;
-
-	/* calculate X and Y */
-	if ((packet[0] & 0x08) == 0x00) {
-		input_report_abs(dev, ABS_X,
-				 (packet[1] | ((packet[0] & 0x30) << 4)));
-		input_report_abs(dev, ABS_Y,
-				 1024 - (packet[2] | ((packet[0] & 0xC0) << 2)));
+	if (relative_packet || !lifebook_use_6byte_proto) {
+		if (psmouse->pktcnt != 3)
+			return PSMOUSE_GOOD_DATA;
 	} else {
+		switch (psmouse->pktcnt) {
+		case 1:
+			return (packet[0] & 0xf8) == 0x00 ?
+				PSMOUSE_GOOD_DATA : PSMOUSE_BAD_DATA;
+		case 2:
+			return PSMOUSE_GOOD_DATA;
+		case 3:
+			return ((packet[2] & 0x30) << 2) == (packet[2] & 0xc0) ?
+				PSMOUSE_GOOD_DATA : PSMOUSE_BAD_DATA;
+		case 4:
+			return (packet[3] & 0xf8) == 0xc0 ?
+				PSMOUSE_GOOD_DATA : PSMOUSE_BAD_DATA;
+		case 5:
+			return (packet[4] & 0xc0) == (packet[2] & 0xc0) ?
+				PSMOUSE_GOOD_DATA : PSMOUSE_BAD_DATA;
+		case 6:
+			if (((packet[5] & 0x30) << 2) != (packet[5] & 0xc0))
+				return PSMOUSE_BAD_DATA;
+			if ((packet[5] & 0xc0) != (packet[1] & 0xc0))
+				return PSMOUSE_BAD_DATA;
+			break; /* report data */
+		}
+	}
+
+	if (relative_packet) {
 		input_report_rel(dev, REL_X,
 				((packet[0] & 0x10) ? packet[1] - 256 : packet[1]));
 		input_report_rel(dev, REL_Y,
 				 -(int)((packet[0] & 0x20) ? packet[2] - 256 : packet[2]));
+	} else if (lifebook_use_6byte_proto) {
+		input_report_abs(dev, ABS_X,
+				 ((packet[1] & 0x3f) << 6) | (packet[2] & 0x3f));
+		input_report_abs(dev, ABS_Y,
+				 4096 - (((packet[4] & 0x3f) << 6) | (packet[5] & 0x3f)));
+	} else {
+		input_report_abs(dev, ABS_X,
+				 (packet[1] | ((packet[0] & 0x30) << 4)));
+		input_report_abs(dev, ABS_Y,
+				 1024 - (packet[2] | ((packet[0] & 0xC0) << 2)));
 	}
 
 	input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
@@ -119,7 +165,7 @@ static int lifebook_absolute_mode(struct psmouse *psmouse)
 	   you leave this call out the touchsreen will never send
 	   absolute coordinates
 	*/
-	param = 0x07;
+	param = lifebook_use_6byte_proto ? 0x08 : 0x07;
 	ps2_command(ps2dev, &param, PSMOUSE_CMD_SETRES);
 
 	return 0;
@@ -163,6 +209,7 @@ int lifebook_detect(struct psmouse *psmouse, int set_properties)
 int lifebook_init(struct psmouse *psmouse)
 {
 	struct input_dev *input_dev = psmouse->dev;
+	int max_coord = lifebook_use_6byte_proto ? 1024 : 4096;
 
 	if (lifebook_absolute_mode(psmouse))
 		return -1;
@@ -171,13 +218,18 @@ int lifebook_init(struct psmouse *psmouse)
 	input_dev->keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
 	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
 	input_dev->relbit[0] = BIT(REL_X) | BIT(REL_Y);
-	input_set_abs_params(input_dev, ABS_X, 0, 1024, 0, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, 1024, 0, 0);
+	input_set_abs_params(input_dev, ABS_X, 0, max_coord, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, max_coord, 0, 0);
 
 	psmouse->protocol_handler = lifebook_process_byte;
 	psmouse->set_resolution = lifebook_set_resolution;
 	psmouse->disconnect = lifebook_disconnect;
 	psmouse->reconnect  = lifebook_absolute_mode;
+
+	/*
+	 * Use packet size = 3 even when using 6-byte protocol because
+	 * that's what POLL will return on Lifebooks (according to spec).
+	 */
 	psmouse->pktsize = 3;
 
 	return 0;
