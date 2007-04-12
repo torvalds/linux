@@ -75,48 +75,46 @@ static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static unsigned char tifm_7xx1_toggle_sock_power(char __iomem *sock_addr,
-						 int is_x2)
+static unsigned char tifm_7xx1_toggle_sock_power(char __iomem *sock_addr)
 {
 	unsigned int s_state;
 	int cnt;
 
 	writel(0x0e00, sock_addr + SOCK_CONTROL);
 
-	for (cnt = 0; cnt < 100; cnt++) {
+	for (cnt = 16; cnt <= 256; cnt <<= 1) {
 		if (!(TIFM_SOCK_STATE_POWERED
 		      & readl(sock_addr + SOCK_PRESENT_STATE)))
 			break;
-		msleep(10);
+
+		msleep(cnt);
 	}
 
 	s_state = readl(sock_addr + SOCK_PRESENT_STATE);
 	if (!(TIFM_SOCK_STATE_OCCUPIED & s_state))
 		return 0;
 
-	if (is_x2) {
-		writel((s_state & 7) | 0x0c00, sock_addr + SOCK_CONTROL);
-	} else {
-		// SmartMedia cards need extra 40 msec
-		if (((readl(sock_addr + SOCK_PRESENT_STATE) >> 4) & 7) == 1)
-			msleep(40);
-		writel(readl(sock_addr + SOCK_CONTROL) | TIFM_CTRL_LED,
-		       sock_addr + SOCK_CONTROL);
-		msleep(10);
-		writel((s_state & 0x7) | 0x0c00 | TIFM_CTRL_LED,
-			sock_addr + SOCK_CONTROL);
-	}
+	writel(readl(sock_addr + SOCK_CONTROL) | TIFM_CTRL_LED,
+	       sock_addr + SOCK_CONTROL);
 
-	for (cnt = 0; cnt < 100; cnt++) {
+	/* xd needs some extra time before power on */
+	if (((readl(sock_addr + SOCK_PRESENT_STATE) >> 4) & 7)
+	    == TIFM_TYPE_XD)
+		msleep(40);
+
+	writel((s_state & 7) | 0x0c00, sock_addr + SOCK_CONTROL);
+	/* wait for power to stabilize */
+	msleep(20);
+	for (cnt = 16; cnt <= 256; cnt <<= 1) {
 		if ((TIFM_SOCK_STATE_POWERED
 		     & readl(sock_addr + SOCK_PRESENT_STATE)))
 			break;
-		msleep(10);
+
+		msleep(cnt);
 	}
 
-	if (!is_x2)
-		writel(readl(sock_addr + SOCK_CONTROL) & (~TIFM_CTRL_LED),
-		       sock_addr + SOCK_CONTROL);
+	writel(readl(sock_addr + SOCK_CONTROL) & (~TIFM_CTRL_LED),
+	       sock_addr + SOCK_CONTROL);
 
 	return (readl(sock_addr + SOCK_PRESENT_STATE) >> 4) & 7;
 }
@@ -169,8 +167,7 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 
 			spin_unlock_irqrestore(&fm->lock, flags);
 			media_id = tifm_7xx1_toggle_sock_power(
-					tifm_7xx1_sock_addr(fm->addr, cnt),
-					fm->num_sockets == 2);
+					tifm_7xx1_sock_addr(fm->addr, cnt));
 			if (media_id) {
 				sock = tifm_alloc_device(fm);
 				if (sock) {
@@ -258,8 +255,7 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 
 	for (cnt = 0; cnt < fm->num_sockets; cnt++)
 		new_ids[cnt] = tifm_7xx1_toggle_sock_power(
-					tifm_7xx1_sock_addr(fm->addr, cnt),
-					fm->num_sockets == 2);
+					tifm_7xx1_sock_addr(fm->addr, cnt));
 	spin_lock_irqsave(&fm->lock, flags);
 	fm->socket_change_set = 0;
 	for (cnt = 0; cnt < fm->num_sockets; cnt++) {
