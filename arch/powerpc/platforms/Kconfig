@@ -1,5 +1,5 @@
 menu "Platform support"
-	depends on PPC64 || CLASSIC32 || PPC_83xx || PPC_86xx
+	depends on PPC64 || CLASSIC32 || PPC_82xx || PPC_83xx || PPC_86xx
 
 choice
 	prompt "Machine type"
@@ -45,6 +45,7 @@ source "arch/powerpc/platforms/pasemi/Kconfig"
 source arch/powerpc/platforms/celleb/Kconfig
 source arch/powerpc/platforms/ps3/Kconfig
 source arch/powerpc/platforms/cell/Kconfig
+source "arch/powerpc/platforms/82xx/Kconfig"
 source "arch/powerpc/platforms/83xx/Kconfig"
 source "arch/powerpc/platforms/86xx/Kconfig"
 
@@ -220,5 +221,14 @@ config TAU_AVERAGE
 	  /proc/cpuinfo.
 
 	  If in doubt, say N here.
+
+config CPM2
+	bool
+	default n
+	help
+	  The CPM2 (Communications Processor Module) is a coprocessor on
+	  embedded CPUs made by Freescale.  Selecting this option means that
+	  you wish to build a kernel for a machine with a CPM2 coprocessor
+	  on it (826x, 827x, 8560).
 
 endmenu
