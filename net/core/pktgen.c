@@ -129,6 +129,7 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/capability.h>
+#include <linux/freezer.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -3332,6 +3333,8 @@ static int pktgen_thread_worker(void *arg)
 			pktgen_rem_one_if(t);
 			t->control &= ~(T_REMDEV);
 		}
+
+		try_to_freeze();
 
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
