@@ -283,6 +283,7 @@ Hash_msk = (((1 << Hash_bits) - 1) * 64)
 #define PTEG_SIZE	64
 #define LG_PTEG_SIZE	6
 #define LDPTEu		lwzu
+#define LDPTE		lwz
 #define STPTE		stw
 #define CMPPTE		cmpw
 #define PTE_H		0x40
@@ -389,13 +390,30 @@ _GLOBAL(hash_page_patch_C)
 	 * and we know there is a definite (although small) speed
 	 * advantage to putting the PTE in the primary PTEG, we always
 	 * put the PTE in the primary PTEG.
+	 *
+	 * In addition, we skip any slot that is mapping kernel text in
+	 * order to avoid a deadlock when not using BAT mappings if
+	 * trying to hash in the kernel hash code itself after it has
+	 * already taken the hash table lock. This works in conjunction
+	 * with pre-faulting of the kernel text.
+	 *
+	 * If the hash table bucket is full of kernel text entries, we'll
+	 * lockup here but that shouldn't happen
 	 */
-	addis	r4,r7,next_slot@ha
+
+1:	addis	r4,r7,next_slot@ha		/* get next evict slot */
 	lwz	r6,next_slot@l(r4)
-	addi	r6,r6,PTE_SIZE
+	addi	r6,r6,PTE_SIZE			/* search for candidate */
 	andi.	r6,r6,7*PTE_SIZE
 	stw	r6,next_slot@l(r4)
 	add	r4,r3,r6
+	LDPTE	r0,PTE_SIZE/2(r4)		/* get PTE second word */
+	clrrwi	r0,r0,12
+	lis	r6,etext@h
+	ori	r6,r6,etext@l			/* get etext */
+	tophys(r6,r6)
+	cmpl	cr0,r0,r6			/* compare and try again */
+	blt	1b
 
 #ifndef CONFIG_SMP
 	/* Store PTE in PTEG */

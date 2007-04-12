@@ -22,6 +22,10 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu.h>
 
+extern void hash_preload(struct mm_struct *mm, unsigned long ea,
+			 unsigned long access, unsigned long trap);
+
+
 #ifdef CONFIG_PPC32
 extern void mapin_ram(void);
 extern int map_page(unsigned long va, phys_addr_t pa, int flags);

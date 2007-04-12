@@ -282,16 +282,19 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 void __init mapin_ram(void)
 {
 	unsigned long v, p, s, f;
+	int ktext;
 
 	s = mmu_mapin_ram();
 	v = KERNELBASE + s;
 	p = PPC_MEMSTART + s;
 	for (; s < total_lowmem; s += PAGE_SIZE) {
-		if ((char *) v >= _stext && (char *) v < etext)
-			f = _PAGE_RAM_TEXT;
-		else
-			f = _PAGE_RAM;
+		ktext = ((char *) v >= _stext && (char *) v < etext);
+		f = ktext ?_PAGE_RAM_TEXT : _PAGE_RAM;
 		map_page(v, p, f);
+#ifdef CONFIG_PPC_STD_MMU_32
+		if (ktext)
+			hash_preload(&init_mm, v, 0, 0x300);
+#endif
 		v += PAGE_SIZE;
 		p += PAGE_SIZE;
 	}
