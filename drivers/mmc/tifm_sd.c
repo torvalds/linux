@@ -36,7 +36,6 @@ module_param(fixed_timeout, bool, 0644);
 #define TIFM_MMCSD_INAB       0x0080   /* abort / initialize command */
 #define TIFM_MMCSD_READ       0x8000
 
-#define TIFM_MMCSD_DATAMASK   0x401d   /* set bits: CERR, EOFB, BRS, CB, EOC */
 #define TIFM_MMCSD_ERRMASK    0x01e0   /* set bits: CCRC, CTO, DCRC, DTO */
 #define TIFM_MMCSD_EOC        0x0001   /* end of command phase  */
 #define TIFM_MMCSD_CB         0x0004   /* card enter busy state */
@@ -731,7 +730,7 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	       sock->addr + SOCK_MMCSD_CONFIG);
 
 	/* wait up to 0.51 sec for reset */
-	for (rc = 2; rc <= 256; rc <<= 1) {
+	for (rc = 32; rc <= 256; rc <<= 1) {
 		if (1 & readl(sock->addr + SOCK_MMCSD_SYSTEM_STATUS)) {
 			rc = 0;
 			break;
@@ -740,8 +739,8 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	}
 
 	if (rc) {
-		printk(KERN_ERR DRIVER_NAME
-		       ": controller failed to reset\n");
+		printk(KERN_ERR "%s : controller failed to reset\n",
+		       sock->dev.bus_id);
 		return -ENODEV;
 	}
 
@@ -754,8 +753,7 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	writel(64, sock->addr + SOCK_MMCSD_COMMAND_TO);
 	writel(TIFM_MMCSD_INAB, sock->addr + SOCK_MMCSD_COMMAND);
 
-	/* INAB should take much less than reset */
-	for (rc = 1; rc <= 16; rc <<= 1) {
+	for (rc = 16; rc <= 64; rc <<= 1) {
 		host_status = readl(sock->addr + SOCK_MMCSD_STATUS);
 		writel(host_status, sock->addr + SOCK_MMCSD_STATUS);
 		if (!(host_status & TIFM_MMCSD_ERRMASK)
@@ -767,12 +765,14 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	}
 
 	if (rc) {
-		printk(KERN_ERR DRIVER_NAME
-		       ": card not ready - probe failed on initialization\n");
+		printk(KERN_ERR
+		       "%s : card not ready - probe failed on initialization\n",
+		       sock->dev.bus_id);
 		return -ENODEV;
 	}
 
-	writel(TIFM_MMCSD_DATAMASK | TIFM_MMCSD_ERRMASK,
+	writel(TIFM_MMCSD_CERR | TIFM_MMCSD_BRS | TIFM_MMCSD_EOC
+	       | TIFM_MMCSD_ERRMASK,
 	       sock->addr + SOCK_MMCSD_INT_ENABLE);
 	mmiowb();
 
@@ -887,14 +887,17 @@ static int tifm_sd_resume(struct tifm_dev *sock)
 {
 	struct mmc_host *mmc = tifm_get_drvdata(sock);
 	struct tifm_sd *host = mmc_priv(mmc);
+	int rc;
 
-	if (sock->type != TIFM_TYPE_SD
-	    || tifm_sd_initialize_host(host)) {
-		tifm_eject(sock);
-		return 0;
-	} else {
-		return mmc_resume_host(mmc);
-	}
+	rc = tifm_sd_initialize_host(host);
+	dev_dbg(&sock->dev, "resume initialize %d\n", rc);
+
+	if (rc)
+		host->eject = 1;
+	else
+		rc = mmc_resume_host(mmc);
+
+	return rc;
 }
 
 #else
