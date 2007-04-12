@@ -51,7 +51,7 @@ static void ixp4xx_spkr_control(unsigned int pin, unsigned int count)
 
 static int ixp4xx_spkr_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	unsigned int pin = (unsigned int) dev->private;
+	unsigned int pin = (unsigned int) input_get_drvdata(input_dev);
 	unsigned int count = 0;
 
 	if (type != EV_SND)
@@ -99,7 +99,8 @@ static int __devinit ixp4xx_spkr_probe(struct platform_device *dev)
 	if (!input_dev)
 		return -ENOMEM;
 
-	input_dev->private = (void *) dev->id;
+	input_set_drvdata(input_dev, (void *) dev->id);
+
 	input_dev->name = "ixp4xx beeper",
 	input_dev->phys = "ixp4xx/gpio";
 	input_dev->id.bustype = BUS_HOST;
@@ -136,7 +137,7 @@ static int __devinit ixp4xx_spkr_probe(struct platform_device *dev)
 static int __devexit ixp4xx_spkr_remove(struct platform_device *dev)
 {
 	struct input_dev *input_dev = platform_get_drvdata(dev);
-	unsigned int pin = (unsigned int) input_dev->private;
+	unsigned int pin = (unsigned int) input_get_drvdata(input_dev);
 
 	input_unregister_device(input_dev);
 	platform_set_drvdata(dev, NULL);
@@ -153,7 +154,7 @@ static int __devexit ixp4xx_spkr_remove(struct platform_device *dev)
 static void ixp4xx_spkr_shutdown(struct platform_device *dev)
 {
 	struct input_dev *input_dev = platform_get_drvdata(dev);
-	unsigned int pin = (unsigned int) input_dev->private;
+	unsigned int pin = (unsigned int) input_get_drvdata(input_dev);
 
 	/* turn off the speaker */
 	disable_irq(IRQ_IXP4XX_TIMER2);

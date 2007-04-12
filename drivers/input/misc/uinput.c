@@ -41,9 +41,7 @@
 
 static int uinput_dev_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	struct uinput_device	*udev;
-
-	udev = dev->private;
+	struct uinput_device	*udev = input_get_drvdata(dev);
 
 	udev->buff[udev->head].type = type;
 	udev->buff[udev->head].code = code;
@@ -136,7 +134,7 @@ static int uinput_dev_upload_effect(struct input_dev *dev, struct ff_effect *eff
 	request.u.upload.effect = effect;
 	request.u.upload.old = old;
 
-	retval = uinput_request_reserve_slot(dev->private, &request);
+	retval = uinput_request_reserve_slot(input_get_drvdata(dev), &request);
 	if (!retval)
 		retval = uinput_request_submit(dev, &request);
 
@@ -156,7 +154,7 @@ static int uinput_dev_erase_effect(struct input_dev *dev, int effect_id)
 	request.code = UI_FF_ERASE;
 	request.u.effect_id = effect_id;
 
-	retval = uinput_request_reserve_slot(dev->private, &request);
+	retval = uinput_request_reserve_slot(input_get_drvdata(dev), &request);
 	if (!retval)
 		retval = uinput_request_submit(dev, &request);
 
@@ -274,7 +272,7 @@ static int uinput_allocate_device(struct uinput_device *udev)
 		return -ENOMEM;
 
 	udev->dev->event = uinput_dev_event;
-	udev->dev->private = udev;
+	input_set_drvdata(udev->dev, udev);
 
 	return 0;
 }
