@@ -105,7 +105,6 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	pm->dev = input_dev;
 	snprintf(pm->phys, sizeof(pm->phys), "%s/input0", serio->phys);
 
-	input_dev->private = pm;
 	input_dev->name = "Penmount Serial TouchScreen";
 	input_dev->phys = pm->phys;
 	input_dev->id.bustype = BUS_RS232;

@@ -125,7 +125,6 @@ static int tw_connect(struct serio *serio, struct serio_driver *drv)
 	tw->dev = input_dev;
 	snprintf(tw->phys, sizeof(tw->phys), "%s/input0", serio->phys);
 
-	input_dev->private = tw;
 	input_dev->name = "Touchwindow Serial TouchScreen";
 	input_dev->phys = tw->phys;
 	input_dev->id.bustype = BUS_RS232;

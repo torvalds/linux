@@ -312,7 +312,6 @@ static int elo_connect(struct serio *serio, struct serio_driver *drv)
 	init_completion(&elo->cmd_done);
 	snprintf(elo->phys, sizeof(elo->phys), "%s/input0", serio->phys);
 
-	input_dev->private = elo;
 	input_dev->name = "Elo Serial TouchScreen";
 	input_dev->phys = elo->phys;
 	input_dev->id.bustype = BUS_RS232;

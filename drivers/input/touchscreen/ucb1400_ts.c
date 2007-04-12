@@ -369,7 +369,7 @@ static irqreturn_t ucb1400_hard_irq(int irqnr, void *devid)
 
 static int ucb1400_ts_open(struct input_dev *idev)
 {
-	struct ucb1400 *ucb = idev->private;
+	struct ucb1400 *ucb = input_get_drvdata(idev);
 	int ret = 0;
 
 	BUG_ON(ucb->ts_task);
@@ -385,7 +385,7 @@ static int ucb1400_ts_open(struct input_dev *idev)
 
 static void ucb1400_ts_close(struct input_dev *idev)
 {
-	struct ucb1400 *ucb = idev->private;
+	struct ucb1400 *ucb = input_get_drvdata(idev);
 
 	if (ucb->ts_task)
 		kthread_stop(ucb->ts_task);
@@ -507,7 +507,8 @@ static int ucb1400_ts_probe(struct device *dev)
 	}
 	printk(KERN_DEBUG "UCB1400: found IRQ %d\n", ucb->irq);
 
-	idev->private		= ucb;
+	input_set_drvdata(idev, ucb);
+
 	idev->cdev.dev		= dev;
 	idev->name		= "UCB1400 touchscreen interface";
 	idev->id.vendor		= ucb1400_reg_read(ucb, AC97_VENDOR_ID1);

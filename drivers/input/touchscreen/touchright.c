@@ -118,7 +118,6 @@ static int tr_connect(struct serio *serio, struct serio_driver *drv)
 	tr->dev = input_dev;
 	snprintf(tr->phys, sizeof(tr->phys), "%s/input0", serio->phys);
 
-	input_dev->private = tr;
 	input_dev->name = "Touchright Serial TouchScreen";
 	input_dev->phys = tr->phys;
 	input_dev->id.bustype = BUS_RS232;
