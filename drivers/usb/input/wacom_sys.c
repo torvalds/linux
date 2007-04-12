@@ -201,6 +201,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct wacom *wacom;
 	struct wacom_wac *wacom_wac;
 	struct input_dev *input_dev;
+	int error = -ENOMEM;
 	char rep_data[2], limit = 0;
 
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
@@ -252,7 +253,9 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	wacom->irq->transfer_dma = wacom->data_dma;
 	wacom->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	input_register_device(wacom->dev);
+	error = input_register_device(wacom->dev);
+	if (error)
+		goto fail3;
 
 	/* Ask the tablet to report tablet data. Repeat until it succeeds */
 	do {
@@ -265,11 +268,12 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_set_intfdata(intf, wacom);
 	return 0;
 
-fail2:	usb_buffer_free(dev, 10, wacom_wac->data, wacom->data_dma);
-fail1:	input_free_device(input_dev);
+ fail3:	usb_free_urb(wacom->irq);
+ fail2:	usb_buffer_free(dev, 10, wacom_wac->data, wacom->data_dma);
+ fail1:	input_free_device(input_dev);
 	kfree(wacom);
 	kfree(wacom_wac);
-	return -ENOMEM;
+	return error;
 }
 
 static void wacom_disconnect(struct usb_interface *intf)

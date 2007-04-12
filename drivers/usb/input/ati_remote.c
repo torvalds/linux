@@ -772,15 +772,17 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 		goto fail3;
 
 	/* Set up and register input device */
-	input_register_device(ati_remote->idev);
+	err = input_register_device(ati_remote->idev);
+	if (err)
+		goto fail3;
 
 	usb_set_intfdata(interface, ati_remote);
 	return 0;
 
-fail3:	usb_kill_urb(ati_remote->irq_urb);
+ fail3:	usb_kill_urb(ati_remote->irq_urb);
 	usb_kill_urb(ati_remote->out_urb);
-fail2:	ati_remote_free_buffers(ati_remote);
-fail1:	input_free_device(input_dev);
+ fail2:	ati_remote_free_buffers(ati_remote);
+ fail1:	input_free_device(input_dev);
 	kfree(ati_remote);
 	return err;
 }

@@ -337,7 +337,7 @@ static void ati_remote2_complete_key(struct urb *urb)
 static int ati_remote2_input_init(struct ati_remote2 *ar2)
 {
 	struct input_dev *idev;
-	int i;
+	int i, retval;
 
 	idev = input_allocate_device();
 	if (!idev)
@@ -364,11 +364,11 @@ static int ati_remote2_input_init(struct ati_remote2 *ar2)
 	usb_to_input_id(ar2->udev, &idev->id);
 	idev->cdev.dev = &ar2->udev->dev;
 
-	i = input_register_device(idev);
-	if (i)
+	retval = input_register_device(idev);
+	if (retval)
 		input_free_device(idev);
 
-	return i;
+	return retval;
 }
 
 static int ati_remote2_urb_init(struct ati_remote2 *ar2)

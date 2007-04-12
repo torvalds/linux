@@ -135,6 +135,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	struct usb_acecad *acecad;
 	struct input_dev *input_dev;
 	int pipe, maxp;
+	int err = -ENOMEM;
 
 	if (interface->desc.bNumEndpoints != 1)
 		return -ENODEV;
@@ -149,16 +150,22 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 
 	acecad = kzalloc(sizeof(struct usb_acecad), GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!acecad || !input_dev)
+	if (!acecad || !input_dev) {
+		err = -ENOMEM;
 		goto fail1;
+	}
 
 	acecad->data = usb_buffer_alloc(dev, 8, GFP_KERNEL, &acecad->data_dma);
-	if (!acecad->data)
+	if (!acecad->data) {
+		err= -ENOMEM;
 		goto fail1;
+	}
 
 	acecad->irq = usb_alloc_urb(0, GFP_KERNEL);
-	if (!acecad->irq)
+	if (!acecad->irq) {
+		err = -ENOMEM;
 		goto fail2;
+	}
 
 	acecad->usbdev = dev;
 	acecad->input = input_dev;
@@ -221,7 +228,9 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	acecad->irq->transfer_dma = acecad->data_dma;
 	acecad->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	input_register_device(acecad->input);
+	err = input_register_device(acecad->input);
+	if (err)
+		goto fail2;
 
 	usb_set_intfdata(intf, acecad);
 
@@ -230,7 +239,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
  fail2:	usb_buffer_free(dev, 8, acecad->data, acecad->data_dma);
  fail1: input_free_device(input_dev);
 	kfree(acecad);
-	return -ENOMEM;
+	return err;
 }
 
 static void usb_acecad_disconnect(struct usb_interface *intf)

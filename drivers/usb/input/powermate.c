@@ -308,7 +308,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	struct powermate_device *pm;
 	struct input_dev *input_dev;
 	int pipe, maxp;
-	int err = -ENOMEM;
+	int error = -ENOMEM;
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
@@ -387,11 +387,14 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 
 	/* register our interrupt URB with the USB system */
 	if (usb_submit_urb(pm->irq, GFP_KERNEL)) {
-		err = -EIO;
+		error = -EIO;
 		goto fail4;
 	}
 
-	input_register_device(pm->input);
+	error = input_register_device(pm->input);
+	if (error)
+		goto fail5;
+
 
 	/* force an update of everything */
 	pm->requires_update = UPDATE_PULSE_ASLEEP | UPDATE_PULSE_AWAKE | UPDATE_PULSE_MODE | UPDATE_STATIC_BRIGHTNESS;
@@ -400,12 +403,13 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	usb_set_intfdata(intf, pm);
 	return 0;
 
-fail4:	usb_free_urb(pm->config);
-fail3:	usb_free_urb(pm->irq);
-fail2:	powermate_free_buffers(udev, pm);
-fail1:	input_free_device(input_dev);
+ fail5:	usb_kill_urb(pm->irq);
+ fail4:	usb_free_urb(pm->config);
+ fail3:	usb_free_urb(pm->irq);
+ fail2:	powermate_free_buffers(udev, pm);
+ fail1:	input_free_device(input_dev);
 	kfree(pm);
-	return err;
+	return error;
 }
 
 /* Called when a USB device we've accepted ownership of is removed */

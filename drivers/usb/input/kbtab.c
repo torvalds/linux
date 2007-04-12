@@ -122,6 +122,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct usb_endpoint_descriptor *endpoint;
 	struct kbtab *kbtab;
 	struct input_dev *input_dev;
+	int error = -ENOMEM;
 
 	kbtab = kzalloc(sizeof(struct kbtab), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -168,15 +169,19 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	kbtab->irq->transfer_dma = kbtab->data_dma;
 	kbtab->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	input_register_device(kbtab->dev);
+	error = input_register_device(kbtab->dev);
+	if (error)
+		goto fail3;
 
 	usb_set_intfdata(intf, kbtab);
+
 	return 0;
 
-fail2:	usb_buffer_free(dev, 10, kbtab->data, kbtab->data_dma);
-fail1:	input_free_device(input_dev);
+ fail3:	usb_free_urb(kbtab->irq);
+ fail2:	usb_buffer_free(dev, 10, kbtab->data, kbtab->data_dma);
+ fail1:	input_free_device(input_dev);
 	kfree(kbtab);
-	return -ENOMEM;
+	return error;
 }
 
 static void kbtab_disconnect(struct usb_interface *intf)
