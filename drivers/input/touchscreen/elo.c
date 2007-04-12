@@ -318,7 +318,7 @@ static int elo_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.vendor = SERIO_ELO;
 	input_dev->id.product = elo->id;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &serio->dev;
+	input_dev->dev.parent = &serio->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);

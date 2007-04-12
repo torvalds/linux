@@ -899,7 +899,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	input_dev->name = "ADS784x Touchscreen";
 	input_dev->phys = ts->phys;
-	input_dev->cdev.dev = &spi->dev;
+	input_dev->dev.parent = &spi->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);

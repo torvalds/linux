@@ -131,6 +131,7 @@ static int tw_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.vendor = SERIO_TOUCHWIN;
 	input_dev->id.product = 0;
 	input_dev->id.version = 0x0100;
+	input_dev->dev.parent = &serio->dev;
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
 	input_set_abs_params(tw->dev, ABS_X, TW_MIN_XC, TW_MAX_XC, 0, 0);

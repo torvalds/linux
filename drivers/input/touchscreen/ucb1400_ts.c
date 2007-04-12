@@ -509,7 +509,7 @@ static int ucb1400_ts_probe(struct device *dev)
 
 	input_set_drvdata(idev, ucb);
 
-	idev->cdev.dev		= dev;
+	idev->dev.parent	= dev;
 	idev->name		= "UCB1400 touchscreen interface";
 	idev->id.vendor		= ucb1400_reg_read(ucb, AC97_VENDOR_ID1);
 	idev->id.product	= id;
