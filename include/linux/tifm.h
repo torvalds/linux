@@ -114,19 +114,23 @@ struct tifm_adapter {
 	unsigned int            id;
 	unsigned int            num_sockets;
 	struct completion       *finish_me;
-	struct tifm_dev         **sockets;
+
 	struct work_struct      media_switcher;
 	struct class_device     cdev;
-	struct device           *dev;
 
-	void                    (*eject)(struct tifm_adapter *fm, struct tifm_dev *sock);
+	void                    (*eject)(struct tifm_adapter *fm,
+					 struct tifm_dev *sock);
+
+	struct tifm_dev         *sockets[0];
 };
 
-struct tifm_adapter *tifm_alloc_adapter(void);
-void tifm_free_device(struct device *dev);
-void tifm_free_adapter(struct tifm_adapter *fm);
+struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,
+					struct device *dev);
 int tifm_add_adapter(struct tifm_adapter *fm);
 void tifm_remove_adapter(struct tifm_adapter *fm);
+void tifm_free_adapter(struct tifm_adapter *fm);
+
+void tifm_free_device(struct device *dev);
 struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm);
 int tifm_register_driver(struct tifm_driver *drv);
 void tifm_unregister_driver(struct tifm_driver *drv);

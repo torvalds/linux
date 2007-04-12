@@ -156,7 +156,6 @@ static void tifm_free(struct class_device *cdev)
 {
 	struct tifm_adapter *fm = container_of(cdev, struct tifm_adapter, cdev);
 
-	kfree(fm->sockets);
 	kfree(fm);
 }
 
@@ -165,25 +164,23 @@ static struct class tifm_adapter_class = {
 	.release = tifm_free
 };
 
-struct tifm_adapter *tifm_alloc_adapter(void)
+struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,
+					struct device *dev)
 {
 	struct tifm_adapter *fm;
 
-	fm = kzalloc(sizeof(struct tifm_adapter), GFP_KERNEL);
+	fm = kzalloc(sizeof(struct tifm_adapter)
+		     + sizeof(struct tifm_dev*) * num_sockets, GFP_KERNEL);
 	if (fm) {
 		fm->cdev.class = &tifm_adapter_class;
-		spin_lock_init(&fm->lock);
+		fm->cdev.dev = dev;
 		class_device_initialize(&fm->cdev);
+		spin_lock_init(&fm->lock);
+		fm->num_sockets = num_sockets;
 	}
 	return fm;
 }
 EXPORT_SYMBOL(tifm_alloc_adapter);
-
-void tifm_free_adapter(struct tifm_adapter *fm)
-{
-	class_device_put(&fm->cdev);
-}
-EXPORT_SYMBOL(tifm_free_adapter);
 
 int tifm_add_adapter(struct tifm_adapter *fm)
 {
@@ -195,30 +192,43 @@ int tifm_add_adapter(struct tifm_adapter *fm)
 	spin_lock(&tifm_adapter_lock);
 	rc = idr_get_new(&tifm_adapter_idr, fm, &fm->id);
 	spin_unlock(&tifm_adapter_lock);
-	if (!rc) {
-		snprintf(fm->cdev.class_id, BUS_ID_SIZE, "tifm%u", fm->id);
-		rc = class_device_add(&fm->cdev);
+	if (rc)
+		return rc;
 
-		if (rc) {
-			spin_lock(&tifm_adapter_lock);
-			idr_remove(&tifm_adapter_idr, fm->id);
-			spin_unlock(&tifm_adapter_lock);
-		}
+	snprintf(fm->cdev.class_id, BUS_ID_SIZE, "tifm%u", fm->id);
+	rc = class_device_add(&fm->cdev);
+	if (rc) {
+		spin_lock(&tifm_adapter_lock);
+		idr_remove(&tifm_adapter_idr, fm->id);
+		spin_unlock(&tifm_adapter_lock);
 	}
+
 	return rc;
 }
 EXPORT_SYMBOL(tifm_add_adapter);
 
 void tifm_remove_adapter(struct tifm_adapter *fm)
 {
+	unsigned int cnt;
+
 	flush_workqueue(workqueue);
-	class_device_del(&fm->cdev);
+	for (cnt = 0; cnt < fm->num_sockets; ++cnt) {
+		if (fm->sockets[cnt])
+			device_unregister(&fm->sockets[cnt]->dev);
+	}
 
 	spin_lock(&tifm_adapter_lock);
 	idr_remove(&tifm_adapter_idr, fm->id);
 	spin_unlock(&tifm_adapter_lock);
+	class_device_del(&fm->cdev);
 }
 EXPORT_SYMBOL(tifm_remove_adapter);
+
+void tifm_free_adapter(struct tifm_adapter *fm)
+{
+	class_device_put(&fm->cdev);
+}
+EXPORT_SYMBOL(tifm_free_adapter);
 
 void tifm_free_device(struct device *dev)
 {
@@ -234,7 +244,7 @@ struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm)
 	if (dev) {
 		spin_lock_init(&dev->lock);
 
-		dev->dev.parent = fm->dev;
+		dev->dev.parent = fm->cdev.dev;
 		dev->dev.bus = &tifm_bus_type;
 		dev->dev.release = tifm_free_device;
 		dev->card_event = tifm_dummy_event;

@@ -22,6 +22,11 @@
 #define TIFM_IRQ_FIFOMASK(x)      ((x) << 16)
 #define TIFM_IRQ_SETALL           0xffffffff
 
+static void tifm_7xx1_dummy_eject(struct tifm_adapter *fm,
+				  struct tifm_dev *sock)
+{
+}
+
 static void tifm_7xx1_eject(struct tifm_adapter *fm, struct tifm_dev *sock)
 {
 	unsigned long flags;
@@ -140,7 +145,7 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 	socket_change_set = fm->socket_change_set;
 	fm->socket_change_set = 0;
 
-	dev_dbg(fm->dev, "checking media set %x\n",
+	dev_dbg(fm->cdev.dev, "checking media set %x\n",
 		socket_change_set);
 
 	if (!socket_change_set) {
@@ -328,19 +333,12 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 
 	pci_intx(dev, 1);
 
-	fm = tifm_alloc_adapter();
+	fm = tifm_alloc_adapter(dev->device == PCI_DEVICE_ID_TI_XX21_XX11_FM
+				? 4 : 2, &dev->dev);
 	if (!fm) {
 		rc = -ENOMEM;
 		goto err_out_int;
 	}
-
-	fm->dev = &dev->dev;
-	fm->num_sockets = (dev->device == PCI_DEVICE_ID_TI_XX21_XX11_FM)
-			  ? 4 : 2;
-	fm->sockets = kzalloc(sizeof(struct tifm_dev*) * fm->num_sockets,
-			      GFP_KERNEL);
-	if (!fm->sockets)
-		goto err_out_free;
 
 	INIT_WORK(&fm->media_switcher, tifm_7xx1_switch_media);
 	fm->eject = tifm_7xx1_eject;
@@ -351,7 +349,7 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 	if (!fm->addr)
 		goto err_out_free;
 
-	rc = request_irq(dev->irq, tifm_7xx1_isr, IRQF_SHARED, DRIVER_NAME, fm);
+	rc = request_irq(dev->irq, tifm_7xx1_isr, SA_SHIRQ, DRIVER_NAME, fm);
 	if (rc)
 		goto err_out_unmap;
 
@@ -359,10 +357,8 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 	if (rc)
 		goto err_out_irq;
 
-	writel(TIFM_IRQ_SETALL, fm->addr + FM_CLEAR_INTERRUPT_ENABLE);
 	writel(TIFM_IRQ_ENABLE | TIFM_IRQ_SOCKMASK((1 << fm->num_sockets) - 1),
 	       fm->addr + FM_SET_INTERRUPT_ENABLE);
-
 	return 0;
 
 err_out_irq:
@@ -384,15 +380,11 @@ err_out:
 static void tifm_7xx1_remove(struct pci_dev *dev)
 {
 	struct tifm_adapter *fm = pci_get_drvdata(dev);
-	unsigned long flags;
 
+	fm->eject = tifm_7xx1_dummy_eject;
 	writel(TIFM_IRQ_SETALL, fm->addr + FM_CLEAR_INTERRUPT_ENABLE);
 	mmiowb();
 	free_irq(dev->irq, fm);
-
-	spin_lock_irqsave(&fm->lock, flags);
-	fm->socket_change_set = (1 << fm->num_sockets) - 1;
-	spin_unlock_irqrestore(&fm->lock, flags);
 
 	tifm_remove_adapter(fm);
 
