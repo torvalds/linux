@@ -56,7 +56,6 @@ static struct hotplug_slot_attribute php_attr_location = {
 static void rpaphp_release_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = (struct slot *) hotplug_slot->private;
-
 	dealloc_slot_struct(slot);
 }
 
@@ -65,12 +64,12 @@ void dealloc_slot_struct(struct slot *slot)
 	kfree(slot->hotplug_slot->info);
 	kfree(slot->hotplug_slot->name);
 	kfree(slot->hotplug_slot);
+	kfree(slot->location);
 	kfree(slot);
-	return;
 }
 
-struct slot *alloc_slot_struct(struct device_node *dn, int drc_index, char *drc_name,
-		  int power_domain)
+struct slot *alloc_slot_struct(struct device_node *dn,
+                       int drc_index, char *drc_name, int power_domain)
 {
 	struct slot *slot;
 	
@@ -115,7 +114,7 @@ error_nomem:
 
 static int is_registered(struct slot *slot)
 {
-	struct slot             *tmp_slot;
+	struct slot *tmp_slot;
 
 	list_for_each_entry(tmp_slot, &rpaphp_slot_head, rpaphp_slot_list) {
 		if (!strcmp(tmp_slot->name, slot->name))
