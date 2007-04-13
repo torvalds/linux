@@ -29,6 +29,8 @@
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
+#include <linux/if_pppox.h>
+#include <linux/ppp_defs.h>
 #include <linux/netfilter_bridge.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
@@ -57,8 +59,10 @@ static int brnf_call_iptables __read_mostly = 1;
 static int brnf_call_ip6tables __read_mostly = 1;
 static int brnf_call_arptables __read_mostly = 1;
 static int brnf_filter_vlan_tagged __read_mostly = 1;
+static int brnf_filter_pppoe_tagged __read_mostly = 1;
 #else
 #define brnf_filter_vlan_tagged 1
+#define brnf_filter_pppoe_tagged 1
 #endif
 
 static inline __be16 vlan_proto(const struct sk_buff *skb)
@@ -80,6 +84,22 @@ static inline __be16 vlan_proto(const struct sk_buff *skb)
 	(skb->protocol == htons(ETH_P_8021Q) &&	\
 	 vlan_proto(skb) == htons(ETH_P_ARP) &&	\
 	 brnf_filter_vlan_tagged)
+
+static inline __be16 pppoe_proto(const struct sk_buff *skb)
+{
+	return *((__be16 *)(skb_mac_header(skb) + ETH_HLEN +
+			    sizeof(struct pppoe_hdr)));
+}
+
+#define IS_PPPOE_IP(skb) \
+	(skb->protocol == htons(ETH_P_PPP_SES) && \
+	 pppoe_proto(skb) == htons(PPP_IP) && \
+	 brnf_filter_pppoe_tagged)
+
+#define IS_PPPOE_IPV6(skb) \
+	(skb->protocol == htons(ETH_P_PPP_SES) && \
+	 pppoe_proto(skb) == htons(PPP_IPV6) && \
+	 brnf_filter_pppoe_tagged)
 
 /* We need these fake structures to make netfilter happy --
  * lots of places assume that skb->dst != NULL, which isn't
@@ -128,6 +148,8 @@ static inline void nf_bridge_save_header(struct sk_buff *skb)
 
 	if (skb->protocol == htons(ETH_P_8021Q))
 		header_size += VLAN_HLEN;
+	else if (skb->protocol == htons(ETH_P_PPP_SES))
+		header_size += PPPOE_SES_HLEN;
 
 	skb_copy_from_linear_data_offset(skb, -header_size,
 					 skb->nf_bridge->data, header_size);
@@ -144,6 +166,8 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 
 	if (skb->protocol == htons(ETH_P_8021Q))
 		header_size += VLAN_HLEN;
+	else if (skb->protocol == htons(ETH_P_PPP_SES))
+		header_size += PPPOE_SES_HLEN;
 
 	err = skb_cow(skb, header_size);
 	if (err)
@@ -154,6 +178,8 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 
 	if (skb->protocol == htons(ETH_P_8021Q))
 		__skb_push(skb, VLAN_HLEN);
+	else if (skb->protocol == htons(ETH_P_PPP_SES))
+		__skb_push(skb, PPPOE_SES_HLEN);
 	return 0;
 }
 
@@ -177,6 +203,9 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
 		skb->network_header -= VLAN_HLEN;
+	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
+		skb_push(skb, PPPOE_SES_HLEN);
+		skb->network_header -= PPPOE_SES_HLEN;
 	}
 	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 		       br_handle_frame_finish, 1);
@@ -258,6 +287,9 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 		if (skb->protocol == htons(ETH_P_8021Q)) {
 			skb_pull(skb, VLAN_HLEN);
 			skb->network_header += VLAN_HLEN;
+		} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
+			skb_pull(skb, PPPOE_SES_HLEN);
+			skb->network_header += PPPOE_SES_HLEN;
 		}
 		skb->dst->output(skb);
 	}
@@ -328,6 +360,10 @@ bridged_dnat:
 				    htons(ETH_P_8021Q)) {
 					skb_push(skb, VLAN_HLEN);
 					skb->network_header -= VLAN_HLEN;
+				} else if(skb->protocol ==
+				    htons(ETH_P_PPP_SES)) {
+					skb_push(skb, PPPOE_SES_HLEN);
+					skb->network_header -= PPPOE_SES_HLEN;
 				}
 				NF_HOOK_THRESH(PF_BRIDGE, NF_BR_PRE_ROUTING,
 					       skb, skb->dev, NULL,
@@ -347,6 +383,9 @@ bridged_dnat:
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
 		skb->network_header -= VLAN_HLEN;
+	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
+		skb_push(skb, PPPOE_SES_HLEN);
+		skb->network_header -= PPPOE_SES_HLEN;
 	}
 	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 		       br_handle_frame_finish, 1);
@@ -489,7 +528,8 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 	__u32 len;
 	struct sk_buff *skb = *pskb;
 
-	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb)) {
+	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
+	    IS_PPPOE_IPV6(skb)) {
 #ifdef CONFIG_SYSCTL
 		if (!brnf_call_ip6tables)
 			return NF_ACCEPT;
@@ -500,6 +540,9 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 		if (skb->protocol == htons(ETH_P_8021Q)) {
 			skb_pull_rcsum(skb, VLAN_HLEN);
 			skb->network_header += VLAN_HLEN;
+		} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
+			skb_pull_rcsum(skb, PPPOE_SES_HLEN);
+			skb->network_header += PPPOE_SES_HLEN;
 		}
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
@@ -508,7 +551,8 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 		return NF_ACCEPT;
 #endif
 
-	if (skb->protocol != htons(ETH_P_IP) && !IS_VLAN_IP(skb))
+	if (skb->protocol != htons(ETH_P_IP) && !IS_VLAN_IP(skb) &&
+	    !IS_PPPOE_IP(skb))
 		return NF_ACCEPT;
 
 	if ((skb = skb_share_check(*pskb, GFP_ATOMIC)) == NULL)
@@ -517,6 +561,9 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull_rcsum(skb, VLAN_HLEN);
 		skb->network_header += VLAN_HLEN;
+	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
+		skb_pull_rcsum(skb, PPPOE_SES_HLEN);
+		skb->network_header += PPPOE_SES_HLEN;
 	}
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
@@ -598,6 +645,9 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
 		skb->network_header -= VLAN_HLEN;
+	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
+		skb_push(skb, PPPOE_SES_HLEN);
+		skb->network_header -= PPPOE_SES_HLEN;
 	}
 	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_FORWARD, skb, in,
 		       skb->dev, br_forward_finish, 1);
@@ -626,7 +676,8 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff **pskb,
 	if (!parent)
 		return NF_DROP;
 
-	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb))
+	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb) ||
+	    IS_PPPOE_IP(skb))
 		pf = PF_INET;
 	else
 		pf = PF_INET6;
@@ -634,6 +685,9 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff **pskb,
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull(*pskb, VLAN_HLEN);
 		(*pskb)->network_header += VLAN_HLEN;
+	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
+		skb_pull(*pskb, PPPOE_SES_HLEN);
+		(*pskb)->network_header += PPPOE_SES_HLEN;
 	}
 
 	nf_bridge = skb->nf_bridge;
@@ -726,6 +780,9 @@ static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff **pskb,
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
 		skb->network_header -= VLAN_HLEN;
+	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
+		skb_push(skb, PPPOE_SES_HLEN);
+		skb->network_header -= PPPOE_SES_HLEN;
 	}
 
 	NF_HOOK(PF_BRIDGE, NF_BR_FORWARD, skb, realindev, skb->dev,
@@ -771,7 +828,8 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 	if (!realoutdev)
 		return NF_DROP;
 
-	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb))
+	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb) ||
+	    IS_PPPOE_IP(skb))
 		pf = PF_INET;
 	else
 		pf = PF_INET6;
@@ -793,6 +851,9 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull(skb, VLAN_HLEN);
 		skb->network_header += VLAN_HLEN;
+	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
+		skb_pull(skb, PPPOE_SES_HLEN);
+		skb->network_header += PPPOE_SES_HLEN;
 	}
 
 	nf_bridge_save_header(skb);
@@ -926,6 +987,14 @@ static ctl_table brnf_table[] = {
 		.ctl_name	= NET_BRIDGE_NF_FILTER_VLAN_TAGGED,
 		.procname	= "bridge-nf-filter-vlan-tagged",
 		.data		= &brnf_filter_vlan_tagged,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &brnf_sysctl_call_tables,
+	},
+	{
+		.ctl_name	= NET_BRIDGE_NF_FILTER_PPPOE_TAGGED,
+		.procname	= "bridge-nf-filter-pppoe-tagged",
+		.data		= &brnf_filter_pppoe_tagged,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &brnf_sysctl_call_tables,

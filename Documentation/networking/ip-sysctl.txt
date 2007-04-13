@@ -1015,7 +1015,12 @@ bridge-nf-call-ip6tables - BOOLEAN
 	Default: 1
 
 bridge-nf-filter-vlan-tagged - BOOLEAN
-	1 : pass bridged vlan-tagged ARP/IP traffic to arptables/iptables.
+	1 : pass bridged vlan-tagged ARP/IP/IPv6 traffic to {arp,ip,ip6}tables.
+	0 : disable this.
+	Default: 1
+
+bridge-nf-filter-pppoe-tagged - BOOLEAN
+	1 : pass bridged pppoe-tagged IP/IPv6 traffic to {ip,ip6}tables.
 	0 : disable this.
 	Default: 1
 
