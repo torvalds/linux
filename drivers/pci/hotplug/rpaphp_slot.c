@@ -184,15 +184,3 @@ sysfs_fail:
 	return retval;
 }
 
-int rpaphp_set_attention_status(struct slot *slot, u8 status)
-{
-	int rc;
-
-	/* status: LED_OFF or LED_ON */
-	rc = rtas_set_indicator(DR_INDICATOR, slot->index, status);
-	if (rc < 0)
-		err("slot(name=%s location=%s index=0x%x) set attention-status(%d) failed! rc=0x%x\n",
-		    slot->name, slot->location, slot->index, status, rc);
-
-	return rc;
-}

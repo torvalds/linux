@@ -102,6 +102,5 @@ extern void dealloc_slot_struct(struct slot *slot);
 extern struct slot *alloc_slot_struct(struct device_node *dn, int drc_index, char *drc_name, int power_domain);
 extern int rpaphp_register_slot(struct slot *slot);
 extern int rpaphp_deregister_slot(struct slot *slot);
-extern int rpaphp_set_attention_status(struct slot *slot, u8 status);
 	
 #endif				/* _PPC64PHP_H */

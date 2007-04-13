@@ -63,27 +63,26 @@ module_param(debug, bool, 0644);
  */
 static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 {
-	int retval = 0;
+	int rc;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 
 	down(&rpaphp_sem);
 	switch (value) {
 	case 0:
-		retval = rpaphp_set_attention_status(slot, LED_OFF);
-		hotplug_slot->info->attention_status = 0;
-		break;
 	case 1:
-	default:
-		retval = rpaphp_set_attention_status(slot, LED_ON);
-		hotplug_slot->info->attention_status = 1;
-		break;
 	case 2:
-		retval = rpaphp_set_attention_status(slot, LED_ID);
-		hotplug_slot->info->attention_status = 2;
+		break;
+	default:
+		value = 1;
 		break;
 	}
 	up(&rpaphp_sem);
-	return retval;
+
+	rc = rtas_set_indicator(DR_INDICATOR, slot->index, value);
+	if (!rc)
+		hotplug_slot->info->attention_status = value;
+
+	return rc;
 }
 
 /**
