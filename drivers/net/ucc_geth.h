@@ -205,6 +205,9 @@ struct ucc_geth {
 #define UCCE_OTHER       (UCCE_SCAR | UCCE_GRA  | UCCE_CBPR | UCCE_BSY  |\
 			UCCE_RXC  | UCCE_TXC  | UCCE_TXE)
 
+#define UCCE_RX_EVENTS							(UCCE_RXF | UCCE_BSY)
+#define UCCE_TX_EVENTS							(UCCE_TXB | UCCE_TXE)
+
 /* UCC GETH UPSMR (Protocol Specific Mode Register) */
 #define UPSMR_ECM                               0x04000000	/* Enable CAM
 								   Miss or
