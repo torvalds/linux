@@ -424,18 +424,12 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 	return retval;
 }
 
-static int __disable_slot(struct slot *slot)
+static inline int __disable_slot(struct slot *slot)
 {
-	struct pci_dev *dev, *tmp;
-
 	if (slot->state == NOT_CONFIGURED)
 		return -EINVAL;
 
-	list_for_each_entry_safe(dev, tmp, &slot->bus->devices, bus_list) {
-		eeh_remove_bus_device(dev);
-		pci_remove_bus_device(dev);
-	}
-
+	pcibios_remove_pci_devices(slot->bus);
 	slot->state = NOT_CONFIGURED;
 	return 0;
 }
