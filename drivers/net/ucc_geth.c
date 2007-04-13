@@ -2958,8 +2958,8 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	/* Size varies with number of Rx queues */
 	ugeth->rx_irq_coalescing_tbl_offset =
 	    qe_muram_alloc(ug_info->numQueuesRx *
-			   sizeof(struct ucc_geth_rx_interrupt_coalescing_entry),
-			   UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT);
+			   sizeof(struct ucc_geth_rx_interrupt_coalescing_entry)
+			   + 4, UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT);
 	if (IS_MURAM_ERR(ugeth->rx_irq_coalescing_tbl_offset)) {
 		ugeth_err
 		    ("%s: Can not allocate DPRAM memory for"

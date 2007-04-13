@@ -867,8 +867,7 @@ struct ucc_geth_hardware_statistics {
 #define UCC_GETH_SCHEDULER_ALIGNMENT		4	/* This is a guess */
 #define UCC_GETH_TX_STATISTICS_ALIGNMENT	4	/* This is a guess */
 #define UCC_GETH_RX_STATISTICS_ALIGNMENT	4	/* This is a guess */
-#define UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT	4	/* This is a
-								   guess */
+#define UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT	64
 #define UCC_GETH_RX_BD_QUEUES_ALIGNMENT		8	/* This is a guess */
 #define UCC_GETH_RX_PREFETCHED_BDS_ALIGNMENT	128	/* This is a guess */
 #define UCC_GETH_RX_EXTENDED_FILTERING_GLOBAL_PARAMETERS_ALIGNMENT 4	/* This
