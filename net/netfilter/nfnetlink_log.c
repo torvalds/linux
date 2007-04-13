@@ -584,12 +584,7 @@ nfulnl_log_packet(unsigned int pf,
 
 	inst = instance_lookup_get(li->u.ulog.group);
 	if (!inst)
-		inst = instance_lookup_get(0);
-	if (!inst) {
-		PRINTR("nfnetlink_log: trying to log packet, "
-			"but no instance for group %u\n", li->u.ulog.group);
 		return;
-	}
 
 	plen = 0;
 	if (prefix)
