@@ -184,7 +184,6 @@ int rpaphp_register_slot(struct slot *slot)
 sysfs_fail:
 	pci_hp_deregister(php_slot);
 register_fail:
-	rpaphp_release_slot(php_slot);
 	return retval;
 }
 

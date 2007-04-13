@@ -321,10 +321,15 @@ int rpaphp_add_slot(struct device_node *dn)
 				indexes[i + 1], name, type);
 
 		retval = rpaphp_register_pci_slot(slot);
+		if (retval)
+			dealloc_slot_struct(slot);
+
 		name += strlen(name) + 1;
 		type += strlen(type) + 1;
 	}
 	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
+
+	/* XXX FIXME: reports a failure only if last entry in loop failed */
 	return retval;
 }
 

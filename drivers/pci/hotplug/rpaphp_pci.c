@@ -195,7 +195,6 @@ static int setup_pci_slot(struct slot *slot)
 	}
 	return 0;
 exit_rc:
-	dealloc_slot_struct(slot);
 	return -EINVAL;
 }
 
