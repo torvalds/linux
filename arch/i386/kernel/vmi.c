@@ -712,11 +712,14 @@ static void *vmi_get_function(int vmicall)
 do {								\
 	reloc = call_vrom_long_func(vmi_rom, get_reloc,		\
 				    VMI_CALL_##vmicall);	\
-	if (rel->type != VMI_RELOCATION_NONE) {			\
-		BUG_ON(rel->type != VMI_RELOCATION_CALL_REL);	\
+	if (rel->type == VMI_RELOCATION_CALL_REL) 		\
 		paravirt_ops.opname = (void *)rel->eip;		\
-	} else if (rel->type == VMI_RELOCATION_NOP) 		\
+	else if (rel->type == VMI_RELOCATION_NOP) 		\
 		paravirt_ops.opname = (void *)vmi_nop;		\
+	else if (rel->type != VMI_RELOCATION_NONE)		\
+		printk(KERN_WARNING "VMI: Unknown relocation "	\
+				    "type %d for " #vmicall"\n",\
+					rel->type);		\
 } while (0)
 
 /*
