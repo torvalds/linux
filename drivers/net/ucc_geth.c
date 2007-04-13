@@ -2133,6 +2133,8 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 	}
 	for (i = 0; i < ugeth->ug_info->numQueuesTx; i++) {
 		bd = ugeth->p_tx_bd_ring[i];
+		if (!bd)
+			continue;
 		for (j = 0; j < ugeth->ug_info->bdRingLenTx[i]; j++) {
 			if (ugeth->tx_skbuff[i][j]) {
 				dma_unmap_single(NULL,
@@ -2299,6 +2301,10 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 
 	ug_info = ugeth->ug_info;
 	uf_info = &ug_info->uf_info;
+
+	/* Create CQs for hash tables */
+	INIT_LIST_HEAD(&ugeth->group_hash_q);
+	INIT_LIST_HEAD(&ugeth->ind_hash_q);
 
 	if (!((uf_info->bd_mem_part == MEM_PART_SYSTEM) ||
 	      (uf_info->bd_mem_part == MEM_PART_MURAM))) {
@@ -3132,13 +3138,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		for (j = 0; j < NUM_OF_PADDRS; j++)
 			ugeth_82xx_filtering_clear_addr_in_paddr(ugeth, (u8) j);
 
-		/* Create CQs for hash tables */
-		if (ug_info->maxGroupAddrInHash > 0) {
-			INIT_LIST_HEAD(&ugeth->group_hash_q);
-		}
-		if (ug_info->maxIndAddrInHash > 0) {
-			INIT_LIST_HEAD(&ugeth->ind_hash_q);
-		}
 		p_82xx_addr_filt =
 		    (struct ucc_geth_82xx_address_filtering_pram *) ugeth->
 		    p_rx_glbl_pram->addressfiltering;
