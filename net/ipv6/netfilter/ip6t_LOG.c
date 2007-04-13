@@ -490,14 +490,10 @@ static int __init ip6t_log_init(void)
 	ret = xt_register_target(&ip6t_log_reg);
 	if (ret < 0)
 		return ret;
-	if (nf_log_register(PF_INET6, &ip6t_logger) < 0) {
-		printk(KERN_WARNING "ip6t_LOG: not logging via system console "
-		       "since somebody else already registered for PF_INET6\n");
-		/* we cannot make module load fail here, since otherwise
-		 * ip6tables userspace would abort */
-	}
-
-	return 0;
+	ret = nf_log_register(PF_INET6, &ip6t_logger);
+	if (ret < 0 && ret != -EEXIST)
+		xt_unregister_target(&ip6t_log_reg);
+	return ret;
 }
 
 static void __exit ip6t_log_fini(void)

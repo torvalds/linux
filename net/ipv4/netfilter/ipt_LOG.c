@@ -477,14 +477,10 @@ static int __init ipt_log_init(void)
 	ret = xt_register_target(&ipt_log_reg);
 	if (ret < 0)
 		return ret;
-	if (nf_log_register(PF_INET, &ipt_log_logger) < 0) {
-		printk(KERN_WARNING "ipt_LOG: not logging via system console "
-		       "since somebody else already registered for PF_INET\n");
-		/* we cannot make module load fail here, since otherwise
-		 * iptables userspace would abort */
-	}
-
-	return 0;
+	ret = nf_log_register(PF_INET, &ipt_log_logger);
+	if (ret < 0 && ret != -EEXIST)
+		xt_unregister_target(&ipt_log_reg);
+	return ret;
 }
 
 static void __exit ipt_log_fini(void)
