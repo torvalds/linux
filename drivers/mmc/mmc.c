@@ -99,6 +99,10 @@ EXPORT_SYMBOL(mmc_request_done);
 void
 mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 {
+#ifdef CONFIG_MMC_DEBUG
+	unsigned int i, sz;
+#endif
+
 	pr_debug("%s: starting CMD%u arg %08x flags %08x\n",
 		 mmc_hostname(host), mrq->cmd->opcode,
 		 mrq->cmd->arg, mrq->cmd->flags);
@@ -112,6 +116,13 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		BUG_ON(mrq->data->blocks > host->max_blk_count);
 		BUG_ON(mrq->data->blocks * mrq->data->blksz >
 			host->max_req_size);
+
+#ifdef CONFIG_MMC_DEBUG
+		sz = 0;
+		for (i = 0;i < mrq->data->sg_len;i++)
+			sz += mrq->data->sg[i].length;
+		BUG_ON(sz != mrq->data->blocks * mrq->data->blksz);
+#endif
 
 		mrq->cmd->data = mrq->data;
 		mrq->data->error = 0;
