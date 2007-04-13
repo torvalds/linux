@@ -183,9 +183,14 @@ exit_rc:
 
 int rpaphp_register_pci_slot(struct slot *slot)
 {
+	int rc, level;
 	struct hotplug_slot_info *info = slot->hotplug_slot->info;
 
-	rpaphp_get_power_status(slot, &info->power_status);
+	rc = rtas_get_power_level(slot->power_domain, &level);
+	if (rc)
+		return rc;
+	info->power_status = level;
+
 	rpaphp_get_pci_adapter_status(slot, 1, &info->adapter_status);
 
 	if (info->adapter_status == NOT_VALID) {

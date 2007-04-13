@@ -100,11 +100,13 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
  */
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
 {
-	int retval;
+	int retval, level;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 
 	down(&rpaphp_sem);
-	retval = rpaphp_get_power_status(slot, value);
+	retval = rtas_get_power_level (slot->power_domain, &level);
+	if (!retval)
+		*value = level;
 	up(&rpaphp_sem);
 	return retval;
 }

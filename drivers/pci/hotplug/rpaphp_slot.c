@@ -184,24 +184,6 @@ sysfs_fail:
 	return retval;
 }
 
-int rpaphp_get_power_status(struct slot *slot, u8 * value)
-{
-	int rc = 0, level;
-	
-	rc = rtas_get_power_level(slot->power_domain, &level);
-	if (rc < 0) {
-		err("failed to get power-level for slot(%s), rc=0x%x\n",
-			slot->location, rc);
-		return rc;
-	}
-
-	dbg("%s the power level of slot %s(pwd-domain:0x%x) is %d\n",
-		__FUNCTION__, slot->name, slot->power_domain, level);
-	*value = level;
-
-	return rc;
-}
-
 int rpaphp_set_attention_status(struct slot *slot, u8 status)
 {
 	int rc;
