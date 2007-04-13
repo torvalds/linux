@@ -191,6 +191,7 @@ int hpet_reenable(void)
 
 #define TICK_COUNT 100000000
 #define TICK_MIN   5000
+#define MAX_TRIES  5
 
 /*
  * Some platforms take periodic SMI interrupts with 5ms duration. Make sure none
@@ -198,13 +199,15 @@ int hpet_reenable(void)
  */
 static void __init read_hpet_tsc(int *hpet, int *tsc)
 {
-	int tsc1, tsc2, hpet1;
+	int tsc1, tsc2, hpet1, i;
 
-	do {
+	for (i = 0; i < MAX_TRIES; i++) {
 		tsc1 = get_cycles_sync();
 		hpet1 = hpet_readl(HPET_COUNTER);
 		tsc2 = get_cycles_sync();
-	} while (tsc2 - tsc1 > TICK_MIN);
+		if (tsc2 - tsc1 > TICK_MIN)
+			break;
+	}
 	*hpet = hpet1;
 	*tsc = tsc2;
 }
