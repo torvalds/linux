@@ -2,9 +2,7 @@
 # PCI Hotplug support
 #
 
-menu "PCI Hotplug Support"
-
-config HOTPLUG_PCI
+menuconfig HOTPLUG_PCI
 	tristate "Support for PCI Hotplug (EXPERIMENTAL)"
 	depends on PCI && EXPERIMENTAL && HOTPLUG
 	---help---
@@ -17,9 +15,10 @@ config HOTPLUG_PCI
 
 	  When in doubt, say N.
 
+if HOTPLUG_PCI
+
 config HOTPLUG_PCI_FAKE
 	tristate "Fake PCI Hotplug driver"
-	depends on HOTPLUG_PCI
 	help
 	  Say Y here if you want to use the fake PCI hotplug driver. It can
 	  be used to simulate PCI hotplug events if even if your system is
@@ -42,7 +41,7 @@ config HOTPLUG_PCI_FAKE
 
 config HOTPLUG_PCI_COMPAQ
 	tristate "Compaq PCI Hotplug driver"
-	depends on HOTPLUG_PCI && X86 && PCI_BIOS
+	depends on X86 && PCI_BIOS
 	help
 	  Say Y here if you have a motherboard with a Compaq PCI Hotplug
 	  controller.
@@ -64,7 +63,7 @@ config HOTPLUG_PCI_COMPAQ_NVRAM
 
 config HOTPLUG_PCI_IBM
 	tristate "IBM PCI Hotplug driver"
-	depends on HOTPLUG_PCI && X86_IO_APIC && X86 && PCI_BIOS
+	depends on X86_IO_APIC && X86 && PCI_BIOS
 	help
 	  Say Y here if you have a motherboard with a IBM PCI Hotplug
 	  controller.
@@ -76,7 +75,6 @@ config HOTPLUG_PCI_IBM
 
 config HOTPLUG_PCI_ACPI
 	tristate "ACPI PCI Hotplug driver"
-	depends on HOTPLUG_PCI
 	depends on (!ACPI_DOCK && ACPI) || (ACPI_DOCK)
 	help
 	  Say Y here if you have a system that supports PCI Hotplug using
@@ -101,7 +99,6 @@ config HOTPLUG_PCI_ACPI_IBM
 
 config HOTPLUG_PCI_CPCI
 	bool "CompactPCI Hotplug driver"
-	depends on HOTPLUG_PCI
 	help
 	  Say Y here if you have a CompactPCI system card with CompactPCI
 	  hotswap support per the PICMG 2.1 specification.
@@ -110,7 +107,7 @@ config HOTPLUG_PCI_CPCI
 
 config HOTPLUG_PCI_CPCI_ZT5550
 	tristate "Ziatech ZT5550 CompactPCI Hotplug driver"
-	depends on HOTPLUG_PCI && HOTPLUG_PCI_CPCI && X86
+	depends on HOTPLUG_PCI_CPCI && X86
 	help
 	  Say Y here if you have an Performance Technologies (formerly Intel,
           formerly just Ziatech) Ziatech ZT5550 CompactPCI system card.
@@ -122,7 +119,7 @@ config HOTPLUG_PCI_CPCI_ZT5550
 
 config HOTPLUG_PCI_CPCI_GENERIC
 	tristate "Generic port I/O CompactPCI Hotplug driver"
-	depends on HOTPLUG_PCI && HOTPLUG_PCI_CPCI && X86
+	depends on HOTPLUG_PCI_CPCI && X86
 	help
 	  Say Y here if you have a CompactPCI system card that exposes the #ENUM
 	  hotswap signal as a bit in a system register that can be read through
@@ -135,7 +132,6 @@ config HOTPLUG_PCI_CPCI_GENERIC
 
 config HOTPLUG_PCI_SHPC
 	tristate "SHPC PCI Hotplug driver"
-	depends on HOTPLUG_PCI
 	help
 	  Say Y here if you have a motherboard with a SHPC PCI Hotplug
 	  controller.
@@ -147,7 +143,7 @@ config HOTPLUG_PCI_SHPC
 
 config HOTPLUG_PCI_RPA
 	tristate "RPA PCI Hotplug driver"
-	depends on HOTPLUG_PCI && PPC_PSERIES && PPC64 && !HOTPLUG_PCI_FAKE
+	depends on PPC_PSERIES && PPC64 && !HOTPLUG_PCI_FAKE
 	help
 	  Say Y here if you have a RPA system that supports PCI Hotplug.
 
@@ -170,12 +166,11 @@ config HOTPLUG_PCI_RPA_DLPAR
 
 config HOTPLUG_PCI_SGI
 	tristate "SGI PCI Hotplug Support"
-	depends on HOTPLUG_PCI && (IA64_SGI_SN2 || IA64_GENERIC)
+	depends on IA64_SGI_SN2 || IA64_GENERIC
 	help
 	  Say Y here if you want to use the SGI Altix Hotplug
 	  Driver for PCI devices.
 
 	  When in doubt, say N.
 
-endmenu
-
+endif # HOTPLUG_PCI
