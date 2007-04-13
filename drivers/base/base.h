@@ -45,3 +45,5 @@ struct class_device_attribute *to_class_dev_attr(struct attribute *_attr)
 extern char *make_class_name(const char *name, struct kobject *kobj);
 
 extern void devres_release_all(struct device *dev);
+
+extern struct kset devices_subsys;

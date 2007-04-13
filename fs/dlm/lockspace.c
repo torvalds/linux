@@ -167,7 +167,6 @@ static struct kobj_type dlm_ktype = {
 };
 
 static struct kset dlm_kset = {
-	.subsys = &kernel_subsys,
 	.kobj   = {.name = "dlm",},
 	.ktype  = &dlm_ktype,
 };
@@ -218,6 +217,7 @@ int dlm_lockspace_init(void)
 	INIT_LIST_HEAD(&lslist);
 	spin_lock_init(&lslist_lock);
 
+	kobj_set_kset_s(&dlm_kset, kernel_subsys);
 	error = kset_register(&dlm_kset);
 	if (error)
 		printk("dlm_lockspace_init: cannot register kset %d\n", error);

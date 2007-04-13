@@ -312,7 +312,7 @@ static struct attribute * default_attrs[] = {
 	NULL,
 };
 
-extern struct subsystem block_subsys;
+extern struct kset block_subsys;
 
 static void part_release(struct kobject *kobj)
 {
@@ -388,7 +388,7 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len,
 	kobject_add(&p->kobj);
 	if (!disk->part_uevent_suppress)
 		kobject_uevent(&p->kobj, KOBJ_ADD);
-	sysfs_create_link(&p->kobj, &block_subsys.kset.kobj, "subsystem");
+	sysfs_create_link(&p->kobj, &block_subsys.kobj, "subsystem");
 	if (flags & ADDPART_FLAG_WHOLEDISK) {
 		static struct attribute addpartattr = {
 			.name = "whole_disk",
@@ -444,7 +444,7 @@ static int disk_sysfs_symlinks(struct gendisk *disk)
 			goto err_out_dev_link;
 	}
 
-	err = sysfs_create_link(&disk->kobj, &block_subsys.kset.kobj,
+	err = sysfs_create_link(&disk->kobj, &block_subsys.kobj,
 				"subsystem");
 	if (err)
 		goto err_out_disk_name_lnk;

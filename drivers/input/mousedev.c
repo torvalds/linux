@@ -661,7 +661,7 @@ static struct input_handle *mousedev_connect(struct input_handler *handler, stru
 			dev->cdev.dev, mousedev->name);
 
 	/* temporary symlink to keep userspace happy */
-	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+	sysfs_create_link(&input_class.subsys.kobj, &cdev->kobj,
 			  mousedev->name);
 
 	return &mousedev->handle;
@@ -672,7 +672,7 @@ static void mousedev_disconnect(struct input_handle *handle)
 	struct mousedev *mousedev = handle->private;
 	struct mousedev_list *list;
 
-	sysfs_remove_link(&input_class.subsys.kset.kobj, mousedev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, mousedev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + mousedev->minor));
 	mousedev->exist = 0;

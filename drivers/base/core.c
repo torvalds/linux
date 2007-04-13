@@ -565,7 +565,7 @@ static struct kobject * get_device_parent(struct device *dev,
 	/* Set the parent to the class, not the parent device */
 	/* this keeps sysfs from having a symlink to make old udevs happy */
 	if (dev->class)
-		return &dev->class->subsys.kset.kobj;
+		return &dev->class->subsys.kobj;
 	else if (parent)
 		return &parent->kobj;
 
@@ -577,7 +577,7 @@ static struct kobject *virtual_device_parent(struct device *dev)
 	static struct kobject *virtual_dir = NULL;
 
 	if (!virtual_dir)
-		virtual_dir = kobject_add_dir(&devices_subsys.kset.kobj, "virtual");
+		virtual_dir = kobject_add_dir(&devices_subsys.kobj, "virtual");
 
 	return virtual_dir;
 }
@@ -711,12 +711,12 @@ int device_add(struct device *dev)
 	}
 
 	if (dev->class) {
-		sysfs_create_link(&dev->kobj, &dev->class->subsys.kset.kobj,
+		sysfs_create_link(&dev->kobj, &dev->class->subsys.kobj,
 				  "subsystem");
 		/* If this is not a "fake" compatible device, then create the
 		 * symlink from the class to the device. */
-		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
-			sysfs_create_link(&dev->class->subsys.kset.kobj,
+		if (dev->kobj.parent != &dev->class->subsys.kobj)
+			sysfs_create_link(&dev->class->subsys.kobj,
 					  &dev->kobj, dev->bus_id);
 		if (parent) {
 			sysfs_create_link(&dev->kobj, &dev->parent->kobj,
@@ -774,8 +774,8 @@ int device_add(struct device *dev)
 		sysfs_remove_link(&dev->kobj, "subsystem");
 		/* If this is not a "fake" compatible device, remove the
 		 * symlink from the class to the device. */
-		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
-			sysfs_remove_link(&dev->class->subsys.kset.kobj,
+		if (dev->kobj.parent != &dev->class->subsys.kobj)
+			sysfs_remove_link(&dev->class->subsys.kobj,
 					  dev->bus_id);
 		if (parent) {
 #ifdef CONFIG_SYSFS_DEPRECATED
@@ -875,8 +875,8 @@ void device_del(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "subsystem");
 		/* If this is not a "fake" compatible device, remove the
 		 * symlink from the class to the device. */
-		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
-			sysfs_remove_link(&dev->class->subsys.kset.kobj,
+		if (dev->kobj.parent != &dev->class->subsys.kobj)
+			sysfs_remove_link(&dev->class->subsys.kobj,
 					  dev->bus_id);
 		if (parent) {
 #ifdef CONFIG_SYSFS_DEPRECATED
@@ -1192,9 +1192,9 @@ int device_rename(struct device *dev, char *new_name)
 #endif
 
 	if (dev->class) {
-		sysfs_remove_link(&dev->class->subsys.kset.kobj,
+		sysfs_remove_link(&dev->class->subsys.kobj,
 				  old_symlink_name);
-		sysfs_create_link(&dev->class->subsys.kset.kobj, &dev->kobj,
+		sysfs_create_link(&dev->class->subsys.kobj, &dev->kobj,
 				  dev->bus_id);
 	}
 	put_device(dev);

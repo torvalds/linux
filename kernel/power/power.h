@@ -35,7 +35,7 @@ static struct subsys_attribute _name##_attr = {	\
 	.store	= _name##_store,		\
 }
 
-extern struct subsystem power_subsys;
+extern struct kset power_subsys;
 
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;

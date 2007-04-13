@@ -539,7 +539,7 @@ static struct input_handle *joydev_connect(struct input_handler *handler, struct
 			dev->cdev.dev, joydev->name);
 
 	/* temporary symlink to keep userspace happy */
-	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+	sysfs_create_link(&input_class.subsys.kobj, &cdev->kobj,
 			  joydev->name);
 
 	return &joydev->handle;
@@ -550,7 +550,7 @@ static void joydev_disconnect(struct input_handle *handle)
 	struct joydev *joydev = handle->private;
 	struct joydev_list *list;
 
-	sysfs_remove_link(&input_class.subsys.kset.kobj, joydev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, joydev->name);
 	class_device_destroy(&input_class, MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));
 	joydev->exist = 0;
 

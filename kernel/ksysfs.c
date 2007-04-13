@@ -24,18 +24,18 @@ static struct subsys_attribute _name##_attr = \
 
 #if defined(CONFIG_HOTPLUG) && defined(CONFIG_NET)
 /* current uevent sequence number */
-static ssize_t uevent_seqnum_show(struct subsystem *subsys, char *page)
+static ssize_t uevent_seqnum_show(struct kset *kset, char *page)
 {
 	return sprintf(page, "%llu\n", (unsigned long long)uevent_seqnum);
 }
 KERNEL_ATTR_RO(uevent_seqnum);
 
 /* uevent helper program, used during early boo */
-static ssize_t uevent_helper_show(struct subsystem *subsys, char *page)
+static ssize_t uevent_helper_show(struct kset *kset, char *page)
 {
 	return sprintf(page, "%s\n", uevent_helper);
 }
-static ssize_t uevent_helper_store(struct subsystem *subsys, const char *page, size_t count)
+static ssize_t uevent_helper_store(struct kset *kset, const char *page, size_t count)
 {
 	if (count+1 > UEVENT_HELPER_PATH_LEN)
 		return -ENOENT;
@@ -49,13 +49,13 @@ KERNEL_ATTR_RW(uevent_helper);
 #endif
 
 #ifdef CONFIG_KEXEC
-static ssize_t kexec_loaded_show(struct subsystem *subsys, char *page)
+static ssize_t kexec_loaded_show(struct kset *kset, char *page)
 {
 	return sprintf(page, "%d\n", !!kexec_image);
 }
 KERNEL_ATTR_RO(kexec_loaded);
 
-static ssize_t kexec_crash_loaded_show(struct subsystem *subsys, char *page)
+static ssize_t kexec_crash_loaded_show(struct kset *kset, char *page)
 {
 	return sprintf(page, "%d\n", !!kexec_crash_image);
 }
@@ -85,7 +85,7 @@ static int __init ksysfs_init(void)
 {
 	int error = subsystem_register(&kernel_subsys);
 	if (!error)
-		error = sysfs_create_group(&kernel_subsys.kset.kobj,
+		error = sysfs_create_group(&kernel_subsys.kobj,
 					   &kernel_attr_group);
 
 	return error;
