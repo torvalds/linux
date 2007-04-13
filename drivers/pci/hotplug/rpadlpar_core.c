@@ -98,7 +98,15 @@ static struct device_node *find_dlpar_node(char *drc_name, int *node_type)
 	return NULL;
 }
 
-static struct slot *find_slot(struct device_node *dn)
+/**
+ * find_php_slot - return hotplug slot structure for device node
+ *
+ * This routine will return the hotplug slot structure
+ * for a given device node. Note that built-in PCI slots
+ * may be dlpar-able, but not hot-pluggable, so this routine
+ * will return NULL for built-in PCI slots.
+ */
+static struct slot *find_php_slot(struct device_node *dn)
 {
 	struct list_head *tmp, *n;
 	struct slot *slot;
@@ -224,9 +232,9 @@ static int dlpar_remove_phb(char *drc_name, struct device_node *dn)
 	if (!pcibios_find_pci_bus(dn))
 		return -EINVAL;
 
-	slot = find_slot(dn);
+	/* If pci slot is hotplugable, use hotplug to remove it */
+	slot = find_php_slot(dn);
 	if (slot) {
-		/* Remove hotplug slot */
 		if (rpaphp_deregister_slot(slot)) {
 			printk(KERN_ERR
 				"%s: unable to remove hotplug slot %s\n",
@@ -370,9 +378,9 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 	if (!bus)
 		return -EINVAL;
 
-	slot = find_slot(dn);
+	/* If pci slot is hotplugable, use hotplug to remove it */
+	slot = find_php_slot(dn);
 	if (slot) {
-		/* Remove hotplug slot */
 		if (rpaphp_deregister_slot(slot)) {
 			printk(KERN_ERR
 				"%s: unable to remove hotplug slot %s\n",
