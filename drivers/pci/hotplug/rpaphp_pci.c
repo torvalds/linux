@@ -136,6 +136,6 @@ int rpaphp_register_pci_slot(struct slot *slot)
 		}
 	}
 
-	return rpaphp_register_slot(slot);
+	return 0;
 }
 

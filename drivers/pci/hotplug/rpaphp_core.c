@@ -319,6 +319,9 @@ int rpaphp_add_slot(struct device_node *dn)
 				indexes[i + 1], name, type);
 
 		retval = rpaphp_register_pci_slot(slot);
+		if (!retval)
+			retval = rpaphp_register_slot(slot);
+
 		if (retval)
 			dealloc_slot_struct(slot);
 
