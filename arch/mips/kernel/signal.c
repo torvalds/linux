@@ -113,10 +113,10 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		 * Save FPU state to signal context. Signal handler
 		 * will "inherit" current FPU state.
 		 */
+		preempt_disable();
 		own_fpu(1);
-		enable_fp_in_kernel();
 		err |= save_fp_context(sc);
-		disable_fp_in_kernel();
+		preempt_enable();
 	}
 	return err;
 }
@@ -148,7 +148,10 @@ check_and_restore_fp_context(struct sigcontext __user *sc)
 	err = sig = fpcsr_pending(&sc->sc_fpc_csr);
 	if (err > 0)
 		err = 0;
+	preempt_disable();
+	own_fpu(0);
 	err |= restore_fp_context(sc);
+	preempt_enable();
 	return err ?: sig;
 }
 
@@ -187,11 +190,8 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 
 	if (used_math) {
 		/* restore fpu context if we have used it before */
-		own_fpu(0);
-		enable_fp_in_kernel();
 		if (!err)
 			err = check_and_restore_fp_context(sc);
-		disable_fp_in_kernel();
 	} else {
 		/* signal handler may have used FPU.  Give it up. */
 		lose_fpu(0);
