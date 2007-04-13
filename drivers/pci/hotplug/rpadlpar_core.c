@@ -387,13 +387,8 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 				__FUNCTION__, drc_name);
 			return -EIO;
 		}
-	} else {
-		struct pci_dev *dev, *tmp;
-		list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
-			eeh_remove_bus_device(dev);
-			pci_remove_bus_device(dev);
-		}
-	}
+	} else
+		pcibios_remove_pci_devices(bus);
 
 	if (unmap_bus_range(bus)) {
 		printk(KERN_ERR "%s: failed to unmap bus range\n",
