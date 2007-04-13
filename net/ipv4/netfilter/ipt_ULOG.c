@@ -349,12 +349,52 @@ static int ipt_ulog_checkentry(const char *tablename,
 	return 1;
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_ipt_ulog_info {
+	compat_uint_t	nl_group;
+	compat_size_t	copy_range;
+	compat_size_t	qthreshold;
+	char		prefix[ULOG_PREFIX_LEN];
+};
+
+static void compat_from_user(void *dst, void *src)
+{
+	struct compat_ipt_ulog_info *cl = src;
+	struct ipt_ulog_info l = {
+		.nl_group	= cl->nl_group,
+		.copy_range	= cl->copy_range,
+		.qthreshold	= cl->qthreshold,
+	};
+
+	memcpy(l.prefix, cl->prefix, sizeof(l.prefix));
+	memcpy(dst, &l, sizeof(l));
+}
+
+static int compat_to_user(void __user *dst, void *src)
+{
+	struct ipt_ulog_info *l = src;
+	struct compat_ipt_ulog_info cl = {
+		.nl_group	= l->nl_group,
+		.copy_range	= l->copy_range,
+		.qthreshold	= l->qthreshold,
+	};
+
+	memcpy(cl.prefix, l->prefix, sizeof(cl.prefix));
+	return copy_to_user(dst, &cl, sizeof(cl)) ? -EFAULT : 0;
+}
+#endif /* CONFIG_COMPAT */
+
 static struct xt_target ipt_ulog_reg = {
 	.name		= "ULOG",
 	.family		= AF_INET,
 	.target		= ipt_ulog_target,
 	.targetsize	= sizeof(struct ipt_ulog_info),
 	.checkentry	= ipt_ulog_checkentry,
+#ifdef CONFIG_COMPAT
+	.compatsize	= sizeof(struct compat_ipt_ulog_info),
+	.compat_from_user = compat_from_user,
+	.compat_to_user	= compat_to_user,
+#endif
 	.me		= THIS_MODULE,
 };
 
