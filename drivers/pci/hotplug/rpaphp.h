@@ -89,7 +89,6 @@ extern struct list_head rpaphp_slot_head;
 /* rpaphp_pci.c */
 extern int rpaphp_enable_pci_slot(struct slot *slot);
 extern int rpaphp_register_pci_slot(struct slot *slot);
-extern int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value);
 extern int rpaphp_get_sensor_state(struct slot *slot, int *state);
 
 /* rpaphp_core.c */

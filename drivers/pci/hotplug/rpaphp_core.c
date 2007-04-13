@@ -130,12 +130,22 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 * value)
 static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 * value)
 {
 	struct slot *slot = (struct slot *)hotplug_slot->private;
-	int retval = 0;
+	int rc, state;
 
 	down(&rpaphp_sem);
-	retval = rpaphp_get_pci_adapter_status(slot, 0, value);
+	rc = rpaphp_get_sensor_state(slot, &state);
 	up(&rpaphp_sem);
-	return retval;
+
+	*value = NOT_VALID;
+	if (rc)
+		return rc;
+
+	if (state == EMPTY)
+		*value = EMPTY;
+	else if (state == PRESENT)
+		*value = slot->state;
+
+	return 0;
 }
 
 static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_speed *value)

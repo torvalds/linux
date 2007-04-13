@@ -64,43 +64,6 @@ int rpaphp_get_sensor_state(struct slot *slot, int *state)
 	return rc;
 }
 
-/**
- * get_pci_adapter_status - get the status of a slot
- * 
- * 0-- slot is empty
- * 1-- adapter is configured
- * 2-- adapter is not configured
- * 3-- not valid
- */
-int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value)
-{
-	struct pci_bus *bus;
-	int state, rc;
-
-	*value = NOT_VALID;
-	rc = rpaphp_get_sensor_state(slot, &state);
-	if (rc)
-		goto exit;
-
- 	if (state == EMPTY)
- 		*value = EMPTY;
- 	else if (state == PRESENT) {
-		if (!is_init) {
-			/* at run-time slot->state can be changed by */
-			/* config/unconfig adapter */
-			*value = slot->state;
-		} else {
-			bus = pcibios_find_pci_bus(slot->dn);
-			if (bus && !list_empty(&bus->devices))
-				*value = CONFIGURED;
-			else
-				*value = NOT_CONFIGURED;
-		}
-	}
-exit:
-	return rc;
-}
-
 static void print_slot_pci_funcs(struct pci_bus *bus)
 {
 	struct device_node *dn;
@@ -183,20 +146,30 @@ exit_rc:
 
 int rpaphp_register_pci_slot(struct slot *slot)
 {
-	int rc, level;
+	int rc, level, state;
+	struct pci_bus *bus;
 	struct hotplug_slot_info *info = slot->hotplug_slot->info;
 
+	/* Find out if the power is turned on for the slot */
 	rc = rtas_get_power_level(slot->power_domain, &level);
 	if (rc)
 		return rc;
 	info->power_status = level;
 
-	rpaphp_get_pci_adapter_status(slot, 1, &info->adapter_status);
+	/* Figure out if there is an adapter in the slot */
+	info->adapter_status = NOT_VALID;
+	rc = rpaphp_get_sensor_state(slot, &state);
+	if (rc)
+		return rc;
 
-	if (info->adapter_status == NOT_VALID) {
-		err("%s: NOT_VALID: skip dn->full_name=%s\n",
-		    __FUNCTION__, slot->dn->full_name);
-		return -EINVAL;
+	if (state == EMPTY)
+		info->adapter_status = EMPTY;
+	else if (state == PRESENT) {
+		bus = pcibios_find_pci_bus(slot->dn);
+		if (bus && !list_empty(&bus->devices))
+			info->adapter_status = CONFIGURED;
+		else
+			info->adapter_status = NOT_CONFIGURED;
 	}
 
 	if (setup_pci_slot(slot))
