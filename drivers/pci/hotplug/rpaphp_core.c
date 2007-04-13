@@ -299,32 +299,32 @@ int rpaphp_add_slot(struct device_node *dn)
 	const int *indexes, *names, *types, *power_domains;
 	char *name, *type;
 
+	if (!dn->name || strcmp(dn->name, "pci"))
+		return 0;
+
+	if (!is_php_dn(dn, &indexes, &names, &types, &power_domains))
+		return 0;
+
 	dbg("Entry %s: dn->full_name=%s\n", __FUNCTION__, dn->full_name);
 
 	/* register PCI devices */
-	if (dn->name != 0 && strcmp(dn->name, "pci") == 0) {
-		if (!is_php_dn(dn, &indexes, &names, &types, &power_domains))
-			goto exit;
+	name = (char *) &names[1];
+	type = (char *) &types[1];
+	for (i = 0; i < indexes[0]; i++) {
 
-		name = (char *) &names[1];
-		type = (char *) &types[1];
-		for (i = 0; i < indexes[0]; i++,
-	     		name += (strlen(name) + 1), type += (strlen(type) + 1)) 		{
+		slot = alloc_slot_struct(dn, indexes[i + 1], name, power_domains[i + 1]);
+		if (!slot)
+			return -ENOMEM;
 
-			if (!(slot = alloc_slot_struct(dn, indexes[i + 1], name,
-				       power_domains[i + 1]))) {
-				retval = -ENOMEM;
-				goto exit;
-			}
-			slot->type = simple_strtoul(type, NULL, 10);
+		slot->type = simple_strtoul(type, NULL, 10);
 				
-			dbg("Found drc-index:0x%x drc-name:%s drc-type:%s\n",
-					indexes[i + 1], name, type);
+		dbg("Found drc-index:0x%x drc-name:%s drc-type:%s\n",
+				indexes[i + 1], name, type);
 
-			retval = rpaphp_register_pci_slot(slot);
-		}
+		retval = rpaphp_register_pci_slot(slot);
+		name += strlen(name) + 1;
+		type += strlen(type) + 1;
 	}
-exit:
 	dbg("%s - Exit: num_slots=%d rc[%d]\n",
 	    __FUNCTION__, num_slots, retval);
 	return retval;
