@@ -178,9 +178,8 @@ static void wbsd_init_device(struct wbsd_host *host)
 	ier = 0;
 	ier |= WBSD_EINT_CARD;
 	ier |= WBSD_EINT_FIFO_THRE;
-	ier |= WBSD_EINT_CCRC;
-	ier |= WBSD_EINT_TIMEOUT;
 	ier |= WBSD_EINT_CRC;
+	ier |= WBSD_EINT_TIMEOUT;
 	ier |= WBSD_EINT_TC;
 
 	outb(ier, host->base + WBSD_EIR);
@@ -1166,30 +1165,6 @@ end:
 	spin_unlock(&host->lock);
 }
 
-static void wbsd_tasklet_block(unsigned long param)
-{
-	struct wbsd_host *host = (struct wbsd_host *)param;
-	struct mmc_data *data;
-
-	spin_lock(&host->lock);
-
-	if ((wbsd_read_index(host, WBSD_IDX_CRCSTATUS) & WBSD_CRC_MASK) !=
-		WBSD_CRC_OK) {
-		data = wbsd_get_data(host);
-		if (!data)
-			goto end;
-
-		DBGF("CRC error\n");
-
-		data->error = MMC_ERR_BADCRC;
-
-		tasklet_schedule(&host->finish_tasklet);
-	}
-
-end:
-	spin_unlock(&host->lock);
-}
-
 /*
  * Interrupt handling
  */
@@ -1220,8 +1195,6 @@ static irqreturn_t wbsd_irq(int irq, void *dev_id)
 		tasklet_hi_schedule(&host->crc_tasklet);
 	if (isr & WBSD_INT_TIMEOUT)
 		tasklet_hi_schedule(&host->timeout_tasklet);
-	if (isr & WBSD_INT_BUSYEND)
-		tasklet_hi_schedule(&host->block_tasklet);
 	if (isr & WBSD_INT_TC)
 		tasklet_schedule(&host->finish_tasklet);
 
@@ -1522,8 +1495,6 @@ static int __devinit wbsd_request_irq(struct wbsd_host *host, int irq)
 			(unsigned long)host);
 	tasklet_init(&host->finish_tasklet, wbsd_tasklet_finish,
 			(unsigned long)host);
-	tasklet_init(&host->block_tasklet, wbsd_tasklet_block,
-			(unsigned long)host);
 
 	return 0;
 }
@@ -1542,7 +1513,6 @@ static void __devexit wbsd_release_irq(struct wbsd_host *host)
 	tasklet_kill(&host->crc_tasklet);
 	tasklet_kill(&host->timeout_tasklet);
 	tasklet_kill(&host->finish_tasklet);
-	tasklet_kill(&host->block_tasklet);
 }
 
 /*
