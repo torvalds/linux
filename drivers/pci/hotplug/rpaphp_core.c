@@ -318,7 +318,7 @@ int rpaphp_add_slot(struct device_node *dn)
 		dbg("Found drc-index:0x%x drc-name:%s drc-type:%s\n",
 				indexes[i + 1], name, type);
 
-		retval = rpaphp_register_pci_slot(slot);
+		retval = rpaphp_enable_slot(slot);
 		if (!retval)
 			retval = rpaphp_register_slot(slot);
 

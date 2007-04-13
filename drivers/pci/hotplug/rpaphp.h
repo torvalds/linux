@@ -87,13 +87,11 @@ extern struct list_head rpaphp_slot_head;
 /* function prototypes */
 
 /* rpaphp_pci.c */
-extern int rpaphp_enable_pci_slot(struct slot *slot);
-extern int rpaphp_register_pci_slot(struct slot *slot);
+extern int rpaphp_enable_slot(struct slot *slot);
 extern int rpaphp_get_sensor_state(struct slot *slot, int *state);
 
 /* rpaphp_core.c */
 extern int rpaphp_add_slot(struct device_node *dn);
-extern int rpaphp_remove_slot(struct slot *slot);
 extern int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
 		char **drc_name, char **drc_type, int *drc_power_domain);
 

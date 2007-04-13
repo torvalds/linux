@@ -77,7 +77,15 @@ static void set_slot_name(struct slot *slot)
 			bus->number);
 }
 
-int rpaphp_register_pci_slot(struct slot *slot)
+/**
+ * rpaphp_enable_slot - record slot state, config pci device
+ *
+ * Initialize values in the slot, and the hotplug_slot info
+ * structures to indicate if there is a pci card plugged into
+ * the slot. If the slot is not empty, run the pcibios routine
+ * to get pcibios stuff correctly set up.
+ */
+int rpaphp_enable_slot(struct slot *slot)
 {
 	int rc, level, state;
 	struct pci_bus *bus;
