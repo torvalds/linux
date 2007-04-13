@@ -140,8 +140,6 @@ int rpaphp_deregister_slot(struct slot *slot)
 	retval = pci_hp_deregister(php_slot);
 	if (retval)
 		err("Problem unregistering a slot %s\n", slot->name);
-	else
-		num_slots--;
 
 	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
 	return retval;
@@ -181,7 +179,6 @@ int rpaphp_register_slot(struct slot *slot)
 	list_add(&slot->rpaphp_slot_list, &rpaphp_slot_head);
 	info("Slot [%s](PCI location=%s) registered\n", slot->name,
 			slot->location);
-	num_slots++;
 	return 0;
 
 sysfs_fail:

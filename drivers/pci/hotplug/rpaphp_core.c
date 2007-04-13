@@ -41,7 +41,6 @@
 int debug;
 static struct semaphore rpaphp_sem;
 LIST_HEAD(rpaphp_slot_head);
-int num_slots;
 
 #define DRIVER_VERSION	"0.1"
 #define DRIVER_AUTHOR	"Linda Xie <lxie@us.ibm.com>"
@@ -325,8 +324,7 @@ int rpaphp_add_slot(struct device_node *dn)
 		name += strlen(name) + 1;
 		type += strlen(type) + 1;
 	}
-	dbg("%s - Exit: num_slots=%d rc[%d]\n",
-	    __FUNCTION__, num_slots, retval);
+	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
 	return retval;
 }
 

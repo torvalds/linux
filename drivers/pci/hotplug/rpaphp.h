@@ -83,7 +83,6 @@ struct slot {
 
 extern struct hotplug_slot_ops rpaphp_hotplug_slot_ops;
 extern struct list_head rpaphp_slot_head;
-extern int num_slots;
 
 /* function prototypes */
 
