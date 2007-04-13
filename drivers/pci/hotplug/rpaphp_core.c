@@ -54,11 +54,6 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, 0644);
 
-static int rpaphp_get_attention_status(struct slot *slot)
-{
-	return slot->hotplug_slot->info->attention_status;
-}
-
 /**
  * set_attention_status - set attention LED
  * echo 0 > attention -- set LED OFF
@@ -95,8 +90,6 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
  * get_power_status - get power status of a slot
  * @hotplug_slot: slot to get status
  * @value: pointer to store status
- *
- *
  */
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
 {
@@ -113,18 +106,12 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
 
 /**
  * get_attention_status - get attention LED status
- *
- *
  */
 static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 * value)
 {
-	int retval = 0;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
-
-	down(&rpaphp_sem);
-	*value = rpaphp_get_attention_status(slot);
-	up(&rpaphp_sem);
-	return retval;
+	*value = slot->hotplug_slot->info->attention_status;
+	return 0;
 }
 
 static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 * value)
