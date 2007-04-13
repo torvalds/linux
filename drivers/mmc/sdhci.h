@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mmc/sdhci.h - Secure Digital Host Controller Interface driver
  *
- *  Copyright (C) 2005 Pierre Ossman, All Rights Reserved.
+ *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -186,8 +186,6 @@ struct sdhci_host {
 	int			num_sg;		/* Entries left */
 	int			offset;		/* Offset into current sg */
 	int			remain;		/* Bytes left in current */
-
-	int			size;		/* Remaining bytes in transfer */
 
 	char			slot_descr[20];	/* Name for reservations */
 
