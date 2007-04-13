@@ -548,7 +548,7 @@ config MV64X60_WDT
 	depends on WATCHDOG && MV64X60
 
 config BOOKE_WDT
-	tristate "PowerPC Book-E Watchdog Timer"
+	bool "PowerPC Book-E Watchdog Timer"
 	depends on WATCHDOG && (BOOKE || 4xx)
 	---help---
 	  Please see Documentation/watchdog/watchdog-api.txt for
