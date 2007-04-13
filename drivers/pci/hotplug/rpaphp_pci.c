@@ -92,63 +92,14 @@ static void set_slot_name(struct slot *slot)
 			bus->number);
 }
 
-static int setup_pci_slot(struct slot *slot)
-{
-	struct device_node *dn = slot->dn;
-	struct pci_bus *bus;
-
-	BUG_ON(!dn);
-	bus = pcibios_find_pci_bus(dn);
-	if (!bus) {
-		err("%s: no pci_bus for dn %s\n", __FUNCTION__, dn->full_name);
-		goto exit_rc;
-	}
-
-	slot->bus = bus;
-	slot->pci_devs = &bus->devices;
-	set_slot_name(slot);
-
-	/* find slot's pci_dev if it's not empty */
-	if (slot->hotplug_slot->info->adapter_status == EMPTY) {
-		slot->state = EMPTY;	/* slot is empty */
-	} else {
-		/* slot is occupied */
-		if (!dn->child) {
-			/* non-empty slot has to have child */
-			err("%s: slot[%s]'s device_node doesn't have child for adapter\n", 
-				__FUNCTION__, slot->name);
-			goto exit_rc;
-		}
-
-		if (slot->hotplug_slot->info->adapter_status == NOT_CONFIGURED) {
-			dbg("%s CONFIGURING pci adapter in slot[%s]\n",  
-				__FUNCTION__, slot->name);
-			pcibios_add_pci_devices(slot->bus);
-
-		} else if (slot->hotplug_slot->info->adapter_status != CONFIGURED) {
-			err("%s: slot[%s]'s adapter_status is NOT_VALID.\n",
-				__FUNCTION__, slot->name);
-			goto exit_rc;
-		}
-		print_slot_pci_funcs(slot->bus);
-		if (!list_empty(slot->pci_devs)) {
-			slot->state = CONFIGURED;
-		} else {
-			/* DLPAR add as opposed to 
-		 	 * boot time */
-			slot->state = NOT_CONFIGURED;
-		}
-	}
-	return 0;
-exit_rc:
-	return -EINVAL;
-}
-
 int rpaphp_register_pci_slot(struct slot *slot)
 {
 	int rc, level, state;
 	struct pci_bus *bus;
 	struct hotplug_slot_info *info = slot->hotplug_slot->info;
+
+	info->adapter_status = NOT_VALID;
+	slot->state = EMPTY;
 
 	/* Find out if the power is turned on for the slot */
 	rc = rtas_get_power_level(slot->power_domain, &level);
@@ -157,23 +108,42 @@ int rpaphp_register_pci_slot(struct slot *slot)
 	info->power_status = level;
 
 	/* Figure out if there is an adapter in the slot */
-	info->adapter_status = NOT_VALID;
 	rc = rpaphp_get_sensor_state(slot, &state);
 	if (rc)
 		return rc;
 
-	if (state == EMPTY)
-		info->adapter_status = EMPTY;
-	else if (state == PRESENT) {
-		bus = pcibios_find_pci_bus(slot->dn);
-		if (bus && !list_empty(&bus->devices))
-			info->adapter_status = CONFIGURED;
-		else
-			info->adapter_status = NOT_CONFIGURED;
+	bus = pcibios_find_pci_bus(slot->dn);
+	if (!bus) {
+		err("%s: no pci_bus for dn %s\n", __FUNCTION__, slot->dn->full_name);
+		return -EINVAL;
 	}
 
-	if (setup_pci_slot(slot))
-		return -EINVAL;
+	info->adapter_status = EMPTY;
+	slot->bus = bus;
+	slot->pci_devs = &bus->devices;
+	set_slot_name(slot);
+
+	/* if there's an adapter in the slot, go add the pci devices */
+	if (state == PRESENT) {
+		info->adapter_status = NOT_CONFIGURED;
+		slot->state = NOT_CONFIGURED;
+
+		/* non-empty slot has to have child */
+		if (!slot->dn->child) {
+			err("%s: slot[%s]'s device_node doesn't have child for adapter\n",
+			    __FUNCTION__, slot->name);
+			return -EINVAL;
+		}
+
+		if (list_empty(&bus->devices))
+			pcibios_add_pci_devices(bus);
+
+		print_slot_pci_funcs(bus);
+		if (!list_empty(&bus->devices)) {
+			info->adapter_status = CONFIGURED;
+			slot->state = CONFIGURED;
+		}
+	}
 
 	return rpaphp_register_slot(slot);
 }
