@@ -2296,10 +2296,6 @@ config UGETH_TX_ON_DEMOND
 	bool "Transmit on Demond support"
 	depends on UCC_GETH
 
-config UGETH_HAS_GIGA
-	bool
-	depends on UCC_GETH && PPC_MPC836x
-
 config MV643XX_ETH
 	tristate "MV-643XX Ethernet support"
 	depends on MOMENCO_OCELOT_C || MOMENCO_JAGUAR_ATX || MV64360 || MOMENCO_OCELOT_3 || (PPC_MULTIPLATFORM && PPC32)
