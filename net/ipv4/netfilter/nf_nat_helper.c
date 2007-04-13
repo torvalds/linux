@@ -153,6 +153,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 			 const char *rep_buffer,
 			 unsigned int rep_len)
 {
+	struct rtable *rt = (struct rtable *)(*pskb)->dst;
 	struct iphdr *iph;
 	struct tcphdr *tcph;
 	int oldlen, datalen;
@@ -176,11 +177,22 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 
 	datalen = (*pskb)->len - iph->ihl*4;
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
-		tcph->check = 0;
-		tcph->check = tcp_v4_check(datalen,
-					   iph->saddr, iph->daddr,
-					   csum_partial((char *)tcph,
-							datalen, 0));
+		if (!(rt->rt_flags & RTCF_LOCAL) &&
+		    (*pskb)->dev->features & NETIF_F_ALL_CSUM) {
+			(*pskb)->ip_summed = CHECKSUM_PARTIAL;
+			(*pskb)->csum_start = skb_headroom(*pskb) +
+					      skb_network_offset(*pskb) +
+					      iph->ihl * 4;
+			(*pskb)->csum_offset = offsetof(struct tcphdr, check);
+			tcph->check = ~tcp_v4_check(datalen,
+						    iph->saddr, iph->daddr, 0);
+		} else {
+			tcph->check = 0;
+			tcph->check = tcp_v4_check(datalen,
+						   iph->saddr, iph->daddr,
+						   csum_partial((char *)tcph,
+								datalen, 0));
+		}
 	} else
 		nf_proto_csum_replace2(&tcph->check, *pskb,
 				       htons(oldlen), htons(datalen), 1);
@@ -217,6 +229,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 			 const char *rep_buffer,
 			 unsigned int rep_len)
 {
+	struct rtable *rt = (struct rtable *)(*pskb)->dst;
 	struct iphdr *iph;
 	struct udphdr *udph;
 	int datalen, oldlen;
@@ -251,13 +264,25 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 		return 1;
 
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
-		udph->check = 0;
-		udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
-						datalen, IPPROTO_UDP,
-						csum_partial((char *)udph,
-							     datalen, 0));
-		if (!udph->check)
-			udph->check = CSUM_MANGLED_0;
+		if (!(rt->rt_flags & RTCF_LOCAL) &&
+		    (*pskb)->dev->features & NETIF_F_ALL_CSUM) {
+			(*pskb)->ip_summed = CHECKSUM_PARTIAL;
+			(*pskb)->csum_start = skb_headroom(*pskb) +
+					      skb_network_offset(*pskb) +
+					      iph->ihl * 4;
+			(*pskb)->csum_offset = offsetof(struct udphdr, check);
+			udph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
+							 datalen, IPPROTO_UDP,
+							 0);
+		} else {
+			udph->check = 0;
+			udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
+							datalen, IPPROTO_UDP,
+							csum_partial((char *)udph,
+								     datalen, 0));
+			if (!udph->check)
+				udph->check = CSUM_MANGLED_0;
+		}
 	} else
 		nf_proto_csum_replace2(&udph->check, *pskb,
 				       htons(oldlen), htons(datalen), 1);
