@@ -132,7 +132,7 @@ static ssize_t of_device_get_modalias(struct of_device *ofdev,
 				ofdev->node->name, ofdev->node->type);
 
 	/* Get compatible property if any */
-	compat = get_property(ofdev->node, "compatible", &cplen);
+	compat = of_get_property(ofdev->node, "compatible", &cplen);
 	if (!compat)
 		return csize;
 
@@ -194,7 +194,7 @@ int of_device_uevent(struct device *dev,
          * it's not really legal to split it out with commas. We split it
          * up using a number of environment variables instead. */
 
-	compat = get_property(ofdev->node, "compatible", &cplen);
+	compat = of_get_property(ofdev->node, "compatible", &cplen);
 	while (compat && *compat && cplen > 0) {
 		if (add_uevent_var(envp, num_envp, &i,
 				   buffer, buffer_size, &length,

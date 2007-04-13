@@ -232,12 +232,12 @@ static void __init efika_init_early(void)
 	/* find the boot console from /chosen/stdout */
 	if (!of_chosen)
 		return;
-	device_type = get_property(of_chosen, "linux,stdout-path", NULL);
+	device_type = of_get_property(of_chosen, "linux,stdout-path", NULL);
 	if (!device_type)
 		return;
 	stdout_node = of_find_node_by_path(device_type);
 	if (stdout_node) {
-		device_type = get_property(stdout_node, "device_type", NULL);
+		device_type = of_get_property(stdout_node, "device_type", NULL);
 		if (device_type && strcmp(device_type, "serial") == 0)
 			add_preferred_console("ttyPSC", 0, NULL);
 		of_node_put(stdout_node);
