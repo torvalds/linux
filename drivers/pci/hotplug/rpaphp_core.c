@@ -262,6 +262,14 @@ static int is_php_type(char *drc_type)
 	return 1;
 }
 
+/**
+ * is_php_dn() - return 1 if this is a hotpluggable pci slot, else 0
+ *
+ * This routine will return true only if the device node is
+ * a hotpluggable slot. This routine will return false
+ * for built-in pci slots (even when the built-in slots are
+ * dlparable.)
+ */
 static int is_php_dn(struct device_node *dn, const int **indexes,
 		const int **names, const int **types, const int **power_domains)
 {
@@ -269,24 +277,31 @@ static int is_php_dn(struct device_node *dn, const int **indexes,
 	int rc;
 
 	rc = get_children_props(dn, indexes, names, &drc_types, power_domains);
-	if (rc >= 0) {
-		if (is_php_type((char *) &drc_types[1])) {
-			*types = drc_types;
-			return 1;
-		}
-	}
+	if (rc < 0)
+		return 0;
 
-	return 0;
+	if (!is_php_type((char *) &drc_types[1]))
+		return 0;
+
+	*types = drc_types;
+	return 1;
 }
 
 /**
- * rpaphp_add_slot -- add hotplug or dlpar slot
+ * rpaphp_add_slot -- declare a hotplug slot to the hotplug subsystem.
+ * @dn device node of slot
  *
- *	rpaphp not only registers PCI hotplug slots(HOTPLUG), 
- *	but also logical DR slots(EMBEDDED).
- *	HOTPLUG slot: An adapter can be physically added/removed. 
- *	EMBEDDED slot: An adapter can be logically removed/added
- *		  from/to a partition with the slot.
+ * This subroutine will register a hotplugable slot with the
+ * PCI hotplug infrastructure. This routine is typicaly called
+ * during boot time, if the hotplug slots are present at boot time,
+ * or is called later, by the dlpar add code, if the slot is
+ * being dynamically added during runtime.
+ *
+ * If the device node points at an embedded (built-in) slot, this
+ * routine will just return without doing anything, since embedded
+ * slots cannot be hotplugged.
+ *
+ * To remove a slot, it suffices to call rpaphp_deregister_slot()
  */
 int rpaphp_add_slot(struct device_node *dn)
 {
@@ -299,6 +314,7 @@ int rpaphp_add_slot(struct device_node *dn)
 	if (!dn->name || strcmp(dn->name, "pci"))
 		return 0;
 
+	/* If this is not a hotplug slot, return without doing anything. */
 	if (!is_php_dn(dn, &indexes, &names, &types, &power_domains))
 		return 0;
 
