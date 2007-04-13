@@ -64,21 +64,6 @@ int rpaphp_get_sensor_state(struct slot *slot, int *state)
 	return rc;
 }
 
-static void print_slot_pci_funcs(struct pci_bus *bus)
-{
-	struct device_node *dn;
-	struct pci_dev *dev;
-
-	dn = pci_bus_to_OF_node(bus);
-	if (!dn)
-		return;
-
-	dbg("%s: pci_devs of slot[%s]\n", __FUNCTION__, dn->full_name);
-	list_for_each_entry (dev, &bus->devices, bus_list)
-		dbg("\t%s\n", pci_name(dev));
-	return;
-}
-
 static void set_slot_name(struct slot *slot)
 {
 	struct pci_bus *bus = slot->bus;
@@ -138,10 +123,16 @@ int rpaphp_register_pci_slot(struct slot *slot)
 		if (list_empty(&bus->devices))
 			pcibios_add_pci_devices(bus);
 
-		print_slot_pci_funcs(bus);
 		if (!list_empty(&bus->devices)) {
 			info->adapter_status = CONFIGURED;
 			slot->state = CONFIGURED;
+		}
+
+		if (debug) {
+			struct pci_dev *dev;
+			dbg("%s: pci_devs of slot[%s]\n", __FUNCTION__, slot->dn->full_name);
+			list_for_each_entry (dev, &bus->devices, bus_list)
+				dbg("\t%s\n", pci_name(dev));
 		}
 	}
 
