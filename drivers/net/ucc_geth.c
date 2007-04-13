@@ -1626,14 +1626,6 @@ static int init_phy(struct net_device *dev)
 }
 
 
-#ifdef CONFIG_UGETH_TX_ON_DEMOND
-static int ugeth_transmit_on_demand(struct ucc_geth_private *ugeth)
-{
-	struct ucc_fastransmit_on_demand(ugeth->uccf);
-
-	return 0;
-}
-#endif
 
 static int ugeth_graceful_stop_tx(struct ucc_geth_private *ugeth)
 {
@@ -3343,6 +3335,9 @@ static void ucc_geth_timeout(struct net_device *dev)
 static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
+#ifdef CONFIG_UGETH_TX_ON_DEMAND
+	struct ucc_fast_private *uccf;
+#endif
 	u8 *bd;			/* BD pointer */
 	u32 bd_status;
 	u8 txQ = 0;
@@ -3401,6 +3396,10 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		out_be16(ugeth->p_cpucount[txQ], ugeth->cpucount[txQ]);
 	}
 
+#ifdef CONFIG_UGETH_TX_ON_DEMAND
+	uccf = ugeth->uccf;
+	out_be16(uccf->p_utodr, UCC_FAST_TOD);
+#endif
 	spin_unlock_irq(&ugeth->lock);
 
 	return 0;
