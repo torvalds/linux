@@ -503,8 +503,7 @@ static int _aac_probe_container1(void * context, struct fib * fibptr)
 	dresp = (struct aac_mount *) fib_data(fibptr);
 	dresp->mnt[0].capacityhigh = 0;
 	if ((le32_to_cpu(dresp->status) != ST_OK) ||
-	    ((le32_to_cpu(dresp->mnt[0].vol) != CT_NONE) &&
-	     (le32_to_cpu(dresp->mnt[0].state) == FSCS_HIDDEN)))
+	    (le32_to_cpu(dresp->mnt[0].vol) != CT_NONE))
 		return _aac_probe_container2(context, fibptr);
 	scsicmd = (struct scsi_cmnd *) context;
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
