@@ -39,7 +39,6 @@
 #include "rpaphp.h"
 
 int debug;
-static struct semaphore rpaphp_sem;
 LIST_HEAD(rpaphp_slot_head);
 
 #define DRIVER_VERSION	"0.1"
@@ -66,7 +65,6 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 	int rc;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 
-	down(&rpaphp_sem);
 	switch (value) {
 	case 0:
 	case 1:
@@ -76,7 +74,6 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 		value = 1;
 		break;
 	}
-	up(&rpaphp_sem);
 
 	rc = rtas_set_indicator(DR_INDICATOR, slot->index, value);
 	if (!rc)
@@ -95,11 +92,9 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
 	int retval, level;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 
-	down(&rpaphp_sem);
 	retval = rtas_get_power_level (slot->power_domain, &level);
 	if (!retval)
 		*value = level;
-	up(&rpaphp_sem);
 	return retval;
 }
 
@@ -118,9 +113,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 * value)
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 	int rc, state;
 
-	down(&rpaphp_sem);
 	rc = rpaphp_get_sensor_state(slot, &state);
-	up(&rpaphp_sem);
 
 	*value = NOT_VALID;
 	if (rc)
@@ -138,7 +131,6 @@ static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 {
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 
-	down(&rpaphp_sem);
 	switch (slot->type) {
 	case 1:
 	case 2:
@@ -169,7 +161,6 @@ static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 		break;
 
 	}
-	up(&rpaphp_sem);
 	return 0;
 }
 
@@ -374,7 +365,6 @@ static int __init rpaphp_init(void)
 	struct device_node *dn = NULL;
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
-	init_MUTEX(&rpaphp_sem);
 
 	while ((dn = of_find_node_by_name(dn, "pci")))
 		rpaphp_add_slot(dn);
@@ -387,8 +377,9 @@ static void __exit rpaphp_exit(void)
 	cleanup_slots();
 }
 
-static int __enable_slot(struct slot *slot)
+static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
+	struct slot *slot = (struct slot *)hotplug_slot->private;
 	int state;
 	int retval;
 
@@ -412,38 +403,15 @@ static int __enable_slot(struct slot *slot)
 	return 0;
 }
 
-static int enable_slot(struct hotplug_slot *hotplug_slot)
+static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
-	int retval;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
-
-	down(&rpaphp_sem);
-	retval = __enable_slot(slot);
-	up(&rpaphp_sem);
-
-	return retval;
-}
-
-static inline int __disable_slot(struct slot *slot)
-{
 	if (slot->state == NOT_CONFIGURED)
 		return -EINVAL;
 
 	pcibios_remove_pci_devices(slot->bus);
 	slot->state = NOT_CONFIGURED;
 	return 0;
-}
-
-static int disable_slot(struct hotplug_slot *hotplug_slot)
-{
-	struct slot *slot = (struct slot *)hotplug_slot->private;
-	int retval;
-
-	down(&rpaphp_sem);
-	retval = __disable_slot (slot);
-	up(&rpaphp_sem);
-
-	return retval;
 }
 
 struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
