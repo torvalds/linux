@@ -116,23 +116,6 @@ static void print_slot_pci_funcs(struct pci_bus *bus)
 	return;
 }
 
-static int setup_pci_hotplug_slot_info(struct slot *slot)
-{
-	struct hotplug_slot_info *hotplug_slot_info = slot->hotplug_slot->info;
-
-	dbg("%s Initilize the PCI slot's hotplug->info structure ...\n",
-	    __FUNCTION__);
-	rpaphp_get_power_status(slot, &hotplug_slot_info->power_status);
-	rpaphp_get_pci_adapter_status(slot, 1,
-				      &hotplug_slot_info->adapter_status);
-	if (hotplug_slot_info->adapter_status == NOT_VALID) {
-		err("%s: NOT_VALID: skip dn->full_name=%s\n",
-		    __FUNCTION__, slot->dn->full_name);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static void set_slot_name(struct slot *slot)
 {
 	struct pci_bus *bus = slot->bus;
@@ -200,14 +183,20 @@ exit_rc:
 
 int rpaphp_register_pci_slot(struct slot *slot)
 {
-	int rc = -EINVAL;
+	struct hotplug_slot_info *info = slot->hotplug_slot->info;
 
-	if (setup_pci_hotplug_slot_info(slot))
-		goto exit_rc;
+	rpaphp_get_power_status(slot, &info->power_status);
+	rpaphp_get_pci_adapter_status(slot, 1, &info->adapter_status);
+
+	if (info->adapter_status == NOT_VALID) {
+		err("%s: NOT_VALID: skip dn->full_name=%s\n",
+		    __FUNCTION__, slot->dn->full_name);
+		return -EINVAL;
+	}
+
 	if (setup_pci_slot(slot))
-		goto exit_rc;
-	rc = rpaphp_register_slot(slot);
-exit_rc:
-	return rc;
+		return -EINVAL;
+
+	return rpaphp_register_slot(slot);
 }
 
