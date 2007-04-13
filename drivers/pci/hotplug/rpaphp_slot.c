@@ -157,14 +157,13 @@ int rpaphp_register_slot(struct slot *slot)
 	/* should not try to register the same slot twice */
 	if (is_registered(slot)) {
 		err("rpaphp_register_slot: slot[%s] is already registered\n", slot->name);
-		retval = -EAGAIN;
-		goto register_fail;
+		return -EAGAIN;
 	}	
 
 	retval = pci_hp_register(php_slot);
 	if (retval) {
 		err("pci_hp_register failed with error %d\n", retval);
-		goto register_fail;
+		return retval;
 	}
 
 	/* create "phy_location" file */
@@ -182,7 +181,6 @@ int rpaphp_register_slot(struct slot *slot)
 
 sysfs_fail:
 	pci_hp_deregister(php_slot);
-register_fail:
 	return retval;
 }
 
