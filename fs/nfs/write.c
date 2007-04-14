@@ -218,9 +218,11 @@ int nfs_congestion_kb;
 #define NFS_CONGESTION_OFF_THRESH	\
 	(NFS_CONGESTION_ON_THRESH - (NFS_CONGESTION_ON_THRESH >> 2))
 
-static void nfs_set_page_writeback(struct page *page)
+static int nfs_set_page_writeback(struct page *page)
 {
-	if (!test_set_page_writeback(page)) {
+	int ret = test_set_page_writeback(page);
+
+	if (!ret) {
 		struct inode *inode = page->mapping->host;
 		struct nfs_server *nfss = NFS_SERVER(inode);
 
@@ -228,6 +230,7 @@ static void nfs_set_page_writeback(struct page *page)
 				NFS_CONGESTION_ON_THRESH)
 			set_bdi_congested(&nfss->backing_dev_info, WRITE);
 	}
+	return ret;
 }
 
 static void nfs_end_page_writeback(struct page *page)
@@ -277,10 +280,8 @@ static int nfs_page_mark_flush(struct page *page)
 		spin_lock(req_lock);
 	}
 	spin_unlock(req_lock);
-	if (test_and_set_bit(PG_FLUSHING, &req->wb_flags) == 0) {
+	if (nfs_set_page_writeback(page) == 0)
 		nfs_mark_request_dirty(req);
-		nfs_set_page_writeback(page);
-	}
 	ret = test_bit(PG_NEED_FLUSH, &req->wb_flags);
 	nfs_unlock_request(req);
 	return ret;
@@ -424,7 +425,6 @@ nfs_mark_request_dirty(struct nfs_page *req)
 static void
 nfs_redirty_request(struct nfs_page *req)
 {
-	clear_bit(PG_FLUSHING, &req->wb_flags);
 	__set_page_dirty_nobuffers(req->wb_page);
 }
 
@@ -434,7 +434,11 @@ nfs_redirty_request(struct nfs_page *req)
 static inline int
 nfs_dirty_request(struct nfs_page *req)
 {
-	return test_bit(PG_FLUSHING, &req->wb_flags) == 0;
+	struct page *page = req->wb_page;
+
+	if (page == NULL)
+		return 0;
+	return !PageWriteback(req->wb_page);
 }
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
@@ -500,6 +504,7 @@ static void nfs_cancel_dirty_list(struct list_head *head)
 	while(!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
+		nfs_end_page_writeback(req->wb_page);
 		nfs_inode_remove_request(req);
 		nfs_clear_page_writeback(req);
 	}
@@ -890,6 +895,7 @@ out_bad:
 		list_del(&data->pages);
 		nfs_writedata_release(data);
 	}
+	nfs_end_page_writeback(req->wb_page);
 	nfs_redirty_request(req);
 	nfs_clear_page_writeback(req);
 	return -ENOMEM;
@@ -935,6 +941,7 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
+		nfs_end_page_writeback(req->wb_page);
 		nfs_redirty_request(req);
 		nfs_clear_page_writeback(req);
 	}
@@ -970,6 +977,7 @@ out_err:
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
+		nfs_end_page_writeback(req->wb_page);
 		nfs_redirty_request(req);
 		nfs_clear_page_writeback(req);
 	}
