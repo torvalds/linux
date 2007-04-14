@@ -327,7 +327,7 @@ static int __init pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-void pcibios_fixup_bus(struct pci_bus *pbus)
+void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 {
 	struct pci_pbm_info *pbm = pbus->sysdata;
 
@@ -405,7 +405,7 @@ void pcibios_bus_to_resource(struct pci_dev *pdev, struct resource *res,
 }
 EXPORT_SYMBOL(pcibios_bus_to_resource);
 
-char * __init pcibios_setup(char *str)
+char * __devinit pcibios_setup(char *str)
 {
 	return str;
 }
