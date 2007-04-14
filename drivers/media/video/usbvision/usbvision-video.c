@@ -76,6 +76,7 @@
 #endif
 
 #include "usbvision.h"
+#include "usbvision-cards.h"
 
 #define DRIVER_AUTHOR "Joerg Heckenbach <joerg@heckenbach-aw.de>, Dwaine Garden <DwaineGarden@rogers.com>"
 #define DRIVER_NAME "usbvision"
@@ -1775,7 +1776,8 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
  * if it looks like USBVISION video device
  *
  */
-static int __devinit usbvision_probe(struct usb_interface *intf, const struct usb_device_id *devid)
+static int __devinit usbvision_probe(struct usb_interface *intf,
+				     const struct usb_device_id *devid)
 {
 	struct usb_device *dev = usb_get_dev(interface_to_usbdev(intf));
 	struct usb_interface *uif;
@@ -1786,25 +1788,13 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 	int model,i;
 
 	PDEBUG(DBG_PROBE, "VID=%#04x, PID=%#04x, ifnum=%u",
-					dev->descriptor.idVendor, dev->descriptor.idProduct, ifnum);
+				dev->descriptor.idVendor,
+				dev->descriptor.idProduct, ifnum);
 
-	/* Is it an USBVISION video dev? */
-	model = 0;
-	for(model = 0; usbvision_device_data[model].idVendor; model++) {
-		if (le16_to_cpu(dev->descriptor.idVendor) != usbvision_device_data[model].idVendor) {
-			continue;
-		}
-		if (le16_to_cpu(dev->descriptor.idProduct) != usbvision_device_data[model].idProduct) {
-			continue;
-		}
+	model = devid->driver_info;
+	printk(KERN_INFO "%s: %s found\n", __FUNCTION__,
+				usbvision_device_data[model].ModelString);
 
-		printk(KERN_INFO "%s: %s found\n", __FUNCTION__, usbvision_device_data[model].ModelString);
-		break;
-	}
-
-	if (usbvision_device_data[model].idVendor == 0) {
-		return -ENODEV; //no matching device
-	}
 	if (usbvision_device_data[model].Interface >= 0) {
 		interface = &dev->actconfig->interface[usbvision_device_data[model].Interface]->altsetting[0];
 	}
@@ -1828,10 +1818,11 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 		err("%s: couldn't allocate USBVision struct", __FUNCTION__);
 		return -ENOMEM;
 	}
+
 	if (dev->descriptor.bNumConfigurations > 1) {
 		usbvision->bridgeType = BRIDGE_NT1004;
 	}
-	else if (usbvision_device_data[model].ModelString == "Dazzle Fusion Model DVC-90 Rev 1 (SECAM)") {
+	else if (model == DAZZLE_DVC_90_REV_1_SECAM) {
 		usbvision->bridgeType = BRIDGE_NT1005;
 	}
 	else {
@@ -1958,6 +1949,8 @@ static struct usb_driver usbvision_driver = {
  */
 static void customdevice_process(void)
 {
+	unsigned int id_vend,id_prod;
+
 	usbvision_device_data[0]=usbvision_device_data[1];
 	usbvision_table[0]=usbvision_table[1];
 
@@ -1965,7 +1958,7 @@ static void customdevice_process(void)
 	{
 		char *parse=CustomDevice;
 
-		PDEBUG(DBG_PROBE, "CustomDevide=%s", CustomDevice);
+		PDEBUG(DBG_PROBE, "CustomDevice=%s", CustomDevice);
 
 		/*format is CustomDevice="0x0573 0x4D31 0 7113 3 PAL 1 1 1 5 -1 -1 -1 -1 -1"
 		usbvision_device_data[0].idVendor;
@@ -1990,13 +1983,16 @@ static void customdevice_process(void)
 		usbvision_device_data[0].ModelString="USBVISION Custom Device";
 
 		parse+=2;
-		sscanf(parse,"%x",&usbvision_device_data[0].idVendor);
+		sscanf(parse,"%u",&id_vend);
+		usbvision_table[0].idVendor=id_vend;
+
 		goto2next(parse);
-		PDEBUG(DBG_PROBE, "idVendor=0x%.4X", usbvision_device_data[0].idVendor);
+		PDEBUG(DBG_PROBE, "idVendor=0x%.4X", usbvision_table[0].idVendor);
 		parse+=2;
-		sscanf(parse,"%x",&usbvision_device_data[0].idProduct);
+		sscanf(parse,"%u",&id_prod);
+		usbvision_table[0].idProduct=id_prod;
 		goto2next(parse);
-		PDEBUG(DBG_PROBE, "idProduct=0x%.4X", usbvision_device_data[0].idProduct);
+		PDEBUG(DBG_PROBE, "idProduct=0x%.4X", usbvision_table[0].idProduct);
 		sscanf(parse,"%d",&usbvision_device_data[0].Interface);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "Interface=%d", usbvision_device_data[0].Interface);
@@ -2060,9 +2056,6 @@ static void customdevice_process(void)
 
 		//add to usbvision_table also
 		usbvision_table[0].match_flags=USB_DEVICE_ID_MATCH_DEVICE;
-		usbvision_table[0].idVendor=usbvision_device_data[0].idVendor;
-		usbvision_table[0].idProduct=usbvision_device_data[0].idProduct;
-
 	}
 }
 

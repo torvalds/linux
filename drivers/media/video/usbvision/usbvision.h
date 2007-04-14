@@ -342,8 +342,6 @@ struct usbvision_frame {
 #define BRIDGE_NT1005   1005
 
 struct usbvision_device_data_st {
-	int idVendor;
-	int idProduct;
 	int Interface; /* to handle special interface number like BELKIN and Hauppauge WinTV-USB II */
 	int Codec;
 	int VideoChannels;
