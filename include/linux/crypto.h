@@ -588,6 +588,12 @@ static inline int crypto_ablkcipher_reqsize(struct crypto_ablkcipher *tfm)
 	return crypto_ablkcipher_crt(tfm)->reqsize;
 }
 
+static inline void ablkcipher_request_set_tfm(
+	struct ablkcipher_request *req, struct crypto_ablkcipher *tfm)
+{
+	req->base.tfm = crypto_ablkcipher_tfm(tfm);
+}
+
 static inline struct ablkcipher_request *ablkcipher_request_cast(
 	struct crypto_async_request *req)
 {
@@ -603,7 +609,7 @@ static inline struct ablkcipher_request *ablkcipher_request_alloc(
 		      crypto_ablkcipher_reqsize(tfm), gfp);
 
 	if (likely(req))
-		req->base.tfm = crypto_ablkcipher_tfm(tfm);
+		ablkcipher_request_set_tfm(req, tfm);
 
 	return req;
 }
