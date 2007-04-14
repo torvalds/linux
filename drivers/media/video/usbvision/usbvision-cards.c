@@ -1027,6 +1027,7 @@ struct usbvision_device_data_st  usbvision_device_data[] = {
 		.ModelString   = "Hauppauge WinTv-USB",
 	},
 };
+const int usbvision_device_data_size=ARRAY_SIZE(usbvision_device_data);
 
 /* Supported Devices */
 
