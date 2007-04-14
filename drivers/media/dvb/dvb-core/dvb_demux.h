@@ -119,6 +119,7 @@ struct dvb_demux {
 	u16 pids[DMX_TS_PES_OTHER];
 	int playing;
 	int recording;
+	wait_queue_head_t	  wait_queue;
 
 #define DMX_MAX_PID 0x2000
 	struct list_head feed_list;
