@@ -482,13 +482,11 @@ struct usb_usbvision {
 /* i2c-algo-usb declaration                                        */
 /* --------------------------------------------------------------- */
 
-int usbvision_i2c_usb_del_bus(struct i2c_adapter *);
-
-
 /* ----------------------------------------------------------------------- */
 /* usbvision specific I2C functions                                        */
 /* ----------------------------------------------------------------------- */
-int usbvision_init_i2c(struct usb_usbvision *usbvision);
+int usbvision_i2c_register(struct usb_usbvision *usbvision);
+int usbvision_i2c_unregister(struct usb_usbvision *usbvision);
 void call_i2c_clients(struct usb_usbvision *usbvision, unsigned int cmd,void *arg);
 
 /* defined in usbvision-core.c                                      */

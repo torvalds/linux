@@ -2238,7 +2238,7 @@ static void call_usbvision_power_off(struct work_struct *work)
 	PDEBUG(DBG_FUNC, "");
 	down_interruptible(&usbvision->lock);
 	if(usbvision->user == 0) {
-		usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+		usbvision_i2c_unregister(usbvision);
 
 		usbvision_power_off(usbvision);
 		usbvision->initialized = 0;

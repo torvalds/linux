@@ -410,7 +410,7 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 		down(&usbvision->lock);
 		if (usbvision->power == 0) {
 			usbvision_power_on(usbvision);
-			usbvision_init_i2c(usbvision);
+			usbvision_i2c_register(usbvision);
 		}
 
 		/* Send init sequence only once, it's large! */
@@ -432,7 +432,7 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 		}
 		else {
 			if (PowerOnAtOpen) {
-				usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+				usbvision_i2c_unregister(usbvision);
 				usbvision_power_off(usbvision);
 				usbvision->initialized = 0;
 			}
@@ -1240,7 +1240,7 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 			usbvision_reset_powerOffTimer(usbvision);
 			if (usbvision->power == 0) {
 				usbvision_power_on(usbvision);
-				usbvision_init_i2c(usbvision);
+				usbvision_i2c_register(usbvision);
 			}
 		}
 
@@ -1262,7 +1262,7 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 
 	if (errCode) {
 		if (PowerOnAtOpen) {
-			usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+			usbvision_i2c_unregister(usbvision);
 			usbvision_power_off(usbvision);
 			usbvision->initialized = 0;
 		}
@@ -1765,7 +1765,7 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
 	usbvision_audio_off(usbvision);	//first switch off audio
 	if (!PowerOnAtOpen) {
 		usbvision_power_on(usbvision);	//and then power up the noisy tuner
-		usbvision_init_i2c(usbvision);
+		usbvision_i2c_register(usbvision);
 	}
 }
 
@@ -1913,7 +1913,7 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	usbvision_stop_isoc(usbvision);
 
 	if (usbvision->power) {
-		usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+		usbvision_i2c_unregister(usbvision);
 		usbvision_power_off(usbvision);
 	}
 	usbvision->remove_pending = 1;	// Now all ISO data will be ignored
