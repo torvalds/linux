@@ -1793,7 +1793,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 
 	model = devid->driver_info;
 	if ( (model<0) || (model>=usbvision_device_data_size) ) {
-		printk(KERN_INFO "model out of bounds %d\n",model);
+		PDEBUG(DBG_PROBE, "model out of bounds %d",model);
 		return -ENODEV;
 	}
 	printk(KERN_INFO "%s: %s found\n", __FUNCTION__,
