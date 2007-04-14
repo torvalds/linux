@@ -1137,7 +1137,6 @@ struct usbvision_device_data_st  usbvision_device_data[] = {
 		.Dvi_yuv       = -1,
 		.ModelString   = "Hauppauge WinTv-USB",
 	},
-	{}  /* Terminating entry */
 };
 
 /* Supported Devices */
@@ -1208,8 +1207,6 @@ struct usb_device_id usbvision_table [] = {
 	{ USB_DEVICE(0x2304, 0x0301), .driver_info=PINNA_LINX_VD_IN_CAB_PAL },
 	{ USB_DEVICE(0x2304, 0x0419), .driver_info=PINNA_PCTV_BUNGEE_PAL_FM },
 	{ USB_DEVICE(0x2400, 0x4200), .driver_info=HPG_WINTV },
-
-	{ }  /* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE (usb, usbvision_table);

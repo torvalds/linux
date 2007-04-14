@@ -347,9 +347,9 @@ struct usbvision_device_data_st {
 	int VideoChannels;
 	__u64 VideoNorm;
 	int AudioChannels;
-	int Radio;
-	int vbi;
-	int Tuner;
+	int Radio:1;
+	int vbi:1;
+	int Tuner:1;
 	int TunerType;
 	int Vin_Reg1;
 	int Vin_Reg2;

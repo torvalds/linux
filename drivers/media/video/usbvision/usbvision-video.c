@@ -1949,7 +1949,7 @@ static struct usb_driver usbvision_driver = {
  */
 static void customdevice_process(void)
 {
-	unsigned int id_vend,id_prod;
+	unsigned int id_vend,id_prod,radio,tuner;
 
 	usbvision_device_data[0]=usbvision_device_data[1];
 	usbvision_table[0]=usbvision_table[1];
@@ -2030,10 +2030,12 @@ static void customdevice_process(void)
 		sscanf(parse,"%d",&usbvision_device_data[0].AudioChannels);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "AudioChannels=%d", usbvision_device_data[0].AudioChannels);
-		sscanf(parse,"%d",&usbvision_device_data[0].Radio);
+		sscanf(parse,"%d",&radio);
+		usbvision_device_data[0].Radio=(radio?1:0);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "Radio=%d", usbvision_device_data[0].Radio);
-		sscanf(parse,"%d",&usbvision_device_data[0].Tuner);
+		sscanf(parse,"%d",&tuner);
+		usbvision_device_data[0].Tuner=(tuner?1:0);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "Tuner=%d", usbvision_device_data[0].Tuner);
 		sscanf(parse,"%d",&usbvision_device_data[0].TunerType);
