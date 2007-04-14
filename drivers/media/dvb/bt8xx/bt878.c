@@ -393,9 +393,7 @@ static struct cards card_list[] __devinitdata = {
 	{ 0xdb1118ac, BTTV_BOARD_DVICO_DVBT_LITE,		"Ultraview DVB-T Lite" },
 	{ 0xd50018ac, BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE,	"DViCO FusionHDTV 5 Lite" },
 	{ 0x20007063, BTTV_BOARD_PC_HDTV,			"pcHDTV HD-2000 TV" },
-	{ 0x00261822, BTTV_BOARD_TWINHAN_DST,			"DNTV Live! Mini" },
-
-	{ 0, -1, NULL }
+	{ 0x00261822, BTTV_BOARD_TWINHAN_DST,			"DNTV Live! Mini" }
 };
 
 
