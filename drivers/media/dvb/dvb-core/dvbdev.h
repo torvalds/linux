@@ -69,6 +69,7 @@ struct dvb_device {
 	int writers;
 	int users;
 
+	wait_queue_head_t	  wait_queue;
 	/* don't really need those !? -- FIXME: use video_usercopy  */
 	int (*kernel_ioctl)(struct inode *inode, struct file *file,
 			    unsigned int cmd, void *arg);
