@@ -380,6 +380,9 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		} else {
 			vhdr->h_vlan_encapsulated_proto = htons(len);
 		}
+
+		skb->protocol = htons(ETH_P_8021Q);
+		skb->nh.raw = skb->data;
 	}
 
 	/* Before delegating work to the lower layer, enter our MAC-address */

@@ -61,6 +61,7 @@
 #include <linux/netfilter_ipv4/ipt_ULOG.h>
 #include <net/sock.h>
 #include <linux/bitops.h>
+#include <asm/unaligned.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
@@ -236,9 +237,9 @@ static void ipt_ulog_packet(unsigned int hooknum,
 
 	/* copy hook, prefix, timestamp, payload, etc. */
 	pm->data_len = copy_len;
-	pm->timestamp_sec = skb->tstamp.off_sec;
-	pm->timestamp_usec = skb->tstamp.off_usec;
-	pm->mark = skb->mark;
+	put_unaligned(skb->tstamp.off_sec, &pm->timestamp_sec);
+	put_unaligned(skb->tstamp.off_usec, &pm->timestamp_usec);
+	put_unaligned(skb->mark, &pm->mark);
 	pm->hook = hooknum;
 	if (prefix != NULL)
 		strncpy(pm->prefix, prefix, sizeof(pm->prefix));
