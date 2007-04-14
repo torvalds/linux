@@ -1745,8 +1745,8 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
 	model = usbvision->DevModel;
 	usbvision->palette = usbvision_v4l2_format[2]; // V4L2_PIX_FMT_RGB24;
 
-	if (usbvision_device_data[usbvision->DevModel].Vin_Reg2 >= 0) {
-		usbvision->Vin_Reg2_Preset = usbvision_device_data[usbvision->DevModel].Vin_Reg2 & 0xff;
+	if (usbvision_device_data[usbvision->DevModel].Vin_Reg2_override) {
+		usbvision->Vin_Reg2_Preset = usbvision_device_data[usbvision->DevModel].Vin_Reg2;
 	} else {
 		usbvision->Vin_Reg2_Preset = 0;
 	}
@@ -1957,6 +1957,7 @@ static void customdevice_process(void)
 	if(CustomDevice)
 	{
 		char *parse=CustomDevice;
+		int tmp;
 
 		PDEBUG(DBG_PROBE, "CustomDevice=%s", CustomDevice);
 
@@ -1996,10 +1997,11 @@ static void customdevice_process(void)
 		sscanf(parse,"%d",&usbvision_device_data[0].Interface);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "Interface=%d", usbvision_device_data[0].Interface);
-		sscanf(parse,"%d",&usbvision_device_data[0].Codec);
+		sscanf(parse,"%hd",&usbvision_device_data[0].Codec);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "Codec=%d", usbvision_device_data[0].Codec);
-		sscanf(parse,"%d",&usbvision_device_data[0].VideoChannels);
+		sscanf(parse,"%d",&tmp);
+		usbvision_device_data[0].VideoChannels = tmp;
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "VideoChannels=%d", usbvision_device_data[0].VideoChannels);
 
@@ -2027,7 +2029,8 @@ static void customdevice_process(void)
 		}
 		goto2next(parse);
 
-		sscanf(parse,"%d",&usbvision_device_data[0].AudioChannels);
+		sscanf(parse,"%d",&tmp);
+		usbvision_device_data[0].AudioChannels = tmp;
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "AudioChannels=%d", usbvision_device_data[0].AudioChannels);
 		sscanf(parse,"%d",&radio);
@@ -2038,22 +2041,34 @@ static void customdevice_process(void)
 		usbvision_device_data[0].Tuner=(tuner?1:0);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "Tuner=%d", usbvision_device_data[0].Tuner);
-		sscanf(parse,"%d",&usbvision_device_data[0].TunerType);
+		sscanf(parse,"%hhu",&usbvision_device_data[0].TunerType);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "TunerType=%d", usbvision_device_data[0].TunerType);
-		sscanf(parse,"%d",&usbvision_device_data[0].Vin_Reg1);
+		sscanf(parse,"%d",&tmp);
+		if(tmp>0) {
+			usbvision_device_data[0].Vin_Reg1_override = 1;
+			usbvision_device_data[0].Vin_Reg1 = tmp&0xff;
+		}
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "Vin_Reg1=%d", usbvision_device_data[0].Vin_Reg1);
-		sscanf(parse,"%d",&usbvision_device_data[0].Vin_Reg2);
+		sscanf(parse,"%d",&tmp);
+		if(tmp>0) {
+			usbvision_device_data[0].Vin_Reg2_override = 1;
+			usbvision_device_data[0].Vin_Reg2 = tmp&0xff;
+		}
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "Vin_Reg2=%d", usbvision_device_data[0].Vin_Reg2);
-		sscanf(parse,"%d",&usbvision_device_data[0].X_Offset);
+		sscanf(parse,"%hd",&usbvision_device_data[0].X_Offset);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "X_Offset=%d", usbvision_device_data[0].X_Offset);
-		sscanf(parse,"%d",&usbvision_device_data[0].Y_Offset);
+		sscanf(parse,"%hd",&usbvision_device_data[0].Y_Offset);
 		goto2next(parse);
 		PDEBUG(DBG_PROBE, "Y_Offset=%d", usbvision_device_data[0].Y_Offset);
-		sscanf(parse,"%d",&usbvision_device_data[0].Dvi_yuv);
+		sscanf(parse,"%d",&tmp);
+		if(tmp>0) {
+			usbvision_device_data[0].Dvi_yuv_override = 1;
+			usbvision_device_data[0].Dvi_yuv = tmp&0xff;
+		}
 		PDEBUG(DBG_PROBE, "Dvi_yuv=%d", usbvision_device_data[0].Dvi_yuv);
 
 		//add to usbvision_table also
