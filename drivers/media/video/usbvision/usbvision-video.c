@@ -1816,8 +1816,6 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	usb_get_dev(dev);
-
 	if ((usbvision = usbvision_alloc(dev)) == NULL) {
 		err("%s: couldn't allocate USBVision struct", __FUNCTION__);
 		return -ENOMEM;
