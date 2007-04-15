@@ -433,6 +433,9 @@ extern struct kvm_arch_ops *kvm_arch_ops;
 int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module);
 void kvm_exit_arch(void);
 
+int kvm_mmu_module_init(void);
+void kvm_mmu_module_exit(void);
+
 void kvm_mmu_destroy(struct kvm_vcpu *vcpu);
 int kvm_mmu_create(struct kvm_vcpu *vcpu);
 int kvm_mmu_setup(struct kvm_vcpu *vcpu);

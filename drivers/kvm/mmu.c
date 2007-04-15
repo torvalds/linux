@@ -159,6 +159,9 @@ struct kvm_rmap_desc {
 	struct kvm_rmap_desc *more;
 };
 
+static struct kmem_cache *pte_chain_cache;
+static struct kmem_cache *rmap_desc_cache;
+
 static int is_write_protection(struct kvm_vcpu *vcpu)
 {
 	return vcpu->cr0 & CR0_WP_MASK;
@@ -196,14 +199,14 @@ static int is_rmap_pte(u64 pte)
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
-				  size_t objsize, int min)
+				  struct kmem_cache *base_cache, int min)
 {
 	void *obj;
 
 	if (cache->nobjs >= min)
 		return 0;
 	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
-		obj = kzalloc(objsize, GFP_NOWAIT);
+		obj = kmem_cache_zalloc(base_cache, GFP_NOWAIT);
 		if (!obj)
 			return -ENOMEM;
 		cache->objects[cache->nobjs++] = obj;
@@ -222,11 +225,11 @@ static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
 	int r;
 
 	r = mmu_topup_memory_cache(&vcpu->mmu_pte_chain_cache,
-				   sizeof(struct kvm_pte_chain), 4);
+				   pte_chain_cache, 4);
 	if (r)
 		goto out;
 	r = mmu_topup_memory_cache(&vcpu->mmu_rmap_desc_cache,
-				   sizeof(struct kvm_rmap_desc), 1);
+				   rmap_desc_cache, 1);
 out:
 	return r;
 }
@@ -1331,6 +1334,34 @@ void kvm_mmu_zap_all(struct kvm_vcpu *vcpu)
 	mmu_free_memory_caches(vcpu);
 	kvm_arch_ops->tlb_flush(vcpu);
 	init_kvm_mmu(vcpu);
+}
+
+void kvm_mmu_module_exit(void)
+{
+	if (pte_chain_cache)
+		kmem_cache_destroy(pte_chain_cache);
+	if (rmap_desc_cache)
+		kmem_cache_destroy(rmap_desc_cache);
+}
+
+int kvm_mmu_module_init(void)
+{
+	pte_chain_cache = kmem_cache_create("kvm_pte_chain",
+					    sizeof(struct kvm_pte_chain),
+					    0, 0, NULL, NULL);
+	if (!pte_chain_cache)
+		goto nomem;
+	rmap_desc_cache = kmem_cache_create("kvm_rmap_desc",
+					    sizeof(struct kvm_rmap_desc),
+					    0, 0, NULL, NULL);
+	if (!rmap_desc_cache)
+		goto nomem;
+
+	return 0;
+
+nomem:
+	kvm_mmu_module_exit();
+	return -ENOMEM;
 }
 
 #ifdef AUDIT

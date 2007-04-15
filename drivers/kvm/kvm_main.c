@@ -3063,6 +3063,10 @@ static __init int kvm_init(void)
 	static struct page *bad_page;
 	int r;
 
+	r = kvm_mmu_module_init();
+	if (r)
+		goto out4;
+
 	r = register_filesystem(&kvm_fs_type);
 	if (r)
 		goto out3;
@@ -3091,6 +3095,8 @@ out:
 out2:
 	unregister_filesystem(&kvm_fs_type);
 out3:
+	kvm_mmu_module_exit();
+out4:
 	return r;
 }
 
@@ -3100,6 +3106,7 @@ static __exit void kvm_exit(void)
 	__free_page(pfn_to_page(bad_page_address >> PAGE_SHIFT));
 	mntput(kvmfs_mnt);
 	unregister_filesystem(&kvm_fs_type);
+	kvm_mmu_module_exit();
 }
 
 module_init(kvm_init)
