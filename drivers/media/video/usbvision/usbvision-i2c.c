@@ -278,6 +278,7 @@ static int attach_inform(struct i2c_client *client)
 
 	usbvision = i2c_get_adapdata(client->adapter);
 	switch (client->addr << 1) {
+		case 0x86:
 		case 0x43:
 		case 0x4b:
 		{
