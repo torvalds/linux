@@ -280,8 +280,10 @@ static int nfs_page_mark_flush(struct page *page)
 		spin_lock(req_lock);
 	}
 	spin_unlock(req_lock);
-	if (nfs_set_page_writeback(page) == 0)
+	if (nfs_set_page_writeback(page) == 0) {
+		nfs_list_remove_request(req);
 		nfs_mark_request_dirty(req);
+	}
 	ret = test_bit(PG_NEED_FLUSH, &req->wb_flags);
 	nfs_unlock_request(req);
 	return ret;
