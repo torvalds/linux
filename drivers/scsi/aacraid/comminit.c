@@ -387,12 +387,11 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	 *	Ok now init the communication subsystem
 	 */
 
-	dev->queues = kmalloc(sizeof(struct aac_queue_block), GFP_KERNEL);
+	dev->queues = kzalloc(sizeof(struct aac_queue_block), GFP_KERNEL);
 	if (dev->queues == NULL) {
 		printk(KERN_ERR "Error could not allocate comm region.\n");
 		return NULL;
 	}
-	memset(dev->queues, 0, sizeof(struct aac_queue_block));
 
 	if (aac_comm_init(dev)<0){
 		kfree(dev->queues);
