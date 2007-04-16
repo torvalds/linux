@@ -301,17 +301,8 @@ static int attach_inform(struct i2c_client *client)
 		case 0x43 << 1:
 		case 0x4a << 1:
 		case 0x4b << 1:
-		{
-			struct tuner_setup tun_setup;
-
-			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
-			tun_setup.type = TUNER_TDA9887;
-			tun_setup.addr = client->addr;
-
-			call_i2c_clients(usbvision, TUNER_SET_TYPE_ADDR, &tun_setup);
-
+			PDEBUG(DBG_I2C,"attach_inform: tda9887 detected.");
 			break;
-		}
 		case 0x42:
 			PDEBUG(DBG_I2C,"attach_inform: saa7114 detected.");
 			break;
