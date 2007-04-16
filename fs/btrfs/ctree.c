@@ -1249,6 +1249,60 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	return ret;
 }
 
+int btrfs_extend_item(struct btrfs_trans_handle *trans, struct btrfs_root
+		      *root, struct btrfs_path *path, u32 data_size)
+{
+	int ret = 0;
+	int slot;
+	int slot_orig;
+	struct btrfs_leaf *leaf;
+	struct buffer_head *leaf_buf;
+	u32 nritems;
+	unsigned int data_end;
+	unsigned int old_data;
+	unsigned int old_size;
+	int i;
+
+	slot_orig = path->slots[0];
+	leaf_buf = path->nodes[0];
+	leaf = btrfs_buffer_leaf(leaf_buf);
+
+	nritems = btrfs_header_nritems(&leaf->header);
+	data_end = leaf_data_end(root, leaf);
+
+	if (btrfs_leaf_free_space(root, leaf) < data_size)
+		BUG();
+	slot = path->slots[0];
+	old_data = btrfs_item_end(leaf->items + slot);
+
+	BUG_ON(slot < 0);
+	BUG_ON(slot >= nritems);
+
+	/*
+	 * item0..itemN ... dataN.offset..dataN.size .. data0.size
+	 */
+	/* first correct the data pointers */
+	for (i = slot; i < nritems; i++) {
+		u32 ioff = btrfs_item_offset(leaf->items + i);
+		btrfs_set_item_offset(leaf->items + i,
+				      ioff - data_size);
+	}
+	/* shift the data */
+	btrfs_memmove(root, leaf, btrfs_leaf_data(leaf) +
+		      data_end - data_size, btrfs_leaf_data(leaf) +
+		      data_end, old_data - data_end);
+	data_end = old_data;
+	old_size = btrfs_item_size(leaf->items + slot);
+	btrfs_set_item_size(leaf->items + slot, old_size + data_size);
+	btrfs_mark_buffer_dirty(leaf_buf);
+
+	ret = 0;
+	if (btrfs_leaf_free_space(root, leaf) < 0)
+		BUG();
+	check_leaf(root, path, 0);
+	return ret;
+}
+
 /*
  * Given a key and some data, insert an item into the tree.
  * This does all the path init required, making room in the tree if needed.

@@ -1027,8 +1027,10 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	btrfs_init_path(path);
-	if (create)
+	if (create) {
 		trans = btrfs_start_transaction(root, 1);
+		WARN_ON(1);
+	}
 
 	ret = btrfs_lookup_file_extent(trans, root, path,
 				       inode->i_ino,
@@ -1055,9 +1057,8 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 	/* exact match found, use it, FIXME, deal with extents
 	 * other than the page size
 	 */
-	if (ret == 0) {
+	if (0 && ret == 0) {
 		err = 0;
-		BUG_ON(btrfs_file_extent_disk_num_blocks(item) != 1);
 		if (create &&
 		    btrfs_file_extent_generation(item) != trans->transid) {
 			struct btrfs_key ins;
@@ -1072,7 +1073,6 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 			blocknr = ins.objectid;
 
 		}
-		map_bh(result, inode->i_sb, blocknr);
 		btrfs_map_bh_to_logical(root, result, blocknr);
 		goto out;
 	}
@@ -1231,6 +1231,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 				   struct file *file,
 				   struct page **pages,
 				   size_t num_pages,
+				   u64 extent_offset,
 				   loff_t pos,
 				   size_t write_bytes)
 {
@@ -1250,6 +1251,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		trans = btrfs_start_transaction(root, 1);
 		btrfs_csum_file_block(trans, root, inode->i_ino,
 				      pages[i]->index << PAGE_CACHE_SHIFT,
+				      extent_offset,
 				      kmap(pages[i]), PAGE_CACHE_SIZE);
 		kunmap(pages[i]);
 		SetPageChecked(pages[i]);
@@ -1279,7 +1281,8 @@ static int prepare_pages(struct btrfs_trans_handle *trans,
 			 loff_t pos,
 			 unsigned long first_index,
 			 unsigned long last_index,
-			 size_t write_bytes)
+			 size_t write_bytes,
+			 u64 alloc_extent_start)
 {
 	int i;
 	unsigned long index = pos >> PAGE_CACHE_SHIFT;
@@ -1288,6 +1291,8 @@ static int prepare_pages(struct btrfs_trans_handle *trans,
 	int err = 0;
 	int ret;
 	int this_write;
+	struct buffer_head *bh;
+	struct buffer_head *head;
 	loff_t isize = i_size_read(inode);
 
 	memset(pages, 0, num_pages * sizeof(struct page *));
@@ -1307,14 +1312,20 @@ static int prepare_pages(struct btrfs_trans_handle *trans,
 			BUG_ON(ret);
 			lock_page(pages[i]);
 		}
-		ret = nobh_prepare_write(pages[i], offset,
-					 offset + this_write,
-					 btrfs_get_block);
+		create_empty_buffers(pages[i], root->fs_info->sb->s_blocksize,
+				     (1 << BH_Uptodate));
+		head = page_buffers(pages[i]);
+		bh = head;
+		do {
+			err = btrfs_map_bh_to_logical(root, bh,
+						      alloc_extent_start);
+			BUG_ON(err);
+			if (err)
+				goto failed_truncate;
+			bh = bh->b_this_page;
+			alloc_extent_start++;
+		} while (bh != head);
 		pos += this_write;
-		if (ret) {
-			err = ret;
-			goto failed_truncate;
-		}
 		WARN_ON(this_write > write_bytes);
 		write_bytes -= this_write;
 	}
@@ -1343,10 +1354,22 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	struct page *pages[1];
 	unsigned long first_index;
 	unsigned long last_index;
+	u64 start_pos;
+	u64 num_blocks;
+	u64 alloc_extent_start;
+	u64 orig_extent_start;
+	struct btrfs_trans_handle *trans;
 
 	if (file->f_flags & O_DIRECT)
 		return -EINVAL;
 	pos = *ppos;
+
+	start_pos = pos & ~(root->blocksize - 1);
+	/* FIXME */
+	if (start_pos != pos)
+		return -EINVAL;
+	num_blocks = (count + pos - start_pos + root->blocksize - 1) >>
+			inode->i_blkbits;
 
 	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
 	current->backing_dev_info = inode->i_mapping->backing_dev_info;
@@ -1362,20 +1385,41 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	mutex_lock(&inode->i_mutex);
 	first_index = pos >> PAGE_CACHE_SHIFT;
 	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	if (!trans) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+	ret = btrfs_alloc_file_extent(trans, root, inode->i_ino,
+				      start_pos, num_blocks, 1,
+				      &alloc_extent_start);
+	BUG_ON(ret);
+
+	orig_extent_start = start_pos;
+	ret = btrfs_end_transaction(trans, root);
+	BUG_ON(ret);
+	mutex_unlock(&root->fs_info->fs_mutex);
+
 	while(count > 0) {
 		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
 		size_t write_bytes = min(count, PAGE_CACHE_SIZE - offset);
 		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
 					PAGE_CACHE_SHIFT;
 		ret = prepare_pages(NULL, root, file, pages, num_pages,
-				    pos, first_index, last_index, write_bytes);
+				    pos, first_index, last_index,
+				    write_bytes, alloc_extent_start);
 		BUG_ON(ret);
+		/* FIXME blocks != pagesize */
+		alloc_extent_start += num_pages;
 		ret = btrfs_copy_from_user(pos, num_pages,
 					   write_bytes, pages, buf);
 		BUG_ON(ret);
 
 		ret = dirty_and_release_pages(NULL, root, file, pages,
-					      num_pages, pos, write_bytes);
+					      num_pages, orig_extent_start,
+					      pos, write_bytes);
 		BUG_ON(ret);
 		btrfs_drop_pages(pages, num_pages);
 
@@ -1387,6 +1431,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		balance_dirty_pages_ratelimited(inode->i_mapping);
 		cond_resched();
 	}
+out_unlock:
 	mutex_unlock(&inode->i_mutex);
 out:
 	*ppos = pos;
@@ -1805,8 +1850,6 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				&new_root_item);
 	BUG_ON(ret);
-
-printk("adding snapshot name %.*s root %Lu %Lu %u\n", namelen, name, key.objectid, key.offset, key.flags);
 
 	/*
 	 * insert the directory item
