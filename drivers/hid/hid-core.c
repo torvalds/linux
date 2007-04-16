@@ -4,7 +4,7 @@
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
- *  Copyright (c) 2006 Jiri Kosina
+ *  Copyright (c) 2006-2007 Jiri Kosina
  */
 
 /*
@@ -37,7 +37,7 @@
  */
 
 #define DRIVER_VERSION "v2.6"
-#define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik"
+#define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik, Jiri Kosina"
 #define DRIVER_DESC "HID core driver"
 #define DRIVER_LICENSE "GPL"
 

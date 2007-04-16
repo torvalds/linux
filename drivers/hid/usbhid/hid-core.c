@@ -39,7 +39,7 @@
  */
 
 #define DRIVER_VERSION "v2.6"
-#define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik"
+#define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik, Jiri Kosina"
 #define DRIVER_DESC "USB HID core driver"
 #define DRIVER_LICENSE "GPL"
 
