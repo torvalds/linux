@@ -1916,10 +1916,9 @@ static void setup_dig_out_stream(struct hda_codec *codec, hda_nid_t nid,
 int snd_hda_multi_out_dig_open(struct hda_codec *codec, struct hda_multi_out *mout)
 {
 	mutex_lock(&codec->spdif_mutex);
-	if (mout->dig_out_used) {
-		mutex_unlock(&codec->spdif_mutex);
-		return -EBUSY; /* already being used */
-	}
+	if (mout->dig_out_used == HDA_DIG_ANALOG_DUP)
+		/* already opened as analog dup; reset it once */
+		snd_hda_codec_setup_stream(codec, mout->dig_out_nid, 0, 0, 0);
 	mout->dig_out_used = HDA_DIG_EXCLUSIVE;
 	mutex_unlock(&codec->spdif_mutex);
 	return 0;
