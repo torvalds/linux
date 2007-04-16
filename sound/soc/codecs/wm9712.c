@@ -676,14 +676,13 @@ static int wm9712_soc_probe(struct platform_device *pdev)
 	codec = socdev->codec;
 	mutex_init(&codec->mutex);
 
-	codec->reg_cache =
-		kzalloc(sizeof(u16) * ARRAY_SIZE(wm9712_reg), GFP_KERNEL);
+	codec->reg_cache = kmemdup(wm9712_reg, sizeof(wm9712_reg), GFP_KERNEL);
+
 	if (codec->reg_cache == NULL) {
 		ret = -ENOMEM;
 		goto cache_err;
 	}
-	memcpy(codec->reg_cache, wm9712_reg, sizeof(u16) * ARRAY_SIZE(wm9712_reg));
-	codec->reg_cache_size = sizeof(u16) * ARRAY_SIZE(wm9712_reg);
+	codec->reg_cache_size = sizeof(wm9712_reg);
 	codec->reg_cache_step = 2;
 
 	codec->name = "WM9712";
