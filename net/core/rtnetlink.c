@@ -859,6 +859,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	int min_len;
 	int family;
 	int type;
+	int err;
 
 	type = nlh->nlmsg_type;
 	if (type > RTM_MAX)
@@ -887,7 +888,10 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (dumpit == NULL)
 			return -EOPNOTSUPP;
 
-		return netlink_dump_start(rtnl, skb, nlh, dumpit, NULL);
+		__rtnl_unlock();
+		err = netlink_dump_start(rtnl, skb, nlh, dumpit, NULL);
+		rtnl_lock();
+		return err;
 	}
 
 	memset(rta_buf, 0, (rtattr_max * sizeof(struct rtattr *)));
@@ -972,7 +976,7 @@ void __init rtnetlink_init(void)
 		panic("rtnetlink_init: cannot allocate rta_buf\n");
 
 	rtnl = netlink_kernel_create(NETLINK_ROUTE, RTNLGRP_MAX, rtnetlink_rcv,
-				     NULL, THIS_MODULE);
+				     &rtnl_mutex, THIS_MODULE);
 	if (rtnl == NULL)
 		panic("rtnetlink_init: cannot initialize rtnetlink\n");
 	netlink_set_nonroot(NETLINK_ROUTE, NL_NONROOT_RECV);
