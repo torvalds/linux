@@ -60,7 +60,7 @@ static inline int try_write_address(struct i2c_adapter *i2c_adap,
 	int i, ret = -1;
 	char buf[4];
 
-	usbvision = i2c_get_adapdata(i2c_adap);
+	usbvision = (struct usb_usbvision *)i2c_get_adapdata(i2c_adap);
 	buf[0] = 0x00;
 	for (i = 0; i <= retries; i++) {
 		ret = (usbvision_i2c_write(usbvision, addr, buf, 1));
@@ -85,7 +85,7 @@ static inline int try_read_address(struct i2c_adapter *i2c_adap,
 	int i, ret = -1;
 	char buf[4];
 
-	usbvision = i2c_get_adapdata(i2c_adap);
+	usbvision = (struct usb_usbvision *)i2c_get_adapdata(i2c_adap);
 	for (i = 0; i <= retries; i++) {
 		ret = (usbvision_i2c_read(usbvision, addr, buf, 1));
 		if (ret == 1)
@@ -158,7 +158,8 @@ usbvision_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
 	int i, ret;
 	unsigned char addr;
 
-	usbvision = i2c_get_adapdata(i2c_adap);
+	usbvision = (struct usb_usbvision *)i2c_get_adapdata(i2c_adap);
+
 	for (i = 0; i < num; i++) {
 		pmsg = &msgs[i];
 		ret = usb_find_address(i2c_adap, pmsg, i2c_adap->retries, &addr);
@@ -205,6 +206,28 @@ static struct i2c_algorithm usbvision_algo = {
 };
 
 
+/*
+ * registering functions to load algorithms at runtime
+ */
+static int usbvision_i2c_usb_add_bus(struct i2c_adapter *adap)
+{
+	PDEBUG(DBG_I2C, "I2C   debugging is enabled [i2c]");
+	PDEBUG(DBG_I2C, "ALGO   debugging is enabled [i2c]");
+
+	/* register new adapter to i2c module... */
+
+	adap->algo = &usbvision_algo;
+
+	adap->timeout = 100;	/* default values, should       */
+	adap->retries = 3;	/* be replaced by defines       */
+
+	i2c_add_adapter(adap);
+
+	PDEBUG(DBG_I2C,"i2c bus for %s registered", adap->name);
+
+	return 0;
+}
+
 /* ----------------------------------------------------------------------- */
 /* usbvision specific I2C functions                                        */
 /* ----------------------------------------------------------------------- */
@@ -213,28 +236,23 @@ static struct i2c_client i2c_client_template;
 
 int usbvision_i2c_register(struct usb_usbvision *usbvision)
 {
-	int ret;
-
-	usbvision->i2c_adap = i2c_adap_template;
-	usbvision->i2c_adap.dev.parent = &usbvision->dev->dev;
-
-	PDEBUG(DBG_I2C, "I2C   debugging is enabled [i2c]");
+	memcpy(&usbvision->i2c_adap, &i2c_adap_template,
+	       sizeof(struct i2c_adapter));
+	memcpy(&usbvision->i2c_client, &i2c_client_template,
+	       sizeof(struct i2c_client));
 
 	sprintf(usbvision->i2c_adap.name + strlen(usbvision->i2c_adap.name),
 		" #%d", usbvision->vdev->minor & 0x1f);
-	PDEBUG(DBG_I2C,"I2C Registering adaptername: %s", usbvision->i2c_adap.name);
-	i2c_set_adapdata(&usbvision->i2c_adap,usbvision);
-	if ((ret = i2c_add_adapter(&usbvision->i2c_adap)) < 0) {
-		PDEBUG(DBG_I2C,"could not add I2C adapter %s", usbvision->i2c_adap.name);
-		return ret;
-	}
+	PDEBUG(DBG_I2C,"Adaptername: %s", usbvision->i2c_adap.name);
+	usbvision->i2c_adap.dev.parent = &usbvision->dev->dev;
 
-	/* TODO: use i2c_client for eeprom detection as an example... */
-	usbvision->i2c_client = i2c_client_template;
+	i2c_set_adapdata(&usbvision->i2c_adap, usbvision);
+	i2c_set_clientdata(&usbvision->i2c_client, usbvision);
+
 	usbvision->i2c_client.adapter = &usbvision->i2c_adap;
 
 	if (usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_IIC_LRNACK) < 0) {
-		printk(KERN_ERR "usbvision_i2c_register: can't write reg\n");
+		printk(KERN_ERR "usbvision_register: can't write reg\n");
 		return -EBUSY;
 	}
 
@@ -253,7 +271,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 	}
 #endif
 
-	return 0;
+	return usbvision_i2c_usb_add_bus(&usbvision->i2c_adap);
 }
 
 int usbvision_i2c_unregister(struct usb_usbvision *usbvision)
@@ -276,7 +294,8 @@ static int attach_inform(struct i2c_client *client)
 {
 	struct usb_usbvision *usbvision;
 
-	usbvision = i2c_get_adapdata(client->adapter);
+	usbvision = (struct usb_usbvision *)i2c_get_adapdata(client->adapter);
+
 	switch (client->addr << 1) {
 		case 0x42 << 1:
 		case 0x43 << 1:
@@ -329,7 +348,7 @@ static int detach_inform(struct i2c_client *client)
 {
 	struct usb_usbvision *usbvision;
 
-	usbvision = i2c_get_adapdata(client->adapter);
+	usbvision = (struct usb_usbvision *)i2c_get_adapdata(client->adapter);
 
 	PDEBUG(DBG_I2C,"usbvision[%d] detaches %s", usbvision->nr, client->name);
 	return 0;
@@ -508,8 +527,6 @@ static struct i2c_adapter i2c_adap_template = {
 	.owner = THIS_MODULE,
 	.name              = "usbvision",
 	.id                = I2C_HW_B_BT848, /* FIXME */
-	.algo = &usbvision_algo,
-	.algo_data = NULL,
 	.client_register   = attach_inform,
 	.client_unregister = detach_inform,
 #ifdef I2C_ADAP_CLASS_TV_ANALOG
