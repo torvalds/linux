@@ -93,6 +93,7 @@ struct crypto_ablkcipher;
 struct crypto_async_request;
 struct crypto_blkcipher;
 struct crypto_hash;
+struct crypto_queue;
 struct crypto_tfm;
 struct crypto_type;
 
@@ -143,6 +144,19 @@ struct hash_desc {
  * Algorithms: modular crypto algorithm implementations, managed
  * via crypto_register_alg() and crypto_unregister_alg().
  */
+struct ablkcipher_alg {
+	int (*setkey)(struct crypto_ablkcipher *tfm, const u8 *key,
+	              unsigned int keylen);
+	int (*encrypt)(struct ablkcipher_request *req);
+	int (*decrypt)(struct ablkcipher_request *req);
+
+	struct crypto_queue *queue;
+
+	unsigned int min_keysize;
+	unsigned int max_keysize;
+	unsigned int ivsize;
+};
+
 struct blkcipher_alg {
 	int (*setkey)(struct crypto_tfm *tfm, const u8 *key,
 	              unsigned int keylen);
@@ -197,6 +211,7 @@ struct compress_alg {
 			      unsigned int slen, u8 *dst, unsigned int *dlen);
 };
 
+#define cra_ablkcipher	cra_u.ablkcipher
 #define cra_blkcipher	cra_u.blkcipher
 #define cra_cipher	cra_u.cipher
 #define cra_digest	cra_u.digest
@@ -221,6 +236,7 @@ struct crypto_alg {
 	const struct crypto_type *cra_type;
 
 	union {
+		struct ablkcipher_alg ablkcipher;
 		struct blkcipher_alg blkcipher;
 		struct cipher_alg cipher;
 		struct digest_alg digest;
@@ -570,6 +586,12 @@ static inline int crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
 static inline int crypto_ablkcipher_reqsize(struct crypto_ablkcipher *tfm)
 {
 	return crypto_ablkcipher_crt(tfm)->reqsize;
+}
+
+static inline struct ablkcipher_request *ablkcipher_request_cast(
+	struct crypto_async_request *req)
+{
+	return container_of(req, struct ablkcipher_request, base);
 }
 
 static inline struct ablkcipher_request *ablkcipher_request_alloc(

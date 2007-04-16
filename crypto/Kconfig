@@ -16,6 +16,10 @@ config CRYPTO_ALGAPI
 	help
 	  This option provides the API for cryptographic algorithms.
 
+config CRYPTO_ABLKCIPHER
+	tristate
+	select CRYPTO_BLKCIPHER
+
 config CRYPTO_BLKCIPHER
 	tristate
 	select CRYPTO_ALGAPI

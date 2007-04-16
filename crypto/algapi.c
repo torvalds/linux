@@ -507,6 +507,68 @@ err_free_inst:
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_instance);
 
+void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen)
+{
+	INIT_LIST_HEAD(&queue->list);
+	queue->backlog = &queue->list;
+	queue->qlen = 0;
+	queue->max_qlen = max_qlen;
+}
+EXPORT_SYMBOL_GPL(crypto_init_queue);
+
+int crypto_enqueue_request(struct crypto_queue *queue,
+			   struct crypto_async_request *request)
+{
+	int err = -EINPROGRESS;
+
+	if (unlikely(queue->qlen >= queue->max_qlen)) {
+		err = -EBUSY;
+		if (!(request->flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
+			goto out;
+		if (queue->backlog == &queue->list)
+			queue->backlog = &request->list;
+	}
+
+	queue->qlen++;
+	list_add_tail(&request->list, &queue->list);
+
+out:
+	return err;
+}
+EXPORT_SYMBOL_GPL(crypto_enqueue_request);
+
+struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue)
+{
+	struct list_head *request;
+
+	if (unlikely(!queue->qlen))
+		return NULL;
+
+	queue->qlen--;
+
+	if (queue->backlog != &queue->list)
+		queue->backlog = queue->backlog->next;
+
+	request = queue->list.next;
+	list_del(request);
+
+	return list_entry(request, struct crypto_async_request, list);
+}
+EXPORT_SYMBOL_GPL(crypto_dequeue_request);
+
+int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm)
+{
+	struct crypto_async_request *req;
+
+	list_for_each_entry(req, &queue->list, list) {
+		if (req->tfm == tfm)
+			return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_tfm_in_queue);
+
 static int __init crypto_algapi_init(void)
 {
 	crypto_init_proc();
