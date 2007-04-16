@@ -34,7 +34,7 @@ _GLOBAL(__setup_cpu_pa6t)
 	beqlr
 
 	mfspr	r0,SPRN_HID5
-	ori	r0,r0,0x30
+	ori	r0,r0,0x38
 	mtspr	SPRN_HID5,r0
 
 	mfspr	r0,SPRN_LPCR
