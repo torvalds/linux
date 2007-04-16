@@ -162,6 +162,7 @@ config PPC_83xx
 	select FSL_SOC
 	select 83xx
 	select PPC_FPU
+	select WANT_DEVICE_TREE
 
 config PPC_85xx
 	bool "Freescale 85xx"
@@ -571,6 +572,29 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y. Only embedded should say N here.
+
+config WANT_DEVICE_TREE
+	bool
+	default n
+
+config DEVICE_TREE
+	string "Static device tree source file"
+	depends on WANT_DEVICE_TREE
+	help
+	  This specifies the device tree source (.dts) file to be
+	  compiled and included when building the bootwrapper.  If a
+	  relative filename is given, then it will be relative to
+	  arch/powerpc/boot/dts.  If you are not using the bootwrapper,
+	  or do not need to build a dts into the bootwrapper, this
+	  field is ignored.
+
+	  For example, this is required when building a cuImage target
+	  for an older U-Boot, which cannot pass a device tree itself.
+	  Such a kernel will not work with a newer U-Boot that tries to
+	  pass a device tree (unless you tell it not to).  If your U-Boot
+	  does not mention a device tree in "help bootm", then use the
+	  cuImage target and specify a device tree here.  Otherwise, use
+	  the uImage target and leave this field blank.
 
 endmenu
 
