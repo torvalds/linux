@@ -60,6 +60,7 @@ static struct snd_soc_codec_dai ac97_dai = {
 	.ops = {
 		.prepare = ac97_prepare,},
 };
+EXPORT_SYMBOL_GPL(ac97_dai);
 
 static unsigned int ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg)
