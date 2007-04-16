@@ -138,6 +138,12 @@ static inline void *crypto_tfm_ctx_aligned(struct crypto_tfm *tfm)
 	return (void *)ALIGN(addr, align);
 }
 
+static inline struct crypto_instance *crypto_tfm_alg_instance(
+	struct crypto_tfm *tfm)
+{
+	return container_of(tfm->__crt_alg, struct crypto_instance, alg);
+}
+
 static inline void *crypto_instance_ctx(struct crypto_instance *inst)
 {
 	return inst->__ctx;
@@ -152,6 +158,15 @@ static inline struct ablkcipher_alg *crypto_ablkcipher_alg(
 static inline void *crypto_ablkcipher_ctx(struct crypto_ablkcipher *tfm)
 {
 	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline struct crypto_blkcipher *crypto_spawn_blkcipher(
+	struct crypto_spawn *spawn)
+{
+	u32 type = CRYPTO_ALG_TYPE_BLKCIPHER;
+	u32 mask = CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC;
+
+	return __crypto_blkcipher_cast(crypto_spawn_tfm(spawn, type, mask));
 }
 
 static inline void *crypto_blkcipher_ctx(struct crypto_blkcipher *tfm)
