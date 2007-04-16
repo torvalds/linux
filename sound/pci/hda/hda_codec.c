@@ -24,7 +24,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
-#include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <sound/core.h>
 #include "hda_codec.h"
@@ -32,11 +31,6 @@
 #include <sound/tlv.h>
 #include <sound/initval.h>
 #include "hda_local.h"
-
-
-MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
-MODULE_DESCRIPTION("Universal interface for High Definition Audio Codec");
-MODULE_LICENSE("GPL");
 
 
 /*
@@ -90,8 +84,6 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid, int dire
 	return res;
 }
 
-EXPORT_SYMBOL(snd_hda_codec_read);
-
 /**
  * snd_hda_codec_write - send a single command without waiting for response
  * @codec: the HDA codec
@@ -114,8 +106,6 @@ int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int direct,
 	return err;
 }
 
-EXPORT_SYMBOL(snd_hda_codec_write);
-
 /**
  * snd_hda_sequence_write - sequence writes
  * @codec: the HDA codec
@@ -129,8 +119,6 @@ void snd_hda_sequence_write(struct hda_codec *codec, const struct hda_verb *seq)
 	for (; seq->nid; seq++)
 		snd_hda_codec_write(codec, seq->nid, 0, seq->verb, seq->param);
 }
-
-EXPORT_SYMBOL(snd_hda_sequence_write);
 
 /**
  * snd_hda_get_sub_nodes - get the range of sub nodes
@@ -149,8 +137,6 @@ int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid, hda_nid_t *sta
 	*start_id = (parm >> 16) & 0x7fff;
 	return (int)(parm & 0x7fff);
 }
-
-EXPORT_SYMBOL(snd_hda_get_sub_nodes);
 
 /**
  * snd_hda_get_connections - get connection list
@@ -268,8 +254,6 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 	return 0;
 }
 
-EXPORT_SYMBOL(snd_hda_queue_unsol_event);
-
 /*
  * process queueud unsolicited events
  */
@@ -298,7 +282,7 @@ static void process_unsol_events(struct work_struct *work)
 /*
  * initialize unsolicited queue
  */
-static int init_unsol_queue(struct hda_bus *bus)
+static int __devinit init_unsol_queue(struct hda_bus *bus)
 {
 	struct hda_bus_unsolicited *unsol;
 
@@ -355,8 +339,9 @@ static int snd_hda_bus_dev_free(struct snd_device *device)
  *
  * Returns 0 if successful, or a negative error code.
  */
-int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
-		    struct hda_bus **busp)
+int __devinit snd_hda_bus_new(struct snd_card *card,
+			      const struct hda_bus_template *temp,
+			      struct hda_bus **busp)
 {
 	struct hda_bus *bus;
 	int err;
@@ -394,12 +379,11 @@ int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
 	return 0;
 }
 
-EXPORT_SYMBOL(snd_hda_bus_new);
-
 /*
  * find a matching codec preset
  */
-static const struct hda_codec_preset *find_codec_preset(struct hda_codec *codec)
+static const struct hda_codec_preset __devinit *
+find_codec_preset(struct hda_codec *codec)
 {
 	const struct hda_codec_preset **tbl, *preset;
 
@@ -450,7 +434,7 @@ void snd_hda_get_codec_name(struct hda_codec *codec,
 /*
  * look for an AFG and MFG nodes
  */
-static void setup_fg_nodes(struct hda_codec *codec)
+static void __devinit setup_fg_nodes(struct hda_codec *codec)
 {
 	int i, total_nodes;
 	hda_nid_t nid;
@@ -517,8 +501,8 @@ static void init_amp_hash(struct hda_codec *codec);
  *
  * Returns 0 if successful, or a negative error code.
  */
-int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
-		      struct hda_codec **codecp)
+int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
+				struct hda_codec **codecp)
 {
 	struct hda_codec *codec;
 	char component[13];
@@ -603,8 +587,6 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	return 0;
 }
 
-EXPORT_SYMBOL(snd_hda_codec_new);
-
 /**
  * snd_hda_codec_setup_stream - set up the codec for streaming
  * @codec: the CODEC to set up
@@ -627,8 +609,6 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid, u32 stre
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, format);
 }
 
-EXPORT_SYMBOL(snd_hda_codec_setup_stream);
-
 /*
  * amp access functions
  */
@@ -639,7 +619,7 @@ EXPORT_SYMBOL(snd_hda_codec_setup_stream);
 #define INFO_AMP_VOL(ch)	(1 << (1 + (ch)))
 
 /* initialize the hash table */
-static void init_amp_hash(struct hda_codec *codec)
+static void __devinit init_amp_hash(struct hda_codec *codec)
 {
 	memset(codec->amp_hash, 0xff, sizeof(codec->amp_hash));
 	codec->num_amp_entries = 0;
@@ -1169,7 +1149,8 @@ static struct snd_kcontrol_new dig_mixes[] = {
  *
  * Returns 0 if successful, or a negative error code.
  */
-int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
+int __devinit snd_hda_create_spdif_out_ctls(struct hda_codec *codec,
+					    hda_nid_t nid)
 {
 	int err;
 	struct snd_kcontrol *kctl;
@@ -1261,7 +1242,8 @@ static struct snd_kcontrol_new dig_in_ctls[] = {
  *
  * Returns 0 if successful, or a negative error code.
  */
-int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
+int __devinit snd_hda_create_spdif_in_ctls(struct hda_codec *codec,
+					   hda_nid_t nid)
 {
 	int err;
 	struct snd_kcontrol *kctl;
@@ -1311,7 +1293,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
  *
  * Returns 0 if successful, otherwise a negative error code.
  */
-int snd_hda_build_controls(struct hda_bus *bus)
+int __devinit snd_hda_build_controls(struct hda_bus *bus)
 {
 	struct list_head *p;
 
@@ -1341,8 +1323,6 @@ int snd_hda_build_controls(struct hda_bus *bus)
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL(snd_hda_build_controls);
 
 /*
  * stream formats
@@ -1432,8 +1412,6 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 
 	return val;
 }
-
-EXPORT_SYMBOL(snd_hda_calc_stream_format);
 
 /**
  * snd_hda_query_supported_pcm - query the supported PCM rates and formats
@@ -1688,7 +1666,7 @@ static int set_pcm_default_values(struct hda_codec *codec, struct hda_pcm_stream
  *
  * This function returns 0 if successfull, or a negative error code.
  */
-int snd_hda_build_pcms(struct hda_bus *bus)
+int __devinit snd_hda_build_pcms(struct hda_bus *bus)
 {
 	struct list_head *p;
 
@@ -1716,8 +1694,6 @@ int snd_hda_build_pcms(struct hda_bus *bus)
 	return 0;
 }
 
-EXPORT_SYMBOL(snd_hda_build_pcms);
-
 /**
  * snd_hda_check_board_config - compare the current codec with the config table
  * @codec: the HDA codec
@@ -1731,9 +1707,9 @@ EXPORT_SYMBOL(snd_hda_build_pcms);
  *
  * If no entries are matching, the function returns a negative value.
  */
-int snd_hda_check_board_config(struct hda_codec *codec,
-			       int num_configs, const char **models,
-			       const struct snd_pci_quirk *tbl)
+int __devinit snd_hda_check_board_config(struct hda_codec *codec,
+					 int num_configs, const char **models,
+					 const struct snd_pci_quirk *tbl)
 {
 	if (codec->bus->modelname && models) {
 		int i;
@@ -1783,7 +1759,8 @@ int snd_hda_check_board_config(struct hda_codec *codec,
  *
  * Returns 0 if successful, or a negative error code.
  */
-int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
+int __devinit snd_hda_add_new_ctls(struct hda_codec *codec,
+				   struct snd_kcontrol_new *knew)
 {
 	int err;
 
@@ -2040,7 +2017,7 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec, struct hda_multi_o
  * Helper for automatic ping configuration
  */
 
-static int is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
+static int __devinit is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
 {
 	for (; *list; list++)
 		if (*list == nid)
@@ -2065,8 +2042,9 @@ static int is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
  * The digital input/output pins are assigned to dig_in_pin and dig_out_pin,
  * respectively.
  */
-int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *cfg,
-				 hda_nid_t *ignore_nids)
+int __devinit snd_hda_parse_pin_def_config(struct hda_codec *codec,
+					   struct auto_pin_cfg *cfg,
+					   hda_nid_t *ignore_nids)
 {
 	hda_nid_t nid, nid_start;
 	int i, j, nodes;
@@ -2273,8 +2251,6 @@ int snd_hda_suspend(struct hda_bus *bus, pm_message_t state)
 	return 0;
 }
 
-EXPORT_SYMBOL(snd_hda_suspend);
-
 /**
  * snd_hda_resume - resume the codecs
  * @bus: the HDA bus
@@ -2296,8 +2272,6 @@ int snd_hda_resume(struct hda_bus *bus)
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL(snd_hda_resume);
 
 /**
  * snd_hda_resume_ctls - resume controls in the new control list
@@ -2357,19 +2331,3 @@ int snd_hda_resume_spdif_in(struct hda_codec *codec)
 	return snd_hda_resume_ctls(codec, dig_in_ctls);
 }
 #endif
-
-/*
- *  INIT part
- */
-
-static int __init alsa_hda_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_hda_exit(void)
-{
-}
-
-module_init(alsa_hda_init)
-module_exit(alsa_hda_exit)

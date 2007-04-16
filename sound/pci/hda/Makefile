@@ -1,5 +1,8 @@
 snd-hda-intel-objs := hda_intel.o
-snd-hda-codec-objs := hda_codec.o \
+# since snd-hda-intel is the only driver using hda-codec,
+# merge it into a single module although it was originally
+# designed to be individual modules
+snd-hda-intel-objs += hda_codec.o \
 	hda_generic.o \
 	patch_realtek.o \
 	patch_cmedia.o \
@@ -10,7 +13,7 @@ snd-hda-codec-objs := hda_codec.o \
 	patch_conexant.o \
 	patch_via.o
 ifdef CONFIG_PROC_FS
-snd-hda-codec-objs += hda_proc.o
+snd-hda-intel-objs += hda_proc.o
 endif
 
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-intel.o snd-hda-codec.o
+obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-intel.o
