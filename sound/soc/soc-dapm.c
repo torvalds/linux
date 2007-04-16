@@ -882,13 +882,15 @@ int snd_soc_dapm_connect_input(struct snd_soc_codec *codec, const char *sink,
 	if (wsink->id == snd_soc_dapm_input) {
 		if (wsource->id == snd_soc_dapm_micbias ||
 			wsource->id == snd_soc_dapm_mic ||
-			wsink->id == snd_soc_dapm_line)
+			wsink->id == snd_soc_dapm_line ||
+			wsink->id == snd_soc_dapm_output)
 			wsink->ext = 1;
 	}
 	if (wsource->id == snd_soc_dapm_output) {
 		if (wsink->id == snd_soc_dapm_spk ||
 			wsink->id == snd_soc_dapm_hp ||
-			wsink->id == snd_soc_dapm_line)
+			wsink->id == snd_soc_dapm_line ||
+			wsink->id == snd_soc_dapm_input)
 			wsource->ext = 1;
 	}
 
