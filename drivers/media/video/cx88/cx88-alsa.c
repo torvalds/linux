@@ -414,11 +414,9 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 
 	dprintk(1,"Setting buffer\n");
 
-	buf = kmalloc(sizeof(*buf),GFP_KERNEL);
+	buf = kzalloc(sizeof(*buf),GFP_KERNEL);
 	if (NULL == buf)
 		return -ENOMEM;
-	memset(buf,0,sizeof(*buf));
-
 
 	buf->vb.memory = V4L2_MEMORY_MMAP;
 	buf->vb.width  = chip->period_size;
