@@ -1332,12 +1332,7 @@ static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (exit_code >= ARRAY_SIZE(svm_exit_handlers)
 	    || svm_exit_handlers[exit_code] == 0) {
 		kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
-		printk(KERN_ERR "%s: 0x%x @ 0x%llx cr0 0x%lx rflags 0x%llx\n",
-		       __FUNCTION__,
-		       exit_code,
-		       vcpu->svm->vmcb->save.rip,
-		       vcpu->cr0,
-		       vcpu->svm->vmcb->save.rflags);
+		kvm_run->hw.hardware_exit_reason = exit_code;
 		return 0;
 	}
 
