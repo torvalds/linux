@@ -199,14 +199,15 @@ static int is_rmap_pte(u64 pte)
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
-				  struct kmem_cache *base_cache, int min)
+				  struct kmem_cache *base_cache, int min,
+				  gfp_t gfp_flags)
 {
 	void *obj;
 
 	if (cache->nobjs >= min)
 		return 0;
 	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
-		obj = kmem_cache_zalloc(base_cache, GFP_NOWAIT);
+		obj = kmem_cache_zalloc(base_cache, gfp_flags);
 		if (!obj)
 			return -ENOMEM;
 		cache->objects[cache->nobjs++] = obj;
@@ -220,17 +221,32 @@ static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
 		kfree(mc->objects[--mc->nobjs]);
 }
 
-static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
+static int __mmu_topup_memory_caches(struct kvm_vcpu *vcpu, gfp_t gfp_flags)
 {
 	int r;
 
 	r = mmu_topup_memory_cache(&vcpu->mmu_pte_chain_cache,
-				   pte_chain_cache, 4);
+				   pte_chain_cache, 4, gfp_flags);
 	if (r)
 		goto out;
 	r = mmu_topup_memory_cache(&vcpu->mmu_rmap_desc_cache,
-				   rmap_desc_cache, 1);
+				   rmap_desc_cache, 1, gfp_flags);
 out:
+	return r;
+}
+
+static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
+{
+	int r;
+
+	r = __mmu_topup_memory_caches(vcpu, GFP_NOWAIT);
+	if (r < 0) {
+		spin_unlock(&vcpu->kvm->lock);
+		kvm_arch_ops->vcpu_put(vcpu);
+		r = __mmu_topup_memory_caches(vcpu, GFP_KERNEL);
+		kvm_arch_ops->vcpu_load(vcpu);
+		spin_lock(&vcpu->kvm->lock);
+	}
 	return r;
 }
 
