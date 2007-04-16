@@ -100,14 +100,19 @@ static inline void __own_fpu(void)
 	set_thread_flag(TIF_USEDFPU);
 }
 
-static inline void own_fpu(int restore)
+static inline void own_fpu_inatomic(int restore)
 {
-	preempt_disable();
 	if (cpu_has_fpu && !__is_fpu_owner()) {
 		__own_fpu();
 		if (restore)
 			_restore_fp(current);
 	}
+}
+
+static inline void own_fpu(int restore)
+{
+	preempt_disable();
+	own_fpu_inatomic(restore);
 	preempt_enable();
 }
 
