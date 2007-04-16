@@ -141,6 +141,9 @@ miboot|uboot)
     ksection=image
     isection=initrd
     ;;
+cuboot*)
+    gzip=
+    ;;
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
@@ -161,13 +164,17 @@ fi
 vmz="$vmz$gzip"
 
 case "$platform" in
-uboot)
-    rm -f "$ofile"
+uboot|cuboot*)
     version=`${CROSS}strings "$kernel" | grep '^Linux version [-0-9.]' | \
 	cut -d' ' -f3`
     if [ -n "$version" ]; then
 	version="-n Linux-$version"
     fi
+esac
+
+case "$platform" in
+uboot)
+    rm -f "$ofile"
     mkimage -A ppc -O linux -T kernel -C gzip -a 00000000 -e 00000000 \
 	$version -d "$vmz" "$ofile"
     if [ -z "$cacheit" ]; then
@@ -215,5 +222,15 @@ pmaccoff)
 	cut -d' ' -f3`
     ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"
     $object/hack-coff "$ofile"
+    ;;
+cuboot*)
+    base=`${CROSS}nm "$ofile" | grep ' _start$' | cut -d' ' -f1`
+    entry=`${CROSS}objdump -f "$ofile" | grep '^start address ' | \
+           cut -d' ' -f3`
+    mv "$ofile" "$ofile".elf
+    ${CROSS}objcopy -O binary "$ofile".elf "$ofile".bin
+    gzip -f -9 "$ofile".bin
+    mkimage -A ppc -O linux -T kernel -C gzip -a "$base" -e "$entry" \
+            $version -d "$ofile".bin.gz "$ofile"
     ;;
 esac

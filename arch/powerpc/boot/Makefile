@@ -129,7 +129,7 @@ image-$(CONFIG_PPC_CELLEB)		+= zImage.pseries
 image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
 image-$(CONFIG_PPC_EFIKA)		+= zImage.chrp
 image-$(CONFIG_PPC_PMAC)		+= zImage.pmac
-image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
+image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage cuImage
 
 # For 32-bit powermacs, build the COFF and miboot images
 # as well as the ELF images.
@@ -162,6 +162,14 @@ $(obj)/zImage.initrd.ps3: vmlinux
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call if_changed,wrap,uboot)
 
+cuboot-plat-y += unknown-platform
+
+dts = $(if $(shell echo $(CONFIG_) | grep '^/'),\
+       ,$(srctree)/$(src)/dts/)$(CONFIG_DEVICE_TREE)
+
+$(obj)/cuImage: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,cuboot-$(word 1,$(cuboot-plat-y)),$(dts))
+
 $(obj)/zImage:		$(addprefix $(obj)/, $(image-y))
 	@rm -f $@; ln $< $@
 $(obj)/zImage.initrd:	$(addprefix $(obj)/, $(initrd-y))
@@ -171,7 +179,8 @@ install: $(CONFIGURE) $(image-y)
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" $<
 
 # anything not in $(targets)
-clean-files += $(image-) $(initrd-) zImage zImage.initrd
+clean-files += $(image-) $(initrd-) zImage zImage.initrd \
+               cuImage.elf cuImage.bin.gz
 
 # clean up files cached by wrapper
 clean-kernel := vmlinux.strip vmlinux.bin
