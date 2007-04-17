@@ -1071,8 +1071,10 @@ static int emulator_write_emulated(unsigned long addr,
 	struct kvm_vcpu *vcpu = ctxt->vcpu;
 	gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
 
-	if (gpa == UNMAPPED_GVA)
+	if (gpa == UNMAPPED_GVA) {
+		kvm_arch_ops->inject_page_fault(vcpu, addr, 2);
 		return X86EMUL_PROPAGATE_FAULT;
+	}
 
 	if (emulator_write_phys(vcpu, gpa, val, bytes))
 		return X86EMUL_CONTINUE;
