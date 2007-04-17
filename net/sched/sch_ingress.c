@@ -248,16 +248,11 @@ ing_hook(unsigned int hook, struct sk_buff **pskb,
 		skb->dev ? (*pskb)->dev->name : "(no dev)",
 		skb->len);
 
-/*
-revisit later: Use a private since lock dev->queue_lock is also
-used on the egress (might slow things for an iota)
-*/
-
 	if (dev->qdisc_ingress) {
-		spin_lock(&dev->queue_lock);
+		spin_lock(&dev->ingress_lock);
 		if ((q = dev->qdisc_ingress) != NULL)
 			fwres = q->enqueue(skb, q);
-		spin_unlock(&dev->queue_lock);
+		spin_unlock(&dev->ingress_lock);
 	}
 
 	return fwres;

@@ -500,12 +500,16 @@ qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
 
 	if (handle == TC_H_INGRESS) {
 		sch->flags |= TCQ_F_INGRESS;
+		sch->stats_lock = &dev->ingress_lock;
 		handle = TC_H_MAKE(TC_H_INGRESS, 0);
-	} else if (handle == 0) {
-		handle = qdisc_alloc_handle(dev);
-		err = -ENOMEM;
-		if (handle == 0)
-			goto err_out3;
+	} else {
+		sch->stats_lock = &dev->queue_lock;
+		if (handle == 0) {
+			handle = qdisc_alloc_handle(dev);
+			err = -ENOMEM;
+			if (handle == 0)
+				goto err_out3;
+		}
 	}
 
 	sch->handle = handle;
@@ -654,9 +658,9 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 			return err;
 		if (q) {
 			qdisc_notify(skb, n, clid, q, NULL);
-			spin_lock_bh(&dev->queue_lock);
+			qdisc_lock_tree(dev);
 			qdisc_destroy(q);
-			spin_unlock_bh(&dev->queue_lock);
+			qdisc_unlock_tree(dev);
 		}
 	} else {
 		qdisc_notify(skb, n, clid, NULL, q);
@@ -789,17 +793,17 @@ graft:
 		err = qdisc_graft(dev, p, clid, q, &old_q);
 		if (err) {
 			if (q) {
-				spin_lock_bh(&dev->queue_lock);
+				qdisc_lock_tree(dev);
 				qdisc_destroy(q);
-				spin_unlock_bh(&dev->queue_lock);
+				qdisc_unlock_tree(dev);
 			}
 			return err;
 		}
 		qdisc_notify(skb, n, clid, old_q, q);
 		if (old_q) {
-			spin_lock_bh(&dev->queue_lock);
+			qdisc_lock_tree(dev);
 			qdisc_destroy(old_q);
-			spin_unlock_bh(&dev->queue_lock);
+			qdisc_unlock_tree(dev);
 		}
 	}
 	return 0;

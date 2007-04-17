@@ -42,16 +42,20 @@
  * The idea is the following:
  * - enqueue, dequeue are serialized via top level device
  *   spinlock dev->queue_lock.
+ * - ingress filtering is serialized via top level device
+ *   spinlock dev->ingress_lock.
  * - updates to tree and tree walking are only done under the rtnl mutex.
  */
 
 void qdisc_lock_tree(struct net_device *dev)
 {
 	spin_lock_bh(&dev->queue_lock);
+	spin_lock(&dev->ingress_lock);
 }
 
 void qdisc_unlock_tree(struct net_device *dev)
 {
+	spin_unlock(&dev->ingress_lock);
 	spin_unlock_bh(&dev->queue_lock);
 }
 
@@ -431,7 +435,6 @@ struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops)
 	sch->dequeue = ops->dequeue;
 	sch->dev = dev;
 	dev_hold(dev);
-	sch->stats_lock = &dev->queue_lock;
 	atomic_set(&sch->refcnt, 1);
 
 	return sch;
@@ -447,6 +450,7 @@ struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops,
 	sch = qdisc_alloc(dev, ops);
 	if (IS_ERR(sch))
 		goto errout;
+	sch->stats_lock = &dev->queue_lock;
 	sch->parent = parentid;
 
 	if (!ops->init || ops->init(sch, NULL) == 0)

@@ -89,9 +89,9 @@ static __inline__ int route4_fastmap_hash(u32 id, int iif)
 static inline
 void route4_reset_fastmap(struct net_device *dev, struct route4_head *head, u32 id)
 {
-	spin_lock_bh(&dev->queue_lock);
+	qdisc_lock_tree(dev);
 	memset(head->fastmap, 0, sizeof(head->fastmap));
-	spin_unlock_bh(&dev->queue_lock);
+	qdisc_unlock_tree(dev);
 }
 
 static inline void
