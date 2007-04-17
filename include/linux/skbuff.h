@@ -619,6 +619,13 @@ static inline void skb_queue_head_init(struct sk_buff_head *list)
 	list->qlen = 0;
 }
 
+static inline void skb_queue_head_init_class(struct sk_buff_head *list,
+		struct lock_class_key *class)
+{
+	skb_queue_head_init(list);
+	lockdep_set_class(&list->lock, class);
+}
+
 /*
  *	Insert an sk_buff at the start of a list.
  *
