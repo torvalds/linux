@@ -734,8 +734,7 @@ void usbnet_get_drvinfo (struct net_device *net, struct ethtool_drvinfo *info)
 {
 	struct usbnet *dev = netdev_priv(net);
 
-	/* REVISIT don't always return "usbnet" */
-	strncpy (info->driver, driver_name, sizeof info->driver);
+	strncpy (info->driver, dev->driver_name, sizeof info->driver);
 	strncpy (info->version, DRIVER_VERSION, sizeof info->version);
 	strncpy (info->fw_version, dev->driver_info->description,
 		sizeof info->fw_version);
@@ -1115,10 +1114,12 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	struct driver_info		*info;
 	struct usb_device		*xdev;
 	int				status;
+	const char			*name;
 
+	name = udev->dev.driver->name;
 	info = (struct driver_info *) prod->driver_info;
 	if (!info) {
-		dev_dbg (&udev->dev, "blacklisted by %s\n", driver_name);
+		dev_dbg (&udev->dev, "blacklisted by %s\n", name);
 		return -ENODEV;
 	}
 	xdev = interface_to_usbdev (udev);
@@ -1138,6 +1139,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev = netdev_priv(net);
 	dev->udev = xdev;
 	dev->driver_info = info;
+	dev->driver_name = name;
 	dev->msg_enable = netif_msg_init (msg_level, NETIF_MSG_DRV
 				| NETIF_MSG_PROBE | NETIF_MSG_LINK);
 	skb_queue_head_init (&dev->rxq);
