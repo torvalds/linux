@@ -31,6 +31,15 @@ config MTD_NAND_ECC_SMC
 	  Software ECC according to the Smart Media Specification.
 	  The original Linux implementation had byte 0 and 1 swapped.
 
+config MTD_NAND_MUSEUM_IDS
+	bool "Enable chip ids for obsolete ancient NAND devices"
+	depends on MTD_NAND
+	default n
+	help
+	  Enable this option only when your board has first generation
+	  NAND chips (page size 256 byte, erase size 4-8KiB). The IDs
+	  of these chips were reused by later, larger chips.
+
 config MTD_NAND_AUTCPU12
 	tristate "SmartMediaCard on autronix autcpu12 board"
 	depends on MTD_NAND && ARCH_AUTCPU12
