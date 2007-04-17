@@ -369,7 +369,6 @@ static const struct ata_port_operations nv_generic_ops = {
 	.error_handler		= nv_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 	.data_xfer		= ata_data_xfer,
-	.irq_handler		= nv_generic_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -396,7 +395,6 @@ static const struct ata_port_operations nv_nf2_ops = {
 	.error_handler		= nv_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 	.data_xfer		= ata_data_xfer,
-	.irq_handler		= nv_nf2_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -423,7 +421,6 @@ static const struct ata_port_operations nv_ck804_ops = {
 	.error_handler		= nv_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 	.data_xfer		= ata_data_xfer,
-	.irq_handler		= nv_ck804_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -452,7 +449,6 @@ static const struct ata_port_operations nv_adma_ops = {
 	.error_handler		= nv_adma_error_handler,
 	.post_internal_cmd	= nv_adma_post_internal_cmd,
 	.data_xfer		= ata_data_xfer,
-	.irq_handler		= nv_adma_interrupt,
 	.irq_clear		= nv_adma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -477,6 +473,7 @@ static struct ata_port_info nv_port_info[] = {
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_generic_ops,
+		.irq_handler	= nv_generic_interrupt,
 	},
 	/* nforce2/3 */
 	{
@@ -487,6 +484,7 @@ static struct ata_port_info nv_port_info[] = {
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_nf2_ops,
+		.irq_handler	= nv_nf2_interrupt,
 	},
 	/* ck804 */
 	{
@@ -497,6 +495,7 @@ static struct ata_port_info nv_port_info[] = {
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_ck804_ops,
+		.irq_handler	= nv_ck804_interrupt,
 	},
 	/* ADMA */
 	{
@@ -508,6 +507,7 @@ static struct ata_port_info nv_port_info[] = {
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_adma_ops,
+		.irq_handler	= nv_adma_interrupt,
 	},
 };
 
@@ -1079,14 +1079,14 @@ static int nv_adma_port_resume(struct ata_port *ap)
 }
 #endif
 
-static void nv_adma_setup_port(struct ata_probe_ent *probe_ent, unsigned int port)
+static void nv_adma_setup_port(struct ata_port *ap)
 {
-	void __iomem *mmio = probe_ent->iomap[NV_MMIO_BAR];
-	struct ata_ioports *ioport = &probe_ent->port[port];
+	void __iomem *mmio = ap->host->iomap[NV_MMIO_BAR];
+	struct ata_ioports *ioport = &ap->ioaddr;
 
 	VPRINTK("ENTER\n");
 
-	mmio += NV_ADMA_PORT + port * NV_ADMA_PORT_SIZE;
+	mmio += NV_ADMA_PORT + ap->port_no * NV_ADMA_PORT_SIZE;
 
 	ioport->cmd_addr	= mmio;
 	ioport->data_addr	= mmio + (ATA_REG_DATA * 4);
@@ -1103,9 +1103,9 @@ static void nv_adma_setup_port(struct ata_probe_ent *probe_ent, unsigned int por
 	ioport->ctl_addr	= mmio + 0x20;
 }
 
-static int nv_adma_host_init(struct ata_probe_ent *probe_ent)
+static int nv_adma_host_init(struct ata_host *host)
 {
-	struct pci_dev *pdev = to_pci_dev(probe_ent->dev);
+	struct pci_dev *pdev = to_pci_dev(host->dev);
 	unsigned int i;
 	u32 tmp32;
 
@@ -1120,8 +1120,8 @@ static int nv_adma_host_init(struct ata_probe_ent *probe_ent)
 
 	pci_write_config_dword(pdev, NV_MCP_SATA_CFG_20, tmp32);
 
-	for (i = 0; i < probe_ent->n_ports; i++)
-		nv_adma_setup_port(probe_ent, i);
+	for (i = 0; i < host->n_ports; i++)
+		nv_adma_setup_port(host->ports[i]);
 
 	return 0;
 }
@@ -1480,14 +1480,13 @@ static void nv_adma_error_handler(struct ata_port *ap)
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
-	struct ata_port_info *ppi[2];
-	struct ata_probe_ent *probe_ent;
+	const struct ata_port_info *ppi[2];
+	struct ata_host *host;
 	struct nv_host_priv *hpriv;
 	int rc;
 	u32 bar;
 	void __iomem *base;
 	unsigned long type = ent->driver_data;
-	int mask_set = 0;
 
         // Make sure this is a SATA controller by counting the number of bars
         // (NVIDIA SATA controllers will always have six bars).  Otherwise,
@@ -1503,50 +1502,38 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc) {
-		pcim_pin_device(pdev);
-		return rc;
-	}
-
-	if(type >= CK804 && adma_enabled) {
+	/* determine type and allocate host */
+	if (type >= CK804 && adma_enabled) {
 		dev_printk(KERN_NOTICE, &pdev->dev, "Using ADMA mode\n");
 		type = ADMA;
-		if(!pci_set_dma_mask(pdev, DMA_64BIT_MASK) &&
-		   !pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
-			mask_set = 1;
 	}
 
-	if(!mask_set) {
-		rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
-		if (rc)
-			return rc;
-		rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
-		if (rc)
-			return rc;
-	}
-
-	rc = -ENOMEM;
+	ppi[0] = ppi[1] = &nv_port_info[type];
+	rc = ata_pci_prepare_native_host(pdev, ppi, 2, &host);
+	if (rc)
+		return rc;
 
 	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
 		return -ENOMEM;
-
-	ppi[0] = ppi[1] = &nv_port_info[type];
-	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
-	if (!probe_ent)
-		return -ENOMEM;
-
-	if (!pcim_iomap(pdev, NV_MMIO_BAR, 0))
-		return -EIO;
-	probe_ent->iomap = pcim_iomap_table(pdev);
-
-	probe_ent->private_data = hpriv;
 	hpriv->type = type;
+	host->private_data = hpriv;
 
-	base = probe_ent->iomap[NV_MMIO_BAR];
-	probe_ent->port[0].scr_addr = base + NV_PORT0_SCR_REG_OFFSET;
-	probe_ent->port[1].scr_addr = base + NV_PORT1_SCR_REG_OFFSET;
+	/* set 64bit dma masks, may fail */
+	if (type == ADMA) {
+		if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0)
+			pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+	}
+
+	/* request and iomap NV_MMIO_BAR */
+	rc = pcim_iomap_regions(pdev, 1 << NV_MMIO_BAR, DRV_NAME);
+	if (rc)
+		return rc;
+
+	/* configure SCR access */
+	base = host->iomap[NV_MMIO_BAR];
+	host->ports[0]->ioaddr.scr_addr = base + NV_PORT0_SCR_REG_OFFSET;
+	host->ports[1]->ioaddr.scr_addr = base + NV_PORT1_SCR_REG_OFFSET;
 
 	/* enable SATA space for CK804 */
 	if (type >= CK804) {
@@ -1557,20 +1544,16 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_write_config_byte(pdev, NV_MCP_SATA_CFG_20, regval);
 	}
 
-	pci_set_master(pdev);
-
+	/* init ADMA */
 	if (type == ADMA) {
-		rc = nv_adma_host_init(probe_ent);
+		rc = nv_adma_host_init(host);
 		if (rc)
 			return rc;
 	}
 
-	rc = ata_device_add(probe_ent);
-	if (rc != NV_PORTS)
-		return -ENODEV;
-
-	devm_kfree(&pdev->dev, probe_ent);
-	return 0;
+	pci_set_master(pdev);
+	return ata_host_activate(host, pdev->irq, ppi[0]->irq_handler,
+				 IRQF_SHARED, ppi[0]->sht);
 }
 
 static void nv_remove_one (struct pci_dev *pdev)
