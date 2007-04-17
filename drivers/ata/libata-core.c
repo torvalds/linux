@@ -6133,131 +6133,6 @@ int ata_host_activate(struct ata_host *host, int irq,
 }
 
 /**
- *	ata_device_add - Register hardware device with ATA and SCSI layers
- *	@ent: Probe information describing hardware device to be registered
- *
- *	This function processes the information provided in the probe
- *	information struct @ent, allocates the necessary ATA and SCSI
- *	host information structures, initializes them, and registers
- *	everything with requisite kernel subsystems.
- *
- *	This function requests irqs, probes the ATA bus, and probes
- *	the SCSI bus.
- *
- *	LOCKING:
- *	PCI/etc. bus probe sem.
- *
- *	RETURNS:
- *	Number of ports registered.  Zero on error (no ports registered).
- */
-int ata_device_add(const struct ata_probe_ent *ent)
-{
-	unsigned int i;
-	struct device *dev = ent->dev;
-	struct ata_host *host;
-	int rc;
-
-	DPRINTK("ENTER\n");
-
-	if (ent->irq == 0) {
-		dev_printk(KERN_ERR, dev, "is not available: No interrupt assigned.\n");
-		return 0;
-	}
-
-	if (!ent->port_ops->error_handler &&
-	    !(ent->port_flags & (ATA_FLAG_SATA_RESET | ATA_FLAG_SRST))) {
-		dev_printk(KERN_ERR, dev, "no reset mechanism available\n");
-		return 0;
-	}
-
-	if (!devres_open_group(dev, ata_device_add, GFP_KERNEL))
-		return 0;
-
-	/* allocate host */
-	host = ata_host_alloc(dev, ent->n_ports);
-
-	host->irq = ent->irq;
-	host->irq2 = ent->irq2;
-	host->iomap = ent->iomap;
-	host->private_data = ent->private_data;
-	host->ops = ent->port_ops;
-	host->flags = ent->_host_flags;
-
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		/* dummy? */
-		if (ent->dummy_port_mask & (1 << i)) {
-			ap->ops = &ata_dummy_port_ops;
-			continue;
-		}
-
-		if (ap->port_no == 1 && ent->pinfo2) {
-			ap->pio_mask = ent->pinfo2->pio_mask;
-			ap->mwdma_mask = ent->pinfo2->mwdma_mask;
-			ap->udma_mask = ent->pinfo2->udma_mask;
-			ap->flags |= ent->pinfo2->flags;
-			ap->ops = ent->pinfo2->port_ops;
-		} else {
-			ap->pio_mask = ent->pio_mask;
-			ap->mwdma_mask = ent->mwdma_mask;
-			ap->udma_mask = ent->udma_mask;
-			ap->flags |= ent->port_flags;
-			ap->ops = ent->port_ops;
-		}
-
-		memcpy(&ap->ioaddr, &ent->port[ap->port_no],
-		       sizeof(struct ata_ioports));
-	}
-
-	/* start and freeze ports before requesting IRQ */
-	rc = ata_host_start(host);
-	if (rc)
-		goto err_out;
-
-	/* obtain irq, that may be shared between channels */
-	rc = devm_request_irq(dev, ent->irq, ent->port_ops->irq_handler,
-			      ent->irq_flags, DRV_NAME, host);
-	if (rc) {
-		dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
-			   ent->irq, rc);
-		goto err_out;
-	}
-
-	/* do we have a second IRQ for the other channel, eg legacy mode */
-	if (ent->irq2) {
-		/* We will get weird core code crashes later if this is true
-		   so trap it now */
-		BUG_ON(ent->irq == ent->irq2);
-
-		rc = devm_request_irq(dev, ent->irq2,
-				ent->port_ops->irq_handler, ent->irq_flags,
-				DRV_NAME, host);
-		if (rc) {
-			dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
-				   ent->irq2, rc);
-			goto err_out;
-		}
-	}
-
-	/* resource acquisition complete */
-	devres_remove_group(dev, ata_device_add);
-
-	/* register */
-	rc = ata_host_register(host, ent->sht);
-	if (rc)
-		goto err_out;
-
-	VPRINTK("EXIT, returning %u\n", host->n_ports);
-	return host->n_ports; /* success */
-
- err_out:
-	devres_release_group(dev, ata_device_add);
-	VPRINTK("EXIT, returning 0\n");
-	return 0;
-}
-
-/**
  *	ata_port_detach - Detach ATA port in prepration of device removal
  *	@ap: ATA port to be detached
  *
@@ -6330,32 +6205,6 @@ void ata_host_detach(struct ata_host *host)
 
 	for (i = 0; i < host->n_ports; i++)
 		ata_port_detach(host->ports[i]);
-}
-
-struct ata_probe_ent *
-ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
-{
-	struct ata_probe_ent *probe_ent;
-
-	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (!probe_ent) {
-		printk(KERN_ERR DRV_NAME "(%s): out of memory\n",
-		       kobject_name(&(dev->kobj)));
-		return NULL;
-	}
-
-	INIT_LIST_HEAD(&probe_ent->node);
-	probe_ent->dev = dev;
-
-	probe_ent->sht = port->sht;
-	probe_ent->port_flags = port->flags;
-	probe_ent->pio_mask = port->pio_mask;
-	probe_ent->mwdma_mask = port->mwdma_mask;
-	probe_ent->udma_mask = port->udma_mask;
-	probe_ent->port_ops = port->port_ops;
-	probe_ent->private_data = port->private_data;
-
-	return probe_ent;
 }
 
 /**
@@ -6647,7 +6496,6 @@ EXPORT_SYMBOL_GPL(ata_host_alloc_pinfo);
 EXPORT_SYMBOL_GPL(ata_host_start);
 EXPORT_SYMBOL_GPL(ata_host_register);
 EXPORT_SYMBOL_GPL(ata_host_activate);
-EXPORT_SYMBOL_GPL(ata_device_add);
 EXPORT_SYMBOL_GPL(ata_host_detach);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
@@ -6730,7 +6578,6 @@ EXPORT_SYMBOL_GPL(ata_timing_merge);
 
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL_GPL(pci_test_config_bits);
-EXPORT_SYMBOL_GPL(ata_pci_init_native_mode);
 EXPORT_SYMBOL_GPL(ata_pci_init_native_host);
 EXPORT_SYMBOL_GPL(ata_pci_prepare_native_host);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);

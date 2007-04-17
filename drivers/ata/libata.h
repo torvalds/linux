@@ -93,8 +93,6 @@ extern int ata_flush_cache(struct ata_device *dev);
 extern void ata_dev_init(struct ata_device *dev);
 extern int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg);
 extern int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg);
-extern struct ata_probe_ent *ata_probe_ent_alloc(struct device *dev,
-						 const struct ata_port_info *port);
 extern struct ata_port *ata_port_alloc(struct ata_host *host);
 
 /* libata-acpi.c */

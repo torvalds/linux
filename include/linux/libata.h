@@ -368,34 +368,6 @@ struct ata_ioports {
 	void __iomem		*scr_addr;
 };
 
-struct ata_probe_ent {
-	struct list_head	node;
-	struct device 		*dev;
-	const struct ata_port_operations *port_ops;
-	struct scsi_host_template *sht;
-	struct ata_ioports	port[ATA_MAX_PORTS];
-	unsigned int		n_ports;
-	unsigned int		dummy_port_mask;
-	unsigned int		pio_mask;
-	unsigned int		mwdma_mask;
-	unsigned int		udma_mask;
-	unsigned long		irq;
-	unsigned long		irq2;
-	unsigned int		irq_flags;
-	unsigned long		port_flags;
-	unsigned long		_host_flags;
-	void __iomem * const	*iomap;
-	void			*private_data;
-
-	/* port_info for the secondary port.  Together with irq2, it's
-	 * used to implement non-uniform secondary port.  Currently,
-	 * the only user is ata_piix combined mode.  This workaround
-	 * will be removed together with ata_probe_ent when init model
-	 * is updated.
-	 */
-	const struct ata_port_info *pinfo2;
-};
-
 struct ata_host {
 	spinlock_t		lock;
 	struct device 		*dev;
@@ -744,7 +716,6 @@ extern int ata_host_register(struct ata_host *host,
 extern int ata_host_activate(struct ata_host *host, int irq,
 			     irq_handler_t irq_handler, unsigned long irq_flags,
 			     struct scsi_host_template *sht);
-extern int ata_device_add(const struct ata_probe_ent *ent);
 extern void ata_host_detach(struct ata_host *host);
 extern void ata_host_init(struct ata_host *, struct device *,
 			  unsigned long, const struct ata_port_operations *);
@@ -892,8 +863,6 @@ struct pci_bits {
 	unsigned long		val;
 };
 
-extern struct ata_probe_ent *
-ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int portmask);
 extern int ata_pci_init_native_host(struct ata_host *host,
 				    unsigned int port_mask);
 extern int ata_pci_prepare_native_host(struct pci_dev *pdev,
