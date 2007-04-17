@@ -38,7 +38,7 @@ struct nfs_page {
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	atomic_t		wb_complete;	/* i/os we're waiting for */
-	unsigned long		wb_index;	/* Offset >> PAGE_CACHE_SHIFT */
+	pgoff_t			wb_index;	/* Offset >> PAGE_CACHE_SHIFT */
 	unsigned int		wb_offset,	/* Offset & ~PAGE_CACHE_MASK */
 				wb_pgbase,	/* Start of page data */
 				wb_bytes;	/* Length of request */
@@ -72,7 +72,7 @@ extern	void nfs_release_request(struct nfs_page *req);
 
 
 extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head, struct list_head *dst,
-			  unsigned long idx_start, unsigned int npages);
+			  pgoff_t idx_start, unsigned int npages);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
 			     int (*doio)(struct inode *, struct list_head *, unsigned int, size_t, int),

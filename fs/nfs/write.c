@@ -139,7 +139,7 @@ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int c
 {
 	struct inode *inode = page->mapping->host;
 	loff_t end, i_size = i_size_read(inode);
-	unsigned long end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+	pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
 
 	if (i_size > 0 && page->index < end_index)
 		return;
@@ -511,11 +511,11 @@ int nfs_reschedule_unstable_write(struct nfs_page *req)
  *
  * Interruptible by signals only if mounted with intr flag.
  */
-static int nfs_wait_on_requests_locked(struct inode *inode, unsigned long idx_start, unsigned int npages)
+static int nfs_wait_on_requests_locked(struct inode *inode, pgoff_t idx_start, unsigned int npages)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page *req;
-	unsigned long		idx_end, next;
+	pgoff_t idx_end, next;
 	unsigned int		res = 0;
 	int			error;
 
@@ -570,7 +570,7 @@ static void nfs_cancel_commit_list(struct list_head *head)
  * The requests are *not* checked to ensure that they form a contiguous set.
  */
 static int
-nfs_scan_commit(struct inode *inode, struct list_head *dst, unsigned long idx_start, unsigned int npages)
+nfs_scan_commit(struct inode *inode, struct list_head *dst, pgoff_t idx_start, unsigned int npages)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	int res = 0;
@@ -584,7 +584,7 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst, unsigned long idx_st
 	return res;
 }
 #else
-static inline int nfs_scan_commit(struct inode *inode, struct list_head *dst, unsigned long idx_start, unsigned int npages)
+static inline int nfs_scan_commit(struct inode *inode, struct list_head *dst, pgoff_t idx_start, unsigned int npages)
 {
 	return 0;
 }
@@ -604,7 +604,7 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 	struct inode *inode = mapping->host;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page		*req, *new = NULL;
-	unsigned long		rqend, end;
+	pgoff_t		rqend, end;
 
 	end = offset + bytes;
 
@@ -1292,7 +1292,7 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
 {
 	struct inode *inode = mapping->host;
 	struct nfs_inode *nfsi = NFS_I(inode);
-	unsigned long idx_start, idx_end;
+	pgoff_t idx_start, idx_end;
 	unsigned int npages = 0;
 	LIST_HEAD(head);
 	int nocommit = how & FLUSH_NOCOMMIT;
@@ -1305,10 +1305,10 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
 		idx_start = wbc->range_start >> PAGE_CACHE_SHIFT;
 		idx_end = wbc->range_end >> PAGE_CACHE_SHIFT;
 		if (idx_end > idx_start) {
-			unsigned long l_npages = 1 + idx_end - idx_start;
+			pgoff_t l_npages = 1 + idx_end - idx_start;
 			npages = l_npages;
 			if (sizeof(npages) != sizeof(l_npages) &&
-					(unsigned long)npages != l_npages)
+					(pgoff_t)npages != l_npages)
 				npages = 0;
 		}
 	}

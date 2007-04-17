@@ -383,12 +383,12 @@ void nfs_pageio_complete(struct nfs_pageio_descriptor *desc)
  * You must be holding the inode's req_lock when calling this function
  */
 int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head,
-		struct list_head *dst, unsigned long idx_start,
+		struct list_head *dst, pgoff_t idx_start,
 		unsigned int npages)
 {
 	struct nfs_page *pgvec[NFS_SCAN_MAXENTRIES];
 	struct nfs_page *req;
-	unsigned long idx_end;
+	pgoff_t idx_end;
 	int found, i;
 	int res;
 
