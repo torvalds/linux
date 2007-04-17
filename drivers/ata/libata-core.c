@@ -1649,13 +1649,13 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	struct ata_taskfile tf;
 	unsigned int err_mask = 0;
 	const char *reason;
+	int tried_spinup = 0;
 	int rc;
 
 	if (ata_msg_ctl(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __FUNCTION__);
 
 	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
-
  retry:
 	ata_tf_init(dev, &tf);
 
@@ -1710,6 +1710,32 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	} else {
 		if (ata_id_is_ata(id))
 			goto err_out;
+	}
+
+	if (!tried_spinup && (id[2] == 0x37c8 || id[2] == 0x738c)) {
+		tried_spinup = 1;
+		/*
+		 * Drive powered-up in standby mode, and requires a specific
+		 * SET_FEATURES spin-up subcommand before it will accept
+		 * anything other than the original IDENTIFY command.
+		 */
+		ata_tf_init(dev, &tf);
+		tf.command = ATA_CMD_SET_FEATURES;
+		tf.feature = SETFEATURES_SPINUP;
+		tf.protocol = ATA_PROT_NODATA;
+		tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+		err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+		if (err_mask) {
+			rc = -EIO;
+			reason = "SPINUP failed";
+			goto err_out;
+		}
+		/*
+		 * If the drive initially returned incomplete IDENTIFY info,
+		 * we now must reissue the IDENTIFY command.
+		 */
+		if (id[2] == 0x37c8)
+			goto retry;
 	}
 
 	if ((flags & ATA_READID_POSTRESET) && class == ATA_DEV_ATA) {
