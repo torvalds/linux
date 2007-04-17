@@ -5830,6 +5830,55 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 }
 
 /**
+ *	ata_host_alloc_pinfo - alloc host and init with port_info array
+ *	@dev: generic device this host is associated with
+ *	@ppi: array of ATA port_info to initialize host with
+ *	@n_ports: number of ATA ports attached to this host
+ *
+ *	Allocate ATA host and initialize with info from @ppi.  If NULL
+ *	terminated, @ppi may contain fewer entries than @n_ports.  The
+ *	last entry will be used for the remaining ports.
+ *
+ *	RETURNS:
+ *	Allocate ATA host on success, NULL on failure.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ */
+struct ata_host *ata_host_alloc_pinfo(struct device *dev,
+				      const struct ata_port_info * const * ppi,
+				      int n_ports)
+{
+	const struct ata_port_info *pi;
+	struct ata_host *host;
+	int i, j;
+
+	host = ata_host_alloc(dev, n_ports);
+	if (!host)
+		return NULL;
+
+	for (i = 0, j = 0, pi = NULL; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		if (ppi[j])
+			pi = ppi[j++];
+
+		ap->pio_mask = pi->pio_mask;
+		ap->mwdma_mask = pi->mwdma_mask;
+		ap->udma_mask = pi->udma_mask;
+		ap->flags |= pi->flags;
+		ap->ops = pi->port_ops;
+
+		if (!host->ops && (pi->port_ops != &ata_dummy_port_ops))
+			host->ops = pi->port_ops;
+		if (!host->private_data && pi->private_data)
+			host->private_data = pi->private_data;
+	}
+
+	return host;
+}
+
+/**
  *	ata_host_start - start and freeze ports of an ATA host
  *	@host: ATA host to start ports for
  *
@@ -6039,6 +6088,48 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	}
 
 	return 0;
+}
+
+/**
+ *	ata_host_activate - start host, request IRQ and register it
+ *	@host: target ATA host
+ *	@irq: IRQ to request
+ *	@irq_handler: irq_handler used when requesting IRQ
+ *	@irq_flags: irq_flags used when requesting IRQ
+ *	@sht: scsi_host_template to use when registering the host
+ *
+ *	After allocating an ATA host and initializing it, most libata
+ *	LLDs perform three steps to activate the host - start host,
+ *	request IRQ and register it.  This helper takes necessasry
+ *	arguments and performs the three steps in one go.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_host_activate(struct ata_host *host, int irq,
+		      irq_handler_t irq_handler, unsigned long irq_flags,
+		      struct scsi_host_template *sht)
+{
+	int rc;
+
+	rc = ata_host_start(host);
+	if (rc)
+		return rc;
+
+	rc = devm_request_irq(host->dev, irq, irq_handler, irq_flags,
+			      dev_driver_string(host->dev), host);
+	if (rc)
+		return rc;
+
+	rc = ata_host_register(host, sht);
+	/* if failed, just free the IRQ and leave ports alone */
+	if (rc)
+		devm_free_irq(host->dev, irq, host);
+
+	return rc;
 }
 
 /**
@@ -6547,8 +6638,10 @@ EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_host_init);
 EXPORT_SYMBOL_GPL(ata_host_alloc);
+EXPORT_SYMBOL_GPL(ata_host_alloc_pinfo);
 EXPORT_SYMBOL_GPL(ata_host_start);
 EXPORT_SYMBOL_GPL(ata_host_register);
+EXPORT_SYMBOL_GPL(ata_host_activate);
 EXPORT_SYMBOL_GPL(ata_device_add);
 EXPORT_SYMBOL_GPL(ata_host_detach);
 EXPORT_SYMBOL_GPL(ata_sg_init);
