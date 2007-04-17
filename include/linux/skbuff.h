@@ -346,9 +346,6 @@ static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 	return __alloc_skb(size, priority, 1, -1);
 }
 
-extern struct sk_buff *alloc_skb_from_cache(struct kmem_cache *cp,
-					    unsigned int size,
-					    gfp_t priority);
 extern void	       kfree_skbmem(struct sk_buff *skb);
 extern struct sk_buff *skb_clone(struct sk_buff *skb,
 				 gfp_t priority);
@@ -620,6 +617,13 @@ static inline void skb_queue_head_init(struct sk_buff_head *list)
 	spin_lock_init(&list->lock);
 	list->prev = list->next = (struct sk_buff *)list;
 	list->qlen = 0;
+}
+
+static inline void skb_queue_head_init_class(struct sk_buff_head *list,
+		struct lock_class_key *class)
+{
+	skb_queue_head_init(list);
+	lockdep_set_class(&list->lock, class);
 }
 
 /*

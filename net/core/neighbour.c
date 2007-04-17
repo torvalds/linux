@@ -1331,6 +1331,8 @@ void neigh_parms_destroy(struct neigh_parms *parms)
 	kfree(parms);
 }
 
+static struct lock_class_key neigh_table_proxy_queue_class;
+
 void neigh_table_init_no_netlink(struct neigh_table *tbl)
 {
 	unsigned long now = jiffies;
@@ -1379,7 +1381,8 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 	init_timer(&tbl->proxy_timer);
 	tbl->proxy_timer.data	  = (unsigned long)tbl;
 	tbl->proxy_timer.function = neigh_proxy_process;
-	skb_queue_head_init(&tbl->proxy_queue);
+	skb_queue_head_init_class(&tbl->proxy_queue,
+			&neigh_table_proxy_queue_class);
 
 	tbl->last_flush = now;
 	tbl->last_rand	= now + tbl->parms.reachable_time * 20;

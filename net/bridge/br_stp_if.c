@@ -126,7 +126,9 @@ void br_stp_disable_port(struct net_bridge_port *p)
 /* called under bridge lock */
 void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *addr)
 {
-	unsigned char oldaddr[6];
+	/* should be aligned on 2 bytes for compare_ether_addr() */
+	unsigned short oldaddr_aligned[ETH_ALEN >> 1];
+	unsigned char *oldaddr = (unsigned char *)oldaddr_aligned;
 	struct net_bridge_port *p;
 	int wasroot;
 
@@ -151,11 +153,14 @@ void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *addr)
 		br_become_root_bridge(br);
 }
 
-static const unsigned char br_mac_zero[6];
+/* should be aligned on 2 bytes for compare_ether_addr() */
+static const unsigned short br_mac_zero_aligned[ETH_ALEN >> 1];
 
 /* called under bridge lock */
 void br_stp_recalculate_bridge_id(struct net_bridge *br)
 {
+	const unsigned char *br_mac_zero =
+			(const unsigned char *)br_mac_zero_aligned;
 	const unsigned char *addr = br_mac_zero;
 	struct net_bridge_port *p;
 
