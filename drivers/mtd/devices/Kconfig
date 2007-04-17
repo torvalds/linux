@@ -60,6 +60,14 @@ config MTD_DATAFLASH
 	  Sometimes DataFlash chips are packaged inside MMC-format
 	  cards; at this writing, the MMC stack won't handle those.
 
+config MTD_DATAFLASH26
+	tristate "AT91RM9200 DataFlash AT26xxx"
+	depends on MTD && ARCH_AT91RM9200 && AT91_SPI
+	help
+	  This enables access to the DataFlash chip (AT26xxx) on an
+	  AT91RM9200-based board.
+	  If you have such a board and such a DataFlash, say 'Y'.
+
 config MTD_M25P80
 	tristate "Support for M25 SPI Flash"
 	depends on MTD && SPI_MASTER && EXPERIMENTAL
