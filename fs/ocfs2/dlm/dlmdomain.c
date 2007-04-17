@@ -1034,7 +1034,7 @@ static int dlm_try_to_join_domain(struct dlm_ctxt *dlm)
 {
 	int status = 0, tmpstat, node;
 	struct domain_join_ctxt *ctxt;
-	enum dlm_query_join_response response;
+	enum dlm_query_join_response response = JOIN_DISALLOW;
 
 	mlog_entry("%p", dlm);
 

@@ -664,7 +664,7 @@ static int ocfs2_do_request_vote(struct ocfs2_super *osb,
 				 struct ocfs2_vote_msg *request,
 				 struct ocfs2_net_response_cb *callback)
 {
-	int status, response;
+	int status, response = -EBUSY;
 	unsigned int response_id;
 	struct ocfs2_msg_hdr *hdr;
 
