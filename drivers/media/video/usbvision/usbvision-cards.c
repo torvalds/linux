@@ -32,20 +32,6 @@
 
 /* Supported Devices: A table for usbvision.c*/
 struct usbvision_device_data_st  usbvision_device_data[] = {
-	[DUMMY_DEVICE] = {
-		.Interface     = -1,
-		.Codec         = CODEC_SAA7111,
-		.VideoChannels = 3,
-		.VideoNorm     = V4L2_STD_NTSC,
-		.AudioChannels = 1,
-		.Radio         = 1,
-		.vbi           = 1,
-		.Tuner         = 1,
-		.TunerType     = TUNER_PHILIPS_NTSC_M,
-		.X_Offset      = -1,
-		.Y_Offset      = -1,
-		.ModelString   = "Custom Dummy USBVision Device",
-	},
 	[XANBOO] = {
 		.Interface     = -1,
 		.Codec         = CODEC_SAA7113,
@@ -1032,7 +1018,6 @@ const int usbvision_device_data_size=ARRAY_SIZE(usbvision_device_data);
 /* Supported Devices */
 
 struct usb_device_id usbvision_table [] = {
-	{ USB_DEVICE(0xfff0, 0xfff0), .driver_info=DUMMY_DEVICE },
 	{ USB_DEVICE(0x0a6f, 0x0400), .driver_info=XANBOO },
 	{ USB_DEVICE(0x050d, 0x0106), .driver_info=BELKIN_VIDEOBUS_II },
 	{ USB_DEVICE(0x050d, 0x0207), .driver_info=BELKIN_VIDEOBUS },
