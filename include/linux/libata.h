@@ -668,6 +668,7 @@ struct ata_port_info {
 	unsigned long		mwdma_mask;
 	unsigned long		udma_mask;
 	const struct ata_port_operations *port_ops;
+	irq_handler_t		irq_handler;
 	void 			*private_data;
 };
 
@@ -690,6 +691,7 @@ extern const unsigned long sata_deb_timing_hotplug[];
 extern const unsigned long sata_deb_timing_long[];
 
 extern const struct ata_port_operations ata_dummy_port_ops;
+extern const struct ata_port_info ata_dummy_port_info;
 
 static inline const unsigned long *
 sata_ehc_deb_timing(struct ata_eh_context *ehc)
@@ -894,6 +896,9 @@ extern struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int portmask);
 extern int ata_pci_init_native_host(struct ata_host *host,
 				    unsigned int port_mask);
+extern int ata_pci_prepare_native_host(struct pci_dev *pdev,
+				const struct ata_port_info * const * ppi,
+				int n_ports, struct ata_host **r_host);
 extern int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits);
 extern unsigned long ata_pci_default_filter(struct ata_device *, unsigned long);
 #endif /* CONFIG_PCI */

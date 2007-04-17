@@ -663,13 +663,12 @@ static int ata_pci_init_bmdma(struct ata_host *host)
 
 	for (i = 0; i < 2; i++) {
 		struct ata_port *ap = host->ports[i];
-		struct ata_ioports *ioaddr = &ap->ioaddr;
 		void __iomem *bmdma = host->iomap[4] + 8 * i;
 
 		if (ata_port_is_dummy(ap))
 			continue;
 
-		ioaddr->bmdma_addr = bmdma;
+		ap->ioaddr.bmdma_addr = bmdma;
 		if ((!(ap->flags & ATA_FLAG_IGN_SIMPLEX)) &&
 		    (ioread8(bmdma + 2) & 0x80))
 			host->flags |= ATA_HOST_SIMPLEX;
@@ -740,6 +739,70 @@ int ata_pci_init_native_host(struct ata_host *host, unsigned int port_mask)
 	}
 
 	return 0;
+}
+
+/**
+ *	ata_pci_prepare_native_host - helper to prepare native PCI ATA host
+ *	@pdev: target PCI device
+ *	@ppi: array of port_info
+ *	@n_ports: number of ports to allocate
+ *	@r_host: out argument for the initialized ATA host
+ *
+ *	Helper to allocate ATA host for @pdev, acquire all native PCI
+ *	resources and initialize it accordingly in one go.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_pci_prepare_native_host(struct pci_dev *pdev,
+				const struct ata_port_info * const * ppi,
+				int n_ports, struct ata_host **r_host)
+{
+	struct ata_host *host;
+	unsigned int port_mask;
+	int rc;
+
+	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL))
+		return -ENOMEM;
+
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
+	if (!host) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "failed to allocate ATA host\n");
+		rc = -ENOMEM;
+		goto err_out;
+	}
+
+	port_mask = ATA_PORT_PRIMARY;
+	if (n_ports > 1)
+		port_mask |= ATA_PORT_SECONDARY;
+
+	rc = ata_pci_init_native_host(host, port_mask);
+	if (rc)
+		goto err_out;
+
+	/* init DMA related stuff */
+	rc = ata_pci_init_bmdma(host);
+	if (rc)
+		goto err_bmdma;
+
+	devres_remove_group(&pdev->dev, NULL);
+	*r_host = host;
+	return 0;
+
+ err_bmdma:
+	/* This is necessary because PCI and iomap resources are
+	 * merged and releasing the top group won't release the
+	 * acquired resources if some of those have been acquired
+	 * before entering this function.
+	 */
+	pcim_iounmap_regions(pdev, 0xf);
+ err_out:
+	devres_release_group(&pdev->dev, NULL);
+	return rc;
 }
 
 struct ata_legacy_devres {
