@@ -333,7 +333,6 @@ static const struct ata_port_operations vsc_sata_ops = {
 	.thaw			= vsc_thaw,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.irq_handler		= vsc_sata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -367,30 +366,50 @@ static void __devinit vsc_sata_setup_port(struct ata_ioports *port,
 
 static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	static const struct ata_port_info pi = {
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+				  ATA_FLAG_MMIO,
+		.pio_mask	= 0x1f,
+		.mwdma_mask	= 0x07,
+		.udma_mask	= 0x7f,
+		.port_ops	= &vsc_sata_ops,
+	};
+	const struct ata_port_info *ppi[] = { &pi, NULL };
 	static int printed_version;
-	struct ata_probe_ent *probe_ent;
+	struct ata_host *host;
 	void __iomem *mmio_base;
-	int rc;
+	int i, rc;
 	u8 cls;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
+	/* allocate host */
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 4);
+	if (!host)
+		return -ENOMEM;
+
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
-	/*
-	 * Check if we have needed resource mapped.
-	 */
+	/* check if we have needed resource mapped */
 	if (pci_resource_len(pdev, 0) == 0)
 		return -ENODEV;
 
+	/* map IO regions and intialize host accordingly */
 	rc = pcim_iomap_regions(pdev, 1 << VSC_MMIO_BAR, DRV_NAME);
 	if (rc == -EBUSY)
 		pcim_pin_device(pdev);
 	if (rc)
 		return rc;
+	host->iomap = pcim_iomap_table(pdev);
+
+	mmio_base = host->iomap[VSC_MMIO_BAR];
+
+	for (i = 0; i < host->n_ports; i++)
+		vsc_sata_setup_port(&host->ports[i]->ioaddr,
+				    mmio_base + (i + 1) * VSC_SATA_PORT_OFFSET);
 
 	/*
 	 * Use 32 bit DMA mask, because 64 bit address support is poor.
@@ -402,12 +421,6 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	if (rc)
 		return rc;
 
-	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL)
-		return -ENOMEM;
-	probe_ent->dev = pci_dev_to_dev(pdev);
-	INIT_LIST_HEAD(&probe_ent->node);
-
 	/*
 	 * Due to a bug in the chip, the default cache line size can't be
 	 * used (unless the default is non-zero).
@@ -418,33 +431,6 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 
 	if (pci_enable_msi(pdev) == 0)
 		pci_intx(pdev, 0);
-	else
-		probe_ent->irq_flags = IRQF_SHARED;
-
-	probe_ent->sht = &vsc_sata_sht;
-	probe_ent->port_flags = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				ATA_FLAG_MMIO;
-	probe_ent->port_ops = &vsc_sata_ops;
-	probe_ent->n_ports = 4;
-	probe_ent->irq = pdev->irq;
-	probe_ent->iomap = pcim_iomap_table(pdev);
-
-	/* We don't care much about the PIO/UDMA masks, but the core won't like us
-	 * if we don't fill these
-	 */
-	probe_ent->pio_mask = 0x1f;
-	probe_ent->mwdma_mask = 0x07;
-	probe_ent->udma_mask = 0x7f;
-
-	mmio_base = probe_ent->iomap[VSC_MMIO_BAR];
-
-	/* We have 4 ports per PCI function */
-	vsc_sata_setup_port(&probe_ent->port[0], mmio_base + 1 * VSC_SATA_PORT_OFFSET);
-	vsc_sata_setup_port(&probe_ent->port[1], mmio_base + 2 * VSC_SATA_PORT_OFFSET);
-	vsc_sata_setup_port(&probe_ent->port[2], mmio_base + 3 * VSC_SATA_PORT_OFFSET);
-	vsc_sata_setup_port(&probe_ent->port[3], mmio_base + 4 * VSC_SATA_PORT_OFFSET);
-
-	pci_set_master(pdev);
 
 	/*
 	 * Config offset 0x98 is "Extended Control and Status Register 0"
@@ -454,11 +440,9 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	 */
 	pci_write_config_dword(pdev, 0x98, 0);
 
-	if (!ata_device_add(probe_ent))
-		return -ENODEV;
-
-	devm_kfree(&pdev->dev, probe_ent);
-	return 0;
+	pci_set_master(pdev);
+	return ata_host_activate(host, pdev->irq, vsc_sata_interrupt,
+				 IRQF_SHARED, &vsc_sata_sht);
 }
 
 static const struct pci_device_id vsc_sata_pci_tbl[] = {

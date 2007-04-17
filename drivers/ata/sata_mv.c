@@ -347,7 +347,6 @@ static void mv_port_stop(struct ata_port *ap);
 static void mv_qc_prep(struct ata_queued_cmd *qc);
 static void mv_qc_prep_iie(struct ata_queued_cmd *qc);
 static unsigned int mv_qc_issue(struct ata_queued_cmd *qc);
-static irqreturn_t mv_interrupt(int irq, void *dev_instance);
 static void mv_eng_timeout(struct ata_port *ap);
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
@@ -410,7 +409,6 @@ static const struct ata_port_operations mv5_ops = {
 
 	.eng_timeout		= mv_eng_timeout,
 
-	.irq_handler		= mv_interrupt,
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -440,7 +438,6 @@ static const struct ata_port_operations mv6_ops = {
 
 	.eng_timeout		= mv_eng_timeout,
 
-	.irq_handler		= mv_interrupt,
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -470,7 +467,6 @@ static const struct ata_port_operations mv_iie_ops = {
 
 	.eng_timeout		= mv_eng_timeout,
 
-	.irq_handler		= mv_interrupt,
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -484,35 +480,30 @@ static const struct ata_port_operations mv_iie_ops = {
 
 static const struct ata_port_info mv_port_info[] = {
 	{  /* chip_504x */
-		.sht		= &mv_sht,
 		.flags		= MV_COMMON_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_508x */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_5080 */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_604x */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_608x */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS |
 				   MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
@@ -520,14 +511,12 @@ static const struct ata_port_info mv_port_info[] = {
 		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_6042 */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv_iie_ops,
 	},
 	{  /* chip_7042 */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
@@ -2099,9 +2088,10 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 		readl(port_mmio + EDMA_ERR_IRQ_MASK_OFS));
 }
 
-static int mv_chip_id(struct pci_dev *pdev, struct mv_host_priv *hpriv,
-		      unsigned int board_idx)
+static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 {
+	struct pci_dev *pdev = to_pci_dev(host->dev);
+	struct mv_host_priv *hpriv = host->private_data;
 	u8 rev_id;
 	u32 hp_flags = hpriv->hp_flags;
 
@@ -2199,8 +2189,8 @@ static int mv_chip_id(struct pci_dev *pdev, struct mv_host_priv *hpriv,
 
 /**
  *      mv_init_host - Perform some early initialization of the host.
- *	@pdev: host PCI device
- *      @probe_ent: early data struct representing the host
+ *	@host: ATA host to initialize
+ *      @board_idx: controller index
  *
  *      If possible, do an early global reset of the host.  Then do
  *      our port init and clear/unmask all/relevant host interrupts.
@@ -2208,24 +2198,23 @@ static int mv_chip_id(struct pci_dev *pdev, struct mv_host_priv *hpriv,
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
-			unsigned int board_idx)
+static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 {
 	int rc = 0, n_hc, port, hc;
-	void __iomem *mmio = probe_ent->iomap[MV_PRIMARY_BAR];
-	struct mv_host_priv *hpriv = probe_ent->private_data;
+	struct pci_dev *pdev = to_pci_dev(host->dev);
+	void __iomem *mmio = host->iomap[MV_PRIMARY_BAR];
+	struct mv_host_priv *hpriv = host->private_data;
 
 	/* global interrupt mask */
 	writel(0, mmio + HC_MAIN_IRQ_MASK_OFS);
 
-	rc = mv_chip_id(pdev, hpriv, board_idx);
+	rc = mv_chip_id(host, board_idx);
 	if (rc)
 		goto done;
 
-	n_hc = mv_get_hc_count(probe_ent->port_flags);
-	probe_ent->n_ports = MV_PORTS_PER_HC * n_hc;
+	n_hc = mv_get_hc_count(host->ports[0]->flags);
 
-	for (port = 0; port < probe_ent->n_ports; port++)
+	for (port = 0; port < host->n_ports; port++)
 		hpriv->ops->read_preamp(hpriv, port, mmio);
 
 	rc = hpriv->ops->reset_hc(hpriv, mmio, n_hc);
@@ -2236,7 +2225,7 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 	hpriv->ops->reset_bus(pdev, mmio);
 	hpriv->ops->enable_leds(hpriv, mmio);
 
-	for (port = 0; port < probe_ent->n_ports; port++) {
+	for (port = 0; port < host->n_ports; port++) {
 		if (IS_60XX(hpriv)) {
 			void __iomem *port_mmio = mv_port_base(mmio, port);
 
@@ -2249,9 +2238,9 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 		hpriv->ops->phy_errata(hpriv, mmio, port);
 	}
 
-	for (port = 0; port < probe_ent->n_ports; port++) {
+	for (port = 0; port < host->n_ports; port++) {
 		void __iomem *port_mmio = mv_port_base(mmio, port);
-		mv_port_init(&probe_ent->port[port], port_mmio);
+		mv_port_init(&host->ports[port]->ioaddr, port_mmio);
 	}
 
 	for (hc = 0; hc < n_hc; hc++) {
@@ -2290,17 +2279,17 @@ done:
 
 /**
  *      mv_print_info - Dump key info to kernel log for perusal.
- *      @probe_ent: early data struct representing the host
+ *      @host: ATA host to print info about
  *
  *      FIXME: complete this.
  *
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_print_info(struct ata_probe_ent *probe_ent)
+static void mv_print_info(struct ata_host *host)
 {
-	struct pci_dev *pdev = to_pci_dev(probe_ent->dev);
-	struct mv_host_priv *hpriv = probe_ent->private_data;
+	struct pci_dev *pdev = to_pci_dev(host->dev);
+	struct mv_host_priv *hpriv = host->private_data;
 	u8 rev_id, scc;
 	const char *scc_s;
 
@@ -2319,7 +2308,7 @@ static void mv_print_info(struct ata_probe_ent *probe_ent)
 
 	dev_printk(KERN_INFO, &pdev->dev,
 	       "%u slots %u ports %s mode IRQ via %s\n",
-	       (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports,
+	       (unsigned)MV_MAX_Q_DEPTH, host->n_ports,
 	       scc_s, (MV_HP_FLAG_MSI & hpriv->hp_flags) ? "MSI" : "INTx");
 }
 
@@ -2334,54 +2323,42 @@ static void mv_print_info(struct ata_probe_ent *probe_ent)
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
-	struct device *dev = &pdev->dev;
-	struct ata_probe_ent *probe_ent;
-	struct mv_host_priv *hpriv;
 	unsigned int board_idx = (unsigned int)ent->driver_data;
-	int rc;
+	const struct ata_port_info *ppi[] = { &mv_port_info[board_idx], NULL };
+	struct ata_host *host;
+	struct mv_host_priv *hpriv;
+	int n_ports, rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
+	/* allocate host */
+	n_ports = mv_get_hc_count(ppi[0]->flags) * MV_PORTS_PER_HC;
+
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
+	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	if (!host || !hpriv)
+		return -ENOMEM;
+	host->private_data = hpriv;
+
+	/* acquire resources */
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
-	pci_set_master(pdev);
 
 	rc = pcim_iomap_regions(pdev, 1 << MV_PRIMARY_BAR, DRV_NAME);
 	if (rc == -EBUSY)
 		pcim_pin_device(pdev);
 	if (rc)
 		return rc;
+	host->iomap = pcim_iomap_table(pdev);
 
 	rc = pci_go_64(pdev);
 	if (rc)
 		return rc;
 
-	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL)
-		return -ENOMEM;
-
-	probe_ent->dev = pci_dev_to_dev(pdev);
-	INIT_LIST_HEAD(&probe_ent->node);
-
-	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv)
-		return -ENOMEM;
-
-	probe_ent->sht = mv_port_info[board_idx].sht;
-	probe_ent->port_flags = mv_port_info[board_idx].flags;
-	probe_ent->pio_mask = mv_port_info[board_idx].pio_mask;
-	probe_ent->udma_mask = mv_port_info[board_idx].udma_mask;
-	probe_ent->port_ops = mv_port_info[board_idx].port_ops;
-
-	probe_ent->irq = pdev->irq;
-	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->iomap = pcim_iomap_table(pdev);
-	probe_ent->private_data = hpriv;
-
 	/* initialize adapter */
-	rc = mv_init_host(pdev, probe_ent, board_idx);
+	rc = mv_init_host(host, board_idx);
 	if (rc)
 		return rc;
 
@@ -2390,13 +2367,11 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_intx(pdev, 1);
 
 	mv_dump_pci_cfg(pdev, 0x68);
-	mv_print_info(probe_ent);
+	mv_print_info(host);
 
-	if (ata_device_add(probe_ent) == 0)
-		return -ENODEV;
-
-	devm_kfree(dev, probe_ent);
-	return 0;
+	pci_set_master(pdev);
+	return ata_host_activate(host, pdev->irq, mv_interrupt, IRQF_SHARED,
+				 &mv_sht);
 }
 
 static int __init mv_init(void)
