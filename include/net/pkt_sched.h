@@ -13,8 +13,6 @@ struct qdisc_walker
 	int	(*fn)(struct Qdisc *, unsigned long cl, struct qdisc_walker *);
 };
 
-extern rwlock_t qdisc_tree_lock;
-
 #define QDISC_ALIGNTO		32
 #define QDISC_ALIGN(len)	(((len) + QDISC_ALIGNTO-1) & ~(QDISC_ALIGNTO-1))
 

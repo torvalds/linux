@@ -400,7 +400,6 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	if ((dev = dev_get_by_index(tcm->tcm_ifindex)) == NULL)
 		return skb->len;
 
-	read_lock(&qdisc_tree_lock);
 	if (!tcm->tcm_parent)
 		q = dev->qdisc_sleeping;
 	else
@@ -457,7 +456,6 @@ errout:
 	if (cl)
 		cops->put(q, cl);
 out:
-	read_unlock(&qdisc_tree_lock);
 	dev_put(dev);
 	return skb->len;
 }

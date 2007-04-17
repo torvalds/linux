@@ -191,7 +191,7 @@ int unregister_qdisc(struct Qdisc_ops *qops)
    (root qdisc, all its children, children of children etc.)
  */
 
-static struct Qdisc *__qdisc_lookup(struct net_device *dev, u32 handle)
+struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
 	struct Qdisc *q;
 
@@ -200,16 +200,6 @@ static struct Qdisc *__qdisc_lookup(struct net_device *dev, u32 handle)
 			return q;
 	}
 	return NULL;
-}
-
-struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
-{
-	struct Qdisc *q;
-
-	read_lock(&qdisc_tree_lock);
-	q = __qdisc_lookup(dev, handle);
-	read_unlock(&qdisc_tree_lock);
-	return q;
 }
 
 static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
@@ -405,7 +395,7 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 	if (n == 0)
 		return;
 	while ((parentid = sch->parent)) {
-		sch = __qdisc_lookup(sch->dev, TC_H_MAJ(parentid));
+		sch = qdisc_lookup(sch->dev, TC_H_MAJ(parentid));
 		cops = sch->ops->cl_ops;
 		if (cops->qlen_notify) {
 			cl = cops->get(sch, parentid);
@@ -905,7 +895,6 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 		if (idx > s_idx)
 			s_q_idx = 0;
-		read_lock(&qdisc_tree_lock);
 		q_idx = 0;
 		list_for_each_entry(q, &dev->qdisc_list, list) {
 			if (q_idx < s_q_idx) {
@@ -913,13 +902,10 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 				continue;
 			}
 			if (tc_fill_qdisc(skb, q, q->parent, NETLINK_CB(cb->skb).pid,
-					  cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWQDISC) <= 0) {
-				read_unlock(&qdisc_tree_lock);
+					  cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWQDISC) <= 0)
 				goto done;
-			}
 			q_idx++;
 		}
-		read_unlock(&qdisc_tree_lock);
 	}
 
 done:
@@ -1142,7 +1128,6 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	s_t = cb->args[0];
 	t = 0;
 
-	read_lock(&qdisc_tree_lock);
 	list_for_each_entry(q, &dev->qdisc_list, list) {
 		if (t < s_t || !q->ops->cl_ops ||
 		    (tcm->tcm_parent &&
@@ -1164,7 +1149,6 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 			break;
 		t++;
 	}
-	read_unlock(&qdisc_tree_lock);
 
 	cb->args[0] = t;
 
