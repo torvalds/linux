@@ -627,6 +627,12 @@ int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 			retval = -EINVAL;
 			goto err_bindx_rem;
 		}
+
+		if (!af->addr_valid(sa_addr, sp, NULL)) {
+			retval = -EADDRNOTAVAIL;
+			goto err_bindx_rem;
+		}
+
 		if (sa_addr->v4.sin_port != htons(bp->port)) {
 			retval = -EINVAL;
 			goto err_bindx_rem;
