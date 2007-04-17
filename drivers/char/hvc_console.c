@@ -102,12 +102,12 @@ static DEFINE_SPINLOCK(hvc_structs_lock);
 /*
  * This value is used to assign a tty->index value to a hvc_struct based
  * upon order of exposure via hvc_probe(), when we can not match it to
- * a console canidate registered with hvc_instantiate().
+ * a console candidate registered with hvc_instantiate().
  */
 static int last_hvc = -1;
 
 /*
- * Do not call this function with either the hvc_strucst_lock or the hvc_struct
+ * Do not call this function with either the hvc_structs_lock or the hvc_struct
  * lock held.  If successful, this function increments the kobject reference
  * count against the target hvc_struct so it should be released when finished.
  */
@@ -160,7 +160,7 @@ void hvc_console_print(struct console *co, const char *b, unsigned count)
 	if (index >= MAX_NR_HVC_CONSOLES)
 		return;
 
-	/* This console adapter was removed so it is not useable. */
+	/* This console adapter was removed so it is not usable. */
 	if (vtermnos[index] < 0)
 		return;
 
@@ -218,7 +218,7 @@ struct console hvc_con_driver = {
 };
 
 /*
- * Early console initialization.  Preceeds driver initialization.
+ * Early console initialization.  Precedes driver initialization.
  *
  * (1) we are first, and the user specified another driver
  * -- index will remain -1
@@ -255,7 +255,7 @@ int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops)
 	if (vtermnos[index] != -1)
 		return -1;
 
-	/* make sure no no tty has been registerd in this index */
+	/* make sure no no tty has been registered in this index */
 	hp = hvc_get_by_index(index);
 	if (hp) {
 		kobject_put(&hp->kobj);
@@ -265,7 +265,7 @@ int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops)
 	vtermnos[index] = vtermno;
 	cons_ops[index] = ops;
 
-	/* reserve all indices upto and including this index */
+	/* reserve all indices up to and including this index */
 	if (last_hvc < index)
 		last_hvc = index;
 
@@ -526,7 +526,7 @@ static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count
 
 /*
  * This is actually a contract between the driver and the tty layer outlining
- * how much write room the driver can guarentee will be sent OR BUFFERED.  This
+ * how much write room the driver can guarantee will be sent OR BUFFERED.  This
  * driver MUST honor the return value.
  */
 static int hvc_write_room(struct tty_struct *tty)
@@ -813,7 +813,7 @@ int __devexit hvc_remove(struct hvc_struct *hp)
 
 	/*
 	 * We 'put' the instance that was grabbed when the kobject instance
-	 * was intialized using kobject_init().  Let the last holder of this
+	 * was initialized using kobject_init().  Let the last holder of this
 	 * kobject cause it to be removed, which will probably be the tty_hangup
 	 * below.
 	 */
@@ -869,7 +869,7 @@ int __init hvc_init(void)
 }
 module_init(hvc_init);
 
-/* This isn't particularily necessary due to this being a console driver
+/* This isn't particularly necessary due to this being a console driver
  * but it is nice to be thorough.
  */
 static void __exit hvc_exit(void)
