@@ -210,6 +210,7 @@ enum {
 
 	/* host set flags */
 	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host only */
+	ATA_HOST_STARTED	= (1 << 1),	/* Host started */
 
 	/* various lengths of time */
 	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
@@ -732,6 +733,7 @@ extern int ata_pci_device_resume(struct pci_dev *pdev);
 #endif
 extern int ata_pci_clear_simplex(struct pci_dev *pdev);
 #endif /* CONFIG_PCI */
+extern int ata_host_start(struct ata_host *host);
 extern int ata_device_add(const struct ata_probe_ent *ent);
 extern void ata_host_detach(struct ata_host *host);
 extern void ata_host_init(struct ata_host *, struct device *,

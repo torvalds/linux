@@ -5819,11 +5819,14 @@ static void ata_host_release(struct device *gendev, void *res)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		if (ap && ap->ops->port_stop)
+		if (!ap)
+			continue;
+
+		if ((host->flags & ATA_HOST_STARTED) && ap->ops->port_stop)
 			ap->ops->port_stop(ap);
 	}
 
-	if (host->ops->host_stop)
+	if ((host->flags & ATA_HOST_STARTED) && host->ops->host_stop)
 		host->ops->host_stop(host);
 
 	for (i = 0; i < host->n_ports; i++) {
@@ -5840,6 +5843,56 @@ static void ata_host_release(struct device *gendev, void *res)
 	}
 
 	dev_set_drvdata(gendev, NULL);
+}
+
+/**
+ *	ata_host_start - start and freeze ports of an ATA host
+ *	@host: ATA host to start ports for
+ *
+ *	Start and then freeze ports of @host.  Started status is
+ *	recorded in host->flags, so this function can be called
+ *	multiple times.  Ports are guaranteed to get started only
+ *	once.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ *
+ *	RETURNS:
+ *	0 if all ports are started successfully, -errno otherwise.
+ */
+int ata_host_start(struct ata_host *host)
+{
+	int i, rc;
+
+	if (host->flags & ATA_HOST_STARTED)
+		return 0;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		if (ap->ops->port_start) {
+			rc = ap->ops->port_start(ap);
+			if (rc) {
+				ata_port_printk(ap, KERN_ERR, "failed to "
+						"start port (errno=%d)\n", rc);
+				goto err_out;
+			}
+		}
+
+		ata_eh_freeze_port(ap);
+	}
+
+	host->flags |= ATA_HOST_STARTED;
+	return 0;
+
+ err_out:
+	while (--i >= 0) {
+		struct ata_port *ap = host->ports[i];
+
+		if (ap->ops->port_stop)
+			ap->ops->port_stop(ap);
+	}
+	return rc;
 }
 
 /**
@@ -5931,14 +5984,6 @@ int ata_device_add(const struct ata_probe_ent *ent)
 			continue;
 		}
 
-		/* start port */
-		rc = ap->ops->port_start(ap);
-		if (rc) {
-			host->ports[i] = NULL;
-			scsi_host_put(ap->scsi_host);
-			goto err_out;
-		}
-
 		/* Report the secondary IRQ for second channel legacy */
 		if (i == 1 && ent->irq2)
 			irq_line = ent->irq2;
@@ -5956,10 +6001,12 @@ int ata_device_add(const struct ata_probe_ent *ent)
 				ap->ioaddr.ctl_addr,
 				ap->ioaddr.bmdma_addr,
 				irq_line);
-
-		/* freeze port before requesting IRQ */
-		ata_eh_freeze_port(ap);
 	}
+
+	/* start ports */
+	rc = ata_host_start(host);
+	if (rc)
+		goto err_out;
 
 	/* obtain irq, that may be shared between channels */
 	rc = devm_request_irq(dev, ent->irq, ent->port_ops->irq_handler,
@@ -6446,6 +6493,7 @@ EXPORT_SYMBOL_GPL(ata_dummy_port_ops);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_host_init);
+EXPORT_SYMBOL_GPL(ata_host_start);
 EXPORT_SYMBOL_GPL(ata_device_add);
 EXPORT_SYMBOL_GPL(ata_host_detach);
 EXPORT_SYMBOL_GPL(ata_sg_init);
