@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/device.h>
+#include <linux/rwsem.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
 #include "fw-device.h"
@@ -49,6 +50,7 @@ crc16_itu_t(const u32 *buffer, size_t length)
 	return crc;
 }
 
+static DECLARE_RWSEM(card_rwsem);
 static LIST_HEAD(card_list);
 
 static LIST_HEAD(descriptor_list);
@@ -162,7 +164,7 @@ fw_core_add_descriptor (struct fw_descriptor *desc)
 	if (i != desc->length)
 		return -EINVAL;
 
-	down_write(&fw_bus_type.subsys.rwsem);
+	down_write(&card_rwsem);
 
 	list_add_tail (&desc->link, &descriptor_list);
 	descriptor_count++;
@@ -170,7 +172,7 @@ fw_core_add_descriptor (struct fw_descriptor *desc)
 		descriptor_count++;
 	update_config_roms();
 
-	up_write(&fw_bus_type.subsys.rwsem);
+	up_write(&card_rwsem);
 
 	return 0;
 }
@@ -179,7 +181,7 @@ EXPORT_SYMBOL(fw_core_add_descriptor);
 void
 fw_core_remove_descriptor (struct fw_descriptor *desc)
 {
-	down_write(&fw_bus_type.subsys.rwsem);
+	down_write(&card_rwsem);
 
 	list_del(&desc->link);
 	descriptor_count--;
@@ -187,7 +189,7 @@ fw_core_remove_descriptor (struct fw_descriptor *desc)
 		descriptor_count--;
 	update_config_roms();
 
-	up_write(&fw_bus_type.subsys.rwsem);
+	up_write(&card_rwsem);
 }
 EXPORT_SYMBOL(fw_core_remove_descriptor);
 
@@ -404,10 +406,10 @@ fw_card_add(struct fw_card *card,
 	 * drops it when the driver calls fw_core_remove_card. */
 	fw_card_get(card);
 
-	down_write(&fw_bus_type.subsys.rwsem);
+	down_write(&card_rwsem);
 	config_rom = generate_config_rom (card, &length);
 	list_add_tail(&card->link, &card_list);
-	up_write(&fw_bus_type.subsys.rwsem);
+	up_write(&card_rwsem);
 
 	return card->driver->enable(card, config_rom, length);
 }
@@ -487,9 +489,9 @@ fw_core_remove_card(struct fw_card *card)
 				     PHY_LINK_ACTIVE | PHY_CONTENDER, 0);
 	fw_core_initiate_bus_reset(card, 1);
 
-	down_write(&fw_bus_type.subsys.rwsem);
+	down_write(&card_rwsem);
 	list_del(&card->link);
-	up_write(&fw_bus_type.subsys.rwsem);
+	up_write(&card_rwsem);
 
 	/* Set up the dummy driver. */
 	card->driver = &dummy_driver;

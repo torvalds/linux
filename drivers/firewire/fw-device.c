@@ -550,6 +550,7 @@ static int shutdown_unit(struct device *device, void *data)
 	return 0;
 }
 
+static DECLARE_RWSEM(idr_rwsem);
 static DEFINE_IDR(fw_device_idr);
 int fw_cdev_major;
 
@@ -557,9 +558,9 @@ struct fw_device *fw_device_from_devt(dev_t devt)
 {
 	struct fw_device *device;
 
-	down_read(&fw_bus_type.subsys.rwsem);
+	down_read(&idr_rwsem);
 	device = idr_find(&fw_device_idr, MINOR(devt));
-	up_read(&fw_bus_type.subsys.rwsem);
+	up_read(&idr_rwsem);
 
 	return device;
 }
@@ -570,9 +571,9 @@ static void fw_device_shutdown(struct work_struct *work)
 		container_of(work, struct fw_device, work.work);
 	int minor = MINOR(device->device.devt);
 
-	down_write(&fw_bus_type.subsys.rwsem);
+	down_write(&idr_rwsem);
 	idr_remove(&fw_device_idr, minor);
-	up_write(&fw_bus_type.subsys.rwsem);
+	up_write(&idr_rwsem);
 
 	fw_device_cdev_remove(device);
 	device_for_each_child(&device->device, NULL, shutdown_unit);
@@ -621,10 +622,10 @@ static void fw_device_init(struct work_struct *work)
 	}
 
 	err = -ENOMEM;
-	down_write(&fw_bus_type.subsys.rwsem);
+	down_write(&idr_rwsem);
 	if (idr_pre_get(&fw_device_idr, GFP_KERNEL))
 		err = idr_get_new(&fw_device_idr, device, &minor);
-	up_write(&fw_bus_type.subsys.rwsem);
+	up_write(&idr_rwsem);
 	if (err < 0)
 		goto error;
 
@@ -670,9 +671,9 @@ static void fw_device_init(struct work_struct *work)
 	return;
 
  error_with_cdev:
-	down_write(&fw_bus_type.subsys.rwsem);
+	down_write(&idr_rwsem);
 	idr_remove(&fw_device_idr, minor);
-	up_write(&fw_bus_type.subsys.rwsem);
+	up_write(&idr_rwsem);
  error:
 	put_device(&device->device);
 }
