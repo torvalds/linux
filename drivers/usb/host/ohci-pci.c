@@ -141,6 +141,10 @@ static const struct pci_device_id ohci_pci_quirks[] = {
 		.subdevice	= 0x0004,
 		.driver_data	= (unsigned long) broken_suspend,
 	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_ITE, 0x8152),
+		.driver_data = (unsigned long) broken_suspend,
+	},
 	/* FIXME for some of the early AMD 760 southbridges, OHCI
 	 * won't work at all.  blacklist them.
 	 */
