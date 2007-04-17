@@ -1765,15 +1765,20 @@ static void gfs2_print_symbol(struct glock_iter *gi, const char *fmt,
 {
 /* when sprint_symbol becomes available in the new kernel, replace this */
 /* function with:
-        char buffer[KSYM_SYMBOL_LEN];
+	char buffer[KSYM_SYMBOL_LEN];
 
-        sprint_symbol(buffer, address);
-        print_dbg(gi, fmt, buffer);
+	sprint_symbol(buffer, address);
+	print_dbg(gi, fmt, buffer);
 */
-        if (gi)
-                print_dbg(gi, fmt, address);
-        else
-                print_symbol(fmt, address);
+	char buffer[256];
+
+	if (gi) {
+		memset(buffer, 0, sizeof(buffer));
+		sprintf(buffer, "%p", address);
+		print_dbg(gi, fmt, buffer);
+	}
+	else
+		print_symbol(fmt, address);
 }
 
 /**
@@ -1993,14 +1998,19 @@ int __init gfs2_glock_init(void)
 
 static int gfs2_glock_iter_next(struct glock_iter *gi)
 {
+	read_lock(gl_lock_addr(gi->hash));
 	while (1) {
 		if (!gi->hb_list) {  /* If we don't have a hash bucket yet */
 			gi->hb_list = &gl_hash_table[gi->hash].hb_list;
 			if (hlist_empty(gi->hb_list)) {
+				read_unlock(gl_lock_addr(gi->hash));
 				gi->hash++;
+				read_lock(gl_lock_addr(gi->hash));
 				gi->hb_list = NULL;
-				if (gi->hash >= GFS2_GL_HASH_SIZE)
+				if (gi->hash >= GFS2_GL_HASH_SIZE) {
+					read_unlock(gl_lock_addr(gi->hash));
 					return 1;
+				}
 				else
 					continue;
 			}
@@ -2011,7 +2021,9 @@ static int gfs2_glock_iter_next(struct glock_iter *gi)
 			}
 		} else {
 			if (gi->gl->gl_list.next == NULL) {
+				read_unlock(gl_lock_addr(gi->hash));
 				gi->hash++;
+				read_lock(gl_lock_addr(gi->hash));
 				gi->hb_list = NULL;
 				continue;
 			}
@@ -2021,6 +2033,7 @@ static int gfs2_glock_iter_next(struct glock_iter *gi)
 		if (gi->gl)
 			break;
 	}
+	read_unlock(gl_lock_addr(gi->hash));
 	return 0;
 }
 
