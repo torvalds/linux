@@ -78,6 +78,10 @@ static const u32 vmx_msr_index[] = {
 };
 #define NR_VMX_MSR ARRAY_SIZE(vmx_msr_index)
 
+#ifdef CONFIG_X86_64
+static unsigned msr_offset_kernel_gs_base;
+#endif
+
 static inline int is_page_fault(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
@@ -1129,6 +1133,10 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->host_msrs[j].reserved = 0;
 		vcpu->host_msrs[j].data = data;
 		vcpu->guest_msrs[j] = vcpu->host_msrs[j];
+#ifdef CONFIG_X86_64
+		if (index == MSR_KERNEL_GS_BASE)
+			msr_offset_kernel_gs_base = j;
+#endif
 		++vcpu->nmsrs;
 	}
 
@@ -1760,7 +1768,9 @@ again:
 	fx_save(vcpu->host_fx_image);
 	fx_restore(vcpu->guest_fx_image);
 
-	save_msrs(vcpu->host_msrs, vcpu->nmsrs);
+#ifdef CONFIG_X86_64
+	save_msrs(vcpu->host_msrs + msr_offset_kernel_gs_base, 1);
+#endif
 	load_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
 
 	asm (
