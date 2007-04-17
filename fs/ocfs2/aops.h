@@ -97,9 +97,16 @@ int ocfs2_map_and_write_splice_data(struct inode *inode,
 /* all ocfs2_dio_end_io()'s fault */
 #define ocfs2_iocb_is_rw_locked(iocb) \
 	test_bit(0, (unsigned long *)&iocb->private)
-#define ocfs2_iocb_set_rw_locked(iocb) \
-	set_bit(0, (unsigned long *)&iocb->private)
+static inline void ocfs2_iocb_set_rw_locked(struct kiocb *iocb, int level)
+{
+	set_bit(0, (unsigned long *)&iocb->private);
+	if (level)
+		set_bit(1, (unsigned long *)&iocb->private);
+	else
+		clear_bit(1, (unsigned long *)&iocb->private);
+}
 #define ocfs2_iocb_clear_rw_locked(iocb) \
 	clear_bit(0, (unsigned long *)&iocb->private)
-
+#define ocfs2_iocb_rw_locked_level(iocb) \
+	test_bit(1, (unsigned long *)&iocb->private)
 #endif /* OCFS2_FILE_H */

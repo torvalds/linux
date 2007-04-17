@@ -1542,7 +1542,7 @@ relock:
 	pos = *ppos;
 
 	/* communicate with ocfs2_dio_end_io */
-	ocfs2_iocb_set_rw_locked(iocb);
+	ocfs2_iocb_set_rw_locked(iocb, rw_level);
 
 	if (direct_io) {
 		written = generic_file_direct_write(iocb, iov, &nr_segs, *ppos,
@@ -1788,7 +1788,7 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 		}
 		rw_level = 0;
 		/* communicate with ocfs2_dio_end_io */
-		ocfs2_iocb_set_rw_locked(iocb);
+		ocfs2_iocb_set_rw_locked(iocb, rw_level);
 	}
 
 	/*

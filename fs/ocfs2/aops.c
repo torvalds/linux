@@ -522,12 +522,17 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 			     void *private)
 {
 	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	int level;
 
 	/* this io's submitter should not have unlocked this before we could */
 	BUG_ON(!ocfs2_iocb_is_rw_locked(iocb));
+
 	ocfs2_iocb_clear_rw_locked(iocb);
-	up_read(&inode->i_alloc_sem);
-	ocfs2_rw_unlock(inode, 0);
+
+	level = ocfs2_iocb_rw_locked_level(iocb);
+	if (!level)
+		up_read(&inode->i_alloc_sem);
+	ocfs2_rw_unlock(inode, level);
 }
 
 /*
