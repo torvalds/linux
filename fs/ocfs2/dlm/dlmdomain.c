@@ -430,11 +430,10 @@ redo_bucket:
 
 			dlm_lockres_put(res);
 
-			cond_resched_lock(&dlm->spinlock);
-
 			if (dropped)
 				goto redo_bucket;
 		}
+		cond_resched_lock(&dlm->spinlock);
 		num += n;
 		mlog(0, "%s: touched %d lockreses in bucket %d "
 		     "(tot=%d)\n", dlm->name, n, i, num);
