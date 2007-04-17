@@ -115,13 +115,13 @@ static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 		return 1;
 	if (k1.objectid < k2->objectid)
 		return -1;
-	if (k1.offset > k2->offset)
-		return 1;
-	if (k1.offset < k2->offset)
-		return -1;
 	if (k1.flags > k2->flags)
 		return 1;
 	if (k1.flags < k2->flags)
+		return -1;
+	if (k1.offset > k2->offset)
+		return 1;
+	if (k1.offset < k2->offset)
 		return -1;
 	return 0;
 }
@@ -1292,7 +1292,6 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 				      ioff + size_diff);
 	}
 	/* shift the data */
-printk("truncate item, new_size %u old_size %u, diff %u, bufp %p, dst, %p, num %u, old_data_start %u, data_end %u\n", new_size, old_size, size_diff, leaf, btrfs_leaf_data(leaf) + data_end + size_diff, old_data_start-data_end, old_data_start, data_end);
 	btrfs_memmove(root, leaf, btrfs_leaf_data(leaf) +
 		      data_end + size_diff, btrfs_leaf_data(leaf) +
 		      data_end, old_data_start + new_size - data_end);

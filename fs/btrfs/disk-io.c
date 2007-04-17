@@ -24,7 +24,6 @@ int btrfs_insert_dev_radix(struct btrfs_root *root,
 			   u64 num_blocks)
 {
 	struct dev_lookup *lookup;
-	char b[BDEVNAME_SIZE];
 	int ret;
 
 	lookup = kmalloc(sizeof(*lookup), GFP_NOFS);
@@ -34,7 +33,6 @@ int btrfs_insert_dev_radix(struct btrfs_root *root,
 	lookup->num_blocks = num_blocks;
 	lookup->bdev = bdev;
 	lookup->device_id = device_id;
-printk("inserting %s into dev radix %Lu %Lu\n", bdevname(bdev, b), block_start, num_blocks);
 
 	ret = radix_tree_insert(&root->fs_info->dev_radix, block_start +
 				num_blocks - 1, lookup);

@@ -103,7 +103,7 @@ int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	key.objectid = dir;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
-	btrfs_set_key_overflow(&key, BTRFS_KEY_OVERFLOW_MAX - 1);
+	// btrfs_set_key_overflow(&key, BTRFS_KEY_OVERFLOW_MAX - 1);
 	ret = btrfs_name_hash(name, name_len, &key.offset);
 	BUG_ON(ret);
 	while(1) {
@@ -146,19 +146,29 @@ int btrfs_lookup_dir_index_item(struct btrfs_trans_handle *trans,
 	int cow = mod != 0;
 	struct btrfs_disk_key *found_key;
 	struct btrfs_leaf *leaf;
+	int overflow = 0;
 
 	key.objectid = dir;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_DIR_INDEX_KEY);
-	btrfs_set_key_overflow(&key, BTRFS_KEY_OVERFLOW_MAX - 1);
 	key.offset = objectid;
-	ret = btrfs_search_slot(trans, root, &key, path, ins_len, cow);
-	if (ret < 0)
-		return ret;
-	if (ret > 0) {
-		if (path->slots[0] == 0)
-			return 1;
-		path->slots[0]--;
+
+	while(1) {
+		btrfs_set_key_overflow(&key, overflow);
+		ret = btrfs_search_slot(trans, root, &key, path, ins_len, cow);
+		if (ret < 0)
+			return ret;
+		if (ret > 0) {
+			if (overflow >= BTRFS_KEY_OVERFLOW_MAX)
+				return 1;
+			overflow++;
+			btrfs_set_key_overflow(&key, overflow);
+			btrfs_release_path(root, path);
+			continue;
+		} else {
+			/* found */
+			break;
+		}
 	}
 	leaf = btrfs_buffer_leaf(path->nodes[0]);
 	found_key = &leaf->items[path->slots[0]].key;
