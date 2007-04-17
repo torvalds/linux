@@ -141,7 +141,7 @@ static int pasemi_i2c_xfer_msg(struct i2c_adapter *adapter,
 		for (i = 0; i < msg->len - 1; i++)
 			TXFIFO_WR(smbus, msg->buf[i]);
 
-		TXFIFO_WR(smbus, msg->buf[msg->len] |
+		TXFIFO_WR(smbus, msg->buf[msg->len-1] |
 			  (stop ? MTXFIFO_STOP : 0));
 	}
 
@@ -226,7 +226,7 @@ static int pasemi_smb_xfer(struct i2c_adapter *adapter,
 			rd = RXFIFO_RD(smbus);
 			len = min_t(u8, (rd & MRXFIFO_DATA_M),
 				    I2C_SMBUS_BLOCK_MAX);
-			TXFIFO_WR(smbus, (len + 1) | MTXFIFO_READ |
+			TXFIFO_WR(smbus, len | MTXFIFO_READ |
 					 MTXFIFO_STOP);
 		} else {
 			len = min_t(u8, data->block[0], I2C_SMBUS_BLOCK_MAX);
@@ -258,7 +258,7 @@ static int pasemi_smb_xfer(struct i2c_adapter *adapter,
 		rd = RXFIFO_RD(smbus);
 		len = min_t(u8, (rd & MRXFIFO_DATA_M),
 			    I2C_SMBUS_BLOCK_MAX - len);
-		TXFIFO_WR(smbus, (len + 1) | MTXFIFO_READ | MTXFIFO_STOP);
+		TXFIFO_WR(smbus, len | MTXFIFO_READ | MTXFIFO_STOP);
 		break;
 
 	default:
