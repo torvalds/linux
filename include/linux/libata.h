@@ -1231,7 +1231,7 @@ static inline void ata_pad_free(struct ata_port *ap, struct device *dev)
 
 static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)
 {
-	return (struct ata_port *) &host->hostdata[0];
+	return *(struct ata_port **)&host->hostdata[0];
 }
 
 #endif /* __LINUX_LIBATA_H__ */

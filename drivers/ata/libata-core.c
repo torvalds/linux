@@ -5792,13 +5792,18 @@ static struct ata_port * ata_port_add(const struct ata_probe_ent *ent,
 		return NULL;
 	}
 
-	shost = scsi_host_alloc(ent->sht, sizeof(struct ata_port));
-	if (!shost)
+	ap = kzalloc(sizeof(struct ata_port), GFP_KERNEL);
+	if (!ap)
 		return NULL;
 
-	shost->transportt = &ata_scsi_transport_template;
+	shost = scsi_host_alloc(ent->sht, sizeof(struct ata_port *));
+	if (!shost) {
+		kfree(ap);
+		return NULL;
+	}
 
-	ap = ata_shost_to_port(shost);
+	*(struct ata_port **)&shost->hostdata[0] = ap;
+	shost->transportt = &ata_scsi_transport_template;
 
 	ata_port_init(ap, host, ent, port_no);
 	ata_port_init_shost(ap, shost);
@@ -5824,9 +5829,13 @@ static void ata_host_release(struct device *gendev, void *res)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		if (ap)
+		if (!ap)
+			continue;
+
+		if (ap->scsi_host)
 			scsi_host_put(ap->scsi_host);
 
+		kfree(ap);
 		host->ports[i] = NULL;
 	}
 
