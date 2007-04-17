@@ -197,61 +197,6 @@ nodata:
 }
 
 /**
- *	alloc_skb_from_cache	-	allocate a network buffer
- *	@cp: kmem_cache from which to allocate the data area
- *           (object size must be big enough for @size bytes + skb overheads)
- *	@size: size to allocate
- *	@gfp_mask: allocation mask
- *
- *	Allocate a new &sk_buff. The returned buffer has no headroom and
- *	tail room of size bytes. The object has a reference count of one.
- *	The return is the buffer. On a failure the return is %NULL.
- *
- *	Buffers may only be allocated from interrupts using a @gfp_mask of
- *	%GFP_ATOMIC.
- */
-struct sk_buff *alloc_skb_from_cache(struct kmem_cache *cp,
-				     unsigned int size,
-				     gfp_t gfp_mask)
-{
-	struct sk_buff *skb;
-	u8 *data;
-
-	/* Get the HEAD */
-	skb = kmem_cache_alloc(skbuff_head_cache,
-			       gfp_mask & ~__GFP_DMA);
-	if (!skb)
-		goto out;
-
-	/* Get the DATA. */
-	size = SKB_DATA_ALIGN(size);
-	data = kmem_cache_alloc(cp, gfp_mask);
-	if (!data)
-		goto nodata;
-
-	memset(skb, 0, offsetof(struct sk_buff, truesize));
-	skb->truesize = size + sizeof(struct sk_buff);
-	atomic_set(&skb->users, 1);
-	skb->head = data;
-	skb->data = data;
-	skb->tail = data;
-	skb->end  = data + size;
-
-	atomic_set(&(skb_shinfo(skb)->dataref), 1);
-	skb_shinfo(skb)->nr_frags  = 0;
-	skb_shinfo(skb)->gso_size = 0;
-	skb_shinfo(skb)->gso_segs = 0;
-	skb_shinfo(skb)->gso_type = 0;
-	skb_shinfo(skb)->frag_list = NULL;
-out:
-	return skb;
-nodata:
-	kmem_cache_free(skbuff_head_cache, skb);
-	skb = NULL;
-	goto out;
-}
-
-/**
  *	__netdev_alloc_skb - allocate an skbuff for rx on a specific device
  *	@dev: network device to receive on
  *	@length: length to allocate
