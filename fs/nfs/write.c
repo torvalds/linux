@@ -1315,18 +1315,14 @@ long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_contr
 	how &= ~FLUSH_NOCOMMIT;
 	spin_lock(&nfsi->req_lock);
 	do {
-		wbc->pages_skipped = 0;
 		ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
 		if (ret != 0)
 			continue;
 		if (nocommit)
 			break;
 		pages = nfs_scan_commit(inode, &head, idx_start, npages);
-		if (pages == 0) {
-			if (wbc->pages_skipped != 0)
-				continue;
+		if (pages == 0)
 			break;
-		}
 		if (how & FLUSH_INVALIDATE) {
 			spin_unlock(&nfsi->req_lock);
 			nfs_cancel_commit_list(&head);
