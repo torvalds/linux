@@ -97,9 +97,9 @@ struct plist_node {
 #endif
 
 /**
- * #PLIST_HEAD_INIT - static struct plist_head initializer
- *
+ * PLIST_HEAD_INIT - static struct plist_head initializer
  * @head:	struct plist_head variable name
+ * @_lock:	lock to initialize for this list
  */
 #define PLIST_HEAD_INIT(head, _lock)			\
 {							\
@@ -109,8 +109,7 @@ struct plist_node {
 }
 
 /**
- * #PLIST_NODE_INIT - static struct plist_node initializer
- *
+ * PLIST_NODE_INIT - static struct plist_node initializer
  * @node:	struct plist_node variable name
  * @__prio:	initial node priority
  */
@@ -122,8 +121,8 @@ struct plist_node {
 
 /**
  * plist_head_init - dynamic struct plist_head initializer
- *
  * @head:	&struct plist_head pointer
+ * @lock:	list spinlock, remembered for debugging
  */
 static inline void
 plist_head_init(struct plist_head *head, spinlock_t *lock)
@@ -137,7 +136,6 @@ plist_head_init(struct plist_head *head, spinlock_t *lock)
 
 /**
  * plist_node_init - Dynamic struct plist_node initializer
- *
  * @node:	&struct plist_node pointer
  * @prio:	initial node priority
  */
@@ -152,49 +150,46 @@ extern void plist_del(struct plist_node *node, struct plist_head *head);
 
 /**
  * plist_for_each - iterate over the plist
- *
- * @pos1:	the type * to use as a loop counter.
- * @head:	the head for your list.
+ * @pos:	the type * to use as a loop counter
+ * @head:	the head for your list
  */
 #define plist_for_each(pos, head)	\
 	 list_for_each_entry(pos, &(head)->node_list, plist.node_list)
 
 /**
- * plist_for_each_entry_safe - iterate over a plist of given type safe
- * against removal of list entry
+ * plist_for_each_safe - iterate safely over a plist of given type
+ * @pos:	the type * to use as a loop counter
+ * @n:	another type * to use as temporary storage
+ * @head:	the head for your list
  *
- * @pos1:	the type * to use as a loop counter.
- * @n1:	another type * to use as temporary storage
- * @head:	the head for your list.
+ * Iterate over a plist of given type, safe against removal of list entry.
  */
 #define plist_for_each_safe(pos, n, head)	\
 	 list_for_each_entry_safe(pos, n, &(head)->node_list, plist.node_list)
 
 /**
  * plist_for_each_entry	- iterate over list of given type
- *
- * @pos:	the type * to use as a loop counter.
- * @head:	the head for your list.
- * @member:	the name of the list_struct within the struct.
+ * @pos:	the type * to use as a loop counter
+ * @head:	the head for your list
+ * @mem:	the name of the list_struct within the struct
  */
 #define plist_for_each_entry(pos, head, mem)	\
 	 list_for_each_entry(pos, &(head)->node_list, mem.plist.node_list)
 
 /**
- * plist_for_each_entry_safe - iterate over list of given type safe against
- * removal of list entry
- *
- * @pos:	the type * to use as a loop counter.
+ * plist_for_each_entry_safe - iterate safely over list of given type
+ * @pos:	the type * to use as a loop counter
  * @n:		another type * to use as temporary storage
- * @head:	the head for your list.
- * @m:		the name of the list_struct within the struct.
+ * @head:	the head for your list
+ * @m:		the name of the list_struct within the struct
+ *
+ * Iterate over list of given type, safe against removal of list entry.
  */
 #define plist_for_each_entry_safe(pos, n, head, m)	\
 	list_for_each_entry_safe(pos, n, &(head)->node_list, m.plist.node_list)
 
 /**
  * plist_head_empty - return !0 if a plist_head is empty
- *
  * @head:	&struct plist_head pointer
  */
 static inline int plist_head_empty(const struct plist_head *head)
@@ -204,7 +199,6 @@ static inline int plist_head_empty(const struct plist_head *head)
 
 /**
  * plist_node_empty - return !0 if plist_node is not on a list
- *
  * @node:	&struct plist_node pointer
  */
 static inline int plist_node_empty(const struct plist_node *node)
@@ -216,10 +210,9 @@ static inline int plist_node_empty(const struct plist_node *node)
 
 /**
  * plist_first_entry - get the struct for the first entry
- *
- * @ptr:	the &struct plist_head pointer.
- * @type:	the type of the struct this is embedded in.
- * @member:	the name of the list_struct within the struct.
+ * @head:	the &struct plist_head pointer
+ * @type:	the type of the struct this is embedded in
+ * @member:	the name of the list_struct within the struct
  */
 #ifdef CONFIG_DEBUG_PI_LIST
 # define plist_first_entry(head, type, member)	\
@@ -234,7 +227,6 @@ static inline int plist_node_empty(const struct plist_node *node)
 
 /**
  * plist_first - return the first node (and thus, highest priority)
- *
  * @head:	the &struct plist_head pointer
  *
  * Assumes the plist is _not_ empty.
