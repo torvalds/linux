@@ -113,6 +113,7 @@ static inline unsigned long virt_to_bus(void *address)
 	unsigned long bus = phys + __direct_map_base;
 	return phys <= __direct_map_size ? bus : 0;
 }
+#define isa_virt_to_bus virt_to_bus
 
 static inline void *bus_to_virt(unsigned long address)
 {

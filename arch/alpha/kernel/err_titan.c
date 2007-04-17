@@ -16,6 +16,7 @@
 #include <asm/smp.h>
 #include <asm/err_common.h>
 #include <asm/err_ev6.h>
+#include <asm/irq_regs.h>
 
 #include "err_impl.h"
 #include "proto.h"

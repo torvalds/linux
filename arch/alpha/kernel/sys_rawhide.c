@@ -52,6 +52,9 @@ rawhide_update_irq_hw(int hose, int mask)
 	*(vuip)MCPCIA_INT_MASK0(MCPCIA_HOSE2MID(hose));
 }
 
+#define hose_exists(h) \
+  (((h) < MCPCIA_MAX_HOSES) && (cached_irq_masks[(h)] != 0))
+
 static inline void 
 rawhide_enable_irq(unsigned int irq)
 {
@@ -59,6 +62,9 @@ rawhide_enable_irq(unsigned int irq)
 
 	irq -= 16;
 	hose = irq / 24;
+	if (!hose_exists(hose)) /* if hose non-existent, exit */
+		return;
+
 	irq -= hose * 24;
 	mask = 1 << irq;
 
@@ -76,6 +82,9 @@ rawhide_disable_irq(unsigned int irq)
 
 	irq -= 16;
 	hose = irq / 24;
+	if (!hose_exists(hose)) /* if hose non-existent, exit */
+		return;
+
 	irq -= hose * 24;
 	mask = ~(1 << irq) | hose_irq_masks[hose];
 
@@ -93,6 +102,9 @@ rawhide_mask_and_ack_irq(unsigned int irq)
 
 	irq -= 16;
 	hose = irq / 24;
+	if (!hose_exists(hose)) /* if hose non-existent, exit */
+		return;
+
 	irq -= hose * 24;
 	mask1 = 1 << irq;
 	mask = ~mask1 | hose_irq_masks[hose];
@@ -168,6 +180,9 @@ rawhide_init_irq(void)
 	long i;
 
 	mcpcia_init_hoses();
+
+	/* Clear them all; only hoses that exist will be non-zero. */
+	for (i = 0; i < MCPCIA_MAX_HOSES; i++) cached_irq_masks[i] = 0;
 
 	for (hose = hose_head; hose; hose = hose->next) {
 		unsigned int h = hose->index;
