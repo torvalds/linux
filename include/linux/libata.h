@@ -892,6 +892,8 @@ struct pci_bits {
 
 extern struct ata_probe_ent *
 ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int portmask);
+extern int ata_pci_init_native_host(struct ata_host *host,
+				    unsigned int port_mask);
 extern int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits);
 extern unsigned long ata_pci_default_filter(struct ata_device *, unsigned long);
 #endif /* CONFIG_PCI */
