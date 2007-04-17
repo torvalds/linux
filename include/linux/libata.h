@@ -733,7 +733,10 @@ extern int ata_pci_device_resume(struct pci_dev *pdev);
 #endif
 extern int ata_pci_clear_simplex(struct pci_dev *pdev);
 #endif /* CONFIG_PCI */
+extern struct ata_host *ata_host_alloc(struct device *dev, int max_ports);
 extern int ata_host_start(struct ata_host *host);
+extern int ata_host_register(struct ata_host *host,
+			     struct scsi_host_template *sht);
 extern int ata_device_add(const struct ata_probe_ent *ent);
 extern void ata_host_detach(struct ata_host *host);
 extern void ata_host_init(struct ata_host *, struct device *,
