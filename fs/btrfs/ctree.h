@@ -999,7 +999,7 @@ static inline void btrfs_mark_buffer_dirty(struct buffer_head *bh)
 	((type *)(btrfs_leaf_data(leaf) + \
 	btrfs_item_offset((leaf)->items + (slot))))
 
-/* extent-item.c */
+/* extent-tree.c */
 int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
@@ -1013,9 +1013,16 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, u64 blocknr, u64 num_blocks, int pin);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			       btrfs_root *root);
+int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				u64 blocknr, u64 num_blocks);
 /* ctree.c */
 int btrfs_extend_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, u32 data_size);
+int btrfs_truncate_item(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root,
+			struct btrfs_path *path,
+			u32 new_size);
 int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, struct btrfs_path *p, int
 		      ins_len, int cow);
@@ -1073,11 +1080,10 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 		       struct btrfs_key *location, int mod);
 
 /* file-item.c */
-int btrfs_alloc_file_extent(struct btrfs_trans_handle *trans,
+int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       u64 objectid, u64 offset,
-			       u64 num_blocks, u64 hint_block,
-			       u64 *result);
+			       u64 objectid, u64 pos, u64 offset,
+			       u64 num_blocks);
 int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid,
@@ -1090,6 +1096,11 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 int btrfs_csum_verify_file_block(struct btrfs_root *root,
 				 u64 objectid, u64 offset,
 				 char *data, size_t len);
+struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
+					  struct btrfs_root *root,
+					  struct btrfs_path *path,
+					  u64 objectid, u64 offset,
+					  int cow);
 /* super.c */
 extern struct subsystem btrfs_subsys;
 

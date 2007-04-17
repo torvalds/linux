@@ -12,8 +12,9 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 			       btrfs_root *extent_root);
 
-static int inc_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
-			 *root, u64 blocknr, u64 num_blocks)
+int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				u64 blocknr, u64 num_blocks)
 {
 	struct btrfs_path *path;
 	int ret;
@@ -50,8 +51,9 @@ static int inc_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
 	return 0;
 }
 
-static int lookup_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
-			    *root, u64 blocknr, u64 num_blocks, u32 *refs)
+static int lookup_extent_ref(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root, u64 blocknr,
+			     u64 num_blocks, u32 *refs)
 {
 	struct btrfs_path *path;
 	int ret;
@@ -80,7 +82,7 @@ static int lookup_block_ref(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root)
 {
-	return inc_block_ref(trans, root, bh_blocknr(root->node), 1);
+	return btrfs_inc_extent_ref(trans, root, bh_blocknr(root->node), 1);
 }
 
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -107,13 +109,13 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 				continue;
 			fi = btrfs_item_ptr(buf_leaf, i,
 					    struct btrfs_file_extent_item);
-			ret = inc_block_ref(trans, root,
+			ret = btrfs_inc_extent_ref(trans, root,
 				    btrfs_file_extent_disk_blocknr(fi),
 				    btrfs_file_extent_disk_num_blocks(fi));
 			BUG_ON(ret);
 		} else {
 			blocknr = btrfs_node_blockptr(buf_node, i);
-			ret = inc_block_ref(trans, root, blocknr, 1);
+			ret = btrfs_inc_extent_ref(trans, root, blocknr, 1);
 			BUG_ON(ret);
 		}
 	}
@@ -563,7 +565,7 @@ static int walk_down_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	WARN_ON(*level < 0);
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
-	ret = lookup_block_ref(trans, root, bh_blocknr(path->nodes[*level]),
+	ret = lookup_extent_ref(trans, root, bh_blocknr(path->nodes[*level]),
 			       1, &refs);
 	BUG_ON(ret);
 	if (refs > 1)
@@ -587,7 +589,7 @@ static int walk_down_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 		}
 		blocknr = btrfs_node_blockptr(btrfs_buffer_node(cur),
 					      path->slots[*level]);
-		ret = lookup_block_ref(trans, root, blocknr, 1, &refs);
+		ret = lookup_extent_ref(trans, root, blocknr, 1, &refs);
 		BUG_ON(ret);
 		if (refs != 1) {
 			path->slots[*level]++;
