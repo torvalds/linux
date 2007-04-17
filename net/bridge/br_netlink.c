@@ -109,7 +109,6 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net_device *dev;
 	int idx;
 
-	read_lock(&dev_base_lock);
 	for (dev = dev_base, idx = 0; dev; dev = dev->next) {
 		/* not a bridge port */
 		if (dev->br_port == NULL || idx < cb->args[0])
@@ -122,7 +121,6 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 skip:
 		++idx;
 	}
-	read_unlock(&dev_base_lock);
 
 	cb->args[0] = idx;
 

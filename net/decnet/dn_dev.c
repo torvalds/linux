@@ -799,7 +799,6 @@ static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	skip_ndevs = cb->args[0];
 	skip_naddr = cb->args[1];
 
-	read_lock(&dev_base_lock);
 	for (dev = dev_base, idx = 0; dev; dev = dev->next, idx++) {
 		if (idx < skip_ndevs)
 			continue;
@@ -824,8 +823,6 @@ static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 	}
 done:
-	read_unlock(&dev_base_lock);
-
 	cb->args[0] = idx;
 	cb->args[1] = dn_idx;
 
