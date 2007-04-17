@@ -16,14 +16,13 @@
 #define ST_OPENED		(1<<1)
 
 struct s3c24xx_pcm_dma_params {
-	struct s3c2410_dma_client *client;			/* stream identifier */
-	int channel;						/* Channel ID */
+	struct s3c2410_dma_client *client;	/* stream identifier */
+	int channel;				/* Channel ID */
 	dma_addr_t dma_addr;
+	int dma_size;			/* Size of the DMA transfer */
 };
 
 #define S3C24XX_DAI_I2S			0
-
-extern struct snd_soc_cpu_dai s3c24xx_i2s_dai;
 
 /* platform data */
 extern struct snd_soc_platform s3c24xx_soc_platform;

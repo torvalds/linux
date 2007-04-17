@@ -89,7 +89,7 @@ static void s3c24xx_pcm_enqueue(struct snd_pcm_substream *substream)
 
 	DBG("Entered %s\n", __FUNCTION__);
 
-	while ( prtd->dma_loaded < prtd->dma_limit) {
+	while (prtd->dma_loaded < prtd->dma_limit) {
 		unsigned long len = prtd->dma_period;
 
 		DBG("dma_loaded: %d\n",prtd->dma_loaded);
@@ -100,7 +100,8 @@ static void s3c24xx_pcm_enqueue(struct snd_pcm_substream *substream)
 			       __FUNCTION__, len);
 		}
 
-		ret = s3c2410_dma_enqueue(prtd->params->channel, substream, pos, len);
+		ret = s3c2410_dma_enqueue(prtd->params->channel, 
+			substream, pos, len);
 
 		if (ret == 0) {
 			prtd->dma_loaded++;
@@ -115,17 +116,19 @@ static void s3c24xx_pcm_enqueue(struct snd_pcm_substream *substream)
 }
 
 static void s3c24xx_audio_buffdone(struct s3c2410_dma_chan *channel,
-							void *dev_id, int size,
-							enum s3c2410_dma_buffresult result)
+				void *dev_id, int size,
+				enum s3c2410_dma_buffresult result)
 {
 	struct snd_pcm_substream *substream = dev_id;
-	struct s3c24xx_runtime_data *prtd = substream->runtime->private_data;
+	struct s3c24xx_runtime_data *prtd;
 
 	DBG("Entered %s\n", __FUNCTION__);
 
 	if (result == S3C2410_RES_ABORT || result == S3C2410_RES_ERR)
 		return;
 
+	prtd = substream->runtime->private_data;
+	
 	if (substream)
 		snd_pcm_period_elapsed(substream);
 
@@ -173,18 +176,22 @@ static int s3c24xx_pcm_hw_params(struct snd_pcm_substream *substream,
 	 * sync to pclk, half-word transfers to the IIS-FIFO. */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		s3c2410_dma_devconfig(prtd->params->channel,
-						S3C2410_DMASRC_MEM, S3C2410_DISRCC_INC |
-						S3C2410_DISRCC_APB, prtd->params->dma_addr);
+				S3C2410_DMASRC_MEM, S3C2410_DISRCC_INC |
+				S3C2410_DISRCC_APB, prtd->params->dma_addr);
 
 		s3c2410_dma_config(prtd->params->channel,
-						2, S3C2410_DCON_SYNC_PCLK | S3C2410_DCON_HANDSHAKE);
+				prtd->params->dma_size,
+				S3C2410_DCON_SYNC_PCLK | 
+				S3C2410_DCON_HANDSHAKE);
 	} else {
 		s3c2410_dma_config(prtd->params->channel,
-						2, S3C2410_DCON_HANDSHAKE | S3C2410_DCON_SYNC_PCLK);
+				prtd->params->dma_size,
+				S3C2410_DCON_HANDSHAKE | 
+				S3C2410_DCON_SYNC_PCLK);
 
 		s3c2410_dma_devconfig(prtd->params->channel,
-						S3C2410_DMASRC_HW, 0x3,
-						prtd->params->dma_addr);
+					S3C2410_DMASRC_HW, 0x3,
+					prtd->params->dma_addr);
 	}
 
 	s3c2410_dma_set_buffdone_fn(prtd->params->channel,
@@ -215,7 +222,7 @@ static int s3c24xx_pcm_hw_free(struct snd_pcm_substream *substream)
 	/* TODO - do we need to ensure DMA flushed */
 	snd_pcm_set_runtime_buffer(substream, NULL);
 
-	if(prtd->params) {
+	if (prtd->params) {
 		s3c2410_dma_free(prtd->params->channel, prtd->params->client);
 		prtd->params = NULL;
 	}
@@ -281,7 +288,8 @@ static int s3c24xx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static snd_pcm_uframes_t s3c24xx_pcm_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t 
+	s3c24xx_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct s3c24xx_runtime_data *prtd = runtime->private_data;
@@ -321,8 +329,6 @@ static int s3c24xx_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct s3c24xx_runtime_data *prtd;
 
-	int ret;
-
 	DBG("Entered %s\n", __FUNCTION__);
 
 	snd_soc_set_runtime_hwparams(substream, &s3c24xx_pcm_hardware);
@@ -342,7 +348,7 @@ static int s3c24xx_pcm_close(struct snd_pcm_substream *substream)
 
 	DBG("Entered %s\n", __FUNCTION__);
 
-	if(prtd)
+	if (prtd)
 		kfree(prtd);
 	else
 		DBG("s3c24xx_pcm_close called with prtd == NULL\n");
@@ -419,8 +425,8 @@ static void s3c24xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 
 static u64 s3c24xx_pcm_dmamask = DMA_32BIT_MASK;
 
-static int s3c24xx_pcm_new(struct snd_card *card, struct snd_soc_codec_dai *dai,
-	struct snd_pcm *pcm)
+static int s3c24xx_pcm_new(struct snd_card *card, 
+	struct snd_soc_codec_dai *dai, struct snd_pcm *pcm)
 {
 	int ret = 0;
 
