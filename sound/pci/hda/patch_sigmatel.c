@@ -1911,6 +1911,9 @@ static int patch_stac922x(struct hda_codec *codec)
 		 */
 		printk(KERN_INFO "hda_codec: STAC922x, Apple subsys_id=%x\n", codec->subsystem_id);
 		switch (codec->subsystem_id) {
+		case 0x106b0a00: /* MacBook First generatoin */
+			spec->board_config = STAC_MACBOOK;
+			break;
 		case 0x106b0200: /* MacBook Pro first generation */
 			spec->board_config = STAC_MACBOOK_PRO_V1;
 			break;
