@@ -1016,7 +1016,6 @@ static const struct ata_port_operations scc_pata_ops = {
 	.error_handler		= scc_error_handler,
 	.post_internal_cmd	= scc_bmdma_stop,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= scc_bmdma_irq_clear,
 	.irq_on			= scc_irq_on,
 	.irq_ack		= scc_irq_ack,
@@ -1027,7 +1026,6 @@ static const struct ata_port_operations scc_pata_ops = {
 
 static struct ata_port_info scc_port_info[] = {
 	{
-		.sht		= &scc_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x00,
@@ -1040,10 +1038,10 @@ static struct ata_port_info scc_port_info[] = {
  *	scc_reset_controller - initialize SCC PATA controller.
  */
 
-static int scc_reset_controller(struct ata_probe_ent *probe_ent)
+static int scc_reset_controller(struct ata_host *host)
 {
-	void __iomem *ctrl_base = probe_ent->iomap[SCC_CTRL_BAR];
-	void __iomem *bmid_base = probe_ent->iomap[SCC_BMID_BAR];
+	void __iomem *ctrl_base = host->iomap[SCC_CTRL_BAR];
+	void __iomem *bmid_base = host->iomap[SCC_BMID_BAR];
 	void __iomem *cckctrl_port = ctrl_base + SCC_CTL_CCKCTRL;
 	void __iomem *mode_port = ctrl_base + SCC_CTL_MODEREG;
 	void __iomem *ecmode_port = ctrl_base + SCC_CTL_ECMODE;
@@ -1104,16 +1102,14 @@ static void scc_setup_ports (struct ata_ioports *ioaddr, void __iomem *base)
 	ioaddr->command_addr = ioaddr->cmd_addr + SCC_REG_CMD;
 }
 
-static int scc_host_init(struct ata_probe_ent *probe_ent)
+static int scc_host_init(struct ata_host *host)
 {
-	struct pci_dev *pdev = to_pci_dev(probe_ent->dev);
+	struct pci_dev *pdev = to_pci_dev(host->dev);
 	int rc;
 
-	rc = scc_reset_controller(probe_ent);
+	rc = scc_reset_controller(host);
 	if (rc)
 		return rc;
-
-	probe_ent->n_ports = 1;
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
@@ -1122,7 +1118,7 @@ static int scc_host_init(struct ata_probe_ent *probe_ent)
 	if (rc)
 		return rc;
 
-	scc_setup_ports(&probe_ent->port[0], probe_ent->iomap[SCC_BMID_BAR]);
+	scc_setup_ports(&host->ports[0]->ioaddr, host->iomap[SCC_BMID_BAR]);
 
 	pci_set_master(pdev);
 
@@ -1145,13 +1141,17 @@ static int scc_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
+	const struct ata_port_info *ppi[] = { &scc_port_info[board_idx], NULL };
 	struct device *dev = &pdev->dev;
-	struct ata_probe_ent *probe_ent;
 	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
+
+	host = ata_port_alloc_pinfo(&pdev->dev, ppi, 1);
+	if (!host)
+		return -ENOMEM;
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -1162,33 +1162,14 @@ static int scc_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		pcim_pin_device(pdev);
 	if (rc)
 		return rc;
+	host->iomap = pcim_iomap_table(pdev);
 
-	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (!probe_ent)
-		return -ENOMEM;
-
-	probe_ent->dev = dev;
-	INIT_LIST_HEAD(&probe_ent->node);
-
-	probe_ent->sht 		= scc_port_info[board_idx].sht;
-	probe_ent->port_flags 	= scc_port_info[board_idx].flags;
-	probe_ent->pio_mask 	= scc_port_info[board_idx].pio_mask;
-	probe_ent->udma_mask 	= scc_port_info[board_idx].udma_mask;
-	probe_ent->port_ops 	= scc_port_info[board_idx].port_ops;
-
-	probe_ent->irq = pdev->irq;
-	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->iomap = pcim_iomap_table(pdev);
-
-	rc = scc_host_init(probe_ent);
+	rc = scc_host_init(host);
 	if (rc)
 		return rc;
 
-	if (!ata_device_add(probe_ent))
-		return -ENODEV;
-
-	devm_kfree(dev, probe_ent);
-	return 0;
+	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
+				 &scc_sht);
 }
 
 static struct pci_driver scc_pci_driver = {

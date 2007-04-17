@@ -171,7 +171,6 @@ static struct ata_port_operations pdc2027x_pata100_ops = {
 	.post_internal_cmd 	= ata_bmdma_post_internal_cmd,
 	.cable_detect		= pdc2027x_cable_detect,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -207,7 +206,6 @@ static struct ata_port_operations pdc2027x_pata133_ops = {
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 	.cable_detect		= pdc2027x_cable_detect,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -218,7 +216,6 @@ static struct ata_port_operations pdc2027x_pata133_ops = {
 static struct ata_port_info pdc2027x_port_info[] = {
 	/* PDC_UDMA_100 */
 	{
-		.sht		= &pdc2027x_sht,
 		.flags		= ATA_FLAG_NO_LEGACY | ATA_FLAG_SLAVE_POSS |
 		                  ATA_FLAG_MMIO,
 		.pio_mask	= 0x1f, /* pio0-4 */
@@ -228,7 +225,6 @@ static struct ata_port_info pdc2027x_port_info[] = {
 	},
 	/* PDC_UDMA_133 */
 	{
-		.sht		= &pdc2027x_sht,
 		.flags		= ATA_FLAG_NO_LEGACY | ATA_FLAG_SLAVE_POSS |
                         	  ATA_FLAG_MMIO,
 		.pio_mask	= 0x1f, /* pio0-4 */
@@ -555,12 +551,12 @@ static int pdc2027x_check_atapi_dma(struct ata_queued_cmd *qc)
 
 /**
  * pdc_read_counter - Read the ctr counter
- * @probe_ent: for the port address
+ * @host: target ATA host
  */
 
-static long pdc_read_counter(struct ata_probe_ent *probe_ent)
+static long pdc_read_counter(struct ata_host *host)
 {
-	void __iomem *mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
+	void __iomem *mmio_base = host->iomap[PDC_MMIO_BAR];
 	long counter;
 	int retry = 1;
 	u32 bccrl, bccrh, bccrlv, bccrhv;
@@ -598,12 +594,12 @@ retry:
  * adjust_pll - Adjust the PLL input clock in Hz.
  *
  * @pdc_controller: controller specific information
- * @probe_ent: For the port address
+ * @host: target ATA host
  * @pll_clock: The input of PLL in HZ
  */
-static void pdc_adjust_pll(struct ata_probe_ent *probe_ent, long pll_clock, unsigned int board_idx)
+static void pdc_adjust_pll(struct ata_host *host, long pll_clock, unsigned int board_idx)
 {
-	void __iomem *mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
+	void __iomem *mmio_base = host->iomap[PDC_MMIO_BAR];
 	u16 pll_ctl;
 	long pll_clock_khz = pll_clock / 1000;
 	long pout_required = board_idx? PDC_133_MHZ:PDC_100_MHZ;
@@ -683,19 +679,19 @@ static void pdc_adjust_pll(struct ata_probe_ent *probe_ent, long pll_clock, unsi
 
 /**
  * detect_pll_input_clock - Detect the PLL input clock in Hz.
- * @probe_ent: for the port address
+ * @host: target ATA host
  * Ex. 16949000 on 33MHz PCI bus for pdc20275.
  *     Half of the PCI clock.
  */
-static long pdc_detect_pll_input_clock(struct ata_probe_ent *probe_ent)
+static long pdc_detect_pll_input_clock(struct ata_host *host)
 {
-	void __iomem *mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
+	void __iomem *mmio_base = host->iomap[PDC_MMIO_BAR];
 	u32 scr;
 	long start_count, end_count;
 	long pll_clock;
 
 	/* Read current counter value */
-	start_count = pdc_read_counter(probe_ent);
+	start_count = pdc_read_counter(host);
 
 	/* Start the test mode */
 	scr = readl(mmio_base + PDC_SYS_CTL);
@@ -707,7 +703,7 @@ static long pdc_detect_pll_input_clock(struct ata_probe_ent *probe_ent)
 	mdelay(100);
 
 	/* Read the counter values again */
-	end_count = pdc_read_counter(probe_ent);
+	end_count = pdc_read_counter(host);
 
 	/* Stop the test mode */
 	scr = readl(mmio_base + PDC_SYS_CTL);
@@ -726,11 +722,10 @@ static long pdc_detect_pll_input_clock(struct ata_probe_ent *probe_ent)
 
 /**
  * pdc_hardware_init - Initialize the hardware.
- * @pdev: instance of pci_dev found
- * @pdc_controller: controller specific information
- * @pe:  for the port address
+ * @host: target ATA host
+ * @board_idx: board identifier
  */
-static int pdc_hardware_init(struct pci_dev *pdev, struct ata_probe_ent *pe, unsigned int board_idx)
+static int pdc_hardware_init(struct ata_host *host, unsigned int board_idx)
 {
 	long pll_clock;
 
@@ -740,15 +735,15 @@ static int pdc_hardware_init(struct pci_dev *pdev, struct ata_probe_ent *pe, uns
 	 * Ex. 25MHz or 40MHz, we have to adjust the cycle_time.
 	 * The pdc20275 controller employs PLL circuit to help correct timing registers setting.
 	 */
-	pll_clock = pdc_detect_pll_input_clock(pe);
+	pll_clock = pdc_detect_pll_input_clock(host);
 
 	if (pll_clock < 0) /* counter overflow? Try again. */
-		pll_clock = pdc_detect_pll_input_clock(pe);
+		pll_clock = pdc_detect_pll_input_clock(host);
 
-	dev_printk(KERN_INFO, &pdev->dev, "PLL input clock %ld kHz\n", pll_clock/1000);
+	dev_printk(KERN_INFO, host->dev, "PLL input clock %ld kHz\n", pll_clock/1000);
 
 	/* Adjust PLL control register */
-	pdc_adjust_pll(pe, pll_clock, board_idx);
+	pdc_adjust_pll(host, pll_clock, board_idx);
 
 	return 0;
 }
@@ -780,8 +775,7 @@ static void pdc_ata_setup_port(struct ata_ioports *port, void __iomem *base)
  * Called when an instance of PCI adapter is inserted.
  * This function checks whether the hardware is supported,
  * initialize hardware and register an instance of ata_host to
- * libata by providing struct ata_probe_ent and ata_device_add().
- * (implements struct pci_driver.probe() )
+ * libata.  (implements struct pci_driver.probe() )
  *
  * @pdev: instance of pci_dev found
  * @ent:  matching entry in the id_tbl[]
@@ -790,14 +784,21 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 {
 	static int printed_version;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
-
-	struct ata_probe_ent *probe_ent;
+	const struct ata_port_info *ppi[] =
+		{ &pdc2027x_port_info[board_idx], NULL };
+	struct ata_host *host;
 	void __iomem *mmio_base;
 	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
+	/* alloc host */
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
+	if (!host)
+		return -ENOMEM;
+
+	/* acquire resources and fill host */
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
@@ -805,6 +806,7 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	rc = pcim_iomap_regions(pdev, 1 << PDC_MMIO_BAR, DRV_NAME);
 	if (rc)
 		return rc;
+	host->iomap = pcim_iomap_table(pdev);
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
@@ -814,46 +816,22 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	if (rc)
 		return rc;
 
-	/* Prepare the probe entry */
-	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL)
-		return -ENOMEM;
+	mmio_base = host->iomap[PDC_MMIO_BAR];
 
-	probe_ent->dev = pci_dev_to_dev(pdev);
-	INIT_LIST_HEAD(&probe_ent->node);
+	pdc_ata_setup_port(&host->ports[0]->ioaddr, mmio_base + 0x17c0);
+	host->ports[0]->ioaddr.bmdma_addr = mmio_base + 0x1000;
+	pdc_ata_setup_port(&host->ports[1]->ioaddr, mmio_base + 0x15c0);
+	host->ports[1]->ioaddr.bmdma_addr = mmio_base + 0x1008;
 
-	probe_ent->sht		= pdc2027x_port_info[board_idx].sht;
-	probe_ent->port_flags	= pdc2027x_port_info[board_idx].flags;
-	probe_ent->pio_mask	= pdc2027x_port_info[board_idx].pio_mask;
-	probe_ent->mwdma_mask	= pdc2027x_port_info[board_idx].mwdma_mask;
-	probe_ent->udma_mask	= pdc2027x_port_info[board_idx].udma_mask;
-	probe_ent->port_ops	= pdc2027x_port_info[board_idx].port_ops;
-
-       	probe_ent->irq = pdev->irq;
-       	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->iomap = pcim_iomap_table(pdev);
-
-	mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
-
-	pdc_ata_setup_port(&probe_ent->port[0], mmio_base + 0x17c0);
-	probe_ent->port[0].bmdma_addr = mmio_base + 0x1000;
-	pdc_ata_setup_port(&probe_ent->port[1], mmio_base + 0x15c0);
-	probe_ent->port[1].bmdma_addr = mmio_base + 0x1008;
-
-	probe_ent->n_ports = 2;
-
-	pci_set_master(pdev);
 	//pci_enable_intx(pdev);
 
 	/* initialize adapter */
-	if (pdc_hardware_init(pdev, probe_ent, board_idx) != 0)
+	if (pdc_hardware_init(host, board_idx) != 0)
 		return -EIO;
 
-	if (!ata_device_add(probe_ent))
-		return -ENODEV;
-
-	devm_kfree(&pdev->dev, probe_ent);
-	return 0;
+	pci_set_master(pdev);
+	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
+				 &pdc2027x_sht);
 }
 
 /**

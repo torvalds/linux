@@ -158,7 +158,6 @@ static struct ata_port_operations winbond_port_ops = {
 
 	.data_xfer	= winbond_data_xfer,
 
-	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
 	.irq_ack	= ata_irq_ack,
@@ -179,11 +178,9 @@ static struct ata_port_operations winbond_port_ops = {
 
 static __init int winbond_init_one(unsigned long port)
 {
-	struct ata_probe_ent ae;
 	struct platform_device *pdev;
-	int ret;
 	u8 reg;
-	int i;
+	int i, rc;
 
 	reg = winbond_readcfg(port, 0x81);
 	reg |= 0x80;	/* jumpered mode off */
@@ -202,58 +199,56 @@ static __init int winbond_init_one(unsigned long port)
 
 	for (i = 0; i < 2 ; i ++) {
 		unsigned long cmd_port = 0x1F0 - (0x80 * i);
+		struct ata_host *host;
+		struct ata_port *ap;
 		void __iomem *cmd_addr, *ctl_addr;
 
-		if (reg & (1 << i)) {
-			/*
-			 *	Fill in a probe structure first of all
-			 */
+		if (!(reg & (1 << i)))
+			continue;
 
-			pdev = platform_device_register_simple(DRV_NAME, nr_winbond_host, NULL, 0);
-			if (IS_ERR(pdev))
-				return PTR_ERR(pdev);
+		pdev = platform_device_register_simple(DRV_NAME, nr_winbond_host, NULL, 0);
+		if (IS_ERR(pdev))
+			return PTR_ERR(pdev);
 
-			cmd_addr = devm_ioport_map(&pdev->dev, cmd_port, 8);
-			ctl_addr = devm_ioport_map(&pdev->dev, cmd_port + 0x0206, 1);
-			if (!cmd_addr || !ctl_addr) {
-				platform_device_unregister(pdev);
-				return -ENOMEM;
-			}
+		rc = -ENOMEM;
+		host = ata_host_alloc(&pdev->dev, 1);
+		if (!host)
+			goto err_unregister;
 
-			memset(&ae, 0, sizeof(struct ata_probe_ent));
-			INIT_LIST_HEAD(&ae.node);
-			ae.dev = &pdev->dev;
+		rc = -ENOMEM;
+		cmd_addr = devm_ioport_map(&pdev->dev, cmd_port, 8);
+		ctl_addr = devm_ioport_map(&pdev->dev, cmd_port + 0x0206, 1);
+		if (!cmd_addr || !ctl_addr)
+			goto err_unregister;
 
-			ae.port_ops = &winbond_port_ops;
-			ae.pio_mask = 0x1F;
+		ap = host->ports[0];
+		ap->ops = &winbond_port_ops;
+		ap->pio_mask = 0x1F;
+		ap->flags |= ATA_FLAG_SLAVE_POSS;
+		ap->ioaddr.cmd_addr = cmd_addr;
+		ap->ioaddr.altstatus_addr = ctl_addr;
+		ap->ioaddr.ctl_addr = ctl_addr;
+		ata_std_ports(&ap->ioaddr);
 
-			ae.sht = &winbond_sht;
+		/* hook in a private data structure per channel */
+		host->private_data = &winbond_data[nr_winbond_host];
+		winbond_data[nr_winbond_host].config = port;
+		winbond_data[nr_winbond_host].platform_dev = pdev;
 
-			ae.n_ports = 1;
-			ae.irq = 14 + i;
-			ae.irq_flags = 0;
-			ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
-			ae.port[0].cmd_addr = cmd_addr;
-			ae.port[0].altstatus_addr = ctl_addr;
-			ae.port[0].ctl_addr = ctl_addr;
-			ata_std_ports(&ae.port[0]);
-			/*
-			 *	Hook in a private data structure per channel
-			 */
-			ae.private_data = &winbond_data[nr_winbond_host];
-			winbond_data[nr_winbond_host].config = port;
-			winbond_data[nr_winbond_host].platform_dev = pdev;
+		/* activate */
+		rc = ata_host_activate(host, 14 + i, ata_interrupt, 0,
+				       &winbond_sht);
+		if (rc)
+			goto err_unregister;
 
-			ret = ata_device_add(&ae);
-			if (ret == 0) {
-				platform_device_unregister(pdev);
-				return -ENODEV;
-			}
-			winbond_host[nr_winbond_host++] = dev_get_drvdata(&pdev->dev);
-		}
+		winbond_host[nr_winbond_host++] = dev_get_drvdata(&pdev->dev);
 	}
 
 	return 0;
+
+ err_unregister:
+	platform_device_unregister(pdev);
+	return rc;
 }
 
 /**
