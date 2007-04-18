@@ -297,7 +297,7 @@ void pci_restore_msi_state(struct pci_dev *dev)
 static int msi_capability_init(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
-	int pos, irq;
+	int pos, ret;
 	u16 control;
 
 	msi_set_enable(dev, 0);	/* Ensure msi is disabled as I set it up */
@@ -335,21 +335,19 @@ static int msi_capability_init(struct pci_dev *dev)
 			maskbits);
 	}
 	/* Configure MSI capability structure */
-	irq = arch_setup_msi_irq(dev, entry);
-	if (irq < 0) {
+	ret = arch_setup_msi_irq(dev, entry);
+	if (ret) {
 		kfree(entry);
-		return irq;
+		return ret;
 	}
-	entry->irq = irq;
 	list_add(&entry->list, &dev->msi_list);
-	set_irq_msi(irq, entry);
 
 	/* Set MSI enabled bits	 */
 	pci_intx(dev, 0);		/* disable intx */
 	msi_set_enable(dev, 1);
 	dev->msi_enabled = 1;
 
-	dev->irq = irq;
+	dev->irq = entry->irq;
 	return 0;
 }
 
@@ -367,7 +365,7 @@ static int msix_capability_init(struct pci_dev *dev,
 				struct msix_entry *entries, int nvec)
 {
 	struct msi_desc *entry;
-	int irq, pos, i, j, nr_entries;
+	int irq, pos, i, j, nr_entries, ret;
 	unsigned long phys_addr;
 	u32 table_offset;
  	u16 control;
@@ -407,16 +405,13 @@ static int msix_capability_init(struct pci_dev *dev,
 		entry->mask_base = base;
 
 		/* Configure MSI-X capability structure */
-		irq = arch_setup_msi_irq(dev, entry);
-		if (irq < 0) {
+		ret = arch_setup_msi_irq(dev, entry);
+		if (ret) {
 			kfree(entry);
 			break;
 		}
-		entry->irq = irq;
- 		entries[i].vector = irq;
+ 		entries[i].vector = entry->irq;
 		list_add(&entry->list, &dev->msi_list);
-
-		set_irq_msi(irq, entry);
 	}
 	if (i != nvec) {
 		int avail = i - 1;

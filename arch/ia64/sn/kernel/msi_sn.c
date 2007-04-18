@@ -87,7 +87,6 @@ int sn_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *entry)
 	if (irq < 0)
 		return irq;
 
-	set_irq_msi(irq, entry);
 	/*
 	 * Set up the vector plumbing.  Let the prom (via sn_intr_alloc)
 	 * decide which cpu to direct this msi at by default.
@@ -144,10 +143,11 @@ int sn_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *entry)
 	 */
 	msg.data = 0x100 + irq;
 
+	set_irq_msi(irq, entry);
 	write_msi_msg(irq, &msg);
 	set_irq_chip_and_handler(irq, &sn_msi_chip, handle_edge_irq);
 
-	return irq;
+	return 0;
 }
 
 #ifdef CONFIG_SMP

@@ -1092,10 +1092,10 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 		return -EINVAL;
 
 	err = p->setup_msi_irq(&virt_irq, pdev, desc);
-	if (err < 0)
+	if (err)
 		return err;
 
-	return virt_irq;
+	return 0;
 }
 
 void arch_teardown_msi_irq(unsigned int virt_irq)
