@@ -2072,7 +2072,7 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 		rq->sadb_x_ipsecrequest_proto = t->id.proto;
 		if ((mode = pfkey_mode_from_xfrm(t->mode)) < 0)
 			return -EINVAL;
-		mode = pfkey_mode_from_xfrm(t->mode);
+		rq->sadb_x_ipsecrequest_mode = mode;
 		rq->sadb_x_ipsecrequest_level = IPSEC_LEVEL_REQUIRE;
 		if (t->reqid)
 			rq->sadb_x_ipsecrequest_level = IPSEC_LEVEL_UNIQUE;
