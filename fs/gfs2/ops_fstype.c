@@ -756,6 +756,7 @@ fail_lm:
 fail_sys:
 	gfs2_sys_fs_del(sdp);
 fail:
+	gfs2_delete_debugfs_file(sdp);
 	kfree(sdp);
 	sb->s_fs_info = NULL;
 	return error;

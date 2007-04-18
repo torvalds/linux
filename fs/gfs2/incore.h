@@ -609,7 +609,8 @@ struct gfs2_sbd {
 
 	unsigned long sd_last_warning;
 	struct vfsmount *sd_gfs2mnt;
-	struct dentry *debugfs_dentry; /* for debugfs */
+	struct dentry *debugfs_dir;    /* debugfs directory */
+	struct dentry *debugfs_dentry_glocks; /* for debugfs */
 };
 
 #endif /* __INCORE_DOT_H__ */

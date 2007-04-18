@@ -1774,7 +1774,7 @@ static void gfs2_print_symbol(struct glock_iter *gi, const char *fmt,
 
 	if (gi) {
 		memset(buffer, 0, sizeof(buffer));
-		sprintf(buffer, "%p", address);
+		sprintf(buffer, "0x%08lx", address);
 		print_dbg(gi, fmt, buffer);
 	}
 	else
@@ -2146,11 +2146,14 @@ static const struct file_operations gfs2_debug_fops = {
 
 int gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
 {
-	sdp->debugfs_dentry = debugfs_create_file(sdp->sd_table_name,
-						  S_IFREG | S_IRUGO,
-						  gfs2_root, sdp,
-						  &gfs2_debug_fops);
-	if (!sdp->debugfs_dentry)
+	sdp->debugfs_dir = debugfs_create_dir(sdp->sd_table_name, gfs2_root);
+	if (!sdp->debugfs_dir)
+		return -ENOMEM;
+	sdp->debugfs_dentry_glocks = debugfs_create_file("glocks",
+							 S_IFREG | S_IRUGO,
+							 sdp->debugfs_dir, sdp,
+							 &gfs2_debug_fops);
+	if (!sdp->debugfs_dentry_glocks)
 		return -ENOMEM;
 
 	return 0;
@@ -2158,8 +2161,14 @@ int gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
 
 void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp)
 {
-	if (sdp && sdp->debugfs_dentry)
-		debugfs_remove(sdp->debugfs_dentry);
+	if (sdp && sdp->debugfs_dir) {
+		if (sdp->debugfs_dentry_glocks) {
+			debugfs_remove(sdp->debugfs_dentry_glocks);
+			sdp->debugfs_dentry_glocks = NULL;
+		}
+		debugfs_remove(sdp->debugfs_dir);
+		sdp->debugfs_dir = NULL;
+	}
 }
 
 int gfs2_register_debugfs(void)
@@ -2171,4 +2180,5 @@ int gfs2_register_debugfs(void)
 void gfs2_unregister_debugfs(void)
 {
 	debugfs_remove(gfs2_root);
+	gfs2_root = NULL;
 }
