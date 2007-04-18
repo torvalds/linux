@@ -334,13 +334,15 @@ static int msi_capability_init(struct pci_dev *dev)
 			msi_mask_bits_reg(pos, is_64bit_address(control)),
 			maskbits);
 	}
+	list_add(&entry->list, &dev->msi_list);
+
 	/* Configure MSI capability structure */
-	ret = arch_setup_msi_irq(dev, entry);
+	ret = arch_setup_msi_irqs(dev, 1, PCI_CAP_ID_MSI);
 	if (ret) {
+		list_del(&entry->list);
 		kfree(entry);
 		return ret;
 	}
-	list_add(&entry->list, &dev->msi_list);
 
 	/* Set MSI enabled bits	 */
 	pci_intx(dev, 0);		/* disable intx */
@@ -365,7 +367,7 @@ static int msix_capability_init(struct pci_dev *dev,
 				struct msix_entry *entries, int nvec)
 {
 	struct msi_desc *entry;
-	int irq, pos, i, j, nr_entries, ret;
+	int pos, i, j, nr_entries, ret;
 	unsigned long phys_addr;
 	u32 table_offset;
  	u16 control;
@@ -404,29 +406,32 @@ static int msix_capability_init(struct pci_dev *dev,
 		entry->dev = dev;
 		entry->mask_base = base;
 
-		/* Configure MSI-X capability structure */
-		ret = arch_setup_msi_irq(dev, entry);
-		if (ret) {
-			kfree(entry);
-			break;
-		}
- 		entries[i].vector = entry->irq;
 		list_add(&entry->list, &dev->msi_list);
 	}
-	if (i != nvec) {
-		int avail = i - 1;
-		i--;
-		for (; i >= 0; i--) {
-			irq = (entries + i)->vector;
-			msi_free_irq(dev, irq);
-			(entries + i)->vector = 0;
+
+	ret = arch_setup_msi_irqs(dev, nvec, PCI_CAP_ID_MSIX);
+	if (ret) {
+		int avail = 0;
+		list_for_each_entry(entry, &dev->msi_list, list) {
+			if (entry->irq != 0) {
+				avail++;
+				msi_free_irq(dev, entry->irq);
+			}
 		}
+
 		/* If we had some success report the number of irqs
 		 * we succeeded in setting up.
 		 */
-		if (avail <= 0)
-			avail = -EBUSY;
+		if (avail == 0)
+			avail = ret;
 		return avail;
+	}
+
+	i = 0;
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		entries[i].vector = entry->irq;
+		set_irq_msi(entry->irq, entry);
+		i++;
 	}
 	/* Set MSI-X enabled bits */
 	pci_intx(dev, 0);		/* disable intx */
@@ -694,3 +699,23 @@ arch_msi_check_device(struct pci_dev* dev, int nvec, int type)
 	return 0;
 }
 
+int __attribute__ ((weak))
+arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *entry)
+{
+	return 0;
+}
+
+int __attribute__ ((weak))
+arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+	struct msi_desc *entry;
+	int ret;
+
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		ret = arch_setup_msi_irq(dev, entry);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
