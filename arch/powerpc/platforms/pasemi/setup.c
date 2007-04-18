@@ -209,6 +209,20 @@ static void __init pas_init_early(void)
 	iommu_init_early_pasemi();
 }
 
+static struct of_device_id pasemi_bus_ids[] = {
+	{ .type = "sdc", },
+	{},
+};
+
+static int __init pasemi_publish_devices(void)
+{
+	/* Publish OF platform devices for southbridge IOs */
+	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
+
+	return 0;
+}
+device_initcall(pasemi_publish_devices);
+
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
