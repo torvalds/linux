@@ -190,7 +190,14 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	if (!sctp_sk(sk)->pd_mode) {
 		queue = &sk->sk_receive_queue;
 	} else if (ulpq->pd_mode) {
-		if (event->msg_flags & MSG_NOTIFICATION)
+		/* If the association is in partial delivery, we
+		 * need to finish delivering the partially processed
+		 * packet before passing any other data.  This is
+		 * because we don't truly support stream interleaving.
+		 */
+		if ((event->msg_flags & MSG_NOTIFICATION) ||
+		    (SCTP_DATA_NOT_FRAG ==
+			    (event->msg_flags & SCTP_DATA_FRAG_MASK)))
 			queue = &sctp_sk(sk)->pd_lobby;
 		else {
 			clear_pd = event->msg_flags & MSG_EOR;
