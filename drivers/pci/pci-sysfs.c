@@ -636,7 +636,7 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 				goto err_rom;
 		} else {
 			retval = -ENOMEM;
-			goto err_bin_file;
+			goto err_resource_files;
 		}
 	}
 	/* add platform-specific attributes */
@@ -646,6 +646,8 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 
 err_rom:
 	kfree(rom_attr);
+err_resource_files:
+	pci_remove_resource_files(pdev);
 err_bin_file:
 	if (pdev->cfg_size < 4096)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
