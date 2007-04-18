@@ -30,6 +30,7 @@ void release_pmc_hardware(void);
 
 #ifdef CONFIG_PPC64
 void power4_enable_pmcs(void);
+void pasemi_enable_pmcs(void);
 #endif
 
 #endif /* __KERNEL__ */

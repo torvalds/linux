@@ -48,6 +48,7 @@ enum powerpc_oprofile_type {
 	PPC_OPROFILE_G4 = 3,
 	PPC_OPROFILE_BOOKE = 4,
 	PPC_OPROFILE_CELL = 5,
+	PPC_OPROFILE_PA6T = 6,
 };
 
 enum powerpc_pmc_type {

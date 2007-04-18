@@ -389,6 +389,8 @@ static struct cpu_spec cpu_specs[] = {
 		.pmc_type		= PPC_PMC_PA6T,
 		.cpu_setup		= __setup_cpu_pa6t,
 		.cpu_restore		= __restore_cpu_pa6t,
+		.oprofile_cpu_type	= "ppc64/pa6t",
+		.oprofile_type		= PPC_OPROFILE_PA6T,
 		.platform		= "pa6t",
 	},
 	{	/* default match */
