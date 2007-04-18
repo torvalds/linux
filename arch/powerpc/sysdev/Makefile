@@ -21,6 +21,7 @@ obj-$(CONFIG_PM)		+= timer.o
 ifeq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_I8259)		+= i8259.o
 obj-$(CONFIG_PPC_83xx)		+= ipic.o
+obj-$(CONFIG_4xx)		+= uic.o
 endif
 
 # Temporary hack until we have migrated to asm-powerpc
