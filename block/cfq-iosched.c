@@ -471,7 +471,16 @@ static void cfq_service_tree_add(struct cfq_data *cfqd,
 		parent = *p;
 		__cfqq = rb_entry(parent, struct cfq_queue, rb_node);
 
-		if (rb_key < __cfqq->rb_key)
+		/*
+		 * sort RT queues first, we always want to give
+		 * preference to them. after that, sort on the next
+		 * service time.
+		 */
+		if (cfq_class_rt(cfqq) > cfq_class_rt(__cfqq))
+			p = &(*p)->rb_left;
+		else if (cfq_class_rt(cfqq) < cfq_class_rt(__cfqq))
+			p = &(*p)->rb_right;
+		else if (rb_key < __cfqq->rb_key)
 			p = &(*p)->rb_left;
 		else {
 			p = &(*p)->rb_right;
@@ -490,7 +499,6 @@ static void cfq_service_tree_add(struct cfq_data *cfqd,
 static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 {
 	struct cfq_data *cfqd = cfqq->cfqd;
-	struct list_head *n;
 
 	/*
 	 * Resorting requires the cfqq to be on the RR list already.
@@ -500,25 +508,14 @@ static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 
 	list_del_init(&cfqq->cfq_list);
 
-	if (cfq_class_rt(cfqq)) {
-		/*
-		 * At to the front of the current list, but behind other
-		 * RT queues.
-		 */
-		n = &cfqd->cur_rr;
-		while (n->next != &cfqd->cur_rr)
-			if (!cfq_class_rt(cfqq))
-				break;
-
-		list_add(&cfqq->cfq_list, n);
-	} else if (cfq_class_idle(cfqq)) {
+	if (cfq_class_idle(cfqq)) {
 		/*
 		 * IDLE goes to the tail of the idle list
 		 */
 		list_add_tail(&cfqq->cfq_list, &cfqd->idle_rr);
 	} else {
 		/*
-		 * So we get here, ergo the queue is a regular best-effort queue
+		 * RT and BE queues, sort into the rbtree
 		 */
 		cfq_service_tree_add(cfqd, cfqq);
 	}
