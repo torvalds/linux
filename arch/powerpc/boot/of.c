@@ -173,7 +173,7 @@ static void *claim(unsigned long virt, unsigned long size, unsigned long align)
 	return (void *) virt;
 }
 
-static void *of_try_claim(u32 size)
+static void *of_try_claim(unsigned long size)
 {
 	unsigned long addr = 0;
 

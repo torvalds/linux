@@ -19,24 +19,24 @@
 #define	ENTRY_IN_USE	0x02
 
 static struct alloc_info {
-	u32	flags;
-	u32	base;
-	u32	size;
+	unsigned long	flags;
+	unsigned long	base;
+	unsigned long	size;
 } *alloc_tbl;
 
-static u32 tbl_entries;
-static u32 alloc_min;
-static u32 next_base;
-static u32 space_left;
+static unsigned long tbl_entries;
+static unsigned long alloc_min;
+static unsigned long next_base;
+static unsigned long space_left;
 
 /*
  * First time an entry is used, its base and size are set.
  * An entry can be freed and re-malloc'd but its base & size don't change.
  * Should be smart enough for needs of bootwrapper.
  */
-static void *simple_malloc(u32 size)
+static void *simple_malloc(unsigned long size)
 {
-	u32 i;
+	unsigned long i;
 	struct alloc_info *p = alloc_tbl;
 
 	if (size == 0)
@@ -67,13 +67,14 @@ err_out:
 
 static struct alloc_info *simple_find_entry(void *ptr)
 {
-	u32 i;
+	unsigned long i;
 	struct alloc_info *p = alloc_tbl;
 
 	for (i=0; i<tbl_entries; i++,p++) {
 		if (!(p->flags & ENTRY_BEEN_USED))
 			break;
-		if ((p->flags & ENTRY_IN_USE) && (p->base == (u32)ptr))
+		if ((p->flags & ENTRY_IN_USE) &&
+		    (p->base == (unsigned long)ptr))
 			return p;
 	}
 	return NULL;
@@ -122,10 +123,10 @@ static void *simple_realloc(void *ptr, unsigned long size)
  * Returns addr of first byte after heap so caller can see if it took
  * too much space.  If so, change args & try again.
  */
-void *simple_alloc_init(char *base, u32 heap_size, u32 granularity,
-		u32 max_allocs)
+void *simple_alloc_init(char *base, unsigned long heap_size,
+			unsigned long granularity, unsigned long max_allocs)
 {
-	u32 heap_base, tbl_size;
+	unsigned long heap_base, tbl_size;
 
 	heap_size = _ALIGN_UP(heap_size, granularity);
 	alloc_min = granularity;
@@ -136,7 +137,7 @@ void *simple_alloc_init(char *base, u32 heap_size, u32 granularity,
 	alloc_tbl = (struct alloc_info *)_ALIGN_UP((unsigned long)base, 8);
 	memset(alloc_tbl, 0, tbl_size);
 
-	heap_base = _ALIGN_UP((u32)alloc_tbl + tbl_size, alloc_min);
+	heap_base = _ALIGN_UP((unsigned long)alloc_tbl + tbl_size, alloc_min);
 
 	next_base = heap_base;
 	space_left = heap_size;
