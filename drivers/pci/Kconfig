@@ -1,10 +1,14 @@
 #
 # PCI configuration
 #
+config ARCH_SUPPORTS_MSI
+	bool
+	default n
+
 config PCI_MSI
 	bool "Message Signaled Interrupts (MSI and MSI-X)"
 	depends on PCI
-	depends on (X86_LOCAL_APIC && X86_IO_APIC) || IA64 || SPARC64
+	depends on ARCH_SUPPORTS_MSI
 	help
 	   This allows device drivers to enable MSI (Message Signaled
 	   Interrupts).  Message Signaled Interrupts enable a device to

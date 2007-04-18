@@ -306,6 +306,7 @@ config SUN_IO
 
 config PCI
 	bool "PCI support"
+	select ARCH_SUPPORTS_MSI
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside

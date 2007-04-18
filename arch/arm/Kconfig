@@ -255,6 +255,7 @@ config ARCH_IOP13XX
 	depends on MMU
 	select PLAT_IOP
 	select PCI
+	select ARCH_SUPPORTS_MSI
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
