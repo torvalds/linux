@@ -138,7 +138,6 @@ static void irda_disconnect_indication(void *instance, void *sap,
 		sk->sk_shutdown |= SEND_SHUTDOWN;
 
 		sk->sk_state_change(sk);
-		sock_orphan(sk);
 		release_sock(sk);
 
 		/* Close our TSAP.
@@ -1446,7 +1445,7 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 			 */
 			ret = sock_error(sk);
 			if (ret)
-				break;
+				;
 			else if (sk->sk_shutdown & RCV_SHUTDOWN)
 				;
 			else if (noblock)
