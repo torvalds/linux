@@ -751,42 +751,35 @@ static struct hda_verb ad1986a_init_verbs[] = {
 	{ } /* end */
 };
 
-/* additional verbs for 3-stack model */
-static struct hda_verb ad1986a_3st_init_verbs[] = {
-	/* Mic selector, mix C/LFE (backmic) and Mic (frontmic) */
-	{0x0f, AC_VERB_SET_CONNECT_SEL, 0x4},
- 	/* Line-in selectors */
-	{0x10, AC_VERB_SET_CONNECT_SEL, 0x1},
- 	{ } /* end */
-};
-
 static struct hda_verb ad1986a_ch2_init[] = {
 	/* Surround out -> Line In */
-	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
-	{ 0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
+ 	/* Line-in selectors */
+	{ 0x10, AC_VERB_SET_CONNECT_SEL, 0x1 },
 	/* CLFE -> Mic in */
-	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
-	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	/* Mic selector, mix C/LFE (backmic) and Mic (frontmic) */
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x4 },
 	{ } /* end */
 };
 
 static struct hda_verb ad1986a_ch4_init[] = {
 	/* Surround out -> Surround */
-	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
-	{ 0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x10, AC_VERB_SET_CONNECT_SEL, 0x0 },
 	/* CLFE -> Mic in */
-	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
-	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x4 },
 	{ } /* end */
 };
 
 static struct hda_verb ad1986a_ch6_init[] = {
 	/* Surround out -> Surround out */
-	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
-	{ 0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x10, AC_VERB_SET_CONNECT_SEL, 0x0 },
 	/* CLFE -> CLFE */
-	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
-	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x0 },
 	{ } /* end */
 };
 
@@ -895,9 +888,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 	case AD1986A_3STACK:
 		spec->num_mixers = 2;
 		spec->mixers[1] = ad1986a_3st_mixers;
-		spec->num_init_verbs = 3;
-		spec->init_verbs[1] = ad1986a_3st_init_verbs;
-		spec->init_verbs[2] = ad1986a_ch2_init;
+		spec->num_init_verbs = 2;
+		spec->init_verbs[1] = ad1986a_ch2_init;
 		spec->channel_mode = ad1986a_modes;
 		spec->num_channel_mode = ARRAY_SIZE(ad1986a_modes);
 		spec->need_dac_fix = 1;
