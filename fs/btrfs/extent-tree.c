@@ -35,8 +35,10 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	key.offset = num_blocks;
 	ret = btrfs_search_slot(trans, root->fs_info->extent_root, &key, path,
 				0, 1);
-	if (ret != 0)
+	if (ret != 0) {
+printk("can't find block %Lu %Lu\n", blocknr, num_blocks);
 		BUG();
+	}
 	BUG_ON(ret != 0);
 	l = btrfs_buffer_leaf(path->nodes[0]);
 	item = btrfs_item_ptr(l, path->slots[0], struct btrfs_extent_item);

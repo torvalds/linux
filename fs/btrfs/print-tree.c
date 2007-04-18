@@ -19,7 +19,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 	for (i = 0 ; i < nr ; i++) {
 		item = l->items + i;
 		type = btrfs_disk_key_type(&item->key);
-		printk("\titem %d key (%Lu %u %Lu) itemoff %d itemsize %d\n",
+		printk("\titem %d key (%Lu %x %Lu) itemoff %d itemsize %d\n",
 			i,
 			btrfs_disk_key_objectid(&item->key),
 			btrfs_disk_key_flags(&item->key),
