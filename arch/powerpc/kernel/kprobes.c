@@ -59,12 +59,14 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	}
 
 	if (!ret) {
-		memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
+		memcpy(p->ainsn.insn, p->addr,
+				MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
 		p->opcode = *p->addr;
 		flush_icache_range((unsigned long)p->ainsn.insn,
 			(unsigned long)p->ainsn.insn + sizeof(kprobe_opcode_t));
 	}
 
+	p->ainsn.boostable = 0;
 	return ret;
 }
 
@@ -232,6 +234,38 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		return 1;
 
 ss_probe:
+	if (p->ainsn.boostable >= 0) {
+		unsigned int insn = *p->ainsn.insn;
+
+		/* regs->nip is also adjusted if emulate_step returns 1 */
+		ret = emulate_step(regs, insn);
+		if (ret > 0) {
+			/*
+			 * Once this instruction has been boosted
+			 * successfully, set the boostable flag
+			 */
+			if (unlikely(p->ainsn.boostable == 0))
+				p->ainsn.boostable = 1;
+
+			if (p->post_handler)
+				p->post_handler(p, regs, 0);
+
+			kcb->kprobe_status = KPROBE_HIT_SSDONE;
+			reset_current_kprobe();
+			preempt_enable_no_resched();
+			return 1;
+		} else if (ret < 0) {
+			/*
+			 * We don't allow kprobes on mtmsr(d)/rfi(d), etc.
+			 * So, we should never get here... but, its still
+			 * good to catch them, just in case...
+			 */
+			printk("Can't step on instruction %x\n", insn);
+			BUG();
+		} else if (ret == 0)
+			/* This instruction can't be boosted */
+			p->ainsn.boostable = -1;
+	}
 	prepare_singlestep(p, regs);
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
