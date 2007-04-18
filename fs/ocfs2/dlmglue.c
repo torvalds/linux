@@ -1479,11 +1479,14 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 {
 	int status = 0;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_lock_res *lockres = NULL;
+	struct ocfs2_lock_res *lockres = &oi->ip_meta_lockres;
 	struct ocfs2_dinode *fe;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry_void();
+
+	if (ocfs2_mount_local(osb))
+		goto bail;
 
 	spin_lock(&oi->ip_lock);
 	if (oi->ip_flags & OCFS2_INODE_DELETED) {
@@ -1496,22 +1499,18 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 	}
 	spin_unlock(&oi->ip_lock);
 
-	if (!ocfs2_mount_local(osb)) {
-		lockres = &oi->ip_meta_lockres;
-
-		if (!ocfs2_should_refresh_lock_res(lockres))
-			goto bail;
-	}
+	if (!ocfs2_should_refresh_lock_res(lockres))
+		goto bail;
 
 	/* This will discard any caching information we might have had
 	 * for the inode metadata. */
 	ocfs2_metadata_cache_purge(inode);
 
 	/* will do nothing for inode types that don't use the extent
-	 * map (directories, bitmap files, etc) */
+	 * map (bitmap files, etc) */
 	ocfs2_extent_map_trunc(inode, 0);
 
-	if (lockres && ocfs2_meta_lvb_is_trustable(inode, lockres)) {
+	if (ocfs2_meta_lvb_is_trustable(inode, lockres)) {
 		mlog(0, "Trusting LVB on inode %llu\n",
 		     (unsigned long long)oi->ip_blkno);
 		ocfs2_refresh_inode_from_lvb(inode);
@@ -1558,8 +1557,7 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 
 	status = 0;
 bail_refresh:
-	if (lockres)
-		ocfs2_complete_lock_res_refresh(lockres, status);
+	ocfs2_complete_lock_res_refresh(lockres, status);
 bail:
 	mlog_exit(status);
 	return status;
@@ -1630,7 +1628,6 @@ int ocfs2_meta_lock_full(struct inode *inode,
 		wait_event(osb->recovery_event,
 			   ocfs2_node_map_is_empty(osb, &osb->recovery_map));
 
-	acquired = 0;
 	lockres = &OCFS2_I(inode)->ip_meta_lockres;
 	level = ex ? LKM_EXMODE : LKM_PRMODE;
 	dlm_flags = 0;
