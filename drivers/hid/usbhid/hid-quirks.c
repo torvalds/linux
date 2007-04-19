@@ -447,22 +447,152 @@ static const struct hid_blacklist {
 
 	{ 0, 0 }
 };
+
+/* Dynamic HID quirks list - specified at runtime */
+struct quirks_list_struct {
+	struct hid_blacklist hid_bl_item;
+	struct list_head node;
+};
+
+static LIST_HEAD(dquirks_list);
+static DECLARE_RWSEM(dquirks_rwsem);
+
+/* Runtime ("dynamic") quirks manipulation functions */
+
 /**
-* usbhid_exists_squirk: return any static quirks for a USB HID device
-* @idVendor: the 16-bit USB vendor ID, in native byteorder
-* @idProduct: the 16-bit USB product ID, in native byteorder
-*
-* Description:
-*     Given a USB vendor ID and product ID, return a pointer to
-*     the hid_blacklist entry associated with that device.
-*
-* Returns: pointer if quirk found, or NULL if no quirks found.
-*/
-static const struct hid_blacklist *usbhid_exists_squirk(const u16 idVendor,
-                                                       const u16 idProduct)
+ * usbhid_exists_dquirk: find any dynamic quirks for a USB HID device
+ * @idVendor: the 16-bit USB vendor ID, in native byteorder
+ * @idProduct: the 16-bit USB product ID, in native byteorder
+ *
+ * Description:
+ *         Scans dquirks_list for a matching dynamic quirk and returns
+ *         the pointer to the relevant struct hid_blacklist if found.
+ *         Must be called with a read lock held on dquirks_rwsem.
+ *
+ * Returns: NULL if no quirk found, struct hid_blacklist * if found.
+ */
+static struct hid_blacklist *usbhid_exists_dquirk(const u16 idVendor,
+		const u16 idProduct)
 {
-       const struct hid_blacklist *bl_entry = NULL;
-       int n = 0;
+	struct quirks_list_struct *q;
+	struct hid_blacklist *bl_entry = NULL;
+
+	WARN_ON(idVendor == 0);
+
+	list_for_each_entry(q, &dquirks_list, node) {
+		if (q->hid_bl_item.idVendor == idVendor &&
+				q->hid_bl_item.idProduct == idProduct) {
+			bl_entry = &q->hid_bl_item;
+			break;
+		}
+	}
+
+	if (bl_entry != NULL)
+		dbg("Found dynamic quirk 0x%x for USB HID vendor 0x%hx prod 0x%hx\n",
+				bl_entry->quirks, bl_entry->idVendor,
+				bl_entry->idProduct);
+
+	return bl_entry;
+}
+
+
+/**
+ * usbhid_modify_dquirk: add/replace a HID quirk
+ * @idVendor: the 16-bit USB vendor ID, in native byteorder
+ * @idProduct: the 16-bit USB product ID, in native byteorder
+ * @quirks: the u32 quirks value to add/replace
+ *
+ * Description:
+ *         If an dynamic quirk exists in memory for this (idVendor,
+ *         idProduct) pair, replace its quirks value with what was
+ *         provided.  Otherwise, add the quirk to the dynamic quirks list.
+ *
+ * Returns: 0 OK, -error on failure.
+ */
+int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct,
+		const u32 quirks)
+{
+	struct quirks_list_struct *q_new, *q;
+	int list_edited = 0;
+
+	if (!idVendor) {
+		dbg("Cannot add a quirk with idVendor = 0");
+		return -EINVAL;
+	}
+
+	q_new = kmalloc(sizeof(struct quirks_list_struct), GFP_KERNEL);
+	if (!q_new) {
+		dbg("Could not allocate quirks_list_struct");
+		return -ENOMEM;
+	}
+
+	q_new->hid_bl_item.idVendor = idVendor;
+	q_new->hid_bl_item.idProduct = idProduct;
+	q_new->hid_bl_item.quirks = quirks;
+
+	down_write(&dquirks_rwsem);
+
+	list_for_each_entry(q, &dquirks_list, node) {
+
+		if (q->hid_bl_item.idVendor == idVendor &&
+				q->hid_bl_item.idProduct == idProduct) {
+
+			list_replace(&q->node, &q_new->node);
+			kfree(q);
+			list_edited = 1;
+			break;
+
+		}
+
+	}
+
+	if (!list_edited)
+		list_add_tail(&q_new->node, &dquirks_list);
+
+	up_write(&dquirks_rwsem);
+
+	return 0;
+}
+
+
+/**
+ * usbhid_remove_all_dquirks: remove all runtime HID quirks from memory
+ *
+ * Description:
+ *         Free all memory associated with dynamic quirks - called before
+ *         module unload.
+ *
+ */
+static void usbhid_remove_all_dquirks(void)
+{
+	struct quirks_list_struct *q, *temp;
+
+	down_write(&dquirks_rwsem);
+	list_for_each_entry_safe(q, temp, &dquirks_list, node) {
+		list_del(&q->node);
+		kfree(q);
+	}
+	up_write(&dquirks_rwsem);
+
+}
+
+
+/**
+ * usbhid_exists_squirk: return any static quirks for a USB HID device
+ * @idVendor: the 16-bit USB vendor ID, in native byteorder
+ * @idProduct: the 16-bit USB product ID, in native byteorder
+ *
+ * Description:
+ *     Given a USB vendor ID and product ID, return a pointer to
+ *     the hid_blacklist entry associated with that device.
+ *
+ * Returns: pointer if quirk found, or NULL if no quirks found.
+ */
+static const struct hid_blacklist *usbhid_exists_squirk(const u16 idVendor,
+		const u16 idProduct)
+{
+	const struct hid_blacklist *bl_entry = NULL;
+	int n = 0;
 
 	for (; hid_blacklist[n].idVendor; n++)
 		if (hid_blacklist[n].idVendor == idVendor &&
@@ -502,9 +632,14 @@ u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 				idProduct <= USB_DEVICE_ID_CODEMERCS_IOW_LAST)
 			return HID_QUIRK_IGNORE;
 
-	bl_entry = usbhid_exists_squirk(idVendor, idProduct);
+	down_read(&dquirks_rwsem);
+	bl_entry = usbhid_exists_dquirk(idVendor, idProduct);
+	if (!bl_entry)
+		bl_entry = usbhid_exists_squirk(idVendor, idProduct);
 	if (bl_entry)
 		quirks = bl_entry->quirks;
+	up_read(&dquirks_rwsem);
+
 	return quirks;
 }
 
