@@ -443,6 +443,7 @@ static int netlink_release(struct socket *sock)
 		return 0;
 
 	netlink_remove(sk);
+	sock_orphan(sk);
 	nlk = nlk_sk(sk);
 
 	spin_lock(&nlk->cb_lock);
@@ -457,7 +458,6 @@ static int netlink_release(struct socket *sock)
 	/* OK. Socket is unlinked, and, therefore,
 	   no new packets will arrive */
 
-	sock_orphan(sk);
 	sock->sk = NULL;
 	wake_up_interruptible_all(&nlk->wait);
 
@@ -1412,9 +1412,9 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 		return -ECONNREFUSED;
 	}
 	nlk = nlk_sk(sk);
-	/* A dump is in progress... */
+	/* A dump or destruction is in progress... */
 	spin_lock(&nlk->cb_lock);
-	if (nlk->cb) {
+	if (nlk->cb || sock_flag(sk, SOCK_DEAD)) {
 		spin_unlock(&nlk->cb_lock);
 		netlink_destroy_callback(cb);
 		sock_put(sk);
