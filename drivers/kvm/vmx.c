@@ -17,7 +17,6 @@
 
 #include "kvm.h"
 #include "vmx.h"
-#include "kvm_vmx.h"
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -81,8 +80,14 @@ static const u32 vmx_msr_index[] = {
 #ifdef CONFIG_X86_64
 static unsigned msr_offset_kernel_gs_base;
 #define NR_64BIT_MSRS 4
+/*
+ * avoid save/load MSR_SYSCALL_MASK and MSR_LSTAR by std vt
+ * mechanism (cpu bug AA24)
+ */
+#define NR_BAD_MSRS 2
 #else
 #define NR_64BIT_MSRS 0
+#define NR_BAD_MSRS 0
 #endif
 
 static inline int is_page_fault(u32 intr_info)
