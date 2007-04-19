@@ -20,6 +20,7 @@
 #include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/kthread.h>
 #include <asm/uaccess.h>
 
 static LIST_HEAD(blktrans_majors);
@@ -82,17 +83,6 @@ static int mtd_blktrans_thread(void *arg)
 
 	/* we might get involved when memory gets low, so use PF_MEMALLOC */
 	current->flags |= PF_MEMALLOC | PF_NOFREEZE;
-
-	daemonize("%sd", tr->name);
-
-	/* daemonize() doesn't do this for us since some kernel threads
-	   actually want to deal with signals. We can't just call
-	   exit_sighand() since that'll cause an oops when we finally
-	   do exit. */
-	spin_lock_irq(&current->sighand->siglock);
-	sigfillset(&current->blocked);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
 
 	spin_lock_irq(rq->queue_lock);
 
@@ -365,6 +355,7 @@ static struct mtd_notifier blktrans_notifier = {
 
 int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 {
+	struct task_struct *task;
 	int ret, i;
 
 	/* Register the notifier if/when the first device type is
@@ -403,13 +394,13 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	blk_queue_hardsect_size(tr->blkcore_priv->rq, tr->blksize);
 	tr->blkshift = ffs(tr->blksize) - 1;
 
-	ret = kernel_thread(mtd_blktrans_thread, tr, CLONE_KERNEL);
-	if (ret < 0) {
+	task = kthread_run(mtd_blktrans_thread, tr, "%sd", tr->name);
+	if (IS_ERR(task)) {
 		blk_cleanup_queue(tr->blkcore_priv->rq);
 		unregister_blkdev(tr->major, tr->name);
 		kfree(tr->blkcore_priv);
 		mutex_unlock(&mtd_table_mutex);
-		return ret;
+		return PTR_ERR(task);
 	}
 
 	INIT_LIST_HEAD(&tr->devs);
