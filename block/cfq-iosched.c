@@ -45,9 +45,6 @@ static int cfq_slice_idle = HZ / 125;
  */
 #define CFQ_QHASH_SHIFT		6
 #define CFQ_QHASH_ENTRIES	(1 << CFQ_QHASH_SHIFT)
-#define list_entry_qhash(entry)	hlist_entry((entry), struct cfq_queue, cfq_hash)
-
-#define list_entry_cfqq(ptr)	list_entry((ptr), struct cfq_queue, cfq_list)
 
 #define RQ_CIC(rq)		((struct cfq_io_context*)(rq)->elevator_private)
 #define RQ_CFQQ(rq)		((rq)->elevator_private2)
@@ -91,7 +88,6 @@ struct cfq_data {
 	 * rr list of queues with requests and the count of them
 	 */
 	struct cfq_rb_root service_tree;
-	struct list_head cur_rr;
 	unsigned int busy_queues;
 
 	/*
@@ -146,8 +142,6 @@ struct cfq_queue {
 	struct hlist_node cfq_hash;
 	/* hash key */
 	unsigned int key;
-	/* member of the rr/busy/cur/idle cfqd list */
-	struct list_head cfq_list;
 	/* service_tree member */
 	struct rb_node rb_node;
 	/* service_tree key */
@@ -452,16 +446,19 @@ static unsigned long cfq_slice_offset(struct cfq_data *cfqd,
  * we will service the queues.
  */
 static void cfq_service_tree_add(struct cfq_data *cfqd,
-				    struct cfq_queue *cfqq)
+				    struct cfq_queue *cfqq, int add_front)
 {
 	struct rb_node **p = &cfqd->service_tree.rb.rb_node;
 	struct rb_node *parent = NULL;
 	unsigned long rb_key;
 	int left;
 
-	rb_key = cfq_slice_offset(cfqd, cfqq) + jiffies;
-	rb_key += cfqq->slice_resid;
-	cfqq->slice_resid = 0;
+	if (!add_front) {
+		rb_key = cfq_slice_offset(cfqd, cfqq) + jiffies;
+		rb_key += cfqq->slice_resid;
+		cfqq->slice_resid = 0;
+	} else
+		rb_key = 0;
 
 	if (!RB_EMPTY_NODE(&cfqq->rb_node)) {
 		/*
@@ -516,13 +513,13 @@ static void cfq_service_tree_add(struct cfq_data *cfqd,
 /*
  * Update cfqq's position in the service tree.
  */
-static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
+static void cfq_resort_rr_list(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	/*
 	 * Resorting requires the cfqq to be on the RR list already.
 	 */
 	if (cfq_cfqq_on_rr(cfqq))
-		cfq_service_tree_add(cfqq->cfqd, cfqq);
+		cfq_service_tree_add(cfqd, cfqq, 0);
 }
 
 /*
@@ -536,7 +533,7 @@ cfq_add_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	cfq_mark_cfqq_on_rr(cfqq);
 	cfqd->busy_queues++;
 
-	cfq_resort_rr_list(cfqq, 0);
+	cfq_resort_rr_list(cfqd, cfqq);
 }
 
 /*
@@ -548,7 +545,6 @@ cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	BUG_ON(!cfq_cfqq_on_rr(cfqq));
 	cfq_clear_cfqq_on_rr(cfqq);
-	list_del_init(&cfqq->cfq_list);
 
 	if (!RB_EMPTY_NODE(&cfqq->rb_node))
 		cfq_rb_erase(&cfqq->rb_node, &cfqd->service_tree);
@@ -771,7 +767,7 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	if (timed_out && !cfq_cfqq_slice_new(cfqq))
 		cfqq->slice_resid = cfqq->slice_end - jiffies;
 
-	cfq_resort_rr_list(cfqq, preempted);
+	cfq_resort_rr_list(cfqd, cfqq);
 
 	if (cfqq == cfqd->active_queue)
 		cfqd->active_queue = NULL;
@@ -799,31 +795,28 @@ static inline void cfq_slice_expired(struct cfq_data *cfqd, int preempted,
  */
 static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 {
-	struct cfq_queue *cfqq = NULL;
+	struct cfq_queue *cfqq;
+	struct rb_node *n;
 
-	if (!list_empty(&cfqd->cur_rr)) {
+	if (RB_EMPTY_ROOT(&cfqd->service_tree.rb))
+		return NULL;
+
+	n = cfq_rb_first(&cfqd->service_tree);
+	cfqq = rb_entry(n, struct cfq_queue, rb_node);
+
+	if (cfq_class_idle(cfqq)) {
+		unsigned long end;
+
 		/*
-		 * if current list is non-empty, grab first entry.
+		 * if we have idle queues and no rt or be queues had
+		 * pending requests, either allow immediate service if
+		 * the grace period has passed or arm the idle grace
+		 * timer
 		 */
-		cfqq = list_entry_cfqq(cfqd->cur_rr.next);
-	} else if (!RB_EMPTY_ROOT(&cfqd->service_tree.rb)) {
-		struct rb_node *n = cfq_rb_first(&cfqd->service_tree);
-
-		cfqq = rb_entry(n, struct cfq_queue, rb_node);
-		if (cfq_class_idle(cfqq)) {
-			unsigned long end;
-
-			/*
-			 * if we have idle queues and no rt or be queues had
-			 * pending requests, either allow immediate service if
-			 * the grace period has passed or arm the idle grace
-			 * timer
-			 */
-			end = cfqd->last_end_request + CFQ_IDLE_GRACE;
-			if (time_before(jiffies, end)) {
-				mod_timer(&cfqd->idle_class_timer, end);
-				cfqq = NULL;
-			}
+		end = cfqd->last_end_request + CFQ_IDLE_GRACE;
+		if (time_before(jiffies, end)) {
+			mod_timer(&cfqd->idle_class_timer, end);
+			cfqq = NULL;
 		}
 	}
 
@@ -1075,18 +1068,6 @@ static inline int __cfq_forced_dispatch_cfqq(struct cfq_queue *cfqq)
 	return dispatched;
 }
 
-static int cfq_forced_dispatch_cfqqs(struct list_head *list)
-{
-	struct cfq_queue *cfqq, *next;
-	int dispatched;
-
-	dispatched = 0;
-	list_for_each_entry_safe(cfqq, next, list, cfq_list)
-		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
-
-	return dispatched;
-}
-
 /*
  * Drain our current requests. Used for barriers and when switching
  * io schedulers on-the-fly.
@@ -1101,8 +1082,6 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 
 		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
 	}
-
-	dispatched += cfq_forced_dispatch_cfqqs(&cfqd->cur_rr);
 
 	cfq_slice_expired(cfqd, 0, 0);
 
@@ -1433,7 +1412,6 @@ retry:
 		memset(cfqq, 0, sizeof(*cfqq));
 
 		INIT_HLIST_NODE(&cfqq->cfq_hash);
-		INIT_LIST_HEAD(&cfqq->cfq_list);
 		RB_CLEAR_NODE(&cfqq->rb_node);
 		INIT_LIST_HEAD(&cfqq->fifo);
 
@@ -1712,8 +1690,8 @@ static void cfq_preempt_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * so we know that it will be selected next.
 	 */
 	BUG_ON(!cfq_cfqq_on_rr(cfqq));
-	list_del_init(&cfqq->cfq_list);
-	list_add(&cfqq->cfq_list, &cfqd->cur_rr);
+
+	cfq_service_tree_add(cfqd, cfqq, 1);
 
 	cfqq->slice_end = 0;
 	cfq_mark_cfqq_slice_new(cfqq);
@@ -2077,7 +2055,6 @@ static void *cfq_init_queue(request_queue_t *q)
 	memset(cfqd, 0, sizeof(*cfqd));
 
 	cfqd->service_tree = CFQ_RB_ROOT;
-	INIT_LIST_HEAD(&cfqd->cur_rr);
 	INIT_LIST_HEAD(&cfqd->cic_list);
 
 	cfqd->cfq_hash = kmalloc_node(sizeof(struct hlist_head) * CFQ_QHASH_ENTRIES, GFP_KERNEL, q->node);
