@@ -236,6 +236,22 @@ struct kvm_pio_request {
 	int rep;
 };
 
+struct kvm_stat {
+	u32 pf_fixed;
+	u32 pf_guest;
+	u32 tlb_flush;
+	u32 invlpg;
+
+	u32 exits;
+	u32 io_exits;
+	u32 mmio_exits;
+	u32 signal_exits;
+	u32 irq_window_exits;
+	u32 halt_exits;
+	u32 request_irq_exits;
+	u32 irq_exits;
+};
+
 struct kvm_vcpu {
 	struct kvm *kvm;
 	union {
@@ -298,6 +314,8 @@ struct kvm_vcpu {
 	int sigset_active;
 	sigset_t sigset;
 
+	struct kvm_stat stat;
+
 	struct {
 		int active;
 		u8 save_iopl;
@@ -345,22 +363,6 @@ struct kvm {
 	unsigned long rmap_overflow;
 	struct list_head vm_list;
 	struct file *filp;
-};
-
-struct kvm_stat {
-	u32 pf_fixed;
-	u32 pf_guest;
-	u32 tlb_flush;
-	u32 invlpg;
-
-	u32 exits;
-	u32 io_exits;
-	u32 mmio_exits;
-	u32 signal_exits;
-	u32 irq_window_exits;
-	u32 halt_exits;
-	u32 request_irq_exits;
-	u32 irq_exits;
 };
 
 struct descriptor_table {
@@ -424,7 +426,6 @@ struct kvm_arch_ops {
 				unsigned char *hypercall_addr);
 };
 
-extern struct kvm_stat kvm_stat;
 extern struct kvm_arch_ops *kvm_arch_ops;
 
 #define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)

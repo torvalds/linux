@@ -448,7 +448,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (is_io_pte(*shadow_pte))
 		return 1;
 
-	++kvm_stat.pf_fixed;
+	++vcpu->stat.pf_fixed;
 	kvm_mmu_audit(vcpu, "post page fault (fixed)");
 
 	return write_pt;

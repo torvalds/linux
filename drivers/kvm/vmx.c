@@ -1396,7 +1396,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		case EMULATE_DONE:
 			return 1;
 		case EMULATE_DO_MMIO:
-			++kvm_stat.mmio_exits;
+			++vcpu->stat.mmio_exits;
 			kvm_run->exit_reason = KVM_EXIT_MMIO;
 			return 0;
 		 case EMULATE_FAIL:
@@ -1425,7 +1425,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 static int handle_external_interrupt(struct kvm_vcpu *vcpu,
 				     struct kvm_run *kvm_run)
 {
-	++kvm_stat.irq_exits;
+	++vcpu->stat.irq_exits;
 	return 1;
 }
 
@@ -1492,7 +1492,7 @@ static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	unsigned long count;
 	gva_t address;
 
-	++kvm_stat.io_exits;
+	++vcpu->stat.io_exits;
 	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
 	in = (exit_qualification & 8) != 0;
 	size = (exit_qualification & 7) + 1;
@@ -1682,7 +1682,7 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 	if (kvm_run->request_interrupt_window &&
 	    !vcpu->irq_summary) {
 		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
-		++kvm_stat.irq_window_exits;
+		++vcpu->stat.irq_window_exits;
 		return 0;
 	}
 	return 1;
@@ -1695,7 +1695,7 @@ static int handle_halt(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return 1;
 
 	kvm_run->exit_reason = KVM_EXIT_HLT;
-	++kvm_stat.halt_exits;
+	++vcpu->stat.halt_exits;
 	return 0;
 }
 
@@ -1956,7 +1956,7 @@ again:
 
 		reload_tss();
 	}
-	++kvm_stat.exits;
+	++vcpu->stat.exits;
 
 #ifdef CONFIG_X86_64
 	if (is_long_mode(vcpu)) {
@@ -1988,14 +1988,14 @@ again:
 		if (r > 0) {
 			/* Give scheduler a change to reschedule. */
 			if (signal_pending(current)) {
-				++kvm_stat.signal_exits;
+				++vcpu->stat.signal_exits;
 				post_kvm_run_save(vcpu, kvm_run);
 				kvm_run->exit_reason = KVM_EXIT_INTR;
 				return -EINTR;
 			}
 
 			if (dm_request_for_irq_injection(vcpu, kvm_run)) {
-				++kvm_stat.request_irq_exits;
+				++vcpu->stat.request_irq_exits;
 				post_kvm_run_save(vcpu, kvm_run);
 				kvm_run->exit_reason = KVM_EXIT_INTR;
 				return -EINTR;
@@ -2021,7 +2021,7 @@ static void vmx_inject_page_fault(struct kvm_vcpu *vcpu,
 {
 	u32 vect_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
 
-	++kvm_stat.pf_guest;
+	++vcpu->stat.pf_guest;
 
 	if (is_page_fault(vect_info)) {
 		printk(KERN_DEBUG "inject_page_fault: "

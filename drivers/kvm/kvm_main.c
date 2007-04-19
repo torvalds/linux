@@ -51,27 +51,27 @@ static DEFINE_SPINLOCK(kvm_lock);
 static LIST_HEAD(vm_list);
 
 struct kvm_arch_ops *kvm_arch_ops;
-struct kvm_stat kvm_stat;
-EXPORT_SYMBOL_GPL(kvm_stat);
+
+#define STAT_OFFSET(x) offsetof(struct kvm_vcpu, stat.x)
 
 static struct kvm_stats_debugfs_item {
 	const char *name;
-	u32 *data;
+	int offset;
 	struct dentry *dentry;
 } debugfs_entries[] = {
-	{ "pf_fixed", &kvm_stat.pf_fixed },
-	{ "pf_guest", &kvm_stat.pf_guest },
-	{ "tlb_flush", &kvm_stat.tlb_flush },
-	{ "invlpg", &kvm_stat.invlpg },
-	{ "exits", &kvm_stat.exits },
-	{ "io_exits", &kvm_stat.io_exits },
-	{ "mmio_exits", &kvm_stat.mmio_exits },
-	{ "signal_exits", &kvm_stat.signal_exits },
-	{ "irq_window", &kvm_stat.irq_window_exits },
-	{ "halt_exits", &kvm_stat.halt_exits },
-	{ "request_irq", &kvm_stat.request_irq_exits },
-	{ "irq_exits", &kvm_stat.irq_exits },
-	{ NULL, NULL }
+	{ "pf_fixed", STAT_OFFSET(pf_fixed) },
+	{ "pf_guest", STAT_OFFSET(pf_guest) },
+	{ "tlb_flush", STAT_OFFSET(tlb_flush) },
+	{ "invlpg", STAT_OFFSET(invlpg) },
+	{ "exits", STAT_OFFSET(exits) },
+	{ "io_exits", STAT_OFFSET(io_exits) },
+	{ "mmio_exits", STAT_OFFSET(mmio_exits) },
+	{ "signal_exits", STAT_OFFSET(signal_exits) },
+	{ "irq_window", STAT_OFFSET(irq_window_exits) },
+	{ "halt_exits", STAT_OFFSET(halt_exits) },
+	{ "request_irq", STAT_OFFSET(request_irq_exits) },
+	{ "irq_exits", STAT_OFFSET(irq_exits) },
+	{ NULL }
 };
 
 static struct dentry *debugfs_dir;
@@ -2930,14 +2930,39 @@ static struct notifier_block kvm_cpu_notifier = {
 	.priority = 20, /* must be > scheduler priority */
 };
 
+static u64 stat_get(void *_offset)
+{
+	unsigned offset = (long)_offset;
+	u64 total = 0;
+	struct kvm *kvm;
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	spin_lock(&kvm_lock);
+	list_for_each_entry(kvm, &vm_list, vm_list)
+		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+			vcpu = &kvm->vcpus[i];
+			total += *(u32 *)((void *)vcpu + offset);
+		}
+	spin_unlock(&kvm_lock);
+	return total;
+}
+
+static void stat_set(void *offset, u64 val)
+{
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(stat_fops, stat_get, stat_set, "%llu\n");
+
 static __init void kvm_init_debug(void)
 {
 	struct kvm_stats_debugfs_item *p;
 
 	debugfs_dir = debugfs_create_dir("kvm", NULL);
 	for (p = debugfs_entries; p->name; ++p)
-		p->dentry = debugfs_create_u32(p->name, 0444, debugfs_dir,
-					       p->data);
+		p->dentry = debugfs_create_file(p->name, 0444, debugfs_dir,
+						(void *)(long)p->offset,
+						&stat_fops);
 }
 
 static void kvm_exit_debug(void)

@@ -936,7 +936,7 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu)
 
 static void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 {
-	++kvm_stat.tlb_flush;
+	++vcpu->stat.tlb_flush;
 	kvm_arch_ops->tlb_flush(vcpu);
 }
 

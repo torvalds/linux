@@ -914,7 +914,7 @@ static int pf_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	case EMULATE_DONE:
 		return 1;
 	case EMULATE_DO_MMIO:
-		++kvm_stat.mmio_exits;
+		++vcpu->stat.mmio_exits;
 		kvm_run->exit_reason = KVM_EXIT_MMIO;
 		return 0;
 	case EMULATE_FAIL:
@@ -1054,7 +1054,7 @@ static int io_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	unsigned long count;
 	gva_t address = 0;
 
-	++kvm_stat.io_exits;
+	++vcpu->stat.io_exits;
 
 	vcpu->svm->next_rip = vcpu->svm->vmcb->control.exit_info_2;
 
@@ -1096,7 +1096,7 @@ static int halt_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return 1;
 
 	kvm_run->exit_reason = KVM_EXIT_HLT;
-	++kvm_stat.halt_exits;
+	++vcpu->stat.halt_exits;
 	return 0;
 }
 
@@ -1264,7 +1264,7 @@ static int interrupt_window_interception(struct kvm_vcpu *vcpu,
 	 */
 	if (kvm_run->request_interrupt_window &&
 	    !vcpu->irq_summary) {
-		++kvm_stat.irq_window_exits;
+		++vcpu->stat.irq_window_exits;
 		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 		return 0;
 	}
@@ -1636,14 +1636,14 @@ again:
 	r = handle_exit(vcpu, kvm_run);
 	if (r > 0) {
 		if (signal_pending(current)) {
-			++kvm_stat.signal_exits;
+			++vcpu->stat.signal_exits;
 			post_kvm_run_save(vcpu, kvm_run);
 			kvm_run->exit_reason = KVM_EXIT_INTR;
 			return -EINTR;
 		}
 
 		if (dm_request_for_irq_injection(vcpu, kvm_run)) {
-			++kvm_stat.request_irq_exits;
+			++vcpu->stat.request_irq_exits;
 			post_kvm_run_save(vcpu, kvm_run);
 			kvm_run->exit_reason = KVM_EXIT_INTR;
 			return -EINTR;
@@ -1672,7 +1672,7 @@ static void svm_inject_page_fault(struct kvm_vcpu *vcpu,
 {
 	uint32_t exit_int_info = vcpu->svm->vmcb->control.exit_int_info;
 
-	++kvm_stat.pf_guest;
+	++vcpu->stat.pf_guest;
 
 	if (is_page_fault(exit_int_info)) {
 
