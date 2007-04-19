@@ -1603,7 +1603,12 @@ static void
 cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		       struct cfq_io_context *cic)
 {
-	int enable_idle = cfq_cfqq_idle_window(cfqq);
+	int enable_idle;
+
+	if (!cfq_cfqq_sync(cfqq))
+		return;
+
+	enable_idle = cfq_cfqq_idle_window(cfqq);
 
 	if (!cic->ioc->task || !cfqd->cfq_slice_idle ||
 	    (cfqd->hw_tag && CIC_SEEKY(cic)))
