@@ -6,7 +6,6 @@ menu "Mapping drivers for chip access"
 
 config MTD_COMPLEX_MAPPINGS
 	bool "Support non-linear mappings of flash chips"
-	depends on MTD
 	help
 	  This causes the chip drivers to allow for complicated
 	  paged mappings of flash chips.
@@ -550,7 +549,7 @@ config MTD_OMAP_NOR
 # This needs CFI or JEDEC, depending on the cards found.
 config MTD_PCI
 	tristate "PCI MTD driver"
-	depends on MTD && PCI && MTD_COMPLEX_MAPPINGS
+	depends on PCI && MTD_COMPLEX_MAPPINGS
 	help
 	  Mapping for accessing flash devices on add-in cards like the Intel XScale
 	  IQ80310 card, and the Intel EBSA285 card in blank ROM programming mode
@@ -560,7 +559,7 @@ config MTD_PCI
 
 config MTD_PCMCIA
 	tristate "PCMCIA MTD driver"
-	depends on MTD && PCMCIA && MTD_COMPLEX_MAPPINGS && BROKEN
+	depends on PCMCIA && MTD_COMPLEX_MAPPINGS && BROKEN
 	help
 	  Map driver for accessing PCMCIA linear flash memory cards. These
 	  cards are usually around 4-16MiB in size. This does not include
@@ -624,13 +623,12 @@ config MTD_BAST_MAXSIZE
 
 config MTD_SHARP_SL
 	bool "ROM mapped on Sharp SL Series"
-	depends on MTD && ARCH_PXA
+	depends on ARCH_PXA
 	help
 	  This enables access to the flash chip on the Sharp SL Series of PDAs.
 
 config MTD_PLATRAM
 	tristate "Map driver for platform device RAM (mtd-ram)"
-	depends on MTD
 	select MTD_RAM
 	help
 	  Map driver for RAM areas described via the platform device
