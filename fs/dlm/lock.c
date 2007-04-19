@@ -224,6 +224,16 @@ static inline int is_demoted(struct dlm_lkb *lkb)
 	return (lkb->lkb_sbflags & DLM_SBF_DEMOTED);
 }
 
+static inline int is_altmode(struct dlm_lkb *lkb)
+{
+	return (lkb->lkb_sbflags & DLM_SBF_ALTMODE);
+}
+
+static inline int is_granted(struct dlm_lkb *lkb)
+{
+	return (lkb->lkb_status == DLM_LKSTS_GRANTED);
+}
+
 static inline int is_remote(struct dlm_rsb *r)
 {
 	DLM_ASSERT(r->res_nodeid >= 0, dlm_print_rsb(r););
@@ -1191,6 +1201,50 @@ static void grant_lock_pending(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		queue_cast(r, lkb, 0);
 }
 
+/* The special CONVDEADLK, ALTPR and ALTCW flags allow the master to
+   change the granted/requested modes.  We're munging things accordingly in
+   the process copy.
+   CONVDEADLK: our grmode may have been forced down to NL to resolve a
+   conversion deadlock
+   ALTPR/ALTCW: our rqmode may have been changed to PR or CW to become
+   compatible with other granted locks */
+
+static void munge_demoted(struct dlm_lkb *lkb, struct dlm_message *ms)
+{
+	if (ms->m_type != DLM_MSG_CONVERT_REPLY) {
+		log_print("munge_demoted %x invalid reply type %d",
+			  lkb->lkb_id, ms->m_type);
+		return;
+	}
+
+	if (lkb->lkb_rqmode == DLM_LOCK_IV || lkb->lkb_grmode == DLM_LOCK_IV) {
+		log_print("munge_demoted %x invalid modes gr %d rq %d",
+			  lkb->lkb_id, lkb->lkb_grmode, lkb->lkb_rqmode);
+		return;
+	}
+
+	lkb->lkb_grmode = DLM_LOCK_NL;
+}
+
+static void munge_altmode(struct dlm_lkb *lkb, struct dlm_message *ms)
+{
+	if (ms->m_type != DLM_MSG_REQUEST_REPLY &&
+	    ms->m_type != DLM_MSG_GRANT) {
+		log_print("munge_altmode %x invalid reply type %d",
+			  lkb->lkb_id, ms->m_type);
+		return;
+	}
+
+	if (lkb->lkb_exflags & DLM_LKF_ALTPR)
+		lkb->lkb_rqmode = DLM_LOCK_PR;
+	else if (lkb->lkb_exflags & DLM_LKF_ALTCW)
+		lkb->lkb_rqmode = DLM_LOCK_CW;
+	else {
+		log_print("munge_altmode invalid exflags %x", lkb->lkb_exflags);
+		dlm_print_lkb(lkb);
+	}
+}
+
 static inline int first_in_list(struct dlm_lkb *lkb, struct list_head *head)
 {
 	struct dlm_lkb *first = list_entry(head->next, struct dlm_lkb,
@@ -1965,9 +2019,24 @@ static int do_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		goto out;
 	}
 
-	if (can_be_queued(lkb)) {
-		if (is_demoted(lkb))
+	/* is_demoted() means the can_be_granted() above set the grmode
+	   to NL, and left us on the granted queue.  This auto-demotion
+	   (due to CONVDEADLK) might mean other locks, and/or this lock, are
+	   now grantable.  We have to try to grant other converting locks
+	   before we try again to grant this one. */
+
+	if (is_demoted(lkb)) {
+		grant_pending_convert(r, DLM_LOCK_IV);
+		if (_can_be_granted(r, lkb, 1)) {
+			grant_lock(r, lkb);
+			queue_cast(r, lkb, 0);
 			grant_pending_locks(r);
+			goto out;
+		}
+		/* else fall through and move to convert queue */
+	}
+
+	if (can_be_queued(lkb)) {
 		error = -EINPROGRESS;
 		del_lkb(r, lkb);
 		add_lkb(r, lkb, DLM_LKSTS_CONVERT);
@@ -2908,6 +2977,8 @@ static void receive_grant(struct dlm_ls *ls, struct dlm_message *ms)
 	lock_rsb(r);
 
 	receive_flags_reply(lkb, ms);
+	if (is_altmode(lkb))
+		munge_altmode(lkb, ms);
 	grant_lock_pc(r, lkb, ms);
 	queue_cast(r, lkb, 0);
 
@@ -3038,6 +3109,8 @@ static void receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 		/* request was queued or granted on remote master */
 		receive_flags_reply(lkb, ms);
 		lkb->lkb_remid = ms->m_lkid;
+		if (is_altmode(lkb))
+			munge_altmode(lkb, ms);
 		if (result)
 			add_lkb(r, lkb, DLM_LKSTS_WAITING);
 		else {
@@ -3101,6 +3174,9 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 
 	case -EINPROGRESS:
 		/* convert was queued on remote master */
+		receive_flags_reply(lkb, ms);
+		if (is_demoted(lkb))
+			munge_demoted(lkb, ms);
 		del_lkb(r, lkb);
 		add_lkb(r, lkb, DLM_LKSTS_CONVERT);
 		break;
@@ -3108,6 +3184,8 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	case 0:
 		/* convert was granted on remote master */
 		receive_flags_reply(lkb, ms);
+		if (is_demoted(lkb))
+			munge_demoted(lkb, ms);
 		grant_lock_pc(r, lkb, ms);
 		queue_cast(r, lkb, 0);
 		break;
