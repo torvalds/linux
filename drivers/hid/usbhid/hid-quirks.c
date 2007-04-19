@@ -447,6 +447,34 @@ static const struct hid_blacklist {
 
 	{ 0, 0 }
 };
+/**
+* usbhid_exists_squirk: return any static quirks for a USB HID device
+* @idVendor: the 16-bit USB vendor ID, in native byteorder
+* @idProduct: the 16-bit USB product ID, in native byteorder
+*
+* Description:
+*     Given a USB vendor ID and product ID, return a pointer to
+*     the hid_blacklist entry associated with that device.
+*
+* Returns: pointer if quirk found, or NULL if no quirks found.
+*/
+static const struct hid_blacklist *usbhid_exists_squirk(const u16 idVendor,
+                                                       const u16 idProduct)
+{
+       const struct hid_blacklist *bl_entry = NULL;
+       int n = 0;
+
+	for (; hid_blacklist[n].idVendor; n++)
+		if (hid_blacklist[n].idVendor == idVendor &&
+				hid_blacklist[n].idProduct == idProduct)
+			bl_entry = &hid_blacklist[n];
+
+	if (bl_entry != NULL)
+		dbg("Found squirk 0x%x for USB HID vendor 0x%hx prod 0x%hx\n",
+				bl_entry->quirks, bl_entry->idVendor, 
+				bl_entry->idProduct);
+	return bl_entry;
+}
 
 /**
  * usbhid_lookup_quirk: return any quirks associated with a USB HID device
@@ -462,7 +490,7 @@ static const struct hid_blacklist {
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 {
 	u32 quirks = 0;
-	int n = 0;
+	const struct hid_blacklist *bl_entry = NULL;
 
 	/* Ignore all Wacom devices */
 	if (idVendor == USB_VENDOR_ID_WACOM)
@@ -474,10 +502,9 @@ u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 				idProduct <= USB_DEVICE_ID_CODEMERCS_IOW_LAST)
 			return HID_QUIRK_IGNORE;
 
-	for (; hid_blacklist[n].idVendor; n++)
-		if (hid_blacklist[n].idVendor == idVendor &&
-				hid_blacklist[n].idProduct == idProduct)
-			quirks = hid_blacklist[n].quirks;
-
+	bl_entry = usbhid_exists_squirk(idVendor, idProduct);
+	if (bl_entry)
+		quirks = bl_entry->quirks;
 	return quirks;
 }
+
