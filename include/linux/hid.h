@@ -495,6 +495,8 @@ void hid_output_report(struct hid_report *report, __u8 *data);
 void hid_free_device(struct hid_device *device);
 struct hid_device *hid_parse_report(__u8 *start, unsigned size);
 
+u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
+
 #ifdef CONFIG_HID_FF
 int hid_ff_init(struct hid_device *hid);
 

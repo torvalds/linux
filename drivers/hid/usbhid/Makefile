@@ -3,7 +3,7 @@
 #
 
 # Multipart objects.
-usbhid-objs	:= hid-core.o
+usbhid-objs	:= hid-core.o hid-quirks.o
 
 # Optional parts of multipart objects.
 
