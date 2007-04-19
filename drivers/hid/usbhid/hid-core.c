@@ -53,6 +53,13 @@ static unsigned int hid_mousepoll_interval;
 module_param_named(mousepoll, hid_mousepoll_interval, uint, 0644);
 MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
 
+/* Quirks specified at module load time */
+static char *quirks_param[MAX_USBHID_BOOT_QUIRKS] = { [ 0 ... (MAX_USBHID_BOOT_QUIRKS - 1) ] = NULL };
+module_param_array_named(quirks, quirks_param, charp, NULL, 0444);
+MODULE_PARM_DESC(quirks, "Add/modify USB HID quirks by specifying "
+		" quirks=vendorID:productID:quirks"
+		" where vendorID, productID, and quirks are all in"
+		" 0x-prefixed hex");
 /*
  * Input submission and I/O error handler.
  */
@@ -1072,6 +1079,9 @@ static struct usb_driver hid_driver = {
 static int __init hid_init(void)
 {
 	int retval;
+	retval = usbhid_quirks_init(quirks_param);
+	if (retval)
+		goto usbhid_quirks_init_fail;
 	retval = hiddev_init();
 	if (retval)
 		goto hiddev_init_fail;
@@ -1084,6 +1094,8 @@ static int __init hid_init(void)
 usb_register_fail:
 	hiddev_exit();
 hiddev_init_fail:
+	usbhid_quirks_exit();
+usbhid_quirks_init_fail:
 	return retval;
 }
 
@@ -1091,6 +1103,7 @@ static void __exit hid_exit(void)
 {
 	usb_deregister(&hid_driver);
 	hiddev_exit();
+	usbhid_quirks_exit();
 }
 
 module_init(hid_init);

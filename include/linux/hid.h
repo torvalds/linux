@@ -247,6 +247,11 @@ struct hid_item {
  * HID device quirks.
  */
 
+/* 
+ * Increase this if you need to configure more HID quirks at module load time
+ */
+#define MAX_USBHID_BOOT_QUIRKS 4
+
 #define HID_QUIRK_INVERT			0x00000001
 #define HID_QUIRK_NOTOUCH			0x00000002
 #define HID_QUIRK_IGNORE			0x00000004
@@ -495,8 +500,11 @@ void hid_output_report(struct hid_report *report, __u8 *data);
 void hid_free_device(struct hid_device *device);
 struct hid_device *hid_parse_report(__u8 *start, unsigned size);
 
+/* HID quirks API */
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
 int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct, const u32 quirks);
+int usbhid_quirks_init(char **quirks_param);
+void usbhid_quirks_exit(void);
 
 #ifdef CONFIG_HID_FF
 int hid_ff_init(struct hid_device *hid);

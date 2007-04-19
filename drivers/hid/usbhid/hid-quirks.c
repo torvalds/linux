@@ -576,6 +576,44 @@ static void usbhid_remove_all_dquirks(void)
 
 }
 
+/** 
+ * usbhid_quirks_init: apply USB HID quirks specified at module load time
+ */
+int usbhid_quirks_init(char **quirks_param)
+{
+	u16 idVendor, idProduct;
+	u32 quirks;
+	int n = 0, m;
+
+	for (; quirks_param[n] && n < MAX_USBHID_BOOT_QUIRKS; n++) {
+
+		m = sscanf(quirks_param[n], "0x%hx:0x%hx:0x%x",
+				&idVendor, &idProduct, &quirks);
+
+		if (m != 3 ||
+				usbhid_modify_dquirk(idVendor, idProduct, quirks) != 0) {
+			printk(KERN_WARNING
+					"Could not parse HID quirk module param %s\n",
+					quirks_param[n]);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * usbhid_quirks_exit: release memory associated with dynamic_quirks
+ *
+ * Description:
+ *     Release all memory associated with dynamic quirks.  Called upon
+ *     module unload.
+ *
+ * Returns: nothing
+ */
+void usbhid_quirks_exit(void)
+{
+	usbhid_remove_all_dquirks();
+}
 
 /**
  * usbhid_exists_squirk: return any static quirks for a USB HID device
