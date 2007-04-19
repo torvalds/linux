@@ -1407,7 +1407,7 @@ void dlm_lowcomms_stop(void)
 	clean_writequeues();
 
 	for (i = 0; i < max_nodeid; i++) {
-		con = nodeid2con(i, 0);
+		con = __nodeid2con(i, 0);
 		if (con) {
 			close_connection(con, true);
 			if (con->othercon)
