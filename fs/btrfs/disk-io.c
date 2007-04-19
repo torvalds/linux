@@ -108,6 +108,12 @@ int btrfs_map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
 
 	int ret;
 
+	if (logical == 0) {
+		bh->b_bdev = NULL;
+		bh->b_blocknr = 0;
+		set_buffer_mapped(bh);
+		return 0;
+	}
 	root = root->fs_info->dev_root;
 	ret = radix_tree_gang_lookup(&root->fs_info->dev_radix,
 				     (void **)lookup,

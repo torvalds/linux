@@ -111,6 +111,9 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 				continue;
 			fi = btrfs_item_ptr(buf_leaf, i,
 					    struct btrfs_file_extent_item);
+			if (btrfs_file_extent_type(fi) ==
+			    BTRFS_FILE_EXTENT_INLINE)
+				continue;
 			ret = btrfs_inc_extent_ref(trans, root,
 				    btrfs_file_extent_disk_blocknr(fi),
 				    btrfs_file_extent_disk_num_blocks(fi));
@@ -539,6 +542,8 @@ static int drop_leaf_ref(struct btrfs_trans_handle *trans,
 		if (btrfs_disk_key_type(key) != BTRFS_EXTENT_DATA_KEY)
 			continue;
 		fi = btrfs_item_ptr(leaf, i, struct btrfs_file_extent_item);
+		if (btrfs_file_extent_type(fi) == BTRFS_FILE_EXTENT_INLINE)
+			continue;
 		/*
 		 * FIXME make sure to insert a trans record that
 		 * repeats the snapshot del on crash

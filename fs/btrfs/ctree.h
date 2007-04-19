@@ -73,6 +73,9 @@ struct btrfs_header {
 			       (sizeof(struct btrfs_disk_key) + sizeof(u64)))
 #define __BTRFS_LEAF_DATA_SIZE(bs) ((bs) - sizeof(struct btrfs_header))
 #define BTRFS_LEAF_DATA_SIZE(r) (__BTRFS_LEAF_DATA_SIZE(r->blocksize))
+#define BTRFS_MAX_INLINE_DATA_SIZE(r) (BTRFS_LEAF_DATA_SIZE(r) - \
+					sizeof(struct btrfs_item) - \
+					sizeof(struct btrfs_file_extent_item))
 
 struct buffer_head;
 /*
@@ -204,8 +207,12 @@ struct btrfs_root_item {
 	__le32 refs;
 } __attribute__ ((__packed__));
 
+#define BTRFS_FILE_EXTENT_REG 0
+#define BTRFS_FILE_EXTENT_INLINE 1
+
 struct btrfs_file_extent_item {
 	__le64 generation;
+	u8 type;
 	/*
 	 * disk space consumed by the extent, checksum blocks are included
 	 * in these numbers
@@ -860,6 +867,34 @@ static inline void btrfs_set_super_device_root(struct btrfs_super_block
 static inline u8 *btrfs_leaf_data(struct btrfs_leaf *l)
 {
 	return (u8 *)l->items;
+}
+
+static inline int btrfs_file_extent_type(struct btrfs_file_extent_item *e)
+{
+	return e->type;
+}
+static inline void btrfs_set_file_extent_type(struct btrfs_file_extent_item *e,
+					      u8 val)
+{
+	e->type = val;
+}
+
+static inline char *btrfs_file_extent_inline_start(struct
+						   btrfs_file_extent_item *e)
+{
+	return (char *)(&e->disk_blocknr);
+}
+
+static inline u32 btrfs_file_extent_calc_inline_size(u32 datasize)
+{
+	return (unsigned long)(&((struct
+		  btrfs_file_extent_item *)NULL)->disk_blocknr) + datasize;
+}
+
+static inline u32 btrfs_file_extent_inline_len(struct btrfs_item *e)
+{
+	struct btrfs_file_extent_item *fe = NULL;
+	return btrfs_item_size(e) - (unsigned long)(&fe->disk_blocknr);
 }
 
 static inline u64 btrfs_file_extent_disk_blocknr(struct btrfs_file_extent_item
