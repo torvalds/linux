@@ -60,7 +60,7 @@ EXPORT_SYMBOL(mraid_mm_unregister_adp);
 EXPORT_SYMBOL(mraid_mm_adapter_app_handle);
 
 static int majorno;
-static uint32_t drvr_ver	= 0x02200206;
+static uint32_t drvr_ver	= 0x02200207;
 
 static int adapters_count_g;
 static struct list_head adapters_list_g;
