@@ -88,7 +88,7 @@ struct frag_queue
 	int			len;
 	int			meat;
 	int			iif;
-	struct timeval		stamp;
+	ktime_t			stamp;
 	unsigned int		csum;
 	__u8			last_in;	/* has first/last segment arrived? */
 #define COMPLETE		4
@@ -562,7 +562,7 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	if (skb->dev)
 		fq->iif = skb->dev->ifindex;
 	skb->dev = NULL;
-	skb_get_timestamp(skb, &fq->stamp);
+	fq->stamp = skb->tstamp;
 	fq->meat += skb->len;
 	atomic_add(skb->truesize, &ip6_frag_mem);
 
@@ -663,7 +663,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 
 	head->next = NULL;
 	head->dev = dev;
-	skb_set_timestamp(head, &fq->stamp);
+	head->tstamp = fq->stamp;
 	head->nh.ipv6h->payload_len = htons(payload_len);
 	IP6CB(head)->nhoff = nhoff;
 

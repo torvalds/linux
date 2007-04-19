@@ -798,16 +798,12 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		dprintk("svc: recvfrom returned error %d\n", -err);
 	}
 	rqstp->rq_addrlen = sizeof(rqstp->rq_addr);
-	if (skb->tstamp.off_sec == 0) {
-		struct timeval tv;
-
-		tv.tv_sec = xtime.tv_sec;
-		tv.tv_usec = xtime.tv_nsec / NSEC_PER_USEC;
-		skb_set_timestamp(skb, &tv);
+	if (skb->tstamp.tv64 == 0) {
+		skb->tstamp = ktime_get_real();
 		/* Don't enable netstamp, sunrpc doesn't
 		   need that much accuracy */
 	}
-	skb_get_timestamp(skb, &svsk->sk_sk->sk_stamp);
+	svsk->sk_sk->sk_stamp = skb->tstamp;
 	set_bit(SK_DATA, &svsk->sk_flags); /* there may be more data... */
 
 	/*

@@ -582,6 +582,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	unsigned long status = TP_STATUS_LOSING|TP_STATUS_USER;
 	unsigned short macoff, netoff;
 	struct sk_buff *copy_skb = NULL;
+	struct timeval tv;
 
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		goto drop;
@@ -656,12 +657,13 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	h->tp_snaplen = snaplen;
 	h->tp_mac = macoff;
 	h->tp_net = netoff;
-	if (skb->tstamp.off_sec == 0) {
+	if (skb->tstamp.tv64 == 0) {
 		__net_timestamp(skb);
 		sock_enable_timestamp(sk);
 	}
-	h->tp_sec = skb->tstamp.off_sec;
-	h->tp_usec = skb->tstamp.off_usec;
+	tv = ktime_to_timeval(skb->tstamp);
+	h->tp_sec = tv.tv_sec;
+	h->tp_usec = tv.tv_usec;
 
 	sll = (struct sockaddr_ll*)((u8*)h + TPACKET_ALIGN(sizeof(*h)));
 	sll->sll_halen = 0;

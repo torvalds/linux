@@ -162,7 +162,7 @@ static int econet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	err = memcpy_toiovec(msg->msg_iov, skb->data, copied);
 	if (err)
 		goto out_free;
-	skb_get_timestamp(skb, &sk->sk_stamp);
+	sk->sk_stamp = skb->tstamp;
 
 	if (msg->msg_name)
 		memcpy(msg->msg_name, skb->cb, msg->msg_namelen);

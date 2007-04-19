@@ -197,6 +197,7 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 	struct sk_buff *skb;
 	struct ipq_packet_msg *pmsg;
 	struct nlmsghdr *nlh;
+	struct timeval tv;
 
 	read_lock_bh(&queue_lock);
 
@@ -241,8 +242,9 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 
 	pmsg->packet_id       = (unsigned long )entry;
 	pmsg->data_len        = data_len;
-	pmsg->timestamp_sec   = entry->skb->tstamp.off_sec;
-	pmsg->timestamp_usec  = entry->skb->tstamp.off_usec;
+	tv = ktime_to_timeval(entry->skb->tstamp);
+	pmsg->timestamp_sec   = tv.tv_sec;
+	pmsg->timestamp_usec  = tv.tv_usec;
 	pmsg->mark            = entry->skb->mark;
 	pmsg->hook            = entry->info->hook;
 	pmsg->hw_protocol     = entry->skb->protocol;

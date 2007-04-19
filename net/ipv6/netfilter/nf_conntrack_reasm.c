@@ -82,7 +82,7 @@ struct nf_ct_frag6_queue
 	struct sk_buff		*fragments;
 	int			len;
 	int			meat;
-	struct timeval		stamp;
+	ktime_t			stamp;
 	unsigned int		csum;
 	__u8			last_in;	/* has first/last segment arrived? */
 #define COMPLETE		4
@@ -542,7 +542,7 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 		fq->fragments = skb;
 
 	skb->dev = NULL;
-	skb_get_timestamp(skb, &fq->stamp);
+	fq->stamp = skb->tstamp;
 	fq->meat += skb->len;
 	atomic_add(skb->truesize, &nf_ct_frag6_mem);
 
@@ -648,7 +648,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	head->next = NULL;
 	head->dev = dev;
-	skb_set_timestamp(head, &fq->stamp);
+	head->tstamp = fq->stamp;
 	head->nh.ipv6h->payload_len = htons(payload_len);
 
 	/* Yes, and fold redundant checksum back. 8) */

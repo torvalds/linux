@@ -1031,23 +1031,12 @@ void net_disable_timestamp(void)
 	atomic_dec(&netstamp_needed);
 }
 
-void __net_timestamp(struct sk_buff *skb)
-{
-	struct timeval tv;
-
-	do_gettimeofday(&tv);
-	skb_set_timestamp(skb, &tv);
-}
-EXPORT_SYMBOL(__net_timestamp);
-
 static inline void net_timestamp(struct sk_buff *skb)
 {
 	if (atomic_read(&netstamp_needed))
 		__net_timestamp(skb);
-	else {
-		skb->tstamp.off_sec = 0;
-		skb->tstamp.off_usec = 0;
-	}
+	else
+		skb->tstamp.tv64 = 0;
 }
 
 /*
@@ -1577,7 +1566,7 @@ int netif_rx(struct sk_buff *skb)
 	if (netpoll_rx(skb))
 		return NET_RX_DROP;
 
-	if (!skb->tstamp.off_sec)
+	if (!skb->tstamp.tv64)
 		net_timestamp(skb);
 
 	/*
@@ -1769,7 +1758,7 @@ int netif_receive_skb(struct sk_buff *skb)
 	if (skb->dev->poll && netpoll_rx(skb))
 		return NET_RX_DROP;
 
-	if (!skb->tstamp.off_sec)
+	if (!skb->tstamp.tv64)
 		net_timestamp(skb);
 
 	if (!skb->iif)

@@ -92,7 +92,7 @@ struct ipq {
 	spinlock_t	lock;
 	atomic_t	refcnt;
 	struct timer_list timer;	/* when will this queue expire?		*/
-	struct timeval	stamp;
+	ktime_t		stamp;
 	int             iif;
 	unsigned int    rid;
 	struct inet_peer *peer;
@@ -592,7 +592,7 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	if (skb->dev)
 		qp->iif = skb->dev->ifindex;
 	skb->dev = NULL;
-	skb_get_timestamp(skb, &qp->stamp);
+	qp->stamp = skb->tstamp;
 	qp->meat += skb->len;
 	atomic_add(skb->truesize, &ip_frag_mem);
 	if (offset == 0)
@@ -674,7 +674,7 @@ static struct sk_buff *ip_frag_reasm(struct ipq *qp, struct net_device *dev)
 
 	head->next = NULL;
 	head->dev = dev;
-	skb_set_timestamp(head, &qp->stamp);
+	head->tstamp = qp->stamp;
 
 	iph = head->nh.iph;
 	iph->frag_off = 0;
@@ -734,7 +734,7 @@ struct sk_buff *ip_defrag(struct sk_buff *skb, u32 user)
 	return NULL;
 }
 
-void ipfrag_init(void)
+void __init ipfrag_init(void)
 {
 	ipfrag_hash_rnd = (u32) ((num_physpages ^ (num_physpages>>7)) ^
 				 (jiffies ^ (jiffies >> 6)));

@@ -255,7 +255,7 @@ static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 	ipv6_addr_copy(&ipv6h->saddr, &hao->addr);
 	ipv6_addr_copy(&hao->addr, &tmp_addr);
 
-	if (skb->tstamp.off_sec == 0)
+	if (skb->tstamp.tv64 == 0)
 		__net_timestamp(skb);
 
 	return 1;

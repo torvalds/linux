@@ -187,6 +187,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	ulog_packet_msg_t *pm;
 	size_t size, copy_len;
 	struct nlmsghdr *nlh;
+	struct timeval tv;
 
 	/* ffs == find first bit set, necessary because userspace
 	 * is already shifting groupnumber, but we need unshifted.
@@ -232,13 +233,14 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	pm = NLMSG_DATA(nlh);
 
 	/* We might not have a timestamp, get one */
-	if (skb->tstamp.off_sec == 0)
+	if (skb->tstamp.tv64 == 0)
 		__net_timestamp((struct sk_buff *)skb);
 
 	/* copy hook, prefix, timestamp, payload, etc. */
 	pm->data_len = copy_len;
-	put_unaligned(skb->tstamp.off_sec, &pm->timestamp_sec);
-	put_unaligned(skb->tstamp.off_usec, &pm->timestamp_usec);
+	tv = ktime_to_timeval(skb->tstamp);
+	put_unaligned(tv.tv_sec, &pm->timestamp_sec);
+	put_unaligned(tv.tv_usec, &pm->timestamp_usec);
 	put_unaligned(skb->mark, &pm->mark);
 	pm->hook = hooknum;
 	if (prefix != NULL)

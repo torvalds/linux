@@ -469,6 +469,7 @@ struct timeval ns_to_timeval(const s64 nsec)
 
 	return tv;
 }
+EXPORT_SYMBOL(ns_to_timeval);
 
 /*
  * Convert jiffies to milliseconds and back.
