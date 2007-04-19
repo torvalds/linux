@@ -1257,6 +1257,7 @@ bad:
 }
 
 extern void selinux_complete_init(void);
+static int security_preserve_bools(struct policydb *p);
 
 /**
  * security_load_policy - Load a security policy configuration.
@@ -1330,6 +1331,12 @@ int security_load_policy(void *data, size_t len)
 		printk(KERN_ERR
 		       "security:  the definition of a class is incorrect\n");
 		rc = -EINVAL;
+		goto err;
+	}
+
+	rc = security_preserve_bools(&newpolicydb);
+	if (rc) {
+		printk(KERN_ERR "security:  unable to preserve booleans\n");
 		goto err;
 	}
 
@@ -1887,6 +1894,37 @@ int security_get_bool_value(int bool)
 	rc = policydb.bool_val_to_struct[bool]->state;
 out:
 	POLICY_RDUNLOCK;
+	return rc;
+}
+
+static int security_preserve_bools(struct policydb *p)
+{
+	int rc, nbools = 0, *bvalues = NULL, i;
+	char **bnames = NULL;
+	struct cond_bool_datum *booldatum;
+	struct cond_node *cur;
+
+	rc = security_get_bools(&nbools, &bnames, &bvalues);
+	if (rc)
+		goto out;
+	for (i = 0; i < nbools; i++) {
+		booldatum = hashtab_search(p->p_bools.table, bnames[i]);
+		if (booldatum)
+			booldatum->state = bvalues[i];
+	}
+	for (cur = p->cond_list; cur != NULL; cur = cur->next) {
+		rc = evaluate_cond_node(p, cur);
+		if (rc)
+			goto out;
+	}
+
+out:
+	if (bnames) {
+		for (i = 0; i < nbools; i++)
+			kfree(bnames[i]);
+	}
+	kfree(bnames);
+	kfree(bvalues);
 	return rc;
 }
 
