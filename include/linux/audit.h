@@ -112,6 +112,7 @@
 #define AUDIT_FIRST_KERN_ANOM_MSG   1700
 #define AUDIT_LAST_KERN_ANOM_MSG    1799
 #define AUDIT_ANOM_PROMISCUOUS      1700 /* Device changed promiscuous mode */
+#define AUDIT_ANOM_ABEND            1701 /* Process ended abnormally */
 
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
@@ -377,6 +378,7 @@ static inline void audit_inode_child(const char *dname,
 	if (unlikely(!audit_dummy_context()))
 		__audit_inode_child(dname, inode, parent);
 }
+void audit_core_dumps(long signr);
 
 static inline void audit_ptrace(struct task_struct *t)
 {
@@ -467,6 +469,7 @@ extern int audit_signals;
 #define __audit_inode_child(d,i,p) do { ; } while (0)
 #define audit_inode(n,i) do { ; } while (0)
 #define audit_inode_child(d,i,p) do { ; } while (0)
+#define audit_core_dumps(i) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
 #define audit_log_task_context(b) do { ; } while (0)
