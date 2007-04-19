@@ -48,6 +48,7 @@ extern struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261;
 extern struct dvb_pll_desc dvb_pll_philips_td1316;
 
 extern struct dvb_pll_desc dvb_pll_thomson_fe6600;
+extern struct dvb_pll_desc dvb_pll_opera1;
 
 extern int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 			     u32 freq, int bandwidth);

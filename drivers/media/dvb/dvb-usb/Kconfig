@@ -211,3 +211,10 @@ config DVB_USB_DTT200U
 	  The receivers are also known as DTT200U (Yakumo) and UB300 (Yuan).
 
 	  The WT-220U and its clones are pen-sized.
+
+config DVB_USB_OPERA1
+	tristate "Opera1 DVB-S USB2.0 receiver"
+	depends on DVB_USB
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the Opera DVB-S USB2.0 receiver.

@@ -451,6 +451,31 @@ struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
 	}
 };
 EXPORT_SYMBOL(dvb_pll_thomson_fe6600);
+static void opera1_bw(u8 *buf, u32 freq, int bandwidth)
+{
+	if (bandwidth == BANDWIDTH_8_MHZ)
+		buf[2] |= 0x08;
+}
+
+struct dvb_pll_desc dvb_pll_opera1 = {
+	.name  = "Opera Tuner",
+	.min   =  900000,
+	.max   = 2250000,
+	.iffreq= 0,
+	.setbw = opera1_bw,
+	.count = 8,
+	.entries = {
+		{ 1064000, 500, 0xe5, 0xc6 },
+		{ 1169000, 500, 0xe5, 0xe6 },
+		{ 1299000, 500, 0xe5, 0x24 },
+		{ 1444000, 500, 0xe5, 0x44 },
+		{ 1606000, 500, 0xe5, 0x64 },
+		{ 1777000, 500, 0xe5, 0x84 },
+		{ 1941000, 500, 0xe5, 0xa4 },
+		{ 2250000, 500, 0xe5, 0xc4 },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_opera1);
 
 struct dvb_pll_priv {
 	/* i2c details */
