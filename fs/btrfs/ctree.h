@@ -185,11 +185,6 @@ struct btrfs_inode_item {
 	struct btrfs_inode_timespec otime;
 } __attribute__ ((__packed__));
 
-/* inline data is just a blob of bytes */
-struct btrfs_inline_data_item {
-	u8 data;
-} __attribute__ ((__packed__));
-
 struct btrfs_dir_item {
 	struct btrfs_disk_key location;
 	__le16 flags;
@@ -292,9 +287,6 @@ struct btrfs_root {
 #define BTRFS_KEY_TYPE_SHIFT	24
 #define BTRFS_KEY_TYPE_MASK	(((u32)BTRFS_KEY_TYPE_MAX - 1) << \
 				  BTRFS_KEY_TYPE_SHIFT)
-
-#define BTRFS_KEY_OVERFLOW_MAX 128
-#define BTRFS_KEY_OVERFLOW_MASK ((u32)BTRFS_KEY_OVERFLOW_MAX - 1)
 
 /*
  * inode items have the data typically returned from stat and store other
@@ -619,31 +611,6 @@ static inline void btrfs_set_key_type(struct btrfs_key *key, u32 val)
 	BUG_ON(val >= BTRFS_KEY_TYPE_MAX);
 	val = val << BTRFS_KEY_TYPE_SHIFT;
 	key->flags = (key->flags & ~(BTRFS_KEY_TYPE_MASK)) | val;
-}
-
-static inline u32 btrfs_key_overflow(struct btrfs_key *key)
-{
-	return key->flags & BTRFS_KEY_OVERFLOW_MASK;
-}
-
-static inline void btrfs_set_key_overflow(struct btrfs_key *key, u32 over)
-{
-	BUG_ON(over >= BTRFS_KEY_OVERFLOW_MAX);
-	key->flags = (key->flags & ~BTRFS_KEY_OVERFLOW_MASK) | over;
-}
-
-static inline u32 btrfs_disk_key_overflow(struct btrfs_disk_key *key)
-{
-	return le32_to_cpu(key->flags) & BTRFS_KEY_OVERFLOW_MASK;
-}
-
-static inline void btrfs_set_disk_key_overflow(struct btrfs_disk_key *key,
-					       u32 over)
-{
-	u32 flags = btrfs_disk_key_flags(key);
-	BUG_ON(over >= BTRFS_KEY_OVERFLOW_MAX);
-	flags = (flags & ~BTRFS_KEY_OVERFLOW_MASK) | over;
-	btrfs_set_disk_key_flags(key, flags);
 }
 
 static inline u64 btrfs_header_blocknr(struct btrfs_header *h)
@@ -1079,15 +1046,24 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  *root, const char *name, int name_len, u64 dir,
 			  struct btrfs_key *location, u8 type);
-int btrfs_lookup_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
-			  *root, struct btrfs_path *path, u64 dir,
-			  const char *name, int name_len, int mod);
-int btrfs_lookup_dir_index_item(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root,
-				struct btrfs_path *path, u64 dir,
-				u64 objectid, int mod);
-int btrfs_match_dir_item_name(struct btrfs_root *root, struct btrfs_path *path,
+struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,
+					     struct btrfs_root *root,
+					     struct btrfs_path *path, u64 dir,
+					     const char *name, int name_len,
+					     int mod);
+struct btrfs_dir_item *
+btrfs_lookup_dir_index_item(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root,
+			    struct btrfs_path *path, u64 dir,
+			    u64 objectid, const char *name, int name_len,
+			    int mod);
+struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_root *root,
+			      struct btrfs_path *path,
 			      const char *name, int name_len);
+int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root,
+			      struct btrfs_path *path,
+			      struct btrfs_dir_item *di);
 /* inode-map.c */
 int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *fs_root,

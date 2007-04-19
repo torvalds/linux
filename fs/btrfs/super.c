@@ -127,32 +127,43 @@ static int btrfs_unlink_trans(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	const char *name = dentry->d_name.name;
 	int name_len = dentry->d_name.len;
-	int ret;
+	int ret = 0;
 	u64 objectid;
 	struct btrfs_dir_item *di;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	btrfs_init_path(path);
-	ret = btrfs_lookup_dir_item(trans, root, path, dir->i_ino,
+	di = btrfs_lookup_dir_item(trans, root, path, dir->i_ino,
 				    name, name_len, -1);
-	if (ret < 0)
+	if (IS_ERR(di)) {
+		ret = PTR_ERR(di);
 		goto err;
-	if (ret > 0) {
+	}
+	if (!di) {
 		ret = -ENOENT;
 		goto err;
 	}
-	di = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
-			    struct btrfs_dir_item);
 	objectid = btrfs_disk_key_objectid(&di->location);
+	ret = btrfs_delete_one_dir_name(trans, root, path, di);
+	BUG_ON(ret);
+	btrfs_release_path(root, path);
 
-	ret = btrfs_del_item(trans, root, path);
+	di = btrfs_lookup_dir_index_item(trans, root, path, dir->i_ino,
+					 objectid, name, name_len, -1);
+	if (IS_ERR(di)) {
+		ret = PTR_ERR(di);
+		goto err;
+	}
+	if (!di) {
+		ret = -ENOENT;
+		goto err;
+	}
+	ret = btrfs_delete_one_dir_name(trans, root, path, di);
 	BUG_ON(ret);
 
-	btrfs_release_path(root, path);
 	dentry->d_inode->i_ctime = dir->i_ctime;
 err:
-	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	if (ret == 0) {
 		inode_dec_link_count(dentry->d_inode);
@@ -388,15 +399,13 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	btrfs_init_path(path);
-	ret = btrfs_lookup_dir_item(NULL, root, path, dir->i_ino, name,
+	di = btrfs_lookup_dir_item(NULL, root, path, dir->i_ino, name,
 				    namelen, 0);
-	if (ret || !btrfs_match_dir_item_name(root, path, name, namelen)) {
+	if (!di || IS_ERR(di)) {
 		location->objectid = 0;
 		ret = 0;
 		goto out;
 	}
-	di = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
-			    struct btrfs_dir_item);
 	btrfs_disk_key_to_cpu(location, &di->location);
 out:
 	btrfs_release_path(root, path);
@@ -523,7 +532,10 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	int advance;
 	unsigned char d_type = DT_UNKNOWN;
 	int over = 0;
-	int key_type = BTRFS_DIR_ITEM_KEY;
+	u32 di_cur;
+	u32 di_total;
+	u32 di_len;
+	int key_type = BTRFS_DIR_INDEX_KEY;
 
 	/* FIXME, use a real flag for deciding about the key type */
 	if (root->fs_info->tree_root == root)
@@ -567,12 +579,20 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		filp->f_pos = btrfs_disk_key_offset(&item->key);
 		advance = 1;
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
-		over = filldir(dirent, (const char *)(di + 1),
-			       btrfs_dir_name_len(di),
-			       btrfs_disk_key_offset(&item->key),
-			       btrfs_disk_key_objectid(&di->location), d_type);
-		if (over)
-			goto nopos;
+		di_cur = 0;
+		di_total = btrfs_item_size(leaf->items + slot);
+		while(di_cur < di_total) {
+			over = filldir(dirent, (const char *)(di + 1),
+				       btrfs_dir_name_len(di),
+				       btrfs_disk_key_offset(&item->key),
+				       btrfs_disk_key_objectid(&di->location),
+				       d_type);
+			if (over)
+				goto nopos;
+			di_len = btrfs_dir_name_len(di) + sizeof(*di);
+			di_cur += di_len;
+			di = (struct btrfs_dir_item *)((char *)di + di_len);
+		}
 	}
 	filp->f_pos++;
 nopos:
@@ -934,75 +954,6 @@ printk("btrfs sync_fs\n");
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return 0;
 }
-
-#if 0
-static int btrfs_get_block_inline(struct inode *inode, sector_t iblock,
-			   struct buffer_head *result, int create)
-{
-	struct btrfs_root *root = btrfs_sb(inode->i_sb);
-	struct btrfs_path *path;
-	struct btrfs_key key;
-	struct btrfs_leaf *leaf;
-	int num_bytes = result->b_size;
-	int item_size;
-	int ret;
-	u64 pos;
-	char *ptr;
-	int copy_size;
-	int err = 0;
-	char *safe_ptr;
-	char *data_ptr;
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
-
-	WARN_ON(create);
-	if (create) {
-		return 0;
-	}
-	pos = iblock << inode->i_blkbits;
-	key.objectid = inode->i_ino;
-	key.flags = 0;
-	btrfs_set_key_type(&key, BTRFS_INLINE_DATA_KEY);
-	ptr = kmap(result->b_page);
-	safe_ptr = ptr;
-	ptr += (pos & (PAGE_CACHE_SIZE -1));
-again:
-	key.offset = pos;
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret) {
-		if (ret < 0)
-			err = ret;
-		else
-			err = 0;
-		goto out;
-	}
-	leaf = btrfs_buffer_leaf(path->nodes[0]);
-	item_size = btrfs_item_size(leaf->items + path->slots[0]);
-	copy_size = min(num_bytes, item_size);
-	data_ptr = btrfs_item_ptr(leaf, path->slots[0], char);
-	WARN_ON(safe_ptr + PAGE_CACHE_SIZE < ptr + copy_size);
-	memcpy(ptr, data_ptr, copy_size);
-	pos += copy_size;
-	num_bytes -= copy_size;
-	WARN_ON(num_bytes < 0);
-	ptr += copy_size;
-	btrfs_release_path(root, path);
-	if (num_bytes != 0) {
-		if (pos >= i_size_read(inode))
-			memset(ptr, 0, num_bytes);
-		else
-			goto again;
-	}
-	set_buffer_uptodate(result);
-	map_bh(result, inode->i_sb, 0);
-	err = 0;
-out:
-	btrfs_free_path(path);
-	kunmap(result->b_page);
-	return err;
-}
-#endif
 
 static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 			   struct buffer_head *result, int create)
@@ -1907,174 +1858,6 @@ out:
 	return num_written ? num_written : err;
 }
 
-#if 0
-static ssize_t inline_one_page(struct btrfs_root *root, struct inode *inode,
-			   struct page *page, loff_t pos,
-			   size_t offset, size_t write_bytes)
-{
-	struct btrfs_path *path;
-	struct btrfs_trans_handle *trans;
-	struct btrfs_key key;
-	struct btrfs_leaf *leaf;
-	struct btrfs_key found_key;
-	int ret;
-	size_t copy_size = 0;
-	char *dst = NULL;
-	int err = 0;
-	size_t num_written = 0;
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
-	mutex_lock(&root->fs_info->fs_mutex);
-	trans = btrfs_start_transaction(root, 1);
-	key.objectid = inode->i_ino;
-	key.flags = 0;
-	btrfs_set_key_type(&key, BTRFS_INLINE_DATA_KEY);
-
-again:
-	key.offset = pos;
-	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
-	if (ret < 0) {
-		err = ret;
-		goto out;
-	}
-	if (ret == 0) {
-		leaf = btrfs_buffer_leaf(path->nodes[0]);
-		btrfs_disk_key_to_cpu(&found_key,
-				      &leaf->items[path->slots[0]].key);
-		copy_size = btrfs_item_size(leaf->items + path->slots[0]);
-		dst = btrfs_item_ptr(leaf, path->slots[0], char);
-		copy_size = min(write_bytes, copy_size);
-		goto copyit;
-	} else {
-		int slot = path->slots[0];
-		if (slot > 0) {
-			slot--;
-		}
-		// FIXME find max key
-		leaf = btrfs_buffer_leaf(path->nodes[0]);
-		btrfs_disk_key_to_cpu(&found_key,
-				      &leaf->items[slot].key);
-		if (found_key.objectid != inode->i_ino)
-			goto insert;
-		if (btrfs_key_type(&found_key) != BTRFS_INLINE_DATA_KEY)
-			goto insert;
-		copy_size = btrfs_item_size(leaf->items + slot);
-		if (found_key.offset + copy_size <= pos)
-			goto insert;
-		dst = btrfs_item_ptr(leaf, path->slots[0], char);
-		dst += pos - found_key.offset;
-		copy_size = copy_size - (pos - found_key.offset);
-		BUG_ON(copy_size < 0);
-		copy_size = min(write_bytes, copy_size);
-		WARN_ON(copy_size == 0);
-		goto copyit;
-	}
-insert:
-	btrfs_release_path(root, path);
-	copy_size = min(write_bytes,
-			(size_t)BTRFS_LEAF_DATA_SIZE(root) -
-			sizeof(struct btrfs_item) * 4);
-	ret = btrfs_insert_empty_item(trans, root, path, &key, copy_size);
-	BUG_ON(ret);
-	dst = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
-			     path->slots[0], char);
-copyit:
-	WARN_ON(copy_size == 0);
-	WARN_ON(dst + copy_size >
-		btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
-						 path->slots[0], char) +
-		btrfs_item_size(btrfs_buffer_leaf(path->nodes[0])->items +
-						  path->slots[0]));
-	btrfs_memcpy(root, path->nodes[0]->b_data, dst,
-		     page_address(page) + offset, copy_size);
-	mark_buffer_dirty(path->nodes[0]);
-	btrfs_release_path(root, path);
-	pos += copy_size;
-	offset += copy_size;
-	num_written += copy_size;
-	write_bytes -= copy_size;
-	if (write_bytes)
-		goto again;
-out:
-	btrfs_free_path(path);
-	ret = btrfs_end_transaction(trans, root);
-	BUG_ON(ret);
-	mutex_unlock(&root->fs_info->fs_mutex);
-	return num_written ? num_written : err;
-}
-
-static ssize_t btrfs_file_inline_write(struct file *file,
-				       const char __user *buf,
-				       size_t count, loff_t *ppos)
-{
-	loff_t pos;
-	size_t num_written = 0;
-	int err = 0;
-	int ret = 0;
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	unsigned long page_index;
-
-	if (file->f_flags & O_DIRECT)
-		return -EINVAL;
-	pos = *ppos;
-
-	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
-	current->backing_dev_info = inode->i_mapping->backing_dev_info;
-	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
-	if (err)
-		goto out;
-	if (count == 0)
-		goto out;
-	err = remove_suid(file->f_path.dentry);
-	if (err)
-		goto out;
-	file_update_time(file);
-	mutex_lock(&inode->i_mutex);
-	while(count > 0) {
-		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
-		size_t write_bytes = min(count, PAGE_CACHE_SIZE - offset);
-		struct page *page;
-
-		page_index = pos >> PAGE_CACHE_SHIFT;
-		page = grab_cache_page(inode->i_mapping, page_index);
-		if (!PageUptodate(page)) {
-			ret = mpage_readpage(page, btrfs_get_block);
-			BUG_ON(ret);
-			lock_page(page);
-		}
-		ret = btrfs_copy_from_user(pos, 1,
-					   write_bytes, &page, buf);
-		BUG_ON(ret);
-		write_bytes = inline_one_page(root, inode, page, pos,
-				      offset, write_bytes);
-		SetPageUptodate(page);
-		if (write_bytes > 0 && pos + write_bytes > inode->i_size) {
-			i_size_write(inode, pos + write_bytes);
-			mark_inode_dirty(inode);
-		}
-		page_cache_release(page);
-		unlock_page(page);
-		if (write_bytes < 0)
-			goto out_unlock;
-		buf += write_bytes;
-		count -= write_bytes;
-		pos += write_bytes;
-		num_written += write_bytes;
-
-		balance_dirty_pages_ratelimited(inode->i_mapping);
-		cond_resched();
-	}
-out_unlock:
-	mutex_unlock(&inode->i_mutex);
-out:
-	*ppos = pos;
-	current->backing_dev_info = NULL;
-	return num_written ? num_written : err;
-}
-#endif
-
 static int btrfs_read_actor(read_descriptor_t *desc, struct page *page,
 			unsigned long offset, unsigned long size)
 {
@@ -2422,6 +2205,7 @@ static int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ioctl_vol_args vol_args;
 	int ret = 0;
+	struct btrfs_dir_item *di;
 	int namelen;
 	struct btrfs_path *path;
 	u64 root_dirid;
@@ -2440,12 +2224,12 @@ static int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 			return -ENOMEM;
 		root_dirid = root->fs_info->sb->s_root->d_inode->i_ino,
 		mutex_lock(&root->fs_info->fs_mutex);
-		ret = btrfs_lookup_dir_item(NULL, root->fs_info->tree_root,
+		di = btrfs_lookup_dir_item(NULL, root->fs_info->tree_root,
 				    path, root_dirid,
 				    vol_args.name, namelen, 0);
 		mutex_unlock(&root->fs_info->fs_mutex);
 		btrfs_free_path(path);
-		if (ret == 0)
+		if (di && !IS_ERR(di))
 			return -EEXIST;
 
 		if (root == root->fs_info->tree_root)
