@@ -39,13 +39,6 @@
 
 #include "uverbs.h"
 
-struct ib_umem_account_work {
-	struct work_struct work;
-	struct mm_struct  *mm;
-	unsigned long      diff;
-};
-
-
 static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int dirty)
 {
 	struct ib_umem_chunk *chunk, *tmp;
@@ -192,16 +185,15 @@ out:
 }
 EXPORT_SYMBOL(ib_umem_get);
 
-static void ib_umem_account(struct work_struct *_work)
+static void ib_umem_account(struct work_struct *work)
 {
-	struct ib_umem_account_work *work =
-		container_of(_work, struct ib_umem_account_work, work);
+	struct ib_umem *umem = container_of(work, struct ib_umem, work);
 
-	down_write(&work->mm->mmap_sem);
-	work->mm->locked_vm -= work->diff;
-	up_write(&work->mm->mmap_sem);
-	mmput(work->mm);
-	kfree(work);
+	down_write(&umem->mm->mmap_sem);
+	umem->mm->locked_vm -= umem->diff;
+	up_write(&umem->mm->mmap_sem);
+	mmput(umem->mm);
+	kfree(umem);
 }
 
 /**
@@ -210,7 +202,6 @@ static void ib_umem_account(struct work_struct *_work)
  */
 void ib_umem_release(struct ib_umem *umem)
 {
-	struct ib_umem_account_work *work;
 	struct ib_ucontext *context = umem->context;
 	struct mm_struct *mm;
 	unsigned long diff;
@@ -222,7 +213,6 @@ void ib_umem_release(struct ib_umem *umem)
 		return;
 
 	diff = PAGE_ALIGN(umem->length + umem->offset) >> PAGE_SHIFT;
-	kfree(umem);
 
 	/*
 	 * We may be called with the mm's mmap_sem already held.  This
@@ -233,17 +223,11 @@ void ib_umem_release(struct ib_umem *umem)
 	 * we defer the vm_locked accounting to the system workqueue.
 	 */
 	if (context->closing && !down_write_trylock(&mm->mmap_sem)) {
-		work = kmalloc(sizeof *work, GFP_KERNEL);
-		if (!work) {
-			mmput(mm);
-			return;
-		}
+		INIT_WORK(&umem->work, ib_umem_account);
+		umem->mm   = mm;
+		umem->diff = diff;
 
-		INIT_WORK(&work->work, ib_umem_account);
-		work->mm   = mm;
-		work->diff = diff;
-
-		schedule_work(&work->work);
+		schedule_work(&umem->work);
 		return;
 	} else
 		down_write(&mm->mmap_sem);
@@ -251,6 +235,7 @@ void ib_umem_release(struct ib_umem *umem)
 	current->mm->locked_vm -= diff;
 	up_write(&mm->mmap_sem);
 	mmput(mm);
+	kfree(umem);
 }
 EXPORT_SYMBOL(ib_umem_release);
 

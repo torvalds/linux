@@ -45,6 +45,9 @@ struct ib_umem {
 	int			page_size;
 	int                     writable;
 	struct list_head	chunk_list;
+	struct work_struct	work;
+	struct mm_struct       *mm;
+	unsigned long		diff;
 };
 
 struct ib_umem_chunk {
