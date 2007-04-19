@@ -351,8 +351,8 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	u64 mapping[IPOIB_CM_RX_SG];
 	int frags;
 
-	ipoib_dbg_data(priv, "cm recv completion: id %d, op %d, status: %d\n",
-		       wr_id, wc->opcode, wc->status);
+	ipoib_dbg_data(priv, "cm recv completion: id %d, status: %d\n",
+		       wr_id, wc->status);
 
 	if (unlikely(wr_id >= ipoib_recvq_size)) {
 		ipoib_warn(priv, "cm recv completion event with wrid %d (> %d)\n",
@@ -504,8 +504,8 @@ static void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ipoib_cm_tx *tx
 	struct ipoib_tx_buf *tx_req;
 	unsigned long flags;
 
-	ipoib_dbg_data(priv, "cm send completion: id %d, op %d, status: %d\n",
-		       wr_id, wc->opcode, wc->status);
+	ipoib_dbg_data(priv, "cm send completion: id %d, status: %d\n",
+		       wr_id, wc->status);
 
 	if (unlikely(wr_id >= ipoib_sendq_size)) {
 		ipoib_warn(priv, "cm send completion event with wrid %d (> %d)\n",
