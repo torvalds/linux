@@ -69,6 +69,10 @@ static struct kvm_vmx_segment_field {
 	VMX_SEGMENT_FIELD(LDTR),
 };
 
+/*
+ * Keep MSR_K6_STAR at the end, as setup_msrs() will try to optimize it
+ * away by decrementing the array size.
+ */
 static const u32 vmx_msr_index[] = {
 #ifdef CONFIG_X86_64
 	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR, MSR_KERNEL_GS_BASE,
@@ -322,6 +326,18 @@ static void setup_msrs(struct kvm_vcpu *vcpu)
 	else
 		nr_skip = NR_64BIT_MSRS;
 	nr_good_msrs = vcpu->nmsrs - nr_skip;
+
+	/*
+	 * MSR_K6_STAR is only needed on long mode guests, and only
+	 * if efer.sce is enabled.
+	 */
+	if (find_msr_entry(vcpu, MSR_K6_STAR)) {
+		--nr_good_msrs;
+#ifdef CONFIG_X86_64
+		if (is_long_mode(vcpu) && (vcpu->shadow_efer & EFER_SCE))
+			++nr_good_msrs;
+#endif
+	}
 
 	vmcs_writel(VM_ENTRY_MSR_LOAD_ADDR,
 		    virt_to_phys(vcpu->guest_msrs + nr_skip));
