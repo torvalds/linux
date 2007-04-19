@@ -768,6 +768,9 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 		unlock_policy_rwsem_write(cpu);
 		goto err_out;
 	}
+	policy->user_policy.min = policy->cpuinfo.min_freq;
+	policy->user_policy.max = policy->cpuinfo.max_freq;
+	policy->user_policy.governor = policy->governor;
 
 #ifdef CONFIG_SMP
 	for_each_cpu_mask(j, policy->cpus) {
@@ -858,10 +861,13 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 
 	policy->governor = NULL; /* to assure that the starting sequence is
 				  * run in cpufreq_set_policy */
-	unlock_policy_rwsem_write(cpu);
 
 	/* set default policy */
-	ret = cpufreq_set_policy(&new_policy);
+	ret = __cpufreq_set_policy(policy, &new_policy);
+	policy->user_policy.policy = policy->policy;
+
+	unlock_policy_rwsem_write(cpu);
+
 	if (ret) {
 		dprintk("setting policy failed\n");
 		goto err_out_unregister;
