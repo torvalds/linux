@@ -141,6 +141,7 @@ static struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
 	SNMP_MIB_SENTINEL
 };
+#endif	/* CONFIG_PROC_FS */
 
 static unsigned long
 fold_field(void *mib[], int offt)
@@ -155,6 +156,7 @@ fold_field(void *mib[], int offt)
 	return res;
 }
 
+#ifdef CONFIG_PROC_FS
 static inline void
 snmp6_seq_show_item(struct seq_file *seq, void **mib, struct snmp_mib *itemlist)
 {
@@ -206,6 +208,7 @@ static const struct file_operations snmp6_seq_fops = {
 	.llseek	 = seq_lseek,
 	.release = single_release,
 };
+#endif	/* CONFIG_PROC_FS */
 
 static inline void
 __snmp6_fill_stats(u64 *stats, void **mib, int items, int bytes)
@@ -232,6 +235,7 @@ snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype, int bytes)
 	}
 }
 
+#ifdef CONFIG_PROC_FS
 int snmp6_register_dev(struct inet6_dev *idev)
 {
 	struct proc_dir_entry *p;
@@ -307,12 +311,6 @@ int snmp6_register_dev(struct inet6_dev *idev)
 int snmp6_unregister_dev(struct inet6_dev *idev)
 {
 	return 0;
-}
-
-void
-snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype, int bytes)
-{
-	memset(stats, 0, sizeof(bytes));
 }
 
 #endif	/* CONFIG_PROC_FS */
