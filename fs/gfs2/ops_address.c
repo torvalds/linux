@@ -197,7 +197,19 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	void *kaddr;
 	int error;
 
-	BUG_ON(page->index);
+	/*
+	 * Due to the order of unstuffing files and ->nopage(), we can be
+	 * asked for a zero page in the case of a stuffed file being extended,
+	 * so we need to supply one here. It doesn't happen often.
+	 */
+	if (unlikely(page->index)) {
+		kaddr = kmap_atomic(page, KM_USER0);
+		memset(kaddr, 0, PAGE_CACHE_SIZE);
+		kunmap_atomic(kaddr, KM_USER0);
+		flush_dcache_page(page);
+		SetPageUptodate(page);
+		return 0;
+	}
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
@@ -208,9 +220,8 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	       ip->i_di.di_size);
 	memset(kaddr + ip->i_di.di_size, 0, PAGE_CACHE_SIZE - ip->i_di.di_size);
 	kunmap_atomic(kaddr, KM_USER0);
-
+	flush_dcache_page(page);
 	brelse(dibh);
-
 	SetPageUptodate(page);
 
 	return 0;
