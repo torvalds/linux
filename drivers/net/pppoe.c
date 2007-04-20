@@ -218,17 +218,6 @@ static inline struct pppox_sock *get_item_by_addr(struct sockaddr_pppox *sp)
 	return get_item(sp->sa_addr.pppoe.sid, sp->sa_addr.pppoe.remote, ifindex);
 }
 
-static inline int set_item(struct pppox_sock *po)
-{
-	int i;
-
-	write_lock_bh(&pppoe_hash_lock);
-	i = __set_item(po);
-	write_unlock_bh(&pppoe_hash_lock);
-
-	return i;
-}
-
 static inline struct pppox_sock *delete_item(unsigned long sid, char *addr, int ifindex)
 {
 	struct pppox_sock *ret;
@@ -595,14 +584,18 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		po->pppoe_dev = dev;
 		po->pppoe_ifindex = dev->ifindex;
 
-		if (!(dev->flags & IFF_UP))
+		write_lock_bh(&pppoe_hash_lock);
+		if (!(dev->flags & IFF_UP)){
+			write_unlock_bh(&pppoe_hash_lock);
 			goto err_put;
+		}
 
 		memcpy(&po->pppoe_pa,
 		       &sp->sa_addr.pppoe,
 		       sizeof(struct pppoe_addr));
 
-		error = set_item(po);
+		error = __set_item(po);
+		write_unlock_bh(&pppoe_hash_lock);
 		if (error < 0)
 			goto err_put;
 
