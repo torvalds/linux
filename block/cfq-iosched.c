@@ -442,7 +442,8 @@ static unsigned long cfq_slice_offset(struct cfq_data *cfqd,
 	/*
 	 * just an approximation, should be ok.
 	 */
-	return ((cfqd->busy_queues - 1) * cfq_prio_slice(cfqd, 1, 0));
+	return (cfqd->busy_queues - 1) * (cfq_prio_slice(cfqd, 1, 0) -
+		       cfq_prio_slice(cfqd, cfq_cfqq_sync(cfqq), cfqq->ioprio));
 }
 
 /*
