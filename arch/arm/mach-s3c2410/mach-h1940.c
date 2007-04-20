@@ -129,7 +129,6 @@ static struct s3c2410_udc_mach_info h1940_udc_cfg __initdata = {
 };
 
 
-
 /**
  * Set lcd on or off
  **/
@@ -188,17 +187,11 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_leds,
 };
 
-static struct s3c24xx_board h1940_board __initdata = {
-	.devices       = h1940_devices,
-	.devices_count = ARRAY_SIZE(h1940_devices)
-};
-
 static void __init h1940_map_io(void)
 {
 	s3c24xx_init_io(h1940_iodesc, ARRAY_SIZE(h1940_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(h1940_uartcfgs, ARRAY_SIZE(h1940_uartcfgs));
-	s3c24xx_set_board(&h1940_board);
 
 	/* setup PM */
 
@@ -232,6 +225,8 @@ static void __init h1940_init(void)
 	      | (0x02 << S3C2410_PLLCON_PDIVSHIFT)
 	      | (0x03 << S3C2410_PLLCON_SDIVSHIFT);
 	writel(tmp, S3C2410_UPLLCON);
+
+	platform_add_devices(h1940_devices, ARRAY_SIZE(h1940_devices));
 }
 
 MACHINE_START(H1940, "IPAQ-H1940")

@@ -100,20 +100,17 @@ static struct platform_device *otom11_devices[] __initdata = {
 	&otom_device_nor,
 };
 
-static struct s3c24xx_board otom11_board __initdata = {
-	.devices       = otom11_devices,
-	.devices_count = ARRAY_SIZE(otom11_devices)
-};
-
-
 static void __init otom11_map_io(void)
 {
 	s3c24xx_init_io(otom11_iodesc, ARRAY_SIZE(otom11_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(otom11_uartcfgs, ARRAY_SIZE(otom11_uartcfgs));
-	s3c24xx_set_board(&otom11_board);
 }
 
+static void __init otom11_init(void)
+{
+	platform_add_devices(otom11_devices, ARRAY_SIZE(otom11_devices));
+}
 
 MACHINE_START(OTOM, "Nex Vision - Otom 1.1")
 	/* Maintainer: Guillaume GOURAT <guillaume.gourat@nexvision.tv> */
@@ -121,6 +118,7 @@ MACHINE_START(OTOM, "Nex Vision - Otom 1.1")
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= otom11_map_io,
+	.init_machine	= otom11_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

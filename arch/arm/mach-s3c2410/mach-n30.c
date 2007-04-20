@@ -90,17 +90,11 @@ static struct s3c2410_platform_i2c n30_i2ccfg = {
 	.max_freq	= 10*1000,
 };
 
-static struct s3c24xx_board n30_board __initdata = {
-	.devices       = n30_devices,
-	.devices_count = ARRAY_SIZE(n30_devices)
-};
-
 static void __init n30_map_io(void)
 {
 	s3c24xx_init_io(n30_iodesc, ARRAY_SIZE(n30_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(n30_uartcfgs, ARRAY_SIZE(n30_uartcfgs));
-	s3c24xx_set_board(&n30_board);
 }
 
 static void __init n30_init_irq(void)
@@ -120,6 +114,8 @@ static void __init n30_init(void)
 	s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
 			      S3C2410_MISCCR_USBSUSPND0 |
 			      S3C2410_MISCCR_USBSUSPND1, 0x0);
+
+	platform_add_devices(n30_devices, ARRAY_SIZE(n30_devices));
 }
 
 MACHINE_START(N30, "Acer-N30")

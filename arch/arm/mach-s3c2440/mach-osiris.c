@@ -251,11 +251,6 @@ static struct clk *osiris_clocks[] = {
 	&s3c24xx_uclk,
 };
 
-static struct s3c24xx_board osiris_board __initdata = {
-	.devices       = osiris_devices,
-	.devices_count = ARRAY_SIZE(osiris_devices),
-};
-
 static void __init osiris_map_io(void)
 {
 	unsigned long flags;
@@ -280,7 +275,6 @@ static void __init osiris_map_io(void)
 	s3c24xx_init_io(osiris_iodesc, ARRAY_SIZE(osiris_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(osiris_uartcfgs, ARRAY_SIZE(osiris_uartcfgs));
-	s3c24xx_set_board(&osiris_board);
 
 	/* fix bus configuration (nBE settings wrong on ABLE pre v2.20) */
 
@@ -292,12 +286,18 @@ static void __init osiris_map_io(void)
 	s3c2410_gpio_setpin(S3C2410_GPA0, 1);
 }
 
+static void __init osiris_init(void)
+{
+	platform_add_devices(osiris_devices, ARRAY_SIZE(osiris_devices));
+};
+
 MACHINE_START(OSIRIS, "Simtec-OSIRIS")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
 	.phys_io	= S3C2410_PA_UART,
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= osiris_map_io,
+	.init_machine	= osiris_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

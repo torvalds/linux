@@ -181,15 +181,6 @@ s3c_lookup_cpu(unsigned long idcode)
 	return NULL;
 }
 
-/* board information */
-
-static struct s3c24xx_board *board;
-
-void s3c24xx_set_board(struct s3c24xx_board *b)
-{
-	board = b;
-}
-
 /* cpu information */
 
 static struct cpu_table *cpu;
@@ -333,26 +324,6 @@ static int __init s3c_arch_init(void)
 		return ret;
 
 	ret = platform_add_devices(s3c24xx_uart_devs, nr_uarts);
-	if (ret != 0)
-		return ret;
-
-	if (board != NULL) {
-		struct platform_device **ptr = board->devices;
-		int i;
-
-		for (i = 0; i < board->devices_count; i++, ptr++) {
-			ret = platform_device_register(*ptr);
-
-			if (ret) {
-				printk(KERN_ERR "s3c24xx: failed to add board device %s (%d) @%p\n", (*ptr)->name, ret, *ptr);
-			}
-		}
-
-		/* mask any error, we may not need all these board
-		 * devices */
-		ret = 0;
-	}
-
 	return ret;
 }
 
