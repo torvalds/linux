@@ -346,4 +346,34 @@ int snmp6_free_dev(struct inet6_dev *idev)
 	return 0;
 }
 
+int snmp6_mib_init(void *ptr[2], size_t mibsize, size_t mibalign)
+{
+	if (ptr == NULL)
+		return -EINVAL;
+
+	ptr[0] = __alloc_percpu(mibsize);
+	if (!ptr[0])
+		goto err0;
+
+	ptr[1] = __alloc_percpu(mibsize);
+	if (!ptr[1])
+		goto err1;
+
+	return 0;
+
+err1:
+	free_percpu(ptr[0]);
+	ptr[0] = NULL;
+err0:
+	return -ENOMEM;
+}
+
+void snmp6_mib_free(void *ptr[2])
+{
+	if (ptr == NULL)
+		return;
+	free_percpu(ptr[0]);
+	free_percpu(ptr[1]);
+	ptr[0] = ptr[1] = NULL;
+}
 

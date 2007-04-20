@@ -712,39 +712,6 @@ int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb)
 
 EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 
-int
-snmp6_mib_init(void *ptr[2], size_t mibsize, size_t mibalign)
-{
-	if (ptr == NULL)
-		return -EINVAL;
-
-	ptr[0] = __alloc_percpu(mibsize);
-	if (!ptr[0])
-		goto err0;
-
-	ptr[1] = __alloc_percpu(mibsize);
-	if (!ptr[1])
-		goto err1;
-
-	return 0;
-
-err1:
-	free_percpu(ptr[0]);
-	ptr[0] = NULL;
-err0:
-	return -ENOMEM;
-}
-
-void
-snmp6_mib_free(void *ptr[2])
-{
-	if (ptr == NULL)
-		return;
-	free_percpu(ptr[0]);
-	free_percpu(ptr[1]);
-	ptr[0] = ptr[1] = NULL;
-}
-
 static int __init init_ipv6_mibs(void)
 {
 	if (snmp6_mib_init((void **)ipv6_statistics, sizeof (struct ipstats_mib),
