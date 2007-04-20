@@ -143,8 +143,105 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	 NETXEN_NIC_REG(0x180),
 	 /* crb_status_ring_size */
 	 NETXEN_NIC_REG(0x184),
-
 	 },
+	/*
+	 * Instance 3,
+	 */
+	{
+	  {
+	    {
+	    /* crb_rcv_producer_offset: */
+	    NETXEN_NIC_REG(0x1d8),
+	    /* crb_rcv_consumer_offset: */
+	    NETXEN_NIC_REG(0x1dc),
+	    /* crb_gloablrcv_ring: */
+	    NETXEN_NIC_REG(0x1f0),
+	    /* crb_rcv_ring_size */
+	    NETXEN_NIC_REG(0x1f4),
+	    },
+	    /* Jumbo frames */
+	    {
+	    /* crb_rcv_producer_offset: */		    
+	    NETXEN_NIC_REG(0x1f8),
+	    /* crb_rcv_consumer_offset: */
+	    NETXEN_NIC_REG(0x1fc),
+	    /* crb_gloablrcv_ring: */
+	    NETXEN_NIC_REG(0x200),
+	    /* crb_rcv_ring_size */
+	    NETXEN_NIC_REG(0x204),
+	    },
+	    /* LRO */
+	    {
+	    /* crb_rcv_producer_offset: */
+	    NETXEN_NIC_REG(0x208),
+	    /* crb_rcv_consumer_offset: */
+	    NETXEN_NIC_REG(0x20c),
+	    /* crb_gloablrcv_ring: */
+	    NETXEN_NIC_REG(0x210),
+	    /* crb_rcv_ring_size */
+	    NETXEN_NIC_REG(0x214),
+	    }
+	  },
+	  /* crb_rcvstatus_ring: */
+	  NETXEN_NIC_REG(0x218),
+	  /* crb_rcv_status_producer: */
+	  NETXEN_NIC_REG(0x21c),
+	  /* crb_rcv_status_consumer: */
+	  NETXEN_NIC_REG(0x220),
+	  /* crb_rcvpeg_state: */
+	  NETXEN_NIC_REG(0x224),
+	  /* crb_status_ring_size */
+	  NETXEN_NIC_REG(0x228),
+	},
+	/*
+	 * Instance 4,
+	 */
+	{
+	  {
+	    {
+	    /* crb_rcv_producer_offset: */
+	    NETXEN_NIC_REG(0x22c),
+	    /* crb_rcv_consumer_offset: */
+	    NETXEN_NIC_REG(0x230),
+	    /* crb_gloablrcv_ring: */
+	    NETXEN_NIC_REG(0x234),
+	    /* crb_rcv_ring_size */
+	    NETXEN_NIC_REG(0x238),
+	    },
+	    /* Jumbo frames */
+	    {
+	    /* crb_rcv_producer_offset: */ 
+	    NETXEN_NIC_REG(0x23c),
+	    /* crb_rcv_consumer_offset: */
+	    NETXEN_NIC_REG(0x240),
+	    /* crb_gloablrcv_ring: */
+	    NETXEN_NIC_REG(0x244),
+	    /* crb_rcv_ring_size */
+	    NETXEN_NIC_REG(0x248),
+	    },
+	    /* LRO */
+	    {
+	    /* crb_rcv_producer_offset: */
+	    NETXEN_NIC_REG(0x24c),
+	    /* crb_rcv_consumer_offset: */
+	    NETXEN_NIC_REG(0x250),
+	    /* crb_gloablrcv_ring: */
+	    NETXEN_NIC_REG(0x254),
+	    /* crb_rcv_ring_size */
+	    NETXEN_NIC_REG(0x258),
+	    }
+	  },
+	  /* crb_rcvstatus_ring: */
+	  NETXEN_NIC_REG(0x25c),
+	  /* crb_rcv_status_producer: */
+	  NETXEN_NIC_REG(0x260),
+	  /* crb_rcv_status_consumer: */
+	  NETXEN_NIC_REG(0x264),
+	  /* crb_rcvpeg_state: */
+	  NETXEN_NIC_REG(0x268),
+	  /* crb_status_ring_size */
+	  NETXEN_NIC_REG(0x26c),
+	},
 };
 
 u64 ctx_addr_sig_regs[][3] = {
@@ -296,6 +393,7 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	u32 card_cmdring = 0;
 	struct netxen_recv_context *recv_ctx;
 	struct netxen_rcv_desc_ctx *rcv_desc;
+	int func_id = adapter->portnum;
 
 	DPRINTK(INFO, "crb_base: %lx %x", NETXEN_PCI_CRBSPACE,
 		PCI_OFFSET_SECOND_RANGE(adapter, NETXEN_PCI_CRBSPACE));
@@ -351,6 +449,7 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	}
 	memset(addr, 0, sizeof(struct netxen_ring_ctx));
 	adapter->ctx_desc = (struct netxen_ring_ctx *)addr;
+	adapter->ctx_desc->ctx_id = adapter->portnum;
 	adapter->ctx_desc->cmd_consumer_offset =
 	    cpu_to_le64(adapter->ctx_desc_phys_addr +
 			sizeof(struct netxen_ring_ctx));
@@ -421,11 +520,11 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	/* Window = 1 */
 
 	writel(lower32(adapter->ctx_desc_phys_addr),
-	       NETXEN_CRB_NORMALIZE(adapter, CRB_CTX_ADDR_REG_LO));
+	       NETXEN_CRB_NORMALIZE(adapter, CRB_CTX_ADDR_REG_LO(func_id)));
 	writel(upper32(adapter->ctx_desc_phys_addr),
-	       NETXEN_CRB_NORMALIZE(adapter, CRB_CTX_ADDR_REG_HI));
-	writel(NETXEN_CTX_SIGNATURE,
-	       NETXEN_CRB_NORMALIZE(adapter, CRB_CTX_SIGNATURE_REG));
+	       NETXEN_CRB_NORMALIZE(adapter, CRB_CTX_ADDR_REG_HI(func_id)));
+	writel(NETXEN_CTX_SIGNATURE | func_id,
+	       NETXEN_CRB_NORMALIZE(adapter, CRB_CTX_SIGNATURE_REG(func_id)));
 	return err;
 }
 
@@ -965,9 +1064,11 @@ int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 {
 	new_mtu += NETXEN_NIU_HDRSIZE + NETXEN_NIU_TLRSIZE;
 	if (adapter->portnum == 0)
-	    netxen_nic_write_w0(adapter, NETXEN_NIU_XGE_MAX_FRAME_SIZE, new_mtu);
+		netxen_nic_write_w0(adapter, NETXEN_NIU_XGE_MAX_FRAME_SIZE, 
+				new_mtu);
 	else if (adapter->portnum == 1)
-	    netxen_nic_write_w0(adapter, NETXEN_NIU_XG1_MAX_FRAME_SIZE, new_mtu);
+		netxen_nic_write_w0(adapter, NETXEN_NIU_XG1_MAX_FRAME_SIZE,
+				new_mtu);
 	return 0;
 }
 

@@ -151,9 +151,9 @@ struct netxen_recv_crb {
 extern struct netxen_recv_crb recv_crb_registers[];
 extern u64 ctx_addr_sig_regs[][3];
 #endif				/* DEFINE_GLOBAL_RECEIVE_CRB */
-#define CRB_CTX_ADDR_REG_LO            (ctx_addr_sig_regs[0][0])
-#define CRB_CTX_ADDR_REG_HI            (ctx_addr_sig_regs[0][2])
-#define CRB_CTX_SIGNATURE_REG       (ctx_addr_sig_regs[0][1])
+#define CRB_CTX_ADDR_REG_LO(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][0])
+#define CRB_CTX_ADDR_REG_HI(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][2])
+#define CRB_CTX_SIGNATURE_REG(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][1])
 
 /*
  * Temperature control.

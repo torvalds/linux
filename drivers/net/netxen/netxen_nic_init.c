@@ -226,7 +226,6 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 		adapter->unset_promisc = netxen_niu_set_promiscuous_mode;
 		adapter->phy_read = netxen_niu_gbe_phy_read;
 		adapter->phy_write = netxen_niu_gbe_phy_write;
-		adapter->init_port = netxen_niu_gbe_init_port;
 		adapter->init_niu = netxen_nic_init_niu_gb;
 		adapter->stop_port = netxen_niu_disable_gbe_port;
 		break;
@@ -438,7 +437,6 @@ do_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 
 	for (addridx = addr; addridx < (addr + size); addridx += 4) {
 		ret = do_rom_fast_read(adapter, addridx, (int *)bytes);
-		*(int *)bytes = cpu_to_le32(*(int *)bytes);
 		if (ret != 0)
 			break;
 		bytes += 4;
@@ -498,7 +496,7 @@ static inline int do_rom_fast_write_words(struct netxen_adapter *adapter,
 		int timeout = 0;
 		int data;
 
-		data = le32_to_cpu((*(u32*)bytes));
+		data = *(u32*)bytes;
 
 		ret = do_rom_fast_write(adapter, addridx, data);
 		if (ret < 0)

@@ -286,7 +286,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->max_jumbo_rx_desc_count = MAX_JUMBO_RCV_DESCRIPTORS;
 	adapter->max_lro_rx_desc_count = MAX_LRO_RCV_DESCRIPTORS;
 
-	pci_set_drvdata(pdev, adapter);
+	pci_set_drvdata(pdev, netdev);
 
 	adapter->netdev  = netdev;
 	adapter->pdev    = pdev;
@@ -388,6 +388,11 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->ahw.db_len = db_len;
 	spin_lock_init(&adapter->tx_lock);
 	spin_lock_init(&adapter->lock);
+	/* initialize the adapter */
+	netxen_initialize_adapter_hw(adapter);
+
+	netxen_initialize_adapter_ops(adapter);
+
 	netxen_initialize_adapter_sw(adapter);	/* initialize the buffers in adapter */
 	/* Mezz cards have PCI function 0,2,3 enabled */
 	if (adapter->ahw.boardcfg.board_type == NETXEN_BRDTYPE_P2_SB31_10G_IMEZ)
@@ -411,11 +416,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 *  Adapter in our case is quad port so initialize it before
 	 *  initializing the ports
 	 */
-
-	/* initialize the adapter */
-	netxen_initialize_adapter_hw(adapter);
-
-	netxen_initialize_adapter_ops(adapter);
 
 	init_timer(&adapter->watchdog_timer);
 	adapter->ahw.xg_linkup = 0;
@@ -578,8 +578,8 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	int i;
 	int ctxid, ring;
 
-	adapter = pci_get_drvdata(pdev);
-	netdev = adapter->netdev;
+	netdev = pci_get_drvdata(pdev);
+	adapter = netdev_priv(netdev);
 	if (adapter == NULL)
 		return;
 
@@ -588,15 +588,15 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	if (adapter->irq)
 		free_irq(adapter->irq, adapter);
-	/* leave the hw in the same state as reboot */
-	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-	netxen_pinit_from_rom(adapter, 0);
-	netxen_load_firmware(adapter);
-	netxen_free_adapter_offload(adapter);
+	if(adapter->portnum == 0) {
+		/* leave the hw in the same state as reboot */
+		writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
+		netxen_pinit_from_rom(adapter, 0);
+		netxen_load_firmware(adapter);
+		netxen_free_adapter_offload(adapter);
+	}
 
 	udelay(500);
-	unregister_netdev(netdev);
-	free_netdev(netdev);
 
 	if ((adapter->flags & NETXEN_NIC_MSI_ENABLED))
 		pci_disable_msi(pdev);
@@ -607,10 +607,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	iounmap(adapter->ahw.pci_base0);
 	iounmap(adapter->ahw.pci_base1);
 	iounmap(adapter->ahw.pci_base2);
-
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	for (ctxid = 0; ctxid < MAX_RCV_CTX; ++ctxid) {
 		recv_ctx = &adapter->recv_ctx[ctxid];
@@ -631,7 +627,13 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	}
 
 	vfree(adapter->cmd_buf_arr);
-	kfree(adapter);
+	unregister_netdev(netdev);
+	free_netdev(netdev);
+
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
+
 }
 
 /*
@@ -651,8 +653,6 @@ static int netxen_nic_open(struct net_device *netdev)
 			return -EIO;
 		}
 		netxen_nic_flash_print(adapter);
-		if (adapter->init_niu)
-			adapter->init_niu(adapter);
 
 		/* setup all the resources for the Phantom... */
 		/* this include the descriptors for rcv, tx, and status */
@@ -662,13 +662,6 @@ static int netxen_nic_open(struct net_device *netdev)
 			printk(KERN_ERR "Error in setting hw resources:%d\n",
 			       err);
 			return err;
-		}
-		if (adapter->init_port
-		    && adapter->init_port(adapter, adapter->portnum) != 0) {
-			printk(KERN_ERR "%s: Failed to initialize port %d\n",
-			       netxen_nic_driver_name, adapter->portnum);
-			netxen_free_hw_resources(adapter);
-			return -EIO;
 		}
 		for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
 			for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++)
@@ -695,6 +688,15 @@ static int netxen_nic_open(struct net_device *netdev)
 	 * we set it */
 	if (adapter->macaddr_set)
 		adapter->macaddr_set(adapter, netdev->dev_addr);
+	if (adapter->init_port
+	    && adapter->init_port(adapter, adapter->portnum) != 0) {
+		printk(KERN_ERR "%s: Failed to initialize port %d\n",
+				netxen_nic_driver_name, adapter->portnum);
+		free_irq(adapter->irq, adapter);
+		netxen_free_hw_resources(adapter);
+		return -EIO;
+	}
+
 	netxen_nic_set_link_parameters(adapter);
 
 	netxen_nic_set_multi(netdev);
@@ -1028,6 +1030,7 @@ netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
 	u32 ret = 0;
 
 	DPRINTK(INFO, "Entered handle ISR\n");
+	adapter->stats.ints++;
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		int count = 0;
