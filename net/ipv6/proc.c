@@ -207,6 +207,31 @@ static const struct file_operations snmp6_seq_fops = {
 	.release = single_release,
 };
 
+static inline void
+__snmp6_fill_stats(u64 *stats, void **mib, int items, int bytes)
+{
+	int i;
+	int pad = bytes - sizeof(u64) * items;
+	BUG_ON(pad < 0);
+	stats[0] = items;
+	for (i = 1; i < items; i++)
+		stats[i] = (u64)fold_field(mib, i);
+	memset(&stats[items], 0, pad);
+}
+
+void
+snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype, int bytes)
+{
+	switch(attrtype) {
+	case IFLA_INET6_STATS:
+		__snmp6_fill_stats(stats, (void **)idev->stats.ipv6, IPSTATS_MIB_MAX, bytes);
+		break;
+	case IFLA_INET6_ICMP6STATS:
+		__snmp6_fill_stats(stats, (void **)idev->stats.icmpv6, ICMP6_MIB_MAX, bytes);
+		break;
+	}
+}
+
 int snmp6_register_dev(struct inet6_dev *idev)
 {
 	struct proc_dir_entry *p;
@@ -283,6 +308,13 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 {
 	return 0;
 }
+
+void
+snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype, int bytes)
+{
+	memset(stats, 0, sizeof(bytes));
+}
+
 #endif	/* CONFIG_PROC_FS */
 
 int snmp6_alloc_dev(struct inet6_dev *idev)

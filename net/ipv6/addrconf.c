@@ -3433,6 +3433,8 @@ static inline size_t inet6_if_nlmsg_size(void)
 			nla_total_size(4) /* IFLA_INET6_FLAGS */
 			+ nla_total_size(sizeof(struct ifla_cacheinfo))
 			+ nla_total_size(DEVCONF_MAX * 4) /* IFLA_INET6_CONF */
+			+ nla_total_size(IPSTATS_MIB_MAX * 8) /* IFLA_INET6_STATS */
+			+ nla_total_size(ICMP6_MIB_MAX * 8) /* IFLA_INET6_ICMP6STATS */
 		 );
 }
 
@@ -3440,7 +3442,7 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 			     u32 pid, u32 seq, int event, unsigned int flags)
 {
 	struct net_device *dev = idev->dev;
-	struct nlattr *conf;
+	struct nlattr *nla;
 	struct ifinfomsg *hdr;
 	struct nlmsghdr *nlh;
 	void *protoinfo;
@@ -3480,12 +3482,22 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	ci.retrans_time = idev->nd_parms->retrans_time;
 	NLA_PUT(skb, IFLA_INET6_CACHEINFO, sizeof(ci), &ci);
 
-	conf = nla_reserve(skb, IFLA_INET6_CONF, DEVCONF_MAX * sizeof(s32));
-	if (conf == NULL)
+	nla = nla_reserve(skb, IFLA_INET6_CONF, DEVCONF_MAX * sizeof(s32));
+	if (nla == NULL)
 		goto nla_put_failure;
-	ipv6_store_devconf(&idev->cnf, nla_data(conf), nla_len(conf));
+	ipv6_store_devconf(&idev->cnf, nla_data(nla), nla_len(nla));
 
-	/* XXX - Statistics/MC not implemented */
+	/* XXX - MC not implemented */
+
+	nla = nla_reserve(skb, IFLA_INET6_STATS, IPSTATS_MIB_MAX * sizeof(u64));
+	if (nla == NULL)
+		goto nla_put_failure;
+	snmp6_fill_stats(nla_data(nla), idev, IFLA_INET6_STATS, nla_len(nla));
+
+	nla = nla_reserve(skb, IFLA_INET6_ICMP6STATS, ICMP6_MIB_MAX * sizeof(u64));
+	if (nla == NULL)
+		goto nla_put_failure;
+	snmp6_fill_stats(nla_data(nla), idev, IFLA_INET6_ICMP6STATS, nla_len(nla));
 
 	nla_nest_end(skb, protoinfo);
 	return nlmsg_end(skb, nlh);
