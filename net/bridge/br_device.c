@@ -88,7 +88,6 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct sockaddr *addr = p;
-	struct net_bridge_port *port;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EINVAL;
