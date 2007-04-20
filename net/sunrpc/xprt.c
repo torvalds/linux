@@ -735,16 +735,6 @@ void xprt_transmit(struct rpc_task *task)
 			xprt_reset_majortimeo(req);
 			/* Turn off autodisconnect */
 			del_singleshot_timer_sync(&xprt->timer);
-		} else {
-			/* If all request bytes have been sent,
-			 * then we must be retransmitting this one */
-			if (!req->rq_bytes_sent) {
-				if (task->tk_client->cl_discrtry) {
-					xprt_disconnect(xprt);
-					task->tk_status = -ENOTCONN;
-					return;
-				}
-			}
 		}
 	} else if (!req->rq_bytes_sent)
 		return;
