@@ -151,11 +151,6 @@ static int check_node(struct btrfs_root *root, struct btrfs_path *path,
 	for (i = 0; nritems > 1 && i < nritems - 2; i++) {
 		struct btrfs_key cpukey;
 		btrfs_disk_key_to_cpu(&cpukey, &node->ptrs[i + 1].key);
-if (comp_keys(&node->ptrs[i].key, &cpukey) >= 0) {
-	struct btrfs_key bad;
-	btrfs_disk_key_to_cpu(&bad, &node->ptrs[i].key);
-printk("check_node level %d i is %d bad comp %Lu %u %Lu, %Lu %u %Lu\n",level, i, bad.objectid, bad.flags, bad.offset, cpukey.objectid, cpukey.flags, cpukey.offset);
-}
 		BUG_ON(comp_keys(&node->ptrs[i].key, &cpukey) >= 0);
 	}
 	return 0;
@@ -492,11 +487,16 @@ static int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 	/* first, try to make some room in the middle buffer */
 	if (left_buf) {
 		u32 left_nr;
-		btrfs_cow_block(trans, root, left_buf, parent_buf, pslot - 1,
-				&left_buf);
 		left = btrfs_buffer_node(left_buf);
 		left_nr = btrfs_header_nritems(&left->header);
-		wret = push_node_left(trans, root, left_buf, mid_buf);
+		if (left_nr >= BTRFS_NODEPTRS_PER_BLOCK(root) - 1) {
+			wret = 1;
+		} else {
+			btrfs_cow_block(trans, root, left_buf, parent_buf,
+					pslot - 1, &left_buf);
+			left = btrfs_buffer_node(left_buf);
+			wret = push_node_left(trans, root, left_buf, mid_buf);
+		}
 		if (wret < 0)
 			ret = wret;
 		if (wret == 0) {
@@ -528,10 +528,18 @@ static int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 	 * then try to empty the right most buffer into the middle
 	 */
 	if (right_buf) {
-		btrfs_cow_block(trans, root, right_buf, parent_buf, pslot + 1,
-				&right_buf);
+		u32 right_nr;
 		right = btrfs_buffer_node(right_buf);
-		wret = balance_node_right(trans, root, right_buf, mid_buf);
+		right_nr = btrfs_header_nritems(&right->header);
+		if (right_nr >= BTRFS_NODEPTRS_PER_BLOCK(root) - 1) {
+			wret = 1;
+		} else {
+			btrfs_cow_block(trans, root, right_buf,
+					parent_buf, pslot + 1, &right_buf);
+			right = btrfs_buffer_node(right_buf);
+			wret = balance_node_right(trans, root,
+						  right_buf, mid_buf);
+		}
 		if (wret < 0)
 			ret = wret;
 		if (wret == 0) {
