@@ -166,6 +166,9 @@ DECLARE_SNMP_STAT(struct linux_mib, net_statistics);
 #define NET_ADD_STATS_BH(field, adnd)	SNMP_ADD_STATS_BH(net_statistics, field, adnd)
 #define NET_ADD_STATS_USER(field, adnd)	SNMP_ADD_STATS_USER(net_statistics, field, adnd)
 
+extern int snmp_mib_init(void *ptr[2], size_t mibsize, size_t mibalign);
+extern void snmp_mib_free(void *ptr[2]);
+
 extern int sysctl_local_port_range[2];
 extern int sysctl_ip_default_ttl;
 extern int sysctl_ip_nonlocal_bind;

@@ -391,3 +391,28 @@ out_netstat:
 	goto out;
 }
 
+int snmp_mib_init(void *ptr[2], size_t mibsize, size_t mibalign)
+{
+	BUG_ON(ptr == NULL);
+	ptr[0] = __alloc_percpu(mibsize);
+	if (!ptr[0])
+		goto err0;
+	ptr[1] = __alloc_percpu(mibsize);
+	if (!ptr[1])
+		goto err1;
+	return 0;
+err1:
+	free_percpu(ptr[0]);
+	ptr[0] = NULL;
+err0:
+	return -ENOMEM;
+}
+
+void snmp_mib_free(void *ptr[2])
+{
+	BUG_ON(ptr == NULL);
+	free_percpu(ptr[0]);
+	free_percpu(ptr[1]);
+	ptr[0] = ptr[1] = NULL;
+}
+

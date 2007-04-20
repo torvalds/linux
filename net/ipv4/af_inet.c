@@ -1245,28 +1245,47 @@ static struct net_protocol icmp_protocol = {
 
 static int __init init_ipv4_mibs(void)
 {
-	net_statistics[0] = alloc_percpu(struct linux_mib);
-	net_statistics[1] = alloc_percpu(struct linux_mib);
-	ip_statistics[0] = alloc_percpu(struct ipstats_mib);
-	ip_statistics[1] = alloc_percpu(struct ipstats_mib);
-	icmp_statistics[0] = alloc_percpu(struct icmp_mib);
-	icmp_statistics[1] = alloc_percpu(struct icmp_mib);
-	tcp_statistics[0] = alloc_percpu(struct tcp_mib);
-	tcp_statistics[1] = alloc_percpu(struct tcp_mib);
-	udp_statistics[0] = alloc_percpu(struct udp_mib);
-	udp_statistics[1] = alloc_percpu(struct udp_mib);
-	udplite_statistics[0] = alloc_percpu(struct udp_mib);
-	udplite_statistics[1] = alloc_percpu(struct udp_mib);
-	if (!
-	    (net_statistics[0] && net_statistics[1] && ip_statistics[0]
-	     && ip_statistics[1] && tcp_statistics[0] && tcp_statistics[1]
-	     && udp_statistics[0] && udp_statistics[1]
-	     && udplite_statistics[0] && udplite_statistics[1]             ) )
-		return -ENOMEM;
+	if (snmp_mib_init((void **)net_statistics,
+			  sizeof(struct linux_mib),
+			  __alignof__(struct linux_mib)) < 0)
+		goto err_net_mib;
+	if (snmp_mib_init((void **)ip_statistics,
+			  sizeof(struct ipstats_mib),
+			  __alignof__(struct ipstats_mib)) < 0)
+		goto err_ip_mib;
+	if (snmp_mib_init((void **)icmp_statistics,
+			  sizeof(struct icmp_mib),
+			  __alignof__(struct icmp_mib)) < 0)
+		goto err_icmp_mib;
+	if (snmp_mib_init((void **)tcp_statistics,
+			  sizeof(struct tcp_mib),
+			  __alignof__(struct tcp_mib)) < 0)
+		goto err_tcp_mib;
+	if (snmp_mib_init((void **)udp_statistics,
+			  sizeof(struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
+		goto err_udp_mib;
+	if (snmp_mib_init((void **)udplite_statistics,
+			  sizeof(struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
+		goto err_udplite_mib;
 
-	(void) tcp_mib_init();
+	tcp_mib_init();
 
 	return 0;
+
+err_udplite_mib:
+	snmp_mib_free((void **)udp_statistics);
+err_udp_mib:
+	snmp_mib_free((void **)tcp_statistics);
+err_tcp_mib:
+	snmp_mib_free((void **)icmp_statistics);
+err_icmp_mib:
+	snmp_mib_free((void **)ip_statistics);
+err_ip_mib:
+	snmp_mib_free((void **)net_statistics);
+err_net_mib:
+	return -ENOMEM;
 }
 
 static int ipv4_proc_init(void);
