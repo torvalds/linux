@@ -986,9 +986,9 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	 * expire an async queue immediately if it has used up its slice. idle
 	 * queue always expire after 1 dispatch round.
 	 */
-	if ((!cfq_cfqq_sync(cfqq) &&
+	if (cfqd->busy_queues > 1 && ((!cfq_cfqq_sync(cfqq) &&
 	    cfqd->dispatch_slice >= cfq_prio_to_maxrq(cfqd, cfqq)) ||
-	    cfq_class_idle(cfqq)) {
+	    cfq_class_idle(cfqq))) {
 		cfqq->slice_end = jiffies + 1;
 		cfq_slice_expired(cfqd, 0, 0);
 	}
@@ -1051,19 +1051,21 @@ cfq_dispatch_requests(request_queue_t *q, int force)
 	while ((cfqq = cfq_select_queue(cfqd)) != NULL) {
 		int max_dispatch;
 
-		/*
-		 * Don't repeat dispatch from the previous queue.
-		 */
-		if (prev_cfqq == cfqq)
-			break;
+		if (cfqd->busy_queues > 1) {
+			/*
+			 * Don't repeat dispatch from the previous queue.
+			 */
+			if (prev_cfqq == cfqq)
+				break;
 
-		/*
-		 * So we have dispatched before in this round, if the
-		 * next queue has idling enabled (must be sync), don't
-		 * allow it service until the previous have continued.
-		 */
-		if (cfqd->rq_in_driver && cfq_cfqq_idle_window(cfqq))
-			break;
+			/*
+			 * So we have dispatched before in this round, if the
+			 * next queue has idling enabled (must be sync), don't
+			 * allow it service until the previous have continued.
+			 */
+			if (cfqd->rq_in_driver && cfq_cfqq_idle_window(cfqq))
+				break;
+		}
 
 		cfq_clear_cfqq_must_dispatch(cfqq);
 		cfq_clear_cfqq_wait_request(cfqq);
@@ -1370,7 +1372,9 @@ retry:
 		atomic_set(&cfqq->ref, 0);
 		cfqq->cfqd = cfqd;
 
-		cfq_mark_cfqq_idle_window(cfqq);
+		if (key != CFQ_KEY_ASYNC)
+			cfq_mark_cfqq_idle_window(cfqq);
+
 		cfq_mark_cfqq_prio_changed(cfqq);
 		cfq_mark_cfqq_queue_new(cfqq);
 		cfq_init_prio_data(cfqq);
