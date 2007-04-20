@@ -1129,7 +1129,7 @@ fault:
  *	traversing fragment lists and such.
  */
 
-int skb_store_bits(const struct sk_buff *skb, int offset, void *from, int len)
+int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len)
 {
 	int i, copy;
 	int start = skb_headlen(skb);

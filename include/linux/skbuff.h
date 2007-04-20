@@ -1494,8 +1494,8 @@ extern __wsum	       skb_checksum(const struct sk_buff *skb, int offset,
 				    int len, __wsum csum);
 extern int	       skb_copy_bits(const struct sk_buff *skb, int offset,
 				     void *to, int len);
-extern int	       skb_store_bits(const struct sk_buff *skb, int offset,
-				      void *from, int len);
+extern int	       skb_store_bits(struct sk_buff *skb, int offset,
+				      const void *from, int len);
 extern __wsum	       skb_copy_and_csum_bits(const struct sk_buff *skb,
 					      int offset, u8 *to, int len,
 					      __wsum csum);
