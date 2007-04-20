@@ -484,6 +484,7 @@ enum {
 	/* 10 seconds before we give up */
 #define	NETXEN_NIU_PHY_WAITMAX		50
 #define	NETXEN_NIU_MAX_GBE_PORTS	4
+#define	NETXEN_NIU_MAX_XG_PORTS		2
 
 #define	NETXEN_NIU_MODE			(NETXEN_CRB_NIU + 0x00000)
 

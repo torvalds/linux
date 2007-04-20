@@ -205,6 +205,7 @@ enum {
 
 #define MAX_CMD_DESCRIPTORS		1024
 #define MAX_RCV_DESCRIPTORS		16384
+#define MAX_RCV_DESCRIPTORS_1G		(MAX_RCV_DESCRIPTORS / 4)
 #define MAX_JUMBO_RCV_DESCRIPTORS	1024
 #define MAX_LRO_RCV_DESCRIPTORS		64
 #define MAX_RCVSTATUS_DESCRIPTORS	MAX_RCV_DESCRIPTORS
@@ -780,6 +781,7 @@ struct netxen_hardware_context {
 	struct pci_dev *cmd_desc_pdev;
 	dma_addr_t cmd_desc_phys_addr;
 	struct netxen_adapter *adapter;
+	int pci_func;
 };
 
 #define RCV_RING_LRO	RCV_DESC_LRO
@@ -916,15 +918,15 @@ struct netxen_adapter {
 	struct netxen_ring_ctx *ctx_desc;
 	struct pci_dev *ctx_desc_pdev;
 	dma_addr_t ctx_desc_phys_addr;
-	int (*enable_phy_interrupts) (struct netxen_adapter *, int);
-	int (*disable_phy_interrupts) (struct netxen_adapter *, int);
+	int (*enable_phy_interrupts) (struct netxen_adapter *);
+	int (*disable_phy_interrupts) (struct netxen_adapter *);
 	void (*handle_phy_intr) (struct netxen_adapter *);
 	int (*macaddr_set) (struct netxen_adapter *, netxen_ethernet_macaddr_t);
 	int (*set_mtu) (struct netxen_adapter *, int);
 	int (*set_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
 	int (*unset_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
-	int (*phy_read) (struct netxen_adapter *, long phy, long reg, u32 *);
-	int (*phy_write) (struct netxen_adapter *, long phy, long reg, u32 val);
+	int (*phy_read) (struct netxen_adapter *, long reg, u32 *);
+	int (*phy_write) (struct netxen_adapter *, long reg, u32 val);
 	int (*init_port) (struct netxen_adapter *, int);
 	void (*init_niu) (struct netxen_adapter *);
 	int (*stop_port) (struct netxen_adapter *);
@@ -970,27 +972,21 @@ static inline void __iomem *pci_base(struct netxen_adapter *adapter,
 	return NULL;
 }
 
-int netxen_niu_xgbe_enable_phy_interrupts(struct netxen_adapter *adapter,
-					  int port);
-int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter,
-					 int port);
-int netxen_niu_xgbe_disable_phy_interrupts(struct netxen_adapter *adapter,
-					   int port);
-int netxen_niu_gbe_disable_phy_interrupts(struct netxen_adapter *adapter,
-					  int port);
-int netxen_niu_xgbe_clear_phy_interrupts(struct netxen_adapter *adapter,
-					 int port);
-int netxen_niu_gbe_clear_phy_interrupts(struct netxen_adapter *adapter,
-					int port);
+int netxen_niu_xgbe_enable_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_xgbe_disable_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_gbe_disable_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_xgbe_clear_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_gbe_clear_phy_interrupts(struct netxen_adapter *adapter);
 void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter);
 void netxen_nic_gbe_handle_phy_intr(struct netxen_adapter *adapter);
 void netxen_niu_gbe_set_mii_mode(struct netxen_adapter *adapter, int port,
 				 long enable);
 void netxen_niu_gbe_set_gmii_mode(struct netxen_adapter *adapter, int port,
 				  long enable);
-int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy, long reg,
+int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 			    __u32 * readval);
-int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter, long phy,
+int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
 			     long reg, __u32 val);
 
 /* Functions available from netxen_nic_hw.c */
@@ -1010,6 +1006,7 @@ int netxen_nic_hw_write_wx(struct netxen_adapter *adapter, u64 off, void *data,
 			   int len);
 void netxen_crb_writelit_adapter(struct netxen_adapter *adapter,
 				 unsigned long off, int data);
+int netxen_nic_erase_pxe(struct netxen_adapter *adapter);
 
 /* Functions from netxen_nic_init.c */
 void netxen_free_adapter_offload(struct netxen_adapter *adapter);

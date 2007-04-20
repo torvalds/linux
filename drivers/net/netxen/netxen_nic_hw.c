@@ -587,7 +587,7 @@ void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw)
 
 	if (adapter->curr_window == wndw)
 		return;
-	switch(adapter->portnum) {
+	switch(adapter->ahw.pci_func) {
 		case 0:
 			offset = PCI_OFFSET_SECOND_RANGE(adapter,
 					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW));
@@ -606,7 +606,7 @@ void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw)
 			break;
 		default:
 			printk(KERN_INFO "Changing the window for PCI function"
-					"%d\n",	adapter->portnum);
+					"%d\n",	adapter->ahw.pci_func);
 			offset = PCI_OFFSET_SECOND_RANGE(adapter,
 					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW));
 			break;
@@ -881,6 +881,17 @@ netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 	return addr;
 }
 
+int
+netxen_nic_erase_pxe(struct netxen_adapter *adapter)
+{
+	if (netxen_rom_fast_write(adapter, PXE_START, 0) == -1) {
+		printk(KERN_ERR "%s: erase pxe failed\n", 
+			netxen_nic_driver_name);
+		return -1;
+	}
+	return 0;
+}
+
 int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 {
 	int rv = 0;
@@ -991,7 +1002,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 	if (netxen_get_niu_enable_ge(mode)) {	/* Gb 10/100/1000 Mbps mode */
 		if (adapter->phy_read
 		    && adapter->
-		    phy_read(adapter, adapter->portnum,
+		    phy_read(adapter,
 			     NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
 			     &status) == 0) {
 			if (netxen_get_phy_link(status)) {
@@ -1022,7 +1033,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 				}
 				if (adapter->phy_read
 				    && adapter->
-				    phy_read(adapter, adapter->portnum,
+				    phy_read(adapter,
 					     NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
 					     &autoneg) != 0)
 					adapter->link_autoneg = autoneg;

@@ -82,7 +82,7 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 
 	/*  This should clear the interrupt source */
 	if (adapter->phy_read)
-		adapter->phy_read(adapter, adapter->portnum,
+		adapter->phy_read(adapter, 
 				  NETXEN_NIU_GB_MII_MGMT_ADDR_INT_STATUS,
 				  &int_src);
 	if (int_src == 0) {
@@ -90,7 +90,7 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 		return;
 	}
 	if (adapter->disable_phy_interrupts)
-		adapter->disable_phy_interrupts(adapter, adapter->portnum);
+		adapter->disable_phy_interrupts(adapter);
 
 	if (netxen_get_phy_int_jabber(int_src))
 		DPRINTK(INFO, "Jabber interrupt \n");
@@ -111,7 +111,7 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 		DPRINTK(INFO, "SPEED CHANGED OR LINK STATUS CHANGED \n");
 
 		if (adapter->phy_read
-		    && adapter->phy_read(adapter, adapter->portnum,
+		    && adapter->phy_read(adapter, 
 					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
 					 &status) == 0) {
 			if (netxen_get_phy_int_link_status_changed(int_src)) {
@@ -135,7 +135,7 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 		}
 	}
 	if (adapter->enable_phy_interrupts)
-		adapter->enable_phy_interrupts(adapter, adapter->portnum);
+		adapter->enable_phy_interrupts(adapter);
 }
 
 void netxen_nic_isr_other(struct netxen_adapter *adapter)
@@ -179,6 +179,7 @@ void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 
 	/* WINDOW = 1 */
 	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
+	val >>= (adapter->portnum * 8);
 	val1 = val & 0xff;
 
 	if (adapter->ahw.xg_linkup == 1 && val1 != XG_LINK_UP) {

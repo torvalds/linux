@@ -458,13 +458,13 @@ int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 				       netxen_niu_prom_mode_t mode);
 
 /* get/set the MAC address for a given MAC */
-int netxen_niu_macaddr_get(struct netxen_adapter *adapter, int port,
+int netxen_niu_macaddr_get(struct netxen_adapter *adapter,
 			   netxen_ethernet_macaddr_t * addr);
 int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
 			   netxen_ethernet_macaddr_t addr);
 
 /* XG versons */
-int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter, int port,
+int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter,
 			      netxen_ethernet_macaddr_t * addr);
 int netxen_niu_xg_macaddr_set(struct netxen_adapter *adapter,
 			      netxen_ethernet_macaddr_t addr);

@@ -277,8 +277,8 @@ u32 netxen_decode_crb_addr(u32 addr)
 		return (pci_base + offset);
 }
 
-static long rom_max_timeout = 10000;
-static long rom_lock_timeout = 1000000;
+static long rom_max_timeout = 100;
+static long rom_lock_timeout = 10000;
 static long rom_write_timeout = 700;
 
 static inline int rom_lock(struct netxen_adapter *adapter)
@@ -953,7 +953,8 @@ void netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 
 	if (!pegtune_val) {
 		val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-		while (val != PHAN_INITIALIZE_COMPLETE && loops < 200000) {
+		while (val != PHAN_INITIALIZE_COMPLETE && 
+			val != PHAN_INITIALIZE_ACK && loops < 200000) {
 			udelay(100);
 			schedule();
 			val =
