@@ -625,42 +625,42 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 	ax25_address *source = NULL;
 	ax25_uid_assoc *user;
 	struct net_device *dev;
+	int err = 0;
 
 	lock_sock(sk);
 	if (sk->sk_state == TCP_ESTABLISHED && sock->state == SS_CONNECTING) {
 		sock->state = SS_CONNECTED;
-		release_sock(sk);
-		return 0;	/* Connect completed during a ERESTARTSYS event */
+		goto out_release;	/* Connect completed during a ERESTARTSYS event */
 	}
 
 	if (sk->sk_state == TCP_CLOSE && sock->state == SS_CONNECTING) {
 		sock->state = SS_UNCONNECTED;
-		release_sock(sk);
-		return -ECONNREFUSED;
+		err = -ECONNREFUSED;
+		goto out_release;
 	}
 
 	if (sk->sk_state == TCP_ESTABLISHED) {
-		release_sock(sk);
-		return -EISCONN;	/* No reconnect on a seqpacket socket */
+		err = -EISCONN;	/* No reconnect on a seqpacket socket */
+		goto out_release;
 	}
 
 	sk->sk_state   = TCP_CLOSE;
 	sock->state = SS_UNCONNECTED;
 
 	if (addr_len != sizeof(struct sockaddr_ax25) && addr_len != sizeof(struct full_sockaddr_ax25)) {
-		release_sock(sk);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_release;
 	}
 	if (addr->sax25_family != AF_NETROM) {
-		release_sock(sk);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_release;
 	}
 	if (sock_flag(sk, SOCK_ZAPPED)) {	/* Must bind first - autobinding in this may or may not work */
 		sock_reset_flag(sk, SOCK_ZAPPED);
 
 		if ((dev = nr_dev_first()) == NULL) {
-			release_sock(sk);
-			return -ENETUNREACH;
+			err = -ENETUNREACH;
+			goto out_release;
 		}
 		source = (ax25_address *)dev->dev_addr;
 
@@ -671,8 +671,8 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 		} else {
 			if (ax25_uid_policy && !capable(CAP_NET_ADMIN)) {
 				dev_put(dev);
-				release_sock(sk);
-				return -EPERM;
+				err = -EPERM;
+				goto out_release;
 			}
 			nr->user_addr   = *source;
 		}
@@ -707,8 +707,8 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 
 	/* Now the loop */
 	if (sk->sk_state != TCP_ESTABLISHED && (flags & O_NONBLOCK)) {
-		release_sock(sk);
-		return -EINPROGRESS;
+		err = -EINPROGRESS;
+		goto out_release;
 	}
 
 	/*
@@ -716,46 +716,46 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 	 * closed.
 	 */
 	if (sk->sk_state == TCP_SYN_SENT) {
-		struct task_struct *tsk = current;
-		DECLARE_WAITQUEUE(wait, tsk);
+		DEFINE_WAIT(wait);
 
-		add_wait_queue(sk->sk_sleep, &wait);
 		for (;;) {
-			set_current_state(TASK_INTERRUPTIBLE);
+			prepare_to_wait(sk->sk_sleep, &wait,
+			                TASK_INTERRUPTIBLE);
 			if (sk->sk_state != TCP_SYN_SENT)
 				break;
-			release_sock(sk);
-			if (!signal_pending(tsk)) {
+			if (!signal_pending(current)) {
+				release_sock(sk);
 				schedule();
 				lock_sock(sk);
 				continue;
 			}
-			current->state = TASK_RUNNING;
-			remove_wait_queue(sk->sk_sleep, &wait);
-			return -ERESTARTSYS;
+			err = -ERESTARTSYS;
+			break;
 		}
-		current->state = TASK_RUNNING;
-		remove_wait_queue(sk->sk_sleep, &wait);
+		finish_wait(sk->sk_sleep, &wait);
+		if (err)
+			goto out_release;
 	}
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
 		sock->state = SS_UNCONNECTED;
-		release_sock(sk);
-		return sock_error(sk);	/* Always set at this point */
+		err = sock_error(sk);	/* Always set at this point */
+		goto out_release;
 	}
 
 	sock->state = SS_CONNECTED;
+
+out_release:
 	release_sock(sk);
 
-	return 0;
+	return err;
 }
 
 static int nr_accept(struct socket *sock, struct socket *newsock, int flags)
 {
-	struct task_struct *tsk = current;
-	DECLARE_WAITQUEUE(wait, tsk);
 	struct sk_buff *skb;
 	struct sock *newsk;
+	DEFINE_WAIT(wait);
 	struct sock *sk;
 	int err = 0;
 
@@ -765,42 +765,40 @@ static int nr_accept(struct socket *sock, struct socket *newsock, int flags)
 	lock_sock(sk);
 	if (sk->sk_type != SOCK_SEQPACKET) {
 		err = -EOPNOTSUPP;
-		goto out;
+		goto out_release;
 	}
 
 	if (sk->sk_state != TCP_LISTEN) {
 		err = -EINVAL;
-		goto out;
+		goto out_release;
 	}
 
 	/*
 	 *	The write queue this time is holding sockets ready to use
 	 *	hooked into the SABM we saved
 	 */
-	add_wait_queue(sk->sk_sleep, &wait);
 	for (;;) {
+		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 		skb = skb_dequeue(&sk->sk_receive_queue);
 		if (skb)
 			break;
 
-		current->state = TASK_INTERRUPTIBLE;
-		release_sock(sk);
 		if (flags & O_NONBLOCK) {
-			current->state = TASK_RUNNING;
-			remove_wait_queue(sk->sk_sleep, &wait);
-			return -EWOULDBLOCK;
+			err = -EWOULDBLOCK;
+			break;
 		}
-		if (!signal_pending(tsk)) {
+		if (!signal_pending(current)) {
+			release_sock(sk);
 			schedule();
 			lock_sock(sk);
 			continue;
 		}
-		current->state = TASK_RUNNING;
-		remove_wait_queue(sk->sk_sleep, &wait);
-		return -ERESTARTSYS;
+		err = -ERESTARTSYS;
+		break;
 	}
-	current->state = TASK_RUNNING;
-	remove_wait_queue(sk->sk_sleep, &wait);
+	finish_wait(sk->sk_sleep, &wait);
+	if (err)
+		goto out_release;
 
 	newsk = skb->sk;
 	newsk->sk_socket = newsock;
@@ -811,8 +809,9 @@ static int nr_accept(struct socket *sock, struct socket *newsock, int flags)
 	sk_acceptq_removed(sk);
 	newsock->sk = newsk;
 
-out:
+out_release:
 	release_sock(sk);
+
 	return err;
 }
 
