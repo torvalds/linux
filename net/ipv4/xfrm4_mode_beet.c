@@ -100,7 +100,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb_set_network_header(skb, phlen - sizeof(*iph));
 	memmove(skb_network_header(skb), iph, sizeof(*iph));
 	skb_set_transport_header(skb, phlen + optlen);
-	skb->data = skb->h.raw;
+	skb->data = skb_transport_header(skb);
 
 	iph = ip_hdr(skb);
 	iph->ihl = (sizeof(*iph) + optlen) / 4;
