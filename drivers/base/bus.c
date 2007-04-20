@@ -603,7 +603,7 @@ int bus_add_driver(struct device_driver *drv)
 	int error = 0;
 
 	if (!bus)
-		return 0;
+		return -EINVAL;
 
 	pr_debug("bus %s: add driver %s\n", bus->name, drv->name);
 	error = kobject_set_name(&drv->kobj, "%s", drv->name);
