@@ -2255,7 +2255,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	return 0;
 }
 
-/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+/* 7.1.23. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
  *
  *   This options will get or set the delayed ack timer.  The time is set
  *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
@@ -2792,6 +2792,46 @@ static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
 	return 0;
 }
 
+/*
+ * 7.1.24.  Get or set fragmented interleave (SCTP_FRAGMENT_INTERLEAVE)
+ *
+ * This options will at a minimum specify if the implementation is doing
+ * fragmented interleave.  Fragmented interleave, for a one to many
+ * socket, is when subsequent calls to receive a message may return
+ * parts of messages from different associations.  Some implementations
+ * may allow you to turn this value on or off.  If so, when turned off,
+ * no fragment interleave will occur (which will cause a head of line
+ * blocking amongst multiple associations sharing the same one to many
+ * socket).  When this option is turned on, then each receive call may
+ * come from a different association (thus the user must receive data
+ * with the extended calls (e.g. sctp_recvmsg) to keep track of which
+ * association each receive belongs to.
+ *
+ * This option takes a boolean value.  A non-zero value indicates that
+ * fragmented interleave is on.  A value of zero indicates that
+ * fragmented interleave is off.
+ *
+ * Note that it is important that an implementation that allows this
+ * option to be turned on, have it off by default.  Otherwise an unaware
+ * application using the one to many model may become confused and act
+ * incorrectly.
+ */
+static int sctp_setsockopt_fragment_interleave(struct sock *sk,
+					       char __user *optval,
+					       int optlen)
+{
+	int val;
+
+	if (optlen != sizeof(int))
+		return -EINVAL;
+	if (get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	sctp_sk(sk)->frag_interleave = (val == 0) ? 0 : 1;
+
+	return 0;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -2906,7 +2946,9 @@ SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
 	case SCTP_CONTEXT:
 		retval = sctp_setsockopt_context(sk, optval, optlen);
 		break;
-
+	case SCTP_FRAGMENT_INTERLEAVE:
+		retval = sctp_setsockopt_fragment_interleave(sk, optval, optlen);
+		break;
 	default:
 		retval = -ENOPROTOOPT;
 		break;
@@ -3134,8 +3176,9 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->pf = sctp_get_pf_specific(sk->sk_family);
 
 	/* Control variables for partial data delivery. */
-	sp->pd_mode           = 0;
+	atomic_set(&sp->pd_mode, 0);
 	skb_queue_head_init(&sp->pd_lobby);
+	sp->frag_interleave = 0;
 
 	/* Create a per socket endpoint structure.  Even if we
 	 * change the data structure relationships, this may still
@@ -3642,7 +3685,7 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 	return 0;
 }
 
-/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+/* 7.1.23. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
  *
  *   This options will get or set the delayed ack timer.  The time is set
  *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
@@ -4536,6 +4579,29 @@ static int sctp_getsockopt_maxseg(struct sock *sk, int len,
 	return 0;
 }
 
+/*
+ * 7.1.24.  Get or set fragmented interleave (SCTP_FRAGMENT_INTERLEAVE)
+ * (chapter and verse is quoted at sctp_setsockopt_fragment_interleave())
+ */
+static int sctp_getsockopt_fragment_interleave(struct sock *sk, int len,
+					       char __user *optval, int __user *optlen)
+{
+	int val;
+
+	if (len < sizeof(int))
+		return -EINVAL;
+
+	len = sizeof(int);
+
+	val = sctp_sk(sk)->frag_interleave;
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
 SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 				char __user *optval, int __user *optlen)
 {
@@ -4647,6 +4713,10 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_CONTEXT:
 		retval = sctp_getsockopt_context(sk, len, optval, optlen);
+		break;
+	case SCTP_FRAGMENT_INTERLEAVE:
+		retval = sctp_getsockopt_fragment_interleave(sk, len, optval,
+							     optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
@@ -5742,9 +5812,9 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	 * 3) Peeling off non-partial delivery; move pd_lobby to receive_queue.
 	 */
 	skb_queue_head_init(&newsp->pd_lobby);
-	sctp_sk(newsk)->pd_mode = assoc->ulpq.pd_mode;
+	atomic_set(&sctp_sk(newsk)->pd_mode, assoc->ulpq.pd_mode);
 
-	if (sctp_sk(oldsk)->pd_mode) {
+	if (atomic_read(&sctp_sk(oldsk)->pd_mode)) {
 		struct sk_buff_head *queue;
 
 		/* Decide which queue to move pd_lobby skbs to. */
@@ -5770,7 +5840,7 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		 * delivery to finish.
 		 */
 		if (assoc->ulpq.pd_mode)
-			sctp_clear_pd(oldsk);
+			sctp_clear_pd(oldsk, NULL);
 
 	}
 

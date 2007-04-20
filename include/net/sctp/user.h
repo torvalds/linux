@@ -97,6 +97,8 @@ enum sctp_optname {
 #define SCTP_DELAYED_ACK_TIME SCTP_DELAYED_ACK_TIME
 	SCTP_CONTEXT,	/* Receive Context */
 #define SCTP_CONTEXT SCTP_CONTEXT
+	SCTP_FRAGMENT_INTERLEAVE,
+#define SCTP_FRAGMENT_INTERLEAVE SCTP_FRAGMENT_INTERLEAVE
 
 	/* Internal Socket Options. Some of the sctp library functions are 
 	 * implemented using these socket options.
@@ -530,7 +532,7 @@ struct sctp_paddrparams {
 	__u32			spp_flags;
 } __attribute__((packed, aligned(4)));
 
-/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+/* 7.1.23. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
  *
  *   This options will get or set the delayed ack timer.  The time is set
  *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
