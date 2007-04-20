@@ -382,7 +382,7 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		skb->protocol = htons(ETH_P_8021Q);
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 	}
 
 	/* Before delegating work to the lower layer, enter our MAC-address */
