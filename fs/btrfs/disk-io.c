@@ -540,6 +540,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->btree_inode->i_nlink = 1;
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
+	fs_info->do_barriers = 1;
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
 	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
 	       sizeof(struct btrfs_key));
@@ -622,6 +623,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root)
 {
+	int ret;
 	struct buffer_head *bh = root->fs_info->sb_buffer;
 
 	btrfs_set_super_root(root->fs_info->disk_super,
@@ -632,7 +634,15 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 	csum_tree_block(root, bh, 0);
 	bh->b_end_io = end_buffer_write_sync;
 	get_bh(bh);
-	submit_bh(WRITE, bh);
+	if (root->fs_info->do_barriers)
+		ret = submit_bh(WRITE_BARRIER, bh);
+	else
+		ret = submit_bh(WRITE, bh);
+	if (ret == -EOPNOTSUPP) {
+		set_buffer_uptodate(bh);
+		root->fs_info->do_barriers = 0;
+		ret = submit_bh(WRITE, bh);
+	}
 	wait_on_buffer(bh);
 	if (!buffer_uptodate(bh)) {
 		WARN_ON(1);

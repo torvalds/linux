@@ -259,6 +259,7 @@ struct btrfs_fs_info {
 	struct list_head trans_list;
 	struct crypto_hash *hash_tfm;
 	spinlock_t hash_lock;
+	int do_barriers;
 	struct kobject kobj;
 };
 
