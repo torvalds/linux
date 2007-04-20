@@ -201,7 +201,8 @@ struct packet_sock {
 	struct packet_type	prot_hook;
 	spinlock_t		bind_lock;
 	unsigned int		running:1,	/* prot_hook is attached*/
-				auxdata:1;
+				auxdata:1,
+				origdev:1;
 	int			ifindex;	/* bound device		*/
 	__be16			num;
 #ifdef CONFIG_PACKET_MULTICAST
@@ -528,7 +529,10 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 	sll->sll_hatype = dev->type;
 	sll->sll_protocol = skb->protocol;
 	sll->sll_pkttype = skb->pkt_type;
-	sll->sll_ifindex = dev->ifindex;
+	if (unlikely(po->origdev) && skb->pkt_type == PACKET_HOST)
+		sll->sll_ifindex = orig_dev->ifindex;
+	else
+		sll->sll_ifindex = dev->ifindex;
 	sll->sll_halen = 0;
 
 	if (dev->hard_header_parse)
@@ -673,7 +677,10 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	sll->sll_hatype = dev->type;
 	sll->sll_protocol = skb->protocol;
 	sll->sll_pkttype = skb->pkt_type;
-	sll->sll_ifindex = dev->ifindex;
+	if (unlikely(po->origdev) && skb->pkt_type == PACKET_HOST)
+		sll->sll_ifindex = orig_dev->ifindex;
+	else
+		sll->sll_ifindex = dev->ifindex;
 
 	h->tp_status = status;
 	smp_mb();
@@ -1413,6 +1420,18 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 		po->auxdata = !!val;
 		return 0;
 	}
+	case PACKET_ORIGDEV:
+	{
+		int val;
+
+		if (optlen < sizeof(val))
+			return -EINVAL;
+		if (copy_from_user(&val, optval, sizeof(val)))
+			return -EFAULT;
+
+		po->origdev = !!val;
+		return 0;
+	}
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -1453,6 +1472,13 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		if (len > sizeof(int))
 			len = sizeof(int);
 		val = po->auxdata;
+
+		data = &val;
+		break;
+	case PACKET_ORIGDEV:
+		if (len > sizeof(int))
+			len = sizeof(int);
+		val = po->origdev;
 
 		data = &val;
 		break;
