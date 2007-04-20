@@ -420,7 +420,7 @@ static int __init ipt_ulog_init(void)
 		setup_timer(&ulog_buffers[i].timer, ulog_timer, i);
 
 	nflognl = netlink_kernel_create(NETLINK_NFLOG, ULOG_MAXNLGROUPS, NULL,
-					THIS_MODULE);
+					NULL, THIS_MODULE);
 	if (!nflognl)
 		return -ENOMEM;
 

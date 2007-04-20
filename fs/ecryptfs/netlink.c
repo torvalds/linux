@@ -229,7 +229,7 @@ int ecryptfs_init_netlink(void)
 
 	ecryptfs_nl_sock = netlink_kernel_create(NETLINK_ECRYPTFS, 0,
 						 ecryptfs_receive_nl_message,
-						 THIS_MODULE);
+						 NULL, THIS_MODULE);
 	if (!ecryptfs_nl_sock) {
 		rc = -EIO;
 		ecryptfs_printk(KERN_ERR, "Failed to create netlink socket\n");

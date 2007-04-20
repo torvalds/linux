@@ -168,7 +168,8 @@ scsi_netlink_init(void)
 	}
 
 	scsi_nl_sock = netlink_kernel_create(NETLINK_SCSITRANSPORT,
-				SCSI_NL_GRP_CNT, scsi_nl_rcv, THIS_MODULE);
+				SCSI_NL_GRP_CNT, scsi_nl_rcv, NULL,
+				THIS_MODULE);
 	if (!scsi_nl_sock) {
 		printk(KERN_ERR "%s: register of recieve handler failed\n",
 				__FUNCTION__);
