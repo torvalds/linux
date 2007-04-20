@@ -580,7 +580,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	ps->disccontext = NULL;
 	ps->ifclaimed = 0;
 	security_task_getsecid(current, &ps->secid);
-	wmb();
+	smp_wmb();
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
  out:
