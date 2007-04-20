@@ -922,7 +922,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		if (frag != 0)
 			flen -= hdrlen;
 
-		if (skb_tail_pointer(frag_skb) + flen > frag_skb->end) {
+		if (frag_skb->tail + flen > frag_skb->end) {
 			printk(KERN_WARNING "%s: host decrypted and "
 			       "reassembled frame did not fit skb\n",
 			       dev->name);

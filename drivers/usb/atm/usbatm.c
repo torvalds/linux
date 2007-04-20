@@ -335,12 +335,12 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 
 	sarb = instance->cached_vcc->sarb;
 
-	if (skb_tail_pointer(sarb) + ATM_CELL_PAYLOAD > sarb->end) {
+	if (sarb->tail + ATM_CELL_PAYLOAD > sarb->end) {
 		atm_rldbg(instance, "%s: buffer overrun (sarb->len %u, vcc: 0x%p)!\n",
 				__func__, sarb->len, vcc);
 		/* discard cells already received */
 		skb_trim(sarb, 0);
-		UDSL_ASSERT(skb_tail_pointer(sarb) + ATM_CELL_PAYLOAD <= sarb->end);
+		UDSL_ASSERT(sarb->tail + ATM_CELL_PAYLOAD <= sarb->end);
 	}
 
 	memcpy(skb_tail_pointer(sarb), source + ATM_CELL_HEADER, ATM_CELL_PAYLOAD);

@@ -305,9 +305,9 @@ struct sk_buff {
 	sk_buff_data_t		mac_header;
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	sk_buff_data_t		tail;
+	sk_buff_data_t		end;
 	unsigned char		*head,
-				*data,
-				*end;
+				*data;
 	unsigned int		truesize;
 	atomic_t		users;
 };
@@ -392,8 +392,20 @@ extern unsigned int   skb_find_text(struct sk_buff *skb, unsigned int from,
 				    unsigned int to, struct ts_config *config,
 				    struct ts_state *state);
 
+#ifdef NET_SKBUFF_DATA_USES_OFFSET
+static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
+{
+	return skb->head + skb->end;
+}
+#else
+static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
+{
+	return skb->end;
+}
+#endif
+
 /* Internal */
-#define skb_shinfo(SKB)		((struct skb_shared_info *)((SKB)->end))
+#define skb_shinfo(SKB)	((struct skb_shared_info *)(skb_end_pointer(SKB)))
 
 /**
  *	skb_queue_empty - check if a queue is empty
@@ -843,6 +855,7 @@ static inline void skb_set_tail_pointer(struct sk_buff *skb, const int offset)
 {
 	skb->tail = skb->data + offset;
 }
+
 #endif /* NET_SKBUFF_DATA_USES_OFFSET */
 
 /*
@@ -872,7 +885,7 @@ static inline unsigned char *skb_put(struct sk_buff *skb, unsigned int len)
 	SKB_LINEAR_ASSERT(skb);
 	skb->tail += len;
 	skb->len  += len;
-	if (unlikely(skb_tail_pointer(skb) > skb->end))
+	if (unlikely(skb->tail > skb->end))
 		skb_over_panic(skb, len, current_text_addr());
 	return tmp;
 }
@@ -968,7 +981,7 @@ static inline int skb_headroom(const struct sk_buff *skb)
  */
 static inline int skb_tailroom(const struct sk_buff *skb)
 {
-	return skb_is_nonlinear(skb) ? 0 : skb->end - skb_tail_pointer(skb);
+	return skb_is_nonlinear(skb) ? 0 : skb->end - skb->tail;
 }
 
 /**

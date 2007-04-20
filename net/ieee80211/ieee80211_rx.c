@@ -595,7 +595,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		if (frag != 0)
 			flen -= hdrlen;
 
-		if (skb_tail_pointer(frag_skb) + flen > frag_skb->end) {
+		if (frag_skb->tail + flen > frag_skb->end) {
 			printk(KERN_WARNING "%s: host decrypted and "
 			       "reassembled frame did not fit skb\n",
 			       dev->name);

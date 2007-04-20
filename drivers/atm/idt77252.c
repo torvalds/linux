@@ -1065,7 +1065,8 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 	vcc = vc->rx_vcc;
 
 	pci_dma_sync_single_for_cpu(card->pcidev, IDT77252_PRV_PADDR(skb),
-				    skb->end - skb->data, PCI_DMA_FROMDEVICE);
+				    skb_end_pointer(skb) - skb->data,
+				    PCI_DMA_FROMDEVICE);
 
 	if ((vcc->qos.aal == ATM_AAL0) ||
 	    (vcc->qos.aal == ATM_AAL34)) {
@@ -1194,7 +1195,8 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 		}
 
 		pci_unmap_single(card->pcidev, IDT77252_PRV_PADDR(skb),
-				 skb->end - skb->data, PCI_DMA_FROMDEVICE);
+				 skb_end_pointer(skb) - skb->data,
+				 PCI_DMA_FROMDEVICE);
 		sb_pool_remove(card, skb);
 
 		skb_trim(skb, len);
@@ -1267,7 +1269,7 @@ idt77252_rx_raw(struct idt77252_dev *card)
 	tail = readl(SAR_REG_RAWCT);
 
 	pci_dma_sync_single_for_cpu(card->pcidev, IDT77252_PRV_PADDR(queue),
-				    queue->end - queue->head - 16,
+				    skb_end_pointer(queue) - queue->head - 16,
 				    PCI_DMA_FROMDEVICE);
 
 	while (head != tail) {
@@ -1363,7 +1365,8 @@ drop:
 				queue = card->raw_cell_head;
 				pci_dma_sync_single_for_cpu(card->pcidev,
 							    IDT77252_PRV_PADDR(queue),
-							    queue->end - queue->data,
+							    (skb_end_pointer(queue) -
+							     queue->data),
 							    PCI_DMA_FROMDEVICE);
 			} else {
 				card->raw_cell_head = NULL;
@@ -1875,7 +1878,7 @@ add_rx_skb(struct idt77252_dev *card, int queue,
 		}
 
 		paddr = pci_map_single(card->pcidev, skb->data,
-				       skb->end - skb->data,
+				       skb_end_pointer(skb) - skb->data,
 				       PCI_DMA_FROMDEVICE);
 		IDT77252_PRV_PADDR(skb) = paddr;
 
@@ -1889,7 +1892,7 @@ add_rx_skb(struct idt77252_dev *card, int queue,
 
 outunmap:
 	pci_unmap_single(card->pcidev, IDT77252_PRV_PADDR(skb),
-			 skb->end - skb->data, PCI_DMA_FROMDEVICE);
+			 skb_end_pointer(skb) - skb->data, PCI_DMA_FROMDEVICE);
 
 	handle = IDT77252_PRV_POOL(skb);
 	card->sbpool[POOL_QUEUE(handle)].skb[POOL_INDEX(handle)] = NULL;
@@ -1906,12 +1909,14 @@ recycle_rx_skb(struct idt77252_dev *card, struct sk_buff *skb)
 	int err;
 
 	pci_dma_sync_single_for_device(card->pcidev, IDT77252_PRV_PADDR(skb),
-				       skb->end - skb->data, PCI_DMA_FROMDEVICE);
+				       skb_end_pointer(skb) - skb->data,
+				       PCI_DMA_FROMDEVICE);
 
 	err = push_rx_skb(card, skb, POOL_QUEUE(handle));
 	if (err) {
 		pci_unmap_single(card->pcidev, IDT77252_PRV_PADDR(skb),
-				 skb->end - skb->data, PCI_DMA_FROMDEVICE);
+				 skb_end_pointer(skb) - skb->data,
+				 PCI_DMA_FROMDEVICE);
 		sb_pool_remove(card, skb);
 		dev_kfree_skb(skb);
 	}
@@ -3123,7 +3128,8 @@ deinit_card(struct idt77252_dev *card)
 			if (skb) {
 				pci_unmap_single(card->pcidev,
 						 IDT77252_PRV_PADDR(skb),
-						 skb->end - skb->data,
+						 (skb_end_pointer(skb) -
+						  skb->data),
 						 PCI_DMA_FROMDEVICE);
 				card->sbpool[i].skb[j] = NULL;
 				dev_kfree_skb(skb);

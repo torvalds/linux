@@ -477,7 +477,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	BUG_ON(skb_cloned(skb));
 
 	mpalen = sizeof(*mpa) + ep->plen;
-	if (skb->data + mpalen + sizeof(*req) > skb->end) {
+	if (skb->data + mpalen + sizeof(*req) > skb_end_pointer(skb)) {
 		kfree_skb(skb);
 		skb=alloc_skb(mpalen + sizeof(*req), GFP_KERNEL);
 		if (!skb) {

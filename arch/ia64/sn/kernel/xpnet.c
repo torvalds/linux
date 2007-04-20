@@ -264,7 +264,7 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
 
 	dev_dbg(xpnet, "<skb->head=0x%p skb->data=0x%p skb->tail=0x%p "
 		"skb->end=0x%p skb->len=%d\n", (void *) skb->head,
-		(void *)skb->data, skb_tail_pointer(skb), (void *)skb->end,
+		(void *)skb->data, skb_tail_pointer(skb), skb_end_pointer(skb),
 		skb->len);
 
 	skb->protocol = eth_type_trans(skb, xpnet_device);
@@ -273,7 +273,7 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
 	dev_dbg(xpnet, "passing skb to network layer; \n\tskb->head=0x%p "
 		"skb->data=0x%p skb->tail=0x%p skb->end=0x%p skb->len=%d\n",
 		(void *)skb->head, (void *)skb->data, skb_tail_pointer(skb),
-		(void *) skb->end, skb->len);
+		skb_end_pointer(skb), skb->len);
 
 
 	xpnet_device->last_rx = jiffies;
@@ -475,7 +475,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_dbg(xpnet, ">skb->head=0x%p skb->data=0x%p skb->tail=0x%p "
 		"skb->end=0x%p skb->len=%d\n", (void *) skb->head,
-		(void *)skb->data, skb_tail_pointer(skb), (void *)skb->end,
+		(void *)skb->data, skb_tail_pointer(skb), skb_end_pointer(skb),
 		skb->len);
 
 
