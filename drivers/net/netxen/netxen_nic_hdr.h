@@ -649,11 +649,19 @@ enum {
 #define PCIX_MS_WINDOW		(0x10204)
 #define PCIX_SN_WINDOW		(0x10208)
 #define PCIX_CRB_WINDOW		(0x10210)
+#define PCIX_CRB_WINDOW_F0	(0x10210)
+#define PCIX_CRB_WINDOW_F1	(0x10230)
+#define PCIX_CRB_WINDOW_F2	(0x10250)
+#define PCIX_CRB_WINDOW_F3	(0x10270)
 
 #define PCIX_TARGET_STATUS	(0x10118)
 #define PCIX_TARGET_MASK	(0x10128)
 
 #define PCIX_MSI_F0		(0x13000)
+#define PCIX_MSI_F1		(0x13004)
+#define PCIX_MSI_F2		(0x13008)
+#define PCIX_MSI_F3		(0x1300c)
+#define PCIX_MSI_F(i)		(0x13000+((i)*4))
 
 #define PCIX_PS_MEM_SPACE	(0x90000)
 

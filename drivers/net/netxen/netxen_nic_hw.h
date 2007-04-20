@@ -6,12 +6,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *                            
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *                                   
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -87,7 +87,7 @@ struct netxen_adapter;
 	*(u32 *)Y = readl((void __iomem*) addr);
 
 struct netxen_port;
-void netxen_nic_set_link_parameters(struct netxen_port *port);
+void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
 void netxen_nic_flash_print(struct netxen_adapter *adapter);
 int netxen_nic_hw_write_wx(struct netxen_adapter *adapter, u64 off,
 			   void *data, int len);
@@ -452,21 +452,21 @@ typedef enum {
 		((config) |= (((val) & 0x0f) << 28))
 
 /* Set promiscuous mode for a GbE interface */
-int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, int port,
+int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, 
 				    netxen_niu_prom_mode_t mode);
 int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
-				       int port, netxen_niu_prom_mode_t mode);
+				       netxen_niu_prom_mode_t mode);
 
 /* get/set the MAC address for a given MAC */
 int netxen_niu_macaddr_get(struct netxen_adapter *adapter, int port,
 			   netxen_ethernet_macaddr_t * addr);
-int netxen_niu_macaddr_set(struct netxen_port *port,
+int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
 			   netxen_ethernet_macaddr_t addr);
 
 /* XG versons */
 int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter, int port,
 			      netxen_ethernet_macaddr_t * addr);
-int netxen_niu_xg_macaddr_set(struct netxen_port *port,
+int netxen_niu_xg_macaddr_set(struct netxen_adapter *adapter,
 			      netxen_ethernet_macaddr_t addr);
 
 /* Generic enable for GbE ports. Will detect the speed of the link. */
@@ -475,8 +475,8 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port);
 int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
 
 /* Disable a GbE interface */
-int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter, int port);
+int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter);
 
-int netxen_niu_disable_xg_port(struct netxen_adapter *adapter, int port);
+int netxen_niu_disable_xg_port(struct netxen_adapter *adapter);
 
 #endif				/* __NETXEN_NIC_HW_H_ */

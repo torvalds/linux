@@ -610,13 +610,12 @@ int netxen_niu_macaddr_get(struct netxen_adapter *adapter,
  * Set the station MAC address.
  * Note that the passed-in value must already be in network byte order.
  */
-int netxen_niu_macaddr_set(struct netxen_port *port,
+int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
 			   netxen_ethernet_macaddr_t addr)
 {
 	u8 temp[4];
 	u32 val;
-	struct netxen_adapter *adapter = port->adapter;
-	int phy = port->portnum;
+	int phy = adapter->portnum;
 	unsigned char mac_addr[6];
 	int i;
 
@@ -642,7 +641,7 @@ int netxen_niu_macaddr_set(struct netxen_port *port,
 
 	if (i == 10) {
 		printk(KERN_ERR "%s: cannot set Mac addr for %s\n",
-		       netxen_nic_driver_name, port->netdev->name);
+		       netxen_nic_driver_name, adapter->netdev->name);
 		printk(KERN_ERR "MAC address set: "
 		       "%02x:%02x:%02x:%02x:%02x:%02x.\n",
 		       addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
@@ -735,12 +734,10 @@ int netxen_niu_enable_gbe_port(struct netxen_adapter *adapter,
 }
 
 /* Disable a GbE interface */
-int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter, int port)
+int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter)
 {
 	__u32 mac_cfg0;
-
-	if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
-		return -EINVAL;
+	int port = adapter->portnum;
 
 	mac_cfg0 = 0;
 	netxen_gb_soft_reset(mac_cfg0);
@@ -751,12 +748,9 @@ int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter, int port)
 }
 
 /* Disable an XG interface */
-int netxen_niu_disable_xg_port(struct netxen_adapter *adapter, int port)
+int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 {
 	__u32 mac_cfg;
-
-	if (port != 0)
-		return -EINVAL;
 
 	mac_cfg = 0;
 	netxen_xg_soft_reset(mac_cfg);
@@ -767,10 +761,11 @@ int netxen_niu_disable_xg_port(struct netxen_adapter *adapter, int port)
 }
 
 /* Set promiscuous mode for a GbE interface */
-int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, int port,
+int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, 
 				    netxen_niu_prom_mode_t mode)
 {
 	__u32 reg;
+	int port = adapter->portnum;
 
 	if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 		return -EINVAL;
@@ -824,12 +819,11 @@ int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, int port,
  * Set the MAC address for an XG port
  * Note that the passed-in value must already be in network byte order.
  */
-int netxen_niu_xg_macaddr_set(struct netxen_port *port,
+int netxen_niu_xg_macaddr_set(struct netxen_adapter *adapter,
 			      netxen_ethernet_macaddr_t addr)
 {
 	u8 temp[4];
 	u32 val;
-	struct netxen_adapter *adapter = port->adapter;
 
 	temp[0] = temp[1] = 0;
 	memcpy(temp + 2, addr, 2);
@@ -878,9 +872,10 @@ int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter, int phy,
 }
 
 int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
-				       int port, netxen_niu_prom_mode_t mode)
+				       netxen_niu_prom_mode_t mode)
 {
 	__u32 reg;
+	int port = adapter->portnum;
 
 	if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 		return -EINVAL;

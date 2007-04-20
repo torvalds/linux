@@ -230,7 +230,9 @@ enum {
 	(((index) + (count)) & ((length) - 1))
 
 #define MPORT_SINGLE_FUNCTION_MODE 0x1111
+#define MPORT_MULTI_FUNCTION_MODE 0x2222
 
+#include "netxen_nic_phan_reg.h"
 extern unsigned long long netxen_dma_mask;
 extern unsigned long last_schedule_time;
 
@@ -703,10 +705,8 @@ extern char netxen_nic_driver_name[];
 #else
 #define DPRINTK(klevel, fmt, args...)	do { \
 	printk(KERN_##klevel PFX "%s: %s: " fmt, __FUNCTION__,\
-		(adapter != NULL && \
-		adapter->port[0] != NULL && \
-		adapter->port[0]->netdev != NULL) ? \
-		adapter->port[0]->netdev->name : NULL, \
+		(adapter != NULL && adapter->netdev != NULL) ? \
+		adapter->netdev->name : NULL, \
 		## args); } while(0)
 #endif
 
@@ -788,17 +788,27 @@ struct netxen_hardware_context {
 #define ETHERNET_FCS_SIZE		4
 
 struct netxen_adapter_stats {
-	u64 ints;
-	u64 hostints;
-	u64 otherints;
-	u64 process_rcv;
-	u64 process_xmit;
-	u64 noxmitdone;
-	u64 xmitcsummed;
-	u64 post_called;
-	u64 posted;
-	u64 lastposted;
-	u64 goodskbposts;
+	u64  rcvdbadskb;
+	u64  xmitcalled;
+	u64  xmitedframes;
+	u64  xmitfinished;
+	u64  badskblen;
+	u64  nocmddescriptor;
+	u64  polled;
+	u64  uphappy;
+	u64  updropped;
+	u64  uplcong;
+	u64  uphcong;
+	u64  upmcong;
+	u64  updunno;
+	u64  skbfreed;
+	u64  txdropped;
+	u64  txnullskb;
+	u64  csummed;
+	u64  no_rcv;
+	u64  rxbytes;
+	u64  txbytes;
+	u64  ints;
 };
 
 /*
@@ -846,13 +856,19 @@ struct netxen_dummy_dma {
 
 struct netxen_adapter {
 	struct netxen_hardware_context ahw;
-	int port_count;		/* Number of configured ports  */
-	int active_ports;	/* Number of open ports */
-	struct netxen_port *port[NETXEN_MAX_PORTS];	/* ptr to each port  */
+	
+	struct netxen_adapter *master;
+	struct net_device *netdev;
+	struct pci_dev *pdev;
+	unsigned char mac_addr[ETH_ALEN];
+	int mtu;
+	int portnum;
+
 	spinlock_t tx_lock;
 	spinlock_t lock;
 	struct work_struct watchdog_task;
 	struct timer_list watchdog_timer;
+	struct work_struct  tx_timeout_task;
 
 	u32 curr_window;
 
@@ -875,6 +891,15 @@ struct netxen_adapter {
 	u32 temp;
 
 	struct netxen_adapter_stats stats;
+	
+	u16 portno;
+	u16 link_speed;
+	u16 link_duplex;
+	u16 state;
+	u16 link_autoneg;
+	int rcsum;
+	int status;
+	spinlock_t stats_lock;
 
 	struct netxen_cmd_buffer *cmd_buf_arr;	/* Command buffers for xmit */
 
@@ -894,61 +919,19 @@ struct netxen_adapter {
 	int (*enable_phy_interrupts) (struct netxen_adapter *, int);
 	int (*disable_phy_interrupts) (struct netxen_adapter *, int);
 	void (*handle_phy_intr) (struct netxen_adapter *);
-	int (*macaddr_set) (struct netxen_port *, netxen_ethernet_macaddr_t);
-	int (*set_mtu) (struct netxen_port *, int);
-	int (*set_promisc) (struct netxen_adapter *, int,
-			    netxen_niu_prom_mode_t);
-	int (*unset_promisc) (struct netxen_adapter *, int,
-			      netxen_niu_prom_mode_t);
+	int (*macaddr_set) (struct netxen_adapter *, netxen_ethernet_macaddr_t);
+	int (*set_mtu) (struct netxen_adapter *, int);
+	int (*set_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
+	int (*unset_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
 	int (*phy_read) (struct netxen_adapter *, long phy, long reg, u32 *);
 	int (*phy_write) (struct netxen_adapter *, long phy, long reg, u32 val);
 	int (*init_port) (struct netxen_adapter *, int);
 	void (*init_niu) (struct netxen_adapter *);
-	int (*stop_port) (struct netxen_adapter *, int);
+	int (*stop_port) (struct netxen_adapter *);
 };				/* netxen_adapter structure */
 
 /* Max number of xmit producer threads that can run simultaneously */
 #define	MAX_XMIT_PRODUCERS		16
-
-struct netxen_port_stats {
-	u64 rcvdbadskb;
-	u64 xmitcalled;
-	u64 xmitedframes;
-	u64 xmitfinished;
-	u64 badskblen;
-	u64 nocmddescriptor;
-	u64 polled;
-	u64 uphappy;
-	u64 updropped;
-	u64 uplcong;
-	u64 uphcong;
-	u64 upmcong;
-	u64 updunno;
-	u64 skbfreed;
-	u64 txdropped;
-	u64 txnullskb;
-	u64 csummed;
-	u64 no_rcv;
-	u64 rxbytes;
-	u64 txbytes;
-};
-
-struct netxen_port {
-	struct netxen_adapter *adapter;
-
-	u16 portnum;		/* GBE port number */
-	u16 link_speed;
-	u16 link_duplex;
-	u16 link_autoneg;
-
-	int flags;
-
-	struct net_device *netdev;
-	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
-	struct netxen_port_stats stats;
-	struct work_struct tx_timeout_task;
-};
 
 #define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
 	((adapter)->ahw.pci_base0 + (off))
@@ -1011,8 +994,8 @@ int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter, long phy,
 			     long reg, __u32 val);
 
 /* Functions available from netxen_nic_hw.c */
-int netxen_nic_set_mtu_xgb(struct netxen_port *port, int new_mtu);
-int netxen_nic_set_mtu_gb(struct netxen_port *port, int new_mtu);
+int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
+int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu);
 void netxen_nic_init_niu_gb(struct netxen_adapter *adapter);
 void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw);
 void netxen_nic_reg_write(struct netxen_adapter *adapter, u64 off, u32 val);
@@ -1051,11 +1034,8 @@ int netxen_do_rom_se(struct netxen_adapter *adapter, int addr);
 
 /* Functions from netxen_nic_isr.c */
 void netxen_nic_isr_other(struct netxen_adapter *adapter);
-void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 port,
-				 u32 link);
-void netxen_handle_port_int(struct netxen_adapter *adapter, u32 port,
-			    u32 enable);
-void netxen_nic_stop_all_ports(struct netxen_adapter *adapter);
+void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link);
+void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable);
 void netxen_initialize_adapter_sw(struct netxen_adapter *adapter);
 void netxen_initialize_adapter_hw(struct netxen_adapter *adapter);
 void *netxen_alloc(struct pci_dev *pdev, size_t sz, dma_addr_t * ptr,
@@ -1110,6 +1090,7 @@ static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		mask = 0xbff;
+		writel(0X0, NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
 		writel(mask, PCI_OFFSET_SECOND_RANGE(adapter,
 						     ISR_INT_TARGET_MASK));
 	}
