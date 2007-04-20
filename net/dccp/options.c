@@ -172,20 +172,24 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			opt_recv->dccpor_timestamp_echo = ntohl(*(__be32 *)value);
 
 			dccp_pr_debug("%s rx opt: TIMESTAMP_ECHO=%u, len=%d, "
-				      "ackno=%llu, ",  dccp_role(sk),
+				      "ackno=%llu", dccp_role(sk),
 				      opt_recv->dccpor_timestamp_echo,
 				      len + 2,
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 
 
-			if (len == 4)
+			if (len == 4) {
+				dccp_pr_debug_cat("\n");
 				break;
+			}
 
 			if (len == 6)
 				elapsed_time = ntohs(*(__be16 *)(value + 4));
 			else
 				elapsed_time = ntohl(*(__be32 *)(value + 4));
+
+			dccp_pr_debug_cat(", ELAPSED_TIME=%d\n", elapsed_time);
 
 			/* Give precedence to the biggest ELAPSED_TIME */
 			if (elapsed_time > opt_recv->dccpor_elapsed_time)
