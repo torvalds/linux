@@ -467,8 +467,6 @@ static struct clk *bast_clocks[] = {
 static struct s3c24xx_board bast_board __initdata = {
 	.devices       = bast_devices,
 	.devices_count = ARRAY_SIZE(bast_devices),
-	.clocks	       = bast_clocks,
-	.clocks_count  = ARRAY_SIZE(bast_clocks),
 };
 
 static void __init bast_map_io(void)
@@ -485,6 +483,8 @@ static void __init bast_map_io(void)
 	s3c24xx_clkout1.parent  = &s3c24xx_dclk1;
 
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
+
+	s3c24xx_register_clocks(bast_clocks, ARRAY_SIZE(bast_clocks));
 
 	s3c_device_nand.dev.platform_data = &bast_nand_info;
 	s3c_device_i2c.dev.platform_data = &bast_i2c_info;

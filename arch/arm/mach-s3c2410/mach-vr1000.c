@@ -387,8 +387,6 @@ static struct clk *vr1000_clocks[] = {
 static struct s3c24xx_board vr1000_board __initdata = {
 	.devices       = vr1000_devices,
 	.devices_count = ARRAY_SIZE(vr1000_devices),
-	.clocks	       = vr1000_clocks,
-	.clocks_count  = ARRAY_SIZE(vr1000_clocks),
 };
 
 static void vr1000_power_off(void)
@@ -411,6 +409,8 @@ static void __init vr1000_map_io(void)
 	s3c24xx_clkout1.parent  = &s3c24xx_dclk1;
 
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
+
+	s3c24xx_register_clocks(vr1000_clocks, ARRAY_SIZE(vr1000_clocks));
 
 	pm_power_off = vr1000_power_off;
 

@@ -284,8 +284,6 @@ static struct clk *anubis_clocks[] = {
 static struct s3c24xx_board anubis_board __initdata = {
 	.devices       = anubis_devices,
 	.devices_count = ARRAY_SIZE(anubis_devices),
-	.clocks	       = anubis_clocks,
-	.clocks_count  = ARRAY_SIZE(anubis_clocks),
 };
 
 static void __init anubis_map_io(void)
@@ -302,6 +300,8 @@ static void __init anubis_map_io(void)
 	s3c24xx_clkout1.parent  = &s3c24xx_dclk1;
 
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
+
+	s3c24xx_register_clocks(anubis_clocks, ARRAY_SIZE(anubis_clocks));
 
 	s3c_device_nand.dev.platform_data = &anubis_nand_info;
 

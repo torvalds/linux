@@ -49,9 +49,6 @@ extern void s3c24xx_init_uartdevs(char *name,
 struct s3c24xx_board {
 	struct platform_device  **devices;
 	unsigned int              devices_count;
-
-	struct clk		**clocks;
-	unsigned int		  clocks_count;
 };
 
 extern void s3c24xx_set_board(struct s3c24xx_board *board);

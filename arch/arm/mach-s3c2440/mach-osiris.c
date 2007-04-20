@@ -254,8 +254,6 @@ static struct clk *osiris_clocks[] = {
 static struct s3c24xx_board osiris_board __initdata = {
 	.devices       = osiris_devices,
 	.devices_count = ARRAY_SIZE(osiris_devices),
-	.clocks	       = osiris_clocks,
-	.clocks_count  = ARRAY_SIZE(osiris_clocks),
 };
 
 static void __init osiris_map_io(void)
@@ -274,6 +272,8 @@ static void __init osiris_map_io(void)
 	s3c24xx_clkout1.parent  = &s3c24xx_dclk1;
 
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
+
+	s3c24xx_register_clocks(osiris_clocks, ARRAY_SIZE(osiris_clocks));
 
 	s3c_device_nand.dev.platform_data = &osiris_nand_info;
 
