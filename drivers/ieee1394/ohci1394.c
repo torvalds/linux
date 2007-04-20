@@ -507,9 +507,8 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	/* Set up self-id dma buffer */
 	reg_write(ohci, OHCI1394_SelfIDBuffer, ohci->selfid_buf_bus);
 
-	/* enable self-id and phys */
-	reg_write(ohci, OHCI1394_LinkControlSet, OHCI1394_LinkControl_RcvSelfID |
-		  OHCI1394_LinkControl_RcvPhyPkt);
+	/* enable self-id */
+	reg_write(ohci, OHCI1394_LinkControlSet, OHCI1394_LinkControl_RcvSelfID);
 
 	/* Set the Config ROM mapping register */
 	reg_write(ohci, OHCI1394_ConfigROMmap, ohci->csr_config_rom_bus);
@@ -518,9 +517,6 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	ohci->max_packet_size =
 		1<<(((reg_read(ohci, OHCI1394_BusOptions)>>12)&0xf)+1);
 		
-	/* Don't accept phy packets into AR request context */
-	reg_write(ohci, OHCI1394_LinkControlClear, 0x00000400);
-
 	/* Clear the interrupt mask */
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, 0xffffffff);
 	reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 0xffffffff);
