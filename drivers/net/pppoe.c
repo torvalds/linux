@@ -241,54 +241,53 @@ static inline struct pppox_sock *delete_item(unsigned long sid, char *addr, int 
 static void pppoe_flush_dev(struct net_device *dev)
 {
 	int hash;
-
 	BUG_ON(dev == NULL);
 
-	read_lock_bh(&pppoe_hash_lock);
+	write_lock_bh(&pppoe_hash_lock);
 	for (hash = 0; hash < PPPOE_HASH_SIZE; hash++) {
 		struct pppox_sock *po = item_hash_table[hash];
 
 		while (po != NULL) {
-			if (po->pppoe_dev == dev) {
-				struct sock *sk = sk_pppox(po);
-
-				sock_hold(sk);
-				po->pppoe_dev = NULL;
-
-				/* We hold a reference to SK, now drop the
-				 * hash table lock so that we may attempt
-				 * to lock the socket (which can sleep).
-				 */
-				read_unlock_bh(&pppoe_hash_lock);
-
-				lock_sock(sk);
-
-				if (sk->sk_state &
-				    (PPPOX_CONNECTED | PPPOX_BOUND)) {
-					pppox_unbind_sock(sk);
-					dev_put(dev);
-					sk->sk_state = PPPOX_ZOMBIE;
-					sk->sk_state_change(sk);
-				}
-
-				release_sock(sk);
-
-				sock_put(sk);
-
-				read_lock_bh(&pppoe_hash_lock);
-
-				/* Now restart from the beginning of this
-				 * hash chain.  We always NULL out pppoe_dev
-				 * so we are guaranteed to make forward
-				 * progress.
-				 */
-				po = item_hash_table[hash];
+			struct sock *sk = sk_pppox(po);
+			if (po->pppoe_dev != dev) {
+				po = po->next;
 				continue;
 			}
-			po = po->next;
+			po->pppoe_dev = NULL;
+			dev_put(dev);
+
+
+			/* We always grab the socket lock, followed by the
+			 * pppoe_hash_lock, in that order.  Since we should
+			 * hold the sock lock while doing any unbinding,
+			 * we need to release the lock we're holding.
+			 * Hold a reference to the sock so it doesn't disappear
+			 * as we're jumping between locks.
+			 */
+
+			sock_hold(sk);
+
+			write_unlock_bh(&pppoe_hash_lock);
+			lock_sock(sk);
+
+			if (sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
+				pppox_unbind_sock(sk);
+				sk->sk_state = PPPOX_ZOMBIE;
+				sk->sk_state_change(sk);
+			}
+
+			release_sock(sk);
+			sock_put(sk);
+
+			/* Restart scan at the beginning of this hash chain.
+			 * While the lock was dropped the chain contents may
+			 * have changed.
+			 */
+			write_lock_bh(&pppoe_hash_lock);
+			po = item_hash_table[hash];
 		}
 	}
-	read_unlock_bh(&pppoe_hash_lock);
+	write_unlock_bh(&pppoe_hash_lock);
 }
 
 static int pppoe_device_event(struct notifier_block *this,
@@ -504,28 +503,42 @@ static int pppoe_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
-	if (sock_flag(sk, SOCK_DEAD))
+	lock_sock(sk);
+	if (sock_flag(sk, SOCK_DEAD)){
+		release_sock(sk);
 		return -EBADF;
+	}
 
 	pppox_unbind_sock(sk);
 
 	/* Signal the death of the socket. */
 	sk->sk_state = PPPOX_DEAD;
 
+
+	/* Write lock on hash lock protects the entire "po" struct from
+	 * concurrent updates via pppoe_flush_dev. The "po" struct should
+	 * be considered part of the hash table contents, thus protected
+	 * by the hash table lock */
+	write_lock_bh(&pppoe_hash_lock);
+
 	po = pppox_sk(sk);
 	if (po->pppoe_pa.sid) {
-		delete_item(po->pppoe_pa.sid, po->pppoe_pa.remote, po->pppoe_ifindex);
+		__delete_item(po->pppoe_pa.sid,
+			      po->pppoe_pa.remote, po->pppoe_ifindex);
 	}
 
-	if (po->pppoe_dev)
+	if (po->pppoe_dev) {
 		dev_put(po->pppoe_dev);
+		po->pppoe_dev = NULL;
+	}
 
-	po->pppoe_dev = NULL;
+	write_unlock_bh(&pppoe_hash_lock);
 
 	sock_orphan(sk);
 	sock->sk = NULL;
 
 	skb_queue_purge(&sk->sk_receive_queue);
+	release_sock(sk);
 	sock_put(sk);
 
 	return 0;
