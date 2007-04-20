@@ -51,6 +51,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	int clen;
 	int alen;
 	int nfrags;
+	u8 *tail;
 	struct esp_data *esp = x->data;
 	int hdr_len = (skb_transport_offset(skb) +
 		       sizeof(*esph) + esp->conf.ivlen);
@@ -78,18 +79,19 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	}
 
 	/* Fill padding... */
+	tail = skb_tail_pointer(trailer);
 	do {
 		int i;
 		for (i=0; i<clen-skb->len - 2; i++)
-			*(u8*)(trailer->tail + i) = i+1;
+			tail[i] = i + 1;
 	} while (0);
-	*(u8*)(trailer->tail + clen-skb->len - 2) = (clen - skb->len)-2;
+	tail[clen-skb->len - 2] = (clen - skb->len) - 2;
 	pskb_put(skb, trailer, clen - skb->len);
 
 	top_iph = (struct ipv6hdr *)__skb_push(skb, hdr_len);
 	esph = (struct ipv6_esp_hdr *)skb_transport_header(skb);
 	top_iph->payload_len = htons(skb->len + alen - sizeof(*top_iph));
-	*(u8 *)(trailer->tail - 1) = *skb_network_header(skb);
+	*(skb_tail_pointer(skb) - 1) = *skb_network_header(skb);
 	*skb_network_header(skb) = IPPROTO_ESP;
 
 	esph->spi = x->id.spi;

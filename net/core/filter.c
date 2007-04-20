@@ -46,7 +46,7 @@ static void *__load_pointer(struct sk_buff *skb, int k)
 	else if (k >= SKF_LL_OFF)
 		ptr = skb_mac_header(skb) + k - SKF_LL_OFF;
 
-	if (ptr >= skb->head && ptr < skb->tail)
+	if (ptr >= skb->head && ptr < skb_tail_pointer(skb))
 		return ptr;
 	return NULL;
 }

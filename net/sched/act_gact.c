@@ -155,7 +155,7 @@ static int tcf_gact(struct sk_buff *skb, struct tc_action *a, struct tcf_result 
 
 static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_gact opt;
 	struct tcf_gact *gact = a->priv;
 	struct tcf_t t;

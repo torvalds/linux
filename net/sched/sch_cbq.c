@@ -1465,7 +1465,7 @@ static int cbq_init(struct Qdisc *sch, struct rtattr *opt)
 
 static __inline__ int cbq_dump_rate(struct sk_buff *skb, struct cbq_class *cl)
 {
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	RTA_PUT(skb, TCA_CBQ_RATE, sizeof(cl->R_tab->rate), &cl->R_tab->rate);
 	return skb->len;
@@ -1477,7 +1477,7 @@ rtattr_failure:
 
 static __inline__ int cbq_dump_lss(struct sk_buff *skb, struct cbq_class *cl)
 {
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_cbq_lssopt opt;
 
 	opt.flags = 0;
@@ -1502,7 +1502,7 @@ rtattr_failure:
 
 static __inline__ int cbq_dump_wrr(struct sk_buff *skb, struct cbq_class *cl)
 {
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_cbq_wrropt opt;
 
 	opt.flags = 0;
@@ -1520,7 +1520,7 @@ rtattr_failure:
 
 static __inline__ int cbq_dump_ovl(struct sk_buff *skb, struct cbq_class *cl)
 {
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_cbq_ovl opt;
 
 	opt.strategy = cl->ovl_strategy;
@@ -1537,7 +1537,7 @@ rtattr_failure:
 
 static __inline__ int cbq_dump_fopt(struct sk_buff *skb, struct cbq_class *cl)
 {
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_cbq_fopt opt;
 
 	if (cl->split || cl->defmap) {
@@ -1556,7 +1556,7 @@ rtattr_failure:
 #ifdef CONFIG_NET_CLS_POLICE
 static __inline__ int cbq_dump_police(struct sk_buff *skb, struct cbq_class *cl)
 {
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_cbq_police opt;
 
 	if (cl->police) {
@@ -1590,14 +1590,14 @@ static int cbq_dump_attr(struct sk_buff *skb, struct cbq_class *cl)
 static int cbq_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 
 	rta = (struct rtattr*)b;
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	if (cbq_dump_attr(skb, &q->link) < 0)
 		goto rtattr_failure;
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 rtattr_failure:
@@ -1619,7 +1619,7 @@ cbq_dump_class(struct Qdisc *sch, unsigned long arg,
 	       struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct cbq_class *cl = (struct cbq_class*)arg;
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 
 	if (cl->tparent)
@@ -1633,7 +1633,7 @@ cbq_dump_class(struct Qdisc *sch, unsigned long arg,
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	if (cbq_dump_attr(skb, cl) < 0)
 		goto rtattr_failure;
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 rtattr_failure:

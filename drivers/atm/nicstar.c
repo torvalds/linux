@@ -2208,7 +2208,7 @@ static void dequeue_rx(ns_dev *card, ns_rsqe *rsqe)
          if (i == 1 && ns_rsqe_eopdu(rsqe))
             *((u32 *) sb->data) |= 0x00000002;
          skb_put(sb, NS_AAL0_HEADER);
-         memcpy(sb->tail, cell, ATM_CELL_PAYLOAD);
+         memcpy(skb_tail_pointer(sb), cell, ATM_CELL_PAYLOAD);
          skb_put(sb, ATM_CELL_PAYLOAD);
          ATM_SKB(sb)->vcc = vcc;
 	 __net_timestamp(sb);
@@ -2252,7 +2252,8 @@ static void dequeue_rx(ns_dev *card, ns_rsqe *rsqe)
       vc->rx_iov = iovb;
       NS_SKB(iovb)->iovcnt = 0;
       iovb->len = 0;
-      iovb->tail = iovb->data = iovb->head;
+      iovb->data = iovb->head;
+      skb_reset_tail_pointer(iovb);
       NS_SKB(iovb)->vcc = vcc;
       /* IMPORTANT: a pointer to the sk_buff containing the small or large
                     buffer is stored as iovec base, NOT a pointer to the 
@@ -2265,7 +2266,8 @@ static void dequeue_rx(ns_dev *card, ns_rsqe *rsqe)
       recycle_iovec_rx_bufs(card, (struct iovec *) iovb->data, NS_MAX_IOVECS);
       NS_SKB(iovb)->iovcnt = 0;
       iovb->len = 0;
-      iovb->tail = iovb->data = iovb->head;
+      iovb->data = iovb->head;
+      skb_reset_tail_pointer(iovb);
       NS_SKB(iovb)->vcc = vcc;
    }
    iov = &((struct iovec *) iovb->data)[NS_SKB(iovb)->iovcnt++];
@@ -2489,7 +2491,7 @@ static void dequeue_rx(ns_dev *card, ns_rsqe *rsqe)
             {
                lb = (struct sk_buff *) iov->iov_base;
                tocopy = min_t(int, remaining, iov->iov_len);
-               memcpy(hb->tail, lb->data, tocopy);
+               memcpy(skb_tail_pointer(hb), lb->data, tocopy);
                skb_put(hb, tocopy);
                iov++;
                remaining -= tocopy;

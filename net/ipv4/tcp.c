@@ -2231,7 +2231,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 		th->cwr = 0;
 	} while (skb->next);
 
-	delta = htonl(oldlen + (skb->tail - skb_transport_header(skb)) +
+	delta = htonl(oldlen + (skb->tail - skb->transport_header) +
 		      skb->data_len);
 	th->check = ~csum_fold((__force __wsum)((__force u32)th->check +
 				(__force u32)delta));

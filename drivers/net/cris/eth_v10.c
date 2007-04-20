@@ -1348,7 +1348,7 @@ e100_rx(struct net_device *dev)
 
 #ifdef ETHDEBUG
 		printk("head = 0x%x, data = 0x%x, tail = 0x%x, end = 0x%x\n",
-		  skb->head, skb->data, skb->tail, skb->end);
+		  skb->head, skb->data, skb_tail_pointer(skb), skb->end);
 		printk("copying packet to 0x%x.\n", skb_data_ptr);
 #endif
 

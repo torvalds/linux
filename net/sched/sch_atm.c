@@ -631,7 +631,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 {
 	struct atm_qdisc_data *p = PRIV(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *) cl;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 
 	DPRINTK("atm_tc_dump_class(sch %p,[qdisc %p],flow %p,skb %p,tcm %p)\n",
@@ -661,7 +661,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 
 		RTA_PUT(skb,TCA_ATM_EXCESS,sizeof(zero),&zero);
 	}
-	rta->rta_len = skb->tail-b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 rtattr_failure:

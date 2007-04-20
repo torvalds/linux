@@ -87,8 +87,9 @@ static struct kmem_cache *skbuff_fclone_cache __read_mostly;
 void skb_over_panic(struct sk_buff *skb, int sz, void *here)
 {
 	printk(KERN_EMERG "skb_over_panic: text:%p len:%d put:%d head:%p "
-			  "data:%p tail:%p end:%p dev:%s\n",
-	       here, skb->len, sz, skb->head, skb->data, skb->tail, skb->end,
+			  "data:%p tail:%#lx end:%p dev:%s\n",
+	       here, skb->len, sz, skb->head, skb->data,
+	       (unsigned long)skb->tail, skb->end,
 	       skb->dev ? skb->dev->name : "<NULL>");
 	BUG();
 }
@@ -105,8 +106,9 @@ void skb_over_panic(struct sk_buff *skb, int sz, void *here)
 void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 {
 	printk(KERN_EMERG "skb_under_panic: text:%p len:%d put:%d head:%p "
-			  "data:%p tail:%p end:%p dev:%s\n",
-	       here, skb->len, sz, skb->head, skb->data, skb->tail, skb->end,
+			  "data:%p tail:%#lx end:%p dev:%s\n",
+	       here, skb->len, sz, skb->head, skb->data,
+	       (unsigned long)skb->tail, skb->end,
 	       skb->dev ? skb->dev->name : "<NULL>");
 	BUG();
 }
@@ -167,7 +169,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	atomic_set(&skb->users, 1);
 	skb->head = data;
 	skb->data = data;
-	skb->tail = data;
+	skb_reset_tail_pointer(skb);
 	skb->end  = data + size;
 	/* make sure we initialize shinfo sequentially */
 	shinfo = skb_shinfo(skb);
@@ -629,7 +631,12 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 
 	/* Copy only real data... and, alas, header. This should be
 	 * optimized for the cases when header is void. */
-	memcpy(data + nhead, skb->head, skb->tail - skb->head);
+	memcpy(data + nhead, skb->head,
+		skb->tail
+#ifndef NET_SKBUFF_DATA_USES_OFFSET
+		- skb->head
+#endif
+		);
 	memcpy(data + size, skb->end, sizeof(struct skb_shared_info));
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
@@ -645,9 +652,9 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->head     = data;
 	skb->end      = data + size;
 	skb->data    += off;
-	skb->tail    += off;
 #ifndef NET_SKBUFF_DATA_USES_OFFSET
-	/* {transport,network,mac}_header are relative to skb->head */
+	/* {transport,network,mac}_header and tail are relative to skb->head */
+	skb->tail	      += off;
 	skb->transport_header += off;
 	skb->network_header   += off;
 	skb->mac_header	      += off;
@@ -762,7 +769,7 @@ int skb_pad(struct sk_buff *skb, int pad)
 		return 0;
 	}
 
-	ntail = skb->data_len + pad - (skb->end - skb->tail);
+	ntail = skb->data_len + pad - (skb->end - skb_tail_pointer(skb));
 	if (likely(skb_cloned(skb) || ntail > 0)) {
 		err = pskb_expand_head(skb, 0, ntail, GFP_ATOMIC);
 		if (unlikely(err))
@@ -863,7 +870,7 @@ done:
 	} else {
 		skb->len       = len;
 		skb->data_len  = 0;
-		skb->tail      = skb->data + len;
+		skb_set_tail_pointer(skb, len);
 	}
 
 	return 0;
@@ -900,7 +907,7 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 	 * plus 128 bytes for future expansions. If we have enough
 	 * room at tail, reallocate without expansion only if skb is cloned.
 	 */
-	int i, k, eat = (skb->tail + delta) - skb->end;
+	int i, k, eat = (skb_tail_pointer(skb) + delta) - skb->end;
 
 	if (eat > 0 || skb_cloned(skb)) {
 		if (pskb_expand_head(skb, 0, eat > 0 ? eat + 128 : 0,
@@ -908,7 +915,7 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 			return NULL;
 	}
 
-	if (skb_copy_bits(skb, skb_headlen(skb), skb->tail, delta))
+	if (skb_copy_bits(skb, skb_headlen(skb), skb_tail_pointer(skb), delta))
 		BUG();
 
 	/* Optimization: no fragments, no reasons to preestimate
@@ -1004,7 +1011,7 @@ pull_pages:
 	skb->tail     += delta;
 	skb->data_len -= delta;
 
-	return skb->tail;
+	return skb_tail_pointer(skb);
 }
 
 /* Copy some data bits from skb to kernel buffer. */
@@ -1539,7 +1546,7 @@ static inline void skb_split_inside_header(struct sk_buff *skb,
 	skb1->len		   += skb1->data_len;
 	skb->data_len		   = 0;
 	skb->len		   = len;
-	skb->tail		   = skb->data + len;
+	skb_set_tail_pointer(skb, len);
 }
 
 static inline void skb_split_no_header(struct sk_buff *skb,

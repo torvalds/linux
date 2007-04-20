@@ -335,15 +335,15 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 
 	sarb = instance->cached_vcc->sarb;
 
-	if (sarb->tail + ATM_CELL_PAYLOAD > sarb->end) {
+	if (skb_tail_pointer(sarb) + ATM_CELL_PAYLOAD > sarb->end) {
 		atm_rldbg(instance, "%s: buffer overrun (sarb->len %u, vcc: 0x%p)!\n",
 				__func__, sarb->len, vcc);
 		/* discard cells already received */
 		skb_trim(sarb, 0);
-		UDSL_ASSERT(sarb->tail + ATM_CELL_PAYLOAD <= sarb->end);
+		UDSL_ASSERT(skb_tail_pointer(sarb) + ATM_CELL_PAYLOAD <= sarb->end);
 	}
 
-	memcpy(sarb->tail, source + ATM_CELL_HEADER, ATM_CELL_PAYLOAD);
+	memcpy(skb_tail_pointer(sarb), source + ATM_CELL_HEADER, ATM_CELL_PAYLOAD);
 	__skb_put(sarb, ATM_CELL_PAYLOAD);
 
 	if (pti & 1) {
@@ -370,7 +370,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 			goto out;
 		}
 
-		if (crc32_be(~0, sarb->tail - pdu_length, pdu_length) != 0xc704dd7b) {
+		if (crc32_be(~0, skb_tail_pointer(sarb) - pdu_length, pdu_length) != 0xc704dd7b) {
 			atm_rldbg(instance, "%s: packet failed crc check (vcc: 0x%p)!\n",
 				  __func__, vcc);
 			atomic_inc(&vcc->stats->rx_err);
@@ -396,7 +396,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 			goto out;	/* atm_charge increments rx_drop */
 		}
 
-		memcpy(skb->data, sarb->tail - pdu_length, length);
+		memcpy(skb->data, skb_tail_pointer(sarb) - pdu_length, length);
 		__skb_put(skb, length);
 
 		vdbg("%s: sending skb 0x%p, skb->len %u, skb->truesize %u",

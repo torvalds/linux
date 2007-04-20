@@ -366,7 +366,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 			fh->cb = cb;
 			fh->port = port;
 			if (sock->type != SOCK_DGRAM) {
-				skb->tail = skb->data;
+				skb_reset_tail_pointer(skb);
 				skb->len = 0;
 			} else if (res < 0)
 				goto out_free;

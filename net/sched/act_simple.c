@@ -155,7 +155,7 @@ static inline int tcf_simp_cleanup(struct tc_action *a, int bind)
 static inline int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 				int bind, int ref)
 {
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_defact *d = a->priv;
 	struct tc_defact opt;
 	struct tcf_t t;

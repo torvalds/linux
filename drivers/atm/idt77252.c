@@ -1816,7 +1816,8 @@ push_rx_skb(struct idt77252_dev *card, struct sk_buff *skb, int queue)
 	u32 handle;
 	u32 addr;
 
-	skb->data = skb->tail = skb->head;
+	skb->data = skb->head;
+	skb_reset_tail_pointer(skb);
 	skb->len = 0;
 
 	skb_reserve(skb, 16);

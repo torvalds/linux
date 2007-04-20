@@ -33,7 +33,7 @@ static struct sk_buff *dnrmg_build_message(struct sk_buff *rt_skb, int *errp)
 {
 	struct sk_buff *skb = NULL;
 	size_t size;
-	unsigned char *old_tail;
+	sk_buff_data_t old_tail;
 	struct nlmsghdr *nlh;
 	unsigned char *ptr;
 	struct nf_dn_rtmsg *rtm;

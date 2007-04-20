@@ -268,7 +268,7 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info)
 	serr->addr_offset = (u8 *)&iph->daddr - skb_network_header(skb);
 	serr->port = fl->fl_ip_dport;
 
-	__skb_pull(skb, skb->tail - skb->data);
+	__skb_pull(skb, skb_tail_pointer(skb) - skb->data);
 	skb_reset_transport_header(skb);
 
 	if (sock_queue_err_skb(sk, skb))

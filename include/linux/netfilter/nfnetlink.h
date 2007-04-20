@@ -62,11 +62,11 @@ struct nfattr
 #define NFA_DATA(nfa)   ((void *)(((char *)(nfa)) + NFA_LENGTH(0)))
 #define NFA_PAYLOAD(nfa) ((int)((nfa)->nfa_len) - NFA_LENGTH(0))
 #define NFA_NEST(skb, type) \
-({	struct nfattr *__start = (struct nfattr *) (skb)->tail; \
+({	struct nfattr *__start = (struct nfattr *)skb_tail_pointer(skb); \
 	NFA_PUT(skb, (NFNL_NFA_NEST | type), 0, NULL); \
 	__start;  })
 #define NFA_NEST_END(skb, start) \
-({      (start)->nfa_len = ((skb)->tail - (unsigned char *) (start)); \
+({      (start)->nfa_len = skb_tail_pointer(skb) - (unsigned char *)(start); \
         (skb)->len; })
 #define NFA_NEST_CANCEL(skb, start) \
 ({      if (start) \

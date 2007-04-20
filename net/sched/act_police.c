@@ -80,7 +80,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 				continue;
 			a->priv = p;
 			a->order = index;
-			r = (struct rtattr*) skb->tail;
+			r = (struct rtattr *)skb_tail_pointer(skb);
 			RTA_PUT(skb, a->order, 0, NULL);
 			if (type == RTM_DELACTION)
 				err = tcf_action_dump_1(skb, a, 0, 1);
@@ -91,7 +91,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 				skb_trim(skb, (u8*)r - skb->data);
 				goto done;
 			}
-			r->rta_len = skb->tail - (u8*)r;
+			r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
 			n_i++;
 		}
 	}
@@ -326,7 +326,7 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 static int
 tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_police *police = a->priv;
 	struct tc_police opt;
 
@@ -572,7 +572,7 @@ EXPORT_SYMBOL(tcf_police);
 
 int tcf_police_dump(struct sk_buff *skb, struct tcf_police *police)
 {
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_police opt;
 
 	opt.index = police->tcf_index;

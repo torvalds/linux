@@ -1073,7 +1073,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 			goto out;
 	}
 	va_copy(args2, args);
-	len = vsnprintf(skb->tail, avail, fmt, args);
+	len = vsnprintf(skb_tail_pointer(skb), avail, fmt, args);
 	if (len >= avail) {
 		/* The printk buffer is 1024 bytes long, so if we get
 		 * here and AUDIT_BUFSIZ is at least 1024, then we can
@@ -1082,7 +1082,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 			max_t(unsigned, AUDIT_BUFSIZ, 1+len-avail));
 		if (!avail)
 			goto out;
-		len = vsnprintf(skb->tail, avail, fmt, args2);
+		len = vsnprintf(skb_tail_pointer(skb), avail, fmt, args2);
 	}
 	if (len > 0)
 		skb_put(skb, len);
@@ -1143,7 +1143,7 @@ void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
 			return;
 	}
 
-	ptr = skb->tail;
+	ptr = skb_tail_pointer(skb);
 	for (i=0; i<len; i++) {
 		*ptr++ = hex[(buf[i] & 0xF0)>>4]; /* Upper nibble */
 		*ptr++ = hex[buf[i] & 0x0F];	  /* Lower nibble */
@@ -1175,7 +1175,7 @@ static void audit_log_n_string(struct audit_buffer *ab, size_t slen,
 		if (!avail)
 			return;
 	}
-	ptr = skb->tail;
+	ptr = skb_tail_pointer(skb);
 	*ptr++ = '"';
 	memcpy(ptr, string, slen);
 	ptr += slen;

@@ -93,7 +93,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 				continue;
 			a->priv = p;
 			a->order = n_i;
-			r = (struct rtattr*) skb->tail;
+			r = (struct rtattr *)skb_tail_pointer(skb);
 			RTA_PUT(skb, a->order, 0, NULL);
 			err = tcf_action_dump_1(skb, a, 0, 0);
 			if (err < 0) {
@@ -101,7 +101,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 				skb_trim(skb, (u8*)r - skb->data);
 				goto done;
 			}
-			r->rta_len = skb->tail - (u8*)r;
+			r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
 			n_i++;
 			if (n_i >= TCA_ACT_MAX_PRIO)
 				goto done;
@@ -125,7 +125,7 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 	struct rtattr *r ;
 	int i= 0, n_i = 0;
 
-	r = (struct rtattr*) skb->tail;
+	r = (struct rtattr *)skb_tail_pointer(skb);
 	RTA_PUT(skb, a->order, 0, NULL);
 	RTA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
 	for (i = 0; i < (hinfo->hmask + 1); i++) {
@@ -140,7 +140,7 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 		}
 	}
 	RTA_PUT(skb, TCA_FCNT, 4, &n_i);
-	r->rta_len = skb->tail - (u8*)r;
+	r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
 
 	return n_i;
 rtattr_failure:
@@ -423,7 +423,7 @@ int
 tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
 	int err = -EINVAL;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *r;
 
 	if (a->ops == NULL || a->ops->dump == NULL)
@@ -432,10 +432,10 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	RTA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
 	if (tcf_action_copy_stats(skb, a, 0))
 		goto rtattr_failure;
-	r = (struct rtattr*) skb->tail;
+	r = (struct rtattr *)skb_tail_pointer(skb);
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	if ((err = tcf_action_dump_old(skb, a, bind, ref)) > 0) {
-		r->rta_len = skb->tail - (u8*)r;
+		r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
 		return err;
 	}
 
@@ -449,17 +449,17 @@ tcf_action_dump(struct sk_buff *skb, struct tc_action *act, int bind, int ref)
 {
 	struct tc_action *a;
 	int err = -EINVAL;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *r ;
 
 	while ((a = act) != NULL) {
-		r = (struct rtattr*) skb->tail;
+		r = (struct rtattr *)skb_tail_pointer(skb);
 		act = a->next;
 		RTA_PUT(skb, a->order, 0, NULL);
 		err = tcf_action_dump_1(skb, a, bind, ref);
 		if (err < 0)
 			goto errout;
-		r->rta_len = skb->tail - (u8*)r;
+		r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
 	}
 
 	return 0;
@@ -635,7 +635,7 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 {
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *x;
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*t), flags);
@@ -645,15 +645,15 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct rtattr*) skb->tail;
+	x = (struct rtattr *)skb_tail_pointer(skb);
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
 	if (tcf_action_dump(skb, a, bind, ref) < 0)
 		goto rtattr_failure;
 
-	x->rta_len = skb->tail - (u8*)x;
+	x->rta_len = skb_tail_pointer(skb) - (u8 *)x;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 rtattr_failure:
@@ -767,7 +767,7 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 		return -ENOBUFS;
 	}
 
-	b = (unsigned char *)skb->tail;
+	b = skb_tail_pointer(skb);
 
 	if (rtattr_parse_nested(tb, TCA_ACT_MAX, rta) < 0)
 		goto err_out;
@@ -783,16 +783,16 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct rtattr *) skb->tail;
+	x = (struct rtattr *)skb_tail_pointer(skb);
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
 	err = a->ops->walk(skb, &dcb, RTM_DELACTION, a);
 	if (err < 0)
 		goto rtattr_failure;
 
-	x->rta_len = skb->tail - (u8 *) x;
+	x->rta_len = skb_tail_pointer(skb) - (u8 *)x;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	nlh->nlmsg_flags |= NLM_F_ROOT;
 	module_put(a->ops->owner);
 	kfree(a);
@@ -884,7 +884,7 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 	if (!skb)
 		return -ENOBUFS;
 
-	b = (unsigned char *)skb->tail;
+	b = skb_tail_pointer(skb);
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*t), flags);
 	t = NLMSG_DATA(nlh);
@@ -892,15 +892,15 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct rtattr*) skb->tail;
+	x = (struct rtattr *)skb_tail_pointer(skb);
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
 	if (tcf_action_dump(skb, a, 0, 0) < 0)
 		goto rtattr_failure;
 
-	x->rta_len = skb->tail - (u8*)x;
+	x->rta_len = skb_tail_pointer(skb) - (u8 *)x;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	NETLINK_CB(skb).dst_group = RTNLGRP_TC;
 
 	err = rtnetlink_send(skb, pid, RTNLGRP_TC, flags&NLM_F_ECHO);
@@ -1015,7 +1015,7 @@ static int
 tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *x;
 	struct tc_action_ops *a_o;
 	struct tc_action a;
@@ -1048,7 +1048,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct rtattr *) skb->tail;
+	x = (struct rtattr *)skb_tail_pointer(skb);
 	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
 	ret = a_o->walk(skb, cb, RTM_GETACTION, &a);
@@ -1056,12 +1056,12 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 		goto rtattr_failure;
 
 	if (ret > 0) {
-		x->rta_len = skb->tail - (u8 *) x;
+		x->rta_len = skb_tail_pointer(skb) - (u8 *)x;
 		ret = skb->len;
 	} else
 		skb_trim(skb, (u8*)x - skb->data);
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	if (NETLINK_CB(cb->skb).pid && ret)
 		nlh->nlmsg_flags |= NLM_F_MULTI;
 	module_put(a_o->owner);

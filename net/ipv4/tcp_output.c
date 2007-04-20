@@ -733,7 +733,7 @@ static void __pskb_trim_head(struct sk_buff *skb, int len)
 	}
 	skb_shinfo(skb)->nr_frags = k;
 
-	skb->tail = skb->data;
+	skb_reset_tail_pointer(skb);
 	skb->data_len -= len;
 	skb->len = skb->data_len;
 }

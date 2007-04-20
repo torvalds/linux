@@ -316,7 +316,7 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 	serr->addr_offset = (u8 *)&iph->daddr - skb_network_header(skb);
 	serr->port = port;
 
-	__skb_pull(skb, skb->tail - skb->data);
+	__skb_pull(skb, skb_tail_pointer(skb) - skb->data);
 	skb_reset_transport_header(skb);
 
 	if (sock_queue_err_skb(sk, skb))

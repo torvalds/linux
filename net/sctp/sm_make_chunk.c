@@ -1143,7 +1143,7 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length = htons(chunklen + padlen + len);
-	chunk->chunk_end = chunk->skb->tail;
+	chunk->chunk_end = skb_tail_pointer(chunk->skb);
 
 	return target;
 }
@@ -1168,7 +1168,7 @@ int sctp_user_addto_chunk(struct sctp_chunk *chunk, int off, int len,
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length =
 		htons(ntohs(chunk->chunk_hdr->length) + len);
-	chunk->chunk_end = chunk->skb->tail;
+	chunk->chunk_end = skb_tail_pointer(chunk->skb);
 
 out:
 	return err;

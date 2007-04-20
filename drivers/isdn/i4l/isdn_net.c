@@ -881,7 +881,7 @@ isdn_net_log_skb(struct sk_buff * skb, isdn_net_local * lp)
 
 	addinfo[0] = '\0';
 	/* This check stolen from 2.1.72 dev_queue_xmit_nit() */
-	if (p < skb->data || p >= skb->tail) {
+	if (p < skb->data || skb->network_header >= skb->tail) {
 		/* fall back to old isdn_net_log_packet method() */
 		char * buf = skb->data;
 

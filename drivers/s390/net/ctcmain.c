@@ -706,7 +706,8 @@ ch_action_txdone(fsm_instance * fi, int event, void *arg)
 			spin_unlock(&ch->collect_lock);
 			return;
 		}
-		ch->trans_skb->tail = ch->trans_skb->data = ch->trans_skb_data;
+		ch->trans_skb->data = ch->trans_skb_data;
+		skb_reset_tail_pointer(ch->trans_skb);
 		ch->trans_skb->len = 0;
 		if (ch->prof.maxmulti < (ch->collect_len + 2))
 			ch->prof.maxmulti = ch->collect_len + 2;
@@ -831,7 +832,8 @@ ch_action_rx(fsm_instance * fi, int event, void *arg)
 		ctc_unpack_skb(ch, skb);
 	}
  again:
-	skb->data = skb->tail = ch->trans_skb_data;
+	skb->data = ch->trans_skb_data;
+	skb_reset_tail_pointer(skb);
 	skb->len = 0;
 	if (ctc_checkalloc_buffer(ch, 1))
 		return;
@@ -2226,7 +2228,8 @@ transmit_skb(struct channel *ch, struct sk_buff *skb)
 		 * IDAL support in CTC is broken, so we have to
 		 * care about skb's above 2G ourselves.
 		 */
-		hi = ((unsigned long) skb->tail + LL_HEADER_LENGTH) >> 31;
+		hi = ((unsigned long)skb_tail_pointer(skb) +
+		      LL_HEADER_LENGTH) >> 31;
 		if (hi) {
 			nskb = alloc_skb(skb->len, GFP_ATOMIC | GFP_DMA);
 			if (!nskb) {
@@ -2262,7 +2265,7 @@ transmit_skb(struct channel *ch, struct sk_buff *skb)
 				return -EBUSY;
 			}
 
-			ch->trans_skb->tail = ch->trans_skb->data;
+			skb_reset_tail_pointer(ch->trans_skb);
 			ch->trans_skb->len = 0;
 			ch->ccw[1].count = skb->len;
 			memcpy(skb_put(ch->trans_skb, skb->len), skb->data,

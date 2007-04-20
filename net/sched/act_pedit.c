@@ -195,7 +195,7 @@ done:
 static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 			  int bind, int ref)
 {
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_pedit *p = a->priv;
 	struct tc_pedit *opt;
 	struct tcf_t t;

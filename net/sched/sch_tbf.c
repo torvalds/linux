@@ -387,7 +387,7 @@ static void tbf_destroy(struct Qdisc *sch)
 static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 	struct tc_tbf_qopt opt;
 
@@ -403,7 +403,7 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opt.mtu = q->mtu;
 	opt.buffer = q->buffer;
 	RTA_PUT(skb, TCA_TBF_PARMS, sizeof(opt), &opt);
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 
 	return skb->len;
 

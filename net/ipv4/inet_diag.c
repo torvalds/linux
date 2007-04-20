@@ -60,7 +60,7 @@ static int inet_csk_diag_fill(struct sock *sk,
 	struct nlmsghdr  *nlh;
 	void *info = NULL;
 	struct inet_diag_meminfo  *minfo = NULL;
-	unsigned char	 *b = skb->tail;
+	unsigned char	 *b = skb_tail_pointer(skb);
 	const struct inet_diag_handler *handler;
 
 	handler = inet_diag_table[unlh->nlmsg_type];
@@ -147,7 +147,7 @@ static int inet_csk_diag_fill(struct sock *sk,
 	    icsk->icsk_ca_ops && icsk->icsk_ca_ops->get_info)
 		icsk->icsk_ca_ops->get_info(sk, ext, skb);
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 rtattr_failure:
@@ -163,7 +163,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 {
 	long tmo;
 	struct inet_diag_msg *r;
-	const unsigned char *previous_tail = skb->tail;
+	const unsigned char *previous_tail = skb_tail_pointer(skb);
 	struct nlmsghdr *nlh = NLMSG_PUT(skb, pid, seq,
 					 unlh->nlmsg_type, sizeof(*r));
 
@@ -205,7 +205,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 			       &tw6->tw_v6_daddr);
 	}
 #endif
-	nlh->nlmsg_len = skb->tail - previous_tail;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - previous_tail;
 	return skb->len;
 nlmsg_failure:
 	skb_trim(skb, previous_tail - skb->data);
@@ -535,7 +535,7 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct inet_sock *inet = inet_sk(sk);
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct inet_diag_msg *r;
 	struct nlmsghdr *nlh;
 	long tmo;
@@ -574,7 +574,7 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 			       &inet6_rsk(req)->rmt_addr);
 	}
 #endif
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 
 	return skb->len;
 

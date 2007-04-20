@@ -338,7 +338,7 @@ static struct sk_buff *
 nfqnl_build_packet_message(struct nfqnl_instance *queue,
 			   struct nfqnl_queue_entry *entry, int *errp)
 {
-	unsigned char *old_tail;
+	sk_buff_data_t old_tail;
 	size_t size;
 	size_t data_len = 0;
 	struct sk_buff *skb;
@@ -404,7 +404,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (!skb)
 		goto nlmsg_failure;
 
-	old_tail= skb->tail;
+	old_tail = skb->tail;
 	nlh = NLMSG_PUT(skb, 0, 0,
 			NFNL_SUBSYS_QUEUE << 8 | NFQNL_MSG_PACKET,
 			sizeof(struct nfgenmsg));

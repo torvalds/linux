@@ -575,7 +575,8 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i;
 	dev_dbg(&bp->pdev->dev,
 		"start_xmit: len %u head %p data %p tail %p end %p\n",
-		skb->len, skb->head, skb->data, skb->tail, skb->end);
+		skb->len, skb->head, skb->data,
+		skb_tail_pointer(skb), skb->end);
 	dev_dbg(&bp->pdev->dev,
 		"data:");
 	for (i = 0; i < 16; i++)

@@ -450,7 +450,8 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	 */
 	iph = ip_hdr(skb_in);
 
-	if ((u8 *)iph < skb_in->head || (u8 *)(iph + 1) > skb_in->tail)
+	if ((u8 *)iph < skb_in->head ||
+	    (skb_in->network_header + sizeof(*iph)) > skb_in->tail)
 		goto out;
 
 	/*

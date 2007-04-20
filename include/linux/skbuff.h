@@ -246,9 +246,6 @@ struct sk_buff {
 	int			iif;
 	/* 4 byte hole on 64 bit*/
 
-	sk_buff_data_t		transport_header;
-	sk_buff_data_t		network_header;
-	sk_buff_data_t		mac_header;
 	struct  dst_entry	*dst;
 	struct	sec_path	*sp;
 
@@ -303,13 +300,16 @@ struct sk_buff {
 
 	__u32			mark;
 
+	sk_buff_data_t		transport_header;
+	sk_buff_data_t		network_header;
+	sk_buff_data_t		mac_header;
 	/* These elements must be at the end, see alloc_skb() for details.  */
-	unsigned int		truesize;
-	atomic_t		users;
+	sk_buff_data_t		tail;
 	unsigned char		*head,
 				*data,
-				*tail,
 				*end;
+	unsigned int		truesize;
+	atomic_t		users;
 };
 
 #ifdef __KERNEL__
@@ -812,12 +812,45 @@ static inline void skb_fill_page_desc(struct sk_buff *skb, int i,
 #define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->frag_list)
 #define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
 
+#ifdef NET_SKBUFF_DATA_USES_OFFSET
+static inline unsigned char *skb_tail_pointer(const struct sk_buff *skb)
+{
+	return skb->head + skb->tail;
+}
+
+static inline void skb_reset_tail_pointer(struct sk_buff *skb)
+{
+	skb->tail = skb->data - skb->head;
+}
+
+static inline void skb_set_tail_pointer(struct sk_buff *skb, const int offset)
+{
+	skb_reset_tail_pointer(skb);
+	skb->tail += offset;
+}
+#else /* NET_SKBUFF_DATA_USES_OFFSET */
+static inline unsigned char *skb_tail_pointer(const struct sk_buff *skb)
+{
+	return skb->tail;
+}
+
+static inline void skb_reset_tail_pointer(struct sk_buff *skb)
+{
+	skb->tail = skb->data;
+}
+
+static inline void skb_set_tail_pointer(struct sk_buff *skb, const int offset)
+{
+	skb->tail = skb->data + offset;
+}
+#endif /* NET_SKBUFF_DATA_USES_OFFSET */
+
 /*
  *	Add data to an sk_buff
  */
 static inline unsigned char *__skb_put(struct sk_buff *skb, unsigned int len)
 {
-	unsigned char *tmp = skb->tail;
+	unsigned char *tmp = skb_tail_pointer(skb);
 	SKB_LINEAR_ASSERT(skb);
 	skb->tail += len;
 	skb->len  += len;
@@ -835,11 +868,11 @@ static inline unsigned char *__skb_put(struct sk_buff *skb, unsigned int len)
  */
 static inline unsigned char *skb_put(struct sk_buff *skb, unsigned int len)
 {
-	unsigned char *tmp = skb->tail;
+	unsigned char *tmp = skb_tail_pointer(skb);
 	SKB_LINEAR_ASSERT(skb);
 	skb->tail += len;
 	skb->len  += len;
-	if (unlikely(skb->tail>skb->end))
+	if (unlikely(skb_tail_pointer(skb) > skb->end))
 		skb_over_panic(skb, len, current_text_addr());
 	return tmp;
 }
@@ -935,7 +968,7 @@ static inline int skb_headroom(const struct sk_buff *skb)
  */
 static inline int skb_tailroom(const struct sk_buff *skb)
 {
-	return skb_is_nonlinear(skb) ? 0 : skb->end - skb->tail;
+	return skb_is_nonlinear(skb) ? 0 : skb->end - skb_tail_pointer(skb);
 }
 
 /**
@@ -1127,8 +1160,8 @@ static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
 		WARN_ON(1);
 		return;
 	}
-	skb->len  = len;
-	skb->tail = skb->data + len;
+	skb->len = len;
+	skb_set_tail_pointer(skb, len);
 }
 
 /**

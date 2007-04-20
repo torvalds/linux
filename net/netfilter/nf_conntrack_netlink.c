@@ -268,9 +268,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	struct nfattr *nest_parms;
-	unsigned char *b;
-
-	b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	event |= NFNL_SUBSYS_CTNETLINK << 8;
 	nlh    = NLMSG_PUT(skb, pid, seq, event, sizeof(struct nfgenmsg));
@@ -303,7 +301,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	    ctnetlink_dump_use(skb, ct) < 0)
 		goto nfattr_failure;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
@@ -322,7 +320,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	struct nf_conn *ct = (struct nf_conn *)ptr;
 	struct sk_buff *skb;
 	unsigned int type;
-	unsigned char *b;
+	sk_buff_data_t b;
 	unsigned int flags = 0, group;
 
 	/* ignore our fake conntrack entry */
@@ -1152,9 +1150,7 @@ ctnetlink_exp_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	unsigned char *b;
-
-	b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	event |= NFNL_SUBSYS_CTNETLINK_EXP << 8;
 	nlh    = NLMSG_PUT(skb, pid, seq, event, sizeof(struct nfgenmsg));
@@ -1168,7 +1164,7 @@ ctnetlink_exp_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	if (ctnetlink_exp_dump_expect(skb, exp) < 0)
 		goto nfattr_failure;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
@@ -1186,7 +1182,7 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 	struct nf_conntrack_expect *exp = (struct nf_conntrack_expect *)ptr;
 	struct sk_buff *skb;
 	unsigned int type;
-	unsigned char *b;
+	sk_buff_data_t b;
 	int flags = 0;
 
 	if (events & IPEXP_NEW) {

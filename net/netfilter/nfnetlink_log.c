@@ -409,15 +409,14 @@ __build_packet_message(struct nfulnl_instance *inst,
 			const struct nf_loginfo *li,
 			const char *prefix, unsigned int plen)
 {
-	unsigned char *old_tail;
 	struct nfulnl_msg_packet_hdr pmsg;
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	__be32 tmp_uint;
+	sk_buff_data_t old_tail = inst->skb->tail;
 
 	UDEBUG("entered\n");
 
-	old_tail = inst->skb->tail;
 	nlh = NLMSG_PUT(inst->skb, 0, 0,
 			NFNL_SUBSYS_ULOG << 8 | NFULNL_MSG_PACKET,
 			sizeof(struct nfgenmsg));

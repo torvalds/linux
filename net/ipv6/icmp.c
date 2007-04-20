@@ -317,7 +317,8 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	int hlimit, tclass;
 	int err = 0;
 
-	if ((u8*)hdr < skb->head || (u8*)(hdr+1) > skb->tail)
+	if ((u8 *)hdr < skb->head ||
+	    (skb->network_header + sizeof(*hdr)) > skb->tail)
 		return;
 
 	/*

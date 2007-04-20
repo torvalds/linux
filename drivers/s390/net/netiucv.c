@@ -689,7 +689,8 @@ static void conn_action_rx(fsm_instance *fi, int event, void *arg)
 			       msg->length, conn->max_buffsize);
 		return;
 	}
-	conn->rx_buff->data = conn->rx_buff->tail = conn->rx_buff->head;
+	conn->rx_buff->data = conn->rx_buff->head;
+	skb_reset_tail_pointer(conn->rx_buff);
 	conn->rx_buff->len = 0;
 	rc = iucv_message_receive(conn->path, msg, 0, conn->rx_buff->data,
 				  msg->length, NULL);
@@ -735,7 +736,8 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 			}
 		}
 	}
-	conn->tx_buff->data = conn->tx_buff->tail = conn->tx_buff->head;
+	conn->tx_buff->data = conn->tx_buff->head;
+	skb_reset_tail_pointer(conn->tx_buff);
 	conn->tx_buff->len = 0;
 	spin_lock_irqsave(&conn->collect_lock, saveflags);
 	while ((skb = skb_dequeue(&conn->collect_queue))) {
@@ -1164,8 +1166,8 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 		 * Copy the skb to a new allocated skb in lowmem only if the
 		 * data is located above 2G in memory or tailroom is < 2.
 		 */
-		unsigned long hi =
-			((unsigned long)(skb->tail + NETIUCV_HDRLEN)) >> 31;
+		unsigned long hi = ((unsigned long)(skb_tail_pointer(skb) +
+				    NETIUCV_HDRLEN)) >> 31;
 		int copied = 0;
 		if (hi || (skb_tailroom(skb) < 2)) {
 			nskb = alloc_skb(skb->len + NETIUCV_HDRLEN +

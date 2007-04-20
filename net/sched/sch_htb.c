@@ -1110,7 +1110,7 @@ static int htb_init(struct Qdisc *sch, struct rtattr *opt)
 static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct htb_sched *q = qdisc_priv(sch);
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 	struct tc_htb_glob gopt;
 	spin_lock_bh(&sch->dev->queue_lock);
@@ -1123,12 +1123,12 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	rta = (struct rtattr *)b;
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	RTA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
 rtattr_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
-	skb_trim(skb, skb->tail - skb->data);
+	skb_trim(skb, skb_tail_pointer(skb) - skb->data);
 	return -1;
 }
 
@@ -1136,7 +1136,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 			  struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 	struct tc_htb_opt opt;
 
@@ -1159,7 +1159,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	opt.prio = cl->un.leaf.prio;
 	opt.level = cl->level;
 	RTA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
 rtattr_failure:

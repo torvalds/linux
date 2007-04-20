@@ -1423,7 +1423,7 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 
 	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
 
-	skb_set_transport_header(skb, skb->tail - skb->data);
+	skb_set_transport_header(skb, skb_tail_pointer(skb) - skb->data);
 	skb_put(skb, sizeof(*pmr));
 	pmr = (struct mld2_report *)skb_transport_header(skb);
 	pmr->type = ICMPV6_MLD2_REPORT;
@@ -1468,8 +1468,8 @@ static void mld_sendpack(struct sk_buff *skb)
 	int err;
 
 	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
-	payload_len = skb->tail - skb_network_header(skb) - sizeof(*pip6);
-	mldlen = skb->tail - skb_transport_header(skb);
+	payload_len = (skb->tail - skb->network_header) - sizeof(*pip6);
+	mldlen = skb->tail - skb->transport_header;
 	pip6->payload_len = htons(payload_len);
 
 	pmr->csum = csum_ipv6_magic(&pip6->saddr, &pip6->daddr, mldlen,

@@ -576,7 +576,7 @@ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
 	struct sk_buff *skb = sp->out_skb;
 	struct xfrm_usersa_info *p;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	if (sp->this_idx < sp->start_idx)
 		goto out;
@@ -621,7 +621,7 @@ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
 	if (x->lastused)
 		RTA_PUT(skb, XFRMA_LASTUSED, sizeof(x->lastused), &x->lastused);
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 out:
 	sp->this_idx++;
 	return 0;
@@ -1157,7 +1157,7 @@ static int dump_one_policy(struct xfrm_policy *xp, int dir, int count, void *ptr
 	struct sk_buff *in_skb = sp->in_skb;
 	struct sk_buff *skb = sp->out_skb;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	if (sp->this_idx < sp->start_idx)
 		goto out;
@@ -1176,7 +1176,7 @@ static int dump_one_policy(struct xfrm_policy *xp, int dir, int count, void *ptr
 	if (copy_to_user_policy_type(xp->type, skb) < 0)
 		goto nlmsg_failure;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 out:
 	sp->this_idx++;
 	return 0;
@@ -1330,7 +1330,7 @@ static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, struct km_eve
 	struct xfrm_aevent_id *id;
 	struct nlmsghdr *nlh;
 	struct xfrm_lifetime_cur ltime;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	nlh = NLMSG_PUT(skb, c->pid, c->seq, XFRM_MSG_NEWAE, sizeof(*id));
 	id = NLMSG_DATA(nlh);
@@ -1362,7 +1362,7 @@ static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, struct km_eve
 		RTA_PUT(skb,XFRMA_ETIMER_THRESH,sizeof(u32),&etimer);
 	}
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 rtattr_failure:
@@ -1744,7 +1744,7 @@ static int build_migrate(struct sk_buff *skb, struct xfrm_migrate *m,
 	struct xfrm_migrate *mp;
 	struct xfrm_userpolicy_id *pol_id;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	int i;
 
 	nlh = NLMSG_PUT(skb, 0, 0, XFRM_MSG_MIGRATE, sizeof(*pol_id));
@@ -1764,7 +1764,7 @@ static int build_migrate(struct sk_buff *skb, struct xfrm_migrate *m,
 			goto nlmsg_failure;
 	}
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 nlmsg_failure:
 	skb_trim(skb, b - skb->data);
@@ -1942,7 +1942,7 @@ static int build_expire(struct sk_buff *skb, struct xfrm_state *x, struct km_eve
 {
 	struct xfrm_user_expire *ue;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	nlh = NLMSG_PUT(skb, c->pid, 0, XFRM_MSG_EXPIRE,
 			sizeof(*ue));
@@ -1952,7 +1952,7 @@ static int build_expire(struct sk_buff *skb, struct xfrm_state *x, struct km_eve
 	copy_to_user_state(x, &ue->state);
 	ue->hard = (c->data.hard != 0) ? 1 : 0;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
@@ -1999,7 +1999,7 @@ static int xfrm_notify_sa_flush(struct km_event *c)
 	struct xfrm_usersa_flush *p;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	unsigned char *b;
+	sk_buff_data_t b;
 	int len = NLMSG_LENGTH(sizeof(struct xfrm_usersa_flush));
 
 	skb = alloc_skb(len, GFP_ATOMIC);
@@ -2045,7 +2045,7 @@ static int xfrm_notify_sa(struct xfrm_state *x, struct km_event *c)
 	struct xfrm_usersa_id *id;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	unsigned char *b;
+	sk_buff_data_t b;
 	int len = xfrm_sa_len(x);
 	int headlen;
 
@@ -2129,7 +2129,7 @@ static int build_acquire(struct sk_buff *skb, struct xfrm_state *x,
 {
 	struct xfrm_user_acquire *ua;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	__u32 seq = xfrm_get_acqseq();
 
 	nlh = NLMSG_PUT(skb, 0, 0, XFRM_MSG_ACQUIRE,
@@ -2153,7 +2153,7 @@ static int build_acquire(struct sk_buff *skb, struct xfrm_state *x,
 	if (copy_to_user_policy_type(xp->type, skb) < 0)
 		goto nlmsg_failure;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
@@ -2249,7 +2249,7 @@ static int build_polexpire(struct sk_buff *skb, struct xfrm_policy *xp,
 	struct xfrm_user_polexpire *upe;
 	struct nlmsghdr *nlh;
 	int hard = c->data.hard;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	nlh = NLMSG_PUT(skb, c->pid, 0, XFRM_MSG_POLEXPIRE, sizeof(*upe));
 	upe = NLMSG_DATA(nlh);
@@ -2264,7 +2264,7 @@ static int build_polexpire(struct sk_buff *skb, struct xfrm_policy *xp,
 		goto nlmsg_failure;
 	upe->hard = !!hard;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
@@ -2300,7 +2300,7 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 	struct xfrm_userpolicy_id *id;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	unsigned char *b;
+	sk_buff_data_t b;
 	int len = RTA_SPACE(sizeof(struct xfrm_user_tmpl) * xp->xfrm_nr);
 	int headlen;
 
@@ -2357,7 +2357,7 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 {
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	unsigned char *b;
+	sk_buff_data_t b;
 	int len = 0;
 #ifdef CONFIG_XFRM_SUB_POLICY
 	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
@@ -2410,7 +2410,7 @@ static int build_report(struct sk_buff *skb, u8 proto,
 {
 	struct xfrm_user_report *ur;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	nlh = NLMSG_PUT(skb, 0, 0, XFRM_MSG_REPORT, sizeof(*ur));
 	ur = NLMSG_DATA(nlh);
@@ -2422,7 +2422,7 @@ static int build_report(struct sk_buff *skb, u8 proto,
 	if (addr)
 		RTA_PUT(skb, XFRMA_COADDR, sizeof(*addr), addr);
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:

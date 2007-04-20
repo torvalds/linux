@@ -66,7 +66,7 @@ static void selnl_add_payload(struct nlmsghdr *nlh, int len, int msgtype, void *
 static void selnl_notify(int msgtype, void *data)
 {
 	int len;
-	unsigned char *tmp;
+	sk_buff_data_t tmp;
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	

@@ -525,7 +525,7 @@ static inline struct sk_buff *nlmsg_new(size_t payload, gfp_t flags)
  */
 static inline int nlmsg_end(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	nlh->nlmsg_len = skb->tail - (unsigned char *) nlh;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - (unsigned char *)nlh;
 
 	return skb->len;
 }
@@ -538,7 +538,7 @@ static inline int nlmsg_end(struct sk_buff *skb, struct nlmsghdr *nlh)
  */
 static inline void *nlmsg_get_pos(struct sk_buff *skb)
 {
-	return skb->tail;
+	return skb_tail_pointer(skb);
 }
 
 /**
@@ -940,7 +940,7 @@ static inline unsigned long nla_get_msecs(struct nlattr *nla)
  */
 static inline struct nlattr *nla_nest_start(struct sk_buff *skb, int attrtype)
 {
-	struct nlattr *start = (struct nlattr *) skb->tail;
+	struct nlattr *start = (struct nlattr *)skb_tail_pointer(skb);
 
 	if (nla_put(skb, attrtype, 0, NULL) < 0)
 		return NULL;
@@ -960,7 +960,7 @@ static inline struct nlattr *nla_nest_start(struct sk_buff *skb, int attrtype)
  */
 static inline int nla_nest_end(struct sk_buff *skb, struct nlattr *start)
 {
-	start->nla_len = skb->tail - (unsigned char *) start;
+	start->nla_len = skb_tail_pointer(skb) - (unsigned char *)start;
 	return skb->len;
 }
 

@@ -298,7 +298,7 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (ax_skb) {
 			ax_skb->len = size;
 			ax_skb->data = packet;
-			ax_skb->tail = packet + size;
+			skb_set_tail_pointer(ax_skb, size);
 			usbnet_skb_return(dev, ax_skb);
 		} else {
 			return 0;
@@ -338,7 +338,7 @@ static struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	    && ((headroom + tailroom) >= (4 + padlen))) {
 		if ((headroom < 4) || (tailroom < padlen)) {
 			skb->data = memmove(skb->head + 4, skb->data, skb->len);
-			skb->tail = skb->data + skb->len;
+			skb_set_tail_pointer(skb, skb->len);
 		}
 	} else {
 		struct sk_buff *skb2;
@@ -356,7 +356,7 @@ static struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	if ((skb->len % 512) == 0) {
 		cpu_to_le32s(&padbytes);
-		memcpy( skb->tail, &padbytes, sizeof(padbytes));
+		memcpy(skb_tail_pointer(skb), &padbytes, sizeof(padbytes));
 		skb_put(skb, sizeof(padbytes));
 	}
 	return skb;

@@ -191,7 +191,7 @@ ipq_flush(int verdict)
 static struct sk_buff *
 ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 {
-	unsigned char *old_tail;
+	sk_buff_data_t old_tail;
 	size_t size = 0;
 	size_t data_len = 0;
 	struct sk_buff *skb;
@@ -235,7 +235,7 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 	if (!skb)
 		goto nlmsg_failure;
 
-	old_tail= skb->tail;
+	old_tail = skb->tail;
 	nlh = NLMSG_PUT(skb, 0, 0, IPQM_PACKET, size - sizeof(*nlh));
 	pmsg = NLMSG_DATA(nlh);
 	memset(pmsg, 0, sizeof(*pmsg));

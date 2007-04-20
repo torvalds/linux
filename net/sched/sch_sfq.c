@@ -461,7 +461,7 @@ static void sfq_destroy(struct Qdisc *sch)
 static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_sfq_qopt opt;
 
 	opt.quantum = q->quantum;

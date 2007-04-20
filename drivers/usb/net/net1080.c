@@ -520,7 +520,7 @@ net1080_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 			skb->data = memmove(skb->head
 						+ sizeof (struct nc_header),
 					    skb->data, skb->len);
-			skb->tail = skb->data + len;
+			skb_set_tail_pointer(skb, len);
 			goto encapsulate;
 		}
 	}

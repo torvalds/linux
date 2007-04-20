@@ -605,7 +605,7 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 
 #define RTA_PUT_NOHDR(skb, attrlen, data) \
 ({	RTA_APPEND(skb, RTA_ALIGN(attrlen), data); \
-	memset(skb->tail - (RTA_ALIGN(attrlen) - attrlen), 0, \
+	memset(skb_tail_pointer(skb) - (RTA_ALIGN(attrlen) - attrlen), 0, \
 	       RTA_ALIGN(attrlen) - attrlen); })
 
 #define RTA_PUT_U8(skb, attrtype, value) \
@@ -637,12 +637,12 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 	RTA_PUT(skb, attrtype, 0, NULL);
 
 #define RTA_NEST(skb, type) \
-({	struct rtattr *__start = (struct rtattr *) (skb)->tail; \
+({	struct rtattr *__start = (struct rtattr *)skb_tail_pointer(skb); \
 	RTA_PUT(skb, type, 0, NULL); \
 	__start;  })
 
 #define RTA_NEST_END(skb, start) \
-({	(start)->rta_len = ((skb)->tail - (unsigned char *) (start)); \
+({	(start)->rta_len = skb_tail_pointer(skb) - (unsigned char *)(start); \
 	(skb)->len; })
 
 #define RTA_NEST_CANCEL(skb, start) \

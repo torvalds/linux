@@ -785,7 +785,7 @@ static inline struct sk_buff *netlink_trim(struct sk_buff *skb,
 
 	skb_orphan(skb);
 
-	delta = skb->end - skb->tail;
+	delta = skb->end - skb_tail_pointer(skb);
 	if (delta * 2 < skb->truesize)
 		return skb;
 

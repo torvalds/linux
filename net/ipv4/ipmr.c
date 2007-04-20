@@ -513,7 +513,8 @@ static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct iphdr));
 
 			if (ipmr_fill_mroute(skb, c, NLMSG_DATA(nlh)) > 0) {
-				nlh->nlmsg_len = skb->tail - (u8*)nlh;
+				nlh->nlmsg_len = (skb_tail_pointer(skb) -
+						  (u8 *)nlh);
 			} else {
 				nlh->nlmsg_type = NLMSG_ERROR;
 				nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
@@ -580,7 +581,7 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 	 *	Copy the IP header
 	 */
 
-	skb_set_network_header(skb, skb->tail - skb->data);
+	skb->network_header = skb->tail;
 	skb_put(skb, ihl);
 	memcpy(skb->data,pkt->data,ihl);
 	ip_hdr(skb)->protocol = 0;			/* Flag to the kernel this is a route add */
@@ -1544,7 +1545,7 @@ ipmr_fill_mroute(struct sk_buff *skb, struct mfc_cache *c, struct rtmsg *rtm)
 	int ct;
 	struct rtnexthop *nhp;
 	struct net_device *dev = vif_table[c->mfc_parent].dev;
-	u8 *b = skb->tail;
+	u8 *b = skb_tail_pointer(skb);
 	struct rtattr *mp_head;
 
 	if (dev)
@@ -1564,7 +1565,7 @@ ipmr_fill_mroute(struct sk_buff *skb, struct mfc_cache *c, struct rtmsg *rtm)
 		}
 	}
 	mp_head->rta_type = RTA_MULTIPATH;
-	mp_head->rta_len = skb->tail - (u8*)mp_head;
+	mp_head->rta_len = skb_tail_pointer(skb) - (u8 *)mp_head;
 	rtm->rtm_type = RTN_MULTICAST;
 	return 1;
 

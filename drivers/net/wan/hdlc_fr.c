@@ -533,7 +533,7 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 		skb->protocol = __constant_htons(NLPID_CCITT_ANSI_LMI);
 		fr_hard_header(&skb, LMI_CCITT_ANSI_DLCI);
 	}
-	data = skb->tail;
+	data = skb_tail_pointer(skb);
 	data[i++] = LMI_CALLREF;
 	data[i++] = dce ? LMI_STATUS : LMI_STATUS_ENQUIRY;
 	if (lmi == LMI_ANSI)

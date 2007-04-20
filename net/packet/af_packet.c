@@ -775,7 +775,7 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		err = -EINVAL;
 		res = dev->hard_header(skb, dev, ntohs(proto), addr, NULL, len);
 		if (sock->type != SOCK_DGRAM) {
-			skb->tail = skb->data;
+			skb_reset_tail_pointer(skb);
 			skb->len = 0;
 		} else if (res < 0)
 			goto out_free;

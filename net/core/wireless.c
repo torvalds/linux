@@ -1938,7 +1938,7 @@ static inline int rtnetlink_fill_iwinfo(struct sk_buff *	skb,
 {
 	struct ifinfomsg *r;
 	struct nlmsghdr  *nlh;
-	unsigned char	 *b = skb->tail;
+	unsigned char	 *b = skb_tail_pointer(skb);
 
 	nlh = NLMSG_PUT(skb, 0, 0, type, sizeof(*r));
 	r = NLMSG_DATA(nlh);
@@ -1952,7 +1952,7 @@ static inline int rtnetlink_fill_iwinfo(struct sk_buff *	skb,
 	/* Add the wireless events in the netlink packet */
 	RTA_PUT(skb, IFLA_WIRELESS, event_len, event);
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:

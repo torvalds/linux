@@ -1567,7 +1567,7 @@ static int rfcomm_recv_frame(struct rfcomm_session *s, struct sk_buff *skb)
 
 	/* Trim FCS */
 	skb->len--; skb->tail--;
-	fcs = *(u8 *) skb->tail;
+	fcs = *(u8 *)skb_tail_pointer(skb);
 
 	if (__check_fcs(skb->data, type, fcs)) {
 		BT_ERR("bad checksum in packet");

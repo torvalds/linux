@@ -1363,7 +1363,7 @@ hfsc_dump_class(struct Qdisc *sch, unsigned long arg, struct sk_buff *skb,
 		struct tcmsg *tcm)
 {
 	struct hfsc_class *cl = (struct hfsc_class *)arg;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta = (struct rtattr *)b;
 
 	tcm->tcm_parent = cl->cl_parent ? cl->cl_parent->classid : TC_H_ROOT;
@@ -1374,7 +1374,7 @@ hfsc_dump_class(struct Qdisc *sch, unsigned long arg, struct sk_buff *skb,
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	if (hfsc_dump_curves(skb, cl) < 0)
 		goto rtattr_failure;
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
  rtattr_failure:
@@ -1576,7 +1576,7 @@ static int
 hfsc_dump_qdisc(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_hfsc_qopt qopt;
 
 	qopt.defcls = q->defcls;

@@ -323,7 +323,7 @@ tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp, unsigned long fh,
 {
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*tcm), flags);
 	tcm = NLMSG_DATA(nlh);
@@ -340,7 +340,7 @@ tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp, unsigned long fh,
 		if (tp->ops->dump && tp->ops->dump(tp, fh, skb, tcm) < 0)
 			goto rtattr_failure;
 	}
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
@@ -563,30 +563,30 @@ tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
 		 * to work with both old and new modes of entering
 		 * tc data even if iproute2  was newer - jhs
 		 */
-		struct rtattr * p_rta = (struct rtattr*) skb->tail;
+		struct rtattr *p_rta = (struct rtattr *)skb_tail_pointer(skb);
 
 		if (exts->action->type != TCA_OLD_COMPAT) {
 			RTA_PUT(skb, map->action, 0, NULL);
 			if (tcf_action_dump(skb, exts->action, 0, 0) < 0)
 				goto rtattr_failure;
-			p_rta->rta_len = skb->tail - (u8*)p_rta;
+			p_rta->rta_len = skb_tail_pointer(skb) - (u8 *)p_rta;
 		} else if (map->police) {
 			RTA_PUT(skb, map->police, 0, NULL);
 			if (tcf_action_dump_old(skb, exts->action, 0, 0) < 0)
 				goto rtattr_failure;
-			p_rta->rta_len = skb->tail - (u8*)p_rta;
+			p_rta->rta_len = skb_tail_pointer(skb) - (u8 *)p_rta;
 		}
 	}
 #elif defined CONFIG_NET_CLS_POLICE
 	if (map->police && exts->police) {
-		struct rtattr * p_rta = (struct rtattr*) skb->tail;
+		struct rtattr *p_rta = (struct rtattr *)skb_tail_pointer(skb);
 
 		RTA_PUT(skb, map->police, 0, NULL);
 
 		if (tcf_police_dump(skb, exts->police) < 0)
 			goto rtattr_failure;
 
-		p_rta->rta_len = skb->tail - (u8*)p_rta;
+		p_rta->rta_len = skb_tail_pointer(skb) - (u8 *)p_rta;
 	}
 #endif
 	return 0;

@@ -21,6 +21,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct blkcipher_desc desc;
 	struct esp_data *esp;
 	struct sk_buff *trailer;
+	u8 *tail;
 	int blksize;
 	int clen;
 	int alen;
@@ -49,12 +50,13 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 		goto error;
 
 	/* Fill padding... */
+	tail = skb_tail_pointer(trailer);
 	do {
 		int i;
 		for (i=0; i<clen-skb->len - 2; i++)
-			*(u8*)(trailer->tail + i) = i+1;
+			tail[i] = i + 1;
 	} while (0);
-	*(u8*)(trailer->tail + clen-skb->len - 2) = (clen - skb->len)-2;
+	tail[clen - skb->len - 2] = (clen - skb->len) - 2;
 	pskb_put(skb, trailer, clen - skb->len);
 
 	__skb_push(skb, skb->data - skb_network_header(skb));
@@ -62,7 +64,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	esph = (struct ip_esp_hdr *)(skb_network_header(skb) +
 				     top_iph->ihl * 4);
 	top_iph->tot_len = htons(skb->len + alen);
-	*(u8*)(trailer->tail - 1) = top_iph->protocol;
+	*(skb_tail_pointer(skb) - 1) = top_iph->protocol;
 
 	/* this is non-NULL only with UDP Encapsulation */
 	if (x->encap) {

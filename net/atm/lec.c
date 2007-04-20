@@ -283,7 +283,7 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	DPRINTK("skbuff head:%lx data:%lx tail:%lx end:%lx\n",
-		(long)skb->head, (long)skb->data, (long)skb->tail,
+		(long)skb->head, (long)skb->data, (long)skb_tail_pointer(skb),
 		(long)skb->end);
 #if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
 	if (memcmp(skb->data, bridge_ula_lec, sizeof(bridge_ula_lec)) == 0)

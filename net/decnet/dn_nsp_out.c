@@ -681,8 +681,10 @@ void dn_nsp_send_conninit(struct sock *sk, unsigned char msgflg)
 	if (scp->peer.sdn_objnum)
 		type = 0;
 
-	skb_put(skb, dn_sockaddr2username(&scp->peer, skb->tail, type));
-	skb_put(skb, dn_sockaddr2username(&scp->addr, skb->tail, 2));
+	skb_put(skb, dn_sockaddr2username(&scp->peer,
+					  skb_tail_pointer(skb), type));
+	skb_put(skb, dn_sockaddr2username(&scp->addr,
+					  skb_tail_pointer(skb), 2));
 
 	menuver = DN_MENUVER_ACC | DN_MENUVER_USR;
 	if (scp->peer.sdn_flags & SDF_PROXY)

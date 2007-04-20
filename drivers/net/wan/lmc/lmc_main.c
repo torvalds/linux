@@ -1636,7 +1636,7 @@ static int lmc_rx (struct net_device *dev) /*fold00*/
             if (nsb) {
                 sc->lmc_rxq[i] = nsb;
                 nsb->dev = dev;
-                sc->lmc_rxring[i].buffer1 = virt_to_bus (nsb->tail);
+                sc->lmc_rxring[i].buffer1 = virt_to_bus(skb_tail_pointer(nsb));
             }
             sc->failed_recv_alloc = 1;
             goto skip_packet;
@@ -1679,7 +1679,7 @@ static int lmc_rx (struct net_device *dev) /*fold00*/
             if (nsb) {
                 sc->lmc_rxq[i] = nsb;
                 nsb->dev = dev;
-                sc->lmc_rxring[i].buffer1 = virt_to_bus (nsb->tail);
+                sc->lmc_rxring[i].buffer1 = virt_to_bus(skb_tail_pointer(nsb));
                 /* Transferred to 21140 below */
             }
             else {

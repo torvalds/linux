@@ -229,7 +229,7 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 		  (cb)->nlh->nlmsg_seq, type, len, flags)
 
 #define NLMSG_END(skb, nlh) \
-({	(nlh)->nlmsg_len = (skb)->tail - (unsigned char *) (nlh); \
+({	(nlh)->nlmsg_len = skb_tail_pointer(skb) - (unsigned char *)(nlh); \
 	(skb)->len; })
 
 #define NLMSG_CANCEL(skb, nlh) \

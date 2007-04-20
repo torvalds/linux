@@ -245,7 +245,7 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 
 static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_ipt *ipt = a->priv;
 	struct ipt_entry_target *t;
 	struct tcf_t tm;

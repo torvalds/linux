@@ -271,7 +271,7 @@ static int prio_init(struct Qdisc *sch, struct rtattr *opt)
 static int prio_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_prio_qopt opt;
 
 	opt.bands = q->bands;

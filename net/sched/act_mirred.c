@@ -206,7 +206,7 @@ bad_mirred:
 
 static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_mirred *m = a->priv;
 	struct tc_mirred opt;
 	struct tcf_t t;
