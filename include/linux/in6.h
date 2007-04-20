@@ -179,6 +179,7 @@ struct in6_flowlabel_req
 #define IPV6_PMTUDISC_DONT		0
 #define IPV6_PMTUDISC_WANT		1
 #define IPV6_PMTUDISC_DO		2
+#define IPV6_PMTUDISC_PROBE		3
 
 /* Flowlabel */
 #define IPV6_FLOWLABEL_MGR	32
