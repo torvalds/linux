@@ -207,7 +207,7 @@ static inline struct pppox_sock *get_item(unsigned long sid,
 
 static inline struct pppox_sock *get_item_by_addr(struct sockaddr_pppox *sp)
 {
-	struct net_device *dev = NULL;
+	struct net_device *dev;
 	int ifindex;
 
 	dev = dev_get_by_name(sp->sa_addr.pppoe.dev);
@@ -221,9 +221,6 @@ static inline struct pppox_sock *get_item_by_addr(struct sockaddr_pppox *sp)
 static inline int set_item(struct pppox_sock *po)
 {
 	int i;
-
-	if (!po)
-		return -EINVAL;
 
 	write_lock_bh(&pppoe_hash_lock);
 	i = __set_item(po);
@@ -344,7 +341,7 @@ static struct notifier_block pppoe_notifier = {
 static int pppoe_rcv_core(struct sock *sk, struct sk_buff *skb)
 {
 	struct pppox_sock *po = pppox_sk(sk);
-	struct pppox_sock *relay_po = NULL;
+	struct pppox_sock *relay_po;
 
 	if (sk->sk_state & PPPOX_BOUND) {
 		struct pppoe_hdr *ph = pppoe_hdr(skb);
@@ -514,7 +511,6 @@ static int pppoe_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 	struct pppox_sock *po;
-	int error = 0;
 
 	if (!sk)
 		return 0;
@@ -543,7 +539,7 @@ static int pppoe_release(struct socket *sock)
 	skb_queue_purge(&sk->sk_receive_queue);
 	sock_put(sk);
 
-	return error;
+	return 0;
 }
 
 
@@ -762,10 +758,10 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 static int pppoe_sendmsg(struct kiocb *iocb, struct socket *sock,
 		  struct msghdr *m, size_t total_len)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	struct sock *sk = sock->sk;
 	struct pppox_sock *po = pppox_sk(sk);
-	int error = 0;
+	int error;
 	struct pppoe_hdr hdr;
 	struct pppoe_hdr *ph;
 	struct net_device *dev;
@@ -930,7 +926,7 @@ static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
 		  struct msghdr *m, size_t total_len, int flags)
 {
 	struct sock *sk = sock->sk;
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	int error = 0;
 
 	if (sk->sk_state & PPPOX_BOUND) {
@@ -941,9 +937,8 @@ static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
 				flags & MSG_DONTWAIT, &error);
 
-	if (error < 0) {
+	if (error < 0)
 		goto end;
-	}
 
 	m->msg_namelen = 0;
 
@@ -986,7 +981,7 @@ out:
 
 static __inline__ struct pppox_sock *pppoe_get_idx(loff_t pos)
 {
-	struct pppox_sock *po = NULL;
+	struct pppox_sock *po;
 	int i = 0;
 
 	for (; i < PPPOE_HASH_SIZE; i++) {
