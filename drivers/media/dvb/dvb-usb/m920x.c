@@ -85,12 +85,10 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	int i, ret = 0;
 	u8 rc_state[2];
 
-	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE,
-			      rc_state, 1)) != 0)
+	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, rc_state, 1)) != 0)
 		goto unlock;
 
-	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY,
-			      rc_state + 1, 1)) != 0)
+	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
 		goto unlock;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++)
@@ -142,8 +140,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 }
 
 /* I2C */
-static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
-			  int num)
+static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i, j;
@@ -156,8 +153,7 @@ static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		return -EAGAIN;
 
 	for (i = 0; i < num; i++) {
-		if (msg[i].flags & (I2C_M_NO_RD_ACK | I2C_M_IGNORE_NAK |
-				    I2C_M_TEN) || msg[i].len == 0) {
+		if (msg[i].flags & (I2C_M_NO_RD_ACK | I2C_M_IGNORE_NAK | I2C_M_TEN) || msg[i].len == 0) {
 			/* For a 0 byte message, I think sending the address
 			 * to index 0x80|0x40 would be the correct thing to
 			 * do.  However, zero byte messages are only used for
@@ -170,8 +166,7 @@ static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		if (!(msg[i].flags & I2C_M_NOSTART)) {
 			if ((ret = m920x_write(d->udev, M9206_I2C,
 					(msg[i].addr << 1) |
-					(msg[i].flags & I2C_M_RD ? 0x01 : 0),
-					       0x80)) != 0)
+					(msg[i].flags & I2C_M_RD ? 0x01 : 0), 0x80)) != 0)
 				goto unlock;
 			/* Should check for ack here, if we knew how. */
 		}
@@ -179,23 +174,19 @@ static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			for (j = 0; j < msg[i].len; j++) {
 				/* Last byte of transaction?
 				 * Send STOP, otherwise send ACK. */
-				int stop = (i+1 == num && j+1 == msg[i].len)
-					? 0x40 : 0x01;
+				int stop = (i+1 == num && j+1 == msg[i].len) ? 0x40 : 0x01;
 
 				if ((ret = m920x_read(d->udev, M9206_I2C, 0x0,
-						      0x20|stop,
+						      0x20 | stop,
 						      &msg[i].buf[j], 1)) != 0)
 					goto unlock;
 			}
 		} else {
 			for (j = 0; j < msg[i].len; j++) {
 				/* Last byte of transaction? Then send STOP. */
-				int stop = (i+1 == num && j+1 == msg[i].len)
-					? 0x40 : 0x00;
+				int stop = (i+1 == num && j+1 == msg[i].len) ? 0x40 : 0x00;
 
-				if ((ret = m920x_write(d->udev, M9206_I2C,
-						       msg[i].buf[j],
-						       stop)) != 0)
+				if ((ret = m920x_write(d->udev, M9206_I2C, msg[i].buf[j], stop)) != 0)
 					goto unlock;
 				/* Should check for ack here too. */
 			}
@@ -230,12 +221,10 @@ static int m920x_set_filter(struct dvb_usb_adapter *adap,
 
 	pid |= 0x8000;
 
-	if ((ret = m920x_write(adap->dev->udev, M9206_FILTER, pid,
-			       (type << 8) | (idx * 4) )) != 0)
+	if ((ret = m920x_write(adap->dev->udev, M9206_FILTER, pid, (type << 8) | (idx * 4) )) != 0)
 		return ret;
 
-	if ((ret = m920x_write(adap->dev->udev, M9206_FILTER, 0,
-			       (type << 8) | (idx * 4) )) != 0)
+	if ((ret = m920x_write(adap->dev->udev, M9206_FILTER, 0, (type << 8) | (idx * 4) )) != 0)
 		return ret;
 
 	return ret;
@@ -268,8 +257,7 @@ static int m920x_update_filters(struct dvb_usb_adapter *adap)
 			if (m->filters[i] == 0)
 				continue;
 
-			if ((ret = m920x_set_filter(adap, 0x81, filter + 2,
-						    m->filters[i])) != 0)
+			if ((ret = m920x_set_filter(adap, 0x81, filter + 2, m->filters[i])) != 0)
 				return ret;
 
 			filter++;
@@ -291,8 +279,7 @@ static int m920x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return m920x_update_filters(adap);
 }
 
-static int m920x_pid_filter(struct dvb_usb_adapter *adap,
-			    int index, u16 pid, int onoff)
+static int m920x_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
 {
 	struct m920x_state *m = adap->dev->priv;
 
@@ -301,8 +288,7 @@ static int m920x_pid_filter(struct dvb_usb_adapter *adap,
 	return m920x_update_filters(adap);
 }
 
-static int m920x_firmware_download(struct usb_device *udev,
-				   const struct firmware *fw)
+static int m920x_firmware_download(struct usb_device *udev, const struct firmware *fw)
 {
 	u16 value, index, size;
 	u8 read[4], *buff;
@@ -334,9 +320,9 @@ static int m920x_firmware_download(struct usb_device *udev,
 				memcpy(buff, fw->data + i, size);
 
 				ret = usb_control_msg(udev, usb_sndctrlpipe(udev,0),
-					    M9206_FW,
-					    USB_TYPE_VENDOR | USB_DIR_OUT,
-					    value, index, buff, size, 20);
+						      M9206_FW,
+						      USB_TYPE_VENDOR | USB_DIR_OUT,
+						      value, index, buff, size, 20);
 				if (ret != size) {
 					deb("error while uploading fw!\n");
 					ret = -EIO;
@@ -445,7 +431,8 @@ static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__FUNCTION__);
 
-	if ((adap->fe = dvb_attach(mt352_attach, &m920x_mt352_config,
+	if ((adap->fe = dvb_attach(mt352_attach,
+				   &m920x_mt352_config,
 				   &adap->dev->i2c_adap)) == NULL)
 		return -EIO;
 
@@ -480,8 +467,7 @@ static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__FUNCTION__);
 
-	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
-		       &m920x_qt1010_config) == NULL)
+	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap, &m920x_qt1010_config) == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -491,8 +477,7 @@ static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__FUNCTION__);
 
-	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
-		       NULL) == NULL)
+	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap, NULL) == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -502,8 +487,7 @@ static int m920x_tda8275_61_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__FUNCTION__);
 
-	if (dvb_attach(tda827x_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
-		       NULL) == NULL)
+	if (dvb_attach(tda827x_attach, adap->fe, 0x61, &adap->dev->i2c_adap, NULL) == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -593,8 +577,7 @@ static int m920x_probe(struct usb_interface *intf,
 			goto found;
 		}
 
-		if ((ret = dvb_usb_device_init(intf,
-					       &digivox_mini_ii_properties,
+		if ((ret = dvb_usb_device_init(intf, &digivox_mini_ii_properties,
 					       THIS_MODULE, &d)) == 0) {
 			/* No remote control, so no rc_init_seq */
 			goto found;
