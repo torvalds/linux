@@ -40,8 +40,8 @@
 #include <linux/ethtool.h>
 #include <linux/version.h>
 
-#include "netxen_nic_hw.h"
 #include "netxen_nic.h"
+#include "netxen_nic_hw.h"
 #include "netxen_nic_phan_reg.h"
 
 struct netxen_nic_stats {
@@ -379,7 +379,7 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 		for (i = 3; niu_registers[mode].reg[i - 3] != -1; i++) {
 			/* GB: port specific registers */
 			if (mode == 0 && i >= 19)
-				window = adapter->portnum * 
+				window = physical_port[adapter->portnum] *
 					NETXEN_NIC_PORT_WINDOW;
 
 			NETXEN_NIC_LOCKED_READ_REG(niu_registers[mode].
@@ -537,16 +537,43 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	__u32 val;
+	int port = physical_port[adapter->portnum];
 
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
+		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
+			return;
 		/* get flow control settings */
-		netxen_nic_read_w0(adapter,
-				   NETXEN_NIU_GB_MAC_CONFIG_0(adapter->portnum),
-				   &val);
+		netxen_nic_read_w0(adapter,NETXEN_NIU_GB_MAC_CONFIG_0(port),
+				&val);
 		pause->rx_pause = netxen_gb_get_rx_flowctl(val);
-		pause->tx_pause = netxen_gb_get_tx_flowctl(val);
-		/* get autoneg settings */
-		pause->autoneg = adapter->link_autoneg;
+		netxen_nic_read_w0(adapter, NETXEN_NIU_GB_PAUSE_CTL, &val);
+		switch (port) {
+			case 0:
+				pause->tx_pause = !(netxen_gb_get_gb0_mask(val));
+				break;
+			case 1:
+				pause->tx_pause = !(netxen_gb_get_gb1_mask(val));
+				break;
+			case 2:
+				pause->tx_pause = !(netxen_gb_get_gb2_mask(val));
+				break;
+			case 3:
+			default:
+				pause->tx_pause = !(netxen_gb_get_gb3_mask(val));
+				break;
+		}
+	} else if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
+		if ((port < 0) || (port > NETXEN_NIU_MAX_XG_PORTS))
+			return;
+		pause->rx_pause = 1;
+		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL, &val);
+		if (port == 0)
+			pause->tx_pause = !(netxen_xg_get_xg0_mask(val));
+		else
+			pause->tx_pause = !(netxen_xg_get_xg1_mask(val));
+	} else {
+		printk(KERN_ERR"%s: Unknown board type: %x\n", 
+				netxen_nic_driver_name, adapter->ahw.board_type);
 	}
 }
 
@@ -556,39 +583,74 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	__u32 val;
-	unsigned int autoneg;
-
+	int port = physical_port[adapter->portnum];
 	/* read mode */
 	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
+		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
+			return -EIO;
 		/* set flow control */
 		netxen_nic_read_w0(adapter,
-				   NETXEN_NIU_GB_MAC_CONFIG_0(adapter->portnum),
-				   (u32 *) & val);
-		if (pause->tx_pause)
-			netxen_gb_tx_flowctl(val);
-		else
-			netxen_gb_unset_tx_flowctl(val);
+					NETXEN_NIU_GB_MAC_CONFIG_0(port), &val);
+		
 		if (pause->rx_pause)
 			netxen_gb_rx_flowctl(val);
 		else
 			netxen_gb_unset_rx_flowctl(val);
 
-		netxen_nic_write_w0(adapter,
-				    NETXEN_NIU_GB_MAC_CONFIG_0(adapter->portnum),
-				    *&val);
+		netxen_nic_write_w0(adapter, NETXEN_NIU_GB_MAC_CONFIG_0(port),
+				val);
 		/* set autoneg */
-		autoneg = pause->autoneg;
-		if (adapter->phy_write
-		    && adapter->phy_write(adapter,
-					  NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					  autoneg) != 0)
-			return -EIO;
-		else {
-			adapter->link_autoneg = pause->autoneg;
-			return 0;
+		netxen_nic_read_w0(adapter, NETXEN_NIU_GB_PAUSE_CTL, &val);
+		switch (port) {
+			case 0:
+				if (pause->tx_pause)
+					netxen_gb_unset_gb0_mask(val);
+				else
+					netxen_gb_set_gb0_mask(val);
+				break;
+			case 1:
+				if (pause->tx_pause)
+					netxen_gb_unset_gb1_mask(val);
+				else
+					netxen_gb_set_gb1_mask(val);
+				break;
+			case 2:
+				if (pause->tx_pause)
+					netxen_gb_unset_gb2_mask(val);
+				else
+					netxen_gb_set_gb2_mask(val);
+				break;
+			case 3:
+			default:
+				if (pause->tx_pause)
+					netxen_gb_unset_gb3_mask(val);
+				else
+					netxen_gb_set_gb3_mask(val);
+				break;
 		}
-	} else
-		return -EOPNOTSUPP;
+		netxen_nic_write_w0(adapter, NETXEN_NIU_GB_PAUSE_CTL, val);
+	} else if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
+		if ((port < 0) || (port > NETXEN_NIU_MAX_XG_PORTS))
+			return -EIO;
+		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL, &val);
+		if (port == 0) {
+			if (pause->tx_pause)
+				netxen_xg_unset_xg0_mask(val);
+			else
+				netxen_xg_set_xg0_mask(val);
+		} else {
+			if (pause->tx_pause)
+				netxen_xg_unset_xg1_mask(val);
+			else
+				netxen_xg_set_xg1_mask(val);
+		}
+		netxen_nic_write_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL, val);			
+	} else {
+		printk(KERN_ERR "%s: Unknown board type: %x\n",
+				netxen_nic_driver_name, 
+				adapter->ahw.board_type);
+	}
+	return 0;
 }
 
 static int netxen_nic_reg_test(struct net_device *dev)
@@ -619,23 +681,12 @@ static void
 netxen_nic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 		     u64 * data)
 {
-	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {	/* offline tests */
-		/* link test */
-		if ((data[1] = (u64) netxen_nic_test_link(dev)))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
-
-		/* register tests */
-		if ((data[0] = netxen_nic_reg_test(dev)))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
-	} else {		/* online tests */
-		/* register tests */
-		if((data[0] = netxen_nic_reg_test(dev)))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
-
-		/* link test */
-		if ((data[1] = (u64) netxen_nic_test_link(dev)))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
-	}
+	memset(data, 0, sizeof(uint64_t) * NETXEN_NIC_TEST_LEN);
+	if ((data[0] = netxen_nic_reg_test(dev)))
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+	/* link test */
+	if ((data[1] = (u64) netxen_nic_test_link(dev)))
+		eth_test->flags |= ETH_TEST_FL_FAILED;
 }
 
 static void

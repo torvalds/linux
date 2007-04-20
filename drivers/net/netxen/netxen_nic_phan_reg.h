@@ -108,6 +108,13 @@
 #define CRB_CMD_CONSUMER_OFFSET_3   NETXEN_NIC_REG(0x1d4)
 #define CRB_TEMP_STATE              NETXEN_NIC_REG(0x1b4)
 
+#define CRB_V2P_0		    NETXEN_NIC_REG(0x290)
+#define CRB_V2P_1		    NETXEN_NIC_REG(0x294)
+#define CRB_V2P_2		    NETXEN_NIC_REG(0x298)
+#define CRB_V2P_3		    NETXEN_NIC_REG(0x29c)
+#define CRB_V2P(port)		    (CRB_V2P_0+((port)*4))
+#define CRB_DRIVER_VERSION	    NETXEN_NIC_REG(0x2a0)
+
 /* used for ethtool tests */
 #define CRB_SCRATCHPAD_TEST	    NETXEN_NIC_REG(0x280)
 

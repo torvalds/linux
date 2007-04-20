@@ -220,6 +220,69 @@ typedef enum {
 		_netxen_crb_get_bit(config_word, 1)
 #define netxen_get_gb_mii_mgmt_notvalid(config_word)	\
 		_netxen_crb_get_bit(config_word, 2)
+/*
+ * NIU XG Pause Ctl Register
+ *
+ *      Bit 0       : xg0_mask => 1:disable tx pause frames
+ *      Bit 1       : xg0_request => 1:request single pause frame
+ *      Bit 2       : xg0_on_off => 1:request is pause on, 0:off
+ *      Bit 3       : xg1_mask => 1:disable tx pause frames
+ *      Bit 4       : xg1_request => 1:request single pause frame
+ *      Bit 5       : xg1_on_off => 1:request is pause on, 0:off
+ */
+
+#define netxen_xg_set_xg0_mask(config_word)    \
+	((config_word) |= 1 << 0)
+#define netxen_xg_set_xg1_mask(config_word)    \
+	((config_word) |= 1 << 3)
+		
+#define netxen_xg_get_xg0_mask(config_word)    \
+	_netxen_crb_get_bit((config_word), 0)
+#define netxen_xg_get_xg1_mask(config_word)    \
+	_netxen_crb_get_bit((config_word), 3)
+
+#define netxen_xg_unset_xg0_mask(config_word)  \
+	((config_word) &= ~(1 << 0))
+#define netxen_xg_unset_xg1_mask(config_word)  \
+	((config_word) &= ~(1 << 3))
+
+/*
+ * NIU XG Pause Ctl Register
+ *
+ *      Bit 0       : xg0_mask => 1:disable tx pause frames
+ *      Bit 1       : xg0_request => 1:request single pause frame
+ *      Bit 2       : xg0_on_off => 1:request is pause on, 0:off
+ *      Bit 3       : xg1_mask => 1:disable tx pause frames
+ *      Bit 4       : xg1_request => 1:request single pause frame
+ *      Bit 5       : xg1_on_off => 1:request is pause on, 0:off
+ */
+#define netxen_gb_set_gb0_mask(config_word)    \
+	((config_word) |= 1 << 0)
+#define netxen_gb_set_gb1_mask(config_word)    \
+	((config_word) |= 1 << 2)
+#define netxen_gb_set_gb2_mask(config_word)    \
+	((config_word) |= 1 << 4)
+#define netxen_gb_set_gb3_mask(config_word)    \
+	((config_word) |= 1 << 6)
+
+#define netxen_gb_get_gb0_mask(config_word)    \
+	_netxen_crb_get_bit((config_word), 0)
+#define netxen_gb_get_gb1_mask(config_word)    \
+	_netxen_crb_get_bit((config_word), 2)
+#define netxen_gb_get_gb2_mask(config_word)    \
+	_netxen_crb_get_bit((config_word), 4)
+#define netxen_gb_get_gb3_mask(config_word)    \
+	_netxen_crb_get_bit((config_word), 6)
+	
+#define netxen_gb_unset_gb0_mask(config_word)  \
+	((config_word) &= ~(1 << 0))
+#define netxen_gb_unset_gb1_mask(config_word)  \
+	((config_word) &= ~(1 << 2))
+#define netxen_gb_unset_gb2_mask(config_word)  \
+	((config_word) &= ~(1 << 4))
+#define netxen_gb_unset_gb3_mask(config_word)  \
+	((config_word) &= ~(1 << 6))
+
 
 /*
  * PHY-Specific MII control/status registers.

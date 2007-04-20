@@ -205,6 +205,7 @@ enum {
 
 #define MAX_CMD_DESCRIPTORS		1024
 #define MAX_RCV_DESCRIPTORS		16384
+#define MAX_CMD_DESCRIPTORS_HOST	(MAX_CMD_DESCRIPTORS / 4)
 #define MAX_RCV_DESCRIPTORS_1G		(MAX_RCV_DESCRIPTORS / 4)
 #define MAX_JUMBO_RCV_DESCRIPTORS	1024
 #define MAX_LRO_RCV_DESCRIPTORS		64
@@ -303,6 +304,8 @@ struct netxen_ring_ctx {
 
 #define netxen_set_cmd_desc_port(cmd_desc, var)	\
 	((cmd_desc)->port_ctxid |= ((var) & 0x0F))
+#define netxen_set_cmd_desc_ctxid(cmd_desc, var)	\
+	((cmd_desc)->port_ctxid |= ((var) & 0xF0))
 
 #define netxen_set_cmd_desc_flags(cmd_desc, val)	\
 	((cmd_desc)->flags_opcode &= ~cpu_to_le16(0x7f), \
@@ -445,7 +448,7 @@ struct status_desc {
 	/* Bit pattern: 0-6 lro_count indicates frag sequence,
 	   7 last_frag indicates last frag */
 	u8 lro;
-} __attribute__ ((aligned(8)));
+} __attribute__ ((aligned(16)));
 
 enum {
 	NETXEN_RCV_PEG_0 = 0,
@@ -723,6 +726,18 @@ struct netxen_skb_frag {
 	u32 length;
 };
 
+#define _netxen_set_bits(config_word, start, bits, val)	{\
+	unsigned long long __tmask = (((1ULL << (bits)) - 1) << (start));\
+	unsigned long long __tvalue = (val);    \
+	(config_word) &= ~__tmask;      \
+	(config_word) |= (((__tvalue) << (start)) & __tmask); \
+}
+	
+#define _netxen_clear_bits(config_word, start, bits) {\
+	unsigned long long __tmask = (((1ULL << (bits)) - 1) << (start));  \
+	(config_word) &= ~__tmask; \
+}		
+
 /*    Following defines are for the state of the buffers    */
 #define	NETXEN_BUFFER_FREE	0
 #define	NETXEN_BUFFER_BUSY	1
@@ -767,6 +782,8 @@ struct netxen_hardware_context {
 	void __iomem *pci_base0;
 	void __iomem *pci_base1;
 	void __iomem *pci_base2;
+	unsigned long first_page_group_end;
+	unsigned long first_page_group_start;
 	void __iomem *db_base;
 	unsigned long db_len;
 
@@ -862,6 +879,7 @@ struct netxen_adapter {
 	struct netxen_adapter *master;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
+	struct net_device_stats net_stats;
 	unsigned char mac_addr[ETH_ALEN];
 	int mtu;
 	int portnum;
@@ -1152,4 +1170,5 @@ extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 
 extern struct ethtool_ops netxen_nic_ethtool_ops;
 
+extern int physical_port[];	/* physical port # from virtual port.*/
 #endif				/* __NETXEN_NIC_H_ */

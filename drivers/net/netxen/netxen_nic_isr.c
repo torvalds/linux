@@ -34,38 +34,38 @@
 #include "netxen_nic_hw.h"
 #include "netxen_nic_phan_reg.h"
 
-#if 0
 /*
  * netxen_nic_get_stats - Get System Network Statistics
  * @netdev: network interface device structure
  */
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 {
-	struct netxen_port *port = netdev_priv(netdev);
+	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &adapter->net_stats;
 
 	memset(stats, 0, sizeof(*stats));
 
 	/* total packets received   */
-	stats->rx_packets = port->stats.no_rcv;
+	stats->rx_packets = adapter->stats.no_rcv;
 	/* total packets transmitted    */
-	stats->tx_packets = port->stats.xmitedframes + port->stats.xmitfinished;
+	stats->tx_packets = adapter->stats.xmitedframes + 
+		adapter->stats.xmitfinished;
 	/* total bytes received     */
-	stats->rx_bytes = port->stats.rxbytes;
+	stats->rx_bytes = adapter->stats.rxbytes;
 	/* total bytes transmitted  */
-	stats->tx_bytes = port->stats.txbytes;
+	stats->tx_bytes = adapter->stats.txbytes;
 	/* bad packets received     */
-	stats->rx_errors = port->stats.rcvdbadskb;
+	stats->rx_errors = adapter->stats.rcvdbadskb;
 	/* packet transmit problems */
-	stats->tx_errors = port->stats.nocmddescriptor;
+	stats->tx_errors = adapter->stats.nocmddescriptor;
 	/* no space in linux buffers    */
-	stats->rx_dropped = port->stats.updropped;
+	stats->rx_dropped = adapter->stats.updropped;
 	/* no space available in linux  */
-	stats->tx_dropped = port->stats.txdropped;
+	stats->tx_dropped = adapter->stats.txdropped;
 
 	return stats;
 }
-#endif
+
 void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -116,9 +116,6 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 					 &status) == 0) {
 			if (netxen_get_phy_int_link_status_changed(int_src)) {
 				if (netxen_get_phy_link(status)) {
-					netxen_niu_gbe_init_port(
-							adapter, 
-							adapter->portnum);
 					printk(KERN_INFO "%s: %s Link UP\n",
 					       netxen_nic_driver_name,
 					       adapter->netdev->name);
@@ -145,7 +142,7 @@ void netxen_nic_isr_other(struct netxen_adapter *adapter)
 
 	/* verify the offset */
 	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
-	val = val >> adapter->portnum;
+	val = val >> physical_port[adapter->portnum];
 	if (val == adapter->ahw.qg_linksup)
 		return;
 
@@ -179,7 +176,7 @@ void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 
 	/* WINDOW = 1 */
 	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
-	val >>= (adapter->portnum * 8);
+	val >>= (physical_port[adapter->portnum] * 8);
 	val1 = val & 0xff;
 
 	if (adapter->ahw.xg_linkup == 1 && val1 != XG_LINK_UP) {

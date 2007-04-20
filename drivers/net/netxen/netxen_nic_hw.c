@@ -145,7 +145,7 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	 NETXEN_NIC_REG(0x184),
 	 },
 	/*
-	 * Instance 3,
+	 * Instance 2,
 	 */
 	{
 	  {
@@ -194,7 +194,7 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	  NETXEN_NIC_REG(0x228),
 	},
 	/*
-	 * Instance 4,
+	 * Instance 3,
 	 */
 	{
 	  {
@@ -310,7 +310,6 @@ void netxen_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct dev_mc_list *mc_ptr;
-	__u32 netxen_mac_addr_cntl_data = 0;
 
 	mc_ptr = netdev->mc_list;
 	if (netdev->flags & IFF_PROMISC) {
@@ -318,43 +317,10 @@ void netxen_nic_set_multi(struct net_device *netdev)
 			adapter->set_promisc(adapter,
 					     NETXEN_NIU_PROMISC_MODE);
 	} else {
-		if (adapter->unset_promisc &&
-		    adapter->ahw.boardcfg.board_type
-		    != NETXEN_BRDTYPE_P2_SB31_10G_IMEZ)
+		if (adapter->unset_promisc)
 			adapter->unset_promisc(adapter,
 					       NETXEN_NIU_NON_PROMISC_MODE);
 	}
-	if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
-		netxen_nic_mcr_set_mode_select(netxen_mac_addr_cntl_data, 0x03);
-		netxen_nic_mcr_set_id_pool0(netxen_mac_addr_cntl_data, 0x00);
-		netxen_nic_mcr_set_id_pool1(netxen_mac_addr_cntl_data, 0x00);
-		netxen_nic_mcr_set_id_pool2(netxen_mac_addr_cntl_data, 0x00);
-		netxen_nic_mcr_set_id_pool3(netxen_mac_addr_cntl_data, 0x00);
-		netxen_nic_mcr_set_enable_xtnd0(netxen_mac_addr_cntl_data);
-		netxen_nic_mcr_set_enable_xtnd1(netxen_mac_addr_cntl_data);
-		netxen_nic_mcr_set_enable_xtnd2(netxen_mac_addr_cntl_data);
-		netxen_nic_mcr_set_enable_xtnd3(netxen_mac_addr_cntl_data);
-	} else {
-		netxen_nic_mcr_set_mode_select(netxen_mac_addr_cntl_data, 0x00);
-		netxen_nic_mcr_set_id_pool0(netxen_mac_addr_cntl_data, 0x00);
-		netxen_nic_mcr_set_id_pool1(netxen_mac_addr_cntl_data, 0x01);
-		netxen_nic_mcr_set_id_pool2(netxen_mac_addr_cntl_data, 0x02);
-		netxen_nic_mcr_set_id_pool3(netxen_mac_addr_cntl_data, 0x03);
-	}
-	writel(netxen_mac_addr_cntl_data,
-	       NETXEN_CRB_NORMALIZE(adapter, NETXEN_MAC_ADDR_CNTL_REG));
-	if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
-		writel(netxen_mac_addr_cntl_data,
-		       NETXEN_CRB_NORMALIZE(adapter,
-					    NETXEN_MULTICAST_ADDR_HI_0));
-	} else {
-		writel(netxen_mac_addr_cntl_data,
-		       NETXEN_CRB_NORMALIZE(adapter,
-					    NETXEN_MULTICAST_ADDR_HI_1));
-	}
-	netxen_mac_addr_cntl_data = 0;
-	writel(netxen_mac_addr_cntl_data,
-	       NETXEN_CRB_NORMALIZE(adapter, NETXEN_NIU_GB_DROP_WRONGADDR));
 }
 
 /*
@@ -390,7 +356,6 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	void *addr;
 	int loops = 0, err = 0;
 	int ctx, ring;
-	u32 card_cmdring = 0;
 	struct netxen_recv_context *recv_ctx;
 	struct netxen_rcv_desc_ctx *rcv_desc;
 	int func_id = adapter->portnum;
@@ -402,11 +367,6 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	DPRINTK(INFO, "cam RAM: %lx %x", NETXEN_CAM_RAM_BASE,
 		pci_base_offset(adapter, NETXEN_CAM_RAM_BASE));
 
-	/* Window 1 call */
-	card_cmdring = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_CMDRING));
-
-	DPRINTK(INFO, "Command Peg sends 0x%x for cmdring base\n",
-		card_cmdring);
 
 	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
 		DPRINTK(INFO, "Command Peg ready..waiting for rcv peg\n");
@@ -449,7 +409,7 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	}
 	memset(addr, 0, sizeof(struct netxen_ring_ctx));
 	adapter->ctx_desc = (struct netxen_ring_ctx *)addr;
-	adapter->ctx_desc->ctx_id = adapter->portnum;
+	adapter->ctx_desc->ctx_id = cpu_to_le32(adapter->portnum);
 	adapter->ctx_desc->cmd_consumer_offset =
 	    cpu_to_le64(adapter->ctx_desc_phys_addr +
 			sizeof(struct netxen_ring_ctx));
@@ -550,10 +510,6 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 				    adapter->ahw.cmd_desc_head,
 				    adapter->ahw.cmd_desc_phys_addr);
 		adapter->ahw.cmd_desc_head = NULL;
-	}
-	/* Special handling: there are 2 ports on this board */
-	if (adapter->ahw.boardcfg.board_type == NETXEN_BRDTYPE_P2_SB31_10G_IMEZ) {
-		adapter->ahw.max_ports = 2;
 	}
 
 	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
@@ -735,7 +691,10 @@ void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw)
 		count++;
 	}
 
-	adapter->curr_window = wndw;
+	if (wndw == NETXEN_WINDOW_ONE)
+		adapter->curr_window = 1;
+	else
+		adapter->curr_window = 0;
 }
 
 void netxen_load_firmware(struct netxen_adapter *adapter)
@@ -1055,18 +1014,18 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu)
 {
 	netxen_nic_write_w0(adapter,
-			    NETXEN_NIU_GB_MAX_FRAME_SIZE(adapter->portnum),
-			    new_mtu);
+			NETXEN_NIU_GB_MAX_FRAME_SIZE(
+				physical_port[adapter->portnum]), new_mtu);
 	return 0;
 }
 
 int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 {
 	new_mtu += NETXEN_NIU_HDRSIZE + NETXEN_NIU_TLRSIZE;
-	if (adapter->portnum == 0)
+	if (physical_port[adapter->portnum] == 0)
 		netxen_nic_write_w0(adapter, NETXEN_NIU_XGE_MAX_FRAME_SIZE, 
 				new_mtu);
-	else if (adapter->portnum == 1)
+	else 
 		netxen_nic_write_w0(adapter, NETXEN_NIU_XG1_MAX_FRAME_SIZE,
 				new_mtu);
 	return 0;
@@ -1074,7 +1033,7 @@ int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 
 void netxen_nic_init_niu_gb(struct netxen_adapter *adapter)
 {
-	netxen_niu_gbe_init_port(adapter, adapter->portnum);
+	netxen_niu_gbe_init_port(adapter, physical_port[adapter->portnum]);
 }
 
 void

@@ -1033,7 +1033,7 @@ void netxen_watchdog_task(struct work_struct *work)
 	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, watchdog_task);
 
-	if (netxen_nic_check_temp(adapter))
+	if ((adapter->portnum  == 0) && netxen_nic_check_temp(adapter))
 		return;
 
 	netdev = adapter->netdev;
