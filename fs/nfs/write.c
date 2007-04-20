@@ -920,8 +920,8 @@ out_bad:
 		list_del(&data->pages);
 		nfs_writedata_release(data);
 	}
-	nfs_end_page_writeback(req->wb_page);
 	nfs_redirty_request(req);
+	nfs_end_page_writeback(req->wb_page);
 	nfs_clear_page_writeback(req);
 	return -ENOMEM;
 }
@@ -966,8 +966,8 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
-		nfs_end_page_writeback(req->wb_page);
 		nfs_redirty_request(req);
+		nfs_end_page_writeback(req->wb_page);
 		nfs_clear_page_writeback(req);
 	}
 	return -ENOMEM;
@@ -1002,8 +1002,8 @@ out_err:
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
-		nfs_end_page_writeback(req->wb_page);
 		nfs_redirty_request(req);
+		nfs_end_page_writeback(req->wb_page);
 		nfs_clear_page_writeback(req);
 	}
 	return error;
