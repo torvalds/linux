@@ -2493,6 +2493,7 @@ static int intel8x0_resume(struct pci_dev *pci)
 		return -EIO;
 	}
 	pci_set_master(pci);
+	snd_intel8x0_chip_init(chip, 0);
 	if (request_irq(pci->irq, snd_intel8x0_interrupt,
 			IRQF_SHARED, card->shortname, chip)) {
 		printk(KERN_ERR "intel8x0: unable to grab IRQ %d, "
@@ -2502,7 +2503,6 @@ static int intel8x0_resume(struct pci_dev *pci)
 	}
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
-	snd_intel8x0_chip_init(chip, 0);
 
 	/* re-initialize mixer stuff */
 	if (chip->device_type == DEVICE_INTEL_ICH4 && !spdif_aclink) {
@@ -2862,16 +2862,7 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 		ICH_REG_ALI_INTERRUPTSR : ICH_REG_GLOB_STA;
 	chip->int_sta_mask = int_sta_masks;
 
-	/* request irq after initializaing int_sta_mask, etc */
-	if (request_irq(pci->irq, snd_intel8x0_interrupt,
-			IRQF_SHARED, card->shortname, chip)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
-		snd_intel8x0_free(chip);
-		return -EBUSY;
-	}
-	chip->irq = pci->irq;
 	pci_set_master(pci);
-	synchronize_irq(chip->irq);
 
 	switch(chip->device_type) {
 	case DEVICE_INTEL_ICH4:
@@ -2900,6 +2891,15 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 		snd_intel8x0_free(chip);
 		return err;
 	}
+
+	/* request irq after initializaing int_sta_mask, etc */
+	if (request_irq(pci->irq, snd_intel8x0_interrupt,
+			IRQF_SHARED, card->shortname, chip)) {
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		snd_intel8x0_free(chip);
+		return -EBUSY;
+	}
+	chip->irq = pci->irq;
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_intel8x0_free(chip);
