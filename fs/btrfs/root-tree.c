@@ -100,7 +100,6 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	BUG_ON(refs == 0);
 	if (refs == 1) {
 		ret = btrfs_del_item(trans, root, path);
-printk("deleting root %Lu %Lu %u\n", key->objectid, key->offset, key->flags);
 	} else {
 		btrfs_set_root_refs(ri, refs - 1);
 printk("ref now %u root %Lu %Lu %u\n", refs -1, key->objectid, key->offset, key->flags);

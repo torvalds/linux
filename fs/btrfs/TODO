@@ -7,6 +7,7 @@
 * Get rid of struct ctree_path, limiting tree levels held at one time
 * Add generation number to key pointer in nodes
 * Add parent pointer back to extent map.
+* Implement real list of pending transactions
 * Release
 * Do real tree locking
 * Add extent mirroring (backup copies of blocks)

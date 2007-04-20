@@ -256,6 +256,7 @@ struct btrfs_fs_info {
 	struct inode *btree_inode;
 	struct mutex trans_mutex;
 	struct mutex fs_mutex;
+	struct list_head trans_list;
 	struct crypto_hash *hash_tfm;
 	spinlock_t hash_lock;
 	struct kobject kobj;

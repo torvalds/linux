@@ -11,6 +11,7 @@
 #include <linux/mpage.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
+#include <linux/statfs.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -930,6 +931,26 @@ out_unlock:
 	if (drop_on_err)
 		iput(inode);
 	return err;
+}
+
+static int btrfs_sync_file(struct file *file,
+			   struct dentry *dentry, int datasync)
+{
+	struct inode *inode = dentry->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret;
+	struct btrfs_trans_handle *trans;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	if (!trans) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	ret = btrfs_commit_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
+out:
+	return ret > 0 ? EIO : ret;
 }
 
 static int btrfs_sync_fs(struct super_block *sb, int wait)
@@ -2353,6 +2374,19 @@ static int btrfs_getattr(struct vfsmount *mnt,
 	return 0;
 }
 
+static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
+{
+	struct btrfs_root *root = btrfs_sb(dentry->d_sb);
+	struct btrfs_super_block *disk_super = root->fs_info->disk_super;
+
+	buf->f_namelen = BTRFS_NAME_LEN;
+	buf->f_blocks = btrfs_super_total_blocks(disk_super);
+	buf->f_bfree = buf->f_blocks - btrfs_super_blocks_used(disk_super);
+	buf->f_bavail = buf->f_bfree;
+	buf->f_bsize = dentry->d_sb->s_blocksize;
+	buf->f_type = BTRFS_SUPER_MAGIC;
+	return 0;
+}
 static struct file_system_type btrfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "btrfs",
@@ -2362,7 +2396,6 @@ static struct file_system_type btrfs_fs_type = {
 };
 
 static struct super_operations btrfs_super_ops = {
-	.statfs		= simple_statfs,
 	.delete_inode	= btrfs_delete_inode,
 	.put_super	= btrfs_put_super,
 	.read_inode	= btrfs_read_locked_inode,
@@ -2371,6 +2404,7 @@ static struct super_operations btrfs_super_ops = {
 	.write_inode	= btrfs_write_inode,
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_destroy_inode,
+	.statfs		= btrfs_statfs,
 };
 
 static struct inode_operations btrfs_dir_inode_operations = {
@@ -2413,6 +2447,7 @@ static struct file_operations btrfs_file_operations = {
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
 	.ioctl		= btrfs_ioctl,
+	.fsync		= btrfs_sync_file,
 };
 
 static int __init init_btrfs_fs(void)

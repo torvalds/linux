@@ -19,6 +19,7 @@ static void put_transaction(struct btrfs_transaction *transaction)
 	if (transaction->use_count == 0) {
 		WARN_ON(total_trans == 0);
 		total_trans--;
+		list_del_init(&transaction->list);
 		memset(transaction, 0, sizeof(*transaction));
 		kmem_cache_free(btrfs_transaction_cachep, transaction);
 	}
@@ -43,6 +44,7 @@ static int join_transaction(struct btrfs_root *root)
 		cur_trans->in_commit = 0;
 		cur_trans->use_count = 1;
 		cur_trans->commit_done = 0;
+		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
 	}
 	cur_trans->num_writers++;
 	return 0;
@@ -236,6 +238,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 {
 	int ret = 0;
 	struct btrfs_transaction *cur_trans;
+	struct btrfs_transaction *prev_trans = NULL;
 	struct list_head dirty_fs_roots;
 	DEFINE_WAIT(wait);
 
@@ -272,13 +275,29 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 	cur_trans = root->fs_info->running_transaction;
 	root->fs_info->running_transaction = NULL;
-	btrfs_set_super_generation(root->fs_info->disk_super,
-				   root->fs_info->generation + 1);
+	if (cur_trans->list.prev != &root->fs_info->trans_list) {
+		prev_trans = list_entry(cur_trans->list.prev,
+					struct btrfs_transaction, list);
+		if (prev_trans->commit_done)
+			prev_trans = NULL;
+		else
+			prev_trans->use_count++;
+	}
 	mutex_unlock(&root->fs_info->trans_mutex);
+	mutex_unlock(&root->fs_info->fs_mutex);
 	ret = btrfs_write_and_wait_transaction(trans, root);
+	if (prev_trans) {
+		mutex_lock(&root->fs_info->trans_mutex);
+		wait_for_commit(root, prev_trans);
+		put_transaction(prev_trans);
+		mutex_unlock(&root->fs_info->trans_mutex);
+	}
+	btrfs_set_super_generation(root->fs_info->disk_super,
+				   cur_trans->transid);
 	BUG_ON(ret);
-
 	write_ctree_super(trans, root);
+
+	mutex_lock(&root->fs_info->fs_mutex);
 	btrfs_finish_extent_commit(trans, root);
 	mutex_lock(&root->fs_info->trans_mutex);
 	cur_trans->commit_done = 1;
