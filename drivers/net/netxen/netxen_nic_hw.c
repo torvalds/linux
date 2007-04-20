@@ -1116,7 +1116,7 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 	char brd_name[NETXEN_MAX_SHORT_NAME];
 	struct netxen_new_user_info user_info;
 	int i, addr = USER_START;
-	u32 *ptr32;
+	__le32 *ptr32;
 
 	struct netxen_board_info *board_info = &(adapter->ahw.boardcfg);
 	if (board_info->magic != NETXEN_BDINFO_MAGIC) {
@@ -1142,7 +1142,6 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 				       netxen_nic_driver_name);
 				return;
 			}
-			*ptr32 = le32_to_cpu(*ptr32);
 			ptr32++;
 			addr += sizeof(u32);
 		}
