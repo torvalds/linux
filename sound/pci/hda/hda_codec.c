@@ -2242,18 +2242,13 @@ int __devinit snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	 * HDA sequence is:
 	 *    4-ch: front/surr  =>  OK as it is
 	 *    6-ch: front/clfe/surr
-	 *    8-ch: front/clfe/side/surr
+	 *    8-ch: front/clfe/rear/side|fc
 	 */
 	switch (cfg->line_outs) {
 	case 3:
-		nid = cfg->line_out_pins[1];
-		cfg->line_out_pins[1] = cfg->line_out_pins[2];
-		cfg->line_out_pins[2] = nid;
-		break;
 	case 4:
 		nid = cfg->line_out_pins[1];
-		cfg->line_out_pins[1] = cfg->line_out_pins[3];
-		cfg->line_out_pins[3] = cfg->line_out_pins[2];
+		cfg->line_out_pins[1] = cfg->line_out_pins[2];
 		cfg->line_out_pins[2] = nid;
 		break;
 	}
