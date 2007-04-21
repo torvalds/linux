@@ -1947,6 +1947,7 @@ static int tcp_v6_destroy_sock(struct sock *sk)
 	return inet6_destroy_sock(sk);
 }
 
+#ifdef CONFIG_PROC_FS
 /* Proc filesystem TCPv6 sock list dumping. */
 static void get_openreq6(struct seq_file *seq,
 			 struct sock *sk, struct request_sock *req, int i, int uid)
@@ -2063,7 +2064,6 @@ static void get_timewait6_sock(struct seq_file *seq,
 		   atomic_read(&tw->tw_refcnt), tw);
 }
 
-#ifdef CONFIG_PROC_FS
 static int tcp6_seq_show(struct seq_file *seq, void *v)
 {
 	struct tcp_iter_state *st;
