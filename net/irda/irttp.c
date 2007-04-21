@@ -551,7 +551,7 @@ int irttp_udata_request(struct tsap_cb *self, struct sk_buff *skb)
 	}
 
 	if (skb->len > self->max_seg_size) {
-		IRDA_DEBUG(1, "%s(), UData is to large for IrLAP!\n",
+		IRDA_DEBUG(1, "%s(), UData is too large for IrLAP!\n",
 			   __FUNCTION__);
 		goto err;
 	}
@@ -598,7 +598,7 @@ int irttp_data_request(struct tsap_cb *self, struct sk_buff *skb)
 	 *  inside an IrLAP frame
 	 */
 	if ((self->tx_max_sdu_size == 0) && (skb->len > self->max_seg_size)) {
-		IRDA_ERROR("%s: SAR disabled, and data is to large for IrLAP!\n",
+		IRDA_ERROR("%s: SAR disabled, and data is too large for IrLAP!\n",
 			   __FUNCTION__);
 		ret = -EMSGSIZE;
 		goto err;
