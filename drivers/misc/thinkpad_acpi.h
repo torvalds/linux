@@ -52,8 +52,9 @@
 #define IBM_DESC "ThinkPad ACPI Extras"
 #define IBM_FILE "thinkpad_acpi"
 #define IBM_URL "http://ibm-acpi.sf.net/"
+#define IBM_MAIL "ibm-acpi-devel@lists.sourceforge.net"
 
-#define IBM_DIR "ibm"
+#define IBM_PROC_DIR "ibm"
 #define IBM_ACPI_EVENT_PREFIX "ibm"
 
 #define IBM_LOG IBM_FILE ": "
@@ -108,20 +109,21 @@ static acpi_handle ec_handle;			/* EC */
 static acpi_handle ecrd_handle, ecwr_handle;	/* 570 EC access */
 static acpi_handle cmos_handle, hkey_handle;	/* basic thinkpad handles */
 
-static void ibm_handle_init(char *name,
+static void drv_acpi_handle_init(char *name,
 		   acpi_handle *handle, acpi_handle parent,
 		   char **paths, int num_paths, char **path);
-#define IBM_HANDLE_INIT(object)						\
-	ibm_handle_init(#object, &object##_handle, *object##_parent,	\
+#define IBM_ACPIHANDLE_INIT(object)						\
+	drv_acpi_handle_init(#object, &object##_handle, *object##_parent,	\
 		object##_paths, ARRAY_SIZE(object##_paths), &object##_path)
 
 /* procfs support */
 static struct proc_dir_entry *proc_dir;
 
 /* procfs helpers */
-static int dispatch_read(char *page, char **start, off_t off, int count,
-		int *eof, void *data);
-static int dispatch_write(struct file *file, const char __user * userbuf,
+static int dispatch_procfs_read(char *page, char **start, off_t off,
+		int count, int *eof, void *data);
+static int dispatch_procfs_write(struct file *file,
+		const char __user * userbuf,
 		unsigned long count, void *data);
 static char *next_cmd(char **cmds);
 
@@ -140,28 +142,34 @@ static void thinkpad_acpi_module_exit(void);
  * Subdrivers
  */
 
-struct ibm_struct {
-	char *name;
+struct ibm_struct;
 
+struct tp_acpi_drv_struct {
 	char *hid;
 	struct acpi_driver *driver;
+
+	void (*notify) (struct ibm_struct *, u32);
+	acpi_handle *handle;
+	u32 type;
+	struct acpi_device *device;
+};
+
+struct ibm_struct {
+	char *name;
 
 	int (*read) (char *);
 	int (*write) (char *);
 	void (*exit) (void);
 
-	void (*notify) (struct ibm_struct *, u32);
-	acpi_handle *handle;
-	int type;
-	struct acpi_device *device;
-
 	struct list_head all_drivers;
 
+	struct tp_acpi_drv_struct *acpi;
+
 	struct {
-		u8 driver_registered:1;
+		u8 acpi_driver_registered:1;
+		u8 acpi_notify_installed:1;
 		u8 proc_created:1;
 		u8 init_called:1;
-		u8 notify_installed:1;
 		u8 experimental:1;
 	} flags;
 };
