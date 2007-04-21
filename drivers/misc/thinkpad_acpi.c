@@ -511,6 +511,8 @@ static int hotkey_orig_mask;
 
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
+	int res;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing hotkey subdriver\n");
 
 	IBM_ACPIHANDLE_INIT(hkey);
@@ -530,8 +532,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		vdbg_printk(TPACPI_DBG_INIT, "hotkey masks are %s\n",
 			str_supported(tp_features.hotkey_mask));
 
-		if (!hotkey_get(&hotkey_orig_status, &hotkey_orig_mask))
-			return -ENODEV;
+		res = hotkey_get(&hotkey_orig_status, &hotkey_orig_mask);
+		if (res)
+			return res;
 	}
 
 	return (tp_features.hotkey)? 0 : 1;
@@ -539,9 +542,13 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 static void hotkey_exit(void)
 {
+	int res;
+
 	if (tp_features.hotkey) {
 		dbg_printk(TPACPI_DBG_EXIT, "restoring original hotkey mask\n");
-		hotkey_set(hotkey_orig_status, hotkey_orig_mask);
+		res = hotkey_set(hotkey_orig_status, hotkey_orig_mask);
+		if (res)
+			printk(IBM_ERR "failed to restore hotkey to BIOS defaults\n");
 	}
 }
 
@@ -560,13 +567,13 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 static int hotkey_get(int *status, int *mask)
 {
 	if (!acpi_evalf(hkey_handle, status, "DHKC", "d"))
-		return 0;
+		return -EIO;
 
 	if (tp_features.hotkey_mask)
 		if (!acpi_evalf(hkey_handle, mask, "DHKN", "d"))
-			return 0;
+			return -EIO;
 
-	return 1;
+	return 0;
 }
 
 static int hotkey_set(int status, int mask)
@@ -574,22 +581,22 @@ static int hotkey_set(int status, int mask)
 	int i;
 
 	if (!acpi_evalf(hkey_handle, NULL, "MHKC", "vd", status))
-		return 0;
+		return -EIO;
 
 	if (tp_features.hotkey_mask)
 		for (i = 0; i < 32; i++) {
 			int bit = ((1 << i) & mask) != 0;
 			if (!acpi_evalf(hkey_handle,
 					NULL, "MHKM", "vdd", i + 1, bit))
-				return 0;
+				return -EIO;
 		}
 
-	return 1;
+	return 0;
 }
 
 static int hotkey_read(char *p)
 {
-	int status, mask;
+	int res, status, mask;
 	int len = 0;
 
 	if (!tp_features.hotkey) {
@@ -597,8 +604,9 @@ static int hotkey_read(char *p)
 		return len;
 	}
 
-	if (!hotkey_get(&status, &mask))
-		return -EIO;
+	res = hotkey_get(&status, &mask);
+	if (res)
+		return res;
 
 	len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 0));
 	if (tp_features.hotkey_mask) {
@@ -615,15 +623,16 @@ static int hotkey_read(char *p)
 
 static int hotkey_write(char *buf)
 {
-	int status, mask;
+	int res, status, mask;
 	char *cmd;
 	int do_cmd = 0;
 
 	if (!tp_features.hotkey)
 		return -ENODEV;
 
-	if (!hotkey_get(&status, &mask))
-		return -EIO;
+	res = hotkey_get(&status, &mask);
+	if (res)
+		return res;
 
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "enable") == 0) {
@@ -642,8 +651,11 @@ static int hotkey_write(char *buf)
 		do_cmd = 1;
 	}
 
-	if (do_cmd && !hotkey_set(status, mask))
-		return -EIO;
+	if (do_cmd) {
+		res = hotkey_set(status, mask);
+		if (res)
+			return res;
+	}
 
 	return 0;
 }
