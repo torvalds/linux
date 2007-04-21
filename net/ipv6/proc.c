@@ -210,20 +210,30 @@ static const struct file_operations snmp6_seq_fops = {
 };
 #endif	/* CONFIG_PROC_FS */
 
+/*
+ * Stats may not be aligned for u64, so use memcpy to avoid
+ * unaligned accesses.
+ */
+static inline void __set_u64(void *p, u64 v)
+{
+	memcpy(p, &v, sizeof(u64));
+}
+
 static inline void
-__snmp6_fill_stats(u64 *stats, void **mib, int items, int bytes)
+__snmp6_fill_stats(void *stats, void **mib, int items, int bytes)
 {
 	int i;
+	u8 *p = stats;
 	int pad = bytes - sizeof(u64) * items;
 	BUG_ON(pad < 0);
-	stats[0] = items;
-	for (i = 1; i < items; i++)
-		stats[i] = (u64)fold_field(mib, i);
-	memset(&stats[items], 0, pad);
+	__set_u64(p, items);
+	for (i = 1, p += sizeof(u64); i < items; i++, p += sizeof(u64))
+		__set_u64(p, fold_field(mib, i));
+	memset(p, 0, pad);
 }
 
 void
-snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype, int bytes)
+snmp6_fill_stats(void *stats, struct inet6_dev *idev, int attrtype, int bytes)
 {
 	switch(attrtype) {
 	case IFLA_INET6_STATS:
