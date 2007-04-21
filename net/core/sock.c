@@ -979,6 +979,21 @@ out:
 
 EXPORT_SYMBOL_GPL(sk_clone);
 
+void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
+{
+	__sk_dst_set(sk, dst);
+	sk->sk_route_caps = dst->dev->features;
+	if (sk->sk_route_caps & NETIF_F_GSO)
+		sk->sk_route_caps |= NETIF_F_GSO_MASK;
+	if (sk_can_gso(sk)) {
+		if (dst->header_len)
+			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
+		else
+			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;
+	}
+}
+EXPORT_SYMBOL_GPL(sk_setup_caps);
+
 void __init sk_init(void)
 {
 	if (num_physpages <= 4096) {

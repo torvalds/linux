@@ -1075,19 +1075,7 @@ static inline int sk_can_gso(const struct sock *sk)
 	return net_gso_ok(sk->sk_route_caps, sk->sk_gso_type);
 }
 
-static inline void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
-{
-	__sk_dst_set(sk, dst);
-	sk->sk_route_caps = dst->dev->features;
-	if (sk->sk_route_caps & NETIF_F_GSO)
-		sk->sk_route_caps |= NETIF_F_GSO_MASK;
-	if (sk_can_gso(sk)) {
-		if (dst->header_len)
-			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
-		else 
-			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;
-	}
-}
+extern void sk_setup_caps(struct sock *sk, struct dst_entry *dst);
 
 static inline void sk_charge_skb(struct sock *sk, struct sk_buff *skb)
 {
