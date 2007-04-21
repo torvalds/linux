@@ -157,7 +157,7 @@ static void ibm_exit(struct ibm_struct *ibm);
 static void dispatch_notify(acpi_handle handle, u32 event, void *data);
 static int setup_notify(struct ibm_struct *ibm);
 static int ibm_device_add(struct acpi_device *device);
-static int register_ibmacpi_subdriver(struct ibm_struct *ibm);
+static int register_tpacpi_subdriver(struct ibm_struct *ibm);
 
 
 /*

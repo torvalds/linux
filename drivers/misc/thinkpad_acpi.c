@@ -345,7 +345,7 @@ static int __init ibm_device_add(struct acpi_device *device)
 	return 0;
 }
 
-static int __init register_ibmacpi_subdriver(struct ibm_struct *ibm)
+static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 {
 	int ret;
 
@@ -2574,7 +2574,7 @@ static int __init ibm_init(struct ibm_struct *ibm)
 		return 0;
 
 	if (ibm->hid) {
-		ret = register_ibmacpi_subdriver(ibm);
+		ret = register_tpacpi_subdriver(ibm);
 		if (ret < 0)
 			return ret;
 		ibm->driver_registered = 1;
