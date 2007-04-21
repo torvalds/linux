@@ -97,11 +97,11 @@ static const char *str_supported(int is_supported);
 #define IBM_PCI_HID     "PNP0A03"
 
 /* ACPI helpers */
-static int acpi_evalf(acpi_handle handle,
+static int __must_check acpi_evalf(acpi_handle handle,
 		      void *res, char *method, char *fmt, ...);
-static int acpi_ec_read(int i, u8 * p);
-static int acpi_ec_write(int i, u8 v);
-static int _sta(acpi_handle handle);
+static int __must_check acpi_ec_read(int i, u8 * p);
+static int __must_check acpi_ec_write(int i, u8 v);
+static int __must_check _sta(acpi_handle handle);
 
 /* ACPI handles */
 static acpi_handle root_handle;			/* root namespace */
