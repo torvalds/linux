@@ -131,14 +131,12 @@ static void irda_disconnect_indication(void *instance, void *sap,
 	}
 
 	/* Prevent race conditions with irda_release() and irda_shutdown() */
+	bh_lock_sock(sk);
 	if (!sock_flag(sk, SOCK_DEAD) && sk->sk_state != TCP_CLOSE) {
-		lock_sock(sk);
 		sk->sk_state     = TCP_CLOSE;
-		sk->sk_err       = ECONNRESET;
 		sk->sk_shutdown |= SEND_SHUTDOWN;
 
 		sk->sk_state_change(sk);
-		release_sock(sk);
 
 		/* Close our TSAP.
 		 * If we leave it open, IrLMP put it back into the list of
@@ -158,6 +156,7 @@ static void irda_disconnect_indication(void *instance, void *sap,
 			self->tsap = NULL;
 		}
 	}
+	bh_unlock_sock(sk);
 
 	/* Note : once we are there, there is not much you want to do
 	 * with the socket anymore, apart from closing it.
@@ -1061,7 +1060,8 @@ static int irda_connect(struct socket *sock, struct sockaddr *uaddr,
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
 		sock->state = SS_UNCONNECTED;
-		return sock_error(sk);	/* Always set at this point */
+		err = sock_error(sk);
+		return err? err : -ECONNRESET;
 	}
 
 	sock->state = SS_CONNECTED;
@@ -1355,7 +1355,9 @@ static int irda_recvmsg_dgram(struct kiocb *iocb, struct socket *sock,
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 
 	IRDA_ASSERT(self != NULL, return -1;);
-	IRDA_ASSERT(!sock_error(sk), return -1;);
+
+	if ((err = sock_error(sk)) < 0)
+		return err;
 
 	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
 				flags & MSG_DONTWAIT, &err);
@@ -1402,13 +1404,15 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 	struct irda_sock *self = irda_sk(sk);
 	int noblock = flags & MSG_DONTWAIT;
 	size_t copied = 0;
-	int target;
+	int target, err;
 	long timeo;
 
 	IRDA_DEBUG(3, "%s()\n", __FUNCTION__);
 
 	IRDA_ASSERT(self != NULL, return -1;);
-	IRDA_ASSERT(!sock_error(sk), return -1;);
+
+	if ((err = sock_error(sk)) < 0)
+		return err;
 
 	if (sock->flags & __SO_ACCEPTCON)
 		return(-EINVAL);
