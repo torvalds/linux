@@ -380,45 +380,55 @@ static void __init build_mem_type_table(void)
 
 #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
 
-/*
- * Create a SECTION PGD between VIRT and PHYS in domain
- * DOMAIN with protection PROT.  This operates on half-
- * pgdir entry increments.
- */
-static inline void
-alloc_init_section(unsigned long virt, unsigned long phys, int prot)
+static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
+				  unsigned long end, unsigned long pfn,
+				  const struct mem_type *type)
 {
-	pmd_t *pmdp = pmd_off_k(virt);
+	pte_t *pte;
 
-	if (virt & (1 << 20))
-		pmdp++;
+	if (pmd_none(*pmd)) {
+		pte = alloc_bootmem_low_pages(2 * PTRS_PER_PTE * sizeof(pte_t));
+		__pmd_populate(pmd, __pa(pte) | type->prot_l1);
+	}
 
-	*pmdp = __pmd(phys | prot);
-	flush_pmd_entry(pmdp);
+	pte = pte_offset_kernel(pmd, addr);
+	do {
+		set_pte_ext(pte, pfn_pte(pfn, __pgprot(type->prot_pte)), 0);
+		pfn++;
+	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
 
-/*
- * Add a PAGE mapping between VIRT and PHYS in domain
- * DOMAIN with protection PROT.  Note that due to the
- * way we map the PTEs, we must allocate two PTE_SIZE'd
- * blocks - one for the Linux pte table, and one for
- * the hardware pte table.
- */
-static inline void
-alloc_init_page(unsigned long virt, unsigned long phys, const struct mem_type *type)
+static void __init alloc_init_section(pgd_t *pgd, unsigned long addr,
+				      unsigned long end, unsigned long phys,
+				      const struct mem_type *type)
 {
-	pmd_t *pmdp = pmd_off_k(virt);
-	pte_t *ptep;
+	pmd_t *pmd = pmd_offset(pgd, addr);
 
-	if (pmd_none(*pmdp)) {
-		ptep = alloc_bootmem_low_pages(2 * PTRS_PER_PTE *
-					       sizeof(pte_t));
+	/*
+	 * Try a section mapping - end, addr and phys must all be aligned
+	 * to a section boundary.  Note that PMDs refer to the individual
+	 * L1 entries, whereas PGDs refer to a group of L1 entries making
+	 * up one logical pointer to an L2 table.
+	 */
+	if (((addr | end | phys) & ~SECTION_MASK) == 0) {
+		pmd_t *p = pmd;
 
-		__pmd_populate(pmdp, __pa(ptep) | type->prot_l1);
+		if (addr & SECTION_SIZE)
+			pmd++;
+
+		do {
+			*pmd = __pmd(phys | type->prot_sect);
+			phys += SECTION_SIZE;
+		} while (pmd++, addr += SECTION_SIZE, addr != end);
+
+		flush_pmd_entry(p);
+	} else {
+		/*
+		 * No need to loop; pte's aren't interested in the
+		 * individual L1 entries.
+		 */
+		alloc_init_pte(pmd, addr, end, __phys_to_pfn(phys), type);
 	}
-	ptep = pte_offset_kernel(pmdp, virt);
-
-	set_pte_ext(ptep, pfn_pte(phys >> PAGE_SHIFT, __pgprot(type->prot_pte)), 0);
 }
 
 static void __init create_36bit_mapping(struct map_desc *md,
@@ -488,9 +498,9 @@ static void __init create_36bit_mapping(struct map_desc *md,
  */
 void __init create_mapping(struct map_desc *md)
 {
-	unsigned long virt, length;
-	unsigned long off = (u32)__pfn_to_phys(md->pfn);
+	unsigned long phys, addr, length, end;
 	const struct mem_type *type;
+	pgd_t *pgd;
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
 		printk(KERN_WARNING "BUG: not creating mapping for "
@@ -516,41 +526,27 @@ void __init create_mapping(struct map_desc *md)
 		return;
 	}
 
-	virt   = md->virtual;
-	off   -= virt;
-	length = md->length;
+	addr = md->virtual;
+	phys = (unsigned long)__pfn_to_phys(md->pfn);
+	length = PAGE_ALIGN(md->length);
 
-	if (type->prot_l1 == 0 &&
-	    (virt & 0xfffff || (virt + off) & 0xfffff || (virt + length) & 0xfffff)) {
+	if (type->prot_l1 == 0 && ((addr | phys | length) & ~SECTION_MASK)) {
 		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
 		       "be mapped using pages, ignoring.\n",
-		       __pfn_to_phys(md->pfn), md->virtual);
+		       __pfn_to_phys(md->pfn), addr);
 		return;
 	}
 
-	while ((virt & 0xfffff || (virt + off) & 0xfffff) && length >= PAGE_SIZE) {
-		alloc_init_page(virt, virt + off, type);
+	pgd = pgd_offset_k(addr);
+	end = addr + length;
+	do {
+		unsigned long next = pgd_addr_end(addr, end);
 
-		virt   += PAGE_SIZE;
-		length -= PAGE_SIZE;
-	}
+		alloc_init_section(pgd, addr, next, phys, type);
 
-	/*
-	 * A section mapping covers half a "pgdir" entry.
-	 */
-	while (length >= (PGDIR_SIZE / 2)) {
-		alloc_init_section(virt, virt + off, type->prot_sect);
-
-		virt   += (PGDIR_SIZE / 2);
-		length -= (PGDIR_SIZE / 2);
-	}
-
-	while (length >= PAGE_SIZE) {
-		alloc_init_page(virt, virt + off, type);
-
-		virt   += PAGE_SIZE;
-		length -= PAGE_SIZE;
-	}
+		phys += next - addr;
+		addr = next;
+	} while (pgd++, addr != end);
 }
 
 /*
