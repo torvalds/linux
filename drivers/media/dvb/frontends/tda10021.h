@@ -44,12 +44,4 @@ static inline struct dvb_frontend* tda10021_attach(const struct tda10021_config*
 }
 #endif // CONFIG_DVB_TDA10021
 
-static inline int tda10021_writereg(struct dvb_frontend *fe, u8 reg, u8 val) {
-	int r = 0;
-	u8 buf[] = {reg, val};
-	if (fe->ops.write)
-		r = fe->ops.write(fe, buf, 2);
-	return r;
-}
-
 #endif // TDA10021_H

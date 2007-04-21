@@ -66,9 +66,6 @@ struct budget_av {
 	int slot_status;
 	struct dvb_ca_en50221 ca;
 	u8 reinitialise_demod:1;
-	u8 tda10021_poclkp:1;
-	u8 tda10021_ts_enabled;
-	int (*tda10021_set_frontend)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p);
 };
 
 static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot);
@@ -234,12 +231,6 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	if (budget_av->reinitialise_demod)
 		dvb_frontend_reinitialise(budget_av->budget.dvb_frontend);
 
-	/* set tda10021 back to original clock configuration on reset */
-	if (budget_av->tda10021_poclkp) {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa0);
-		budget_av->tda10021_ts_enabled = 0;
-	}
-
 	return 0;
 }
 
@@ -256,11 +247,6 @@ static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 	ttpci_budget_set_video_port(saa, BUDGET_VIDEO_PORTB);
 	budget_av->slot_status = SLOTSTATUS_NONE;
 
-	/* set tda10021 back to original clock configuration when cam removed */
-	if (budget_av->tda10021_poclkp) {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa0);
-		budget_av->tda10021_ts_enabled = 0;
-	}
 	return 0;
 }
 
@@ -275,12 +261,6 @@ static int ciintf_slot_ts_enable(struct dvb_ca_en50221 *ca, int slot)
 	dprintk(1, "ciintf_slot_ts_enable: %d\n", budget_av->slot_status);
 
 	ttpci_budget_set_video_port(saa, BUDGET_VIDEO_PORTA);
-
-	/* tda10021 seems to need a different TS clock config when data is routed to the CAM */
-	if (budget_av->tda10021_poclkp) {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa1);
-		budget_av->tda10021_ts_enabled = 1;
-	}
 
 	return 0;
 }
@@ -927,23 +907,6 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBT_KNC1		0x0030
 #define SUBID_DVBT_CINERGY1200	0x1157
 
-
-static int tda10021_set_frontend(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *p)
-{
-	struct budget_av* budget_av = fe->dvb->priv;
-	int result;
-
-	result = budget_av->tda10021_set_frontend(fe, p);
-	if (budget_av->tda10021_ts_enabled) {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa1);
-	} else {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa0);
-	}
-
-	return result;
-}
-
 static void frontend_init(struct budget_av *budget_av)
 {
 	struct saa7146_dev * saa = budget_av->budget.dev;
@@ -1025,9 +988,6 @@ static void frontend_init(struct budget_av *budget_av)
 					     &budget_av->budget.i2c_adap,
 					     read_pwm(budget_av));
 		if (fe) {
-			budget_av->tda10021_poclkp = 1;
-			budget_av->tda10021_set_frontend = fe->ops.set_frontend;
-			fe->ops.set_frontend = tda10021_set_frontend;
 			fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set_params;
 		}
 		break;
