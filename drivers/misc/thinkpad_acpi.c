@@ -2524,7 +2524,7 @@ static int fan_get_status(u8 *status)
 
 static void fan_exit(void)
 {
-	vdbg_printk(TPACPI_DBG_EXIT, "cancelling any pending watchdogs\n");
+	vdbg_printk(TPACPI_DBG_EXIT, "cancelling any pending fan watchdog tasks\n");
 	cancel_delayed_work(&fan_watchdog_task);
 	flush_scheduled_work();
 }
@@ -2554,9 +2554,13 @@ static int fan_get_speed(unsigned int *speed)
 
 static void fan_watchdog_fire(struct work_struct *ignored)
 {
+	int rc;
+
 	printk(IBM_NOTICE "fan watchdog: enabling fan\n");
-	if (fan_set_enable()) {
-		printk(IBM_ERR "fan watchdog: error while enabling fan\n");
+	rc = fan_set_enable();
+	if (rc < 0) {
+		printk(IBM_ERR "fan watchdog: error %d while enabling fan, "
+			"will try again later...\n", -rc);
 		/* reschedule for later */
 		fan_watchdog_reset();
 	}
