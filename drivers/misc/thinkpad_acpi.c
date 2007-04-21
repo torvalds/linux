@@ -2881,6 +2881,16 @@ static int __init probe_for_thinkpad(void)
 		return -ENODEV;
 	}
 
+	/*
+	 * Risks a regression on very old machines, but reduces potential
+	 * false positives a damn great deal
+	 */
+	if (!is_thinkpad)
+		is_thinkpad = dmi_name_in_vendors("IBM");
+
+	if (!is_thinkpad && !force_load)
+		return -ENODEV;
+
 	return 0;
 }
 
@@ -2985,6 +2995,9 @@ module_param(experimental, int, 0);
 
 static u32 dbg_level;
 module_param_named(debug, dbg_level, uint, 0);
+
+static int force_load;
+module_param(force_load, int, 0);
 
 #define IBM_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0)

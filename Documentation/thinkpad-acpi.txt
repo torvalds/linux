@@ -716,3 +716,10 @@ to enable more than one output class, just add their values.
 
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
+
+Force loading of module
+-----------------------
+
+If thinkpad-acpi refuses to detect your ThinkPad, you can try to specify
+the module parameter force_load=1.  Regardless of whether this works or
+not, please contact ibm-acpi-devel@lists.sourceforge.net with a report.

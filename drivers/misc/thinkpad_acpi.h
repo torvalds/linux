@@ -128,6 +128,7 @@ static char *next_cmd(char **cmds);
 /* Module */
 static int experimental;
 static u32 dbg_level;
+static int force_load;
 static char *ibm_thinkpad_ec_found;
 
 static char* check_dmi_for_ec(void);
