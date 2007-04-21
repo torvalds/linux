@@ -205,6 +205,13 @@ config DVB_TDA10021
 	help
 	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
+config DVB_TDA10023
+	tristate "Philips TDA10023 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-C tuner module. Say Y when you want to support this frontend.
+
 config DVB_STV0297
 	tristate "ST STV0297 based"
 	depends on DVB_CORE && I2C

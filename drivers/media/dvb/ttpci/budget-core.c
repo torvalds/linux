@@ -109,6 +109,19 @@ static int start_ts_capture(struct budget *budget)
 		saa7146_write(dev, MC2, (MASK_10 | MASK_26));
 		saa7146_write(dev, BRS_CTRL, 0x60000000);
 		break;
+	case BUDGET_CIN1200C_MK3:
+	case BUDGET_KNC1C_MK3:
+	case BUDGET_KNC1CP_MK3:
+		if (budget->video_port == BUDGET_VIDEO_PORTA) {
+			saa7146_write(dev, DD1_INIT, 0x06000200);
+			saa7146_write(dev, MC2, (MASK_09 | MASK_25 | MASK_10 | MASK_26));
+			saa7146_write(dev, BRS_CTRL, 0x00000000);
+		} else {
+			saa7146_write(dev, DD1_INIT, 0x00000600);
+			saa7146_write(dev, MC2, (MASK_09 | MASK_25 | MASK_10 | MASK_26));
+			saa7146_write(dev, BRS_CTRL, 0x60000000);
+		}
+		break;
 	default:
 		if (budget->video_port == BUDGET_VIDEO_PORTA) {
 			saa7146_write(dev, DD1_INIT, 0x06000200);
@@ -418,6 +431,9 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	case BUDGET_KNC1C:
 	case BUDGET_KNC1CP:
 	case BUDGET_CIN1200C:
+	case BUDGET_KNC1C_MK3:
+	case BUDGET_KNC1CP_MK3:
+	case BUDGET_CIN1200C_MK3:
 		budget->buffer_width = TS_WIDTH_DVBC;
 		max_bufsize = TS_MAX_BUFSIZE_K_DVBC;
 		height_mask = TS_HEIGHT_MASK_DVBC;

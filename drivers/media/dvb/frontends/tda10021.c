@@ -30,13 +30,13 @@
 #include <linux/slab.h>
 
 #include "dvb_frontend.h"
-#include "tda10021.h"
+#include "tda1002x.h"
 
 
 struct tda10021_state {
 	struct i2c_adapter* i2c;
 	/* configuration settings */
-	const struct tda10021_config* config;
+	const struct tda1002x_config* config;
 	struct dvb_frontend frontend;
 
 	u8 pwm;
@@ -398,7 +398,7 @@ static void tda10021_release(struct dvb_frontend* fe)
 
 static struct dvb_frontend_ops tda10021_ops;
 
-struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
+struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config,
 				     struct i2c_adapter* i2c,
 				     u8 pwm)
 {
