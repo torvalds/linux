@@ -34,7 +34,7 @@ config IEEE1394_VERBOSEDEBUG
 	  Say Y if you really want or need the debugging output, everyone
 	  else says N.
 
-comment "Device Drivers"
+comment "Controllers"
 	depends on IEEE1394
 
 comment "Texas Instruments PCILynx requires I2C"
@@ -52,6 +52,10 @@ config IEEE1394_PCILYNX
 	  To compile this driver as a module, say M here: the
 	  module will be called pcilynx.
 
+	  Only some old and now very rare PCI and CardBus cards and
+	  PowerMacs G3 B&W contain the PCILynx controller.  Therefore
+	  almost everybody can say N here.
+
 config IEEE1394_OHCI1394
 	tristate "OHCI-1394 support"
 	depends on PCI && IEEE1394
@@ -65,7 +69,7 @@ config IEEE1394_OHCI1394
 	  To compile this driver as a module, say M here: the
 	  module will be called ohci1394.
 
-comment "Protocol Drivers"
+comment "Protocols"
 	depends on IEEE1394
 
 config IEEE1394_VIDEO1394
@@ -134,12 +138,12 @@ config IEEE1394_RAWIO
 	tristate "Raw IEEE1394 I/O support"
 	depends on IEEE1394
 	help
-	  Say Y here if you want support for the raw device. This is generally
-	  a good idea, so you should say Y here. The raw device enables
-	  direct communication of user programs with the IEEE 1394 bus and
-	  thus with the attached peripherals.
+	  This option adds support for the raw1394 device file which enables
+	  direct communication of user programs with the IEEE 1394 bus and thus
+	  with the attached peripherals.  Almost all application programs which
+	  access FireWire require this option.
 
-	  To compile this driver as a module, say M here: the
-	  module will be called raw1394.
+	  To compile this driver as a module, say M here: the module will be
+	  called raw1394.
 
 endmenu
