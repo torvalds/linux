@@ -459,7 +459,7 @@ static char *next_cmd(char **cmds)
  ****************************************************************************/
 
 /*************************************************************************
- * ibm-acpi init subdriver
+ * thinkpad-acpi init subdriver
  */
 
 static int thinkpad_acpi_driver_init(void)
