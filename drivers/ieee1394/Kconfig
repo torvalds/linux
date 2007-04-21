@@ -1,5 +1,3 @@
-# -*- shell-script -*-
-
 menu "IEEE 1394 (FireWire) support"
 
 config IEEE1394
