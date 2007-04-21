@@ -256,29 +256,27 @@ enum {					/* Fan control constants */
 	fan_rpm_offset = 0x84,		/* EC register 0x84: LSB, 0x85 MSB (RPM)
 					 * 0x84 must be read before 0x85 */
 
-	IBMACPI_FAN_EC_DISENGAGED 	= 0x40,	/* EC mode: tachometer
-						 * disengaged */
-	IBMACPI_FAN_EC_AUTO		= 0x80, /* EC mode: auto fan
-						 * control */
+	TP_EC_FAN_FULLSPEED = 0x40,	/* EC fan mode: full speed */
+	TP_EC_FAN_AUTO	    = 0x80,	/* EC fan mode: auto fan control */
 };
 
 enum fan_status_access_mode {
-	IBMACPI_FAN_NONE = 0,		/* No fan status or control */
-	IBMACPI_FAN_RD_ACPI_GFAN,	/* Use ACPI GFAN */
-	IBMACPI_FAN_RD_TPEC,		/* Use ACPI EC regs 0x2f, 0x84-0x85 */
+	TPACPI_FAN_NONE = 0,		/* No fan status or control */
+	TPACPI_FAN_RD_ACPI_GFAN,	/* Use ACPI GFAN */
+	TPACPI_FAN_RD_TPEC,		/* Use ACPI EC regs 0x2f, 0x84-0x85 */
 };
 
 enum fan_control_access_mode {
-	IBMACPI_FAN_WR_NONE = 0,	/* No fan control */
-	IBMACPI_FAN_WR_ACPI_SFAN,	/* Use ACPI SFAN */
-	IBMACPI_FAN_WR_TPEC,		/* Use ACPI EC reg 0x2f */
-	IBMACPI_FAN_WR_ACPI_FANS,	/* Use ACPI FANS and EC reg 0x2f */
+	TPACPI_FAN_WR_NONE = 0,		/* No fan control */
+	TPACPI_FAN_WR_ACPI_SFAN,	/* Use ACPI SFAN */
+	TPACPI_FAN_WR_TPEC,		/* Use ACPI EC reg 0x2f */
+	TPACPI_FAN_WR_ACPI_FANS,	/* Use ACPI FANS and EC reg 0x2f */
 };
 
 enum fan_control_commands {
-	IBMACPI_FAN_CMD_SPEED 	= 0x0001,	/* speed command */
-	IBMACPI_FAN_CMD_LEVEL 	= 0x0002,	/* level command  */
-	IBMACPI_FAN_CMD_ENABLE	= 0x0004,	/* enable/disable cmd,
+	TPACPI_FAN_CMD_SPEED 	= 0x0001,	/* speed command */
+	TPACPI_FAN_CMD_LEVEL 	= 0x0002,	/* level command  */
+	TPACPI_FAN_CMD_ENABLE	= 0x0004,	/* enable/disable cmd,
 						 * and also watchdog cmd */
 };
 
@@ -333,16 +331,16 @@ static int hotkey_write(char *buf);
  */
 
 enum led_access_mode {
-	IBMACPI_LED_NONE = 0,
-	IBMACPI_LED_570,	/* 570 */
-	IBMACPI_LED_OLD,	/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
-	IBMACPI_LED_NEW,	/* all others */
+	TPACPI_LED_NONE = 0,
+	TPACPI_LED_570,	/* 570 */
+	TPACPI_LED_OLD,	/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
+	TPACPI_LED_NEW,	/* all others */
 };
 
-enum {	/* For IBMACPI_LED_OLD */
-	IBMACPI_LED_EC_HLCL = 0x0c,	/* EC reg to get led to power on */
-	IBMACPI_LED_EC_HLBL = 0x0d,	/* EC reg to blink a lit led */
-	IBMACPI_LED_EC_HLMS = 0x0e,	/* EC reg to select led to command */
+enum {	/* For TPACPI_LED_OLD */
+	TPACPI_LED_EC_HLCL = 0x0c,	/* EC reg to get led to power on */
+	TPACPI_LED_EC_HLBL = 0x0d,	/* EC reg to blink a lit led */
+	TPACPI_LED_EC_HLMS = 0x0e,	/* EC reg to select led to command */
 };
 
 static enum led_access_mode led_supported;
@@ -370,16 +368,16 @@ static int light_write(char *buf);
  */
 
 enum thermal_access_mode {
-	IBMACPI_THERMAL_NONE = 0,	/* No thermal support */
-	IBMACPI_THERMAL_ACPI_TMP07,	/* Use ACPI TMP0-7 */
-	IBMACPI_THERMAL_ACPI_UPDT,	/* Use ACPI TMP0-7 with UPDT */
-	IBMACPI_THERMAL_TPEC_8,		/* Use ACPI EC regs, 8 sensors */
-	IBMACPI_THERMAL_TPEC_16,	/* Use ACPI EC regs, 16 sensors */
+	TPACPI_THERMAL_NONE = 0,	/* No thermal support */
+	TPACPI_THERMAL_ACPI_TMP07,	/* Use ACPI TMP0-7 */
+	TPACPI_THERMAL_ACPI_UPDT,	/* Use ACPI TMP0-7 with UPDT */
+	TPACPI_THERMAL_TPEC_8,		/* Use ACPI EC regs, 8 sensors */
+	TPACPI_THERMAL_TPEC_16,		/* Use ACPI EC regs, 16 sensors */
 };
 
-#define IBMACPI_MAX_THERMAL_SENSORS 16	/* Max thermal sensors supported */
+#define TPACPI_MAX_THERMAL_SENSORS 16	/* Max thermal sensors supported */
 struct ibm_thermal_sensors_struct {
-	s32 temp[IBMACPI_MAX_THERMAL_SENSORS];
+	s32 temp[TPACPI_MAX_THERMAL_SENSORS];
 };
 
 static int thermal_init(void);
@@ -392,10 +390,10 @@ static int thermal_read(char *p);
  */
 
 enum video_access_mode {
-	IBMACPI_VIDEO_NONE = 0,
-	IBMACPI_VIDEO_570,	/* 570 */
-	IBMACPI_VIDEO_770,	/* 600e/x, 770e, 770x */
-	IBMACPI_VIDEO_NEW,	/* all others */
+	TPACPI_VIDEO_NONE = 0,
+	TPACPI_VIDEO_570,	/* 570 */
+	TPACPI_VIDEO_770,	/* 600e/x, 770e, 770x */
+	TPACPI_VIDEO_NEW,	/* all others */
 };
 
 static enum video_access_mode video_supported;
