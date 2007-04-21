@@ -176,14 +176,7 @@ void adjust_cr(unsigned long mask, unsigned long set)
 }
 #endif
 
-struct mem_type {
-	unsigned int	prot_pte;
-	unsigned int	prot_l1;
-	unsigned int	prot_sect;
-	unsigned int	domain;
-};
-
-static struct mem_type mem_types[] __initdata = {
+static struct mem_type mem_types[] = {
 	[MT_DEVICE] = {
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 				L_PTE_WRITE,
@@ -236,6 +229,11 @@ static struct mem_type mem_types[] __initdata = {
 		.domain    = DOMAIN_IO,
 	}
 };
+
+const struct mem_type *get_mem_type(unsigned int type)
+{
+	return type < ARRAY_SIZE(mem_types) ? &mem_types[type] : NULL;
+}
 
 /*
  * Adjust the PMD section entries according to the CPU in use.
