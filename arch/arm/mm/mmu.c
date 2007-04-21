@@ -398,21 +398,6 @@ alloc_init_section(unsigned long virt, unsigned long phys, int prot)
 }
 
 /*
- * Create a SUPER SECTION PGD between VIRT and PHYS with protection PROT
- */
-static inline void
-alloc_init_supersection(unsigned long virt, unsigned long phys, int prot)
-{
-	int i;
-
-	for (i = 0; i < 16; i += 1) {
-		alloc_init_section(virt, phys, prot | PMD_SECT_SUPER);
-
-		virt += (PGDIR_SIZE / 2);
-	}
-}
-
-/*
  * Add a PAGE mapping between VIRT and PHYS in domain
  * DOMAIN with protection PROT.  Note that due to the
  * way we map the PTEs, we must allocate two PTE_SIZE'd
@@ -434,6 +419,64 @@ alloc_init_page(unsigned long virt, unsigned long phys, const struct mem_type *t
 	ptep = pte_offset_kernel(pmdp, virt);
 
 	set_pte_ext(ptep, pfn_pte(phys >> PAGE_SHIFT, __pgprot(type->prot_pte)), 0);
+}
+
+static void __init create_36bit_mapping(struct map_desc *md,
+					const struct mem_type *type)
+{
+	unsigned long phys, addr, length, end;
+	pgd_t *pgd;
+
+	addr = md->virtual;
+	phys = (unsigned long)__pfn_to_phys(md->pfn);
+	length = PAGE_ALIGN(md->length);
+
+	if (!(cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())) {
+		printk(KERN_ERR "MM: CPU does not support supersection "
+		       "mapping for 0x%08llx at 0x%08lx\n",
+		       __pfn_to_phys((u64)md->pfn), addr);
+		return;
+	}
+
+	/* N.B.	ARMv6 supersections are only defined to work with domain 0.
+	 *	Since domain assignments can in fact be arbitrary, the
+	 *	'domain == 0' check below is required to insure that ARMv6
+	 *	supersections are only allocated for domain 0 regardless
+	 *	of the actual domain assignments in use.
+	 */
+	if (type->domain) {
+		printk(KERN_ERR "MM: invalid domain in supersection "
+		       "mapping for 0x%08llx at 0x%08lx\n",
+		       __pfn_to_phys((u64)md->pfn), addr);
+		return;
+	}
+
+	if ((addr | length | __pfn_to_phys(md->pfn)) & ~SUPERSECTION_MASK) {
+		printk(KERN_ERR "MM: cannot create mapping for "
+		       "0x%08llx at 0x%08lx invalid alignment\n",
+		       __pfn_to_phys((u64)md->pfn), addr);
+		return;
+	}
+
+	/*
+	 * Shift bits [35:32] of address into bits [23:20] of PMD
+	 * (See ARMv6 spec).
+	 */
+	phys |= (((md->pfn >> (32 - PAGE_SHIFT)) & 0xF) << 20);
+
+	pgd = pgd_offset_k(addr);
+	end = addr + length;
+	do {
+		pmd_t *pmd = pmd_offset(pgd, addr);
+		int i;
+
+		for (i = 0; i < 16; i++)
+			*pmd++ = __pmd(phys | type->prot_sect | PMD_SECT_SUPER);
+
+		addr += SUPERSECTION_SIZE;
+		phys += SUPERSECTION_SIZE;
+		pgd += SUPERSECTION_SIZE >> PGDIR_SHIFT;
+	} while (addr != end);
 }
 
 /*
@@ -468,26 +511,9 @@ void __init create_mapping(struct map_desc *md)
 	/*
 	 * Catch 36-bit addresses
 	 */
-	if(md->pfn >= 0x100000) {
-		if (type->domain) {
-			printk(KERN_ERR "MM: invalid domain in supersection "
-				"mapping for 0x%08llx at 0x%08lx\n",
-				__pfn_to_phys((u64)md->pfn), md->virtual);
-			return;
-		}
-		if((md->virtual | md->length | __pfn_to_phys(md->pfn))
-			& ~SUPERSECTION_MASK) {
-			printk(KERN_ERR "MM: cannot create mapping for "
-				"0x%08llx at 0x%08lx invalid alignment\n",
-				__pfn_to_phys((u64)md->pfn), md->virtual);
-			return;
-		}
-
-		/*
-		 * Shift bits [35:32] of address into bits [23:20] of PMD
-		 * (See ARMv6 spec).
-		 */
-		off |= (((md->pfn >> (32 - PAGE_SHIFT)) & 0xF) << 20);
+	if (md->pfn >= 0x100000) {
+		create_36bit_mapping(md, type);
+		return;
 	}
 
 	virt   = md->virtual;
@@ -507,40 +533,6 @@ void __init create_mapping(struct map_desc *md)
 
 		virt   += PAGE_SIZE;
 		length -= PAGE_SIZE;
-	}
-
-	/* N.B.	ARMv6 supersections are only defined to work with domain 0.
-	 *	Since domain assignments can in fact be arbitrary, the
-	 *	'domain == 0' check below is required to insure that ARMv6
-	 *	supersections are only allocated for domain 0 regardless
-	 *	of the actual domain assignments in use.
-	 */
-	if ((cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())
-		&& type->domain == 0) {
-		/*
-		 * Align to supersection boundary if !high pages.
-		 * High pages have already been checked for proper
-		 * alignment above and they will fail the SUPSERSECTION_MASK
-		 * check because of the way the address is encoded into
-		 * offset.
-		 */
-		if (md->pfn <= 0x100000) {
-			while ((virt & ~SUPERSECTION_MASK ||
-			        (virt + off) & ~SUPERSECTION_MASK) &&
-				length >= (PGDIR_SIZE / 2)) {
-				alloc_init_section(virt, virt + off, type->prot_sect);
-
-				virt   += (PGDIR_SIZE / 2);
-				length -= (PGDIR_SIZE / 2);
-			}
-		}
-
-		while (length >= SUPERSECTION_SIZE) {
-			alloc_init_supersection(virt, virt + off, type->prot_sect);
-
-			virt   += SUPERSECTION_SIZE;
-			length -= SUPERSECTION_SIZE;
-		}
 	}
 
 	/*
