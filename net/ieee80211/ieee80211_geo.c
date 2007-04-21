@@ -94,6 +94,21 @@ int ieee80211_channel_to_index(struct ieee80211_device *ieee, u8 channel)
 	return -1;
 }
 
+u32 ieee80211_channel_to_freq(struct ieee80211_device * ieee, u8 channel)
+{
+	const struct ieee80211_channel * ch;
+
+	/* Driver needs to initialize the geography map before using
+	 * these helper functions */
+	if (ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0)
+		return 0;
+
+	ch = ieee80211_get_channel(ieee, channel);
+	if (!ch->channel)
+		return 0;
+	return ch->freq;
+}
+
 u8 ieee80211_freq_to_channel(struct ieee80211_device * ieee, u32 freq)
 {
 	int i;
@@ -174,6 +189,7 @@ EXPORT_SYMBOL(ieee80211_get_channel);
 EXPORT_SYMBOL(ieee80211_get_channel_flags);
 EXPORT_SYMBOL(ieee80211_is_valid_channel);
 EXPORT_SYMBOL(ieee80211_freq_to_channel);
+EXPORT_SYMBOL(ieee80211_channel_to_freq);
 EXPORT_SYMBOL(ieee80211_channel_to_index);
 EXPORT_SYMBOL(ieee80211_set_geo);
 EXPORT_SYMBOL(ieee80211_get_geo);
