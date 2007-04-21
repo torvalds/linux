@@ -89,7 +89,6 @@ static int irda_data_indication(void *instance, void *sap, struct sk_buff *skb)
 
 	self = instance;
 	sk = instance;
-	IRDA_ASSERT(sk != NULL, return -1;);
 
 	err = sock_queue_rcv_skb(sk, skb);
 	if (err) {
@@ -305,8 +304,6 @@ static void irda_connect_response(struct irda_sock *self)
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
 
-	IRDA_ASSERT(self != NULL, return;);
-
 	skb = alloc_skb(TTP_MAX_HEADER + TTP_SAR_HEADER,
 			GFP_ATOMIC);
 	if (skb == NULL) {
@@ -336,7 +333,7 @@ static void irda_flow_indication(void *instance, void *sap, LOCAL_FLOW flow)
 
 	self = instance;
 	sk = instance;
-	IRDA_ASSERT(sk != NULL, return;);
+	BUG_ON(sk == NULL);
 
 	switch (flow) {
 	case FLOW_STOP:
@@ -448,7 +445,7 @@ static void irda_discovery_timeout(u_long priv)
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
 
 	self = (struct irda_sock *) priv;
-	IRDA_ASSERT(self != NULL, return;);
+	BUG_ON(self == NULL);
 
 	/* Nothing for the caller */
 	self->cachelog = NULL;
@@ -545,8 +542,6 @@ static int irda_find_lsap_sel(struct irda_sock *self, char *name)
 {
 	IRDA_DEBUG(2, "%s(%p, %s)\n", __FUNCTION__, self, name);
 
-	IRDA_ASSERT(self != NULL, return -1;);
-
 	if (self->iriap) {
 		IRDA_WARNING("%s(): busy with a previous query\n",
 			     __FUNCTION__);
@@ -633,8 +628,6 @@ static int irda_discover_daddr_and_lsap_sel(struct irda_sock *self, char *name)
 	__u8	dtsap_sel = 0x0;	/* TSAP associated with it */
 
 	IRDA_DEBUG(2, "%s(), name=%s\n", __FUNCTION__, name);
-
-	IRDA_ASSERT(self != NULL, return -1;);
 
 	/* Ask lmp for the current discovery log
 	 * Note : we have to use irlmp_get_discoveries(), as opposed
@@ -783,8 +776,6 @@ static int irda_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct irda_sock *self = irda_sk(sk);
 	int err;
 
-	IRDA_ASSERT(self != NULL, return -1;);
-
 	IRDA_DEBUG(2, "%s(%p)\n", __FUNCTION__, self);
 
 	if (addr_len != sizeof(struct sockaddr_irda))
@@ -840,8 +831,6 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
 
-	IRDA_ASSERT(self != NULL, return -1;);
-
 	err = irda_create(newsock, sk->sk_protocol);
 	if (err)
 		return err;
@@ -888,10 +877,12 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	}
 
 	newsk = newsock->sk;
+	if (newsk == NULL)
+		return -EIO;
+
 	newsk->sk_state = TCP_ESTABLISHED;
 
 	new = irda_sk(newsk);
-	IRDA_ASSERT(new != NULL, return -1;);
 
 	/* Now attach up the new socket */
 	new->tsap = irttp_dup(self->tsap, new);
@@ -1153,8 +1144,6 @@ static void irda_destroy_socket(struct irda_sock *self)
 {
 	IRDA_DEBUG(2, "%s(%p)\n", __FUNCTION__, self);
 
-	IRDA_ASSERT(self != NULL, return;);
-
 	/* Unregister with IrLMP */
 	irlmp_unregister_client(self->ckey);
 	irlmp_unregister_service(self->skey);
@@ -1273,7 +1262,6 @@ static int irda_sendmsg(struct kiocb *iocb, struct socket *sock,
 		return -ENOTCONN;
 
 	self = irda_sk(sk);
-	IRDA_ASSERT(self != NULL, return -1;);
 
 	/* Check if IrTTP is wants us to slow down */
 
@@ -1336,8 +1324,6 @@ static int irda_recvmsg_dgram(struct kiocb *iocb, struct socket *sock,
 
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 
-	IRDA_ASSERT(self != NULL, return -1;);
-
 	if ((err = sock_error(sk)) < 0)
 		return err;
 
@@ -1390,8 +1376,6 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 	long timeo;
 
 	IRDA_DEBUG(3, "%s()\n", __FUNCTION__);
-
-	IRDA_ASSERT(self != NULL, return -1;);
 
 	if ((err = sock_error(sk)) < 0)
 		return err;
@@ -1526,7 +1510,6 @@ static int irda_sendmsg_dgram(struct kiocb *iocb, struct socket *sock,
 		return -ENOTCONN;
 
 	self = irda_sk(sk);
-	IRDA_ASSERT(self != NULL, return -1;);
 
 	/*
 	 * Check that we don't send out too big frames. This is an unreliable
@@ -1595,7 +1578,6 @@ static int irda_sendmsg_ultra(struct kiocb *iocb, struct socket *sock,
 	}
 
 	self = irda_sk(sk);
-	IRDA_ASSERT(self != NULL, return -1;);
 
 	/* Check if an address was specified with sendto. Jean II */
 	if (msg->msg_name) {
@@ -1668,8 +1650,6 @@ static int irda_shutdown(struct socket *sock, int how)
 {
 	struct sock *sk = sock->sk;
 	struct irda_sock *self = irda_sk(sk);
-
-	IRDA_ASSERT(self != NULL, return -1;);
 
 	IRDA_DEBUG(1, "%s(%p)\n", __FUNCTION__, self);
 
@@ -1842,8 +1822,6 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 	struct ias_object      *ias_obj;
 	struct ias_attrib *	ias_attr;	/* Attribute in IAS object */
 	int opt;
-
-	IRDA_ASSERT(self != NULL, return -1;);
 
 	IRDA_DEBUG(2, "%s(%p)\n", __FUNCTION__, self);
 
