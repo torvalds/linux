@@ -74,6 +74,18 @@
 #define enabled(status,bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
 #define strlencmp(a,b) (strncmp((a), (b), strlen(b)))
 
+/* Debugging */
+#define TPACPI_DBG_ALL		0xffff
+#define dbg_printk(a_dbg_level, format, arg...) \
+	do { if (dbg_level & a_dbg_level) \
+		printk(IBM_DEBUG "%s: " format, __func__ , ## arg); } while (0)
+#ifdef CONFIG_THINKPAD_ACPI_DEBUG
+#define vdbg_printk(a_dbg_level, format, arg...) \
+	dbg_printk(a_dbg_level, format, ## arg)
+#else
+#define vdbg_printk(a_dbg_level, format, arg...)
+#endif
+
 /* ACPI HIDs */
 #define IBM_HKEY_HID    "IBM0068"
 #define IBM_PCI_HID     "PNP0A03"
@@ -112,6 +124,7 @@ static char *next_cmd(char **cmds);
 
 /* Module */
 static int experimental;
+static u32 dbg_level;
 static char *ibm_thinkpad_ec_found;
 
 static char* check_dmi_for_ec(void);

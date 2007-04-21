@@ -699,3 +699,16 @@ for example:
 
 	modprobe thinkpad_acpi hotkey=enable,0xffff video=auto_disable
 
+Enabling debugging output
+-------------------------
+
+The module takes a debug paramater which can be used to selectively
+enable various classes of debugging output, for example:
+
+	 modprobe ibm_acpi debug=0xffff
+
+will enable all debugging output classes.  It takes a bitmask, so
+to enable more than one output class, just add their values.
+
+There is also a kernel build option to enable more debugging
+information, which may be necessary to debug driver problems.

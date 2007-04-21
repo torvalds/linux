@@ -2684,6 +2684,9 @@ static int __init set_ibm_param(const char *val, struct kernel_param *kp)
 static int experimental;
 module_param(experimental, int, 0);
 
+static u32 dbg_level;
+module_param_named(debug, dbg_level, uint, 0);
+
 #define IBM_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0)
 
