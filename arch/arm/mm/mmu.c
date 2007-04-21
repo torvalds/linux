@@ -176,14 +176,14 @@ void adjust_cr(unsigned long mask, unsigned long set)
 }
 #endif
 
-struct mem_types {
+struct mem_type {
 	unsigned int	prot_pte;
 	unsigned int	prot_l1;
 	unsigned int	prot_sect;
 	unsigned int	domain;
 };
 
-static struct mem_types mem_types[] __initdata = {
+static struct mem_type mem_types[] __initdata = {
 	[MT_DEVICE] = {
 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
 				L_PTE_WRITE,
@@ -368,6 +368,14 @@ static void __init build_mem_type_table(void)
 	}
 	printk("Memory policy: ECC %sabled, Data cache %s\n",
 		ecc_mask ? "en" : "dis", cp->policy);
+
+	for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
+		struct mem_type *t = &mem_types[i];
+		if (t->prot_l1)
+			t->prot_l1 |= PMD_DOMAIN(t->domain);
+		if (t->prot_sect)
+			t->prot_sect |= PMD_DOMAIN(t->domain);
+	}
 }
 
 #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
@@ -458,8 +466,8 @@ void __init create_mapping(struct map_desc *md)
 
 	domain	  = mem_types[md->type].domain;
 	prot_pte  = __pgprot(mem_types[md->type].prot_pte);
-	prot_l1   = mem_types[md->type].prot_l1 | PMD_DOMAIN(domain);
-	prot_sect = mem_types[md->type].prot_sect | PMD_DOMAIN(domain);
+	prot_l1   = mem_types[md->type].prot_l1;
+	prot_sect = mem_types[md->type].prot_sect;
 
 	/*
 	 * Catch 36-bit addresses
