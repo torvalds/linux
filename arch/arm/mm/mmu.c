@@ -420,7 +420,7 @@ alloc_init_supersection(unsigned long virt, unsigned long phys, int prot)
  * the hardware pte table.
  */
 static inline void
-alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pgprot_t prot)
+alloc_init_page(unsigned long virt, unsigned long phys, const struct mem_type *type)
 {
 	pmd_t *pmdp = pmd_off_k(virt);
 	pte_t *ptep;
@@ -429,11 +429,11 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
 		ptep = alloc_bootmem_low_pages(2 * PTRS_PER_PTE *
 					       sizeof(pte_t));
 
-		__pmd_populate(pmdp, __pa(ptep) | prot_l1);
+		__pmd_populate(pmdp, __pa(ptep) | type->prot_l1);
 	}
 	ptep = pte_offset_kernel(pmdp, virt);
 
-	set_pte_ext(ptep, pfn_pte(phys >> PAGE_SHIFT, prot), 0);
+	set_pte_ext(ptep, pfn_pte(phys >> PAGE_SHIFT, __pgprot(type->prot_pte)), 0);
 }
 
 /*
@@ -446,9 +446,8 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
 void __init create_mapping(struct map_desc *md)
 {
 	unsigned long virt, length;
-	int prot_sect, prot_l1, domain;
-	pgprot_t prot_pte;
 	unsigned long off = (u32)__pfn_to_phys(md->pfn);
+	const struct mem_type *type;
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
 		printk(KERN_WARNING "BUG: not creating mapping for "
@@ -464,16 +463,13 @@ void __init create_mapping(struct map_desc *md)
 		       __pfn_to_phys((u64)md->pfn), md->virtual);
 	}
 
-	domain	  = mem_types[md->type].domain;
-	prot_pte  = __pgprot(mem_types[md->type].prot_pte);
-	prot_l1   = mem_types[md->type].prot_l1;
-	prot_sect = mem_types[md->type].prot_sect;
+	type = &mem_types[md->type];
 
 	/*
 	 * Catch 36-bit addresses
 	 */
 	if(md->pfn >= 0x100000) {
-		if(domain) {
+		if (type->domain) {
 			printk(KERN_ERR "MM: invalid domain in supersection "
 				"mapping for 0x%08llx at 0x%08lx\n",
 				__pfn_to_phys((u64)md->pfn), md->virtual);
@@ -498,7 +494,7 @@ void __init create_mapping(struct map_desc *md)
 	off   -= virt;
 	length = md->length;
 
-	if (mem_types[md->type].prot_l1 == 0 &&
+	if (type->prot_l1 == 0 &&
 	    (virt & 0xfffff || (virt + off) & 0xfffff || (virt + length) & 0xfffff)) {
 		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
 		       "be mapped using pages, ignoring.\n",
@@ -507,7 +503,7 @@ void __init create_mapping(struct map_desc *md)
 	}
 
 	while ((virt & 0xfffff || (virt + off) & 0xfffff) && length >= PAGE_SIZE) {
-		alloc_init_page(virt, virt + off, prot_l1, prot_pte);
+		alloc_init_page(virt, virt + off, type);
 
 		virt   += PAGE_SIZE;
 		length -= PAGE_SIZE;
@@ -520,7 +516,7 @@ void __init create_mapping(struct map_desc *md)
 	 *	of the actual domain assignments in use.
 	 */
 	if ((cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())
-		&& domain == 0) {
+		&& type->domain == 0) {
 		/*
 		 * Align to supersection boundary if !high pages.
 		 * High pages have already been checked for proper
@@ -532,7 +528,7 @@ void __init create_mapping(struct map_desc *md)
 			while ((virt & ~SUPERSECTION_MASK ||
 			        (virt + off) & ~SUPERSECTION_MASK) &&
 				length >= (PGDIR_SIZE / 2)) {
-				alloc_init_section(virt, virt + off, prot_sect);
+				alloc_init_section(virt, virt + off, type->prot_sect);
 
 				virt   += (PGDIR_SIZE / 2);
 				length -= (PGDIR_SIZE / 2);
@@ -540,7 +536,7 @@ void __init create_mapping(struct map_desc *md)
 		}
 
 		while (length >= SUPERSECTION_SIZE) {
-			alloc_init_supersection(virt, virt + off, prot_sect);
+			alloc_init_supersection(virt, virt + off, type->prot_sect);
 
 			virt   += SUPERSECTION_SIZE;
 			length -= SUPERSECTION_SIZE;
@@ -551,14 +547,14 @@ void __init create_mapping(struct map_desc *md)
 	 * A section mapping covers half a "pgdir" entry.
 	 */
 	while (length >= (PGDIR_SIZE / 2)) {
-		alloc_init_section(virt, virt + off, prot_sect);
+		alloc_init_section(virt, virt + off, type->prot_sect);
 
 		virt   += (PGDIR_SIZE / 2);
 		length -= (PGDIR_SIZE / 2);
 	}
 
 	while (length >= PAGE_SIZE) {
-		alloc_init_page(virt, virt + off, prot_l1, prot_pte);
+		alloc_init_page(virt, virt + off, type);
 
 		virt   += PAGE_SIZE;
 		length -= PAGE_SIZE;
