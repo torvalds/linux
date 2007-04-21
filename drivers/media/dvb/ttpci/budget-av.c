@@ -659,10 +659,12 @@ static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_f
 
 static struct tda1002x_config philips_cu1216_config = {
 	.demod_address = 0x0c,
+	.invert = 1,
 };
 
 static struct tda1002x_config philips_cu1216_config_altaddress = {
 	.demod_address = 0x0d,
+	.invert = 0,
 };
 
 static int philips_tu1216_tuner_init(struct dvb_frontend *fe)

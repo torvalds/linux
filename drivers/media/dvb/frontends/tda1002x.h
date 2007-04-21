@@ -30,6 +30,7 @@ struct tda1002x_config
 {
 	/* the demodulator's i2c address */
 	u8 demod_address;
+	u8 invert;
 };
 
 #if defined(CONFIG_DVB_TDA10021) || (defined(CONFIG_DVB_TDA10021_MODULE) && defined(MODULE))

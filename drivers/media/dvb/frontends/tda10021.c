@@ -53,9 +53,6 @@ struct tda10021_state {
 static int verbose;
 
 #define XIN 57840000UL
-#define DISABLE_INVERSION(reg0)		do { reg0 |= 0x20; } while (0)
-#define ENABLE_INVERSION(reg0)		do { reg0 &= ~0x20; } while (0)
-#define HAS_INVERSION(reg0)		(!(reg0 & 0x20))
 
 #define FIN (XIN >> 4)
 
@@ -97,7 +94,8 @@ static u8 tda10021_readreg (struct tda10021_state* state, u8 reg)
 	int ret;
 
 	ret = i2c_transfer (state->i2c, msg, 2);
-	if (ret != 2)
+	// Don't print an error message if the id is read.
+	if (ret != 2 && reg != 0x1a)
 		printk("DVB: TDA10021: %s: readreg error (ret == %i)\n",
 				__FUNCTION__, ret);
 	return b1[0];
@@ -136,10 +134,10 @@ static int tda10021_setup_reg0 (struct tda10021_state* state, u8 reg0,
 {
 	reg0 |= state->reg0 & 0x63;
 
-	if (INVERSION_ON == inversion)
-		ENABLE_INVERSION(reg0);
-	else if (INVERSION_OFF == inversion)
-		DISABLE_INVERSION(reg0);
+	if ((INVERSION_ON == inversion) ^ (state->config->invert == 0))
+		reg0 &= ~0x20;
+	else
+		reg0 |= 0x20;
 
 	_tda10021_writereg (state, 0x00, reg0 & 0xfe);
 	_tda10021_writereg (state, 0x00, reg0 | 0x01);
@@ -246,6 +244,9 @@ static int tda10021_set_parameters (struct dvb_frontend *fe,
 	int qam = p->u.qam.modulation;
 
 	if (qam < 0 || qam > 5)
+		return -EINVAL;
+
+	if (p->inversion != INVERSION_ON && p->inversion != INVERSION_OFF)
 		return -EINVAL;
 
 	//printk("tda10021: set frequency to %d qam=%d symrate=%d\n", p->frequency,qam,p->u.qam.symbol_rate);
@@ -356,7 +357,7 @@ static int tda10021_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 		       -((s32)p->u.qam.symbol_rate * afc) >> 10);
 	}
 
-	p->inversion = HAS_INVERSION(state->reg0) ? INVERSION_ON : INVERSION_OFF;
+	p->inversion = ((state->reg0 & 0x20) == 0x20) ^ (state->config->invert != 0) ? INVERSION_ON : INVERSION_OFF;
 	p->u.qam.modulation = ((state->reg0 >> 2) & 7) + QAM_16;
 
 	p->u.qam.fec_inner = FEC_NONE;
@@ -403,6 +404,7 @@ struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config,
 				     u8 pwm)
 {
 	struct tda10021_state* state = NULL;
+	u8 id;
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct tda10021_state), GFP_KERNEL);
@@ -415,7 +417,11 @@ struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config,
 	state->reg0 = tda10021_inittab[0];
 
 	/* check if the demod is there */
-	if ((tda10021_readreg(state, 0x1a) & 0xf0) != 0x70) goto error;
+	id = tda10021_readreg(state, 0x1a);
+	if ((id & 0xf0) != 0x70) goto error;
+
+	printk("TDA10021: i2c-addr = 0x%02x, id = 0x%02x\n",
+	       state->config->demod_address, id);
 
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops, &tda10021_ops, sizeof(struct dvb_frontend_ops));
