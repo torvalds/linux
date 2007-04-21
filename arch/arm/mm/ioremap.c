@@ -55,7 +55,8 @@ static int remap_area_pte(pmd_t *pmd, unsigned long addr, unsigned long end,
 		if (!pte_none(*pte))
 			goto bad;
 
-		set_pte_ext(pte, pfn_pte(phys_addr >> PAGE_SHIFT, prot), 0);
+		set_pte_ext(pte, pfn_pte(phys_addr >> PAGE_SHIFT, prot),
+			    type->prot_pte_ext);
 		phys_addr += PAGE_SIZE;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	return 0;
