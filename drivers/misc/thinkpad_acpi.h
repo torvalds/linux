@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/list.h>
 
 #include <linux/proc_fs.h>
 #include <linux/backlight.h>
@@ -116,8 +117,6 @@ static void ibm_handle_init(char *name,
 
 /* procfs support */
 static struct proc_dir_entry *proc_dir;
-static int thinkpad_acpi_driver_init(void);
-static int thinkpad_acpi_driver_read(char *p);
 
 /* procfs helpers */
 static int dispatch_read(char *page, char **start, off_t off, int count,
@@ -142,12 +141,10 @@ static void thinkpad_acpi_module_exit(void);
 
 struct ibm_struct {
 	char *name;
-	char param[32];
 
 	char *hid;
 	struct acpi_driver *driver;
 
-	int (*init) (void);
 	int (*read) (char *);
 	int (*write) (char *);
 	void (*exit) (void);
@@ -157,6 +154,8 @@ struct ibm_struct {
 	int type;
 	struct acpi_device *device;
 
+	struct list_head all_drivers;
+
 	int driver_registered;
 	int proc_created;
 	int init_called;
@@ -165,16 +164,26 @@ struct ibm_struct {
 	int experimental;
 };
 
-static struct ibm_struct ibms[];
+struct ibm_init_struct {
+	char param[32];
+
+	int (*init) (struct ibm_init_struct *);
+	struct ibm_struct *data;
+};
+
+static struct list_head tpacpi_all_drivers;
+
+static struct ibm_init_struct ibms_init[];
 static int set_ibm_param(const char *val, struct kernel_param *kp);
-static int ibm_init(struct ibm_struct *ibm);
+static int ibm_init(struct ibm_init_struct *iibm);
 static void ibm_exit(struct ibm_struct *ibm);
 
-/* ACPI devices */
-static void dispatch_notify(acpi_handle handle, u32 event, void *data);
-static int setup_notify(struct ibm_struct *ibm);
-static int ibm_device_add(struct acpi_device *device);
-static int register_tpacpi_subdriver(struct ibm_struct *ibm);
+
+/*
+ * procfs master subdriver
+ */
+static int thinkpad_acpi_driver_init(struct ibm_init_struct *iibm);
+static int thinkpad_acpi_driver_read(char *p);
 
 
 /*
@@ -188,7 +197,7 @@ static int bay_status2_supported, bay_eject2_supported;
 static acpi_handle bay_handle, bay_ej_handle;
 static acpi_handle bay2_handle, bay2_ej_handle;
 
-static int bay_init(void);
+static int bay_init(struct ibm_init_struct *iibm);
 static void bay_notify(struct ibm_struct *ibm, u32 event);
 static int bay_read(char *p);
 static int bay_write(char *buf);
@@ -211,7 +220,7 @@ static int beep_write(char *buf);
 
 static int bluetooth_supported;
 
-static int bluetooth_init(void);
+static int bluetooth_init(struct ibm_init_struct *iibm);
 static int bluetooth_status(void);
 static int bluetooth_read(char *p);
 static int bluetooth_write(char *buf);
@@ -224,7 +233,7 @@ static int bluetooth_write(char *buf);
 static struct backlight_device *ibm_backlight_device;
 static int brightness_offset = 0x31;
 
-static int brightness_init(void);
+static int brightness_init(struct ibm_init_struct *iibm);
 static void brightness_exit(void);
 static int brightness_get(struct backlight_device *bd);
 static int brightness_set(int value);
@@ -306,7 +315,7 @@ static int fan_watchdog_maxinterval;
 
 static acpi_handle fans_handle, gfan_handle, sfan_handle;
 
-static int fan_init(void);
+static int fan_init(struct ibm_init_struct *iibm);
 static void fan_exit(void);
 static int fan_get_status(u8 *status);
 static int fan_get_speed(unsigned int *speed);
@@ -334,7 +343,7 @@ static int hotkey_mask_supported;
 static int hotkey_orig_status;
 static int hotkey_orig_mask;
 
-static int hotkey_init(void);
+static int hotkey_init(struct ibm_init_struct *iibm);
 static void hotkey_exit(void);
 static int hotkey_get(int *status, int *mask);
 static int hotkey_set(int status, int mask);
@@ -363,7 +372,7 @@ enum {	/* For TPACPI_LED_OLD */
 static enum led_access_mode led_supported;
 static acpi_handle led_handle;
 
-static int led_init(void);
+static int led_init(struct ibm_init_struct *iibm);
 static int led_read(char *p);
 static int led_write(char *buf);
 
@@ -375,7 +384,7 @@ static int light_supported;
 static int light_status_supported;
 static acpi_handle lght_handle, ledb_handle;
 
-static int light_init(void);
+static int light_init(struct ibm_init_struct *iibm);
 static int light_read(char *p);
 static int light_write(char *buf);
 
@@ -397,7 +406,7 @@ struct ibm_thermal_sensors_struct {
 	s32 temp[TPACPI_MAX_THERMAL_SENSORS];
 };
 
-static int thermal_init(void);
+static int thermal_init(struct ibm_init_struct *iibm);
 static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s);
 static int thermal_read(char *p);
 
@@ -417,7 +426,7 @@ static enum video_access_mode video_supported;
 static int video_orig_autosw;
 static acpi_handle vid_handle, vid2_handle;
 
-static int video_init(void);
+static int video_init(struct ibm_init_struct *iibm);
 static void video_exit(void);
 static int video_status(void);
 static int video_autosw(void);
@@ -444,7 +453,7 @@ static int volume_write(char *buf);
 
 static int wan_supported;
 
-static int wan_init(void);
+static int wan_init(struct ibm_init_struct *iibm);
 static int wan_status(void);
 static int wan_read(char *p);
 static int wan_write(char *buf);
