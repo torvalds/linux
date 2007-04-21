@@ -157,12 +157,13 @@ struct ibm_struct {
 
 	struct list_head all_drivers;
 
-	int driver_registered;
-	int proc_created;
-	int init_called;
-	int notify_installed;
-
-	int experimental;
+	struct {
+		u8 driver_registered:1;
+		u8 proc_created:1;
+		u8 init_called:1;
+		u8 notify_installed:1;
+		u8 experimental:1;
+	} flags;
 };
 
 struct ibm_init_struct {
