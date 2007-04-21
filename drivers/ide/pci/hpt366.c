@@ -1,10 +1,10 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.01	Dec 23, 2006
+ * linux/drivers/ide/pci/hpt366.c		Version 1.02	Apr 18, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc
- * Portions Copyright (C) 2005-2006	MontaVista Software, Inc.
+ * Portions Copyright (C) 2005-2007	MontaVista Software, Inc.
  *
  * Thanks to HighPoint Technologies for their assistance, and hardware.
  * Special Thanks to Jon Burchmore in SanDiego for the deep pockets, his
@@ -494,6 +494,7 @@ static struct hpt_info hpt302n __devinitdata = {
 	.chip_type	= HPT302N,
 	.max_mode	= HPT302_ALLOW_ATA133_6 ? 4 : 3,
 	.dpll_clk	= 77,
+	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt371n __devinitdata = {
