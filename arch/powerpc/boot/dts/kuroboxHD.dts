@@ -125,17 +125,17 @@ build with: "dtc -f -I dts -O dtb -o kuroboxHD.dtb -V 16 kuroboxHD.dts"
 			interrupt-parent = <4400>;
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
-				/* IDSEL 0x11 - IRQ0 ETH */
+				/* IDSEL 11 - IRQ0 ETH */
 				5800 0 0 1 4400 0 1
 				5800 0 0 2 4400 1 1
 				5800 0 0 3 4400 2 1
 				5800 0 0 4 4400 3 1
-				/* IDSEL 0x12 - IRQ1 IDE0 */
+				/* IDSEL 12 - IRQ1 IDE0 */
 				6000 0 0 1 4400 1 1
 				6000 0 0 2 4400 2 1
 				6000 0 0 3 4400 3 1
 				6000 0 0 4 4400 0 1
-				/* IDSEL 0x14 - IRQ3 USB2.0 */
+				/* IDSEL 14 - IRQ3 USB2.0 */
 				7000 0 0 1 4400 3 1
 				7000 0 0 2 4400 3 1
 				7000 0 0 3 4400 3 1
