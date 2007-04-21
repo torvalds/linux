@@ -241,8 +241,16 @@ static int beep_write(char *buf);
  * Bluetooth subdriver
  */
 
+enum {
+	/* ACPI GBDC/SBDC bits */
+	TP_ACPI_BLUETOOTH_HWPRESENT	= 0x01,	/* Bluetooth hw available */
+	TP_ACPI_BLUETOOTH_RADIOSSW	= 0x02,	/* Bluetooth radio enabled */
+	TP_ACPI_BLUETOOTH_UNK		= 0x04,	/* unknown function */
+};
+
 static int bluetooth_init(struct ibm_init_struct *iibm);
-static int bluetooth_status(void);
+static int bluetooth_get_radiosw(void);
+static int bluetooth_set_radiosw(int radio_on);
 static int bluetooth_read(char *p);
 static int bluetooth_write(char *buf);
 
@@ -467,8 +475,16 @@ static int volume_write(char *buf);
  * Wan subdriver
  */
 
+enum {
+	/* ACPI GWAN/SWAN bits */
+	TP_ACPI_WANCARD_HWPRESENT	= 0x01,	/* Wan hw available */
+	TP_ACPI_WANCARD_RADIOSSW	= 0x02,	/* Wan radio enabled */
+	TP_ACPI_WANCARD_UNK		= 0x04,	/* unknown function */
+};
+
 static int wan_init(struct ibm_init_struct *iibm);
-static int wan_status(void);
+static int wan_get_radiosw(void);
+static int wan_set_radiosw(int radio_on);
 static int wan_read(char *p);
 static int wan_write(char *buf);
 

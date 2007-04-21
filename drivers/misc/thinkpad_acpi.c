@@ -681,6 +681,8 @@ static struct ibm_struct hotkey_driver_data = {
 
 static int __init bluetooth_init(struct ibm_init_struct *iibm)
 {
+	int status = 0;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing bluetooth subdriver\n");
 
 	IBM_ACPIHANDLE_INIT(hkey);
@@ -688,36 +690,65 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 	/* bluetooth not supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
 	   G4x, R30, R31, R40e, R50e, T20-22, X20-21 */
 	tp_features.bluetooth = hkey_handle &&
-	    acpi_evalf(hkey_handle, NULL, "GBDC", "qv");
+	    acpi_evalf(hkey_handle, &status, "GBDC", "qd");
 
-	vdbg_printk(TPACPI_DBG_INIT, "bluetooth is %s\n",
-		str_supported(tp_features.bluetooth));
+	vdbg_printk(TPACPI_DBG_INIT, "bluetooth is %s, status 0x%02x\n",
+		str_supported(tp_features.bluetooth),
+		status);
+
+	if (tp_features.bluetooth &&
+	    !(status & TP_ACPI_BLUETOOTH_HWPRESENT)) {
+		/* no bluetooth hardware present in system */
+		tp_features.bluetooth = 0;
+		dbg_printk(TPACPI_DBG_INIT,
+			   "bluetooth hardware not installed\n");
+	}
 
 	return (tp_features.bluetooth)? 0 : 1;
 }
 
-static int bluetooth_status(void)
+static int bluetooth_get_radiosw(void)
 {
 	int status;
 
-	if (!tp_features.bluetooth ||
-	    !acpi_evalf(hkey_handle, &status, "GBDC", "d"))
-		status = 0;
+	if (!tp_features.bluetooth)
+		return -ENODEV;
 
-	return status;
+	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
+		return -EIO;
+
+	return ((status & TP_ACPI_BLUETOOTH_RADIOSSW) != 0);
+}
+
+static int bluetooth_set_radiosw(int radio_on)
+{
+	int status;
+
+	if (!tp_features.bluetooth)
+		return -ENODEV;
+
+	if (!acpi_evalf(hkey_handle, &status, "GBDC", "d"))
+		return -EIO;
+	if (radio_on)
+		status |= TP_ACPI_BLUETOOTH_RADIOSSW;
+	else
+		status &= ~TP_ACPI_BLUETOOTH_RADIOSSW;
+	if (!acpi_evalf(hkey_handle, NULL, "SBDC", "vd", status))
+		return -EIO;
+
+	return 0;
 }
 
 static int bluetooth_read(char *p)
 {
 	int len = 0;
-	int status = bluetooth_status();
+	int status = bluetooth_get_radiosw();
 
 	if (!tp_features.bluetooth)
 		len += sprintf(p + len, "status:\t\tnot supported\n");
-	else if (!(status & 1))
-		len += sprintf(p + len, "status:\t\tnot installed\n");
 	else {
-		len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 1));
+		len += sprintf(p + len, "status:\t\t%s\n",
+				(status)? "enabled" : "disabled");
 		len += sprintf(p + len, "commands:\tenable, disable\n");
 	}
 
@@ -726,25 +757,19 @@ static int bluetooth_read(char *p)
 
 static int bluetooth_write(char *buf)
 {
-	int status = bluetooth_status();
 	char *cmd;
-	int do_cmd = 0;
 
 	if (!tp_features.bluetooth)
 		return -ENODEV;
 
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "enable") == 0) {
-			status |= 2;
+			bluetooth_set_radiosw(1);
 		} else if (strlencmp(cmd, "disable") == 0) {
-			status &= ~2;
+			bluetooth_set_radiosw(0);
 		} else
 			return -EINVAL;
-		do_cmd = 1;
 	}
-
-	if (do_cmd && !acpi_evalf(hkey_handle, NULL, "SBDC", "vd", status))
-		return -EIO;
 
 	return 0;
 }
@@ -761,41 +786,72 @@ static struct ibm_struct bluetooth_driver_data = {
 
 static int __init wan_init(struct ibm_init_struct *iibm)
 {
+	int status = 0;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing wan subdriver\n");
 
 	IBM_ACPIHANDLE_INIT(hkey);
 
 	tp_features.wan = hkey_handle &&
-			  acpi_evalf(hkey_handle, NULL, "GWAN", "qv");
+	    acpi_evalf(hkey_handle, &status, "GWAN", "qd");
 
-	vdbg_printk(TPACPI_DBG_INIT, "wan is %s\n",
-		str_supported(tp_features.wan));
+	vdbg_printk(TPACPI_DBG_INIT, "wan is %s, status 0x%02x\n",
+		str_supported(tp_features.wan),
+		status);
+
+	if (tp_features.wan &&
+	    !(status & TP_ACPI_WANCARD_HWPRESENT)) {
+		/* no wan hardware present in system */
+		tp_features.wan = 0;
+		dbg_printk(TPACPI_DBG_INIT,
+			   "wan hardware not installed\n");
+	}
 
 	return (tp_features.wan)? 0 : 1;
 }
 
-static int wan_status(void)
+static int wan_get_radiosw(void)
 {
 	int status;
 
-	if (!tp_features.wan ||
-	    !acpi_evalf(hkey_handle, &status, "GWAN", "d"))
-		status = 0;
+	if (!tp_features.wan)
+		return -ENODEV;
 
-	return status;
+	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+		return -EIO;
+
+	return ((status & TP_ACPI_WANCARD_RADIOSSW) != 0);
+}
+
+static int wan_set_radiosw(int radio_on)
+{
+	int status;
+
+	if (!tp_features.wan)
+		return -ENODEV;
+
+	if (!acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+		return -EIO;
+	if (radio_on)
+		status |= TP_ACPI_WANCARD_RADIOSSW;
+	else
+		status &= ~TP_ACPI_WANCARD_RADIOSSW;
+	if (!acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
+		return -EIO;
+
+	return 0;
 }
 
 static int wan_read(char *p)
 {
 	int len = 0;
-	int status = wan_status();
+	int status = wan_get_radiosw();
 
 	if (!tp_features.wan)
 		len += sprintf(p + len, "status:\t\tnot supported\n");
-	else if (!(status & 1))
-		len += sprintf(p + len, "status:\t\tnot installed\n");
 	else {
-		len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 1));
+		len += sprintf(p + len, "status:\t\t%s\n",
+				(status)? "enabled" : "disabled");
 		len += sprintf(p + len, "commands:\tenable, disable\n");
 	}
 
@@ -804,25 +860,19 @@ static int wan_read(char *p)
 
 static int wan_write(char *buf)
 {
-	int status = wan_status();
 	char *cmd;
-	int do_cmd = 0;
 
 	if (!tp_features.wan)
 		return -ENODEV;
 
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "enable") == 0) {
-			status |= 2;
+			wan_set_radiosw(1);
 		} else if (strlencmp(cmd, "disable") == 0) {
-			status &= ~2;
+			wan_set_radiosw(0);
 		} else
 			return -EINVAL;
-		do_cmd = 1;
 	}
-
-	if (do_cmd && !acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
-		return -EIO;
 
 	return 0;
 }
