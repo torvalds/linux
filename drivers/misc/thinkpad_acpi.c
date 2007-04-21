@@ -2707,7 +2707,7 @@ IBM_PARAM(brightness);
 IBM_PARAM(volume);
 IBM_PARAM(fan);
 
-static int __init acpi_ibm_init(void)
+static int __init thinkpad_acpi_module_init(void)
 {
 	int ret, i;
 
@@ -2754,7 +2754,7 @@ static int __init acpi_ibm_init(void)
 	proc_dir = proc_mkdir(IBM_DIR, acpi_root_dir);
 	if (!proc_dir) {
 		printk(IBM_ERR "unable to create proc dir %s", IBM_DIR);
-		acpi_ibm_exit();
+		thinkpad_acpi_module_exit();
 		return -ENODEV;
 	}
 	proc_dir->owner = THIS_MODULE;
@@ -2764,7 +2764,7 @@ static int __init acpi_ibm_init(void)
 		if (ret >= 0 && *ibms[i].param)
 			ret = ibms[i].write(ibms[i].param);
 		if (ret < 0) {
-			acpi_ibm_exit();
+			thinkpad_acpi_module_exit();
 			return ret;
 		}
 	}
@@ -2772,7 +2772,7 @@ static int __init acpi_ibm_init(void)
 	return 0;
 }
 
-static void acpi_ibm_exit(void)
+static void thinkpad_acpi_module_exit(void)
 {
 	int i;
 
@@ -2786,5 +2786,5 @@ static void acpi_ibm_exit(void)
 		kfree(ibm_thinkpad_ec_found);
 }
 
-module_init(acpi_ibm_init);
-module_exit(acpi_ibm_exit);
+module_init(thinkpad_acpi_module_init);
+module_exit(thinkpad_acpi_module_exit);

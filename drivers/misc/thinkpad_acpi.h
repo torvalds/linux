@@ -115,8 +115,8 @@ static int experimental;
 static char *ibm_thinkpad_ec_found;
 
 static char* check_dmi_for_ec(void);
-static int acpi_ibm_init(void);
-static void acpi_ibm_exit(void);
+static int thinkpad_acpi_module_init(void);
+static void thinkpad_acpi_module_exit(void);
 
 
 /****************************************************************************
