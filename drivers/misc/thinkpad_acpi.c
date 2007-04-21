@@ -1818,13 +1818,13 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 
 		ta1 = ta2 = 0;
 		for (i = 0; i < 8; i++) {
-			if (likely(acpi_ec_read(0x78 + i, &t))) {
+			if (acpi_ec_read(TP_EC_THERMAL_TMP0 + i, &t)) {
 				ta1 |= t;
 			} else {
 				ta1 = 0;
 				break;
 			}
-			if (likely(acpi_ec_read(0xC0 + i, &t))) {
+			if (acpi_ec_read(TP_EC_THERMAL_TMP8 + i, &t)) {
 				ta2 |= t;
 			} else {
 				ta1 = 0;
@@ -1869,57 +1869,84 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 	return (thermal_read_mode != TPACPI_THERMAL_NONE)? 0 : 1;
 }
 
-static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s)
+/* idx is zero-based */
+static int thermal_get_sensor(int idx, s32 *value)
 {
-	int i, t;
+	int t;
 	s8 tmp;
-	char tmpi[] = "TMPi";
+	char tmpi[5];
 
-	if (!s)
-		return -EINVAL;
+	t = TP_EC_THERMAL_TMP0;
 
 	switch (thermal_read_mode) {
 #if TPACPI_MAX_THERMAL_SENSORS >= 16
 	case TPACPI_THERMAL_TPEC_16:
-		for (i = 0; i < 8; i++) {
-			if (!acpi_ec_read(0xC0 + i, &tmp))
-				return -EIO;
-			s->temp[i + 8] = tmp * 1000;
+		if (idx >= 8 && idx <= 15) {
+			t = TP_EC_THERMAL_TMP8;
+			idx -= 8;
 		}
 		/* fallthrough */
 #endif
 	case TPACPI_THERMAL_TPEC_8:
-		for (i = 0; i < 8; i++) {
-			if (!acpi_ec_read(0x78 + i, &tmp))
+		if (idx <= 7) {
+			if (!acpi_ec_read(t + idx, &tmp))
 				return -EIO;
-			s->temp[i] = tmp * 1000;
+			*value = tmp * 1000;
+			return 0;
 		}
-		return (thermal_read_mode == TPACPI_THERMAL_TPEC_16) ? 16 : 8;
+		break;
 
 	case TPACPI_THERMAL_ACPI_UPDT:
-		if (!acpi_evalf(ec_handle, NULL, "UPDT", "v"))
-			return -EIO;
-		for (i = 0; i < 8; i++) {
-			tmpi[3] = '0' + i;
+		if (idx <= 7) {
+			snprintf(tmpi, sizeof(tmpi), "TMP%c", '0' + idx);
+			if (!acpi_evalf(ec_handle, NULL, "UPDT", "v"))
+				return -EIO;
 			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
 				return -EIO;
-			s->temp[i] = (t - 2732) * 100;
+			*value = (t - 2732) * 100;
+			return 0;
 		}
-		return 8;
+		break;
 
 	case TPACPI_THERMAL_ACPI_TMP07:
-		for (i = 0; i < 8; i++) {
-			tmpi[3] = '0' + i;
+		if (idx <= 7) {
+			snprintf(tmpi, sizeof(tmpi), "TMP%c", '0' + idx);
 			if (!acpi_evalf(ec_handle, &t, tmpi, "d"))
 				return -EIO;
-			s->temp[i] = t * 1000;
+			*value = t * 1000;
+			return 0;
 		}
-		return 8;
+		break;
 
 	case TPACPI_THERMAL_NONE:
 	default:
-		return 0;
+		return -ENOSYS;
 	}
+
+	return -EINVAL;
+}
+
+static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s)
+{
+	int res, i;
+	int n;
+
+	n = 8;
+	i = 0;
+
+	if (!s)
+		return -EINVAL;
+
+	if (thermal_read_mode == TPACPI_THERMAL_TPEC_16)
+		n = 16;
+
+	for(i = 0 ; i < n; i++) {
+		res = thermal_get_sensor(i, &s->temp[i]);
+		if (res)
+			return res;
+	}
+
+	return n;
 }
 
 static int thermal_read(char *p)

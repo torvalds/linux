@@ -427,12 +427,20 @@ enum thermal_access_mode {
 	TPACPI_THERMAL_TPEC_16,		/* Use ACPI EC regs, 16 sensors */
 };
 
+enum { /* TPACPI_THERMAL_TPEC_* */
+	TP_EC_THERMAL_TMP0 = 0x78,	/* ACPI EC regs TMP 0..7 */
+	TP_EC_THERMAL_TMP8 = 0xC0,	/* ACPI EC regs TMP 8..15 */
+};
+
 #define TPACPI_MAX_THERMAL_SENSORS 16	/* Max thermal sensors supported */
 struct ibm_thermal_sensors_struct {
 	s32 temp[TPACPI_MAX_THERMAL_SENSORS];
 };
 
+static enum thermal_access_mode thermal_read_mode;
+
 static int thermal_init(struct ibm_init_struct *iibm);
+static int thermal_get_sensor(int idx, s32 *value);
 static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s);
 static int thermal_read(char *p);
 
