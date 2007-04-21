@@ -446,17 +446,32 @@ enum video_access_mode {
 	TPACPI_VIDEO_NEW,	/* all others */
 };
 
+enum {	/* video status flags, based on VIDEO_570 */
+	TP_ACPI_VIDEO_S_LCD = 0x01,	/* LCD output enabled */
+	TP_ACPI_VIDEO_S_CRT = 0x02,	/* CRT output enabled */
+	TP_ACPI_VIDEO_S_DVI = 0x08,	/* DVI output enabled */
+};
+
+enum {  /* TPACPI_VIDEO_570 constants */
+	TP_ACPI_VIDEO_570_PHSCMD = 0x87,	/* unknown magic constant :( */
+	TP_ACPI_VIDEO_570_PHSMASK = 0x03,	/* PHS bits that map to
+						 * video_status_flags */
+	TP_ACPI_VIDEO_570_PHS2CMD = 0x8b,	/* unknown magic constant :( */
+	TP_ACPI_VIDEO_570_PHS2SET = 0x80,	/* unknown magic constant :( */
+};
+
 static enum video_access_mode video_supported;
 static int video_orig_autosw;
 static acpi_handle vid_handle, vid2_handle;
 
 static int video_init(struct ibm_init_struct *iibm);
 static void video_exit(void);
-static int video_status(void);
-static int video_autosw(void);
-static int video_switch(void);
-static int video_switch2(int status);
-static int video_expand(void);
+static int video_outputsw_get(void);
+static int video_outputsw_set(int status);
+static int video_autosw_get(void);
+static int video_autosw_set(int enable);
+static int video_outputsw_cycle(void);
+static int video_expand_toggle(void);
 static int video_read(char *p);
 static int video_write(char *buf);
 
