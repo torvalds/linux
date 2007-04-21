@@ -22,14 +22,13 @@ static int xfrm4_tunnel_check_size(struct sk_buff *skb)
 {
 	int mtu, ret = 0;
 	struct dst_entry *dst;
-	struct iphdr *iph = skb->nh.iph;
 
 	if (IPCB(skb)->flags & IPSKB_XFRM_TUNNEL_SIZE)
 		goto out;
 
 	IPCB(skb)->flags |= IPSKB_XFRM_TUNNEL_SIZE;
 
-	if (!(iph->frag_off & htons(IP_DF)) || skb->local_df)
+	if (!(ip_hdr(skb)->frag_off & htons(IP_DF)) || skb->local_df)
 		goto out;
 
 	dst = skb->dst;

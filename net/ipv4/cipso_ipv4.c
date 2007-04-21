@@ -1676,7 +1676,7 @@ validate_return:
  */
 void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway)
 {
-	if (skb->nh.iph->protocol == IPPROTO_ICMP || error != -EACCES)
+	if (ip_hdr(skb)->protocol == IPPROTO_ICMP || error != -EACCES)
 		return;
 
 	if (gateway)

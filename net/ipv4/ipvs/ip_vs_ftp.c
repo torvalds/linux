@@ -159,7 +159,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		return 0;
 
 	if (cp->app_data == &ip_vs_ftp_pasv) {
-		iph = (*pskb)->nh.iph;
+		iph = ip_hdr(*pskb);
 		th = (struct tcphdr *)&(((char *)iph)[iph->ihl*4]);
 		data = (char *)th + (th->doff << 2);
 		data_limit = (*pskb)->tail;
@@ -262,7 +262,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	/*
 	 * Detecting whether it is passive
 	 */
-	iph = (*pskb)->nh.iph;
+	iph = ip_hdr(*pskb);
 	th = (struct tcphdr *)&(((char *)iph)[iph->ihl*4]);
 
 	/* Since there may be OPTIONS in the TCP packet and the HLEN is

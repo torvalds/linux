@@ -43,21 +43,15 @@ static LIST_HEAD(ipcomp_tfms_list);
 
 static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 {
-	int err, plen, dlen;
 	struct ipcomp_data *ipcd = x->data;
-	u8 *start, *scratch;
-	struct crypto_comp *tfm;
-	int cpu;
+	const int plen = skb->len;
+	int dlen = IPCOMP_SCRATCH_SIZE;
+	const u8 *start = skb->data;
+	const int cpu = get_cpu();
+	u8 *scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
+	struct crypto_comp *tfm = *per_cpu_ptr(ipcd->tfms, cpu);
+	int err = crypto_comp_decompress(tfm, start, plen, scratch, &dlen);
 
-	plen = skb->len;
-	dlen = IPCOMP_SCRATCH_SIZE;
-	start = skb->data;
-
-	cpu = get_cpu();
-	scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
-	tfm = *per_cpu_ptr(ipcd->tfms, cpu);
-
-	err = crypto_comp_decompress(tfm, start, plen, scratch, &dlen);
 	if (err)
 		goto out;
 
@@ -90,7 +84,7 @@ static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Remove ipcomp header and decompress original payload */
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	ipch = (void *)skb->data;
 	iph->protocol = ipch->nexthdr;
 	skb->h.raw = skb->nh.raw + sizeof(*ipch);
@@ -103,23 +97,16 @@ out:
 
 static int ipcomp_compress(struct xfrm_state *x, struct sk_buff *skb)
 {
-	int err, plen, dlen, ihlen;
-	struct iphdr *iph = skb->nh.iph;
 	struct ipcomp_data *ipcd = x->data;
-	u8 *start, *scratch;
-	struct crypto_comp *tfm;
-	int cpu;
+	const int ihlen = ip_hdrlen(skb);
+	const int plen = skb->len - ihlen;
+	int dlen = IPCOMP_SCRATCH_SIZE;
+	u8 *start = skb->data + ihlen;
+	const int cpu = get_cpu();
+	u8 *scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
+	struct crypto_comp *tfm = *per_cpu_ptr(ipcd->tfms, cpu);
+	int err = crypto_comp_compress(tfm, start, plen, scratch, &dlen);
 
-	ihlen = iph->ihl * 4;
-	plen = skb->len - ihlen;
-	dlen = IPCOMP_SCRATCH_SIZE;
-	start = skb->data + ihlen;
-
-	cpu = get_cpu();
-	scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
-	tfm = *per_cpu_ptr(ipcd->tfms, cpu);
-
-	err = crypto_comp_compress(tfm, start, plen, scratch, &dlen);
 	if (err)
 		goto out;
 
@@ -142,12 +129,11 @@ out:
 static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
-	struct iphdr *iph;
 	struct ip_comp_hdr *ipch;
 	struct ipcomp_data *ipcd = x->data;
 	int hdr_len = 0;
+	struct iphdr *iph = ip_hdr(skb);
 
-	iph = skb->nh.iph;
 	iph->tot_len = htons(skb->len);
 	hdr_len = iph->ihl * 4;
 	if ((skb->len - hdr_len) < ipcd->threshold) {
@@ -159,7 +145,7 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 		goto out_ok;
 
 	err = ipcomp_compress(x, skb);
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
 	if (err) {
 		goto out_ok;

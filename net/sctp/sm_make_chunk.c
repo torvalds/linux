@@ -86,7 +86,7 @@ int sctp_chunk_iif(const struct sctp_chunk *chunk)
 	struct sctp_af *af;
 	int iif = 0;
 
-	af = sctp_get_af_specific(ipver2af(chunk->skb->nh.iph->version));
+	af = sctp_get_af_specific(ipver2af(ip_hdr(chunk->skb)->version));
 	if (af)
 		iif = af->skb_iif(chunk->skb);
 
@@ -1233,7 +1233,7 @@ struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
 	asoc->temp = 1;
 	skb = chunk->skb;
 	/* Create an entry for the source address of the packet.  */
-	af = sctp_get_af_specific(ipver2af(skb->nh.iph->version));
+	af = sctp_get_af_specific(ipver2af(ip_hdr(skb)->version));
 	if (unlikely(!af))
 		goto fail;
 	af->from_skb(&asoc->c.peer_addr, skb, 1);

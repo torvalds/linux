@@ -125,8 +125,8 @@ void tcp_unhash(struct sock *sk)
 
 static inline __u32 tcp_v4_init_sequence(struct sk_buff *skb)
 {
-	return secure_tcp_sequence_number(skb->nh.iph->daddr,
-					  skb->nh.iph->saddr,
+	return secure_tcp_sequence_number(ip_hdr(skb)->daddr,
+					  ip_hdr(skb)->saddr,
 					  skb->h.th->dest,
 					  skb->h.th->source);
 }
@@ -515,13 +515,13 @@ void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 
 int tcp_v4_gso_send_check(struct sk_buff *skb)
 {
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct tcphdr *th;
 
 	if (!pskb_may_pull(skb, sizeof(*th)))
 		return -EINVAL;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	th = skb->h.th;
 
 	th->check = 0;
@@ -585,7 +585,7 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 	arg.iov[0].iov_len  = sizeof(rep.th);
 
 #ifdef CONFIG_TCP_MD5SIG
-	key = sk ? tcp_v4_md5_do_lookup(sk, skb->nh.iph->daddr) : NULL;
+	key = sk ? tcp_v4_md5_do_lookup(sk, ip_hdr(skb)->daddr) : NULL;
 	if (key) {
 		rep.opt[0] = htonl((TCPOPT_NOP << 24) |
 				   (TCPOPT_NOP << 16) |
@@ -597,14 +597,14 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 
 		tcp_v4_do_calc_md5_hash((__u8 *)&rep.opt[1],
 					key,
-					skb->nh.iph->daddr,
-					skb->nh.iph->saddr,
+					ip_hdr(skb)->daddr,
+					ip_hdr(skb)->saddr,
 					&rep.th, IPPROTO_TCP,
 					arg.iov[0].iov_len);
 	}
 #endif
-	arg.csum = csum_tcpudp_nofold(skb->nh.iph->daddr,
-				      skb->nh.iph->saddr, /* XXX */
+	arg.csum = csum_tcpudp_nofold(ip_hdr(skb)->daddr,
+				      ip_hdr(skb)->saddr, /* XXX */
 				      sizeof(struct tcphdr), IPPROTO_TCP, 0);
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
 
@@ -670,7 +670,7 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 	 * skb->sk) holds true, but we program defensively.
 	 */
 	if (!twsk && skb->sk) {
-		key = tcp_v4_md5_do_lookup(skb->sk, skb->nh.iph->daddr);
+		key = tcp_v4_md5_do_lookup(skb->sk, ip_hdr(skb)->daddr);
 	} else if (twsk && twsk->tw_md5_keylen) {
 		tw_key.key = twsk->tw_md5_key;
 		tw_key.keylen = twsk->tw_md5_keylen;
@@ -690,14 +690,14 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 
 		tcp_v4_do_calc_md5_hash((__u8 *)&rep.opt[offset],
 					key,
-					skb->nh.iph->daddr,
-					skb->nh.iph->saddr,
+					ip_hdr(skb)->daddr,
+					ip_hdr(skb)->saddr,
 					&rep.th, IPPROTO_TCP,
 					arg.iov[0].iov_len);
 	}
 #endif
-	arg.csum = csum_tcpudp_nofold(skb->nh.iph->daddr,
-				      skb->nh.iph->saddr, /* XXX */
+	arg.csum = csum_tcpudp_nofold(ip_hdr(skb)->daddr,
+				      ip_hdr(skb)->saddr, /* XXX */
 				      arg.iov[0].iov_len, IPPROTO_TCP, 0);
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
 
@@ -1133,7 +1133,7 @@ static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
 	 */
 	__u8 *hash_location = NULL;
 	struct tcp_md5sig_key *hash_expected;
-	struct iphdr *iph = skb->nh.iph;
+	const struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th = skb->h.th;
 	int length = (th->doff << 2) - sizeof(struct tcphdr);
 	int genhash;
@@ -1251,8 +1251,8 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct inet_request_sock *ireq;
 	struct tcp_options_received tmp_opt;
 	struct request_sock *req;
-	__be32 saddr = skb->nh.iph->saddr;
-	__be32 daddr = skb->nh.iph->daddr;
+	__be32 saddr = ip_hdr(skb)->saddr;
+	__be32 daddr = ip_hdr(skb)->daddr;
 	__u32 isn = TCP_SKB_CB(skb)->when;
 	struct dst_entry *dst = NULL;
 #ifdef CONFIG_SYN_COOKIES
@@ -1439,7 +1439,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	newinet->opt	      = ireq->opt;
 	ireq->opt	      = NULL;
 	newinet->mc_index     = inet_iif(skb);
-	newinet->mc_ttl	      = skb->nh.iph->ttl;
+	newinet->mc_ttl	      = ip_hdr(skb)->ttl;
 	inet_csk(newsk)->icsk_ext_hdr_len = 0;
 	if (newinet->opt)
 		inet_csk(newsk)->icsk_ext_hdr_len = newinet->opt->optlen;
@@ -1482,7 +1482,7 @@ exit:
 static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcphdr *th = skb->h.th;
-	struct iphdr *iph = skb->nh.iph;
+	const struct iphdr *iph = ip_hdr(skb);
 	struct sock *nsk;
 	struct request_sock **prev;
 	/* Find possible connection requests. */
@@ -1491,9 +1491,8 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	if (req)
 		return tcp_check_req(sk, skb, req, prev);
 
-	nsk = inet_lookup_established(&tcp_hashinfo, skb->nh.iph->saddr,
-				      th->source, skb->nh.iph->daddr,
-				      th->dest, inet_iif(skb));
+	nsk = inet_lookup_established(&tcp_hashinfo, iph->saddr, th->source,
+				      iph->daddr, th->dest, inet_iif(skb));
 
 	if (nsk) {
 		if (nsk->sk_state != TCP_TIME_WAIT) {
@@ -1513,15 +1512,17 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 
 static __sum16 tcp_v4_checksum_init(struct sk_buff *skb)
 {
+	const struct iphdr *iph = ip_hdr(skb);
+
 	if (skb->ip_summed == CHECKSUM_COMPLETE) {
-		if (!tcp_v4_check(skb->len, skb->nh.iph->saddr,
-				  skb->nh.iph->daddr, skb->csum)) {
+		if (!tcp_v4_check(skb->len, iph->saddr,
+				  iph->daddr, skb->csum)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			return 0;
 		}
 	}
 
-	skb->csum = csum_tcpudp_nofold(skb->nh.iph->saddr, skb->nh.iph->daddr,
+	skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
 				       skb->len, IPPROTO_TCP, 0);
 
 	if (skb->len <= 76) {
@@ -1610,6 +1611,7 @@ csum_err:
 
 int tcp_v4_rcv(struct sk_buff *skb)
 {
+	const struct iphdr *iph;
 	struct tcphdr *th;
 	struct sock *sk;
 	int ret;
@@ -1639,18 +1641,17 @@ int tcp_v4_rcv(struct sk_buff *skb)
 		goto bad_packet;
 
 	th = skb->h.th;
+	iph = ip_hdr(skb);
 	TCP_SKB_CB(skb)->seq = ntohl(th->seq);
 	TCP_SKB_CB(skb)->end_seq = (TCP_SKB_CB(skb)->seq + th->syn + th->fin +
 				    skb->len - th->doff * 4);
 	TCP_SKB_CB(skb)->ack_seq = ntohl(th->ack_seq);
 	TCP_SKB_CB(skb)->when	 = 0;
-	TCP_SKB_CB(skb)->flags	 = skb->nh.iph->tos;
+	TCP_SKB_CB(skb)->flags	 = iph->tos;
 	TCP_SKB_CB(skb)->sacked	 = 0;
 
-	sk = __inet_lookup(&tcp_hashinfo, skb->nh.iph->saddr, th->source,
-			   skb->nh.iph->daddr, th->dest,
-			   inet_iif(skb));
-
+	sk = __inet_lookup(&tcp_hashinfo, iph->saddr, th->source,
+			   iph->daddr, th->dest, inet_iif(skb));
 	if (!sk)
 		goto no_tcp_socket;
 
@@ -1724,8 +1725,7 @@ do_time_wait:
 	switch (tcp_timewait_state_process(inet_twsk(sk), skb, th)) {
 	case TCP_TW_SYN: {
 		struct sock *sk2 = inet_lookup_listener(&tcp_hashinfo,
-							skb->nh.iph->daddr,
-							th->dest,
+							iph->daddr, th->dest,
 							inet_iif(skb));
 		if (sk2) {
 			inet_twsk_deschedule(inet_twsk(sk), &tcp_death_row);

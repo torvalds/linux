@@ -731,7 +731,7 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const unsigned char *nh = skb_network_header(skb);
 
-		switch (skb->nh.iph->protocol) {
+		switch (ip_hdr(skb)->protocol) {
 		case IPPROTO_TCP:
 			dflags |= XCT_MACTX_CSUM_TCP;
 			dflags |= XCT_MACTX_IPH((skb->h.raw - skb->nh.raw) >> 2);

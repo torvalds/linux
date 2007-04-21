@@ -1294,17 +1294,18 @@ static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
 		}
 
 		if (skb->protocol == ntohs(ETH_P_IP)) {
-			skb->nh.iph->tot_len = 0;
-			skb->nh.iph->check = 0;
-			skb->h.th->check =
-			    ~csum_tcpudp_magic(skb->nh.iph->saddr,
-					       skb->nh.iph->daddr, 0,
-					       IPPROTO_TCP, 0);
+			struct iphdr *iph = ip_hdr(skb);
+
+			iph->tot_len = 0;
+			iph->check = 0;
+			skb->h.th->check = ~csum_tcpudp_magic(iph->saddr,
+							      iph->daddr, 0,
+							      IPPROTO_TCP, 0);
 			ipofst = skb_network_offset(skb);
 			if (ipofst != ENET_HEADER_SIZE) /* 802.3 frame */
 				tso->tsopl |= 1 << TSO_PARAM_ETHTYPE_SHIFT;
 
-			tso->tsopl |= (skb->nh.iph->ihl &
+			tso->tsopl |= (iph->ihl &
 				CSUM_PARAM_IPHL_MASK) << CSUM_PARAM_IPHL_SHIFT;
 			tso->tsopl |= ((skb->h.th->doff << 2) &
 				TSO_PARAM_TCPHDRLEN_MASK) << TSO_PARAM_TCPHDRLEN_SHIFT;

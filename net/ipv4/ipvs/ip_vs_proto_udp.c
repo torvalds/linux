@@ -89,8 +89,8 @@ udp_conn_schedule(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return 0;
 	}
 
-	if ((svc = ip_vs_service_get(skb->mark, skb->nh.iph->protocol,
-				     skb->nh.iph->daddr, uh->dest))) {
+	if ((svc = ip_vs_service_get(skb->mark, ip_hdr(skb)->protocol,
+				     ip_hdr(skb)->daddr, uh->dest))) {
 		if (ip_vs_todrop()) {
 			/*
 			 * It seems that we are very loaded.
@@ -151,7 +151,7 @@ udp_snat_handler(struct sk_buff **pskb,
 			return 0;
 	}
 
-	udph = (void *)(*pskb)->nh.iph + udphoff;
+	udph = (void *)ip_hdr(*pskb) + udphoff;
 	udph->source = cp->vport;
 
 	/*
@@ -206,7 +206,7 @@ udp_dnat_handler(struct sk_buff **pskb,
 			return 0;
 	}
 
-	udph = (void *)(*pskb)->nh.iph + udphoff;
+	udph = (void *)ip_hdr(*pskb) + udphoff;
 	udph->dest = cp->dport;
 
 	/*
@@ -251,10 +251,10 @@ udp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 			skb->csum = skb_checksum(skb, udphoff,
 						 skb->len - udphoff, 0);
 		case CHECKSUM_COMPLETE:
-			if (csum_tcpudp_magic(skb->nh.iph->saddr,
-					      skb->nh.iph->daddr,
+			if (csum_tcpudp_magic(ip_hdr(skb)->saddr,
+					      ip_hdr(skb)->daddr,
 					      skb->len - udphoff,
-					      skb->nh.iph->protocol,
+					      ip_hdr(skb)->protocol,
 					      skb->csum)) {
 				IP_VS_DBG_RL_PKT(0, pp, skb, 0,
 						 "Failed checksum for");

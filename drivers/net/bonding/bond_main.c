@@ -3476,7 +3476,7 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
 				    struct net_device *bond_dev, int count)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	u16 *layer4hdr = (u16 *)((u32 *)iph + iph->ihl);
 	int layer4_xor = 0;
 

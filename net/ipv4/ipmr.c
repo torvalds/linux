@@ -303,7 +303,7 @@ static void ipmr_destroy_unres(struct mfc_cache *c)
 	atomic_dec(&cache_resolve_queue_len);
 
 	while ((skb=skb_dequeue(&c->mfc_un.unres.unresolved))) {
-		if (skb->nh.iph->version == 0) {
+		if (ip_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct iphdr));
 			nlh->nlmsg_type = NLMSG_ERROR;
 			nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
@@ -509,7 +509,7 @@ static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 	 */
 
 	while ((skb=__skb_dequeue(&uc->mfc_un.unres.unresolved))) {
-		if (skb->nh.iph->version == 0) {
+		if (ip_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct iphdr));
 
 			if (ipmr_fill_mroute(skb, c, NLMSG_DATA(nlh)) > 0) {
@@ -569,8 +569,9 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 		msg->im_msgtype = IGMPMSG_WHOLEPKT;
 		msg->im_mbz = 0;
 		msg->im_vif = reg_vif_num;
-		skb->nh.iph->ihl = sizeof(struct iphdr) >> 2;
-		skb->nh.iph->tot_len = htons(ntohs(pkt->nh.iph->tot_len) + sizeof(struct iphdr));
+		ip_hdr(skb)->ihl = sizeof(struct iphdr) >> 2;
+		ip_hdr(skb)->tot_len = htons(ntohs(ip_hdr(pkt)->tot_len) +
+					     sizeof(struct iphdr));
 	} else
 #endif
 	{
@@ -579,10 +580,10 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 	 *	Copy the IP header
 	 */
 
-	skb->nh.iph = (struct iphdr *)skb_put(skb, ihl);
+	skb->nh.raw = skb_put(skb, ihl);
 	memcpy(skb->data,pkt->data,ihl);
-	skb->nh.iph->protocol = 0;			/* Flag to the kernel this is a route add */
-	msg = (struct igmpmsg*)skb->nh.iph;
+	ip_hdr(skb)->protocol = 0;			/* Flag to the kernel this is a route add */
+	msg = (struct igmpmsg *)skb_network_header(skb);
 	msg->im_vif = vifi;
 	skb->dst = dst_clone(pkt->dst);
 
@@ -594,7 +595,7 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 	igmp->type	=
 	msg->im_msgtype = assert;
 	igmp->code 	=	0;
-	skb->nh.iph->tot_len=htons(skb->len);			/* Fix the length */
+	ip_hdr(skb)->tot_len = htons(skb->len);			/* Fix the length */
 	skb->h.raw = skb->nh.raw;
 	}
 
@@ -624,11 +625,12 @@ ipmr_cache_unresolved(vifi_t vifi, struct sk_buff *skb)
 {
 	int err;
 	struct mfc_cache *c;
+	const struct iphdr *iph = ip_hdr(skb);
 
 	spin_lock_bh(&mfc_unres_lock);
 	for (c=mfc_unres_queue; c; c=c->next) {
-		if (c->mfc_mcastgrp == skb->nh.iph->daddr &&
-		    c->mfc_origin == skb->nh.iph->saddr)
+		if (c->mfc_mcastgrp == iph->daddr &&
+		    c->mfc_origin == iph->saddr)
 			break;
 	}
 
@@ -648,9 +650,9 @@ ipmr_cache_unresolved(vifi_t vifi, struct sk_buff *skb)
 		/*
 		 *	Fill in the new cache entry
 		 */
-		c->mfc_parent=-1;
-		c->mfc_origin=skb->nh.iph->saddr;
-		c->mfc_mcastgrp=skb->nh.iph->daddr;
+		c->mfc_parent	= -1;
+		c->mfc_origin	= iph->saddr;
+		c->mfc_mcastgrp	= iph->daddr;
 
 		/*
 		 *	Reflect first query at mrouted.
@@ -1096,12 +1098,12 @@ static struct notifier_block ip_mr_notifier={
 static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 {
 	struct iphdr *iph;
-	struct iphdr *old_iph = skb->nh.iph;
+	struct iphdr *old_iph = ip_hdr(skb);
 
 	skb_push(skb, sizeof(struct iphdr));
-	skb->h.ipiph = skb->nh.iph;
+	skb->h.raw = skb->nh.raw;
 	skb_reset_network_header(skb);
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
 	iph->version	= 	4;
 	iph->tos	=	old_iph->tos;
@@ -1137,7 +1139,7 @@ static inline int ipmr_forward_finish(struct sk_buff *skb)
 
 static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 {
-	struct iphdr *iph = skb->nh.iph;
+	const struct iphdr *iph = ip_hdr(skb);
 	struct vif_device *vif = &vif_table[vifi];
 	struct net_device *dev;
 	struct rtable *rt;
@@ -1203,8 +1205,7 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 
 	dst_release(skb->dst);
 	skb->dst = &rt->u.dst;
-	iph = skb->nh.iph;
-	ip_decrease_ttl(iph);
+	ip_decrease_ttl(ip_hdr(skb));
 
 	/* FIXME: forward and output firewalls used to be called here.
 	 * What do we do with netfilter? -- RR */
@@ -1304,7 +1305,7 @@ static int ip_mr_forward(struct sk_buff *skb, struct mfc_cache *cache, int local
 	 *	Forward the frame
 	 */
 	for (ct = cache->mfc_un.res.maxvif-1; ct >= cache->mfc_un.res.minvif; ct--) {
-		if (skb->nh.iph->ttl > cache->mfc_un.res.ttls[ct]) {
+		if (ip_hdr(skb)->ttl > cache->mfc_un.res.ttls[ct]) {
 			if (psend != -1) {
 				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (skb2)
@@ -1350,7 +1351,7 @@ int ip_mr_input(struct sk_buff *skb)
 		    if (IPCB(skb)->opt.router_alert) {
 			    if (ip_call_ra_chain(skb))
 				    return 0;
-		    } else if (skb->nh.iph->protocol == IPPROTO_IGMP){
+		    } else if (ip_hdr(skb)->protocol == IPPROTO_IGMP){
 			    /* IGMPv1 (and broken IGMPv2 implementations sort of
 			       Cisco IOS <= 11.2(8)) do not put router alert
 			       option to IGMP packets destined to routable
@@ -1369,7 +1370,7 @@ int ip_mr_input(struct sk_buff *skb)
 	}
 
 	read_lock(&mrt_lock);
-	cache = ipmr_cache_find(skb->nh.iph->saddr, skb->nh.iph->daddr);
+	cache = ipmr_cache_find(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr);
 
 	/*
 	 *	No usable cache entry
@@ -1580,6 +1581,7 @@ int ipmr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait)
 
 	if (cache==NULL) {
 		struct sk_buff *skb2;
+		struct iphdr *iph;
 		struct net_device *dev;
 		int vif;
 
@@ -1601,10 +1603,11 @@ int ipmr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait)
 
 		skb_push(skb2, sizeof(struct iphdr));
 		skb_reset_network_header(skb2);
-		skb2->nh.iph->ihl = sizeof(struct iphdr)>>2;
-		skb2->nh.iph->saddr = rt->rt_src;
-		skb2->nh.iph->daddr = rt->rt_dst;
-		skb2->nh.iph->version = 0;
+		iph = ip_hdr(skb2);
+		iph->ihl = sizeof(struct iphdr) >> 2;
+		iph->saddr = rt->rt_src;
+		iph->daddr = rt->rt_dst;
+		iph->version = 0;
 		err = ipmr_cache_unresolved(vif, skb2);
 		read_unlock(&mrt_lock);
 		return err;

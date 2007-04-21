@@ -748,9 +748,9 @@ resolve_normal_ct(struct sk_buff *skb,
 	struct ip_conntrack_tuple_hash *h;
 	struct ip_conntrack *ct;
 
-	IP_NF_ASSERT((skb->nh.iph->frag_off & htons(IP_OFFSET)) == 0);
+	IP_NF_ASSERT((ip_hdr(skb)->frag_off & htons(IP_OFFSET)) == 0);
 
-	if (!ip_ct_get_tuple(skb->nh.iph, skb, ip_hdrlen(skb), &tuple,proto))
+	if (!ip_ct_get_tuple(ip_hdr(skb), skb, ip_hdrlen(skb), &tuple,proto))
 		return NULL;
 
 	/* look for tuple match */
@@ -811,10 +811,10 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 	}
 
 	/* Never happen */
-	if ((*pskb)->nh.iph->frag_off & htons(IP_OFFSET)) {
+	if (ip_hdr(*pskb)->frag_off & htons(IP_OFFSET)) {
 		if (net_ratelimit()) {
 		printk(KERN_ERR "ip_conntrack_in: Frag of proto %u (hook=%u)\n",
-		       (*pskb)->nh.iph->protocol, hooknum);
+		       ip_hdr(*pskb)->protocol, hooknum);
 		}
 		return NF_DROP;
 	}
@@ -825,17 +825,17 @@ unsigned int ip_conntrack_in(unsigned int hooknum,
 	if ((*pskb)->pkt_type == PACKET_BROADCAST) {
 		printk("Broadcast packet!\n");
 		return NF_ACCEPT;
-	} else if (((*pskb)->nh.iph->daddr & htonl(0x000000FF))
+	} else if ((ip_hdr(*pskb)->daddr & htonl(0x000000FF))
 		   == htonl(0x000000FF)) {
 		printk("Should bcast: %u.%u.%u.%u->%u.%u.%u.%u (sk=%p, ptype=%u)\n",
-		       NIPQUAD((*pskb)->nh.iph->saddr),
-		       NIPQUAD((*pskb)->nh.iph->daddr),
+		       NIPQUAD(ip_hdr(*pskb)->saddr),
+		       NIPQUAD(ip_hdr(*pskb)->daddr),
 		       (*pskb)->sk, (*pskb)->pkt_type);
 	}
 #endif
 
 	/* rcu_read_lock()ed by nf_hook_slow */
-	proto = __ip_conntrack_proto_find((*pskb)->nh.iph->protocol);
+	proto = __ip_conntrack_proto_find(ip_hdr(*pskb)->protocol);
 
 	/* It may be an special packet, error, unclean...
 	 * inverse of the return code tells to the netfilter
@@ -1152,7 +1152,7 @@ void __ip_ct_refresh_acct(struct ip_conntrack *ct,
 	if (do_acct) {
 		ct->counters[CTINFO2DIR(ctinfo)].packets++;
 		ct->counters[CTINFO2DIR(ctinfo)].bytes +=
-						ntohs(skb->nh.iph->tot_len);
+						ntohs(ip_hdr(skb)->tot_len);
 		if ((ct->counters[CTINFO2DIR(ctinfo)].packets & 0x80000000)
 		    || (ct->counters[CTINFO2DIR(ctinfo)].bytes & 0x80000000))
 			event |= IPCT_COUNTER_FILLING;
@@ -1210,7 +1210,7 @@ ip_ct_gather_frags(struct sk_buff *skb, u_int32_t user)
 	local_bh_enable();
 
 	if (skb)
-		ip_send_check(skb->nh.iph);
+		ip_send_check(ip_hdr(skb));
 	return skb;
 }
 

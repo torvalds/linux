@@ -209,7 +209,7 @@ error:
 static void
 _decode_session4(struct sk_buff *skb, struct flowi *fl)
 {
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
 
 	memset(fl, 0, sizeof(struct flowi));

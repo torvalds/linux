@@ -1262,7 +1262,7 @@ static int ehea_clean_portres(struct ehea_port *port, struct ehea_port_res *pr)
 static inline void write_ip_start_end(struct ehea_swqe *swqe,
 				      const struct sk_buff *skb)
 {
-	swqe->ip_start = (u8)(((u64)skb->nh.iph) - ((u64)skb->data));
+	swqe->ip_start = skb_network_offset(skb);
 	swqe->ip_end = (u8)(swqe->ip_start + ip_hdrlen(skb) - 1);
 }
 
@@ -1688,6 +1688,7 @@ static void ehea_xmit2(struct sk_buff *skb, struct net_device *dev,
 		       struct ehea_swqe *swqe, u32 lkey)
 {
 	if (skb->protocol == htons(ETH_P_IP)) {
+		const struct iphdr *iph = ip_hdr(skb);
 		/* IPv4 */
 		swqe->tx_control |= EHEA_SWQE_CRC
 				 | EHEA_SWQE_IP_CHECKSUM
@@ -1697,15 +1698,15 @@ static void ehea_xmit2(struct sk_buff *skb, struct net_device *dev,
 
 		write_ip_start_end(swqe, skb);
 
-		if (skb->nh.iph->protocol == IPPROTO_UDP) {
-			if ((skb->nh.iph->frag_off & IP_MF) ||
-			    (skb->nh.iph->frag_off & IP_OFFSET))
+		if (iph->protocol == IPPROTO_UDP) {
+			if ((iph->frag_off & IP_MF) ||
+			    (iph->frag_off & IP_OFFSET))
 				/* IP fragment, so don't change cs */
 				swqe->tx_control &= ~EHEA_SWQE_TCP_CHECKSUM;
 			else
 				write_udp_offset_end(swqe, skb);
 
-		} else if (skb->nh.iph->protocol == IPPROTO_TCP) {
+		} else if (iph->protocol == IPPROTO_TCP) {
 			write_tcp_offset_end(swqe, skb);
 		}
 
@@ -1731,10 +1732,11 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 	int i;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
+		const struct iphdr *iph = ip_hdr(skb);
 		/* IPv4 */
 		write_ip_start_end(swqe, skb);
 
-		if (skb->nh.iph->protocol == IPPROTO_TCP) {
+		if (iph->protocol == IPPROTO_TCP) {
 			swqe->tx_control |= EHEA_SWQE_CRC
 					 | EHEA_SWQE_IP_CHECKSUM
 					 | EHEA_SWQE_TCP_CHECKSUM
@@ -1742,9 +1744,9 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 
 			write_tcp_offset_end(swqe, skb);
 
-		} else if (skb->nh.iph->protocol == IPPROTO_UDP) {
-			if ((skb->nh.iph->frag_off & IP_MF) ||
-			    (skb->nh.iph->frag_off & IP_OFFSET))
+		} else if (iph->protocol == IPPROTO_UDP) {
+			if ((iph->frag_off & IP_MF) ||
+			    (iph->frag_off & IP_OFFSET))
 				/* IP fragment, so don't change cs */
 				swqe->tx_control |= EHEA_SWQE_CRC
 						 | EHEA_SWQE_IMM_DATA_PRESENT;

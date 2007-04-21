@@ -292,7 +292,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	skb->dst = dst_clone(&rt->u.dst);
 
 	skb_reset_network_header(skb);
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	skb_put(skb, length);
 
 	skb->ip_summed = CHECKSUM_NONE;
@@ -615,7 +615,7 @@ static int raw_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	/* Copy the address. */
 	if (sin) {
 		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = skb->nh.iph->saddr;
+		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
 		sin->sin_port = 0;
 		memset(&sin->sin_zero, 0, sizeof(sin->sin_zero));
 	}

@@ -87,7 +87,7 @@ nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 	local_bh_enable();
 
 	if (skb)
-		ip_send_check(skb->nh.iph);
+		ip_send_check(ip_hdr(skb));
 
 	return skb;
 }
@@ -97,16 +97,16 @@ ipv4_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 	     u_int8_t *protonum)
 {
 	/* Never happen */
-	if ((*pskb)->nh.iph->frag_off & htons(IP_OFFSET)) {
+	if (ip_hdr(*pskb)->frag_off & htons(IP_OFFSET)) {
 		if (net_ratelimit()) {
 			printk(KERN_ERR "ipv4_prepare: Frag of proto %u (hook=%u)\n",
-			(*pskb)->nh.iph->protocol, hooknum);
+			ip_hdr(*pskb)->protocol, hooknum);
 		}
 		return -NF_DROP;
 	}
 
 	*dataoff = skb_network_offset(*pskb) + ip_hdrlen(*pskb);
-	*protonum = (*pskb)->nh.iph->protocol;
+	*protonum = ip_hdr(*pskb)->protocol;
 
 	return NF_ACCEPT;
 }
@@ -170,7 +170,7 @@ static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
 #endif
 
 	/* Gather fragments. */
-	if ((*pskb)->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
+	if (ip_hdr(*pskb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 		*pskb = nf_ct_ipv4_gather_frags(*pskb,
 						hooknum == NF_IP_PRE_ROUTING ?
 						IP_DEFRAG_CONNTRACK_IN :

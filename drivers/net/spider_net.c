@@ -720,7 +720,7 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 	spin_unlock_irqrestore(&chain->lock, flags);
 
 	if (skb->protocol == htons(ETH_P_IP) && skb->ip_summed == CHECKSUM_PARTIAL)
-		switch (skb->nh.iph->protocol) {
+		switch (ip_hdr(skb)->protocol) {
 		case IPPROTO_TCP:
 			hwdescr->dmac_cmd_status |= SPIDER_NET_DMAC_TCP;
 			break;

@@ -1428,7 +1428,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		tcpsum |= offset + skb->csum_offset;	/* sum write */
 
 		ctrl = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
-		if (skb->nh.iph->protocol == IPPROTO_UDP)
+		if (ip_hdr(skb)->protocol == IPPROTO_UDP)
 			ctrl |= UDPTCP;
 
 		if (tcpsum != sky2->tx_tcpsum) {

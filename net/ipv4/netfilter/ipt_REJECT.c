@@ -43,6 +43,7 @@ MODULE_DESCRIPTION("iptables REJECT target module");
 static void send_reset(struct sk_buff *oldskb, int hook)
 {
 	struct sk_buff *nskb;
+	struct iphdr *niph;
 	struct tcphdr _otcph, *oth, *tcph;
 	__be16 tmp_port;
 	__be32 tmp_addr;
@@ -50,7 +51,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	unsigned int addr_type;
 
 	/* IP header checks: fragment. */
-	if (oldskb->nh.iph->frag_off & htons(IP_OFFSET))
+	if (ip_hdr(oldskb)->frag_off & htons(IP_OFFSET))
 		return;
 
 	oth = skb_header_pointer(oldskb, ip_hdrlen(oldskb),
@@ -86,9 +87,10 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	tcph = (struct tcphdr *)(skb_network_header(nskb) + ip_hdrlen(nskb));
 
 	/* Swap source and dest */
-	tmp_addr = nskb->nh.iph->saddr;
-	nskb->nh.iph->saddr = nskb->nh.iph->daddr;
-	nskb->nh.iph->daddr = tmp_addr;
+	niph = ip_hdr(nskb);
+	tmp_addr = niph->saddr;
+	niph->saddr = niph->daddr;
+	niph->daddr = tmp_addr;
 	tmp_port = tcph->source;
 	tcph->source = tcph->dest;
 	tcph->dest = tmp_port;
@@ -96,7 +98,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	/* Truncate to length (no data) */
 	tcph->doff = sizeof(struct tcphdr)/4;
 	skb_trim(nskb, ip_hdrlen(nskb) + sizeof(struct tcphdr));
-	nskb->nh.iph->tot_len = htons(nskb->len);
+	niph->tot_len = htons(nskb->len);
 
 	if (tcph->ack) {
 		needs_ack = 0;
@@ -121,14 +123,13 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	/* Adjust TCP checksum */
 	tcph->check = 0;
 	tcph->check = tcp_v4_check(sizeof(struct tcphdr),
-				   nskb->nh.iph->saddr,
-				   nskb->nh.iph->daddr,
+				   niph->saddr, niph->daddr,
 				   csum_partial((char *)tcph,
 						sizeof(struct tcphdr), 0));
 
 	/* Set DF, id = 0 */
-	nskb->nh.iph->frag_off = htons(IP_DF);
-	nskb->nh.iph->id = 0;
+	niph->frag_off = htons(IP_DF);
+	niph->id = 0;
 
 	addr_type = RTN_UNSPEC;
 	if (hook != NF_IP_FORWARD
@@ -144,12 +145,11 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	nskb->ip_summed = CHECKSUM_NONE;
 
 	/* Adjust IP TTL */
-	nskb->nh.iph->ttl = dst_metric(nskb->dst, RTAX_HOPLIMIT);
+	niph->ttl = dst_metric(nskb->dst, RTAX_HOPLIMIT);
 
 	/* Adjust IP checksum */
-	nskb->nh.iph->check = 0;
-	nskb->nh.iph->check = ip_fast_csum(skb_network_header(nskb),
-					   nskb->nh.iph->ihl);
+	niph->check = 0;
+	niph->check = ip_fast_csum(skb_network_header(nskb), niph->ihl);
 
 	/* "Never happens" */
 	if (nskb->len > dst_mtu(nskb->dst))

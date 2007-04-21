@@ -1182,6 +1182,8 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 
 	if (likely(skb_is_gso(skb))) {
 		struct ixgb_buffer *buffer_info;
+		struct iphdr *iph;
+
 		if (skb_header_cloned(skb)) {
 			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 			if (err)
@@ -1190,13 +1192,13 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 
 		hdr_len = ((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
 		mss = skb_shinfo(skb)->gso_size;
-		skb->nh.iph->tot_len = 0;
-		skb->nh.iph->check = 0;
-		skb->h.th->check = ~csum_tcpudp_magic(skb->nh.iph->saddr,
-						      skb->nh.iph->daddr,
+		iph = ip_hdr(skb);
+		iph->tot_len = 0;
+		iph->check = 0;
+		skb->h.th->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
 						      0, IPPROTO_TCP, 0);
 		ipcss = skb_network_offset(skb);
-		ipcso = (void *)&(skb->nh.iph->check) - (void *)skb->data;
+		ipcso = (void *)&(iph->check) - (void *)skb->data;
 		ipcse = skb->h.raw - skb->data - 1;
 		tucss = skb->h.raw - skb->data;
 		tucso = (void *)&(skb->h.th->check) - (void *)skb->data;

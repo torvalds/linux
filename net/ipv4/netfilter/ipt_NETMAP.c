@@ -75,9 +75,9 @@ target(struct sk_buff **pskb,
 	netmask = ~(mr->range[0].min_ip ^ mr->range[0].max_ip);
 
 	if (hooknum == NF_IP_PRE_ROUTING || hooknum == NF_IP_LOCAL_OUT)
-		new_ip = (*pskb)->nh.iph->daddr & ~netmask;
+		new_ip = ip_hdr(*pskb)->daddr & ~netmask;
 	else
-		new_ip = (*pskb)->nh.iph->saddr & ~netmask;
+		new_ip = ip_hdr(*pskb)->saddr & ~netmask;
 	new_ip |= mr->range[0].min_ip & netmask;
 
 	newrange = ((struct ip_nat_range)

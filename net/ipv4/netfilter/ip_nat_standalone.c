@@ -97,7 +97,7 @@ ip_nat_fn(unsigned int hooknum,
 
 	/* We never see fragments: conntrack defrags on pre-routing
 	   and local-out, and ip_nat_out protects post-routing. */
-	IP_NF_ASSERT(!((*pskb)->nh.iph->frag_off
+	IP_NF_ASSERT(!(ip_hdr(*pskb)->frag_off
 		       & htons(IP_MF|IP_OFFSET)));
 
 	ct = ip_conntrack_get(*pskb, &ctinfo);
@@ -109,7 +109,7 @@ ip_nat_fn(unsigned int hooknum,
 		/* Exception: ICMP redirect to new connection (not in
 		   hash table yet).  We must not let this through, in
 		   case we're doing NAT to the same network. */
-		if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP) {
+		if (ip_hdr(*pskb)->protocol == IPPROTO_ICMP) {
 			struct icmphdr _hdr, *hp;
 
 			hp = skb_header_pointer(*pskb, ip_hdrlen(*pskb),
@@ -128,7 +128,7 @@ ip_nat_fn(unsigned int hooknum,
 	switch (ctinfo) {
 	case IP_CT_RELATED:
 	case IP_CT_RELATED+IP_CT_IS_REPLY:
-		if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP) {
+		if (ip_hdr(*pskb)->protocol == IPPROTO_ICMP) {
 			if (!ip_nat_icmp_reply_translation(ct, ctinfo,
 							   hooknum, pskb))
 				return NF_DROP;
@@ -184,11 +184,11 @@ ip_nat_in(unsigned int hooknum,
 	  int (*okfn)(struct sk_buff *))
 {
 	unsigned int ret;
-	__be32 daddr = (*pskb)->nh.iph->daddr;
+	__be32 daddr = ip_hdr(*pskb)->daddr;
 
 	ret = ip_nat_fn(hooknum, pskb, in, out, okfn);
 	if (ret != NF_DROP && ret != NF_STOLEN
-	    && daddr != (*pskb)->nh.iph->daddr) {
+	    && daddr != ip_hdr(*pskb)->daddr) {
 		dst_release((*pskb)->dst);
 		(*pskb)->dst = NULL;
 	}

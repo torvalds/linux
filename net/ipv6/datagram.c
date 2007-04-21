@@ -349,8 +349,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 			struct inet_sock *inet = inet_sk(sk);
 
 			ipv6_addr_set(&sin->sin6_addr, 0, 0,
-				      htonl(0xffff),
-				      skb->nh.iph->saddr);
+				      htonl(0xffff), ip_hdr(skb)->saddr);
 			if (inet->cmsg_flags)
 				ip_cmsg_recv(msg, skb);
 		}

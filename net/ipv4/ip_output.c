@@ -127,7 +127,7 @@ int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 	/* Build the IP header. */
 	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
 	skb_reset_network_header(skb);
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	iph->version  = 4;
 	iph->ihl      = 5;
 	iph->tos      = inet->tos;
@@ -245,7 +245,7 @@ int ip_mc_output(struct sk_buff *skb)
 
 		/* Multicasts with ttl 0 must not go beyond the host */
 
-		if (skb->nh.iph->ttl == 0) {
+		if (ip_hdr(skb)->ttl == 0) {
 			kfree_skb(skb);
 			return 0;
 		}
@@ -332,7 +332,7 @@ packet_routed:
 	/* OK, we know where to send it, allocate and build IP header. */
 	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
 	skb_reset_network_header(skb);
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	*((__be16 *)iph) = htons((4 << 12) | (5 << 8) | (inet->tos & 0xff));
 	iph->tot_len = htons(skb->len);
 	if (ip_dont_fragment(sk, &rt->u.dst) && !ipfragok)
@@ -428,7 +428,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 	 *	Point into the IP datagram header.
 	 */
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
 	if (unlikely((iph->frag_off & htons(IP_DF)) && !skb->local_df)) {
 		IP_INC_STATS(IPSTATS_MIB_FRAGFAILS);
@@ -504,7 +504,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 				__skb_push(frag, hlen);
 				skb_reset_network_header(frag);
 				memcpy(skb_network_header(frag), iph, hlen);
-				iph = frag->nh.iph;
+				iph = ip_hdr(frag);
 				iph->tot_len = htons(frag->len);
 				ip_copy_metadata(frag, skb);
 				if (offset == 0)
@@ -619,7 +619,7 @@ slow_path:
 		/*
 		 *	Fill in the new header fields.
 		 */
-		iph = skb2->nh.iph;
+		iph = ip_hdr(skb2);
 		iph->frag_off = htons((offset >> 3));
 
 		/* ANK: dirty, but effective trick. Upgrade options only if
@@ -1125,7 +1125,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 			 */
 			data = skb_put(skb, fragheaderlen + fraggap);
 			skb_reset_network_header(skb);
-			iph = skb->nh.iph;
+			iph = ip_hdr(skb);
 			data += fragheaderlen;
 			skb->h.raw = data;
 
@@ -1352,7 +1352,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 		struct flowi fl = { .nl_u = { .ip4_u =
 					      { .daddr = daddr,
 						.saddr = rt->rt_spec_dst,
-						.tos = RT_TOS(skb->nh.iph->tos) } },
+						.tos = RT_TOS(ip_hdr(skb)->tos) } },
 				    /* Not quite clean, but right. */
 				    .uli_u = { .ports =
 					       { .sport = skb->h.th->dest,
@@ -1370,9 +1370,9 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 	   with locally disabled BH and that sk cannot be already spinlocked.
 	 */
 	bh_lock_sock(sk);
-	inet->tos = skb->nh.iph->tos;
+	inet->tos = ip_hdr(skb)->tos;
 	sk->sk_priority = skb->priority;
-	sk->sk_protocol = skb->nh.iph->protocol;
+	sk->sk_protocol = ip_hdr(skb)->protocol;
 	ip_append_data(sk, ip_reply_glue_bits, arg->iov->iov_base, len, 0,
 		       &ipc, rt, MSG_DONTWAIT);
 	if ((skb = skb_peek(&sk->sk_write_queue)) != NULL) {

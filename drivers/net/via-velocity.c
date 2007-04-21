@@ -2006,7 +2006,7 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if ((vptr->flags & VELOCITY_FLAGS_TX_CSUM)
 				 && (skb->ip_summed == CHECKSUM_PARTIAL)) {
-		struct iphdr *ip = skb->nh.iph;
+		const struct iphdr *ip = ip_hdr(skb);
 		if (ip->protocol == IPPROTO_TCP)
 			td_ptr->tdesc1.TCR |= TCR0_TCPCK;
 		else if (ip->protocol == IPPROTO_UDP)

@@ -533,7 +533,7 @@ static inline void ipgre_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 {
 	if (INET_ECN_is_ce(iph->tos)) {
 		if (skb->protocol == htons(ETH_P_IP)) {
-			IP_ECN_set_ce(skb->nh.iph);
+			IP_ECN_set_ce(ip_hdr(skb));
 		} else if (skb->protocol == htons(ETH_P_IPV6)) {
 			IP6_ECN_set_ce(skb->nh.ipv6h);
 		}
@@ -565,7 +565,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, 16))
 		goto drop_nolock;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	h = skb->data;
 	flags = *(__be16*)h;
 
@@ -670,7 +670,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->stat;
-	struct iphdr  *old_iph = skb->nh.iph;
+	struct iphdr  *old_iph = ip_hdr(skb);
 	struct iphdr  *tiph;
 	u8     tos;
 	__be16 df;
@@ -825,7 +825,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_set_owner_w(new_skb, skb->sk);
 		dev_kfree_skb(skb);
 		skb = new_skb;
-		old_iph = skb->nh.iph;
+		old_iph = ip_hdr(skb);
 	}
 
 	skb->h.raw = skb->nh.raw;
@@ -841,7 +841,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	 *	Push down and install the IPIP header.
 	 */
 
-	iph 			=	skb->nh.iph;
+	iph 			=	ip_hdr(skb);
 	iph->version		=	4;
 	iph->ihl		=	sizeof(struct iphdr) >> 2;
 	iph->frag_off		=	df;

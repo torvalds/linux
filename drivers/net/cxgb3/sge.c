@@ -900,7 +900,7 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 		eth_type = skb_network_offset(skb) == ETH_HLEN ?
 		    CPL_ETH_II : CPL_ETH_II_VLAN;
 		tso_info |= V_LSO_ETH_TYPE(eth_type) |
-		    V_LSO_IPHDR_WORDS(skb->nh.iph->ihl) |
+		    V_LSO_IPHDR_WORDS(ip_hdr(skb)->ihl) |
 		    V_LSO_TCPHDR_WORDS(skb->h.th->doff);
 		hdr->lso_info = htonl(tso_info);
 		flits = 3;

@@ -703,7 +703,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 
 	/* Construct IP header */
 	skb_reset_network_header(skb);
-	h = skb->nh.iph;
+	h = ip_hdr(skb);
 	h->version = 4;
 	h->ihl = 5;
 	h->tot_len = htons(sizeof(struct bootp_pkt));
@@ -846,7 +846,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 			   sizeof(struct udphdr)))
 		goto drop;
 
-	b = (struct bootp_pkt *) skb->nh.iph;
+	b = (struct bootp_pkt *)skb_network_header(skb);
 	h = &b->iph;
 
 	if (h->ihl != 5 || h->version != 4 || h->protocol != IPPROTO_UDP)
@@ -884,7 +884,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	if (!pskb_may_pull(skb, skb->len))
 		goto drop;
 
-	b = (struct bootp_pkt *) skb->nh.iph;
+	b = (struct bootp_pkt *)skb_network_header(skb);
 	h = &b->iph;
 
 	/* One reply at a time, please. */

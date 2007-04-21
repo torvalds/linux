@@ -35,13 +35,13 @@ static unsigned int target(struct sk_buff **pskb,
 			   const void *targinfo)
 {
 	const struct xt_DSCP_info *dinfo = targinfo;
-	u_int8_t dscp = ipv4_get_dsfield((*pskb)->nh.iph) >> XT_DSCP_SHIFT;
+	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(*pskb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
 		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
 			return NF_DROP;
 
-		ipv4_change_dsfield((*pskb)->nh.iph, (__u8)(~XT_DSCP_MASK),
+		ipv4_change_dsfield(ip_hdr(*pskb), (__u8)(~XT_DSCP_MASK),
 				    dinfo->dscp << XT_DSCP_SHIFT);
 
 	}

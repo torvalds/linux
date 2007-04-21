@@ -240,7 +240,7 @@ clusterip_del_node(struct clusterip_config *c, u_int16_t nodenum)
 static inline u_int32_t
 clusterip_hashfn(struct sk_buff *skb, struct clusterip_config *config)
 {
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	unsigned long hashval;
 	u_int16_t sport, dport;
 	u_int16_t *ports;
@@ -328,7 +328,7 @@ target(struct sk_buff **pskb,
 
 	/* special case: ICMP error handling. conntrack distinguishes between
 	 * error messages (RELATED) and information requests (see below) */
-	if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP
+	if (ip_hdr(*pskb)->protocol == IPPROTO_ICMP
 	    && (ctinfo == IP_CT_RELATED
 		|| ctinfo == IP_CT_RELATED+IP_CT_IS_REPLY))
 		return XT_CONTINUE;

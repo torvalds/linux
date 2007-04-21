@@ -138,7 +138,7 @@ __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 
 	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESSENT);
 
-	return secure_tcp_syn_cookie(skb->nh.iph->saddr, skb->nh.iph->daddr,
+	return secure_tcp_syn_cookie(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 				     skb->h.th->source, skb->h.th->dest,
 				     ntohl(skb->h.th->seq),
 				     jiffies / (HZ * 60), mssind);
@@ -162,7 +162,7 @@ static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 
 	seq = ntohl(skb->h.th->seq)-1;
 	mssind = check_tcp_syn_cookie(cookie,
-				      skb->nh.iph->saddr, skb->nh.iph->daddr,
+				      ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 				      skb->h.th->source, skb->h.th->dest,
 				      seq, jiffies / (HZ * 60), COUNTER_TRIES);
 
@@ -224,8 +224,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	treq->snt_isn		= cookie;
 	req->mss		= mss;
 	ireq->rmt_port		= skb->h.th->source;
-	ireq->loc_addr		= skb->nh.iph->daddr;
-	ireq->rmt_addr		= skb->nh.iph->saddr;
+	ireq->loc_addr		= ip_hdr(skb)->daddr;
+	ireq->rmt_addr		= ip_hdr(skb)->saddr;
 	ireq->opt		= NULL;
 
 	/* We throwed the options of the initial SYN away, so we hope

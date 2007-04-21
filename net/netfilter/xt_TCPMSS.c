@@ -145,7 +145,7 @@ xt_tcpmss_target4(struct sk_buff **pskb,
 		  const struct xt_target *target,
 		  const void *targinfo)
 {
-	struct iphdr *iph = (*pskb)->nh.iph;
+	struct iphdr *iph = ip_hdr(*pskb);
 	__be16 newlen;
 	int ret;
 
@@ -154,7 +154,7 @@ xt_tcpmss_target4(struct sk_buff **pskb,
 	if (ret < 0)
 		return NF_DROP;
 	if (ret > 0) {
-		iph = (*pskb)->nh.iph;
+		iph = ip_hdr(*pskb);
 		newlen = htons(ntohs(iph->tot_len) + ret);
 		nf_csum_replace2(&iph->check, iph->tot_len, newlen);
 		iph->tot_len = newlen;

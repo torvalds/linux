@@ -228,7 +228,7 @@ static int ieee80211_classify(struct sk_buff *skb)
 	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
 
-	ip = skb->nh.iph;
+	ip = ip_hdr(skb);
 	switch (ip->tos & 0xfc) {
 	case 0x20:
 		return 2;

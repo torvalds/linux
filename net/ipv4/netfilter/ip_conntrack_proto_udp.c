@@ -89,12 +89,12 @@ static int udp_new(struct ip_conntrack *conntrack, const struct sk_buff *skb)
 static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 		     unsigned int hooknum)
 {
-	struct iphdr *iph = skb->nh.iph;
-	unsigned int udplen = skb->len - iph->ihl * 4;
+	const unsigned int hdrlen = ip_hdrlen(skb);
+	unsigned int udplen = skb->len - hdrlen;
 	struct udphdr _hdr, *hdr;
 
 	/* Header is too small? */
-	hdr = skb_header_pointer(skb, iph->ihl*4, sizeof(_hdr), &_hdr);
+	hdr = skb_header_pointer(skb, hdrlen, sizeof(_hdr), &_hdr);
 	if (hdr == NULL) {
 		if (LOG_INVALID(IPPROTO_UDP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
@@ -119,7 +119,7 @@ static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 	 * because the checksum is assumed to be correct.
 	 * FIXME: Source route IP option packets --RR */
 	if (ip_conntrack_checksum && hooknum == NF_IP_PRE_ROUTING &&
-	    nf_ip_checksum(skb, hooknum, iph->ihl * 4, IPPROTO_UDP)) {
+	    nf_ip_checksum(skb, hooknum, hdrlen, IPPROTO_UDP)) {
 		if (LOG_INVALID(IPPROTO_UDP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_udp: bad UDP checksum ");

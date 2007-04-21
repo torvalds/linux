@@ -178,7 +178,7 @@ try_again:
 
 		if (skb->protocol == htons(ETH_P_IP))
 			ipv6_addr_set(&sin6->sin6_addr, 0, 0,
-				      htonl(0xffff), skb->nh.iph->saddr);
+				      htonl(0xffff), ip_hdr(skb)->saddr);
 		else {
 			ipv6_addr_copy(&sin6->sin6_addr, &skb->nh.ipv6h->saddr);
 			if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)

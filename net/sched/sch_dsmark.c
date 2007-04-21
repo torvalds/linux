@@ -216,7 +216,7 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 		/* FIXME: Safe with non-linear skbs? --RR */
 		switch (skb->protocol) {
 			case __constant_htons(ETH_P_IP):
-				skb->tc_index = ipv4_get_dsfield(skb->nh.iph)
+				skb->tc_index = ipv4_get_dsfield(ip_hdr(skb))
 					& ~INET_ECN_MASK;
 				break;
 			case __constant_htons(ETH_P_IPV6):
@@ -292,7 +292,7 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 
 	switch (skb->protocol) {
 		case __constant_htons(ETH_P_IP):
-			ipv4_change_dsfield(skb->nh.iph, p->mask[index],
+			ipv4_change_dsfield(ip_hdr(skb), p->mask[index],
 					    p->value[index]);
 			break;
 		case __constant_htons(ETH_P_IPV6):

@@ -770,9 +770,9 @@ static void sctp_inet6_skb_msgname(struct sk_buff *skb, char *msgname,
 
 		/* Map ipv4 address into v4-mapped-on-v6 address. */
 		if (sctp_sk(skb->sk)->v4mapped &&
-		    skb->nh.iph->version == 4) {
+		    ip_hdr(skb)->version == 4) {
 			sctp_v4_map_v6((union sctp_addr *)sin6);
-			sin6->sin6_addr.s6_addr32[3] = skb->nh.iph->saddr;
+			sin6->sin6_addr.s6_addr32[3] = ip_hdr(skb)->saddr;
 			return;
 		}
 

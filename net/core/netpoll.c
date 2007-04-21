@@ -310,7 +310,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 
 	skb_push(skb, sizeof(*iph));
 	skb_reset_network_header(skb);
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
 	/* iph->version = 4; iph->ihl = 5; */
 	put_unaligned(0x45, (unsigned char *)iph);

@@ -503,7 +503,7 @@ static void sch_atm_dequeue(unsigned long data)
 			}
 			D2PRINTK("atm_tc_dequeue: sending on class %p\n",flow);
 			/* remove any LL header somebody else has attached */
-			skb_pull(skb,(char *) skb->nh.iph-(char *) skb->data);
+			skb_pull(skb, skb_network_offset(skb));
 			if (skb_headroom(skb) < flow->hdr_len) {
 				struct sk_buff *new;
 
@@ -513,7 +513,7 @@ static void sch_atm_dequeue(unsigned long data)
 				skb = new;
 			}
 			D2PRINTK("sch_atm_dequeue: ip %p, data %p\n",
-			    skb->nh.iph,skb->data);
+				 skb_network_header(skb), skb->data);
 			ATM_SKB(skb)->vcc = flow->vcc;
 			memcpy(skb_push(skb,flow->hdr_len),flow->hdr,
 			    flow->hdr_len);

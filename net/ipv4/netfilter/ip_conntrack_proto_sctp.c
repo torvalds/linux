@@ -316,7 +316,7 @@ static int sctp_packet(struct ip_conntrack *conntrack,
 		       enum ip_conntrack_info ctinfo)
 {
 	enum sctp_conntrack newconntrack, oldsctpstate;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	sctp_sctphdr_t _sctph, *sh;
 	sctp_chunkhdr_t _sch, *sch;
 	u_int32_t offset, count;
@@ -430,7 +430,7 @@ static int sctp_new(struct ip_conntrack *conntrack,
 		    const struct sk_buff *skb)
 {
 	enum sctp_conntrack newconntrack;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	sctp_sctphdr_t _sctph, *sh;
 	sctp_chunkhdr_t _sch, *sch;
 	u_int32_t offset, count;

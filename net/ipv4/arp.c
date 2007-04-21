@@ -342,13 +342,13 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	switch (IN_DEV_ARP_ANNOUNCE(in_dev)) {
 	default:
 	case 0:		/* By default announce any local IP */
-		if (skb && inet_addr_type(skb->nh.iph->saddr) == RTN_LOCAL)
-			saddr = skb->nh.iph->saddr;
+		if (skb && inet_addr_type(ip_hdr(skb)->saddr) == RTN_LOCAL)
+			saddr = ip_hdr(skb)->saddr;
 		break;
 	case 1:		/* Restrict announcements of saddr in same subnet */
 		if (!skb)
 			break;
-		saddr = skb->nh.iph->saddr;
+		saddr = ip_hdr(skb)->saddr;
 		if (inet_addr_type(saddr) == RTN_LOCAL) {
 			/* saddr should be known to target */
 			if (inet_addr_onlink(in_dev, target, saddr))

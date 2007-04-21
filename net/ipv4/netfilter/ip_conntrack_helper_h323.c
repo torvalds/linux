@@ -576,8 +576,8 @@ static int h245_help(struct sk_buff **pskb, struct ip_conntrack *ct,
 	/* Process each TPKT */
 	while (get_tpkt_data(pskb, ct, ctinfo, &data, &datalen, &dataoff)) {
 		DEBUGP("ip_ct_h245: TPKT %u.%u.%u.%u->%u.%u.%u.%u, len=%d\n",
-		       NIPQUAD((*pskb)->nh.iph->saddr),
-		       NIPQUAD((*pskb)->nh.iph->daddr), datalen);
+		       NIPQUAD(ip_hdr(*pskb)->saddr),
+		       NIPQUAD(ip_hdr(*pskb)->daddr), datalen);
 
 		/* Decode H.245 signal */
 		ret = DecodeMultimediaSystemControlMessage(data, datalen,
@@ -1128,8 +1128,8 @@ static int q931_help(struct sk_buff **pskb, struct ip_conntrack *ct,
 	/* Process each TPKT */
 	while (get_tpkt_data(pskb, ct, ctinfo, &data, &datalen, &dataoff)) {
 		DEBUGP("ip_ct_q931: TPKT %u.%u.%u.%u->%u.%u.%u.%u, len=%d\n",
-		       NIPQUAD((*pskb)->nh.iph->saddr),
-		       NIPQUAD((*pskb)->nh.iph->daddr), datalen);
+		       NIPQUAD(ip_hdr(*pskb)->saddr),
+		       NIPQUAD(ip_hdr(*pskb)->daddr), datalen);
 
 		/* Decode Q.931 signal */
 		ret = DecodeQ931(data, datalen, &q931);
@@ -1741,8 +1741,8 @@ static int ras_help(struct sk_buff **pskb, struct ip_conntrack *ct,
 	if (data == NULL)
 		goto accept;
 	DEBUGP("ip_ct_ras: RAS message %u.%u.%u.%u->%u.%u.%u.%u, len=%d\n",
-	       NIPQUAD((*pskb)->nh.iph->saddr),
-	       NIPQUAD((*pskb)->nh.iph->daddr), datalen);
+	       NIPQUAD(ip_hdr(*pskb)->saddr),
+	       NIPQUAD(ip_hdr(*pskb)->daddr), datalen);
 
 	/* Decode RAS message */
 	ret = DecodeRasMessage(data, datalen, &ras);

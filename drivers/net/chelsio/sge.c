@@ -1871,7 +1871,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr = (struct cpl_tx_pkt_lso *)skb_push(skb, sizeof(*hdr));
 		hdr->opcode = CPL_TX_PKT_LSO;
 		hdr->ip_csum_dis = hdr->l4_csum_dis = 0;
-		hdr->ip_hdr_words = skb->nh.iph->ihl;
+		hdr->ip_hdr_words = ip_hdr(skb)->ihl;
 		hdr->tcp_hdr_words = skb->h.th->doff;
 		hdr->eth_type_mss = htons(MK_ETH_TYPE_MSS(eth_type,
 							  skb_shinfo(skb)->gso_size));
@@ -1912,7 +1912,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		if (!(adapter->flags & UDP_CSUM_CAPABLE) &&
 		    skb->ip_summed == CHECKSUM_PARTIAL &&
-		    skb->nh.iph->protocol == IPPROTO_UDP) {
+		    ip_hdr(skb)->protocol == IPPROTO_UDP) {
 			if (unlikely(skb_checksum_help(skb))) {
 				pr_debug("%s: unable to do udp checksum\n", dev->name);
 				dev_kfree_skb_any(skb);

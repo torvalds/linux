@@ -1668,7 +1668,7 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 	if (memcmp(eth->h_dest, dev->broadcast, ETH1394_ALEN) == 0 ||
 	    proto == htons(ETH_P_ARP) ||
 	    (proto == htons(ETH_P_IP) &&
-	     IN_MULTICAST(ntohl(skb->nh.iph->daddr)))) {
+	     IN_MULTICAST(ntohl(ip_hdr(skb)->daddr)))) {
 		tx_type = ETH1394_GASP;
 		dest_node = LOCAL_BUS | ALL_NODES;
 		max_payload = priv->bc_maxpayload - ETHER1394_GASP_OVERHEAD;

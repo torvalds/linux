@@ -26,19 +26,20 @@ static int match(const struct sk_buff *skb,
 		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_ttl_info *info = matchinfo;
+	const u8 ttl = ip_hdr(skb)->ttl;
 
 	switch (info->mode) {
 		case IPT_TTL_EQ:
-			return (skb->nh.iph->ttl == info->ttl);
+			return (ttl == info->ttl);
 			break;
 		case IPT_TTL_NE:
-			return (!(skb->nh.iph->ttl == info->ttl));
+			return (!(ttl == info->ttl));
 			break;
 		case IPT_TTL_LT:
-			return (skb->nh.iph->ttl < info->ttl);
+			return (ttl < info->ttl);
 			break;
 		case IPT_TTL_GT:
-			return (skb->nh.iph->ttl > info->ttl);
+			return (ttl > info->ttl);
 			break;
 		default:
 			printk(KERN_WARNING "ipt_ttl: unknown mode %d\n",

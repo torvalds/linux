@@ -770,8 +770,8 @@ void ip_conntrack_tcp_update(struct sk_buff *skb,
 			     struct ip_conntrack *conntrack,
 			     enum ip_conntrack_dir dir)
 {
-	struct iphdr *iph = skb->nh.iph;
-	struct tcphdr *tcph = (void *)skb->nh.iph + ip_hdrlen(skb);
+	struct iphdr *iph = ip_hdr(skb);
+	struct tcphdr *tcph = (void *)iph + ip_hdrlen(skb);
 	__u32 end;
 #ifdef DEBUGP_VARS
 	struct ip_ct_tcp_state *sender = &conntrack->proto.tcp.seen[dir];
@@ -834,13 +834,13 @@ static int tcp_error(struct sk_buff *skb,
 		     enum ip_conntrack_info *ctinfo,
 		     unsigned int hooknum)
 {
-	struct iphdr *iph = skb->nh.iph;
+	const unsigned int hdrlen = ip_hdrlen(skb);
 	struct tcphdr _tcph, *th;
-	unsigned int tcplen = skb->len - iph->ihl * 4;
+	unsigned int tcplen = skb->len - hdrlen;
 	u_int8_t tcpflags;
 
 	/* Smaller that minimal TCP header? */
-	th = skb_header_pointer(skb, iph->ihl * 4,
+	th = skb_header_pointer(skb, hdrlen,
 				sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		if (LOG_INVALID(IPPROTO_TCP))
@@ -863,7 +863,7 @@ static int tcp_error(struct sk_buff *skb,
 	 */
 	/* FIXME: Source route IP option packets --RR */
 	if (ip_conntrack_checksum && hooknum == NF_IP_PRE_ROUTING &&
-	    nf_ip_checksum(skb, hooknum, iph->ihl * 4, IPPROTO_TCP)) {
+	    nf_ip_checksum(skb, hooknum, hdrlen, IPPROTO_TCP)) {
 		if (LOG_INVALID(IPPROTO_TCP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_tcp: bad TCP checksum ");
@@ -889,7 +889,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 {
 	enum tcp_conntrack new_state, old_state;
 	enum ip_conntrack_dir dir;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th, _tcph;
 	unsigned long timeout;
 	unsigned int index;
@@ -1062,7 +1062,7 @@ static int tcp_new(struct ip_conntrack *conntrack,
 		   const struct sk_buff *skb)
 {
 	enum tcp_conntrack new_state;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th, _tcph;
 #ifdef DEBUGP_VARS
 	struct ip_ct_tcp_state *sender = &conntrack->proto.tcp.seen[0];

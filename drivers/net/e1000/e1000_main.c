@@ -2890,14 +2890,12 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		hdr_len = ((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
 		mss = skb_shinfo(skb)->gso_size;
 		if (skb->protocol == htons(ETH_P_IP)) {
-			skb->nh.iph->tot_len = 0;
-			skb->nh.iph->check = 0;
-			skb->h.th->check =
-				~csum_tcpudp_magic(skb->nh.iph->saddr,
-						   skb->nh.iph->daddr,
-						   0,
-						   IPPROTO_TCP,
-						   0);
+			struct iphdr *iph = ip_hdr(skb);
+			iph->tot_len = 0;
+			iph->check = 0;
+			skb->h.th->check = ~csum_tcpudp_magic(iph->saddr,
+							      iph->daddr, 0,
+							      IPPROTO_TCP, 0);
 			cmd_length = E1000_TXD_CMD_IP;
 			ipcse = skb->h.raw - skb->data - 1;
 		} else if (skb->protocol == htons(ETH_P_IPV6)) {
@@ -2911,7 +2909,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 			ipcse = 0;
 		}
 		ipcss = skb_network_offset(skb);
-		ipcso = (void *)&(skb->nh.iph->check) - (void *)skb->data;
+		ipcso = (void *)&(ip_hdr(skb)->check) - (void *)skb->data;
 		tucss = skb->h.raw - skb->data;
 		tucso = (void *)&(skb->h.th->check) - (void *)skb->data;
 		tucse = 0;

@@ -439,7 +439,7 @@ static unsigned int ip_conntrack_defrag(unsigned int hooknum,
 #endif
 
 	/* Gather fragments. */
-	if ((*pskb)->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
+	if (ip_hdr(*pskb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 		*pskb = ip_ct_gather_frags(*pskb,
 					   hooknum == NF_IP_PRE_ROUTING ?
 					   IP_DEFRAG_CONNTRACK_IN :

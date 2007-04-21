@@ -74,7 +74,7 @@ int ip_forward(struct sk_buff *skb)
 	 *	that reaches zero, we must reply an ICMP control message telling
 	 *	that the packet's lifetime expired.
 	 */
-	if (skb->nh.iph->ttl <= 1)
+	if (ip_hdr(skb)->ttl <= 1)
 		goto too_many_hops;
 
 	if (!xfrm4_route_forward(skb))
@@ -88,7 +88,7 @@ int ip_forward(struct sk_buff *skb)
 	/* We are about to mangle packet. Copy it! */
 	if (skb_cow(skb, LL_RESERVED_SPACE(rt->u.dst.dev)+rt->u.dst.header_len))
 		goto drop;
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
 	/* Decrease ttl after skb cow done */
 	ip_decrease_ttl(iph);

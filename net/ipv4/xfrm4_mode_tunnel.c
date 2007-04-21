@@ -16,7 +16,7 @@
 
 static inline void ipip_ecn_decapsulate(struct sk_buff *skb)
 {
-	struct iphdr *outer_iph = skb->nh.iph;
+	struct iphdr *outer_iph = ip_hdr(skb);
 	struct iphdr *inner_iph = skb->h.ipiph;
 
 	if (INET_ECN_is_ce(outer_iph->tos))
@@ -46,12 +46,12 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct iphdr *iph, *top_iph;
 	int flags;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	skb->h.ipiph = iph;
 
 	skb_push(skb, x->props.header_len);
 	skb_reset_network_header(skb);
-	top_iph = skb->nh.iph;
+	top_iph = ip_hdr(skb);
 
 	top_iph->ihl = 5;
 	top_iph->version = 4;
@@ -91,7 +91,7 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	const unsigned char *old_mac;
 	int err = -EINVAL;
 
@@ -113,7 +113,7 @@ static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 		goto out;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	if (iph->protocol == IPPROTO_IPIP) {
 		if (x->props.flags & XFRM_STATE_DECAP_DSCP)
 			ipv4_copy_dscp(iph, skb->h.ipiph);

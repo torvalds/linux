@@ -32,8 +32,8 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct iphdr *iph, *top_iph = NULL;
 	int hdrlen, optlen;
 
-	iph = skb->nh.iph;
-	skb->h.ipiph = iph;
+	iph = ip_hdr(skb);
+	skb->h.raw = skb->nh.raw;
 
 	hdrlen = 0;
 	optlen = iph->ihl * 4 - sizeof(*iph);
@@ -42,7 +42,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_push(skb, x->props.header_len + hdrlen);
 	skb_reset_network_header(skb);
-	top_iph = skb->nh.iph;
+	top_iph = ip_hdr(skb);
 	skb->h.raw += sizeof(*iph) - hdrlen;
 
 	memmove(top_iph, iph, sizeof(*iph));
@@ -70,7 +70,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	int phlen = 0;
 	int optlen = 0;
 	__u8 ph_nexthdr = 0, protocol = 0;
@@ -102,7 +102,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->h.raw = skb->data + (phlen + optlen);
 	skb->data = skb->h.raw;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	iph->ihl = (sizeof(*iph) + optlen) / 4;
 	iph->tot_len = htons(skb->len + iph->ihl * 4);
 	iph->daddr = x->sel.daddr.a4;

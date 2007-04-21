@@ -116,7 +116,7 @@ static inline int INET_ECN_set_ce(struct sk_buff *skb)
 	case __constant_htons(ETH_P_IP):
 		if (skb_network_header(skb) + sizeof(struct iphdr) <=
 		    skb->tail)
-			return IP_ECN_set_ce(skb->nh.iph);
+			return IP_ECN_set_ce(ip_hdr(skb));
 		break;
 
 	case __constant_htons(ETH_P_IPV6):

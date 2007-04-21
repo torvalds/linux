@@ -34,7 +34,7 @@ static int match(const struct sk_buff *skb,
 		 int *hotdrop)
 {
 	const struct xt_dscp_info *info = matchinfo;
-	u_int8_t dscp = ipv4_get_dsfield(skb->nh.iph) >> XT_DSCP_SHIFT;
+	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	return (dscp == info->dscp) ^ !!info->invert;
 }

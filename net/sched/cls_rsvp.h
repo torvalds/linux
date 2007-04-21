@@ -145,7 +145,7 @@ static int rsvp_classify(struct sk_buff *skb, struct tcf_proto *tp,
 #if RSVP_DST_LEN == 4
 	struct ipv6hdr *nhptr = skb->nh.ipv6h;
 #else
-	struct iphdr *nhptr = skb->nh.iph;
+	struct iphdr *nhptr = ip_hdr(skb);
 #endif
 
 restart:

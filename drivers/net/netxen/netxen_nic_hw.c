@@ -378,9 +378,9 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 					  skb->h.th->doff * 4);
 		netxen_set_cmd_desc_opcode(desc, TX_TCP_LSO);
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		if (skb->nh.iph->protocol == IPPROTO_TCP) {
+		if (ip_hdr(skb)->protocol == IPPROTO_TCP) {
 			netxen_set_cmd_desc_opcode(desc, TX_TCP_PKT);
-		} else if (skb->nh.iph->protocol == IPPROTO_UDP) {
+		} else if (ip_hdr(skb)->protocol == IPPROTO_UDP) {
 			netxen_set_cmd_desc_opcode(desc, TX_UDP_PKT);
 		} else {
 			return;

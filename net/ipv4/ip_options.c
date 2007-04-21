@@ -110,7 +110,7 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 	if (skb->dst)
 		daddr = ((struct rtable*)skb->dst)->rt_spec_dst;
 	else
-		daddr = skb->nh.iph->daddr;
+		daddr = ip_hdr(skb)->daddr;
 
 	if (sopt->rr) {
 		optlen  = sptr[sopt->rr+1];
@@ -180,7 +180,8 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 			/*
 			 * RFC1812 requires to fix illegal source routes.
 			 */
-			if (memcmp(&skb->nh.iph->saddr, &start[soffset+3], 4) == 0)
+			if (memcmp(&ip_hdr(skb)->saddr,
+				   &start[soffset + 3], 4) == 0)
 				doffset -= 4;
 		}
 		if (doffset > 3) {
@@ -269,7 +270,8 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 		optptr = iph + sizeof(struct iphdr);
 		opt->is_data = 0;
 	} else {
-		optptr = opt->is_data ? opt->__data : (unsigned char*)&(skb->nh.iph[1]);
+		optptr = opt->is_data ? opt->__data :
+					(unsigned char *)&(ip_hdr(skb)[1]);
 		iph = optptr - sizeof(struct iphdr);
 	}
 
@@ -587,7 +589,7 @@ void ip_forward_options(struct sk_buff *skb)
 		if (srrptr + 3 <= srrspace) {
 			opt->is_changed = 1;
 			ip_rt_get_source(&optptr[srrptr-1], rt);
-			skb->nh.iph->daddr = rt->rt_dst;
+			ip_hdr(skb)->daddr = rt->rt_dst;
 			optptr[2] = srrptr+4;
 		} else if (net_ratelimit())
 			printk(KERN_CRIT "ip_forward(): Argh! Destination lost!\n");
@@ -599,7 +601,7 @@ void ip_forward_options(struct sk_buff *skb)
 	}
 	if (opt->is_changed) {
 		opt->is_changed = 0;
-		ip_send_check(skb->nh.iph);
+		ip_send_check(ip_hdr(skb));
 	}
 }
 
@@ -608,7 +610,7 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 	struct ip_options *opt = &(IPCB(skb)->opt);
 	int srrspace, srrptr;
 	__be32 nexthop;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	unsigned char *optptr = skb_network_header(skb) + opt->srr;
 	struct rtable *rt = (struct rtable*)skb->dst;
 	struct rtable *rt2;

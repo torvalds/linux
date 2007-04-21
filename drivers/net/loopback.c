@@ -75,7 +75,7 @@ static DEFINE_PER_CPU(struct pcpu_lstats, pcpu_lstats);
 #ifdef LOOPBACK_TSO
 static void emulate_large_send_offload(struct sk_buff *skb)
 {
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th = (struct tcphdr *)(skb_network_header(skb) +
 					      (iph->ihl * 4));
 	unsigned int doffset = (iph->ihl + th->doff) * 4;
@@ -93,7 +93,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
 		skb_reserve(nskb, 32);
 		skb_set_mac_header(nskb, -ETH_HLEN);
 		skb_reset_network_header(nskb);
-		iph = nskb->nh.iph;
+		iph = ip_hdr(nskb);
 		memcpy(nskb->data, skb_network_header(skb), doffset);
 		if (skb_copy_bits(skb,
 				  doffset + offset,
@@ -145,7 +145,7 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 #ifdef LOOPBACK_TSO
 	if (skb_is_gso(skb)) {
 		BUG_ON(skb->protocol != htons(ETH_P_IP));
-		BUG_ON(skb->nh.iph->protocol != IPPROTO_TCP);
+		BUG_ON(ip_hdr(skb)->protocol != IPPROTO_TCP);
 
 		emulate_large_send_offload(skb);
 		return 0;

@@ -112,7 +112,7 @@ static inline struct arp_pkt *arp_pkt(const struct sk_buff *skb)
 /* Forward declaration */
 static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[]);
 
-static inline u8 _simple_hash(u8 *hash_start, int hash_size)
+static inline u8 _simple_hash(const u8 *hash_start, int hash_size)
 {
 	int i;
 	u8 hash = 0;
@@ -1268,7 +1268,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	int hash_size = 0;
 	int do_tx_balance = 1;
 	u32 hash_index = 0;
-	u8 *hash_start = NULL;
+	const u8 *hash_start = NULL;
 	int res = 1;
 
 	skb_reset_mac_header(skb);
@@ -1285,15 +1285,18 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	}
 
 	switch (ntohs(skb->protocol)) {
-	case ETH_P_IP:
+	case ETH_P_IP: {
+		const struct iphdr *iph = ip_hdr(skb);
+
 		if ((memcmp(eth_data->h_dest, mac_bcast, ETH_ALEN) == 0) ||
-		    (skb->nh.iph->daddr == ip_bcast) ||
-		    (skb->nh.iph->protocol == IPPROTO_IGMP)) {
+		    (iph->daddr == ip_bcast) ||
+		    (iph->protocol == IPPROTO_IGMP)) {
 			do_tx_balance = 0;
 			break;
 		}
-		hash_start = (char*)&(skb->nh.iph->daddr);
-		hash_size = sizeof(skb->nh.iph->daddr);
+		hash_start = (char *)&(iph->daddr);
+		hash_size = sizeof(iph->daddr);
+	}
 		break;
 	case ETH_P_IPV6:
 		if (memcmp(eth_data->h_dest, mac_bcast, ETH_ALEN) == 0) {

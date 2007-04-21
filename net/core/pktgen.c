@@ -2391,7 +2391,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 		VLAN_TAG_SIZE(pkt_dev) - SVLAN_TAG_SIZE(pkt_dev);
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
-	skb->nh.iph = iph;
+	skb->nh.raw = (unsigned char *)iph;
 	skb->h.uh = udph;
 
 	if (pkt_dev->nfrags <= 0)

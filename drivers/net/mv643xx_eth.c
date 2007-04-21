@@ -1161,9 +1161,9 @@ static void eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
 
 		cmd_sts |= ETH_GEN_TCP_UDP_CHECKSUM |
 			   ETH_GEN_IP_V_4_CHECKSUM  |
-			   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
+			   ip_hdr(skb)->ihl << ETH_TX_IHL_SHIFT;
 
-		switch (skb->nh.iph->protocol) {
+		switch (ip_hdr(skb)->protocol) {
 		case IPPROTO_UDP:
 			cmd_sts |= ETH_UDP_FRAME;
 			desc->l4i_chk = skb->h.uh->check;

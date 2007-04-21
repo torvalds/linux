@@ -59,7 +59,7 @@ static void ip_cmsg_recv_pktinfo(struct msghdr *msg, struct sk_buff *skb)
 	struct in_pktinfo info;
 	struct rtable *rt = (struct rtable *)skb->dst;
 
-	info.ipi_addr.s_addr = skb->nh.iph->daddr;
+	info.ipi_addr.s_addr = ip_hdr(skb)->daddr;
 	if (rt) {
 		info.ipi_ifindex = rt->rt_iif;
 		info.ipi_spec_dst.s_addr = rt->rt_spec_dst;
@@ -73,13 +73,13 @@ static void ip_cmsg_recv_pktinfo(struct msghdr *msg, struct sk_buff *skb)
 
 static void ip_cmsg_recv_ttl(struct msghdr *msg, struct sk_buff *skb)
 {
-	int ttl = skb->nh.iph->ttl;
+	int ttl = ip_hdr(skb)->ttl;
 	put_cmsg(msg, SOL_IP, IP_TTL, sizeof(int), &ttl);
 }
 
 static void ip_cmsg_recv_tos(struct msghdr *msg, struct sk_buff *skb)
 {
-	put_cmsg(msg, SOL_IP, IP_TOS, 1, &skb->nh.iph->tos);
+	put_cmsg(msg, SOL_IP, IP_TOS, 1, &ip_hdr(skb)->tos);
 }
 
 static void ip_cmsg_recv_opts(struct msghdr *msg, struct sk_buff *skb)
@@ -87,7 +87,8 @@ static void ip_cmsg_recv_opts(struct msghdr *msg, struct sk_buff *skb)
 	if (IPCB(skb)->opt.optlen == 0)
 		return;
 
-	put_cmsg(msg, SOL_IP, IP_RECVOPTS, IPCB(skb)->opt.optlen, skb->nh.iph+1);
+	put_cmsg(msg, SOL_IP, IP_RECVOPTS, IPCB(skb)->opt.optlen,
+		 ip_hdr(skb) + 1);
 }
 
 
@@ -299,7 +300,7 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 
 	skb_put(skb, sizeof(struct iphdr));
 	skb_reset_network_header(skb);
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	iph->daddr = daddr;
 
 	serr = SKB_EXT_ERR(skb);
@@ -369,7 +370,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len)
 		struct inet_sock *inet = inet_sk(sk);
 
 		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = skb->nh.iph->saddr;
+		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
 		sin->sin_port = 0;
 		memset(&sin->sin_zero, 0, sizeof(sin->sin_zero));
 		if (inet->cmsg_flags)

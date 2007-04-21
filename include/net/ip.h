@@ -46,7 +46,7 @@ struct inet_skb_parm
 
 static inline unsigned int ip_hdrlen(const struct sk_buff *skb)
 {
-	return skb->nh.iph->ihl * 4;
+	return ip_hdr(skb)->ihl * 4;
 }
 
 struct ipcm_cookie

@@ -479,7 +479,7 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		goto err;
 	}
 
-	offset = ntohs(skb->nh.iph->frag_off);
+	offset = ntohs(ip_hdr(skb)->frag_off);
 	flags = offset & ~IP_OFFSET;
 	offset &= IP_OFFSET;
 	offset <<= 3;		/* offset is in 8-byte chunks */
@@ -676,7 +676,7 @@ static struct sk_buff *ip_frag_reasm(struct ipq *qp, struct net_device *dev)
 	head->dev = dev;
 	head->tstamp = qp->stamp;
 
-	iph = head->nh.iph;
+	iph = ip_hdr(head);
 	iph->frag_off = 0;
 	iph->tot_len = htons(len);
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMOKS);
@@ -700,7 +700,6 @@ out_fail:
 /* Process an incoming IP datagram fragment. */
 struct sk_buff *ip_defrag(struct sk_buff *skb, u32 user)
 {
-	struct iphdr *iph = skb->nh.iph;
 	struct ipq *qp;
 	struct net_device *dev;
 
@@ -713,7 +712,7 @@ struct sk_buff *ip_defrag(struct sk_buff *skb, u32 user)
 	dev = skb->dev;
 
 	/* Lookup (or create) queue header */
-	if ((qp = ip_find(iph, user)) != NULL) {
+	if ((qp = ip_find(ip_hdr(skb), user)) != NULL) {
 		struct sk_buff *ret = NULL;
 
 		spin_lock(&qp->lock);

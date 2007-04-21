@@ -267,7 +267,7 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 		/* fill in the specifics */
 		candidate->addr.sin_family	= AF_INET;
 		candidate->addr.sin_port	= x_port;
-		candidate->addr.sin_addr.s_addr = pkt->nh.iph->saddr;
+		candidate->addr.sin_addr.s_addr = ip_hdr(pkt)->saddr;
 		candidate->in_epoch		= x_epoch;
 		candidate->out_epoch		= x_epoch;
 		candidate->in_clientflag	= RXRPC_CLIENT_INITIATED;

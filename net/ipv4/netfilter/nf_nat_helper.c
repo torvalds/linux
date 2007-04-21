@@ -87,7 +87,7 @@ static void mangle_contents(struct sk_buff *skb,
 	unsigned char *data;
 
 	BUG_ON(skb_is_nonlinear(skb));
-	data = (unsigned char *)skb->nh.iph + dataoff;
+	data = skb_network_header(skb) + dataoff;
 
 	/* move post-replacement */
 	memmove(data + match_offset + rep_len,
@@ -111,8 +111,8 @@ static void mangle_contents(struct sk_buff *skb,
 	}
 
 	/* fix IP hdr checksum information */
-	skb->nh.iph->tot_len = htons(skb->len);
-	ip_send_check(skb->nh.iph);
+	ip_hdr(skb)->tot_len = htons(skb->len);
+	ip_send_check(ip_hdr(skb));
 }
 
 /* Unusual, but possible case. */
@@ -166,7 +166,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 
 	SKB_LINEAR_ASSERT(*pskb);
 
-	iph = (*pskb)->nh.iph;
+	iph = ip_hdr(*pskb);
 	tcph = (void *)iph + iph->ihl*4;
 
 	oldlen = (*pskb)->len - iph->ihl*4;
@@ -221,7 +221,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 	int datalen, oldlen;
 
 	/* UDP helpers might accidentally mangle the wrong packet */
-	iph = (*pskb)->nh.iph;
+	iph = ip_hdr(*pskb);
 	if ((*pskb)->len < iph->ihl*4 + sizeof(*udph) +
 			       match_offset + match_len)
 		return 0;
@@ -234,7 +234,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 	    !enlarge_skb(pskb, rep_len - match_len))
 		return 0;
 
-	iph = (*pskb)->nh.iph;
+	iph = ip_hdr(*pskb);
 	udph = (void *)iph + iph->ihl*4;
 
 	oldlen = (*pskb)->len - iph->ihl*4;

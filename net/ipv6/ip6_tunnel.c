@@ -526,7 +526,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	skb2->dst = NULL;
 	skb_pull(skb2, offset);
 	skb_reset_network_header(skb2);
-	eiph = skb2->nh.iph;
+	eiph = ip_hdr(skb2);
 
 	/* Try to guess incoming interface */
 	memset(&fl, 0, sizeof(fl));
@@ -625,10 +625,10 @@ static void ip4ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
 	__u8 dsfield = ipv6_get_dsfield(ipv6h) & ~INET_ECN_MASK;
 
 	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
-		ipv4_change_dsfield(skb->nh.iph, INET_ECN_MASK, dsfield);
+		ipv4_change_dsfield(ip_hdr(skb), INET_ECN_MASK, dsfield);
 
 	if (INET_ECN_is_ce(dsfield))
-		IP_ECN_set_ce(skb->nh.iph);
+		IP_ECN_set_ce(ip_hdr(skb));
 }
 
 static void ip6ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
@@ -944,7 +944,7 @@ static inline int
 ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
-	struct iphdr  *iph = skb->nh.iph;
+	struct iphdr  *iph = ip_hdr(skb);
 	int encap_limit = -1;
 	struct flowi fl;
 	__u8 dsfield;

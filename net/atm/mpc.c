@@ -715,7 +715,7 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	new_skb->protocol = eth_type_trans(new_skb, dev);
 	skb_reset_network_header(new_skb);
 
-	eg->latest_ip_addr = new_skb->nh.iph->saddr;
+	eg->latest_ip_addr = ip_hdr(new_skb)->saddr;
 	eg->packets_rcvd++;
 	mpc->eg_ops->put(eg);
 

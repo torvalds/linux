@@ -46,7 +46,7 @@ static int set_addr(struct sk_buff **pskb,
 	buf.port = htons(port);
 	addroff += dataoff;
 
-	if ((*pskb)->nh.iph->protocol == IPPROTO_TCP) {
+	if (ip_hdr(*pskb)->protocol == IPPROTO_TCP) {
 		if (!ip_nat_mangle_tcp_packet(pskb, ct, ctinfo,
 					      addroff, sizeof(buf),
 					      (char *) &buf, sizeof(buf))) {

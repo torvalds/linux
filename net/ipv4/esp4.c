@@ -58,7 +58,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	pskb_put(skb, trailer, clen - skb->len);
 
 	__skb_push(skb, skb->data - skb_network_header(skb));
-	top_iph = skb->nh.iph;
+	top_iph = ip_hdr(skb);
 	esph = (struct ip_esp_hdr *)(skb_network_header(skb) +
 				     top_iph->ihl * 4);
 	top_iph->tot_len = htons(skb->len + alen);
@@ -218,7 +218,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* ... check padding bits here. Silly. :-) */
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	ihl = iph->ihl * 4;
 
 	if (x->encap) {

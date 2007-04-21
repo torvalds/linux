@@ -315,7 +315,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 
 	skb_reset_network_header(skb);
-	pip = skb->nh.iph;
+	pip = ip_hdr(skb);
 	skb_put(skb, sizeof(struct iphdr) + 4);
 
 	pip->version  = 4;
@@ -345,16 +345,14 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 
 static int igmpv3_sendpack(struct sk_buff *skb)
 {
-	struct iphdr *pip = skb->nh.iph;
+	struct iphdr *pip = ip_hdr(skb);
 	struct igmphdr *pig = skb->h.igmph;
-	int iplen, igmplen;
+	const int iplen = skb->tail - skb->nh.raw;
+	const int igmplen = skb->tail - skb->h.raw;
 
-	iplen = skb->tail - (unsigned char *)skb->nh.iph;
 	pip->tot_len = htons(iplen);
 	ip_send_check(pip);
-
-	igmplen = skb->tail - (unsigned char *)skb->h.igmph;
-	pig->csum = ip_compute_csum((void *)skb->h.igmph, igmplen);
+	pig->csum = ip_compute_csum(skb->h.igmph, igmplen);
 
 	return NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, skb, NULL, skb->dev,
 		       dst_output);
@@ -667,7 +665,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 
 	skb_reset_network_header(skb);
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	skb_put(skb, sizeof(struct iphdr) + 4);
 
 	iph->version  = 4;

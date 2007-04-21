@@ -131,6 +131,7 @@ ipt_local_hook(unsigned int hook,
 		   int (*okfn)(struct sk_buff *))
 {
 	unsigned int ret;
+	const struct iphdr *iph;
 	u_int8_t tos;
 	__be32 saddr, daddr;
 	u_int32_t mark;
@@ -145,19 +146,23 @@ ipt_local_hook(unsigned int hook,
 
 	/* Save things which could affect route */
 	mark = (*pskb)->mark;
-	saddr = (*pskb)->nh.iph->saddr;
-	daddr = (*pskb)->nh.iph->daddr;
-	tos = (*pskb)->nh.iph->tos;
+	iph = ip_hdr(*pskb);
+	saddr = iph->saddr;
+	daddr = iph->daddr;
+	tos = iph->tos;
 
 	ret = ipt_do_table(pskb, hook, in, out, &packet_mangler);
 	/* Reroute for ANY change. */
-	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE
-	    && ((*pskb)->nh.iph->saddr != saddr
-		|| (*pskb)->nh.iph->daddr != daddr
-		|| (*pskb)->mark != mark
-		|| (*pskb)->nh.iph->tos != tos))
-		if (ip_route_me_harder(pskb, RTN_UNSPEC))
-			ret = NF_DROP;
+	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE) {
+		iph = ip_hdr(*pskb);
+
+		if (iph->saddr != saddr ||
+		    iph->daddr != daddr ||
+		    (*pskb)->mark != mark ||
+		    iph->tos != tos)
+			if (ip_route_me_harder(pskb, RTN_UNSPEC))
+				ret = NF_DROP;
+	}
 
 	return ret;
 }

@@ -577,7 +577,6 @@ static const struct file_operations ip_vs_app_fops = {
 int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 		      char *o_buf, int o_len, char *n_buf, int n_len)
 {
-	struct iphdr *iph;
 	int diff;
 	int o_offset;
 	int o_left;
@@ -607,8 +606,7 @@ int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 	}
 
 	/* must update the iph total length here */
-	iph = skb->nh.iph;
-	iph->tot_len = htons(skb->len);
+	ip_hdr(skb)->tot_len = htons(skb->len);
 
 	LeaveFunction(9);
 	return 0;

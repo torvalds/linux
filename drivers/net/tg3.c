@@ -3909,12 +3909,13 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
 			mss |= (skb_headlen(skb) - ETH_HLEN) << 9;
 		else {
+			struct iphdr *iph = ip_hdr(skb);
+
 			tcp_opt_len = ((skb->h.th->doff - 5) * 4);
 			ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
-			skb->nh.iph->check = 0;
-			skb->nh.iph->tot_len = htons(mss + ip_tcp_len +
-						     tcp_opt_len);
+			iph->check = 0;
+			iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
 			mss |= (ip_tcp_len + tcp_opt_len) << 9;
 		}
 
@@ -4055,6 +4056,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
 	    (mss = skb_shinfo(skb)->gso_size) != 0) {
+		struct iphdr *iph;
 		int tcp_opt_len, ip_tcp_len, hdr_len;
 
 		if (skb_header_cloned(skb) &&
@@ -4074,34 +4076,32 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
 
-		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = htons(mss + hdr_len);
+		iph = ip_hdr(skb);
+		iph->check = 0;
+		iph->tot_len = htons(mss + hdr_len);
 		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
 			skb->h.th->check = 0;
 			base_flags &= ~TXD_FLAG_TCPUDP_CSUM;
 		}
 		else {
-			skb->h.th->check =
-				~csum_tcpudp_magic(skb->nh.iph->saddr,
-						   skb->nh.iph->daddr,
-						   0, IPPROTO_TCP, 0);
+			skb->h.th->check = ~csum_tcpudp_magic(iph->saddr,
+							      iph->daddr, 0,
+							      IPPROTO_TCP, 0);
 		}
 
 		if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO) ||
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705)) {
-			if (tcp_opt_len || skb->nh.iph->ihl > 5) {
+			if (tcp_opt_len || iph->ihl > 5) {
 				int tsflags;
 
-				tsflags = ((skb->nh.iph->ihl - 5) +
-					   (tcp_opt_len >> 2));
+				tsflags = (iph->ihl - 5) + (tcp_opt_len >> 2);
 				mss |= (tsflags << 11);
 			}
 		} else {
-			if (tcp_opt_len || skb->nh.iph->ihl > 5) {
+			if (tcp_opt_len || iph->ihl > 5) {
 				int tsflags;
 
-				tsflags = ((skb->nh.iph->ihl - 5) +
-					   (tcp_opt_len >> 2));
+				tsflags = (iph->ihl - 5) + (tcp_opt_len >> 2);
 				base_flags |= tsflags << 12;
 			}
 		}

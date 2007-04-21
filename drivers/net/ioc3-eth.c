@@ -1393,9 +1393,9 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * manually.
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		int proto = ntohs(skb->nh.iph->protocol);
+		const struct iphdr *ih = ip_hdr(skb);
+		const int proto = ntohs(ih->protocol);
 		unsigned int csoff;
-		struct iphdr *ih = skb->nh.iph;
 		uint32_t csum, ehsum;
 		uint16_t *eh;
 

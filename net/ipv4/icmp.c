@@ -392,7 +392,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	icmp_param->data.icmph.checksum = 0;
 	icmp_out_count(icmp_param->data.icmph.type);
 
-	inet->tos = skb->nh.iph->tos;
+	inet->tos = ip_hdr(skb)->tos;
 	daddr = ipc.addr = rt->rt_src;
 	ipc.opt = NULL;
 	if (icmp_param->replyopts.optlen) {
@@ -404,7 +404,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 		struct flowi fl = { .nl_u = { .ip4_u =
 					      { .daddr = daddr,
 						.saddr = rt->rt_spec_dst,
-						.tos = RT_TOS(skb->nh.iph->tos) } },
+						.tos = RT_TOS(ip_hdr(skb)->tos) } },
 				    .proto = IPPROTO_ICMP };
 		security_skb_classify_flow(skb, &fl);
 		if (ip_route_output_key(&rt, &fl))
@@ -448,7 +448,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	 *	Check this, icmp_send is called from the most obscure devices
 	 *	sometimes.
 	 */
-	iph = skb_in->nh.iph;
+	iph = ip_hdr(skb_in);
 
 	if ((u8 *)iph < skb_in->head || (u8 *)(iph + 1) > skb_in->tail)
 		goto out;
@@ -676,7 +676,7 @@ static void icmp_unreach(struct sk_buff *skb)
 			printk(KERN_WARNING "%u.%u.%u.%u sent an invalid ICMP "
 					    "type %u, code %u "
 					    "error to a broadcast: %u.%u.%u.%u on %s\n",
-			       NIPQUAD(skb->nh.iph->saddr),
+			       NIPQUAD(ip_hdr(skb)->saddr),
 			       icmph->type, icmph->code,
 			       NIPQUAD(iph->daddr),
 			       skb->dev->name);
@@ -751,7 +751,7 @@ static void icmp_redirect(struct sk_buff *skb)
 		 */
 	case ICMP_REDIR_HOST:
 	case ICMP_REDIR_HOSTTOS:
-		ip_rt_redirect(skb->nh.iph->saddr, iph->daddr,
+		ip_rt_redirect(ip_hdr(skb)->saddr, iph->daddr,
 			       skb->h.icmph->un.gateway,
 			       iph->saddr, skb->dev);
 		break;
