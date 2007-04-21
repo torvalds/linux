@@ -1402,8 +1402,8 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 	struct irda_sock *self = irda_sk(sk);
 	int noblock = flags & MSG_DONTWAIT;
 	size_t copied = 0;
-	int target = 1;
-	DECLARE_WAITQUEUE(waitq, current);
+	int target;
+	long timeo;
 
 	IRDA_DEBUG(3, "%s()\n", __FUNCTION__);
 
@@ -1416,8 +1416,8 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
-	if (flags & MSG_WAITALL)
-		target = size;
+	target = sock_rcvlowat(sk, flags & MSG_WAITALL, size);
+	timeo = sock_rcvtimeo(sk, noblock);
 
 	msg->msg_namelen = 0;
 
@@ -1425,19 +1425,14 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 		int chunk;
 		struct sk_buff *skb = skb_dequeue(&sk->sk_receive_queue);
 
-		if (skb==NULL) {
+		if (skb == NULL) {
+			DEFINE_WAIT(wait);
 			int ret = 0;
 
 			if (copied >= target)
 				break;
 
-			/* The following code is a cut'n'paste of the
-			 * wait_event_interruptible() macro.
-			 * We don't us the macro because the test condition
-			 * is messy. - Jean II */
-			set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
-			add_wait_queue(sk->sk_sleep, &waitq);
-			set_current_state(TASK_INTERRUPTIBLE);
+			prepare_to_wait_exclusive(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 
 			/*
 			 *	POSIX 1003.1g mandates this order.
@@ -1450,17 +1445,17 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 			else if (noblock)
 				ret = -EAGAIN;
 			else if (signal_pending(current))
-				ret = -ERESTARTSYS;
+				ret = sock_intr_errno(timeo);
+			else if (sk->sk_state != TCP_ESTABLISHED)
+				ret = -ENOTCONN;
 			else if (skb_peek(&sk->sk_receive_queue) == NULL)
 				/* Wait process until data arrives */
 				schedule();
 
-			current->state = TASK_RUNNING;
-			remove_wait_queue(sk->sk_sleep, &waitq);
-			clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+			finish_wait(sk->sk_sleep, &wait);
 
-			if(ret)
-				return(ret);
+			if (ret)
+				return ret;
 			if (sk->sk_shutdown & RCV_SHUTDOWN)
 				break;
 
