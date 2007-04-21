@@ -1630,7 +1630,7 @@ int ndisc_rcv(struct sk_buff *skb)
 	case NDISC_REDIRECT:
 		ndisc_redirect_rcv(skb);
 		break;
-	};
+	}
 
 	return 0;
 }

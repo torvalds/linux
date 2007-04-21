@@ -1049,7 +1049,7 @@ static inline int policy_to_flow_dir(int dir)
 		return FLOW_DIR_OUT;
 	case XFRM_POLICY_FWD:
 		return FLOW_DIR_FWD;
-	};
+	}
 }
 
 static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir, struct flowi *fl)

@@ -2708,7 +2708,7 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 		default:
 			tcp_ratehalving_spur_to_response(sk);
 			break;
-		};
+		}
 		tp->frto_counter = 0;
 	}
 	return 0;
@@ -2915,10 +2915,11 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					 */
 					break;
 #endif
-				};
+				}
+
 				ptr+=opsize-2;
 				length-=opsize;
-		};
+		}
 	}
 }
 
@@ -3124,7 +3125,7 @@ static void tcp_fin(struct sk_buff *skb, struct sock *sk, struct tcphdr *th)
 			printk(KERN_ERR "%s: Impossible, sk->sk_state=%d\n",
 			       __FUNCTION__, sk->sk_state);
 			break;
-	};
+	}
 
 	/* It _is_ possible, that we have something out-of-order _after_ FIN.
 	 * Probably, we should reset in this case. For now drop them.

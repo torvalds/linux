@@ -240,7 +240,8 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		if (!afinfo) {
 			dst = *dst_p;
 			goto error;
-		};
+		}
+
 		dst_prev->output = afinfo->output;
 		xfrm_state_put_afinfo(afinfo);
 		/* Sheit... I remember I did this right. Apparently,
@@ -337,7 +338,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 			fl->fl_ipsec_spi = 0;
 			fl->proto = nexthdr;
 			return;
-		};
+		}
 	}
 }
 

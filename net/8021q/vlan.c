@@ -470,7 +470,7 @@ static struct net_device *register_vlan_device(const char *eth_IF_name,
 		 */
 	default:
 		snprintf(name, IFNAMSIZ, "vlan%.4i", VLAN_ID);
-	};
+	}
 
 	new_dev = alloc_netdev(sizeof(struct vlan_dev_info), name,
 			       vlan_setup);
@@ -685,7 +685,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 				break;
 		}
 		break;
-	};
+	}
 
 out:
 	return NOTIFY_DONE;
@@ -819,7 +819,7 @@ static int vlan_ioctl_handler(void __user *arg)
 		printk(VLAN_DBG "%s: Unknown VLAN CMD: %x \n",
 			__FUNCTION__, args.cmd);
 		return -EINVAL;
-	};
+	}
 out:
 	return err;
 }

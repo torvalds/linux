@@ -220,7 +220,7 @@ static void irda_connect_confirm(void *instance, void *sap,
 		break;
 	default:
 		self->max_data_size = irttp_get_max_seg_size(self->tsap);
-	};
+	}
 
 	IRDA_DEBUG(2, "%s(), max_data_size=%d\n", __FUNCTION__,
 		   self->max_data_size);
@@ -283,7 +283,7 @@ static void irda_connect_indication(void *instance, void *sap,
 		break;
 	default:
 		self->max_data_size = irttp_get_max_seg_size(self->tsap);
-	};
+	}
 
 	IRDA_DEBUG(2, "%s(), max_data_size=%d\n", __FUNCTION__,
 		   self->max_data_size);

@@ -149,7 +149,7 @@ static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev,
 	default:
 		err = -ETIMEDOUT;
 		break;
-	};
+	}
 
 	hdev->req_status = hdev->req_result = 0;
 
@@ -1388,7 +1388,7 @@ static void hci_rx_task(unsigned long arg)
 			case HCI_SCODATA_PKT:
 				kfree_skb(skb);
 				continue;
-			};
+			}
 		}
 
 		/* Process frame */

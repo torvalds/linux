@@ -436,7 +436,7 @@ static void u32_destroy(struct tcf_proto *tp)
 			BUG_TRAP(ht->refcnt == 0);
 
 			kfree(ht);
-		};
+		}
 
 		kfree(tp_c);
 	}

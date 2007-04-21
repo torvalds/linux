@@ -629,7 +629,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 		case -SCTP_IERROR_BAD_SIG:
 		default:
 			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
-		};
+		}
 	}
 
 
@@ -1195,7 +1195,7 @@ static void sctp_tietags_populate(struct sctp_association *new_asoc,
 		new_asoc->c.my_ttag   = asoc->c.my_vtag;
 		new_asoc->c.peer_ttag = asoc->c.peer_vtag;
 		break;
-	};
+	}
 
 	/* Other parameters for the endpoint SHOULD be copied from the
 	 * existing parameters of the association (e.g. number of
@@ -1904,7 +1904,7 @@ sctp_disposition_t sctp_sf_do_5_2_4_dupcook(const struct sctp_endpoint *ep,
 		case -SCTP_IERROR_BAD_SIG:
 		default:
 			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
-		};
+		}
 	}
 
 	/* Compare the tie_tag in cookie with the verification tag of
@@ -1936,7 +1936,7 @@ sctp_disposition_t sctp_sf_do_5_2_4_dupcook(const struct sctp_endpoint *ep,
 	default: /* Discard packet for all others. */
 		retval = sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 		break;
-	};
+	}
 
 	/* Delete the tempory new association. */
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_ASOC, SCTP_ASOC(new_asoc));
@@ -4816,7 +4816,7 @@ sctp_disposition_t sctp_sf_t2_timer_expire(const struct sctp_endpoint *ep,
 	default:
 		BUG();
 		break;
-	};
+	}
 
 	if (!reply)
 		goto nomem;

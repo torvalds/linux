@@ -2288,7 +2288,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 		default:
 			addrconf_dev_config(dev);
 			break;
-		};
+		}
 		if (idev) {
 			if (run_pending)
 				addrconf_dad_run(idev);
@@ -2341,7 +2341,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 		}
 #endif
 		break;
-	};
+	}
 
 	return NOTIFY_OK;
 }

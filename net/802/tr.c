@@ -554,7 +554,8 @@ static int rif_seq_show(struct seq_file *seq, void *v)
 					if(j==1) {
 						segment=ntohs(entry->rseg[j-1])>>4;
 						seq_printf(seq,"  %03X",segment);
-					};
+					}
+
 					segment=ntohs(entry->rseg[j])>>4;
 					brdgnmb=ntohs(entry->rseg[j-1])&0x00f;
 					seq_printf(seq,"-%01X-%03X",brdgnmb,segment);

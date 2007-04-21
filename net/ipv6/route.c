@@ -1760,7 +1760,7 @@ int ipv6_route_ioctl(unsigned int cmd, void __user *arg)
 		rtnl_unlock();
 
 		return err;
-	};
+	}
 
 	return -EINVAL;
 }

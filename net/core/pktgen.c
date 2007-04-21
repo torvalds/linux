@@ -786,7 +786,7 @@ static int count_trail_chars(const char __user * user_buffer,
 			break;
 		default:
 			goto done;
-		};
+		}
 	}
 done:
 	return i;
@@ -829,7 +829,7 @@ static int strn_len(const char __user * user_buffer, unsigned int maxlen)
 			break;
 		default:
 			break;
-		};
+		}
 	}
 done_str:
 	return i;
@@ -1906,7 +1906,7 @@ static int pktgen_device_event(struct notifier_block *unused,
 	case NETDEV_UNREGISTER:
 		pktgen_mark_device(dev->name);
 		break;
-	};
+	}
 
 	return NOTIFY_DONE;
 }

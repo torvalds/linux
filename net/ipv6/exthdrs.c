@@ -130,7 +130,7 @@ static int ip6_tlvopt_unknown(struct sk_buff **skbp, int optoff)
 	case 2: /* send ICMP PARM PROB regardless and drop packet */
 		icmpv6_param_prob(skb, ICMPV6_UNK_OPTION, optoff);
 		return 0;
-	};
+	}
 
 	kfree_skb(skb);
 	return 0;

@@ -71,7 +71,7 @@ static int verify_one_alg(struct rtattr **xfrma, enum xfrm_attr_type_t type)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	algp->alg_name[CRYPTO_MAX_ALG_NAME - 1] = '\0';
 	return 0;
@@ -152,7 +152,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 
 	default:
 		goto out;
-	};
+	}
 
 	err = -EINVAL;
 	switch (p->id.proto) {
@@ -192,7 +192,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 
 	default:
 		goto out;
-	};
+	}
 
 	if ((err = verify_one_alg(xfrma, XFRMA_ALG_AUTH)))
 		goto out;
@@ -217,7 +217,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 
 	default:
 		goto out;
-	};
+	}
 
 	err = 0;
 
@@ -711,7 +711,7 @@ static int verify_userspi_info(struct xfrm_userspi_info *p)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	if (p->min > p->max)
 		return -EINVAL;
@@ -789,7 +789,7 @@ static int verify_policy_dir(u8 dir)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
@@ -805,7 +805,7 @@ static int verify_policy_type(u8 type)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
@@ -821,7 +821,7 @@ static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	switch (p->action) {
 	case XFRM_POLICY_ALLOW:
@@ -830,7 +830,7 @@ static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	switch (p->sel.family) {
 	case AF_INET:
@@ -845,7 +845,7 @@ static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return verify_policy_dir(p->dir);
 }
@@ -912,7 +912,7 @@ static int validate_tmpl(int nr, struct xfrm_user_tmpl *ut, u16 family)
 #endif
 		default:
 			return -EINVAL;
-		};
+		}
 	}
 
 	return 0;

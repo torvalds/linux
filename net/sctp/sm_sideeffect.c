@@ -1009,7 +1009,7 @@ static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
 		       status, state, event_type, subtype.chunk);
 		BUG();
 		break;
-	};
+	}
 
 bail:
 	return error;
@@ -1489,7 +1489,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			printk(KERN_WARNING "Impossible command: %u, %p\n",
 			       cmd->verb, cmd->obj.ptr);
 			break;
-		};
+		}
+
 		if (error)
 			break;
 	}

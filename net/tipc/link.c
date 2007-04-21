@@ -2570,7 +2570,7 @@ void tipc_link_recv_bundle(struct sk_buff *buf)
 		if (obuf == NULL) {
 			warn("Link unable to unbundle message(s)\n");
 			break;
-		};
+		}
 		pos += align(msg_size(buf_msg(obuf)));
 		msg_dbg(buf_msg(obuf), "     /");
 		tipc_net_route_msg(obuf);

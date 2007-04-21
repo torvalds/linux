@@ -941,7 +941,7 @@ SCTP_STATIC int sctp_setsockopt_bindx(struct sock* sk,
 	default:
 		err = -EINVAL;
 		break;
-	};
+	}
 
 out:
 	kfree(kaddrs);
@@ -3048,7 +3048,7 @@ SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
 	default:
 		retval = -ENOPROTOOPT;
 		break;
-	};
+	}
 
 	sctp_release_sock(sk);
 
@@ -4873,7 +4873,7 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 	default:
 		retval = -ENOPROTOOPT;
 		break;
-	};
+	}
 
 	sctp_release_sock(sk);
 	return retval;
@@ -5198,7 +5198,8 @@ int sctp_inet_listen(struct socket *sock, int backlog)
 		break;
 	default:
 		break;
-	};
+	}
+
 	if (err)
 		goto cleanup;
 
@@ -5461,7 +5462,7 @@ SCTP_STATIC int sctp_msghdr_parse(const struct msghdr *msg,
 
 		default:
 			return -EINVAL;
-		};
+		}
 	}
 	return 0;
 }

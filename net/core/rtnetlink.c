@@ -399,7 +399,7 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 		    operstate == IF_OPER_UNKNOWN)
 			operstate = IF_OPER_DORMANT;
 		break;
-	};
+	}
 
 	if (dev->operstate != operstate) {
 		write_lock_bh(&dev_base_lock);

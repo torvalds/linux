@@ -62,7 +62,7 @@ prio_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 			*qerr = NET_XMIT_SUCCESS;
 		case TC_ACT_SHOT:
 			return NULL;
-		};
+		}
 
 		if (!q->filter_list ) {
 #else

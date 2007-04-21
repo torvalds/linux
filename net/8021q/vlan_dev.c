@@ -66,7 +66,7 @@ int vlan_dev_rebuild_header(struct sk_buff *skb)
 
 		memcpy(veth->h_source, dev->dev_addr, ETH_ALEN);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -219,7 +219,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		break;
 	default:
 		break;
-	};
+	}
 
 	/*  Was a VLAN packet, grab the encapsulated protocol, which the layer
 	 * three protocols care about.

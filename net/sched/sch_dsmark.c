@@ -226,7 +226,7 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 			default:
 				skb->tc_index = 0;
 				break;
-		};
+		}
 	}
 
 	if (TC_H_MAJ(skb->priority) == sch->handle)
@@ -257,7 +257,7 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 				if (p->default_index != NO_DEFAULT_INDEX)
 					skb->tc_index = p->default_index;
 				break;
-		};
+		}
 	}
 
 	err = p->q->enqueue(skb,p->q);
@@ -310,7 +310,7 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 				       "unsupported protocol %d\n",
 				       ntohs(skb->protocol));
 			break;
-	};
+	}
 
 	return skb;
 }

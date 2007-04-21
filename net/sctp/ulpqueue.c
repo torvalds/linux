@@ -391,7 +391,7 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *qu
 			break;
 		pos->next = pnext;
 		pos = pnext;
-	};
+	}
 
 	event = sctp_skb2event(f_frag);
 	SCTP_INC_STATS(SCTP_MIB_REASMUSRMSGS);
@@ -476,7 +476,7 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_u
 			else
 				first_frag = NULL;
 			break;
-		};
+		}
 	}
 
 	asoc = ulpq->asoc;
@@ -556,7 +556,7 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_partial(struct sctp_ulpq 
 			goto done;
 		default:
 			return NULL;
-		};
+		}
 	}
 
 	/* We have the reassembled event. There is no need to look
@@ -648,7 +648,7 @@ static inline struct sctp_ulpevent *sctp_ulpq_retrieve_first(struct sctp_ulpq *u
 			break;
 		default:
 			return NULL;
-		};
+		}
 	}
 
 	/* We have the reassembled event. There is no need to look

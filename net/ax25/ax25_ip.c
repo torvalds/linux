@@ -121,7 +121,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 		digipeat = route->digipeat;
 		dev = route->dev;
 		ip_mode = route->ip_mode;
-	};
+	}
 
 	if (dev == NULL)
 		dev = skb->dev;

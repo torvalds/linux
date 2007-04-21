@@ -723,7 +723,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 				       cmsg->cmsg_type);
 			err = -EINVAL;
 			break;
-		};
+		}
 	}
 
 exit_f:

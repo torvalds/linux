@@ -2077,7 +2077,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 
 			default: /* Just ignore anything else.  */
 				break;
-			};
+			}
 		}
 		break;
 
@@ -2118,7 +2118,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 		SCTP_DEBUG_PRINTK("Ignoring param: %d for association %p.\n",
 				  ntohs(param.p->type), asoc);
 		break;
-	};
+	}
 
 	return retval;
 }

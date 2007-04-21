@@ -444,7 +444,7 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		break;
 	default:
 		return -ENOIOCTLCMD;
-	};
+	}
 
 	return put_user(answ, (int __user *)arg);
 }
@@ -1954,7 +1954,8 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	default:
 		err = -ENOPROTOOPT;
 		break;
-	};
+	}
+
 	release_sock(sk);
 	return err;
 }
@@ -2124,7 +2125,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		return 0;
 	default:
 		return -ENOPROTOOPT;
-	};
+	}
 
 	if (put_user(len, optlen))
 		return -EFAULT;

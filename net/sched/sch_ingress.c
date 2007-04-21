@@ -170,7 +170,7 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 			skb->tc_index = TC_H_MIN(res.classid);
 			result = TC_ACT_OK;
 			break;
-	};
+	}
 /* backward compat */
 #else
 #ifdef	CONFIG_NET_CLS_POLICE
@@ -187,7 +187,7 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 		sch->bstats.bytes += skb->len;
 		result = NF_ACCEPT;
 		break;
-	};
+	}
 
 #else
 	D2PRINTK("Overriding result to ACCEPT\n");

@@ -604,7 +604,7 @@ static sctp_scope_t sctp_v6_scope(union sctp_addr *addr)
 	default:
 		retval = SCTP_SCOPE_GLOBAL;
 		break;
-	};
+	}
 
 	return retval;
 }

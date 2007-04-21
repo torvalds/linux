@@ -379,7 +379,7 @@ static int verify_address_len(void *p)
 		 */
 		return -EINVAL;
 		break;
-	};
+	}
 
 	return 0;
 }

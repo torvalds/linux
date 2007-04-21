@@ -304,7 +304,7 @@ void kfree_skbmem(struct sk_buff *skb)
 		if (atomic_dec_and_test(fclone_ref))
 			kmem_cache_free(skbuff_fclone_cache, other);
 		break;
-	};
+	}
 }
 
 /**

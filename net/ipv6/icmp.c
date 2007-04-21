@@ -732,7 +732,8 @@ static int icmpv6_rcv(struct sk_buff **pskb)
 		 */
 
 		icmpv6_notify(skb, type, hdr->icmp6_code, hdr->icmp6_mtu);
-	};
+	}
+
 	kfree_skb(skb);
 	return 0;
 
@@ -865,7 +866,7 @@ int icmpv6_err_convert(int type, int code, int *err)
 	case ICMPV6_TIME_EXCEED:
 		*err = EHOSTUNREACH;
 		break;
-	};
+	}
 
 	return fatal;
 }

@@ -939,7 +939,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 					if (opt[1] >= 4)
 						memcpy(&server_id, opt + 2, 4);
 					break;
-				};
+				}
 			}
 
 #ifdef IPCONFIG_DEBUG
@@ -984,7 +984,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 				ic_myaddr = NONE;
 				ic_servaddr = NONE;
 				goto drop_unlock;
-			};
+			}
 
 			ic_dhcp_msgtype = mt;
 

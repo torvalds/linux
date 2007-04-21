@@ -263,7 +263,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 		default:
 			fl->fl_ipsec_spi = 0;
 			break;
-		};
+		}
 	}
 	fl->proto = iph->protocol;
 	fl->fl4_dst = iph->daddr;

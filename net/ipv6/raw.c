@@ -882,7 +882,7 @@ static int rawv6_seticmpfilter(struct sock *sk, int level, int optname,
 		return 0;
 	default:
 		return -ENOPROTOOPT;
-	};
+	}
 
 	return 0;
 }
@@ -907,7 +907,7 @@ static int rawv6_geticmpfilter(struct sock *sk, int level, int optname,
 		return 0;
 	default:
 		return -ENOPROTOOPT;
-	};
+	}
 
 	return 0;
 }
@@ -961,7 +961,8 @@ static int rawv6_setsockopt(struct sock *sk, int level, int optname,
 		default:
 			return ipv6_setsockopt(sk, level, optname, optval,
 					       optlen);
-	};
+	}
+
 	return do_rawv6_setsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -982,7 +983,7 @@ static int compat_rawv6_setsockopt(struct sock *sk, int level, int optname,
 	default:
 		return compat_ipv6_setsockopt(sk, level, optname,
 					      optval, optlen);
-	};
+	}
 	return do_rawv6_setsockopt(sk, level, optname, optval, optlen);
 }
 #endif
@@ -1035,7 +1036,8 @@ static int rawv6_getsockopt(struct sock *sk, int level, int optname,
 		default:
 			return ipv6_getsockopt(sk, level, optname, optval,
 					       optlen);
-	};
+	}
+
 	return do_rawv6_getsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -1056,7 +1058,7 @@ static int compat_rawv6_getsockopt(struct sock *sk, int level, int optname,
 	default:
 		return compat_ipv6_getsockopt(sk, level, optname,
 					      optval, optlen);
-	};
+	}
 	return do_rawv6_getsockopt(sk, level, optname, optval, optlen);
 }
 #endif

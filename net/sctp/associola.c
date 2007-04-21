@@ -733,7 +733,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 
 	default:
 		return;
-	};
+	}
 
 	/* Generate and send a SCTP_PEER_ADDR_CHANGE notification to the
 	 * user.

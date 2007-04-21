@@ -458,7 +458,7 @@ static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi,
 					     x->id.daddr.a6))
 				continue;
 			break;
-		};
+		}
 
 		xfrm_state_hold(x);
 		return x;
@@ -493,7 +493,7 @@ static struct xfrm_state *__xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm
 					     x->props.saddr.a6))
 				continue;
 			break;
-		};
+		}
 
 		xfrm_state_hold(x);
 		return x;
@@ -722,7 +722,7 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 					     (struct in6_addr *)saddr))
 				continue;
 			break;
-		};
+		}
 
 		xfrm_state_hold(x);
 		return x;
@@ -755,7 +755,7 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 			ipv6_addr_copy((struct in6_addr *)x->id.daddr.a6,
 				       (struct in6_addr *)daddr);
 			break;
-		};
+		}
 
 		x->km.state = XFRM_STATE_ACQ;
 		x->id.proto = proto;
