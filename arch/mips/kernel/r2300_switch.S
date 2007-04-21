@@ -49,7 +49,8 @@ LEAF(resume)
 #ifndef CONFIG_CPU_HAS_LLSC
 	sw      zero, ll_bit
 #endif
-	mfc0	t2, CP0_STATUS
+	mfc0	t1, CP0_STATUS
+	sw	t1, THREAD_STATUS(a0)
 	cpu_save_nonscratch a0
 	sw	ra, THREAD_REG31(a0)
 
@@ -59,8 +60,8 @@ LEAF(resume)
 	lw	t3, TASK_THREAD_INFO(a0)
 	lw	t0, TI_FLAGS(t3)
 	li	t1, _TIF_USEDFPU
-	and	t1, t0
-	beqz	t1, 1f
+	and	t2, t0, t1
+	beqz	t2, 1f
 	nor	t1, zero, t1
 
 	and	t0, t0, t1
@@ -73,13 +74,10 @@ LEAF(resume)
 	li	t1, ~ST0_CU1
 	and	t0, t0, t1
 	sw	t0, ST_OFF(t3)
-	/* clear thread_struct CU1 bit */
-	and	t2, t1
 
 	fpu_save_single a0, t0			# clobbers t0
 
 1:
-	sw	t2, THREAD_STATUS(a0)
 	/*
 	 * The order of restoring the registers takes care of the race
 	 * updating $28, $29 and kernelsp without disabling ints.
