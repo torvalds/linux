@@ -104,7 +104,7 @@ static acpi_handle ecrd_handle, ecwr_handle;	/* 570 EC access */
 static acpi_handle cmos_handle, hkey_handle;	/* basic thinkpad handles */
 
 static void ibm_handle_init(char *name,
-		   acpi_handle * handle, acpi_handle parent,
+		   acpi_handle *handle, acpi_handle parent,
 		   char **paths, int num_paths, char **path);
 #define IBM_HANDLE_INIT(object)						\
 	ibm_handle_init(#object, &object##_handle, *object##_parent,	\
@@ -242,8 +242,8 @@ static int cmos_write(char *buf);
  * Dock subdriver
  */
 
-static acpi_handle pci_handle;
 #ifdef CONFIG_THINKPAD_ACPI_DOCK
+static acpi_handle pci_handle;
 static acpi_handle dock_handle;
 
 static void dock_notify(struct ibm_struct *ibm, u32 event);
