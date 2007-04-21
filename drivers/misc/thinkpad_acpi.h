@@ -173,6 +173,22 @@ struct ibm_init_struct {
 	struct ibm_struct *data;
 };
 
+static struct {
+#ifdef CONFIG_THINKPAD_ACPI_BAY
+	u16 bay_status:1;
+	u16 bay_eject:1;
+	u16 bay_status2:1;
+	u16 bay_eject2:1;
+#endif
+	u16 bluetooth:1;
+	u16 hotkey:1;
+	u16 hotkey_mask:1;
+	u16 light:1;
+	u16 light_status:1;
+	u16 wan:1;
+	u16 fan_ctrl_status_undef:1;
+} tp_features;
+
 static struct list_head tpacpi_all_drivers;
 
 static struct ibm_init_struct ibms_init[];
@@ -193,9 +209,6 @@ static int thinkpad_acpi_driver_read(char *p);
  */
 
 #ifdef CONFIG_THINKPAD_ACPI_BAY
-static int bay_status_supported, bay_eject_supported;
-static int bay_status2_supported, bay_eject2_supported;
-
 static acpi_handle bay_handle, bay_ej_handle;
 static acpi_handle bay2_handle, bay2_ej_handle;
 
@@ -219,8 +232,6 @@ static int beep_write(char *buf);
 /*
  * Bluetooth subdriver
  */
-
-static int bluetooth_supported;
 
 static int bluetooth_init(struct ibm_init_struct *iibm);
 static int bluetooth_status(void);
@@ -311,7 +322,6 @@ enum fan_control_commands {
 static enum fan_status_access_mode fan_status_access_mode;
 static enum fan_control_access_mode fan_control_access_mode;
 static enum fan_control_commands fan_control_commands;
-static int fan_control_status_known;
 static u8 fan_control_initial_status;
 static int fan_watchdog_maxinterval;
 
@@ -340,8 +350,6 @@ static int fan_write_cmd_watchdog(const char *cmd, int *rc);
  * Hotkey subdriver
  */
 
-static int hotkey_supported;
-static int hotkey_mask_supported;
 static int hotkey_orig_status;
 static int hotkey_orig_mask;
 
@@ -382,8 +390,6 @@ static int led_write(char *buf);
  * Light (thinklight) subdriver
  */
 
-static int light_supported;
-static int light_status_supported;
 static acpi_handle lght_handle, ledb_handle;
 
 static int light_init(struct ibm_init_struct *iibm);
@@ -452,8 +458,6 @@ static int volume_write(char *buf);
 /*
  * Wan subdriver
  */
-
-static int wan_supported;
 
 static int wan_init(struct ibm_init_struct *iibm);
 static int wan_status(void);
