@@ -420,9 +420,9 @@ extern __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb,
 
 /* tcp_output.c */
 
-extern void __tcp_push_pending_frames(struct sock *sk, struct tcp_sock *tp,
-				      unsigned int cur_mss, int nonagle);
-extern int tcp_may_send_now(struct sock *sk, struct tcp_sock *tp);
+extern void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
+				      int nonagle);
+extern int tcp_may_send_now(struct sock *sk);
 extern int tcp_retransmit_skb(struct sock *, struct sk_buff *);
 extern void tcp_xmit_retransmit_queue(struct sock *);
 extern void tcp_simple_retransmit(struct sock *);
@@ -479,8 +479,10 @@ static inline void tcp_fast_path_on(struct tcp_sock *tp)
 	__tcp_fast_path_on(tp, tp->snd_wnd >> tp->rx_opt.snd_wscale);
 }
 
-static inline void tcp_fast_path_check(struct sock *sk, struct tcp_sock *tp)
+static inline void tcp_fast_path_check(struct sock *sk)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	if (skb_queue_empty(&tp->out_of_order_queue) &&
 	    tp->rcv_wnd &&
 	    atomic_read(&sk->sk_rmem_alloc) < sk->sk_rcvbuf &&
@@ -591,10 +593,10 @@ static inline void tcp_dec_pcount_approx(__u32 *count,
 	}
 }
 
-static inline void tcp_packets_out_inc(struct sock *sk, 
-				       struct tcp_sock *tp,
+static inline void tcp_packets_out_inc(struct sock *sk,
 				       const struct sk_buff *skb)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
 	int orig = tp->packets_out;
 
 	tp->packets_out += tcp_skb_pcount(skb);
@@ -778,18 +780,21 @@ static inline void tcp_minshall_update(struct tcp_sock *tp, int mss,
 		tp->snd_sml = TCP_SKB_CB(skb)->end_seq;
 }
 
-static inline void tcp_check_probe_timer(struct sock *sk, struct tcp_sock *tp)
+static inline void tcp_check_probe_timer(struct sock *sk)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
+
 	if (!tp->packets_out && !icsk->icsk_pending)
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_PROBE0,
 					  icsk->icsk_rto, TCP_RTO_MAX);
 }
 
-static inline void tcp_push_pending_frames(struct sock *sk,
-					   struct tcp_sock *tp)
+static inline void tcp_push_pending_frames(struct sock *sk)
 {
-	__tcp_push_pending_frames(sk, tp, tcp_current_mss(sk, 1), tp->nonagle);
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	__tcp_push_pending_frames(sk, tcp_current_mss(sk, 1), tp->nonagle);
 }
 
 static inline void tcp_init_wl(struct tcp_sock *tp, u32 ack, u32 seq)
