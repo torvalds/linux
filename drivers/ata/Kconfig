@@ -545,7 +545,7 @@ config PATA_WINBOND_VLB
 
 config PATA_PLATFORM
 	tristate "Generic platform device PATA support"
-	depends on EMBEDDED
+	depends on EMBEDDED || ARCH_RPC
 	help
 	  This option enables support for generic directly connected ATA
 	  devices commonly found on embedded systems.
