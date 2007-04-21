@@ -1667,17 +1667,26 @@ static struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = ether1394_get_drvinfo
 };
 
-static int __init ether1394_init_module (void)
+static int __init ether1394_init_module(void)
 {
+	int err;
+
 	packet_task_cache = kmem_cache_create("packet_task",
 					      sizeof(struct packet_task),
 					      0, 0, NULL, NULL);
+	if (!packet_task_cache)
+		return -ENOMEM;
 
 	hpsb_register_highlevel(&eth1394_highlevel);
-	return hpsb_register_protocol(&eth1394_proto_driver);
+	err = hpsb_register_protocol(&eth1394_proto_driver);
+	if (err) {
+		hpsb_unregister_highlevel(&eth1394_highlevel);
+		kmem_cache_destroy(packet_task_cache);
+	}
+	return err;
 }
 
-static void __exit ether1394_exit_module (void)
+static void __exit ether1394_exit_module(void)
 {
 	hpsb_unregister_protocol(&eth1394_proto_driver);
 	hpsb_unregister_highlevel(&eth1394_highlevel);
