@@ -273,6 +273,17 @@ static int _sta(acpi_handle handle)
 	return status;
 }
 
+static int issue_thinkpad_cmos_command(int cmos_cmd)
+{
+	if (!cmos_handle)
+		return -ENXIO;
+
+	if (!acpi_evalf(cmos_handle, NULL, NULL, "vd", cmos_cmd))
+		return -EIO;
+
+	return 0;
+}
+
 /*************************************************************************
  * ACPI device model
  */
@@ -1550,14 +1561,6 @@ static int __init cmos_init(struct ibm_init_struct *iibm)
 	return (cmos_handle)? 0 : 1;
 }
 
-static int cmos_eval(int cmos_cmd)
-{
-	if (cmos_handle)
-		return acpi_evalf(cmos_handle, NULL, NULL, "vd", cmos_cmd);
-	else
-		return 1;
-}
-
 static int cmos_read(char *p)
 {
 	int len = 0;
@@ -1577,10 +1580,7 @@ static int cmos_read(char *p)
 static int cmos_write(char *buf)
 {
 	char *cmd;
-	int cmos_cmd;
-
-	if (!cmos_handle)
-		return -EINVAL;
+	int cmos_cmd, res;
 
 	while ((cmd = next_cmd(&buf))) {
 		if (sscanf(cmd, "%u", &cmos_cmd) == 1 &&
@@ -1589,8 +1589,9 @@ static int cmos_write(char *buf)
 		} else
 			return -EINVAL;
 
-		if (!cmos_eval(cmos_cmd))
-			return -EIO;
+		res = issue_thinkpad_cmos_command(cmos_cmd);
+		if (res)
+			return res;
 	}
 
 	return 0;
@@ -2093,7 +2094,7 @@ static int brightness_set(int value)
 	cmos_cmd = value > current_value ? TP_CMOS_BRIGHTNESS_UP : TP_CMOS_BRIGHTNESS_DOWN;
 	inc = value > current_value ? 1 : -1;
 	for (i = current_value; i != value; i += inc) {
-		if (!cmos_eval(cmos_cmd))
+		if (issue_thinkpad_cmos_command(cmos_cmd))
 			return -EIO;
 		if (!acpi_ec_write(brightness_offset, i + inc))
 			return -EIO;
@@ -2210,16 +2211,16 @@ static int volume_write(char *buf)
 			cmos_cmd = new_level > level ? TP_CMOS_VOLUME_UP : TP_CMOS_VOLUME_DOWN;
 			inc = new_level > level ? 1 : -1;
 
-			if (mute && (!cmos_eval(cmos_cmd) ||
+			if (mute && (issue_thinkpad_cmos_command(cmos_cmd) ||
 				     !acpi_ec_write(volume_offset, level)))
 				return -EIO;
 
 			for (i = level; i != new_level; i += inc)
-				if (!cmos_eval(cmos_cmd) ||
+				if (issue_thinkpad_cmos_command(cmos_cmd) ||
 				    !acpi_ec_write(volume_offset, i + inc))
 					return -EIO;
 
-			if (mute && (!cmos_eval(TP_CMOS_VOLUME_MUTE) ||
+			if (mute && (issue_thinkpad_cmos_command(TP_CMOS_VOLUME_MUTE) ||
 				     !acpi_ec_write(volume_offset,
 						    new_level + mute)))
 				return -EIO;
@@ -2228,7 +2229,7 @@ static int volume_write(char *buf)
 		if (new_mute != mute) {	/* level doesn't change */
 			cmos_cmd = new_mute ? TP_CMOS_VOLUME_MUTE : TP_CMOS_VOLUME_UP;
 
-			if (!cmos_eval(cmos_cmd) ||
+			if (issue_thinkpad_cmos_command(cmos_cmd) ||
 			    !acpi_ec_write(volume_offset, level + new_mute))
 				return -EIO;
 		}

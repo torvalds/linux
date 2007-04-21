@@ -116,6 +116,9 @@ static void drv_acpi_handle_init(char *name,
 	drv_acpi_handle_init(#object, &object##_handle, *object##_parent,	\
 		object##_paths, ARRAY_SIZE(object##_paths), &object##_path)
 
+/* ThinkPad ACPI helpers */
+static int issue_thinkpad_cmos_command(int cmos_cmd);
+
 /* procfs support */
 static struct proc_dir_entry *proc_dir;
 
@@ -275,7 +278,6 @@ static int brightness_write(char *buf);
  * CMOS subdriver
  */
 
-static int cmos_eval(int cmos_cmd);
 static int cmos_read(char *p);
 static int cmos_write(char *buf);
 
