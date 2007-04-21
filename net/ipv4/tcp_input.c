@@ -1765,6 +1765,20 @@ static inline void tcp_reset_reno_sack(struct tcp_sock *tp)
 	tp->left_out = tp->lost_out;
 }
 
+/* RFC: This is from the original, I doubt that this is necessary at all:
+ * clear xmit_retrans hint if seq of this skb is beyond hint. How could we
+ * retransmitted past LOST markings in the first place? I'm not fully sure
+ * about undo and end of connection cases, which can cause R without L?
+ */
+static void tcp_verify_retransmit_hint(struct tcp_sock *tp,
+				       struct sk_buff *skb)
+{
+	if ((tp->retransmit_skb_hint != NULL) &&
+	    before(TCP_SKB_CB(skb)->seq,
+	    TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
+		tp->retransmit_skb_hint = skb;
+}
+
 /* Mark head of queue up as lost. */
 static void tcp_mark_head_lost(struct sock *sk,
 			       int packets, u32 high_seq)
@@ -1795,14 +1809,7 @@ static void tcp_mark_head_lost(struct sock *sk,
 		if (!(TCP_SKB_CB(skb)->sacked&TCPCB_TAGBITS)) {
 			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 			tp->lost_out += tcp_skb_pcount(skb);
-
-			/* clear xmit_retransmit_queue hints
-			 *  if this is beyond hint */
-			if (tp->retransmit_skb_hint != NULL &&
-			    before(TCP_SKB_CB(skb)->seq,
-				   TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
-				tp->retransmit_skb_hint = NULL;
-
+			tcp_verify_retransmit_hint(tp, skb);
 		}
 	}
 	tcp_sync_left_out(tp);
@@ -1843,13 +1850,7 @@ static void tcp_update_scoreboard(struct sock *sk)
 			if (!(TCP_SKB_CB(skb)->sacked&TCPCB_TAGBITS)) {
 				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 				tp->lost_out += tcp_skb_pcount(skb);
-
-				/* clear xmit_retrans hint */
-				if (tp->retransmit_skb_hint &&
-				    before(TCP_SKB_CB(skb)->seq,
-					   TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
-
-					tp->retransmit_skb_hint = NULL;
+				tcp_verify_retransmit_hint(tp, skb);
 			}
 		}
 
