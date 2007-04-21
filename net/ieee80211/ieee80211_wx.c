@@ -89,13 +89,15 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 		start = iwe_stream_add_event(start, stop, &iwe, IW_EV_UINT_LEN);
 	}
 
-	/* Add frequency/channel */
+	/* Add channel and frequency */
 	iwe.cmd = SIOCGIWFREQ;
-/*	iwe.u.freq.m = ieee80211_frequency(network->channel, network->mode);
-	iwe.u.freq.e = 3; */
 	iwe.u.freq.m = network->channel;
 	iwe.u.freq.e = 0;
 	iwe.u.freq.i = 0;
+	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_FREQ_LEN);
+
+	iwe.u.freq.m = ieee80211_channel_to_freq(ieee, network->channel);
+	iwe.u.freq.e = 6;
 	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_FREQ_LEN);
 
 	/* Add encryption capability */
