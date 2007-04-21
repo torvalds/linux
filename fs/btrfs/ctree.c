@@ -68,6 +68,7 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 	memcpy(cow_node, btrfs_buffer_node(buf), root->blocksize);
 	btrfs_set_header_blocknr(&cow_node->header, bh_blocknr(cow));
 	btrfs_set_header_generation(&cow_node->header, trans->transid);
+	btrfs_set_header_owner(&cow_node->header, root->root_key.objectid);
 	btrfs_inc_ref(trans, root, buf);
 	if (buf == root->node) {
 		root->node = cow;
@@ -806,6 +807,7 @@ static int insert_new_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_level(&c->header, level);
 	btrfs_set_header_blocknr(&c->header, bh_blocknr(t));
 	btrfs_set_header_generation(&c->header, trans->transid);
+	btrfs_set_header_owner(&c->header, root->root_key.objectid);
 	lower = btrfs_buffer_node(path->nodes[level-1]);
 	memcpy(c->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(c->header.fsid));
@@ -909,6 +911,7 @@ static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_level(&split->header, btrfs_header_level(&c->header));
 	btrfs_set_header_blocknr(&split->header, bh_blocknr(split_buffer));
 	btrfs_set_header_generation(&split->header, trans->transid);
+	btrfs_set_header_owner(&split->header, root->root_key.objectid);
 	memcpy(split->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(split->header.fsid));
 	mid = (c_nritems + 1) / 2;
@@ -1280,6 +1283,7 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	memset(&right->header, 0, sizeof(right->header));
 	btrfs_set_header_blocknr(&right->header, bh_blocknr(right_buffer));
 	btrfs_set_header_generation(&right->header, trans->transid);
+	btrfs_set_header_owner(&right->header, root->root_key.objectid);
 	btrfs_set_header_level(&right->header, 0);
 	memcpy(right->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(right->header.fsid));
@@ -1376,6 +1380,7 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	memset(&right->header, 0, sizeof(right->header));
 	btrfs_set_header_blocknr(&right->header, bh_blocknr(right_buffer));
 	btrfs_set_header_generation(&right->header, trans->transid);
+	btrfs_set_header_owner(&right->header, root->root_key.objectid);
 	btrfs_set_header_level(&right->header, 0);
 	memcpy(right->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(right->header.fsid));

@@ -319,6 +319,7 @@ static int __setup_root(int blocksize,
 	root->last_inode_alloc = 0;
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
+	root->root_key.objectid = objectid;
 	return 0;
 }
 

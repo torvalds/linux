@@ -1819,8 +1819,9 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	}
 	if (inode->i_size >= PAGE_CACHE_SIZE || pos + count < inode->i_size ||
 	    pos + count - start_pos > BTRFS_MAX_INLINE_DATA_SIZE(root)) {
-		ret = btrfs_alloc_extent(trans, root, num_blocks, 1,
-				 (u64)-1, &ins);
+		ret = btrfs_alloc_extent(trans, root, inode->i_ino,
+					 BTRFS_EXTENT_FILE, num_blocks, 1,
+					 (u64)-1, &ins);
 		BUG_ON(ret);
 		ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
 				       start_pos, ins.objectid, ins.offset);
@@ -2017,8 +2018,12 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	btrfs_set_header_level(&leaf->header, 0);
 	btrfs_set_header_blocknr(&leaf->header, bh_blocknr(subvol));
 	btrfs_set_header_generation(&leaf->header, trans->transid);
+	btrfs_set_header_owner(&leaf->header, root->root_key.objectid);
 	memcpy(leaf->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(leaf->header.fsid));
+	mark_buffer_dirty(subvol);
+	brelse(subvol);
+	subvol = NULL;
 
 	inode_item = &root_item.inode;
 	memset(inode_item, 0, sizeof(*inode_item));
@@ -2030,10 +2035,6 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 
 	btrfs_set_root_blocknr(&root_item, bh_blocknr(subvol));
 	btrfs_set_root_refs(&root_item, 1);
-
-	mark_buffer_dirty(subvol);
-	brelse(subvol);
-	subvol = NULL;
 
 	ret = btrfs_find_free_objectid(trans, root->fs_info->tree_root,
 				       0, &objectid);
