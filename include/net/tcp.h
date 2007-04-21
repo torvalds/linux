@@ -921,21 +921,7 @@ static inline void tcp_set_state(struct sock *sk, int state)
 #endif	
 }
 
-static inline void tcp_done(struct sock *sk)
-{
-	if(sk->sk_state == TCP_SYN_SENT || sk->sk_state == TCP_SYN_RECV)
-		TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
-
-	tcp_set_state(sk, TCP_CLOSE);
-	tcp_clear_xmit_timers(sk);
-
-	sk->sk_shutdown = SHUTDOWN_MASK;
-
-	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_state_change(sk);
-	else
-		inet_csk_destroy_sock(sk);
-}
+extern void tcp_done(struct sock *sk);
 
 static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 {
