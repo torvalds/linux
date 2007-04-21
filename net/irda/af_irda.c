@@ -872,37 +872,19 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	 * calling us, the data is waiting for us ;-)
 	 * Jean II
 	 */
-	skb = skb_dequeue(&sk->sk_receive_queue);
-	if (skb == NULL) {
-		int ret = 0;
-		DECLARE_WAITQUEUE(waitq, current);
+	while (1) {
+		skb = skb_dequeue(&sk->sk_receive_queue);
+		if (skb)
+			break;
 
 		/* Non blocking operation */
 		if (flags & O_NONBLOCK)
 			return -EWOULDBLOCK;
 
-		/* The following code is a cut'n'paste of the
-		 * wait_event_interruptible() macro.
-		 * We don't us the macro because the condition has
-		 * side effects : we want to make sure that only one
-		 * skb get dequeued - Jean II */
-		add_wait_queue(sk->sk_sleep, &waitq);
-		for (;;) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			skb = skb_dequeue(&sk->sk_receive_queue);
-			if (skb != NULL)
-				break;
-			if (!signal_pending(current)) {
-				schedule();
-				continue;
-			}
-			ret = -ERESTARTSYS;
-			break;
-		}
-		current->state = TASK_RUNNING;
-		remove_wait_queue(sk->sk_sleep, &waitq);
-		if(ret)
-			return -ERESTARTSYS;
+		err = wait_event_interruptible(*(sk->sk_sleep),
+					skb_peek(&sk->sk_receive_queue));
+		if (err)
+			return err;
 	}
 
 	newsk = newsock->sk;
