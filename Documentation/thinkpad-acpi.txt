@@ -710,5 +710,9 @@ enable various classes of debugging output, for example:
 will enable all debugging output classes.  It takes a bitmask, so
 to enable more than one output class, just add their values.
 
+	Debug bitmask		Description
+	0x0001			Initialization and probing
+	0x0002			Removal
+
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
