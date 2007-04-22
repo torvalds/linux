@@ -48,6 +48,7 @@
 #include <linux/serial.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 
@@ -70,6 +71,7 @@
  */
 struct uart_amba_port {
 	struct uart_port	port;
+	struct clk		*clk;
 	struct amba_device	*dev;
 	struct amba_pl010_data	*data;
 	unsigned int		old_status;
@@ -313,11 +315,20 @@ static int pl010_startup(struct uart_port *port)
 	int retval;
 
 	/*
+	 * Try to enable the clock producer.
+	 */
+	retval = clk_enable(uap->clk);
+	if (retval)
+		goto out;
+
+	uap->port.uartclk = clk_get_rate(uap->clk);
+
+	/*
 	 * Allocate the IRQ
 	 */
 	retval = request_irq(uap->port.irq, pl010_int, 0, "uart-pl010", uap);
 	if (retval)
-		return retval;
+		goto clk_dis;
 
 	/*
 	 * initialise the old status of the modem signals
@@ -331,6 +342,11 @@ static int pl010_startup(struct uart_port *port)
 	       uap->port.membase + UART010_CR);
 
 	return 0;
+
+ clk_dis:
+	clk_disable(uap->clk);
+ out:
+	return retval;
 }
 
 static void pl010_shutdown(struct uart_port *port)
@@ -351,6 +367,11 @@ static void pl010_shutdown(struct uart_port *port)
 	writel(readb(uap->port.membase + UART010_LCRH) &
 		~(UART01x_LCRH_BRK | UART01x_LCRH_FEN),
 	       uap->port.membase + UART010_LCRH);
+
+	/*
+	 * Shut down the clock producer
+	 */
+	clk_disable(uap->clk);
 }
 
 static void
@@ -540,6 +561,8 @@ pl010_console_write(struct console *co, const char *s, unsigned int count)
 	struct uart_amba_port *uap = amba_ports[co->index];
 	unsigned int status, old_cr;
 
+	clk_enable(uap->clk);
+
 	/*
 	 *	First save the CR then disable the interrupts
 	 */
@@ -557,6 +580,8 @@ pl010_console_write(struct console *co, const char *s, unsigned int count)
 		barrier();
 	} while (status & UART01x_FR_BUSY);
 	writel(old_cr, uap->port.membase + UART010_CR);
+
+	clk_disable(uap->clk);
 }
 
 static void __init
@@ -604,6 +629,8 @@ static int __init pl010_console_setup(struct console *co, char *options)
 	uap = amba_ports[co->index];
 	if (!uap)
 		return -ENODEV;
+
+	uap->port.uartclk = clk_get_rate(uap->clk);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -666,12 +693,17 @@ static int pl010_probe(struct amba_device *dev, void *id)
 		goto free;
 	}
 
+	uap->clk = clk_get(&dev->dev, "UARTCLK");
+	if (IS_ERR(uap->clk)) {
+		ret = PTR_ERR(uap->clk);
+		goto unmap;
+	}
+
 	uap->port.dev = &dev->dev;
 	uap->port.mapbase = dev->res.start;
 	uap->port.membase = base;
 	uap->port.iotype = UPIO_MEM;
 	uap->port.irq = dev->irq[0];
-	uap->port.uartclk = 14745600;
 	uap->port.fifosize = 16;
 	uap->port.ops = &amba_pl010_pops;
 	uap->port.flags = UPF_BOOT_AUTOCONF;
@@ -686,6 +718,8 @@ static int pl010_probe(struct amba_device *dev, void *id)
 	if (ret) {
 		amba_set_drvdata(dev, NULL);
 		amba_ports[i] = NULL;
+		clk_put(uap->clk);
+ unmap:
 		iounmap(base);
  free:
 		kfree(uap);
@@ -708,6 +742,7 @@ static int pl010_remove(struct amba_device *dev)
 			amba_ports[i] = NULL;
 
 	iounmap(uap->port.membase);
+	clk_put(uap->clk);
 	kfree(uap);
 	return 0;
 }
