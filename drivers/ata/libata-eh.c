@@ -1671,7 +1671,10 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 				reset == softreset ? "soft" : "hard");
 
 	/* mark that this EH session started with reset */
-	ehc->i.flags |= ATA_EHI_DID_RESET;
+	if (reset == hardreset)
+		ehc->i.flags |= ATA_EHI_DID_HARDRESET;
+	else
+		ehc->i.flags |= ATA_EHI_DID_SOFTRESET;
 
 	rc = ata_do_reset(ap, reset, classes);
 

@@ -282,11 +282,13 @@ enum {
 	ATA_EHI_NO_AUTOPSY	= (1 << 2),  /* no autopsy */
 	ATA_EHI_QUIET		= (1 << 3),  /* be quiet */
 
-	ATA_EHI_DID_RESET	= (1 << 16), /* already reset this port */
-	ATA_EHI_PRINTINFO	= (1 << 17), /* print configuration info */
-	ATA_EHI_SETMODE		= (1 << 18), /* configure transfer mode */
-	ATA_EHI_POST_SETMODE	= (1 << 19), /* revaildating after setmode */
+	ATA_EHI_DID_SOFTRESET	= (1 << 16), /* already soft-reset this port */
+	ATA_EHI_DID_HARDRESET	= (1 << 17), /* already soft-reset this port */
+	ATA_EHI_PRINTINFO	= (1 << 18), /* print configuration info */
+	ATA_EHI_SETMODE		= (1 << 19), /* configure transfer mode */
+	ATA_EHI_POST_SETMODE	= (1 << 20), /* revaildating after setmode */
 
+	ATA_EHI_DID_RESET	= ATA_EHI_DID_SOFTRESET | ATA_EHI_DID_HARDRESET,
 	ATA_EHI_RESET_MODIFIER_MASK = ATA_EHI_RESUME_LINK,
 
 	/* max repeat if error condition is still set after ->error_handler */
