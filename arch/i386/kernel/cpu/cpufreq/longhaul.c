@@ -683,7 +683,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 				sizeof(samuel2_eblcr));
 			break;
 		case 1 ... 15:
-			longhaul_version = TYPE_LONGHAUL_V2;
+			longhaul_version = TYPE_LONGHAUL_V1;
 			if (c->x86_mask < 8) {
 				cpu_model = CPU_SAMUEL2;
 				cpuname = "C3 'Samuel 2' [C5B]";
