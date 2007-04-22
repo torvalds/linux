@@ -1045,7 +1045,7 @@ done_prefixes:
 			if ((rc = ops->write_std(
 				     register_address(ctxt->ss_base,
 						      _regs[VCPU_REGS_RSP]),
-				     dst.val, dst.bytes, ctxt)) != 0)
+				     &dst.val, dst.bytes, ctxt)) != 0)
 				goto done;
 			dst.val = dst.orig_val;	/* skanky: disable writeback */
 			break;
@@ -1078,12 +1078,12 @@ writeback:
 		case OP_MEM:
 			if (lock_prefix)
 				rc = ops->cmpxchg_emulated((unsigned long)dst.
-							   ptr, dst.orig_val,
-							   dst.val, dst.bytes,
+							   ptr, &dst.orig_val,
+							   &dst.val, dst.bytes,
 							   ctxt);
 			else
 				rc = ops->write_emulated((unsigned long)dst.ptr,
-							 dst.val, dst.bytes,
+							 &dst.val, dst.bytes,
 							 ctxt);
 			if (rc != 0)
 				goto done;
@@ -1321,36 +1321,8 @@ twobyte_special_insn:
 		realmode_set_cr(ctxt->vcpu, modrm_reg, modrm_val, &_eflags);
 		break;
 	case 0xc7:		/* Grp9 (cmpxchg8b) */
-#if defined(__i386__)
 		{
-			unsigned long old_lo, old_hi;
-			if (((rc = ops->read_emulated(cr2 + 0, &old_lo, 4,
-						      ctxt)) != 0)
-			    || ((rc = ops->read_emulated(cr2 + 4, &old_hi, 4,
-							 ctxt)) != 0))
-				goto done;
-			if ((old_lo != _regs[VCPU_REGS_RAX])
-			    || (old_hi != _regs[VCPU_REGS_RDX])) {
-				_regs[VCPU_REGS_RAX] = old_lo;
-				_regs[VCPU_REGS_RDX] = old_hi;
-				_eflags &= ~EFLG_ZF;
-			} else if (ops->cmpxchg8b_emulated == NULL) {
-				rc = X86EMUL_UNHANDLEABLE;
-				goto done;
-			} else {
-				if ((rc = ops->cmpxchg8b_emulated(cr2, old_lo,
-							  old_hi,
-							  _regs[VCPU_REGS_RBX],
-							  _regs[VCPU_REGS_RCX],
-							  ctxt)) != 0)
-					goto done;
-				_eflags |= EFLG_ZF;
-			}
-			break;
-		}
-#elif defined(CONFIG_X86_64)
-		{
-			unsigned long old, new;
+			u64 old, new;
 			if ((rc = ops->read_emulated(cr2, &old, 8, ctxt)) != 0)
 				goto done;
 			if (((u32) (old >> 0) != (u32) _regs[VCPU_REGS_RAX]) ||
@@ -1359,15 +1331,15 @@ twobyte_special_insn:
 				_regs[VCPU_REGS_RDX] = (u32) (old >> 32);
 				_eflags &= ~EFLG_ZF;
 			} else {
-				new = (_regs[VCPU_REGS_RCX] << 32) | (u32) _regs[VCPU_REGS_RBX];
-				if ((rc = ops->cmpxchg_emulated(cr2, old,
-							  new, 8, ctxt)) != 0)
+				new = ((u64)_regs[VCPU_REGS_RCX] << 32)
+					| (u32) _regs[VCPU_REGS_RBX];
+				if ((rc = ops->cmpxchg_emulated(cr2, &old,
+							  &new, 8, ctxt)) != 0)
 					goto done;
 				_eflags |= EFLG_ZF;
 			}
 			break;
 		}
-#endif
 	}
 	goto writeback;
 

@@ -970,7 +970,7 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 }
 
 static int emulator_read_std(unsigned long addr,
-			     unsigned long *val,
+			     void *val,
 			     unsigned int bytes,
 			     struct x86_emulate_ctxt *ctxt)
 {
@@ -1006,7 +1006,7 @@ static int emulator_read_std(unsigned long addr,
 }
 
 static int emulator_write_std(unsigned long addr,
-			      unsigned long val,
+			      const void *val,
 			      unsigned int bytes,
 			      struct x86_emulate_ctxt *ctxt)
 {
@@ -1016,7 +1016,7 @@ static int emulator_write_std(unsigned long addr,
 }
 
 static int emulator_read_emulated(unsigned long addr,
-				  unsigned long *val,
+				  void *val,
 				  unsigned int bytes,
 				  struct x86_emulate_ctxt *ctxt)
 {
@@ -1044,7 +1044,7 @@ static int emulator_read_emulated(unsigned long addr,
 }
 
 static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
-			       unsigned long val, int bytes)
+			       const void *val, int bytes)
 {
 	struct page *page;
 	void *virt;
@@ -1057,14 +1057,14 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 	kvm_mmu_pre_write(vcpu, gpa, bytes);
 	mark_page_dirty(vcpu->kvm, gpa >> PAGE_SHIFT);
 	virt = kmap_atomic(page, KM_USER0);
-	memcpy(virt + offset_in_page(gpa), &val, bytes);
+	memcpy(virt + offset_in_page(gpa), val, bytes);
 	kunmap_atomic(virt, KM_USER0);
 	kvm_mmu_post_write(vcpu, gpa, bytes);
 	return 1;
 }
 
 static int emulator_write_emulated(unsigned long addr,
-				   unsigned long val,
+				   const void *val,
 				   unsigned int bytes,
 				   struct x86_emulate_ctxt *ctxt)
 {
@@ -1083,14 +1083,14 @@ static int emulator_write_emulated(unsigned long addr,
 	vcpu->mmio_phys_addr = gpa;
 	vcpu->mmio_size = bytes;
 	vcpu->mmio_is_write = 1;
-	memcpy(vcpu->mmio_data, &val, bytes);
+	memcpy(vcpu->mmio_data, val, bytes);
 
 	return X86EMUL_CONTINUE;
 }
 
 static int emulator_cmpxchg_emulated(unsigned long addr,
-				     unsigned long old,
-				     unsigned long new,
+				     const void *old,
+				     const void *new,
 				     unsigned int bytes,
 				     struct x86_emulate_ctxt *ctxt)
 {
@@ -1102,30 +1102,6 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 	}
 	return emulator_write_emulated(addr, new, bytes, ctxt);
 }
-
-#ifdef CONFIG_X86_32
-
-static int emulator_cmpxchg8b_emulated(unsigned long addr,
-				       unsigned long old_lo,
-				       unsigned long old_hi,
-				       unsigned long new_lo,
-				       unsigned long new_hi,
-				       struct x86_emulate_ctxt *ctxt)
-{
-	static int reported;
-	int r;
-
-	if (!reported) {
-		reported = 1;
-		printk(KERN_WARNING "kvm: emulating exchange8b as write\n");
-	}
-	r = emulator_write_emulated(addr, new_lo, 4, ctxt);
-	if (r != X86EMUL_CONTINUE)
-		return r;
-	return emulator_write_emulated(addr+4, new_hi, 4, ctxt);
-}
-
-#endif
 
 static unsigned long get_segment_base(struct kvm_vcpu *vcpu, int seg)
 {
@@ -1201,9 +1177,6 @@ struct x86_emulate_ops emulate_ops = {
 	.read_emulated       = emulator_read_emulated,
 	.write_emulated      = emulator_write_emulated,
 	.cmpxchg_emulated    = emulator_cmpxchg_emulated,
-#ifdef CONFIG_X86_32
-	.cmpxchg8b_emulated  = emulator_cmpxchg8b_emulated,
-#endif
 };
 
 int emulate_instruction(struct kvm_vcpu *vcpu,
