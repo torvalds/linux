@@ -245,7 +245,6 @@ struct pcmcia_socket {
 
 	struct task_struct		*thread;
 	struct completion		thread_done;
-	wait_queue_head_t		thread_wait;
 	spinlock_t			thread_lock;	/* protects thread_events */
 	unsigned int			thread_events;
 

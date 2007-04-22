@@ -238,7 +238,6 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 
 	init_completion(&socket->socket_released);
 	init_completion(&socket->thread_done);
-	init_waitqueue_head(&socket->thread_wait);
 	mutex_init(&socket->skt_mutex);
 	spin_lock_init(&socket->thread_lock);
 
@@ -278,10 +277,9 @@ void pcmcia_unregister_socket(struct pcmcia_socket *socket)
 
 	cs_dbg(socket, 0, "pcmcia_unregister_socket(0x%p)\n", socket->ops);
 
-	if (socket->thread) {
-		wake_up(&socket->thread_wait);
+	if (socket->thread)
 		kthread_stop(socket->thread);
-	}
+
 	release_cis_mem(socket);
 
 	/* remove from our own list */
@@ -635,7 +633,6 @@ static void socket_detect_change(struct pcmcia_socket *skt)
 static int pccardd(void *__skt)
 {
 	struct pcmcia_socket *skt = __skt;
-	DECLARE_WAITQUEUE(wait, current);
 	int ret;
 
 	skt->thread = current;
@@ -656,7 +653,6 @@ static int pccardd(void *__skt)
 	if (ret)
 		dev_warn(&skt->dev, "err %d adding socket attributes\n", ret);
 
-	add_wait_queue(&skt->thread_wait, &wait);
 	complete(&skt->thread_done);
 
 	set_freezable();
@@ -694,8 +690,6 @@ static int pccardd(void *__skt)
 	/* make sure we are running before we exit */
 	set_current_state(TASK_RUNNING);
 
-	remove_wait_queue(&skt->thread_wait, &wait);
-
 	/* remove from the device core */
 	pccard_sysfs_remove_socket(&skt->dev);
 	device_unregister(&skt->dev);
@@ -716,7 +710,7 @@ void pcmcia_parse_events(struct pcmcia_socket *s, u_int events)
 		s->thread_events |= events;
 		spin_unlock_irqrestore(&s->thread_lock, flags);
 
-		wake_up(&s->thread_wait);
+		wake_up_process(s->thread);
 	}
 } /* pcmcia_parse_events */
 EXPORT_SYMBOL(pcmcia_parse_events);
