@@ -172,7 +172,7 @@ int snmp6_alloc_dev(struct inet6_dev *idev);
 int snmp6_free_dev(struct inet6_dev *idev);
 int snmp6_mib_init(void *ptr[2], size_t mibsize, size_t mibalign);
 void snmp6_mib_free(void *ptr[2]);
-void snmp6_fill_stats(void *stats, struct inet6_dev *idev, int attrtype, int bytes);
+void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype, int bytes);
 
 struct ip6_ra_chain
 {
