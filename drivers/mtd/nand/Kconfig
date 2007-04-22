@@ -258,6 +258,11 @@ config MTD_NAND_AT91
 	  Enables support for NAND Flash / Smart Media Card interface
 	  on Atmel AT91 processors.
 
+config MTD_NAND_CM_X270
+	tristate "Support for NAND Flash on CM-X270 modules"
+	depends on MTD_NAND && MACH_ARMCORE
+
+
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"
 	depends on MTD_PARTITIONS
