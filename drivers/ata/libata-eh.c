@@ -1810,6 +1810,10 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 		}
 	}
 
+	/* PDIAG- should have been released, ask cable type if post-reset */
+	if ((ehc->i.flags & ATA_EHI_DID_RESET) && ap->ops->cable_detect)
+		ap->cbl = ap->ops->cable_detect(ap);
+
 	/* Configure new devices forward such that user doesn't see
 	 * device detection messages backwards.
 	 */
