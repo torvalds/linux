@@ -265,14 +265,12 @@
 				interrupts = <0>;
 				reg = <0>;
 				device_type = "ethernet-phy";
-				interface = <3>; //ENET_100_MII
 			};
 			phy04:ethernet-phy@04 {
 				interrupt-parent = <&pic>;
 				interrupts = <0>;
 				reg = <4>;
 				device_type = "ethernet-phy";
-				interface = <3>;
 			};
 		};
 
