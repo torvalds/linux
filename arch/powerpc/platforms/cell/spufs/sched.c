@@ -76,6 +76,7 @@ void spu_start_tick(struct spu_context *ctx)
 		 * Make sure the exiting bit is cleared.
 		 */
 		clear_bit(SPU_SCHED_EXITING, &ctx->sched_flags);
+		mb();
 		queue_delayed_work(spu_sched_wq, &ctx->sched_work, SPU_TIMESLICE);
 	}
 }
@@ -88,6 +89,7 @@ void spu_stop_tick(struct spu_context *ctx)
 		 * makes sure it does not rearm itself anymore.
 		 */
 		set_bit(SPU_SCHED_EXITING, &ctx->sched_flags);
+		mb();
 		cancel_delayed_work(&ctx->sched_work);
 	}
 }
@@ -239,6 +241,7 @@ static void spu_add_to_rq(struct spu_context *ctx)
 	spin_lock(&spu_prio->runq_lock);
 	list_add_tail(&ctx->rq, &spu_prio->runq[ctx->prio]);
 	set_bit(ctx->prio, spu_prio->bitmap);
+	mb();
 	spin_unlock(&spu_prio->runq_lock);
 }
 
