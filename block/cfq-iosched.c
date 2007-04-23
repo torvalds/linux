@@ -96,6 +96,7 @@ struct cfq_data {
 	struct hlist_head *cfq_hash;
 
 	int rq_in_driver;
+	int sync_flight;
 	int hw_tag;
 
 	/*
@@ -911,11 +912,15 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
  */
 static void cfq_dispatch_insert(request_queue_t *q, struct request *rq)
 {
+	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
 
 	cfq_remove_request(rq);
 	cfqq->dispatched++;
 	elv_dispatch_sort(q, rq);
+
+	if (cfq_cfqq_sync(cfqq))
+		cfqd->sync_flight++;
 }
 
 /*
@@ -1100,26 +1105,23 @@ static int cfq_dispatch_requests(request_queue_t *q, int force)
 	while ((cfqq = cfq_select_queue(cfqd)) != NULL) {
 		int max_dispatch;
 
-		if (cfqd->busy_queues > 1) {
-			/*
-			 * So we have dispatched before in this round, if the
-			 * next queue has idling enabled (must be sync), don't
-			 * allow it service until the previous have completed.
-			 */
-			if (cfqd->rq_in_driver && cfq_cfqq_idle_window(cfqq) &&
-			    dispatched)
+		max_dispatch = cfqd->cfq_quantum;
+		if (cfq_class_idle(cfqq))
+			max_dispatch = 1;
+
+		if (cfqq->dispatched >= max_dispatch) {
+			if (cfqd->busy_queues > 1)
 				break;
-			if (cfqq->dispatched >= cfqd->cfq_quantum)
+			if (cfqq->dispatched >= 4 * max_dispatch)
 				break;
 		}
+
+		if (cfqd->sync_flight && !cfq_cfqq_sync(cfqq))
+			break;
 
 		cfq_clear_cfqq_must_dispatch(cfqq);
 		cfq_clear_cfqq_wait_request(cfqq);
 		del_timer(&cfqd->idle_slice_timer);
-
-		max_dispatch = cfqd->cfq_quantum;
-		if (cfq_class_idle(cfqq))
-			max_dispatch = 1;
 
 		dispatched += __cfq_dispatch_requests(cfqd, cfqq, max_dispatch);
 	}
@@ -1766,6 +1768,9 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 	WARN_ON(!cfqq->dispatched);
 	cfqd->rq_in_driver--;
 	cfqq->dispatched--;
+
+	if (cfq_cfqq_sync(cfqq))
+		cfqd->sync_flight--;
 
 	if (!cfq_class_idle(cfqq))
 		cfqd->last_end_request = now;
