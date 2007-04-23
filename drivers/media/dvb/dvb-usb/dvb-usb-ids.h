@@ -32,13 +32,13 @@
 #define USB_VID_LITEON				0x04ca
 #define USB_VID_MEDION				0x1660
 #define USB_VID_MSI				0x0db0
+#define USB_VID_OPERA1				0x695c
 #define USB_VID_PINNACLE			0x2304
 #define USB_VID_VISIONPLUS			0x13d3
 #define USB_VID_TWINHAN				0x1822
 #define USB_VID_ULTIMA_ELECTRONIC		0x05d8
 #define USB_VID_UNIWILL				0x1584
 #define USB_VID_WIDEVIEW			0x14aa
-#define USB_VID_OPERA1				0x695c
 
 /* Product IDs */
 #define USB_PID_ADSTECH_USB2_COLD			0xa333

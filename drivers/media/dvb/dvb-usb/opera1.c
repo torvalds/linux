@@ -25,6 +25,11 @@
 #define REG_20_SYMBOLRATE_BYTE1 0x20
 #define REG_21_SYMBOLRATE_BYTE2 0x21
 
+#define ADDR_B600_VOLTAGE_13V (0x02)
+#define ADDR_B601_VOLTAGE_18V (0x03)
+#define ADDR_B1A6_STREAM_CTRL (0x04)
+#define ADDR_B880_READ_REMOTE (0x05)
+
 struct opera1_state {
 	u32 last_key_pressed;
 };
@@ -70,7 +75,7 @@ static int opera1_xilinx_rw(struct usb_device *dev, u8 request, u16 value,
 /* I2C */
 
 static int opera1_usb_i2c_msgxfer(struct dvb_usb_device *dev, u16 addr,
-				  u8 * buf, u16 len, int flag)
+				  u8 * buf, u16 len)
 {
 	int ret = 0;
 	u8 request;
@@ -83,16 +88,30 @@ static int opera1_usb_i2c_msgxfer(struct dvb_usb_device *dev, u16 addr,
 	if (mutex_lock_interruptible(&dev->usb_mutex) < 0)
 		return -EAGAIN;
 
-	request = (addr & 0xff00) >> 8;
-	if (!request)
-		request = 0xb1;
-	value = (addr & 0xff);
-	if (flag & OPERA_READ_MSG) {
-		value |= 0x01;
+	switch (addr>>1){
+		case ADDR_B600_VOLTAGE_13V:
+			request=0xb6;
+			value=0x00;
+			break;
+		case ADDR_B601_VOLTAGE_18V:
+			request=0xb6;
+			value=0x01;
+			break;
+		case ADDR_B1A6_STREAM_CTRL:
+			request=0xb1;
+			value=0xa6;
+			break;
+		case ADDR_B880_READ_REMOTE:
+			request=0xb8;
+			value=0x80;
+			break;
+		default:
+			request=0xb1;
+			value=addr;
 	}
-	if (request == 0xa0)
-		value = 0xe600;
-	ret = opera1_xilinx_rw(dev->udev, request, value, buf, len, flag);
+	ret = opera1_xilinx_rw(dev->udev, request,
+		value, buf, len,
+		addr&0x01?OPERA_READ_MSG:OPERA_WRITE_MSG);
 
 	mutex_unlock(&dev->usb_mutex);
 	return ret;
@@ -111,13 +130,10 @@ static int opera1_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 
 	for (i = 0; i < num; i++) {
 		if ((tmp = opera1_usb_i2c_msgxfer(d,
-					msg[i].addr,
+					(msg[i].addr<<1)|(msg[i].flags&I2C_M_RD?0x01:0),
 					msg[i].buf,
-					msg[i].len,
-					(msg[i].flags ==
-					I2C_M_RD ?
-					OPERA_READ_MSG :
-					OPERA_WRITE_MSG))!= msg[i].len)) {
+					msg[i].len
+					)!= msg[i].len)) {
 			break;
 		}
 		if (dvb_usb_opera1_debug & 0x10)
@@ -142,12 +158,12 @@ static int opera1_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 	static u8 command_13v[1]={0x00};
 	static u8 command_18v[1]={0x01};
 	struct i2c_msg msg[] = {
-		{.addr = 0xb600,.flags = 0,.buf = command_13v,.len = 1},
+		{.addr = ADDR_B600_VOLTAGE_13V,.flags = 0,.buf = command_13v,.len = 1},
 	};
 	struct dvb_usb_adapter *udev_adap =
 	    (struct dvb_usb_adapter *)(fe->dvb->priv);
 	if (voltage == SEC_VOLTAGE_18) {
-		msg[0].addr = 0xb601;
+		msg[0].addr = ADDR_B601_VOLTAGE_18V;
 		msg[0].buf = command_18v;
 	}
 	i2c_transfer(&udev_adap->dev->i2c_adap, msg, 1);
@@ -220,7 +236,7 @@ static u8 opera1_inittab[] = {
 };
 
 static struct stv0299_config opera1_stv0299_config = {
-	.demod_address = 0xd0,
+	.demod_address = 0xd0>>1,
 	.min_delay_ms = 100,
 	.mclk = 88000000UL,
 	.invert = 1,
@@ -245,19 +261,21 @@ static int opera1_frontend_attach(struct dvb_usb_adapter *d)
 
 static int opera1_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	adap->pll_addr = 0xc0;
-	adap->pll_desc = &dvb_pll_opera1;
-	adap->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+	dvb_attach(
+		dvb_pll_attach, adap->fe, 0xc0>>1,
+		&adap->dev->i2c_adap, &dvb_pll_opera1
+	);
 	return 0;
 }
 
 static int opera1_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	int addr = onoff ? 0xb701 : 0xb700;
 	u8 val = onoff ? 0x01 : 0x00;
+
 	if (dvb_usb_opera1_debug)
 		info("power %s", onoff ? "on" : "off");
-	return opera1_usb_i2c_msgxfer(d, addr, &val, 1, OPERA_WRITE_MSG);
+	return opera1_xilinx_rw(d->udev, 0xb7, val,
+				&val, 1, OPERA_WRITE_MSG);
 }
 
 static int opera1_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
@@ -265,7 +283,7 @@ static int opera1_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	static u8 buf_start[2] = { 0xff, 0x03 };
 	static u8 buf_stop[2] = { 0xff, 0x00 };
 	struct i2c_msg start_tuner[] = {
-		{.addr = 0xb1a6,.buf = onoff ? buf_start : buf_stop,.len = 2},
+		{.addr = ADDR_B1A6_STREAM_CTRL,.buf = onoff ? buf_start : buf_stop,.len = 2},
 	};
 	if (dvb_usb_opera1_debug)
 		info("streaming %s", onoff ? "on" : "off");
@@ -278,7 +296,7 @@ static int opera1_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
 {
 	u8 b_pid[3];
 	struct i2c_msg msg[] = {
-		{.addr = 0xb1a6,.buf = b_pid,.len = 3},
+		{.addr = ADDR_B1A6_STREAM_CTRL,.buf = b_pid,.len = 3},
 	};
 	if (dvb_usb_opera1_debug)
 		info("pidfilter index: %d pid: %d %s", index, pid,
@@ -295,7 +313,7 @@ static int opera1_pid_filter_control(struct dvb_usb_adapter *adap, int onoff)
 	int u = 0x04;
 	u8 b_pid[3];
 	struct i2c_msg msg[] = {
-		{.addr = 0xb1a6,.buf = b_pid,.len = 3},
+		{.addr = ADDR_B1A6_STREAM_CTRL,.buf = b_pid,.len = 3},
 	};
 	if (dvb_usb_opera1_debug)
 		info("%s hw-pidfilter", onoff ? "enable" : "disable");
@@ -345,7 +363,7 @@ static int opera1_rc_query(struct dvb_usb_device *dev, u32 * event, int *state)
 	const u16 startmarker1 = 0x10ed;
 	const u16 startmarker2 = 0x11ec;
 	struct i2c_msg read_remote[] = {
-		{.addr = 0xb880,.buf = rcbuffer,.flags = I2C_M_RD,.len = 32},
+		{.addr = ADDR_B880_READ_REMOTE,.buf = rcbuffer,.flags = I2C_M_RD,.len = 32},
 	};
 	int i = 0;
 	u32 send_key = 0;
@@ -467,7 +485,7 @@ static int opera1_xilinx_load_firmware(struct usb_device *dev,
 static struct dvb_usb_device_properties opera1_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = CYPRESS_FX2,
-	.firmware = "opera.fw",
+	.firmware = "dvb-usb-opera-01.fw",
 	.size_of_priv = sizeof(struct opera1_state),
 
 	.power_ctrl = opera1_power_ctrl,
@@ -522,7 +540,7 @@ static int opera1_probe(struct usb_interface *intf,
 	if (udev->descriptor.idProduct == USB_PID_OPERA1_WARM &&
 		udev->descriptor.idVendor == USB_VID_OPERA1 &&
 		(d == NULL
-			|| opera1_xilinx_load_firmware(udev, "opera1-fpga.fw") != 0)
+			|| opera1_xilinx_load_firmware(udev, "dvb-usb-opera1-fpga.fw") != 0)
 		) {
 		return -EINVAL;
 	}
