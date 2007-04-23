@@ -223,14 +223,13 @@ extern char *isolated_loader;
 		prepare_to_wait(&(wq), &__wait, TASK_INTERRUPTIBLE);	\
 		if (condition)						\
 			break;						\
-		if (!signal_pending(current)) {				\
-			spu_release(ctx);				\
-			schedule();					\
-			spu_acquire(ctx);				\
-			continue;					\
+		if (signal_pending(current)) {				\
+			__ret = -ERESTARTSYS;				\
+			break;						\
 		}							\
-		__ret = -ERESTARTSYS;					\
-		break;							\
+		spu_release(ctx);					\
+		schedule();						\
+		spu_acquire(ctx);					\
 	}								\
 	finish_wait(&(wq), &__wait);					\
 	__ret;								\
