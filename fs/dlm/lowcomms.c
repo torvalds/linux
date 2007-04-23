@@ -219,7 +219,7 @@ static struct connection *assoc2con(int assoc_id)
 	struct connection *con;
 
 	down(&connections_lock);
-	for (i=0; i<max_nodeid; i++) {
+	for (i=0; i<=max_nodeid; i++) {
 		con = __nodeid2con(i, 0);
 		if (con && con->sctp_assoc == assoc_id) {
 			up(&connections_lock);
@@ -467,12 +467,10 @@ static void process_sctp_notification(struct connection *con, struct msghdr *msg
 			parg.associd = sn->sn_assoc_change.sac_assoc_id;
 			ret = kernel_getsockopt(con->sock, IPPROTO_SCTP, SCTP_SOCKOPT_PEELOFF,
 						(void *)&parg, &parglen);
-			if (ret < 0) {
+			if (ret) {
 				log_print("Can't peel off a socket for connection %d to node %d: err=%d\n",
 					  parg.associd, nodeid, ret);
-				return;
 			}
-
 			file = fget(parg.sd);
 			new_con->sock = SOCKET_I(file->f_dentry->d_inode);
 			add_sock(new_con->sock, new_con);
@@ -585,7 +583,6 @@ static int receive_from_sock(struct connection *con)
 
 	/* Process SCTP notifications */
 	if (msg.msg_flags & MSG_NOTIFICATION) {
-		BUG_ON(con->nodeid != 0);
 		msg.msg_control = incmsg;
 		msg.msg_controllen = sizeof(incmsg);
 
@@ -984,6 +981,7 @@ static void init_local(void)
 	struct sockaddr_storage sas, *addr;
 	int i;
 
+	dlm_local_count = 0;
 	for (i = 0; i < DLM_MAX_ADDR_COUNT - 1; i++) {
 		if (dlm_our_addr(&sas, i))
 			break;
@@ -1350,8 +1348,8 @@ static void clean_writequeues(void)
 {
 	int nodeid;
 
-	for (nodeid = 1; nodeid < max_nodeid; nodeid++) {
-		struct connection *con = nodeid2con(nodeid, 0);
+	for (nodeid = 1; nodeid <= max_nodeid; nodeid++) {
+		struct connection *con = __nodeid2con(nodeid, 0);
 
 		if (con)
 			clean_one_writequeue(con);
@@ -1394,7 +1392,7 @@ void dlm_lowcomms_stop(void)
 	   socket activity.
 	*/
 	down(&connections_lock);
-	for (i = 0; i < max_nodeid; i++) {
+	for (i = 0; i <= max_nodeid; i++) {
 		con = __nodeid2con(i, 0);
 		if (con)
 			con->flags |= 0xFF;
@@ -1406,7 +1404,7 @@ void dlm_lowcomms_stop(void)
 	down(&connections_lock);
 	clean_writequeues();
 
-	for (i = 0; i < max_nodeid; i++) {
+	for (i = 0; i <= max_nodeid; i++) {
 		con = __nodeid2con(i, 0);
 		if (con) {
 			close_connection(con, true);
@@ -1415,8 +1413,10 @@ void dlm_lowcomms_stop(void)
 			kmem_cache_free(con_cache, con);
 		}
 	}
+	max_nodeid = 0;
 	up(&connections_lock);
 	kmem_cache_destroy(con_cache);
+	idr_init(&connections_idr);
 }
 
 int dlm_lowcomms_start(void)
