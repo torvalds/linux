@@ -139,7 +139,7 @@ config FB_TILEBLITTING
 	 This is particularly important to one driver, matroxfb.  If
 	 unsure, say N.
 
-comment "Frambuffer hardware drivers"
+comment "Frame buffer hardware drivers"
 	depends on FB
 
 config FB_CIRRUS
