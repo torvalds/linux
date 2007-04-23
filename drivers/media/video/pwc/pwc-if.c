@@ -1493,7 +1493,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		case 0x0329:
 			PWC_INFO("Philips SPC 900NC USB webcam detected.\n");
 			name = "Philips SPC 900NC webcam";
-			type_id = 720;
+			type_id = 740;
 			break;
 		default:
 			return -ENODEV;

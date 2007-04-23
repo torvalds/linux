@@ -40,7 +40,9 @@
 
 #include "pwc-timon.h"
 
-const struct Timon_table_entry Timon_table[PSZ_MAX][6][4] =
+const unsigned int Timon_fps_vector[PWC_FPS_MAX_TIMON] = { 5, 10, 15, 20, 25, 30 };
+
+const struct Timon_table_entry Timon_table[PSZ_MAX][PWC_FPS_MAX_TIMON][4] =
 {
    /* SQCIF */
    {

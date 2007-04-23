@@ -44,6 +44,8 @@
 
 #include <media/pwc-ioctl.h>
 
+#define PWC_FPS_MAX_TIMON 6
+
 struct Timon_table_entry
 {
 	char alternate;			/* USB alternate interface */
@@ -52,9 +54,9 @@ struct Timon_table_entry
 	unsigned char mode[13];		/* precomputed mode settings for cam */
 };
 
-extern const struct Timon_table_entry Timon_table[PSZ_MAX][6][4];
+extern const struct Timon_table_entry Timon_table[PSZ_MAX][PWC_FPS_MAX_TIMON][4];
 extern const unsigned int TimonRomTable [16][2][16][8];
-
+extern const unsigned int Timon_fps_vector[PWC_FPS_MAX_TIMON];
 
 #endif
 
