@@ -455,15 +455,6 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 	u32 temp, temp2;
 	u8 cap_ptr = 0;
 
-	/* Everything is on func 1 here so we are hardcoding function one */
-	bridge_dev = pci_find_slot((unsigned int)pdev->bus->number,
-			PCI_DEVFN(0, 1));
-	if (!bridge_dev) {
-		printk(KERN_INFO PFX "Detected a Serverworks chipset "
-		       "but could not find the secondary device.\n");
-		return -ENODEV;
-	}
-
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 
 	switch (pdev->device) {
@@ -480,6 +471,15 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 		if (cap_ptr)
 			printk(KERN_ERR PFX "Unsupported Serverworks chipset "
 					"(device id: %04x)\n", pdev->device);
+		return -ENODEV;
+	}
+
+	/* Everything is on func 1 here so we are hardcoding function one */
+	bridge_dev = pci_get_bus_and_slot((unsigned int)pdev->bus->number,
+			PCI_DEVFN(0, 1));
+	if (!bridge_dev) {
+		printk(KERN_INFO PFX "Detected a Serverworks chipset "
+		       "but could not find the secondary device.\n");
 		return -ENODEV;
 	}
 
@@ -515,7 +515,7 @@ static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
 
 	bridge->driver = &sworks_driver;
 	bridge->dev_private_data = &serverworks_private,
-	bridge->dev = pdev;
+	bridge->dev = pci_dev_get(pdev);
 
 	pci_set_drvdata(pdev, bridge);
 	return agp_add_bridge(bridge);
@@ -525,8 +525,11 @@ static void __devexit agp_serverworks_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 
+	pci_dev_put(bridge->dev);
 	agp_remove_bridge(bridge);
 	agp_put_bridge(bridge);
+	pci_dev_put(serverworks_private.svrwrks_dev);
+	serverworks_private.svrwrks_dev = NULL;
 }
 
 static struct pci_device_id agp_serverworks_pci_table[] = {
