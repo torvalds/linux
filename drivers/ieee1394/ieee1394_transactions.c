@@ -378,6 +378,13 @@ struct hpsb_packet *hpsb_make_streampacket(struct hpsb_host *host, u8 * buffer,
 	}
 	packet->host = host;
 
+	/* Because it is too difficult to determine all PHY speeds and link
+	 * speeds here, we use S100... */
+	packet->speed_code = IEEE1394_SPEED_100;
+
+	/* ...and prevent hpsb_send_packet() from overriding it. */
+	packet->node_id = LOCAL_BUS | ALL_NODES;
+
 	if (hpsb_get_tlabel(packet)) {
 		hpsb_free_packet(packet);
 		return NULL;
