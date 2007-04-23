@@ -656,10 +656,13 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 		reg = of_get_property(node, "reg", NULL);
 		if (!reg)
 			continue;
-		dev = pci_find_slot(pci_bus, ((reg[0] >> 8) & 0xff));
-		if (!dev || !dev->subordinate)
+		dev = pci_get_bus_and_slot(pci_bus, ((reg[0] >> 8) & 0xff));
+		if (!dev || !dev->subordinate) {
+			pci_dev_put(dev);
 			continue;
+		}
 		make_one_node_map(node, dev->subordinate->number);
+		pci_dev_put(dev);
 	}
 }
 	
