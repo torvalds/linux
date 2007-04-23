@@ -97,28 +97,46 @@ bad_area:
 	return -EFAULT;
 }
 
-static void spufs_handle_dma_error(struct spu_context *ctx, int type)
+static void spufs_handle_dma_error(struct spu_context *ctx,
+				unsigned long ea, int type)
 {
 	if (ctx->flags & SPU_CREATE_EVENTS_ENABLED) {
 		ctx->event_return |= type;
 		wake_up_all(&ctx->stop_wq);
 	} else {
+		siginfo_t info;
+		memset(&info, 0, sizeof(info));
+
 		switch (type) {
-		case SPE_EVENT_DMA_ALIGNMENT:
-		case SPE_EVENT_SPE_DATA_STORAGE:
 		case SPE_EVENT_INVALID_DMA:
-			force_sig(SIGBUS, /* info, */ current);
+			info.si_signo = SIGBUS;
+			info.si_code = BUS_OBJERR;
+			break;
+		case SPE_EVENT_SPE_DATA_STORAGE:
+			info.si_signo = SIGBUS;
+			info.si_addr = (void __user *)ea;
+			info.si_code = BUS_ADRERR;
+			break;
+		case SPE_EVENT_DMA_ALIGNMENT:
+			info.si_signo = SIGBUS;
+			/* DAR isn't set for an alignment fault :( */
+			info.si_code = BUS_ADRALN;
 			break;
 		case SPE_EVENT_SPE_ERROR:
-			force_sig(SIGILL, /* info */ current);
+			info.si_signo = SIGILL;
+			info.si_addr = (void __user *)(unsigned long)
+				ctx->ops->npc_read(ctx) - 4;
+			info.si_code = ILL_ILLOPC;
 			break;
 		}
+		if (info.si_signo)
+			force_sig_info(info.si_signo, &info, current);
 	}
 }
 
 void spufs_dma_callback(struct spu *spu, int type)
 {
-	spufs_handle_dma_error(spu->ctx, type);
+	spufs_handle_dma_error(spu->ctx, spu->dar, type);
 }
 EXPORT_SYMBOL_GPL(spufs_dma_callback);
 
@@ -186,7 +204,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 		if (ctx->spu)
 			ctx->ops->restart_dma(ctx);
 	} else
-		spufs_handle_dma_error(ctx, SPE_EVENT_SPE_DATA_STORAGE);
+		spufs_handle_dma_error(ctx, ea, SPE_EVENT_SPE_DATA_STORAGE);
 
 	return ret;
 }
