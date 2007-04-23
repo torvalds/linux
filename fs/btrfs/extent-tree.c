@@ -167,6 +167,8 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 	ins.offset = 1;
 	ins.flags = 0;
 	btrfs_set_key_type(&ins, BTRFS_EXTENT_ITEM_KEY);
+	btrfs_set_extent_type(&extent_item, BTRFS_EXTENT_TREE);
+	btrfs_set_extent_owner(&extent_item, extent_root->root_key.objectid);
 
 	for (i = 0; i < extent_root->fs_info->current_insert.flags; i++) {
 		ins.objectid = extent_root->fs_info->current_insert.objectid +
@@ -356,7 +358,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
 
 	level = btrfs_header_level(btrfs_buffer_header(root->node));
-	total_needed += (level + 1) * 3;
+	total_needed += (level + 2) * 3;
 	if (root->fs_info->last_insert.objectid == 0 && search_end == (u64)-1) {
 		struct btrfs_disk_key *last_key;
 		btrfs_init_path(path);
