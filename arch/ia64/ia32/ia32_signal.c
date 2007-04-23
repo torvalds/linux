@@ -811,7 +811,11 @@ get_sigframe (struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 	}
 	/* Legacy stack switching not supported */
 
-	return (void __user *)((esp - frame_size) & -8ul);
+	esp -= frame_size;
+	/* Align the stack pointer according to the i386 ABI,
+	 * i.e. so that on function entry ((sp + 4) & 15) == 0. */
+	esp = ((esp + 4) & -16ul) - 4;
+	return (void __user *) esp;
 }
 
 static int
