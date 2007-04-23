@@ -2013,6 +2013,8 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	BUG_ON(!trans);
 
 	subvol = btrfs_alloc_free_block(trans, root);
+	if (subvol == NULL)
+		return -ENOSPC;
 	leaf = btrfs_buffer_leaf(subvol);
 	btrfs_set_header_nritems(&leaf->header, 0);
 	btrfs_set_header_level(&leaf->header, 0);
@@ -2022,8 +2024,6 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	memcpy(leaf->header.fsid, root->fs_info->disk_super->fsid,
 	       sizeof(leaf->header.fsid));
 	mark_buffer_dirty(subvol);
-	brelse(subvol);
-	subvol = NULL;
 
 	inode_item = &root_item.inode;
 	memset(inode_item, 0, sizeof(*inode_item));
@@ -2035,6 +2035,8 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 
 	btrfs_set_root_blocknr(&root_item, bh_blocknr(subvol));
 	btrfs_set_root_refs(&root_item, 1);
+	brelse(subvol);
+	subvol = NULL;
 
 	ret = btrfs_find_free_objectid(trans, root->fs_info->tree_root,
 				       0, &objectid);
