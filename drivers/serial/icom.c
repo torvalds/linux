@@ -164,7 +164,7 @@ static void free_port_memory(struct icom_port *icom_port)
 	}
 }
 
-static int __init get_port_memory(struct icom_port *icom_port)
+static int __devinit get_port_memory(struct icom_port *icom_port)
 {
 	int index;
 	unsigned long stgAddr;
@@ -1380,7 +1380,7 @@ static void icom_port_active(struct icom_port *icom_port, struct icom_adapter *i
 			    0x8024 + 2 - 2 * (icom_port->port - 2);
 	}
 }
-static int __init icom_load_ports(struct icom_adapter *icom_adapter)
+static int __devinit icom_load_ports(struct icom_adapter *icom_adapter)
 {
 	struct icom_port *icom_port;
 	int port_num;
