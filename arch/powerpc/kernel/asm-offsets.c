@@ -139,6 +139,7 @@ int main(void)
 	DEFINE(PACA_SYSTEM_TIME, offsetof(struct paca_struct, system_time));
 	DEFINE(PACA_SLBSHADOWPTR, offsetof(struct paca_struct, slb_shadow_ptr));
 	DEFINE(PACA_DATA_OFFSET, offsetof(struct paca_struct, data_offset));
+	DEFINE(PACA_TRAP_SAVE, offsetof(struct paca_struct, trap_save));
 
 	DEFINE(SLBSHADOW_STACKVSID,
 	       offsetof(struct slb_shadow, save_area[SLB_NUM_BOLTED - 1].vsid));
