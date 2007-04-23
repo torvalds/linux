@@ -97,7 +97,7 @@ void spu_sched_tick(struct work_struct *work)
 	struct spu_context *ctx =
 		container_of(work, struct spu_context, sched_work.work);
 	struct spu *spu;
-	int rearm = 1;
+	int preempted = 0;
 
 	/*
 	 * If this context is being stopped avoid rescheduling from the
@@ -113,12 +113,19 @@ void spu_sched_tick(struct work_struct *work)
 		int best = sched_find_first_bit(spu_prio->bitmap);
 		if (best <= ctx->prio) {
 			spu_deactivate(ctx);
-			rearm = 0;
+			preempted = 1;
 		}
 	}
 	mutex_unlock(&ctx->state_mutex);
 
-	if (rearm)
+	if (preempted) {
+		/*
+		 * We need to break out of the wait loop in spu_run manually
+		 * to ensure this context gets put on the runqueue again
+		 * ASAP.
+		 */
+		wake_up(&ctx->stop_wq);
+	} else
 		spu_start_tick(ctx);
 }
 
