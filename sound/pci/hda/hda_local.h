@@ -222,6 +222,12 @@ enum {
 	AUTO_PIN_LAST
 };
 
+enum {
+	AUTO_PIN_LINE_OUT,
+	AUTO_PIN_SPEAKER_OUT,
+	AUTO_PIN_HP_OUT
+};
+
 extern const char *auto_pin_cfg_labels[AUTO_PIN_LAST];
 
 struct auto_pin_cfg {
@@ -230,6 +236,7 @@ struct auto_pin_cfg {
 	int speaker_outs;
 	hda_nid_t speaker_pins[5];
 	int hp_outs;
+	int line_out_type;	/* AUTO_PIN_XXX_OUT */
 	hda_nid_t hp_pins[5];
 	hda_nid_t input_pins[AUTO_PIN_LAST];
 	hda_nid_t dig_out_pin;

@@ -2288,12 +2288,14 @@ int __devinit snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			       sizeof(cfg->speaker_pins));
 			cfg->speaker_outs = 0;
 			memset(cfg->speaker_pins, 0, sizeof(cfg->speaker_pins));
+			cfg->line_out_type = AUTO_PIN_SPEAKER_OUT;
 		} else if (cfg->hp_outs) {
 			cfg->line_outs = cfg->hp_outs;
 			memcpy(cfg->line_out_pins, cfg->hp_pins,
 			       sizeof(cfg->hp_pins));
 			cfg->hp_outs = 0;
 			memset(cfg->hp_pins, 0, sizeof(cfg->hp_pins));
+			cfg->line_out_type = AUTO_PIN_HP_OUT;
 		}
 	}
 
