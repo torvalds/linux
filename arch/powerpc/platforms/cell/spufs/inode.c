@@ -561,6 +561,11 @@ spufs_parse_options(char *options, struct inode *root)
 	return 1;
 }
 
+static void spufs_exit_isolated_loader(void)
+{
+	kfree(isolated_loader);
+}
+
 static void
 spufs_init_isolated_loader(void)
 {
@@ -694,6 +699,7 @@ module_init(spufs_init);
 static void __exit spufs_exit(void)
 {
 	spu_sched_exit();
+	spufs_exit_isolated_loader();
 	unregister_arch_coredump_calls(&spufs_coredump_calls);
 	unregister_spu_syscalls(&spufs_calls);
 	unregister_filesystem(&spufs_type);
