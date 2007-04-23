@@ -1334,8 +1334,9 @@ static inline void
 serial8250_handle_port(struct uart_8250_port *up)
 {
 	unsigned int status;
+	unsigned long flags;
 
-	spin_lock(&up->port.lock);
+	spin_lock_irqsave(&up->port.lock, flags);
 
 	status = serial_inp(up, UART_LSR);
 
@@ -1347,7 +1348,7 @@ serial8250_handle_port(struct uart_8250_port *up)
 	if (status & UART_LSR_THRE)
 		transmit_chars(up);
 
-	spin_unlock(&up->port.lock);
+	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
 /*
