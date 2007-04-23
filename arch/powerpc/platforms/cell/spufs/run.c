@@ -63,12 +63,17 @@ static int spu_setup_isolated(struct spu_context *ctx)
 	const u32 status_loading = SPU_STATUS_RUNNING
 		| SPU_STATUS_ISOLATED_STATE | SPU_STATUS_ISOLATED_LOAD_STATUS;
 
+	ret = -ENODEV;
 	if (!isolated_loader)
-		return -ENODEV;
-
-	ret = spu_acquire_exclusive(ctx);
-	if (ret)
 		goto out;
+
+	/*
+	 * We need to exclude userspace access to the context.
+	 *
+	 * To protect against memory access we invalidate all ptes
+	 * and make sure the pagefault handlers block on the mutex.
+	 */
+	spu_unmap_mappings(ctx);
 
 	mfc_cntl = &ctx->spu->priv2->mfc_control_RW;
 
@@ -82,7 +87,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 			printk(KERN_ERR "%s: timeout flushing MFC DMA queue\n",
 					__FUNCTION__);
 			ret = -EIO;
-			goto out_unlock;
+			goto out;
 		}
 		cond_resched();
 	}
@@ -119,12 +124,15 @@ static int spu_setup_isolated(struct spu_context *ctx)
 		pr_debug("%s: isolated LOAD failed\n", __FUNCTION__);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 		ret = -EACCES;
+		goto out_drop_priv;
+	}
 
-	} else if (!(status & SPU_STATUS_ISOLATED_STATE)) {
+	if (!(status & SPU_STATUS_ISOLATED_STATE)) {
 		/* This isn't allowed by the CBEA, but check anyway */
 		pr_debug("%s: SPU fell out of isolated mode?\n", __FUNCTION__);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_STOP);
 		ret = -EINVAL;
+		goto out_drop_priv;
 	}
 
 out_drop_priv:
@@ -132,8 +140,6 @@ out_drop_priv:
 	sr1 |= MFC_STATE1_PROBLEM_STATE_MASK;
 	spu_mfc_sr1_set(ctx->spu, sr1);
 
-out_unlock:
-	spu_release(ctx);
 out:
 	return ret;
 }
@@ -149,13 +155,9 @@ static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
 
 	if (ctx->flags & SPU_CREATE_ISOLATE) {
 		if (!(ctx->ops->status_read(ctx) & SPU_STATUS_ISOLATED_STATE)) {
-			/* Need to release ctx, because spu_setup_isolated will
-			 * acquire it exclusively.
-			 */
-			spu_release(ctx);
 			ret = spu_setup_isolated(ctx);
-			if (!ret)
-				ret = spu_acquire_runnable(ctx, 0);
+			if (ret)
+				spu_release(ctx);
 		}
 
 		/* if userspace has set the runcntrl register (eg, to issue an

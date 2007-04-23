@@ -192,7 +192,6 @@ void spu_unmap_mappings(struct spu_context *ctx);
 void spu_forget(struct spu_context *ctx);
 int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags);
 void spu_acquire_saved(struct spu_context *ctx);
-int spu_acquire_exclusive(struct spu_context *ctx);
 
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);

@@ -122,46 +122,6 @@ void spu_unmap_mappings(struct spu_context *ctx)
 }
 
 /**
- * spu_acquire_exclusive - lock spu contex and protect against userspace access
- * @ctx:	spu contex to lock
- *
- * Note:
- *	Returns 0 and with the context locked on success
- *	Returns negative error and with the context _unlocked_ on failure.
- */
-int spu_acquire_exclusive(struct spu_context *ctx)
-{
-	int ret = -EINVAL;
-
-	spu_acquire(ctx);
-	/*
-	 * Context is about to be freed, so we can't acquire it anymore.
-	 */
-	if (!ctx->owner)
-		goto out_unlock;
-
-	if (ctx->state == SPU_STATE_SAVED) {
-		ret = spu_activate(ctx, 0);
-		if (ret)
-			goto out_unlock;
-	} else {
-		/*
-		 * We need to exclude userspace access to the context.
-		 *
-		 * To protect against memory access we invalidate all ptes
-		 * and make sure the pagefault handlers block on the mutex.
-		 */
-		spu_unmap_mappings(ctx);
-	}
-
-	return 0;
-
- out_unlock:
-	spu_release(ctx);
-	return ret;
-}
-
-/**
  * spu_acquire_runnable - lock spu contex and make sure it is in runnable state
  * @ctx:	spu contex to lock
  *
