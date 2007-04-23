@@ -3095,6 +3095,14 @@ static void alc880_auto_set_output_and_unmute(struct hda_codec *codec,
 	}
 }
 
+static int get_pin_type(int line_out_type)
+{
+	if (line_out_type == AUTO_PIN_HP_OUT)
+		return PIN_HP;
+	else
+		return PIN_OUT;
+}
+
 static void alc880_auto_init_multi_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -3103,7 +3111,8 @@ static void alc880_auto_init_multi_out(struct hda_codec *codec)
 	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i < spec->autocfg.line_outs; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
-		alc880_auto_set_output_and_unmute(codec, nid, PIN_OUT, i);
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
+		alc880_auto_set_output_and_unmute(codec, nid, pin_type, i);
 	}
 }
 
@@ -4292,8 +4301,10 @@ static void alc260_auto_init_multi_out(struct hda_codec *codec)
 
 	alc_subsystem_id(codec, 0x10, 0x15, 0x0f);
 	nid = spec->autocfg.line_out_pins[0];
-	if (nid)
-		alc260_auto_set_output_and_unmute(codec, nid, PIN_OUT, 0);
+	if (nid) {
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
+		alc260_auto_set_output_and_unmute(codec, nid, pin_type, 0);
+	}
 	
 	nid = spec->autocfg.speaker_pins[0];
 	if (nid)
@@ -4301,7 +4312,7 @@ static void alc260_auto_init_multi_out(struct hda_codec *codec)
 
 	nid = spec->autocfg.hp_pins[0];
 	if (nid)
-		alc260_auto_set_output_and_unmute(codec, nid, PIN_OUT, 0);
+		alc260_auto_set_output_and_unmute(codec, nid, PIN_HP, 0);
 }
 
 #define ALC260_PIN_CD_NID		0x16
@@ -5164,8 +5175,9 @@ static void alc882_auto_init_multi_out(struct hda_codec *codec)
 	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
-			alc882_auto_set_output_and_unmute(codec, nid, PIN_OUT,
+			alc882_auto_set_output_and_unmute(codec, nid, pin_type,
 							  i);
 	}
 }
@@ -6185,8 +6197,9 @@ static void alc883_auto_init_multi_out(struct hda_codec *codec)
 	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
-			alc883_auto_set_output_and_unmute(codec, nid, PIN_OUT,
+			alc883_auto_set_output_and_unmute(codec, nid, pin_type,
 							  i);
 	}
 }
@@ -8182,8 +8195,9 @@ static void alc861_auto_init_multi_out(struct hda_codec *codec)
 	alc_subsystem_id(codec, 0x0e, 0x0f, 0x0b);
 	for (i = 0; i < spec->autocfg.line_outs; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
-			alc861_auto_set_output_and_unmute(codec, nid, PIN_OUT,
+			alc861_auto_set_output_and_unmute(codec, nid, pin_type,
 							  spec->multiout.dac_nids[i]);
 	}
 }
@@ -8892,9 +8906,10 @@ static void alc861vd_auto_init_multi_out(struct hda_codec *codec)
 	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
 			alc861vd_auto_set_output_and_unmute(codec, nid,
-								PIN_OUT, i);
+							    pin_type, i);
 	}
 }
 
@@ -9867,8 +9882,9 @@ static void alc662_auto_init_multi_out(struct hda_codec *codec)
 
 	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
-			alc662_auto_set_output_and_unmute(codec, nid, PIN_OUT,
+			alc662_auto_set_output_and_unmute(codec, nid, pin_type,
 							  i);
 	}
 }
