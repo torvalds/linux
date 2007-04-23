@@ -1735,7 +1735,8 @@ enomem:
 		defer_kevent (dev, WORK_RX_MEMORY);
 	if (retval) {
 		DEBUG (dev, "rx submit --> %d\n", retval);
-		dev_kfree_skb_any (skb);
+		if (skb)
+			dev_kfree_skb_any(skb);
 		spin_lock(&dev->req_lock);
 		list_add (&req->list, &dev->rx_reqs);
 		spin_unlock(&dev->req_lock);
