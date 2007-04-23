@@ -11,7 +11,7 @@ config WLAN_PRE80211
 	  Say Y if you have any pre-802.11 wireless LAN hardware.
 
 	  This option does not affect the kernel build, it only
-	  let's you choose drivers.
+	  lets you choose drivers.
 
 config STRIP
 	tristate "STRIP (Metricom starmode radio IP)"
@@ -112,7 +112,7 @@ config WLAN_80211
 	  Say Y if you have any 802.11 wireless LAN hardware.
 
 	  This option does not affect the kernel build, it only
-	  let's you choose drivers.
+	  lets you choose drivers.
 
 config PCMCIA_RAYCS
 	tristate "Aviator/Raytheon 2.4MHz wireless support"
