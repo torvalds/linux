@@ -475,9 +475,18 @@ static void ether1394_reset_priv(struct net_device *dev, int set_mtu)
 	priv->bc_maxpayload = 512;
 
 	/* Determine speed limit */
-	for (i = 0; i < host->node_count; i++)
+	/* FIXME: This is broken for nodes with link speed < PHY speed,
+	 * and it is suboptimal for S200B...S800B hardware.
+	 * The result of nodemgr's speed probe should be used somehow. */
+	for (i = 0; i < host->node_count; i++) {
+		/* take care of S100B...S400B PHY ports */
+		if (host->speed[i] == SELFID_SPEED_UNKNOWN) {
+			max_speed = IEEE1394_SPEED_100;
+			break;
+		}
 		if (max_speed > host->speed[i])
 			max_speed = host->speed[i];
+	}
 	priv->bc_sspd = max_speed;
 
 	if (set_mtu) {
@@ -1420,11 +1429,10 @@ static void ether1394_prep_gasp_packet(struct hpsb_packet *p,
 	p->data[1] = cpu_to_be32(ETHER1394_GASP_SPECIFIER_ID_LO << 24 |
 				 ETHER1394_GASP_VERSION);
 
-	/* Setting the node id to ALL_NODES (not LOCAL_BUS | ALL_NODES)
-	 * prevents hpsb_send_packet() from setting the speed to an arbitrary
-	 * value based on packet->node_id if packet->node_id is not set. */
-	p->node_id = ALL_NODES;
 	p->speed_code = priv->bc_sspd;
+
+	/* prevent hpsb_send_packet() from overriding our speed code */
+	p->node_id = LOCAL_BUS | ALL_NODES;
 }
 
 static void ether1394_free_packet(struct hpsb_packet *packet)
