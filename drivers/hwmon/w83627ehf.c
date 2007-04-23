@@ -121,9 +121,9 @@ superio_exit(void)
  * ISA constants
  */
 
-#define REGION_ALIGNMENT	~7
-#define REGION_OFFSET		5
-#define REGION_LENGTH		2
+#define IOREGION_ALIGNMENT	~7
+#define IOREGION_OFFSET		5
+#define IOREGION_LENGTH		2
 #define ADDR_REG_OFFSET		5
 #define DATA_REG_OFFSET		6
 
@@ -1194,7 +1194,7 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 	u8 fan4pin, fan5pin;
 	int i, err = 0;
 
-	if (!request_region(address + REGION_OFFSET, REGION_LENGTH,
+	if (!request_region(address + IOREGION_OFFSET, IOREGION_LENGTH,
 	                    w83627ehf_driver.driver.name)) {
 		err = -EBUSY;
 		goto exit;
@@ -1322,7 +1322,7 @@ exit_remove:
 exit_free:
 	kfree(data);
 exit_release:
-	release_region(address + REGION_OFFSET, REGION_LENGTH);
+	release_region(address + IOREGION_OFFSET, IOREGION_LENGTH);
 exit:
 	return err;
 }
@@ -1337,7 +1337,7 @@ static int w83627ehf_detach_client(struct i2c_client *client)
 
 	if ((err = i2c_detach_client(client)))
 		return err;
-	release_region(client->addr + REGION_OFFSET, REGION_LENGTH);
+	release_region(client->addr + IOREGION_OFFSET, IOREGION_LENGTH);
 	kfree(data);
 
 	return 0;
@@ -1380,7 +1380,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr)
 	superio_select(W83627EHF_LD_HWM);
 	val = (superio_inb(SIO_REG_ADDR) << 8)
 	    | superio_inb(SIO_REG_ADDR + 1);
-	*addr = val & REGION_ALIGNMENT;
+	*addr = val & IOREGION_ALIGNMENT;
 	if (*addr == 0) {
 		superio_exit();
 		return -ENODEV;
