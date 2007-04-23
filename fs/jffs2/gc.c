@@ -144,7 +144,8 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			       c->unchecked_size);
 			jffs2_dbg_dump_block_lists_nolock(c);
 			spin_unlock(&c->erase_completion_lock);
-			BUG();
+			up(&c->alloc_sem);
+			return -ENOSPC;
 		}
 
 		spin_unlock(&c->erase_completion_lock);
