@@ -41,6 +41,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 		goto out_free;
 	}
 	spin_lock_init(&ctx->mmio_lock);
+	spin_lock_init(&ctx->mapping_lock);
 	kref_init(&ctx->kref);
 	mutex_init(&ctx->state_mutex);
 	init_MUTEX(&ctx->run_sema);

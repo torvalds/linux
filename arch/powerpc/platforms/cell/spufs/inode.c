@@ -54,6 +54,7 @@ spufs_alloc_inode(struct super_block *sb)
 
 	ei->i_gang = NULL;
 	ei->i_ctx = NULL;
+	ei->i_openers = 0;
 
 	return &ei->vfs_inode;
 }
