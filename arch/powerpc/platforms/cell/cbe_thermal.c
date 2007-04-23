@@ -31,6 +31,11 @@
 #include "cbe_regs.h"
 #include "spu_priv1_mmio.h"
 
+static inline u8 reg_to_temp(u8 reg_value)
+{
+       return ((reg_value & 0x3f) << 1) + 65;
+}
+
 static struct cbe_pmd_regs __iomem *get_pmd_regs(struct sys_device *sysdev)
 {
 	struct spu *spu;
@@ -58,20 +63,14 @@ static u8 spu_read_register_value(struct sys_device *sysdev, union spe_reg __iom
 
 static ssize_t spu_show_temp(struct sys_device *sysdev, char *buf)
 {
-	int value;
+	u8 value;
 	struct cbe_pmd_regs __iomem *pmd_regs;
 
 	pmd_regs = get_pmd_regs(sysdev);
 
 	value = spu_read_register_value(sysdev, &pmd_regs->ts_ctsr1);
-	/* clear all other bits */
-	value &= 0x3F;
-	/* temp is stored in steps of 2 degrees */
-	value *= 2;
-	/* base temp is 65 degrees */
-	value += 65;
 
-	return sprintf(buf, "%d\n", (int) value);
+	return sprintf(buf, "%d\n", reg_to_temp(value));
 }
 
 static ssize_t ppe_show_temp(struct sys_device *sysdev, char *buf, int pos)
@@ -82,16 +81,9 @@ static ssize_t ppe_show_temp(struct sys_device *sysdev, char *buf, int pos)
 	pmd_regs = cbe_get_cpu_pmd_regs(sysdev->id);
 	value = in_be64(&pmd_regs->ts_ctsr2);
 
-	/* access the corresponding byte */
-	value >>= pos;
-	/* clear all other bits */
-	value &= 0x3F;
-	/* temp is stored in steps of 2 degrees */
-	value *= 2;
-	/* base temp is 65 degrees */
-	value += 65;
+	value = (value >> pos) & 0x3f;
 
-	return sprintf(buf, "%d\n", (int) value);
+	return sprintf(buf, "%d\n", reg_to_temp(value));
 }
 
 
