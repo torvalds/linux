@@ -36,6 +36,7 @@
 #include <asm/prom.h>
 #include <asm/semaphore.h>
 #include <asm/spu.h>
+#include <asm/spu_priv1.h>
 #include <asm/uaccess.h>
 
 #include "spufs.h"
@@ -664,6 +665,10 @@ static struct file_system_type spufs_type = {
 static int __init spufs_init(void)
 {
 	int ret;
+
+	ret = -ENODEV;
+	if (!spu_management_ops)
+		goto out;
 
 	ret = -ENOMEM;
 	spufs_inode_cache = kmem_cache_create("spufs_inode_cache",

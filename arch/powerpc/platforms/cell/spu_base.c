@@ -36,6 +36,8 @@
 #include <asm/xmon.h>
 
 const struct spu_management_ops *spu_management_ops;
+EXPORT_SYMBOL_GPL(spu_management_ops);
+
 const struct spu_priv1_ops *spu_priv1_ops;
 
 static struct list_head spu_list[MAX_NUMNODES];
@@ -589,6 +591,9 @@ static int __init init_spu_base(void)
 {
 	int i, ret = 0;
 
+	for (i = 0; i < MAX_NUMNODES; i++)
+		INIT_LIST_HEAD(&spu_list[i]);
+
 	if (!spu_management_ops)
 		goto out;
 
@@ -596,9 +601,6 @@ static int __init init_spu_base(void)
 	ret = sysdev_class_register(&spu_sysdev_class);
 	if (ret)
 		goto out;
-
-	for (i = 0; i < MAX_NUMNODES; i++)
-		INIT_LIST_HEAD(&spu_list[i]);
 
 	ret = spu_enumerate_spus(create_spu);
 
