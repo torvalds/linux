@@ -521,13 +521,14 @@ out:
 
 /* File system initialization */
 enum {
-	Opt_uid, Opt_gid, Opt_err,
+	Opt_uid, Opt_gid, Opt_mode, Opt_err,
 };
 
 static match_table_t spufs_tokens = {
-	{ Opt_uid, "uid=%d" },
-	{ Opt_gid, "gid=%d" },
-	{ Opt_err, NULL  },
+	{ Opt_uid,  "uid=%d" },
+	{ Opt_gid,  "gid=%d" },
+	{ Opt_mode, "mode=%o" },
+	{ Opt_err,   NULL  },
 };
 
 static int
@@ -553,6 +554,11 @@ spufs_parse_options(char *options, struct inode *root)
 			if (match_int(&args[0], &option))
 				return 0;
 			root->i_gid = option;
+			break;
+		case Opt_mode:
+			if (match_octal(&args[0], &option))
+				return 0;
+			root->i_mode = option | S_IFDIR;
 			break;
 		default:
 			return 0;
