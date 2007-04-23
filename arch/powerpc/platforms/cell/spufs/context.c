@@ -52,6 +52,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	ctx->state = SPU_STATE_SAVED;
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
+	INIT_LIST_HEAD(&ctx->rq);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
 	ctx->rt_priority = current->rt_priority;
@@ -76,6 +77,7 @@ void destroy_spu_context(struct kref *kref)
 	spu_fini_csa(&ctx->csa);
 	if (ctx->gang)
 		spu_gang_remove_ctx(ctx->gang, ctx);
+	BUG_ON(!list_empty(&ctx->rq));
 	kfree(ctx);
 }
 

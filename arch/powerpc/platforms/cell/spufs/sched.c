@@ -245,6 +245,14 @@ static void spu_add_to_rq(struct spu_context *ctx)
 	spin_unlock(&spu_prio->runq_lock);
 }
 
+static void __spu_del_from_rq(struct spu_context *ctx, int prio)
+{
+	if (!list_empty(&ctx->rq))
+		list_del_init(&ctx->rq);
+	if (list_empty(&spu_prio->runq[prio]))
+		clear_bit(ctx->prio, spu_prio->bitmap);
+}
+
 /**
  * spu_del_from_rq - remove a context from the runqueue
  * @ctx:       context to remove
@@ -252,31 +260,8 @@ static void spu_add_to_rq(struct spu_context *ctx)
 static void spu_del_from_rq(struct spu_context *ctx)
 {
 	spin_lock(&spu_prio->runq_lock);
-	list_del_init(&ctx->rq);
-	if (list_empty(&spu_prio->runq[ctx->prio]))
-		clear_bit(ctx->prio, spu_prio->bitmap);
+	__spu_del_from_rq(ctx, ctx->prio);
 	spin_unlock(&spu_prio->runq_lock);
-}
-
-/**
- * spu_grab_context - remove one context from the runqueue
- * @prio:      priority of the context to be removed
- *
- * This function removes one context from the runqueue for priority @prio.
- * If there is more than one context with the given priority the first
- * task on the runqueue will be taken.
- *
- * Returns the spu_context it just removed.
- *
- * Must be called with spu_prio->runq_lock held.
- */
-static struct spu_context *spu_grab_context(int prio)
-{
-	struct list_head *rq = &spu_prio->runq[prio];
-
-	if (list_empty(rq))
-		return NULL;
-	return list_entry(rq->next, struct spu_context, rq);
 }
 
 static void spu_prio_wait(struct spu_context *ctx)
@@ -309,9 +294,14 @@ static void spu_reschedule(struct spu *spu)
 	spin_lock(&spu_prio->runq_lock);
 	best = sched_find_first_bit(spu_prio->bitmap);
 	if (best < MAX_PRIO) {
-		struct spu_context *ctx = spu_grab_context(best);
-		if (ctx)
-			wake_up(&ctx->stop_wq);
+		struct list_head *rq = &spu_prio->runq[best];
+		struct spu_context *ctx;
+
+		BUG_ON(list_empty(rq));
+
+		ctx = list_entry(rq->next, struct spu_context, rq);
+		__spu_del_from_rq(ctx, best);
+		wake_up(&ctx->stop_wq);
 	}
 	spin_unlock(&spu_prio->runq_lock);
 }
