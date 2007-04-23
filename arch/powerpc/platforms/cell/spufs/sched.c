@@ -391,6 +391,12 @@ static struct spu *find_victim(struct spu_context *ctx)
 			}
 			spu_unbind_context(spu, victim);
 			mutex_unlock(&victim->state_mutex);
+			/*
+			 * We need to break out of the wait loop in spu_run
+			 * manually to ensure this context gets put on the
+			 * runqueue again ASAP.
+			 */
+			wake_up(&victim->stop_wq);
 			return spu;
 		}
 	}
