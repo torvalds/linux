@@ -279,6 +279,9 @@ void pmi_register_handler(struct of_device *device,
 	struct pmi_data *data;
 	data = device->dev.driver_data;
 
+	if (!data)
+		return;
+
 	spin_lock(&data->handler_spinlock);
 	list_add_tail(&handler->node, &data->handler);
 	spin_unlock(&data->handler_spinlock);
@@ -289,10 +292,12 @@ void pmi_unregister_handler(struct of_device *device,
 			    struct pmi_handler *handler)
 {
 	struct pmi_data *data;
+	data = device->dev.driver_data;
+
+	if (!data)
+		return;
 
 	pr_debug("pmi: unregistering handler %p\n", handler);
-
-	data = device->dev.driver_data;
 
 	spin_lock(&data->handler_spinlock);
 	list_del(&handler->node);
