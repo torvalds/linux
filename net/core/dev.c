@@ -3016,9 +3016,7 @@ int register_netdevice(struct net_device *dev)
 	spin_lock_init(&dev->queue_lock);
 	spin_lock_init(&dev->_xmit_lock);
 	dev->xmit_lock_owner = -1;
-#ifdef CONFIG_NET_CLS_ACT
 	spin_lock_init(&dev->ingress_lock);
-#endif
 
 	dev->iflink = -1;
 
