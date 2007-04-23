@@ -431,10 +431,11 @@ struct spu *spu_alloc_node(int node)
 		spu = list_entry(spu_list[node].next, struct spu, list);
 		list_del_init(&spu->list);
 		pr_debug("Got SPU %d %d\n", spu->number, spu->node);
-		spu_init_channels(spu);
 	}
 	mutex_unlock(&spu_mutex);
 
+	if (spu)
+		spu_init_channels(spu);
 	return spu;
 }
 EXPORT_SYMBOL_GPL(spu_alloc_node);
