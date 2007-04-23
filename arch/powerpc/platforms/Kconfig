@@ -1,8 +1,8 @@
 menu "Platform support"
-	depends on PPC64 || CLASSIC32
 
 choice
 	prompt "Machine type"
+	depends on PPC64 || CLASSIC32
 	default PPC_MULTIPLATFORM
 
 config PPC_MULTIPLATFORM
@@ -25,14 +25,6 @@ config APUS
 	  <http://linux-apus.sourceforge.net/>.
 endchoice
 
-config QUICC_ENGINE
-	bool
-	help
-	  The QUICC Engine (QE) is a new generation of communications
-	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
-	  Selecting this option means that you wish to build a kernel
-	  for a machine with a QE coprocessor.
-
 source "arch/powerpc/platforms/pseries/Kconfig"
 source "arch/powerpc/platforms/iseries/Kconfig"
 source "arch/powerpc/platforms/chrp/Kconfig"
@@ -41,9 +33,16 @@ source "arch/powerpc/platforms/powermac/Kconfig"
 source "arch/powerpc/platforms/prep/Kconfig"
 source "arch/powerpc/platforms/maple/Kconfig"
 source "arch/powerpc/platforms/pasemi/Kconfig"
-source arch/powerpc/platforms/celleb/Kconfig
-source arch/powerpc/platforms/ps3/Kconfig
-source arch/powerpc/platforms/cell/Kconfig
+source "arch/powerpc/platforms/celleb/Kconfig"
+source "arch/powerpc/platforms/ps3/Kconfig"
+source "arch/powerpc/platforms/cell/Kconfig"
+source "arch/powerpc/platforms/8xx/Kconfig"
+source "arch/powerpc/platforms/82xx/Kconfig"
+source "arch/powerpc/platforms/83xx/Kconfig"
+source "arch/powerpc/platforms/85xx/Kconfig"
+source "arch/powerpc/platforms/86xx/Kconfig"
+source "arch/powerpc/platforms/embedded6xx/Kconfig"
+#source "arch/powerpc/platforms/4xx/Kconfig
 
 config PPC_NATIVE
 	bool
@@ -67,6 +66,18 @@ config XICS
 	depends on PPC_PSERIES
 	bool
 	default y
+
+config MPIC
+	bool
+	default n
+
+config MPIC_WEIRD
+	bool
+	default n
+
+config PPC_I8259
+	bool
+	default n
 
 config U3_DART
 	bool
@@ -137,6 +148,9 @@ config GENERIC_IOMAP
 	bool
 	default n
 
+menu "CPU Frequency support"
+	depends on PPC64 || CLASSIC32
+
 source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_PMAC
@@ -155,6 +169,7 @@ config CPU_FREQ_PMAC64
 	help
 	  This adds support for frequency switching on Apple iMac G5,
 	  and some of the more recent desktop G5 machines as well.
+endmenu
 
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
@@ -172,7 +187,7 @@ config PPC601_SYNC_FIX
 
 config TAU
 	bool "On-chip CPU temperature sensor support"
-	depends on 6xx
+	depends on CLASSIC32
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
 	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
@@ -213,5 +228,22 @@ config TAU_AVERAGE
 	  /proc/cpuinfo.
 
 	  If in doubt, say N here.
+
+config QUICC_ENGINE
+	bool
+	help
+	  The QUICC Engine (QE) is a new generation of communications
+	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
+	  Selecting this option means that you wish to build a kernel
+	  for a machine with a QE coprocessor.
+
+config CPM2
+	bool
+	default n
+	help
+	  The CPM2 (Communications Processor Module) is a coprocessor on
+	  embedded CPUs made by Freescale.  Selecting this option means that
+	  you wish to build a kernel for a machine with a CPM2 coprocessor
+	  on it (826x, 827x, 8560).
 
 endmenu
