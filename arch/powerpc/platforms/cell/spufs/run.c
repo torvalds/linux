@@ -123,20 +123,15 @@ out:
 	return ret;
 }
 
-static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
+static int spu_run_init(struct spu_context *ctx, u32 * npc)
 {
-	int ret;
-	unsigned long runcntl = SPU_RUNCNTL_RUNNABLE;
-
-	ret = spu_acquire_runnable(ctx, 0);
-	if (ret)
-		return ret;
-
 	if (ctx->flags & SPU_CREATE_ISOLATE) {
+		unsigned long runcntl;
+
 		if (!(ctx->ops->status_read(ctx) & SPU_STATUS_ISOLATED_STATE)) {
-			ret = spu_setup_isolated(ctx);
+			int ret = spu_setup_isolated(ctx);
 			if (ret)
-				spu_release(ctx);
+				return ret;
 		}
 
 		/* if userspace has set the runcntrl register (eg, to issue an
@@ -145,16 +140,17 @@ static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
 			(SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
 		if (runcntl == 0)
 			runcntl = SPU_RUNCNTL_RUNNABLE;
+		ctx->ops->runcntl_write(ctx, runcntl);
 	} else {
 		spu_start_tick(ctx);
 		ctx->ops->npc_write(ctx, *npc);
+		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 	}
 
-	ctx->ops->runcntl_write(ctx, runcntl);
-	return ret;
+	return 0;
 }
 
-static inline int spu_run_fini(struct spu_context *ctx, u32 * npc,
+static int spu_run_fini(struct spu_context *ctx, u32 * npc,
 			       u32 * status)
 {
 	int ret = 0;
@@ -170,19 +166,27 @@ static inline int spu_run_fini(struct spu_context *ctx, u32 * npc,
 	return ret;
 }
 
-static inline int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
+static int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
 				         u32 *status)
 {
 	int ret;
 
-	if ((ret = spu_run_fini(ctx, npc, status)) != 0)
+	ret = spu_run_fini(ctx, npc, status);
+	if (ret)
 		return ret;
-	if (*status & (SPU_STATUS_STOPPED_BY_STOP |
-		       SPU_STATUS_STOPPED_BY_HALT)) {
+
+	if (*status & (SPU_STATUS_STOPPED_BY_STOP | SPU_STATUS_STOPPED_BY_HALT))
 		return *status;
-	}
-	if ((ret = spu_run_init(ctx, npc)) != 0)
+
+	ret = spu_acquire_runnable(ctx, 0);
+	if (ret)
 		return ret;
+
+	ret = spu_run_init(ctx, npc);
+	if (ret) {
+		spu_release(ctx);
+		return ret;
+	}
 	return 0;
 }
 
@@ -293,9 +297,16 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 
 	ctx->ops->master_start(ctx);
 	ctx->event_return = 0;
-	ret = spu_run_init(ctx, npc);
+
+	ret = spu_acquire_runnable(ctx, 0);
 	if (ret)
+		return ret;
+
+	ret = spu_run_init(ctx, npc);
+	if (ret) {
+		spu_release(ctx);
 		goto out;
+	}
 
 	do {
 		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, &status));
