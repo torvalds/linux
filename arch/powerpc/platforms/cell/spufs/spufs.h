@@ -41,7 +41,7 @@ struct spu_gang;
 
 /* ctx->sched_flags */
 enum {
-	SPU_SCHED_WAKE = 0, /* currently unused */
+	SPU_SCHED_EXITING = 0,
 };
 
 struct spu_context {

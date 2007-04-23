@@ -71,14 +71,25 @@ static inline int node_allowed(int node)
 
 void spu_start_tick(struct spu_context *ctx)
 {
-	if (ctx->policy == SCHED_RR)
+	if (ctx->policy == SCHED_RR) {
+		/*
+		 * Make sure the exiting bit is cleared.
+		 */
+		clear_bit(SPU_SCHED_EXITING, &ctx->sched_flags);
 		queue_delayed_work(spu_sched_wq, &ctx->sched_work, SPU_TIMESLICE);
+	}
 }
 
 void spu_stop_tick(struct spu_context *ctx)
 {
-	if (ctx->policy == SCHED_RR)
+	if (ctx->policy == SCHED_RR) {
+		/*
+		 * While the work can be rearming normally setting this flag
+		 * makes sure it does not rearm itself anymore.
+		 */
+		set_bit(SPU_SCHED_EXITING, &ctx->sched_flags);
 		cancel_delayed_work(&ctx->sched_work);
+	}
 }
 
 void spu_sched_tick(struct work_struct *work)
@@ -87,6 +98,14 @@ void spu_sched_tick(struct work_struct *work)
 		container_of(work, struct spu_context, sched_work.work);
 	struct spu *spu;
 	int rearm = 1;
+
+	/*
+	 * If this context is being stopped avoid rescheduling from the
+	 * scheduler tick because we would block on the state_mutex.
+	 * The caller will yield the spu later on anyway.
+	 */
+	if (test_bit(SPU_SCHED_EXITING, &ctx->sched_flags))
+		return;
 
 	mutex_lock(&ctx->state_mutex);
 	spu = ctx->spu;
@@ -377,7 +396,7 @@ static struct spu *find_victim(struct spu_context *ctx)
  * @ctx:	spu context to schedule
  * @flags:	flags (currently ignored)
  *
- * Tries to find a free spu to run @ctx.  If no free spu is availble
+ * Tries to find a free spu to run @ctx.  If no free spu is available
  * add the context to the runqueue so it gets woken up once an spu
  * is available.
  */
