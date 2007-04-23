@@ -288,7 +288,7 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 	int ret;
 	u32 status;
 
-	if (down_interruptible(&ctx->run_sema))
+	if (mutex_lock_interruptible(&ctx->run_mutex))
 		return -ERESTARTSYS;
 
 	ctx->ops->master_start(ctx);
@@ -345,6 +345,6 @@ out2:
 
 out:
 	*event = ctx->event_return;
-	up(&ctx->run_sema);
+	mutex_unlock(&ctx->run_mutex);
 	return ret;
 }

@@ -44,7 +44,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	spin_lock_init(&ctx->mapping_lock);
 	kref_init(&ctx->kref);
 	mutex_init(&ctx->state_mutex);
-	init_MUTEX(&ctx->run_sema);
+	mutex_init(&ctx->run_mutex);
 	init_waitqueue_head(&ctx->ibox_wq);
 	init_waitqueue_head(&ctx->wbox_wq);
 	init_waitqueue_head(&ctx->stop_wq);

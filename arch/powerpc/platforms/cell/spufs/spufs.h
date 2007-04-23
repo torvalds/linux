@@ -60,7 +60,7 @@ struct spu_context {
 
 	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;
 	struct mutex state_mutex;
-	struct semaphore run_sema;
+	struct mutex run_mutex;
 
 	struct mm_struct *owner;
 
