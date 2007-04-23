@@ -2135,7 +2135,7 @@ static int powerbook_sleep_grackle(void)
 	int ret;
 	struct pci_dev *grackle;
 
-	grackle = pci_find_slot(0, 0);
+	grackle = pci_get_bus_and_slot(0, 0);
 	if (!grackle)
 		return -ENODEV;
 
@@ -2182,6 +2182,8 @@ static int powerbook_sleep_grackle(void)
 	pci_read_config_word(grackle, 0x70, &pmcr1);
 	pmcr1 &= ~(GRACKLE_PM|GRACKLE_DOZE|GRACKLE_SLEEP|GRACKLE_NAP); 
 	pci_write_config_word(grackle, 0x70, pmcr1);
+
+	pci_dev_put(grackle);
 
 	/* Make sure the PMU is idle */
 	pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,0);
