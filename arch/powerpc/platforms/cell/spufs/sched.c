@@ -236,44 +236,40 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
  * spu_add_to_rq - add a context to the runqueue
  * @ctx:       context to add
  */
-static void spu_add_to_rq(struct spu_context *ctx)
+static void __spu_add_to_rq(struct spu_context *ctx)
 {
-	spin_lock(&spu_prio->runq_lock);
-	list_add_tail(&ctx->rq, &spu_prio->runq[ctx->prio]);
-	set_bit(ctx->prio, spu_prio->bitmap);
-	mb();
-	spin_unlock(&spu_prio->runq_lock);
+	int prio = ctx->prio;
+
+	list_add_tail(&ctx->rq, &spu_prio->runq[prio]);
+	set_bit(prio, spu_prio->bitmap);
 }
 
-static void __spu_del_from_rq(struct spu_context *ctx, int prio)
+static void __spu_del_from_rq(struct spu_context *ctx)
 {
+	int prio = ctx->prio;
+
 	if (!list_empty(&ctx->rq))
 		list_del_init(&ctx->rq);
 	if (list_empty(&spu_prio->runq[prio]))
-		clear_bit(ctx->prio, spu_prio->bitmap);
-}
-
-/**
- * spu_del_from_rq - remove a context from the runqueue
- * @ctx:       context to remove
- */
-static void spu_del_from_rq(struct spu_context *ctx)
-{
-	spin_lock(&spu_prio->runq_lock);
-	__spu_del_from_rq(ctx, ctx->prio);
-	spin_unlock(&spu_prio->runq_lock);
+		clear_bit(prio, spu_prio->bitmap);
 }
 
 static void spu_prio_wait(struct spu_context *ctx)
 {
 	DEFINE_WAIT(wait);
 
+	spin_lock(&spu_prio->runq_lock);
 	prepare_to_wait_exclusive(&ctx->stop_wq, &wait, TASK_INTERRUPTIBLE);
 	if (!signal_pending(current)) {
+		__spu_add_to_rq(ctx);
+		spin_unlock(&spu_prio->runq_lock);
 		mutex_unlock(&ctx->state_mutex);
 		schedule();
 		mutex_lock(&ctx->state_mutex);
+		spin_lock(&spu_prio->runq_lock);
+		__spu_del_from_rq(ctx);
 	}
+	spin_unlock(&spu_prio->runq_lock);
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&ctx->stop_wq, &wait);
 }
@@ -300,7 +296,7 @@ static void spu_reschedule(struct spu *spu)
 		BUG_ON(list_empty(rq));
 
 		ctx = list_entry(rq->next, struct spu_context, rq);
-		__spu_del_from_rq(ctx, best);
+		__spu_del_from_rq(ctx);
 		wake_up(&ctx->stop_wq);
 	}
 	spin_unlock(&spu_prio->runq_lock);
@@ -427,9 +423,7 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 			return 0;
 		}
 
-		spu_add_to_rq(ctx);
 		spu_prio_wait(ctx);
-		spu_del_from_rq(ctx);
 	} while (!signal_pending(current));
 
 	return -ERESTARTSYS;
