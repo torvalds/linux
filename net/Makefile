@@ -52,3 +52,5 @@ obj-$(CONFIG_IUCV)		+= iucv/
 ifeq ($(CONFIG_NET),y)
 obj-$(CONFIG_SYSCTL)		+= sysctl_net.o
 endif
+
+obj-y				+= wireless/

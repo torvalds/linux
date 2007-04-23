@@ -212,13 +212,16 @@ endmenu
 source "net/ax25/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
-source "net/ieee80211/Kconfig"
-
-config WIRELESS_EXT
-	bool
 
 config FIB_RULES
 	bool
+
+menu "Wireless"
+
+source "net/wireless/Kconfig"
+source "net/ieee80211/Kconfig"
+
+endmenu
 
 endif   # if NET
 endmenu # Networking
