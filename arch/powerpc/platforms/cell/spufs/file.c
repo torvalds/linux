@@ -50,7 +50,6 @@ spufs_mem_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->local_store = inode->i_mapping;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return 0;
 }
 
@@ -64,7 +63,6 @@ spufs_mem_release(struct inode *inode, struct file *file)
 	if (!--i->i_openers)
 		ctx->local_store = NULL;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return 0;
 }
 
@@ -262,7 +260,6 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->cntl = inode->i_mapping;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return simple_attr_open(inode, file, spufs_cntl_get,
 					spufs_cntl_set, "0x%08lx");
 }
@@ -279,7 +276,6 @@ spufs_cntl_release(struct inode *inode, struct file *file)
 	if (!--i->i_openers)
 		ctx->cntl = NULL;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return 0;
 }
 
@@ -767,7 +763,6 @@ static int spufs_signal1_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->signal1 = inode->i_mapping;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 
@@ -781,7 +776,6 @@ spufs_signal1_release(struct inode *inode, struct file *file)
 	if (!--i->i_openers)
 		ctx->signal1 = NULL;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return 0;
 }
 
@@ -893,7 +887,6 @@ static int spufs_signal2_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->signal2 = inode->i_mapping;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 
@@ -907,7 +900,6 @@ spufs_signal2_release(struct inode *inode, struct file *file)
 	if (!--i->i_openers)
 		ctx->signal2 = NULL;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return 0;
 }
 
@@ -1112,7 +1104,6 @@ static int spufs_mss_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->mss = inode->i_mapping;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 
@@ -1126,7 +1117,6 @@ spufs_mss_release(struct inode *inode, struct file *file)
 	if (!--i->i_openers)
 		ctx->mss = NULL;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return 0;
 }
 
@@ -1172,7 +1162,6 @@ static int spufs_psmap_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->psmap = inode->i_mapping;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 
@@ -1186,7 +1175,6 @@ spufs_psmap_release(struct inode *inode, struct file *file)
 	if (!--i->i_openers)
 		ctx->psmap = NULL;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return 0;
 }
 
@@ -1244,7 +1232,6 @@ static int spufs_mfc_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->mfc = inode->i_mapping;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return nonseekable_open(inode, file);
 }
 
@@ -1258,7 +1245,6 @@ spufs_mfc_release(struct inode *inode, struct file *file)
 	if (!--i->i_openers)
 		ctx->mfc = NULL;
 	spin_unlock(&ctx->mapping_lock);
-	smp_wmb();
 	return 0;
 }
 
