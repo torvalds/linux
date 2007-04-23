@@ -894,6 +894,12 @@ M:	maxextreme@gmail.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+CFG80211 and NL80211
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+
 COMMON INTERNET FILE SYSTEM (CIFS)
 P:	Steve French
 M:	sfrench@samba.org

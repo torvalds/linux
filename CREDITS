@@ -317,6 +317,12 @@ S: 2322 37th Ave SW
 S: Seattle, Washington 98126-2010
 S: USA
 
+N: Johannes Berg
+E: johannes@sipsolutions.net
+W: http://johannes.sipsolutions.net/
+P: 1024D/9AB78CA5 AD02 0176 4E29 C137 1DF6 08D2 FC44 CF86 9AB7 8CA5
+D: powerpc & 802.11 hacker
+
 N: Stephen R. van den Berg (AKA BuGless)
 E: berg@pool.informatik.rwth-aachen.de
 D: General kernel, gcc, and libc hacker
