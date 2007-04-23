@@ -234,17 +234,17 @@ int spu_process_callback(struct spu_context *ctx)
 {
 	struct spu_syscall_block s;
 	u32 ls_pointer, npc;
-	char *ls;
+	void __iomem *ls;
 	long spu_ret;
 	int ret;
 
 	/* get syscall block from local store */
-	npc = ctx->ops->npc_read(ctx);
-	ls = ctx->ops->get_ls(ctx);
-	ls_pointer = *(u32*)(ls + npc);
+	npc = ctx->ops->npc_read(ctx) & ~3;
+	ls = (void __iomem *)ctx->ops->get_ls(ctx);
+	ls_pointer = in_be32(ls + npc);
 	if (ls_pointer > (LS_SIZE - sizeof(s)))
 		return -EFAULT;
-	memcpy(&s, ls + ls_pointer, sizeof (s));
+	memcpy_fromio(&s, ls + ls_pointer, sizeof(s));
 
 	/* do actual syscall without pinning the spu */
 	ret = 0;
@@ -264,7 +264,7 @@ int spu_process_callback(struct spu_context *ctx)
 	}
 
 	/* write result, jump over indirect pointer */
-	memcpy(ls + ls_pointer, &spu_ret, sizeof (spu_ret));
+	memcpy_toio(ls + ls_pointer, &spu_ret, sizeof(spu_ret));
 	ctx->ops->npc_write(ctx, npc);
 	ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 	return ret;
