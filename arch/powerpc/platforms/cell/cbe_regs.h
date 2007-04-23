@@ -255,6 +255,11 @@ struct cbe_mic_tm_regs {
 extern struct cbe_mic_tm_regs __iomem *cbe_get_mic_tm_regs(struct device_node *np);
 extern struct cbe_mic_tm_regs __iomem *cbe_get_cpu_mic_tm_regs(int cpu);
 
+/* some utility functions to deal with SMT */
+extern u32 cbe_get_hw_thread_id(int cpu);
+extern u32 cbe_cpu_to_node(int cpu);
+extern u32 cbe_node_to_cpu(int node);
+
 /* Init this module early */
 extern void cbe_regs_init(void);
 

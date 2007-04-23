@@ -37,6 +37,7 @@
 #include <asm/system.h>
 
 #include "../platforms/cell/interrupt.h"
+#include "../platforms/cell/cbe_regs.h"
 
 #define PPU_CYCLES_EVENT_NUM 1	/*  event number for CYCLES */
 #define PPU_CYCLES_GRP_NUM   1  /* special group number for identifying
