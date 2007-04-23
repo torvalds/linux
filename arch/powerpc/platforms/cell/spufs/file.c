@@ -1443,7 +1443,10 @@ static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
 	if (ret)
 		goto out;
 
-	spu_acquire_runnable(ctx, 0);
+	ret = spu_acquire_runnable(ctx, 0);
+	if (ret)
+		goto out;
+
 	if (file->f_flags & O_NONBLOCK) {
 		ret = ctx->ops->send_mfc_command(ctx, &cmd);
 	} else {
