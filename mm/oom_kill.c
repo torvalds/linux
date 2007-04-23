@@ -176,6 +176,8 @@ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
 	struct zone **z;
 	nodemask_t nodes;
 	int node;
+
+	nodes_clear(nodes);
 	/* node has memory ? */
 	for_each_online_node(node)
 		if (NODE_DATA(node)->node_present_pages)
