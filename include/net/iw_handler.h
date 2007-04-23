@@ -440,16 +440,6 @@ extern int dev_get_wireless_info(char * buffer, char **start, off_t offset,
 /* Handle IOCTLs, called in net/core/dev.c */
 extern int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd);
 
-/* Handle RtNetlink requests, called in net/core/rtnetlink.c */
-extern int wireless_rtnetlink_set(struct net_device *	dev,
-				  char *		data,
-				  int			len);
-extern int wireless_rtnetlink_get(struct net_device *	dev,
-				  char *		data,
-				  int			len,
-				  char **		p_buf,
-				  int *			p_len);
-
 /* Second : functions that may be called by driver modules */
 
 /* Send a single event to user space */

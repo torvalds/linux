@@ -14,13 +14,3 @@ config WIRELESS_EXT
 
 	  Say N (if you can) unless you know you need wireless
 	  extensions for external modules.
-
-config NET_WIRELESS_RTNETLINK
-	bool "Wireless Extension API over RtNetlink"
-	depends on WIRELESS_EXT
-	---help---
-	  Support the Wireless Extension API over the RtNetlink socket
-	  in addition to the traditional ioctl interface (selected above).
-
-	  For now, few tools use this facility, but it might grow in the
-	  future. The only downside is that it adds 4.5 kB to your kernel.

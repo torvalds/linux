@@ -51,10 +51,6 @@
 #include <net/pkt_sched.h>
 #include <net/fib_rules.h>
 #include <net/rtnetlink.h>
-#ifdef CONFIG_NET_WIRELESS_RTNETLINK
-#include <linux/wireless.h>
-#include <net/iw_handler.h>
-#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
 
 struct rtnl_link
 {
@@ -684,17 +680,6 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		modified = 1;
 	}
 
-#ifdef CONFIG_NET_WIRELESS_RTNETLINK
-	if (tb[IFLA_WIRELESS]) {
-		/* Call Wireless Extensions.
-		 * Various stuff checked in there... */
-		err = wireless_rtnetlink_set(dev, nla_data(tb[IFLA_WIRELESS]),
-					     nla_len(tb[IFLA_WIRELESS]));
-		if (err < 0)
-			goto errout_dev;
-	}
-#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
-
 	if (tb[IFLA_BROADCAST]) {
 		nla_memcpy(dev->broadcast, tb[IFLA_BROADCAST], dev->addr_len);
 		send_addr_notify = 1;
@@ -757,22 +742,6 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 			return -ENODEV;
 	} else
 		return -EINVAL;
-
-
-#ifdef CONFIG_NET_WIRELESS_RTNETLINK
-	if (tb[IFLA_WIRELESS]) {
-		/* Call Wireless Extensions. We need to know the size before
-		 * we can alloc. Various stuff checked in there... */
-		err = wireless_rtnetlink_get(dev, nla_data(tb[IFLA_WIRELESS]),
-					     nla_len(tb[IFLA_WIRELESS]),
-					     &iw_buf, &iw_buf_len);
-		if (err < 0)
-			goto errout;
-
-		/* Payload is at an offset in buffer */
-		iw = iw_buf + IW_EV_POINT_OFF;
-	}
-#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
 
 	nskb = nlmsg_new(if_nlmsg_size(iw_buf_len), GFP_KERNEL);
 	if (nskb == NULL) {
