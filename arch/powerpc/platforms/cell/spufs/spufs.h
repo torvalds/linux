@@ -141,6 +141,7 @@ struct spu_context_ops {
 			       struct spu_dma_info * info);
 	void (*proxydma_info_read) (struct spu_context * ctx,
 				    struct spu_proxydma_info * info);
+	void (*restart_dma)(struct spu_context *ctx);
 };
 
 extern struct spu_context_ops spu_hw_ops;
@@ -171,6 +172,9 @@ struct spu_gang *get_spu_gang(struct spu_gang *gang);
 int put_spu_gang(struct spu_gang *gang);
 void spu_gang_remove_ctx(struct spu_gang *gang, struct spu_context *ctx);
 void spu_gang_add_ctx(struct spu_gang *gang, struct spu_context *ctx);
+
+/* fault handling */
+int spufs_handle_class1(struct spu_context *ctx);
 
 /* context management */
 static inline void spu_acquire(struct spu_context *ctx)

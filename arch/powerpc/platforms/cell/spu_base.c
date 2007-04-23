@@ -290,7 +290,6 @@ spu_irq_class_1(int irq, void *data)
 
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
-EXPORT_SYMBOL_GPL(spu_irq_class_1_bottom);
 
 static irqreturn_t
 spu_irq_class_2(int irq, void *data)
@@ -461,108 +460,6 @@ void spu_free(struct spu *spu)
 	mutex_unlock(&spu_mutex);
 }
 EXPORT_SYMBOL_GPL(spu_free);
-
-static int spu_handle_mm_fault(struct spu *spu)
-{
-	struct mm_struct *mm = spu->mm;
-	struct vm_area_struct *vma;
-	u64 ea, dsisr, is_write;
-	int ret;
-
-	ea = spu->dar;
-	dsisr = spu->dsisr;
-#if 0
-	if (!IS_VALID_EA(ea)) {
-		return -EFAULT;
-	}
-#endif /* XXX */
-	if (mm == NULL) {
-		return -EFAULT;
-	}
-	if (mm->pgd == NULL) {
-		return -EFAULT;
-	}
-
-	down_read(&mm->mmap_sem);
-	vma = find_vma(mm, ea);
-	if (!vma)
-		goto bad_area;
-	if (vma->vm_start <= ea)
-		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
-#if 0
-	if (expand_stack(vma, ea))
-		goto bad_area;
-#endif /* XXX */
-good_area:
-	is_write = dsisr & MFC_DSISR_ACCESS_PUT;
-	if (is_write) {
-		if (!(vma->vm_flags & VM_WRITE))
-			goto bad_area;
-	} else {
-		if (dsisr & MFC_DSISR_ACCESS_DENIED)
-			goto bad_area;
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
-			goto bad_area;
-	}
-	ret = 0;
-	switch (handle_mm_fault(mm, vma, ea, is_write)) {
-	case VM_FAULT_MINOR:
-		current->min_flt++;
-		break;
-	case VM_FAULT_MAJOR:
-		current->maj_flt++;
-		break;
-	case VM_FAULT_SIGBUS:
-		ret = -EFAULT;
-		goto bad_area;
-	case VM_FAULT_OOM:
-		ret = -ENOMEM;
-		goto bad_area;
-	default:
-		BUG();
-	}
-	up_read(&mm->mmap_sem);
-	return ret;
-
-bad_area:
-	up_read(&mm->mmap_sem);
-	return -EFAULT;
-}
-
-int spu_irq_class_1_bottom(struct spu *spu)
-{
-	u64 ea, dsisr, access, error = 0UL;
-	int ret = 0;
-
-	ea = spu->dar;
-	dsisr = spu->dsisr;
-	if (dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED)) {
-		u64 flags;
-
-		access = (_PAGE_PRESENT | _PAGE_USER);
-		access |= (dsisr & MFC_DSISR_ACCESS_PUT) ? _PAGE_RW : 0UL;
-		local_irq_save(flags);
-		if (hash_page(ea, access, 0x300) != 0)
-			error |= CLASS1_ENABLE_STORAGE_FAULT_INTR;
-		local_irq_restore(flags);
-	}
-	if (error & CLASS1_ENABLE_STORAGE_FAULT_INTR) {
-		if ((ret = spu_handle_mm_fault(spu)) != 0)
-			error |= CLASS1_ENABLE_STORAGE_FAULT_INTR;
-		else
-			error &= ~CLASS1_ENABLE_STORAGE_FAULT_INTR;
-	}
-	spu->dar = 0UL;
-	spu->dsisr = 0UL;
-	if (!error) {
-		spu_restart_dma(spu);
-	} else {
-		spu->dma_callback(spu, SPE_EVENT_SPE_DATA_STORAGE);
-	}
-	return ret;
-}
 
 struct sysdev_class spu_sysdev_class = {
 	set_kset_name("spu")

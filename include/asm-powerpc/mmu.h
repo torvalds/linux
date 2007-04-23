@@ -234,6 +234,7 @@ extern int __hash_page_64K(unsigned long ea, unsigned long access,
 			   unsigned long vsid, pte_t *ptep, unsigned long trap,
 			   unsigned int local);
 struct mm_struct;
+extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap);
 extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
 			  unsigned long ea, unsigned long vsid, int local,
 			  unsigned long trap);

@@ -2084,6 +2084,10 @@ int spu_save(struct spu_state *prev, struct spu *spu)
 	int rc;
 
 	acquire_spu_lock(spu);	        /* Step 1.     */
+	prev->dar = spu->dar;
+	prev->dsisr = spu->dsisr;
+	spu->dar = 0;
+	spu->dsisr = 0;
 	rc = __do_spu_save(prev, spu);	/* Steps 2-53. */
 	release_spu_lock(spu);
 	if (rc != 0 && rc != 2 && rc != 6) {
@@ -2109,9 +2113,9 @@ int spu_restore(struct spu_state *new, struct spu *spu)
 
 	acquire_spu_lock(spu);
 	harvest(NULL, spu);
-	spu->dar = 0;
-	spu->dsisr = 0;
 	spu->slb_replace = 0;
+	new->dar = 0;
+	new->dsisr = 0;
 	spu->class_0_pending = 0;
 	rc = __do_spu_restore(new, spu);
 	release_spu_lock(spu);

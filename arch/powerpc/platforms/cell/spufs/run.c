@@ -18,27 +18,6 @@ void spufs_stop_callback(struct spu *spu)
 	wake_up_all(&ctx->stop_wq);
 }
 
-void spufs_dma_callback(struct spu *spu, int type)
-{
-	struct spu_context *ctx = spu->ctx;
-
-	if (ctx->flags & SPU_CREATE_EVENTS_ENABLED) {
-		ctx->event_return |= type;
-		wake_up_all(&ctx->stop_wq);
-	} else {
-		switch (type) {
-		case SPE_EVENT_DMA_ALIGNMENT:
-		case SPE_EVENT_SPE_DATA_STORAGE:
-		case SPE_EVENT_INVALID_DMA:
-			force_sig(SIGBUS, /* info, */ current);
-			break;
-		case SPE_EVENT_SPE_ERROR:
-			force_sig(SIGILL, /* info */ current);
-			break;
-		}
-	}
-}
-
 static inline int spu_stopped(struct spu_context *ctx, u32 * stat)
 {
 	struct spu *spu;
@@ -294,11 +273,8 @@ int spu_process_callback(struct spu_context *ctx)
 static inline int spu_process_events(struct spu_context *ctx)
 {
 	struct spu *spu = ctx->spu;
-	u64 pte_fault = MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED;
 	int ret = 0;
 
-	if (spu->dsisr & pte_fault)
-		ret = spu_irq_class_1_bottom(spu);
 	if (spu->class_0_pending)
 		ret = spu_irq_class_0_bottom(spu);
 	if (!ret && signal_pending(current))
@@ -332,6 +308,10 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 				break;
 			status &= ~SPU_STATUS_STOPPED_BY_STOP;
 		}
+		ret = spufs_handle_class1(ctx);
+		if (ret)
+			break;
+
 		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
 			ret = spu_reacquire_runnable(ctx, npc, &status);
 			if (ret) {

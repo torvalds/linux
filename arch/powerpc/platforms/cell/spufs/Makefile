@@ -1,4 +1,4 @@
-obj-y += switch.o
+obj-y += switch.o fault.o
 
 obj-$(CONFIG_SPU_FS) += spufs.o
 spufs-y += inode.o file.o context.o syscalls.o coredump.o
