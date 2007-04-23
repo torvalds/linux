@@ -1388,6 +1388,13 @@ L:	linuxppc-embedded@ozlabs.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+FREESCALE HIGHSPEED USB DEVICE DRIVER
+P:	Li Yang
+M:	leoli@freescale.com
+L:	linux-usb-devel@lists.sourceforge.net
+L:	linuxppc-embedded@ozlabs.org
+S:	Maintained
+
 FILE LOCKING (flock() and fcntl()/lockf())
 P:	Matthew Wilcox
 M:	matthew@wil.cx
