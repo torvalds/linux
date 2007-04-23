@@ -106,7 +106,6 @@ struct cfq_data {
 
 	struct cfq_queue *active_queue;
 	struct cfq_io_context *active_cic;
-	unsigned int dispatch_slice;
 
 	struct timer_list idle_class_timer;
 
@@ -775,8 +774,6 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		put_io_context(cfqd->active_cic->ioc);
 		cfqd->active_cic = NULL;
 	}
-
-	cfqd->dispatch_slice = 0;
 }
 
 static inline void cfq_slice_expired(struct cfq_data *cfqd, int timed_out)
@@ -1026,7 +1023,6 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 */
 		cfq_dispatch_insert(cfqd->queue, rq);
 
-		cfqd->dispatch_slice++;
 		dispatched++;
 
 		if (!cfqd->active_cic) {
@@ -1044,7 +1040,7 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	 * queue always expire after 1 dispatch round.
 	 */
 	if (cfqd->busy_queues > 1 && ((!cfq_cfqq_sync(cfqq) &&
-	    cfqd->dispatch_slice >= cfq_prio_to_maxrq(cfqd, cfqq)) ||
+	    dispatched >= cfq_prio_to_maxrq(cfqd, cfqq)) ||
 	    cfq_class_idle(cfqq))) {
 		cfqq->slice_end = jiffies + 1;
 		cfq_slice_expired(cfqd, 0);
