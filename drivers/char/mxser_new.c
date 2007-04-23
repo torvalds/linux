@@ -2230,7 +2230,14 @@ end_intr:
 	port->mon_data.rxcnt += cnt;
 	port->mon_data.up_rxcnt += cnt;
 
+	/*
+	 * We are called from an interrupt context with &port->slock
+	 * being held. Drop it temporarily in order to prevent
+	 * recursive locking.
+	 */
+	spin_unlock(&port->slock);
 	tty_flip_buffer_push(tty);
+	spin_lock(&port->slock);
 }
 
 static void mxser_transmit_chars(struct mxser_port *port)
