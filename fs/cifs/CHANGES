@@ -12,7 +12,10 @@ when archive dos attribute not set and we are changing mode back to writeable
 on server which does not support the Unix Extensions).  Remove read only dos
 attribute on chmod when adding any write permission (ie on any of
 user/group/other (not all of user/group/other ie  0222) when
-mounted to windows.
+mounted to windows.  Add support for POSIX MkDir (slight performance
+enhancement and eliminates the network race between the mkdir and set 
+path info of the mode).
+
 
 Version 1.47
 ------------
