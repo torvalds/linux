@@ -1168,7 +1168,7 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 			buf->sequence = 0;
 			buf->memory = V4L2_MEMORY_MMAP;
 			buf->m.offset = pdev->fill_image * pdev->len_per_image;
-			buf->length = buf->bytesused;
+			buf->length = pdev->len_per_image;
 			pwc_next_image(pdev);
 
 			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: buf->index=%d\n",buf->index);
