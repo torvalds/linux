@@ -970,9 +970,9 @@ exit:
 
 static const struct jffs2_unknown_node oob_cleanmarker =
 {
-	.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK),
-	.nodetype = cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER),
-	.totlen = cpu_to_je32(8)
+	.magic = constant_cpu_to_je16(JFFS2_MAGIC_BITMASK),
+	.nodetype = constant_cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER),
+	.totlen = constant_cpu_to_je32(8)
 };
 
 /*
