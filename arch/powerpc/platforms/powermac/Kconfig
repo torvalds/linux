@@ -12,7 +12,7 @@ config PPC_PMAC64
 	depends on PPC_PMAC && POWER4
 	select MPIC
 	select U3_DART
-	select MPIC_BROKEN_U3
+	select MPIC_U3_HT_IRQS
 	select GENERIC_TBSYNC
 	select PPC_970_NAP
 	default y

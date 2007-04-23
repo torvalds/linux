@@ -304,7 +304,7 @@ static void __init mpic_test_broken_ipi(struct mpic *mpic)
 	}
 }
 
-#ifdef CONFIG_MPIC_BROKEN_U3
+#ifdef CONFIG_MPIC_U3_HT_IRQS
 
 /* Test if an interrupt is sourced from HyperTransport (used on broken U3s)
  * to force the edge setting on the MPIC and do the ack workaround.
@@ -476,7 +476,7 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 	}
 }
 
-#else /* CONFIG_MPIC_BROKEN_U3 */
+#else /* CONFIG_MPIC_U3_HT_IRQS */
 
 static inline int mpic_is_ht_interrupt(struct mpic *mpic, unsigned int source)
 {
@@ -487,7 +487,7 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 {
 }
 
-#endif /* CONFIG_MPIC_BROKEN_U3 */
+#endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 
 #define mpic_irq_to_hw(virq)	((unsigned int)irq_map[virq].hwirq)
@@ -615,7 +615,7 @@ static void mpic_end_irq(unsigned int irq)
 	mpic_eoi(mpic);
 }
 
-#ifdef CONFIG_MPIC_BROKEN_U3
+#ifdef CONFIG_MPIC_U3_HT_IRQS
 
 static void mpic_unmask_ht_irq(unsigned int irq)
 {
@@ -665,7 +665,7 @@ static void mpic_end_ht_irq(unsigned int irq)
 		mpic_ht_end_irq(mpic, src);
 	mpic_eoi(mpic);
 }
-#endif /* !CONFIG_MPIC_BROKEN_U3 */
+#endif /* !CONFIG_MPIC_U3_HT_IRQS */
 
 #ifdef CONFIG_SMP
 
@@ -788,7 +788,7 @@ static struct irq_chip mpic_ipi_chip = {
 };
 #endif /* CONFIG_SMP */
 
-#ifdef CONFIG_MPIC_BROKEN_U3
+#ifdef CONFIG_MPIC_U3_HT_IRQS
 static struct irq_chip mpic_irq_ht_chip = {
 	.startup	= mpic_startup_ht_irq,
 	.shutdown	= mpic_shutdown_ht_irq,
@@ -797,7 +797,7 @@ static struct irq_chip mpic_irq_ht_chip = {
 	.eoi		= mpic_end_ht_irq,
 	.set_type	= mpic_set_irq_type,
 };
-#endif /* CONFIG_MPIC_BROKEN_U3 */
+#endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 
 static int mpic_host_match(struct irq_host *h, struct device_node *node)
@@ -837,11 +837,11 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 	/* Default chip */
 	chip = &mpic->hc_irq;
 
-#ifdef CONFIG_MPIC_BROKEN_U3
+#ifdef CONFIG_MPIC_U3_HT_IRQS
 	/* Check for HT interrupts, override vecpri */
 	if (mpic_is_ht_interrupt(mpic, hw))
 		chip = &mpic->hc_ht_irq;
-#endif /* CONFIG_MPIC_BROKEN_U3 */
+#endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 	DBG("mpic: mapping to irq chip @%p\n", chip);
 
@@ -937,12 +937,12 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->hc_irq.typename = name;
 	if (flags & MPIC_PRIMARY)
 		mpic->hc_irq.set_affinity = mpic_set_affinity;
-#ifdef CONFIG_MPIC_BROKEN_U3
+#ifdef CONFIG_MPIC_U3_HT_IRQS
 	mpic->hc_ht_irq = mpic_irq_ht_chip;
 	mpic->hc_ht_irq.typename = name;
 	if (flags & MPIC_PRIMARY)
 		mpic->hc_ht_irq.set_affinity = mpic_set_affinity;
-#endif /* CONFIG_MPIC_BROKEN_U3 */
+#endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 #ifdef CONFIG_SMP
 	mpic->hc_ipi = mpic_ipi_chip;
@@ -1142,7 +1142,7 @@ void __init mpic_init(struct mpic *mpic)
 
 	/* Do the HT PIC fixups on U3 broken mpic */
 	DBG("MPIC flags: %x\n", mpic->flags);
-	if ((mpic->flags & MPIC_BROKEN_U3) && (mpic->flags & MPIC_PRIMARY))
+	if ((mpic->flags & MPIC_U3_HT_IRQS) && (mpic->flags & MPIC_PRIMARY))
  		mpic_scan_ht_pics(mpic);
 
 	for (i = 0; i < mpic->num_sources; i++) {

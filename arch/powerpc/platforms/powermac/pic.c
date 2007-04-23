@@ -489,7 +489,7 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 	 * but works until I find a better way
 	 */
 	if (master && (flags & MPIC_BIG_ENDIAN))
-		flags |= MPIC_BROKEN_U3;
+		flags |= MPIC_U3_HT_IRQS;
 
 	mpic = mpic_alloc(np, r.start, flags, 0, 0, name);
 	if (mpic == NULL)

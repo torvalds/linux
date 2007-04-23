@@ -3,7 +3,7 @@ config PPC_MAPLE
 	bool "Maple 970FX Evaluation Board"
 	select MPIC
 	select U3_DART
-	select MPIC_BROKEN_U3
+	select MPIC_U3_HT_IRQS
 	select GENERIC_TBSYNC
 	select PPC_UDBG_16550
 	select PPC_970_NAP

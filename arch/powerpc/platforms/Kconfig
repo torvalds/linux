@@ -115,7 +115,7 @@ config MMIO_NVRAM
 	bool
 	default n
 
-config MPIC_BROKEN_U3
+config MPIC_U3_HT_IRQS
 	bool
 	depends on PPC_MAPLE
 	default y
