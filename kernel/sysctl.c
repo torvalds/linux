@@ -1676,7 +1676,7 @@ static int proc_dointvec_taint(ctl_table *table, int write, struct file *filp,
 {
 	int op;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	op = OP_OR;
