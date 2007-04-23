@@ -2639,6 +2639,12 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 		t->active += (t->cycle - (t->active + t->recover)) / 2;
 		t->recover = t->cycle - t->active;
 	}
+	
+	/* In a few cases quantisation may produce enough errors to
+	   leave t->cycle too low for the sum of active and recovery
+	   if so we must correct this */
+	if (t->active + t->recover > t->cycle)
+		t->cycle = t->active + t->recover;
 
 	return 0;
 }
