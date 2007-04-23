@@ -534,12 +534,6 @@ static int spu_create_sysdev(struct spu *spu)
 	return 0;
 }
 
-static void spu_destroy_sysdev(struct spu *spu)
-{
-	sysfs_remove_device_from_node(&spu->sysdev, spu->node);
-	sysdev_unregister(&spu->sysdev);
-}
-
 static int __init create_spu(void *data)
 {
 	struct spu *spu;
@@ -591,43 +585,17 @@ out:
 	return ret;
 }
 
-static void destroy_spu(struct spu *spu)
-{
-	list_del_init(&spu->list);
-	list_del_init(&spu->full_list);
-
-	spu_destroy_sysdev(spu);
-	spu_free_irqs(spu);
-	spu_destroy_spu(spu);
-	kfree(spu);
-}
-
-static void cleanup_spu_base(void)
-{
-	struct spu *spu, *tmp;
-	int node;
-
-	mutex_lock(&spu_mutex);
-	for (node = 0; node < MAX_NUMNODES; node++) {
-		list_for_each_entry_safe(spu, tmp, &spu_list[node], list)
-			destroy_spu(spu);
-	}
-	mutex_unlock(&spu_mutex);
-	sysdev_class_unregister(&spu_sysdev_class);
-}
-module_exit(cleanup_spu_base);
-
 static int __init init_spu_base(void)
 {
-	int i, ret;
+	int i, ret = 0;
 
 	if (!spu_management_ops)
-		return 0;
+		goto out;
 
 	/* create sysdev class for spus */
 	ret = sysdev_class_register(&spu_sysdev_class);
 	if (ret)
-		return ret;
+		goto out;
 
 	for (i = 0; i < MAX_NUMNODES; i++)
 		INIT_LIST_HEAD(&spu_list[i]);
@@ -637,11 +605,16 @@ static int __init init_spu_base(void)
 	if (ret) {
 		printk(KERN_WARNING "%s: Error initializing spus\n",
 			__FUNCTION__);
-		cleanup_spu_base();
-		return ret;
+		goto out_unregister_sysdev_class;
 	}
 
 	xmon_register_spus(&spu_full_list);
+
+	return 0;
+
+ out_unregister_sysdev_class:
+	sysdev_class_unregister(&spu_sysdev_class);
+ out:
 
 	return ret;
 }
