@@ -1559,7 +1559,6 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev->node_type = RDMA_NODE_IB_CA;
 	dev->phys_port_cnt = 1;
 	dev->dma_device = &dd->pcidev->dev;
-	dev->class_dev.dev = dev->dma_device;
 	dev->query_device = ipath_query_device;
 	dev->modify_device = ipath_modify_device;
 	dev->query_port = ipath_query_port;
