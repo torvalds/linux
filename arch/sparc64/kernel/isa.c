@@ -24,7 +24,7 @@ static void __init report_dev(struct sparc_isa_device *isa_dev, int child)
 
 static void __init isa_dev_get_resource(struct sparc_isa_device *isa_dev)
 {
-	struct linux_prom_registers *pregs;
+	const struct linux_prom_registers *pregs;
 	unsigned long base, len;
 	int prop_len;
 

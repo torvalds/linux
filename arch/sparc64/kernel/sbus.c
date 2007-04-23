@@ -1025,7 +1025,7 @@ static void __init sysio_register_error_handlers(struct sbus_bus *sbus)
 /* Boot time initialization. */
 static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 {
-	struct linux_prom64_registers *pr;
+	const struct linux_prom64_registers *pr;
 	struct device_node *dp;
 	struct sbus_iommu *iommu;
 	unsigned long regs;
@@ -1133,7 +1133,7 @@ static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 void sbus_fill_device_irq(struct sbus_dev *sdev)
 {
 	struct device_node *dp = of_find_node_by_phandle(sdev->prom_node);
-	struct linux_prom_irqs *irqs;
+	const struct linux_prom_irqs *irqs;
 
 	irqs = of_get_property(dp, "interrupts", NULL);
 	if (!irqs) {

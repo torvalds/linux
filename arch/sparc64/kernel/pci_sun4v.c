@@ -1281,7 +1281,7 @@ h_error:
 
 static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 {
-	u32 *val;
+	const u32 *val;
 	int len;
 
 	val = of_get_property(pbm->prom_node, "#msi-eqs", &len);
@@ -1289,16 +1289,16 @@ static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 		goto no_msi;
 	pbm->msiq_num = *val;
 	if (pbm->msiq_num) {
-		struct msiq_prop {
+		const struct msiq_prop {
 			u32 first_msiq;
 			u32 num_msiq;
 			u32 first_devino;
 		} *mqp;
-		struct msi_range_prop {
+		const struct msi_range_prop {
 			u32 first_msi;
 			u32 num_msi;
 		} *mrng;
-		struct addr_range_prop {
+		const struct addr_range_prop {
 			u32 msi32_high;
 			u32 msi32_low;
 			u32 msi32_len;

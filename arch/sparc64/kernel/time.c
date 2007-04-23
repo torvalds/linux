@@ -704,7 +704,7 @@ retry:
 	return -EOPNOTSUPP;
 }
 
-static int __init clock_model_matches(char *model)
+static int __init clock_model_matches(const char *model)
 {
 	if (strcmp(model, "mk48t02") &&
 	    strcmp(model, "mk48t08") &&
@@ -721,7 +721,7 @@ static int __init clock_model_matches(char *model)
 static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
-	char *model = of_get_property(dp, "model", NULL);
+	const char *model = of_get_property(dp, "model", NULL);
 	unsigned long size, flags;
 	void __iomem *regs;
 

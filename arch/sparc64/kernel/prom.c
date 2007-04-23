@@ -196,7 +196,7 @@ EXPORT_SYMBOL(of_getintprop_default);
 
 int of_n_addr_cells(struct device_node *np)
 {
-	int* ip;
+	const int* ip;
 	do {
 		if (np->parent)
 			np = np->parent;
@@ -211,7 +211,7 @@ EXPORT_SYMBOL(of_n_addr_cells);
 
 int of_n_size_cells(struct device_node *np)
 {
-	int* ip;
+	const int* ip;
 	do {
 		if (np->parent)
 			np = np->parent;
@@ -397,7 +397,7 @@ static unsigned int psycho_irq_build(struct device_node *dp,
 
 static void psycho_irq_trans_init(struct device_node *dp)
 {
-	struct linux_prom64_registers *regs;
+	const struct linux_prom64_registers *regs;
 
 	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
 	dp->irq_trans->irq_build = psycho_irq_build;
@@ -547,7 +547,7 @@ static unsigned long __sabre_onboard_imap_off[] = {
 static int sabre_device_needs_wsync(struct device_node *dp)
 {
 	struct device_node *parent = dp->parent;
-	char *parent_model, *parent_compat;
+	const char *parent_model, *parent_compat;
 
 	/* This traversal up towards the root is meant to
 	 * handle two cases:
@@ -589,7 +589,7 @@ static unsigned int sabre_irq_build(struct device_node *dp,
 {
 	struct sabre_irq_data *irq_data = _data;
 	unsigned long controller_regs = irq_data->controller_regs;
-	struct linux_prom_pci_registers *regs;
+	const struct linux_prom_pci_registers *regs;
 	unsigned long imap, iclr;
 	unsigned long imap_off, iclr_off;
 	int inofixup = 0;
@@ -639,9 +639,9 @@ static unsigned int sabre_irq_build(struct device_node *dp,
 
 static void sabre_irq_trans_init(struct device_node *dp)
 {
-	struct linux_prom64_registers *regs;
+	const struct linux_prom64_registers *regs;
 	struct sabre_irq_data *irq_data;
-	u32 *busrange;
+	const u32 *busrange;
 
 	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
 	dp->irq_trans->irq_build = sabre_irq_build;
@@ -795,7 +795,7 @@ static unsigned int schizo_irq_build(struct device_node *dp,
 
 static void __schizo_irq_trans_init(struct device_node *dp, int is_tomatillo)
 {
-	struct linux_prom64_registers *regs;
+	const struct linux_prom64_registers *regs;
 	struct schizo_irq_data *irq_data;
 
 	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
@@ -836,7 +836,7 @@ static unsigned int pci_sun4v_irq_build(struct device_node *dp,
 
 static void pci_sun4v_irq_trans_init(struct device_node *dp)
 {
-	struct linux_prom64_registers *regs;
+	const struct linux_prom64_registers *regs;
 
 	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
 	dp->irq_trans->irq_build = pci_sun4v_irq_build;
@@ -940,7 +940,7 @@ static unsigned int sbus_of_build_irq(struct device_node *dp,
 				      void *_data)
 {
 	unsigned long reg_base = (unsigned long) _data;
-	struct linux_prom_registers *regs;
+	const struct linux_prom_registers *regs;
 	unsigned long imap, iclr;
 	int sbus_slot = 0;
 	int sbus_level = 0;
@@ -994,7 +994,7 @@ static unsigned int sbus_of_build_irq(struct device_node *dp,
 
 static void sbus_irq_trans_init(struct device_node *dp)
 {
-	struct linux_prom64_registers *regs;
+	const struct linux_prom64_registers *regs;
 
 	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
 	dp->irq_trans->irq_build = sbus_of_build_irq;
@@ -1080,7 +1080,7 @@ static unsigned int sun4v_vdev_irq_build(struct device_node *dp,
 
 static void sun4v_vdev_irq_trans_init(struct device_node *dp)
 {
-	struct linux_prom64_registers *regs;
+	const struct linux_prom64_registers *regs;
 
 	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
 	dp->irq_trans->irq_build = sun4v_vdev_irq_build;

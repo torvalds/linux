@@ -285,7 +285,7 @@ static void __init fill_ebus_child(struct device_node *dp,
 				   int non_standard_regs)
 {
 	struct of_device *op;
-	int *regs;
+	const int *regs;
 	int i, len;
 
 	dev->prom_node = dp;

@@ -627,7 +627,7 @@ static u64 prom_limit0, prom_limit1;
 static void map_prom_timers(void)
 {
 	struct device_node *dp;
-	unsigned int *addr;
+	const unsigned int *addr;
 
 	/* PROM timer node hangs out in the top level of device siblings... */
 	dp = of_find_node_by_path("/");
