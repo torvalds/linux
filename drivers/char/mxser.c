@@ -1338,43 +1338,23 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file, unsigned int c
 		 *   (use |'ed TIOCM_RNG/DSR/CD/CTS for masking)
 		 * Caller should use TIOCGICOUNT to see which one it was
 		 */
-	case TIOCMIWAIT: {
-			DECLARE_WAITQUEUE(wait, current);
-			int ret;
+	case TIOCMIWAIT:
+		spin_lock_irqsave(&info->slock, flags);
+		cnow = info->icount;	/* note the counters on entry */
+		spin_unlock_irqrestore(&info->slock, flags);
+
+		wait_event_interruptible(info->delta_msr_wait, ({
+			cprev = cnow;
 			spin_lock_irqsave(&info->slock, flags);
-			cprev = info->icount;	/* note the counters on entry */
+			cnow = info->icount;	/* atomic copy */
 			spin_unlock_irqrestore(&info->slock, flags);
 
-			add_wait_queue(&info->delta_msr_wait, &wait);
-			while (1) {
-				spin_lock_irqsave(&info->slock, flags);
-				cnow = info->icount;	/* atomic copy */
-				spin_unlock_irqrestore(&info->slock, flags);
-
-				set_current_state(TASK_INTERRUPTIBLE);
-				if (((arg & TIOCM_RNG) &&
-						(cnow.rng != cprev.rng)) ||
-						((arg & TIOCM_DSR) &&
-						(cnow.dsr != cprev.dsr)) ||
-						((arg & TIOCM_CD) &&
-						(cnow.dcd != cprev.dcd)) ||
-						((arg & TIOCM_CTS) &&
-						(cnow.cts != cprev.cts))) {
-					ret = 0;
-					break;
-				}
-				/* see if a signal did it */
-				if (signal_pending(current)) {
-					ret = -ERESTARTSYS;
-					break;
-				}
-				cprev = cnow;
-			}
-			current->state = TASK_RUNNING;
-			remove_wait_queue(&info->delta_msr_wait, &wait);
-			break;
-		}
-		/* NOTREACHED */
+			((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
+			((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
+			((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
+			((arg & TIOCM_CTS) && (cnow.cts != cprev.cts));
+		}));
+		break;
 		/*
 		 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
 		 * Return: write counters to the user passed counter struct
