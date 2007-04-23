@@ -587,6 +587,7 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	init_vmcb(vcpu->svm->vmcb);
 
 	fx_init(vcpu);
+	vcpu->fpu_active = 1;
 	vcpu->apic_base = 0xfee00000 |
 			/*for vcpu 0*/ MSR_IA32_APICBASE_BSP |
 			MSR_IA32_APICBASE_ENABLE;
@@ -756,6 +757,11 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		}
 	}
 #endif
+	if ((vcpu->cr0 & CR0_TS_MASK) && !(cr0 & CR0_TS_MASK)) {
+		vcpu->svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
+		vcpu->fpu_active = 1;
+	}
+
 	vcpu->cr0 = cr0;
 	cr0 |= CR0_PG_MASK | CR0_WP_MASK;
 	cr0 &= ~(CR0_CD_MASK | CR0_NW_MASK);
@@ -926,6 +932,16 @@ static int pf_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
 	return 0;
+}
+
+static int nm_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+       vcpu->svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
+       if (!(vcpu->cr0 & CR0_TS_MASK))
+               vcpu->svm->vmcb->save.cr0 &= ~CR0_TS_MASK;
+       vcpu->fpu_active = 1;
+
+       return 1;
 }
 
 static int shutdown_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
@@ -1292,6 +1308,7 @@ static int (*svm_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[SVM_EXIT_WRITE_DR5]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR7]			= emulate_on_interception,
 	[SVM_EXIT_EXCP_BASE + PF_VECTOR] 	= pf_interception,
+	[SVM_EXIT_EXCP_BASE + NM_VECTOR] 	= nm_interception,
 	[SVM_EXIT_INTR] 			= nop_on_interception,
 	[SVM_EXIT_NMI]				= nop_on_interception,
 	[SVM_EXIT_SMI]				= nop_on_interception,
@@ -1481,8 +1498,10 @@ again:
 		load_db_regs(vcpu->svm->db_regs);
 	}
 
-	fx_save(vcpu->host_fx_image);
-	fx_restore(vcpu->guest_fx_image);
+	if (vcpu->fpu_active) {
+		fx_save(vcpu->host_fx_image);
+		fx_restore(vcpu->guest_fx_image);
+	}
 
 	asm volatile (
 #ifdef CONFIG_X86_64
@@ -1593,8 +1612,10 @@ again:
 #endif
 		: "cc", "memory" );
 
-	fx_save(vcpu->guest_fx_image);
-	fx_restore(vcpu->host_fx_image);
+	if (vcpu->fpu_active) {
+		fx_save(vcpu->guest_fx_image);
+		fx_restore(vcpu->host_fx_image);
+	}
 
 	if ((vcpu->svm->vmcb->save.dr7 & 0xff))
 		load_db_regs(vcpu->svm->host_db_regs);
@@ -1664,6 +1685,12 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 {
 	vcpu->svm->vmcb->save.cr3 = root;
 	force_new_asid(vcpu);
+
+	if (vcpu->fpu_active) {
+		vcpu->svm->vmcb->control.intercept_exceptions |= (1 << NM_VECTOR);
+		vcpu->svm->vmcb->save.cr0 |= CR0_TS_MASK;
+		vcpu->fpu_active = 0;
+	}
 }
 
 static void svm_inject_page_fault(struct kvm_vcpu *vcpu,

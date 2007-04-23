@@ -63,6 +63,7 @@
 #define FX_BUF_SIZE (2 * FX_IMAGE_SIZE + FX_IMAGE_ALIGN)
 
 #define DE_VECTOR 0
+#define NM_VECTOR 7
 #define DF_VECTOR 8
 #define TS_VECTOR 10
 #define NP_VECTOR 11
@@ -301,6 +302,7 @@ struct kvm_vcpu {
 	char fx_buf[FX_BUF_SIZE];
 	char *host_fx_image;
 	char *guest_fx_image;
+	int fpu_active;
 
 	int mmio_needed;
 	int mmio_read_completed;
