@@ -892,13 +892,13 @@ static void __devinit snd_mts64_attach(struct parport *p)
 	struct platform_device *device;
 
 	device = platform_device_alloc(PLATFORM_DRIVER, device_count);
-	if (!device) 
+	if (!device)
 		return;
 
 	/* Temporary assignment to forward the parport */
 	platform_set_drvdata(device, p);
 
-	if (platform_device_register(device) < 0) {
+	if (platform_device_add(device) < 0) {
 		platform_device_put(device);
 		return;
 	}
