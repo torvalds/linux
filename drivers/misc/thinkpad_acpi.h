@@ -34,6 +34,8 @@
 #include <linux/proc_fs.h>
 #include <linux/backlight.h>
 #include <linux/fb.h>
+#include <linux/platform_device.h>
+#include <linux/hwmon.h>
 #include <asm/uaccess.h>
 
 #include <linux/dmi.h>
@@ -56,6 +58,7 @@
 
 #define IBM_PROC_DIR "ibm"
 #define IBM_ACPI_EVENT_PREFIX "ibm"
+#define IBM_DRVR_NAME IBM_FILE
 
 #define IBM_LOG IBM_FILE ": "
 #define IBM_ERR	   KERN_ERR    IBM_LOG
@@ -129,6 +132,11 @@ static int dispatch_procfs_write(struct file *file,
 		const char __user * userbuf,
 		unsigned long count, void *data);
 static char *next_cmd(char **cmds);
+
+/* Device model */
+static struct platform_device *tpacpi_pdev;
+static struct class_device *tpacpi_hwmon;
+static struct platform_driver tpacpi_pdriver;
 
 /* Module */
 static int experimental;

@@ -477,6 +477,25 @@ static char *next_cmd(char **cmds)
 /****************************************************************************
  ****************************************************************************
  *
+ * Device model: hwmon and platform
+ *
+ ****************************************************************************
+ ****************************************************************************/
+
+static struct platform_device *tpacpi_pdev = NULL;
+static struct class_device *tpacpi_hwmon = NULL;
+
+static struct platform_driver tpacpi_pdriver = {
+	.driver = {
+		.name = IBM_DRVR_NAME,
+		.owner = THIS_MODULE,
+	},
+};
+
+
+/****************************************************************************
+ ****************************************************************************
+ *
  * Subdrivers
  *
  ****************************************************************************
@@ -3225,10 +3244,12 @@ static int __init thinkpad_acpi_module_init(void)
 {
 	int ret, i;
 
+	/* Driver-level probe */
 	ret = probe_for_thinkpad();
 	if (ret)
 		return ret;
 
+	/* Driver initialization */
 	ibm_thinkpad_ec_found = check_dmi_for_ec();
 	IBM_ACPIHANDLE_INIT(ecrd);
 	IBM_ACPIHANDLE_INIT(ecwr);
@@ -3241,6 +3262,31 @@ static int __init thinkpad_acpi_module_init(void)
 	}
 	proc_dir->owner = THIS_MODULE;
 
+	ret = platform_driver_register(&tpacpi_pdriver);
+	if (ret) {
+		printk(IBM_ERR "unable to register platform driver\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+
+	/* Device initialization */
+	tpacpi_pdev = platform_device_register_simple(IBM_DRVR_NAME, -1,
+							NULL, 0);
+	if (IS_ERR(tpacpi_pdev)) {
+		ret = PTR_ERR(tpacpi_pdev);
+		tpacpi_pdev = NULL;
+		printk(IBM_ERR "unable to register platform device\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+	tpacpi_hwmon = hwmon_device_register(&tpacpi_pdev->dev);
+	if (IS_ERR(tpacpi_hwmon)) {
+		ret = PTR_ERR(tpacpi_hwmon);
+		tpacpi_hwmon = NULL;
+		printk(IBM_ERR "unable to register hwmon device\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
 	for (i = 0; i < ARRAY_SIZE(ibms_init); i++) {
 		ret = ibm_init(&ibms_init[i]);
 		if (ret >= 0 && *ibms_init[i].param)
@@ -3265,6 +3311,14 @@ static void thinkpad_acpi_module_exit(void)
 	}
 
 	dbg_printk(TPACPI_DBG_INIT, "finished subdriver exit path...\n");
+
+	if (tpacpi_hwmon)
+		hwmon_device_unregister(tpacpi_hwmon);
+
+	if (tpacpi_pdev)
+		platform_device_unregister(tpacpi_pdev);
+
+	platform_driver_unregister(&tpacpi_pdriver);
 
 	if (proc_dir)
 		remove_proc_entry(IBM_PROC_DIR, acpi_root_dir);

@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
                             Version 0.14
-                          March 26th, 2007
+                          April 21st, 2007
 
                Borislav Deianov <borislav@users.sf.net>
 	     Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -67,11 +67,39 @@ thinkpad-specific bay functionality.
 Features
 --------
 
-The driver creates the /proc/acpi/ibm directory. There is a file under
-that directory for each feature described below. Note that while the
-driver is still in the alpha stage, the exact proc file format and
-commands supported by the various features is guaranteed to change
-frequently.
+The driver exports two different interfaces to userspace, which can be
+used to access the features it provides.  One is a legacy procfs-based
+interface, which will be removed at some time in the distant future.
+The other is a new sysfs-based interface which is not complete yet.
+
+The procfs interface creates the /proc/acpi/ibm directory.  There is a
+file under that directory for each feature it supports.  The procfs
+interface is mostly frozen, and will change very little if at all: it
+will not be extended to add any new functionality in the driver, instead
+all new functionality will be implemented on the sysfs interface.
+
+The sysfs interface tries to blend in the generic Linux sysfs subsystems
+and classes as much as possible.  Since some of these subsystems are not
+yet ready or stabilized, it is expected that this interface will change,
+and any and all userspace programs must deal with it.
+
+
+Notes about the sysfs interface:
+
+Unlike what was done with the procfs interface, correctness when talking
+to the sysfs interfaces will be enforced, as will correctness in the
+thinkpad-acpi's implementation of sysfs interfaces.
+
+Also, any bugs in the thinkpad-acpi sysfs driver code or in the
+thinkpad-acpi's implementation of the sysfs interfaces will be fixed for
+maximum correctness, even if that means changing an interface in
+non-compatible ways.  As these interfaces mature both in the kernel and
+in thinkpad-acpi, such changes should become quite rare.
+
+Applications interfacing to the thinkpad-acpi sysfs interfaces must
+follow all sysfs guidelines and correctly process all errors (the sysfs
+interface makes extensive use of errors).  File descriptors and open /
+close operations to the sysfs inodes must also be properly implemented.
 
 Driver version -- /proc/acpi/ibm/driver
 ---------------------------------------
