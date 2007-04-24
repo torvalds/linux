@@ -45,6 +45,7 @@
 #include <net/sock.h>
 #include <net/raw.h>
 
+#ifdef CONFIG_PROC_FS
 static int fold_prot_inuse(struct proto *proto)
 {
 	int res = 0;
@@ -390,6 +391,7 @@ out_netstat:
 	rc = -ENOMEM;
 	goto out;
 }
+#endif
 
 int snmp_mib_init(void *ptr[2], size_t mibsize, size_t mibalign)
 {
