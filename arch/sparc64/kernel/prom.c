@@ -30,22 +30,9 @@
 #include <asm/upa.h>
 #include <asm/smp.h>
 
-static struct device_node *allnodes;
+extern struct device_node *allnodes;	/* temporary while merging */
 
 extern rwlock_t devtree_lock;	/* temporary while merging */
-
-struct device_node *of_find_node_by_path(const char *path)
-{
-	struct device_node *np = allnodes;
-
-	for (; np != 0; np = np->allnext) {
-		if (np->full_name != 0 && strcmp(np->full_name, path) == 0)
-			break;
-	}
-
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_path);
 
 struct device_node *of_find_node_by_phandle(phandle handle)
 {
@@ -58,52 +45,6 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 	return np;
 }
 EXPORT_SYMBOL(of_find_node_by_phandle);
-
-struct device_node *of_find_node_by_name(struct device_node *from,
-	const char *name)
-{
-	struct device_node *np;
-
-	np = from ? from->allnext : allnodes;
-	for (; np != NULL; np = np->allnext)
-		if (np->name != NULL && strcmp(np->name, name) == 0)
-			break;
-
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_name);
-
-struct device_node *of_find_node_by_type(struct device_node *from,
-	const char *type)
-{
-	struct device_node *np;
-
-	np = from ? from->allnext : allnodes;
-	for (; np != 0; np = np->allnext)
-		if (np->type != 0 && strcmp(np->type, type) == 0)
-			break;
-
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_type);
-
-struct device_node *of_find_compatible_node(struct device_node *from,
-	const char *type, const char *compatible)
-{
-	struct device_node *np;
-
-	np = from ? from->allnext : allnodes;
-	for (; np != 0; np = np->allnext) {
-		if (type != NULL
-		    && !(np->type != 0 && strcmp(np->type, type) == 0))
-			continue;
-		if (of_device_is_compatible(np, compatible))
-			break;
-	}
-
-	return np;
-}
-EXPORT_SYMBOL(of_find_compatible_node);
 
 int of_getintprop_default(struct device_node *np, const char *name, int def)
 {
