@@ -1666,7 +1666,12 @@ static int snd_vt1724_pro_internal_clock_put(struct snd_kcontrol *kcontrol,
 	spin_lock_irq(&ice->reg_lock);
 	oval = inb(ICEMT1724(ice, RATE));
 	if (ucontrol->value.enumerated.item[0] == spdif) {
+		unsigned char i2s_oval;
 		outb(oval | VT1724_SPDIF_MASTER, ICEMT1724(ice, RATE));
+		/* setting 256fs */
+		i2s_oval = inb(ICEMT1724(ice, I2S_FORMAT));
+		outb(i2s_oval & ~VT1724_MT_I2S_MCLK_128X,
+		     ICEMT1724(ice, I2S_FORMAT));
 	} else {
 		rate = rates[ucontrol->value.integer.value[0] % 15];
 		if (rate <= get_max_rate(ice)) {

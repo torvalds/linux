@@ -26,6 +26,13 @@
  * 			CCLK (pin 34) -- GPIO9 pin 76
  * 			CSN  (pin 35) -- GPIO8 pin 75
  *   		- output data Mode 7 (24bit, I2S, slave)
+ *		- both MCKO1 and MCKO2 of ak4114 are fed to FPGA, which
+ *		  outputs master clock to SPMCLKIN of ice1724.
+ *		  Experimentally I found out that only a combination of
+ *		  OCKS0=1, OCKS1=1 (128fs, 64fs output) and ice1724 -
+ *		  VT1724_MT_I2S_MCLK_128X=0 (256fs input) yields correct
+ *		  sampling rate. That means the the FPGA doubles the
+ *		  MCK01 rate.
  *
  *	Copyright (c) 2003 Takashi Iwai <tiwai@suse.de>
  *      Copyright (c) 2003 Dimitromanolakis Apostolos <apostol@cs.utoronto.ca>
@@ -714,7 +721,10 @@ static int prodigy192_ak4114_init(struct snd_ice1712 *ice)
 {
 	static const unsigned char ak4114_init_vals[] = {
 		AK4114_RST | AK4114_PWN | AK4114_OCKS0 | AK4114_OCKS1,
-		AK4114_DIF_I24I2S, /* ice1724 expects I2S and provides clock */
+		/* ice1724 expects I2S and provides clock,
+		 * DEM0 disables the deemphasis filter
+		 */
+		AK4114_DIF_I24I2S | AK4114_DEM0 ,
 		AK4114_TX1E,
 		AK4114_EFH_1024 | AK4114_DIT, /* default input RX0 */
 		0,
