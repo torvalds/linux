@@ -979,7 +979,7 @@ static unsigned int azx_max_codecs[] __devinitdata = {
 static int __devinit azx_codec_create(struct azx *chip, const char *model)
 {
 	struct hda_bus_template bus_temp;
-	int c, codecs, err;
+	int c, codecs, audio_codecs, err;
 
 	memset(&bus_temp, 0, sizeof(bus_temp));
 	bus_temp.private_data = chip;
@@ -991,16 +991,19 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 	if ((err = snd_hda_bus_new(chip->card, &bus_temp, &chip->bus)) < 0)
 		return err;
 
-	codecs = 0;
+	codecs = audio_codecs = 0;
 	for (c = 0; c < AZX_MAX_CODECS; c++) {
 		if ((chip->codec_mask & (1 << c)) & probe_mask) {
-			err = snd_hda_codec_new(chip->bus, c, NULL);
+			struct hda_codec *codec;
+			err = snd_hda_codec_new(chip->bus, c, &codec);
 			if (err < 0)
 				continue;
 			codecs++;
+			if (codec->afg)
+				audio_codecs++;
 		}
 	}
-	if (!codecs) {
+	if (!audio_codecs) {
 		/* probe additional slots if no codec is found */
 		for (; c < azx_max_codecs[chip->driver_type]; c++) {
 			if ((chip->codec_mask & (1 << c)) & probe_mask) {
