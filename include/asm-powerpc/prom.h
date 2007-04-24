@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <asm/irq.h>
 #include <asm/atomic.h>
+#include <asm/io.h>
 
 /* Definitions used by the flattened device tree */
 #define OF_DT_HEADER		0xd00dfeed	/* marker */
@@ -353,6 +354,16 @@ static inline int of_irq_to_resource(struct device_node *dev, int index, struct 
 	}
 
 	return irq;
+}
+
+static inline void __iomem *of_iomap(struct device_node *np, int index)
+{
+	struct resource res;
+
+	if (of_address_to_resource(np, index, &res))
+		return NULL;
+
+	return ioremap(res.start, 1 + res.end - res.start);
 }
 
 
