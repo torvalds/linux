@@ -134,6 +134,27 @@ static int dispatch_procfs_write(struct file *file,
 		unsigned long count, void *data);
 static char *next_cmd(char **cmds);
 
+/* sysfs support */
+struct attribute_set {
+	unsigned int members, max_members;
+	struct attribute_group group;
+};
+
+static struct attribute_set *create_attr_set(unsigned int max_members,
+						const char* name);
+#define destroy_attr_set(_set) \
+	kfree(_set);
+static int add_to_attr_set(struct attribute_set* s, struct attribute *attr);
+static int add_many_to_attr_set(struct attribute_set* s,
+			struct attribute **attr,
+			unsigned int count);
+#define register_attr_set_with_sysfs(_attr_set, _kobj) \
+	sysfs_create_group(_kobj, &_attr_set->group)
+static void delete_attr_set(struct attribute_set* s, struct kobject *kobj);
+
+static int parse_strtoul(const char *buf, unsigned long max,
+			unsigned long *value);
+
 /* Device model */
 static struct platform_device *tpacpi_pdev;
 static struct class_device *tpacpi_hwmon;

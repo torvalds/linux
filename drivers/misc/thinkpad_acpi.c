@@ -520,12 +520,8 @@ static ssize_t tpacpi_driver_debug_store(struct device_driver *drv,
 						const char *buf, size_t count)
 {
 	unsigned long t;
-	char *endp;
 
-	t = simple_strtoul(buf, &endp, 0);
-	while (*endp && isspace(*endp))
-		endp++;
-	if (*endp)
+	if (parse_strtoul(buf, 0xffff, &t))
 		return -EINVAL;
 
 	dbg_level = t;
@@ -573,6 +569,86 @@ static void tpacpi_remove_driver_attributes(struct device_driver *drv)
 
 	for(i = 0; i < ARRAY_SIZE(tpacpi_driver_attributes); i++)
 		driver_remove_file(drv, tpacpi_driver_attributes[i]);
+}
+
+/*************************************************************************
+ * sysfs support helpers
+ */
+
+struct attribute_set_obj {
+	struct attribute_set s;
+	struct attribute *a;
+} __attribute__((packed));
+
+static struct attribute_set *create_attr_set(unsigned int max_members,
+						const char* name)
+{
+	struct attribute_set_obj *sobj;
+
+	if (max_members == 0)
+		return NULL;
+
+	/* Allocates space for implicit NULL at the end too */
+	sobj = kzalloc(sizeof(struct attribute_set_obj) +
+		    max_members * sizeof(struct attribute *),
+		    GFP_KERNEL);
+	if (!sobj)
+		return NULL;
+	sobj->s.max_members = max_members;
+	sobj->s.group.attrs = &sobj->a;
+	sobj->s.group.name = name;
+
+	return &sobj->s;
+}
+
+/* not multi-threaded safe, use it in a single thread per set */
+static int add_to_attr_set(struct attribute_set* s, struct attribute *attr)
+{
+	if (!s || !attr)
+		return -EINVAL;
+
+	if (s->members >= s->max_members)
+		return -ENOMEM;
+
+	s->group.attrs[s->members] = attr;
+	s->members++;
+
+	return 0;
+}
+
+static int add_many_to_attr_set(struct attribute_set* s,
+			struct attribute **attr,
+			unsigned int count)
+{
+	int i, res;
+
+	for (i = 0; i < count; i++) {
+		res = add_to_attr_set(s, attr[i]);
+		if (res)
+			return res;
+	}
+
+	return 0;
+}
+
+static void delete_attr_set(struct attribute_set* s, struct kobject *kobj)
+{
+	sysfs_remove_group(kobj, &s->group);
+	destroy_attr_set(s);
+}
+
+static int parse_strtoul(const char *buf,
+		unsigned long max, unsigned long *value)
+{
+	char *endp;
+
+	*value = simple_strtoul(buf, &endp, 0);
+	while (*endp && isspace(*endp))
+		endp++;
+	if (*endp || *value > max)
+		return -EINVAL;
+
+	return 0;
 }
 
 /****************************************************************************
