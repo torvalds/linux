@@ -209,9 +209,7 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 };
 
 /* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
-#if 0
 const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
-#endif
 const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 
 static void addrconf_del_timer(struct inet6_ifaddr *ifp)
