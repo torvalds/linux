@@ -2695,6 +2695,7 @@ static enum fan_control_access_mode fan_control_access_mode;
 static enum fan_control_commands fan_control_commands;
 
 static u8 fan_control_initial_status;
+static u8 fan_control_desired_level;
 
 static void fan_watchdog_fire(struct work_struct *ignored);
 static int fan_watchdog_maxinterval;
@@ -2708,8 +2709,222 @@ IBM_HANDLE(sfan, ec, "SFAN",	/* 570 */
 	   "JFNS",		/* 770x-JL */
 	   );			/* all others */
 
+/*
+ * SYSFS fan layout: hwmon compatible (device)
+ *
+ * pwm*_enable:
+ * 	0: "disengaged" mode
+ * 	1: manual mode
+ * 	2: native EC "auto" mode (recommended, hardware default)
+ *
+ * pwm*: set speed in manual mode, ignored otherwise.
+ * 	0 is level 0; 255 is level 7. Intermediate points done with linear
+ * 	interpolation.
+ *
+ * fan*_input: tachometer reading, RPM
+ *
+ *
+ * SYSFS fan layout: extensions
+ *
+ * fan_watchdog (driver):
+ * 	fan watchdog interval in seconds, 0 disables (default), max 120
+ */
+
+/* sysfs fan pwm1_enable ----------------------------------------------- */
+static ssize_t fan_pwm1_enable_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	int res, mode;
+	u8 status;
+
+	res = fan_get_status_safe(&status);
+	if (res)
+		return res;
+
+	if (unlikely(tp_features.fan_ctrl_status_undef)) {
+		if (status != fan_control_initial_status) {
+			tp_features.fan_ctrl_status_undef = 0;
+		} else {
+			/* Return most likely status. In fact, it
+			 * might be the only possible status */
+			status = TP_EC_FAN_AUTO;
+		}
+	}
+
+	if (status & TP_EC_FAN_FULLSPEED) {
+		mode = 0;
+	} else if (status & TP_EC_FAN_AUTO) {
+		mode = 2;
+	} else
+		mode = 1;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", mode);
+}
+
+static ssize_t fan_pwm1_enable_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	unsigned long t;
+	int res, level;
+
+	if (parse_strtoul(buf, 2, &t))
+		return -EINVAL;
+
+	switch (t) {
+	case 0:
+		level = TP_EC_FAN_FULLSPEED;
+		break;
+	case 1:
+		level = TPACPI_FAN_LAST_LEVEL;
+		break;
+	case 2:
+		level = TP_EC_FAN_AUTO;
+		break;
+	case 3:
+		/* reserved for software-controlled auto mode */
+		return -ENOSYS;
+	default:
+		return -EINVAL;
+	}
+
+	res = fan_set_level_safe(level);
+	if (res < 0)
+		return res;
+
+	fan_watchdog_reset();
+
+	return count;
+}
+
+static struct device_attribute dev_attr_fan_pwm1_enable =
+	__ATTR(pwm1_enable, S_IWUSR | S_IRUGO,
+		fan_pwm1_enable_show, fan_pwm1_enable_store);
+
+/* sysfs fan pwm1 ------------------------------------------------------ */
+static ssize_t fan_pwm1_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	int res;
+	u8 status;
+
+	res = fan_get_status_safe(&status);
+	if (res)
+		return res;
+
+	if (unlikely(tp_features.fan_ctrl_status_undef)) {
+		if (status != fan_control_initial_status) {
+			tp_features.fan_ctrl_status_undef = 0;
+		} else {
+			status = TP_EC_FAN_AUTO;
+		}
+	}
+
+	if ((status &
+	     (TP_EC_FAN_AUTO | TP_EC_FAN_FULLSPEED)) != 0)
+		status = fan_control_desired_level;
+
+	if (status > 7)
+		status = 7;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", (status * 255) / 7);
+}
+
+static ssize_t fan_pwm1_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	unsigned long s;
+	int rc;
+	u8 status, newlevel;
+
+	if (parse_strtoul(buf, 255, &s))
+		return -EINVAL;
+
+	/* scale down from 0-255 to 0-7 */
+	newlevel = (s >> 5) & 0x07;
+
+	rc = mutex_lock_interruptible(&fan_mutex);
+	if (rc < 0)
+		return rc;
+
+	rc = fan_get_status(&status);
+	if (!rc && (status &
+		    (TP_EC_FAN_AUTO | TP_EC_FAN_FULLSPEED)) == 0) {
+		rc = fan_set_level(newlevel);
+		if (!rc)
+			fan_update_desired_level(newlevel);
+		fan_watchdog_reset();
+	}
+
+	mutex_unlock(&fan_mutex);
+	return (rc)? rc : count;
+}
+
+static struct device_attribute dev_attr_fan_pwm1 =
+	__ATTR(pwm1, S_IWUSR | S_IRUGO,
+		fan_pwm1_show, fan_pwm1_store);
+
+/* sysfs fan fan1_input ------------------------------------------------ */
+static ssize_t fan_fan1_input_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int res;
+	unsigned int speed;
+
+	res = fan_get_speed(&speed);
+	if (res < 0)
+		return res;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", speed);
+}
+
+static struct device_attribute dev_attr_fan_fan1_input =
+	__ATTR(fan1_input, S_IRUGO,
+		fan_fan1_input_show, NULL);
+
+/* sysfs fan fan_watchdog (driver) ------------------------------------- */
+static ssize_t fan_fan_watchdog_show(struct device_driver *drv,
+				     char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%u\n", fan_watchdog_maxinterval);
+}
+
+static ssize_t fan_fan_watchdog_store(struct device_driver *drv,
+				      const char *buf, size_t count)
+{
+	unsigned long t;
+
+	if (parse_strtoul(buf, 120, &t))
+		return -EINVAL;
+
+	fan_watchdog_maxinterval = t;
+	fan_watchdog_reset();
+
+	return count;
+}
+
+static DRIVER_ATTR(fan_watchdog, S_IWUSR | S_IRUGO,
+		fan_fan_watchdog_show, fan_fan_watchdog_store);
+
+/* --------------------------------------------------------------------- */
+static struct attribute *fan_attributes[] = {
+	&dev_attr_fan_pwm1_enable.attr, &dev_attr_fan_pwm1.attr,
+	&dev_attr_fan_fan1_input.attr,
+	NULL
+};
+
+static const struct attribute_group fan_attr_group = {
+	.attrs = fan_attributes,
+};
+
 static int __init fan_init(struct ibm_init_struct *iibm)
 {
+	int rc;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing fan subdriver\n");
 
 	mutex_init(&fan_mutex);
@@ -2718,6 +2933,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 	fan_control_commands = 0;
 	fan_watchdog_maxinterval = 0;
 	tp_features.fan_ctrl_status_undef = 0;
+	fan_control_desired_level = 7;
 
 	IBM_ACPIHANDLE_INIT(fans);
 	IBM_ACPIHANDLE_INIT(gfan);
@@ -2796,9 +3012,36 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		  fan_control_access_mode != TPACPI_FAN_WR_NONE),
 		fan_status_access_mode, fan_control_access_mode);
 
-	return (fan_status_access_mode != TPACPI_FAN_NONE ||
-	        fan_control_access_mode != TPACPI_FAN_WR_NONE)?
-			0 : 1;
+	/* update fan_control_desired_level */
+	if (fan_status_access_mode != TPACPI_FAN_NONE)
+		fan_get_status_safe(NULL);
+
+	if (fan_status_access_mode != TPACPI_FAN_NONE ||
+	    fan_control_access_mode != TPACPI_FAN_WR_NONE) {
+		rc = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+					 &fan_attr_group);
+		if (!(rc < 0))
+			rc = driver_create_file(&tpacpi_pdriver.driver,
+					&driver_attr_fan_watchdog);
+		if (rc < 0)
+			return rc;
+		return 0;
+	} else
+		return 1;
+}
+
+/*
+ * Call with fan_mutex held
+ */
+static void fan_update_desired_level(u8 status)
+{
+	if ((status &
+	     (TP_EC_FAN_AUTO | TP_EC_FAN_FULLSPEED)) == 0) {
+		if (status > 7)
+			fan_control_desired_level = 7;
+		else
+			fan_control_desired_level = status;
+	}
 }
 
 static int fan_get_status(u8 *status)
@@ -2837,9 +3080,33 @@ static int fan_get_status(u8 *status)
 	return 0;
 }
 
+static int fan_get_status_safe(u8 *status)
+{
+	int rc;
+	u8 s;
+
+	rc = mutex_lock_interruptible(&fan_mutex);
+	if (rc < 0)
+		return rc;
+	rc = fan_get_status(&s);
+	if (!rc)
+		fan_update_desired_level(s);
+	mutex_unlock(&fan_mutex);
+
+	if (status)
+		*status = s;
+
+	return rc;
+}
+
 static void fan_exit(void)
 {
 	vdbg_printk(TPACPI_DBG_EXIT, "cancelling any pending fan watchdog tasks\n");
+
+	/* FIXME: can we really do this unconditionally? */
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj, &fan_attr_group);
+	driver_remove_file(&tpacpi_pdriver.driver, &driver_attr_fan_watchdog);
+
 	cancel_delayed_work(&fan_watchdog_task);
 	flush_scheduled_work();
 }
@@ -2902,17 +3169,10 @@ static void fan_watchdog_reset(void)
 
 static int fan_set_level(int level)
 {
-	int res;
-
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_SFAN:
 		if (level >= 0 && level <= 7) {
-			res = mutex_lock_interruptible(&fan_mutex);
-			if (res < 0)
-				return res;
-			res = acpi_evalf(sfan_handle, NULL, NULL, "vd", level);
-			mutex_unlock(&fan_mutex);
-			if (!res)
+			if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", level))
 				return -EIO;
 		} else
 			return -EINVAL;
@@ -2925,12 +3185,7 @@ static int fan_set_level(int level)
 		    ((level < 0) || (level > 7)))
 			return -EINVAL;
 
-		res = mutex_lock_interruptible(&fan_mutex);
-		if (res < 0)
-			return res;
-		res = acpi_ec_write(fan_status_offset, level);
-		mutex_unlock(&fan_mutex);
-		if (!res)
+		if (!acpi_ec_write(fan_status_offset, level))
 			return -EIO;
 		else
 			tp_features.fan_ctrl_status_undef = 0;
@@ -2940,6 +3195,25 @@ static int fan_set_level(int level)
 		return -ENXIO;
 	}
 	return 0;
+}
+
+static int fan_set_level_safe(int level)
+{
+	int rc;
+
+	rc = mutex_lock_interruptible(&fan_mutex);
+	if (rc < 0)
+		return rc;
+
+	if (level == TPACPI_FAN_LAST_LEVEL)
+		level = fan_control_desired_level;
+
+	rc = fan_set_level(level);
+	if (!rc)
+		fan_update_desired_level(level);
+
+	mutex_unlock(&fan_mutex);
+	return rc;
 }
 
 static int fan_set_enable(void)
@@ -3009,18 +3283,23 @@ static int fan_set_disable(void)
 	case TPACPI_FAN_WR_TPEC:
 		if (!acpi_ec_write(fan_status_offset, 0x00))
 			rc = -EIO;
-		else
+		else {
+			fan_control_desired_level = 0;
 			tp_features.fan_ctrl_status_undef = 0;
+		}
 		break;
 
 	case TPACPI_FAN_WR_ACPI_SFAN:
 		if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", 0x00))
 			rc = -EIO;
+		else
+			fan_control_desired_level = 0;
 		break;
 
 	default:
 		rc = -ENXIO;
 	}
+
 
 	mutex_unlock(&fan_mutex);
 	return rc;
@@ -3063,7 +3342,7 @@ static int fan_read(char *p)
 	switch (fan_status_access_mode) {
 	case TPACPI_FAN_RD_ACPI_GFAN:
 		/* 570, 600e/x, 770e, 770x */
-		if ((rc = fan_get_status(&status)) < 0)
+		if ((rc = fan_get_status_safe(&status)) < 0)
 			return rc;
 
 		len += sprintf(p + len, "status:\t\t%s\n"
@@ -3073,7 +3352,7 @@ static int fan_read(char *p)
 
 	case TPACPI_FAN_RD_TPEC:
 		/* all except 570, 600e/x, 770e, 770x */
-		if ((rc = fan_get_status(&status)) < 0)
+		if ((rc = fan_get_status_safe(&status)) < 0)
 			return rc;
 
 		if (unlikely(tp_features.fan_ctrl_status_undef)) {
@@ -3117,7 +3396,7 @@ static int fan_read(char *p)
 
 		default:
 			len += sprintf(p + len, " (<level> is 0-7, "
-				       "auto, disengaged)\n");
+				       "auto, disengaged, full-speed)\n");
 			break;
 		}
 	}
@@ -3140,12 +3419,13 @@ static int fan_write_cmd_level(const char *cmd, int *rc)
 
 	if (strlencmp(cmd, "level auto") == 0)
 		level = TP_EC_FAN_AUTO;
-	else if (strlencmp(cmd, "level disengaged") == 0)
+	else if ((strlencmp(cmd, "level disengaged") == 0) |
+	         (strlencmp(cmd, "level full-speed") == 0))
 		level = TP_EC_FAN_FULLSPEED;
 	else if (sscanf(cmd, "level %d", &level) != 1)
 		return 0;
 
-	if ((*rc = fan_set_level(level)) == -ENXIO)
+	if ((*rc = fan_set_level_safe(level)) == -ENXIO)
 		printk(IBM_ERR "level command accepted for unsupported "
 		       "access mode %d", fan_control_access_mode);
 

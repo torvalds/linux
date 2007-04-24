@@ -642,8 +642,11 @@ distinct. The unmute the volume after the mute command, use either the
 up or down command (the level command will not unmute the volume).
 The current volume level and mute state is shown in the file.
 
-EXPERIMENTAL: fan speed, fan enable/disable -- /proc/acpi/ibm/fan
------------------------------------------------------------------
+EXPERIMENTAL: fan speed, fan enable/disable
+-------------------------------------------
+
+procfs: /proc/acpi/ibm/fan
+sysfs device attributes: (hwmon) fan_input, pwm1, pwm1_enable
 
 This feature is marked EXPERIMENTAL because the implementation
 directly accesses hardware registers and may not work as expected. USE
@@ -656,27 +659,26 @@ from the hardware registers of the embedded controller.  This is known
 to work on later R, T and X series ThinkPads but may show a bogus
 value on other models.
 
-Most ThinkPad fans work in "levels".  Level 0 stops the fan.  The higher
-the level, the higher the fan speed, although adjacent levels often map
-to the same fan speed.  7 is the highest level, where the fan reaches
-the maximum recommended speed.  Level "auto" means the EC changes the
-fan level according to some internal algorithm, usually based on
-readings from the thermal sensors.  Level "disengaged" means the EC
-disables the speed-locked closed-loop fan control, and drives the fan as
-fast as it can go, which might exceed hardware limits, so use this level
-with caution.
+Fan levels:
 
-The fan usually ramps up or down slowly from one speed to another,
-and it is normal for the EC to take several seconds to react to fan
-commands.
+Most ThinkPad fans work in "levels" at the firmware interface.  Level 0
+stops the fan.  The higher the level, the higher the fan speed, although
+adjacent levels often map to the same fan speed.  7 is the highest
+level, where the fan reaches the maximum recommended speed.
 
-The fan may be enabled or disabled with the following commands:
+Level "auto" means the EC changes the fan level according to some
+internal algorithm, usually based on readings from the thermal sensors.
 
-	echo enable  >/proc/acpi/ibm/fan
-	echo disable >/proc/acpi/ibm/fan
+There is also a "full-speed" level, also known as "disengaged" level.
+In this level, the EC disables the speed-locked closed-loop fan control,
+and drives the fan as fast as it can go, which might exceed hardware
+limits, so use this level with caution.
 
-Placing a fan on level 0 is the same as disabling it.  Enabling a fan
-will try to place it in a safe level if it is too slow or disabled.
+The fan usually ramps up or down slowly from one speed to another, and
+it is normal for the EC to take several seconds to react to fan
+commands.  The full-speed level may take up to two minutes to ramp up to
+maximum speed, and in some ThinkPads, the tachometer readings go stale
+while the EC is transitioning to the full-speed level.
 
 WARNING WARNING WARNING: do not leave the fan disabled unless you are
 monitoring all of the temperature sensor readings and you are ready to
@@ -694,48 +696,101 @@ fan is turned off when the CPU temperature drops to 49 degrees and the
 HDD temperature drops to 41 degrees.  These thresholds cannot
 currently be controlled.
 
-The fan level can be controlled with the command:
-
-	echo 'level <level>' > /proc/acpi/ibm/thermal
-
-Where <level> is an integer from 0 to 7, or one of the words "auto"
-or "disengaged" (without the quotes).  Not all ThinkPads support the
-"auto" and "disengaged" levels.
-
-On the X31 and X40 (and ONLY on those models), the fan speed can be
-controlled to a certain degree. Once the fan is running, it can be
-forced to run faster or slower with the following command:
-
-	echo 'speed <speed>' > /proc/acpi/ibm/thermal
-
-The sustainable range of fan speeds on the X40 appears to be from
-about 3700 to about 7350. Values outside this range either do not have
-any effect or the fan speed eventually settles somewhere in that
-range. The fan cannot be stopped or started with this command.
-
 The ThinkPad's ACPI DSDT code will reprogram the fan on its own when
 certain conditions are met.  It will override any fan programming done
 through thinkpad-acpi.
 
 The thinkpad-acpi kernel driver can be programmed to revert the fan
-level to a safe setting if userspace does not issue one of the fan
-commands: "enable", "disable", "level" or "watchdog" within a
-configurable ammount of time.  To do this, use the "watchdog" command.
+level to a safe setting if userspace does not issue one of the procfs
+fan commands: "enable", "disable", "level" or "watchdog", or if there
+are no writes to pwm1_enable (or to pwm1 *if and only if* pwm1_enable is
+set to 1, manual mode) within a configurable amount of time of up to
+120 seconds.  This functionality is called fan safety watchdog.
 
-	echo 'watchdog <interval>' > /proc/acpi/ibm/fan
+Note that the watchdog timer stops after it enables the fan.  It will be
+rearmed again automatically (using the same interval) when one of the
+above mentioned fan commands is received.  The fan watchdog is,
+therefore, not suitable to protect against fan mode changes made through
+means other than the "enable", "disable", and "level" procfs fan
+commands, or the hwmon fan control sysfs interface.
 
-Interval is the ammount of time in seconds to wait for one of the
-above mentioned fan commands before reseting the fan level to a safe
-one.  If set to zero, the watchdog is disabled (default).  When the
-watchdog timer runs out, it does the exact equivalent of the "enable"
-fan command.
+Procfs notes:
 
-Note that the watchdog timer stops after it enables the fan.  It will
-be rearmed again automatically (using the same interval) when one of
-the above mentioned fan commands is received.  The fan watchdog is,
-therefore, not suitable to protect against fan mode changes made
-through means other than the "enable", "disable", and "level" fan
-commands.
+The fan may be enabled or disabled with the following commands:
+
+	echo enable  >/proc/acpi/ibm/fan
+	echo disable >/proc/acpi/ibm/fan
+
+Placing a fan on level 0 is the same as disabling it.  Enabling a fan
+will try to place it in a safe level if it is too slow or disabled.
+
+The fan level can be controlled with the command:
+
+	echo 'level <level>' > /proc/acpi/ibm/fan
+
+Where <level> is an integer from 0 to 7, or one of the words "auto" or
+"full-speed" (without the quotes).  Not all ThinkPads support the "auto"
+and "full-speed" levels.  The driver accepts "disengaged" as an alias for
+"full-speed", and reports it as "disengaged" for backwards
+compatibility.
+
+On the X31 and X40 (and ONLY on those models), the fan speed can be
+controlled to a certain degree.  Once the fan is running, it can be
+forced to run faster or slower with the following command:
+
+	echo 'speed <speed>' > /proc/acpi/ibm/fan
+
+The sustainable range of fan speeds on the X40 appears to be from about
+3700 to about 7350. Values outside this range either do not have any
+effect or the fan speed eventually settles somewhere in that range.  The
+fan cannot be stopped or started with this command.  This functionality
+is incomplete, and not available through the sysfs interface.
+
+To program the safety watchdog, use the "watchdog" command.
+
+	echo 'watchdog <interval in seconds>' > /proc/acpi/ibm/fan
+
+If you want to disable the watchdog, use 0 as the interval.
+
+Sysfs notes:
+
+The sysfs interface follows the hwmon subsystem guidelines for the most
+part, and the exception is the fan safety watchdog.
+
+hwmon device attribute pwm1_enable:
+	0: PWM offline (fan is set to full-speed mode)
+	1: Manual PWM control (use pwm1 to set fan level)
+	2: Hardware PWM control (EC "auto" mode)
+	3: reserved (Software PWM control, not implemented yet)
+
+	Modes 0 and 2 are not supported by all ThinkPads, and the driver
+	is not always able to detect this.  If it does know a mode is
+	unsupported, it will return -EINVAL.
+
+hwmon device attribute pwm1:
+	Fan level, scaled from the firmware values of 0-7 to the hwmon
+	scale of 0-255.  0 means fan stopped, 255 means highest normal
+	speed (level 7).
+
+	This attribute only commands the fan if pmw1_enable is set to 1
+	(manual PWM control).
+
+hwmon device attribute fan1_input:
+	Fan tachometer reading, in RPM.  May go stale on certain
+	ThinkPads while the EC transitions the PWM to offline mode,
+	which can take up to two minutes.  May return rubbish on older
+	ThinkPads.
+
+driver attribute fan_watchdog:
+	Fan safety watchdog timer interval, in seconds.  Minimum is
+	1 second, maximum is 120 seconds.  0 disables the watchdog.
+
+To stop the fan: set pwm1 to zero, and pwm1_enable to 1.
+
+To start the fan in a safe mode: set pwm1_enable to 2.  If that fails
+with ENOTSUP, set it to 1 and set pwm1 to at least 128 (255 would be the
+safest choice, though).
+
 
 EXPERIMENTAL: WAN -- /proc/acpi/ibm/wan
 ---------------------------------------

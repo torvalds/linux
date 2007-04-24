@@ -349,6 +349,8 @@ enum {					/* Fan control constants */
 
 	TP_EC_FAN_FULLSPEED = 0x40,	/* EC fan mode: full speed */
 	TP_EC_FAN_AUTO	    = 0x80,	/* EC fan mode: auto fan control */
+
+	TPACPI_FAN_LAST_LEVEL = 0x100,	/* Use cached last-seen fan level */
 };
 
 enum fan_status_access_mode {
@@ -375,6 +377,7 @@ static enum fan_status_access_mode fan_status_access_mode;
 static enum fan_control_access_mode fan_control_access_mode;
 static enum fan_control_commands fan_control_commands;
 static u8 fan_control_initial_status;
+static u8 fan_control_desired_level;
 static int fan_watchdog_maxinterval;
 
 struct mutex fan_mutex;
@@ -384,10 +387,13 @@ static acpi_handle fans_handle, gfan_handle, sfan_handle;
 static int fan_init(struct ibm_init_struct *iibm);
 static void fan_exit(void);
 static int fan_get_status(u8 *status);
+static int fan_get_status_safe(u8 *status);
 static int fan_get_speed(unsigned int *speed);
+static void fan_update_desired_level(u8 status);
 static void fan_watchdog_fire(struct work_struct *ignored);
 static void fan_watchdog_reset(void);
 static int fan_set_level(int level);
+static int fan_set_level_safe(int level);
 static int fan_set_enable(void);
 static int fan_set_disable(void);
 static int fan_set_speed(int speed);
