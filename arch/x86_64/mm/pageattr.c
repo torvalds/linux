@@ -81,8 +81,8 @@ static void flush_kernel_map(void *arg)
 		void *adr = page_address(pg);
 		if (cpu_has_clflush)
 			cache_flush_page(adr);
-		__flush_tlb_one(adr);
 	}
+	__flush_tlb_all();
 }
 
 static inline void flush_map(struct list_head *l)
