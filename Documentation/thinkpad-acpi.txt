@@ -458,17 +458,17 @@ X40:
 	16 - one medium-pitched beep repeating constantly, stop with 17
 	17 - stop 16
 
-Temperature sensors -- /proc/acpi/ibm/thermal
----------------------------------------------
+Temperature sensors
+-------------------
+
+procfs: /proc/acpi/ibm/thermal
+sysfs device attributes: (hwmon) temp*_input
 
 Most ThinkPads include six or more separate temperature sensors but
 only expose the CPU temperature through the standard ACPI methods.
 This feature shows readings from up to eight different sensors on older
 ThinkPads, and it has experimental support for up to sixteen different
-sensors on newer ThinkPads.  Readings from sensors that are not available
-return -128.
-
-No commands can be written to this file.
+sensors on newer ThinkPads.
 
 EXPERIMENTAL: The 16-sensors feature is marked EXPERIMENTAL because the
 implementation directly accesses hardware registers and may not work as
@@ -523,6 +523,20 @@ The A31 has a very atypical layout for the thermal sensors
 6:  PCMCIA/ambient
 7:  Main Battery: secondary sensor
 8:  Bay Battery: secondary sensor
+
+
+Procfs notes:
+	Readings from sensors that are not available return -128.
+	No commands can be written to this file.
+
+Sysfs notes:
+	Sensors that are not available return the ENXIO error.  This
+	status may change at runtime, as there are hotplug thermal
+	sensors, like those inside the batteries and docks.
+
+	thinkpad-acpi thermal sensors are reported through the hwmon
+	subsystem, and follow all of the hwmon guidelines at
+	Documentation/hwmon.
 
 
 EXPERIMENTAL: Embedded controller register dump -- /proc/acpi/ibm/ecdump

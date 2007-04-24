@@ -1992,11 +1992,91 @@ static struct ibm_struct beep_driver_data = {
 
 static enum thermal_access_mode thermal_read_mode;
 
+/* sysfs temp##_input -------------------------------------------------- */
+
+static ssize_t thermal_temp_input_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	struct sensor_device_attribute *sensor_attr =
+					to_sensor_dev_attr(attr);
+	int idx = sensor_attr->index;
+	s32 value;
+	int res;
+
+	res = thermal_get_sensor(idx, &value);
+	if (res)
+		return res;
+	if (value == TP_EC_THERMAL_TMP_NA * 1000)
+		return -ENXIO;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+}
+
+#define THERMAL_SENSOR_ATTR_TEMP(_idxA, _idxB) \
+	 SENSOR_ATTR(temp##_idxA##_input, S_IRUGO, thermal_temp_input_show, NULL, _idxB)
+
+static struct sensor_device_attribute sensor_dev_attr_thermal_temp_input[] = {
+	THERMAL_SENSOR_ATTR_TEMP(1, 0),
+	THERMAL_SENSOR_ATTR_TEMP(2, 1),
+	THERMAL_SENSOR_ATTR_TEMP(3, 2),
+	THERMAL_SENSOR_ATTR_TEMP(4, 3),
+	THERMAL_SENSOR_ATTR_TEMP(5, 4),
+	THERMAL_SENSOR_ATTR_TEMP(6, 5),
+	THERMAL_SENSOR_ATTR_TEMP(7, 6),
+	THERMAL_SENSOR_ATTR_TEMP(8, 7),
+	THERMAL_SENSOR_ATTR_TEMP(9, 8),
+	THERMAL_SENSOR_ATTR_TEMP(10, 9),
+	THERMAL_SENSOR_ATTR_TEMP(11, 10),
+	THERMAL_SENSOR_ATTR_TEMP(12, 11),
+	THERMAL_SENSOR_ATTR_TEMP(13, 12),
+	THERMAL_SENSOR_ATTR_TEMP(14, 13),
+	THERMAL_SENSOR_ATTR_TEMP(15, 14),
+	THERMAL_SENSOR_ATTR_TEMP(16, 15),
+};
+
+#define THERMAL_ATTRS(X) \
+	&sensor_dev_attr_thermal_temp_input[X].dev_attr.attr
+
+static struct attribute *thermal_temp_input_attr[] = {
+	THERMAL_ATTRS(8),
+	THERMAL_ATTRS(9),
+	THERMAL_ATTRS(10),
+	THERMAL_ATTRS(11),
+	THERMAL_ATTRS(12),
+	THERMAL_ATTRS(13),
+	THERMAL_ATTRS(14),
+	THERMAL_ATTRS(15),
+	THERMAL_ATTRS(0),
+	THERMAL_ATTRS(1),
+	THERMAL_ATTRS(2),
+	THERMAL_ATTRS(3),
+	THERMAL_ATTRS(4),
+	THERMAL_ATTRS(5),
+	THERMAL_ATTRS(6),
+	THERMAL_ATTRS(7),
+	NULL
+};
+
+static const struct attribute_group thermal_temp_input16_group = {
+	.attrs = thermal_temp_input_attr
+};
+
+static const struct attribute_group thermal_temp_input8_group = {
+	.attrs = &thermal_temp_input_attr[8]
+};
+
+#undef THERMAL_SENSOR_ATTR_TEMP
+#undef THERMAL_ATTRS
+
+/* --------------------------------------------------------------------- */
+
 static int __init thermal_init(struct ibm_init_struct *iibm)
 {
 	u8 t, ta1, ta2;
 	int i;
 	int acpi_tmp7;
+	int res;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing thermal subdriver\n");
 
@@ -2060,7 +2140,46 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 		str_supported(thermal_read_mode != TPACPI_THERMAL_NONE),
 		thermal_read_mode);
 
-	return (thermal_read_mode != TPACPI_THERMAL_NONE)? 0 : 1;
+	switch(thermal_read_mode) {
+	case TPACPI_THERMAL_TPEC_16:
+		res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+				&thermal_temp_input16_group);
+		if (res)
+			return res;
+		break;
+	case TPACPI_THERMAL_TPEC_8:
+	case TPACPI_THERMAL_ACPI_TMP07:
+	case TPACPI_THERMAL_ACPI_UPDT:
+		res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+				&thermal_temp_input8_group);
+		if (res)
+			return res;
+		break;
+	case TPACPI_THERMAL_NONE:
+	default:
+		return 1;
+	}
+
+	return 0;
+}
+
+static void thermal_exit(void)
+{
+	switch(thermal_read_mode) {
+	case TPACPI_THERMAL_TPEC_16:
+		sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+				   &thermal_temp_input16_group);
+		break;
+	case TPACPI_THERMAL_TPEC_8:
+	case TPACPI_THERMAL_ACPI_TMP07:
+	case TPACPI_THERMAL_ACPI_UPDT:
+		sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+				   &thermal_temp_input16_group);
+		break;
+	case TPACPI_THERMAL_NONE:
+	default:
+		break;
+	}
 }
 
 /* idx is zero-based */
@@ -2168,6 +2287,7 @@ static int thermal_read(char *p)
 static struct ibm_struct thermal_driver_data = {
 	.name = "thermal",
 	.read = thermal_read,
+	.exit = thermal_exit,
 };
 
 /*************************************************************************

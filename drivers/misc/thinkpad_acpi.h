@@ -38,6 +38,7 @@
 #include <linux/fb.h>
 #include <linux/platform_device.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include <asm/uaccess.h>
 
 #include <linux/dmi.h>
@@ -467,6 +468,7 @@ enum thermal_access_mode {
 enum { /* TPACPI_THERMAL_TPEC_* */
 	TP_EC_THERMAL_TMP0 = 0x78,	/* ACPI EC regs TMP 0..7 */
 	TP_EC_THERMAL_TMP8 = 0xC0,	/* ACPI EC regs TMP 8..15 */
+	TP_EC_THERMAL_TMP_NA = -128,	/* ACPI EC sensor not available */
 };
 
 #define TPACPI_MAX_THERMAL_SENSORS 16	/* Max thermal sensors supported */
