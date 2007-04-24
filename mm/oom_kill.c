@@ -333,7 +333,7 @@ static int oom_kill_task(struct task_struct *p)
 	 */
 	do_each_thread(g, q) {
 		if (q->mm == mm && q->tgid != p->tgid)
-			force_sig(SIGKILL, p);
+			force_sig(SIGKILL, q);
 	} while_each_thread(g, q);
 
 	return 0;
