@@ -293,7 +293,3 @@ Debugging
 			stuck (default)
 
 Miscellaneous
-
-  noreplacement  Don't replace instructions with more appropriate ones
-		 for the CPU. This may be useful on asymmetric MP systems
-		 where some CPUs have less capabilities than others.
