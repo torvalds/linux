@@ -484,7 +484,7 @@ static struct sonypi_device {
 	u16 evtype_offset;
 	int camera_power;
 	int bluetooth_power;
-	struct semaphore lock;
+	struct mutex lock;
 	struct kfifo *fifo;
 	spinlock_t fifo_lock;
 	wait_queue_head_t fifo_proc_list;
@@ -891,7 +891,7 @@ int sonypi_camera_command(int command, u8 value)
 	if (!camera)
 		return -EIO;
 
-	down(&sonypi_device.lock);
+	mutex_lock(&sonypi_device.lock);
 
 	switch (command) {
 	case SONYPI_COMMAND_SETCAMERA:
@@ -926,7 +926,7 @@ int sonypi_camera_command(int command, u8 value)
 		       command);
 		break;
 	}
-	up(&sonypi_device.lock);
+	mutex_unlock(&sonypi_device.lock);
 	return 0;
 }
 
@@ -945,20 +945,20 @@ static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 static int sonypi_misc_release(struct inode *inode, struct file *file)
 {
 	sonypi_misc_fasync(-1, file, 0);
-	down(&sonypi_device.lock);
+	mutex_lock(&sonypi_device.lock);
 	sonypi_device.open_count--;
-	up(&sonypi_device.lock);
+	mutex_unlock(&sonypi_device.lock);
 	return 0;
 }
 
 static int sonypi_misc_open(struct inode *inode, struct file *file)
 {
-	down(&sonypi_device.lock);
+	mutex_lock(&sonypi_device.lock);
 	/* Flush input queue on first open */
 	if (!sonypi_device.open_count)
 		kfifo_reset(sonypi_device.fifo);
 	sonypi_device.open_count++;
-	up(&sonypi_device.lock);
+	mutex_unlock(&sonypi_device.lock);
 	return 0;
 }
 
@@ -1008,7 +1008,7 @@ static int sonypi_misc_ioctl(struct inode *ip, struct file *fp,
 	u8 val8;
 	u16 val16;
 
-	down(&sonypi_device.lock);
+	mutex_lock(&sonypi_device.lock);
 	switch (cmd) {
 	case SONYPI_IOCGBRT:
 		if (sonypi_ec_read(SONYPI_LCD_LIGHT, &val8)) {
@@ -1108,7 +1108,7 @@ static int sonypi_misc_ioctl(struct inode *ip, struct file *fp,
 	default:
 		ret = -EINVAL;
 	}
-	up(&sonypi_device.lock);
+	mutex_unlock(&sonypi_device.lock);
 	return ret;
 }
 
@@ -1363,7 +1363,7 @@ static int __devinit sonypi_probe(struct platform_device *dev)
 	}
 
 	init_waitqueue_head(&sonypi_device.fifo_proc_list);
-	init_MUTEX(&sonypi_device.lock);
+	mutex_init(&sonypi_device.lock);
 	sonypi_device.bluetooth_power = -1;
 
 	if ((pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
