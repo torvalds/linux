@@ -191,11 +191,11 @@ static struct ip_tunnel * ipgre_tunnel_lookup(__be32 remote, __be32 local, __be3
 	return NULL;
 }
 
-static struct ip_tunnel **ipgre_bucket(struct ip_tunnel *t)
+static struct ip_tunnel **__ipgre_bucket(struct ip_tunnel_parm *parms)
 {
-	__be32 remote = t->parms.iph.daddr;
-	__be32 local = t->parms.iph.saddr;
-	__be32 key = t->parms.i_key;
+	__be32 remote = parms->iph.daddr;
+	__be32 local = parms->iph.saddr;
+	__be32 key = parms->i_key;
 	unsigned h = HASH(key);
 	int prio = 0;
 
@@ -207,6 +207,11 @@ static struct ip_tunnel **ipgre_bucket(struct ip_tunnel *t)
 	}
 
 	return &tunnels[prio][h];
+}
+
+static inline struct ip_tunnel **ipgre_bucket(struct ip_tunnel *t)
+{
+	return __ipgre_bucket(&t->parms);
 }
 
 static void ipgre_tunnel_link(struct ip_tunnel *t)
@@ -240,17 +245,9 @@ static struct ip_tunnel * ipgre_tunnel_locate(struct ip_tunnel_parm *parms, int 
 	__be32 key = parms->i_key;
 	struct ip_tunnel *t, **tp, *nt;
 	struct net_device *dev;
-	unsigned h = HASH(key);
-	int prio = 0;
 	char name[IFNAMSIZ];
 
-	if (local)
-		prio |= 1;
-	if (remote && !MULTICAST(remote)) {
-		prio |= 2;
-		h ^= HASH(remote);
-	}
-	for (tp = &tunnels[prio][h]; (t = *tp) != NULL; tp = &t->next) {
+	for (tp = __ipgre_bucket(parms); (t = *tp) != NULL; tp = &t->next) {
 		if (local == t->parms.iph.saddr && remote == t->parms.iph.daddr) {
 			if (key == t->parms.i_key)
 				return t;
