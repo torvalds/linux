@@ -1328,7 +1328,7 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		cso = skb_transport_offset(skb);
-		css = cso + skb->csum;
+		css = cso + skb->csum_offset;
 		if (unlikely(cso & 0x1)) {
 			printk(KERN_DEBUG "%s: payload offset != even number\n",
 				atl1_driver_name);
