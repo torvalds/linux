@@ -448,16 +448,6 @@ extern pgd_t swapper_pg_dir[];
 
 extern void paging_init(void);
 
-/*
- * This gets called at the end of handling a page fault, when
- * the kernel has put a new PTE into the page table for the process.
- * We use it to put a corresponding HPTE into the hash table
- * ahead of time, instead of waiting for the inevitable extra
- * hash-table miss exception.
- */
-struct vm_area_struct;
-extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
-
 /* Encode and de-code a swap entry */
 #define __swp_type(entry)	(((entry).val >> 1) & 0x3f)
 #define __swp_offset(entry)	((entry).val >> 8)

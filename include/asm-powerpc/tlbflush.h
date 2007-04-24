@@ -17,10 +17,73 @@
  */
 #ifdef __KERNEL__
 
-
 struct mm_struct;
+struct vm_area_struct;
 
-#ifdef CONFIG_PPC64
+#if defined(CONFIG_4xx) || defined(CONFIG_8xx) || defined(CONFIG_FSL_BOOKE)
+/*
+ * TLB flushing for software loaded TLB chips
+ *
+ * TODO: (CONFIG_FSL_BOOKE) determine if flush_tlb_range &
+ * flush_tlb_kernel_range are best implemented as tlbia vs
+ * specific tlbie's
+ */
+
+extern void _tlbie(unsigned long address);
+
+#if defined(CONFIG_40x) || defined(CONFIG_8xx)
+#define _tlbia()	asm volatile ("tlbia; sync" : : : "memory")
+#else /* CONFIG_44x || CONFIG_FSL_BOOKE */
+extern void _tlbia(void);
+#endif
+
+static inline void flush_tlb_mm(struct mm_struct *mm)
+{
+	_tlbia();
+}
+
+static inline void flush_tlb_page(struct vm_area_struct *vma,
+				  unsigned long vmaddr)
+{
+	_tlbie(vmaddr);
+}
+
+static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
+					 unsigned long vmaddr)
+{
+	_tlbie(vmaddr);
+}
+
+static inline void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end)
+{
+	_tlbia();
+}
+
+static inline void flush_tlb_kernel_range(unsigned long start,
+					  unsigned long end)
+{
+	_tlbia();
+}
+
+#elif defined(CONFIG_PPC32)
+/*
+ * TLB flushing for "classic" hash-MMMU 32-bit CPUs, 6xx, 7xx, 7xxx
+ */
+extern void _tlbie(unsigned long address);
+extern void _tlbia(void);
+
+extern void flush_tlb_mm(struct mm_struct *mm);
+extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
+extern void flush_tlb_page_nohash(struct vm_area_struct *vma, unsigned long addr);
+extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			    unsigned long end);
+extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+
+#else
+/*
+ * TLB flushing for 64-bit has-MMU CPUs
+ */
 
 #include <linux/percpu.h>
 #include <asm/page.h>
@@ -67,23 +130,31 @@ extern void flush_hash_page(unsigned long va, real_pte_t pte, int psize,
 			    int local);
 extern void flush_hash_range(unsigned long number, int local);
 
-#else /* CONFIG_PPC64 */
 
-#include <linux/mm.h>
+static inline void flush_tlb_mm(struct mm_struct *mm)
+{
+}
 
-extern void _tlbie(unsigned long address);
-extern void _tlbia(void);
+static inline void flush_tlb_page(struct vm_area_struct *vma,
+				  unsigned long vmaddr)
+{
+}
 
-/*
- * TODO: (CONFIG_FSL_BOOKE) determine if flush_tlb_range &
- * flush_tlb_kernel_range are best implemented as tlbia vs
- * specific tlbie's
- */
+static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
+					 unsigned long vmaddr)
+{
+}
 
-#if (defined(CONFIG_4xx) && !defined(CONFIG_44x)) || defined(CONFIG_8xx)
-#define flush_tlb_pending()	asm volatile ("tlbia; sync" : : : "memory")
-#elif defined(CONFIG_4xx) || defined(CONFIG_FSL_BOOKE)
-#define flush_tlb_pending()	_tlbia()
+static inline void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end)
+{
+}
+
+static inline void flush_tlb_kernel_range(unsigned long start,
+					  unsigned long end)
+{
+}
+
 #endif
 
 /*
@@ -97,59 +168,13 @@ extern void _tlbia(void);
  */
 extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
 
-#endif /* CONFIG_PPC64 */
-
-#if defined(CONFIG_PPC64) || defined(CONFIG_4xx) || \
-	defined(CONFIG_FSL_BOOKE) || defined(CONFIG_8xx)
-
-static inline void flush_tlb_mm(struct mm_struct *mm)
-{
-}
-
-static inline void flush_tlb_page(struct vm_area_struct *vma,
-				unsigned long vmaddr)
-{
-#ifndef CONFIG_PPC64
-	_tlbie(vmaddr);
-#endif
-}
-
-static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
-					 unsigned long vmaddr)
-{
-#ifndef CONFIG_PPC64
-	_tlbie(vmaddr);
-#endif
-}
-
-static inline void flush_tlb_range(struct vm_area_struct *vma,
-		unsigned long start, unsigned long end)
-{
-}
-
-static inline void flush_tlb_kernel_range(unsigned long start,
-		unsigned long end)
-{
-}
-
-#else	/* 6xx, 7xx, 7xxx cpus */
-
-extern void flush_tlb_mm(struct mm_struct *mm);
-extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
-extern void flush_tlb_page_nohash(struct vm_area_struct *vma, unsigned long addr);
-extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
-			    unsigned long end);
-extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
-
-#endif
-
 /*
  * This is called in munmap when we have freed up some page-table
  * pages.  We don't need to do anything here, there's nothing special
  * about our page-table pages.  -- paulus
  */
 static inline void flush_tlb_pgtables(struct mm_struct *mm,
-		unsigned long start, unsigned long end)
+				      unsigned long start, unsigned long end)
 {
 }
 
