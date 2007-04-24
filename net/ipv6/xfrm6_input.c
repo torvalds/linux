@@ -147,14 +147,12 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 {
 	struct xfrm_state *x = NULL;
 	int wildcard = 0;
-	struct in6_addr any;
 	xfrm_address_t *xany;
 	struct xfrm_state *xfrm_vec_one = NULL;
 	int nh = 0;
 	int i = 0;
 
-	ipv6_addr_set(&any, 0, 0, 0, 0);
-	xany = (xfrm_address_t *)&any;
+	xany = (xfrm_address_t *)&in6addr_any;
 
 	for (i = 0; i < 3; i++) {
 		xfrm_address_t *dst, *src;
