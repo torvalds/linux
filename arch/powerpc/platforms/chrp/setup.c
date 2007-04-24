@@ -226,12 +226,12 @@ static void __init pegasos_set_l2cr(void)
 		return;
 
 	/* Enable L2 cache if needed */
-	np = find_type_devices("cpu");
+	np = of_find_node_by_type(NULL, "cpu");
 	if (np != NULL) {
 		const unsigned int *l2cr = of_get_property(np, "l2cr", NULL);
 		if (l2cr == NULL) {
 			printk ("Pegasos l2cr : no cpu l2cr property found\n");
-			return;
+			goto out;
 		}
 		if (!((*l2cr) & 0x80000000)) {
 			printk ("Pegasos l2cr : L2 cache was not active, "
@@ -240,6 +240,8 @@ static void __init pegasos_set_l2cr(void)
 			_set_L2CR((*l2cr) | 0x80000000);
 		}
 	}
+out:
+	of_node_put(np);
 }
 
 static void briq_restart(char *cmd)

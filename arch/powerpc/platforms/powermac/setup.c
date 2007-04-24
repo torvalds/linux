@@ -250,9 +250,9 @@ static void __init l2cr_init(void)
 {
 	/* Checks "l2cr-value" property in the registry */
 	if (cpu_has_feature(CPU_FTR_L2CR)) {
-		struct device_node *np = find_devices("cpus");
+		struct device_node *np = of_find_node_by_name(NULL, "cpus");
 		if (np == 0)
-			np = find_type_devices("cpu");
+			np = of_find_node_by_type(NULL, "cpu");
 		if (np != 0) {
 			const unsigned int *l2cr =
 				of_get_property(np, "l2cr-value", NULL);
@@ -262,6 +262,7 @@ static void __init l2cr_init(void)
 				_set_L2CR(0);
 				_set_L2CR(ppc_override_l2cr_value);
 			}
+			of_node_put(np);
 		}
 	}
 

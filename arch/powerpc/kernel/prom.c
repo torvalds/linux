@@ -1091,25 +1091,6 @@ struct device_node *find_devices(const char *name)
 }
 EXPORT_SYMBOL(find_devices);
 
-/**
- * Construct and return a list of the device_nodes with a given type.
- */
-struct device_node *find_type_devices(const char *type)
-{
-	struct device_node *head, **prevp, *np;
-
-	prevp = &head;
-	for (np = allnodes; np != 0; np = np->allnext) {
-		if (np->type != 0 && strcasecmp(np->type, type) == 0) {
-			*prevp = np;
-			prevp = &np->next;
-		}
-	}
-	*prevp = NULL;
-	return head;
-}
-EXPORT_SYMBOL(find_type_devices);
-
 /** Checks if the given "compat" string matches one of the strings in
  * the device's "compatible" property
  */

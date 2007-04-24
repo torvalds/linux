@@ -658,7 +658,7 @@ static int __init pmac_cpufreq_setup(void)
 		return 0;
 
 	/* Assume only one CPU */
-	cpunode = find_type_devices("cpu");
+	cpunode = of_find_node_by_type(NULL, "cpu");
 	if (!cpunode)
 		goto out;
 
@@ -708,6 +708,7 @@ static int __init pmac_cpufreq_setup(void)
 	else if (PVR_VER(mfspr(SPRN_PVR)) == 0x7000)
 		pmac_cpufreq_init_750FX(cpunode);
 out:
+	of_node_put(cpunode);
 	if (set_speed_proc == NULL)
 		return -ENODEV;
 

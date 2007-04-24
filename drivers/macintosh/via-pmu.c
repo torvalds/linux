@@ -319,10 +319,13 @@ int __init find_via_pmu(void)
 	else if (device_is_compatible(vias->parent, "Keylargo")
 		 || device_is_compatible(vias->parent, "K2-Keylargo")) {
 		struct device_node *gpiop;
+		struct device_node *adbp;
 		u64 gaddr = OF_BAD_ADDR;
 
 		pmu_kind = PMU_KEYLARGO_BASED;
-		pmu_has_adb = (find_type_devices("adb") != NULL);
+		adbp = of_find_node_by_type(NULL, "adb");
+		pmu_has_adb = (adbp != NULL);
+		of_node_put(adbp);
 		pmu_intr_mask =	PMU_INT_PCEJECT |
 				PMU_INT_SNDBRT |
 				PMU_INT_ADB |
