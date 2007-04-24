@@ -1491,8 +1491,9 @@ static void __init depca_platform_probe (void)
 		depca_io_ports[i].device = pldev;
 
 		if (platform_device_add(pldev)) {
-			platform_device_put(pldev);
 			depca_io_ports[i].device = NULL;
+			pldev->dev.platform_data = NULL;
+			platform_device_put(pldev);
 			continue;
 		}
 

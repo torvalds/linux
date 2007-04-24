@@ -75,11 +75,13 @@
 #include <linux/ioport.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
 #include <linux/hdlcdrv.h>
 #include <linux/baycom.h>
 #include <linux/jiffies.h>
+
+#include <asm/uaccess.h>
+#include <asm/io.h>
+#include <asm/irq.h>
 
 /* --------------------------------------------------------------------- */
 

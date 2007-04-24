@@ -316,6 +316,7 @@ static int update_eth_regs_async(pegasus_t * pegasus)
 	return ret;
 }
 
+/* Returns 0 on success, error on failure */
 static int read_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 * regd)
 {
 	int i;
@@ -847,10 +848,16 @@ static void intr_callback(struct urb *urb)
 		 * d[0].NO_CARRIER kicks in only with failed TX.
 		 * ... so monitoring with MII may be safest.
 		 */
-		if (d[0] & NO_CARRIER)
-			netif_carrier_off(net);	
-		else
-			netif_carrier_on(net);
+		if (pegasus->features & TRUST_LINK_STATUS) {
+			if (d[5] & LINK_STATUS)
+				netif_carrier_on(net);
+			else
+				netif_carrier_off(net);
+		} else {
+			/* Never set carrier _on_ based on ! NO_CARRIER */
+			if (d[0] & NO_CARRIER)
+				netif_carrier_off(net);	
+		}
 
 		/* bytes 3-4 == rx_lostpkt, reg 2E/2F */
 		pegasus->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
@@ -950,7 +957,7 @@ static void set_carrier(struct net_device *net)
 	pegasus_t *pegasus = netdev_priv(net);
 	u16 tmp;
 
-	if (!read_mii_word(pegasus, pegasus->phy, MII_BMSR, &tmp))
+	if (read_mii_word(pegasus, pegasus->phy, MII_BMSR, &tmp))
 		return;
 
 	if (tmp & BMSR_LSTATUS)
