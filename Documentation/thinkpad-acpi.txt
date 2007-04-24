@@ -378,23 +378,19 @@ supported. Use "eject2" instead of "eject" for the second bay.
 Note: the UltraBay eject support on the 600e/x, A22p and A3x is
 EXPERIMENTAL and may not work as expected. USE WITH CAUTION!
 
-CMOS control -- /proc/acpi/ibm/cmos
------------------------------------
+CMOS control
+------------
+
+procfs: /proc/acpi/ibm/cmos
+sysfs device attribute: cmos_command
 
 This feature is used internally by the ACPI firmware to control the
 ThinkLight on most newer ThinkPad models. It may also control LCD
 brightness, sounds volume and more, but only on some models.
 
-The commands are non-negative integer numbers:
-
-	echo 0 >/proc/acpi/ibm/cmos
-	echo 1 >/proc/acpi/ibm/cmos
-	echo 2 >/proc/acpi/ibm/cmos
-	...
-
-The range of valid numbers is 0 to 21, but not all have an effect and
-the behavior varies from model to model. Here is the behavior on the
-X40 (tpb is the ThinkPad Buttons utility):
+The range of valid cmos command numbers is 0 to 21, but not all have an
+effect and the behavior varies from model to model.  Here is the behavior
+on the X40 (tpb is the ThinkPad Buttons utility):
 
 	0 - no effect but tpb reports "Volume down"
 	1 - no effect but tpb reports "Volume up"
@@ -406,6 +402,9 @@ X40 (tpb is the ThinkPad Buttons utility):
 	12 - ThinkLight on
 	13 - ThinkLight off
 	14 - no effect but tpb reports ThinkLight status change
+
+The cmos command interface is prone to firmware split-brain problems, as
+in newer ThinkPads it is just a compatibility layer.
 
 LED control -- /proc/acpi/ibm/led
 ---------------------------------

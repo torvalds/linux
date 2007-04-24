@@ -1743,8 +1743,30 @@ static struct ibm_struct bay_driver_data = {
  * CMOS subdriver
  */
 
+/* sysfs cmos_command -------------------------------------------------- */
+static ssize_t cmos_command_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long cmos_cmd;
+	int res;
+
+	if (parse_strtoul(buf, 21, &cmos_cmd))
+		return -EINVAL;
+
+	res = issue_thinkpad_cmos_command(cmos_cmd);
+	return (res)? res : count;
+}
+
+static struct device_attribute dev_attr_cmos_command =
+	__ATTR(cmos_command, S_IWUSR, NULL, cmos_command_store);
+
+/* --------------------------------------------------------------------- */
+
 static int __init cmos_init(struct ibm_init_struct *iibm)
 {
+	int res;
+
 	vdbg_printk(TPACPI_DBG_INIT,
 		"initializing cmos commands subdriver\n");
 
@@ -1752,7 +1774,17 @@ static int __init cmos_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT, "cmos commands are %s\n",
 		str_supported(cmos_handle != NULL));
+
+	res = device_create_file(&tpacpi_pdev->dev, &dev_attr_cmos_command);
+	if (res)
+		return res;
+
 	return (cmos_handle)? 0 : 1;
+}
+
+static void cmos_exit(void)
+{
+	device_remove_file(&tpacpi_pdev->dev, &dev_attr_cmos_command);
 }
 
 static int cmos_read(char *p)
@@ -1795,6 +1827,7 @@ static struct ibm_struct cmos_driver_data = {
 	.name = "cmos",
 	.read = cmos_read,
 	.write = cmos_write,
+	.exit = cmos_exit,
 };
 
 /*************************************************************************
