@@ -899,7 +899,7 @@ static int get_system_info(void)
 	const char *id, *model, *name;
 	const unsigned int *num;
 
-	rootdn = find_path_device("/");
+	rootdn = of_find_node_by_path("/");
 	if (!rootdn)
 		return -ENOENT;
 
@@ -916,6 +916,7 @@ static int get_system_info(void)
 	if (num)
 		partition_number = *num;
 
+	of_node_put(rootdn);
 	return 0;
 }
 

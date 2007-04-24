@@ -1153,20 +1153,6 @@ int machine_is_compatible(const char *compat)
 }
 EXPORT_SYMBOL(machine_is_compatible);
 
-/**
- * Find the device_node with a given full_name.
- */
-struct device_node *find_path_device(const char *path)
-{
-	struct device_node *np;
-
-	for (np = allnodes; np != 0; np = np->allnext)
-		if (np->full_name != 0 && strcasecmp(np->full_name, path) == 0)
-			return np;
-	return NULL;
-}
-EXPORT_SYMBOL(find_path_device);
-
 /*******
  *
  * New implementation of the OF "find" APIs, return a refcounted

@@ -669,6 +669,7 @@ pcibios_make_OF_bus_map(void)
 	int i;
 	struct pci_controller* hose;
 	struct property *map_prop;
+	struct device_node *dn;
 
 	pci_to_OF_bus_map = kmalloc(pci_bus_count, GFP_KERNEL);
 	if (!pci_to_OF_bus_map) {
@@ -690,12 +691,13 @@ pcibios_make_OF_bus_map(void)
 			continue;
 		make_one_node_map(node, hose->first_busno);
 	}
-	map_prop = of_find_property(find_path_device("/"),
-			"pci-OF-bus-map", NULL);
+	dn = of_find_node_by_path("/");
+	map_prop = of_find_property(dn, "pci-OF-bus-map", NULL);
 	if (map_prop) {
 		BUG_ON(pci_bus_count > map_prop->length);
 		memcpy(map_prop->value, pci_to_OF_bus_map, pci_bus_count);
 	}
+	of_node_put(dn);
 #ifdef DEBUG
 	printk("PCI->OF bus map:\n");
 	for (i=0; i<pci_bus_count; i++) {
@@ -1006,14 +1008,19 @@ void __init
 pci_create_OF_bus_map(void)
 {
 	struct property* of_prop;
-	
+	struct device_node *dn;
+
 	of_prop = (struct property*) alloc_bootmem(sizeof(struct property) + 256);
-	if (of_prop && find_path_device("/")) {
+	if (!of_prop)
+		return;
+	dn = of_find_node_by_path("/");
+	if (dn) {
 		memset(of_prop, -1, sizeof(struct property) + 256);
 		of_prop->name = "pci-OF-bus-map";
 		of_prop->length = 256;
 		of_prop->value = &of_prop[1];
-		prom_add_property(find_path_device("/"), of_prop);
+		prom_add_property(dn, of_prop);
+		of_node_put(dn);
 	}
 }
 

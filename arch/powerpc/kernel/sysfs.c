@@ -66,7 +66,7 @@ static int __init smt_setup(void)
 	if (!cpu_has_feature(CPU_FTR_SMT))
 		return -ENODEV;
 
-	options = find_path_device("/options");
+	options = of_find_node_by_path("/options");
 	if (!options)
 		return -ENODEV;
 
@@ -76,6 +76,7 @@ static int __init smt_setup(void)
 			per_cpu(smt_snooze_delay, cpu) = *val;
 	}
 
+	of_node_put(options);
 	return 0;
 }
 __initcall(smt_setup);

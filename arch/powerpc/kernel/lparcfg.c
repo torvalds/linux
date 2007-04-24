@@ -321,7 +321,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	struct device_node *rtas_node;
 	const int *lrdrp = NULL;
 
-	rtas_node = find_path_device("/rtas");
+	rtas_node = of_find_node_by_path("/rtas");
 	if (rtas_node)
 		lrdrp = of_get_property(rtas_node, "ibm,lrdr-capacity", NULL);
 
@@ -330,6 +330,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	} else {
 		partition_potential_processors = *(lrdrp + 4);
 	}
+	of_node_put(rtas_node);
 
 	partition_active_processors = lparcfg_count_active_processors();
 
@@ -537,7 +538,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 
 	seq_printf(m, "%s %s \n", MODULE_NAME, MODULE_VERS);
 
-	rootdn = find_path_device("/");
+	rootdn = of_find_node_by_path("/");
 	if (rootdn) {
 		tmp = of_get_property(rootdn, "model", NULL);
 		if (tmp) {
@@ -557,6 +558,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 					NULL);
 		if (lp_index_ptr)
 			lp_index = *lp_index_ptr;
+		of_node_put(rootdn);
 	}
 	seq_printf(m, "serial_number=%s\n", system_id);
 	seq_printf(m, "system_type=%s\n", model);

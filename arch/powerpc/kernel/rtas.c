@@ -192,7 +192,7 @@ void rtas_progress(char *s, unsigned short hex)
 
 	if (display_width == 0) {
 		display_width = 0x10;
-		if ((root = find_path_device("/rtas"))) {
+		if ((root = of_find_node_by_path("/rtas"))) {
 			if ((p = of_get_property(root,
 					"ibm,display-line-length", NULL)))
 				display_width = *p;
@@ -204,6 +204,7 @@ void rtas_progress(char *s, unsigned short hex)
 				display_lines = *p;
 			row_width = of_get_property(root,
 					"ibm,display-truncation-length", NULL);
+			of_node_put(root);
 		}
 		display_character = rtas_token("display-character");
 		set_indicator = rtas_token("set-indicator");

@@ -1044,6 +1044,7 @@ core99_reset_cpu(struct device_node *node, long param, long value)
 	unsigned long flags;
 	struct macio_chip *macio;
 	struct device_node *np;
+	struct device_node *cpus;
 	const int dflt_reset_lines[] = {	KL_GPIO_RESET_CPU0,
 						KL_GPIO_RESET_CPU1,
 						KL_GPIO_RESET_CPU2,
@@ -1053,10 +1054,10 @@ core99_reset_cpu(struct device_node *node, long param, long value)
 	if (macio->type != macio_keylargo)
 		return -ENODEV;
 
-	np = find_path_device("/cpus");
-	if (np == NULL)
+	cpus = of_find_node_by_path("/cpus");
+	if (cpus == NULL)
 		return -ENODEV;
-	for (np = np->child; np != NULL; np = np->sibling) {
+	for (np = cpus->child; np != NULL; np = np->sibling) {
 		const u32 *num = of_get_property(np, "reg", NULL);
 		const u32 *rst = of_get_property(np, "soft-reset", NULL);
 		if (num == NULL || rst == NULL)
@@ -1066,6 +1067,7 @@ core99_reset_cpu(struct device_node *node, long param, long value)
 			break;
 		}
 	}
+	of_node_put(cpus);
 	if (np == NULL || reset_io == 0)
 		reset_io = dflt_reset_lines[param];
 
@@ -1497,15 +1499,16 @@ static long g5_reset_cpu(struct device_node *node, long param, long value)
 	unsigned long flags;
 	struct macio_chip *macio;
 	struct device_node *np;
+	struct device_node *cpus;
 
 	macio = &macio_chips[0];
 	if (macio->type != macio_keylargo2 && macio->type != macio_shasta)
 		return -ENODEV;
 
-	np = find_path_device("/cpus");
-	if (np == NULL)
+	cpus = of_find_node_by_path("/cpus");
+	if (cpus == NULL)
 		return -ENODEV;
-	for (np = np->child; np != NULL; np = np->sibling) {
+	for (np = cpus->child; np != NULL; np = np->sibling) {
 		const u32 *num = of_get_property(np, "reg", NULL);
 		const u32 *rst = of_get_property(np, "soft-reset", NULL);
 		if (num == NULL || rst == NULL)
@@ -1515,6 +1518,7 @@ static long g5_reset_cpu(struct device_node *node, long param, long value)
 			break;
 		}
 	}
+	of_node_put(cpus);
 	if (np == NULL || reset_io == 0)
 		return -ENODEV;
 
@@ -2499,18 +2503,26 @@ found:
 	 * that all Apple OF revs did it properly, I do it the paranoid way.
 	 */
 	while (uninorth_base && uninorth_rev > 3) {
-		struct device_node *np = find_path_device("/cpus");
-		if (!np || !np->child) {
+		struct device_node *cpus = of_find_node_by_path("/cpus");
+		struct device_node *np;
+
+		if (!cpus || !cpus->child) {
 			printk(KERN_WARNING "Can't find CPU(s) in device tree !\n");
+			of_node_put(cpus);
 			break;
 		}
-		np = np->child;
+		np = cpus->child;
 		/* Nap mode not supported on SMP */
-		if (np->sibling)
+		if (np->sibling) {
+			of_node_put(cpus);
 			break;
+		}
 		/* Nap mode not supported if flush-on-lock property is present */
-		if (of_get_property(np, "flush-on-lock", NULL))
+		if (of_get_property(np, "flush-on-lock", NULL)) {
+			of_node_put(cpus);
 			break;
+		}
+		of_node_put(cpus);
 		powersave_nap = 1;
 		printk(KERN_DEBUG "Processor NAP mode on idle enabled.\n");
 		break;

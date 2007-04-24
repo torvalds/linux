@@ -185,10 +185,9 @@ setup_python(struct pci_controller *hose, struct device_node *dev)
 /* Marvell Discovery II based Pegasos 2 */
 static void __init setup_peg2(struct pci_controller *hose, struct device_node *dev)
 {
-	struct device_node *root = find_path_device("/");
+	struct device_node *root = of_find_node_by_path("/");
 	struct device_node *rtas;
 
-	of_node_get(root);
 	rtas = of_find_node_by_name (root, "rtas");
 	if (rtas) {
 		hose->ops = &rtas_pci_ops;
@@ -198,6 +197,7 @@ static void __init setup_peg2(struct pci_controller *hose, struct device_node *d
 			" your firmware\n");
 	}
 	pci_assign_all_buses = 1;
+	/* keep the reference to the root node */
 }
 
 void __init
@@ -210,7 +210,7 @@ chrp_find_bridges(void)
 	const unsigned int *dma;
 	const char *model, *machine;
 	int is_longtrail = 0, is_mot = 0, is_pegasos = 0;
-	struct device_node *root = find_path_device("/");
+	struct device_node *root = of_find_node_by_path("/");
 	struct resource r;
 	/*
 	 * The PCI host bridge nodes on some machines don't have
@@ -309,6 +309,7 @@ chrp_find_bridges(void)
 			printk("pci_dram_offset = %lx\n", pci_dram_offset);
 		}
 	}
+	of_node_put(root);
 }
 
 /* SL82C105 IDE Control/Status Register */

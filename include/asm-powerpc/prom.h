@@ -115,7 +115,6 @@ static inline void set_node_proc_entry(struct device_node *dn, struct proc_dir_e
 /* OBSOLETE: Old style node lookup */
 extern struct device_node *find_devices(const char *name);
 extern struct device_node *find_type_devices(const char *type);
-extern struct device_node *find_path_device(const char *path);
 
 /* New style node lookup */
 extern struct device_node *of_find_node_by_name(struct device_node *from,

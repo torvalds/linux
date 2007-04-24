@@ -110,7 +110,7 @@ void chrp_show_cpuinfo(struct seq_file *m)
 	struct device_node *root;
 	const char *model = "";
 
-	root = find_path_device("/");
+	root = of_find_node_by_path("/");
 	if (root)
 		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
@@ -160,6 +160,7 @@ void chrp_show_cpuinfo(struct seq_file *m)
 			   gg2_cachetypes[(t>>2) & 3],
 			   gg2_cachemodes[t & 3]);
 	}
+	of_node_put(root);
 }
 
 /*
@@ -204,7 +205,7 @@ static void __init sio_init(void)
 {
 	struct device_node *root;
 
-	if ((root = find_path_device("/")) &&
+	if ((root = of_find_node_by_path("/")) &&
 	    !strncmp(of_get_property(root, "model", NULL),
 			"IBM,LongTrail", 13)) {
 		/* logical device 0 (KBC/Keyboard) */
@@ -212,6 +213,7 @@ static void __init sio_init(void)
 		/* select logical device 1 (KBC/Mouse) */
 		sio_fixup_irq("mouse", 1, 12, 2);
 	}
+	of_node_put(root);
 }
 
 
@@ -250,7 +252,7 @@ static void briq_restart(char *cmd)
 
 void __init chrp_setup_arch(void)
 {
-	struct device_node *root = find_path_device ("/");
+	struct device_node *root = of_find_node_by_path("/");
 	const char *machine = NULL;
 
 	/* init to some ~sane value until calibrate_delay() runs */
@@ -273,6 +275,7 @@ void __init chrp_setup_arch(void)
 		/* Let's assume it is an IBM chrp if all else fails */
 		_chrp_type = _CHRP_IBM;
 	}
+	of_node_put(root);
 	printk("chrp type = %x [%s]\n", _chrp_type, chrp_names[_chrp_type]);
 
 	rtas_initialize();
