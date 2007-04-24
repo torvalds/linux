@@ -54,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5.7"
-#define DRV_MODULE_RELDATE	"March 29, 2007"
+#define DRV_MODULE_VERSION	"1.5.8"
+#define DRV_MODULE_RELDATE	"April 24, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -3421,6 +3421,9 @@ bnx2_init_chip(struct bnx2 *bp)
 	val = REG_RD(bp, BNX2_MQ_CONFIG);
 	val &= ~BNX2_MQ_CONFIG_KNL_BYP_BLK_SIZE;
 	val |= BNX2_MQ_CONFIG_KNL_BYP_BLK_SIZE_256;
+	if (CHIP_ID(bp) == CHIP_ID_5709_A0 || CHIP_ID(bp) == CHIP_ID_5709_A1)
+		val |= BNX2_MQ_CONFIG_HALT_DIS;
+
 	REG_WR(bp, BNX2_MQ_CONFIG, val);
 
 	val = 0x10000 + (MAX_CID_CNT * MB_KERNEL_CTX_SIZE);
