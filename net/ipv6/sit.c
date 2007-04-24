@@ -99,10 +99,10 @@ static struct ip_tunnel * ipip6_tunnel_lookup(__be32 remote, __be32 local)
 	return NULL;
 }
 
-static struct ip_tunnel ** ipip6_bucket(struct ip_tunnel *t)
+static struct ip_tunnel **__ipip6_bucket(struct ip_tunnel_parm *parms)
 {
-	__be32 remote = t->parms.iph.daddr;
-	__be32 local = t->parms.iph.saddr;
+	__be32 remote = parms->iph.daddr;
+	__be32 local = parms->iph.saddr;
 	unsigned h = 0;
 	int prio = 0;
 
@@ -115,6 +115,11 @@ static struct ip_tunnel ** ipip6_bucket(struct ip_tunnel *t)
 		h ^= HASH(local);
 	}
 	return &tunnels[prio][h];
+}
+
+static inline struct ip_tunnel **ipip6_bucket(struct ip_tunnel *t)
+{
+	return __ipip6_bucket(&t->parms);
 }
 
 static void ipip6_tunnel_unlink(struct ip_tunnel *t)
@@ -147,19 +152,9 @@ static struct ip_tunnel * ipip6_tunnel_locate(struct ip_tunnel_parm *parms, int 
 	__be32 local = parms->iph.saddr;
 	struct ip_tunnel *t, **tp, *nt;
 	struct net_device *dev;
-	unsigned h = 0;
-	int prio = 0;
 	char name[IFNAMSIZ];
 
-	if (remote) {
-		prio |= 2;
-		h ^= HASH(remote);
-	}
-	if (local) {
-		prio |= 1;
-		h ^= HASH(local);
-	}
-	for (tp = &tunnels[prio][h]; (t = *tp) != NULL; tp = &t->next) {
+	for (tp = __ipip6_bucket(parms); (t = *tp) != NULL; tp = &t->next) {
 		if (local == t->parms.iph.saddr && remote == t->parms.iph.daddr)
 			return t;
 	}
