@@ -19,4 +19,11 @@ config PPC_PASEMI_IOMMU
 	help
 	  IOMMU support for PA6T-1682M
 
+config PPC_PASEMI_MDIO
+	depends on PHYLIB
+	tristate "MDIO support via GPIO"
+	default y
+	help
+	  Driver for MDIO via GPIO on PWRficient platforms
+
 endmenu
