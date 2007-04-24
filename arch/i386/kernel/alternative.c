@@ -5,15 +5,9 @@
 #include <asm/alternative.h>
 #include <asm/sections.h>
 
-static int no_replacement    = 0;
 static int smp_alt_once      = 0;
 static int debug_alternative = 0;
 
-static int __init noreplacement_setup(char *s)
-{
-	no_replacement = 1;
-	return 1;
-}
 static int __init bootonly(char *str)
 {
 	smp_alt_once = 1;
@@ -25,7 +19,6 @@ static int __init debug_alt(char *str)
 	return 1;
 }
 
-__setup("noreplacement", noreplacement_setup);
 __setup("smp-alt-boot", bootonly);
 __setup("debug-alternative", debug_alt);
 
@@ -252,9 +245,6 @@ void alternatives_smp_module_add(struct module *mod, char *name,
 	struct smp_alt_module *smp;
 	unsigned long flags;
 
-	if (no_replacement)
-		return;
-
 	if (smp_alt_once) {
 		if (boot_cpu_has(X86_FEATURE_UP))
 			alternatives_smp_unlock(locks, locks_end,
@@ -289,7 +279,7 @@ void alternatives_smp_module_del(struct module *mod)
 	struct smp_alt_module *item;
 	unsigned long flags;
 
-	if (no_replacement || smp_alt_once)
+	if (smp_alt_once)
 		return;
 
 	spin_lock_irqsave(&smp_alt, flags);
@@ -320,7 +310,7 @@ void alternatives_smp_switch(int smp)
 	return;
 #endif
 
-	if (no_replacement || smp_alt_once)
+	if (smp_alt_once)
 		return;
 	BUG_ON(!smp && (num_online_cpus() > 1));
 
@@ -386,13 +376,6 @@ extern struct paravirt_patch __start_parainstructions[],
 void __init alternative_instructions(void)
 {
 	unsigned long flags;
-	if (no_replacement) {
-		printk(KERN_INFO "(SMP-)alternatives turned off\n");
-		free_init_pages("SMP alternatives",
-				(unsigned long)__smp_alt_begin,
-				(unsigned long)__smp_alt_end);
-		return;
-	}
 
 	local_irq_save(flags);
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
