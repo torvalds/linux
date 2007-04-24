@@ -704,6 +704,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "initializing hotkey subdriver\n");
 
 	IBM_ACPIHANDLE_INIT(hkey);
+	mutex_init(&hotkey_mutex);
 
 	/* hotkey not supported on 570 */
 	tp_features.hotkey = hkey_handle != NULL;
@@ -752,6 +753,9 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 	}
 }
 
+/*
+ * Call with hotkey_mutex held
+ */
 static int hotkey_get(int *status, int *mask)
 {
 	if (!acpi_evalf(hkey_handle, status, "DHKC", "d"))
@@ -764,6 +768,9 @@ static int hotkey_get(int *status, int *mask)
 	return 0;
 }
 
+/*
+ * Call with hotkey_mutex held
+ */
 static int hotkey_set(int status, int mask)
 {
 	int i;
@@ -792,7 +799,11 @@ static int hotkey_read(char *p)
 		return len;
 	}
 
+	res = mutex_lock_interruptible(&hotkey_mutex);
+	if (res < 0)
+		return res;
 	res = hotkey_get(&status, &mask);
+	mutex_unlock(&hotkey_mutex);
 	if (res)
 		return res;
 
@@ -818,10 +829,15 @@ static int hotkey_write(char *buf)
 	if (!tp_features.hotkey)
 		return -ENODEV;
 
-	res = hotkey_get(&status, &mask);
-	if (res)
+	res = mutex_lock_interruptible(&hotkey_mutex);
+	if (res < 0)
 		return res;
 
+	res = hotkey_get(&status, &mask);
+	if (res)
+		goto errexit;
+
+	res = 0;
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "enable") == 0) {
 			status = 1;
@@ -834,18 +850,19 @@ static int hotkey_write(char *buf)
 			/* mask set */
 		} else if (sscanf(cmd, "%x", &mask) == 1) {
 			/* mask set */
-		} else
-			return -EINVAL;
+		} else {
+			res = -EINVAL;
+			goto errexit;
+		}
 		do_cmd = 1;
 	}
 
-	if (do_cmd) {
+	if (do_cmd)
 		res = hotkey_set(status, mask);
-		if (res)
-			return res;
-	}
 
-	return 0;
+errexit:
+	mutex_unlock(&hotkey_mutex);
+	return res;
 }
 
 static struct tp_acpi_drv_struct ibm_hotkey_acpidriver = {
@@ -2575,6 +2592,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 {
 	vdbg_printk(TPACPI_DBG_INIT, "initializing fan subdriver\n");
 
+	mutex_init(&fan_mutex);
 	fan_status_access_mode = TPACPI_FAN_NONE;
 	fan_control_access_mode = TPACPI_FAN_WR_NONE;
 	fan_control_commands = 0;
@@ -2764,10 +2782,17 @@ static void fan_watchdog_reset(void)
 
 static int fan_set_level(int level)
 {
+	int res;
+
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_SFAN:
 		if (level >= 0 && level <= 7) {
-			if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", level))
+			res = mutex_lock_interruptible(&fan_mutex);
+			if (res < 0)
+				return res;
+			res = acpi_evalf(sfan_handle, NULL, NULL, "vd", level);
+			mutex_unlock(&fan_mutex);
+			if (!res)
 				return -EIO;
 		} else
 			return -EINVAL;
@@ -2780,7 +2805,12 @@ static int fan_set_level(int level)
 		    ((level < 0) || (level > 7)))
 			return -EINVAL;
 
-		if (!acpi_ec_write(fan_status_offset, level))
+		res = mutex_lock_interruptible(&fan_mutex);
+		if (res < 0)
+			return res;
+		res = acpi_ec_write(fan_status_offset, level);
+		mutex_unlock(&fan_mutex);
+		if (!res)
 			return -EIO;
 		else
 			tp_features.fan_ctrl_status_undef = 0;
@@ -2797,25 +2827,33 @@ static int fan_set_enable(void)
 	u8 s;
 	int rc;
 
+	rc = mutex_lock_interruptible(&fan_mutex);
+	if (rc < 0)
+		return rc;
+
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_FANS:
 	case TPACPI_FAN_WR_TPEC:
-		if ((rc = fan_get_status(&s)) < 0)
-			return rc;
+		rc = fan_get_status(&s);
+		if (rc < 0)
+			break;
 
 		/* Don't go out of emergency fan mode */
 		if (s != 7)
 			s = TP_EC_FAN_AUTO;
 
 		if (!acpi_ec_write(fan_status_offset, s))
-			return -EIO;
-		else
+			rc = -EIO;
+		else {
 			tp_features.fan_ctrl_status_undef = 0;
+			rc = 0;
+		}
 		break;
 
 	case TPACPI_FAN_WR_ACPI_SFAN:
-		if ((rc = fan_get_status(&s)) < 0)
-			return rc;
+		rc = fan_get_status(&s);
+		if (rc < 0)
+			break;
 
 		s &= 0x07;
 
@@ -2824,53 +2862,75 @@ static int fan_set_enable(void)
 			s = 4;
 
 		if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", s))
-			return -EIO;
+			rc= -EIO;
+		else
+			rc = 0;
 		break;
 
 	default:
-		return -ENXIO;
+		rc = -ENXIO;
 	}
-	return 0;
+
+	mutex_unlock(&fan_mutex);
+	return rc;
 }
 
 static int fan_set_disable(void)
 {
+	int rc;
+
+	rc = mutex_lock_interruptible(&fan_mutex);
+	if (rc < 0)
+		return rc;
+
+	rc = 0;
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_FANS:
 	case TPACPI_FAN_WR_TPEC:
 		if (!acpi_ec_write(fan_status_offset, 0x00))
-			return -EIO;
+			rc = -EIO;
 		else
 			tp_features.fan_ctrl_status_undef = 0;
 		break;
 
 	case TPACPI_FAN_WR_ACPI_SFAN:
 		if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", 0x00))
-			return -EIO;
+			rc = -EIO;
 		break;
 
 	default:
-		return -ENXIO;
+		rc = -ENXIO;
 	}
-	return 0;
+
+	mutex_unlock(&fan_mutex);
+	return rc;
 }
 
 static int fan_set_speed(int speed)
 {
+	int rc;
+
+	rc = mutex_lock_interruptible(&fan_mutex);
+	if (rc < 0)
+		return rc;
+
+	rc = 0;
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_FANS:
 		if (speed >= 0 && speed <= 65535) {
 			if (!acpi_evalf(fans_handle, NULL, NULL, "vddd",
 					speed, speed, speed))
-				return -EIO;
+				rc = -EIO;
 		} else
-			return -EINVAL;
+			rc = -EINVAL;
 		break;
 
 	default:
-		return -ENXIO;
+		rc = -ENXIO;
 	}
-	return 0;
+
+	mutex_unlock(&fan_mutex);
+	return rc;
 }
 
 static int fan_read(char *p)

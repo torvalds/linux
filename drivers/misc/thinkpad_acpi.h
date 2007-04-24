@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 
 #include <linux/proc_fs.h>
 #include <linux/sysfs.h>
@@ -375,6 +376,8 @@ static enum fan_control_commands fan_control_commands;
 static u8 fan_control_initial_status;
 static int fan_watchdog_maxinterval;
 
+struct mutex fan_mutex;
+
 static acpi_handle fans_handle, gfan_handle, sfan_handle;
 
 static int fan_init(struct ibm_init_struct *iibm);
@@ -402,6 +405,8 @@ static int fan_write_cmd_watchdog(const char *cmd, int *rc);
 
 static int hotkey_orig_status;
 static int hotkey_orig_mask;
+
+static struct mutex hotkey_mutex;
 
 static int hotkey_init(struct ibm_init_struct *iibm);
 static void hotkey_exit(void);
