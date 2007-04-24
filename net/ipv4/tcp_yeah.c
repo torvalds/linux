@@ -6,13 +6,14 @@
  *    http://wil.cs.caltech.edu/pfldnet2007/paper/YeAH_TCP.pdf
  *
  */
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/skbuff.h>
+#include <linux/inet_diag.h>
 
-#include "tcp_yeah.h"
+#include <net/tcp.h>
 
-/* Default values of the Vegas variables, in fixed-point representation
- * with V_PARAM_SHIFT bits to the right of the binary point.
- */
-#define V_PARAM_SHIFT 1
+#include "tcp_vegas.h"
 
 #define TCP_YEAH_ALPHA       80 //lin number of packets queued at the bottleneck
 #define TCP_YEAH_GAMMA        1 //lin fraction of queue to be removed per rtt
@@ -26,14 +27,7 @@
 
 /* YeAH variables */
 struct yeah {
-	/* Vegas */
-	u32	beg_snd_nxt;	/* right edge during last RTT */
-	u32	beg_snd_una;	/* left edge  during last RTT */
-	u32	beg_snd_cwnd;	/* saves the size of the cwnd */
-	u8	doing_vegas_now;/* if true, do vegas for this RTT */
-	u16	cntRTT;		/* # of RTTs measured within last RTT */
-	u32	minRTT;		/* min of RTTs measured within last RTT (in usec) */
-	u32	baseRTT;	/* the min of all Vegas RTT measurements seen (in usec) */
+	struct vegas vegas;	/* must be first */
 
 	/* YeAH */
 	u32 lastQ;
@@ -84,9 +78,10 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
 	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
-	if (tp->snd_cwnd <= tp->snd_ssthresh) {
+	if (tp->snd_cwnd <= tp->snd_ssthresh)
 		tcp_slow_start(tp);
-	} else if (!yeah->doing_reno_now) {
+
+	else if (!yeah->doing_reno_now) {
 		/* Scalable */
 
 		tp->snd_cwnd_cnt+=yeah->pkts_acked;
@@ -110,19 +105,19 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
 		}
 	}
 
-	/* The key players are v_beg_snd_una and v_beg_snd_nxt.
+	/* The key players are v_vegas.beg_snd_una and v_beg_snd_nxt.
 	 *
 	 * These are so named because they represent the approximate values
 	 * of snd_una and snd_nxt at the beginning of the current RTT. More
 	 * precisely, they represent the amount of data sent during the RTT.
 	 * At the end of the RTT, when we receive an ACK for v_beg_snd_nxt,
-	 * we will calculate that (v_beg_snd_nxt - v_beg_snd_una) outstanding
+	 * we will calculate that (v_beg_snd_nxt - v_vegas.beg_snd_una) outstanding
 	 * bytes of data have been ACKed during the course of the RTT, giving
 	 * an "actual" rate of:
 	 *
-	 *     (v_beg_snd_nxt - v_beg_snd_una) / (rtt duration)
+	 *     (v_beg_snd_nxt - v_vegas.beg_snd_una) / (rtt duration)
 	 *
-	 * Unfortunately, v_beg_snd_una is not exactly equal to snd_una,
+	 * Unfortunately, v_vegas.beg_snd_una is not exactly equal to snd_una,
 	 * because delayed ACKs can cover more than one segment, so they
 	 * don't line up yeahly with the boundaries of RTTs.
 	 *
@@ -132,7 +127,7 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
 	 * So we keep track of our cwnd separately, in v_beg_snd_cwnd.
 	 */
 
-	if (after(ack, yeah->beg_snd_nxt)) {
+	if (after(ack, yeah->vegas.beg_snd_nxt)) {
 
 		/* We do the Vegas calculations only if we got enough RTT
 		 * samples that we can be reasonably sure that we got
@@ -143,7 +138,7 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
 		 * If  we have 3 samples, we should be OK.
 		 */
 
-		if (yeah->cntRTT > 2) {
+		if (yeah->vegas.cntRTT > 2) {
 			u32 rtt, queue;
 			u64 bw;
 
@@ -158,18 +153,18 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
 			 * of delayed ACKs, at the cost of noticing congestion
 			 * a bit later.
 			 */
-			rtt = yeah->minRTT;
+			rtt = yeah->vegas.minRTT;
 
 			/* Compute excess number of packets above bandwidth
 			 * Avoid doing full 64 bit divide.
 			 */
 			bw = tp->snd_cwnd;
-			bw *= rtt - yeah->baseRTT;
+			bw *= rtt - yeah->vegas.baseRTT;
 			do_div(bw, rtt);
 			queue = bw;
 
 			if (queue > TCP_YEAH_ALPHA ||
-			    rtt - yeah->baseRTT > (yeah->baseRTT / TCP_YEAH_PHY)) {
+			    rtt - yeah->vegas.baseRTT > (yeah->vegas.baseRTT / TCP_YEAH_PHY)) {
 				if (queue > TCP_YEAH_ALPHA
 				    && tp->snd_cwnd > yeah->reno_count) {
 					u32 reduction = min(queue / TCP_YEAH_GAMMA ,
@@ -208,13 +203,13 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack,
 		/* Save the extent of the current window so we can use this
 		 * at the end of the next RTT.
 		 */
-		yeah->beg_snd_una  = yeah->beg_snd_nxt;
-		yeah->beg_snd_nxt  = tp->snd_nxt;
-		yeah->beg_snd_cwnd = tp->snd_cwnd;
+		yeah->vegas.beg_snd_una  = yeah->vegas.beg_snd_nxt;
+		yeah->vegas.beg_snd_nxt  = tp->snd_nxt;
+		yeah->vegas.beg_snd_cwnd = tp->snd_cwnd;
 
 		/* Wipe the slate clean for the next RTT. */
-		yeah->cntRTT = 0;
-		yeah->minRTT = 0x7fffffff;
+		yeah->vegas.cntRTT = 0;
+		yeah->vegas.minRTT = 0x7fffffff;
 	}
 }
 
