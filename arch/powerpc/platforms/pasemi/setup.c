@@ -35,6 +35,7 @@
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
+#include <asm/of_platform.h>
 
 #include "pasemi.h"
 
