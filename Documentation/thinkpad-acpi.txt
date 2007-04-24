@@ -101,10 +101,38 @@ follow all sysfs guidelines and correctly process all errors (the sysfs
 interface makes extensive use of errors).  File descriptors and open /
 close operations to the sysfs inodes must also be properly implemented.
 
-Driver version -- /proc/acpi/ibm/driver
----------------------------------------
+The version of thinkpad-acpi's sysfs interface is exported by the driver
+as a driver attribute (see below).
+
+Sysfs driver attributes are on the driver's sysfs attribute space,
+for 2.6.20 this is /sys/bus/platform/drivers/thinkpad-acpi/.
+
+Sysfs device attributes are on the driver's sysfs attribute space,
+for 2.6.20 this is /sys/devices/platform/thinkpad-acpi/.
+
+Driver version
+--------------
+
+procfs: /proc/acpi/ibm/driver
+sysfs driver attribute: version
 
 The driver name and version. No commands can be written to this file.
+
+Sysfs interface version
+-----------------------
+
+sysfs driver attribute: interface_version
+
+Version of the thinkpad-acpi sysfs interface, as an unsigned long
+(output in hex format: 0xAAAABBCC), where:
+	AAAA - major revision
+	BB - minor revision
+	CC - bugfix revision
+
+The sysfs interface version changelog for the driver can be found at the
+end of this document.  Changes to the sysfs interface done by the kernel
+subsystems are not documented here, nor are they tracked by this
+attribute.
 
 Hot keys -- /proc/acpi/ibm/hotkey
 ---------------------------------
@@ -745,9 +773,19 @@ to enable more than one output class, just add their values.
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
 
+The level of debugging information output by the driver can be changed
+at runtime through sysfs, using the driver attribute debug_level.  The
+attribute takes the same bitmask as the debug module parameter above.
+
 Force loading of module
 -----------------------
 
 If thinkpad-acpi refuses to detect your ThinkPad, you can try to specify
 the module parameter force_load=1.  Regardless of whether this works or
 not, please contact ibm-acpi-devel@lists.sourceforge.net with a report.
+
+
+Sysfs interface changelog:
+
+0x000100:	Initial sysfs support, as a single platform driver and
+		device.

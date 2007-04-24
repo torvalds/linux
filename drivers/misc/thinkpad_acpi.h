@@ -32,6 +32,7 @@
 #include <linux/list.h>
 
 #include <linux/proc_fs.h>
+#include <linux/sysfs.h>
 #include <linux/backlight.h>
 #include <linux/fb.h>
 #include <linux/platform_device.h>
@@ -137,6 +138,8 @@ static char *next_cmd(char **cmds);
 static struct platform_device *tpacpi_pdev;
 static struct class_device *tpacpi_hwmon;
 static struct platform_driver tpacpi_pdriver;
+static int tpacpi_create_driver_attributes(struct device_driver *drv);
+static void tpacpi_remove_driver_attributes(struct device_driver *drv);
 
 /* Module */
 static int experimental;

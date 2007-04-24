@@ -22,6 +22,7 @@
  */
 
 #define IBM_VERSION "0.14"
+#define TPACPI_SYSFS_VERSION 0x000100
 
 /*
  *  Changelog:
@@ -492,6 +493,87 @@ static struct platform_driver tpacpi_pdriver = {
 	},
 };
 
+
+/*************************************************************************
+ * thinkpad-acpi driver attributes
+ */
+
+/* interface_version --------------------------------------------------- */
+static ssize_t tpacpi_driver_interface_version_show(
+				struct device_driver *drv,
+				char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", TPACPI_SYSFS_VERSION);
+}
+
+static DRIVER_ATTR(interface_version, S_IRUGO,
+		tpacpi_driver_interface_version_show, NULL);
+
+/* debug_level --------------------------------------------------------- */
+static ssize_t tpacpi_driver_debug_show(struct device_driver *drv,
+						char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%04x\n", dbg_level);
+}
+
+static ssize_t tpacpi_driver_debug_store(struct device_driver *drv,
+						const char *buf, size_t count)
+{
+	unsigned long t;
+	char *endp;
+
+	t = simple_strtoul(buf, &endp, 0);
+	while (*endp && isspace(*endp))
+		endp++;
+	if (*endp)
+		return -EINVAL;
+
+	dbg_level = t;
+
+	return count;
+}
+
+static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
+		tpacpi_driver_debug_show, tpacpi_driver_debug_store);
+
+/* version ------------------------------------------------------------- */
+static ssize_t tpacpi_driver_version_show(struct device_driver *drv,
+						char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%s v%s\n", IBM_DESC, IBM_VERSION);
+}
+
+static DRIVER_ATTR(version, S_IRUGO,
+		tpacpi_driver_version_show, NULL);
+
+/* --------------------------------------------------------------------- */
+
+static struct driver_attribute* tpacpi_driver_attributes[] = {
+	&driver_attr_debug_level, &driver_attr_version,
+	&driver_attr_interface_version,
+};
+
+static int __init tpacpi_create_driver_attributes(struct device_driver *drv)
+{
+	int i, res;
+
+	i = 0;
+	res = 0;
+	while (!res && i < ARRAY_SIZE(tpacpi_driver_attributes)) {
+		res = driver_create_file(drv, tpacpi_driver_attributes[i]);
+		i++;
+	}
+
+	return res;
+}
+
+static void tpacpi_remove_driver_attributes(struct device_driver *drv)
+{
+	int i;
+
+	for(i = 0; i < ARRAY_SIZE(tpacpi_driver_attributes); i++)
+		driver_remove_file(drv, tpacpi_driver_attributes[i]);
+}
 
 /****************************************************************************
  ****************************************************************************
@@ -3268,6 +3350,13 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
+	ret = tpacpi_create_driver_attributes(&tpacpi_pdriver.driver);
+	if (ret) {
+		printk(IBM_ERR "unable to create sysfs driver attributes\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+
 
 	/* Device initialization */
 	tpacpi_pdev = platform_device_register_simple(IBM_DRVR_NAME, -1,
@@ -3318,6 +3407,7 @@ static void thinkpad_acpi_module_exit(void)
 	if (tpacpi_pdev)
 		platform_device_unregister(tpacpi_pdev);
 
+	tpacpi_remove_driver_attributes(&tpacpi_pdriver.driver);
 	platform_driver_unregister(&tpacpi_pdriver);
 
 	if (proc_dir)
