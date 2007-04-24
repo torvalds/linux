@@ -25,6 +25,7 @@
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT	1
 
 #define of_compat_cmp(s1, s2, l)	strncasecmp((s1), (s2), (l))
+#define of_prop_cmp(s1, s2)		strcmp((s1), (s2))
 
 /* Definitions used by the flattened device tree */
 #define OF_DT_HEADER		0xd00dfeed	/* marker */

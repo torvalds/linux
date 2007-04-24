@@ -32,10 +32,7 @@
 
 static struct device_node *allnodes;
 
-/* use when traversing tree through the allnext, child, sibling,
- * or parent members of struct device_node.
- */
-static DEFINE_RWLOCK(devtree_lock);
+extern rwlock_t devtree_lock;	/* temporary while merging */
 
 struct device_node *of_get_parent(const struct device_node *node)
 {
@@ -134,23 +131,6 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 	return np;
 }
 EXPORT_SYMBOL(of_find_compatible_node);
-
-struct property *of_find_property(const struct device_node *np,
-				  const char *name,
-				  int *lenp)
-{
-	struct property *pp;
-
-	for (pp = np->properties; pp != 0; pp = pp->next) {
-		if (strcasecmp(pp->name, name) == 0) {
-			if (lenp != 0)
-				*lenp = pp->length;
-			break;
-		}
-	}
-	return pp;
-}
-EXPORT_SYMBOL(of_find_property);
 
 int of_getintprop_default(struct device_node *np, const char *name, int def)
 {

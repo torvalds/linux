@@ -24,6 +24,7 @@
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT	1
 
 #define of_compat_cmp(s1, s2, l)	strncmp((s1), (s2), (l))
+#define of_prop_cmp(s1, s2)		strcasecmp((s1), (s2))
 
 typedef u32 phandle;
 typedef u32 ihandle;

@@ -18,6 +18,12 @@
  */
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/spinlock.h>
+
+/* use when traversing tree through the allnext, child, sibling,
+ * or parent members of struct device_node.
+ */
+DEFINE_RWLOCK(devtree_lock);
 
 int of_n_addr_cells(struct device_node *np)
 {
@@ -50,6 +56,26 @@ int of_n_size_cells(struct device_node *np)
 	return OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
 }
 EXPORT_SYMBOL(of_n_size_cells);
+
+struct property *of_find_property(const struct device_node *np,
+				  const char *name,
+				  int *lenp)
+{
+	struct property *pp;
+
+	read_lock(&devtree_lock);
+	for (pp = np->properties; pp != 0; pp = pp->next) {
+		if (of_prop_cmp(pp->name, name) == 0) {
+			if (lenp != 0)
+				*lenp = pp->length;
+			break;
+		}
+	}
+	read_unlock(&devtree_lock);
+
+	return pp;
+}
+EXPORT_SYMBOL(of_find_property);
 
 /*
  * Find a property with a given name for a given node
