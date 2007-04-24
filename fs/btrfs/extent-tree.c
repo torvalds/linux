@@ -167,7 +167,6 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 	ins.offset = 1;
 	ins.flags = 0;
 	btrfs_set_key_type(&ins, BTRFS_EXTENT_ITEM_KEY);
-	btrfs_set_extent_type(&extent_item, BTRFS_EXTENT_TREE);
 	btrfs_set_extent_owner(&extent_item, extent_root->root_key.objectid);
 
 	for (i = 0; i < extent_root->fs_info->current_insert.flags; i++) {
@@ -464,7 +463,7 @@ error:
  */
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, u64 owner,
-		       u8 type, u64 num_blocks, u64 search_start,
+		       u64 num_blocks, u64 search_start,
 		       u64 search_end, struct btrfs_key *ins)
 {
 	int ret;
@@ -476,7 +475,6 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 
 	btrfs_set_extent_refs(&extent_item, 1);
 	btrfs_set_extent_owner(&extent_item, owner);
-	btrfs_set_extent_type(&extent_item, type);
 
 	if (root == extent_root) {
 		BUG_ON(extent_root->fs_info->current_insert.offset == 0);
@@ -520,7 +518,6 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	struct buffer_head *buf;
 
 	ret = btrfs_alloc_extent(trans, root, root->root_key.objectid,
-				 BTRFS_EXTENT_TREE,
 				 1, 0, (unsigned long)-1, &ins);
 	if (ret) {
 		BUG();

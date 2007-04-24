@@ -152,9 +152,6 @@ struct btrfs_path {
 	int slots[BTRFS_MAX_LEVEL];
 };
 
-/* values for the type field in btrfs_extent_item */
-#define BTRFS_EXTENT_TREE 1
-#define BTRFS_EXTENT_FILE 2
 /*
  * items in the extent btree are used to record the objectid of the
  * owner of the block and the number of references
@@ -162,7 +159,6 @@ struct btrfs_path {
 struct btrfs_extent_item {
 	__le32 refs;
 	__le64 owner;
-	u8 type;
 } __attribute__ ((__packed__));
 
 struct btrfs_inode_timespec {
@@ -487,16 +483,6 @@ static inline u64 btrfs_extent_owner(struct btrfs_extent_item *ei)
 static inline void btrfs_set_extent_owner(struct btrfs_extent_item *ei, u64 val)
 {
 	ei->owner = cpu_to_le64(val);
-}
-
-static inline u8 btrfs_extent_type(struct btrfs_extent_item *ei)
-{
-	return ei->type;
-}
-
-static inline void btrfs_set_extent_type(struct btrfs_extent_item *ei, u8 val)
-{
-	ei->type = val;
 }
 
 static inline u64 btrfs_node_blockptr(struct btrfs_node *n, int nr)
@@ -1036,7 +1022,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					    struct btrfs_root *root);
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, u64 owner,
-		       u8 type, u64 num_blocks, u64 search_start,
+		       u64 num_blocks, u64 search_start,
 		       u64 search_end, struct btrfs_key *ins);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct buffer_head *buf);

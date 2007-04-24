@@ -1830,8 +1830,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	if (inode->i_size >= PAGE_CACHE_SIZE || pos + count < inode->i_size ||
 	    pos + count - start_pos > BTRFS_MAX_INLINE_DATA_SIZE(root)) {
 		ret = btrfs_alloc_extent(trans, root, inode->i_ino,
-					 BTRFS_EXTENT_FILE, num_blocks, 1,
-					 (u64)-1, &ins);
+					 num_blocks, 1, (u64)-1, &ins);
 		BUG_ON(ret);
 		ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
 				       start_pos, ins.objectid, ins.offset);
