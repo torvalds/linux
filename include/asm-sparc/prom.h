@@ -69,6 +69,15 @@ extern int of_getintprop_default(struct device_node *np,
 
 extern void prom_build_devicetree(void);
 
+/* Dummy ref counting routines - to be implemented later */
+static inline struct device_node *of_node_get(struct device_node *node)
+{
+	return node;
+}
+static inline void of_node_put(struct device_node *node)
+{
+}
+
 /*
  * NB:  This is here while we transition from using asm/prom.h
  * to linux/of.h
