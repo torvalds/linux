@@ -629,9 +629,12 @@ enum tcp_ca_event {
 #define TCP_CA_MAX	128
 #define TCP_CA_BUF_MAX	(TCP_CA_NAME_MAX*TCP_CA_MAX)
 
+#define TCP_CONG_NON_RESTRICTED 0x1
+#define TCP_CONG_RTT_STAMP	0x2
+
 struct tcp_congestion_ops {
 	struct list_head	list;
-	int	non_restricted;
+	unsigned long flags;
 
 	/* initialize private data (optional) */
 	void (*init)(struct sock *sk);
@@ -645,8 +648,6 @@ struct tcp_congestion_ops {
 	/* do new cwnd calculation (required) */
 	void (*cong_avoid)(struct sock *sk, u32 ack,
 			   u32 rtt, u32 in_flight, int good_ack);
-	/* round trip time sample per acked packet (optional) */
-	void (*rtt_sample)(struct sock *sk, u32 usrtt);
 	/* call before changing ca_state (optional) */
 	void (*set_state)(struct sock *sk, u8 new_state);
 	/* call when cwnd event occurs (optional) */
@@ -654,7 +655,7 @@ struct tcp_congestion_ops {
 	/* new value of cwnd after loss (optional) */
 	u32  (*undo_cwnd)(struct sock *sk);
 	/* hook for packet ack accounting (optional) */
-	void (*pkts_acked)(struct sock *sk, u32 num_acked);
+	void (*pkts_acked)(struct sock *sk, u32 num_acked, ktime_t last);
 	/* get info for inet_diag (optional) */
 	void (*get_info)(struct sock *sk, u32 ext, struct sk_buff *skb);
 

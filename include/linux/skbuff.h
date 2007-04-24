@@ -1569,6 +1569,11 @@ static inline void __net_timestamp(struct sk_buff *skb)
 	skb->tstamp = ktime_get_real();
 }
 
+static inline ktime_t net_timedelta(ktime_t t)
+{
+	return ktime_sub(ktime_get_real(), t);
+}
+
 
 extern __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len);
 extern __sum16 __skb_checksum_complete(struct sk_buff *skb);

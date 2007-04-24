@@ -83,9 +83,14 @@ static void tcp_illinois_init(struct sock *sk)
 }
 
 /* Measure RTT for each ack. */
-static void tcp_illinois_rtt_sample(struct sock *sk, u32 rtt)
+static void tcp_illinois_acked(struct sock *sk, u32 pkts_acked, ktime_t last)
 {
 	struct illinois *ca = inet_csk_ca(sk);
+	u32 rtt;
+
+	ca->acked = pkts_acked;
+
+	rtt = ktime_to_ns(net_timedelta(last)) / NSEC_PER_USEC;
 
 	/* ignore bogus values, this prevents wraparound in alpha math */
 	if (rtt > RTT_MAX)
@@ -101,13 +106,6 @@ static void tcp_illinois_rtt_sample(struct sock *sk, u32 rtt)
 
 	++ca->cnt_rtt;
 	ca->sum_rtt += rtt;
-}
-
-/* Capture count of packets covered by ack, to adjust for delayed acks */
-static void tcp_illinois_acked(struct sock *sk, u32 pkts_acked)
-{
-	struct illinois *ca = inet_csk_ca(sk);
-	ca->acked = pkts_acked;
 }
 
 /* Maximum queuing delay */
@@ -325,12 +323,12 @@ static void tcp_illinois_info(struct sock *sk, u32 ext,
 }
 
 static struct tcp_congestion_ops tcp_illinois = {
+	.flags		= TCP_CONG_RTT_STAMP,
 	.init		= tcp_illinois_init,
 	.ssthresh	= tcp_illinois_ssthresh,
 	.min_cwnd	= tcp_reno_min_cwnd,
 	.cong_avoid	= tcp_illinois_cong_avoid,
 	.set_state	= tcp_illinois_state,
-	.rtt_sample	= tcp_illinois_rtt_sample,
 	.get_info	= tcp_illinois_info,
 	.pkts_acked	= tcp_illinois_acked,
 

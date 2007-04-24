@@ -120,10 +120,13 @@ static void tcp_vegas_init(struct sock *sk)
  *   o min-filter RTT samples from a much longer window (forever for now)
  *     to find the propagation delay (baseRTT)
  */
-static void tcp_vegas_rtt_calc(struct sock *sk, u32 usrtt)
+static void tcp_vegas_pkts_acked(struct sock *sk, u32 cnt, ktime_t last)
 {
 	struct vegas *vegas = inet_csk_ca(sk);
-	u32 vrtt = usrtt + 1; /* Never allow zero rtt or baseRTT */
+	u32 vrtt;
+
+	/* Never allow zero rtt or baseRTT */
+	vrtt = (ktime_to_ns(net_timedelta(last)) / NSEC_PER_USEC) + 1;
 
 	/* Filter to find propagation delay: */
 	if (vrtt < vegas->baseRTT)
@@ -353,11 +356,12 @@ static void tcp_vegas_get_info(struct sock *sk, u32 ext,
 }
 
 static struct tcp_congestion_ops tcp_vegas = {
+	.flags		= TCP_CONG_RTT_STAMP,
 	.init		= tcp_vegas_init,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_vegas_cong_avoid,
 	.min_cwnd	= tcp_reno_min_cwnd,
-	.rtt_sample	= tcp_vegas_rtt_calc,
+	.pkts_acked	= tcp_vegas_pkts_acked,
 	.set_state	= tcp_vegas_state,
 	.cwnd_event	= tcp_vegas_cwnd_event,
 	.get_info	= tcp_vegas_get_info,

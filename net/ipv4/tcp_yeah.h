@@ -81,10 +81,13 @@ static void tcp_vegas_state(struct sock *sk, u8 ca_state)
  *   o min-filter RTT samples from a much longer window (forever for now)
  *     to find the propagation delay (baseRTT)
  */
-static void tcp_vegas_rtt_calc(struct sock *sk, u32 usrtt)
+static void tcp_vegas_pkts_acked(struct sock *sk, u32 cnt, ktime_t last)
 {
 	struct vegas *vegas = inet_csk_ca(sk);
-	u32 vrtt = usrtt + 1; /* Never allow zero rtt or baseRTT */
+	u32 vrtt;
+
+	/* Never allow zero rtt or baseRTT */
+	vrtt = (ktime_to_ns(net_timedelta(last)) / NSEC_PER_USEC) + 1;
 
 	/* Filter to find propagation delay: */
 	if (vrtt < vegas->baseRTT)
