@@ -120,6 +120,58 @@ make_bad:
 	make_bad_inode(inode);
 }
 
+static void fill_inode_item(struct btrfs_inode_item *item,
+			    struct inode *inode)
+{
+	btrfs_set_inode_uid(item, inode->i_uid);
+	btrfs_set_inode_gid(item, inode->i_gid);
+	btrfs_set_inode_size(item, inode->i_size);
+	btrfs_set_inode_mode(item, inode->i_mode);
+	btrfs_set_inode_nlink(item, inode->i_nlink);
+	btrfs_set_timespec_sec(&item->atime, inode->i_atime.tv_sec);
+	btrfs_set_timespec_nsec(&item->atime, inode->i_atime.tv_nsec);
+	btrfs_set_timespec_sec(&item->mtime, inode->i_mtime.tv_sec);
+	btrfs_set_timespec_nsec(&item->mtime, inode->i_mtime.tv_nsec);
+	btrfs_set_timespec_sec(&item->ctime, inode->i_ctime.tv_sec);
+	btrfs_set_timespec_nsec(&item->ctime, inode->i_ctime.tv_nsec);
+	btrfs_set_inode_nblocks(item, inode->i_blocks);
+	btrfs_set_inode_generation(item, inode->i_generation);
+}
+
+
+static int btrfs_update_inode(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root,
+			      struct inode *inode)
+{
+	struct btrfs_inode_item *inode_item;
+	struct btrfs_path *path;
+	int ret;
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+	btrfs_init_path(path);
+	ret = btrfs_lookup_inode(trans, root, path,
+				 &BTRFS_I(inode)->location, 1);
+	if (ret) {
+		if (ret > 0)
+			ret = -ENOENT;
+		goto failed;
+	}
+
+	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
+				  path->slots[0],
+				  struct btrfs_inode_item);
+
+	fill_inode_item(inode_item, inode);
+	btrfs_mark_buffer_dirty(path->nodes[0]);
+	ret = 0;
+failed:
+	btrfs_release_path(root, path);
+	btrfs_free_path(path);
+	return ret;
+}
+
+
 static int btrfs_unlink_trans(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct inode *dir,
@@ -166,10 +218,11 @@ static int btrfs_unlink_trans(struct btrfs_trans_handle *trans,
 	dentry->d_inode->i_ctime = dir->i_ctime;
 err:
 	btrfs_free_path(path);
-	if (ret == 0) {
-		inode_dec_link_count(dentry->d_inode);
+	if (!ret) {
 		dir->i_size -= name_len * 2;
-		mark_inode_dirty(dir);
+		btrfs_update_inode(trans, root, dir);
+		drop_nlink(dentry->d_inode);
+		btrfs_update_inode(trans, root, dentry->d_inode);
 	}
 	return ret;
 }
@@ -666,56 +719,6 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	sb->s_root = root_dentry;
 
 	return 0;
-}
-
-static void fill_inode_item(struct btrfs_inode_item *item,
-			    struct inode *inode)
-{
-	btrfs_set_inode_uid(item, inode->i_uid);
-	btrfs_set_inode_gid(item, inode->i_gid);
-	btrfs_set_inode_size(item, inode->i_size);
-	btrfs_set_inode_mode(item, inode->i_mode);
-	btrfs_set_inode_nlink(item, inode->i_nlink);
-	btrfs_set_timespec_sec(&item->atime, inode->i_atime.tv_sec);
-	btrfs_set_timespec_nsec(&item->atime, inode->i_atime.tv_nsec);
-	btrfs_set_timespec_sec(&item->mtime, inode->i_mtime.tv_sec);
-	btrfs_set_timespec_nsec(&item->mtime, inode->i_mtime.tv_nsec);
-	btrfs_set_timespec_sec(&item->ctime, inode->i_ctime.tv_sec);
-	btrfs_set_timespec_nsec(&item->ctime, inode->i_ctime.tv_nsec);
-	btrfs_set_inode_nblocks(item, inode->i_blocks);
-	btrfs_set_inode_generation(item, inode->i_generation);
-}
-
-static int btrfs_update_inode(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root,
-			      struct inode *inode)
-{
-	struct btrfs_inode_item *inode_item;
-	struct btrfs_path *path;
-	int ret;
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
-	btrfs_init_path(path);
-	ret = btrfs_lookup_inode(trans, root, path,
-				 &BTRFS_I(inode)->location, 1);
-	if (ret) {
-		if (ret > 0)
-			ret = -ENOENT;
-		goto failed;
-	}
-
-	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
-				  path->slots[0],
-				  struct btrfs_inode_item);
-
-	fill_inode_item(inode_item, inode);
-	btrfs_mark_buffer_dirty(path->nodes[0]);
-	ret = 0;
-failed:
-	btrfs_release_path(root, path);
-	btrfs_free_path(path);
-	return ret;
 }
 
 static int btrfs_write_inode(struct inode *inode, int wait)
