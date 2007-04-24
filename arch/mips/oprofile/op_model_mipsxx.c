@@ -35,7 +35,7 @@
 #define vpe_id()	smp_processor_id()
 #else
 #define WHAT		0
-#define vpe_id()	smp_processor_id()
+#define vpe_id()	0
 #endif
 
 #define __define_perf_accessors(r, n, np)				\
