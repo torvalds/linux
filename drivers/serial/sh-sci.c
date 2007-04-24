@@ -77,6 +77,9 @@ struct sci_port {
 	/* Break timer */
 	struct timer_list	break_timer;
 	int			break_flag;
+
+	/* Port clock */
+	struct clk		*clk;
 };
 
 #ifdef CONFIG_SH_KGDB
@@ -955,6 +958,8 @@ static int sci_startup(struct uart_port *port)
 	if (s->enable)
 		s->enable(port);
 
+	s->clk = clk_get(NULL, "module_clk");
+
 	sci_request_irq(s);
 	sci_start_tx(port);
 	sci_start_rx(port, 1);
@@ -972,6 +977,9 @@ static void sci_shutdown(struct uart_port *port)
 
 	if (s->disable)
 		s->disable(port);
+
+	clk_put(s->clk);
+	s->clk = NULL;
 }
 
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
@@ -990,9 +998,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 		default:
 		{
 #if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
-			struct clk *clk = clk_get(NULL, "module_clk");
-			t = SCBRR_VALUE(baud, clk_get_rate(clk));
-			clk_put(clk);
+			t = SCBRR_VALUE(baud, clk_get_rate(s->clk));
 #else
 			t = SCBRR_VALUE(baud);
 #endif
