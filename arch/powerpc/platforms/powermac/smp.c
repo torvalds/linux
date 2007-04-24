@@ -264,6 +264,7 @@ static void __init psurge_quad_init(void)
 static int __init smp_psurge_probe(void)
 {
 	int i, ncpus;
+	struct device_node *dn;
 
 	/* We don't do SMP on the PPC601 -- paulus */
 	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
@@ -279,8 +280,10 @@ static int __init smp_psurge_probe(void)
 	 * in the hammerhead memory controller in the case of the
 	 * dual-cpu powersurge board.  -- paulus.
 	 */
-	if (find_devices("hammerhead") == NULL)
+	dn = of_find_node_by_name(NULL, "hammerhead");
+	if (dn == NULL)
 		return 1;
+	of_node_put(dn);
 
 	hhead_base = ioremap(HAMMERHEAD_BASE, 0x800);
 	quad_base = ioremap(PSURGE_QUAD_REG_ADDR, 1024);

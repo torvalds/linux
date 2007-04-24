@@ -308,7 +308,7 @@ static int __init vio_bus_init(void)
 		return err;
 	}
 
-	node_vroot = find_devices("vdevice");
+	node_vroot = of_find_node_by_name(NULL, "vdevice");
 	if (node_vroot) {
 		struct device_node *of_node;
 
@@ -322,6 +322,7 @@ static int __init vio_bus_init(void)
 					__FUNCTION__, of_node);
 			vio_register_device_node(of_node);
 		}
+		of_node_put(node_vroot);
 	}
 
 	return 0;

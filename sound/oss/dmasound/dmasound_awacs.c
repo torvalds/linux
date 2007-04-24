@@ -346,14 +346,16 @@ int gpio_headphone_irq;
 int
 setup_audio_gpio(const char *name, const char* compatible, int *gpio_addr, int* gpio_pol)
 {
+	struct device_node *gpiop;
 	struct device_node *np;
 	const u32* pp;
+	int ret = -ENODEV;
 
-	np = find_devices("gpio");
-	if (!np)
-		return -ENODEV;
+	gpiop = of_find_node_by_name(NULL, "gpio");
+	if (!gpiop)
+		goto done;
 
-	np = np->child;
+	np = of_get_next_child(gpiop, NULL);
 	while(np != 0) {
 		if (name) {
 			const char *property =
@@ -362,20 +364,24 @@ setup_audio_gpio(const char *name, const char* compatible, int *gpio_addr, int* 
 				break;
 		} else if (compatible && device_is_compatible(np, compatible))
 			break;
-		np = np->sibling;
+		np = of_get_next_child(gpiop, np);
 	}
 	if (!np)
-		return -ENODEV;
+		goto done;
 	pp = of_get_property(np, "AAPL,address", NULL);
 	if (!pp)
-		return -ENODEV;
+		goto done;
 	*gpio_addr = (*pp) & 0x0000ffff;
 	pp = of_get_property(np, "audio-gpio-active-state", NULL);
 	if (pp)
 		*gpio_pol = *pp;
 	else
 		*gpio_pol = 1;
-	return irq_of_parse_and_map(np, 0);
+	ret = irq_of_parse_and_map(np, 0);
+done:
+	of_node_put(np);
+	of_node_put(gpiop);
+	return ret;
 }
 
 static inline void
@@ -2552,32 +2558,33 @@ set_model(void)
 static struct device_node* __init
 get_snd_io_node(void)
 {
-	struct device_node *np = NULL;
+	struct device_node *np;
 
 	/* set up awacs_node for early OF which doesn't have a full set of
 	 * properties on davbus
-	*/
-
-	awacs_node = find_devices("awacs");
+	 */
+	awacs_node = of_find_node_by_name(NULL, "awacs");
 	if (awacs_node)
 		awacs_revision = AWACS_AWACS;
 
 	/* powermac models after 9500 (other than those which use DACA or
 	 * Tumbler) have a node called "davbus".
 	 */
-	np = find_devices("davbus");
+	np = of_find_node_by_name(NULL, "davbus");
 	/*
 	 * if we didn't find a davbus device, try 'i2s-a' since
 	 * this seems to be what iBooks (& Tumbler) have.
 	 */
-	if (np == NULL)
-		np = i2s_node = find_devices("i2s-a");
+	if (np == NULL) {
+		i2s_node = of_find_node_by_name(NULL, "i2s-a");
+		np = of_node_get(i2s_node);
+	}
 
 	/* if we didn't find this - perhaps we are on an early model
 	 * which _only_ has an 'awacs' node
 	*/
 	if (np == NULL && awacs_node)
-		np = awacs_node ;
+		np = of_node_get(awacs_node);
 
 	/* if we failed all these return null - this will cause the
 	 * driver to give up...
@@ -2596,9 +2603,9 @@ get_snd_info_node(struct device_node *io)
 {
 	struct device_node *info;
 
-	info = find_devices("sound");
-	while (info && info->parent != io)
-		info = info->next;
+	for_each_node_by_name(info, "sound")
+		if (info->parent == io)
+			break;
 	return info;
 }
 
@@ -2634,11 +2641,17 @@ get_codec_type(struct device_node *info)
 static void __init
 get_expansion_type(void)
 {
-	if (find_devices("perch") != NULL)
-		has_perch = 1;
+	struct device_node *dn;
 
-	if (find_devices("pb-ziva-pc") != NULL)
+	dn = of_find_node_by_name(NULL, "perch");
+	if (dn != NULL)
+		has_perch = 1;
+	of_node_put(dn);
+
+	dn = of_find_node_by_name(NULL, "pb-ziva-pc");
+	if (dn != NULL)
 		has_ziva = 1;
+	of_node_put(dn);
 	/* need to work out how we deal with iMac SRS module */
 }
 
@@ -2827,7 +2840,7 @@ int __init dmasound_awacs_init(void)
 #ifdef DEBUG_DMASOUND
 printk("dmasound_pmac: couldn't find sound io OF node\n");
 #endif
-		return -ENODEV ;
+		goto no_device;
 	}
 
 	/* find the OF node that tells us about the sound sub-system
@@ -2839,7 +2852,7 @@ printk("dmasound_pmac: couldn't find sound io OF node\n");
 #ifdef DEBUG_DMASOUND
 printk("dmasound_pmac: couldn't find 'sound' OF node\n");
 #endif
-			return -ENODEV ;
+			goto no_device;
 		}
 	}
 
@@ -2848,7 +2861,7 @@ printk("dmasound_pmac: couldn't find 'sound' OF node\n");
 #ifdef DEBUG_DMASOUND
 printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 #endif
-		return -ENODEV ; /* we don't know this type of h/w */
+		goto no_device; /* we don't know this type of h/w */
 	}
 
 	/* set up perch, ziva, SRS or whatever else we have as sound
@@ -2866,11 +2879,12 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 		 * machines).
 		 */
 		if (awacs_node) {
-			io = awacs_node ;
+			of_node_put(io);
+			io = of_node_get(awacs_node);
 			if (of_get_address(io, 2, NULL, NULL) == NULL) {
 				printk("dmasound_pmac: can't use %s\n",
 				       io->full_name);
-				return -ENODEV;
+				goto no_device;
 			}
 		} else
 			printk("dmasound_pmac: can't use %s\n", io->full_name);
@@ -2881,7 +2895,7 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 			       awacs_rsrc[0].end - awacs_rsrc[0].start + 1,
 			       " (IO)") == NULL) {
 		printk(KERN_ERR "dmasound: can't request IO resource !\n");
-		return -ENODEV;
+		goto no_device;
 	}
 	if (of_address_to_resource(io, 1, &awacs_rsrc[1]) ||
 	    request_mem_region(awacs_rsrc[1].start,
@@ -2890,7 +2904,7 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 		release_mem_region(awacs_rsrc[0].start,
 				   awacs_rsrc[0].end - awacs_rsrc[0].start + 1);
 		printk(KERN_ERR "dmasound: can't request Tx DMA resource !\n");
-		return -ENODEV;
+		goto no_device;
 	}
 	if (of_address_to_resource(io, 2, &awacs_rsrc[2]) ||
 	    request_mem_region(awacs_rsrc[2].start,
@@ -2901,7 +2915,7 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 		release_mem_region(awacs_rsrc[1].start,
 				   awacs_rsrc[1].end - awacs_rsrc[1].start + 1);
 		printk(KERN_ERR "dmasound: can't request Rx DMA resource !\n");
-		return -ENODEV;
+		goto no_device;
 	}
 
 	awacs_beep_dev = input_allocate_device();
@@ -2913,7 +2927,7 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 		release_mem_region(awacs_rsrc[2].start,
 				   awacs_rsrc[2].end - awacs_rsrc[2].start + 1);
 		printk(KERN_ERR "dmasound: can't allocate input device !\n");
-		return -ENOMEM;
+		goto no_device;
 	}
 
 	awacs_beep_dev->name = "dmasound beeper";
@@ -2941,7 +2955,8 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 	awacs_rx_irq = irq_of_parse_and_map(io, 2);
 
 	/* Hack for legacy crap that will be killed someday */
-	awacs_node = io;
+	of_node_put(awacs_node);
+	awacs_node = of_node_get(io);
 
 	/* if we have an awacs or screamer - probe the chip to make
 	 * sure we have the right revision.
@@ -2990,6 +3005,8 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 
 		/* if it's there use it to set up frame rates */
 		init_frame_rates(prop, l) ;
+		of_node_put(info);
+		info = NULL;
 	}
 
 	if (awacs)
@@ -3159,7 +3176,16 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 	 */
 	input_register_device(awacs_beep_dev);
 
+	of_node_put(io);
+
 	return dmasound_init();
+
+no_device:
+	of_node_put(info);
+	of_node_put(awacs_node);
+	of_node_put(i2s_node);
+	of_node_put(io);
+	return -ENODEV ;
 }
 
 static void __exit dmasound_awacs_cleanup(void)
@@ -3178,6 +3204,8 @@ static void __exit dmasound_awacs_cleanup(void)
 	}
 	dmasound_deinit();
 
+	of_node_put(awacs_node);
+	of_node_put(i2s_node);
 }
 
 MODULE_DESCRIPTION("PowerMac built-in audio driver.");

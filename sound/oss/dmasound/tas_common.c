@@ -41,7 +41,6 @@
 
 static u8 tas_i2c_address = 0x34;
 static struct i2c_client *tas_client;
-static struct device_node* tas_node;
 
 static int tas_attach_adapter(struct i2c_adapter *);
 static int tas_detach_client(struct i2c_client *);
@@ -191,13 +190,14 @@ int __init
 tas_init(int driver_id, const char *driver_name)
 {
 	const u32* paddr;
+	struct device_node *tas_node;
 
 	printk(KERN_INFO "tas driver [%s])\n", driver_name);
 
 #ifndef CONFIG_I2C_POWERMAC
 	request_module("i2c-powermac");
 #endif
-	tas_node = find_devices("deq");
+	tas_node = of_find_node_by_name("deq");
 	if (tas_node == NULL)
 		return -ENODEV;
 	paddr = of_get_property(tas_node, "i2c-address", NULL);
@@ -208,6 +208,7 @@ tas_init(int driver_id, const char *driver_name)
 	} else    
 		printk(KERN_INFO "using i2c address: 0x%x (default)\n",
 				tas_i2c_address);
+	of_node_put(tas_node);
 
 	return i2c_add_driver(&tas_driver);
 }

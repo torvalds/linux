@@ -622,13 +622,14 @@ static void __init init_p2pbridge(void)
 
 	/* XXX it would be better here to identify the specific
 	   PCI-PCI bridge chip we have. */
-	if ((p2pbridge = find_devices("pci-bridge")) == 0
+	p2pbridge = of_find_node_by_name(NULL, "pci-bridge");
+	if (p2pbridge == NULL
 	    || p2pbridge->parent == NULL
 	    || strcmp(p2pbridge->parent->name, "pci") != 0)
-		return;
+		goto done;
 	if (pci_device_from_OF_node(p2pbridge, &bus, &devfn) < 0) {
 		DBG("Can't find PCI infos for PCI<->PCI bridge\n");
-		return;
+		goto done;
 	}
 	/* Warning: At this point, we have not yet renumbered all busses.
 	 * So we must use OF walking to find out hose
@@ -636,16 +637,18 @@ static void __init init_p2pbridge(void)
 	hose = pci_find_hose_for_OF_device(p2pbridge);
 	if (!hose) {
 		DBG("Can't find hose for PCI<->PCI bridge\n");
-		return;
+		goto done;
 	}
 	if (early_read_config_word(hose, bus, devfn,
 				   PCI_BRIDGE_CONTROL, &val) < 0) {
 		printk(KERN_ERR "init_p2pbridge: couldn't read bridge"
 		       " control\n");
-		return;
+		goto done;
 	}
 	val &= ~PCI_BRIDGE_CTL_MASTER_ABORT;
 	early_write_config_word(hose, bus, devfn, PCI_BRIDGE_CONTROL, val);
+done:
+	of_node_put(p2pbridge);
 }
 
 static void __init init_second_ohare(void)
@@ -1199,8 +1202,7 @@ void __init pmac_pcibios_after_init(void)
 	}
 #endif /* CONFIG_BLK_DEV_IDE */
 
-	nd = find_devices("firewire");
-	while (nd) {
+	for_each_node_by_name(nd, "firewire") {
 		if (nd->parent && (device_is_compatible(nd, "pci106b,18") ||
 				   device_is_compatible(nd, "pci106b,30") ||
 				   device_is_compatible(nd, "pci11c1,5811"))
@@ -1208,15 +1210,14 @@ void __init pmac_pcibios_after_init(void)
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, nd, 0, 0);
 			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, nd, 0, 0);
 		}
-		nd = nd->next;
 	}
-	nd = find_devices("ethernet");
-	while (nd) {
+	of_node_put(nd);
+	for_each_node_by_name(nd, "ethernet") {
 		if (nd->parent && device_is_compatible(nd, "gmac")
 		    && device_is_compatible(nd->parent, "uni-north"))
 			pmac_call_feature(PMAC_FTR_GMAC_ENABLE, nd, 0, 0);
-		nd = nd->next;
 	}
+	of_node_put(nd);
 }
 
 #ifdef CONFIG_PPC32

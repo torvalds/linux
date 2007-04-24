@@ -468,7 +468,7 @@ static void __init chrp_find_8259(void)
 	 * Also, Pegasos-type platforms don't have a proper node to start
 	 * from anyway
 	 */
-	for (np = find_devices("pci"); np != NULL; np = np->next) {
+	for_each_node_by_name(np, "pci") {
 		const unsigned int *addrp = of_get_property(np,
 				"8259-interrupt-acknowledge", NULL);
 
@@ -477,6 +477,7 @@ static void __init chrp_find_8259(void)
 		chrp_int_ack = addrp[of_n_addr_cells(np)-1];
 		break;
 	}
+	of_node_put(np);
 	if (np == NULL)
 		printk(KERN_WARNING "Cannot find PCI interrupt acknowledge"
 		       " address, polling\n");
@@ -518,10 +519,11 @@ void __init chrp_init_IRQ(void)
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
 	/* see if there is a keyboard in the device tree
 	   with a parent of type "adb" */
-	for (kbd = find_devices("keyboard"); kbd; kbd = kbd->next)
+	for_each_node_by_name(kbd, "keyboard")
 		if (kbd->parent && kbd->parent->type
 		    && strcmp(kbd->parent->type, "adb") == 0)
 			break;
+	of_node_put(kbd);
 	if (kbd)
 		setup_irq(HYDRA_INT_ADB_NMI, &xmon_irqaction);
 #endif
@@ -547,7 +549,7 @@ chrp_init2(void)
 	/* Get the event scan rate for the rtas so we know how
 	 * often it expects a heartbeat. -- Cort
 	 */
-	device = find_devices("rtas");
+	device = of_find_node_by_name(NULL, "rtas");
 	if (device)
 		p = of_get_property(device, "rtas-event-scan-rate", NULL);
 	if (p && *p) {
@@ -576,6 +578,7 @@ chrp_init2(void)
 		printk("RTAS Event Scan Rate: %u (%lu jiffies)\n",
 		       *p, interval);
 	}
+	of_node_put(device);
 
 	if (ppc_md.progress)
 		ppc_md.progress("  Have fun!    ", 0x7777);

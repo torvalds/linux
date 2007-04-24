@@ -136,9 +136,11 @@ hydra_init(void)
 	struct device_node *np;
 	struct resource r;
 
-	np = find_devices("mac-io");
-	if (np == NULL || of_address_to_resource(np, 0, &r))
+	np = of_find_node_by_name(NULL, "mac-io");
+	if (np == NULL || of_address_to_resource(np, 0, &r)) {
+		of_node_put(np);
 		return 0;
+	}
 	Hydra = ioremap(r.start, r.end-r.start);
 	printk("Hydra Mac I/O at %llx\n", (unsigned long long)r.start);
 	printk("Hydra Feature_Control was %x",

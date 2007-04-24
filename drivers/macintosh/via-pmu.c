@@ -487,7 +487,8 @@ static int __init via_pmu_dev_init(void)
 		pmu_batteries[0].flags |= PMU_BATT_TYPE_SMART;
 		pmu_batteries[1].flags |= PMU_BATT_TYPE_SMART;
 	} else {
-		struct device_node* prim = find_devices("power-mgt");
+		struct device_node* prim =
+			of_find_node_by_name(NULL, "power-mgt");
 		const u32 *prim_info = NULL;
 		if (prim)
 			prim_info = of_get_property(prim, "prim-info", NULL);
@@ -498,6 +499,7 @@ static int __init via_pmu_dev_init(void)
 			if (pmu_battery_count > 1)
 				pmu_batteries[1].flags |= PMU_BATT_TYPE_SMART;
 		}
+		of_node_put(prim);
 	}
 #endif /* CONFIG_PPC32 */
 

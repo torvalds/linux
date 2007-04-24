@@ -1072,25 +1072,6 @@ int of_n_size_cells(struct device_node* np)
 }
 EXPORT_SYMBOL(of_n_size_cells);
 
-/**
- * Construct and return a list of the device_nodes with a given name.
- */
-struct device_node *find_devices(const char *name)
-{
-	struct device_node *head, **prevp, *np;
-
-	prevp = &head;
-	for (np = allnodes; np != 0; np = np->allnext) {
-		if (np->name != 0 && strcasecmp(np->name, name) == 0) {
-			*prevp = np;
-			prevp = &np->next;
-		}
-	}
-	*prevp = NULL;
-	return head;
-}
-EXPORT_SYMBOL(find_devices);
-
 /** Checks if the given "compat" string matches one of the strings in
  * the device's "compatible" property
  */

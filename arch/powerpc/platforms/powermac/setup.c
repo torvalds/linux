@@ -193,8 +193,11 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 #ifndef CONFIG_ADB_CUDA
 int find_via_cuda(void)
 {
-	if (!find_devices("via-cuda"))
+	struct device_node *dn = of_find_node_by_name(NULL, "via-cuda");
+
+	if (!dn)
 		return 0;
+	of_node_put(dn);
 	printk("WARNING ! Your machine is CUDA-based but your kernel\n");
 	printk("          wasn't compiled with CONFIG_ADB_CUDA option !\n");
 	return 0;
@@ -204,8 +207,11 @@ int find_via_cuda(void)
 #ifndef CONFIG_ADB_PMU
 int find_via_pmu(void)
 {
-	if (!find_devices("via-pmu"))
+	struct device_node *dn = of_find_node_by_name(NULL, "via-pmu");
+
+	if (!dn)
 		return 0;
+	of_node_put(dn);
 	printk("WARNING ! Your machine is PMU-based but your kernel\n");
 	printk("          wasn't compiled with CONFIG_ADB_PMU option !\n");
 	return 0;
@@ -225,6 +231,8 @@ static volatile u32 *sysctrl_regs;
 
 static void __init ohare_init(void)
 {
+	struct device_node *dn;
+
 	/* this area has the CPU identification register
 	   and some registers used by smp boards */
 	sysctrl_regs = (volatile u32 *) ioremap(0xf8000000, 0x1000);
@@ -234,7 +242,9 @@ static void __init ohare_init(void)
 	 * We assume that we have a PSX memory controller iff
 	 * we have an ohare I/O controller.
 	 */
-	if (find_devices("ohare") != NULL) {
+	dn = of_find_node_by_name(NULL, "ohare");
+	if (dn) {
+		of_node_put(dn);
 		if (((sysctrl_regs[2] >> 24) & 0xf) >= 3) {
 			if (sysctrl_regs[4] & 0x10)
 				sysctrl_regs[4] |= 0x04000020;
@@ -343,8 +353,15 @@ static void __init pmac_setup_arch(void)
 
 #ifdef CONFIG_SMP
 	/* Check for Core99 */
-	if (find_devices("uni-n") || find_devices("u3") || find_devices("u4"))
+	ic = of_find_node_by_name(NULL, "uni-n");
+	if (!ic)
+		ic = of_find_node_by_name(NULL, "u3");
+	if (!ic)
+		ic = of_find_node_by_name(NULL, "u4");
+	if (ic) {
+		of_node_put(ic);
 		smp_ops = &core99_smp_ops;
+	}
 #ifdef CONFIG_PPC32
 	else
 		smp_ops = &psurge_smp_ops;

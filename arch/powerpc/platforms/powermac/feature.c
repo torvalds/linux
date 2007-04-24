@@ -2408,12 +2408,13 @@ static int __init probe_motherboard(void)
 	struct macio_chip *macio = &macio_chips[0];
 	const char *model = NULL;
 	struct device_node *dt;
+	int ret = 0;
 
 	/* Lookup known motherboard type in device-tree. First try an
 	 * exact match on the "model" property, then try a "compatible"
 	 * match is none is found.
 	 */
-	dt = find_devices("device-tree");
+	dt = of_find_node_by_name(NULL, "device-tree");
 	if (dt != NULL)
 		model = of_get_property(dt, "model", NULL);
 	for(i=0; model && i<(sizeof(pmac_mb_defs)/sizeof(struct pmac_mb_def)); i++) {
@@ -2478,15 +2479,18 @@ static int __init probe_motherboard(void)
 		break;
 #endif /* CONFIG_POWER4 */
 	default:
-		return -ENODEV;
+		ret = -ENODEV;
+		goto done;
 	}
 found:
 #ifndef CONFIG_POWER4
 	/* Fixup Hooper vs. Comet */
 	if (pmac_mb.model_id == PMAC_TYPE_HOOPER) {
 		u32 __iomem * mach_id_ptr = ioremap(0xf3000034, 4);
-		if (!mach_id_ptr)
-			return -ENODEV;
+		if (!mach_id_ptr) {
+			ret = -ENODEV;
+			goto done;
+		}
 		/* Here, I used to disable the media-bay on comet. It
 		 * appears this is wrong, the floppy connector is actually
 		 * a kind of media-bay and works with the current driver.
@@ -2544,7 +2548,9 @@ found:
 
 
 	printk(KERN_INFO "PowerMac motherboard: %s\n", pmac_mb.model_name);
-	return 0;
+done:
+	of_node_put(dt);
+	return ret;
 }
 
 /* Initialize the Core99 UniNorth host bridge and memory controller
@@ -2747,12 +2753,14 @@ set_initial_features(void)
 	 * differenciate them all and since that hack was there for a long
 	 * time, I'll keep it around
 	 */
-	if (macio_chips[0].type == macio_ohare && !find_devices("via-pmu")) {
+	if (macio_chips[0].type == macio_ohare) {
 		struct macio_chip *macio = &macio_chips[0];
-		MACIO_OUT32(OHARE_FCR, STARMAX_FEATURES);
-	} else if (macio_chips[0].type == macio_ohare) {
-		struct macio_chip *macio = &macio_chips[0];
-		MACIO_BIS(OHARE_FCR, OH_IOBUS_ENABLE);
+		np = of_find_node_by_name(NULL, "via-pmu");
+		if (np)
+			MACIO_BIS(OHARE_FCR, OH_IOBUS_ENABLE);
+		else
+			MACIO_OUT32(OHARE_FCR, STARMAX_FEATURES);
+		of_node_put(np);
 	} else if (macio_chips[1].type == macio_ohare) {
 		struct macio_chip *macio = &macio_chips[1];
 		MACIO_BIS(OHARE_FCR, OH_IOBUS_ENABLE);
@@ -2845,14 +2853,13 @@ set_initial_features(void)
 		}
 
 		/* Switch airport off */
-		np = find_devices("radio");
-		while(np) {
+		for_each_node_by_name(np, "radio") {
 			if (np && np->parent == macio_chips[0].of_node) {
 				macio_chips[0].flags |= MACIO_FLAG_AIRPORT_ON;
 				core99_airport_enable(np, 0, 0);
 			}
-			np = np->next;
 		}
+		of_node_put(np);
 	}
 
 	/* On all machines that support sound PM, switch sound off */
@@ -2872,16 +2879,12 @@ set_initial_features(void)
 #endif /* CONFIG_POWER4 */
 
 	/* On all machines, switch modem & serial ports off */
-	np = find_devices("ch-a");
-	while(np) {
+	for_each_node_by_name(np, "ch-a")
 		initial_serial_shutdown(np);
-		np = np->next;
-	}
-	np = find_devices("ch-b");
-	while(np) {
+	of_node_put(np);
+	for_each_node_by_name(np, "ch-b")
 		initial_serial_shutdown(np);
-		np = np->next;
-	}
+	of_node_put(np);
 }
 
 void __init
