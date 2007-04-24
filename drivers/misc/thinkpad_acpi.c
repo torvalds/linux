@@ -3185,6 +3185,13 @@ static int fan_set_level(int level)
 		    ((level < 0) || (level > 7)))
 			return -EINVAL;
 
+		/* safety net should the EC not support AUTO
+		 * or FULLSPEED mode bits and just ignore them */
+		if (level & TP_EC_FAN_FULLSPEED)
+			level |= 7;	/* safety min speed 7 */
+		else if (level & TP_EC_FAN_FULLSPEED)
+			level |= 4;	/* safety min speed 4 */
+
 		if (!acpi_ec_write(fan_status_offset, level))
 			return -EIO;
 		else
@@ -3233,8 +3240,10 @@ static int fan_set_enable(void)
 			break;
 
 		/* Don't go out of emergency fan mode */
-		if (s != 7)
-			s = TP_EC_FAN_AUTO;
+		if (s != 7) {
+			s &= 0x07;
+			s |= TP_EC_FAN_AUTO | 4; /* min fan speed 4 */
+		}
 
 		if (!acpi_ec_write(fan_status_offset, s))
 			rc = -EIO;
@@ -3252,8 +3261,7 @@ static int fan_set_enable(void)
 		s &= 0x07;
 
 		/* Set fan to at least level 4 */
-		if (s < 4)
-			s = 4;
+		s |= 4;
 
 		if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", s))
 			rc= -EIO;
