@@ -169,12 +169,12 @@ static void spufs_arch_write_note(struct spufs_ctx_info *ctx_info, int i,
 	struct spu_context *ctx;
 	loff_t pos = 0;
 	int sz, dfd, rc, total = 0;
-	const int bufsz = 4096;
+	const int bufsz = PAGE_SIZE;
 	char *name;
 	char fullname[80], *buf;
 	struct elf_note en;
 
-	buf = kmalloc(bufsz, GFP_KERNEL);
+	buf = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!buf)
 		return;
 
@@ -187,9 +187,8 @@ static void spufs_arch_write_note(struct spufs_ctx_info *ctx_info, int i,
 		sz = spufs_coredump_read[i].size;
 
 	ctx = ctx_info->ctx;
-	if (!ctx) {
-		return;
-	}
+	if (!ctx)
+		goto out;
 
 	sprintf(fullname, "SPU/%d/%s", dfd, name);
 	en.n_namesz = strlen(fullname) + 1;
@@ -197,23 +196,25 @@ static void spufs_arch_write_note(struct spufs_ctx_info *ctx_info, int i,
 	en.n_type = NT_SPU;
 
 	if (!spufs_dump_write(file, &en, sizeof(en)))
-		return;
+		goto out;
 	if (!spufs_dump_write(file, fullname, en.n_namesz))
-		return;
+		goto out;
 	if (!spufs_dump_seek(file, roundup((unsigned long)file->f_pos, 4)))
-		return;
+		goto out;
 
 	do {
 		rc = do_coredump_read(i, ctx, buf, bufsz, &pos);
 		if (rc > 0) {
 			if (!spufs_dump_write(file, buf, rc))
-				return;
+				goto out;
 			total += rc;
 		}
 	} while (rc == bufsz && total < sz);
 
 	spufs_dump_seek(file, roundup((unsigned long)file->f_pos
 						- total + sz, 4));
+out:
+	free_page((unsigned long)buf);
 }
 
 static void spufs_arch_write_notes(struct file *file)
