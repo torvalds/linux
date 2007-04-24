@@ -1613,6 +1613,8 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 	 * for the inode metadata. */
 	ocfs2_metadata_cache_purge(inode);
 
+	ocfs2_extent_map_trunc(inode, 0);
+
 	if (ocfs2_meta_lvb_is_trustable(inode, lockres)) {
 		mlog(0, "Trusting LVB on inode %llu\n",
 		     (unsigned long long)oi->ip_blkno);

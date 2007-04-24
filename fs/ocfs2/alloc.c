@@ -2417,6 +2417,8 @@ out_add:
 	status = ocfs2_do_insert_extent(inode, handle, fe_bh, &rec, &insert);
 	if (status < 0)
 		mlog_errno(status);
+	else
+		ocfs2_extent_map_insert_rec(inode, &rec);
 
 bail:
 	if (bh)
@@ -3640,6 +3642,9 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 		mlog_errno(status);
 		goto bail;
 	}
+
+	ocfs2_extent_map_trunc(inode, new_highest_cpos);
+
 start:
 	/*
 	 * Check that we still have allocation to delete.

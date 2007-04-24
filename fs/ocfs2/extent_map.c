@@ -39,6 +39,254 @@
 #include "buffer_head_io.h"
 
 /*
+ * The extent caching implementation is intentionally trivial.
+ *
+ * We only cache a small number of extents stored directly on the
+ * inode, so linear order operations are acceptable. If we ever want
+ * to increase the size of the extent map, then these algorithms must
+ * get smarter.
+ */
+
+void ocfs2_extent_map_init(struct inode *inode)
+{
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+
+	oi->ip_extent_map.em_num_items = 0;
+	INIT_LIST_HEAD(&oi->ip_extent_map.em_list);
+}
+
+static void __ocfs2_extent_map_lookup(struct ocfs2_extent_map *em,
+				      unsigned int cpos,
+				      struct ocfs2_extent_map_item **ret_emi)
+{
+	unsigned int range;
+	struct ocfs2_extent_map_item *emi;
+
+	*ret_emi = NULL;
+
+	list_for_each_entry(emi, &em->em_list, ei_list) {
+		range = emi->ei_cpos + emi->ei_clusters;
+
+		if (cpos >= emi->ei_cpos && cpos < range) {
+			list_move(&emi->ei_list, &em->em_list);
+
+			*ret_emi = emi;
+			break;
+		}
+	}
+}
+
+static int ocfs2_extent_map_lookup(struct inode *inode, unsigned int cpos,
+				   unsigned int *phys, unsigned int *len,
+				   unsigned int *flags)
+{
+	unsigned int coff;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_extent_map_item *emi;
+
+	spin_lock(&oi->ip_lock);
+
+	__ocfs2_extent_map_lookup(&oi->ip_extent_map, cpos, &emi);
+	if (emi) {
+		coff = cpos - emi->ei_cpos;
+		*phys = emi->ei_phys + coff;
+		if (len)
+			*len = emi->ei_clusters - coff;
+		if (flags)
+			*flags = emi->ei_flags;
+	}
+
+	spin_unlock(&oi->ip_lock);
+
+	if (emi == NULL)
+		return -ENOENT;
+
+	return 0;
+}
+
+/*
+ * Forget about all clusters equal to or greater than cpos.
+ */
+void ocfs2_extent_map_trunc(struct inode *inode, unsigned int cpos)
+{
+	struct list_head *p, *n;
+	struct ocfs2_extent_map_item *emi;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_extent_map *em = &oi->ip_extent_map;
+	LIST_HEAD(tmp_list);
+	unsigned int range;
+
+	spin_lock(&oi->ip_lock);
+	list_for_each_safe(p, n, &em->em_list) {
+		emi = list_entry(p, struct ocfs2_extent_map_item, ei_list);
+
+		if (emi->ei_cpos >= cpos) {
+			/* Full truncate of this record. */
+			list_move(&emi->ei_list, &tmp_list);
+			BUG_ON(em->em_num_items == 0);
+			em->em_num_items--;
+			continue;
+		}
+
+		range = emi->ei_cpos + emi->ei_clusters;
+		if (range > cpos) {
+			/* Partial truncate */
+			emi->ei_clusters = cpos - emi->ei_cpos;
+		}
+	}
+	spin_unlock(&oi->ip_lock);
+
+	list_for_each_safe(p, n, &tmp_list) {
+		emi = list_entry(p, struct ocfs2_extent_map_item, ei_list);
+		list_del(&emi->ei_list);
+		kfree(emi);
+	}
+}
+
+/*
+ * Is any part of emi2 contained within emi1
+ */
+static int ocfs2_ei_is_contained(struct ocfs2_extent_map_item *emi1,
+				 struct ocfs2_extent_map_item *emi2)
+{
+	unsigned int range1, range2;
+
+	/*
+	 * Check if logical start of emi2 is inside emi1
+	 */
+	range1 = emi1->ei_cpos + emi1->ei_clusters;
+	if (emi2->ei_cpos >= emi1->ei_cpos && emi2->ei_cpos < range1)
+		return 1;
+
+	/*
+	 * Check if logical end of emi2 is inside emi1
+	 */
+	range2 = emi2->ei_cpos + emi2->ei_clusters;
+	if (range2 > emi1->ei_cpos && range2 <= range1)
+		return 1;
+
+	return 0;
+}
+
+static void ocfs2_copy_emi_fields(struct ocfs2_extent_map_item *dest,
+				  struct ocfs2_extent_map_item *src)
+{
+	dest->ei_cpos = src->ei_cpos;
+	dest->ei_phys = src->ei_phys;
+	dest->ei_clusters = src->ei_clusters;
+	dest->ei_flags = src->ei_flags;
+}
+
+/*
+ * Try to merge emi with ins. Returns 1 if merge succeeds, zero
+ * otherwise.
+ */
+static int ocfs2_try_to_merge_extent_map(struct ocfs2_extent_map_item *emi,
+					 struct ocfs2_extent_map_item *ins)
+{
+	/*
+	 * Handle contiguousness
+	 */
+	if (ins->ei_phys == (emi->ei_phys + emi->ei_clusters) &&
+	    ins->ei_cpos == (emi->ei_cpos + emi->ei_clusters) &&
+	    ins->ei_flags == emi->ei_flags) {
+		emi->ei_clusters += ins->ei_clusters;
+		return 1;
+	} else if ((ins->ei_phys + ins->ei_clusters) == emi->ei_phys &&
+		   (ins->ei_cpos + ins->ei_clusters) == emi->ei_phys &&
+		   ins->ei_flags == emi->ei_flags) {
+		emi->ei_phys = ins->ei_phys;
+		emi->ei_cpos = ins->ei_cpos;
+		emi->ei_clusters += ins->ei_clusters;
+		return 1;
+	}
+
+	/*
+	 * Overlapping extents - this shouldn't happen unless we've
+	 * split an extent to change it's flags. That is exceedingly
+	 * rare, so there's no sense in trying to optimize it yet.
+	 */
+	if (ocfs2_ei_is_contained(emi, ins) ||
+	    ocfs2_ei_is_contained(ins, emi)) {
+		ocfs2_copy_emi_fields(emi, ins);
+		return 1;
+	}
+
+	/* No merge was possible. */
+	return 0;
+}
+
+/*
+ * In order to reduce complexity on the caller, this insert function
+ * is intentionally liberal in what it will accept.
+ *
+ * The only rule is that the truncate call *must* be used whenever
+ * records have been deleted. This avoids inserting overlapping
+ * records with different physical mappings.
+ */
+void ocfs2_extent_map_insert_rec(struct inode *inode,
+				 struct ocfs2_extent_rec *rec)
+{
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_extent_map *em = &oi->ip_extent_map;
+	struct ocfs2_extent_map_item *emi, *new_emi = NULL;
+	struct ocfs2_extent_map_item ins;
+
+	ins.ei_cpos = le32_to_cpu(rec->e_cpos);
+	ins.ei_phys = ocfs2_blocks_to_clusters(inode->i_sb,
+					       le64_to_cpu(rec->e_blkno));
+	ins.ei_clusters = le16_to_cpu(rec->e_leaf_clusters);
+	ins.ei_flags = rec->e_flags;
+
+search:
+	spin_lock(&oi->ip_lock);
+
+	list_for_each_entry(emi, &em->em_list, ei_list) {
+		if (ocfs2_try_to_merge_extent_map(emi, &ins)) {
+			list_move(&emi->ei_list, &em->em_list);
+			spin_unlock(&oi->ip_lock);
+			goto out;
+		}
+	}
+
+	/*
+	 * No item could be merged.
+	 *
+	 * Either allocate and add a new item, or overwrite the last recently
+	 * inserted.
+	 */
+
+	if (em->em_num_items < OCFS2_MAX_EXTENT_MAP_ITEMS) {
+		if (new_emi == NULL) {
+			spin_unlock(&oi->ip_lock);
+
+			new_emi = kmalloc(sizeof(*new_emi), GFP_NOFS);
+			if (new_emi == NULL)
+				goto out;
+
+			goto search;
+		}
+
+		ocfs2_copy_emi_fields(new_emi, &ins);
+		list_add(&new_emi->ei_list, &em->em_list);
+		em->em_num_items++;
+		new_emi = NULL;
+	} else {
+		BUG_ON(list_empty(&em->em_list) || em->em_num_items == 0);
+		emi = list_entry(em->em_list.prev,
+				 struct ocfs2_extent_map_item, ei_list);
+		list_move(&emi->ei_list, &em->em_list);
+		ocfs2_copy_emi_fields(emi, &ins);
+	}
+
+	spin_unlock(&oi->ip_lock);
+
+out:
+	if (new_emi)
+		kfree(new_emi);
+}
+
+/*
  * Return the 1st index within el which contains an extent start
  * larger than v_cluster.
  */
@@ -174,6 +422,11 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 	struct ocfs2_extent_rec *rec;
 	u32 coff;
 
+	ret = ocfs2_extent_map_lookup(inode, v_cluster, p_cluster,
+				      num_clusters, extent_flags);
+	if (ret == 0)
+		goto out;
+
 	ret = ocfs2_read_block(OCFS2_SB(inode->i_sb), OCFS2_I(inode)->ip_blkno,
 			       &di_bh, OCFS2_BH_CACHED, inode);
 	if (ret) {
@@ -245,6 +498,8 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 			*num_clusters = ocfs2_rec_clusters(el, rec) - coff;
 
 		flags = rec->e_flags;
+
+		ocfs2_extent_map_insert_rec(inode, rec);
 	}
 
 	if (extent_flags)

@@ -1008,6 +1008,8 @@ void ocfs2_clear_inode(struct inode *inode)
 			"Clear inode of %llu, inode has io markers\n",
 			(unsigned long long)oi->ip_blkno);
 
+	ocfs2_extent_map_trunc(inode, 0);
+
 	status = ocfs2_drop_inode_locks(inode);
 	if (status < 0)
 		mlog_errno(status);

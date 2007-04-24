@@ -26,6 +26,8 @@
 #ifndef OCFS2_INODE_H
 #define OCFS2_INODE_H
 
+#include "extent_map.h"
+
 /* OCFS2 Inode Private Data */
 struct ocfs2_inode_info
 {
@@ -62,6 +64,8 @@ struct ocfs2_inode_info
 	unsigned long			ip_last_trans;
 
 	struct ocfs2_caching_info	ip_metadata_cache;
+
+	struct ocfs2_extent_map		ip_extent_map;
 
 	struct inode			vfs_inode;
 };

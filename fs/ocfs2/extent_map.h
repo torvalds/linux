@@ -25,6 +25,26 @@
 #ifndef _EXTENT_MAP_H
 #define _EXTENT_MAP_H
 
+struct ocfs2_extent_map_item {
+	unsigned int			ei_cpos;
+	unsigned int			ei_phys;
+	unsigned int			ei_clusters;
+	unsigned int			ei_flags;
+
+	struct list_head		ei_list;
+};
+
+#define OCFS2_MAX_EXTENT_MAP_ITEMS			3
+struct ocfs2_extent_map {
+	unsigned int			em_num_items;
+	struct list_head		em_list;
+};
+
+void ocfs2_extent_map_init(struct inode *inode);
+void ocfs2_extent_map_trunc(struct inode *inode, unsigned int cluster);
+void ocfs2_extent_map_insert_rec(struct inode *inode,
+				 struct ocfs2_extent_rec *rec);
+
 int ocfs2_get_clusters(struct inode *inode, u32 v_cluster, u32 *p_cluster,
 		       u32 *num_clusters, unsigned int *extent_flags);
 int ocfs2_extent_map_get_blocks(struct inode *inode, u64 v_blkno, u64 *p_blkno,
