@@ -1,8 +1,8 @@
 /*
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
- * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2000-2007, Ericsson AB
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,8 +71,11 @@ static inline void msg_set_word(struct tipc_msg *m, u32 w, u32 val)
 static inline void msg_set_bits(struct tipc_msg *m, u32 w,
 				u32 pos, u32 mask, u32 val)
 {
-	u32 word = msg_word(m,w) & ~(mask << pos);
-	msg_set_word(m, w, (word |= (val << pos)));
+	val = (val & mask) << pos;
+	val = htonl(val);
+	mask = htonl(mask << pos);
+	m->hdr[w] &= ~mask;
+	m->hdr[w] |= val;
 }
 
 /*
