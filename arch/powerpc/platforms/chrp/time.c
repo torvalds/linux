@@ -39,12 +39,17 @@ long __init chrp_time_init(void)
 	struct resource r;
 	int base;
 
-	rtcs = find_compatible_devices("rtc", "pnpPNP,b00");
+	rtcs = of_find_compatible_node(NULL, "rtc", "pnpPNP,b00");
 	if (rtcs == NULL)
-		rtcs = find_compatible_devices("rtc", "ds1385-rtc");
-	if (rtcs == NULL || of_address_to_resource(rtcs, 0, &r))
+		rtcs = of_find_compatible_node(NULL, "rtc", "ds1385-rtc");
+	if (rtcs == NULL)
 		return 0;
-	
+	if (of_address_to_resource(rtcs, 0, &r)) {
+		of_node_put(rtcs);
+		return 0;
+	}
+	of_node_put(rtcs);
+
 	base = r.start;
 	nvram_as1 = 0;
 	nvram_as0 = base;

@@ -1171,30 +1171,6 @@ int machine_is_compatible(const char *compat)
 EXPORT_SYMBOL(machine_is_compatible);
 
 /**
- * Construct and return a list of the device_nodes with a given type
- * and compatible property.
- */
-struct device_node *find_compatible_devices(const char *type,
-					    const char *compat)
-{
-	struct device_node *head, **prevp, *np;
-
-	prevp = &head;
-	for (np = allnodes; np != 0; np = np->allnext) {
-		if (type != NULL
-		    && !(np->type != 0 && strcasecmp(np->type, type) == 0))
-			continue;
-		if (of_device_is_compatible(np, compat)) {
-			*prevp = np;
-			prevp = &np->next;
-		}
-	}
-	*prevp = NULL;
-	return head;
-}
-EXPORT_SYMBOL(find_compatible_devices);
-
-/**
  * Find the device_node with a given full_name.
  */
 struct device_node *find_path_device(const char *path)
