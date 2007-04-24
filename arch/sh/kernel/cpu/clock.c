@@ -98,13 +98,14 @@ int __clk_enable(struct clk *clk)
 		if (clk->ops && clk->ops->init)
 			clk->ops->init(clk);
 
+	kref_get(&clk->kref);
+
 	if (clk->flags & CLK_ALWAYS_ENABLED)
 		return 0;
 
 	if (likely(clk->ops && clk->ops->enable))
 		clk->ops->enable(clk);
 
-	kref_get(&clk->kref);
 	return 0;
 }
 
@@ -127,10 +128,15 @@ static void clk_kref_release(struct kref *kref)
 
 void __clk_disable(struct clk *clk)
 {
+	int count = kref_put(&clk->kref, clk_kref_release);
+
 	if (clk->flags & CLK_ALWAYS_ENABLED)
 		return;
 
-	kref_put(&clk->kref, clk_kref_release);
+	if (!count) {	/* count reaches zero, disable the clock */
+		if (likely(clk->ops && clk->ops->disable))
+			clk->ops->disable(clk);
+	}
 }
 
 void clk_disable(struct clk *clk)
@@ -151,6 +157,15 @@ int clk_register(struct clk *clk)
 
 	mutex_unlock(&clock_list_sem);
 
+	if (clk->flags & CLK_ALWAYS_ENABLED) {
+		pr_debug( "Clock '%s' is ALWAYS_ENABLED\n", clk->name);
+		if (clk->ops && clk->ops->init)
+			clk->ops->init(clk);
+		if (clk->ops && clk->ops->enable)
+			clk->ops->enable(clk);
+		pr_debug( "Enabled.");
+	}
+
 	return 0;
 }
 
@@ -168,13 +183,18 @@ inline unsigned long clk_get_rate(struct clk *clk)
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
+	return clk_set_rate_ex(clk, rate, 0);
+}
+
+int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id)
+{
 	int ret = -EOPNOTSUPP;
 
 	if (likely(clk->ops && clk->ops->set_rate)) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&clock_lock, flags);
-		ret = clk->ops->set_rate(clk, rate);
+		ret = clk->ops->set_rate(clk, rate, algo_id);
 		spin_unlock_irqrestore(&clock_lock, flags);
 	}
 
@@ -256,7 +276,6 @@ int __init clk_init(void)
 
 		arch_init_clk_ops(&clk->ops, i);
 		ret |= clk_register(clk);
-		clk_enable(clk);
 	}
 
 	/* Kick the child clocks.. */
@@ -298,3 +317,4 @@ EXPORT_SYMBOL_GPL(__clk_disable);
 EXPORT_SYMBOL_GPL(clk_get_rate);
 EXPORT_SYMBOL_GPL(clk_set_rate);
 EXPORT_SYMBOL_GPL(clk_recalc_rate);
+EXPORT_SYMBOL_GPL(clk_set_rate_ex);
