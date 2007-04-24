@@ -1404,6 +1404,11 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_PARM:
 	{
 		struct v4l2_streamparm *p=arg;
+		__u32 type=p->type;
+
+		memset(p,0,sizeof(*p));
+		p->type=type;
+
 		if (vfd->vidioc_g_parm) {
 			ret=vfd->vidioc_g_parm(file, fh, p);
 		} else {
@@ -1414,8 +1419,6 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 
 			v4l2_video_std_construct(&s, vfd->current_norm,
 						 v4l2_norm_to_name(vfd->current_norm));
-
-			memset(p,0,sizeof(*p));
 
 			p->parm.capture.timeperframe = s.frameperiod;
 			ret=0;
