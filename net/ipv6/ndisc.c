@@ -427,23 +427,101 @@ static inline void ndisc_flow_init(struct flowi *fl, u8 type,
 	security_sk_classify_flow(ndisc_socket->sk, fl);
 }
 
+static void __ndisc_send(struct net_device *dev,
+			 struct neighbour *neigh,
+			 struct in6_addr *daddr, struct in6_addr *saddr,
+			 struct icmp6hdr *icmp6h, struct in6_addr *target,
+			 int llinfo, int icmp6_mib_outnd)
+{
+	struct flowi fl;
+	struct dst_entry *dst;
+	struct sock *sk = ndisc_socket->sk;
+	struct sk_buff *skb;
+	struct icmp6hdr *hdr;
+	struct inet6_dev *idev;
+	int len;
+	int err;
+	u8 *opt;
+
+	ndisc_flow_init(&fl, icmp6h->icmp6_type, saddr, daddr,
+			dev->ifindex);
+
+	dst = ndisc_dst_alloc(dev, neigh, daddr, ip6_output);
+	if (!dst)
+		return;
+
+	err = xfrm_lookup(&dst, &fl, NULL, 0);
+	if (err < 0)
+		return;
+
+	if (!dev->addr_len)
+		llinfo = 0;
+
+	len = sizeof(struct icmp6hdr) + (target ? sizeof(*target) : 0);
+	if (llinfo)
+		len += ndisc_opt_addr_space(dev);
+
+	skb = sock_alloc_send_skb(sk,
+				  (MAX_HEADER + sizeof(struct ipv6hdr) +
+				   len + LL_RESERVED_SPACE(dev)),
+				  1, &err);
+	if (!skb) {
+		ND_PRINTK0(KERN_ERR
+			   "ICMPv6 ND: %s() failed to allocate an skb.\n",
+			   __FUNCTION__);
+		dst_release(dst);
+		return;
+	}
+
+	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+	ip6_nd_hdr(sk, skb, dev, saddr, daddr, IPPROTO_ICMPV6, len);
+
+	skb->transport_header = skb->tail;
+	skb_put(skb, len);
+
+	hdr = (struct icmp6hdr *)skb_transport_header(skb);
+	memcpy(hdr, icmp6h, sizeof(*hdr));
+
+	opt = skb_transport_header(skb) + sizeof(struct icmp6hdr);
+	if (target) {
+		ipv6_addr_copy((struct in6_addr *)opt, target);
+		opt += sizeof(*target);
+	}
+
+	if (llinfo)
+		ndisc_fill_addr_option(opt, llinfo, dev->dev_addr,
+				       dev->addr_len, dev->type);
+
+	hdr->icmp6_cksum = csum_ipv6_magic(saddr, daddr, len,
+					   IPPROTO_ICMPV6,
+					   csum_partial((__u8 *) hdr,
+							len, 0));
+
+	skb->dst = dst;
+
+	idev = in6_dev_get(dst->dev);
+	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
+
+	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
+	if (!err) {
+		ICMP6_INC_STATS(idev, icmp6_mib_outnd);
+		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
+	}
+
+	if (likely(idev != NULL))
+		in6_dev_put(idev);
+}
+
 static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 		   struct in6_addr *daddr, struct in6_addr *solicited_addr,
 		   int router, int solicited, int override, int inc_opt)
 {
 	struct in6_addr tmpaddr;
 	struct inet6_ifaddr *ifp;
-	struct inet6_dev *idev;
-	struct flowi fl;
-	struct dst_entry* dst;
-	struct sock *sk = ndisc_socket->sk;
 	struct in6_addr *src_addr;
-	struct nd_msg *msg;
-	int len;
-	struct sk_buff *skb;
-	int err;
-
-	len = sizeof(struct icmp6hdr) + sizeof(struct in6_addr);
+	struct icmp6hdr icmp6h = {
+		.icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT,
+	};
 
 	/* for anycast or proxy, solicited_addr != src_addr */
 	ifp = ipv6_get_ifaddr(solicited_addr, dev, 1);
@@ -458,93 +536,24 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 		src_addr = &tmpaddr;
 	}
 
-	ndisc_flow_init(&fl, NDISC_NEIGHBOUR_ADVERTISEMENT, src_addr, daddr,
-			dev->ifindex);
+	icmp6h.icmp6_router = router;
+	icmp6h.icmp6_solicited = solicited;
+	icmp6h.icmp6_override = override;
 
-	dst = ndisc_dst_alloc(dev, neigh, daddr, ip6_output);
-	if (!dst)
-		return;
-
-	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0)
-		return;
-
-	if (inc_opt) {
-		if (dev->addr_len)
-			len += ndisc_opt_addr_space(dev);
-		else
-			inc_opt = 0;
-	}
-
-	skb = sock_alloc_send_skb(sk,
-				  (MAX_HEADER + sizeof(struct ipv6hdr) +
-				   len + LL_RESERVED_SPACE(dev)),
-				  1, &err);
-
-	if (skb == NULL) {
-		ND_PRINTK0(KERN_ERR
-			   "ICMPv6 NA: %s() failed to allocate an skb.\n",
-			   __FUNCTION__);
-		dst_release(dst);
-		return;
-	}
-
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
-	ip6_nd_hdr(sk, skb, dev, src_addr, daddr, IPPROTO_ICMPV6, len);
-
-	skb->transport_header = skb->tail;
-	skb_put(skb, len);
-	msg = (struct nd_msg *)skb_transport_header(skb);
-
-	msg->icmph.icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
-	msg->icmph.icmp6_code = 0;
-	msg->icmph.icmp6_cksum = 0;
-
-	msg->icmph.icmp6_unused = 0;
-	msg->icmph.icmp6_router    = router;
-	msg->icmph.icmp6_solicited = solicited;
-	msg->icmph.icmp6_override  = override;
-
-	/* Set the target address. */
-	ipv6_addr_copy(&msg->target, solicited_addr);
-
-	if (inc_opt)
-		ndisc_fill_addr_option(msg->opt, ND_OPT_TARGET_LL_ADDR, dev->dev_addr,
-				       dev->addr_len, dev->type);
-
-	/* checksum */
-	msg->icmph.icmp6_cksum = csum_ipv6_magic(src_addr, daddr, len,
-						 IPPROTO_ICMPV6,
-						 csum_partial((__u8 *) msg,
-							      len, 0));
-
-	skb->dst = dst;
-	idev = in6_dev_get(dst->dev);
-	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
-	if (!err) {
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTNEIGHBORADVERTISEMENTS);
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
-	}
-
-	if (likely(idev != NULL))
-		in6_dev_put(idev);
+	__ndisc_send(dev, neigh, daddr, src_addr,
+		     &icmp6h, solicited_addr,
+		     inc_opt ? ND_OPT_TARGET_LL_ADDR : 0,
+		     ICMP6_MIB_OUTNEIGHBORADVERTISEMENTS);
 }
 
 void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		   struct in6_addr *solicit,
 		   struct in6_addr *daddr, struct in6_addr *saddr)
 {
-	struct flowi fl;
-	struct dst_entry* dst;
-	struct inet6_dev *idev;
-	struct sock *sk = ndisc_socket->sk;
-	struct sk_buff *skb;
-	struct nd_msg *msg;
 	struct in6_addr addr_buf;
-	int len;
-	int err;
-	int send_llinfo;
+	struct icmp6hdr icmp6h = {
+		.icmp6_type = NDISC_NEIGHBOUR_SOLICITATION,
+	};
 
 	if (saddr == NULL) {
 		if (ipv6_get_lladdr(dev, &addr_buf,
@@ -553,86 +562,19 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		saddr = &addr_buf;
 	}
 
-	ndisc_flow_init(&fl, NDISC_NEIGHBOUR_SOLICITATION, saddr, daddr,
-			dev->ifindex);
-
-	dst = ndisc_dst_alloc(dev, neigh, daddr, ip6_output);
-	if (!dst)
-		return;
-
-	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0)
-		return;
-
-	len = sizeof(struct icmp6hdr) + sizeof(struct in6_addr);
-	send_llinfo = dev->addr_len && !ipv6_addr_any(saddr);
-	if (send_llinfo)
-		len += ndisc_opt_addr_space(dev);
-
-	skb = sock_alloc_send_skb(sk,
-				  (MAX_HEADER + sizeof(struct ipv6hdr) +
-				   len + LL_RESERVED_SPACE(dev)),
-				  1, &err);
-	if (skb == NULL) {
-		ND_PRINTK0(KERN_ERR
-			   "ICMPv6 NA: %s() failed to allocate an skb.\n",
-			   __FUNCTION__);
-		dst_release(dst);
-		return;
-	}
-
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
-	ip6_nd_hdr(sk, skb, dev, saddr, daddr, IPPROTO_ICMPV6, len);
-
-	skb->transport_header = skb->tail;
-	skb_put(skb, len);
-	msg = (struct nd_msg *)skb_transport_header(skb);
-	msg->icmph.icmp6_type = NDISC_NEIGHBOUR_SOLICITATION;
-	msg->icmph.icmp6_code = 0;
-	msg->icmph.icmp6_cksum = 0;
-	msg->icmph.icmp6_unused = 0;
-
-	/* Set the target address. */
-	ipv6_addr_copy(&msg->target, solicit);
-
-	if (send_llinfo)
-		ndisc_fill_addr_option(msg->opt, ND_OPT_SOURCE_LL_ADDR, dev->dev_addr,
-				       dev->addr_len, dev->type);
-
-	/* checksum */
-	msg->icmph.icmp6_cksum = csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-						 daddr, len,
-						 IPPROTO_ICMPV6,
-						 csum_partial((__u8 *) msg,
-							      len, 0));
-	/* send it! */
-	skb->dst = dst;
-	idev = in6_dev_get(dst->dev);
-	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
-	if (!err) {
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTNEIGHBORSOLICITS);
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
-	}
-
-	if (likely(idev != NULL))
-		in6_dev_put(idev);
+	__ndisc_send(dev, neigh, daddr, saddr,
+		     &icmp6h, solicit,
+		     !ipv6_addr_any(saddr) ? ND_OPT_SOURCE_LL_ADDR : 0,
+		     ICMP6_MIB_OUTNEIGHBORSOLICITS);
 }
 
 void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 		   struct in6_addr *daddr)
 {
-	struct flowi fl;
-	struct dst_entry* dst;
-	struct inet6_dev *idev;
-	struct sock *sk = ndisc_socket->sk;
-	struct sk_buff *skb;
-	struct icmp6hdr *hdr;
-	__u8 * opt;
+	struct icmp6hdr icmp6h = {
+		.icmp6_type = NDISC_ROUTER_SOLICITATION,
+	};
 	int send_sllao = dev->addr_len;
-	int len;
-	int err;
-
 
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
 	/*
@@ -655,67 +597,10 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 		}
 	}
 #endif
-	ndisc_flow_init(&fl, NDISC_ROUTER_SOLICITATION, saddr, daddr,
-			dev->ifindex);
-
-	dst = ndisc_dst_alloc(dev, NULL, daddr, ip6_output);
-	if (!dst)
-		return;
-
-	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0)
-		return;
-
-	len = sizeof(struct icmp6hdr);
-	if (send_sllao)
-		len += ndisc_opt_addr_space(dev);
-
-	skb = sock_alloc_send_skb(sk,
-				  (MAX_HEADER + sizeof(struct ipv6hdr) +
-				   len + LL_RESERVED_SPACE(dev)),
-				  1, &err);
-	if (skb == NULL) {
-		ND_PRINTK0(KERN_ERR
-			   "ICMPv6 RS: %s() failed to allocate an skb.\n",
-			   __FUNCTION__);
-		dst_release(dst);
-		return;
-	}
-
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
-	ip6_nd_hdr(sk, skb, dev, saddr, daddr, IPPROTO_ICMPV6, len);
-
-	skb->transport_header = skb->tail;
-	skb_put(skb, len);
-	hdr = icmp6_hdr(skb);
-	hdr->icmp6_type = NDISC_ROUTER_SOLICITATION;
-	hdr->icmp6_code = 0;
-	hdr->icmp6_cksum = 0;
-	hdr->icmp6_unused = 0;
-
-	opt = (u8*) (hdr + 1);
-
-	if (send_sllao)
-		ndisc_fill_addr_option(opt, ND_OPT_SOURCE_LL_ADDR, dev->dev_addr,
-				       dev->addr_len, dev->type);
-
-	/* checksum */
-	hdr->icmp6_cksum = csum_ipv6_magic(&ipv6_hdr(skb)->saddr, daddr, len,
-					   IPPROTO_ICMPV6,
-					   csum_partial((__u8 *) hdr, len, 0));
-
-	/* send it! */
-	skb->dst = dst;
-	idev = in6_dev_get(dst->dev);
-	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
-	if (!err) {
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTROUTERSOLICITS);
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
-	}
-
-	if (likely(idev != NULL))
-		in6_dev_put(idev);
+	__ndisc_send(dev, NULL, daddr, saddr,
+		     &icmp6h, NULL,
+		     send_sllao ? ND_OPT_SOURCE_LL_ADDR : 0,
+		     ICMP6_MIB_OUTROUTERSOLICITS);
 }
 
 
