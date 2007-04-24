@@ -722,17 +722,27 @@ static int btrfs_write_inode(struct inode *inode, int wait)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
-	int ret;
+	int ret = 0;
+
+	if (wait) {
+		mutex_lock(&root->fs_info->fs_mutex);
+		trans = btrfs_start_transaction(root, 1);
+		ret = btrfs_commit_transaction(trans, root);
+		mutex_unlock(&root->fs_info->fs_mutex);
+	}
+	return ret;
+}
+
+static void btrfs_dirty_inode(struct inode *inode)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
-	ret = btrfs_update_inode(trans, root, inode);
-	if (wait)
-		btrfs_commit_transaction(trans, root);
-	else
-		btrfs_end_transaction(trans, root);
+	btrfs_update_inode(trans, root, inode);
+	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	return ret;
 }
 
 static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
@@ -2390,6 +2400,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_type = BTRFS_SUPER_MAGIC;
 	return 0;
 }
+
 static struct file_system_type btrfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "btrfs",
@@ -2405,6 +2416,7 @@ static struct super_operations btrfs_super_ops = {
 	.write_super	= btrfs_write_super,
 	.sync_fs	= btrfs_sync_fs,
 	.write_inode	= btrfs_write_inode,
+	.dirty_inode	= btrfs_dirty_inode,
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_destroy_inode,
 	.statfs		= btrfs_statfs,
