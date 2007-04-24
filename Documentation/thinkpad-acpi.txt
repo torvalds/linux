@@ -611,19 +611,59 @@ registers contain the current battery capacity, etc. If you experiment
 with this, do send me your results (including some complete dumps with
 a description of the conditions when they were taken.)
 
-LCD brightness control -- /proc/acpi/ibm/brightness
----------------------------------------------------
+LCD brightness control
+----------------------
+
+procfs: /proc/acpi/ibm/brightness
+sysfs backlight device "thinkpad_screen"
 
 This feature allows software control of the LCD brightness on ThinkPad
-models which don't have a hardware brightness slider. The available
-commands are:
+models which don't have a hardware brightness slider.
+
+It has some limitations: the LCD backlight cannot be actually turned on or off
+by this interface, and in many ThinkPad models, the "dim while on battery"
+functionality will be enabled by the BIOS when this interface is used, and
+cannot be controlled.
+
+The backlight control has eight levels, ranging from 0 to 7.  Some of the
+levels may not be distinct.
+
+Procfs notes:
+
+	The available commands are:
 
 	echo up   >/proc/acpi/ibm/brightness
 	echo down >/proc/acpi/ibm/brightness
 	echo 'level <level>' >/proc/acpi/ibm/brightness
 
-The <level> number range is 0 to 7, although not all of them may be
-distinct. The current brightness level is shown in the file.
+Sysfs notes:
+
+The interface is implemented through the backlight sysfs class, which is poorly
+documented at this time.
+
+Locate the thinkpad_screen device under /sys/class/backlight, and inside it
+there will be the following attributes:
+
+	max_brightness:
+		Reads the maximum brightness the hardware can be set to.
+		The minimum is always zero.
+
+	actual_brightness:
+		Reads what brightness the screen is set to at this instant.
+
+	brightness:
+		Writes request the driver to change brightness to the given
+		value.  Reads will tell you what brightness the driver is trying
+		to set the display to when "power" is set to zero and the display
+		has not been dimmed by a kernel power management event.
+
+	power:
+		power management mode, where 0 is "display on", and 1 to 3 will
+		dim the display backlight to brightness level 0 because
+		thinkpad-acpi cannot really turn the backlight off.  Kernel
+		power management events can temporarily increase the current
+		power management level, i.e. they can dim the display.
+
 
 Volume control -- /proc/acpi/ibm/volume
 ---------------------------------------

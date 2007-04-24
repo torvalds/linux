@@ -2414,8 +2414,9 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	if (b < 0)
 		return b;
 
-	ibm_backlight_device = backlight_device_register("ibm", NULL, NULL,
-							 &ibm_backlight_data);
+	ibm_backlight_device = backlight_device_register(
+					TPACPI_BACKLIGHT_DEV_NAME, NULL, NULL,
+					&ibm_backlight_data);
 	if (IS_ERR(ibm_backlight_device)) {
 		printk(IBM_ERR "Could not register backlight device\n");
 		return PTR_ERR(ibm_backlight_device);

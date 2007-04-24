@@ -296,6 +296,8 @@ static int bluetooth_write(char *buf);
  * Brightness (backlight) subdriver
  */
 
+#define TPACPI_BACKLIGHT_DEV_NAME "thinkpad_screen"
+
 static struct backlight_device *ibm_backlight_device;
 static int brightness_offset = 0x31;
 
