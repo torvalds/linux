@@ -1110,23 +1110,6 @@ struct device_node *find_type_devices(const char *type)
 }
 EXPORT_SYMBOL(find_type_devices);
 
-/**
- * Returns all nodes linked together
- */
-struct device_node *find_all_nodes(void)
-{
-	struct device_node *head, **prevp, *np;
-
-	prevp = &head;
-	for (np = allnodes; np != 0; np = np->allnext) {
-		*prevp = np;
-		prevp = &np->next;
-	}
-	*prevp = NULL;
-	return head;
-}
-EXPORT_SYMBOL(find_all_nodes);
-
 /** Checks if the given "compat" string matches one of the strings in
  * the device's "compatible" property
  */
