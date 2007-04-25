@@ -39,9 +39,10 @@ struct lpfc_iocbq {
 	IOCB_t iocb;		/* IOCB cmd */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint8_t iocb_flag;
-#define LPFC_IO_LIBDFC	1	/* libdfc iocb */
-#define LPFC_IO_WAKE	2	/* High Priority Queue signal flag */
-#define LPFC_IO_FCP	4	/* FCP command -- iocbq in scsi_buf */
+#define LPFC_IO_LIBDFC		1	/* libdfc iocb */
+#define LPFC_IO_WAKE		2	/* High Priority Queue signal flag */
+#define LPFC_IO_FCP		4	/* FCP command -- iocbq in scsi_buf */
+#define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
 
 	uint8_t abort_count;
 	uint8_t rsvd2;

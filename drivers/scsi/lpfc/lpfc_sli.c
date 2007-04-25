@@ -816,6 +816,14 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba * phba, struct lpfc_sli_ring * pring,
 			 * All other are passed to the completion callback.
 			 */
 			if (pring->ringno == LPFC_ELS_RING) {
+				if (cmdiocbp->iocb_flag & LPFC_DRIVER_ABORTED) {
+					cmdiocbp->iocb_flag &=
+						~LPFC_DRIVER_ABORTED;
+					saveq->iocb.ulpStatus =
+						IOSTAT_LOCAL_REJECT;
+					saveq->iocb.un.ulpWord[4] =
+						IOERR_SLI_ABORTED;
+				}
 				spin_unlock_irqrestore(phba->host->host_lock,
 						       iflag);
 				(cmdiocbp->iocb_cmpl) (phba, cmdiocbp, saveq);
@@ -2728,85 +2736,81 @@ lpfc_sli_ringpostbuf_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 }
 
 static void
-lpfc_sli_abort_elsreq_cmpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
-			   struct lpfc_iocbq * rspiocb)
+lpfc_sli_abort_els_cmpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
+			struct lpfc_iocbq * rspiocb)
 {
-	struct lpfc_dmabuf *buf_ptr, *buf_ptr1;
-	/* Free the resources associated with the ELS_REQUEST64 IOCB the driver
-	 * just aborted.
-	 * In this case, context2  = cmd,  context2->next = rsp, context3 = bpl
-	 */
-	if (cmdiocb->context2) {
-		buf_ptr1 = (struct lpfc_dmabuf *) cmdiocb->context2;
-
-		/* Free the response IOCB before completing the abort
-		   command.  */
-		buf_ptr = NULL;
-		list_remove_head((&buf_ptr1->list), buf_ptr,
-				 struct lpfc_dmabuf, list);
-		if (buf_ptr) {
-			lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
-			kfree(buf_ptr);
-		}
-		lpfc_mbuf_free(phba, buf_ptr1->virt, buf_ptr1->phys);
-		kfree(buf_ptr1);
-	}
-
-	if (cmdiocb->context3) {
-		buf_ptr = (struct lpfc_dmabuf *) cmdiocb->context3;
-		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
-		kfree(buf_ptr);
-	}
-
+	spin_lock_irq(phba->host->host_lock);
 	lpfc_sli_release_iocbq(phba, cmdiocb);
+	spin_unlock_irq(phba->host->host_lock);
 	return;
 }
 
 int
-lpfc_sli_issue_abort_iotag32(struct lpfc_hba * phba,
-			     struct lpfc_sli_ring * pring,
-			     struct lpfc_iocbq * cmdiocb)
+lpfc_sli_issue_abort_iotag(struct lpfc_hba * phba,
+			   struct lpfc_sli_ring * pring,
+			   struct lpfc_iocbq * cmdiocb)
 {
 	struct lpfc_iocbq *abtsiocbp;
 	IOCB_t *icmd = NULL;
 	IOCB_t *iabt = NULL;
+	int retval = IOCB_ERROR;
+
+	/* There are certain command types we don't want
+	 * to abort.
+	 */
+	icmd = &cmdiocb->iocb;
+	if ((icmd->ulpCommand == CMD_ABORT_XRI_CN) ||
+	    (icmd->ulpCommand == CMD_CLOSE_XRI_CN))
+		return 0;
+
+	/* If we're unloading, interrupts are disabled so we
+	 * need to cleanup the iocb here.
+	 */
+	if (phba->fc_flag & FC_UNLOADING)
+		goto abort_iotag_exit;
 
 	/* issue ABTS for this IOCB based on iotag */
 	abtsiocbp = lpfc_sli_get_iocbq(phba);
 	if (abtsiocbp == NULL)
 		return 0;
 
+	/* This signals the response to set the correct status
+	 * before calling the completion handler.
+	 */
+	cmdiocb->iocb_flag |= LPFC_DRIVER_ABORTED;
+
 	iabt = &abtsiocbp->iocb;
-	icmd = &cmdiocb->iocb;
-	switch (icmd->ulpCommand) {
-	case CMD_ELS_REQUEST64_CR:
-		/* Even though we abort the ELS command, the firmware may access
-		 * the BPL or other resources before it processes our
-		 * ABORT_MXRI64. Thus we must delay reusing the cmdiocb
-		 * resources till the actual abort request completes.
-		 */
-		abtsiocbp->context1 = (void *)((unsigned long)icmd->ulpCommand);
-		abtsiocbp->context2 = cmdiocb->context2;
-		abtsiocbp->context3 = cmdiocb->context3;
-		cmdiocb->context2 = NULL;
-		cmdiocb->context3 = NULL;
-		abtsiocbp->iocb_cmpl = lpfc_sli_abort_elsreq_cmpl;
-		break;
-	default:
-		lpfc_sli_release_iocbq(phba, abtsiocbp);
-		return 0;
-	}
-
-	iabt->un.amxri.abortType = ABORT_TYPE_ABTS;
-	iabt->un.amxri.iotag32 = icmd->un.elsreq64.bdl.ulpIoTag32;
-
+	iabt->un.acxri.abortType = ABORT_TYPE_ABTS;
+	iabt->un.acxri.abortContextTag = icmd->ulpContext;
+	iabt->un.acxri.abortIoTag = icmd->ulpIoTag;
 	iabt->ulpLe = 1;
-	iabt->ulpClass = CLASS3;
-	iabt->ulpCommand = CMD_ABORT_MXRI64_CN;
+	iabt->ulpClass = icmd->ulpClass;
 
-	if (lpfc_sli_issue_iocb(phba, pring, abtsiocbp, 0) == IOCB_ERROR) {
-		lpfc_sli_release_iocbq(phba, abtsiocbp);
-		return 0;
+	if (phba->hba_state >= LPFC_LINK_UP)
+		iabt->ulpCommand = CMD_ABORT_XRI_CN;
+	else
+		iabt->ulpCommand = CMD_CLOSE_XRI_CN;
+
+	abtsiocbp->iocb_cmpl = lpfc_sli_abort_els_cmpl;
+	retval = lpfc_sli_issue_iocb(phba, pring, abtsiocbp, 0);
+
+abort_iotag_exit:
+
+	/* If we could not issue an abort dequeue the iocb and handle
+	 * the completion here.
+	 */
+	if (retval == IOCB_ERROR) {
+		list_del(&cmdiocb->list);
+		pring->txcmplq_cnt--;
+
+		if (cmdiocb->iocb_cmpl) {
+			icmd->ulpStatus = IOSTAT_LOCAL_REJECT;
+			icmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
+			spin_unlock_irq(phba->host->host_lock);
+			(cmdiocb->iocb_cmpl) (phba, cmdiocb, cmdiocb);
+			spin_lock_irq(phba->host->host_lock);
+		} else
+			lpfc_sli_release_iocbq(phba, cmdiocb);
 	}
 
 	return 1;

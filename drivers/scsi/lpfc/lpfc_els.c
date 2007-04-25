@@ -582,24 +582,8 @@ lpfc_els_abort_flogi(struct lpfc_hba * phba)
 		icmd = &iocb->iocb;
 		if (icmd->ulpCommand == CMD_ELS_REQUEST64_CR) {
 			ndlp = (struct lpfc_nodelist *)(iocb->context1);
-			if (ndlp && (ndlp->nlp_DID == Fabric_DID)) {
-				list_del(&iocb->list);
-				pring->txcmplq_cnt--;
-
-				if ((icmd->un.elsreq64.bdl.ulpIoTag32)) {
-					lpfc_sli_issue_abort_iotag32
-						(phba, pring, iocb);
-				}
-				if (iocb->iocb_cmpl) {
-					icmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-					icmd->un.ulpWord[4] =
-					    IOERR_SLI_ABORTED;
-					spin_unlock_irq(phba->host->host_lock);
-					(iocb->iocb_cmpl) (phba, iocb, iocb);
-					spin_lock_irq(phba->host->host_lock);
-				} else
-					lpfc_sli_release_iocbq(phba, iocb);
-			}
+			if (ndlp && (ndlp->nlp_DID == Fabric_DID))
+				lpfc_sli_issue_abort_iotag(phba, pring, iocb);
 		}
 	}
 	spin_unlock_irq(phba->host->host_lock);
@@ -3245,7 +3229,6 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 	struct lpfc_iocbq *tmp_iocb, *piocb;
 	IOCB_t *cmd = NULL;
 	struct lpfc_dmabuf *pcmd;
-	struct list_head *dlp;
 	uint32_t *elscmd;
 	uint32_t els_command;
 	uint32_t timeout;
@@ -3262,7 +3245,6 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 	timeout = (uint32_t)(phba->fc_ratov << 1);
 
 	pring = &phba->sli.ring[LPFC_ELS_RING];
-	dlp = &pring->txcmplq;
 
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
 		cmd = &piocb->iocb;
@@ -3288,19 +3270,12 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 			continue;
 		}
 
-		list_del(&piocb->list);
-		pring->txcmplq_cnt--;
-
 		if (cmd->ulpCommand == CMD_GEN_REQUEST64_CR) {
 			struct lpfc_nodelist *ndlp;
 			spin_unlock_irq(phba->host->host_lock);
 			ndlp = lpfc_findnode_rpi(phba, cmd->ulpContext);
 			spin_lock_irq(phba->host->host_lock);
 			remote_ID = ndlp->nlp_DID;
-			if (cmd->un.elsreq64.bdl.ulpIoTag32) {
-				lpfc_sli_issue_abort_iotag32(phba,
-					pring, piocb);
-			}
 		} else {
 			remote_ID = cmd->un.elsreq64.remoteID;
 		}
@@ -3312,17 +3287,7 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 				phba->brd_no, els_command,
 				remote_ID, cmd->ulpCommand, cmd->ulpIoTag);
 
-		/*
-		 * The iocb has timed out; abort it.
-		 */
-		if (piocb->iocb_cmpl) {
-			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-			spin_unlock_irq(phba->host->host_lock);
-			(piocb->iocb_cmpl) (phba, piocb, piocb);
-			spin_lock_irq(phba->host->host_lock);
-		} else
-			lpfc_sli_release_iocbq(phba, piocb);
+		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
 	}
 	if (phba->sli.ring[LPFC_ELS_RING].txcmplq_cnt)
 		mod_timer(&phba->els_tmofunc, jiffies + HZ * timeout);
@@ -3336,9 +3301,6 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *tmp_iocb, *piocb;
 	IOCB_t *cmd = NULL;
-	struct lpfc_dmabuf *pcmd;
-	uint32_t *elscmd;
-	uint32_t els_command;
 
 	pring = &phba->sli.ring[LPFC_ELS_RING];
 	spin_lock_irq(phba->host->host_lock);
@@ -3356,10 +3318,6 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 		    (cmd->ulpCommand == CMD_ABORT_XRI_CN)) {
 			continue;
 		}
-
-		pcmd = (struct lpfc_dmabuf *) piocb->context2;
-		elscmd = (uint32_t *) (pcmd->virt);
-		els_command = *elscmd;
 
 		list_del(&piocb->list);
 		pring->txq_cnt--;
@@ -3381,22 +3339,8 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 		if (piocb->iocb_flag & LPFC_IO_LIBDFC) {
 			continue;
 		}
-		pcmd = (struct lpfc_dmabuf *) piocb->context2;
-		elscmd = (uint32_t *) (pcmd->virt);
-		els_command = *elscmd;
 
-		list_del(&piocb->list);
-		pring->txcmplq_cnt--;
-
-		cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-		cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-
-		if (piocb->iocb_cmpl) {
-			spin_unlock_irq(phba->host->host_lock);
-			(piocb->iocb_cmpl) (phba, piocb, piocb);
-			spin_lock_irq(phba->host->host_lock);
-		} else
-			lpfc_sli_release_iocbq(phba, piocb);
+		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
 	}
 	spin_unlock_irq(phba->host->host_lock);
 	return;

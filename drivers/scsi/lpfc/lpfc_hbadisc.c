@@ -1596,7 +1596,7 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 	}
 	spin_unlock_irq(phba->host->host_lock);
 
-	lpfc_els_abort(phba,ndlp,0);
+	lpfc_els_abort(phba,ndlp);
 	spin_lock_irq(phba->host->host_lock);
 	ndlp->nlp_flag &= ~NLP_DELAY_TMO;
 	spin_unlock_irq(phba->host->host_lock);

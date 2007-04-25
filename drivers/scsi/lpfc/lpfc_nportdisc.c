@@ -168,8 +168,7 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba * phba,
  * routine effectively results in a "software abort".
  */
 int
-lpfc_els_abort(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
-	int send_abts)
+lpfc_els_abort(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 {
 	struct lpfc_sli *psli;
 	struct lpfc_sli_ring *pring;
@@ -215,48 +214,17 @@ lpfc_els_abort(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 		spin_unlock_irq(phba->host->host_lock);
 	} while (found);
 
-	/* Everything on txcmplq will be returned by firmware
-	 * with a no rpi / linkdown / abort error.  For ring 0,
-	 * ELS discovery, we want to get rid of it right here.
-	 */
 	/* Next check the txcmplq */
-	do {
-		found = 0;
-		spin_lock_irq(phba->host->host_lock);
-		list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq,
-					 list) {
-			/* Check to see if iocb matches the nport we are looking
-			   for */
-			if ((lpfc_check_sli_ndlp (phba, pring, iocb, ndlp))) {
-				found = 1;
-				/* It matches, so deque and call compl with an
-				   error */
-				list_del(&iocb->list);
-				pring->txcmplq_cnt--;
-
-				icmd = &iocb->iocb;
-				/* If the driver is completing an ELS
-				 * command early, flush it out of the firmware.
-				 */
-				if (send_abts &&
-				   (icmd->ulpCommand == CMD_ELS_REQUEST64_CR) &&
-				   (icmd->un.elsreq64.bdl.ulpIoTag32)) {
-					lpfc_sli_issue_abort_iotag32(phba,
-							     pring, iocb);
-				}
-				if (iocb->iocb_cmpl) {
-					icmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-					icmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-					spin_unlock_irq(phba->host->host_lock);
-					(iocb->iocb_cmpl) (phba, iocb, iocb);
-					spin_lock_irq(phba->host->host_lock);
-				} else
-					lpfc_sli_release_iocbq(phba, iocb);
-				break;
-			}
+	spin_lock_irq(phba->host->host_lock);
+	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
+		/* Check to see if iocb matches the nport we are looking
+		   for */
+		if ((lpfc_check_sli_ndlp (phba, pring, iocb, ndlp))) {
+			icmd = &iocb->iocb;
+			lpfc_sli_issue_abort_iotag(phba, pring, iocb);
 		}
-		spin_unlock_irq(phba->host->host_lock);
-	} while(found);
+	}
+	spin_unlock_irq(phba->host->host_lock);
 
 	/* If we are delaying issuing an ELS command, cancel it */
 	if (ndlp->nlp_flag & NLP_DELAY_TMO)
@@ -404,7 +372,7 @@ lpfc_rcv_plogi(struct lpfc_hba * phba,
 	 */
 	if (ndlp->nlp_state == NLP_STE_PLOGI_ISSUE) {
 		/* software abort outstanding PLOGI */
-		lpfc_els_abort(phba, ndlp, 1);
+		lpfc_els_abort(phba, ndlp);
 	}
 
 	lpfc_els_rsp_acc(phba, ELS_CMD_PLOGI, cmdiocb, ndlp, mbox, 0);
@@ -697,7 +665,7 @@ lpfc_rcv_logo_plogi_issue(struct lpfc_hba * phba,
 	cmdiocb = (struct lpfc_iocbq *) arg;
 
 	/* software abort outstanding PLOGI */
-	lpfc_els_abort(phba, ndlp, 1);
+	lpfc_els_abort(phba, ndlp);
 
 	lpfc_rcv_logo(phba, ndlp, cmdiocb, ELS_CMD_LOGO);
 	return ndlp->nlp_state;
@@ -712,7 +680,7 @@ lpfc_rcv_els_plogi_issue(struct lpfc_hba * phba,
 	cmdiocb = (struct lpfc_iocbq *) arg;
 
 	/* software abort outstanding PLOGI */
-	lpfc_els_abort(phba, ndlp, 1);
+	lpfc_els_abort(phba, ndlp);
 
 	if (evt == NLP_EVT_RCV_LOGO) {
 		lpfc_els_rsp_acc(phba, ELS_CMD_ACC, cmdiocb, ndlp, NULL, 0);
@@ -855,7 +823,7 @@ lpfc_device_rm_plogi_issue(struct lpfc_hba * phba,
 	}
 	else {
 		/* software abort outstanding PLOGI */
-		lpfc_els_abort(phba, ndlp, 1);
+		lpfc_els_abort(phba, ndlp);
 
 		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
 		return NLP_STE_FREED_NODE;
@@ -868,7 +836,7 @@ lpfc_device_recov_plogi_issue(struct lpfc_hba * phba,
 			    uint32_t evt)
 {
 	/* software abort outstanding PLOGI */
-	lpfc_els_abort(phba, ndlp, 1);
+	lpfc_els_abort(phba, ndlp);
 
 	ndlp->nlp_prev_state = NLP_STE_PLOGI_ISSUE;
 	ndlp->nlp_state = NLP_STE_NPR_NODE;
@@ -888,7 +856,7 @@ lpfc_rcv_plogi_adisc_issue(struct lpfc_hba * phba,
 	struct lpfc_iocbq *cmdiocb;
 
 	/* software abort outstanding ADISC */
-	lpfc_els_abort(phba, ndlp, 1);
+	lpfc_els_abort(phba, ndlp);
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 
@@ -926,7 +894,7 @@ lpfc_rcv_logo_adisc_issue(struct lpfc_hba * phba,
 	cmdiocb = (struct lpfc_iocbq *) arg;
 
 	/* software abort outstanding ADISC */
-	lpfc_els_abort(phba, ndlp, 0);
+	lpfc_els_abort(phba, ndlp);
 
 	lpfc_rcv_logo(phba, ndlp, cmdiocb, ELS_CMD_LOGO);
 	return ndlp->nlp_state;
@@ -1016,7 +984,7 @@ lpfc_device_rm_adisc_issue(struct lpfc_hba * phba,
 	}
 	else {
 		/* software abort outstanding ADISC */
-		lpfc_els_abort(phba, ndlp, 1);
+		lpfc_els_abort(phba, ndlp);
 
 		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
 		return NLP_STE_FREED_NODE;
@@ -1029,7 +997,7 @@ lpfc_device_recov_adisc_issue(struct lpfc_hba * phba,
 			    uint32_t evt)
 {
 	/* software abort outstanding ADISC */
-	lpfc_els_abort(phba, ndlp, 1);
+	lpfc_els_abort(phba, ndlp);
 
 	ndlp->nlp_prev_state = NLP_STE_ADISC_ISSUE;
 	ndlp->nlp_state = NLP_STE_NPR_NODE;
@@ -1230,7 +1198,7 @@ lpfc_rcv_logo_prli_issue(struct lpfc_hba * phba,
 	cmdiocb = (struct lpfc_iocbq *) arg;
 
 	/* Software abort outstanding PRLI before sending acc */
-	lpfc_els_abort(phba, ndlp, 1);
+	lpfc_els_abort(phba, ndlp);
 
 	lpfc_rcv_logo(phba, ndlp, cmdiocb, ELS_CMD_LOGO);
 	return ndlp->nlp_state;
@@ -1330,7 +1298,7 @@ lpfc_device_rm_prli_issue(struct lpfc_hba * phba,
 	}
 	else {
 		/* software abort outstanding PLOGI */
-		lpfc_els_abort(phba, ndlp, 1);
+		lpfc_els_abort(phba, ndlp);
 
 		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
 		return NLP_STE_FREED_NODE;
@@ -1359,7 +1327,7 @@ lpfc_device_recov_prli_issue(struct lpfc_hba * phba,
 			   struct lpfc_nodelist * ndlp, void *arg, uint32_t evt)
 {
 	/* software abort outstanding PRLI */
-	lpfc_els_abort(phba, ndlp, 1);
+	lpfc_els_abort(phba, ndlp);
 
 	ndlp->nlp_prev_state = NLP_STE_PRLI_ISSUE;
 	ndlp->nlp_state = NLP_STE_NPR_NODE;

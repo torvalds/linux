@@ -66,8 +66,7 @@ int lpfc_disc_state_machine(struct lpfc_hba *, struct lpfc_nodelist *, void *,
 
 int lpfc_check_sparm(struct lpfc_hba *, struct lpfc_nodelist *,
 		     struct serv_parm *, uint32_t);
-int lpfc_els_abort(struct lpfc_hba *, struct lpfc_nodelist * ndlp,
-			int);
+int lpfc_els_abort(struct lpfc_hba *, struct lpfc_nodelist * ndlp);
 int lpfc_els_abort_flogi(struct lpfc_hba *);
 int lpfc_initial_flogi(struct lpfc_hba *);
 int lpfc_issue_els_plogi(struct lpfc_hba *, uint32_t, uint8_t);
@@ -162,8 +161,8 @@ int lpfc_sli_ringpostbuf_put(struct lpfc_hba *, struct lpfc_sli_ring *,
 struct lpfc_dmabuf *lpfc_sli_ringpostbuf_get(struct lpfc_hba *,
 					     struct lpfc_sli_ring *,
 					     dma_addr_t);
-int lpfc_sli_issue_abort_iotag32(struct lpfc_hba *, struct lpfc_sli_ring *,
-				 struct lpfc_iocbq *);
+int lpfc_sli_issue_abort_iotag(struct lpfc_hba *, struct lpfc_sli_ring *,
+			       struct lpfc_iocbq *);
 int lpfc_sli_sum_iocb(struct lpfc_hba *, struct lpfc_sli_ring *, uint16_t,
 			  uint64_t, lpfc_ctx_cmd);
 int lpfc_sli_abort_iocb(struct lpfc_hba *, struct lpfc_sli_ring *, uint16_t,
