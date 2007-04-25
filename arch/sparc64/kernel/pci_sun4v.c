@@ -110,7 +110,7 @@ static inline long pci_iommu_batch_end(void)
 	return pci_iommu_batch_flush(p);
 }
 
-static long pci_arena_alloc(struct pci_iommu_arena *arena, unsigned long npages)
+static long pci_arena_alloc(struct iommu_arena *arena, unsigned long npages)
 {
 	unsigned long n, i, start, end, limit;
 	int pass;
@@ -149,7 +149,7 @@ again:
 	return n;
 }
 
-static void pci_arena_free(struct pci_iommu_arena *arena, unsigned long base, unsigned long npages)
+static void pci_arena_free(struct iommu_arena *arena, unsigned long base, unsigned long npages)
 {
 	unsigned long i;
 
@@ -707,7 +707,7 @@ static void pci_sun4v_scan_bus(struct pci_controller_info *p)
 static unsigned long probe_existing_entries(struct pci_pbm_info *pbm,
 					    struct pci_iommu *iommu)
 {
-	struct pci_iommu_arena *arena = &iommu->arena;
+	struct iommu_arena *arena = &iommu->arena;
 	unsigned long i, cnt = 0;
 	u32 devhandle;
 

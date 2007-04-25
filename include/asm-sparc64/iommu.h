@@ -7,15 +7,21 @@
 #define _SPARC64_IOMMU_H
 
 /* The format of an iopte in the page tables. */
-#define IOPTE_VALID   0x8000000000000000UL /* IOPTE is valid                  */
-#define IOPTE_64K     0x2000000000000000UL /* IOPTE is for 64k page           */
-#define IOPTE_STBUF   0x1000000000000000UL /* DVMA can use streaming buffer   */
-#define IOPTE_INTRA   0x0800000000000000UL /* SBUS slot-->slot direct transfer*/
-#define IOPTE_CONTEXT 0x07ff800000000000UL /* Context number		      */
-#define IOPTE_PAGE    0x00007fffffffe000UL /* Physical page number (PA[42:13])*/
-#define IOPTE_CACHE   0x0000000000000010UL /* Cached (in UPA E-cache)         */
-#define IOPTE_WRITE   0x0000000000000002UL /* Writeable                       */
+#define IOPTE_VALID   0x8000000000000000UL
+#define IOPTE_64K     0x2000000000000000UL
+#define IOPTE_STBUF   0x1000000000000000UL
+#define IOPTE_INTRA   0x0800000000000000UL
+#define IOPTE_CONTEXT 0x07ff800000000000UL
+#define IOPTE_PAGE    0x00007fffffffe000UL
+#define IOPTE_CACHE   0x0000000000000010UL
+#define IOPTE_WRITE   0x0000000000000002UL
 
 #define IOMMU_NUM_CTXS	4096
+
+struct iommu_arena {
+	unsigned long	*map;
+	unsigned int	hint;
+	unsigned int	limit;
+};
 
 #endif /* !(_SPARC_IOMMU_H) */

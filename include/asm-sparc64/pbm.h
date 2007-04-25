@@ -35,19 +35,13 @@ struct pci_controller_info;
 /* This contains the software state necessary to drive a PCI
  * controller's IOMMU.
  */
-struct pci_iommu_arena {
-	unsigned long	*map;
-	unsigned int	hint;
-	unsigned int	limit;
-};
-
 struct pci_iommu {
 	/* This protects the controller's IOMMU and all
 	 * streaming buffers underneath.
 	 */
 	spinlock_t	lock;
 
-	struct pci_iommu_arena arena;
+	struct iommu_arena arena;
 
 	/* IOMMU page table, a linear array of ioptes. */
 	iopte_t		*page_table;		/* The page table itself. */

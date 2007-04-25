@@ -26,16 +26,10 @@
 
 #define MAP_BASE	((u32)0xc0000000)
 
-struct sbus_iommu_arena {
-	unsigned long	*map;
-	unsigned int	hint;
-	unsigned int	limit;
-};
-
 struct sbus_iommu {
 	spinlock_t		lock;
 
-	struct sbus_iommu_arena	arena;
+	struct iommu_arena	arena;
 
 	iopte_t			*page_table;
 	unsigned long		strbuf_regs;
@@ -123,7 +117,7 @@ static void sbus_strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long 
 /* Based largely upon the ppc64 iommu allocator.  */
 static long sbus_arena_alloc(struct sbus_iommu *iommu, unsigned long npages)
 {
-	struct sbus_iommu_arena *arena = &iommu->arena;
+	struct iommu_arena *arena = &iommu->arena;
 	unsigned long n, i, start, end, limit;
 	int pass;
 
@@ -162,7 +156,7 @@ again:
 	return n;
 }
 
-static void sbus_arena_free(struct sbus_iommu_arena *arena, unsigned long base, unsigned long npages)
+static void sbus_arena_free(struct iommu_arena *arena, unsigned long base, unsigned long npages)
 {
 	unsigned long i;
 

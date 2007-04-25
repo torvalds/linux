@@ -77,7 +77,7 @@ static inline void iopte_make_dummy(struct pci_iommu *iommu, iopte_t *iopte)
 /* Based largely upon the ppc64 iommu allocator.  */
 static long pci_arena_alloc(struct pci_iommu *iommu, unsigned long npages)
 {
-	struct pci_iommu_arena *arena = &iommu->arena;
+	struct iommu_arena *arena = &iommu->arena;
 	unsigned long n, i, start, end, limit;
 	int pass;
 
@@ -116,7 +116,7 @@ again:
 	return n;
 }
 
-static void pci_arena_free(struct pci_iommu_arena *arena, unsigned long base, unsigned long npages)
+static void pci_arena_free(struct iommu_arena *arena, unsigned long base, unsigned long npages)
 {
 	unsigned long i;
 
