@@ -222,16 +222,16 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba, uint8_t expectRsp,
 		/* Xmit ELS command <elsCmd> to remote NPORT <did> */
 		lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 				"%d:0116 Xmit ELS command x%x to remote "
-				"NPORT x%x Data: x%x x%x\n",
+				"NPORT x%x I/O tag: x%x, HBA state: x%x\n",
 				phba->brd_no, elscmd,
-				did, icmd->ulpIoTag, phba->hba_state);
+				did, elsiocb->iotag, phba->hba_state);
 	} else {
 		/* Xmit ELS response <elsCmd> to remote NPORT <did> */
 		lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 				"%d:0117 Xmit ELS response x%x to remote "
-				"NPORT x%x Data: x%x x%x\n",
+				"NPORT x%x I/O tag: x%x, size: x%x\n",
 				phba->brd_no, elscmd,
-				ndlp->nlp_DID, icmd->ulpIoTag, cmdSize);
+				ndlp->nlp_DID, elsiocb->iotag, cmdSize);
 	}
 
 	return elsiocb;
@@ -2017,10 +2017,9 @@ lpfc_els_rsp_acc(struct lpfc_hba * phba, uint32_t flag,
 
 	/* Xmit ELS ACC response tag <ulpIoTag> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d:0128 Xmit ELS ACC response tag x%x "
-			"Data: x%x x%x x%x x%x x%x\n",
-			phba->brd_no,
-			elsiocb->iocb.ulpIoTag,
+			"%d:0128 Xmit ELS ACC response tag x%x, XRI: x%x, "
+			"DID: x%x, nlp_flag: x%x nlp_state: x%x RPI: x%x\n",
+			phba->brd_no, elsiocb->iotag,
 			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
 			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
 
@@ -3363,7 +3362,7 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 		els_command = *elscmd;
 
 		list_del(&piocb->list);
-		pring->txcmplq_cnt--;
+		pring->txq_cnt--;
 
 		cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
 		cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;

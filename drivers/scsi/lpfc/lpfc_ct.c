@@ -342,9 +342,10 @@ lpfc_ns_rsp(struct lpfc_hba * phba, struct lpfc_dmabuf * mp, uint32_t Size)
 
 		Size -= Cnt;
 
-		if (!ctptr)
+		if (!ctptr) {
+			Cnt = FCELSSIZE;
 			ctptr = (uint32_t *) mlast->virt;
-		else
+		} else
 			Cnt -= 16;	/* subtract length of CT header */
 
 		/* Loop through entire NameServer list of DIDs */

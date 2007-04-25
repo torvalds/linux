@@ -693,25 +693,8 @@ lpfc_sli_handle_mb_event(struct lpfc_hba * phba)
 		} else {
 			spin_unlock_irq(phba->host->host_lock);
 			/* Turn on IOCB processing */
-			for (i = 0; i < phba->sli.num_rings; i++) {
+			for (i = 0; i < phba->sli.num_rings; i++)
 				lpfc_sli_turn_on_ring(phba, i);
-			}
-
-			/* Free any lpfc_dmabuf's waiting for mbox cmd cmpls */
-			while (!list_empty(&phba->freebufList)) {
-				struct lpfc_dmabuf *mp;
-
-				mp = NULL;
-				list_remove_head((&phba->freebufList),
-						 mp,
-						 struct lpfc_dmabuf,
-						 list);
-				if (mp) {
-					lpfc_mbuf_free(phba, mp->virt,
-						       mp->phys);
-					kfree(mp);
-				}
-			}
 		}
 
 	} while (process_next);
@@ -1985,42 +1968,6 @@ lpfc_sli_hba_setup_exit:
 	return rc;
 }
 
-static void
-lpfc_mbox_abort(struct lpfc_hba * phba)
-{
-	LPFC_MBOXQ_t *pmbox;
-	MAILBOX_t *mb;
-
-	if (phba->sli.mbox_active) {
-		del_timer_sync(&phba->sli.mbox_tmo);
-		phba->work_hba_events &= ~WORKER_MBOX_TMO;
-		pmbox = phba->sli.mbox_active;
-		mb = &pmbox->mb;
-		phba->sli.mbox_active = NULL;
-		if (pmbox->mbox_cmpl) {
-			mb->mbxStatus = MBX_NOT_FINISHED;
-			(pmbox->mbox_cmpl) (phba, pmbox);
-		}
-		phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
-	}
-
-	/* Abort all the non active mailbox commands. */
-	spin_lock_irq(phba->host->host_lock);
-	pmbox = lpfc_mbox_get(phba);
-	while (pmbox) {
-		mb = &pmbox->mb;
-		if (pmbox->mbox_cmpl) {
-			mb->mbxStatus = MBX_NOT_FINISHED;
-			spin_unlock_irq(phba->host->host_lock);
-			(pmbox->mbox_cmpl) (phba, pmbox);
-			spin_lock_irq(phba->host->host_lock);
-		}
-		pmbox = lpfc_mbox_get(phba);
-	}
-	spin_unlock_irq(phba->host->host_lock);
-	return;
-}
-
 /*! lpfc_mbox_timeout
  *
  * \pre
@@ -2055,14 +2002,14 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *pmbox;
 	MAILBOX_t *mb;
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring *pring;
 
 	spin_lock_irq(phba->host->host_lock);
 	if (!(phba->work_hba_events & WORKER_MBOX_TMO)) {
 		spin_unlock_irq(phba->host->host_lock);
 		return;
 	}
-
-	phba->work_hba_events &= ~WORKER_MBOX_TMO;
 
 	pmbox = phba->sli.mbox_active;
 	mb = &pmbox->mb;
@@ -2078,17 +2025,32 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 		phba->sli.sli_flag,
 		phba->sli.mbox_active);
 
-	phba->sli.mbox_active = NULL;
-	if (pmbox->mbox_cmpl) {
-		mb->mbxStatus = MBX_NOT_FINISHED;
-		spin_unlock_irq(phba->host->host_lock);
-		(pmbox->mbox_cmpl) (phba, pmbox);
-		spin_lock_irq(phba->host->host_lock);
-	}
-	phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
-
+	/* Setting state unknown so lpfc_sli_abort_iocb_ring
+	 * would get IOCB_ERROR from lpfc_sli_issue_iocb, allowing
+	 * it to fail all oustanding SCSI IO.
+	 */
+	phba->hba_state = LPFC_STATE_UNKNOWN;
+	phba->work_hba_events &= ~WORKER_MBOX_TMO;
+	phba->fc_flag |= FC_ESTABLISH_LINK;
+	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
 	spin_unlock_irq(phba->host->host_lock);
-	lpfc_mbox_abort(phba);
+
+	pring = &psli->ring[psli->fcp_ring];
+	lpfc_sli_abort_iocb_ring(phba, pring);
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			"%d:0316 Resetting board due to mailbox timeout\n",
+			phba->brd_no);
+	/*
+	 * lpfc_offline calls lpfc_sli_hba_down which will clean up
+	 * on oustanding mailbox commands.
+	 */
+	lpfc_offline_prep(phba);
+	lpfc_offline(phba);
+	lpfc_sli_brdrestart(phba);
+	if (lpfc_online(phba) == 0)		/* Initialize the HBA */
+		mod_timer(&phba->fc_estabtmo, jiffies + HZ * 60);
+	lpfc_unblock_mgmt_io(phba);
 	return;
 }
 
@@ -2320,9 +2282,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 			spin_unlock_irqrestore(phba->host->host_lock,
 					       drvr_flag);
 
-			/* Can be in interrupt context, do not sleep */
-			/* (or might be called with interrupts disabled) */
-			mdelay(1);
+			msleep(1);
 
 			spin_lock_irqsave(phba->host->host_lock, drvr_flag);
 

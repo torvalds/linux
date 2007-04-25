@@ -1227,11 +1227,11 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
 	int rc;
 
-	if (off > sizeof(MAILBOX_t))
+	if (off > MAILBOX_CMD_SIZE)
 		return -ERANGE;
 
-	if ((count + off) > sizeof(MAILBOX_t))
-		count = sizeof(MAILBOX_t) - off;
+	if ((count + off) > MAILBOX_CMD_SIZE)
+		count = MAILBOX_CMD_SIZE - off;
 
 	if (off % 4 ||  count % 4 || (unsigned long)buf % 4)
 		return -EINVAL;
@@ -1326,6 +1326,11 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		}
 
 		if (rc != MBX_SUCCESS) {
+			if (rc == MBX_TIMEOUT) {
+				phba->sysfs_mbox.mbox->mbox_cmpl =
+					lpfc_sli_def_mbox_cmpl;
+				phba->sysfs_mbox.mbox = NULL;
+			}
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(host->host_lock);
 			return  (rc == MBX_TIMEOUT) ? -ETIME : -ENODEV;
@@ -1344,7 +1349,7 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 
 	phba->sysfs_mbox.offset = off + count;
 
-	if (phba->sysfs_mbox.offset == sizeof(MAILBOX_t))
+	if (phba->sysfs_mbox.offset == MAILBOX_CMD_SIZE)
 		sysfs_mbox_idle(phba);
 
 	spin_unlock_irq(phba->host->host_lock);
@@ -1358,7 +1363,7 @@ static struct bin_attribute sysfs_mbox_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 		.owner = THIS_MODULE,
 	},
-	.size = sizeof(MAILBOX_t),
+	.size = MAILBOX_CMD_SIZE,
 	.read = sysfs_mbox_read,
 	.write = sysfs_mbox_write,
 };
@@ -1631,6 +1636,8 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	else
 		hs->seconds_since_last_reset = seconds - psli->stats_start;
 
+	mempool_free(pmboxq, phba->mbox_mem_pool);
+
 	return hs;
 }
 
@@ -1698,6 +1705,8 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	lso->link_events = (phba->fc_eventTag >> 1);
 
 	psli->stats_start = get_seconds();
+
+	mempool_free(pmboxq, phba->mbox_mem_pool);
 
 	return;
 }

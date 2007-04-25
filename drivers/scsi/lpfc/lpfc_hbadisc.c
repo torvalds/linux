@@ -147,11 +147,14 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 				ndlp->nlp_state, ndlp->nlp_rpi);
 	}
 
-	ndlp->rport = NULL;
-	rdata->pnode = NULL;
-
-	if (!(phba->fc_flag & FC_UNLOADING))
+	if (!(phba->fc_flag & FC_UNLOADING) &&
+	    !(ndlp->nlp_flag & NLP_DELAY_TMO) &&
+	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC))
 		lpfc_disc_state_machine(phba, ndlp, NULL, NLP_EVT_DEVICE_RM);
+	else {
+		rdata->pnode = NULL;
+		ndlp->rport = NULL;
+	}
 
 	return;
 }
@@ -1569,16 +1572,6 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 
 	lpfc_nlp_list(phba, ndlp, NLP_JUST_DQ);
 
-	/*
-	 * if unloading the driver - just leave the remote port in place.
-	 * The driver unload will force the attached devices to detach
-	 * and flush cache's w/o generating flush errors.
-	 */
-	if ((ndlp->rport) && !(phba->fc_flag & FC_UNLOADING)) {
-		lpfc_unregister_remote_port(phba, ndlp);
-		ndlp->nlp_sid = NLP_NO_SID;
-	}
-
 	/* cleanup any ndlp on mbox q waiting for reglogin cmpl */
 	if ((mb = phba->sli.mbox_active)) {
 		if ((mb->mb.mbxCommand == MBX_REG_LOGIN64) &&
@@ -1627,6 +1620,7 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 int
 lpfc_nlp_remove(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 {
+	struct lpfc_rport_data *rdata;
 
 	if (ndlp->nlp_flag & NLP_DELAY_TMO) {
 		lpfc_cancel_retry_delay_tmo(phba, ndlp);
@@ -1638,6 +1632,13 @@ lpfc_nlp_remove(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 		spin_unlock_irq(phba->host->host_lock);
 	} else {
 		lpfc_freenode(phba, ndlp);
+
+		if ((ndlp->rport) && !(phba->fc_flag & FC_UNLOADING)) {
+			rdata = ndlp->rport->dd_data;
+			rdata->pnode = NULL;
+			ndlp->rport = NULL;
+		}
+
 		mempool_free( ndlp, phba->nlp_mem_pool);
 	}
 	return 0;

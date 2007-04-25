@@ -386,8 +386,7 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	 * Setup the ring 0 (els)  timeout handler
 	 */
 	timeout = phba->fc_ratov << 1;
-	phba->els_tmofunc.expires = jiffies + HZ * timeout;
-	add_timer(&phba->els_tmofunc);
+	mod_timer(&phba->els_tmofunc, jiffies + HZ * timeout);
 
 	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -633,7 +632,7 @@ lpfc_handle_latt_free_mbuf:
 lpfc_handle_latt_free_mp:
 	kfree(mp);
 lpfc_handle_latt_free_pmb:
-	kfree(pmb);
+	mempool_free(pmb, phba->mbox_mem_pool);
 lpfc_handle_latt_err_exit:
 	/* Enable Link attention interrupts */
 	spin_lock_irq(phba->host->host_lock);
@@ -1174,7 +1173,7 @@ lpfc_hba_init(struct lpfc_hba *phba, uint32_t *hbainit)
 }
 
 static void
-lpfc_cleanup(struct lpfc_hba * phba, uint32_t save_bind)
+lpfc_cleanup(struct lpfc_hba * phba)
 {
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 
@@ -1262,21 +1261,6 @@ lpfc_stop_timer(struct lpfc_hba * phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
 
-	/* Instead of a timer, this has been converted to a
-	 * deferred procedding list.
-	 */
-	while (!list_empty(&phba->freebufList)) {
-
-		struct lpfc_dmabuf *mp = NULL;
-
-		list_remove_head((&phba->freebufList), mp,
-				 struct lpfc_dmabuf, list);
-		if (mp) {
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
-		}
-	}
-
 	del_timer_sync(&phba->fcp_poll_timer);
 	del_timer_sync(&phba->fc_estabtmo);
 	del_timer_sync(&phba->fc_disctmo);
@@ -1339,7 +1323,7 @@ lpfc_offline(struct lpfc_hba * phba)
 		pring = &psli->ring[i];
 		/* The linkdown event takes 30 seconds to timeout. */
 		while (pring->txcmplq_cnt) {
-			mdelay(10);
+			msleep(10);
 			if (cnt++ > 3000) {
 				lpfc_printf_log(phba,
 					KERN_WARNING, LOG_INIT,
@@ -1366,7 +1350,7 @@ lpfc_offline(struct lpfc_hba * phba)
 	/* Bring down the SLI Layer and cleanup.  The HBA is offline
 	   now.  */
 	lpfc_sli_hba_down(phba);
-	lpfc_cleanup(phba, 1);
+	lpfc_cleanup(phba);
 	spin_lock_irqsave(phba->host->host_lock, iflag);
 	phba->fc_flag |= FC_OFFLINE_MODE;
 	spin_unlock_irqrestore(phba->host->host_lock, iflag);
@@ -1445,9 +1429,6 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_put_host;
 
 	host->unique_id = phba->brd_no;
-	INIT_LIST_HEAD(&phba->ctrspbuflist);
-	INIT_LIST_HEAD(&phba->rnidrspbuflist);
-	INIT_LIST_HEAD(&phba->freebufList);
 
 	/* Initialize timers used by driver */
 	init_timer(&phba->fc_estabtmo);
@@ -1773,7 +1754,7 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	free_irq(phba->pcidev->irq, phba);
 	pci_disable_msi(phba->pcidev);
 
-	lpfc_cleanup(phba, 0);
+	lpfc_cleanup(phba);
 	lpfc_stop_timer(phba);
 	phba->work_hba_events = 0;
 

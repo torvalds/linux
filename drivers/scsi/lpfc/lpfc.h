@@ -387,9 +387,6 @@ struct lpfc_hba {
 
 	mempool_t *mbox_mem_pool;
 	mempool_t *nlp_mem_pool;
-	struct list_head freebufList;
-	struct list_head ctrspbuflist;
-	struct list_head rnidrspbuflist;
 
 	struct fc_host_statistics link_stats;
 };
