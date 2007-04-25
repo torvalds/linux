@@ -22,8 +22,8 @@ static int __init nvidia_hpet_check(struct acpi_table_header *header)
 
 static int __init check_bridge(int vendor, int device)
 {
-	static int warned;
 #ifdef CONFIG_ACPI
+	static int warned;
 	/* According to Nvidia all timer overrides are bogus unless HPET
 	   is enabled. */
 	if (!acpi_use_timer_override && vendor == PCI_VENDOR_ID_NVIDIA) {
