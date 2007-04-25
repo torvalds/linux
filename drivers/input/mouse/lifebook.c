@@ -84,6 +84,14 @@ static struct dmi_system_id lifebook_dmi_table[] = {
 		.callback = lifebook_set_6byte_proto,
 	},
 	{
+		.ident = "Panasonic CF-29",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Matsushita"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CF-29"),
+		},
+		.callback = lifebook_set_6byte_proto,
+	},
+	{
 		.ident = "Lifebook B142",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B142"),
