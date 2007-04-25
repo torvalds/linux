@@ -18,6 +18,8 @@
  * included with this package.                                     *
  *******************************************************************/
 
+typedef int (*node_filter)(struct lpfc_nodelist *ndlp, void *param);
+
 struct fc_rport;
 void lpfc_dump_mem(struct lpfc_hba *, LPFC_MBOXQ_t *, uint16_t);
 void lpfc_read_nv(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -178,9 +180,8 @@ int lpfc_sli_abort_iocb(struct lpfc_hba *, struct lpfc_sli_ring *, uint16_t,
 void lpfc_mbox_timeout(unsigned long);
 void lpfc_mbox_timeout_handler(struct lpfc_hba *);
 
-struct lpfc_nodelist *lpfc_findnode_did(struct lpfc_hba *, uint32_t, uint32_t);
-struct lpfc_nodelist *lpfc_findnode_wwpn(struct lpfc_hba *, uint32_t,
-					struct lpfc_name *);
+struct lpfc_nodelist *lpfc_findnode_did(struct lpfc_hba *, uint32_t);
+struct lpfc_nodelist *lpfc_findnode_wwpn(struct lpfc_hba *, struct lpfc_name *);
 
 int lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 			 uint32_t timeout);

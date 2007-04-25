@@ -1175,10 +1175,12 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	 * fail, this routine returns failure to the midlayer.
 	 */
 	for (i = 0; i < LPFC_MAX_TARGET; i++) {
-		/* Search the mapped list for this target ID */
+		/* Search for mapped node by target ID */
 		match = 0;
-		list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
-			if ((i == ndlp->nlp_sid) && ndlp->rport) {
+		list_for_each_entry(ndlp, &phba->fc_nodes, nlp_listp) {
+			if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
+			    i == ndlp->nlp_sid &&
+			    ndlp->rport) {
 				match = 1;
 				break;
 			}

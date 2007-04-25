@@ -443,10 +443,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		if (phba->fc_ns_retry < LPFC_MAX_NS_RETRY) {
 			phba->fc_ns_retry++;
 			/* CT command is being retried */
-			ndlp =
-			    lpfc_findnode_did(phba, NLP_SEARCH_UNMAPPED,
-					      NameServer_DID);
-			if (ndlp) {
+			ndlp = lpfc_findnode_did(phba, NameServer_DID);
+			if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 				if (lpfc_ns_cmd(phba, ndlp, SLI_CTNS_GID_FT) ==
 				    0) {
 					goto out;
@@ -730,7 +728,7 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba * phba,
 	uint16_t fdmi_cmd = CTcmd->CommandResponse.bits.CmdRsp;
 	uint16_t fdmi_rsp = CTrsp->CommandResponse.bits.CmdRsp;
 
-	ndlp = lpfc_findnode_did(phba, NLP_SEARCH_ALL, FDMI_DID);
+	ndlp = lpfc_findnode_did(phba, FDMI_DID);
 	if (fdmi_rsp == be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
 		/* FDMI rsp failed */
 		lpfc_printf_log(phba,
@@ -1162,7 +1160,7 @@ lpfc_fdmi_tmo_handler(struct lpfc_hba *phba)
 {
 	struct lpfc_nodelist *ndlp;
 
-	ndlp = lpfc_findnode_did(phba, NLP_SEARCH_ALL, FDMI_DID);
+	ndlp = lpfc_findnode_did(phba, FDMI_DID);
 	if (ndlp) {
 		if (init_utsname()->nodename[0] != '\0') {
 			lpfc_fdmi_cmd(phba, ndlp, SLI_MGMT_DHBA);

@@ -255,17 +255,7 @@ struct lpfc_hba {
 
 	struct lpfc_stats fc_stat;
 
-	/* These are the head/tail pointers for the bind, plogi, adisc, unmap,
-	 *  and map lists.  Their counters are immediately following.
-	 */
-	struct list_head fc_plogi_list;
-	struct list_head fc_adisc_list;
-	struct list_head fc_reglogin_list;
-	struct list_head fc_prli_list;
-	struct list_head fc_nlpunmap_list;
-	struct list_head fc_nlpmap_list;
-	struct list_head fc_npr_list;
-	struct list_head fc_unused_list;
+	struct list_head fc_nodes;
 
 	/* Keep counters for the number of entries in each list. */
 	uint16_t fc_plogi_cnt;

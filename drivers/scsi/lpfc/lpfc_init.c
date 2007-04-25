@@ -1185,63 +1185,11 @@ lpfc_cleanup(struct lpfc_hba * phba)
 
 	/* clean up phba - lpfc specific */
 	lpfc_can_disctmo(phba);
-	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_nlpunmap_list,
-				nlp_listp) {
+	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_nodes, nlp_listp)
 		lpfc_nlp_put(ndlp);
-	}
 
-	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_nlpmap_list,
-				 nlp_listp) {
-		lpfc_nlp_put(ndlp);
-	}
+	INIT_LIST_HEAD(&phba->fc_nodes);
 
-	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_unused_list,
-				nlp_listp) {
-		lpfc_drop_node(phba, ndlp);
-	}
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_plogi_list,
-				nlp_listp) {
-		lpfc_nlp_put(ndlp);
-	}
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_adisc_list,
-				nlp_listp) {
-		lpfc_nlp_put(ndlp);
-	}
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_reglogin_list,
-				nlp_listp) {
-		lpfc_nlp_put(ndlp);
-	}
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_prli_list,
-				nlp_listp) {
-		lpfc_nlp_put(ndlp);
-	}
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_npr_list,
-				nlp_listp) {
-		lpfc_nlp_put(ndlp);
-	}
-
-	INIT_LIST_HEAD(&phba->fc_nlpmap_list);
-	INIT_LIST_HEAD(&phba->fc_nlpunmap_list);
-	INIT_LIST_HEAD(&phba->fc_unused_list);
-	INIT_LIST_HEAD(&phba->fc_plogi_list);
-	INIT_LIST_HEAD(&phba->fc_adisc_list);
-	INIT_LIST_HEAD(&phba->fc_reglogin_list);
-	INIT_LIST_HEAD(&phba->fc_prli_list);
-	INIT_LIST_HEAD(&phba->fc_npr_list);
-
-	phba->fc_map_cnt   = 0;
-	phba->fc_unmap_cnt = 0;
-	phba->fc_plogi_cnt = 0;
-	phba->fc_adisc_cnt = 0;
-	phba->fc_reglogin_cnt = 0;
-	phba->fc_prli_cnt  = 0;
-	phba->fc_npr_cnt   = 0;
-	phba->fc_unused_cnt= 0;
 	return;
 }
 
@@ -1336,8 +1284,6 @@ void
 lpfc_offline_prep(struct lpfc_hba * phba)
 {
 	struct lpfc_nodelist  *ndlp, *next_ndlp;
-	struct list_head *listp, *node_list[7];
-	int i;
 
 	if (phba->fc_flag & FC_OFFLINE_MODE)
 		return;
@@ -1347,21 +1293,9 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 	lpfc_linkdown(phba);
 
 	/* Issue an unreg_login to all nodes */
-	node_list[0] = &phba->fc_npr_list;  /* MUST do this list first */
-	node_list[1] = &phba->fc_nlpmap_list;
-	node_list[2] = &phba->fc_nlpunmap_list;
-	node_list[3] = &phba->fc_prli_list;
-	node_list[4] = &phba->fc_reglogin_list;
-	node_list[5] = &phba->fc_adisc_list;
-	node_list[6] = &phba->fc_plogi_list;
-	for (i = 0; i < 7; i++) {
-		listp = node_list[i];
-		if (list_empty(listp))
-			continue;
-
-		list_for_each_entry_safe(ndlp, next_ndlp, listp, nlp_listp)
+	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_nodes, nlp_listp)
+		if (ndlp->nlp_state != NLP_STE_UNUSED_NODE)
 			lpfc_unreg_rpi(phba, ndlp);
-	}
 
 	lpfc_sli_flush_mbox_queue(phba);
 }
@@ -1500,15 +1434,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	host->max_lun = phba->cfg_max_luns;
 	host->this_id = -1;
 
-	/* Initialize all internally managed lists. */
-	INIT_LIST_HEAD(&phba->fc_nlpmap_list);
-	INIT_LIST_HEAD(&phba->fc_nlpunmap_list);
-	INIT_LIST_HEAD(&phba->fc_unused_list);
-	INIT_LIST_HEAD(&phba->fc_plogi_list);
-	INIT_LIST_HEAD(&phba->fc_adisc_list);
-	INIT_LIST_HEAD(&phba->fc_reglogin_list);
-	INIT_LIST_HEAD(&phba->fc_prli_list);
-	INIT_LIST_HEAD(&phba->fc_npr_list);
+	INIT_LIST_HEAD(&phba->fc_nodes);
 
 	pci_set_master(pdev);
 	retval = pci_set_mwi(pdev);

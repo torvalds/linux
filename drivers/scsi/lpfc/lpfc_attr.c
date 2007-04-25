@@ -1781,67 +1781,51 @@ lpfc_reset_stats(struct Scsi_Host *shost)
  * The LPFC driver treats linkdown handling as target loss events so there
  * are no sysfs handlers for link_down_tmo.
  */
-static void
-lpfc_get_starget_port_id(struct scsi_target *starget)
+
+static struct lpfc_nodelist *
+lpfc_get_node_by_target(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata;
-	uint32_t did = -1;
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_nodelist *ndlp;
 
 	spin_lock_irq(shost->host_lock);
-	/* Search the mapped list for this target ID */
-	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
-		if (starget->id == ndlp->nlp_sid) {
-			did = ndlp->nlp_DID;
-			break;
+	/* Search for this, mapped, target ID */
+	list_for_each_entry(ndlp, &phba->fc_nodes, nlp_listp) {
+		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
+		    starget->id == ndlp->nlp_sid) {
+			spin_unlock_irq(shost->host_lock);
+			return ndlp;
 		}
 	}
 	spin_unlock_irq(shost->host_lock);
+	return NULL;
+}
 
-	fc_starget_port_id(starget) = did;
+static void
+lpfc_get_starget_port_id(struct scsi_target *starget)
+{
+	struct lpfc_nodelist *ndlp = lpfc_get_node_by_target(starget);
+
+	fc_starget_port_id(starget) = ndlp ? ndlp->nlp_DID : -1;
 }
 
 static void
 lpfc_get_starget_node_name(struct scsi_target *starget)
 {
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata;
-	u64 node_name = 0;
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_nodelist *ndlp = lpfc_get_node_by_target(starget);
 
-	spin_lock_irq(shost->host_lock);
-	/* Search the mapped list for this target ID */
-	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
-		if (starget->id == ndlp->nlp_sid) {
-			node_name = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
-			break;
-		}
-	}
-	spin_unlock_irq(shost->host_lock);
-
-	fc_starget_node_name(starget) = node_name;
+	fc_starget_node_name(starget) =
+		ndlp ? wwn_to_u64(ndlp->nlp_nodename.u.wwn) : 0;
 }
 
 static void
 lpfc_get_starget_port_name(struct scsi_target *starget)
 {
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata;
-	u64 port_name = 0;
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_nodelist *ndlp = lpfc_get_node_by_target(starget);
 
-	spin_lock_irq(shost->host_lock);
-	/* Search the mapped list for this target ID */
-	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
-		if (starget->id == ndlp->nlp_sid) {
-			port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
-			break;
-		}
-	}
-	spin_unlock_irq(shost->host_lock);
-
-	fc_starget_port_name(starget) = port_name;
+	fc_starget_port_name(starget) =
+		ndlp ? wwn_to_u64(ndlp->nlp_portname.u.wwn) : 0;
 }
 
 static void
