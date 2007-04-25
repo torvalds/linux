@@ -1,4 +1,10 @@
-Verison 1.48
+Version 1.49
+------------
+IPv6 support.  Enable ipv6 addresses to be passed on mount (put the ipv6
+address after the "ip=" mount option, at least until mount.cifs is fixed to
+handle DNS host to ipv6 name translation).
+
+Version 1.48
 ------------
 Fix mtime bouncing around from local idea of last write times to remote time.
 Fix hang (in i_size_read) when simultaneous size update of same remote file

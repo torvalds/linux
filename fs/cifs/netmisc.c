@@ -30,6 +30,9 @@
 #include <linux/fs.h>
 #include <asm/div64.h>
 #include <asm/byteorder.h>
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+#include <linux/inet.h>
+#endif
 #include "cifsfs.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
@@ -129,11 +132,27 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 /* Convert string containing dotted ip address to binary form */
 /* returns 0 if invalid address */
 
-/* BB add address family, change rc to status flag and return union or for ipv6 */
-/*  will need parent to call something like inet_pton to convert ipv6 address  BB */
 int
 cifs_inet_pton(int address_family, char *cp,void *dst)
 {
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	int ret = 0;
+
+	/* calculate length by finding first slash or NULL */
+	/* BB Should we convert '/' slash to '\' here since it seems already done
+	   before this */
+	if( address_family == AF_INET ){
+		ret = in4_pton(cp, -1 /* len */, dst , '\\', NULL);	
+	} else if( address_family == AF_INET6 ){
+		ret = in6_pton(cp, -1 /* len */, dst , '\\', NULL);
+	}
+#ifdef CONFIG_CIFS_DEBUG2
+	cFYI(1,("address conversion returned %d for %s", ret, cp));
+#endif
+	if (ret > 0)
+		ret = 1;
+	return ret;
+#else
 	int value;
 	int digit;
 	int i;
@@ -192,6 +211,7 @@ cifs_inet_pton(int address_family, char *cp,void *dst)
 
 	*((__be32 *)dst) = *((__be32 *) bytes) | htonl(value);
 	return 1; /* success */
+#endif /* EXPERIMENTAL */	
 }
 
 /*****************************************************************************

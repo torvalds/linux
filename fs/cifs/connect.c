@@ -1790,11 +1790,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		existingCifsSes = cifs_find_tcp_session(&sin_server.sin_addr,
 			NULL /* no ipv6 addr */,
 			volume_info.username, &srvTcp);
-	else if(address_type == AF_INET6)
+	else if(address_type == AF_INET6) {
+		cFYI(1,("looking for ipv6 address"));
 		existingCifsSes = cifs_find_tcp_session(NULL /* no ipv4 addr */,
 			&sin_server6.sin6_addr,
 			volume_info.username, &srvTcp);
-	else {
+	} else {
 		kfree(volume_info.UNC);
 		kfree(volume_info.password);
 		kfree(volume_info.prepath);
@@ -1810,12 +1811,18 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			sin_server.sin_port = htons(volume_info.port);
 		else
 			sin_server.sin_port = 0;
-		rc = ipv4_connect(&sin_server,&csocket,
+		if (address_type == AF_INET6) {
+			cFYI(1,("attempting ipv6 connect"));
+			/* BB should we allow ipv6 on port 139? */
+			/* other OS never observed in Wild doing 139 with v6 */
+			rc = ipv6_connect(&sin_server6,&csocket);
+		} else 
+			rc = ipv4_connect(&sin_server,&csocket,
 				  volume_info.source_rfc1001_name,
 				  volume_info.target_rfc1001_name);
 		if (rc < 0) {
 			cERROR(1,
-			       ("Error connecting to IPv4 socket. Aborting operation"));
+			       ("Error connecting to IPv4 socket. Aborting operation"));			       
 			if(csocket != NULL)
 				sock_release(csocket);
 			kfree(volume_info.UNC);
