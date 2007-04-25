@@ -532,6 +532,12 @@ static void cfq_add_rq_rb(struct request *rq)
 
 	if (!cfq_cfqq_on_rr(cfqq))
 		cfq_add_cfqq_rr(cfqd, cfqq);
+
+	/*
+	 * check if this request is a better next-serve candidate
+	 */
+	cfqq->next_rq = cfq_choose_req(cfqd, cfqq->next_rq, rq);
+	BUG_ON(!cfqq->next_rq);
 }
 
 static inline void
@@ -1637,12 +1643,6 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 
 	if (rq_is_meta(rq))
 		cfqq->meta_pending++;
-
-	/*
-	 * check if this request is a better next-serve candidate)) {
-	 */
-	cfqq->next_rq = cfq_choose_req(cfqd, cfqq->next_rq, rq);
-	BUG_ON(!cfqq->next_rq);
 
 	/*
 	 * we never wait for an async request and we don't allow preemption
