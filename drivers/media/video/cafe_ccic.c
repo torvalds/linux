@@ -2216,7 +2216,11 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 	ret = pci_restore_state(pdev);
 	if (ret)
 		return ret;
-	pci_enable_device(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret) {
+		cam_warn(cam, "Unable to re-enable device on resume!\n");
+		return ret;
+	}
 	cafe_ctlr_init(cam);
 	cafe_ctlr_power_up(cam);
 	set_bit(CF_CONFIG_NEEDED, &cam->flags);
