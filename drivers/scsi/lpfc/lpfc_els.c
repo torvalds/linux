@@ -3272,9 +3272,7 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 
 		if (cmd->ulpCommand == CMD_GEN_REQUEST64_CR) {
 			struct lpfc_nodelist *ndlp;
-			spin_unlock_irq(phba->host->host_lock);
-			ndlp = lpfc_findnode_rpi(phba, cmd->ulpContext);
-			spin_lock_irq(phba->host->host_lock);
+			ndlp = __lpfc_findnode_rpi(phba, cmd->ulpContext);
 			remote_ID = ndlp->nlp_DID;
 		} else {
 			remote_ID = cmd->un.elsreq64.remoteID;
@@ -3298,6 +3296,7 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 void
 lpfc_els_flush_cmd(struct lpfc_hba * phba)
 {
+	LIST_HEAD(completions);
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *tmp_iocb, *piocb;
 	IOCB_t *cmd = NULL;
@@ -3319,18 +3318,9 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 			continue;
 		}
 
-		list_del(&piocb->list);
+		list_move_tail(&piocb->list, &completions);
 		pring->txq_cnt--;
 
-		cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-		cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-
-		if (piocb->iocb_cmpl) {
-			spin_unlock_irq(phba->host->host_lock);
-			(piocb->iocb_cmpl) (phba, piocb, piocb);
-			spin_lock_irq(phba->host->host_lock);
-		} else
-			lpfc_sli_release_iocbq(phba, piocb);
 	}
 
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
@@ -3343,6 +3333,20 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
 	}
 	spin_unlock_irq(phba->host->host_lock);
+
+	while(!list_empty(&completions)) {
+		piocb = list_get_first(&completions, struct lpfc_iocbq, list);
+		cmd = &piocb->iocb;
+		list_del(&piocb->list);
+
+		if (piocb->iocb_cmpl) {
+			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
+			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
+			(piocb->iocb_cmpl) (phba, piocb, piocb);
+		} else
+			lpfc_sli_release_iocbq(phba, piocb);
+	}
+
 	return;
 }
 

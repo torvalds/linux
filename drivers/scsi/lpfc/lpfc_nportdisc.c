@@ -170,11 +170,11 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba * phba,
 int
 lpfc_els_abort(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 {
+	LIST_HEAD(completions);
 	struct lpfc_sli *psli;
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *iocb, *next_iocb;
-	IOCB_t *icmd;
-	int    found = 0;
+	IOCB_t *cmd;
 
 	/* Abort outstanding I/O on NPort <nlp_DID> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
@@ -187,44 +187,39 @@ lpfc_els_abort(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 	pring = &psli->ring[LPFC_ELS_RING];
 
 	/* First check the txq */
-	do {
-		found = 0;
-		spin_lock_irq(phba->host->host_lock);
-		list_for_each_entry_safe(iocb, next_iocb, &pring->txq, list) {
-			/* Check to see if iocb matches the nport we are looking
-			   for */
-			if ((lpfc_check_sli_ndlp(phba, pring, iocb, ndlp))) {
-				found = 1;
-				/* It matches, so deque and call compl with an
-				   error */
-				list_del(&iocb->list);
-				pring->txq_cnt--;
-				if (iocb->iocb_cmpl) {
-					icmd = &iocb->iocb;
-					icmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-					icmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-					spin_unlock_irq(phba->host->host_lock);
-					(iocb->iocb_cmpl) (phba, iocb, iocb);
-					spin_lock_irq(phba->host->host_lock);
-				} else
-					lpfc_sli_release_iocbq(phba, iocb);
-				break;
-			}
+	spin_lock_irq(phba->host->host_lock);
+	list_for_each_entry_safe(iocb, next_iocb, &pring->txq, list) {
+		/* Check to see if iocb matches the nport we are looking
+		   for */
+		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp)) {
+			/* It matches, so deque and call compl with an
+			   error */
+			list_move_tail(&iocb->list, &completions);
+			pring->txq_cnt--;
 		}
-		spin_unlock_irq(phba->host->host_lock);
-	} while (found);
+	}
 
 	/* Next check the txcmplq */
-	spin_lock_irq(phba->host->host_lock);
 	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
 		/* Check to see if iocb matches the nport we are looking
 		   for */
-		if ((lpfc_check_sli_ndlp (phba, pring, iocb, ndlp))) {
-			icmd = &iocb->iocb;
+		if (lpfc_check_sli_ndlp(phba, pring, iocb, ndlp))
 			lpfc_sli_issue_abort_iotag(phba, pring, iocb);
-		}
 	}
 	spin_unlock_irq(phba->host->host_lock);
+
+	while (!list_empty(&completions)) {
+		iocb = list_get_first(&completions, struct lpfc_iocbq, list);
+		cmd = &iocb->iocb;
+		list_del(&iocb->list);
+
+		if (iocb->iocb_cmpl) {
+			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
+			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
+			(iocb->iocb_cmpl) (phba, iocb, iocb);
+		} else
+			lpfc_sli_release_iocbq(phba, iocb);
+	}
 
 	/* If we are delaying issuing an ELS command, cancel it */
 	if (ndlp->nlp_flag & NLP_DELAY_TMO)

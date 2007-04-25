@@ -1473,6 +1473,7 @@ lpfc_check_sli_ndlp(struct lpfc_hba * phba,
 static int
 lpfc_no_rpi(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 {
+	LIST_HEAD(completions);
 	struct lpfc_sli *psli;
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *iocb, *next_iocb;
@@ -1501,29 +1502,29 @@ lpfc_no_rpi(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 				     (phba, pring, iocb, ndlp))) {
 					/* It matches, so deque and call compl
 					   with an error */
-					list_del(&iocb->list);
+					list_move_tail(&iocb->list,
+						       &completions);
 					pring->txq_cnt--;
-					if (iocb->iocb_cmpl) {
-						icmd = &iocb->iocb;
-						icmd->ulpStatus =
-						    IOSTAT_LOCAL_REJECT;
-						icmd->un.ulpWord[4] =
-						    IOERR_SLI_ABORTED;
-						spin_unlock_irq(phba->host->
-								host_lock);
-						(iocb->iocb_cmpl) (phba,
-								   iocb, iocb);
-						spin_lock_irq(phba->host->
-							      host_lock);
-					} else
-						lpfc_sli_release_iocbq(phba,
-								       iocb);
 				}
 			}
 			spin_unlock_irq(phba->host->host_lock);
 
 		}
 	}
+
+	while (!list_empty(&completions)) {
+		iocb = list_get_first(&completions, struct lpfc_iocbq, list);
+		list_del(&iocb->list);
+
+		if (iocb->iocb_cmpl) {
+			icmd = &iocb->iocb;
+			icmd->ulpStatus = IOSTAT_LOCAL_REJECT;
+			icmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
+			(iocb->iocb_cmpl) (phba, iocb, iocb);
+		} else
+			lpfc_sli_release_iocbq(phba, iocb);
+	}
+
 	return 0;
 }
 
@@ -1951,11 +1952,11 @@ lpfc_disc_start(struct lpfc_hba * phba)
 static void
 lpfc_free_tx(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 {
+	LIST_HEAD(completions);
 	struct lpfc_sli *psli;
 	IOCB_t     *icmd;
 	struct lpfc_iocbq    *iocb, *next_iocb;
 	struct lpfc_sli_ring *pring;
-	struct lpfc_dmabuf   *mp;
 
 	psli = &phba->sli;
 	pring = &psli->ring[LPFC_ELS_RING];
@@ -1963,6 +1964,7 @@ lpfc_free_tx(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 	/* Error matching iocb on txq or txcmplq
 	 * First check the txq.
 	 */
+	spin_lock_irq(phba->host->host_lock);
 	list_for_each_entry_safe(iocb, next_iocb, &pring->txq, list) {
 		if (iocb->context1 != ndlp) {
 			continue;
@@ -1971,9 +1973,8 @@ lpfc_free_tx(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 		if ((icmd->ulpCommand == CMD_ELS_REQUEST64_CR) ||
 		    (icmd->ulpCommand == CMD_XMIT_ELS_RSP64_CX)) {
 
-			list_del(&iocb->list);
+			list_move_tail(&iocb->list, &completions);
 			pring->txq_cnt--;
-			lpfc_els_free_iocb(phba, iocb);
 		}
 	}
 
@@ -1985,43 +1986,22 @@ lpfc_free_tx(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 		icmd = &iocb->iocb;
 		if ((icmd->ulpCommand == CMD_ELS_REQUEST64_CR) ||
 		    (icmd->ulpCommand == CMD_XMIT_ELS_RSP64_CX)) {
-
-			iocb->iocb_cmpl = NULL;
-			/* context2 = cmd, context2->next = rsp, context3 =
-			   bpl */
-			if (iocb->context2) {
-				/* Free the response IOCB before handling the
-				   command. */
-
-				mp = (struct lpfc_dmabuf *) (iocb->context2);
-				mp = list_get_first(&mp->list,
-						    struct lpfc_dmabuf,
-						    list);
-				if (mp) {
-					/* Delay before releasing rsp buffer to
-					 * give UNREG mbox a chance to take
-					 * effect.
-					 */
-					list_add(&mp->list,
-						&phba->freebufList);
-				}
-				lpfc_mbuf_free(phba,
-					       ((struct lpfc_dmabuf *)
-						iocb->context2)->virt,
-					       ((struct lpfc_dmabuf *)
-						iocb->context2)->phys);
-				kfree(iocb->context2);
-			}
-
-			if (iocb->context3) {
-				lpfc_mbuf_free(phba,
-					       ((struct lpfc_dmabuf *)
-						iocb->context3)->virt,
-					       ((struct lpfc_dmabuf *)
-						iocb->context3)->phys);
-				kfree(iocb->context3);
-			}
+			lpfc_sli_issue_abort_iotag(phba, pring, iocb);
 		}
+	}
+	spin_unlock_irq(phba->host->host_lock);
+
+	while (!list_empty(&completions)) {
+		iocb = list_get_first(&completions, struct lpfc_iocbq, list);
+		list_del(&iocb->list);
+
+		if (iocb->iocb_cmpl) {
+			icmd = &iocb->iocb;
+			icmd->ulpStatus = IOSTAT_LOCAL_REJECT;
+			icmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
+			(iocb->iocb_cmpl) (phba, iocb, iocb);
+		} else
+			lpfc_sli_release_iocbq(phba, iocb);
 	}
 
 	return;
@@ -2354,7 +2334,7 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
  * else return NULL.
  */
 struct lpfc_nodelist *
-lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi)
+__lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi)
 {
 	struct lpfc_nodelist *ndlp;
 	struct list_head * lists[]={&phba->fc_nlpunmap_list,
@@ -2364,15 +2344,23 @@ lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi)
 				    &phba->fc_reglogin_list};
 	int i;
 
-	spin_lock_irq(phba->host->host_lock);
 	for (i = 0; i < ARRAY_SIZE(lists); i++ )
 		list_for_each_entry(ndlp, lists[i], nlp_listp)
 			if (ndlp->nlp_rpi == rpi) {
-				spin_unlock_irq(phba->host->host_lock);
 				return ndlp;
 			}
-	spin_unlock_irq(phba->host->host_lock);
 	return NULL;
+}
+
+struct lpfc_nodelist *
+lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi)
+{
+	struct lpfc_nodelist *ndlp;
+
+	spin_lock_irq(phba->host->host_lock);
+	ndlp = __lpfc_findnode_rpi(phba, rpi);
+	spin_unlock_irq(phba->host->host_lock);
+	return ndlp;
 }
 
 /*

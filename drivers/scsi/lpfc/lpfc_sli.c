@@ -1455,8 +1455,9 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 int
 lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
+	LIST_HEAD(completions);
 	struct lpfc_iocbq *iocb, *next_iocb;
-	IOCB_t *icmd = NULL, *cmd = NULL;
+	IOCB_t *cmd = NULL;
 	int errcnt;
 
 	errcnt = 0;
@@ -1465,45 +1466,27 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	 * First do the txq.
 	 */
 	spin_lock_irq(phba->host->host_lock);
-	list_for_each_entry_safe(iocb, next_iocb, &pring->txq, list) {
-		list_del_init(&iocb->list);
-		if (iocb->iocb_cmpl) {
-			icmd = &iocb->iocb;
-			icmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-			icmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-			spin_unlock_irq(phba->host->host_lock);
-			(iocb->iocb_cmpl) (phba, iocb, iocb);
-			spin_lock_irq(phba->host->host_lock);
-		} else
-			lpfc_sli_release_iocbq(phba, iocb);
-	}
+	list_splice_init(&pring->txq, &completions);
 	pring->txq_cnt = 0;
-	INIT_LIST_HEAD(&(pring->txq));
 
 	/* Next issue ABTS for everything on the txcmplq */
-	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
+	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list)
+		lpfc_sli_issue_abort_iotag(phba, pring, iocb);
+
+	spin_unlock_irq(phba->host->host_lock);
+
+	while (!list_empty(&completions)) {
+		iocb = list_get_first(&completions, struct lpfc_iocbq, list);
 		cmd = &iocb->iocb;
-
-		/*
-		 * Imediate abort of IOCB, deque and call compl
-		 */
-
-		list_del_init(&iocb->list);
-		pring->txcmplq_cnt--;
+		list_del(&iocb->list);
 
 		if (iocb->iocb_cmpl) {
 			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
 			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-			spin_unlock_irq(phba->host->host_lock);
 			(iocb->iocb_cmpl) (phba, iocb, iocb);
-			spin_lock_irq(phba->host->host_lock);
 		} else
 			lpfc_sli_release_iocbq(phba, iocb);
 	}
-
-	INIT_LIST_HEAD(&pring->txcmplq);
-	pring->txcmplq_cnt = 0;
-	spin_unlock_irq(phba->host->host_lock);
 
 	return errcnt;
 }
@@ -2605,11 +2588,12 @@ lpfc_sli_queue_setup(struct lpfc_hba * phba)
 int
 lpfc_sli_hba_down(struct lpfc_hba * phba)
 {
+	LIST_HEAD(completions);
 	struct lpfc_sli *psli;
 	struct lpfc_sli_ring *pring;
 	LPFC_MBOXQ_t *pmb;
-	struct lpfc_iocbq *iocb, *next_iocb;
-	IOCB_t *icmd = NULL;
+	struct lpfc_iocbq *iocb;
+	IOCB_t *cmd = NULL;
 	int i;
 	unsigned long flags = 0;
 
@@ -2617,7 +2601,6 @@ lpfc_sli_hba_down(struct lpfc_hba * phba)
 	lpfc_hba_down_prep(phba);
 
 	spin_lock_irqsave(phba->host->host_lock, flags);
-
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
 		pring->flag |= LPFC_DEFERRED_RING_EVENT;
@@ -2626,27 +2609,24 @@ lpfc_sli_hba_down(struct lpfc_hba * phba)
 		 * Error everything on the txq since these iocbs have not been
 		 * given to the FW yet.
 		 */
+		list_splice_init(&pring->txq, &completions);
 		pring->txq_cnt = 0;
 
-		list_for_each_entry_safe(iocb, next_iocb, &pring->txq, list) {
-			list_del_init(&iocb->list);
-			if (iocb->iocb_cmpl) {
-				icmd = &iocb->iocb;
-				icmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-				icmd->un.ulpWord[4] = IOERR_SLI_DOWN;
-				spin_unlock_irqrestore(phba->host->host_lock,
-						       flags);
-				(iocb->iocb_cmpl) (phba, iocb, iocb);
-				spin_lock_irqsave(phba->host->host_lock, flags);
-			} else
-				lpfc_sli_release_iocbq(phba, iocb);
-		}
-
-		INIT_LIST_HEAD(&(pring->txq));
-
 	}
-
 	spin_unlock_irqrestore(phba->host->host_lock, flags);
+
+	while (!list_empty(&completions)) {
+		iocb = list_get_first(&completions, struct lpfc_iocbq, list);
+		cmd = &iocb->iocb;
+		list_del(&iocb->list);
+
+		if (iocb->iocb_cmpl) {
+			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
+			cmd->un.ulpWord[4] = IOERR_SLI_DOWN;
+			(iocb->iocb_cmpl) (phba, iocb, iocb);
+		} else
+			lpfc_sli_release_iocbq(phba, iocb);
+	}
 
 	/* Return any active mbox cmds */
 	del_timer_sync(&psli->mbox_tmo);

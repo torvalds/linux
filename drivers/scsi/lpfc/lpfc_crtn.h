@@ -57,6 +57,7 @@ void lpfc_disc_start(struct lpfc_hba *);
 void lpfc_disc_flush_list(struct lpfc_hba *);
 void lpfc_disc_timeout(unsigned long);
 
+struct lpfc_nodelist *__lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi);
 struct lpfc_nodelist *lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi);
 
 int lpfc_workq_post_event(struct lpfc_hba *, void *, void *, uint32_t);
