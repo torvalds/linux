@@ -518,6 +518,11 @@
 #define FTDI_IBS_PEDO_PID	0xff3e  /* IBS PEDO-Modem (RF modem 868.35 MHz) */
 #define FTDI_IBS_PROD_PID	0xff3f  /* future device */
 
+/*
+ *  MaxStream devices	www.maxstream.net
+ */
+#define FTDI_MAXSTREAM_PID	0xEE18	/* Xbee PKG-U Module */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
