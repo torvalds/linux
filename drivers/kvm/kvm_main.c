@@ -1590,6 +1590,8 @@ static int set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 
 void kvm_resched(struct kvm_vcpu *vcpu)
 {
+	if (!need_resched())
+		return;
 	vcpu_put(vcpu);
 	cond_resched();
 	vcpu_load(vcpu);
