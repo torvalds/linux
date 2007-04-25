@@ -109,6 +109,9 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		return;
 	}
 
+	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE)
+		return;
+
 	name = (uint8_t *)&ndlp->nlp_portname;
 	phba = ndlp->nlp_phba;
 
@@ -149,7 +152,8 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	if (!(phba->fc_flag & FC_UNLOADING) &&
 	    !(ndlp->nlp_flag & NLP_DELAY_TMO) &&
-	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC))
+	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
+	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE))
 		lpfc_disc_state_machine(phba, ndlp, NULL, NLP_EVT_DEVICE_RM);
 	else {
 		rdata->pnode = NULL;
@@ -1326,8 +1330,6 @@ lpfc_nlp_state_cleanup(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 			 * already. If we have, and it's a scsi entity, be
 			 * sure to unblock any attached scsi devices
 			 */
-		if (!ndlp->rport ||
-		    ndlp->rport->port_state == FC_PORTSTATE_BLOCKED)
 			lpfc_register_remote_port(phba, ndlp);
 	}
 
