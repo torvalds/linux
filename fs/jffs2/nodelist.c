@@ -52,7 +52,7 @@ void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new
 	*prev = new;
 }
 
-void jffs2_truncate_fragtree(struct jffs2_sb_info *c, struct rb_root *list, uint32_t size)
+uint32_t jffs2_truncate_fragtree(struct jffs2_sb_info *c, struct rb_root *list, uint32_t size)
 {
 	struct jffs2_node_frag *frag = jffs2_lookup_node_frag(list, size);
 
@@ -74,18 +74,24 @@ void jffs2_truncate_fragtree(struct jffs2_sb_info *c, struct rb_root *list, uint
 	}
 
 	if (size == 0)
-		return;
+		return 0;
 
-	/*
-	 * If the last fragment starts at the RAM page boundary, it is
-	 * REF_PRISTINE irrespective of its size.
-	 */
 	frag = frag_last(list);
+
+	/* Sanity check for truncation to longer than we started with... */
+	if (!frag)
+		return 0;
+	if (frag->ofs + frag->size < size)
+		return frag->ofs + frag->size;
+
+	/* If the last fragment starts at the RAM page boundary, it is
+	 * REF_PRISTINE irrespective of its size. */
 	if (frag->node && (frag->ofs & (PAGE_CACHE_SIZE - 1)) == 0) {
 		dbg_fragtree2("marking the last fragment 0x%08x-0x%08x REF_PRISTINE.\n",
 			frag->ofs, frag->ofs + frag->size);
 		frag->node->raw->flash_offset = ref_offset(frag->node->raw) | REF_PRISTINE;
 	}
+	return size;
 }
 
 static void jffs2_obsolete_node_frag(struct jffs2_sb_info *c,
