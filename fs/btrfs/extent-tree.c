@@ -169,9 +169,8 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 	btrfs_set_key_type(&ins, BTRFS_EXTENT_ITEM_KEY);
 	btrfs_set_extent_owner(&extent_item, extent_root->root_key.objectid);
 
-	for (i = 0; i < extent_root->fs_info->current_insert.flags; i++) {
-		ins.objectid = extent_root->fs_info->current_insert.objectid +
-				i;
+	for (i = 0; i < extent_root->fs_info->extent_tree_insert_nr; i++) {
+		ins.objectid = extent_root->fs_info->extent_tree_insert[i];
 		super_blocks_used = btrfs_super_blocks_used(info->disk_super);
 		btrfs_set_super_blocks_used(info->disk_super,
 					    super_blocks_used + 1);
@@ -179,7 +178,8 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 					sizeof(extent_item));
 		BUG_ON(ret);
 	}
-	extent_root->fs_info->current_insert.offset = 0;
+	extent_root->fs_info->extent_tree_insert_nr = 0;
+	extent_root->fs_info->extent_tree_prealloc_nr = 0;
 	return 0;
 }
 
@@ -349,7 +349,10 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	int start_found;
 	struct btrfs_leaf *l;
 	struct btrfs_root * root = orig_root->fs_info->extent_root;
+	struct btrfs_fs_info *info = root->fs_info;
 	int total_needed = num_blocks;
+	int total_found = 0;
+	int fill_prealloc = 0;
 	int level;
 
 	path = btrfs_alloc_path();
@@ -357,8 +360,12 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
 
 	level = btrfs_header_level(btrfs_buffer_header(root->node));
-	total_needed += (level + 2) * 3;
-	if (root->fs_info->last_insert.objectid == 0 && search_end == (u64)-1) {
+	if (num_blocks == 0) {
+		fill_prealloc = 1;
+		num_blocks = 1;
+		total_needed = min(level + 2, BTRFS_MAX_LEVEL) * 3;
+	}
+	if (info->last_insert.objectid == 0 && search_end == (u64)-1) {
 		struct btrfs_disk_key *last_key;
 		btrfs_init_path(path);
 		ins->objectid = (u64)-1;
@@ -373,8 +380,8 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		last_key = &l->items[path->slots[0]].key;
 		search_start = btrfs_disk_key_objectid(last_key);
 	}
-	if (root->fs_info->last_insert.objectid > search_start)
-		search_start = root->fs_info->last_insert.objectid;
+	if (info->last_insert.objectid > search_start)
+		search_start = info->last_insert.objectid;
 
 check_failed:
 	btrfs_init_path(path);
@@ -392,6 +399,10 @@ check_failed:
 		l = btrfs_buffer_leaf(path->nodes[0]);
 		slot = path->slots[0];
 		if (slot >= btrfs_header_nritems(&l->header)) {
+			if (fill_prealloc) {
+				info->extent_tree_prealloc_nr = 0;
+				total_found = 0;
+			}
 			ret = btrfs_next_leaf(root, path);
 			if (ret == 0)
 				continue;
@@ -399,13 +410,13 @@ check_failed:
 				goto error;
 			if (!start_found) {
 				ins->objectid = search_start;
-				ins->offset = (u64)-1;
+				ins->offset = (u64)-1 - search_start;
 				start_found = 1;
 				goto check_pending;
 			}
 			ins->objectid = last_block > search_start ?
 					last_block : search_start;
-			ins->offset = (u64)-1;
+			ins->offset = (u64)-1 - ins->objectid;
 			goto check_pending;
 		}
 		btrfs_disk_key_to_cpu(&key, &l->items[slot].key);
@@ -414,7 +425,7 @@ check_failed:
 				if (last_block < search_start)
 					last_block = search_start;
 				hole_size = key.objectid - last_block;
-				if (hole_size > total_needed) {
+				if (hole_size > num_blocks) {
 					ins->objectid = last_block;
 					ins->offset = hole_size;
 					goto check_pending;
@@ -433,17 +444,51 @@ check_pending:
 	btrfs_release_path(root, path);
 	BUG_ON(ins->objectid < search_start);
 	for (test_block = ins->objectid;
-	     test_block < ins->objectid + total_needed; test_block++) {
-		if (test_radix_bit(&root->fs_info->pinned_radix,
-				      test_block)) {
+	     test_block < ins->objectid + num_blocks; test_block++) {
+		if (test_radix_bit(&info->pinned_radix, test_block)) {
 			search_start = test_block + 1;
 			goto check_failed;
 		}
 	}
-	BUG_ON(root->fs_info->current_insert.offset);
-	root->fs_info->current_insert.offset = total_needed - num_blocks;
-	root->fs_info->current_insert.objectid = ins->objectid + num_blocks;
-	root->fs_info->current_insert.flags = 0;
+	if (!fill_prealloc && info->extent_tree_insert_nr) {
+		u64 last =
+		  info->extent_tree_insert[info->extent_tree_insert_nr - 1];
+		if (ins->objectid + num_blocks >
+		    info->extent_tree_insert[0] &&
+		    ins->objectid <= last) {
+			search_start = last + 1;
+			WARN_ON(1);
+			goto check_failed;
+		}
+	}
+	if (!fill_prealloc && info->extent_tree_prealloc_nr) {
+		u64 first =
+		  info->extent_tree_prealloc[info->extent_tree_prealloc_nr - 1];
+		if (ins->objectid + num_blocks > first &&
+		    ins->objectid <= info->extent_tree_prealloc[0]) {
+			search_start = info->extent_tree_prealloc[0] + 1;
+			WARN_ON(1);
+			goto check_failed;
+		}
+	}
+	if (fill_prealloc) {
+		int nr;
+		test_block = ins->objectid;
+		while(test_block < ins->objectid + ins->offset &&
+		      total_found < total_needed) {
+			nr = total_needed - total_found - 1;
+			BUG_ON(nr < 0);
+			root->fs_info->extent_tree_prealloc[nr] =
+				test_block;
+			total_found++;
+			test_block++;
+		}
+		if (total_found < total_needed) {
+			search_start = test_block;
+			goto check_failed;
+		}
+		root->fs_info->extent_tree_prealloc_nr = total_found;
+	}
 	root->fs_info->last_insert.objectid = ins->objectid;
 	ins->offset = num_blocks;
 	btrfs_free_path(path);
@@ -472,22 +517,32 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_root *extent_root = info->extent_root;
 	struct btrfs_extent_item extent_item;
+	struct btrfs_key prealloc_key;
 
 	btrfs_set_extent_refs(&extent_item, 1);
 	btrfs_set_extent_owner(&extent_item, owner);
 
 	if (root == extent_root) {
-		BUG_ON(extent_root->fs_info->current_insert.offset == 0);
+		int nr;
+		BUG_ON(info->extent_tree_prealloc_nr == 0);
 		BUG_ON(num_blocks != 1);
-		BUG_ON(extent_root->fs_info->current_insert.flags ==
-		       extent_root->fs_info->current_insert.offset);
 		ins->offset = 1;
-		ins->objectid = extent_root->fs_info->current_insert.objectid +
-				extent_root->fs_info->current_insert.flags++;
+		info->extent_tree_prealloc_nr--;
+		nr = info->extent_tree_prealloc_nr;
+		ins->objectid = info->extent_tree_prealloc[nr];
+		info->extent_tree_insert[info->extent_tree_insert_nr++] =
+			ins->objectid;
 		return 0;
 	}
+	/* do the real allocation */
 	ret = find_free_extent(trans, root, num_blocks, search_start,
 			       search_end, ins);
+	if (ret)
+		return ret;
+
+	/* then do prealloc for the extent tree */
+	ret = find_free_extent(trans, root, 0, ins->objectid + ins->offset,
+			       search_end, &prealloc_key);
 	if (ret)
 		return ret;
 

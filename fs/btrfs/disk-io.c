@@ -542,6 +542,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
 	fs_info->do_barriers = 1;
+	fs_info->extent_tree_insert_nr = 0;
+	fs_info->extent_tree_prealloc_nr = 0;
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
 	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
 	       sizeof(struct btrfs_key));
@@ -555,7 +557,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	}
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
-	memset(&fs_info->current_insert, 0, sizeof(fs_info->current_insert));
 	memset(&fs_info->last_insert, 0, sizeof(fs_info->last_insert));
 
 	__setup_root(sb->s_blocksize, dev_root,

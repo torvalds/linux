@@ -244,12 +244,17 @@ struct btrfs_fs_info {
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
 	struct btrfs_root *dev_root;
-	struct btrfs_key current_insert;
 	struct btrfs_key last_insert;
 	struct radix_tree_root fs_roots_radix;
 	struct radix_tree_root pending_del_radix;
 	struct radix_tree_root pinned_radix;
 	struct radix_tree_root dev_radix;
+
+	u64 extent_tree_insert[BTRFS_MAX_LEVEL * 3];
+	int extent_tree_insert_nr;
+	u64 extent_tree_prealloc[BTRFS_MAX_LEVEL * 3];
+	int extent_tree_prealloc_nr;
+
 	u64 generation;
 	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block *disk_super;
@@ -267,8 +272,7 @@ struct btrfs_fs_info {
 
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
- * and for the extent tree extent_root root.  current_insert is used
- * only for the extent tree.
+ * and for the extent tree extent_root root.
  */
 struct btrfs_root {
 	struct buffer_head *node;
