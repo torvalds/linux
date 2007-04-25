@@ -635,15 +635,6 @@ static void __init pmac_init_early(void)
 #endif
 }
 
-/*
- * pmac has no legacy IO, anything calling this function has to
- * fail or bad things will happen
- */
-static int pmac_check_legacy_ioport(unsigned int baseport)
-{
-	return -ENODEV;
-}
-
 static int __init pmac_declare_of_platform_devices(void)
 {
 	struct device_node *np;
@@ -755,7 +746,6 @@ define_machine(powermac) {
 	.get_rtc_time		= pmac_get_rtc_time,
 	.calibrate_decr		= pmac_calibrate_decr,
 	.feature_call		= pmac_do_feature_call,
-	.check_legacy_ioport	= pmac_check_legacy_ioport,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64
 	.pci_probe_mode		= pmac_pci_probe_mode,

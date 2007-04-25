@@ -102,12 +102,6 @@ void __init pas_setup_arch(void)
 	pasemi_idle_init();
 }
 
-/* No legacy IO on our parts */
-static int pas_check_legacy_ioport(unsigned int baseport)
-{
-	return -ENODEV;
-}
-
 static __init void pas_init_IRQ(void)
 {
 	struct device_node *np;
@@ -252,7 +246,6 @@ define_machine(pas) {
 	.restart		= pas_restart,
 	.get_boot_time		= pas_get_boot_time,
 	.calibrate_decr		= generic_calibrate_decr,
-	.check_legacy_ioport    = pas_check_legacy_ioport,
 	.progress		= pas_progress,
 	.machine_check_exception = pas_machine_check_handler,
 	.pci_irq_fixup		= pas_pci_irq_fixup,

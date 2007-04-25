@@ -478,11 +478,39 @@ void probe_machine(void)
 	printk(KERN_INFO "Using %s machine description\n", ppc_md.name);
 }
 
+/* Match a class of boards, not a specific device configuration. */
 int check_legacy_ioport(unsigned long base_port)
 {
-	if (ppc_md.check_legacy_ioport == NULL)
-		return 0;
-	return ppc_md.check_legacy_ioport(base_port);
+	struct device_node *parent, *np = NULL;
+	int ret = -ENODEV;
+
+	switch(base_port) {
+	case I8042_DATA_REG:
+		np = of_find_node_by_type(NULL, "8042");
+		break;
+	case FDC_BASE: /* FDC1 */
+		np = of_find_node_by_type(NULL, "fdc");
+		break;
+#ifdef CONFIG_PPC_PREP
+	case _PIDXR:
+	case _PNPWRP:
+	case PNPBIOS_BASE:
+		/* implement me */
+#endif
+	default:
+		/* ipmi is supposed to fail here */
+		break;
+	}
+	if (!np)
+		return ret;
+	parent = of_get_parent(np);
+	if (parent) {
+		if (strcmp(parent->type, "isa") == 0)
+			ret = 0;
+		of_node_put(parent);
+	}
+	of_node_put(np);
+	return ret;
 }
 EXPORT_SYMBOL(check_legacy_ioport);
 
