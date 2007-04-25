@@ -1,13 +1,10 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
+ * Copyright © 2004   Ferenc Havasi <havasi@inf.u-szeged.hu>,
  *                    University of Szeged, Hungary
  *
- * For licensing information, see the file 'LICENCE' in the
- * jffs2 directory.
- *
- * $Id: compr.h,v 1.9 2005/11/07 11:14:38 gleixner Exp $
+ * For licensing information, see the file 'LICENCE' in this directory.
  *
  */
 

@@ -1,15 +1,13 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001-2003 Red Hat, Inc.
+ * Copyright © 2001-2007 Red Hat, Inc.
  * Created by Arjan van de Ven <arjanv@redhat.com>
  *
- * Copyright (C) 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
+ * Copyright © 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
  *                    University of Szeged, Hungary
  *
  * For licensing information, see the file 'LICENCE' in this directory.
- *
- * $Id: compr.c,v 1.46 2005/11/07 11:14:38 gleixner Exp $
  *
  */
 
