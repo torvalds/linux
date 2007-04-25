@@ -714,26 +714,26 @@ EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 
 static int __init init_ipv6_mibs(void)
 {
-	if (snmp6_mib_init((void **)ipv6_statistics, sizeof (struct ipstats_mib),
-			   __alignof__(struct ipstats_mib)) < 0)
+	if (snmp_mib_init((void **)ipv6_statistics, sizeof (struct ipstats_mib),
+			  __alignof__(struct ipstats_mib)) < 0)
 		goto err_ip_mib;
-	if (snmp6_mib_init((void **)icmpv6_statistics, sizeof (struct icmpv6_mib),
-			   __alignof__(struct icmpv6_mib)) < 0)
+	if (snmp_mib_init((void **)icmpv6_statistics, sizeof (struct icmpv6_mib),
+			  __alignof__(struct icmpv6_mib)) < 0)
 		goto err_icmp_mib;
-	if (snmp6_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib),
-			   __alignof__(struct udp_mib)) < 0)
+	if (snmp_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
 		goto err_udp_mib;
-	if (snmp6_mib_init((void **)udplite_stats_in6, sizeof (struct udp_mib),
-			   __alignof__(struct udp_mib)) < 0)
+	if (snmp_mib_init((void **)udplite_stats_in6, sizeof (struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
 		goto err_udplite_mib;
 	return 0;
 
 err_udplite_mib:
-	snmp6_mib_free((void **)udp_stats_in6);
+	snmp_mib_free((void **)udp_stats_in6);
 err_udp_mib:
-	snmp6_mib_free((void **)icmpv6_statistics);
+	snmp_mib_free((void **)icmpv6_statistics);
 err_icmp_mib:
-	snmp6_mib_free((void **)ipv6_statistics);
+	snmp_mib_free((void **)ipv6_statistics);
 err_ip_mib:
 	return -ENOMEM;
 
@@ -741,10 +741,10 @@ err_ip_mib:
 
 static void cleanup_ipv6_mibs(void)
 {
-	snmp6_mib_free((void **)ipv6_statistics);
-	snmp6_mib_free((void **)icmpv6_statistics);
-	snmp6_mib_free((void **)udp_stats_in6);
-	snmp6_mib_free((void **)udplite_stats_in6);
+	snmp_mib_free((void **)ipv6_statistics);
+	snmp_mib_free((void **)icmpv6_statistics);
+	snmp_mib_free((void **)udp_stats_in6);
+	snmp_mib_free((void **)udplite_stats_in6);
 }
 
 static int __init inet6_init(void)

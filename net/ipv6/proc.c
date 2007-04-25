@@ -23,13 +23,12 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/stddef.h>
-#include <asm/unaligned.h>
+#include <net/ip.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <net/transp_v6.h>
 #include <net/ipv6.h>
 
-#ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *proc_net_devsnmp6;
 
 static int fold_prot_inuse(struct proto *proto)
@@ -142,29 +141,14 @@ static struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
 	SNMP_MIB_SENTINEL
 };
-#endif	/* CONFIG_PROC_FS */
 
-static unsigned long
-fold_field(void *mib[], int offt)
-{
-	unsigned long res = 0;
-	int i;
-
-	for_each_possible_cpu(i) {
-		res += *(((unsigned long *)per_cpu_ptr(mib[0], i)) + offt);
-		res += *(((unsigned long *)per_cpu_ptr(mib[1], i)) + offt);
-	}
-	return res;
-}
-
-#ifdef CONFIG_PROC_FS
 static inline void
 snmp6_seq_show_item(struct seq_file *seq, void **mib, struct snmp_mib *itemlist)
 {
 	int i;
 	for (i=0; itemlist[i].name; i++)
 		seq_printf(seq, "%-32s\t%lu\n", itemlist[i].name,
-				fold_field(mib, itemlist[i].entry));
+			   snmp_fold_field(mib, itemlist[i].entry));
 }
 
 static int snmp6_seq_show(struct seq_file *seq, void *v)
@@ -209,37 +193,7 @@ static const struct file_operations snmp6_seq_fops = {
 	.llseek	 = seq_lseek,
 	.release = single_release,
 };
-#endif	/* CONFIG_PROC_FS */
 
-static inline void
-__snmp6_fill_stats(u64 *stats, void **mib, int items, int bytes)
-{
-	int i;
-	int pad = bytes - sizeof(u64) * items;
-	BUG_ON(pad < 0);
-
-	/* Use put_unaligned() because stats may not be aligned for u64. */
-	put_unaligned(items, &stats[0]);
-	for (i = 1; i < items; i++)
-		put_unaligned(fold_field(mib, i), &stats[i]);
-
-	memset(&stats[items], 0, pad);
-}
-
-void
-snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype, int bytes)
-{
-	switch(attrtype) {
-	case IFLA_INET6_STATS:
-		__snmp6_fill_stats(stats, (void **)idev->stats.ipv6, IPSTATS_MIB_MAX, bytes);
-		break;
-	case IFLA_INET6_ICMP6STATS:
-		__snmp6_fill_stats(stats, (void **)idev->stats.icmpv6, ICMP6_MIB_MAX, bytes);
-		break;
-	}
-}
-
-#ifdef CONFIG_PROC_FS
 int snmp6_register_dev(struct inet6_dev *idev)
 {
 	struct proc_dir_entry *p;
@@ -302,80 +256,5 @@ void ipv6_misc_proc_exit(void)
 	proc_net_remove("sockstat6");
 	proc_net_remove("dev_snmp6");
 	proc_net_remove("snmp6");
-}
-
-#else	/* CONFIG_PROC_FS */
-
-
-int snmp6_register_dev(struct inet6_dev *idev)
-{
-	return 0;
-}
-
-int snmp6_unregister_dev(struct inet6_dev *idev)
-{
-	return 0;
-}
-
-#endif	/* CONFIG_PROC_FS */
-
-int snmp6_alloc_dev(struct inet6_dev *idev)
-{
-	int err = -ENOMEM;
-
-	if (!idev || !idev->dev)
-		return -EINVAL;
-
-	if (snmp6_mib_init((void **)idev->stats.ipv6, sizeof(struct ipstats_mib),
-			   __alignof__(struct ipstats_mib)) < 0)
-		goto err_ip;
-	if (snmp6_mib_init((void **)idev->stats.icmpv6, sizeof(struct icmpv6_mib),
-			   __alignof__(struct icmpv6_mib)) < 0)
-		goto err_icmp;
-
-	return 0;
-
-err_icmp:
-	snmp6_mib_free((void **)idev->stats.ipv6);
-err_ip:
-	return err;
-}
-
-int snmp6_free_dev(struct inet6_dev *idev)
-{
-	snmp6_mib_free((void **)idev->stats.icmpv6);
-	snmp6_mib_free((void **)idev->stats.ipv6);
-	return 0;
-}
-
-int snmp6_mib_init(void *ptr[2], size_t mibsize, size_t mibalign)
-{
-	if (ptr == NULL)
-		return -EINVAL;
-
-	ptr[0] = __alloc_percpu(mibsize);
-	if (!ptr[0])
-		goto err0;
-
-	ptr[1] = __alloc_percpu(mibsize);
-	if (!ptr[1])
-		goto err1;
-
-	return 0;
-
-err1:
-	free_percpu(ptr[0]);
-	ptr[0] = NULL;
-err0:
-	return -ENOMEM;
-}
-
-void snmp6_mib_free(void *ptr[2])
-{
-	if (ptr == NULL)
-		return;
-	free_percpu(ptr[0]);
-	free_percpu(ptr[1]);
-	ptr[0] = ptr[1] = NULL;
 }
 
