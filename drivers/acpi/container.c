@@ -49,8 +49,6 @@ MODULE_AUTHOR("Anil S Keshavamurthy");
 MODULE_DESCRIPTION("ACPI container driver");
 MODULE_LICENSE("GPL");
 
-#define ACPI_STA_PRESENT		(0x00000001)
-
 static int acpi_container_add(struct acpi_device *device);
 static int acpi_container_remove(struct acpi_device *device, int type);
 
@@ -75,13 +73,13 @@ static int is_device_present(acpi_handle handle)
 
 	status = acpi_get_handle(handle, "_STA", &temp);
 	if (ACPI_FAILURE(status))
-		return 1;	/* _STA not found, assmue device present */
+		return 1;	/* _STA not found, assume device present */
 
 	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status))
 		return 0;	/* Firmware error */
 
-	return ((sta & ACPI_STA_PRESENT) == ACPI_STA_PRESENT);
+	return ((sta & ACPI_STA_DEVICE_PRESENT) == ACPI_STA_DEVICE_PRESENT);
 }
 
 /*******************************************************************/
