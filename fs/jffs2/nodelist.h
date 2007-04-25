@@ -225,7 +225,20 @@ struct jffs2_tmp_dnode_info
 	uint32_t version;
 	uint32_t data_crc;
 	uint32_t partial_crc;
-	uint32_t csize;
+	uint16_t csize;
+	uint16_t overlapped;
+};
+
+/* Temporary data structure used during readinode. */
+struct jffs2_readinode_info
+{
+	struct rb_root tn_root;
+	struct jffs2_tmp_dnode_info *mdata_tn;
+	uint32_t highest_version;
+	uint32_t latest_mctime;
+	uint32_t mctime_ver;
+	struct jffs2_full_dirent *fds;
+	struct jffs2_raw_node_ref *latest_ref;
 };
 
 struct jffs2_full_dirent
@@ -328,6 +341,15 @@ static inline struct jffs2_node_frag *frag_last(struct rb_root *root)
 #define frag_right(frag) rb_entry((frag)->rb.rb_right, struct jffs2_node_frag, rb)
 #define frag_erase(frag, list) rb_erase(&frag->rb, list);
 
+#define tn_next(tn) rb_entry(rb_next(&(tn)->rb), struct jffs2_tmp_dnode_info, rb)
+#define tn_prev(tn) rb_entry(rb_prev(&(tn)->rb), struct jffs2_tmp_dnode_info, rb)
+#define tn_parent(tn) rb_entry(rb_parent(&(tn)->rb), struct jffs2_tmp_dnode_info, rb)
+#define tn_left(tn) rb_entry((tn)->rb.rb_left, struct jffs2_tmp_dnode_info, rb)
+#define tn_right(tn) rb_entry((tn)->rb.rb_right, struct jffs2_tmp_dnode_info, rb)
+#define tn_erase(tn, list) rb_erase(&tn->rb, list);
+#define tn_last(list) rb_entry(rb_last(list), struct jffs2_tmp_dnode_info, rb)
+#define tn_first(list) rb_entry(rb_first(list), struct jffs2_tmp_dnode_info, rb)
+
 /* nodelist.c */
 void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new, struct jffs2_full_dirent **list);
 void jffs2_set_inocache_state(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic, int state);
@@ -343,7 +365,6 @@ struct rb_node *rb_prev(struct rb_node *);
 void rb_replace_node(struct rb_node *victim, struct rb_node *new, struct rb_root *root);
 int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_full_dnode *fn);
 void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size);
-int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_tmp_dnode_info *tn);
 struct jffs2_raw_node_ref *jffs2_link_node_ref(struct jffs2_sb_info *c,
 					       struct jffs2_eraseblock *jeb,
 					       uint32_t ofs, uint32_t len,
