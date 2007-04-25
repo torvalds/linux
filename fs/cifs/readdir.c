@@ -432,14 +432,11 @@ static int initiate_cifs_search(const int xid, struct file *file)
 
 	if(file->private_data == NULL) {
 		file->private_data = 
-			kmalloc(sizeof(struct cifsFileInfo),GFP_KERNEL);
+			kzalloc(sizeof(struct cifsFileInfo),GFP_KERNEL);
 	}
 
-	if(file->private_data == NULL) {
+	if(file->private_data == NULL)
 		return -ENOMEM;
-	} else {
-		memset(file->private_data,0,sizeof(struct cifsFileInfo));
-	}
 	cifsFile = file->private_data;
 	cifsFile->invalidHandle = TRUE;
 	cifsFile->srch_inf.endOfSearch = FALSE;
