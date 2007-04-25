@@ -8,7 +8,7 @@ menuconfig MTD_ONENAND
 	help
 	  This enables support for accessing all type of OneNAND flash
 	  devices. For further information see
-	  <http://www.samsung.com/Products/Semiconductor/Flash/OneNAND_TM/index.htm>.
+	  <http://www.samsung.com/Products/Semiconductor/OneNAND/index.htm>
 
 if MTD_ONENAND
 
