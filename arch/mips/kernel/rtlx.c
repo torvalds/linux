@@ -289,7 +289,7 @@ unsigned int rtlx_write_poll(int index)
 	return write_spacefree(chan->rt_read, chan->rt_write, chan->buffer_size);
 }
 
-ssize_t rtlx_read(int index, void __user *buff, size_t count, int user)
+ssize_t rtlx_read(int index, void __user *buff, size_t count)
 {
 	size_t lx_write, fl = 0L;
 	struct rtlx_channel *lx;
@@ -331,9 +331,10 @@ out:
 	return count;
 }
 
-ssize_t rtlx_write(int index, const void __user *buffer, size_t count, int user)
+ssize_t rtlx_write(int index, const void __user *buffer, size_t count)
 {
 	struct rtlx_channel *rt;
+	unsigned long failed;
 	size_t rt_read;
 	size_t fl;
 
@@ -363,7 +364,7 @@ ssize_t rtlx_write(int index, const void __user *buffer, size_t count, int user)
 	}
 
 out:
-	count -= cailed;
+	count -= failed;
 
 	smp_wmb();
 	rt->rt_write = (rt->rt_write + count) % rt->buffer_size;
