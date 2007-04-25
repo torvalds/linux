@@ -317,6 +317,10 @@ static int __init acpi_pci_init(void)
 {
 	int ret;
 
+	if (acpi_gbl_FADT.boot_flags & BAF_MSI_NOT_SUPPORTED) {
+		printk(KERN_INFO"ACPI FADT declares the system doesn't support MSI, so disable it\n");
+		pci_no_msi();
+	}
 	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;
