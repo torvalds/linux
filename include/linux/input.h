@@ -1160,6 +1160,8 @@ static inline void input_sync(struct input_dev *dev)
 	input_event(dev, EV_SYN, SYN_REPORT, 0);
 }
 
+void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code);
+
 static inline void input_set_abs_params(struct input_dev *dev, int axis, int min, int max, int fuzz, int flat)
 {
 	dev->absmin[axis] = min;

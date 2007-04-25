@@ -1046,6 +1046,62 @@ void input_free_device(struct input_dev *dev)
 }
 EXPORT_SYMBOL(input_free_device);
 
+/**
+ * input_set_capability - mark device as capable of a certain event
+ * @dev: device that is capable of emitting or accepting event
+ * @type: type of the event (EV_KEY, EV_REL, etc...)
+ * @code: event code
+ *
+ * In addition to setting up corresponding bit in appropriate capability
+ * bitmap the function also adjusts dev->evbit.
+ */
+void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code)
+{
+	switch (type) {
+	case EV_KEY:
+		__set_bit(code, dev->keybit);
+		break;
+
+	case EV_REL:
+		__set_bit(code, dev->relbit);
+		break;
+
+	case EV_ABS:
+		__set_bit(code, dev->absbit);
+		break;
+
+	case EV_MSC:
+		__set_bit(code, dev->mscbit);
+		break;
+
+	case EV_SW:
+		__set_bit(code, dev->swbit);
+		break;
+
+	case EV_LED:
+		__set_bit(code, dev->ledbit);
+		break;
+
+	case EV_SND:
+		__set_bit(code, dev->sndbit);
+		break;
+
+	case EV_FF:
+		__set_bit(code, dev->ffbit);
+		break;
+
+	default:
+		printk(KERN_ERR
+			"input_set_capability: unknown type %u (code %u)\n",
+			type, code);
+		dump_stack();
+		return;
+	}
+
+	__set_bit(type, dev->evbit);
+}
+EXPORT_SYMBOL(input_set_capability);
+
 int input_register_device(struct input_dev *dev)
 {
 	static atomic_t input_no = ATOMIC_INIT(0);
