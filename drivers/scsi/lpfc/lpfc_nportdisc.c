@@ -353,7 +353,10 @@ lpfc_rcv_plogi(struct lpfc_hba * phba,
 	 * queue this mbox command to be processed later.
 	 */
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_reg_login;
-	mbox->context2  = ndlp;
+	/*
+	 * mbox->context2 = lpfc_nlp_get(ndlp) deferred until mailbox
+	 * command issued in lpfc_cmpl_els_acc().
+	 */
 	ndlp->nlp_flag |= (NLP_ACC_REGLOGIN | NLP_RCV_PLOGI);
 
 	/*
@@ -773,13 +776,14 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_hba * phba,
 		default:
 			mbox->mbox_cmpl = lpfc_mbx_cmpl_reg_login;
 		}
-		mbox->context2 = ndlp;
+		mbox->context2 = lpfc_nlp_get(ndlp);
 		if (lpfc_sli_issue_mbox(phba, mbox,
 					(MBX_NOWAIT | MBX_STOP_IOCB))
 		    != MBX_NOT_FINISHED) {
 			lpfc_nlp_set_state(phba, ndlp, NLP_STE_REG_LOGIN_ISSUE);
 			return ndlp->nlp_state;
 		}
+		lpfc_nlp_put(ndlp);
 		mp = (struct lpfc_dmabuf *)mbox->context1;
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
@@ -1920,7 +1924,7 @@ lpfc_disc_state_machine(struct lpfc_hba * phba,
 	uint32_t(*func) (struct lpfc_hba *, struct lpfc_nodelist *, void *,
 			 uint32_t);
 
-	ndlp->nlp_disc_refcnt++;
+	lpfc_nlp_get(ndlp);
 	cur_state = ndlp->nlp_state;
 
 	/* DSM in event <evt> on NPort <nlp_DID> in state <cur_state> */
@@ -1943,18 +1947,7 @@ lpfc_disc_state_machine(struct lpfc_hba * phba,
 		       phba->brd_no,
 		       rc, ndlp->nlp_DID, ndlp->nlp_flag);
 
-	ndlp->nlp_disc_refcnt--;
+	lpfc_nlp_put(ndlp);
 
-	/* Check to see if ndlp removal is deferred */
-	if ((ndlp->nlp_disc_refcnt == 0)
-	    && (ndlp->nlp_flag & NLP_DELAY_REMOVE)) {
-		spin_lock_irq(phba->host->host_lock);
-		ndlp->nlp_flag &= ~NLP_DELAY_REMOVE;
-		spin_unlock_irq(phba->host->host_lock);
-		lpfc_nlp_remove(phba, ndlp);
-		return NLP_STE_FREED_NODE;
-	}
-	if (rc == NLP_STE_FREED_NODE)
-		return NLP_STE_FREED_NODE;
 	return rc;
 }

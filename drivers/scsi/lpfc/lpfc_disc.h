@@ -69,7 +69,6 @@ struct lpfc_nodelist {
 	uint16_t	nlp_maxframe;		/* Max RCV frame size */
 	uint8_t		nlp_class_sup;		/* Supported Classes */
 	uint8_t         nlp_retry;		/* used for ELS retries */
-	uint8_t         nlp_disc_refcnt;	/* used for DSM */
 	uint8_t         nlp_fcp_info;	        /* class info, bits 0-3 */
 #define NLP_FCP_2_DEVICE   0x10			/* FCP-2 device */
 
@@ -80,6 +79,7 @@ struct lpfc_nodelist {
 	struct lpfc_work_evt els_retry_evt;
 	unsigned long last_ramp_up_time;        /* jiffy of last ramp up */
 	unsigned long last_q_full_time;		/* jiffy of last queue full */
+	struct kref     kref;
 };
 
 /* Defines for nlp_flag (uint32) */
@@ -107,7 +107,6 @@ struct lpfc_nodelist {
 					   ACC */
 #define NLP_NPR_ADISC      0x2000000	/* Issue ADISC when dq'ed from
 					   NPR list */
-#define NLP_DELAY_REMOVE   0x4000000	/* Defer removal till end of DSM */
 #define NLP_NODEV_REMOVE   0x8000000	/* Defer removal till discovery ends */
 
 /* Defines for list searchs */

@@ -1187,12 +1187,12 @@ lpfc_cleanup(struct lpfc_hba * phba)
 	lpfc_can_disctmo(phba);
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_nlpunmap_list,
 				nlp_listp) {
-		lpfc_nlp_remove(phba, ndlp);
+		lpfc_nlp_put(ndlp);
 	}
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_nlpmap_list,
 				 nlp_listp) {
-		lpfc_nlp_remove(phba, ndlp);
+		lpfc_nlp_put(ndlp);
 	}
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_unused_list,
@@ -1202,27 +1202,27 @@ lpfc_cleanup(struct lpfc_hba * phba)
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_plogi_list,
 				nlp_listp) {
-		lpfc_nlp_remove(phba, ndlp);
+		lpfc_nlp_put(ndlp);
 	}
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_adisc_list,
 				nlp_listp) {
-		lpfc_nlp_remove(phba, ndlp);
+		lpfc_nlp_put(ndlp);
 	}
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_reglogin_list,
 				nlp_listp) {
-		lpfc_nlp_remove(phba, ndlp);
+		lpfc_nlp_put(ndlp);
 	}
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_prli_list,
 				nlp_listp) {
-		lpfc_nlp_remove(phba, ndlp);
+		lpfc_nlp_put(ndlp);
 	}
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_npr_list,
 				nlp_listp) {
-		lpfc_nlp_remove(phba, ndlp);
+		lpfc_nlp_put(ndlp);
 	}
 
 	INIT_LIST_HEAD(&phba->fc_nlpmap_list);
@@ -1509,7 +1509,6 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	INIT_LIST_HEAD(&phba->fc_reglogin_list);
 	INIT_LIST_HEAD(&phba->fc_prli_list);
 	INIT_LIST_HEAD(&phba->fc_npr_list);
-
 
 	pci_set_master(pdev);
 	retval = pci_set_mwi(pdev);

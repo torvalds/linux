@@ -51,8 +51,9 @@ int lpfc_can_disctmo(struct lpfc_hba *);
 int lpfc_unreg_rpi(struct lpfc_hba *, struct lpfc_nodelist *);
 int lpfc_check_sli_ndlp(struct lpfc_hba *, struct lpfc_sli_ring *,
 		    struct lpfc_iocbq *, struct lpfc_nodelist *);
-int lpfc_nlp_remove(struct lpfc_hba *, struct lpfc_nodelist *);
 void lpfc_nlp_init(struct lpfc_hba *, struct lpfc_nodelist *, uint32_t);
+struct lpfc_nodelist *lpfc_nlp_get(struct lpfc_nodelist *);
+int  lpfc_nlp_put(struct lpfc_nodelist *);
 struct lpfc_nodelist *lpfc_setup_disc_node(struct lpfc_hba *, uint32_t);
 void lpfc_disc_list_loopmap(struct lpfc_hba *);
 void lpfc_disc_start(struct lpfc_hba *);
