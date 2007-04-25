@@ -1584,6 +1584,7 @@ void lpfc_reset_barrier(struct lpfc_hba * phba)
 	hc_copy = readl(phba->HCregaddr);
 	writel((hc_copy & ~HC_ERINT_ENA), phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
+	phba->fc_flag |= FC_IGNORE_ERATT;
 
 	if (readl(phba->HAregaddr) & HA_ERATT) {
 		/* Clear Chip error bit */
@@ -1626,6 +1627,7 @@ clear_errat:
 	}
 
 restore_hc:
+	phba->fc_flag &= ~FC_IGNORE_ERATT;
 	writel(hc_copy, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
 }
@@ -1661,6 +1663,7 @@ lpfc_sli_brdkill(struct lpfc_hba * phba)
 	status &= ~HC_ERINT_ENA;
 	writel(status, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
+	phba->fc_flag |= FC_IGNORE_ERATT;
 	spin_unlock_irq(phba->host->host_lock);
 
 	lpfc_kill_board(phba, pmb);
@@ -1670,6 +1673,9 @@ lpfc_sli_brdkill(struct lpfc_hba * phba)
 	if (retval != MBX_SUCCESS) {
 		if (retval != MBX_BUSY)
 			mempool_free(pmb, phba->mbox_mem_pool);
+		spin_lock_irq(phba->host->host_lock);
+		phba->fc_flag &= ~FC_IGNORE_ERATT;
+		spin_unlock_irq(phba->host->host_lock);
 		return 1;
 	}
 
@@ -1696,6 +1702,7 @@ lpfc_sli_brdkill(struct lpfc_hba * phba)
 	}
 	spin_lock_irq(phba->host->host_lock);
 	psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+	phba->fc_flag &= ~FC_IGNORE_ERATT;
 	spin_unlock_irq(phba->host->host_lock);
 
 	psli->mbox_active = NULL;
@@ -3207,6 +3214,11 @@ lpfc_intr_handler(int irq, void *dev_id)
 	 */
 	spin_lock(phba->host->host_lock);
 	ha_copy = readl(phba->HAregaddr);
+	/* If somebody is waiting to handle an eratt don't process it
+	 * here.  The brdkill function will do this.
+	 */
+	if (phba->fc_flag & FC_IGNORE_ERATT)
+		ha_copy &= ~HA_ERATT;
 	writel((ha_copy & ~(HA_LATT | HA_ERATT)), phba->HAregaddr);
 	readl(phba->HAregaddr); /* flush */
 	spin_unlock(phba->host->host_lock);

@@ -250,6 +250,7 @@ struct lpfc_hba {
 #define FC_LOOPBACK_MODE        0x40000	/* NPort is in Loopback mode */
 					/* This flag is set while issuing */
 					/* INIT_LINK mailbox command */
+#define FC_IGNORE_ERATT         0x80000	/* intr handler should ignore ERATT */
 
 	uint32_t fc_topology;	/* link topology, from LINK INIT */
 
