@@ -302,6 +302,8 @@ static struct pnp_driver i8042_pnp_kbd_driver = {
 };
 
 static struct pnp_device_id pnp_aux_devids[] = {
+	{ .id = "FJC6000", .driver_data = 0 },
+	{ .id = "FJC6001", .driver_data = 0 },
 	{ .id = "PNP0f03", .driver_data = 0 },
 	{ .id = "PNP0f0b", .driver_data = 0 },
 	{ .id = "PNP0f0e", .driver_data = 0 },
