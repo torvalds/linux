@@ -185,29 +185,35 @@ lpfc_work_list_done(struct lpfc_hba * phba)
 				*(int *)(evtp->evt_arg1)  = 0;
 			complete((struct completion *)(evtp->evt_arg2));
 			break;
-		case LPFC_EVT_OFFLINE:
+		case LPFC_EVT_OFFLINE_PREP:
 			if (phba->hba_state >= LPFC_LINK_DOWN)
-				lpfc_offline(phba);
+				lpfc_offline_prep(phba);
+			*(int *)(evtp->evt_arg1) = 0;
+			complete((struct completion *)(evtp->evt_arg2));
+			break;
+		case LPFC_EVT_OFFLINE:
+			lpfc_offline(phba);
 			lpfc_sli_brdrestart(phba);
 			*(int *)(evtp->evt_arg1) =
-				lpfc_sli_brdready(phba,HS_FFRDY | HS_MBRDY);
+				lpfc_sli_brdready(phba, HS_FFRDY | HS_MBRDY);
+			lpfc_unblock_mgmt_io(phba);
 			complete((struct completion *)(evtp->evt_arg2));
 			break;
 		case LPFC_EVT_WARM_START:
-			if (phba->hba_state >= LPFC_LINK_DOWN)
-				lpfc_offline(phba);
+			lpfc_offline(phba);
 			lpfc_reset_barrier(phba);
 			lpfc_sli_brdreset(phba);
 			lpfc_hba_down_post(phba);
 			*(int *)(evtp->evt_arg1) =
 				lpfc_sli_brdready(phba, HS_MBRDY);
+			lpfc_unblock_mgmt_io(phba);
 			complete((struct completion *)(evtp->evt_arg2));
 			break;
 		case LPFC_EVT_KILL:
-			if (phba->hba_state >= LPFC_LINK_DOWN)
-				lpfc_offline(phba);
+			lpfc_offline(phba);
 			*(int *)(evtp->evt_arg1)
 				= (phba->stopped) ? 0 : lpfc_sli_brdkill(phba);
+			lpfc_unblock_mgmt_io(phba);
 			complete((struct completion *)(evtp->evt_arg2));
 			break;
 		}

@@ -549,12 +549,15 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 		 * There was a firmware error.  Take the hba offline and then
 		 * attempt to restart it.
 		 */
+		lpfc_offline_prep(phba);
 		lpfc_offline(phba);
 		lpfc_sli_brdrestart(phba);
 		if (lpfc_online(phba) == 0) {	/* Initialize the HBA */
 			mod_timer(&phba->fc_estabtmo, jiffies + HZ * 60);
+			lpfc_unblock_mgmt_io(phba);
 			return;
 		}
+		lpfc_unblock_mgmt_io(phba);
 	} else {
 		/* The if clause above forces this code path when the status
 		 * failure is a value other than FFER6.  Do not call the offline
@@ -572,7 +575,9 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 				SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
 
 		psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+		lpfc_offline_prep(phba);
 		lpfc_offline(phba);
+		lpfc_unblock_mgmt_io(phba);
 		phba->hba_state = LPFC_HBA_ERROR;
 		lpfc_hba_down_post(phba);
 	}
@@ -1286,55 +1291,87 @@ lpfc_online(struct lpfc_hba * phba)
 		       "%d:0458 Bring Adapter online\n",
 		       phba->brd_no);
 
-	if (!lpfc_sli_queue_setup(phba))
-		return 1;
+	lpfc_block_mgmt_io(phba);
 
-	if (lpfc_sli_hba_setup(phba))	/* Initialize the HBA */
+	if (!lpfc_sli_queue_setup(phba)) {
+		lpfc_unblock_mgmt_io(phba);
 		return 1;
+	}
+
+	if (lpfc_sli_hba_setup(phba)) {	/* Initialize the HBA */
+		lpfc_unblock_mgmt_io(phba);
+		return 1;
+	}
 
 	spin_lock_irq(phba->host->host_lock);
 	phba->fc_flag &= ~FC_OFFLINE_MODE;
 	spin_unlock_irq(phba->host->host_lock);
 
+	lpfc_unblock_mgmt_io(phba);
 	return 0;
 }
 
-int
-lpfc_offline(struct lpfc_hba * phba)
+void
+lpfc_block_mgmt_io(struct lpfc_hba * phba)
 {
-	struct lpfc_sli_ring *pring;
-	struct lpfc_sli *psli;
 	unsigned long iflag;
-	int i;
-	int cnt = 0;
 
-	if (!phba)
-		return 0;
+	spin_lock_irqsave(phba->host->host_lock, iflag);
+	phba->fc_flag |= FC_BLOCK_MGMT_IO;
+	spin_unlock_irqrestore(phba->host->host_lock, iflag);
+}
+
+void
+lpfc_unblock_mgmt_io(struct lpfc_hba * phba)
+{
+	unsigned long iflag;
+
+	spin_lock_irqsave(phba->host->host_lock, iflag);
+	phba->fc_flag &= ~FC_BLOCK_MGMT_IO;
+	spin_unlock_irqrestore(phba->host->host_lock, iflag);
+}
+
+void
+lpfc_offline_prep(struct lpfc_hba * phba)
+{
+	struct lpfc_nodelist  *ndlp, *next_ndlp;
+	struct list_head *listp, *node_list[7];
+	int i;
 
 	if (phba->fc_flag & FC_OFFLINE_MODE)
-		return 0;
+		return;
 
-	psli = &phba->sli;
+	lpfc_block_mgmt_io(phba);
 
 	lpfc_linkdown(phba);
-	lpfc_sli_flush_mbox_queue(phba);
 
-	for (i = 0; i < psli->num_rings; i++) {
-		pring = &psli->ring[i];
-		/* The linkdown event takes 30 seconds to timeout. */
-		while (pring->txcmplq_cnt) {
-			msleep(10);
-			if (cnt++ > 3000) {
-				lpfc_printf_log(phba,
-					KERN_WARNING, LOG_INIT,
-					"%d:0466 Outstanding IO when "
-					"bringing Adapter offline\n",
-					phba->brd_no);
-				break;
-			}
-		}
+	/* Issue an unreg_login to all nodes */
+	node_list[0] = &phba->fc_npr_list;  /* MUST do this list first */
+	node_list[1] = &phba->fc_nlpmap_list;
+	node_list[2] = &phba->fc_nlpunmap_list;
+	node_list[3] = &phba->fc_prli_list;
+	node_list[4] = &phba->fc_reglogin_list;
+	node_list[5] = &phba->fc_adisc_list;
+	node_list[6] = &phba->fc_plogi_list;
+	for (i = 0; i < 7; i++) {
+		listp = node_list[i];
+		if (list_empty(listp))
+			continue;
+
+		list_for_each_entry_safe(ndlp, next_ndlp, listp, nlp_listp)
+			lpfc_unreg_rpi(phba, ndlp);
 	}
 
+	lpfc_sli_flush_mbox_queue(phba);
+}
+
+void
+lpfc_offline(struct lpfc_hba * phba)
+{
+	unsigned long iflag;
+
+	if (phba->fc_flag & FC_OFFLINE_MODE)
+		return;
 
 	/* stop all timers associated with this hba */
 	lpfc_stop_timer(phba);
@@ -1354,7 +1391,6 @@ lpfc_offline(struct lpfc_hba * phba)
 	spin_lock_irqsave(phba->host->host_lock, iflag);
 	phba->fc_flag |= FC_OFFLINE_MODE;
 	spin_unlock_irqrestore(phba->host->host_lock, iflag);
-	return 0;
 }
 
 /******************************************************************************

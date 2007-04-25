@@ -31,6 +31,7 @@
 /* worker thread events */
 enum lpfc_work_type {
 	LPFC_EVT_ONLINE,
+	LPFC_EVT_OFFLINE_PREP,
 	LPFC_EVT_OFFLINE,
 	LPFC_EVT_WARM_START,
 	LPFC_EVT_KILL,

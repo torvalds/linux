@@ -20,6 +20,7 @@
  *******************************************************************/
 
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
@@ -213,6 +214,7 @@ lpfc_issue_lip(struct Scsi_Host *host)
 	int mbxstatus = MBXERR_ERROR;
 
 	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
+	    (phba->fc_flag & FC_BLOCK_MGMT_IO) ||
 	    (phba->hba_state != LPFC_HBA_READY))
 		return -EPERM;
 
@@ -247,18 +249,61 @@ lpfc_issue_lip(struct Scsi_Host *host)
 }
 
 static int
+lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
+{
+	struct completion online_compl;
+	struct lpfc_sli_ring *pring;
+	struct lpfc_sli *psli;
+	int status = 0;
+	int cnt = 0;
+	int i;
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl,
+			      LPFC_EVT_OFFLINE_PREP);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	psli = &phba->sli;
+
+	for (i = 0; i < psli->num_rings; i++) {
+		pring = &psli->ring[i];
+		/* The linkdown event takes 30 seconds to timeout. */
+		while (pring->txcmplq_cnt) {
+			msleep(10);
+			if (cnt++ > 3000) {
+				lpfc_printf_log(phba,
+					KERN_WARNING, LOG_INIT,
+					"%d:0466 Outstanding IO when "
+					"bringing Adapter offline\n",
+					phba->brd_no);
+				break;
+			}
+		}
+	}
+
+	init_completion(&online_compl);
+	lpfc_workq_post_event(phba, &status, &online_compl, type);
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	return 0;
+}
+
+static int
 lpfc_selective_reset(struct lpfc_hba *phba)
 {
 	struct completion online_compl;
 	int status = 0;
 
-	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &status, &online_compl,
-			      LPFC_EVT_OFFLINE);
-	wait_for_completion(&online_compl);
+	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
 	if (status != 0)
-		return -EIO;
+		return status;
 
 	init_completion(&online_compl);
 	lpfc_workq_post_event(phba, &status, &online_compl,
@@ -324,22 +369,18 @@ lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
 
 	init_completion(&online_compl);
 
-	if(strncmp(buf, "online", sizeof("online") - 1) == 0)
+	if(strncmp(buf, "online", sizeof("online") - 1) == 0) {
 		lpfc_workq_post_event(phba, &status, &online_compl,
 				      LPFC_EVT_ONLINE);
-	else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
-		lpfc_workq_post_event(phba, &status, &online_compl,
-				      LPFC_EVT_OFFLINE);
+		wait_for_completion(&online_compl);
+	} else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
+		status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 	else if (strncmp(buf, "warm", sizeof("warm") - 1) == 0)
-		lpfc_workq_post_event(phba, &status, &online_compl,
-				      LPFC_EVT_WARM_START);
- 	else if (strncmp(buf, "error", sizeof("error") - 1) == 0)
-		lpfc_workq_post_event(phba, &status, &online_compl,
-				      LPFC_EVT_KILL);
+		status = lpfc_do_offline(phba, LPFC_EVT_WARM_START);
+	else if (strncmp(buf, "error", sizeof("error") - 1) == 0)
+		status = lpfc_do_offline(phba, LPFC_EVT_KILL);
 	else
 		return -EINVAL;
-
-	wait_for_completion(&online_compl);
 
 	if (!status)
 		return strlen(buf);
@@ -645,9 +686,7 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
 		   "lpfc%d: Reinitializing to use soft_wwpn\n", phba->brd_no);
 
-	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &stat1, &online_compl, LPFC_EVT_OFFLINE);
-	wait_for_completion(&online_compl);
+	stat1 = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 	if (stat1)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"%d:0463 lpfc_soft_wwpn attribute set failed to reinit "
@@ -1307,6 +1346,12 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 			return -EPERM;
 		}
 
+		if (phba->fc_flag & FC_BLOCK_MGMT_IO) {
+			sysfs_mbox_idle(phba);
+			spin_unlock_irq(host->host_lock);
+			return  -EAGAIN;
+		}
+
 		if ((phba->fc_flag & FC_OFFLINE_MODE) ||
 		    (!(phba->sli.sli_flag & LPFC_SLI2_ACTIVE))){
 
@@ -1551,6 +1596,9 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	unsigned long seconds;
 	int rc = 0;
 
+	if (phba->fc_flag & FC_BLOCK_MGMT_IO)
+		return NULL;
+
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmboxq)
 		return NULL;
@@ -1650,6 +1698,9 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
 	int rc = 0;
+
+	if (phba->fc_flag & FC_BLOCK_MGMT_IO)
+		return;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmboxq)

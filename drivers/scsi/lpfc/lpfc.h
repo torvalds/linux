@@ -244,6 +244,7 @@ struct lpfc_hba {
 #define FC_FABRIC               0x100	/* We are fabric attached */
 #define FC_ESTABLISH_LINK       0x200	/* Reestablish Link */
 #define FC_RSCN_DISCOVERY       0x400	/* Authenticate all devices after RSCN*/
+#define FC_BLOCK_MGMT_IO        0x800   /* Don't allow mgmt mbx or iocb cmds */
 #define FC_LOADING		0x1000	/* HBA in process of loading drvr */
 #define FC_UNLOADING		0x2000	/* HBA in process of unloading drvr */
 #define FC_SCSI_SCAN_TMO        0x4000	/* scsi scan timer running */

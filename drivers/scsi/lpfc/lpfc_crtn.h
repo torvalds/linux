@@ -112,7 +112,10 @@ void lpfc_hba_init(struct lpfc_hba *, uint32_t *);
 int lpfc_post_buffer(struct lpfc_hba *, struct lpfc_sli_ring *, int, int);
 void lpfc_decode_firmware_rev(struct lpfc_hba *, char *, int);
 int lpfc_online(struct lpfc_hba *);
-int lpfc_offline(struct lpfc_hba *);
+void lpfc_block_mgmt_io(struct lpfc_hba *);
+void lpfc_unblock_mgmt_io(struct lpfc_hba *);
+void lpfc_offline_prep(struct lpfc_hba *);
+void lpfc_offline(struct lpfc_hba *);
 
 int lpfc_sli_setup(struct lpfc_hba *);
 int lpfc_sli_queue_setup(struct lpfc_hba *);
