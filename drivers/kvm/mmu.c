@@ -52,11 +52,15 @@ static void kvm_mmu_audit(struct kvm_vcpu *vcpu, const char *msg) {}
 static int dbg = 1;
 #endif
 
+#ifndef MMU_DEBUG
+#define ASSERT(x) do { } while (0)
+#else
 #define ASSERT(x)							\
 	if (!(x)) {							\
 		printk(KERN_WARNING "assertion failed %s:%d: %s\n",	\
 		       __FILE__, __LINE__, #x);				\
 	}
+#endif
 
 #define PT64_PT_BITS 9
 #define PT64_ENT_PER_PAGE (1 << PT64_PT_BITS)
@@ -434,6 +438,7 @@ static void rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
 	}
 }
 
+#ifdef MMU_DEBUG
 static int is_empty_shadow_page(hpa_t page_hpa)
 {
 	u64 *pos;
@@ -448,6 +453,7 @@ static int is_empty_shadow_page(hpa_t page_hpa)
 		}
 	return 1;
 }
+#endif
 
 static void kvm_mmu_free_page(struct kvm_vcpu *vcpu, hpa_t page_hpa)
 {
