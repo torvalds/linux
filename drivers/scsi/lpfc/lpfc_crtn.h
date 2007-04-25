@@ -200,6 +200,9 @@ void lpfc_mbuf_free(struct lpfc_hba *, void *, dma_addr_t);
 
 /* Function prototypes. */
 const char* lpfc_info(struct Scsi_Host *);
+void lpfc_scan_start(struct Scsi_Host *);
+int lpfc_scan_finished(struct Scsi_Host *, unsigned long);
+
 void lpfc_get_cfgparam(struct lpfc_hba *);
 int lpfc_alloc_sysfs_attr(struct lpfc_hba *);
 void lpfc_free_sysfs_attr(struct lpfc_hba *);
