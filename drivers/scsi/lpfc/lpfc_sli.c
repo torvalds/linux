@@ -2403,7 +2403,7 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	if (unlikely(phba->hba_state == LPFC_LINK_DOWN)) {
 		/*
-		 * Only CREATE_XRI, CLOSE_XRI, ABORT_XRI, and QUE_RING_BUF
+		 * Only CREATE_XRI, CLOSE_XRI, and QUE_RING_BUF
 		 * can be issued if the link is not up.
 		 */
 		switch (piocb->iocb.ulpCommand) {
@@ -2417,6 +2417,8 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				piocb->iocb_cmpl = NULL;
 			/*FALLTHROUGH*/
 		case CMD_CREATE_XRI_CR:
+		case CMD_CLOSE_XRI_CN:
+		case CMD_CLOSE_XRI_CX:
 			break;
 		default:
 			goto iocb_busy;
@@ -2741,7 +2743,58 @@ static void
 lpfc_sli_abort_els_cmpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			struct lpfc_iocbq * rspiocb)
 {
+	IOCB_t *irsp;
+	uint16_t abort_iotag, abort_context;
+	struct lpfc_iocbq *abort_iocb, *rsp_ab_iocb;
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
+
+	abort_iocb = NULL;
+	irsp = &rspiocb->iocb;
+
 	spin_lock_irq(phba->host->host_lock);
+
+	if (irsp->ulpStatus) {
+		abort_context = cmdiocb->iocb.un.acxri.abortContextTag;
+		abort_iotag = cmdiocb->iocb.un.acxri.abortIoTag;
+
+		if (abort_iotag != 0 && abort_iotag <= phba->sli.last_iotag)
+			abort_iocb = phba->sli.iocbq_lookup[abort_iotag];
+
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"%d:0327 Cannot abort els iocb %p"
+				" with tag %x context %x\n",
+				phba->brd_no, abort_iocb,
+				abort_iotag, abort_context);
+
+		/*
+		 * make sure we have the right iocbq before taking it
+		 * off the txcmplq and try to call completion routine.
+		 */
+		if (abort_iocb &&
+		    abort_iocb->iocb.ulpContext == abort_context &&
+		    abort_iocb->iocb_flag & LPFC_DRIVER_ABORTED) {
+			list_del(&abort_iocb->list);
+			pring->txcmplq_cnt--;
+
+			rsp_ab_iocb = lpfc_sli_get_iocbq(phba);
+			if (rsp_ab_iocb == NULL)
+				lpfc_sli_release_iocbq(phba, abort_iocb);
+			else {
+				abort_iocb->iocb_flag &=
+					~LPFC_DRIVER_ABORTED;
+				rsp_ab_iocb->iocb.ulpStatus =
+					IOSTAT_LOCAL_REJECT;
+				rsp_ab_iocb->iocb.un.ulpWord[4] =
+					IOERR_SLI_ABORTED;
+				spin_unlock_irq(phba->host->host_lock);
+				(abort_iocb->iocb_cmpl)
+					(phba, abort_iocb, rsp_ab_iocb);
+				spin_lock_irq(phba->host->host_lock);
+				lpfc_sli_release_iocbq(phba, rsp_ab_iocb);
+			}
+		}
+	}
+
 	lpfc_sli_release_iocbq(phba, cmdiocb);
 	spin_unlock_irq(phba->host->host_lock);
 	return;

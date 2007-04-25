@@ -182,6 +182,7 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba, uint8_t expectRsp,
 		icmd->un.elsreq64.bdl.bdeSize = (2 * sizeof (struct ulp_bde64));
 		icmd->un.elsreq64.remoteID = did;	/* DID */
 		icmd->ulpCommand = CMD_ELS_REQUEST64_CR;
+		icmd->ulpTimeout = phba->fc_ratov * 2;
 	} else {
 		icmd->un.elsreq64.bdl.bdeSize = sizeof (struct ulp_bde64);
 		icmd->ulpCommand = CMD_XMIT_ELS_RSP64_CX;
