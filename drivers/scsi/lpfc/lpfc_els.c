@@ -2046,10 +2046,9 @@ lpfc_els_rsp_reject(struct lpfc_hba * phba, uint32_t rejectError,
 
 	/* Xmit ELS RJT <err> response tag <ulpIoTag> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d:0129 Xmit ELS RJT x%x response tag x%x "
-			"Data: x%x x%x x%x x%x x%x\n",
-			phba->brd_no,
-			rejectError, elsiocb->iocb.ulpIoTag,
+			"%d:0129 Xmit ELS RJT x%x response tag x%x xri x%x, "
+			"did x%x, nlp_flag x%x, nlp_state x%x, rpi x%x\n",
+			phba->brd_no, rejectError, elsiocb->iotag,
 			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
 			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
 
@@ -2088,18 +2087,18 @@ lpfc_els_rsp_adisc_acc(struct lpfc_hba * phba,
 	if (!elsiocb)
 		return 1;
 
-	/* Xmit ADISC ACC response tag <ulpIoTag> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d:0130 Xmit ADISC ACC response tag x%x "
-			"Data: x%x x%x x%x x%x x%x\n",
-			phba->brd_no,
-			elsiocb->iocb.ulpIoTag,
-			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
-			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
-
 	icmd = &elsiocb->iocb;
 	oldcmd = &oldiocb->iocb;
 	icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+
+	/* Xmit ADISC ACC response tag <ulpIoTag> */
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"%d:0130 Xmit ADISC ACC response iotag x%x xri: "
+			"x%x, did x%x, nlp_flag x%x, nlp_state x%x rpi x%x\n",
+			phba->brd_no, elsiocb->iotag,
+			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
+			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
+
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 
 	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
@@ -2124,8 +2123,8 @@ lpfc_els_rsp_adisc_acc(struct lpfc_hba * phba,
 }
 
 int
-lpfc_els_rsp_prli_acc(struct lpfc_hba * phba,
-		      struct lpfc_iocbq * oldiocb, struct lpfc_nodelist * ndlp)
+lpfc_els_rsp_prli_acc(struct lpfc_hba *phba, struct lpfc_iocbq *oldiocb,
+		      struct lpfc_nodelist *ndlp)
 {
 	PRLI *npr;
 	lpfc_vpd_t *vpd;
@@ -2147,18 +2146,18 @@ lpfc_els_rsp_prli_acc(struct lpfc_hba * phba,
 	if (!elsiocb)
 		return 1;
 
-	/* Xmit PRLI ACC response tag <ulpIoTag> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d:0131 Xmit PRLI ACC response tag x%x "
-			"Data: x%x x%x x%x x%x x%x\n",
-			phba->brd_no,
-			elsiocb->iocb.ulpIoTag,
-			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
-			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
-
 	icmd = &elsiocb->iocb;
 	oldcmd = &oldiocb->iocb;
 	icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+
+	/* Xmit PRLI ACC response tag <ulpIoTag> */
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"%d:0131 Xmit PRLI ACC response tag x%x xri x%x, "
+			"did x%x, nlp_flag x%x, nlp_state x%x, rpi x%x\n",
+			phba->brd_no, elsiocb->iotag,
+			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
+			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
+
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 
 	*((uint32_t *) (pcmd)) = (ELS_CMD_ACC | (ELS_CMD_PRLI & ~ELS_RSP_MASK));
@@ -2228,17 +2227,17 @@ lpfc_els_rsp_rnid_acc(struct lpfc_hba * phba,
 	if (!elsiocb)
 		return 1;
 
-	/* Xmit RNID ACC response tag <ulpIoTag> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d:0132 Xmit RNID ACC response tag x%x "
-			"Data: x%x\n",
-			phba->brd_no,
-			elsiocb->iocb.ulpIoTag,
-			elsiocb->iocb.ulpContext);
-
 	icmd = &elsiocb->iocb;
 	oldcmd = &oldiocb->iocb;
 	icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+
+	/* Xmit RNID ACC response tag <ulpIoTag> */
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"%d:0132 Xmit RNID ACC response tag x%x "
+			"xri x%x\n",
+			phba->brd_no, elsiocb->iotag,
+			elsiocb->iocb.ulpContext);
+
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 
 	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
@@ -2701,6 +2700,7 @@ lpfc_els_rcv_flogi(struct lpfc_hba * phba,
 			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 			rc = lpfc_sli_issue_mbox
 				(phba, mbox, (MBX_NOWAIT | MBX_STOP_IOCB));
+			lpfc_set_loopback_flag(phba);
 			if (rc == MBX_NOT_FINISHED) {
 				mempool_free( mbox, phba->mbox_mem_pool);
 			}
@@ -2842,10 +2842,9 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	/* Xmit ELS RPS ACC response tag <ulpIoTag> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d:0118 Xmit ELS RPS ACC response tag x%x "
-			"Data: x%x x%x x%x x%x x%x\n",
-			phba->brd_no,
-			elsiocb->iocb.ulpIoTag,
+			"%d:0118 Xmit ELS RPS ACC response tag x%x xri x%x, "
+			"did x%x, nlp_flag x%x, nlp_state x%x, rpi x%x\n",
+			phba->brd_no, elsiocb->iotag,
 			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
 			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
 
@@ -2951,10 +2950,9 @@ lpfc_els_rsp_rpl_acc(struct lpfc_hba * phba, uint16_t cmdsize,
 
 	/* Xmit ELS RPL ACC response tag <ulpIoTag> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"%d:0120 Xmit ELS RPL ACC response tag x%x "
-			"Data: x%x x%x x%x x%x x%x\n",
-			phba->brd_no,
-			elsiocb->iocb.ulpIoTag,
+			"%d:0120 Xmit ELS RPL ACC response tag x%x xri x%x, "
+			"did x%x, nlp_flag x%x, nlp_state x%x, rpi x%x\n",
+			phba->brd_no, elsiocb->iotag,
 			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
 			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
 

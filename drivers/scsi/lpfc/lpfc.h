@@ -247,6 +247,9 @@ struct lpfc_hba {
 #define FC_ABORT_DISCOVERY      0x8000	/* we want to abort discovery */
 #define FC_NDISC_ACTIVE         0x10000	/* NPort discovery active */
 #define FC_BYPASSED_MODE        0x20000	/* NPort is in bypassed mode */
+#define FC_LOOPBACK_MODE        0x40000	/* NPort is in Loopback mode */
+					/* This flag is set while issuing */
+					/* INIT_LINK mailbox command */
 
 	uint32_t fc_topology;	/* link topology, from LINK INIT */
 
@@ -388,6 +391,13 @@ struct lpfc_hba {
 	struct fc_host_statistics link_stats;
 };
 
+static inline void
+lpfc_set_loopback_flag(struct lpfc_hba *phba) {
+	if (phba->cfg_topology == FLAGS_LOCAL_LB)
+		phba->fc_flag |= FC_LOOPBACK_MODE;
+	else
+		phba->fc_flag &= ~FC_LOOPBACK_MODE;
+}
 
 struct rnidrsp {
 	void *buf;

@@ -391,6 +391,7 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+	lpfc_set_loopback_flag(phba);
 	if (rc != MBX_SUCCESS) {
 		lpfc_printf_log(phba,
 				KERN_ERR,

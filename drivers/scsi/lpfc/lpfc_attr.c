@@ -237,6 +237,7 @@ lpfc_issue_lip(struct Scsi_Host *host)
 						     phba->fc_ratov * 2);
 	}
 
+	lpfc_set_loopback_flag(phba);
 	if (mbxstatus == MBX_TIMEOUT)
 		pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	else

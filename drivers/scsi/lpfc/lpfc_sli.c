@@ -2794,6 +2794,12 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba * phba,
 		iabt->ulpCommand = CMD_CLOSE_XRI_CN;
 
 	abtsiocbp->iocb_cmpl = lpfc_sli_abort_els_cmpl;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"%d:0339 Abort xri x%x, original iotag x%x, abort "
+			"cmd iotag x%x\n",
+			phba->brd_no, iabt->un.acxri.abortContextTag,
+			iabt->un.acxri.abortIoTag, abtsiocbp->iotag);
 	retval = lpfc_sli_issue_iocb(phba, pring, abtsiocbp, 0);
 
 abort_iotag_exit:

@@ -900,12 +900,21 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	if (la->attType == AT_LINK_UP) {
 		phba->fc_stat.LinkUp++;
-		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
+		if (phba->fc_flag & FC_LOOPBACK_MODE) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
+				"%d:1306 Link Up Event in loop back mode "
+				"x%x received Data: x%x x%x x%x x%x\n",
+				phba->brd_no, la->eventTag, phba->fc_eventTag,
+				la->granted_AL_PA, la->UlnkSpeed,
+				phba->alpa_map[0]);
+		} else {
+			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 				"%d:1303 Link Up Event x%x received "
 				"Data: x%x x%x x%x x%x\n",
 				phba->brd_no, la->eventTag, phba->fc_eventTag,
 				la->granted_AL_PA, la->UlnkSpeed,
 				phba->alpa_map[0]);
+		}
 		lpfc_mbx_process_link_up(phba, la);
 	} else {
 		phba->fc_stat.LinkDown++;
@@ -2251,6 +2260,7 @@ lpfc_disc_timeout_handler(struct lpfc_hba *phba)
 		initlinkmbox->mb.un.varInitLnk.lipsr_AL_PA = 0;
 		rc = lpfc_sli_issue_mbox(phba, initlinkmbox,
 					 (MBX_NOWAIT | MBX_STOP_IOCB));
+		lpfc_set_loopback_flag(phba);
 		if (rc == MBX_NOT_FINISHED)
 			mempool_free(initlinkmbox, phba->mbox_mem_pool);
 
