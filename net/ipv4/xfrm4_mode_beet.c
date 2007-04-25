@@ -52,7 +52,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 		ph = (struct ip_beet_phdr *)skb->h.raw;
 		ph->padlen = 4 - (optlen & 4);
-		ph->hdrlen = (optlen + ph->padlen + sizeof(*ph)) / 8;
+		ph->hdrlen = optlen / 8;
 		ph->nexthdr = top_iph->protocol;
 		if (ph->padlen)
 			memset(ph + 1, IPOPT_NOP, ph->padlen);
@@ -85,7 +85,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 		ph = (struct ip_beet_phdr *)(skb->h.ipiph + 1);
 
 		phlen = sizeof(*ph) + ph->padlen;
-		optlen = ph->hdrlen * 8 - phlen;
+		optlen = ph->hdrlen * 8 + (IPV4_BEET_PHMAXLEN - phlen);
 		if (optlen < 0 || optlen & 3 || optlen > 250)
 			goto out;
 

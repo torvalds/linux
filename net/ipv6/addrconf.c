@@ -172,6 +172,7 @@ struct ipv6_devconf ipv6_devconf __read_mostly = {
 #endif
 #endif
 	.proxy_ndp		= 0,
+	.accept_source_route	= 0,	/* we do not accept RH0 by default. */
 };
 
 static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
@@ -203,6 +204,7 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 #endif
 #endif
 	.proxy_ndp		= 0,
+	.accept_source_route	= 0,	/* we do not accept RH0 by default. */
 };
 
 /* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
@@ -3356,6 +3358,7 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 #endif
 #endif
 	array[DEVCONF_PROXY_NDP] = cnf->proxy_ndp;
+	array[DEVCONF_ACCEPT_SOURCE_ROUTE] = cnf->accept_source_route;
 }
 
 static inline size_t inet6_if_nlmsg_size(void)
@@ -3879,6 +3882,14 @@ static struct addrconf_sysctl_table
 			.ctl_name	=	NET_IPV6_PROXY_NDP,
 			.procname	=	"proxy_ndp",
 			.data		=	&ipv6_devconf.proxy_ndp,
+			.maxlen		=	sizeof(int),
+			.mode		=	0644,
+			.proc_handler	=	&proc_dointvec,
+		},
+		{
+			.ctl_name	=	NET_IPV6_ACCEPT_SOURCE_ROUTE,
+			.procname	=	"accept_source_route",
+			.data		=	&ipv6_devconf.accept_source_route,
 			.maxlen		=	sizeof(int),
 			.mode		=	0644,
 			.proc_handler	=	&proc_dointvec,

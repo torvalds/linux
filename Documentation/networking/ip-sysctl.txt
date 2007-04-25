@@ -851,6 +851,15 @@ accept_redirects - BOOLEAN
 	Functional default: enabled if local forwarding is disabled.
 			    disabled if local forwarding is enabled.
 
+accept_source_route - INTEGER
+	Accept source routing (routing extension header).
+
+	> 0: Accept routing header.
+	= 0: Accept only routing header type 2.
+	< 0: Do not accept routing header.
+
+	Default: 0
+
 autoconf - BOOLEAN
 	Autoconfigure addresses using Prefix Information in Router 
 	Advertisements.
