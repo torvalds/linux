@@ -24,4 +24,33 @@ struct iommu_arena {
 	unsigned int	limit;
 };
 
+struct iommu {
+	spinlock_t		lock;
+	struct iommu_arena	arena;
+	iopte_t			*page_table;
+	u32			page_table_map_base;
+	unsigned long		iommu_control;
+	unsigned long		iommu_tsbbase;
+	unsigned long		iommu_flush;
+	unsigned long		iommu_ctxflush;
+	unsigned long		write_complete_reg;
+	unsigned long		dummy_page;
+	unsigned long		dummy_page_pa;
+	unsigned long		ctx_lowest_free;
+	DECLARE_BITMAP(ctx_bitmap, IOMMU_NUM_CTXS);
+	u32			dma_addr_mask;
+};
+
+struct strbuf {
+	int			strbuf_enabled;
+	unsigned long		strbuf_control;
+	unsigned long		strbuf_pflush;
+	unsigned long		strbuf_fsync;
+	unsigned long		strbuf_ctxflush;
+	unsigned long		strbuf_ctxmatch_base;
+	unsigned long		strbuf_flushflag_pa;
+	volatile unsigned long *strbuf_flushflag;
+	volatile unsigned long	__flushflag_buf[(64+(64-1)) / sizeof(long)];
+};
+
 #endif /* !(_SPARC_IOMMU_H) */
