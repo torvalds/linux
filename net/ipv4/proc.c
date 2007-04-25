@@ -45,7 +45,6 @@
 #include <net/sock.h>
 #include <net/raw.h>
 
-#ifdef CONFIG_PROC_FS
 static int fold_prot_inuse(struct proto *proto)
 {
 	int res = 0;
@@ -87,19 +86,6 @@ static const struct file_operations sockstat_seq_fops = {
 	.llseek	 = seq_lseek,
 	.release = single_release,
 };
-
-static unsigned long
-fold_field(void *mib[], int offt)
-{
-	unsigned long res = 0;
-	int i;
-
-	for_each_possible_cpu(i) {
-		res += *(((unsigned long *) per_cpu_ptr(mib[0], i)) + offt);
-		res += *(((unsigned long *) per_cpu_ptr(mib[1], i)) + offt);
-	}
-	return res;
-}
 
 /* snmp items */
 static const struct snmp_mib snmp4_ipstats_list[] = {
@@ -267,8 +253,8 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 
 	for (i = 0; snmp4_ipstats_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   fold_field((void **) ip_statistics,
-				      snmp4_ipstats_list[i].entry));
+			   snmp_fold_field((void **)ip_statistics,
+					   snmp4_ipstats_list[i].entry));
 
 	seq_puts(seq, "\nIcmp:");
 	for (i = 0; snmp4_icmp_list[i].name != NULL; i++)
@@ -277,8 +263,8 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nIcmp:");
 	for (i = 0; snmp4_icmp_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   fold_field((void **) icmp_statistics,
-				      snmp4_icmp_list[i].entry));
+			   snmp_fold_field((void **)icmp_statistics,
+					   snmp4_icmp_list[i].entry));
 
 	seq_puts(seq, "\nTcp:");
 	for (i = 0; snmp4_tcp_list[i].name != NULL; i++)
@@ -289,12 +275,12 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		/* MaxConn field is signed, RFC 2012 */
 		if (snmp4_tcp_list[i].entry == TCP_MIB_MAXCONN)
 			seq_printf(seq, " %ld",
-				   fold_field((void **) tcp_statistics,
-					      snmp4_tcp_list[i].entry));
+				   snmp_fold_field((void **)tcp_statistics,
+						   snmp4_tcp_list[i].entry));
 		else
 			seq_printf(seq, " %lu",
-				   fold_field((void **) tcp_statistics,
-					      snmp4_tcp_list[i].entry));
+				   snmp_fold_field((void **)tcp_statistics,
+						   snmp4_tcp_list[i].entry));
 	}
 
 	seq_puts(seq, "\nUdp:");
@@ -304,8 +290,8 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nUdp:");
 	for (i = 0; snmp4_udp_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   fold_field((void **) udp_statistics,
-				      snmp4_udp_list[i].entry));
+			   snmp_fold_field((void **)udp_statistics,
+					   snmp4_udp_list[i].entry));
 
 	/* the UDP and UDP-Lite MIBs are the same */
 	seq_puts(seq, "\nUdpLite:");
@@ -315,8 +301,8 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nUdpLite:");
 	for (i = 0; snmp4_udp_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   fold_field((void **) udplite_statistics,
-				      snmp4_udp_list[i].entry)     );
+			   snmp_fold_field((void **)udplite_statistics,
+					   snmp4_udp_list[i].entry));
 
 	seq_putc(seq, '\n');
 	return 0;
@@ -349,8 +335,8 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nTcpExt:");
 	for (i = 0; snmp4_net_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   fold_field((void **) net_statistics,
-				      snmp4_net_list[i].entry));
+			   snmp_fold_field((void **)net_statistics,
+					   snmp4_net_list[i].entry));
 
 	seq_putc(seq, '\n');
 	return 0;
@@ -390,31 +376,5 @@ out_snmp:
 out_netstat:
 	rc = -ENOMEM;
 	goto out;
-}
-#endif
-
-int snmp_mib_init(void *ptr[2], size_t mibsize, size_t mibalign)
-{
-	BUG_ON(ptr == NULL);
-	ptr[0] = __alloc_percpu(mibsize);
-	if (!ptr[0])
-		goto err0;
-	ptr[1] = __alloc_percpu(mibsize);
-	if (!ptr[1])
-		goto err1;
-	return 0;
-err1:
-	free_percpu(ptr[0]);
-	ptr[0] = NULL;
-err0:
-	return -ENOMEM;
-}
-
-void snmp_mib_free(void *ptr[2])
-{
-	BUG_ON(ptr == NULL);
-	free_percpu(ptr[0]);
-	free_percpu(ptr[1]);
-	ptr[0] = ptr[1] = NULL;
 }
 
