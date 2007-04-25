@@ -1566,8 +1566,6 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 8:
-			printk(KERN_DEBUG "handle_cr: read CR8 "
-			       "cpu erratum AA15\n");
 			vcpu_load_rsp_rip(vcpu);
 			vcpu->regs[reg] = vcpu->cr8;
 			vcpu_put_rsp_rip(vcpu);
