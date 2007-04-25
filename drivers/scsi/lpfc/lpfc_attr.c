@@ -828,6 +828,18 @@ lpfc_nodev_tmo_init(struct lpfc_hba *phba, int val)
 	return -EINVAL;
 }
 
+static void
+lpfc_update_rport_devloss_tmo(struct lpfc_hba *phba)
+{
+	struct lpfc_nodelist  *ndlp;
+
+	spin_lock_irq(phba->host->host_lock);
+	list_for_each_entry(ndlp, &phba->fc_nodes, nlp_listp)
+		if (ndlp->rport)
+			ndlp->rport->dev_loss_tmo = phba->cfg_devloss_tmo;
+	spin_unlock_irq(phba->host->host_lock);
+}
+
 static int
 lpfc_nodev_tmo_set(struct lpfc_hba *phba, int val)
 {
@@ -843,6 +855,7 @@ lpfc_nodev_tmo_set(struct lpfc_hba *phba, int val)
 	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
 		phba->cfg_nodev_tmo = val;
 		phba->cfg_devloss_tmo = val;
+		lpfc_update_rport_devloss_tmo(phba);
 		return 0;
 	}
 
@@ -878,6 +891,7 @@ lpfc_devloss_tmo_set(struct lpfc_hba *phba, int val)
 		phba->cfg_nodev_tmo = val;
 		phba->cfg_devloss_tmo = val;
 		phba->dev_loss_tmo_changed = 1;
+		lpfc_update_rport_devloss_tmo(phba);
 		return 0;
 	}
 
@@ -997,7 +1011,7 @@ LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 /*
 # lpfc_cr_delay & lpfc_cr_count: Default values for I/O colaesing
 # cr_delay (msec) or cr_count outstanding commands. cr_delay can take
-# value [0,63]. cr_count can take value [0,255]. Default value of cr_delay
+# value [0,63]. cr_count can take value [1,255]. Default value of cr_delay
 # is 0. Default value of cr_count is 1. The cr_count feature is disabled if
 # cr_delay is set to 0.
 */
@@ -1955,25 +1969,8 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 			sizeof(struct fcp_rsp) +
 			(phba->cfg_sg_seg_cnt * sizeof(struct ulp_bde64));
 
-	switch (phba->pcidev->device) {
-	case PCI_DEVICE_ID_LP101:
-	case PCI_DEVICE_ID_BSMB:
-	case PCI_DEVICE_ID_ZSMB:
-		phba->cfg_hba_queue_depth = LPFC_LP101_HBA_Q_DEPTH;
-		break;
-	case PCI_DEVICE_ID_RFLY:
-	case PCI_DEVICE_ID_PFLY:
-	case PCI_DEVICE_ID_BMID:
-	case PCI_DEVICE_ID_ZMID:
-	case PCI_DEVICE_ID_TFLY:
-		phba->cfg_hba_queue_depth = LPFC_LC_HBA_Q_DEPTH;
-		break;
-	default:
-		phba->cfg_hba_queue_depth = LPFC_DFT_HBA_Q_DEPTH;
-	}
 
-	if (phba->cfg_hba_queue_depth > lpfc_hba_queue_depth)
-		lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
+	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 
 	return;
 }

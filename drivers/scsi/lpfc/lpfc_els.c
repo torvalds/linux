@@ -3214,7 +3214,7 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 	IOCB_t *cmd = NULL;
 	struct lpfc_dmabuf *pcmd;
 	uint32_t *elscmd;
-	uint32_t els_command;
+	uint32_t els_command=0;
 	uint32_t timeout;
 	uint32_t remote_ID;
 
@@ -3233,12 +3233,16 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
 		cmd = &piocb->iocb;
 
-		if (piocb->iocb_flag & LPFC_IO_LIBDFC) {
+		if ((piocb->iocb_flag & LPFC_IO_LIBDFC) ||
+			(piocb->iocb.ulpCommand == CMD_ABORT_XRI_CN) ||
+			(piocb->iocb.ulpCommand == CMD_CLOSE_XRI_CN)) {
 			continue;
 		}
 		pcmd = (struct lpfc_dmabuf *) piocb->context2;
-		elscmd = (uint32_t *) (pcmd->virt);
-		els_command = *elscmd;
+		if (pcmd) {
+			elscmd = (uint32_t *) (pcmd->virt);
+			els_command = *elscmd;
+		}
 
 		if ((els_command == ELS_CMD_FARP)
 		    || (els_command == ELS_CMD_FARPR)) {

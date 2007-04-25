@@ -1375,8 +1375,6 @@ lpfc_offline(struct lpfc_hba * phba)
 
 	/* stop all timers associated with this hba */
 	lpfc_stop_timer(phba);
-	phba->work_hba_events = 0;
-	phba->work_ha = 0;
 
 	lpfc_printf_log(phba,
 		       KERN_WARNING,
@@ -1389,6 +1387,8 @@ lpfc_offline(struct lpfc_hba * phba)
 	lpfc_sli_hba_down(phba);
 	lpfc_cleanup(phba);
 	spin_lock_irqsave(phba->host->host_lock, iflag);
+	phba->work_hba_events = 0;
+	phba->work_ha = 0;
 	phba->fc_flag |= FC_OFFLINE_MODE;
 	spin_unlock_irqrestore(phba->host->host_lock, iflag);
 }

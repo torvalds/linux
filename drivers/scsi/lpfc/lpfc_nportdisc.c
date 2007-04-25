@@ -1019,8 +1019,35 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_hba * phba,
 			     uint32_t evt)
 {
 	struct lpfc_iocbq *cmdiocb;
+	LPFC_MBOXQ_t	  *mb;
+	LPFC_MBOXQ_t	  *nextmb;
+	struct lpfc_dmabuf *mp;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
+
+	/* cleanup any ndlp on mbox q waiting for reglogin cmpl */
+	if ((mb = phba->sli.mbox_active)) {
+		if ((mb->mb.mbxCommand == MBX_REG_LOGIN64) &&
+		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
+			mb->context2 = NULL;
+			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		}
+	}
+
+	spin_lock_irq(phba->host->host_lock);
+	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
+		if ((mb->mb.mbxCommand == MBX_REG_LOGIN64) &&
+		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
+			mp = (struct lpfc_dmabuf *) (mb->context1);
+			if (mp) {
+				lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				kfree(mp);
+			}
+			list_del(&mb->list);
+			mempool_free(mb, phba->mbox_mem_pool);
+		}
+	}
+	spin_unlock_irq(phba->host->host_lock);
 
 	lpfc_rcv_logo(phba, ndlp, cmdiocb, ELS_CMD_LOGO);
 	return ndlp->nlp_state;

@@ -68,6 +68,8 @@ struct lpfc_iocbq {
 #define IOCB_ERROR          2
 #define IOCB_TIMEDOUT       3
 
+#define LPFC_MBX_WAKE	1
+
 typedef struct lpfcMboxq {
 	/* MBOXQs are used in single linked lists */
 	struct list_head list;	/* ptr to next mailbox command */
@@ -76,6 +78,7 @@ typedef struct lpfcMboxq {
 	void *context2;		/* caller context information */
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);
+	uint8_t mbox_flag;
 
 } LPFC_MBOXQ_t;
 

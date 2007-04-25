@@ -528,6 +528,7 @@ lpfc_sli_wake_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 	 * If pdone_q is empty, the driver thread gave up waiting and
 	 * continued running.
 	 */
+	pmboxq->mbox_flag |= LPFC_MBX_WAKE;
 	pdone_q = (wait_queue_head_t *) pmboxq->context1;
 	if (pdone_q)
 		wake_up_interruptible(pdone_q);
@@ -538,11 +539,32 @@ void
 lpfc_sli_def_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
 	struct lpfc_dmabuf *mp;
+	uint16_t rpi;
+	int rc;
+
 	mp = (struct lpfc_dmabuf *) (pmb->context1);
+
 	if (mp) {
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 	}
+
+	/*
+	 * If a REG_LOGIN succeeded  after node is destroyed or node
+	 * is in re-discovery driver need to cleanup the RPI.
+	 */
+	if (!(phba->fc_flag & FC_UNLOADING) &&
+		(pmb->mb.mbxCommand == MBX_REG_LOGIN64) &&
+		(!pmb->mb.mbxStatus)) {
+
+		rpi = pmb->mb.un.varWords[0];
+		lpfc_unreg_login(phba, rpi, pmb);
+		pmb->mbox_cmpl=lpfc_sli_def_mbox_cmpl;
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if (rc != MBX_NOT_FINISHED)
+			return;
+	}
+
 	mempool_free( pmb, phba->mbox_mem_pool);
 	return;
 }
@@ -2862,9 +2884,11 @@ void
 lpfc_sli_abort_fcp_cmpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			   struct lpfc_iocbq * rspiocb)
 {
-	spin_lock_irq(phba->host->host_lock);
+	unsigned long iflags;
+
+	spin_lock_irqsave(phba->host->host_lock, iflags);
 	lpfc_sli_release_iocbq(phba, cmdiocb);
-	spin_unlock_irq(phba->host->host_lock);
+	spin_unlock_irqrestore(phba->host->host_lock, iflags);
 	return;
 }
 
@@ -2987,22 +3011,22 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
 				timeout_req);
 		spin_lock_irq(phba->host->host_lock);
 
-		if (timeleft == 0) {
+		if (piocb->iocb_flag & LPFC_IO_WAKE) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+					"%d:0331 IOCB wake signaled\n",
+					phba->brd_no);
+		} else if (timeleft == 0) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"%d:0338 IOCB wait timeout error - no "
 					"wake response Data x%x\n",
 					phba->brd_no, timeout);
 			retval = IOCB_TIMEDOUT;
-		} else if (!(piocb->iocb_flag & LPFC_IO_WAKE)) {
+		} else {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"%d:0330 IOCB wake NOT set, "
 					"Data x%x x%lx\n", phba->brd_no,
 					timeout, (timeleft / jiffies));
 			retval = IOCB_TIMEDOUT;
-		} else {
-			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-					"%d:0331 IOCB wake signaled\n",
-					phba->brd_no);
 		}
 	} else {
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -3031,8 +3055,6 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 			 uint32_t timeout)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(done_q);
-	DECLARE_WAITQUEUE(wq_entry, current);
-	uint32_t timeleft = 0;
 	int retval;
 
 	/* The caller must leave context1 empty. */
@@ -3045,27 +3067,25 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 	/* setup context field to pass wait_queue pointer to wake function  */
 	pmboxq->context1 = &done_q;
 
-	/* start to sleep before we wait, to avoid races */
-	set_current_state(TASK_INTERRUPTIBLE);
-	add_wait_queue(&done_q, &wq_entry);
-
 	/* now issue the command */
 	retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
 
 	if (retval == MBX_BUSY || retval == MBX_SUCCESS) {
-		timeleft = schedule_timeout(timeout * HZ);
+		wait_event_interruptible_timeout(done_q,
+				pmboxq->mbox_flag & LPFC_MBX_WAKE,
+				timeout * HZ);
+
 		pmboxq->context1 = NULL;
-		/* if schedule_timeout returns 0, we timed out and were not
-		   woken up */
-		if ((timeleft == 0) || signal_pending(current))
-			retval = MBX_TIMEOUT;
-		else
+		/*
+		 * if LPFC_MBX_WAKE flag is set the mailbox is completed
+		 * else do not free the resources.
+		 */
+		if (pmboxq->mbox_flag & LPFC_MBX_WAKE)
 			retval = MBX_SUCCESS;
+		else
+			retval = MBX_TIMEOUT;
 	}
 
-
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&done_q, &wq_entry);
 	return retval;
 }
 

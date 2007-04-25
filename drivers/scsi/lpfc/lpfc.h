@@ -27,10 +27,6 @@ struct lpfc_sli2_slim;
 					   requests */
 #define LPFC_MAX_NS_RETRY	3	/* Number of retry attempts to contact
 					   the NameServer  before giving up. */
-#define LPFC_DFT_HBA_Q_DEPTH	2048	/* max cmds per hba */
-#define LPFC_LC_HBA_Q_DEPTH	1024	/* max cmds per low cost hba */
-#define LPFC_LP101_HBA_Q_DEPTH	128	/* max cmds per low cost hba */
-
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_SG_SEG_CNT		64	/* sg element count per scsi cmnd */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */

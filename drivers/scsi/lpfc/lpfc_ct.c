@@ -334,22 +334,22 @@ lpfc_ns_rsp(struct lpfc_hba * phba, struct lpfc_dmabuf * mp, uint32_t Size)
 
 	lpfc_set_disctmo(phba);
 
-	Cnt = Size  > FCELSSIZE ? FCELSSIZE : Size;
 
 	list_add_tail(&head, &mp->list);
 	list_for_each_entry_safe(mp, next_mp, &head, list) {
 		mlast = mp;
 
+		Cnt = Size  > FCELSSIZE ? FCELSSIZE : Size;
+
 		Size -= Cnt;
 
 		if (!ctptr) {
-			Cnt = FCELSSIZE;
 			ctptr = (uint32_t *) mlast->virt;
 		} else
 			Cnt -= 16;	/* subtract length of CT header */
 
 		/* Loop through entire NameServer list of DIDs */
-		while (Cnt) {
+		while (Cnt >= sizeof (uint32_t)) {
 
 			/* Get next DID from NameServer List */
 			CTentry = *ctptr++;
