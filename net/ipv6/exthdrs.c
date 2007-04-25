@@ -399,7 +399,7 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 		break;
 #endif
 	case IPV6_SRCRT_TYPE_0:
-		if (accept_source_route <= 0)
+		if (accept_source_route > 0)
 			break;
 		kfree_skb(skb);
 		return -1;
