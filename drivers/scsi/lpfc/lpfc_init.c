@@ -1196,7 +1196,7 @@ lpfc_cleanup(struct lpfc_hba * phba)
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_unused_list,
 				nlp_listp) {
-		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+		lpfc_drop_node(phba, ndlp);
 	}
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_plogi_list,

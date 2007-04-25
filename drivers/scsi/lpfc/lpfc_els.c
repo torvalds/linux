@@ -387,8 +387,7 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 				sizeof(struct lpfc_name));
 		memcpy(&ndlp->nlp_nodename, &sp->nodeName,
 				sizeof(struct lpfc_name));
-		ndlp->nlp_state = NLP_STE_NPR_NODE;
-		lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
+		lpfc_nlp_set_state(phba, ndlp, NLP_STE_NPR_NODE);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 	} else {
 		/* This side will wait for the PLOGI */
@@ -605,7 +604,7 @@ lpfc_initial_flogi(struct lpfc_hba * phba)
 			return 0;
 		lpfc_nlp_init(phba, ndlp, Fabric_DID);
 	} else {
-		lpfc_nlp_list(phba, ndlp, NLP_JUST_DQ);
+		lpfc_dequeue_node(phba, ndlp);
 	}
 	if (lpfc_issue_els_flogi(phba, ndlp, 0)) {
 		mempool_free( ndlp, phba->nlp_mem_pool);
@@ -679,18 +678,15 @@ lpfc_plogi_confirm_nport(struct lpfc_hba * phba, struct lpfc_dmabuf *prsp,
 	lpfc_unreg_rpi(phba, new_ndlp);
 	new_ndlp->nlp_DID = ndlp->nlp_DID;
 	new_ndlp->nlp_prev_state = ndlp->nlp_prev_state;
-	new_ndlp->nlp_state = ndlp->nlp_state;
-	lpfc_nlp_list(phba, new_ndlp, ndlp->nlp_flag & NLP_LIST_MASK);
+	lpfc_nlp_set_state(phba, new_ndlp, ndlp->nlp_state);
 
 	/* Move this back to NPR list */
-	if (memcmp(&ndlp->nlp_portname, name, sizeof(struct lpfc_name)) == 0) {
-		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-	}
+	if (memcmp(&ndlp->nlp_portname, name, sizeof(struct lpfc_name)) == 0)
+		lpfc_drop_node(phba, ndlp);
 	else {
 		lpfc_unreg_rpi(phba, ndlp);
 		ndlp->nlp_DID = 0; /* Two ndlps cannot have the same did */
-		ndlp->nlp_state = NLP_STE_NPR_NODE;
-		lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
+		lpfc_nlp_set_state(phba, ndlp, NLP_STE_NPR_NODE);
 	}
 	return new_ndlp;
 }
@@ -703,7 +699,6 @@ lpfc_cmpl_els_plogi(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_dmabuf *prsp;
 	int disc, rc, did, type;
-
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
@@ -1538,29 +1533,25 @@ lpfc_els_retry_delay_handler(struct lpfc_nodelist *ndlp)
 	case ELS_CMD_PLOGI:
 		if(!lpfc_issue_els_plogi(phba, ndlp->nlp_DID, retry)) {
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
-			lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_PLOGI_ISSUE);
 		}
 		break;
 	case ELS_CMD_ADISC:
 		if (!lpfc_issue_els_adisc(phba, ndlp, retry)) {
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_ADISC_ISSUE;
-			lpfc_nlp_list(phba, ndlp, NLP_ADISC_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_ADISC_ISSUE);
 		}
 		break;
 	case ELS_CMD_PRLI:
 		if (!lpfc_issue_els_prli(phba, ndlp, retry)) {
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_PRLI_ISSUE;
-			lpfc_nlp_list(phba, ndlp, NLP_PRLI_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_PRLI_ISSUE);
 		}
 		break;
 	case ELS_CMD_LOGO:
 		if (!lpfc_issue_els_logo(phba, ndlp, retry)) {
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_NPR_NODE;
-			lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_NPR_NODE);
 		}
 		break;
 	}
@@ -1730,8 +1721,7 @@ lpfc_els_retry(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			ndlp->nlp_flag |= NLP_DELAY_TMO;
 
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_NPR_NODE;
-			lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_NPR_NODE);
 			ndlp->nlp_last_elscmd = cmd;
 
 			return 1;
@@ -1743,27 +1733,24 @@ lpfc_els_retry(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		case ELS_CMD_PLOGI:
 			if (ndlp) {
 				ndlp->nlp_prev_state = ndlp->nlp_state;
-				ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
-				lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
+				lpfc_nlp_set_state(phba, ndlp,
+						   NLP_STE_PLOGI_ISSUE);
 			}
 			lpfc_issue_els_plogi(phba, did, cmdiocb->retry);
 			return 1;
 		case ELS_CMD_ADISC:
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_ADISC_ISSUE;
-			lpfc_nlp_list(phba, ndlp, NLP_ADISC_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_ADISC_ISSUE);
 			lpfc_issue_els_adisc(phba, ndlp, cmdiocb->retry);
 			return 1;
 		case ELS_CMD_PRLI:
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_PRLI_ISSUE;
-			lpfc_nlp_list(phba, ndlp, NLP_PRLI_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_PRLI_ISSUE);
 			lpfc_issue_els_prli(phba, ndlp, cmdiocb->retry);
 			return 1;
 		case ELS_CMD_LOGO:
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_NPR_NODE;
-			lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_NPR_NODE);
 			lpfc_issue_els_logo(phba, ndlp, cmdiocb->retry);
 			return 1;
 		}
@@ -1827,7 +1814,7 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 
 	switch (ndlp->nlp_state) {
 	case NLP_STE_UNUSED_NODE:	/* node is just allocated */
-		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+		lpfc_drop_node(phba, ndlp);
 		break;
 	case NLP_STE_NPR_NODE:		/* NPort Recovery mode */
 		lpfc_unreg_rpi(phba, ndlp);
@@ -1885,8 +1872,7 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			mbox->mbox_cmpl = lpfc_mbx_cmpl_reg_login;
 			mbox->context2 = ndlp;
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_REG_LOGIN_ISSUE;
-			lpfc_nlp_list(phba, ndlp, NLP_REGLOGIN_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_REG_LOGIN_ISSUE);
 			if (lpfc_sli_issue_mbox(phba, mbox,
 						(MBX_NOWAIT | MBX_STOP_IOCB))
 			    != MBX_NOT_FINISHED) {
@@ -1901,7 +1887,7 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			       (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 			       (irsp->un.ulpWord[4] == IOERR_SLI_DOWN)))) {
 				if (ndlp->nlp_flag & NLP_ACC_REGLOGIN) {
-					lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+					lpfc_drop_node(phba, ndlp);
 					ndlp = NULL;
 				}
 			}
@@ -2311,9 +2297,8 @@ lpfc_els_disc_adisc(struct lpfc_hba * phba)
 			if (ndlp->nlp_flag & NLP_NPR_ADISC) {
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 				ndlp->nlp_prev_state = ndlp->nlp_state;
-				ndlp->nlp_state = NLP_STE_ADISC_ISSUE;
-				lpfc_nlp_list(phba, ndlp,
-					NLP_ADISC_LIST);
+				lpfc_nlp_set_state(phba, ndlp,
+						   NLP_STE_ADISC_ISSUE);
 				lpfc_issue_els_adisc(phba, ndlp, 0);
 				sentadisc++;
 				phba->num_disc_nodes++;
@@ -2349,8 +2334,8 @@ lpfc_els_disc_plogi(struct lpfc_hba * phba)
 		   (!(ndlp->nlp_flag & NLP_DELAY_TMO))) {
 			if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
 				ndlp->nlp_prev_state = ndlp->nlp_state;
-				ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
-				lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
+				lpfc_nlp_set_state(phba, ndlp,
+						   NLP_STE_PLOGI_ISSUE);
 				lpfc_issue_els_plogi(phba, ndlp->nlp_DID, 0);
 				sentplogi++;
 				phba->num_disc_nodes++;
@@ -2647,8 +2632,7 @@ lpfc_els_handle_rscn(struct lpfc_hba * phba)
 			lpfc_nlp_init(phba, ndlp, NameServer_DID);
 			ndlp->nlp_type |= NLP_FABRIC;
 			ndlp->nlp_prev_state = ndlp->nlp_state;
-			ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
-			lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
+			lpfc_nlp_set_state(phba, ndlp, NLP_STE_PLOGI_ISSUE);
 			lpfc_issue_els_plogi(phba, NameServer_DID, 0);
 			/* Wait for NameServer login cmpl before we can
 			   continue */
@@ -3074,8 +3058,8 @@ lpfc_els_rcv_farp(struct lpfc_hba * phba,
 			/* Log back into the node before sending the FARP. */
 			if (fp->Rflags & FARP_REQUEST_PLOGI) {
 				ndlp->nlp_prev_state = ndlp->nlp_state;
-				ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
-				lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
+				lpfc_nlp_set_state(phba, ndlp,
+						   NLP_STE_PLOGI_ISSUE);
 				lpfc_issue_els_plogi(phba, ndlp->nlp_DID, 0);
 			}
 
@@ -3159,7 +3143,7 @@ lpfc_els_rcv_fan(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 					 * Clean up old Fabric, Nameserver and
 					 * other NLP_FABRIC logins
 					 */
-					lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+					lpfc_drop_node(phba, ndlp);
 				} else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
 					/* Fail outstanding I/O now since this
 					 * device is marked for PLOGI
@@ -3182,14 +3166,14 @@ lpfc_els_rcv_fan(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			switch (ndlp->nlp_prev_state) {
 			case NLP_STE_UNMAPPED_NODE:
 				ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
-				ndlp->nlp_state = NLP_STE_UNMAPPED_NODE;
-				lpfc_nlp_list(phba, ndlp, NLP_UNMAPPED_LIST);
+				lpfc_nlp_set_state(phba, ndlp,
+						   NLP_STE_UNMAPPED_NODE);
 				break;
 
 			case NLP_STE_MAPPED_NODE:
 				ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
-				ndlp->nlp_state = NLP_STE_MAPPED_NODE;
-				lpfc_nlp_list(phba, ndlp, NLP_MAPPED_LIST);
+				lpfc_nlp_set_state(phba, ndlp,
+						   NLP_STE_MAPPED_NODE);
 				break;
 
 			default:
@@ -3431,8 +3415,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 		if ((did & Fabric_DID_MASK) == Fabric_DID_MASK) {
 			ndlp->nlp_type |= NLP_FABRIC;
 		}
-		ndlp->nlp_state = NLP_STE_UNUSED_NODE;
-		lpfc_nlp_list(phba, ndlp, NLP_UNUSED_LIST);
+		lpfc_nlp_set_state(phba, ndlp, NLP_STE_UNUSED_NODE);
 	}
 
 	phba->fc_stat.elsRcvFrame++;
@@ -3460,9 +3443,8 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_FLOGI:
 		phba->fc_stat.elsRcvFLOGI++;
 		lpfc_els_rcv_flogi(phba, elsiocb, ndlp, newnode);
-		if (newnode) {
-			lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-		}
+		if (newnode)
+			lpfc_drop_node(phba, ndlp);
 		break;
 	case ELS_CMD_LOGO:
 		phba->fc_stat.elsRcvLOGO++;
@@ -3483,9 +3465,8 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_RSCN:
 		phba->fc_stat.elsRcvRSCN++;
 		lpfc_els_rcv_rscn(phba, elsiocb, ndlp, newnode);
-		if (newnode) {
-			lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-		}
+		if (newnode)
+			lpfc_drop_node(phba, ndlp);
 		break;
 	case ELS_CMD_ADISC:
 		phba->fc_stat.elsRcvADISC++;
@@ -3526,30 +3507,26 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_LIRR:
 		phba->fc_stat.elsRcvLIRR++;
 		lpfc_els_rcv_lirr(phba, elsiocb, ndlp);
-		if (newnode) {
-			lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-		}
+		if (newnode)
+			lpfc_drop_node(phba, ndlp);
 		break;
 	case ELS_CMD_RPS:
 		phba->fc_stat.elsRcvRPS++;
 		lpfc_els_rcv_rps(phba, elsiocb, ndlp);
-		if (newnode) {
-			lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-		}
+		if (newnode)
+			lpfc_drop_node(phba, ndlp);
 		break;
 	case ELS_CMD_RPL:
 		phba->fc_stat.elsRcvRPL++;
 		lpfc_els_rcv_rpl(phba, elsiocb, ndlp);
-		if (newnode) {
-			lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-		}
+		if (newnode)
+			lpfc_drop_node(phba, ndlp);
 		break;
 	case ELS_CMD_RNID:
 		phba->fc_stat.elsRcvRNID++;
 		lpfc_els_rcv_rnid(phba, elsiocb, ndlp);
-		if (newnode) {
-			lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-		}
+		if (newnode)
+			lpfc_drop_node(phba, ndlp);
 		break;
 	default:
 		/* Unsupported ELS command, reject */
@@ -3559,9 +3536,8 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
 				"%d:0115 Unknown ELS command x%x received from "
 				"NPORT x%x\n", phba->brd_no, cmd, did);
-		if (newnode) {
-			lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-		}
+		if (newnode)
+			lpfc_drop_node(phba, ndlp);
 		break;
 	}
 

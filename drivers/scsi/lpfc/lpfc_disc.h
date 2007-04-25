@@ -83,7 +83,6 @@ struct lpfc_nodelist {
 };
 
 /* Defines for nlp_flag (uint32) */
-#define NLP_NO_LIST        0x0		/* Indicates immediately free node */
 #define NLP_UNUSED_LIST    0x1		/* Flg to indicate node will be freed */
 #define NLP_PLOGI_LIST     0x2		/* Flg to indicate sent PLOGI */
 #define NLP_ADISC_LIST     0x3		/* Flg to indicate sent ADISC */
@@ -92,7 +91,6 @@ struct lpfc_nodelist {
 #define NLP_UNMAPPED_LIST  0x6		/* Node is now unmapped */
 #define NLP_MAPPED_LIST    0x7		/* Node is now mapped */
 #define NLP_NPR_LIST       0x8		/* Node is in NPort Recovery state */
-#define NLP_JUST_DQ        0x9		/* just deque ndlp in lpfc_nlp_list */
 #define NLP_LIST_MASK      0xf		/* mask to see what list node is on */
 #define NLP_PLOGI_SND      0x20		/* sent PLOGI request for this entry */
 #define NLP_PRLI_SND       0x40		/* sent PRLI request for this entry */
