@@ -903,6 +903,24 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		m = (typeof(m)){"LPe11000-S", max_speed,
 			"PCIe"};
 		break;
+	case PCI_DEVICE_ID_SAT:
+		m = (typeof(m)){"LPe12000", max_speed, "PCIe"};
+		break;
+	case PCI_DEVICE_ID_SAT_MID:
+		m = (typeof(m)){"LPe1250", max_speed, "PCIe"};
+		break;
+	case PCI_DEVICE_ID_SAT_SMB:
+		m = (typeof(m)){"LPe121", max_speed, "PCIe"};
+		break;
+	case PCI_DEVICE_ID_SAT_DCSP:
+		m = (typeof(m)){"LPe12002-SP", max_speed, "PCIe"};
+		break;
+	case PCI_DEVICE_ID_SAT_SCSP:
+		m = (typeof(m)){"LPe12000-SP", max_speed, "PCIe"};
+		break;
+	case PCI_DEVICE_ID_SAT_S:
+		m = (typeof(m)){"LPe12000-S", max_speed, "PCIe"};
+		break;
 	default:
 		m = (typeof(m)){ NULL };
 		break;
@@ -1888,6 +1906,18 @@ static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LP11000S,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LPE11000S,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_SAT,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_SAT_MID,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_SAT_SMB,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_SAT_DCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_SAT_SCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_SAT_S,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 }
 };

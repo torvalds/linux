@@ -723,6 +723,9 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		case LA_4GHZ_LINK:
 			phba->fc_linkspeed = LA_4GHZ_LINK;
 			break;
+		case LA_8GHZ_LINK:
+			phba->fc_linkspeed = LA_8GHZ_LINK;
+			break;
 		default:
 			phba->fc_linkspeed = LA_UNKNW_LINK;
 			break;

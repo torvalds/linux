@@ -212,6 +212,7 @@ lpfc_init_link(struct lpfc_hba * phba,
 			case LINK_SPEED_1G:
 			case LINK_SPEED_2G:
 			case LINK_SPEED_4G:
+			case LINK_SPEED_8G:
 				mb->un.varInitLnk.link_flags |=
 							FLAGS_LINK_SPEED;
 				mb->un.varInitLnk.link_speed = linkspeed;

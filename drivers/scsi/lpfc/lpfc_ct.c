@@ -1038,6 +1038,9 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 				case LA_4GHZ_LINK:
 					ae->un.PortSpeed = HBA_PORTSPEED_4GBIT;
 				break;
+				case LA_8GHZ_LINK:
+					ae->un.PortSpeed = HBA_PORTSPEED_8GBIT;
+				break;
 				default:
 					ae->un.PortSpeed =
 						HBA_PORTSPEED_UNKNOWN;

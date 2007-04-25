@@ -985,9 +985,10 @@ LPFC_ATTR_RW(topology, 0, 0, 6, "Select Fibre Channel topology");
 #       1  = 1 Gigabaud
 #       2  = 2 Gigabaud
 #       4  = 4 Gigabaud
-# Value range is [0,4]. Default value is 0.
+#       8  = 8 Gigabaud
+# Value range is [0,8]. Default value is 0.
 */
-LPFC_ATTR_R(link_speed, 0, 0, 4, "Select link speed");
+LPFC_ATTR_R(link_speed, 0, 0, 8, "Select link speed");
 
 /*
 # lpfc_fcp_class:  Determines FC class to use for the FCP protocol.
@@ -1558,6 +1559,9 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 			break;
 			case LA_4GHZ_LINK:
 				fc_host_speed(shost) = FC_PORTSPEED_4GBIT;
+			break;
+			case LA_8GHZ_LINK:
+				fc_host_speed(shost) = FC_PORTSPEED_8GBIT;
 			break;
 			default:
 				fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
