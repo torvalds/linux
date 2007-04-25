@@ -161,6 +161,17 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 	},
 	{
 		/*
+		 * No data is coming from the touchscreen unless KBC
+		 * is in legacy mode.
+		 */
+		.ident = "Panasonic CF-29",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Matsushita"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CF-29"),
+		},
+	},
+	{
+		/*
 		 * Errors on MUX ports are reported without raising AUXDATA
 		 * causing "spurious NAK" messages.
 		 */
