@@ -796,6 +796,9 @@ static void posix_fill_in_inode(struct inode *tmp_inode,
 		cFYI(1,("unknown inode type %d",type)); 
 	}
 
+#ifdef CONFIG_CIFS_DEBUG2
+	cFYI(1,("object type: %d", type));
+#endif
 	tmp_inode->i_uid = le64_to_cpu(pData->Uid);
 	tmp_inode->i_gid = le64_to_cpu(pData->Gid);
 	tmp_inode->i_nlink = le64_to_cpu(pData->Nlinks);
@@ -903,6 +906,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			cFYI(1, ("posix mkdir returned 0x%x", rc));
 			d_drop(direntry);
 		} else {
+			int obj_type;
 			if (pInfo->Type == -1) /* no return info - go query */
 				goto mkdir_get_info; 
 /*BB check (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID ) to see if need to set uid/gid */
@@ -911,19 +915,36 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 				direntry->d_op = &cifs_ci_dentry_ops;
 			else
 				direntry->d_op = &cifs_dentry_ops;
+
+			newinode = new_inode(inode->i_sb);
+			if (newinode == NULL)
+				goto mkdir_get_info;
+			/* Is an i_ino of zero legal? */
+			/* Are there sanity checks we can use to ensure that
+			   the server is really filling in that field? */
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
+				newinode->i_ino =
+					(unsigned long)pInfo->UniqueId;
+			} /* note ino incremented to unique num in new_inode */
+			if(inode->i_sb->s_flags & MS_NOATIME)
+				newinode->i_flags |= S_NOATIME | S_NOCMTIME;
+			newinode->i_nlink = 2;
+
+			insert_inode_hash(newinode);
 			d_instantiate(direntry, newinode);
-			if (direntry->d_inode) {
-				int obj_type;
-				direntry->d_inode->i_nlink = 2;
-				/* already checked in POSIXCreate whether
-				frame was long enough */
-				posix_fill_in_inode(direntry->d_inode,
+
+			/* we already checked in POSIXCreate whether
+			   frame was long enough */
+			posix_fill_in_inode(direntry->d_inode,
 					pInfo, &obj_type, 1 /* NewInode */);
-				/* could double check that we actually
-				 * created what we thought we did ie
-				 * a directory
-				 */	
-			}
+#ifdef CONFIG_CIFS_DEBUG2
+			cFYI(1,("instantiated dentry %p %s to inode %p",
+				direntry, direntry->d_name.name, newinode));
+
+			if(newinode->i_nlink != 2)
+				cFYI(1,("unexpected number of links %d",
+					newinode->i_nlink));
+#endif
 		}
 		kfree(pInfo);
 		goto mkdir_out;

@@ -1008,9 +1008,12 @@ PsxCreat:
 	if(cpu_to_le32(FILE_CREATE) == psx_rsp->CreateAction)
 		*pOplock |= CIFS_CREATE_ACTION;
 	/* check to make sure response data is there */
-	if(psx_rsp->ReturnedLevel != SMB_QUERY_FILE_UNIX_BASIC)
-		pRetData->Type = -1; /* unknown */ 		
-	else {
+	if(psx_rsp->ReturnedLevel != SMB_QUERY_FILE_UNIX_BASIC) {
+		pRetData->Type = -1; /* unknown */
+#ifdef CONFIG_CIFS_DEBUG2
+		cFYI(1,("unknown type"));
+#endif
+	} else {
 		if(pSMBr->ByteCount < sizeof(OPEN_PSX_RSP) 
 					+ sizeof(FILE_UNIX_BASIC_INFO)) {
 			cERROR(1,("Open response data too small"));
@@ -1018,7 +1021,7 @@ PsxCreat:
 			goto psx_create_err;
 		}
 		memcpy((char *) pRetData, 
-			(char *)&psx_rsp + sizeof(OPEN_PSX_RSP),
+			(char *)psx_rsp + sizeof(OPEN_PSX_RSP),
 			sizeof (FILE_UNIX_BASIC_INFO));
 	}
 			
