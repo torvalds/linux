@@ -136,8 +136,14 @@ struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 		if (skb->protocol == htons(ETH_P_PAUSE))
 			goto drop;
 
-		return (NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,
-				NULL, br_handle_local_finish) == 0) ? skb : NULL;
+		/* Process STP BPDU's through normal netif_receive_skb() path */
+		if (p->br->stp_enabled != BR_NO_STP) {
+			if (NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,
+				    NULL, br_handle_local_finish))
+				return NULL;
+			else
+				return skb;
+		}
 	}
 
 	switch (p->state) {
