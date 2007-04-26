@@ -15,6 +15,7 @@ kafs-objs := \
 	mntpt.o \
 	proc.o \
 	rxrpc.o \
+	security.o \
 	server.o \
 	super.o \
 	vlclient.o \

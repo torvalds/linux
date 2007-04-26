@@ -148,6 +148,7 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call,
  * FS.FetchStatus operation type
  */
 static const struct afs_call_type afs_RXFSFetchStatus = {
+	.name		= "FS.FetchStatus",
 	.deliver	= afs_deliver_fs_fetch_status,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
@@ -157,6 +158,7 @@ static const struct afs_call_type afs_RXFSFetchStatus = {
  * fetch the status information for a file
  */
 int afs_fs_fetch_file_status(struct afs_server *server,
+			     struct key *key,
 			     struct afs_vnode *vnode,
 			     struct afs_volsync *volsync,
 			     const struct afs_wait_mode *wait_mode)
@@ -164,12 +166,13 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 	struct afs_call *call;
 	__be32 *bp;
 
-	_enter("");
+	_enter(",%x,,,", key_serial(key));
 
 	call = afs_alloc_flat_call(&afs_RXFSFetchStatus, 16, 120);
 	if (!call)
 		return -ENOMEM;
 
+	call->key = key;
 	call->reply = vnode;
 	call->reply2 = volsync;
 	call->service_id = FS_SERVICE;
@@ -279,6 +282,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
  * FS.FetchData operation type
  */
 static const struct afs_call_type afs_RXFSFetchData = {
+	.name		= "FS.FetchData",
 	.deliver	= afs_deliver_fs_fetch_data,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
@@ -288,6 +292,7 @@ static const struct afs_call_type afs_RXFSFetchData = {
  * fetch data from a file
  */
 int afs_fs_fetch_data(struct afs_server *server,
+		      struct key *key,
 		      struct afs_vnode *vnode,
 		      off_t offset, size_t length,
 		      struct page *buffer,
@@ -303,6 +308,7 @@ int afs_fs_fetch_data(struct afs_server *server,
 	if (!call)
 		return -ENOMEM;
 
+	call->key = key;
 	call->reply = vnode;
 	call->reply2 = volsync;
 	call->reply3 = buffer;
@@ -338,6 +344,7 @@ static int afs_deliver_fs_give_up_callbacks(struct afs_call *call,
  * FS.GiveUpCallBacks operation type
  */
 static const struct afs_call_type afs_RXFSGiveUpCallBacks = {
+	.name		= "FS.GiveUpCallBacks",
 	.deliver	= afs_deliver_fs_give_up_callbacks,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_flat_call_destructor,

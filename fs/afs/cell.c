@@ -11,6 +11,9 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/key.h>
+#include <linux/ctype.h>
+#include <keys/rxrpc-type.h>
 #include "internal.h"
 
 DECLARE_RWSEM(afs_proc_cells_sem);
@@ -23,45 +26,43 @@ static DECLARE_WAIT_QUEUE_HEAD(afs_cells_freeable_wq);
 static struct afs_cell *afs_cell_root;
 
 /*
- * create a cell record
- * - "name" is the name of the cell
- * - "vllist" is a colon separated list of IP addresses in "a.b.c.d" format
+ * allocate a cell record and fill in its name, VL server address list and
+ * allocate an anonymous key
  */
-struct afs_cell *afs_cell_create(const char *name, char *vllist)
+static struct afs_cell *afs_cell_alloc(const char *name, char *vllist)
 {
 	struct afs_cell *cell;
-	char *next;
+	size_t namelen;
+	char keyname[4 + AFS_MAXCELLNAME + 1], *cp, *dp, *next;
 	int ret;
 
 	_enter("%s,%s", name, vllist);
 
 	BUG_ON(!name); /* TODO: want to look up "this cell" in the cache */
 
+	namelen = strlen(name);
+	if (namelen > AFS_MAXCELLNAME)
+		return ERR_PTR(-ENAMETOOLONG);
+
 	/* allocate and initialise a cell record */
-	cell = kmalloc(sizeof(struct afs_cell) + strlen(name) + 1, GFP_KERNEL);
+	cell = kzalloc(sizeof(struct afs_cell) + namelen + 1, GFP_KERNEL);
 	if (!cell) {
 		_leave(" = -ENOMEM");
 		return ERR_PTR(-ENOMEM);
 	}
 
-	down_write(&afs_cells_sem);
+	memcpy(cell->name, name, namelen);
+	cell->name[namelen] = 0;
 
-	memset(cell, 0, sizeof(struct afs_cell));
 	atomic_set(&cell->usage, 1);
-
 	INIT_LIST_HEAD(&cell->link);
-
 	rwlock_init(&cell->servers_lock);
 	INIT_LIST_HEAD(&cell->servers);
-
 	init_rwsem(&cell->vl_sem);
 	INIT_LIST_HEAD(&cell->vl_list);
 	spin_lock_init(&cell->vl_lock);
 
-	strcpy(cell->name, name);
-
 	/* fill in the VL server list from the rest of the string */
-	ret = -EINVAL;
 	do {
 		unsigned a, b, c, d;
 
@@ -70,18 +71,73 @@ struct afs_cell *afs_cell_create(const char *name, char *vllist)
 			*next++ = 0;
 
 		if (sscanf(vllist, "%u.%u.%u.%u", &a, &b, &c, &d) != 4)
-			goto badaddr;
+			goto bad_address;
 
 		if (a > 255 || b > 255 || c > 255 || d > 255)
-			goto badaddr;
+			goto bad_address;
 
 		cell->vl_addrs[cell->vl_naddrs++].s_addr =
 			htonl((a << 24) | (b << 16) | (c << 8) | d);
 
-		if (cell->vl_naddrs >= AFS_CELL_MAX_ADDRS)
-			break;
+	} while (cell->vl_naddrs < AFS_CELL_MAX_ADDRS && (vllist = next));
 
-	} while ((vllist = next));
+	/* create a key to represent an anonymous user */
+	memcpy(keyname, "afs@", 4);
+	dp = keyname + 4;
+	cp = cell->name;
+	do {
+		*dp++ = toupper(*cp);
+	} while (*cp++);
+	cell->anonymous_key = key_alloc(&key_type_rxrpc, keyname, 0, 0, current,
+					KEY_POS_SEARCH, KEY_ALLOC_NOT_IN_QUOTA);
+	if (IS_ERR(cell->anonymous_key)) {
+		_debug("no key");
+		ret = PTR_ERR(cell->anonymous_key);
+		goto error;
+	}
+
+	ret = key_instantiate_and_link(cell->anonymous_key, NULL, 0,
+				       NULL, NULL);
+	if (ret < 0) {
+		_debug("instantiate failed");
+		goto error;
+	}
+
+	_debug("anon key %p{%x}",
+	       cell->anonymous_key, key_serial(cell->anonymous_key));
+
+	_leave(" = %p", cell);
+	return cell;
+
+bad_address:
+	printk(KERN_ERR "kAFS: bad VL server IP address\n");
+	ret = -EINVAL;
+error:
+	key_put(cell->anonymous_key);
+	kfree(cell);
+	_leave(" = %d", ret);
+	return ERR_PTR(ret);
+}
+
+/*
+ * create a cell record
+ * - "name" is the name of the cell
+ * - "vllist" is a colon separated list of IP addresses in "a.b.c.d" format
+ */
+struct afs_cell *afs_cell_create(const char *name, char *vllist)
+{
+	struct afs_cell *cell;
+	int ret;
+
+	_enter("%s,%s", name, vllist);
+
+	cell = afs_cell_alloc(name, vllist);
+	if (IS_ERR(cell)) {
+		_leave(" = %ld", PTR_ERR(cell));
+		return cell;
+	}
+
+	down_write(&afs_cells_sem);
 
 	/* add a proc directory for this cell */
 	ret = afs_proc_cell_setup(cell);
@@ -109,10 +165,9 @@ struct afs_cell *afs_cell_create(const char *name, char *vllist)
 	_leave(" = %p", cell);
 	return cell;
 
-badaddr:
-	printk(KERN_ERR "kAFS: bad VL server IP address\n");
 error:
 	up_write(&afs_cells_sem);
+	key_put(cell->anonymous_key);
 	kfree(cell);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
@@ -301,6 +356,7 @@ static void afs_cell_destroy(struct afs_cell *cell)
 	cachefs_relinquish_cookie(cell->cache, 0);
 #endif
 
+	key_put(cell->anonymous_key);
 	kfree(cell);
 
 	_leave(" [destroyed]");

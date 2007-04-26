@@ -17,17 +17,23 @@
 #include <linux/pagemap.h>
 #include "internal.h"
 
-#if 0
-static int afs_file_open(struct inode *inode, struct file *file);
-static int afs_file_release(struct inode *inode, struct file *file);
-#endif
-
 static int afs_file_readpage(struct file *file, struct page *page);
 static void afs_file_invalidatepage(struct page *page, unsigned long offset);
 static int afs_file_releasepage(struct page *page, gfp_t gfp_flags);
 
+const struct file_operations afs_file_operations = {
+	.open		= afs_open,
+	.release	= afs_release,
+	.llseek		= generic_file_llseek,
+	.read		= do_sync_read,
+	.aio_read	= generic_file_aio_read,
+	.mmap		= generic_file_readonly_mmap,
+	.sendfile	= generic_file_sendfile,
+};
+
 const struct inode_operations afs_file_inode_operations = {
 	.getattr	= afs_inode_getattr,
+	.permission	= afs_permission,
 };
 
 const struct address_space_operations afs_fs_aops = {
@@ -36,6 +42,41 @@ const struct address_space_operations afs_fs_aops = {
 	.releasepage	= afs_file_releasepage,
 	.invalidatepage	= afs_file_invalidatepage,
 };
+
+/*
+ * open an AFS file or directory and attach a key to it
+ */
+int afs_open(struct inode *inode, struct file *file)
+{
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct key *key;
+
+	_enter("{%x:%x},", vnode->fid.vid, vnode->fid.vnode);
+
+	key = afs_request_key(vnode->volume->cell);
+	if (IS_ERR(key)) {
+		_leave(" = %ld [key]", PTR_ERR(key));
+		return PTR_ERR(key);
+	}
+
+	file->private_data = key;
+	_leave(" = 0");
+	return 0;
+}
+
+/*
+ * release an AFS file or directory and discard its key
+ */
+int afs_release(struct inode *inode, struct file *file)
+{
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+
+	_enter("{%x:%x},", vnode->fid.vid, vnode->fid.vnode);
+
+	key_put(file->private_data);
+	_leave(" = 0");
+	return 0;
+}
 
 /*
  * deal with notification that a page was read from the cache
@@ -79,13 +120,18 @@ static int afs_file_readpage(struct file *file, struct page *page)
 {
 	struct afs_vnode *vnode;
 	struct inode *inode;
+	struct key *key;
 	size_t len;
 	off_t offset;
 	int ret;
 
 	inode = page->mapping->host;
 
-	_enter("{%lu},{%lu}", inode->i_ino, page->index);
+	ASSERT(file != NULL);
+	key = file->private_data;
+	ASSERT(key != NULL);
+
+	_enter("{%x},{%lu},{%lu}", key_serial(key), inode->i_ino, page->index);
 
 	vnode = AFS_FS_I(inode);
 
@@ -124,7 +170,7 @@ static int afs_file_readpage(struct file *file, struct page *page)
 
 		/* read the contents of the file from the server into the
 		 * page */
-		ret = afs_vnode_fetch_data(vnode, offset, len, page);
+		ret = afs_vnode_fetch_data(vnode, key, offset, len, page);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
 				_debug("got NOENT from server"

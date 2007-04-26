@@ -33,6 +33,7 @@ static struct workqueue_struct *afs_vlocation_update_worker;
  * about the volume in question
  */
 static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vl,
+					   struct key *key,
 					   struct afs_cache_vlocation *vldb)
 {
 	struct afs_cell *cell = vl->cell;
@@ -49,7 +50,7 @@ static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vl,
 		_debug("CellServ[%hu]: %08x", cell->vl_curr_svix, addr.s_addr);
 
 		/* attempt to access the VL server */
-		ret = afs_vl_get_entry_by_name(&addr, vl->vldb.name, vldb,
+		ret = afs_vl_get_entry_by_name(&addr, key, vl->vldb.name, vldb,
 					       &afs_sync_call);
 		switch (ret) {
 		case 0:
@@ -86,6 +87,7 @@ out:
  * about the volume in question
  */
 static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vl,
+					 struct key *key,
 					 afs_volid_t volid,
 					 afs_voltype_t voltype,
 					 struct afs_cache_vlocation *vldb)
@@ -104,7 +106,7 @@ static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vl,
 		_debug("CellServ[%hu]: %08x", cell->vl_curr_svix, addr.s_addr);
 
 		/* attempt to access the VL server */
-		ret = afs_vl_get_entry_by_id(&addr, volid, voltype, vldb,
+		ret = afs_vl_get_entry_by_id(&addr, key, volid, voltype, vldb,
 					     &afs_sync_call);
 		switch (ret) {
 		case 0:
@@ -188,6 +190,7 @@ static struct afs_vlocation *afs_vlocation_alloc(struct afs_cell *cell,
  * update record if we found it in the cache
  */
 static int afs_vlocation_update_record(struct afs_vlocation *vl,
+				       struct key *key,
 				       struct afs_cache_vlocation *vldb)
 {
 	afs_voltype_t voltype;
@@ -228,7 +231,7 @@ static int afs_vlocation_update_record(struct afs_vlocation *vl,
 	/* contact the server to make sure the volume is still available
 	 * - TODO: need to handle disconnected operation here
 	 */
-	ret = afs_vlocation_access_vl_by_id(vl, vid, voltype, vldb);
+	ret = afs_vlocation_access_vl_by_id(vl, key, vid, voltype, vldb);
 	switch (ret) {
 		/* net error */
 	default:
@@ -287,7 +290,8 @@ static void afs_vlocation_apply_update(struct afs_vlocation *vl,
  * fill in a volume location record, consulting the cache and the VL server
  * both
  */
-static int afs_vlocation_fill_in_record(struct afs_vlocation *vl)
+static int afs_vlocation_fill_in_record(struct afs_vlocation *vl,
+					struct key *key)
 {
 	struct afs_cache_vlocation vldb;
 	int ret;
@@ -310,11 +314,11 @@ static int afs_vlocation_fill_in_record(struct afs_vlocation *vl)
 		/* try to update a known volume in the cell VL databases by
 		 * ID as the name may have changed */
 		_debug("found in cache");
-		ret = afs_vlocation_update_record(vl, &vldb);
+		ret = afs_vlocation_update_record(vl, key, &vldb);
 	} else {
 		/* try to look up an unknown volume in the cell VL databases by
 		 * name */
-		ret = afs_vlocation_access_vl_by_name(vl, &vldb);
+		ret = afs_vlocation_access_vl_by_name(vl, key, &vldb);
 		if (ret < 0) {
 			printk("kAFS: failed to locate '%s' in cell '%s'\n",
 			       vl->vldb.name, vl->cell->name);
@@ -366,14 +370,16 @@ void afs_vlocation_queue_for_updates(struct afs_vlocation *vl)
  * - insert/update in the local cache if did get a VL response
  */
 struct afs_vlocation *afs_vlocation_lookup(struct afs_cell *cell,
+					   struct key *key,
 					   const char *name,
 					   size_t namesz)
 {
 	struct afs_vlocation *vl;
 	int ret;
 
-	_enter("{%s},%*.*s,%zu",
-	       cell->name, (int) namesz, (int) namesz, name, namesz);
+	_enter("{%s},{%x},%*.*s,%zu",
+	       cell->name, key_serial(key),
+	       (int) namesz, (int) namesz, name, namesz);
 
 	if (namesz > sizeof(vl->vldb.name)) {
 		_leave(" = -ENAMETOOLONG");
@@ -405,7 +411,7 @@ struct afs_vlocation *afs_vlocation_lookup(struct afs_cell *cell,
 	up_write(&cell->vl_sem);
 
 fill_in_record:
-	ret = afs_vlocation_fill_in_record(vl);
+	ret = afs_vlocation_fill_in_record(vl, key);
 	if (ret < 0)
 		goto error_abandon;
 	vl->state = AFS_VL_VALID;
@@ -656,7 +662,7 @@ static void afs_vlocation_updater(struct work_struct *work)
 	vl->upd_rej_cnt = 0;
 	vl->upd_busy_cnt = 0;
 
-	ret = afs_vlocation_update_record(vl, &vldb);
+	ret = afs_vlocation_update_record(vl, NULL, &vldb);
 	switch (ret) {
 	case 0:
 		afs_vlocation_apply_update(vl, &vldb);

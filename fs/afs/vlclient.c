@@ -127,6 +127,7 @@ static int afs_deliver_vl_get_entry_by_xxx(struct afs_call *call,
  * VL.GetEntryByName operation type
  */
 static const struct afs_call_type afs_RXVLGetEntryByName = {
+	.name		= "VL.GetEntryByName",
 	.deliver	= afs_deliver_vl_get_entry_by_xxx,
 	.abort_to_error	= afs_vl_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
@@ -136,6 +137,7 @@ static const struct afs_call_type afs_RXVLGetEntryByName = {
  * VL.GetEntryById operation type
  */
 static const struct afs_call_type afs_RXVLGetEntryById = {
+	.name		= "VL.GetEntryById",
 	.deliver	= afs_deliver_vl_get_entry_by_xxx,
 	.abort_to_error	= afs_vl_abort_to_error,
 	.destructor	= afs_flat_call_destructor,
@@ -145,6 +147,7 @@ static const struct afs_call_type afs_RXVLGetEntryById = {
  * dispatch a get volume entry by name operation
  */
 int afs_vl_get_entry_by_name(struct in_addr *addr,
+			     struct key *key,
 			     const char *volname,
 			     struct afs_cache_vlocation *entry,
 			     const struct afs_wait_mode *wait_mode)
@@ -163,6 +166,7 @@ int afs_vl_get_entry_by_name(struct in_addr *addr,
 	if (!call)
 		return -ENOMEM;
 
+	call->key = key;
 	call->reply = entry;
 	call->service_id = VL_SERVICE;
 	call->port = htons(AFS_VL_PORT);
@@ -183,6 +187,7 @@ int afs_vl_get_entry_by_name(struct in_addr *addr,
  * dispatch a get volume entry by ID operation
  */
 int afs_vl_get_entry_by_id(struct in_addr *addr,
+			   struct key *key,
 			   afs_volid_t volid,
 			   afs_voltype_t voltype,
 			   struct afs_cache_vlocation *entry,
@@ -197,6 +202,7 @@ int afs_vl_get_entry_by_id(struct in_addr *addr,
 	if (!call)
 		return -ENOMEM;
 
+	call->key = key;
 	call->reply = entry;
 	call->service_id = VL_SERVICE;
 	call->port = htons(AFS_VL_PORT);

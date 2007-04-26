@@ -15,6 +15,7 @@
 #include <linux/pagemap.h>
 #include <linux/skbuff.h>
 #include <linux/rxrpc.h>
+#include <linux/key.h>
 #include "afs.h"
 #include "afs_vl.h"
 
@@ -31,6 +32,17 @@ typedef enum {
 	AFS_VL_VOLUME_DELETED,		/* volume was deleted */
 	AFS_VL_UNCERTAIN,		/* uncertain state (update failed) */
 } __attribute__((packed)) afs_vlocation_state_t;
+
+struct afs_mount_params {
+	bool			rwpath;		/* T if the parent should be considered R/W */
+	bool			force;		/* T to force cell type */
+	afs_voltype_t		type;		/* type of volume requested */
+	int			volnamesz;	/* size of volume name */
+	const char		*volname;	/* name of volume to mount */
+	struct afs_cell		*cell;		/* cell in which to find volume */
+	struct afs_volume	*volume;	/* volume record */
+	struct key		*key;		/* key to use for secure mounting */
+};
 
 /*
  * definition of how to wait for the completion of an operation
@@ -95,6 +107,8 @@ struct afs_call {
 };
 
 struct afs_call_type {
+	const char *name;
+
 	/* deliver request or reply data to an call
 	 * - returning an error will cause the call to be aborted
 	 */
@@ -128,8 +142,8 @@ extern struct file_system_type afs_fs_type;
  * entry in the cached cell catalogue
  */
 struct afs_cache_cell {
-	char			name[64];	/* cell name (padded with NULs) */
-	struct in_addr		vl_servers[15];	/* cached cell VL servers */
+	char		name[AFS_MAXCELLNAME];	/* cell name (padded with NULs) */
+	struct in_addr	vl_servers[15];		/* cached cell VL servers */
 };
 
 /*
@@ -138,6 +152,7 @@ struct afs_cache_cell {
 struct afs_cell {
 	atomic_t		usage;
 	struct list_head	link;		/* main cell list link */
+	struct key		*anonymous_key;	/* anonymous user key for this cell */
 	struct list_head	proc_link;	/* /proc cell list link */
 	struct proc_dir_entry	*proc_dir;	/* /proc dir for this cell */
 #ifdef AFS_CACHING_SUPPORT
@@ -163,7 +178,9 @@ struct afs_cell {
  * entry in the cached volume location catalogue
  */
 struct afs_cache_vlocation {
-	uint8_t			name[64 + 1];	/* volume name (lowercase, padded with NULs) */
+	/* volume name (lowercase, padded with NULs) */
+	uint8_t			name[AFS_MAXVOLNAME + 1];
+
 	uint8_t			nservers;	/* number of entries used in servers[] */
 	uint8_t			vidmask;	/* voltype mask for vid[] */
 	uint8_t			srvtmask[8];	/* voltype masks for servers[] */
@@ -281,7 +298,8 @@ struct afs_vnode {
 #ifdef AFS_CACHING_SUPPORT
 	struct cachefs_cookie	*cache;		/* caching cookie */
 #endif
-
+	struct afs_permits	*permits;	/* cache of permits so far obtained */
+	struct mutex		permits_lock;	/* lock for altering permits list */
 	wait_queue_head_t	update_waitq;	/* status fetch waitqueue */
 	unsigned		update_cnt;	/* number of outstanding ops that will update the
 						 * status */
@@ -296,18 +314,36 @@ struct afs_vnode {
 #define AFS_VNODE_DIR_CHANGED	6		/* set if vnode's parent dir metadata changed */
 #define AFS_VNODE_DIR_MODIFIED	7		/* set if vnode's parent dir data modified */
 
+	long			acl_order;	/* ACL check count (callback break count) */
+
 	/* outstanding callback notification on this file */
 	struct rb_node		server_rb;	/* link in server->fs_vnodes */
 	struct rb_node		cb_promise;	/* link in server->cb_promises */
 	struct work_struct	cb_broken_work;	/* work to be done on callback break */
 	struct mutex		cb_broken_lock;	/* lock against multiple attempts to fix break */
-//	struct list_head	cb_hash_link;	/* link in master callback hash */
 	time_t			cb_expires;	/* time at which callback expires */
 	time_t			cb_expires_at;	/* time used to order cb_promise */
 	unsigned		cb_version;	/* callback version */
 	unsigned		cb_expiry;	/* callback expiry time */
 	afs_callback_type_t	cb_type;	/* type of callback */
 	bool			cb_promised;	/* true if promise still holds */
+};
+
+/*
+ * cached security record for one user's attempt to access a vnode
+ */
+struct afs_permit {
+	struct key		*key;		/* RxRPC ticket holding a security context */
+	afs_access_t		access_mask;	/* access mask for this key */
+};
+
+/*
+ * cache of security records from attempts to access a vnode
+ */
+struct afs_permits {
+	struct rcu_head		rcu;		/* disposal procedure */
+	int			count;		/* number of records */
+	struct afs_permit	permits[0];	/* the permits so far examined */
 };
 
 /*****************************************************************************/
@@ -352,11 +388,17 @@ extern bool afs_cm_incoming_call(struct afs_call *);
 extern const struct inode_operations afs_dir_inode_operations;
 extern const struct file_operations afs_dir_file_operations;
 
+extern int afs_permission(struct inode *, int, struct nameidata *);
+
 /*
  * file.c
  */
 extern const struct address_space_operations afs_fs_aops;
 extern const struct inode_operations afs_file_inode_operations;
+extern const struct file_operations afs_file_operations;
+
+extern int afs_open(struct inode *, struct file *);
+extern int afs_release(struct inode *, struct file *);
 
 #ifdef AFS_CACHING_SUPPORT
 extern int afs_cache_get_page_cookie(struct page *, struct cachefs_page **);
@@ -365,22 +407,24 @@ extern int afs_cache_get_page_cookie(struct page *, struct cachefs_page **);
 /*
  * fsclient.c
  */
-extern int afs_fs_fetch_file_status(struct afs_server *,
-				    struct afs_vnode *,
-				    struct afs_volsync *,
+extern int afs_fs_fetch_file_status(struct afs_server *, struct key *,
+				    struct afs_vnode *, struct afs_volsync *,
 				    const struct afs_wait_mode *);
 extern int afs_fs_give_up_callbacks(struct afs_server *,
 				    const struct afs_wait_mode *);
-extern int afs_fs_fetch_data(struct afs_server *, struct afs_vnode *, off_t,
-			     size_t, struct page *, struct afs_volsync *,
+extern int afs_fs_fetch_data(struct afs_server *, struct key *,
+			     struct afs_vnode *, off_t, size_t, struct page *,
+			     struct afs_volsync *,
 			     const struct afs_wait_mode *);
 
 /*
  * inode.c
  */
-extern struct inode *afs_iget(struct super_block *, struct afs_fid *);
+extern struct inode *afs_iget(struct super_block *, struct key *,
+			      struct afs_fid *);
 extern int afs_inode_getattr(struct vfsmount *, struct dentry *,
 			     struct kstat *);
+extern void afs_zap_permits(struct rcu_head *);
 extern void afs_clear_inode(struct inode *);
 
 /*
@@ -402,15 +446,9 @@ extern const struct inode_operations afs_mntpt_inode_operations;
 extern const struct file_operations afs_mntpt_file_operations;
 extern unsigned long afs_mntpt_expiry_timeout;
 
-extern int afs_mntpt_check_symlink(struct afs_vnode *);
+extern int afs_mntpt_check_symlink(struct afs_vnode *, struct key *);
 extern void afs_mntpt_kill_timer(void);
 extern void afs_umount_begin(struct vfsmount *, int);
-
-/*
- * super.c
- */
-extern int afs_fs_init(void);
-extern void afs_fs_exit(void);
 
 /*
  * proc.c
@@ -436,6 +474,14 @@ extern int afs_extract_data(struct afs_call *, struct sk_buff *, bool, void *,
 			    size_t);
 
 /*
+ * security.c
+ */
+extern void afs_clear_permits(struct afs_vnode *);
+extern void afs_cache_permit(struct afs_vnode *, struct key *, long);
+extern struct key *afs_request_key(struct afs_cell *);
+extern int afs_permission(struct inode *, int, struct nameidata *);
+
+/*
  * server.c
  */
 extern spinlock_t afs_server_peer_lock;
@@ -449,16 +495,23 @@ extern void afs_put_server(struct afs_server *);
 extern void __exit afs_purge_servers(void);
 
 /*
+ * super.c
+ */
+extern int afs_fs_init(void);
+extern void afs_fs_exit(void);
+
+/*
  * vlclient.c
  */
 #ifdef AFS_CACHING_SUPPORT
 extern struct cachefs_index_def afs_vlocation_cache_index_def;
 #endif
 
-extern int afs_vl_get_entry_by_name(struct in_addr *, const char *,
-				    struct afs_cache_vlocation *,
+extern int afs_vl_get_entry_by_name(struct in_addr *, struct key *,
+				    const char *, struct afs_cache_vlocation *,
 				    const struct afs_wait_mode *);
-extern int afs_vl_get_entry_by_id(struct in_addr *, afs_volid_t, afs_voltype_t,
+extern int afs_vl_get_entry_by_id(struct in_addr *, struct key *,
+				  afs_volid_t, afs_voltype_t,
 				  struct afs_cache_vlocation *,
 				  const struct afs_wait_mode *);
 
@@ -469,6 +522,7 @@ extern int afs_vl_get_entry_by_id(struct in_addr *, afs_volid_t, afs_voltype_t,
 
 extern int __init afs_vlocation_update_init(void);
 extern struct afs_vlocation *afs_vlocation_lookup(struct afs_cell *,
+						  struct key *,
 						  const char *, size_t);
 extern void afs_put_vlocation(struct afs_vlocation *);
 extern void __exit afs_vlocation_purge(void);
@@ -492,9 +546,10 @@ static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 	return &vnode->vfs_inode;
 }
 
-extern int afs_vnode_fetch_status(struct afs_vnode *);
-extern int afs_vnode_fetch_data(struct afs_vnode *vnode, off_t, size_t,
-				struct page *);
+extern int afs_vnode_fetch_status(struct afs_vnode *, struct afs_vnode *,
+				  struct key *);
+extern int afs_vnode_fetch_data(struct afs_vnode *, struct key *,
+				off_t, size_t, struct page *);
 
 /*
  * volume.c
@@ -506,8 +561,7 @@ extern struct cachefs_index_def afs_volume_cache_index_def;
 #define afs_get_volume(V) do { atomic_inc(&(V)->usage); } while(0)
 
 extern void afs_put_volume(struct afs_volume *);
-extern struct afs_volume *afs_volume_lookup(const char *, struct afs_cell *,
-					    int);
+extern struct afs_volume *afs_volume_lookup(struct afs_mount_params *);
 extern struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *);
 extern int afs_volume_release_fileserver(struct afs_vnode *,
 					 struct afs_server *, int);

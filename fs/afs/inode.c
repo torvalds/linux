@@ -29,7 +29,7 @@ struct afs_iget_data {
 /*
  * map the AFS file status to the inode member variables
  */
-static int afs_inode_map_status(struct afs_vnode *vnode)
+static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 {
 	struct inode *inode = AFS_VNODE_TO_I(vnode);
 
@@ -44,7 +44,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode)
 	case AFS_FTYPE_FILE:
 		inode->i_mode	= S_IFREG | vnode->status.mode;
 		inode->i_op	= &afs_file_inode_operations;
-		inode->i_fop	= &generic_ro_fops;
+		inode->i_fop	= &afs_file_operations;
 		break;
 	case AFS_FTYPE_DIR:
 		inode->i_mode	= S_IFDIR | vnode->status.mode;
@@ -73,7 +73,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode)
 
 	/* check to see whether a symbolic link is really a mountpoint */
 	if (vnode->status.type == AFS_FTYPE_SYMLINK) {
-		afs_mntpt_check_symlink(vnode);
+		afs_mntpt_check_symlink(vnode, key);
 
 		if (test_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags)) {
 			inode->i_mode	= S_IFDIR | vnode->status.mode;
@@ -115,7 +115,8 @@ static int afs_iget5_set(struct inode *inode, void *opaque)
 /*
  * inode retrieval
  */
-inline struct inode *afs_iget(struct super_block *sb, struct afs_fid *fid)
+inline struct inode *afs_iget(struct super_block *sb, struct key *key,
+			      struct afs_fid *fid)
 {
 	struct afs_iget_data data = { .fid = *fid };
 	struct afs_super_info *as;
@@ -157,10 +158,10 @@ inline struct inode *afs_iget(struct super_block *sb, struct afs_fid *fid)
 
 	/* okay... it's a new inode */
 	set_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
-	ret = afs_vnode_fetch_status(vnode);
+	ret = afs_vnode_fetch_status(vnode, NULL, key);
 	if (ret < 0)
 		goto bad_inode;
-	ret = afs_inode_map_status(vnode);
+	ret = afs_inode_map_status(vnode, key);
 	if (ret < 0)
 		goto bad_inode;
 
@@ -201,6 +202,7 @@ int afs_inode_getattr(struct vfsmount *mnt, struct dentry *dentry,
  */
 void afs_clear_inode(struct inode *inode)
 {
+	struct afs_permits *permits;
 	struct afs_vnode *vnode;
 
 	vnode = AFS_FS_I(inode);
@@ -232,6 +234,13 @@ void afs_clear_inode(struct inode *inode)
 	cachefs_relinquish_cookie(vnode->cache, 0);
 	vnode->cache = NULL;
 #endif
+
+	mutex_lock(&vnode->permits_lock);
+	permits = vnode->permits;
+	rcu_assign_pointer(vnode->permits, NULL);
+	mutex_unlock(&vnode->permits_lock);
+	if (permits)
+		call_rcu(&permits->rcu, afs_zap_permits);
 
 	_leave("");
 }

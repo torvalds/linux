@@ -48,8 +48,11 @@ unsigned long afs_mntpt_expiry_timeout = 10 * 60;
  * check a symbolic link to see whether it actually encodes a mountpoint
  * - sets the AFS_VNODE_MOUNTPOINT flag on the vnode appropriately
  */
-int afs_mntpt_check_symlink(struct afs_vnode *vnode)
+int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 {
+	struct file file = {
+		.private_data = key,
+	};
 	struct page *page;
 	size_t size;
 	char *buf;
@@ -58,7 +61,7 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode)
 	_enter("{%u,%u}", vnode->fid.vnode, vnode->fid.unique);
 
 	/* read the contents of the symlink into the pagecache */
-	page = read_mapping_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0, NULL);
+	page = read_mapping_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0, &file);
 	if (IS_ERR(page)) {
 		ret = PTR_ERR(page);
 		goto out;
@@ -214,7 +217,7 @@ static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 	struct vfsmount *newmnt;
 	int err;
 
-	_enter("%p{%s},{%s:%p{%s}}",
+	_enter("%p{%s},{%s:%p{%s},}",
 	       dentry,
 	       dentry->d_name.name,
 	       nd->mnt->mnt_devname,
@@ -234,7 +237,8 @@ static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 	err = do_add_mount(newmnt, nd, MNT_SHRINKABLE, &afs_vfsmounts);
 	switch (err) {
 	case 0:
-		path_release(nd);
+		mntput(nd->mnt);
+		dput(nd->dentry);
 		nd->mnt = newmnt;
 		nd->dentry = dget(newmnt->mnt_root);
 		schedule_delayed_work(&afs_mntpt_expiry_timer,

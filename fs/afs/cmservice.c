@@ -28,6 +28,7 @@ static void afs_cm_destructor(struct afs_call *);
  * CB.CallBack operation type
  */
 static const struct afs_call_type afs_SRXCBCallBack = {
+	.name		= "CB.CallBack",
 	.deliver	= afs_deliver_cb_callback,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
@@ -37,6 +38,7 @@ static const struct afs_call_type afs_SRXCBCallBack = {
  * CB.InitCallBackState operation type
  */
 static const struct afs_call_type afs_SRXCBInitCallBackState = {
+	.name		= "CB.InitCallBackState",
 	.deliver	= afs_deliver_cb_init_call_back_state,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
@@ -46,6 +48,7 @@ static const struct afs_call_type afs_SRXCBInitCallBackState = {
  * CB.Probe operation type
  */
 static const struct afs_call_type afs_SRXCBProbe = {
+	.name		= "CB.Probe",
 	.deliver	= afs_deliver_cb_probe,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,

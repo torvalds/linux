@@ -14,6 +14,9 @@
 
 #include <linux/in.h>
 
+#define AFS_MAXCELLNAME	64		/* maximum length of a cell name */
+#define AFS_MAXVOLNAME	64		/* maximum length of a volume name */
+
 typedef unsigned			afs_volid_t;
 typedef unsigned			afs_vnodeid_t;
 typedef unsigned long long		afs_dataversion_t;
@@ -75,6 +78,26 @@ struct afs_volume_info {
 };
 
 /*
+ * AFS security ACE access mask
+ */
+typedef u32 afs_access_t;
+#define AFS_ACE_READ		0x00000001U	/* - permission to read a file/dir */
+#define AFS_ACE_WRITE		0x00000002U	/* - permission to write/chmod a file */
+#define AFS_ACE_INSERT		0x00000004U	/* - permission to create dirent in a dir */
+#define AFS_ACE_LOOKUP		0x00000008U	/* - permission to lookup a file/dir in a dir */
+#define AFS_ACE_DELETE		0x00000010U	/* - permission to delete a dirent from a dir */
+#define AFS_ACE_LOCK		0x00000020U	/* - permission to lock a file */
+#define AFS_ACE_ADMINISTER	0x00000040U	/* - permission to change ACL */
+#define AFS_ACE_USER_A		0x01000000U	/* - 'A' user-defined permission */
+#define AFS_ACE_USER_B		0x02000000U	/* - 'B' user-defined permission */
+#define AFS_ACE_USER_C		0x04000000U	/* - 'C' user-defined permission */
+#define AFS_ACE_USER_D		0x08000000U	/* - 'D' user-defined permission */
+#define AFS_ACE_USER_E		0x10000000U	/* - 'E' user-defined permission */
+#define AFS_ACE_USER_F		0x20000000U	/* - 'F' user-defined permission */
+#define AFS_ACE_USER_G		0x40000000U	/* - 'G' user-defined permission */
+#define AFS_ACE_USER_H		0x80000000U	/* - 'H' user-defined permission */
+
+/*
  * AFS file status information
  */
 struct afs_file_status {
@@ -87,8 +110,8 @@ struct afs_file_status {
 	afs_dataversion_t	data_version;	/* current data version */
 	unsigned		author;		/* author ID */
 	unsigned		owner;		/* owner ID */
-	unsigned		caller_access;	/* access rights for authenticated caller */
-	unsigned		anon_access;	/* access rights for unauthenticated caller */
+	afs_access_t		caller_access;	/* access rights for authenticated caller */
+	afs_access_t		anon_access;	/* access rights for unauthenticated caller */
 	umode_t			mode;		/* UNIX mode */
 	struct afs_fid		parent;		/* parent file ID */
 	time_t			mtime_client;	/* last time client changed data */

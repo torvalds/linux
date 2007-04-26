@@ -72,7 +72,10 @@ void afs_broken_callback_work(struct work_struct *work)
 		return; /* someone else is dealing with it */
 
 	if (test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags)) {
-		if (afs_vnode_fetch_status(vnode) < 0)
+		if (S_ISDIR(vnode->vfs_inode.i_mode))
+			afs_clear_permits(vnode);
+
+		if (afs_vnode_fetch_status(vnode, NULL, NULL) < 0)
 			goto out;
 
 		if (test_bit(AFS_VNODE_DELETED, &vnode->flags))

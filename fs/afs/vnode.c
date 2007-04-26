@@ -238,9 +238,11 @@ static void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
  *   - there are any outstanding ops that will fetch the status
  * - TODO implement local caching
  */
-int afs_vnode_fetch_status(struct afs_vnode *vnode)
+int afs_vnode_fetch_status(struct afs_vnode *vnode,
+			   struct afs_vnode *auth_vnode, struct key *key)
 {
 	struct afs_server *server;
+	unsigned long acl_order;
 	int ret;
 
 	DECLARE_WAITQUEUE(myself, current);
@@ -259,6 +261,10 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode)
 		_leave(" [deleted]");
 		return -ENOENT;
 	}
+
+	acl_order = 0;
+	if (auth_vnode)
+		acl_order = auth_vnode->acl_order;
 
 	spin_lock(&vnode->lock);
 
@@ -324,12 +330,14 @@ get_anyway:
 		_debug("USING SERVER: %p{%08x}",
 		       server, ntohl(server->addr.s_addr));
 
-		ret = afs_fs_fetch_file_status(server, vnode, NULL,
+		ret = afs_fs_fetch_file_status(server, key, vnode, NULL,
 					       &afs_sync_call);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
 	/* adjust the flags */
+	if (ret == 0 && auth_vnode)
+		afs_cache_permit(vnode, key, acl_order);
 	afs_vnode_finalise_status_update(vnode, server, ret);
 
 	_leave(" = %d", ret);
@@ -340,17 +348,18 @@ get_anyway:
  * fetch file data from the volume
  * - TODO implement caching and server failover
  */
-int afs_vnode_fetch_data(struct afs_vnode *vnode, off_t offset, size_t length,
-			 struct page *page)
+int afs_vnode_fetch_data(struct afs_vnode *vnode, struct key *key,
+			 off_t offset, size_t length, struct page *page)
 {
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s,{%u,%u,%u}",
+	_enter("%s{%u,%u,%u},%x,,,",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
-	       vnode->fid.unique);
+	       vnode->fid.unique,
+	       key_serial(key));
 
 	/* this op will fetch the status */
 	spin_lock(&vnode->lock);
@@ -367,8 +376,8 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode, off_t offset, size_t length,
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_fs_fetch_data(server, vnode, offset, length, page,
-					NULL, &afs_sync_call);
+		ret = afs_fs_fetch_data(server, key, vnode, offset, length,
+					page, NULL, &afs_sync_call);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 

@@ -41,83 +41,20 @@ static const char *afs_voltypes[] = { "R/W", "R/O", "BAK" };
  * - Rule 3: If parent volume is R/W, then only mount R/W volume unless
  *           explicitly told otherwise
  */
-struct afs_volume *afs_volume_lookup(const char *name, struct afs_cell *cell,
-				     int rwpath)
+struct afs_volume *afs_volume_lookup(struct afs_mount_params *params)
 {
 	struct afs_vlocation *vlocation = NULL;
 	struct afs_volume *volume = NULL;
 	struct afs_server *server = NULL;
-	afs_voltype_t type;
-	const char *cellname, *volname, *suffix;
 	char srvtmask;
-	int force, ret, loop, cellnamesz, volnamesz;
+	int ret, loop;
 
-	_enter("%s,,%d,", name, rwpath);
-
-	if (!name || (name[0] != '%' && name[0] != '#') || !name[1]) {
-		printk("kAFS: unparsable volume name\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	/* determine the type of volume we're looking for */
-	force = 0;
-	type = AFSVL_ROVOL;
-
-	if (rwpath || name[0] == '%') {
-		type = AFSVL_RWVOL;
-		force = 1;
-	}
-
-	suffix = strrchr(name, '.');
-	if (suffix) {
-		if (strcmp(suffix, ".readonly") == 0) {
-			type = AFSVL_ROVOL;
-			force = 1;
-		} else if (strcmp(suffix, ".backup") == 0) {
-			type = AFSVL_BACKVOL;
-			force = 1;
-		} else if (suffix[1] == 0) {
-		} else {
-			suffix = NULL;
-		}
-	}
-
-	/* split the cell and volume names */
-	name++;
-	volname = strchr(name, ':');
-	if (volname) {
-		cellname = name;
-		cellnamesz = volname - name;
-		volname++;
-	} else {
-		volname = name;
-		cellname = NULL;
-		cellnamesz = 0;
-	}
-
-	volnamesz = suffix ? suffix - volname : strlen(volname);
-
-	_debug("CELL:%*.*s [%p] VOLUME:%*.*s SUFFIX:%s TYPE:%d%s",
-	       cellnamesz, cellnamesz, cellname ?: "", cell,
-	       volnamesz, volnamesz, volname, suffix ?: "-",
-	       type,
-	       force ? " FORCE" : "");
-
-	/* lookup the cell record */
-	if (cellname || !cell) {
-		cell = afs_cell_lookup(cellname, cellnamesz);
-		if (IS_ERR(cell)) {
-			ret = PTR_ERR(cell);
-			printk("kAFS: unable to lookup cell '%s'\n",
-			       cellname ?: "");
-			goto error;
-		}
-	} else {
-		afs_get_cell(cell);
-	}
+	_enter("{%*.*s,%d}",
+	       params->volnamesz, params->volnamesz, params->volname, params->rwpath);
 
 	/* lookup the volume location record */
-	vlocation = afs_vlocation_lookup(cell, volname, volnamesz);
+	vlocation = afs_vlocation_lookup(params->cell, params->key,
+					 params->volname, params->volnamesz);
 	if (IS_ERR(vlocation)) {
 		ret = PTR_ERR(vlocation);
 		vlocation = NULL;
@@ -126,30 +63,30 @@ struct afs_volume *afs_volume_lookup(const char *name, struct afs_cell *cell,
 
 	/* make the final decision on the type we want */
 	ret = -ENOMEDIUM;
-	if (force && !(vlocation->vldb.vidmask & (1 << type)))
+	if (params->force && !(vlocation->vldb.vidmask & (1 << params->type)))
 		goto error;
 
 	srvtmask = 0;
 	for (loop = 0; loop < vlocation->vldb.nservers; loop++)
 		srvtmask |= vlocation->vldb.srvtmask[loop];
 
-	if (force) {
-		if (!(srvtmask & (1 << type)))
+	if (params->force) {
+		if (!(srvtmask & (1 << params->type)))
 			goto error;
 	} else if (srvtmask & AFS_VOL_VTM_RO) {
-		type = AFSVL_ROVOL;
+		params->type = AFSVL_ROVOL;
 	} else if (srvtmask & AFS_VOL_VTM_RW) {
-		type = AFSVL_RWVOL;
+		params->type = AFSVL_RWVOL;
 	} else {
 		goto error;
 	}
 
-	down_write(&cell->vl_sem);
+	down_write(&params->cell->vl_sem);
 
 	/* is the volume already active? */
-	if (vlocation->vols[type]) {
+	if (vlocation->vols[params->type]) {
 		/* yes - re-use it */
-		volume = vlocation->vols[type];
+		volume = vlocation->vols[params->type];
 		afs_get_volume(volume);
 		goto success;
 	}
@@ -163,10 +100,10 @@ struct afs_volume *afs_volume_lookup(const char *name, struct afs_cell *cell,
 		goto error_up;
 
 	atomic_set(&volume->usage, 1);
-	volume->type		= type;
-	volume->type_force	= force;
-	volume->cell		= cell;
-	volume->vid		= vlocation->vldb.vid[type];
+	volume->type		= params->type;
+	volume->type_force	= params->force;
+	volume->cell		= params->cell;
+	volume->vid		= vlocation->vldb.vid[params->type];
 
 	init_rwsem(&volume->server_sem);
 
@@ -196,28 +133,26 @@ struct afs_volume *afs_volume_lookup(const char *name, struct afs_cell *cell,
 	afs_get_vlocation(vlocation);
 	volume->vlocation = vlocation;
 
-	vlocation->vols[type] = volume;
+	vlocation->vols[volume->type] = volume;
 
 success:
 	_debug("kAFS selected %s volume %08x",
 	       afs_voltypes[volume->type], volume->vid);
-	up_write(&cell->vl_sem);
+	up_write(&params->cell->vl_sem);
 	afs_put_vlocation(vlocation);
-	afs_put_cell(cell);
 	_leave(" = %p", volume);
 	return volume;
 
 	/* clean up */
 error_up:
-	up_write(&cell->vl_sem);
+	up_write(&params->cell->vl_sem);
 error:
 	afs_put_vlocation(vlocation);
-	afs_put_cell(cell);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 
 error_discard:
-	up_write(&cell->vl_sem);
+	up_write(&params->cell->vl_sem);
 
 	for (loop = volume->nservers - 1; loop >= 0; loop--)
 		afs_put_server(volume->servers[loop]);
