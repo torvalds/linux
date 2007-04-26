@@ -5373,6 +5373,7 @@ static int ipr_ioa_reset_done(struct ipr_cmnd *ipr_cmd)
 			ipr_send_hcam(ioa_cfg, IPR_HCAM_CDB_OP_CODE_CONFIG_CHANGE, hostrcb);
 	}
 
+	scsi_report_bus_reset(ioa_cfg->host, IPR_VSET_BUS);
 	dev_info(&ioa_cfg->pdev->dev, "IOA initialized.\n");
 
 	ioa_cfg->reset_retries = 0;
