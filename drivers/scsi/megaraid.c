@@ -3177,7 +3177,10 @@ proc_rdrv(adapter_t *adapter, char *page, int start, int end )
 
 	return len;
 }
-
+#else
+static inline void mega_create_proc_entry(int index, struct proc_dir_entry *parent)
+{
+}
 #endif
 
 
@@ -4342,7 +4345,7 @@ mega_support_cluster(adapter_t *adapter)
 	return 0;
 }
 
-
+#ifdef CONFIG_PROC_FS
 /**
  * mega_adapinq()
  * @adapter - pointer to our soft state
@@ -4447,7 +4450,7 @@ mega_internal_dev_inquiry(adapter_t *adapter, u8 ch, u8 tgt,
 
 	return rval;
 }
-
+#endif
 
 /**
  * mega_internal_command()
@@ -4965,7 +4968,6 @@ megaraid_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	adapter_t *adapter = (adapter_t *)host->hostdata;
-	char	buf[12] = { 0 };
 
 	scsi_remove_host(host);
 
@@ -5011,8 +5013,11 @@ megaraid_remove_one(struct pci_dev *pdev)
 		remove_proc_entry("raiddrives-30-39",
 				adapter->controller_proc_dir_entry);
 #endif
-		sprintf(buf, "hba%d", adapter->host->host_no);
-		remove_proc_entry(buf, mega_proc_dir_entry);
+		{
+			char	buf[12] = { 0 };
+			sprintf(buf, "hba%d", adapter->host->host_no);
+			remove_proc_entry(buf, mega_proc_dir_entry);
+		}
 	}
 #endif
 
