@@ -20,6 +20,8 @@ struct workqueue_struct *afs_cm_workqueue;
 
 static int afs_deliver_cb_init_call_back_state(struct afs_call *,
 					       struct sk_buff *, bool);
+static int afs_deliver_cb_init_call_back_state3(struct afs_call *,
+						struct sk_buff *, bool);
 static int afs_deliver_cb_probe(struct afs_call *, struct sk_buff *, bool);
 static int afs_deliver_cb_callback(struct afs_call *, struct sk_buff *, bool);
 static int afs_deliver_cb_get_capabilities(struct afs_call *, struct sk_buff *,
@@ -42,6 +44,16 @@ static const struct afs_call_type afs_SRXCBCallBack = {
 static const struct afs_call_type afs_SRXCBInitCallBackState = {
 	.name		= "CB.InitCallBackState",
 	.deliver	= afs_deliver_cb_init_call_back_state,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_cm_destructor,
+};
+
+/*
+ * CB.InitCallBackState3 operation type
+ */
+static const struct afs_call_type afs_SRXCBInitCallBackState3 = {
+	.name		= "CB.InitCallBackState3",
+	.deliver	= afs_deliver_cb_init_call_back_state3,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
 };
@@ -82,6 +94,9 @@ bool afs_cm_incoming_call(struct afs_call *call)
 		return true;
 	case CBInitCallBackState:
 		call->type = &afs_SRXCBInitCallBackState;
+		return true;
+	case CBInitCallBackState3:
+		call->type = &afs_SRXCBInitCallBackState3;
 		return true;
 	case CBProbe:
 		call->type = &afs_SRXCBProbe;
@@ -292,6 +307,37 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call,
 
 	if (skb->len > 0)
 		return -EBADMSG;
+	if (!last)
+		return 0;
+
+	/* no unmarshalling required */
+	call->state = AFS_CALL_REPLYING;
+
+	/* we'll need the file server record as that tells us which set of
+	 * vnodes to operate upon */
+	memcpy(&addr, &ip_hdr(skb)->saddr, 4);
+	server = afs_find_server(&addr);
+	if (!server)
+		return -ENOTCONN;
+	call->server = server;
+
+	INIT_WORK(&call->work, SRXAFSCB_InitCallBackState);
+	schedule_work(&call->work);
+	return 0;
+}
+
+/*
+ * deliver request data to a CB.InitCallBackState3 call
+ */
+static int afs_deliver_cb_init_call_back_state3(struct afs_call *call,
+						struct sk_buff *skb,
+						bool last)
+{
+	struct afs_server *server;
+	struct in_addr addr;
+
+	_enter(",{%u},%d", skb->len, last);
+
 	if (!last)
 		return 0;
 
