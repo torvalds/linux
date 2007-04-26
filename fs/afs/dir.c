@@ -419,7 +419,8 @@ static int afs_lookup_filldir(void *_cookie, const char *name, int nlen,
 	struct afs_lookup_cookie *cookie = _cookie;
 
 	_enter("{%s,%Zu},%s,%u,,%llu,%u",
-	       cookie->name, cookie->nlen, name, nlen, ino, dtype);
+	       cookie->name, cookie->nlen, name, nlen,
+	       (unsigned long long) ino, dtype);
 
 	/* insanity checks first */
 	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);

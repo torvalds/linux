@@ -105,7 +105,8 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 		status->data_version = data_version;
 		if (vnode && !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
 			_debug("vnode modified %llx on {%x:%u}",
-			       data_version, vnode->fid.vid, vnode->fid.vnode);
+			       (unsigned long long) data_version,
+			       vnode->fid.vid, vnode->fid.vnode);
 			set_bit(AFS_VNODE_MODIFIED, &vnode->flags);
 			set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
 		}

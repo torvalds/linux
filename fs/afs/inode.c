@@ -36,7 +36,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 	_debug("FS: ft=%d lk=%d sz=%llu ver=%Lu mod=%hu",
 	       vnode->status.type,
 	       vnode->status.nlink,
-	       vnode->status.size,
+	       (unsigned long long) vnode->status.size,
 	       vnode->status.data_version,
 	       vnode->status.mode);
 
