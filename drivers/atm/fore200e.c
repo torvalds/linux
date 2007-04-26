@@ -1,6 +1,4 @@
 /*
-  $Id: fore200e.c,v 1.5 2000/04/14 10:10:34 davem Exp $
-
   A FORE Systems 200E-series driver for ATM on Linux.
   Christophe Lizzi (lizzi@cnam.fr), October 1999-March 2003.
 
@@ -1502,9 +1500,9 @@ fore200e_open(struct atm_vcc *vcc)
     /* pseudo-CBR bandwidth requested? */
     if ((vcc->qos.txtp.traffic_class == ATM_CBR) && (vcc->qos.txtp.max_pcr > 0)) {
 	
-	down(&fore200e->rate_sf);
+	mutex_lock(&fore200e->rate_mtx);
 	if (fore200e->available_cell_rate < vcc->qos.txtp.max_pcr) {
-	    up(&fore200e->rate_sf);
+	    mutex_unlock(&fore200e->rate_mtx);
 
 	    kfree(fore200e_vcc);
 	    vc_map->vcc = NULL;
@@ -1513,7 +1511,7 @@ fore200e_open(struct atm_vcc *vcc)
 
 	/* reserve bandwidth */
 	fore200e->available_cell_rate -= vcc->qos.txtp.max_pcr;
-	up(&fore200e->rate_sf);
+	mutex_unlock(&fore200e->rate_mtx);
     }
     
     vcc->itf = vcc->dev->number;
@@ -1599,9 +1597,9 @@ fore200e_close(struct atm_vcc* vcc)
     /* release reserved bandwidth, if any */
     if ((vcc->qos.txtp.traffic_class == ATM_CBR) && (vcc->qos.txtp.max_pcr > 0)) {
 
-	down(&fore200e->rate_sf);
+	mutex_lock(&fore200e->rate_mtx);
 	fore200e->available_cell_rate += vcc->qos.txtp.max_pcr;
-	up(&fore200e->rate_sf);
+	mutex_unlock(&fore200e->rate_mtx);
 
 	clear_bit(ATM_VF_HASQOS, &vcc->flags);
     }
@@ -2064,16 +2062,16 @@ fore200e_change_qos(struct atm_vcc* vcc,struct atm_qos* qos, int flags)
 
     if ((qos->txtp.traffic_class == ATM_CBR) && (qos->txtp.max_pcr > 0)) {
 
-	down(&fore200e->rate_sf);
+	mutex_lock(&fore200e->rate_mtx);
 	if (fore200e->available_cell_rate + vcc->qos.txtp.max_pcr < qos->txtp.max_pcr) {
-	    up(&fore200e->rate_sf);
+	    mutex_unlock(&fore200e->rate_mtx);
 	    return -EAGAIN;
 	}
 
 	fore200e->available_cell_rate += vcc->qos.txtp.max_pcr;
 	fore200e->available_cell_rate -= qos->txtp.max_pcr;
 
-	up(&fore200e->rate_sf);
+	mutex_unlock(&fore200e->rate_mtx);
 	
 	memcpy(&vcc->qos, qos, sizeof(struct atm_qos));
 	
@@ -2459,7 +2457,7 @@ fore200e_initialize(struct fore200e* fore200e)
 
     DPRINTK(2, "device %s being initialized\n", fore200e->name);
 
-    init_MUTEX(&fore200e->rate_sf);
+    mutex_init(&fore200e->rate_mtx);
     spin_lock_init(&fore200e->q_lock);
 
     cpq = fore200e->cp_queues = fore200e->virt_base + FORE200E_CP_QUEUES_OFFSET;
