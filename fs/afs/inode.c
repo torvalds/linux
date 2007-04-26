@@ -19,9 +19,6 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
-#include "volume.h"
-#include "vnode.h"
-#include "super.h"
 #include "internal.h"
 
 struct afs_iget_data {
@@ -40,7 +37,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode)
 	       vnode->status.type,
 	       vnode->status.nlink,
 	       vnode->status.size,
-	       vnode->status.version,
+	       vnode->status.data_version,
 	       vnode->status.mode);
 
 	switch (vnode->status.type) {
@@ -78,7 +75,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode)
 	if (vnode->status.type == AFS_FTYPE_SYMLINK) {
 		afs_mntpt_check_symlink(vnode);
 
-		if (vnode->flags & AFS_VNODE_MOUNTPOINT) {
+		if (test_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags)) {
 			inode->i_mode	= S_IFDIR | vnode->status.mode;
 			inode->i_op	= &afs_mntpt_inode_operations;
 			inode->i_fop	= &afs_mntpt_file_operations;
@@ -86,25 +83,6 @@ static int afs_inode_map_status(struct afs_vnode *vnode)
 	}
 
 	return 0;
-}
-
-/*
- * attempt to fetch the status of an inode, coelescing multiple simultaneous
- * fetches
- */
-static int afs_inode_fetch_status(struct inode *inode)
-{
-	struct afs_vnode *vnode;
-	int ret;
-
-	vnode = AFS_FS_I(inode);
-
-	ret = afs_vnode_fetch_status(vnode);
-
-	if (ret == 0)
-		ret = afs_inode_map_status(vnode);
-
-	return ret;
 }
 
 /*
@@ -137,8 +115,7 @@ static int afs_iget5_set(struct inode *inode, void *opaque)
 /*
  * inode retrieval
  */
-inline int afs_iget(struct super_block *sb, struct afs_fid *fid,
-		    struct inode **_inode)
+inline struct inode *afs_iget(struct super_block *sb, struct afs_fid *fid)
 {
 	struct afs_iget_data data = { .fid = *fid };
 	struct afs_super_info *as;
@@ -155,20 +132,18 @@ inline int afs_iget(struct super_block *sb, struct afs_fid *fid,
 			     &data);
 	if (!inode) {
 		_leave(" = -ENOMEM");
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
+
+	_debug("GOT INODE %p { vl=%x vn=%x, u=%x }",
+	       inode, fid->vid, fid->vnode, fid->unique);
 
 	vnode = AFS_FS_I(inode);
 
 	/* deal with an existing inode */
 	if (!(inode->i_state & I_NEW)) {
-		ret = afs_vnode_fetch_status(vnode);
-		if (ret == 0)
-			*_inode = inode;
-		else
-			iput(inode);
-		_leave(" = %d", ret);
-		return ret;
+		_leave(" = %p", inode);
+		return inode;
 	}
 
 #ifdef AFS_CACHING_SUPPORT
@@ -181,21 +156,19 @@ inline int afs_iget(struct super_block *sb, struct afs_fid *fid,
 #endif
 
 	/* okay... it's a new inode */
-	inode->i_flags |= S_NOATIME;
-	vnode->flags |= AFS_VNODE_CHANGED;
-	ret = afs_inode_fetch_status(inode);
-	if (ret<0)
+	set_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
+	ret = afs_vnode_fetch_status(vnode);
+	if (ret < 0)
+		goto bad_inode;
+	ret = afs_inode_map_status(vnode);
+	if (ret < 0)
 		goto bad_inode;
 
 	/* success */
+	inode->i_flags |= S_NOATIME;
 	unlock_new_inode(inode);
-
-	*_inode = inode;
-	_leave(" = 0 [CB { v=%u x=%lu t=%u }]",
-	       vnode->cb_version,
-	       vnode->cb_timeout.timo_jif,
-	       vnode->cb_type);
-	return 0;
+	_leave(" = %p [CB { v=%u t=%u }]", inode, vnode->cb_version, vnode->cb_type);
+	return inode;
 
 	/* failure */
 bad_inode:
@@ -204,7 +177,7 @@ bad_inode:
 	iput(inode);
 
 	_leave(" = %d [bad]", ret);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 /*
@@ -213,36 +186,13 @@ bad_inode:
 int afs_inode_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		      struct kstat *stat)
 {
-	struct afs_vnode *vnode;
 	struct inode *inode;
-	int ret;
 
 	inode = dentry->d_inode;
 
 	_enter("{ ino=%lu v=%lu }", inode->i_ino, inode->i_version);
 
-	vnode = AFS_FS_I(inode);
-
-	ret = afs_inode_fetch_status(inode);
-	if (ret == -ENOENT) {
-		_leave(" = %d [%d %p]",
-		       ret, atomic_read(&dentry->d_count), dentry->d_inode);
-		return ret;
-	} else if (ret < 0) {
-		make_bad_inode(inode);
-		_leave(" = %d", ret);
-		return ret;
-	}
-
-	/* transfer attributes from the inode structure to the stat
-	 * structure */
 	generic_fillattr(inode, stat);
-
-	_leave(" = 0 CB { v=%u x=%u t=%u }",
-	       vnode->cb_version,
-	       vnode->cb_expiry,
-	       vnode->cb_type);
-
 	return 0;
 }
 
@@ -260,12 +210,23 @@ void afs_clear_inode(struct inode *inode)
 	       vnode->fid.vnode,
 	       vnode->cb_version,
 	       vnode->cb_expiry,
-	       vnode->cb_type
-	       );
+	       vnode->cb_type);
 
-	BUG_ON(inode->i_ino != vnode->fid.vnode);
+	_debug("CLEAR INODE %p", inode);
 
-	afs_vnode_give_up_callback(vnode);
+	ASSERTCMP(inode->i_ino, ==, vnode->fid.vnode);
+
+	afs_give_up_callback(vnode);
+
+	if (vnode->server) {
+		spin_lock(&vnode->server->fs_lock);
+		rb_erase(&vnode->server_rb, &vnode->server->fs_vnodes);
+		spin_unlock(&vnode->server->fs_lock);
+		afs_put_server(vnode->server);
+		vnode->server = NULL;
+	}
+
+	ASSERT(!vnode->cb_promised);
 
 #ifdef AFS_CACHING_SUPPORT
 	cachefs_relinquish_cookie(vnode->cache, 0);

@@ -1,6 +1,6 @@
-/* Volume Location Service client interface
+/* AFS Volume Location Service client interface
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -9,10 +9,19 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef AFS_VLCLIENT_H
-#define AFS_VLCLIENT_H
+#ifndef AFS_VL_H
+#define AFS_VL_H
 
-#include "types.h"
+#include "afs.h"
+
+#define AFS_VL_PORT		7003	/* volume location service port */
+#define VL_SERVICE		52	/* RxRPC service ID for the Volume Location service */
+
+enum AFSVL_Operations {
+	VLGETENTRYBYID		= 503,	/* AFS Get Cache Entry By ID operation ID */
+	VLGETENTRYBYNAME	= 504,	/* AFS Get Cache Entry By Name operation ID */
+	VLPROBE			= 514,	/* AFS Probe Volume Location Service operation ID */
+};
 
 enum AFSVL_Errors {
 	AFSVL_IDEXIST 		= 363520,	/* Volume Id entry exists in vl database */
@@ -40,14 +49,16 @@ enum AFSVL_Errors {
 	AFSVL_BADVOLOPER 	= 363542,	/* Bad volume operation code */
 	AFSVL_BADRELLOCKTYPE 	= 363543,	/* Bad release lock type */
 	AFSVL_RERELEASE 	= 363544,	/* Status report: last release was aborted */
-	AFSVL_BADSERVERFLAG 	= 363545,	/* Invalid replication site server °ag */
+	AFSVL_BADSERVERFLAG 	= 363545,	/* Invalid replication site server Â°ag */
 	AFSVL_PERM 		= 363546,	/* No permission access */
 	AFSVL_NOMEM 		= 363547,	/* malloc/realloc failed to alloc enough memory */
 };
 
-/* maps to "struct vldbentry" in vvl-spec.pdf */
+/*
+ * maps to "struct vldbentry" in vvl-spec.pdf
+ */
 struct afs_vldbentry {
-	char		name[65];		/* name of volume (including NUL char) */
+	char		name[65];		/* name of volume (with NUL char) */
 	afs_voltype_t	type;			/* volume type */
 	unsigned	num_servers;		/* num servers that hold instances of this vol */
 	unsigned	clone_id;		/* cloning ID */
@@ -70,16 +81,4 @@ struct afs_vldbentry {
 	} servers[8];
 };
 
-extern int afs_rxvl_get_entry_by_name(struct afs_server *, const char *,
-				      unsigned, struct afs_cache_vlocation *);
-extern int afs_rxvl_get_entry_by_id(struct afs_server *, afs_volid_t,
-				    afs_voltype_t,
-				    struct afs_cache_vlocation *);
-
-extern int afs_rxvl_get_entry_by_id_async(struct afs_async_op *,
-					  afs_volid_t, afs_voltype_t);
-
-extern int afs_rxvl_get_entry_by_id_async2(struct afs_async_op *,
-					   struct afs_cache_vlocation *);
-
-#endif /* AFS_VLCLIENT_H */
+#endif /* AFS_VL_H */

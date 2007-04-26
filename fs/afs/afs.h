@@ -1,6 +1,6 @@
-/* AFS types
+/* AFS common types
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -9,10 +9,10 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef AFS_TYPES_H
-#define AFS_TYPES_H
+#ifndef AFS_H
+#define AFS_H
 
-#include <rxrpc/types.h>
+#include <linux/in.h>
 
 typedef unsigned			afs_volid_t;
 typedef unsigned			afs_vnodeid_t;
@@ -30,9 +30,6 @@ typedef enum {
 	AFS_FTYPE_DIR		= 2,
 	AFS_FTYPE_SYMLINK	= 3,
 } afs_file_type_t;
-
-struct afs_cell;
-struct afs_vnode;
 
 /*
  * AFS file identifier
@@ -54,14 +51,13 @@ typedef enum {
 } afs_callback_type_t;
 
 struct afs_callback {
-	struct afs_server	*server;	/* server that made the promise */
 	struct afs_fid		fid;		/* file identifier */
 	unsigned		version;	/* callback version */
 	unsigned		expiry;		/* time at which expires */
 	afs_callback_type_t	type;		/* type of callback */
 };
 
-#define AFSCBMAX 50
+#define AFSCBMAX 50	/* maximum callbacks transferred per bulk op */
 
 /*
  * AFS volume information
@@ -70,7 +66,7 @@ struct afs_volume_info {
 	afs_volid_t		vid;		/* volume ID */
 	afs_voltype_t		type;		/* type of this volume */
 	afs_volid_t		type_vids[5];	/* volume ID's for possible types for this vol */
-	
+
 	/* list of fileservers serving this volume */
 	size_t			nservers;	/* number of entries used in servers[] */
 	struct {
@@ -88,7 +84,7 @@ struct afs_file_status {
 	afs_file_type_t		type;		/* file type */
 	unsigned		nlink;		/* link count */
 	size_t			size;		/* file size */
-	afs_dataversion_t	version;	/* current data version */
+	afs_dataversion_t	data_version;	/* current data version */
 	unsigned		author;		/* author ID */
 	unsigned		owner;		/* owner ID */
 	unsigned		caller_access;	/* access rights for authenticated caller */
@@ -106,4 +102,4 @@ struct afs_volsync {
 	time_t			creation;	/* volume creation time */
 };
 
-#endif /* AFS_TYPES_H */
+#endif /* AFS_H */

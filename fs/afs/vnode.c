@@ -1,6 +1,6 @@
 /* AFS vnode management
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -14,69 +14,180 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
-#include <linux/pagemap.h>
-#include "volume.h"
-#include "cell.h"
-#include "cmservice.h"
-#include "fsclient.h"
-#include "vlclient.h"
-#include "vnode.h"
 #include "internal.h"
 
-static void afs_vnode_cb_timed_out(struct afs_timer *timer);
+#if 0
+static noinline bool dump_tree_aux(struct rb_node *node, struct rb_node *parent,
+				   int depth, char lr)
+{
+	struct afs_vnode *vnode;
+	bool bad = false;
 
-struct afs_timer_ops afs_vnode_cb_timed_out_ops = {
-	.timed_out	= afs_vnode_cb_timed_out,
-};
+	if (!node)
+		return false;
 
-#ifdef AFS_CACHING_SUPPORT
-static cachefs_match_val_t afs_vnode_cache_match(void *target,
-						 const void *entry);
-static void afs_vnode_cache_update(void *source, void *entry);
+	if (node->rb_left)
+		bad = dump_tree_aux(node->rb_left, node, depth + 2, '/');
 
-struct cachefs_index_def afs_vnode_cache_index_def = {
-	.name		= "vnode",
-	.data_size	= sizeof(struct afs_cache_vnode),
-	.keys[0]	= { CACHEFS_INDEX_KEYS_BIN, 4 },
-	.match		= afs_vnode_cache_match,
-	.update		= afs_vnode_cache_update,
-};
+	vnode = rb_entry(node, struct afs_vnode, cb_promise);
+	kdebug("%c %*.*s%c%p {%d}",
+	       rb_is_red(node) ? 'R' : 'B',
+	       depth, depth, "", lr,
+	       vnode, vnode->cb_expires_at);
+	if (rb_parent(node) != parent) {
+		printk("BAD: %p != %p\n", rb_parent(node), parent);
+		bad = true;
+	}
+
+	if (node->rb_right)
+		bad |= dump_tree_aux(node->rb_right, node, depth + 2, '\\');
+
+	return bad;
+}
+
+static noinline void dump_tree(const char *name, struct afs_server *server)
+{
+	kenter("%s", name);
+	if (dump_tree_aux(server->cb_promises.rb_node, NULL, 0, '-'))
+		BUG();
+}
 #endif
 
 /*
- * handle a callback timing out
- * TODO: retain a ref to vnode struct for an outstanding callback timeout
+ * insert a vnode into the backing server's vnode tree
  */
-static void afs_vnode_cb_timed_out(struct afs_timer *timer)
+static void afs_install_vnode(struct afs_vnode *vnode,
+			      struct afs_server *server)
 {
-	struct afs_server *oldserver;
-	struct afs_vnode *vnode;
+	struct afs_server *old_server = vnode->server;
+	struct afs_vnode *xvnode;
+	struct rb_node *parent, **p;
 
-	vnode = list_entry(timer, struct afs_vnode, cb_timeout);
+	_enter("%p,%p", vnode, server);
 
-	_enter("%p", vnode);
-
-	/* set the changed flag in the vnode and release the server */
-	spin_lock(&vnode->lock);
-
-	oldserver = xchg(&vnode->cb_server, NULL);
-	if (oldserver) {
-		vnode->flags |= AFS_VNODE_CHANGED;
-
-		spin_lock(&afs_cb_hash_lock);
-		list_del_init(&vnode->cb_hash_link);
-		spin_unlock(&afs_cb_hash_lock);
-
-		spin_lock(&oldserver->cb_lock);
-		list_del_init(&vnode->cb_link);
-		spin_unlock(&oldserver->cb_lock);
+	if (old_server) {
+		spin_lock(&old_server->fs_lock);
+		rb_erase(&vnode->server_rb, &old_server->fs_vnodes);
+		spin_unlock(&old_server->fs_lock);
 	}
 
-	spin_unlock(&vnode->lock);
+	afs_get_server(server);
+	vnode->server = server;
+	afs_put_server(old_server);
 
-	afs_put_server(oldserver);
+	/* insert into the server's vnode tree in FID order */
+	spin_lock(&server->fs_lock);
 
+	parent = NULL;
+	p = &server->fs_vnodes.rb_node;
+	while (*p) {
+		parent = *p;
+		xvnode = rb_entry(parent, struct afs_vnode, server_rb);
+		if (vnode->fid.vid < xvnode->fid.vid)
+			p = &(*p)->rb_left;
+		else if (vnode->fid.vid > xvnode->fid.vid)
+			p = &(*p)->rb_right;
+		else if (vnode->fid.vnode < xvnode->fid.vnode)
+			p = &(*p)->rb_left;
+		else if (vnode->fid.vnode > xvnode->fid.vnode)
+			p = &(*p)->rb_right;
+		else if (vnode->fid.unique < xvnode->fid.unique)
+			p = &(*p)->rb_left;
+		else if (vnode->fid.unique > xvnode->fid.unique)
+			p = &(*p)->rb_right;
+		else
+			BUG(); /* can't happen unless afs_iget() malfunctions */
+	}
+
+	rb_link_node(&vnode->server_rb, parent, p);
+	rb_insert_color(&vnode->server_rb, &server->fs_vnodes);
+
+	spin_unlock(&server->fs_lock);
 	_leave("");
+}
+
+/*
+ * insert a vnode into the promising server's update/expiration tree
+ * - caller must hold vnode->lock
+ */
+static void afs_vnode_note_promise(struct afs_vnode *vnode,
+				   struct afs_server *server)
+{
+	struct afs_server *old_server;
+	struct afs_vnode *xvnode;
+	struct rb_node *parent, **p;
+
+	_enter("%p,%p", vnode, server);
+
+	ASSERT(server != NULL);
+
+	old_server = vnode->server;
+	if (vnode->cb_promised) {
+		if (server == old_server &&
+		    vnode->cb_expires == vnode->cb_expires_at) {
+			_leave(" [no change]");
+			return;
+		}
+
+		spin_lock(&old_server->cb_lock);
+		if (vnode->cb_promised) {
+			_debug("delete");
+			rb_erase(&vnode->cb_promise, &old_server->cb_promises);
+			vnode->cb_promised = false;
+		}
+		spin_unlock(&old_server->cb_lock);
+	}
+
+	if (vnode->server != server)
+		afs_install_vnode(vnode, server);
+
+	vnode->cb_expires_at = vnode->cb_expires;
+	_debug("PROMISE on %p {%lu}",
+	       vnode, (unsigned long) vnode->cb_expires_at);
+
+	/* abuse an RB-tree to hold the expiration order (we may have multiple
+	 * items with the same expiration time) */
+	spin_lock(&server->cb_lock);
+
+	parent = NULL;
+	p = &server->cb_promises.rb_node;
+	while (*p) {
+		parent = *p;
+		xvnode = rb_entry(parent, struct afs_vnode, cb_promise);
+		if (vnode->cb_expires_at < xvnode->cb_expires_at)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&vnode->cb_promise, parent, p);
+	rb_insert_color(&vnode->cb_promise, &server->cb_promises);
+	vnode->cb_promised = true;
+
+	spin_unlock(&server->cb_lock);
+	_leave("");
+}
+
+/*
+ * handle remote file deletion by discarding the callback promise
+ */
+static void afs_vnode_deleted_remotely(struct afs_vnode *vnode)
+{
+	struct afs_server *server;
+
+	set_bit(AFS_VNODE_DELETED, &vnode->flags);
+
+	server = vnode->server;
+	if (vnode->cb_promised) {
+		spin_lock(&server->cb_lock);
+		if (vnode->cb_promised) {
+			rb_erase(&vnode->cb_promise, &server->cb_promises);
+			vnode->cb_promised = false;
+		}
+		spin_unlock(&server->cb_lock);
+	}
+
+	afs_put_server(server);
 }
 
 /*
@@ -94,43 +205,19 @@ static void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
 
 	spin_lock(&vnode->lock);
 
-	vnode->flags &= ~AFS_VNODE_CHANGED;
+	clear_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
 
-	if (ret == 0) {
-		/* adjust the callback timeout appropriately */
-		afs_kafstimod_add_timer(&vnode->cb_timeout,
-					vnode->cb_expiry * HZ);
-
-		spin_lock(&afs_cb_hash_lock);
-		list_move_tail(&vnode->cb_hash_link,
-			       &afs_cb_hash(server, &vnode->fid));
-		spin_unlock(&afs_cb_hash_lock);
-
-		/* swap ref to old callback server with that for new callback
-		 * server */
-		oldserver = xchg(&vnode->cb_server, server);
-		if (oldserver != server) {
-			if (oldserver) {
-				spin_lock(&oldserver->cb_lock);
-				list_del_init(&vnode->cb_link);
-				spin_unlock(&oldserver->cb_lock);
-			}
-
-			afs_get_server(server);
-			spin_lock(&server->cb_lock);
-			list_add_tail(&vnode->cb_link, &server->cb_promises);
-			spin_unlock(&server->cb_lock);
-		} else {
-			/* same server */
-			oldserver = NULL;
-		}
-	} else if (ret == -ENOENT) {
-		/* the file was deleted - clear the callback timeout */
-		oldserver = xchg(&vnode->cb_server, NULL);
-		afs_kafstimod_del_timer(&vnode->cb_timeout);
-
+	switch (ret) {
+	case 0:
+		afs_vnode_note_promise(vnode, server);
+		break;
+	case -ENOENT:
+		/* the file was deleted on the server */
 		_debug("got NOENT from server - marking file deleted");
-		vnode->flags |= AFS_VNODE_DELETED;
+		afs_vnode_deleted_remotely(vnode);
+		break;
+	default:
+		break;
 	}
 
 	vnode->update_cnt--;
@@ -162,19 +249,21 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode)
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 
-	if (!(vnode->flags & AFS_VNODE_CHANGED) && vnode->cb_server) {
+	if (!test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags) &&
+	    vnode->cb_promised) {
 		_leave(" [unchanged]");
 		return 0;
 	}
 
-	if (vnode->flags & AFS_VNODE_DELETED) {
+	if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
 		_leave(" [deleted]");
 		return -ENOENT;
 	}
 
 	spin_lock(&vnode->lock);
 
-	if (!(vnode->flags & AFS_VNODE_CHANGED)) {
+	if (!test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags) &&
+	    vnode->cb_promised) {
 		spin_unlock(&vnode->lock);
 		_leave(" [unchanged]");
 		return 0;
@@ -183,17 +272,18 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode)
 	if (vnode->update_cnt > 0) {
 		/* someone else started a fetch */
 		set_current_state(TASK_UNINTERRUPTIBLE);
+		ASSERT(myself.func != NULL);
 		add_wait_queue(&vnode->update_waitq, &myself);
 
 		/* wait for the status to be updated */
 		for (;;) {
-			if (!(vnode->flags & AFS_VNODE_CHANGED))
+			if (!test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags))
 				break;
-			if (vnode->flags & AFS_VNODE_DELETED)
+			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 				break;
 
-			/* it got updated and invalidated all before we saw
-			 * it */
+			/* check to see if it got updated and invalidated all
+			 * before we saw it */
 			if (vnode->update_cnt == 0) {
 				remove_wait_queue(&vnode->update_waitq,
 						  &myself);
@@ -213,7 +303,8 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode)
 		spin_unlock(&vnode->lock);
 		set_current_state(TASK_RUNNING);
 
-		return vnode->flags & AFS_VNODE_DELETED ? -ENOENT : 0;
+		return test_bit(AFS_VNODE_DELETED, &vnode->flags) ?
+			-ENOENT : 0;
 	}
 
 get_anyway:
@@ -226,15 +317,17 @@ get_anyway:
 	 * vnode */
 	do {
 		/* pick a server to query */
-		ret = afs_volume_pick_fileserver(vnode->volume, &server);
-		if (ret<0)
-			return ret;
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			return PTR_ERR(server);
 
-		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+		_debug("USING SERVER: %p{%08x}",
+		       server, ntohl(server->addr.s_addr));
 
-		ret = afs_rxfs_fetch_file_status(server, vnode, NULL);
+		ret = afs_fs_fetch_file_status(server, vnode, NULL,
+					       &afs_sync_call);
 
-	} while (!afs_volume_release_fileserver(vnode->volume, server, ret));
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
 	/* adjust the flags */
 	afs_vnode_finalise_status_update(vnode, server, ret);
@@ -247,8 +340,8 @@ get_anyway:
  * fetch file data from the volume
  * - TODO implement caching and server failover
  */
-int afs_vnode_fetch_data(struct afs_vnode *vnode,
-			 struct afs_rxfs_fetch_descriptor *desc)
+int afs_vnode_fetch_data(struct afs_vnode *vnode, off_t offset, size_t length,
+			 struct page *page)
 {
 	struct afs_server *server;
 	int ret;
@@ -268,15 +361,16 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode,
 	 * vnode */
 	do {
 		/* pick a server to query */
-		ret = afs_volume_pick_fileserver(vnode->volume, &server);
-		if (ret < 0)
-			return ret;
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			return PTR_ERR(server);
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_rxfs_fetch_file_data(server, vnode, desc, NULL);
+		ret = afs_fs_fetch_data(server, vnode, offset, length, page,
+					NULL, &afs_sync_call);
 
-	} while (!afs_volume_release_fileserver(vnode->volume, server, ret));
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
 	/* adjust the flags */
 	afs_vnode_finalise_status_update(vnode, server, ret);
@@ -284,99 +378,3 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode,
 	_leave(" = %d", ret);
 	return ret;
 }
-
-/*
- * break any outstanding callback on a vnode
- * - only relevent to server that issued it
- */
-int afs_vnode_give_up_callback(struct afs_vnode *vnode)
-{
-	struct afs_server *server;
-	int ret;
-
-	_enter("%s,{%u,%u,%u}",
-	       vnode->volume->vlocation->vldb.name,
-	       vnode->fid.vid,
-	       vnode->fid.vnode,
-	       vnode->fid.unique);
-
-	spin_lock(&afs_cb_hash_lock);
-	list_del_init(&vnode->cb_hash_link);
-	spin_unlock(&afs_cb_hash_lock);
-
-	/* set the changed flag in the vnode and release the server */
-	spin_lock(&vnode->lock);
-
-	afs_kafstimod_del_timer(&vnode->cb_timeout);
-
-	server = xchg(&vnode->cb_server, NULL);
-	if (server) {
-		vnode->flags |= AFS_VNODE_CHANGED;
-
-		spin_lock(&server->cb_lock);
-		list_del_init(&vnode->cb_link);
-		spin_unlock(&server->cb_lock);
-	}
-
-	spin_unlock(&vnode->lock);
-
-	ret = 0;
-	if (server) {
-		ret = afs_rxfs_give_up_callback(server, vnode);
-		afs_put_server(server);
-	}
-
-	_leave(" = %d", ret);
-	return ret;
-}
-
-/*
- * match a vnode record stored in the cache
- */
-#ifdef AFS_CACHING_SUPPORT
-static cachefs_match_val_t afs_vnode_cache_match(void *target,
-						 const void *entry)
-{
-	const struct afs_cache_vnode *cvnode = entry;
-	struct afs_vnode *vnode = target;
-
-	_enter("{%x,%x,%Lx},{%x,%x,%Lx}",
-	       vnode->fid.vnode,
-	       vnode->fid.unique,
-	       vnode->status.version,
-	       cvnode->vnode_id,
-	       cvnode->vnode_unique,
-	       cvnode->data_version);
-
-	if (vnode->fid.vnode != cvnode->vnode_id) {
-		_leave(" = FAILED");
-		return CACHEFS_MATCH_FAILED;
-	}
-
-	if (vnode->fid.unique != cvnode->vnode_unique ||
-	    vnode->status.version != cvnode->data_version) {
-		_leave(" = DELETE");
-		return CACHEFS_MATCH_SUCCESS_DELETE;
-	}
-
-	_leave(" = SUCCESS");
-	return CACHEFS_MATCH_SUCCESS;
-}
-#endif
-
-/*
- * update a vnode record stored in the cache
- */
-#ifdef AFS_CACHING_SUPPORT
-static void afs_vnode_cache_update(void *source, void *entry)
-{
-	struct afs_cache_vnode *cvnode = entry;
-	struct afs_vnode *vnode = source;
-
-	_enter("");
-
-	cvnode->vnode_id	= vnode->fid.vnode;
-	cvnode->vnode_unique	= vnode->fid.unique;
-	cvnode->data_version	= vnode->status.version;
-}
-#endif

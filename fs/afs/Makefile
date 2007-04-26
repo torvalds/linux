@@ -10,12 +10,11 @@ kafs-objs := \
 	file.o \
 	fsclient.o \
 	inode.o \
-	kafsasyncd.o \
-	kafstimod.o \
 	main.o \
 	misc.o \
 	mntpt.o \
 	proc.o \
+	rxrpc.o \
 	server.o \
 	super.o \
 	vlclient.o \

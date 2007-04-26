@@ -1,6 +1,6 @@
 /* AFS volume management
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -15,33 +15,9 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
-#include "volume.h"
-#include "vnode.h"
-#include "cell.h"
-#include "cache.h"
-#include "cmservice.h"
-#include "fsclient.h"
-#include "vlclient.h"
 #include "internal.h"
 
-#ifdef __KDEBUG
 static const char *afs_voltypes[] = { "R/W", "R/O", "BAK" };
-#endif
-
-#ifdef AFS_CACHING_SUPPORT
-static cachefs_match_val_t afs_volume_cache_match(void *target,
-						  const void *entry);
-static void afs_volume_cache_update(void *source, void *entry);
-
-struct cachefs_index_def afs_volume_cache_index_def = {
-	.name		= "volume",
-	.data_size	= sizeof(struct afs_cache_vhash),
-	.keys[0]	= { CACHEFS_INDEX_KEYS_BIN, 1 },
-	.keys[1]	= { CACHEFS_INDEX_KEYS_BIN, 1 },
-	.match		= afs_volume_cache_match,
-	.update		= afs_volume_cache_update,
-};
-#endif
 
 /*
  * lookup a volume by name
@@ -65,11 +41,12 @@ struct cachefs_index_def afs_volume_cache_index_def = {
  * - Rule 3: If parent volume is R/W, then only mount R/W volume unless
  *           explicitly told otherwise
  */
-int afs_volume_lookup(const char *name, struct afs_cell *cell, int rwpath,
-		      struct afs_volume **_volume)
+struct afs_volume *afs_volume_lookup(const char *name, struct afs_cell *cell,
+				     int rwpath)
 {
 	struct afs_vlocation *vlocation = NULL;
 	struct afs_volume *volume = NULL;
+	struct afs_server *server = NULL;
 	afs_voltype_t type;
 	const char *cellname, *volname, *suffix;
 	char srvtmask;
@@ -79,7 +56,7 @@ int afs_volume_lookup(const char *name, struct afs_cell *cell, int rwpath,
 
 	if (!name || (name[0] != '%' && name[0] != '#') || !name[1]) {
 		printk("kAFS: unparsable volume name\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	/* determine the type of volume we're looking for */
@@ -128,8 +105,9 @@ int afs_volume_lookup(const char *name, struct afs_cell *cell, int rwpath,
 
 	/* lookup the cell record */
 	if (cellname || !cell) {
-		ret = afs_cell_lookup(cellname, cellnamesz, &cell);
-		if (ret<0) {
+		cell = afs_cell_lookup(cellname, cellnamesz);
+		if (IS_ERR(cell)) {
+			ret = PTR_ERR(cell);
 			printk("kAFS: unable to lookup cell '%s'\n",
 			       cellname ?: "");
 			goto error;
@@ -139,9 +117,12 @@ int afs_volume_lookup(const char *name, struct afs_cell *cell, int rwpath,
 	}
 
 	/* lookup the volume location record */
-	ret = afs_vlocation_lookup(cell, volname, volnamesz, &vlocation);
-	if (ret < 0)
+	vlocation = afs_vlocation_lookup(cell, volname, volnamesz);
+	if (IS_ERR(vlocation)) {
+		ret = PTR_ERR(vlocation);
+		vlocation = NULL;
 		goto error;
+	}
 
 	/* make the final decision on the type we want */
 	ret = -ENOMEDIUM;
@@ -192,13 +173,14 @@ int afs_volume_lookup(const char *name, struct afs_cell *cell, int rwpath,
 	/* look up all the applicable server records */
 	for (loop = 0; loop < 8; loop++) {
 		if (vlocation->vldb.srvtmask[loop] & (1 << volume->type)) {
-			ret = afs_server_lookup(
-				volume->cell,
-				&vlocation->vldb.servers[loop],
-				&volume->servers[volume->nservers]);
-			if (ret < 0)
+			server = afs_lookup_server(
+			       volume->cell, &vlocation->vldb.servers[loop]);
+			if (IS_ERR(server)) {
+				ret = PTR_ERR(server);
 				goto error_discard;
+			}
 
+			volume->servers[volume->nservers] = server;
 			volume->nservers++;
 		}
 	}
@@ -219,8 +201,11 @@ int afs_volume_lookup(const char *name, struct afs_cell *cell, int rwpath,
 success:
 	_debug("kAFS selected %s volume %08x",
 	       afs_voltypes[volume->type], volume->vid);
-	*_volume = volume;
-	ret = 0;
+	up_write(&cell->vl_sem);
+	afs_put_vlocation(vlocation);
+	afs_put_cell(cell);
+	_leave(" = %p", volume);
+	return volume;
 
 	/* clean up */
 error_up:
@@ -228,9 +213,8 @@ error_up:
 error:
 	afs_put_vlocation(vlocation);
 	afs_put_cell(cell);
-
-	_leave(" = %d (%p)", ret, volume);
-	return ret;
+	_leave(" = %d", ret);
+	return ERR_PTR(ret);
 
 error_discard:
 	up_write(&cell->vl_sem);
@@ -255,10 +239,9 @@ void afs_put_volume(struct afs_volume *volume)
 
 	_enter("%p", volume);
 
-	vlocation = volume->vlocation;
+	ASSERTCMP(atomic_read(&volume->usage), >, 0);
 
-	/* sanity check */
-	BUG_ON(atomic_read(&volume->usage) <= 0);
+	vlocation = volume->vlocation;
 
 	/* to prevent a race, the decrement and the dequeue must be effectively
 	 * atomic */
@@ -292,13 +275,20 @@ void afs_put_volume(struct afs_volume *volume)
  * pick a server to use to try accessing this volume
  * - returns with an elevated usage count on the server chosen
  */
-int afs_volume_pick_fileserver(struct afs_volume *volume,
-			       struct afs_server **_server)
+struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *vnode)
 {
+	struct afs_volume *volume = vnode->volume;
 	struct afs_server *server;
 	int ret, state, loop;
 
 	_enter("%s", volume->vlocation->vldb.name);
+
+	/* stick with the server we're already using if we can */
+	if (vnode->server && vnode->server->fs_state == 0) {
+		afs_get_server(vnode->server);
+		_leave(" = %p [current]", vnode->server);
+		return vnode->server;
+	}
 
 	down_read(&volume->server_sem);
 
@@ -307,7 +297,7 @@ int afs_volume_pick_fileserver(struct afs_volume *volume,
 		ret = volume->rjservers ? -ENOMEDIUM : -ESTALE;
 		up_read(&volume->server_sem);
 		_leave(" = %d [no servers]", ret);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	/* basically, just search the list for the first live server and use
@@ -317,15 +307,16 @@ int afs_volume_pick_fileserver(struct afs_volume *volume,
 		server = volume->servers[loop];
 		state = server->fs_state;
 
+		_debug("consider %d [%d]", loop, state);
+
 		switch (state) {
 			/* found an apparently healthy server */
 		case 0:
 			afs_get_server(server);
 			up_read(&volume->server_sem);
-			*_server = server;
-			_leave(" = 0 (picked %08x)",
-			       ntohl(server->addr.s_addr));
-			return 0;
+			_leave(" = %p (picked %08x)",
+			       server, ntohl(server->addr.s_addr));
+			return server;
 
 		case -ENETUNREACH:
 			if (ret == 0)
@@ -361,7 +352,7 @@ int afs_volume_pick_fileserver(struct afs_volume *volume,
 	 */
 	up_read(&volume->server_sem);
 	_leave(" = %d", ret);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 /*
@@ -370,10 +361,11 @@ int afs_volume_pick_fileserver(struct afs_volume *volume,
  * - records result of using a particular server to access a volume
  * - return 0 to try again, 1 if okay or to issue error
  */
-int afs_volume_release_fileserver(struct afs_volume *volume,
+int afs_volume_release_fileserver(struct afs_vnode *vnode,
 				  struct afs_server *server,
 				  int result)
 {
+	struct afs_volume *volume = vnode->volume;
 	unsigned loop;
 
 	_enter("%s,%08x,%d",
@@ -384,6 +376,7 @@ int afs_volume_release_fileserver(struct afs_volume *volume,
 		/* success */
 	case 0:
 		server->fs_act_jif = jiffies;
+		server->fs_state = 0;
 		break;
 
 		/* the fileserver denied all knowledge of the volume */
@@ -391,7 +384,7 @@ int afs_volume_release_fileserver(struct afs_volume *volume,
 		server->fs_act_jif = jiffies;
 		down_write(&volume->server_sem);
 
-		/* first, find where the server is in the active list (if it
+		/* firstly, find where the server is in the active list (if it
 		 * is) */
 		for (loop = 0; loop < volume->nservers; loop++)
 			if (volume->servers[loop] == server)
@@ -429,6 +422,7 @@ int afs_volume_release_fileserver(struct afs_volume *volume,
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
 	case -ECONNREFUSED:
+	case -ETIME:
 	case -ETIMEDOUT:
 	case -EREMOTEIO:
 		/* mark the server as dead
@@ -464,40 +458,3 @@ try_next_server:
 	_leave(" [try next server]");
 	return 0;
 }
-
-/*
- * match a volume hash record stored in the cache
- */
-#ifdef AFS_CACHING_SUPPORT
-static cachefs_match_val_t afs_volume_cache_match(void *target,
-						  const void *entry)
-{
-	const struct afs_cache_vhash *vhash = entry;
-	struct afs_volume *volume = target;
-
-	_enter("{%u},{%u}", volume->type, vhash->vtype);
-
-	if (volume->type == vhash->vtype) {
-		_leave(" = SUCCESS");
-		return CACHEFS_MATCH_SUCCESS;
-	}
-
-	_leave(" = FAILED");
-	return CACHEFS_MATCH_FAILED;
-}
-#endif
-
-/*
- * update a volume hash record stored in the cache
- */
-#ifdef AFS_CACHING_SUPPORT
-static void afs_volume_cache_update(void *source, void *entry)
-{
-	struct afs_cache_vhash *vhash = entry;
-	struct afs_volume *volume = source;
-
-	_enter("");
-
-	vhash->vtype = volume->type;
-}
-#endif

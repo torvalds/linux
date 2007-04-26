@@ -18,10 +18,6 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/mnt_namespace.h>
-#include "super.h"
-#include "cell.h"
-#include "volume.h"
-#include "vnode.h"
 #include "internal.h"
 
 
@@ -30,6 +26,7 @@ static struct dentry *afs_mntpt_lookup(struct inode *dir,
 				       struct nameidata *nd);
 static int afs_mntpt_open(struct inode *inode, struct file *file);
 static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd);
+static void afs_mntpt_expiry_timed_out(struct work_struct *work);
 
 const struct file_operations afs_mntpt_file_operations = {
 	.open		= afs_mntpt_open,
@@ -43,16 +40,9 @@ const struct inode_operations afs_mntpt_inode_operations = {
 };
 
 static LIST_HEAD(afs_vfsmounts);
+static DECLARE_DELAYED_WORK(afs_mntpt_expiry_timer, afs_mntpt_expiry_timed_out);
 
-static void afs_mntpt_expiry_timed_out(struct afs_timer *timer);
-
-struct afs_timer_ops afs_mntpt_expiry_timer_ops = {
-	.timed_out	= afs_mntpt_expiry_timed_out,
-};
-
-struct afs_timer afs_mntpt_expiry_timer;
-
-unsigned long afs_mntpt_expiry_timeout = 20;
+unsigned long afs_mntpt_expiry_timeout = 10 * 60;
 
 /*
  * check a symbolic link to see whether it actually encodes a mountpoint
@@ -84,7 +74,7 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode)
 
 	/* examine the symlink's contents */
 	size = vnode->status.size;
-	_debug("symlink to %*.*s", size, (int) size, buf);
+	_debug("symlink to %*.*s", (int) size, (int) size, buf);
 
 	if (size > 2 &&
 	    (buf[0] == '%' || buf[0] == '#') &&
@@ -92,7 +82,7 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode)
 	    ) {
 		_debug("symlink is a mountpoint");
 		spin_lock(&vnode->lock);
-		vnode->flags |= AFS_VNODE_MOUNTPOINT;
+		set_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags);
 		spin_unlock(&vnode->lock);
 	}
 
@@ -113,7 +103,7 @@ static struct dentry *afs_mntpt_lookup(struct inode *dir,
 				       struct dentry *dentry,
 				       struct nameidata *nd)
 {
-	kenter("%p,%p{%p{%s},%s}",
+	_enter("%p,%p{%p{%s},%s}",
 	       dir,
 	       dentry,
 	       dentry->d_parent,
@@ -129,7 +119,7 @@ static struct dentry *afs_mntpt_lookup(struct inode *dir,
  */
 static int afs_mntpt_open(struct inode *inode, struct file *file)
 {
-	kenter("%p,%p{%p{%s},%s}",
+	_enter("%p,%p{%p{%s},%s}",
 	       inode, file,
 	       file->f_path.dentry->d_parent,
 	       file->f_path.dentry->d_parent ?
@@ -152,7 +142,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	char *buf, *devname = NULL, *options = NULL;
 	int ret;
 
-	kenter("{%s}", mntpt->d_name.name);
+	_enter("{%s}", mntpt->d_name.name);
 
 	BUG_ON(!mntpt->d_inode);
 
@@ -196,13 +186,13 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 		strcat(options, ",rwpath");
 
 	/* try and do the mount */
-	kdebug("--- attempting mount %s -o %s ---", devname, options);
+	_debug("--- attempting mount %s -o %s ---", devname, options);
 	mnt = vfs_kern_mount(&afs_fs_type, 0, devname, options);
-	kdebug("--- mount result %p ---", mnt);
+	_debug("--- mount result %p ---", mnt);
 
 	free_page((unsigned long) devname);
 	free_page((unsigned long) options);
-	kleave(" = %p", mnt);
+	_leave(" = %p", mnt);
 	return mnt;
 
 error:
@@ -212,7 +202,7 @@ error:
 		free_page((unsigned long) devname);
 	if (options)
 		free_page((unsigned long) options);
-	kleave(" = %d", ret);
+	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 }
 
@@ -222,51 +212,81 @@ error:
 static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct vfsmount *newmnt;
-	struct dentry *old_dentry;
 	int err;
 
-	kenter("%p{%s},{%s:%p{%s}}",
+	_enter("%p{%s},{%s:%p{%s}}",
 	       dentry,
 	       dentry->d_name.name,
 	       nd->mnt->mnt_devname,
 	       dentry,
 	       nd->dentry->d_name.name);
 
-	newmnt = afs_mntpt_do_automount(dentry);
+	dput(nd->dentry);
+	nd->dentry = dget(dentry);
+
+	newmnt = afs_mntpt_do_automount(nd->dentry);
 	if (IS_ERR(newmnt)) {
 		path_release(nd);
 		return (void *)newmnt;
 	}
 
-	old_dentry = nd->dentry;
-	nd->dentry = dentry;
-	err = do_add_mount(newmnt, nd, 0, &afs_vfsmounts);
-	nd->dentry = old_dentry;
-
-	path_release(nd);
-
-	if (!err) {
-		mntget(newmnt);
+	mntget(newmnt);
+	err = do_add_mount(newmnt, nd, MNT_SHRINKABLE, &afs_vfsmounts);
+	switch (err) {
+	case 0:
+		path_release(nd);
 		nd->mnt = newmnt;
-		dget(newmnt->mnt_root);
-		nd->dentry = newmnt->mnt_root;
+		nd->dentry = dget(newmnt->mnt_root);
+		schedule_delayed_work(&afs_mntpt_expiry_timer,
+				      afs_mntpt_expiry_timeout * HZ);
+		break;
+	case -EBUSY:
+		/* someone else made a mount here whilst we were busy */
+		while (d_mountpoint(nd->dentry) &&
+		       follow_down(&nd->mnt, &nd->dentry))
+			;
+		err = 0;
+	default:
+		mntput(newmnt);
+		break;
 	}
 
-	kleave(" = %d", err);
+	_leave(" = %d", err);
 	return ERR_PTR(err);
 }
 
 /*
  * handle mountpoint expiry timer going off
  */
-static void afs_mntpt_expiry_timed_out(struct afs_timer *timer)
+static void afs_mntpt_expiry_timed_out(struct work_struct *work)
 {
-	kenter("");
+	_enter("");
 
-	mark_mounts_for_expiry(&afs_vfsmounts);
+	if (!list_empty(&afs_vfsmounts)) {
+		mark_mounts_for_expiry(&afs_vfsmounts);
+		schedule_delayed_work(&afs_mntpt_expiry_timer,
+				      afs_mntpt_expiry_timeout * HZ);
+	}
 
-	afs_kafstimod_add_timer(&afs_mntpt_expiry_timer,
-				afs_mntpt_expiry_timeout * HZ);
+	_leave("");
+}
 
-	kleave("");
+/*
+ * kill the AFS mountpoint timer if it's still running
+ */
+void afs_mntpt_kill_timer(void)
+{
+	_enter("");
+
+	ASSERT(list_empty(&afs_vfsmounts));
+	cancel_delayed_work(&afs_mntpt_expiry_timer);
+	flush_scheduled_work();
+}
+
+/*
+ * begin unmount by attempting to remove all automounted mountpoints we added
+ */
+void afs_umount_begin(struct vfsmount *vfsmnt, int flags)
+{
+	shrink_submounts(vfsmnt, &afs_vfsmounts);
 }
