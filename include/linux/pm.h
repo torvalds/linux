@@ -273,6 +273,20 @@ extern void __suspend_report_result(const char *function, void *fn, int ret);
 		__suspend_report_result(__FUNCTION__, fn, ret);		\
 	} while (0)
 
+/*
+ * Platform hook to activate device wakeup capability, if that's not already
+ * handled by enable_irq_wake() etc.
+ * Returns zero on success, else negative errno
+ */
+extern int (*platform_enable_wakeup)(struct device *dev, int is_on);
+
+static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
+{
+	if (platform_enable_wakeup)
+		return (*platform_enable_wakeup)(dev, is_on);
+	return 0;
+}
+
 #else /* !CONFIG_PM */
 
 static inline int device_suspend(pm_message_t state)
@@ -293,6 +307,11 @@ static inline void dpm_runtime_resume(struct device * dev)
 }
 
 #define suspend_report_result(fn, ret) do { } while (0)
+
+static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
+{
+	return -EIO;
+}
 
 #endif
 
