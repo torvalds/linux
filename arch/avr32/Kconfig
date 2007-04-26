@@ -57,9 +57,6 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
-config GENERIC_BUST_SPINLOCK
-	bool
-
 config GENERIC_HWEIGHT
 	bool
 	default y
