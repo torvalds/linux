@@ -61,7 +61,7 @@ void platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	loader_info.cmdline = (char *)r6;
 	loader_info.cmdline_len = r7 - r6;
 
-	simple_alloc_init(_end, avail_ram, 32, 64);
+	simple_alloc_init(_end, avail_ram - 1024*1024, 32, 64);
 	ft_init(_dtb_start, _dtb_end - _dtb_start, 32);
 	serial_console_init();
 	platform_ops.fixups = platform_fixups;
