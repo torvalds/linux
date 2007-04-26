@@ -1,4 +1,4 @@
-/* internal.h: internal AFS stuff
+/* internal AFS stuff
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -73,26 +73,16 @@ extern const struct address_space_operations afs_fs_aops;
 extern const struct inode_operations afs_file_inode_operations;
 
 #ifdef AFS_CACHING_SUPPORT
-extern int afs_cache_get_page_cookie(struct page *page,
-				     struct cachefs_page **_page_cookie);
+extern int afs_cache_get_page_cookie(struct page *, struct cachefs_page **);
 #endif
 
 /*
  * inode.c
  */
-extern int afs_iget(struct super_block *sb, struct afs_fid *fid,
-		    struct inode **_inode);
-extern int afs_inode_getattr(struct vfsmount *mnt, struct dentry *dentry,
-			     struct kstat *stat);
-extern void afs_clear_inode(struct inode *inode);
-
-/*
- * key_afs.c
- */
-#ifdef CONFIG_KEYS
-extern int afs_key_register(void);
-extern void afs_key_unregister(void);
-#endif
+extern int afs_iget(struct super_block *, struct afs_fid *, struct inode **);
+extern int afs_inode_getattr(struct vfsmount *, struct dentry *,
+			     struct kstat *);
+extern void afs_clear_inode(struct inode *);
 
 /*
  * main.c
@@ -110,7 +100,7 @@ extern struct afs_timer afs_mntpt_expiry_timer;
 extern struct afs_timer_ops afs_mntpt_expiry_timer_ops;
 extern unsigned long afs_mntpt_expiry_timeout;
 
-extern int afs_mntpt_check_symlink(struct afs_vnode *vnode);
+extern int afs_mntpt_check_symlink(struct afs_vnode *);
 
 /*
  * super.c
@@ -123,17 +113,17 @@ extern void afs_fs_exit(void);
 extern struct list_head afs_cb_hash_tbl[];
 extern spinlock_t afs_cb_hash_lock;
 
-#define afs_cb_hash(SRV,FID) \
-	afs_cb_hash_tbl[((unsigned long)(SRV) + \
-			(FID)->vid + (FID)->vnode + (FID)->unique) % \
-			AFS_CB_HASH_COUNT]
+#define afs_cb_hash(SRV, FID)						\
+	afs_cb_hash_tbl[((unsigned long)(SRV) +				\
+			 (FID)->vid + (FID)->vnode + (FID)->unique) &	\
+			(AFS_CB_HASH_COUNT - 1)]
 
 /*
  * proc.c
  */
 extern int afs_proc_init(void);
 extern void afs_proc_cleanup(void);
-extern int afs_proc_cell_setup(struct afs_cell *cell);
-extern void afs_proc_cell_remove(struct afs_cell *cell);
+extern int afs_proc_cell_setup(struct afs_cell *);
+extern void afs_proc_cell_remove(struct afs_cell *);
 
 #endif /* AFS_INTERNAL_H */

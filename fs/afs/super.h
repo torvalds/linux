@@ -1,4 +1,4 @@
-/* super.h: AFS filesystem internal private data
+/* AFS filesystem internal private data
  *
  * Copyright (c) 2002 Red Hat, Inc. All rights reserved.
  *
@@ -14,21 +14,17 @@
  *
  */
 
-#ifndef _LINUX_AFS_SUPER_H
-#define _LINUX_AFS_SUPER_H
+#ifndef AFS_SUPER_H
+#define AFS_SUPER_H
 
 #include <linux/fs.h>
 #include "server.h"
 
-#ifdef __KERNEL__
-
-/*****************************************************************************/
 /*
  * AFS superblock private data
  * - there's one superblock per volume
  */
-struct afs_super_info
-{
+struct afs_super_info {
 	struct afs_volume	*volume;	/* volume record */
 	char			rwparent;	/* T if parent is R/W AFS volume */
 };
@@ -40,6 +36,4 @@ static inline struct afs_super_info *AFS_FS_S(struct super_block *sb)
 
 extern struct file_system_type afs_fs_type;
 
-#endif /* __KERNEL__ */
-
-#endif /* _LINUX_AFS_SUPER_H */
+#endif /* AFS_SUPER_H */

@@ -1,4 +1,4 @@
-/* misc.c: miscellaneous bits
+/* miscellaneous bits
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -15,7 +15,6 @@
 #include "errors.h"
 #include "internal.h"
 
-/*****************************************************************************/
 /*
  * convert an AFS abort code to a Linux error number
  */
@@ -35,5 +34,4 @@ int afs_abort_to_error(int abortcode)
 	case VMOVED:		return -ENXIO;
 	default:		return -EIO;
 	}
-
-} /* end afs_abort_to_error() */
+}

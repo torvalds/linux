@@ -1,4 +1,4 @@
-/* server.h: AFS server record
+/* AFS server record
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,8 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_SERVER_H
-#define _LINUX_AFS_SERVER_H
+#ifndef AFS_SERVER_H
+#define AFS_SERVER_H
 
 #include "types.h"
 #include "kafstimod.h"
@@ -19,12 +19,10 @@
 
 extern spinlock_t afs_server_peer_lock;
 
-/*****************************************************************************/
 /*
  * AFS server record
  */
-struct afs_server
-{
+struct afs_server {
 	atomic_t		usage;
 	struct afs_cell		*cell;		/* cell in which server resides */
 	struct list_head	link;		/* link in cell's server list */
@@ -50,20 +48,19 @@ struct afs_server
 	spinlock_t		cb_lock;	/* access lock */
 };
 
-extern int afs_server_lookup(struct afs_cell *cell,
-			     const struct in_addr *addr,
-			     struct afs_server **_server);
+extern int afs_server_lookup(struct afs_cell *, const struct in_addr *,
+			     struct afs_server **);
 
 #define afs_get_server(S) do { atomic_inc(&(S)->usage); } while(0)
 
-extern void afs_put_server(struct afs_server *server);
-extern void afs_server_do_timeout(struct afs_server *server);
+extern void afs_put_server(struct afs_server *);
+extern void afs_server_do_timeout(struct afs_server *);
 
-extern int afs_server_find_by_peer(const struct rxrpc_peer *peer,
-				   struct afs_server **_server);
+extern int afs_server_find_by_peer(const struct rxrpc_peer *,
+				   struct afs_server **);
 
-extern int afs_server_get_vlconn(struct afs_server *server,
-				 struct rxrpc_connection **_conn);
+extern int afs_server_get_vlconn(struct afs_server *,
+				 struct rxrpc_connection **);
 
 static inline
 struct afs_server *afs_server_get_from_peer(struct rxrpc_peer *peer)
@@ -79,12 +76,10 @@ struct afs_server *afs_server_get_from_peer(struct rxrpc_peer *peer)
 	return server;
 }
 
-/*****************************************************************************/
 /*
  * AFS server callslot grant record
  */
-struct afs_server_callslot
-{
+struct afs_server_callslot {
 	struct list_head	link;		/* link in server's list */
 	struct task_struct	*task;		/* process waiting to make call */
 	struct rxrpc_connection	*conn;		/* connection to use (or NULL on error) */
@@ -93,10 +88,10 @@ struct afs_server_callslot
 	int			errno;		/* error number if nconn==-1 */
 };
 
-extern int afs_server_request_callslot(struct afs_server *server,
-				       struct afs_server_callslot *callslot);
+extern int afs_server_request_callslot(struct afs_server *,
+				       struct afs_server_callslot *);
 
-extern void afs_server_release_callslot(struct afs_server *server,
-					struct afs_server_callslot *callslot);
+extern void afs_server_release_callslot(struct afs_server *,
+					struct afs_server_callslot *);
 
-#endif /* _LINUX_AFS_SERVER_H */
+#endif /* AFS_SERVER_H */

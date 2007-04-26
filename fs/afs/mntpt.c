@@ -1,4 +1,4 @@
-/* mntpt.c: mountpoint management
+/* mountpoint management
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -54,7 +54,6 @@ struct afs_timer afs_mntpt_expiry_timer;
 
 unsigned long afs_mntpt_expiry_timeout = 20;
 
-/*****************************************************************************/
 /*
  * check a symbolic link to see whether it actually encodes a mountpoint
  * - sets the AFS_VNODE_MOUNTPOINT flag on the vnode appropriately
@@ -99,16 +98,14 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode)
 
 	ret = 0;
 
- out_free:
+out_free:
 	kunmap(page);
 	page_cache_release(page);
- out:
+out:
 	_leave(" = %d", ret);
 	return ret;
+}
 
-} /* end afs_mntpt_check_symlink() */
-
-/*****************************************************************************/
 /*
  * no valid lookup procedure on this sort of dir
  */
@@ -125,9 +122,8 @@ static struct dentry *afs_mntpt_lookup(struct inode *dir,
 	       dentry->d_name.name);
 
 	return ERR_PTR(-EREMOTE);
-} /* end afs_mntpt_lookup() */
+}
 
-/*****************************************************************************/
 /*
  * no valid open procedure on this sort of dir
  */
@@ -142,9 +138,8 @@ static int afs_mntpt_open(struct inode *inode, struct file *file)
 	       file->f_path.dentry->d_name.name);
 
 	return -EREMOTE;
-} /* end afs_mntpt_open() */
+}
 
-/*****************************************************************************/
 /*
  * create a vfsmount to be automounted
  */
@@ -210,7 +205,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	kleave(" = %p", mnt);
 	return mnt;
 
- error:
+error:
 	if (page)
 		page_cache_release(page);
 	if (devname)
@@ -219,9 +214,8 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 		free_page((unsigned long) options);
 	kleave(" = %d", ret);
 	return ERR_PTR(ret);
-} /* end afs_mntpt_do_automount() */
+}
 
-/*****************************************************************************/
 /*
  * follow a link from a mountpoint directory, thus causing it to be mounted
  */
@@ -260,9 +254,8 @@ static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 	kleave(" = %d", err);
 	return ERR_PTR(err);
-} /* end afs_mntpt_follow_link() */
+}
 
-/*****************************************************************************/
 /*
  * handle mountpoint expiry timer going off
  */
@@ -276,4 +269,4 @@ static void afs_mntpt_expiry_timed_out(struct afs_timer *timer)
 				afs_mntpt_expiry_timeout * HZ);
 
 	kleave("");
-} /* end afs_mntpt_expiry_timed_out() */
+}

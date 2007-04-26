@@ -1,4 +1,4 @@
-/* vlocation.c: volume location management
+/* volume location management
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -73,7 +73,6 @@ struct cachefs_index_def afs_vlocation_cache_index_def = {
 };
 #endif
 
-/*****************************************************************************/
 /*
  * iterate through the VL servers in a cell until one of them admits knowing
  * about the volume in question
@@ -146,13 +145,11 @@ static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vlocation,
 		cell->vl_curr_svix %= cell->vl_naddrs;
 	}
 
- out:
+out:
 	_leave(" = %d", ret);
 	return ret;
+}
 
-} /* end afs_vlocation_access_vl_by_name() */
-
-/*****************************************************************************/
 /*
  * iterate through the VL servers in a cell until one of them admits knowing
  * about the volume in question
@@ -225,13 +222,11 @@ static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vlocation,
 		cell->vl_curr_svix %= cell->vl_naddrs;
 	}
 
- out:
+out:
 	_leave(" = %d", ret);
 	return ret;
+}
 
-} /* end afs_vlocation_access_vl_by_id() */
-
-/*****************************************************************************/
 /*
  * lookup volume location
  * - caller must have cell->vol_sem write-locked
@@ -321,7 +316,7 @@ int afs_vlocation_lookup(struct afs_cell *cell,
 
 	goto found_on_vlserver;
 
- found_in_graveyard:
+found_in_graveyard:
 	/* found in the graveyard - resurrect */
 	_debug("found in graveyard");
 	atomic_inc(&vlocation->usage);
@@ -331,16 +326,16 @@ int afs_vlocation_lookup(struct afs_cell *cell,
 	afs_kafstimod_del_timer(&vlocation->timeout);
 	goto active;
 
- found_in_memory:
+found_in_memory:
 	/* found in memory - check to see if it's active */
 	_debug("found in memory");
 	atomic_inc(&vlocation->usage);
 
- active:
+active:
 	active = 1;
 
 #ifdef AFS_CACHING_SUPPORT
- found_in_cache:
+found_in_cache:
 #endif
 	/* try to look up a cached volume in the cell VL databases by ID */
 	_debug("found in cache");
@@ -364,16 +359,13 @@ int afs_vlocation_lookup(struct afs_cell *cell,
 	if (vlocation->vldb.vidmask & AFS_VOL_VTM_RW) {
 		vid = vlocation->vldb.vid[0];
 		voltype = AFSVL_RWVOL;
-	}
-	else if (vlocation->vldb.vidmask & AFS_VOL_VTM_RO) {
+	} else if (vlocation->vldb.vidmask & AFS_VOL_VTM_RO) {
 		vid = vlocation->vldb.vid[1];
 		voltype = AFSVL_ROVOL;
-	}
-	else if (vlocation->vldb.vidmask & AFS_VOL_VTM_BAK) {
+	} else if (vlocation->vldb.vidmask & AFS_VOL_VTM_BAK) {
 		vid = vlocation->vldb.vid[2];
 		voltype = AFSVL_BACKVOL;
-	}
-	else {
+	} else {
 		BUG();
 		vid = 0;
 		voltype = 0;
@@ -400,7 +392,7 @@ int afs_vlocation_lookup(struct afs_cell *cell,
 		goto error;
 	}
 
- found_on_vlserver:
+found_on_vlserver:
 	_debug("Done VL Lookup: %*.*s %02x { %08x(%x) %08x(%x) %08x(%x) }",
 	       namesz, namesz, name,
 	       vldb.vidmask,
@@ -430,12 +422,11 @@ int afs_vlocation_lookup(struct afs_cell *cell,
 	_leave(" = 0 (%p)",vlocation);
 	return 0;
 
- error:
+error:
 	if (vlocation) {
 		if (active) {
 			__afs_put_vlocation(vlocation);
-		}
-		else {
+		} else {
 			list_del(&vlocation->link);
 #ifdef AFS_CACHING_SUPPORT
 			cachefs_relinquish_cookie(vlocation->cache, 0);
@@ -447,9 +438,8 @@ int afs_vlocation_lookup(struct afs_cell *cell,
 
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_vlocation_lookup() */
+}
 
-/*****************************************************************************/
 /*
  * finish using a volume location record
  * - caller must have cell->vol_sem write-locked
@@ -489,9 +479,8 @@ static void __afs_put_vlocation(struct afs_vlocation *vlocation)
 	spin_unlock(&cell->vl_gylock);
 
 	_leave(" [killed]");
-} /* end __afs_put_vlocation() */
+}
 
-/*****************************************************************************/
 /*
  * finish using a volume location record
  */
@@ -504,9 +493,8 @@ void afs_put_vlocation(struct afs_vlocation *vlocation)
 		__afs_put_vlocation(vlocation);
 		up_write(&cell->vl_sem);
 	}
-} /* end afs_put_vlocation() */
+}
 
-/*****************************************************************************/
 /*
  * timeout vlocation record
  * - removes from the cell's graveyard if the usage count is zero
@@ -543,9 +531,8 @@ void afs_vlocation_do_timeout(struct afs_vlocation *vlocation)
 	kfree(vlocation);
 
 	_leave(" [destroyed]");
-} /* end afs_vlocation_do_timeout() */
+}
 
-/*****************************************************************************/
 /*
  * send an update operation to the currently selected server
  */
@@ -564,16 +551,13 @@ static int afs_vlocation_update_begin(struct afs_vlocation *vlocation)
 	if (vlocation->vldb.vidmask & AFS_VOL_VTM_RW) {
 		vid = vlocation->vldb.vid[0];
 		voltype = AFSVL_RWVOL;
-	}
-	else if (vlocation->vldb.vidmask & AFS_VOL_VTM_RO) {
+	} else if (vlocation->vldb.vidmask & AFS_VOL_VTM_RO) {
 		vid = vlocation->vldb.vid[1];
 		voltype = AFSVL_ROVOL;
-	}
-	else if (vlocation->vldb.vidmask & AFS_VOL_VTM_BAK) {
+	} else if (vlocation->vldb.vidmask & AFS_VOL_VTM_BAK) {
 		vid = vlocation->vldb.vid[2];
 		voltype = AFSVL_BACKVOL;
-	}
-	else {
+	} else {
 		BUG();
 		vid = 0;
 		voltype = 0;
@@ -604,9 +588,8 @@ static int afs_vlocation_update_begin(struct afs_vlocation *vlocation)
 
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_vlocation_update_begin() */
+}
 
-/*****************************************************************************/
 /*
  * abandon updating a VL record
  * - does not restart the update timer
@@ -634,9 +617,8 @@ static void afs_vlocation_update_abandon(struct afs_vlocation *vlocation,
 	spin_unlock(&afs_vlocation_update_lock);
 
 	_leave("");
-} /* end afs_vlocation_update_abandon() */
+}
 
-/*****************************************************************************/
 /*
  * handle periodic update timeouts and busy retry timeouts
  * - called from kafstimod
@@ -663,8 +645,7 @@ static void afs_vlocation_update_timer(struct afs_timer *timer)
 		if (afs_vlocation_update) {
 			list_add(&vlocation->upd_op.link,
 				 &afs_vlocation_update_pendq);
-		}
-		else {
+		} else {
 			afs_get_vlocation(vlocation);
 			afs_vlocation_update = vlocation;
 			vlocation->upd_state = AFS_VLUPD_INPROGRESS;
@@ -706,16 +687,13 @@ static void afs_vlocation_update_timer(struct afs_timer *timer)
 	_leave("");
 	return;
 
- out_unlock2:
+out_unlock2:
 	spin_unlock(&afs_vlocation_update_lock);
- out_unlock1:
+out_unlock1:
 	spin_unlock(&vlocation->cell->vl_gylock);
 	_leave("");
-	return;
+}
 
-} /* end afs_vlocation_update_timer() */
-
-/*****************************************************************************/
 /*
  * attend to an update operation upon which an event happened
  * - called in kafsasyncd context
@@ -818,7 +796,7 @@ static void afs_vlocation_update_attend(struct afs_async_op *op)
 	}
 
 	/* try contacting the next server */
- try_next:
+try_next:
 	vlocation->upd_busy_cnt = 0;
 
 	/* discard the server record */
@@ -856,15 +834,13 @@ static void afs_vlocation_update_attend(struct afs_async_op *op)
 	}
 
 	/* abandon the update */
- abandon:
+abandon:
 	afs_vlocation_update_abandon(vlocation, AFS_VLUPD_SLEEP, ret);
 	afs_kafstimod_add_timer(&vlocation->upd_timer, HZ * 10);
 	afs_put_vlocation(vlocation);
 	_leave(" [abandoned]");
+}
 
-} /* end afs_vlocation_update_attend() */
-
-/*****************************************************************************/
 /*
  * deal with an update operation being discarded
  * - called in kafsasyncd context when it's dying due to rmmod
@@ -883,9 +859,8 @@ static void afs_vlocation_update_discard(struct afs_async_op *op)
 	afs_put_vlocation(vlocation);
 
 	_leave("");
-} /* end afs_vlocation_update_discard() */
+}
 
-/*****************************************************************************/
 /*
  * match a VLDB record stored in the cache
  * - may also load target from entry
@@ -908,9 +883,7 @@ static cachefs_match_val_t afs_vlocation_cache_match(void *target,
 			vlocation->valid = 1;
 			_leave(" = SUCCESS [c->m]");
 			return CACHEFS_MATCH_SUCCESS;
-		}
-		/* need to update cache if cached info differs */
-		else if (memcmp(&vlocation->vldb, vldb, sizeof(*vldb)) != 0) {
+		} else if (memcmp(&vlocation->vldb, vldb, sizeof(*vldb)) != 0) {
 			/* delete if VIDs for this name differ */
 			if (memcmp(&vlocation->vldb.vid,
 				   &vldb->vid,
@@ -921,8 +894,7 @@ static cachefs_match_val_t afs_vlocation_cache_match(void *target,
 
 			_leave(" = UPDATE");
 			return CACHEFS_MATCH_SUCCESS_UPDATE;
-		}
-		else {
+		} else {
 			_leave(" = SUCCESS");
 			return CACHEFS_MATCH_SUCCESS;
 		}
@@ -930,10 +902,9 @@ static cachefs_match_val_t afs_vlocation_cache_match(void *target,
 
 	_leave(" = FAILED");
 	return CACHEFS_MATCH_FAILED;
-} /* end afs_vlocation_cache_match() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * update a VLDB record stored in the cache
  */
@@ -946,6 +917,5 @@ static void afs_vlocation_cache_update(void *source, void *entry)
 	_enter("");
 
 	*vldb = vlocation->vldb;
-
-} /* end afs_vlocation_cache_update() */
+}
 #endif

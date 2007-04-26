@@ -1,4 +1,4 @@
-/* server.c: AFS server record management
+/* AFS server record management
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -41,7 +41,6 @@ static const struct afs_timer_ops afs_server_timer_ops = {
 	.timed_out	= __afs_server_timeout,
 };
 
-/*****************************************************************************/
 /*
  * lookup a server record in a cell
  * - TODO: search the cell's server list
@@ -106,7 +105,7 @@ int afs_server_lookup(struct afs_cell *cell, const struct in_addr *addr,
 	return 0;
 
 	/* found a matching active server */
- use_active_server:
+use_active_server:
 	_debug("active server");
 	afs_get_server(active);
 	write_unlock(&cell->sv_lock);
@@ -119,7 +118,7 @@ int afs_server_lookup(struct afs_cell *cell, const struct in_addr *addr,
 
 	/* found a matching server in the graveyard, so resurrect it and
 	 * dispose of the new record */
- resurrect_server:
+resurrect_server:
 	_debug("resurrecting server");
 
 	list_move_tail(&zombie->link, &cell->sv_list);
@@ -133,10 +132,8 @@ int afs_server_lookup(struct afs_cell *cell, const struct in_addr *addr,
 	*_server = zombie;
 	_leave(" = 0 (%p)", zombie);
 	return 0;
+}
 
-} /* end afs_server_lookup() */
-
-/*****************************************************************************/
 /*
  * destroy a server record
  * - removes from the cell list
@@ -175,9 +172,8 @@ void afs_put_server(struct afs_server *server)
 	write_unlock(&cell->sv_lock);
 
 	_leave(" [killed]");
-} /* end afs_put_server() */
+}
 
-/*****************************************************************************/
 /*
  * timeout server record
  * - removes from the cell's graveyard if the usage count is zero
@@ -230,9 +226,8 @@ void afs_server_do_timeout(struct afs_server *server)
 	kfree(server);
 
 	_leave(" [destroyed]");
-} /* end afs_server_do_timeout() */
+}
 
-/*****************************************************************************/
 /*
  * get a callslot on a connection to the fileserver on the specified server
  */
@@ -323,7 +318,7 @@ int afs_server_request_callslot(struct afs_server *server,
 	}
 
 	/* got a callslot, but no connection */
- obtained_slot:
+obtained_slot:
 
 	/* need to get hold of the RxRPC connection */
 	down_write(&server->sem);
@@ -337,8 +332,7 @@ int afs_server_request_callslot(struct afs_server *server,
 		/* reuse an existing connection */
 		rxrpc_get_connection(server->fs_conn[nconn]);
 		callslot->conn = server->fs_conn[nconn];
-	}
-	else {
+	} else {
 		/* create a new connection */
 		ret = rxrpc_create_connection(afs_transport,
 					      htons(7000),
@@ -360,23 +354,21 @@ int afs_server_request_callslot(struct afs_server *server,
 	return 0;
 
 	/* handle an error occurring */
- error_release_upw:
+error_release_upw:
 	up_write(&server->sem);
 
- error_release:
+error_release:
 	/* either release the callslot or pass it along to another deserving
 	 * task */
 	spin_lock(&server->fs_lock);
 
 	if (nconn < 0) {
 		/* no callslot allocated */
-	}
-	else if (list_empty(&server->fs_callq)) {
+	} else if (list_empty(&server->fs_callq)) {
 		/* no one waiting */
 		server->fs_conn_cnt[nconn]++;
 		spin_unlock(&server->fs_lock);
-	}
-	else {
+	} else {
 		/* someone's waiting - dequeue them and wake them up */
 		pcallslot = list_entry(server->fs_callq.next,
 				       struct afs_server_callslot, link);
@@ -400,10 +392,8 @@ int afs_server_request_callslot(struct afs_server *server,
 
 	_leave(" = %d", ret);
 	return ret;
+}
 
-} /* end afs_server_request_callslot() */
-
-/*****************************************************************************/
 /*
  * release a callslot back to the server
  * - transfers the RxRPC connection to the next pending callslot if possible
@@ -426,8 +416,7 @@ void afs_server_release_callslot(struct afs_server *server,
 		/* no one waiting */
 		server->fs_conn_cnt[callslot->nconn]++;
 		spin_unlock(&server->fs_lock);
-	}
-	else {
+	} else {
 		/* someone's waiting - dequeue them and wake them up */
 		pcallslot = list_entry(server->fs_callq.next,
 				       struct afs_server_callslot, link);
@@ -449,9 +438,8 @@ void afs_server_release_callslot(struct afs_server *server,
 	rxrpc_put_connection(callslot->conn);
 
 	_leave("");
-} /* end afs_server_release_callslot() */
+}
 
-/*****************************************************************************/
 /*
  * get a handle to a connection to the vlserver (volume location) on the
  * specified server
@@ -473,8 +461,7 @@ int afs_server_get_vlconn(struct afs_server *server,
 		rxrpc_get_connection(server->vlserver);
 		conn = server->vlserver;
 		up_read(&server->sem);
-	}
-	else {
+	} else {
 		/* create a new connection */
 		up_read(&server->sem);
 		down_write(&server->sem);
@@ -496,4 +483,4 @@ int afs_server_get_vlconn(struct afs_server *server,
 	*_conn = conn;
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_server_get_vlconn() */
+}

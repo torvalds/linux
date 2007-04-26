@@ -40,7 +40,6 @@ const struct address_space_operations afs_fs_aops = {
 	.invalidatepage	= afs_file_invalidatepage,
 };
 
-/*****************************************************************************/
 /*
  * deal with notification that a page was read from the cache
  */
@@ -58,10 +57,9 @@ static void afs_file_readpage_read_complete(void *cookie_data,
 		SetPageUptodate(page);
 	unlock_page(page);
 
-} /* end afs_file_readpage_read_complete() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * deal with notification that a page was written to the cache
  */
@@ -74,11 +72,9 @@ static void afs_file_readpage_write_complete(void *cookie_data,
 	_enter("%p,%p,%p,%d", cookie_data, page, data, error);
 
 	unlock_page(page);
-
-} /* end afs_file_readpage_write_complete() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * AFS read page from file (or symlink)
  */
@@ -184,10 +180,8 @@ static int afs_file_readpage(struct file *file, struct page *page)
 
 	_leave(" = %d", ret);
 	return ret;
+}
 
-} /* end afs_file_readpage() */
-
-/*****************************************************************************/
 /*
  * get a page cookie for the specified page
  */
@@ -202,10 +196,9 @@ int afs_cache_get_page_cookie(struct page *page,
 
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_cache_get_page_cookie() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * invalidate part or all of a page
  */
@@ -240,9 +233,8 @@ static void afs_file_invalidatepage(struct page *page, unsigned long offset)
 	}
 
 	_leave(" = %d", ret);
-} /* end afs_file_invalidatepage() */
+}
 
-/*****************************************************************************/
 /*
  * release a page and cleanup its private data
  */
@@ -267,4 +259,4 @@ static int afs_file_releasepage(struct page *page, gfp_t gfp_flags)
 
 	_leave(" = 0");
 	return 0;
-} /* end afs_file_releasepage() */
+}

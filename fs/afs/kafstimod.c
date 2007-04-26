@@ -1,4 +1,4 @@
-/* kafstimod.c: AFS timeout daemon
+/* AFS timeout daemon
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -30,7 +30,6 @@ static DEFINE_SPINLOCK(kafstimod_lock);
 
 static int kafstimod(void *arg);
 
-/*****************************************************************************/
 /*
  * start the timeout daemon
  */
@@ -45,9 +44,8 @@ int afs_kafstimod_start(void)
 	wait_for_completion(&kafstimod_alive);
 
 	return ret;
-} /* end afs_kafstimod_start() */
+}
 
-/*****************************************************************************/
 /*
  * stop the timeout daemon
  */
@@ -57,10 +55,8 @@ void afs_kafstimod_stop(void)
 	kafstimod_die = 1;
 	wake_up(&kafstimod_sleepq);
 	wait_for_completion(&kafstimod_dead);
+}
 
-} /* end afs_kafstimod_stop() */
-
-/*****************************************************************************/
 /*
  * timeout processing daemon
  */
@@ -77,7 +73,7 @@ static int kafstimod(void *arg)
 	complete(&kafstimod_alive);
 
 	/* loop around looking for things to attend to */
- loop:
+loop:
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&kafstimod_sleepq, &myself);
 
@@ -101,8 +97,7 @@ static int kafstimod(void *arg)
 		spin_lock(&kafstimod_lock);
 		if (list_empty(&kafstimod_list)) {
 			timeout = MAX_SCHEDULE_TIMEOUT;
-		}
-		else {
+		} else {
 			timer = list_entry(kafstimod_list.next,
 					   struct afs_timer, link);
 			timeout = timer->timo_jif;
@@ -110,10 +105,7 @@ static int kafstimod(void *arg)
 
 			if (time_before_eq((unsigned long) timeout, jif))
 				goto immediate;
-
-			else {
-				timeout = (long) timeout - (long) jiffies;
-			}
+			timeout = (long) timeout - (long) jiffies;
 		}
 		spin_unlock(&kafstimod_lock);
 
@@ -126,7 +118,7 @@ static int kafstimod(void *arg)
 	 * - we come here with the lock held and timer pointing to the expired
 	 *   entry
 	 */
- immediate:
+immediate:
 	remove_wait_queue(&kafstimod_sleepq, &myself);
 	set_current_state(TASK_RUNNING);
 
@@ -141,10 +133,8 @@ static int kafstimod(void *arg)
 
 	_debug("@@@ End Timeout");
 	goto loop;
+}
 
-} /* end kafstimod() */
-
-/*****************************************************************************/
 /*
  * (re-)queue a timer
  */
@@ -176,9 +166,8 @@ void afs_kafstimod_add_timer(struct afs_timer *timer, unsigned long timeout)
 	wake_up(&kafstimod_sleepq);
 
 	_leave("");
-} /* end afs_kafstimod_add_timer() */
+}
 
-/*****************************************************************************/
 /*
  * dequeue a timer
  * - returns 0 if the timer was deleted or -ENOENT if it wasn't queued
@@ -202,4 +191,4 @@ int afs_kafstimod_del_timer(struct afs_timer *timer)
 
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_kafstimod_del_timer() */
+}

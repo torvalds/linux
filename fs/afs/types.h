@@ -1,4 +1,4 @@
-/* types.h: AFS types
+/* AFS types
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,12 +9,10 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_TYPES_H
-#define _LINUX_AFS_TYPES_H
+#ifndef AFS_TYPES_H
+#define AFS_TYPES_H
 
-#ifdef __KERNEL__
 #include <rxrpc/types.h>
-#endif /* __KERNEL__ */
 
 typedef unsigned			afs_volid_t;
 typedef unsigned			afs_vnodeid_t;
@@ -33,23 +31,18 @@ typedef enum {
 	AFS_FTYPE_SYMLINK	= 3,
 } afs_file_type_t;
 
-#ifdef __KERNEL__
-
 struct afs_cell;
 struct afs_vnode;
 
-/*****************************************************************************/
 /*
  * AFS file identifier
  */
-struct afs_fid
-{
+struct afs_fid {
 	afs_volid_t	vid;		/* volume ID */
 	afs_vnodeid_t	vnode;		/* file index within volume */
 	unsigned	unique;		/* unique ID number (file index version) */
 };
 
-/*****************************************************************************/
 /*
  * AFS callback notification
  */
@@ -60,8 +53,7 @@ typedef enum {
 	AFSCM_CB_DROPPED	= 3,	/* CB promise cancelled by file server */
 } afs_callback_type_t;
 
-struct afs_callback
-{
+struct afs_callback {
 	struct afs_server	*server;	/* server that made the promise */
 	struct afs_fid		fid;		/* file identifier */
 	unsigned		version;	/* callback version */
@@ -71,12 +63,10 @@ struct afs_callback
 
 #define AFSCBMAX 50
 
-/*****************************************************************************/
 /*
  * AFS volume information
  */
-struct afs_volume_info
-{
+struct afs_volume_info {
 	afs_volid_t		vid;		/* volume ID */
 	afs_voltype_t		type;		/* type of this volume */
 	afs_volid_t		type_vids[5];	/* volume ID's for possible types for this vol */
@@ -88,12 +78,10 @@ struct afs_volume_info
 	} servers[8];
 };
 
-/*****************************************************************************/
 /*
  * AFS file status information
  */
-struct afs_file_status
-{
+struct afs_file_status {
 	unsigned		if_version;	/* interface version */
 #define AFS_FSTATUS_VERSION	1
 
@@ -111,15 +99,11 @@ struct afs_file_status
 	time_t			mtime_server;	/* last time server changed data */
 };
 
-/*****************************************************************************/
 /*
  * AFS volume synchronisation information
  */
-struct afs_volsync
-{
+struct afs_volsync {
 	time_t			creation;	/* volume creation time */
 };
 
-#endif /* __KERNEL__ */
-
-#endif /* _LINUX_AFS_TYPES_H */
+#endif /* AFS_TYPES_H */

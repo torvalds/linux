@@ -112,7 +112,6 @@ struct afs_dir_lookup_cookie {
 	int		found;
 };
 
-/*****************************************************************************/
 /*
  * check that a directory page is valid
  */
@@ -157,13 +156,11 @@ static inline void afs_dir_check_page(struct inode *dir, struct page *page)
 	SetPageChecked(page);
 	return;
 
- error:
+error:
 	SetPageChecked(page);
 	SetPageError(page);
+}
 
-} /* end afs_dir_check_page() */
-
-/*****************************************************************************/
 /*
  * discard a page cached in the pagecache
  */
@@ -171,10 +168,8 @@ static inline void afs_dir_put_page(struct page *page)
 {
 	kunmap(page);
 	page_cache_release(page);
+}
 
-} /* end afs_dir_put_page() */
-
-/*****************************************************************************/
 /*
  * get a page into the pagecache
  */
@@ -197,12 +192,11 @@ static struct page *afs_dir_get_page(struct inode *dir, unsigned long index)
 	}
 	return page;
 
- fail:
+fail:
 	afs_dir_put_page(page);
 	return ERR_PTR(-EIO);
-} /* end afs_dir_get_page() */
+}
 
-/*****************************************************************************/
 /*
  * open an AFS directory file
  */
@@ -218,10 +212,8 @@ static int afs_dir_open(struct inode *inode, struct file *file)
 
 	_leave(" = 0");
 	return 0;
+}
 
-} /* end afs_dir_open() */
-
-/*****************************************************************************/
 /*
  * deal with one block in an AFS directory
  */
@@ -316,9 +308,8 @@ static int afs_dir_iterate_block(unsigned *fpos,
 
 	_leave(" = 1 [more]");
 	return 1;
-} /* end afs_dir_iterate_block() */
+}
 
-/*****************************************************************************/
 /*
  * read an AFS directory
  */
@@ -377,12 +368,11 @@ static int afs_dir_iterate(struct inode *dir, unsigned *fpos, void *cookie,
 		ret = 0;
 	}
 
- out:
+out:
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_dir_iterate() */
+}
 
-/*****************************************************************************/
 /*
  * read an AFS directory
  */
@@ -399,9 +389,8 @@ static int afs_dir_readdir(struct file *file, void *cookie, filldir_t filldir)
 
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_dir_readdir() */
+}
 
-/*****************************************************************************/
 /*
  * search the directory for a name
  * - if afs_dir_iterate_block() spots this function, it'll pass the FID
@@ -426,9 +415,8 @@ static int afs_dir_lookup_filldir(void *_cookie, const char *name, int nlen,
 
 	_leave(" = -1 [found]");
 	return -1;
-} /* end afs_dir_lookup_filldir() */
+}
 
-/*****************************************************************************/
 /*
  * look up an entry in a directory
  */
@@ -498,9 +486,8 @@ static struct dentry *afs_dir_lookup(struct inode *dir, struct dentry *dentry,
 	       dentry->d_inode->i_version);
 
 	return NULL;
-} /* end afs_dir_lookup() */
+}
 
-/*****************************************************************************/
 /*
  * check that a dentry lookup hit has found a valid entry
  * - NOTE! the hit can be a negative hit too, so we can't assume we have an
@@ -605,18 +592,18 @@ static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 			(void *) (unsigned long) AFS_FS_I(dir)->status.version;
 	}
 
- out_valid:
+out_valid:
 	dput(parent);
 	_leave(" = 1 [valid]");
 	return 1;
 
 	/* the dirent, if it exists, now points to a different vnode */
- not_found:
+not_found:
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags |= DCACHE_NFSFS_RENAMED;
 	spin_unlock(&dentry->d_lock);
 
- out_bad:
+out_bad:
 	if (inode) {
 		/* don't unhash if we have submounts */
 		if (have_submounts(dentry))
@@ -633,9 +620,8 @@ static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 
 	_leave(" = 0 [bad]");
 	return 0;
-} /* end afs_d_revalidate() */
+}
 
-/*****************************************************************************/
 /*
  * allow the VFS to enquire as to whether a dentry should be unhashed (mustn't
  * sleep)
@@ -657,7 +643,7 @@ static int afs_d_delete(struct dentry *dentry)
 	_leave(" = 0 [keep]");
 	return 0;
 
- zap:
+zap:
 	_leave(" = 1 [zap]");
 	return 1;
-} /* end afs_d_delete() */
+}

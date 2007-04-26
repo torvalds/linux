@@ -1,4 +1,4 @@
-/* vlclient.h: Volume Location Service client interface
+/* Volume Location Service client interface
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,8 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_VLCLIENT_H
-#define _LINUX_AFS_VLCLIENT_H
+#ifndef AFS_VLCLIENT_H
+#define AFS_VLCLIENT_H
 
 #include "types.h"
 
@@ -68,26 +68,18 @@ struct afs_vldbentry {
 #define AFS_VLSF_RWVOL		0x0004	/* this server holds a R/W instance of the volume */
 #define AFS_VLSF_BACKVOL	0x0008	/* this server holds a backup instance of the volume */
 	} servers[8];
-
 };
 
-/* look up a volume location database entry by name */
-extern int afs_rxvl_get_entry_by_name(struct afs_server *server,
-				      const char *volname,
-				      unsigned volnamesz,
-				      struct afs_cache_vlocation *entry);
+extern int afs_rxvl_get_entry_by_name(struct afs_server *, const char *,
+				      unsigned, struct afs_cache_vlocation *);
+extern int afs_rxvl_get_entry_by_id(struct afs_server *, afs_volid_t,
+				    afs_voltype_t,
+				    struct afs_cache_vlocation *);
 
-/* look up a volume location database entry by ID */
-extern int afs_rxvl_get_entry_by_id(struct afs_server *server,
-				    afs_volid_t	volid,
-				    afs_voltype_t voltype,
-				    struct afs_cache_vlocation *entry);
+extern int afs_rxvl_get_entry_by_id_async(struct afs_async_op *,
+					  afs_volid_t, afs_voltype_t);
 
-extern int afs_rxvl_get_entry_by_id_async(struct afs_async_op *op,
-					  afs_volid_t volid,
-					  afs_voltype_t voltype);
+extern int afs_rxvl_get_entry_by_id_async2(struct afs_async_op *,
+					   struct afs_cache_vlocation *);
 
-extern int afs_rxvl_get_entry_by_id_async2(struct afs_async_op *op,
-					   struct afs_cache_vlocation *entry);
-
-#endif /* _LINUX_AFS_VLCLIENT_H */
+#endif /* AFS_VLCLIENT_H */

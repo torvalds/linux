@@ -1,4 +1,4 @@
-/* vlclient.c: AFS Volume Location Service client
+/* AFS Volume Location Service client
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -30,7 +30,6 @@
 static void afs_rxvl_get_entry_by_id_attn(struct rxrpc_call *call);
 static void afs_rxvl_get_entry_by_id_error(struct rxrpc_call *call);
 
-/*****************************************************************************/
 /*
  * map afs VL abort codes to/from Linux error codes
  * - called with call->lock held
@@ -87,10 +86,9 @@ static void afs_rxvl_aemap(struct rxrpc_call *call)
 	default:
 		return;
 	}
-} /* end afs_rxvl_aemap() */
+}
 
 #if 0
-/*****************************************************************************/
 /*
  * probe a volume location server to see if it is still alive -- unused
  */
@@ -159,24 +157,22 @@ static int afs_rxvl_probe(struct afs_server *server, int alloc_flags)
 		BUG();
 	}
 
- abort:
+abort:
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	rxrpc_call_abort(call, ret);
 	schedule();
 
- out_unwait:
+out_unwait:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&call->waitq, &myself);
 	rxrpc_put_call(call);
- out_put_conn:
+out_put_conn:
 	rxrpc_put_connection(conn);
- out:
+out:
 	return ret;
-
-} /* end afs_rxvl_probe() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * look up a volume location database entry by name
  */
@@ -294,24 +290,23 @@ int afs_rxvl_get_entry_by_name(struct afs_server *server,
 	entry->rtime = get_seconds();
 	ret = 0;
 
- out_unwait:
+out_unwait:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&call->waitq, &myself);
 	rxrpc_put_call(call);
- out_put_conn:
+out_put_conn:
 	rxrpc_put_connection(conn);
- out:
+out:
 	_leave(" = %d", ret);
 	return ret;
 
- abort:
+abort:
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	rxrpc_call_abort(call, ret);
 	schedule();
 	goto out_unwait;
-} /* end afs_rxvl_get_entry_by_name() */
+}
 
-/*****************************************************************************/
 /*
  * look up a volume location database entry by ID
  */
@@ -434,24 +429,23 @@ int afs_rxvl_get_entry_by_id(struct afs_server *server,
 	entry->rtime = get_seconds();
 	ret = 0;
 
- out_unwait:
+out_unwait:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&call->waitq, &myself);
 	rxrpc_put_call(call);
- out_put_conn:
+out_put_conn:
 	rxrpc_put_connection(conn);
- out:
+out:
 	_leave(" = %d", ret);
 	return ret;
 
- abort:
+abort:
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	rxrpc_call_abort(call, ret);
 	schedule();
 	goto out_unwait;
-} /* end afs_rxvl_get_entry_by_id() */
+}
 
-/*****************************************************************************/
 /*
  * look up a volume location database entry by ID asynchronously
  */
@@ -533,14 +527,12 @@ int afs_rxvl_get_entry_by_id_async(struct afs_async_op *op,
 		break;
 	}
 
- out:
+out:
 	rxrpc_put_call(call);
 	_leave(" = %d", ret);
 	return ret;
+}
 
-} /* end afs_rxvl_get_entry_by_id_async() */
-
-/*****************************************************************************/
 /*
  * attend to the asynchronous get VLDB entry by ID
  */
@@ -630,14 +622,13 @@ int afs_rxvl_get_entry_by_id_async2(struct afs_async_op *op,
 	_leave(" = -EAGAIN");
 	return -EAGAIN;
 
- done:
+done:
 	rxrpc_put_call(op->call);
 	op->call = NULL;
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_rxvl_get_entry_by_id_async2() */
+}
 
-/*****************************************************************************/
 /*
  * handle attention events on an async get-entry-by-ID op
  * - called from krxiod
@@ -674,10 +665,8 @@ static void afs_rxvl_get_entry_by_id_attn(struct rxrpc_call *call)
 	}
 
 	_leave("");
+}
 
-} /* end afs_rxvl_get_entry_by_id_attn() */
-
-/*****************************************************************************/
 /*
  * handle error events on an async get-entry-by-ID op
  * - called from krxiod
@@ -691,5 +680,4 @@ static void afs_rxvl_get_entry_by_id_error(struct rxrpc_call *call)
 	afs_kafsasyncd_attend_op(op);
 
 	_leave("");
-
-} /* end afs_rxvl_get_entry_by_id_error() */
+}

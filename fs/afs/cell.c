@@ -1,4 +1,4 @@
-/* cell.c: AFS cell and server record management
+/* AFS cell and server record management
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -44,7 +44,6 @@ struct cachefs_index_def afs_cache_cell_index_def = {
 };
 #endif
 
-/*****************************************************************************/
 /*
  * create a cell record
  * - "name" is the name of the cell
@@ -137,16 +136,15 @@ int afs_cell_create(const char *name, char *vllist, struct afs_cell **_cell)
 	_leave(" = 0 (%p)", cell);
 	return 0;
 
- badaddr:
+badaddr:
 	printk(KERN_ERR "kAFS: bad VL server IP address: '%s'\n", vllist);
- error:
+error:
 	up_write(&afs_cells_sem);
 	kfree(cell);
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_cell_create() */
+}
 
-/*****************************************************************************/
 /*
  * initialise the cell database from module parameters
  */
@@ -199,10 +197,8 @@ int afs_cell_init(char *rootcell)
 
 	_leave(" = %d", ret);
 	return ret;
+}
 
-} /* end afs_cell_init() */
-
-/*****************************************************************************/
 /*
  * lookup a cell record
  */
@@ -234,8 +230,7 @@ int afs_cell_lookup(const char *name, unsigned namesz, struct afs_cell **_cell)
 
 		if (cell)
 			ret = 0;
-	}
-	else {
+	} else {
 		read_lock(&afs_cells_lock);
 
 		cell = afs_cell_root;
@@ -247,8 +242,7 @@ int afs_cell_lookup(const char *name, unsigned namesz, struct afs_cell **_cell)
 			 * for other reasons.
 			 */
 			ret = -EDESTADDRREQ;
-		}
-		else {
+		} else {
 			afs_get_cell(cell);
 			ret = 0;
 		}
@@ -259,10 +253,8 @@ int afs_cell_lookup(const char *name, unsigned namesz, struct afs_cell **_cell)
 	*_cell = cell;
 	_leave(" = %d (%p)", ret, cell);
 	return ret;
+}
 
-} /* end afs_cell_lookup() */
-
-/*****************************************************************************/
 /*
  * try and get a cell record
  */
@@ -281,9 +273,8 @@ struct afs_cell *afs_get_cell_maybe(struct afs_cell **_cell)
 	write_unlock(&afs_cells_lock);
 
 	return cell;
-} /* end afs_get_cell_maybe() */
+}
 
-/*****************************************************************************/
 /*
  * destroy a cell record
  */
@@ -315,9 +306,8 @@ void afs_put_cell(struct afs_cell *cell)
 	BUG_ON(!list_empty(&cell->vl_graveyard));
 
 	_leave(" [unused]");
-} /* end afs_put_cell() */
+}
 
-/*****************************************************************************/
 /*
  * destroy a cell record
  */
@@ -359,9 +349,8 @@ static void afs_cell_destroy(struct afs_cell *cell)
 	kfree(cell);
 
 	_leave(" [destroyed]");
-} /* end afs_cell_destroy() */
+}
 
-/*****************************************************************************/
 /*
  * lookup the server record corresponding to an Rx RPC peer
  */
@@ -411,7 +400,7 @@ int afs_server_find_by_peer(const struct rxrpc_peer *peer,
 	return -ENOENT;
 
 	/* we found it in the graveyard - resurrect it */
- found_dead_server:
+found_dead_server:
 	list_move_tail(&server->link, &cell->sv_list);
 	afs_get_server(server);
 	afs_kafstimod_del_timer(&server->timeout);
@@ -419,20 +408,18 @@ int afs_server_find_by_peer(const struct rxrpc_peer *peer,
 	goto success;
 
 	/* we found it - increment its ref count and return it */
- found_server:
+found_server:
 	afs_get_server(server);
 
- success:
+success:
 	write_unlock(&cell->sv_lock);
 	read_unlock(&afs_cells_lock);
 
 	*_server = server;
 	_leave(" = 0 (s=%p c=%p)", server, cell);
 	return 0;
+}
 
-} /* end afs_server_find_by_peer() */
-
-/*****************************************************************************/
 /*
  * purge in-memory cell database on module unload or afs_init() failure
  * - the timeout daemon is stopped before calling this
@@ -520,9 +507,8 @@ void afs_cell_purge(void)
 	}
 
 	_leave("");
-} /* end afs_cell_purge() */
+}
 
-/*****************************************************************************/
 /*
  * match a cell record obtained from the cache
  */
@@ -542,10 +528,9 @@ static cachefs_match_val_t afs_cell_cache_match(void *target,
 
 	_leave(" = FAILED");
 	return CACHEFS_MATCH_FAILED;
-} /* end afs_cell_cache_match() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * update a cell record in the cache
  */
@@ -563,5 +548,5 @@ static void afs_cell_cache_update(void *source, void *entry)
 	       cell->vl_addrs,
 	       min(sizeof(ccell->vl_servers), sizeof(cell->vl_addrs)));
 
-} /* end afs_cell_cache_update() */
+}
 #endif

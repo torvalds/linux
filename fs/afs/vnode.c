@@ -1,4 +1,4 @@
-/* vnode.c: AFS vnode management
+/* AFS vnode management
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -43,7 +43,6 @@ struct cachefs_index_def afs_vnode_cache_index_def = {
 };
 #endif
 
-/*****************************************************************************/
 /*
  * handle a callback timing out
  * TODO: retain a ref to vnode struct for an outstanding callback timeout
@@ -78,9 +77,8 @@ static void afs_vnode_cb_timed_out(struct afs_timer *timer)
 	afs_put_server(oldserver);
 
 	_leave("");
-} /* end afs_vnode_cb_timed_out() */
+}
 
-/*****************************************************************************/
 /*
  * finish off updating the recorded status of a file
  * - starts callback expiry timer
@@ -105,7 +103,7 @@ static void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
 
 		spin_lock(&afs_cb_hash_lock);
 		list_move_tail(&vnode->cb_hash_link,
-			      &afs_cb_hash(server, &vnode->fid));
+			       &afs_cb_hash(server, &vnode->fid));
 		spin_unlock(&afs_cb_hash_lock);
 
 		/* swap ref to old callback server with that for new callback
@@ -122,13 +120,11 @@ static void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
 			spin_lock(&server->cb_lock);
 			list_add_tail(&vnode->cb_link, &server->cb_promises);
 			spin_unlock(&server->cb_lock);
-		}
-		else {
+		} else {
 			/* same server */
 			oldserver = NULL;
 		}
-	}
-	else if (ret == -ENOENT) {
+	} else if (ret == -ENOENT) {
 		/* the file was deleted - clear the callback timeout */
 		oldserver = xchg(&vnode->cb_server, NULL);
 		afs_kafstimod_del_timer(&vnode->cb_timeout);
@@ -146,10 +142,8 @@ static void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
 	afs_put_server(oldserver);
 
 	_leave("");
+}
 
-} /* end afs_vnode_finalise_status_update() */
-
-/*****************************************************************************/
 /*
  * fetch file status from the volume
  * - don't issue a fetch if:
@@ -222,7 +216,7 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode)
 		return vnode->flags & AFS_VNODE_DELETED ? -ENOENT : 0;
 	}
 
- get_anyway:
+get_anyway:
 	/* okay... we're going to have to initiate the op */
 	vnode->update_cnt++;
 
@@ -247,9 +241,8 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode)
 
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_vnode_fetch_status() */
+}
 
-/*****************************************************************************/
 /*
  * fetch file data from the volume
  * - TODO implement caching and server failover
@@ -290,10 +283,8 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode,
 
 	_leave(" = %d", ret);
 	return ret;
+}
 
-} /* end afs_vnode_fetch_data() */
-
-/*****************************************************************************/
 /*
  * break any outstanding callback on a vnode
  * - only relevent to server that issued it
@@ -337,9 +328,8 @@ int afs_vnode_give_up_callback(struct afs_vnode *vnode)
 
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_vnode_give_up_callback() */
+}
 
-/*****************************************************************************/
 /*
  * match a vnode record stored in the cache
  */
@@ -371,10 +361,9 @@ static cachefs_match_val_t afs_vnode_cache_match(void *target,
 
 	_leave(" = SUCCESS");
 	return CACHEFS_MATCH_SUCCESS;
-} /* end afs_vnode_cache_match() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * update a vnode record stored in the cache
  */
@@ -389,6 +378,5 @@ static void afs_vnode_cache_update(void *source, void *entry)
 	cvnode->vnode_id	= vnode->fid.vnode;
 	cvnode->vnode_unique	= vnode->fid.unique;
 	cvnode->data_version	= vnode->status.version;
-
-} /* end afs_vnode_cache_update() */
+}
 #endif

@@ -1,4 +1,5 @@
-/*
+/* AFS superblock handling
+ *
  * Copyright (c) 2002 Red Hat, Inc. All rights reserved.
  *
  * This software may be freely redistributed under the terms of the
@@ -9,7 +10,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Authors: David Howells <dhowells@redhat.com>
- *          David Woodhouse <dwmw2@cambridge.redhat.com>
+ *          David Woodhouse <dwmw2@redhat.com>
  *
  */
 
@@ -68,7 +69,6 @@ static const struct super_operations afs_super_ops = {
 static struct kmem_cache *afs_inode_cachep;
 static atomic_t afs_count_active_inodes;
 
-/*****************************************************************************/
 /*
  * initialise the filesystem
  */
@@ -105,9 +105,8 @@ int __init afs_fs_init(void)
 
 	kleave(" = 0");
 	return 0;
-} /* end afs_fs_init() */
+}
 
-/*****************************************************************************/
 /*
  * clean up the filesystem
  */
@@ -122,10 +121,8 @@ void __exit afs_fs_exit(void)
 	}
 
 	kmem_cache_destroy(afs_inode_cachep);
+}
 
-} /* end afs_fs_exit() */
-
-/*****************************************************************************/
 /*
  * check that an argument has a value
  */
@@ -136,9 +133,8 @@ static int want_arg(char **_value, const char *option)
 		return 0;
 	}
 	return 1;
-} /* end want_arg() */
+}
 
-/*****************************************************************************/
 /*
  * check that there's no subsequent value
  */
@@ -150,9 +146,8 @@ static int want_no_value(char *const *_value, const char *option)
 		return 0;
 	}
 	return 1;
-} /* end want_no_value() */
+}
 
-/*****************************************************************************/
 /*
  * parse the mount options
  * - this function has been shamelessly adapted from the ext3 fs which
@@ -183,14 +178,12 @@ static int afs_super_parse_options(struct afs_mount_params *params,
 				return -EINVAL;
 			params->rwpath = 1;
 			continue;
-		}
-		else if (strcmp(key, "vol") == 0) {
+		} else if (strcmp(key, "vol") == 0) {
 			if (!want_arg(&value, "vol"))
 				return -EINVAL;
 			*devname = value;
 			continue;
-		}
-		else if (strcmp(key, "cell") == 0) {
+		} else if (strcmp(key, "cell") == 0) {
 			if (!want_arg(&value, "cell"))
 				return -EINVAL;
 			afs_put_cell(params->default_cell);
@@ -209,12 +202,11 @@ static int afs_super_parse_options(struct afs_mount_params *params,
 
 	ret = 0;
 
- error:
+error:
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_super_parse_options() */
+}
 
-/*****************************************************************************/
 /*
  * check a superblock to see if it's the one we're looking for
  */
@@ -224,9 +216,8 @@ static int afs_test_super(struct super_block *sb, void *data)
 	struct afs_super_info *as = sb->s_fs_info;
 
 	return as->volume == params->volume;
-} /* end afs_test_super() */
+}
 
-/*****************************************************************************/
 /*
  * fill in the superblock
  */
@@ -276,7 +267,7 @@ static int afs_fill_super(struct super_block *sb, void *data, int silent)
 	kleave(" = 0");
 	return 0;
 
- error:
+error:
 	iput(inode);
 	afs_put_volume(as->volume);
 	kfree(as);
@@ -285,9 +276,8 @@ static int afs_fill_super(struct super_block *sb, void *data, int silent)
 
 	kleave(" = %d", ret);
 	return ret;
-} /* end afs_fill_super() */
+}
 
-/*****************************************************************************/
 /*
  * get an AFS superblock
  * - TODO: don't use get_sb_nodev(), but rather call sget() directly
@@ -354,15 +344,14 @@ static int afs_get_sb(struct file_system_type *fs_type,
 	_leave(" = 0 [%p]", 0, sb);
 	return 0;
 
- error:
+error:
 	afs_put_volume(params.volume);
 	afs_put_cell(params.default_cell);
 	afscm_stop();
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_get_sb() */
+}
 
-/*****************************************************************************/
 /*
  * finish the unmounting process on the superblock
  */
@@ -376,16 +365,15 @@ static void afs_put_super(struct super_block *sb)
 	afscm_stop();
 
 	_leave("");
-} /* end afs_put_super() */
+}
 
-/*****************************************************************************/
 /*
  * initialise an inode cache slab element prior to any use
  */
 static void afs_i_init_once(void *_vnode, struct kmem_cache *cachep,
 			    unsigned long flags)
 {
-	struct afs_vnode *vnode = (struct afs_vnode *) _vnode;
+	struct afs_vnode *vnode = _vnode;
 
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR) {
@@ -398,10 +386,8 @@ static void afs_i_init_once(void *_vnode, struct kmem_cache *cachep,
 		afs_timer_init(&vnode->cb_timeout,
 			       &afs_vnode_cb_timed_out_ops);
 	}
+}
 
-} /* end afs_i_init_once() */
-
-/*****************************************************************************/
 /*
  * allocate an AFS inode struct from our slab cache
  */
@@ -409,8 +395,7 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 {
 	struct afs_vnode *vnode;
 
-	vnode = (struct afs_vnode *)
-		kmem_cache_alloc(afs_inode_cachep, GFP_KERNEL);
+	vnode = kmem_cache_alloc(afs_inode_cachep, GFP_KERNEL);
 	if (!vnode)
 		return NULL;
 
@@ -424,9 +409,8 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	vnode->flags		= 0;
 
 	return &vnode->vfs_inode;
-} /* end afs_alloc_inode() */
+}
 
-/*****************************************************************************/
 /*
  * destroy an AFS inode struct
  */
@@ -435,7 +419,5 @@ static void afs_destroy_inode(struct inode *inode)
 	_enter("{%lu}", inode->i_ino);
 
 	kmem_cache_free(afs_inode_cachep, AFS_FS_I(inode));
-
 	atomic_dec(&afs_count_active_inodes);
-
-} /* end afs_destroy_inode() */
+}

@@ -1,4 +1,4 @@
-/* errors.h: AFS abort/error codes
+/* AFS abort/error codes
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,12 +9,14 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_ERRORS_H
-#define _LINUX_AFS_ERRORS_H
+#ifndef AFS_ERRORS_H
+#define AFS_ERRORS_H
 
 #include "types.h"
 
-/* file server abort codes */
+/*
+ * file server abort codes
+ */
 typedef enum {
 	VSALVAGE	= 101,	/* volume needs salvaging */
 	VNOVNODE	= 102,	/* no such file/dir (vnode) */
@@ -29,6 +31,6 @@ typedef enum {
 	VMOVED		= 111,	/* volume moved to new server - ask this FS where */
 } afs_rxfs_abort_t;
 
-extern int afs_abort_to_error(int abortcode);
+extern int afs_abort_to_error(int);
 
-#endif /* _LINUX_AFS_ERRORS_H */
+#endif /* AFS_ERRORS_H */

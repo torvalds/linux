@@ -29,7 +29,6 @@
 #define FSGETROOTVOLUME		151	/* AFS Get root volume name */
 #define FSLOOKUP		161	/* AFS lookup file in directory */
 
-/*****************************************************************************/
 /*
  * map afs abort codes to/from Linux error codes
  * - called with call->lock held
@@ -46,9 +45,8 @@ static void afs_rxfs_aemap(struct rxrpc_call *call)
 	default:
 		break;
 	}
-} /* end afs_rxfs_aemap() */
+}
 
-/*****************************************************************************/
 /*
  * get the root volume name from a fileserver
  * - this operation doesn't seem to work correctly in OpenAFS server 1.2.2
@@ -162,23 +160,22 @@ int afs_rxfs_get_root_volume(struct afs_server *server,
 		BUG();
 	}
 
- abort:
+abort:
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	rxrpc_call_abort(call, ret);
 	schedule();
- out_unwait:
+out_unwait:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&call->waitq, &myself);
 	rxrpc_put_call(call);
- out_put_conn:
+out_put_conn:
 	afs_server_release_fsconn(server, conn);
- out:
+out:
 	kleave("");
 	return ret;
-} /* end afs_rxfs_get_root_volume() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * get information about a volume
  */
@@ -275,26 +272,24 @@ int afs_rxfs_get_volume_info(struct afs_server *server,
 	/* success */
 	ret = 0;
 
- out_unwait:
+out_unwait:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&call->waitq, &myself);
 	rxrpc_put_call(call);
- out_put_conn:
+out_put_conn:
 	afs_server_release_fsconn(server, conn);
- out:
+out:
 	_leave("");
 	return ret;
 
- abort:
+abort:
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	rxrpc_call_abort(call, ret);
 	schedule();
 	goto out_unwait;
-
-} /* end afs_rxfs_get_volume_info() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * fetch the status information for a file
  */
@@ -401,24 +396,23 @@ int afs_rxfs_fetch_file_status(struct afs_server *server,
 	/* success */
 	ret = 0;
 
- out_unwait:
+out_unwait:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&call->waitq, &myself);
 	rxrpc_put_call(call);
- out_put_conn:
+out_put_conn:
 	afs_server_release_callslot(server, &callslot);
- out:
+out:
 	_leave("");
 	return ret;
 
- abort:
+abort:
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	rxrpc_call_abort(call, ret);
 	schedule();
 	goto out_unwait;
-} /* end afs_rxfs_fetch_file_status() */
+}
 
-/*****************************************************************************/
 /*
  * fetch the contents of a file or directory
  */
@@ -547,31 +541,29 @@ int afs_rxfs_fetch_file_data(struct afs_server *server,
 	/* success */
 	ret = 0;
 
- out_unwait:
+out_unwait:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&call->waitq,&myself);
 	rxrpc_put_call(call);
- out_put_conn:
+out_put_conn:
 	afs_server_release_callslot(server, &callslot);
- out:
+out:
 	_leave(" = %d", ret);
 	return ret;
 
- read_failed:
+read_failed:
 	if (ret == -ECONNABORTED) {
 		ret = call->app_errno;
 		goto out_unwait;
 	}
 
- abort:
+abort:
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	rxrpc_call_abort(call, ret);
 	schedule();
 	goto out_unwait;
+}
 
-} /* end afs_rxfs_fetch_file_data() */
-
-/*****************************************************************************/
 /*
  * ask the AFS fileserver to discard a callback request on a file
  */
@@ -655,24 +647,23 @@ int afs_rxfs_give_up_callback(struct afs_server *server,
 		BUG();
 	}
 
- out_unwait:
+out_unwait:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&call->waitq, &myself);
 	rxrpc_put_call(call);
- out_put_conn:
+out_put_conn:
 	afs_server_release_callslot(server, &callslot);
- out:
+out:
 	_leave("");
 	return ret;
 
- abort:
+abort:
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	rxrpc_call_abort(call, ret);
 	schedule();
 	goto out_unwait;
-} /* end afs_rxfs_give_up_callback() */
+}
 
-/*****************************************************************************/
 /*
  * look a filename up in a directory
  * - this operation doesn't seem to work correctly in OpenAFS server 1.2.2
@@ -818,20 +809,20 @@ int afs_rxfs_lookup(struct afs_server *server,
 	/* success */
 	ret = 0;
 
- out_unwait:
+out_unwait:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&call->waitq, &myself);
 	rxrpc_put_call(call);
- out_put_conn:
+out_put_conn:
 	afs_server_release_fsconn(server, conn);
- out:
+out:
 	kleave("");
 	return ret;
 
- abort:
+abort:
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	rxrpc_call_abort(call, ret);
 	schedule();
 	goto out_unwait;
-} /* end afs_rxfs_lookup() */
+}
 #endif

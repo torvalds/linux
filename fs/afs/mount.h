@@ -1,4 +1,4 @@
-/* mount.h: mount parameters
+/* mount parameters
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,8 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_MOUNT_H
-#define _LINUX_AFS_MOUNT_H
+#ifndef AFS_MOUNT_H
+#define AFS_MOUNT_H
 
 struct afs_mountdata {
 	const char		*volume;	/* name of volume */
@@ -20,4 +20,4 @@ struct afs_mountdata {
 	uint32_t		servers[10];	/* IP addresses of servers in this cell */
 };
 
-#endif /* _LINUX_AFS_MOUNT_H */
+#endif /* AFS_MOUNT_H */

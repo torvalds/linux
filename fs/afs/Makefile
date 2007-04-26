@@ -2,8 +2,6 @@
 # Makefile for Red Hat Linux AFS client.
 #
 
-#CFLAGS += -finstrument-functions
-
 kafs-objs := \
 	callback.o \
 	cell.o \

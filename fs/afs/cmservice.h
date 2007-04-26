@@ -1,4 +1,4 @@
-/* cmservice.h: AFS Cache Manager Service declarations
+/* AFS Cache Manager Service declarations
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,8 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_CMSERVICE_H
-#define _LINUX_AFS_CMSERVICE_H
+#ifndef AFS_CMSERVICE_H
+#define AFS_CMSERVICE_H
 
 #include <rxrpc/transport.h>
 #include "types.h"
@@ -20,10 +20,9 @@ extern int afscm_start(void);
 extern void afscm_stop(void);
 
 /* cache manager server functions */
-extern int SRXAFSCM_InitCallBackState(struct afs_server *server);
-extern int SRXAFSCM_CallBack(struct afs_server *server,
-			     size_t count,
-			     struct afs_callback callbacks[]);
-extern int SRXAFSCM_Probe(struct afs_server *server);
+extern int SRXAFSCM_InitCallBackState(struct afs_server *);
+extern int SRXAFSCM_CallBack(struct afs_server *, size_t,
+			     struct afs_callback[]);
+extern int SRXAFSCM_Probe(struct afs_server *);
 
-#endif /* _LINUX_AFS_CMSERVICE_H */
+#endif /* AFS_CMSERVICE_H */

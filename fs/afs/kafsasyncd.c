@@ -1,4 +1,4 @@
-/* kafsasyncd.c: AFS asynchronous operation daemon
+/* AFS asynchronous operation daemon
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -50,7 +50,6 @@ static void kafsasyncd_null_call_error_func(struct rxrpc_call *call)
 {
 }
 
-/*****************************************************************************/
 /*
  * start the async daemon
  */
@@ -65,9 +64,8 @@ int afs_kafsasyncd_start(void)
 	wait_for_completion(&kafsasyncd_alive);
 
 	return ret;
-} /* end afs_kafsasyncd_start() */
+}
 
-/*****************************************************************************/
 /*
  * stop the async daemon
  */
@@ -77,10 +75,8 @@ void afs_kafsasyncd_stop(void)
 	kafsasyncd_die = 1;
 	wake_up(&kafsasyncd_sleepq);
 	wait_for_completion(&kafsasyncd_dead);
+}
 
-} /* end afs_kafsasyncd_stop() */
-
-/*****************************************************************************/
 /*
  * probing daemon
  */
@@ -187,10 +183,8 @@ static int kafsasyncd(void *arg)
 	/* and that's all */
 	_leave("");
 	complete_and_exit(&kafsasyncd_dead, 0);
+}
 
-} /* end kafsasyncd() */
-
-/*****************************************************************************/
 /*
  * begin an operation
  * - place operation on busy queue
@@ -209,9 +203,8 @@ void afs_kafsasyncd_begin_op(struct afs_async_op *op)
 	spin_unlock(&kafsasyncd_async_lock);
 
 	_leave("");
-} /* end afs_kafsasyncd_begin_op() */
+}
 
-/*****************************************************************************/
 /*
  * request attention for an operation
  * - move to attention queue
@@ -229,9 +222,8 @@ void afs_kafsasyncd_attend_op(struct afs_async_op *op)
 	wake_up(&kafsasyncd_sleepq);
 
 	_leave("");
-} /* end afs_kafsasyncd_attend_op() */
+}
 
-/*****************************************************************************/
 /*
  * terminate an operation
  * - remove from either queue
@@ -252,4 +244,4 @@ void afs_kafsasyncd_terminate_op(struct afs_async_op *op)
 	wake_up(&kafsasyncd_sleepq);
 
 	_leave("");
-} /* end afs_kafsasyncd_terminate_op() */
+}

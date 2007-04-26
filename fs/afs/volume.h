@@ -1,4 +1,4 @@
-/* volume.h: AFS volume management
+/* AFS volume management
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,8 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_VOLUME_H
-#define _LINUX_AFS_VOLUME_H
+#ifndef AFS_VOLUME_H
+#define AFS_VOLUME_H
 
 #include "types.h"
 #include "fsclient.h"
@@ -23,15 +23,12 @@ typedef enum {
 	AFS_VLUPD_PENDING,		/* on pending queue */
 	AFS_VLUPD_INPROGRESS,		/* op in progress */
 	AFS_VLUPD_BUSYSLEEP,		/* sleeping because server returned EBUSY */
-	
 } __attribute__((packed)) afs_vlocation_upd_t;
 
-/*****************************************************************************/
 /*
  * entry in the cached volume location catalogue
  */
-struct afs_cache_vlocation
-{
+struct afs_cache_vlocation {
 	uint8_t			name[64];	/* volume name (lowercase, padded with NULs) */
 	uint8_t			nservers;	/* number of entries used in servers[] */
 	uint8_t			vidmask;	/* voltype mask for vid[] */
@@ -49,12 +46,10 @@ struct afs_cache_vlocation
 extern struct cachefs_index_def afs_vlocation_cache_index_def;
 #endif
 
-/*****************************************************************************/
 /*
  * volume -> vnode hash table entry
  */
-struct afs_cache_vhash
-{
+struct afs_cache_vhash {
 	afs_voltype_t		vtype;		/* which volume variation */
 	uint8_t			hash_bucket;	/* which hash bucket this represents */
 } __attribute__((packed));
@@ -63,12 +58,10 @@ struct afs_cache_vhash
 extern struct cachefs_index_def afs_volume_cache_index_def;
 #endif
 
-/*****************************************************************************/
 /*
  * AFS volume location record
  */
-struct afs_vlocation
-{
+struct afs_vlocation {
 	atomic_t		usage;
 	struct list_head	link;		/* link in cell volume location list */
 	struct afs_timer	timeout;	/* decaching timer */
@@ -90,22 +83,18 @@ struct afs_vlocation
 	unsigned short		valid;		/* T if valid */
 };
 
-extern int afs_vlocation_lookup(struct afs_cell *cell,
-				const char *name,
-				unsigned namesz,
-				struct afs_vlocation **_vlocation);
+extern int afs_vlocation_lookup(struct afs_cell *, const char *, unsigned,
+				struct afs_vlocation **);
 
 #define afs_get_vlocation(V) do { atomic_inc(&(V)->usage); } while(0)
 
-extern void afs_put_vlocation(struct afs_vlocation *vlocation);
-extern void afs_vlocation_do_timeout(struct afs_vlocation *vlocation);
+extern void afs_put_vlocation(struct afs_vlocation *);
+extern void afs_vlocation_do_timeout(struct afs_vlocation *);
 
-/*****************************************************************************/
 /*
  * AFS volume access record
  */
-struct afs_volume
-{
+struct afs_volume {
 	atomic_t		usage;
 	struct afs_cell		*cell;		/* cell to which belongs (unrefd ptr) */
 	struct afs_vlocation	*vlocation;	/* volume location */
@@ -121,20 +110,17 @@ struct afs_volume
 	struct rw_semaphore	server_sem;	/* lock for accessing current server */
 };
 
-extern int afs_volume_lookup(const char *name,
-			     struct afs_cell *cell,
-			     int rwpath,
-			     struct afs_volume **_volume);
+extern int afs_volume_lookup(const char *, struct afs_cell *, int,
+			     struct afs_volume **);
 
 #define afs_get_volume(V) do { atomic_inc(&(V)->usage); } while(0)
 
-extern void afs_put_volume(struct afs_volume *volume);
+extern void afs_put_volume(struct afs_volume *);
 
-extern int afs_volume_pick_fileserver(struct afs_volume *volume,
-				      struct afs_server **_server);
+extern int afs_volume_pick_fileserver(struct afs_volume *,
+				      struct afs_server **);
 
-extern int afs_volume_release_fileserver(struct afs_volume *volume,
-					 struct afs_server *server,
-					 int result);
+extern int afs_volume_release_fileserver(struct afs_volume *,
+					 struct afs_server *, int);
 
-#endif /* _LINUX_AFS_VOLUME_H */
+#endif /* AFS_VOLUME_H */

@@ -1,4 +1,4 @@
-/* vnode.h: AFS vnode record
+/* AFS vnode record
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,24 +9,22 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_VNODE_H
-#define _LINUX_AFS_VNODE_H
+#ifndef AFS_VNODE_H
+#define AFS_VNODE_H
 
 #include <linux/fs.h>
 #include "server.h"
 #include "kafstimod.h"
 #include "cache.h"
 
-#ifdef __KERNEL__
-
 struct afs_rxfs_fetch_descriptor;
 
-/*****************************************************************************/
+extern struct afs_timer_ops afs_vnode_cb_timed_out_ops;
+
 /*
  * vnode catalogue entry
  */
-struct afs_cache_vnode
-{
+struct afs_cache_vnode {
 	afs_vnodeid_t		vnode_id;	/* vnode ID */
 	unsigned		vnode_unique;	/* vnode ID uniquifier */
 	afs_dataversion_t	data_version;	/* data version */
@@ -36,12 +34,10 @@ struct afs_cache_vnode
 extern struct cachefs_index_def afs_vnode_cache_index_def;
 #endif
 
-/*****************************************************************************/
 /*
  * AFS inode private data
  */
-struct afs_vnode
-{
+struct afs_vnode {
 	struct inode		vfs_inode;	/* the VFS's inode record */
 
 	struct afs_volume	*volume;	/* volume on which vnode resides */
@@ -72,7 +68,7 @@ struct afs_vnode
 
 static inline struct afs_vnode *AFS_FS_I(struct inode *inode)
 {
-	return container_of(inode,struct afs_vnode,vfs_inode);
+	return container_of(inode, struct afs_vnode, vfs_inode);
 }
 
 static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
@@ -80,15 +76,9 @@ static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 	return &vnode->vfs_inode;
 }
 
-extern int afs_vnode_fetch_status(struct afs_vnode *vnode);
+extern int afs_vnode_fetch_status(struct afs_vnode *);
+extern int afs_vnode_fetch_data(struct afs_vnode *,
+				struct afs_rxfs_fetch_descriptor *);
+extern int afs_vnode_give_up_callback(struct afs_vnode *);
 
-extern int afs_vnode_fetch_data(struct afs_vnode *vnode,
-				struct afs_rxfs_fetch_descriptor *desc);
-
-extern int afs_vnode_give_up_callback(struct afs_vnode *vnode);
-
-extern struct afs_timer_ops afs_vnode_cb_timed_out_ops;
-
-#endif /* __KERNEL__ */
-
-#endif /* _LINUX_AFS_VNODE_H */
+#endif /* AFS_VNODE_H */

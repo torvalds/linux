@@ -1,4 +1,4 @@
-/* transport.h: AFS transport management
+/* AFS transport management
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,8 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_TRANSPORT_H
-#define _LINUX_AFS_TRANSPORT_H
+#ifndef AFS_TRANSPORT_H
+#define AFS_TRANSPORT_H
 
 #include "types.h"
 #include <rxrpc/transport.h>
@@ -18,4 +18,4 @@
 /* the cache manager transport endpoint */
 extern struct rxrpc_transport *afs_transport;
 
-#endif /* _LINUX_AFS_TRANSPORT_H */
+#endif /* AFS_TRANSPORT_H */

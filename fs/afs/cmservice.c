@@ -1,4 +1,4 @@
-/* cmservice.c: AFS Cache Manager Service
+/* AFS Cache Manager Service
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -106,7 +106,6 @@ static DEFINE_SPINLOCK(afscm_calls_lock);
 static DEFINE_SPINLOCK(kafscmd_attention_lock);
 static int kafscmd_die;
 
-/*****************************************************************************/
 /*
  * AFS Cache Manager kernel thread
  */
@@ -177,10 +176,8 @@ static int kafscmd(void *arg)
 
 	/* and that's all */
 	complete_and_exit(&kafscmd_dead, 0);
+}
 
-} /* end kafscmd() */
-
-/*****************************************************************************/
 /*
  * handle a call coming in to the cache manager
  * - if I want to keep the call, I must increment its usage count
@@ -202,10 +199,8 @@ static int afscm_new_call(struct rxrpc_call *call)
 
 	_leave(" = 0");
 	return 0;
+}
 
-} /* end afscm_new_call() */
-
-/*****************************************************************************/
 /*
  * queue on the kafscmd queue for attention
  */
@@ -226,9 +221,8 @@ static void afscm_attention(struct rxrpc_call *call)
 	wake_up(&kafscmd_sleepq);
 
 	_leave(" {u=%d}", atomic_read(&call->usage));
-} /* end afscm_attention() */
+}
 
-/*****************************************************************************/
 /*
  * handle my call being aborted
  * - clean up, dequeue and put my ref to the call
@@ -266,9 +260,8 @@ static void afscm_error(struct rxrpc_call *call)
 	wake_up(&kafscmd_sleepq);
 
 	_leave("");
-} /* end afscm_error() */
+}
 
-/*****************************************************************************/
 /*
  * map afs abort codes to/from Linux error codes
  * - called with call->lock held
@@ -285,9 +278,8 @@ static void afscm_aemap(struct rxrpc_call *call)
 	default:
 		break;
 	}
-} /* end afscm_aemap() */
+}
 
-/*****************************************************************************/
 /*
  * start the cache manager service if not already started
  */
@@ -316,18 +308,16 @@ int afscm_start(void)
 
 	return 0;
 
- kill:
+kill:
 	kafscmd_die = 1;
 	wake_up(&kafscmd_sleepq);
 	wait_for_completion(&kafscmd_dead);
 
- out:
+out:
 	up_write(&afscm_sem);
 	return ret;
+}
 
-} /* end afscm_start() */
-
-/*****************************************************************************/
 /*
  * stop the cache manager service
  */
@@ -394,10 +384,8 @@ void afscm_stop(void)
 	}
 
 	up_write(&afscm_sem);
+}
 
-} /* end afscm_stop() */
-
-/*****************************************************************************/
 /*
  * handle the fileserver breaking a set of callbacks
  */
@@ -460,8 +448,7 @@ static void _SRXAFSCM_CallBack(struct rxrpc_call *call)
 					pcb->version	= ntohl(*bp++);
 					pcb->expiry	= ntohl(*bp++);
 					pcb->type	= ntohl(*bp++);
-				}
-				else {
+				} else {
 					pcb->version	= 0;
 					pcb->expiry	= 0;
 					pcb->type	= AFSCM_CB_UNTYPED;
@@ -512,10 +499,8 @@ static void _SRXAFSCM_CallBack(struct rxrpc_call *call)
 	afs_put_server(server);
 
 	_leave(" = %d", ret);
+}
 
-} /* end _SRXAFSCM_CallBack() */
-
-/*****************************************************************************/
 /*
  * handle the fileserver asking us to initialise our callback state
  */
@@ -580,10 +565,8 @@ static void _SRXAFSCM_InitCallBackState(struct rxrpc_call *call)
 	afs_put_server(server);
 
 	_leave(" = %d", ret);
+}
 
-} /* end _SRXAFSCM_InitCallBackState() */
-
-/*****************************************************************************/
 /*
  * handle a probe from a fileserver
  */
@@ -648,5 +631,4 @@ static void _SRXAFSCM_Probe(struct rxrpc_call *call)
 	afs_put_server(server);
 
 	_leave(" = %d", ret);
-
-} /* end _SRXAFSCM_Probe() */
+}

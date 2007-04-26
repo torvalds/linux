@@ -1,4 +1,4 @@
-/* cell.h: AFS cell record
+/* AFS cell record
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,8 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_CELL_H
-#define _LINUX_AFS_CELL_H
+#ifndef AFS_CELL_H
+#define AFS_CELL_H
 
 #include "types.h"
 #include "cache.h"
@@ -19,22 +19,18 @@
 
 extern volatile int afs_cells_being_purged; /* T when cells are being purged by rmmod */
 
-/*****************************************************************************/
 /*
  * entry in the cached cell catalogue
  */
-struct afs_cache_cell
-{
+struct afs_cache_cell {
 	char			name[64];	/* cell name (padded with NULs) */
 	struct in_addr		vl_servers[15];	/* cached cell VL servers */
 };
 
-/*****************************************************************************/
 /*
  * AFS cell record
  */
-struct afs_cell
-{
+struct afs_cell {
 	atomic_t		usage;
 	struct list_head	link;		/* main cell list link */
 	struct list_head	proc_link;	/* /proc cell list link */
@@ -61,18 +57,14 @@ struct afs_cell
 	char			name[0];	/* cell name - must go last */
 };
 
-extern int afs_cell_init(char *rootcell);
-
-extern int afs_cell_create(const char *name, char *vllist, struct afs_cell **_cell);
-
-extern int afs_cell_lookup(const char *name, unsigned nmsize, struct afs_cell **_cell);
+extern int afs_cell_init(char *);
+extern int afs_cell_create(const char *, char *, struct afs_cell **);
+extern int afs_cell_lookup(const char *, unsigned, struct afs_cell **);
 
 #define afs_get_cell(C) do { atomic_inc(&(C)->usage); } while(0)
 
-extern struct afs_cell *afs_get_cell_maybe(struct afs_cell **_cell);
-
-extern void afs_put_cell(struct afs_cell *cell);
-
+extern struct afs_cell *afs_get_cell_maybe(struct afs_cell **);
+extern void afs_put_cell(struct afs_cell *);
 extern void afs_cell_purge(void);
 
-#endif /* _LINUX_AFS_CELL_H */
+#endif /* AFS_CELL_H */

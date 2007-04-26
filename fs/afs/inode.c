@@ -29,7 +29,6 @@ struct afs_iget_data {
 	struct afs_volume	*volume;	/* volume on which resides */
 };
 
-/*****************************************************************************/
 /*
  * map the AFS file status to the inode member variables
  */
@@ -87,9 +86,8 @@ static int afs_inode_map_status(struct afs_vnode *vnode)
 	}
 
 	return 0;
-} /* end afs_inode_map_status() */
+}
 
-/*****************************************************************************/
 /*
  * attempt to fetch the status of an inode, coelescing multiple simultaneous
  * fetches
@@ -107,10 +105,8 @@ static int afs_inode_fetch_status(struct inode *inode)
 		ret = afs_inode_map_status(vnode);
 
 	return ret;
+}
 
-} /* end afs_inode_fetch_status() */
-
-/*****************************************************************************/
 /*
  * iget5() comparator
  */
@@ -120,9 +116,8 @@ static int afs_iget5_test(struct inode *inode, void *opaque)
 
 	return inode->i_ino == data->fid.vnode &&
 		inode->i_version == data->fid.unique;
-} /* end afs_iget5_test() */
+}
 
-/*****************************************************************************/
 /*
  * iget5() inode initialiser
  */
@@ -137,9 +132,8 @@ static int afs_iget5_set(struct inode *inode, void *opaque)
 	vnode->volume = data->volume;
 
 	return 0;
-} /* end afs_iget5_set() */
+}
 
-/*****************************************************************************/
 /*
  * inode retrieval
  */
@@ -169,7 +163,7 @@ inline int afs_iget(struct super_block *sb, struct afs_fid *fid,
 	/* deal with an existing inode */
 	if (!(inode->i_state & I_NEW)) {
 		ret = afs_vnode_fetch_status(vnode);
-		if (ret==0)
+		if (ret == 0)
 			*_inode = inode;
 		else
 			iput(inode);
@@ -204,16 +198,15 @@ inline int afs_iget(struct super_block *sb, struct afs_fid *fid,
 	return 0;
 
 	/* failure */
- bad_inode:
+bad_inode:
 	make_bad_inode(inode);
 	unlock_new_inode(inode);
 	iput(inode);
 
 	_leave(" = %d [bad]", ret);
 	return ret;
-} /* end afs_iget() */
+}
 
-/*****************************************************************************/
 /*
  * read the attributes of an inode
  */
@@ -235,8 +228,7 @@ int afs_inode_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		_leave(" = %d [%d %p]",
 		       ret, atomic_read(&dentry->d_count), dentry->d_inode);
 		return ret;
-	}
-	else if (ret < 0) {
+	} else if (ret < 0) {
 		make_bad_inode(inode);
 		_leave(" = %d", ret);
 		return ret;
@@ -252,9 +244,8 @@ int afs_inode_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	       vnode->cb_type);
 
 	return 0;
-} /* end afs_inode_getattr() */
+}
 
-/*****************************************************************************/
 /*
  * clear an AFS inode
  */
@@ -282,4 +273,4 @@ void afs_clear_inode(struct inode *inode)
 #endif
 
 	_leave("");
-} /* end afs_clear_inode() */
+}

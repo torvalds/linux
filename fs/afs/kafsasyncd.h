@@ -1,4 +1,4 @@
-/* kafsasyncd.h: AFS asynchronous operation daemon
+/* AFS asynchronous operation daemon
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,24 +9,22 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_KAFSASYNCD_H
-#define _LINUX_AFS_KAFSASYNCD_H
+#ifndef AFS_KAFSASYNCD_H
+#define AFS_KAFSASYNCD_H
 
 #include "types.h"
 
 struct afs_async_op;
 
 struct afs_async_op_ops {
-	void (*attend)(struct afs_async_op *op);
-	void (*discard)(struct afs_async_op *op);
+	void (*attend)(struct afs_async_op *);
+	void (*discard)(struct afs_async_op *);
 };
 
-/*****************************************************************************/
 /*
  * asynchronous operation record
  */
-struct afs_async_op
-{
+struct afs_async_op {
 	struct list_head		link;
 	struct afs_server		*server;	/* server being contacted */
 	struct rxrpc_call		*call;		/* RxRPC call performing op */
@@ -45,8 +43,8 @@ static inline void afs_async_op_init(struct afs_async_op *op,
 extern int afs_kafsasyncd_start(void);
 extern void afs_kafsasyncd_stop(void);
 
-extern void afs_kafsasyncd_begin_op(struct afs_async_op *op);
-extern void afs_kafsasyncd_attend_op(struct afs_async_op *op);
-extern void afs_kafsasyncd_terminate_op(struct afs_async_op *op);
+extern void afs_kafsasyncd_begin_op(struct afs_async_op *);
+extern void afs_kafsasyncd_attend_op(struct afs_async_op *);
+extern void afs_kafsasyncd_terminate_op(struct afs_async_op *);
 
-#endif /* _LINUX_AFS_KAFSASYNCD_H */
+#endif /* AFS_KAFSASYNCD_H */

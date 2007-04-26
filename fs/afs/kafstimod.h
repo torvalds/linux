@@ -1,4 +1,4 @@
-/* kafstimod.h: AFS timeout daemon
+/* AFS timeout daemon
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,8 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_KAFSTIMOD_H
-#define _LINUX_AFS_KAFSTIMOD_H
+#ifndef AFS_KAFSTIMOD_H
+#define AFS_KAFSTIMOD_H
 
 #include "types.h"
 
@@ -18,15 +18,13 @@ struct afs_timer;
 
 struct afs_timer_ops {
 	/* called when the front of the timer queue has timed out */
-	void (*timed_out)(struct afs_timer *timer);
+	void (*timed_out)(struct afs_timer *);
 };
 
-/*****************************************************************************/
 /*
  * AFS timer/timeout record
  */
-struct afs_timer
-{
+struct afs_timer {
 	struct list_head		link;		/* link in timer queue */
 	unsigned long			timo_jif;	/* timeout time */
 	const struct afs_timer_ops	*ops;		/* timeout expiry function */
@@ -41,9 +39,7 @@ static inline void afs_timer_init(struct afs_timer *timer,
 
 extern int afs_kafstimod_start(void);
 extern void afs_kafstimod_stop(void);
+extern void afs_kafstimod_add_timer(struct afs_timer *, unsigned long);
+extern int afs_kafstimod_del_timer(struct afs_timer *);
 
-extern void afs_kafstimod_add_timer(struct afs_timer *timer,
-				    unsigned long timeout);
-extern int afs_kafstimod_del_timer(struct afs_timer *timer);
-
-#endif /* _LINUX_AFS_KAFSTIMOD_H */
+#endif /* AFS_KAFSTIMOD_H */

@@ -21,7 +21,6 @@
 #include "internal.h"
 #include "cmservice.h"
 
-/*****************************************************************************/
 /*
  * allow the fileserver to request callback state (re-)initialisation
  */
@@ -79,9 +78,8 @@ int SRXAFSCM_InitCallBackState(struct afs_server *server)
 
 	_leave(" = 0");
 	return 0;
-} /* end SRXAFSCM_InitCallBackState() */
+}
 
-/*****************************************************************************/
 /*
  * allow the fileserver to break callback promises
  */
@@ -156,9 +154,8 @@ int SRXAFSCM_CallBack(struct afs_server *server, size_t count,
 
 	_leave(" = 0");
 	return 0;
-} /* end SRXAFSCM_CallBack() */
+}
 
-/*****************************************************************************/
 /*
  * allow the fileserver to see if the cache manager is still alive
  */
@@ -166,4 +163,4 @@ int SRXAFSCM_Probe(struct afs_server *server)
 {
 	_debug("SRXAFSCM_Probe(%p)\n", server);
 	return 0;
-} /* end SRXAFSCM_Probe() */
+}
