@@ -13,7 +13,6 @@ extern void	rtnl_register(int protocol, int msgtype,
 			      rtnl_doit_func, rtnl_dumpit_func);
 extern int	rtnl_unregister(int protocol, int msgtype);
 extern void	rtnl_unregister_all(int protocol);
-extern int	rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb);
 
 static inline int rtnl_msg_family(struct nlmsghdr *nlh)
 {

@@ -97,7 +97,7 @@ int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, int len)
 	return 0;
 }
 
-struct rtnl_link *rtnl_msg_handlers[NPROTO];
+static struct rtnl_link *rtnl_msg_handlers[NPROTO];
 
 static inline int rtm_msgindex(int msgtype)
 {
@@ -765,7 +765,7 @@ errout:
 	return err;
 }
 
-int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
+static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	int idx;
 	int s_idx = cb->family;
@@ -788,8 +788,6 @@ int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 
 	return skb->len;
 }
-
-EXPORT_SYMBOL_GPL(rtnl_dump_all);
 
 void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 {
