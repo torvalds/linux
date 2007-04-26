@@ -2597,11 +2597,16 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 
 	memcpy(netdev->dev_addr, nic->eeprom, ETH_ALEN);
 	memcpy(netdev->perm_addr, nic->eeprom, ETH_ALEN);
-	if(!is_valid_ether_addr(netdev->perm_addr)) {
-		DPRINTK(PROBE, ERR, "Invalid MAC address from "
-			"EEPROM, aborting.\n");
-		err = -EAGAIN;
-		goto err_out_free;
+	if (!is_valid_ether_addr(netdev->perm_addr)) {
+		if (!eeprom_bad_csum_allow) {
+			DPRINTK(PROBE, ERR, "Invalid MAC address from "
+			        "EEPROM, aborting.\n");
+			err = -EAGAIN;
+			goto err_out_free;
+		} else {
+			DPRINTK(PROBE, ERR, "Invalid MAC address from EEPROM, "
+			        "you MUST configure one.\n");
+		}
 	}
 
 	/* Wol magic packet can be enabled from eeprom */
