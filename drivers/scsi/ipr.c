@@ -953,6 +953,53 @@ static void ipr_process_ccn(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * strip_and_pad_whitespace - Strip and pad trailing whitespace.
+ * @i:		index into buffer
+ * @buf:		string to modify
+ *
+ * This function will strip all trailing whitespace, pad the end
+ * of the string with a single space, and NULL terminate the string.
+ *
+ * Return value:
+ * 	new length of string
+ **/
+static int strip_and_pad_whitespace(int i, char *buf)
+{
+	while (i && buf[i] == ' ')
+		i--;
+	buf[i+1] = ' ';
+	buf[i+2] = '\0';
+	return i + 2;
+}
+
+/**
+ * ipr_log_vpd_compact - Log the passed extended VPD compactly.
+ * @prefix:		string to print at start of printk
+ * @hostrcb:	hostrcb pointer
+ * @vpd:		vendor/product id/sn struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_vpd_compact(char *prefix, struct ipr_hostrcb *hostrcb,
+				struct ipr_vpd *vpd)
+{
+	char buffer[IPR_VENDOR_ID_LEN + IPR_PROD_ID_LEN + IPR_SERIAL_NUM_LEN + 3];
+	int i = 0;
+
+	memcpy(buffer, vpd->vpids.vendor_id, IPR_VENDOR_ID_LEN);
+	i = strip_and_pad_whitespace(IPR_VENDOR_ID_LEN - 1, buffer);
+
+	memcpy(&buffer[i], vpd->vpids.product_id, IPR_PROD_ID_LEN);
+	i = strip_and_pad_whitespace(i + IPR_PROD_ID_LEN - 1, buffer);
+
+	memcpy(&buffer[i], vpd->sn, IPR_SERIAL_NUM_LEN);
+	buffer[IPR_SERIAL_NUM_LEN + i] = '\0';
+
+	ipr_hcam_err(hostrcb, "%s VPID/SN: %s\n", prefix, buffer);
+}
+
+/**
  * ipr_log_vpd - Log the passed VPD to the error log.
  * @vpd:		vendor/product id/sn struct
  *
@@ -973,6 +1020,23 @@ static void ipr_log_vpd(struct ipr_vpd *vpd)
 	memcpy(buffer, vpd->sn, IPR_SERIAL_NUM_LEN);
 	buffer[IPR_SERIAL_NUM_LEN] = '\0';
 	ipr_err("    Serial Number: %s\n", buffer);
+}
+
+/**
+ * ipr_log_ext_vpd_compact - Log the passed extended VPD compactly.
+ * @prefix:		string to print at start of printk
+ * @hostrcb:	hostrcb pointer
+ * @vpd:		vendor/product id/sn/wwn struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_ext_vpd_compact(char *prefix, struct ipr_hostrcb *hostrcb,
+				    struct ipr_ext_vpd *vpd)
+{
+	ipr_log_vpd_compact(prefix, hostrcb, &vpd->vpd);
+	ipr_hcam_err(hostrcb, "%s WWN: %08X%08X\n", prefix,
+		     be32_to_cpu(vpd->wwid[0]), be32_to_cpu(vpd->wwid[1]));
 }
 
 /**
@@ -1289,10 +1353,11 @@ static void ipr_log_enhanced_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	error = &hostrcb->hcam.u.error.u.type_17_error;
 	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+	strstrip(error->failure_reason);
 
-	ipr_err("%s\n", error->failure_reason);
-	ipr_err("Remote Adapter VPD:\n");
-	ipr_log_ext_vpd(&error->vpd);
+	ipr_hcam_err(hostrcb, "%s [PRC: %08X]\n", error->failure_reason,
+		     be32_to_cpu(hostrcb->hcam.u.error.prc));
+	ipr_log_ext_vpd_compact("Remote IOA", hostrcb, &error->vpd);
 	ipr_log_hex_data(ioa_cfg, error->data,
 			 be32_to_cpu(hostrcb->hcam.length) -
 			 (offsetof(struct ipr_hostrcb_error, u) +
@@ -1314,10 +1379,11 @@ static void ipr_log_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	error = &hostrcb->hcam.u.error.u.type_07_error;
 	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+	strstrip(error->failure_reason);
 
-	ipr_err("%s\n", error->failure_reason);
-	ipr_err("Remote Adapter VPD:\n");
-	ipr_log_vpd(&error->vpd);
+	ipr_hcam_err(hostrcb, "%s [PRC: %08X]\n", error->failure_reason,
+		     be32_to_cpu(hostrcb->hcam.u.error.prc));
+	ipr_log_vpd_compact("Remote IOA", hostrcb, &error->vpd);
 	ipr_log_hex_data(ioa_cfg, error->data,
 			 be32_to_cpu(hostrcb->hcam.length) -
 			 (offsetof(struct ipr_hostrcb_error, u) +
