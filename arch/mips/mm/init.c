@@ -177,7 +177,7 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 
 #define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
 
-void kunmap_coherent(struct page *page)
+void kunmap_coherent(void)
 {
 #ifndef CONFIG_MIPS_MT_SMTC
 	unsigned int wired;
@@ -210,7 +210,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 	if (cpu_has_dc_aliases) {
 		vfrom = kmap_coherent(from, vaddr);
 		copy_page(vto, vfrom);
-		kunmap_coherent(from);
+		kunmap_coherent();
 	} else {
 		vfrom = kmap_atomic(from, KM_USER0);
 		copy_page(vto, vfrom);
@@ -233,7 +233,7 @@ void copy_to_user_page(struct vm_area_struct *vma,
 	if (cpu_has_dc_aliases) {
 		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(vto, src, len);
-		kunmap_coherent(page);
+		kunmap_coherent();
 	} else
 		memcpy(dst, src, len);
 	if ((vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc)
@@ -250,7 +250,7 @@ void copy_from_user_page(struct vm_area_struct *vma,
 		void *vfrom =
 			kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(dst, vfrom, len);
-		kunmap_coherent(page);
+		kunmap_coherent();
 	} else
 		memcpy(dst, src, len);
 }

@@ -96,7 +96,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 
 		kaddr = kmap_coherent(page, vmaddr);
 		flush_data_cache_page((unsigned long)kaddr);
-		kunmap_coherent(kaddr);
+		kunmap_coherent();
 	}
 }
 
