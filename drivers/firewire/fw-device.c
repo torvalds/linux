@@ -362,7 +362,8 @@ guid_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	guid = ((u64)device->config_rom[3] << 32) | device->config_rom[4];
 
-	return snprintf(buf, PAGE_SIZE, "0x%016llx\n", guid);
+	return snprintf(buf, PAGE_SIZE, "0x%016llx\n",
+			(unsigned long long)guid);
 }
 
 static struct device_attribute fw_device_attributes[] = {
