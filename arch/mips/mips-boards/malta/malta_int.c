@@ -42,8 +42,6 @@
 #include <asm/mips-boards/msc01_pci.h>
 #include <asm/msc01_ic.h>
 
-extern void mips_timer_interrupt(void);
-
 static DEFINE_SPINLOCK(mips_irq_lock);
 
 static inline int mips_pcibios_iack(void)
