@@ -577,7 +577,12 @@ static void sierra_shutdown(struct usb_serial *serial)
 	/* Stop reading/writing urbs */
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
+		if (!port)
+			continue;
 		portdata = usb_get_serial_port_data(port);
+		if (!portdata)
+			continue;
+
 		for (j = 0; j < N_IN_URB; j++)
 			usb_unlink_urb(portdata->in_urbs[j]);
 		for (j = 0; j < N_OUT_URB; j++)
@@ -587,7 +592,11 @@ static void sierra_shutdown(struct usb_serial *serial)
 	/* Now free them */
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
+		if (!port)
+			continue;
 		portdata = usb_get_serial_port_data(port);
+		if (!portdata)
+			continue;
 
 		for (j = 0; j < N_IN_URB; j++) {
 			if (portdata->in_urbs[j]) {
@@ -606,6 +615,8 @@ static void sierra_shutdown(struct usb_serial *serial)
 	/* Now free per port private data */
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
+		if (!port)
+			continue;
 		kfree(usb_get_serial_port_data(port));
 	}
 }
