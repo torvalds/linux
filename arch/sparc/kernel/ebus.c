@@ -25,7 +25,7 @@
 struct linux_ebus *ebus_chain = NULL;
 
 /* We are together with pcic.c under CONFIG_PCI. */
-extern unsigned int pcic_pin_to_irq(unsigned int, char *name);
+extern unsigned int pcic_pin_to_irq(unsigned int, const char *name);
 
 /*
  * IRQ Blacklist
@@ -69,7 +69,7 @@ static inline unsigned long ebus_alloc(size_t size)
 
 /*
  */
-int __init ebus_blacklist_irq(char *name)
+int __init ebus_blacklist_irq(const char *name)
 {
 	struct ebus_device_irq *dp;
 
