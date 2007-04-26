@@ -7,6 +7,7 @@
  */
 
 #include <linux/time.h>
+#include <linux/sysdev.h>
 #include <asm/rtc.h>
 
 static unsigned long suspend_rtc_time;
