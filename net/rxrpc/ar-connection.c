@@ -356,7 +356,7 @@ static int rxrpc_connect_exclusive(struct rxrpc_sock *rx,
 		conn->out_clientflag = RXRPC_CLIENT_INITIATED;
 		conn->cid = 0;
 		conn->state = RXRPC_CONN_CLIENT;
-		conn->avail_calls = RXRPC_MAXCALLS;
+		conn->avail_calls = RXRPC_MAXCALLS - 1;
 		conn->security_level = rx->min_sec_level;
 		conn->key = key_get(rx->key);
 
@@ -447,6 +447,11 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 			if (--conn->avail_calls == 0)
 				list_move(&conn->bundle_link,
 					  &bundle->busy_conns);
+			ASSERTCMP(conn->avail_calls, <, RXRPC_MAXCALLS);
+			ASSERT(conn->channels[0] == NULL ||
+			       conn->channels[1] == NULL ||
+			       conn->channels[2] == NULL ||
+			       conn->channels[3] == NULL);
 			atomic_inc(&conn->usage);
 			break;
 		}
@@ -456,6 +461,12 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 			conn = list_entry(bundle->unused_conns.next,
 					  struct rxrpc_connection,
 					  bundle_link);
+			ASSERTCMP(conn->avail_calls, ==, RXRPC_MAXCALLS);
+			conn->avail_calls = RXRPC_MAXCALLS - 1;
+			ASSERT(conn->channels[0] == NULL &&
+			       conn->channels[1] == NULL &&
+			       conn->channels[2] == NULL &&
+			       conn->channels[3] == NULL);
 			atomic_inc(&conn->usage);
 			list_move(&conn->bundle_link, &bundle->avail_conns);
 			break;
@@ -512,7 +523,7 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 		candidate->state = RXRPC_CONN_CLIENT;
 		candidate->avail_calls = RXRPC_MAXCALLS;
 		candidate->security_level = rx->min_sec_level;
-		candidate->key = key_get(rx->key);
+		candidate->key = key_get(bundle->key);
 
 		ret = rxrpc_init_client_conn_security(candidate);
 		if (ret < 0) {
@@ -555,6 +566,10 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 	for (chan = 0; chan < RXRPC_MAXCALLS; chan++)
 		if (!conn->channels[chan])
 			goto found_channel;
+	ASSERT(conn->channels[0] == NULL ||
+	       conn->channels[1] == NULL ||
+	       conn->channels[2] == NULL ||
+	       conn->channels[3] == NULL);
 	BUG();
 
 found_channel:
@@ -567,6 +582,7 @@ found_channel:
 	_net("CONNECT client on conn %d chan %d as call %x",
 	     conn->debug_id, chan, ntohl(call->call_id));
 
+	ASSERTCMP(conn->avail_calls, <, RXRPC_MAXCALLS);
 	spin_unlock(&trans->client_lock);
 
 	rxrpc_add_call_ID_to_conn(conn, call);
@@ -778,7 +794,7 @@ void rxrpc_put_connection(struct rxrpc_connection *conn)
 	conn->put_time = xtime.tv_sec;
 	if (atomic_dec_and_test(&conn->usage)) {
 		_debug("zombie");
-		schedule_delayed_work(&rxrpc_connection_reap, 0);
+		rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
 	}
 
 	_leave("");
@@ -862,8 +878,8 @@ void rxrpc_connection_reaper(struct work_struct *work)
 	if (earliest != ULONG_MAX) {
 		_debug("reschedule reaper %ld", (long) earliest - now);
 		ASSERTCMP(earliest, >, now);
-		schedule_delayed_work(&rxrpc_connection_reap,
-				      (earliest - now) * HZ);
+		rxrpc_queue_delayed_work(&rxrpc_connection_reap,
+					 (earliest - now) * HZ);
 	}
 
 	/* then destroy all those pulled out */
@@ -889,7 +905,7 @@ void __exit rxrpc_destroy_all_connections(void)
 
 	rxrpc_connection_timeout = 0;
 	cancel_delayed_work(&rxrpc_connection_reap);
-	schedule_delayed_work(&rxrpc_connection_reap, 0);
+	rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
 
 	_leave("");
 }

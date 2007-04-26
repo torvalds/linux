@@ -219,7 +219,7 @@ void rxrpc_put_peer(struct rxrpc_peer *peer)
 		return;
 	}
 
-	schedule_work(&peer->destroyer);
+	rxrpc_queue_work(&peer->destroyer);
 	_leave("");
 }
 

@@ -19,7 +19,7 @@
  * removal a call's user ID from the socket tree to make the user ID available
  * again and so that it won't be seen again in association with that call
  */
-static void rxrpc_remove_user_ID(struct rxrpc_sock *rx, struct rxrpc_call *call)
+void rxrpc_remove_user_ID(struct rxrpc_sock *rx, struct rxrpc_call *call)
 {
 	_debug("RELEASE CALL %d", call->debug_id);
 
@@ -33,7 +33,7 @@ static void rxrpc_remove_user_ID(struct rxrpc_sock *rx, struct rxrpc_call *call)
 	read_lock_bh(&call->state_lock);
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
 	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }
 
@@ -364,3 +364,74 @@ wait_error:
 	return copied;
 
 }
+
+/**
+ * rxrpc_kernel_data_delivered - Record delivery of data message
+ * @skb: Message holding data
+ *
+ * Record the delivery of a data message.  This permits RxRPC to keep its
+ * tracking correct.  The socket buffer will be deleted.
+ */
+void rxrpc_kernel_data_delivered(struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	struct rxrpc_call *call = sp->call;
+
+	ASSERTCMP(ntohl(sp->hdr.seq), >=, call->rx_data_recv);
+	ASSERTCMP(ntohl(sp->hdr.seq), <=, call->rx_data_recv + 1);
+	call->rx_data_recv = ntohl(sp->hdr.seq);
+
+	ASSERTCMP(ntohl(sp->hdr.seq), >, call->rx_data_eaten);
+	rxrpc_free_skb(skb);
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_data_delivered);
+
+/**
+ * rxrpc_kernel_is_data_last - Determine if data message is last one
+ * @skb: Message holding data
+ *
+ * Determine if data message is last one for the parent call.
+ */
+bool rxrpc_kernel_is_data_last(struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	ASSERTCMP(skb->mark, ==, RXRPC_SKB_MARK_DATA);
+
+	return sp->hdr.flags & RXRPC_LAST_PACKET;
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_is_data_last);
+
+/**
+ * rxrpc_kernel_get_abort_code - Get the abort code from an RxRPC abort message
+ * @skb: Message indicating an abort
+ *
+ * Get the abort code from an RxRPC abort message.
+ */
+u32 rxrpc_kernel_get_abort_code(struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	ASSERTCMP(skb->mark, ==, RXRPC_SKB_MARK_REMOTE_ABORT);
+
+	return sp->call->abort_code;
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_get_abort_code);
+
+/**
+ * rxrpc_kernel_get_error - Get the error number from an RxRPC error message
+ * @skb: Message indicating an error
+ *
+ * Get the error number from an RxRPC error message.
+ */
+int rxrpc_kernel_get_error_number(struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	return sp->error;
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_get_error_number);

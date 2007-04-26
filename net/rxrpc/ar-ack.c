@@ -113,7 +113,7 @@ cancel_timer:
 	read_lock_bh(&call->state_lock);
 	if (call->state <= RXRPC_CALL_COMPLETE &&
 	    !test_and_set_bit(RXRPC_CALL_ACK, &call->events))
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }
 
@@ -1166,7 +1166,7 @@ send_message_2:
 		_debug("sendmsg failed: %d", ret);
 		read_lock_bh(&call->state_lock);
 		if (call->state < RXRPC_CALL_DEAD)
-			schedule_work(&call->processor);
+			rxrpc_queue_call(call);
 		read_unlock_bh(&call->state_lock);
 		goto error;
 	}
@@ -1210,7 +1210,7 @@ maybe_reschedule:
 	if (call->events || !skb_queue_empty(&call->rx_queue)) {
 		read_lock_bh(&call->state_lock);
 		if (call->state < RXRPC_CALL_DEAD)
-			schedule_work(&call->processor);
+			rxrpc_queue_call(call);
 		read_unlock_bh(&call->state_lock);
 	}
 
@@ -1224,7 +1224,7 @@ maybe_reschedule:
 		read_lock_bh(&call->state_lock);
 		if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
 		    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
-			schedule_work(&call->processor);
+			rxrpc_queue_call(call);
 		read_unlock_bh(&call->state_lock);
 	}
 
@@ -1238,7 +1238,7 @@ error:
 	 * work pending bit and the work item being processed again */
 	if (call->events && !work_pending(&call->processor)) {
 		_debug("jumpstart %x", ntohl(call->conn->cid));
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
 	}
 
 	_leave("");

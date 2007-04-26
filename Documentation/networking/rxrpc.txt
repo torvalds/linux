@@ -25,6 +25,8 @@ Contents of this document:
 
  (*) Example server usage.
 
+ (*) AF_RXRPC kernel interface.
+
 
 ========
 OVERVIEW
@@ -661,3 +663,197 @@ A server would be set up to accept operations in the following manner:
 Note that all the communications for a particular service take place through
 the one server socket, using control messages on sendmsg() and recvmsg() to
 determine the call affected.
+
+
+=========================
+AF_RXRPC KERNEL INTERFACE
+=========================
+
+The AF_RXRPC module also provides an interface for use by in-kernel utilities
+such as the AFS filesystem.  This permits such a utility to:
+
+ (1) Use different keys directly on individual client calls on one socket
+     rather than having to open a whole slew of sockets, one for each key it
+     might want to use.
+
+ (2) Avoid having RxRPC call request_key() at the point of issue of a call or
+     opening of a socket.  Instead the utility is responsible for requesting a
+     key at the appropriate point.  AFS, for instance, would do this during VFS
+     operations such as open() or unlink().  The key is then handed through
+     when the call is initiated.
+
+ (3) Request the use of something other than GFP_KERNEL to allocate memory.
+
+ (4) Avoid the overhead of using the recvmsg() call.  RxRPC messages can be
+     intercepted before they get put into the socket Rx queue and the socket
+     buffers manipulated directly.
+
+To use the RxRPC facility, a kernel utility must still open an AF_RXRPC socket,
+bind an addess as appropriate and listen if it's to be a server socket, but
+then it passes this to the kernel interface functions.
+
+The kernel interface functions are as follows:
+
+ (*) Begin a new client call.
+
+	struct rxrpc_call *
+	rxrpc_kernel_begin_call(struct socket *sock,
+				struct sockaddr_rxrpc *srx,
+				struct key *key,
+				unsigned long user_call_ID,
+				gfp_t gfp);
+
+     This allocates the infrastructure to make a new RxRPC call and assigns
+     call and connection numbers.  The call will be made on the UDP port that
+     the socket is bound to.  The call will go to the destination address of a
+     connected client socket unless an alternative is supplied (srx is
+     non-NULL).
+
+     If a key is supplied then this will be used to secure the call instead of
+     the key bound to the socket with the RXRPC_SECURITY_KEY sockopt.  Calls
+     secured in this way will still share connections if at all possible.
+
+     The user_call_ID is equivalent to that supplied to sendmsg() in the
+     control data buffer.  It is entirely feasible to use this to point to a
+     kernel data structure.
+
+     If this function is successful, an opaque reference to the RxRPC call is
+     returned.  The caller now holds a reference on this and it must be
+     properly ended.
+
+ (*) End a client call.
+
+	void rxrpc_kernel_end_call(struct rxrpc_call *call);
+
+     This is used to end a previously begun call.  The user_call_ID is expunged
+     from AF_RXRPC's knowledge and will not be seen again in association with
+     the specified call.
+
+ (*) Send data through a call.
+
+	int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
+				   size_t len);
+
+     This is used to supply either the request part of a client call or the
+     reply part of a server call.  msg.msg_iovlen and msg.msg_iov specify the
+     data buffers to be used.  msg_iov may not be NULL and must point
+     exclusively to in-kernel virtual addresses.  msg.msg_flags may be given
+     MSG_MORE if there will be subsequent data sends for this call.
+
+     The msg must not specify a destination address, control data or any flags
+     other than MSG_MORE.  len is the total amount of data to transmit.
+
+ (*) Abort a call.
+
+	void rxrpc_kernel_abort_call(struct rxrpc_call *call, u32 abort_code);
+
+     This is used to abort a call if it's still in an abortable state.  The
+     abort code specified will be placed in the ABORT message sent.
+
+ (*) Intercept received RxRPC messages.
+
+	typedef void (*rxrpc_interceptor_t)(struct sock *sk,
+					    unsigned long user_call_ID,
+					    struct sk_buff *skb);
+
+	void
+	rxrpc_kernel_intercept_rx_messages(struct socket *sock,
+					   rxrpc_interceptor_t interceptor);
+
+     This installs an interceptor function on the specified AF_RXRPC socket.
+     All messages that would otherwise wind up in the socket's Rx queue are
+     then diverted to this function.  Note that care must be taken to process
+     the messages in the right order to maintain DATA message sequentiality.
+
+     The interceptor function itself is provided with the address of the socket
+     and handling the incoming message, the ID assigned by the kernel utility
+     to the call and the socket buffer containing the message.
+
+     The skb->mark field indicates the type of message:
+
+	MARK				MEANING
+	===============================	=======================================
+	RXRPC_SKB_MARK_DATA		Data message
+	RXRPC_SKB_MARK_FINAL_ACK	Final ACK received for an incoming call
+	RXRPC_SKB_MARK_BUSY		Client call rejected as server busy
+	RXRPC_SKB_MARK_REMOTE_ABORT	Call aborted by peer
+	RXRPC_SKB_MARK_NET_ERROR	Network error detected
+	RXRPC_SKB_MARK_LOCAL_ERROR	Local error encountered
+	RXRPC_SKB_MARK_NEW_CALL		New incoming call awaiting acceptance
+
+     The remote abort message can be probed with rxrpc_kernel_get_abort_code().
+     The two error messages can be probed with rxrpc_kernel_get_error_number().
+     A new call can be accepted with rxrpc_kernel_accept_call().
+
+     Data messages can have their contents extracted with the usual bunch of
+     socket buffer manipulation functions.  A data message can be determined to
+     be the last one in a sequence with rxrpc_kernel_is_data_last().  When a
+     data message has been used up, rxrpc_kernel_data_delivered() should be
+     called on it..
+
+     Non-data messages should be handled to rxrpc_kernel_free_skb() to dispose
+     of.  It is possible to get extra refs on all types of message for later
+     freeing, but this may pin the state of a call until the message is finally
+     freed.
+
+ (*) Accept an incoming call.
+
+	struct rxrpc_call *
+	rxrpc_kernel_accept_call(struct socket *sock,
+				 unsigned long user_call_ID);
+
+     This is used to accept an incoming call and to assign it a call ID.  This
+     function is similar to rxrpc_kernel_begin_call() and calls accepted must
+     be ended in the same way.
+
+     If this function is successful, an opaque reference to the RxRPC call is
+     returned.  The caller now holds a reference on this and it must be
+     properly ended.
+
+ (*) Reject an incoming call.
+
+	int rxrpc_kernel_reject_call(struct socket *sock);
+
+     This is used to reject the first incoming call on the socket's queue with
+     a BUSY message.  -ENODATA is returned if there were no incoming calls.
+     Other errors may be returned if the call had been aborted (-ECONNABORTED)
+     or had timed out (-ETIME).
+
+ (*) Record the delivery of a data message and free it.
+
+	void rxrpc_kernel_data_delivered(struct sk_buff *skb);
+
+     This is used to record a data message as having been delivered and to
+     update the ACK state for the call.  The socket buffer will be freed.
+
+ (*) Free a message.
+
+	void rxrpc_kernel_free_skb(struct sk_buff *skb);
+
+     This is used to free a non-DATA socket buffer intercepted from an AF_RXRPC
+     socket.
+
+ (*) Determine if a data message is the last one on a call.
+
+	bool rxrpc_kernel_is_data_last(struct sk_buff *skb);
+
+     This is used to determine if a socket buffer holds the last data message
+     to be received for a call (true will be returned if it does, false
+     if not).
+
+     The data message will be part of the reply on a client call and the
+     request on an incoming call.  In the latter case there will be more
+     messages, but in the former case there will not.
+
+ (*) Get the abort code from an abort message.
+
+	u32 rxrpc_kernel_get_abort_code(struct sk_buff *skb);
+
+     This is used to extract the abort code from a remote abort message.
+
+ (*) Get the error number from a local or network error message.
+
+	int rxrpc_kernel_get_error_number(struct sk_buff *skb);
+
+     This is used to extract the error number from a message indicating either
+     a local error occurred or a network error occurred.

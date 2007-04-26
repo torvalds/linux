@@ -189,7 +189,7 @@ void rxrpc_put_transport(struct rxrpc_transport *trans)
 		/* let the reaper determine the timeout to avoid a race with
 		 * overextending the timeout if the reaper is running at the
 		 * same time */
-		schedule_delayed_work(&rxrpc_transport_reap, 0);
+		rxrpc_queue_delayed_work(&rxrpc_transport_reap, 0);
 	_leave("");
 }
 
@@ -243,8 +243,8 @@ static void rxrpc_transport_reaper(struct work_struct *work)
 	if (earliest != ULONG_MAX) {
 		_debug("reschedule reaper %ld", (long) earliest - now);
 		ASSERTCMP(earliest, >, now);
-		schedule_delayed_work(&rxrpc_transport_reap,
-				      (earliest - now) * HZ);
+		rxrpc_queue_delayed_work(&rxrpc_transport_reap,
+					 (earliest - now) * HZ);
 	}
 
 	/* then destroy all those pulled out */
@@ -270,7 +270,7 @@ void __exit rxrpc_destroy_all_transports(void)
 
 	rxrpc_transport_timeout = 0;
 	cancel_delayed_work(&rxrpc_transport_reap);
-	schedule_delayed_work(&rxrpc_transport_reap, 0);
+	rxrpc_queue_delayed_work(&rxrpc_transport_reap, 0);
 
 	_leave("");
 }

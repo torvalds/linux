@@ -186,6 +186,18 @@ struct rxkad_response {
 #define RX_DEBUGI_BADTYPE	-8	/* bad debugging packet type */
 
 /*
+ * (un)marshalling abort codes (rxgen)
+ */
+#define	RXGEN_CC_MARSHAL    -450
+#define	RXGEN_CC_UNMARSHAL  -451
+#define	RXGEN_SS_MARSHAL    -452
+#define	RXGEN_SS_UNMARSHAL  -453
+#define	RXGEN_DECODE	    -454
+#define	RXGEN_OPCODE	    -455
+#define	RXGEN_SS_XDRFREE    -456
+#define	RXGEN_CC_XDRFREE    -457
+
+/*
  * Rx kerberos security abort codes
  * - unfortunately we have no generalised security abort codes to say things
  *   like "unsupported security", so we have to use these instead and hope the

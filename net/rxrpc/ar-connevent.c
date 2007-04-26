@@ -45,7 +45,7 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn, int state,
 				set_bit(RXRPC_CALL_CONN_ABORT, &call->events);
 			else
 				set_bit(RXRPC_CALL_RCVD_ABORT, &call->events);
-			schedule_work(&call->processor);
+			rxrpc_queue_call(call);
 		}
 		write_unlock(&call->state_lock);
 	}
@@ -133,7 +133,7 @@ void rxrpc_call_is_secure(struct rxrpc_call *call)
 		read_lock(&call->state_lock);
 		if (call->state < RXRPC_CALL_COMPLETE &&
 		    !test_and_set_bit(RXRPC_CALL_SECURED, &call->events))
-			schedule_work(&call->processor);
+			rxrpc_queue_call(call);
 		read_unlock(&call->state_lock);
 	}
 }
@@ -305,6 +305,22 @@ protocol_error:
 	rxrpc_free_skb(skb);
 	_leave(" [EPROTO]");
 	goto out;
+}
+
+/*
+ * put a packet up for transport-level abort
+ */
+void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
+{
+	CHECK_SLAB_OKAY(&local->usage);
+
+	if (!atomic_inc_not_zero(&local->usage)) {
+		printk("resurrected on reject\n");
+		BUG();
+	}
+
+	skb_queue_tail(&local->reject_queue, skb);
+	rxrpc_queue_work(&local->rejecter);
 }
 
 /*

@@ -139,7 +139,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 			call->conn->state = RXRPC_CONN_SERVER_CHALLENGING;
 			atomic_inc(&call->conn->usage);
 			set_bit(RXRPC_CONN_CHALLENGE, &call->conn->events);
-			schedule_work(&call->conn->processor);
+			rxrpc_queue_conn(call->conn);
 		} else {
 			_debug("conn ready");
 			call->state = RXRPC_CALL_SERVER_ACCEPTING;
@@ -183,7 +183,7 @@ invalid_service:
 	if (!test_bit(RXRPC_CALL_RELEASE, &call->flags) &&
 	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events)) {
 		rxrpc_get_call(call);
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
 	}
 	read_unlock_bh(&call->state_lock);
 	rxrpc_put_call(call);
@@ -310,7 +310,8 @@ security_mismatch:
  * handle acceptance of a call by userspace
  * - assign the user call ID to the call at the front of the queue
  */
-int rxrpc_accept_call(struct rxrpc_sock *rx, unsigned long user_call_ID)
+struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
+				     unsigned long user_call_ID)
 {
 	struct rxrpc_call *call;
 	struct rb_node *parent, **pp;
@@ -374,12 +375,13 @@ int rxrpc_accept_call(struct rxrpc_sock *rx, unsigned long user_call_ID)
 		BUG();
 	if (test_and_set_bit(RXRPC_CALL_ACCEPTED, &call->events))
 		BUG();
-	schedule_work(&call->processor);
+	rxrpc_queue_call(call);
 
+	rxrpc_get_call(call);
 	write_unlock_bh(&call->state_lock);
 	write_unlock(&rx->call_lock);
-	_leave(" = 0");
-	return 0;
+	_leave(" = %p{%d}", call, call->debug_id);
+	return call;
 
 	/* if the call is already dying or dead, then we leave the socket's ref
 	 * on it to be released by rxrpc_dead_call_expired() as induced by
@@ -388,7 +390,70 @@ out_release:
 	_debug("release %p", call);
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
 	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
+out_discard:
+	write_unlock_bh(&call->state_lock);
+	_debug("discard %p", call);
+out:
+	write_unlock(&rx->call_lock);
+	_leave(" = %d", ret);
+	return ERR_PTR(ret);
+}
+
+/*
+ * handle rejectance of a call by userspace
+ * - reject the call at the front of the queue
+ */
+int rxrpc_reject_call(struct rxrpc_sock *rx)
+{
+	struct rxrpc_call *call;
+	int ret;
+
+	_enter("");
+
+	ASSERT(!irqs_disabled());
+
+	write_lock(&rx->call_lock);
+
+	ret = -ENODATA;
+	if (list_empty(&rx->acceptq))
+		goto out;
+
+	/* dequeue the first call and check it's still valid */
+	call = list_entry(rx->acceptq.next, struct rxrpc_call, accept_link);
+	list_del_init(&call->accept_link);
+	sk_acceptq_removed(&rx->sk);
+
+	write_lock_bh(&call->state_lock);
+	switch (call->state) {
+	case RXRPC_CALL_SERVER_ACCEPTING:
+		call->state = RXRPC_CALL_SERVER_BUSY;
+		if (test_and_set_bit(RXRPC_CALL_REJECT_BUSY, &call->events))
+			rxrpc_queue_call(call);
+		ret = 0;
+		goto out_release;
+	case RXRPC_CALL_REMOTELY_ABORTED:
+	case RXRPC_CALL_LOCALLY_ABORTED:
+		ret = -ECONNABORTED;
+		goto out_release;
+	case RXRPC_CALL_NETWORK_ERROR:
+		ret = call->conn->error;
+		goto out_release;
+	case RXRPC_CALL_DEAD:
+		ret = -ETIME;
+		goto out_discard;
+	default:
+		BUG();
+	}
+
+	/* if the call is already dying or dead, then we leave the socket's ref
+	 * on it to be released by rxrpc_dead_call_expired() as induced by
+	 * rxrpc_release_call() */
+out_release:
+	_debug("release %p", call);
+	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
+	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
+		rxrpc_queue_call(call);
 out_discard:
 	write_unlock_bh(&call->state_lock);
 	_debug("discard %p", call);
@@ -397,3 +462,43 @@ out:
 	_leave(" = %d", ret);
 	return ret;
 }
+
+/**
+ * rxrpc_kernel_accept_call - Allow a kernel service to accept an incoming call
+ * @sock: The socket on which the impending call is waiting
+ * @user_call_ID: The tag to attach to the call
+ *
+ * Allow a kernel service to accept an incoming call, assuming the incoming
+ * call is still valid.
+ */
+struct rxrpc_call *rxrpc_kernel_accept_call(struct socket *sock,
+					    unsigned long user_call_ID)
+{
+	struct rxrpc_call *call;
+
+	_enter(",%lx", user_call_ID);
+	call = rxrpc_accept_call(rxrpc_sk(sock->sk), user_call_ID);
+	_leave(" = %p", call);
+	return call;
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_accept_call);
+
+/**
+ * rxrpc_kernel_reject_call - Allow a kernel service to reject an incoming call
+ * @sock: The socket on which the impending call is waiting
+ *
+ * Allow a kernel service to reject an incoming call with a BUSY message,
+ * assuming the incoming call is still valid.
+ */
+int rxrpc_kernel_reject_call(struct socket *sock)
+{
+	int ret;
+
+	_enter("");
+	ret = rxrpc_reject_call(rxrpc_sk(sock->sk));
+	_leave(" = %d", ret);
+	return ret;
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_reject_call);

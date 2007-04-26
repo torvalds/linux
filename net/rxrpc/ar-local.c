@@ -228,7 +228,7 @@ void rxrpc_put_local(struct rxrpc_local *local)
 	write_lock_bh(&rxrpc_local_lock);
 	if (unlikely(atomic_dec_and_test(&local->usage))) {
 		_debug("destroy local");
-		schedule_work(&local->destroyer);
+		rxrpc_queue_work(&local->destroyer);
 	}
 	write_unlock_bh(&rxrpc_local_lock);
 	_leave("");

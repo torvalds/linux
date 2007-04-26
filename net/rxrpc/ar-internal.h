@@ -19,8 +19,6 @@
 #define CHECK_SLAB_OKAY(X) do {} while(0)
 #endif
 
-extern atomic_t rxrpc_n_skbs;
-
 #define FCRYPT_BSIZE 8
 struct rxrpc_crypt {
 	union {
@@ -29,8 +27,12 @@ struct rxrpc_crypt {
 	};
 } __attribute__((aligned(8)));
 
-extern __be32 rxrpc_epoch;		/* local epoch for detecting local-end reset */
-extern atomic_t rxrpc_debug_id;		/* current debugging ID */
+#define rxrpc_queue_work(WS)	queue_work(rxrpc_workqueue, (WS))
+#define rxrpc_queue_delayed_work(WS,D)	\
+	queue_delayed_work(rxrpc_workqueue, (WS), (D))
+
+#define rxrpc_queue_call(CALL)	rxrpc_queue_work(&(CALL)->processor)
+#define rxrpc_queue_conn(CONN)	rxrpc_queue_work(&(CONN)->processor)
 
 /*
  * sk_state for RxRPC sockets
@@ -50,6 +52,7 @@ enum {
 struct rxrpc_sock {
 	/* WARNING: sk has to be the first member */
 	struct sock		sk;
+	rxrpc_interceptor_t	interceptor;	/* kernel service Rx interceptor function */
 	struct rxrpc_local	*local;		/* local endpoint */
 	struct rxrpc_transport	*trans;		/* transport handler */
 	struct rxrpc_conn_bundle *bundle;	/* virtual connection bundle */
@@ -90,16 +93,6 @@ struct rxrpc_skb_priv {
 };
 
 #define rxrpc_skb(__skb) ((struct rxrpc_skb_priv *) &(__skb)->cb)
-
-enum {
-	RXRPC_SKB_MARK_DATA,		/* data message */
-	RXRPC_SKB_MARK_FINAL_ACK,	/* final ACK received message */
-	RXRPC_SKB_MARK_BUSY,		/* server busy message */
-	RXRPC_SKB_MARK_REMOTE_ABORT,	/* remote abort message */
-	RXRPC_SKB_MARK_NET_ERROR,	/* network error message */
-	RXRPC_SKB_MARK_LOCAL_ERROR,	/* local error message */
-	RXRPC_SKB_MARK_NEW_CALL,	/* local error message */
-};
 
 enum rxrpc_command {
 	RXRPC_CMD_SEND_DATA,		/* send data message */
@@ -439,25 +432,20 @@ static inline void rxrpc_abort_call(struct rxrpc_call *call, u32 abort_code)
 }
 
 /*
- * put a packet up for transport-level abort
+ * af_rxrpc.c
  */
-static inline
-void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
-{
-	CHECK_SLAB_OKAY(&local->usage);
-	if (!atomic_inc_not_zero(&local->usage)) {
-		printk("resurrected on reject\n");
-		BUG();
-	}
-	skb_queue_tail(&local->reject_queue, skb);
-	schedule_work(&local->rejecter);
-}
+extern atomic_t rxrpc_n_skbs;
+extern __be32 rxrpc_epoch;
+extern atomic_t rxrpc_debug_id;
+extern struct workqueue_struct *rxrpc_workqueue;
 
 /*
  * ar-accept.c
  */
 extern void rxrpc_accept_incoming_calls(struct work_struct *);
-extern int rxrpc_accept_call(struct rxrpc_sock *, unsigned long);
+extern struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *,
+					    unsigned long);
+extern int rxrpc_reject_call(struct rxrpc_sock *);
 
 /*
  * ar-ack.c
@@ -514,6 +502,7 @@ rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_header *,
  * ar-connevent.c
  */
 extern void rxrpc_process_connection(struct work_struct *);
+extern void rxrpc_reject_packet(struct rxrpc_local *, struct sk_buff *);
 extern void rxrpc_reject_packets(struct work_struct *);
 
 /*
@@ -583,6 +572,7 @@ extern struct file_operations rxrpc_connection_seq_fops;
 /*
  * ar-recvmsg.c
  */
+extern void rxrpc_remove_user_ID(struct rxrpc_sock *, struct rxrpc_call *);
 extern int rxrpc_recvmsg(struct kiocb *, struct socket *, struct msghdr *,
 			 size_t, int);
 

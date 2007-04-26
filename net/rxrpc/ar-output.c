@@ -113,7 +113,7 @@ static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
 		clear_bit(RXRPC_CALL_RESEND_TIMER, &call->events);
 		clear_bit(RXRPC_CALL_ACK, &call->events);
 		clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
 	}
 
 	write_unlock_bh(&call->state_lock);
@@ -194,6 +194,77 @@ int rxrpc_client_sendmsg(struct kiocb *iocb, struct rxrpc_sock *rx,
 	return ret;
 }
 
+/**
+ * rxrpc_kernel_send_data - Allow a kernel service to send data on a call
+ * @call: The call to send data through
+ * @msg: The data to send
+ * @len: The amount of data to send
+ *
+ * Allow a kernel service to send data on a call.  The call must be in an state
+ * appropriate to sending data.  No control data should be supplied in @msg,
+ * nor should an address be supplied.  MSG_MORE should be flagged if there's
+ * more data to come, otherwise this data will end the transmission phase.
+ */
+int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
+			   size_t len)
+{
+	int ret;
+
+	_enter("{%d,%s},", call->debug_id, rxrpc_call_states[call->state]);
+
+	ASSERTCMP(msg->msg_name, ==, NULL);
+	ASSERTCMP(msg->msg_control, ==, NULL);
+
+	lock_sock(&call->socket->sk);
+
+	_debug("CALL %d USR %lx ST %d on CONN %p",
+	       call->debug_id, call->user_call_ID, call->state, call->conn);
+
+	if (call->state >= RXRPC_CALL_COMPLETE) {
+		ret = -ESHUTDOWN; /* it's too late for this call */
+	} else if (call->state != RXRPC_CALL_CLIENT_SEND_REQUEST &&
+		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
+		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
+		ret = -EPROTO; /* request phase complete for this client call */
+	} else {
+		mm_segment_t oldfs = get_fs();
+		set_fs(KERNEL_DS);
+		ret = rxrpc_send_data(NULL, call->socket, call, msg, len);
+		set_fs(oldfs);
+	}
+
+	release_sock(&call->socket->sk);
+	_leave(" = %d", ret);
+	return ret;
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_send_data);
+
+/*
+ * rxrpc_kernel_abort_call - Allow a kernel service to abort a call
+ * @call: The call to be aborted
+ * @abort_code: The abort code to stick into the ABORT packet
+ *
+ * Allow a kernel service to abort a call, if it's still in an abortable state.
+ */
+void rxrpc_kernel_abort_call(struct rxrpc_call *call, u32 abort_code)
+{
+	_enter("{%d},%d", call->debug_id, abort_code);
+
+	lock_sock(&call->socket->sk);
+
+	_debug("CALL %d USR %lx ST %d on CONN %p",
+	       call->debug_id, call->user_call_ID, call->state, call->conn);
+
+	if (call->state < RXRPC_CALL_COMPLETE)
+		rxrpc_send_abort(call, abort_code);
+
+	release_sock(&call->socket->sk);
+	_leave("");
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_abort_call);
+
 /*
  * send a message through a server socket
  * - caller holds the socket locked
@@ -214,8 +285,13 @@ int rxrpc_server_sendmsg(struct kiocb *iocb, struct rxrpc_sock *rx,
 	if (ret < 0)
 		return ret;
 
-	if (cmd == RXRPC_CMD_ACCEPT)
-		return rxrpc_accept_call(rx, user_call_ID);
+	if (cmd == RXRPC_CMD_ACCEPT) {
+		call = rxrpc_accept_call(rx, user_call_ID);
+		if (IS_ERR(call))
+			return PTR_ERR(call);
+		rxrpc_put_call(call);
+		return 0;
+	}
 
 	call = rxrpc_find_server_call(rx, user_call_ID);
 	if (!call)
@@ -363,7 +439,7 @@ static inline void rxrpc_instant_resend(struct rxrpc_call *call)
 		clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
 		if (call->state < RXRPC_CALL_COMPLETE &&
 		    !test_and_set_bit(RXRPC_CALL_RESEND_TIMER, &call->events))
-			schedule_work(&call->processor);
+			rxrpc_queue_call(call);
 	}
 	read_unlock_bh(&call->state_lock);
 }

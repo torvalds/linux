@@ -19,7 +19,7 @@ struct kmem_cache *rxrpc_call_jar;
 LIST_HEAD(rxrpc_calls);
 DEFINE_RWLOCK(rxrpc_call_lock);
 static unsigned rxrpc_call_max_lifetime = 60;
-static unsigned rxrpc_dead_call_timeout = 10;
+static unsigned rxrpc_dead_call_timeout = 2;
 
 static void rxrpc_destroy_call(struct work_struct *work);
 static void rxrpc_call_life_expired(unsigned long _call);
@@ -264,7 +264,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 		switch (call->state) {
 		case RXRPC_CALL_LOCALLY_ABORTED:
 			if (!test_and_set_bit(RXRPC_CALL_ABORT, &call->events))
-				schedule_work(&call->processor);
+				rxrpc_queue_call(call);
 		case RXRPC_CALL_REMOTELY_ABORTED:
 			read_unlock(&call->state_lock);
 			goto aborted_call;
@@ -398,6 +398,7 @@ found_extant_call:
  */
 void rxrpc_release_call(struct rxrpc_call *call)
 {
+	struct rxrpc_connection *conn = call->conn;
 	struct rxrpc_sock *rx = call->socket;
 
 	_enter("{%d,%d,%d,%d}",
@@ -413,8 +414,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	/* dissociate from the socket
 	 * - the socket's ref on the call is passed to the death timer
 	 */
-	_debug("RELEASE CALL %p (%d CONN %p)",
-	       call, call->debug_id, call->conn);
+	_debug("RELEASE CALL %p (%d CONN %p)", call, call->debug_id, conn);
 
 	write_lock_bh(&rx->call_lock);
 	if (!list_empty(&call->accept_link)) {
@@ -430,24 +430,42 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	}
 	write_unlock_bh(&rx->call_lock);
 
-	if (call->conn->out_clientflag)
-		spin_lock(&call->conn->trans->client_lock);
-	write_lock_bh(&call->conn->lock);
-
 	/* free up the channel for reuse */
-	if (call->conn->out_clientflag) {
-		call->conn->avail_calls++;
-		if (call->conn->avail_calls == RXRPC_MAXCALLS)
-			list_move_tail(&call->conn->bundle_link,
-				       &call->conn->bundle->unused_conns);
-		else if (call->conn->avail_calls == 1)
-			list_move_tail(&call->conn->bundle_link,
-				       &call->conn->bundle->avail_conns);
+	spin_lock(&conn->trans->client_lock);
+	write_lock_bh(&conn->lock);
+	write_lock(&call->state_lock);
+
+	if (conn->channels[call->channel] == call)
+		conn->channels[call->channel] = NULL;
+
+	if (conn->out_clientflag && conn->bundle) {
+		conn->avail_calls++;
+		switch (conn->avail_calls) {
+		case 1:
+			list_move_tail(&conn->bundle_link,
+				       &conn->bundle->avail_conns);
+		case 2 ... RXRPC_MAXCALLS - 1:
+			ASSERT(conn->channels[0] == NULL ||
+			       conn->channels[1] == NULL ||
+			       conn->channels[2] == NULL ||
+			       conn->channels[3] == NULL);
+			break;
+		case RXRPC_MAXCALLS:
+			list_move_tail(&conn->bundle_link,
+				       &conn->bundle->unused_conns);
+			ASSERT(conn->channels[0] == NULL &&
+			       conn->channels[1] == NULL &&
+			       conn->channels[2] == NULL &&
+			       conn->channels[3] == NULL);
+			break;
+		default:
+			printk(KERN_ERR "RxRPC: conn->avail_calls=%d\n",
+			       conn->avail_calls);
+			BUG();
+		}
 	}
 
-	write_lock(&call->state_lock);
-	if (call->conn->channels[call->channel] == call)
-		call->conn->channels[call->channel] = NULL;
+	spin_unlock(&conn->trans->client_lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE &&
 	    call->state != RXRPC_CALL_CLIENT_FINAL_ACK) {
@@ -455,13 +473,12 @@ void rxrpc_release_call(struct rxrpc_call *call)
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		call->abort_code = RX_CALL_DEAD;
 		set_bit(RXRPC_CALL_ABORT, &call->events);
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
 	}
 	write_unlock(&call->state_lock);
-	write_unlock_bh(&call->conn->lock);
-	if (call->conn->out_clientflag)
-		spin_unlock(&call->conn->trans->client_lock);
+	write_unlock_bh(&conn->lock);
 
+	/* clean up the Rx queue */
 	if (!skb_queue_empty(&call->rx_queue) ||
 	    !skb_queue_empty(&call->rx_oos_queue)) {
 		struct rxrpc_skb_priv *sp;
@@ -538,7 +555,7 @@ static void rxrpc_mark_call_released(struct rxrpc_call *call)
 		if (!test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
 			sched = true;
 		if (sched)
-			schedule_work(&call->processor);
+			rxrpc_queue_call(call);
 	}
 	write_unlock(&call->state_lock);
 }
@@ -588,7 +605,7 @@ void __rxrpc_put_call(struct rxrpc_call *call)
 	if (atomic_dec_and_test(&call->usage)) {
 		_debug("call %d dead", call->debug_id);
 		ASSERTCMP(call->state, ==, RXRPC_CALL_DEAD);
-		schedule_work(&call->destroyer);
+		rxrpc_queue_work(&call->destroyer);
 	}
 	_leave("");
 }
@@ -613,7 +630,7 @@ static void rxrpc_cleanup_call(struct rxrpc_call *call)
 	ASSERTCMP(call->events, ==, 0);
 	if (work_pending(&call->processor)) {
 		_debug("defer destroy");
-		schedule_work(&call->destroyer);
+		rxrpc_queue_work(&call->destroyer);
 		return;
 	}
 
@@ -742,7 +759,7 @@ static void rxrpc_call_life_expired(unsigned long _call)
 	read_lock_bh(&call->state_lock);
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		set_bit(RXRPC_CALL_LIFE_TIMER, &call->events);
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
 	}
 	read_unlock_bh(&call->state_lock);
 }
@@ -763,7 +780,7 @@ static void rxrpc_resend_time_expired(unsigned long _call)
 	clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
 	if (call->state < RXRPC_CALL_COMPLETE &&
 	    !test_and_set_bit(RXRPC_CALL_RESEND_TIMER, &call->events))
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }
 
@@ -782,6 +799,6 @@ static void rxrpc_ack_time_expired(unsigned long _call)
 	read_lock_bh(&call->state_lock);
 	if (call->state < RXRPC_CALL_COMPLETE &&
 	    !test_and_set_bit(RXRPC_CALL_ACK, &call->events))
-		schedule_work(&call->processor);
+		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }

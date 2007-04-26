@@ -111,7 +111,7 @@ void rxrpc_UDP_error_report(struct sock *sk)
 
 	/* pass the transport ref to error_handler to release */
 	skb_queue_tail(&trans->error_queue, skb);
-	schedule_work(&trans->error_handler);
+	rxrpc_queue_work(&trans->error_handler);
 
 	/* reset and regenerate socket error */
 	spin_lock_bh(&sk->sk_error_queue.lock);
@@ -235,7 +235,7 @@ void rxrpc_UDP_error_handler(struct work_struct *work)
 			    call->state < RXRPC_CALL_NETWORK_ERROR) {
 				call->state = RXRPC_CALL_NETWORK_ERROR;
 				set_bit(RXRPC_CALL_RCVD_ERROR, &call->events);
-				schedule_work(&call->processor);
+				rxrpc_queue_call(call);
 			}
 			write_unlock(&call->state_lock);
 			list_del_init(&call->error_link);
@@ -245,7 +245,7 @@ void rxrpc_UDP_error_handler(struct work_struct *work)
 	}
 
 	if (!skb_queue_empty(&trans->error_queue))
-		schedule_work(&trans->error_handler);
+		rxrpc_queue_work(&trans->error_handler);
 
 	rxrpc_free_skb(skb);
 	rxrpc_put_transport(trans);

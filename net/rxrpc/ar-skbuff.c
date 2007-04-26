@@ -36,7 +36,7 @@ static void rxrpc_request_final_ACK(struct rxrpc_call *call)
 		rxrpc_get_call(call);
 		set_bit(RXRPC_CALL_ACK_FINAL, &call->events);
 		if (try_to_del_timer_sync(&call->ack_timer) >= 0)
-			schedule_work(&call->processor);
+			rxrpc_queue_call(call);
 		break;
 
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
@@ -116,3 +116,17 @@ void rxrpc_packet_destructor(struct sk_buff *skb)
 		sock_rfree(skb);
 	_leave("");
 }
+
+/**
+ * rxrpc_kernel_free_skb - Free an RxRPC socket buffer
+ * @skb: The socket buffer to be freed
+ *
+ * Let RxRPC free its own socket buffer, permitting it to maintain debug
+ * accounting.
+ */
+void rxrpc_kernel_free_skb(struct sk_buff *skb)
+{
+	rxrpc_free_skb(skb);
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_free_skb);
