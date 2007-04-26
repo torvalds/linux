@@ -2659,7 +2659,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		/* This seems backwards, but it is what the sk98lin
 		 * does.  Looks like hardware is wrong?
 		 */
-		if (skb->h.ipiph->protocol == IPPROTO_UDP
+		if (ipip_hdr(skb)->protocol == IPPROTO_UDP
 	            && hw->chip_rev == 0 && hw->chip_id == CHIP_ID_YUKON)
 			control = BMU_TCP_CHECK;
 		else

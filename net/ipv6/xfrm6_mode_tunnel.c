@@ -28,7 +28,7 @@ static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
 static inline void ip6ip_ecn_decapsulate(struct sk_buff *skb)
 {
 	if (INET_ECN_is_ce(ipv6_get_dsfield(ipv6_hdr(skb))))
-			IP_ECN_set_ce(skb->h.ipiph);
+			IP_ECN_set_ce(ipip_hdr(skb));
 }
 
 /* Add encapsulation header.

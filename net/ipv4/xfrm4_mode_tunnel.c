@@ -17,7 +17,7 @@
 static inline void ipip_ecn_decapsulate(struct sk_buff *skb)
 {
 	struct iphdr *outer_iph = ip_hdr(skb);
-	struct iphdr *inner_iph = skb->h.ipiph;
+	struct iphdr *inner_iph = ipip_hdr(skb);
 
 	if (INET_ECN_is_ce(outer_iph->tos))
 		IP_ECN_set_ce(inner_iph);
@@ -47,7 +47,7 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	int flags;
 
 	iph = ip_hdr(skb);
-	skb->h.ipiph = iph;
+	skb->h.raw = skb->nh.raw;
 
 	skb_push(skb, x->props.header_len);
 	skb_reset_network_header(skb);
@@ -116,7 +116,7 @@ static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	iph = ip_hdr(skb);
 	if (iph->protocol == IPPROTO_IPIP) {
 		if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-			ipv4_copy_dscp(iph, skb->h.ipiph);
+			ipv4_copy_dscp(iph, ipip_hdr(skb));
 		if (!(x->props.flags & XFRM_STATE_NOECN))
 			ipip_ecn_decapsulate(skb);
 	}

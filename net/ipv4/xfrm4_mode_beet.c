@@ -83,7 +83,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 
 		if (!pskb_may_pull(skb, sizeof(*ph)))
 			goto out;
-		ph = (struct ip_beet_phdr *)(skb->h.ipiph + 1);
+		ph = (struct ip_beet_phdr *)(ipip_hdr(skb) + 1);
 
 		phlen = sizeof(*ph) + ph->padlen;
 		optlen = ph->hdrlen * 8 + (IPV4_BEET_PHMAXLEN - phlen);
@@ -97,9 +97,9 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 		ph_nexthdr = ph->nexthdr;
 	}
 
-	skb->nh.raw = skb->data + (phlen - sizeof(*iph));
+	skb_set_network_header(skb, phlen - sizeof(*iph));
 	memmove(skb_network_header(skb), iph, sizeof(*iph));
-	skb->h.raw = skb->data + (phlen + optlen);
+	skb_set_transport_header(skb, phlen + optlen);
 	skb->data = skb->h.raw;
 
 	iph = ip_hdr(skb);

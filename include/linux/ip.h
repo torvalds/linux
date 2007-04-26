@@ -111,6 +111,11 @@ static inline struct iphdr *ip_hdr(const struct sk_buff *skb)
 {
 	return (struct iphdr *)skb_network_header(skb);
 }
+
+static inline struct iphdr *ipip_hdr(const struct sk_buff *skb)
+{
+	return (struct iphdr *)skb->h.raw;
+}
 #endif
 
 struct ip_auth_hdr {

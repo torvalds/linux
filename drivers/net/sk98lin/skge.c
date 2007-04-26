@@ -1565,7 +1565,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 		u16 hdrlen = skb_transport_offset(pMessage);
 		u16 offset = hdrlen + pMessage->csum_offset;
 
-		if ((pMessage->h.ipiph->protocol == IPPROTO_UDP ) &&
+		if ((ipip_hdr(pMessage)->protocol == IPPROTO_UDP) &&
 			(pAC->GIni.GIChipRev == 0) &&
 			(pAC->GIni.GIChipId == CHIP_ID_YUKON)) {
 			pTxd->TBControl = BMU_TCP_CHECK;
@@ -1691,7 +1691,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 		** opcode for udp is not working in the hardware yet 
 		** (Revision 2.0)
 		*/
-		if ((pMessage->h.ipiph->protocol == IPPROTO_UDP ) &&
+		if ((ipip_hdr(pMessage)->protocol == IPPROTO_UDP) &&
 			(pAC->GIni.GIChipRev == 0) &&
 			(pAC->GIni.GIChipId == CHIP_ID_YUKON)) {
 			Control |= BMU_TCP_CHECK;
