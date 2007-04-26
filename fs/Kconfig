@@ -2038,10 +2038,6 @@ config AFS_DEBUG
 
 	  If unsure, say N.
 
-
-config RXRPC
-	tristate
-
 config 9P_FS
 	tristate "Plan 9 Resource Sharing Support (9P2000) (Experimental)"
 	depends on INET && EXPERIMENTAL

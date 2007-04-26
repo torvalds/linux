@@ -1,6 +1,6 @@
 /* packet.h: Rx packet layout and definitions
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -12,21 +12,17 @@
 #ifndef _LINUX_RXRPC_PACKET_H
 #define _LINUX_RXRPC_PACKET_H
 
-#include <rxrpc/types.h>
-
-#define RXRPC_IPUDP_SIZE		28
-extern size_t RXRPC_MAX_PACKET_SIZE;
-#define RXRPC_MAX_PACKET_DATA_SIZE	(RXRPC_MAX_PACKET_SIZE - sizeof(struct rxrpc_header))
-#define RXRPC_LOCAL_PACKET_SIZE		RXRPC_MAX_PACKET_SIZE
-#define RXRPC_REMOTE_PACKET_SIZE	(576 - RXRPC_IPUDP_SIZE)
+typedef u32	rxrpc_seq_t;	/* Rx message sequence number */
+typedef u32	rxrpc_serial_t;	/* Rx message serial number */
+typedef __be32	rxrpc_seq_net_t; /* on-the-wire Rx message sequence number */
+typedef __be32	rxrpc_serial_net_t; /* on-the-wire Rx message serial number */
 
 /*****************************************************************************/
 /*
  * on-the-wire Rx packet header
  * - all multibyte fields should be in network byte order
  */
-struct rxrpc_header
-{
+struct rxrpc_header {
 	__be32		epoch;		/* client boot timestamp */
 
 	__be32		cid;		/* connection and channel ID */
@@ -85,8 +81,7 @@ extern const char *rxrpc_pkts[];
  *   - new__rsvd = j__rsvd
  *   - duplicating all other fields
  */
-struct rxrpc_jumbo_header
-{
+struct rxrpc_jumbo_header {
 	uint8_t		flags;		/* packet flags (as per rxrpc_header) */
 	uint8_t		pad;
 	__be16		_rsvd;		/* reserved (used by kerberos security as cksum) */
@@ -99,8 +94,7 @@ struct rxrpc_jumbo_header
  * on-the-wire Rx ACK packet data payload
  * - all multibyte fields should be in network byte order
  */
-struct rxrpc_ackpacket
-{
+struct rxrpc_ackpacket {
 	__be16		bufferSpace;	/* number of packet buffers available */
 	__be16		maxSkew;	/* diff between serno being ACK'd and highest serial no
 					 * received */
