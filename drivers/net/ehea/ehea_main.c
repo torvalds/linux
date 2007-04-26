@@ -2133,6 +2133,28 @@ static int ehea_clean_all_portres(struct ehea_port *port)
 	return ret;
 }
 
+static void ehea_remove_adapter_mr (struct ehea_adapter *adapter)
+{
+	int i;
+
+	for (i=0; i < EHEA_MAX_PORTS; i++)
+		if (adapter->port[i])
+			return;
+
+	ehea_rem_mr(&adapter->mr);
+}
+
+static int ehea_add_adapter_mr (struct ehea_adapter *adapter)
+{
+	int i;
+
+	for (i=0; i < EHEA_MAX_PORTS; i++)
+		if (adapter->port[i])
+			return 0;
+
+	return ehea_reg_kernel_mr(adapter, &adapter->mr);
+}
+
 static int ehea_up(struct net_device *dev)
 {
 	int ret, i;
@@ -2583,7 +2605,6 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 	struct device_node *eth_dn = NULL;
 
 	u32 *dn_log_port_id;
-	int port_setup_ok = 0;
 	int i = 0;
 
 	lhea_dn = adapter->ebus_dev->ofdev.node;
@@ -2597,6 +2618,12 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 			continue;
 		}
 
+		if (ehea_add_adapter_mr(adapter)) {
+			ehea_error("creating MR failed");
+			of_node_put(eth_dn);
+			return -EIO;
+		}
+
 		adapter->port[i] = ehea_setup_single_port(adapter,
 							  *dn_log_port_id,
 							  eth_dn);
@@ -2604,18 +2631,13 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 			ehea_info("%s -> logical port id #%d",
 				  adapter->port[i]->netdev->name,
 				  *dn_log_port_id);
+		else
+			ehea_remove_adapter_mr(adapter);
+
 		i++;
 	};
 
-	/* Check for succesfully set up ports */
-	for (i = 0; i < EHEA_MAX_PORTS; i++)
-		if (adapter->port[i])
-			port_setup_ok++;
-
-	if (port_setup_ok)
-		return 0;	/* At least some ports are setup correctly */
-
-	return -EINVAL;
+	return 0;
 }
 
 static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter,
@@ -2667,6 +2689,11 @@ static ssize_t ehea_probe_port(struct device *dev,
 		return -EINVAL;
 	}
 
+	if (ehea_add_adapter_mr(adapter)) {
+		ehea_error("creating MR failed");
+		return -EIO;
+	}
+
 	port = ehea_setup_single_port(adapter, logical_port_id, eth_dn);
 
 	of_node_put(eth_dn);
@@ -2680,8 +2707,10 @@ static ssize_t ehea_probe_port(struct device *dev,
 
 		ehea_info("added %s (logical port id=%d)", port->netdev->name,
 			  logical_port_id);
-	} else
+	} else {
+		ehea_remove_adapter_mr(adapter);
 		return -EIO;
+	}
 
 	return (ssize_t) count;
 }
@@ -2715,6 +2744,8 @@ static ssize_t ehea_remove_port(struct device *dev,
 			   "not configured.", logical_port_id);
 		return -EINVAL;
 	}
+
+	ehea_remove_adapter_mr(adapter);
 
 	return (ssize_t) count;
 }
@@ -2776,18 +2807,13 @@ static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
 
 	dev->ofdev.dev.driver_data = adapter;
 
-	ret = ehea_reg_kernel_mr(adapter, &adapter->mr);
-	if (ret) {
-		dev_err(&dev->ofdev.dev, "reg_mr_adapter failed\n");
-		goto out_free_ad;
-	}
 
 	/* initialize adapter and ports */
 	/* get adapter properties */
 	ret = ehea_sense_adapter_attr(adapter);
 	if (ret) {
 		dev_err(&dev->ofdev.dev, "sense_adapter_attr failed: %d", ret);
-		goto out_free_res;
+		goto out_free_ad;
 	}
 
 	adapter->neq = ehea_create_eq(adapter,
@@ -2795,7 +2821,7 @@ static int __devinit ehea_probe_adapter(struct ibmebus_dev *dev,
 	if (!adapter->neq) {
 		ret = -EIO;
 		dev_err(&dev->ofdev.dev, "NEQ creation failed");
-		goto out_free_res;
+		goto out_free_ad;
 	}
 
 	tasklet_init(&adapter->neq_tasklet, ehea_neq_tasklet,
@@ -2840,9 +2866,6 @@ out_free_irq:
 out_kill_eq:
 	ehea_destroy_eq(adapter->neq);
 
-out_free_res:
-	ehea_rem_mr(&adapter->mr);
-
 out_free_ad:
 	kfree(adapter);
 out:
@@ -2868,7 +2891,7 @@ static int __devexit ehea_remove(struct ibmebus_dev *dev)
 	tasklet_kill(&adapter->neq_tasklet);
 
 	ehea_destroy_eq(adapter->neq);
-	ehea_rem_mr(&adapter->mr);
+	ehea_remove_adapter_mr(adapter);
 	kfree(adapter);
 	return 0;
 }
