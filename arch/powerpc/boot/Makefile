@@ -43,7 +43,7 @@ $(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) \
 src-wlib := string.S crt0.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
 		ns16550.c serial.c simple_alloc.c div64.S util.S \
 		gunzip_util.c elf_util.c $(zlib) devtree.c
-src-plat := of.c cuboot-83xx.c
+src-plat := of.c cuboot-83xx.c cuboot-85xx.c
 src-boot := $(src-wlib) $(src-plat) empty.c
 
 src-boot := $(addprefix $(obj)/, $(src-boot))
@@ -163,6 +163,7 @@ $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call if_changed,wrap,uboot)
 
 cuboot-plat-$(CONFIG_83xx) += 83xx
+cuboot-plat-$(CONFIG_85xx) += 85xx
 cuboot-plat-y += unknown-platform
 
 dts = $(if $(shell echo $(CONFIG_) | grep '^/'),\

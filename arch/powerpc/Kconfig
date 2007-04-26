@@ -169,6 +169,7 @@ config PPC_85xx
 	select E500
 	select FSL_SOC
 	select 85xx
+	select WANT_DEVICE_TREE
 
 config PPC_86xx
 	bool "Freescale 86xx"
