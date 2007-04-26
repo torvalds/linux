@@ -131,12 +131,9 @@ struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto drop;
 
-	if (unlikely(is_link_local(dest))) {
-		skb->pkt_type = PACKET_HOST;
-
+	if (unlikely(is_link_local(dest)))
 		return (NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,
 				NULL, br_handle_local_finish) == 0) ? skb : NULL;
-	}
 
 	switch (p->state) {
 	case BR_STATE_FORWARDING:
