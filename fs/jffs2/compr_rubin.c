@@ -21,16 +21,6 @@
 #define LOWER_BITS_RUBIN   ((((long) 1)<<(RUBIN_REG_SIZE-1))-1)
 
 
-struct rubin_state {
-	unsigned long p;
-	unsigned long q;
-	unsigned long rec_q;
-	long bit_number;
-	struct pushpull pp;
-	int bit_divider;
-	int bits[8];
-};
-
 #define BIT_DIVIDER_MIPS 1043
 static int bits_mips[8] = { 277,249,290,267,229,341,212,241}; /* mips32 */
 
@@ -43,6 +33,15 @@ struct pushpull {
 	unsigned int reserve;
 };
 
+struct rubin_state {
+	unsigned long p;
+	unsigned long q;
+	unsigned long rec_q;
+	long bit_number;
+	struct pushpull pp;
+	int bit_divider;
+	int bits[8];
+};
 
 static inline void init_pushpull(struct pushpull *pp, char *buf, unsigned buflen, unsigned ofs, unsigned reserve)
 {
