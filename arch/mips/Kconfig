@@ -500,7 +500,7 @@ config DDB5477
 	  ether port USB, AC97, PCI, etc.
 
 config MACH_VR41XX
-	bool "NEC VR41XX-based machines"
+	bool "NEC VR4100 series based machines"
 	select SYS_HAS_CPU_VR41XX
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
