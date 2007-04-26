@@ -212,7 +212,7 @@ static int afs_test_super(struct super_block *sb, void *data)
 /*
  * fill in the superblock
  */
-static int afs_fill_super(struct super_block *sb, void *data, int silent)
+static int afs_fill_super(struct super_block *sb, void *data)
 {
 	struct afs_mount_params *params = data;
 	struct afs_super_info *as = NULL;
@@ -319,17 +319,23 @@ static int afs_get_sb(struct file_system_type *fs_type,
 		goto error;
 	}
 
-	sb->s_flags = flags;
-
-	ret = afs_fill_super(sb, &params, flags & MS_SILENT ? 1 : 0);
-	if (ret < 0) {
-		up_write(&sb->s_umount);
-		deactivate_super(sb);
-		goto error;
+	if (!sb->s_root) {
+		/* initial superblock/root creation */
+		_debug("create");
+		sb->s_flags = flags;
+		ret = afs_fill_super(sb, &params);
+		if (ret < 0) {
+			up_write(&sb->s_umount);
+			deactivate_super(sb);
+			goto error;
+		}
+		sb->s_flags |= MS_ACTIVE;
+	} else {
+		_debug("reuse");
+		ASSERTCMP(sb->s_flags, &, MS_ACTIVE);
 	}
-	sb->s_flags |= MS_ACTIVE;
-	simple_set_mnt(mnt, sb);
 
+	simple_set_mnt(mnt, sb);
 	afs_put_volume(params.volume);
 	afs_put_cell(params.default_cell);
 	_leave(" = 0 [%p]", sb);
