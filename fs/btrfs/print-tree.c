@@ -11,6 +11,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 	struct btrfs_root_item *ri;
 	struct btrfs_dir_item *di;
 	struct btrfs_inode_item *ii;
+	struct btrfs_block_group_item *bi;
 	u32 type;
 
 	printk("leaf %Lu total ptrs %d free space %d\n",
@@ -52,6 +53,12 @@ void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 			ei = btrfs_item_ptr(l, i, struct btrfs_extent_item);
 			printk("\t\textent data refs %u\n",
 				btrfs_extent_refs(ei));
+			break;
+		case BTRFS_BLOCK_GROUP_ITEM_KEY:
+			bi = btrfs_item_ptr(l, i,
+					    struct btrfs_block_group_item);
+			printk("\t\tblock group used %Lu\n",
+			       btrfs_block_group_used(bi));
 			break;
 		case BTRFS_STRING_ITEM_KEY:
 			printk("\t\titem data %.*s\n", btrfs_item_size(item),

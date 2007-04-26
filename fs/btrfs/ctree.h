@@ -239,6 +239,19 @@ struct btrfs_device_item {
 	__le64 device_id;
 } __attribute__ ((__packed__));
 
+/* tag for the radix tree of block groups in ram */
+#define BTRFS_BLOCK_GROUP_DIRTY 0
+#define BTRFS_BLOCK_GROUP_HINTS 8
+#define BTRFS_BLOCK_GROUP_SIZE (256 * 1024 * 1024)
+struct btrfs_block_group_item {
+	__le64 used;
+} __attribute__ ((__packed__));
+
+struct btrfs_block_group_cache {
+	struct btrfs_key key;
+	struct btrfs_block_group_item item;
+};
+
 struct crypto_hash;
 struct btrfs_fs_info {
 	struct btrfs_root *extent_root;
@@ -249,6 +262,7 @@ struct btrfs_fs_info {
 	struct radix_tree_root pending_del_radix;
 	struct radix_tree_root pinned_radix;
 	struct radix_tree_root dev_radix;
+	struct radix_tree_root block_group_radix;
 
 	u64 extent_tree_insert[BTRFS_MAX_LEVEL * 3];
 	int extent_tree_insert_nr;
@@ -301,49 +315,67 @@ struct btrfs_root {
  * info about object characteristics.  There is one for every file and dir in
  * the FS
  */
-#define BTRFS_INODE_ITEM_KEY	1
+#define BTRFS_INODE_ITEM_KEY		1
+
+/* reserve 2-15 close to the inode for later flexibility */
 
 /*
  * dir items are the name -> inode pointers in a directory.  There is one
  * for every name in a directory.
  */
-#define BTRFS_DIR_ITEM_KEY	2
-#define BTRFS_DIR_INDEX_KEY	3
+#define BTRFS_DIR_ITEM_KEY	16
+#define BTRFS_DIR_INDEX_KEY	17
 /*
- * inline data is file data that fits in the btree.
+ * extent data is for file data
  */
-#define BTRFS_INLINE_DATA_KEY	4
-/*
- * extent data is for data that can't fit in the btree.  It points to
- * a (hopefully) huge chunk of disk
- */
-#define BTRFS_EXTENT_DATA_KEY	5
+#define BTRFS_EXTENT_DATA_KEY	18
 /*
  * csum items have the checksums for data in the extents
  */
-#define BTRFS_CSUM_ITEM_KEY	6
+#define BTRFS_CSUM_ITEM_KEY	19
+
+/* reserve 20-31 for other file stuff */
 
 /*
  * root items point to tree roots.  There are typically in the root
  * tree used by the super block to find all the other trees
  */
-#define BTRFS_ROOT_ITEM_KEY	7
+#define BTRFS_ROOT_ITEM_KEY	32
 /*
  * extent items are in the extent map tree.  These record which blocks
  * are used, and how many references there are to each block
  */
-#define BTRFS_EXTENT_ITEM_KEY	8
+#define BTRFS_EXTENT_ITEM_KEY	33
+
+/*
+ * block groups give us hints into the extent allocation trees.  Which
+ * blocks are free etc etc
+ */
+#define BTRFS_BLOCK_GROUP_ITEM_KEY 34
 
 /*
  * dev items list the devices that make up the FS
  */
-#define BTRFS_DEV_ITEM_KEY	9
+#define BTRFS_DEV_ITEM_KEY	35
 
 /*
  * string items are for debugging.  They just store a short string of
  * data in the FS
  */
-#define BTRFS_STRING_ITEM_KEY	10
+#define BTRFS_STRING_ITEM_KEY	253
+
+
+static inline u64 btrfs_block_group_used(struct btrfs_block_group_item *bi)
+{
+	return le64_to_cpu(bi->used);
+}
+
+static inline void btrfs_set_block_group_used(struct
+						   btrfs_block_group_item *bi,
+						   u64 val)
+{
+	bi->used = cpu_to_le64(val);
+}
 
 static inline u64 btrfs_inode_generation(struct btrfs_inode_item *i)
 {
@@ -1037,6 +1069,10 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				u64 blocknr, u64 num_blocks);
+int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
+				    struct btrfs_root *root);
+int btrfs_free_block_groups(struct btrfs_fs_info *info);
+int btrfs_read_block_groups(struct btrfs_root *root);
 /* ctree.c */
 int btrfs_extend_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, u32 data_size);

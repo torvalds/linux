@@ -125,6 +125,7 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 		btrfs_set_super_device_root(fs_info->disk_super,
 					    bh_blocknr(dev_root->node));
 	}
+	btrfs_write_dirty_block_groups(trans, extent_root);
 	while(1) {
 		old_extent_block = btrfs_root_blocknr(&extent_root->root_item);
 		if (old_extent_block == bh_blocknr(extent_root->node))
@@ -135,6 +136,7 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 					&extent_root->root_key,
 					&extent_root->root_item);
 		BUG_ON(ret);
+		btrfs_write_dirty_block_groups(trans, extent_root);
 	}
 	return 0;
 }
