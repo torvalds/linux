@@ -78,8 +78,10 @@ struct sci_port {
 	struct timer_list	break_timer;
 	int			break_flag;
 
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
 	/* Port clock */
 	struct clk		*clk;
+#endif
 };
 
 #ifdef CONFIG_SH_KGDB
@@ -958,7 +960,9 @@ static int sci_startup(struct uart_port *port)
 	if (s->enable)
 		s->enable(port);
 
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
 	s->clk = clk_get(NULL, "module_clk");
+#endif
 
 	sci_request_irq(s);
 	sci_start_tx(port);
@@ -978,8 +982,10 @@ static void sci_shutdown(struct uart_port *port)
 	if (s->disable)
 		s->disable(port);
 
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
 	clk_put(s->clk);
 	s->clk = NULL;
+#endif
 }
 
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
@@ -1230,6 +1236,11 @@ static int __init serial_console_setup(struct console *co, char *options)
 		return -ENODEV;
 
 	port->type = serial_console_port->type;
+
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+	if (!serial_console_port->clk)
+		serial_console_port->clk = clk_get(NULL, "module_clk");
+#endif
 
 	if (port->flags & UPF_IOREMAP)
 		sci_config_port(port, 0);
