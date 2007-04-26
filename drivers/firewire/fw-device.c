@@ -157,14 +157,14 @@ struct bus_type fw_bus_type = {
 };
 EXPORT_SYMBOL(fw_bus_type);
 
-extern struct fw_device *fw_device_get(struct fw_device *device)
+struct fw_device *fw_device_get(struct fw_device *device)
 {
 	get_device(&device->device);
 
 	return device;
 }
 
-extern void fw_device_put(struct fw_device *device)
+void fw_device_put(struct fw_device *device)
 {
 	put_device(&device->device);
 }
