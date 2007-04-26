@@ -1831,7 +1831,7 @@ try_host_fw:
 	if (!dn)
 		goto out_err;
 
-	fw_prop = of_get_property(dn, "firmware", &fw_size);
+	fw_prop = get_property(dn, "firmware", &fw_size);
 	if (!fw_prop)
 		goto out_err;
 
@@ -2237,7 +2237,7 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	if (!dn)
 		return -EIO;
 
-	mac = of_get_property(dn, "local-mac-address", NULL);
+	mac = get_property(dn, "local-mac-address", NULL);
 	if (!mac)
 		return -EIO;
 	memcpy(addr.sa_data, mac, ETH_ALEN);

@@ -422,7 +422,7 @@ static int __devinit radeon_read_xtal_OF (struct radeonfb_info *rinfo)
 
 	if (dp == NULL)
 		return -ENODEV;
-	val = of_get_property(dp, "ATY,RefCLK", NULL);
+	val = get_property(dp, "ATY,RefCLK", NULL);
 	if (!val || !*val) {
 		printk(KERN_WARNING "radeonfb: No ATY,RefCLK property !\n");
 		return -EINVAL;
@@ -430,11 +430,11 @@ static int __devinit radeon_read_xtal_OF (struct radeonfb_info *rinfo)
 
 	rinfo->pll.ref_clk = (*val) / 10;
 
-	val = of_get_property(dp, "ATY,SCLK", NULL);
+	val = get_property(dp, "ATY,SCLK", NULL);
 	if (val && *val)
 		rinfo->pll.sclk = (*val) / 10;
 
-	val = of_get_property(dp, "ATY,MCLK", NULL);
+	val = get_property(dp, "ATY,MCLK", NULL);
 	if (val && *val)
 		rinfo->pll.mclk = (*val) / 10;
 

@@ -903,16 +903,16 @@ static int get_system_info(void)
 	if (!rootdn)
 		return -ENOENT;
 
-	model = of_get_property(rootdn, "model", NULL);
-	id = of_get_property(rootdn, "system-id", NULL);
+	model = get_property(rootdn, "model", NULL);
+	id = get_property(rootdn, "system-id", NULL);
 	if (model && id)
 		snprintf(system_id, sizeof(system_id), "%s-%s", model, id);
 
-	name = of_get_property(rootdn, "ibm,partition-name", NULL);
+	name = get_property(rootdn, "ibm,partition-name", NULL);
 	if (name)
 		strncpy(partition_name, name, sizeof(partition_name));
 
-	num = of_get_property(rootdn, "ibm,partition-no", NULL);
+	num = get_property(rootdn, "ibm,partition-no", NULL);
 	if (num)
 		partition_number = *num;
 

@@ -144,7 +144,7 @@ int ams_sensor_attach(void)
 	const u32 *prop;
 
 	/* Get orientation */
-	prop = of_get_property(ams_info.of_node, "orientation", NULL);
+	prop = get_property(ams_info.of_node, "orientation", NULL);
 	if (!prop)
 		return -ENODEV;
 	ams_info.orient1 = *prop;

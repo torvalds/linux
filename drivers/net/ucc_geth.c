@@ -4080,16 +4080,16 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 
-	prop = of_get_property(np, "device-id", NULL);
+	prop = get_property(np, "device-id", NULL);
 	ucc_num = *prop - 1;
 	if ((ucc_num < 0) || (ucc_num > 7))
 		return -ENODEV;
 
 	ug_info = &ugeth_info[ucc_num];
 	ug_info->uf_info.ucc_num = ucc_num;
-	prop = of_get_property(np, "rx-clock", NULL);
+	prop = get_property(np, "rx-clock", NULL);
 	ug_info->uf_info.rx_clock = *prop;
-	prop = of_get_property(np, "tx-clock", NULL);
+	prop = get_property(np, "tx-clock", NULL);
 	ug_info->uf_info.tx_clock = *prop;
 	err = of_address_to_resource(np, 0, &res);
 	if (err)
@@ -4098,15 +4098,15 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ug_info->uf_info.regs = res.start;
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
-	ph = of_get_property(np, "phy-handle", NULL);
+	ph = get_property(np, "phy-handle", NULL);
 	phy = of_find_node_by_phandle(*ph);
 
 	if (phy == NULL)
 		return -ENODEV;
 
-	prop = of_get_property(phy, "reg", NULL);
+	prop = get_property(phy, "reg", NULL);
 	ug_info->phy_address = *prop;
-	prop = of_get_property(phy, "interface", NULL);
+	prop = get_property(phy, "interface", NULL);
 	ug_info->enet_interface = *prop;
 	ug_info->phy_interrupt = irq_of_parse_and_map(phy, 0);
 	ug_info->board_flags = (ug_info->phy_interrupt == NO_IRQ)?
@@ -4127,7 +4127,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	/* timing.						*/
 	/* The following compensates by writing to the reserved */
 	/* QE Port Output Hold Registers (CPOH1?).              */
-	prop = of_get_property(phy, "interface", NULL);
+	prop = get_property(phy, "interface", NULL);
 	phy_interface = *prop;
 	if ((phy_interface == ENET_1000_RGMII) ||
 			(phy_interface == ENET_100_RGMII) ||
@@ -4140,7 +4140,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		soc = of_find_node_by_type(NULL, "soc");
 		if (soc) {
 			unsigned int size;
-			const void *prop = of_get_property(soc, "reg", &size);
+			const void *prop = get_property(soc, "reg", &size);
 			immrbase = of_translate_address(soc, prop);
 			of_node_put(soc);
 		};

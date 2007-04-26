@@ -395,7 +395,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 #endif
 			MAX_NODE_NAME_SIZE, np->name);
 	} else {
-		reg = of_get_property(np, "reg", NULL);
+		reg = get_property(np, "reg", NULL);
 		sprintf(dev->ofdev.dev.bus_id, "%1d.%08x:%.*s",
 			chip->lbus.index,
 			reg ? *reg : 0, MAX_NODE_NAME_SIZE, np->name);

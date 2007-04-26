@@ -425,27 +425,27 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	const u32 *pp, *addrp, *up;
 	u64 asize;
 
-	pp = of_get_property(dp, "linux,bootx-depth", &len);
+	pp = get_property(dp, "linux,bootx-depth", &len);
 	if (pp == NULL)
-		pp = of_get_property(dp, "depth", &len);
+		pp = get_property(dp, "depth", &len);
 	if (pp && len == sizeof(u32))
 		depth = *pp;
 
-	pp = of_get_property(dp, "linux,bootx-width", &len);
+	pp = get_property(dp, "linux,bootx-width", &len);
 	if (pp == NULL)
-		pp = of_get_property(dp, "width", &len);
+		pp = get_property(dp, "width", &len);
 	if (pp && len == sizeof(u32))
 		width = *pp;
 
-	pp = of_get_property(dp, "linux,bootx-height", &len);
+	pp = get_property(dp, "linux,bootx-height", &len);
 	if (pp == NULL)
-		pp = of_get_property(dp, "height", &len);
+		pp = get_property(dp, "height", &len);
 	if (pp && len == sizeof(u32))
 		height = *pp;
 
-	pp = of_get_property(dp, "linux,bootx-linebytes", &len);
+	pp = get_property(dp, "linux,bootx-linebytes", &len);
 	if (pp == NULL)
-		pp = of_get_property(dp, "linebytes", &len);
+		pp = get_property(dp, "linebytes", &len);
 	if (pp && len == sizeof(u32) && (*pp != 0xffffffffu))
 		pitch = *pp;
 	else
@@ -463,9 +463,9 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	 * ranges and pick one that is both big enough and if possible encloses
 	 * the "address" property. If none match, we pick the biggest
 	 */
-	up = of_get_property(dp, "linux,bootx-addr", &len);
+	up = get_property(dp, "linux,bootx-addr", &len);
 	if (up == NULL)
-		up = of_get_property(dp, "address", &len);
+		up = get_property(dp, "address", &len);
 	if (up && len == sizeof(u32))
 		addr_prop = *up;
 
@@ -521,7 +521,7 @@ static int __init offb_init(void)
 		return -ENODEV;
 
 	/* Check if we have a MacOS display without a node spec */
-	if (of_get_property(of_chosen, "linux,bootx-noscreen", NULL) != NULL) {
+	if (get_property(of_chosen, "linux,bootx-noscreen", NULL) != NULL) {
 		/* The old code tried to work out which node was the MacOS
 		 * display based on the address. I'm dropping that since the
 		 * lack of a node spec only happens with old BootX versions
@@ -532,14 +532,14 @@ static int __init offb_init(void)
 	}
 
 	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
-		if (of_get_property(dp, "linux,opened", NULL) &&
-		    of_get_property(dp, "linux,boot-display", NULL)) {
+		if (get_property(dp, "linux,opened", NULL) &&
+		    get_property(dp, "linux,boot-display", NULL)) {
 			boot_disp = dp;
 			offb_init_nodriver(dp, 0);
 		}
 	}
 	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
-		if (of_get_property(dp, "linux,opened", NULL) &&
+		if (get_property(dp, "linux,opened", NULL) &&
 		    dp != boot_disp)
 			offb_init_nodriver(dp, 0);
 	}
