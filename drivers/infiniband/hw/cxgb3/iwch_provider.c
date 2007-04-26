@@ -780,6 +780,9 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 	if (rqsize > T3_MAX_RQ_SIZE)
 		return ERR_PTR(-EINVAL);
 
+	if (attrs->cap.max_inline_data > T3_MAX_INLINE)
+		return ERR_PTR(-EINVAL);
+
 	/*
 	 * NOTE: The SQ and total WQ sizes don't need to be
 	 * a power of two.  However, all the code assumes
