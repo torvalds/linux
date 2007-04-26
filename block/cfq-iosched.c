@@ -222,7 +222,7 @@ CFQ_CFQQ_FNS(slice_new);
 
 static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsigned short);
 static void cfq_dispatch_insert(request_queue_t *, struct request *);
-static struct cfq_queue *cfq_get_queue(struct cfq_data *cfqd, unsigned int key, struct task_struct *tsk, gfp_t gfp_mask);
+static struct cfq_queue *cfq_get_queue(struct cfq_data *, unsigned int, struct task_struct *, gfp_t);
 
 /*
  * scheduler run of queue, if there are requests pending and no one in the
@@ -389,6 +389,9 @@ cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2)
 	}
 }
 
+/*
+ * The below is leftmost cache rbtree addon
+ */
 static struct rb_node *cfq_rb_first(struct cfq_rb_root *root)
 {
 	if (!root->left)
@@ -442,13 +445,18 @@ static unsigned long cfq_slice_offset(struct cfq_data *cfqd,
 	return ((cfqd->busy_queues - 1) * cfq_prio_slice(cfqd, 1, 0));
 }
 
+/*
+ * The cfqd->service_tree holds all pending cfq_queue's that have
+ * requests waiting to be processed. It is sorted in the order that
+ * we will service the queues.
+ */
 static void cfq_service_tree_add(struct cfq_data *cfqd,
 				    struct cfq_queue *cfqq)
 {
 	struct rb_node **p = &cfqd->service_tree.rb.rb_node;
 	struct rb_node *parent = NULL;
 	unsigned long rb_key;
-	int left = 1;
+	int left;
 
 	rb_key = cfq_slice_offset(cfqd, cfqq) + jiffies;
 	rb_key += cfqq->slice_resid;
@@ -464,6 +472,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd,
 		cfq_rb_erase(&cfqq->rb_node, &cfqd->service_tree);
 	}
 
+	left = 1;
 	while (*p) {
 		struct cfq_queue *__cfqq;
 		struct rb_node **n;
@@ -503,17 +512,16 @@ static void cfq_service_tree_add(struct cfq_data *cfqd,
 	rb_insert_color(&cfqq->rb_node, &cfqd->service_tree.rb);
 }
 
+/*
+ * Update cfqq's position in the service tree.
+ */
 static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 {
-	struct cfq_data *cfqd = cfqq->cfqd;
-
 	/*
 	 * Resorting requires the cfqq to be on the RR list already.
 	 */
-	if (!cfq_cfqq_on_rr(cfqq))
-		return;
-
-	cfq_service_tree_add(cfqd, cfqq);
+	if (cfq_cfqq_on_rr(cfqq))
+		cfq_service_tree_add(cfqq->cfqd, cfqq);
 }
 
 /*
@@ -530,6 +538,10 @@ cfq_add_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	cfq_resort_rr_list(cfqq, 0);
 }
 
+/*
+ * Called when the cfqq no longer has requests pending, remove it from
+ * the service tree.
+ */
 static inline void
 cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
@@ -654,8 +666,7 @@ static void cfq_remove_request(struct request *rq)
 	}
 }
 
-static int
-cfq_merge(request_queue_t *q, struct request **req, struct bio *bio)
+static int cfq_merge(request_queue_t *q, struct request **req, struct bio *bio)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct request *__rq;
@@ -781,6 +792,10 @@ static inline void cfq_slice_expired(struct cfq_data *cfqd, int preempted,
 		__cfq_slice_expired(cfqd, cfqq, preempted, timed_out);
 }
 
+/*
+ * Get next queue for service. Unless we have a queue preemption,
+ * we'll simply select the first cfqq in the service tree.
+ */
 static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 {
 	struct cfq_queue *cfqq = NULL;
@@ -792,10 +807,11 @@ static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 		cfqq = list_entry_cfqq(cfqd->cur_rr.next);
 	} else if (!RB_EMPTY_ROOT(&cfqd->service_tree.rb)) {
 		struct rb_node *n = cfq_rb_first(&cfqd->service_tree);
-		unsigned long end;
 
 		cfqq = rb_entry(n, struct cfq_queue, rb_node);
 		if (cfq_class_idle(cfqq)) {
+			unsigned long end;
+
 			/*
 			 * if we have idle queues and no rt or be queues had
 			 * pending requests, either allow immediate service if
@@ -813,6 +829,9 @@ static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 	return cfqq;
 }
 
+/*
+ * Get and set a new active queue for service.
+ */
 static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd)
 {
 	struct cfq_queue *cfqq;
@@ -898,6 +917,9 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	mod_timer(&cfqd->idle_slice_timer, jiffies + sl);
 }
 
+/*
+ * Move request from internal lists to the request queue dispatch list.
+ */
 static void cfq_dispatch_insert(request_queue_t *q, struct request *rq)
 {
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
@@ -944,7 +966,8 @@ cfq_prio_to_maxrq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 }
 
 /*
- * get next queue for service
+ * Select a queue for service. If we have a current active queue,
+ * check whether to continue servicing it, or retrieve and set a new one.
  */
 static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 {
@@ -985,6 +1008,10 @@ keep_queue:
 	return cfqq;
 }
 
+/*
+ * Dispatch some requests from cfqq, moving them to the request queue
+ * dispatch list.
+ */
 static int
 __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			int max_dispatch)
@@ -1059,6 +1086,10 @@ static int cfq_forced_dispatch_cfqqs(struct list_head *list)
 	return dispatched;
 }
 
+/*
+ * Drain our current requests. Used for barriers and when switching
+ * io schedulers on-the-fly.
+ */
 static int cfq_forced_dispatch(struct cfq_data *cfqd)
 {
 	int dispatched = 0;
@@ -1224,10 +1255,6 @@ static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 	}
 }
 
-
-/*
- * Called with interrupts disabled
- */
 static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 {
 	struct cfq_data *cfqd = cic->key;
@@ -1241,6 +1268,10 @@ static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 	}
 }
 
+/*
+ * The process that ioc belongs to has exited, we need to clean up
+ * and put the internal structures we have that belongs to that process.
+ */
 static void cfq_exit_io_context(struct io_context *ioc)
 {
 	struct cfq_io_context *__cic;
@@ -1427,6 +1458,9 @@ out:
 	return cfqq;
 }
 
+/*
+ * We drop cfq io contexts lazily, so we may find a dead one.
+ */
 static void
 cfq_drop_dead_cic(struct io_context *ioc, struct cfq_io_context *cic)
 {
