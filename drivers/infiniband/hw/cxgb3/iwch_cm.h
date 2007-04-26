@@ -143,6 +143,11 @@ enum iwch_ep_state {
 	DEAD,
 };
 
+enum iwch_ep_flags {
+	PEER_ABORT_IN_PROGRESS	= (1 << 0),
+	ABORT_REQ_IN_PROGRESS	= (1 << 1),
+};
+
 struct iwch_ep_common {
 	struct iw_cm_id *cm_id;
 	struct iwch_qp *qp;
@@ -181,6 +186,7 @@ struct iwch_ep {
 	u16 plen;
 	u32 ird;
 	u32 ord;
+	u32 flags;
 };
 
 static inline struct iwch_ep *to_ep(struct iw_cm_id *cm_id)
