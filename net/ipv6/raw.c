@@ -513,7 +513,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 			if (csum_skb)
 				continue;
 
-			len = skb->len - (skb->h.raw - skb->data);
+			len = skb->len - skb_transport_offset(skb);
 			if (offset >= len) {
 				offset -= len;
 				continue;
@@ -525,7 +525,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 		skb = csum_skb;
 	}
 
-	offset += skb->h.raw - skb->data;
+	offset += skb_transport_offset(skb);
 	if (skb_copy_bits(skb, offset, &csum, 2))
 		BUG();
 

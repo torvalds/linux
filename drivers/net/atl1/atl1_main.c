@@ -1326,8 +1326,8 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 	u8 css, cso;
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
-		cso = skb->h.raw - skb->data;
-		css = (skb->h.raw + skb->csum_offset) - skb->data;
+		cso = skb_transport_offset(skb);
+		css = cso + skb->csum;
 		if (unlikely(cso & 0x1)) {
 			printk(KERN_DEBUG "%s: payload offset != even number\n",
 				atl1_driver_name);
@@ -1369,8 +1369,8 @@ static void atl1_tx_map(struct atl1_adapter *adapter,
 
 	if (tcp_seg) {
 		/* TSO/GSO */
-		proto_hdr_len =
-		    ((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
+		proto_hdr_len = (skb_transport_offset(skb) +
+				 (skb->h.th->doff << 2));
 		buffer_info->length = proto_hdr_len;
 		page = virt_to_page(skb->data);
 		offset = (unsigned long)skb->data & ~PAGE_MASK;
@@ -1562,7 +1562,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss) {
 		if (skb->protocol == htons(ETH_P_IP)) {
-			proto_hdr_len = ((skb->h.raw - skb->data) +
+			proto_hdr_len = (skb_transport_offset(skb) +
 					 (skb->h.th->doff << 2));
 			if (unlikely(proto_hdr_len > len)) {
 				dev_kfree_skb_any(skb);

@@ -2654,7 +2654,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	td->dma_hi = map >> 32;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		int offset = skb->h.raw - skb->data;
+		const int offset = skb_transport_offset(skb);
 
 		/* This seems backwards, but it is what the sk98lin
 		 * does.  Looks like hardware is wrong?

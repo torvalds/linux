@@ -2821,10 +2821,8 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 
 	ctrl = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		u64 csum_start_off, csum_stuff_off;
-
-		csum_start_off = (u64) (skb->h.raw - skb->data);
-		csum_stuff_off = csum_start_off + skb->csum_offset;
+		const u64 csum_start_off = skb_transport_offset(skb);
+		const u64 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl =  TX_DESC_CSUM_EN |
 			CAS_BASE(TX_DESC_CSUM_START, csum_start_off) |

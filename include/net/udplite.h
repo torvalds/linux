@@ -101,14 +101,14 @@ static inline int udplite_sender_cscov(struct udp_sock *up, struct udphdr *uh)
 
 static inline __wsum udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 {
-	int off, len, cscov = udplite_sender_cscov(udp_sk(sk), skb->h.uh);
+	int cscov = udplite_sender_cscov(udp_sk(sk), skb->h.uh);
 	__wsum csum = 0;
 
 	skb->ip_summed = CHECKSUM_NONE;     /* no HW support for checksumming */
 
 	skb_queue_walk(&sk->sk_write_queue, skb) {
-		off = skb->h.raw - skb->data;
-		len = skb->len - off;
+		const int off = skb_transport_offset(skb);
+		const int len = skb->len - off;
 
 		csum = skb_checksum(skb, off, (cscov > len)? len : cscov, csum);
 

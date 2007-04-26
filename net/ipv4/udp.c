@@ -435,7 +435,7 @@ static void udp4_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 		 * fragments on the socket so that all csums of sk_buffs
 		 * should be together
 		 */
-		offset = skb->h.raw - skb->data;
+		offset = skb_transport_offset(skb);
 		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
 
 		skb->ip_summed = CHECKSUM_NONE;

@@ -1190,7 +1190,7 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 				return err;
 		}
 
-		hdr_len = ((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
+		hdr_len = (skb_transport_offset(skb) + (skb->h.th->doff << 2));
 		mss = skb_shinfo(skb)->gso_size;
 		iph = ip_hdr(skb);
 		iph->tot_len = 0;
@@ -1199,8 +1199,8 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 						      0, IPPROTO_TCP, 0);
 		ipcss = skb_network_offset(skb);
 		ipcso = (void *)&(iph->check) - (void *)skb->data;
-		ipcse = skb->h.raw - skb->data - 1;
-		tucss = skb->h.raw - skb->data;
+		ipcse = skb_transport_offset(skb) - 1;
+		tucss = skb_transport_offset(skb);
 		tucso = (void *)&(skb->h.th->check) - (void *)skb->data;
 		tucse = 0;
 
@@ -1245,7 +1245,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 
 	if(likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		struct ixgb_buffer *buffer_info;
-		css = skb->h.raw - skb->data;
+		css = skb_transport_offset(skb);
 		cso = css + skb->csum_offset;
 
 		i = adapter->tx_ring.next_to_use;

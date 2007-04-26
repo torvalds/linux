@@ -90,8 +90,9 @@ int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 {
 	struct ip6_mh *mh;
 
-	if (!pskb_may_pull(skb, (skb->h.raw - skb->data) + 8) ||
-	    !pskb_may_pull(skb, (skb->h.raw - skb->data) + ((skb->h.raw[1] + 1) << 3)))
+	if (!pskb_may_pull(skb, (skb_transport_offset(skb)) + 8) ||
+	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
+				 ((skb->h.raw[1] + 1) << 3))))
 		return -1;
 
 	mh = (struct ip6_mh *)skb->h.raw;

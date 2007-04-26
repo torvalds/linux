@@ -1028,10 +1028,8 @@ static int gem_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	ctrl = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		u64 csum_start_off, csum_stuff_off;
-
-		csum_start_off = (u64) (skb->h.raw - skb->data);
-		csum_stuff_off = csum_start_off + skb->csum_offset;
+		const u64 csum_start_off = skb_transport_offset(skb);
+		const u64 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl = (TXDCTRL_CENAB |
 			(csum_start_off << 15) |

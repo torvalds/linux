@@ -387,7 +387,7 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 		}
 	}
 	adapter->stats.xmitcsummed++;
-	desc->tcp_hdr_offset = skb->h.raw - skb->data;
+	desc->tcp_hdr_offset = skb_transport_offset(skb);
 	desc->ip_hdr_offset = skb_network_offset(skb);
 }
 

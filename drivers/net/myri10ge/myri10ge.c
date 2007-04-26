@@ -2029,7 +2029,7 @@ again:
 	odd_flag = 0;
 	flags = (MXGEFW_FLAGS_NO_TSO | MXGEFW_FLAGS_FIRST);
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
-		cksum_offset = (skb->h.raw - skb->data);
+		cksum_offset = skb_transport_offset(skb);
 		pseudo_hdr_offset = cksum_offset + skb->csum_offset;
 		/* If the headers are excessively large, then we must
 		 * fall back to a software checksum */
@@ -2054,7 +2054,8 @@ again:
 		 * send loop that we are still in the
 		 * header portion of the TSO packet.
 		 * TSO header must be at most 134 bytes long */
-		cum_len = -((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
+		cum_len = -(skb_transport_offset(skb) +
+			    (skb->h.th->doff << 2));
 
 		/* for TSO, pseudo_hdr_offset holds mss.
 		 * The firmware figures out where to put

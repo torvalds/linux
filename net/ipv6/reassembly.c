@@ -718,7 +718,8 @@ static int ipv6_frag_rcv(struct sk_buff **skbp)
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, skb->h.raw-skb->nh.raw);
 		return -1;
 	}
-	if (!pskb_may_pull(skb, (skb->h.raw-skb->data)+sizeof(struct frag_hdr))) {
+	if (!pskb_may_pull(skb, (skb_transport_offset(skb) +
+				 sizeof(struct frag_hdr)))) {
 		IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, skb->h.raw-skb->nh.raw);
 		return -1;

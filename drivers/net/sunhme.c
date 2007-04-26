@@ -2269,10 +2269,8 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_flags = TXFLAG_OWN;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		u32 csum_start_off, csum_stuff_off;
-
-		csum_start_off = (u32) (skb->h.raw - skb->data);
-		csum_stuff_off = csum_start_off + skb->csum_offset;
+		const u32 csum_start_off = skb_transport_offset(skb);
+		const u32 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		tx_flags = (TXFLAG_OWN | TXFLAG_CSENABLE |
 			    ((csum_start_off << 14) & TXFLAG_CSBUFBEGIN) |

@@ -42,21 +42,18 @@
 static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
-	int hdr_len;
 	struct ipv6hdr *top_iph;
 	struct ipv6_esp_hdr *esph;
 	struct crypto_blkcipher *tfm;
 	struct blkcipher_desc desc;
-	struct esp_data *esp;
 	struct sk_buff *trailer;
 	int blksize;
 	int clen;
 	int alen;
 	int nfrags;
-
-	esp = x->data;
-	hdr_len = skb->h.raw - skb->data +
-		  sizeof(*esph) + esp->conf.ivlen;
+	struct esp_data *esp = x->data;
+	int hdr_len = (skb_transport_offset(skb) +
+		       sizeof(*esph) + esp->conf.ivlen);
 
 	/* Strip IP+ESP header. */
 	__skb_pull(skb, hdr_len);

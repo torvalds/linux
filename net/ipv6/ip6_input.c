@@ -160,7 +160,7 @@ static inline int ip6_input_finish(struct sk_buff *skb)
 	rcu_read_lock();
 resubmit:
 	idev = ip6_dst_idev(skb->dst);
-	if (!pskb_pull(skb, skb->h.raw - skb->data))
+	if (!pskb_pull(skb, skb_transport_offset(skb)))
 		goto discard;
 	nhoff = IP6CB(skb)->nhoff;
 	nexthdr = skb_network_header(skb)[nhoff];

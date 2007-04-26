@@ -27,7 +27,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	int nfrags;
 
 	/* Strip IP+ESP header. */
-	__skb_pull(skb, skb->h.raw - skb->data);
+	__skb_pull(skb, skb_transport_offset(skb));
 	/* Now skb is pure payload to encrypt */
 
 	err = -ENOMEM;

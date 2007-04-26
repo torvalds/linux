@@ -146,7 +146,7 @@ static int ip6_parse_tlv(struct tlvtype_proc *procs, struct sk_buff **skbp)
 	int off = skb->h.raw - skb->nh.raw;
 	int len = ((skb->h.raw[1]+1)<<3);
 
-	if ((skb->h.raw + len) - skb->data > skb_headlen(skb))
+	if (skb_transport_offset(skb) + len > skb_headlen(skb))
 		goto bad;
 
 	off += 2;
@@ -288,8 +288,9 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 #endif
 	struct dst_entry *dst;
 
-	if (!pskb_may_pull(skb, (skb->h.raw-skb->data)+8) ||
-	    !pskb_may_pull(skb, (skb->h.raw-skb->data)+((skb->h.raw[1]+1)<<3))) {
+	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
+	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
+				 ((skb->h.raw[1] + 1) << 3)))) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INHDRERRORS);
 		kfree_skb(skb);
@@ -387,8 +388,9 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 
 	in6_dev_put(idev);
 
-	if (!pskb_may_pull(skb, (skb->h.raw-skb->data)+8) ||
-	    !pskb_may_pull(skb, (skb->h.raw-skb->data)+((skb->h.raw[1]+1)<<3))) {
+	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
+	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
+				 ((skb->h.raw[1] + 1) << 3)))) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INHDRERRORS);
 		kfree_skb(skb);

@@ -1562,7 +1562,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	pTxd->pMBuf     = pMessage;
 
 	if (pMessage->ip_summed == CHECKSUM_PARTIAL) {
-		u16 hdrlen = pMessage->h.raw - pMessage->data;
+		u16 hdrlen = skb_transport_offset(pMessage);
 		u16 offset = hdrlen + pMessage->csum_offset;
 
 		if ((pMessage->h.ipiph->protocol == IPPROTO_UDP ) &&
@@ -1681,7 +1681,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	** Does the HW need to evaluate checksum for TCP or UDP packets? 
 	*/
 	if (pMessage->ip_summed == CHECKSUM_PARTIAL) {
-		u16 hdrlen = pMessage->h.raw - pMessage->data;
+		u16 hdrlen = skb_transport_offset(pMessage);
 		u16 offset = hdrlen + pMessage->csum_offset;
 
 		Control = BMU_STFWD;

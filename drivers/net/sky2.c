@@ -1421,7 +1421,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	/* Handle TCP checksum offload */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		unsigned offset = skb->h.raw - skb->data;
+		const unsigned offset = skb_transport_offset(skb);
 		u32 tcpsum;
 
 		tcpsum = offset << 16;		/* sum start */

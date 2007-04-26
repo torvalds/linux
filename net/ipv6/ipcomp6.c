@@ -124,15 +124,13 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
 	struct ipv6hdr *top_iph;
-	int hdr_len;
 	struct ipv6_comp_hdr *ipch;
 	struct ipcomp_data *ipcd = x->data;
 	int plen, dlen;
 	u8 *start, *scratch;
 	struct crypto_comp *tfm;
 	int cpu;
-
-	hdr_len = skb->h.raw - skb->data;
+	int hdr_len = skb_transport_offset(skb);
 
 	/* check whether datagram len is larger than threshold */
 	if ((skb->len - hdr_len) < ipcd->threshold) {
