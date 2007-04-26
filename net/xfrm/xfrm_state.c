@@ -421,6 +421,16 @@ restart:
 }
 EXPORT_SYMBOL(xfrm_state_flush);
 
+void xfrm_sad_getinfo(struct xfrm_sadinfo *si)
+{
+	spin_lock_bh(&xfrm_state_lock);
+	si->sadcnt = xfrm_state_num;
+	si->sadhcnt = xfrm_state_hmask;
+	si->sadhmcnt = xfrm_state_hashmax;
+	spin_unlock_bh(&xfrm_state_lock);
+}
+EXPORT_SYMBOL(xfrm_sad_getinfo);
+
 static int
 xfrm_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 		  struct xfrm_tmpl *tmpl,
