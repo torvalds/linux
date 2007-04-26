@@ -1335,7 +1335,6 @@ EXPORT_SYMBOL(hpsb_destroy_hostinfo);
 EXPORT_SYMBOL(hpsb_set_hostinfo_key);
 EXPORT_SYMBOL(hpsb_get_hostinfo_bykey);
 EXPORT_SYMBOL(hpsb_set_hostinfo);
-EXPORT_SYMBOL(highlevel_host_reset);
 
 /** nodemgr.c **/
 EXPORT_SYMBOL(hpsb_node_fill_packet);
