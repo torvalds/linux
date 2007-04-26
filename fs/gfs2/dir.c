@@ -1319,9 +1319,11 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 			if (IS_ERR(dent))
 				goto out_kfree;
 			if (entries2 != g.offset) {
-				fs_warn(sdp, "Number of entries corrupt in dir leaf %llu, "
-				        "entries2 (%u) != g.offset (%u)\n",
-					(u64)bh->b_blocknr, entries2, g.offset);
+				fs_warn(sdp, "Number of entries corrupt in dir "
+						"leaf %llu, entries2 (%u) != "
+						"g.offset (%u)\n",
+					(unsigned long long)bh->b_blocknr,
+					entries2, g.offset);
 					
 				error = -EIO;
 				goto out_kfree;
@@ -1454,7 +1456,8 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 		if (dip->i_di.di_entries != g.offset) {
 			fs_warn(sdp, "Number of entries corrupt in dir %llu, "
 				"ip->i_di.di_entries (%u) != g.offset (%u)\n",
-				dip->i_num.no_addr, dip->i_di.di_entries,
+				(unsigned long long)dip->i_num.no_addr,
+				dip->i_di.di_entries,
 				g.offset);
 			error = -EIO;
 			goto out;
