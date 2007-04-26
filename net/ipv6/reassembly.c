@@ -430,8 +430,8 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		goto err;
 
 	offset = ntohs(fhdr->frag_off) & ~0x7;
-	end = offset + (ntohs(skb->nh.ipv6h->payload_len) -
-			((u8 *) (fhdr + 1) - (u8 *) (skb->nh.ipv6h + 1)));
+	end = offset + (ntohs(ipv6_hdr(skb)->payload_len) -
+			((u8 *)(fhdr + 1) - (u8 *)(ipv6_hdr(skb) + 1)));
 
 	if ((unsigned int)end > IPV6_MAXPLEN) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
@@ -671,7 +671,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	head->next = NULL;
 	head->dev = dev;
 	head->tstamp = fq->stamp;
-	head->nh.ipv6h->payload_len = htons(payload_len);
+	ipv6_hdr(head)->payload_len = htons(payload_len);
 	IP6CB(head)->nhoff = nhoff;
 
 	*skb_in = head;
@@ -708,9 +708,7 @@ static int ipv6_frag_rcv(struct sk_buff **skbp)
 	struct net_device *dev = skb->dev;
 	struct frag_hdr *fhdr;
 	struct frag_queue *fq;
-	struct ipv6hdr *hdr;
-
-	hdr = skb->nh.ipv6h;
+	struct ipv6hdr *hdr = ipv6_hdr(skb);
 
 	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_REASMREQDS);
 
@@ -726,7 +724,7 @@ static int ipv6_frag_rcv(struct sk_buff **skbp)
 		return -1;
 	}
 
-	hdr = skb->nh.ipv6h;
+	hdr = ipv6_hdr(skb);
 	fhdr = (struct frag_hdr *)skb->h.raw;
 
 	if (!(fhdr->frag_off & htons(0xFFF9))) {

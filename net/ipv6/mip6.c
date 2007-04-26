@@ -129,7 +129,7 @@ static struct mip6_report_rate_limiter mip6_report_rl = {
 
 static int mip6_destopt_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct ipv6hdr *iph = skb->nh.ipv6h;
+	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct ipv6_destopt_hdr *destopt = (struct ipv6_destopt_hdr *)skb->data;
 
 	if (!ipv6_addr_equal(&iph->saddr, (struct in6_addr *)x->coaddr) &&
@@ -223,16 +223,16 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct
 
 	skb_get_timestamp(skb, &stamp);
 
-	if (!mip6_report_rl_allow(&stamp, &skb->nh.ipv6h->daddr,
-				  hao ? &hao->addr : &skb->nh.ipv6h->saddr,
+	if (!mip6_report_rl_allow(&stamp, &ipv6_hdr(skb)->daddr,
+				  hao ? &hao->addr : &ipv6_hdr(skb)->saddr,
 				  opt->iif))
 		goto out;
 
 	memset(&sel, 0, sizeof(sel));
-	memcpy(&sel.daddr, (xfrm_address_t *)&skb->nh.ipv6h->daddr,
+	memcpy(&sel.daddr, (xfrm_address_t *)&ipv6_hdr(skb)->daddr,
 	       sizeof(sel.daddr));
 	sel.prefixlen_d = 128;
-	memcpy(&sel.saddr, (xfrm_address_t *)&skb->nh.ipv6h->saddr,
+	memcpy(&sel.saddr, (xfrm_address_t *)&ipv6_hdr(skb)->saddr,
 	       sizeof(sel.saddr));
 	sel.prefixlen_s = 128;
 	sel.family = AF_INET6;
@@ -256,12 +256,13 @@ static int mip6_destopt_offset(struct xfrm_state *x, struct sk_buff *skb,
 			       u8 **nexthdr)
 {
 	u16 offset = sizeof(struct ipv6hdr);
-	struct ipv6_opt_hdr *exthdr = (struct ipv6_opt_hdr*)(skb->nh.ipv6h + 1);
+	struct ipv6_opt_hdr *exthdr =
+				   (struct ipv6_opt_hdr *)(ipv6_hdr(skb) + 1);
 	const unsigned char *nh = skb_network_header(skb);
 	unsigned int packet_len = skb->tail - nh;
 	int found_rhdr = 0;
 
-	*nexthdr = &skb->nh.ipv6h->nexthdr;
+	*nexthdr = &ipv6_hdr(skb)->nexthdr;
 
 	while (offset + 1 <= packet_len) {
 
@@ -387,12 +388,13 @@ static int mip6_rthdr_offset(struct xfrm_state *x, struct sk_buff *skb,
 			     u8 **nexthdr)
 {
 	u16 offset = sizeof(struct ipv6hdr);
-	struct ipv6_opt_hdr *exthdr = (struct ipv6_opt_hdr*)(skb->nh.ipv6h + 1);
+	struct ipv6_opt_hdr *exthdr =
+				   (struct ipv6_opt_hdr *)(ipv6_hdr(skb) + 1);
 	const unsigned char *nh = skb_network_header(skb);
 	unsigned int packet_len = skb->tail - nh;
 	int found_rhdr = 0;
 
-	*nexthdr = &skb->nh.ipv6h->nexthdr;
+	*nexthdr = &ipv6_hdr(skb)->nexthdr;
 
 	while (offset + 1 <= packet_len) {
 

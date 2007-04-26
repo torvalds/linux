@@ -254,7 +254,7 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info)
 
 	skb_put(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
-	iph = skb->nh.ipv6h;
+	iph = ipv6_hdr(skb);
 	ipv6_addr_copy(&iph->daddr, &fl->fl6_dst);
 
 	serr = SKB_EXT_ERR(skb);
@@ -340,7 +340,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 		sin->sin6_flowinfo = 0;
 		sin->sin6_scope_id = 0;
 		if (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6) {
-			ipv6_addr_copy(&sin->sin6_addr, &skb->nh.ipv6h->saddr);
+			ipv6_addr_copy(&sin->sin6_addr, &ipv6_hdr(skb)->saddr);
 			if (np->rxopt.all)
 				datagram_recv_ctl(sk, msg, skb);
 			if (ipv6_addr_type(&sin->sin6_addr) & IPV6_ADDR_LINKLOCAL)
@@ -391,17 +391,17 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 		struct in6_pktinfo src_info;
 
 		src_info.ipi6_ifindex = opt->iif;
-		ipv6_addr_copy(&src_info.ipi6_addr, &skb->nh.ipv6h->daddr);
+		ipv6_addr_copy(&src_info.ipi6_addr, &ipv6_hdr(skb)->daddr);
 		put_cmsg(msg, SOL_IPV6, IPV6_PKTINFO, sizeof(src_info), &src_info);
 	}
 
 	if (np->rxopt.bits.rxhlim) {
-		int hlim = skb->nh.ipv6h->hop_limit;
+		int hlim = ipv6_hdr(skb)->hop_limit;
 		put_cmsg(msg, SOL_IPV6, IPV6_HOPLIMIT, sizeof(hlim), &hlim);
 	}
 
 	if (np->rxopt.bits.rxtclass) {
-		int tclass = (ntohl(*(__be32 *)skb->nh.ipv6h) >> 20) & 0xff;
+		int tclass = (ntohl(*(__be32 *)ipv6_hdr(skb)) >> 20) & 0xff;
 		put_cmsg(msg, SOL_IPV6, IPV6_TCLASS, sizeof(tclass), &tclass);
 	}
 
@@ -428,7 +428,7 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 		 * IPV6_RECVDSTOPTS is more generic. --yoshfuji
 		 */
 		unsigned int off = sizeof(struct ipv6hdr);
-		u8 nexthdr = skb->nh.ipv6h->nexthdr;
+		u8 nexthdr = ipv6_hdr(skb)->nexthdr;
 
 		while (off <= opt->lastopt) {
 			unsigned len;
@@ -466,11 +466,11 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 		struct in6_pktinfo src_info;
 
 		src_info.ipi6_ifindex = opt->iif;
-		ipv6_addr_copy(&src_info.ipi6_addr, &skb->nh.ipv6h->daddr);
+		ipv6_addr_copy(&src_info.ipi6_addr, &ipv6_hdr(skb)->daddr);
 		put_cmsg(msg, SOL_IPV6, IPV6_2292PKTINFO, sizeof(src_info), &src_info);
 	}
 	if (np->rxopt.bits.rxohlim) {
-		int hlim = skb->nh.ipv6h->hop_limit;
+		int hlim = ipv6_hdr(skb)->hop_limit;
 		put_cmsg(msg, SOL_IPV6, IPV6_2292HOPLIMIT, sizeof(hlim), &hlim);
 	}
 	if (np->rxopt.bits.ohopopts && opt->hop) {

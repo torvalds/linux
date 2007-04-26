@@ -392,10 +392,10 @@ hashlimit_init_dst(struct xt_hashlimit_htable *hinfo, struct dsthash_dst *dst,
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	case AF_INET6:
 		if (hinfo->cfg.mode & XT_HASHLIMIT_HASH_DIP)
-			memcpy(&dst->addr.ip6.dst, &skb->nh.ipv6h->daddr,
+			memcpy(&dst->addr.ip6.dst, &ipv6_hdr(skb)->daddr,
 			       sizeof(dst->addr.ip6.dst));
 		if (hinfo->cfg.mode & XT_HASHLIMIT_HASH_SIP)
-			memcpy(&dst->addr.ip6.src, &skb->nh.ipv6h->saddr,
+			memcpy(&dst->addr.ip6.src, &ipv6_hdr(skb)->saddr,
 			       sizeof(dst->addr.ip6.src));
 
 		if (!(hinfo->cfg.mode &

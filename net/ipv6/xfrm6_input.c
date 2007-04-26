@@ -35,7 +35,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 		goto drop;
 
 	do {
-		struct ipv6hdr *iph = skb->nh.ipv6h;
+		struct ipv6hdr *iph = ipv6_hdr(skb);
 
 		if (xfrm_nr == XFRM_MAX_DEPTH)
 			goto drop;
@@ -112,7 +112,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 		return -1;
 	} else {
 #ifdef CONFIG_NETFILTER
-		skb->nh.ipv6h->payload_len = htons(skb->len);
+		ipv6_hdr(skb)->payload_len = htons(skb->len);
 		__skb_push(skb, skb->data - skb_network_header(skb));
 
 		NF_HOOK(PF_INET6, NF_IP6_PRE_ROUTING, skb, skb->dev, NULL,

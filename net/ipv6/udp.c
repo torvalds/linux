@@ -180,7 +180,8 @@ try_again:
 			ipv6_addr_set(&sin6->sin6_addr, 0, 0,
 				      htonl(0xffff), ip_hdr(skb)->saddr);
 		else {
-			ipv6_addr_copy(&sin6->sin6_addr, &skb->nh.ipv6h->saddr);
+			ipv6_addr_copy(&sin6->sin6_addr,
+				       &ipv6_hdr(skb)->saddr);
 			if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
 				sin6->sin6_scope_id = IP6CB(skb)->iif;
 		}
@@ -392,13 +393,13 @@ static inline int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh,
 		return 1;
 	}
 	if (skb->ip_summed == CHECKSUM_COMPLETE &&
-	    !csum_ipv6_magic(&skb->nh.ipv6h->saddr, &skb->nh.ipv6h->daddr,
+	    !csum_ipv6_magic(&ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			     skb->len, proto, skb->csum))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-		skb->csum = ~csum_unfold(csum_ipv6_magic(&skb->nh.ipv6h->saddr,
-							 &skb->nh.ipv6h->daddr,
+		skb->csum = ~csum_unfold(csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+							 &ipv6_hdr(skb)->daddr,
 							 skb->len, proto, 0));
 
 	return 0;
@@ -417,8 +418,8 @@ int __udp6_lib_rcv(struct sk_buff **pskb, struct hlist_head udptable[],
 	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 		goto short_packet;
 
-	saddr = &skb->nh.ipv6h->saddr;
-	daddr = &skb->nh.ipv6h->daddr;
+	saddr = &ipv6_hdr(skb)->saddr;
+	daddr = &ipv6_hdr(skb)->daddr;
 	uh = skb->h.uh;
 
 	ulen = ntohs(uh->len);
@@ -438,8 +439,8 @@ int __udp6_lib_rcv(struct sk_buff **pskb, struct hlist_head udptable[],
 		if (ulen < skb->len) {
 			if (pskb_trim_rcsum(skb, ulen))
 				goto short_packet;
-			saddr = &skb->nh.ipv6h->saddr;
-			daddr = &skb->nh.ipv6h->daddr;
+			saddr = &ipv6_hdr(skb)->saddr;
+			daddr = &ipv6_hdr(skb)->daddr;
 			uh = skb->h.uh;
 		}
 	}

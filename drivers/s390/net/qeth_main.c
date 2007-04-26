@@ -4053,7 +4053,8 @@ qeth_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 			       skb->dst->neighbour->primary_key, 16);
 		} else {
 			/* fill in destination address used in ip header */
-			memcpy(hdr->hdr.l3.dest_addr, &skb->nh.ipv6h->daddr, 16);
+			memcpy(hdr->hdr.l3.dest_addr,
+			       &ipv6_hdr(skb)->daddr, 16);
 		}
 	} else { /* passthrough */
                 if((skb->dev->type == ARPHRD_IEEE802_TR) &&

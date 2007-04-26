@@ -122,7 +122,7 @@ static inline int INET_ECN_set_ce(struct sk_buff *skb)
 	case __constant_htons(ETH_P_IPV6):
 		if (skb_network_header(skb) + sizeof(struct ipv6hdr) <=
 		    skb->tail)
-			return IP6_ECN_set_ce(skb->nh.ipv6h);
+			return IP6_ECN_set_ce(ipv6_hdr(skb));
 		break;
 	}
 

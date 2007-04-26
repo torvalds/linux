@@ -125,7 +125,7 @@ static int ip6_tlvopt_unknown(struct sk_buff **skbp, int optoff)
 		/* Actually, it is redundant check. icmp_send
 		   will recheck in any case.
 		 */
-		if (ipv6_addr_is_multicast(&skb->nh.ipv6h->daddr))
+		if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr))
 			break;
 	case 2: /* send ICMP PARM PROB regardless and drop packet */
 		icmpv6_param_prob(skb, ICMPV6_UNK_OPTION, optoff);
@@ -202,7 +202,7 @@ static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 	struct sk_buff *skb = *skbp;
 	struct ipv6_destopt_hao *hao;
 	struct inet6_skb_parm *opt = IP6CB(skb);
-	struct ipv6hdr *ipv6h = skb->nh.ipv6h;
+	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	struct in6_addr tmp_addr;
 	int ret;
 
@@ -248,7 +248,7 @@ static int ipv6_dest_hao(struct sk_buff **skbp, int optoff)
 		*skbp = skb = skb2;
 		hao = (struct ipv6_destopt_hao *)(skb_network_header(skb2) +
 						  optoff);
-		ipv6h = skb2->nh.ipv6h;
+		ipv6h = ipv6_hdr(skb2);
 	}
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
@@ -414,7 +414,7 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 		return -1;
 	}
 
-	if (ipv6_addr_is_multicast(&skb->nh.ipv6h->daddr) ||
+	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) ||
 	    skb->pkt_type != PACKET_HOST) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INADDRERRORS);
@@ -522,7 +522,7 @@ looped_back:
 #ifdef CONFIG_IPV6_MIP6
 	case IPV6_SRCRT_TYPE_2:
 		if (xfrm6_input_addr(skb, (xfrm_address_t *)addr,
-				     (xfrm_address_t *)&skb->nh.ipv6h->saddr,
+				     (xfrm_address_t *)&ipv6_hdr(skb)->saddr,
 				     IPPROTO_ROUTING) < 0) {
 			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_INADDRERRORS);
@@ -549,8 +549,8 @@ looped_back:
 	}
 
 	ipv6_addr_copy(&daddr, addr);
-	ipv6_addr_copy(addr, &skb->nh.ipv6h->daddr);
-	ipv6_addr_copy(&skb->nh.ipv6h->daddr, &daddr);
+	ipv6_addr_copy(addr, &ipv6_hdr(skb)->daddr);
+	ipv6_addr_copy(&ipv6_hdr(skb)->daddr, &daddr);
 
 	dst_release(xchg(&skb->dst, NULL));
 	ip6_route_input(skb);
@@ -561,7 +561,7 @@ looped_back:
 	}
 
 	if (skb->dst->dev->flags&IFF_LOOPBACK) {
-		if (skb->nh.ipv6h->hop_limit <= 1) {
+		if (ipv6_hdr(skb)->hop_limit <= 1) {
 			IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 					 IPSTATS_MIB_INHDRERRORS);
 			icmpv6_send(skb, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT,
@@ -569,7 +569,7 @@ looped_back:
 			kfree_skb(skb);
 			return -1;
 		}
-		skb->nh.ipv6h->hop_limit--;
+		ipv6_hdr(skb)->hop_limit--;
 		goto looped_back;
 	}
 
@@ -698,7 +698,7 @@ static int ipv6_hop_jumbo(struct sk_buff **skbp, int optoff)
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, optoff+2);
 		return 0;
 	}
-	if (skb->nh.ipv6h->payload_len) {
+	if (ipv6_hdr(skb)->payload_len) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_INHDRERRORS);
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD, optoff);
 		return 0;

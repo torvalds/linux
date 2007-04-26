@@ -49,7 +49,7 @@ static int match6(const struct sk_buff *skb,
 		  int *hotdrop)
 {
 	const struct xt_dscp_info *info = matchinfo;
-	u_int8_t dscp = ipv6_get_dsfield(skb->nh.ipv6h) >> XT_DSCP_SHIFT;
+	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	return (dscp == info->dscp) ^ !!info->invert;
 }

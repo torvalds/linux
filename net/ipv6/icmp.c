@@ -129,9 +129,9 @@ void icmpv6_param_prob(struct sk_buff *skb, int code, int pos)
 
 static int is_ineligible(struct sk_buff *skb)
 {
-	int ptr = (u8*)(skb->nh.ipv6h+1) - skb->data;
+	int ptr = (u8 *)(ipv6_hdr(skb) + 1) - skb->data;
 	int len = skb->len - ptr;
-	__u8 nexthdr = skb->nh.ipv6h->nexthdr;
+	__u8 nexthdr = ipv6_hdr(skb)->nexthdr;
 
 	if (len < 0)
 		return 1;
@@ -275,7 +275,7 @@ static int icmpv6_getfrag(void *from, char *to, int offset, int len, int odd, st
 #ifdef CONFIG_IPV6_MIP6
 static void mip6_addr_swap(struct sk_buff *skb)
 {
-	struct ipv6hdr *iph = skb->nh.ipv6h;
+	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct inet6_skb_parm *opt = IP6CB(skb);
 	struct ipv6_destopt_hao *hao;
 	struct in6_addr tmp;
@@ -303,7 +303,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		 struct net_device *dev)
 {
 	struct inet6_dev *idev = NULL;
-	struct ipv6hdr *hdr = skb->nh.ipv6h;
+	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct sock *sk;
 	struct ipv6_pinfo *np;
 	struct in6_addr *saddr = NULL;
@@ -485,7 +485,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	int hlimit;
 	int tclass;
 
-	saddr = &skb->nh.ipv6h->daddr;
+	saddr = &ipv6_hdr(skb)->daddr;
 
 	if (!ipv6_unicast_destination(skb))
 		saddr = NULL;
@@ -495,7 +495,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 
 	memset(&fl, 0, sizeof(fl));
 	fl.proto = IPPROTO_ICMPV6;
-	ipv6_addr_copy(&fl.fl6_dst, &skb->nh.ipv6h->saddr);
+	ipv6_addr_copy(&fl.fl6_dst, &ipv6_hdr(skb)->saddr);
 	if (saddr)
 		ipv6_addr_copy(&fl.fl6_src, saddr);
 	fl.oif = skb->dev->ifindex;
@@ -583,8 +583,8 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 	if (!pskb_may_pull(skb, inner_offset+8))
 		return;
 
-	saddr = &skb->nh.ipv6h->saddr;
-	daddr = &skb->nh.ipv6h->daddr;
+	saddr = &ipv6_hdr(skb)->saddr;
+	daddr = &ipv6_hdr(skb)->daddr;
 
 	/* BUGGG_FUTURE: we should try to parse exthdrs in this packet.
 	   Without this we will not able f.e. to make source routed
@@ -628,8 +628,8 @@ static int icmpv6_rcv(struct sk_buff **pskb)
 
 	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_INMSGS);
 
-	saddr = &skb->nh.ipv6h->saddr;
-	daddr = &skb->nh.ipv6h->daddr;
+	saddr = &ipv6_hdr(skb)->saddr;
+	daddr = &ipv6_hdr(skb)->daddr;
 
 	/* Perform checksum. */
 	switch (skb->ip_summed) {

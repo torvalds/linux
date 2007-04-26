@@ -422,7 +422,7 @@ ip6t_log_packet(unsigned int pf,
 			printk(" ");
 	}
 
-	dump_packet(loginfo, skb, (u8*)skb->nh.ipv6h - skb->data, 1);
+	dump_packet(loginfo, skb, skb_network_offset(skb), 1);
 	printk("\n");
 	spin_unlock_bh(&log_lock);
 }

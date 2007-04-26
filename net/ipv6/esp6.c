@@ -191,7 +191,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->ip_summed = CHECKSUM_NONE;
 
 	esph = (struct ipv6_esp_hdr*)skb->data;
-	iph = skb->nh.ipv6h;
+	iph = ipv6_hdr(skb);
 
 	/* Get ivec. This can be wrong, check against another impls. */
 	if (esp->conf.ivlen)

@@ -1304,8 +1304,8 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			break;
 		}
 
-		hash_start = (char*)&(skb->nh.ipv6h->daddr);
-		hash_size = sizeof(skb->nh.ipv6h->daddr);
+		hash_start = (char *)&(ipv6_hdr(skb)->daddr);
+		hash_size = sizeof(ipv6_hdr(skb)->daddr);
 		break;
 	case ETH_P_IPX:
 		if (ipx_hdr(skb)->ipx_checksum !=

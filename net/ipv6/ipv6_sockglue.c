@@ -101,7 +101,7 @@ static int ipv6_gso_send_check(struct sk_buff *skb)
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
 		goto out;
 
-	ipv6h = skb->nh.ipv6h;
+	ipv6h = ipv6_hdr(skb);
 	__skb_pull(skb, sizeof(*ipv6h));
 	err = -EPROTONOSUPPORT;
 
@@ -137,7 +137,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
 		goto out;
 
-	ipv6h = skb->nh.ipv6h;
+	ipv6h = ipv6_hdr(skb);
 	__skb_pull(skb, sizeof(*ipv6h));
 	segs = ERR_PTR(-EPROTONOSUPPORT);
 
@@ -153,7 +153,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 		goto out;
 
 	for (skb = segs; skb; skb = skb->next) {
-		ipv6h = skb->nh.ipv6h;
+		ipv6h = ipv6_hdr(skb);
 		ipv6h->payload_len = htons(skb->len - skb->mac_len -
 					   sizeof(*ipv6h));
 	}

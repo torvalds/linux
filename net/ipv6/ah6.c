@@ -325,6 +325,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	 */
 
 	struct ipv6_auth_hdr *ah;
+	struct ipv6hdr *ip6h;
 	struct ah_data *ahp;
 	unsigned char *tmp_hdr = NULL;
 	u16 hdr_len;
@@ -357,13 +358,14 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	tmp_hdr = kmemdup(skb_network_header(skb), hdr_len, GFP_ATOMIC);
 	if (!tmp_hdr)
 		goto out;
-	if (ipv6_clear_mutable_options(skb->nh.ipv6h, hdr_len, XFRM_POLICY_IN))
+	ip6h = ipv6_hdr(skb);
+	if (ipv6_clear_mutable_options(ip6h, hdr_len, XFRM_POLICY_IN))
 		goto free_out;
-	skb->nh.ipv6h->priority    = 0;
-	skb->nh.ipv6h->flow_lbl[0] = 0;
-	skb->nh.ipv6h->flow_lbl[1] = 0;
-	skb->nh.ipv6h->flow_lbl[2] = 0;
-	skb->nh.ipv6h->hop_limit   = 0;
+	ip6h->priority    = 0;
+	ip6h->flow_lbl[0] = 0;
+	ip6h->flow_lbl[1] = 0;
+	ip6h->flow_lbl[2] = 0;
+	ip6h->hop_limit   = 0;
 
 	{
 		u8 auth_data[MAX_AH_AUTH_LEN];

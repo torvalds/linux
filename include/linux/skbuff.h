@@ -247,7 +247,6 @@ struct sk_buff {
 	} h;
 
 	union {
-		struct ipv6hdr	*ipv6h;
 		unsigned char	*raw;
 	} nh;
 

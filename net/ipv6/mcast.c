@@ -1167,11 +1167,11 @@ int igmp6_event_query(struct sk_buff *skb)
 		return -EINVAL;
 
 	/* compute payload length excluding extension headers */
-	len = ntohs(skb->nh.ipv6h->payload_len) + sizeof(struct ipv6hdr);
-	len -= (char *)skb->h.raw - (char *)skb->nh.ipv6h;
+	len = ntohs(ipv6_hdr(skb)->payload_len) + sizeof(struct ipv6hdr);
+	len -= skb->h.raw - skb->nh.raw;
 
 	/* Drop queries with not link local source */
-	if (!(ipv6_addr_type(&skb->nh.ipv6h->saddr)&IPV6_ADDR_LINKLOCAL))
+	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL))
 		return -EINVAL;
 
 	idev = in6_dev_get(skb->dev);
@@ -1303,7 +1303,7 @@ int igmp6_event_report(struct sk_buff *skb)
 	hdr = (struct icmp6hdr*) skb->h.raw;
 
 	/* Drop reports with not link local source */
-	addr_type = ipv6_addr_type(&skb->nh.ipv6h->saddr);
+	addr_type = ipv6_addr_type(&ipv6_hdr(skb)->saddr);
 	if (addr_type != IPV6_ADDR_ANY &&
 	    !(addr_type&IPV6_ADDR_LINKLOCAL))
 		return -EINVAL;
@@ -1441,7 +1441,7 @@ static inline int mld_dev_queue_xmit2(struct sk_buff *skb)
 		unsigned char ha[MAX_ADDR_LEN];
 		int err;
 
-		ndisc_mc_map(&skb->nh.ipv6h->daddr, ha, dev, 1);
+		ndisc_mc_map(&ipv6_hdr(skb)->daddr, ha, dev, 1);
 		err = dev->hard_header(skb, dev, ETH_P_IPV6, ha, NULL, skb->len);
 		if (err < 0) {
 			kfree_skb(skb);
@@ -1459,15 +1459,14 @@ static inline int mld_dev_queue_xmit(struct sk_buff *skb)
 
 static void mld_sendpack(struct sk_buff *skb)
 {
-	struct ipv6hdr *pip6 = skb->nh.ipv6h;
+	struct ipv6hdr *pip6 = ipv6_hdr(skb);
 	struct mld2_report *pmr = (struct mld2_report *)skb->h.raw;
 	int payload_len, mldlen;
 	struct inet6_dev *idev = in6_dev_get(skb->dev);
 	int err;
 
 	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
-	payload_len = skb->tail - (unsigned char *)skb->nh.ipv6h -
-		sizeof(struct ipv6hdr);
+	payload_len = skb->tail - skb_network_header(skb) - sizeof(*pip6);
 	mldlen = skb->tail - skb->h.raw;
 	pip6->payload_len = htons(payload_len);
 

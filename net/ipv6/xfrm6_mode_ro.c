@@ -50,7 +50,7 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 	int hdr_len;
 
 	skb_push(skb, x->props.header_len);
-	iph = skb->nh.ipv6h;
+	iph = ipv6_hdr(skb);
 
 	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
 	skb->nh.raw = prevhdr - x->props.header_len;

@@ -152,7 +152,7 @@ int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	int delivered = 0;
 	__u8 hash;
 
-	saddr = &skb->nh.ipv6h->saddr;
+	saddr = &ipv6_hdr(skb)->saddr;
 	daddr = saddr + 1;
 
 	hash = nexthdr & (MAX_INET_PROTOS - 1);
@@ -363,15 +363,16 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 	if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		skb_postpull_rcsum(skb, skb_network_header(skb),
 				   skb->h.raw - skb->nh.raw);
-		if (!csum_ipv6_magic(&skb->nh.ipv6h->saddr,
-				     &skb->nh.ipv6h->daddr,
+		if (!csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+				     &ipv6_hdr(skb)->daddr,
 				     skb->len, inet->num, skb->csum))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-		skb->csum = ~csum_unfold(csum_ipv6_magic(&skb->nh.ipv6h->saddr,
-					     &skb->nh.ipv6h->daddr,
-					     skb->len, inet->num, 0));
+		skb->csum = ~csum_unfold(csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+							 &ipv6_hdr(skb)->daddr,
+							 skb->len,
+							 inet->num, 0));
 
 	if (inet->hdrincl) {
 		if (skb_checksum_complete(skb)) {
@@ -438,7 +439,7 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	if (sin6) {
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = 0;
-		ipv6_addr_copy(&sin6->sin6_addr, &skb->nh.ipv6h->saddr);
+		ipv6_addr_copy(&sin6->sin6_addr, &ipv6_hdr(skb)->saddr);
 		sin6->sin6_flowinfo = 0;
 		sin6->sin6_scope_id = 0;
 		if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
@@ -578,7 +579,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 
 	skb_put(skb, length);
 	skb_reset_network_header(skb);
-	iph = skb->nh.ipv6h;
+	iph = ipv6_hdr(skb);
 
 	skb->ip_summed = CHECKSUM_NONE;
 

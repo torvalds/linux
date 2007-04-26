@@ -146,21 +146,21 @@ ip6t_local_hook(unsigned int hook,
 #endif
 
 	/* save source/dest address, mark, hoplimit, flowlabel, priority,  */
-	memcpy(&saddr, &(*pskb)->nh.ipv6h->saddr, sizeof(saddr));
-	memcpy(&daddr, &(*pskb)->nh.ipv6h->daddr, sizeof(daddr));
+	memcpy(&saddr, &ipv6_hdr(*pskb)->saddr, sizeof(saddr));
+	memcpy(&daddr, &ipv6_hdr(*pskb)->daddr, sizeof(daddr));
 	mark = (*pskb)->mark;
-	hop_limit = (*pskb)->nh.ipv6h->hop_limit;
+	hop_limit = ipv6_hdr(*pskb)->hop_limit;
 
 	/* flowlabel and prio (includes version, which shouldn't change either */
-	flowlabel = *((u_int32_t *) (*pskb)->nh.ipv6h);
+	flowlabel = *((u_int32_t *)ipv6_hdr(*pskb));
 
 	ret = ip6t_do_table(pskb, hook, in, out, &packet_mangler);
 
 	if (ret != NF_DROP && ret != NF_STOLEN
-		&& (memcmp(&(*pskb)->nh.ipv6h->saddr, &saddr, sizeof(saddr))
-		    || memcmp(&(*pskb)->nh.ipv6h->daddr, &daddr, sizeof(daddr))
+		&& (memcmp(&ipv6_hdr(*pskb)->saddr, &saddr, sizeof(saddr))
+		    || memcmp(&ipv6_hdr(*pskb)->daddr, &daddr, sizeof(daddr))
 		    || (*pskb)->mark != mark
-		    || (*pskb)->nh.ipv6h->hop_limit != hop_limit))
+		    || ipv6_hdr(*pskb)->hop_limit != hop_limit))
 		return ip6_route_me_harder(*pskb) == 0 ? ret : NF_DROP;
 
 	return ret;

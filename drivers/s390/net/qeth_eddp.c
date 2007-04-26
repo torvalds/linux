@@ -479,9 +479,11 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 						  skb->h.raw,
 						  skb->h.th->doff * 4);
 	else
-		eddp = qeth_eddp_create_eddp_data(qhdr, (u8 *)skb->nh.ipv6h,
-				sizeof(struct ipv6hdr),
-				(u8 *)skb->h.th, skb->h.th->doff*4);
+		eddp = qeth_eddp_create_eddp_data(qhdr,
+						  skb_network_header(skb),
+						  sizeof(struct ipv6hdr),
+						  skb->h.raw,
+						  skb->h.th->doff * 4);
 
 	if (eddp == NULL) {
 		QETH_DBF_TEXT(trace, 2, "eddpfcnm");

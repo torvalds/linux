@@ -598,7 +598,7 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 				       dev->addr_len, dev->type);
 
 	/* checksum */
-	msg->icmph.icmp6_cksum = csum_ipv6_magic(&skb->nh.ipv6h->saddr,
+	msg->icmph.icmp6_cksum = csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 						 daddr, len,
 						 IPPROTO_ICMPV6,
 						 csum_partial((__u8 *) msg,
@@ -697,7 +697,7 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 				       dev->addr_len, dev->type);
 
 	/* checksum */
-	hdr->icmp6_cksum = csum_ipv6_magic(&skb->nh.ipv6h->saddr, daddr, len,
+	hdr->icmp6_cksum = csum_ipv6_magic(&ipv6_hdr(skb)->saddr, daddr, len,
 					   IPPROTO_ICMPV6,
 					   csum_partial((__u8 *) hdr, len, 0));
 
@@ -736,8 +736,8 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	struct in6_addr *target = (struct in6_addr *)&neigh->primary_key;
 	int probes = atomic_read(&neigh->probes);
 
-	if (skb && ipv6_chk_addr(&skb->nh.ipv6h->saddr, dev, 1))
-		saddr = &skb->nh.ipv6h->saddr;
+	if (skb && ipv6_chk_addr(&ipv6_hdr(skb)->saddr, dev, 1))
+		saddr = &ipv6_hdr(skb)->saddr;
 
 	if ((probes -= neigh->parms->ucast_probes) < 0) {
 		if (!(neigh->nud_state & NUD_VALID)) {
@@ -761,8 +761,8 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 static void ndisc_recv_ns(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb->h.raw;
-	struct in6_addr *saddr = &skb->nh.ipv6h->saddr;
-	struct in6_addr *daddr = &skb->nh.ipv6h->daddr;
+	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
+	struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
 	u8 *lladdr = NULL;
 	u32 ndoptlen = skb->tail - msg->opt;
 	struct ndisc_options ndopts;
@@ -939,8 +939,8 @@ out:
 static void ndisc_recv_na(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb->h.raw;
-	struct in6_addr *saddr = &skb->nh.ipv6h->saddr;
-	struct in6_addr *daddr = &skb->nh.ipv6h->daddr;
+	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
+	struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
 	u8 *lladdr = NULL;
 	u32 ndoptlen = skb->tail - msg->opt;
 	struct ndisc_options ndopts;
@@ -1044,7 +1044,7 @@ static void ndisc_recv_rs(struct sk_buff *skb)
 	unsigned long ndoptlen = skb->len - sizeof(*rs_msg);
 	struct neighbour *neigh;
 	struct inet6_dev *idev;
-	struct in6_addr *saddr = &skb->nh.ipv6h->saddr;
+	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
 	struct ndisc_options ndopts;
 	u8 *lladdr = NULL;
 
@@ -1110,7 +1110,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 
 	optlen = (skb->tail - skb->h.raw) - sizeof(struct ra_msg);
 
-	if (!(ipv6_addr_type(&skb->nh.ipv6h->saddr) & IPV6_ADDR_LINKLOCAL)) {
+	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL)) {
 		ND_PRINTK2(KERN_WARNING
 			   "ICMPv6 RA: source address is not link-local.\n");
 		return;
@@ -1176,7 +1176,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		pref = ICMPV6_ROUTER_PREF_MEDIUM;
 #endif
 
-	rt = rt6_get_dflt_router(&skb->nh.ipv6h->saddr, skb->dev);
+	rt = rt6_get_dflt_router(&ipv6_hdr(skb)->saddr, skb->dev);
 
 	if (rt)
 		neigh = rt->rt6i_nexthop;
@@ -1191,7 +1191,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		ND_PRINTK3(KERN_DEBUG
 			   "ICMPv6 RA: adding default router.\n");
 
-		rt = rt6_add_dflt_router(&skb->nh.ipv6h->saddr, skb->dev, pref);
+		rt = rt6_add_dflt_router(&ipv6_hdr(skb)->saddr, skb->dev, pref);
 		if (rt == NULL) {
 			ND_PRINTK0(KERN_ERR
 				   "ICMPv6 RA: %s() failed to add default route.\n",
@@ -1263,7 +1263,7 @@ skip_defrtr:
 	 */
 
 	if (!neigh)
-		neigh = __neigh_lookup(&nd_tbl, &skb->nh.ipv6h->saddr,
+		neigh = __neigh_lookup(&nd_tbl, &ipv6_hdr(skb)->saddr,
 				       skb->dev, 1);
 	if (neigh) {
 		u8 *lladdr = NULL;
@@ -1292,7 +1292,7 @@ skip_defrtr:
 			if (((struct route_info *)p)->prefix_len > in6_dev->cnf.accept_ra_rt_info_max_plen)
 				continue;
 			rt6_route_rcv(skb->dev, (u8*)p, (p->nd_opt_len) << 3,
-				      &skb->nh.ipv6h->saddr);
+				      &ipv6_hdr(skb)->saddr);
 		}
 	}
 #endif
@@ -1351,7 +1351,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	int optlen;
 	u8 *lladdr = NULL;
 
-	if (!(ipv6_addr_type(&skb->nh.ipv6h->saddr) & IPV6_ADDR_LINKLOCAL)) {
+	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL)) {
 		ND_PRINTK2(KERN_WARNING
 			   "ICMPv6 Redirect: source address is not link-local.\n");
 		return;
@@ -1416,8 +1416,8 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 
 	neigh = __neigh_lookup(&nd_tbl, target, skb->dev, 1);
 	if (neigh) {
-		rt6_redirect(dest, &skb->nh.ipv6h->daddr,
-			     &skb->nh.ipv6h->saddr, neigh, lladdr,
+		rt6_redirect(dest, &ipv6_hdr(skb)->daddr,
+			     &ipv6_hdr(skb)->saddr, neigh, lladdr,
 			     on_link);
 		neigh_release(neigh);
 	}
@@ -1453,14 +1453,14 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 		return;
 	}
 
-	if (!ipv6_addr_equal(&skb->nh.ipv6h->daddr, target) &&
+	if (!ipv6_addr_equal(&ipv6_hdr(skb)->daddr, target) &&
 	    !(ipv6_addr_type(target) & IPV6_ADDR_LINKLOCAL)) {
 		ND_PRINTK2(KERN_WARNING
 			"ICMPv6 Redirect: target address is not link-local.\n");
 		return;
 	}
 
-	ndisc_flow_init(&fl, NDISC_REDIRECT, &saddr_buf, &skb->nh.ipv6h->saddr,
+	ndisc_flow_init(&fl, NDISC_REDIRECT, &saddr_buf, &ipv6_hdr(skb)->saddr,
 			dev->ifindex);
 
 	dst = ip6_route_output(NULL, &fl);
@@ -1515,7 +1515,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	hlen = 0;
 
 	skb_reserve(buff, LL_RESERVED_SPACE(dev));
-	ip6_nd_hdr(sk, buff, dev, &saddr_buf, &skb->nh.ipv6h->saddr,
+	ip6_nd_hdr(sk, buff, dev, &saddr_buf, &ipv6_hdr(skb)->saddr,
 		   IPPROTO_ICMPV6, len);
 
 	icmph = (struct icmp6hdr *)skb_put(buff, len);
@@ -1531,7 +1531,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	addrp = (struct in6_addr *)(icmph + 1);
 	ipv6_addr_copy(addrp, target);
 	addrp++;
-	ipv6_addr_copy(addrp, &skb->nh.ipv6h->daddr);
+	ipv6_addr_copy(addrp, &ipv6_hdr(skb)->daddr);
 
 	opt = (u8*) (addrp + 1);
 
@@ -1552,9 +1552,9 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	*(opt++) = (rd_len >> 3);
 	opt += 6;
 
-	memcpy(opt, skb->nh.ipv6h, rd_len - 8);
+	memcpy(opt, ipv6_hdr(skb), rd_len - 8);
 
-	icmph->icmp6_cksum = csum_ipv6_magic(&saddr_buf, &skb->nh.ipv6h->saddr,
+	icmph->icmp6_cksum = csum_ipv6_magic(&saddr_buf, &ipv6_hdr(skb)->saddr,
 					     len, IPPROTO_ICMPV6,
 					     csum_partial((u8 *) icmph, len, 0));
 
@@ -1588,10 +1588,10 @@ int ndisc_rcv(struct sk_buff *skb)
 
 	__skb_push(skb, skb->data-skb->h.raw);
 
-	if (skb->nh.ipv6h->hop_limit != 255) {
+	if (ipv6_hdr(skb)->hop_limit != 255) {
 		ND_PRINTK2(KERN_WARNING
 			   "ICMPv6 NDISC: invalid hop-limit: %d\n",
-			   skb->nh.ipv6h->hop_limit);
+			   ipv6_hdr(skb)->hop_limit);
 		return 0;
 	}
 

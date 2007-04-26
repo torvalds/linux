@@ -366,7 +366,7 @@ out:
 static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 {
 	if (INET_ECN_is_ce(iph->tos))
-		IP6_ECN_set_ce(skb->nh.ipv6h);
+		IP6_ECN_set_ce(ipv6_hdr(skb));
 }
 
 static int ipip6_rcv(struct sk_buff *skb)
@@ -430,7 +430,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->stat;
 	struct iphdr  *tiph = &tunnel->parms.iph;
-	struct ipv6hdr *iph6 = skb->nh.ipv6h;
+	struct ipv6hdr *iph6 = ipv6_hdr(skb);
 	u8     tos = tunnel->parms.iph.tos;
 	struct rtable *rt;     			/* Route to the other host */
 	struct net_device *tdev;			/* Device to other host */
@@ -468,7 +468,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		addr_type = ipv6_addr_type(addr6);
 
 		if (addr_type == IPV6_ADDR_ANY) {
-			addr6 = &skb->nh.ipv6h->daddr;
+			addr6 = &ipv6_hdr(skb)->daddr;
 			addr_type = ipv6_addr_type(addr6);
 		}
 
@@ -550,7 +550,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_set_owner_w(new_skb, skb->sk);
 		dev_kfree_skb(skb);
 		skb = new_skb;
-		iph6 = skb->nh.ipv6h;
+		iph6 = ipv6_hdr(skb);
 	}
 
 	skb->h.raw = skb->nh.raw;

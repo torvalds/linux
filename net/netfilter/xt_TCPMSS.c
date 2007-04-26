@@ -171,7 +171,7 @@ xt_tcpmss_target6(struct sk_buff **pskb,
 		  const struct xt_target *target,
 		  const void *targinfo)
 {
-	struct ipv6hdr *ipv6h = (*pskb)->nh.ipv6h;
+	struct ipv6hdr *ipv6h = ipv6_hdr(*pskb);
 	u8 nexthdr;
 	int tcphoff;
 	int ret;
@@ -187,7 +187,7 @@ xt_tcpmss_target6(struct sk_buff **pskb,
 	if (ret < 0)
 		return NF_DROP;
 	if (ret > 0) {
-		ipv6h = (*pskb)->nh.ipv6h;
+		ipv6h = ipv6_hdr(*pskb);
 		ipv6h->payload_len = htons(ntohs(ipv6h->payload_len) + ret);
 	}
 	return XT_CONTINUE;

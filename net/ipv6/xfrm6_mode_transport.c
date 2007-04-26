@@ -32,7 +32,7 @@ static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	int hdr_len;
 
 	skb_push(skb, x->props.header_len);
-	iph = skb->nh.ipv6h;
+	iph = ipv6_hdr(skb);
 
 	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
 	skb->nh.raw = prevhdr - x->props.header_len;
@@ -57,7 +57,7 @@ static int xfrm6_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 		memmove(skb->h.raw, skb_network_header(skb), ihl);
 		skb->nh.raw = skb->h.raw;
 	}
-	skb->nh.ipv6h->payload_len = htons(skb->len + ihl -
+	ipv6_hdr(skb)->payload_len = htons(skb->len + ihl -
 					   sizeof(struct ipv6hdr));
 	skb->h.raw = skb->data;
 	return 0;

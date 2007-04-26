@@ -393,10 +393,10 @@ static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
 	sh = (struct sctphdr *) skb->h.raw;
 	if (is_saddr) {
 		*port  = sh->source;
-		from = &skb->nh.ipv6h->saddr;
+		from = &ipv6_hdr(skb)->saddr;
 	} else {
 		*port = sh->dest;
-		from = &skb->nh.ipv6h->daddr;
+		from = &ipv6_hdr(skb)->daddr;
 	}
 	ipv6_addr_copy(&addr->v6.sin6_addr, from);
 }
@@ -698,7 +698,7 @@ static int sctp_v6_skb_iif(const struct sk_buff *skb)
 /* Was this packet marked by Explicit Congestion Notification? */
 static int sctp_v6_is_ce(const struct sk_buff *skb)
 {
-	return *((__u32 *)(skb->nh.ipv6h)) & htonl(1<<20);
+	return *((__u32 *)(ipv6_hdr(skb))) & htonl(1 << 20);
 }
 
 /* Dump the v6 addr to the seq file. */
@@ -777,7 +777,7 @@ static void sctp_inet6_skb_msgname(struct sk_buff *skb, char *msgname,
 		}
 
 		/* Otherwise, just copy the v6 address. */
-		ipv6_addr_copy(&sin6->sin6_addr, &skb->nh.ipv6h->saddr);
+		ipv6_addr_copy(&sin6->sin6_addr, &ipv6_hdr(skb)->saddr);
 		if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL) {
 			struct sctp_ulpevent *ev = sctp_skb2event(skb);
 			sin6->sin6_scope_id = ev->iif;

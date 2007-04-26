@@ -152,7 +152,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	}
 	case __constant_htons(ETH_P_IPV6):
 	{
-		struct ipv6hdr *iph = skb->nh.ipv6h;
+		struct ipv6hdr *iph = ipv6_hdr(skb);
 		h = iph->daddr.s6_addr32[3];
 		h2 = iph->saddr.s6_addr32[3]^iph->nexthdr;
 		if (iph->nexthdr == IPPROTO_TCP ||

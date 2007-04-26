@@ -18,7 +18,7 @@
 
 static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
 {
-	struct ipv6hdr *outer_iph = skb->nh.ipv6h;
+	struct ipv6hdr *outer_iph = ipv6_hdr(skb);
 	struct ipv6hdr *inner_iph = skb->h.ipv6h;
 
 	if (INET_ECN_is_ce(ipv6_get_dsfield(outer_iph)))
@@ -27,7 +27,7 @@ static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
 
 static inline void ip6ip_ecn_decapsulate(struct sk_buff *skb)
 {
-	if (INET_ECN_is_ce(ipv6_get_dsfield(skb->nh.ipv6h)))
+	if (INET_ECN_is_ce(ipv6_get_dsfield(ipv6_hdr(skb))))
 			IP_ECN_set_ce(skb->h.ipiph);
 }
 
@@ -51,10 +51,10 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	int dsfield;
 
 	skb_push(skb, x->props.header_len);
-	iph = skb->nh.ipv6h;
+	iph = ipv6_hdr(skb);
 
 	skb_reset_network_header(skb);
-	top_iph = skb->nh.ipv6h;
+	top_iph = ipv6_hdr(skb);
 	skb->nh.raw = &top_iph->nexthdr;
 	skb->h.ipv6h = top_iph + 1;
 
@@ -102,7 +102,7 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	nh = skb_network_header(skb);
 	if (nh[IP6CB(skb)->nhoff] == IPPROTO_IPV6) {
 		if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-			ipv6_copy_dscp(skb->nh.ipv6h, skb->h.ipv6h);
+			ipv6_copy_dscp(ipv6_hdr(skb), skb->h.ipv6h);
 		if (!(x->props.flags & XFRM_STATE_NOECN))
 			ipip6_ecn_decapsulate(skb);
 	} else {

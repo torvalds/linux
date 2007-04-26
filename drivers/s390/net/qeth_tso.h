@@ -64,7 +64,7 @@ static inline void
 qeth_tso_set_tcpip_header(struct qeth_card *card, struct sk_buff *skb)
 {
 	struct iphdr *iph    = ip_hdr(skb);
-	struct ipv6hdr *ip6h = skb->nh.ipv6h;
+	struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct tcphdr *tcph  = skb->h.th;
 
 	tcph->check = 0;

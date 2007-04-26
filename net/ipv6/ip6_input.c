@@ -96,7 +96,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if (unlikely(!pskb_may_pull(skb, sizeof(*hdr))))
 		goto err;
 
-	hdr = skb->nh.ipv6h;
+	hdr = ipv6_hdr(skb);
 
 	if (hdr->version != 6)
 		goto err;
@@ -116,7 +116,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 			IP6_INC_STATS_BH(idev, IPSTATS_MIB_INHDRERRORS);
 			goto drop;
 		}
-		hdr = skb->nh.ipv6h;
+		hdr = ipv6_hdr(skb);
 	}
 
 	if (hdr->nexthdr == NEXTHDR_HOP) {
@@ -183,7 +183,7 @@ resubmit:
 
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb->h.raw - skb->nh.raw);
-			hdr = skb->nh.ipv6h;
+			hdr = ipv6_hdr(skb);
 			if (ipv6_addr_is_multicast(&hdr->daddr) &&
 			    !ipv6_chk_mcast_addr(skb->dev, &hdr->daddr,
 			    &hdr->saddr) &&
@@ -234,7 +234,7 @@ int ip6_mc_input(struct sk_buff *skb)
 
 	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_INMCASTPKTS);
 
-	hdr = skb->nh.ipv6h;
+	hdr = ipv6_hdr(skb);
 	deliver = likely(!(skb->dev->flags & (IFF_PROMISC|IFF_ALLMULTI))) ||
 	    ipv6_chk_mcast_addr(skb->dev, &hdr->daddr, NULL);
 

@@ -56,13 +56,13 @@ static unsigned int target6(struct sk_buff **pskb,
 			    const void *targinfo)
 {
 	const struct xt_DSCP_info *dinfo = targinfo;
-	u_int8_t dscp = ipv6_get_dsfield((*pskb)->nh.ipv6h) >> XT_DSCP_SHIFT;
+	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(*pskb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
 		if (!skb_make_writable(pskb, sizeof(struct ipv6hdr)))
 			return NF_DROP;
 
-		ipv6_change_dsfield((*pskb)->nh.ipv6h, (__u8)(~XT_DSCP_MASK),
+		ipv6_change_dsfield(ipv6_hdr(*pskb), (__u8)(~XT_DSCP_MASK),
 				    dinfo->dscp << XT_DSCP_SHIFT);
 	}
 	return XT_CONTINUE;

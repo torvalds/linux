@@ -107,13 +107,13 @@ static int ip6_output2(struct sk_buff *skb)
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
 
-	if (ipv6_addr_is_multicast(&skb->nh.ipv6h->daddr)) {
+	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr)) {
 		struct ipv6_pinfo* np = skb->sk ? inet6_sk(skb->sk) : NULL;
 		struct inet6_dev *idev = ip6_dst_idev(skb->dst);
 
 		if (!(dev->flags & IFF_LOOPBACK) && (!np || np->mc_loop) &&
-		    ipv6_chk_mcast_addr(dev, &skb->nh.ipv6h->daddr,
-				&skb->nh.ipv6h->saddr)) {
+		    ipv6_chk_mcast_addr(dev, &ipv6_hdr(skb)->daddr,
+					&ipv6_hdr(skb)->saddr)) {
 			struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
 
 			/* Do not check for IFF_ALLMULTI; multicast routing
@@ -124,7 +124,7 @@ static int ip6_output2(struct sk_buff *skb)
 					newskb->dev,
 					ip6_dev_loopback_xmit);
 
-			if (skb->nh.ipv6h->hop_limit == 0) {
+			if (ipv6_hdr(skb)->hop_limit == 0) {
 				IP6_INC_STATS(idev, IPSTATS_MIB_OUTDISCARDS);
 				kfree_skb(skb);
 				return 0;
@@ -193,7 +193,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
-	hdr = skb->nh.ipv6h;
+	hdr = ipv6_hdr(skb);
 
 	/*
 	 *	Fill in the IPv6 header
@@ -263,8 +263,8 @@ int ip6_nd_hdr(struct sock *sk, struct sk_buff *skb, struct net_device *dev,
 
 	totlen = len + sizeof(struct ipv6hdr);
 
-	hdr = (struct ipv6hdr *) skb_put(skb, sizeof(struct ipv6hdr));
-	skb->nh.ipv6h = hdr;
+	skb->nh.raw = skb_put(skb, sizeof(struct ipv6hdr));
+	hdr = ipv6_hdr(skb);
 
 	*(__be32*)hdr = htonl(0x60000000);
 
@@ -309,7 +309,7 @@ static int ip6_call_ra_chain(struct sk_buff *skb, int sel)
 
 static int ip6_forward_proxy_check(struct sk_buff *skb)
 {
-	struct ipv6hdr *hdr = skb->nh.ipv6h;
+	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	u8 nexthdr = hdr->nexthdr;
 	int offset;
 
@@ -366,7 +366,7 @@ static inline int ip6_forward_finish(struct sk_buff *skb)
 int ip6_forward(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
-	struct ipv6hdr *hdr = skb->nh.ipv6h;
+	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct inet6_skb_parm *opt = IP6CB(skb);
 
 	if (ipv6_devconf.forwarding == 0)
@@ -475,7 +475,7 @@ int ip6_forward(struct sk_buff *skb)
 		goto drop;
 	}
 
-	hdr = skb->nh.ipv6h;
+	hdr = ipv6_hdr(skb);
 
 	/* Mangling hops number delayed to point after skb COW */
 
@@ -527,10 +527,11 @@ static void ip6_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 {
 	u16 offset = sizeof(struct ipv6hdr);
-	struct ipv6_opt_hdr *exthdr = (struct ipv6_opt_hdr*)(skb->nh.ipv6h + 1);
+	struct ipv6_opt_hdr *exthdr =
+				(struct ipv6_opt_hdr *)(ipv6_hdr(skb) + 1);
 	unsigned int packet_len = skb->tail - skb_network_header(skb);
 	int found_rhdr = 0;
-	*nexthdr = &skb->nh.ipv6h->nexthdr;
+	*nexthdr = &ipv6_hdr(skb)->nexthdr;
 
 	while (offset + 1 <= packet_len) {
 
@@ -643,7 +644,8 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 		first_len = skb_pagelen(skb);
 		skb->data_len = first_len - skb_headlen(skb);
 		skb->len = first_len;
-		skb->nh.ipv6h->payload_len = htons(first_len - sizeof(struct ipv6hdr));
+		ipv6_hdr(skb)->payload_len = htons(first_len -
+						   sizeof(struct ipv6hdr));
 
 		dst_hold(&rt->u.dst);
 
@@ -665,7 +667,9 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 				if (frag->next != NULL)
 					fh->frag_off |= htons(IP6_MF);
 				fh->identification = frag_id;
-				frag->nh.ipv6h->payload_len = htons(frag->len - sizeof(struct ipv6hdr));
+				ipv6_hdr(frag)->payload_len =
+						htons(frag->len -
+						      sizeof(struct ipv6hdr));
 				ip6_copy_metadata(frag, skb);
 			}
 
@@ -779,7 +783,8 @@ slow_path:
 		fh->frag_off = htons(offset);
 		if (left > 0)
 			fh->frag_off |= htons(IP6_MF);
-		frag->nh.ipv6h->payload_len = htons(frag->len - sizeof(struct ipv6hdr));
+		ipv6_hdr(frag)->payload_len = htons(frag->len -
+						    sizeof(struct ipv6hdr));
 
 		ptr += len;
 		offset += len;
@@ -1355,7 +1360,7 @@ int ip6_push_pending_frames(struct sock *sk)
 
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
-	hdr = skb->nh.ipv6h;
+	hdr = ipv6_hdr(skb);
 
 	*(__be32*)hdr = fl->fl6_flowlabel |
 		     htonl(0x60000000 | ((int)np->cork.tclass << 20));

@@ -372,7 +372,7 @@ static struct net_device *setup_pre_routing(struct sk_buff *skb)
 /* We only check the length. A bridge shouldn't do any hop-by-hop stuff anyway */
 static int check_hbh_len(struct sk_buff *skb)
 {
-	unsigned char *raw = (u8 *) (skb->nh.ipv6h + 1);
+	unsigned char *raw = (u8 *)(ipv6_hdr(skb) + 1);
 	u32 pkt_len;
 	const unsigned char *nh = skb_network_header(skb);
 	int off = raw - nh;
@@ -400,7 +400,7 @@ static int check_hbh_len(struct sk_buff *skb)
 				goto bad;
 			pkt_len = ntohl(*(__be32 *) (nh + off + 2));
 			if (pkt_len <= IPV6_MAXPLEN ||
-			    skb->nh.ipv6h->payload_len)
+			    ipv6_hdr(skb)->payload_len)
 				goto bad;
 			if (pkt_len > skb->len - sizeof(struct ipv6hdr))
 				goto bad;
@@ -441,7 +441,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto inhdr_error;
 
-	hdr = skb->nh.ipv6h;
+	hdr = ipv6_hdr(skb);
 
 	if (hdr->version != 6)
 		goto inhdr_error;

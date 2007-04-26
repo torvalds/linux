@@ -220,7 +220,7 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 					& ~INET_ECN_MASK;
 				break;
 			case __constant_htons(ETH_P_IPV6):
-				skb->tc_index = ipv6_get_dsfield(skb->nh.ipv6h)
+				skb->tc_index = ipv6_get_dsfield(ipv6_hdr(skb))
 					& ~INET_ECN_MASK;
 				break;
 			default:
@@ -296,7 +296,7 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 					    p->value[index]);
 			break;
 		case __constant_htons(ETH_P_IPV6):
-			ipv6_change_dsfield(skb->nh.ipv6h, p->mask[index],
+			ipv6_change_dsfield(ipv6_hdr(skb), p->mask[index],
 					    p->value[index]);
 			break;
 		default:

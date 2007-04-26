@@ -535,7 +535,7 @@ static inline void ipgre_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 		if (skb->protocol == htons(ETH_P_IP)) {
 			IP_ECN_set_ce(ip_hdr(skb));
 		} else if (skb->protocol == htons(ETH_P_IPV6)) {
-			IP6_ECN_set_ce(skb->nh.ipv6h);
+			IP6_ECN_set_ce(ipv6_hdr(skb));
 		}
 	}
 }
@@ -721,7 +721,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			addr_type = ipv6_addr_type(addr6);
 
 			if (addr_type == IPV6_ADDR_ANY) {
-				addr6 = &skb->nh.ipv6h->daddr;
+				addr6 = &ipv6_hdr(skb)->daddr;
 				addr_type = ipv6_addr_type(addr6);
 			}
 

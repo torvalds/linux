@@ -400,8 +400,8 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 	}
 
 	offset = ntohs(fhdr->frag_off) & ~0x7;
-	end = offset + (ntohs(skb->nh.ipv6h->payload_len) -
-			((u8 *) (fhdr + 1) - (u8 *) (skb->nh.ipv6h + 1)));
+	end = offset + (ntohs(ipv6_hdr(skb)->payload_len) -
+			((u8 *)(fhdr + 1) - (u8 *)(ipv6_hdr(skb) + 1)));
 
 	if ((unsigned int)end > IPV6_MAXPLEN) {
 		DEBUGP("offset is too large.\n");
@@ -652,7 +652,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	head->next = NULL;
 	head->dev = dev;
 	head->tstamp = fq->stamp;
-	head->nh.ipv6h->payload_len = htons(payload_len);
+	ipv6_hdr(head)->payload_len = htons(payload_len);
 
 	/* Yes, and fold redundant checksum back. 8) */
 	if (head->ip_summed == CHECKSUM_COMPLETE)
@@ -706,9 +706,9 @@ out_fail:
 static int
 find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 {
-	u8 nexthdr = skb->nh.ipv6h->nexthdr;
-	u8 prev_nhoff = (u8 *)&skb->nh.ipv6h->nexthdr - skb->data;
-	int start = (u8 *)(skb->nh.ipv6h+1) - skb->data;
+	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
+	u8 prev_nhoff = (u8 *)&ipv6_hdr(skb)->nexthdr - skb->data;
+	int start = (u8 *)(ipv6_hdr(skb) + 1) - skb->data;
 	int len = skb->len - start;
 	u8 prevhdr = NEXTHDR_IPV6;
 
@@ -764,7 +764,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 	struct sk_buff *ret_skb = NULL;
 
 	/* Jumbo payload inhibits frag. header */
-	if (skb->nh.ipv6h->payload_len == 0) {
+	if (ipv6_hdr(skb)->payload_len == 0) {
 		DEBUGP("payload len = 0\n");
 		return skb;
 	}
@@ -786,7 +786,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 	}
 
 	clone->h.raw = clone->data + fhoff;
-	hdr = clone->nh.ipv6h;
+	hdr = ipv6_hdr(clone);
 	fhdr = (struct frag_hdr *)clone->h.raw;
 
 	if (!(fhdr->frag_off & htons(0xFFF9))) {

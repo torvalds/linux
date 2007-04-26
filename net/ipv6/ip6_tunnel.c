@@ -602,7 +602,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		skb_reset_network_header(skb2);
 
 		/* Try to guess incoming interface */
-		rt = rt6_lookup(&skb2->nh.ipv6h->saddr, NULL, 0, 0);
+		rt = rt6_lookup(&ipv6_hdr(skb2)->saddr, NULL, 0, 0);
 
 		if (rt && rt->rt6i_dev)
 			skb2->dev = rt->rt6i_dev;
@@ -636,10 +636,10 @@ static void ip6ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
 					struct sk_buff *skb)
 {
 	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
-		ipv6_copy_dscp(ipv6h, skb->nh.ipv6h);
+		ipv6_copy_dscp(ipv6h, ipv6_hdr(skb));
 
 	if (INET_ECN_is_ce(ipv6_get_dsfield(ipv6h)))
-		IP6_ECN_set_ce(skb->nh.ipv6h);
+		IP6_ECN_set_ce(ipv6_hdr(skb));
 }
 
 static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
@@ -679,10 +679,8 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 						    struct ipv6hdr *ipv6h,
 						    struct sk_buff *skb))
 {
-	struct ipv6hdr *ipv6h;
 	struct ip6_tnl *t;
-
-	ipv6h = skb->nh.ipv6h;
+	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 
 	read_lock(&ip6_tnl_lock);
 
@@ -836,7 +834,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net_device_stats *stats = &t->stat;
-	struct ipv6hdr *ipv6h = skb->nh.ipv6h;
+	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	struct ipv6_tel_txoption opt;
 	struct dst_entry *dst;
 	struct net_device *tdev;
@@ -909,7 +907,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	}
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
-	ipv6h = skb->nh.ipv6h;
+	ipv6h = ipv6_hdr(skb);
 	*(__be32*)ipv6h = fl->fl6_flowlabel | htonl(0x60000000);
 	dsfield = INET_ECN_encapsulate(0, dsfield);
 	ipv6_change_dsfield(ipv6h, ~INET_ECN_MASK, dsfield);
@@ -983,7 +981,7 @@ static inline int
 ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
-	struct ipv6hdr *ipv6h = skb->nh.ipv6h;
+	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	int encap_limit = -1;
 	__u16 offset;
 	struct flowi fl;

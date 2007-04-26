@@ -115,7 +115,7 @@ ip6_packet_match(const struct sk_buff *skb,
 {
 	size_t i;
 	unsigned long ret;
-	const struct ipv6hdr *ipv6 = skb->nh.ipv6h;
+	const struct ipv6hdr *ipv6 = ipv6_hdr(skb);
 
 #define FWINV(bool,invflg) ((bool) ^ !!(ip6info->invflags & invflg))
 
@@ -301,7 +301,7 @@ ip6t_do_table(struct sk_buff **pskb,
 				goto no_match;
 
 			ADD_COUNTER(e->counters,
-				    ntohs((*pskb)->nh.ipv6h->payload_len)
+				    ntohs(ipv6_hdr(*pskb)->payload_len)
 				    + IPV6_HDR_LEN,
 				    1);
 
@@ -1448,8 +1448,8 @@ static void __exit ip6_tables_fini(void)
 int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		  int target, unsigned short *fragoff)
 {
-	unsigned int start = (u8*)(skb->nh.ipv6h + 1) - skb->data;
-	u8 nexthdr = skb->nh.ipv6h->nexthdr;
+	unsigned int start = (u8 *)(ipv6_hdr(skb) + 1) - skb->data;
+	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
 	unsigned int len = skb->len - start;
 
 	if (fragoff)

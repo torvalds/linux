@@ -38,7 +38,7 @@ static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	int hdr_len;
 
 	skb_push(skb, x->props.header_len);
-	iph = skb->nh.ipv6h;
+	iph = ipv6_hdr(skb);
 
 	hdr_len = ip6_find_1stfragopt(skb, &prevhdr);
 	skb->nh.raw = prevhdr - x->props.header_len;
@@ -46,7 +46,7 @@ static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	memmove(skb->data, iph, hdr_len);
 
 	skb_reset_network_header(skb);
-	top_iph = skb->nh.ipv6h;
+	top_iph = ipv6_hdr(skb);
 	skb->nh.raw = &top_iph->nexthdr;
 	skb->h.ipv6h = top_iph + 1;
 
@@ -74,7 +74,7 @@ static int xfrm6_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb_set_mac_header(skb, -skb->mac_len);
 	memmove(skb_mac_header(skb), old_mac, skb->mac_len);
 
-	ip6h = skb->nh.ipv6h;
+	ip6h = ipv6_hdr(skb);
 	ip6h->payload_len = htons(skb->len - size);
 	ipv6_addr_copy(&ip6h->daddr, (struct in6_addr *) &x->sel.daddr.a6);
 	ipv6_addr_copy(&ip6h->saddr, (struct in6_addr *) &x->sel.saddr.a6);
