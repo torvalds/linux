@@ -45,7 +45,7 @@ do {							\
 		io_schedule();				\
 		lock_cmd;				\
 	}						\
-	current->state = TASK_RUNNING;			\
+	__set_current_state(TASK_RUNNING);			\
 	remove_wait_queue(&wq, &__wait);		\
 } while (0)
 
