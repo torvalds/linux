@@ -123,15 +123,17 @@ static void get_reg_format(void *node, u32 *naddr, u32 *nsize)
 
 static void copy_val(u32 *dest, u32 *src, int naddr)
 {
-	memset(dest, 0, (MAX_ADDR_CELLS - naddr) * 4);
-	memcpy(dest, src, naddr * 4);
+	int pad = MAX_ADDR_CELLS - naddr;
+
+	memset(dest, 0, pad * 4);
+	memcpy(dest + pad, src, naddr * 4);
 }
 
 static int sub_reg(u32 *reg, u32 *sub)
 {
 	int i, borrow = 0;
 
-	for (i = 0; i < MAX_ADDR_CELLS; i++) {
+	for (i = MAX_ADDR_CELLS - 1; i >= 0; i--) {
 		int prev_borrow = borrow;
 		borrow = reg[i] < sub[i] + prev_borrow;
 		reg[i] -= sub[i] + prev_borrow;
@@ -140,11 +142,11 @@ static int sub_reg(u32 *reg, u32 *sub)
 	return !borrow;
 }
 
-static int add_reg(u32 *reg, u32 *add)
+static int add_reg(u32 *reg, u32 *add, int naddr)
 {
 	int i, carry = 0;
 
-	for (i = 0; i < MAX_ADDR_CELLS; i++) {
+	for (i = MAX_ADDR_CELLS - 1; i >= MAX_ADDR_CELLS - naddr; i--) {
 		u64 tmp = (u64)reg[i] + add[i] + carry;
 		carry = tmp >> 32;
 		reg[i] = (u32)tmp;
@@ -228,7 +230,8 @@ int dt_xlate_reg(void *node, int res, unsigned long *addr,
 	buflen = getprop(node, "reg", buf, sizeof(buf)) / 4;
 	offset = (naddr + nsize) * res;
 
-	if (buflen < offset + naddr + nsize)
+	if (buflen < offset + naddr + nsize ||
+	    sizeof(buf) < offset + naddr + nsize)
 		return 0;
 
 	copy_val(last_addr, buf + offset, naddr);
@@ -263,18 +266,14 @@ int dt_xlate_reg(void *node, int res, unsigned long *addr,
 
 		copy_val(this_addr, buf + offset + prev_naddr, naddr);
 
-		if (!add_reg(last_addr, this_addr))
+		if (!add_reg(last_addr, this_addr, naddr))
 			return 0;
 	}
 
 	if (naddr > 2)
 		return 0;
 
-	ret_addr = last_addr[0];
-	if (naddr == 2) {
-		ret_addr <<= 32;
-		ret_addr |= last_addr[1];
-	}
+	ret_addr = ((u64)last_addr[2] << 32) | last_addr[3];
 
 	if (sizeof(void *) == 4 &&
 	    (ret_addr >= 0x100000000ULL || ret_size > 0x100000000ULL ||
