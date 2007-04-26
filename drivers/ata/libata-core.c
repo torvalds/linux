@@ -982,25 +982,28 @@ static u64 ata_hpa_resize(struct ata_device *dev)
 		hpa_sectors = ata_read_native_max_address(dev);
 
 	/* if no hpa, both should be equal */
-	ata_dev_printk(dev, KERN_INFO, "%s 1: sectors = %lld, hpa_sectors = %lld\n",
-		__FUNCTION__, sectors, hpa_sectors);
+	ata_dev_printk(dev, KERN_INFO, "%s 1: sectors = %lld, "
+				"hpa_sectors = %lld\n",
+		__FUNCTION__, (long long)sectors, (long long)hpa_sectors);
 
 	if (hpa_sectors > sectors) {
 		ata_dev_printk(dev, KERN_INFO,
 			"Host Protected Area detected:\n"
 			"\tcurrent size: %lld sectors\n"
 			"\tnative size: %lld sectors\n",
-			sectors, hpa_sectors);
+			(long long)sectors, (long long)hpa_sectors);
 
 		if (ata_ignore_hpa) {
 			if (ata_id_has_lba48(dev->id))
 				hpa_sectors = ata_set_native_max_address_ext(dev, hpa_sectors);
 			else
-				hpa_sectors = ata_set_native_max_address(dev, hpa_sectors);
+				hpa_sectors = ata_set_native_max_address(dev,
+								hpa_sectors);
 
 			if (hpa_sectors) {
-				ata_dev_printk(dev, KERN_INFO,
-					"native size increased to %lld sectors\n", hpa_sectors);
+				ata_dev_printk(dev, KERN_INFO, "native size "
+					"increased to %lld sectors\n",
+					(long long)hpa_sectors);
 				return hpa_sectors;
 			}
 		}
