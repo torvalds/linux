@@ -1148,8 +1148,10 @@ int mod_sysfs_setup(struct module *mod,
 		goto out;
 
 	mod->holders_dir = kobject_add_dir(&mod->mkobj.kobj, "holders");
-	if (!mod->holders_dir)
+	if (!mod->holders_dir) {
+		err = -ENOMEM;
 		goto out_unreg;
+	}
 
 	err = module_param_sysfs_setup(mod, kparam, num_params);
 	if (err)
