@@ -702,7 +702,7 @@ static struct atm_dev atmarpd_dev = {
 	.ops =			&atmarpd_dev_ops,
 	.type =			"arpd",
 	.number = 		999,
-	.lock =			SPIN_LOCK_UNLOCKED
+	.lock =			__SPIN_LOCK_UNLOCKED(atmarpd_dev.lock)
 };
 
 
