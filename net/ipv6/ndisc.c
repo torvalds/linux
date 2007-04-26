@@ -449,6 +449,8 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	ifp = ipv6_get_ifaddr(solicited_addr, dev, 1);
 	if (ifp) {
 		src_addr = solicited_addr;
+		if (ifp->flags & IFA_F_OPTIMISTIC)
+			override = 0;
 		in6_ifa_put(ifp);
 	} else {
 		if (ipv6_dev_get_saddr(dev, daddr, &tmpaddr))
@@ -544,7 +546,8 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 	int send_llinfo;
 
 	if (saddr == NULL) {
-		if (ipv6_get_lladdr(dev, &addr_buf))
+		if (ipv6_get_lladdr(dev, &addr_buf,
+				   (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)))
 			return;
 		saddr = &addr_buf;
 	}
@@ -624,9 +627,33 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	struct sk_buff *skb;
 	struct icmp6hdr *hdr;
 	__u8 * opt;
+	struct inet6_ifaddr *ifp;
+	int send_sllao = dev->addr_len;
 	int len;
 	int err;
 
+
+#ifdef CONFIG_IPV6_OPTIMISTIC_DAD
+	/*
+	 * According to section 2.2 of RFC 4429, we must not
+	 * send router solicitations with a sllao from
+	 * optimistic addresses, but we may send the solicitation
+	 * if we don't include the sllao.  So here we check
+	 * if our address is optimistic, and if so, we
+	 * supress the inclusion of the sllao.
+	 */
+	if (send_sllao) {
+		ifp = ipv6_get_ifaddr(saddr, dev, 1);
+		if (ifp) {
+			if (ifp->flags & IFA_F_OPTIMISTIC)  {
+				send_sllao=0;
+				in6_ifa_put(ifp);
+			}
+		} else {
+			send_sllao = 0;
+		}
+	}
+#endif
 	ndisc_flow_init(&fl, NDISC_ROUTER_SOLICITATION, saddr, daddr,
 			dev->ifindex);
 
@@ -639,7 +666,7 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 		return;
 
 	len = sizeof(struct icmp6hdr);
-	if (dev->addr_len)
+	if (send_sllao)
 		len += ndisc_opt_addr_space(dev);
 
 	skb = sock_alloc_send_skb(sk,
@@ -666,7 +693,7 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 
 	opt = (u8*) (hdr + 1);
 
-	if (dev->addr_len)
+	if (send_sllao)
 		ndisc_fill_addr_option(opt, ND_OPT_SOURCE_LL_ADDR, dev->dev_addr,
 				       dev->addr_len, dev->type);
 
@@ -798,28 +825,39 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	inc = ipv6_addr_is_multicast(daddr);
 
 	if ((ifp = ipv6_get_ifaddr(&msg->target, dev, 1)) != NULL) {
-		if (ifp->flags & IFA_F_TENTATIVE) {
-			/* Address is tentative. If the source
-			   is unspecified address, it is someone
-			   does DAD, otherwise we ignore solicitations
-			   until DAD timer expires.
-			 */
-			if (!dad)
-				goto out;
-			if (dev->type == ARPHRD_IEEE802_TR) {
-				unsigned char *sadr = skb->mac.raw;
-				if (((sadr[8] ^ dev->dev_addr[0]) & 0x7f) == 0 &&
-				    sadr[9] == dev->dev_addr[1] &&
-				    sadr[10] == dev->dev_addr[2] &&
-				    sadr[11] == dev->dev_addr[3] &&
-				    sadr[12] == dev->dev_addr[4] &&
-				    sadr[13] == dev->dev_addr[5]) {
-					/* looped-back to us */
-					goto out;
+
+		if (ifp->flags & (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)) {
+			if (dad) {
+				if (dev->type == ARPHRD_IEEE802_TR) {
+					unsigned char *sadr = skb->mac.raw;
+					if (((sadr[8] ^ dev->dev_addr[0]) & 0x7f) == 0 &&
+					    sadr[9] == dev->dev_addr[1] &&
+					    sadr[10] == dev->dev_addr[2] &&
+					    sadr[11] == dev->dev_addr[3] &&
+					    sadr[12] == dev->dev_addr[4] &&
+					    sadr[13] == dev->dev_addr[5]) {
+						/* looped-back to us */
+						goto out;
+					}
 				}
+
+				/*
+				 * We are colliding with another node
+				 * who is doing DAD
+				 * so fail our DAD process
+				 */
+				addrconf_dad_failure(ifp);
+				goto out;
+			} else {
+				/*
+				 * This is not a dad solicitation.
+				 * If we are an optimistic node,
+				 * we should respond.
+				 * Otherwise, we should ignore it.
+				 */
+				if (!(ifp->flags & IFA_F_OPTIMISTIC))
+					goto out;
 			}
-			addrconf_dad_failure(ifp);
-			return;
 		}
 
 		idev = ifp->idev;
@@ -1408,7 +1446,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 
 	dev = skb->dev;
 
-	if (ipv6_get_lladdr(dev, &saddr_buf)) {
+	if (ipv6_get_lladdr(dev, &saddr_buf, IFA_F_TENTATIVE)) {
 		ND_PRINTK2(KERN_WARNING
 			   "ICMPv6 Redirect: no link-local address on %s\n",
 			   dev->name);

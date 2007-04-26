@@ -178,6 +178,9 @@ struct ipv6_devconf {
 #endif
 	__s32		proxy_ndp;
 	__s32		accept_source_route;
+#ifdef CONFIG_IPV6_OPTIMISTIC_DAD
+	__s32		optimistic_dad;
+#endif
 	void		*sysctl;
 };
 
@@ -208,6 +211,7 @@ enum {
 	DEVCONF_PROXY_NDP,
 	__DEVCONF_OPTIMISTIC_DAD,
 	DEVCONF_ACCEPT_SOURCE_ROUTE,
+	DEVCONF_OPTIMISTIC_DAD,
 	DEVCONF_MAX
 };
 
