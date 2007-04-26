@@ -972,7 +972,8 @@ int ocfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 
 	ret = ocfs2_meta_lock(inode, NULL, 0);
 	if (ret) {
-		mlog_errno(ret);
+		if (ret != -ENOENT)
+			mlog_errno(ret);
 		goto out;
 	}
 

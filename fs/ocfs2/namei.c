@@ -175,8 +175,6 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 
 	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno, 0);
 	if (IS_ERR(inode)) {
-		mlog(ML_ERROR, "Unable to create inode %llu\n",
-		     (unsigned long long)blkno);
 		ret = ERR_PTR(-EACCES);
 		goto bail_unlock;
 	}
