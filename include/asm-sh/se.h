@@ -69,11 +69,12 @@
 #define BCR_ILCRG	(PA_BCR + 12)
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7705)
-#define IRQ_STNIC   12
+#define IRQ_STNIC	12
+#define IRQ_CFCARD	14
 #else
 #define IRQ_STNIC	10
+#define IRQ_CFCARD	7
 #endif
-#define IRQ_CFCARD    7
 
 #define __IO_PREFIX	se
 #include <asm/io_generic.h>

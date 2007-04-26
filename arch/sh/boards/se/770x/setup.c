@@ -76,7 +76,7 @@ static struct resource cf_ide_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[2] = {
-		.start  = 7,
+		.start  = IRQ_CFCARD,
 		.flags  = IORESOURCE_IRQ,
 	},
 };

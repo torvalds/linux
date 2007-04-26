@@ -67,6 +67,7 @@ config CPU_SUBTYPE_SH7300
 config CPU_SUBTYPE_SH7705
 	bool "Support SH7705 processor"
 	select CPU_SH3
+	select CPU_HAS_IPR_IRQ
 	select CPU_HAS_PINT_IRQ
 
 config CPU_SUBTYPE_SH7706
