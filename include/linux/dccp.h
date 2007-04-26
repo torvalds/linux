@@ -260,19 +260,20 @@ enum {
 
 static inline struct dccp_hdr *dccp_hdr(const struct sk_buff *skb)
 {
-	return (struct dccp_hdr *)skb->h.raw;
+	return (struct dccp_hdr *)skb_transport_header(skb);
 }
 
 static inline struct dccp_hdr *dccp_zeroed_hdr(struct sk_buff *skb, int headlen)
 {
 	skb_push(skb, headlen);
 	skb_reset_transport_header(skb);
-	return memset(skb->h.raw, 0, headlen);
+	return memset(skb_transport_header(skb), 0, headlen);
 }
 
 static inline struct dccp_hdr_ext *dccp_hdrx(const struct sk_buff *skb)
 {
-	return (struct dccp_hdr_ext *)(skb->h.raw + sizeof(struct dccp_hdr));
+	return (struct dccp_hdr_ext *)(skb_transport_header(skb) +
+				       sizeof(struct dccp_hdr));
 }
 
 static inline unsigned int __dccp_basic_hdr_len(const struct dccp_hdr *dh)
@@ -301,12 +302,14 @@ static inline __u64 dccp_hdr_seq(const struct sk_buff *skb)
 
 static inline struct dccp_hdr_request *dccp_hdr_request(struct sk_buff *skb)
 {
-	return (struct dccp_hdr_request *)(skb->h.raw + dccp_basic_hdr_len(skb));
+	return (struct dccp_hdr_request *)(skb_transport_header(skb) +
+					   dccp_basic_hdr_len(skb));
 }
 
 static inline struct dccp_hdr_ack_bits *dccp_hdr_ack_bits(const struct sk_buff *skb)
 {
-	return (struct dccp_hdr_ack_bits *)(skb->h.raw + dccp_basic_hdr_len(skb));
+	return (struct dccp_hdr_ack_bits *)(skb_transport_header(skb) +
+					    dccp_basic_hdr_len(skb));
 }
 
 static inline u64 dccp_hdr_ack_seq(const struct sk_buff *skb)
@@ -317,12 +320,14 @@ static inline u64 dccp_hdr_ack_seq(const struct sk_buff *skb)
 
 static inline struct dccp_hdr_response *dccp_hdr_response(struct sk_buff *skb)
 {
-	return (struct dccp_hdr_response *)(skb->h.raw + dccp_basic_hdr_len(skb));
+	return (struct dccp_hdr_response *)(skb_transport_header(skb) +
+					    dccp_basic_hdr_len(skb));
 }
 
 static inline struct dccp_hdr_reset *dccp_hdr_reset(struct sk_buff *skb)
 {
-	return (struct dccp_hdr_reset *)(skb->h.raw + dccp_basic_hdr_len(skb));
+	return (struct dccp_hdr_reset *)(skb_transport_header(skb) +
+					 dccp_basic_hdr_len(skb));
 }
 
 static inline unsigned int __dccp_hdr_len(const struct dccp_hdr *dh)

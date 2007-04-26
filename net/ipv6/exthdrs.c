@@ -144,7 +144,7 @@ static int ip6_parse_tlv(struct tlvtype_proc *procs, struct sk_buff **skbp)
 	struct tlvtype_proc *curr;
 	const unsigned char *nh = skb_network_header(skb);
 	int off = skb->h.raw - skb->nh.raw;
-	int len = ((skb->h.raw[1]+1)<<3);
+	int len = (skb_transport_header(skb)[1] + 1) << 3;
 
 	if (skb_transport_offset(skb) + len > skb_headlen(skb))
 		goto bad;
@@ -290,15 +290,14 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
 	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
-				 ((skb->h.raw[1] + 1) << 3)))) {
+				 ((skb_transport_header(skb)[1] + 1) << 3)))) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INHDRERRORS);
 		kfree_skb(skb);
 		return -1;
 	}
 
-	opt->lastopt = skb->h.raw - skb->nh.raw;
-	opt->dst1 = skb->h.raw - skb->nh.raw;
+	opt->lastopt = opt->dst1 = skb->h.raw - skb->nh.raw;
 #ifdef CONFIG_IPV6_MIP6
 	dstbuf = opt->dst1;
 #endif
@@ -307,7 +306,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp)
 	if (ip6_parse_tlv(tlvprocdestopt_lst, skbp)) {
 		dst_release(dst);
 		skb = *skbp;
-		skb->h.raw += ((skb->h.raw[1]+1)<<3);
+		skb->h.raw += (skb_transport_header(skb)[1] + 1) << 3;
 		opt = IP6CB(skb);
 #ifdef CONFIG_IPV6_MIP6
 		opt->nhoff = dstbuf;
@@ -390,14 +389,14 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
 	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
-				 ((skb->h.raw[1] + 1) << 3)))) {
+				 ((skb_transport_header(skb)[1] + 1) << 3)))) {
 		IP6_INC_STATS_BH(ip6_dst_idev(skb->dst),
 				 IPSTATS_MIB_INHDRERRORS);
 		kfree_skb(skb);
 		return -1;
 	}
 
-	hdr = (struct ipv6_rt_hdr *) skb->h.raw;
+	hdr = (struct ipv6_rt_hdr *)skb_transport_header(skb);
 
 	switch (hdr->type) {
 #ifdef CONFIG_IPV6_MIP6
@@ -444,8 +443,7 @@ looped_back:
 			break;
 		}
 
-		opt->lastopt = skb->h.raw - skb->nh.raw;
-		opt->srcrt = skb->h.raw - skb->nh.raw;
+		opt->lastopt = opt->srcrt = skb->h.raw - skb->nh.raw;
 		skb->h.raw += (hdr->hdrlen + 1) << 3;
 		opt->dst0 = opt->dst1;
 		opt->dst1 = 0;
@@ -745,7 +743,8 @@ int ipv6_parse_hopopts(struct sk_buff **skbp)
 	 * hop-by-hop options.
 	 */
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr) + 8) ||
-	    !pskb_may_pull(skb, sizeof(struct ipv6hdr) + ((skb->h.raw[1] + 1) << 3))) {
+	    !pskb_may_pull(skb, (sizeof(struct ipv6hdr) +
+				 ((skb_transport_header(skb)[1] + 1) << 3)))) {
 		kfree_skb(skb);
 		return -1;
 	}
@@ -753,7 +752,7 @@ int ipv6_parse_hopopts(struct sk_buff **skbp)
 	opt->hop = sizeof(struct ipv6hdr);
 	if (ip6_parse_tlv(tlvprochopopt_lst, skbp)) {
 		skb = *skbp;
-		skb->h.raw += (skb->h.raw[1]+1)<<3;
+		skb->h.raw += (skb_transport_header(skb)[1] + 1) << 3;
 		opt = IP6CB(skb);
 		opt->nhoff = sizeof(struct ipv6hdr);
 		return 1;

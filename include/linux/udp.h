@@ -31,7 +31,7 @@ struct udphdr {
 
 static inline struct udphdr *udp_hdr(const struct sk_buff *skb)
 {
-	return (struct udphdr *)skb->h.raw;
+	return (struct udphdr *)skb_transport_header(skb);
 }
 #endif
 

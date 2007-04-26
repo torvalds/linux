@@ -1128,7 +1128,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 			if (fraggap) {
 				skb->csum = skb_copy_and_csum_bits(skb_prev,
 								   maxfraglen,
-								   skb->h.raw,
+						    skb_transport_header(skb),
 								   fraggap, 0);
 				skb_prev->csum = csum_sub(skb_prev->csum,
 							  skb->csum);
@@ -1374,7 +1374,9 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 		       &ipc, rt, MSG_DONTWAIT);
 	if ((skb = skb_peek(&sk->sk_write_queue)) != NULL) {
 		if (arg->csumoffset >= 0)
-			*((__sum16 *)skb->h.raw + arg->csumoffset) = csum_fold(csum_add(skb->csum, arg->csum));
+			*((__sum16 *)skb_transport_header(skb) +
+			  arg->csumoffset) = csum_fold(csum_add(skb->csum,
+								arg->csum));
 		skb->ip_summed = CHECKSUM_NONE;
 		ip_push_pending_frames(sk);
 	}

@@ -230,7 +230,7 @@ static inline struct ipv6hdr *ipv6_hdr(const struct sk_buff *skb)
 
 static inline struct ipv6hdr *ipipv6_hdr(const struct sk_buff *skb)
 {
-	return (struct ipv6hdr *)skb->h.raw;
+	return (struct ipv6hdr *)skb_transport_header(skb);
 }
 
 /* 

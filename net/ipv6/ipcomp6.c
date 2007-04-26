@@ -143,7 +143,7 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	/* compression */
 	plen = skb->len - hdr_len;
 	dlen = IPCOMP_SCRATCH_SIZE;
-	start = skb->h.raw;
+	start = skb_transport_header(skb);
 
 	cpu = get_cpu();
 	scratch = *per_cpu_ptr(ipcomp6_scratches, cpu);

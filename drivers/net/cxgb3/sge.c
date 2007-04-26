@@ -1324,12 +1324,14 @@ static void write_ofld_wr(struct adapter *adap, struct sk_buff *skb,
 
 	flits = skb_transport_offset(skb) / 8;
 	sgp = ndesc == 1 ? (struct sg_ent *)&d->flit[flits] : sgl;
-	sgl_flits = make_sgl(skb, sgp, skb->h.raw, skb->tail - skb->h.raw,
+	sgl_flits = make_sgl(skb, sgp, skb_transport_header(skb),
+			     skb->tail - skb_transport_header(skb),
 			     adap->pdev);
 	if (need_skb_unmap()) {
 		setup_deferred_unmapping(skb, adap->pdev, sgp, sgl_flits);
 		skb->destructor = deferred_unmap_destructor;
-		((struct unmap_info *)skb->cb)->len = skb->tail - skb->h.raw;
+		((struct unmap_info *)skb->cb)->len = (skb->tail -
+						       skb_transport_header(skb));
 	}
 
 	write_wr_hdr_sgl(ndesc, skb, d, pidx, q, sgl, flits, sgl_flits,
@@ -1351,7 +1353,7 @@ static inline unsigned int calc_tx_descs_ofld(const struct sk_buff *skb)
 		return 1;	/* packet fits as immediate data */
 
 	flits = skb_transport_offset(skb) / 8;	/* headers */
-	if (skb->tail != skb->h.raw)
+	if (skb->tail != skb_transport_header(skb))
 		cnt++;
 	return flits_to_desc(flits + sgl_len(cnt));
 }

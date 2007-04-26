@@ -1585,9 +1585,10 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb_set_transport_header(skb, lv);
 
-	SOCK_DEBUG(sk, "base=%p pos=%p\n", skb->data, skb->h.raw);
+	SOCK_DEBUG(sk, "base=%p pos=%p\n",
+		   skb->data, skb_transport_header(skb));
 
-	*skb->h.raw = AX25_UI;
+	*skb_transport_header(skb) = AX25_UI;
 
 	/* Datagram frames go straight out of the door as UI */
 	ax25_queue_xmit(skb, ax25->ax25_dev->dev);

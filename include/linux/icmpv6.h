@@ -80,7 +80,7 @@ struct icmp6hdr {
 
 static inline struct icmp6hdr *icmp6_hdr(const struct sk_buff *skb)
 {
-	return (struct icmp6hdr *)skb->h.raw;
+	return (struct icmp6hdr *)skb_transport_header(skb);
 }
 #endif
 

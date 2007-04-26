@@ -1212,7 +1212,7 @@ int igmp6_event_query(struct sk_buff *skb)
 			in6_dev_put(idev);
 			return -EINVAL;
 		}
-		mlh2 = (struct mld2_query *) skb->h.raw;
+		mlh2 = (struct mld2_query *)skb_transport_header(skb);
 		max_delay = (MLDV2_MRC(ntohs(mlh2->mrc))*HZ)/1000;
 		if (!max_delay)
 			max_delay = 1;
@@ -1235,7 +1235,7 @@ int igmp6_event_query(struct sk_buff *skb)
 				in6_dev_put(idev);
 				return -EINVAL;
 			}
-			mlh2 = (struct mld2_query *) skb->h.raw;
+			mlh2 = (struct mld2_query *)skb_transport_header(skb);
 			mark = 1;
 		}
 	} else {
@@ -1460,18 +1460,20 @@ static inline int mld_dev_queue_xmit(struct sk_buff *skb)
 static void mld_sendpack(struct sk_buff *skb)
 {
 	struct ipv6hdr *pip6 = ipv6_hdr(skb);
-	struct mld2_report *pmr = (struct mld2_report *)skb->h.raw;
+	struct mld2_report *pmr =
+			      (struct mld2_report *)skb_transport_header(skb);
 	int payload_len, mldlen;
 	struct inet6_dev *idev = in6_dev_get(skb->dev);
 	int err;
 
 	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
 	payload_len = skb->tail - skb_network_header(skb) - sizeof(*pip6);
-	mldlen = skb->tail - skb->h.raw;
+	mldlen = skb->tail - skb_transport_header(skb);
 	pip6->payload_len = htons(payload_len);
 
 	pmr->csum = csum_ipv6_magic(&pip6->saddr, &pip6->daddr, mldlen,
-		IPPROTO_ICMPV6, csum_partial(skb->h.raw, mldlen, 0));
+		IPPROTO_ICMPV6, csum_partial(skb_transport_header(skb),
+					     mldlen, 0));
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, skb->dev,
 		mld_dev_queue_xmit);
 	if (!err) {
@@ -1505,7 +1507,7 @@ static struct sk_buff *add_grhead(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 	pgr->grec_auxwords = 0;
 	pgr->grec_nsrcs = 0;
 	pgr->grec_mca = pmc->mca_addr;	/* structure copy */
-	pmr = (struct mld2_report *)skb->h.raw;
+	pmr = (struct mld2_report *)skb_transport_header(skb);
 	pmr->ngrec = htons(ntohs(pmr->ngrec)+1);
 	*ppgr = pgr;
 	return skb;
@@ -1538,7 +1540,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 	if (!*psf_list)
 		goto empty_source;
 
-	pmr = skb ? (struct mld2_report *)skb->h.raw : NULL;
+	pmr = skb ? (struct mld2_report *)skb_transport_header(skb) : NULL;
 
 	/* EX and TO_EX get a fresh packet, if needed */
 	if (truncate) {

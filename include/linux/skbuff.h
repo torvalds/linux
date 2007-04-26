@@ -951,6 +951,11 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 	skb->tail += len;
 }
 
+static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
+{
+	return skb->h.raw;
+}
+
 static inline void skb_reset_transport_header(struct sk_buff *skb)
 {
 	skb->h.raw = skb->data;

@@ -432,7 +432,7 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		goto drop;
 
 	/* Basic sanity checks can be done without the lock.  */
-	rarp = (struct arphdr *)skb->h.raw;
+	rarp = (struct arphdr *)skb_transport_header(skb);
 
 	/* If this test doesn't pass, it's not IP, or we should
 	 * ignore it anyway.
@@ -455,7 +455,7 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		goto drop;
 
 	/* OK, it is all there and looks valid, process... */
-	rarp = (struct arphdr *)skb->h.raw;
+	rarp = (struct arphdr *)skb_transport_header(skb);
 	rarp_ptr = (unsigned char *) (rarp + 1);
 
 	/* One reply at a time, please. */

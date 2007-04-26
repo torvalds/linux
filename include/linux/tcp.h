@@ -180,7 +180,7 @@ struct tcp_md5sig {
 
 static inline struct tcphdr *tcp_hdr(const struct sk_buff *skb)
 {
-	return (struct tcphdr *)skb->h.raw;
+	return (struct tcphdr *)skb_transport_header(skb);
 }
 
 static inline unsigned int tcp_hdrlen(const struct sk_buff *skb)

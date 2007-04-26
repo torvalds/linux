@@ -92,10 +92,10 @@ int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 
 	if (!pskb_may_pull(skb, (skb_transport_offset(skb)) + 8) ||
 	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
-				 ((skb->h.raw[1] + 1) << 3))))
+				 ((skb_transport_header(skb)[1] + 1) << 3))))
 		return -1;
 
-	mh = (struct ip6_mh *)skb->h.raw;
+	mh = (struct ip6_mh *)skb_transport_header(skb);
 
 	if (mh->ip6mh_hdrlen < mip6_mh_len(mh->ip6mh_type)) {
 		LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH message too short: %d vs >=%d\n",
@@ -158,7 +158,7 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	nexthdr = *skb_network_header(skb);
 	*skb_network_header(skb) = IPPROTO_DSTOPTS;
 
-	dstopt = (struct ipv6_destopt_hdr *)skb->h.raw;
+	dstopt = (struct ipv6_destopt_hdr *)skb_transport_header(skb);
 	dstopt->nexthdr = nexthdr;
 
 	hao = mip6_padn((char *)(dstopt + 1),
@@ -370,7 +370,7 @@ static int mip6_rthdr_output(struct xfrm_state *x, struct sk_buff *skb)
 	nexthdr = *skb_network_header(skb);
 	*skb_network_header(skb) = IPPROTO_ROUTING;
 
-	rt2 = (struct rt2_hdr *)skb->h.raw;
+	rt2 = (struct rt2_hdr *)skb_transport_header(skb);
 	rt2->rt_hdr.nexthdr = nexthdr;
 	rt2->rt_hdr.hdrlen = (x->props.header_len >> 3) - 1;
 	rt2->rt_hdr.type = IPV6_SRCRT_TYPE_2;

@@ -140,7 +140,7 @@ static void tcp_measure_rcv_mss(struct sock *sk,
 		 *
 		 * "len" is invariant segment length, including TCP header.
 		 */
-		len += skb->data - skb->h.raw;
+		len += skb->data - skb_transport_header(skb);
 		if (len >= TCP_MIN_RCVMSS + sizeof(struct tcphdr) ||
 		    /* If PSH is not set, packet should be
 		     * full sized, provided peer TCP is not badly broken.
@@ -940,7 +940,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	unsigned char *ptr = ack_skb->h.raw + TCP_SKB_CB(ack_skb)->sacked;
+	unsigned char *ptr = (skb_transport_header(ack_skb) +
+			      TCP_SKB_CB(ack_skb)->sacked);
 	struct tcp_sack_block_wire *sp = (struct tcp_sack_block_wire *)(ptr+2);
 	struct sk_buff *cached_skb;
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
@@ -3634,10 +3635,10 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 			return;
 
 		skb_set_mac_header(nskb, skb_mac_header(skb) - skb->head);
-		skb_set_network_header(nskb,
-				       skb_network_header(skb) - skb->head);
-		skb_set_transport_header(nskb, skb->h.raw - skb->head);
-
+		skb_set_network_header(nskb, (skb_network_header(skb) -
+					      skb->head));
+		skb_set_transport_header(nskb, (skb_transport_header(skb) -
+						skb->head));
 		skb_reserve(nskb, header);
 		memcpy(nskb->head, skb->head, header);
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));

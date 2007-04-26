@@ -917,6 +917,7 @@ static int ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	int i;
 	struct lt_sendlap cbuf;
+	unsigned char *hdr;
 
 	cbuf.command = LT_SENDLAP;
 	cbuf.dnode = skb->data[0];
@@ -932,11 +933,13 @@ static int ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk("\n");
 	}
 
-	do_write(dev,&cbuf,sizeof(cbuf),skb->h.raw,skb->len);
+	hdr = skb_transport_header(skb);
+	do_write(dev, &cbuf, sizeof(cbuf), hdr, skb->len);
 
 	if(debug & DEBUG_UPPER) {
 		printk("sent %d ddp bytes\n",skb->len);
-		for(i=0;i<skb->len;i++) printk("%02x ",skb->h.raw[i]);
+		for (i = 0; i < skb->len; i++)
+			printk("%02x ", hdr[i]);
 		printk("\n");
 	}
 

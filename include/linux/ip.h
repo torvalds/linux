@@ -114,7 +114,7 @@ static inline struct iphdr *ip_hdr(const struct sk_buff *skb)
 
 static inline struct iphdr *ipip_hdr(const struct sk_buff *skb)
 {
-	return (struct iphdr *)skb->h.raw;
+	return (struct iphdr *)skb_transport_header(skb);
 }
 #endif
 

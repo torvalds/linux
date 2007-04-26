@@ -348,7 +348,7 @@ static int igmpv3_sendpack(struct sk_buff *skb)
 	struct iphdr *pip = ip_hdr(skb);
 	struct igmphdr *pig = igmp_hdr(skb);
 	const int iplen = skb->tail - skb->nh.raw;
-	const int igmplen = skb->tail - skb->h.raw;
+	const int igmplen = skb->tail - skb_transport_header(skb);
 
 	pip->tot_len = htons(iplen);
 	ip_send_check(pip);

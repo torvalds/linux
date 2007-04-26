@@ -68,7 +68,7 @@ typedef struct sctphdr {
 
 static inline struct sctphdr *sctp_hdr(const struct sk_buff *skb)
 {
-	return (struct sctphdr *)skb->h.raw;
+	return (struct sctphdr *)skb_transport_header(skb);
 }
 #endif
 

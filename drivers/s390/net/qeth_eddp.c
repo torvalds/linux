@@ -476,13 +476,13 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 		eddp = qeth_eddp_create_eddp_data(qhdr,
 						  skb_network_header(skb),
 						  ip_hdrlen(skb),
-						  skb->h.raw,
+						  skb_transport_header(skb),
 						  tcp_hdrlen(skb));
 	else
 		eddp = qeth_eddp_create_eddp_data(qhdr,
 						  skb_network_header(skb),
 						  sizeof(struct ipv6hdr),
-						  skb->h.raw,
+						  skb_transport_header(skb),
 						  tcp_hdrlen(skb));
 
 	if (eddp == NULL) {

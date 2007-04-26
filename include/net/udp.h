@@ -89,8 +89,8 @@ static inline int udp_lib_checksum_complete(struct sk_buff *skb)
  */
 static inline __wsum udp_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 {
-	__wsum csum = csum_partial(skb->h.raw, sizeof(struct udphdr), 0);
-
+	__wsum csum = csum_partial(skb_transport_header(skb),
+				   sizeof(struct udphdr), 0);
 	skb_queue_walk(&sk->sk_write_queue, skb) {
 		csum = csum_add(csum, skb->csum);
 	}

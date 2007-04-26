@@ -51,7 +51,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 		BUG_ON(optlen < 0);
 
-		ph = (struct ip_beet_phdr *)skb->h.raw;
+		ph = (struct ip_beet_phdr *)skb_transport_header(skb);
 		ph->padlen = 4 - (optlen & 4);
 		ph->hdrlen = optlen / 8;
 		ph->nexthdr = top_iph->protocol;

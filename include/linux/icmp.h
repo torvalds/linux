@@ -87,7 +87,7 @@ struct icmphdr {
 
 static inline struct icmphdr *icmp_hdr(const struct sk_buff *skb)
 {
-	return (struct icmphdr *)skb->h.raw;
+	return (struct icmphdr *)skb_transport_header(skb);
 }
 #endif
 

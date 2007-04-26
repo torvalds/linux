@@ -85,19 +85,19 @@ struct igmpv3_query {
 
 static inline struct igmphdr *igmp_hdr(const struct sk_buff *skb)
 {
-	return (struct igmphdr *)skb->h.raw;
+	return (struct igmphdr *)skb_transport_header(skb);
 }
 
 static inline struct igmpv3_report *
 			igmpv3_report_hdr(const struct sk_buff *skb)
 {
-	return (struct igmpv3_report *)skb->h.raw;
+	return (struct igmpv3_report *)skb_transport_header(skb);
 }
 
 static inline struct igmpv3_query *
 			igmpv3_query_hdr(const struct sk_buff *skb)
 {
-	return (struct igmpv3_query *)skb->h.raw;
+	return (struct igmpv3_query *)skb_transport_header(skb);
 }
 #endif
 

@@ -268,7 +268,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 			goto error_free_iph;
 	}
 
-	ah = (struct ip_auth_hdr *)skb->h.raw;
+	ah = (struct ip_auth_hdr *)skb_transport_header(skb);
 	ah->nexthdr = nexthdr;
 
 	top_iph->priority    = 0;
