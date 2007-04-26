@@ -847,16 +847,6 @@ static void intr_callback(struct urb *urb)
 		 * d[0].NO_CARRIER kicks in only with failed TX.
 		 * ... so monitoring with MII may be safest.
 		 */
-		if (pegasus->features & TRUST_LINK_STATUS) {
-			if (d[5] & LINK_STATUS)
-				netif_carrier_on(net);
-			else
-				netif_carrier_off(net);
-		} else {
-			/* Never set carrier _on_ based on ! NO_CARRIER */
-			if (d[0] & NO_CARRIER)
-				netif_carrier_off(net);	
-		}
 
 		/* bytes 3-4 == rx_lostpkt, reg 2E/2F */
 		pegasus->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
