@@ -119,8 +119,7 @@ MODULE_PARM_DESC(use_both_schemes,
 		"first one fails");
 
 
-#ifdef	DEBUG
-static inline char *portspeed (int portstatus)
+static inline char *portspeed(int portstatus)
 {
 	if (portstatus & (1 << USB_PORT_FEAT_HIGHSPEED))
     		return "480 Mb/s";
@@ -129,7 +128,6 @@ static inline char *portspeed (int portstatus)
 	else
 		return "12 Mb/s";
 }
-#endif
 
 /* Note that hdev or one of its children must be locked! */
 static inline struct usb_hub *hdev_to_hub(struct usb_device *hdev)
