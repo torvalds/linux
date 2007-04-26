@@ -920,7 +920,6 @@ static void fast_rx_path(struct atmel_private *priv,
 		memcpy(&skbp[6], header->addr2, 6); /* source address */
 
 	priv->dev->last_rx = jiffies;
-	skb->dev = priv->dev;
 	skb->protocol = eth_type_trans(skb, priv->dev);
 	skb->ip_summed = CHECKSUM_NONE;
 	netif_rx(skb);
@@ -1028,7 +1027,6 @@ static void frag_rx_path(struct atmel_private *priv,
 				       priv->rx_buf,
 				       priv->frag_len + 12);
 				priv->dev->last_rx = jiffies;
-				skb->dev = priv->dev;
 				skb->protocol = eth_type_trans(skb, priv->dev);
 				skb->ip_summed = CHECKSUM_NONE;
 				netif_rx(skb);

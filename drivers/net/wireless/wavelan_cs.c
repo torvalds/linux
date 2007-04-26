@@ -2884,8 +2884,6 @@ wv_packet_read(struct net_device *		dev,
       return;
     }
 
-  skb->dev = dev;
-
   skb_reserve(skb, 2);
   fd_p = read_ringbuf(dev, fd_p, (char *) skb_put(skb, sksize), sksize);
   skb->protocol = eth_type_trans(skb, dev);

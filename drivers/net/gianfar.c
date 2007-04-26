@@ -1295,8 +1295,6 @@ struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
 	 */
 	skb_reserve(skb, alignamount);
 
-	skb->dev = dev;
-
 	bdp->bufPtr = dma_map_single(NULL, skb->data,
 			priv->rx_buffer_size, DMA_FROM_DEVICE);
 

@@ -561,7 +561,6 @@ static int fec_enet_rx_common(struct net_device *dev, int *budget)
 				skbn = dev_alloc_skb(ENET_RX_FRSIZE);
 
 			if (skbn != NULL) {
-				skb->dev = dev;
 				skb_put(skb, pkt_len);	/* Make room */
 				skb->protocol = eth_type_trans(skb, dev);
 				received++;

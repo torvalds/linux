@@ -2058,7 +2058,6 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 				goto drop_it;
 			}
 
-			copy_skb->dev = dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			hme_dma_sync_for_cpu(hp, dma_addr, len, DMA_FROMDEVICE);

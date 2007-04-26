@@ -383,7 +383,6 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	kfree_skb(skb);
 
 	s->stats.rx_packets++;
-	nskb->dev       = dev;
 	nskb->ip_summed = CHECKSUM_NONE;
 	nskb->protocol  = eth_type_trans(nskb, dev);
 	netif_rx_ni(nskb);

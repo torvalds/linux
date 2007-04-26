@@ -722,7 +722,6 @@ static void ei_receive(struct net_device *dev)
 			else
 			{
 				skb_reserve(skb,2);	/* IP headers on 16 byte boundaries */
-				skb->dev = dev;
 				skb_put(skb, pkt_len);	/* Make room */
 				ei_block_input(dev, pkt_len, skb, current_offset + sizeof(rx_frame));
 				skb->protocol=eth_type_trans(skb,dev);

@@ -434,7 +434,6 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 			 * received packet
 			 */
 			skb_put(skb, pkt_info.byte_cnt - 4);
-			skb->dev = dev;
 
 			if (pkt_info.cmd_sts & ETH_LAYER_4_CHECKSUM_OK) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;

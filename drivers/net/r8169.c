@@ -2586,7 +2586,6 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 			pci_action(tp->pci_dev, le64_to_cpu(desc->addr),
 				   tp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
-			skb->dev = dev;
 			skb_put(skb, pkt_size);
 			skb->protocol = eth_type_trans(skb, dev);
 

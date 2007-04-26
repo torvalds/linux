@@ -676,7 +676,6 @@ i596_rx_one(struct net_device *dev, struct i596_private *lp,
 			return 1;
 		}
 
-		skb->dev = dev;
 		memcpy(skb_put(skb,pkt_len), rfd->data, pkt_len);
 
 		skb->protocol = eth_type_trans(skb,dev);

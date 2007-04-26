@@ -437,7 +437,6 @@ static void qe_rx(struct sunqe *qep)
 				drops++;
 				qep->net_stats.rx_dropped++;
 			} else {
-				skb->dev = qep->dev;
 				skb_reserve(skb, 2);
 				skb_put(skb, len);
 				eth_copy_and_sum(skb, (unsigned char *) this_qbuf,

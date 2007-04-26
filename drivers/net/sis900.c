@@ -1160,7 +1160,6 @@ sis900_init_rx_ring(struct net_device *net_dev)
 			   buffer */
 			break;
 		}
-		skb->dev = net_dev;
 		sis_priv->rx_skbuff[i] = skb;
 		sis_priv->rx_ring[i].cmdsts = RX_BUF_SIZE;
                 sis_priv->rx_ring[i].bufptr = pci_map_single(sis_priv->pci_dev,
@@ -1800,7 +1799,6 @@ static int sis900_rx(struct net_device *net_dev)
 			sis_priv->stats.rx_packets++;
 			sis_priv->dirty_rx++;
 refill_rx_ring:
-			skb->dev = net_dev;
 			sis_priv->rx_skbuff[entry] = skb;
 			sis_priv->rx_ring[entry].cmdsts = RX_BUF_SIZE;
                 	sis_priv->rx_ring[entry].bufptr =
@@ -1832,7 +1830,6 @@ refill_rx_ring:
 				sis_priv->stats.rx_dropped++;
 				break;
 			}
-			skb->dev = net_dev;
 			sis_priv->rx_skbuff[entry] = skb;
 			sis_priv->rx_ring[entry].cmdsts = RX_BUF_SIZE;
                 	sis_priv->rx_ring[entry].bufptr =

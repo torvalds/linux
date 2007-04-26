@@ -775,7 +775,6 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 					skb = (struct sk_buff *) dev_alloc_skb(totlen+2);
 					if(skb != NULL)
 					{
-						skb->dev = dev;
 						skb_reserve(skb,2);
 						skb_put(skb,totlen);
 						eth_copy_and_sum(skb,(char *) p->base+swab32((unsigned long) rbd->buffer),totlen,0);

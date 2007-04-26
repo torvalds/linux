@@ -254,11 +254,11 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 		return -EFAULT;
 	}
 
-	skb->dev = tun->dev;
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case TUN_TUN_DEV:
 		skb->mac.raw = skb->data;
 		skb->protocol = pi.proto;
+		skb->dev = tun->dev;
 		break;
 	case TUN_TAP_DEV:
 		skb->protocol = eth_type_trans(skb, tun->dev);

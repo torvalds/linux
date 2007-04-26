@@ -503,7 +503,6 @@ dgrs_rcv_frame(
 		/* discarding the frame */
 		goto out;
 	}
-	skb->dev = devN;
 	skb_reserve(skb, 2);	/* Align IP header */
 
 again:

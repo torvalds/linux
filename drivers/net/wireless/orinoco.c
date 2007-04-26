@@ -915,7 +915,6 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 		memcpy(hdr->h_source, desc.addr2, ETH_ALEN);
 
 	dev->last_rx = jiffies;
-	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_NONE;
 	if (fc & IEEE80211_FCTL_TODS)

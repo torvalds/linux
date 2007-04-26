@@ -331,7 +331,6 @@ static int lance_rx (struct net_device *dev)
                                 return 0;
                         }
 
-                        skb->dev = dev;
                         skb_reserve (skb, 2);           /* 16 byte align */
                         skb_put (skb, len);             /* make room */
                         eth_copy_and_sum(skb,

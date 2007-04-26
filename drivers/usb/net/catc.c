@@ -255,7 +255,6 @@ static void catc_rx_done(struct urb *urb)
 		if (!(skb = dev_alloc_skb(pkt_len)))
 			return;
 
-		skb->dev = catc->netdev;
 		eth_copy_and_sum(skb, pkt_start + pkt_offset, pkt_len, 0);
 		skb_put(skb, pkt_len);
 

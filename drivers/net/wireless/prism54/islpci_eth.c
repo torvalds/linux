@@ -374,10 +374,6 @@ islpci_eth_receive(islpci_private *priv)
 	DEBUG(SHOW_BUFFER_CONTENTS, "\nrx %p ", skb->data);
 	display_buffer((char *) skb->data, skb->len);
 #endif
-
-	/* do some additional sk_buff and network layer parameters */
-	skb->dev = ndev;
-
 	/* take care of monitor mode and spy monitoring. */
 	if (unlikely(priv->iw_mode == IW_MODE_MONITOR))
 		discard = islpci_monitor_rx(priv, &skb);

@@ -573,7 +573,6 @@ rx_status_loop:
 		}
 
 		skb_reserve(new_skb, RX_OFFSET);
-		new_skb->dev = dev;
 
 		pci_unmap_single(cp->pdev, mapping,
 				 buflen, PCI_DMA_FROMDEVICE);
@@ -1082,7 +1081,6 @@ static int cp_refill_rx (struct cp_private *cp)
 		if (!skb)
 			goto err_out;
 
-		skb->dev = cp->dev;
 		skb_reserve(skb, RX_OFFSET);
 
 		mapping = pci_map_single(cp->pdev, skb->data, cp->rx_buf_sz,

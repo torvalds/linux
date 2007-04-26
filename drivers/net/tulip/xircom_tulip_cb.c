@@ -1238,7 +1238,6 @@ xircom_rx(struct net_device *dev)
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak
 				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 #if ! defined(__alpha__)
 				eth_copy_and_sum(skb, bus_to_virt(tp->rx_ring[entry].buffer1),

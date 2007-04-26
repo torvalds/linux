@@ -267,7 +267,6 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
 		(void *) skb->data, (void *) skb->tail, (void *) skb->end,
 		skb->len);
 
-	skb->dev = xpnet_device;
 	skb->protocol = eth_type_trans(skb, xpnet_device);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 

@@ -523,7 +523,6 @@ static void c2_rx_interrupt(struct net_device *netdev)
 		skb->data += sizeof(*rxp_hdr);
 		skb->tail = skb->data + buflen;
 		skb->len = buflen;
-		skb->dev = netdev;
 		skb->protocol = eth_type_trans(skb, netdev);
 
 		netif_rx(skb);

@@ -1398,7 +1398,6 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 		vptr->stats.multicast++;
 
 	skb = rd_info->skb;
-	skb->dev = vptr->dev;
 
 	pci_dma_sync_single_for_cpu(vptr->pdev, rd_info->skb_dma,
 				    vptr->rx_buf_sz, PCI_DMA_FROMDEVICE);
@@ -1428,7 +1427,7 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 		   PCI_DMA_FROMDEVICE);
 
 	skb_put(skb, pkt_len - 4);
-	skb->protocol = eth_type_trans(skb, skb->dev);
+	skb->protocol = eth_type_trans(skb, vptr->dev);
 
 	stats->rx_bytes += pkt_len;
 	netif_rx(skb);

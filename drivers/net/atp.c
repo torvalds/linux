@@ -793,7 +793,6 @@ static void net_rx(struct net_device *dev)
 			lp->stats.rx_dropped++;
 			goto done;
 		}
-		skb->dev = dev;
 
 		skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 		read_block(ioaddr, pkt_len, skb_put(skb,pkt_len), dev->if_port);

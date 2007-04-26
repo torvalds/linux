@@ -408,7 +408,6 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 static u16 atl1_alloc_rx_buffers(struct atl1_adapter *adapter)
 {
 	struct atl1_rfd_ring *rfd_ring = &adapter->rfd_ring;
-	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	struct page *page;
 	unsigned long offset;
@@ -444,7 +443,6 @@ static u16 atl1_alloc_rx_buffers(struct atl1_adapter *adapter)
 		 * the 14 byte MAC header is removed
 		 */
 		skb_reserve(skb, NET_IP_ALIGN);
-		skb->dev = netdev;
 
 		buffer_info->alloced = 1;
 		buffer_info->skb = skb;

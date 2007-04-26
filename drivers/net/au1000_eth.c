@@ -1205,7 +1205,6 @@ static int au1000_rx(struct net_device *dev)
 				aup->stats.rx_dropped++;
 				continue;
 			}
-			skb->dev = dev;
 			skb_reserve(skb, 2);	/* 16 byte IP header align */
 			eth_copy_and_sum(skb,
 				(unsigned char *)pDB->vaddr, frmlen, 0);

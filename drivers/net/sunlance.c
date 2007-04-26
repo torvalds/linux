@@ -547,7 +547,6 @@ static void lance_rx_dvma(struct net_device *dev)
 
 			lp->stats.rx_bytes += len;
 
-			skb->dev = dev;
 			skb_reserve(skb, 2);		/* 16 byte align */
 			skb_put(skb, len);		/* make room */
 			eth_copy_and_sum(skb,
@@ -721,7 +720,6 @@ static void lance_rx_pio(struct net_device *dev)
 
 			lp->stats.rx_bytes += len;
 
-			skb->dev = dev;
 			skb_reserve (skb, 2);		/* 16 byte align */
 			skb_put(skb, len);		/* make room */
 			lance_piocopy_to_skb(skb, &(ib->rx_buf[entry][0]), len);

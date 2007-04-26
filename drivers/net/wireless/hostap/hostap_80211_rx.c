@@ -1083,7 +1083,6 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	if (skb) {
 		skb->protocol = eth_type_trans(skb, dev);
 		memset(skb->cb, 0, sizeof(skb->cb));
-		skb->dev = dev;
 		netif_rx(skb);
 	}
 

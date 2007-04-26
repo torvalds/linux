@@ -435,7 +435,6 @@ static void de_rx (struct de_private *de)
 			rx_work = 100;
 			goto rx_next;
 		}
-		copy_skb->dev = de->dev;
 
 		if (!copying_skb) {
 			pci_unmap_single(de->pdev, mapping,

@@ -1207,7 +1207,6 @@ static void investigate_read_descriptor(struct net_device *dev,struct xircom_pri
 				card->stats.rx_dropped++;
 				goto out;
 			}
-			skb->dev = dev;
 			skb_reserve(skb, 2);
 			eth_copy_and_sum(skb, (unsigned char*)&card->rx_buffer[bufferoffset / 4], pkt_len, 0);
 			skb_put(skb, pkt_len);

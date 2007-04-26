@@ -633,8 +633,6 @@ static inline void ioc3_rx(struct ioc3_private *ip)
 
 			ip->rx_skbs[rx_entry] = NULL;	/* Poison  */
 
-			new_skb->dev = priv_netdev(ip);
-
 			/* Because we reserve afterwards. */
 			skb_put(new_skb, (1664 + RX_OFFSET));
 			rxb = (struct ioc3_erxbuf *) new_skb->data;
@@ -940,7 +938,6 @@ static void ioc3_alloc_rings(struct net_device *dev)
 			}
 
 			ip->rx_skbs[i] = skb;
-			skb->dev = dev;
 
 			/* Because we reserve afterwards. */
 			skb_put(skb, (1664 + RX_OFFSET));

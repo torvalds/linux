@@ -3415,10 +3415,8 @@ badrx:
 				skb->pkt_type = PACKET_OTHERHOST;
 				skb->dev = apriv->wifidev;
 				skb->protocol = htons(ETH_P_802_2);
-			} else {
-				skb->dev = dev;
+			} else
 				skb->protocol = eth_type_trans(skb,dev);
-			}
 			skb->dev->last_rx = jiffies;
 			skb->ip_summed = CHECKSUM_NONE;
 
@@ -3641,7 +3639,6 @@ badmic:
 		}
 #endif /* WIRELESS_SPY */
 
-		skb->dev = ai->dev;
 		skb->ip_summed = CHECKSUM_NONE;
 		skb->protocol = eth_type_trans(skb, ai->dev);
 		skb->dev->last_rx = jiffies;

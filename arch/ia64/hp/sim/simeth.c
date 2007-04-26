@@ -427,7 +427,6 @@ make_new_skb(struct net_device *dev)
 		printk(KERN_NOTICE "%s: memory squeeze. dropping packet.\n", dev->name);
 		return NULL;
 	}
-	nskb->dev = dev;
 
 	skb_reserve(nskb, 2);	/* Align IP on 16 byte boundaries */
 

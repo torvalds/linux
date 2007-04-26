@@ -2193,7 +2193,6 @@ rx_start:
 				SK_PNMI_CNT_RX_OCTETS_DELIVERED(pAC,
 					FrameLength, pRxPort->PortIndex);
 
-				pMsg->dev = pAC->dev[pRxPort->PortIndex];
 				pMsg->protocol = eth_type_trans(pMsg,
 					pAC->dev[pRxPort->PortIndex]);
 				netif_rx(pMsg);
@@ -2246,7 +2245,6 @@ rx_start:
 				(IFF_PROMISC | IFF_ALLMULTI)) != 0 ||
 				(ForRlmt & SK_RLMT_RX_PROTOCOL) ==
 				SK_RLMT_RX_PROTOCOL) {
-				pMsg->dev = pAC->dev[pRxPort->PortIndex];
 				pMsg->protocol = eth_type_trans(pMsg,
 					pAC->dev[pRxPort->PortIndex]);
 				netif_rx(pMsg);

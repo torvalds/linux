@@ -1684,9 +1684,8 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 	struct port_info *pi;
 
 	skb_pull(skb, sizeof(*p) + pad);
-	skb->dev = adap->port[p->iff];
 	skb->dev->last_rx = jiffies;
-	skb->protocol = eth_type_trans(skb, skb->dev);
+	skb->protocol = eth_type_trans(skb, adap->port[p->iff]);
 	pi = netdev_priv(skb->dev);
 	if (pi->rx_csum_offload && p->csum_valid && p->csum == 0xffff &&
 	    !p->fragment) {

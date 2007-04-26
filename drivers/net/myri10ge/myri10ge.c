@@ -1020,7 +1020,6 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 		skb_shinfo(skb)->nr_frags = 0;
 	}
 	skb->protocol = eth_type_trans(skb, dev);
-	skb->dev = dev;
 
 	if (mgp->csum_flag) {
 		if ((skb->protocol == htons(ETH_P_IP)) ||

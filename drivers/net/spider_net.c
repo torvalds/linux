@@ -990,7 +990,6 @@ spider_net_pass_skb_up(struct spider_net_descr *descr,
 	netdev = card->netdev;
 
 	skb = descr->skb;
-	skb->dev = netdev;
 	skb_put(skb, hwdescr->valid_size);
 
 	/* the card seems to add 2 bytes of junk in front

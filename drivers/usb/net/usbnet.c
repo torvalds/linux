@@ -203,7 +203,6 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 {
 	int	status;
 
-	skb->dev = dev->net;
 	skb->protocol = eth_type_trans (skb, dev->net);
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;

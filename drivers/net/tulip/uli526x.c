@@ -828,14 +828,12 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 					( (skb = dev_alloc_skb(rxlen + 2) )
 					!= NULL) ) {
 					/* size less than COPY_SIZE, allocate a rxlen SKB */
-					skb->dev = dev;
 					skb_reserve(skb, 2); /* 16byte align */
 					memcpy(skb_put(skb, rxlen), rxptr->rx_skb_ptr->tail, rxlen);
 					uli526x_reuse_skb(db, rxptr->rx_skb_ptr);
-				} else {
-					skb->dev = dev;
+				} else
 					skb_put(skb, rxlen);
-				}
+
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;

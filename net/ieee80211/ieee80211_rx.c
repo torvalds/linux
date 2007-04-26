@@ -800,7 +800,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (skb) {
 		skb->protocol = eth_type_trans(skb, dev);
 		memset(skb->cb, 0, sizeof(skb->cb));
-		skb->dev = dev;
 		skb->ip_summed = CHECKSUM_NONE;	/* 802.11 crc not sufficient */
 		if (netif_rx(skb) == NET_RX_DROP) {
 			/* netif_rx always succeeds, but it might drop

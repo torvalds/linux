@@ -1995,7 +1995,6 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 		return -1;
 
 	*skbref = skb;
-	skb->dev = cp->dev;
 	skb_reserve(skb, swivel);
 
 	p = skb->data;

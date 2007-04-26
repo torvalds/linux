@@ -2232,7 +2232,6 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs, unsigned i
         return;
     }
     skb_reserve( skb, 2);   /* Align IP on 16 byte (TBD check this)*/
-    skb->dev = dev;
 
     DEBUG(4,"ray_cs rx_data total_len = %x, rx_len = %x\n",total_len,rx_len);
 

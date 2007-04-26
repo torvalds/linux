@@ -988,7 +988,6 @@ static void elmc_rcv_int(struct net_device *dev)
 				rbd->status = 0;
 				skb = (struct sk_buff *) dev_alloc_skb(totlen + 2);
 				if (skb != NULL) {
-					skb->dev = dev;
 					skb_reserve(skb, 2);	/* 16 byte alignment */
 					skb_put(skb,totlen);
 					eth_copy_and_sum(skb, (char *) p->base+(unsigned long) rbd->buffer,totlen,0);

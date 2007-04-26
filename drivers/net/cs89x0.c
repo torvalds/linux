@@ -1004,7 +1004,6 @@ skip_this_frame:
 		return;
 	}
 	skb_reserve(skb, 2);	/* longword align L3 header */
-	skb->dev = dev;
 
 	if (bp + length > lp->end_dma_buff) {
 		int semi_cnt = lp->end_dma_buff - bp;
@@ -1702,7 +1701,6 @@ net_rx(struct net_device *dev)
 		return;
 	}
 	skb_reserve(skb, 2);	/* longword align L3 header */
-	skb->dev = dev;
 
 	readwords(ioaddr, RX_FRAME_PORT, skb_put(skb, length), length >> 1);
 	if (length & 1)

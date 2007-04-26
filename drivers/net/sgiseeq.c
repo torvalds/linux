@@ -318,7 +318,6 @@ static inline void sgiseeq_rx(struct net_device *dev, struct sgiseeq_private *sp
 			skb = dev_alloc_skb(len + 2);
 
 			if (skb) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);
 				skb_put(skb, len);
 

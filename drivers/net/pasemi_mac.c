@@ -334,8 +334,6 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev)
 			break;
 		}
 
-		skb->dev = dev;
-
 		dma = pci_map_single(mac->dma_pdev, skb->data, skb->len,
 				     PCI_DMA_FROMDEVICE);
 

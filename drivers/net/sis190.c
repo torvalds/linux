@@ -632,7 +632,6 @@ static int sis190_rx_interrupt(struct net_device *dev,
 			pci_action(tp->pci_dev, le32_to_cpu(desc->addr),
 				   tp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
-			skb->dev = dev;
 			skb_put(skb, pkt_size);
 			skb->protocol = eth_type_trans(skb, dev);
 

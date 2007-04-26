@@ -357,7 +357,6 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 	}
 
 	skb_reserve(skb, RX_OFFSET);
-	skb->dev = bp->dev;
 	skb->ip_summed = CHECKSUM_NONE;
 	skb_put(skb, len);
 

@@ -575,7 +575,6 @@ static void fill_skb_pool(pegasus_t * pegasus)
 		 */
 		if (pegasus->rx_pool[i] == NULL)
 			return;
-		pegasus->rx_pool[i]->dev = pegasus->net;
 		skb_reserve(pegasus->rx_pool[i], 2);
 	}
 }
@@ -1415,8 +1414,10 @@ static void pegasus_disconnect(struct usb_interface *intf)
 	unlink_all_urbs(pegasus);
 	free_all_urbs(pegasus);
 	free_skb_pool(pegasus);
-	if (pegasus->rx_skb)
+	if (pegasus->rx_skb != NULL) {
 		dev_kfree_skb(pegasus->rx_skb);
+		pegasus->rx_skb = NULL;
+	}
 	free_netdev(pegasus->net);
 }
 

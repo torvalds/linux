@@ -2512,8 +2512,6 @@ wv_packet_read(struct net_device * dev, u16 buf_off, int sksize)
 		return;
 	}
 
-	skb->dev = dev;
-
 	/* Copy the packet to the buffer. */
 	obram_read(ioaddr, buf_off, skb_put(skb, sksize), sksize);
 	skb->protocol = eth_type_trans(skb, dev);

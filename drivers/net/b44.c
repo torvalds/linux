@@ -825,7 +825,6 @@ static int b44_rx(struct b44 *bp, int budget)
 			if (copy_skb == NULL)
 				goto drop_it_no_recycle;
 
-			copy_skb->dev = bp->dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			/* DMA sync done above, copy just the actual packet */

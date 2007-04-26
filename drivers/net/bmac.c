@@ -715,7 +715,6 @@ static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id)
 		if (skb != NULL) {
 			nb -= ETHERCRC;
 			skb_put(skb, nb);
-			skb->dev = dev;
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
 			dev->last_rx = jiffies;

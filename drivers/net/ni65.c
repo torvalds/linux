@@ -610,7 +610,6 @@ static void *ni65_alloc_mem(struct net_device *dev,char *what,int size,int type)
 			printk(KERN_WARNING "%s: unable to allocate %s memory.\n",dev->name,what);
 			return NULL;
 		}
-		skb->dev = dev;
 		skb_reserve(skb,2+16);
 		skb_put(skb,R_BUF_SIZE);	 /* grab the whole space .. (not necessary) */
 		ptr = skb->data;
@@ -1094,7 +1093,6 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 			if(skb)
 			{
 				skb_reserve(skb,2);
-	skb->dev = dev;
 #ifdef RCV_VIA_SKB
 				if( (unsigned long) (skb->data + R_BUF_SIZE) > 0x1000000) {
 					skb_put(skb,len);

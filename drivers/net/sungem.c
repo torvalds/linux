@@ -845,7 +845,6 @@ static int gem_rx(struct gem *gp, int work_to_do)
 				goto drop_it;
 			}
 
-			copy_skb->dev = gp->dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			pci_dma_sync_single_for_cpu(gp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);

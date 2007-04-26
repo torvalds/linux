@@ -544,7 +544,6 @@ bionet_poll_rx(struct net_device *dev) {
 				break;
 			}
 
-			skb->dev = dev;
 			skb_reserve( skb, 2 );		/* 16 Byte align  */
 			skb_put( skb, pkt_len );	/* make room */
 

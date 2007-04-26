@@ -798,7 +798,6 @@ static int ibmveth_poll(struct net_device *netdev, int *budget)
 
 				skb_reserve(skb, offset);
 				skb_put(skb, length);
-				skb->dev = netdev;
 				skb->protocol = eth_type_trans(skb, netdev);
 
 				netif_receive_skb(skb);	/* send it up */

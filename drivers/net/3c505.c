@@ -615,7 +615,6 @@ static void receive_packet(struct net_device *dev, int len)
 	if (test_and_set_bit(0, (void *) &adapter->dmaing))
 		printk(KERN_ERR "%s: rx blocked, DMA in progress, dir %d\n", dev->name, adapter->current_dma.direction);
 
-	skb->dev = dev;
 	adapter->current_dma.direction = 0;
 	adapter->current_dma.length = rlen;
 	adapter->current_dma.skb = skb;

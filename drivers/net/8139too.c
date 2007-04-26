@@ -2013,7 +2013,6 @@ no_early_rx:
 
 		skb = dev_alloc_skb (pkt_size + 2);
 		if (likely(skb)) {
-			skb->dev = dev;
 			skb_reserve (skb, 2);	/* 16 byte align the IP fields. */
 #if RX_BUF_IDX == 3
 			wrap_copy(skb, rx_ring, ring_offset+4, pkt_size);

@@ -621,7 +621,6 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 	skb_reserve(skb,2);
 	memcpy(skb_put(skb, mf->len), mf->data, mf->len);
 
-	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 	netif_rx(skb);
 	dev->last_rx = jiffies;
