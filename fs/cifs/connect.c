@@ -1662,7 +1662,13 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo * tcon,
 				CIFS_SB(sb)->mnt_cifs_flags |= 
 					CIFS_MOUNT_POSIX_PATHS;
 		}
-			
+	
+		/* We might be setting the path sep back to a different
+		form if we are reconnecting and the server switched its
+		posix path capability for this share */	
+		if(CIFS_SB(sb)->prepathlen > 0)
+			CIFS_SB(sb)->prepath[0] = CIFS_DIR_SEP(CIFS_SB(sb));
+	
 		cFYI(1,("Negotiate caps 0x%x",(int)cap));
 #ifdef CONFIG_CIFS_DEBUG2
 		if(cap & CIFS_UNIX_FCNTL_CAP)
