@@ -40,6 +40,7 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/kthread.h>
 
 #include <asm/dma.h>
 #include <asm/ecard.h>
@@ -263,8 +264,6 @@ static int ecard_init_mm(void)
 static int
 ecard_task(void * unused)
 {
-	daemonize("kecardd");
-
 	/*
 	 * Allocate a mm.  We're not a lazy-TLB kernel task since we need
 	 * to set page table entries where the user space would be.  Note
@@ -1059,13 +1058,14 @@ ecard_probe(int slot, card_type_t type)
  */
 static int __init ecard_init(void)
 {
-	int slot, irqhw, ret;
+	struct task_struct *task;
+	int slot, irqhw;
 
-	ret = kernel_thread(ecard_task, NULL, CLONE_KERNEL);
-	if (ret < 0) {
+	task = kthread_run(ecard_task, NULL, "kecardd");
+	if (IS_ERR(task)) {
 		printk(KERN_ERR "Ecard: unable to create kernel thread: %d\n",
-		       ret);
-		return ret;
+		       PTR_ERR(task));
+		return PTR_ERR(task);
 	}
 
 	printk("Probing expansion cards\n");
