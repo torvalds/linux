@@ -939,9 +939,9 @@ out:
  * Returns a negative error code or the number of bytes copied into
  * the page.
  */
-int ocfs2_write_data_page(struct inode *inode, handle_t *handle,
-			  u64 *p_blkno, struct page *page,
-			  struct ocfs2_write_ctxt *wc, int new)
+static int ocfs2_write_data_page(struct inode *inode, handle_t *handle,
+				 u64 *p_blkno, struct page *page,
+				 struct ocfs2_write_ctxt *wc, int new)
 {
 	int ret, copied = 0;
 	unsigned int from = 0, to = 0;
