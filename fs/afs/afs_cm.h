@@ -23,6 +23,9 @@ enum AFS_CM_Operations {
 	CBGetCE			= 208,	/* get cache file description */
 	CBGetXStatsVersion	= 209,	/* get version of extended statistics */
 	CBGetXStats		= 210,	/* get contents of extended statistics data */
+	CBGetCapabilities	= 65538, /* get client capabilities */
 };
+
+#define AFS_CAP_ERROR_TRANSLATION	0x1
 
 #endif /* AFS_FS_H */

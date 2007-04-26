@@ -714,6 +714,45 @@ void afs_send_empty_reply(struct afs_call *call)
 }
 
 /*
+ * send a simple reply
+ */
+void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
+{
+	struct msghdr msg;
+	struct iovec iov[1];
+
+	_enter("");
+
+	iov[0].iov_base		= (void *) buf;
+	iov[0].iov_len		= len;
+	msg.msg_name		= NULL;
+	msg.msg_namelen		= 0;
+	msg.msg_iov		= iov;
+	msg.msg_iovlen		= 1;
+	msg.msg_control		= NULL;
+	msg.msg_controllen	= 0;
+	msg.msg_flags		= 0;
+
+	call->state = AFS_CALL_AWAIT_ACK;
+	switch (rxrpc_kernel_send_data(call->rxcall, &msg, len)) {
+	case 0:
+		_leave(" [replied]");
+		return;
+
+	case -ENOMEM:
+		_debug("oom");
+		rxrpc_kernel_abort_call(call->rxcall, RX_USER_ABORT);
+	default:
+		rxrpc_kernel_end_call(call->rxcall);
+		call->rxcall = NULL;
+		call->type->destructor(call);
+		afs_free_call(call);
+		_leave(" [error]");
+		return;
+	}
+}
+
+/*
  * extract a piece of data from the received data socket buffers
  */
 int afs_extract_data(struct afs_call *call, struct sk_buff *skb,

@@ -18,6 +18,7 @@ kafs-objs := \
 	security.o \
 	server.o \
 	super.o \
+	use-rtnetlink.o \
 	vlclient.o \
 	vlocation.o \
 	vnode.o \

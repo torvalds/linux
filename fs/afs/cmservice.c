@@ -22,6 +22,8 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *,
 					       struct sk_buff *, bool);
 static int afs_deliver_cb_probe(struct afs_call *, struct sk_buff *, bool);
 static int afs_deliver_cb_callback(struct afs_call *, struct sk_buff *, bool);
+static int afs_deliver_cb_get_capabilities(struct afs_call *, struct sk_buff *,
+					   bool);
 static void afs_cm_destructor(struct afs_call *);
 
 /*
@@ -55,6 +57,16 @@ static const struct afs_call_type afs_SRXCBProbe = {
 };
 
 /*
+ * CB.GetCapabilities operation type
+ */
+static const struct afs_call_type afs_SRXCBGetCapabilites = {
+	.name		= "CB.GetCapabilities",
+	.deliver	= afs_deliver_cb_get_capabilities,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_cm_destructor,
+};
+
+/*
  * route an incoming cache manager call
  * - return T if supported, F if not
  */
@@ -73,6 +85,9 @@ bool afs_cm_incoming_call(struct afs_call *call)
 		return true;
 	case CBProbe:
 		call->type = &afs_SRXCBProbe;
+		return true;
+	case CBGetCapabilities:
+		call->type = &afs_SRXCBGetCapabilites;
 		return true;
 	default:
 		return false;
@@ -325,6 +340,89 @@ static int afs_deliver_cb_probe(struct afs_call *call, struct sk_buff *skb,
 	call->state = AFS_CALL_REPLYING;
 
 	INIT_WORK(&call->work, SRXAFSCB_Probe);
+	schedule_work(&call->work);
+	return 0;
+}
+
+/*
+ * allow the fileserver to ask about the cache manager's capabilities
+ */
+static void SRXAFSCB_GetCapabilities(struct work_struct *work)
+{
+	struct afs_interface *ifs;
+	struct afs_call *call = container_of(work, struct afs_call, work);
+	int loop, nifs;
+
+	struct {
+		struct /* InterfaceAddr */ {
+			__be32 nifs;
+			__be32 uuid[11];
+			__be32 ifaddr[32];
+			__be32 netmask[32];
+			__be32 mtu[32];
+		} ia;
+		struct /* Capabilities */ {
+			__be32 capcount;
+			__be32 caps[1];
+		} cap;
+	} reply;
+
+	_enter("");
+
+	nifs = 0;
+	ifs = kcalloc(32, sizeof(*ifs), GFP_KERNEL);
+	if (ifs) {
+		nifs = afs_get_ipv4_interfaces(ifs, 32, false);
+		if (nifs < 0) {
+			kfree(ifs);
+			ifs = NULL;
+			nifs = 0;
+		}
+	}
+
+	memset(&reply, 0, sizeof(reply));
+	reply.ia.nifs = htonl(nifs);
+
+	reply.ia.uuid[0] = htonl(afs_uuid.time_low);
+	reply.ia.uuid[1] = htonl(afs_uuid.time_mid);
+	reply.ia.uuid[2] = htonl(afs_uuid.time_hi_and_version);
+	reply.ia.uuid[3] = htonl((s8) afs_uuid.clock_seq_hi_and_reserved);
+	reply.ia.uuid[4] = htonl((s8) afs_uuid.clock_seq_low);
+	for (loop = 0; loop < 6; loop++)
+		reply.ia.uuid[loop + 5] = htonl((s8) afs_uuid.node[loop]);
+
+	if (ifs) {
+		for (loop = 0; loop < nifs; loop++) {
+			reply.ia.ifaddr[loop] = ifs[loop].address.s_addr;
+			reply.ia.netmask[loop] = ifs[loop].netmask.s_addr;
+			reply.ia.mtu[loop] = htonl(ifs[loop].mtu);
+		}
+	}
+
+	reply.cap.capcount = htonl(1);
+	reply.cap.caps[0] = htonl(AFS_CAP_ERROR_TRANSLATION);
+	afs_send_simple_reply(call, &reply, sizeof(reply));
+
+	_leave("");
+}
+
+/*
+ * deliver request data to a CB.GetCapabilities call
+ */
+static int afs_deliver_cb_get_capabilities(struct afs_call *call,
+					   struct sk_buff *skb, bool last)
+{
+	_enter(",{%u},%d", skb->len, last);
+
+	if (skb->len > 0)
+		return -EBADMSG;
+	if (!last)
+		return 0;
+
+	/* no unmarshalling required */
+	call->state = AFS_CALL_REPLYING;
+
+	INIT_WORK(&call->work, SRXAFSCB_GetCapabilities);
 	schedule_work(&call->work);
 	return 0;
 }
