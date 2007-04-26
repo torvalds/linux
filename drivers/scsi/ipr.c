@@ -92,6 +92,7 @@ static unsigned int ipr_fastfail = 0;
 static unsigned int ipr_transop_timeout = 0;
 static unsigned int ipr_enable_cache = 1;
 static unsigned int ipr_debug = 0;
+static unsigned int ipr_dual_ioa_raid = 1;
 static DEFINE_SPINLOCK(ipr_driver_lock);
 
 /* This table describes the differences between DMA controller chips */
@@ -158,6 +159,8 @@ module_param_named(enable_cache, ipr_enable_cache, int, 0);
 MODULE_PARM_DESC(enable_cache, "Enable adapter's non-volatile write cache (default: 1)");
 module_param_named(debug, ipr_debug, int, 0);
 MODULE_PARM_DESC(debug, "Enable device driver debugging logging. Set to 1 to enable. (default: 0)");
+module_param_named(dual_ioa_raid, ipr_dual_ioa_raid, int, 0);
+MODULE_PARM_DESC(dual_ioa_raid, "Enable dual adapter RAID support. Set to 1 to enable. (default: 1)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(IPR_DRIVER_VERSION);
 
@@ -5882,6 +5885,94 @@ static int ipr_ioafp_mode_sense_page28(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * ipr_ioafp_mode_select_page24 - Issue Mode Select to IOA
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function enables dual IOA RAID support if possible.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_RETURN
+ **/
+static int ipr_ioafp_mode_select_page24(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	struct ipr_mode_pages *mode_pages = &ioa_cfg->vpd_cbs->mode_pages;
+	struct ipr_mode_page24 *mode_page;
+	int length;
+
+	ENTER;
+	mode_page = ipr_get_mode_page(mode_pages, 0x24,
+				      sizeof(struct ipr_mode_page24));
+
+	if (mode_page)
+		mode_page->flags |= IPR_ENABLE_DUAL_IOA_AF;
+
+	length = mode_pages->hdr.length + 1;
+	mode_pages->hdr.length = 0;
+
+	ipr_build_mode_select(ipr_cmd, cpu_to_be32(IPR_IOA_RES_HANDLE), 0x11,
+			      ioa_cfg->vpd_cbs_dma + offsetof(struct ipr_misc_cbs, mode_pages),
+			      length);
+
+	ipr_cmd->job_step = ipr_ioafp_mode_sense_page28;
+	ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout, IPR_INTERNAL_TIMEOUT);
+
+	LEAVE;
+	return IPR_RC_JOB_RETURN;
+}
+
+/**
+ * ipr_reset_mode_sense_page24_failed - Handle failure of IOAFP mode sense
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function handles the failure of a Mode Sense to the IOAFP.
+ * Some adapters do not handle all mode pages.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_CONTINUE / IPR_RC_JOB_RETURN
+ **/
+static int ipr_reset_mode_sense_page24_failed(struct ipr_cmnd *ipr_cmd)
+{
+	u32 ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+
+	if (ioasc == IPR_IOASC_IR_INVALID_REQ_TYPE_OR_PKT) {
+		ipr_cmd->job_step = ipr_ioafp_mode_sense_page28;
+		return IPR_RC_JOB_CONTINUE;
+	}
+
+	return ipr_reset_cmd_failed(ipr_cmd);
+}
+
+/**
+ * ipr_ioafp_mode_sense_page24 - Issue Page 24 Mode Sense to IOA
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function send a mode sense to the IOA to retrieve
+ * the IOA Advanced Function Control mode page.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_RETURN
+ **/
+static int ipr_ioafp_mode_sense_page24(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+
+	ENTER;
+	ipr_build_mode_sense(ipr_cmd, cpu_to_be32(IPR_IOA_RES_HANDLE),
+			     0x24, ioa_cfg->vpd_cbs_dma +
+			     offsetof(struct ipr_misc_cbs, mode_pages),
+			     sizeof(struct ipr_mode_pages));
+
+	ipr_cmd->job_step = ipr_ioafp_mode_select_page24;
+	ipr_cmd->job_step_failed = ipr_reset_mode_sense_page24_failed;
+
+	ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout, IPR_INTERNAL_TIMEOUT);
+
+	LEAVE;
+	return IPR_RC_JOB_RETURN;
+}
+
+/**
  * ipr_init_res_table - Initialize the resource table
  * @ipr_cmd:	ipr command struct
  *
@@ -5949,7 +6040,10 @@ static int ipr_init_res_table(struct ipr_cmnd *ipr_cmd)
 		}
 	}
 
-	ipr_cmd->job_step = ipr_ioafp_mode_sense_page28;
+	if (ioa_cfg->dual_raid && ipr_dual_ioa_raid)
+		ipr_cmd->job_step = ipr_ioafp_mode_sense_page24;
+	else
+		ipr_cmd->job_step = ipr_ioafp_mode_sense_page28;
 
 	LEAVE;
 	return IPR_RC_JOB_CONTINUE;
@@ -5971,8 +6065,11 @@ static int ipr_ioafp_query_ioa_cfg(struct ipr_cmnd *ipr_cmd)
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
 	struct ipr_inquiry_page3 *ucode_vpd = &ioa_cfg->vpd_cbs->page3_data;
+	struct ipr_inquiry_cap *cap = &ioa_cfg->vpd_cbs->cap;
 
 	ENTER;
+	if (cap->cap & IPR_CAP_DUAL_IOA_RAID)
+		ioa_cfg->dual_raid = 1;
 	dev_info(&ioa_cfg->pdev->dev, "Adapter firmware version: %02X%02X%02X%02X\n",
 		 ucode_vpd->major_release, ucode_vpd->card_type,
 		 ucode_vpd->minor_release[0], ucode_vpd->minor_release[1]);
@@ -6056,6 +6153,37 @@ static int ipr_inquiry_page_supported(struct ipr_inquiry_page0 *page0, u8 page)
 }
 
 /**
+ * ipr_ioafp_cap_inquiry - Send a Page 0xD0 Inquiry to the adapter.
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function sends a Page 0xD0 inquiry to the adapter
+ * to retrieve adapter capabilities.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_CONTINUE / IPR_RC_JOB_RETURN
+ **/
+static int ipr_ioafp_cap_inquiry(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	struct ipr_inquiry_page0 *page0 = &ioa_cfg->vpd_cbs->page0_data;
+	struct ipr_inquiry_cap *cap = &ioa_cfg->vpd_cbs->cap;
+
+	ENTER;
+	ipr_cmd->job_step = ipr_ioafp_query_ioa_cfg;
+	memset(cap, 0, sizeof(*cap));
+
+	if (ipr_inquiry_page_supported(page0, 0xD0)) {
+		ipr_ioafp_inquiry(ipr_cmd, 1, 0xD0,
+				  ioa_cfg->vpd_cbs_dma + offsetof(struct ipr_misc_cbs, cap),
+				  sizeof(struct ipr_inquiry_cap));
+		return IPR_RC_JOB_RETURN;
+	}
+
+	LEAVE;
+	return IPR_RC_JOB_CONTINUE;
+}
+
+/**
  * ipr_ioafp_page3_inquiry - Send a Page 3 Inquiry to the adapter.
  * @ipr_cmd:	ipr command struct
  *
@@ -6075,7 +6203,7 @@ static int ipr_ioafp_page3_inquiry(struct ipr_cmnd *ipr_cmd)
 	if (!ipr_inquiry_page_supported(page0, 1))
 		ioa_cfg->cache_state = CACHE_NONE;
 
-	ipr_cmd->job_step = ipr_ioafp_query_ioa_cfg;
+	ipr_cmd->job_step = ipr_ioafp_cap_inquiry;
 
 	ipr_ioafp_inquiry(ipr_cmd, 1, 3,
 			  ioa_cfg->vpd_cbs_dma + offsetof(struct ipr_misc_cbs, page3_data),
@@ -6679,12 +6807,14 @@ static int ipr_reset_shutdown_ioa(struct ipr_cmnd *ipr_cmd)
 		ipr_cmd->ioarcb.cmd_pkt.cdb[0] = IPR_IOA_SHUTDOWN;
 		ipr_cmd->ioarcb.cmd_pkt.cdb[1] = shutdown_type;
 
-		if (shutdown_type == IPR_SHUTDOWN_ABBREV)
-			timeout = IPR_ABBREV_SHUTDOWN_TIMEOUT;
+		if (shutdown_type == IPR_SHUTDOWN_NORMAL)
+			timeout = IPR_SHUTDOWN_TIMEOUT;
 		else if (shutdown_type == IPR_SHUTDOWN_PREPARE_FOR_NORMAL)
 			timeout = IPR_INTERNAL_TIMEOUT;
+		else if (ioa_cfg->dual_raid && ipr_dual_ioa_raid)
+			timeout = IPR_DUAL_IOA_ABBR_SHUTDOWN_TO;
 		else
-			timeout = IPR_SHUTDOWN_TIMEOUT;
+			timeout = IPR_ABBREV_SHUTDOWN_TIMEOUT;
 
 		ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout, timeout);
 
