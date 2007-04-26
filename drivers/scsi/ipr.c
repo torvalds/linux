@@ -206,6 +206,8 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"8009: Impending cache battery pack failure"},
 	{0x02040400, 0, 0,
 	"34FF: Disk device format in progress"},
+	{0x02048000, 0, IPR_DEFAULT_LOG_LEVEL,
+	"9070: IOA requested reset"},
 	{0x023F0000, 0, 0,
 	"Synchronization required"},
 	{0x024E0000, 0, 0,
@@ -1672,12 +1674,15 @@ static void ipr_process_error(struct ipr_cmnd *ipr_cmd)
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	struct ipr_hostrcb *hostrcb = ipr_cmd->u.hostrcb;
 	u32 ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+	u32 fd_ioasc = be32_to_cpu(hostrcb->hcam.u.error.failing_dev_ioasc);
 
 	list_del(&hostrcb->queue);
 	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
 
 	if (!ioasc) {
 		ipr_handle_log_data(ioa_cfg, hostrcb);
+		if (fd_ioasc == IPR_IOASC_NR_IOA_RESET_REQUIRED)
+			ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_ABBREV);
 	} else if (ioasc != IPR_IOASC_IOA_WAS_RESET) {
 		dev_err(&ioa_cfg->pdev->dev,
 			"Host RCB failed with IOASC: 0x%08X\n", ioasc);
@@ -6290,6 +6295,7 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 	struct ipr_hostrcb *hostrcb;
 	struct ipr_uc_sdt sdt;
 	int rc, length;
+	u32 ioasc;
 
 	mailbox = readl(ioa_cfg->ioa_mailbox);
 
@@ -6322,9 +6328,13 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 					(__be32 *)&hostrcb->hcam,
 					min(length, (int)sizeof(hostrcb->hcam)) / sizeof(__be32));
 
-	if (!rc)
+	if (!rc) {
 		ipr_handle_log_data(ioa_cfg, hostrcb);
-	else
+		ioasc = be32_to_cpu(hostrcb->hcam.u.error.failing_dev_ioasc);
+		if (ioasc == IPR_IOASC_NR_IOA_RESET_REQUIRED &&
+		    ioa_cfg->sdt_state == GET_DUMP)
+			ioa_cfg->sdt_state = WAIT_FOR_DUMP;
+	} else
 		ipr_unit_check_no_data(ioa_cfg);
 
 	list_add_tail(&hostrcb->queue, &ioa_cfg->hostrcb_free_q);
