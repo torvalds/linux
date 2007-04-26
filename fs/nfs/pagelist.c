@@ -20,8 +20,6 @@
 
 #include "internal.h"
 
-#define NFS_PARANOIA 1
-
 static struct kmem_cache *nfs_page_cachep;
 
 static inline struct nfs_page *
@@ -166,11 +164,6 @@ nfs_release_request(struct nfs_page *req)
 {
 	if (!atomic_dec_and_test(&req->wb_count))
 		return;
-
-#ifdef NFS_PARANOIA
-	BUG_ON (!list_empty(&req->wb_list));
-	BUG_ON (NFS_WBACK_BUSY(req));
-#endif
 
 	/* Release struct file or cached credential */
 	nfs_clear_request(req);
