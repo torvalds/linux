@@ -121,8 +121,8 @@
 #define NETX_SYSTEM_IOC_MR          NETX_SYSTEM_REG(0x08)
 
 /* FIXME: Docs are not consistent */
-#define NETX_SYSTEM_RES_CR          NETX_SYSTEM_REG(0x08)
-/* #define NETX_SYSTEM_RES_CR          NETX_SYSTEM_REG(0x0c) */
+/* #define NETX_SYSTEM_RES_CR          NETX_SYSTEM_REG(0x08) */
+#define NETX_SYSTEM_RES_CR          NETX_SYSTEM_REG(0x0c)
 
 #define NETX_SYSTEM_PHY_CONTROL     NETX_SYSTEM_REG(0x10)
 #define NETX_SYSTEM_REV             NETX_SYSTEM_REG(0x34)
