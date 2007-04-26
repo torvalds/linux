@@ -501,7 +501,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		     c->loops_per_jiffy/(500000/HZ),
 		     (c->loops_per_jiffy/(5000/HZ)) % 100);
 
-	return show_clocks(m);
+	return 0;
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)

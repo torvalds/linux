@@ -48,8 +48,6 @@ void clk_recalc_rate(struct clk *);
 int clk_register(struct clk *);
 void clk_unregister(struct clk *);
 
-int show_clocks(struct seq_file *m);
-
 /* the exported API, in addition to clk_set_rate */
 /**
  * clk_set_rate_ex - set the clock rate for a clock source, with additional parameter

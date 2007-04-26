@@ -1,7 +1,7 @@
 /*
  * arch/sh/kernel/cpu/clock.c - SuperH clock framework
  *
- *  Copyright (C) 2005, 2006  Paul Mundt
+ *  Copyright (C) 2005, 2006, 2007  Paul Mundt
  *
  * This clock framework is derived from the OMAP version by:
  *
@@ -23,6 +23,7 @@
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/proc_fs.h>
 #include <asm/clock.h>
 #include <asm/timer.h>
 
@@ -108,6 +109,7 @@ int __clk_enable(struct clk *clk)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(__clk_enable);
 
 int clk_enable(struct clk *clk)
 {
@@ -120,6 +122,7 @@ int clk_enable(struct clk *clk)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(clk_enable);
 
 static void clk_kref_release(struct kref *kref)
 {
@@ -138,6 +141,7 @@ void __clk_disable(struct clk *clk)
 			clk->ops->disable(clk);
 	}
 }
+EXPORT_SYMBOL_GPL(__clk_disable);
 
 void clk_disable(struct clk *clk)
 {
@@ -147,6 +151,7 @@ void clk_disable(struct clk *clk)
 	__clk_disable(clk);
 	spin_unlock_irqrestore(&clock_lock, flags);
 }
+EXPORT_SYMBOL_GPL(clk_disable);
 
 int clk_register(struct clk *clk)
 {
@@ -168,6 +173,7 @@ int clk_register(struct clk *clk)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(clk_register);
 
 void clk_unregister(struct clk *clk)
 {
@@ -175,16 +181,19 @@ void clk_unregister(struct clk *clk)
 	list_del(&clk->node);
 	mutex_unlock(&clock_list_sem);
 }
+EXPORT_SYMBOL_GPL(clk_unregister);
 
-inline unsigned long clk_get_rate(struct clk *clk)
+unsigned long clk_get_rate(struct clk *clk)
 {
 	return clk->rate;
 }
+EXPORT_SYMBOL_GPL(clk_get_rate);
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	return clk_set_rate_ex(clk, rate, 0);
 }
+EXPORT_SYMBOL_GPL(clk_set_rate);
 
 int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id)
 {
@@ -203,6 +212,7 @@ int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(clk_set_rate_ex);
 
 void clk_recalc_rate(struct clk *clk)
 {
@@ -217,6 +227,7 @@ void clk_recalc_rate(struct clk *clk)
 	if (unlikely(clk->flags & CLK_RATE_PROPAGATES))
 		propagate_rate(clk);
 }
+EXPORT_SYMBOL_GPL(clk_recalc_rate);
 
 /*
  * Returns a clock. Note that we first try to use device id on the bus
@@ -253,16 +264,41 @@ found:
 
 	return clk;
 }
+EXPORT_SYMBOL_GPL(clk_get);
 
 void clk_put(struct clk *clk)
 {
 	if (clk && !IS_ERR(clk))
 		module_put(clk->owner);
 }
+EXPORT_SYMBOL_GPL(clk_put);
 
 void __init __attribute__ ((weak))
 arch_init_clk_ops(struct clk_ops **ops, int type)
 {
+}
+
+static int show_clocks(char *buf, char **start, off_t off,
+		       int len, int *eof, void *data)
+{
+	struct clk *clk;
+	char *p = buf;
+
+	list_for_each_entry_reverse(clk, &clock_list, node) {
+		unsigned long rate = clk_get_rate(clk);
+
+		/*
+		 * Don't bother listing dummy clocks with no ancestry
+		 * that only support enable and disable ops.
+		 */
+		if (unlikely(!rate && !clk->parent))
+			continue;
+
+		p += sprintf(p, "%-12s\t: %ld.%02ldMHz\n", clk->name,
+			     rate / 1000000, (rate % 1000000) / 10000);
+	}
+
+	return p - buf;
 }
 
 int __init clk_init(void)
@@ -285,36 +321,14 @@ int __init clk_init(void)
 	return ret;
 }
 
-int show_clocks(struct seq_file *m)
+static int __init clk_proc_init(void)
 {
-	struct clk *clk;
-
-	list_for_each_entry_reverse(clk, &clock_list, node) {
-		unsigned long rate = clk_get_rate(clk);
-
-		/*
-		 * Don't bother listing dummy clocks with no ancestry
-		 * that only support enable and disable ops.
-		 */
-		if (unlikely(!rate && !clk->parent))
-			continue;
-
-		seq_printf(m, "%-12s\t: %ld.%02ldMHz\n", clk->name,
-			   rate / 1000000, (rate % 1000000) / 10000);
-	}
+	struct proc_dir_entry *p;
+	p = create_proc_read_entry("clocks", S_IRUSR, NULL,
+				   show_clocks, NULL);
+	if (unlikely(!p))
+		return -EINVAL;
 
 	return 0;
 }
-
-EXPORT_SYMBOL_GPL(clk_register);
-EXPORT_SYMBOL_GPL(clk_unregister);
-EXPORT_SYMBOL_GPL(clk_get);
-EXPORT_SYMBOL_GPL(clk_put);
-EXPORT_SYMBOL_GPL(clk_enable);
-EXPORT_SYMBOL_GPL(clk_disable);
-EXPORT_SYMBOL_GPL(__clk_enable);
-EXPORT_SYMBOL_GPL(__clk_disable);
-EXPORT_SYMBOL_GPL(clk_get_rate);
-EXPORT_SYMBOL_GPL(clk_set_rate);
-EXPORT_SYMBOL_GPL(clk_recalc_rate);
-EXPORT_SYMBOL_GPL(clk_set_rate_ex);
+subsys_initcall(clk_proc_init);
