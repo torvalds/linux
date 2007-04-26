@@ -27,6 +27,7 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
+#include <asm/dma-mapping.h>
 #include <asm/ppc4xx_dma.h>
 
 void
