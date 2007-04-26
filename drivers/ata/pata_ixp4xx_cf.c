@@ -193,7 +193,7 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq)
-		set_irq_type(irq, IRQT_HIGH);
+		set_irq_type(irq, IRQT_RISING);
 
 	/* Setup expansion bus chip selects */
 	*data->cs0_cfg = data->cs0_bits;
@@ -232,7 +232,6 @@ static __devexit int ixp4xx_pata_remove(struct platform_device *dev)
 	struct ata_host *host = platform_get_drvdata(dev);
 
 	ata_host_detach(host);
-	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }

@@ -221,6 +221,14 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 
 	cdev_irb = &cdev->private->irb;
 
+	/*
+	 * If the clear function had been performed, all formerly pending
+	 * status at the subchannel has been cleared and we must not pass
+	 * intermediate accumulated status to the device driver.
+	 */
+	if (irb->scsw.fctl & SCSW_FCTL_CLEAR_FUNC)
+		memset(&cdev->private->irb, 0, sizeof(struct irb));
+
 	/* Copy bits which are valid only for the start function. */
 	if (irb->scsw.fctl & SCSW_FCTL_START_FUNC) {
 		/* Copy key. */
@@ -263,7 +271,11 @@ ccw_device_accumulate_irb(struct ccw_device *cdev, struct irb *irb)
 		cdev_irb->scsw.cpa = irb->scsw.cpa;
 	/* Accumulate device status, but not the device busy flag. */
 	cdev_irb->scsw.dstat &= ~DEV_STAT_BUSY;
-	cdev_irb->scsw.dstat |= irb->scsw.dstat;
+	/* dstat is not always valid. */
+	if (irb->scsw.stctl &
+	    (SCSW_STCTL_PRIM_STATUS | SCSW_STCTL_SEC_STATUS
+	     | SCSW_STCTL_INTER_STATUS | SCSW_STCTL_ALERT_STATUS))
+		cdev_irb->scsw.dstat |= irb->scsw.dstat;
 	/* Accumulate subchannel status. */
 	cdev_irb->scsw.cstat |= irb->scsw.cstat;
 	/* Copy residual count if it is valid. */

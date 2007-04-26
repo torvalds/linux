@@ -245,9 +245,9 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 	}
 
 	if (tb[TCA_TCINDEX_SHIFT-1]) {
-		if (RTA_PAYLOAD(tb[TCA_TCINDEX_SHIFT-1]) < sizeof(u16))
+		if (RTA_PAYLOAD(tb[TCA_TCINDEX_SHIFT-1]) < sizeof(int))
 			goto errout;
-		cp.shift = *(u16 *) RTA_DATA(tb[TCA_TCINDEX_SHIFT-1]);
+		cp.shift = *(int *) RTA_DATA(tb[TCA_TCINDEX_SHIFT-1]);
 	}
 
 	err = -EBUSY;

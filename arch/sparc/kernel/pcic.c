@@ -601,7 +601,7 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 /*
  * Normally called from {do_}pci_scan_bus...
  */
-void __init pcibios_fixup_bus(struct pci_bus *bus)
+void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	int i, has_io, has_mem;
@@ -842,7 +842,7 @@ static void watchdog_reset() {
 /*
  * Other archs parse arguments here.
  */
-char * __init pcibios_setup(char *str)
+char * __devinit pcibios_setup(char *str)
 {
 	return str;
 }

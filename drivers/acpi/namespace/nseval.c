@@ -154,7 +154,11 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		 * Execute the method via the interpreter. The interpreter is locked
 		 * here before calling into the AML parser
 		 */
-		acpi_ex_enter_interpreter();
+		status = acpi_ex_enter_interpreter();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+
 		status = acpi_ps_execute_method(info);
 		acpi_ex_exit_interpreter();
 	} else {
@@ -178,7 +182,10 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		 * resolution, we must lock it because we could access an opregion.
 		 * The opregion access code assumes that the interpreter is locked.
 		 */
-		acpi_ex_enter_interpreter();
+		status = acpi_ex_enter_interpreter();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
 
 		/* Function has a strange interface */
 

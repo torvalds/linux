@@ -567,6 +567,53 @@ static int cpu_request_microcode(int cpu)
 	return error;
 }
 
+static int apply_microcode_on_cpu(int cpu)
+{
+	struct cpuinfo_x86 *c = cpu_data + cpu;
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	cpumask_t old;
+	unsigned int val[2];
+	int err = 0;
+
+	if (!uci->mc)
+		return -EINVAL;
+
+	old = current->cpus_allowed;
+	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+
+	/* Check if the microcode we have in memory matches the CPU */
+	if (c->x86_vendor != X86_VENDOR_INTEL || c->x86 < 6 ||
+	    cpu_has(c, X86_FEATURE_IA64) || uci->sig != cpuid_eax(0x00000001))
+		err = -EINVAL;
+
+	if (!err && ((c->x86_model >= 5) || (c->x86 > 6))) {
+		/* get processor flags from MSR 0x17 */
+		rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
+		if (uci->pf != (1 << ((val[1] >> 18) & 7)))
+			err = -EINVAL;
+	}
+
+	if (!err) {
+		wrmsr(MSR_IA32_UCODE_REV, 0, 0);
+		/* see notes above for revision 1.07.  Apparent chip bug */
+		sync_core();
+		/* get the current revision from MSR 0x8B */
+		rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
+		if (uci->rev != val[1])
+			err = -EINVAL;
+	}
+
+	if (!err)
+		apply_microcode(cpu);
+	else
+		printk(KERN_ERR "microcode: Could not apply microcode to CPU%d:"
+			" sig=0x%x, pf=0x%x, rev=0x%x\n",
+			cpu, uci->sig, uci->pf, uci->rev);
+
+	set_cpus_allowed(current, old);
+	return err;
+}
+
 static void microcode_init_cpu(int cpu)
 {
 	cpumask_t old;
@@ -577,7 +624,8 @@ static void microcode_init_cpu(int cpu)
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 	mutex_lock(&microcode_mutex);
 	collect_cpu_info(cpu);
-	if (uci->valid && system_state == SYSTEM_RUNNING)
+	if (uci->valid && system_state == SYSTEM_RUNNING &&
+	    !suspend_cpu_hotplug)
 		cpu_request_microcode(cpu);
 	mutex_unlock(&microcode_mutex);
 	set_cpus_allowed(current, old);
@@ -663,13 +711,24 @@ static int mc_sysdev_add(struct sys_device *sys_dev)
 		return 0;
 
 	pr_debug("Microcode:CPU %d added\n", cpu);
-	memset(uci, 0, sizeof(*uci));
+	/* If suspend_cpu_hotplug is set, the system is resuming and we should
+	 * use the data from before the suspend.
+	 */
+	if (suspend_cpu_hotplug) {
+		err = apply_microcode_on_cpu(cpu);
+		if (err)
+			microcode_fini_cpu(cpu);
+	}
+	if (!uci->valid)
+		memset(uci, 0, sizeof(*uci));
 
 	err = sysfs_create_group(&sys_dev->kobj, &mc_attr_group);
 	if (err)
 		return err;
 
-	microcode_init_cpu(cpu);
+	if (!uci->valid)
+		microcode_init_cpu(cpu);
+
 	return 0;
 }
 
@@ -680,7 +739,11 @@ static int mc_sysdev_remove(struct sys_device *sys_dev)
 	if (!cpu_online(cpu))
 		return 0;
 	pr_debug("Microcode:CPU %d removed\n", cpu);
-	microcode_fini_cpu(cpu);
+	/* If suspend_cpu_hotplug is set, the system is suspending and we should
+	 * keep the microcode in memory for the resume.
+	 */
+	if (!suspend_cpu_hotplug)
+		microcode_fini_cpu(cpu);
 	sysfs_remove_group(&sys_dev->kobj, &mc_attr_group);
 	return 0;
 }

@@ -1318,6 +1318,7 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	char b[BDEVNAME_SIZE];
 	struct kobject *ko;
 	char *s;
+	int err;
 
 	if (rdev->mddev) {
 		MD_BUG();
@@ -1352,20 +1353,35 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	while ( (s=strchr(rdev->kobj.k_name, '/')) != NULL)
 		*s = '!';
 			
-	list_add(&rdev->same_set, &mddev->disks);
 	rdev->mddev = mddev;
 	printk(KERN_INFO "md: bind<%s>\n", b);
 
 	rdev->kobj.parent = &mddev->kobj;
-	kobject_add(&rdev->kobj);
+	if ((err = kobject_add(&rdev->kobj)))
+		goto fail;
 
 	if (rdev->bdev->bd_part)
 		ko = &rdev->bdev->bd_part->kobj;
 	else
 		ko = &rdev->bdev->bd_disk->kobj;
-	sysfs_create_link(&rdev->kobj, ko, "block");
+	if ((err = sysfs_create_link(&rdev->kobj, ko, "block"))) {
+		kobject_del(&rdev->kobj);
+		goto fail;
+	}
+	list_add(&rdev->same_set, &mddev->disks);
 	bd_claim_by_disk(rdev->bdev, rdev, mddev->gendisk);
 	return 0;
+
+ fail:
+	printk(KERN_WARNING "md: failed to register dev-%s for %s\n",
+	       b, mdname(mddev));
+	return err;
+}
+
+static void delayed_delete(struct work_struct *ws)
+{
+	mdk_rdev_t *rdev = container_of(ws, mdk_rdev_t, del_work);
+	kobject_del(&rdev->kobj);
 }
 
 static void unbind_rdev_from_array(mdk_rdev_t * rdev)
@@ -1380,7 +1396,12 @@ static void unbind_rdev_from_array(mdk_rdev_t * rdev)
 	printk(KERN_INFO "md: unbind<%s>\n", bdevname(rdev->bdev,b));
 	rdev->mddev = NULL;
 	sysfs_remove_link(&rdev->kobj, "block");
-	kobject_del(&rdev->kobj);
+
+	/* We need to delay this, otherwise we can deadlock when
+	 * writing to 'remove' to "dev/state"
+	 */
+	INIT_WORK(&rdev->del_work, delayed_delete);
+	schedule_work(&rdev->del_work);
 }
 
 /*
@@ -2966,7 +2987,9 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	mddev->kobj.k_name = NULL;
 	snprintf(mddev->kobj.name, KOBJ_NAME_LEN, "%s", "md");
 	mddev->kobj.ktype = &md_ktype;
-	kobject_register(&mddev->kobj);
+	if (kobject_register(&mddev->kobj))
+		printk(KERN_WARNING "md: cannot register %s/md - name in use\n",
+		       disk->disk_name);
 	return NULL;
 }
 
@@ -3144,9 +3167,12 @@ static int do_md_run(mddev_t * mddev)
 		bitmap_destroy(mddev);
 		return err;
 	}
-	if (mddev->pers->sync_request)
-		sysfs_create_group(&mddev->kobj, &md_redundancy_group);
-	else if (mddev->ro == 2) /* auto-readonly not meaningful */
+	if (mddev->pers->sync_request) {
+		if (sysfs_create_group(&mddev->kobj, &md_redundancy_group))
+			printk(KERN_WARNING
+			       "md: cannot register extra attributes for %s\n",
+			       mdname(mddev));
+	} else if (mddev->ro == 2) /* auto-readonly not meaningful */
 		mddev->ro = 0;
 
  	atomic_set(&mddev->writes_pending,0);
@@ -3160,7 +3186,9 @@ static int do_md_run(mddev_t * mddev)
 		if (rdev->raid_disk >= 0) {
 			char nm[20];
 			sprintf(nm, "rd%d", rdev->raid_disk);
-			sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
+			if (sysfs_create_link(&mddev->kobj, &rdev->kobj, nm))
+				printk("md: cannot register %s for %s\n",
+				       nm, mdname(mddev));
 		}
 	
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
@@ -3325,6 +3353,7 @@ static int do_md_stop(mddev_t * mddev, int mode)
 			mddev->queue->merge_bvec_fn = NULL;
 			mddev->queue->unplug_fn = NULL;
 			mddev->queue->issue_flush_fn = NULL;
+			mddev->queue->backing_dev_info.congested_fn = NULL;
 			if (mddev->pers->sync_request)
 				sysfs_remove_group(&mddev->kobj, &md_redundancy_group);
 
@@ -3370,6 +3399,9 @@ static int do_md_stop(mddev_t * mddev, int mode)
 				sprintf(nm, "rd%d", rdev->raid_disk);
 				sysfs_remove_link(&mddev->kobj, nm);
 			}
+
+		/* make sure all delayed_delete calls have finished */
+		flush_scheduled_work();
 
 		export_array(mddev);
 
@@ -5385,8 +5417,12 @@ static int remove_and_add_spares(mddev_t *mddev)
 				if (mddev->pers->hot_add_disk(mddev,rdev)) {
 					char nm[20];
 					sprintf(nm, "rd%d", rdev->raid_disk);
-					sysfs_create_link(&mddev->kobj,
-							  &rdev->kobj, nm);
+					if (sysfs_create_link(&mddev->kobj,
+							      &rdev->kobj, nm))
+						printk(KERN_WARNING
+						       "md: cannot register "
+						       "%s for %s\n",
+						       nm, mdname(mddev));
 					spares++;
 					md_new_event(mddev);
 				} else

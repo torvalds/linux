@@ -71,19 +71,31 @@ __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
  * Provide an 'ungroup' attribute so the user can remove group devices no
  * longer needed or accidentially created. Saves memory :)
  */
+static void ccwgroup_ungroup_callback(struct device *dev)
+{
+	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
+
+	__ccwgroup_remove_symlinks(gdev);
+	device_unregister(dev);
+}
+
 static ssize_t
 ccwgroup_ungroup_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ccwgroup_device *gdev;
+	int rc;
 
 	gdev = to_ccwgroupdev(dev);
 
 	if (gdev->state != CCWGROUP_OFFLINE)
 		return -EINVAL;
 
-	__ccwgroup_remove_symlinks(gdev);
-	device_unregister(dev);
-
+	/* Note that we cannot unregister the device from one of its
+	 * attribute methods, so we have to use this roundabout approach.
+	 */
+	rc = device_schedule_callback(dev, ccwgroup_ungroup_callback);
+	if (rc)
+		count = rc;
 	return count;
 }
 

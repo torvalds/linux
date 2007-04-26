@@ -80,7 +80,7 @@ struct relocation_info /* used when header.a_machtype == M_SPARC */
         unsigned long   r_address;  /* relocation addr */
         unsigned int    r_index:24; /* segment index or symbol index */
         unsigned int    r_extern:1; /* if F, r_index==SEG#; if T, SYM idx */
-        int             r_pad:2;    /* <unused> */
+        unsigned int    r_pad:2;    /* <unused> */
         enum reloc_type r_type:5;   /* type of relocation to perform */
         long            r_addend;   /* addend for relocation value */
 };

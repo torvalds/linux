@@ -644,6 +644,9 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret = 0;
 
+	if (test_and_clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
+		ib_sa_free_multicast(mcast->mc);
+
 	if (test_and_clear_bit(IPOIB_MCAST_FLAG_ATTACHED, &mcast->flags)) {
 		ipoib_dbg_mcast(priv, "leaving MGID " IPOIB_GID_FMT "\n",
 				IPOIB_GID_ARG(mcast->mcmember.mgid));
@@ -654,9 +657,6 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 		if (ret)
 			ipoib_warn(priv, "ipoib_mcast_detach failed (result = %d)\n", ret);
 	}
-
-	if (test_and_clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
-		ib_sa_free_multicast(mcast->mc);
 
 	return 0;
 }

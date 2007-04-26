@@ -845,6 +845,8 @@ static int __init qec_ether_init(struct sbus_dev *sdev)
 	if (!dev)
 		return -ENOMEM;
 
+	memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
+
 	qe = netdev_priv(dev);
 
 	i = of_getintprop_default(sdev->ofdev.node, "channel#", -1);
@@ -960,7 +962,7 @@ static int __devexit qec_sbus_remove(struct of_device *dev)
 	struct sunqe *qp = dev_get_drvdata(&dev->dev);
 	struct net_device *net_dev = qp->dev;
 
-	unregister_netdevice(net_dev);
+	unregister_netdev(net_dev);
 
 	sbus_iounmap(qp->qcregs, CREG_REG_SIZE);
 	sbus_iounmap(qp->mregs, MREGS_REG_SIZE);

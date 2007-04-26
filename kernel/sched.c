@@ -4687,32 +4687,10 @@ out_unlock:
 	return retval;
 }
 
-static inline struct task_struct *eldest_child(struct task_struct *p)
-{
-	if (list_empty(&p->children))
-		return NULL;
-	return list_entry(p->children.next,struct task_struct,sibling);
-}
-
-static inline struct task_struct *older_sibling(struct task_struct *p)
-{
-	if (p->sibling.prev==&p->parent->children)
-		return NULL;
-	return list_entry(p->sibling.prev,struct task_struct,sibling);
-}
-
-static inline struct task_struct *younger_sibling(struct task_struct *p)
-{
-	if (p->sibling.next==&p->parent->children)
-		return NULL;
-	return list_entry(p->sibling.next,struct task_struct,sibling);
-}
-
 static const char stat_nam[] = "RSDTtZX";
 
 static void show_task(struct task_struct *p)
 {
-	struct task_struct *relative;
 	unsigned long free = 0;
 	unsigned state;
 
@@ -4738,19 +4716,7 @@ static void show_task(struct task_struct *p)
 		free = (unsigned long)n - (unsigned long)end_of_stack(p);
 	}
 #endif
-	printk("%5lu %5d %6d ", free, p->pid, p->parent->pid);
-	if ((relative = eldest_child(p)))
-		printk("%5d ", relative->pid);
-	else
-		printk("      ");
-	if ((relative = younger_sibling(p)))
-		printk("%7d", relative->pid);
-	else
-		printk("       ");
-	if ((relative = older_sibling(p)))
-		printk(" %5d", relative->pid);
-	else
-		printk("      ");
+	printk("%5lu %5d %6d", free, p->pid, p->parent->pid);
 	if (!p->mm)
 		printk(" (L-TLB)\n");
 	else

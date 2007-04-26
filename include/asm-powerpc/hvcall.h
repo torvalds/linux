@@ -237,6 +237,20 @@ long plpar_hcall_norets(unsigned long opcode, ...);
 long plpar_hcall(unsigned long opcode, unsigned long *retbuf, ...);
 
 /**
+ * plpar_hcall_raw: - Make a hypervisor call without calculating hcall stats
+ * @opcode: The hypervisor call to make.
+ * @retbuf: Buffer to store up to 4 return arguments in.
+ *
+ * This call supports up to 6 arguments and 4 return arguments. Use
+ * PLPAR_HCALL_BUFSIZE to size the return argument buffer.
+ *
+ * Used when phyp interface needs to be called in real mode. Similar to
+ * plpar_hcall, but plpar_hcall_raw works in real mode and does not
+ * calculate hypervisor call statistics.
+ */
+long plpar_hcall_raw(unsigned long opcode, unsigned long *retbuf, ...);
+
+/**
  * plpar_hcall9: - Make a pseries hypervisor call with up to 9 return arguments
  * @opcode: The hypervisor call to make.
  * @retbuf: Buffer to store up to 9 return arguments in.

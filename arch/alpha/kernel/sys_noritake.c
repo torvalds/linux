@@ -66,6 +66,13 @@ noritake_startup_irq(unsigned int irq)
 	return 0;
 }
 
+static void
+noritake_end_irq(unsigned int irq)
+{
+        if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+                noritake_enable_irq(irq);
+}
+
 static struct hw_interrupt_type noritake_irq_type = {
 	.typename	= "NORITAKE",
 	.startup	= noritake_startup_irq,
@@ -73,7 +80,7 @@ static struct hw_interrupt_type noritake_irq_type = {
 	.enable		= noritake_enable_irq,
 	.disable	= noritake_disable_irq,
 	.ack		= noritake_disable_irq,
-	.end		= noritake_enable_irq,
+	.end		= noritake_end_irq,
 };
 
 static void 

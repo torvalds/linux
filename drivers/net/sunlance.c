@@ -1550,7 +1550,7 @@ static int __exit sunlance_sun4_remove(void)
 	struct lance_private *lp = dev_get_drvdata(&sun4_sdev.ofdev.dev);
 	struct net_device *net_dev = lp->dev;
 
-	unregister_netdevice(net_dev);
+	unregister_netdev(net_dev);
 
 	lance_free_hwresources(lp);
 
@@ -1590,7 +1590,7 @@ static int __devexit sunlance_sbus_remove(struct of_device *dev)
 	struct lance_private *lp = dev_get_drvdata(&dev->dev);
 	struct net_device *net_dev = lp->dev;
 
-	unregister_netdevice(net_dev);
+	unregister_netdev(net_dev);
 
 	lance_free_hwresources(lp);
 

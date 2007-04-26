@@ -65,6 +65,7 @@ ssize_t oprofilefs_ulong_to_user(unsigned long val, char __user * buf, size_t co
 int oprofilefs_ulong_from_user(unsigned long * val, char const __user * buf, size_t count)
 {
 	char tmpbuf[TMPBUFSIZE];
+	unsigned long flags;
 
 	if (!count)
 		return 0;
@@ -77,9 +78,9 @@ int oprofilefs_ulong_from_user(unsigned long * val, char const __user * buf, siz
 	if (copy_from_user(tmpbuf, buf, count))
 		return -EFAULT;
 
-	spin_lock(&oprofilefs_lock);
+	spin_lock_irqsave(&oprofilefs_lock, flags);
 	*val = simple_strtoul(tmpbuf, NULL, 0);
-	spin_unlock(&oprofilefs_lock);
+	spin_unlock_irqrestore(&oprofilefs_lock, flags);
 	return 0;
 }
 

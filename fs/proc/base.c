@@ -1558,29 +1558,20 @@ static ssize_t proc_pid_attr_read(struct file * file, char __user * buf,
 				  size_t count, loff_t *ppos)
 {
 	struct inode * inode = file->f_path.dentry->d_inode;
-	unsigned long page;
+	char *p = NULL;
 	ssize_t length;
 	struct task_struct *task = get_proc_task(inode);
 
-	length = -ESRCH;
 	if (!task)
-		goto out_no_task;
-
-	if (count > PAGE_SIZE)
-		count = PAGE_SIZE;
-	length = -ENOMEM;
-	if (!(page = __get_free_page(GFP_KERNEL)))
-		goto out;
+		return -ESRCH;
 
 	length = security_getprocattr(task,
 				      (char*)file->f_path.dentry->d_name.name,
-				      (void*)page, count);
-	if (length >= 0)
-		length = simple_read_from_buffer(buf, count, ppos, (char *)page, length);
-	free_page(page);
-out:
+				      &p);
 	put_task_struct(task);
-out_no_task:
+	if (length > 0)
+		length = simple_read_from_buffer(buf, count, ppos, p, length);
+	kfree(p);
 	return length;
 }
 

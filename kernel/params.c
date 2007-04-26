@@ -356,6 +356,10 @@ int param_set_copystring(const char *val, struct kernel_param *kp)
 {
 	struct kparam_string *kps = kp->arg;
 
+	if (!val) {
+		printk(KERN_ERR "%s: missing param set value\n", kp->name);
+		return -EINVAL;
+	}
 	if (strlen(val)+1 > kps->maxlen) {
 		printk(KERN_ERR "%s: string doesn't fit in %u chars.\n",
 		       kp->name, kps->maxlen-1);

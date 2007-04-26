@@ -28,6 +28,7 @@
 #include <linux/clockchips.h>
 #include <linux/acpi_pmtmr.h>
 #include <linux/module.h>
+#include <linux/dmi.h>
 
 #include <asm/atomic.h>
 #include <asm/smp.h>
@@ -61,6 +62,11 @@ static int enable_local_apic __initdata = 0;
 
 /* Local APIC timer verification ok */
 static int local_apic_timer_verify_ok;
+/* Disable local APIC timer from the kernel commandline or via dmi quirk */
+static int local_apic_timer_disabled;
+/* Local APIC timer works in C2 */
+int local_apic_timer_c2_ok;
+EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 
 /*
  * Debug level, exported for io_apic.c
@@ -338,6 +344,23 @@ void __init setup_boot_APIC_clock(void)
 	void (*real_handler)(struct clock_event_device *dev);
 	unsigned long deltaj;
 	long delta, deltapm;
+	int pm_referenced = 0;
+
+	if (boot_cpu_has(X86_FEATURE_LAPIC_TIMER_BROKEN))
+		local_apic_timer_disabled = 1;
+
+	/*
+	 * The local apic timer can be disabled via the kernel
+	 * commandline or from the test above. Register the lapic
+	 * timer as a dummy clock event source on SMP systems, so the
+	 * broadcast mechanism is used. On UP systems simply ignore it.
+	 */
+	if (local_apic_timer_disabled) {
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1)
+			setup_APIC_timer();
+		return;
+	}
 
 	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
 		    "calibrating APIC timer ...\n");
@@ -357,7 +380,8 @@ void __init setup_boot_APIC_clock(void)
 	/* Let the interrupts run */
 	local_irq_enable();
 
-	while(lapic_cal_loops <= LAPIC_CAL_LOOPS);
+	while (lapic_cal_loops <= LAPIC_CAL_LOOPS)
+		cpu_relax();
 
 	local_irq_disable();
 
@@ -394,6 +418,7 @@ void __init setup_boot_APIC_clock(void)
 			       "%lu (%ld)\n", (unsigned long) res, delta);
 			delta = (long) res;
 		}
+		pm_referenced = 1;
 	}
 
 	/* Calculate the scaled math multiplication factor */
@@ -423,69 +448,43 @@ void __init setup_boot_APIC_clock(void)
 		    calibration_result / (1000000 / HZ),
 		    calibration_result % (1000000 / HZ));
 
-
-	apic_printk(APIC_VERBOSE, "... verify APIC timer\n");
-
-	/*
-	 * Setup the apic timer manually
-	 */
 	local_apic_timer_verify_ok = 1;
-	levt->event_handler = lapic_cal_handler;
-	lapic_timer_setup(CLOCK_EVT_MODE_PERIODIC, levt);
-	lapic_cal_loops = -1;
 
-	/* Let the interrupts run */
-	local_irq_enable();
+	/* We trust the pm timer based calibration */
+	if (!pm_referenced) {
+		apic_printk(APIC_VERBOSE, "... verify APIC timer\n");
 
-	while(lapic_cal_loops <= LAPIC_CAL_LOOPS);
+		/*
+		 * Setup the apic timer manually
+		 */
+		levt->event_handler = lapic_cal_handler;
+		lapic_timer_setup(CLOCK_EVT_MODE_PERIODIC, levt);
+		lapic_cal_loops = -1;
 
-	local_irq_disable();
+		/* Let the interrupts run */
+		local_irq_enable();
 
-	/* Stop the lapic timer */
-	lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, levt);
+		while(lapic_cal_loops <= LAPIC_CAL_LOOPS)
+			cpu_relax();
 
-	local_irq_enable();
+		local_irq_disable();
 
-	/* Jiffies delta */
-	deltaj = lapic_cal_j2 - lapic_cal_j1;
-	apic_printk(APIC_VERBOSE, "... jiffies delta = %lu\n", deltaj);
+		/* Stop the lapic timer */
+		lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, levt);
 
-	/* Check, if the PM timer is available */
-	deltapm = lapic_cal_pm2 - lapic_cal_pm1;
-	apic_printk(APIC_VERBOSE, "... PM timer delta = %ld\n", deltapm);
+		local_irq_enable();
 
-	local_apic_timer_verify_ok = 0;
+		/* Jiffies delta */
+		deltaj = lapic_cal_j2 - lapic_cal_j1;
+		apic_printk(APIC_VERBOSE, "... jiffies delta = %lu\n", deltaj);
 
-	if (deltapm) {
-		if (deltapm > (pm_100ms - pm_thresh) &&
-		    deltapm < (pm_100ms + pm_thresh)) {
-			apic_printk(APIC_VERBOSE, "... PM timer result ok\n");
-			/* Check, if the jiffies result is consistent */
-			if (deltaj < LAPIC_CAL_LOOPS-2 ||
-			    deltaj > LAPIC_CAL_LOOPS+2) {
-				/*
-				 * Not sure, what we can do about this one.
-				 * When high resultion timers are active
-				 * and the lapic timer does not stop in C3
-				 * we are fine. Otherwise more trouble might
-				 * be waiting. -- tglx
-				 */
-				printk(KERN_WARNING "Global event device %s "
-				       "has wrong frequency "
-				       "(%lu ticks instead of %d)\n",
-				       global_clock_event->name, deltaj,
-				       LAPIC_CAL_LOOPS);
-			}
-			local_apic_timer_verify_ok = 1;
-		}
-	} else {
 		/* Check, if the jiffies result is consistent */
-		if (deltaj >= LAPIC_CAL_LOOPS-2 &&
-		    deltaj <= LAPIC_CAL_LOOPS+2) {
+		if (deltaj >= LAPIC_CAL_LOOPS-2 && deltaj <= LAPIC_CAL_LOOPS+2)
 			apic_printk(APIC_VERBOSE, "... jiffies result ok\n");
-			local_apic_timer_verify_ok = 1;
-		}
-	}
+		else
+			local_apic_timer_verify_ok = 0;
+	} else
+		local_irq_enable();
 
 	if (!local_apic_timer_verify_ok) {
 		printk(KERN_WARNING
@@ -1202,6 +1201,20 @@ static int __init parse_nolapic(char *arg)
 	return 0;
 }
 early_param("nolapic", parse_nolapic);
+
+static int __init parse_disable_lapic_timer(char *arg)
+{
+	local_apic_timer_disabled = 1;
+	return 0;
+}
+early_param("nolapic_timer", parse_disable_lapic_timer);
+
+static int __init parse_lapic_timer_c2_ok(char *arg)
+{
+	local_apic_timer_c2_ok = 1;
+	return 0;
+}
+early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
 
 static int __init apic_set_verbosity(char *str)
 {

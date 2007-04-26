@@ -336,14 +336,30 @@ struct ffb_dac {
 	u32	value2;
 };
 
+#define FFB_DAC_UCTRL	0x1001 /* User Control */
+#define  FFB_DAC_UCTRL_MANREV	0x00000f00 /* 4-bit Manufacturing Revision */
+#define  FFB_DAC_UCTRL_MANREV_SHIFT 8
+#define FFB_DAC_TGEN	0x6000 /* Timing Generator */
+#define  FFB_DAC_TGEN_VIDE	0x00000001 /* Video Enable */
+#define FFB_DAC_DID	0x8000 /* Device Identification */
+#define  FFB_DAC_DID_PNUM	0x0ffff000 /* Device Part Number */
+#define  FFB_DAC_DID_PNUM_SHIFT 12
+#define  FFB_DAC_DID_REV	0xf0000000 /* Device Revision */
+#define  FFB_DAC_DID_REV_SHIFT 28
+
+#define FFB_DAC_CUR_CTRL	0x100
+#define  FFB_DAC_CUR_CTRL_P0	0x00000001
+#define  FFB_DAC_CUR_CTRL_P1	0x00000002
+
 struct ffb_par {
 	spinlock_t		lock;
 	struct ffb_fbc __iomem	*fbc;
 	struct ffb_dac __iomem	*dac;
 
 	u32			flags;
-#define FFB_FLAG_AFB		0x00000001
-#define FFB_FLAG_BLANKED	0x00000002
+#define FFB_FLAG_AFB		0x00000001 /* AFB m3 or m6 */
+#define FFB_FLAG_BLANKED	0x00000002 /* screen is blanked */
+#define FFB_FLAG_INVCURSOR	0x00000004 /* DAC has inverted cursor logic */
 
 	u32			fg_cache __attribute__((aligned (8)));
 	u32			bg_cache;
@@ -354,7 +370,6 @@ struct ffb_par {
 	unsigned long		physbase;
 	unsigned long		fbsize;
 
-	int			dac_rev;
 	int			board_type;
 };
 
@@ -426,11 +441,12 @@ static void ffb_switch_from_graph(struct ffb_par *par)
 	FFBWait(par);
 
 	/* Disable cursor.  */
-	upa_writel(0x100, &dac->type2);
-	if (par->dac_rev <= 2)
+	upa_writel(FFB_DAC_CUR_CTRL, &dac->type2);
+	if (par->flags & FFB_FLAG_INVCURSOR)
 		upa_writel(0, &dac->value2);
 	else
-		upa_writel(3, &dac->value2);
+		upa_writel((FFB_DAC_CUR_CTRL_P0 |
+			    FFB_DAC_CUR_CTRL_P1), &dac->value2);
 
 	spin_unlock_irqrestore(&par->lock, flags);
 }
@@ -664,18 +680,18 @@ ffb_blank(int blank, struct fb_info *info)
 	struct ffb_par *par = (struct ffb_par *) info->par;
 	struct ffb_dac __iomem *dac = par->dac;
 	unsigned long flags;
-	u32 tmp;
+	u32 val;
+	int i;
 
 	spin_lock_irqsave(&par->lock, flags);
 
 	FFBWait(par);
 
+	upa_writel(FFB_DAC_TGEN, &dac->type);
+	val = upa_readl(&dac->value);
 	switch (blank) {
 	case FB_BLANK_UNBLANK: /* Unblanking */
-		upa_writel(0x6000, &dac->type);
-		tmp = (upa_readl(&dac->value) | 0x1);
-		upa_writel(0x6000, &dac->type);
-		upa_writel(tmp, &dac->value);
+		val |= FFB_DAC_TGEN_VIDE;
 		par->flags &= ~FFB_FLAG_BLANKED;
 		break;
 
@@ -683,12 +699,15 @@ ffb_blank(int blank, struct fb_info *info)
 	case FB_BLANK_VSYNC_SUSPEND: /* VESA blank (vsync off) */
 	case FB_BLANK_HSYNC_SUSPEND: /* VESA blank (hsync off) */
 	case FB_BLANK_POWERDOWN: /* Poweroff */
-		upa_writel(0x6000, &dac->type);
-		tmp = (upa_readl(&dac->value) & ~0x1);
-		upa_writel(0x6000, &dac->type);
-		upa_writel(tmp, &dac->value);
+		val &= ~FFB_DAC_TGEN_VIDE;
 		par->flags |= FFB_FLAG_BLANKED;
 		break;
+	}
+	upa_writel(FFB_DAC_TGEN, &dac->type);
+	upa_writel(val, &dac->value);
+	for (i = 0; i < 10; i++) {
+		upa_writel(FFB_DAC_TGEN, &dac->type);
+		upa_readl(&dac->value);
 	}
 
 	spin_unlock_irqrestore(&par->lock, flags);
@@ -894,6 +913,7 @@ static int ffb_init_one(struct of_device *op)
 	struct ffb_dac __iomem *dac;
 	struct all_info *all;
 	int err;
+	u32 dac_pnum, dac_rev, dac_mrev;
 
 	all = kzalloc(sizeof(*all), GFP_KERNEL);
 	if (!all)
@@ -948,17 +968,31 @@ static int ffb_init_one(struct of_device *op)
 	if ((upa_readl(&fbc->ucsr) & FFB_UCSR_ALL_ERRORS) != 0)
 		upa_writel(FFB_UCSR_ALL_ERRORS, &fbc->ucsr);
 
-	ffb_switch_from_graph(&all->par);
-
 	dac = all->par.dac;
-	upa_writel(0x8000, &dac->type);
-	all->par.dac_rev = upa_readl(&dac->value) >> 0x1c;
+	upa_writel(FFB_DAC_DID, &dac->type);
+	dac_pnum = upa_readl(&dac->value);
+	dac_rev = (dac_pnum & FFB_DAC_DID_REV) >> FFB_DAC_DID_REV_SHIFT;
+	dac_pnum = (dac_pnum & FFB_DAC_DID_PNUM) >> FFB_DAC_DID_PNUM_SHIFT;
+
+	upa_writel(FFB_DAC_UCTRL, &dac->type);
+	dac_mrev = upa_readl(&dac->value);
+	dac_mrev = (dac_mrev & FFB_DAC_UCTRL_MANREV) >>
+		FFB_DAC_UCTRL_MANREV_SHIFT;
 
 	/* Elite3D has different DAC revision numbering, and no DAC revisions
-	 * have the reversed meaning of cursor enable.
+	 * have the reversed meaning of cursor enable.  Otherwise, Pacifica 1
+	 * ramdacs with manufacturing revision less than 3 have inverted
+	 * cursor logic.  We identify Pacifica 1 as not Pacifica 2, the
+	 * latter having a part number value of 0x236e.
 	 */
-	if (all->par.flags & FFB_FLAG_AFB)
-		all->par.dac_rev = 10;
+	if ((all->par.flags & FFB_FLAG_AFB) || dac_pnum == 0x236e) {
+		all->par.flags &= ~FFB_FLAG_INVCURSOR;
+	} else {
+		if (dac_mrev < 3)
+			all->par.flags |= FFB_FLAG_INVCURSOR;
+	}
+
+	ffb_switch_from_graph(&all->par);
 
 	/* Unblank it just to be sure.  When there are multiple
 	 * FFB/AFB cards in the system, or it is not the OBP
@@ -993,10 +1027,12 @@ static int ffb_init_one(struct of_device *op)
 
 	dev_set_drvdata(&op->dev, all);
 
-	printk("%s: %s at %016lx, type %d, DAC revision %d\n",
+	printk("%s: %s at %016lx, type %d, "
+	       "DAC pnum[%x] rev[%d] manuf_rev[%d]\n",
 	       dp->full_name,
 	       ((all->par.flags & FFB_FLAG_AFB) ? "AFB" : "FFB"),
-	       all->par.physbase, all->par.board_type, all->par.dac_rev);
+	       all->par.physbase, all->par.board_type,
+	       dac_pnum, dac_rev, dac_mrev);
 
 	return 0;
 }

@@ -138,9 +138,15 @@ kvmap_dtlb_4v:
 	brgez,pn	%g4, kvmap_dtlb_nonlinear
 	 nop
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	/* Index through the base page size TSB even for linear
+	 * mappings when using page allocation debugging.
+	 */
+	KERN_TSB_LOOKUP_TL1(%g4, %g6, %g5, %g1, %g2, %g3, kvmap_dtlb_load)
+#else
 	/* Correct TAG_TARGET is already in %g6, check 4mb TSB.  */
 	KERN_TSB4M_LOOKUP_TL1(%g6, %g5, %g1, %g2, %g3, kvmap_dtlb_load)
-
+#endif
 	/* TSB entry address left in %g1, lookup linear PTE.
 	 * Must preserve %g1 and %g6 (TAG).
 	 */

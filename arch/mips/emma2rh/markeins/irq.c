@@ -115,7 +115,7 @@ void __init arch_init_irq(void)
 
 asmlinkage void plat_irq_dispatch(void)
 {
-        unsigned int pending = read_c0_status() & read_c0_cause();
+        unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & STATUSF_IP7)
 		do_IRQ(CPU_IRQ_BASE + 7);

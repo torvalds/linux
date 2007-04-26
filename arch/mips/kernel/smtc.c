@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 
 #include <asm/cpu.h>
@@ -14,6 +15,7 @@
 #include <asm/hazards.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
+#include <asm/mips-boards/maltaint.h>
 #include <asm/mipsregs.h>
 #include <asm/cacheflush.h>
 #include <asm/time.h>
@@ -75,7 +77,7 @@ static struct smtc_ipi_q freeIPIq;
 
 void ipi_decode(struct smtc_ipi *);
 static void post_direct_ipi(int cpu, struct smtc_ipi *pipi);
-static void setup_cross_vpe_interrupts(void);
+static void setup_cross_vpe_interrupts(unsigned int nvpe);
 void init_smtc_stats(void);
 
 /* Global SMTC Status */
@@ -168,7 +170,10 @@ __setup("tintq=", tintq);
 
 int imstuckcount[2][8];
 /* vpemask represents IM/IE bits of per-VPE Status registers, low-to-high */
-int vpemask[2][8] = {{0,1,1,0,0,0,0,1},{0,1,0,0,0,0,0,1}};
+int vpemask[2][8] = {
+	{0, 0, 1, 0, 0, 0, 0, 1},
+	{0, 0, 0, 0, 0, 0, 0, 1}
+};
 int tcnoprog[NR_CPUS];
 static atomic_t idle_hook_initialized = {0};
 static int clock_hang_reported[NR_CPUS];
@@ -501,8 +506,7 @@ void mipsmt_prepare_cpus(void)
 
 	/* If we have multiple VPEs running, set up the cross-VPE interrupt */
 
-	if (nvpe > 1)
-		setup_cross_vpe_interrupts();
+	setup_cross_vpe_interrupts(nvpe);
 
 	/* Set up queue of free IPI "messages". */
 	nipi = NR_CPUS * IPIBUF_PER_CPU;
@@ -607,7 +611,12 @@ void smtc_cpus_done(void)
 int setup_irq_smtc(unsigned int irq, struct irqaction * new,
 			unsigned long hwmask)
 {
+	unsigned int vpe = current_cpu_data.vpe_id;
+
 	irq_hwmask[irq] = hwmask;
+#ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
+	vpemask[vpe][irq - MIPSCPU_INT_BASE] = 1;
+#endif
 
 	return setup_irq(irq, new);
 }
@@ -812,12 +821,15 @@ void ipi_decode(struct smtc_ipi *pipi)
 	smtc_ipi_nq(&freeIPIq, pipi);
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
+		irq_enter();
+		kstat_this_cpu.irqs[MIPSCPU_INT_BASE + MIPSCPU_INT_CPUCTR]++;
 		/* Invoke Clock "Interrupt" */
 		ipi_timer_latch[dest_copy] = 0;
 #ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 		clock_hang_reported[dest_copy] = 0;
 #endif /* CONFIG_SMTC_IDLE_HOOK_DEBUG */
 		local_timer_interrupt(0, NULL);
+		irq_exit();
 		break;
 	case LINUX_SMP_IPI:
 		switch ((int)arg_copy) {
@@ -965,8 +977,11 @@ static void ipi_irq_dispatch(void)
 
 static struct irqaction irq_ipi;
 
-static void setup_cross_vpe_interrupts(void)
+static void setup_cross_vpe_interrupts(unsigned int nvpe)
 {
+	if (nvpe < 1)
+		return;
+
 	if (!cpu_has_vint)
 		panic("SMTC Kernel requires Vectored Interupt support");
 
@@ -984,10 +999,17 @@ static void setup_cross_vpe_interrupts(void)
 
 /*
  * SMTC-specific hacks invoked from elsewhere in the kernel.
+ *
+ * smtc_ipi_replay is called from raw_local_irq_restore which is only ever
+ * called with interrupts disabled.  We do rely on interrupts being disabled
+ * here because using spin_lock_irqsave()/spin_unlock_irqrestore() would
+ * result in a recursive call to raw_local_irq_restore().
  */
 
-void smtc_ipi_replay(void)
+static void __smtc_ipi_replay(void)
 {
+	unsigned int cpu = smp_processor_id();
+
 	/*
 	 * To the extent that we've ever turned interrupts off,
 	 * we may have accumulated deferred IPIs.  This is subtle.
@@ -1002,15 +1024,28 @@ void smtc_ipi_replay(void)
 	 * is clear, and we'll handle it as a real pseudo-interrupt
 	 * and not a pseudo-pseudo interrupt.
 	 */
-	if (IPIQ[smp_processor_id()].depth > 0) {
-		struct smtc_ipi *pipi;
-		extern void self_ipi(struct smtc_ipi *);
+	if (IPIQ[cpu].depth > 0) {
+		while (1) {
+			struct smtc_ipi_q *q = &IPIQ[cpu];
+			struct smtc_ipi *pipi;
+			extern void self_ipi(struct smtc_ipi *);
 
-		while ((pipi = smtc_ipi_dq(&IPIQ[smp_processor_id()]))) {
+			spin_lock(&q->lock);
+			pipi = __smtc_ipi_dq(q);
+			spin_unlock(&q->lock);
+			if (!pipi)
+				break;
+
 			self_ipi(pipi);
-			smtc_cpu_stats[smp_processor_id()].selfipis++;
+			smtc_cpu_stats[cpu].selfipis++;
 		}
 	}
+}
+
+void smtc_ipi_replay(void)
+{
+	raw_local_irq_disable();
+	__smtc_ipi_replay();
 }
 
 EXPORT_SYMBOL(smtc_ipi_replay);
@@ -1117,7 +1152,13 @@ void smtc_idle_loop_hook(void)
 	 * is in use, there should never be any.
 	 */
 #ifndef CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY
-	smtc_ipi_replay();
+	{
+		unsigned long flags;
+
+		local_irq_save(flags);
+		__smtc_ipi_replay();
+		local_irq_restore(flags);
+	}
 #endif /* CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY */
 }
 

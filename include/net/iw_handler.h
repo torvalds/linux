@@ -1,10 +1,10 @@
 /*
  * This file define the new driver API for Wireless Extensions
  *
- * Version :	7	18.3.05
+ * Version :	8	16.3.07
  *
  * Authors :	Jean Tourrilhes - HPL - <jt@hpl.hp.com>
- * Copyright (c) 2001-2006 Jean Tourrilhes, All Rights Reserved.
+ * Copyright (c) 2001-2007 Jean Tourrilhes, All Rights Reserved.
  */
 
 #ifndef _IW_HANDLER_H
@@ -207,7 +207,7 @@
  * will be needed...
  * I just plan to increment with each new version.
  */
-#define IW_HANDLER_VERSION	7
+#define IW_HANDLER_VERSION	8
 
 /*
  * Changes :
@@ -239,6 +239,10 @@
  *	- Remove (struct iw_point *)->pointer from events and streams
  *	- Remove spy_offset from struct iw_handler_def
  *	- Add "check" version of event macros for ieee802.11 stack
+ *
+ * V7 to V8
+ * ----------
+ *	- Prevent leaking of kernel space in stream on 64 bits.
  */
 
 /**************************** CONSTANTS ****************************/
@@ -500,7 +504,11 @@ iwe_stream_add_event(char *	stream,		/* Stream of events */
 	/* Check if it's possible */
 	if(likely((stream + event_len) < ends)) {
 		iwe->len = event_len;
-		memcpy(stream, (char *) iwe, event_len);
+		/* Beware of alignement issues on 64 bits */
+		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
+		memcpy(stream + IW_EV_LCP_LEN,
+		       ((char *) iwe) + IW_EV_LCP_LEN,
+		       event_len - IW_EV_LCP_LEN);
 		stream += event_len;
 	}
 	return stream;
@@ -521,10 +529,10 @@ iwe_stream_add_point(char *	stream,		/* Stream of events */
 	/* Check if it's possible */
 	if(likely((stream + event_len) < ends)) {
 		iwe->len = event_len;
-		memcpy(stream, (char *) iwe, IW_EV_LCP_LEN);
+		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
 		memcpy(stream + IW_EV_LCP_LEN,
 		       ((char *) iwe) + IW_EV_LCP_LEN + IW_EV_POINT_OFF,
-		       IW_EV_POINT_LEN - IW_EV_LCP_LEN);
+		       IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
 		memcpy(stream + IW_EV_POINT_LEN, extra, iwe->u.data.length);
 		stream += event_len;
 	}
@@ -574,7 +582,11 @@ iwe_stream_check_add_event(char *	stream,		/* Stream of events */
 	/* Check if it's possible, set error if not */
 	if(likely((stream + event_len) < ends)) {
 		iwe->len = event_len;
-		memcpy(stream, (char *) iwe, event_len);
+		/* Beware of alignement issues on 64 bits */
+		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
+		memcpy(stream + IW_EV_LCP_LEN,
+		       ((char *) iwe) + IW_EV_LCP_LEN,
+		       event_len - IW_EV_LCP_LEN);
 		stream += event_len;
 	} else
 		*perr = -E2BIG;
@@ -598,10 +610,10 @@ iwe_stream_check_add_point(char *	stream,		/* Stream of events */
 	/* Check if it's possible */
 	if(likely((stream + event_len) < ends)) {
 		iwe->len = event_len;
-		memcpy(stream, (char *) iwe, IW_EV_LCP_LEN);
+		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
 		memcpy(stream + IW_EV_LCP_LEN,
 		       ((char *) iwe) + IW_EV_LCP_LEN + IW_EV_POINT_OFF,
-		       IW_EV_POINT_LEN - IW_EV_LCP_LEN);
+		       IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
 		memcpy(stream + IW_EV_POINT_LEN, extra, iwe->u.data.length);
 		stream += event_len;
 	} else

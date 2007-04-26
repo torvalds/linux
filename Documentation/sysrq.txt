@@ -93,6 +93,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 
 'p'     - Will dump the current registers and flags to your console.
 
+'q'     - Will dump a list of all running timers.
+
 'r'     - Turns off keyboard raw mode and sets it to XLATE.
 
 's'     - Will attempt to sync all mounted filesystems.

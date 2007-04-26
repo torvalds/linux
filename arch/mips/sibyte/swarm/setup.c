@@ -169,17 +169,19 @@ void __init plat_mem_setup(void)
 #define LEDS_PHYS MLEDS_PHYS
 #endif
 
-#define setled(index, c) \
-  ((unsigned char *)(IOADDR(LEDS_PHYS)+0x20))[(3-(index))<<3] = (c)
 void setleds(char *str)
 {
+	void *reg;
 	int i;
+
 	for (i = 0; i < 4; i++) {
-		if (!str[i]) {
-			setled(i, ' ');
-		} else {
-			setled(i, str[i]);
-		}
+		reg = IOADDR(LEDS_PHYS) + 0x20 + ((3 - i) << 3);
+
+		if (!str[i])
+			writeb(' ', reg);
+		else
+			writeb(str[i], reg);
 	}
 }
-#endif
+
+#endif /* LEDS_PHYS */

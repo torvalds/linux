@@ -964,7 +964,7 @@ static int sc92031_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 	}
 
-	spin_lock_bh(&priv->lock);
+	spin_lock(&priv->lock);
 
 	if (unlikely(!netif_carrier_ok(dev))) {
 		err = -ENOLINK;
@@ -1005,7 +1005,7 @@ static int sc92031_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 
 out_unlock:
-	spin_unlock_bh(&priv->lock);
+	spin_unlock(&priv->lock);
 
 out:
 	dev_kfree_skb(skb);
@@ -1042,12 +1042,12 @@ static int sc92031_open(struct net_device *dev)
 	priv->pm_config = 0;
 
 	/* Interrupts already disabled by sc92031_stop or sc92031_probe */
-	spin_lock(&priv->lock);
+	spin_lock_bh(&priv->lock);
 
 	_sc92031_reset(dev);
 	mmiowb();
 
-	spin_unlock(&priv->lock);
+	spin_unlock_bh(&priv->lock);
 	sc92031_enable_interrupts(dev);
 
 	if (netif_carrier_ok(dev))
@@ -1077,13 +1077,13 @@ static int sc92031_stop(struct net_device *dev)
 	/* Disable interrupts, stop Tx and Rx. */
 	sc92031_disable_interrupts(dev);
 
-	spin_lock(&priv->lock);
+	spin_lock_bh(&priv->lock);
 
 	_sc92031_disable_tx_rx(dev);
 	_sc92031_tx_clear(dev);
 	mmiowb();
 
-	spin_unlock(&priv->lock);
+	spin_unlock_bh(&priv->lock);
 
 	free_irq(pdev->irq, dev);
 	pci_free_consistent(pdev, TX_BUF_TOT_LEN, priv->tx_bufs,
@@ -1539,13 +1539,13 @@ static int sc92031_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* Disable interrupts, stop Tx and Rx. */
 	sc92031_disable_interrupts(dev);
 
-	spin_lock(&priv->lock);
+	spin_lock_bh(&priv->lock);
 
 	_sc92031_disable_tx_rx(dev);
 	_sc92031_tx_clear(dev);
 	mmiowb();
 
-	spin_unlock(&priv->lock);
+	spin_unlock_bh(&priv->lock);
 
 out:
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
@@ -1565,12 +1565,12 @@ static int sc92031_resume(struct pci_dev *pdev)
 		goto out;
 
 	/* Interrupts already disabled by sc92031_suspend */
-	spin_lock(&priv->lock);
+	spin_lock_bh(&priv->lock);
 
 	_sc92031_reset(dev);
 	mmiowb();
 
-	spin_unlock(&priv->lock);
+	spin_unlock_bh(&priv->lock);
 	sc92031_enable_interrupts(dev);
 
 	netif_device_attach(dev);

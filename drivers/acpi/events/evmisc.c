@@ -196,11 +196,15 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 		notify_info->notify.value = (u16) notify_value;
 		notify_info->notify.handler_obj = handler_obj;
 
-		acpi_ex_relinquish_interpreter();
+		acpi_ex_exit_interpreter();
 
 		acpi_ev_notify_dispatch(notify_info);
 
-		acpi_ex_reacquire_interpreter();
+		status = acpi_ex_enter_interpreter();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+
 	}
 
 	if (!handler_obj) {
@@ -549,7 +553,7 @@ acpi_status acpi_ev_release_global_lock(void)
 	acpi_gbl_global_lock_acquired = FALSE;
 
 	/* Release the local GL mutex */
-	acpi_ev_global_lock_thread_id = 0;
+	acpi_ev_global_lock_thread_id = NULL;
 	acpi_ev_global_lock_acquired = 0;
 	acpi_os_release_mutex(acpi_gbl_global_lock_mutex);
 	return_ACPI_STATUS(status);

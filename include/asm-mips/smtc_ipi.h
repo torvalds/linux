@@ -65,12 +65,10 @@ static inline void smtc_ipi_nq(struct smtc_ipi_q *q, struct smtc_ipi *p)
 	spin_unlock_irqrestore(&q->lock, flags);
 }
 
-static inline struct smtc_ipi *smtc_ipi_dq(struct smtc_ipi_q *q)
+static inline struct smtc_ipi *__smtc_ipi_dq(struct smtc_ipi_q *q)
 {
 	struct smtc_ipi *p;
-	long flags;
 
-	spin_lock_irqsave(&q->lock, flags);
 	if (q->head == NULL)
 		p = NULL;
 	else {
@@ -81,7 +79,19 @@ static inline struct smtc_ipi *smtc_ipi_dq(struct smtc_ipi_q *q)
 		if (q->head == NULL)
 			q->tail = NULL;
 	}
+
+	return p;
+}
+
+static inline struct smtc_ipi *smtc_ipi_dq(struct smtc_ipi_q *q)
+{
+	unsigned long flags;
+	struct smtc_ipi *p;
+
+	spin_lock_irqsave(&q->lock, flags);
+	p = __smtc_ipi_dq(q);
 	spin_unlock_irqrestore(&q->lock, flags);
+
 	return p;
 }
 

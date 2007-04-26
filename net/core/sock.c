@@ -808,7 +808,7 @@ lenout:
  *
  * (We also register the sk_lock with the lock validator.)
  */
-static void inline sock_lock_init(struct sock *sk)
+static inline void sock_lock_init(struct sock *sk)
 {
 	sock_lock_init_class_and_name(sk,
 			af_family_slock_key_strings[sk->sk_family],

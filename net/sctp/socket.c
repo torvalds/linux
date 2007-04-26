@@ -627,6 +627,12 @@ int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 			retval = -EINVAL;
 			goto err_bindx_rem;
 		}
+
+		if (!af->addr_valid(sa_addr, sp, NULL)) {
+			retval = -EADDRNOTAVAIL;
+			goto err_bindx_rem;
+		}
+
 		if (sa_addr->v4.sin_port != htons(bp->port)) {
 			retval = -EINVAL;
 			goto err_bindx_rem;
@@ -5638,6 +5644,36 @@ void sctp_wait_for_close(struct sock *sk, long timeout)
 	finish_wait(sk->sk_sleep, &wait);
 }
 
+static void sctp_sock_rfree_frag(struct sk_buff *skb)
+{
+	struct sk_buff *frag;
+
+	if (!skb->data_len)
+		goto done;
+
+	/* Don't forget the fragments. */
+	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next)
+		sctp_sock_rfree_frag(frag);
+
+done:
+	sctp_sock_rfree(skb);
+}
+
+static void sctp_skb_set_owner_r_frag(struct sk_buff *skb, struct sock *sk)
+{
+	struct sk_buff *frag;
+
+	if (!skb->data_len)
+		goto done;
+
+	/* Don't forget the fragments. */
+	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next)
+		sctp_skb_set_owner_r_frag(frag, sk);
+
+done:
+	sctp_skb_set_owner_r(skb, sk);
+}
+
 /* Populate the fields of the newsk from the oldsk and migrate the assoc
  * and its messages to the newsk.
  */
@@ -5692,10 +5728,10 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	sctp_skb_for_each(skb, &oldsk->sk_receive_queue, tmp) {
 		event = sctp_skb2event(skb);
 		if (event->asoc == assoc) {
-			sctp_sock_rfree(skb);
+			sctp_sock_rfree_frag(skb);
 			__skb_unlink(skb, &oldsk->sk_receive_queue);
 			__skb_queue_tail(&newsk->sk_receive_queue, skb);
-			sctp_skb_set_owner_r(skb, newsk);
+			sctp_skb_set_owner_r_frag(skb, newsk);
 		}
 	}
 
@@ -5723,10 +5759,10 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		sctp_skb_for_each(skb, &oldsp->pd_lobby, tmp) {
 			event = sctp_skb2event(skb);
 			if (event->asoc == assoc) {
-				sctp_sock_rfree(skb);
+				sctp_sock_rfree_frag(skb);
 				__skb_unlink(skb, &oldsp->pd_lobby);
 				__skb_queue_tail(queue, skb);
-				sctp_skb_set_owner_r(skb, newsk);
+				sctp_skb_set_owner_r_frag(skb, newsk);
 			}
 		}
 
@@ -5736,6 +5772,16 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		if (assoc->ulpq.pd_mode)
 			sctp_clear_pd(oldsk);
 
+	}
+
+	sctp_skb_for_each(skb, &assoc->ulpq.reasm, tmp) {
+		sctp_sock_rfree_frag(skb);
+		sctp_skb_set_owner_r_frag(skb, newsk);
+	}
+
+	sctp_skb_for_each(skb, &assoc->ulpq.lobby, tmp) {
+		sctp_sock_rfree_frag(skb);
+		sctp_skb_set_owner_r_frag(skb, newsk);
 	}
 
 	/* Set the type of socket to indicate that it is peeled off from the

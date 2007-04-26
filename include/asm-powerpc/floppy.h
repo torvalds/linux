@@ -178,7 +178,7 @@ static struct fd_dma_ops virt_dma_ops =
 	._dma_setup = vdma_dma_setup
 };
 
-static int fd_request_dma()
+static int fd_request_dma(void)
 {
 	if (can_use_virtual_dma & 1) {
 		fd_ops = &virt_dma_ops;

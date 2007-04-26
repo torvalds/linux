@@ -112,7 +112,7 @@ static __always_inline void do_vgettimeofday(struct timeval * tv)
 
 		vread = __vsyscall_gtod_data.clock.vread;
 		if (unlikely(!__vsyscall_gtod_data.sysctl_enabled || !vread)) {
-			gettimeofday(tv,0);
+			gettimeofday(tv,NULL);
 			return;
 		}
 		now = vread();

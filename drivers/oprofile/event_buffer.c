@@ -70,11 +70,12 @@ void wake_up_buffer_waiter(void)
 int alloc_event_buffer(void)
 {
 	int err = -ENOMEM;
+	unsigned long flags;
 
-	spin_lock(&oprofilefs_lock);
+	spin_lock_irqsave(&oprofilefs_lock, flags);
 	buffer_size = fs_buffer_size;
 	buffer_watershed = fs_buffer_watershed;
-	spin_unlock(&oprofilefs_lock);
+	spin_unlock_irqrestore(&oprofilefs_lock, flags);
  
 	if (buffer_watershed >= buffer_size)
 		return -EINVAL;

@@ -311,6 +311,8 @@ asmlinkage int sys32_sched_rr_get_interval(compat_pid_t pid,
 	return ret;
 }
 
+#ifdef CONFIG_SYSVIPC
+
 asmlinkage long
 sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 {
@@ -367,6 +369,16 @@ sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 
 	return err;
 }
+
+#else
+
+asmlinkage long
+sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
+{
+	return -ENOSYS;
+}
+
+#endif /* CONFIG_SYSVIPC */
 
 #ifdef CONFIG_MIPS32_N32
 asmlinkage long sysn32_semctl(int semid, int semnum, int cmd, u32 arg)

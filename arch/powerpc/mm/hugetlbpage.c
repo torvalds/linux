@@ -24,6 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/tlb.h>
+#include <asm/spu.h>
 
 #include <linux/sysctl.h>
 
@@ -513,6 +514,9 @@ int prepare_hugepage_range(unsigned long addr, unsigned long len, pgoff_t pgoff)
 	if ((addr + len) > 0x100000000UL)
 		err = open_high_hpage_areas(current->mm,
 					    HTLB_AREA_MASK(addr, len));
+#ifdef CONFIG_SPE_BASE
+	spu_flush_all_slbs(current->mm);
+#endif
 	if (err) {
 		printk(KERN_DEBUG "prepare_hugepage_range(%lx, %lx)"
 		       " failed (lowmask: 0x%04hx, highmask: 0x%04hx)\n",

@@ -69,7 +69,7 @@ static int magic_charge(struct usb_device *udev)
 		return retval;
 	}
 
-	dbg(&udev->dev, "Sending first magic command\n");
+	dbg(&udev->dev, "Sending second magic command\n");
 	retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 0xa2, 0x40, 0, 1, dummy_buffer, 0, 100);
 	if (retval != 0) {

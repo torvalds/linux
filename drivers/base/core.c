@@ -28,20 +28,6 @@ int (*platform_notify)(struct device * dev) = NULL;
 int (*platform_notify_remove)(struct device * dev) = NULL;
 
 /*
- * Detect the LANANA-assigned LOCAL/EXPERIMENTAL majors
- */
-bool is_lanana_major(unsigned int major)
-{
-	if (major >= 60 && major <= 63)
-		return 1;
-	if (major >= 120 && major <= 127)
-		return 1;
-	if (major >= 240 && major <= 254)
-		return 1;
-	return 0;
-}
-
-/*
  * sysfs bindings for devices.
  */
 
@@ -406,6 +392,35 @@ void device_remove_bin_file(struct device *dev, struct bin_attribute *attr)
 		sysfs_remove_bin_file(&dev->kobj, attr);
 }
 EXPORT_SYMBOL_GPL(device_remove_bin_file);
+
+/**
+ * device_schedule_callback - helper to schedule a callback for a device
+ * @dev: device.
+ * @func: callback function to invoke later.
+ *
+ * Attribute methods must not unregister themselves or their parent device
+ * (which would amount to the same thing).  Attempts to do so will deadlock,
+ * since unregistration is mutually exclusive with driver callbacks.
+ *
+ * Instead methods can call this routine, which will attempt to allocate
+ * and schedule a workqueue request to call back @func with @dev as its
+ * argument in the workqueue's process context.  @dev will be pinned until
+ * @func returns.
+ *
+ * Returns 0 if the request was submitted, -ENOMEM if storage could not
+ * be allocated.
+ *
+ * NOTE: This routine won't work if CONFIG_SYSFS isn't set!  It uses an
+ * underlying sysfs routine (since it is intended for use by attribute
+ * methods), and if sysfs isn't available you'll get nothing but -ENOSYS.
+ */
+int device_schedule_callback(struct device *dev,
+		void (*func)(struct device *))
+{
+	return sysfs_schedule_callback(&dev->kobj,
+			(void (*)(void *)) func, dev);
+}
+EXPORT_SYMBOL_GPL(device_schedule_callback);
 
 static void klist_children_get(struct klist_node *n)
 {

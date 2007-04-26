@@ -145,7 +145,8 @@ static int uhci_show_urbp(struct urb_priv *urbp, char *buf, int len, int space)
 	return out - buf;
 }
 
-static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
+static int uhci_show_qh(struct uhci_hcd *uhci,
+		struct uhci_qh *qh, char *buf, int len, int space)
 {
 	char *out = buf;
 	int i, nurbs;
@@ -190,6 +191,9 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 
 	if (list_empty(&qh->queue)) {
 		out += sprintf(out, "%*s  queue is empty\n", space, "");
+		if (qh == uhci->skel_async_qh)
+			out += uhci_show_td(uhci->term_td, out,
+					len - (out - buf), 0);
 	} else {
 		struct urb_priv *urbp = list_entry(qh->queue.next,
 				struct urb_priv, node);
@@ -343,6 +347,7 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 	struct list_head *tmp, *head;
 	int nframes, nerrs;
 	__le32 link;
+	__le32 fsbr_link;
 
 	static const char * const qh_names[] = {
 		"unlink", "iso", "int128", "int64", "int32", "int16",
@@ -424,21 +429,22 @@ check_link:
 
 	out += sprintf(out, "Skeleton QHs\n");
 
+	fsbr_link = 0;
 	for (i = 0; i < UHCI_NUM_SKELQH; ++i) {
 		int cnt = 0;
-		__le32 fsbr_link = 0;
 
 		qh = uhci->skelqh[i];
 		out += sprintf(out, "- skel_%s_qh\n", qh_names[i]); \
-		out += uhci_show_qh(qh, out, len - (out - buf), 4);
+		out += uhci_show_qh(uhci, qh, out, len - (out - buf), 4);
 
 		/* Last QH is the Terminating QH, it's different */
 		if (i == SKEL_TERM) {
 			if (qh_element(qh) != LINK_TO_TD(uhci->term_td))
 				out += sprintf(out, "    skel_term_qh element is not set to term_td!\n");
-			if (link == LINK_TO_QH(uhci->skel_term_qh))
-				goto check_qh_link;
-			continue;
+			link = fsbr_link;
+			if (!link)
+				link = LINK_TO_QH(uhci->skel_term_qh);
+			goto check_qh_link;
 		}
 
 		head = &qh->node;
@@ -448,7 +454,7 @@ check_link:
 			qh = list_entry(tmp, struct uhci_qh, node);
 			tmp = tmp->next;
 			if (++cnt <= 10)
-				out += uhci_show_qh(qh, out,
+				out += uhci_show_qh(uhci, qh, out,
 						len - (out - buf), 4);
 			if (!fsbr_link && qh->skel >= SKEL_FSBR)
 				fsbr_link = LINK_TO_QH(qh);
@@ -463,8 +469,6 @@ check_link:
 			link = LINK_TO_QH(uhci->skel_async_qh);
 		else if (!uhci->fsbr_is_on)
 			;
-		else if (fsbr_link)
-			link = fsbr_link;
 		else
 			link = LINK_TO_QH(uhci->skel_term_qh);
 check_qh_link:
@@ -573,8 +577,8 @@ static const struct file_operations uhci_debug_operations = {
 static inline void lprintk(char *buf)
 {}
 
-static inline int uhci_show_qh(struct uhci_qh *qh, char *buf,
-		int len, int space)
+static inline int uhci_show_qh(struct uhci_hcd *uhci,
+		struct uhci_qh *qh, char *buf, int len, int space)
 {
 	return 0;
 }

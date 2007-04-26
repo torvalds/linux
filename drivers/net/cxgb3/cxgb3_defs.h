@@ -67,7 +67,10 @@ static inline union listen_entry *stid2entry(const struct tid_info *t,
 static inline struct t3c_tid_entry *lookup_tid(const struct tid_info *t,
 					       unsigned int tid)
 {
-	return tid < t->ntids ? &(t->tid_tab[tid]) : NULL;
+	struct t3c_tid_entry *t3c_tid = tid < t->ntids ?
+	    &(t->tid_tab[tid]) : NULL;
+
+	return (t3c_tid && t3c_tid->client) ? t3c_tid : NULL;
 }
 
 /*

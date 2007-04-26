@@ -138,9 +138,9 @@ config IEEE1394_DV1394
 	tristate "OHCI-DV I/O support (deprecated)"
 	depends on IEEE1394 && IEEE1394_OHCI1394
 	help
-	  The dv1394 driver will be removed from Linux in a future release.
-	  Its functionality is now provided by raw1394 together with libraries
-	  such as libiec61883.
+	  The dv1394 driver is unsupported and may be removed from Linux in a
+	  future release.  Its functionality is now provided by raw1394 together
+	  with libraries such as libiec61883.
 
 config IEEE1394_RAWIO
 	tristate "Raw IEEE1394 I/O support"

@@ -551,7 +551,9 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	if (pos <= 0)
 		return 0;
 
-	save_state = kzalloc(sizeof(*save_state) + sizeof(u16) * 4, GFP_KERNEL);
+	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
+	if (!save_state)
+		save_state = kzalloc(sizeof(*save_state) + sizeof(u16) * 4, GFP_KERNEL);
 	if (!save_state) {
 		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
 		return -ENOMEM;
@@ -582,8 +584,6 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 	pci_write_config_word(dev, pos + PCI_EXP_LNKCTL, cap[i++]);
 	pci_write_config_word(dev, pos + PCI_EXP_SLTCTL, cap[i++]);
 	pci_write_config_word(dev, pos + PCI_EXP_RTCTL, cap[i++]);
-	pci_remove_saved_cap(save_state);
-	kfree(save_state);
 }
 
 
@@ -597,7 +597,9 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	if (pos <= 0)
 		return 0;
 
-	save_state = kzalloc(sizeof(*save_state) + sizeof(u16), GFP_KERNEL);
+	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
+	if (!save_state)
+		save_state = kzalloc(sizeof(*save_state) + sizeof(u16), GFP_KERNEL);
 	if (!save_state) {
 		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
 		return -ENOMEM;
@@ -622,8 +624,6 @@ static void pci_restore_pcix_state(struct pci_dev *dev)
 	cap = (u16 *)&save_state->data[0];
 
 	pci_write_config_word(dev, pos + PCI_X_CMD, cap[i++]);
-	pci_remove_saved_cap(save_state);
-	kfree(save_state);
 }
 
 
@@ -638,8 +638,6 @@ pci_save_state(struct pci_dev *dev)
 	/* XXX: 100% dword access ok here? */
 	for (i = 0; i < 16; i++)
 		pci_read_config_dword(dev, i * 4,&dev->saved_config_space[i]);
-	if ((i = pci_save_msi_state(dev)) != 0)
-		return i;
 	if ((i = pci_save_pcie_state(dev)) != 0)
 		return i;
 	if ((i = pci_save_pcix_state(dev)) != 0)

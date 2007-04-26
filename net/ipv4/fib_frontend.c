@@ -493,6 +493,11 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	cfg->fc_nlinfo.pid = NETLINK_CB(skb).pid;
 	cfg->fc_nlinfo.nlh = nlh;
 
+	if (cfg->fc_type > RTN_MAX) {
+		err = -EINVAL;
+		goto errout;
+	}
+
 	nlmsg_for_each_attr(attr, nlh, sizeof(struct rtmsg), remaining) {
 		switch (attr->nla_type) {
 		case RTA_DST:
@@ -771,6 +776,8 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
 				       .nl_u = { .ip4_u = { .daddr = frn->fl_addr,
 							    .tos = frn->fl_tos,
 							    .scope = frn->fl_scope } } };
+
+	frn->err = -ENOENT;
 	if (tb) {
 		local_bh_disable();
 
@@ -782,6 +789,7 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
 			frn->nh_sel = res.nh_sel;
 			frn->type = res.type;
 			frn->scope = res.scope;
+			fib_res_put(&res);
 		}
 		local_bh_enable();
 	}
@@ -796,6 +804,9 @@ static void nl_fib_input(struct sock *sk, int len)
 	struct fib_table *tb;
 
 	skb = skb_dequeue(&sk->sk_receive_queue);
+	if (skb == NULL)
+		return;
+
 	nlh = (struct nlmsghdr *)skb->data;
 	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
 	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn))) {
@@ -808,7 +819,7 @@ static void nl_fib_input(struct sock *sk, int len)
 
 	nl_fib_lookup(frn, tb);
 
-	pid = nlh->nlmsg_pid;           /*pid of sending process */
+	pid = NETLINK_CB(skb).pid;       /* pid of sending process */
 	NETLINK_CB(skb).pid = 0;         /* from kernel */
 	NETLINK_CB(skb).dst_group = 0;  /* unicast */
 	netlink_unicast(sk, skb, pid, MSG_DONTWAIT);

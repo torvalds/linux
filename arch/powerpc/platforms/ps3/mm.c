@@ -294,7 +294,7 @@ static int __init ps3_mm_add_memory(void)
 	unsigned long nr_pages;
 
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return 0;
+		return -ENODEV;
 
 	BUG_ON(!mem_init_done);
 

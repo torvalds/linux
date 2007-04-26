@@ -578,6 +578,14 @@ static const struct usb_device_id products[] = {
 	 USB_DEVICE(0x0a46, 0x9601),	/* Davicom USB-100 */
 	 .driver_info = (unsigned long)&dm9601_info,
 	 },
+	{
+	 USB_DEVICE(0x0a46, 0x6688),	/* ZT6688 USB NIC */
+	 .driver_info = (unsigned long)&dm9601_info,
+	 },
+	{
+	 USB_DEVICE(0x0a46, 0x0268),	/* ShanTou ST268 USB NIC */
+	 .driver_info = (unsigned long)&dm9601_info,
+	 },
 	{},			// END
 };
 

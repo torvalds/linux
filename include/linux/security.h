@@ -1324,7 +1324,7 @@ struct security_operations {
 
 	void (*d_instantiate) (struct dentry *dentry, struct inode *inode);
 
- 	int (*getprocattr)(struct task_struct *p, char *name, void *value, size_t size);
+ 	int (*getprocattr)(struct task_struct *p, char *name, char **value);
  	int (*setprocattr)(struct task_struct *p, char *name, void *value, size_t size);
 	int (*secid_to_secctx)(u32 secid, char **secdata, u32 *seclen);
 	void (*release_secctx)(char *secdata, u32 seclen);
@@ -2092,9 +2092,9 @@ static inline void security_d_instantiate (struct dentry *dentry, struct inode *
 	security_ops->d_instantiate (dentry, inode);
 }
 
-static inline int security_getprocattr(struct task_struct *p, char *name, void *value, size_t size)
+static inline int security_getprocattr(struct task_struct *p, char *name, char **value)
 {
-	return security_ops->getprocattr(p, name, value, size);
+	return security_ops->getprocattr(p, name, value);
 }
 
 static inline int security_setprocattr(struct task_struct *p, char *name, void *value, size_t size)
@@ -2749,7 +2749,7 @@ static inline int security_sem_semop (struct sem_array * sma,
 static inline void security_d_instantiate (struct dentry *dentry, struct inode *inode)
 { }
 
-static inline int security_getprocattr(struct task_struct *p, char *name, void *value, size_t size)
+static inline int security_getprocattr(struct task_struct *p, char *name, char **value)
 {
 	return -EINVAL;
 }

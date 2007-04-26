@@ -239,7 +239,8 @@ void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits);
 #define SAA7146_HPS_SYNC_PORT_B		0x01
 
 /* some memory sizes */
-#define SAA7146_CLIPPING_MEM	(14*PAGE_SIZE)
+/* max. 16 clipping rectangles */
+#define SAA7146_CLIPPING_MEM	(16 * 4 * sizeof(u32))
 
 /* some defines for the various clipping-modes */
 #define SAA7146_CLIPPING_RECT		0x4

@@ -78,7 +78,7 @@ int shub1_bte_error_handler(unsigned long _nodepda)
 		 * There are errors which still need to be cleaned up by
 		 * hubiio_crb_error_handler
 		 */
-		mod_timer(recovery_timer, HZ * 5);
+		mod_timer(recovery_timer, jiffies + (HZ * 5));
 		BTE_PRINTK(("eh:%p:%d Marked Giving up\n", err_nodepda,
 			    smp_processor_id()));
 		return 1;
@@ -95,7 +95,7 @@ int shub1_bte_error_handler(unsigned long _nodepda)
 			icrbd.ii_icrb0_d_regval =
 			    REMOTE_HUB_L(nasid, IIO_ICRB_D(i));
 			if (icrbd.d_bteop) {
-				mod_timer(recovery_timer, HZ * 5);
+				mod_timer(recovery_timer, jiffies + (HZ * 5));
 				BTE_PRINTK(("eh:%p:%d Valid %d, Giving up\n",
 					    err_nodepda, smp_processor_id(),
 					    i));
@@ -150,7 +150,7 @@ int shub2_bte_error_handler(unsigned long _nodepda)
 		status = BTE_LNSTAT_LOAD(bte);
 		if ((status & IBLS_ERROR) || !(status & IBLS_BUSY))
 			continue;
-		mod_timer(recovery_timer, HZ * 5);
+		mod_timer(recovery_timer, jiffies + (HZ * 5));
 		BTE_PRINTK(("eh:%p:%d Marked Giving up\n", err_nodepda,
 			    smp_processor_id()));
 		return 1;

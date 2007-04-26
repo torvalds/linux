@@ -138,6 +138,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 			See also Documentation/pm.txt, pci=noacpi
 
+	acpi_apic_instance=	[ACPI, IOAPIC]
+			Format: <int>
+			2: use 2nd APIC table, if available
+			1,0: use 1st APIC table
+			default: 0
+
 	acpi_sleep=	[HW,ACPI] Sleep options
 			Format: { s3_bios, s3_mode }
 			See Documentation/power/video.txt
@@ -774,6 +780,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	lapic		[IA-32,APIC] Enable the local APIC even if BIOS
 			disabled it.
 
+	lapic_timer_c2_ok	[IA-32,x86-64,APIC] trust the local apic timer in
+			C2 power state.
+
 	lasi=		[HW,SCSI] PARISC LASI driver for the 53c700 chip
 			Format: addr:<io>,irq:<irq>
 
@@ -1116,6 +1125,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	nointroute	[IA-64]
 
 	nolapic		[IA-32,APIC] Do not enable or use the local APIC.
+
+	nolapic_timer	[IA-32,APIC] Do not use the local APIC timer.
 
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.

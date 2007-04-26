@@ -451,11 +451,17 @@ bail:
 	return ret;
 }
 
-static void remove_file(struct dentry *parent, char *name)
+static int remove_file(struct dentry *parent, char *name)
 {
 	struct dentry *tmp;
+	int ret;
 
 	tmp = lookup_one_len(name, parent, strlen(name));
+
+	if (IS_ERR(tmp)) {
+		ret = PTR_ERR(tmp);
+		goto bail;
+	}
 
 	spin_lock(&dcache_lock);
 	spin_lock(&tmp->d_lock);
@@ -469,6 +475,14 @@ static void remove_file(struct dentry *parent, char *name)
 		spin_unlock(&tmp->d_lock);
 		spin_unlock(&dcache_lock);
 	}
+
+	ret = 0;
+bail:
+	/*
+	 * We don't expect clients to care about the return value, but
+	 * it's there if they need it.
+	 */
+	return ret;
 }
 
 static int remove_device_files(struct super_block *sb,

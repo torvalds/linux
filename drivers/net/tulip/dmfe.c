@@ -190,13 +190,13 @@
 
 /* Structure/enum declaration ------------------------------- */
 struct tx_desc {
-        u32 tdes0, tdes1, tdes2, tdes3; /* Data for the card */
+        __le32 tdes0, tdes1, tdes2, tdes3; /* Data for the card */
         char *tx_buf_ptr;               /* Data for us */
         struct tx_desc *next_tx_desc;
 } __attribute__(( aligned(32) ));
 
 struct rx_desc {
-	u32 rdes0, rdes1, rdes2, rdes3; /* Data for the card */
+	__le32 rdes0, rdes1, rdes2, rdes3; /* Data for the card */
 	struct sk_buff *rx_skb_ptr;	/* Data for us */
 	struct rx_desc *next_rx_desc;
 } __attribute__(( aligned(32) ));
@@ -458,7 +458,7 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 
 	/* read 64 word srom data */
 	for (i = 0; i < 64; i++)
-		((u16 *) db->srom)[i] =
+		((__le16 *) db->srom)[i] =
 			cpu_to_le16(read_srom_word(db->ioaddr, i));
 
 	/* Set Node address */

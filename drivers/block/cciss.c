@@ -1439,7 +1439,7 @@ static int rebuild_lun_table(ctlr_info_t *h, struct gendisk *del_disk)
 
 		if (return_code == IO_OK) {
 			listlength =
-				be32_to_cpu(*(__u32 *) ld_buff->LUNListLength);
+				be32_to_cpu(*(__be32 *) ld_buff->LUNListLength);
 		} else {	/* reading number of logical volumes failed */
 			printk(KERN_WARNING "cciss: report logical volume"
 			       " command failed\n");
@@ -1915,6 +1915,7 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			       "does not support reading geometry\n");
 			drv->heads = 255;
 			drv->sectors = 32;	// Sectors per track
+			drv->cylinders = total_size + 1;
 			drv->raid_level = RAID_UNKNOWN;
 		} else {
 			drv->heads = inq_buff->data_byte[6];
@@ -1961,8 +1962,8 @@ cciss_read_capacity(int ctlr, int logvol, int withirq, sector_t *total_size,
 				ctlr, buf, sizeof(ReadCapdata_struct),
 					1, logvol, 0, NULL, TYPE_CMD);
 	if (return_code == IO_OK) {
-		*total_size = be32_to_cpu(*(__u32 *) buf->total_size);
-		*block_size = be32_to_cpu(*(__u32 *) buf->block_size);
+		*total_size = be32_to_cpu(*(__be32 *) buf->total_size);
+		*block_size = be32_to_cpu(*(__be32 *) buf->block_size);
 	} else {		/* read capacity command failed */
 		printk(KERN_WARNING "cciss: read capacity failed\n");
 		*total_size = 0;
@@ -1997,8 +1998,8 @@ cciss_read_capacity_16(int ctlr, int logvol, int withirq, sector_t *total_size, 
 				1, logvol, 0, NULL, TYPE_CMD);
 	}
 	if (return_code == IO_OK) {
-		*total_size = be64_to_cpu(*(__u64 *) buf->total_size);
-		*block_size = be32_to_cpu(*(__u32 *) buf->block_size);
+		*total_size = be64_to_cpu(*(__be64 *) buf->total_size);
+		*block_size = be32_to_cpu(*(__be32 *) buf->block_size);
 	} else {		/* read capacity command failed */
 		printk(KERN_WARNING "cciss: read capacity failed\n");
 		*total_size = 0;
@@ -3422,6 +3423,25 @@ static void cciss_remove_one(struct pci_dev *pdev)
 		       "already be removed \n");
 		return;
 	}
+
+	remove_proc_entry(hba[i]->devname, proc_cciss);
+	unregister_blkdev(hba[i]->major, hba[i]->devname);
+
+	/* remove it from the disk list */
+	for (j = 0; j < CISS_MAX_LUN; j++) {
+		struct gendisk *disk = hba[i]->gendisk[j];
+		if (disk) {
+			request_queue_t *q = disk->queue;
+
+			if (disk->flags & GENHD_FL_UP)
+				del_gendisk(disk);
+			if (q)
+				blk_cleanup_queue(q);
+		}
+	}
+
+	cciss_unregister_scsi(i);	/* unhook from SCSI subsystem */
+
 	/* Turn board interrupts off  and send the flush cache command */
 	/* sendcmd will turn off interrupt, and send the flush...
 	 * To write all data in the battery backed cache to disks */
@@ -3443,22 +3463,6 @@ static void cciss_remove_one(struct pci_dev *pdev)
 #endif				/* CONFIG_PCI_MSI */
 
 	iounmap(hba[i]->vaddr);
-	cciss_unregister_scsi(i);	/* unhook from SCSI subsystem */
-	unregister_blkdev(hba[i]->major, hba[i]->devname);
-	remove_proc_entry(hba[i]->devname, proc_cciss);
-
-	/* remove it from the disk list */
-	for (j = 0; j < CISS_MAX_LUN; j++) {
-		struct gendisk *disk = hba[i]->gendisk[j];
-		if (disk) {
-			request_queue_t *q = disk->queue;
-
-			if (disk->flags & GENHD_FL_UP)
-				del_gendisk(disk);
-			if (q)
-				blk_cleanup_queue(q);
-		}
-	}
 
 	pci_free_consistent(hba[i]->pdev, hba[i]->nr_cmds * sizeof(CommandList_struct),
 			    hba[i]->cmd_pool, hba[i]->cmd_pool_dhandle);

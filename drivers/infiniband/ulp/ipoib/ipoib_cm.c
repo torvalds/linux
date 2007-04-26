@@ -131,7 +131,7 @@ static struct sk_buff *ipoib_cm_alloc_rx_skb(struct net_device *dev, int id, int
 		skb_fill_page_desc(skb, i, page, 0, PAGE_SIZE);
 
 		mapping[i + 1] = ib_dma_map_page(priv->ca, skb_shinfo(skb)->frags[i].page,
-						 0, PAGE_SIZE, DMA_TO_DEVICE);
+						 0, PAGE_SIZE, DMA_FROM_DEVICE);
 		if (unlikely(ib_dma_mapping_error(priv->ca, mapping[i + 1])))
 			goto partial_error;
 	}
@@ -452,7 +452,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 			   skb->len, tx->mtu);
 		++priv->stats.tx_dropped;
 		++priv->stats.tx_errors;
-		ipoib_cm_skb_too_long(dev, skb, tx->mtu - INFINIBAND_ALEN);
+		ipoib_cm_skb_too_long(dev, skb, tx->mtu - IPOIB_ENCAP_LEN);
 		return;
 	}
 
@@ -1095,7 +1095,7 @@ static void ipoib_cm_stale_task(struct work_struct *work)
 		/* List if sorted by LRU, start from tail,
 		 * stop when we see a recently used entry */
 		p = list_entry(priv->cm.passive_ids.prev, typeof(*p), list);
-		if (time_after_eq(jiffies, p->jiffies + IPOIB_CM_RX_TIMEOUT))
+		if (time_before_eq(jiffies, p->jiffies + IPOIB_CM_RX_TIMEOUT))
 			break;
 		list_del_init(&p->list);
 		spin_unlock_irqrestore(&priv->lock, flags);

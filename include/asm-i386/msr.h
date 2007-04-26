@@ -275,6 +275,8 @@ static inline void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 #define MSR_K7_FID_VID_CTL		0xC0010041
 #define MSR_K7_FID_VID_STATUS		0xC0010042
 
+#define MSR_K8_ENABLE_C1E		0xC0010055
+
 /* extended feature register */
 #define MSR_EFER 			0xc0000080
 

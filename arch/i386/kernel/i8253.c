@@ -47,9 +47,17 @@ static void init_pit_timer(enum clock_event_mode mode,
 		outb(LATCH >> 8 , PIT_CH0);	/* MSB */
 		break;
 
-	case CLOCK_EVT_MODE_ONESHOT:
+	/*
+	 * Avoid unnecessary state transitions, as it confuses
+	 * Geode / Cyrix based boxen.
+	 */
 	case CLOCK_EVT_MODE_SHUTDOWN:
+		if (evt->mode == CLOCK_EVT_MODE_UNUSED)
+			break;
 	case CLOCK_EVT_MODE_UNUSED:
+		if (evt->mode == CLOCK_EVT_MODE_SHUTDOWN)
+			break;
+	case CLOCK_EVT_MODE_ONESHOT:
 		/* One shot setup */
 		outb_p(0x38, PIT_MODE);
 		udelay(10);

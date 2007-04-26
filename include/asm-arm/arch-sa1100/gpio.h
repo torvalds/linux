@@ -38,7 +38,7 @@ static inline void gpio_free(unsigned gpio)
 }
 
 extern int gpio_direction_input(unsigned gpio);
-extern int gpio_direction_output(unsigned gpio);
+extern int gpio_direction_output(unsigned gpio, int value);
 
 
 static inline int gpio_get_value(unsigned gpio)

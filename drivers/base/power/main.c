@@ -54,7 +54,8 @@ int device_pm_add(struct device * dev)
 	int error;
 
 	pr_debug("PM: Adding info for %s:%s\n",
-		 dev->bus ? dev->bus->name : "No Bus", dev->kobj.name);
+		 dev->bus ? dev->bus->name : "No Bus",
+		 kobject_name(&dev->kobj));
 	down(&dpm_list_sem);
 	list_add_tail(&dev->power.entry, &dpm_active);
 	device_pm_set_parent(dev, dev->parent);
@@ -67,7 +68,8 @@ int device_pm_add(struct device * dev)
 void device_pm_remove(struct device * dev)
 {
 	pr_debug("PM: Removing info for %s:%s\n",
-		 dev->bus ? dev->bus->name : "No Bus", dev->kobj.name);
+		 dev->bus ? dev->bus->name : "No Bus",
+		 kobject_name(&dev->kobj));
 	down(&dpm_list_sem);
 	dpm_sysfs_remove(dev);
 	put_device(dev->power.pm_parent);

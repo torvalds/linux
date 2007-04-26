@@ -188,7 +188,7 @@ enum {
  *	@sk: Socket we are owned by
  *	@tstamp: Time we arrived
  *	@dev: Device we arrived on/are leaving by
- *	@input_dev: Device we arrived on
+ *	@iif: ifindex of device we arrived on
  *	@h: Transport layer header
  *	@nh: Network layer header
  *	@mac: Link layer header
@@ -235,7 +235,8 @@ struct sk_buff {
 	struct sock		*sk;
 	struct skb_timeval	tstamp;
 	struct net_device	*dev;
-	struct net_device	*input_dev;
+	int			iif;
+	/* 4 byte hole on 64 bit*/
 
 	union {
 		struct tcphdr	*th;
@@ -345,9 +346,6 @@ static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 	return __alloc_skb(size, priority, 1, -1);
 }
 
-extern struct sk_buff *alloc_skb_from_cache(struct kmem_cache *cp,
-					    unsigned int size,
-					    gfp_t priority);
 extern void	       kfree_skbmem(struct sk_buff *skb);
 extern struct sk_buff *skb_clone(struct sk_buff *skb,
 				 gfp_t priority);
@@ -619,6 +617,13 @@ static inline void skb_queue_head_init(struct sk_buff_head *list)
 	spin_lock_init(&list->lock);
 	list->prev = list->next = (struct sk_buff *)list;
 	list->qlen = 0;
+}
+
+static inline void skb_queue_head_init_class(struct sk_buff_head *list,
+		struct lock_class_key *class)
+{
+	skb_queue_head_init(list);
+	lockdep_set_class(&list->lock, class);
 }
 
 /*

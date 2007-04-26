@@ -386,6 +386,39 @@ config AU1000_SERIAL_CONSOLE
 	  If you have an Alchemy AU1000 processor (MIPS based) and you want
 	  to use a console on a serial port, say Y.  Otherwise, say N.
 
+config SERIAL_DEC
+	bool "DECstation serial support"
+	depends on MACH_DECSTATION
+	default y
+	help
+	  This selects whether you want to be asked about drivers for
+	  DECstation serial ports.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about DECstation serial ports.
+
+config SERIAL_DEC_CONSOLE
+	bool "Support for console on a DECstation serial port"
+	depends on SERIAL_DEC
+	default y
+	help
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode).  Note that the firmware uses ttyS0 as the serial console on
+	  the Maxine and ttyS2 on the others.
+
+	  If unsure, say Y.
+
+config ZS
+	bool "Z85C30 Serial Support"
+	depends on SERIAL_DEC
+	default y
+	help
+	  Documentation on the Zilog 85C350 serial communications controller
+	  is downloadable at <http://www.zilog.com/pdfs/serial/z85c30.pdf>
+
 config A2232
 	tristate "Commodore A2232 serial support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && ZORRO && BROKEN_ON_SMP

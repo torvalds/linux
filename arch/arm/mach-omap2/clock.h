@@ -1013,7 +1013,8 @@ static struct clk dss2_fck = {		/* Alt clk used in power management */
 	.name		= "dss2_fck",
 	.parent		= &sys_ck,		/* fixed at sys_ck or 48MHz */
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_CKCTL | CM_CORE_SEL1 | RATE_FIXED,
+				RATE_CKCTL | CM_CORE_SEL1 | RATE_FIXED |
+				DELAYED_APP,
 	.enable_reg	= (void __iomem *)&CM_FCLKEN1_CORE,
 	.enable_bit	= 1,
 	.src_offset	= 13,

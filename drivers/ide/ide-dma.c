@@ -767,7 +767,7 @@ int ide_set_dma(ide_drive_t *drive)
 	switch(rc) {
 	case -1: /* DMA needs to be disabled */
 		hwif->dma_off_quietly(drive);
-		return 0;
+		return -1;
 	case  0: /* DMA needs to be enabled */
 		return hwif->ide_dma_on(drive);
 	case  1: /* DMA setting cannot be changed */

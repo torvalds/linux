@@ -67,6 +67,6 @@ extern void bcm1480_smp_finish(void);
 
 #endif
 
-#define IOADDR(a) ((volatile void __iomem *)(IO_BASE + (a)))
+#define IOADDR(a) ((void __iomem *)(IO_BASE + (a)))
 
 #endif

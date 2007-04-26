@@ -614,6 +614,27 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 	ocfs2_rw_unlock(inode, 0);
 }
 
+/*
+ * ocfs2_invalidatepage() and ocfs2_releasepage() are shamelessly stolen
+ * from ext3.  PageChecked() bits have been removed as OCFS2 does not
+ * do journalled data.
+ */
+static void ocfs2_invalidatepage(struct page *page, unsigned long offset)
+{
+	journal_t *journal = OCFS2_SB(page->mapping->host->i_sb)->journal->j_journal;
+
+	journal_invalidatepage(journal, page, offset);
+}
+
+static int ocfs2_releasepage(struct page *page, gfp_t wait)
+{
+	journal_t *journal = OCFS2_SB(page->mapping->host->i_sb)->journal->j_journal;
+
+	if (!page_has_buffers(page))
+		return 0;
+	return journal_try_to_free_buffers(journal, page, wait);
+}
+
 static ssize_t ocfs2_direct_IO(int rw,
 			       struct kiocb *iocb,
 			       const struct iovec *iov,
@@ -661,5 +682,8 @@ const struct address_space_operations ocfs2_aops = {
 	.commit_write	= ocfs2_commit_write,
 	.bmap		= ocfs2_bmap,
 	.sync_page	= block_sync_page,
-	.direct_IO	= ocfs2_direct_IO
+	.direct_IO	= ocfs2_direct_IO,
+	.invalidatepage	= ocfs2_invalidatepage,
+	.releasepage	= ocfs2_releasepage,
+	.migratepage	= buffer_migrate_page,
 };

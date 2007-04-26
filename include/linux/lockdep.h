@@ -245,7 +245,7 @@ extern void lock_release(struct lockdep_map *lock, int nested,
 
 # define INIT_LOCKDEP				.lockdep_recursion = 0,
 
-#define lockdep_depth(tsk)	((tsk)->lockdep_depth)
+#define lockdep_depth(tsk)	(debug_locks ? (tsk)->lockdep_depth : 0)
 
 #else /* !LOCKDEP */
 

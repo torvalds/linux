@@ -128,6 +128,7 @@ struct device_driver {
 
 	struct module		* owner;
 	const char 		* mod_name;	/* used for built-in modules */
+	struct module_kobject	* mkobj;
 
 	int	(*probe)	(struct device * dev);
 	int	(*remove)	(struct device * dev);
@@ -353,6 +354,8 @@ extern int __must_check device_create_bin_file(struct device *dev,
 					       struct bin_attribute *attr);
 extern void device_remove_bin_file(struct device *dev,
 				   struct bin_attribute *attr);
+extern int device_schedule_callback(struct device *dev,
+		void (*func)(struct device *));
 
 /* device resource management */
 typedef void (*dr_release_t)(struct device *dev, void *res);

@@ -327,6 +327,13 @@ UNUSUAL_DEV(  0x04b0, 0x040d, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Reported by Emil Larsson <emil@swip.net> */
+UNUSUAL_DEV(  0x04b0, 0x0411, 0x0100, 0x0100,
+		"NIKON",
+		"NIKON DSC D80",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
 /* BENQ DC5330
  * Reported by Manuel Fombuena <mfombuena@ya.com> and
  * Frank Copeland <fjc@thingy.apana.org.au> */
@@ -1410,6 +1417,16 @@ UNUSUAL_DEV(  0x22b8, 0x3010, 0x0001, 0x0001,
 		"RAZR V3x",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
+
+/*
+ * Patch by Pete Zaitcev <zaitcev@redhat.com>
+ * Report by Mark Patton. Red Hat bz#208928.
+ */
+UNUSUAL_DEV(  0x22b8, 0x4810, 0x0001, 0x0001,
+		"Motorola",
+		"RAZR V3i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
 
 /* Reported by Radovan Garabik <garabik@kassiopeia.juls.savba.sk> */
 UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,

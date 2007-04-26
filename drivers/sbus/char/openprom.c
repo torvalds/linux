@@ -249,7 +249,7 @@ static int oprompci2node(void __user *argp, struct device_node *dp, struct openp
 #ifdef CONFIG_PCI
 		struct pci_dev *pdev;
 		struct pcidev_cookie *pcp;
-		pdev = pci_find_slot (((int *) op->oprom_array)[0],
+		pdev = pci_get_bus_and_slot (((int *) op->oprom_array)[0],
 				      ((int *) op->oprom_array)[1]);
 
 		pcp = pdev->sysdata;
@@ -260,6 +260,7 @@ static int oprompci2node(void __user *argp, struct device_node *dp, struct openp
 			op->oprom_size = sizeof(int);
 			err = copyout(argp, op, bufsize + sizeof(int));
 		}
+		pci_dev_put(pdev);
 #endif
 	}
 

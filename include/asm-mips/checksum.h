@@ -166,7 +166,7 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr,
 #else
 	  "r" (proto + len),
 #endif
-	  "r" (sum));
+	  "r" ((__force unsigned long)sum));
 
 	return sum;
 }

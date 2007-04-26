@@ -198,10 +198,25 @@ L:	linux-sound@vger.kernel.org
 W:	http://www.stud.uni-karlsruhe.de/~uh1b/
 S:	Maintained
 
+IPS SCSI RAID DRIVER
+P:	Adaptec OEM Raid Solutions
+M:	aacraid@adaptec.com
+L:	linux-scsi@vger.kernel.org
+W:	http://www.adaptec.com/
+S:	Maintained
+
+DPT_I2O SCSI RAID DRIVER
+P:	Adaptec OEM Raid Solutions
+M:	aacraid@adaptec.com
+L:	linux-scsi@vger.kernel.org
+W:	http://www.adaptec.com/
+S:	Maintained
+
 AACRAID SCSI RAID DRIVER
 P:	Adaptec OEM Raid Solutions
+M:	aacraid@adaptec.com
 L:	linux-scsi@vger.kernel.org
-W:	http://linux.dell.com/storage.shtml
+W:	http://www.adaptec.com/
 S:	Supported
 
 ACPI
@@ -1303,7 +1318,7 @@ S:	Maintained
 ETHERNET BRIDGE
 P:	Stephen Hemminger
 M:	shemminger@linux-foundation.org
-L:	bridge@lists.osdl.org
+L:	bridge@lists.linux-foundation.org
 W:	http://bridge.sourceforge.net/
 S:	Maintained
 
@@ -1338,6 +1353,11 @@ FARSYNC SYNCHRONOUS DRIVER
 P:	Kevin Curtis
 M:	kevin.curtis@farsite.co.uk
 W:	http://www.farsite.co.uk/
+S:	Supported
+
+FAULT INJECTION SUPPORT
+P:	Akinobu Mita
+M:	akinobu.mita@gmail.com
 S:	Supported
 
 FRAMEBUFFER LAYER
@@ -1389,7 +1409,7 @@ M:	hch@infradead.org
 W:	ftp://ftp.openlinux.org/pub/people/hch/vxfs
 S:	Maintained
 
-FUJITSU FR-V PORT
+FUJITSU FR-V (FRV) PORT
 P:	David Howells
 M:	dhowells@redhat.com
 S:	Maintained
@@ -1585,12 +1605,6 @@ L:	i2c@lm-sensors.org
 T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
 S:	Maintained
 
-I2O
-P:	Markus Lidel
-M:	markus.lidel@shadowconnect.com
-W:	http://i2o.shadowconnect.com/
-S:	Maintained
-
 i386 BOOT CODE
 P:	Riley H. Williams
 M:	Riley@Williams.Name
@@ -1681,7 +1695,7 @@ S:	Maintained
 
 IEEE 1394 SUBSYSTEM
 P:	Ben Collins
-M:	bcollins@debian.org
+M:	ben.collins@ubuntu.com
 P:	Stefan Richter
 M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
@@ -1689,25 +1703,11 @@ W:	http://www.linux1394.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
 S:	Maintained
 
-IEEE 1394 IPV4 DRIVER (eth1394)
-P:	Stefan Richter
-M:	stefanr@s5r6.in-berlin.de
-L:	linux1394-devel@lists.sourceforge.net
-S:	Odd Fixes
-
-IEEE 1394 PCILYNX DRIVER
-P:	Jody McIntyre
-M:	scjody@modernduck.com
-P:	Stefan Richter
-M:	stefanr@s5r6.in-berlin.de
-L:	linux1394-devel@lists.sourceforge.net
-S:	Odd Fixes
-
-IEEE 1394 RAW I/O DRIVER
-P:	Ben Collins
-M:	bcollins@debian.org
+IEEE 1394 RAW I/O DRIVER (raw1394)
 P:	Dan Dennedy
 M:	dan@dennedy.org
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
 
@@ -1942,7 +1942,7 @@ P:	Vivek Goyal
 M:	vgoyal@in.ibm.com
 P:	Haren Myneni
 M:	hbabu@us.ibm.com
-L:	fastboot@lists.osdl.org
+L:	fastboot@lists.linux-foundation.org
 L:	linux-kernel@vger.kernel.org
 W:	http://lse.sourceforge.net/kdump/
 S:	Maintained
@@ -1969,7 +1969,7 @@ S:	Maintained
 
 KERNEL JANITORS
 P:	Several
-L:	kernel-janitors@lists.osdl.org
+L:	kernel-janitors@lists.linux-foundation.org
 W:	http://www.kerneljanitors.org/
 S:	Maintained
 
@@ -1992,7 +1992,7 @@ P:	Eric Biederman
 M:	ebiederm@xmission.com
 W:	http://www.xmission.com/~ebiederm/files/kexec/
 L:	linux-kernel@vger.kernel.org
-L:	fastboot@lists.osdl.org
+L:	fastboot@lists.linux-foundation.org
 S:	Maintained
 
 KPROBES
@@ -2330,7 +2330,7 @@ S:	Maintained
 NETEM NETWORK EMULATOR
 P:	Stephen Hemminger
 M:	shemminger@linux-foundation.org
-L:	netem@lists.osdl.org
+L:	netem@lists.linux-foundation.org
 S:	Maintained
 
 NETFILTER/IPTABLES/IPCHAINS
@@ -2928,9 +2928,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
 SCTP PROTOCOL
+P:	Vlad Yasevich
+M:	vladislav.yasevich@hp.com
 P:	Sridhar Samudrala
 M:	sri@us.ibm.com
 L:	lksctp-developers@lists.sourceforge.net
+W:	http://lksctp.sourceforge.net
 S:	Supported
 
 SCx200 CPU SUPPORT
@@ -3056,7 +3059,7 @@ S:	Supported
 SOFTWARE SUSPEND:
 P:	Pavel Machek
 M:	pavel@suse.cz
-L:	linux-pm@lists.osdl.org
+L:	linux-pm@lists.linux-foundation.org
 S:	Maintained
 
 SONIC NETWORK DRIVER
@@ -3066,11 +3069,10 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 
 SONY VAIO CONTROL DEVICE DRIVER
-P:	Stelian Pop
-M:	stelian@popies.net
 P:	Mattia Dongili
 M:	malattia@linux.it
-W:	http://popies.net/sonypi/
+L:	linux-acpi@vger.kernel.org
+W:	http://www.linux.it/~malattia/wiki/index.php/Sony_drivers
 S:	Maintained
 
 SOUND
@@ -3103,6 +3105,9 @@ TPM DEVICE DRIVER
 P:	Kylene Hall
 M:	kjhall@us.ibm.com
 W:	http://tpmdd.sourceforge.net
+P:	Marcel Selhorst
+M:	tpm@selhorst.net
+W:	http://www.prosec.rub.de/tpm/
 L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
 

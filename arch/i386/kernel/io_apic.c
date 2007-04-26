@@ -736,7 +736,7 @@ failed:
 	return 0;
 }
 
-int __init irqbalance_disable(char *str)
+int __devinit irqbalance_disable(char *str)
 {
 	irqbalance_disabled = 1;
 	return 1;

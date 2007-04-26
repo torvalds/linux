@@ -131,8 +131,6 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 
 static struct nla_policy fib6_rule_policy[FRA_MAX+1] __read_mostly = {
 	FRA_GENERIC_POLICY,
-	[FRA_SRC]	= { .len = sizeof(struct in6_addr) },
-	[FRA_DST]	= { .len = sizeof(struct in6_addr) },
 };
 
 static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
@@ -141,9 +139,6 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 {
 	int err = -EINVAL;
 	struct fib6_rule *rule6 = (struct fib6_rule *) rule;
-
-	if (frh->src_len > 128 || frh->dst_len > 128)
-		goto errout;
 
 	if (rule->action == FR_ACT_TO_TBL) {
 		if (rule->table == RT6_TABLE_UNSPEC)
@@ -155,11 +150,11 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 		}
 	}
 
-	if (tb[FRA_SRC])
+	if (frh->src_len)
 		nla_memcpy(&rule6->src.addr, tb[FRA_SRC],
 			   sizeof(struct in6_addr));
 
-	if (tb[FRA_DST])
+	if (frh->dst_len)
 		nla_memcpy(&rule6->dst.addr, tb[FRA_DST],
 			   sizeof(struct in6_addr));
 
@@ -186,11 +181,11 @@ static int fib6_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 	if (frh->tos && (rule6->tclass != frh->tos))
 		return 0;
 
-	if (tb[FRA_SRC] &&
+	if (frh->src_len &&
 	    nla_memcmp(tb[FRA_SRC], &rule6->src.addr, sizeof(struct in6_addr)))
 		return 0;
 
-	if (tb[FRA_DST] &&
+	if (frh->dst_len &&
 	    nla_memcmp(tb[FRA_DST], &rule6->dst.addr, sizeof(struct in6_addr)))
 		return 0;
 
@@ -240,6 +235,7 @@ static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)
 static struct fib_rules_ops fib6_rules_ops = {
 	.family			= AF_INET6,
 	.rule_size		= sizeof(struct fib6_rule),
+	.addr_size		= sizeof(struct in6_addr),
 	.action			= fib6_rule_action,
 	.match			= fib6_rule_match,
 	.configure		= fib6_rule_configure,

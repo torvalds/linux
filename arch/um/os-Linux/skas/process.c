@@ -67,7 +67,7 @@ void wait_stub_done(int pid, int sig, char * fname)
 
 	if((n < 0) || !WIFSTOPPED(status) ||
 	   (WSTOPSIG(status) != SIGUSR1 && WSTOPSIG(status) != SIGTRAP)){
-		unsigned long regs[HOST_FRAME_SIZE];
+		unsigned long regs[MAX_REG_NR];
 
 		if(ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
 			printk("Failed to get registers from stub, "
@@ -76,7 +76,7 @@ void wait_stub_done(int pid, int sig, char * fname)
 			int i;
 
 			printk("Stub registers -\n");
-			for(i = 0; i < HOST_FRAME_SIZE; i++)
+			for(i = 0; i < ARRAY_SIZE(regs); i++)
 				printk("\t%d - %lx\n", i, regs[i]);
 		}
 		panic("%s : failed to wait for SIGUSR1/SIGTRAP, "
@@ -328,7 +328,7 @@ void userspace(union uml_pt_regs *regs)
 int copy_context_skas0(unsigned long new_stack, int pid)
 {
 	int err;
-	unsigned long regs[HOST_FRAME_SIZE];
+	unsigned long regs[MAX_REG_NR];
 	unsigned long fp_regs[HOST_FP_SIZE];
 	unsigned long current_stack = current_stub_stack();
 	struct stub_data *data = (struct stub_data *) current_stack;

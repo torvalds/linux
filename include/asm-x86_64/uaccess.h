@@ -373,12 +373,12 @@ extern long __copy_user_nocache(void *dst, const void __user *src, unsigned size
 static inline int __copy_from_user_nocache(void *dst, const void __user *src, unsigned size)
 {
 	might_sleep();
-	return __copy_user_nocache(dst, (__force void *)src, size, 1);
+	return __copy_user_nocache(dst, src, size, 1);
 }
 
 static inline int __copy_from_user_inatomic_nocache(void *dst, const void __user *src, unsigned size)
 {
-	return __copy_user_nocache(dst, (__force void *)src, size, 0);
+	return __copy_user_nocache(dst, src, size, 0);
 }
 
 #endif /* __X86_64_UACCESS_H */

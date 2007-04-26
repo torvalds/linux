@@ -425,7 +425,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 		if (ret)
 			return ret;
 		spi->controller_state = (void *)npcs_pin;
-		gpio_direction_output(npcs_pin);
+		gpio_direction_output(npcs_pin, !(spi->mode & SPI_CS_HIGH));
 	}
 
 	dev_dbg(&spi->dev,

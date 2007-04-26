@@ -144,6 +144,13 @@ void free_ipc_ns(struct kref *kref)
 	shm_exit_ns(ns);
 	kfree(ns);
 }
+#else
+int copy_ipcs(unsigned long flags, struct task_struct *tsk)
+{
+	if (flags & CLONE_NEWIPC)
+		return -EINVAL;
+	return 0;
+}
 #endif
 
 /**

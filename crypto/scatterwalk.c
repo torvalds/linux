@@ -59,8 +59,12 @@ EXPORT_SYMBOL_GPL(scatterwalk_map);
 static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
 				 unsigned int more)
 {
-	if (out)
-		flush_dcache_page(scatterwalk_page(walk));
+	if (out) {
+		struct page *page;
+
+		page = walk->sg->page + ((walk->offset - 1) >> PAGE_SHIFT);
+		flush_dcache_page(page);
+	}
 
 	if (more) {
 		walk->offset += PAGE_SIZE - 1;
@@ -91,6 +95,8 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 		memcpy_dir(buf, vaddr, len_this_page, out);
 		scatterwalk_unmap(vaddr, out);
 
+		scatterwalk_advance(walk, len_this_page);
+
 		if (nbytes == len_this_page)
 			break;
 
@@ -99,7 +105,5 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 
 		scatterwalk_pagedone(walk, out, 1);
 	}
-
-	scatterwalk_advance(walk, nbytes);
 }
 EXPORT_SYMBOL_GPL(scatterwalk_copychunks);

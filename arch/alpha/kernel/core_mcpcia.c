@@ -40,8 +40,6 @@
 # define DBG_CFG(args)
 #endif
 
-#define MCPCIA_MAX_HOSES 4
-
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address and setup the MCPCIA_HAXR2 register

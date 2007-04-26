@@ -495,7 +495,8 @@ ext3_xattr_release_block(handle_t *handle, struct inode *inode,
 		BHDR(bh)->h_refcount = cpu_to_le32(
 				le32_to_cpu(BHDR(bh)->h_refcount) - 1);
 		error = ext3_journal_dirty_metadata(handle, bh);
-		handle->h_sync = 1;
+		if (IS_SYNC(inode))
+			handle->h_sync = 1;
 		DQUOT_FREE_BLOCK(inode, 1);
 		ea_bdebug(bh, "refcount now=%d; releasing",
 			  le32_to_cpu(BHDR(bh)->h_refcount));

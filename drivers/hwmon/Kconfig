@@ -527,6 +527,7 @@ config SENSORS_W83792D
 config SENSORS_W83793
 	tristate "Winbond W83793"
 	depends on HWMON && I2C && EXPERIMENTAL
+	select HWMON_VID
 	help
 	  If you say yes here you get support for the Winbond W83793
 	  hardware monitoring chip.

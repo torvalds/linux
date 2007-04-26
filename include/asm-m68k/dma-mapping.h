@@ -32,7 +32,7 @@ extern void dma_free_coherent(struct device *, size_t,
 			      void *, dma_addr_t);
 
 static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
-					  dma_addr_t *handle, int flag)
+					  dma_addr_t *handle, gfp_t flag)
 {
 	return dma_alloc_coherent(dev, size, handle, flag);
 }

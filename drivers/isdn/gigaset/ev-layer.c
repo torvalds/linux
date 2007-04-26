@@ -409,7 +409,7 @@ static struct reply_t tab_cid[] = /* no dle mode */ //FIXME
 };
 #endif
 
-static struct resp_type_t resp_type[]=
+static const struct resp_type_t resp_type[] =
 {
 	/*{"",		RSP_EMPTY,	RT_NOTHING},*/
 	{"OK",		RSP_OK,		RT_NOTHING},
@@ -511,7 +511,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 	unsigned char *argv[MAX_REC_PARAMS + 1];
 	int params;
 	int i, j;
-	struct resp_type_t *rt;
+	const struct resp_type_t *rt;
 	int curarg;
 	unsigned long flags;
 	unsigned next, tail, head;

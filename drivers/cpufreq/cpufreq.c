@@ -1015,6 +1015,10 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	int retval;
+
+	if (cpu_is_offline(cpu))
+		return 0;
+
 	if (unlikely(lock_policy_rwsem_write(cpu)))
 		BUG();
 

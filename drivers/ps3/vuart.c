@@ -952,7 +952,7 @@ fail_alloc_irq:
 	kfree(dev->priv);
 	dev->priv = NULL;
 fail_alloc:
-	vuart_bus_priv.devices[port_number] = 0;
+	vuart_bus_priv.devices[port_number] = NULL;
 fail_match:
 	up(&vuart_bus_priv.probe_mutex);
 	dev_dbg(&dev->core, "%s:%d failed\n", __func__, __LINE__);
@@ -978,7 +978,7 @@ static int ps3_vuart_remove(struct device *_dev)
 		dev_dbg(&dev->core, "%s:%d: %s no remove method\n", __func__,
 			__LINE__, dev->core.bus_id);
 
-	vuart_bus_priv.devices[dev->priv->port_number] = 0;
+	vuart_bus_priv.devices[dev->priv->port_number] = NULL;
 
 	if (--vuart_bus_priv.use_count == 0) {
 		BUG();
@@ -1031,7 +1031,7 @@ int __init ps3_vuart_bus_init(void)
 	pr_debug("%s:%d:\n", __func__, __LINE__);
 
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return 0;
+		return -ENODEV;
 
 	init_MUTEX(&vuart_bus_priv.probe_mutex);
 	result = bus_register(&ps3_vuart_bus);

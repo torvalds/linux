@@ -11,6 +11,7 @@
 #ifndef __ASM_ARCH_CLOCK_H
 #define __ASM_ARCH_CLOCK_H
 
+static inline u32 ns9xxx_systemclock(void) __attribute__((const));
 static inline u32 ns9xxx_systemclock(void)
 {
 	/*
@@ -19,17 +20,20 @@ static inline u32 ns9xxx_systemclock(void)
 	return 353894400;
 }
 
-static inline const u32 ns9xxx_cpuclock(void)
+static inline u32 ns9xxx_cpuclock(void) __attribute__((const));
+static inline u32 ns9xxx_cpuclock(void)
 {
 	return ns9xxx_systemclock() / 2;
 }
 
-static inline const u32 ns9xxx_ahbclock(void)
+static inline u32 ns9xxx_ahbclock(void) __attribute__((const));
+static inline u32 ns9xxx_ahbclock(void)
 {
 	return ns9xxx_systemclock() / 4;
 }
 
-static inline const u32 ns9xxx_bbusclock(void)
+static inline u32 ns9xxx_bbusclock(void) __attribute__((const));
+static inline u32 ns9xxx_bbusclock(void)
 {
 	return ns9xxx_systemclock() / 8;
 }

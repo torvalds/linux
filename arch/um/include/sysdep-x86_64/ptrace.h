@@ -104,10 +104,6 @@ union uml_pt_regs {
 #endif
 #ifdef UML_CONFIG_MODE_SKAS
 	struct skas_regs {
-		/* x86_64 ptrace uses sizeof(user_regs_struct) as its register
-		 * file size, while i386 uses FRAME_SIZE.  Therefore, we need
-		 * to use UM_FRAME_SIZE here instead of HOST_FRAME_SIZE.
-		 */
 		unsigned long regs[MAX_REG_NR];
 		unsigned long fp[HOST_FP_SIZE];
                 struct faultinfo faultinfo;

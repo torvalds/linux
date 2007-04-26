@@ -866,6 +866,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  basic		3-jack (default)
 	  hp		HP nx6320
 	  thinkpad	Lenovo Thinkpad T60/X60/Z60
+	  toshiba	Toshiba U205
 
 	AD1986A
 	  6stack	6-jack, separate surrounds (default)
@@ -906,7 +907,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  5stack	D945 5stack + SPDIF
 	  macmini	Intel Mac Mini
 	  macbook	Intel Mac Book
-	  macbook-pro	Intel Mac Book Pro
+	  macbook-pro-v1 Intel Mac Book Pro 1st generation
+	  macbook-pro	Intel Mac Book Pro 2nd generation
 
 	STAC9202/9250/9251
 	  ref		Reference board, base config

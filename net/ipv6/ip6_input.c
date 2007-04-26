@@ -108,8 +108,10 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	/* pkt_len may be zero if Jumbo payload option is present */
 	if (pkt_len || hdr->nexthdr != NEXTHDR_HOP) {
-		if (pkt_len + sizeof(struct ipv6hdr) > skb->len)
-			goto truncated;
+		if (pkt_len + sizeof(struct ipv6hdr) > skb->len) {
+			IP6_INC_STATS_BH(idev, IPSTATS_MIB_INTRUNCATEDPKTS);
+			goto drop;
+		}
 		if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr))) {
 			IP6_INC_STATS_BH(idev, IPSTATS_MIB_INHDRERRORS);
 			goto drop;
@@ -128,8 +130,6 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	rcu_read_unlock();
 
 	return NF_HOOK(PF_INET6,NF_IP6_PRE_ROUTING, skb, dev, NULL, ip6_rcv_finish);
-truncated:
-	IP6_INC_STATS_BH(idev, IPSTATS_MIB_INTRUNCATEDPKTS);
 err:
 	IP6_INC_STATS_BH(idev, IPSTATS_MIB_INHDRERRORS);
 drop:

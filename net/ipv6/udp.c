@@ -615,7 +615,7 @@ do_udp_sendmsg:
 		return udp_sendmsg(iocb, sk, msg, len);
 
 	/* Rough check on arithmetic overflow,
-	   better check is made in ip6_build_xmit
+	   better check is made in ip6_append_data().
 	   */
 	if (len > INT_MAX - sizeof(struct udphdr))
 		return -EMSGSIZE;

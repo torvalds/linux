@@ -121,50 +121,21 @@ csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
                    unsigned short len, unsigned short proto,
                    __wsum sum)
 {
-#ifndef __s390x__
-	asm volatile(
-		"	alr	%0,%1\n" /* sum += saddr */
-		"	brc	12,0f\n"
-		"	ahi	%0,1\n"  /* add carry */
-		"0:"
-		: "+&d" (sum) : "d" (saddr) : "cc");
-	asm volatile(
-		"	alr	%0,%1\n" /* sum += daddr */
-		"	brc	12,1f\n"
-		"	ahi	%0,1\n"  /* add carry */
-		"1:"
-		: "+&d" (sum) : "d" (daddr) : "cc");
-	asm volatile(
-		"	alr	%0,%1\n" /* sum += len + proto */
-		"	brc	12,2f\n"
-		"	ahi	%0,1\n"  /* add carry */
-		"2:"
-		: "+&d" (sum)
-		: "d" (len + proto)
-		: "cc");
-#else /* __s390x__ */
-	asm volatile(
-		"	lgfr	%0,%0\n"
-		"	algr	%0,%1\n"  /* sum += saddr */
-		"	brc	12,0f\n"
-		"	aghi	%0,1\n"   /* add carry */
-		"0:	algr	%0,%2\n"  /* sum += daddr */
-		"	brc	12,1f\n"
-		"	aghi	%0,1\n"   /* add carry */
-		"1:	algfr	%0,%3\n"  /* sum += len + proto */
-		"	brc	12,2f\n"
-		"	aghi	%0,1\n"   /* add carry */
-		"2:	srlg	0,%0,32\n"
-		"	alr	%0,0\n"   /* fold to 32 bits */
-		"	brc	12,3f\n"
-		"	ahi	%0,1\n"   /* add carry */
-		"3:	llgfr	%0,%0"
-		: "+&d" (sum)
-		: "d" (saddr), "d" (daddr),
-		  "d" (len + proto)
-		: "cc", "0");
-#endif /* __s390x__ */
-	return sum;
+	__u32 csum = (__force __u32)sum;
+
+	csum += (__force __u32)saddr;
+	if (csum < (__force __u32)saddr)
+		csum++;
+
+	csum += (__force __u32)daddr;
+	if (csum < (__force __u32)daddr)
+		csum++;
+
+	csum += len + proto;
+	if (csum < len + proto)
+		csum++;
+
+	return (__force __wsum)csum;
 }
 
 /*

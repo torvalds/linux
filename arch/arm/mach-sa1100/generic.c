@@ -27,6 +27,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 #include <asm/irq.h>
+#include <asm/gpio.h>
 
 #include "generic.h"
 
@@ -153,7 +154,7 @@ int gpio_direction_input(unsigned gpio)
 
 EXPORT_SYMBOL(gpio_direction_input);
 
-int gpio_direction_output(unsigned gpio)
+int gpio_direction_output(unsigned gpio, int value)
 {
 	unsigned long flags;
 
@@ -161,6 +162,7 @@ int gpio_direction_output(unsigned gpio)
 		return -EINVAL;
 
 	local_irq_save(flags);
+	gpio_set_value(gpio, value);
 	GPDR |= GPIO_GPIO(gpio);
 	local_irq_restore(flags);
 	return 0;

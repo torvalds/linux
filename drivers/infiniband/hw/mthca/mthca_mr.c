@@ -835,6 +835,7 @@ void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 
 	key = arbel_key_to_hw_index(fmr->ibmr.lkey);
 	key &= dev->limits.num_mpts - 1;
+	key = adjust_key(dev, key);
 	fmr->ibmr.lkey = fmr->ibmr.rkey = arbel_hw_index_to_key(key);
 
 	fmr->maps = 0;
@@ -881,8 +882,8 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 		}
 		mpts = mtts = 1 << i;
 	} else {
-		mpts = dev->limits.num_mtt_segs;
-		mtts = dev->limits.num_mpts;
+		mtts = dev->limits.num_mtt_segs;
+		mpts = dev->limits.num_mpts;
 	}
 
 	if (!mthca_is_memfree(dev) &&

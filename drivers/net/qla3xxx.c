@@ -1691,6 +1691,27 @@ static int ql_populate_free_queue(struct ql3_adapter *qdev)
 /*
  * Caller holds hw_lock.
  */
+static void ql_update_small_bufq_prod_index(struct ql3_adapter *qdev)
+{
+	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;
+	if (qdev->small_buf_release_cnt >= 16) {
+		while (qdev->small_buf_release_cnt >= 16) {
+			qdev->small_buf_q_producer_index++;
+
+			if (qdev->small_buf_q_producer_index ==
+			    NUM_SBUFQ_ENTRIES)
+				qdev->small_buf_q_producer_index = 0;
+			qdev->small_buf_release_cnt -= 8;
+		}
+		wmb();
+		writel(qdev->small_buf_q_producer_index,
+			&port_regs->CommonRegs.rxSmallQProducerIndex);
+	}
+}
+
+/*
+ * Caller holds hw_lock.
+ */
 static void ql_update_lrg_bufq_prod_index(struct ql3_adapter *qdev)
 {
 	struct bufq_addr_element *lrg_buf_q_ele;
@@ -1732,13 +1753,10 @@ static void ql_update_lrg_bufq_prod_index(struct ql3_adapter *qdev)
 				lrg_buf_q_ele = qdev->lrg_buf_q_virt_addr;
 			}
 		}
-
+		wmb();
 		qdev->lrg_buf_next_free = lrg_buf_q_ele;
-
-		ql_write_common_reg(qdev,
-				    &port_regs->CommonRegs.
-				    rxLargeQProducerIndex,
-				    qdev->lrg_buf_q_producer_index);
+		writel(qdev->lrg_buf_q_producer_index,
+			&port_regs->CommonRegs.rxLargeQProducerIndex);
 	}
 }
 
@@ -1915,17 +1933,18 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 		u16 checksum = le16_to_cpu(ib_ip_rsp_ptr->checksum);
 		if (checksum & 
 			(IB_IP_IOCB_RSP_3032_ICE | 
-			 IB_IP_IOCB_RSP_3032_CE | 
-			 IB_IP_IOCB_RSP_3032_NUC)) {
+			 IB_IP_IOCB_RSP_3032_CE)) { 
 			printk(KERN_ERR
 			       "%s: Bad checksum for this %s packet, checksum = %x.\n",
 			       __func__,
 			       ((checksum & 
 				IB_IP_IOCB_RSP_3032_TCP) ? "TCP" :
 				"UDP"),checksum);
-		} else if (checksum & IB_IP_IOCB_RSP_3032_TCP) {
+		} else if ((checksum & IB_IP_IOCB_RSP_3032_TCP) ||
+				(checksum & IB_IP_IOCB_RSP_3032_UDP &&
+				!(checksum & IB_IP_IOCB_RSP_3032_NUC))) {
 			skb2->ip_summed = CHECKSUM_UNNECESSARY;
-		} 
+		}
 	}
 	skb2->dev = qdev->ndev;
 	skb2->protocol = eth_type_trans(skb2, qdev->ndev);
@@ -1944,16 +1963,12 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 			  int *tx_cleaned, int *rx_cleaned, int work_to_do)
 {
-	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;
 	struct net_rsp_iocb *net_rsp;
 	struct net_device *ndev = qdev->ndev;
-	unsigned long hw_flags;
 	int work_done = 0;
 
-	u32 rsp_producer_index = le32_to_cpu(*(qdev->prsp_producer_index));
-
 	/* While there are entries in the completion queue. */
-	while ((rsp_producer_index !=
+	while ((le32_to_cpu(*(qdev->prsp_producer_index)) !=
 		qdev->rsp_consumer_index) && (work_done < work_to_do)) {
 
 		net_rsp = qdev->rsp_current;
@@ -2009,33 +2024,7 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 		work_done = *tx_cleaned + *rx_cleaned;
 	}
 
-	if(work_done) {
-		spin_lock_irqsave(&qdev->hw_lock, hw_flags);
-
-		ql_update_lrg_bufq_prod_index(qdev);
-
-		if (qdev->small_buf_release_cnt >= 16) {
-			while (qdev->small_buf_release_cnt >= 16) {
-				qdev->small_buf_q_producer_index++;
-
-				if (qdev->small_buf_q_producer_index ==
-				    NUM_SBUFQ_ENTRIES)
-					qdev->small_buf_q_producer_index = 0;
-				qdev->small_buf_release_cnt -= 8;
-			}
-
-			wmb();
-			ql_write_common_reg(qdev,
-					    &port_regs->CommonRegs.
-					    rxSmallQProducerIndex,
-					    qdev->small_buf_q_producer_index);
-
-		}
-
-		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
-	}
-
-	return *tx_cleaned + *rx_cleaned;
+	return work_done;
 }
 
 static int ql_poll(struct net_device *ndev, int *budget)
@@ -2059,9 +2048,10 @@ quit_polling:
 		netif_rx_complete(ndev);
 
 		spin_lock_irqsave(&qdev->hw_lock, hw_flags);
-		ql_write_common_reg(qdev,
-				    &port_regs->CommonRegs.rspQConsumerIndex,
-				    qdev->rsp_consumer_index);
+		ql_update_small_bufq_prod_index(qdev);
+		ql_update_lrg_bufq_prod_index(qdev);
+		writel(qdev->rsp_consumer_index,
+			    &port_regs->CommonRegs.rspQConsumerIndex);
 		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 
 		ql_enable_interrupts(qdev);
@@ -2217,12 +2207,7 @@ static int ql_send_map(struct ql3_adapter *qdev,
 	int seg_cnt, seg = 0;
 	int frag_cnt = (int)skb_shinfo(skb)->nr_frags;
 
-	seg_cnt = tx_cb->seg_count = ql_get_seg_count(qdev,
-						      (skb_shinfo(skb)->nr_frags));
-	if(seg_cnt == -1) {
-		printk(KERN_ERR PFX"%s: invalid segment count!\n",__func__);
-		return NETDEV_TX_BUSY;
-	}
+	seg_cnt = tx_cb->seg_count;
 	/*
 	 * Map the skb buffer first.
 	 */
@@ -2278,7 +2263,7 @@ static int ql_send_map(struct ql3_adapter *qdev,
 				pci_unmap_addr_set(&tx_cb->map[seg], mapaddr,
 						   map);
 				pci_unmap_len_set(&tx_cb->map[seg], maplen,
-						  len);
+						  sizeof(struct oal));
 				oal_entry = (struct oal_entry *)oal;
 				oal++;
 				seg++;
@@ -2380,6 +2365,7 @@ static int ql3xxx_send(struct sk_buff *skb, struct net_device *ndev)
 	}
 	
 	mac_iocb_ptr = tx_cb->queue_entry;
+	memset((void *)mac_iocb_ptr, 0, sizeof(struct ob_mac_iocb_req));
 	mac_iocb_ptr->opcode = qdev->mac_ob_opcode;
 	mac_iocb_ptr->flags = OB_MAC_IOCB_REQ_X;
 	mac_iocb_ptr->flags |= qdev->mb_bit_mask;
@@ -3054,15 +3040,6 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 			goto out;
 		}
 
-		if (qdev->mac_index)
-			ql_write_page0_reg(qdev,
-					   &port_regs->mac1MaxFrameLengthReg,
-					   qdev->max_frame_size);
-		else
-			ql_write_page0_reg(qdev,
-					   &port_regs->mac0MaxFrameLengthReg,
-					   qdev->max_frame_size);
-
 		value = qdev->nvram_data.tcpMaxWindowSize;
 		ql_write_page0_reg(qdev, &port_regs->tcpMaxWindow, value);
 
@@ -3082,6 +3059,14 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 		ql_sem_unlock(qdev, QL_FLASH_SEM_MASK);
 	}
 
+	if (qdev->mac_index)
+		ql_write_page0_reg(qdev,
+				   &port_regs->mac1MaxFrameLengthReg,
+				   qdev->max_frame_size);
+	else
+		ql_write_page0_reg(qdev,
+					   &port_regs->mac0MaxFrameLengthReg,
+					   qdev->max_frame_size);
 
 	if(ql_sem_spinlock(qdev, QL_PHY_GIO_SEM_MASK,
 			(QL_RESOURCE_BITS_BASE_CODE | (qdev->mac_index) *
@@ -3152,7 +3137,8 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 	if (qdev->device_id == QL3032_DEVICE_ID) {
 		value =
 		    (QL3032_PORT_CONTROL_EF | QL3032_PORT_CONTROL_KIE |
-		     QL3032_PORT_CONTROL_EIv6 | QL3032_PORT_CONTROL_EIv4);
+		     QL3032_PORT_CONTROL_EIv6 | QL3032_PORT_CONTROL_EIv4 |
+			QL3032_PORT_CONTROL_ET);
 		ql_write_page0_reg(qdev, &port_regs->functionControl,
 				   ((value << 16) | value));
 	} else {

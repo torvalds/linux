@@ -181,6 +181,7 @@ static int smb_setup_request(struct smb_request *req)
 	req->rq_errno = 0;
 	req->rq_fragment = 0;
 	kfree(req->rq_trans2buffer);
+	req->rq_trans2buffer = NULL;
 
 	return 0;
 }

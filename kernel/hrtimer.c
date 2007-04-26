@@ -135,7 +135,7 @@ EXPORT_SYMBOL_GPL(ktime_get_ts);
 static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 {
 	ktime_t xtim, tomono;
-	struct timespec xts;
+	struct timespec xts, tom;
 	unsigned long seq;
 
 	do {
@@ -145,10 +145,11 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 #else
 		xts = xtime;
 #endif
+		tom = wall_to_monotonic;
 	} while (read_seqretry(&xtime_lock, seq));
 
 	xtim = timespec_to_ktime(xts);
-	tomono = timespec_to_ktime(wall_to_monotonic);
+	tomono = timespec_to_ktime(tom);
 	base->clock_base[CLOCK_REALTIME].softirq_time = xtim;
 	base->clock_base[CLOCK_MONOTONIC].softirq_time =
 		ktime_add(xtim, tomono);
@@ -458,6 +459,18 @@ void clock_was_set(void)
 }
 
 /*
+ * During resume we might have to reprogram the high resolution timer
+ * interrupt (on the local CPU):
+ */
+void hres_timers_resume(void)
+{
+	WARN_ON_ONCE(num_online_cpus() > 1);
+
+	/* Retrigger the CPU local events: */
+	retrigger_next_event(NULL);
+}
+
+/*
  * Check, whether the timer is on the callback pending list
  */
 static inline int hrtimer_cb_pending(const struct hrtimer *timer)
@@ -644,6 +657,12 @@ hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
 		orun++;
 	}
 	timer->expires = ktime_add(timer->expires, interval);
+	/*
+	 * Make sure, that the result did not wrap with a very large
+	 * interval.
+	 */
+	if (timer->expires.tv64 < 0)
+		timer->expires = ktime_set(KTIME_SEC_MAX, 0);
 
 	return orun;
 }
@@ -807,7 +826,12 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 
 	timer_stats_hrtimer_set_start_info(timer);
 
-	enqueue_hrtimer(timer, new_base, base == new_base);
+	/*
+	 * Only allow reprogramming if the new base is on this CPU.
+	 * (it might still be on another CPU if the timer was pending)
+	 */
+	enqueue_hrtimer(timer, new_base,
+			new_base->cpu_base == &__get_cpu_var(hrtimer_bases));
 
 	unlock_hrtimer_base(timer, &flags);
 

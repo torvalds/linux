@@ -384,6 +384,19 @@ SavageSetup2DEngine(struct savagefb_par  *par)
 	BCI_SEND(0);
 	BCI_SEND(BCI_CMD_SETREG | (1 << 16) | BCI_GBD2);
 	BCI_SEND(GlobalBitmapDescriptor);
+
+	/*
+	 * I don't know why, sending this twice fixes the intial black screen,
+	 * prevents X from crashing at least in Toshiba laptops with SavageIX.
+	 * --Tony
+	 */
+	par->bci_ptr = 0;
+	par->SavageWaitFifo(par, 4);
+
+	BCI_SEND(BCI_CMD_SETREG | (1 << 16) | BCI_GBD1);
+	BCI_SEND(0);
+	BCI_SEND(BCI_CMD_SETREG | (1 << 16) | BCI_GBD2);
+	BCI_SEND(GlobalBitmapDescriptor);
 }
 
 static void savagefb_set_clip(struct fb_info *info)
@@ -496,7 +509,7 @@ static int common_calc_clock(long freq, int min_m, int min_n1, int max_n1,
 #ifdef SAVAGEFB_DEBUG
 /* This function is used to debug, it prints out the contents of s3 regs */
 
-static void SavagePrintRegs(void)
+static void SavagePrintRegs(struct savagefb_par *par)
 {
 	unsigned char i;
 	int vgaCRIndex = 0x3d4;
@@ -1525,7 +1538,7 @@ static int savagefb_set_par(struct fb_info *info)
 	savagefb_set_fix(info);
 	savagefb_set_clip(info);
 
-	SavagePrintRegs();
+	SavagePrintRegs(par);
 	return 0;
 }
 
@@ -2155,7 +2168,6 @@ static int __devinit savagefb_probe(struct pci_dev* dev,
 	int video_len;
 
 	DBG("savagefb_probe");
-	SavagePrintRegs();
 
 	info = framebuffer_alloc(sizeof(struct savagefb_par), &dev->dev);
 	if (!info)

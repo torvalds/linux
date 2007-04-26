@@ -1758,43 +1758,23 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		 *   (use |'ed TIOCM_RNG/DSR/CD/CTS for masking)
 		 * Caller should use TIOCGICOUNT to see which one it was
 		 */
-	case TIOCMIWAIT: {
-		DECLARE_WAITQUEUE(wait, current);
-		int ret;
+	case TIOCMIWAIT:
 		spin_lock_irqsave(&info->slock, flags);
-		cprev = info->icount;	/* note the counters on entry */
+		cnow = info->icount;	/* note the counters on entry */
 		spin_unlock_irqrestore(&info->slock, flags);
 
-		add_wait_queue(&info->delta_msr_wait, &wait);
-		while (1) {
+		wait_event_interruptible(info->delta_msr_wait, ({
+			cprev = cnow;
 			spin_lock_irqsave(&info->slock, flags);
 			cnow = info->icount;	/* atomic copy */
 			spin_unlock_irqrestore(&info->slock, flags);
 
-			set_current_state(TASK_INTERRUPTIBLE);
-			if (((arg & TIOCM_RNG) &&
-					(cnow.rng != cprev.rng)) ||
-					((arg & TIOCM_DSR) &&
-					(cnow.dsr != cprev.dsr)) ||
-					((arg & TIOCM_CD) &&
-					(cnow.dcd != cprev.dcd)) ||
-					((arg & TIOCM_CTS) &&
-					(cnow.cts != cprev.cts))) {
-				ret = 0;
-				break;
-			}
-			/* see if a signal did it */
-			if (signal_pending(current)) {
-				ret = -ERESTARTSYS;
-				break;
-			}
-			cprev = cnow;
-		}
-		current->state = TASK_RUNNING;
-		remove_wait_queue(&info->delta_msr_wait, &wait);
+			((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
+			((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
+			((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
+			((arg & TIOCM_CTS) && (cnow.cts != cprev.cts));
+		}));
 		break;
-	}
-	/* NOTREACHED */
 	/*
 	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
 	 * Return: write counters to the user passed counter struct
@@ -2230,7 +2210,14 @@ end_intr:
 	port->mon_data.rxcnt += cnt;
 	port->mon_data.up_rxcnt += cnt;
 
+	/*
+	 * We are called from an interrupt context with &port->slock
+	 * being held. Drop it temporarily in order to prevent
+	 * recursive locking.
+	 */
+	spin_unlock(&port->slock);
 	tty_flip_buffer_push(tty);
+	spin_lock(&port->slock);
 }
 
 static void mxser_transmit_chars(struct mxser_port *port)

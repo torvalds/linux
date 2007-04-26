@@ -4468,11 +4468,12 @@ static void selinux_d_instantiate (struct dentry *dentry, struct inode *inode)
 }
 
 static int selinux_getprocattr(struct task_struct *p,
-			       char *name, void *value, size_t size)
+			       char *name, char **value)
 {
 	struct task_security_struct *tsec;
 	u32 sid;
 	int error;
+	unsigned len;
 
 	if (current != p) {
 		error = task_has_perm(current, p, PROCESS__GETATTR);
@@ -4500,7 +4501,10 @@ static int selinux_getprocattr(struct task_struct *p,
 	if (!sid)
 		return 0;
 
-	return selinux_getsecurity(sid, value, size);
+	error = security_sid_to_context(sid, value, &len);
+	if (error)
+		return error;
+	return len;
 }
 
 static int selinux_setprocattr(struct task_struct *p,

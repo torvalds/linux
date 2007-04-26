@@ -219,6 +219,10 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		tmp_inode->i_mode |= S_IFREG;
 		if (attr & ATTR_READONLY)
 			tmp_inode->i_mode &= ~(S_IWUGO);
+		else if ((tmp_inode->i_mode & S_IWUGO) == 0)
+			/* the ATTR_READONLY flag may have been changed on   */
+		   	/* server -- set any w bits allowed by mnt_file_mode */
+			tmp_inode->i_mode |= (S_IWUGO & cifs_sb->mnt_file_mode);
 	} /* could add code here - to validate if device or weird share type? */
 
 	/* can not fill in nlink here as in qpathinfo version and Unx search */

@@ -260,7 +260,7 @@ static void r3k_flush_cache_page(struct vm_area_struct *vma, unsigned long page,
 {
 }
 
-static void local_r3k_flush_data_cache_page(unsigned long addr)
+static void local_r3k_flush_data_cache_page(void *addr)
 {
 }
 

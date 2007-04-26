@@ -11,6 +11,7 @@
 #include <asm/atarihw.h>
 
 #define RTC_PORT(x)	(TT_RTC_BAS + 2*(x))
+#define RTC_ALWAYS_BCD	0
 
 #define CMOS_READ(addr) ({ \
 atari_outb_p((addr),RTC_PORT(0)); \

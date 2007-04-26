@@ -172,6 +172,7 @@ struct ipv6_devconf ipv6_devconf __read_mostly = {
 #endif
 #endif
 	.proxy_ndp		= 0,
+	.accept_source_route	= 0,	/* we do not accept RH0 by default. */
 };
 
 static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
@@ -203,6 +204,7 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 #endif
 #endif
 	.proxy_ndp		= 0,
+	.accept_source_route	= 0,	/* we do not accept RH0 by default. */
 };
 
 /* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
@@ -341,6 +343,9 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 		ipv6_regen_rndid((unsigned long) ndev);
 	}
 #endif
+
+	if (netif_running(dev) && netif_carrier_ok(dev))
+		ndev->if_flags |= IF_READY;
 
 	ipv6_mc_init_dev(ndev);
 	ndev->tstamp = jiffies;
@@ -804,7 +809,7 @@ struct ipv6_saddr_score {
 #define IPV6_SADDR_SCORE_LABEL		0x0020
 #define IPV6_SADDR_SCORE_PRIVACY	0x0040
 
-static int inline ipv6_saddr_preferred(int type)
+static inline int ipv6_saddr_preferred(int type)
 {
 	if (type & (IPV6_ADDR_MAPPED|IPV6_ADDR_COMPATv4|
 		    IPV6_ADDR_LOOPBACK|IPV6_ADDR_RESERVED))
@@ -813,7 +818,7 @@ static int inline ipv6_saddr_preferred(int type)
 }
 
 /* static matching label */
-static int inline ipv6_saddr_label(const struct in6_addr *addr, int type)
+static inline int ipv6_saddr_label(const struct in6_addr *addr, int type)
 {
  /*
   * 	prefix (longest match)	label
@@ -3318,7 +3323,7 @@ errout:
 		rtnl_set_sk_err(RTNLGRP_IPV6_IFADDR, err);
 }
 
-static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
+static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 				__s32 *array, int bytes)
 {
 	BUG_ON(bytes < (DEVCONF_MAX * 4));
@@ -3353,6 +3358,7 @@ static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
 #endif
 #endif
 	array[DEVCONF_PROXY_NDP] = cnf->proxy_ndp;
+	array[DEVCONF_ACCEPT_SOURCE_ROUTE] = cnf->accept_source_route;
 }
 
 static inline size_t inet6_if_nlmsg_size(void)
@@ -3876,6 +3882,14 @@ static struct addrconf_sysctl_table
 			.ctl_name	=	NET_IPV6_PROXY_NDP,
 			.procname	=	"proxy_ndp",
 			.data		=	&ipv6_devconf.proxy_ndp,
+			.maxlen		=	sizeof(int),
+			.mode		=	0644,
+			.proc_handler	=	&proc_dointvec,
+		},
+		{
+			.ctl_name	=	NET_IPV6_ACCEPT_SOURCE_ROUTE,
+			.procname	=	"accept_source_route",
+			.data		=	&ipv6_devconf.accept_source_route,
 			.maxlen		=	sizeof(int),
 			.mode		=	0644,
 			.proc_handler	=	&proc_dointvec,

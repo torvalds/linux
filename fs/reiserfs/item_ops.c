@@ -23,7 +23,7 @@ static void sd_decrement_key(struct cpu_key *key)
 {
 	key->on_disk_key.k_objectid--;
 	set_cpu_key_k_type(key, TYPE_ANY);
-	set_cpu_key_k_offset(key, (loff_t) (-1));
+	set_cpu_key_k_offset(key, (loff_t)(~0ULL >> 1));
 }
 
 static int sd_is_left_mergeable(struct reiserfs_key *key, unsigned long bsize)

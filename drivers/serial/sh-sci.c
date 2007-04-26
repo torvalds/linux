@@ -17,6 +17,9 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#if defined(CONFIG_SERIAL_SH_SCI_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#define SUPPORT_SYSRQ
+#endif
 
 #undef DEBUG
 
@@ -49,11 +52,6 @@
 #endif
 
 #include <asm/sci.h>
-
-#if defined(CONFIG_SERIAL_SH_SCI_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include "sh-sci.h"
 
 struct sci_port {
@@ -644,6 +642,9 @@ static inline int sci_handle_breaks(struct uart_port *port)
 	unsigned short status = sci_in(port, SCxSR);
 	struct tty_struct *tty = port->info->tty;
 	struct sci_port *s = &sci_ports[port->line];
+
+	if (uart_handle_break(port))
+		return 0;
 
 	if (!s->break_flag && status & SCxSR_BRK(port)) {
 #if defined(CONFIG_CPU_SH3)

@@ -802,9 +802,9 @@ process_input_packet(struct asyncppp *ap)
 
 	/* check for address/control and protocol compression */
 	p = skb->data;
-	if (p[0] == PPP_ALLSTATIONS && p[1] == PPP_UI) {
+	if (p[0] == PPP_ALLSTATIONS) {
 		/* chop off address/control */
-		if (skb->len < 3)
+		if (p[1] != PPP_UI || skb->len < 3)
 			goto err;
 		p = skb_pull(skb, 2);
 	}

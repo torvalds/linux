@@ -121,7 +121,11 @@ FEXPORT(restore_partial)		# restore partial frame
 	SAVE_AT
 	SAVE_TEMP
 	LONG_L	v0, PT_STATUS(sp)
-	and	v0, 1
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+	and	v0, ST0_IEP
+#else
+	and	v0, ST0_IE
+#endif
 	beqz	v0, 1f
 	jal	trace_hardirqs_on
 	b	2f

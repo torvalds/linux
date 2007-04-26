@@ -1379,7 +1379,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	spin_lock_init(&mp->lock);
 
-	port_num = pd->port_number;
+	port_num = mp->port_num = pd->port_number;
 
 	/* set default config values */
 	eth_port_uc_addr_get(dev, dev->dev_addr);
@@ -1410,8 +1410,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	duplex = pd->duplex;
 	speed = pd->speed;
-
-	mp->port_num = port_num;
 
 	/* Hook up MII support for ethtool */
 	mp->mii.dev = dev;
@@ -1516,9 +1514,23 @@ static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void mv643xx_eth_shutdown(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct mv643xx_private *mp = netdev_priv(dev);
+	unsigned int port_num = mp->port_num;
+
+	/* Mask all interrupts on ethernet port */
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), 0);
+	mv_read (MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
+
+	eth_port_reset(port_num);
+}
+
 static struct platform_driver mv643xx_eth_driver = {
 	.probe = mv643xx_eth_probe,
 	.remove = mv643xx_eth_remove,
+	.shutdown = mv643xx_eth_shutdown,
 	.driver = {
 		.name = MV643XX_ETH_NAME,
 	},

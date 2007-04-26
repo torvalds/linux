@@ -16,17 +16,17 @@
 #define TCSETSW		0x5403
 #define TCSETSF		0x5404
 
-#define TCGETA		_IOR('t', 23, struct termio)
-#define TCSETA		_IOW('t', 24, struct termio)
-#define TCSETAW		_IOW('t', 25, struct termio)
-#define TCSETAF		_IOW('t', 28, struct termio)
+#define TCGETA		0x80127417	/* _IOR('t', 23, struct termio) */
+#define TCSETA		0x40127418	/* _IOW('t', 24, struct termio) */
+#define TCSETAW		0x40127419	/* _IOW('t', 25, struct termio) */
+#define TCSETAF		0x4012741C	/* _IOW('t', 28, struct termio) */
 
 #define TCSBRK		_IO('t', 29)
 #define TCXONC		_IO('t', 30)
 #define TCFLSH		_IO('t', 31)
 
-#define TIOCSWINSZ	_IOW('t', 103, struct winsize)
-#define TIOCGWINSZ	_IOR('t', 104, struct winsize)
+#define TIOCSWINSZ	0x40087467	/* _IOW('t', 103, struct winsize) */
+#define TIOCGWINSZ	0x80087468	/* _IOR('t', 104, struct winsize) */
 #define	TIOCSTART	_IO('t', 110)		/* start output, like ^Q */
 #define	TIOCSTOP	_IO('t', 111)		/* stop output, like ^S */
 #define TIOCOUTQ        _IOR('t', 115, int)     /* output queue size */
@@ -59,8 +59,8 @@
 #define TIOCSSOFTCAR	_IOW('T', 26, unsigned int) /* 0x541A */
 #define TIOCLINUX	_IOW('T', 28, char) /* 0x541C */
 #define TIOCCONS	_IO('T', 29) /* 0x541D */
-#define TIOCGSERIAL	_IOR('T', 30, struct serial_struct) /* 0x541E */
-#define TIOCSSERIAL	_IOW('T', 31, struct serial_struct) /* 0x541F */
+#define TIOCGSERIAL	0x803C541E	/* _IOR('T', 30, struct serial_struct) 0x541E */
+#define TIOCSSERIAL	0x403C541F	/* _IOW('T', 31, struct serial_struct) 0x541F */
 #define TIOCPKT		_IOW('T', 32, int) /* 0x5420 */
 # define TIOCPKT_DATA		 0
 # define TIOCPKT_FLUSHREAD	 1
@@ -86,12 +86,12 @@
 #define TIOCSERSWILD	_IOW('T', 85,  int) /* 0x5455 */
 #define TIOCGLCKTRMIOS	0x5456
 #define TIOCSLCKTRMIOS	0x5457
-#define TIOCSERGSTRUCT	_IOR('T', 88, struct async_struct) /* 0x5458 */ /* For debugging only */
+#define TIOCSERGSTRUCT	0x80d85458	/* _IOR('T', 88, struct async_struct) 0x5458 */ /* For debugging only */
 #define TIOCSERGETLSR   _IOR('T', 89, unsigned int) /* 0x5459 */ /* Get line status register */
   /* ioctl (fd, TIOCSERGETLSR, &result) where result may be as below */
 # define TIOCSER_TEMT    0x01	/* Transmitter physically empty */
-#define TIOCSERGETMULTI _IOR('T', 90, struct serial_multiport_struct) /* 0x545A */ /* Get multiport config  */
-#define TIOCSERSETMULTI _IOW('T', 91, struct serial_multiport_struct) /* 0x545B */ /* Set multiport config */
+#define TIOCSERGETMULTI 0x80A8545A	/* _IOR('T', 90, struct serial_multiport_struct) 0x545A */ /* Get multiport config */
+#define TIOCSERSETMULTI 0x40A8545B	/* _IOW('T', 91, struct serial_multiport_struct) 0x545B */ /* Set multiport config */
 
 #define TIOCMIWAIT	_IO('T', 92) /* 0x545C */	/* wait for a change on serial input line(s) */
 #define TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */

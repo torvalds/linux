@@ -297,7 +297,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	void **pslot;
 
 	if (!mapping) {
-		/* Anonymous page */
+		/* Anonymous page without mapping */
 		if (page_count(page) != 1)
 			return -EAGAIN;
 		return 0;
@@ -332,6 +332,19 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	 * We know this isn't the last reference.
 	 */
 	__put_page(page);
+
+	/*
+	 * If moved to a different zone then also account
+	 * the page for that zone. Other VM counters will be
+	 * taken care of when we establish references to the
+	 * new page and drop references to the old page.
+	 *
+	 * Note that anonymous pages are accounted for
+	 * via NR_FILE_PAGES and NR_ANON_PAGES if they
+	 * are mapped to swap space.
+	 */
+	__dec_zone_page_state(page, NR_FILE_PAGES);
+	__inc_zone_page_state(newpage, NR_FILE_PAGES);
 
 	write_unlock_irq(&mapping->tree_lock);
 

@@ -45,43 +45,27 @@ static inline void uhci_clear_next_interrupt(struct uhci_hcd *uhci)
  */
 static void uhci_fsbr_on(struct uhci_hcd *uhci)
 {
-	struct uhci_qh *fsbr_qh, *lqh, *tqh;
+	struct uhci_qh *lqh;
 
+	/* The terminating skeleton QH always points back to the first
+	 * FSBR QH.  Make the last async QH point to the terminating
+	 * skeleton QH. */
 	uhci->fsbr_is_on = 1;
 	lqh = list_entry(uhci->skel_async_qh->node.prev,
 			struct uhci_qh, node);
-
-	/* Find the first FSBR QH.  Linear search through the list is
-	 * acceptable because normally FSBR gets turned on as soon as
-	 * one QH needs it. */
-	fsbr_qh = NULL;
-	list_for_each_entry_reverse(tqh, &uhci->skel_async_qh->node, node) {
-		if (tqh->skel < SKEL_FSBR)
-			break;
-		fsbr_qh = tqh;
-	}
-
-	/* No FSBR QH means we must insert the terminating skeleton QH */
-	if (!fsbr_qh) {
-		uhci->skel_term_qh->link = LINK_TO_QH(uhci->skel_term_qh);
-		wmb();
-		lqh->link = uhci->skel_term_qh->link;
-
-	/* Otherwise loop the last QH to the first FSBR QH */
-	} else
-		lqh->link = LINK_TO_QH(fsbr_qh);
+	lqh->link = LINK_TO_QH(uhci->skel_term_qh);
 }
 
 static void uhci_fsbr_off(struct uhci_hcd *uhci)
 {
 	struct uhci_qh *lqh;
 
+	/* Remove the link from the last async QH to the terminating
+	 * skeleton QH. */
 	uhci->fsbr_is_on = 0;
 	lqh = list_entry(uhci->skel_async_qh->node.prev,
 			struct uhci_qh, node);
-
-	/* End the async list normally and unlink the terminating QH */
-	lqh->link = uhci->skel_term_qh->link = UHCI_PTR_TERM;
+	lqh->link = UHCI_PTR_TERM;
 }
 
 static void uhci_add_fsbr(struct uhci_hcd *uhci, struct urb *urb)
@@ -464,9 +448,8 @@ static void link_interrupt(struct uhci_hcd *uhci, struct uhci_qh *qh)
  */
 static void link_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
-	struct uhci_qh *pqh, *lqh;
+	struct uhci_qh *pqh;
 	__le32 link_to_new_qh;
-	__le32 *extra_link = &link_to_new_qh;
 
 	/* Find the predecessor QH for our new one and insert it in the list.
 	 * The list of QHs is expected to be short, so linear search won't
@@ -476,31 +459,17 @@ static void link_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
 			break;
 	}
 	list_add(&qh->node, &pqh->node);
-	qh->link = pqh->link;
-
-	link_to_new_qh = LINK_TO_QH(qh);
-
-	/* If this is now the first FSBR QH, take special action */
-	if (uhci->fsbr_is_on && pqh->skel < SKEL_FSBR &&
-			qh->skel >= SKEL_FSBR) {
-		lqh = list_entry(uhci->skel_async_qh->node.prev,
-				struct uhci_qh, node);
-
-		/* If the new QH is also the last one, we must unlink
-		 * the terminating skeleton QH and make the new QH point
-		 * back to itself. */
-		if (qh == lqh) {
-			qh->link = link_to_new_qh;
-			extra_link = &uhci->skel_term_qh->link;
-
-		/* Otherwise the last QH must point to the new QH */
-		} else
-			extra_link = &lqh->link;
-	}
 
 	/* Link it into the schedule */
+	qh->link = pqh->link;
 	wmb();
-	*extra_link = pqh->link = link_to_new_qh;
+	link_to_new_qh = LINK_TO_QH(qh);
+	pqh->link = link_to_new_qh;
+
+	/* If this is now the first FSBR QH, link the terminating skeleton
+	 * QH to it. */
+	if (pqh->skel < SKEL_FSBR && qh->skel >= SKEL_FSBR)
+		uhci->skel_term_qh->link = link_to_new_qh;
 }
 
 /*
@@ -561,31 +530,16 @@ static void unlink_interrupt(struct uhci_hcd *uhci, struct uhci_qh *qh)
  */
 static void unlink_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
-	struct uhci_qh *pqh, *lqh;
+	struct uhci_qh *pqh;
 	__le32 link_to_next_qh = qh->link;
 
 	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
-
-	/* If this is the first FSBQ QH, take special action */
-	if (uhci->fsbr_is_on && pqh->skel < SKEL_FSBR &&
-			qh->skel >= SKEL_FSBR) {
-		lqh = list_entry(uhci->skel_async_qh->node.prev,
-				struct uhci_qh, node);
-
-		/* If this QH is also the last one, we must link in
-		 * the terminating skeleton QH. */
-		if (qh == lqh) {
-			link_to_next_qh = LINK_TO_QH(uhci->skel_term_qh);
-			uhci->skel_term_qh->link = link_to_next_qh;
-			wmb();
-			qh->link = link_to_next_qh;
-
-		/* Otherwise the last QH must point to the new first FSBR QH */
-		} else
-			lqh->link = link_to_next_qh;
-	}
-
 	pqh->link = link_to_next_qh;
+
+	/* If this was the old first FSBR QH, link the terminating skeleton
+	 * QH to the next (new first FSBR) QH. */
+	if (pqh->skel < SKEL_FSBR && qh->skel >= SKEL_FSBR)
+		uhci->skel_term_qh->link = link_to_next_qh;
 	mb();
 }
 
@@ -1217,7 +1171,7 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 
 				if (debug > 1 && errbuf) {
 					/* Print the chain for debugging */
-					uhci_show_qh(urbp->qh, errbuf,
+					uhci_show_qh(uhci, urbp->qh, errbuf,
 							ERRBUF_LEN, 0);
 					lprintk(errbuf);
 				}

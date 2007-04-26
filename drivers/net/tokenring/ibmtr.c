@@ -346,7 +346,7 @@ static void ibmtr_cleanup_card(struct net_device *dev)
  *	which references it.
  ****************************************************************************/
 
-static int __init ibmtr_probe(struct net_device *dev)
+static int __devinit ibmtr_probe(struct net_device *dev)
 {
 	int i;
 	int base_addr = dev->base_addr;
@@ -366,7 +366,7 @@ static int __init ibmtr_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-int __init ibmtr_probe_card(struct net_device *dev)
+int __devinit ibmtr_probe_card(struct net_device *dev)
 {
 	int err = ibmtr_probe(dev);
 	if (!err) {

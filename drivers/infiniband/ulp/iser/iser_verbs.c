@@ -48,7 +48,6 @@
 
 static void iser_cq_tasklet_fn(unsigned long data);
 static void iser_cq_callback(struct ib_cq *cq, void *cq_context);
-static void iser_comp_error_worker(struct work_struct *work);
 
 static void iser_cq_event_callback(struct ib_event *cause, void *context)
 {
@@ -480,7 +479,6 @@ int iser_conn_init(struct iser_conn **ibconn)
 	init_waitqueue_head(&ib_conn->wait);
 	atomic_set(&ib_conn->post_recv_buf_count, 0);
 	atomic_set(&ib_conn->post_send_buf_count, 0);
-	INIT_WORK(&ib_conn->comperror_work, iser_comp_error_worker);
 	INIT_LIST_HEAD(&ib_conn->conn_list);
 	spin_lock_init(&ib_conn->lock);
 
@@ -753,26 +751,6 @@ int iser_post_send(struct iser_desc *tx_desc)
 	return ret_val;
 }
 
-static void iser_comp_error_worker(struct work_struct *work)
-{
-	struct iser_conn *ib_conn =
-		container_of(work, struct iser_conn, comperror_work);
-
-	/* getting here when the state is UP means that the conn is being *
-	 * terminated asynchronously from the iSCSI layer's perspective.  */
-	if (iser_conn_state_comp_exch(ib_conn, ISER_CONN_UP,
-				      ISER_CONN_TERMINATING))
-		iscsi_conn_failure(ib_conn->iser_conn->iscsi_conn,
-					ISCSI_ERR_CONN_FAILED);
-
-	/* complete the termination process if disconnect event was delivered *
-	 * note there are no more non completed posts to the QP               */
-	if (ib_conn->disc_evt_flag) {
-		ib_conn->state = ISER_CONN_DOWN;
-		wake_up_interruptible(&ib_conn->wait);
-	}
-}
-
 static void iser_handle_comp_error(struct iser_desc *desc)
 {
 	struct iser_dto  *dto     = &desc->dto;
@@ -791,8 +769,22 @@ static void iser_handle_comp_error(struct iser_desc *desc)
 	}
 
 	if (atomic_read(&ib_conn->post_recv_buf_count) == 0 &&
-	    atomic_read(&ib_conn->post_send_buf_count) == 0)
-		schedule_work(&ib_conn->comperror_work);
+	    atomic_read(&ib_conn->post_send_buf_count) == 0) {
+		/* getting here when the state is UP means that the conn is *
+		 * being terminated asynchronously from the iSCSI layer's   *
+		 * perspective.                                             */
+		if (iser_conn_state_comp_exch(ib_conn, ISER_CONN_UP,
+		    ISER_CONN_TERMINATING))
+			iscsi_conn_failure(ib_conn->iser_conn->iscsi_conn,
+					   ISCSI_ERR_CONN_FAILED);
+
+		/* complete the termination process if disconnect event was delivered *
+		 * note there are no more non completed posts to the QP               */
+		if (ib_conn->disc_evt_flag) {
+			ib_conn->state = ISER_CONN_DOWN;
+			wake_up_interruptible(&ib_conn->wait);
+		}
+	}
 }
 
 static void iser_cq_tasklet_fn(unsigned long data)

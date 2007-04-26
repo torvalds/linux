@@ -10,6 +10,7 @@
 #include <linux/blkdev.h>
 #include <linux/module.h>
 #include <linux/backing-dev.h>
+#include <linux/interrupt.h>
 #include <asm/uaccess.h>
 #include <asm/mmx.h>
 
@@ -719,6 +720,14 @@ unsigned long __copy_to_user_ll(void __user *to, const void *from,
 #ifndef CONFIG_X86_WP_WORKS_OK
 	if (unlikely(boot_cpu_data.wp_works_ok == 0) &&
 			((unsigned long )to) < TASK_SIZE) {
+		/*
+		 * When we are in an atomic section (see
+		 * mm/filemap.c:file_read_actor), return the full
+		 * length to take the slow path.
+		 */
+		if (in_atomic())
+			return n;
+
 		/* 
 		 * CPU does not honor the WP bit when writing
 		 * from supervisory mode, and due to preemption or SMP,

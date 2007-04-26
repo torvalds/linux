@@ -67,7 +67,8 @@ void __init vdma_init(void)
 	 * aligned and should be uncached to avoid cache flushing after every
 	 * update.
 	 */
-	vdma_pagetable_start = alloc_bootmem_low_pages(VDMA_PGTBL_SIZE);
+	vdma_pagetable_start =
+		(unsigned long) alloc_bootmem_low_pages(VDMA_PGTBL_SIZE);
 	if (!vdma_pagetable_start)
 		BUG();
 	dma_cache_wback_inv(vdma_pagetable_start, VDMA_PGTBL_SIZE);

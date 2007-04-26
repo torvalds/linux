@@ -3,6 +3,7 @@
 
 #ifdef __KERNEL__
 
+#include <asm/memory.h>
 
 #define CPU_ARCH_UNKNOWN	0
 #define CPU_ARCH_ARMv3		1
@@ -154,7 +155,7 @@ extern unsigned int user_debug;
 #define vectors_high()	(0)
 #endif
 
-#if __LINUX_ARM_ARCH__ >= 6
+#if defined(CONFIG_CPU_XSC3) || __LINUX_ARM_ARCH__ >= 6
 #define isb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c5, 4" \
 				    : : "r" (0) : "memory")
 #define dsb() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" \
@@ -168,22 +169,23 @@ extern unsigned int user_debug;
 #define dmb() __asm__ __volatile__ ("" : : : "memory")
 #endif
 
-#define mb()			barrier()
-#define rmb()			barrier()
-#define wmb()			barrier()
-#define read_barrier_depends()	do { } while(0)
-
-#ifdef CONFIG_SMP
-#define smp_mb()		dmb()
-#define smp_rmb()		dmb()
-#define smp_wmb()		dmb()
-#define smp_read_barrier_depends()	read_barrier_depends()
+#ifndef CONFIG_SMP
+#define mb()	do { if (arch_is_coherent()) dmb(); else barrier(); } while (0)
+#define rmb()	do { if (arch_is_coherent()) dmb(); else barrier(); } while (0)
+#define wmb()	do { if (arch_is_coherent()) dmb(); else barrier(); } while (0)
+#define smp_mb()	barrier()
+#define smp_rmb()	barrier()
+#define smp_wmb()	barrier()
 #else
-#define smp_mb()		barrier()
-#define smp_rmb()		barrier()
-#define smp_wmb()		barrier()
-#define smp_read_barrier_depends()	read_barrier_depends()
-#endif /* CONFIG_SMP */
+#define mb()		dmb()
+#define rmb()		dmb()
+#define wmb()		dmb()
+#define smp_mb()	dmb()
+#define smp_rmb()	dmb()
+#define smp_wmb()	dmb()
+#endif
+#define read_barrier_depends()		do { } while(0)
+#define smp_read_barrier_depends()	do { } while(0)
 
 #define set_mb(var, value)	do { var = value; smp_mb(); } while (0)
 #define nop() __asm__ __volatile__("mov\tr0,r0\t@ nop\n\t");

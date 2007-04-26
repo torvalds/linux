@@ -172,7 +172,7 @@ int __init ps3_system_bus_init(void)
 	int result;
 
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return 0;
+		return -ENODEV;
 
 	result = bus_register(&ps3_system_bus_type);
 	BUG_ON(result);

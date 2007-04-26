@@ -78,18 +78,13 @@ struct kmem_cache *ecryptfs_dentry_info_cache;
  */
 static void ecryptfs_d_release(struct dentry *dentry)
 {
-	struct dentry *lower_dentry;
-
-	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	if (ecryptfs_dentry_to_private(dentry))
+	if (ecryptfs_dentry_to_private(dentry)) {
+		if (ecryptfs_dentry_to_lower(dentry)) {
+			mntput(ecryptfs_dentry_to_lower_mnt(dentry));
+			dput(ecryptfs_dentry_to_lower(dentry));
+		}
 		kmem_cache_free(ecryptfs_dentry_info_cache,
 				ecryptfs_dentry_to_private(dentry));
-	if (lower_dentry) {
-		struct vfsmount *lower_mnt =
-			ecryptfs_dentry_to_lower_mnt(dentry);
-
-		mntput(lower_mnt);
-		dput(lower_dentry);
 	}
 	return;
 }

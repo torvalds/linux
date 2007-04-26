@@ -62,8 +62,6 @@ int register_blkdev(unsigned int major, const char *name)
 	/* temporary */
 	if (major == 0) {
 		for (index = ARRAY_SIZE(major_names)-1; index > 0; index--) {
-			if (is_lanana_major(index))
-				continue;
 			if (major_names[index] == NULL)
 				break;
 		}

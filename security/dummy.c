@@ -907,7 +907,7 @@ static void dummy_d_instantiate (struct dentry *dentry, struct inode *inode)
 	return;
 }
 
-static int dummy_getprocattr(struct task_struct *p, char *name, void *value, size_t size)
+static int dummy_getprocattr(struct task_struct *p, char *name, char **value)
 {
 	return -EINVAL;
 }

@@ -11,7 +11,11 @@
 
 #include <linux/proc_fs.h>
 
+#ifdef CONFIG_PROC_SYSCTL
 extern int proc_sys_init(void);
+#else
+static inline void proc_sys_init(void) { }
+#endif
 
 struct vmalloc_info {
 	unsigned long	used;

@@ -168,12 +168,12 @@ sysfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	ssize_t retval = 0;
 
 	down(&buffer->sem);
-	if (buffer->orphaned) {
-		retval = -ENODEV;
-		goto out;
-	}
 	if (buffer->needs_read_fill) {
-		if ((retval = fill_read_buffer(file->f_path.dentry,buffer)))
+		if (buffer->orphaned)
+			retval = -ENODEV;
+		else
+			retval = fill_read_buffer(file->f_path.dentry,buffer);
+		if (retval)
 			goto out;
 	}
 	pr_debug("%s: count = %zd, ppos = %lld, buf = %s\n",
@@ -628,6 +628,60 @@ void sysfs_remove_file_from_group(struct kobject *kobj,
 	}
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_file_from_group);
+
+struct sysfs_schedule_callback_struct {
+	struct kobject 		*kobj;
+	void			(*func)(void *);
+	void			*data;
+	struct work_struct	work;
+};
+
+static void sysfs_schedule_callback_work(struct work_struct *work)
+{
+	struct sysfs_schedule_callback_struct *ss = container_of(work,
+			struct sysfs_schedule_callback_struct, work);
+
+	(ss->func)(ss->data);
+	kobject_put(ss->kobj);
+	kfree(ss);
+}
+
+/**
+ * sysfs_schedule_callback - helper to schedule a callback for a kobject
+ * @kobj: object we're acting for.
+ * @func: callback function to invoke later.
+ * @data: argument to pass to @func.
+ *
+ * sysfs attribute methods must not unregister themselves or their parent
+ * kobject (which would amount to the same thing).  Attempts to do so will
+ * deadlock, since unregistration is mutually exclusive with driver
+ * callbacks.
+ *
+ * Instead methods can call this routine, which will attempt to allocate
+ * and schedule a workqueue request to call back @func with @data as its
+ * argument in the workqueue's process context.  @kobj will be pinned
+ * until @func returns.
+ *
+ * Returns 0 if the request was submitted, -ENOMEM if storage could not
+ * be allocated.
+ */
+int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
+		void *data)
+{
+	struct sysfs_schedule_callback_struct *ss;
+
+	ss = kmalloc(sizeof(*ss), GFP_KERNEL);
+	if (!ss)
+		return -ENOMEM;
+	kobject_get(kobj);
+	ss->kobj = kobj;
+	ss->func = func;
+	ss->data = data;
+	INIT_WORK(&ss->work, sysfs_schedule_callback_work);
+	schedule_work(&ss->work);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sysfs_schedule_callback);
 
 
 EXPORT_SYMBOL_GPL(sysfs_create_file);

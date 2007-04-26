@@ -54,7 +54,7 @@ MODULE_PARM_DESC(cidmode, "Call-ID mode");
 #define USB_SX353_PRODUCT_ID    0x0022
 
 /* table of devices that work with this driver */
-static struct usb_device_id gigaset_table [] = {
+static const struct usb_device_id gigaset_table [] = {
 	{ USB_DEVICE(USB_GIGA_VENDOR_ID, USB_3070_PRODUCT_ID) },
 	{ USB_DEVICE(USB_GIGA_VENDOR_ID, USB_3075_PRODUCT_ID) },
 	{ USB_DEVICE(USB_GIGA_VENDOR_ID, USB_SX303_PRODUCT_ID) },
@@ -2305,7 +2305,7 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	gigaset_unassign(cs);
 }
 
-static struct gigaset_ops gigops = {
+static const struct gigaset_ops gigops = {
 	gigaset_write_cmd,
 	gigaset_write_room,
 	gigaset_chars_in_buffer,

@@ -4342,8 +4342,24 @@ sctp_disposition_t sctp_sf_do_prm_requestheartbeat(
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
-	return sctp_sf_heartbeat(ep, asoc, type, (struct sctp_transport *)arg,
-				 commands);
+	if (SCTP_DISPOSITION_NOMEM == sctp_sf_heartbeat(ep, asoc, type,
+				      (struct sctp_transport *)arg, commands))
+		return SCTP_DISPOSITION_NOMEM;
+
+	/*
+	 * RFC 2960 (bis), section 8.3
+	 *
+	 *    D) Request an on-demand HEARTBEAT on a specific destination
+	 *    transport address of a given association.
+	 *
+	 *    The endpoint should increment the respective error  counter of
+	 *    the destination transport address each time a HEARTBEAT is sent
+	 *    to that address and not acknowledged within one RTO.
+	 *
+	 */
+	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_RESET,
+			SCTP_TRANSPORT(arg));
+	return SCTP_DISPOSITION_CONSUME;
 }
 
 /*

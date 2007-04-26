@@ -19,8 +19,8 @@
 /* There is only *one* pci_eisa device per machine, right ? */
 static struct eisa_root_device pci_eisa_root;
 
-static int __devinit pci_eisa_init (struct pci_dev *pdev,
-				    const struct pci_device_id *ent)
+static int __init pci_eisa_init(struct pci_dev *pdev,
+				const struct pci_device_id *ent)
 {
 	int rc;
 

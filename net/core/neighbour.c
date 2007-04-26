@@ -140,6 +140,8 @@ static int neigh_forced_gc(struct neigh_table *tbl)
 				n->dead = 1;
 				shrunk	= 1;
 				write_unlock(&n->lock);
+				if (n->parms->neigh_cleanup)
+					n->parms->neigh_cleanup(n);
 				neigh_release(n);
 				continue;
 			}
@@ -211,6 +213,8 @@ static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev)
 				NEIGH_PRINTK2("neigh %p is stray.\n", n);
 			}
 			write_unlock(&n->lock);
+			if (n->parms->neigh_cleanup)
+				n->parms->neigh_cleanup(n);
 			neigh_release(n);
 		}
 	}
@@ -582,9 +586,6 @@ void neigh_destroy(struct neighbour *neigh)
 			kfree(hh);
 	}
 
-	if (neigh->parms->neigh_destructor)
-		(neigh->parms->neigh_destructor)(neigh);
-
 	skb_queue_purge(&neigh->arp_queue);
 
 	dev_put(neigh->dev);
@@ -675,6 +676,8 @@ static void neigh_periodic_timer(unsigned long arg)
 			*np = n->next;
 			n->dead = 1;
 			write_unlock(&n->lock);
+			if (n->parms->neigh_cleanup)
+				n->parms->neigh_cleanup(n);
 			neigh_release(n);
 			continue;
 		}
@@ -1328,6 +1331,8 @@ void neigh_parms_destroy(struct neigh_parms *parms)
 	kfree(parms);
 }
 
+static struct lock_class_key neigh_table_proxy_queue_class;
+
 void neigh_table_init_no_netlink(struct neigh_table *tbl)
 {
 	unsigned long now = jiffies;
@@ -1376,7 +1381,8 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 	init_timer(&tbl->proxy_timer);
 	tbl->proxy_timer.data	  = (unsigned long)tbl;
 	tbl->proxy_timer.function = neigh_proxy_process;
-	skb_queue_head_init(&tbl->proxy_queue);
+	skb_queue_head_init_class(&tbl->proxy_queue,
+			&neigh_table_proxy_queue_class);
 
 	tbl->last_flush = now;
 	tbl->last_rand	= now + tbl->parms.reachable_time * 20;
@@ -2088,8 +2094,11 @@ void __neigh_for_each_release(struct neigh_table *tbl,
 			} else
 				np = &n->next;
 			write_unlock(&n->lock);
-			if (release)
+			if (release) {
+				if (n->parms->neigh_cleanup)
+					n->parms->neigh_cleanup(n);
 				neigh_release(n);
+			}
 		}
 	}
 }
