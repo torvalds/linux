@@ -4666,18 +4666,19 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 	struct scsi_cmnd *scsi_cmd = ipr_cmd->scsi_cmd;
 	struct ipr_resource_entry *res = scsi_cmd->device->hostdata;
 	u32 ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+	u32 masked_ioasc = ioasc & IPR_IOASC_IOASC_MASK;
 
 	if (!res) {
 		ipr_scsi_eh_done(ipr_cmd);
 		return;
 	}
 
-	if (!ipr_is_gscsi(res))
+	if (!ipr_is_gscsi(res) && masked_ioasc != IPR_IOASC_HW_DEV_BUS_STATUS)
 		ipr_gen_sense(ipr_cmd);
 
 	ipr_dump_ioasa(ioa_cfg, ipr_cmd, res);
 
-	switch (ioasc & IPR_IOASC_IOASC_MASK) {
+	switch (masked_ioasc) {
 	case IPR_IOASC_ABORTED_CMD_TERM_BY_HOST:
 		if (ipr_is_naca_model(res))
 			scsi_cmd->result |= (DID_ABORT << 16);
