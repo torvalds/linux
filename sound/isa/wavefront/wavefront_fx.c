@@ -256,21 +256,21 @@ snd_wavefront_fx_start (snd_wavefront_t *dev)
 {
 	unsigned int i;
 	int err;
-	const struct firmware *firmware;
+	const struct firmware *firmware = NULL;
 
 	if (dev->fx_initialized)
 		return 0;
 
+#ifdef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
+	firmware = &yss225_registers_firmware;
+#else
 	err = request_firmware(&firmware, "yamaha/yss225_registers.bin",
 			       dev->card->dev);
 	if (err < 0) {
-#ifdef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
-		firmware = &yss225_registers_firmware;
-#else
 		err = -1;
 		goto out;
-#endif
 	}
+#endif
 
 	for (i = 0; i + 1 < firmware->size; i += 2) {
 		if (firmware->data[i] >= 8 && firmware->data[i] < 16) {
@@ -293,9 +293,8 @@ snd_wavefront_fx_start (snd_wavefront_t *dev)
 	err = 0;
 
 out:
-#ifdef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
-	if (firmware != &yss225_registers_firmware)
+#ifndef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
+	release_firmware(firmware);
 #endif
-		release_firmware(firmware);
 	return err;
 }

@@ -161,13 +161,17 @@ int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
  */
 static void snd_sb_csp_free(struct snd_hwdep *hwdep)
 {
+#ifndef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
 	int i;
+#endif
 	struct snd_sb_csp *p = hwdep->private_data;
 	if (p) {
 		if (p->running & SNDRV_SB_CSP_ST_RUNNING)
 			snd_sb_csp_stop(p);
+#ifndef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
 		for (i = 0; i < ARRAY_SIZE(p->csp_programs); ++i)
 			release_firmware(p->csp_programs[i]);
+#endif
 		kfree(p);
 	}
 }
@@ -712,22 +716,19 @@ static int snd_sb_csp_firmware_load(struct snd_sb_csp *p, int index, int flags)
 		"sb16/ima_adpcm_capture.csp",
 	};
 	const struct firmware *program;
-	int err;
 
 	BUILD_BUG_ON(ARRAY_SIZE(names) != CSP_PROGRAM_COUNT);
 	program = p->csp_programs[index];
 	if (!program) {
-		err = request_firmware(&program, names[index],
-				       p->chip->card->dev);
-		if (err >= 0)
-			p->csp_programs[index] = program;
-		else {
 #ifdef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
-			program = &snd_sb_csp_static_programs[index];
+		program = &snd_sb_csp_static_programs[index];
 #else
+		int err = request_firmware(&program, names[index],
+				       p->chip->card->dev);
+		if (err < 0)
 			return err;
 #endif
-		}
+		p->csp_programs[index] = program;
 	}
 	return snd_sb_csp_load(p, program->data, program->size, flags);
 }

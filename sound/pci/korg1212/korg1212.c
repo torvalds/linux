@@ -2340,26 +2340,25 @@ static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *
         korg1212->AdatTimeCodePhy = korg1212->sharedBufferPhy +
 		offsetof(struct KorgSharedBuffer, AdatTimeCode);
 
+#ifdef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
+	dsp_code = &static_dsp_code;
+#else
 	err = request_firmware(&dsp_code, "korg/k1212.dsp", &pci->dev);
 	if (err < 0) {
 		release_firmware(dsp_code);
-#ifdef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
-		dsp_code = &static_dsp_code;
-#else
 		snd_printk(KERN_ERR "firmware not available\n");
 		snd_korg1212_free(korg1212);
 		return err;
-#endif
 	}
+#endif
 
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				dsp_code->size, &korg1212->dma_dsp) < 0) {
 		snd_printk(KERN_ERR "korg1212: cannot allocate dsp code memory (%zd bytes)\n", dsp_code->size);
                 snd_korg1212_free(korg1212);
-#ifdef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
-		if (dsp_code != &static_dsp_code)
+#ifndef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
+		release_firmware(dsp_code);
 #endif
-			release_firmware(dsp_code);
                 return -ENOMEM;
         }
 
@@ -2369,10 +2368,9 @@ static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *
 
 	memcpy(korg1212->dma_dsp.area, dsp_code->data, dsp_code->size);
 
-#ifdef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
-	if (dsp_code != &static_dsp_code)
+#ifndef CONFIG_SND_KORG1212_FIRMWARE_IN_KERNEL
+	release_firmware(dsp_code);
 #endif
-		release_firmware(dsp_code);
 
 	rc = snd_korg1212_Send1212Command(korg1212, K1212_DB_RebootCard, 0, 0, 0, 0);
 
