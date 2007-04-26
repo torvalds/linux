@@ -16,14 +16,28 @@
 #include "afs_fs.h"
 
 /*
+ * decode an AFSFid block
+ */
+static void xdr_decode_AFSFid(const __be32 **_bp, struct afs_fid *fid)
+{
+	const __be32 *bp = *_bp;
+
+	fid->vid		= ntohl(*bp++);
+	fid->vnode		= ntohl(*bp++);
+	fid->unique		= ntohl(*bp++);
+	*_bp = bp;
+}
+
+/*
  * decode an AFSFetchStatus block
  */
 static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
+				      struct afs_file_status *status,
 				      struct afs_vnode *vnode)
 {
 	const __be32 *bp = *_bp;
 	umode_t mode;
-	u64 data_version;
+	u64 data_version, size;
 	u32 changed = 0; /* becomes non-zero if ctime-type changes seen */
 
 #define EXTRACT(DST)				\
@@ -33,55 +47,68 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 		DST = x;			\
 	} while (0)
 
-	vnode->status.if_version = ntohl(*bp++);
-	EXTRACT(vnode->status.type);
-	vnode->status.nlink = ntohl(*bp++);
-	EXTRACT(vnode->status.size);
+	status->if_version = ntohl(*bp++);
+	EXTRACT(status->type);
+	EXTRACT(status->nlink);
+	size = ntohl(*bp++);
 	data_version = ntohl(*bp++);
-	EXTRACT(vnode->status.author);
-	EXTRACT(vnode->status.owner);
-	EXTRACT(vnode->status.caller_access); /* call ticket dependent */
-	EXTRACT(vnode->status.anon_access);
-	EXTRACT(vnode->status.mode);
-	vnode->status.parent.vid = vnode->fid.vid;
-	EXTRACT(vnode->status.parent.vnode);
-	EXTRACT(vnode->status.parent.unique);
+	EXTRACT(status->author);
+	EXTRACT(status->owner);
+	EXTRACT(status->caller_access); /* call ticket dependent */
+	EXTRACT(status->anon_access);
+	EXTRACT(status->mode);
+	EXTRACT(status->parent.vnode);
+	EXTRACT(status->parent.unique);
 	bp++; /* seg size */
-	vnode->status.mtime_client = ntohl(*bp++);
-	vnode->status.mtime_server = ntohl(*bp++);
-	bp++; /* group */
+	status->mtime_client = ntohl(*bp++);
+	status->mtime_server = ntohl(*bp++);
+	EXTRACT(status->group);
 	bp++; /* sync counter */
 	data_version |= (u64) ntohl(*bp++) << 32;
-	bp++; /* spare2 */
-	bp++; /* spare3 */
-	bp++; /* spare4 */
+	bp++; /* lock count */
+	size |= (u64) ntohl(*bp++) << 32;
+	bp++; /* spare 4 */
 	*_bp = bp;
 
-	if (changed) {
-		_debug("vnode changed");
-		set_bit(AFS_VNODE_CHANGED, &vnode->flags);
-		vnode->vfs_inode.i_uid		= vnode->status.owner;
-		vnode->vfs_inode.i_size		= vnode->status.size;
-		vnode->vfs_inode.i_version	= vnode->fid.unique;
-
-		vnode->status.mode &= S_IALLUGO;
-		mode = vnode->vfs_inode.i_mode;
-		mode &= ~S_IALLUGO;
-		mode |= vnode->status.mode;
-		vnode->vfs_inode.i_mode = mode;
+	if (size != status->size) {
+		status->size = size;
+		changed |= true;
 	}
+	status->mode &= S_IALLUGO;
 
 	_debug("vnode time %lx, %lx",
-	       vnode->status.mtime_client, vnode->status.mtime_server);
-	vnode->vfs_inode.i_ctime.tv_sec	= vnode->status.mtime_server;
-	vnode->vfs_inode.i_mtime	= vnode->vfs_inode.i_ctime;
-	vnode->vfs_inode.i_atime	= vnode->vfs_inode.i_ctime;
+	       status->mtime_client, status->mtime_server);
 
-	if (vnode->status.data_version != data_version) {
-		_debug("vnode modified %llx", data_version);
-		vnode->status.data_version = data_version;
-		set_bit(AFS_VNODE_MODIFIED, &vnode->flags);
-		set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
+	if (vnode) {
+		status->parent.vid = vnode->fid.vid;
+		if (changed && !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
+			_debug("vnode changed");
+			i_size_write(&vnode->vfs_inode, size);
+			vnode->vfs_inode.i_uid = status->owner;
+			vnode->vfs_inode.i_gid = status->group;
+			vnode->vfs_inode.i_version = vnode->fid.unique;
+			vnode->vfs_inode.i_nlink = status->nlink;
+
+			mode = vnode->vfs_inode.i_mode;
+			mode &= ~S_IALLUGO;
+			mode |= status->mode;
+			barrier();
+			vnode->vfs_inode.i_mode = mode;
+		}
+
+		vnode->vfs_inode.i_ctime.tv_sec	= status->mtime_server;
+		vnode->vfs_inode.i_mtime	= vnode->vfs_inode.i_ctime;
+		vnode->vfs_inode.i_atime	= vnode->vfs_inode.i_ctime;
+	}
+
+	if (status->data_version != data_version) {
+		status->data_version = data_version;
+		if (vnode && !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
+			_debug("vnode modified %llx on {%x:%u}",
+			       data_version, vnode->fid.vid, vnode->fid.vnode);
+			set_bit(AFS_VNODE_MODIFIED, &vnode->flags);
+			set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
+		}
 	}
 }
 
@@ -96,6 +123,17 @@ static void xdr_decode_AFSCallBack(const __be32 **_bp, struct afs_vnode *vnode)
 	vnode->cb_expiry	= ntohl(*bp++);
 	vnode->cb_type		= ntohl(*bp++);
 	vnode->cb_expires	= vnode->cb_expiry + get_seconds();
+	*_bp = bp;
+}
+
+static void xdr_decode_AFSCallBack_raw(const __be32 **_bp,
+				       struct afs_callback *cb)
+{
+	const __be32 *bp = *_bp;
+
+	cb->version	= ntohl(*bp++);
+	cb->expiry	= ntohl(*bp++);
+	cb->type	= ntohl(*bp++);
 	*_bp = bp;
 }
 
@@ -122,6 +160,7 @@ static void xdr_decode_AFSVolSync(const __be32 **_bp,
 static int afs_deliver_fs_fetch_status(struct afs_call *call,
 				       struct sk_buff *skb, bool last)
 {
+	struct afs_vnode *vnode = call->reply;
 	const __be32 *bp;
 
 	_enter(",,%u", last);
@@ -135,8 +174,8 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call,
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, call->reply);
-	xdr_decode_AFSCallBack(&bp, call->reply);
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode);
+	xdr_decode_AFSCallBack(&bp, vnode);
 	if (call->reply2)
 		xdr_decode_AFSVolSync(&bp, call->reply2);
 
@@ -166,9 +205,10 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 	struct afs_call *call;
 	__be32 *bp;
 
-	_enter(",%x,,,", key_serial(key));
+	_enter(",%x,{%x:%d},,",
+	       key_serial(key), vnode->fid.vid, vnode->fid.vnode);
 
-	call = afs_alloc_flat_call(&afs_RXFSFetchStatus, 16, 120);
+	call = afs_alloc_flat_call(&afs_RXFSFetchStatus, 16, (21 + 3 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
 
@@ -194,6 +234,7 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 static int afs_deliver_fs_fetch_data(struct afs_call *call,
 				     struct sk_buff *skb, bool last)
 {
+	struct afs_vnode *vnode = call->reply;
 	const __be32 *bp;
 	struct page *page;
 	void *buffer;
@@ -248,7 +289,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 
 		/* extract the metadata */
 	case 3:
-		ret = afs_extract_data(call, skb, last, call->buffer, 120);
+		ret = afs_extract_data(call, skb, last, call->buffer,
+				       (21 + 3 + 6) * 4);
 		switch (ret) {
 		case 0:		break;
 		case -EAGAIN:	return 0;
@@ -256,8 +298,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call,
 		}
 
 		bp = call->buffer;
-		xdr_decode_AFSFetchStatus(&bp, call->reply);
-		xdr_decode_AFSCallBack(&bp, call->reply);
+		xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode);
+		xdr_decode_AFSCallBack(&bp, vnode);
 		if (call->reply2)
 			xdr_decode_AFSVolSync(&bp, call->reply2);
 
@@ -296,7 +338,6 @@ int afs_fs_fetch_data(struct afs_server *server,
 		      struct afs_vnode *vnode,
 		      off_t offset, size_t length,
 		      struct page *buffer,
-		      struct afs_volsync *volsync,
 		      const struct afs_wait_mode *wait_mode)
 {
 	struct afs_call *call;
@@ -304,13 +345,13 @@ int afs_fs_fetch_data(struct afs_server *server,
 
 	_enter("");
 
-	call = afs_alloc_flat_call(&afs_RXFSFetchData, 24, 120);
+	call = afs_alloc_flat_call(&afs_RXFSFetchData, 24, (21 + 3 + 6) * 4);
 	if (!call)
 		return -ENOMEM;
 
 	call->key = key;
 	call->reply = vnode;
-	call->reply2 = volsync;
+	call->reply2 = NULL; /* volsync */
 	call->reply3 = buffer;
 	call->service_id = FS_SERVICE;
 	call->port = htons(AFS_FS_PORT);
@@ -408,6 +449,488 @@ int afs_fs_give_up_callbacks(struct afs_server *server,
 
 	ASSERT(ncallbacks > 0);
 	wake_up_nr(&server->cb_break_waitq, ncallbacks);
+
+	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+}
+
+/*
+ * deliver reply data to an FS.CreateFile or an FS.MakeDir
+ */
+static int afs_deliver_fs_create_vnode(struct afs_call *call,
+				       struct sk_buff *skb, bool last)
+{
+	struct afs_vnode *vnode = call->reply;
+	const __be32 *bp;
+
+	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
+
+	afs_transfer_reply(call, skb);
+	if (!last)
+		return 0;
+
+	if (call->reply_size != call->reply_max)
+		return -EBADMSG;
+
+	/* unmarshall the reply once we've received all of it */
+	bp = call->buffer;
+	xdr_decode_AFSFid(&bp, call->reply2);
+	xdr_decode_AFSFetchStatus(&bp, call->reply3, NULL);
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode);
+	xdr_decode_AFSCallBack_raw(&bp, call->reply4);
+	/* xdr_decode_AFSVolSync(&bp, call->replyX); */
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * FS.CreateFile and FS.MakeDir operation type
+ */
+static const struct afs_call_type afs_RXFSCreateXXXX = {
+	.name		= "FS.CreateXXXX",
+	.deliver	= afs_deliver_fs_create_vnode,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * create a file or make a directory
+ */
+int afs_fs_create(struct afs_server *server,
+		  struct key *key,
+		  struct afs_vnode *vnode,
+		  const char *name,
+		  umode_t mode,
+		  struct afs_fid *newfid,
+		  struct afs_file_status *newstatus,
+		  struct afs_callback *newcb,
+		  const struct afs_wait_mode *wait_mode)
+{
+	struct afs_call *call;
+	size_t namesz, reqsz, padsz;
+	__be32 *bp;
+
+	_enter("");
+
+	namesz = strlen(name);
+	padsz = (4 - (namesz & 3)) & 3;
+	reqsz = (5 * 4) + namesz + padsz + (6 * 4);
+
+	call = afs_alloc_flat_call(&afs_RXFSCreateXXXX, reqsz,
+				   (3 + 21 + 21 + 3 + 6) * 4);
+	if (!call)
+		return -ENOMEM;
+
+	call->key = key;
+	call->reply = vnode;
+	call->reply2 = newfid;
+	call->reply3 = newstatus;
+	call->reply4 = newcb;
+	call->service_id = FS_SERVICE;
+	call->port = htons(AFS_FS_PORT);
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(S_ISDIR(mode) ? FSMAKEDIR : FSCREATEFILE);
+	*bp++ = htonl(vnode->fid.vid);
+	*bp++ = htonl(vnode->fid.vnode);
+	*bp++ = htonl(vnode->fid.unique);
+	*bp++ = htonl(namesz);
+	memcpy(bp, name, namesz);
+	bp = (void *) bp + namesz;
+	if (padsz > 0) {
+		memset(bp, 0, padsz);
+		bp = (void *) bp + padsz;
+	}
+	*bp++ = htonl(AFS_SET_MODE);
+	*bp++ = 0; /* mtime */
+	*bp++ = 0; /* owner */
+	*bp++ = 0; /* group */
+	*bp++ = htonl(mode & S_IALLUGO); /* unix mode */
+	*bp++ = 0; /* segment size */
+
+	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+}
+
+/*
+ * deliver reply data to an FS.RemoveFile or FS.RemoveDir
+ */
+static int afs_deliver_fs_remove(struct afs_call *call,
+				 struct sk_buff *skb, bool last)
+{
+	struct afs_vnode *vnode = call->reply;
+	const __be32 *bp;
+
+	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
+
+	afs_transfer_reply(call, skb);
+	if (!last)
+		return 0;
+
+	if (call->reply_size != call->reply_max)
+		return -EBADMSG;
+
+	/* unmarshall the reply once we've received all of it */
+	bp = call->buffer;
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode);
+	/* xdr_decode_AFSVolSync(&bp, call->replyX); */
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * FS.RemoveDir/FS.RemoveFile operation type
+ */
+static const struct afs_call_type afs_RXFSRemoveXXXX = {
+	.name		= "FS.RemoveXXXX",
+	.deliver	= afs_deliver_fs_remove,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * remove a file or directory
+ */
+int afs_fs_remove(struct afs_server *server,
+		  struct key *key,
+		  struct afs_vnode *vnode,
+		  const char *name,
+		  bool isdir,
+		  const struct afs_wait_mode *wait_mode)
+{
+	struct afs_call *call;
+	size_t namesz, reqsz, padsz;
+	__be32 *bp;
+
+	_enter("");
+
+	namesz = strlen(name);
+	padsz = (4 - (namesz & 3)) & 3;
+	reqsz = (5 * 4) + namesz + padsz;
+
+	call = afs_alloc_flat_call(&afs_RXFSRemoveXXXX, reqsz, (21 + 6) * 4);
+	if (!call)
+		return -ENOMEM;
+
+	call->key = key;
+	call->reply = vnode;
+	call->service_id = FS_SERVICE;
+	call->port = htons(AFS_FS_PORT);
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(isdir ? FSREMOVEDIR : FSREMOVEFILE);
+	*bp++ = htonl(vnode->fid.vid);
+	*bp++ = htonl(vnode->fid.vnode);
+	*bp++ = htonl(vnode->fid.unique);
+	*bp++ = htonl(namesz);
+	memcpy(bp, name, namesz);
+	bp = (void *) bp + namesz;
+	if (padsz > 0) {
+		memset(bp, 0, padsz);
+		bp = (void *) bp + padsz;
+	}
+
+	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+}
+
+/*
+ * deliver reply data to an FS.Link
+ */
+static int afs_deliver_fs_link(struct afs_call *call,
+			       struct sk_buff *skb, bool last)
+{
+	struct afs_vnode *dvnode = call->reply, *vnode = call->reply2;
+	const __be32 *bp;
+
+	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
+
+	afs_transfer_reply(call, skb);
+	if (!last)
+		return 0;
+
+	if (call->reply_size != call->reply_max)
+		return -EBADMSG;
+
+	/* unmarshall the reply once we've received all of it */
+	bp = call->buffer;
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode);
+	xdr_decode_AFSFetchStatus(&bp, &dvnode->status, dvnode);
+	/* xdr_decode_AFSVolSync(&bp, call->replyX); */
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * FS.Link operation type
+ */
+static const struct afs_call_type afs_RXFSLink = {
+	.name		= "FS.Link",
+	.deliver	= afs_deliver_fs_link,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * make a hard link
+ */
+int afs_fs_link(struct afs_server *server,
+		struct key *key,
+		struct afs_vnode *dvnode,
+		struct afs_vnode *vnode,
+		const char *name,
+		const struct afs_wait_mode *wait_mode)
+{
+	struct afs_call *call;
+	size_t namesz, reqsz, padsz;
+	__be32 *bp;
+
+	_enter("");
+
+	namesz = strlen(name);
+	padsz = (4 - (namesz & 3)) & 3;
+	reqsz = (5 * 4) + namesz + padsz + (3 * 4);
+
+	call = afs_alloc_flat_call(&afs_RXFSLink, reqsz, (21 + 21 + 6) * 4);
+	if (!call)
+		return -ENOMEM;
+
+	call->key = key;
+	call->reply = dvnode;
+	call->reply2 = vnode;
+	call->service_id = FS_SERVICE;
+	call->port = htons(AFS_FS_PORT);
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(FSLINK);
+	*bp++ = htonl(dvnode->fid.vid);
+	*bp++ = htonl(dvnode->fid.vnode);
+	*bp++ = htonl(dvnode->fid.unique);
+	*bp++ = htonl(namesz);
+	memcpy(bp, name, namesz);
+	bp = (void *) bp + namesz;
+	if (padsz > 0) {
+		memset(bp, 0, padsz);
+		bp = (void *) bp + padsz;
+	}
+	*bp++ = htonl(vnode->fid.vid);
+	*bp++ = htonl(vnode->fid.vnode);
+	*bp++ = htonl(vnode->fid.unique);
+
+	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+}
+
+/*
+ * deliver reply data to an FS.Symlink
+ */
+static int afs_deliver_fs_symlink(struct afs_call *call,
+				  struct sk_buff *skb, bool last)
+{
+	struct afs_vnode *vnode = call->reply;
+	const __be32 *bp;
+
+	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
+
+	afs_transfer_reply(call, skb);
+	if (!last)
+		return 0;
+
+	if (call->reply_size != call->reply_max)
+		return -EBADMSG;
+
+	/* unmarshall the reply once we've received all of it */
+	bp = call->buffer;
+	xdr_decode_AFSFid(&bp, call->reply2);
+	xdr_decode_AFSFetchStatus(&bp, call->reply3, NULL);
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode);
+	/* xdr_decode_AFSVolSync(&bp, call->replyX); */
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * FS.Symlink operation type
+ */
+static const struct afs_call_type afs_RXFSSymlink = {
+	.name		= "FS.Symlink",
+	.deliver	= afs_deliver_fs_symlink,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * create a symbolic link
+ */
+int afs_fs_symlink(struct afs_server *server,
+		   struct key *key,
+		   struct afs_vnode *vnode,
+		   const char *name,
+		   const char *contents,
+		   struct afs_fid *newfid,
+		   struct afs_file_status *newstatus,
+		   const struct afs_wait_mode *wait_mode)
+{
+	struct afs_call *call;
+	size_t namesz, reqsz, padsz, c_namesz, c_padsz;
+	__be32 *bp;
+
+	_enter("");
+
+	namesz = strlen(name);
+	padsz = (4 - (namesz & 3)) & 3;
+
+	c_namesz = strlen(contents);
+	c_padsz = (4 - (c_namesz & 3)) & 3;
+
+	reqsz = (6 * 4) + namesz + padsz + c_namesz + c_padsz + (6 * 4);
+
+	call = afs_alloc_flat_call(&afs_RXFSSymlink, reqsz,
+				   (3 + 21 + 21 + 6) * 4);
+	if (!call)
+		return -ENOMEM;
+
+	call->key = key;
+	call->reply = vnode;
+	call->reply2 = newfid;
+	call->reply3 = newstatus;
+	call->service_id = FS_SERVICE;
+	call->port = htons(AFS_FS_PORT);
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(FSSYMLINK);
+	*bp++ = htonl(vnode->fid.vid);
+	*bp++ = htonl(vnode->fid.vnode);
+	*bp++ = htonl(vnode->fid.unique);
+	*bp++ = htonl(namesz);
+	memcpy(bp, name, namesz);
+	bp = (void *) bp + namesz;
+	if (padsz > 0) {
+		memset(bp, 0, padsz);
+		bp = (void *) bp + padsz;
+	}
+	*bp++ = htonl(c_namesz);
+	memcpy(bp, contents, c_namesz);
+	bp = (void *) bp + c_namesz;
+	if (c_padsz > 0) {
+		memset(bp, 0, c_padsz);
+		bp = (void *) bp + c_padsz;
+	}
+	*bp++ = htonl(AFS_SET_MODE);
+	*bp++ = 0; /* mtime */
+	*bp++ = 0; /* owner */
+	*bp++ = 0; /* group */
+	*bp++ = htonl(S_IRWXUGO); /* unix mode */
+	*bp++ = 0; /* segment size */
+
+	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+}
+
+/*
+ * deliver reply data to an FS.Rename
+ */
+static int afs_deliver_fs_rename(struct afs_call *call,
+				  struct sk_buff *skb, bool last)
+{
+	struct afs_vnode *orig_dvnode = call->reply, *new_dvnode = call->reply2;
+	const __be32 *bp;
+
+	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
+
+	afs_transfer_reply(call, skb);
+	if (!last)
+		return 0;
+
+	if (call->reply_size != call->reply_max)
+		return -EBADMSG;
+
+	/* unmarshall the reply once we've received all of it */
+	bp = call->buffer;
+	xdr_decode_AFSFetchStatus(&bp, &orig_dvnode->status, orig_dvnode);
+	if (new_dvnode != orig_dvnode)
+		xdr_decode_AFSFetchStatus(&bp, &new_dvnode->status, new_dvnode);
+	/* xdr_decode_AFSVolSync(&bp, call->replyX); */
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * FS.Rename operation type
+ */
+static const struct afs_call_type afs_RXFSRename = {
+	.name		= "FS.Rename",
+	.deliver	= afs_deliver_fs_rename,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * create a symbolic link
+ */
+int afs_fs_rename(struct afs_server *server,
+		  struct key *key,
+		  struct afs_vnode *orig_dvnode,
+		  const char *orig_name,
+		  struct afs_vnode *new_dvnode,
+		  const char *new_name,
+		  const struct afs_wait_mode *wait_mode)
+{
+	struct afs_call *call;
+	size_t reqsz, o_namesz, o_padsz, n_namesz, n_padsz;
+	__be32 *bp;
+
+	_enter("");
+
+	o_namesz = strlen(orig_name);
+	o_padsz = (4 - (o_namesz & 3)) & 3;
+
+	n_namesz = strlen(new_name);
+	n_padsz = (4 - (n_namesz & 3)) & 3;
+
+	reqsz = (4 * 4) +
+		4 + o_namesz + o_padsz +
+		(3 * 4) +
+		4 + n_namesz + n_padsz;
+
+	call = afs_alloc_flat_call(&afs_RXFSRename, reqsz, (21 + 21 + 6) * 4);
+	if (!call)
+		return -ENOMEM;
+
+	call->key = key;
+	call->reply = orig_dvnode;
+	call->reply2 = new_dvnode;
+	call->service_id = FS_SERVICE;
+	call->port = htons(AFS_FS_PORT);
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(FSRENAME);
+	*bp++ = htonl(orig_dvnode->fid.vid);
+	*bp++ = htonl(orig_dvnode->fid.vnode);
+	*bp++ = htonl(orig_dvnode->fid.unique);
+	*bp++ = htonl(o_namesz);
+	memcpy(bp, orig_name, o_namesz);
+	bp = (void *) bp + o_namesz;
+	if (o_padsz > 0) {
+		memset(bp, 0, o_padsz);
+		bp = (void *) bp + o_padsz;
+	}
+
+	*bp++ = htonl(new_dvnode->fid.vid);
+	*bp++ = htonl(new_dvnode->fid.vnode);
+	*bp++ = htonl(new_dvnode->fid.unique);
+	*bp++ = htonl(n_namesz);
+	memcpy(bp, new_name, n_namesz);
+	bp = (void *) bp + n_namesz;
+	if (n_padsz > 0) {
+		memset(bp, 0, n_padsz);
+		bp = (void *) bp + n_padsz;
+	}
 
 	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
 }

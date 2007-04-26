@@ -92,7 +92,7 @@ static struct afs_vnode *afs_get_auth_inode(struct afs_vnode *vnode,
 		ASSERT(auth_inode != NULL);
 	} else {
 		auth_inode = afs_iget(vnode->vfs_inode.i_sb, key,
-				      &vnode->status.parent);
+				      &vnode->status.parent, NULL, NULL);
 		if (IS_ERR(auth_inode))
 			return ERR_PTR(PTR_ERR(auth_inode));
 	}
@@ -288,7 +288,8 @@ int afs_permission(struct inode *inode, int mask, struct nameidata *nd)
 	struct key *key;
 	int ret;
 
-	_enter("{%x:%x},%x,", vnode->fid.vid, vnode->fid.vnode, mask);
+	_enter("{{%x:%x},%lx},%x,",
+	       vnode->fid.vid, vnode->fid.vnode, vnode->flags, mask);
 
 	key = afs_request_key(vnode->volume->cell);
 	if (IS_ERR(key)) {
@@ -296,13 +297,19 @@ int afs_permission(struct inode *inode, int mask, struct nameidata *nd)
 		return PTR_ERR(key);
 	}
 
+	/* if the promise has expired, we need to check the server again */
+	if (!vnode->cb_promised) {
+		_debug("not promised");
+		ret = afs_vnode_fetch_status(vnode, NULL, key);
+		if (ret < 0)
+			goto error;
+		_debug("new promise [fl=%lx]", vnode->flags);
+	}
+
 	/* check the permits to see if we've got one yet */
 	ret = afs_check_permit(vnode, key, &access);
-	if (ret < 0) {
-		key_put(key);
-		_leave(" = %d [check]", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error;
 
 	/* interpret the access mask */
 	_debug("REQ %x ACC %x on %s",
@@ -336,10 +343,14 @@ int afs_permission(struct inode *inode, int mask, struct nameidata *nd)
 	}
 
 	key_put(key);
-	return generic_permission(inode, mask, NULL);
+	ret = generic_permission(inode, mask, NULL);
+	_leave(" = %d", ret);
+	return ret;
 
 permission_denied:
+	ret = -EACCES;
+error:
 	key_put(key);
-	_leave(" = -EACCES");
-	return -EACCES;
+	_leave(" = %d", ret);
+	return ret;
 }

@@ -106,17 +106,35 @@ struct afs_file_status {
 
 	afs_file_type_t		type;		/* file type */
 	unsigned		nlink;		/* link count */
-	size_t			size;		/* file size */
+	u64			size;		/* file size */
 	afs_dataversion_t	data_version;	/* current data version */
-	unsigned		author;		/* author ID */
-	unsigned		owner;		/* owner ID */
+	u32			author;		/* author ID */
+	u32			owner;		/* owner ID */
+	u32			group;		/* group ID */
 	afs_access_t		caller_access;	/* access rights for authenticated caller */
 	afs_access_t		anon_access;	/* access rights for unauthenticated caller */
 	umode_t			mode;		/* UNIX mode */
-	struct afs_fid		parent;		/* parent file ID */
+	struct afs_fid		parent;		/* parent dir ID for non-dirs only */
 	time_t			mtime_client;	/* last time client changed data */
 	time_t			mtime_server;	/* last time server changed data */
 };
+
+/*
+ * AFS file status change request
+ */
+struct afs_store_status {
+	u32			mask;		/* which bits of the struct are set */
+	u32			mtime_client;	/* last time client changed data */
+	u32			owner;		/* owner ID */
+	u32			group;		/* group ID */
+	umode_t			mode;		/* UNIX mode */
+};
+
+#define AFS_SET_MTIME		0x01		/* set the mtime */
+#define AFS_SET_OWNER		0x02		/* set the owner ID */
+#define AFS_SET_GROUP		0x04		/* set the group ID (unsupported?) */
+#define AFS_SET_MODE		0x08		/* set the UNIX mode */
+#define AFS_SET_SEG_SIZE	0x10		/* set the segment size (unsupported) */
 
 /*
  * AFS volume synchronisation information

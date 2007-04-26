@@ -50,6 +50,7 @@ int afs_open(struct inode *inode, struct file *file)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct key *key;
+	int ret;
 
 	_enter("{%x:%x},", vnode->fid.vid, vnode->fid.vnode);
 
@@ -57,6 +58,12 @@ int afs_open(struct inode *inode, struct file *file)
 	if (IS_ERR(key)) {
 		_leave(" = %ld [key]", PTR_ERR(key));
 		return PTR_ERR(key);
+	}
+
+	ret = afs_validate(vnode, key);
+	if (ret < 0) {
+		_leave(" = %d [val]", ret);
+		return ret;
 	}
 
 	file->private_data = key;

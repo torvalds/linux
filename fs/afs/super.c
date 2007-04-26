@@ -331,7 +331,7 @@ static int afs_fill_super(struct super_block *sb, void *data)
 	fid.vid		= as->volume->vid;
 	fid.vnode	= 1;
 	fid.unique	= 1;
-	inode = afs_iget(sb, params->key, &fid);
+	inode = afs_iget(sb, params->key, &fid, NULL, NULL);
 	if (IS_ERR(inode))
 		goto error_inode;
 
@@ -473,9 +473,9 @@ static void afs_i_init_once(void *_vnode, struct kmem_cache *cachep,
 		inode_init_once(&vnode->vfs_inode);
 		init_waitqueue_head(&vnode->update_waitq);
 		mutex_init(&vnode->permits_lock);
+		mutex_init(&vnode->validate_lock);
 		spin_lock_init(&vnode->lock);
 		INIT_WORK(&vnode->cb_broken_work, afs_broken_callback_work);
-		mutex_init(&vnode->cb_broken_lock);
 	}
 }
 
@@ -497,7 +497,7 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 
 	vnode->volume		= NULL;
 	vnode->update_cnt	= 0;
-	vnode->flags		= 0;
+	vnode->flags		= 1 << AFS_VNODE_UNSET;
 	vnode->cb_promised	= false;
 
 	return &vnode->vfs_inode;

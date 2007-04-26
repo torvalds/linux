@@ -223,6 +223,8 @@ void afs_put_server(struct afs_server *server)
 
 	_enter("%p{%d}", server, atomic_read(&server->usage));
 
+	_debug("PUT SERVER %d", atomic_read(&server->usage));
+
 	ASSERTCMP(atomic_read(&server->usage), >, 0);
 
 	if (likely(!atomic_dec_and_test(&server->usage))) {

@@ -16,12 +16,19 @@
 #define FS_SERVICE		1	/* AFS File Service ID */
 
 enum AFS_FS_Operations {
-	FSFETCHSTATUS		= 132,	/* AFS Fetch file status */
 	FSFETCHDATA		= 130,	/* AFS Fetch file data */
+	FSFETCHSTATUS		= 132,	/* AFS Fetch file status */
+	FSREMOVEFILE		= 136,	/* AFS Remove a file */
+	FSCREATEFILE		= 137,	/* AFS Create a file */
+	FSRENAME		= 138,	/* AFS Rename or move a file or directory */
+	FSSYMLINK		= 139,	/* AFS Create a symbolic link */
+	FSLINK			= 140,	/* AFS Create a hard link */
+	FSMAKEDIR		= 141,	/* AFS Create a directory */
+	FSREMOVEDIR		= 142,	/* AFS Remove a directory */
 	FSGIVEUPCALLBACKS	= 147,	/* AFS Discard callback promises */
 	FSGETVOLUMEINFO		= 148,	/* AFS Get root volume information */
 	FSGETROOTVOLUME		= 151,	/* AFS Get root volume name */
-	FSLOOKUP		= 161	/* AFS lookup file in directory */
+	FSLOOKUP		= 161,	/* AFS lookup file in directory */
 };
 
 enum AFS_FS_Errors {

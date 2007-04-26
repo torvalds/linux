@@ -80,6 +80,7 @@ struct afs_call {
 	void			*reply;		/* reply buffer (first part) */
 	void			*reply2;	/* reply buffer (second part) */
 	void			*reply3;	/* reply buffer (third part) */
+	void			*reply4;	/* reply buffer (fourth part) */
 	enum {					/* call state */
 		AFS_CALL_REQUESTING,	/* request is being sent for outgoing call */
 		AFS_CALL_AWAIT_REPLY,	/* awaiting reply to outgoing call */
@@ -300,19 +301,18 @@ struct afs_vnode {
 #endif
 	struct afs_permits	*permits;	/* cache of permits so far obtained */
 	struct mutex		permits_lock;	/* lock for altering permits list */
+	struct mutex		validate_lock;	/* lock for validating this vnode */
 	wait_queue_head_t	update_waitq;	/* status fetch waitqueue */
-	unsigned		update_cnt;	/* number of outstanding ops that will update the
+	int			update_cnt;	/* number of outstanding ops that will update the
 						 * status */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
 #define AFS_VNODE_CB_BROKEN	0		/* set if vnode's callback was broken */
-#define AFS_VNODE_CHANGED	1		/* set if vnode's metadata changed */
+#define AFS_VNODE_UNSET		1		/* set if vnode attributes not yet set */
 #define AFS_VNODE_MODIFIED	2		/* set if vnode's data modified */
 #define AFS_VNODE_ZAP_DATA	3		/* set if vnode's data should be invalidated */
 #define AFS_VNODE_DELETED	4		/* set if vnode deleted on server */
 #define AFS_VNODE_MOUNTPOINT	5		/* set if vnode is a mountpoint symlink */
-#define AFS_VNODE_DIR_CHANGED	6		/* set if vnode's parent dir metadata changed */
-#define AFS_VNODE_DIR_MODIFIED	7		/* set if vnode's parent dir data modified */
 
 	long			acl_order;	/* ACL check count (callback break count) */
 
@@ -320,7 +320,6 @@ struct afs_vnode {
 	struct rb_node		server_rb;	/* link in server->fs_vnodes */
 	struct rb_node		cb_promise;	/* link in server->cb_promises */
 	struct work_struct	cb_broken_work;	/* work to be done on callback break */
-	struct mutex		cb_broken_lock;	/* lock against multiple attempts to fix break */
 	time_t			cb_expires;	/* time at which callback expires */
 	time_t			cb_expires_at;	/* time used to order cb_promise */
 	unsigned		cb_version;	/* callback version */
@@ -388,6 +387,7 @@ extern void afs_init_callback_state(struct afs_server *);
 extern void afs_broken_callback_work(struct work_struct *);
 extern void afs_break_callbacks(struct afs_server *, size_t,
 				struct afs_callback[]);
+extern void afs_discard_callback_on_delete(struct afs_vnode *);
 extern void afs_give_up_callback(struct afs_vnode *);
 extern void afs_dispatch_give_up_callbacks(struct work_struct *);
 extern void afs_flush_callback_breaks(struct afs_server *);
@@ -448,14 +448,34 @@ extern int afs_fs_give_up_callbacks(struct afs_server *,
 				    const struct afs_wait_mode *);
 extern int afs_fs_fetch_data(struct afs_server *, struct key *,
 			     struct afs_vnode *, off_t, size_t, struct page *,
-			     struct afs_volsync *,
 			     const struct afs_wait_mode *);
+extern int afs_fs_create(struct afs_server *, struct key *,
+			 struct afs_vnode *, const char *, umode_t,
+			 struct afs_fid *, struct afs_file_status *,
+			 struct afs_callback *,
+			 const struct afs_wait_mode *);
+extern int afs_fs_remove(struct afs_server *, struct key *,
+			 struct afs_vnode *, const char *, bool,
+			 const struct afs_wait_mode *);
+extern int afs_fs_link(struct afs_server *, struct key *, struct afs_vnode *,
+		       struct afs_vnode *, const char *,
+		       const struct afs_wait_mode *);
+extern int afs_fs_symlink(struct afs_server *, struct key *,
+			  struct afs_vnode *, const char *, const char *,
+			  struct afs_fid *, struct afs_file_status *,
+			  const struct afs_wait_mode *);
+extern int afs_fs_rename(struct afs_server *, struct key *,
+			 struct afs_vnode *, const char *,
+			 struct afs_vnode *, const char *,
+			 const struct afs_wait_mode *);
 
 /*
  * inode.c
  */
 extern struct inode *afs_iget(struct super_block *, struct key *,
-			      struct afs_fid *);
+			      struct afs_fid *, struct afs_file_status *,
+			      struct afs_callback *);
+extern int afs_validate(struct afs_vnode *, struct key *);
 extern int afs_inode_getattr(struct vfsmount *, struct dentry *,
 			     struct kstat *);
 extern void afs_zap_permits(struct rcu_head *);
@@ -522,7 +542,11 @@ extern int afs_permission(struct inode *, int, struct nameidata *);
  */
 extern spinlock_t afs_server_peer_lock;
 
-#define afs_get_server(S) do { atomic_inc(&(S)->usage); } while(0)
+#define afs_get_server(S)					\
+do {								\
+	_debug("GET SERVER %d", atomic_read(&(S)->usage));	\
+	atomic_inc(&(S)->usage);				\
+} while(0)
 
 extern struct afs_server *afs_lookup_server(struct afs_cell *,
 					    const struct in_addr *);
@@ -588,10 +612,24 @@ static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 	return &vnode->vfs_inode;
 }
 
+extern void afs_vnode_finalise_status_update(struct afs_vnode *,
+					     struct afs_server *);
 extern int afs_vnode_fetch_status(struct afs_vnode *, struct afs_vnode *,
 				  struct key *);
 extern int afs_vnode_fetch_data(struct afs_vnode *, struct key *,
 				off_t, size_t, struct page *);
+extern int afs_vnode_create(struct afs_vnode *, struct key *, const char *,
+			    umode_t, struct afs_fid *, struct afs_file_status *,
+			    struct afs_callback *, struct afs_server **);
+extern int afs_vnode_remove(struct afs_vnode *, struct key *, const char *,
+			    bool);
+extern int afs_vnode_link(struct afs_vnode *, struct afs_vnode *, struct key *,
+			  const char *);
+extern int afs_vnode_symlink(struct afs_vnode *, struct key *, const char *,
+			     const char *, struct afs_fid *,
+			     struct afs_file_status *, struct afs_server **);
+extern int afs_vnode_rename(struct afs_vnode *, struct afs_vnode *,
+			    struct key *, const char *, const char *);
 
 /*
  * volume.c

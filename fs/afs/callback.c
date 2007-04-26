@@ -44,7 +44,8 @@ void afs_init_callback_state(struct afs_server *server)
 	while (!RB_EMPTY_ROOT(&server->cb_promises)) {
 		vnode = rb_entry(server->cb_promises.rb_node,
 				 struct afs_vnode, cb_promise);
-		printk("\nUNPROMISE on %p\n", vnode);
+		_debug("UNPROMISE { vid=%x vn=%u uq=%u}",
+		       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 		rb_erase(&vnode->cb_promise, &server->cb_promises);
 		vnode->cb_promised = false;
 	}
@@ -68,7 +69,7 @@ void afs_broken_callback_work(struct work_struct *work)
 
 	/* we're only interested in dealing with a broken callback on *this*
 	 * vnode and only if no-one else has dealt with it yet */
-	if (!mutex_trylock(&vnode->cb_broken_lock))
+	if (!mutex_trylock(&vnode->validate_lock))
 		return; /* someone else is dealing with it */
 
 	if (test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags)) {
@@ -84,13 +85,14 @@ void afs_broken_callback_work(struct work_struct *work)
 		/* if the vnode's data version number changed then its contents
 		 * are different */
 		if (test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags)) {
-			_debug("zap data");
+			_debug("zap data {%x:%u}",
+			       vnode->fid.vid, vnode->fid.vnode);
 			invalidate_remote_inode(&vnode->vfs_inode);
 		}
 	}
 
 out:
-	mutex_unlock(&vnode->cb_broken_lock);
+	mutex_unlock(&vnode->validate_lock);
 
 	/* avoid the potential race whereby the mutex_trylock() in this
 	 * function happens again between the clear_bit() and the
@@ -248,6 +250,32 @@ static void afs_do_give_up_callback(struct afs_server *server,
 	ASSERT(server->cb_promises.rb_node != NULL);
 	rb_erase(&vnode->cb_promise, &server->cb_promises);
 	vnode->cb_promised = false;
+	_leave("");
+}
+
+/*
+ * discard the callback on a deleted item
+ */
+void afs_discard_callback_on_delete(struct afs_vnode *vnode)
+{
+	struct afs_server *server = vnode->server;
+
+	_enter("%d", vnode->cb_promised);
+
+	if (!vnode->cb_promised) {
+		_leave(" [not promised]");
+		return;
+	}
+
+	ASSERT(server != NULL);
+
+	spin_lock(&server->cb_lock);
+	if (vnode->cb_promised) {
+		ASSERT(server->cb_promises.rb_node != NULL);
+		rb_erase(&vnode->cb_promise, &server->cb_promises);
+		vnode->cb_promised = false;
+	}
+	spin_unlock(&server->cb_lock);
 	_leave("");
 }
 

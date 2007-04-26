@@ -33,7 +33,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 {
 	struct inode *inode = AFS_VNODE_TO_I(vnode);
 
-	_debug("FS: ft=%d lk=%d sz=%Zu ver=%Lu mod=%hu",
+	_debug("FS: ft=%d lk=%d sz=%llu ver=%Lu mod=%hu",
 	       vnode->status.type,
 	       vnode->status.nlink,
 	       vnode->status.size,
@@ -115,8 +115,9 @@ static int afs_iget5_set(struct inode *inode, void *opaque)
 /*
  * inode retrieval
  */
-inline struct inode *afs_iget(struct super_block *sb, struct key *key,
-			      struct afs_fid *fid)
+struct inode *afs_iget(struct super_block *sb, struct key *key,
+		       struct afs_fid *fid, struct afs_file_status *status,
+		       struct afs_callback *cb)
 {
 	struct afs_iget_data data = { .fid = *fid };
 	struct afs_super_info *as;
@@ -156,16 +157,37 @@ inline struct inode *afs_iget(struct super_block *sb, struct key *key,
 			       &vnode->cache);
 #endif
 
-	/* okay... it's a new inode */
-	set_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
-	ret = afs_vnode_fetch_status(vnode, NULL, key);
-	if (ret < 0)
-		goto bad_inode;
+	if (!status) {
+		/* it's a remotely extant inode */
+		set_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
+		ret = afs_vnode_fetch_status(vnode, NULL, key);
+		if (ret < 0)
+			goto bad_inode;
+	} else {
+		/* it's an inode we just created */
+		memcpy(&vnode->status, status, sizeof(vnode->status));
+
+		if (!cb) {
+			/* it's a symlink we just created (the fileserver
+			 * didn't give us a callback) */
+			vnode->cb_version = 0;
+			vnode->cb_expiry = 0;
+			vnode->cb_type = 0;
+			vnode->cb_expires = get_seconds();
+		} else {
+			vnode->cb_version = cb->version;
+			vnode->cb_expiry = cb->expiry;
+			vnode->cb_type = cb->type;
+			vnode->cb_expires = vnode->cb_expiry + get_seconds();
+		}
+	}
+
 	ret = afs_inode_map_status(vnode, key);
 	if (ret < 0)
 		goto bad_inode;
 
 	/* success */
+	clear_bit(AFS_VNODE_UNSET, &vnode->flags);
 	inode->i_flags |= S_NOATIME;
 	unlock_new_inode(inode);
 	_leave(" = %p [CB { v=%u t=%u }]", inode, vnode->cb_version, vnode->cb_type);
@@ -179,6 +201,78 @@ bad_inode:
 
 	_leave(" = %d [bad]", ret);
 	return ERR_PTR(ret);
+}
+
+/*
+ * validate a vnode/inode
+ * - there are several things we need to check
+ *   - parent dir data changes (rm, rmdir, rename, mkdir, create, link,
+ *     symlink)
+ *   - parent dir metadata changed (security changes)
+ *   - dentry data changed (write, truncate)
+ *   - dentry metadata changed (security changes)
+ */
+int afs_validate(struct afs_vnode *vnode, struct key *key)
+{
+	int ret;
+
+	_enter("{v={%x:%u} fl=%lx},%x",
+	       vnode->fid.vid, vnode->fid.vnode, vnode->flags,
+	       key_serial(key));
+
+	if (vnode->cb_promised &&
+	    !test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags) &&
+	    !test_bit(AFS_VNODE_MODIFIED, &vnode->flags) &&
+	    !test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags)) {
+		if (vnode->cb_expires < get_seconds() + 10) {
+			_debug("callback expired");
+			set_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
+		} else {
+			goto valid;
+		}
+	}
+
+	if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
+		goto valid;
+
+	mutex_lock(&vnode->validate_lock);
+
+	/* if the promise has expired, we need to check the server again to get
+	 * a new promise - note that if the (parent) directory's metadata was
+	 * changed then the security may be different and we may no longer have
+	 * access */
+	if (!vnode->cb_promised ||
+	    test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags)) {
+		_debug("not promised");
+		ret = afs_vnode_fetch_status(vnode, NULL, key);
+		if (ret < 0)
+			goto error_unlock;
+		_debug("new promise [fl=%lx]", vnode->flags);
+	}
+
+	if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
+		_debug("file already deleted");
+		ret = -ESTALE;
+		goto error_unlock;
+	}
+
+	/* if the vnode's data version number changed then its contents are
+	 * different */
+	if (test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags)) {
+		_debug("zap data {%x:%d}", vnode->fid.vid, vnode->fid.vnode);
+		invalidate_remote_inode(&vnode->vfs_inode);
+	}
+
+	clear_bit(AFS_VNODE_MODIFIED, &vnode->flags);
+	mutex_unlock(&vnode->validate_lock);
+valid:
+	_leave(" = 0");
+	return 0;
+
+error_unlock:
+	mutex_unlock(&vnode->validate_lock);
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -207,9 +301,10 @@ void afs_clear_inode(struct inode *inode)
 
 	vnode = AFS_FS_I(inode);
 
-	_enter("ino=%lu { vn=%08x v=%u x=%u t=%u }",
-	       inode->i_ino,
+	_enter("{%x:%d.%d} v=%u x=%u t=%u }",
+	       vnode->fid.vid,
 	       vnode->fid.vnode,
+	       vnode->fid.unique,
 	       vnode->cb_version,
 	       vnode->cb_expiry,
 	       vnode->cb_type);

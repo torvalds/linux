@@ -295,6 +295,7 @@ struct afs_server *afs_volume_pick_fileserver(struct afs_vnode *vnode)
  * - releases the ref on the server struct that was acquired by picking
  * - records result of using a particular server to access a volume
  * - return 0 to try again, 1 if okay or to issue error
+ * - the caller must release the server struct if result was 0
  */
 int afs_volume_release_fileserver(struct afs_vnode *vnode,
 				  struct afs_server *server,
@@ -312,7 +313,8 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 	case 0:
 		server->fs_act_jif = jiffies;
 		server->fs_state = 0;
-		break;
+		_leave("");
+		return 1;
 
 		/* the fileserver denied all knowledge of the volume */
 	case -ENOMEDIUM:
@@ -377,13 +379,11 @@ int afs_volume_release_fileserver(struct afs_vnode *vnode,
 		server->fs_act_jif = jiffies;
 	case -ENOMEM:
 	case -ENONET:
-		break;
+		/* tell the caller to accept the result */
+		afs_put_server(server);
+		_leave(" [local failure]");
+		return 1;
 	}
-
-	/* tell the caller to accept the result */
-	afs_put_server(server);
-	_leave("");
-	return 1;
 
 	/* tell the caller to loop around and try the next server */
 try_next_server_upw:
