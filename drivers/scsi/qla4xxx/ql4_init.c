@@ -7,9 +7,8 @@
 
 #include "ql4_def.h"
 
-/*
- * QLogic ISP4xxx Hardware Support Function Prototypes.
- */
+static struct ddb_entry * qla4xxx_alloc_ddb(struct scsi_qla_host *ha,
+					    uint32_t fw_ddb_index);
 
 static void ql4xxx_set_mac_number(struct scsi_qla_host *ha)
 {
@@ -48,7 +47,8 @@ static void ql4xxx_set_mac_number(struct scsi_qla_host *ha)
  * This routine deallocates and unlinks the specified ddb_entry from the
  * adapter's
  **/
-void qla4xxx_free_ddb(struct scsi_qla_host *ha, struct ddb_entry *ddb_entry)
+static void qla4xxx_free_ddb(struct scsi_qla_host *ha,
+			     struct ddb_entry *ddb_entry)
 {
 	/* Remove device entry from list */
 	list_del_init(&ddb_entry->list);
@@ -370,9 +370,9 @@ static struct ddb_entry* qla4xxx_get_ddb_entry(struct scsi_qla_host *ha,
  * must be initialized prior to	calling this routine
  *
  **/
-int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
-			     struct ddb_entry *ddb_entry,
-			     uint32_t fw_ddb_index)
+static int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
+				    struct ddb_entry *ddb_entry,
+				    uint32_t fw_ddb_index)
 {
 	struct dev_db_entry *fw_ddb_entry = NULL;
 	dma_addr_t fw_ddb_entry_dma;
@@ -450,8 +450,8 @@ int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
  * This routine allocates a ddb_entry, ititializes some values, and
  * inserts it into the ddb list.
  **/
-struct ddb_entry * qla4xxx_alloc_ddb(struct scsi_qla_host *ha,
-				     uint32_t fw_ddb_index)
+static struct ddb_entry * qla4xxx_alloc_ddb(struct scsi_qla_host *ha,
+					    uint32_t fw_ddb_index)
 {
 	struct ddb_entry *ddb_entry;
 

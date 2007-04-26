@@ -20,9 +20,9 @@
  * If outCount is 0, this routine completes successfully WITHOUT waiting
  * for the mailbox command to complete.
  **/
-int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
-			    uint8_t outCount, uint32_t *mbx_cmd,
-			    uint32_t *mbx_sts)
+static int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
+				   uint8_t outCount, uint32_t *mbx_cmd,
+				   uint32_t *mbx_sts)
 {
 	int status = QLA_ERROR;
 	uint8_t i;
@@ -170,6 +170,8 @@ mbox_exit:
 }
 
 
+#if 0
+
 /**
  * qla4xxx_issue_iocb - issue mailbox iocb command
  * @ha: adapter state pointer.
@@ -242,6 +244,8 @@ int qla4xxx_clear_database_entry(struct scsi_qla_host * ha,
 
 	return QLA_SUCCESS;
 }
+
+#endif  /*  0  */
 
 /**
  * qla4xxx_initialize_fw_cb - initializes firmware control block.
@@ -570,6 +574,7 @@ int qla4xxx_set_ddb_entry(struct scsi_qla_host * ha, uint16_t fw_ddb_index,
 	return qla4xxx_mailbox_command(ha, 4, 1, &mbox_cmd[0], &mbox_sts[0]);
 }
 
+#if 0
 int qla4xxx_conn_open_session_login(struct scsi_qla_host * ha,
 				    uint16_t fw_ddb_index)
 {
@@ -594,6 +599,7 @@ int qla4xxx_conn_open_session_login(struct scsi_qla_host * ha,
 
 		return status;
 }
+#endif  /*  0  */
 
 /**
  * qla4xxx_get_crash_record - retrieves crash record.
@@ -649,6 +655,7 @@ exit_get_crash_record:
 				  crash_record, crash_record_dma);
 }
 
+#if 0
 /**
  * qla4xxx_get_conn_event_log - retrieves connection event log
  * @ha: Pointer to host adapter structure.
@@ -738,6 +745,7 @@ exit_get_event_log:
 		dma_free_coherent(&ha->pdev->dev, event_log_size, event_log,
 				  event_log_dma);
 }
+#endif  /*  0  */
 
 /**
  * qla4xxx_reset_lun - issues LUN Reset
@@ -834,7 +842,8 @@ int qla4xxx_get_fw_version(struct scsi_qla_host * ha)
 	return QLA_SUCCESS;
 }
 
-int qla4xxx_get_default_ddb(struct scsi_qla_host *ha, dma_addr_t dma_addr)
+static int qla4xxx_get_default_ddb(struct scsi_qla_host *ha,
+				   dma_addr_t dma_addr)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
@@ -855,7 +864,7 @@ int qla4xxx_get_default_ddb(struct scsi_qla_host *ha, dma_addr_t dma_addr)
 	return QLA_SUCCESS;
 }
 
-int qla4xxx_req_ddb_entry(struct scsi_qla_host *ha, uint32_t *ddb_index)
+static int qla4xxx_req_ddb_entry(struct scsi_qla_host *ha, uint32_t *ddb_index)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
