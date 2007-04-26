@@ -149,9 +149,11 @@ static ssize_t show_stp_state(struct device *d,
 
 static void set_stp_state(struct net_bridge *br, unsigned long val)
 {
+	rtnl_lock();
 	spin_unlock_bh(&br->lock);
 	br_stp_set_enabled(br, val);
 	spin_lock_bh(&br->lock);
+	rtnl_unlock();
 }
 
 static ssize_t store_stp_state(struct device *d,
