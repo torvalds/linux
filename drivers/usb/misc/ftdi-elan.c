@@ -2910,24 +2910,28 @@ static int __init ftdi_elan_init(void)
         INIT_LIST_HEAD(&ftdi_static_list);
         status_queue = create_singlethread_workqueue("ftdi-status-control");
 	if (!status_queue)
-		goto err1;
+		goto err_status_queue;
         command_queue = create_singlethread_workqueue("ftdi-command-engine");
 	if (!command_queue)
-		goto err2;
+		goto err_command_queue;
         respond_queue = create_singlethread_workqueue("ftdi-respond-engine");
 	if (!respond_queue)
-		goto err3;
+		goto err_respond_queue;
         result = usb_register(&ftdi_elan_driver);
-        if (result)
+        if (result) {
+		destroy_workqueue(status_queue);
+		destroy_workqueue(command_queue);
+		destroy_workqueue(respond_queue);
                 printk(KERN_ERR "usb_register failed. Error number %d\n",
 		       result);
+	}
         return result;
 
- err3:
+ err_respond_queue:
 	destroy_workqueue(command_queue);
- err2:
+ err_command_queue:
 	destroy_workqueue(status_queue);
- err1:
+ err_status_queue:
 	printk(KERN_ERR "%s couldn't create workqueue\n", ftdi_elan_driver.name);
 	return -ENOMEM;
 }
