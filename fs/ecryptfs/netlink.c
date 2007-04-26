@@ -97,7 +97,7 @@ out:
  */
 static int ecryptfs_process_nl_response(struct sk_buff *skb)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr*)skb->data;
+	struct nlmsghdr *nlh = nlmsg_hdr(skb);
 	struct ecryptfs_message *msg = NLMSG_DATA(nlh);
 	int rc;
 
@@ -181,7 +181,7 @@ receive:
 				"rc = [%d]\n", rc);
 		return;
 	}
-	nlh = (struct nlmsghdr *)skb->data;
+	nlh = nlmsg_hdr(skb);
 	if (!NLMSG_OK(nlh, skb->len)) {
 		ecryptfs_printk(KERN_ERR, "Received corrupt netlink "
 				"message\n");

@@ -497,7 +497,7 @@ ipq_rcv_skb(struct sk_buff *skb)
 	if (skblen < sizeof(*nlh))
 		return;
 
-	nlh = (struct nlmsghdr *)skb->data;
+	nlh = nlmsg_hdr(skb);
 	nlmsglen = nlh->nlmsg_len;
 	if (nlmsglen < sizeof(*nlh) || skblen < nlmsglen)
 		return;

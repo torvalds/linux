@@ -102,7 +102,7 @@ static unsigned int dnrmg_hook(unsigned int hook,
 
 static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)skb->data;
+	struct nlmsghdr *nlh = nlmsg_hdr(skb);
 
 	if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
 		return;

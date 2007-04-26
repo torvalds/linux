@@ -847,7 +847,7 @@ static inline void inet_diag_rcv_skb(struct sk_buff *skb)
 {
 	if (skb->len >= NLMSG_SPACE(0)) {
 		int err;
-		struct nlmsghdr *nlh = (struct nlmsghdr *)skb->data;
+		struct nlmsghdr *nlh = nlmsg_hdr(skb);
 
 		if (nlh->nlmsg_len < sizeof(*nlh) ||
 		    skb->len < nlh->nlmsg_len)

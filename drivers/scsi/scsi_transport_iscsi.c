@@ -1081,7 +1081,7 @@ iscsi_if_rx(struct sock *sk, int len)
 			struct nlmsghdr	*nlh;
 			struct iscsi_uevent *ev;
 
-			nlh = (struct nlmsghdr *)skb->data;
+			nlh = nlmsg_hdr(skb);
 			if (nlh->nlmsg_len < sizeof(*nlh) ||
 			    skb->len < nlh->nlmsg_len) {
 				break;

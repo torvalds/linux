@@ -1471,7 +1471,7 @@ static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 	int err;
 
 	while (skb->len >= nlmsg_total_size(0)) {
-		nlh = (struct nlmsghdr *) skb->data;
+		nlh = nlmsg_hdr(skb);
 
 		if (nlh->nlmsg_len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len)
 			return 0;

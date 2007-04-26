@@ -807,7 +807,7 @@ static void nl_fib_input(struct sock *sk, int len)
 	if (skb == NULL)
 		return;
 
-	nlh = (struct nlmsghdr *)skb->data;
+	nlh = nlmsg_hdr(skb);
 	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
 	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn))) {
 		kfree_skb(skb);

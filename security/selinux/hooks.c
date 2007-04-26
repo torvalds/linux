@@ -3786,7 +3786,7 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 		err = -EINVAL;
 		goto out;
 	}
-	nlh = (struct nlmsghdr *)skb->data;
+	nlh = nlmsg_hdr(skb);
 	
 	err = selinux_nlmsg_lookup(isec->sclass, nlh->nlmsg_type, &perm);
 	if (err) {

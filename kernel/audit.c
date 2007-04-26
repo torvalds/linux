@@ -151,7 +151,7 @@ struct audit_buffer {
 
 static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
+	struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 	nlh->nlmsg_pid = pid;
 }
 
@@ -750,7 +750,7 @@ static void audit_receive_skb(struct sk_buff *skb)
 	u32		rlen;
 
 	while (skb->len >= NLMSG_SPACE(0)) {
-		nlh = (struct nlmsghdr *)skb->data;
+		nlh = nlmsg_hdr(skb);
 		if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
 			return;
 		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
@@ -1268,7 +1268,7 @@ void audit_log_end(struct audit_buffer *ab)
 		audit_log_lost("rate limit exceeded");
 	} else {
 		if (audit_pid) {
-			struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
+			struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 			nlh->nlmsg_len = ab->skb->len - NLMSG_SPACE(0);
 			skb_queue_tail(&audit_skb_queue, ab->skb);
 			ab->skb = NULL;

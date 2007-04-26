@@ -138,6 +138,11 @@ struct nlattr
 #include <linux/capability.h>
 #include <linux/skbuff.h>
 
+static inline struct nlmsghdr *nlmsg_hdr(const struct sk_buff *skb)
+{
+	return (struct nlmsghdr *)skb->data;
+}
+
 struct netlink_skb_parms
 {
 	struct ucred		creds;		/* Skb credentials	*/
