@@ -49,8 +49,8 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 			struct sk_buff *skb, int offset, struct iovec *to,
 			size_t len, struct dma_pinned_list *pinned_list)
 {
-	int end = skb_headlen(skb);
-	int i, copy = end - offset;
+	int start = skb_headlen(skb);
+	int i, copy = start - offset;
 	dma_cookie_t cookie = 0;
 
 	/* Copy header. */
@@ -69,9 +69,11 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		BUG_TRAP(len >= 0);
+		int end;
 
-		end = offset + skb_shinfo(skb)->frags[i].size;
+		BUG_TRAP(start <= offset + len);
+
+		end = start + skb_shinfo(skb)->frags[i].size;
 		copy = end - offset;
 		if ((copy = end - offset) > 0) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -80,8 +82,8 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 			if (copy > len)
 				copy = len;
 
-			cookie = dma_memcpy_pg_to_iovec(chan, to, pinned_list,
-					page, frag->page_offset, copy);
+			cookie = dma_memcpy_pg_to_iovec(chan, to, pinned_list, page,
+					frag->page_offset + offset - start, copy);
 			if (cookie < 0)
 				goto fault;
 			len -= copy;
@@ -89,21 +91,25 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 				goto end;
 			offset += copy;
 		}
+		start = end;
 	}
 
 	if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 
 		for (; list; list = list->next) {
-			BUG_TRAP(len >= 0);
+			int end;
 
-			end = offset + list->len;
+			BUG_TRAP(start <= offset + len);
+
+			end = start + list->len;
 			copy = end - offset;
 			if (copy > 0) {
 				if (copy > len)
 					copy = len;
 				cookie = dma_skb_copy_datagram_iovec(chan, list,
-						0, to, copy, pinned_list);
+						offset - start, to, copy,
+						pinned_list);
 				if (cookie < 0)
 					goto fault;
 				len -= copy;
@@ -111,6 +117,7 @@ int dma_skb_copy_datagram_iovec(struct dma_chan *chan,
 					goto end;
 				offset += copy;
 			}
+			start = end;
 		}
 	}
 

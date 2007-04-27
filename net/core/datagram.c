@@ -247,8 +247,8 @@ EXPORT_SYMBOL(skb_kill_datagram);
 int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 			    struct iovec *to, int len)
 {
-	int end = skb_headlen(skb);
-	int i, copy = end - offset;
+	int start = skb_headlen(skb);
+	int i, copy = start - offset;
 
 	/* Copy header. */
 	if (copy > 0) {
@@ -263,9 +263,11 @@ int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		BUG_TRAP(len >= 0);
+		int end;
 
-		end = offset + skb_shinfo(skb)->frags[i].size;
+		BUG_TRAP(start <= offset + len);
+
+		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
 			int err;
 			u8  *vaddr;
@@ -275,8 +277,8 @@ int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			vaddr = kmap(page);
-			err = memcpy_toiovec(to, vaddr + frag->page_offset,
-					     copy);
+			err = memcpy_toiovec(to, vaddr + frag->page_offset +
+					     offset - start, copy);
 			kunmap(page);
 			if (err)
 				goto fault;
@@ -284,24 +286,30 @@ int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 				return 0;
 			offset += copy;
 		}
+		start = end;
 	}
 
 	if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 
 		for (; list; list = list->next) {
-			BUG_TRAP(len >= 0);
+			int end;
 
-			end = offset + list->len;
+			BUG_TRAP(start <= offset + len);
+
+			end = start + list->len;
 			if ((copy = end - offset) > 0) {
 				if (copy > len)
 					copy = len;
-				if (skb_copy_datagram_iovec(list, 0, to, copy))
+				if (skb_copy_datagram_iovec(list,
+							    offset - start,
+							    to, copy))
 					goto fault;
 				if ((len -= copy) == 0)
 					return 0;
 				offset += copy;
 			}
+			start = end;
 		}
 	}
 	if (!len)
@@ -315,9 +323,9 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      u8 __user *to, int len,
 				      __wsum *csump)
 {
-	int end = skb_headlen(skb);
+	int start = skb_headlen(skb);
 	int pos = 0;
-	int i, copy = end - offset;
+	int i, copy = start - offset;
 
 	/* Copy header. */
 	if (copy > 0) {
@@ -336,9 +344,11 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		BUG_TRAP(len >= 0);
+		int end;
 
-		end = offset + skb_shinfo(skb)->frags[i].size;
+		BUG_TRAP(start <= offset + len);
+
+		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
 			__wsum csum2;
 			int err = 0;
@@ -350,7 +360,8 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				copy = len;
 			vaddr = kmap(page);
 			csum2 = csum_and_copy_to_user(vaddr +
-							frag->page_offset,
+							frag->page_offset +
+							offset - start,
 						      to, copy, 0, &err);
 			kunmap(page);
 			if (err)
@@ -362,20 +373,24 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 			to += copy;
 			pos += copy;
 		}
+		start = end;
 	}
 
 	if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 
 		for (; list; list=list->next) {
-			BUG_TRAP(len >= 0);
+			int end;
 
-			end = offset + list->len;
+			BUG_TRAP(start <= offset + len);
+
+			end = start + list->len;
 			if ((copy = end - offset) > 0) {
 				__wsum csum2 = 0;
 				if (copy > len)
 					copy = len;
-				if (skb_copy_and_csum_datagram(list, 0,
+				if (skb_copy_and_csum_datagram(list,
+							       offset - start,
 							       to, copy,
 							       &csum2))
 					goto fault;
@@ -386,6 +401,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				to += copy;
 				pos += copy;
 			}
+			start = end;
 		}
 	}
 	if (!len)
