@@ -1778,7 +1778,7 @@ struct saa7134_board saa7134_boards[] = {
 	[SAA7134_BOARD_FLYDVBTDUO] = {
 		/* LifeView FlyDVB-T DUO */
 		/* "Nico Sabbi <nsabbi@tiscali.it>  Hartmut Hackmann hartmut.hackmann@t-online.de*/
-		.name           = "LifeView FlyDVB-T DUO",
+		.name           = "LifeView FlyDVB-T DUO / MSI TV@nywhere Duo",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -4025,6 +4025,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
 		.subdevice    = 0xf31e,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_M102,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x4E42,         /* MSI */
+		.subdevice    = 0x0306,         /* TV@nywhere DUO */
+		.driver_data  = SAA7134_BOARD_FLYDVBTDUO,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
