@@ -148,14 +148,14 @@ config GENERIC_IOMAP
 	bool
 	default n
 
-menu "CPU Frequency support"
-	depends on PPC64 || CLASSIC32
-
 source "drivers/cpufreq/Kconfig"
+
+menu "CPU Frequency drivers"
+	depends on CPU_FREQ
 
 config CPU_FREQ_PMAC
 	bool "Support for Apple PowerBooks"
-	depends on CPU_FREQ && ADB_PMU && PPC32
+	depends on ADB_PMU && PPC32
 	select CPU_FREQ_TABLE
 	help
 	  This adds support for frequency switching on Apple PowerBooks,
@@ -164,7 +164,7 @@ config CPU_FREQ_PMAC
 
 config CPU_FREQ_PMAC64
 	bool "Support for some Apple G5s"
-	depends on CPU_FREQ && PPC64
+	depends on PPC_PMAC && PPC64
 	select CPU_FREQ_TABLE
 	help
 	  This adds support for frequency switching on Apple iMac G5,
@@ -172,7 +172,7 @@ config CPU_FREQ_PMAC64
 
 config PPC_PASEMI_CPUFREQ
 	bool "Support for PA Semi PWRficient"
-	depends on CPU_FREQ && PPC_PASEMI
+	depends on PPC_PASEMI
 	default y
 	select CPU_FREQ_TABLE
 	help
