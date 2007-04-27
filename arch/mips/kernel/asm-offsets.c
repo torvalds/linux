@@ -102,7 +102,6 @@ void output_thread_info_defines(void)
 	offset("#define TI_ADDR_LIMIT      ", struct thread_info, addr_limit);
 	offset("#define TI_RESTART_BLOCK   ", struct thread_info, restart_block);
 	offset("#define TI_REGS            ", struct thread_info, regs);
-	constant("#define _THREAD_SIZE_ORDER ", THREAD_SIZE_ORDER);
 	constant("#define _THREAD_SIZE       ", THREAD_SIZE);
 	constant("#define _THREAD_MASK       ", THREAD_MASK);
 	linefeed;

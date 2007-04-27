@@ -131,6 +131,7 @@
 
 #endif
 
+
 /*  *********************************************************************
     * PCI Interface Registers
     ********************************************************************* */
@@ -239,14 +240,14 @@
 #define R_MAC_VLANTAG                   0x00000110
 #define R_MAC_FRAMECFG                  0x00000118
 #define R_MAC_EOPCNT                    0x00000120
-#define R_MAC_FIFO_PTRS                 0x00000130
+#define R_MAC_FIFO_PTRS                 0x00000128
 #define R_MAC_ADFILTER_CFG              0x00000200
 #define R_MAC_ETHERNET_ADDR             0x00000208
 #define R_MAC_PKT_TYPE                  0x00000210
-#if SIBYTE_HDR_FEATURE(1250, PASS3) || SIBYTE_HDR_FEATURE(112x, PASS1)
+#if SIBYTE_HDR_FEATURE(1250, PASS3) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
 #define R_MAC_ADMASK0			0x00000218
 #define R_MAC_ADMASK1			0x00000220
-#endif /* 1250 PASS3 || 112x PASS1 */
+#endif /* 1250 PASS3 || 112x PASS1 || 1480 */
 #define R_MAC_HASH_BASE                 0x00000240
 #define R_MAC_ADDR_BASE                 0x00000280
 #define R_MAC_CHLO0_BASE                0x00000300
@@ -256,9 +257,9 @@
 #define R_MAC_INT_MASK                  0x00000410
 #define R_MAC_TXD_CTL                   0x00000420
 #define R_MAC_MDIO                      0x00000428
-#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
+#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
 #define R_MAC_STATUS1		        0x00000430
-#endif /* 1250 PASS2 || 112x PASS1 */
+#endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 #define R_MAC_DEBUG_STATUS              0x00000448
 
 #define MAC_HASH_COUNT			8
@@ -289,11 +290,11 @@
 #define R_DUART_RX_HOLD             0x160
 #define R_DUART_TX_HOLD             0x170
 
-#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
+#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
 #define R_DUART_FULL_CTL	    0x140
 #define R_DUART_OPCR_X		    0x180
 #define R_DUART_AUXCTL_X	    0x190
-#endif /* 1250 PASS2 || 112x PASS1 */
+#endif /* 1250 PASS2 || 112x PASS1 || 1480*/
 
 
 /*
@@ -308,6 +309,7 @@
 #define R_DUART_IMR_B               0x350
 #define R_DUART_OUT_PORT            0x360
 #define R_DUART_OPCR                0x370
+#define R_DUART_IN_PORT             0x380
 
 #define R_DUART_SET_OPR		    0x3B0
 #define R_DUART_CLEAR_OPR	    0x3C0
@@ -685,12 +687,17 @@
 #define A_ADDR_TRAP_REG_DEBUG	    0x0010020460
 #endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
+#define ADDR_TRAP_SPACING 8
+#define NUM_ADDR_TRAP 4
+#define A_ADDR_TRAP_UP(n) (A_ADDR_TRAP_UP_0 + ((n) * ADDR_TRAP_SPACING))
+#define A_ADDR_TRAP_DOWN(n) (A_ADDR_TRAP_DOWN_0 + ((n) * ADDR_TRAP_SPACING))
+#define A_ADDR_TRAP_CFG(n) (A_ADDR_TRAP_CFG_0 + ((n) * ADDR_TRAP_SPACING))
+
 
 /*  *********************************************************************
     * System Interrupt Mapper Registers
     ********************************************************************* */
 
-#if SIBYTE_HDR_FEATURE_1250_112x
 #define A_IMR_CPU0_BASE                 0x0010020000
 #define A_IMR_CPU1_BASE                 0x0010022000
 #define IMR_REGISTER_SPACING            0x2000
@@ -700,6 +707,7 @@
 #define A_IMR_REGISTER(cpu,reg) (A_IMR_MAPPER(cpu)+(reg))
 
 #define R_IMR_INTERRUPT_DIAG            0x0010
+#define R_IMR_INTERRUPT_LDT             0x0018
 #define R_IMR_INTERRUPT_MASK            0x0028
 #define R_IMR_INTERRUPT_TRACE           0x0038
 #define R_IMR_INTERRUPT_SOURCE_STATUS   0x0040
@@ -715,7 +723,14 @@
 #define R_IMR_INTERRUPT_STATUS_COUNT    7
 #define R_IMR_INTERRUPT_MAP_BASE        0x0200
 #define R_IMR_INTERRUPT_MAP_COUNT       64
-#endif	/* 1250/112x */
+
+/*
+ * these macros work together to build the address of a mailbox
+ * register, e.g., A_MAILBOX_REGISTER(R_IMR_MAILBOX_SET_CPU,1)
+ * for mbox_0_set_cpu2 returns 0x00100240C8
+ */
+#define A_MAILBOX_REGISTER(reg,cpu) \
+    (A_IMR_CPU0_BASE + (cpu * IMR_REGISTER_SPACING) + reg)
 
 /*  *********************************************************************
     * System Performance Counter Registers
@@ -726,6 +741,10 @@
 #define A_SCD_PERF_CNT_1            0x00100204D8
 #define A_SCD_PERF_CNT_2            0x00100204E0
 #define A_SCD_PERF_CNT_3            0x00100204E8
+
+#define SCD_NUM_PERF_CNT 4
+#define SCD_PERF_CNT_SPACING 8
+#define A_SCD_PERF_CNT(n) (A_SCD_PERF_CNT_0+(n*SCD_PERF_CNT_SPACING))
 
 /*  *********************************************************************
     * System Bus Watcher Registers
@@ -771,6 +790,15 @@
 #define A_SCD_TRACE_SEQUENCE_5      0x0010020A88
 #define A_SCD_TRACE_SEQUENCE_6      0x0010020A90
 #define A_SCD_TRACE_SEQUENCE_7      0x0010020A98
+
+#define TRACE_REGISTER_SPACING 8
+#define TRACE_NUM_REGISTERS    8
+#define A_SCD_TRACE_EVENT(n) (((n) & 4) ? \
+   (A_SCD_TRACE_EVENT_4 + (((n) & 3) * TRACE_REGISTER_SPACING)) : \
+   (A_SCD_TRACE_EVENT_0 + ((n) * TRACE_REGISTER_SPACING)))
+#define A_SCD_TRACE_SEQUENCE(n) (((n) & 4) ? \
+   (A_SCD_TRACE_SEQUENCE_4 + (((n) & 3) * TRACE_REGISTER_SPACING)) : \
+   (A_SCD_TRACE_SEQUENCE_0 + ((n) * TRACE_REGISTER_SPACING)))
 
 /*  *********************************************************************
     * System Generic DMA Registers

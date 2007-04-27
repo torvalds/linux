@@ -39,8 +39,8 @@
 #define PCI_CFG_TYPE1_DEV_SHF           11
 #define PCI_CFG_TYPE1_BUS_SHF           16
 
-static int gt64120_pcibios_config_access(unsigned char access_type,
-	struct pci_bus *bus, unsigned int devfn, int where, u32 * data)
+static int gt64xxx_pci0_pcibios_config_access(unsigned char access_type,
+		struct pci_bus *bus, unsigned int devfn, int where, u32 * data)
 {
 	unsigned char busnum = bus->number;
 	u32 intr;
@@ -100,13 +100,13 @@ static int gt64120_pcibios_config_access(unsigned char access_type,
  * We can't address 8 and 16 bit words directly.  Instead we have to
  * read/write a 32bit word and mask/modify the data we actually want.
  */
-static int gt64120_pcibios_read(struct pci_bus *bus, unsigned int devfn,
-                                int where, int size, u32 * val)
+static int gt64xxx_pci0_pcibios_read(struct pci_bus *bus, unsigned int devfn,
+		int where, int size, u32 * val)
 {
 	u32 data = 0;
 
-	if (gt64120_pcibios_config_access(PCI_ACCESS_READ, bus, devfn, where,
-				          &data))
+	if (gt64xxx_pci0_pcibios_config_access(PCI_ACCESS_READ, bus, devfn,
+	                                       where, &data))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (size == 1)
@@ -119,16 +119,16 @@ static int gt64120_pcibios_read(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int gt64120_pcibios_write(struct pci_bus *bus, unsigned int devfn,
-			      int where, int size, u32 val)
+static int gt64xxx_pci0_pcibios_write(struct pci_bus *bus, unsigned int devfn,
+		int where, int size, u32 val)
 {
 	u32 data = 0;
 
 	if (size == 4)
 		data = val;
 	else {
-		if (gt64120_pcibios_config_access(PCI_ACCESS_READ, bus, devfn,
-		                                  where, &data))
+		if (gt64xxx_pci0_pcibios_config_access(PCI_ACCESS_READ, bus,
+		                                       devfn, where, &data))
 			return PCIBIOS_DEVICE_NOT_FOUND;
 
 		if (size == 1)
@@ -139,14 +139,14 @@ static int gt64120_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 				(val << ((where & 3) << 3));
 	}
 
-	if (gt64120_pcibios_config_access(PCI_ACCESS_WRITE, bus, devfn, where,
-				       &data))
+	if (gt64xxx_pci0_pcibios_config_access(PCI_ACCESS_WRITE, bus, devfn,
+	                                       where, &data))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_ops gt64120_pci_ops = {
-	.read = gt64120_pcibios_read,
-	.write = gt64120_pcibios_write
+struct pci_ops gt64xxx_pci0_ops = {
+	.read	= gt64xxx_pci0_pcibios_read,
+	.write	= gt64xxx_pci0_pcibios_write
 };

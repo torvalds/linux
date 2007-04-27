@@ -72,7 +72,7 @@
 
 #define ip22_is_fullhouse()	(sgioc->sysid & SGIOC_SYSID_FULLHOUSE)
 
-extern unsigned short ip22_eeprom_read(volatile unsigned int *ctrl, int reg);
+extern unsigned short ip22_eeprom_read(unsigned int *ctrl, int reg);
 extern unsigned short ip22_nvram_read(int reg);
 
 #endif

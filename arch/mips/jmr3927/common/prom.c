@@ -41,16 +41,6 @@
 
 #include <asm/bootinfo.h>
 
-extern int prom_argc;
-extern char **prom_argv, **prom_envp;
-
-typedef struct
-{
-    char *name;
-/*    char *val; */
-}t_env_var;
-
-
 char * __init prom_getcmdline(void)
 {
 	return &(arcs_cmdline[0]);
@@ -60,6 +50,8 @@ void  __init prom_init_cmdline(void)
 {
 	char *cp;
 	int actr;
+	int prom_argc = fw_arg0;
+	char **prom_argv = (char **) fw_arg1;
 
 	actr = 1; /* Always ignore argv[0] */
 
