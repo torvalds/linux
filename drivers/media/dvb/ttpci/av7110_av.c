@@ -1009,7 +1009,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 		if (av7110->videostate.stream_source == VIDEO_SOURCE_MEMORY)
 			ret = av7110_av_stop(av7110, RP_VIDEO);
 		else
-			ret = vidcom(av7110, VIDEO_CMD_STOP,
+			ret = vidcom(av7110, AV_VIDEO_CMD_STOP,
 			       av7110->videostate.video_blank ? 0 : 1);
 		if (!ret)
 			av7110->trickmode = TRICK_NONE;
@@ -1019,7 +1019,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 		av7110->trickmode = TRICK_NONE;
 		if (av7110->videostate.play_state == VIDEO_FREEZED) {
 			av7110->videostate.play_state = VIDEO_PLAYING;
-			ret = vidcom(av7110, VIDEO_CMD_PLAY, 0);
+			ret = vidcom(av7110, AV_VIDEO_CMD_PLAY, 0);
 			if (ret)
 				break;
 		}
@@ -1034,7 +1034,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 			ret = av7110_av_start_play(av7110, RP_VIDEO);
 		}
 		if (!ret)
-			ret = vidcom(av7110, VIDEO_CMD_PLAY, 0);
+			ret = vidcom(av7110, AV_VIDEO_CMD_PLAY, 0);
 		if (!ret)
 			av7110->videostate.play_state = VIDEO_PLAYING;
 		break;
@@ -1044,7 +1044,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 		if (av7110->playing & RP_VIDEO)
 			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Pause, 0);
 		else
-			ret = vidcom(av7110, VIDEO_CMD_FREEZE, 1);
+			ret = vidcom(av7110, AV_VIDEO_CMD_FREEZE, 1);
 		if (!ret)
 			av7110->trickmode = TRICK_FREEZE;
 		break;
@@ -1053,7 +1053,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 		if (av7110->playing & RP_VIDEO)
 			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Continue, 0);
 		if (!ret)
-			ret = vidcom(av7110, VIDEO_CMD_PLAY, 0);
+			ret = vidcom(av7110, AV_VIDEO_CMD_PLAY, 0);
 		if (!ret) {
 			av7110->videostate.play_state = VIDEO_PLAYING;
 			av7110->trickmode = TRICK_NONE;
@@ -1136,7 +1136,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY,
 					    __Scan_I, 2, AV_PES, 0);
 		else
-			ret = vidcom(av7110, VIDEO_CMD_FFWD, arg);
+			ret = vidcom(av7110, AV_VIDEO_CMD_FFWD, arg);
 		if (!ret) {
 			av7110->trickmode = TRICK_FAST;
 			av7110->videostate.play_state = VIDEO_PLAYING;
@@ -1147,13 +1147,13 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 		if (av7110->playing&RP_VIDEO) {
 			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Slow, 2, 0, 0);
 			if (!ret)
-				ret = vidcom(av7110, VIDEO_CMD_SLOW, arg);
+				ret = vidcom(av7110, AV_VIDEO_CMD_SLOW, arg);
 		} else {
-			ret = vidcom(av7110, VIDEO_CMD_PLAY, 0);
+			ret = vidcom(av7110, AV_VIDEO_CMD_PLAY, 0);
 			if (!ret)
-				ret = vidcom(av7110, VIDEO_CMD_STOP, 0);
+				ret = vidcom(av7110, AV_VIDEO_CMD_STOP, 0);
 			if (!ret)
-				ret = vidcom(av7110, VIDEO_CMD_SLOW, arg);
+				ret = vidcom(av7110, AV_VIDEO_CMD_SLOW, arg);
 		}
 		if (!ret) {
 			av7110->trickmode = TRICK_SLOW;
@@ -1182,10 +1182,10 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 				ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY,
 						    __Slow, 2, 0, 0);
 				if (!ret)
-					ret = vidcom(av7110, VIDEO_CMD_SLOW, arg);
+					ret = vidcom(av7110, AV_VIDEO_CMD_SLOW, arg);
 			}
 			if (av7110->trickmode == TRICK_FREEZE)
-				ret = vidcom(av7110, VIDEO_CMD_STOP, 1);
+				ret = vidcom(av7110, AV_VIDEO_CMD_STOP, 1);
 		}
 		break;
 
