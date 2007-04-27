@@ -29,6 +29,7 @@
 #include <linux/i2c-id.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 
 MODULE_DESCRIPTION("wm8739 driver");
 MODULE_AUTHOR("T. Adachi, Hans Verkuil");
@@ -235,6 +236,9 @@ static int wm8739_command(struct i2c_client *client, unsigned int cmd, void *arg
 			}
 		return -EINVAL;
 	}
+
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_WM8739, 0);
 
 	case VIDIOC_LOG_STATUS:
 		v4l_info(client, "Frequency: %u Hz\n", state->clock_freq);

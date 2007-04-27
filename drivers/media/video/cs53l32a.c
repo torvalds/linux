@@ -28,6 +28,7 @@
 #include <linux/i2c-id.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 
 MODULE_DESCRIPTION("i2c device driver for cs53l32a Audio ADC");
 MODULE_AUTHOR("Martin Vaughan");
@@ -102,6 +103,9 @@ static int cs53l32a_command(struct i2c_client *client, unsigned int cmd,
 		cs53l32a_write(client, 0x04, (u8) ctrl->value);
 		cs53l32a_write(client, 0x05, (u8) ctrl->value);
 		break;
+
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_CS53l32A, 0);
 
 	case VIDIOC_LOG_STATUS:
 		{

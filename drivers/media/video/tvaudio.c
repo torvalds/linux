@@ -33,6 +33,7 @@
 
 #include <media/tvaudio.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 
 #include <media/i2c-addr.h>
 
@@ -1775,6 +1776,9 @@ static int chip_command(struct i2c_client *client,
 			/* the thread will call checkmode() later */
 		}
 		break;
+
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_TVAUDIO, 0);
 	}
 	return 0;
 }
