@@ -208,15 +208,6 @@ static int philips_tda1004x_request_firmware(struct dvb_frontend *fe,
 	return request_firmware(fw, name, &dev->pci->dev);
 }
 
-static void philips_tda1004x_set_board_name(struct dvb_frontend *fe, char *name)
-{
-	size_t len;
-
-	len = sizeof(fe->ops.info.name);
-	strncpy(fe->ops.info.name, name, len);
-	fe->ops.info.name[len - 1] = 0;
-}
-
 /* ------------------------------------------------------------------
  * these tuners are tu1216, td1316(a)
  */
@@ -695,8 +686,7 @@ static struct tda827x_config tda827x_cfg = {
 	.sleep = philips_tda827x_tuner_sleep
 };
 
-static void configure_tda827x_fe(struct saa7134_dev *dev, struct tda1004x_config *tda_conf,
-				 char *board_name)
+static void configure_tda827x_fe(struct saa7134_dev *dev, struct tda1004x_config *tda_conf)
 {
 	dev->dvb.frontend = dvb_attach(tda10046_attach, tda_conf, &dev->i2c_adap);
 	if (dev->dvb.frontend) {
@@ -705,7 +695,6 @@ static void configure_tda827x_fe(struct saa7134_dev *dev, struct tda1004x_config
 		dvb_attach(tda827x_attach,dev->dvb.frontend,
 			   tda_conf->tuner_address,&dev->i2c_adap,&tda827x_cfg);
 	}
-	philips_tda1004x_set_board_name(dev->dvb.frontend, board_name);
 }
 
 /* ------------------------------------------------------------------ */
@@ -936,7 +925,6 @@ static struct nxt200x_config kworldatsc110 = {
 
 static int dvb_init(struct saa7134_dev *dev)
 {
-	char *board_name;
 	int ret;
 	/* init struct videobuf_dvb */
 	dev->ts.nr_bufs    = 32;
@@ -975,7 +963,6 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.tuner_ops.init = philips_fmd1216_tuner_init;
 			dev->dvb.frontend->ops.tuner_ops.sleep = philips_fmd1216_tuner_sleep;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_fmd1216_tuner_set_params;
-			philips_tda1004x_set_board_name(dev->dvb.frontend, "DVB-T Medion MD7134");
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TOUGH:
@@ -985,12 +972,11 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (dev->dvb.frontend) {
 			dev->dvb.frontend->ops.tuner_ops.init = philips_tu1216_init;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tda6651_pll_set;
-			philips_tda1004x_set_board_name(dev->dvb.frontend, "DVB-T Philips TOUGH");
 		}
 		break;
 	case SAA7134_BOARD_FLYDVBTDUO:
 	case SAA7134_BOARD_FLYDVBT_DUO_CARDBUS:
-		configure_tda827x_fe(dev, &tda827x_lifeview_config, "DVB-T Lifeview FlyDVB Duo");
+		configure_tda827x_fe(dev, &tda827x_lifeview_config);
 		break;
 	case SAA7134_BOARD_PHILIPS_EUROPA:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
@@ -1003,11 +989,6 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.tuner_ops.init = philips_europa_tuner_init;
 			dev->dvb.frontend->ops.tuner_ops.sleep = philips_europa_tuner_sleep;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_td1316_tuner_set_params;
-			if (dev->board == SAA7134_BOARD_VIDEOMATE_DVBT_300)
-				board_name = "DVB-T Compro VideoMate 300";
-			else
-				board_name = "DVB-T Philips Europa";
-			philips_tda1004x_set_board_name(dev->dvb.frontend, board_name);
 		}
 		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
@@ -1017,27 +998,26 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (dev->dvb.frontend) {
 			dev->dvb.frontend->ops.tuner_ops.init = philips_tu1216_init;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tda6651_pll_set;
-			philips_tda1004x_set_board_name(dev->dvb.frontend, "DVB-T Compro VideoMate 200");
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
-		configure_tda827x_fe(dev, &philips_tiger_config, "DVB-T Philips Tiger");
+		configure_tda827x_fe(dev, &philips_tiger_config);
 		break;
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
-		configure_tda827x_fe(dev, &pinnacle_pctv_310i_config, "DVB-T Pinnacle PCTV 310i");
+		configure_tda827x_fe(dev, &pinnacle_pctv_310i_config);
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
-		configure_tda827x_fe(dev, &hauppauge_hvr_1110_config, "DVB-T Hauppauge HVR 1110");
+		configure_tda827x_fe(dev, &hauppauge_hvr_1110_config);
 		break;
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
-		configure_tda827x_fe(dev, &asus_p7131_dual_config, "DVB-T Asus P7131 Dual");
+		configure_tda827x_fe(dev, &asus_p7131_dual_config);
 		break;
 	case SAA7134_BOARD_FLYDVBT_LR301:
-		configure_tda827x_fe(dev, &tda827x_lifeview_config, "DVB-T Lifeview FlyDVBT LR301");
+		configure_tda827x_fe(dev, &tda827x_lifeview_config);
 		break;
 	case SAA7134_BOARD_FLYDVB_TRIO:
 		if(! use_frontend) {	//terrestrial
-			configure_tda827x_fe(dev, &lifeview_trio_config, NULL);
+			configure_tda827x_fe(dev, &lifeview_trio_config);
 		} else {  	      //satellite
 			dev->dvb.frontend = dvb_attach(tda10086_attach, &flydvbs, &dev->i2c_adap);
 			if (dev->dvb.frontend) {
@@ -1061,18 +1041,13 @@ static int dvb_init(struct saa7134_dev *dev)
 			dvb_attach(tda827x_attach,dev->dvb.frontend,
 				   ads_tech_duo_config.tuner_address,
 				   &dev->i2c_adap,&ads_duo_cfg);
-			if (dev->board == SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331)
-				board_name = "DVB-T ADS DUO Cardbus PTV331";
-			else
-				board_name = "DVB-T Lifeview FlyDVT Cardbus";
-			philips_tda1004x_set_board_name(dev->dvb.frontend, board_name);
 		}
 		break;
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
-		configure_tda827x_fe(dev, &tevion_dvbt220rf_config, "DVB-T Tevion 220RF");
+		configure_tda827x_fe(dev, &tevion_dvbt220rf_config);
 		break;
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
-		configure_tda827x_fe(dev, &md8800_dvbt_config, "DVB-T Medion MD8800");
+		configure_tda827x_fe(dev, &md8800_dvbt_config);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180:
 		dev->dvb.frontend = dvb_attach(nxt200x_attach, &avertvhda180,
@@ -1113,7 +1088,6 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.tuner_ops.init = philips_fmd1216_tuner_init;
 			dev->dvb.frontend->ops.tuner_ops.sleep = philips_fmd1216_tuner_sleep;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_fmd1216_tuner_set_params;
-			philips_tda1004x_set_board_name(dev->dvb.frontend, "DVBT Asus Europa 2 Hybrid");
 		}
 		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:
@@ -1123,17 +1097,16 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (dev->dvb.frontend) {
 			dev->dvb.frontend->ops.tuner_ops.init = philips_td1316_tuner_init;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_td1316_tuner_set_params;
-			philips_tda1004x_set_board_name(dev->dvb.frontend, "DVBT Compro Videomate 200a");
 		}
 		break;
 	case SAA7134_BOARD_CINERGY_HT_PCMCIA:
-		configure_tda827x_fe(dev, &cinergy_ht_config, "DVB-T Terratec Cinergy HT Cardbus");
+		configure_tda827x_fe(dev, &cinergy_ht_config);
 		break;
 	case SAA7134_BOARD_CINERGY_HT_PCI:
-		configure_tda827x_fe(dev, &cinergy_ht_pci_config, "DVB-T Terratec Cinergy HT PCI");
+		configure_tda827x_fe(dev, &cinergy_ht_pci_config);
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER_S:
-		configure_tda827x_fe(dev, &philips_tiger_s_config, "DVB-T Philips Tiger S");
+		configure_tda827x_fe(dev, &philips_tiger_s_config);
 		break;
 	default:
 		printk("%s: Huh? unknown DVB card?\n",dev->name);
