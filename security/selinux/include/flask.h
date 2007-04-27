@@ -34,19 +34,6 @@
 #define SECCLASS_MSGQ                                    27
 #define SECCLASS_SHM                                     28
 #define SECCLASS_IPC                                     29
-#define SECCLASS_PASSWD                                  30
-#define SECCLASS_DRAWABLE                                31
-#define SECCLASS_WINDOW                                  32
-#define SECCLASS_GC                                      33
-#define SECCLASS_FONT                                    34
-#define SECCLASS_COLORMAP                                35
-#define SECCLASS_PROPERTY                                36
-#define SECCLASS_CURSOR                                  37
-#define SECCLASS_XCLIENT                                 38
-#define SECCLASS_XINPUT                                  39
-#define SECCLASS_XSERVER                                 40
-#define SECCLASS_XEXTENSION                              41
-#define SECCLASS_PAX                                     42
 #define SECCLASS_NETLINK_ROUTE_SOCKET                    43
 #define SECCLASS_NETLINK_FIREWALL_SOCKET                 44
 #define SECCLASS_NETLINK_TCPDIAG_SOCKET                  45
@@ -56,14 +43,11 @@
 #define SECCLASS_NETLINK_AUDIT_SOCKET                    49
 #define SECCLASS_NETLINK_IP6FW_SOCKET                    50
 #define SECCLASS_NETLINK_DNRT_SOCKET                     51
-#define SECCLASS_DBUS                                    52
-#define SECCLASS_NSCD                                    53
 #define SECCLASS_ASSOCIATION                             54
 #define SECCLASS_NETLINK_KOBJECT_UEVENT_SOCKET           55
 #define SECCLASS_APPLETALK_SOCKET                        56
 #define SECCLASS_PACKET                                  57
 #define SECCLASS_KEY                                     58
-#define SECCLASS_CONTEXT                                 59
 #define SECCLASS_DCCP_SOCKET                             60
 
 /*

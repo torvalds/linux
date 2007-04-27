@@ -96,11 +96,17 @@ enum sel_inos {
 	SEL_COMMIT_BOOLS, /* commit new boolean values */
 	SEL_MLS,	/* return if MLS policy is enabled */
 	SEL_DISABLE,	/* disable SELinux until next reboot */
-	SEL_AVC,	/* AVC management directory */
 	SEL_MEMBER,	/* compute polyinstantiation membership decision */
 	SEL_CHECKREQPROT, /* check requested protection, not kernel-applied one */
 	SEL_COMPAT_NET,	/* whether to use old compat network packet controls */
+	SEL_INO_NEXT,	/* The next inode number to use */
 };
+
+static unsigned long sel_last_ino = SEL_INO_NEXT - 1;
+
+#define SEL_INITCON_INO_OFFSET 	0x01000000
+#define SEL_BOOL_INO_OFFSET	0x02000000
+#define SEL_INO_MASK		0x00ffffff
 
 #define TMPBUFLEN	12
 static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
@@ -777,8 +783,6 @@ static struct inode *sel_make_inode(struct super_block *sb, int mode)
 	return ret;
 }
 
-#define BOOL_INO_OFFSET 30
-
 static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 			     size_t count, loff_t *ppos)
 {
@@ -806,14 +810,14 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 	}
 
 	inode = filep->f_path.dentry->d_inode;
-	cur_enforcing = security_get_bool_value(inode->i_ino - BOOL_INO_OFFSET);
+	cur_enforcing = security_get_bool_value(inode->i_ino&SEL_INO_MASK);
 	if (cur_enforcing < 0) {
 		ret = cur_enforcing;
 		goto out;
 	}
 
 	length = scnprintf(page, PAGE_SIZE, "%d %d", cur_enforcing,
-			  bool_pending_values[inode->i_ino - BOOL_INO_OFFSET]);
+			  bool_pending_values[inode->i_ino&SEL_INO_MASK]);
 	ret = simple_read_from_buffer(buf, count, ppos, page, length);
 out:
 	mutex_unlock(&sel_mutex);
@@ -865,7 +869,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 		new_value = 1;
 
 	inode = filep->f_path.dentry->d_inode;
-	bool_pending_values[inode->i_ino - BOOL_INO_OFFSET] = new_value;
+	bool_pending_values[inode->i_ino&SEL_INO_MASK] = new_value;
 	length = count;
 
 out:
@@ -1029,7 +1033,7 @@ static int sel_make_bools(void)
 		isec->sid = sid;
 		isec->initialized = 1;
 		inode->i_fop = &sel_bool_ops;
-		inode->i_ino = i + BOOL_INO_OFFSET;
+		inode->i_ino = i|SEL_BOOL_INO_OFFSET;
 		d_add(dentry, inode);
 	}
 	bool_num = num;
@@ -1234,6 +1238,56 @@ static int sel_make_avc_files(struct dentry *dir)
 			goto out;
 		}
 		inode->i_fop = files[i].ops;
+		inode->i_ino = ++sel_last_ino;
+		d_add(dentry, inode);
+	}
+out:
+	return ret;
+}
+
+static ssize_t sel_read_initcon(struct file * file, char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	struct inode *inode;
+	char *con;
+	u32 sid, len;
+	ssize_t ret;
+
+	inode = file->f_path.dentry->d_inode;
+	sid = inode->i_ino&SEL_INO_MASK;
+	ret = security_sid_to_context(sid, &con, &len);
+	if (ret < 0)
+		return ret;
+
+	ret = simple_read_from_buffer(buf, count, ppos, con, len);
+	kfree(con);
+	return ret;
+}
+
+static const struct file_operations sel_initcon_ops = {
+	.read		= sel_read_initcon,
+};
+
+static int sel_make_initcon_files(struct dentry *dir)
+{
+	int i, ret = 0;
+
+	for (i = 1; i <= SECINITSID_NUM; i++) {
+		struct inode *inode;
+		struct dentry *dentry;
+		dentry = d_alloc_name(dir, security_get_initial_sid_context(i));
+		if (!dentry) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		inode = sel_make_inode(dir->d_sb, S_IFREG|S_IRUGO);
+		if (!inode) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		inode->i_fop = &sel_initcon_ops;
+		inode->i_ino = i|SEL_INITCON_INO_OFFSET;
 		d_add(dentry, inode);
 	}
 out:
@@ -1252,6 +1306,7 @@ static int sel_make_dir(struct inode *dir, struct dentry *dentry)
 	}
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
+	inode->i_ino = ++sel_last_ino;
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
 	d_add(dentry, inode);
@@ -1314,6 +1369,7 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		ret = -ENOMEM;
 		goto err;
 	}
+	inode->i_ino = ++sel_last_ino;
 	isec = (struct inode_security_struct*)inode->i_security;
 	isec->sid = SECINITSID_DEVNULL;
 	isec->sclass = SECCLASS_CHR_FILE;
@@ -1336,6 +1392,21 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 	ret = sel_make_avc_files(dentry);
 	if (ret)
 		goto err;
+
+	dentry = d_alloc_name(sb->s_root, "initial_contexts");
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = sel_make_dir(root_inode, dentry);
+	if (ret)
+		goto err;
+
+	ret = sel_make_initcon_files(dentry);
+	if (ret)
+		goto err;
+
 out:
 	return ret;
 err:
