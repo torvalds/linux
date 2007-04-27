@@ -105,6 +105,9 @@ install: vmlinux
 image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
+zfcpdump:
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 

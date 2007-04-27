@@ -119,4 +119,5 @@ static inline void smp_send_stop(void)
 #define smp_setup_cpu_possible_map()	do { } while (0)
 #endif
 
+extern union save_area *zfcpdump_save_areas[NR_CPUS + 1];
 #endif

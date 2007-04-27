@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
 #include <linux/timex.h>
+#include <linux/bootmem.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
 #include <asm/sigp.h>
@@ -40,6 +41,7 @@
 #include <asm/cpcmd.h>
 #include <asm/tlbflush.h>
 #include <asm/timer.h>
+#include <asm/lowcore.h>
 
 extern volatile int __cpu_logical_map[];
 
@@ -395,6 +397,65 @@ void smp_ctl_clear_bit(int cr, int bit)
 	on_each_cpu(smp_ctl_bit_callback, &parms, 0, 1);
 }
 
+#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
+
+/*
+ * zfcpdump_prefix_array holds prefix registers for the following scenario:
+ * 64 bit zfcpdump kernel and 31 bit kernel which is to be dumped. We have to
+ * save its prefix registers, since they get lost, when switching from 31 bit
+ * to 64 bit.
+ */
+unsigned int zfcpdump_prefix_array[NR_CPUS + 1] \
+	__attribute__((__section__(".data")));
+
+static void __init smp_get_save_areas(void)
+{
+	unsigned int cpu, cpu_num, rc;
+	__u16 boot_cpu_addr;
+
+	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
+		return;
+	boot_cpu_addr = S390_lowcore.cpu_data.cpu_addr;
+	cpu_num = 1;
+	for (cpu = 0; cpu <= 65535; cpu++) {
+		if ((u16) cpu == boot_cpu_addr)
+			continue;
+		__cpu_logical_map[1] = (__u16) cpu;
+		if (signal_processor(1, sigp_sense) == sigp_not_operational)
+			continue;
+		if (cpu_num >= NR_CPUS) {
+			printk("WARNING: Registers for cpu %i are not "
+			       "saved, since dump kernel was compiled with"
+			       "NR_CPUS=%i!\n", cpu_num, NR_CPUS);
+			continue;
+		}
+		zfcpdump_save_areas[cpu_num] =
+			alloc_bootmem(sizeof(union save_area));
+		while (1) {
+			rc = signal_processor(1, sigp_stop_and_store_status);
+			if (rc != sigp_busy)
+				break;
+			cpu_relax();
+		}
+		memcpy(zfcpdump_save_areas[cpu_num],
+		       (void *)(unsigned long) store_prefix() +
+		       SAVE_AREA_BASE, SAVE_AREA_SIZE);
+#ifdef __s390x__
+		/* copy original prefix register */
+		zfcpdump_save_areas[cpu_num]->s390x.pref_reg =
+			zfcpdump_prefix_array[cpu_num];
+#endif
+		cpu_num++;
+	}
+}
+
+union save_area *zfcpdump_save_areas[NR_CPUS + 1];
+EXPORT_SYMBOL_GPL(zfcpdump_save_areas);
+
+#else
+#define smp_get_save_areas() do { } while (0)
+#endif
+
 /*
  * Lets check how many CPUs we have.
  */
@@ -589,6 +650,7 @@ void __init smp_setup_cpu_possible_map(void)
 {
 	unsigned int phy_cpus, pos_cpus, cpu;
 
+	smp_get_save_areas();
 	phy_cpus = smp_count_cpus();
 	pos_cpus = min(phy_cpus + additional_cpus, (unsigned int) NR_CPUS);
 

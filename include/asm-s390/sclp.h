@@ -44,6 +44,8 @@ struct sclp_chp_info {
 
 extern struct sclp_readinfo_sccb s390_readinfo_sccb;
 extern void sclp_readinfo_early(void);
+extern int sclp_sdias_blk_count(void);
+extern int sclp_sdias_copy(void *dest, int blk_num, int nr_blks);
 extern int sclp_chp_configure(struct chp_id chpid);
 extern int sclp_chp_deconfigure(struct chp_id chpid);
 extern int sclp_chp_read_info(struct sclp_chp_info *info);

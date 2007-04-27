@@ -29,3 +29,6 @@ obj-$(CONFIG_S390_TAPE_34XX) += tape_34xx.o
 obj-$(CONFIG_S390_TAPE_3590) += tape_3590.o
 obj-$(CONFIG_MONREADER) += monreader.o
 obj-$(CONFIG_MONWRITER) += monwriter.o
+
+zcore_mod-objs := sclp_sdias.o zcore.o
+obj-$(CONFIG_ZFCPDUMP) += zcore_mod.o
