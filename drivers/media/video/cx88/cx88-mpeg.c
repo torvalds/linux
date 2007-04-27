@@ -53,19 +53,11 @@ MODULE_PARM_DESC(debug,"enable debug messages [mpeg]");
 static void request_module_async(struct work_struct *work)
 {
 	struct cx8802_dev *dev=container_of(work, struct cx8802_dev, request_module_wk);
-	switch (cx88_boards[dev->core->board].mpeg) {
-	case CX88_MPEG_BLACKBIRD:
-		request_module("cx88-blackbird");
-		break;
-	case CX88_MPEG_DVB:
+
+	if (cx88_boards[dev->core->board].mpeg & CX88_MPEG_DVB)
 		request_module("cx88-dvb");
-		break;
-	case CX88_BOARD_NONE:
-		/* reaching this one isn't possible */
-		break;
-	default:
-		printk("cx88-mpeg.c: WARNING extension [%d] is not supposed to be supported\n",cx88_boards[dev->core->board].mpeg);
-	}
+	if (cx88_boards[dev->core->board].mpeg & CX88_MPEG_BLACKBIRD)
+		request_module("cx88-blackbird");
 }
 
 static void request_modules(struct cx8802_dev *dev)
