@@ -173,15 +173,12 @@ enum tuner_mode {
    when the tuner is set to TV mode.
  */
 
-/* allows to access the GPIOs of the host (pci bridge) */
-typedef void (*tuner_gpio_func_t) (void *dev, int bit_no,int value);
-
 struct tuner_setup {
 	unsigned short	addr; 	/* I2C address */
 	unsigned int	type;   /* Tuner type */
 	unsigned int	mode_mask;  /* Allowed tuner modes */
 	unsigned int	config; /* configuraion for more complex tuners */
-	tuner_gpio_func_t gpio_func;
+	int (*tuner_callback) (void *dev, int command,int arg);
 };
 
 struct tuner {
@@ -215,8 +212,9 @@ struct tuner {
 	unsigned char tda827x_addr;
 	unsigned char tda827x_ver;
 	unsigned int sgIF;
+
 	unsigned int config;
-	tuner_gpio_func_t gpio_func;
+	int (*tuner_callback) (void *dev, int command,int arg);
 
 	/* function ptrs */
 	void (*set_tv_freq)(struct i2c_client *c, unsigned int freq);

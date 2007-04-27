@@ -211,19 +211,19 @@ static void tda827xa_lna_gain(struct i2c_client *c, int high)
 	case 2:
 		/* turn Vsync on */
 		if (t->std & V4L2_STD_MN)
-			arg = 5;
+			arg = 1;
 		else
-			arg = 4;
-		if (t->gpio_func)
-			t->gpio_func(c->adapter->algo_data, 22, 5);
+			arg = 0;
+		if (t->tuner_callback)
+			t->tuner_callback(c->adapter->algo_data, 1, arg);
 		buf[1] = high ? 0 : 1;
 		if (t->config == 2)
 			buf[1] = high ? 1 : 0;
 		i2c_transfer(c->adapter, &msg, 1);
 		break;
 	case 3: /* switch with GPIO of saa713x */
-		if (t->gpio_func)
-			t->gpio_func(c->adapter->algo_data, 22, high);
+		if (t->tuner_callback)
+			t->tuner_callback(c->adapter->algo_data, 0, high);
 		break;
 	}
 }

@@ -145,7 +145,7 @@ static void set_freq(struct i2c_client *c, unsigned long freq)
 
 static void set_type(struct i2c_client *c, unsigned int type,
 		     unsigned int new_mode_mask, unsigned int new_config,
-		     tuner_gpio_func_t gpio_func)
+		     int (*tuner_callback) (void *dev, int command,int arg))
 {
 	struct tuner *t = i2c_get_clientdata(c);
 	unsigned char buffer[4];
@@ -169,16 +169,16 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	t->type = type;
+	t->config = new_config;
+	if (tuner_callback != NULL) {
+		tuner_dbg("defining GPIO callback\n");
+		t->tuner_callback = tuner_callback;
+	}
 	switch (t->type) {
 	case TUNER_MT2032:
 		microtune_init(c);
 		break;
 	case TUNER_PHILIPS_TDA8290:
-		t->config = new_config;
-		if (gpio_func != NULL) {
-			tuner_dbg("Defining GPIO function\n");
-			t->gpio_func = gpio_func;
-		}
 		tda8290_init(c);
 		break;
 	case TUNER_TEA5767:
@@ -244,7 +244,7 @@ static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
 		(t->mode_mask & tun_setup->mode_mask))) ||
 		(tun_setup->addr == c->addr)) {
 			set_type(c, tun_setup->type, tun_setup->mode_mask,
-				 tun_setup->config, tun_setup->gpio_func);
+				 tun_setup->config, tun_setup->tuner_callback);
 	}
 }
 
@@ -503,7 +503,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 register_client:
 	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
 	i2c_attach_client (&t->i2c);
-	set_type (&t->i2c,t->type, t->mode_mask, t->config, t->gpio_func);
+	set_type (&t->i2c,t->type, t->mode_mask, t->config, t->tuner_callback);
 	return 0;
 }
 

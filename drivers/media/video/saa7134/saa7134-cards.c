@@ -4185,6 +4185,9 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 {
 	unsigned char buf;
 	int board;
+	struct tuner_setup tun_setup;
+	tun_setup.config = 0;
+	tun_setup.tuner_callback = saa7134_tuner_callback;
 
 	switch (dev->board) {
 	case SAA7134_BOARD_BMK_MPEX_NOTUNER:
@@ -4201,20 +4204,15 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		dev->tuner_type = saa7134_boards[dev->board].tuner_type;
 
 		if (TUNER_ABSENT != dev->tuner_type) {
-				struct tuner_setup tun_setup;
-
 				tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
 				tun_setup.type = dev->tuner_type;
 				tun_setup.addr = ADDR_UNSET;
-				tun_setup.config = 0;
-				tun_setup.gpio_func = NULL;
 
 				saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
 		break;
 	case SAA7134_BOARD_MD7134:
 		{
-		struct tuner_setup tun_setup;
 		u8 subaddr;
 		u8 data[3];
 		int ret, tuner_t;
@@ -4275,8 +4273,6 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
 		tun_setup.type = dev->tuner_type;
 		tun_setup.addr = ADDR_UNSET;
-		tun_setup.config = 0;
-		tun_setup.gpio_func = NULL;
 
 		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
 		}
@@ -4288,7 +4284,6 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		 * the channel decoder. We have to make it transparent to find it
 		 */
 		{
-		struct tuner_setup tun_setup;
 		u8 data[] = { 0x07, 0x02};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
@@ -4296,8 +4291,6 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
 		tun_setup.type = dev->tuner_type;
 		tun_setup.addr = dev->tuner_addr;
-		tun_setup.config = 0;
-		tun_setup.gpio_func = NULL;
 
 		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
 		}
@@ -4306,7 +4299,6 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_PHILIPS_TIGER_S:
 		{
 		u8 data[] = { 0x3c, 0x33, 0x60};
-		struct tuner_setup tun_setup;
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		if(dev->autodetected && (dev->eedata[0x49] == 0x50)) {
 			dev->board = SAA7134_BOARD_PHILIPS_TIGER_S;
@@ -4318,7 +4310,6 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 			tun_setup.type = TUNER_PHILIPS_TDA8290;
 			tun_setup.addr = 0x4b;
 			tun_setup.config = 2;
-			tun_setup.gpio_func = (tuner_gpio_func_t) saa7134_set_gpio;
 
 			saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
 			data[2] = 0x68;

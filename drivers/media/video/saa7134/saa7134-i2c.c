@@ -371,7 +371,7 @@ static int attach_inform(struct i2c_client *client)
 		tun_setup.type = tuner;
 		tun_setup.addr = saa7134_boards[dev->board].tuner_addr;
 		tun_setup.config = saa7134_boards[dev->board].tuner_config;
-		tun_setup.gpio_func = (tuner_gpio_func_t) saa7134_set_gpio;
+		tun_setup.tuner_callback = saa7134_tuner_callback;
 
 		if ((tun_setup.addr == ADDR_UNSET)||(tun_setup.addr == client->addr)) {
 

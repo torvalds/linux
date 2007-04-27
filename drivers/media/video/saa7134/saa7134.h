@@ -565,6 +565,7 @@ extern int saa7134_no_overlay;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
 void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);
+int saa7134_tuner_callback(void *ptr, int command, int arg);
 
 #define SAA7134_PGTABLE_SIZE 4096
 
