@@ -26,6 +26,8 @@
 #ifndef OCFS2_INODE_H
 #define OCFS2_INODE_H
 
+#include "extent_map.h"
+
 /* OCFS2 Inode Private Data */
 struct ocfs2_inode_info
 {
@@ -34,6 +36,7 @@ struct ocfs2_inode_info
 	struct ocfs2_lock_res		ip_rw_lockres;
 	struct ocfs2_lock_res		ip_meta_lockres;
 	struct ocfs2_lock_res		ip_data_lockres;
+	struct ocfs2_lock_res		ip_open_lockres;
 
 	/* protects allocation changes on this inode. */
 	struct rw_semaphore		ip_alloc_sem;
@@ -42,9 +45,7 @@ struct ocfs2_inode_info
 	spinlock_t			ip_lock;
 	u32				ip_open_count;
 	u32				ip_clusters;
-	struct ocfs2_extent_map		ip_map;
 	struct list_head		ip_io_markers;
-	int				ip_orphaned_slot;
 
 	struct mutex			ip_io_mutex;
 
@@ -63,6 +64,8 @@ struct ocfs2_inode_info
 	unsigned long			ip_last_trans;
 
 	struct ocfs2_caching_info	ip_metadata_cache;
+
+	struct ocfs2_extent_map		ip_extent_map;
 
 	struct inode			vfs_inode;
 };
@@ -117,14 +120,9 @@ void ocfs2_delete_inode(struct inode *inode);
 void ocfs2_drop_inode(struct inode *inode);
 
 /* Flags for ocfs2_iget() */
-#define OCFS2_FI_FLAG_NOWAIT	0x1
-#define OCFS2_FI_FLAG_DELETE	0x2
-#define OCFS2_FI_FLAG_SYSFILE	0x4
-#define OCFS2_FI_FLAG_NOLOCK	0x8
+#define OCFS2_FI_FLAG_SYSFILE		0x4
+#define OCFS2_FI_FLAG_ORPHAN_RECOVERY	0x8
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, int flags);
-struct inode *ocfs2_ilookup_for_vote(struct ocfs2_super *osb,
-				     u64 blkno,
-				     int delete_vote);
 int ocfs2_inode_init_private(struct inode *inode);
 int ocfs2_inode_revalidate(struct dentry *dentry);
 int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
@@ -143,5 +141,12 @@ int ocfs2_aio_read(struct file *file, struct kiocb *req, struct iocb *iocb);
 int ocfs2_aio_write(struct file *file, struct kiocb *req, struct iocb *iocb);
 
 void ocfs2_set_inode_flags(struct inode *inode);
+
+static inline blkcnt_t ocfs2_inode_sector_count(struct inode *inode)
+{
+	int c_to_s_bits = OCFS2_SB(inode->i_sb)->s_clustersize_bits - 9;
+
+	return (blkcnt_t)(OCFS2_I(inode)->ip_clusters << c_to_s_bits);
+}
 
 #endif /* OCFS2_INODE_H */

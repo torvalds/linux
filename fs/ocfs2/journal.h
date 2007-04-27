@@ -390,7 +390,7 @@ static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,
 	/* We may be deleting metadata blocks, so metadata alloc dinode +
 	   one desc. block for each possible delete. */
 	if (tree_depth && next_free == 1 &&
-	    le32_to_cpu(last_el->l_recs[i].e_clusters) == clusters_to_del)
+	    ocfs2_rec_clusters(last_el, &last_el->l_recs[i]) == clusters_to_del)
 		credits += 1 + tree_depth;
 
 	/* update to the truncate log. */
