@@ -786,30 +786,6 @@ static inline void rxrpc_purge_queue(struct sk_buff_head *list)
 		rxrpc_free_skb(skb);
 }
 
-static inline void __rxrpc__atomic_inc(atomic_t *v)
-{
-	CHECK_SLAB_OKAY(v);
-	atomic_inc(v);
-}
-
-#define atomic_inc(v) __rxrpc__atomic_inc((v))
-
-static inline void __rxrpc__atomic_dec(atomic_t *v)
-{
-	CHECK_SLAB_OKAY(v);
-	atomic_dec(v);
-}
-
-#define atomic_dec(v) __rxrpc__atomic_dec((v))
-
-static inline int __rxrpc__atomic_dec_and_test(atomic_t *v)
-{
-	CHECK_SLAB_OKAY(v);
-	return atomic_dec_and_test(v);
-}
-
-#define atomic_dec_and_test(v) __rxrpc__atomic_dec_and_test((v))
-
 static inline void __rxrpc_get_local(struct rxrpc_local *local, const char *f)
 {
 	CHECK_SLAB_OKAY(&local->usage);
