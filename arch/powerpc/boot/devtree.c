@@ -207,12 +207,13 @@ static int find_range(u32 *reg, u32 *ranges, int nregaddr,
  * In particular, PCI is not supported.  Also, only the beginning of the
  * reg block is tracked; size is ignored except in ranges.
  */
-int dt_xlate_reg(void *node, int res, unsigned long *addr,
-                 unsigned long *size)
+static u32 dt_xlate_buf[MAX_ADDR_CELLS * MAX_RANGES * 3];
+
+static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
+		unsigned long *size)
 {
 	u32 last_addr[MAX_ADDR_CELLS];
 	u32 this_addr[MAX_ADDR_CELLS];
-	u32 buf[MAX_ADDR_CELLS * MAX_RANGES * 3];
 	void *parent;
 	u64 ret_addr, ret_size;
 	u32 naddr, nsize, prev_naddr;
@@ -227,19 +228,18 @@ int dt_xlate_reg(void *node, int res, unsigned long *addr,
 	if (nsize > 2)
 		return 0;
 
-	buflen = getprop(node, "reg", buf, sizeof(buf)) / 4;
 	offset = (naddr + nsize) * res;
 
-	if (buflen < offset + naddr + nsize ||
-	    sizeof(buf) < offset + naddr + nsize)
+	if (reglen < offset + naddr + nsize ||
+	    sizeof(dt_xlate_buf) < offset + naddr + nsize)
 		return 0;
 
-	copy_val(last_addr, buf + offset, naddr);
+	copy_val(last_addr, dt_xlate_buf + offset, naddr);
 
-	ret_size = buf[offset + naddr];
+	ret_size = dt_xlate_buf[offset + naddr];
 	if (nsize == 2) {
 		ret_size <<= 32;
-		ret_size |= buf[offset + naddr + 1];
+		ret_size |= dt_xlate_buf[offset + naddr + 1];
 	}
 
 	while ((node = get_parent(node))) {
@@ -247,24 +247,25 @@ int dt_xlate_reg(void *node, int res, unsigned long *addr,
 
 		get_reg_format(node, &naddr, &nsize);
 
-		buflen = getprop(node, "ranges", buf, sizeof(buf));
+		buflen = getprop(node, "ranges", dt_xlate_buf,
+				sizeof(dt_xlate_buf));
 		if (buflen < 0)
 			continue;
-		if (buflen > sizeof(buf))
+		if (buflen > sizeof(dt_xlate_buf))
 			return 0;
 
-		offset = find_range(last_addr, buf, prev_naddr,
+		offset = find_range(last_addr, dt_xlate_buf, prev_naddr,
 		                    naddr, nsize, buflen / 4);
 
 		if (offset < 0)
 			return 0;
 
-		copy_val(this_addr, buf + offset, prev_naddr);
+		copy_val(this_addr, dt_xlate_buf + offset, prev_naddr);
 
 		if (!sub_reg(last_addr, this_addr))
 			return 0;
 
-		copy_val(this_addr, buf + offset + prev_naddr, naddr);
+		copy_val(this_addr, dt_xlate_buf + offset + prev_naddr, naddr);
 
 		if (!add_reg(last_addr, this_addr, naddr))
 			return 0;
@@ -285,4 +286,22 @@ int dt_xlate_reg(void *node, int res, unsigned long *addr,
 		*size = ret_size;
 
 	return 1;
+}
+
+int dt_xlate_reg(void *node, int res, unsigned long *addr, unsigned long *size)
+{
+	int reglen;
+
+	reglen = getprop(node, "reg", dt_xlate_buf, sizeof(dt_xlate_buf)) / 4;
+	return dt_xlate(node, res, reglen, addr, size);
+}
+
+int dt_xlate_addr(void *node, u32 *buf, int buflen, unsigned long *xlated_addr)
+{
+
+	if (buflen > sizeof(dt_xlate_buf))
+		return 0;
+
+	memcpy(dt_xlate_buf, buf, buflen);
+	return dt_xlate(node, 0, buflen / 4, xlated_addr, NULL);
 }
