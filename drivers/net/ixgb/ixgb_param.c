@@ -282,7 +282,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		} else {
 			tx_ring->count = opt.def;
 		}
-		IXGB_ROUNDUP(tx_ring->count, IXGB_REQ_TX_DESCRIPTOR_MULTIPLE);
+		tx_ring->count = ALIGN(tx_ring->count, IXGB_REQ_TX_DESCRIPTOR_MULTIPLE);
 	}
 	{ /* Receive Descriptor Count */
 		struct ixgb_option opt = {
@@ -301,7 +301,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		} else {
 			rx_ring->count = opt.def;
 		}
-		IXGB_ROUNDUP(rx_ring->count, IXGB_REQ_RX_DESCRIPTOR_MULTIPLE);
+		rx_ring->count = ALIGN(rx_ring->count, IXGB_REQ_RX_DESCRIPTOR_MULTIPLE);
 	}
 	{ /* Receive Checksum Offload Enable */
 		struct ixgb_option opt = {
