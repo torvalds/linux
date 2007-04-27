@@ -558,7 +558,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	}
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
-	memset(&fs_info->last_insert, 0, sizeof(fs_info->last_insert));
+	fs_info->block_group_cache = NULL;
 
 	__setup_root(sb->s_blocksize, dev_root,
 		     fs_info, BTRFS_DEV_TREE_OBJECTID);

@@ -223,6 +223,7 @@ err:
 		btrfs_update_inode(trans, root, dir);
 		drop_nlink(dentry->d_inode);
 		btrfs_update_inode(trans, root, dentry->d_inode);
+		dir->i_sb->s_dirt = 1;
 	}
 	return ret;
 }
@@ -411,6 +412,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 error:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
+	inode->i_sb->s_dirt = 1;
 	return ret;
 }
 
@@ -935,6 +937,7 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		goto out_fail;
 	d_instantiate(dentry, inode);
 	drop_on_err = 0;
+	dir->i_sb->s_dirt = 1;
 
 out_fail:
 	btrfs_end_transaction(trans, root);

@@ -250,6 +250,8 @@ struct btrfs_block_group_item {
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
+	u64 first_free;
+	u64 last_alloc;
 };
 
 struct crypto_hash;
@@ -257,7 +259,7 @@ struct btrfs_fs_info {
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
 	struct btrfs_root *dev_root;
-	struct btrfs_key last_insert;
+	struct btrfs_block_group_cache *block_group_cache;
 	struct radix_tree_root fs_roots_radix;
 	struct radix_tree_root pending_del_radix;
 	struct radix_tree_root pinned_radix;
