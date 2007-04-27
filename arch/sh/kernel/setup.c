@@ -20,6 +20,7 @@
 #include <linux/pfn.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/kexec.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -286,6 +287,11 @@ void __init setup_bootmem_allocator(unsigned long start_pfn)
 			initrd_start = 0;
 		}
 	}
+#endif
+#ifdef CONFIG_KEXEC
+	if (crashk_res.start != crashk_res.end)
+		reserve_bootmem(crashk_res.start,
+			crashk_res.end - crashk_res.start + 1);
 #endif
 }
 
