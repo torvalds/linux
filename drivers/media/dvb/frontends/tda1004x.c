@@ -40,20 +40,6 @@
 #include "dvb_frontend.h"
 #include "tda1004x.h"
 
-enum tda1004x_demod {
-	TDA1004X_DEMOD_TDA10045,
-	TDA1004X_DEMOD_TDA10046,
-};
-
-struct tda1004x_state {
-	struct i2c_adapter* i2c;
-	const struct tda1004x_config* config;
-	struct dvb_frontend frontend;
-
-	/* private demod data */
-	enum tda1004x_demod demod_type;
-};
-
 static int debug;
 #define dprintk(args...) \
 	do { \
@@ -507,8 +493,13 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 		tda1004x_write_byteI(state, TDA1004X_CONFC4, 0x80);
 	}
 	tda1004x_write_mask(state, TDA10046H_CONF_TRISTATE1, 1, 0);
+	/* set GPIO 1 and 3 */
+	if (state->config->gpio_config != TDA10046_GPTRI) {
+		tda1004x_write_byteI(state, TDA10046H_CONF_TRISTATE2, 0x33);
+		tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0x0f, state->config->gpio_config &0x0f);
+	}
 	/* let the clocks recover from sleep */
-	msleep(5);
+	msleep(10);
 
 	/* The PLLs need to be reprogrammed after sleep */
 	tda10046_init_plls(fe);
@@ -517,25 +508,29 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 	if (tda1004x_check_upload_ok(state) == 0)
 		return 0;
 
-	if (state->config->request_firmware != NULL) {
-		/* request the firmware, this will block until someone uploads it */
-		printk(KERN_INFO "tda1004x: waiting for firmware upload...\n");
-		ret = state->config->request_firmware(fe, &fw, TDA10046_DEFAULT_FIRMWARE);
+	printk(KERN_INFO "tda1004x: trying to boot from eeprom\n");
+	tda1004x_write_mask(state, TDA1004X_CONFC4, 4, 4);
+	msleep(300);
+	/* don't re-upload unless necessary */
+	if (tda1004x_check_upload_ok(state) == 0)
+		return 0;
+
+	/* request the firmware, this will block until someone uploads it */
+	printk(KERN_INFO "tda1004x: waiting for firmware upload...\n");
+	ret = state->config->request_firmware(fe, &fw, TDA10046_DEFAULT_FIRMWARE);
+	if (ret) {
+		/* remain compatible to old bug: try to load with tda10045 image name */
+		ret = state->config->request_firmware(fe, &fw, TDA10045_DEFAULT_FIRMWARE);
 		if (ret) {
 			printk(KERN_ERR "tda1004x: no firmware upload (timeout or file not found?)\n");
 			return ret;
-		}
-		tda1004x_write_mask(state, TDA1004X_CONFC4, 8, 8); // going to boot from HOST
-		ret = tda1004x_do_upload(state, fw->data, fw->size, TDA10046H_CODE_CPT, TDA10046H_CODE_IN);
-		release_firmware(fw);
-		if (ret)
-			return ret;
-	} else {
-		/* boot from firmware eeprom */
-		printk(KERN_INFO "tda1004x: booting from eeprom\n");
-		tda1004x_write_mask(state, TDA1004X_CONFC4, 4, 4);
-		msleep(300);
+		} else
+			printk(KERN_INFO "tda1004x: please rename the firmware file to %s\n",
+					  TDA10046_DEFAULT_FIRMWARE);
 	}
+	tda1004x_write_mask(state, TDA1004X_CONFC4, 8, 8); // going to boot from HOST
+	ret = tda1004x_do_upload(state, fw->data, fw->size, TDA10046H_CODE_CPT, TDA10046H_CODE_IN);
+	release_firmware(fw);
 	return tda1004x_check_upload_ok(state);
 }
 
@@ -638,37 +633,25 @@ static int tda10046_init(struct dvb_frontend* fe)
 	switch (state->config->agc_config) {
 	case TDA10046_AGC_DEFAULT:
 		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x00); // AGC setup
-		tda1004x_write_byteI(state, TDA10046H_CONF_POLARITY, 0x60); // set AGC polarities
+		tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0xf0, 0x60);  // set AGC polarities
 		break;
 	case TDA10046_AGC_IFO_AUTO_NEG:
 		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x0a); // AGC setup
-		tda1004x_write_byteI(state, TDA10046H_CONF_POLARITY, 0x60); // set AGC polarities
+		tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0xf0, 0x60);  // set AGC polarities
 		break;
 	case TDA10046_AGC_IFO_AUTO_POS:
 		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x0a); // AGC setup
-		tda1004x_write_byteI(state, TDA10046H_CONF_POLARITY, 0x00); // set AGC polarities
+		tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0xf0, 0x00);  // set AGC polarities
 		break;
-	case TDA10046_AGC_TDA827X_GP11:
+	case TDA10046_AGC_TDA827X:
 		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x02);   // AGC setup
 		tda1004x_write_byteI(state, TDA10046H_AGC_THR, 0x70);    // AGC Threshold
 		tda1004x_write_byteI(state, TDA10046H_AGC_RENORM, 0x08); // Gain Renormalize
-		tda1004x_write_byteI(state, TDA10046H_CONF_POLARITY, 0x6a); // set AGC polarities
-		break;
-	case TDA10046_AGC_TDA827X_GP00:
-		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x02);   // AGC setup
-		tda1004x_write_byteI(state, TDA10046H_AGC_THR, 0x70);    // AGC Threshold
-		tda1004x_write_byteI(state, TDA10046H_AGC_RENORM, 0x08); // Gain Renormalize
-		tda1004x_write_byteI(state, TDA10046H_CONF_POLARITY, 0x60); // set AGC polarities
-		break;
-	case TDA10046_AGC_TDA827X_GP01:
-		tda1004x_write_byteI(state, TDA10046H_AGC_CONF, 0x02);   // AGC setup
-		tda1004x_write_byteI(state, TDA10046H_AGC_THR, 0x70);    // AGC Threshold
-		tda1004x_write_byteI(state, TDA10046H_AGC_RENORM, 0x08); // Gain Renormalize
-		tda1004x_write_byteI(state, TDA10046H_CONF_POLARITY, 0x62); // set AGC polarities
+		tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0xf0, 0x60);  // set AGC polarities
 		break;
 	}
 	tda1004x_write_byteI(state, TDA1004X_CONFADC2, 0x38);
-	tda1004x_write_byteI(state, TDA10046H_CONF_TRISTATE1, 0x61); // Turn both AGC outputs on
+	tda1004x_write_byteI(state, TDA10046H_CONF_TRISTATE1, 0x79); // Turn IF AGC output on
 	tda1004x_write_byteI(state, TDA10046H_AGC_TUN_MIN, 0);	  // }
 	tda1004x_write_byteI(state, TDA10046H_AGC_TUN_MAX, 0xff); // } AGC min/max values
 	tda1004x_write_byteI(state, TDA10046H_AGC_IF_MIN, 0);	  // }
@@ -1165,6 +1148,7 @@ static int tda1004x_read_ber(struct dvb_frontend* fe, u32* ber)
 static int tda1004x_sleep(struct dvb_frontend* fe)
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
+	int gpio_conf;
 
 	switch (state->demod_type) {
 	case TDA1004X_DEMOD_TDA10045:
@@ -1174,6 +1158,12 @@ static int tda1004x_sleep(struct dvb_frontend* fe)
 	case TDA1004X_DEMOD_TDA10046:
 		/* set outputs to tristate */
 		tda1004x_write_byteI(state, TDA10046H_CONF_TRISTATE1, 0xff);
+		/* invert GPIO 1 and 3 if desired*/
+		gpio_conf = state->config->gpio_config;
+		if (gpio_conf >= TDA10046_GP00_I)
+			tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0x0f,
+							(gpio_conf & 0x0f) ^ 0x0a);
+
 		tda1004x_write_mask(state, TDA1004X_CONFC4, 1, 1);
 		break;
 	}

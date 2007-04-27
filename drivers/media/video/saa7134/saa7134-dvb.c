@@ -416,7 +416,7 @@ static struct tda1004x_config philips_europa_config = {
 	.xtal_freq     = TDA10046_XTAL_4M,
 	.agc_config    = TDA10046_AGC_IFO_AUTO_POS,
 	.if_freq       = TDA10046_FREQ_052,
-	.request_firmware = NULL,
+	.request_firmware = philips_tda1004x_request_firmware,
 };
 
 /* ------------------------------------------------------------------ */
@@ -548,7 +548,7 @@ static struct tda1004x_config medion_cardbus = {
 	.xtal_freq     = TDA10046_XTAL_16M,
 	.agc_config    = TDA10046_AGC_IFO_AUTO_NEG,
 	.if_freq       = TDA10046_FREQ_3613,
-	.request_firmware = NULL,
+	.request_firmware = philips_tda1004x_request_firmware,
 };
 
 /* ------------------------------------------------------------------ */
@@ -681,9 +681,10 @@ static struct tda1004x_config tda827x_lifeview_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP11,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
 	.if_freq       = TDA10046_FREQ_045,
-	.request_firmware = NULL,
+	.request_firmware = philips_tda1004x_request_firmware,
 };
 
 /* ------------------------------------------------------------------ */
@@ -885,9 +886,10 @@ static struct tda1004x_config philips_tiger_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP11,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
 	.if_freq       = TDA10046_FREQ_045,
-	.request_firmware = NULL,
+	.request_firmware = philips_tda1004x_request_firmware,
 };
 /* ------------------------------------------------------------------ */
 
@@ -918,9 +920,10 @@ static struct tda1004x_config cinergy_ht_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP01,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP01_I,
 	.if_freq       = TDA10046_FREQ_045,
-	.request_firmware = NULL,
+	.request_firmware = philips_tda1004x_request_firmware,
 };
 
 /* ------------------------------------------------------------------ */
@@ -930,7 +933,8 @@ static struct tda1004x_config pinnacle_pctv_310i_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP11,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
 	.if_freq       = TDA10046_FREQ_045,
 	.request_firmware = philips_tda1004x_request_firmware,
 };
@@ -942,7 +946,8 @@ static struct tda1004x_config hauppauge_hvr_1110_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP11,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
 	.if_freq       = TDA10046_FREQ_045,
 	.request_firmware = philips_tda1004x_request_firmware,
 };
@@ -954,7 +959,8 @@ static struct tda1004x_config asus_p7131_dual_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP11,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
 	.if_freq       = TDA10046_FREQ_045,
 	.request_firmware = philips_tda1004x_request_firmware,
 };
@@ -1006,9 +1012,10 @@ static struct tda1004x_config lifeview_trio_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP00,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP00_I,
 	.if_freq       = TDA10046_FREQ_045,
-	.request_firmware = NULL,
+	.request_firmware = philips_tda1004x_request_firmware,
 };
 
 /* ------------------------------------------------------------------ */
@@ -1043,9 +1050,10 @@ static struct tda1004x_config ads_tech_duo_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP00,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP00_I,
 	.if_freq       = TDA10046_FREQ_045,
-	.request_firmware = NULL,
+	.request_firmware = philips_tda1004x_request_firmware,
 };
 
 /* ------------------------------------------------------------------ */
@@ -1068,9 +1076,10 @@ static struct tda1004x_config tevion_dvbt220rf_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP11,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
 	.if_freq       = TDA10046_FREQ_045,
-	.request_firmware = NULL,
+	.request_firmware = philips_tda1004x_request_firmware,
 };
 
 /* ------------------------------------------------------------------ */
@@ -1113,9 +1122,10 @@ static struct tda1004x_config md8800_dvbt_config = {
 	.invert        = 1,
 	.invert_oclk   = 0,
 	.xtal_freq     = TDA10046_XTAL_16M,
-	.agc_config    = TDA10046_AGC_TDA827X_GP11,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
 	.if_freq       = TDA10046_FREQ_045,
-	.request_firmware = NULL,
+	.request_firmware = philips_tda1004x_request_firmware,
 };
 
 static struct tda10086_config flydvbs = {
