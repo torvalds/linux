@@ -21,6 +21,7 @@
 #include "chsc.h"
 #include "device.h"
 #include "idset.h"
+#include "chp.h"
 
 int css_init_done = 0;
 static int need_reprobe = 0;
@@ -125,8 +126,52 @@ void css_sch_device_unregister(struct subchannel *sch)
 	mutex_unlock(&sch->reg_mutex);
 }
 
-static int
-css_register_subchannel(struct subchannel *sch)
+static void ssd_from_pmcw(struct chsc_ssd_info *ssd, struct pmcw *pmcw)
+{
+	int i;
+	int mask;
+
+	memset(ssd, 0, sizeof(struct chsc_ssd_info));
+	ssd->path_mask = pmcw->pim;
+	for (i = 0; i < 8; i++) {
+		mask = 0x80 >> i;
+		if (pmcw->pim & mask) {
+			chp_id_init(&ssd->chpid[i]);
+			ssd->chpid[i].id = pmcw->chpid[i];
+		}
+	}
+}
+
+static void ssd_register_chpids(struct chsc_ssd_info *ssd)
+{
+	int i;
+	int mask;
+
+	for (i = 0; i < 8; i++) {
+		mask = 0x80 >> i;
+		if (ssd->path_mask & mask)
+			if (!chp_is_registered(ssd->chpid[i]))
+				chp_new(ssd->chpid[i]);
+	}
+}
+
+void css_update_ssd_info(struct subchannel *sch)
+{
+	int ret;
+
+	if (cio_is_console(sch->schid)) {
+		/* Console is initialized too early for functions requiring
+		 * memory allocation. */
+		ssd_from_pmcw(&sch->ssd_info, &sch->schib.pmcw);
+	} else {
+		ret = chsc_get_ssd_info(sch->schid, &sch->ssd_info);
+		if (ret)
+			ssd_from_pmcw(&sch->ssd_info, &sch->schib.pmcw);
+		ssd_register_chpids(&sch->ssd_info);
+	}
+}
+
+static int css_register_subchannel(struct subchannel *sch)
 {
 	int ret;
 
@@ -135,9 +180,7 @@ css_register_subchannel(struct subchannel *sch)
 	sch->dev.bus = &css_bus_type;
 	sch->dev.release = &css_subchannel_release;
 	sch->dev.groups = subch_attr_groups;
-
-	css_get_ssd_info(sch);
-
+	css_update_ssd_info(sch);
 	/* make it known to the system */
 	ret = css_sch_device_register(sch);
 	if (ret) {

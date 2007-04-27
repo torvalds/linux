@@ -216,12 +216,18 @@ static ssize_t
 chpids_show (struct device * dev, struct device_attribute *attr, char * buf)
 {
 	struct subchannel *sch = to_subchannel(dev);
-	struct ssd_info *ssd = &sch->ssd_info;
+	struct chsc_ssd_info *ssd = &sch->ssd_info;
 	ssize_t ret = 0;
 	int chp;
+	int mask;
 
-	for (chp = 0; chp < 8; chp++)
-		ret += sprintf (buf+ret, "%02x ", ssd->chpid[chp]);
+	for (chp = 0; chp < 8; chp++) {
+		mask = 0x80 >> chp;
+		if (ssd->path_mask & mask)
+			ret += sprintf(buf + ret, "%02x ", ssd->chpid[chp].id);
+		else
+			ret += sprintf(buf + ret, "00 ");
+	}
 	ret += sprintf (buf+ret, "\n");
 	return min((ssize_t)PAGE_SIZE, ret);
 }

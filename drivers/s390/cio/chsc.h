@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <asm/chpid.h>
+#include "schid.h"
 
 #define CHSC_SDA_OC_MSS   0x2
 
@@ -35,7 +36,6 @@ struct channel_path_desc {
 
 struct channel_path;
 
-extern int css_get_ssd_info(struct subchannel *);
 extern void chsc_process_crw(void);
 
 struct css_general_char {
@@ -69,6 +69,14 @@ struct css_chsc_char {
 extern struct css_general_char css_general_characteristics;
 extern struct css_chsc_char css_chsc_characteristics;
 
+struct chsc_ssd_info {
+	u8 path_mask;
+	u8 fla_valid_mask;
+	struct chp_id chpid[8];
+	u16 fla[8];
+};
+extern int chsc_get_ssd_info(struct subchannel_id schid,
+			     struct chsc_ssd_info *ssd);
 extern int chsc_determine_css_characteristics(void);
 extern int css_characteristics_avail;
 

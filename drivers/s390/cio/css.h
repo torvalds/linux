@@ -148,6 +148,7 @@ extern int css_init_done;
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 extern void css_process_crw(int, int);
 extern void css_reiterate_subchannels(void);
+void css_update_ssd_info(struct subchannel *sch);
 
 #define __MAX_SUBCHANNEL 65535
 #define __MAX_SSID 3
