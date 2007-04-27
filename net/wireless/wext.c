@@ -440,10 +440,8 @@ static const int event_type_pk_size[] = {
 /* ---------------------------------------------------------------- */
 /*
  * Return the driver handler associated with a specific Wireless Extension.
- * Called from various place, so make sure it remains efficient.
  */
-static inline iw_handler get_handler(struct net_device *dev,
-				     unsigned int cmd)
+static iw_handler get_handler(struct net_device *dev, unsigned int cmd)
 {
 	/* Don't "optimise" the following variable, it will crash */
 	unsigned int	index;		/* *MUST* be unsigned */
@@ -470,7 +468,7 @@ static inline iw_handler get_handler(struct net_device *dev,
 /*
  * Get statistics out of the driver
  */
-static inline struct iw_statistics *get_wireless_stats(struct net_device *dev)
+static struct iw_statistics *get_wireless_stats(struct net_device *dev)
 {
 	/* New location */
 	if ((dev->wireless_handlers != NULL) &&
@@ -500,7 +498,7 @@ static inline struct iw_statistics *get_wireless_stats(struct net_device *dev)
  * netif_running(dev) test. I'm open on that one...
  * Hopefully, the driver will remember to do a commit in "open()" ;-)
  */
-static inline int call_commit_handler(struct net_device *	dev)
+static int call_commit_handler(struct net_device *dev)
 {
 	if ((netif_running(dev)) &&
 	   (dev->wireless_handlers->standard[0] != NULL)) {
@@ -622,8 +620,8 @@ static int iw_handler_get_private(struct net_device *		dev,
 /*
  * Print one entry (line) of /proc/net/wireless
  */
-static __inline__ void wireless_seq_printf_stats(struct seq_file *seq,
-						 struct net_device *dev)
+static void wireless_seq_printf_stats(struct seq_file *seq,
+				      struct net_device *dev)
 {
 	/* Get stats from the driver */
 	struct iw_statistics *stats = get_wireless_stats(dev);
@@ -892,10 +890,8 @@ static int ioctl_standard_call(struct net_device *	dev,
  * a iw_handler but process it in your ioctl handler (i.e. use the
  * old driver API).
  */
-static inline int ioctl_private_call(struct net_device *	dev,
-				     struct ifreq *		ifr,
-				     unsigned int		cmd,
-				     iw_handler		handler)
+static int ioctl_private_call(struct net_device *dev, struct ifreq *ifr,
+			      unsigned int cmd, iw_handler handler)
 {
 	struct iwreq *			iwr = (struct iwreq *) ifr;
 	const struct iw_priv_args *	descr = NULL;
@@ -1134,11 +1130,8 @@ static DECLARE_TASKLET(wireless_nlevent_tasklet, wireless_nlevent_process, 0);
  * current wireless config. Dumping the wireless config is far too
  * expensive (for each parameter, the driver need to query the hardware).
  */
-static inline int rtnetlink_fill_iwinfo(struct sk_buff *	skb,
-					struct net_device *	dev,
-					int			type,
-					char *			event,
-					int			event_len)
+static int rtnetlink_fill_iwinfo(struct sk_buff *skb, struct net_device *dev,
+				 int type, char *event, int event_len)
 {
 	struct ifinfomsg *r;
 	struct nlmsghdr  *nlh;
@@ -1172,9 +1165,7 @@ rtattr_failure:
  * Andrzej Krzysztofowicz mandated that I used a IFLA_XXX field
  * within a RTM_NEWLINK event.
  */
-static inline void rtmsg_iwinfo(struct net_device *	dev,
-				char *			event,
-				int			event_len)
+static void rtmsg_iwinfo(struct net_device *dev, char *event, int event_len)
 {
 	struct sk_buff *skb;
 	int size = NLMSG_GOODSIZE;
