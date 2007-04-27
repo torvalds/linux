@@ -196,6 +196,7 @@ extern unsigned long thread_saved_pc(struct task_struct *t);
 extern char *task_show_regs(struct task_struct *task, char *buffer);
 
 extern void show_registers(struct pt_regs *regs);
+extern void show_code(struct pt_regs *regs);
 extern void show_trace(struct task_struct *task, unsigned long *sp);
 
 unsigned long get_wchan(struct task_struct *p);
