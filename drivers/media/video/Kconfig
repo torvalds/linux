@@ -647,6 +647,8 @@ config VIDEO_HEXIUM_GEMINI
 
 source "drivers/media/video/cx88/Kconfig"
 
+source "drivers/media/video/ivtv/Kconfig"
+
 config VIDEO_M32R_AR
 	tristate "AR devices"
 	depends on M32R && VIDEO_V4L1
