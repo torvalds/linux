@@ -51,9 +51,7 @@ nfs_page_free(struct nfs_page *p)
  * @count: number of bytes to read/write
  *
  * The page must be locked by the caller. This makes sure we never
- * create two different requests for the same page, and avoids
- * a possible deadlock when we reach the hard limit on the number
- * of dirty pages.
+ * create two different requests for the same page.
  * User should ensure it is safe to sleep in this function.
  */
 struct nfs_page *
@@ -64,16 +62,12 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_page		*req;
 
-	/* Deal with hard limits.  */
 	for (;;) {
 		/* try to allocate the request struct */
 		req = nfs_page_alloc();
 		if (req != NULL)
 			break;
 
-		/* Try to free up at least one request in order to stay
-		 * below the hard limit
-		 */
 		if (signalled() && (server->flags & NFS_MOUNT_INTR))
 			return ERR_PTR(-ERESTARTSYS);
 		yield();
