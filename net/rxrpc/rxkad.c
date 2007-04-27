@@ -18,6 +18,7 @@
 #include <linux/ctype.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
+#define rxrpc_debug rxkad_debug
 #include "ar-internal.h"
 
 #define RXKAD_VERSION			2

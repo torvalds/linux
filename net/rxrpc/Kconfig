@@ -30,6 +30,11 @@ config AF_RXRPC_DEBUG
 config RXKAD
 	tristate "RxRPC Kerberos security"
 	depends on AF_RXRPC && KEYS
+	select CRYPTO
+	select CRYPTO_MANAGER
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_PCBC
+	select CRYPTO_FCRYPT
 	help
 	  Provide kerberos 4 and AFS kaserver security handling for AF_RXRPC
 	  through the use of the key retention service.

@@ -772,7 +772,7 @@ int afs_extract_data(struct afs_call *call, struct sk_buff *skb,
 
 	if (call->offset < count) {
 		if (last) {
-			_leave(" = -EBADMSG [%d < %lu]", call->offset, count);
+			_leave(" = -EBADMSG [%d < %zu]", call->offset, count);
 			return -EBADMSG;
 		}
 		_leave(" = -EAGAIN");

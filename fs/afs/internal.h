@@ -367,7 +367,7 @@ struct afs_uuid {
 	u32		time_low;			/* low part of timestamp */
 	u16		time_mid;			/* mid part of timestamp */
 	u16		time_hi_and_version;		/* high part of timestamp and version  */
-#define AFS_UUID_TO_UNIX_TIME	0x01b21dd213814000
+#define AFS_UUID_TO_UNIX_TIME	0x01b21dd213814000ULL
 #define AFS_UUID_TIMEHI_MASK	0x0fff
 #define AFS_UUID_VERSION_TIME	0x1000	/* time-based UUID */
 #define AFS_UUID_VERSION_NAME	0x3000	/* name-based UUID */

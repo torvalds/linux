@@ -243,7 +243,7 @@ static int afs_read_rtm(struct afs_rtm_desc *desc)
 		desc->datalen = kernel_recvmsg(desc->nlsock, &msg, iov, 1,
 					       desc->datamax, 0);
 		if (desc->datalen < 0) {
-			_leave(" = %ld [recv]", desc->datalen);
+			_leave(" = %zd [recv]", desc->datalen);
 			return desc->datalen;
 		}
 
