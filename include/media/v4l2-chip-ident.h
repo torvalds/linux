@@ -57,6 +57,10 @@ enum {
 
 	/* OmniVision sensors - range 250-299 */
 	V4L2_IDENT_OV7670 = 250,
+
+	/* Conexant MPEG encoder/decoders: range 410-420 */
+	V4L2_IDENT_CX23415 = 415,
+	V4L2_IDENT_CX23416 = 416,
 };
 
 #endif
