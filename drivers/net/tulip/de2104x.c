@@ -435,7 +435,6 @@ static void de_rx (struct de_private *de)
 			rx_work = 100;
 			goto rx_next;
 		}
-		copy_skb->dev = de->dev;
 
 		if (!copying_skb) {
 			pci_unmap_single(de->pdev, mapping,
@@ -450,8 +449,8 @@ static void de_rx (struct de_private *de)
 		} else {
 			pci_dma_sync_single_for_cpu(de->pdev, mapping, len, PCI_DMA_FROMDEVICE);
 			skb_reserve(copy_skb, RX_OFFSET);
-			memcpy(skb_put(copy_skb, len), skb->data, len);
-
+			skb_copy_from_linear_data(skb, skb_put(copy_skb, len),
+						  len);
 			pci_dma_sync_single_for_device(de->pdev, mapping, len, PCI_DMA_FROMDEVICE);
 
 			/* We'll reuse the original ring buffer. */

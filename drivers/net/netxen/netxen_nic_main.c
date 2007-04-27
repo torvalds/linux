@@ -41,6 +41,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
+#include <net/ip.h>
 
 MODULE_DESCRIPTION("NetXen Multi port (1/10) Gigabit Network Driver");
 MODULE_LICENSE("GPL");
@@ -778,9 +779,8 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		if (skb_shinfo(skb)->gso_size > 0) {
 
 			no_of_desc++;
-			if (((skb->nh.iph)->ihl * sizeof(u32)) +
-			    ((skb->h.th)->doff * sizeof(u32)) +
-			    sizeof(struct ethhdr) >
+			if ((ip_hdrlen(skb) + tcp_hdrlen(skb) +
+			     sizeof(struct ethhdr)) >
 			    (sizeof(struct cmd_desc_type0) - 2)) {
 				no_of_desc++;
 			}
@@ -920,8 +920,10 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			/* copy the next 64 bytes - should be enough except
 			 * for pathological case
 			 */
-			memcpy((void *)hwdesc, (void *)(skb->data) +
-			       first_hdr_len, hdr_len - first_hdr_len);
+			skb_copy_from_linear_data_offset(skb, first_hdr_len,
+							 hwdesc,
+							 (hdr_len -
+							  first_hdr_len));
 			producer = get_next_index(producer, max_tx_desc_count);
 		}
 	}

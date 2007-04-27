@@ -235,13 +235,13 @@ static void sctp_v4_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 	port = &addr->v4.sin_port;
 	addr->v4.sin_family = AF_INET;
 
-	sh = (struct sctphdr *) skb->h.raw;
+	sh = sctp_hdr(skb);
 	if (is_saddr) {
 		*port  = sh->source;
-		from = &skb->nh.iph->saddr;
+		from = &ip_hdr(skb)->saddr;
 	} else {
 		*port = sh->dest;
-		from = &skb->nh.iph->daddr;
+		from = &ip_hdr(skb)->daddr;
 	}
 	memcpy(&addr->v4.sin_addr.s_addr, from, sizeof(struct in_addr));
 }
@@ -530,7 +530,7 @@ static int sctp_v4_skb_iif(const struct sk_buff *skb)
 /* Was this packet marked by Explicit Congestion Notification? */
 static int sctp_v4_is_ce(const struct sk_buff *skb)
 {
-	return INET_ECN_is_ce(skb->nh.iph->tos);
+	return INET_ECN_is_ce(ip_hdr(skb)->tos);
 }
 
 /* Create and initialize a new sk for the socket returned by accept(). */
@@ -731,15 +731,13 @@ static void sctp_inet_event_msgname(struct sctp_ulpevent *event, char *msgname,
 /* Initialize and copy out a msgname from an inbound skb. */
 static void sctp_inet_skb_msgname(struct sk_buff *skb, char *msgname, int *len)
 {
-	struct sctphdr *sh;
-	struct sockaddr_in *sin;
-
 	if (msgname) {
+		struct sctphdr *sh = sctp_hdr(skb);
+		struct sockaddr_in *sin = (struct sockaddr_in *)msgname;
+
 		sctp_inet_msgname(msgname, len);
-		sin = (struct sockaddr_in *)msgname;
-		sh = (struct sctphdr *)skb->h.raw;
 		sin->sin_port = sh->source;
-		sin->sin_addr.s_addr = skb->nh.iph->saddr;
+		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
 	}
 }
 
@@ -1044,7 +1042,7 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_cookie_preserve_enable 	= 1;
 
 	/* Max.Burst		    - 4 */
-	sctp_max_burst 			= SCTP_MAX_BURST;
+	sctp_max_burst 			= SCTP_DEFAULT_MAX_BURST;
 
 	/* Association.Max.Retrans  - 10 attempts
 	 * Path.Max.Retrans         - 5  attempts (per destination address)

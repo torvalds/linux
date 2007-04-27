@@ -98,7 +98,7 @@ static inline void measure_rtt(struct sock *sk)
 	}
 }
 
-static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked)
+static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked, ktime_t last)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);

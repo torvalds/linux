@@ -774,7 +774,6 @@ static void znet_rx(struct net_device *dev)
 				znet->stats.rx_dropped++;
 				break;
 			}
-			skb->dev = dev;
 
 			if (&znet->rx_cur[(pkt_len+1)>>1] > znet->rx_end) {
 				int semi_cnt = (znet->rx_end - znet->rx_cur)<<1;

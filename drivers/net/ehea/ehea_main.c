@@ -391,8 +391,8 @@ static int ehea_poll(struct net_device *dev, int *budget)
 					if (!skb)
 						break;
 				}
-				memcpy(skb->data, ((char*)cqe) + 64,
-				       cqe->num_bytes_transfered - 4);
+				skb_copy_to_linear_data(skb, ((char*)cqe) + 64,
+					       cqe->num_bytes_transfered - 4);
 				ehea_fill_skb(dev, skb, cqe);
 			} else if (rq == 2) {  /* RQ2 */
 				skb = get_skb_by_index(skb_arr_rq2,
@@ -1262,8 +1262,8 @@ static int ehea_clean_portres(struct ehea_port *port, struct ehea_port_res *pr)
 static inline void write_ip_start_end(struct ehea_swqe *swqe,
 				      const struct sk_buff *skb)
 {
-	swqe->ip_start = (u8)(((u64)skb->nh.iph) - ((u64)skb->data));
-	swqe->ip_end = (u8)(swqe->ip_start + skb->nh.iph->ihl * 4 - 1);
+	swqe->ip_start = skb_network_offset(skb);
+	swqe->ip_end = (u8)(swqe->ip_start + ip_hdrlen(skb) - 1);
 }
 
 static inline void write_tcp_offset_end(struct ehea_swqe *swqe,
@@ -1300,13 +1300,13 @@ static void write_swqe2_TSO(struct sk_buff *skb,
 	/* copy only eth/ip/tcp headers to immediate data and
 	 * the rest of skb->data to sg1entry
 	 */
-	headersize = ETH_HLEN + (skb->nh.iph->ihl * 4) + (skb->h.th->doff * 4);
+	headersize = ETH_HLEN + ip_hdrlen(skb) + tcp_hdrlen(skb);
 
 	skb_data_size = skb->len - skb->data_len;
 
 	if (skb_data_size >= headersize) {
 		/* copy immediate data */
-		memcpy(imm_data, skb->data, headersize);
+		skb_copy_from_linear_data(skb, imm_data, headersize);
 		swqe->immediate_data_length = headersize;
 
 		if (skb_data_size > headersize) {
@@ -1337,7 +1337,7 @@ static void write_swqe2_nonTSO(struct sk_buff *skb,
 	 */
 	if (skb_data_size >= SWQE2_MAX_IMM) {
 		/* copy immediate data */
-		memcpy(imm_data, skb->data, SWQE2_MAX_IMM);
+		skb_copy_from_linear_data(skb, imm_data, SWQE2_MAX_IMM);
 
 		swqe->immediate_data_length = SWQE2_MAX_IMM;
 
@@ -1350,7 +1350,7 @@ static void write_swqe2_nonTSO(struct sk_buff *skb,
 			swqe->descriptors++;
 		}
 	} else {
-		memcpy(imm_data, skb->data, skb_data_size);
+		skb_copy_from_linear_data(skb, imm_data, skb_data_size);
 		swqe->immediate_data_length = skb_data_size;
 	}
 }
@@ -1688,6 +1688,7 @@ static void ehea_xmit2(struct sk_buff *skb, struct net_device *dev,
 		       struct ehea_swqe *swqe, u32 lkey)
 {
 	if (skb->protocol == htons(ETH_P_IP)) {
+		const struct iphdr *iph = ip_hdr(skb);
 		/* IPv4 */
 		swqe->tx_control |= EHEA_SWQE_CRC
 				 | EHEA_SWQE_IP_CHECKSUM
@@ -1697,15 +1698,15 @@ static void ehea_xmit2(struct sk_buff *skb, struct net_device *dev,
 
 		write_ip_start_end(swqe, skb);
 
-		if (skb->nh.iph->protocol == IPPROTO_UDP) {
-			if ((skb->nh.iph->frag_off & IP_MF) ||
-			    (skb->nh.iph->frag_off & IP_OFFSET))
+		if (iph->protocol == IPPROTO_UDP) {
+			if ((iph->frag_off & IP_MF) ||
+			    (iph->frag_off & IP_OFFSET))
 				/* IP fragment, so don't change cs */
 				swqe->tx_control &= ~EHEA_SWQE_TCP_CHECKSUM;
 			else
 				write_udp_offset_end(swqe, skb);
 
-		} else if (skb->nh.iph->protocol == IPPROTO_TCP) {
+		} else if (iph->protocol == IPPROTO_TCP) {
 			write_tcp_offset_end(swqe, skb);
 		}
 
@@ -1731,10 +1732,11 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 	int i;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
+		const struct iphdr *iph = ip_hdr(skb);
 		/* IPv4 */
 		write_ip_start_end(swqe, skb);
 
-		if (skb->nh.iph->protocol == IPPROTO_TCP) {
+		if (iph->protocol == IPPROTO_TCP) {
 			swqe->tx_control |= EHEA_SWQE_CRC
 					 | EHEA_SWQE_IP_CHECKSUM
 					 | EHEA_SWQE_TCP_CHECKSUM
@@ -1742,9 +1744,9 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 
 			write_tcp_offset_end(swqe, skb);
 
-		} else if (skb->nh.iph->protocol == IPPROTO_UDP) {
-			if ((skb->nh.iph->frag_off & IP_MF) ||
-			    (skb->nh.iph->frag_off & IP_OFFSET))
+		} else if (iph->protocol == IPPROTO_UDP) {
+			if ((iph->frag_off & IP_MF) ||
+			    (iph->frag_off & IP_OFFSET))
 				/* IP fragment, so don't change cs */
 				swqe->tx_control |= EHEA_SWQE_CRC
 						 | EHEA_SWQE_IMM_DATA_PRESENT;
@@ -1770,10 +1772,11 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 	/* copy (immediate) data */
 	if (nfrags == 0) {
 		/* data is in a single piece */
-		memcpy(imm_data, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, imm_data, skb->len);
 	} else {
 		/* first copy data from the skb->data buffer ... */
-		memcpy(imm_data, skb->data, skb->len - skb->data_len);
+		skb_copy_from_linear_data(skb, imm_data,
+					  skb->len - skb->data_len);
 		imm_data += skb->len - skb->data_len;
 
 		/* ... then copy data from the fragments */

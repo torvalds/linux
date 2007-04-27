@@ -40,7 +40,7 @@
 void ip_options_build(struct sk_buff * skb, struct ip_options * opt,
 			    __be32 daddr, struct rtable *rt, int is_frag)
 {
-	unsigned char * iph = skb->nh.raw;
+	unsigned char *iph = skb_network_header(skb);
 
 	memcpy(&(IPCB(skb)->opt), opt, sizeof(struct ip_options));
 	memcpy(iph+sizeof(struct iphdr), opt->__data, opt->optlen);
@@ -104,13 +104,13 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 		return 0;
 	}
 
-	sptr = skb->nh.raw;
+	sptr = skb_network_header(skb);
 	dptr = dopt->__data;
 
 	if (skb->dst)
 		daddr = ((struct rtable*)skb->dst)->rt_spec_dst;
 	else
-		daddr = skb->nh.iph->daddr;
+		daddr = ip_hdr(skb)->daddr;
 
 	if (sopt->rr) {
 		optlen  = sptr[sopt->rr+1];
@@ -180,7 +180,8 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 			/*
 			 * RFC1812 requires to fix illegal source routes.
 			 */
-			if (memcmp(&skb->nh.iph->saddr, &start[soffset+3], 4) == 0)
+			if (memcmp(&ip_hdr(skb)->saddr,
+				   &start[soffset + 3], 4) == 0)
 				doffset -= 4;
 		}
 		if (doffset > 3) {
@@ -217,7 +218,7 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 
 void ip_options_fragment(struct sk_buff * skb)
 {
-	unsigned char * optptr = skb->nh.raw + sizeof(struct iphdr);
+	unsigned char *optptr = skb_network_header(skb) + sizeof(struct iphdr);
 	struct ip_options * opt = &(IPCB(skb)->opt);
 	int  l = opt->optlen;
 	int  optlen;
@@ -264,12 +265,13 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 
 	if (!opt) {
 		opt = &(IPCB(skb)->opt);
-		iph = skb->nh.raw;
+		iph = skb_network_header(skb);
 		opt->optlen = ((struct iphdr *)iph)->ihl*4 - sizeof(struct iphdr);
 		optptr = iph + sizeof(struct iphdr);
 		opt->is_data = 0;
 	} else {
-		optptr = opt->is_data ? opt->__data : (unsigned char*)&(skb->nh.iph[1]);
+		optptr = opt->is_data ? opt->__data :
+					(unsigned char *)&(ip_hdr(skb)[1]);
 		iph = optptr - sizeof(struct iphdr);
 	}
 
@@ -563,7 +565,7 @@ void ip_forward_options(struct sk_buff *skb)
 	struct   ip_options * opt	= &(IPCB(skb)->opt);
 	unsigned char * optptr;
 	struct rtable *rt = (struct rtable*)skb->dst;
-	unsigned char *raw = skb->nh.raw;
+	unsigned char *raw = skb_network_header(skb);
 
 	if (opt->rr_needaddr) {
 		optptr = (unsigned char *)raw + opt->rr;
@@ -587,7 +589,7 @@ void ip_forward_options(struct sk_buff *skb)
 		if (srrptr + 3 <= srrspace) {
 			opt->is_changed = 1;
 			ip_rt_get_source(&optptr[srrptr-1], rt);
-			skb->nh.iph->daddr = rt->rt_dst;
+			ip_hdr(skb)->daddr = rt->rt_dst;
 			optptr[2] = srrptr+4;
 		} else if (net_ratelimit())
 			printk(KERN_CRIT "ip_forward(): Argh! Destination lost!\n");
@@ -599,7 +601,7 @@ void ip_forward_options(struct sk_buff *skb)
 	}
 	if (opt->is_changed) {
 		opt->is_changed = 0;
-		ip_send_check(skb->nh.iph);
+		ip_send_check(ip_hdr(skb));
 	}
 }
 
@@ -608,8 +610,8 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 	struct ip_options *opt = &(IPCB(skb)->opt);
 	int srrspace, srrptr;
 	__be32 nexthop;
-	struct iphdr *iph = skb->nh.iph;
-	unsigned char * optptr = skb->nh.raw + opt->srr;
+	struct iphdr *iph = ip_hdr(skb);
+	unsigned char *optptr = skb_network_header(skb) + opt->srr;
 	struct rtable *rt = (struct rtable*)skb->dst;
 	struct rtable *rt2;
 	int err;

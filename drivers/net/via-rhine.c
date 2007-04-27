@@ -1486,7 +1486,6 @@ static int rhine_rx(struct net_device *dev, int limit)
 			   copying to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
 				(skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(rp->pdev,
 							    rp->rx_skbuff_dma[entry],

@@ -327,7 +327,6 @@ static void zd1201_usbrx(struct urb *urb)
 			memcpy(skb_put(skb, 6), &data[datalen-8], 6);
 			memcpy(skb_put(skb, 2), &data[datalen-24], 2);
 			memcpy(skb_put(skb, len), data, len);
-			skb->dev = zd->dev;
 			skb->dev->last_rx = jiffies;
 			skb->protocol = eth_type_trans(skb, zd->dev);
 			zd->stats.rx_packets++;
@@ -385,7 +384,6 @@ static void zd1201_usbrx(struct urb *urb)
 			memcpy(skb_put(skb, 2), &data[6], 2);
 			memcpy(skb_put(skb, len), data+8, len);
 		}
-		skb->dev = zd->dev;
 		skb->dev->last_rx = jiffies;
 		skb->protocol = eth_type_trans(skb, zd->dev);
 		zd->stats.rx_packets++;
@@ -809,10 +807,10 @@ static int zd1201_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	txbuf[4] = 0x00;
 	txbuf[5] = 0x00;
 
-	memcpy(txbuf+6, skb->data+12, skb->len-12);
+	skb_copy_from_linear_data_offset(skb, 12, txbuf + 6, skb->len - 12);
 	if (pad)
 		txbuf[skb->len-12+6]=0;
-	memcpy(txbuf+skb->len-12+6+pad, skb->data, 12);
+	skb_copy_from_linear_data(skb, txbuf + skb->len - 12 + 6 + pad, 12);
 	*(__be16*)&txbuf[skb->len+6+pad] = htons(skb->len-12+6);
 	txbuf[txbuflen-1] = 0;
 

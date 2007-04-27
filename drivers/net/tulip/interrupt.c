@@ -192,7 +192,6 @@ int tulip_poll(struct net_device *dev, int *budget)
                                   to a minimally-sized skbuff. */
                                if (pkt_len < tulip_rx_copybreak
                                    && (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
-                                       skb->dev = dev;
                                        skb_reserve(skb, 2);    /* 16 byte align the IP header */
                                        pci_dma_sync_single_for_cpu(tp->pdev,
 								   tp->rx_buffers[entry].mapping,
@@ -416,7 +415,6 @@ static int tulip_rx(struct net_device *dev)
 			   to a minimally-sized skbuff. */
 			if (pkt_len < tulip_rx_copybreak
 				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(tp->pdev,
 							    tp->rx_buffers[entry].mapping,

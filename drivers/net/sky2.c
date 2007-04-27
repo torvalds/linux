@@ -32,6 +32,7 @@
 #include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
 #include <linux/delay.h>
@@ -1391,8 +1392,8 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	/* Check for TCP Segmentation Offload */
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss != 0) {
-		mss += ((skb->h.th->doff - 5) * 4);	/* TCP options */
-		mss += (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
+		mss += tcp_optlen(skb); /* TCP options */
+		mss += ip_hdrlen(skb) + sizeof(struct tcphdr);
 		mss += ETH_HLEN;
 
 		if (mss != sky2->tx_last_mss) {
@@ -1420,14 +1421,14 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	/* Handle TCP checksum offload */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		unsigned offset = skb->h.raw - skb->data;
+		const unsigned offset = skb_transport_offset(skb);
 		u32 tcpsum;
 
 		tcpsum = offset << 16;		/* sum start */
 		tcpsum |= offset + skb->csum_offset;	/* sum write */
 
 		ctrl = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
-		if (skb->nh.iph->protocol == IPPROTO_UDP)
+		if (ip_hdr(skb)->protocol == IPPROTO_UDP)
 			ctrl |= UDPTCP;
 
 		if (tcpsum != sky2->tx_tcpsum) {
@@ -1970,7 +1971,7 @@ static struct sk_buff *receive_copy(struct sky2_port *sky2,
 		skb_reserve(skb, 2);
 		pci_dma_sync_single_for_cpu(sky2->hw->pdev, re->data_addr,
 					    length, PCI_DMA_FROMDEVICE);
-		memcpy(skb->data, re->skb->data, length);
+		skb_copy_from_linear_data(re->skb, skb->data, length);
 		skb->ip_summed = re->skb->ip_summed;
 		skb->csum = re->skb->csum;
 		pci_dma_sync_single_for_device(sky2->hw->pdev, re->data_addr,

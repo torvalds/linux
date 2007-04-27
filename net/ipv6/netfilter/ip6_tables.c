@@ -7,15 +7,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 19 Jan 2002 Harald Welte <laforge@gnumonks.org>
- * 	- increase module usage count as soon as we have rules inside
- * 	  a table
- * 06 Jun 2002 Andras Kis-Szabo <kisza@sch.bme.hu>
- *      - new extension header parser code
- * 15 Oct 2005 Harald Welte <laforge@netfilter.org>
- * 	- Unification of {ip,ip6}_tables into x_tables
- * 	- Removed tcp and udp code, since it's not ipv6 specific
  */
 
 #include <linux/capability.h>
@@ -115,7 +106,7 @@ ip6_packet_match(const struct sk_buff *skb,
 {
 	size_t i;
 	unsigned long ret;
-	const struct ipv6hdr *ipv6 = skb->nh.ipv6h;
+	const struct ipv6hdr *ipv6 = ipv6_hdr(skb);
 
 #define FWINV(bool,invflg) ((bool) ^ !!(ip6info->invflags & invflg))
 
@@ -301,7 +292,7 @@ ip6t_do_table(struct sk_buff **pskb,
 				goto no_match;
 
 			ADD_COUNTER(e->counters,
-				    ntohs((*pskb)->nh.ipv6h->payload_len)
+				    ntohs(ipv6_hdr(*pskb)->payload_len)
 				    + IPV6_HDR_LEN,
 				    1);
 
@@ -1448,8 +1439,8 @@ static void __exit ip6_tables_fini(void)
 int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		  int target, unsigned short *fragoff)
 {
-	unsigned int start = (u8*)(skb->nh.ipv6h + 1) - skb->data;
-	u8 nexthdr = skb->nh.ipv6h->nexthdr;
+	unsigned int start = skb_network_offset(skb) + sizeof(struct ipv6hdr);
+	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
 	unsigned int len = skb->len - start;
 
 	if (fragoff)

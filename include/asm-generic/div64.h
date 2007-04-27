@@ -30,6 +30,11 @@
 	__rem;							\
  })
 
+static inline uint64_t div64_64(uint64_t dividend, uint64_t divisor)
+{
+	return dividend / divisor;
+}
+
 #elif BITS_PER_LONG == 32
 
 extern uint32_t __div64_32(uint64_t *dividend, uint32_t divisor);
@@ -48,6 +53,8 @@ extern uint32_t __div64_32(uint64_t *dividend, uint32_t divisor);
 		__rem = __div64_32(&(n), __base);	\
 	__rem;						\
  })
+
+extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
 
 #else /* BITS_PER_LONG == ?? */
 

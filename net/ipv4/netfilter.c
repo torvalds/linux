@@ -10,7 +10,7 @@
 /* route_me_harder function, used by iptable_nat, iptable_mangle + ip_queue */
 int ip_route_me_harder(struct sk_buff **pskb, unsigned addr_type)
 {
-	struct iphdr *iph = (*pskb)->nh.iph;
+	const struct iphdr *iph = ip_hdr(*pskb);
 	struct rtable *rt;
 	struct flowi fl = {};
 	struct dst_entry *odst;
@@ -142,7 +142,7 @@ static void nf_ip_saveroute(const struct sk_buff *skb, struct nf_info *info)
 	struct ip_rt_info *rt_info = nf_info_reroute(info);
 
 	if (info->hook == NF_IP_LOCAL_OUT) {
-		const struct iphdr *iph = skb->nh.iph;
+		const struct iphdr *iph = ip_hdr(skb);
 
 		rt_info->tos = iph->tos;
 		rt_info->daddr = iph->daddr;
@@ -155,7 +155,7 @@ static int nf_ip_reroute(struct sk_buff **pskb, const struct nf_info *info)
 	const struct ip_rt_info *rt_info = nf_info_reroute(info);
 
 	if (info->hook == NF_IP_LOCAL_OUT) {
-		struct iphdr *iph = (*pskb)->nh.iph;
+		const struct iphdr *iph = ip_hdr(*pskb);
 
 		if (!(iph->tos == rt_info->tos
 		      && iph->daddr == rt_info->daddr
@@ -168,7 +168,7 @@ static int nf_ip_reroute(struct sk_buff **pskb, const struct nf_info *info)
 __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 			    unsigned int dataoff, u_int8_t protocol)
 {
-	struct iphdr *iph = skb->nh.iph;
+	const struct iphdr *iph = ip_hdr(skb);
 	__sum16 csum = 0;
 
 	switch (skb->ip_summed) {

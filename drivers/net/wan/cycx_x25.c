@@ -834,7 +834,7 @@ static void cycx_x25_irq_rx(struct cycx_device *card, struct cycx_x25_cmd *cmd)
 	++chan->ifstats.rx_packets;
 	chan->ifstats.rx_bytes += pktlen;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	netif_rx(skb);
 	dev->last_rx = jiffies;		/* timestamp */
 }

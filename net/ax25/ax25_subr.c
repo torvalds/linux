@@ -162,7 +162,7 @@ void ax25_send_control(ax25_cb *ax25, int frametype, int poll_bit, int type)
 
 	skb_reserve(skb, ax25->ax25_dev->dev->hard_header_len);
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	/* Assume a response - address structure for DTE */
 	if (ax25->modulus == AX25_MODULUS) {
@@ -205,7 +205,7 @@ void ax25_return_dm(struct net_device *dev, ax25_address *src, ax25_address *des
 		return;	/* Next SABM will get DM'd */
 
 	skb_reserve(skb, dev->hard_header_len);
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	ax25_digi_invert(digi, &retdigi);
 

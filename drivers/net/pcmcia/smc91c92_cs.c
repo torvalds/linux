@@ -1669,7 +1669,6 @@ static void smc_rx(struct net_device *dev)
 	     (packet_length+1)>>1);
 	skb->protocol = eth_type_trans(skb, dev);
 	
-	skb->dev = dev;
 	netif_rx(skb);
 	dev->last_rx = jiffies;
 	smc->stats.rx_packets++;

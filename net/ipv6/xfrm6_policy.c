@@ -240,7 +240,8 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		if (!afinfo) {
 			dst = *dst_p;
 			goto error;
-		};
+		}
+
 		dst_prev->output = afinfo->output;
 		xfrm_state_put_afinfo(afinfo);
 		/* Sheit... I remember I did this right. Apparently,
@@ -270,17 +271,19 @@ error:
 static inline void
 _decode_session6(struct sk_buff *skb, struct flowi *fl)
 {
-	u16 offset = skb->h.raw - skb->nh.raw;
-	struct ipv6hdr *hdr = skb->nh.ipv6h;
+	u16 offset = skb_network_header_len(skb);
+	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct ipv6_opt_hdr *exthdr;
-	u8 nexthdr = skb->nh.raw[IP6CB(skb)->nhoff];
+	const unsigned char *nh = skb_network_header(skb);
+	u8 nexthdr = nh[IP6CB(skb)->nhoff];
 
 	memset(fl, 0, sizeof(struct flowi));
 	ipv6_addr_copy(&fl->fl6_dst, &hdr->daddr);
 	ipv6_addr_copy(&fl->fl6_src, &hdr->saddr);
 
-	while (pskb_may_pull(skb, skb->nh.raw + offset + 1 - skb->data)) {
-		exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
+	while (pskb_may_pull(skb, nh + offset + 1 - skb->data)) {
+		nh = skb_network_header(skb);
+		exthdr = (struct ipv6_opt_hdr *)(nh + offset);
 
 		switch (nexthdr) {
 		case NEXTHDR_ROUTING:
@@ -288,7 +291,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 		case NEXTHDR_DEST:
 			offset += ipv6_optlen(exthdr);
 			nexthdr = exthdr->nexthdr;
-			exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
+			exthdr = (struct ipv6_opt_hdr *)(nh + offset);
 			break;
 
 		case IPPROTO_UDP:
@@ -296,7 +299,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 		case IPPROTO_TCP:
 		case IPPROTO_SCTP:
 		case IPPROTO_DCCP:
-			if (pskb_may_pull(skb, skb->nh.raw + offset + 4 - skb->data)) {
+			if (pskb_may_pull(skb, nh + offset + 4 - skb->data)) {
 				__be16 *ports = (__be16 *)exthdr;
 
 				fl->fl_ip_sport = ports[0];
@@ -306,7 +309,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 			return;
 
 		case IPPROTO_ICMPV6:
-			if (pskb_may_pull(skb, skb->nh.raw + offset + 2 - skb->data)) {
+			if (pskb_may_pull(skb, nh + offset + 2 - skb->data)) {
 				u8 *icmp = (u8 *)exthdr;
 
 				fl->fl_icmp_type = icmp[0];
@@ -317,7 +320,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 
 #ifdef CONFIG_IPV6_MIP6
 		case IPPROTO_MH:
-			if (pskb_may_pull(skb, skb->nh.raw + offset + 3 - skb->data)) {
+			if (pskb_may_pull(skb, nh + offset + 3 - skb->data)) {
 				struct ip6_mh *mh;
 				mh = (struct ip6_mh *)exthdr;
 
@@ -335,7 +338,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 			fl->fl_ipsec_spi = 0;
 			fl->proto = nexthdr;
 			return;
-		};
+		}
 	}
 }
 

@@ -66,7 +66,7 @@ int vlan_dev_rebuild_header(struct sk_buff *skb)
 
 		memcpy(veth->h_source, dev->dev_addr, ETH_ALEN);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -83,7 +83,7 @@ static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
 			/* Lifted from Gleb's VLAN code... */
 			memmove(skb->data - ETH_HLEN,
 				skb->data - VLAN_ETH_HLEN, 12);
-			skb->mac.raw += VLAN_HLEN;
+			skb->mac_header += VLAN_HLEN;
 		}
 	}
 
@@ -219,7 +219,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		break;
 	default:
 		break;
-	};
+	}
 
 	/*  Was a VLAN packet, grab the encapsulated protocol, which the layer
 	 * three protocols care about.
@@ -258,7 +258,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	 * won't work for fault tolerant netware but does for the rest.
 	 */
 	if (*(unsigned short *)rawp == 0xFFFF) {
-		skb->protocol = __constant_htons(ETH_P_802_3);
+		skb->protocol = htons(ETH_P_802_3);
 		/* place it back on the queue to be handled by true layer 3 protocols.
 		 */
 
@@ -281,7 +281,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	/*
 	 *	Real 802.2 LLC
 	 */
-	skb->protocol = __constant_htons(ETH_P_802_2);
+	skb->protocol = htons(ETH_P_802_2);
 	/* place it back on the queue to be handled by upper layer protocols.
 	 */
 
@@ -382,7 +382,7 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		skb->protocol = htons(ETH_P_8021Q);
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 	}
 
 	/* Before delegating work to the lower layer, enter our MAC-address */
@@ -448,7 +448,7 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * OTHER THINGS LIKE FDDI/TokenRing/802.3 SNAPs...
 	 */
 
-	if (veth->h_vlan_proto != __constant_htons(ETH_P_8021Q)) {
+	if (veth->h_vlan_proto != htons(ETH_P_8021Q)) {
 		int orig_headroom = skb_headroom(skb);
 		unsigned short veth_TCI;
 

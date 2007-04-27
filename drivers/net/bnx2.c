@@ -1884,10 +1884,8 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 				goto reuse_rx;
 
 			/* aligned copy */
-			memcpy(new_skb->data,
-				skb->data + bp->rx_offset - 2,
-				len + 2);
-
+			skb_copy_from_linear_data_offset(skb, bp->rx_offset - 2,
+				      new_skb->data, len + 2);
 			skb_reserve(new_skb, 2);
 			skb_put(new_skb, len);
 
@@ -4513,6 +4511,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if ((mss = skb_shinfo(skb)->gso_size) &&
 		(skb->len > (bp->dev->mtu + ETH_HLEN))) {
 		u32 tcp_opt_len, ip_tcp_len;
+		struct iphdr *iph;
 
 		if (skb_header_cloned(skb) &&
 		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
@@ -4520,25 +4519,23 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		}
 
-		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
 		vlan_tag_flags |= TX_BD_FLAGS_SW_LSO;
 
 		tcp_opt_len = 0;
-		if (skb->h.th->doff > 5) {
-			tcp_opt_len = (skb->h.th->doff - 5) << 2;
-		}
-		ip_tcp_len = (skb->nh.iph->ihl << 2) + sizeof(struct tcphdr);
+		if (tcp_hdr(skb)->doff > 5)
+			tcp_opt_len = tcp_optlen(skb);
 
-		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
-		skb->h.th->check =
-			~csum_tcpudp_magic(skb->nh.iph->saddr,
-					    skb->nh.iph->daddr,
-					    0, IPPROTO_TCP, 0);
+		ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
-		if (tcp_opt_len || (skb->nh.iph->ihl > 5)) {
-			vlan_tag_flags |= ((skb->nh.iph->ihl - 5) +
-				(tcp_opt_len >> 2)) << 8;
+		iph = ip_hdr(skb);
+		iph->check = 0;
+		iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
+		tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
+							 iph->daddr, 0,
+							 IPPROTO_TCP, 0);
+		if (tcp_opt_len || (iph->ihl > 5)) {
+			vlan_tag_flags |= ((iph->ihl - 5) +
+					   (tcp_opt_len >> 2)) << 8;
 		}
 	}
 	else

@@ -951,7 +951,7 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	 *	Incoming Call User Data.
 	 */
 	if (skb->len >= 0) {
-		memcpy(makex25->calluserdata.cuddata, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, makex25->calluserdata.cuddata, skb->len);
 		makex25->calluserdata.cudlength = skb->len;
 	}
 
@@ -1058,9 +1058,10 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 */
 	SOCK_DEBUG(sk, "x25_sendmsg: Copying user data\n");
 
-	asmptr = skb->h.raw = skb_put(skb, len);
+	skb_reset_transport_header(skb);
+	skb_put(skb, len);
 
-	rc = memcpy_fromiovec(asmptr, msg->msg_iov, len);
+	rc = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
 	if (rc)
 		goto out_kfree_skb;
 
@@ -1210,8 +1211,7 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 		}
 	}
 
-	skb->h.raw = skb->data;
-
+	skb_reset_transport_header(skb);
 	copied = skb->len;
 
 	if (copied > size) {
@@ -1279,6 +1279,12 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			if (sk)
 				rc = sock_get_timestamp(sk,
 						(struct timeval __user *)argp);
+			break;
+		case SIOCGSTAMPNS:
+			rc = -EINVAL;
+			if (sk)
+				rc = sock_get_timestampns(sk,
+						(struct timespec __user *)argp);
 			break;
 		case SIOCGIFADDR:
 		case SIOCSIFADDR:
@@ -1520,6 +1526,12 @@ static int compat_x25_ioctl(struct socket *sock, unsigned int cmd,
 		if (sk)
 			rc = compat_sock_get_timestamp(sk,
 					(struct timeval __user*)argp);
+		break;
+	case SIOCGSTAMPNS:
+		rc = -EINVAL;
+		if (sk)
+			rc = compat_sock_get_timestampns(sk,
+					(struct timespec __user*)argp);
 		break;
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:

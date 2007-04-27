@@ -49,6 +49,8 @@
 
 #define SO_PEERSEC		0x001e
 #define SO_PASSSEC		0x001f
+#define SO_TIMESTAMPNS		0x0021
+#define SCM_TIMESTAMPNS		SO_TIMESTAMPNS
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001

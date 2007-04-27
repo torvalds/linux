@@ -588,7 +588,7 @@ rndis_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 		if (likely((sizeof *hdr) <= room)) {
 			skb->data = memmove(skb->head + sizeof *hdr,
 					    skb->data, len);
-			skb->tail = skb->data + len;
+			skb_set_tail_pointer(skb, len);
 			goto fill;
 		}
 	}

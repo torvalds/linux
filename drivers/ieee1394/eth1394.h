@@ -90,7 +90,7 @@ struct eth1394hdr {
 
 static inline struct eth1394hdr *eth1394_hdr(const struct sk_buff *skb)
 {
-	return (struct eth1394hdr *)skb->mac.raw;
+	return (struct eth1394hdr *)skb_mac_header(skb);
 }
 #endif
 

@@ -477,7 +477,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	BUG_ON(skb_cloned(skb));
 
 	mpalen = sizeof(*mpa) + ep->plen;
-	if (skb->data + mpalen + sizeof(*req) > skb->end) {
+	if (skb->data + mpalen + sizeof(*req) > skb_end_pointer(skb)) {
 		kfree_skb(skb);
 		skb=alloc_skb(mpalen + sizeof(*req), GFP_KERNEL);
 		if (!skb) {
@@ -507,7 +507,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	 */
 	skb_get(skb);
 	set_arp_failure_handler(skb, arp_failure_discard);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	len = skb->len;
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
@@ -559,7 +559,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 	skb_get(skb);
 	skb->priority = CPL_PRIORITY_DATA;
 	set_arp_failure_handler(skb, arp_failure_discard);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
 	req->wr_lo = htonl(V_WR_TID(ep->hwtid));
@@ -610,7 +610,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 	 */
 	skb_get(skb);
 	set_arp_failure_handler(skb, arp_failure_discard);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	len = skb->len;
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
@@ -821,7 +821,8 @@ static void process_mpa_reply(struct iwch_ep *ep, struct sk_buff *skb)
 	/*
 	 * copy the new data into our accumulation buffer.
 	 */
-	memcpy(&(ep->mpa_pkt[ep->mpa_pkt_len]), skb->data, skb->len);
+	skb_copy_from_linear_data(skb, &(ep->mpa_pkt[ep->mpa_pkt_len]),
+				  skb->len);
 	ep->mpa_pkt_len += skb->len;
 
 	/*
@@ -940,7 +941,8 @@ static void process_mpa_request(struct iwch_ep *ep, struct sk_buff *skb)
 	/*
 	 * Copy the new data into our accumulation buffer.
 	 */
-	memcpy(&(ep->mpa_pkt[ep->mpa_pkt_len]), skb->data, skb->len);
+	skb_copy_from_linear_data(skb, &(ep->mpa_pkt[ep->mpa_pkt_len]),
+				  skb->len);
 	ep->mpa_pkt_len += skb->len;
 
 	/*
@@ -1619,7 +1621,8 @@ static int terminate(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	PDBG("%s ep %p\n", __FUNCTION__, ep);
 	skb_pull(skb, sizeof(struct cpl_rdma_terminate));
 	PDBG("%s saving %d bytes of term msg\n", __FUNCTION__, skb->len);
-	memcpy(ep->com.qp->attr.terminate_buffer, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, ep->com.qp->attr.terminate_buffer,
+				  skb->len);
 	ep->com.qp->attr.terminate_msg_len = skb->len;
 	ep->com.qp->attr.is_terminate_local = 0;
 	return CPL_RET_BUF_DONE;

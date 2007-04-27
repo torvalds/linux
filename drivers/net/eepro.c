@@ -1591,7 +1591,6 @@ eepro_rx(struct net_device *dev)
 
 				break;
 			}
-			skb->dev = dev;
 			skb_reserve(skb,2);
 
 			if (lp->version == LAN595)

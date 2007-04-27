@@ -47,7 +47,7 @@ static void send_reset(struct sk_buff *oldskb)
 	struct tcphdr otcph, *tcph;
 	unsigned int otcplen, hh_len;
 	int tcphoff, needs_ack;
-	struct ipv6hdr *oip6h = oldskb->nh.ipv6h, *ip6h;
+	struct ipv6hdr *oip6h = ipv6_hdr(oldskb), *ip6h;
 	struct dst_entry *dst = NULL;
 	u8 proto;
 	struct flowi fl;
@@ -120,8 +120,9 @@ static void send_reset(struct sk_buff *oldskb)
 
 	skb_reserve(nskb, hh_len + dst->header_len);
 
-	ip6h = nskb->nh.ipv6h = (struct ipv6hdr *)
-					skb_put(nskb, sizeof(struct ipv6hdr));
+	skb_put(nskb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(nskb);
+	ip6h = ipv6_hdr(nskb);
 	ip6h->version = 6;
 	ip6h->hop_limit = dst_metric(dst, RTAX_HOPLIMIT);
 	ip6h->nexthdr = IPPROTO_TCP;
@@ -155,8 +156,8 @@ static void send_reset(struct sk_buff *oldskb)
 	tcph->check = 0;
 
 	/* Adjust TCP checksum */
-	tcph->check = csum_ipv6_magic(&nskb->nh.ipv6h->saddr,
-				      &nskb->nh.ipv6h->daddr,
+	tcph->check = csum_ipv6_magic(&ipv6_hdr(nskb)->saddr,
+				      &ipv6_hdr(nskb)->daddr,
 				      sizeof(struct tcphdr), IPPROTO_TCP,
 				      csum_partial((char *)tcph,
 						   sizeof(struct tcphdr), 0));

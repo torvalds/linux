@@ -999,11 +999,6 @@ get_rx_buf( struct net_device  *dev )
 	if( !skb )
 		return  NULL;
 
-#ifdef CONFIG_SBNI_MULTILINE
-	skb->dev = ((struct net_local *) dev->priv)->master;
-#else
-	skb->dev = dev;
-#endif
 	skb_reserve( skb, 2 );		/* Align IP on longword boundaries */
 	return  skb;
 }

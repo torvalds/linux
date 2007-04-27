@@ -976,7 +976,6 @@ static void eexp_hw_rx_pio(struct net_device *dev)
 					lp->stats.rx_dropped++;
 					break;
 				}
-				skb->dev = dev;
 				skb_reserve(skb, 2);
 				outw(pbuf+10, ioaddr+READ_PTR);
 			        insw(ioaddr+DATAPORT, skb_put(skb,pkt_len),(pkt_len+1)>>1);

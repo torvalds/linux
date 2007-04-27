@@ -28,7 +28,7 @@ static int xfrm4_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 
 	switch (nexthdr) {
 	case IPPROTO_IPIP:
 	case IPPROTO_IPV6:
-		*spi = skb->nh.iph->saddr;
+		*spi = ip_hdr(skb)->saddr;
 		*seq = 0;
 		return 0;
 	}
@@ -39,9 +39,9 @@ static int xfrm4_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 
 #ifdef CONFIG_NETFILTER
 static inline int xfrm4_rcv_encap_finish(struct sk_buff *skb)
 {
-	struct iphdr *iph = skb->nh.iph;
-
 	if (skb->dst == NULL) {
+		const struct iphdr *iph = ip_hdr(skb);
+
 		if (ip_route_input(skb, iph->daddr, iph->saddr, iph->tos,
 				   skb->dev))
 			goto drop;
@@ -55,18 +55,18 @@ drop:
 
 int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 {
-	int err;
 	__be32 spi, seq;
 	struct xfrm_state *xfrm_vec[XFRM_MAX_DEPTH];
 	struct xfrm_state *x;
 	int xfrm_nr = 0;
 	int decaps = 0;
+	int err = xfrm4_parse_spi(skb, ip_hdr(skb)->protocol, &spi, &seq);
 
-	if ((err = xfrm4_parse_spi(skb, skb->nh.iph->protocol, &spi, &seq)) != 0)
+	if (err != 0)
 		goto drop;
 
 	do {
-		struct iphdr *iph = skb->nh.iph;
+		const struct iphdr *iph = ip_hdr(skb);
 
 		if (xfrm_nr == XFRM_MAX_DEPTH)
 			goto drop;
@@ -113,7 +113,8 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 			break;
 		}
 
-		if ((err = xfrm_parse_spi(skb, skb->nh.iph->protocol, &spi, &seq)) < 0)
+		err = xfrm_parse_spi(skb, ip_hdr(skb)->protocol, &spi, &seq);
+		if (err < 0)
 			goto drop;
 	} while (!err);
 
@@ -146,15 +147,15 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 		return 0;
 	} else {
 #ifdef CONFIG_NETFILTER
-		__skb_push(skb, skb->data - skb->nh.raw);
-		skb->nh.iph->tot_len = htons(skb->len);
-		ip_send_check(skb->nh.iph);
+		__skb_push(skb, skb->data - skb_network_header(skb));
+		ip_hdr(skb)->tot_len = htons(skb->len);
+		ip_send_check(ip_hdr(skb));
 
 		NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, skb->dev, NULL,
 			xfrm4_rcv_encap_finish);
 		return 0;
 #else
-		return -skb->nh.iph->protocol;
+		return -ip_hdr(skb)->protocol;
 #endif
 	}
 

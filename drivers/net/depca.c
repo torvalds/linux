@@ -1044,7 +1044,6 @@ static int depca_rx(struct net_device *dev)
 					unsigned char *buf;
 					skb_reserve(skb, 2);	/* 16 byte align the IP header */
 					buf = skb_put(skb, pkt_len);
-					skb->dev = dev;
 					if (entry < lp->rx_old) {	/* Wrapped buffer */
 						len = (lp->rxRingMask - lp->rx_old + 1) * RX_BUFF_SZ;
 						memcpy_fromio(buf, lp->rx_buff[lp->rx_old], len);

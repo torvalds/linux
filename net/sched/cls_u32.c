@@ -50,6 +50,7 @@
 #include <linux/notifier.h>
 #include <linux/rtnetlink.h>
 #include <net/ip.h>
+#include <net/netlink.h>
 #include <net/route.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
@@ -119,7 +120,7 @@ static int u32_classify(struct sk_buff *skb, struct tcf_proto *tp, struct tcf_re
 	} stack[TC_U32_MAXDEPTH];
 
 	struct tc_u_hnode *ht = (struct tc_u_hnode*)tp->root;
-	u8 *ptr = skb->nh.raw;
+	u8 *ptr = skb_network_header(skb);
 	struct tc_u_knode *n;
 	int sdepth = 0;
 	int off2 = 0;
@@ -213,7 +214,7 @@ check_terminal:
 			off2 = 0;
 		}
 
-		if (ptr < skb->tail)
+		if (ptr < skb_tail_pointer(skb))
 			goto next_ht;
 	}
 
@@ -435,7 +436,7 @@ static void u32_destroy(struct tcf_proto *tp)
 			BUG_TRAP(ht->refcnt == 0);
 
 			kfree(ht);
-		};
+		}
 
 		kfree(tp_c);
 	}
@@ -718,7 +719,7 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
 	struct tc_u_knode *n = (struct tc_u_knode*)fh;
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 
 	if (n == NULL)
@@ -765,14 +766,14 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 #endif
 	}
 
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	if (TC_U32_KEY(n->handle))
 		if (tcf_exts_dump_stats(skb, &n->exts, &u32_ext_map) < 0)
 			goto rtattr_failure;
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

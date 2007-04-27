@@ -61,7 +61,7 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 
 	if (skb->len - header_len > max_len) {
 		/* Save a copy of the Header */
-		memcpy(header, skb->data, header_len);
+		skb_copy_from_linear_data(skb, header, header_len);
 		skb_pull(skb, header_len);
 
 		frontlen = skb_headroom(skb);
@@ -84,12 +84,12 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 			len = max_len > skb->len ? skb->len : max_len;
 
 			/* Copy the user data */
-			memcpy(skb_put(skbn, len), skb->data, len);
+			skb_copy_from_linear_data(skb, skb_put(skbn, len), len);
 			skb_pull(skb, len);
 
 			/* Duplicate the Header */
 			skb_push(skbn, header_len);
-			memcpy(skbn->data, header, header_len);
+			skb_copy_to_linear_data(skbn, header, header_len);
 
 			if (skb->len > 0) {
 				if (x25->neighbour->extended)

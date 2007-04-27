@@ -359,7 +359,6 @@ static void de600_rx_intr(struct net_device *dev)
 	}
 	/* else */
 
-	skb->dev = dev;
 	skb_reserve(skb,2);	/* Align */
 
 	/* 'skb->data' points to the start of sk_buff data area. */

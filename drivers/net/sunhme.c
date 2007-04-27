@@ -2058,11 +2058,10 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 				goto drop_it;
 			}
 
-			copy_skb->dev = dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			hme_dma_sync_for_cpu(hp, dma_addr, len, DMA_FROMDEVICE);
-			memcpy(copy_skb->data, skb->data, len);
+			skb_copy_from_linear_data(skb, copy_skb->data, len);
 			hme_dma_sync_for_device(hp, dma_addr, len, DMA_FROMDEVICE);
 
 			/* Reuse original ring buffer. */
@@ -2270,10 +2269,8 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_flags = TXFLAG_OWN;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		u32 csum_start_off, csum_stuff_off;
-
-		csum_start_off = (u32) (skb->h.raw - skb->data);
-		csum_stuff_off = csum_start_off + skb->csum_offset;
+		const u32 csum_start_off = skb_transport_offset(skb);
+		const u32 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		tx_flags = (TXFLAG_OWN | TXFLAG_CSENABLE |
 			    ((csum_start_off << 14) & TXFLAG_CSBUFBEGIN) |

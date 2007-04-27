@@ -90,10 +90,7 @@ extern struct nf_conntrack_l3proto *nf_ct_l3protos[AF_MAX];
 /* Protocol registration. */
 extern int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto);
 extern void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto);
-
-extern struct nf_conntrack_l3proto *
-nf_ct_l3proto_find_get(u_int16_t l3proto);
-
+extern struct nf_conntrack_l3proto *nf_ct_l3proto_find_get(u_int16_t l3proto);
 extern void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p);
 
 /* Existing built-in protocols */

@@ -1,6 +1,8 @@
 #ifndef __I386_DIV64
 #define __I386_DIV64
 
+#include <linux/types.h>
+
 /*
  * do_div() is NOT a C function. It wants to return
  * two values (the quotient and the remainder), but
@@ -45,4 +47,6 @@ div_ll_X_l_rem(long long divs, long div, long *rem)
 	return dum2;
 
 }
+
+extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
 #endif

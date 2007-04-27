@@ -174,7 +174,7 @@ static unsigned short dvb_net_eth_type_trans(struct sk_buff *skb,
 	struct ethhdr *eth;
 	unsigned char *rawp;
 
-	skb->mac.raw=skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb,dev->hard_header_len);
 	eth = eth_hdr(skb);
 
@@ -600,6 +600,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 			/* Check CRC32, we've got it in our skb already. */
 			unsigned short ulen = htons(priv->ule_sndu_len);
 			unsigned short utype = htons(priv->ule_sndu_type);
+			const u8 *tail;
 			struct kvec iov[3] = {
 				{ &ulen, sizeof ulen },
 				{ &utype, sizeof utype },
@@ -613,10 +614,11 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 			}
 
 			ule_crc = iov_crc32(ule_crc, iov, 3);
-			expected_crc = *((u8 *)priv->ule_skb->tail - 4) << 24 |
-				       *((u8 *)priv->ule_skb->tail - 3) << 16 |
-				       *((u8 *)priv->ule_skb->tail - 2) << 8 |
-				       *((u8 *)priv->ule_skb->tail - 1);
+			tail = skb_tail_pointer(priv->ule_skb);
+			expected_crc = *(tail - 4) << 24 |
+				       *(tail - 3) << 16 |
+				       *(tail - 2) << 8 |
+				       *(tail - 1);
 			if (ule_crc != expected_crc) {
 				printk(KERN_WARNING "%lu: CRC32 check FAILED: %08x / %08x, SNDU len %d type %#x, ts_remain %d, next 2: %x.\n",
 				       priv->ts_count, ule_crc, expected_crc, priv->ule_sndu_len, priv->ule_sndu_type, ts_remain, ts_remain > 2 ? *(unsigned short *)from_where : 0);
@@ -695,7 +697,9 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 					}
 					else
 					{
-						memcpy(dest_addr,  priv->ule_skb->data, ETH_ALEN);
+						skb_copy_from_linear_data(priv->ule_skb,
+							      dest_addr,
+							      ETH_ALEN);
 						skb_pull(priv->ule_skb, ETH_ALEN);
 					}
 				}

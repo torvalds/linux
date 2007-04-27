@@ -29,20 +29,21 @@
  */
 static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct iphdr *iph, *top_iph = NULL;
+	struct iphdr *iph, *top_iph;
 	int hdrlen, optlen;
 
-	iph = skb->nh.iph;
-	skb->h.ipiph = iph;
+	iph = ip_hdr(skb);
+	skb->transport_header = skb->network_header;
 
 	hdrlen = 0;
 	optlen = iph->ihl * 4 - sizeof(*iph);
 	if (unlikely(optlen))
 		hdrlen += IPV4_BEET_PHMAXLEN - (optlen & 4);
 
-	skb->nh.raw = skb_push(skb, x->props.header_len + hdrlen);
-	top_iph = skb->nh.iph;
-	skb->h.raw += sizeof(*iph) - hdrlen;
+	skb_push(skb, x->props.header_len - IPV4_BEET_PHMAXLEN + hdrlen);
+	skb_reset_network_header(skb);
+	top_iph = ip_hdr(skb);
+	skb->transport_header += sizeof(*iph) - hdrlen;
 
 	memmove(top_iph, iph, sizeof(*iph));
 	if (unlikely(optlen)) {
@@ -50,7 +51,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 		BUG_ON(optlen < 0);
 
-		ph = (struct ip_beet_phdr *)skb->h.raw;
+		ph = (struct ip_beet_phdr *)skb_transport_header(skb);
 		ph->padlen = 4 - (optlen & 4);
 		ph->hdrlen = optlen / 8;
 		ph->nexthdr = top_iph->protocol;
@@ -69,20 +70,18 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	int phlen = 0;
 	int optlen = 0;
-	__u8 ph_nexthdr = 0, protocol = 0;
+	u8 ph_nexthdr = 0;
 	int err = -EINVAL;
-
-	protocol = iph->protocol;
 
 	if (unlikely(iph->protocol == IPPROTO_BEETPH)) {
 		struct ip_beet_phdr *ph;
 
 		if (!pskb_may_pull(skb, sizeof(*ph)))
 			goto out;
-		ph = (struct ip_beet_phdr *)(skb->h.ipiph + 1);
+		ph = (struct ip_beet_phdr *)(ipip_hdr(skb) + 1);
 
 		phlen = sizeof(*ph) + ph->padlen;
 		optlen = ph->hdrlen * 8 + (IPV4_BEET_PHMAXLEN - phlen);
@@ -96,22 +95,20 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 		ph_nexthdr = ph->nexthdr;
 	}
 
-	skb->nh.raw = skb->data + (phlen - sizeof(*iph));
-	memmove(skb->nh.raw, iph, sizeof(*iph));
-	skb->h.raw = skb->data + (phlen + optlen);
-	skb->data = skb->h.raw;
+	skb_set_network_header(skb, phlen - sizeof(*iph));
+	memmove(skb_network_header(skb), iph, sizeof(*iph));
+	skb_set_transport_header(skb, phlen + optlen);
+	skb->data = skb_transport_header(skb);
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	iph->ihl = (sizeof(*iph) + optlen) / 4;
 	iph->tot_len = htons(skb->len + iph->ihl * 4);
 	iph->daddr = x->sel.daddr.a4;
 	iph->saddr = x->sel.saddr.a4;
 	if (ph_nexthdr)
 		iph->protocol = ph_nexthdr;
-	else
-		iph->protocol = protocol;
 	iph->check = 0;
-	iph->check = ip_fast_csum(skb->nh.raw, iph->ihl);
+	iph->check = ip_fast_csum(skb_network_header(skb), iph->ihl);
 	err = 0;
 out:
 	return err;

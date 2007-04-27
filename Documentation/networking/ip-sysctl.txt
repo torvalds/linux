@@ -179,11 +179,31 @@ tcp_fin_timeout - INTEGER
 	because they eat maximum 1.5K of memory, but they tend
 	to live longer.	Cf. tcp_max_orphans.
 
-tcp_frto - BOOLEAN
+tcp_frto - INTEGER
 	Enables F-RTO, an enhanced recovery algorithm for TCP retransmission
 	timeouts.  It is particularly beneficial in wireless environments
 	where packet loss is typically due to random radio interference
-	rather than intermediate router congestion.
+	rather than intermediate router congestion. If set to 1, basic
+	version is enabled. 2 enables SACK enhanced F-RTO, which is
+	EXPERIMENTAL. The basic version can be used also when SACK is
+	enabled for a flow through tcp_sack sysctl.
+
+tcp_frto_response - INTEGER
+	When F-RTO has detected that a TCP retransmission timeout was
+	spurious (i.e, the timeout would have been avoided had TCP set a
+	longer retransmission timeout), TCP has several options what to do
+	next. Possible values are:
+		0 Rate halving based; a smooth and conservative response,
+		  results in halved cwnd and ssthresh after one RTT
+		1 Very conservative response; not recommended because even
+		  though being valid, it interacts poorly with the rest of
+		  Linux TCP, halves cwnd and ssthresh immediately
+		2 Aggressive response; undoes congestion control measures
+		  that are now known to be unnecessary (ignoring the
+		  possibility of a lost retransmission that would require
+		  TCP to be more cautious), cwnd and ssthresh are restored
+		  to the values prior timeout
+	Default: 0 (rate halving based)
 
 tcp_keepalive_time - INTEGER
 	How often TCP sends out keepalive messages when keepalive is enabled.
@@ -995,7 +1015,12 @@ bridge-nf-call-ip6tables - BOOLEAN
 	Default: 1
 
 bridge-nf-filter-vlan-tagged - BOOLEAN
-	1 : pass bridged vlan-tagged ARP/IP traffic to arptables/iptables.
+	1 : pass bridged vlan-tagged ARP/IP/IPv6 traffic to {arp,ip,ip6}tables.
+	0 : disable this.
+	Default: 1
+
+bridge-nf-filter-pppoe-tagged - BOOLEAN
+	1 : pass bridged pppoe-tagged IP/IPv6 traffic to {ip,ip6}tables.
 	0 : disable this.
 	Default: 1
 

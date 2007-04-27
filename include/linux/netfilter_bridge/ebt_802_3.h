@@ -54,7 +54,7 @@ struct ebt_802_3_hdr {
 
 static inline struct ebt_802_3_hdr *ebt_802_3_hdr(const struct sk_buff *skb)
 {
-	return (struct ebt_802_3_hdr *)skb->mac.raw;
+	return (struct ebt_802_3_hdr *)skb_mac_header(skb);
 }
 #endif
 

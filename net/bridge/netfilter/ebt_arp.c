@@ -35,40 +35,36 @@ static int ebt_filter_arp(const struct sk_buff *skb, const struct net_device *in
 		return EBT_NOMATCH;
 
 	if (info->bitmask & (EBT_ARP_SRC_IP | EBT_ARP_DST_IP)) {
-		__be32 _addr, *ap;
+		__be32 saddr, daddr, *sap, *dap;
 
-		/* IPv4 addresses are always 4 bytes */
-		if (ah->ar_pln != sizeof(__be32))
+		if (ah->ar_pln != sizeof(__be32) || ah->ar_pro != htons(ETH_P_IP))
 			return EBT_NOMATCH;
-		if (info->bitmask & EBT_ARP_SRC_IP) {
-			ap = skb_header_pointer(skb, sizeof(struct arphdr) +
-						ah->ar_hln, sizeof(_addr),
-						&_addr);
-			if (ap == NULL)
-				return EBT_NOMATCH;
-			if (FWINV(info->saddr != (*ap & info->smsk),
-			   EBT_ARP_SRC_IP))
-				return EBT_NOMATCH;
-		}
-
-		if (info->bitmask & EBT_ARP_DST_IP) {
-			ap = skb_header_pointer(skb, sizeof(struct arphdr) +
-						2*ah->ar_hln+sizeof(__be32),
-						sizeof(_addr), &_addr);
-			if (ap == NULL)
-				return EBT_NOMATCH;
-			if (FWINV(info->daddr != (*ap & info->dmsk),
-			   EBT_ARP_DST_IP))
-				return EBT_NOMATCH;
-		}
+		sap = skb_header_pointer(skb, sizeof(struct arphdr) +
+					ah->ar_hln, sizeof(saddr),
+					&saddr);
+		if (sap == NULL)
+			return EBT_NOMATCH;
+		dap = skb_header_pointer(skb, sizeof(struct arphdr) +
+					2*ah->ar_hln+sizeof(saddr),
+					sizeof(daddr), &daddr);
+		if (dap == NULL)
+			return EBT_NOMATCH;
+		if (info->bitmask & EBT_ARP_SRC_IP &&
+		    FWINV(info->saddr != (*sap & info->smsk), EBT_ARP_SRC_IP))
+			return EBT_NOMATCH;
+		if (info->bitmask & EBT_ARP_DST_IP &&
+		    FWINV(info->daddr != (*dap & info->dmsk), EBT_ARP_DST_IP))
+			return EBT_NOMATCH;
+		if (info->bitmask & EBT_ARP_GRAT &&
+		    FWINV(*dap != *sap, EBT_ARP_GRAT))
+			return EBT_NOMATCH;
 	}
 
 	if (info->bitmask & (EBT_ARP_SRC_MAC | EBT_ARP_DST_MAC)) {
 		unsigned char _mac[ETH_ALEN], *mp;
 		uint8_t verdict, i;
 
-		/* MAC addresses are 6 bytes */
-		if (ah->ar_hln != ETH_ALEN)
+		if (ah->ar_hln != ETH_ALEN || ah->ar_hrd != htons(ARPHRD_ETHER))
 			return EBT_NOMATCH;
 		if (info->bitmask & EBT_ARP_SRC_MAC) {
 			mp = skb_header_pointer(skb, sizeof(struct arphdr),

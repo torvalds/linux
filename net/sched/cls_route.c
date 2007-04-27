@@ -28,6 +28,7 @@
 #include <linux/etherdevice.h>
 #include <linux/notifier.h>
 #include <net/ip.h>
+#include <net/netlink.h>
 #include <net/route.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
@@ -88,9 +89,9 @@ static __inline__ int route4_fastmap_hash(u32 id, int iif)
 static inline
 void route4_reset_fastmap(struct net_device *dev, struct route4_head *head, u32 id)
 {
-	spin_lock_bh(&dev->queue_lock);
+	qdisc_lock_tree(dev);
 	memset(head->fastmap, 0, sizeof(head->fastmap));
-	spin_unlock_bh(&dev->queue_lock);
+	qdisc_unlock_tree(dev);
 }
 
 static inline void
@@ -562,7 +563,7 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 		       struct sk_buff *skb, struct tcmsg *t)
 {
 	struct route4_filter *f = (struct route4_filter*)fh;
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 	u32 id;
 
@@ -591,7 +592,7 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 	if (tcf_exts_dump(skb, &f->exts, &route_ext_map) < 0)
 		goto rtattr_failure;
 
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 
 	if (tcf_exts_dump_stats(skb, &f->exts, &route_ext_map) < 0)
 		goto rtattr_failure;
@@ -599,7 +600,7 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

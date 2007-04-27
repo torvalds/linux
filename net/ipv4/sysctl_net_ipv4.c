@@ -647,6 +647,14 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
+		.ctl_name	= NET_TCP_FRTO_RESPONSE,
+		.procname	= "tcp_frto_response",
+		.data		= &sysctl_tcp_frto_response,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
 		.ctl_name	= NET_TCP_LOW_LATENCY,
 		.procname	= "tcp_low_latency",
 		.data		= &sysctl_tcp_low_latency,
@@ -802,6 +810,14 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler   = &proc_allowed_congestion_control,
 		.strategy	= &strategy_allowed_congestion_control,
+	},
+	{
+		.ctl_name	= NET_TCP_MAX_SSTHRESH,
+		.procname	= "tcp_max_ssthresh",
+		.data		= &sysctl_tcp_max_ssthresh,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 	{ .ctl_name = 0 }
 };

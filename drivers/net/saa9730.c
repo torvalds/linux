@@ -688,7 +688,6 @@ static int lan_saa9730_rx(struct net_device *dev)
 			} else {
 				lp->stats.rx_bytes += len;
 				lp->stats.rx_packets++;
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align */
 				skb_put(skb, len);	/* make room */
 				eth_copy_and_sum(skb,

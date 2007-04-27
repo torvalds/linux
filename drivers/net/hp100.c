@@ -1816,7 +1816,6 @@ static void hp100_rx(struct net_device *dev)
 			u_char *ptr;
 
 			skb_reserve(skb,2);
-			skb->dev = dev;
 
 			/* ptr to start of the sk_buff data area */
 			skb_put(skb, pkt_len);

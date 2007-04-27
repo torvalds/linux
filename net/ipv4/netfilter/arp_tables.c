@@ -245,7 +245,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 	e = get_entry(table_base, private->hook_entry[hook]);
 	back = get_entry(table_base, private->underflow[hook]);
 
-	arp = (*pskb)->nh.arph;
+	arp = arp_hdr(*pskb);
 	do {
 		if (arp_packet_match(arp, (*pskb)->dev, indev, outdev, &e->arp)) {
 			struct arpt_entry_target *t;
@@ -297,7 +297,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 								     t->data);
 
 				/* Target might have changed stuff. */
-				arp = (*pskb)->nh.arph;
+				arp = arp_hdr(*pskb);
 
 				if (verdict == ARPT_CONTINUE)
 					e = (void *)e + e->next_offset;

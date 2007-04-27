@@ -231,7 +231,7 @@ static void bpa10x_wakeup(struct bpa10x_data *data)
 		cr = (struct usb_ctrlrequest *) urb->setup_packet;
 		cr->wLength = __cpu_to_le16(skb->len);
 
-		memcpy(urb->transfer_buffer, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, urb->transfer_buffer, skb->len);
 		urb->transfer_buffer_length = skb->len;
 
 		err = usb_submit_urb(urb, GFP_ATOMIC);
@@ -250,7 +250,7 @@ static void bpa10x_wakeup(struct bpa10x_data *data)
 		skb = skb_dequeue(&data->tx_queue);
 
 	if (skb) {
-		memcpy(urb->transfer_buffer, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, urb->transfer_buffer, skb->len);
 		urb->transfer_buffer_length = skb->len;
 
 		err = usb_submit_urb(urb, GFP_ATOMIC);

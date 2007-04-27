@@ -166,13 +166,6 @@ DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
 	if (is_udplite) SNMP_INC_STATS_USER(udplite_stats_in6, field);         \
 	else		SNMP_INC_STATS_USER(udp_stats_in6, field);    } while(0)
 
-int snmp6_register_dev(struct inet6_dev *idev);
-int snmp6_unregister_dev(struct inet6_dev *idev);
-int snmp6_alloc_dev(struct inet6_dev *idev);
-int snmp6_free_dev(struct inet6_dev *idev);
-int snmp6_mib_init(void *ptr[2], size_t mibsize, size_t mibalign);
-void snmp6_mib_free(void *ptr[2]);
-
 struct ip6_ra_chain
 {
 	struct ip6_ra_chain	*next;
@@ -605,8 +598,20 @@ extern int  udplite6_proc_init(void);
 extern void udplite6_proc_exit(void);
 extern int  ipv6_misc_proc_init(void);
 extern void ipv6_misc_proc_exit(void);
+extern int snmp6_register_dev(struct inet6_dev *idev);
+extern int snmp6_unregister_dev(struct inet6_dev *idev);
 
 extern struct rt6_statistics rt6_stats;
+#else
+static inline int snmp6_register_dev(struct inet6_dev *idev)
+{
+	return 0;
+}
+
+static inline int snmp6_unregister_dev(struct inet6_dev *idev)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_SYSCTL

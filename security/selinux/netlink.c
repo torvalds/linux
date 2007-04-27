@@ -66,7 +66,7 @@ static void selnl_add_payload(struct nlmsghdr *nlh, int len, int msgtype, void *
 static void selnl_notify(int msgtype, void *data)
 {
 	int len;
-	unsigned char *tmp;
+	sk_buff_data_t tmp;
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	
@@ -104,7 +104,7 @@ void selnl_notify_policyload(u32 seqno)
 
 static int __init selnl_init(void)
 {
-	selnl = netlink_kernel_create(NETLINK_SELINUX, SELNLGRP_MAX, NULL,
+	selnl = netlink_kernel_create(NETLINK_SELINUX, SELNLGRP_MAX, NULL, NULL,
 	                              THIS_MODULE);
 	if (selnl == NULL)
 		panic("SELinux:  Cannot create netlink socket.");

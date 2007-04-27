@@ -801,7 +801,6 @@ memory_squeeze:
 				lp->stats.rx_dropped++;
 			}
 			else {
-				skb->dev = dev;
 				if (!rx_in_place) {
 					/* 16 byte align the data fields */
 					dma_sync_single_for_cpu(lp->dev, (dma_addr_t)WSWAPchar(rbd->b_data), PKT_BUF_SZ, DMA_FROM_DEVICE);

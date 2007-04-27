@@ -873,7 +873,6 @@ static void el16_rx(struct net_device *dev)
 			}
 
 			skb_reserve(skb,2);
-			skb->dev = dev;
 
 			/* 'skb->data' points to the start of sk_buff data area. */
 			memcpy_fromio(skb_put(skb,pkt_len), data_frame + 10, pkt_len);

@@ -1568,7 +1568,6 @@ static int hamachi_rx(struct net_device *dev)
 				printk(KERN_ERR "%s: rx_copybreak non-zero "
 				  "not good with RX_CHECKSUM\n", dev->name);
 #endif
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(hmp->pci_dev,
 							    hmp->rx_ring[entry].addr,

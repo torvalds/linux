@@ -56,8 +56,8 @@ int nr_rx_ip(struct sk_buff *skb, struct net_device *dev)
 
 	/* Spoof incoming device */
 	skb->dev      = dev;
-	skb->mac.raw  = skb->nh.raw;
-	skb->nh.raw   = skb->data;
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
 	skb->pkt_type = PACKET_HOST;
 
 	netif_rx(skb);

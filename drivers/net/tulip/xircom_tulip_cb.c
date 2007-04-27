@@ -915,7 +915,9 @@ xircom_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tp->tx_skbuff[entry] = skb;
 	if (tp->chip_id == X3201_3) {
-		memcpy(tp->tx_aligned_skbuff[entry]->data,skb->data,skb->len);
+		skb_copy_from_linear_data(skb,
+					  tp->tx_aligned_skbuff[entry]->data,
+					  skb->len);
 		tp->tx_ring[entry].buffer1 = virt_to_bus(tp->tx_aligned_skbuff[entry]->data);
 	} else
 		tp->tx_ring[entry].buffer1 = virt_to_bus(skb->data);
@@ -1238,7 +1240,6 @@ xircom_rx(struct net_device *dev)
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak
 				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 #if ! defined(__alpha__)
 				eth_copy_and_sum(skb, bus_to_virt(tp->rx_ring[entry].buffer1),

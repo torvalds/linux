@@ -3634,7 +3634,6 @@ de4x5_alloc_rx_buff(struct net_device *dev, int index, int len)
     p = dev_alloc_skb(IEEE802_3_SZ + DE4X5_ALIGN + 2);
     if (!p) return NULL;
 
-    p->dev = dev;
     tmp = virt_to_bus(p->data);
     i = ((tmp + DE4X5_ALIGN) & ~DE4X5_ALIGN) - tmp;
     skb_reserve(p, i);
@@ -3655,7 +3654,6 @@ de4x5_alloc_rx_buff(struct net_device *dev, int index, int len)
     p = dev_alloc_skb(len + 2);
     if (!p) return NULL;
 
-    p->dev = dev;
     skb_reserve(p, 2);	                               /* Align */
     if (index < lp->rx_old) {                          /* Wrapped buffer */
 	short tlen = (lp->rxRingSize - lp->rx_old) * RX_BUFF_SZ;

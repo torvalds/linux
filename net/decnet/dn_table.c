@@ -28,6 +28,7 @@
 #include <asm/uaccess.h>
 #include <linux/route.h> /* RTF_xxx */
 #include <net/neighbour.h>
+#include <net/netlink.h>
 #include <net/dst.h>
 #include <net/flow.h>
 #include <net/fib_rules.h>
@@ -295,7 +296,7 @@ static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*rtm), flags);
 	rtm = NLMSG_DATA(nlh);
@@ -337,19 +338,19 @@ static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 			nhp->rtnh_ifindex = nh->nh_oif;
 			if (nh->nh_gw)
 				RTA_PUT(skb, RTA_GATEWAY, 2, &nh->nh_gw);
-			nhp->rtnh_len = skb->tail - (unsigned char *)nhp;
+			nhp->rtnh_len = skb_tail_pointer(skb) - (unsigned char *)nhp;
 		} endfor_nexthops(fi);
 		mp_head->rta_type = RTA_MULTIPATH;
-		mp_head->rta_len = skb->tail - (u8*)mp_head;
+		mp_head->rta_len = skb_tail_pointer(skb) - (u8 *)mp_head;
 	}
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -EMSGSIZE;
 }
 

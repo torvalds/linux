@@ -7,17 +7,6 @@
  *
  * Author:
  *	Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *
- * 16 Dec 2003: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- support Layer 3 protocol independent connection tracking.
- *	  Based on the original ip_conntrack code which	had the following
- *	  copyright information:
- *		(C) 1999-2001 Paul `Rusty' Russell
- *		(C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * 23 Mar 2004: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- add get_features() to support various size of conntrack
- *	  structures.
  */
 
 #include <linux/types.h>
@@ -138,16 +127,10 @@ static int
 ipv6_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 	     u_int8_t *protonum)
 {
-	unsigned int extoff;
-	unsigned char pnum;
-	int protoff;
-
-	extoff = (u8*)((*pskb)->nh.ipv6h + 1) - (*pskb)->data;
-	pnum = (*pskb)->nh.ipv6h->nexthdr;
-
-	protoff = nf_ct_ipv6_skip_exthdr(*pskb, extoff, &pnum,
-					 (*pskb)->len - extoff);
-
+	unsigned int extoff = (u8 *)(ipv6_hdr(*pskb) + 1) - (*pskb)->data;
+	unsigned char pnum = ipv6_hdr(*pskb)->nexthdr;
+	int protoff = nf_ct_ipv6_skip_exthdr(*pskb, extoff, &pnum,
+					     (*pskb)->len - extoff);
 	/*
 	 * (protoff == (*pskb)->len) mean that the packet doesn't have no data
 	 * except of IPv6 & ext headers. but it's tracked anyway. - YK
@@ -179,9 +162,8 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 	struct nf_conn_help *help;
 	enum ip_conntrack_info ctinfo;
 	unsigned int ret, protoff;
-	unsigned int extoff = (u8*)((*pskb)->nh.ipv6h + 1)
-			      - (*pskb)->data;
-	unsigned char pnum = (*pskb)->nh.ipv6h->nexthdr;
+	unsigned int extoff = (u8 *)(ipv6_hdr(*pskb) + 1) - (*pskb)->data;
+	unsigned char pnum = ipv6_hdr(*pskb)->nexthdr;
 
 
 	/* This is where we call the helper: as the packet goes out. */

@@ -1766,7 +1766,6 @@ static void rx_complete (struct usb_ep *ep, struct usb_request *req)
 			break;
 		}
 
-		skb->dev = dev->net;
 		skb->protocol = eth_type_trans (skb, dev->net);
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += skb->len;

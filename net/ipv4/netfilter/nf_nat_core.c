@@ -431,7 +431,7 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	} *inside;
 	struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple inner, target;
-	int hdrlen = (*pskb)->nh.iph->ihl * 4;
+	int hdrlen = ip_hdrlen(*pskb);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	unsigned long statusbit;
 	enum nf_nat_manip_type manip = HOOK2MANIP(hooknum);
@@ -439,7 +439,7 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	if (!skb_make_writable(pskb, hdrlen + sizeof(*inside)))
 		return 0;
 
-	inside = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
+	inside = (void *)(*pskb)->data + ip_hdrlen(*pskb);
 
 	/* We're actually going to mangle it beyond trivial checksum
 	   adjustment, so make sure the current checksum is correct. */
@@ -469,9 +469,9 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	l4proto = __nf_ct_l4proto_find(PF_INET, inside->ip.protocol);
 
 	if (!nf_ct_get_tuple(*pskb,
-			     (*pskb)->nh.iph->ihl*4 + sizeof(struct icmphdr),
-			     (*pskb)->nh.iph->ihl*4 +
-			     sizeof(struct icmphdr) + inside->ip.ihl*4,
+			     ip_hdrlen(*pskb) + sizeof(struct icmphdr),
+			     (ip_hdrlen(*pskb) +
+			      sizeof(struct icmphdr) + inside->ip.ihl * 4),
 			     (u_int16_t)AF_INET,
 			     inside->ip.protocol,
 			     &inner, l3proto, l4proto))
@@ -483,14 +483,14 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 	   packet: PREROUTING (DST manip), routing produces ICMP, goes
 	   through POSTROUTING (which must correct the DST manip). */
 	if (!manip_pkt(inside->ip.protocol, pskb,
-		       (*pskb)->nh.iph->ihl*4 + sizeof(inside->icmp),
+		       ip_hdrlen(*pskb) + sizeof(inside->icmp),
 		       &ct->tuplehash[!dir].tuple,
 		       !manip))
 		return 0;
 
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
 		/* Reloading "inside" here since manip_pkt inner. */
-		inside = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
+		inside = (void *)(*pskb)->data + ip_hdrlen(*pskb);
 		inside->icmp.checksum = 0;
 		inside->icmp.checksum =
 			csum_fold(skb_checksum(*pskb, hdrlen,

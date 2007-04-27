@@ -1,0 +1,16 @@
+config CFG80211
+        tristate "Improved wireless configuration API"
+
+config WIRELESS_EXT
+	bool "Wireless extensions"
+	default n
+	---help---
+	  This option enables the legacy wireless extensions
+	  (wireless network interface configuration via ioctls.)
+
+	  Wireless extensions will be replaced by cfg80211 and
+	  will be required only by legacy drivers that implement
+	  wireless extension handlers.
+
+	  Say N (if you can) unless you know you need wireless
+	  extensions for external modules.

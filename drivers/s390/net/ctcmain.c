@@ -455,7 +455,7 @@ ctc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 			return;
 		}
 		skb_put(pskb, header->length);
-		pskb->mac.raw = pskb->data;
+		skb_reset_mac_header(pskb);
 		len -= header->length;
 		skb = dev_alloc_skb(pskb->len);
 		if (!skb) {
@@ -472,8 +472,9 @@ ctc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 			privptr->stats.rx_dropped++;
 			return;
 		}
-		memcpy(skb_put(skb, pskb->len), pskb->data, pskb->len);
-		skb->mac.raw = skb->data;
+		skb_copy_from_linear_data(pskb, skb_put(skb, pskb->len),
+					  pskb->len);
+		skb_reset_mac_header(skb);
 		skb->dev = pskb->dev;
 		skb->protocol = pskb->protocol;
 		pskb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -706,7 +707,8 @@ ch_action_txdone(fsm_instance * fi, int event, void *arg)
 			spin_unlock(&ch->collect_lock);
 			return;
 		}
-		ch->trans_skb->tail = ch->trans_skb->data = ch->trans_skb_data;
+		ch->trans_skb->data = ch->trans_skb_data;
+		skb_reset_tail_pointer(ch->trans_skb);
 		ch->trans_skb->len = 0;
 		if (ch->prof.maxmulti < (ch->collect_len + 2))
 			ch->prof.maxmulti = ch->collect_len + 2;
@@ -715,8 +717,9 @@ ch_action_txdone(fsm_instance * fi, int event, void *arg)
 		*((__u16 *) skb_put(ch->trans_skb, 2)) = ch->collect_len + 2;
 		i = 0;
 		while ((skb = skb_dequeue(&ch->collect_queue))) {
-			memcpy(skb_put(ch->trans_skb, skb->len), skb->data,
-			       skb->len);
+			skb_copy_from_linear_data(skb, skb_put(ch->trans_skb,
+							       skb->len),
+						  skb->len);
 			privptr->stats.tx_packets++;
 			privptr->stats.tx_bytes += skb->len - LL_HEADER_LENGTH;
 			atomic_dec(&skb->users);
@@ -831,7 +834,8 @@ ch_action_rx(fsm_instance * fi, int event, void *arg)
 		ctc_unpack_skb(ch, skb);
 	}
  again:
-	skb->data = skb->tail = ch->trans_skb_data;
+	skb->data = ch->trans_skb_data;
+	skb_reset_tail_pointer(skb);
 	skb->len = 0;
 	if (ctc_checkalloc_buffer(ch, 1))
 		return;
@@ -2223,7 +2227,8 @@ transmit_skb(struct channel *ch, struct sk_buff *skb)
 		 * IDAL support in CTC is broken, so we have to
 		 * care about skb's above 2G ourselves.
 		 */
-		hi = ((unsigned long) skb->tail + LL_HEADER_LENGTH) >> 31;
+		hi = ((unsigned long)skb_tail_pointer(skb) +
+		      LL_HEADER_LENGTH) >> 31;
 		if (hi) {
 			nskb = alloc_skb(skb->len, GFP_ATOMIC | GFP_DMA);
 			if (!nskb) {
@@ -2259,11 +2264,12 @@ transmit_skb(struct channel *ch, struct sk_buff *skb)
 				return -EBUSY;
 			}
 
-			ch->trans_skb->tail = ch->trans_skb->data;
+			skb_reset_tail_pointer(ch->trans_skb);
 			ch->trans_skb->len = 0;
 			ch->ccw[1].count = skb->len;
-			memcpy(skb_put(ch->trans_skb, skb->len), skb->data,
-			       skb->len);
+			skb_copy_from_linear_data(skb, skb_put(ch->trans_skb,
+							       skb->len),
+						  skb->len);
 			atomic_dec(&skb->users);
 			dev_kfree_skb_irq(skb);
 			ccw_idx = 0;

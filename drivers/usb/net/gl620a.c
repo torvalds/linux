@@ -157,7 +157,7 @@ genelink_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 		if ((headroom < (4 + 4*1)) || (tailroom < padlen)) {
 			skb->data = memmove(skb->head + (4 + 4*1),
 					     skb->data, skb->len);
-			skb->tail = skb->data + skb->len;
+			skb_set_tail_pointer(skb, skb->len);
 		}
 	} else {
 		struct sk_buff	*skb2;

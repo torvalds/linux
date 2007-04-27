@@ -263,8 +263,8 @@ static __inline__ void ax25_cb_put(ax25_cb *ax25)
 static inline __be16 ax25_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	skb->dev      = dev;
+	skb_reset_mac_header(skb);
 	skb->pkt_type = PACKET_HOST;
-	skb->mac.raw  = skb->data;
 	return htons(ETH_P_AX25);
 }
 

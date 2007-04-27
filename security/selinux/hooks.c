@@ -2944,7 +2944,7 @@ static int selinux_parse_skb_ipv4(struct sk_buff *skb,
 	int offset, ihlen, ret = -EINVAL;
 	struct iphdr _iph, *ih;
 
-	offset = skb->nh.raw - skb->data;
+	offset = skb_network_offset(skb);
 	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
 	if (ih == NULL)
 		goto out;
@@ -3026,7 +3026,7 @@ static int selinux_parse_skb_ipv6(struct sk_buff *skb,
 	int ret = -EINVAL, offset;
 	struct ipv6hdr _ipv6h, *ip6;
 
-	offset = skb->nh.raw - skb->data;
+	offset = skb_network_offset(skb);
 	ip6 = skb_header_pointer(skb, offset, sizeof(_ipv6h), &_ipv6h);
 	if (ip6 == NULL)
 		goto out;
@@ -3786,7 +3786,7 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 		err = -EINVAL;
 		goto out;
 	}
-	nlh = (struct nlmsghdr *)skb->data;
+	nlh = nlmsg_hdr(skb);
 	
 	err = selinux_nlmsg_lookup(isec->sclass, nlh->nlmsg_type, &perm);
 	if (err) {

@@ -927,7 +927,7 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 			default:
 				printk(KERN_DEBUG "impossible 102\n");
 				return -EINVAL;
-			};
+			}
 		}
 		return err;
 	}

@@ -62,11 +62,11 @@ struct nfattr
 #define NFA_DATA(nfa)   ((void *)(((char *)(nfa)) + NFA_LENGTH(0)))
 #define NFA_PAYLOAD(nfa) ((int)((nfa)->nfa_len) - NFA_LENGTH(0))
 #define NFA_NEST(skb, type) \
-({	struct nfattr *__start = (struct nfattr *) (skb)->tail; \
+({	struct nfattr *__start = (struct nfattr *)skb_tail_pointer(skb); \
 	NFA_PUT(skb, (NFNL_NFA_NEST | type), 0, NULL); \
 	__start;  })
 #define NFA_NEST_END(skb, start) \
-({      (start)->nfa_len = ((skb)->tail - (unsigned char *) (start)); \
+({      (start)->nfa_len = skb_tail_pointer(skb) - (unsigned char *)(start); \
         (skb)->len; })
 #define NFA_NEST_CANCEL(skb, start) \
 ({      if (start) \
@@ -111,7 +111,7 @@ struct nfgenmsg {
 struct nfnl_callback
 {
 	int (*call)(struct sock *nl, struct sk_buff *skb, 
-		struct nlmsghdr *nlh, struct nfattr *cda[], int *errp);
+		struct nlmsghdr *nlh, struct nfattr *cda[]);
 	u_int16_t attr_count;	/* number of nfattr's */
 };
 
@@ -128,19 +128,6 @@ extern void __nfa_fill(struct sk_buff *skb, int attrtype,
 #define NFA_PUT(skb, attrtype, attrlen, data) \
 ({ if (skb_tailroom(skb) < (int)NFA_SPACE(attrlen)) goto nfattr_failure; \
    __nfa_fill(skb, attrtype, attrlen, data); })
-
-extern struct semaphore nfnl_sem;
-
-#define nfnl_shlock()		down(&nfnl_sem)
-#define nfnl_shlock_nowait()	down_trylock(&nfnl_sem)
-
-#define nfnl_shunlock()		do { up(&nfnl_sem); \
-				     if(nfnl && nfnl->sk_receive_queue.qlen) \
-					    nfnl->sk_data_ready(nfnl, 0); \
-                        	} while(0)
-
-extern void nfnl_lock(void);
-extern void nfnl_unlock(void);
 
 extern int nfnetlink_subsys_register(struct nfnetlink_subsystem *n);
 extern int nfnetlink_subsys_unregister(struct nfnetlink_subsystem *n);

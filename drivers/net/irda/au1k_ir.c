@@ -526,7 +526,7 @@ static int au1k_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	
 	if (aup->speed == 4000000) {
 		/* FIR */
-		memcpy((void *)pDB->vaddr, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, pDB->vaddr, skb->len);
 		ptxd->count_0 = skb->len & 0xff;
 		ptxd->count_1 = (skb->len >> 8) & 0xff;
 
@@ -604,9 +604,9 @@ static int au1k_irda_rx(struct net_device *dev)
 				skb_put(skb, count);
 			else
 				skb_put(skb, count-2);
-			memcpy(skb->data, (void *)pDB->vaddr, count-2);
+			skb_copy_to_linear_data(skb, pDB->vaddr, count - 2);
 			skb->dev = dev;
-			skb->mac.raw = skb->data;
+			skb_reset_mac_header(skb);
 			skb->protocol = htons(ETH_P_IRDA);
 			netif_rx(skb);
 			prxd->count_0 = 0;

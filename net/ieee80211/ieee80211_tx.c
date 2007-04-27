@@ -225,10 +225,10 @@ static int ieee80211_classify(struct sk_buff *skb)
 	struct iphdr *ip;
 
 	eth = (struct ethhdr *)skb->data;
-	if (eth->h_proto != __constant_htons(ETH_P_IP))
+	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
 
-	ip = skb->nh.iph;
+	ip = ip_hdr(skb);
 	switch (ip->tos & 0xfc) {
 	case 0x20:
 		return 2;
@@ -309,8 +309,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Save source and destination addresses */
-	memcpy(dest, skb->data, ETH_ALEN);
-	memcpy(src, skb->data + ETH_ALEN, ETH_ALEN);
+	skb_copy_from_linear_data(skb, dest, ETH_ALEN);
+	skb_copy_from_linear_data_offset(skb, ETH_ALEN, src, ETH_ALEN);
 
 	if (host_encrypt || host_build_iv)
 		fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
@@ -363,7 +363,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		snapped = 1;
 		ieee80211_copy_snap(skb_put(skb_new, SNAP_SIZE + sizeof(u16)),
 				    ether_type);
-		memcpy(skb_put(skb_new, skb->len), skb->data, skb->len);
+		skb_copy_from_linear_data(skb, skb_put(skb_new, skb->len), skb->len);
 		res = crypt->ops->encrypt_msdu(skb_new, hdr_len, crypt->priv);
 		if (res < 0) {
 			IEEE80211_ERROR("msdu encryption failed\n");
@@ -492,7 +492,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			bytes -= SNAP_SIZE + sizeof(u16);
 		}
 
-		memcpy(skb_put(skb_frag, bytes), skb->data, bytes);
+		skb_copy_from_linear_data(skb, skb_put(skb_frag, bytes), bytes);
 
 		/* Advance the SKB... */
 		skb_pull(skb, bytes);

@@ -218,7 +218,7 @@ static u32 tcp_lp_owd_calculator(struct sock *sk)
  *   3. calc smoothed OWD (SOWD).
  * Most ideas come from the original TCP-LP implementation.
  */
-static void tcp_lp_rtt_sample(struct sock *sk, u32 usrtt)
+static void tcp_lp_rtt_sample(struct sock *sk, u32 rtt)
 {
 	struct lp *lp = inet_csk_ca(sk);
 	s64 mowd = tcp_lp_owd_calculator(sk);
@@ -261,10 +261,12 @@ static void tcp_lp_rtt_sample(struct sock *sk, u32 usrtt)
  * newReno in increase case.
  * We work it out by following the idea from TCP-LP's paper directly
  */
-static void tcp_lp_pkts_acked(struct sock *sk, u32 num_acked)
+static void tcp_lp_pkts_acked(struct sock *sk, u32 num_acked, ktime_t last)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct lp *lp = inet_csk_ca(sk);
+
+	tcp_lp_rtt_sample(sk,  ktime_to_us(net_timedelta(last)));
 
 	/* calc inference */
 	if (tcp_time_stamp > tp->rx_opt.rcv_tsecr)
@@ -312,11 +314,11 @@ static void tcp_lp_pkts_acked(struct sock *sk, u32 num_acked)
 }
 
 static struct tcp_congestion_ops tcp_lp = {
+	.flags = TCP_CONG_RTT_STAMP,
 	.init = tcp_lp_init,
 	.ssthresh = tcp_reno_ssthresh,
 	.cong_avoid = tcp_lp_cong_avoid,
 	.min_cwnd = tcp_reno_min_cwnd,
-	.rtt_sample = tcp_lp_rtt_sample,
 	.pkts_acked = tcp_lp_pkts_acked,
 
 	.owner = THIS_MODULE,

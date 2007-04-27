@@ -255,7 +255,6 @@ static int ep93xx_rx(struct net_device *dev, int *budget)
 
 		skb = dev_alloc_skb(length + 2);
 		if (likely(skb != NULL)) {
-			skb->dev = dev;
 			skb_reserve(skb, 2);
 			dma_sync_single(NULL, ep->descs->rdesc[entry].buf_addr,
 						length, DMA_FROM_DEVICE);

@@ -181,6 +181,10 @@ enum {
 	XFRM_MSG_MIGRATE,
 #define XFRM_MSG_MIGRATE XFRM_MSG_MIGRATE
 
+	XFRM_MSG_NEWSADINFO,
+#define XFRM_MSG_NEWSADINFO XFRM_MSG_NEWSADINFO
+	XFRM_MSG_GETSADINFO,
+#define XFRM_MSG_GETSADINFO XFRM_MSG_GETSADINFO
 	__XFRM_MSG_MAX
 };
 #define XFRM_MSG_MAX (__XFRM_MSG_MAX - 1)
@@ -234,6 +238,17 @@ enum xfrm_ae_ftype_t {
 #define XFRM_AE_MAX (__XFRM_AE_MAX - 1)
 };
 
+/* SAD Table filter flags  */
+enum xfrm_sad_ftype_t {
+	XFRM_SAD_UNSPEC,
+	XFRM_SAD_HMASK=1,
+	XFRM_SAD_HMAX=2,
+	XFRM_SAD_CNT=4,
+	__XFRM_SAD_MAX
+
+#define XFRM_SAD_MAX (__XFRM_SAD_MAX - 1)
+};
+
 struct xfrm_userpolicy_type {
 	__u8		type;
 	__u16		reserved1;
@@ -263,6 +278,16 @@ enum xfrm_attr_type_t {
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)
+};
+
+enum xfrm_sadattr_type_t {
+	XFRMA_SAD_UNSPEC,
+	XFRMA_SADHMASK,
+	XFRMA_SADHMAX,
+	XFRMA_SADCNT,
+	__XFRMA_SAD_MAX
+
+#define XFRMA_SAD_MAX (__XFRMA_SAD_MAX - 1)
 };
 
 struct xfrm_usersa_info {

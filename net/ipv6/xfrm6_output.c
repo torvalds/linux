@@ -23,6 +23,8 @@ int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 	return ip6_find_1stfragopt(skb, prevhdr);
 }
 
+EXPORT_SYMBOL(xfrm6_find_1stfragopt);
+
 static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 {
 	int mtu, ret = 0;
@@ -76,11 +78,11 @@ static int xfrm6_output_one(struct sk_buff *skb)
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;
 		if (x->props.mode == XFRM_MODE_ROUTEOPTIMIZATION)
-			x->lastused = (u64)xtime.tv_sec;
+			x->lastused = get_seconds();
 
 		spin_unlock_bh(&x->lock);
 
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 
 		if (!(skb->dst = dst_pop(dst))) {
 			err = -EHOSTUNREACH;

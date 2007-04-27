@@ -1174,7 +1174,7 @@ static int cipso_v4_map_cat_rng_ntoh(const struct cipso_v4_doi *doi_def,
 	u16 cat_low;
 	u16 cat_high;
 
-	for(net_iter = 0; net_iter < net_cat_len; net_iter += 4) {
+	for (net_iter = 0; net_iter < net_cat_len; net_iter += 4) {
 		cat_high = ntohs(*((__be16 *)&net_cat[net_iter]));
 		if ((net_iter + 4) <= net_cat_len)
 			cat_low = ntohs(*((__be16 *)&net_cat[net_iter + 2]));
@@ -1676,7 +1676,7 @@ validate_return:
  */
 void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway)
 {
-	if (skb->nh.iph->protocol == IPPROTO_ICMP || error != -EACCES)
+	if (ip_hdr(skb)->protocol == IPPROTO_ICMP || error != -EACCES)
 		return;
 
 	if (gateway)

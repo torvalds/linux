@@ -661,7 +661,7 @@ static inline struct sk_buff *get_imm_packet(const struct rsp_desc *resp)
 
 	if (skb) {
 		__skb_put(skb, IMMED_PKT_SIZE);
-		memcpy(skb->data, resp->imm_data, IMMED_PKT_SIZE);
+		skb_copy_to_linear_data(skb, resp->imm_data, IMMED_PKT_SIZE);
 	}
 	return skb;
 }
@@ -897,11 +897,11 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 		d->flit[2] = 0;
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT_LSO);
 		hdr->cntrl = htonl(cntrl);
-		eth_type = skb->nh.raw - skb->data == ETH_HLEN ?
+		eth_type = skb_network_offset(skb) == ETH_HLEN ?
 		    CPL_ETH_II : CPL_ETH_II_VLAN;
 		tso_info |= V_LSO_ETH_TYPE(eth_type) |
-		    V_LSO_IPHDR_WORDS(skb->nh.iph->ihl) |
-		    V_LSO_TCPHDR_WORDS(skb->h.th->doff);
+		    V_LSO_IPHDR_WORDS(ip_hdr(skb)->ihl) |
+		    V_LSO_TCPHDR_WORDS(tcp_hdr(skb)->doff);
 		hdr->lso_info = htonl(tso_info);
 		flits = 3;
 	} else {
@@ -913,7 +913,8 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 		if (skb->len <= WR_LEN - sizeof(*cpl)) {
 			q->sdesc[pidx].skb = NULL;
 			if (!skb->data_len)
-				memcpy(&d->flit[2], skb->data, skb->len);
+				skb_copy_from_linear_data(skb, &d->flit[2],
+							  skb->len);
 			else
 				skb_copy_bits(skb, 0, &d->flit[2], skb->len);
 
@@ -1319,16 +1320,19 @@ static void write_ofld_wr(struct adapter *adap, struct sk_buff *skb,
 	/* Only TX_DATA builds SGLs */
 
 	from = (struct work_request_hdr *)skb->data;
-	memcpy(&d->flit[1], &from[1], skb->h.raw - skb->data - sizeof(*from));
+	memcpy(&d->flit[1], &from[1],
+	       skb_transport_offset(skb) - sizeof(*from));
 
-	flits = (skb->h.raw - skb->data) / 8;
+	flits = skb_transport_offset(skb) / 8;
 	sgp = ndesc == 1 ? (struct sg_ent *)&d->flit[flits] : sgl;
-	sgl_flits = make_sgl(skb, sgp, skb->h.raw, skb->tail - skb->h.raw,
+	sgl_flits = make_sgl(skb, sgp, skb_transport_header(skb),
+			     skb->tail - skb->transport_header,
 			     adap->pdev);
 	if (need_skb_unmap()) {
 		setup_deferred_unmapping(skb, adap->pdev, sgp, sgl_flits);
 		skb->destructor = deferred_unmap_destructor;
-		((struct unmap_info *)skb->cb)->len = skb->tail - skb->h.raw;
+		((struct unmap_info *)skb->cb)->len = (skb->tail -
+						       skb->transport_header);
 	}
 
 	write_wr_hdr_sgl(ndesc, skb, d, pidx, q, sgl, flits, sgl_flits,
@@ -1349,8 +1353,8 @@ static inline unsigned int calc_tx_descs_ofld(const struct sk_buff *skb)
 	if (skb->len <= WR_LEN && cnt == 0)
 		return 1;	/* packet fits as immediate data */
 
-	flits = (skb->h.raw - skb->data) / 8;	/* headers */
-	if (skb->tail != skb->h.raw)
+	flits = skb_transport_offset(skb) / 8;	/* headers */
+	if (skb->tail != skb->transport_header)
 		cnt++;
 	return flits_to_desc(flits + sgl_len(cnt));
 }
@@ -1620,7 +1624,9 @@ static inline int rx_offload(struct t3cdev *tdev, struct sge_rspq *rq,
 			     unsigned int gather_idx)
 {
 	rq->offload_pkts++;
-	skb->mac.raw = skb->nh.raw = skb->h.raw = skb->data;
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
 
 	if (rq->polling) {
 		rx_gather[gather_idx++] = skb;
@@ -1684,9 +1690,8 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 	struct port_info *pi;
 
 	skb_pull(skb, sizeof(*p) + pad);
-	skb->dev = adap->port[p->iff];
 	skb->dev->last_rx = jiffies;
-	skb->protocol = eth_type_trans(skb, skb->dev);
+	skb->protocol = eth_type_trans(skb, adap->port[p->iff]);
 	pi = netdev_priv(skb->dev);
 	if (pi->rx_csum_offload && p->csum_valid && p->csum == 0xffff &&
 	    !p->fragment) {
@@ -1717,11 +1722,11 @@ static void skb_data_init(struct sk_buff *skb, struct sge_fl_page *p,
 {
 	skb->len = len;
 	if (len <= SKB_DATA_SIZE) {
-		memcpy(skb->data, p->va, len);
+		skb_copy_to_linear_data(skb, p->va, len);
 		skb->tail += len;
 		put_page(p->frag.page);
 	} else {
-		memcpy(skb->data, p->va, SKB_DATA_SIZE);
+		skb_copy_to_linear_data(skb, p->va, SKB_DATA_SIZE);
 		skb_shinfo(skb)->frags[0].page = p->frag.page;
 		skb_shinfo(skb)->frags[0].page_offset =
 		    p->frag.page_offset + SKB_DATA_SIZE;
@@ -1767,7 +1772,7 @@ static struct sk_buff *get_packet(struct adapter *adap, struct sge_fl *fl,
 			__skb_put(skb, len);
 			pci_dma_sync_single_for_cpu(adap->pdev, mapping, len,
 						    PCI_DMA_FROMDEVICE);
-			memcpy(skb->data, sd->t.skb->data, len);
+			skb_copy_from_linear_data(sd->t.skb, skb->data, len);
 			pci_dma_sync_single_for_device(adap->pdev, mapping, len,
 						       PCI_DMA_FROMDEVICE);
 		} else if (!drop_thres)

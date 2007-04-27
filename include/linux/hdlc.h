@@ -132,8 +132,8 @@ static __inline__ __be16 hdlc_type_trans(struct sk_buff *skb,
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 
-	skb->mac.raw  = skb->data;
-	skb->dev      = dev;
+	skb->dev = dev;
+	skb_reset_mac_header(skb);
 
 	if (hdlc->proto->type_trans)
 		return hdlc->proto->type_trans(skb, dev);

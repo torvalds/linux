@@ -102,7 +102,7 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
  */
 static int send_reply(struct sk_buff *skb, pid_t pid)
 {
-	struct genlmsghdr *genlhdr = nlmsg_data((struct nlmsghdr *)skb->data);
+	struct genlmsghdr *genlhdr = nlmsg_data(nlmsg_hdr(skb));
 	void *reply = genlmsg_data(genlhdr);
 	int rc;
 
@@ -121,7 +121,7 @@ static int send_reply(struct sk_buff *skb, pid_t pid)
 static void send_cpu_listeners(struct sk_buff *skb,
 					struct listener_list *listeners)
 {
-	struct genlmsghdr *genlhdr = nlmsg_data((struct nlmsghdr *)skb->data);
+	struct genlmsghdr *genlhdr = nlmsg_data(nlmsg_hdr(skb));
 	struct listener *s, *tmp;
 	struct sk_buff *skb_next, *skb_cur = skb;
 	void *reply = genlmsg_data(genlhdr);

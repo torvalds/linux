@@ -131,19 +131,54 @@ static inline void sctp_ulpevent_release_owner(struct sctp_ulpevent *event)
 struct sctp_ulpevent  *sctp_ulpevent_make_assoc_change(
 	const struct sctp_association *asoc,
 	__u16 flags, __u16 state, __u16 error, __u16 outbound,
-	__u16 inbound, gfp_t gfp)
+	__u16 inbound, struct sctp_chunk *chunk, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_assoc_change *sac;
 	struct sk_buff *skb;
 
-	event = sctp_ulpevent_new(sizeof(struct sctp_assoc_change),
+	/* If the lower layer passed in the chunk, it will be
+	 * an ABORT, so we need to include it in the sac_info.
+	 */
+	if (chunk) {
+		/* sctp_inqu_pop() has allready pulled off the chunk
+		 * header.  We need to put it back temporarily
+		 */
+		skb_push(chunk->skb, sizeof(sctp_chunkhdr_t));
+
+		/* Copy the chunk data to a new skb and reserve enough
+		 * head room to use as notification.
+		 */
+		skb = skb_copy_expand(chunk->skb,
+				      sizeof(struct sctp_assoc_change), 0, gfp);
+
+		if (!skb)
+			goto fail;
+
+		/* put back the chunk header now that we have a copy */
+		skb_pull(chunk->skb, sizeof(sctp_chunkhdr_t));
+
+		/* Embed the event fields inside the cloned skb.  */
+		event = sctp_skb2event(skb);
+		sctp_ulpevent_init(event, MSG_NOTIFICATION, skb->truesize);
+
+		/* Include the notification structure */
+		sac = (struct sctp_assoc_change *)
+			skb_push(skb, sizeof(struct sctp_assoc_change));
+
+		/* Trim the buffer to the right length.  */
+		skb_trim(skb, sizeof(struct sctp_assoc_change) +
+			 ntohs(chunk->chunk_hdr->length));
+	} else {
+		event = sctp_ulpevent_new(sizeof(struct sctp_assoc_change),
 				  MSG_NOTIFICATION, gfp);
-	if (!event)
-		goto fail;
-	skb = sctp_event2skb(event);
-	sac = (struct sctp_assoc_change *)
-		skb_put(skb, sizeof(struct sctp_assoc_change));
+		if (!event)
+			goto fail;
+
+		skb = sctp_event2skb(event);
+		sac = (struct sctp_assoc_change *) skb_put(skb,
+					sizeof(struct sctp_assoc_change));
+	}
 
 	/* Socket Extensions for SCTP
 	 * 5.3.1.1 SCTP_ASSOC_CHANGE

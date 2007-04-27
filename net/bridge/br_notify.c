@@ -50,7 +50,6 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	case NETDEV_CHANGEADDR:
 		spin_lock_bh(&br->lock);
 		br_fdb_changeaddr(p, dev->dev_addr);
-		br_ifinfo_notify(RTM_NEWLINK, p);
 		br_stp_recalculate_bridge_id(br);
 		spin_unlock_bh(&br->lock);
 		break;
@@ -74,16 +73,22 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		break;
 
 	case NETDEV_UP:
-		spin_lock_bh(&br->lock);
-		if (netif_carrier_ok(dev) && (br->dev->flags & IFF_UP))
+		if (netif_carrier_ok(dev) && (br->dev->flags & IFF_UP)) {
+			spin_lock_bh(&br->lock);
 			br_stp_enable_port(p);
-		spin_unlock_bh(&br->lock);
+			spin_unlock_bh(&br->lock);
+		}
 		break;
 
 	case NETDEV_UNREGISTER:
 		br_del_if(br, dev);
 		break;
 	}
+
+	/* Events that may cause spanning tree to refresh */
+	if (event == NETDEV_CHANGEADDR || event == NETDEV_UP ||
+	    event == NETDEV_CHANGE || event == NETDEV_DOWN)
+		br_ifinfo_notify(RTM_NEWLINK, p);
 
 	return NOTIFY_DONE;
 }

@@ -256,7 +256,7 @@ static struct sk_buff *irttp_reassemble_skb(struct tsap_cb *self)
 	 *  Copy all fragments to a new buffer
 	 */
 	while ((frag = skb_dequeue(&self->rx_fragments)) != NULL) {
-		memcpy(skb->data+n, frag->data, frag->len);
+		skb_copy_to_linear_data_offset(skb, n, frag->data, frag->len);
 		n += frag->len;
 
 		dev_kfree_skb(frag);
@@ -314,8 +314,8 @@ static inline void irttp_fragment_skb(struct tsap_cb *self,
 		skb_reserve(frag, self->max_header_size);
 
 		/* Copy data from the original skb into this fragment. */
-		memcpy(skb_put(frag, self->max_seg_size), skb->data,
-		       self->max_seg_size);
+		skb_copy_from_linear_data(skb, skb_put(frag, self->max_seg_size),
+			      self->max_seg_size);
 
 		/* Insert TTP header, with the more bit set */
 		frame = skb_push(frag, TTP_HEADER);
@@ -551,7 +551,7 @@ int irttp_udata_request(struct tsap_cb *self, struct sk_buff *skb)
 	}
 
 	if (skb->len > self->max_seg_size) {
-		IRDA_DEBUG(1, "%s(), UData is to large for IrLAP!\n",
+		IRDA_DEBUG(1, "%s(), UData is too large for IrLAP!\n",
 			   __FUNCTION__);
 		goto err;
 	}
@@ -598,7 +598,7 @@ int irttp_data_request(struct tsap_cb *self, struct sk_buff *skb)
 	 *  inside an IrLAP frame
 	 */
 	if ((self->tx_max_sdu_size == 0) && (skb->len > self->max_seg_size)) {
-		IRDA_ERROR("%s: SAR disabled, and data is to large for IrLAP!\n",
+		IRDA_ERROR("%s: SAR disabled, and data is too large for IrLAP!\n",
 			   __FUNCTION__);
 		ret = -EMSGSIZE;
 		goto err;

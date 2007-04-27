@@ -55,7 +55,7 @@ static int uml_net_rx(struct net_device *dev)
 
 	skb->dev = dev;
 	skb_put(skb, dev->mtu);
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	pkt_len = (*lp->read)(lp->fd, &skb, lp);
 
 	if (pkt_len > 0) {

@@ -396,8 +396,8 @@ ip6t_log_packet(unsigned int pf,
 		/* MAC logging for input chain only. */
 		printk("MAC=");
 		if (skb->dev && (len = skb->dev->hard_header_len) &&
-		    skb->mac.raw != skb->nh.raw) {
-			unsigned char *p = skb->mac.raw;
+		    skb->mac_header != skb->network_header) {
+			const unsigned char *p = skb_mac_header(skb);
 			int i;
 
 			if (skb->dev->type == ARPHRD_SIT &&
@@ -412,7 +412,8 @@ ip6t_log_packet(unsigned int pf,
 			printk(" ");
 
 			if (skb->dev->type == ARPHRD_SIT) {
-				struct iphdr *iph = (struct iphdr *)skb->mac.raw;
+				const struct iphdr *iph =
+					(struct iphdr *)skb_mac_header(skb);
 				printk("TUNNEL=%u.%u.%u.%u->%u.%u.%u.%u ",
 				       NIPQUAD(iph->saddr),
 				       NIPQUAD(iph->daddr));
@@ -421,7 +422,7 @@ ip6t_log_packet(unsigned int pf,
 			printk(" ");
 	}
 
-	dump_packet(loginfo, skb, (u8*)skb->nh.ipv6h - skb->data, 1);
+	dump_packet(loginfo, skb, skb_network_offset(skb), 1);
 	printk("\n");
 	spin_unlock_bh(&log_lock);
 }
@@ -489,14 +490,10 @@ static int __init ip6t_log_init(void)
 	ret = xt_register_target(&ip6t_log_reg);
 	if (ret < 0)
 		return ret;
-	if (nf_log_register(PF_INET6, &ip6t_logger) < 0) {
-		printk(KERN_WARNING "ip6t_LOG: not logging via system console "
-		       "since somebody else already registered for PF_INET6\n");
-		/* we cannot make module load fail here, since otherwise
-		 * ip6tables userspace would abort */
-	}
-
-	return 0;
+	ret = nf_log_register(PF_INET6, &ip6t_logger);
+	if (ret < 0 && ret != -EEXIST)
+		xt_unregister_target(&ip6t_log_reg);
+	return ret;
 }
 
 static void __exit ip6t_log_fini(void)

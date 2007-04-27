@@ -50,7 +50,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 	while (skb->len >= NLMSG_SPACE(0)) {
 		err = 0;
 
-		nlh = (struct nlmsghdr *) skb->data;
+		nlh = nlmsg_hdr(skb);
 		if ((nlh->nlmsg_len < (sizeof(*nlh) + sizeof(*hdr))) ||
 		    (skb->len < nlh->nlmsg_len)) {
 			printk(KERN_WARNING "%s: discarding partial skb\n",
@@ -168,7 +168,8 @@ scsi_netlink_init(void)
 	}
 
 	scsi_nl_sock = netlink_kernel_create(NETLINK_SCSITRANSPORT,
-				SCSI_NL_GRP_CNT, scsi_nl_rcv, THIS_MODULE);
+				SCSI_NL_GRP_CNT, scsi_nl_rcv, NULL,
+				THIS_MODULE);
 	if (!scsi_nl_sock) {
 		printk(KERN_ERR "%s: register of recieve handler failed\n",
 				__FUNCTION__);

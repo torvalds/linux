@@ -638,7 +638,9 @@ static void yam_tx_byte(struct net_device *dev, struct yam_port *yp)
         			dev_kfree_skb_any(skb);
 				break;
 			}
-			memcpy(yp->tx_buf, skb->data + 1, yp->tx_len);
+			skb_copy_from_linear_data_offset(skb, 1,
+							 yp->tx_buf,
+							 yp->tx_len);
 			dev_kfree_skb_any(skb);
 			yp->tx_count = 0;
 			yp->tx_crcl = 0x21;

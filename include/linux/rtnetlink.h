@@ -574,13 +574,6 @@ extern int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, in
 #define rtattr_parse_nested(tb, max, rta) \
 	rtattr_parse((tb), (max), RTA_DATA((rta)), RTA_PAYLOAD((rta)))
 
-struct rtnetlink_link
-{
-	int (*doit)(struct sk_buff *, struct nlmsghdr*, void *attr);
-	int (*dumpit)(struct sk_buff *, struct netlink_callback *cb);
-};
-
-extern struct rtnetlink_link * rtnetlink_links[NPROTO];
 extern int rtnetlink_send(struct sk_buff *skb, u32 pid, u32 group, int echo);
 extern int rtnl_unicast(struct sk_buff *skb, u32 pid);
 extern int rtnl_notify(struct sk_buff *skb, u32 pid, u32 group,
@@ -605,7 +598,7 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 
 #define RTA_PUT_NOHDR(skb, attrlen, data) \
 ({	RTA_APPEND(skb, RTA_ALIGN(attrlen), data); \
-	memset(skb->tail - (RTA_ALIGN(attrlen) - attrlen), 0, \
+	memset(skb_tail_pointer(skb) - (RTA_ALIGN(attrlen) - attrlen), 0, \
 	       RTA_ALIGN(attrlen) - attrlen); })
 
 #define RTA_PUT_U8(skb, attrtype, value) \
@@ -637,12 +630,12 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 	RTA_PUT(skb, attrtype, 0, NULL);
 
 #define RTA_NEST(skb, type) \
-({	struct rtattr *__start = (struct rtattr *) (skb)->tail; \
+({	struct rtattr *__start = (struct rtattr *)skb_tail_pointer(skb); \
 	RTA_PUT(skb, type, 0, NULL); \
 	__start;  })
 
 #define RTA_NEST_END(skb, start) \
-({	(start)->rta_len = ((skb)->tail - (unsigned char *) (start)); \
+({	(start)->rta_len = skb_tail_pointer(skb) - (unsigned char *)(start); \
 	(skb)->len; })
 
 #define RTA_NEST_CANCEL(skb, start) \

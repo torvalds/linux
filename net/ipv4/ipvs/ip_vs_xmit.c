@@ -156,7 +156,7 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		  struct ip_vs_protocol *pp)
 {
 	struct rtable *rt;			/* Route to the other host */
-	struct iphdr  *iph = skb->nh.iph;
+	struct iphdr  *iph = ip_hdr(skb);
 	u8     tos = iph->tos;
 	int    mtu;
 	struct flowi fl = {
@@ -178,7 +178,7 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->u.dst);
-	if ((skb->len > mtu) && (iph->frag_off&__constant_htons(IP_DF))) {
+	if ((skb->len > mtu) && (iph->frag_off & htons(IP_DF))) {
 		ip_rt_put(rt);
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
 		IP_VS_DBG_RL("ip_vs_bypass_xmit(): frag needed\n");
@@ -193,7 +193,7 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		ip_rt_put(rt);
 		return NF_STOLEN;
 	}
-	ip_send_check(skb->nh.iph);
+	ip_send_check(ip_hdr(skb));
 
 	/* drop old route */
 	dst_release(skb->dst);
@@ -226,7 +226,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 {
 	struct rtable *rt;		/* Route to the other host */
 	int mtu;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 
 	EnterFunction(10);
 
@@ -245,7 +245,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->u.dst);
-	if ((skb->len > mtu) && (iph->frag_off&__constant_htons(IP_DF))) {
+	if ((skb->len > mtu) && (iph->frag_off & htons(IP_DF))) {
 		ip_rt_put(rt);
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
 		IP_VS_DBG_RL_PKT(0, pp, skb, 0, "ip_vs_nat_xmit(): frag needed for");
@@ -266,8 +266,8 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* mangle the packet */
 	if (pp->dnat_handler && !pp->dnat_handler(&skb, pp, cp))
 		goto tx_error;
-	skb->nh.iph->daddr = cp->daddr;
-	ip_send_check(skb->nh.iph);
+	ip_hdr(skb)->daddr = cp->daddr;
+	ip_send_check(ip_hdr(skb));
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After DNAT");
 
@@ -320,19 +320,20 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 {
 	struct rtable *rt;			/* Route to the other host */
 	struct net_device *tdev;		/* Device to other host */
-	struct iphdr  *old_iph = skb->nh.iph;
+	struct iphdr  *old_iph = ip_hdr(skb);
 	u8     tos = old_iph->tos;
 	__be16 df = old_iph->frag_off;
+	sk_buff_data_t old_transport_header = skb->transport_header;
 	struct iphdr  *iph;			/* Our new IP header */
 	int    max_headroom;			/* The extra header space needed */
 	int    mtu;
 
 	EnterFunction(10);
 
-	if (skb->protocol != __constant_htons(ETH_P_IP)) {
+	if (skb->protocol != htons(ETH_P_IP)) {
 		IP_VS_DBG_RL("ip_vs_tunnel_xmit(): protocol error, "
 			     "ETH_P_IP: %d, skb protocol: %d\n",
-			     __constant_htons(ETH_P_IP), skb->protocol);
+			     htons(ETH_P_IP), skb->protocol);
 		goto tx_error;
 	}
 
@@ -350,9 +351,9 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (skb->dst)
 		skb->dst->ops->update_pmtu(skb->dst, mtu);
 
-	df |= (old_iph->frag_off&__constant_htons(IP_DF));
+	df |= (old_iph->frag_off & htons(IP_DF));
 
-	if ((old_iph->frag_off&__constant_htons(IP_DF))
+	if ((old_iph->frag_off & htons(IP_DF))
 	    && mtu < ntohs(old_iph->tot_len)) {
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
 		ip_rt_put(rt);
@@ -377,15 +378,16 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		}
 		kfree_skb(skb);
 		skb = new_skb;
-		old_iph = skb->nh.iph;
+		old_iph = ip_hdr(skb);
 	}
 
-	skb->h.raw = (void *) old_iph;
+	skb->transport_header = old_transport_header;
 
 	/* fix old IP header checksum */
 	ip_send_check(old_iph);
 
-	skb->nh.raw = skb_push(skb, sizeof(struct iphdr));
+	skb_push(skb, sizeof(struct iphdr));
+	skb_reset_network_header(skb);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 
 	/* drop old route */
@@ -395,7 +397,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/*
 	 *	Push down and install the IPIP header.
 	 */
-	iph			=	skb->nh.iph;
+	iph			=	ip_hdr(skb);
 	iph->version		=	4;
 	iph->ihl		=	sizeof(struct iphdr)>>2;
 	iph->frag_off		=	df;
@@ -435,7 +437,7 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	      struct ip_vs_protocol *pp)
 {
 	struct rtable *rt;			/* Route to the other host */
-	struct iphdr  *iph = skb->nh.iph;
+	struct iphdr  *iph = ip_hdr(skb);
 	int    mtu;
 
 	EnterFunction(10);
@@ -445,7 +447,7 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->u.dst);
-	if ((iph->frag_off&__constant_htons(IP_DF)) && skb->len > mtu) {
+	if ((iph->frag_off & htons(IP_DF)) && skb->len > mtu) {
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
 		ip_rt_put(rt);
 		IP_VS_DBG_RL("ip_vs_dr_xmit(): frag needed\n");
@@ -460,7 +462,7 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		ip_rt_put(rt);
 		return NF_STOLEN;
 	}
-	ip_send_check(skb->nh.iph);
+	ip_send_check(ip_hdr(skb));
 
 	/* drop old route */
 	dst_release(skb->dst);
@@ -514,12 +516,12 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	 * mangle and send the packet here (only for VS/NAT)
 	 */
 
-	if (!(rt = __ip_vs_get_out_rt(cp, RT_TOS(skb->nh.iph->tos))))
+	if (!(rt = __ip_vs_get_out_rt(cp, RT_TOS(ip_hdr(skb)->tos))))
 		goto tx_error_icmp;
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->u.dst);
-	if ((skb->len > mtu) && (skb->nh.iph->frag_off&__constant_htons(IP_DF))) {
+	if ((skb->len > mtu) && (ip_hdr(skb)->frag_off & htons(IP_DF))) {
 		ip_rt_put(rt);
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, htonl(mtu));
 		IP_VS_DBG_RL("ip_vs_in_icmp(): frag needed\n");

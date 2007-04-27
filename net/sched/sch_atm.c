@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/file.h> /* for fput */
+#include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/sock.h>
 
@@ -157,19 +158,6 @@ static unsigned long atm_tc_bind_filter(struct Qdisc *sch,
 	return atm_tc_get(sch,classid);
 }
 
-
-static void destroy_filters(struct atm_flow_data *flow)
-{
-	struct tcf_proto *filter;
-
-	while ((filter = flow->filter_list)) {
-		DPRINTK("destroy_filters: destroying filter %p\n",filter);
-		flow->filter_list = filter->next;
-		tcf_destroy(filter);
-	}
-}
-
-
 /*
  * atm_tc_put handles all destructions, including the ones that are explicitly
  * requested (atm_tc_destroy, etc.). The assumption here is that we never drop
@@ -194,7 +182,7 @@ static void atm_tc_put(struct Qdisc *sch, unsigned long cl)
 	*prev = flow->next;
 	DPRINTK("atm_tc_put: qdisc %p\n",flow->q);
 	qdisc_destroy(flow->q);
-	destroy_filters(flow);
+	tcf_destroy_chain(flow->filter_list);
 	if (flow->sock) {
 		DPRINTK("atm_tc_put: f_count %d\n",
 		    file_count(flow->sock->file));
@@ -503,7 +491,7 @@ static void sch_atm_dequeue(unsigned long data)
 			}
 			D2PRINTK("atm_tc_dequeue: sending on class %p\n",flow);
 			/* remove any LL header somebody else has attached */
-			skb_pull(skb,(char *) skb->nh.iph-(char *) skb->data);
+			skb_pull(skb, skb_network_offset(skb));
 			if (skb_headroom(skb) < flow->hdr_len) {
 				struct sk_buff *new;
 
@@ -513,7 +501,7 @@ static void sch_atm_dequeue(unsigned long data)
 				skb = new;
 			}
 			D2PRINTK("sch_atm_dequeue: ip %p, data %p\n",
-			    skb->nh.iph,skb->data);
+				 skb_network_header(skb), skb->data);
 			ATM_SKB(skb)->vcc = flow->vcc;
 			memcpy(skb_push(skb,flow->hdr_len),flow->hdr,
 			    flow->hdr_len);
@@ -610,7 +598,7 @@ static void atm_tc_destroy(struct Qdisc *sch)
 	DPRINTK("atm_tc_destroy(sch %p,[qdisc %p])\n",sch,p);
 	/* races ? */
 	while ((flow = p->flows)) {
-		destroy_filters(flow);
+		tcf_destroy_chain(flow->filter_list);
 		if (flow->ref > 1)
 			printk(KERN_ERR "atm_destroy: %p->ref = %d\n",flow,
 			    flow->ref);
@@ -631,7 +619,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 {
 	struct atm_qdisc_data *p = PRIV(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *) cl;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 
 	DPRINTK("atm_tc_dump_class(sch %p,[qdisc %p],flow %p,skb %p,tcm %p)\n",
@@ -661,11 +649,11 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 
 		RTA_PUT(skb,TCA_ATM_EXCESS,sizeof(zero),&zero);
 	}
-	rta->rta_len = skb->tail-b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb,b-skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 static int

@@ -202,6 +202,15 @@ struct sock {
 	unsigned short		sk_type;
 	int			sk_rcvbuf;
 	socket_lock_t		sk_lock;
+	/*
+	 * The backlog queue is special, it is always used with
+	 * the per-socket spinlock held and requires low latency
+	 * access. Therefore we special case it's implementation.
+	 */
+	struct {
+		struct sk_buff *head;
+		struct sk_buff *tail;
+	} sk_backlog;
 	wait_queue_head_t	*sk_sleep;
 	struct dst_entry	*sk_dst_cache;
 	struct xfrm_policy	*sk_policy[2];
@@ -221,15 +230,6 @@ struct sock {
 	int			sk_rcvlowat;
 	unsigned long 		sk_flags;
 	unsigned long	        sk_lingertime;
-	/*
-	 * The backlog queue is special, it is always used with
-	 * the per-socket spinlock held and requires low latency
-	 * access. Therefore we special case it's implementation.
-	 */
-	struct {
-		struct sk_buff *head;
-		struct sk_buff *tail;
-	} sk_backlog;
 	struct sk_buff_head	sk_error_queue;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
@@ -244,7 +244,7 @@ struct sock {
 	struct sk_filter      	*sk_filter;
 	void			*sk_protinfo;
 	struct timer_list	sk_timer;
-	struct timeval		sk_stamp;
+	ktime_t			sk_stamp;
 	struct socket		*sk_socket;
 	void			*sk_user_data;
 	struct page		*sk_sndmsg_page;
@@ -390,6 +390,7 @@ enum sock_flags {
 	SOCK_USE_WRITE_QUEUE, /* whether to call sk->sk_write_space in sock_wfree */
 	SOCK_DBG, /* %SO_DEBUG setting */
 	SOCK_RCVTSTAMP, /* %SO_TIMESTAMP setting */
+	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
 };
@@ -708,15 +709,6 @@ static inline void sk_stream_mem_reclaim(struct sock *sk)
 {
 	if (sk->sk_forward_alloc >= SK_STREAM_MEM_QUANTUM)
 		__sk_stream_mem_reclaim(sk);
-}
-
-static inline void sk_stream_writequeue_purge(struct sock *sk)
-{
-	struct sk_buff *skb;
-
-	while ((skb = __skb_dequeue(&sk->sk_write_queue)) != NULL)
-		sk_stream_free_skb(sk, skb);
-	sk_stream_mem_reclaim(sk);
 }
 
 static inline int sk_stream_rmem_schedule(struct sock *sk, struct sk_buff *skb)
@@ -1083,19 +1075,7 @@ static inline int sk_can_gso(const struct sock *sk)
 	return net_gso_ok(sk->sk_route_caps, sk->sk_gso_type);
 }
 
-static inline void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
-{
-	__sk_dst_set(sk, dst);
-	sk->sk_route_caps = dst->dev->features;
-	if (sk->sk_route_caps & NETIF_F_GSO)
-		sk->sk_route_caps |= NETIF_F_GSO_MASK;
-	if (sk_can_gso(sk)) {
-		if (dst->header_len)
-			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
-		else 
-			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;
-	}
-}
+extern void sk_setup_caps(struct sock *sk, struct dst_entry *dst);
 
 static inline void sk_charge_skb(struct sock *sk, struct sk_buff *skb)
 {
@@ -1256,18 +1236,6 @@ static inline struct page *sk_stream_alloc_page(struct sock *sk)
 	return page;
 }
 
-#define sk_stream_for_retrans_queue(skb, sk)				\
-		for (skb = (sk)->sk_write_queue.next;			\
-		     (skb != (sk)->sk_send_head) &&			\
-		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
-		     skb = skb->next)
-
-/*from STCP for fast SACK Process*/
-#define sk_stream_for_retrans_queue_from(skb, sk)			\
-		for (; (skb != (sk)->sk_send_head) &&                   \
-		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
-		     skb = skb->next)
-
 /*
  *	Default write policy as shown to user space via poll/select/SIGIO
  */
@@ -1304,22 +1272,18 @@ static inline int sock_intr_errno(long timeo)
 	return timeo == MAX_SCHEDULE_TIMEOUT ? -ERESTARTSYS : -EINTR;
 }
 
+extern void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
+	struct sk_buff *skb);
+
 static __inline__ void
 sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 {
-	struct timeval stamp;
+	ktime_t kt = skb->tstamp;
 
-	skb_get_timestamp(skb, &stamp);
-	if (sock_flag(sk, SOCK_RCVTSTAMP)) {
-		/* Race occurred between timestamp enabling and packet
-		   receiving.  Fill in the current time for now. */
-		if (stamp.tv_sec == 0)
-			do_gettimeofday(&stamp);
-		skb_set_timestamp(skb, &stamp);
-		put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP, sizeof(struct timeval),
-			 &stamp);
-	} else
-		sk->sk_stamp = stamp;
+	if (sock_flag(sk, SOCK_RCVTSTAMP))
+		__sock_recv_timestamp(msg, sk, skb);
+	else
+		sk->sk_stamp = kt;
 }
 
 /**
@@ -1350,18 +1314,17 @@ static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_e
 
 extern void sock_enable_timestamp(struct sock *sk);
 extern int sock_get_timestamp(struct sock *, struct timeval __user *);
+extern int sock_get_timestampns(struct sock *, struct timespec __user *);
 
 /* 
  *	Enable debug/info messages 
  */
+extern int net_msg_warn;
+#define NETDEBUG(fmt, args...) \
+	do { if (net_msg_warn) printk(fmt,##args); } while (0)
 
-#ifdef CONFIG_NETDEBUG
-#define NETDEBUG(fmt, args...)	printk(fmt,##args)
-#define LIMIT_NETDEBUG(fmt, args...) do { if (net_ratelimit()) printk(fmt,##args); } while(0)
-#else
-#define NETDEBUG(fmt, args...)	do { } while (0)
-#define LIMIT_NETDEBUG(fmt, args...) do { } while(0)
-#endif
+#define LIMIT_NETDEBUG(fmt, args...) \
+	do { if (net_msg_warn && net_ratelimit()) printk(fmt,##args); } while(0)
 
 /*
  * Macros for sleeping on a socket. Use them like this:

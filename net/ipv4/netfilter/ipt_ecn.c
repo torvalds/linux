@@ -1,7 +1,5 @@
 /* IP tables module for matching the value of the IPv4 and TCP ECN bits
  *
- * ipt_ecn.c,v 1.3 2002/05/29 15:09:00 laforge Exp
- *
  * (C) 2002 by Harald Welte <laforge@gnumonks.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -11,6 +9,7 @@
 
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/tcp.h>
@@ -26,7 +25,7 @@ MODULE_LICENSE("GPL");
 static inline int match_ip(const struct sk_buff *skb,
 			   const struct ipt_ecn_info *einfo)
 {
-	return ((skb->nh.iph->tos&IPT_ECN_IP_MASK) == einfo->ip_ect);
+	return (ip_hdr(skb)->tos & IPT_ECN_IP_MASK) == einfo->ip_ect;
 }
 
 static inline int match_tcp(const struct sk_buff *skb,
@@ -38,8 +37,7 @@ static inline int match_tcp(const struct sk_buff *skb,
 	/* In practice, TCP match does this, so can't fail.  But let's
 	 * be good citizens.
 	 */
-	th = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
-				sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		*hotdrop = 0;
 		return 0;
@@ -80,7 +78,7 @@ static int match(const struct sk_buff *skb,
 			return 0;
 
 	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR)) {
-		if (skb->nh.iph->protocol != IPPROTO_TCP)
+		if (ip_hdr(skb)->protocol != IPPROTO_TCP)
 			return 0;
 		if (!match_tcp(skb, info, hotdrop))
 			return 0;

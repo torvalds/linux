@@ -50,11 +50,12 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 	int hdr_len;
 
 	skb_push(skb, x->props.header_len);
-	iph = skb->nh.ipv6h;
+	iph = ipv6_hdr(skb);
 
 	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
-	skb->nh.raw = prevhdr - x->props.header_len;
-	skb->h.raw = skb->data + hdr_len;
+	skb_set_network_header(skb,
+			       (prevhdr - x->props.header_len) - skb->data);
+	skb_set_transport_header(skb, hdr_len);
 	memmove(skb->data, iph, hdr_len);
 	return 0;
 }

@@ -834,7 +834,7 @@ printk("cm0: IP identification: %02x%02x  fragment offset: %02x%02x\n", buffer[3
 			goto dropped_frame;
 		}
 		skb->dev = dev;
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 		skb->protocol = (unsigned short) buffer[NewDatagramHeaderSkip + 16];
 		insw(ioaddr, skb_put(skb, NewDatagramDataSize),
 			NewDatagramDataSize / 2);

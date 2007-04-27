@@ -2,20 +2,6 @@
  * netfilter module for userspace packet logging daemons
  *
  * (C) 2000-2004 by Harald Welte <laforge@netfilter.org>
- *
- * 2000/09/22 ulog-cprange feature added
- * 2001/01/04 in-kernel queue as proposed by Sebastian Zander
- * 						<zander@fokus.gmd.de>
- * 2001/01/30 per-rule nlgroup conflicts with global queue.
- *            nlgroup now global (sysctl)
- * 2001/04/19 ulog-queue reworked, now fixed buffer size specified at
- * 	      module loadtime -HW
- * 2002/07/07 remove broken nflog_rcv() function -HW
- * 2002/08/29 fix shifted/unshifted nlgroup bug -HW
- * 2002/10/30 fix uninitialized mac_len field - <Anders K. Pedersen>
- * 2004/10/25 fix erroneous calculation of 'len' parameter to NLMSG_PUT
- *	      resulting in bogus 'error during NLMSG_PUT' messages.
- *
  * (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
  *
@@ -42,8 +28,6 @@
  * flushtimeout:
  *   Specify, after how many hundredths of a second the queue should be
  *   flushed even if it is not full yet.
- *
- * ipt_ULOG.c,v 1.22 2002/10/30 09:07:31 laforge Exp
  */
 
 #include <linux/module.h>
@@ -187,6 +171,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	ulog_packet_msg_t *pm;
 	size_t size, copy_len;
 	struct nlmsghdr *nlh;
+	struct timeval tv;
 
 	/* ffs == find first bit set, necessary because userspace
 	 * is already shifting groupnumber, but we need unshifted.
@@ -232,13 +217,14 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	pm = NLMSG_DATA(nlh);
 
 	/* We might not have a timestamp, get one */
-	if (skb->tstamp.off_sec == 0)
+	if (skb->tstamp.tv64 == 0)
 		__net_timestamp((struct sk_buff *)skb);
 
 	/* copy hook, prefix, timestamp, payload, etc. */
 	pm->data_len = copy_len;
-	put_unaligned(skb->tstamp.off_sec, &pm->timestamp_sec);
-	put_unaligned(skb->tstamp.off_usec, &pm->timestamp_usec);
+	tv = ktime_to_timeval(skb->tstamp);
+	put_unaligned(tv.tv_sec, &pm->timestamp_sec);
+	put_unaligned(tv.tv_usec, &pm->timestamp_usec);
 	put_unaligned(skb->mark, &pm->mark);
 	pm->hook = hooknum;
 	if (prefix != NULL)
@@ -249,9 +235,9 @@ static void ipt_ulog_packet(unsigned int hooknum,
 		*(pm->prefix) = '\0';
 
 	if (in && in->hard_header_len > 0
-	    && skb->mac.raw != (void *) skb->nh.iph
+	    && skb->mac_header != skb->network_header
 	    && in->hard_header_len <= ULOG_MAC_LEN) {
-		memcpy(pm->mac, skb->mac.raw, in->hard_header_len);
+		memcpy(pm->mac, skb_mac_header(skb), in->hard_header_len);
 		pm->mac_len = in->hard_header_len;
 	} else
 		pm->mac_len = 0;
@@ -363,12 +349,52 @@ static int ipt_ulog_checkentry(const char *tablename,
 	return 1;
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_ipt_ulog_info {
+	compat_uint_t	nl_group;
+	compat_size_t	copy_range;
+	compat_size_t	qthreshold;
+	char		prefix[ULOG_PREFIX_LEN];
+};
+
+static void compat_from_user(void *dst, void *src)
+{
+	struct compat_ipt_ulog_info *cl = src;
+	struct ipt_ulog_info l = {
+		.nl_group	= cl->nl_group,
+		.copy_range	= cl->copy_range,
+		.qthreshold	= cl->qthreshold,
+	};
+
+	memcpy(l.prefix, cl->prefix, sizeof(l.prefix));
+	memcpy(dst, &l, sizeof(l));
+}
+
+static int compat_to_user(void __user *dst, void *src)
+{
+	struct ipt_ulog_info *l = src;
+	struct compat_ipt_ulog_info cl = {
+		.nl_group	= l->nl_group,
+		.copy_range	= l->copy_range,
+		.qthreshold	= l->qthreshold,
+	};
+
+	memcpy(cl.prefix, l->prefix, sizeof(cl.prefix));
+	return copy_to_user(dst, &cl, sizeof(cl)) ? -EFAULT : 0;
+}
+#endif /* CONFIG_COMPAT */
+
 static struct xt_target ipt_ulog_reg = {
 	.name		= "ULOG",
 	.family		= AF_INET,
 	.target		= ipt_ulog_target,
 	.targetsize	= sizeof(struct ipt_ulog_info),
 	.checkentry	= ipt_ulog_checkentry,
+#ifdef CONFIG_COMPAT
+	.compatsize	= sizeof(struct compat_ipt_ulog_info),
+	.compat_from_user = compat_from_user,
+	.compat_to_user	= compat_to_user,
+#endif
 	.me		= THIS_MODULE,
 };
 
@@ -390,14 +416,11 @@ static int __init ipt_ulog_init(void)
 	}
 
 	/* initialize ulog_buffers */
-	for (i = 0; i < ULOG_MAXNLGROUPS; i++) {
-		init_timer(&ulog_buffers[i].timer);
-		ulog_buffers[i].timer.function = ulog_timer;
-		ulog_buffers[i].timer.data = i;
-	}
+	for (i = 0; i < ULOG_MAXNLGROUPS; i++)
+		setup_timer(&ulog_buffers[i].timer, ulog_timer, i);
 
 	nflognl = netlink_kernel_create(NETLINK_NFLOG, ULOG_MAXNLGROUPS, NULL,
-					THIS_MODULE);
+					NULL, THIS_MODULE);
 	if (!nflognl)
 		return -ENOMEM;
 

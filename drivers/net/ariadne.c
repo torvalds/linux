@@ -743,7 +743,6 @@ static int ariadne_rx(struct net_device *dev)
 	    }
 
 
-	    skb->dev = dev;
 	    skb_reserve(skb,2);		/* 16 byte align */
 	    skb_put(skb,pkt_len);	/* Make room */
 	    eth_copy_and_sum(skb, (char *)priv->rx_buff[entry], pkt_len,0);

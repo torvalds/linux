@@ -71,7 +71,7 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 
 	indev = skb->dev;
 	skb->dev = to->dev;
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_forward_csum(skb);
 
 	NF_HOOK(PF_BRIDGE, NF_BR_FORWARD, skb, indev, skb->dev,
 			br_forward_finish);

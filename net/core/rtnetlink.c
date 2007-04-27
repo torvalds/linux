@@ -50,11 +50,13 @@
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <net/fib_rules.h>
-#include <net/netlink.h>
-#ifdef CONFIG_NET_WIRELESS_RTNETLINK
-#include <linux/wireless.h>
-#include <net/iw_handler.h>
-#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
+#include <net/rtnetlink.h>
+
+struct rtnl_link
+{
+	rtnl_doit_func		doit;
+	rtnl_dumpit_func	dumpit;
+};
 
 static DEFINE_MUTEX(rtnl_mutex);
 static struct sock *rtnl;
@@ -95,7 +97,151 @@ int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, int len)
 	return 0;
 }
 
-struct rtnetlink_link * rtnetlink_links[NPROTO];
+static struct rtnl_link *rtnl_msg_handlers[NPROTO];
+
+static inline int rtm_msgindex(int msgtype)
+{
+	int msgindex = msgtype - RTM_BASE;
+
+	/*
+	 * msgindex < 0 implies someone tried to register a netlink
+	 * control code. msgindex >= RTM_NR_MSGTYPES may indicate that
+	 * the message type has not been added to linux/rtnetlink.h
+	 */
+	BUG_ON(msgindex < 0 || msgindex >= RTM_NR_MSGTYPES);
+
+	return msgindex;
+}
+
+static rtnl_doit_func rtnl_get_doit(int protocol, int msgindex)
+{
+	struct rtnl_link *tab;
+
+	tab = rtnl_msg_handlers[protocol];
+	if (tab == NULL || tab[msgindex].doit == NULL)
+		tab = rtnl_msg_handlers[PF_UNSPEC];
+
+	return tab ? tab[msgindex].doit : NULL;
+}
+
+static rtnl_dumpit_func rtnl_get_dumpit(int protocol, int msgindex)
+{
+	struct rtnl_link *tab;
+
+	tab = rtnl_msg_handlers[protocol];
+	if (tab == NULL || tab[msgindex].dumpit == NULL)
+		tab = rtnl_msg_handlers[PF_UNSPEC];
+
+	return tab ? tab[msgindex].dumpit : NULL;
+}
+
+/**
+ * __rtnl_register - Register a rtnetlink message type
+ * @protocol: Protocol family or PF_UNSPEC
+ * @msgtype: rtnetlink message type
+ * @doit: Function pointer called for each request message
+ * @dumpit: Function pointer called for each dump request (NLM_F_DUMP) message
+ *
+ * Registers the specified function pointers (at least one of them has
+ * to be non-NULL) to be called whenever a request message for the
+ * specified protocol family and message type is received.
+ *
+ * The special protocol family PF_UNSPEC may be used to define fallback
+ * function pointers for the case when no entry for the specific protocol
+ * family exists.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+int __rtnl_register(int protocol, int msgtype,
+		    rtnl_doit_func doit, rtnl_dumpit_func dumpit)
+{
+	struct rtnl_link *tab;
+	int msgindex;
+
+	BUG_ON(protocol < 0 || protocol >= NPROTO);
+	msgindex = rtm_msgindex(msgtype);
+
+	tab = rtnl_msg_handlers[protocol];
+	if (tab == NULL) {
+		tab = kcalloc(RTM_NR_MSGTYPES, sizeof(*tab), GFP_KERNEL);
+		if (tab == NULL)
+			return -ENOBUFS;
+
+		rtnl_msg_handlers[protocol] = tab;
+	}
+
+	if (doit)
+		tab[msgindex].doit = doit;
+
+	if (dumpit)
+		tab[msgindex].dumpit = dumpit;
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(__rtnl_register);
+
+/**
+ * rtnl_register - Register a rtnetlink message type
+ *
+ * Identical to __rtnl_register() but panics on failure. This is useful
+ * as failure of this function is very unlikely, it can only happen due
+ * to lack of memory when allocating the chain to store all message
+ * handlers for a protocol. Meant for use in init functions where lack
+ * of memory implies no sense in continueing.
+ */
+void rtnl_register(int protocol, int msgtype,
+		   rtnl_doit_func doit, rtnl_dumpit_func dumpit)
+{
+	if (__rtnl_register(protocol, msgtype, doit, dumpit) < 0)
+		panic("Unable to register rtnetlink message handler, "
+		      "protocol = %d, message type = %d\n",
+		      protocol, msgtype);
+}
+
+EXPORT_SYMBOL_GPL(rtnl_register);
+
+/**
+ * rtnl_unregister - Unregister a rtnetlink message type
+ * @protocol: Protocol family or PF_UNSPEC
+ * @msgtype: rtnetlink message type
+ *
+ * Returns 0 on success or a negative error code.
+ */
+int rtnl_unregister(int protocol, int msgtype)
+{
+	int msgindex;
+
+	BUG_ON(protocol < 0 || protocol >= NPROTO);
+	msgindex = rtm_msgindex(msgtype);
+
+	if (rtnl_msg_handlers[protocol] == NULL)
+		return -ENOENT;
+
+	rtnl_msg_handlers[protocol][msgindex].doit = NULL;
+	rtnl_msg_handlers[protocol][msgindex].dumpit = NULL;
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(rtnl_unregister);
+
+/**
+ * rtnl_unregister_all - Unregister all rtnetlink message type of a protocol
+ * @protocol : Protocol family or PF_UNSPEC
+ *
+ * Identical to calling rtnl_unregster() for all registered message types
+ * of a certain protocol family.
+ */
+void rtnl_unregister_all(int protocol)
+{
+	BUG_ON(protocol < 0 || protocol >= NPROTO);
+
+	kfree(rtnl_msg_handlers[protocol]);
+	rtnl_msg_handlers[protocol] = NULL;
+}
+
+EXPORT_SYMBOL_GPL(rtnl_unregister_all);
 
 static const int rtm_min[RTM_NR_FAMILIES] =
 {
@@ -249,7 +395,7 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 		    operstate == IF_OPER_UNKNOWN)
 			operstate = IF_OPER_DORMANT;
 		break;
-	};
+	}
 
 	if (dev->operstate != operstate) {
 		write_lock_bh(&dev_base_lock);
@@ -393,7 +539,6 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	int s_idx = cb->args[0];
 	struct net_device *dev;
 
-	read_lock(&dev_base_lock);
 	for (dev=dev_base, idx=0; dev; dev = dev->next, idx++) {
 		if (idx < s_idx)
 			continue;
@@ -402,7 +547,6 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 				     cb->nlh->nlmsg_seq, 0, NLM_F_MULTI) <= 0)
 			break;
 	}
-	read_unlock(&dev_base_lock);
 	cb->args[0] = idx;
 
 	return skb->len;
@@ -536,17 +680,6 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		modified = 1;
 	}
 
-#ifdef CONFIG_NET_WIRELESS_RTNETLINK
-	if (tb[IFLA_WIRELESS]) {
-		/* Call Wireless Extensions.
-		 * Various stuff checked in there... */
-		err = wireless_rtnetlink_set(dev, nla_data(tb[IFLA_WIRELESS]),
-					     nla_len(tb[IFLA_WIRELESS]));
-		if (err < 0)
-			goto errout_dev;
-	}
-#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
-
 	if (tb[IFLA_BROADCAST]) {
 		nla_memcpy(dev->broadcast, tb[IFLA_BROADCAST], dev->addr_len);
 		send_addr_notify = 1;
@@ -610,22 +743,6 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	} else
 		return -EINVAL;
 
-
-#ifdef CONFIG_NET_WIRELESS_RTNETLINK
-	if (tb[IFLA_WIRELESS]) {
-		/* Call Wireless Extensions. We need to know the size before
-		 * we can alloc. Various stuff checked in there... */
-		err = wireless_rtnetlink_get(dev, nla_data(tb[IFLA_WIRELESS]),
-					     nla_len(tb[IFLA_WIRELESS]),
-					     &iw_buf, &iw_buf_len);
-		if (err < 0)
-			goto errout;
-
-		/* Payload is at an offset in buffer */
-		iw = iw_buf + IW_EV_POINT_OFF;
-	}
-#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
-
 	nskb = nlmsg_new(if_nlmsg_size(iw_buf_len), GFP_KERNEL);
 	if (nskb == NULL) {
 		err = -ENOBUFS;
@@ -659,12 +776,12 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 		int type = cb->nlh->nlmsg_type-RTM_BASE;
 		if (idx < s_idx || idx == PF_PACKET)
 			continue;
-		if (rtnetlink_links[idx] == NULL ||
-		    rtnetlink_links[idx][type].dumpit == NULL)
+		if (rtnl_msg_handlers[idx] == NULL ||
+		    rtnl_msg_handlers[idx][type].dumpit == NULL)
 			continue;
 		if (idx > s_idx)
 			memset(&cb->args[0], 0, sizeof(cb->args));
-		if (rtnetlink_links[idx][type].dumpit(skb, cb))
+		if (rtnl_msg_handlers[idx][type].dumpit(skb, cb))
 			break;
 	}
 	cb->family = idx;
@@ -700,30 +817,18 @@ static int rtattr_max;
 
 /* Process one rtnetlink message. */
 
-static __inline__ int
-rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
+static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	struct rtnetlink_link *link;
-	struct rtnetlink_link *link_tab;
+	rtnl_doit_func doit;
 	int sz_idx, kind;
 	int min_len;
 	int family;
 	int type;
 	int err;
 
-	/* Only requests are handled by kernel now */
-	if (!(nlh->nlmsg_flags&NLM_F_REQUEST))
-		return 0;
-
 	type = nlh->nlmsg_type;
-
-	/* A control message: ignore them */
-	if (type < RTM_BASE)
-		return 0;
-
-	/* Unknown message: reply with EINVAL */
 	if (type > RTM_MAX)
-		goto err_inval;
+		return -EOPNOTSUPP;
 
 	type -= RTM_BASE;
 
@@ -732,45 +837,33 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 		return 0;
 
 	family = ((struct rtgenmsg*)NLMSG_DATA(nlh))->rtgen_family;
-	if (family >= NPROTO) {
-		*errp = -EAFNOSUPPORT;
-		return -1;
-	}
-
-	link_tab = rtnetlink_links[family];
-	if (link_tab == NULL)
-		link_tab = rtnetlink_links[PF_UNSPEC];
-	link = &link_tab[type];
+	if (family >= NPROTO)
+		return -EAFNOSUPPORT;
 
 	sz_idx = type>>2;
 	kind = type&3;
 
-	if (kind != 2 && security_netlink_recv(skb, CAP_NET_ADMIN)) {
-		*errp = -EPERM;
-		return -1;
-	}
+	if (kind != 2 && security_netlink_recv(skb, CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {
-		if (link->dumpit == NULL)
-			link = &(rtnetlink_links[PF_UNSPEC][type]);
+		rtnl_dumpit_func dumpit;
 
-		if (link->dumpit == NULL)
-			goto err_inval;
+		dumpit = rtnl_get_dumpit(family, type);
+		if (dumpit == NULL)
+			return -EOPNOTSUPP;
 
-		if ((*errp = netlink_dump_start(rtnl, skb, nlh,
-						link->dumpit, NULL)) != 0) {
-			return -1;
-		}
-
-		netlink_queue_skip(nlh, skb);
-		return -1;
+		__rtnl_unlock();
+		err = netlink_dump_start(rtnl, skb, nlh, dumpit, NULL);
+		rtnl_lock();
+		return err;
 	}
 
 	memset(rta_buf, 0, (rtattr_max * sizeof(struct rtattr *)));
 
 	min_len = rtm_min[sz_idx];
 	if (nlh->nlmsg_len < min_len)
-		goto err_inval;
+		return -EINVAL;
 
 	if (nlh->nlmsg_len > min_len) {
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
@@ -780,25 +873,18 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 			unsigned flavor = attr->rta_type;
 			if (flavor) {
 				if (flavor > rta_max[sz_idx])
-					goto err_inval;
+					return -EINVAL;
 				rta_buf[flavor-1] = attr;
 			}
 			attr = RTA_NEXT(attr, attrlen);
 		}
 	}
 
-	if (link->doit == NULL)
-		link = &(rtnetlink_links[PF_UNSPEC][type]);
-	if (link->doit == NULL)
-		goto err_inval;
-	err = link->doit(skb, nlh, (void *)&rta_buf[0]);
+	doit = rtnl_get_doit(family, type);
+	if (doit == NULL)
+		return -EOPNOTSUPP;
 
-	*errp = err;
-	return err;
-
-err_inval:
-	*errp = -EINVAL;
-	return -1;
+	return doit(skb, nlh, (void *)&rta_buf[0]);
 }
 
 static void rtnetlink_rcv(struct sock *sk, int len)
@@ -813,25 +899,6 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 		netdev_run_todo();
 	} while (qlen);
 }
-
-static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
-{
-	[RTM_GETLINK     - RTM_BASE] = { .doit   = rtnl_getlink,
-					 .dumpit = rtnl_dump_ifinfo	 },
-	[RTM_SETLINK     - RTM_BASE] = { .doit   = rtnl_setlink		 },
-	[RTM_GETADDR     - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
-	[RTM_GETROUTE    - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
-	[RTM_NEWNEIGH    - RTM_BASE] = { .doit   = neigh_add		 },
-	[RTM_DELNEIGH    - RTM_BASE] = { .doit   = neigh_delete		 },
-	[RTM_GETNEIGH    - RTM_BASE] = { .dumpit = neigh_dump_info	 },
-#ifdef CONFIG_FIB_RULES
-	[RTM_NEWRULE     - RTM_BASE] = { .doit   = fib_nl_newrule	 },
-	[RTM_DELRULE     - RTM_BASE] = { .doit   = fib_nl_delrule	 },
-#endif
-	[RTM_GETRULE     - RTM_BASE] = { .dumpit = rtnl_dump_all	 },
-	[RTM_GETNEIGHTBL - RTM_BASE] = { .dumpit = neightbl_dump_info	 },
-	[RTM_SETNEIGHTBL - RTM_BASE] = { .doit   = neightbl_set		 },
-};
 
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
@@ -874,19 +941,22 @@ void __init rtnetlink_init(void)
 		panic("rtnetlink_init: cannot allocate rta_buf\n");
 
 	rtnl = netlink_kernel_create(NETLINK_ROUTE, RTNLGRP_MAX, rtnetlink_rcv,
-				     THIS_MODULE);
+				     &rtnl_mutex, THIS_MODULE);
 	if (rtnl == NULL)
 		panic("rtnetlink_init: cannot initialize rtnetlink\n");
 	netlink_set_nonroot(NETLINK_ROUTE, NL_NONROOT_RECV);
 	register_netdevice_notifier(&rtnetlink_dev_notifier);
-	rtnetlink_links[PF_UNSPEC] = link_rtnetlink_table;
-	rtnetlink_links[PF_PACKET] = link_rtnetlink_table;
+
+	rtnl_register(PF_UNSPEC, RTM_GETLINK, rtnl_getlink, rtnl_dump_ifinfo);
+	rtnl_register(PF_UNSPEC, RTM_SETLINK, rtnl_setlink, NULL);
+
+	rtnl_register(PF_UNSPEC, RTM_GETADDR, NULL, rtnl_dump_all);
+	rtnl_register(PF_UNSPEC, RTM_GETROUTE, NULL, rtnl_dump_all);
 }
 
 EXPORT_SYMBOL(__rta_fill);
 EXPORT_SYMBOL(rtattr_strlcpy);
 EXPORT_SYMBOL(rtattr_parse);
-EXPORT_SYMBOL(rtnetlink_links);
 EXPORT_SYMBOL(rtnetlink_put_metrics);
 EXPORT_SYMBOL(rtnl_lock);
 EXPORT_SYMBOL(rtnl_trylock);

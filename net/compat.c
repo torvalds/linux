@@ -34,11 +34,11 @@ static inline int iov_from_user_compat_to_kern(struct iovec *kiov,
 {
 	int tot_len = 0;
 
-	while(niov > 0) {
+	while (niov > 0) {
 		compat_uptr_t buf;
 		compat_size_t len;
 
-		if(get_user(len, &uiov32->iov_len) ||
+		if (get_user(len, &uiov32->iov_len) ||
 		   get_user(buf, &uiov32->iov_base)) {
 			tot_len = -EFAULT;
 			break;
@@ -78,12 +78,12 @@ int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
 {
 	int tot_len;
 
-	if(kern_msg->msg_namelen) {
-		if(mode==VERIFY_READ) {
+	if (kern_msg->msg_namelen) {
+		if (mode==VERIFY_READ) {
 			int err = move_addr_to_kernel(kern_msg->msg_name,
 						      kern_msg->msg_namelen,
 						      kern_address);
-			if(err < 0)
+			if (err < 0)
 				return err;
 		}
 		kern_msg->msg_name = kern_address;
@@ -93,7 +93,7 @@ int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
 	tot_len = iov_from_user_compat_to_kern(kern_iov,
 					  (struct compat_iovec __user *)kern_msg->msg_iov,
 					  kern_msg->msg_iovlen);
-	if(tot_len >= 0)
+	if (tot_len >= 0)
 		kern_msg->msg_iov = kern_iov;
 
 	return tot_len;
@@ -146,8 +146,8 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 	kcmlen = 0;
 	kcmsg_base = kcmsg = (struct cmsghdr *)stackbuf;
 	ucmsg = CMSG_COMPAT_FIRSTHDR(kmsg);
-	while(ucmsg != NULL) {
-		if(get_user(ucmlen, &ucmsg->cmsg_len))
+	while (ucmsg != NULL) {
+		if (get_user(ucmlen, &ucmsg->cmsg_len))
 			return -EFAULT;
 
 		/* Catch bogons. */
@@ -160,7 +160,7 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 		kcmlen += tmp;
 		ucmsg = cmsg_compat_nxthdr(kmsg, ucmsg, ucmlen);
 	}
-	if(kcmlen == 0)
+	if (kcmlen == 0)
 		return -EINVAL;
 
 	/* The kcmlen holds the 64-bit version of the control length.
@@ -176,7 +176,7 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 	/* Now copy them over neatly. */
 	memset(kcmsg, 0, kcmlen);
 	ucmsg = CMSG_COMPAT_FIRSTHDR(kmsg);
-	while(ucmsg != NULL) {
+	while (ucmsg != NULL) {
 		if (__get_user(ucmlen, &ucmsg->cmsg_len))
 			goto Efault;
 		if (!CMSG_COMPAT_OK(ucmlen, ucmsg, kmsg))
@@ -215,11 +215,12 @@ Efault:
 int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *data)
 {
 	struct compat_timeval ctv;
+	struct compat_timespec cts;
 	struct compat_cmsghdr __user *cm = (struct compat_cmsghdr __user *) kmsg->msg_control;
 	struct compat_cmsghdr cmhdr;
 	int cmlen;
 
-	if(cm == NULL || kmsg->msg_controllen < sizeof(*cm)) {
+	if (cm == NULL || kmsg->msg_controllen < sizeof(*cm)) {
 		kmsg->msg_flags |= MSG_CTRUNC;
 		return 0; /* XXX: return error? check spec. */
 	}
@@ -229,11 +230,18 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 		ctv.tv_sec = tv->tv_sec;
 		ctv.tv_usec = tv->tv_usec;
 		data = &ctv;
-		len = sizeof(struct compat_timeval);
+		len = sizeof(ctv);
+	}
+	if (level == SOL_SOCKET && type == SO_TIMESTAMPNS) {
+		struct timespec *ts = (struct timespec *)data;
+		cts.tv_sec = ts->tv_sec;
+		cts.tv_nsec = ts->tv_nsec;
+		data = &cts;
+		len = sizeof(cts);
 	}
 
 	cmlen = CMSG_COMPAT_LEN(len);
-	if(kmsg->msg_controllen < cmlen) {
+	if (kmsg->msg_controllen < cmlen) {
 		kmsg->msg_flags |= MSG_CTRUNC;
 		cmlen = kmsg->msg_controllen;
 	}
@@ -241,9 +249,9 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 	cmhdr.cmsg_type = type;
 	cmhdr.cmsg_len = cmlen;
 
-	if(copy_to_user(cm, &cmhdr, sizeof cmhdr))
+	if (copy_to_user(cm, &cmhdr, sizeof cmhdr))
 		return -EFAULT;
-	if(copy_to_user(CMSG_COMPAT_DATA(cm), data, cmlen - sizeof(struct compat_cmsghdr)))
+	if (copy_to_user(CMSG_COMPAT_DATA(cm), data, cmlen - sizeof(struct compat_cmsghdr)))
 		return -EFAULT;
 	cmlen = CMSG_COMPAT_SPACE(len);
 	kmsg->msg_control += cmlen;
@@ -545,19 +553,48 @@ int compat_sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
 	struct compat_timeval __user *ctv =
 			(struct compat_timeval __user*) userstamp;
 	int err = -ENOENT;
+	struct timeval tv;
 
 	if (!sock_flag(sk, SOCK_TIMESTAMP))
 		sock_enable_timestamp(sk);
-	if (sk->sk_stamp.tv_sec == -1)
+	tv = ktime_to_timeval(sk->sk_stamp);
+	if (tv.tv_sec == -1)
 		return err;
-	if (sk->sk_stamp.tv_sec == 0)
-		do_gettimeofday(&sk->sk_stamp);
-	if (put_user(sk->sk_stamp.tv_sec, &ctv->tv_sec) ||
-			put_user(sk->sk_stamp.tv_usec, &ctv->tv_usec))
+	if (tv.tv_sec == 0) {
+		sk->sk_stamp = ktime_get_real();
+		tv = ktime_to_timeval(sk->sk_stamp);
+	}
+	err = 0;
+	if (put_user(tv.tv_sec, &ctv->tv_sec) ||
+			put_user(tv.tv_usec, &ctv->tv_usec))
 		err = -EFAULT;
 	return err;
 }
 EXPORT_SYMBOL(compat_sock_get_timestamp);
+
+int compat_sock_get_timestampns(struct sock *sk, struct timespec __user *userstamp)
+{
+	struct compat_timespec __user *ctv =
+			(struct compat_timespec __user*) userstamp;
+	int err = -ENOENT;
+	struct timespec ts;
+
+	if (!sock_flag(sk, SOCK_TIMESTAMP))
+		sock_enable_timestamp(sk);
+	ts = ktime_to_timespec(sk->sk_stamp);
+	if (ts.tv_sec == -1)
+		return err;
+	if (ts.tv_sec == 0) {
+		sk->sk_stamp = ktime_get_real();
+		ts = ktime_to_timespec(sk->sk_stamp);
+	}
+	err = 0;
+	if (put_user(ts.tv_sec, &ctv->tv_sec) ||
+			put_user(ts.tv_nsec, &ctv->tv_nsec))
+		err = -EFAULT;
+	return err;
+}
+EXPORT_SYMBOL(compat_sock_get_timestampns);
 
 asmlinkage long compat_sys_getsockopt(int fd, int level, int optname,
 				char __user *optval, int __user *optlen)
@@ -617,7 +654,7 @@ asmlinkage long compat_sys_socketcall(int call, u32 __user *args)
 	a0 = a[0];
 	a1 = a[1];
 
-	switch(call) {
+	switch (call) {
 	case SYS_SOCKET:
 		ret = sys_socket(a0, a1, a[2]);
 		break;

@@ -250,6 +250,11 @@ static inline int nf_ct_is_dying(struct nf_conn *ct)
 	return test_bit(IPS_DYING_BIT, &ct->status);
 }
 
+static inline int nf_ct_is_untracked(const struct sk_buff *skb)
+{
+	return (skb->nfct == &nf_conntrack_untracked.ct_general);
+}
+
 extern unsigned int nf_conntrack_htable_size;
 extern int nf_conntrack_checksum;
 extern atomic_t nf_conntrack_count;
