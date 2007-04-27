@@ -748,9 +748,9 @@ e1000_reset(struct e1000_adapter *adapter)
 		               VLAN_TAG_SIZE;
 		min_tx_space = min_rx_space;
 		min_tx_space *= 2;
-		E1000_ROUNDUP(min_tx_space, 1024);
+		min_tx_space = ALIGN(min_tx_space, 1024);
 		min_tx_space >>= 10;
-		E1000_ROUNDUP(min_rx_space, 1024);
+		min_rx_space = ALIGN(min_rx_space, 1024);
 		min_rx_space >>= 10;
 
 		/* If current Tx allocation is less than the min Tx FIFO size,
@@ -1556,7 +1556,7 @@ e1000_setup_tx_resources(struct e1000_adapter *adapter,
 	/* round up to nearest 4K */
 
 	txdr->size = txdr->count * sizeof(struct e1000_tx_desc);
-	E1000_ROUNDUP(txdr->size, 4096);
+	txdr->size = ALIGN(txdr->size, 4096);
 
 	txdr->desc = pci_alloc_consistent(pdev, txdr->size, &txdr->dma);
 	if (!txdr->desc) {
@@ -1798,7 +1798,7 @@ e1000_setup_rx_resources(struct e1000_adapter *adapter,
 	/* Round up to nearest 4K */
 
 	rxdr->size = rxdr->count * desc_len;
-	E1000_ROUNDUP(rxdr->size, 4096);
+	rxdr->size = ALIGN(rxdr->size, 4096);
 
 	rxdr->desc = pci_alloc_consistent(pdev, rxdr->size, &rxdr->dma);
 
@@ -3170,7 +3170,7 @@ e1000_82547_fifo_workaround(struct e1000_adapter *adapter, struct sk_buff *skb)
 	uint32_t fifo_space = adapter->tx_fifo_size - adapter->tx_fifo_head;
 	uint32_t skb_fifo_len = skb->len + E1000_FIFO_HDR;
 
-	E1000_ROUNDUP(skb_fifo_len, E1000_FIFO_HDR);
+	skb_fifo_len = ALIGN(skb_fifo_len, E1000_FIFO_HDR);
 
 	if (adapter->link_duplex != HALF_DUPLEX)
 		goto no_fifo_stall_required;
