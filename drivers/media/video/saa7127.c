@@ -550,12 +550,12 @@ static int saa7127_command(struct i2c_client *client,
 	struct v4l2_routing *route = arg;
 
 	switch (cmd) {
-	case VIDIOC_S_STD:
+	case VIDIOC_INT_S_STD_OUTPUT:
 		if (state->std == *(v4l2_std_id *)arg)
 			break;
 		return saa7127_set_std(client, *(v4l2_std_id *)arg);
 
-	case VIDIOC_G_STD:
+	case VIDIOC_INT_G_STD_OUTPUT:
 		*(v4l2_std_id *)arg = state->std;
 		break;
 

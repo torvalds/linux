@@ -254,4 +254,12 @@ struct v4l2_crystal_freq {
    default values. */
 #define VIDIOC_INT_INIT			_IOW ('d', 114, u32)
 
+/* Set v4l2_std_id for video OUTPUT devices. This is ignored by
+   video input devices. */
+#define VIDIOC_INT_S_STD_OUTPUT		_IOW  ('d', 115, v4l2_std_id)
+
+/* Get v4l2_std_id for video OUTPUT devices. This is ignored by
+   video input devices. */
+#define VIDIOC_INT_G_STD_OUTPUT		_IOW  ('d', 116, v4l2_std_id)
+
 #endif /* V4L2_COMMON_H_ */
