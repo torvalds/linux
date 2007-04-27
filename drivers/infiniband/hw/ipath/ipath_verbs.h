@@ -422,7 +422,7 @@ struct ipath_qp {
 #define IPATH_S_RDMAR_PENDING	0x04
 #define IPATH_S_ACK_PENDING	0x08
 
-#define IPATH_PSN_CREDIT	2048
+#define IPATH_PSN_CREDIT	512
 
 /*
  * Since struct ipath_swqe is not a fixed size, we can't simply index into

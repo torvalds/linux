@@ -228,18 +228,13 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		goto done;
 
 	if (!(ib_ipath_state_ops[qp->state] & IPATH_PROCESS_SEND_OK) ||
-	    qp->s_rnr_timeout)
+	    qp->s_rnr_timeout || qp->s_wait_credit)
 		goto bail;
 
 	/* Limit the number of packets sent without an ACK. */
 	if (ipath_cmp24(qp->s_psn, qp->s_last_psn + IPATH_PSN_CREDIT) > 0) {
 		qp->s_wait_credit = 1;
 		dev->n_rc_stalls++;
-		spin_lock(&dev->pending_lock);
-		if (list_empty(&qp->timerwait))
-			list_add_tail(&qp->timerwait,
-				      &dev->pending[dev->pending_index]);
-		spin_unlock(&dev->pending_lock);
 		goto bail;
 	}
 
