@@ -214,7 +214,7 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *params)
 {
 	struct tda827x_priv *priv = fe->tuner_priv;
-	u8 buf[10];
+	u8 buf[11];
 
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };

@@ -695,7 +695,8 @@ static int tda1004x_set_fe(struct dvb_frontend* fe,
 	// set frequency
 	if (fe->ops.tuner_ops.set_params) {
 		fe->ops.tuner_ops.set_params(fe, fe_params);
-		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	// Hardcoded to use auto as much as possible on the TDA10045 as it

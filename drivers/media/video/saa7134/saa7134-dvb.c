@@ -692,8 +692,11 @@ static void configure_tda827x_fe(struct saa7134_dev *dev, struct tda1004x_config
 	if (dev->dvb.frontend) {
 		if (tda_conf->i2c_gate)
 			dev->dvb.frontend->ops.i2c_gate_ctrl = tda8290_i2c_gate_ctrl;
-		dvb_attach(tda827x_attach,dev->dvb.frontend,
-			   tda_conf->tuner_address,&dev->i2c_adap,&tda827x_cfg);
+		if (dvb_attach(tda827x_attach, dev->dvb.frontend, tda_conf->tuner_address,
+						&dev->i2c_adap,&tda827x_cfg) == NULL) {
+			printk ("saa7134/dvb: no tda827x tuner found at addr: %02x\n",
+				tda_conf->tuner_address);
+		}
 	}
 }
 
@@ -1038,9 +1041,12 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &ads_tech_duo_config,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dvb_attach(tda827x_attach,dev->dvb.frontend,
+			if (dvb_attach(tda827x_attach,dev->dvb.frontend,
 				   ads_tech_duo_config.tuner_address,
-				   &dev->i2c_adap,&ads_duo_cfg);
+				   &dev->i2c_adap,&ads_duo_cfg) == NULL) {
+				printk ("saa7134/dvb: no tda827x tuner found at addr: %02x\n",
+					ads_tech_duo_config.tuner_address);
+			}
 		}
 		break;
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
