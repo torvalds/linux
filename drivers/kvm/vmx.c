@@ -810,11 +810,8 @@ static void exit_lmode(struct kvm_vcpu *vcpu)
 
 #endif
 
-static void vmx_decache_cr0_cr4_guest_bits(struct kvm_vcpu *vcpu)
+static void vmx_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 {
-	vcpu->cr0 &= KVM_GUEST_CR0_MASK;
-	vcpu->cr0 |= vmcs_readl(GUEST_CR0) & ~KVM_GUEST_CR0_MASK;
-
 	vcpu->cr4 &= KVM_GUEST_CR4_MASK;
 	vcpu->cr4 |= vmcs_readl(GUEST_CR4) & ~KVM_GUEST_CR4_MASK;
 }
@@ -1205,7 +1202,7 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 	vmcs_writel(TPR_THRESHOLD, 0);
 #endif
 
-	vmcs_writel(CR0_GUEST_HOST_MASK, KVM_GUEST_CR0_MASK);
+	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
 	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
 
 	vcpu->cr0 = 0x60000010;
@@ -1557,6 +1554,11 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			return 1;
 		};
 		break;
+	case 2: /* clts */
+		vcpu_load_rsp_rip(vcpu);
+		set_cr0(vcpu, vcpu->cr0 & ~CR0_TS_MASK);
+		skip_emulated_instruction(vcpu);
+		return 1;
 	case 1: /*mov from cr*/
 		switch (cr) {
 		case 3:
@@ -2112,7 +2114,7 @@ static struct kvm_arch_ops vmx_arch_ops = {
 	.get_segment = vmx_get_segment,
 	.set_segment = vmx_set_segment,
 	.get_cs_db_l_bits = vmx_get_cs_db_l_bits,
-	.decache_cr0_cr4_guest_bits = vmx_decache_cr0_cr4_guest_bits,
+	.decache_cr4_guest_bits = vmx_decache_cr4_guest_bits,
 	.set_cr0 = vmx_set_cr0,
 	.set_cr3 = vmx_set_cr3,
 	.set_cr4 = vmx_set_cr4,

@@ -738,7 +738,7 @@ static void svm_set_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
 	vcpu->svm->vmcb->save.gdtr.base = dt->base ;
 }
 
-static void svm_decache_cr0_cr4_guest_bits(struct kvm_vcpu *vcpu)
+static void svm_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 {
 }
 
@@ -1759,7 +1759,7 @@ static struct kvm_arch_ops svm_arch_ops = {
 	.get_segment = svm_get_segment,
 	.set_segment = svm_set_segment,
 	.get_cs_db_l_bits = svm_get_cs_db_l_bits,
-	.decache_cr0_cr4_guest_bits = svm_decache_cr0_cr4_guest_bits,
+	.decache_cr4_guest_bits = svm_decache_cr4_guest_bits,
 	.set_cr0 = svm_set_cr0,
 	.set_cr3 = svm_set_cr3,
 	.set_cr4 = svm_set_cr4,
