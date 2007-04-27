@@ -227,6 +227,7 @@ struct v4l2_capability
 #define V4L2_CAP_SLICED_VBI_CAPTURE	0x00000040  /* Is a sliced VBI capture device */
 #define V4L2_CAP_SLICED_VBI_OUTPUT	0x00000080  /* Is a sliced VBI output device */
 #define V4L2_CAP_RDS_CAPTURE		0x00000100  /* RDS data capture */
+#define V4L2_CAP_VIDEO_OUTPUT_POS       0x00000200  /* Video output can have x,y coords */
 
 #define V4L2_CAP_TUNER			0x00010000  /* has a tuner */
 #define V4L2_CAP_AUDIO			0x00020000  /* has audio support */
@@ -249,6 +250,8 @@ struct v4l2_pix_format
 	__u32          		sizeimage;
 	enum v4l2_colorspace	colorspace;
 	__u32			priv;		/* private data, depends on pixelformat */
+	__u32 			left;	/* only valid if V4L2_CAP_VIDEO_OUTPUT_POS is set */
+	__u32 			top;	/* only valid if V4L2_CAP_VIDEO_OUTPUT_POS is set */
 };
 
 /*      Pixel format         FOURCC                        depth  Description  */
