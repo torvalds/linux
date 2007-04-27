@@ -357,6 +357,24 @@ static __init int create_proc_sysinfo(void)
 
 __initcall(create_proc_sysinfo);
 
+int get_cpu_capability(unsigned int *capability)
+{
+	struct sysinfo_1_2_2 *info;
+	int rc;
+
+	info = (void *) get_zeroed_page(GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	rc = stsi(info, 1, 2, 2);
+	if (rc == -ENOSYS)
+		goto out;
+	rc = 0;
+	*capability = info->capability;
+out:
+	free_page((unsigned long) info);
+	return rc;
+}
+
 /*
  * CPU capability might have changed. Therefore recalculate loops_per_jiffy.
  */

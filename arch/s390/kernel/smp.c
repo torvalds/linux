@@ -821,19 +821,57 @@ int setup_profiling_timer(unsigned int multiplier)
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
+static ssize_t show_capability(struct sys_device *dev, char *buf)
+{
+	unsigned int capability;
+	int rc;
+
+	rc = get_cpu_capability(&capability);
+	if (rc)
+		return rc;
+	return sprintf(buf, "%u\n", capability);
+}
+static SYSDEV_ATTR(capability, 0444, show_capability, NULL);
+
+static int __cpuinit smp_cpu_notify(struct notifier_block *self,
+				    unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned int)(long)hcpu;
+	struct cpu *c = &per_cpu(cpu_devices, cpu);
+	struct sys_device *s = &c->sysdev;
+
+	switch (action) {
+	case CPU_ONLINE:
+		if (sysdev_create_file(s, &attr_capability))
+			return NOTIFY_BAD;
+		break;
+	case CPU_DEAD:
+		sysdev_remove_file(s, &attr_capability);
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __cpuinitdata smp_cpu_nb = {
+	.notifier_call	= smp_cpu_notify,
+};
+
 static int __init topology_init(void)
 {
 	int cpu;
-	int ret;
+
+	register_cpu_notifier(&smp_cpu_nb);
 
 	for_each_possible_cpu(cpu) {
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
+		struct sys_device *s = &c->sysdev;
 
 		c->hotpluggable = 1;
-		ret = register_cpu(c, cpu);
-		if (ret)
-			printk(KERN_WARNING "topology_init: register_cpu %d "
-			       "failed (%d)\n", cpu, ret);
+		register_cpu(c, cpu);
+		if (!cpu_online(cpu))
+			continue;
+		s = &c->sysdev;
+		sysdev_create_file(s, &attr_capability);
 	}
 	return 0;
 }
