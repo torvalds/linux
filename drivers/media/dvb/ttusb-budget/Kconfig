@@ -1,7 +1,6 @@
 config DVB_TTUSB_BUDGET
 	tristate "Technotrend/Hauppauge Nova-USB devices"
 	depends on DVB_CORE && USB && I2C
-	select DVB_PLL
 	select DVB_CX22700 if !DVB_FE_CUSTOMISE
 	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
 	select DVB_VES1820 if !DVB_FE_CUSTOMISE

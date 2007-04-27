@@ -280,8 +280,12 @@ comment "Tuners/PLL support"
 	depends on DVB_CORE
 
 config DVB_PLL
-	tristate
+	tristate "Generic I2C PLL based tuners"
 	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  This module driver a number of tuners based on PLL chips with a
+	  common I2C interface. Say Y when you want to support these tuners.
 
 config DVB_TDA826X
 	tristate "Philips TDA826X silicon tuner"

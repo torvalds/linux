@@ -3,7 +3,6 @@ config DVB_AV7110
 	depends on DVB_CORE && PCI && I2C && VIDEO_V4L1
 	select FW_LOADER if !DVB_AV7110_FIRMWARE
 	select VIDEO_SAA7146_VV
-	select DVB_PLL
 	select DVB_VES1820 if !DVB_FE_CUSTOMISE
 	select DVB_VES1X93 if !DVB_FE_CUSTOMISE
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
@@ -62,7 +61,6 @@ config DVB_BUDGET
 	tristate "Budget cards"
 	depends on DVB_CORE && PCI && I2C && VIDEO_V4L1
 	select VIDEO_SAA7146
-	select DVB_PLL
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_VES1X93 if !DVB_FE_CUSTOMISE
 	select DVB_VES1820 if !DVB_FE_CUSTOMISE
@@ -87,7 +85,6 @@ config DVB_BUDGET_CI
 	tristate "Budget cards with onboard CI connector"
 	depends on DVB_CORE && PCI && I2C && VIDEO_V4L1
 	select VIDEO_SAA7146
-	select DVB_PLL
 	select DVB_STV0297 if !DVB_FE_CUSTOMISE
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
@@ -130,7 +127,6 @@ config DVB_BUDGET_PATCH
 	tristate "AV7110 cards with Budget Patch"
 	depends on DVB_CORE && DVB_BUDGET && VIDEO_V4L1
 	select DVB_AV7110
-	select DVB_PLL
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_VES1X93 if !DVB_FE_CUSTOMISE
 	select DVB_TDA8083 if !DVB_FE_CUSTOMISE
