@@ -634,7 +634,6 @@ static void philips_tda827x_lna_gain(struct dvb_frontend *fe, int high)
 
 static int tda8290_i2c_gate_ctrl( struct dvb_frontend* fe, int enable)
 {
-	struct saa7134_dev *dev = fe->dvb->priv;
 	struct tda1004x_state *state = fe->demodulator_priv;
 
 	u8 addr = state->config->i2c_gate;
@@ -646,8 +645,8 @@ static int tda8290_i2c_gate_ctrl( struct dvb_frontend* fe, int enable)
 	} else {
 		tda8290_msg.buf = tda8290_open;
 	}
-	if (i2c_transfer(&dev->i2c_adap, &tda8290_msg, 1) != 1) {
-		printk("%s/dvb: could not access tda8290 I2C gate\n",dev->name);
+	if (i2c_transfer(state->i2c, &tda8290_msg, 1) != 1) {
+		printk("saa7134/dvb: could not access tda8290 I2C gate\n");
 		return -EIO;
 	}
 	msleep(20);
@@ -869,7 +868,7 @@ static int ads_duo_tuner_init(struct dvb_frontend *fe)
 	struct saa7134_dev *dev = fe->dvb->priv;
 	philips_tda827x_tuner_init(fe);
 	/* route TDA8275a AGC input to the channel decoder */
-	saa_setl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0400000);
+	saa7134_set_gpio(dev, 22, 1);
 	return 0;
 }
 
@@ -877,7 +876,7 @@ static int ads_duo_tuner_sleep(struct dvb_frontend *fe)
 {
 	struct saa7134_dev *dev = fe->dvb->priv;
 	/* route TDA8275a AGC input to the analog IF chip*/
-	saa_clearl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0400000);
+	saa7134_set_gpio(dev, 22, 0);
 	philips_tda827x_tuner_sleep(fe);
 	return 0;
 }
@@ -1030,7 +1029,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		configure_tda827x_fe(dev, &hauppauge_hvr_1110_config, "DVB-T Hauppauge HVR 1110");
 		break;
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
-		configure_tda827x_fe(dev, &asus_p7131_dual_config, "DVB-T Asus P7137 Dual");
+		configure_tda827x_fe(dev, &asus_p7131_dual_config, "DVB-T Asus P7131 Dual");
 		break;
 	case SAA7134_BOARD_FLYDVBT_LR301:
 		configure_tda827x_fe(dev, &tda827x_lifeview_config, "DVB-T Lifeview FlyDVBT LR301");
