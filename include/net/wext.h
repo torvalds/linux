@@ -10,7 +10,7 @@ extern int wext_proc_init(void);
 extern int wext_handle_ioctl(struct ifreq *ifr, unsigned int cmd,
 			     void __user *arg);
 #else
-static inline int wext_proc_init()
+static inline int wext_proc_init(void)
 {
 	return 0;
 }

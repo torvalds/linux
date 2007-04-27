@@ -937,11 +937,11 @@ static unsigned long atalk_sum_partial(const unsigned char *data,
 static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 				   int len, unsigned long sum)
 {
-	int end = skb_headlen(skb);
+	int start = skb_headlen(skb);
 	int i, copy;
 
 	/* checksum stuff in header space */
-	if ((copy = end - offset) > 0) {
+	if ( (copy = start - offset) > 0) {
 		if (copy > len)
 			copy = len;
 		sum = atalk_sum_partial(skb->data + offset, copy, sum);
@@ -953,9 +953,11 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 
 	/* checksum stuff in frags */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		BUG_TRAP(len >= 0);
+		int end;
 
-		end = offset + skb_shinfo(skb)->frags[i].size;
+		BUG_TRAP(start <= offset + len);
+
+		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
 			u8 *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -963,31 +965,36 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			vaddr = kmap_skb_frag(frag);
-			sum = atalk_sum_partial(vaddr + frag->page_offset,
-						copy, sum);
+			sum = atalk_sum_partial(vaddr + frag->page_offset +
+						  offset - start, copy, sum);
 			kunmap_skb_frag(vaddr);
 
 			if (!(len -= copy))
 				return sum;
 			offset += copy;
 		}
+		start = end;
 	}
 
 	if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 
 		for (; list; list = list->next) {
-			BUG_TRAP(len >= 0);
+			int end;
 
-			end = offset + list->len;
+			BUG_TRAP(start <= offset + len);
+
+			end = start + list->len;
 			if ((copy = end - offset) > 0) {
 				if (copy > len)
 					copy = len;
-				sum = atalk_sum_skb(list, 0, copy, sum);
+				sum = atalk_sum_skb(list, offset - start,
+						    copy, sum);
 				if ((len -= copy) == 0)
 					return sum;
 				offset += copy;
 			}
+			start = end;
 		}
 	}
 

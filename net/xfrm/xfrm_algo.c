@@ -532,8 +532,8 @@ EXPORT_SYMBOL_GPL(xfrm_count_enc_supported);
 int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 		 int offset, int len, icv_update_fn_t icv_update)
 {
-	int end = skb_headlen(skb);
-	int i, copy = end - offset;
+	int start = skb_headlen(skb);
+	int i, copy = start - offset;
 	int err;
 	struct scatterlist sg;
 
@@ -556,9 +556,11 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		BUG_TRAP(len >= 0);
+		int end;
 
-		end = offset + skb_shinfo(skb)->frags[i].size;
+		BUG_TRAP(start <= offset + len);
+
+		end = start + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
@@ -566,7 +568,7 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 				copy = len;
 
 			sg.page = frag->page;
-			sg.offset = frag->page_offset;
+			sg.offset = frag->page_offset + offset-start;
 			sg.length = copy;
 
 			err = icv_update(desc, &sg, copy);
@@ -577,19 +579,22 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 				return 0;
 			offset += copy;
 		}
+		start = end;
 	}
 
 	if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 
 		for (; list; list = list->next) {
-			BUG_TRAP(len >= 0);
+			int end;
 
-			end = offset + list->len;
+			BUG_TRAP(start <= offset + len);
+
+			end = start + list->len;
 			if ((copy = end - offset) > 0) {
 				if (copy > len)
 					copy = len;
-				err = skb_icv_walk(list, desc, 0,
+				err = skb_icv_walk(list, desc, offset-start,
 						   copy, icv_update);
 				if (unlikely(err))
 					return err;
@@ -597,6 +602,7 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 					return 0;
 				offset += copy;
 			}
+			start = end;
 		}
 	}
 	BUG_ON(len);

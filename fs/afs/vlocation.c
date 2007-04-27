@@ -416,8 +416,8 @@ fill_in_record:
 		goto error_abandon;
 	spin_lock(&vl->lock);
 	vl->state = AFS_VL_VALID;
-	wake_up(&vl->waitq);
 	spin_unlock(&vl->lock);
+	wake_up(&vl->waitq);
 
 	/* schedule for regular updates */
 	afs_vlocation_queue_for_updates(vl);
@@ -442,7 +442,7 @@ found_in_memory:
 
 		_debug("invalid [state %d]", state);
 
-		if ((state == AFS_VL_NEW || state == AFS_VL_NO_VOLUME)) {
+		if (state == AFS_VL_NEW || state == AFS_VL_NO_VOLUME) {
 			vl->state = AFS_VL_CREATING;
 			spin_unlock(&vl->lock);
 			goto fill_in_record;
@@ -453,11 +453,10 @@ found_in_memory:
 		_debug("wait");
 
 		spin_unlock(&vl->lock);
-		ret = wait_event_interruptible(
-			vl->waitq,
-			vl->state == AFS_VL_NEW ||
-			vl->state == AFS_VL_VALID ||
-			vl->state == AFS_VL_NO_VOLUME);
+		ret = wait_event_interruptible(vl->waitq,
+					       vl->state == AFS_VL_NEW ||
+					       vl->state == AFS_VL_VALID ||
+					       vl->state == AFS_VL_NO_VOLUME);
 		if (ret < 0)
 			goto error;
 		spin_lock(&vl->lock);
@@ -471,8 +470,8 @@ success:
 error_abandon:
 	spin_lock(&vl->lock);
 	vl->state = AFS_VL_NEW;
-	wake_up(&vl->waitq);
 	spin_unlock(&vl->lock);
+	wake_up(&vl->waitq);
 error:
 	ASSERT(vl != NULL);
 	afs_put_vlocation(vl);
@@ -675,7 +674,6 @@ static void afs_vlocation_updater(struct work_struct *work)
 	case 0:
 		afs_vlocation_apply_update(vl, &vldb);
 		vl->state = AFS_VL_VALID;
-		wake_up(&vl->waitq);
 		break;
 	case -ENOMEDIUM:
 		vl->state = AFS_VL_VOLUME_DELETED;
@@ -685,6 +683,7 @@ static void afs_vlocation_updater(struct work_struct *work)
 		break;
 	}
 	spin_unlock(&vl->lock);
+	wake_up(&vl->waitq);
 
 	/* and then reschedule */
 	_debug("reschedule");
