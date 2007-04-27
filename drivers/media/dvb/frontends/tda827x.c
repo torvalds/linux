@@ -399,6 +399,9 @@ static int tda827x_init(struct dvb_frontend *fe)
 static struct dvb_tuner_ops tda827xo_tuner_ops = {
 	.info = {
 		.name = "Philips TDA827X",
+		.frequency_min  =  55000000,
+		.frequency_max  = 860000000,
+		.frequency_step =    250000
 	},
 	.release = tda827x_release,
 	.init = tda827x_init,
@@ -411,6 +414,9 @@ static struct dvb_tuner_ops tda827xo_tuner_ops = {
 static struct dvb_tuner_ops tda827xa_tuner_ops = {
 	.info = {
 		.name = "Philips TDA827XA",
+		.frequency_min  =  44000000,
+		.frequency_max  = 906000000,
+		.frequency_step =     62500
 	},
 	.release = tda827x_release,
 	.init = tda827x_init,
@@ -461,6 +467,8 @@ struct dvb_frontend *tda827x_attach(struct dvb_frontend *fe, int addr,
 		sb_msg[1] = 0x90;
 	}
 	fe->tuner_priv = priv;
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(i2c, &msg, 1);
 	return fe;
 }
@@ -470,8 +478,8 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 MODULE_DESCRIPTION("DVB TDA827x driver");
-MODULE_AUTHOR("Hartmut Hackmann");
-MODULE_AUTHOR("Michael Krufky");
+MODULE_AUTHOR("Hartmut Hackmann <hartmut.hackmann@t-online.de>");
+MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");
 MODULE_LICENSE("GPL");
 
 /*
