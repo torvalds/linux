@@ -43,8 +43,7 @@ struct hdlc_proto {
 	void (*stop)(struct net_device *dev); /* if open & !DCD */
 	void (*detach)(struct net_device *dev);
 	int (*ioctl)(struct net_device *dev, struct ifreq *ifr);
-	unsigned short (*type_trans)(struct sk_buff *skb,
-				     struct net_device *dev);
+	__be16 (*type_trans)(struct sk_buff *skb, struct net_device *dev);
 	struct module *module;
 	struct hdlc_proto *next; /* next protocol in the list */
 };
