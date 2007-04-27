@@ -937,6 +937,7 @@ static struct nxt200x_config kworldatsc110 = {
 static int dvb_init(struct saa7134_dev *dev)
 {
 	char *board_name;
+	int ret;
 	/* init struct videobuf_dvb */
 	dev->ts.nr_bufs    = 32;
 	dev->ts.nr_packets = 32*4;
@@ -1145,7 +1146,18 @@ static int dvb_init(struct saa7134_dev *dev)
 	}
 
 	/* register everything else */
-	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev, &dev->pci->dev);
+	ret = videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev, &dev->pci->dev);
+
+	/* this sequence is necessary to make the tda1004x load its firmware
+	 * and to enter analog mode of hybrid boards
+	 */
+	if (!ret) {
+		if (dev->dvb.frontend->ops.init)
+			dev->dvb.frontend->ops.init(dev->dvb.frontend);
+		if (dev->dvb.frontend->ops.sleep)
+			dev->dvb.frontend->ops.sleep(dev->dvb.frontend);
+	}
+	return ret;
 }
 
 static int dvb_fini(struct saa7134_dev *dev)
