@@ -1,7 +1,6 @@
-/* $Id: pci_sabre.c,v 1.42 2002/01/23 11:27:32 davem Exp $
- * pci_sabre.c: Sabre specific PCI controller support.
+/* pci_sabre.c: Sabre specific PCI controller support.
  *
- * Copyright (C) 1997, 1998, 1999 David S. Miller (davem@caipfs.rutgers.edu)
+ * Copyright (C) 1997, 1998, 1999, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1998, 1999 Eddie C. Dost   (ecd@skynet.be)
  * Copyright (C) 1999 Jakub Jelinek   (jakub@redhat.com)
  */
@@ -499,7 +498,7 @@ static void sabre_check_iommu_error(struct pci_controller_info *p,
 				    unsigned long afsr,
 				    unsigned long afar)
 {
-	struct pci_iommu *iommu = p->pbm_A.iommu;
+	struct iommu *iommu = p->pbm_A.iommu;
 	unsigned long iommu_tag[16];
 	unsigned long iommu_data[16];
 	unsigned long flags;
@@ -948,7 +947,7 @@ static void sabre_iommu_init(struct pci_controller_info *p,
 			     int tsbsize, unsigned long dvma_offset,
 			     u32 dma_mask)
 {
-	struct pci_iommu *iommu = p->pbm_A.iommu;
+	struct iommu *iommu = p->pbm_A.iommu;
 	unsigned long i;
 	u64 control;
 
@@ -1017,7 +1016,7 @@ void sabre_init(struct device_node *dp, char *model_name)
 {
 	const struct linux_prom64_registers *pr_regs;
 	struct pci_controller_info *p;
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	int tsbsize;
 	const u32 *busrange;
 	const u32 *vdma;

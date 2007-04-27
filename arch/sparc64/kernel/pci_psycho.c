@@ -269,7 +269,7 @@ static void __psycho_check_one_stc(struct pci_controller_info *p,
 				   struct pci_pbm_info *pbm,
 				   int is_pbm_a)
 {
-	struct pci_strbuf *strbuf = &pbm->stc;
+	struct strbuf *strbuf = &pbm->stc;
 	unsigned long regbase = p->pbm_A.controller_regs;
 	unsigned long err_base, tag_base, line_base;
 	u64 control;
@@ -418,7 +418,7 @@ static void psycho_check_iommu_error(struct pci_controller_info *p,
 				     unsigned long afar,
 				     enum psycho_error_type type)
 {
-	struct pci_iommu *iommu = p->pbm_A.iommu;
+	struct iommu *iommu = p->pbm_A.iommu;
 	unsigned long iommu_tag[16];
 	unsigned long iommu_data[16];
 	unsigned long flags;
@@ -941,7 +941,7 @@ static void psycho_scan_bus(struct pci_controller_info *p)
 
 static void psycho_iommu_init(struct pci_controller_info *p)
 {
-	struct pci_iommu *iommu = p->pbm_A.iommu;
+	struct iommu *iommu = p->pbm_A.iommu;
 	unsigned long i;
 	u64 control;
 
@@ -1131,7 +1131,7 @@ void psycho_init(struct device_node *dp, char *model_name)
 {
 	struct linux_prom64_registers *pr_regs;
 	struct pci_controller_info *p;
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	struct property *prop;
 	u32 upa_portid;
 	int is_pbm_a;
@@ -1154,7 +1154,7 @@ void psycho_init(struct device_node *dp, char *model_name)
 		prom_printf("PSYCHO: Fatal memory allocation error.\n");
 		prom_halt();
 	}
-	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu) {
 		prom_printf("PSYCHO: Fatal memory allocation error.\n");
 		prom_halt();

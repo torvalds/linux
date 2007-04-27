@@ -1,7 +1,6 @@
-/* $Id: pci_iommu.c,v 1.17 2001/12/17 07:05:09 davem Exp $
- * pci_iommu.c: UltraSparc PCI controller IOM/STC support.
+/* pci_iommu.c: UltraSparc PCI controller IOM/STC support.
  *
- * Copyright (C) 1999 David S. Miller (davem@redhat.com)
+ * Copyright (C) 1999, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1999, 2000 Jakub Jelinek (jakub@redhat.com)
  */
 
@@ -36,7 +35,7 @@
 			       "i" (ASI_PHYS_BYPASS_EC_E))
 
 /* Must be invoked under the IOMMU lock. */
-static void __iommu_flushall(struct pci_iommu *iommu)
+static void __iommu_flushall(struct iommu *iommu)
 {
 	unsigned long tag;
 	int entry;
@@ -64,7 +63,7 @@ static void __iommu_flushall(struct pci_iommu *iommu)
 #define IOPTE_IS_DUMMY(iommu, iopte)	\
 	((iopte_val(*iopte) & IOPTE_PAGE) == (iommu)->dummy_page_pa)
 
-static inline void iopte_make_dummy(struct pci_iommu *iommu, iopte_t *iopte)
+static inline void iopte_make_dummy(struct iommu *iommu, iopte_t *iopte)
 {
 	unsigned long val = iopte_val(*iopte);
 
@@ -75,7 +74,7 @@ static inline void iopte_make_dummy(struct pci_iommu *iommu, iopte_t *iopte)
 }
 
 /* Based largely upon the ppc64 iommu allocator.  */
-static long pci_arena_alloc(struct pci_iommu *iommu, unsigned long npages)
+static long pci_arena_alloc(struct iommu *iommu, unsigned long npages)
 {
 	struct iommu_arena *arena = &iommu->arena;
 	unsigned long n, i, start, end, limit;
@@ -124,7 +123,7 @@ static void pci_arena_free(struct iommu_arena *arena, unsigned long base, unsign
 		__clear_bit(i, arena->map);
 }
 
-void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask)
+void pci_iommu_table_init(struct iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask)
 {
 	unsigned long i, tsbbase, order, sz, num_tsb_entries;
 
@@ -170,7 +169,7 @@ void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize, u32 dma_offset, 
 		iopte_make_dummy(iommu, &iommu->page_table[i]);
 }
 
-static inline iopte_t *alloc_npages(struct pci_iommu *iommu, unsigned long npages)
+static inline iopte_t *alloc_npages(struct iommu *iommu, unsigned long npages)
 {
 	long entry;
 
@@ -181,12 +180,12 @@ static inline iopte_t *alloc_npages(struct pci_iommu *iommu, unsigned long npage
 	return iommu->page_table + entry;
 }
 
-static inline void free_npages(struct pci_iommu *iommu, dma_addr_t base, unsigned long npages)
+static inline void free_npages(struct iommu *iommu, dma_addr_t base, unsigned long npages)
 {
 	pci_arena_free(&iommu->arena, base >> IO_PAGE_SHIFT, npages);
 }
 
-static int iommu_alloc_ctx(struct pci_iommu *iommu)
+static int iommu_alloc_ctx(struct iommu *iommu)
 {
 	int lowest = iommu->ctx_lowest_free;
 	int sz = IOMMU_NUM_CTXS - lowest;
@@ -205,7 +204,7 @@ static int iommu_alloc_ctx(struct pci_iommu *iommu)
 	return n;
 }
 
-static inline void iommu_free_ctx(struct pci_iommu *iommu, int ctx)
+static inline void iommu_free_ctx(struct iommu *iommu, int ctx)
 {
 	if (likely(ctx)) {
 		__clear_bit(ctx, iommu->ctx_bitmap);
@@ -220,7 +219,7 @@ static inline void iommu_free_ctx(struct pci_iommu *iommu, int ctx)
  */
 static void *pci_4u_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp, gfp_t gfp)
 {
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	iopte_t *iopte;
 	unsigned long flags, order, first_page;
 	void *ret;
@@ -266,7 +265,7 @@ static void *pci_4u_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr
 /* Free and unmap a consistent DMA translation. */
 static void pci_4u_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_t dvma)
 {
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	iopte_t *iopte;
 	unsigned long flags, order, npages;
 
@@ -291,8 +290,8 @@ static void pci_4u_free_consistent(struct pci_dev *pdev, size_t size, void *cpu,
  */
 static dma_addr_t pci_4u_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direction)
 {
-	struct pci_iommu *iommu;
-	struct pci_strbuf *strbuf;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
 	iopte_t *base;
 	unsigned long flags, npages, oaddr;
 	unsigned long i, base_paddr, ctx;
@@ -343,7 +342,7 @@ bad_no_ctx:
 	return PCI_DMA_ERROR_CODE;
 }
 
-static void pci_strbuf_flush(struct pci_strbuf *strbuf, struct pci_iommu *iommu, u32 vaddr, unsigned long ctx, unsigned long npages, int direction)
+static void pci_strbuf_flush(struct strbuf *strbuf, struct iommu *iommu, u32 vaddr, unsigned long ctx, unsigned long npages, int direction)
 {
 	int limit;
 
@@ -410,8 +409,8 @@ do_flush_sync:
 /* Unmap a single streaming mode DMA translation. */
 static void pci_4u_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
-	struct pci_iommu *iommu;
-	struct pci_strbuf *strbuf;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
 	iopte_t *base;
 	unsigned long flags, npages, ctx, i;
 
@@ -541,8 +540,8 @@ static inline void fill_sg(iopte_t *iopte, struct scatterlist *sg,
  */
 static int pci_4u_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct pci_iommu *iommu;
-	struct pci_strbuf *strbuf;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
 	unsigned long flags, ctx, npages, iopte_protection;
 	iopte_t *base;
 	u32 dma_base;
@@ -626,8 +625,8 @@ bad_no_ctx:
 /* Unmap a set of streaming mode DMA translations. */
 static void pci_4u_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct pci_iommu *iommu;
-	struct pci_strbuf *strbuf;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
 	iopte_t *base;
 	unsigned long flags, ctx, i, npages;
 	u32 bus_addr;
@@ -684,8 +683,8 @@ static void pci_4u_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, in
  */
 static void pci_4u_dma_sync_single_for_cpu(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
-	struct pci_iommu *iommu;
-	struct pci_strbuf *strbuf;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
 	unsigned long flags, ctx, npages;
 
 	iommu = pdev->dev.archdata.iommu;
@@ -722,8 +721,8 @@ static void pci_4u_dma_sync_single_for_cpu(struct pci_dev *pdev, dma_addr_t bus_
  */
 static void pci_4u_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct pci_iommu *iommu;
-	struct pci_strbuf *strbuf;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
 	unsigned long flags, ctx, npages, i;
 	u32 bus_addr;
 
@@ -798,7 +797,7 @@ int pci_dma_supported(struct pci_dev *pdev, u64 device_mask)
 	if (pdev == NULL) {
 		dma_addr_mask = 0xffffffff;
 	} else {
-		struct pci_iommu *iommu = pdev->dev.archdata.iommu;
+		struct iommu *iommu = pdev->dev.archdata.iommu;
 
 		dma_addr_mask = iommu->dma_addr_mask;
 

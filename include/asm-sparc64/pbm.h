@@ -1,7 +1,6 @@
-/* $Id: pbm.h,v 1.27 2001/08/12 13:18:23 davem Exp $
- * pbm.h: UltraSparc PCI controller software state.
+/* pbm.h: UltraSparc PCI controller software state.
  *
- * Copyright (C) 1997, 1998, 1999 David S. Miller (davem@redhat.com)
+ * Copyright (C) 1997, 1998, 1999, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #ifndef __SPARC64_PBM_H
@@ -30,84 +29,7 @@
  * PCI bus.
  */
 
-struct pci_controller_info;
-
-/* This contains the software state necessary to drive a PCI
- * controller's IOMMU.
- */
-struct pci_iommu {
-	/* This protects the controller's IOMMU and all
-	 * streaming buffers underneath.
-	 */
-	spinlock_t	lock;
-
-	struct iommu_arena arena;
-
-	/* IOMMU page table, a linear array of ioptes. */
-	iopte_t		*page_table;		/* The page table itself. */
-
-	/* Base PCI memory space address where IOMMU mappings
-	 * begin.
-	 */
-	u32		page_table_map_base;
-
-	/* IOMMU Controller Registers */
-	unsigned long	iommu_control;		/* IOMMU control register */
-	unsigned long	iommu_tsbbase;		/* IOMMU page table base register */
-	unsigned long	iommu_flush;		/* IOMMU page flush register */
-	unsigned long	iommu_ctxflush;		/* IOMMU context flush register */
-
-	/* This is a register in the PCI controller, which if
-	 * read will have no side-effects but will guarantee
-	 * completion of all previous writes into IOMMU/STC.
-	 */
-	unsigned long	write_complete_reg;
-
-	/* In order to deal with some buggy third-party PCI bridges that
-	 * do wrong prefetching, we never mark valid mappings as invalid.
-	 * Instead we point them at this dummy page.
-	 */
-	unsigned long	dummy_page;
-	unsigned long	dummy_page_pa;
-
-	/* CTX allocation. */
-	unsigned long ctx_lowest_free;
-	DECLARE_BITMAP(ctx_bitmap, IOMMU_NUM_CTXS);
-
-	/* Here a PCI controller driver describes the areas of
-	 * PCI memory space where DMA to/from physical memory
-	 * are addressed.  Drivers interrogate the PCI layer
-	 * if their device has addressing limitations.  They
-	 * do so via pci_dma_supported, and pass in a mask of
-	 * DMA address bits their device can actually drive.
-	 *
-	 * The test for being usable is:
-	 * 	(device_mask & dma_addr_mask) == dma_addr_mask
-	 */
-	u32 dma_addr_mask;
-};
-
-extern void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask);
-
-/* This describes a PCI bus module's streaming buffer. */
-struct pci_strbuf {
-	int		strbuf_enabled;		/* Present and using it? */
-
-	/* Streaming Buffer Control Registers */
-	unsigned long	strbuf_control;		/* STC control register */
-	unsigned long	strbuf_pflush;		/* STC page flush register */
-	unsigned long	strbuf_fsync;		/* STC flush synchronization reg */
-	unsigned long	strbuf_ctxflush;	/* STC context flush register */
-	unsigned long	strbuf_ctxmatch_base;	/* STC context flush match reg */
-	unsigned long	strbuf_flushflag_pa;	/* Physical address of flush flag */
-	volatile unsigned long *strbuf_flushflag; /* The flush flag itself */
-
-	/* And this is the actual flush flag area.
-	 * We allocate extra because the chips require
-	 * a 64-byte aligned area.
-	 */
-	volatile unsigned long	__flushflag_buf[(64 + (64 - 1)) / sizeof(long)];
-};
+extern void pci_iommu_table_init(struct iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask);
 
 #define PCI_STC_FLUSHFLAG_INIT(STC) \
 	(*((STC)->strbuf_flushflag) = 0UL)
@@ -119,6 +41,8 @@ struct pci_strbuf {
  */
 #define PROM_PCIRNG_MAX		64
 #define PROM_PCIIMAP_MAX	64
+
+struct pci_controller_info;
 
 struct pci_pbm_info {
 	/* PCI controller we sit under. */
@@ -186,10 +110,10 @@ struct pci_pbm_info {
 #endif /* !(CONFIG_PCI_MSI) */
 
 	/* This PBM's streaming buffer. */
-	struct pci_strbuf		stc;
+	struct strbuf			stc;
 
 	/* IOMMU state, potentially shared by both PBM segments. */
-	struct pci_iommu		*iommu;
+	struct iommu			*iommu;
 
 	/* Now things for the actual PCI bus probes. */
 	unsigned int			pci_first_busno;

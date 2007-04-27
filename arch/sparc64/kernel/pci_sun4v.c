@@ -29,7 +29,7 @@
 
 #define PGLIST_NENTS	(PAGE_SIZE / sizeof(u64))
 
-struct pci_iommu_batch {
+struct iommu_batch {
 	struct pci_dev	*pdev;		/* Device mapping is for.	*/
 	unsigned long	prot;		/* IOMMU page protections	*/
 	unsigned long	entry;		/* Index into IOTSB.		*/
@@ -37,12 +37,12 @@ struct pci_iommu_batch {
 	unsigned long	npages;		/* Number of pages in list.	*/
 };
 
-static DEFINE_PER_CPU(struct pci_iommu_batch, pci_iommu_batch);
+static DEFINE_PER_CPU(struct iommu_batch, pci_iommu_batch);
 
 /* Interrupts must be disabled.  */
 static inline void pci_iommu_batch_start(struct pci_dev *pdev, unsigned long prot, unsigned long entry)
 {
-	struct pci_iommu_batch *p = &__get_cpu_var(pci_iommu_batch);
+	struct iommu_batch *p = &__get_cpu_var(pci_iommu_batch);
 
 	p->pdev		= pdev;
 	p->prot		= prot;
@@ -51,7 +51,7 @@ static inline void pci_iommu_batch_start(struct pci_dev *pdev, unsigned long pro
 }
 
 /* Interrupts must be disabled.  */
-static long pci_iommu_batch_flush(struct pci_iommu_batch *p)
+static long pci_iommu_batch_flush(struct iommu_batch *p)
 {
 	struct pci_pbm_info *pbm = p->pdev->dev.archdata.host_controller;
 	unsigned long devhandle = pbm->devhandle;
@@ -89,7 +89,7 @@ static long pci_iommu_batch_flush(struct pci_iommu_batch *p)
 /* Interrupts must be disabled.  */
 static inline long pci_iommu_batch_add(u64 phys_page)
 {
-	struct pci_iommu_batch *p = &__get_cpu_var(pci_iommu_batch);
+	struct iommu_batch *p = &__get_cpu_var(pci_iommu_batch);
 
 	BUG_ON(p->npages >= PGLIST_NENTS);
 
@@ -103,7 +103,7 @@ static inline long pci_iommu_batch_add(u64 phys_page)
 /* Interrupts must be disabled.  */
 static inline long pci_iommu_batch_end(void)
 {
-	struct pci_iommu_batch *p = &__get_cpu_var(pci_iommu_batch);
+	struct iommu_batch *p = &__get_cpu_var(pci_iommu_batch);
 
 	BUG_ON(p->npages >= PGLIST_NENTS);
 
@@ -159,7 +159,7 @@ static void pci_arena_free(struct iommu_arena *arena, unsigned long base, unsign
 
 static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp, gfp_t gfp)
 {
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	unsigned long flags, order, first_page, npages, n;
 	void *ret;
 	long entry;
@@ -225,7 +225,7 @@ arena_alloc_fail:
 static void pci_4v_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_t dvma)
 {
 	struct pci_pbm_info *pbm;
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	unsigned long flags, order, npages, entry;
 	u32 devhandle;
 
@@ -257,7 +257,7 @@ static void pci_4v_free_consistent(struct pci_dev *pdev, size_t size, void *cpu,
 
 static dma_addr_t pci_4v_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direction)
 {
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	unsigned long flags, npages, oaddr;
 	unsigned long i, base_paddr;
 	u32 bus_addr, ret;
@@ -321,7 +321,7 @@ iommu_map_fail:
 static void pci_4v_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
 	struct pci_pbm_info *pbm;
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	unsigned long flags, npages;
 	long entry;
 	u32 devhandle;
@@ -456,7 +456,7 @@ iommu_map_failed:
 
 static int pci_4v_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	unsigned long flags, npages, prot;
 	u32 dma_base;
 	struct scatterlist *sgtmp;
@@ -532,7 +532,7 @@ iommu_map_failed:
 static void pci_4v_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
 	struct pci_pbm_info *pbm;
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	unsigned long flags, i, npages;
 	long entry;
 	u32 devhandle, bus_addr;
@@ -705,7 +705,7 @@ static void pci_sun4v_scan_bus(struct pci_controller_info *p)
 }
 
 static unsigned long probe_existing_entries(struct pci_pbm_info *pbm,
-					    struct pci_iommu *iommu)
+					    struct iommu *iommu)
 {
 	struct iommu_arena *arena = &iommu->arena;
 	unsigned long i, cnt = 0;
@@ -734,7 +734,7 @@ static unsigned long probe_existing_entries(struct pci_pbm_info *pbm,
 
 static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 {
-	struct pci_iommu *iommu = pbm->iommu;
+	struct iommu *iommu = pbm->iommu;
 	struct property *prop;
 	unsigned long num_tsb_entries, sz;
 	u32 vdma[2], dma_mask, dma_offset;
@@ -1279,7 +1279,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 void sun4v_pci_init(struct device_node *dp, char *model_name)
 {
 	struct pci_controller_info *p;
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	struct property *prop;
 	struct linux_prom64_registers *regs;
 	u32 devhandle;
@@ -1319,13 +1319,13 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 	if (!p)
 		goto fatal_memory_error;
 
-	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu)
 		goto fatal_memory_error;
 
 	p->pbm_A.iommu = iommu;
 
-	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu)
 		goto fatal_memory_error;
 

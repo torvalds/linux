@@ -279,7 +279,7 @@ struct pci_pbm_info *pbm_for_ino(struct pci_controller_info *p, u32 ino)
 static void __schizo_check_stc_error_pbm(struct pci_pbm_info *pbm,
 					 enum schizo_error_type type)
 {
-	struct pci_strbuf *strbuf = &pbm->stc;
+	struct strbuf *strbuf = &pbm->stc;
 	unsigned long regbase = pbm->pbm_regs;
 	unsigned long err_base, tag_base, line_base;
 	u64 control;
@@ -387,7 +387,7 @@ static void __schizo_check_stc_error_pbm(struct pci_pbm_info *pbm,
 static void schizo_check_iommu_error_pbm(struct pci_pbm_info *pbm,
 					 enum schizo_error_type type)
 {
-	struct pci_iommu *iommu = pbm->iommu;
+	struct iommu *iommu = pbm->iommu;
 	unsigned long iommu_tag[16];
 	unsigned long iommu_data[16];
 	unsigned long flags;
@@ -1308,7 +1308,7 @@ static void schizo_pbm_strbuf_init(struct pci_pbm_info *pbm)
 
 static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 {
-	struct pci_iommu *iommu = pbm->iommu;
+	struct iommu *iommu = pbm->iommu;
 	unsigned long i, tagbase, database;
 	struct property *prop;
 	u32 vdma[2], dma_mask;
@@ -1580,7 +1580,7 @@ static inline int portid_compare(u32 x, u32 y, int chip_type)
 static void __schizo_init(struct device_node *dp, char *model_name, int chip_type)
 {
 	struct pci_controller_info *p;
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	u32 portid;
 
 	portid = of_getintprop_default(dp, "portid", 0xff);
@@ -1605,13 +1605,13 @@ static void __schizo_init(struct device_node *dp, char *model_name, int chip_typ
 	if (!p)
 		goto memfail;
 
-	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu)
 		goto memfail;
 
 	p->pbm_A.iommu = iommu;
 
-	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu)
 		goto memfail;
 
