@@ -47,6 +47,7 @@ struct usb_lcd {
 #define to_lcd_dev(d) container_of(d, struct usb_lcd, kref)
 
 static struct usb_driver lcd_driver;
+static DEFINE_MUTEX(usb_lcd_open_mutex);
 
 
 static void lcd_delete(struct kref *kref)
@@ -68,6 +69,7 @@ static int lcd_open(struct inode *inode, struct file *file)
 
 	subminor = iminor(inode);
 
+	mutex_lock(&usb_lcd_open_mutex);
 	interface = usb_find_interface(&lcd_driver, subminor);
 	if (!interface) {
 		err ("USBLCD: %s - error, can't find device for minor %d",
@@ -89,6 +91,7 @@ static int lcd_open(struct inode *inode, struct file *file)
 	file->private_data = dev;
 
 exit:
+	mutex_unlock(&usb_lcd_open_mutex);
 	return retval;
 }
 
@@ -347,7 +350,7 @@ static void lcd_disconnect(struct usb_interface *interface)
         int minor = interface->minor;
 
         /* prevent skel_open() from racing skel_disconnect() */
-        lock_kernel();
+        mutex_lock(&usb_lcd_open_mutex);
 
         dev = usb_get_intfdata(interface);
         usb_set_intfdata(interface, NULL);
@@ -355,7 +358,7 @@ static void lcd_disconnect(struct usb_interface *interface)
         /* give back our minor */
         usb_deregister_dev(interface, &lcd_class);
  
-	unlock_kernel();
+	mutex_unlock(&usb_lcd_open_mutex);
 
 	/* decrement our usage count */
 	kref_put(&dev->kref, lcd_delete);

@@ -255,6 +255,7 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x04DD, 0x9102) }, /* SHARP WS003SH USB Modem */
 	{ USB_DEVICE(0x04DD, 0x9121) }, /* SHARP WS004SH USB Modem */
 	{ USB_DEVICE(0x04DD, 0x9123) }, /* SHARP WS007SH USB Modem */
+	{ USB_DEVICE(0x04DD, 0x9151) }, /* SHARP S01SH USB Modem */
 	{ USB_DEVICE(0x04E8, 0x5F00) }, /* Samsung NEXiO USB Sync */
 	{ USB_DEVICE(0x04E8, 0x5F01) }, /* Samsung NEXiO USB Sync */
 	{ USB_DEVICE(0x04E8, 0x5F02) }, /* Samsung NEXiO USB Sync */

@@ -31,7 +31,30 @@ config USB_DEVICEFS
 	  For the format of the various /proc/bus/usb/ files, please read
 	  <file:Documentation/usb/proc_usb_info.txt>.
 
-	  Most users want to say Y here.
+	  Usbfs files can't handle Access Control Lists (ACL), which are the
+	  default way to grant access to USB devices for untrusted users of a
+	  desktop system. The usbfs functionality is replaced by real
+	  device-nodes managed by udev. These nodes live in /dev/bus/usb and
+	  are used by libusb.
+
+config USB_DEVICE_CLASS
+	bool "USB device class-devices (DEPRECATED)"
+	depends on USB
+	default n
+	---help---
+	  Userspace access to USB devices is granted by device-nodes exported
+	  directly from the usbdev in sysfs. Old versions of the driver
+	  core and udev needed additional class devices to export device nodes.
+
+	  These additional devices are difficult to handle in userspace, if
+	  information about USB interfaces must be available. One device contains
+	  the device node, the other device contains the interface data. Both
+	  devices are at the same level in sysfs (siblings) and one can't access
+	  the other. The device node created directly by the usbdev is the parent
+	  device of the interface and therefore easily accessible from the interface
+	  event.
+
+	  This option provides backward compatibility if needed.
 
 config USB_DYNAMIC_MINORS
 	bool "Dynamic USB minor allocation (EXPERIMENTAL)"

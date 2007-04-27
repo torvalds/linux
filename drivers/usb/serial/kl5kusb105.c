@@ -238,7 +238,7 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	if (rc < 0)
 		err("Reading line status failed (error = %d)", rc);
 	else {
-		status = status_buf[0] + (status_buf[1]<<8);
+		status = le16_to_cpu(*(u16 *)status_buf);
 
 		info("%s - read status %x %x", __FUNCTION__,
 		     status_buf[0], status_buf[1]);
@@ -257,7 +257,7 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 static int klsi_105_startup (struct usb_serial *serial)
 {
 	struct klsi_105_private *priv;
-	int i;
+	int i, j;
 
 	/* check if we support the product id (see keyspan.c)
 	 * FIXME
@@ -265,12 +265,12 @@ static int klsi_105_startup (struct usb_serial *serial)
 
 	/* allocate the private data structure */
 	for (i=0; i<serial->num_ports; i++) {
-		int j;
 		priv = kmalloc(sizeof(struct klsi_105_private),
 						   GFP_KERNEL);
 		if (!priv) {
 			dbg("%skmalloc for klsi_105_private failed.", __FUNCTION__);
-			return -ENOMEM;
+			i--;
+			goto err_cleanup;
 		}
 		/* set initial values for control structures */
 		priv->cfg.pktlen    = 5;
@@ -292,15 +292,14 @@ static int klsi_105_startup (struct usb_serial *serial)
 			priv->write_urb_pool[j] = urb;
 			if (urb == NULL) {
 				err("No more urbs???");
-				continue;
+				goto err_cleanup;
 			}
 
-			urb->transfer_buffer = NULL;
 			urb->transfer_buffer = kmalloc (URB_TRANSFER_BUFFER_SIZE,
 							GFP_KERNEL);
 			if (!urb->transfer_buffer) {
 				err("%s - out of memory for urb buffers.", __FUNCTION__);
-				continue;
+				goto err_cleanup;
 			}
 		}
 
@@ -308,7 +307,20 @@ static int klsi_105_startup (struct usb_serial *serial)
 		init_waitqueue_head(&serial->port[i]->write_wait);
 	}
 	
-	return (0);
+	return 0;
+
+err_cleanup:
+	for (; i >= 0; i--) {
+		priv = usb_get_serial_port_data(serial->port[i]);
+		for (j=0; j < NUM_URBS; j++) {
+			if (priv->write_urb_pool[j]) {
+				kfree(priv->write_urb_pool[j]->transfer_buffer);
+				usb_free_urb(priv->write_urb_pool[j]);
+			}
+		}
+		usb_set_serial_port_data(serial->port[i], NULL);
+	}
+	return -ENOMEM;
 } /* klsi_105_startup */
 
 

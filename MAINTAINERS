@@ -981,6 +981,11 @@ M:	mhw@wittsend.com
 W:	http://www.wittsend.com/computone.html
 S:	Maintained
 
+CONEXANT ACCESSRUNNER USB DRIVER
+P:	Simon Arlott
+M:	cxacru@fire.lp0.eu
+S:	Maintained
+
 COSA/SRP SYNC SERIAL DRIVER
 P:	Jan "Yenya" Kasprzak
 M:	kas@fi.muni.cz
@@ -1387,6 +1392,13 @@ P:	Vitaly Bordug
 M:	vbordug@ru.mvista.com
 L:	linuxppc-embedded@ozlabs.org
 L:	netdev@vger.kernel.org
+S:	Maintained
+
+FREESCALE HIGHSPEED USB DEVICE DRIVER
+P:	Li Yang
+M:	leoli@freescale.com
+L:	linux-usb-devel@lists.sourceforge.net
+L:	linuxppc-embedded@ozlabs.org
 S:	Maintained
 
 FILE LOCKING (flock() and fcntl()/lockf())

@@ -342,6 +342,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_PERLE_ULTRAPORT_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_PIEGROUP_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_TNC_X_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_USBX_707_PID) },
 	{ USB_DEVICE(SEALEVEL_VID, SEALEVEL_2101_PID) },
 	{ USB_DEVICE(SEALEVEL_VID, SEALEVEL_2102_PID) },
 	{ USB_DEVICE(SEALEVEL_VID, SEALEVEL_2103_PID) },
@@ -1433,6 +1434,7 @@ static int ftdi_write (struct usb_serial_port *port,
 		dbg("%s - write limit hit\n", __FUNCTION__);
 		return 0;
 	}
+	priv->tx_outstanding_urbs++;
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	data_offset = priv->write_offset;
@@ -1450,14 +1452,15 @@ static int ftdi_write (struct usb_serial_port *port,
 	buffer = kmalloc (transfer_size, GFP_ATOMIC);
 	if (!buffer) {
 		err("%s ran out of kernel memory for urb ...", __FUNCTION__);
-		return -ENOMEM;
+		count = -ENOMEM;
+		goto error_no_buffer;
 	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		err("%s - no more free urbs", __FUNCTION__);
-		kfree (buffer);
-		return -ENOMEM;
+		count = -ENOMEM;
+		goto error_no_urb;
 	}
 
 	/* Copy data */
@@ -1499,10 +1502,9 @@ static int ftdi_write (struct usb_serial_port *port,
 	if (status) {
 		err("%s - failed submitting write urb, error %d", __FUNCTION__, status);
 		count = status;
-		kfree (buffer);
+		goto error;
 	} else {
 		spin_lock_irqsave(&priv->tx_lock, flags);
-		++priv->tx_outstanding_urbs;
 		priv->tx_outstanding_bytes += count;
 		priv->tx_bytes += count;
 		spin_unlock_irqrestore(&priv->tx_lock, flags);
@@ -1510,9 +1512,18 @@ static int ftdi_write (struct usb_serial_port *port,
 
 	/* we are done with this urb, so let the host driver
 	 * really free it when it is finished with it */
-	usb_free_urb (urb);
+	usb_free_urb(urb);
 
 	dbg("%s write returning: %d", __FUNCTION__, count);
+	return count;
+error:
+	usb_free_urb(urb);
+error_no_urb:
+	kfree (buffer);
+error_no_buffer:
+	spin_lock_irqsave(&priv->tx_lock, flags);
+	priv->tx_outstanding_urbs--;
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
 	return count;
 } /* ftdi_write */
 

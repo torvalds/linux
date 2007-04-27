@@ -1367,11 +1367,15 @@ int usb_new_device(struct usb_device *udev)
 	}
 #endif
 
+	/* export the usbdev device-node for libusb */
+	udev->dev.devt = MKDEV(USB_DEVICE_MAJOR,
+			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
+
 	/* Register the device.  The device driver is responsible
-	 * for adding the device files to usbfs and sysfs and for
-	 * configuring the device.
+	 * for adding the device files to sysfs and for configuring
+	 * the device.
 	 */
-	err = device_add (&udev->dev);
+	err = device_add(&udev->dev);
 	if (err) {
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
 		goto fail;
@@ -1855,12 +1859,8 @@ static int remote_wakeup(struct usb_device *udev)
 	usb_lock_device(udev);
 	if (udev->state == USB_STATE_SUSPENDED) {
 		dev_dbg(&udev->dev, "usb %sresume\n", "wakeup-");
-		status = usb_autoresume_device(udev);
-
-		/* Give the interface drivers a chance to do something,
-		 * then autosuspend the device again. */
-		if (status == 0)
-			usb_autosuspend_device(udev);
+		usb_mark_last_busy(udev);
+		status = usb_external_resume_device(udev);
 	}
 	usb_unlock_device(udev);
 	return status;
@@ -1983,13 +1983,6 @@ static inline int remote_wakeup(struct usb_device *udev)
 #define hub_suspend NULL
 #define hub_resume NULL
 #endif
-
-void usb_resume_root_hub(struct usb_device *hdev)
-{
-	struct usb_hub *hub = hdev_to_hub(hdev);
-
-	kick_khubd(hub);
-}
 
 
 /* USB 2.0 spec, 7.1.7.3 / fig 7-29:

@@ -118,7 +118,7 @@ static int usb_get_report(struct usb_device *dev,
 			       USB_DIR_IN | USB_TYPE_CLASS |
 			       USB_RECIP_INTERFACE, (type << 8) + id,
 			       inter->desc.bInterfaceNumber, buf, size,
-			       GET_TIMEOUT);
+			       GET_TIMEOUT*HZ);
 }
 //#endif
 
@@ -133,7 +133,7 @@ static int usb_set_report(struct usb_interface *intf, unsigned char type,
 			       USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			       (type << 8) + id,
 			       intf->cur_altsetting->desc.bInterfaceNumber, buf,
-			       size, 1);
+			       size, HZ);
 }
 
 /*---------------------*/
@@ -417,14 +417,14 @@ static ssize_t iowarrior_write(struct file *file,
 		if (!int_out_urb) {
 			retval = -ENOMEM;
 			dbg("%s Unable to allocate urb ", __func__);
-			goto error;
+			goto error_no_urb;
 		}
 		buf = usb_buffer_alloc(dev->udev, dev->report_size,
 				       GFP_KERNEL, &int_out_urb->transfer_dma);
 		if (!buf) {
 			retval = -ENOMEM;
 			dbg("%s Unable to allocate buffer ", __func__);
-			goto error;
+			goto error_no_buffer;
 		}
 		usb_fill_int_urb(int_out_urb, dev->udev,
 				 usb_sndintpipe(dev->udev,
@@ -459,7 +459,9 @@ static ssize_t iowarrior_write(struct file *file,
 error:
 	usb_buffer_free(dev->udev, dev->report_size, buf,
 			int_out_urb->transfer_dma);
+error_no_buffer:
 	usb_free_urb(int_out_urb);
+error_no_urb:
 	atomic_dec(&dev->write_busy);
 	wake_up_interruptible(&dev->write_wait);
 exit:
@@ -748,7 +750,6 @@ static int iowarrior_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *endpoint;
 	int i;
 	int retval = -ENOMEM;
-	int idele = 0;
 
 	/* allocate memory for our device state and intialize it */
 	dev = kzalloc(sizeof(struct iowarrior), GFP_KERNEL);
@@ -824,11 +825,10 @@ static int iowarrior_probe(struct usb_interface *interface,
 
 	/* Set the idle timeout to 0, if this is interface 0 */
 	if (dev->interface->cur_altsetting->desc.bInterfaceNumber == 0) {
-		idele = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-					0x0A,
-					USB_TYPE_CLASS | USB_RECIP_INTERFACE, 0,
-					0, NULL, 0, USB_CTRL_SET_TIMEOUT);
-		dbg("idele = %d", idele);
+	    usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+			    0x0A,
+			    USB_TYPE_CLASS | USB_RECIP_INTERFACE, 0,
+			    0, NULL, 0, USB_CTRL_SET_TIMEOUT);
 	}
 	/* allow device read and ioctl */
 	dev->present = 1;

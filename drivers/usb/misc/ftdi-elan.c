@@ -2304,7 +2304,6 @@ static int ftdi_elan_checkingPCI(struct usb_ftdi *ftdi)
 #define OHCI_QUIRK_SUPERIO 0x02
 #define OHCI_QUIRK_INITRESET 0x04
 #define OHCI_BIG_ENDIAN 0x08
-#define OHCI_QUIRK_ZFMICRO 0x10
 #define OHCI_CONTROL_INIT OHCI_CTRL_CBSR
 #define OHCI_INTR_INIT (OHCI_INTR_MIE | OHCI_INTR_UE | OHCI_INTR_RD | \
         OHCI_INTR_WDH)
@@ -2910,24 +2909,28 @@ static int __init ftdi_elan_init(void)
         INIT_LIST_HEAD(&ftdi_static_list);
         status_queue = create_singlethread_workqueue("ftdi-status-control");
 	if (!status_queue)
-		goto err1;
+		goto err_status_queue;
         command_queue = create_singlethread_workqueue("ftdi-command-engine");
 	if (!command_queue)
-		goto err2;
+		goto err_command_queue;
         respond_queue = create_singlethread_workqueue("ftdi-respond-engine");
 	if (!respond_queue)
-		goto err3;
+		goto err_respond_queue;
         result = usb_register(&ftdi_elan_driver);
-        if (result)
+        if (result) {
+		destroy_workqueue(status_queue);
+		destroy_workqueue(command_queue);
+		destroy_workqueue(respond_queue);
                 printk(KERN_ERR "usb_register failed. Error number %d\n",
 		       result);
+	}
         return result;
 
- err3:
+ err_respond_queue:
 	destroy_workqueue(command_queue);
- err2:
+ err_command_queue:
 	destroy_workqueue(status_queue);
- err1:
+ err_status_queue:
 	printk(KERN_ERR "%s couldn't create workqueue\n", ftdi_elan_driver.name);
 	return -ENOMEM;
 }

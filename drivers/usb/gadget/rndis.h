@@ -195,7 +195,7 @@ struct rndis_packet_msg_type
 	__le32	PerPacketInfoLength;
 	__le32	VcHandle;
 	__le32	Reserved;
-};
+} __attribute__ ((packed));
 
 struct rndis_config_parameter
 {

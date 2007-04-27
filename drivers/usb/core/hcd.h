@@ -68,6 +68,9 @@ struct usb_hcd {
 
 	struct timer_list	rh_timer;	/* drives root-hub polling */
 	struct urb		*status_urb;	/* the current status urb */
+#ifdef CONFIG_PM
+	struct work_struct	wakeup_work;	/* for remote wakeup */
+#endif
 
 	/*
 	 * hardware info/state

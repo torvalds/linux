@@ -68,6 +68,27 @@ choice
 	   Many controller drivers are platform-specific; these
 	   often need board-specific hooks.
 
+config USB_GADGET_FSL_USB2
+	boolean "Freescale Highspeed USB DR Peripheral Controller"
+	depends on MPC834x || PPC_MPC831x
+	select USB_GADGET_DUALSPEED
+	help
+	   Some of Freescale PowerPC processors have a High Speed
+	   Dual-Role(DR) USB controller, which supports device mode.
+
+	   The number of programmable endpoints is different through
+	   SOC revisions.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "fsl_usb2_udc" and force
+	   all gadget drivers to also be dynamically linked.
+
+config USB_FSL_USB2
+	tristate
+	depends on USB_GADGET_FSL_USB2
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_NET2280
 	boolean "NetChip 228x"
 	depends on PCI
@@ -370,6 +391,7 @@ config USB_GADGETFS
 
 config USB_FILE_STORAGE
 	tristate "File-backed Storage Gadget"
+	depends on BLOCK
 	help
 	  The File-backed Storage Gadget acts as a USB Mass Storage
 	  disk drive.  As its storage repository it can use a regular

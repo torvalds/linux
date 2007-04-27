@@ -42,7 +42,7 @@ static void usb_autosuspend_quirk(struct usb_device *udev)
 {
 #ifdef	CONFIG_USB_SUSPEND
 	/* disable autosuspend, but allow the user to re-enable it via sysfs */
-	udev->autosuspend_delay = 0;
+	udev->autosuspend_disabled = 1;
 #endif
 }
 

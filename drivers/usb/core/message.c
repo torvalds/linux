@@ -412,10 +412,24 @@ int usb_sg_init (
 		io->urbs [i]->status = -EINPROGRESS;
 		io->urbs [i]->actual_length = 0;
 
+		/*
+		 * Some systems need to revert to PIO when DMA is temporarily
+		 * unavailable.  For their sakes, both transfer_buffer and
+		 * transfer_dma are set when possible.  However this can only
+		 * work on systems without HIGHMEM, since DMA buffers located
+		 * in high memory are not directly addressable by the CPU for
+		 * PIO ... so when HIGHMEM is in use, transfer_buffer is NULL
+		 * to prevent stale pointers and to help spot bugs.
+		 */
 		if (dma) {
-			/* hc may use _only_ transfer_dma */
 			io->urbs [i]->transfer_dma = sg_dma_address (sg + i);
 			len = sg_dma_len (sg + i);
+#ifdef CONFIG_HIGHMEM
+			io->urbs[i]->transfer_buffer = NULL;
+#else
+			io->urbs[i]->transfer_buffer =
+				page_address(sg[i].page) + sg[i].offset;
+#endif
 		} else {
 			/* hc may use _only_ transfer_buffer */
 			io->urbs [i]->transfer_buffer =
@@ -1305,7 +1319,7 @@ int usb_reset_configuration(struct usb_device *dev)
 	return 0;
 }
 
-static void release_interface(struct device *dev)
+void usb_release_interface(struct device *dev)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_interface_cache *intfc =
@@ -1314,6 +1328,67 @@ static void release_interface(struct device *dev)
 	kref_put(&intfc->ref, usb_release_interface_cache);
 	kfree(intf);
 }
+
+#ifdef	CONFIG_HOTPLUG
+static int usb_if_uevent(struct device *dev, char **envp, int num_envp,
+		 char *buffer, int buffer_size)
+{
+	struct usb_device *usb_dev;
+	struct usb_interface *intf;
+	struct usb_host_interface *alt;
+	int i = 0;
+	int length = 0;
+
+	if (!dev)
+		return -ENODEV;
+
+	/* driver is often null here; dev_dbg() would oops */
+	pr_debug ("usb %s: uevent\n", dev->bus_id);
+
+	intf = to_usb_interface(dev);
+	usb_dev = interface_to_usbdev(intf);
+	alt = intf->cur_altsetting;
+
+	if (add_uevent_var(envp, num_envp, &i,
+		   buffer, buffer_size, &length,
+		   "INTERFACE=%d/%d/%d",
+		   alt->desc.bInterfaceClass,
+		   alt->desc.bInterfaceSubClass,
+		   alt->desc.bInterfaceProtocol))
+		return -ENOMEM;
+
+	if (add_uevent_var(envp, num_envp, &i,
+		   buffer, buffer_size, &length,
+		   "MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
+		   le16_to_cpu(usb_dev->descriptor.idVendor),
+		   le16_to_cpu(usb_dev->descriptor.idProduct),
+		   le16_to_cpu(usb_dev->descriptor.bcdDevice),
+		   usb_dev->descriptor.bDeviceClass,
+		   usb_dev->descriptor.bDeviceSubClass,
+		   usb_dev->descriptor.bDeviceProtocol,
+		   alt->desc.bInterfaceClass,
+		   alt->desc.bInterfaceSubClass,
+		   alt->desc.bInterfaceProtocol))
+		return -ENOMEM;
+
+	envp[i] = NULL;
+	return 0;
+}
+
+#else
+
+static int usb_if_uevent(struct device *dev, char **envp,
+			 int num_envp, char *buffer, int buffer_size)
+{
+	return -ENODEV;
+}
+#endif	/* CONFIG_HOTPLUG */
+
+struct device_type usb_if_device_type = {
+	.name =		"usb_interface",
+	.release =	usb_release_interface,
+	.uevent =	usb_if_uevent,
+};
 
 /*
  * usb_set_configuration - Makes a particular device setting be current
@@ -1478,8 +1553,8 @@ free_interfaces:
 		intf->dev.parent = &dev->dev;
 		intf->dev.driver = NULL;
 		intf->dev.bus = &usb_bus_type;
+		intf->dev.type = &usb_if_device_type;
 		intf->dev.dma_mask = dev->dev.dma_mask;
-		intf->dev.release = release_interface;
 		device_initialize (&intf->dev);
 		mark_quiesced(intf);
 		sprintf (&intf->dev.bus_id[0], "%d-%s:%d.%d",

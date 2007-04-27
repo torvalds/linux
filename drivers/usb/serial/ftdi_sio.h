@@ -31,6 +31,7 @@
 #define FTDI_RELAIS_PID	0xFA10  /* Relais device from Rudolf Gugler */
 #define FTDI_NF_RIC_VID	0x0DCD	/* Vendor Id */
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
+#define FTDI_USBX_707_PID 0xF857	/* ADSTech IR Blaster USBX-707 */
 
 
 /* www.canusb.com Lawicel CANUSB device */

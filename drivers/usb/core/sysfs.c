@@ -11,6 +11,7 @@
 
 
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/usb.h>
 #include "usb.h"
 
@@ -117,6 +118,16 @@ show_speed(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR(speed, S_IRUGO, show_speed, NULL);
 
 static ssize_t
+show_busnum(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "%d\n", udev->bus->busnum);
+}
+static DEVICE_ATTR(busnum, S_IRUGO, show_busnum, NULL);
+
+static ssize_t
 show_devnum(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
@@ -165,7 +176,7 @@ show_autosuspend(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev = to_usb_device(dev);
 
-	return sprintf(buf, "%u\n", udev->autosuspend_delay / HZ);
+	return sprintf(buf, "%d\n", udev->autosuspend_delay / HZ);
 }
 
 static ssize_t
@@ -173,22 +184,90 @@ set_autosuspend(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct usb_device *udev = to_usb_device(dev);
-	unsigned value, old;
+	int value;
 
-	if (sscanf(buf, "%u", &value) != 1 || value >= INT_MAX/HZ)
+	if (sscanf(buf, "%d", &value) != 1 || value >= INT_MAX/HZ ||
+			value <= - INT_MAX/HZ)
 		return -EINVAL;
 	value *= HZ;
 
-	old = udev->autosuspend_delay;
 	udev->autosuspend_delay = value;
-	if (value > 0 && old == 0)
+	if (value >= 0)
 		usb_try_autosuspend_device(udev);
-
+	else {
+		if (usb_autoresume_device(udev) == 0)
+			usb_autosuspend_device(udev);
+	}
 	return count;
 }
 
 static DEVICE_ATTR(autosuspend, S_IRUGO | S_IWUSR,
 		show_autosuspend, set_autosuspend);
+
+static const char on_string[] = "on";
+static const char auto_string[] = "auto";
+static const char suspend_string[] = "suspend";
+
+static ssize_t
+show_level(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	const char *p = auto_string;
+
+	if (udev->state == USB_STATE_SUSPENDED) {
+		if (udev->autoresume_disabled)
+			p = suspend_string;
+	} else {
+		if (udev->autosuspend_disabled)
+			p = on_string;
+	}
+	return sprintf(buf, "%s\n", p);
+}
+
+static ssize_t
+set_level(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	int len = count;
+	char *cp;
+	int rc = 0;
+
+	cp = memchr(buf, '\n', count);
+	if (cp)
+		len = cp - buf;
+
+	usb_lock_device(udev);
+
+	/* Setting the flags without calling usb_pm_lock is a subject to
+	 * races, but who cares...
+	 */
+	if (len == sizeof on_string - 1 &&
+			strncmp(buf, on_string, len) == 0) {
+		udev->autosuspend_disabled = 1;
+		udev->autoresume_disabled = 0;
+		rc = usb_external_resume_device(udev);
+
+	} else if (len == sizeof auto_string - 1 &&
+			strncmp(buf, auto_string, len) == 0) {
+		udev->autosuspend_disabled = 0;
+		udev->autoresume_disabled = 0;
+		rc = usb_external_resume_device(udev);
+
+	} else if (len == sizeof suspend_string - 1 &&
+			strncmp(buf, suspend_string, len) == 0) {
+		udev->autosuspend_disabled = 0;
+		udev->autoresume_disabled = 1;
+		rc = usb_external_suspend_device(udev, PMSG_SUSPEND);
+
+	} else
+		rc = -EINVAL;
+
+	usb_unlock_device(udev);
+	return (rc < 0 ? rc : count);
+}
+
+static DEVICE_ATTR(level, S_IRUGO | S_IWUSR, show_level, set_level);
 
 static char power_group[] = "power";
 
@@ -196,15 +275,23 @@ static int add_power_attributes(struct device *dev)
 {
 	int rc = 0;
 
-	if (is_usb_device(dev))
+	if (is_usb_device(dev)) {
 		rc = sysfs_add_file_to_group(&dev->kobj,
 				&dev_attr_autosuspend.attr,
 				power_group);
+		if (rc == 0)
+			rc = sysfs_add_file_to_group(&dev->kobj,
+					&dev_attr_level.attr,
+					power_group);
+	}
 	return rc;
 }
 
 static void remove_power_attributes(struct device *dev)
 {
+	sysfs_remove_file_from_group(&dev->kobj,
+			&dev_attr_level.attr,
+			power_group);
 	sysfs_remove_file_from_group(&dev->kobj,
 			&dev_attr_autosuspend.attr,
 			power_group);
@@ -270,6 +357,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_bNumConfigurations.attr,
 	&dev_attr_bMaxPacketSize0.attr,
 	&dev_attr_speed.attr,
+	&dev_attr_busnum.attr,
 	&dev_attr_devnum.attr,
 	&dev_attr_version.attr,
 	&dev_attr_maxchild.attr,

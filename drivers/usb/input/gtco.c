@@ -1047,13 +1047,10 @@ static void gtco_disconnect(struct usb_interface *interface)
 
 	/* Grab private device ptr */
 	struct gtco    *device = usb_get_intfdata (interface);
-	struct input_dev *inputdev;
-
-	inputdev = device->inputdevice;
 
 	/* Now reverse all the registration stuff */
 	if (device) {
-		input_unregister_device(inputdev);
+		input_unregister_device(device->inputdevice);
 		usb_kill_urb(device->urbinfo);
 		usb_free_urb(device->urbinfo);
 		usb_buffer_free(device->usbdev, REPORT_MAX_SIZE,

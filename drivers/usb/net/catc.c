@@ -355,7 +355,7 @@ resubmit:
  * Transmit routines.
  */
 
-static void catc_tx_run(struct catc *catc)
+static int catc_tx_run(struct catc *catc)
 {
 	int status;
 
@@ -373,12 +373,14 @@ static void catc_tx_run(struct catc *catc)
 	catc->tx_ptr = 0;
 
 	catc->netdev->trans_start = jiffies;
+	return status;
 }
 
 static void catc_tx_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	unsigned long flags;
+	int r;
 
 	if (urb->status == -ECONNRESET) {
 		dbg("Tx Reset.");
@@ -397,10 +399,13 @@ static void catc_tx_done(struct urb *urb)
 
 	spin_lock_irqsave(&catc->tx_lock, flags);
 
-	if (catc->tx_ptr)
-		catc_tx_run(catc);
-	else
+	if (catc->tx_ptr) {
+		r = catc_tx_run(catc);
+		if (unlikely(r < 0))
+			clear_bit(TX_RUNNING, &catc->flags);
+	} else {
 		clear_bit(TX_RUNNING, &catc->flags);
+	}
 
 	netif_wake_queue(catc->netdev);
 
@@ -411,6 +416,7 @@ static int catc_hard_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct catc *catc = netdev_priv(netdev);
 	unsigned long flags;
+	int r = 0;
 	char *tx_buf;
 
 	spin_lock_irqsave(&catc->tx_lock, flags);
@@ -421,8 +427,11 @@ static int catc_hard_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	skb_copy_from_linear_data(skb, tx_buf + 2, skb->len);
 	catc->tx_ptr += skb->len + 2;
 
-	if (!test_and_set_bit(TX_RUNNING, &catc->flags))
-		catc_tx_run(catc);
+	if (!test_and_set_bit(TX_RUNNING, &catc->flags)) {
+		r = catc_tx_run(catc);
+		if (r < 0)
+			clear_bit(TX_RUNNING, &catc->flags);
+	}
 
 	if ((catc->is_f5u011 && catc->tx_ptr)
 	     || (catc->tx_ptr >= ((TX_MAX_BURST - 1) * (PKT_SZ + 2))))
@@ -430,8 +439,10 @@ static int catc_hard_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	spin_unlock_irqrestore(&catc->tx_lock, flags);
 
-	catc->stats.tx_bytes += skb->len;
-	catc->stats.tx_packets++;
+	if (r >= 0) {
+		catc->stats.tx_bytes += skb->len;
+		catc->stats.tx_packets++;
+	}
 
 	dev_kfree_skb(skb);
 
