@@ -1,13 +1,11 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001-2003 Red Hat, Inc.
+ * Copyright © 2001-2007 Red Hat, Inc.
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
- *
- * $Id: gc.c,v 1.155 2005/11/07 11:14:39 gleixner Exp $
  *
  */
 
@@ -144,7 +142,8 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			       c->unchecked_size);
 			jffs2_dbg_dump_block_lists_nolock(c);
 			spin_unlock(&c->erase_completion_lock);
-			BUG();
+			up(&c->alloc_sem);
+			return -ENOSPC;
 		}
 
 		spin_unlock(&c->erase_completion_lock);

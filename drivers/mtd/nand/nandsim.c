@@ -37,6 +37,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
+#include <linux/list.h>
+#include <linux/random.h>
 
 /* Default simulator parameters values */
 #if !defined(CONFIG_NANDSIM_FIRST_ID_BYTE)  || \
@@ -90,6 +92,15 @@ static uint bus_width      = CONFIG_NANDSIM_BUS_WIDTH;
 static uint do_delays      = CONFIG_NANDSIM_DO_DELAYS;
 static uint log            = CONFIG_NANDSIM_LOG;
 static uint dbg            = CONFIG_NANDSIM_DBG;
+static unsigned long parts[MAX_MTD_DEVICES];
+static unsigned int parts_num;
+static char *badblocks = NULL;
+static char *weakblocks = NULL;
+static char *weakpages = NULL;
+static unsigned int bitflips = 0;
+static char *gravepages = NULL;
+static unsigned int rptwear = 0;
+static unsigned int overridesize = 0;
 
 module_param(first_id_byte,  uint, 0400);
 module_param(second_id_byte, uint, 0400);
@@ -104,8 +115,16 @@ module_param(bus_width,      uint, 0400);
 module_param(do_delays,      uint, 0400);
 module_param(log,            uint, 0400);
 module_param(dbg,            uint, 0400);
+module_param_array(parts, ulong, &parts_num, 0400);
+module_param(badblocks,      charp, 0400);
+module_param(weakblocks,     charp, 0400);
+module_param(weakpages,      charp, 0400);
+module_param(bitflips,       uint, 0400);
+module_param(gravepages,     charp, 0400);
+module_param(rptwear,        uint, 0400);
+module_param(overridesize,   uint, 0400);
 
-MODULE_PARM_DESC(first_id_byte,  "The fist byte returned by NAND Flash 'read ID' command (manufaturer ID)");
+MODULE_PARM_DESC(first_id_byte,  "The first byte returned by NAND Flash 'read ID' command (manufacturer ID)");
 MODULE_PARM_DESC(second_id_byte, "The second byte returned by NAND Flash 'read ID' command (chip ID)");
 MODULE_PARM_DESC(third_id_byte,  "The third byte returned by NAND Flash 'read ID' command");
 MODULE_PARM_DESC(fourth_id_byte, "The fourth byte returned by NAND Flash 'read ID' command");
@@ -118,6 +137,23 @@ MODULE_PARM_DESC(bus_width,      "Chip's bus width (8- or 16-bit)");
 MODULE_PARM_DESC(do_delays,      "Simulate NAND delays using busy-waits if not zero");
 MODULE_PARM_DESC(log,            "Perform logging if not zero");
 MODULE_PARM_DESC(dbg,            "Output debug information if not zero");
+MODULE_PARM_DESC(parts,          "Partition sizes (in erase blocks) separated by commas");
+/* Page and erase block positions for the following parameters are independent of any partitions */
+MODULE_PARM_DESC(badblocks,      "Erase blocks that are initially marked bad, separated by commas");
+MODULE_PARM_DESC(weakblocks,     "Weak erase blocks [: remaining erase cycles (defaults to 3)]"
+				 " separated by commas e.g. 113:2 means eb 113"
+				 " can be erased only twice before failing");
+MODULE_PARM_DESC(weakpages,      "Weak pages [: maximum writes (defaults to 3)]"
+				 " separated by commas e.g. 1401:2 means page 1401"
+				 " can be written only twice before failing");
+MODULE_PARM_DESC(bitflips,       "Maximum number of random bit flips per page (zero by default)");
+MODULE_PARM_DESC(gravepages,     "Pages that lose data [: maximum reads (defaults to 3)]"
+				 " separated by commas e.g. 1401:2 means page 1401"
+				 " can be read only twice before failing");
+MODULE_PARM_DESC(rptwear,        "Number of erases inbetween reporting wear, if not zero");
+MODULE_PARM_DESC(overridesize,   "Specifies the NAND Flash size overriding the ID bytes. "
+				 "The size is specified in erase blocks and as the exponent of a power of two"
+				 " e.g. 5 means a size of 32 erase blocks");
 
 /* The largest possible page size */
 #define NS_LARGEST_PAGE_SIZE	2048
@@ -131,9 +167,11 @@ MODULE_PARM_DESC(dbg,            "Output debug information if not zero");
 #define NS_DBG(args...) \
 	do { if (dbg) printk(KERN_DEBUG NS_OUTPUT_PREFIX " debug: " args); } while(0)
 #define NS_WARN(args...) \
-	do { printk(KERN_WARNING NS_OUTPUT_PREFIX " warnig: " args); } while(0)
+	do { printk(KERN_WARNING NS_OUTPUT_PREFIX " warning: " args); } while(0)
 #define NS_ERR(args...) \
-	do { printk(KERN_ERR NS_OUTPUT_PREFIX " errorr: " args); } while(0)
+	do { printk(KERN_ERR NS_OUTPUT_PREFIX " error: " args); } while(0)
+#define NS_INFO(args...) \
+	do { printk(KERN_INFO NS_OUTPUT_PREFIX " " args); } while(0)
 
 /* Busy-wait delay macros (microseconds, milliseconds) */
 #define NS_UDELAY(us) \
@@ -238,7 +276,8 @@ union ns_mem {
  * The structure which describes all the internal simulator data.
  */
 struct nandsim {
-	struct mtd_partition part;
+	struct mtd_partition partitions[MAX_MTD_DEVICES];
+	unsigned int nbparts;
 
 	uint busw;              /* flash chip bus width (8 or 16) */
 	u_char ids[4];          /* chip's ID bytes */
@@ -338,6 +377,38 @@ static struct nandsim_operations {
 			       STATE_DATAOUT, STATE_READY}}
 };
 
+struct weak_block {
+	struct list_head list;
+	unsigned int erase_block_no;
+	unsigned int max_erases;
+	unsigned int erases_done;
+};
+
+static LIST_HEAD(weak_blocks);
+
+struct weak_page {
+	struct list_head list;
+	unsigned int page_no;
+	unsigned int max_writes;
+	unsigned int writes_done;
+};
+
+static LIST_HEAD(weak_pages);
+
+struct grave_page {
+	struct list_head list;
+	unsigned int page_no;
+	unsigned int max_reads;
+	unsigned int reads_done;
+};
+
+static LIST_HEAD(grave_pages);
+
+static unsigned long *erase_block_wear = NULL;
+static unsigned int wear_eb_count = 0;
+static unsigned long total_wear = 0;
+static unsigned int rptwear_cnt = 0;
+
 /* MTD structure for NAND controller */
 static struct mtd_info *nsmtd;
 
@@ -381,6 +452,13 @@ static void free_device(struct nandsim *ns)
 	}
 }
 
+static char *get_partition_name(int i)
+{
+	char buf[64];
+	sprintf(buf, "NAND simulator partition %d", i);
+	return kstrdup(buf, GFP_KERNEL);
+}
+
 /*
  * Initialize the nandsim structure.
  *
@@ -390,7 +468,9 @@ static int init_nandsim(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
 	struct nandsim   *ns   = (struct nandsim *)(chip->priv);
-	int i;
+	int i, ret = 0;
+	u_int32_t remains;
+	u_int32_t next_offset;
 
 	if (NS_IS_INITIALIZED(ns)) {
 		NS_ERR("init_nandsim: nandsim is already initialized\n");
@@ -448,6 +528,40 @@ static int init_nandsim(struct mtd_info *mtd)
 		}
 	}
 
+	/* Fill the partition_info structure */
+	if (parts_num > ARRAY_SIZE(ns->partitions)) {
+		NS_ERR("too many partitions.\n");
+		ret = -EINVAL;
+		goto error;
+	}
+	remains = ns->geom.totsz;
+	next_offset = 0;
+	for (i = 0; i < parts_num; ++i) {
+		unsigned long part = parts[i];
+		if (!part || part > remains / ns->geom.secsz) {
+			NS_ERR("bad partition size.\n");
+			ret = -EINVAL;
+			goto error;
+		}
+		ns->partitions[i].name   = get_partition_name(i);
+		ns->partitions[i].offset = next_offset;
+		ns->partitions[i].size   = part * ns->geom.secsz;
+		next_offset += ns->partitions[i].size;
+		remains -= ns->partitions[i].size;
+	}
+	ns->nbparts = parts_num;
+	if (remains) {
+		if (parts_num + 1 > ARRAY_SIZE(ns->partitions)) {
+			NS_ERR("too many partitions.\n");
+			ret = -EINVAL;
+			goto error;
+		}
+		ns->partitions[i].name   = get_partition_name(i);
+		ns->partitions[i].offset = next_offset;
+		ns->partitions[i].size   = remains;
+		ns->nbparts += 1;
+	}
+
 	/* Detect how many ID bytes the NAND chip outputs */
         for (i = 0; nand_flash_ids[i].name != NULL; i++) {
                 if (second_id_byte != nand_flash_ids[i].id)
@@ -474,7 +588,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	printk("sector address bytes: %u\n",    ns->geom.secaddrbytes);
 	printk("options: %#x\n",                ns->options);
 
-	if (alloc_device(ns) != 0)
+	if ((ret = alloc_device(ns)) != 0)
 		goto error;
 
 	/* Allocate / initialize the internal buffer */
@@ -482,21 +596,17 @@ static int init_nandsim(struct mtd_info *mtd)
 	if (!ns->buf.byte) {
 		NS_ERR("init_nandsim: unable to allocate %u bytes for the internal buffer\n",
 			ns->geom.pgszoob);
+		ret = -ENOMEM;
 		goto error;
 	}
 	memset(ns->buf.byte, 0xFF, ns->geom.pgszoob);
-
-	/* Fill the partition_info structure */
-	ns->part.name   = "NAND simulator partition";
-	ns->part.offset = 0;
-	ns->part.size   = ns->geom.totsz;
 
 	return 0;
 
 error:
 	free_device(ns);
 
-	return -ENOMEM;
+	return ret;
 }
 
 /*
@@ -508,6 +618,287 @@ static void free_nandsim(struct nandsim *ns)
 	free_device(ns);
 
 	return;
+}
+
+static int parse_badblocks(struct nandsim *ns, struct mtd_info *mtd)
+{
+	char *w;
+	int zero_ok;
+	unsigned int erase_block_no;
+	loff_t offset;
+
+	if (!badblocks)
+		return 0;
+	w = badblocks;
+	do {
+		zero_ok = (*w == '0' ? 1 : 0);
+		erase_block_no = simple_strtoul(w, &w, 0);
+		if (!zero_ok && !erase_block_no) {
+			NS_ERR("invalid badblocks.\n");
+			return -EINVAL;
+		}
+		offset = erase_block_no * ns->geom.secsz;
+		if (mtd->block_markbad(mtd, offset)) {
+			NS_ERR("invalid badblocks.\n");
+			return -EINVAL;
+		}
+		if (*w == ',')
+			w += 1;
+	} while (*w);
+	return 0;
+}
+
+static int parse_weakblocks(void)
+{
+	char *w;
+	int zero_ok;
+	unsigned int erase_block_no;
+	unsigned int max_erases;
+	struct weak_block *wb;
+
+	if (!weakblocks)
+		return 0;
+	w = weakblocks;
+	do {
+		zero_ok = (*w == '0' ? 1 : 0);
+		erase_block_no = simple_strtoul(w, &w, 0);
+		if (!zero_ok && !erase_block_no) {
+			NS_ERR("invalid weakblocks.\n");
+			return -EINVAL;
+		}
+		max_erases = 3;
+		if (*w == ':') {
+			w += 1;
+			max_erases = simple_strtoul(w, &w, 0);
+		}
+		if (*w == ',')
+			w += 1;
+		wb = kzalloc(sizeof(*wb), GFP_KERNEL);
+		if (!wb) {
+			NS_ERR("unable to allocate memory.\n");
+			return -ENOMEM;
+		}
+		wb->erase_block_no = erase_block_no;
+		wb->max_erases = max_erases;
+		list_add(&wb->list, &weak_blocks);
+	} while (*w);
+	return 0;
+}
+
+static int erase_error(unsigned int erase_block_no)
+{
+	struct weak_block *wb;
+
+	list_for_each_entry(wb, &weak_blocks, list)
+		if (wb->erase_block_no == erase_block_no) {
+			if (wb->erases_done >= wb->max_erases)
+				return 1;
+			wb->erases_done += 1;
+			return 0;
+		}
+	return 0;
+}
+
+static int parse_weakpages(void)
+{
+	char *w;
+	int zero_ok;
+	unsigned int page_no;
+	unsigned int max_writes;
+	struct weak_page *wp;
+
+	if (!weakpages)
+		return 0;
+	w = weakpages;
+	do {
+		zero_ok = (*w == '0' ? 1 : 0);
+		page_no = simple_strtoul(w, &w, 0);
+		if (!zero_ok && !page_no) {
+			NS_ERR("invalid weakpagess.\n");
+			return -EINVAL;
+		}
+		max_writes = 3;
+		if (*w == ':') {
+			w += 1;
+			max_writes = simple_strtoul(w, &w, 0);
+		}
+		if (*w == ',')
+			w += 1;
+		wp = kzalloc(sizeof(*wp), GFP_KERNEL);
+		if (!wp) {
+			NS_ERR("unable to allocate memory.\n");
+			return -ENOMEM;
+		}
+		wp->page_no = page_no;
+		wp->max_writes = max_writes;
+		list_add(&wp->list, &weak_pages);
+	} while (*w);
+	return 0;
+}
+
+static int write_error(unsigned int page_no)
+{
+	struct weak_page *wp;
+
+	list_for_each_entry(wp, &weak_pages, list)
+		if (wp->page_no == page_no) {
+			if (wp->writes_done >= wp->max_writes)
+				return 1;
+			wp->writes_done += 1;
+			return 0;
+		}
+	return 0;
+}
+
+static int parse_gravepages(void)
+{
+	char *g;
+	int zero_ok;
+	unsigned int page_no;
+	unsigned int max_reads;
+	struct grave_page *gp;
+
+	if (!gravepages)
+		return 0;
+	g = gravepages;
+	do {
+		zero_ok = (*g == '0' ? 1 : 0);
+		page_no = simple_strtoul(g, &g, 0);
+		if (!zero_ok && !page_no) {
+			NS_ERR("invalid gravepagess.\n");
+			return -EINVAL;
+		}
+		max_reads = 3;
+		if (*g == ':') {
+			g += 1;
+			max_reads = simple_strtoul(g, &g, 0);
+		}
+		if (*g == ',')
+			g += 1;
+		gp = kzalloc(sizeof(*gp), GFP_KERNEL);
+		if (!gp) {
+			NS_ERR("unable to allocate memory.\n");
+			return -ENOMEM;
+		}
+		gp->page_no = page_no;
+		gp->max_reads = max_reads;
+		list_add(&gp->list, &grave_pages);
+	} while (*g);
+	return 0;
+}
+
+static int read_error(unsigned int page_no)
+{
+	struct grave_page *gp;
+
+	list_for_each_entry(gp, &grave_pages, list)
+		if (gp->page_no == page_no) {
+			if (gp->reads_done >= gp->max_reads)
+				return 1;
+			gp->reads_done += 1;
+			return 0;
+		}
+	return 0;
+}
+
+static void free_lists(void)
+{
+	struct list_head *pos, *n;
+	list_for_each_safe(pos, n, &weak_blocks) {
+		list_del(pos);
+		kfree(list_entry(pos, struct weak_block, list));
+	}
+	list_for_each_safe(pos, n, &weak_pages) {
+		list_del(pos);
+		kfree(list_entry(pos, struct weak_page, list));
+	}
+	list_for_each_safe(pos, n, &grave_pages) {
+		list_del(pos);
+		kfree(list_entry(pos, struct grave_page, list));
+	}
+	kfree(erase_block_wear);
+}
+
+static int setup_wear_reporting(struct mtd_info *mtd)
+{
+	size_t mem;
+
+	if (!rptwear)
+		return 0;
+	wear_eb_count = mtd->size / mtd->erasesize;
+	mem = wear_eb_count * sizeof(unsigned long);
+	if (mem / sizeof(unsigned long) != wear_eb_count) {
+		NS_ERR("Too many erase blocks for wear reporting\n");
+		return -ENOMEM;
+	}
+	erase_block_wear = kzalloc(mem, GFP_KERNEL);
+	if (!erase_block_wear) {
+		NS_ERR("Too many erase blocks for wear reporting\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static void update_wear(unsigned int erase_block_no)
+{
+	unsigned long wmin = -1, wmax = 0, avg;
+	unsigned long deciles[10], decile_max[10], tot = 0;
+	unsigned int i;
+
+	if (!erase_block_wear)
+		return;
+	total_wear += 1;
+	if (total_wear == 0)
+		NS_ERR("Erase counter total overflow\n");
+	erase_block_wear[erase_block_no] += 1;
+	if (erase_block_wear[erase_block_no] == 0)
+		NS_ERR("Erase counter overflow for erase block %u\n", erase_block_no);
+	rptwear_cnt += 1;
+	if (rptwear_cnt < rptwear)
+		return;
+	rptwear_cnt = 0;
+	/* Calc wear stats */
+	for (i = 0; i < wear_eb_count; ++i) {
+		unsigned long wear = erase_block_wear[i];
+		if (wear < wmin)
+			wmin = wear;
+		if (wear > wmax)
+			wmax = wear;
+		tot += wear;
+	}
+	for (i = 0; i < 9; ++i) {
+		deciles[i] = 0;
+		decile_max[i] = (wmax * (i + 1) + 5) / 10;
+	}
+	deciles[9] = 0;
+	decile_max[9] = wmax;
+	for (i = 0; i < wear_eb_count; ++i) {
+		int d;
+		unsigned long wear = erase_block_wear[i];
+		for (d = 0; d < 10; ++d)
+			if (wear <= decile_max[d]) {
+				deciles[d] += 1;
+				break;
+			}
+	}
+	avg = tot / wear_eb_count;
+	/* Output wear report */
+	NS_INFO("*** Wear Report ***\n");
+	NS_INFO("Total numbers of erases:  %lu\n", tot);
+	NS_INFO("Number of erase blocks:   %u\n", wear_eb_count);
+	NS_INFO("Average number of erases: %lu\n", avg);
+	NS_INFO("Maximum number of erases: %lu\n", wmax);
+	NS_INFO("Minimum number of erases: %lu\n", wmin);
+	for (i = 0; i < 10; ++i) {
+		unsigned long from = (i ? decile_max[i - 1] + 1 : 0);
+		if (from > decile_max[i])
+			continue;
+		NS_INFO("Number of ebs with erase counts from %lu to %lu : %lu\n",
+			from,
+			decile_max[i],
+			deciles[i]);
+	}
+	NS_INFO("*** End of Wear Report ***\n");
 }
 
 /*
@@ -822,9 +1213,31 @@ static void read_page(struct nandsim *ns, int num)
 		NS_DBG("read_page: page %d not allocated\n", ns->regs.row);
 		memset(ns->buf.byte, 0xFF, num);
 	} else {
+		unsigned int page_no = ns->regs.row;
 		NS_DBG("read_page: page %d allocated, reading from %d\n",
 			ns->regs.row, ns->regs.column + ns->regs.off);
+		if (read_error(page_no)) {
+			int i;
+			memset(ns->buf.byte, 0xFF, num);
+			for (i = 0; i < num; ++i)
+				ns->buf.byte[i] = random32();
+			NS_WARN("simulating read error in page %u\n", page_no);
+			return;
+		}
 		memcpy(ns->buf.byte, NS_PAGE_BYTE_OFF(ns), num);
+		if (bitflips && random32() < (1 << 22)) {
+			int flips = 1;
+			if (bitflips > 1)
+				flips = (random32() % (int) bitflips) + 1;
+			while (flips--) {
+				int pos = random32() % (num * 8);
+				ns->buf.byte[pos / 8] ^= (1 << (pos % 8));
+				NS_WARN("read_page: flipping bit %d in page %d "
+					"reading from %d ecc: corrected=%u failed=%u\n",
+					pos, ns->regs.row, ns->regs.column + ns->regs.off,
+					nsmtd->ecc_stats.corrected, nsmtd->ecc_stats.failed);
+			}
+		}
 	}
 }
 
@@ -883,6 +1296,7 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 {
 	int num;
 	int busdiv = ns->busw == 8 ? 1 : 2;
+	unsigned int erase_block_no, page_no;
 
 	action &= ACTION_MASK;
 
@@ -942,13 +1356,23 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 				8 * (ns->geom.pgaddrbytes - ns->geom.secaddrbytes)) | ns->regs.column;
 		ns->regs.column = 0;
 
+		erase_block_no = ns->regs.row >> (ns->geom.secshift - ns->geom.pgshift);
+
 		NS_DBG("do_state_action: erase sector at address %#x, off = %d\n",
 				ns->regs.row, NS_RAW_OFFSET(ns));
-		NS_LOG("erase sector %d\n", ns->regs.row >> (ns->geom.secshift - ns->geom.pgshift));
+		NS_LOG("erase sector %u\n", erase_block_no);
 
 		erase_sector(ns);
 
 		NS_MDELAY(erase_delay);
+
+		if (erase_block_wear)
+			update_wear(erase_block_no);
+
+		if (erase_error(erase_block_no)) {
+			NS_WARN("simulating erase failure in erase block %u\n", erase_block_no);
+			return -1;
+		}
 
 		break;
 
@@ -972,12 +1396,19 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 		if (prog_page(ns, num) == -1)
 			return -1;
 
+		page_no = ns->regs.row;
+
 		NS_DBG("do_state_action: copy %d bytes from int buf to (%#x, %#x), raw off = %d\n",
 			num, ns->regs.row, ns->regs.column, NS_RAW_OFFSET(ns) + ns->regs.off);
 		NS_LOG("programm page %d\n", ns->regs.row);
 
 		NS_UDELAY(programm_delay);
 		NS_UDELAY(output_cycle * ns->geom.pgsz / 1000 / busdiv);
+
+		if (write_error(page_no)) {
+			NS_WARN("simulating write failure in page %u\n", page_no);
+			return -1;
+		}
 
 		break;
 
@@ -1503,7 +1934,7 @@ static int __init ns_init_module(void)
 {
 	struct nand_chip *chip;
 	struct nandsim *nand;
-	int retval = -ENOMEM;
+	int retval = -ENOMEM, i;
 
 	if (bus_width != 8 && bus_width != 16) {
 		NS_ERR("wrong bus width (%d), use only 8 or 16\n", bus_width);
@@ -1533,6 +1964,8 @@ static int __init ns_init_module(void)
 	chip->verify_buf = ns_nand_verify_buf;
 	chip->read_word  = ns_nand_read_word;
 	chip->ecc.mode   = NAND_ECC_SOFT;
+	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */
+	/* and 'badblocks' parameters to work */
 	chip->options   |= NAND_SKIP_BBTSCAN;
 
 	/*
@@ -1557,6 +1990,15 @@ static int __init ns_init_module(void)
 
 	nsmtd->owner = THIS_MODULE;
 
+	if ((retval = parse_weakblocks()) != 0)
+		goto error;
+
+	if ((retval = parse_weakpages()) != 0)
+		goto error;
+
+	if ((retval = parse_gravepages()) != 0)
+		goto error;
+
 	if ((retval = nand_scan(nsmtd, 1)) != 0) {
 		NS_ERR("can't register NAND Simulator\n");
 		if (retval > 0)
@@ -1564,23 +2006,44 @@ static int __init ns_init_module(void)
 		goto error;
 	}
 
-	if ((retval = init_nandsim(nsmtd)) != 0) {
-		NS_ERR("scan_bbt: can't initialize the nandsim structure\n");
-		goto error;
+	if (overridesize) {
+		u_int32_t new_size = nsmtd->erasesize << overridesize;
+		if (new_size >> overridesize != nsmtd->erasesize) {
+			NS_ERR("overridesize is too big\n");
+			goto err_exit;
+		}
+		/* N.B. This relies on nand_scan not doing anything with the size before we change it */
+		nsmtd->size = new_size;
+		chip->chipsize = new_size;
+		chip->chip_shift = ffs(new_size) - 1;
 	}
 
-	if ((retval = nand_default_bbt(nsmtd)) != 0) {
-		free_nandsim(nand);
-		goto error;
-	}
+	if ((retval = setup_wear_reporting(nsmtd)) != 0)
+		goto err_exit;
 
-	/* Register NAND as one big partition */
-	add_mtd_partitions(nsmtd, &nand->part, 1);
+	if ((retval = init_nandsim(nsmtd)) != 0)
+		goto err_exit;
+
+	if ((retval = parse_badblocks(nand, nsmtd)) != 0)
+		goto err_exit;
+
+	if ((retval = nand_default_bbt(nsmtd)) != 0)
+		goto err_exit;
+
+	/* Register NAND partitions */
+	if ((retval = add_mtd_partitions(nsmtd, &nand->partitions[0], nand->nbparts)) != 0)
+		goto err_exit;
 
         return 0;
 
+err_exit:
+	free_nandsim(nand);
+	nand_release(nsmtd);
+	for (i = 0;i < ARRAY_SIZE(nand->partitions); ++i)
+		kfree(nand->partitions[i].name);
 error:
 	kfree(nsmtd);
+	free_lists();
 
 	return retval;
 }
@@ -1593,10 +2056,14 @@ module_init(ns_init_module);
 static void __exit ns_cleanup_module(void)
 {
 	struct nandsim *ns = (struct nandsim *)(((struct nand_chip *)nsmtd->priv)->priv);
+	int i;
 
 	free_nandsim(ns);    /* Free nandsim private resources */
-	nand_release(nsmtd); /* Unregisterd drived */
+	nand_release(nsmtd); /* Unregister driver */
+	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
+		kfree(ns->partitions[i].name);
 	kfree(nsmtd);        /* Free other structures */
+	free_lists();
 }
 
 module_exit(ns_cleanup_module);
@@ -1604,4 +2071,3 @@ module_exit(ns_cleanup_module);
 MODULE_LICENSE ("GPL");
 MODULE_AUTHOR ("Artem B. Bityuckiy");
 MODULE_DESCRIPTION ("The NAND flash simulator");
-

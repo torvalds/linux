@@ -1,15 +1,13 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001-2003 Red Hat, Inc.
- * Copyright (C) 2004 Thomas Gleixner <tglx@linutronix.de>
+ * Copyright © 2001-2007 Red Hat, Inc.
+ * Copyright © 2004 Thomas Gleixner <tglx@linutronix.de>
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  * Modified debugged and enhanced by Thomas Gleixner <tglx@linutronix.de>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
- *
- * $Id: wbuf.c,v 1.100 2005/09/30 13:59:13 dedekind Exp $
  *
  */
 
@@ -344,6 +342,9 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		kfree(buf);
 		return;
 	}
+
+	/* The summary is not recovered, so it must be disabled for this erase block */
+	jffs2_sum_disable_collecting(c->summary);
 
 	ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, nr_refile);
 	if (ret) {
@@ -967,9 +968,9 @@ exit:
 
 static const struct jffs2_unknown_node oob_cleanmarker =
 {
-	.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK),
-	.nodetype = cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER),
-	.totlen = cpu_to_je32(8)
+	.magic = constant_cpu_to_je16(JFFS2_MAGIC_BITMASK),
+	.nodetype = constant_cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER),
+	.totlen = constant_cpu_to_je32(8)
 };
 
 /*
