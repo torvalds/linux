@@ -3,6 +3,7 @@
 
 #include "schid.h"
 #include <linux/mutex.h>
+#include <linux/device.h>
 
 /*
  * where we put the ssd info

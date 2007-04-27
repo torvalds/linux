@@ -15,12 +15,12 @@
 #include <linux/device.h>
 
 #include <asm/cio.h>
+#include <asm/chpid.h>
 
 #include "css.h"
 #include "cio.h"
 #include "cio_debug.h"
 #include "ioasm.h"
-#include "chpid.h"
 #include "chp.h"
 #include "chsc.h"
 
@@ -498,6 +498,45 @@ static int chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
 	return rc;
 }
 
+struct chp_config_data {
+	u8 map[32];
+	u8 op;
+	u8 pc;
+};
+
+static int chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
+{
+	struct chp_config_data *data;
+	struct chp_id chpid;
+	int num;
+
+	CIO_CRW_EVENT(4, "chsc: channel-path-configuration notification\n");
+	if (sei_area->rs != 0)
+		return 0;
+	data = (struct chp_config_data *) &(sei_area->ccdf);
+	chp_id_init(&chpid);
+	for (num = 0; num <= __MAX_CHPID; num++) {
+		if (!chp_test_bit(data->map, num))
+			continue;
+		chpid.id = num;
+		printk(KERN_WARNING "cio: processing configure event %d for "
+		       "chpid %x.%02x\n", data->op, chpid.cssid, chpid.id);
+		switch (data->op) {
+		case 0:
+			chp_cfg_schedule(chpid, 1);
+			break;
+		case 1:
+			chp_cfg_schedule(chpid, 0);
+			break;
+		case 2:
+			chp_cfg_cancel_deconfigure(chpid);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static int chsc_process_sei(struct chsc_sei_area *sei_area)
 {
 	int rc;
@@ -513,6 +552,9 @@ static int chsc_process_sei(struct chsc_sei_area *sei_area)
 		break;
 	case 2: /* i/o resource accessibiliy */
 		rc = chsc_process_sei_res_acc(sei_area);
+		break;
+	case 8: /* channel-path-configuration notification */
+		rc = chsc_process_sei_chp_config(sei_area);
 		break;
 	default: /* other stuff */
 		CIO_CRW_EVENT(4, "chsc: unhandled sei content code %d\n",

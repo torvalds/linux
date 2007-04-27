@@ -13,6 +13,7 @@
 #ifdef __KERNEL__
 
 #define LPM_ANYPATH 0xff
+#define __MAX_CSSID 0
 
 /*
  * subchannel status word

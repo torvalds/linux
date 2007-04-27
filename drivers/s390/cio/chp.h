@@ -10,9 +10,22 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
-
-#include "chpid.h"
+#include <asm/chpid.h>
 #include "chsc.h"
+
+#define CHP_STATUS_STANDBY		0
+#define CHP_STATUS_CONFIGURED		1
+#define CHP_STATUS_RESERVED		2
+#define CHP_STATUS_NOT_RECOGNIZED	3
+
+static inline int chp_test_bit(u8 *bitmap, int num)
+{
+	int byte = num >> 3;
+	int mask = 128 >> (num & 7);
+
+	return (bitmap[byte] & mask) ? 1 : 0;
+}
+
 
 struct channel_path {
 	struct chp_id chpid;
@@ -33,5 +46,8 @@ int chp_process_crw(int id, int available);
 void chp_remove_cmg_attr(struct channel_path *chp);
 int chp_add_cmg_attr(struct channel_path *chp);
 int chp_new(struct chp_id chpid);
+void chp_cfg_schedule(struct chp_id chpid, int configure);
+void chp_cfg_cancel_deconfigure(struct chp_id chpid);
+int chp_info_get_status(struct chp_id chpid);
 
 #endif /* S390_CHP_H */

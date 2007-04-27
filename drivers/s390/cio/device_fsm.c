@@ -15,6 +15,7 @@
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
+#include <asm/chpid.h>
 
 #include "cio.h"
 #include "cio_debug.h"
@@ -22,7 +23,6 @@
 #include "device.h"
 #include "chsc.h"
 #include "ioasm.h"
-#include "chpid.h"
 #include "chp.h"
 
 int

@@ -16,13 +16,13 @@
 
 #include <asm/ccwdev.h>
 #include <asm/idals.h>
+#include <asm/chpid.h>
 
 #include "cio.h"
 #include "cio_debug.h"
 #include "css.h"
 #include "chsc.h"
 #include "device.h"
-#include "chpid.h"
 #include "chp.h"
 
 int ccw_device_set_options_mask(struct ccw_device *cdev, unsigned long flags)

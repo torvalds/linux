@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
-#include "chpid.h"
+#include <asm/chpid.h>
 
 #define CHSC_SDA_OC_MSS   0x2
 

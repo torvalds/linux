@@ -5,8 +5,10 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
+#include <linux/types.h>
 
 #include <asm/cio.h>
+#include <asm/chpid.h>
 
 #include "schid.h"
 
@@ -149,8 +151,6 @@ extern void css_reiterate_subchannels(void);
 
 #define __MAX_SUBCHANNEL 65535
 #define __MAX_SSID 3
-#define __MAX_CHPID 255
-#define __MAX_CSSID 0
 
 struct channel_subsystem {
 	u8 cssid;
