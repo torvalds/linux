@@ -271,7 +271,6 @@ out_err:
  */
 int ubi_create_gluebi(struct ubi_device *ubi, struct ubi_volume *vol)
 {
-	int err;
 	struct mtd_info *mtd = &vol->gluebi_mtd;
 
 	mtd->name = kmemdup(vol->name, vol->name_len + 1, GFP_KERNEL);
