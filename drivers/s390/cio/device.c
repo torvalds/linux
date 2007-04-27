@@ -290,16 +290,10 @@ int ccw_device_is_orphan(struct ccw_device *cdev)
 	return sch_is_pseudo_sch(to_subchannel(cdev->dev.parent));
 }
 
-static void ccw_device_unregister(struct work_struct *work)
+static void ccw_device_unregister(struct ccw_device *cdev)
 {
-	struct ccw_device_private *priv;
-	struct ccw_device *cdev;
-
-	priv = container_of(work, struct ccw_device_private, kick_work);
-	cdev = priv->cdev;
 	if (test_and_clear_bit(1, &cdev->private->registered))
-		device_unregister(&cdev->dev);
-	put_device(&cdev->dev);
+		device_del(&cdev->dev);
 }
 
 static void
@@ -316,11 +310,8 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 		spin_lock_irqsave(cdev->ccwlock, flags);
 		cdev->private->state = DEV_STATE_NOT_OPER;
 		spin_unlock_irqrestore(cdev->ccwlock, flags);
-		if (get_device(&cdev->dev)) {
-			PREPARE_WORK(&cdev->private->kick_work,
-				     ccw_device_unregister);
-			queue_work(ccw_device_work, &cdev->private->kick_work);
-		}
+		ccw_device_unregister(cdev);
+		put_device(&cdev->dev);
 		return ;
 	}
 	sch = to_subchannel(cdev->dev.parent);
@@ -555,17 +546,10 @@ static struct attribute_group ccwdev_attr_group = {
 	.attrs = ccwdev_attrs,
 };
 
-static int
-device_add_files (struct device *dev)
-{
-	return sysfs_create_group(&dev->kobj, &ccwdev_attr_group);
-}
-
-static void
-device_remove_files(struct device *dev)
-{
-	sysfs_remove_group(&dev->kobj, &ccwdev_attr_group);
-}
+struct attribute_group *ccwdev_attr_groups[] = {
+	&ccwdev_attr_group,
+	NULL,
+};
 
 /* this is a simple abstraction for device_register that sets the
  * correct bus type and adds the bus specific files */
@@ -580,10 +564,6 @@ static int ccw_device_register(struct ccw_device *cdev)
 		return ret;
 
 	set_bit(1, &cdev->private->registered);
-	if ((ret = device_add_files(dev))) {
-		if (test_and_clear_bit(1, &cdev->private->registered))
-			device_del(dev);
-	}
 	return ret;
 }
 
@@ -655,10 +635,6 @@ ccw_device_add_changed(struct work_struct *work)
 		return;
 	}
 	set_bit(1, &cdev->private->registered);
-	if (device_add_files(&cdev->dev)) {
-		if (test_and_clear_bit(1, &cdev->private->registered))
-			device_unregister(&cdev->dev);
-	}
 }
 
 void ccw_device_do_unreg_rereg(struct work_struct *work)
@@ -671,9 +647,7 @@ void ccw_device_do_unreg_rereg(struct work_struct *work)
 	cdev = priv->cdev;
 	sch = to_subchannel(cdev->dev.parent);
 
-	device_remove_files(&cdev->dev);
-	if (test_and_clear_bit(1, &cdev->private->registered))
-		device_del(&cdev->dev);
+	ccw_device_unregister(cdev);
 	PREPARE_WORK(&cdev->private->kick_work,
 		     ccw_device_add_changed);
 	queue_work(ccw_device_work, &cdev->private->kick_work);
@@ -712,6 +686,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	cdev->dev.parent = &sch->dev;
 	cdev->dev.release = ccw_device_release;
 	INIT_LIST_HEAD(&cdev->private->kick_work.entry);
+	cdev->dev.groups = ccwdev_attr_groups;
 	/* Do first half of device_register. */
 	device_initialize(&cdev->dev);
 	if (!get_device(&sch->dev)) {
@@ -1141,15 +1116,8 @@ io_subchannel_remove (struct subchannel *sch)
 	sch->dev.driver_data = NULL;
 	cdev->private->state = DEV_STATE_NOT_OPER;
 	spin_unlock_irqrestore(cdev->ccwlock, flags);
-	/*
-	 * Put unregistration on workqueue to avoid livelocks on the css bus
-	 * semaphore.
-	 */
-	if (get_device(&cdev->dev)) {
-		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_unregister);
-		queue_work(ccw_device_work, &cdev->private->kick_work);
-	}
+	ccw_device_unregister(cdev);
+	put_device(&cdev->dev);
 	return 0;
 }
 
