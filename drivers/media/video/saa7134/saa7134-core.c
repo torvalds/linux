@@ -734,7 +734,6 @@ static int saa7134_hwfini(struct saa7134_dev *dev)
 		saa7134_ts_fini(dev);
 	saa7134_input_fini(dev);
 	saa7134_vbi_fini(dev);
-	saa7134_video_fini(dev);
 	saa7134_tvaudio_fini(dev);
 	return 0;
 }
