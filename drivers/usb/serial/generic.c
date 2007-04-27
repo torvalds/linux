@@ -69,6 +69,7 @@ struct usb_serial_driver usb_serial_generic_device = {
 	.shutdown =		usb_serial_generic_shutdown,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
+	.resume =		usb_serial_generic_resume,
 };
 
 static int generic_probe(struct usb_interface *interface,
@@ -167,6 +168,23 @@ static void generic_cleanup (struct usb_serial_port *port)
 		if (serial->num_bulk_in)
 			usb_kill_urb(port->read_urb);
 	}
+}
+
+int usb_serial_generic_resume(struct usb_serial *serial)
+{
+	struct usb_serial_port *port;
+	int i, c = 0, r;
+
+	for (i = 0; i < serial->num_ports; i++) {
+		port = serial->port[i];
+		if (port->open_count && port->read_urb) {
+			r = usb_submit_urb(port->read_urb, GFP_NOIO);
+			if (r < 0)
+				c++;
+		}
+	}
+
+	return c ? -EIO : 0;
 }
 
 void usb_serial_generic_close (struct usb_serial_port *port, struct file * filp)
