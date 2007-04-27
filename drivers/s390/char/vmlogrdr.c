@@ -385,6 +385,9 @@ static int vmlogrdr_release (struct inode *inode, struct file *filp)
 
 	struct vmlogrdr_priv_t * logptr = filp->private_data;
 
+	iucv_path_sever(logptr->path, NULL);
+	kfree(logptr->path);
+	logptr->path = NULL;
 	if (logptr->autorecording) {
 		ret = vmlogrdr_recording(logptr,0,logptr->autopurge);
 		if (ret)
