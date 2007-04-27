@@ -12,7 +12,7 @@
 #include "qt1010.h"
 
 /* debug */
-int dvb_usb_gl861_debug;
+static int dvb_usb_gl861_debug;
 module_param_named(debug,dvb_usb_gl861_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
