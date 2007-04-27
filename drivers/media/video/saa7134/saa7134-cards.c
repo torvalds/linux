@@ -1784,11 +1784,13 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.mpeg           = SAA7134_MPEG_DVB,
+		.gpiomask	= 0x00200000,
+			.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
 			.amux = TV,
+			.gpio = 0x200000,	/* GPIO21=High for TV input */
 			.tv   = 1,
 		},{
 			.name = name_comp1,	/* Composite signal on S-Video input */
@@ -1803,6 +1805,11 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux = 8,
 			.amux = LINE2,
 		}},
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x000000,	/* GPIO21=Low for FM radio antenna */
+		},
 	},
 	[SAA7134_BOARD_PHILIPS_TOUGH] = {
 		.name           = "Philips TOUGH DVB-T reference design",
