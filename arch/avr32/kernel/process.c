@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/ptrace.h>
 #include <linux/reboot.h>
+#include <linux/uaccess.h>
 #include <linux/unistd.h>
 
 #include <asm/sysreg.h>
@@ -18,6 +19,8 @@
 
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
+
+extern void cpu_idle_sleep(void);
 
 /*
  * This file handles the architecture-dependent parts of process handling..
@@ -27,9 +30,8 @@ void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		/* TODO: Enter sleep mode */
 		while (!need_resched())
-			cpu_relax();
+			cpu_idle_sleep();
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
@@ -114,39 +116,178 @@ void release_thread(struct task_struct *dead_task)
 	/* do nothing */
 }
 
+static void dump_mem(const char *str, const char *log_lvl,
+		     unsigned long bottom, unsigned long top)
+{
+	unsigned long p;
+	int i;
+
+	printk("%s%s(0x%08lx to 0x%08lx)\n", log_lvl, str, bottom, top);
+
+	for (p = bottom & ~31; p < top; ) {
+		printk("%s%04lx: ", log_lvl, p & 0xffff);
+
+		for (i = 0; i < 8; i++, p += 4) {
+			unsigned int val;
+
+			if (p < bottom || p >= top)
+				printk("         ");
+			else {
+				if (__get_user(val, (unsigned int __user *)p)) {
+					printk("\n");
+					goto out;
+				}
+				printk("%08x ", val);
+			}
+		}
+		printk("\n");
+	}
+
+out:
+	return;
+}
+
+static inline int valid_stack_ptr(struct thread_info *tinfo, unsigned long p)
+{
+	return (p > (unsigned long)tinfo)
+		&& (p < (unsigned long)tinfo + THREAD_SIZE - 3);
+}
+
+#ifdef CONFIG_FRAME_POINTER
+static void show_trace_log_lvl(struct task_struct *tsk, unsigned long *sp,
+			       struct pt_regs *regs, const char *log_lvl)
+{
+	unsigned long lr, fp;
+	struct thread_info *tinfo;
+
+	if (regs)
+		fp = regs->r7;
+	else if (tsk == current)
+		asm("mov %0, r7" : "=r"(fp));
+	else
+		fp = tsk->thread.cpu_context.r7;
+
+	/*
+	 * Walk the stack as long as the frame pointer (a) is within
+	 * the kernel stack of the task, and (b) it doesn't move
+	 * downwards.
+	 */
+	tinfo = task_thread_info(tsk);
+	printk("%sCall trace:\n", log_lvl);
+	while (valid_stack_ptr(tinfo, fp)) {
+		unsigned long new_fp;
+
+		lr = *(unsigned long *)fp;
+#ifdef CONFIG_KALLSYMS
+		printk("%s [<%08lx>] ", log_lvl, lr);
+#else
+		printk(" [<%08lx>] ", lr);
+#endif
+		print_symbol("%s\n", lr);
+
+		new_fp = *(unsigned long *)(fp + 4);
+		if (new_fp <= fp)
+			break;
+		fp = new_fp;
+	}
+	printk("\n");
+}
+#else
+static void show_trace_log_lvl(struct task_struct *tsk, unsigned long *sp,
+			       struct pt_regs *regs, const char *log_lvl)
+{
+	unsigned long addr;
+
+	printk("%sCall trace:\n", log_lvl);
+
+	while (!kstack_end(sp)) {
+		addr = *sp++;
+		if (kernel_text_address(addr)) {
+#ifdef CONFIG_KALLSYMS
+			printk("%s [<%08lx>] ", log_lvl, addr);
+#else
+			printk(" [<%08lx>] ", addr);
+#endif
+			print_symbol("%s\n", addr);
+		}
+	}
+	printk("\n");
+}
+#endif
+
+void show_stack_log_lvl(struct task_struct *tsk, unsigned long sp,
+			struct pt_regs *regs, const char *log_lvl)
+{
+	struct thread_info *tinfo;
+
+	if (sp == 0) {
+		if (tsk)
+			sp = tsk->thread.cpu_context.ksp;
+		else
+			sp = (unsigned long)&tinfo;
+	}
+	if (!tsk)
+		tsk = current;
+
+	tinfo = task_thread_info(tsk);
+
+	if (valid_stack_ptr(tinfo, sp)) {
+		dump_mem("Stack: ", log_lvl, sp,
+			 THREAD_SIZE + (unsigned long)tinfo);
+		show_trace_log_lvl(tsk, (unsigned long *)sp, regs, log_lvl);
+	}
+}
+
+void show_stack(struct task_struct *tsk, unsigned long *stack)
+{
+	show_stack_log_lvl(tsk, (unsigned long)stack, NULL, "");
+}
+
+void dump_stack(void)
+{
+	unsigned long stack;
+
+	show_trace_log_lvl(current, &stack, NULL, "");
+}
+EXPORT_SYMBOL(dump_stack);
+
 static const char *cpu_modes[] = {
 	"Application", "Supervisor", "Interrupt level 0", "Interrupt level 1",
 	"Interrupt level 2", "Interrupt level 3", "Exception", "NMI"
 };
 
-void show_regs(struct pt_regs *regs)
+void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl)
 {
 	unsigned long sp = regs->sp;
 	unsigned long lr = regs->lr;
 	unsigned long mode = (regs->sr & MODE_MASK) >> MODE_SHIFT;
 
-	if (!user_mode(regs))
+	if (!user_mode(regs)) {
 		sp = (unsigned long)regs + FRAME_SIZE_FULL;
 
-	print_symbol("PC is at %s\n", instruction_pointer(regs));
-	print_symbol("LR is at %s\n", lr);
-	printk("pc : [<%08lx>]    lr : [<%08lx>]    %s\n"
-	       "sp : %08lx  r12: %08lx  r11: %08lx\n",
-	       instruction_pointer(regs),
-	       lr, print_tainted(), sp, regs->r12, regs->r11);
-	printk("r10: %08lx  r9 : %08lx  r8 : %08lx\n",
-	       regs->r10, regs->r9, regs->r8);
-	printk("r7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n",
-	       regs->r7, regs->r6, regs->r5, regs->r4);
-	printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
-	       regs->r3, regs->r2, regs->r1, regs->r0);
-	printk("Flags: %c%c%c%c%c\n",
+		printk("%s", log_lvl);
+		print_symbol("PC is at %s\n", instruction_pointer(regs));
+		printk("%s", log_lvl);
+		print_symbol("LR is at %s\n", lr);
+	}
+
+	printk("%spc : [<%08lx>]    lr : [<%08lx>]    %s\n"
+	       "%ssp : %08lx  r12: %08lx  r11: %08lx\n",
+	       log_lvl, instruction_pointer(regs), lr, print_tainted(),
+	       log_lvl, sp, regs->r12, regs->r11);
+	printk("%sr10: %08lx  r9 : %08lx  r8 : %08lx\n",
+	       log_lvl, regs->r10, regs->r9, regs->r8);
+	printk("%sr7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n",
+	       log_lvl, regs->r7, regs->r6, regs->r5, regs->r4);
+	printk("%sr3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
+	       log_lvl, regs->r3, regs->r2, regs->r1, regs->r0);
+	printk("%sFlags: %c%c%c%c%c\n", log_lvl,
 	       regs->sr & SR_Q ? 'Q' : 'q',
 	       regs->sr & SR_V ? 'V' : 'v',
 	       regs->sr & SR_N ? 'N' : 'n',
 	       regs->sr & SR_Z ? 'Z' : 'z',
 	       regs->sr & SR_C ? 'C' : 'c');
-	printk("Mode bits: %c%c%c%c%c%c%c%c%c\n",
+	printk("%sMode bits: %c%c%c%c%c%c%c%c%c\n", log_lvl,
 	       regs->sr & SR_H ? 'H' : 'h',
 	       regs->sr & SR_R ? 'R' : 'r',
 	       regs->sr & SR_J ? 'J' : 'j',
@@ -156,9 +297,21 @@ void show_regs(struct pt_regs *regs)
 	       regs->sr & SR_I1M ? '1' : '.',
 	       regs->sr & SR_I0M ? '0' : '.',
 	       regs->sr & SR_GM ? 'G' : 'g');
-	printk("CPU Mode: %s\n", cpu_modes[mode]);
+	printk("%sCPU Mode: %s\n", log_lvl, cpu_modes[mode]);
+	printk("%sProcess: %s [%d] (task: %p thread: %p)\n",
+	       log_lvl, current->comm, current->pid, current,
+	       task_thread_info(current));
+}
 
-	show_trace(NULL, (unsigned long *)sp, regs);
+void show_regs(struct pt_regs *regs)
+{
+	unsigned long sp = regs->sp;
+
+	if (!user_mode(regs))
+		sp = (unsigned long)regs + FRAME_SIZE_FULL;
+
+	show_regs_log_lvl(regs, "");
+	show_trace_log_lvl(current, (unsigned long *)sp, regs, "");
 }
 EXPORT_SYMBOL(show_regs);
 

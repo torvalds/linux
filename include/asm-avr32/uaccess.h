@@ -181,24 +181,23 @@ extern int __put_user_bad(void);
 
 #define __get_user_nocheck(x, ptr, size)				\
 ({									\
-	typeof(*(ptr)) __gu_val = (typeof(*(ptr)) __force)0;		\
+	unsigned long __gu_val = 0;					\
 	int __gu_err = 0;						\
 									\
 	switch (size) {							\
 	case 1: __get_user_asm("ub", __gu_val, ptr, __gu_err); break;	\
 	case 2: __get_user_asm("uh", __gu_val, ptr, __gu_err); break;	\
 	case 4: __get_user_asm("w", __gu_val, ptr, __gu_err); break;	\
-	case 8: __get_user_asm("d", __gu_val, ptr, __gu_err); break;	\
 	default: __gu_err = __get_user_bad(); break;			\
 	}								\
 									\
-	x = __gu_val;							\
+	x = (typeof(*(ptr)))__gu_val;					\
 	__gu_err;							\
 })
 
 #define __get_user_check(x, ptr, size)					\
 ({									\
-	typeof(*(ptr)) __gu_val = (typeof(*(ptr)) __force)0;		\
+	unsigned long __gu_val = 0;					\
 	const typeof(*(ptr)) __user * __gu_addr = (ptr);		\
 	int __gu_err = 0;						\
 									\
@@ -216,10 +215,6 @@ extern int __put_user_bad(void);
 			__get_user_asm("w", __gu_val, __gu_addr,	\
 				       __gu_err);			\
 			break;						\
-		case 8:							\
-			__get_user_asm("d", __gu_val, __gu_addr,	\
-				       __gu_err);			\
-			break;						\
 		default:						\
 			__gu_err = __get_user_bad();			\
 			break;						\
@@ -227,7 +222,7 @@ extern int __put_user_bad(void);
 	} else {							\
 		__gu_err = -EFAULT;					\
 	}								\
-	x = __gu_val;							\
+	x = (typeof(*(ptr)))__gu_val;					\
 	__gu_err;							\
 })
 

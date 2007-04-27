@@ -40,6 +40,14 @@ enum tlb_config {
 	TLB_INVALID
 };
 
+#define AVR32_FEATURE_RMW	(1 << 0)
+#define AVR32_FEATURE_DSP	(1 << 1)
+#define AVR32_FEATURE_SIMD	(1 << 2)
+#define AVR32_FEATURE_OCD	(1 << 3)
+#define AVR32_FEATURE_PCTR	(1 << 4)
+#define AVR32_FEATURE_JAVA	(1 << 5)
+#define AVR32_FEATURE_FPU	(1 << 6)
+
 struct avr32_cpuinfo {
 	struct clk *clk;
 	unsigned long loops_per_jiffy;
@@ -48,6 +56,7 @@ struct avr32_cpuinfo {
 	unsigned short arch_revision;
 	unsigned short cpu_revision;
 	enum tlb_config tlb_config;
+	unsigned long features;
 
 	struct cache_info icache;
 	struct cache_info dcache;
@@ -125,10 +134,10 @@ extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 #define thread_saved_pc(tsk)    ((tsk)->thread.cpu_context.pc)
 
 struct pt_regs;
-void show_trace(struct task_struct *task, unsigned long *stack,
-		struct pt_regs *regs);
-
 extern unsigned long get_wchan(struct task_struct *p);
+extern void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl);
+extern void show_stack_log_lvl(struct task_struct *tsk, unsigned long sp,
+			       struct pt_regs *regs, const char *log_lvl);
 
 #define KSTK_EIP(tsk)	((tsk)->thread.cpu_context.pc)
 #define KSTK_ESP(tsk)	((tsk)->thread.cpu_context.ksp)

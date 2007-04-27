@@ -1,5 +1,5 @@
 /*
- * ATSTK1002 daughterboard-specific init code
+ * Board-specific setup code for the ATNGW100 Network Gateway
  *
  * Copyright (C) 2005-2006 Atmel Corporation
  *
@@ -10,37 +10,32 @@
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
+#include <linux/linkage.h>
 #include <linux/platform_device.h>
-#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/spi/spi.h>
 
 #include <asm/io.h>
 #include <asm/setup.h>
+
 #include <asm/arch/at32ap7000.h>
 #include <asm/arch/board.h>
 #include <asm/arch/init.h>
-#include <asm/arch/portmux.h>
 
-
-#define	SW2_DEFAULT		/* MMCI and UART_A available */
+/* Initialized by bootloader-specific startup code. */
+struct tag *bootloader_tags __initdata;
 
 struct eth_addr {
 	u8 addr[6];
 };
-
 static struct eth_addr __initdata hw_addr[2];
-
 static struct eth_platform_data __initdata eth_data[2];
-static struct lcdc_platform_data atstk1000_fb0_data;
 
 static struct spi_board_info spi0_board_info[] __initdata = {
 	{
-		/* QVGA display */
-		.modalias	= "ltv350qv",
-		.max_speed_hz	= 16000000,
-		.chip_select	= 1,
+		.modalias	= "mtd_dataflash",
+		.max_speed_hz	= 10000000,
+		.chip_select	= 0,
 	},
 };
 
@@ -99,59 +94,31 @@ static void __init set_hw_addr(struct platform_device *pdev)
 	clk_put(pclk);
 }
 
+struct platform_device *at32_usart_map[1];
+unsigned int at32_nr_usarts = 1;
+
 void __init setup_board(void)
 {
-#ifdef	SW2_DEFAULT
-	at32_map_usart(1, 0);	/* USART 1/A: /dev/ttyS0, DB9 */
-#else
-	at32_map_usart(0, 1);	/* USART 0/B: /dev/ttyS1, IRDA */
-#endif
-	/* USART 2/unused: expansion connector */
-	at32_map_usart(3, 2);	/* USART 3/C: /dev/ttyS2, DB9 */
-
+	at32_map_usart(1, 0);	/* USART 1: /dev/ttyS0, DB9 */
 	at32_setup_serial_console(0);
 }
 
-static int __init atstk1002_init(void)
+static int __init atngw100_init(void)
 {
 	/*
-	 * ATSTK1000 uses 32-bit SDRAM interface. Reserve the
-	 * SDRAM-specific pins so that nobody messes with them.
+	 * ATNGW100 uses 16-bit SDRAM interface, so we don't need to
+	 * reserve any pins for it.
 	 */
-	at32_reserve_pin(GPIO_PIN_PE(0));	/* DATA[16]	*/
-	at32_reserve_pin(GPIO_PIN_PE(1));	/* DATA[17]	*/
-	at32_reserve_pin(GPIO_PIN_PE(2));	/* DATA[18]	*/
-	at32_reserve_pin(GPIO_PIN_PE(3));	/* DATA[19]	*/
-	at32_reserve_pin(GPIO_PIN_PE(4));	/* DATA[20]	*/
-	at32_reserve_pin(GPIO_PIN_PE(5));	/* DATA[21]	*/
-	at32_reserve_pin(GPIO_PIN_PE(6));	/* DATA[22]	*/
-	at32_reserve_pin(GPIO_PIN_PE(7));	/* DATA[23]	*/
-	at32_reserve_pin(GPIO_PIN_PE(8));	/* DATA[24]	*/
-	at32_reserve_pin(GPIO_PIN_PE(9));	/* DATA[25]	*/
-	at32_reserve_pin(GPIO_PIN_PE(10));	/* DATA[26]	*/
-	at32_reserve_pin(GPIO_PIN_PE(11));	/* DATA[27]	*/
-	at32_reserve_pin(GPIO_PIN_PE(12));	/* DATA[28]	*/
-	at32_reserve_pin(GPIO_PIN_PE(13));	/* DATA[29]	*/
-	at32_reserve_pin(GPIO_PIN_PE(14));	/* DATA[30]	*/
-	at32_reserve_pin(GPIO_PIN_PE(15));	/* DATA[31]	*/
-	at32_reserve_pin(GPIO_PIN_PE(26));	/* SDCS		*/
 
 	at32_add_system_devices();
 
-#ifdef	SW2_DEFAULT
 	at32_add_device_usart(0);
-#else
-	at32_add_device_usart(1);
-#endif
-	at32_add_device_usart(2);
 
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));
+	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
 
 	at32_add_device_spi(0, spi0_board_info, ARRAY_SIZE(spi0_board_info));
-	atstk1000_fb0_data.fbmem_start = fbmem_start;
-	atstk1000_fb0_data.fbmem_size = fbmem_size;
-	at32_add_device_lcdc(0, &atstk1000_fb0_data);
 
 	return 0;
 }
-postcore_initcall(atstk1002_init);
+postcore_initcall(atngw100_init);
