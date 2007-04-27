@@ -1398,6 +1398,14 @@ struct v4l2_register {
 	__u64 val;
 };
 
+/* VIDIOC_G_CHIP_IDENT */
+struct v4l2_chip_ident {
+	__u32 match_type;  /* Match type */
+	__u32 match_chip;  /* Match this chip, meaning determined by match_type */
+	__u32 ident;       /* chip identifier as specified in <media/v4l2-chip-ident.h> */
+	__u32 revision;    /* chip revision, chip specific */
+};
+
 /*
  *	I O C T L   C O D E S   F O R   V I D E O   D E V I C E S
  *
@@ -1471,6 +1479,8 @@ struct v4l2_register {
 /* Experimental, only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
 #define	VIDIOC_DBG_S_REGISTER 	_IOW  ('V', 79, struct v4l2_register)
 #define	VIDIOC_DBG_G_REGISTER 	_IOWR ('V', 80, struct v4l2_register)
+
+#define VIDIOC_G_CHIP_IDENT     _IOWR ('V', 81, struct v4l2_chip_ident)
 #endif
 
 #ifdef __OLD_VIDIOC_

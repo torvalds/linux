@@ -60,6 +60,7 @@
 #include <linux/video_decoder.h>
 #define __OLD_VIDIOC_ /* To allow fixing old calls*/
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
@@ -383,6 +384,8 @@ static const char *v4l2_ioctls[] = {
 
 	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]   = "VIDIOC_DBG_S_REGISTER",
 	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]   = "VIDIOC_DBG_G_REGISTER",
+
+	[_IOC_NR(VIDIOC_G_CHIP_IDENT)]     = "VIDIOC_G_CHIP_IDENT",
 #endif
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
@@ -413,7 +416,6 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(VIDIOC_INT_DECODE_VBI_LINE)]  = "VIDIOC_INT_DECODE_VBI_LINE",
 	[_IOC_NR(VIDIOC_INT_S_VBI_DATA)]       = "VIDIOC_INT_S_VBI_DATA",
 	[_IOC_NR(VIDIOC_INT_G_VBI_DATA)]       = "VIDIOC_INT_G_VBI_DATA",
-	[_IOC_NR(VIDIOC_INT_G_CHIP_IDENT)]     = "VIDIOC_INT_G_CHIP_IDENT",
 	[_IOC_NR(VIDIOC_INT_I2S_CLOCK_FREQ)]   = "VIDIOC_INT_I2S_CLOCK_FREQ",
 	[_IOC_NR(VIDIOC_INT_S_STANDBY)]        = "VIDIOC_INT_S_STANDBY",
 	[_IOC_NR(VIDIOC_INT_S_AUDIO_ROUTING)]  = "VIDIOC_INT_S_AUDIO_ROUTING",
@@ -981,6 +983,22 @@ int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 match_type, u32 match_c
 	}
 }
 
+int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_chip_ident *chip,
+		u32 ident, u32 revision)
+{
+	if (!v4l2_chip_match_i2c_client(c, chip->match_type, chip->match_chip))
+		return 0;
+	if (chip->ident == V4L2_IDENT_NONE) {
+		chip->ident = ident;
+		chip->revision = revision;
+	}
+	else {
+		chip->ident = V4L2_IDENT_AMBIGUOUS;
+		chip->revision = 0;
+	}
+	return 0;
+}
+
 int v4l2_chip_match_host(u32 match_type, u32 match_chip)
 {
 	switch (match_type) {
@@ -1015,6 +1033,7 @@ EXPORT_SYMBOL(v4l2_ctrl_query_fill);
 EXPORT_SYMBOL(v4l2_ctrl_query_fill_std);
 
 EXPORT_SYMBOL(v4l2_chip_match_i2c_client);
+EXPORT_SYMBOL(v4l2_chip_ident_i2c_client);
 EXPORT_SYMBOL(v4l2_chip_match_host);
 
 /*

@@ -317,6 +317,8 @@ struct video_device
 	int (*vidioc_s_register)       (struct file *file, void *fh,
 					struct v4l2_register *reg);
 #endif
+	int (*vidioc_g_chip_ident)     (struct file *file, void *fh,
+					struct v4l2_chip_ident *chip);
 
 
 #ifdef OBSOLETE_OWNER /* to be removed soon */

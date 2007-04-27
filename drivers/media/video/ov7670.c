@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 #include <linux/i2c.h>
 
 
@@ -1270,9 +1271,8 @@ static int ov7670_command(struct i2c_client *client, unsigned int cmd,
 		void *arg)
 {
 	switch (cmd) {
-	case VIDIOC_INT_G_CHIP_IDENT:
-		* (enum v4l2_chip_ident *) arg = V4L2_IDENT_OV7670;
-		return 0;
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_OV7670, 0);
 
 	case VIDIOC_INT_RESET:
 		ov7670_reset(client);

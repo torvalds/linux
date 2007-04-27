@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/list.h>
@@ -164,7 +165,7 @@ struct cafe_camera
 	struct tasklet_struct s_tasklet;
 
 	/* Current operating parameters */
-	enum v4l2_chip_ident sensor_type;		/* Currently ov7670 only */
+	u32 sensor_type;		/* Currently ov7670 only */
 	struct v4l2_pix_format pix_format;
 
 	/* Locks */
@@ -818,6 +819,7 @@ static int __cafe_cam_reset(struct cafe_camera *cam)
  */
 static int cafe_cam_init(struct cafe_camera *cam)
 {
+	struct v4l2_chip_ident chip = { V4L2_CHIP_MATCH_I2C_ADDR, 0, 0, 0 };
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
@@ -827,9 +829,11 @@ static int cafe_cam_init(struct cafe_camera *cam)
 	ret = __cafe_cam_reset(cam);
 	if (ret)
 		goto out;
-	ret = __cafe_cam_cmd(cam, VIDIOC_INT_G_CHIP_IDENT, &cam->sensor_type);
+	chip.match_chip = cam->sensor->addr;
+	ret = __cafe_cam_cmd(cam, VIDIOC_G_CHIP_IDENT, &chip);
 	if (ret)
 		goto out;
+	cam->sensor_type = chip.ident;
 //	if (cam->sensor->addr != OV7xx0_SID) {
 	if (cam->sensor_type != V4L2_IDENT_OV7670) {
 		cam_err(cam, "Unsupported sensor type %d", cam->sensor->addr);
