@@ -138,6 +138,9 @@ static void av7110_emit_key(unsigned long parm)
 		return;
 	}
 
+	input_event(ir->input_dev, EV_MSC, MSC_RAW, (addr << 16) | data);
+	input_event(ir->input_dev, EV_MSC, MSC_SCAN, data);
+
 	keycode = ir->key_map[data];
 
 	dprintk(16, "%s: code %08x -> addr %i data 0x%02x -> keycode %i\n",
@@ -186,6 +189,10 @@ static void input_register_keys(struct infrared *ir)
 
 	set_bit(EV_KEY, ir->input_dev->evbit);
 	set_bit(EV_REP, ir->input_dev->evbit);
+	set_bit(EV_MSC, ir->input_dev->evbit);
+
+	set_bit(MSC_RAW, ir->input_dev->mscbit);
+	set_bit(MSC_SCAN, ir->input_dev->mscbit);
 
 	memset(ir->input_dev->keybit, 0, sizeof(ir->input_dev->keybit));
 
