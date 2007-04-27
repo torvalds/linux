@@ -106,9 +106,6 @@ struct tda1004x_state {
 	const struct tda1004x_config* config;
 	struct dvb_frontend frontend;
 
-	/* this allows to store probed board information */
-	int	conf_probed;
-
 	/* private demod data */
 	enum tda1004x_demod demod_type;
 };

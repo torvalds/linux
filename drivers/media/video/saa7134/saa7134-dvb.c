@@ -41,7 +41,9 @@
 
 #include "tda10086.h"
 #include "tda826x.h"
+#include "tda827x.h"
 #include "isl6421.h"
+
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
@@ -654,337 +656,11 @@ static int tda8290_i2c_gate_ctrl( struct dvb_frontend* fe, int enable)
 
 /* ------------------------------------------------------------------ */
 
-struct tda827x_data {
-	u32 lomax;
-	u8  spd;
-	u8  bs;
-	u8  bp;
-	u8  cp;
-	u8  gc3;
-	u8 div1p5;
-};
-
-static struct tda827x_data tda827x_dvbt[] = {
-	{ .lomax =  62000000, .spd = 3, .bs = 2, .bp = 0, .cp = 0, .gc3 = 3, .div1p5 = 1},
-	{ .lomax =  66000000, .spd = 3, .bs = 3, .bp = 0, .cp = 0, .gc3 = 3, .div1p5 = 1},
-	{ .lomax =  76000000, .spd = 3, .bs = 1, .bp = 0, .cp = 0, .gc3 = 3, .div1p5 = 0},
-	{ .lomax =  84000000, .spd = 3, .bs = 2, .bp = 0, .cp = 0, .gc3 = 3, .div1p5 = 0},
-	{ .lomax =  93000000, .spd = 3, .bs = 2, .bp = 0, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax =  98000000, .spd = 3, .bs = 3, .bp = 0, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 109000000, .spd = 3, .bs = 3, .bp = 1, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 123000000, .spd = 2, .bs = 2, .bp = 1, .cp = 0, .gc3 = 1, .div1p5 = 1},
-	{ .lomax = 133000000, .spd = 2, .bs = 3, .bp = 1, .cp = 0, .gc3 = 1, .div1p5 = 1},
-	{ .lomax = 151000000, .spd = 2, .bs = 1, .bp = 1, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 154000000, .spd = 2, .bs = 2, .bp = 1, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 181000000, .spd = 2, .bs = 2, .bp = 1, .cp = 0, .gc3 = 0, .div1p5 = 0},
-	{ .lomax = 185000000, .spd = 2, .bs = 2, .bp = 2, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 217000000, .spd = 2, .bs = 3, .bp = 2, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 244000000, .spd = 1, .bs = 2, .bp = 2, .cp = 0, .gc3 = 1, .div1p5 = 1},
-	{ .lomax = 265000000, .spd = 1, .bs = 3, .bp = 2, .cp = 0, .gc3 = 1, .div1p5 = 1},
-	{ .lomax = 302000000, .spd = 1, .bs = 1, .bp = 2, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 324000000, .spd = 1, .bs = 2, .bp = 2, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 370000000, .spd = 1, .bs = 2, .bp = 3, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 454000000, .spd = 1, .bs = 3, .bp = 3, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 493000000, .spd = 0, .bs = 2, .bp = 3, .cp = 0, .gc3 = 1, .div1p5 = 1},
-	{ .lomax = 530000000, .spd = 0, .bs = 3, .bp = 3, .cp = 0, .gc3 = 1, .div1p5 = 1},
-	{ .lomax = 554000000, .spd = 0, .bs = 1, .bp = 3, .cp = 0, .gc3 = 1, .div1p5 = 0},
-	{ .lomax = 604000000, .spd = 0, .bs = 1, .bp = 4, .cp = 0, .gc3 = 0, .div1p5 = 0},
-	{ .lomax = 696000000, .spd = 0, .bs = 2, .bp = 4, .cp = 0, .gc3 = 0, .div1p5 = 0},
-	{ .lomax = 740000000, .spd = 0, .bs = 2, .bp = 4, .cp = 1, .gc3 = 0, .div1p5 = 0},
-	{ .lomax = 820000000, .spd = 0, .bs = 3, .bp = 4, .cp = 0, .gc3 = 0, .div1p5 = 0},
-	{ .lomax = 865000000, .spd = 0, .bs = 3, .bp = 4, .cp = 1, .gc3 = 0, .div1p5 = 0},
-	{ .lomax =         0, .spd = 0, .bs = 0, .bp = 0, .cp = 0, .gc3 = 0, .div1p5 = 0}
-};
-
-static int philips_tda827xo_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
-{
-	struct saa7134_dev *dev = fe->dvb->priv;
-	struct tda1004x_state *state = fe->demodulator_priv;
-	u8 addr = state->config->tuner_address;
-	u8 tuner_buf[14];
-
-	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = tuner_buf,
-					.len = sizeof(tuner_buf) };
-	int i, tuner_freq, if_freq;
-	u32 N;
-	switch (params->u.ofdm.bandwidth) {
-	case BANDWIDTH_6_MHZ:
-		if_freq = 4000000;
-		break;
-	case BANDWIDTH_7_MHZ:
-		if_freq = 4500000;
-		break;
-	default:		   /* 8 MHz or Auto */
-		if_freq = 5000000;
-		break;
-	}
-	tuner_freq = params->frequency + if_freq;
-
-	i = 0;
-	while (tda827x_dvbt[i].lomax < tuner_freq) {
-		if(tda827x_dvbt[i + 1].lomax == 0)
-			break;
-		i++;
-	}
-
-	N = ((tuner_freq + 125000) / 250000) << (tda827x_dvbt[i].spd + 2);
-	tuner_buf[0] = 0;
-	tuner_buf[1] = (N>>8) | 0x40;
-	tuner_buf[2] = N & 0xff;
-	tuner_buf[3] = 0;
-	tuner_buf[4] = 0x52;
-	tuner_buf[5] = (tda827x_dvbt[i].spd << 6) + (tda827x_dvbt[i].div1p5 << 5) +
-				   (tda827x_dvbt[i].bs << 3) + tda827x_dvbt[i].bp;
-	tuner_buf[6] = (tda827x_dvbt[i].gc3 << 4) + 0x8f;
-	tuner_buf[7] = 0xbf;
-	tuner_buf[8] = 0x2a;
-	tuner_buf[9] = 0x05;
-	tuner_buf[10] = 0xff;
-	tuner_buf[11] = 0x00;
-	tuner_buf[12] = 0x00;
-	tuner_buf[13] = 0x40;
-
-	tuner_msg.len = 14;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1) {
-		printk("%s/dvb: could not write to tuner at addr: 0x%02x\n",dev->name, addr << 1);
-		return -EIO;
-	}
-	msleep(500);
-	/* correct CP value */
-	tuner_buf[0] = 0x30;
-	tuner_buf[1] = 0x50 + tda827x_dvbt[i].cp;
-	tuner_msg.len = 2;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
-
-	return 0;
-}
-
-static int philips_tda827xo_tuner_sleep(struct dvb_frontend *fe)
-{
-	struct saa7134_dev *dev = fe->dvb->priv;
-	struct tda1004x_state *state = fe->demodulator_priv;
-	u8 addr = state->config->tuner_address;
-	static u8 tda827x_sleep[] = { 0x30, 0xd0};
-	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = tda827x_sleep,
-				    .len = sizeof(tda827x_sleep) };
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
-	return 0;
-}
-
-/* ------------------------------------------------------------------ */
-
-struct tda827xa_data {
-	u32 lomax;
-	u8  svco;
-	u8  spd;
-	u8  scr;
-	u8  sbs;
-	u8  gc3;
-};
-
-static struct tda827xa_data tda827xa_dvbt[] = {
-	{ .lomax =  56875000, .svco = 3, .spd = 4, .scr = 0, .sbs = 0, .gc3 = 1},
-	{ .lomax =  67250000, .svco = 0, .spd = 3, .scr = 0, .sbs = 0, .gc3 = 1},
-	{ .lomax =  81250000, .svco = 1, .spd = 3, .scr = 0, .sbs = 0, .gc3 = 1},
-	{ .lomax =  97500000, .svco = 2, .spd = 3, .scr = 0, .sbs = 0, .gc3 = 1},
-	{ .lomax = 113750000, .svco = 3, .spd = 3, .scr = 0, .sbs = 1, .gc3 = 1},
-	{ .lomax = 134500000, .svco = 0, .spd = 2, .scr = 0, .sbs = 1, .gc3 = 1},
-	{ .lomax = 154000000, .svco = 1, .spd = 2, .scr = 0, .sbs = 1, .gc3 = 1},
-	{ .lomax = 162500000, .svco = 1, .spd = 2, .scr = 0, .sbs = 1, .gc3 = 1},
-	{ .lomax = 183000000, .svco = 2, .spd = 2, .scr = 0, .sbs = 1, .gc3 = 1},
-	{ .lomax = 195000000, .svco = 2, .spd = 2, .scr = 0, .sbs = 2, .gc3 = 1},
-	{ .lomax = 227500000, .svco = 3, .spd = 2, .scr = 0, .sbs = 2, .gc3 = 1},
-	{ .lomax = 269000000, .svco = 0, .spd = 1, .scr = 0, .sbs = 2, .gc3 = 1},
-	{ .lomax = 290000000, .svco = 1, .spd = 1, .scr = 0, .sbs = 2, .gc3 = 1},
-	{ .lomax = 325000000, .svco = 1, .spd = 1, .scr = 0, .sbs = 3, .gc3 = 1},
-	{ .lomax = 390000000, .svco = 2, .spd = 1, .scr = 0, .sbs = 3, .gc3 = 1},
-	{ .lomax = 455000000, .svco = 3, .spd = 1, .scr = 0, .sbs = 3, .gc3 = 1},
-	{ .lomax = 520000000, .svco = 0, .spd = 0, .scr = 0, .sbs = 3, .gc3 = 1},
-	{ .lomax = 538000000, .svco = 0, .spd = 0, .scr = 1, .sbs = 3, .gc3 = 1},
-	{ .lomax = 550000000, .svco = 1, .spd = 0, .scr = 0, .sbs = 3, .gc3 = 1},
-	{ .lomax = 620000000, .svco = 1, .spd = 0, .scr = 0, .sbs = 4, .gc3 = 0},
-	{ .lomax = 650000000, .svco = 1, .spd = 0, .scr = 1, .sbs = 4, .gc3 = 0},
-	{ .lomax = 700000000, .svco = 2, .spd = 0, .scr = 0, .sbs = 4, .gc3 = 0},
-	{ .lomax = 780000000, .svco = 2, .spd = 0, .scr = 1, .sbs = 4, .gc3 = 0},
-	{ .lomax = 820000000, .svco = 3, .spd = 0, .scr = 0, .sbs = 4, .gc3 = 0},
-	{ .lomax = 870000000, .svco = 3, .spd = 0, .scr = 1, .sbs = 4, .gc3 = 0},
-	{ .lomax = 911000000, .svco = 3, .spd = 0, .scr = 2, .sbs = 4, .gc3 = 0},
-	{ .lomax =         0, .svco = 0, .spd = 0, .scr = 0, .sbs = 0, .gc3 = 0}};
-
-static int philips_tda827xa_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
-{
-	struct saa7134_dev *dev = fe->dvb->priv;
-	struct tda1004x_state *state = fe->demodulator_priv;
-	u8 addr = state->config->tuner_address;
-	u8 tuner_buf[10];
-
-	struct i2c_msg msg = {.addr = addr,.flags = 0,.buf = tuner_buf};
-	int i, tuner_freq, if_freq;
-	u32 N;
-
-	philips_tda827x_lna_gain( fe, 1);
-	msleep(20);
-
-	switch (params->u.ofdm.bandwidth) {
-	case BANDWIDTH_6_MHZ:
-		if_freq = 4000000;
-		break;
-	case BANDWIDTH_7_MHZ:
-		if_freq = 4500000;
-		break;
-	default:		   /* 8 MHz or Auto */
-		if_freq = 5000000;
-		break;
-	}
-	tuner_freq = params->frequency + if_freq;
-
-	i = 0;
-	while (tda827xa_dvbt[i].lomax < tuner_freq) {
-		if(tda827xa_dvbt[i + 1].lomax == 0)
-			break;
-		i++;
-	}
-
-	N = ((tuner_freq + 31250) / 62500) << tda827xa_dvbt[i].spd;
-	tuner_buf[0] = 0;            // subaddress
-	tuner_buf[1] = N >> 8;
-	tuner_buf[2] = N & 0xff;
-	tuner_buf[3] = 0;
-	tuner_buf[4] = 0x16;
-	tuner_buf[5] = (tda827xa_dvbt[i].spd << 5) + (tda827xa_dvbt[i].svco << 3) +
-			tda827xa_dvbt[i].sbs;
-	tuner_buf[6] = 0x4b + (tda827xa_dvbt[i].gc3 << 4);
-	tuner_buf[7] = 0x1c;
-	tuner_buf[8] = 0x06;
-	tuner_buf[9] = 0x24;
-	tuner_buf[10] = 0x00;
-	msg.len = 11;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
-		printk("%s/dvb: could not write to tuner at addr: 0x%02x\n",dev->name, addr << 1);
-		return -EIO;
-	}
-	tuner_buf[0] = 0x90;
-	tuner_buf[1] = 0xff;
-	tuner_buf[2] = 0x60;
-	tuner_buf[3] = 0x00;
-	tuner_buf[4] = 0x59;  // lpsel, for 6MHz + 2
-	msg.len = 5;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &msg, 1);
-
-	tuner_buf[0] = 0xa0;
-	tuner_buf[1] = 0x40;
-	msg.len = 2;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &msg, 1);
-
-	msleep(11);
-	msg.flags = I2C_M_RD;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &msg, 1);
-	msg.flags = 0;
-
-	tuner_buf[1] >>= 4;
-	dprintk("tda8275a AGC2 gain is: %d\n", tuner_buf[1]);
-	if ((tuner_buf[1]) < 2) {
-		philips_tda827x_lna_gain(fe, 0);
-		tuner_buf[0] = 0x60;
-		tuner_buf[1] = 0x0c;
-		if (fe->ops.i2c_gate_ctrl)
-			fe->ops.i2c_gate_ctrl(fe, 1);
-		i2c_transfer(&dev->i2c_adap, &msg, 1);
-	}
-
-	tuner_buf[0] = 0xc0;
-	tuner_buf[1] = 0x99;    // lpsel, for 6MHz + 2
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &msg, 1);
-
-	tuner_buf[0] = 0x60;
-	tuner_buf[1] = 0x3c;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &msg, 1);
-
-	/* correct CP value */
-	tuner_buf[0] = 0x30;
-	tuner_buf[1] = 0x10 + tda827xa_dvbt[i].scr;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &msg, 1);
-
-	msleep(163);
-	tuner_buf[0] = 0xc0;
-	tuner_buf[1] = 0x39;  // lpsel, for 6MHz + 2
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &msg, 1);
-
-	msleep(3);
-	/* freeze AGC1 */
-	tuner_buf[0] = 0x50;
-	tuner_buf[1] = 0x4f + (tda827xa_dvbt[i].gc3 << 4);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &msg, 1);
-
-	return 0;
-
-}
-
-static int philips_tda827xa_tuner_sleep(struct dvb_frontend *fe)
-{
-	struct saa7134_dev *dev = fe->dvb->priv;
-	struct tda1004x_state *state = fe->demodulator_priv;
-	u8 addr = state->config->tuner_address;
-	static u8 tda827xa_sleep[] = { 0x30, 0x90};
-	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = tda827xa_sleep,
-				    .len = sizeof(tda827xa_sleep) };
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-	return 0;
-}
-
-/* ------------------------------------------------------------------
- * upper layer: distinguish the silicon tuner versions
- */
-
 static int philips_tda827x_tuner_init(struct dvb_frontend *fe)
 {
 	struct saa7134_dev *dev = fe->dvb->priv;
 	struct tda1004x_state *state = fe->demodulator_priv;
-	u8 addr = state->config->tuner_address;
-	u8 data;
-	struct i2c_msg tuner_msg = {.addr = addr,.flags = I2C_M_RD,.buf = &data, .len = 1};
-	state->conf_probed = 0;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1) {
-		printk("%s/dvb: could not read from tuner at addr: 0x%02x\n",dev->name, addr << 1);
-		return -EIO;
-	}
-	if ((data & 0x3c) == 0) {
-		dprintk("tda827x tuner found\n");
-		state->conf_probed = 1;
-	} else {
-		dprintk("tda827xa tuner found\n");
-		state->conf_probed = 2;
-	}
+
 	switch (state->config->antenna_switch) {
 	case 0: break;
 	case 1:	dprintk("setting GPIO21 to 0 (TV antenna?)\n");
@@ -1001,14 +677,7 @@ static int philips_tda827x_tuner_sleep(struct dvb_frontend *fe)
 {
 	struct saa7134_dev *dev = fe->dvb->priv;
 	struct tda1004x_state *state = fe->demodulator_priv;
-	switch (state->conf_probed) {
-	case 1: philips_tda827xo_tuner_sleep(fe);
-		break;
-	case 2: philips_tda827xa_tuner_sleep(fe);
-		break;
-	default: dprintk("Huh? unknown tda827x version!\n");
-		return -EIO;
-	}
+
 	switch (state->config->antenna_switch) {
 	case 0: break;
 	case 1: dprintk("setting GPIO21 to 1 (Radio antenna?)\n");
@@ -1021,20 +690,11 @@ static int philips_tda827x_tuner_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int philips_tda827x_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
-{
-	struct saa7134_dev *dev = fe->dvb->priv;
-	struct tda1004x_state *state = fe->demodulator_priv;
-	switch (state->conf_probed) {
-	case 1: philips_tda827xo_pll_set(fe, params);
-		break;
-	case 2: philips_tda827xa_pll_set(fe, params);
-		break;
-	default: dprintk("Huh? unknown tda827x version!\n");
-		return -EIO;
-	}
-	return 0;
-}
+static struct tda827x_config tda827x_cfg = {
+	.lna_gain = philips_tda827x_lna_gain,
+	.init = philips_tda827x_tuner_init,
+	.sleep = philips_tda827x_tuner_sleep
+};
 
 static void configure_tda827x_fe(struct saa7134_dev *dev, struct tda1004x_config *tda_conf,
 				 char *board_name)
@@ -1043,9 +703,8 @@ static void configure_tda827x_fe(struct saa7134_dev *dev, struct tda1004x_config
 	if (dev->dvb.frontend) {
 		if (tda_conf->i2c_gate)
 			dev->dvb.frontend->ops.i2c_gate_ctrl = tda8290_i2c_gate_ctrl;
-		dev->dvb.frontend->ops.tuner_ops.init = philips_tda827x_tuner_init;
-		dev->dvb.frontend->ops.tuner_ops.sleep = philips_tda827x_tuner_sleep;
-		dev->dvb.frontend->ops.tuner_ops.set_params = philips_tda827x_pll_set;
+		dvb_attach(tda827x_attach,dev->dvb.frontend,
+			   tda_conf->tuner_address,&dev->i2c_adap,&tda827x_cfg);
 	}
 	philips_tda1004x_set_board_name(dev->dvb.frontend, board_name);
 }
@@ -1223,6 +882,12 @@ static int ads_duo_tuner_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
+static struct tda827x_config ads_duo_cfg = {
+	.lna_gain = philips_tda827x_lna_gain,
+	.init = ads_duo_tuner_init,
+	.sleep = ads_duo_tuner_sleep
+};
+
 static struct tda1004x_config ads_tech_duo_config = {
 	.demod_address = 0x08,
 	.invert        = 1,
@@ -1393,9 +1058,9 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &ads_tech_duo_config,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops.tuner_ops.init = ads_duo_tuner_init;
-			dev->dvb.frontend->ops.tuner_ops.sleep = ads_duo_tuner_sleep;
-			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tda827x_pll_set;
+			dvb_attach(tda827x_attach,dev->dvb.frontend,
+				   ads_tech_duo_config.tuner_address,
+				   &dev->i2c_adap,&ads_duo_cfg);
 			if (dev->board == SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331)
 				board_name = "DVB-T ADS DUO Cardbus PTV331";
 			else

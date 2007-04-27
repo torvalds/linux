@@ -290,6 +290,13 @@ config DVB_TDA826X
 	help
 	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
 
+config DVB_TDA827X
+	tristate "Philips TDA827X silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T silicon tuner module. Say Y when you want to support this tuner.
+
 config DVB_TUNER_QT1010
 	tristate "Quantek QT1010 silicon tuner"
 	depends on DVB_CORE && I2C
