@@ -91,7 +91,6 @@ int wiphy_register(struct wiphy *wiphy)
 
 	mutex_lock(&cfg80211_drv_mutex);
 
-
 	res = device_add(&drv->wiphy.dev);
 	if (res)
 		goto out_unlock;
@@ -114,14 +113,26 @@ void wiphy_unregister(struct wiphy *wiphy)
 {
 	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
 
+	/* protect the device list */
 	mutex_lock(&cfg80211_drv_mutex);
 
-	/* hold registered driver mutex during list removal as well
-	 * to make sure no commands are in progress at the moment */
+	BUG_ON(!list_empty(&drv->netdev_list));
+
+	/*
+	 * Try to grab drv->mtx. If a command is still in progress,
+	 * hopefully the driver will refuse it since it's tearing
+	 * down the device already. We wait for this command to complete
+	 * before unlinking the item from the list.
+	 * Note: as codified by the BUG_ON above we cannot get here if
+	 * a virtual interface is still associated. Hence, we can only
+	 * get to lock contention here if userspace issues a command
+	 * that identified the hardware by wiphy index.
+	 */
 	mutex_lock(&drv->mtx);
-	list_del(&drv->list);
+	/* unlock again before freeing */
 	mutex_unlock(&drv->mtx);
 
+	list_del(&drv->list);
 	device_del(&drv->wiphy.dev);
 	debugfs_remove(drv->wiphy.debugfsdir);
 
