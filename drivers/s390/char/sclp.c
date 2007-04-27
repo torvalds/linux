@@ -15,6 +15,7 @@
 #include <linux/timer.h>
 #include <linux/reboot.h>
 #include <linux/jiffies.h>
+#include <linux/init.h>
 #include <asm/types.h>
 #include <asm/s390_ext.h>
 
@@ -930,3 +931,10 @@ sclp_init(void)
 	sclp_init_mask(1);
 	return 0;
 }
+
+static __init int sclp_initcall(void)
+{
+	return sclp_init();
+}
+
+arch_initcall(sclp_initcall);
