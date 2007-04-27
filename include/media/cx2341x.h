@@ -166,7 +166,7 @@ void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix);
 #define CX2341X_ENC_SET_PLACEHOLDER 		0xd7
 #define CX2341X_ENC_MUTE_VIDEO 			0xd9
 #define CX2341X_ENC_MUTE_AUDIO 			0xda
-#define CX2341X_ENC_UNKNOWN			0xdb
+#define CX2341X_ENC_SET_VERT_CROP_LINE		0xdb
 #define CX2341X_ENC_MISC 			0xdc
 
 /* OSD API, specific to the cx23415 */
