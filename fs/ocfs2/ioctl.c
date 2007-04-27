@@ -31,6 +31,7 @@ static int ocfs2_get_inode_attr(struct inode *inode, unsigned *flags)
 		mlog_errno(status);
 		return status;
 	}
+	ocfs2_get_inode_flags(OCFS2_I(inode));
 	*flags = OCFS2_I(inode)->ip_attr;
 	ocfs2_meta_unlock(inode, 0);
 

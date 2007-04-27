@@ -89,6 +89,25 @@ void ocfs2_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_DIRSYNC;
 }
 
+/* Propagate flags from i_flags to OCFS2_I(inode)->ip_attr */
+void ocfs2_get_inode_flags(struct ocfs2_inode_info *oi)
+{
+	unsigned int flags = oi->vfs_inode.i_flags;
+
+	oi->ip_attr &= ~(OCFS2_SYNC_FL|OCFS2_APPEND_FL|
+			OCFS2_IMMUTABLE_FL|OCFS2_NOATIME_FL|OCFS2_DIRSYNC_FL);
+	if (flags & S_SYNC)
+		oi->ip_attr |= OCFS2_SYNC_FL;
+	if (flags & S_APPEND)
+		oi->ip_attr |= OCFS2_APPEND_FL;
+	if (flags & S_IMMUTABLE)
+		oi->ip_attr |= OCFS2_IMMUTABLE_FL;
+	if (flags & S_NOATIME)
+		oi->ip_attr |= OCFS2_NOATIME_FL;
+	if (flags & S_DIRSYNC)
+		oi->ip_attr |= OCFS2_DIRSYNC_FL;
+}
+
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, int flags)
 {
 	struct inode *inode = NULL;
@@ -1199,6 +1218,7 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 
 	spin_lock(&OCFS2_I(inode)->ip_lock);
 	fe->i_clusters = cpu_to_le32(OCFS2_I(inode)->ip_clusters);
+	ocfs2_get_inode_flags(OCFS2_I(inode));
 	fe->i_attr = cpu_to_le32(OCFS2_I(inode)->ip_attr);
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
 
