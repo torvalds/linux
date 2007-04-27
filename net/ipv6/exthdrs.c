@@ -400,6 +400,7 @@ static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 
 	switch (hdr->type) {
 #ifdef CONFIG_IPV6_MIP6
+	case IPV6_SRCRT_TYPE_2:
 		break;
 #endif
 	case IPV6_SRCRT_TYPE_0:
