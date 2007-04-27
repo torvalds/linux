@@ -131,7 +131,7 @@ int __init find_via_cuda(void)
     if (vias == 0)
 	return 0;
 
-    reg = get_property(vias, "reg", NULL);
+    reg = of_get_property(vias, "reg", NULL);
     if (reg == NULL) {
 	    printk(KERN_ERR "via-cuda: No \"reg\" property !\n");
 	    goto fail;

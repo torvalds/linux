@@ -1279,8 +1279,8 @@ static int __init hvsi_console_init(void)
 		struct hvsi_struct *hp;
 		const uint32_t *vtermno, *irq;
 
-		vtermno = get_property(vty, "reg", NULL);
-		irq = get_property(vty, "interrupts", NULL);
+		vtermno = of_get_property(vty, "reg", NULL);
+		irq = of_get_property(vty, "interrupts", NULL);
 		if (!vtermno || !irq)
 			continue;
 
