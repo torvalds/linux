@@ -99,6 +99,7 @@ obj-$(CONFIG_USB_OV511)         += ov511.o
 obj-$(CONFIG_USB_SE401)         += se401.o
 obj-$(CONFIG_USB_STV680)        += stv680.o
 obj-$(CONFIG_USB_W9968CF)       += w9968cf.o
+obj-$(CONFIG_USB_ZR364XX)       += zr364xx.o
 
 obj-$(CONFIG_USB_SN9C102)       += sn9c102/
 obj-$(CONFIG_USB_ET61X251)      += et61x251/
