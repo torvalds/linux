@@ -41,6 +41,11 @@ config GENERIC_HWEIGHT
 config GENERIC_TIME
 	def_bool y
 
+config GENERIC_BUG
+	bool
+	depends on BUG
+	default y
+
 config NO_IOMEM
 	def_bool y
 

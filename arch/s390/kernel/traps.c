@@ -30,7 +30,7 @@
 #include <linux/kallsyms.h>
 #include <linux/reboot.h>
 #include <linux/kprobes.h>
-
+#include <linux/bug.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -297,6 +297,11 @@ report_user_fault(long interruption_code, struct pt_regs *regs)
 #endif
 }
 
+int is_valid_bugaddr(unsigned long addr)
+{
+	return 1;
+}
+
 static void __kprobes inline do_trap(long interruption_code, int signr,
 					char *str, struct pt_regs *regs,
 					siginfo_t *info)
@@ -323,8 +328,14 @@ static void __kprobes inline do_trap(long interruption_code, int signr,
                 fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
                 if (fixup)
                         regs->psw.addr = fixup->fixup | PSW_ADDR_AMODE;
-                else
-                        die(str, regs, interruption_code);
+		else {
+			enum bug_trap_type btt;
+
+			btt = report_bug(regs->psw.addr & PSW_ADDR_INSN);
+			if (btt == BUG_TRAP_TYPE_WARN)
+				return;
+			die(str, regs, interruption_code);
+		}
         }
 }
 

@@ -45,6 +45,8 @@ SECTIONS
   __ex_table : { *(__ex_table) }
   __stop___ex_table = .;
 
+  BUG_TABLE
+
   .data : {			/* Data */
 	*(.data)
 	CONSTRUCTORS
@@ -77,6 +79,12 @@ SECTIONS
 	*(.init.text)
 	_einittext = .;
   }
+  /*
+   * .exit.text is discarded at runtime, not link time,
+   * to deal with references from __bug_table
+   */
+  .exit.text :	 { *(.exit.text) }
+
   .init.data : { *(.init.data) }
   . = ALIGN(256);
   __setup_start = .;
@@ -116,7 +124,7 @@ SECTIONS
 
   /* Sections to be discarded */
   /DISCARD/ : {
-	*(.exit.text) *(.exit.data) *(.exitcall.exit)
+	*(.exit.data) *(.exitcall.exit)
 	}
 
   /* Stabs debugging sections.  */
