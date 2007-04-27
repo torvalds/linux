@@ -92,11 +92,8 @@ void __init mips_pcibios_init(void)
 	struct pci_controller *controller;
 	resource_size_t start, end, map, start1, end1, map1, map2, map3, mask;
 
-	switch (mips_revision_corid) {
-	case MIPS_REVISION_CORID_QED_RM5261:
-	case MIPS_REVISION_CORID_CORE_LV:
-	case MIPS_REVISION_CORID_CORE_FPGA:
-	case MIPS_REVISION_CORID_CORE_FPGAR2:
+	switch (mips_revision_sconid) {
+	case MIPS_REVISION_SCON_GT64120:
 		/*
 		 * Due to a bug in the Galileo system controller, we need
 		 * to setup the PCI BAR for the Galileo internal registers.
@@ -161,9 +158,7 @@ void __init mips_pcibios_init(void)
 		controller = &gt64120_controller;
 		break;
 
-	case MIPS_REVISION_CORID_BONITO64:
-	case MIPS_REVISION_CORID_CORE_20K:
-	case MIPS_REVISION_CORID_CORE_EMUL_BON:
+	case MIPS_REVISION_SCON_BONITO:
 		/* Set up resource ranges from the controller's registers.  */
 		map = BONITO_PCIMAP;
 		map1 = (BONITO_PCIMAP & BONITO_PCIMAP_PCIMAP_LO0) >>
@@ -195,11 +190,10 @@ void __init mips_pcibios_init(void)
 		controller = &bonito64_controller;
 		break;
 
-	case MIPS_REVISION_CORID_CORE_MSC:
-	case MIPS_REVISION_CORID_CORE_FPGA2:
-	case MIPS_REVISION_CORID_CORE_FPGA3:
-	case MIPS_REVISION_CORID_CORE_24K:
-	case MIPS_REVISION_CORID_CORE_EMUL_MSC:
+	case MIPS_REVISION_SCON_SOCIT:
+	case MIPS_REVISION_SCON_ROCIT:
+	case MIPS_REVISION_SCON_SOCITSC:
+	case MIPS_REVISION_SCON_SOCITSCP:
 		/* Set up resource ranges from the controller's registers.  */
 		MSC_READ(MSC01_PCI_SC2PMBASL, start);
 		MSC_READ(MSC01_PCI_SC2PMMSKL, mask);

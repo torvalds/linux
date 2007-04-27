@@ -103,9 +103,7 @@ void __init plat_mem_setup(void)
 	kgdb_config ();
 #endif
 
-	if ((mips_revision_corid == MIPS_REVISION_CORID_BONITO64) ||
-	    (mips_revision_corid == MIPS_REVISION_CORID_CORE_20K) ||
-	    (mips_revision_corid == MIPS_REVISION_CORID_CORE_EMUL_BON)) {
+	if (mips_revision_sconid == MIPS_REVISION_SCON_BONITO) {
 		char *argptr;
 
 		argptr = prom_getcmdline();

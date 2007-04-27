@@ -208,6 +208,7 @@
  * latter, they should be moved elsewhere.
  */
 #define MIPS_MSC01_PCI_REG_BASE		0x1bd00000
+#define MIPS_SOCITSC_PCI_REG_BASE	0x1ff10000
 
 extern unsigned long _pcictrl_msc;
 

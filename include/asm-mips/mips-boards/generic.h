@@ -73,12 +73,28 @@
  *  CoreEMUL with   Bonito   System Controller is treated like a Core20K
  *  CoreEMUL with SOC-it 101 System Controller is treated like a CoreMSC
  */
-#define MIPS_REVISION_CORID_CORE_EMUL_BON  0x63
-#define MIPS_REVISION_CORID_CORE_EMUL_MSC  0x65
+#define MIPS_REVISION_CORID_CORE_EMUL_BON  -1
+#define MIPS_REVISION_CORID_CORE_EMUL_MSC  -2
 
 #define MIPS_REVISION_CORID (((*(volatile u32 *)ioremap(MIPS_REVISION_REG, 4)) >> 10) & 0x3f)
 
-extern unsigned int mips_revision_corid;
+extern int mips_revision_corid;
+
+#define MIPS_REVISION_SCON_OTHER	   0
+#define MIPS_REVISION_SCON_SOCITSC	   1
+#define MIPS_REVISION_SCON_SOCITSCP	   2
+
+/* Artificial SCON defines for MIPS_REVISION_SCON_OTHER */
+#define MIPS_REVISION_SCON_UNKNOWN	   -1
+#define MIPS_REVISION_SCON_GT64120	   -2
+#define MIPS_REVISION_SCON_BONITO	   -3
+#define MIPS_REVISION_SCON_BRTL		   -4
+#define MIPS_REVISION_SCON_SOCIT	   -5
+#define MIPS_REVISION_SCON_ROCIT	   -6
+
+#define MIPS_REVISION_SCONID (((*(volatile u32 *)ioremap(MIPS_REVISION_REG, 4)) >> 24) & 0xff)
+
+extern int mips_revision_sconid;
 
 #ifdef CONFIG_PCI
 extern void mips_pcibios_init(void);

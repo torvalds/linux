@@ -53,25 +53,19 @@ static inline int mips_pcibios_iack(void)
 	 * Determine highest priority pending interrupt by performing
 	 * a PCI Interrupt Acknowledge cycle.
 	 */
-	switch(mips_revision_corid) {
-	case MIPS_REVISION_CORID_CORE_MSC:
-	case MIPS_REVISION_CORID_CORE_FPGA2:
-	case MIPS_REVISION_CORID_CORE_FPGA3:
-	case MIPS_REVISION_CORID_CORE_24K:
-	case MIPS_REVISION_CORID_CORE_EMUL_MSC:
+	switch (mips_revision_sconid) {
+	case MIPS_REVISION_SCON_SOCIT:
+	case MIPS_REVISION_SCON_ROCIT:
+	case MIPS_REVISION_SCON_SOCITSC:
+	case MIPS_REVISION_SCON_SOCITSCP:
 	        MSC_READ(MSC01_PCI_IACK, irq);
 		irq &= 0xff;
 		break;
-	case MIPS_REVISION_CORID_QED_RM5261:
-	case MIPS_REVISION_CORID_CORE_LV:
-	case MIPS_REVISION_CORID_CORE_FPGA:
-	case MIPS_REVISION_CORID_CORE_FPGAR2:
+	case MIPS_REVISION_SCON_GT64120:
 		irq = GT_READ(GT_PCI0_IACK_OFS);
 		irq &= 0xff;
 		break;
-	case MIPS_REVISION_CORID_BONITO64:
-	case MIPS_REVISION_CORID_CORE_20K:
-	case MIPS_REVISION_CORID_CORE_EMUL_BON:
+	case MIPS_REVISION_SCON_BONITO:
 		/* The following will generate a PCI IACK cycle on the
 		 * Bonito controller. It's a little bit kludgy, but it
 		 * was the easiest way to implement it in hardware at
@@ -89,7 +83,7 @@ static inline int mips_pcibios_iack(void)
 		BONITO_PCIMAP_CFG = 0;
 		break;
 	default:
-	        printk("Unknown Core card, don't know the system controller.\n");
+	        printk("Unknown system controller.\n");
 		return -1;
 	}
 	return irq;
@@ -144,27 +138,21 @@ static void corehi_irqdispatch(void)
 	   Do it for the others too.
 	*/
 
-        switch(mips_revision_corid) {
-        case MIPS_REVISION_CORID_CORE_MSC:
-        case MIPS_REVISION_CORID_CORE_FPGA2:
-        case MIPS_REVISION_CORID_CORE_FPGA3:
-        case MIPS_REVISION_CORID_CORE_24K:
-        case MIPS_REVISION_CORID_CORE_EMUL_MSC:
+	switch (mips_revision_sconid) {
+        case MIPS_REVISION_SCON_SOCIT:
+	case MIPS_REVISION_SCON_ROCIT:
+	case MIPS_REVISION_SCON_SOCITSC:
+	case MIPS_REVISION_SCON_SOCITSCP:
                 ll_msc_irq();
                 break;
-        case MIPS_REVISION_CORID_QED_RM5261:
-        case MIPS_REVISION_CORID_CORE_LV:
-        case MIPS_REVISION_CORID_CORE_FPGA:
-        case MIPS_REVISION_CORID_CORE_FPGAR2:
+        case MIPS_REVISION_SCON_GT64120:
                 intrcause = GT_READ(GT_INTRCAUSE_OFS);
                 datalo = GT_READ(GT_CPUERR_ADDRLO_OFS);
                 datahi = GT_READ(GT_CPUERR_ADDRHI_OFS);
                 printk("GT_INTRCAUSE = %08x\n", intrcause);
                 printk("GT_CPUERR_ADDR = %02x%08x\n", datahi, datalo);
                 break;
-        case MIPS_REVISION_CORID_BONITO64:
-        case MIPS_REVISION_CORID_CORE_20K:
-        case MIPS_REVISION_CORID_CORE_EMUL_BON:
+        case MIPS_REVISION_SCON_BONITO:
                 pcibadaddr = BONITO_PCIBADADDR;
                 pcimstat = BONITO_PCIMSTAT;
                 intisr = BONITO_INTISR;
