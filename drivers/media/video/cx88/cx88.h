@@ -481,6 +481,8 @@ struct cx8802_dev {
 
 	/* List of attached drivers */
 	struct cx8802_driver       drvlist;
+	struct work_struct request_module_wk;
+
 };
 
 /* ----------------------------------------------------------- */

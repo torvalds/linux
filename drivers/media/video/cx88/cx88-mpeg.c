@@ -49,6 +49,35 @@ MODULE_PARM_DESC(debug,"enable debug messages [mpeg]");
 #define mpeg_dbg(level,fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG "%s/2-mpeg: " fmt, core->name, ## arg)
 
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct cx8802_dev *dev=container_of(work, struct cx8802_dev, request_module_wk);
+	switch (cx88_boards[dev->core->board].mpeg) {
+	case CX88_MPEG_BLACKBIRD:
+		request_module("cx88-blackbird");
+		break;
+	case CX88_MPEG_DVB:
+		request_module("cx88-dvb");
+		break;
+	case CX88_BOARD_NONE:
+		/* reaching this one isn't possible */
+		break;
+	default:
+		printk("cx88-mpeg.c: WARNING extension [%d] is not supposed to be supported\n",cx88_boards[dev->core->board].mpeg);
+	}
+}
+
+static void request_modules(struct cx8802_dev *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#endif /* CONFIG_MODULES */
+
+
 static LIST_HEAD(cx8802_devlist);
 /* ------------------------------------------------------------------ */
 
@@ -778,6 +807,9 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 
 	/* Maintain a reference so cx88-video can query the 8802 device. */
 	core->dvbdev = dev;
+
+	/* now autoload cx88-dvb or cx88-blackbird */
+	request_modules(dev);
 	return 0;
 
  fail_free:
