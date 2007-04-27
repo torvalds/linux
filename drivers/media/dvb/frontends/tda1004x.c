@@ -515,18 +515,24 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 	if (tda1004x_check_upload_ok(state) == 0)
 		return 0;
 
-	/* request the firmware, this will block until someone uploads it */
-	printk(KERN_INFO "tda1004x: waiting for firmware upload...\n");
-	ret = state->config->request_firmware(fe, &fw, TDA10046_DEFAULT_FIRMWARE);
-	if (ret) {
-		/* remain compatible to old bug: try to load with tda10045 image name */
-		ret = state->config->request_firmware(fe, &fw, TDA10045_DEFAULT_FIRMWARE);
+	if (state->config->request_firmware != NULL) {
+		/* request the firmware, this will block until someone uploads it */
+		printk(KERN_INFO "tda1004x: waiting for firmware upload...\n");
+		ret = state->config->request_firmware(fe, &fw, TDA10046_DEFAULT_FIRMWARE);
 		if (ret) {
-			printk(KERN_ERR "tda1004x: no firmware upload (timeout or file not found?)\n");
-			return ret;
-		} else
-			printk(KERN_INFO "tda1004x: please rename the firmware file to %s\n",
-					  TDA10046_DEFAULT_FIRMWARE);
+			/* remain compatible to old bug: try to load with tda10045 image name */
+			ret = state->config->request_firmware(fe, &fw, TDA10045_DEFAULT_FIRMWARE);
+			if (ret) {
+				printk(KERN_ERR "tda1004x: no firmware upload (timeout or file not found?)\n");
+				return ret;
+			} else {
+				printk(KERN_INFO "tda1004x: please rename the firmware file to %s\n",
+						  TDA10046_DEFAULT_FIRMWARE);
+			}
+		}
+	} else {
+		printk(KERN_ERR "tda1004x: no request function defined, can't upload from file\n");
+		return -EIO;
 	}
 	tda1004x_write_mask(state, TDA1004X_CONFC4, 8, 8); // going to boot from HOST
 	ret = tda1004x_do_upload(state, fw->data, fw->size, TDA10046H_CODE_CPT, TDA10046H_CODE_IN);
