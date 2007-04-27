@@ -3328,6 +3328,29 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio   = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_AVERMEDIA_M102] = {
+		.name           = "Avermedia M102",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 1<<21,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,
+			.vmux = 6,
+			.amux = LINE2,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3997,6 +4020,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x1175,
 		.driver_data  = SAA7134_BOARD_CINERGY_HT_PCI,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xf31e,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_M102,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -4010,7 +4039,6 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0,
 		.driver_data  = SAA7134_BOARD_NOAUTO,
 	},{
-
 		/* --- default catch --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
@@ -4175,6 +4203,11 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		       "%s: Sorry, none of the inputs to this chip are supported yet.\n"
 		       "%s: Dual decoder functionality is disabled for now, use the other chip.\n",
 		       dev->name,card(dev).name,dev->name,dev->name);
+		break;
+	case SAA7134_BOARD_AVERMEDIA_M102:
+		/* enable tuner */
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x8c040007, 0x8c040007);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0c0007cd, 0x0c0007cd);
 		break;
 	}
 	return 0;
