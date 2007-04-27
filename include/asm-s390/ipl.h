@@ -8,6 +8,8 @@
 #define _ASM_S390_IPL_H
 
 #include <asm/types.h>
+#include <asm/cio.h>
+#include <asm/setup.h>
 
 #define IPL_PARMBLOCK_ORIGIN	0x2000
 
@@ -74,12 +76,12 @@ struct ipl_parameter_block {
 } __attribute__((packed));
 
 /*
- * IPL validity flags and parameters as detected in head.S
+ * IPL validity flags
  */
 extern u32 ipl_flags;
-extern u16 ipl_devno;
 
 extern u32 dump_prefix_page;
+
 extern void do_reipl(void);
 extern void ipl_save_parameters(void);
 
@@ -88,6 +90,35 @@ enum {
 	IPL_PARMBLOCK_VALID	= 2,
 	IPL_NSS_VALID		= 4,
 };
+
+enum ipl_type {
+	IPL_TYPE_UNKNOWN	= 1,
+	IPL_TYPE_CCW		= 2,
+	IPL_TYPE_FCP		= 4,
+	IPL_TYPE_FCP_DUMP	= 8,
+	IPL_TYPE_NSS		= 16,
+};
+
+struct ipl_info
+{
+	enum ipl_type type;
+	union {
+		struct {
+			struct ccw_dev_id dev_id;
+		} ccw;
+		struct {
+			struct ccw_dev_id dev_id;
+			u64 wwpn;
+			u64 lun;
+		} fcp;
+		struct {
+			char name[NSS_NAME_SIZE + 1];
+		} nss;
+	} data;
+};
+
+extern struct ipl_info ipl_info;
+extern void setup_ipl_info(void);
 
 /*
  * DIAG 308 support

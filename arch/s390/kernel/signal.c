@@ -102,9 +102,9 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 }
 
 asmlinkage long
-sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
-					struct pt_regs *regs)
+sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
+	struct pt_regs *regs = task_pt_regs(current);
 	return do_sigaltstack(uss, uoss, regs->gprs[15]);
 }
 
@@ -163,8 +163,9 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	return 0;
 }
 
-asmlinkage long sys_sigreturn(struct pt_regs *regs)
+asmlinkage long sys_sigreturn(void)
 {
+	struct pt_regs *regs = task_pt_regs(current);
 	sigframe __user *frame = (sigframe __user *)regs->gprs[15];
 	sigset_t set;
 
@@ -189,8 +190,9 @@ badframe:
 	return 0;
 }
 
-asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
+asmlinkage long sys_rt_sigreturn(void)
 {
+	struct pt_regs *regs = task_pt_regs(current);
 	rt_sigframe __user *frame = (rt_sigframe __user *)regs->gprs[15];
 	sigset_t set;
 

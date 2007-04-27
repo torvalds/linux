@@ -398,6 +398,9 @@ dasd_change_state(struct dasd_device *device)
 
 	if (device->state == device->target)
 		wake_up(&dasd_init_waitq);
+
+	/* let user-space know that the device status changed */
+	kobject_uevent(&device->cdev->dev.kobj, KOBJ_CHANGE);
 }
 
 /*

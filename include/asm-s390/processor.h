@@ -57,6 +57,7 @@ struct cpuinfo_S390
 
 extern void s390_adjust_jiffies(void);
 extern void print_cpu_info(struct cpuinfo_S390 *);
+extern int get_cpu_capability(unsigned int *);
 
 /* Lazy FPU handling on uni-processor */
 extern struct task_struct *last_task_used_math;
@@ -196,6 +197,7 @@ extern unsigned long thread_saved_pc(struct task_struct *t);
 extern char *task_show_regs(struct task_struct *task, char *buffer);
 
 extern void show_registers(struct pt_regs *regs);
+extern void show_code(struct pt_regs *regs);
 extern void show_trace(struct task_struct *task, unsigned long *sp);
 
 unsigned long get_wchan(struct task_struct *p);
