@@ -292,3 +292,22 @@ Why:	the i8xx_tco watchdog driver has been replaced by the iTCO_wdt
 Who:	Wim Van Sebroeck <wim@iguana.be>
 
 ---------------------------
+
+What:	Multipath cached routing support in ipv4
+When:	in 2.6.23
+Why:	Code was merged, then submitter immediately disappeared leaving
+	us with no maintainer and lots of bugs.  The code should not have
+	been merged in the first place, and many aspects of it's
+	implementation are blocking more critical core networking
+	development.  It's marked EXPERIMENTAL and no distribution
+	enables it because it cause obscure crashes due to unfixable bugs
+	(interfaces don't return errors so memory allocation can't be
+	handled, calling contexts of these interfaces make handling
+	errors impossible too because they get called after we've
+	totally commited to creating a route object, for example).
+	This problem has existed for years and no forward progress
+	has ever been made, and nobody steps up to try and salvage
+	this code, so we're going to finally just get rid of it.
+Who:	David S. Miller <davem@davemloft.net>
+
+---------------------------
