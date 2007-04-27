@@ -1205,6 +1205,7 @@ module_exit(saa7134_fini);
 
 /* ----------------------------------------------------------- */
 
+EXPORT_SYMBOL(saa7134_set_gpio);
 EXPORT_SYMBOL(saa7134_i2c_call_clients);
 EXPORT_SYMBOL(saa7134_devlist);
 EXPORT_SYMBOL(saa7134_boards);

@@ -2543,10 +2543,10 @@ struct saa7134_board saa7134_boards[] = {
 		.name           = "Philips Tiger reference design",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
-		.tuner_config   = 0,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+		.tuner_config   = 0,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x0200000,
 		.inputs = {{
@@ -2625,7 +2625,7 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 		.radio = {
 			.name   = name_radio,
-			.amux   = LINE1,
+			.amux   = TV,
 			.gpio   = 0x0200000,
 		},
 	},
@@ -3044,6 +3044,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
+		.tuner_config   = 1,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x000200000,
 		.inputs         = {{
@@ -3289,6 +3290,36 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux   = 6,
 			.amux   = LINE1,
 		}},
+	},
+	[SAA7134_BOARD_PHILIPS_TIGER_S] = {
+		.name           = "Philips Tiger - S Reference design",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tuner_config   = 2,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.gpiomask       = 0x0200000,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE1,
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE1,
+		}},
+		.radio = {
+			.name   = name_radio,
+			.amux   = TV,
+			.gpio   = 0x0200000,
+		},
 	},
 };
 
@@ -4104,8 +4135,8 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
 	case SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS:
-		saa_writeb(SAA7134_GPIO_GPMODE3, 0x08);
-		saa_writeb(SAA7134_GPIO_GPSTATUS3, 0x00);
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, 0x08000000, 0x08000000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x08000000, 0x00000000);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS:
 		/* power-up tuner chip */
@@ -4168,6 +4199,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
 				tun_setup.type = dev->tuner_type;
 				tun_setup.addr = ADDR_UNSET;
+				tun_setup.config = 0;
+				tun_setup.gpio_func = NULL;
 
 				saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
@@ -4235,6 +4268,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
 		tun_setup.type = dev->tuner_type;
 		tun_setup.addr = ADDR_UNSET;
+		tun_setup.config = 0;
+		tun_setup.gpio_func = NULL;
 
 		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
 		}
@@ -4254,11 +4289,36 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
 		tun_setup.type = dev->tuner_type;
 		tun_setup.addr = dev->tuner_addr;
+		tun_setup.config = 0;
+		tun_setup.gpio_func = NULL;
 
 		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
+	case SAA7134_BOARD_PHILIPS_TIGER_S:
+		{
+		u8 data[] = { 0x3c, 0x33, 0x60};
+		struct tuner_setup tun_setup;
+		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
+		if(dev->autodetected && (dev->eedata[0x49] == 0x50)) {
+			dev->board = SAA7134_BOARD_PHILIPS_TIGER_S;
+			printk(KERN_INFO "%s: Reconfigured board as %s\n",
+				dev->name, saa7134_boards[dev->board].name);
+		}
+		if(dev->board == SAA7134_BOARD_PHILIPS_TIGER_S) {
+			tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
+			tun_setup.type = TUNER_PHILIPS_TDA8290;
+			tun_setup.addr = 0x4b;
+			tun_setup.config = 2;
+			tun_setup.gpio_func = (tuner_gpio_func_t) saa7134_set_gpio;
+
+			saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
+			data[2] = 0x68;
+		}
+		i2c_transfer(&dev->i2c_adap, &msg, 1);
+		}
+		break;
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
@@ -4268,7 +4328,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		 * and configure firmware eeprom address
 		 */
 		{
-		u8 data[] = { 0x3c, 0x33, 0x68};
+		u8 data[] = { 0x3c, 0x33, 0x60};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
 		}
@@ -4282,18 +4342,18 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
 	case SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS:
-		/* make the tda10046 find its eeprom */
+		/* initialize analog mode  */
 		{
-		u8 data[] = { 0x3c, 0x33, 0x62};
+		u8 data[] = { 0x3c, 0x33, 0x6a};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
 		}
 		break;
 	case SAA7134_BOARD_CINERGY_HT_PCMCIA:
 	case SAA7134_BOARD_CINERGY_HT_PCI:
-		/* make the tda10046 find its eeprom */
+		/* initialize analog mode */
 		{
-		u8 data[] = { 0x3c, 0x33, 0x60};
+		u8 data[] = { 0x3c, 0x33, 0x68};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
 		}

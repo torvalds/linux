@@ -603,7 +603,14 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 	saa_writeb(SAA7134_RAW_DATA_GAIN,         0x40);
 	saa_writeb(SAA7134_RAW_DATA_OFFSET,       0x80);
 
-	saa7134_i2c_call_clients(dev,VIDIOC_S_STD,&norm->id);
+	/* only tell the tuner if this is a tv input */
+	if (card_in(dev,dev->ctl_input).tv) {
+		if ((card(dev).tuner_type == TUNER_PHILIPS_TDA8290)
+				&& ((card(dev).tuner_config == 1)
+				||  (card(dev).tuner_config == 2)))
+			saa7134_set_gpio(dev, 22, 5);
+		saa7134_i2c_call_clients(dev,VIDIOC_S_STD,&norm->id);
+	}
 }
 
 static void video_mux(struct saa7134_dev *dev, int input)
