@@ -2936,7 +2936,7 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 				}
 				dev_load(ifr.ifr_name);
 				rtnl_lock();
-				/* Follow me in net/core/wireless.c */
+				/* Follow me in net/wireless/wext.c */
 				ret = wireless_process_ioctl(&ifr, cmd);
 				rtnl_unlock();
 				if (IW_IS_GET(cmd) &&
