@@ -1169,9 +1169,9 @@ chp_status_write(struct device *dev, struct device_attribute *attr, const char *
 	if (!num_args)
 		return count;
 
-	if (!strnicmp(cmd, "on", 2))
+	if (!strnicmp(cmd, "on", 2) || !strcmp(cmd, "1"))
 		error = s390_vary_chpid(cp->chpid, 1);
-	else if (!strnicmp(cmd, "off", 3))
+	else if (!strnicmp(cmd, "off", 3) || !strcmp(cmd, "0"))
 		error = s390_vary_chpid(cp->chpid, 0);
 	else
 		error = -EINVAL;
