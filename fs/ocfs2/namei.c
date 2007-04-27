@@ -578,8 +578,9 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	if (ocfs2_populate_inode(inode, fe, 1) < 0) {
 		mlog(ML_ERROR, "populate inode failed! bh->b_blocknr=%llu, "
 		     "i_blkno=%llu, i_ino=%lu\n",
-		     (unsigned long long) (*new_fe_bh)->b_blocknr,
-		     (unsigned long long)fe->i_blkno, inode->i_ino);
+		     (unsigned long long)(*new_fe_bh)->b_blocknr,
+		     (unsigned long long)le64_to_cpu(fe->i_blkno),
+		     inode->i_ino);
 		BUG();
 	}
 

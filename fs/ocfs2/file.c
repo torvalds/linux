@@ -713,7 +713,8 @@ restarted_transaction:
 	}
 
 	mlog(0, "fe: i_clusters = %u, i_size=%llu\n",
-	     fe->i_clusters, (unsigned long long)fe->i_size);
+	     le32_to_cpu(fe->i_clusters),
+	     (unsigned long long)le64_to_cpu(fe->i_size));
 	mlog(0, "inode: ip_clusters=%u, i_size=%lld\n",
 	     OCFS2_I(inode)->ip_clusters, i_size_read(inode));
 

@@ -215,7 +215,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	int status = -EINVAL;
 
 	mlog_entry("(0x%p, size:%llu)\n", inode,
-		   (unsigned long long)fe->i_size);
+		   (unsigned long long)le64_to_cpu(fe->i_size));
 
 	sb = inode->i_sb;
 	osb = OCFS2_SB(sb);
@@ -267,7 +267,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		mlog(ML_ERROR,
 		     "ip_blkno %llu != i_blkno %llu!\n",
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		     (unsigned long long)fe->i_blkno);
+		     (unsigned long long)le64_to_cpu(fe->i_blkno));
 
 	inode->i_nlink = le16_to_cpu(fe->i_links_count);
 
@@ -320,7 +320,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		 * the generation argument to
 		 * ocfs2_inode_lock_res_init() will have to change.
 		 */
-		BUG_ON(fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL));
+		BUG_ON(le32_to_cpu(fe->i_flags) & OCFS2_SYSTEM_FL);
 
 		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_meta_lockres,
 					  OCFS2_LOCK_TYPE_META, 0, inode);
@@ -456,7 +456,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	fe = (struct ocfs2_dinode *) bh->b_data;
 	if (!OCFS2_IS_VALID_DINODE(fe)) {
 		mlog(ML_ERROR, "Invalid dinode #%llu: signature = %.*s\n",
-		     (unsigned long long)fe->i_blkno, 7, fe->i_signature);
+		     (unsigned long long)le64_to_cpu(fe->i_blkno), 7,
+		     fe->i_signature);
 		goto bail;
 	}
 
@@ -831,8 +832,8 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 		     "Inode %llu (on-disk %llu) not orphaned! "
 		     "Disk flags  0x%x, inode flags 0x%x\n",
 		     (unsigned long long)oi->ip_blkno,
-		     (unsigned long long)di->i_blkno, di->i_flags,
-		     oi->ip_flags);
+		     (unsigned long long)le64_to_cpu(di->i_blkno),
+		     le32_to_cpu(di->i_flags), oi->ip_flags);
 		goto bail;
 	}
 

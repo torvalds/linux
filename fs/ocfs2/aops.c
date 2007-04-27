@@ -78,7 +78,8 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 
 	if (!OCFS2_IS_VALID_DINODE(fe)) {
 		mlog(ML_ERROR, "Invalid dinode #%llu: signature = %.*s\n",
-		     (unsigned long long)fe->i_blkno, 7, fe->i_signature);
+		     (unsigned long long)le64_to_cpu(fe->i_blkno), 7,
+		     fe->i_signature);
 		goto bail;
 	}
 
