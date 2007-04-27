@@ -27,6 +27,17 @@
 /* ----------------------------------------------------------- */
 /* descriptions                                                */
 
+/* Set AGC TOP value to 103 dBuV:
+	0x80 = Control Byte
+	0x40 = 250 uA charge pump (irrelevant)
+	0x18 = Aux Byte to follow
+	0x06 = 64.5 kHz divider (irrelevant)
+	0x01 = Disable Vt (aka sleep)
+
+	0x00 = AGC Time constant 2s Iagc = 300 nA (vs 0x80 = 9 nA)
+	0x50 = AGC Take over point = 103 dBuV */
+static u8 tua603x_agc103[] = { 2, 0x80|0x40|0x18|0x06|0x01, 0x00|0x50 };
+
 struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 	.name  = "Thomson dtt7579",
 	.min   = 177000000,
@@ -113,6 +124,7 @@ struct dvb_pll_desc dvb_pll_thomson_dtt761x = {
 	.min   =  57000000,
 	.max   = 863000000,
 	.count = 3,
+	.initdata = tua603x_agc103,
 	.entries = {
 		{ 147000000, 44000000, 62500, 0x8e, 0x39 },
 		{ 417000000, 44000000, 62500, 0x8e, 0x3a },
@@ -599,6 +611,31 @@ static int dvb_pll_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int dvb_pll_init(struct dvb_frontend *fe)
+{
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+
+	if (priv->i2c == NULL)
+		return -EINVAL;
+
+	if (priv->pll_desc->initdata) {
+		struct i2c_msg msg = { .flags = 0,
+			.addr = priv->pll_i2c_address,
+			.buf = priv->pll_desc->initdata + 1,
+			.len = priv->pll_desc->initdata[0] };
+
+		int result;
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+		if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
+			return result;
+		}
+		return 0;
+	}
+	/* Shouldn't be called when initdata is NULL, maybe BUG()? */
+	return -EINVAL;
+}
+
 static struct dvb_tuner_ops dvb_pll_tuner_ops = {
 	.release = dvb_pll_release,
 	.sleep = dvb_pll_sleep,
@@ -644,6 +681,8 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 		sizeof(fe->ops.tuner_ops.info.name));
 	fe->ops.tuner_ops.info.frequency_min = desc->min;
 	fe->ops.tuner_ops.info.frequency_min = desc->max;
+	if (desc->initdata)
+		fe->ops.tuner_ops.init = dvb_pll_init;
 
 	fe->tuner_priv = priv;
 	return fe;
