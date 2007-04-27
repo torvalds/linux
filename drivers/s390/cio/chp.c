@@ -339,6 +339,10 @@ int chp_new(struct chp_id chpid)
 	ret = chsc_determine_channel_path_description(chpid, &chp->desc);
 	if (ret)
 		goto out_free;
+	if ((chp->desc.flags & 0x80) == 0) {
+		ret = -ENODEV;
+		goto out_free;
+	}
 	/* Get channel-measurement characteristics. */
 	if (css_characteristics_avail && css_chsc_characteristics.scmc
 	    && css_chsc_characteristics.secm) {
