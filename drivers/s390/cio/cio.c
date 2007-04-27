@@ -954,6 +954,7 @@ static void css_reset(void)
 {
 	int i, ret;
 	unsigned long long timeout;
+	struct chp_id chpid;
 
 	/* Reset subchannels. */
 	for_each_subchannel(__shutdown_subchannel_easy,  NULL);
@@ -963,8 +964,10 @@ static void css_reset(void)
 	__ctl_set_bit(14, 28);
 	/* Temporarily reenable machine checks. */
 	local_mcck_enable();
+	chp_id_init(&chpid);
 	for (i = 0; i <= __MAX_CHPID; i++) {
-		ret = rchp(i);
+		chpid.id = i;
+		ret = rchp(chpid);
 		if ((ret == 0) || (ret == 2))
 			/*
 			 * rchp either succeeded, or another rchp is already

@@ -1,6 +1,10 @@
 #ifndef S390_CHSC_H
 #define S390_CHSC_H
 
+#include <linux/types.h>
+#include <linux/device.h>
+#include "chpid.h"
+
 #define CHSC_SEI_ACC_CHPID        1
 #define CHSC_SEI_ACC_LINKADDR     2
 #define CHSC_SEI_ACC_FULLLINKADDR 3
@@ -34,7 +38,7 @@ struct channel_path_desc {
 } __attribute__ ((packed));
 
 struct channel_path {
-	int id;
+	struct chp_id chpid;
 	int state;
 	struct channel_path_desc desc;
 	/* Channel-measurement related stuff: */
@@ -46,7 +50,7 @@ struct channel_path {
 
 extern void s390_process_css( void );
 extern void chsc_validate_chpids(struct subchannel *);
-extern void chpid_is_actually_online(int);
+extern void chpid_is_actually_online(struct chp_id);
 extern int css_get_ssd_info(struct subchannel *);
 extern int chsc_process_crw(void);
 extern int chp_process_crw(int, int);

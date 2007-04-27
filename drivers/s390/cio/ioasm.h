@@ -2,6 +2,7 @@
 #define S390_CIO_IOASM_H
 
 #include "schid.h"
+#include "chpid.h"
 
 /*
  * TPI info structure
@@ -189,9 +190,9 @@ static inline int chsc(void *chsc_area)
 	return cc;
 }
 
-static inline int rchp(int chpid)
+static inline int rchp(struct chp_id chpid)
 {
-	register unsigned int reg1 asm ("1") = chpid;
+	register struct chp_id reg1 asm ("1") = chpid;
 	int ccode;
 
 	asm volatile(
