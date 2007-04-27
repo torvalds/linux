@@ -311,7 +311,10 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			clear_radix_bit(pinned_radix, gang[i]);
 		}
 	}
-	root->fs_info->block_group_cache = NULL;
+	if (root->fs_info->block_group_cache) {
+		root->fs_info->block_group_cache->last_alloc =
+			root->fs_info->block_group_cache->first_free;
+	}
 	return 0;
 }
 
@@ -578,7 +581,7 @@ check_failed:
 				if (last_block < search_start)
 					last_block = search_start;
 				hole_size = key.objectid - last_block;
-				if (hole_size > num_blocks) {
+				if (hole_size >= num_blocks) {
 					ins->objectid = last_block;
 					ins->offset = hole_size;
 					goto check_pending;

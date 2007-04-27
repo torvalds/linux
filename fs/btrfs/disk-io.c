@@ -94,9 +94,6 @@ struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr)
 	} while (bh != head);
 out_unlock:
 	unlock_page(page);
-	if (ret) {
-		touch_buffer(ret);
-	}
 	page_cache_release(page);
 	return ret;
 }
