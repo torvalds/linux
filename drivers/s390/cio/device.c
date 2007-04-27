@@ -743,6 +743,7 @@ static int io_subchannel_recog(struct ccw_device *, struct subchannel *);
 static void sch_attach_device(struct subchannel *sch,
 			      struct ccw_device *cdev)
 {
+	css_update_ssd_info(sch);
 	spin_lock_irq(sch->lock);
 	sch->dev.driver_data = cdev;
 	cdev->private->schid = sch->schid;
@@ -878,7 +879,7 @@ io_subchannel_register(struct work_struct *work)
 	priv = container_of(work, struct ccw_device_private, kick_work);
 	cdev = priv->cdev;
 	sch = to_subchannel(cdev->dev.parent);
-
+	css_update_ssd_info(sch);
 	/*
 	 * io_subchannel_register() will also be called after device
 	 * recognition has been done for a boxed device (which will already

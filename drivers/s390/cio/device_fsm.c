@@ -246,7 +246,6 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	 */
 	old_lpm = sch->lpm;
 	stsch(sch->schid, &sch->schib);
-	css_update_ssd_info(sch);
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
 	/* Check since device may again have become not operational. */
 	if (!sch->schib.pmcw.dnv)
