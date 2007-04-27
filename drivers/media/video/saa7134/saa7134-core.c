@@ -182,55 +182,28 @@ int saa7134_tuner_callback(void *ptr, int command, int arg)
 /* delayed request_module                                      */
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
-static int need_empress;
-static int need_dvb;
-static int need_alsa;
-static int need_oss;
 
-static int pending_call(struct notifier_block *self, unsigned long state,
-			void *module)
-{
-	if (module != THIS_MODULE || state != MODULE_STATE_LIVE)
-		return NOTIFY_DONE;
 
-	if (need_empress)
+static void request_module_async(struct work_struct *work){
+	struct saa7134_dev* dev = container_of(work, struct saa7134_dev, request_module_wk);
+	if (card_is_empress(dev))
 		request_module("saa7134-empress");
-	if (need_dvb)
+	if (card_is_dvb(dev))
 		request_module("saa7134-dvb");
-	if (need_alsa)
+	if (alsa)
 		request_module("saa7134-alsa");
-	if (need_oss)
+	if (oss)
 		request_module("saa7134-oss");
-	return NOTIFY_DONE;
 }
 
-static int pending_registered;
-static struct notifier_block pending_notifier = {
-	.notifier_call = pending_call,
-};
-
-static void request_module_depend(char *name, int *flag)
+static void request_submodules(struct saa7134_dev *dev)
 {
-	int err;
-	switch (THIS_MODULE->state) {
-	case MODULE_STATE_COMING:
-		if (!pending_registered) {
-			err = register_module_notifier(&pending_notifier);
-			pending_registered = 1;
-		}
-		*flag = 1;
-		break;
-	case MODULE_STATE_LIVE:
-		request_module(name);
-		break;
-	default:
-		/* nothing */;
-		break;
-	}
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
 }
 
 #else
-#define request_module_depend(name,flag)
+#define request_submodules()
 #endif /* CONFIG_MODULES */
 
 /* ------------------------------------------------------------------ */
@@ -1002,18 +975,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		request_module("tuner");
 	if (card_is_empress(dev)) {
 		request_module("saa6752hs");
-		request_module_depend("saa7134-empress",&need_empress);
 	}
 
-	if (card_is_dvb(dev))
-		request_module_depend("saa7134-dvb",&need_dvb);
-
-
-	if (alsa)
-		request_module_depend("saa7134-alsa",&need_alsa);
-
-	if (oss)
-		request_module_depend("saa7134-oss",&need_oss);
+	request_submodules(dev);
 
 	v4l2_prio_init(&dev->prio);
 
@@ -1210,10 +1174,6 @@ static int saa7134_init(void)
 
 static void saa7134_fini(void)
 {
-#if defined(CONFIG_MODULES) && defined(MODULE)
-	if (pending_registered)
-		unregister_module_notifier(&pending_notifier);
-#endif /* CONFIG_MODULES */
 	pci_unregister_driver(&saa7134_pci_driver);
 }
 

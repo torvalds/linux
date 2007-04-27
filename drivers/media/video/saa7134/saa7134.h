@@ -437,6 +437,8 @@ struct saa7134_dev {
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;
 #endif
+	/* workstruct for loading modules */
+	struct work_struct request_module_wk;
 
 	/* insmod option/autodetected */
 	int                        autodetected;
