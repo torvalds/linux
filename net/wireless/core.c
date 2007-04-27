@@ -53,20 +53,24 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 
 	mutex_lock(&cfg80211_drv_mutex);
 
-	if (unlikely(wiphy_counter<0)) {
+	drv->idx = wiphy_counter;
+
+	/* now increase counter for the next device unless
+	 * it has wrapped previously */
+	if (wiphy_counter >= 0)
+		wiphy_counter++;
+
+	mutex_unlock(&cfg80211_drv_mutex);
+
+	if (unlikely(drv->idx < 0)) {
 		/* ugh, wrapped! */
 		kfree(drv);
 		return NULL;
 	}
-	drv->idx = wiphy_counter;
 
 	/* give it a proper name */
 	snprintf(drv->wiphy.dev.bus_id, BUS_ID_SIZE,
 		 PHY_NAME "%d", drv->idx);
-
-	/* now increase counter for the next time */
-	wiphy_counter++;
-	mutex_unlock(&cfg80211_drv_mutex);
 
 	mutex_init(&drv->mtx);
 	mutex_init(&drv->devlist_mtx);
