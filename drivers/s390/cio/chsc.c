@@ -818,7 +818,7 @@ chsc_secm(struct channel_subsystem *css, int enable)
 		} else
 			chsc_remove_cmg_attr(css);
 	}
-	if (enable && !css->cm_enabled) {
+	if (!css->cm_enabled) {
 		free_page((unsigned long)css->cub_addr1);
 		free_page((unsigned long)css->cub_addr2);
 	}
