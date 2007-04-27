@@ -511,7 +511,7 @@ sclp_state_change_cb(struct evbuf_header *evbuf)
 }
 
 static struct sclp_register sclp_state_change_event = {
-	.receive_mask = EvTyp_StateChange_Mask,
+	.receive_mask = EVTYP_STATECHANGE_MASK,
 	.receiver_fn = sclp_state_change_cb
 };
 

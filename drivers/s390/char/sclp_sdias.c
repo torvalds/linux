@@ -30,7 +30,7 @@
 static struct debug_info *sdias_dbf;
 
 static struct sclp_register sclp_sdias_register = {
-	.send_mask = EvTyp_SDIAS_Mask,
+	.send_mask = EVTYP_SDIAS_MASK,
 };
 
 struct sdias_evbuf {
@@ -118,7 +118,7 @@ int sclp_sdias_blk_count(void)
 
 	sccb.hdr.length = sizeof(sccb);
 	sccb.evbuf.hdr.length = sizeof(struct sdias_evbuf);
-	sccb.evbuf.hdr.type = EvTyp_SDIAS;
+	sccb.evbuf.hdr.type = EVTYP_SDIAS;
 	sccb.evbuf.event_qual = EQ_SIZE;
 	sccb.evbuf.data_id = DI_FCP_DUMP;
 	sccb.evbuf.event_id = 4712;
@@ -177,7 +177,7 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 
 	sccb.hdr.length = sizeof(sccb);
 	sccb.evbuf.hdr.length = sizeof(struct sdias_evbuf);
-	sccb.evbuf.hdr.type = EvTyp_SDIAS;
+	sccb.evbuf.hdr.type = EVTYP_SDIAS;
 	sccb.evbuf.hdr.flags = 0;
 	sccb.evbuf.event_qual = EQ_STORE_DATA;
 	sccb.evbuf.data_id = DI_FCP_DUMP;
