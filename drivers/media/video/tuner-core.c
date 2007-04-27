@@ -160,20 +160,20 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		return;
 	}
 
-	/* This code detects calls by card attach_inform */
-	if (NULL == t->i2c.dev.driver) {
-		tuner_dbg ("tuner 0x%02x: called during i2c_client register by adapter's attach_inform\n", c->addr);
-
-		t->type=type;
-		return;
-	}
-
 	t->type = type;
 	t->config = new_config;
 	if (tuner_callback != NULL) {
 		tuner_dbg("defining GPIO callback\n");
 		t->tuner_callback = tuner_callback;
 	}
+
+	/* This code detects calls by card attach_inform */
+	if (NULL == t->i2c.dev.driver) {
+		tuner_dbg ("tuner 0x%02x: called during i2c_client register by adapter's attach_inform\n", c->addr);
+
+		return;
+	}
+
 	switch (t->type) {
 	case TUNER_MT2032:
 		microtune_init(c);
