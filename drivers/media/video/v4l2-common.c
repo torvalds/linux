@@ -260,6 +260,8 @@ char *v4l2_field_names[] = {
 	[V4L2_FIELD_SEQ_TB]     = "seq-tb",
 	[V4L2_FIELD_SEQ_BT]     = "seq-bt",
 	[V4L2_FIELD_ALTERNATE]  = "alternate",
+	[V4L2_FIELD_INTERLACED_TB] = "interlaced-tb",
+	[V4L2_FIELD_INTERLACED_BT] = "interlaced-bt",
 };
 
 char *v4l2_type_names[] = {
@@ -269,7 +271,8 @@ char *v4l2_type_names[] = {
 	[V4L2_BUF_TYPE_VBI_CAPTURE]        = "vbi-cap",
 	[V4L2_BUF_TYPE_VBI_OUTPUT]         = "vbi-out",
 	[V4L2_BUF_TYPE_SLICED_VBI_CAPTURE] = "sliced-vbi-cap",
-	[V4L2_BUF_TYPE_SLICED_VBI_OUTPUT]  = "slicec-vbi-out",
+	[V4L2_BUF_TYPE_SLICED_VBI_OUTPUT]  = "sliced-vbi-out",
+	[V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY] = "video-out-over",
 };
 
 

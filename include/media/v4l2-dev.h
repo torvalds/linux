@@ -127,6 +127,8 @@ struct video_device
 					    struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_video_output)(struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
+	int (*vidioc_enum_fmt_output_overlay) (struct file *file, void *fh,
+					    struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_vbi_output)  (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_type_private)(struct file *file, void *fh,
@@ -145,6 +147,8 @@ struct video_device
 					struct v4l2_format *f);
 	int (*vidioc_g_fmt_video_output)(struct file *file, void *fh,
 					struct v4l2_format *f);
+	int (*vidioc_g_fmt_output_overlay) (struct file *file, void *fh,
+					struct v4l2_format *f);
 	int (*vidioc_g_fmt_type_private)(struct file *file, void *fh,
 					struct v4l2_format *f);
 
@@ -162,6 +166,8 @@ struct video_device
 					struct v4l2_format *f);
 	int (*vidioc_s_fmt_video_output)(struct file *file, void *fh,
 					struct v4l2_format *f);
+	int (*vidioc_s_fmt_output_overlay) (struct file *file, void *fh,
+					struct v4l2_format *f);
 	int (*vidioc_s_fmt_type_private)(struct file *file, void *fh,
 					struct v4l2_format *f);
 
@@ -177,6 +183,8 @@ struct video_device
 	int (*vidioc_try_fmt_vbi_capture)(struct file *file, void *fh,
 					  struct v4l2_format *f);
 	int (*vidioc_try_fmt_video_output)(struct file *file, void *fh,
+					  struct v4l2_format *f);
+	int (*vidioc_try_fmt_output_overlay)(struct file *file, void *fh,
 					  struct v4l2_format *f);
 	int (*vidioc_try_fmt_type_private)(struct file *file, void *fh,
 					  struct v4l2_format *f);
