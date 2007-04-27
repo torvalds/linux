@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/irqreturn.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -1706,17 +1707,17 @@ again:
 		if (!dma_len) {
 			printk(KERN_ERR PFX "esp%d: DMA length is zero!\n",
 			       esp->host->unique_id);
-			printk(KERN_ERR PFX "esp%d: cur adr[%08x] len[%08x]\n",
+			printk(KERN_ERR PFX "esp%d: cur adr[%08llx] len[%08x]\n",
 			       esp->host->unique_id,
-			       esp_cur_dma_addr(ent, cmd),
+			       (unsigned long long)esp_cur_dma_addr(ent, cmd),
 			       esp_cur_dma_len(ent, cmd));
 			esp_schedule_reset(esp);
 			return 0;
 		}
 
-		esp_log_datastart("ESP: start data addr[%08x] len[%u] "
+		esp_log_datastart("ESP: start data addr[%08llx] len[%u] "
 				  "write(%d)\n",
-				  dma_addr, dma_len, write);
+				  (unsigned long long)dma_addr, dma_len, write);
 
 		esp->ops->send_dma_cmd(esp, dma_addr, dma_len, dma_len,
 				       write, ESP_CMD_DMA | ESP_CMD_TI);
