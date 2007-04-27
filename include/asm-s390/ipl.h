@@ -74,10 +74,9 @@ struct ipl_parameter_block {
 } __attribute__((packed));
 
 /*
- * IPL validity flags and parameters as detected in head.S
+ * IPL validity flags
  */
 extern u32 ipl_flags;
-extern u16 ipl_devno;
 
 extern u32 dump_prefix_page;
 extern void do_reipl(void);

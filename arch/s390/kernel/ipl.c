@@ -47,7 +47,7 @@ enum ipl_type {
  * Must be in data section since the bss section
  * is not cleared when these are accessed.
  */
-u16 ipl_devno __attribute__((__section__(".data"))) = 0;
+static u16 ipl_devno __attribute__((__section__(".data"))) = 0;
 u32 ipl_flags __attribute__((__section__(".data"))) = 0;
 
 static char *ipl_type_str(enum ipl_type type)
@@ -1037,6 +1037,27 @@ static int __init s390_ipl_init(void)
 }
 
 __initcall(s390_ipl_init);
+
+void __init ipl_save_parameters(void)
+{
+	struct cio_iplinfo iplinfo;
+	unsigned int *ipl_ptr;
+	void *src, *dst;
+
+	if (cio_get_iplinfo(&iplinfo))
+		return;
+
+	ipl_devno = iplinfo.devno;
+	ipl_flags |= IPL_DEVNO_VALID;
+	if (!iplinfo.is_qdio)
+		return;
+	ipl_flags |= IPL_PARMBLOCK_VALID;
+	ipl_ptr = (unsigned int *)__LC_IPL_PARMBLOCK_PTR;
+	src = (void *)(unsigned long)*ipl_ptr;
+	dst = (void *)IPL_PARMBLOCK_ORIGIN;
+	memmove(dst, src, PAGE_SIZE);
+	*ipl_ptr = IPL_PARMBLOCK_ORIGIN;
+}
 
 static LIST_HEAD(rcall);
 static DEFINE_MUTEX(rcall_mutex);
