@@ -3275,7 +3275,9 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	mutex_lock(&hdw->i2c_list_lock); do {
 		list_for_each(item,&hdw->i2c_clients) {
 			cp = list_entry(item,struct pvr2_i2c_client,list);
-			if (!v4l2_chip_match_i2c_client(cp->client, req.match_type, req.match_chip)) {
+			if (!v4l2_chip_match_i2c_client(
+				    cp->client,
+				    req.match_type, req.match_chip)) {
 				continue;
 			}
 			stat = pvr2_i2c_client_cmd(
