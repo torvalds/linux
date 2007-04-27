@@ -26,9 +26,9 @@
 #include <linux/module.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
+#include <linux/uaccess.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
 #include <asm/s390_ext.h>
@@ -263,68 +263,38 @@ extern long sys_rt_sigreturn(struct pt_regs *regs);
 extern long sys32_sigreturn(struct pt_regs *regs);
 extern long sys32_rt_sigreturn(struct pt_regs *regs);
 
-static inline void do_sigreturn(struct mm_struct *mm, struct pt_regs *regs,
-				int rt)
-{
-	up_read(&mm->mmap_sem);
-	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
-#ifdef CONFIG_COMPAT
-	if (test_tsk_thread_flag(current, TIF_31BIT)) {
-		if (rt)
-			sys32_rt_sigreturn(regs);
-		else
-			sys32_sigreturn(regs);
-		return;
-	}
-#endif /* CONFIG_COMPAT */
-	if (rt)
-		sys_rt_sigreturn(regs);
-	else
-		sys_sigreturn(regs);
-	return;
-}
-
 static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
 			 unsigned long address, unsigned long error_code)
 {
-	pgd_t *pgd;
-	pmd_t *pmd;
-	pte_t *pte;
-	u16 *instruction;
-	unsigned long pfn, uaddr = regs->psw.addr;
+	u16 instruction;
+	int rc, compat;
 
-	spin_lock(&mm->page_table_lock);
-	pgd = pgd_offset(mm, uaddr);
-	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		goto out_fault;
-	pmd = pmd_offset(pgd, uaddr);
-	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		goto out_fault;
-	pte = pte_offset_map(pmd_offset(pgd_offset(mm, uaddr), uaddr), uaddr);
-	if (!pte || !pte_present(*pte))
-		goto out_fault;
-	pfn = pte_pfn(*pte);
-	if (!pfn_valid(pfn))
-		goto out_fault;
-	spin_unlock(&mm->page_table_lock);
+	pagefault_disable();
+	rc = __get_user(instruction, (u16 __user *) regs->psw.addr);
+	pagefault_enable();
+	if (rc)
+		return -EFAULT;
 
-	instruction = (u16 *) ((pfn << PAGE_SHIFT) + (uaddr & (PAGE_SIZE-1)));
-	if (*instruction == 0x0a77)
-		do_sigreturn(mm, regs, 0);
-	else if (*instruction == 0x0aad)
-		do_sigreturn(mm, regs, 1);
+	up_read(&mm->mmap_sem);
+	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+#ifdef CONFIG_COMPAT
+	compat = test_tsk_thread_flag(current, TIF_31BIT);
+	if (compat && instruction == 0x0a77)
+		sys32_sigreturn(regs);
+	else if (compat && instruction == 0x0aad)
+		sys32_rt_sigreturn(regs);
+	else
+#endif
+	if (instruction == 0x0a77)
+		sys_sigreturn(regs);
+	else if (instruction == 0x0aad)
+		sys_rt_sigreturn(regs);
 	else {
-		printk("- XXX - do_exception: task = %s, primary, NO EXEC "
-		       "-> SIGSEGV\n", current->comm);
-		up_read(&mm->mmap_sem);
 		current->thread.prot_addr = address;
 		current->thread.trap_no = error_code;
 		do_sigsegv(regs, error_code, SEGV_MAPERR, address);
 	}
 	return 0;
-out_fault:
-	spin_unlock(&mm->page_table_lock);
-	return -EFAULT;
 }
 #endif /* CONFIG_S390_EXEC_PROTECT */
 
