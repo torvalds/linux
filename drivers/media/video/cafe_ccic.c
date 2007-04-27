@@ -705,7 +705,13 @@ static void cafe_ctlr_init(struct cafe_camera *cam)
 	cafe_reg_write(cam, REG_GL_CSR, GCSR_SRS|GCSR_MRS); /* Needed? */
 	cafe_reg_write(cam, REG_GL_CSR, GCSR_SRC|GCSR_MRC);
 	cafe_reg_write(cam, REG_GL_CSR, GCSR_SRC|GCSR_MRS);
+	/*
+	 * Here we must wait a bit for the controller to come around.
+	 */
+	spin_unlock_irqrestore(&cam->dev_lock, flags);
 	mdelay(5);	/* FIXME revisit this */
+	spin_lock_irqsave(&cam->dev_lock, flags);
+
 	cafe_reg_write(cam, REG_GL_CSR, GCSR_CCIC_EN|GCSR_SRC|GCSR_MRC);
 	cafe_reg_set_bit(cam, REG_GL_IMASK, GIMSK_CCIC_EN);
 	/*
@@ -773,9 +779,9 @@ static void cafe_ctlr_power_up(struct cafe_camera *cam)
 	 * Control 1 is power down, set to 0 to operate.
 	 */
 	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN); /* pwr up, reset */
-	mdelay(1); /* Marvell says 1ms will do it */
+//	mdelay(1); /* Marvell says 1ms will do it */
 	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C0);
-	mdelay(1); /* Enough? */
+//	mdelay(1); /* Enough? */
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 }
 
@@ -1796,18 +1802,19 @@ static void cafe_frame_tasklet(unsigned long data)
 		if (list_empty(&cam->sb_avail))
 			break;  /* Leave it valid, hope for better later */
 		clear_bit(bufno, &cam->flags);
-		/*
-		 * We could perhaps drop the spinlock during this
-		 * big copy.  Something to consider.
-		 */
 		sbuf = list_entry(cam->sb_avail.next,
 				struct cafe_sio_buffer, list);
+		/*
+		 * Drop the lock during the big copy.  This *should* be safe...
+		 */
+		spin_unlock_irqrestore(&cam->dev_lock, flags);
 		memcpy(sbuf->buffer, cam->dma_bufs[bufno],
 				cam->pix_format.sizeimage);
 		sbuf->v4lbuf.bytesused = cam->pix_format.sizeimage;
 		sbuf->v4lbuf.sequence = cam->buf_seq[bufno];
 		sbuf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 		sbuf->v4lbuf.flags |= V4L2_BUF_FLAG_DONE;
+		spin_lock_irqsave(&cam->dev_lock, flags);
 		list_move_tail(&sbuf->list, &cam->sb_full);
 	}
 	if (! list_empty(&cam->sb_full))
