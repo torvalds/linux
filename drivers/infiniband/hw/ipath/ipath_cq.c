@@ -76,7 +76,20 @@ void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int solicited)
 		}
 		return;
 	}
-	wc->queue[head] = *entry;
+	wc->queue[head].wr_id = entry->wr_id;
+	wc->queue[head].status = entry->status;
+	wc->queue[head].opcode = entry->opcode;
+	wc->queue[head].vendor_err = entry->vendor_err;
+	wc->queue[head].byte_len = entry->byte_len;
+	wc->queue[head].imm_data = (__u32 __force)entry->imm_data;
+	wc->queue[head].qp_num = entry->qp->qp_num;
+	wc->queue[head].src_qp = entry->src_qp;
+	wc->queue[head].wc_flags = entry->wc_flags;
+	wc->queue[head].pkey_index = entry->pkey_index;
+	wc->queue[head].slid = entry->slid;
+	wc->queue[head].sl = entry->sl;
+	wc->queue[head].dlid_path_bits = entry->dlid_path_bits;
+	wc->queue[head].port_num = entry->port_num;
 	wc->head = next;
 
 	if (cq->notify == IB_CQ_NEXT_COMP ||
@@ -122,9 +135,30 @@ int ipath_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	if (tail > (u32) cq->ibcq.cqe)
 		tail = (u32) cq->ibcq.cqe;
 	for (npolled = 0; npolled < num_entries; ++npolled, ++entry) {
+		struct ipath_qp *qp;
+
 		if (tail == wc->head)
 			break;
-		*entry = wc->queue[tail];
+
+		qp = ipath_lookup_qpn(&to_idev(cq->ibcq.device)->qp_table,
+				      wc->queue[tail].qp_num);
+		entry->qp = &qp->ibqp;
+		if (atomic_dec_and_test(&qp->refcount))
+			wake_up(&qp->wait);
+
+		entry->wr_id = wc->queue[tail].wr_id;
+		entry->status = wc->queue[tail].status;
+		entry->opcode = wc->queue[tail].opcode;
+		entry->vendor_err = wc->queue[tail].vendor_err;
+		entry->byte_len = wc->queue[tail].byte_len;
+		entry->imm_data = wc->queue[tail].imm_data;
+		entry->src_qp = wc->queue[tail].src_qp;
+		entry->wc_flags = wc->queue[tail].wc_flags;
+		entry->pkey_index = wc->queue[tail].pkey_index;
+		entry->slid = wc->queue[tail].slid;
+		entry->sl = wc->queue[tail].sl;
+		entry->dlid_path_bits = wc->queue[tail].dlid_path_bits;
+		entry->port_num = wc->queue[tail].port_num;
 		if (tail >= cq->ibcq.cqe)
 			tail = 0;
 		else

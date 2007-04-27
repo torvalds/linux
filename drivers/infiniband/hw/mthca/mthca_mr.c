@@ -297,7 +297,8 @@ out:
 
 int mthca_write_mtt_size(struct mthca_dev *dev)
 {
-	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy ||
+	    !(dev->mthca_flags & MTHCA_FLAG_FMR))
 		/*
 		 * Be friendly to WRITE_MTT command
 		 * and leave two empty slots for the
@@ -355,7 +356,8 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 	int size = mthca_write_mtt_size(dev);
 	int chunk;
 
-	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy ||
+	    !(dev->mthca_flags & MTHCA_FLAG_FMR))
 		return __mthca_write_mtt(dev, mtt, start_index, buffer_list, list_len);
 
 	while (list_len > 0) {

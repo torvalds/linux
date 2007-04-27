@@ -43,6 +43,8 @@
 #include "ipath_kernel.h"
 #include "ipath_registers.h"
 
+static void ipath_setup_pe_setextled(struct ipath_devdata *, u64, u64);
+
 /*
  * This file contains all the chip-specific register information and
  * access functions for the QLogic InfiniPath PCI-Express chip.
@@ -207,8 +209,8 @@ static const struct ipath_kregs ipath_pe_kregs = {
 	.kr_ibpllcfg = IPATH_KREG_OFFSET(IBPLLCfg),
 
 	/*
-	 * These should not be used directly via ipath_read_kreg64(),
-	 * use them with ipath_read_kreg64_port()
+	 * These should not be used directly via ipath_write_kreg64(),
+	 * use them with ipath_write_kreg64_port(),
 	 */
 	.kr_rcvhdraddr = IPATH_KREG_OFFSET(RcvHdrAddr0),
 	.kr_rcvhdrtailaddr = IPATH_KREG_OFFSET(RcvHdrTailAddr0),
@@ -321,6 +323,12 @@ static const struct ipath_hwerror_msgs ipath_6120_hwerror_msgs[] = {
 	INFINIPATH_HWE_MSG(SERDESPLLFAILED, "SerDes PLL"),
 };
 
+#define TXE_PIO_PARITY ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF | \
+		        INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC) \
+		        << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)
+
+static int ipath_pe_txe_recover(struct ipath_devdata *);
+
 /**
  * ipath_pe_handle_hwerrors - display hardware errors.
  * @dd: the infinipath device
@@ -394,32 +402,21 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		 * occur if a processor speculative read is done to the PIO
 		 * buffer while we are sending a packet, for example.
 		 */
-		if (hwerrs & ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
-			       INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
-			      << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)) {
-			ipath_stats.sps_txeparity++;
-			ipath_dbg("Recovering from TXE parity error (%llu), "
-			    	  "hwerrstatus=%llx\n",
-				  (unsigned long long) ipath_stats.sps_txeparity,
-				  (unsigned long long) hwerrs);
-			ipath_disarm_senderrbufs(dd);
-			hwerrs &= ~((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
-				     INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
-				    << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT);
-			if (!hwerrs) { /* else leave in freeze mode */
-				ipath_write_kreg(dd,
-						 dd->ipath_kregs->kr_control,
-						 dd->ipath_control);
-			    return;
-			}
-		}
+		if ((hwerrs & TXE_PIO_PARITY) && ipath_pe_txe_recover(dd))
+			hwerrs &= ~TXE_PIO_PARITY;
 		if (hwerrs) {
 			/*
 			 * if any set that we aren't ignoring only make the
 			 * complaint once, in case it's stuck or recurring,
 			 * and we get here multiple times
+			 * Force link down, so switch knows, and
+			 * LEDs are turned off
 			 */
 			if (dd->ipath_flags & IPATH_INITTED) {
+				ipath_set_linkstate(dd, IPATH_IB_LINKDOWN);
+				ipath_setup_pe_setextled(dd,
+					INFINIPATH_IBCS_L_STATE_DOWN,
+					INFINIPATH_IBCS_LT_STATE_DISABLED);
 				ipath_dev_err(dd, "Fatal Hardware Error (freeze "
 					      "mode), no longer usable, SN %.16s\n",
 						  dd->ipath_serial);
@@ -493,7 +490,8 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 				 dd->ipath_hwerrmask);
 	}
 
-	ipath_dev_err(dd, "%s hardware error\n", msg);
+	if (*msg)
+		ipath_dev_err(dd, "%s hardware error\n", msg);
 	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg) {
 		/*
 		 * for /sys status file ; if no trailing } is copied, we'll
@@ -581,6 +579,8 @@ static void ipath_pe_init_hwerrors(struct ipath_devdata *dd)
 
 	if (!(extsval & INFINIPATH_EXTS_MEMBIST_ENDTEST))
 		ipath_dev_err(dd, "MemBIST did not complete!\n");
+	if (extsval & INFINIPATH_EXTS_MEMBIST_FOUND)
+		ipath_dbg("MemBIST corrected\n");
 
 	val = ~0ULL;	/* barring bugs, all hwerrors become interrupts, */
 
@@ -1328,6 +1328,35 @@ static void ipath_pe_free_irq(struct ipath_devdata *dd)
 {
 	free_irq(dd->ipath_irq, dd);
 	dd->ipath_irq = 0;
+}
+
+/*
+ * On platforms using this chip, and not having ordered WC stores, we
+ * can get TXE parity errors due to speculative reads to the PIO buffers,
+ * and this, due to a chip bug can result in (many) false parity error
+ * reports.  So it's a debug print on those, and an info print on systems
+ * where the speculative reads don't occur.
+ * Because we can get lots of false errors, we have no upper limit
+ * on recovery attempts on those platforms.
+ */
+static int ipath_pe_txe_recover(struct ipath_devdata *dd)
+{
+	if (ipath_unordered_wc())
+		ipath_dbg("Recovering from TXE PIO parity error\n");
+	else {
+		int cnt = ++ipath_stats.sps_txeparity;
+		if (cnt >= IPATH_MAX_PARITY_ATTEMPTS)  {
+			if (cnt == IPATH_MAX_PARITY_ATTEMPTS)
+				ipath_dev_err(dd,
+					"Too many attempts to recover from "
+					"TXE parity, giving up\n");
+			return 0;
+		}
+		dev_info(&dd->pcidev->dev,
+			"Recovering from TXE PIO parity error\n");
+	}
+	ipath_disarm_senderrbufs(dd, 1);
+	return 1;
 }
 
 /**

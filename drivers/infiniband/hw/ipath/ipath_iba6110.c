@@ -43,6 +43,9 @@
 #include "ipath_kernel.h"
 #include "ipath_registers.h"
 
+static void ipath_setup_ht_setextled(struct ipath_devdata *, u64, u64);
+
+
 /*
  * This lists the InfiniPath registers, in the actual chip layout.
  * This structure should never be directly accessed.
@@ -208,8 +211,8 @@ static const struct ipath_kregs ipath_ht_kregs = {
 	.kr_serdesstatus = IPATH_KREG_OFFSET(SerdesStatus),
 	.kr_xgxsconfig = IPATH_KREG_OFFSET(XGXSConfig),
 	/*
-	 * These should not be used directly via ipath_read_kreg64(),
-	 * use them with ipath_read_kreg64_port(),
+	 * These should not be used directly via ipath_write_kreg64(),
+	 * use them with ipath_write_kreg64_port(),
 	 */
 	.kr_rcvhdraddr = IPATH_KREG_OFFSET(RcvHdrAddr0),
 	.kr_rcvhdrtailaddr = IPATH_KREG_OFFSET(RcvHdrTailAddr0)
@@ -283,6 +286,14 @@ static const struct ipath_cregs ipath_ht_cregs = {
 #define INFINIPATH_EXTS_SERDESSEL 0x4
 #define INFINIPATH_EXTS_MEMBIST_ENDTEST     0x0000000000004000
 #define INFINIPATH_EXTS_MEMBIST_CORRECT     0x0000000000008000
+
+
+/* TID entries (memory), HT-only */
+#define INFINIPATH_RT_ADDR_MASK 0xFFFFFFFFFFULL	/* 40 bits valid */
+#define INFINIPATH_RT_VALID 0x8000000000000000ULL
+#define INFINIPATH_RT_ADDR_SHIFT 0
+#define INFINIPATH_RT_BUFSIZE_MASK 0x3FFFULL
+#define INFINIPATH_RT_BUFSIZE_SHIFT 48
 
 /*
  * masks and bits that are different in different chips, or present only
@@ -402,6 +413,14 @@ static const struct ipath_hwerror_msgs ipath_6110_hwerror_msgs[] = {
 	INFINIPATH_HWE_MSG(SERDESPLLFAILED, "SerDes PLL"),
 };
 
+#define TXE_PIO_PARITY ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF | \
+		        INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC) \
+		        << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)
+#define RXE_EAGER_PARITY (INFINIPATH_HWE_RXEMEMPARITYERR_EAGERTID \
+			  << INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT)
+
+static int ipath_ht_txe_recover(struct ipath_devdata *);
+
 /**
  * ipath_ht_handle_hwerrors - display hardware errors.
  * @dd: the infinipath device
@@ -450,13 +469,12 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 
 	/*
 	 * make sure we get this much out, unless told to be quiet,
+	 * it's a parity error we may recover from,
 	 * or it's occurred within the last 5 seconds
 	 */
-	if ((hwerrs & ~(dd->ipath_lasthwerror |
-			((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
-			  INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
-			<< INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT))) ||
-	    (ipath_debug & __IPATH_VERBDBG))
+	if ((hwerrs & ~(dd->ipath_lasthwerror | TXE_PIO_PARITY |
+		RXE_EAGER_PARITY)) ||
+		(ipath_debug & __IPATH_VERBDBG))
 		dev_info(&dd->pcidev->dev, "Hardware error: hwerr=0x%llx "
 			 "(cleared)\n", (unsigned long long) hwerrs);
 	dd->ipath_lasthwerror |= hwerrs;
@@ -467,7 +485,7 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			      (hwerrs & ~dd->ipath_hwe_bitsextant));
 
 	ctrl = ipath_read_kreg32(dd, dd->ipath_kregs->kr_control);
-	if (ctrl & INFINIPATH_C_FREEZEMODE) {
+	if ((ctrl & INFINIPATH_C_FREEZEMODE) && !ipath_diag_inuse) {
 		/*
 		 * parity errors in send memory are recoverable,
 		 * just cancel the send (if indicated in * sendbuffererror),
@@ -476,50 +494,14 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		 * occur if a processor speculative read is done to the PIO
 		 * buffer while we are sending a packet, for example.
 		 */
-		if (hwerrs & ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
-			       INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
-			      << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)) {
-			ipath_stats.sps_txeparity++;
-			ipath_dbg("Recovering from TXE parity error (%llu), "
-			    	  "hwerrstatus=%llx\n",
-				  (unsigned long long) ipath_stats.sps_txeparity,
-				  (unsigned long long) hwerrs);
-			ipath_disarm_senderrbufs(dd);
-			hwerrs &= ~((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
-				     INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
-				    << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT);
-			if (!hwerrs) { /* else leave in freeze mode */
-				ipath_write_kreg(dd,
-						 dd->ipath_kregs->kr_control,
-						 dd->ipath_control);
-				return;
-			}
-		}
-		if (hwerrs) {
-			/*
-			 * if any set that we aren't ignoring; only
-			 * make the complaint once, in case it's stuck
-			 * or recurring, and we get here multiple
-			 * times.
-			 */
-			if (dd->ipath_flags & IPATH_INITTED) {
-				ipath_dev_err(dd, "Fatal Hardware Error (freeze "
-					      "mode), no longer usable, SN %.16s\n",
-						  dd->ipath_serial);
-				isfatal = 1;
-			}
-			*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;
-			/* mark as having had error */
-			*dd->ipath_statusp |= IPATH_STATUS_HWERROR;
-			/*
-			 * mark as not usable, at a minimum until driver
-			 * is reloaded, probably until reboot, since no
-			 * other reset is possible.
-			 */
-			dd->ipath_flags &= ~IPATH_INITTED;
-		} else {
-			ipath_dbg("Clearing freezemode on ignored hardware "
-				  "error\n");
+		if ((hwerrs & TXE_PIO_PARITY) && ipath_ht_txe_recover(dd))
+			hwerrs &= ~TXE_PIO_PARITY;
+		if (hwerrs & RXE_EAGER_PARITY)
+			ipath_dev_err(dd, "RXE parity, Eager TID error is not "
+				"recoverable\n");
+		if (!hwerrs) {
+			ipath_dbg("Clearing freezemode on ignored or "
+				  "recovered hardware error\n");
 			ctrl &= ~INFINIPATH_C_FREEZEMODE;
 			ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
 					 ctrl);
@@ -587,7 +569,39 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 				 dd->ipath_hwerrmask);
 	}
 
-	ipath_dev_err(dd, "%s hardware error\n", msg);
+	if (hwerrs) {
+		/*
+		 * if any set that we aren't ignoring; only
+		 * make the complaint once, in case it's stuck
+		 * or recurring, and we get here multiple
+		 * times.
+		 * force link down, so switch knows, and
+		 * LEDs are turned off
+		 */
+		if (dd->ipath_flags & IPATH_INITTED) {
+			ipath_set_linkstate(dd, IPATH_IB_LINKDOWN);
+			ipath_setup_ht_setextled(dd,
+				INFINIPATH_IBCS_L_STATE_DOWN,
+				INFINIPATH_IBCS_LT_STATE_DISABLED);
+			ipath_dev_err(dd, "Fatal Hardware Error (freeze "
+					  "mode), no longer usable, SN %.16s\n",
+					  dd->ipath_serial);
+			isfatal = 1;
+		}
+		*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;
+		/* mark as having had error */
+		*dd->ipath_statusp |= IPATH_STATUS_HWERROR;
+		/*
+		 * mark as not usable, at a minimum until driver
+		 * is reloaded, probably until reboot, since no
+		 * other reset is possible.
+		 */
+		dd->ipath_flags &= ~IPATH_INITTED;
+	}
+	else
+		*msg = 0; /* recovered from all of them */
+	if (*msg)
+		ipath_dev_err(dd, "%s hardware error\n", msg);
 	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg)
 		/*
 		 * for status file; if no trailing brace is copied,
@@ -658,7 +672,8 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 	if (n)
 		snprintf(name, namelen, "%s", n);
 
-	if (dd->ipath_majrev != 3 || (dd->ipath_minrev < 2 || dd->ipath_minrev > 3)) {
+	if (dd->ipath_majrev != 3 || (dd->ipath_minrev < 2 ||
+		dd->ipath_minrev > 3)) {
 		/*
 		 * This version of the driver only supports Rev 3.2 and 3.3
 		 */
@@ -1163,6 +1178,8 @@ static void ipath_ht_init_hwerrors(struct ipath_devdata *dd)
 
 	if (!(extsval & INFINIPATH_EXTS_MEMBIST_ENDTEST))
 		ipath_dev_err(dd, "MemBIST did not complete!\n");
+	if (extsval & INFINIPATH_EXTS_MEMBIST_CORRECT)
+		ipath_dbg("MemBIST corrected\n");
 
 	ipath_check_htlink(dd);
 
@@ -1366,6 +1383,9 @@ static void ipath_ht_put_tid(struct ipath_devdata *dd,
 			     u64 __iomem *tidptr, u32 type,
 			     unsigned long pa)
 {
+	if (!dd->ipath_kregbase)
+		return;
+
 	if (pa != dd->ipath_tidinvalid) {
 		if (unlikely((pa & ~INFINIPATH_RT_ADDR_MASK))) {
 			dev_info(&dd->pcidev->dev,
@@ -1382,9 +1402,9 @@ static void ipath_ht_put_tid(struct ipath_devdata *dd,
 			pa |= lenvalid | INFINIPATH_RT_VALID;
 		}
 	}
-	if (dd->ipath_kregbase)
-		writeq(pa, tidptr);
+	writeq(pa, tidptr);
 }
+
 
 /**
  * ipath_ht_clear_tid - clear all TID entries for a port, expected and eager
@@ -1515,7 +1535,7 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 			 INFINIPATH_S_ABORT);
 
 	ipath_get_eeprom_info(dd);
-	if(dd->ipath_boardrev == 5 && dd->ipath_serial[0] == '1' &&
+	if (dd->ipath_boardrev == 5 && dd->ipath_serial[0] == '1' &&
 		dd->ipath_serial[1] == '2' && dd->ipath_serial[2] == '8') {
 		/*
 		 * Later production QHT7040 has same changes as QHT7140, so
@@ -1527,6 +1547,24 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 	}
 	return 0;
 }
+
+
+static int ipath_ht_txe_recover(struct ipath_devdata *dd)
+{
+	int cnt = ++ipath_stats.sps_txeparity;
+	if (cnt >= IPATH_MAX_PARITY_ATTEMPTS)  {
+		if (cnt == IPATH_MAX_PARITY_ATTEMPTS)
+			ipath_dev_err(dd,
+				"Too many attempts to recover from "
+				"TXE parity, giving up\n");
+		return 0;
+	}
+	dev_info(&dd->pcidev->dev,
+		"Recovering from TXE PIO parity error\n");
+	ipath_disarm_senderrbufs(dd, 1);
+	return 1;
+}
+
 
 /**
  * ipath_init_ht_get_base_info - set chip-specific flags for user code

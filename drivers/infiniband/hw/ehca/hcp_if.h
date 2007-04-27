@@ -85,6 +85,10 @@ u64 hipz_h_query_port(const struct ipz_adapter_handle adapter_handle,
 		      const u8 port_id,
 		      struct hipz_query_port *query_port_response_block);
 
+u64 hipz_h_modify_port(const struct ipz_adapter_handle adapter_handle,
+		       const u8 port_id, const u32 port_cap,
+		       const u8 init_type, const int modify_mask);
+
 u64 hipz_h_query_hca(const struct ipz_adapter_handle adapter_handle,
 		     struct hipz_query_hca *query_hca_rblock);
 
