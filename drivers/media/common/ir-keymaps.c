@@ -667,7 +667,7 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 	[ 0x1f ] = KEY_L,
 	[ 0x2b ] = KEY_I,
 
-	[ 0x2d ] = KEY_ZOOM,
+	[ 0x2d ] = KEY_SCREEN,
 	[ 0x1e ] = KEY_ZOOM,
 	[ 0x1b ] = KEY_VOLUMEUP,
 	[ 0x0f ] = KEY_VOLUMEDOWN,
@@ -682,12 +682,12 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 
 	[ 0x3f ] = KEY_UP,
 	[ 0x3e ] = KEY_DOWN,
-	[ 0x1a ] = KEY_PAUSE,
+	[ 0x1a ] = KEY_ENTER,
 
 	[ 0x1d ] = KEY_MENU,
-	[ 0x19 ] = KEY_PLAY,
-	[ 0x16 ] = KEY_REWIND,
-	[ 0x13 ] = KEY_FORWARD,
+	[ 0x19 ] = KEY_AGAIN,
+	[ 0x16 ] = KEY_PREVIOUSSONG,
+	[ 0x13 ] = KEY_NEXTSONG,
 	[ 0x15 ] = KEY_PAUSE,
 	[ 0x0e ] = KEY_REWIND,
 	[ 0x0d ] = KEY_PLAY,
@@ -1739,7 +1739,7 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_encore_enltv);
 
-/* for the Technotrend 1500 bundled remote: */
+/* for the Technotrend 1500 bundled remotes (grey and black): */
 IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE] = {
 	[ 0x01 ] = KEY_POWER,
 	[ 0x02 ] = KEY_SHUFFLE,	/* ? double-arrow key */
@@ -1774,6 +1774,12 @@ IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE] = {
 	[ 0x25 ] = KEY_VOLUMEUP,
 	[ 0x26 ] = KEY_VOLUMEDOWN,
 	[ 0x27 ] = KEY_SETUP,
+	[ 0x3a ] = KEY_RECORD, /* these keys are only in the black remote */
+	[ 0x3b ] = KEY_PLAY,
+	[ 0x3c ] = KEY_STOP,
+	[ 0x3d ] = KEY_REWIND,
+	[ 0x3e ] = KEY_PAUSE,
+	[ 0x3f ] = KEY_FORWARD,
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_tt_1500);

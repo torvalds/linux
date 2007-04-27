@@ -489,12 +489,12 @@ static char *cx88_pci_irqs[32] = {
 };
 
 void cx88_print_irqbits(char *name, char *tag, char **strings,
-			u32 bits, u32 mask)
+			int len, u32 bits, u32 mask)
 {
 	unsigned int i;
 
 	printk(KERN_DEBUG "%s: %s [0x%x]", name, tag, bits);
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < len; i++) {
 		if (!(bits & (1 << i)))
 			continue;
 		if (strings[i])
@@ -520,8 +520,8 @@ int cx88_core_irq(struct cx88_core *core, u32 status)
 	}
 	if (!handled)
 		cx88_print_irqbits(core->name, "irq pci",
-				   cx88_pci_irqs, status,
-				   core->pci_irqmask);
+				   cx88_pci_irqs, ARRAY_SIZE(cx88_pci_irqs),
+				   status, core->pci_irqmask);
 	return handled;
 }
 

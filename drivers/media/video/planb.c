@@ -2207,7 +2207,7 @@ static int find_planb(void)
 		"membase 0x%x (base reg. 0x%x)\n",
 		bus, PCI_SLOT(dev_fn), PCI_FUNC(dev_fn), old_base, confreg);
 
-	pdev = pci_find_slot (bus, dev_fn);
+	pdev = pci_get_bus_and_slot(bus, dev_fn);
 	if (!pdev) {
 		printk(KERN_ERR "planb: cannot find slot\n");
 		goto err_out;
@@ -2237,6 +2237,7 @@ static int find_planb(void)
 	pb->planb_base = planb_regs;
 	pb->planb_base_phys = (struct planb_registers *)new_base;
 	pb->irq	= irq;
+	pb->dev = pdev;
 
 	return planb_num;
 
@@ -2244,6 +2245,7 @@ err_out_disable:
 	pci_disable_device(pdev);
 err_out:
 	/* FIXME handle error */   /* comment moved from pci_find_slot, above */
+	pci_dev_put(pdev);
 	return 0;
 }
 
@@ -2270,6 +2272,8 @@ static void release_planb(void)
 
 		printk(KERN_INFO "PlanB: unregistering with v4l\n");
 		video_unregister_device(&pb->video_dev);
+
+		pci_dev_put(pb->dev);
 
 		/* note that iounmap() does nothing on the PPC right now */
 		iounmap ((void *)pb->planb_base);

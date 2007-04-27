@@ -96,44 +96,60 @@
  *	E N U M S
  */
 enum v4l2_field {
-	V4L2_FIELD_ANY        = 0, /* driver can choose from none,
-				      top, bottom, interlaced
-				      depending on whatever it thinks
-				      is approximate ... */
-	V4L2_FIELD_NONE       = 1, /* this device has no fields ... */
-	V4L2_FIELD_TOP        = 2, /* top field only */
-	V4L2_FIELD_BOTTOM     = 3, /* bottom field only */
-	V4L2_FIELD_INTERLACED = 4, /* both fields interlaced */
-	V4L2_FIELD_SEQ_TB     = 5, /* both fields sequential into one
-				      buffer, top-bottom order */
-	V4L2_FIELD_SEQ_BT     = 6, /* same as above + bottom-top order */
-	V4L2_FIELD_ALTERNATE  = 7, /* both fields alternating into
-				      separate buffers */
+	V4L2_FIELD_ANY           = 0, /* driver can choose from none,
+					 top, bottom, interlaced
+					 depending on whatever it thinks
+					 is approximate ... */
+	V4L2_FIELD_NONE          = 1, /* this device has no fields ... */
+	V4L2_FIELD_TOP           = 2, /* top field only */
+	V4L2_FIELD_BOTTOM        = 3, /* bottom field only */
+	V4L2_FIELD_INTERLACED    = 4, /* both fields interlaced */
+	V4L2_FIELD_SEQ_TB        = 5, /* both fields sequential into one
+					 buffer, top-bottom order */
+	V4L2_FIELD_SEQ_BT        = 6, /* same as above + bottom-top order */
+	V4L2_FIELD_ALTERNATE     = 7, /* both fields alternating into
+					 separate buffers */
+	V4L2_FIELD_INTERLACED_TB = 8, /* both fields interlaced, top field
+					 first and the top field is
+					 transmitted first */
+	V4L2_FIELD_INTERLACED_BT = 9, /* both fields interlaced, top field
+					 first and the bottom field is
+					 transmitted first */
 };
 #define V4L2_FIELD_HAS_TOP(field)	\
 	((field) == V4L2_FIELD_TOP 	||\
 	 (field) == V4L2_FIELD_INTERLACED ||\
+	 (field) == V4L2_FIELD_INTERLACED_TB ||\
+	 (field) == V4L2_FIELD_INTERLACED_BT ||\
 	 (field) == V4L2_FIELD_SEQ_TB	||\
 	 (field) == V4L2_FIELD_SEQ_BT)
 #define V4L2_FIELD_HAS_BOTTOM(field)	\
 	((field) == V4L2_FIELD_BOTTOM 	||\
 	 (field) == V4L2_FIELD_INTERLACED ||\
+	 (field) == V4L2_FIELD_INTERLACED_TB ||\
+	 (field) == V4L2_FIELD_INTERLACED_BT ||\
 	 (field) == V4L2_FIELD_SEQ_TB	||\
 	 (field) == V4L2_FIELD_SEQ_BT)
 #define V4L2_FIELD_HAS_BOTH(field)	\
 	((field) == V4L2_FIELD_INTERLACED ||\
-	 (field) == V4L2_FIELD_SEQ_TB	||\
+	 (field) == V4L2_FIELD_INTERLACED_TB ||\
+	 (field) == V4L2_FIELD_INTERLACED_BT ||\
+	 (field) == V4L2_FIELD_SEQ_TB ||\
 	 (field) == V4L2_FIELD_SEQ_BT)
 
 enum v4l2_buf_type {
-	V4L2_BUF_TYPE_VIDEO_CAPTURE      = 1,
-	V4L2_BUF_TYPE_VIDEO_OUTPUT       = 2,
-	V4L2_BUF_TYPE_VIDEO_OVERLAY      = 3,
-	V4L2_BUF_TYPE_VBI_CAPTURE        = 4,
-	V4L2_BUF_TYPE_VBI_OUTPUT         = 5,
-	V4L2_BUF_TYPE_SLICED_VBI_CAPTURE = 6,
-	V4L2_BUF_TYPE_SLICED_VBI_OUTPUT  = 7,
-	V4L2_BUF_TYPE_PRIVATE            = 0x80,
+	V4L2_BUF_TYPE_VIDEO_CAPTURE        = 1,
+	V4L2_BUF_TYPE_VIDEO_OUTPUT         = 2,
+	V4L2_BUF_TYPE_VIDEO_OVERLAY        = 3,
+	V4L2_BUF_TYPE_VBI_CAPTURE          = 4,
+	V4L2_BUF_TYPE_VBI_OUTPUT           = 5,
+	V4L2_BUF_TYPE_SLICED_VBI_CAPTURE   = 6,
+	V4L2_BUF_TYPE_SLICED_VBI_OUTPUT    = 7,
+#if 1
+	/* Experimental */
+	V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY = 8,
+#endif
+	V4L2_BUF_TYPE_PRIVATE              = 0x80,
 };
 
 enum v4l2_ctrl_type {
@@ -227,6 +243,8 @@ struct v4l2_capability
 #define V4L2_CAP_SLICED_VBI_CAPTURE	0x00000040  /* Is a sliced VBI capture device */
 #define V4L2_CAP_SLICED_VBI_OUTPUT	0x00000080  /* Is a sliced VBI output device */
 #define V4L2_CAP_RDS_CAPTURE		0x00000100  /* RDS data capture */
+#define V4L2_CAP_VIDEO_OUTPUT_POS       0x00000200  /* Video output can have x,y coords */
+#define V4L2_CAP_VIDEO_OUTPUT_OVERLAY	0x00000400  /* Can do video output overlay */
 
 #define V4L2_CAP_TUNER			0x00010000  /* has a tuner */
 #define V4L2_CAP_AUDIO			0x00020000  /* has audio support */
@@ -249,6 +267,8 @@ struct v4l2_pix_format
 	__u32          		sizeimage;
 	enum v4l2_colorspace	colorspace;
 	__u32			priv;		/* private data, depends on pixelformat */
+	__u32 			left;	/* only valid if V4L2_CAP_VIDEO_OUTPUT_POS is set */
+	__u32 			top;	/* only valid if V4L2_CAP_VIDEO_OUTPUT_POS is set */
 };
 
 /*      Pixel format         FOURCC                        depth  Description  */
@@ -596,10 +616,14 @@ struct v4l2_framebuffer
 #define V4L2_FBUF_CAP_CHROMAKEY		0x0002
 #define V4L2_FBUF_CAP_LIST_CLIPPING     0x0004
 #define V4L2_FBUF_CAP_BITMAP_CLIPPING	0x0008
+#define V4L2_FBUF_CAP_LOCAL_ALPHA	0x0010
+#define V4L2_FBUF_CAP_GLOBAL_ALPHA	0x0020
 /*  Flags for the 'flags' field. */
 #define V4L2_FBUF_FLAG_PRIMARY		0x0001
 #define V4L2_FBUF_FLAG_OVERLAY		0x0002
 #define V4L2_FBUF_FLAG_CHROMAKEY	0x0004
+#define V4L2_FBUF_FLAG_LOCAL_ALPHA	0x0008
+#define V4L2_FBUF_FLAG_GLOBAL_ALPHA	0x0010
 
 struct v4l2_clip
 {
@@ -615,6 +639,7 @@ struct v4l2_window
 	struct v4l2_clip	__user *clips;
 	__u32			clipcount;
 	void			__user *bitmap;
+	__u8                    global_alpha;
 };
 
 /*
@@ -1037,6 +1062,7 @@ enum v4l2_mpeg_audio_crc {
 	V4L2_MPEG_AUDIO_CRC_NONE  = 0,
 	V4L2_MPEG_AUDIO_CRC_CRC16 = 1,
 };
+#define V4L2_CID_MPEG_AUDIO_MUTE 		(V4L2_CID_MPEG_BASE+109)
 
 /*  MPEG video */
 #define V4L2_CID_MPEG_VIDEO_ENCODING 		(V4L2_CID_MPEG_BASE+200)
@@ -1063,6 +1089,8 @@ enum v4l2_mpeg_video_bitrate_mode {
 #define V4L2_CID_MPEG_VIDEO_BITRATE 		(V4L2_CID_MPEG_BASE+207)
 #define V4L2_CID_MPEG_VIDEO_BITRATE_PEAK 	(V4L2_CID_MPEG_BASE+208)
 #define V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION (V4L2_CID_MPEG_BASE+209)
+#define V4L2_CID_MPEG_VIDEO_MUTE 		(V4L2_CID_MPEG_BASE+210)
+#define V4L2_CID_MPEG_VIDEO_MUTE_YUV 		(V4L2_CID_MPEG_BASE+211)
 
 /*  MPEG-class control IDs specific to the CX2584x driver as defined by V4L2 */
 #define V4L2_CID_MPEG_CX2341X_BASE 				(V4L2_CTRL_CLASS_MPEG | 0x1000)
@@ -1103,6 +1131,7 @@ enum v4l2_mpeg_cx2341x_video_median_filter_type {
 #define V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_MEDIAN_FILTER_TOP 	(V4L2_CID_MPEG_CX2341X_BASE+8)
 #define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM	(V4L2_CID_MPEG_CX2341X_BASE+9)
 #define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_TOP 	(V4L2_CID_MPEG_CX2341X_BASE+10)
+#define V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS 	(V4L2_CID_MPEG_CX2341X_BASE+11)
 
 /*
  *	T U N I N G
@@ -1369,6 +1398,14 @@ struct v4l2_register {
 	__u64 val;
 };
 
+/* VIDIOC_G_CHIP_IDENT */
+struct v4l2_chip_ident {
+	__u32 match_type;  /* Match type */
+	__u32 match_chip;  /* Match this chip, meaning determined by match_type */
+	__u32 ident;       /* chip identifier as specified in <media/v4l2-chip-ident.h> */
+	__u32 revision;    /* chip revision, chip specific */
+};
+
 /*
  *	I O C T L   C O D E S   F O R   V I D E O   D E V I C E S
  *
@@ -1442,6 +1479,8 @@ struct v4l2_register {
 /* Experimental, only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
 #define	VIDIOC_DBG_S_REGISTER 	_IOW  ('V', 79, struct v4l2_register)
 #define	VIDIOC_DBG_G_REGISTER 	_IOWR ('V', 80, struct v4l2_register)
+
+#define VIDIOC_G_CHIP_IDENT     _IOWR ('V', 81, struct v4l2_chip_ident)
 #endif
 
 #ifdef __OLD_VIDIOC_

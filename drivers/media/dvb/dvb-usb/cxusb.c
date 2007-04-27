@@ -27,7 +27,6 @@
 
 #include "cx22702.h"
 #include "lgdt330x.h"
-#include "lgh06xf.h"
 #include "mt352.h"
 #include "mt352_priv.h"
 #include "zl10353.h"
@@ -388,7 +387,8 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(lgh06xf_attach, adap->fe, &adap->dev->i2c_adap);
+	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
+		   &dvb_pll_lg_tdvs_h06xf);
 	return 0;
 }
 

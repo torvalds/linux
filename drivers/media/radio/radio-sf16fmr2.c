@@ -226,186 +226,204 @@ static int fmr2_setvolume(struct fmr2_device *dev)
 	return 0;
 }
 
-static int fmr2_do_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, void *arg)
+static int vidioc_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *v)
+{
+	strlcpy(v->driver, "radio-sf16fmr2", sizeof(v->driver));
+	strlcpy(v->card, "SF16-FMR2 radio", sizeof(v->card));
+	sprintf(v->bus_info, "ISA");
+	v->version = RADIO_VERSION;
+	v->capabilities = V4L2_CAP_TUNER;
+	return 0;
+}
+
+static int vidioc_g_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
+{
+	int mult;
+	struct video_device *dev = video_devdata(file);
+	struct fmr2_device *fmr2 = dev->priv;
+
+	if (v->index > 0)
+		return -EINVAL;
+
+	strcpy(v->name, "FM");
+	v->type = V4L2_TUNER_RADIO;
+
+	mult = (fmr2->flags & V4L2_TUNER_CAP_LOW) ? 1 : 1000;
+	v->rangelow = RSF16_MINFREQ/mult;
+	v->rangehigh = RSF16_MAXFREQ/mult;
+	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_MODE_STEREO;
+	v->capability = fmr2->flags&V4L2_TUNER_CAP_LOW;
+	v->audmode = fmr2->stereo ? V4L2_TUNER_MODE_STEREO:
+				V4L2_TUNER_MODE_MONO;
+	mutex_lock(&lock);
+	v->signal = fmr2_getsigstr(fmr2);
+	mutex_unlock(&lock);
+	return 0;
+}
+
+static int vidioc_s_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
+{
+	if (v->index > 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
 	struct fmr2_device *fmr2 = dev->priv;
-	debug_print((KERN_DEBUG "freq %ld flags %d vol %d mute %d "
-		"stereo %d type %d\n",
-		fmr2->curfreq, fmr2->flags, fmr2->curvol, fmr2->mute,
-		fmr2->stereo, fmr2->card_type));
 
-	switch(cmd)
-	{
-		case VIDIOC_QUERYCAP:
-		{
-			struct v4l2_capability *v = arg;
-			memset(v,0,sizeof(*v));
-			strlcpy(v->driver, "radio-sf16fmr2", sizeof (v->driver));
-			strlcpy(v->card, "SF16-FMR2 radio", sizeof (v->card));
-			sprintf(v->bus_info,"ISA");
-			v->version = RADIO_VERSION;
-			v->capabilities = V4L2_CAP_TUNER;
+	if (!(fmr2->flags & V4L2_TUNER_CAP_LOW))
+		f->frequency *= 1000;
+	if (f->frequency < RSF16_MINFREQ ||
+			f->frequency > RSF16_MAXFREQ )
+		return -EINVAL;
+	/*rounding in steps of 200 to match th freq
+	that will be used */
+	fmr2->curfreq = (f->frequency/200)*200;
 
-			return 0;
-		}
-		case VIDIOC_G_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-			int mult;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "FM");
-			v->type = V4L2_TUNER_RADIO;
-
-			mult = (fmr2->flags & V4L2_TUNER_CAP_LOW) ? 1 : 1000;
-			v->rangelow = RSF16_MINFREQ/mult;
-			v->rangehigh = RSF16_MAXFREQ/mult;
-			v->rxsubchans =V4L2_TUNER_SUB_MONO | V4L2_TUNER_MODE_STEREO;
-			v->capability=fmr2->flags&V4L2_TUNER_CAP_LOW;
-
-			v->audmode = fmr2->stereo ? V4L2_TUNER_MODE_STEREO:
-						    V4L2_TUNER_MODE_MONO;
-			mutex_lock(&lock);
-			v->signal = fmr2_getsigstr(fmr2);
-			mutex_unlock(&lock);
-
-			return 0;
-		}
-		case VIDIOC_S_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			return 0;
-		}
-		case VIDIOC_S_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			if (!(fmr2->flags & V4L2_TUNER_CAP_LOW))
-				f->frequency *= 1000;
-			if (f->frequency < RSF16_MINFREQ ||
-					f->frequency > RSF16_MAXFREQ )
-				return -EINVAL;
-			/*rounding in steps of 200 to match th freq
-			  that will be used */
-			fmr2->curfreq = (f->frequency/200)*200;
-
-			/* set card freq (if not muted) */
-			if (fmr2->curvol && !fmr2->mute)
-			{
-				mutex_lock(&lock);
-				fmr2_setfreq(fmr2);
-				mutex_unlock(&lock);
-			}
-
-			return 0;
-		}
-		case VIDIOC_G_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			f->type = V4L2_TUNER_RADIO;
-			f->frequency = fmr2->curfreq;
-			if (!(fmr2->flags & V4L2_TUNER_CAP_LOW))
-				f->frequency /= 1000;
-
-			return 0;
-		}
-		case VIDIOC_QUERYCTRL:
-		{
-			struct v4l2_queryctrl *qc = arg;
-			int i;
-
-			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-				if ((fmr2->card_type != 11)
-						&& V4L2_CID_AUDIO_VOLUME)
-					radio_qctrl[i].step=65535;
-				if (qc->id && qc->id == radio_qctrl[i].id) {
-					memcpy(qc, &(radio_qctrl[i]),
-								sizeof(*qc));
-					return (0);
-				}
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_G_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					ctrl->value=fmr2->mute;
-					return (0);
-				case V4L2_CID_AUDIO_VOLUME:
-					ctrl->value=fmr2->curvol;
-					return (0);
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					fmr2->mute=ctrl->value;
-					if (fmr2->card_type != 11) {
-						if (!fmr2->mute) {
-							fmr2->curvol = 65535;
-						} else {
-							fmr2->curvol = 0;
-						}
-					}
-					break;
-				case V4L2_CID_AUDIO_VOLUME:
-					fmr2->curvol = ctrl->value;
-					if (fmr2->card_type != 11) {
-						if (fmr2->curvol) {
-							fmr2->curvol = 65535;
-							fmr2->mute = 0;
-						} else {
-							fmr2->curvol = 0;
-							fmr2->mute = 1;
-						}
-					}
-					break;
-				default:
-					return -EINVAL;
-			}
-#ifdef DEBUG
-			if (fmr2->curvol && !fmr2->mute)
-				printk(KERN_DEBUG "unmute\n");
-			else
-				printk(KERN_DEBUG "mute\n");
-#endif
-			mutex_lock(&lock);
-			if (fmr2->curvol && !fmr2->mute) {
-				fmr2_setvolume(fmr2);
-				fmr2_setfreq(fmr2);
-			} else
-				fmr2_mute(fmr2->port);
-			mutex_unlock(&lock);
-			return (0);
-		}
-		default:
-			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-							  fmr2_do_ioctl);
-
+	/* set card freq (if not muted) */
+	if (fmr2->curvol && !fmr2->mute) {
+		mutex_lock(&lock);
+		fmr2_setfreq(fmr2);
+		mutex_unlock(&lock);
 	}
+	return 0;
 }
 
-static int fmr2_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, unsigned long arg)
- {
-	return video_usercopy(inode, file, cmd, arg, fmr2_do_ioctl);
+static int vidioc_g_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
+{
+	struct video_device *dev = video_devdata(file);
+	struct fmr2_device *fmr2 = dev->priv;
+
+	f->type = V4L2_TUNER_RADIO;
+	f->frequency = fmr2->curfreq;
+	if (!(fmr2->flags & V4L2_TUNER_CAP_LOW))
+		f->frequency /= 1000;
+	return 0;
+}
+
+static int vidioc_queryctrl(struct file *file, void *priv,
+					struct v4l2_queryctrl *qc)
+{
+	int i;
+	struct video_device *dev = video_devdata(file);
+	struct fmr2_device *fmr2 = dev->priv;
+
+	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+		if ((fmr2->card_type != 11)
+				&& V4L2_CID_AUDIO_VOLUME)
+			radio_qctrl[i].step = 65535;
+		if (qc->id && qc->id == radio_qctrl[i].id) {
+			memcpy(qc, &(radio_qctrl[i]),
+						sizeof(*qc));
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct fmr2_device *fmr2 = dev->priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = fmr2->mute;
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = fmr2->curvol;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_s_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct fmr2_device *fmr2 = dev->priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		fmr2->mute = ctrl->value;
+		if (fmr2->card_type != 11) {
+			if (!fmr2->mute)
+				fmr2->curvol = 65535;
+			else
+				fmr2->curvol = 0;
+		}
+		break;
+	case V4L2_CID_AUDIO_VOLUME:
+		fmr2->curvol = ctrl->value;
+		if (fmr2->card_type != 11) {
+			if (fmr2->curvol) {
+				fmr2->curvol = 65535;
+				fmr2->mute = 0;
+			} else {
+				fmr2->curvol = 0;
+				fmr2->mute = 1;
+			}
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+#ifdef DEBUG
+	if (fmr2->curvol && !fmr2->mute)
+		printk(KERN_DEBUG "unmute\n");
+	else
+		printk(KERN_DEBUG "mute\n");
+#endif
+
+	mutex_lock(&lock);
+	if (fmr2->curvol && !fmr2->mute) {
+		fmr2_setvolume(fmr2);
+		fmr2_setfreq(fmr2);
+	} else
+		fmr2_mute(fmr2->port);
+	mutex_unlock(&lock);
+	return 0;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index > 1)
+		return -EINVAL;
+
+	strcpy(a->name, "Radio");
+	a->capability = V4L2_AUDCAP_STEREO;
+	return 0;
+}
+
+static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
+{
+	if (i != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index != 0)
+		return -EINVAL;
+	return 0;
 }
 
 static struct fmr2_device fmr2_unit;
@@ -414,7 +432,7 @@ static const struct file_operations fmr2_fops = {
 	.owner          = THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
-	.ioctl          = fmr2_ioctl,
+	.ioctl          = video_ioctl2,
 	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
@@ -426,6 +444,18 @@ static struct video_device fmr2_radio=
 	. type		= VID_TYPE_TUNER,
 	.hardware	= 0,
 	.fops		= &fmr2_fops,
+	.vidioc_querycap    = vidioc_querycap,
+	.vidioc_g_tuner     = vidioc_g_tuner,
+	.vidioc_s_tuner     = vidioc_s_tuner,
+	.vidioc_g_audio     = vidioc_g_audio,
+	.vidioc_s_audio     = vidioc_s_audio,
+	.vidioc_g_input     = vidioc_g_input,
+	.vidioc_s_input     = vidioc_s_input,
+	.vidioc_g_frequency = vidioc_g_frequency,
+	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_queryctrl   = vidioc_queryctrl,
+	.vidioc_g_ctrl      = vidioc_g_ctrl,
+	.vidioc_s_ctrl      = vidioc_s_ctrl,
 };
 
 static int __init fmr2_init(void)

@@ -51,6 +51,7 @@ const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_AUDIO_MODE_EXTENSION,
 	V4L2_CID_MPEG_AUDIO_EMPHASIS,
 	V4L2_CID_MPEG_AUDIO_CRC,
+	V4L2_CID_MPEG_AUDIO_MUTE,
 	V4L2_CID_MPEG_VIDEO_ENCODING,
 	V4L2_CID_MPEG_VIDEO_ASPECT,
 	V4L2_CID_MPEG_VIDEO_B_FRAMES,
@@ -60,6 +61,8 @@ const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_VIDEO_BITRATE,
 	V4L2_CID_MPEG_VIDEO_BITRATE_PEAK,
 	V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION,
+	V4L2_CID_MPEG_VIDEO_MUTE,
+	V4L2_CID_MPEG_VIDEO_MUTE_YUV,
 	V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE,
 	V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER,
 	V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE,
@@ -71,6 +74,7 @@ const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_MEDIAN_FILTER_TOP,
 	V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM,
 	V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_TOP,
+	V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS,
 	0
 };
 
@@ -102,6 +106,9 @@ static int cx2341x_get_ctrl(struct cx2341x_mpeg_params *params,
 	case V4L2_CID_MPEG_AUDIO_CRC:
 		ctrl->value = params->audio_crc;
 		break;
+	case V4L2_CID_MPEG_AUDIO_MUTE:
+		ctrl->value = params->audio_mute;
+		break;
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
 		ctrl->value = params->video_encoding;
 		break;
@@ -128,6 +135,12 @@ static int cx2341x_get_ctrl(struct cx2341x_mpeg_params *params,
 		break;
 	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION:
 		ctrl->value = params->video_temporal_decimation;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MUTE:
+		ctrl->value = params->video_mute;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:
+		ctrl->value = params->video_mute_yuv;
 		break;
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		ctrl->value = params->stream_type;
@@ -168,6 +181,9 @@ static int cx2341x_get_ctrl(struct cx2341x_mpeg_params *params,
 	case V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM:
 		ctrl->value = params->video_chroma_median_filter_bottom;
 		break;
+	case V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS:
+		ctrl->value = params->stream_insert_nav_packets;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -200,6 +216,9 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
 		break;
 	case V4L2_CID_MPEG_AUDIO_CRC:
 		params->audio_crc = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_AUDIO_MUTE:
+		params->audio_mute = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_ASPECT:
 		params->video_aspect = ctrl->value;
@@ -242,6 +261,12 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
 		break;
 	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION:
 		params->video_temporal_decimation = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MUTE:
+		params->video_mute = (ctrl->value != 0);
+		break;
+	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:
+		params->video_mute_yuv = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		params->stream_type = ctrl->value;
@@ -290,6 +315,9 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
 	case V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM:
 		params->video_chroma_median_filter_bottom = ctrl->value;
 		break;
+	case V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS:
+		params->stream_insert_nav_packets = ctrl->value;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -336,6 +364,9 @@ static int cx2341x_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 ma
 	case V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM:
 		name = "Median Chroma Filter Minimum";
 		break;
+	case V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS:
+		name = "Insert Navigation Packets";
+		break;
 
 	default:
 		return v4l2_ctrl_query_fill(qctrl, min, max, step, def);
@@ -348,6 +379,12 @@ static int cx2341x_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 ma
 	case V4L2_CID_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE:
 		qctrl->type = V4L2_CTRL_TYPE_MENU;
 		min = 0;
+		step = 1;
+		break;
+	case V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS:
+		qctrl->type = V4L2_CTRL_TYPE_BOOLEAN;
+		min = 0;
+		max = 1;
 		step = 1;
 		break;
 	default:
@@ -505,6 +542,9 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params, struct v4l2_queryctrl
 		       qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return 0;
 
+	case V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS:
+		return cx2341x_ctrl_query_fill(qctrl, 0, 1, 1, 0);
+
 	default:
 		return v4l2_ctrl_query_fill_std(qctrl);
 
@@ -656,6 +696,7 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 	/* stream */
 	.stream_type = V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
 	.stream_vbi_fmt = V4L2_MPEG_STREAM_VBI_FMT_NONE,
+	.stream_insert_nav_packets = 0,
 
 	/* audio */
 	.audio_sampling_freq = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
@@ -665,6 +706,7 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 	.audio_mode_extension = V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4,
 	.audio_emphasis = V4L2_MPEG_AUDIO_EMPHASIS_NONE,
 	.audio_crc = V4L2_MPEG_AUDIO_CRC_NONE,
+	.audio_mute = 0,
 
 	/* video */
 	.video_encoding = V4L2_MPEG_VIDEO_ENCODING_MPEG_2,
@@ -676,6 +718,8 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 	.video_bitrate = 6000000,
 	.video_bitrate_peak = 8000000,
 	.video_temporal_decimation = 0,
+	.video_mute = 0,
+	.video_mute_yuv = 0x008080,  /* YCbCr value for black */
 
 	/* encoding filters */
 	.video_spatial_filter_mode = V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL,
@@ -779,6 +823,10 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_AUDIO_PROPERTIES, 1, new->audio_properties);
 		if (err) return err;
 	}
+	if (old == NULL || old->audio_mute != new->audio_mute) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_MUTE_AUDIO, 1, new->audio_mute);
+		if (err) return err;
+	}
 	if (old == NULL || old->video_bitrate_mode != new->video_bitrate_mode ||
 		old->video_bitrate != new->video_bitrate ||
 		old->video_bitrate_peak != new->video_bitrate_peak) {
@@ -826,6 +874,15 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 			new->video_temporal_decimation);
 		if (err) return err;
 	}
+	if (old == NULL || old->video_mute != new->video_mute ||
+			(new->video_mute && old->video_mute_yuv != new->video_mute_yuv)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_MUTE_VIDEO, 1, new->video_mute | (new->video_mute_yuv << 8));
+		if (err) return err;
+	}
+	if (old == NULL || old->stream_insert_nav_packets != new->stream_insert_nav_packets) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_MISC, 2, 7, new->stream_insert_nav_packets);
+		if (err) return err;
+	}
 	return 0;
 }
 
@@ -854,18 +911,22 @@ void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix)
 	int temporal = p->video_temporal_filter;
 
 	/* Stream */
-	printk(KERN_INFO "%s: Stream: %s\n",
+	printk(KERN_INFO "%s: Stream: %s",
 		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_STREAM_TYPE));
+	if (p->stream_insert_nav_packets)
+		printk(" (with navigation packets)");
+	printk("\n");
 	printk(KERN_INFO "%s: VBI Format: %s\n",
 		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_STREAM_VBI_FMT));
 
 	/* Video */
-	printk(KERN_INFO "%s: Video:  %dx%d, %d fps\n",
+	printk(KERN_INFO "%s: Video:  %dx%d, %d fps%s\n",
 		prefix,
 		p->width / (is_mpeg1 ? 2 : 1), p->height / (is_mpeg1 ? 2 : 1),
-		p->is_50hz ? 25 : 30);
+		p->is_50hz ? 25 : 30,
+		(p->video_mute) ? " (muted)" : "");
 	printk(KERN_INFO "%s: Video:  %s, %s, %s, %d",
 		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_VIDEO_ENCODING),
@@ -886,12 +947,13 @@ void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix)
 	}
 
 	/* Audio */
-	printk(KERN_INFO "%s: Audio:  %s, %s, %s, %s",
+	printk(KERN_INFO "%s: Audio:  %s, %s, %s, %s%s",
 		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_ENCODING),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_L2_BITRATE),
-		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_MODE));
+		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_MODE),
+		p->audio_mute ? " (muted)" : "");
 	if (p->audio_mode == V4L2_MPEG_AUDIO_MODE_JOINT_STEREO) {
 		printk(", %s",
 			cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_MODE_EXTENSION));

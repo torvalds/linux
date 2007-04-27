@@ -46,6 +46,7 @@ config VIDEO_SAA7134_DVB
 	select DVB_NXT200X if !DVB_FE_CUSTOMISE
 	select DVB_TDA10086 if !DVB_FE_CUSTOMISE
 	select DVB_TDA826X if !DVB_FE_CUSTOMISE
+	select DVB_TDA827X if !DVB_FE_CUSTOMISE
 	select DVB_ISL6421 if !DVB_FE_CUSTOMISE
 	---help---
 	  This adds support for DVB cards based on the

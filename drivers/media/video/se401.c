@@ -450,6 +450,13 @@ static int se401_start_stream(struct usb_se401 *se401)
 	}
 	for (i=0; i<SE401_NUMSBUF; i++) {
 		se401->sbuf[i].data=kmalloc(SE401_PACKETSIZE, GFP_KERNEL);
+		if (!se401->sbuf[i].data) {
+			for(i = i - 1; i >= 0; i--) {
+				kfree(se401->sbuf[i].data);
+				se401->sbuf[i].data = NULL;
+			}
+			return -ENOMEM;
+		}
 	}
 
 	se401->bayeroffset=0;
@@ -458,13 +465,26 @@ static int se401_start_stream(struct usb_se401 *se401)
 	se401->scratch_overflow=0;
 	for (i=0; i<SE401_NUMSCRATCH; i++) {
 		se401->scratch[i].data=kmalloc(SE401_PACKETSIZE, GFP_KERNEL);
+		if (!se401->scratch[i].data) {
+			for(i = i - 1; i >= 0; i--) {
+				kfree(se401->scratch[i].data);
+				se401->scratch[i].data = NULL;
+			}
+			goto nomem_sbuf;
+		}
 		se401->scratch[i].state=BUFFER_UNUSED;
 	}
 
 	for (i=0; i<SE401_NUMSBUF; i++) {
 		urb=usb_alloc_urb(0, GFP_KERNEL);
-		if(!urb)
-			return -ENOMEM;
+		if(!urb) {
+			for(i = i - 1; i >= 0; i--) {
+				usb_kill_urb(se401->urb[i]);
+				usb_free_urb(se401->urb[i]);
+				se401->urb[i] = NULL;
+			}
+			goto nomem_scratch;
+		}
 
 		usb_fill_bulk_urb(urb, se401->dev,
 			usb_rcvbulkpipe(se401->dev, SE401_VIDEO_ENDPOINT),
@@ -482,6 +502,18 @@ static int se401_start_stream(struct usb_se401 *se401)
 	se401->framecount=0;
 
 	return 0;
+
+ nomem_scratch:
+	for (i=0; i<SE401_NUMSCRATCH; i++) {
+		kfree(se401->scratch[i].data);
+		se401->scratch[i].data = NULL;
+	}
+ nomem_sbuf:
+	for (i=0; i<SE401_NUMSBUF; i++) {
+		kfree(se401->sbuf[i].data);
+		se401->sbuf[i].data = NULL;
+	}
+	return -ENOMEM;
 }
 
 static int se401_stop_stream(struct usb_se401 *se401)

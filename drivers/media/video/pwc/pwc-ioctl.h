@@ -2,7 +2,7 @@
 #define PWC_IOCTL_H
 
 /* (C) 2001-2004 Nemosoft Unv.
-   (C) 2004      Luc Saillard (luc@saillard.org)
+   (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
    driver and thus may have bugs that are not present in the original version.
@@ -25,7 +25,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* This is pwc-ioctl.h belonging to PWC 8.12.1
+/* This is pwc-ioctl.h belonging to PWC 10.0.10
    It contains structures and defines to communicate from user space
    directly to the driver.
  */
@@ -51,6 +51,9 @@
 	     ... 	the function
  */
 
+#include <linux/types.h>
+#include <linux/version.h>
+
 
  /* Enumeration of image sizes */
 #define PSZ_SQCIF	0x00
@@ -65,6 +68,8 @@
 /* The frame rate is encoded in the video_window.flags parameter using
    the upper 16 bits, since some flags are defined nowadays. The following
    defines provide a mask and shift to filter out this value.
+   This value can also be passing using the private flag when using v4l2 and
+   VIDIOC_S_FMT ioctl.
 
    In 'Snapshot' mode the camera freezes its automatic exposure and colour
    balance controls.
@@ -73,6 +78,8 @@
 #define PWC_FPS_MASK		0x00FF0000
 #define PWC_FPS_FRMASK		0x003F0000
 #define PWC_FPS_SNAPSHOT	0x00400000
+#define PWC_QLT_MASK		0x03000000
+#define PWC_QLT_SHIFT		24
 
 
 /* structure for transferring x & y coordinates */
@@ -288,5 +295,30 @@ struct pwc_table_init_buffer {
 
 };
 #define VIDIOCPWCGVIDTABLE	_IOR('v', 216, struct pwc_table_init_buffer)
+
+/*
+ * This is private command used when communicating with v4l2.
+ * In the future all private ioctl will be remove/replace to
+ * use interface offer by v4l2.
+ */
+
+#define V4L2_CID_PRIVATE_SAVE_USER       (V4L2_CID_PRIVATE_BASE + 0)
+#define V4L2_CID_PRIVATE_RESTORE_USER    (V4L2_CID_PRIVATE_BASE + 1)
+#define V4L2_CID_PRIVATE_RESTORE_FACTORY (V4L2_CID_PRIVATE_BASE + 2)
+#define V4L2_CID_PRIVATE_COLOUR_MODE     (V4L2_CID_PRIVATE_BASE + 3)
+#define V4L2_CID_PRIVATE_AUTOCONTOUR     (V4L2_CID_PRIVATE_BASE + 4)
+#define V4L2_CID_PRIVATE_CONTOUR         (V4L2_CID_PRIVATE_BASE + 5)
+#define V4L2_CID_PRIVATE_BACKLIGHT       (V4L2_CID_PRIVATE_BASE + 6)
+#define V4L2_CID_PRIVATE_FLICKERLESS     (V4L2_CID_PRIVATE_BASE + 7)
+#define V4L2_CID_PRIVATE_NOISE_REDUCTION (V4L2_CID_PRIVATE_BASE + 8)
+
+struct pwc_raw_frame {
+   __le16 type;		/* type of the webcam */
+   __le16 vbandlength;	/* Size of 4lines compressed (used by the decompressor) */
+   __u8   cmd[4];	/* the four byte of the command (in case of nala,
+			   only the first 3 bytes is filled) */
+   __u8   rawframe[0];	/* frame_size = H/4*vbandlength */
+} __attribute__ ((packed));
+
 
 #endif

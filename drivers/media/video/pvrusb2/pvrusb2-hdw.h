@@ -124,6 +124,9 @@ struct usb_device *pvr2_hdw_get_dev(struct pvr2_hdw *);
 /* Retrieve serial number of device */
 unsigned long pvr2_hdw_get_sn(struct pvr2_hdw *);
 
+/* Retrieve bus location info of device */
+const char *pvr2_hdw_get_bus_info(struct pvr2_hdw *);
+
 /* Called when hardware has been unplugged */
 void pvr2_hdw_disconnect(struct pvr2_hdw *);
 

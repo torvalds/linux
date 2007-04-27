@@ -140,6 +140,8 @@ static const char *size2name[PSZ_MAX] =
    An alternate value of 0 means this mode is not available at all.
  */
 
+#define PWC_FPS_MAX_NALA 8
+
 struct Nala_table_entry {
 	char alternate;			/* USB alternate setting */
 	int compressed;			/* Compressed yes/no */
@@ -147,7 +149,9 @@ struct Nala_table_entry {
 	unsigned char mode[3];		/* precomputed mode table */
 };
 
-static struct Nala_table_entry Nala_table[PSZ_MAX][8] =
+static unsigned int Nala_fps_vector[PWC_FPS_MAX_NALA] = { 4, 5, 7, 10, 12, 15, 20, 24 };
+
+static struct Nala_table_entry Nala_table[PSZ_MAX][PWC_FPS_MAX_NALA] =
 {
 #include "pwc-nala.h"
 };
@@ -421,6 +425,59 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frame
 	pwc_set_image_buffer_size(pdev);
 	PWC_DEBUG_SIZE("Set viewport to %dx%d, image size is %dx%d.\n", width, height, pwc_image_sizes[size].x, pwc_image_sizes[size].y);
 	return 0;
+}
+
+static unsigned int pwc_get_fps_Nala(struct pwc_device *pdev, unsigned int index, unsigned int size)
+{
+	unsigned int i;
+
+	for (i = 0; i < PWC_FPS_MAX_NALA; i++) {
+		if (Nala_table[size][i].alternate) {
+			if (index--==0) return Nala_fps_vector[i];
+		}
+	}
+	return 0;
+}
+
+static unsigned int pwc_get_fps_Kiara(struct pwc_device *pdev, unsigned int index, unsigned int size)
+{
+	unsigned int i;
+
+	for (i = 0; i < PWC_FPS_MAX_KIARA; i++) {
+		if (Kiara_table[size][i][3].alternate) {
+			if (index--==0) return Kiara_fps_vector[i];
+		}
+	}
+	return 0;
+}
+
+static unsigned int pwc_get_fps_Timon(struct pwc_device *pdev, unsigned int index, unsigned int size)
+{
+	unsigned int i;
+
+	for (i=0; i < PWC_FPS_MAX_TIMON; i++) {
+		if (Timon_table[size][i][3].alternate) {
+			if (index--==0) return Timon_fps_vector[i];
+		}
+	}
+	return 0;
+}
+
+unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned int size)
+{
+	unsigned int ret;
+
+	if (DEVICE_USE_CODEC1(pdev->type)) {
+		ret = pwc_get_fps_Nala(pdev, index, size);
+
+	} else if (DEVICE_USE_CODEC3(pdev->type)) {
+		ret = pwc_get_fps_Kiara(pdev, index, size);
+
+	} else {
+		ret = pwc_get_fps_Timon(pdev, index, size);
+	}
+
+	return ret;
 }
 
 #define BLACK_Y 0
@@ -1343,7 +1400,7 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 				ret = pwc_read_red_gain(pdev, &ARGR(wb).read_red);
 				if (ret < 0)
 					break;
-				ret =pwc_read_blue_gain(pdev, &ARGR(wb).read_blue);
+				ret = pwc_read_blue_gain(pdev, &ARGR(wb).read_blue);
 				if (ret < 0)
 					break;
 			}

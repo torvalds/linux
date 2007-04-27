@@ -76,6 +76,7 @@
 #endif
 
 #include "usbvision.h"
+#include "usbvision-cards.h"
 
 #define DRIVER_AUTHOR "Joerg Heckenbach <joerg@heckenbach-aw.de>, Dwaine Garden <DwaineGarden@rogers.com>"
 #define DRIVER_NAME "usbvision"
@@ -150,7 +151,6 @@ static int PowerOnAtOpen = 1;				// Set the default device to power on at startu
 static int video_nr = -1;				// Sequential Number of Video Device
 static int radio_nr = -1;				// Sequential Number of Radio Device
 static int vbi_nr = -1;					// Sequential Number of VBI Device
-static char *CustomDevice=NULL;				// Set as nothing....
 
 // Grab parameters for the device driver
 
@@ -161,7 +161,6 @@ module_param(PowerOnAtOpen, int, 0444);
 module_param(video_nr, int, 0444);
 module_param(radio_nr, int, 0444);
 module_param(vbi_nr, int, 0444);
-module_param(CustomDevice, charp, 0444);
 #else							// Old Style
 MODULE_PARAM(isocMode, "i");
 MODULE_PARM(video_debug, "i");				// Grab the Debug Mode of the device driver
@@ -171,7 +170,6 @@ MODULE_PARM(SwitchSVideoInput, "i");			// To help people with Black and White ou
 MODULE_PARM(video_nr, "i");				// video_nr option allows to specify a certain /dev/videoX device (like /dev/video0 or /dev/video1 ...)
 MODULE_PARM(radio_nr, "i");				// radio_nr option allows to specify a certain /dev/radioX device (like /dev/radio0 or /dev/radio1 ...)
 MODULE_PARM(vbi_nr, "i");				// vbi_nr option allows to specify a certain /dev/vbiX device (like /dev/vbi0 or /dev/vbi1 ...)
-MODULE_PARM(CustomDevice, "s");				// .... CustomDevice
 #endif
 
 MODULE_PARM_DESC(isocMode, " Set the default format for ISOC endpoint.  Default: 0x60 (Compression On)");
@@ -180,7 +178,6 @@ MODULE_PARM_DESC(PowerOnAtOpen, " Set the default device to power on when device
 MODULE_PARM_DESC(video_nr, "Set video device number (/dev/videoX).  Default: -1 (autodetect)");
 MODULE_PARM_DESC(radio_nr, "Set radio device number (/dev/radioX).  Default: -1 (autodetect)");
 MODULE_PARM_DESC(vbi_nr, "Set vbi device number (/dev/vbiX).  Default: -1 (autodetect)");
-MODULE_PARM_DESC(CustomDevice, " Define the fine tuning parameters for the device.  Default: null");
 
 
 // Misc stuff
@@ -409,7 +406,7 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 		down(&usbvision->lock);
 		if (usbvision->power == 0) {
 			usbvision_power_on(usbvision);
-			usbvision_init_i2c(usbvision);
+			usbvision_i2c_register(usbvision);
 		}
 
 		/* Send init sequence only once, it's large! */
@@ -431,7 +428,7 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 		}
 		else {
 			if (PowerOnAtOpen) {
-				usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+				usbvision_i2c_unregister(usbvision);
 				usbvision_power_off(usbvision);
 				usbvision->initialized = 0;
 			}
@@ -1239,7 +1236,7 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 			usbvision_reset_powerOffTimer(usbvision);
 			if (usbvision->power == 0) {
 				usbvision_power_on(usbvision);
-				usbvision_init_i2c(usbvision);
+				usbvision_i2c_register(usbvision);
 			}
 		}
 
@@ -1261,7 +1258,7 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 
 	if (errCode) {
 		if (PowerOnAtOpen) {
-			usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+			usbvision_i2c_unregister(usbvision);
 			usbvision_power_off(usbvision);
 			usbvision->initialized = 0;
 		}
@@ -1744,8 +1741,8 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
 	model = usbvision->DevModel;
 	usbvision->palette = usbvision_v4l2_format[2]; // V4L2_PIX_FMT_RGB24;
 
-	if (usbvision_device_data[usbvision->DevModel].Vin_Reg2 >= 0) {
-		usbvision->Vin_Reg2_Preset = usbvision_device_data[usbvision->DevModel].Vin_Reg2 & 0xff;
+	if (usbvision_device_data[usbvision->DevModel].Vin_Reg2_override) {
+		usbvision->Vin_Reg2_Preset = usbvision_device_data[usbvision->DevModel].Vin_Reg2;
 	} else {
 		usbvision->Vin_Reg2_Preset = 0;
 	}
@@ -1764,7 +1761,7 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
 	usbvision_audio_off(usbvision);	//first switch off audio
 	if (!PowerOnAtOpen) {
 		usbvision_power_on(usbvision);	//and then power up the noisy tuner
-		usbvision_init_i2c(usbvision);
+		usbvision_i2c_register(usbvision);
 	}
 }
 
@@ -1775,7 +1772,8 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
  * if it looks like USBVISION video device
  *
  */
-static int __devinit usbvision_probe(struct usb_interface *intf, const struct usb_device_id *devid)
+static int __devinit usbvision_probe(struct usb_interface *intf,
+				     const struct usb_device_id *devid)
 {
 	struct usb_device *dev = usb_get_dev(interface_to_usbdev(intf));
 	struct usb_interface *uif;
@@ -1786,25 +1784,17 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 	int model,i;
 
 	PDEBUG(DBG_PROBE, "VID=%#04x, PID=%#04x, ifnum=%u",
-					dev->descriptor.idVendor, dev->descriptor.idProduct, ifnum);
+				dev->descriptor.idVendor,
+				dev->descriptor.idProduct, ifnum);
 
-	/* Is it an USBVISION video dev? */
-	model = 0;
-	for(model = 0; usbvision_device_data[model].idVendor; model++) {
-		if (le16_to_cpu(dev->descriptor.idVendor) != usbvision_device_data[model].idVendor) {
-			continue;
-		}
-		if (le16_to_cpu(dev->descriptor.idProduct) != usbvision_device_data[model].idProduct) {
-			continue;
-		}
-
-		printk(KERN_INFO "%s: %s found\n", __FUNCTION__, usbvision_device_data[model].ModelString);
-		break;
+	model = devid->driver_info;
+	if ( (model<0) || (model>=usbvision_device_data_size) ) {
+		PDEBUG(DBG_PROBE, "model out of bounds %d",model);
+		return -ENODEV;
 	}
+	printk(KERN_INFO "%s: %s found\n", __FUNCTION__,
+				usbvision_device_data[model].ModelString);
 
-	if (usbvision_device_data[model].idVendor == 0) {
-		return -ENODEV; //no matching device
-	}
 	if (usbvision_device_data[model].Interface >= 0) {
 		interface = &dev->actconfig->interface[usbvision_device_data[model].Interface]->altsetting[0];
 	}
@@ -1822,16 +1812,15 @@ static int __devinit usbvision_probe(struct usb_interface *intf, const struct us
 		return -ENODEV;
 	}
 
-	usb_get_dev(dev);
-
 	if ((usbvision = usbvision_alloc(dev)) == NULL) {
 		err("%s: couldn't allocate USBVision struct", __FUNCTION__);
 		return -ENOMEM;
 	}
+
 	if (dev->descriptor.bNumConfigurations > 1) {
 		usbvision->bridgeType = BRIDGE_NT1004;
 	}
-	else if (usbvision_device_data[model].ModelString == "Dazzle Fusion Model DVC-90 Rev 1 (SECAM)") {
+	else if (model == DAZZLE_DVC_90_REV_1_SECAM) {
 		usbvision->bridgeType = BRIDGE_NT1005;
 	}
 	else {
@@ -1920,7 +1909,7 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	usbvision_stop_isoc(usbvision);
 
 	if (usbvision->power) {
-		usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+		usbvision_i2c_unregister(usbvision);
 		usbvision_power_off(usbvision);
 	}
 	usbvision->remove_pending = 1;	// Now all ISO data will be ignored
@@ -1951,124 +1940,6 @@ static struct usb_driver usbvision_driver = {
 };
 
 /*
- * customdevice_process()
- *
- * This procedure preprocesses CustomDevice parameter if any
- *
- */
-static void customdevice_process(void)
-{
-	usbvision_device_data[0]=usbvision_device_data[1];
-	usbvision_table[0]=usbvision_table[1];
-
-	if(CustomDevice)
-	{
-		char *parse=CustomDevice;
-
-		PDEBUG(DBG_PROBE, "CustomDevide=%s", CustomDevice);
-
-		/*format is CustomDevice="0x0573 0x4D31 0 7113 3 PAL 1 1 1 5 -1 -1 -1 -1 -1"
-		usbvision_device_data[0].idVendor;
-		usbvision_device_data[0].idProduct;
-		usbvision_device_data[0].Interface;
-		usbvision_device_data[0].Codec;
-		usbvision_device_data[0].VideoChannels;
-		usbvision_device_data[0].VideoNorm;
-		usbvision_device_data[0].AudioChannels;
-		usbvision_device_data[0].Radio;
-		usbvision_device_data[0].Tuner;
-		usbvision_device_data[0].TunerType;
-		usbvision_device_data[0].Vin_Reg1;
-		usbvision_device_data[0].Vin_Reg2;
-		usbvision_device_data[0].X_Offset;
-		usbvision_device_data[0].Y_Offset;
-		usbvision_device_data[0].Dvi_yuv;
-		usbvision_device_data[0].ModelString;
-		*/
-
-		rmspace(parse);
-		usbvision_device_data[0].ModelString="USBVISION Custom Device";
-
-		parse+=2;
-		sscanf(parse,"%x",&usbvision_device_data[0].idVendor);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "idVendor=0x%.4X", usbvision_device_data[0].idVendor);
-		parse+=2;
-		sscanf(parse,"%x",&usbvision_device_data[0].idProduct);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "idProduct=0x%.4X", usbvision_device_data[0].idProduct);
-		sscanf(parse,"%d",&usbvision_device_data[0].Interface);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "Interface=%d", usbvision_device_data[0].Interface);
-		sscanf(parse,"%d",&usbvision_device_data[0].Codec);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "Codec=%d", usbvision_device_data[0].Codec);
-		sscanf(parse,"%d",&usbvision_device_data[0].VideoChannels);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "VideoChannels=%d", usbvision_device_data[0].VideoChannels);
-
-		switch(*parse)
-		{
-			case 'P':
-				PDEBUG(DBG_PROBE, "VideoNorm=PAL");
-				usbvision_device_data[0].VideoNorm=V4L2_STD_PAL;
-				break;
-
-			case 'S':
-				PDEBUG(DBG_PROBE, "VideoNorm=SECAM");
-				usbvision_device_data[0].VideoNorm=V4L2_STD_SECAM;
-				break;
-
-			case 'N':
-				PDEBUG(DBG_PROBE, "VideoNorm=NTSC");
-				usbvision_device_data[0].VideoNorm=V4L2_STD_NTSC;
-				break;
-
-			default:
-				PDEBUG(DBG_PROBE, "VideoNorm=PAL (by default)");
-				usbvision_device_data[0].VideoNorm=V4L2_STD_PAL;
-				break;
-		}
-		goto2next(parse);
-
-		sscanf(parse,"%d",&usbvision_device_data[0].AudioChannels);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "AudioChannels=%d", usbvision_device_data[0].AudioChannels);
-		sscanf(parse,"%d",&usbvision_device_data[0].Radio);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "Radio=%d", usbvision_device_data[0].Radio);
-		sscanf(parse,"%d",&usbvision_device_data[0].Tuner);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "Tuner=%d", usbvision_device_data[0].Tuner);
-		sscanf(parse,"%d",&usbvision_device_data[0].TunerType);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "TunerType=%d", usbvision_device_data[0].TunerType);
-		sscanf(parse,"%d",&usbvision_device_data[0].Vin_Reg1);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "Vin_Reg1=%d", usbvision_device_data[0].Vin_Reg1);
-		sscanf(parse,"%d",&usbvision_device_data[0].Vin_Reg2);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "Vin_Reg2=%d", usbvision_device_data[0].Vin_Reg2);
-		sscanf(parse,"%d",&usbvision_device_data[0].X_Offset);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "X_Offset=%d", usbvision_device_data[0].X_Offset);
-		sscanf(parse,"%d",&usbvision_device_data[0].Y_Offset);
-		goto2next(parse);
-		PDEBUG(DBG_PROBE, "Y_Offset=%d", usbvision_device_data[0].Y_Offset);
-		sscanf(parse,"%d",&usbvision_device_data[0].Dvi_yuv);
-		PDEBUG(DBG_PROBE, "Dvi_yuv=%d", usbvision_device_data[0].Dvi_yuv);
-
-		//add to usbvision_table also
-		usbvision_table[0].match_flags=USB_DEVICE_ID_MATCH_DEVICE;
-		usbvision_table[0].idVendor=usbvision_device_data[0].idVendor;
-		usbvision_table[0].idProduct=usbvision_device_data[0].idProduct;
-
-	}
-}
-
-
-
-/*
  * usbvision_init()
  *
  * This code is run to initialize the driver.
@@ -2091,8 +1962,6 @@ static int __init usbvision_init(void)
 		usbvision_v4l2_format[6].supported = 0; // V4L2_PIX_FMT_YVU420
 		usbvision_v4l2_format[7].supported = 0; // V4L2_PIX_FMT_YUV422P
 	}
-
-	customdevice_process();
 
 	errCode = usb_register(&usbvision_driver);
 

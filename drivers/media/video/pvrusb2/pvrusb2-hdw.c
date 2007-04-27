@@ -1008,6 +1008,13 @@ unsigned long pvr2_hdw_get_sn(struct pvr2_hdw *hdw)
 	return hdw->serial_number;
 }
 
+
+const char *pvr2_hdw_get_bus_info(struct pvr2_hdw *hdw)
+{
+	return hdw->bus_info;
+}
+
+
 unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *hdw)
 {
 	return hdw->freqSelector ? hdw->freqValTelevision : hdw->freqValRadio;
@@ -2104,6 +2111,11 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	hdw->usb_intf = intf;
 	hdw->usb_dev = interface_to_usbdev(intf);
+
+	scnprintf(hdw->bus_info,sizeof(hdw->bus_info),
+		  "usb %s address %d",
+		  hdw->usb_dev->dev.bus_id,
+		  hdw->usb_dev->devnum);
 
 	ifnum = hdw->usb_intf->cur_altsetting->desc.bInterfaceNumber;
 	usb_set_interface(hdw->usb_dev,ifnum,0);
@@ -3275,7 +3287,9 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	mutex_lock(&hdw->i2c_list_lock); do {
 		list_for_each(item,&hdw->i2c_clients) {
 			cp = list_entry(item,struct pvr2_i2c_client,list);
-			if (!v4l2_chip_match_i2c_client(cp->client, req.match_type, req.match_chip)) {
+			if (!v4l2_chip_match_i2c_client(
+				    cp->client,
+				    req.match_type, req.match_chip)) {
 				continue;
 			}
 			stat = pvr2_i2c_client_cmd(

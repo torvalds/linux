@@ -60,6 +60,7 @@
 #include <linux/video_decoder.h>
 #define __OLD_VIDIOC_ /* To allow fixing old calls*/
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
@@ -260,6 +261,8 @@ char *v4l2_field_names[] = {
 	[V4L2_FIELD_SEQ_TB]     = "seq-tb",
 	[V4L2_FIELD_SEQ_BT]     = "seq-bt",
 	[V4L2_FIELD_ALTERNATE]  = "alternate",
+	[V4L2_FIELD_INTERLACED_TB] = "interlaced-tb",
+	[V4L2_FIELD_INTERLACED_BT] = "interlaced-bt",
 };
 
 char *v4l2_type_names[] = {
@@ -269,7 +272,8 @@ char *v4l2_type_names[] = {
 	[V4L2_BUF_TYPE_VBI_CAPTURE]        = "vbi-cap",
 	[V4L2_BUF_TYPE_VBI_OUTPUT]         = "vbi-out",
 	[V4L2_BUF_TYPE_SLICED_VBI_CAPTURE] = "sliced-vbi-cap",
-	[V4L2_BUF_TYPE_SLICED_VBI_OUTPUT]  = "slicec-vbi-out",
+	[V4L2_BUF_TYPE_SLICED_VBI_OUTPUT]  = "sliced-vbi-out",
+	[V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY] = "video-out-over",
 };
 
 
@@ -380,6 +384,8 @@ static const char *v4l2_ioctls[] = {
 
 	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]   = "VIDIOC_DBG_S_REGISTER",
 	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]   = "VIDIOC_DBG_G_REGISTER",
+
+	[_IOC_NR(VIDIOC_G_CHIP_IDENT)]     = "VIDIOC_G_CHIP_IDENT",
 #endif
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
@@ -410,14 +416,16 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(VIDIOC_INT_DECODE_VBI_LINE)]  = "VIDIOC_INT_DECODE_VBI_LINE",
 	[_IOC_NR(VIDIOC_INT_S_VBI_DATA)]       = "VIDIOC_INT_S_VBI_DATA",
 	[_IOC_NR(VIDIOC_INT_G_VBI_DATA)]       = "VIDIOC_INT_G_VBI_DATA",
-	[_IOC_NR(VIDIOC_INT_G_CHIP_IDENT)]     = "VIDIOC_INT_G_CHIP_IDENT",
 	[_IOC_NR(VIDIOC_INT_I2S_CLOCK_FREQ)]   = "VIDIOC_INT_I2S_CLOCK_FREQ",
 	[_IOC_NR(VIDIOC_INT_S_STANDBY)]        = "VIDIOC_INT_S_STANDBY",
 	[_IOC_NR(VIDIOC_INT_S_AUDIO_ROUTING)]  = "VIDIOC_INT_S_AUDIO_ROUTING",
 	[_IOC_NR(VIDIOC_INT_G_AUDIO_ROUTING)]  = "VIDIOC_INT_G_AUDIO_ROUTING",
 	[_IOC_NR(VIDIOC_INT_S_VIDEO_ROUTING)]  = "VIDIOC_INT_S_VIDEO_ROUTING",
 	[_IOC_NR(VIDIOC_INT_G_VIDEO_ROUTING)]  = "VIDIOC_INT_G_VIDEO_ROUTING",
-	[_IOC_NR(VIDIOC_INT_S_CRYSTAL_FREQ)]   = "VIDIOC_INT_S_CRYSTAL_FREQ"
+	[_IOC_NR(VIDIOC_INT_S_CRYSTAL_FREQ)]   = "VIDIOC_INT_S_CRYSTAL_FREQ",
+	[_IOC_NR(VIDIOC_INT_INIT)]   	       = "VIDIOC_INT_INIT",
+	[_IOC_NR(VIDIOC_INT_G_STD_OUTPUT)]     = "VIDIOC_INT_G_STD_OUTPUT",
+	[_IOC_NR(VIDIOC_INT_S_STD_OUTPUT)]     = "VIDIOC_INT_S_STD_OUTPUT",
 };
 #define V4L2_INT_IOCTLS ARRAY_SIZE(v4l2_int_ioctls)
 
@@ -680,6 +688,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION: name = "Audio Stereo Mode Extension"; break;
 	case V4L2_CID_MPEG_AUDIO_EMPHASIS: 	name = "Audio Emphasis"; break;
 	case V4L2_CID_MPEG_AUDIO_CRC: 		name = "Audio CRC"; break;
+	case V4L2_CID_MPEG_AUDIO_MUTE: 		name = "Audio Mute"; break;
 	case V4L2_CID_MPEG_VIDEO_ENCODING: 	name = "Video Encoding"; break;
 	case V4L2_CID_MPEG_VIDEO_ASPECT: 	name = "Video Aspect"; break;
 	case V4L2_CID_MPEG_VIDEO_B_FRAMES: 	name = "Video B Frames"; break;
@@ -690,6 +699,8 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_VIDEO_BITRATE: 	name = "Video Bitrate"; break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK: 	name = "Video Peak Bitrate"; break;
 	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION: name = "Video Temporal Decimation"; break;
+	case V4L2_CID_MPEG_VIDEO_MUTE: 		name = "Video Mute"; break;
+	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:	name = "Video Mute YUV"; break;
 	case V4L2_CID_MPEG_STREAM_TYPE: 	name = "Stream Type"; break;
 	case V4L2_CID_MPEG_STREAM_PID_PMT: 	name = "Stream PMT Program ID"; break;
 	case V4L2_CID_MPEG_STREAM_PID_AUDIO: 	name = "Stream Audio Program ID"; break;
@@ -705,6 +716,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	switch (qctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 	case V4L2_CID_AUDIO_LOUDNESS:
+	case V4L2_CID_MPEG_AUDIO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
 	case V4L2_CID_MPEG_VIDEO_PULLDOWN:
 		qctrl->type = V4L2_CTRL_TYPE_BOOLEAN;
@@ -838,6 +850,8 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 				V4L2_MPEG_AUDIO_CRC_NONE,
 				V4L2_MPEG_AUDIO_CRC_CRC16, 1,
 				V4L2_MPEG_AUDIO_CRC_NONE);
+	case V4L2_CID_MPEG_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_VIDEO_ENCODING_MPEG_1,
@@ -867,6 +881,10 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 		return v4l2_ctrl_query_fill(qctrl, 0, 27000000, 1, 8000000);
 	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION:
 		return v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 0);
+	case V4L2_CID_MPEG_VIDEO_MUTE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
+	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:  /* Init YUV (really YCbCr) to black */
+		return v4l2_ctrl_query_fill(qctrl, 0, 0xffffff, 1, 0x008080);
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
@@ -965,6 +983,22 @@ int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 match_type, u32 match_c
 	}
 }
 
+int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_chip_ident *chip,
+		u32 ident, u32 revision)
+{
+	if (!v4l2_chip_match_i2c_client(c, chip->match_type, chip->match_chip))
+		return 0;
+	if (chip->ident == V4L2_IDENT_NONE) {
+		chip->ident = ident;
+		chip->revision = revision;
+	}
+	else {
+		chip->ident = V4L2_IDENT_AMBIGUOUS;
+		chip->revision = 0;
+	}
+	return 0;
+}
+
 int v4l2_chip_match_host(u32 match_type, u32 match_chip)
 {
 	switch (match_type) {
@@ -999,6 +1033,7 @@ EXPORT_SYMBOL(v4l2_ctrl_query_fill);
 EXPORT_SYMBOL(v4l2_ctrl_query_fill_std);
 
 EXPORT_SYMBOL(v4l2_chip_match_i2c_client);
+EXPORT_SYMBOL(v4l2_chip_ident_i2c_client);
 EXPORT_SYMBOL(v4l2_chip_match_host);
 
 /*

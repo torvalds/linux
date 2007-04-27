@@ -1439,11 +1439,36 @@ static int dvb_net_ioctl(struct inode *inode, struct file *file,
 	return dvb_usercopy(inode, file, cmd, arg, dvb_net_do_ioctl);
 }
 
+static int dvb_net_close(struct inode *inode, struct file *file)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_net *dvbnet = dvbdev->priv;
+
+	if (!dvbdev)
+		return -ENODEV;
+
+	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+		dvbdev->readers++;
+	} else {
+		dvbdev->writers++;
+	}
+
+	dvbdev->users++;
+
+	if(dvbdev->users == 1 && dvbnet->exit==1) {
+		fops_put(file->f_op);
+		file->f_op = NULL;
+		wake_up(&dvbdev->wait_queue);
+	}
+	return 0;
+}
+
+
 static struct file_operations dvb_net_fops = {
 	.owner = THIS_MODULE,
 	.ioctl = dvb_net_ioctl,
 	.open =	dvb_generic_open,
-	.release = dvb_generic_release,
+	.release = dvb_net_close,
 };
 
 static struct dvb_device dvbdev_net = {
@@ -1457,6 +1482,11 @@ static struct dvb_device dvbdev_net = {
 void dvb_net_release (struct dvb_net *dvbnet)
 {
 	int i;
+
+	dvbnet->exit = 1;
+	if (dvbnet->dvbdev->users < 1)
+		wait_event(dvbnet->dvbdev->wait_queue,
+				dvbnet->dvbdev->users==1);
 
 	dvb_unregister_device(dvbnet->dvbdev);
 

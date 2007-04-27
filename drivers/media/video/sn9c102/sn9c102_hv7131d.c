@@ -22,19 +22,13 @@
 #include "sn9c102_sensor.h"
 
 
-static struct sn9c102_sensor hv7131d;
-
-
 static int hv7131d_init(struct sn9c102_device* cam)
 {
-	int err = 0;
+	int err;
 
-	err += sn9c102_write_reg(cam, 0x00, 0x10);
-	err += sn9c102_write_reg(cam, 0x00, 0x11);
-	err += sn9c102_write_reg(cam, 0x00, 0x14);
-	err += sn9c102_write_reg(cam, 0x60, 0x17);
-	err += sn9c102_write_reg(cam, 0x0e, 0x18);
-	err += sn9c102_write_reg(cam, 0xf2, 0x19);
+	err = sn9c102_write_const_regs(cam, {0x00, 0x10}, {0x00, 0x11},
+				       {0x00, 0x14}, {0x60, 0x17},
+				       {0x0e, 0x18}, {0xf2, 0x19});
 
 	err += sn9c102_i2c_write(cam, 0x01, 0x04);
 	err += sn9c102_i2c_write(cam, 0x02, 0x00);
@@ -153,7 +147,7 @@ static int hv7131d_set_pix_format(struct sn9c102_device* cam,
 static struct sn9c102_sensor hv7131d = {
 	.name = "HV7131D",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
-	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102 | BRIDGE_SN9C103,
+	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102,
 	.sysfs_ops = SN9C102_I2C_READ | SN9C102_I2C_WRITE,
 	.frequency = SN9C102_I2C_100KHZ,
 	.interface = SN9C102_I2C_2WIRES,
@@ -250,11 +244,10 @@ static struct sn9c102_sensor hv7131d = {
 
 int sn9c102_probe_hv7131d(struct sn9c102_device* cam)
 {
-	int r0 = 0, r1 = 0, err = 0;
+	int r0 = 0, r1 = 0, err;
 
-	err += sn9c102_write_reg(cam, 0x01, 0x01);
-	err += sn9c102_write_reg(cam, 0x00, 0x01);
-	err += sn9c102_write_reg(cam, 0x28, 0x17);
+	err = sn9c102_write_const_regs(cam, {0x01, 0x01}, {0x00, 0x01},
+				       {0x28, 0x17});
 	if (err)
 		return -EIO;
 
@@ -263,7 +256,7 @@ int sn9c102_probe_hv7131d(struct sn9c102_device* cam)
 	if (r0 < 0 || r1 < 0)
 		return -EIO;
 
-	if (r0 != 0x00 && r1 != 0x04)
+	if (r0 != 0x00 || r1 != 0x04)
 		return -ENODEV;
 
 	sn9c102_attach_sensor(cam, &hv7131d);

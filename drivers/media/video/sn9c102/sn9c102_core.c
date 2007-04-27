@@ -44,11 +44,12 @@
 /*****************************************************************************/
 
 #define SN9C102_MODULE_NAME     "V4L2 driver for SN9C1xx PC Camera Controllers"
-#define SN9C102_MODULE_AUTHOR   "(C) 2004-2006 Luca Risolia"
+#define SN9C102_MODULE_ALIAS    "sn9c1xx"
+#define SN9C102_MODULE_AUTHOR   "(C) 2004-2007 Luca Risolia"
 #define SN9C102_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
 #define SN9C102_MODULE_LICENSE  "GPL"
-#define SN9C102_MODULE_VERSION  "1:1.34"
-#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 34)
+#define SN9C102_MODULE_VERSION  "1:1.39"
+#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 39)
 
 /*****************************************************************************/
 
@@ -56,6 +57,7 @@ MODULE_DEVICE_TABLE(usb, sn9c102_id_table);
 
 MODULE_AUTHOR(SN9C102_MODULE_AUTHOR " " SN9C102_AUTHOR_EMAIL);
 MODULE_DESCRIPTION(SN9C102_MODULE_NAME);
+MODULE_ALIAS(SN9C102_MODULE_ALIAS);
 MODULE_VERSION(SN9C102_MODULE_VERSION);
 MODULE_LICENSE(SN9C102_MODULE_LICENSE);
 
@@ -106,8 +108,7 @@ MODULE_PARM_DESC(debug,
 		 "\n1 = critical errors"
 		 "\n2 = significant informations"
 		 "\n3 = more verbose messages"
-		 "\nLevel 3 is useful for testing only, when only "
-		 "one device is used."
+		 "\nLevel 3 is useful for testing only."
 		 "\nDefault value is "__MODULE_STRING(SN9C102_DEBUG_LEVEL)"."
 		 "\n");
 #endif
@@ -121,8 +122,8 @@ sn9c102_request_buffers(struct sn9c102_device* cam, u32 count,
 	struct v4l2_pix_format* p = &(cam->sensor.pix_format);
 	struct v4l2_rect* r = &(cam->sensor.cropcap.bounds);
 	size_t imagesize = cam->module_param.force_munmap || io == IO_READ ?
-				 (p->width * p->height * p->priv) / 8 :
-				 (r->width * r->height * p->priv) / 8;
+			   (p->width * p->height * p->priv) / 8 :
+			   (r->width * r->height * p->priv) / 8;
 	void* buff = NULL;
 	u32 i;
 
@@ -208,26 +209,39 @@ static void sn9c102_queue_unusedframes(struct sn9c102_device* cam)
 }
 
 /*****************************************************************************/
-
-int sn9c102_write_regs(struct sn9c102_device* cam, u8* buff, u16 index)
+/*
+ * Write a sequence of count value/register pairs.  Returns -1 after the
+ * first failed write, or 0 for no errors.
+ */
+int sn9c102_write_regs(struct sn9c102_device* cam, const u8 valreg[][2],
+		       int count)
 {
 	struct usb_device* udev = cam->usbdev;
+	u8* value = cam->control_buffer;  /* Needed for DMA'able memory */
 	int i, res;
 
-	if (index + sizeof(buff) >= ARRAY_SIZE(cam->reg))
-		return -1;
+	for (i = 0; i < count; i++) {
+		u8 index = valreg[i][1];
 
-	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x08, 0x41,
-			      index, 0, buff, sizeof(buff),
-			      SN9C102_CTRL_TIMEOUT*sizeof(buff));
-	if (res < 0) {
-		DBG(3, "Failed to write registers (index 0x%02X, error %d)",
-		    index, res);
-		return -1;
+		/*
+		 * index is a u8, so it must be <256 and can't be out of range.
+		 * If we put in a check anyway, gcc annoys us with a warning
+		 * that our check is useless.  People get all uppity when they
+		 * see warnings in the kernel compile.
+		 */
+
+		*value = valreg[i][0];
+		res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				      0x08, 0x41, index, 0,
+				      value, 1, SN9C102_CTRL_TIMEOUT);
+		if (res < 0) {
+			DBG(3, "Failed to write a register (value 0x%02X, "
+			       "index 0x%02X, error %d)", *value, index, res);
+			return -1;
+		}
+
+		cam->reg[index] = *value;
 	}
-
-	for (i = 0; i < sizeof(buff); i++)
-		cam->reg[index+i] = buff[i];
 
 	return 0;
 }
@@ -485,18 +499,43 @@ static size_t sn9c102_sof_length(struct sn9c102_device* cam)
 static void*
 sn9c102_find_sof_header(struct sn9c102_device* cam, void* mem, size_t len)
 {
-	char sof_header[6] = {0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
-	size_t soflen = 0, i;
+	static const char marker[6] = {0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
+	const char *m = mem;
+	size_t soflen = 0, i, j;
 
 	soflen = sn9c102_sof_length(cam);
 
-	for (i = 0; (len >= soflen) && (i <= len - soflen); i++)
-		if (!memcmp(mem + i, sof_header, sizeof(sof_header))) {
-			memcpy(cam->sof_header, mem + i,
-			       sizeof(sn9c102_sof_header_t));
-				/* Skip the header */
-				return mem + i + soflen;
+	for (i = 0; i < len; i++) {
+		size_t b;
+
+		/* Read the variable part of the header */
+		if (unlikely(cam->sof.bytesread >= sizeof(marker))) {
+			cam->sof.header[cam->sof.bytesread] = *(m+i);
+			if (++cam->sof.bytesread == soflen) {
+				cam->sof.bytesread = 0;
+				return mem + i;
 			}
+			continue;
+		}
+
+		/* Search for the SOF marker (fixed part) in the header */
+		for (j = 0, b=cam->sof.bytesread; j+b < sizeof(marker); j++) {
+			if (unlikely(i+j) == len)
+				return NULL;
+			if (*(m+i+j) == marker[cam->sof.bytesread]) {
+				cam->sof.header[cam->sof.bytesread] = *(m+i+j);
+				if (++cam->sof.bytesread == sizeof(marker)) {
+					PDBGG("Bytes to analyze: %zd. SOF "
+					      "starts at byte #%zd", len, i);
+					i += j+1;
+					break;
+				}
+			} else {
+				cam->sof.bytesread = 0;
+				break;
+			}
+		}
+	}
 
 	return NULL;
 }
@@ -505,7 +544,7 @@ sn9c102_find_sof_header(struct sn9c102_device* cam, void* mem, size_t len)
 static void*
 sn9c102_find_eof_header(struct sn9c102_device* cam, void* mem, size_t len)
 {
-	char eof_header[4][4] = {
+	static const u8 eof_header[4][4] = {
 		{0x00, 0x00, 0x00, 0x00},
 		{0x40, 0x00, 0x00, 0x00},
 		{0x80, 0x00, 0x00, 0x00},
@@ -513,10 +552,16 @@ sn9c102_find_eof_header(struct sn9c102_device* cam, void* mem, size_t len)
 	};
 	size_t i, j;
 
+	/* The EOF header does not exist in compressed data */
 	if (cam->sensor.pix_format.pixelformat == V4L2_PIX_FMT_SN9C10X ||
 	    cam->sensor.pix_format.pixelformat == V4L2_PIX_FMT_JPEG)
-		return NULL; /* EOF header does not exist in compressed data */
+		return NULL;
 
+	/*
+	   The EOF header might cross the packet boundary, but this is not a
+	   problem, since the end of a frame is determined by checking its size
+	   in the first place.
+	*/
 	for (i = 0; (len >= 4) && (i <= len - 4); i++)
 		for (j = 0; j < ARRAY_SIZE(eof_header); j++)
 			if (!memcmp(mem + i, eof_header[j], 4))
@@ -529,7 +574,7 @@ sn9c102_find_eof_header(struct sn9c102_device* cam, void* mem, size_t len)
 static void
 sn9c102_write_jpegheader(struct sn9c102_device* cam, struct sn9c102_frame_t* f)
 {
-	static u8 jpeg_header[589] = {
+	static const u8 jpeg_header[589] = {
 		0xff, 0xd8, 0xff, 0xdb, 0x00, 0x84, 0x00, 0x06, 0x04, 0x05,
 		0x06, 0x05, 0x04, 0x06, 0x06, 0x05, 0x06, 0x07, 0x07, 0x06,
 		0x08, 0x0a, 0x10, 0x0a, 0x0a, 0x09, 0x09, 0x0a, 0x14, 0x0e,
@@ -639,6 +684,7 @@ static void sn9c102_urb_complete(struct urb *urb)
 		cam->stream = STREAM_OFF;
 		if ((*f))
 			(*f)->state = F_QUEUED;
+		cam->sof.bytesread = 0;
 		DBG(3, "Stream interrupted by application");
 		wake_up(&cam->wait_stream);
 	}
@@ -676,6 +722,7 @@ static void sn9c102_urb_complete(struct urb *urb)
 		if (status) {
 			DBG(3, "Error in isochronous frame");
 			(*f)->state = F_ERROR;
+			cam->sof.bytesread = 0;
 			continue;
 		}
 
@@ -692,13 +739,13 @@ end_of_frame:
 				if (eof)
 					img = (eof > pos) ? eof - pos - 1 : 0;
 
-				if ((*f)->buf.bytesused+img > imagesize) {
+				if ((*f)->buf.bytesused + img > imagesize) {
 					u32 b;
 					b = (*f)->buf.bytesused + img -
 					    imagesize;
 					img = imagesize - (*f)->buf.bytesused;
-					DBG(3, "Expected EOF not found: "
-					       "video frame cut");
+					PDBGG("Expected EOF not found: video "
+					      "frame cut");
 					if (eof)
 						DBG(3, "Exceeded limit: +%u "
 						       "bytes", (unsigned)(b));
@@ -719,11 +766,6 @@ end_of_frame:
 				      V4L2_PIX_FMT_JPEG) && eof)) {
 					u32 b;
 
-					if (cam->sensor.pix_format.pixelformat
-					    == V4L2_PIX_FMT_JPEG)
-						sn9c102_write_eoimarker(cam,
-									(*f));
-
 					b = (*f)->buf.bytesused;
 					(*f)->state = F_DONE;
 					(*f)->buf.sequence= ++cam->frame_count;
@@ -741,7 +783,7 @@ end_of_frame:
 					spin_unlock(&cam->queue_lock);
 
 					memcpy(cam->sysfs.frame_header,
-					       cam->sof_header, soflen);
+					       cam->sof.header, soflen);
 
 					DBG(3, "Video frame captured: %lu "
 					       "bytes", (unsigned long)(b));
@@ -791,7 +833,13 @@ start_of_frame:
 				    V4L2_PIX_FMT_SN9C10X ||
 				    cam->sensor.pix_format.pixelformat ==
 				    V4L2_PIX_FMT_JPEG) {
-					eof = sof - soflen;
+					if (sof - pos >= soflen) {
+						eof = sof - soflen;
+					} else { /* remove header */
+						eof = pos;
+						(*f)->buf.bytesused -=
+							(soflen - (sof - pos));
+					}
 					goto end_of_frame;
 				} else {
 					DBG(3, "SOF before expected EOF after "
@@ -878,6 +926,7 @@ static int sn9c102_start_transfer(struct sn9c102_device* cam)
 	}
 
 	cam->frame_current = NULL;
+	cam->sof.bytesread = 0;
 
 	for (i = 0; i < SN9C102_URBS; i++) {
 		err = usb_submit_urb(cam->urb[i], GFP_KERNEL);
@@ -959,9 +1008,9 @@ static u16 sn9c102_strtou16(const char* buff, size_t len, ssize_t* count)
 
 	if (len < 6) {
 		strncpy(str, buff, len);
-		str[len+1] = '\0';
+		str[len] = '\0';
 	} else {
-		strncpy(str, buff, 4);
+		strncpy(str, buff, 6);
 		str[6] = '\0';
 	}
 
@@ -1062,7 +1111,7 @@ static ssize_t sn9c102_show_val(struct class_device* cd, char* buf)
 
 	count = sprintf(buf, "%d\n", val);
 
-	DBG(3, "Read bytes: %zd", count);
+	DBG(3, "Read bytes: %zd, value: %d", count, val);
 
 	mutex_unlock(&sn9c102_sysfs_lock);
 
@@ -1197,7 +1246,7 @@ static ssize_t sn9c102_show_i2c_val(struct class_device* cd, char* buf)
 
 	count = sprintf(buf, "%d\n", val);
 
-	DBG(3, "Read bytes: %zd", count);
+	DBG(3, "Read bytes: %zd, value: %d", count, val);
 
 	mutex_unlock(&sn9c102_sysfs_lock);
 
@@ -1371,35 +1420,35 @@ static CLASS_DEVICE_ATTR(frame_header, S_IRUGO,
 
 static int sn9c102_create_sysfs(struct sn9c102_device* cam)
 {
-	struct video_device *v4ldev = cam->v4ldev;
+	struct class_device *classdev = &(cam->v4ldev->class_dev);
 	int err = 0;
 
-	if ((err = video_device_create_file(v4ldev, &class_device_attr_reg)))
+	if ((err = class_device_create_file(classdev, &class_device_attr_reg)))
 		goto err_out;
-	if ((err = video_device_create_file(v4ldev, &class_device_attr_val)))
+	if ((err = class_device_create_file(classdev, &class_device_attr_val)))
 		goto err_reg;
-	if ((err = video_device_create_file(v4ldev,
+	if ((err = class_device_create_file(classdev,
 					    &class_device_attr_frame_header)))
 		goto err_val;
 
 	if (cam->sensor.sysfs_ops) {
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						  &class_device_attr_i2c_reg)))
 			goto err_frame_header;
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						  &class_device_attr_i2c_val)))
 			goto err_i2c_reg;
 	}
 
 	if (cam->bridge == BRIDGE_SN9C101 || cam->bridge == BRIDGE_SN9C102) {
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						    &class_device_attr_green)))
 			goto err_i2c_val;
 	} else {
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						    &class_device_attr_blue)))
 			goto err_i2c_val;
-		if ((err = video_device_create_file(v4ldev,
+		if ((err = class_device_create_file(classdev,
 						    &class_device_attr_red)))
 			goto err_blue;
 	}
@@ -1407,19 +1456,19 @@ static int sn9c102_create_sysfs(struct sn9c102_device* cam)
 	return 0;
 
 err_blue:
-	video_device_remove_file(v4ldev, &class_device_attr_blue);
+	class_device_remove_file(classdev, &class_device_attr_blue);
 err_i2c_val:
 	if (cam->sensor.sysfs_ops)
-		video_device_remove_file(v4ldev, &class_device_attr_i2c_val);
+		class_device_remove_file(classdev, &class_device_attr_i2c_val);
 err_i2c_reg:
 	if (cam->sensor.sysfs_ops)
-		video_device_remove_file(v4ldev, &class_device_attr_i2c_reg);
+		class_device_remove_file(classdev, &class_device_attr_i2c_reg);
 err_frame_header:
-	video_device_remove_file(v4ldev, &class_device_attr_frame_header);
+	class_device_remove_file(classdev, &class_device_attr_frame_header);
 err_val:
-	video_device_remove_file(v4ldev, &class_device_attr_val);
+	class_device_remove_file(classdev, &class_device_attr_val);
 err_reg:
-	video_device_remove_file(v4ldev, &class_device_attr_reg);
+	class_device_remove_file(classdev, &class_device_attr_reg);
 err_out:
 	return err;
 }
@@ -1477,10 +1526,10 @@ sn9c102_set_compression(struct sn9c102_device* cam,
 	case BRIDGE_SN9C101:
 	case BRIDGE_SN9C102:
 	case BRIDGE_SN9C103:
-	if (compression->quality == 0)
+		if (compression->quality == 0)
 			err += sn9c102_write_reg(cam, cam->reg[0x17] | 0x01,
 						 0x17);
-	else if (compression->quality == 1)
+		else if (compression->quality == 1)
 			err += sn9c102_write_reg(cam, cam->reg[0x17] & 0xfe,
 						 0x17);
 		break;
@@ -1489,10 +1538,10 @@ sn9c102_set_compression(struct sn9c102_device* cam,
 		if (compression->quality == 0) {
 			for (i = 0; i <= 63; i++) {
 				err += sn9c102_write_reg(cam,
-							 SN9C102_Y_QTABLE0[i],
+							 SN9C102_Y_QTABLE1[i],
 							 0x100 + i);
 				err += sn9c102_write_reg(cam,
-							 SN9C102_UV_QTABLE0[i],
+							 SN9C102_UV_QTABLE1[i],
 							 0x140 + i);
 			}
 			err += sn9c102_write_reg(cam, cam->reg[0x18] & 0xbf,
@@ -1597,9 +1646,13 @@ static int sn9c102_init(struct sn9c102_device* cam)
 		if (cam->bridge == BRIDGE_SN9C101 ||
 		    cam->bridge == BRIDGE_SN9C102 ||
 		    cam->bridge == BRIDGE_SN9C103) {
+			if (s->pix_format.pixelformat == V4L2_PIX_FMT_JPEG)
+				s->pix_format.pixelformat= V4L2_PIX_FMT_SBGGR8;
 			cam->compression.quality =  cam->reg[0x17] & 0x01 ?
 						    0 : 1;
 		} else {
+			if (s->pix_format.pixelformat == V4L2_PIX_FMT_SN9C10X)
+				s->pix_format.pixelformat = V4L2_PIX_FMT_JPEG;
 			cam->compression.quality =  cam->reg[0x18] & 0x40 ?
 						    0 : 1;
 			err += sn9c102_set_compression(cam, &cam->compression);
@@ -1805,7 +1858,7 @@ sn9c102_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 		DBG(3, "Close and open the device again to choose "
 		       "the read method");
 		mutex_unlock(&cam->fileop_mutex);
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	if (cam->io == IO_NONE) {
@@ -1845,16 +1898,16 @@ sn9c102_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 				return err;
 			}
 		} else {
-		timeout = wait_event_interruptible_timeout
-			  ( cam->wait_frame,
-			    (!list_empty(&cam->outqueue)) ||
-			    (cam->state & DEV_DISCONNECTED) ||
-			    (cam->state & DEV_MISCONFIGURED),
-			    cam->module_param.frame_timeout *
-			    1000 * msecs_to_jiffies(1) );
-		if (timeout < 0) {
-			mutex_unlock(&cam->fileop_mutex);
-			return timeout;
+			timeout = wait_event_interruptible_timeout
+				  ( cam->wait_frame,
+				    (!list_empty(&cam->outqueue)) ||
+				    (cam->state & DEV_DISCONNECTED) ||
+				    (cam->state & DEV_MISCONFIGURED),
+				    cam->module_param.frame_timeout *
+				    1000 * msecs_to_jiffies(1) );
+			if (timeout < 0) {
+				mutex_unlock(&cam->fileop_mutex);
+				return timeout;
 			} else if (timeout == 0 &&
 				   !(cam->state & DEV_DISCONNECTED)) {
 				DBG(1, "Video frame timeout elapsed");
@@ -2001,7 +2054,12 @@ static int sn9c102_mmap(struct file* filp, struct vm_area_struct *vma)
 		return -EIO;
 	}
 
-	if (cam->io != IO_MMAP || !(vma->vm_flags & VM_WRITE) ||
+	if (!(vma->vm_flags & (VM_WRITE | VM_READ))) {
+		mutex_unlock(&cam->fileop_mutex);
+		return -EACCES;
+	}
+
+	if (cam->io != IO_MMAP ||
 	    size != PAGE_ALIGN(cam->frame[0].buf.length)) {
 		mutex_unlock(&cam->fileop_mutex);
 		return -EINVAL;
@@ -2267,7 +2325,7 @@ sn9c102_vidioc_s_crop(struct sn9c102_device* cam, void __user * arg)
 			if (cam->frame[i].vma_use_count) {
 				DBG(3, "VIDIOC_S_CROP failed. "
 				       "Unmap the buffers first.");
-				return -EINVAL;
+				return -EBUSY;
 			}
 
 	/* Preserve R,G or B origin */
@@ -2410,8 +2468,8 @@ sn9c102_vidioc_enum_fmt(struct sn9c102_device* cam, void __user * arg)
 		case BRIDGE_SN9C101:
 		case BRIDGE_SN9C102:
 		case BRIDGE_SN9C103:
-		strcpy(fmtd.description, "compressed");
-		fmtd.pixelformat = V4L2_PIX_FMT_SN9C10X;
+			strcpy(fmtd.description, "compressed");
+			fmtd.pixelformat = V4L2_PIX_FMT_SN9C10X;
 			break;
 		case BRIDGE_SN9C105:
 		case BRIDGE_SN9C120:
@@ -2445,8 +2503,10 @@ sn9c102_vidioc_g_fmt(struct sn9c102_device* cam, void __user * arg)
 	if (format.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	pfmt->bytesperline = (pfmt->pixelformat==V4L2_PIX_FMT_SN9C10X ||
-			      pfmt->pixelformat==V4L2_PIX_FMT_JPEG)
+	pfmt->colorspace = (pfmt->pixelformat == V4L2_PIX_FMT_JPEG) ?
+			   V4L2_COLORSPACE_JPEG : V4L2_COLORSPACE_SRGB;
+	pfmt->bytesperline = (pfmt->pixelformat == V4L2_PIX_FMT_SN9C10X ||
+			      pfmt->pixelformat == V4L2_PIX_FMT_JPEG)
 			     ? 0 : (pfmt->width * pfmt->priv) / 8;
 	pfmt->sizeimage = pfmt->height * ((pfmt->width*pfmt->priv)/8);
 	pfmt->field = V4L2_FIELD_NONE;
@@ -2521,9 +2581,9 @@ sn9c102_vidioc_try_s_fmt(struct sn9c102_device* cam, unsigned int cmd,
 	case BRIDGE_SN9C101:
 	case BRIDGE_SN9C102:
 	case BRIDGE_SN9C103:
-	if (pix->pixelformat != V4L2_PIX_FMT_SN9C10X &&
-	    pix->pixelformat != V4L2_PIX_FMT_SBGGR8)
-		pix->pixelformat = pfmt->pixelformat;
+		if (pix->pixelformat != V4L2_PIX_FMT_SN9C10X &&
+		    pix->pixelformat != V4L2_PIX_FMT_SBGGR8)
+			pix->pixelformat = pfmt->pixelformat;
 		break;
 	case BRIDGE_SN9C105:
 	case BRIDGE_SN9C120:
@@ -2533,7 +2593,8 @@ sn9c102_vidioc_try_s_fmt(struct sn9c102_device* cam, unsigned int cmd,
 		break;
 	}
 	pix->priv = pfmt->priv; /* bpp */
-	pix->colorspace = pfmt->colorspace;
+	pix->colorspace = (pix->pixelformat == V4L2_PIX_FMT_JPEG) ?
+			  V4L2_COLORSPACE_JPEG : V4L2_COLORSPACE_SRGB;
 	pix->bytesperline = (pix->pixelformat == V4L2_PIX_FMT_SN9C10X ||
 			     pix->pixelformat == V4L2_PIX_FMT_JPEG)
 			    ? 0 : (pix->width * pix->priv) / 8;
@@ -2551,7 +2612,7 @@ sn9c102_vidioc_try_s_fmt(struct sn9c102_device* cam, unsigned int cmd,
 			if (cam->frame[i].vma_use_count) {
 				DBG(3, "VIDIOC_S_FMT failed. Unmap the "
 				       "buffers first.");
-				return -EINVAL;
+				return -EBUSY;
 			}
 
 	if (cam->stream == STREAM_ON)
@@ -2666,14 +2727,14 @@ sn9c102_vidioc_reqbufs(struct sn9c102_device* cam, void __user * arg)
 	if (cam->io == IO_READ) {
 		DBG(3, "Close and open the device again to choose the mmap "
 		       "I/O method");
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	for (i = 0; i < cam->nbuffers; i++)
 		if (cam->frame[i].vma_use_count) {
 			DBG(3, "VIDIOC_REQBUFS failed. Previous buffers are "
 			       "still mapped.");
-			return -EINVAL;
+			return -EBUSY;
 		}
 
 	if (cam->stream == STREAM_ON)
@@ -2785,15 +2846,15 @@ sn9c102_vidioc_dqbuf(struct sn9c102_device* cam, struct file* filp,
 			if (err)
 				return err;
 		} else {
-		timeout = wait_event_interruptible_timeout
-			  ( cam->wait_frame,
-			    (!list_empty(&cam->outqueue)) ||
-			    (cam->state & DEV_DISCONNECTED) ||
-			    (cam->state & DEV_MISCONFIGURED),
-			    cam->module_param.frame_timeout *
-			    1000 * msecs_to_jiffies(1) );
-		if (timeout < 0)
-			return timeout;
+			timeout = wait_event_interruptible_timeout
+				  ( cam->wait_frame,
+				    (!list_empty(&cam->outqueue)) ||
+				    (cam->state & DEV_DISCONNECTED) ||
+				    (cam->state & DEV_MISCONFIGURED),
+				    cam->module_param.frame_timeout *
+				    1000 * msecs_to_jiffies(1) );
+			if (timeout < 0)
+				return timeout;
 			else if (timeout == 0 &&
 				 !(cam->state & DEV_DISCONNECTED)) {
 				DBG(1, "Video frame timeout elapsed");
@@ -2835,9 +2896,6 @@ sn9c102_vidioc_streamon(struct sn9c102_device* cam, void __user * arg)
 		return -EFAULT;
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE || cam->io != IO_MMAP)
-		return -EINVAL;
-
-	if (list_empty(&cam->inqueue))
 		return -EINVAL;
 
 	cam->stream = STREAM_ON;
@@ -3166,8 +3224,8 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	r = sn9c102_read_reg(cam, 0x00);
 	if (r < 0 || (r != 0x10 && r != 0x11 && r != 0x12)) {
-		DBG(1, "Sorry, this is not a SN9C1xx based camera "
-		       "(vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+		DBG(1, "Sorry, this is not a SN9C1xx-based camera "
+		       "(vid:pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
 		err = -ENODEV;
 		goto fail;
 	}
@@ -3177,19 +3235,19 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	case BRIDGE_SN9C101:
 	case BRIDGE_SN9C102:
 		DBG(2, "SN9C10[12] PC Camera Controller detected "
-		       "(vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+		       "(vid:pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
 		break;
 	case BRIDGE_SN9C103:
 		DBG(2, "SN9C103 PC Camera Controller detected "
-		       "(vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+		       "(vid:pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
 		break;
 	case BRIDGE_SN9C105:
 		DBG(2, "SN9C105 PC Camera Controller detected "
-		       "(vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+		       "(vid:pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
 		break;
 	case BRIDGE_SN9C120:
 		DBG(2, "SN9C120 PC Camera Controller detected "
-		       "(vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+		       "(vid:pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
 		break;
 	}
 
@@ -3260,6 +3318,8 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		       "device controlling. Error #%d", err);
 #else
 	DBG(2, "Optional device control through 'sysfs' interface disabled");
+	DBG(3, "Compile the kernel with the 'CONFIG_VIDEO_ADV_DEBUG' "
+	       "configuration option to enable it.");
 #endif
 
 	usb_set_intfdata(intf, cam);

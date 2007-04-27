@@ -55,7 +55,7 @@ trivial patch so apply some common sense.
 
 8.	Happy hacking.
 
- 		-----------------------------------
+		-----------------------------------
 
 Maintainers List (try to look for most precise areas first)
 
@@ -873,6 +873,12 @@ W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Maintained
 
+CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
+P:   	Jonathan Corbet
+M:	corbet@lwn.net
+L:	video4linux-list@redhat.com
+S:	Maintained
+
 CALGARY x86-64 IOMMU
 P:	Muli Ben-Yehuda
 M:	muli@il.ibm.com
@@ -907,7 +913,7 @@ L:	linux-cifs-client@lists.samba.org
 L:	samba-technical@lists.samba.org
 W:	http://us1.samba.org/samba/Linux_CIFS_client.html
 T:	git kernel.org:/pub/scm/linux/kernel/git/sfrench/cifs-2.6.git
-S:	Supported	
+S:	Supported
 
 CONFIGFS
 P:	Joel Becker
@@ -1549,19 +1555,19 @@ P:	Chirag Kantharia
 M:	chirag.kantharia@hp.com
 L:	iss_storagedev@hp.com
 S:	Maintained
- 
+
 HEWLETT-PACKARD SMART2 RAID DRIVER
 P:	Chirag Kantharia
 M:	chirag.kantharia@hp.com
 L:	iss_storagedev@hp.com
 S:	Maintained
- 
+
 HEWLETT-PACKARD SMART CISS RAID DRIVER (cciss)
 P:	Mike Miller
 M:	mike.miller@hp.com
 L:	iss_storagedev@hp.com
 S:	Supported
- 
+
 HOST AP DRIVER
 P:	Jouni Malinen
 M:	jkmaline@cc.hut.fi
@@ -1673,7 +1679,7 @@ P:	Jack Hammer
 P:	Dave Jeffery
 M:	ipslinux@adaptec.com
 W:	http://www.developer.ibm.com/welcome/netfinity/serveraid.html
-S:	Supported 
+S:	Supported
 
 IDE SUBSYSTEM
 P:	Bartlomiej Zolnierkiewicz
@@ -1975,7 +1981,7 @@ M:	kai@germaschewski.name
 P:	Sam Ravnborg
 M:	sam@ravnborg.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/sam/kbuild.git
-S:	Maintained 
+S:	Maintained
 
 KERNEL JANITORS
 P:	Several
@@ -2155,7 +2161,7 @@ S:	Maintained
 LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP Dynamic Disks)
 P:	Richard Russon (FlatCap)
 M:	ldm@flatcap.org
-L:	ldm-devel@lists.sourceforge.net	
+L:	ldm-devel@lists.sourceforge.net
 W:	http://ldm.sourceforge.net
 S:	Maintained
 
@@ -2504,13 +2510,13 @@ P:	Kurt Hackel
 M:	kurt.hackel@oracle.com
 L:	ocfs2-devel@oss.oracle.com
 W:	http://oss.oracle.com/projects/ocfs2/
-S:	Supported	
+S:	Supported
 
 OLYMPIC NETWORK DRIVER
 P:	Peter De Shrijver
 M:	p2@ace.ulyssis.student.kuleuven.ac.be
 P:	Mike Phillips
-M:	mikep@linuxtr.net 
+M:	mikep@linuxtr.net
 L:	netdev@vger.kernel.org
 L:	linux-tr@linuxtr.net
 W:	http://www.linuxtr.net
@@ -2524,6 +2530,12 @@ S:	Maintained
 OMNIKEY CARDMAN 4040 DRIVER
 P:	Harald Welte
 M:	laforge@gnumonks.org
+S:	Maintained
+
+OMNIVISION OV7670 SENSOR DRIVER
+P:   	Jonathan Corbet
+M:	corbet@lwn.net
+L:	video4linux-list@redhat.com
 S:	Maintained
 
 ONSTREAM SCSI TAPE DRIVER
@@ -3045,7 +3057,7 @@ SIS FRAMEBUFFER DRIVER
 P:	Thomas Winischhofer
 M:	thomas@winischhofer.net
 W:	http://www.winischhofer.net/linuxsisvga.shtml
-S:	Maintained	
+S:	Maintained
 
 SIS USB2VGA DRIVER
 P:	Thomas Winischhofer
@@ -3594,7 +3606,7 @@ L:	linux-usb-devel@lists.sourceforge.net
 W:	http://www.connecttech.com
 S:	Supported
 
-USB SN9C10x DRIVER
+USB SN9C1xx DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb-devel@lists.sourceforge.net
@@ -3649,6 +3661,14 @@ L:	linux-usb-devel@lists.sourceforge.net
 W:	http://linux-lc100020.sourceforge.net
 S:	Maintained
 
+USB ZR364XX DRIVER
+P:	Antoine Jacquet
+M:	royale@zerezo.com
+L:	linux-usb-devel@lists.sourceforge.net
+L:	video4linux-list@redhat.com
+W:	http://royale.zerezo.com/zr364xx/
+S:	Maintained
+
 USER-MODE LINUX
 P:	Jeff Dike
 M:	jdike@karaya.com
@@ -3656,7 +3676,7 @@ L:	user-mode-linux-devel@lists.sourceforge.net
 L:	user-mode-linux-user@lists.sourceforge.net
 W:	http://user-mode-linux.sourceforge.net
 S:	Maintained
-	
+
 FAT/VFAT/MSDOS FILESYSTEM:
 P:	OGAWA Hirofumi
 M:	hirofumi@mail.parknet.co.jp

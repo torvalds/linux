@@ -42,7 +42,6 @@
 #include "cx22702.h"
 #include "or51132.h"
 #include "lgdt330x.h"
-#include "lgh06xf.h"
 #include "nxt200x.h"
 #include "cx24123.h"
 #include "isl6421.h"
@@ -476,6 +475,8 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_WINFAST_DTV2000H:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
+	case CX88_BOARD_HAUPPAUGE_HVR1300:
+	case CX88_BOARD_HAUPPAUGE_HVR3000:
 		dev->dvb.frontend = dvb_attach(cx22702_attach,
 					       &hauppauge_hvr_config,
 					       &dev->core->i2c_adap);
@@ -631,8 +632,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &fusionhdtv_5_gold,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(lgh06xf_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap);
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_lg_tdvs_h06xf);
 		}
 		}
 		break;
@@ -650,8 +652,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &pchdtv_hd5500,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(lgh06xf_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap);
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_lg_tdvs_h06xf);
 		}
 		}
 		break;
@@ -690,24 +693,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend) {
 			dev->core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
 			dev->dvb.frontend->ops.set_voltage = geniatech_dvbs_set_voltage;
-		}
-		break;
-	case CX88_BOARD_HAUPPAUGE_HVR1300:
-		dev->dvb.frontend = dvb_attach(cx22702_attach,
-					       &hauppauge_hvr_config,
-					       &dev->core->i2c_adap);
-		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap, &dvb_pll_fmd1216me);
-		}
-		break;
-	case CX88_BOARD_HAUPPAUGE_HVR3000:
-		dev->dvb.frontend = dvb_attach(cx22702_attach,
-					       &hauppauge_hvr_config,
-					       &dev->core->i2c_adap);
-		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap, &dvb_pll_fmd1216me);
 		}
 		break;
 	default:

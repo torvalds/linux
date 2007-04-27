@@ -1,6 +1,6 @@
 /*
-    TDA10021  - Single Chip Cable Channel Receiver driver module
-	       used on the the Siemens DVB-C cards
+    TDA10021/TDA10023  - Single Chip Cable Channel Receiver driver module
+			 used on the the Siemens DVB-C cards
 
     Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
     Copyright (C) 2004 Markus Schulz <msc@antzsystem.de>
@@ -21,22 +21,23 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#ifndef TDA10021_H
-#define TDA10021_H
+#ifndef TDA1002x_H
+#define TDA1002x_H
 
 #include <linux/dvb/frontend.h>
 
-struct tda10021_config
+struct tda1002x_config
 {
 	/* the demodulator's i2c address */
 	u8 demod_address;
+	u8 invert;
 };
 
 #if defined(CONFIG_DVB_TDA10021) || (defined(CONFIG_DVB_TDA10021_MODULE) && defined(MODULE))
-extern struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
+extern struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config,
 					    struct i2c_adapter* i2c, u8 pwm);
 #else
-static inline struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
+static inline struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config,
 					    struct i2c_adapter* i2c, u8 pwm)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
@@ -44,12 +45,16 @@ static inline struct dvb_frontend* tda10021_attach(const struct tda10021_config*
 }
 #endif // CONFIG_DVB_TDA10021
 
-static inline int tda10021_writereg(struct dvb_frontend *fe, u8 reg, u8 val) {
-	int r = 0;
-	u8 buf[] = {reg, val};
-	if (fe->ops.write)
-		r = fe->ops.write(fe, buf, 2);
-	return r;
+#if defined(CONFIG_DVB_TDA10023) || (defined(CONFIG_DVB_TDA10023_MODULE) && defined(MODULE))
+extern struct dvb_frontend* tda10023_attach(const struct tda1002x_config* config,
+					    struct i2c_adapter* i2c, u8 pwm);
+#else
+static inline struct dvb_frontend* tda10023_attach(const struct tda1002x_config* config,
+					    struct i2c_adapter* i2c, u8 pwm)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	return NULL;
 }
+#endif // CONFIG_DVB_TDA10023
 
-#endif // TDA10021_H
+#endif // TDA1002x_H

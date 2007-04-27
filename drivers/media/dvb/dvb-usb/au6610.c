@@ -40,7 +40,7 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 	}
 
 	ret = usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), operation,
-			      USB_TYPE_VENDOR|USB_DIR_IN, addr, index, usb_buf,
+			      USB_TYPE_VENDOR|USB_DIR_IN, addr << 1, index, usb_buf,
 			      sizeof(usb_buf), AU6610_USB_TIMEOUT);
 
 	if (ret < 0)
@@ -124,7 +124,7 @@ static int au6610_identify_state(struct usb_device *udev,
 }
 
 static struct zl10353_config au6610_zl10353_config = {
-	.demod_address = 0x1e,
+	.demod_address = 0x0f,
 	.no_tuner = 1,
 	.parallel_ts = 1,
 };
@@ -140,7 +140,7 @@ static int au6610_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 }
 
 static struct qt1010_config au6610_qt1010_config = {
-	.i2c_address = 0xc4
+	.i2c_address = 0x62
 };
 
 static int au6610_qt1010_tuner_attach(struct dvb_usb_adapter *adap)

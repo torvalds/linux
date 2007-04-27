@@ -219,7 +219,10 @@ static void recover_arm(struct av7110 *av7110)
 		av7110->recover(av7110);
 
 	restart_feeds(av7110);
-	av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1, av7110->ir_config);
+
+#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+	av7110_check_ir_config(av7110, true);
+#endif
 }
 
 static void av7110_arm_sync(struct av7110 *av7110)
@@ -249,6 +252,10 @@ static int arm_thread(void *data)
 
 		if (!av7110->arm_ready)
 			continue;
+
+#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+		av7110_check_ir_config(av7110, false);
+#endif
 
 		if (mutex_lock_interruptible(&av7110->dcomlock))
 			break;
@@ -667,8 +674,8 @@ static void gpioirq(unsigned long data)
 		return;
 
 	case DATA_IRCOMMAND:
-		if (av7110->ir_handler)
-			av7110->ir_handler(av7110,
+		if (av7110->ir.ir_handler)
+			av7110->ir.ir_handler(av7110,
 				swahw32(irdebi(av7110, DEBINOSWAP, Reserved, 0, 4)));
 		iwdebi(av7110, DEBINOSWAP, RX_BUFF, 0, 2);
 		break;
@@ -1907,8 +1914,10 @@ static int av7110_fe_lock_fix(struct av7110* av7110, fe_status_t status)
 	if (av7110->fe_synced == synced)
 		return 0;
 
-	if (av7110->playing)
+	if (av7110->playing) {
+		av7110->fe_synced = synced;
 		return 0;
+	}
 
 	if (mutex_lock_interruptible(&av7110->pid_mutex))
 		return -ERESTARTSYS;

@@ -43,7 +43,8 @@ struct cx25840_state {
 	u32 audclk_freq;
 	int audmode;
 	int vbi_line_offset;
-	enum v4l2_chip_ident id;
+	u32 id;
+	u32 rev;
 	int is_cx25836;
 };
 

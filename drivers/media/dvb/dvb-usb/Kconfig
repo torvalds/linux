@@ -33,6 +33,7 @@ config DVB_USB_A800
 config DVB_USB_DIBUSB_MB
 	tristate "DiBcom USB DVB-T devices (based on the DiB3000M-B) (see help for device list)"
 	depends on DVB_USB
+	select DVB_PLL
 	select DVB_DIB3000MB
 	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
@@ -88,6 +89,7 @@ config DVB_USB_DIB0700
 config DVB_USB_UMT_010
 	tristate "HanfTek UMT-010 DVB-T USB2.0 support"
 	depends on DVB_USB
+	select DVB_PLL
 	select DVB_DIB3000MC
 	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
 	help
@@ -96,9 +98,9 @@ config DVB_USB_UMT_010
 config DVB_USB_CXUSB
 	tristate "Conexant USB2.0 hybrid reference design support"
 	depends on DVB_USB
+	select DVB_PLL
 	select DVB_CX22702 if !DVB_FE_CUSTOMISE
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
-	select DVB_TUNER_LGH06XF if !DVB_FE_CUSTOMISE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	help
@@ -140,6 +142,7 @@ config DVB_USB_AU6610
 config DVB_USB_DIGITV
 	tristate "Nebula Electronics uDigiTV DVB-T USB2.0 support"
 	depends on DVB_USB
+	select DVB_PLL
 	select DVB_NXT6000 if !DVB_FE_CUSTOMISE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	help
@@ -208,3 +211,10 @@ config DVB_USB_DTT200U
 	  The receivers are also known as DTT200U (Yakumo) and UB300 (Yuan).
 
 	  The WT-220U and its clones are pen-sized.
+
+config DVB_USB_OPERA1
+	tristate "Opera1 DVB-S USB2.0 receiver"
+	depends on DVB_USB
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the Opera DVB-S USB2.0 receiver.

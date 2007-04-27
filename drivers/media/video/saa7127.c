@@ -54,6 +54,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/saa7127.h>
 
 static int debug = 0;
@@ -234,7 +235,7 @@ static struct i2c_reg_value saa7127_init_config_50hz[] = {
 
 struct saa7127_state {
 	v4l2_std_id std;
-	enum v4l2_chip_ident ident;
+	u32 ident;
 	enum saa7127_input_type input_type;
 	enum saa7127_output_type output_type;
 	int video_enable;
@@ -550,12 +551,12 @@ static int saa7127_command(struct i2c_client *client,
 	struct v4l2_routing *route = arg;
 
 	switch (cmd) {
-	case VIDIOC_S_STD:
+	case VIDIOC_INT_S_STD_OUTPUT:
 		if (state->std == *(v4l2_std_id *)arg)
 			break;
 		return saa7127_set_std(client, *(v4l2_std_id *)arg);
 
-	case VIDIOC_G_STD:
+	case VIDIOC_INT_G_STD_OUTPUT:
 		*(v4l2_std_id *)arg = state->std;
 		break;
 
@@ -650,9 +651,8 @@ static int saa7127_command(struct i2c_client *client,
 		break;
 	}
 
-	case VIDIOC_INT_G_CHIP_IDENT:
-		*(enum v4l2_chip_ident *)arg = state->ident;
-		break;
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, state->ident, 0);
 
 	default:
 		return -EINVAL;

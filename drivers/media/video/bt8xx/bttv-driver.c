@@ -164,6 +164,24 @@ static ssize_t show_card(struct class_device *cd, char *buf)
 static CLASS_DEVICE_ATTR(card, S_IRUGO, show_card, NULL);
 
 /* ----------------------------------------------------------------------- */
+/* dvb auto-load setup                                                     */
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	request_module("dvb-bt8xx");
+}
+
+static void request_modules(struct bttv *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#endif /* CONFIG_MODULES */
+
+
+/* ----------------------------------------------------------------------- */
 /* static data                                                             */
 
 /* special timing tables from conexant... */
@@ -4769,9 +4787,11 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 		disclaim_video_lines(btv);
 	}
 
-	/* add subdevices */
-	if (bttv_tvcards[btv->c.type].has_dvb)
+	/* add subdevices and autoload dvb-bt8xx if needed */
+	if (bttv_tvcards[btv->c.type].has_dvb) {
 		bttv_sub_add_device(&btv->c, "dvb");
+		request_modules(btv);
+	}
 
 	bttv_input_init(btv);
 

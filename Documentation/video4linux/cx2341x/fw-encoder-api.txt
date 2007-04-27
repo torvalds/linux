@@ -663,12 +663,13 @@ Param[0]
 
 -------------------------------------------------------------------------------
 
-Name 	CX2341X_ENC_UNKNOWN
+Name 	CX2341X_ENC_SET_VERT_CROP_LINE
 Enum 	219/0xDB
 Description
-	Unknown API, it's used by Hauppauge though.
+	Something to do with 'Vertical Crop Line'
 Param[0]
-	0 This is the value Hauppauge uses, Unknown what it means.
+	If saa7114 and raw VBI capture and 60 Hz, then set to 10001.
+	Else 0.
 
 -------------------------------------------------------------------------------
 
@@ -682,11 +683,9 @@ Param[0]
 	Command number:
 	 1=set initial SCR value when starting encoding (works).
 	 2=set quality mode (apparently some test setting).
-	 3=setup advanced VIM protection handling (supposedly only for the cx23416
-	   for raw YUV).
-	   Actually it looks like this should be 0 for saa7114/5 based card and 1
-	   for cx25840 based cards.
-	 4=generate artificial PTS timestamps
+	 3=setup advanced VIM protection handling.
+	   Always 1 for the cx23416 and 0 for cx23415.
+	 4=generate DVD compatible PTS timestamps
 	 5=USB flush mode
 	 6=something to do with the quantization matrix
 	 7=set navigation pack insertion for DVD: adds 0xbf (private stream 2)
@@ -698,7 +697,9 @@ Param[0]
 	 9=set history parameters of the video input module
 	10=set input field order of VIM
 	11=set quantization matrix
-	12=reset audio interface
+	12=reset audio interface after channel change or input switch (has no argument).
+	   Needed for the cx2584x, not needed for the mspx4xx, but it doesn't seem to
+	   do any harm calling it regardless.
 	13=set audio volume delay
 	14=set audio delay
 
