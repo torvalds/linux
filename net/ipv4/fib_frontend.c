@@ -777,6 +777,10 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
 							    .tos = frn->fl_tos,
 							    .scope = frn->fl_scope } } };
 
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	res.r = NULL;
+#endif
+
 	frn->err = -ENOENT;
 	if (tb) {
 		local_bh_disable();
