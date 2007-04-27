@@ -260,16 +260,7 @@ extern int bttv_handle_chipset(struct bttv *btv);
 /* this obsolete -- please use the sysfs-based
    interface below for new code */
 
-/* returns card type + card ID (for bt878-based ones)
-   for possible values see lines below beginning with #define BTTV_BOARD_UNKNOWN
-   returns negative value if error occurred
-*/
-extern int bttv_get_cardinfo(unsigned int card, int *type,
-			     unsigned int *cardid);
 extern struct pci_dev* bttv_get_pcidev(unsigned int card);
-
-/* obsolete, use bttv_get_cardinfo instead */
-extern int bttv_get_id(unsigned int card);
 
 /* sets GPOE register (BT848_GPIO_OUT_EN) to new value:
    data | (current_GPOE_value & ~mask)
@@ -290,20 +281,6 @@ extern int bttv_read_gpio(unsigned int card, unsigned long *data);
 extern int bttv_write_gpio(unsigned int card,
 			   unsigned long mask, unsigned long data);
 
-/* returns pointer to task queue which can be used as parameter to
-   interruptible_sleep_on
-   in interrupt handler if BT848_INT_GPINT bit is set - this queue is activated
-   (wake_up_interruptible) and following call to the function bttv_read_gpio
-   should return new value of GPDATA,
-   returns NULL value if error occurred or queue is not available
-   WARNING: because there is no buffer for GPIO data, one MUST
-   process data ASAP
-*/
-extern wait_queue_head_t* bttv_get_gpio_queue(unsigned int card);
-
-/* call i2c clients
-*/
-extern void bttv_i2c_call(unsigned int card, unsigned int cmd, void *arg);
 
 
 
