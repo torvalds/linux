@@ -280,6 +280,7 @@ struct saa7134_board {
 	unsigned char		radio_addr;
 
 	unsigned int            tda9887_conf;
+	unsigned int            tuner_config;
 
 	/* peripheral I/O */
 	enum saa7134_video_out  video_out;

@@ -144,7 +144,8 @@ static void set_freq(struct i2c_client *c, unsigned long freq)
 }
 
 static void set_type(struct i2c_client *c, unsigned int type,
-		     unsigned int new_mode_mask)
+		     unsigned int new_mode_mask, unsigned int new_config,
+		     tuner_gpio_func_t gpio_func)
 {
 	struct tuner *t = i2c_get_clientdata(c);
 	unsigned char buffer[4];
@@ -173,6 +174,11 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		microtune_init(c);
 		break;
 	case TUNER_PHILIPS_TDA8290:
+		t->config = new_config;
+		if (gpio_func != NULL) {
+			tuner_dbg("Defining GPIO function\n");
+			t->gpio_func = gpio_func;
+		}
 		tda8290_init(c);
 		break;
 	case TUNER_TEA5767:
@@ -234,10 +240,11 @@ static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
 
 	tuner_dbg("set addr for type %i\n", t->type);
 
-	if ( t->type == UNSET && ((tun_setup->addr == ADDR_UNSET &&
-		(t->mode_mask & tun_setup->mode_mask)) ||
-		tun_setup->addr == c->addr)) {
-			set_type(c, tun_setup->type, tun_setup->mode_mask);
+	if ( (t->type == UNSET && ((tun_setup->addr == ADDR_UNSET) &&
+		(t->mode_mask & tun_setup->mode_mask))) ||
+		(tun_setup->addr == c->addr)) {
+			set_type(c, tun_setup->type, tun_setup->mode_mask,
+				 tun_setup->config, tun_setup->gpio_func);
 	}
 }
 
@@ -496,7 +503,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 register_client:
 	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
 	i2c_attach_client (&t->i2c);
-	set_type (&t->i2c,t->type, t->mode_mask);
+	set_type (&t->i2c,t->type, t->mode_mask, t->config, t->gpio_func);
 	return 0;
 }
 
@@ -576,10 +583,11 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	switch (cmd) {
 	/* --- configuration --- */
 	case TUNER_SET_TYPE_ADDR:
-		tuner_dbg ("Calling set_type_addr for type=%d, addr=0x%02x, mode=0x%02x\n",
+		tuner_dbg ("Calling set_type_addr for type=%d, addr=0x%02x, mode=0x%02x, config=0x%02x\n",
 				((struct tuner_setup *)arg)->type,
 				((struct tuner_setup *)arg)->addr,
-				((struct tuner_setup *)arg)->mode_mask);
+				((struct tuner_setup *)arg)->mode_mask,
+				((struct tuner_setup *)arg)->config);
 
 		set_addr(client, (struct tuner_setup *)arg);
 		break;
