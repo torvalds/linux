@@ -287,7 +287,7 @@ MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
 #define DIB0700_DEFAULT_DEVICE_PROPERTIES \
 	.caps              = DVB_USB_IS_AN_I2C_ADAPTER, \
 	.usb_ctrl          = DEVICE_SPECIFIC, \
-	.firmware          = "dvb-usb-dib0700-01.fw", \
+	.firmware          = "dvb-usb-dib0700-02-rc1.fw", \
 	.download_firmware = dib0700_download_firmware, \
 	.no_reconnect      = 1, \
 	.size_of_priv      = sizeof(struct dib0700_state), \
