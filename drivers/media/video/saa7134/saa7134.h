@@ -562,6 +562,7 @@ extern struct list_head  saa7134_devlist;
 extern int saa7134_no_overlay;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
+void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);
 
 #define SAA7134_PGTABLE_SIZE 4096
 

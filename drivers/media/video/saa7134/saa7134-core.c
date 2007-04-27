@@ -117,6 +117,47 @@ void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 	       dev->name, mode, (~mode) & status, mode & status, msg);
 }
 
+void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
+{
+	u32 index, bitval;
+	u8 sync_control;
+
+	index = 1 << bit_no;
+	switch (value) {
+	case 0: /* static value */
+	case 1:	dprintk("setting GPIO%d to static %d\n", bit_no, value);
+		/* turn sync mode off if necessary */
+		if (index & 0x00c00000)
+			saa_andorb(SAA7134_VIDEO_PORT_CTRL6, 0x0f, 0x00);
+		if (value)
+			bitval = index;
+		else
+			bitval = 0;
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, index, index);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, index, bitval);
+		break;
+	case 3:	/* tristate */
+		dprintk("setting GPIO%d to tristate\n", bit_no);
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, index, 0);
+		break;
+	case 4:	/* sync output on GPIO 22 for tda8275a, 50Hz*/
+	case 5:	/* sync output on GPIO 22 for tda8275a, 60Hz*/
+		if (bit_no == 22) {
+			dprintk("setting GPIO22 to vsync %d\n", value - 4);
+			saa_andorb(SAA7134_VIDEO_PORT_CTRL3, 0x80, 0x80);
+			saa_andorb(SAA7134_VIDEO_PORT_CTRL6, 0x0f, 0x03);
+			if (value == 5)
+				sync_control = 11;
+			else
+				sync_control = 17;
+			saa_writeb(SAA7134_VGATE_START, sync_control);
+			saa_writeb(SAA7134_VGATE_STOP, sync_control + 1);
+			saa_andorb(SAA7134_MISC_VGATE_MSB, 0x03, 0x00);
+		}
+		break;
+	}
+}
+
 /* ------------------------------------------------------------------ */
 
 
