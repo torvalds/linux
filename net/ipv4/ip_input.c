@@ -158,7 +158,7 @@ DEFINE_SNMP_STAT(struct ipstats_mib, ip_statistics) __read_mostly;
 int ip_call_ra_chain(struct sk_buff *skb)
 {
 	struct ip_ra_chain *ra;
-	u8 protocol = skb->nh.iph->protocol;
+	u8 protocol = ip_hdr(skb)->protocol;
 	struct sock *last = NULL;
 
 	read_lock(&ip_ra_lock);
@@ -171,7 +171,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 		if (sk && inet_sk(sk)->num == protocol &&
 		    (!sk->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == skb->dev->ifindex)) {
-			if (skb->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
+			if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 				skb = ip_defrag(skb, IP_DEFRAG_CALL_RA_CHAIN);
 				if (skb == NULL) {
 					read_unlock(&ip_ra_lock);
@@ -198,17 +198,15 @@ int ip_call_ra_chain(struct sk_buff *skb)
 
 static inline int ip_local_deliver_finish(struct sk_buff *skb)
 {
-	int ihl = skb->nh.iph->ihl*4;
-
-	__skb_pull(skb, ihl);
+	__skb_pull(skb, ip_hdrlen(skb));
 
 	/* Point into the IP datagram, just past the header. */
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	rcu_read_lock();
 	{
 		/* Note: See raw.c and net/raw.h, RAWV4_HTABLE_SIZE==MAX_INET_PROTOS */
-		int protocol = skb->nh.iph->protocol;
+		int protocol = ip_hdr(skb)->protocol;
 		int hash;
 		struct sock *raw_sk;
 		struct net_protocol *ipprot;
@@ -220,7 +218,7 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 		/* If there maybe a raw socket we must check - if not we
 		 * don't care less
 		 */
-		if (raw_sk && !raw_v4_input(skb, skb->nh.iph, hash))
+		if (raw_sk && !raw_v4_input(skb, ip_hdr(skb), hash))
 			raw_sk = NULL;
 
 		if ((ipprot = rcu_dereference(inet_protos[hash])) != NULL) {
@@ -266,7 +264,7 @@ int ip_local_deliver(struct sk_buff *skb)
 	 *	Reassemble IP fragments.
 	 */
 
-	if (skb->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
+	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 		skb = ip_defrag(skb, IP_DEFRAG_LOCAL_DELIVER);
 		if (!skb)
 			return 0;
@@ -294,7 +292,7 @@ static inline int ip_rcv_options(struct sk_buff *skb)
 		goto drop;
 	}
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
 	if (ip_options_compile(NULL, skb)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
@@ -330,7 +328,7 @@ drop:
 
 static inline int ip_rcv_finish(struct sk_buff *skb)
 {
-	struct iphdr *iph = skb->nh.iph;
+	const struct iphdr *iph = ip_hdr(skb);
 
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
@@ -391,7 +389,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto inhdr_error;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
 	/*
 	 *	RFC1122: 3.1.2.2 MUST silently discard any IP frame that fails the checksum.
@@ -410,7 +408,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	if (!pskb_may_pull(skb, iph->ihl*4))
 		goto inhdr_error;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
 	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
 		goto inhdr_error;

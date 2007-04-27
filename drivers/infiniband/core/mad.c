@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2005 Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2004-2007 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
  *
@@ -31,7 +31,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: mad.c 5596 2006-03-03 01:00:07Z sean.hefty $
  */
 #include <linux/dma-mapping.h>
 #include <rdma/ib_cache.h>
@@ -668,7 +667,7 @@ static void build_smp_wc(struct ib_qp *qp,
 static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 				  struct ib_mad_send_wr_private *mad_send_wr)
 {
-	int ret;
+	int ret = 0;
 	struct ib_smp *smp = mad_send_wr->send_buf.mad;
 	unsigned long flags;
 	struct ib_mad_local_private *local;
@@ -688,14 +687,15 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	 */
 	if ((ib_get_smp_direction(smp) ? smp->dr_dlid : smp->dr_slid) ==
 	     IB_LID_PERMISSIVE &&
-	    !smi_handle_dr_smp_send(smp, device->node_type, port_num)) {
+	     smi_handle_dr_smp_send(smp, device->node_type, port_num) ==
+	     IB_SMI_DISCARD) {
 		ret = -EINVAL;
 		printk(KERN_ERR PFX "Invalid directed route\n");
 		goto out;
 	}
+
 	/* Check to post send on QP or process locally */
-	ret = smi_check_local_smp(smp, device);
-	if (!ret)
+	if (smi_check_local_smp(smp, device) == IB_SMI_DISCARD)
 		goto out;
 
 	local = kmalloc(sizeof *local, GFP_ATOMIC);
@@ -1874,18 +1874,22 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 
 	if (recv->mad.mad.mad_hdr.mgmt_class ==
 	    IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) {
-		if (!smi_handle_dr_smp_recv(&recv->mad.smp,
-					    port_priv->device->node_type,
-					    port_priv->port_num,
-					    port_priv->device->phys_port_cnt))
+		if (smi_handle_dr_smp_recv(&recv->mad.smp,
+					   port_priv->device->node_type,
+					   port_priv->port_num,
+					   port_priv->device->phys_port_cnt) ==
+					   IB_SMI_DISCARD)
 			goto out;
-		if (!smi_check_forward_dr_smp(&recv->mad.smp))
+
+		if (smi_check_forward_dr_smp(&recv->mad.smp) == IB_SMI_LOCAL)
 			goto local;
-		if (!smi_handle_dr_smp_send(&recv->mad.smp,
-					    port_priv->device->node_type,
-					    port_priv->port_num))
+
+		if (smi_handle_dr_smp_send(&recv->mad.smp,
+					   port_priv->device->node_type,
+					   port_priv->port_num) == IB_SMI_DISCARD)
 			goto out;
-		if (!smi_check_local_smp(&recv->mad.smp, port_priv->device))
+
+		if (smi_check_local_smp(&recv->mad.smp, port_priv->device) == IB_SMI_DISCARD)
 			goto out;
 	}
 

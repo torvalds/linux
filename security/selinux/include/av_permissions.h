@@ -16,7 +16,6 @@
 #define COMMON_FILE__SWAPON                              0x00004000UL
 #define COMMON_FILE__QUOTAON                             0x00008000UL
 #define COMMON_FILE__MOUNTON                             0x00010000UL
-
 #define COMMON_SOCKET__IOCTL                             0x00000001UL
 #define COMMON_SOCKET__READ                              0x00000002UL
 #define COMMON_SOCKET__WRITE                             0x00000004UL
@@ -39,7 +38,6 @@
 #define COMMON_SOCKET__RECV_MSG                          0x00080000UL
 #define COMMON_SOCKET__SEND_MSG                          0x00100000UL
 #define COMMON_SOCKET__NAME_BIND                         0x00200000UL
-
 #define COMMON_IPC__CREATE                               0x00000001UL
 #define COMMON_IPC__DESTROY                              0x00000002UL
 #define COMMON_IPC__GETATTR                              0x00000004UL
@@ -49,7 +47,6 @@
 #define COMMON_IPC__ASSOCIATE                            0x00000040UL
 #define COMMON_IPC__UNIX_READ                            0x00000080UL
 #define COMMON_IPC__UNIX_WRITE                           0x00000100UL
-
 #define FILESYSTEM__MOUNT                         0x00000001UL
 #define FILESYSTEM__REMOUNT                       0x00000002UL
 #define FILESYSTEM__UNMOUNT                       0x00000004UL
@@ -60,7 +57,6 @@
 #define FILESYSTEM__ASSOCIATE                     0x00000080UL
 #define FILESYSTEM__QUOTAMOD                      0x00000100UL
 #define FILESYSTEM__QUOTAGET                      0x00000200UL
-
 #define DIR__IOCTL                                0x00000001UL
 #define DIR__READ                                 0x00000002UL
 #define DIR__WRITE                                0x00000004UL
@@ -78,13 +74,11 @@
 #define DIR__SWAPON                               0x00004000UL
 #define DIR__QUOTAON                              0x00008000UL
 #define DIR__MOUNTON                              0x00010000UL
-
 #define DIR__ADD_NAME                             0x00020000UL
 #define DIR__REMOVE_NAME                          0x00040000UL
 #define DIR__REPARENT                             0x00080000UL
 #define DIR__SEARCH                               0x00100000UL
 #define DIR__RMDIR                                0x00200000UL
-
 #define FILE__IOCTL                               0x00000001UL
 #define FILE__READ                                0x00000002UL
 #define FILE__WRITE                               0x00000004UL
@@ -102,11 +96,9 @@
 #define FILE__SWAPON                              0x00004000UL
 #define FILE__QUOTAON                             0x00008000UL
 #define FILE__MOUNTON                             0x00010000UL
-
 #define FILE__EXECUTE_NO_TRANS                    0x00020000UL
 #define FILE__ENTRYPOINT                          0x00040000UL
 #define FILE__EXECMOD                             0x00080000UL
-
 #define LNK_FILE__IOCTL                           0x00000001UL
 #define LNK_FILE__READ                            0x00000002UL
 #define LNK_FILE__WRITE                           0x00000004UL
@@ -124,7 +116,6 @@
 #define LNK_FILE__SWAPON                          0x00004000UL
 #define LNK_FILE__QUOTAON                         0x00008000UL
 #define LNK_FILE__MOUNTON                         0x00010000UL
-
 #define CHR_FILE__IOCTL                           0x00000001UL
 #define CHR_FILE__READ                            0x00000002UL
 #define CHR_FILE__WRITE                           0x00000004UL
@@ -142,11 +133,9 @@
 #define CHR_FILE__SWAPON                          0x00004000UL
 #define CHR_FILE__QUOTAON                         0x00008000UL
 #define CHR_FILE__MOUNTON                         0x00010000UL
-
 #define CHR_FILE__EXECUTE_NO_TRANS                0x00020000UL
 #define CHR_FILE__ENTRYPOINT                      0x00040000UL
 #define CHR_FILE__EXECMOD                         0x00080000UL
-
 #define BLK_FILE__IOCTL                           0x00000001UL
 #define BLK_FILE__READ                            0x00000002UL
 #define BLK_FILE__WRITE                           0x00000004UL
@@ -164,7 +153,6 @@
 #define BLK_FILE__SWAPON                          0x00004000UL
 #define BLK_FILE__QUOTAON                         0x00008000UL
 #define BLK_FILE__MOUNTON                         0x00010000UL
-
 #define SOCK_FILE__IOCTL                          0x00000001UL
 #define SOCK_FILE__READ                           0x00000002UL
 #define SOCK_FILE__WRITE                          0x00000004UL
@@ -182,7 +170,6 @@
 #define SOCK_FILE__SWAPON                         0x00004000UL
 #define SOCK_FILE__QUOTAON                        0x00008000UL
 #define SOCK_FILE__MOUNTON                        0x00010000UL
-
 #define FIFO_FILE__IOCTL                          0x00000001UL
 #define FIFO_FILE__READ                           0x00000002UL
 #define FIFO_FILE__WRITE                          0x00000004UL
@@ -200,9 +187,7 @@
 #define FIFO_FILE__SWAPON                         0x00004000UL
 #define FIFO_FILE__QUOTAON                        0x00008000UL
 #define FIFO_FILE__MOUNTON                        0x00010000UL
-
 #define FD__USE                                   0x00000001UL
-
 #define SOCKET__IOCTL                             0x00000001UL
 #define SOCKET__READ                              0x00000002UL
 #define SOCKET__WRITE                             0x00000004UL
@@ -225,7 +210,6 @@
 #define SOCKET__RECV_MSG                          0x00080000UL
 #define SOCKET__SEND_MSG                          0x00100000UL
 #define SOCKET__NAME_BIND                         0x00200000UL
-
 #define TCP_SOCKET__IOCTL                         0x00000001UL
 #define TCP_SOCKET__READ                          0x00000002UL
 #define TCP_SOCKET__WRITE                         0x00000004UL
@@ -248,13 +232,11 @@
 #define TCP_SOCKET__RECV_MSG                      0x00080000UL
 #define TCP_SOCKET__SEND_MSG                      0x00100000UL
 #define TCP_SOCKET__NAME_BIND                     0x00200000UL
-
 #define TCP_SOCKET__CONNECTTO                     0x00400000UL
 #define TCP_SOCKET__NEWCONN                       0x00800000UL
 #define TCP_SOCKET__ACCEPTFROM                    0x01000000UL
 #define TCP_SOCKET__NODE_BIND                     0x02000000UL
 #define TCP_SOCKET__NAME_CONNECT                  0x04000000UL
-
 #define UDP_SOCKET__IOCTL                         0x00000001UL
 #define UDP_SOCKET__READ                          0x00000002UL
 #define UDP_SOCKET__WRITE                         0x00000004UL
@@ -277,9 +259,7 @@
 #define UDP_SOCKET__RECV_MSG                      0x00080000UL
 #define UDP_SOCKET__SEND_MSG                      0x00100000UL
 #define UDP_SOCKET__NAME_BIND                     0x00200000UL
-
 #define UDP_SOCKET__NODE_BIND                     0x00400000UL
-
 #define RAWIP_SOCKET__IOCTL                       0x00000001UL
 #define RAWIP_SOCKET__READ                        0x00000002UL
 #define RAWIP_SOCKET__WRITE                       0x00000004UL
@@ -302,9 +282,7 @@
 #define RAWIP_SOCKET__RECV_MSG                    0x00080000UL
 #define RAWIP_SOCKET__SEND_MSG                    0x00100000UL
 #define RAWIP_SOCKET__NAME_BIND                   0x00200000UL
-
 #define RAWIP_SOCKET__NODE_BIND                   0x00400000UL
-
 #define NODE__TCP_RECV                            0x00000001UL
 #define NODE__TCP_SEND                            0x00000002UL
 #define NODE__UDP_RECV                            0x00000004UL
@@ -314,7 +292,6 @@
 #define NODE__ENFORCE_DEST                        0x00000040UL
 #define NODE__DCCP_RECV                           0x00000080UL
 #define NODE__DCCP_SEND                           0x00000100UL
-
 #define NETIF__TCP_RECV                           0x00000001UL
 #define NETIF__TCP_SEND                           0x00000002UL
 #define NETIF__UDP_RECV                           0x00000004UL
@@ -323,7 +300,6 @@
 #define NETIF__RAWIP_SEND                         0x00000020UL
 #define NETIF__DCCP_RECV                          0x00000040UL
 #define NETIF__DCCP_SEND                          0x00000080UL
-
 #define NETLINK_SOCKET__IOCTL                     0x00000001UL
 #define NETLINK_SOCKET__READ                      0x00000002UL
 #define NETLINK_SOCKET__WRITE                     0x00000004UL
@@ -346,7 +322,6 @@
 #define NETLINK_SOCKET__RECV_MSG                  0x00080000UL
 #define NETLINK_SOCKET__SEND_MSG                  0x00100000UL
 #define NETLINK_SOCKET__NAME_BIND                 0x00200000UL
-
 #define PACKET_SOCKET__IOCTL                      0x00000001UL
 #define PACKET_SOCKET__READ                       0x00000002UL
 #define PACKET_SOCKET__WRITE                      0x00000004UL
@@ -369,7 +344,6 @@
 #define PACKET_SOCKET__RECV_MSG                   0x00080000UL
 #define PACKET_SOCKET__SEND_MSG                   0x00100000UL
 #define PACKET_SOCKET__NAME_BIND                  0x00200000UL
-
 #define KEY_SOCKET__IOCTL                         0x00000001UL
 #define KEY_SOCKET__READ                          0x00000002UL
 #define KEY_SOCKET__WRITE                         0x00000004UL
@@ -392,7 +366,6 @@
 #define KEY_SOCKET__RECV_MSG                      0x00080000UL
 #define KEY_SOCKET__SEND_MSG                      0x00100000UL
 #define KEY_SOCKET__NAME_BIND                     0x00200000UL
-
 #define UNIX_STREAM_SOCKET__IOCTL                 0x00000001UL
 #define UNIX_STREAM_SOCKET__READ                  0x00000002UL
 #define UNIX_STREAM_SOCKET__WRITE                 0x00000004UL
@@ -415,11 +388,9 @@
 #define UNIX_STREAM_SOCKET__RECV_MSG              0x00080000UL
 #define UNIX_STREAM_SOCKET__SEND_MSG              0x00100000UL
 #define UNIX_STREAM_SOCKET__NAME_BIND             0x00200000UL
-
 #define UNIX_STREAM_SOCKET__CONNECTTO             0x00400000UL
 #define UNIX_STREAM_SOCKET__NEWCONN               0x00800000UL
 #define UNIX_STREAM_SOCKET__ACCEPTFROM            0x01000000UL
-
 #define UNIX_DGRAM_SOCKET__IOCTL                  0x00000001UL
 #define UNIX_DGRAM_SOCKET__READ                   0x00000002UL
 #define UNIX_DGRAM_SOCKET__WRITE                  0x00000004UL
@@ -442,7 +413,6 @@
 #define UNIX_DGRAM_SOCKET__RECV_MSG               0x00080000UL
 #define UNIX_DGRAM_SOCKET__SEND_MSG               0x00100000UL
 #define UNIX_DGRAM_SOCKET__NAME_BIND              0x00200000UL
-
 #define PROCESS__FORK                             0x00000001UL
 #define PROCESS__TRANSITION                       0x00000002UL
 #define PROCESS__SIGCHLD                          0x00000004UL
@@ -473,7 +443,6 @@
 #define PROCESS__EXECHEAP                         0x08000000UL
 #define PROCESS__SETKEYCREATE                     0x10000000UL
 #define PROCESS__SETSOCKCREATE                    0x20000000UL
-
 #define IPC__CREATE                               0x00000001UL
 #define IPC__DESTROY                              0x00000002UL
 #define IPC__GETATTR                              0x00000004UL
@@ -483,7 +452,6 @@
 #define IPC__ASSOCIATE                            0x00000040UL
 #define IPC__UNIX_READ                            0x00000080UL
 #define IPC__UNIX_WRITE                           0x00000100UL
-
 #define SEM__CREATE                               0x00000001UL
 #define SEM__DESTROY                              0x00000002UL
 #define SEM__GETATTR                              0x00000004UL
@@ -493,7 +461,6 @@
 #define SEM__ASSOCIATE                            0x00000040UL
 #define SEM__UNIX_READ                            0x00000080UL
 #define SEM__UNIX_WRITE                           0x00000100UL
-
 #define MSGQ__CREATE                              0x00000001UL
 #define MSGQ__DESTROY                             0x00000002UL
 #define MSGQ__GETATTR                             0x00000004UL
@@ -503,12 +470,9 @@
 #define MSGQ__ASSOCIATE                           0x00000040UL
 #define MSGQ__UNIX_READ                           0x00000080UL
 #define MSGQ__UNIX_WRITE                          0x00000100UL
-
 #define MSGQ__ENQUEUE                             0x00000200UL
-
 #define MSG__SEND                                 0x00000001UL
 #define MSG__RECEIVE                              0x00000002UL
-
 #define SHM__CREATE                               0x00000001UL
 #define SHM__DESTROY                              0x00000002UL
 #define SHM__GETATTR                              0x00000004UL
@@ -518,9 +482,7 @@
 #define SHM__ASSOCIATE                            0x00000040UL
 #define SHM__UNIX_READ                            0x00000080UL
 #define SHM__UNIX_WRITE                           0x00000100UL
-
 #define SHM__LOCK                                 0x00000200UL
-
 #define SECURITY__COMPUTE_AV                      0x00000001UL
 #define SECURITY__COMPUTE_CREATE                  0x00000002UL
 #define SECURITY__COMPUTE_MEMBER                  0x00000004UL
@@ -532,12 +494,10 @@
 #define SECURITY__SETBOOL                         0x00000100UL
 #define SECURITY__SETSECPARAM                     0x00000200UL
 #define SECURITY__SETCHECKREQPROT                 0x00000400UL
-
 #define SYSTEM__IPC_INFO                          0x00000001UL
 #define SYSTEM__SYSLOG_READ                       0x00000002UL
 #define SYSTEM__SYSLOG_MOD                        0x00000004UL
 #define SYSTEM__SYSLOG_CONSOLE                    0x00000008UL
-
 #define CAPABILITY__CHOWN                         0x00000001UL
 #define CAPABILITY__DAC_OVERRIDE                  0x00000002UL
 #define CAPABILITY__DAC_READ_SEARCH               0x00000004UL
@@ -569,110 +529,6 @@
 #define CAPABILITY__LEASE                         0x10000000UL
 #define CAPABILITY__AUDIT_WRITE                   0x20000000UL
 #define CAPABILITY__AUDIT_CONTROL                 0x40000000UL
-
-#define PASSWD__PASSWD                            0x00000001UL
-#define PASSWD__CHFN                              0x00000002UL
-#define PASSWD__CHSH                              0x00000004UL
-#define PASSWD__ROOTOK                            0x00000008UL
-#define PASSWD__CRONTAB                           0x00000010UL
-
-#define DRAWABLE__CREATE                          0x00000001UL
-#define DRAWABLE__DESTROY                         0x00000002UL
-#define DRAWABLE__DRAW                            0x00000004UL
-#define DRAWABLE__COPY                            0x00000008UL
-#define DRAWABLE__GETATTR                         0x00000010UL
-
-#define GC__CREATE                                0x00000001UL
-#define GC__FREE                                  0x00000002UL
-#define GC__GETATTR                               0x00000004UL
-#define GC__SETATTR                               0x00000008UL
-
-#define WINDOW__ADDCHILD                          0x00000001UL
-#define WINDOW__CREATE                            0x00000002UL
-#define WINDOW__DESTROY                           0x00000004UL
-#define WINDOW__MAP                               0x00000008UL
-#define WINDOW__UNMAP                             0x00000010UL
-#define WINDOW__CHSTACK                           0x00000020UL
-#define WINDOW__CHPROPLIST                        0x00000040UL
-#define WINDOW__CHPROP                            0x00000080UL
-#define WINDOW__LISTPROP                          0x00000100UL
-#define WINDOW__GETATTR                           0x00000200UL
-#define WINDOW__SETATTR                           0x00000400UL
-#define WINDOW__SETFOCUS                          0x00000800UL
-#define WINDOW__MOVE                              0x00001000UL
-#define WINDOW__CHSELECTION                       0x00002000UL
-#define WINDOW__CHPARENT                          0x00004000UL
-#define WINDOW__CTRLLIFE                          0x00008000UL
-#define WINDOW__ENUMERATE                         0x00010000UL
-#define WINDOW__TRANSPARENT                       0x00020000UL
-#define WINDOW__MOUSEMOTION                       0x00040000UL
-#define WINDOW__CLIENTCOMEVENT                    0x00080000UL
-#define WINDOW__INPUTEVENT                        0x00100000UL
-#define WINDOW__DRAWEVENT                         0x00200000UL
-#define WINDOW__WINDOWCHANGEEVENT                 0x00400000UL
-#define WINDOW__WINDOWCHANGEREQUEST               0x00800000UL
-#define WINDOW__SERVERCHANGEEVENT                 0x01000000UL
-#define WINDOW__EXTENSIONEVENT                    0x02000000UL
-
-#define FONT__LOAD                                0x00000001UL
-#define FONT__FREE                                0x00000002UL
-#define FONT__GETATTR                             0x00000004UL
-#define FONT__USE                                 0x00000008UL
-
-#define COLORMAP__CREATE                          0x00000001UL
-#define COLORMAP__FREE                            0x00000002UL
-#define COLORMAP__INSTALL                         0x00000004UL
-#define COLORMAP__UNINSTALL                       0x00000008UL
-#define COLORMAP__LIST                            0x00000010UL
-#define COLORMAP__READ                            0x00000020UL
-#define COLORMAP__STORE                           0x00000040UL
-#define COLORMAP__GETATTR                         0x00000080UL
-#define COLORMAP__SETATTR                         0x00000100UL
-
-#define PROPERTY__CREATE                          0x00000001UL
-#define PROPERTY__FREE                            0x00000002UL
-#define PROPERTY__READ                            0x00000004UL
-#define PROPERTY__WRITE                           0x00000008UL
-
-#define CURSOR__CREATE                            0x00000001UL
-#define CURSOR__CREATEGLYPH                       0x00000002UL
-#define CURSOR__FREE                              0x00000004UL
-#define CURSOR__ASSIGN                            0x00000008UL
-#define CURSOR__SETATTR                           0x00000010UL
-
-#define XCLIENT__KILL                             0x00000001UL
-
-#define XINPUT__LOOKUP                            0x00000001UL
-#define XINPUT__GETATTR                           0x00000002UL
-#define XINPUT__SETATTR                           0x00000004UL
-#define XINPUT__SETFOCUS                          0x00000008UL
-#define XINPUT__WARPPOINTER                       0x00000010UL
-#define XINPUT__ACTIVEGRAB                        0x00000020UL
-#define XINPUT__PASSIVEGRAB                       0x00000040UL
-#define XINPUT__UNGRAB                            0x00000080UL
-#define XINPUT__BELL                              0x00000100UL
-#define XINPUT__MOUSEMOTION                       0x00000200UL
-#define XINPUT__RELABELINPUT                      0x00000400UL
-
-#define XSERVER__SCREENSAVER                      0x00000001UL
-#define XSERVER__GETHOSTLIST                      0x00000002UL
-#define XSERVER__SETHOSTLIST                      0x00000004UL
-#define XSERVER__GETFONTPATH                      0x00000008UL
-#define XSERVER__SETFONTPATH                      0x00000010UL
-#define XSERVER__GETATTR                          0x00000020UL
-#define XSERVER__GRAB                             0x00000040UL
-#define XSERVER__UNGRAB                           0x00000080UL
-
-#define XEXTENSION__QUERY                         0x00000001UL
-#define XEXTENSION__USE                           0x00000002UL
-
-#define PAX__PAGEEXEC                             0x00000001UL
-#define PAX__EMUTRAMP                             0x00000002UL
-#define PAX__MPROTECT                             0x00000004UL
-#define PAX__RANDMMAP                             0x00000008UL
-#define PAX__RANDEXEC                             0x00000010UL
-#define PAX__SEGMEXEC                             0x00000020UL
-
 #define NETLINK_ROUTE_SOCKET__IOCTL               0x00000001UL
 #define NETLINK_ROUTE_SOCKET__READ                0x00000002UL
 #define NETLINK_ROUTE_SOCKET__WRITE               0x00000004UL
@@ -695,10 +551,8 @@
 #define NETLINK_ROUTE_SOCKET__RECV_MSG            0x00080000UL
 #define NETLINK_ROUTE_SOCKET__SEND_MSG            0x00100000UL
 #define NETLINK_ROUTE_SOCKET__NAME_BIND           0x00200000UL
-
 #define NETLINK_ROUTE_SOCKET__NLMSG_READ          0x00400000UL
 #define NETLINK_ROUTE_SOCKET__NLMSG_WRITE         0x00800000UL
-
 #define NETLINK_FIREWALL_SOCKET__IOCTL            0x00000001UL
 #define NETLINK_FIREWALL_SOCKET__READ             0x00000002UL
 #define NETLINK_FIREWALL_SOCKET__WRITE            0x00000004UL
@@ -721,10 +575,8 @@
 #define NETLINK_FIREWALL_SOCKET__RECV_MSG         0x00080000UL
 #define NETLINK_FIREWALL_SOCKET__SEND_MSG         0x00100000UL
 #define NETLINK_FIREWALL_SOCKET__NAME_BIND        0x00200000UL
-
 #define NETLINK_FIREWALL_SOCKET__NLMSG_READ       0x00400000UL
 #define NETLINK_FIREWALL_SOCKET__NLMSG_WRITE      0x00800000UL
-
 #define NETLINK_TCPDIAG_SOCKET__IOCTL             0x00000001UL
 #define NETLINK_TCPDIAG_SOCKET__READ              0x00000002UL
 #define NETLINK_TCPDIAG_SOCKET__WRITE             0x00000004UL
@@ -747,10 +599,8 @@
 #define NETLINK_TCPDIAG_SOCKET__RECV_MSG          0x00080000UL
 #define NETLINK_TCPDIAG_SOCKET__SEND_MSG          0x00100000UL
 #define NETLINK_TCPDIAG_SOCKET__NAME_BIND         0x00200000UL
-
 #define NETLINK_TCPDIAG_SOCKET__NLMSG_READ        0x00400000UL
 #define NETLINK_TCPDIAG_SOCKET__NLMSG_WRITE       0x00800000UL
-
 #define NETLINK_NFLOG_SOCKET__IOCTL               0x00000001UL
 #define NETLINK_NFLOG_SOCKET__READ                0x00000002UL
 #define NETLINK_NFLOG_SOCKET__WRITE               0x00000004UL
@@ -773,7 +623,6 @@
 #define NETLINK_NFLOG_SOCKET__RECV_MSG            0x00080000UL
 #define NETLINK_NFLOG_SOCKET__SEND_MSG            0x00100000UL
 #define NETLINK_NFLOG_SOCKET__NAME_BIND           0x00200000UL
-
 #define NETLINK_XFRM_SOCKET__IOCTL                0x00000001UL
 #define NETLINK_XFRM_SOCKET__READ                 0x00000002UL
 #define NETLINK_XFRM_SOCKET__WRITE                0x00000004UL
@@ -796,10 +645,8 @@
 #define NETLINK_XFRM_SOCKET__RECV_MSG             0x00080000UL
 #define NETLINK_XFRM_SOCKET__SEND_MSG             0x00100000UL
 #define NETLINK_XFRM_SOCKET__NAME_BIND            0x00200000UL
-
 #define NETLINK_XFRM_SOCKET__NLMSG_READ           0x00400000UL
 #define NETLINK_XFRM_SOCKET__NLMSG_WRITE          0x00800000UL
-
 #define NETLINK_SELINUX_SOCKET__IOCTL             0x00000001UL
 #define NETLINK_SELINUX_SOCKET__READ              0x00000002UL
 #define NETLINK_SELINUX_SOCKET__WRITE             0x00000004UL
@@ -822,7 +669,6 @@
 #define NETLINK_SELINUX_SOCKET__RECV_MSG          0x00080000UL
 #define NETLINK_SELINUX_SOCKET__SEND_MSG          0x00100000UL
 #define NETLINK_SELINUX_SOCKET__NAME_BIND         0x00200000UL
-
 #define NETLINK_AUDIT_SOCKET__IOCTL               0x00000001UL
 #define NETLINK_AUDIT_SOCKET__READ                0x00000002UL
 #define NETLINK_AUDIT_SOCKET__WRITE               0x00000004UL
@@ -845,12 +691,10 @@
 #define NETLINK_AUDIT_SOCKET__RECV_MSG            0x00080000UL
 #define NETLINK_AUDIT_SOCKET__SEND_MSG            0x00100000UL
 #define NETLINK_AUDIT_SOCKET__NAME_BIND           0x00200000UL
-
 #define NETLINK_AUDIT_SOCKET__NLMSG_READ          0x00400000UL
 #define NETLINK_AUDIT_SOCKET__NLMSG_WRITE         0x00800000UL
 #define NETLINK_AUDIT_SOCKET__NLMSG_RELAY         0x01000000UL
 #define NETLINK_AUDIT_SOCKET__NLMSG_READPRIV      0x02000000UL
-
 #define NETLINK_IP6FW_SOCKET__IOCTL               0x00000001UL
 #define NETLINK_IP6FW_SOCKET__READ                0x00000002UL
 #define NETLINK_IP6FW_SOCKET__WRITE               0x00000004UL
@@ -873,10 +717,8 @@
 #define NETLINK_IP6FW_SOCKET__RECV_MSG            0x00080000UL
 #define NETLINK_IP6FW_SOCKET__SEND_MSG            0x00100000UL
 #define NETLINK_IP6FW_SOCKET__NAME_BIND           0x00200000UL
-
 #define NETLINK_IP6FW_SOCKET__NLMSG_READ          0x00400000UL
 #define NETLINK_IP6FW_SOCKET__NLMSG_WRITE         0x00800000UL
-
 #define NETLINK_DNRT_SOCKET__IOCTL                0x00000001UL
 #define NETLINK_DNRT_SOCKET__READ                 0x00000002UL
 #define NETLINK_DNRT_SOCKET__WRITE                0x00000004UL
@@ -899,24 +741,10 @@
 #define NETLINK_DNRT_SOCKET__RECV_MSG             0x00080000UL
 #define NETLINK_DNRT_SOCKET__SEND_MSG             0x00100000UL
 #define NETLINK_DNRT_SOCKET__NAME_BIND            0x00200000UL
-
-#define DBUS__ACQUIRE_SVC                         0x00000001UL
-#define DBUS__SEND_MSG                            0x00000002UL
-
-#define NSCD__GETPWD                              0x00000001UL
-#define NSCD__GETGRP                              0x00000002UL
-#define NSCD__GETHOST                             0x00000004UL
-#define NSCD__GETSTAT                             0x00000008UL
-#define NSCD__ADMIN                               0x00000010UL
-#define NSCD__SHMEMPWD                            0x00000020UL
-#define NSCD__SHMEMGRP                            0x00000040UL
-#define NSCD__SHMEMHOST                           0x00000080UL
-
 #define ASSOCIATION__SENDTO                       0x00000001UL
 #define ASSOCIATION__RECVFROM                     0x00000002UL
 #define ASSOCIATION__SETCONTEXT                   0x00000004UL
 #define ASSOCIATION__POLMATCH                     0x00000008UL
-
 #define NETLINK_KOBJECT_UEVENT_SOCKET__IOCTL      0x00000001UL
 #define NETLINK_KOBJECT_UEVENT_SOCKET__READ       0x00000002UL
 #define NETLINK_KOBJECT_UEVENT_SOCKET__WRITE      0x00000004UL
@@ -939,7 +767,6 @@
 #define NETLINK_KOBJECT_UEVENT_SOCKET__RECV_MSG   0x00080000UL
 #define NETLINK_KOBJECT_UEVENT_SOCKET__SEND_MSG   0x00100000UL
 #define NETLINK_KOBJECT_UEVENT_SOCKET__NAME_BIND  0x00200000UL
-
 #define APPLETALK_SOCKET__IOCTL                   0x00000001UL
 #define APPLETALK_SOCKET__READ                    0x00000002UL
 #define APPLETALK_SOCKET__WRITE                   0x00000004UL
@@ -962,11 +789,9 @@
 #define APPLETALK_SOCKET__RECV_MSG                0x00080000UL
 #define APPLETALK_SOCKET__SEND_MSG                0x00100000UL
 #define APPLETALK_SOCKET__NAME_BIND               0x00200000UL
-
 #define PACKET__SEND                              0x00000001UL
 #define PACKET__RECV                              0x00000002UL
 #define PACKET__RELABELTO                         0x00000004UL
-
 #define KEY__VIEW                                 0x00000001UL
 #define KEY__READ                                 0x00000002UL
 #define KEY__WRITE                                0x00000004UL
@@ -974,10 +799,6 @@
 #define KEY__LINK                                 0x00000010UL
 #define KEY__SETATTR                              0x00000020UL
 #define KEY__CREATE                               0x00000040UL
-
-#define CONTEXT__TRANSLATE                        0x00000001UL
-#define CONTEXT__CONTAINS                         0x00000002UL
-
 #define DCCP_SOCKET__IOCTL                        0x00000001UL
 #define DCCP_SOCKET__READ                         0x00000002UL
 #define DCCP_SOCKET__WRITE                        0x00000004UL

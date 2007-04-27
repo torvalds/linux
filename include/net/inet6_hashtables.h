@@ -19,6 +19,9 @@
 #include <linux/in6.h>
 #include <linux/ipv6.h>
 #include <linux/types.h>
+#include <linux/jhash.h>
+
+#include <net/inet_sock.h>
 
 #include <net/ipv6.h>
 
@@ -28,12 +31,11 @@ struct inet_hashinfo;
 static inline unsigned int inet6_ehashfn(const struct in6_addr *laddr, const u16 lport,
 				const struct in6_addr *faddr, const __be16 fport)
 {
-	unsigned int hashent = (lport ^ (__force u16)fport);
+	u32 ports = (lport ^ (__force u16)fport);
 
-	hashent ^= (__force u32)(laddr->s6_addr32[3] ^ faddr->s6_addr32[3]);
-	hashent ^= hashent >> 16;
-	hashent ^= hashent >> 8;
-	return hashent;
+	return jhash_3words((__force u32)laddr->s6_addr32[3],
+			    (__force u32)faddr->s6_addr32[3],
+			    ports, inet_ehash_secret);
 }
 
 static inline int inet6_sk_ehashfn(const struct sock *sk)

@@ -526,7 +526,6 @@ am79c961_rx(struct net_device *dev, struct dev_priv *priv)
 		skb = dev_alloc_skb(len + 2);
 
 		if (skb) {
-			skb->dev = dev;
 			skb_reserve(skb, 2);
 
 			am_readbuffer(dev, pktaddr, skb_put(skb, len), len);

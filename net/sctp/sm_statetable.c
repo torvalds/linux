@@ -101,7 +101,7 @@ const sctp_sm_table_entry_t *sctp_sm_lookup_event(sctp_event_t event_type,
 	default:
 		/* Yikes!  We got an illegal event type.  */
 		return &bug;
-	};
+	}
 }
 
 #define TYPE_SCTP_FUNC(func) {.fn = func, .name = #func}

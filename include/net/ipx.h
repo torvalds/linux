@@ -43,7 +43,7 @@ struct ipxhdr {
 
 static __inline__ struct ipxhdr *ipx_hdr(struct sk_buff *skb)
 {
-	return (struct ipxhdr *)skb->h.raw;
+	return (struct ipxhdr *)skb_transport_header(skb);
 }
 
 struct ipx_interface {

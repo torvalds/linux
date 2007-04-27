@@ -937,11 +937,11 @@ static unsigned long atalk_sum_partial(const unsigned char *data,
 static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 				   int len, unsigned long sum)
 {
-	int start = skb_headlen(skb);
+	int end = skb_headlen(skb);
 	int i, copy;
 
 	/* checksum stuff in header space */
-	if ( (copy = start - offset) > 0) {
+	if ((copy = end - offset) > 0) {
 		if (copy > len)
 			copy = len;
 		sum = atalk_sum_partial(skb->data + offset, copy, sum);
@@ -953,11 +953,9 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 
 	/* checksum stuff in frags */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		int end;
+		BUG_TRAP(len >= 0);
 
-		BUG_TRAP(start <= offset + len);
-
-		end = start + skb_shinfo(skb)->frags[i].size;
+		end = offset + skb_shinfo(skb)->frags[i].size;
 		if ((copy = end - offset) > 0) {
 			u8 *vaddr;
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -965,36 +963,31 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			vaddr = kmap_skb_frag(frag);
-			sum = atalk_sum_partial(vaddr + frag->page_offset +
-						  offset - start, copy, sum);
+			sum = atalk_sum_partial(vaddr + frag->page_offset,
+						copy, sum);
 			kunmap_skb_frag(vaddr);
 
 			if (!(len -= copy))
 				return sum;
 			offset += copy;
 		}
-		start = end;
 	}
 
 	if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 
 		for (; list; list = list->next) {
-			int end;
+			BUG_TRAP(len >= 0);
 
-			BUG_TRAP(start <= offset + len);
-
-			end = start + list->len;
+			end = offset + list->len;
 			if ((copy = end - offset) > 0) {
 				if (copy > len)
 					copy = len;
-				sum = atalk_sum_skb(list, offset - start,
-						    copy, sum);
+				sum = atalk_sum_skb(list, 0, copy, sum);
 				if ((len -= copy) == 0)
 					return sum;
 				offset += copy;
 			}
-			start = end;
 		}
 	}
 
@@ -1275,7 +1268,7 @@ static int handle_ip_over_ddp(struct sk_buff *skb)
 	skb->protocol = htons(ETH_P_IP);
 	skb_pull(skb, 13);
 	skb->dev   = dev;
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	stats = dev->priv;
 	stats->rx_packets++;
@@ -1383,10 +1376,10 @@ free_it:
  *	@pt - packet type
  *
  *	Receive a packet (in skb) from device dev. This has come from the SNAP
- *	decoder, and on entry skb->h.raw is the DDP header, skb->len is the DDP
- *	header, skb->len is the DDP length. The physical headers have been
- *	extracted. PPP should probably pass frames marked as for this layer.
- *	[ie ARPHRD_ETHERTALK]
+ *	decoder, and on entry skb->transport_header is the DDP header, skb->len
+ *	is the DDP header, skb->len is the DDP length. The physical headers
+ *	have been extracted. PPP should probably pass frames marked as for this
+ *	layer.  [ie ARPHRD_ETHERTALK]
  */
 static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		     struct packet_type *pt, struct net_device *orig_dev)
@@ -1484,7 +1477,7 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		     struct packet_type *pt, struct net_device *orig_dev)
 {
 	/* Expand any short form frames */
-	if (skb->mac.raw[2] == 1) {
+	if (skb_mac_header(skb)[2] == 1) {
 		struct ddpehdr *ddp;
 		/* Find our address */
 		struct atalk_addr *ap = atalk_find_dev_addr(dev);
@@ -1510,8 +1503,8 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		 * we write the network numbers !
 		 */
 
-		ddp->deh_dnode = skb->mac.raw[0];     /* From physical header */
-		ddp->deh_snode = skb->mac.raw[1];     /* From physical header */
+		ddp->deh_dnode = skb_mac_header(skb)[0];     /* From physical header */
+		ddp->deh_snode = skb_mac_header(skb)[1];     /* From physical header */
 
 		ddp->deh_dnet  = ap->s_net;	/* Network number */
 		ddp->deh_snet  = ap->s_net;
@@ -1522,7 +1515,7 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		/* Non routable, so force a drop if we slip up later */
 		ddp->deh_len_hops = htons(skb->len + (DDP_MAXHOPS << 10));
 	}
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	return atalk_rcv(skb, dev, pt, orig_dev);
 freeit:
@@ -1770,6 +1763,9 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		}
 		case SIOCGSTAMP:
 			rc = sock_get_timestamp(sk, argp);
+			break;
+		case SIOCGSTAMPNS:
+			rc = sock_get_timestampns(sk, argp);
 			break;
 		/* Routing */
 		case SIOCADDRT:

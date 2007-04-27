@@ -1062,7 +1062,7 @@ static inline struct sk_buff *get_packet(struct pci_dev *pdev,
 					    pci_unmap_addr(ce, dma_addr),
 					    pci_unmap_len(ce, dma_len),
 					    PCI_DMA_FROMDEVICE);
-		memcpy(skb->data, ce->skb->data, len);
+		skb_copy_from_linear_data(ce->skb, skb->data, len);
 		pci_dma_sync_single_for_device(pdev,
 					       pci_unmap_addr(ce, dma_addr),
 					       pci_unmap_len(ce, dma_len),
@@ -1379,12 +1379,11 @@ static void sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 	}
 	__skb_pull(skb, sizeof(*p));
 
-	skb->dev = adapter->port[p->iff].dev;
 	skb->dev->last_rx = jiffies;
 	st = per_cpu_ptr(sge->port_stats[p->iff], smp_processor_id());
 	st->rx_packets++;
 
-	skb->protocol = eth_type_trans(skb, skb->dev);
+	skb->protocol = eth_type_trans(skb, adapter->port[p->iff].dev);
 	if ((adapter->flags & RX_CSUM_ENABLED) && p->csum == 0xffff &&
 	    skb->protocol == htons(ETH_P_IP) &&
 	    (skb->data[9] == IPPROTO_TCP || skb->data[9] == IPPROTO_UDP)) {
@@ -1866,14 +1865,14 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		++st->tx_tso;
 
-		eth_type = skb->nh.raw - skb->data == ETH_HLEN ?
+		eth_type = skb_network_offset(skb) == ETH_HLEN ?
 			CPL_ETH_II : CPL_ETH_II_VLAN;
 
 		hdr = (struct cpl_tx_pkt_lso *)skb_push(skb, sizeof(*hdr));
 		hdr->opcode = CPL_TX_PKT_LSO;
 		hdr->ip_csum_dis = hdr->l4_csum_dis = 0;
-		hdr->ip_hdr_words = skb->nh.iph->ihl;
-		hdr->tcp_hdr_words = skb->h.th->doff;
+		hdr->ip_hdr_words = ip_hdr(skb)->ihl;
+		hdr->tcp_hdr_words = tcp_hdr(skb)->doff;
 		hdr->eth_type_mss = htons(MK_ETH_TYPE_MSS(eth_type,
 							  skb_shinfo(skb)->gso_size));
 		hdr->len = htonl(skb->len - sizeof(*hdr));
@@ -1913,7 +1912,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		if (!(adapter->flags & UDP_CSUM_CAPABLE) &&
 		    skb->ip_summed == CHECKSUM_PARTIAL &&
-		    skb->nh.iph->protocol == IPPROTO_UDP) {
+		    ip_hdr(skb)->protocol == IPPROTO_UDP) {
 			if (unlikely(skb_checksum_help(skb))) {
 				pr_debug("%s: unable to do udp checksum\n", dev->name);
 				dev_kfree_skb_any(skb);
@@ -1926,7 +1925,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if ((unlikely(!adapter->sge->espibug_skb[dev->if_port]))) {
 			if (skb->protocol == htons(ETH_P_ARP) &&
-			    skb->nh.arph->ar_op == htons(ARPOP_REQUEST)) {
+			    arp_hdr(skb)->ar_op == htons(ARPOP_REQUEST)) {
 				adapter->sge->espibug_skb[dev->if_port] = skb;
 				/* We want to re-use this skb later. We
 				 * simply bump the reference count and it
@@ -2096,10 +2095,14 @@ static void espibug_workaround_t204(unsigned long data)
 					0x0, 0x7, 0x43, 0x0, 0x0, 0x0
 				};
 
-				memcpy(skb->data + sizeof(struct cpl_tx_pkt),
-					ch_mac_addr, ETH_ALEN);
-				memcpy(skb->data + skb->len - 10,
-					ch_mac_addr, ETH_ALEN);
+				skb_copy_to_linear_data_offset(skb,
+						    sizeof(struct cpl_tx_pkt),
+							       ch_mac_addr,
+							       ETH_ALEN);
+				skb_copy_to_linear_data_offset(skb,
+							       skb->len - 10,
+							       ch_mac_addr,
+							       ETH_ALEN);
 				skb->cb[0] = 0xff;
 			}
 
@@ -2126,10 +2129,14 @@ static void espibug_workaround(unsigned long data)
 	                if (!skb->cb[0]) {
 	                        u8 ch_mac_addr[ETH_ALEN] =
 	                            {0x0, 0x7, 0x43, 0x0, 0x0, 0x0};
-	                        memcpy(skb->data + sizeof(struct cpl_tx_pkt),
-	                               ch_mac_addr, ETH_ALEN);
-	                        memcpy(skb->data + skb->len - 10, ch_mac_addr,
-	                               ETH_ALEN);
+	                        skb_copy_to_linear_data_offset(skb,
+						     sizeof(struct cpl_tx_pkt),
+							       ch_mac_addr,
+							       ETH_ALEN);
+	                        skb_copy_to_linear_data_offset(skb,
+							       skb->len - 10,
+							       ch_mac_addr,
+							       ETH_ALEN);
 	                        skb->cb[0] = 0xff;
 	                }
 

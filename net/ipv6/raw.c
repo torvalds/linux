@@ -152,7 +152,7 @@ int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	int delivered = 0;
 	__u8 hash;
 
-	saddr = &skb->nh.ipv6h->saddr;
+	saddr = &ipv6_hdr(skb)->saddr;
 	daddr = saddr + 1;
 
 	hash = nexthdr & (MAX_INET_PROTOS - 1);
@@ -361,17 +361,18 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE) {
-		skb_postpull_rcsum(skb, skb->nh.raw,
-				   skb->h.raw - skb->nh.raw);
-		if (!csum_ipv6_magic(&skb->nh.ipv6h->saddr,
-				     &skb->nh.ipv6h->daddr,
+		skb_postpull_rcsum(skb, skb_network_header(skb),
+				   skb_network_header_len(skb));
+		if (!csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+				     &ipv6_hdr(skb)->daddr,
 				     skb->len, inet->num, skb->csum))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
-	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-		skb->csum = ~csum_unfold(csum_ipv6_magic(&skb->nh.ipv6h->saddr,
-					     &skb->nh.ipv6h->daddr,
-					     skb->len, inet->num, 0));
+	if (!skb_csum_unnecessary(skb))
+		skb->csum = ~csum_unfold(csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+							 &ipv6_hdr(skb)->daddr,
+							 skb->len,
+							 inet->num, 0));
 
 	if (inet->hdrincl) {
 		if (skb_checksum_complete(skb)) {
@@ -420,7 +421,7 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 		msg->msg_flags |= MSG_TRUNC;
 	}
 
-	if (skb->ip_summed==CHECKSUM_UNNECESSARY) {
+	if (skb_csum_unnecessary(skb)) {
 		err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
 	} else if (msg->msg_flags&MSG_TRUNC) {
 		if (__skb_checksum_complete(skb))
@@ -438,7 +439,7 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	if (sin6) {
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = 0;
-		ipv6_addr_copy(&sin6->sin6_addr, &skb->nh.ipv6h->saddr);
+		ipv6_addr_copy(&sin6->sin6_addr, &ipv6_hdr(skb)->saddr);
 		sin6->sin6_flowinfo = 0;
 		sin6->sin6_scope_id = 0;
 		if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
@@ -488,7 +489,8 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 		goto out;
 
 	offset = rp->offset;
-	total_len = inet_sk(sk)->cork.length - (skb->nh.raw - skb->data);
+	total_len = inet_sk(sk)->cork.length - (skb_network_header(skb) -
+						skb->data);
 	if (offset >= total_len - 1) {
 		err = -EINVAL;
 		ip6_flush_pending_frames(sk);
@@ -511,7 +513,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 			if (csum_skb)
 				continue;
 
-			len = skb->len - (skb->h.raw - skb->data);
+			len = skb->len - skb_transport_offset(skb);
 			if (offset >= len) {
 				offset -= len;
 				continue;
@@ -523,7 +525,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 		skb = csum_skb;
 	}
 
-	offset += skb->h.raw - skb->data;
+	offset += skb_transport_offset(skb);
 	if (skb_copy_bits(skb, offset, &csum, 2))
 		BUG();
 
@@ -575,11 +577,13 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	skb->priority = sk->sk_priority;
 	skb->dst = dst_clone(&rt->u.dst);
 
-	skb->nh.ipv6h = iph = (struct ipv6hdr *)skb_put(skb, length);
+	skb_put(skb, length);
+	skb_reset_network_header(skb);
+	iph = ipv6_hdr(skb);
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	err = memcpy_fromiovecend((void *)iph, from, 0, length);
 	if (err)
 		goto error_fault;
@@ -878,7 +882,7 @@ static int rawv6_seticmpfilter(struct sock *sk, int level, int optname,
 		return 0;
 	default:
 		return -ENOPROTOOPT;
-	};
+	}
 
 	return 0;
 }
@@ -903,7 +907,7 @@ static int rawv6_geticmpfilter(struct sock *sk, int level, int optname,
 		return 0;
 	default:
 		return -ENOPROTOOPT;
-	};
+	}
 
 	return 0;
 }
@@ -957,7 +961,8 @@ static int rawv6_setsockopt(struct sock *sk, int level, int optname,
 		default:
 			return ipv6_setsockopt(sk, level, optname, optval,
 					       optlen);
-	};
+	}
+
 	return do_rawv6_setsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -978,7 +983,7 @@ static int compat_rawv6_setsockopt(struct sock *sk, int level, int optname,
 	default:
 		return compat_ipv6_setsockopt(sk, level, optname,
 					      optval, optlen);
-	};
+	}
 	return do_rawv6_setsockopt(sk, level, optname, optval, optlen);
 }
 #endif
@@ -1031,7 +1036,8 @@ static int rawv6_getsockopt(struct sock *sk, int level, int optname,
 		default:
 			return ipv6_getsockopt(sk, level, optname, optval,
 					       optlen);
-	};
+	}
+
 	return do_rawv6_getsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -1052,7 +1058,7 @@ static int compat_rawv6_getsockopt(struct sock *sk, int level, int optname,
 	default:
 		return compat_ipv6_getsockopt(sk, level, optname,
 					      optval, optlen);
-	};
+	}
 	return do_rawv6_getsockopt(sk, level, optname, optval, optlen);
 }
 #endif
@@ -1073,7 +1079,7 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			spin_lock_bh(&sk->sk_receive_queue.lock);
 			skb = skb_peek(&sk->sk_receive_queue);
 			if (skb != NULL)
-				amount = skb->tail - skb->h.raw;
+				amount = skb->tail - skb->transport_header;
 			spin_unlock_bh(&sk->sk_receive_queue.lock);
 			return put_user(amount, (int __user *)arg);
 		}

@@ -147,6 +147,52 @@ void pgm_check_handler(void);
 void mcck_int_handler(void);
 void io_int_handler(void);
 
+struct save_area_s390 {
+	u32	ext_save;
+	u64	timer;
+	u64	clk_cmp;
+	u8	pad1[24];
+	u8	psw[8];
+	u32	pref_reg;
+	u8	pad2[20];
+	u32	acc_regs[16];
+	u64	fp_regs[4];
+	u32	gp_regs[16];
+	u32	ctrl_regs[16];
+}  __attribute__((packed));
+
+struct save_area_s390x {
+	u64	fp_regs[16];
+	u64	gp_regs[16];
+	u8	psw[16];
+	u8	pad1[8];
+	u32	pref_reg;
+	u32	fp_ctrl_reg;
+	u8	pad2[4];
+	u32	tod_reg;
+	u64	timer;
+	u64	clk_cmp;
+	u8	pad3[8];
+	u32	acc_regs[16];
+	u64	ctrl_regs[16];
+}  __attribute__((packed));
+
+union save_area {
+	struct save_area_s390	s390;
+	struct save_area_s390x	s390x;
+};
+
+#define SAVE_AREA_BASE_S390	0xd4
+#define SAVE_AREA_BASE_S390X	0x1200
+
+#ifndef __s390x__
+#define SAVE_AREA_SIZE sizeof(struct save_area_s390)
+#define SAVE_AREA_BASE SAVE_AREA_BASE_S390
+#else
+#define SAVE_AREA_SIZE sizeof(struct save_area_s390x)
+#define SAVE_AREA_BASE SAVE_AREA_BASE_S390X
+#endif
+
 struct _lowcore
 {
 #ifndef __s390x__

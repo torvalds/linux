@@ -2,8 +2,6 @@
 # Makefile for Red Hat Linux AFS client.
 #
 
-#CFLAGS += -finstrument-functions
-
 kafs-objs := \
 	callback.o \
 	cell.o \
@@ -12,14 +10,15 @@ kafs-objs := \
 	file.o \
 	fsclient.o \
 	inode.o \
-	kafsasyncd.o \
-	kafstimod.o \
 	main.o \
 	misc.o \
 	mntpt.o \
 	proc.o \
+	rxrpc.o \
+	security.o \
 	server.o \
 	super.o \
+	use-rtnetlink.o \
 	vlclient.o \
 	vlocation.o \
 	vnode.o \

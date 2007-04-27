@@ -84,8 +84,8 @@ static inline __u32 secure_dccpv6_sequence_number(__be32 *saddr, __be32 *daddr,
 
 static inline __u32 dccp_v6_init_sequence(struct sk_buff *skb)
 {
-	return secure_dccpv6_sequence_number(skb->nh.ipv6h->daddr.s6_addr32,
-					     skb->nh.ipv6h->saddr.s6_addr32,
+	return secure_dccpv6_sequence_number(ipv6_hdr(skb)->daddr.s6_addr32,
+					     ipv6_hdr(skb)->saddr.s6_addr32,
 					     dccp_hdr(skb)->dccph_dport,
 					     dccp_hdr(skb)->dccph_sport     );
 
@@ -261,8 +261,8 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 
 			if (rxopt->srcrt)
 				opt = ipv6_invert_rthdr(sk,
-					(struct ipv6_rt_hdr *)(pktopts->nh.raw +
-							       rxopt->srcrt));
+			  (struct ipv6_rt_hdr *)(skb_network_header(pktopts) +
+						 rxopt->srcrt));
 		}
 
 		if (opt != NULL && opt->srcrt != NULL) {
@@ -313,6 +313,7 @@ static void dccp_v6_reqsk_destructor(struct request_sock *req)
 static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 {
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
+	struct ipv6hdr *rxip6h;
 	const u32 dccp_hdr_reset_len = sizeof(struct dccp_hdr) +
 				       sizeof(struct dccp_hdr_ext) +
 				       sizeof(struct dccp_hdr_reset);
@@ -352,12 +353,13 @@ static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), DCCP_SKB_CB(rxskb)->dccpd_seq);
 
 	dccp_csum_outgoing(skb);
-	dh->dccph_checksum = dccp_v6_csum_finish(skb, &rxskb->nh.ipv6h->saddr,
-						      &rxskb->nh.ipv6h->daddr);
+	rxip6h = ipv6_hdr(rxskb);
+	dh->dccph_checksum = dccp_v6_csum_finish(skb, &rxip6h->saddr,
+						      &rxip6h->daddr);
 
 	memset(&fl, 0, sizeof(fl));
-	ipv6_addr_copy(&fl.fl6_dst, &rxskb->nh.ipv6h->saddr);
-	ipv6_addr_copy(&fl.fl6_src, &rxskb->nh.ipv6h->daddr);
+	ipv6_addr_copy(&fl.fl6_dst, &rxip6h->saddr);
+	ipv6_addr_copy(&fl.fl6_src, &rxip6h->daddr);
 
 	fl.proto = IPPROTO_DCCP;
 	fl.oif = inet6_iif(rxskb);
@@ -390,7 +392,7 @@ static struct request_sock_ops dccp6_request_sock_ops = {
 static struct sock *dccp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh = dccp_hdr(skb);
-	const struct ipv6hdr *iph = skb->nh.ipv6h;
+	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct sock *nsk;
 	struct request_sock **prev;
 	/* Find possible connection requests. */
@@ -460,8 +462,8 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop_and_free;
 
 	ireq6 = inet6_rsk(req);
-	ipv6_addr_copy(&ireq6->rmt_addr, &skb->nh.ipv6h->saddr);
-	ipv6_addr_copy(&ireq6->loc_addr, &skb->nh.ipv6h->daddr);
+	ipv6_addr_copy(&ireq6->rmt_addr, &ipv6_hdr(skb)->saddr);
+	ipv6_addr_copy(&ireq6->loc_addr, &ipv6_hdr(skb)->daddr);
 	ireq6->pktopts	= NULL;
 
 	if (ipv6_opt_accepted(sk, skb) ||
@@ -546,7 +548,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 		newnp->pktoptions  = NULL;
 		newnp->opt	   = NULL;
 		newnp->mcast_oif   = inet6_iif(skb);
-		newnp->mcast_hops  = skb->nh.ipv6h->hop_limit;
+		newnp->mcast_hops  = ipv6_hdr(skb)->hop_limit;
 
 		/*
 		 * No need to charge this sock to the relevant IPv6 refcnt debug socks count
@@ -573,8 +575,8 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 
 		if (rxopt->srcrt)
 			opt = ipv6_invert_rthdr(sk,
-				(struct ipv6_rt_hdr *)(ireq6->pktopts->nh.raw +
-						       rxopt->srcrt));
+		   (struct ipv6_rt_hdr *)(skb_network_header(ireq6->pktopts) +
+					  rxopt->srcrt));
 	}
 
 	if (dst == NULL) {
@@ -653,7 +655,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 	}
 	newnp->opt	  = NULL;
 	newnp->mcast_oif  = inet6_iif(skb);
-	newnp->mcast_hops = skb->nh.ipv6h->hop_limit;
+	newnp->mcast_hops = ipv6_hdr(skb)->hop_limit;
 
 	/*
 	 * Clone native IPv6 options from listening socket (if any)
@@ -826,8 +828,8 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 		goto discard_it;
 
 	/* Step 1: If header checksum is incorrect, drop packet and return. */
-	if (dccp_v6_csum_finish(skb, &skb->nh.ipv6h->saddr,
-				     &skb->nh.ipv6h->daddr)) {
+	if (dccp_v6_csum_finish(skb, &ipv6_hdr(skb)->saddr,
+				     &ipv6_hdr(skb)->daddr)) {
 		DCCP_WARN("dropped packet with invalid checksum\n");
 		goto discard_it;
 	}
@@ -844,9 +846,9 @@ static int dccp_v6_rcv(struct sk_buff **pskb)
 
 	/* Step 2:
 	 *	Look up flow ID in table and get corresponding socket */
-	sk = __inet6_lookup(&dccp_hashinfo, &skb->nh.ipv6h->saddr,
+	sk = __inet6_lookup(&dccp_hashinfo, &ipv6_hdr(skb)->saddr,
 			    dh->dccph_sport,
-			    &skb->nh.ipv6h->daddr, ntohs(dh->dccph_dport),
+			    &ipv6_hdr(skb)->daddr, ntohs(dh->dccph_dport),
 			    inet6_iif(skb));
 	/*
 	 * Step 2:

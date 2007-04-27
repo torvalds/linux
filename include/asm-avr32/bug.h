@@ -18,27 +18,53 @@
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 
-#define BUG()								\
-	do {								\
-		asm volatile(".hword	%0\n\t"				\
-			     ".hword	%1\n\t"				\
-			     ".long	%2"				\
-			     :						\
-			     : "n"(AVR32_BUG_OPCODE),			\
-			       "i"(__LINE__), "X"(__FILE__));		\
-	} while (0)
+#define _BUG_OR_WARN(flags)						\
+	asm volatile(							\
+		"1:	.hword	%0\n"					\
+		"	.section __bug_table,\"a\",@progbits\n"		\
+		"2:	.long	1b\n"					\
+		"	.long	%1\n"					\
+		"	.short	%2\n"					\
+		"	.short	%3\n"					\
+		"	.org	2b + %4\n"				\
+		"	.previous"					\
+		:							\
+		: "i"(AVR32_BUG_OPCODE), "i"(__FILE__),			\
+		  "i"(__LINE__), "i"(flags),				\
+		  "i"(sizeof(struct bug_entry)))
 
 #else
 
-#define BUG()								\
-	do {								\
-		asm volatile(".hword	%0\n\t"				\
-			     : : "n"(AVR32_BUG_OPCODE));		\
-	} while (0)
+#define _BUG_OR_WARN(flags)						\
+	asm volatile(							\
+		"1:	.hword	%0\n"					\
+		"	.section __bug_table,\"a\",@progbits\n"		\
+		"2:	.long	1b\n"					\
+		"	.short	%1\n"					\
+		"	.org	2b + %2\n"				\
+		"	.previous"					\
+		:							\
+		: "i"(AVR32_BUG_OPCODE), "i"(flags),			\
+		  "i"(sizeof(struct bug_entry)))
 
 #endif /* CONFIG_DEBUG_BUGVERBOSE */
 
+#define BUG()								\
+	do {								\
+		_BUG_OR_WARN(0);					\
+		for (;;);						\
+	} while (0)
+
+#define WARN_ON(condition)							\
+	({								\
+		typeof(condition) __ret_warn_on = (condition);		\
+		if (unlikely(__ret_warn_on))				\
+			_BUG_OR_WARN(BUGFLAG_WARNING);			\
+		unlikely(__ret_warn_on);				\
+	})
+
 #define HAVE_ARCH_BUG
+#define HAVE_ARCH_WARN_ON
 
 #endif /* CONFIG_BUG */
 

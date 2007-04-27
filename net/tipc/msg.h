@@ -1,8 +1,8 @@
 /*
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
- * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2000-2007, Ericsson AB
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,8 +71,11 @@ static inline void msg_set_word(struct tipc_msg *m, u32 w, u32 val)
 static inline void msg_set_bits(struct tipc_msg *m, u32 w,
 				u32 pos, u32 mask, u32 val)
 {
-	u32 word = msg_word(m,w) & ~(mask << pos);
-	msg_set_word(m, w, (word |= (val << pos)));
+	val = (val & mask) << pos;
+	val = htonl(val);
+	mask = htonl(mask << pos);
+	m->hdr[w] &= ~mask;
+	m->hdr[w] |= val;
 }
 
 /*
@@ -786,15 +789,16 @@ static inline int msg_build(struct tipc_msg *hdr,
 	*buf = buf_acquire(sz);
 	if (!(*buf))
 		return -ENOMEM;
-	memcpy((*buf)->data, (unchar *)hdr, hsz);
+	skb_copy_to_linear_data(*buf, hdr, hsz);
 	for (res = 1, cnt = 0; res && (cnt < num_sect); cnt++) {
 		if (likely(usrmem))
 			res = !copy_from_user((*buf)->data + pos,
 					      msg_sect[cnt].iov_base,
 					      msg_sect[cnt].iov_len);
 		else
-			memcpy((*buf)->data + pos, msg_sect[cnt].iov_base,
-			       msg_sect[cnt].iov_len);
+			skb_copy_to_linear_data_offset(*buf, pos,
+						       msg_sect[cnt].iov_base,
+						       msg_sect[cnt].iov_len);
 		pos += msg_sect[cnt].iov_len;
 	}
 	if (likely(res))

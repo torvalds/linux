@@ -255,7 +255,6 @@ static void catc_rx_done(struct urb *urb)
 		if (!(skb = dev_alloc_skb(pkt_len)))
 			return;
 
-		skb->dev = catc->netdev;
 		eth_copy_and_sum(skb, pkt_start + pkt_offset, pkt_len, 0);
 		skb_put(skb, pkt_len);
 
@@ -419,7 +418,7 @@ static int catc_hard_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	catc->tx_ptr = (((catc->tx_ptr - 1) >> 6) + 1) << 6;
 	tx_buf = catc->tx_buf[catc->tx_idx] + catc->tx_ptr;
 	*((u16*)tx_buf) = (catc->is_f5u011) ? cpu_to_be16((u16)skb->len) : cpu_to_le16((u16)skb->len);
-	memcpy(tx_buf + 2, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, tx_buf + 2, skb->len);
 	catc->tx_ptr += skb->len + 2;
 
 	if (!test_and_set_bit(TX_RUNNING, &catc->flags))

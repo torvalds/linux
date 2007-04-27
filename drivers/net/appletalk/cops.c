@@ -853,9 +853,9 @@ static void cops_rx(struct net_device *dev)
                 return;
         }
 
-        skb->mac.raw    = skb->data;    /* Point to entire packet. */
+        skb_reset_mac_header(skb);    /* Point to entire packet. */
         skb_pull(skb,3);
-        skb->h.raw      = skb->data;    /* Point to data (Skip header). */
+        skb_reset_transport_header(skb);    /* Point to data (Skip header). */
 
         /* Update the counters. */
         lp->stats.rx_packets++;

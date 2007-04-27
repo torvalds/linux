@@ -2444,7 +2444,7 @@ static int add_airo_dev( struct net_device *dev );
 
 static int wll_header_parse(struct sk_buff *skb, unsigned char *haddr)
 {
-	memcpy(haddr, skb->mac.raw + 10, ETH_ALEN);
+	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN);
 	return ETH_ALEN;
 }
 
@@ -3411,14 +3411,12 @@ badrx:
 			OUT4500( apriv, EVACK, EV_RX);
 
 			if (test_bit(FLAG_802_11, &apriv->flags)) {
-				skb->mac.raw = skb->data;
+				skb_reset_mac_header(skb);
 				skb->pkt_type = PACKET_OTHERHOST;
 				skb->dev = apriv->wifidev;
 				skb->protocol = htons(ETH_P_802_2);
-			} else {
-				skb->dev = dev;
+			} else
 				skb->protocol = eth_type_trans(skb,dev);
-			}
 			skb->dev->last_rx = jiffies;
 			skb->ip_summed = CHECKSUM_NONE;
 
@@ -3641,7 +3639,6 @@ badmic:
 		}
 #endif /* WIRELESS_SPY */
 
-		skb->dev = ai->dev;
 		skb->ip_summed = CHECKSUM_NONE;
 		skb->protocol = eth_type_trans(skb, ai->dev);
 		skb->dev->last_rx = jiffies;
@@ -3749,7 +3746,7 @@ void mpi_receive_802_11 (struct airo_info *ai)
 		wireless_spy_update(ai->dev, sa, &wstats);
 	}
 #endif /* IW_WIRELESS_SPY */
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->dev = ai->wifidev;
 	skb->protocol = htons(ETH_P_802_2);

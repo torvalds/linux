@@ -260,19 +260,20 @@ enum {
 
 static inline struct dccp_hdr *dccp_hdr(const struct sk_buff *skb)
 {
-	return (struct dccp_hdr *)skb->h.raw;
+	return (struct dccp_hdr *)skb_transport_header(skb);
 }
 
 static inline struct dccp_hdr *dccp_zeroed_hdr(struct sk_buff *skb, int headlen)
 {
-	skb->h.raw = skb_push(skb, headlen);
-	memset(skb->h.raw, 0, headlen);
-	return dccp_hdr(skb);
+	skb_push(skb, headlen);
+	skb_reset_transport_header(skb);
+	return memset(skb_transport_header(skb), 0, headlen);
 }
 
 static inline struct dccp_hdr_ext *dccp_hdrx(const struct sk_buff *skb)
 {
-	return (struct dccp_hdr_ext *)(skb->h.raw + sizeof(struct dccp_hdr));
+	return (struct dccp_hdr_ext *)(skb_transport_header(skb) +
+				       sizeof(struct dccp_hdr));
 }
 
 static inline unsigned int __dccp_basic_hdr_len(const struct dccp_hdr *dh)
@@ -301,12 +302,14 @@ static inline __u64 dccp_hdr_seq(const struct sk_buff *skb)
 
 static inline struct dccp_hdr_request *dccp_hdr_request(struct sk_buff *skb)
 {
-	return (struct dccp_hdr_request *)(skb->h.raw + dccp_basic_hdr_len(skb));
+	return (struct dccp_hdr_request *)(skb_transport_header(skb) +
+					   dccp_basic_hdr_len(skb));
 }
 
 static inline struct dccp_hdr_ack_bits *dccp_hdr_ack_bits(const struct sk_buff *skb)
 {
-	return (struct dccp_hdr_ack_bits *)(skb->h.raw + dccp_basic_hdr_len(skb));
+	return (struct dccp_hdr_ack_bits *)(skb_transport_header(skb) +
+					    dccp_basic_hdr_len(skb));
 }
 
 static inline u64 dccp_hdr_ack_seq(const struct sk_buff *skb)
@@ -317,12 +320,14 @@ static inline u64 dccp_hdr_ack_seq(const struct sk_buff *skb)
 
 static inline struct dccp_hdr_response *dccp_hdr_response(struct sk_buff *skb)
 {
-	return (struct dccp_hdr_response *)(skb->h.raw + dccp_basic_hdr_len(skb));
+	return (struct dccp_hdr_response *)(skb_transport_header(skb) +
+					    dccp_basic_hdr_len(skb));
 }
 
 static inline struct dccp_hdr_reset *dccp_hdr_reset(struct sk_buff *skb)
 {
-	return (struct dccp_hdr_reset *)(skb->h.raw + dccp_basic_hdr_len(skb));
+	return (struct dccp_hdr_reset *)(skb_transport_header(skb) +
+					 dccp_basic_hdr_len(skb));
 }
 
 static inline unsigned int __dccp_hdr_len(const struct dccp_hdr *dh)
@@ -460,26 +465,27 @@ struct dccp_ackvec;
  * @dccps_service_list - second .. last service code on passive socket
  * @dccps_timestamp_time - time of latest TIMESTAMP option
  * @dccps_timestamp_echo - latest timestamp received on a TIMESTAMP option
- * @dccps_l_ack_ratio -
- * @dccps_r_ack_ratio -
+ * @dccps_l_ack_ratio - feature-local Ack Ratio
+ * @dccps_r_ack_ratio - feature-remote Ack Ratio
  * @dccps_pcslen - sender   partial checksum coverage (via sockopt)
  * @dccps_pcrlen - receiver partial checksum coverage (via sockopt)
  * @dccps_ndp_count - number of Non Data Packets since last data packet
- * @dccps_mss_cache -
- * @dccps_minisock -
+ * @dccps_mss_cache - current value of MSS (path MTU minus header sizes)
+ * @dccps_minisock - associated minisock (accessed via dccp_msk)
  * @dccps_hc_rx_ackvec - rx half connection ack vector
- * @dccps_hc_rx_ccid -
- * @dccps_hc_tx_ccid -
- * @dccps_options_received -
- * @dccps_epoch -
- * @dccps_role - Role of this sock, one of %dccp_role
- * @dccps_hc_rx_insert_options -
- * @dccps_hc_tx_insert_options -
+ * @dccps_hc_rx_ccid - CCID used for the receiver (or receiving half-connection)
+ * @dccps_hc_tx_ccid - CCID used for the sender (or sending half-connection)
+ * @dccps_options_received - parsed set of retrieved options
+ * @dccps_role - role of this sock, one of %dccp_role
+ * @dccps_hc_rx_insert_options - receiver wants to add options when acking
+ * @dccps_hc_tx_insert_options - sender wants to add options when sending
  * @dccps_xmit_timer - timer for when CCID is not ready to send
+ * @dccps_syn_rtt - RTT sample from Request/Response exchange (in usecs)
  */
 struct dccp_sock {
 	/* inet_connection_sock has to be the first member of dccp_sock */
 	struct inet_connection_sock	dccps_inet_connection;
+#define dccps_syn_rtt			dccps_inet_connection.icsk_ack.lrcvtime
 	__u64				dccps_swl;
 	__u64				dccps_swh;
 	__u64				dccps_awl;

@@ -97,6 +97,12 @@ enum sctp_optname {
 #define SCTP_DELAYED_ACK_TIME SCTP_DELAYED_ACK_TIME
 	SCTP_CONTEXT,	/* Receive Context */
 #define SCTP_CONTEXT SCTP_CONTEXT
+	SCTP_FRAGMENT_INTERLEAVE,
+#define SCTP_FRAGMENT_INTERLEAVE SCTP_FRAGMENT_INTERLEAVE
+	SCTP_PARTIAL_DELIVERY_POINT,	/* Set/Get partial delivery point */
+#define SCTP_PARTIAL_DELIVERY_POINT SCTP_PARTIAL_DELIVERY_POINT
+	SCTP_MAX_BURST,		/* Set/Get max burst */
+#define SCTP_MAX_BURST SCTP_MAX_BURST
 
 	/* Internal Socket Options. Some of the sctp library functions are 
 	 * implemented using these socket options.
@@ -213,6 +219,7 @@ struct sctp_assoc_change {
 	__u16 sac_outbound_streams;
 	__u16 sac_inbound_streams;
 	sctp_assoc_t sac_assoc_id;
+	__u8 sac_info[0];
 };
 
 /*
@@ -261,6 +268,7 @@ enum sctp_spc_state {
 	SCTP_ADDR_REMOVED,
 	SCTP_ADDR_ADDED,
 	SCTP_ADDR_MADE_PRIM,
+	SCTP_ADDR_CONFIRMED,
 };
 
 
@@ -508,16 +516,17 @@ struct sctp_setadaptation {
  *   address's parameters:
  */
 enum  sctp_spp_flags {
-	SPP_HB_ENABLE = 1,		/*Enable heartbeats*/
-	SPP_HB_DISABLE = 2,		/*Disable heartbeats*/
+	SPP_HB_ENABLE = 1<<0,		/*Enable heartbeats*/
+	SPP_HB_DISABLE = 1<<1,		/*Disable heartbeats*/
 	SPP_HB = SPP_HB_ENABLE | SPP_HB_DISABLE,
-	SPP_HB_DEMAND = 4,		/*Send heartbeat immediately*/
-	SPP_PMTUD_ENABLE = 8,		/*Enable PMTU discovery*/
-	SPP_PMTUD_DISABLE = 16,		/*Disable PMTU discovery*/
+	SPP_HB_DEMAND = 1<<2,		/*Send heartbeat immediately*/
+	SPP_PMTUD_ENABLE = 1<<3,	/*Enable PMTU discovery*/
+	SPP_PMTUD_DISABLE = 1<<4,	/*Disable PMTU discovery*/
 	SPP_PMTUD = SPP_PMTUD_ENABLE | SPP_PMTUD_DISABLE,
-	SPP_SACKDELAY_ENABLE = 32,	/*Enable SACK*/
-	SPP_SACKDELAY_DISABLE = 64,	/*Disable SACK*/
+	SPP_SACKDELAY_ENABLE = 1<<5,	/*Enable SACK*/
+	SPP_SACKDELAY_DISABLE = 1<<6,	/*Disable SACK*/
 	SPP_SACKDELAY = SPP_SACKDELAY_ENABLE | SPP_SACKDELAY_DISABLE,
+	SPP_HB_TIME_IS_ZERO = 1<<7,	/* Set HB delay to 0 */
 };
 
 struct sctp_paddrparams {
@@ -530,7 +539,7 @@ struct sctp_paddrparams {
 	__u32			spp_flags;
 } __attribute__((packed, aligned(4)));
 
-/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+/* 7.1.23. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
  *
  *   This options will get or set the delayed ack timer.  The time is set
  *   in milliseconds.  If the assoc_id is 0, then this sets or gets the

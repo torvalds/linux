@@ -982,7 +982,8 @@ static void prism2_send_mgmt(struct net_device *dev,
 	meta->tx_cb_idx = tx_cb_idx;
 
 	skb->dev = dev;
-	skb->mac.raw = skb->nh.raw = skb->data;
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
 	dev_queue_xmit(skb);
 }
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
@@ -1276,8 +1277,8 @@ static char * ap_auth_make_challenge(struct ap_data *ap)
 		return NULL;
 	}
 
-	memcpy(tmpbuf, skb->data + ap->crypt->extra_mpdu_prefix_len,
-	       WLAN_AUTH_CHALLENGE_LEN);
+	skb_copy_from_linear_data_offset(skb, ap->crypt->extra_mpdu_prefix_len,
+					 tmpbuf, WLAN_AUTH_CHALLENGE_LEN);
 	dev_kfree_skb(skb);
 
 	return tmpbuf;

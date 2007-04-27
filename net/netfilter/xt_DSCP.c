@@ -8,8 +8,6 @@
  * published by the Free Software Foundation.
  *
  * See RFC2474 for a description of the DSCP field within the IP Header.
- *
- * xt_DSCP.c,v 1.8 2002/08/06 18:41:57 laforge Exp
 */
 
 #include <linux/module.h>
@@ -35,13 +33,13 @@ static unsigned int target(struct sk_buff **pskb,
 			   const void *targinfo)
 {
 	const struct xt_DSCP_info *dinfo = targinfo;
-	u_int8_t dscp = ipv4_get_dsfield((*pskb)->nh.iph) >> XT_DSCP_SHIFT;
+	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(*pskb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
 		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
 			return NF_DROP;
 
-		ipv4_change_dsfield((*pskb)->nh.iph, (__u8)(~XT_DSCP_MASK),
+		ipv4_change_dsfield(ip_hdr(*pskb), (__u8)(~XT_DSCP_MASK),
 				    dinfo->dscp << XT_DSCP_SHIFT);
 
 	}
@@ -56,13 +54,13 @@ static unsigned int target6(struct sk_buff **pskb,
 			    const void *targinfo)
 {
 	const struct xt_DSCP_info *dinfo = targinfo;
-	u_int8_t dscp = ipv6_get_dsfield((*pskb)->nh.ipv6h) >> XT_DSCP_SHIFT;
+	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(*pskb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
 		if (!skb_make_writable(pskb, sizeof(struct ipv6hdr)))
 			return NF_DROP;
 
-		ipv6_change_dsfield((*pskb)->nh.ipv6h, (__u8)(~XT_DSCP_MASK),
+		ipv6_change_dsfield(ipv6_hdr(*pskb), (__u8)(~XT_DSCP_MASK),
 				    dinfo->dscp << XT_DSCP_SHIFT);
 	}
 	return XT_CONTINUE;

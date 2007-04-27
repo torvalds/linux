@@ -1145,7 +1145,6 @@ tc35815_rx(struct net_device *dev)
 				break;
 			}
 			skb_reserve(skb, 2);   /* 16 bit alignment */
-			skb->dev = dev;
 
 			data = skb_put(skb, pkt_len);
 

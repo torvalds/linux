@@ -4746,7 +4746,7 @@ void show_state_filter(unsigned long state_filter)
 		 * console might take alot of time:
 		 */
 		touch_nmi_watchdog();
-		if (p->state & state_filter)
+		if (!state_filter || (p->state & state_filter))
 			show_task(p);
 	} while_each_thread(g, p);
 

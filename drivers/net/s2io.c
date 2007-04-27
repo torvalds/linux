@@ -2195,7 +2195,7 @@ static int fill_rxd_3buf(struct s2io_nic *nic, struct RxD_t *rxdp, struct \
 	frag_list->next = NULL;
 	tmp = (void *)ALIGN((long)frag_list->data, ALIGN_SIZE + 1);
 	frag_list->data = tmp;
-	frag_list->tail = tmp;
+	skb_reset_tail_pointer(frag_list);
 
 	/* Buffer-2 receives L4 data payload */
 	((struct RxD3*)rxdp)->Buffer2_ptr = pci_map_single(nic->pdev,
@@ -2349,7 +2349,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 			tmp += ALIGN_SIZE;
 			tmp &= ~ALIGN_SIZE;
 			skb->data = (void *) (unsigned long)tmp;
-			skb->tail = (void *) (unsigned long)tmp;
+			skb_reset_tail_pointer(skb);
 
 			if (!(((struct RxD3*)rxdp)->Buffer0_ptr))
 				((struct RxD3*)rxdp)->Buffer0_ptr =

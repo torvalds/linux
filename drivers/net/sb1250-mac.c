@@ -933,9 +933,6 @@ static int sbdma_add_rcvbuffer(sbmacdma_t *d,struct sk_buff *sb)
 		}
 
 		sbdma_align_skb(sb_new, SMP_CACHE_BYTES, ETHER_ALIGN);
-
-		/* mark skbuff owned by our device */
-		sb_new->dev = d->sbdma_eth->sbm_dev;
 	}
 	else {
 		sb_new = sb;

@@ -120,7 +120,7 @@ extern int cipso_v4_rbm_strictvalid;
  */
 
 #define CIPSO_V4_OPTEXIST(x) (IPCB(x)->opt.cipso != 0)
-#define CIPSO_V4_OPTPTR(x) ((x)->nh.raw + IPCB(x)->opt.cipso)
+#define CIPSO_V4_OPTPTR(x) (skb_network_header(x) + IPCB(x)->opt.cipso)
 
 /*
  * DOI List Functions

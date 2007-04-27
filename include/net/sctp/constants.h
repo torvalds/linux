@@ -283,7 +283,7 @@ enum { SCTP_MAX_GABS = 16 };
 #define SCTP_RTO_BETA           2   /* 1/4 when converted to right shifts. */
 
 /* Maximum number of new data packets that can be sent in a burst.  */
-#define SCTP_MAX_BURST		4
+#define SCTP_DEFAULT_MAX_BURST		4
 
 #define SCTP_CLOCK_GRANULARITY	1	/* 1 jiffy */
 

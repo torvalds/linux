@@ -343,7 +343,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 		UDSL_ASSERT(sarb->tail + ATM_CELL_PAYLOAD <= sarb->end);
 	}
 
-	memcpy(sarb->tail, source + ATM_CELL_HEADER, ATM_CELL_PAYLOAD);
+	memcpy(skb_tail_pointer(sarb), source + ATM_CELL_HEADER, ATM_CELL_PAYLOAD);
 	__skb_put(sarb, ATM_CELL_PAYLOAD);
 
 	if (pti & 1) {
@@ -370,7 +370,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 			goto out;
 		}
 
-		if (crc32_be(~0, sarb->tail - pdu_length, pdu_length) != 0xc704dd7b) {
+		if (crc32_be(~0, skb_tail_pointer(sarb) - pdu_length, pdu_length) != 0xc704dd7b) {
 			atm_rldbg(instance, "%s: packet failed crc check (vcc: 0x%p)!\n",
 				  __func__, vcc);
 			atomic_inc(&vcc->stats->rx_err);
@@ -396,7 +396,9 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 			goto out;	/* atm_charge increments rx_drop */
 		}
 
-		memcpy(skb->data, sarb->tail - pdu_length, length);
+		skb_copy_to_linear_data(skb,
+					skb_tail_pointer(sarb) - pdu_length,
+					length);
 		__skb_put(skb, length);
 
 		vdbg("%s: sending skb 0x%p, skb->len %u, skb->truesize %u",
@@ -484,7 +486,7 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 		ptr[4] = 0xec;
 		ptr += ATM_CELL_HEADER;
 
-		memcpy(ptr, skb->data, data_len);
+		skb_copy_from_linear_data(skb, ptr, data_len);
 		ptr += data_len;
 		__skb_pull(skb, data_len);
 

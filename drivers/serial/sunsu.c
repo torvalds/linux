@@ -1387,8 +1387,8 @@ static enum su_type __devinit su_get_type(struct device_node *dp)
 	struct device_node *ap = of_find_node_by_path("/aliases");
 
 	if (ap) {
-		char *keyb = of_get_property(ap, "keyboard", NULL);
-		char *ms = of_get_property(ap, "mouse", NULL);
+		const char *keyb = of_get_property(ap, "keyboard", NULL);
+		const char *ms = of_get_property(ap, "mouse", NULL);
 
 		if (keyb) {
 			if (dp == of_find_node_by_path(keyb))

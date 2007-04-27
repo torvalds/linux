@@ -133,7 +133,7 @@
 static inline void SetPageUptodate(struct page *page)
 {
 	if (!test_and_set_bit(PG_uptodate, &page->flags))
-		page_test_and_clear_dirty(page);
+		page_clear_dirty(page);
 }
 #else
 #define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)

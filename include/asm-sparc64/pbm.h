@@ -1,7 +1,6 @@
-/* $Id: pbm.h,v 1.27 2001/08/12 13:18:23 davem Exp $
- * pbm.h: UltraSparc PCI controller software state.
+/* pbm.h: UltraSparc PCI controller software state.
  *
- * Copyright (C) 1997, 1998, 1999 David S. Miller (davem@redhat.com)
+ * Copyright (C) 1997, 1998, 1999, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #ifndef __SPARC64_PBM_H
@@ -30,90 +29,7 @@
  * PCI bus.
  */
 
-struct pci_controller_info;
-
-/* This contains the software state necessary to drive a PCI
- * controller's IOMMU.
- */
-struct pci_iommu_arena {
-	unsigned long	*map;
-	unsigned int	hint;
-	unsigned int	limit;
-};
-
-struct pci_iommu {
-	/* This protects the controller's IOMMU and all
-	 * streaming buffers underneath.
-	 */
-	spinlock_t	lock;
-
-	struct pci_iommu_arena arena;
-
-	/* IOMMU page table, a linear array of ioptes. */
-	iopte_t		*page_table;		/* The page table itself. */
-
-	/* Base PCI memory space address where IOMMU mappings
-	 * begin.
-	 */
-	u32		page_table_map_base;
-
-	/* IOMMU Controller Registers */
-	unsigned long	iommu_control;		/* IOMMU control register */
-	unsigned long	iommu_tsbbase;		/* IOMMU page table base register */
-	unsigned long	iommu_flush;		/* IOMMU page flush register */
-	unsigned long	iommu_ctxflush;		/* IOMMU context flush register */
-
-	/* This is a register in the PCI controller, which if
-	 * read will have no side-effects but will guarantee
-	 * completion of all previous writes into IOMMU/STC.
-	 */
-	unsigned long	write_complete_reg;
-
-	/* In order to deal with some buggy third-party PCI bridges that
-	 * do wrong prefetching, we never mark valid mappings as invalid.
-	 * Instead we point them at this dummy page.
-	 */
-	unsigned long	dummy_page;
-	unsigned long	dummy_page_pa;
-
-	/* CTX allocation. */
-	unsigned long ctx_lowest_free;
-	unsigned long ctx_bitmap[IOMMU_NUM_CTXS / (sizeof(unsigned long) * 8)];
-
-	/* Here a PCI controller driver describes the areas of
-	 * PCI memory space where DMA to/from physical memory
-	 * are addressed.  Drivers interrogate the PCI layer
-	 * if their device has addressing limitations.  They
-	 * do so via pci_dma_supported, and pass in a mask of
-	 * DMA address bits their device can actually drive.
-	 *
-	 * The test for being usable is:
-	 * 	(device_mask & dma_addr_mask) == dma_addr_mask
-	 */
-	u32 dma_addr_mask;
-};
-
-extern void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask);
-
-/* This describes a PCI bus module's streaming buffer. */
-struct pci_strbuf {
-	int		strbuf_enabled;		/* Present and using it? */
-
-	/* Streaming Buffer Control Registers */
-	unsigned long	strbuf_control;		/* STC control register */
-	unsigned long	strbuf_pflush;		/* STC page flush register */
-	unsigned long	strbuf_fsync;		/* STC flush synchronization reg */
-	unsigned long	strbuf_ctxflush;	/* STC context flush register */
-	unsigned long	strbuf_ctxmatch_base;	/* STC context flush match reg */
-	unsigned long	strbuf_flushflag_pa;	/* Physical address of flush flag */
-	volatile unsigned long *strbuf_flushflag; /* The flush flag itself */
-
-	/* And this is the actual flush flag area.
-	 * We allocate extra because the chips require
-	 * a 64-byte aligned area.
-	 */
-	volatile unsigned long	__flushflag_buf[(64 + (64 - 1)) / sizeof(long)];
-};
+extern void pci_iommu_table_init(struct iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask);
 
 #define PCI_STC_FLUSHFLAG_INIT(STC) \
 	(*((STC)->strbuf_flushflag) = 0UL)
@@ -125,6 +41,8 @@ struct pci_strbuf {
  */
 #define PROM_PCIRNG_MAX		64
 #define PROM_PCIIMAP_MAX	64
+
+struct pci_controller_info;
 
 struct pci_pbm_info {
 	/* PCI controller we sit under. */
@@ -160,11 +78,6 @@ struct pci_pbm_info {
 
 	/* OBP specific information. */
 	struct device_node		*prom_node;
-	struct linux_prom_pci_ranges	*pbm_ranges;
-	int				num_pbm_ranges;
-	struct linux_prom_pci_intmap	*pbm_intmap;
-	int				num_pbm_intmap;
-	struct linux_prom_pci_intmask	*pbm_intmask;
 	u64				ino_bitmap;
 
 	/* PBM I/O and Memory space resources. */
@@ -197,13 +110,10 @@ struct pci_pbm_info {
 #endif /* !(CONFIG_PCI_MSI) */
 
 	/* This PBM's streaming buffer. */
-	struct pci_strbuf		stc;
+	struct strbuf			stc;
 
 	/* IOMMU state, potentially shared by both PBM segments. */
-	struct pci_iommu		*iommu;
-
-	/* PCI slot mapping. */
-	unsigned int			pci_first_slot;
+	struct iommu			*iommu;
 
 	/* Now things for the actual PCI bus probes. */
 	unsigned int			pci_first_busno;
@@ -220,17 +130,12 @@ struct pci_controller_info {
 	 */
 	int				index;
 
-	/* Do the PBMs both exist in the same PCI domain? */
-	int				pbms_same_domain;
-
 	/* The PCI bus modules controlled by us. */
 	struct pci_pbm_info		pbm_A;
 	struct pci_pbm_info		pbm_B;
 
 	/* Operations which are controller specific. */
 	void (*scan_bus)(struct pci_controller_info *);
-	void (*base_address_update)(struct pci_dev *, int);
-	void (*resource_adjust)(struct pci_dev *, struct resource *, struct resource *);
 
 #ifdef CONFIG_PCI_MSI
 	int (*setup_msi_irq)(unsigned int *virt_irq_p, struct pci_dev *pdev,
@@ -243,28 +148,5 @@ struct pci_controller_info {
 	unsigned int			pci_first_busno;
 	unsigned int			pci_last_busno;
 };
-
-/* PCI devices which are not bridges have this placed in their pci_dev
- * sysdata member.  This makes OBP aware PCI device drivers easier to
- * code.
- */
-struct pcidev_cookie {
-	struct pci_pbm_info		*pbm;
-	struct device_node		*prom_node;
-	struct of_device		*op;
-	struct linux_prom_pci_registers	prom_regs[PROMREG_MAX];
-	int num_prom_regs;
-	struct linux_prom_pci_registers prom_assignments[PROMREG_MAX];
-	int num_prom_assignments;
-#ifdef CONFIG_PCI_MSI
-	unsigned int			msi_num;
-#endif
-};
-
-/* Currently these are the same across all PCI controllers
- * we support.  Someday they may not be...
- */
-#define PCI_IRQ_IGN	0x000007c0	/* Interrupt Group Number */
-#define PCI_IRQ_INO	0x0000003f	/* Interrupt Number */
 
 #endif /* !(__SPARC64_PBM_H) */

@@ -75,8 +75,10 @@ static void ccwgroup_ungroup_callback(struct device *dev)
 {
 	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
 
+	mutex_lock(&gdev->reg_mutex);
 	__ccwgroup_remove_symlinks(gdev);
 	device_unregister(dev);
+	mutex_unlock(&gdev->reg_mutex);
 }
 
 static ssize_t
@@ -173,7 +175,8 @@ ccwgroup_create(struct device *root,
 		return -ENOMEM;
 
 	atomic_set(&gdev->onoff, 0);
-
+	mutex_init(&gdev->reg_mutex);
+	mutex_lock(&gdev->reg_mutex);
 	for (i = 0; i < argc; i++) {
 		gdev->cdev[i] = get_ccwdev_by_busid(cdrv, argv[i]);
 
@@ -183,12 +186,12 @@ ccwgroup_create(struct device *root,
 		    || gdev->cdev[i]->id.driver_info !=
 		    gdev->cdev[0]->id.driver_info) {
 			rc = -EINVAL;
-			goto free_dev;
+			goto error;
 		}
 		/* Don't allow a device to belong to more than one group. */
 		if (gdev->cdev[i]->dev.driver_data) {
 			rc = -EINVAL;
-			goto free_dev;
+			goto error;
 		}
 		gdev->cdev[i]->dev.driver_data = gdev;
 	}
@@ -203,9 +206,8 @@ ccwgroup_create(struct device *root,
 			gdev->cdev[0]->dev.bus_id);
 
 	rc = device_register(&gdev->dev);
-	
 	if (rc)
-		goto free_dev;
+		goto error;
 	get_device(&gdev->dev);
 	rc = device_create_file(&gdev->dev, &dev_attr_ungroup);
 
@@ -216,6 +218,7 @@ ccwgroup_create(struct device *root,
 
 	rc = __ccwgroup_create_symlinks(gdev);
 	if (!rc) {
+		mutex_unlock(&gdev->reg_mutex);
 		put_device(&gdev->dev);
 		return 0;
 	}
@@ -224,19 +227,12 @@ ccwgroup_create(struct device *root,
 error:
 	for (i = 0; i < argc; i++)
 		if (gdev->cdev[i]) {
-			put_device(&gdev->cdev[i]->dev);
-			gdev->cdev[i]->dev.driver_data = NULL;
-		}
-	put_device(&gdev->dev);
-	return rc;
-free_dev:
-	for (i = 0; i < argc; i++)
-		if (gdev->cdev[i]) {
 			if (gdev->cdev[i]->dev.driver_data == gdev)
 				gdev->cdev[i]->dev.driver_data = NULL;
 			put_device(&gdev->cdev[i]->dev);
 		}
-	kfree(gdev);
+	mutex_unlock(&gdev->reg_mutex);
+	put_device(&gdev->dev);
 	return rc;
 }
 
@@ -422,8 +418,12 @@ ccwgroup_driver_unregister (struct ccwgroup_driver *cdriver)
 	get_driver(&cdriver->driver);
 	while ((dev = driver_find_device(&cdriver->driver, NULL, NULL,
 					 __ccwgroup_match_all))) {
-		__ccwgroup_remove_symlinks(to_ccwgroupdev(dev));
+		struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
+
+		mutex_lock(&gdev->reg_mutex);
+		__ccwgroup_remove_symlinks(gdev);
 		device_unregister(dev);
+		mutex_unlock(&gdev->reg_mutex);
 		put_device(dev);
 	}
 	put_driver(&cdriver->driver);
@@ -444,8 +444,10 @@ __ccwgroup_get_gdev_by_cdev(struct ccw_device *cdev)
 	if (cdev->dev.driver_data) {
 		gdev = (struct ccwgroup_device *)cdev->dev.driver_data;
 		if (get_device(&gdev->dev)) {
+			mutex_lock(&gdev->reg_mutex);
 			if (device_is_registered(&gdev->dev))
 				return gdev;
+			mutex_unlock(&gdev->reg_mutex);
 			put_device(&gdev->dev);
 		}
 		return NULL;
@@ -465,6 +467,7 @@ ccwgroup_remove_ccwdev(struct ccw_device *cdev)
 	if (gdev) {
 		__ccwgroup_remove_symlinks(gdev);
 		device_unregister(&gdev->dev);
+		mutex_unlock(&gdev->reg_mutex);
 		put_device(&gdev->dev);
 	}
 }

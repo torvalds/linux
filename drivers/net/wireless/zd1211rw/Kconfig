@@ -1,6 +1,7 @@
 config ZD1211RW
 	tristate "ZyDAS ZD1211/ZD1211B USB-wireless support"
-	depends on USB && IEEE80211 && IEEE80211_SOFTMAC && NET_RADIO && EXPERIMENTAL
+	depends on USB && IEEE80211_SOFTMAC && WLAN_80211 && EXPERIMENTAL
+	select WIRELESS_EXT
 	select FW_LOADER
 	---help---
 	  This is an experimental driver for the ZyDAS ZD1211/ZD1211B wireless

@@ -159,10 +159,10 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		return 0;
 
 	if (cp->app_data == &ip_vs_ftp_pasv) {
-		iph = (*pskb)->nh.iph;
+		iph = ip_hdr(*pskb);
 		th = (struct tcphdr *)&(((char *)iph)[iph->ihl*4]);
 		data = (char *)th + (th->doff << 2);
-		data_limit = (*pskb)->tail;
+		data_limit = skb_tail_pointer(*pskb);
 
 		if (ip_vs_ftp_get_addrport(data, data_limit,
 					   SERVER_STRING,
@@ -262,14 +262,14 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	/*
 	 * Detecting whether it is passive
 	 */
-	iph = (*pskb)->nh.iph;
+	iph = ip_hdr(*pskb);
 	th = (struct tcphdr *)&(((char *)iph)[iph->ihl*4]);
 
 	/* Since there may be OPTIONS in the TCP packet and the HLEN is
 	   the length of the header in 32-bit multiples, it is accurate
 	   to calculate data address by th+HLEN*4 */
 	data = data_start = (char *)th + (th->doff << 2);
-	data_limit = (*pskb)->tail;
+	data_limit = skb_tail_pointer(*pskb);
 
 	while (data <= data_limit - 6) {
 		if (strnicmp(data, "PASV\r\n", 6) == 0) {

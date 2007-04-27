@@ -825,12 +825,11 @@ static int b44_rx(struct b44 *bp, int budget)
 			if (copy_skb == NULL)
 				goto drop_it_no_recycle;
 
-			copy_skb->dev = bp->dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			/* DMA sync done above, copy just the actual packet */
-			memcpy(copy_skb->data, skb->data+bp->rx_offset, len);
-
+			skb_copy_from_linear_data_offset(skb, bp->rx_offset,
+							 copy_skb->data, len);
 			skb = copy_skb;
 		}
 		skb->ip_summed = CHECKSUM_NONE;
@@ -1007,7 +1006,8 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto err_out;
 		}
 
-		memcpy(skb_put(bounce_skb, len), skb->data, skb->len);
+		skb_copy_from_linear_data(skb, skb_put(bounce_skb, len),
+					  skb->len);
 		dev_kfree_skb_any(skb);
 		skb = bounce_skb;
 	}

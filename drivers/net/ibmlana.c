@@ -601,7 +601,6 @@ static void irqrx_handler(struct net_device *dev)
 
 				/* set up skb fields */
 
-				skb->dev = dev;
 				skb->protocol = eth_type_trans(skb, dev);
 				skb->ip_summed = CHECKSUM_NONE;
 

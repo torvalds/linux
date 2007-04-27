@@ -1047,7 +1047,6 @@ static int lance_rx( struct net_device *dev )
 						   pkt_len );
 				}
 
-				skb->dev = dev;
 				skb_reserve( skb, 2 );	/* 16 byte align */
 				skb_put( skb, pkt_len );	/* Make room */
 				lp->memcpy_f( skb->data, PKTBUF_ADDR(head), pkt_len );

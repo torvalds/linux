@@ -27,13 +27,6 @@ if NET
 
 menu "Networking options"
 
-config NETDEBUG
-	bool "Network packet debugging"
-	help
-	  You can say Y here if you want to get additional messages useful in
-	  debugging bad packets, but can overwhelm logs under denial of service
-	  attacks.
-
 source "net/packet/Kconfig"
 source "net/unix/Kconfig"
 source "net/xfrm/Kconfig"
@@ -219,13 +212,17 @@ endmenu
 source "net/ax25/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
-source "net/ieee80211/Kconfig"
-
-config WIRELESS_EXT
-	bool
+source "net/rxrpc/Kconfig"
 
 config FIB_RULES
 	bool
+
+menu "Wireless"
+
+source "net/wireless/Kconfig"
+source "net/ieee80211/Kconfig"
+
+endmenu
 
 endif   # if NET
 endmenu # Networking

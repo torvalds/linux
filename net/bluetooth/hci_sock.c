@@ -375,7 +375,7 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		copied = len;
 	}
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
 
 	hci_sock_cmsg(sk, msg, skb);

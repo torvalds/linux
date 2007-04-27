@@ -352,8 +352,8 @@ static ssize_t wireless_show(struct device *d, char *buf,
 
 	read_lock(&dev_base_lock);
 	if (dev_isalive(dev)) {
-		if(dev->wireless_handlers &&
-		   dev->wireless_handlers->get_wireless_stats)
+		if (dev->wireless_handlers &&
+		    dev->wireless_handlers->get_wireless_stats)
 			iw = dev->wireless_handlers->get_wireless_stats(dev);
 		if (iw != NULL)
 			ret = (*format)(iw, buf);

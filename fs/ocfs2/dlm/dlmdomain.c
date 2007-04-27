@@ -430,11 +430,10 @@ redo_bucket:
 
 			dlm_lockres_put(res);
 
-			cond_resched_lock(&dlm->spinlock);
-
 			if (dropped)
 				goto redo_bucket;
 		}
+		cond_resched_lock(&dlm->spinlock);
 		num += n;
 		mlog(0, "%s: touched %d lockreses in bucket %d "
 		     "(tot=%d)\n", dlm->name, n, i, num);
@@ -1035,7 +1034,7 @@ static int dlm_try_to_join_domain(struct dlm_ctxt *dlm)
 {
 	int status = 0, tmpstat, node;
 	struct domain_join_ctxt *ctxt;
-	enum dlm_query_join_response response;
+	enum dlm_query_join_response response = JOIN_DISALLOW;
 
 	mlog_entry("%p", dlm);
 

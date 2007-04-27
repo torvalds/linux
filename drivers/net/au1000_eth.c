@@ -1125,7 +1125,7 @@ static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	pDB = aup->tx_db_inuse[aup->tx_head];
-	memcpy((void *)pDB->vaddr, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, pDB->vaddr, skb->len);
 	if (skb->len < ETH_ZLEN) {
 		for (i=skb->len; i<ETH_ZLEN; i++) {
 			((char *)pDB->vaddr)[i] = 0;
@@ -1205,7 +1205,6 @@ static int au1000_rx(struct net_device *dev)
 				aup->stats.rx_dropped++;
 				continue;
 			}
-			skb->dev = dev;
 			skb_reserve(skb, 2);	/* 16 byte IP header align */
 			eth_copy_and_sum(skb,
 				(unsigned char *)pDB->vaddr, frmlen, 0);

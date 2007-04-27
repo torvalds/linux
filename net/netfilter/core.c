@@ -5,10 +5,6 @@
  * way.
  *
  * Rusty Russell (C)2000 -- This code is GPL.
- *
- * February 2000: Modified by James Morris to have 1 queue per protocol.
- * 15-Mar-2000:   Added NF_REPEAT --RR.
- * 08-May-2003:	  Internal logging interface added by Jozsef Kadlecsik.
  */
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
@@ -244,6 +240,7 @@ void nf_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(nf_proto_csum_replace4);
 
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 /* This does not belong here, but locally generated errors need it if connection
    tracking in use: without this, connection may not be in hash table, and hence
    manufactured ICMP or RST packets will not be associated with it. */
@@ -263,6 +260,22 @@ void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb)
 	}
 }
 EXPORT_SYMBOL(nf_ct_attach);
+
+void (*nf_ct_destroy)(struct nf_conntrack *);
+EXPORT_SYMBOL(nf_ct_destroy);
+
+void nf_conntrack_destroy(struct nf_conntrack *nfct)
+{
+	void (*destroy)(struct nf_conntrack *);
+
+	rcu_read_lock();
+	destroy = rcu_dereference(nf_ct_destroy);
+	BUG_ON(destroy == NULL);
+	destroy(nfct);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(nf_conntrack_destroy);
+#endif /* CONFIG_NF_CONNTRACK */
 
 #ifdef CONFIG_PROC_FS
 struct proc_dir_entry *proc_net_netfilter;

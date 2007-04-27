@@ -1873,7 +1873,6 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 			 pci_unmap_len(lrg_buf_cb2, maplen),
 			 PCI_DMA_FROMDEVICE);
 	prefetch(skb->data);
-	skb->dev = qdev->ndev;
 	skb->ip_summed = CHECKSUM_NONE;
 	skb->protocol = eth_type_trans(skb, qdev->ndev);
 
@@ -1928,7 +1927,8 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 		 * Copy the ethhdr from first buffer to second. This
 		 * is necessary for 3022 IP completions.
 		 */
-		memcpy(skb_push(skb2, size), skb1->data + VLAN_ID_LEN, size);
+		skb_copy_from_linear_data_offset(skb1, VLAN_ID_LEN,
+						 skb_push(skb2, size), size);
 	} else {
 		u16 checksum = le16_to_cpu(ib_ip_rsp_ptr->checksum);
 		if (checksum & 
@@ -1946,7 +1946,6 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 			skb2->ip_summed = CHECKSUM_UNNECESSARY;
 		}
 	}
-	skb2->dev = qdev->ndev;
 	skb2->protocol = eth_type_trans(skb2, qdev->ndev);
 
 	netif_receive_skb(skb2);

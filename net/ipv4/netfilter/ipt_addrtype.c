@@ -33,7 +33,7 @@ static int match(const struct sk_buff *skb,
 		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_addrtype_info *info = matchinfo;
-	const struct iphdr *iph = skb->nh.iph;
+	const struct iphdr *iph = ip_hdr(skb);
 	int ret = 1;
 
 	if (info->source)

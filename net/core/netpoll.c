@@ -86,7 +86,7 @@ static __sum16 checksum_udp(struct sk_buff *skb, struct udphdr *uh,
 {
 	__wsum psum;
 
-	if (uh->check == 0 || skb->ip_summed == CHECKSUM_UNNECESSARY)
+	if (uh->check == 0 || skb_csum_unnecessary(skb))
 		return 0;
 
 	psum = csum_tcpudp_nofold(saddr, daddr, ulen, IPPROTO_UDP, 0);
@@ -293,10 +293,12 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	if (!skb)
 		return;
 
-	memcpy(skb->data, msg, len);
+	skb_copy_to_linear_data(skb, msg, len);
 	skb->len += len;
 
-	skb->h.uh = udph = (struct udphdr *) skb_push(skb, sizeof(*udph));
+	skb_push(skb, sizeof(*udph));
+	skb_reset_transport_header(skb);
+	udph = udp_hdr(skb);
 	udph->source = htons(np->local_port);
 	udph->dest = htons(np->remote_port);
 	udph->len = htons(udp_len);
@@ -308,7 +310,9 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	if (udph->check == 0)
 		udph->check = CSUM_MANGLED_0;
 
-	skb->nh.iph = iph = (struct iphdr *)skb_push(skb, sizeof(*iph));
+	skb_push(skb, sizeof(*iph));
+	skb_reset_network_header(skb);
+	iph = ip_hdr(skb);
 
 	/* iph->version = 4; iph->ihl = 5; */
 	put_unaligned(0x45, (unsigned char *)iph);
@@ -324,7 +328,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	iph->check    = ip_fast_csum((unsigned char *)iph, iph->ihl);
 
 	eth = (struct ethhdr *) skb_push(skb, ETH_HLEN);
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb->protocol = eth->h_proto = htons(ETH_P_IP);
 	memcpy(eth->h_source, np->local_mac, 6);
 	memcpy(eth->h_dest, np->remote_mac, 6);
@@ -359,8 +363,9 @@ static void arp_reply(struct sk_buff *skb)
 				 (2 * sizeof(u32)))))
 		return;
 
-	skb->h.raw = skb->nh.raw = skb->data;
-	arp = skb->nh.arph;
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+	arp = arp_hdr(skb);
 
 	if ((arp->ar_hrd != htons(ARPHRD_ETHER) &&
 	     arp->ar_hrd != htons(ARPHRD_IEEE802)) ||
@@ -389,7 +394,7 @@ static void arp_reply(struct sk_buff *skb)
 	if (!send_skb)
 		return;
 
-	send_skb->nh.raw = send_skb->data;
+	skb_reset_network_header(send_skb);
 	arp = (struct arphdr *) skb_put(send_skb, size);
 	send_skb->dev = skb->dev;
 	send_skb->protocol = htons(ETH_P_ARP);
@@ -443,7 +448,7 @@ int __netpoll_rx(struct sk_buff *skb)
 		goto out;
 
 	/* check if netpoll clients need ARP */
-	if (skb->protocol == __constant_htons(ETH_P_ARP) &&
+	if (skb->protocol == htons(ETH_P_ARP) &&
 	    atomic_read(&trapped)) {
 		skb_queue_tail(&npi->arp_tx, skb);
 		return 1;

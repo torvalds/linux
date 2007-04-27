@@ -358,15 +358,17 @@ int ocfs2_do_extend_dir(struct super_block *sb,
 {
 	int status;
 	int extend;
-	u64 p_blkno;
+	u64 p_blkno, v_blkno;
 
 	spin_lock(&OCFS2_I(dir)->ip_lock);
 	extend = (i_size_read(dir) == ocfs2_clusters_to_bytes(sb, OCFS2_I(dir)->ip_clusters));
 	spin_unlock(&OCFS2_I(dir)->ip_lock);
 
 	if (extend) {
-		status = ocfs2_do_extend_allocation(OCFS2_SB(sb), dir, 1,
-						    parent_fe_bh, handle,
+		u32 offset = OCFS2_I(dir)->ip_clusters;
+
+		status = ocfs2_do_extend_allocation(OCFS2_SB(sb), dir, &offset,
+						    1, parent_fe_bh, handle,
 						    data_ac, meta_ac, NULL);
 		BUG_ON(status == -EAGAIN);
 		if (status < 0) {
@@ -375,9 +377,8 @@ int ocfs2_do_extend_dir(struct super_block *sb,
 		}
 	}
 
-	status = ocfs2_extent_map_get_blocks(dir, (dir->i_blocks >>
-						   (sb->s_blocksize_bits - 9)),
-					     1, &p_blkno, NULL);
+	v_blkno = ocfs2_blocks_for_bytes(sb, i_size_read(dir));
+	status = ocfs2_extent_map_get_blocks(dir, v_blkno, &p_blkno, NULL, NULL);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -486,7 +487,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 
 	dir_i_size += dir->i_sb->s_blocksize;
 	i_size_write(dir, dir_i_size);
-	dir->i_blocks = ocfs2_align_bytes_to_sectors(dir_i_size);
+	dir->i_blocks = ocfs2_inode_sector_count(dir);
 	status = ocfs2_mark_inode_dirty(handle, dir, parent_fe_bh);
 	if (status < 0) {
 		mlog_errno(status);

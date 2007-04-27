@@ -86,7 +86,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 	    dh->dccph_type == DCCP_PKT_SYNCACK) {
 		if (between48(DCCP_SKB_CB(skb)->dccpd_ack_seq,
 			      dp->dccps_awl, dp->dccps_awh) &&
-		    !before48(DCCP_SKB_CB(skb)->dccpd_seq, dp->dccps_swl))
+		    dccp_delta_seqno(dp->dccps_swl,
+				     DCCP_SKB_CB(skb)->dccpd_seq) >= 0)
 			dccp_update_gsr(sk, DCCP_SKB_CB(skb)->dccpd_seq);
 		else
 			return -1;
@@ -203,7 +204,8 @@ static int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		if (dp->dccps_role != DCCP_ROLE_CLIENT)
 			goto send_sync;
 check_seq:
-		if (!before48(DCCP_SKB_CB(skb)->dccpd_seq, dp->dccps_osr)) {
+		if (dccp_delta_seqno(dp->dccps_osr,
+				     DCCP_SKB_CB(skb)->dccpd_seq) >= 0) {
 send_sync:
 			dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
 				       DCCP_PKT_SYNC);
@@ -297,6 +299,14 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 
 		if (dccp_parse_options(sk, skb))
 			goto out_invalid_packet;
+
+		/* Obtain RTT sample from SYN exchange (used by CCID 3) */
+		if (dp->dccps_options_received.dccpor_timestamp_echo) {
+			struct timeval now;
+
+			dccp_timestamp(sk, &now);
+			dp->dccps_syn_rtt = dccp_sample_rtt(sk, &now, NULL);
+		}
 
 		if (dccp_msk(sk)->dccpms_send_ack_vector &&
 		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
@@ -575,3 +585,43 @@ discard:
 }
 
 EXPORT_SYMBOL_GPL(dccp_rcv_state_process);
+
+/**
+ * dccp_sample_rtt  -  Sample RTT from packet exchange
+ *
+ * @sk:     connected dccp_sock
+ * @t_recv: receive timestamp of packet with timestamp echo
+ * @t_hist: packet history timestamp or NULL
+ */
+u32 dccp_sample_rtt(struct sock *sk, struct timeval *t_recv,
+				     struct timeval *t_hist)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_options_received *or = &dp->dccps_options_received;
+	suseconds_t delta;
+
+	if (t_hist == NULL) {
+		if (!or->dccpor_timestamp_echo) {
+			DCCP_WARN("packet without timestamp echo\n");
+			return DCCP_SANE_RTT_MAX;
+		}
+		timeval_sub_usecs(t_recv, or->dccpor_timestamp_echo * 10);
+		delta = timeval_usecs(t_recv);
+	} else
+		delta = timeval_delta(t_recv, t_hist);
+
+	delta -= or->dccpor_elapsed_time * 10;		/* either set or 0 */
+
+	if (unlikely(delta <= 0)) {
+		DCCP_WARN("unusable RTT sample %ld, using min\n", (long)delta);
+		return DCCP_SANE_RTT_MIN;
+	}
+	if (unlikely(delta - (suseconds_t)DCCP_SANE_RTT_MAX > 0)) {
+		DCCP_WARN("RTT sample %ld too large, using max\n", (long)delta);
+		return DCCP_SANE_RTT_MAX;
+	}
+
+	return delta;
+}
+
+EXPORT_SYMBOL_GPL(dccp_sample_rtt);

@@ -1206,7 +1206,6 @@ static void pcnet32_rx_entry(struct net_device *dev,
 					 PCI_DMA_FROMDEVICE);
 			skb_put(skb, pkt_len);
 			lp->rx_skbuff[entry] = newskb;
-			newskb->dev = dev;
 			lp->rx_dma_addr[entry] =
 					    pci_map_single(lp->pci_dev,
 							   newskb->data,

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2000, 2004  Maciej W. Rozycki
- * Copyright (C) 2003 Ralf Baechle
+ * Copyright (C) 2003, 07 Ralf Baechle (ralf@linux-mips.org)
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -8,6 +8,8 @@
  */
 #ifndef _ASM_DIV64_H
 #define _ASM_DIV64_H
+
+#include <linux/types.h>
 
 #if (_MIPS_SZLONG == 32)
 
@@ -78,6 +80,8 @@
 	__quot = __quot << 32 | __low; \
 	(n) = __quot; \
 	__mod; })
+
+extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
 #endif /* (_MIPS_SZLONG == 32) */
 
 #if (_MIPS_SZLONG == 64)
@@ -100,6 +104,11 @@
 	\
 	(n) = __quot; \
 	__mod; })
+
+static inline uint64_t div64_64(uint64_t dividend, uint64_t divisor)
+{
+	return dividend / divisor;
+}
 
 #endif /* (_MIPS_SZLONG == 64) */
 

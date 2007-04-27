@@ -323,7 +323,7 @@ restart:
 			nores = 1;
 			break;
 		}
-		__skb_pull(skb, skb->nh.raw - skb->data);
+		__skb_pull(skb, skb_network_offset(skb));
 	} while ((q = NEXT_SLAVE(q)) != start);
 
 	if (nores && skb_res == NULL) {

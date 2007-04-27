@@ -12,6 +12,7 @@
 #include <linux/netdevice.h>
 #include <net/ip.h>
 #include <net/act_api.h>
+#include <net/netlink.h>
 #include <net/pkt_cls.h>
 #include <net/route.h>
 
@@ -448,7 +449,7 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 {
 	struct tcindex_data *p = PRIV(tp);
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) fh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 
 	DPRINTK("tcindex_dump(tp %p,fh 0x%lx,skb %p,t %p),p %p,r %p,b %p\n",
@@ -463,7 +464,7 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 		RTA_PUT(skb,TCA_TCINDEX_SHIFT,sizeof(p->shift),&p->shift);
 		RTA_PUT(skb,TCA_TCINDEX_FALL_THROUGH,sizeof(p->fall_through),
 		    &p->fall_through);
-		rta->rta_len = skb->tail-b;
+		rta->rta_len = skb_tail_pointer(skb) - b;
 	} else {
 		if (p->perfect) {
 			t->tcm_handle = r-p->perfect;
@@ -486,7 +487,7 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 
 		if (tcf_exts_dump(skb, &r->exts, &tcindex_ext_map) < 0)
 			goto rtattr_failure;
-		rta->rta_len = skb->tail-b;
+		rta->rta_len = skb_tail_pointer(skb) - b;
 
 		if (tcf_exts_dump_stats(skb, &r->exts, &tcindex_ext_map) < 0)
 			goto rtattr_failure;
@@ -495,7 +496,7 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

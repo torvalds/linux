@@ -22,7 +22,7 @@
 #include <linux/udp.h>
 
 #include <net/ip_vs.h>
-
+#include <net/ip.h>
 
 static struct ip_vs_conn *
 udp_conn_in_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
@@ -56,7 +56,7 @@ udp_conn_out_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 	struct ip_vs_conn *cp;
 	__be16 _ports[2], *pptr;
 
-	pptr = skb_header_pointer(skb, skb->nh.iph->ihl*4,
+	pptr = skb_header_pointer(skb, ip_hdrlen(skb),
 				  sizeof(_ports), _ports);
 	if (pptr == NULL)
 		return NULL;
@@ -82,15 +82,15 @@ udp_conn_schedule(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	struct ip_vs_service *svc;
 	struct udphdr _udph, *uh;
 
-	uh = skb_header_pointer(skb, skb->nh.iph->ihl*4,
+	uh = skb_header_pointer(skb, ip_hdrlen(skb),
 				sizeof(_udph), &_udph);
 	if (uh == NULL) {
 		*verdict = NF_DROP;
 		return 0;
 	}
 
-	if ((svc = ip_vs_service_get(skb->mark, skb->nh.iph->protocol,
-				     skb->nh.iph->daddr, uh->dest))) {
+	if ((svc = ip_vs_service_get(skb->mark, ip_hdr(skb)->protocol,
+				     ip_hdr(skb)->daddr, uh->dest))) {
 		if (ip_vs_todrop()) {
 			/*
 			 * It seems that we are very loaded.
@@ -133,7 +133,7 @@ udp_snat_handler(struct sk_buff **pskb,
 		 struct ip_vs_protocol *pp, struct ip_vs_conn *cp)
 {
 	struct udphdr *udph;
-	unsigned int udphoff = (*pskb)->nh.iph->ihl * 4;
+	const unsigned int udphoff = ip_hdrlen(*pskb);
 
 	/* csum_check requires unshared skb */
 	if (!ip_vs_make_skb_writable(pskb, udphoff+sizeof(*udph)))
@@ -151,7 +151,7 @@ udp_snat_handler(struct sk_buff **pskb,
 			return 0;
 	}
 
-	udph = (void *)(*pskb)->nh.iph + udphoff;
+	udph = (void *)ip_hdr(*pskb) + udphoff;
 	udph->source = cp->vport;
 
 	/*
@@ -187,7 +187,7 @@ udp_dnat_handler(struct sk_buff **pskb,
 		 struct ip_vs_protocol *pp, struct ip_vs_conn *cp)
 {
 	struct udphdr *udph;
-	unsigned int udphoff = (*pskb)->nh.iph->ihl * 4;
+	unsigned int udphoff = ip_hdrlen(*pskb);
 
 	/* csum_check requires unshared skb */
 	if (!ip_vs_make_skb_writable(pskb, udphoff+sizeof(*udph)))
@@ -206,7 +206,7 @@ udp_dnat_handler(struct sk_buff **pskb,
 			return 0;
 	}
 
-	udph = (void *)(*pskb)->nh.iph + udphoff;
+	udph = (void *)ip_hdr(*pskb) + udphoff;
 	udph->dest = cp->dport;
 
 	/*
@@ -239,7 +239,7 @@ static int
 udp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 {
 	struct udphdr _udph, *uh;
-	unsigned int udphoff = skb->nh.iph->ihl*4;
+	const unsigned int udphoff = ip_hdrlen(skb);
 
 	uh = skb_header_pointer(skb, udphoff, sizeof(_udph), &_udph);
 	if (uh == NULL)
@@ -251,10 +251,10 @@ udp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 			skb->csum = skb_checksum(skb, udphoff,
 						 skb->len - udphoff, 0);
 		case CHECKSUM_COMPLETE:
-			if (csum_tcpudp_magic(skb->nh.iph->saddr,
-					      skb->nh.iph->daddr,
+			if (csum_tcpudp_magic(ip_hdr(skb)->saddr,
+					      ip_hdr(skb)->daddr,
 					      skb->len - udphoff,
-					      skb->nh.iph->protocol,
+					      ip_hdr(skb)->protocol,
 					      skb->csum)) {
 				IP_VS_DBG_RL_PKT(0, pp, skb, 0,
 						 "Failed checksum for");

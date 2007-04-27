@@ -872,7 +872,8 @@ typedef struct {
 static void
 isdn_net_log_skb(struct sk_buff * skb, isdn_net_local * lp)
 {
-	u_char *p = skb->nh.raw; /* hopefully, this was set correctly */
+	/* hopefully, this was set correctly */
+	const u_char *p = skb_network_header(skb);
 	unsigned short proto = ntohs(skb->protocol);
 	int data_ofs;
 	ip_ports *ipp;
@@ -880,7 +881,7 @@ isdn_net_log_skb(struct sk_buff * skb, isdn_net_local * lp)
 
 	addinfo[0] = '\0';
 	/* This check stolen from 2.1.72 dev_queue_xmit_nit() */
-	if (skb->nh.raw < skb->data || skb->nh.raw >= skb->tail) {
+	if (p < skb->data || skb->network_header >= skb->tail) {
 		/* fall back to old isdn_net_log_packet method() */
 		char * buf = skb->data;
 
@@ -1121,7 +1122,7 @@ isdn_net_adjust_hdr(struct sk_buff *skb, struct net_device *dev)
 	if (!skb)
 		return;
 	if (lp->p_encap == ISDN_NET_ENCAP_ETHER) {
-		int pullsize = (ulong)skb->nh.raw - (ulong)skb->data - ETH_HLEN;
+		const int pullsize = skb_network_offset(skb) - ETH_HLEN;
 		if (pullsize > 0) {
 			printk(KERN_DEBUG "isdn_net: Pull junk %d\n", pullsize);
 			skb_pull(skb, pullsize);
@@ -1366,7 +1367,7 @@ isdn_net_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct ethhdr *eth;
 	unsigned char *rawp;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 	eth = eth_hdr(skb);
 
@@ -1786,7 +1787,7 @@ isdn_net_receive(struct net_device *ndev, struct sk_buff *skb)
 	}
 	skb->dev = ndev;
 	skb->pkt_type = PACKET_HOST;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 #ifdef ISDN_DEBUG_NET_DUMP
 	isdn_dumppkt("R:", skb->data, skb->len, 40);
 #endif

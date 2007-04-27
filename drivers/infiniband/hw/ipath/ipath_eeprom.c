@@ -626,6 +626,10 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 	} else
 		memcpy(dd->ipath_serial, ifp->if_serial,
 		       sizeof ifp->if_serial);
+	if (!strstr(ifp->if_comment, "Tested successfully"))
+		ipath_dev_err(dd, "Board SN %s did not pass functional "
+			"test: %s\n", dd->ipath_serial,
+			ifp->if_comment);
 
 	ipath_cdbg(VERBOSE, "Initted GUID to %llx from eeprom\n",
 		   (unsigned long long) be64_to_cpu(dd->ipath_guid));

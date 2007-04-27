@@ -8,5 +8,7 @@ selinux-y := avc.o hooks.o selinuxfs.o netlink.o nlmsgtab.o netif.o exports.o
 
 selinux-$(CONFIG_SECURITY_NETWORK_XFRM) += xfrm.o
 
+selinux-$(CONFIG_NETLABEL) += netlabel.o
+
 EXTRA_CFLAGS += -Isecurity/selinux/include
 

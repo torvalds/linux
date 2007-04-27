@@ -176,7 +176,7 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 	if (process)
 	{
 		/* we've set up the protocol, so discard the header */
-		skb->mac.raw = skb->data; 
+		skb_reset_mac_header(skb);
 		skb_pull(skb, header);
 		dlp->stats.rx_bytes += skb->len;
 		netif_rx(skb);

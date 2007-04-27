@@ -1125,7 +1125,7 @@ int neigh_compat_output(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 
-	__skb_pull(skb, skb->nh.raw - skb->data);
+	__skb_pull(skb, skb_network_offset(skb));
 
 	if (dev->hard_header &&
 	    dev->hard_header(skb, dev, ntohs(skb->protocol), NULL, NULL,
@@ -1147,7 +1147,7 @@ int neigh_resolve_output(struct sk_buff *skb)
 	if (!dst || !(neigh = dst->neighbour))
 		goto discard;
 
-	__skb_pull(skb, skb->nh.raw - skb->data);
+	__skb_pull(skb, skb_network_offset(skb));
 
 	if (!neigh_event_send(neigh, skb)) {
 		int err;
@@ -1190,7 +1190,7 @@ int neigh_connected_output(struct sk_buff *skb)
 	struct neighbour *neigh = dst->neighbour;
 	struct net_device *dev = neigh->dev;
 
-	__skb_pull(skb, skb->nh.raw - skb->data);
+	__skb_pull(skb, skb_network_offset(skb));
 
 	read_lock_bh(&neigh->lock);
 	err = dev->hard_header(skb, dev, ntohs(skb->protocol),
@@ -1441,7 +1441,7 @@ int neigh_table_clear(struct neigh_table *tbl)
 	return 0;
 }
 
-int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct ndmsg *ndm;
 	struct nlattr *dst_attr;
@@ -1506,7 +1506,7 @@ out:
 	return err;
 }
 
-int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct ndmsg *ndm;
 	struct nlattr *tb[NDA_MAX+1];
@@ -1786,7 +1786,7 @@ static struct nla_policy nl_ntbl_parm_policy[NDTPA_MAX+1] __read_mostly = {
 	[NDTPA_LOCKTIME]		= { .type = NLA_U64 },
 };
 
-int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct neigh_table *tbl;
 	struct ndtmsg *ndtmsg;
@@ -1910,7 +1910,7 @@ errout:
 	return err;
 }
 
-int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
+static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	int family, tidx, nidx = 0;
 	int tbl_skip = cb->args[0];
@@ -2034,7 +2034,7 @@ out:
 	return rc;
 }
 
-int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
+static int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct neigh_table *tbl;
 	int t, family, s_t;
@@ -2393,7 +2393,7 @@ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations neigh_stat_seq_ops = {
+static const struct seq_operations neigh_stat_seq_ops = {
 	.start	= neigh_stat_seq_start,
 	.next	= neigh_stat_seq_next,
 	.stop	= neigh_stat_seq_stop,
@@ -2746,14 +2746,26 @@ void neigh_sysctl_unregister(struct neigh_parms *p)
 
 #endif	/* CONFIG_SYSCTL */
 
+static int __init neigh_init(void)
+{
+	rtnl_register(PF_UNSPEC, RTM_NEWNEIGH, neigh_add, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELNEIGH, neigh_delete, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, NULL, neigh_dump_info);
+
+	rtnl_register(PF_UNSPEC, RTM_GETNEIGHTBL, NULL, neightbl_dump_info);
+	rtnl_register(PF_UNSPEC, RTM_SETNEIGHTBL, neightbl_set, NULL);
+
+	return 0;
+}
+
+subsys_initcall(neigh_init);
+
 EXPORT_SYMBOL(__neigh_event_send);
 EXPORT_SYMBOL(neigh_changeaddr);
 EXPORT_SYMBOL(neigh_compat_output);
 EXPORT_SYMBOL(neigh_connected_output);
 EXPORT_SYMBOL(neigh_create);
-EXPORT_SYMBOL(neigh_delete);
 EXPORT_SYMBOL(neigh_destroy);
-EXPORT_SYMBOL(neigh_dump_info);
 EXPORT_SYMBOL(neigh_event_ns);
 EXPORT_SYMBOL(neigh_ifdown);
 EXPORT_SYMBOL(neigh_lookup);

@@ -415,7 +415,8 @@ isdnloop_sendbuf(int channel, struct sk_buff *skb, isdnloop_card * card)
 		spin_lock_irqsave(&card->isdnloop_lock, flags);
 		nskb = dev_alloc_skb(skb->len);
 		if (nskb) {
-			memcpy(skb_put(nskb, len), skb->data, len);
+			skb_copy_from_linear_data(skb,
+						  skb_put(nskb, len), len);
 			skb_queue_tail(&card->bqueue[channel], nskb);
 			dev_kfree_skb(skb);
 		} else

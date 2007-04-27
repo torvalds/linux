@@ -30,7 +30,7 @@ match(const struct sk_buff *skb,
 {
 	const struct ipt_tos_info *info = matchinfo;
 
-	return (skb->nh.iph->tos == info->tos) ^ info->invert;
+	return (ip_hdr(skb)->tos == info->tos) ^ info->invert;
 }
 
 static struct xt_match tos_match = {

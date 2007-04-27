@@ -45,7 +45,7 @@ ipv6header_match(const struct sk_buff *skb,
 	/* Make sure this isn't an evil packet */
 
 	/* type of the 1st exthdr */
-	nexthdr = skb->nh.ipv6h->nexthdr;
+	nexthdr = ipv6_hdr(skb)->nexthdr;
 	/* pointer to the 1st exthdr */
 	ptr = sizeof(struct ipv6hdr);
 	/* available length */

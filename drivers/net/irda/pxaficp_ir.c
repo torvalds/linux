@@ -386,12 +386,12 @@ static void pxa_irda_fir_irq_eif(struct pxa_irda *si, struct net_device *dev, in
 
 		/* Align IP header to 20 bytes  */
 		skb_reserve(skb, 1);
-		memcpy(skb->data, si->dma_rx_buff, len);
+		skb_copy_to_linear_data(skb, si->dma_rx_buff, len);
 		skb_put(skb, len);
 
 		/* Feed it to IrLAP  */
 		skb->dev = dev;
-		skb->mac.raw  = skb->data;
+		skb_reset_mac_header(skb);
 		skb->protocol = htons(ETH_P_IRDA);
 		netif_rx(skb);
 
@@ -484,7 +484,7 @@ static int pxa_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		unsigned long mtt = irda_get_mtt(skb);
 
 		si->dma_tx_buff_len = skb->len;
-		memcpy(si->dma_tx_buff, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, si->dma_tx_buff, skb->len);
 
 		if (mtt)
 			while ((unsigned)(OSCR - si->last_oscr)/4 < mtt)

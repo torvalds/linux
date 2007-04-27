@@ -217,6 +217,8 @@ static void avc_dump_query(struct audit_buffer *ab, u32 ssid, u32 tsid, u16 tcla
 		audit_log_format(ab, " tcontext=%s", scontext);
 		kfree(scontext);
 	}
+
+	BUG_ON(tclass >= ARRAY_SIZE(class_to_string) || !class_to_string[tclass]);
 	audit_log_format(ab, " tclass=%s", class_to_string[tclass]);
 }
 

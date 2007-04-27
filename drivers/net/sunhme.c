@@ -55,9 +55,6 @@
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
-#ifdef CONFIG_SPARC
-#include <asm/pbm.h>
-#endif
 #endif
 
 #include "sunhme.h"
@@ -2058,11 +2055,10 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 				goto drop_it;
 			}
 
-			copy_skb->dev = dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			hme_dma_sync_for_cpu(hp, dma_addr, len, DMA_FROMDEVICE);
-			memcpy(copy_skb->data, skb->data, len);
+			skb_copy_from_linear_data(skb, copy_skb->data, len);
 			hme_dma_sync_for_device(hp, dma_addr, len, DMA_FROMDEVICE);
 
 			/* Reuse original ring buffer. */
@@ -2270,10 +2266,8 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_flags = TXFLAG_OWN;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		u32 csum_start_off, csum_stuff_off;
-
-		csum_start_off = (u32) (skb->h.raw - skb->data);
-		csum_stuff_off = csum_start_off + skb->csum_offset;
+		const u32 csum_start_off = skb_transport_offset(skb);
+		const u32 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		tx_flags = (TXFLAG_OWN | TXFLAG_CSENABLE |
 			    ((csum_start_off << 14) & TXFLAG_CSBUFBEGIN) |
@@ -2704,7 +2698,7 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 			dev->dev_addr[i] = macaddr[i];
 		macaddr[5]++;
 	} else {
-		unsigned char *addr;
+		const unsigned char *addr;
 		int len;
 
 		addr = of_get_property(dp, "local-mac-address", &len);
@@ -2986,7 +2980,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 {
 	struct quattro *qp = NULL;
 #ifdef CONFIG_SPARC
-	struct pcidev_cookie *pcp;
+	struct device_node *dp;
 #endif
 	struct happy_meal *hp;
 	struct net_device *dev;
@@ -2998,13 +2992,8 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 
 	/* Now make sure pci_dev cookie is there. */
 #ifdef CONFIG_SPARC
-	pcp = pdev->sysdata;
-	if (pcp == NULL) {
-		printk(KERN_ERR "happymeal(PCI): Some PCI device info missing\n");
-		return -ENODEV;
-	}
-
-	strcpy(prom_name, pcp->prom_node->name);
+	dp = pci_device_to_OF_node(pdev);
+	strcpy(prom_name, dp->name);
 #else
 	if (is_quattro_p(pdev))
 		strcpy(prom_name, "SUNW,qfe");
@@ -3081,11 +3070,11 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		macaddr[5]++;
 	} else {
 #ifdef CONFIG_SPARC
-		unsigned char *addr;
+		const unsigned char *addr;
 		int len;
 
 		if (qfe_slot != -1 &&
-		    (addr = of_get_property(pcp->prom_node,
+		    (addr = of_get_property(dp,
 					    "local-mac-address", &len)) != NULL
 		    && len == 6) {
 			memcpy(dev->dev_addr, addr, 6);
@@ -3105,7 +3094,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	hp->tcvregs    = (hpreg_base + 0x7000UL);
 
 #ifdef CONFIG_SPARC
-	hp->hm_revision = of_getintprop_default(pcp->prom_node, "hm-rev", 0xff);
+	hp->hm_revision = of_getintprop_default(dp, "hm-rev", 0xff);
 	if (hp->hm_revision == 0xff) {
 		unsigned char prev;
 
@@ -3300,7 +3289,7 @@ static int __devinit hme_sbus_probe(struct of_device *dev, const struct of_devic
 {
 	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
 	struct device_node *dp = dev->node;
-	char *model = of_get_property(dp, "model", NULL);
+	const char *model = of_get_property(dp, "model", NULL);
 	int is_qfe = (match->data != NULL);
 
 	if (!is_qfe && model && !strcmp(model, "SUNW,sbus-qfe"))

@@ -253,11 +253,10 @@ static noinline __init void find_memory_chunks(unsigned long memsize)
 			break;
 #endif
 		/*
-		 * Finish memory detection at the first hole, unless
-		 * - we reached the hsa -> skip it.
-		 * - we know there must be more.
+		 * Finish memory detection at the first hole
+		 * if storage size is unknown.
 		 */
-		if (cc == -1UL && !memsize && old_addr != ADDR2G)
+		if (cc == -1UL && !memsize)
 			break;
 		if (memsize && addr >= memsize)
 			break;

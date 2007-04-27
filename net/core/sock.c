@@ -154,7 +154,8 @@ static const char *af_family_key_strings[AF_MAX+1] = {
   "sk_lock-21"       , "sk_lock-AF_SNA"      , "sk_lock-AF_IRDA"     ,
   "sk_lock-AF_PPPOX" , "sk_lock-AF_WANPIPE"  , "sk_lock-AF_LLC"      ,
   "sk_lock-27"       , "sk_lock-28"          , "sk_lock-29"          ,
-  "sk_lock-AF_TIPC"  , "sk_lock-AF_BLUETOOTH", "sk_lock-AF_MAX"
+  "sk_lock-AF_TIPC"  , "sk_lock-AF_BLUETOOTH", "sk_lock-IUCV"        ,
+  "sk_lock-AF_RXRPC" , "sk_lock-AF_MAX"
 };
 static const char *af_family_slock_key_strings[AF_MAX+1] = {
   "slock-AF_UNSPEC", "slock-AF_UNIX"     , "slock-AF_INET"     ,
@@ -167,7 +168,8 @@ static const char *af_family_slock_key_strings[AF_MAX+1] = {
   "slock-21"       , "slock-AF_SNA"      , "slock-AF_IRDA"     ,
   "slock-AF_PPPOX" , "slock-AF_WANPIPE"  , "slock-AF_LLC"      ,
   "slock-27"       , "slock-28"          , "slock-29"          ,
-  "slock-AF_TIPC"  , "slock-AF_BLUETOOTH", "slock-AF_MAX"
+  "slock-AF_TIPC"  , "slock-AF_BLUETOOTH", "slock-AF_IUCV"     ,
+  "slock-AF_RXRPC" , "slock-AF_MAX"
 };
 #endif
 
@@ -361,8 +363,8 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	}
 #endif
 
-	if(optlen<sizeof(int))
-		return(-EINVAL);
+	if (optlen < sizeof(int))
+		return -EINVAL;
 
 	if (get_user(val, (int __user *)optval))
 		return -EFAULT;
@@ -371,265 +373,270 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 
 	lock_sock(sk);
 
-	switch(optname)
-	{
-		case SO_DEBUG:
-			if(val && !capable(CAP_NET_ADMIN))
-			{
-				ret = -EACCES;
-			}
-			else if (valbool)
-				sock_set_flag(sk, SOCK_DBG);
-			else
-				sock_reset_flag(sk, SOCK_DBG);
-			break;
-		case SO_REUSEADDR:
-			sk->sk_reuse = valbool;
-			break;
-		case SO_TYPE:
-		case SO_ERROR:
-			ret = -ENOPROTOOPT;
-			break;
-		case SO_DONTROUTE:
-			if (valbool)
-				sock_set_flag(sk, SOCK_LOCALROUTE);
-			else
-				sock_reset_flag(sk, SOCK_LOCALROUTE);
-			break;
-		case SO_BROADCAST:
-			sock_valbool_flag(sk, SOCK_BROADCAST, valbool);
-			break;
-		case SO_SNDBUF:
-			/* Don't error on this BSD doesn't and if you think
-			   about it this is right. Otherwise apps have to
-			   play 'guess the biggest size' games. RCVBUF/SNDBUF
-			   are treated in BSD as hints */
+	switch(optname) {
+	case SO_DEBUG:
+		if (val && !capable(CAP_NET_ADMIN)) {
+			ret = -EACCES;
+		}
+		else if (valbool)
+			sock_set_flag(sk, SOCK_DBG);
+		else
+			sock_reset_flag(sk, SOCK_DBG);
+		break;
+	case SO_REUSEADDR:
+		sk->sk_reuse = valbool;
+		break;
+	case SO_TYPE:
+	case SO_ERROR:
+		ret = -ENOPROTOOPT;
+		break;
+	case SO_DONTROUTE:
+		if (valbool)
+			sock_set_flag(sk, SOCK_LOCALROUTE);
+		else
+			sock_reset_flag(sk, SOCK_LOCALROUTE);
+		break;
+	case SO_BROADCAST:
+		sock_valbool_flag(sk, SOCK_BROADCAST, valbool);
+		break;
+	case SO_SNDBUF:
+		/* Don't error on this BSD doesn't and if you think
+		   about it this is right. Otherwise apps have to
+		   play 'guess the biggest size' games. RCVBUF/SNDBUF
+		   are treated in BSD as hints */
 
-			if (val > sysctl_wmem_max)
-				val = sysctl_wmem_max;
+		if (val > sysctl_wmem_max)
+			val = sysctl_wmem_max;
 set_sndbuf:
-			sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
-			if ((val * 2) < SOCK_MIN_SNDBUF)
-				sk->sk_sndbuf = SOCK_MIN_SNDBUF;
-			else
-				sk->sk_sndbuf = val * 2;
+		sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
+		if ((val * 2) < SOCK_MIN_SNDBUF)
+			sk->sk_sndbuf = SOCK_MIN_SNDBUF;
+		else
+			sk->sk_sndbuf = val * 2;
 
-			/*
-			 *	Wake up sending tasks if we
-			 *	upped the value.
-			 */
-			sk->sk_write_space(sk);
-			break;
+		/*
+		 *	Wake up sending tasks if we
+		 *	upped the value.
+		 */
+		sk->sk_write_space(sk);
+		break;
 
-		case SO_SNDBUFFORCE:
-			if (!capable(CAP_NET_ADMIN)) {
-				ret = -EPERM;
-				break;
-			}
-			goto set_sndbuf;
-
-		case SO_RCVBUF:
-			/* Don't error on this BSD doesn't and if you think
-			   about it this is right. Otherwise apps have to
-			   play 'guess the biggest size' games. RCVBUF/SNDBUF
-			   are treated in BSD as hints */
-
-			if (val > sysctl_rmem_max)
-				val = sysctl_rmem_max;
-set_rcvbuf:
-			sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
-			/*
-			 * We double it on the way in to account for
-			 * "struct sk_buff" etc. overhead.   Applications
-			 * assume that the SO_RCVBUF setting they make will
-			 * allow that much actual data to be received on that
-			 * socket.
-			 *
-			 * Applications are unaware that "struct sk_buff" and
-			 * other overheads allocate from the receive buffer
-			 * during socket buffer allocation.
-			 *
-			 * And after considering the possible alternatives,
-			 * returning the value we actually used in getsockopt
-			 * is the most desirable behavior.
-			 */
-			if ((val * 2) < SOCK_MIN_RCVBUF)
-				sk->sk_rcvbuf = SOCK_MIN_RCVBUF;
-			else
-				sk->sk_rcvbuf = val * 2;
-			break;
-
-		case SO_RCVBUFFORCE:
-			if (!capable(CAP_NET_ADMIN)) {
-				ret = -EPERM;
-				break;
-			}
-			goto set_rcvbuf;
-
-		case SO_KEEPALIVE:
-#ifdef CONFIG_INET
-			if (sk->sk_protocol == IPPROTO_TCP)
-				tcp_set_keepalive(sk, valbool);
-#endif
-			sock_valbool_flag(sk, SOCK_KEEPOPEN, valbool);
-			break;
-
-		case SO_OOBINLINE:
-			sock_valbool_flag(sk, SOCK_URGINLINE, valbool);
-			break;
-
-		case SO_NO_CHECK:
-			sk->sk_no_check = valbool;
-			break;
-
-		case SO_PRIORITY:
-			if ((val >= 0 && val <= 6) || capable(CAP_NET_ADMIN))
-				sk->sk_priority = val;
-			else
-				ret = -EPERM;
-			break;
-
-		case SO_LINGER:
-			if(optlen<sizeof(ling)) {
-				ret = -EINVAL;	/* 1003.1g */
-				break;
-			}
-			if (copy_from_user(&ling,optval,sizeof(ling))) {
-				ret = -EFAULT;
-				break;
-			}
-			if (!ling.l_onoff)
-				sock_reset_flag(sk, SOCK_LINGER);
-			else {
-#if (BITS_PER_LONG == 32)
-				if ((unsigned int)ling.l_linger >= MAX_SCHEDULE_TIMEOUT/HZ)
-					sk->sk_lingertime = MAX_SCHEDULE_TIMEOUT;
-				else
-#endif
-					sk->sk_lingertime = (unsigned int)ling.l_linger * HZ;
-				sock_set_flag(sk, SOCK_LINGER);
-			}
-			break;
-
-		case SO_BSDCOMPAT:
-			sock_warn_obsolete_bsdism("setsockopt");
-			break;
-
-		case SO_PASSCRED:
-			if (valbool)
-				set_bit(SOCK_PASSCRED, &sock->flags);
-			else
-				clear_bit(SOCK_PASSCRED, &sock->flags);
-			break;
-
-		case SO_TIMESTAMP:
-			if (valbool)  {
-				sock_set_flag(sk, SOCK_RCVTSTAMP);
-				sock_enable_timestamp(sk);
-			} else
-				sock_reset_flag(sk, SOCK_RCVTSTAMP);
-			break;
-
-		case SO_RCVLOWAT:
-			if (val < 0)
-				val = INT_MAX;
-			sk->sk_rcvlowat = val ? : 1;
-			break;
-
-		case SO_RCVTIMEO:
-			ret = sock_set_timeout(&sk->sk_rcvtimeo, optval, optlen);
-			break;
-
-		case SO_SNDTIMEO:
-			ret = sock_set_timeout(&sk->sk_sndtimeo, optval, optlen);
-			break;
-
-#ifdef CONFIG_NETDEVICES
-		case SO_BINDTODEVICE:
-		{
-			char devname[IFNAMSIZ];
-
-			/* Sorry... */
-			if (!capable(CAP_NET_RAW)) {
-				ret = -EPERM;
-				break;
-			}
-
-			/* Bind this socket to a particular device like "eth0",
-			 * as specified in the passed interface name. If the
-			 * name is "" or the option length is zero the socket
-			 * is not bound.
-			 */
-
-			if (!valbool) {
-				sk->sk_bound_dev_if = 0;
-			} else {
-				if (optlen > IFNAMSIZ - 1)
-					optlen = IFNAMSIZ - 1;
-				memset(devname, 0, sizeof(devname));
-				if (copy_from_user(devname, optval, optlen)) {
-					ret = -EFAULT;
-					break;
-				}
-
-				/* Remove any cached route for this socket. */
-				sk_dst_reset(sk);
-
-				if (devname[0] == '\0') {
-					sk->sk_bound_dev_if = 0;
-				} else {
-					struct net_device *dev = dev_get_by_name(devname);
-					if (!dev) {
-						ret = -ENODEV;
-						break;
-					}
-					sk->sk_bound_dev_if = dev->ifindex;
-					dev_put(dev);
-				}
-			}
+	case SO_SNDBUFFORCE:
+		if (!capable(CAP_NET_ADMIN)) {
+			ret = -EPERM;
 			break;
 		}
+		goto set_sndbuf;
+
+	case SO_RCVBUF:
+		/* Don't error on this BSD doesn't and if you think
+		   about it this is right. Otherwise apps have to
+		   play 'guess the biggest size' games. RCVBUF/SNDBUF
+		   are treated in BSD as hints */
+
+		if (val > sysctl_rmem_max)
+			val = sysctl_rmem_max;
+set_rcvbuf:
+		sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
+		/*
+		 * We double it on the way in to account for
+		 * "struct sk_buff" etc. overhead.   Applications
+		 * assume that the SO_RCVBUF setting they make will
+		 * allow that much actual data to be received on that
+		 * socket.
+		 *
+		 * Applications are unaware that "struct sk_buff" and
+		 * other overheads allocate from the receive buffer
+		 * during socket buffer allocation.
+		 *
+		 * And after considering the possible alternatives,
+		 * returning the value we actually used in getsockopt
+		 * is the most desirable behavior.
+		 */
+		if ((val * 2) < SOCK_MIN_RCVBUF)
+			sk->sk_rcvbuf = SOCK_MIN_RCVBUF;
+		else
+			sk->sk_rcvbuf = val * 2;
+		break;
+
+	case SO_RCVBUFFORCE:
+		if (!capable(CAP_NET_ADMIN)) {
+			ret = -EPERM;
+			break;
+		}
+		goto set_rcvbuf;
+
+	case SO_KEEPALIVE:
+#ifdef CONFIG_INET
+		if (sk->sk_protocol == IPPROTO_TCP)
+			tcp_set_keepalive(sk, valbool);
+#endif
+		sock_valbool_flag(sk, SOCK_KEEPOPEN, valbool);
+		break;
+
+	case SO_OOBINLINE:
+		sock_valbool_flag(sk, SOCK_URGINLINE, valbool);
+		break;
+
+	case SO_NO_CHECK:
+		sk->sk_no_check = valbool;
+		break;
+
+	case SO_PRIORITY:
+		if ((val >= 0 && val <= 6) || capable(CAP_NET_ADMIN))
+			sk->sk_priority = val;
+		else
+			ret = -EPERM;
+		break;
+
+	case SO_LINGER:
+		if (optlen < sizeof(ling)) {
+			ret = -EINVAL;	/* 1003.1g */
+			break;
+		}
+		if (copy_from_user(&ling,optval,sizeof(ling))) {
+			ret = -EFAULT;
+			break;
+		}
+		if (!ling.l_onoff)
+			sock_reset_flag(sk, SOCK_LINGER);
+		else {
+#if (BITS_PER_LONG == 32)
+			if ((unsigned int)ling.l_linger >= MAX_SCHEDULE_TIMEOUT/HZ)
+				sk->sk_lingertime = MAX_SCHEDULE_TIMEOUT;
+			else
+#endif
+				sk->sk_lingertime = (unsigned int)ling.l_linger * HZ;
+			sock_set_flag(sk, SOCK_LINGER);
+		}
+		break;
+
+	case SO_BSDCOMPAT:
+		sock_warn_obsolete_bsdism("setsockopt");
+		break;
+
+	case SO_PASSCRED:
+		if (valbool)
+			set_bit(SOCK_PASSCRED, &sock->flags);
+		else
+			clear_bit(SOCK_PASSCRED, &sock->flags);
+		break;
+
+	case SO_TIMESTAMP:
+	case SO_TIMESTAMPNS:
+		if (valbool)  {
+			if (optname == SO_TIMESTAMP)
+				sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
+			else
+				sock_set_flag(sk, SOCK_RCVTSTAMPNS);
+			sock_set_flag(sk, SOCK_RCVTSTAMP);
+			sock_enable_timestamp(sk);
+		} else {
+			sock_reset_flag(sk, SOCK_RCVTSTAMP);
+			sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
+		}
+		break;
+
+	case SO_RCVLOWAT:
+		if (val < 0)
+			val = INT_MAX;
+		sk->sk_rcvlowat = val ? : 1;
+		break;
+
+	case SO_RCVTIMEO:
+		ret = sock_set_timeout(&sk->sk_rcvtimeo, optval, optlen);
+		break;
+
+	case SO_SNDTIMEO:
+		ret = sock_set_timeout(&sk->sk_sndtimeo, optval, optlen);
+		break;
+
+#ifdef CONFIG_NETDEVICES
+	case SO_BINDTODEVICE:
+	{
+		char devname[IFNAMSIZ];
+
+		/* Sorry... */
+		if (!capable(CAP_NET_RAW)) {
+			ret = -EPERM;
+			break;
+		}
+
+		/* Bind this socket to a particular device like "eth0",
+		 * as specified in the passed interface name. If the
+		 * name is "" or the option length is zero the socket
+		 * is not bound.
+		 */
+
+		if (!valbool) {
+			sk->sk_bound_dev_if = 0;
+		} else {
+			if (optlen > IFNAMSIZ - 1)
+				optlen = IFNAMSIZ - 1;
+			memset(devname, 0, sizeof(devname));
+			if (copy_from_user(devname, optval, optlen)) {
+				ret = -EFAULT;
+				break;
+			}
+
+			/* Remove any cached route for this socket. */
+			sk_dst_reset(sk);
+
+			if (devname[0] == '\0') {
+				sk->sk_bound_dev_if = 0;
+			} else {
+				struct net_device *dev = dev_get_by_name(devname);
+				if (!dev) {
+					ret = -ENODEV;
+					break;
+				}
+				sk->sk_bound_dev_if = dev->ifindex;
+				dev_put(dev);
+			}
+		}
+		break;
+	}
 #endif
 
 
-		case SO_ATTACH_FILTER:
-			ret = -EINVAL;
-			if (optlen == sizeof(struct sock_fprog)) {
-				struct sock_fprog fprog;
+	case SO_ATTACH_FILTER:
+		ret = -EINVAL;
+		if (optlen == sizeof(struct sock_fprog)) {
+			struct sock_fprog fprog;
 
-				ret = -EFAULT;
-				if (copy_from_user(&fprog, optval, sizeof(fprog)))
-					break;
-
-				ret = sk_attach_filter(&fprog, sk);
-			}
-			break;
-
-		case SO_DETACH_FILTER:
-			rcu_read_lock_bh();
-			filter = rcu_dereference(sk->sk_filter);
-			if (filter) {
-				rcu_assign_pointer(sk->sk_filter, NULL);
-				sk_filter_release(sk, filter);
-				rcu_read_unlock_bh();
+			ret = -EFAULT;
+			if (copy_from_user(&fprog, optval, sizeof(fprog)))
 				break;
-			}
-			rcu_read_unlock_bh();
-			ret = -ENONET;
-			break;
 
-		case SO_PASSSEC:
-			if (valbool)
-				set_bit(SOCK_PASSSEC, &sock->flags);
-			else
-				clear_bit(SOCK_PASSSEC, &sock->flags);
+			ret = sk_attach_filter(&fprog, sk);
+		}
+		break;
+
+	case SO_DETACH_FILTER:
+		rcu_read_lock_bh();
+		filter = rcu_dereference(sk->sk_filter);
+		if (filter) {
+			rcu_assign_pointer(sk->sk_filter, NULL);
+			sk_filter_release(sk, filter);
+			rcu_read_unlock_bh();
 			break;
+		}
+		rcu_read_unlock_bh();
+		ret = -ENONET;
+		break;
+
+	case SO_PASSSEC:
+		if (valbool)
+			set_bit(SOCK_PASSSEC, &sock->flags);
+		else
+			clear_bit(SOCK_PASSSEC, &sock->flags);
+		break;
 
 		/* We implement the SO_SNDLOWAT etc to
 		   not be settable (1003.1g 5.3) */
-		default:
-			ret = -ENOPROTOOPT;
-			break;
+	default:
+		ret = -ENOPROTOOPT;
+		break;
 	}
 	release_sock(sk);
 	return ret;
@@ -641,8 +648,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 
-	union
-	{
+	union {
 		int val;
 		struct linger ling;
 		struct timeval tm;
@@ -651,148 +657,153 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	unsigned int lv = sizeof(int);
 	int len;
 
-	if(get_user(len,optlen))
+	if (get_user(len, optlen))
 		return -EFAULT;
-	if(len < 0)
+	if (len < 0)
 		return -EINVAL;
 
-	switch(optname)
-	{
-		case SO_DEBUG:
-			v.val = sock_flag(sk, SOCK_DBG);
-			break;
+	switch(optname) {
+	case SO_DEBUG:
+		v.val = sock_flag(sk, SOCK_DBG);
+		break;
 
-		case SO_DONTROUTE:
-			v.val = sock_flag(sk, SOCK_LOCALROUTE);
-			break;
+	case SO_DONTROUTE:
+		v.val = sock_flag(sk, SOCK_LOCALROUTE);
+		break;
 
-		case SO_BROADCAST:
-			v.val = !!sock_flag(sk, SOCK_BROADCAST);
-			break;
+	case SO_BROADCAST:
+		v.val = !!sock_flag(sk, SOCK_BROADCAST);
+		break;
 
-		case SO_SNDBUF:
-			v.val = sk->sk_sndbuf;
-			break;
+	case SO_SNDBUF:
+		v.val = sk->sk_sndbuf;
+		break;
 
-		case SO_RCVBUF:
-			v.val = sk->sk_rcvbuf;
-			break;
+	case SO_RCVBUF:
+		v.val = sk->sk_rcvbuf;
+		break;
 
-		case SO_REUSEADDR:
-			v.val = sk->sk_reuse;
-			break;
+	case SO_REUSEADDR:
+		v.val = sk->sk_reuse;
+		break;
 
-		case SO_KEEPALIVE:
-			v.val = !!sock_flag(sk, SOCK_KEEPOPEN);
-			break;
+	case SO_KEEPALIVE:
+		v.val = !!sock_flag(sk, SOCK_KEEPOPEN);
+		break;
 
-		case SO_TYPE:
-			v.val = sk->sk_type;
-			break;
+	case SO_TYPE:
+		v.val = sk->sk_type;
+		break;
 
-		case SO_ERROR:
-			v.val = -sock_error(sk);
-			if(v.val==0)
-				v.val = xchg(&sk->sk_err_soft, 0);
-			break;
+	case SO_ERROR:
+		v.val = -sock_error(sk);
+		if (v.val==0)
+			v.val = xchg(&sk->sk_err_soft, 0);
+		break;
 
-		case SO_OOBINLINE:
-			v.val = !!sock_flag(sk, SOCK_URGINLINE);
-			break;
+	case SO_OOBINLINE:
+		v.val = !!sock_flag(sk, SOCK_URGINLINE);
+		break;
 
-		case SO_NO_CHECK:
-			v.val = sk->sk_no_check;
-			break;
+	case SO_NO_CHECK:
+		v.val = sk->sk_no_check;
+		break;
 
-		case SO_PRIORITY:
-			v.val = sk->sk_priority;
-			break;
+	case SO_PRIORITY:
+		v.val = sk->sk_priority;
+		break;
 
-		case SO_LINGER:
-			lv		= sizeof(v.ling);
-			v.ling.l_onoff	= !!sock_flag(sk, SOCK_LINGER);
-			v.ling.l_linger	= sk->sk_lingertime / HZ;
-			break;
+	case SO_LINGER:
+		lv		= sizeof(v.ling);
+		v.ling.l_onoff	= !!sock_flag(sk, SOCK_LINGER);
+		v.ling.l_linger	= sk->sk_lingertime / HZ;
+		break;
 
-		case SO_BSDCOMPAT:
-			sock_warn_obsolete_bsdism("getsockopt");
-			break;
+	case SO_BSDCOMPAT:
+		sock_warn_obsolete_bsdism("getsockopt");
+		break;
 
-		case SO_TIMESTAMP:
-			v.val = sock_flag(sk, SOCK_RCVTSTAMP);
-			break;
+	case SO_TIMESTAMP:
+		v.val = sock_flag(sk, SOCK_RCVTSTAMP) &&
+				!sock_flag(sk, SOCK_RCVTSTAMPNS);
+		break;
 
-		case SO_RCVTIMEO:
-			lv=sizeof(struct timeval);
-			if (sk->sk_rcvtimeo == MAX_SCHEDULE_TIMEOUT) {
-				v.tm.tv_sec = 0;
-				v.tm.tv_usec = 0;
-			} else {
-				v.tm.tv_sec = sk->sk_rcvtimeo / HZ;
-				v.tm.tv_usec = ((sk->sk_rcvtimeo % HZ) * 1000000) / HZ;
-			}
-			break;
+	case SO_TIMESTAMPNS:
+		v.val = sock_flag(sk, SOCK_RCVTSTAMPNS);
+		break;
 
-		case SO_SNDTIMEO:
-			lv=sizeof(struct timeval);
-			if (sk->sk_sndtimeo == MAX_SCHEDULE_TIMEOUT) {
-				v.tm.tv_sec = 0;
-				v.tm.tv_usec = 0;
-			} else {
-				v.tm.tv_sec = sk->sk_sndtimeo / HZ;
-				v.tm.tv_usec = ((sk->sk_sndtimeo % HZ) * 1000000) / HZ;
-			}
-			break;
-
-		case SO_RCVLOWAT:
-			v.val = sk->sk_rcvlowat;
-			break;
-
-		case SO_SNDLOWAT:
-			v.val=1;
-			break;
-
-		case SO_PASSCRED:
-			v.val = test_bit(SOCK_PASSCRED, &sock->flags) ? 1 : 0;
-			break;
-
-		case SO_PEERCRED:
-			if (len > sizeof(sk->sk_peercred))
-				len = sizeof(sk->sk_peercred);
-			if (copy_to_user(optval, &sk->sk_peercred, len))
-				return -EFAULT;
-			goto lenout;
-
-		case SO_PEERNAME:
-		{
-			char address[128];
-
-			if (sock->ops->getname(sock, (struct sockaddr *)address, &lv, 2))
-				return -ENOTCONN;
-			if (lv < len)
-				return -EINVAL;
-			if (copy_to_user(optval, address, len))
-				return -EFAULT;
-			goto lenout;
+	case SO_RCVTIMEO:
+		lv=sizeof(struct timeval);
+		if (sk->sk_rcvtimeo == MAX_SCHEDULE_TIMEOUT) {
+			v.tm.tv_sec = 0;
+			v.tm.tv_usec = 0;
+		} else {
+			v.tm.tv_sec = sk->sk_rcvtimeo / HZ;
+			v.tm.tv_usec = ((sk->sk_rcvtimeo % HZ) * 1000000) / HZ;
 		}
+		break;
 
-		/* Dubious BSD thing... Probably nobody even uses it, but
-		 * the UNIX standard wants it for whatever reason... -DaveM
-		 */
-		case SO_ACCEPTCONN:
-			v.val = sk->sk_state == TCP_LISTEN;
-			break;
+	case SO_SNDTIMEO:
+		lv=sizeof(struct timeval);
+		if (sk->sk_sndtimeo == MAX_SCHEDULE_TIMEOUT) {
+			v.tm.tv_sec = 0;
+			v.tm.tv_usec = 0;
+		} else {
+			v.tm.tv_sec = sk->sk_sndtimeo / HZ;
+			v.tm.tv_usec = ((sk->sk_sndtimeo % HZ) * 1000000) / HZ;
+		}
+		break;
 
-		case SO_PASSSEC:
-			v.val = test_bit(SOCK_PASSSEC, &sock->flags) ? 1 : 0;
-			break;
+	case SO_RCVLOWAT:
+		v.val = sk->sk_rcvlowat;
+		break;
 
-		case SO_PEERSEC:
-			return security_socket_getpeersec_stream(sock, optval, optlen, len);
+	case SO_SNDLOWAT:
+		v.val=1;
+		break;
 
-		default:
-			return(-ENOPROTOOPT);
+	case SO_PASSCRED:
+		v.val = test_bit(SOCK_PASSCRED, &sock->flags) ? 1 : 0;
+		break;
+
+	case SO_PEERCRED:
+		if (len > sizeof(sk->sk_peercred))
+			len = sizeof(sk->sk_peercred);
+		if (copy_to_user(optval, &sk->sk_peercred, len))
+			return -EFAULT;
+		goto lenout;
+
+	case SO_PEERNAME:
+	{
+		char address[128];
+
+		if (sock->ops->getname(sock, (struct sockaddr *)address, &lv, 2))
+			return -ENOTCONN;
+		if (lv < len)
+			return -EINVAL;
+		if (copy_to_user(optval, address, len))
+			return -EFAULT;
+		goto lenout;
 	}
+
+	/* Dubious BSD thing... Probably nobody even uses it, but
+	 * the UNIX standard wants it for whatever reason... -DaveM
+	 */
+	case SO_ACCEPTCONN:
+		v.val = sk->sk_state == TCP_LISTEN;
+		break;
+
+	case SO_PASSSEC:
+		v.val = test_bit(SOCK_PASSSEC, &sock->flags) ? 1 : 0;
+		break;
+
+	case SO_PEERSEC:
+		return security_socket_getpeersec_stream(sock, optval, optlen, len);
+
+	default:
+		return -ENOPROTOOPT;
+	}
+
 	if (len > lv)
 		len = lv;
 	if (copy_to_user(optval, &v, len))
@@ -904,6 +915,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		sk_node_init(&newsk->sk_node);
 		sock_lock_init(newsk);
 		bh_lock_sock(newsk);
+		newsk->sk_backlog.head	= newsk->sk_backlog.tail = NULL;
 
 		atomic_set(&newsk->sk_rmem_alloc, 0);
 		atomic_set(&newsk->sk_wmem_alloc, 0);
@@ -923,7 +935,6 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		newsk->sk_wmem_queued	= 0;
 		newsk->sk_forward_alloc = 0;
 		newsk->sk_send_head	= NULL;
-		newsk->sk_backlog.head	= newsk->sk_backlog.tail = NULL;
 		newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
 
 		sock_reset_flag(newsk, SOCK_DONE);
@@ -969,6 +980,21 @@ out:
 }
 
 EXPORT_SYMBOL_GPL(sk_clone);
+
+void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
+{
+	__sk_dst_set(sk, dst);
+	sk->sk_route_caps = dst->dev->features;
+	if (sk->sk_route_caps & NETIF_F_GSO)
+		sk->sk_route_caps |= NETIF_F_GSO_MASK;
+	if (sk_can_gso(sk)) {
+		if (dst->header_len)
+			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
+		else
+			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;
+	}
+}
+EXPORT_SYMBOL_GPL(sk_setup_caps);
 
 void __init sk_init(void)
 {
@@ -1220,13 +1246,13 @@ static void __lock_sock(struct sock *sk)
 {
 	DEFINE_WAIT(wait);
 
-	for(;;) {
+	for (;;) {
 		prepare_to_wait_exclusive(&sk->sk_lock.wq, &wait,
 					TASK_UNINTERRUPTIBLE);
 		spin_unlock_bh(&sk->sk_lock.slock);
 		schedule();
 		spin_lock_bh(&sk->sk_lock.slock);
-		if(!sock_owned_by_user(sk))
+		if (!sock_owned_by_user(sk))
 			break;
 	}
 	finish_wait(&sk->sk_lock.wq, &wait);
@@ -1258,7 +1284,7 @@ static void __release_sock(struct sock *sk)
 		} while (skb != NULL);
 
 		bh_lock_sock(sk);
-	} while((skb = sk->sk_backlog.head) != NULL);
+	} while ((skb = sk->sk_backlog.head) != NULL);
 }
 
 /**
@@ -1420,7 +1446,7 @@ static void sock_def_write_space(struct sock *sk)
 	/* Do not wake up a writer until he can make "significant"
 	 * progress.  --DaveM
 	 */
-	if((atomic_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf) {
+	if ((atomic_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf) {
 		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 			wake_up_interruptible(sk->sk_sleep);
 
@@ -1482,8 +1508,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sock_set_flag(sk, SOCK_ZAPPED);
 
-	if(sock)
-	{
+	if (sock) {
 		sk->sk_type	=	sock->type;
 		sk->sk_sleep	=	&sock->wait;
 		sock->sk	=	sk;
@@ -1512,8 +1537,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_rcvtimeo		=	MAX_SCHEDULE_TIMEOUT;
 	sk->sk_sndtimeo		=	MAX_SCHEDULE_TIMEOUT;
 
-	sk->sk_stamp.tv_sec     = -1L;
-	sk->sk_stamp.tv_usec    = -1L;
+	sk->sk_stamp = ktime_set(-1L, -1L);
 
 	atomic_set(&sk->sk_refcnt, 1);
 }
@@ -1554,16 +1578,35 @@ EXPORT_SYMBOL(release_sock);
 
 int sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
 {
+	struct timeval tv;
 	if (!sock_flag(sk, SOCK_TIMESTAMP))
 		sock_enable_timestamp(sk);
-	if (sk->sk_stamp.tv_sec == -1)
+	tv = ktime_to_timeval(sk->sk_stamp);
+	if (tv.tv_sec == -1)
 		return -ENOENT;
-	if (sk->sk_stamp.tv_sec == 0)
-		do_gettimeofday(&sk->sk_stamp);
-	return copy_to_user(userstamp, &sk->sk_stamp, sizeof(struct timeval)) ?
-		-EFAULT : 0;
+	if (tv.tv_sec == 0) {
+		sk->sk_stamp = ktime_get_real();
+		tv = ktime_to_timeval(sk->sk_stamp);
+	}
+	return copy_to_user(userstamp, &tv, sizeof(tv)) ? -EFAULT : 0;
 }
 EXPORT_SYMBOL(sock_get_timestamp);
+
+int sock_get_timestampns(struct sock *sk, struct timespec __user *userstamp)
+{
+	struct timespec ts;
+	if (!sock_flag(sk, SOCK_TIMESTAMP))
+		sock_enable_timestamp(sk);
+	ts = ktime_to_timespec(sk->sk_stamp);
+	if (ts.tv_sec == -1)
+		return -ENOENT;
+	if (ts.tv_sec == 0) {
+		sk->sk_stamp = ktime_get_real();
+		ts = ktime_to_timespec(sk->sk_stamp);
+	}
+	return copy_to_user(userstamp, &ts, sizeof(ts)) ? -EFAULT : 0;
+}
+EXPORT_SYMBOL(sock_get_timestampns);
 
 void sock_enable_timestamp(struct sock *sk)
 {
@@ -1899,7 +1942,7 @@ static int proto_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations proto_seq_ops = {
+static const struct seq_operations proto_seq_ops = {
 	.start  = proto_seq_start,
 	.next   = proto_seq_next,
 	.stop   = proto_seq_stop,

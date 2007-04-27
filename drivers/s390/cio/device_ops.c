@@ -16,12 +16,14 @@
 
 #include <asm/ccwdev.h>
 #include <asm/idals.h>
+#include <asm/chpid.h>
 
 #include "cio.h"
 #include "cio_debug.h"
 #include "css.h"
 #include "chsc.h"
 #include "device.h"
+#include "chp.h"
 
 int ccw_device_set_options_mask(struct ccw_device *cdev, unsigned long flags)
 {
@@ -606,9 +608,12 @@ void *
 ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)
 {
 	struct subchannel *sch;
+	struct chp_id chpid;
 
 	sch = to_subchannel(cdev->dev.parent);
-	return chsc_get_chp_desc(sch, chp_no);
+	chp_id_init(&chpid);
+	chpid.id = sch->schib.pmcw.chpid[chp_no];
+	return chp_get_chp_desc(chpid);
 }
 
 // FIXME: these have to go:

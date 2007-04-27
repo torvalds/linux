@@ -42,6 +42,7 @@ struct sockaddr_ll
 #define PACKET_STATISTICS		6
 #define PACKET_COPY_THRESH		7
 #define PACKET_AUXDATA			8
+#define PACKET_ORIGDEV			9
 
 struct tpacket_stats
 {

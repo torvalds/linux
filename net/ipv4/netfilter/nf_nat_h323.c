@@ -33,7 +33,7 @@ static int set_addr(struct sk_buff **pskb,
 		    unsigned int addroff, __be32 ip, __be16 port)
 {
 	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct = ip_conntrack_get(*pskb, &ctinfo);
+	struct nf_conn *ct = nf_ct_get(*pskb, &ctinfo);
 	struct {
 		__be32 ip;
 		__be16 port;
@@ -44,7 +44,7 @@ static int set_addr(struct sk_buff **pskb,
 	buf.port = port;
 	addroff += dataoff;
 
-	if ((*pskb)->nh.iph->protocol == IPPROTO_TCP) {
+	if (ip_hdr(*pskb)->protocol == IPPROTO_TCP) {
 		if (!nf_nat_mangle_tcp_packet(pskb, ct, ctinfo,
 					      addroff, sizeof(buf),
 					      (char *) &buf, sizeof(buf))) {
@@ -55,11 +55,11 @@ static int set_addr(struct sk_buff **pskb,
 		}
 
 		/* Relocate data pointer */
-		th = skb_header_pointer(*pskb, (*pskb)->nh.iph->ihl * 4,
+		th = skb_header_pointer(*pskb, ip_hdrlen(*pskb),
 					sizeof(_tcph), &_tcph);
 		if (th == NULL)
 			return -1;
-		*data = (*pskb)->data + (*pskb)->nh.iph->ihl * 4 +
+		*data = (*pskb)->data + ip_hdrlen(*pskb) +
 		    th->doff * 4 + dataoff;
 	} else {
 		if (!nf_nat_mangle_udp_packet(pskb, ct, ctinfo,
@@ -73,8 +73,8 @@ static int set_addr(struct sk_buff **pskb,
 		/* nf_nat_mangle_udp_packet uses skb_make_writable() to copy
 		 * or pull everything in a linear buffer, so we can safely
 		 * use the skb pointers now */
-		*data = (*pskb)->data + (*pskb)->nh.iph->ihl * 4 +
-		    sizeof(struct udphdr);
+		*data = ((*pskb)->data + ip_hdrlen(*pskb) +
+			 sizeof(struct udphdr));
 	}
 
 	return 0;
@@ -383,7 +383,7 @@ static int nat_h245(struct sk_buff **pskb, struct nf_conn *ct,
 static void ip_nat_q931_expect(struct nf_conn *new,
 			       struct nf_conntrack_expect *this)
 {
-	struct ip_nat_range range;
+	struct nf_nat_range range;
 
 	if (this->tuple.src.u3.ip != 0) {	/* Only accept calls from GK */
 		nf_nat_follow_master(new, this);

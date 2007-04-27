@@ -67,6 +67,11 @@ static int validate_nla(struct nlattr *nla, int maxtype,
 		}
 		break;
 
+	case NLA_BINARY:
+		if (pt->len && attrlen > pt->len)
+			return -ERANGE;
+		break;
+
 	default:
 		if (pt->len)
 			minlen = pt->len;

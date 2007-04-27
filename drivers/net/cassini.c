@@ -1995,7 +1995,6 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 		return -1;
 
 	*skbref = skb;
-	skb->dev = cp->dev;
 	skb_reserve(skb, swivel);
 
 	p = skb->data;
@@ -2822,10 +2821,8 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 
 	ctrl = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		u64 csum_start_off, csum_stuff_off;
-
-		csum_start_off = (u64) (skb->h.raw - skb->data);
-		csum_stuff_off = csum_start_off + skb->csum_offset;
+		const u64 csum_start_off = skb_transport_offset(skb);
+		const u64 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl =  TX_DESC_CSUM_EN |
 			CAS_BASE(TX_DESC_CSUM_START, csum_start_off) |
@@ -2849,8 +2846,8 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 			      ctrl | TX_DESC_SOF, 0);
 		entry = TX_DESC_NEXT(ring, entry);
 
-		memcpy(tx_tiny_buf(cp, ring, entry), skb->data +
-		       len - tabort, tabort);
+		skb_copy_from_linear_data_offset(skb, len - tabort,
+			      tx_tiny_buf(cp, ring, entry), tabort);
 		mapping = tx_tiny_map(cp, ring, entry, tentry);
 		cas_write_txd(cp, ring, entry, mapping, tabort, ctrl,
 			      (nr_frags == 0));

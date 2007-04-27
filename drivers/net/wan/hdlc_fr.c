@@ -533,7 +533,7 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 		skb->protocol = __constant_htons(NLPID_CCITT_ANSI_LMI);
 		fr_hard_header(&skb, LMI_CCITT_ANSI_DLCI);
 	}
-	data = skb->tail;
+	data = skb_tail_pointer(skb);
 	data[i++] = LMI_CALLREF;
 	data[i++] = dce ? LMI_STATUS : LMI_STATUS_ENQUIRY;
 	if (lmi == LMI_ANSI)
@@ -590,7 +590,7 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	skb_put(skb, i);
 	skb->priority = TC_PRIO_CONTROL;
 	skb->dev = dev;
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	dev_queue_xmit(skb);
 }
@@ -1011,7 +1011,6 @@ static int fr_rx(struct sk_buff *skb)
 		stats->rx_bytes += skb->len;
 		if (pvc->state.becn)
 			stats->rx_compressed++;
-		skb->dev = dev;
 		netif_rx(skb);
 		return NET_RX_SUCCESS;
 	} else {

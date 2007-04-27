@@ -49,7 +49,7 @@ static unsigned short slip_protocol(struct sk_buff *skbuff)
 static int slip_read(int fd, struct sk_buff **skb, 
 		       struct uml_net_private *lp)
 {
-	return(slip_user_read(fd, (*skb)->mac.raw, (*skb)->dev->mtu, 
+	return(slip_user_read(fd, skb_mac_header(*skb), (*skb)->dev->mtu,
 			      (struct slip_data *) &lp->user));
 }
 

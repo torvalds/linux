@@ -881,15 +881,15 @@ EXPORT_SYMBOL(get_random_bytes);
  */
 static void init_std_data(struct entropy_store *r)
 {
-	struct timeval tv;
+	ktime_t now;
 	unsigned long flags;
 
 	spin_lock_irqsave(&r->lock, flags);
 	r->entropy_count = 0;
 	spin_unlock_irqrestore(&r->lock, flags);
 
-	do_gettimeofday(&tv);
-	add_entropy_words(r, (__u32 *)&tv, sizeof(tv)/4);
+	now = ktime_get_real();
+	add_entropy_words(r, (__u32 *)&now, sizeof(now)/4);
 	add_entropy_words(r, (__u32 *)utsname(),
 			  sizeof(*(utsname()))/4);
 }
@@ -911,14 +911,12 @@ void rand_initialize_irq(int irq)
 		return;
 
 	/*
-	 * If kmalloc returns null, we just won't use that entropy
+	 * If kzalloc returns null, we just won't use that entropy
 	 * source.
 	 */
-	state = kmalloc(sizeof(struct timer_rand_state), GFP_KERNEL);
-	if (state) {
-		memset(state, 0, sizeof(struct timer_rand_state));
+	state = kzalloc(sizeof(struct timer_rand_state), GFP_KERNEL);
+	if (state)
 		irq_timer_state[irq] = state;
-	}
 }
 
 #ifdef CONFIG_BLOCK
@@ -927,14 +925,12 @@ void rand_initialize_disk(struct gendisk *disk)
 	struct timer_rand_state *state;
 
 	/*
-	 * If kmalloc returns null, we just won't use that entropy
+	 * If kzalloc returns null, we just won't use that entropy
 	 * source.
 	 */
-	state = kmalloc(sizeof(struct timer_rand_state), GFP_KERNEL);
-	if (state) {
-		memset(state, 0, sizeof(struct timer_rand_state));
+	state = kzalloc(sizeof(struct timer_rand_state), GFP_KERNEL);
+	if (state)
 		disk->random = state;
-	}
 }
 #endif
 
@@ -1469,7 +1465,6 @@ late_initcall(seqgen_init);
 __u32 secure_tcpv6_sequence_number(__be32 *saddr, __be32 *daddr,
 				   __be16 sport, __be16 dport)
 {
-	struct timeval tv;
 	__u32 seq;
 	__u32 hash[12];
 	struct keydata *keyptr = get_keyptr();
@@ -1485,8 +1480,7 @@ __u32 secure_tcpv6_sequence_number(__be32 *saddr, __be32 *daddr,
 	seq = twothirdsMD4Transform((const __u32 *)daddr, hash) & HASH_MASK;
 	seq += keyptr->count;
 
-	do_gettimeofday(&tv);
-	seq += tv.tv_usec + tv.tv_sec * 1000000;
+	seq += ktime_get_real().tv64;
 
 	return seq;
 }
@@ -1521,7 +1515,6 @@ __u32 secure_ip_id(__be32 daddr)
 __u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
 				 __be16 sport, __be16 dport)
 {
-	struct timeval tv;
 	__u32 seq;
 	__u32 hash[4];
 	struct keydata *keyptr = get_keyptr();
@@ -1543,20 +1536,17 @@ __u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
 	 *	As close as possible to RFC 793, which
 	 *	suggests using a 250 kHz clock.
 	 *	Further reading shows this assumes 2 Mb/s networks.
-	 *	For 10 Mb/s Ethernet, a 1 MHz clock is appropriate.
+	 *	For 10 Gb/s Ethernet, a 1 GHz clock is appropriate.
 	 *	That's funny, Linux has one built in!  Use it!
 	 *	(Networks are faster now - should this be increased?)
 	 */
-	do_gettimeofday(&tv);
-	seq += tv.tv_usec + tv.tv_sec * 1000000;
+	seq += ktime_get_real().tv64;
 #if 0
 	printk("init_seq(%lx, %lx, %d, %d) = %d\n",
 	       saddr, daddr, sport, dport, seq);
 #endif
 	return seq;
 }
-
-EXPORT_SYMBOL(secure_tcp_sequence_number);
 
 /* Generate secure starting point for ephemeral IPV4 transport port search */
 u32 secure_ipv4_port_ephemeral(__be32 saddr, __be32 daddr, __be16 dport)
@@ -1598,7 +1588,6 @@ u32 secure_ipv6_port_ephemeral(const __be32 *saddr, const __be32 *daddr, __be16 
 u64 secure_dccp_sequence_number(__be32 saddr, __be32 daddr,
 				__be16 sport, __be16 dport)
 {
-	struct timeval tv;
 	u64 seq;
 	__u32 hash[4];
 	struct keydata *keyptr = get_keyptr();
@@ -1611,8 +1600,7 @@ u64 secure_dccp_sequence_number(__be32 saddr, __be32 daddr,
 	seq = half_md4_transform(hash, keyptr->secret);
 	seq |= ((u64)keyptr->count) << (32 - HASH_BITS);
 
-	do_gettimeofday(&tv);
-	seq += tv.tv_usec + tv.tv_sec * 1000000;
+	seq += ktime_get_real().tv64;
 	seq &= (1ull << 48) - 1;
 #if 0
 	printk("dccp init_seq(%lx, %lx, %d, %d) = %d\n",

@@ -10,7 +10,6 @@ menu "Machine selection"
 
 config ZONE_DMA
 	bool
-	default y
 
 choice
 	prompt "System type"
@@ -165,7 +164,7 @@ config MIPS_COBALT
 	select HW_HAS_PCI
 	select I8259
 	select IRQ_CPU
-	select MIPS_GT64111
+	select PCI_GT64XXX_PCI0
 	select SYS_HAS_CPU_NEVADA
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -207,7 +206,7 @@ config MIPS_EV64120
 	depends on EXPERIMENTAL
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
-	select MIPS_GT64120
+	select PCI_GT64XXX_PCI0
 	select SYS_HAS_CPU_R5000
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
@@ -245,7 +244,7 @@ config LASAT
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
-	select MIPS_GT64120
+	select PCI_GT64XXX_PCI0
 	select MIPS_NILE4
 	select R5000_CPU_SCACHE
 	select SYS_HAS_CPU_R5000
@@ -263,7 +262,7 @@ config MIPS_ATLAS
 	select HW_HAS_PCI
 	select MIPS_BOARDS_GEN
 	select MIPS_BONITO64
-	select MIPS_GT64120
+	select PCI_GT64XXX_PCI0
 	select MIPS_MSC
 	select RM7000_CPU_SCACHE
 	select SWAP_IO_SPACE
@@ -296,7 +295,7 @@ config MIPS_MALTA
 	select MIPS_BOARDS_GEN
 	select MIPS_BONITO64
 	select MIPS_CPU_SCACHE
-	select MIPS_GT64120
+	select PCI_GT64XXX_PCI0
 	select MIPS_MSC
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
@@ -340,7 +339,7 @@ config WR_PPMC
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
-	select MIPS_GT64120
+	select PCI_GT64XXX_PCI0
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
@@ -398,7 +397,7 @@ config MOMENCO_OCELOT
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select IRQ_CPU_RM7K
-	select MIPS_GT64120
+	select PCI_GT64XXX_PCI0
 	select RM7000_CPU_SCACHE
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_RM7000
@@ -501,10 +500,8 @@ config DDB5477
 	  ether port USB, AC97, PCI, etc.
 
 config MACH_VR41XX
-	bool "NEC VR41XX-based machines"
+	bool "NEC VR4100 series based machines"
 	select SYS_HAS_CPU_VR41XX
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config PMC_YOSEMITE
@@ -779,6 +776,7 @@ config TOSHIBA_JMR3927
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select TOSHIBA_BOARDS
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config TOSHIBA_RBTX4927
 	bool "Toshiba TBTX49[23]7 board"
@@ -922,6 +920,7 @@ config SYS_HAS_EARLY_PRINTK
 
 config GENERIC_ISA_DMA
 	bool
+	select ZONE_DMA
 
 config I8259
 	bool
@@ -945,6 +944,7 @@ config MIPS_DISABLE_OBSOLETE_IDE
 
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
+	select ZONE_DMA
 
 #
 # Endianess selection.  Sufficiently obscure so many users don't know what to
@@ -999,10 +999,7 @@ config DDB5XXX_COMMON
 config MIPS_BOARDS_GEN
 	bool
 
-config MIPS_GT64111
-	bool
-
-config MIPS_GT64120
+config PCI_GT64XXX_PCI0
 	bool
 
 config MIPS_TX3927

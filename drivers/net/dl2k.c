@@ -504,7 +504,6 @@ rio_timer (unsigned long data)
 					break;
 				}
 				np->rx_skbuff[entry] = skb;
-				skb->dev = dev;
 				/* 16 byte align the IP header */
 				skb_reserve (skb, 2);
 				np->rx_ring[entry].fraginfo =
@@ -575,7 +574,6 @@ alloc_list (struct net_device *dev)
 				dev->name);
 			break;
 		}
-		skb->dev = dev;	/* Mark as being used by this device. */
 		skb_reserve (skb, 2);	/* 16 byte align the IP header. */
 		/* Rubicon now supports 40 bits of addressing space. */
 		np->rx_ring[i].fraginfo =
@@ -866,7 +864,6 @@ receive_packet (struct net_device *dev)
 							    	DMA_48BIT_MASK,
 							    np->rx_buf_sz,
 							    PCI_DMA_FROMDEVICE);
-				skb->dev = dev;
 				/* 16 byte align the IP header */
 				skb_reserve (skb, 2);
 				eth_copy_and_sum (skb,
@@ -910,7 +907,6 @@ receive_packet (struct net_device *dev)
 				break;
 			}
 			np->rx_skbuff[entry] = skb;
-			skb->dev = dev;
 			/* 16 byte align the IP header */
 			skb_reserve (skb, 2);
 			np->rx_ring[entry].fraginfo =

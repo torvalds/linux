@@ -64,11 +64,9 @@
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 #include <asm/idprom.h>
-#include <asm/openprom.h>
-#include <asm/oplib.h>
-#include <asm/pbm.h>
+#include <asm/prom.h>
 #endif
 
 #ifdef CONFIG_PPC_PMAC
@@ -845,11 +843,10 @@ static int gem_rx(struct gem *gp, int work_to_do)
 				goto drop_it;
 			}
 
-			copy_skb->dev = gp->dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			pci_dma_sync_single_for_cpu(gp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
-			memcpy(copy_skb->data, skb->data, len);
+			skb_copy_from_linear_data(skb, copy_skb->data, len);
 			pci_dma_sync_single_for_device(gp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
 
 			/* We'll reuse the original ring buffer. */
@@ -1029,10 +1026,8 @@ static int gem_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	ctrl = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		u64 csum_start_off, csum_stuff_off;
-
-		csum_start_off = (u64) (skb->h.raw - skb->data);
-		csum_stuff_off = csum_start_off + skb->csum_offset;
+		const u64 csum_start_off = skb_transport_offset(skb);
+		const u64 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl = (TXDCTRL_CENAB |
 			(csum_start_off << 15) |
@@ -2849,7 +2844,7 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return rc;
 }
 
-#if (!defined(__sparc__) && !defined(CONFIG_PPC_PMAC))
+#if (!defined(CONFIG_SPARC) && !defined(CONFIG_PPC_PMAC))
 /* Fetch MAC address from vital product data of PCI ROM. */
 static int find_eth_addr_in_vpd(void __iomem *rom_base, int len, unsigned char *dev_addr)
 {
@@ -2904,36 +2899,19 @@ static void get_gem_mac_nonobp(struct pci_dev *pdev, unsigned char *dev_addr)
 
 static int __devinit gem_get_device_address(struct gem *gp)
 {
-#if defined(__sparc__) || defined(CONFIG_PPC_PMAC)
+#if defined(CONFIG_SPARC) || defined(CONFIG_PPC_PMAC)
 	struct net_device *dev = gp->dev;
-#endif
-
-#if defined(__sparc__)
-	struct pci_dev *pdev = gp->pdev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	int use_idprom = 1;
-
-	if (pcp != NULL) {
-		unsigned char *addr;
-		int len;
-
-		addr = of_get_property(pcp->prom_node, "local-mac-address",
-				       &len);
-		if (addr && len == 6) {
-			use_idprom = 0;
-			memcpy(dev->dev_addr, addr, 6);
-		}
-	}
-	if (use_idprom)
-		memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
-#elif defined(CONFIG_PPC_PMAC)
 	const unsigned char *addr;
 
 	addr = get_property(gp->of_node, "local-mac-address", NULL);
 	if (addr == NULL) {
+#ifdef CONFIG_SPARC
+		addr = idprom->id_ethaddr;
+#else
 		printk("\n");
 		printk(KERN_ERR "%s: can't get mac-address\n", dev->name);
 		return -1;
+#endif
 	}
 	memcpy(dev->dev_addr, addr, 6);
 #else
@@ -3091,7 +3069,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	/* On Apple, we want a reference to the Open Firmware device-tree
 	 * node. We use it for clock control.
 	 */
-#ifdef CONFIG_PPC_PMAC
+#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_SPARC)
 	gp->of_node = pci_device_to_OF_node(pdev);
 #endif
 

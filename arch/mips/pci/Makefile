@@ -8,8 +8,7 @@ obj-y				+= pci.o pci-dac.o
 # PCI bus host bridge specific code
 #
 obj-$(CONFIG_MIPS_BONITO64)	+= ops-bonito64.o
-obj-$(CONFIG_MIPS_GT64111)	+= ops-gt64111.o
-obj-$(CONFIG_MIPS_GT64120)	+= ops-gt64120.o
+obj-$(CONFIG_PCI_GT64XXX_PCI0)	+= ops-gt64xxx_pci0.o
 obj-$(CONFIG_PCI_MARVELL)	+= ops-marvell.o
 obj-$(CONFIG_MIPS_MSC)		+= ops-msc.o
 obj-$(CONFIG_MIPS_NILE4)	+= ops-nile4.o

@@ -834,7 +834,7 @@ static inline u16 ether1394_type_trans(struct sk_buff *skb,
 	struct eth1394hdr *eth;
 	unsigned char *rawp;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull (skb, ETH1394_HLEN);
 	eth = eth1394_hdr(skb);
 
@@ -1668,7 +1668,7 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 	if (memcmp(eth->h_dest, dev->broadcast, ETH1394_ALEN) == 0 ||
 	    proto == htons(ETH_P_ARP) ||
 	    (proto == htons(ETH_P_IP) &&
-	     IN_MULTICAST(ntohl(skb->nh.iph->daddr)))) {
+	     IN_MULTICAST(ntohl(ip_hdr(skb)->daddr)))) {
 		tx_type = ETH1394_GASP;
 		dest_node = LOCAL_BUS | ALL_NODES;
 		max_payload = priv->bc_maxpayload - ETHER1394_GASP_OVERHEAD;

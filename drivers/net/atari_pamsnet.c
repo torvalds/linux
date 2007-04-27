@@ -717,7 +717,8 @@ pamsnet_send_packet(struct sk_buff *skb, struct net_device *dev) {
 
 		local_irq_restore(flags);
 		if( !STRAM_ADDR(buf+length-1) ) {
-			memcpy(nic_packet->buffer, skb->data, length);
+			skb_copy_from_linear_data(skb, nic_packet->buffer,
+						  length);
 			buf = (unsigned long)phys_nic_packet;
 		}
 
@@ -792,7 +793,8 @@ pamsnet_poll_rx(struct net_device *dev) {
 
 			/* 'skb->data' points to the start of sk_buff data area.
 			 */
-			memcpy(skb->data, nic_packet->buffer, pkt_len);
+			skb_copy_to_linear_data(skb, nic_packet->buffer,
+						pkt_len);
 			netif_rx(skb);
 			dev->last_rx = jiffies;
 			lp->stats.rx_packets++;

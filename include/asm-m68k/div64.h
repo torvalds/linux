@@ -1,6 +1,8 @@
 #ifndef _M68K_DIV64_H
 #define _M68K_DIV64_H
 
+#include <linux/types.h>
+
 /* n = n / base; return rem; */
 
 #define do_div(n, base) ({					\
@@ -23,4 +25,5 @@
 	__rem;							\
 })
 
+extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
 #endif /* _M68K_DIV64_H */

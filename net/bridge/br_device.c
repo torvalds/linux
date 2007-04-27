@@ -37,7 +37,7 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	br->statistics.tx_packets++;
 	br->statistics.tx_bytes += skb->len;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
 	if (dest[0] & 1)
@@ -83,27 +83,21 @@ static int br_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-/* Allow setting mac address of pseudo-bridge to be same as
- * any of the bound interfaces
- */
+/* Allow setting mac address to any valid ethernet address. */
 static int br_set_mac_address(struct net_device *dev, void *p)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct sockaddr *addr = p;
-	struct net_bridge_port *port;
-	int err = -EADDRNOTAVAIL;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
 
 	spin_lock_bh(&br->lock);
-	list_for_each_entry(port, &br->port_list, list) {
-		if (!compare_ether_addr(port->dev->dev_addr, addr->sa_data)) {
-			br_stp_change_bridge_id(br, addr->sa_data);
-			err = 0;
-			break;
-		}
-	}
+	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	br_stp_change_bridge_id(br, addr->sa_data);
 	spin_unlock_bh(&br->lock);
 
-	return err;
+	return 0;
 }
 
 static void br_getinfo(struct net_device *dev, struct ethtool_drvinfo *info)

@@ -829,7 +829,7 @@ isdn_readbchan(int di, int channel, u_char * buf, u_char * fp, int len, wait_que
 				dflag = 0;
 			}
 			count_put = count_pull;
-			memcpy(cp, skb->data, count_put);
+			skb_copy_from_linear_data(skb, cp, count_put);
 			cp += count_put;
 			len -= count_put;
 #ifdef CONFIG_ISDN_AUDIO

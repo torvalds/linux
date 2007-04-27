@@ -503,7 +503,6 @@ dgrs_rcv_frame(
 		/* discarding the frame */
 		goto out;
 	}
-	skb->dev = devN;
 	skb_reserve(skb, 2);	/* Align IP header */
 
 again:
@@ -742,7 +741,7 @@ static int dgrs_start_xmit(struct sk_buff *skb, struct net_device *devN)
 		}
 
 		amt = min_t(unsigned int, len, rbdp->size - count);
-		memcpy( (char *) S2H(rbdp->buf) + count, skb->data + i, amt);
+		skb_copy_from_linear_data_offset(skb, i, S2H(rbdp->buf) + count, amt);
 		i += amt;
 		count += amt;
 		len -= amt;

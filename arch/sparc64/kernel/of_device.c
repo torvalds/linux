@@ -245,7 +245,7 @@ struct of_bus {
 				       int *addrc, int *sizec);
 	int		(*map)(u32 *addr, const u32 *range,
 			       int na, int ns, int pna);
-	unsigned int	(*get_flags)(u32 *addr);
+	unsigned int	(*get_flags)(const u32 *addr);
 };
 
 /*
@@ -305,7 +305,7 @@ static int of_bus_default_map(u32 *addr, const u32 *range,
 	return 0;
 }
 
-static unsigned int of_bus_default_get_flags(u32 *addr)
+static unsigned int of_bus_default_get_flags(const u32 *addr)
 {
 	return IORESOURCE_MEM;
 }
@@ -317,6 +317,11 @@ static unsigned int of_bus_default_get_flags(u32 *addr)
 static int of_bus_pci_match(struct device_node *np)
 {
 	if (!strcmp(np->type, "pci") || !strcmp(np->type, "pciex")) {
+		const char *model = of_get_property(np, "model", NULL);
+
+		if (model && !strcmp(model, "SUNW,simba"))
+			return 0;
+
 		/* Do not do PCI specific frobbing if the
 		 * PCI bridge lacks a ranges property.  We
 		 * want to pass it through up to the next
@@ -329,6 +334,21 @@ static int of_bus_pci_match(struct device_node *np)
 		return 1;
 	}
 
+	return 0;
+}
+
+static int of_bus_simba_match(struct device_node *np)
+{
+	const char *model = of_get_property(np, "model", NULL);
+
+	if (model && !strcmp(model, "SUNW,simba"))
+		return 1;
+	return 0;
+}
+
+static int of_bus_simba_map(u32 *addr, const u32 *range,
+			    int na, int ns, int pna)
+{
 	return 0;
 }
 
@@ -369,7 +389,7 @@ static int of_bus_pci_map(u32 *addr, const u32 *range,
 	return 0;
 }
 
-static unsigned int of_bus_pci_get_flags(u32 *addr)
+static unsigned int of_bus_pci_get_flags(const u32 *addr)
 {
 	unsigned int flags = 0;
 	u32 w = addr[0];
@@ -436,6 +456,15 @@ static struct of_bus of_busses[] = {
 		.map = of_bus_pci_map,
 		.get_flags = of_bus_pci_get_flags,
 	},
+	/* SIMBA */
+	{
+		.name = "simba",
+		.addr_prop_name = "assigned-addresses",
+		.match = of_bus_simba_match,
+		.count_cells = of_bus_pci_count_cells,
+		.map = of_bus_simba_map,
+		.get_flags = of_bus_pci_get_flags,
+	},
 	/* SBUS */
 	{
 		.name = "sbus",
@@ -482,7 +511,7 @@ static int __init build_one_resource(struct device_node *parent,
 				     u32 *addr,
 				     int na, int ns, int pna)
 {
-	u32 *ranges;
+	const u32 *ranges;
 	unsigned int rlen;
 	int rone;
 
@@ -513,7 +542,7 @@ static int __init build_one_resource(struct device_node *parent,
 
 static int __init use_1to1_mapping(struct device_node *pp)
 {
-	char *model;
+	const char *model;
 
 	/* If this is on the PMU bus, don't try to translate it even
 	 * if a ranges property exists.
@@ -548,7 +577,7 @@ static void __init build_device_resources(struct of_device *op,
 	struct of_bus *bus;
 	int na, ns;
 	int index, num_reg;
-	void *preg;
+	const void *preg;
 
 	if (!parent)
 		return;
@@ -578,7 +607,7 @@ static void __init build_device_resources(struct of_device *op,
 	for (index = 0; index < num_reg; index++) {
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
-		u32 *reg = (preg + (index * ((na + ns) * 4)));
+		const u32 *reg = (preg + (index * ((na + ns) * 4)));
 		struct device_node *dp = op->node;
 		struct device_node *pp = p_op->node;
 		struct of_bus *pbus, *dbus;
@@ -643,14 +672,14 @@ static void __init build_device_resources(struct of_device *op,
 
 static struct device_node * __init
 apply_interrupt_map(struct device_node *dp, struct device_node *pp,
-		    u32 *imap, int imlen, u32 *imask,
+		    const u32 *imap, int imlen, const u32 *imask,
 		    unsigned int *irq_p)
 {
 	struct device_node *cp;
 	unsigned int irq = *irq_p;
 	struct of_bus *bus;
 	phandle handle;
-	u32 *reg;
+	const u32 *reg;
 	int na, num_reg, i;
 
 	bus = of_match_bus(pp);
@@ -705,7 +734,7 @@ static unsigned int __init pci_irq_swizzle(struct device_node *dp,
 					   struct device_node *pp,
 					   unsigned int irq)
 {
-	struct linux_prom_pci_registers *regs;
+	const struct linux_prom_pci_registers *regs;
 	unsigned int bus, devfn, slot, ret;
 
 	if (irq < 1 || irq > 4)
@@ -730,12 +759,6 @@ static unsigned int __init pci_irq_swizzle(struct device_node *dp,
 		 * D: 2-bit slot number, derived from PCI device number as
 		 *    (dev - 1) for bus A, or (dev - 2) for bus B
 		 * L: 2-bit line number
-		 *
-		 * Actually, more "portable" way to calculate the funky
-		 * slot number is to subtract pbm->pci_first_slot from the
-		 * device number, and that's exactly what the pre-OF
-		 * sparc64 code did, but we're building this stuff generically
-		 * using the OBP tree, not in the PCI controller layer.
 		 */
 		if (bus & 0x80) {
 			/* PBM-A */
@@ -794,7 +817,7 @@ static unsigned int __init build_one_device_irq(struct of_device *op,
 	pp = dp->parent;
 	ip = NULL;
 	while (pp) {
-		void *imap, *imsk;
+		const void *imap, *imsk;
 		int imlen;
 
 		imap = of_get_property(pp, "interrupt-map", &imlen);
@@ -859,7 +882,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 						 struct device *parent)
 {
 	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
-	unsigned int *irq;
+	const unsigned int *irq;
 	int len, i;
 
 	if (!op)

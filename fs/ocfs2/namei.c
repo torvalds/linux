@@ -175,8 +175,6 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 
 	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno, 0);
 	if (IS_ERR(inode)) {
-		mlog(ML_ERROR, "Unable to create inode %llu\n",
-		     (unsigned long long)blkno);
 		ret = ERR_PTR(-EACCES);
 		goto bail_unlock;
 	}
@@ -189,7 +187,6 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 	 * unlink. */
 	spin_lock(&oi->ip_lock);
 	oi->ip_flags &= ~OCFS2_INODE_MAYBE_ORPHANED;
-	oi->ip_orphaned_slot = OCFS2_INVALID_SLOT;
 	spin_unlock(&oi->ip_lock);
 
 bail_add:
@@ -288,7 +285,7 @@ static int ocfs2_fill_new_dir(struct ocfs2_super *osb,
 
 	i_size_write(inode, inode->i_sb->s_blocksize);
 	inode->i_nlink = 2;
-	inode->i_blocks = ocfs2_align_bytes_to_sectors(inode->i_sb->s_blocksize);
+	inode->i_blocks = ocfs2_inode_sector_count(inode);
 	status = ocfs2_mark_inode_dirty(handle, inode, fe_bh);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1486,8 +1483,7 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 	struct buffer_head **bhs = NULL;
 	const char *c;
 	struct super_block *sb = osb->sb;
-	u64 p_blkno;
-	int p_blocks;
+	u64 p_blkno, p_blocks;
 	int virtual, blocks, status, i, bytes_left;
 
 	bytes_left = i_size_read(inode) + 1;
@@ -1514,8 +1510,8 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	status = ocfs2_extent_map_get_blocks(inode, 0, 1, &p_blkno,
-					     &p_blocks);
+	status = ocfs2_extent_map_get_blocks(inode, 0, &p_blkno, &p_blocks,
+					     NULL);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -1674,8 +1670,11 @@ static int ocfs2_symlink(struct inode *dir,
 	inode->i_rdev = 0;
 	newsize = l - 1;
 	if (l > ocfs2_fast_symlink_chars(sb)) {
+		u32 offset = 0;
+
 		inode->i_op = &ocfs2_symlink_inode_operations;
-		status = ocfs2_do_extend_allocation(osb, inode, 1, new_fe_bh,
+		status = ocfs2_do_extend_allocation(osb, inode, &offset, 1,
+						    new_fe_bh,
 						    handle, data_ac, NULL,
 						    NULL);
 		if (status < 0) {
@@ -1689,7 +1688,7 @@ static int ocfs2_symlink(struct inode *dir,
 			goto bail;
 		}
 		i_size_write(inode, newsize);
-		inode->i_blocks = ocfs2_align_bytes_to_sectors(newsize);
+		inode->i_blocks = ocfs2_inode_sector_count(inode);
 	} else {
 		inode->i_op = &ocfs2_fast_symlink_inode_operations;
 		memcpy((char *) fe->id2.i_symlink, symname, l);
@@ -2222,9 +2221,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	/* Record which orphan dir our inode now resides
 	 * in. delete_inode will use this to determine which orphan
 	 * dir to lock. */
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	OCFS2_I(inode)->ip_orphaned_slot = osb->slot_num;
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
+	fe->i_orphaned_slot = cpu_to_le16(osb->slot_num);
 
 	mlog(0, "Inode %llu orphaned in slot %d\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno, osb->slot_num);

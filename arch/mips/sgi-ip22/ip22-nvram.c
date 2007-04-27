@@ -52,8 +52,7 @@
  * national semiconductor nv ram chip the op code is 3 bits and
  * the address is 6/8 bits.
  */
-static inline void eeprom_cmd(volatile unsigned int *ctrl, unsigned cmd,
-			      unsigned reg)
+static inline void eeprom_cmd(unsigned int *ctrl, unsigned cmd, unsigned reg)
 {
 	unsigned short ser_cmd;
 	int i;
@@ -61,33 +60,34 @@ static inline void eeprom_cmd(volatile unsigned int *ctrl, unsigned cmd,
 	ser_cmd = cmd | (reg << (16 - BITS_IN_COMMAND));
 	for (i = 0; i < BITS_IN_COMMAND; i++) {
 		if (ser_cmd & (1<<15))	/* if high order bit set */
-			*ctrl |= EEPROM_DATO;
+			writel(readl(ctrl) | EEPROM_DATO, ctrl);
 		else
-			*ctrl &= ~EEPROM_DATO;
-		*ctrl &= ~EEPROM_ECLK;
-		*ctrl |= EEPROM_ECLK;
+			writel(readl(ctrl) & ~EEPROM_DATO, ctrl);
+		writel(readl(ctrl) & ~EEPROM_ECLK, ctrl);
+		writel(readl(ctrl) | EEPROM_ECLK, ctrl);
 		ser_cmd <<= 1;
 	}
-	*ctrl &= ~EEPROM_DATO;	/* see data sheet timing diagram */
+	/* see data sheet timing diagram */
+	writel(readl(ctrl) & ~EEPROM_DATO, ctrl);
 }
 
-unsigned short ip22_eeprom_read(volatile unsigned int *ctrl, int reg)
+unsigned short ip22_eeprom_read(unsigned int *ctrl, int reg)
 {
 	unsigned short res = 0;
 	int i;
 
-	*ctrl &= ~EEPROM_EPROT;
+	writel(readl(ctrl) & ~EEPROM_EPROT, ctrl);
 	eeprom_cs_on(ctrl);
 	eeprom_cmd(ctrl, EEPROM_READ, reg);
 
 	/* clock the data ouf of serial mem */
 	for (i = 0; i < 16; i++) {
-		*ctrl &= ~EEPROM_ECLK;
+		writel(readl(ctrl) & ~EEPROM_ECLK, ctrl);
 		delay();
-		*ctrl |= EEPROM_ECLK;
+		writel(readl(ctrl) | EEPROM_ECLK, ctrl);
 		delay();
 		res <<= 1;
-		if (*ctrl & EEPROM_DATI)
+		if (readl(ctrl) & EEPROM_DATI)
 			res |= 1;
 	}
 

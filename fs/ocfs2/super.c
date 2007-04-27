@@ -806,9 +806,6 @@ static int __init ocfs2_init(void)
 
 	ocfs2_print_version();
 
-	if (init_ocfs2_extent_maps())
-		return -ENOMEM;
-
 	status = init_ocfs2_uptodate_cache();
 	if (status < 0) {
 		mlog_errno(status);
@@ -837,7 +834,6 @@ leave:
 	if (status < 0) {
 		ocfs2_free_mem_caches();
 		exit_ocfs2_uptodate_cache();
-		exit_ocfs2_extent_maps();
 	}
 
 	mlog_exit(status);
@@ -862,8 +858,6 @@ static void __exit ocfs2_exit(void)
 	ocfs2_free_mem_caches();
 
 	unregister_filesystem(&ocfs2_fs_type);
-
-	exit_ocfs2_extent_maps();
 
 	exit_ocfs2_uptodate_cache();
 
@@ -963,6 +957,7 @@ static void ocfs2_inode_init_once(void *data,
 		ocfs2_lock_res_init_once(&oi->ip_rw_lockres);
 		ocfs2_lock_res_init_once(&oi->ip_meta_lockres);
 		ocfs2_lock_res_init_once(&oi->ip_data_lockres);
+		ocfs2_lock_res_init_once(&oi->ip_open_lockres);
 
 		ocfs2_metadata_cache_init(&oi->vfs_inode);
 

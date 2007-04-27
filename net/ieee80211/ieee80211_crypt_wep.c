@@ -152,7 +152,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 
 	/* Copy the IV into the first 3 bytes of the key */
-	memcpy(key, skb->data + hdr_len, 3);
+	skb_copy_from_linear_data_offset(skb, hdr_len, key, 3);
 
 	/* Copy rest of the WEP key (the secret part) */
 	memcpy(key + 3, wep->key, wep->key_len);

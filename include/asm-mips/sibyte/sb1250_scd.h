@@ -10,7 +10,7 @@
     *
     *********************************************************************
     *
-    *  Copyright 2000,2001,2002,2003
+    *  Copyright 2000,2001,2002,2003,2004,2005
     *  Broadcom Corporation. All rights reserved.
     *
     *  This program is free software; you can redistribute it and/or
@@ -150,7 +150,7 @@
  * (For the assembler version, sysrev and dest may be the same register.
  * Also, it clobbers AT.)
  */
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define SYS_SOC_TYPE(dest, sysrev)					\
 	.set push ;							\
 	.set reorder ;							\
@@ -213,6 +213,7 @@
 #define V_SYS_YPOS(x)             _SB_MAKEVALUE(x,S_SYS_YPOS)
 #define G_SYS_YPOS(x)             _SB_GETVALUE(x,S_SYS_YPOS,M_SYS_YPOS)
 #endif
+
 
 /*
  * System Config Register (Table 4-2)
@@ -360,13 +361,13 @@
  */
 
 #define V_SCD_TIMER_FREQ            1000000
-#define V_SCD_TIMER_WIDTH           23
 
 #define S_SCD_TIMER_INIT            0
-#define M_SCD_TIMER_INIT            _SB_MAKEMASK(V_SCD_TIMER_WIDTH,S_SCD_TIMER_INIT)
+#define M_SCD_TIMER_INIT            _SB_MAKEMASK(23,S_SCD_TIMER_INIT)
 #define V_SCD_TIMER_INIT(x)         _SB_MAKEVALUE(x,S_SCD_TIMER_INIT)
 #define G_SCD_TIMER_INIT(x)         _SB_GETVALUE(x,S_SCD_TIMER_INIT,M_SCD_TIMER_INIT)
 
+#define V_SCD_TIMER_WIDTH	    23
 #define S_SCD_TIMER_CNT             0
 #define M_SCD_TIMER_CNT             _SB_MAKEMASK(V_SCD_TIMER_WIDTH,S_SCD_TIMER_CNT)
 #define V_SCD_TIMER_CNT(x)         _SB_MAKEVALUE(x,S_SCD_TIMER_CNT)
@@ -380,7 +381,6 @@
  * System Performance Counters
  */
 
-#if SIBYTE_HDR_FEATURE_1250_112x
 #define S_SPC_CFG_SRC0            0
 #define M_SPC_CFG_SRC0            _SB_MAKEMASK(8,S_SPC_CFG_SRC0)
 #define V_SPC_CFG_SRC0(x)         _SB_MAKEVALUE(x,S_SPC_CFG_SRC0)
@@ -401,6 +401,7 @@
 #define V_SPC_CFG_SRC3(x)         _SB_MAKEVALUE(x,S_SPC_CFG_SRC3)
 #define G_SPC_CFG_SRC3(x)         _SB_GETVALUE(x,S_SPC_CFG_SRC3,M_SPC_CFG_SRC3)
 
+#if SIBYTE_HDR_FEATURE_1250_112x
 #define M_SPC_CFG_CLEAR		_SB_MAKEMASK1(32)
 #define M_SPC_CFG_ENABLE	_SB_MAKEMASK1(33)
 #endif
@@ -516,8 +517,6 @@
  * Trace Buffer Config register
  */
 
-#if SIBYTE_HDR_FEATURE_1250_112x
-
 #define M_SCD_TRACE_CFG_RESET           _SB_MAKEMASK1(0)
 #define M_SCD_TRACE_CFG_START_READ      _SB_MAKEMASK1(1)
 #define M_SCD_TRACE_CFG_START           _SB_MAKEMASK1(2)
@@ -526,16 +525,25 @@
 #define M_SCD_TRACE_CFG_FREEZE_FULL     _SB_MAKEMASK1(5)
 #define M_SCD_TRACE_CFG_DEBUG_FULL      _SB_MAKEMASK1(6)
 #define M_SCD_TRACE_CFG_FULL            _SB_MAKEMASK1(7)
-#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
+#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
 #define M_SCD_TRACE_CFG_FORCECNT        _SB_MAKEMASK1(8)
-#endif /* 1250 PASS2 || 112x PASS1 */
+#endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
+/*
+ * This field is the same on the 1250/112x and 1480, just located in
+ * a slightly different place in the register.
+ */
+#if SIBYTE_HDR_FEATURE_1250_112x
 #define S_SCD_TRACE_CFG_CUR_ADDR        10
+#else
+#if SIBYTE_HDR_FEATURE_CHIP(1480)
+#define S_SCD_TRACE_CFG_CUR_ADDR        24
+#endif	/* 1480 */
+#endif  /* 1250/112x */
+
 #define M_SCD_TRACE_CFG_CUR_ADDR        _SB_MAKEMASK(8,S_SCD_TRACE_CFG_CUR_ADDR)
 #define V_SCD_TRACE_CFG_CUR_ADDR(x)     _SB_MAKEVALUE(x,S_SCD_TRACE_CFG_CUR_ADDR)
 #define G_SCD_TRACE_CFG_CUR_ADDR(x)     _SB_GETVALUE(x,S_SCD_TRACE_CFG_CUR_ADDR,M_SCD_TRACE_CFG_CUR_ADDR)
-
-#endif	/* 1250/112x */
 
 /*
  * Trace Event registers

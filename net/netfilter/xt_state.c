@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
-#include <net/netfilter/nf_conntrack_compat.h>
+#include <net/netfilter/nf_conntrack.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_state.h>
 
@@ -36,7 +36,7 @@ match(const struct sk_buff *skb,
 
 	if (nf_ct_is_untracked(skb))
 		statebit = XT_STATE_UNTRACKED;
-	else if (!nf_ct_get_ctinfo(skb, &ctinfo))
+	else if (!nf_ct_get(skb, &ctinfo))
 		statebit = XT_STATE_INVALID;
 	else
 		statebit = XT_STATE_BIT(ctinfo);

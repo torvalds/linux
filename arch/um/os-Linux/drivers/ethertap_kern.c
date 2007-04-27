@@ -43,7 +43,7 @@ static int etap_read(int fd, struct sk_buff **skb, struct uml_net_private *lp)
 
 	*skb = ether_adjust_skb(*skb, ETH_HEADER_ETHERTAP);
 	if(*skb == NULL) return(-ENOMEM);
-	len = net_recvfrom(fd, (*skb)->mac.raw, 
+	len = net_recvfrom(fd, skb_mac_header(*skb),
 			   (*skb)->dev->mtu + 2 * ETH_HEADER_ETHERTAP);
 	if(len <= 0) return(len);
 	skb_pull(*skb, 2);

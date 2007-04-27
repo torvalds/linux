@@ -46,7 +46,7 @@ static int daemon_read(int fd, struct sk_buff **skb,
 {
 	*skb = ether_adjust_skb(*skb, ETH_HEADER_OTHER);
 	if(*skb == NULL) return(-ENOMEM);
-	return(net_recvfrom(fd, (*skb)->mac.raw, 
+	return(net_recvfrom(fd, skb_mac_header(*skb),
 			    (*skb)->dev->mtu + ETH_HEADER_OTHER));
 }
 

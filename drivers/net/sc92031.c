@@ -814,7 +814,6 @@ static void _sc92031_rx_tasklet(struct net_device *dev)
 			memcpy(skb_put(skb, pkt_size), rx_ring + rx_ring_offset, pkt_size);
 		}
 
-		skb->dev = dev;
 		skb->protocol = eth_type_trans(skb, dev);
 		dev->last_rx = jiffies;
 		netif_rx(skb);

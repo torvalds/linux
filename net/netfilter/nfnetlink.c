@@ -3,7 +3,7 @@
  *
  * (C) 2001 by Jay Schulist <jschlst@samba.org>,
  * (C) 2002-2005 by Harald Welte <laforge@gnumonks.org>
- * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
+ * (C) 2005,2007 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * Initial netfilter messages via netlink development funded and
  * generally made possible by Network Robots, Inc. (www.networkrobots.com)
@@ -28,10 +28,9 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <net/sock.h>
+#include <net/netlink.h>
 #include <linux/init.h>
-#include <linux/spinlock.h>
 
-#include <linux/netfilter.h>
 #include <linux/netlink.h>
 #include <linux/netfilter/nfnetlink.h>
 
@@ -41,32 +40,34 @@ MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NETFILTER);
 
 static char __initdata nfversion[] = "0.30";
 
-#if 0
-#define DEBUGP(format, args...)	\
-		printk(KERN_DEBUG "%s(%d):%s(): " format, __FILE__, \
-			__LINE__, __FUNCTION__, ## args)
-#else
-#define DEBUGP(format, args...)
-#endif
-
 static struct sock *nfnl = NULL;
 static struct nfnetlink_subsystem *subsys_table[NFNL_SUBSYS_COUNT];
-DECLARE_MUTEX(nfnl_sem);
+static DEFINE_MUTEX(nfnl_mutex);
 
-void nfnl_lock(void)
+static void nfnl_lock(void)
 {
-	nfnl_shlock();
+	mutex_lock(&nfnl_mutex);
 }
 
-void nfnl_unlock(void)
+static int nfnl_trylock(void)
 {
-	nfnl_shunlock();
+	return !mutex_trylock(&nfnl_mutex);
+}
+
+static void __nfnl_unlock(void)
+{
+	mutex_unlock(&nfnl_mutex);
+}
+
+static void nfnl_unlock(void)
+{
+	mutex_unlock(&nfnl_mutex);
+	if (nfnl->sk_receive_queue.qlen)
+		nfnl->sk_data_ready(nfnl, 0);
 }
 
 int nfnetlink_subsys_register(struct nfnetlink_subsystem *n)
 {
-	DEBUGP("registering subsystem ID %u\n", n->subsys_id);
-
 	nfnl_lock();
 	if (subsys_table[n->subsys_id]) {
 		nfnl_unlock();
@@ -77,24 +78,23 @@ int nfnetlink_subsys_register(struct nfnetlink_subsystem *n)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfnetlink_subsys_register);
 
 int nfnetlink_subsys_unregister(struct nfnetlink_subsystem *n)
 {
-	DEBUGP("unregistering subsystem ID %u\n", n->subsys_id);
-
 	nfnl_lock();
 	subsys_table[n->subsys_id] = NULL;
 	nfnl_unlock();
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfnetlink_subsys_unregister);
 
 static inline struct nfnetlink_subsystem *nfnetlink_get_subsys(u_int16_t type)
 {
 	u_int8_t subsys_id = NFNL_SUBSYS_ID(type);
 
-	if (subsys_id >= NFNL_SUBSYS_COUNT
-	    || subsys_table[subsys_id] == NULL)
+	if (subsys_id >= NFNL_SUBSYS_COUNT)
 		return NULL;
 
 	return subsys_table[subsys_id];
@@ -105,10 +105,8 @@ nfnetlink_find_client(u_int16_t type, struct nfnetlink_subsystem *ss)
 {
 	u_int8_t cb_id = NFNL_MSG_TYPE(type);
 
-	if (cb_id >= ss->cb_count) {
-		DEBUGP("msgtype %u >= %u, returning\n", type, ss->cb_count);
+	if (cb_id >= ss->cb_count)
 		return NULL;
-	}
 
 	return &ss->cb[cb_id];
 }
@@ -125,6 +123,7 @@ void __nfa_fill(struct sk_buff *skb, int attrtype, int attrlen,
 	memcpy(NFA_DATA(nfa), data, attrlen);
 	memset(NFA_DATA(nfa) + attrlen, 0, NFA_ALIGN(size) - size);
 }
+EXPORT_SYMBOL_GPL(__nfa_fill);
 
 void nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
 {
@@ -137,6 +136,7 @@ void nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
 		nfa = NFA_NEXT(nfa, len);
 	}
 }
+EXPORT_SYMBOL_GPL(nfattr_parse);
 
 /**
  * nfnetlink_check_attributes - check and parse nfnetlink attributes
@@ -150,37 +150,15 @@ static int
 nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 			   struct nlmsghdr *nlh, struct nfattr *cda[])
 {
-	int min_len;
-	u_int16_t attr_count;
+	int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
 	u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
-
-	if (unlikely(cb_id >= subsys->cb_count)) {
-		DEBUGP("msgtype %u >= %u, returning\n",
-			cb_id, subsys->cb_count);
-		return -EINVAL;
-	}
-
-	min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
-	if (unlikely(nlh->nlmsg_len < min_len))
-		return -EINVAL;
-
-	attr_count = subsys->cb[cb_id].attr_count;
-	memset(cda, 0, sizeof(struct nfattr *) * attr_count);
+	u_int16_t attr_count = subsys->cb[cb_id].attr_count;
 
 	/* check attribute lengths. */
 	if (likely(nlh->nlmsg_len > min_len)) {
 		struct nfattr *attr = NFM_NFA(NLMSG_DATA(nlh));
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
-
-		while (NFA_OK(attr, attrlen)) {
-			unsigned flavor = NFA_TYPE(attr);
-			if (flavor) {
-				if (flavor > attr_count)
-					return -EINVAL;
-				cda[flavor - 1] = attr;
-			}
-			attr = NFA_NEXT(attr, attrlen);
-		}
+		nfattr_parse(cda, attr_count, attr, attrlen);
 	}
 
 	/* implicit: if nlmsg_len == min_len, we return 0, and an empty
@@ -208,62 +186,46 @@ int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(nfnetlink_send);
 
 int nfnetlink_unicast(struct sk_buff *skb, u_int32_t pid, int flags)
 {
 	return netlink_unicast(nfnl, skb, pid, flags);
 }
+EXPORT_SYMBOL_GPL(nfnetlink_unicast);
 
 /* Process one complete nfnetlink message. */
-static int nfnetlink_rcv_msg(struct sk_buff *skb,
-				    struct nlmsghdr *nlh, int *errp)
+static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct nfnl_callback *nc;
 	struct nfnetlink_subsystem *ss;
-	int type, err = 0;
+	int type, err;
 
-	DEBUGP("entered; subsys=%u, msgtype=%u\n",
-		 NFNL_SUBSYS_ID(nlh->nlmsg_type),
-		 NFNL_MSG_TYPE(nlh->nlmsg_type));
-
-	if (security_netlink_recv(skb, CAP_NET_ADMIN)) {
-		DEBUGP("missing CAP_NET_ADMIN\n");
-		*errp = -EPERM;
-		return -1;
-	}
-
-	/* Only requests are handled by kernel now. */
-	if (!(nlh->nlmsg_flags & NLM_F_REQUEST)) {
-		DEBUGP("received non-request message\n");
-		return 0;
-	}
+	if (security_netlink_recv(skb, CAP_NET_ADMIN))
+		return -EPERM;
 
 	/* All the messages must at least contain nfgenmsg */
-	if (nlh->nlmsg_len < NLMSG_SPACE(sizeof(struct nfgenmsg))) {
-		DEBUGP("received message was too short\n");
+	if (nlh->nlmsg_len < NLMSG_SPACE(sizeof(struct nfgenmsg)))
 		return 0;
-	}
 
 	type = nlh->nlmsg_type;
 	ss = nfnetlink_get_subsys(type);
 	if (!ss) {
 #ifdef CONFIG_KMOD
-		/* don't call nfnl_shunlock, since it would reenter
+		/* don't call nfnl_unlock, since it would reenter
 		 * with further packet processing */
-		up(&nfnl_sem);
+		__nfnl_unlock();
 		request_module("nfnetlink-subsys-%d", NFNL_SUBSYS_ID(type));
-		nfnl_shlock();
+		nfnl_lock();
 		ss = nfnetlink_get_subsys(type);
 		if (!ss)
 #endif
-			goto err_inval;
+			return -EINVAL;
 	}
 
 	nc = nfnetlink_find_client(type, ss);
-	if (!nc) {
-		DEBUGP("unable to find client for type %d\n", type);
-		goto err_inval;
-	}
+	if (!nc)
+		return -EINVAL;
 
 	{
 		u_int16_t attr_count =
@@ -274,73 +236,21 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb,
 
 		err = nfnetlink_check_attributes(ss, nlh, cda);
 		if (err < 0)
-			goto err_inval;
-
-		DEBUGP("calling handler\n");
-		err = nc->call(nfnl, skb, nlh, cda, errp);
-		*errp = err;
-		return err;
+			return err;
+		return nc->call(nfnl, skb, nlh, cda);
 	}
-
-err_inval:
-	DEBUGP("returning -EINVAL\n");
-	*errp = -EINVAL;
-	return -1;
-}
-
-/* Process one packet of messages. */
-static inline int nfnetlink_rcv_skb(struct sk_buff *skb)
-{
-	int err;
-	struct nlmsghdr *nlh;
-
-	while (skb->len >= NLMSG_SPACE(0)) {
-		u32 rlen;
-
-		nlh = (struct nlmsghdr *)skb->data;
-		if (nlh->nlmsg_len < sizeof(struct nlmsghdr)
-		    || skb->len < nlh->nlmsg_len)
-			return 0;
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		if (nfnetlink_rcv_msg(skb, nlh, &err)) {
-			if (!err)
-				return -1;
-			netlink_ack(skb, nlh, err);
-		} else
-			if (nlh->nlmsg_flags & NLM_F_ACK)
-				netlink_ack(skb, nlh, 0);
-		skb_pull(skb, rlen);
-	}
-
-	return 0;
 }
 
 static void nfnetlink_rcv(struct sock *sk, int len)
 {
+	unsigned int qlen = 0;
+
 	do {
-		struct sk_buff *skb;
-
-		if (nfnl_shlock_nowait())
+		if (nfnl_trylock())
 			return;
-
-		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
-			if (nfnetlink_rcv_skb(skb)) {
-				if (skb->len)
-					skb_queue_head(&sk->sk_receive_queue,
-						       skb);
-				else
-					kfree_skb(skb);
-				break;
-			}
-			kfree_skb(skb);
-		}
-
-		/* don't call nfnl_shunlock, since it would reenter
-		 * with further packet processing */
-		up(&nfnl_sem);
-	} while(nfnl && nfnl->sk_receive_queue.qlen);
+		netlink_run_queue(sk, &qlen, nfnetlink_rcv_msg);
+		__nfnl_unlock();
+	} while (qlen);
 }
 
 static void __exit nfnetlink_exit(void)
@@ -355,7 +265,7 @@ static int __init nfnetlink_init(void)
 	printk("Netfilter messages via NETLINK v%s.\n", nfversion);
 
 	nfnl = netlink_kernel_create(NETLINK_NETFILTER, NFNLGRP_MAX,
-				     nfnetlink_rcv, THIS_MODULE);
+				     nfnetlink_rcv, NULL, THIS_MODULE);
 	if (!nfnl) {
 		printk(KERN_ERR "cannot initialize nfnetlink!\n");
 		return -1;
@@ -366,10 +276,3 @@ static int __init nfnetlink_init(void)
 
 module_init(nfnetlink_init);
 module_exit(nfnetlink_exit);
-
-EXPORT_SYMBOL_GPL(nfnetlink_subsys_register);
-EXPORT_SYMBOL_GPL(nfnetlink_subsys_unregister);
-EXPORT_SYMBOL_GPL(nfnetlink_send);
-EXPORT_SYMBOL_GPL(nfnetlink_unicast);
-EXPORT_SYMBOL_GPL(nfattr_parse);
-EXPORT_SYMBOL_GPL(__nfa_fill);

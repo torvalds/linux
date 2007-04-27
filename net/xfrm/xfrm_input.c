@@ -62,7 +62,7 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 	case IPPROTO_COMP:
 		if (!pskb_may_pull(skb, sizeof(struct ip_comp_hdr)))
 			return -EINVAL;
-		*spi = htonl(ntohs(*(__be16*)(skb->h.raw + 2)));
+		*spi = htonl(ntohs(*(__be16*)(skb_transport_header(skb) + 2)));
 		*seq = 0;
 		return 0;
 	default:
@@ -72,8 +72,8 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 	if (!pskb_may_pull(skb, 16))
 		return -EINVAL;
 
-	*spi = *(__be32*)(skb->h.raw + offset);
-	*seq = *(__be32*)(skb->h.raw + offset_seq);
+	*spi = *(__be32*)(skb_transport_header(skb) + offset);
+	*seq = *(__be32*)(skb_transport_header(skb) + offset_seq);
 	return 0;
 }
 EXPORT_SYMBOL(xfrm_parse_spi);

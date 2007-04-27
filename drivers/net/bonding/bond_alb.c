@@ -104,10 +104,15 @@ struct arp_pkt {
 };
 #pragma pack()
 
+static inline struct arp_pkt *arp_pkt(const struct sk_buff *skb)
+{
+	return (struct arp_pkt *)skb_network_header(skb);
+}
+
 /* Forward declaration */
 static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[]);
 
-static inline u8 _simple_hash(u8 *hash_start, int hash_size)
+static inline u8 _simple_hash(const u8 *hash_start, int hash_size)
 {
 	int i;
 	u8 hash = 0;
@@ -613,7 +618,7 @@ static void rlb_req_update_subnet_clients(struct bonding *bond, u32 src_ip)
 static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
-	struct arp_pkt *arp = (struct arp_pkt *)skb->nh.raw;
+	struct arp_pkt *arp = arp_pkt(skb);
 	struct slave *assigned_slave;
 	struct rlb_client_info *client_info;
 	u32 hash_index = 0;
@@ -701,7 +706,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
  */
 static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 {
-	struct arp_pkt *arp = (struct arp_pkt *)skb->nh.raw;
+	struct arp_pkt *arp = arp_pkt(skb);
 	struct slave *tx_slave = NULL;
 
 	if (arp->op_code == __constant_htons(ARPOP_REPLY)) {
@@ -890,8 +895,8 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 		data = skb_put(skb, size);
 		memcpy(data, &pkt, size);
 
-		skb->mac.raw = data;
-		skb->nh.raw = data + ETH_HLEN;
+		skb_reset_mac_header(skb);
+		skb->network_header = skb->mac_header + ETH_HLEN;
 		skb->protocol = pkt.type;
 		skb->priority = TC_PRIO_CONTROL;
 		skb->dev = slave->dev;
@@ -1263,10 +1268,10 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	int hash_size = 0;
 	int do_tx_balance = 1;
 	u32 hash_index = 0;
-	u8 *hash_start = NULL;
+	const u8 *hash_start = NULL;
 	int res = 1;
 
-	skb->mac.raw = (unsigned char *)skb->data;
+	skb_reset_mac_header(skb);
 	eth_data = eth_hdr(skb);
 
 	/* make sure that the curr_active_slave and the slaves list do
@@ -1280,15 +1285,18 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	}
 
 	switch (ntohs(skb->protocol)) {
-	case ETH_P_IP:
+	case ETH_P_IP: {
+		const struct iphdr *iph = ip_hdr(skb);
+
 		if ((memcmp(eth_data->h_dest, mac_bcast, ETH_ALEN) == 0) ||
-		    (skb->nh.iph->daddr == ip_bcast) ||
-		    (skb->nh.iph->protocol == IPPROTO_IGMP)) {
+		    (iph->daddr == ip_bcast) ||
+		    (iph->protocol == IPPROTO_IGMP)) {
 			do_tx_balance = 0;
 			break;
 		}
-		hash_start = (char*)&(skb->nh.iph->daddr);
-		hash_size = sizeof(skb->nh.iph->daddr);
+		hash_start = (char *)&(iph->daddr);
+		hash_size = sizeof(iph->daddr);
+	}
 		break;
 	case ETH_P_IPV6:
 		if (memcmp(eth_data->h_dest, mac_bcast, ETH_ALEN) == 0) {
@@ -1296,8 +1304,8 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			break;
 		}
 
-		hash_start = (char*)&(skb->nh.ipv6h->daddr);
-		hash_size = sizeof(skb->nh.ipv6h->daddr);
+		hash_start = (char *)&(ipv6_hdr(skb)->daddr);
+		hash_size = sizeof(ipv6_hdr(skb)->daddr);
 		break;
 	case ETH_P_IPX:
 		if (ipx_hdr(skb)->ipx_checksum !=

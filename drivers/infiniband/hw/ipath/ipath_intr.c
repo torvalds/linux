@@ -38,10 +38,39 @@
 #include "ipath_common.h"
 
 /*
+ * clear (write) a pio buffer, to clear a parity error.   This routine
+ * should only be called when in freeze mode, and the buffer should be
+ * canceled afterwards.
+ */
+static void ipath_clrpiobuf(struct ipath_devdata *dd, u32 pnum)
+{
+	u32 __iomem *pbuf;
+	u32 dwcnt; /* dword count to write */
+	if (pnum < dd->ipath_piobcnt2k) {
+		pbuf = (u32 __iomem *) (dd->ipath_pio2kbase + pnum *
+			dd->ipath_palign);
+		dwcnt = dd->ipath_piosize2k >> 2;
+	}
+	else {
+		pbuf = (u32 __iomem *) (dd->ipath_pio4kbase +
+			(pnum - dd->ipath_piobcnt2k) * dd->ipath_4kalign);
+		dwcnt = dd->ipath_piosize4k >> 2;
+	}
+	dev_info(&dd->pcidev->dev,
+		"Rewrite PIO buffer %u, to recover from parity error\n",
+		pnum);
+	*pbuf = dwcnt+1; /* no flush required, since already in freeze */
+	while(--dwcnt)
+		*pbuf++ = 0;
+}
+
+/*
  * Called when we might have an error that is specific to a particular
  * PIO buffer, and may need to cancel that buffer, so it can be re-used.
+ * If rewrite is true, and bits are set in the sendbufferror registers,
+ * we'll write to the buffer, for error recovery on parity errors.
  */
-void ipath_disarm_senderrbufs(struct ipath_devdata *dd)
+void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
 {
 	u32 piobcnt;
 	unsigned long sbuf[4];
@@ -74,8 +103,11 @@ void ipath_disarm_senderrbufs(struct ipath_devdata *dd)
 		}
 
 		for (i = 0; i < piobcnt; i++)
-			if (test_bit(i, sbuf))
+			if (test_bit(i, sbuf)) {
+				if (rewrite)
+					ipath_clrpiobuf(dd, i);
 				ipath_disarm_piobufs(dd, i, 1);
+			}
 		dd->ipath_lastcancel = jiffies+3; /* no armlaunch for a bit */
 	}
 }
@@ -114,7 +146,7 @@ static u64 handle_e_sum_errs(struct ipath_devdata *dd, ipath_err_t errs)
 {
 	u64 ignore_this_time = 0;
 
-	ipath_disarm_senderrbufs(dd);
+	ipath_disarm_senderrbufs(dd, 0);
 	if ((errs & E_SUM_LINK_PKTERRS) &&
 	    !(dd->ipath_flags & IPATH_LINKACTIVE)) {
 		/*
@@ -403,10 +435,13 @@ static void handle_supp_msgs(struct ipath_devdata *dd,
 	 * happens so often we never want to count it.
 	 */
 	if (dd->ipath_lasterror & ~INFINIPATH_E_IBSTATUSCHANGED) {
-		ipath_decode_err(msg, sizeof msg, dd->ipath_lasterror &
-				 ~INFINIPATH_E_IBSTATUSCHANGED);
+		int iserr;
+		iserr = ipath_decode_err(msg, sizeof msg,
+				dd->ipath_lasterror &
+				~INFINIPATH_E_IBSTATUSCHANGED);
 		if (dd->ipath_lasterror &
-		    ~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL))
+			~(INFINIPATH_E_RRCVEGRFULL |
+			INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
 			ipath_dev_err(dd, "Suppressed %u messages for "
 				      "fast-repeating errors (%s) (%llx)\n",
 				      supp_msgs, msg,
@@ -420,8 +455,13 @@ static void handle_supp_msgs(struct ipath_devdata *dd,
 			 * them. So only complain about these at debug
 			 * level.
 			 */
-			ipath_dbg("Suppressed %u messages for %s\n",
-				  supp_msgs, msg);
+			if (iserr)
+				ipath_dbg("Suppressed %u messages for %s\n",
+					  supp_msgs, msg);
+			else
+				ipath_cdbg(ERRPKT,
+					"Suppressed %u messages for %s\n",
+					  supp_msgs, msg);
 		}
 	}
 }
@@ -462,7 +502,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 {
 	char msg[512];
 	u64 ignore_this_time = 0;
-	int i;
+	int i, iserr = 0;
 	int chkerrpkts = 0, noprint = 0;
 	unsigned supp_msgs;
 
@@ -502,6 +542,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 	}
 
 	if (supp_msgs == 250000) {
+		int s_iserr;
 		/*
 		 * It's not entirely reasonable assuming that the errors set
 		 * in the last clear period are all responsible for the
@@ -511,17 +552,17 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		dd->ipath_maskederrs |= dd->ipath_lasterror | errs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
 				 ~dd->ipath_maskederrs);
-		ipath_decode_err(msg, sizeof msg,
+		s_iserr = ipath_decode_err(msg, sizeof msg,
 				 (dd->ipath_maskederrs & ~dd->
 				  ipath_ignorederrs));
 
 		if ((dd->ipath_maskederrs & ~dd->ipath_ignorederrs) &
-		    ~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL))
-			ipath_dev_err(dd, "Disabling error(s) %llx because "
-				      "occurring too frequently (%s)\n",
-				      (unsigned long long)
-				      (dd->ipath_maskederrs &
-				       ~dd->ipath_ignorederrs), msg);
+			~(INFINIPATH_E_RRCVEGRFULL |
+			INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
+			ipath_dev_err(dd, "Temporarily disabling "
+			    "error(s) %llx reporting; too frequent (%s)\n",
+				(unsigned long long) (dd->ipath_maskederrs &
+				~dd->ipath_ignorederrs), msg);
 		else {
 			/*
 			 * rcvegrfull and rcvhdrqfull are "normal",
@@ -530,8 +571,15 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 			 * processing them.  So only complain about
 			 * these at debug level.
 			 */
-			ipath_dbg("Disabling frequent queue full errors "
-				  "(%s)\n", msg);
+			if (s_iserr)
+				ipath_dbg("Temporarily disabling reporting "
+				    "too frequent queue full errors (%s)\n",
+				    msg);
+			else
+				ipath_cdbg(ERRPKT,
+				    "Temporarily disabling reporting too"
+				    " frequent packet errors (%s)\n",
+				    msg);
 		}
 
 		/*
@@ -589,6 +637,8 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		ipath_stats.sps_crcerrs++;
 		chkerrpkts = 1;
 	}
+	iserr = errs & ~(E_SUM_PKTERRS | INFINIPATH_E_PKTERRS);
+
 
 	/*
 	 * We don't want to print these two as they happen, or we can make
@@ -677,8 +727,13 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		*dd->ipath_statusp &= ~IPATH_STATUS_IB_CONF;
 	}
 
-	if (!noprint && *msg)
-		ipath_dev_err(dd, "%s error\n", msg);
+	if (!noprint && *msg) {
+		if (iserr)
+			ipath_dev_err(dd, "%s error\n", msg);
+		else
+			dev_info(&dd->pcidev->dev, "%s packet problems\n",
+				msg);
+	}
 	if (dd->ipath_state_wanted & dd->ipath_flags) {
 		ipath_cdbg(VERBOSE, "driver wanted state %x, iflags now %x, "
 			   "waking\n", dd->ipath_state_wanted,
@@ -819,11 +874,10 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 		struct ipath_portdata *pd = dd->ipath_pd[i];
 		if (portr & (1 << i) && pd && pd->port_cnt &&
 			test_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag)) {
-			int rcbit;
 			clear_bit(IPATH_PORT_WAITING_RCV,
 				  &pd->port_flag);
-			rcbit = i + INFINIPATH_R_INTRAVAIL_SHIFT;
-			clear_bit(1UL << rcbit, &dd->ipath_rcvctrl);
+			clear_bit(i + INFINIPATH_R_INTRAVAIL_SHIFT,
+				  &dd->ipath_rcvctrl);
 			wake_up_interruptible(&pd->port_wait);
 			rcvdint = 1;
 		}

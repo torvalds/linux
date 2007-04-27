@@ -197,7 +197,7 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 		goto bail;
 	}
 
-	status = ocfs2_extent_map_get_blocks(inode, 0ULL, 1, &blkno, NULL);
+	status = ocfs2_extent_map_get_blocks(inode, 0ULL, &blkno, NULL, NULL);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;

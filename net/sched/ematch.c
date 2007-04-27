@@ -418,17 +418,19 @@ void tcf_em_tree_destroy(struct tcf_proto *tp, struct tcf_ematch_tree *tree)
 int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 {
 	int i;
-	struct rtattr * top_start = (struct rtattr*) skb->tail;
-	struct rtattr * list_start;
+	u8 *tail;
+	struct rtattr *top_start = (struct rtattr *)skb_tail_pointer(skb);
+	struct rtattr *list_start;
 
 	RTA_PUT(skb, tlv, 0, NULL);
 	RTA_PUT(skb, TCA_EMATCH_TREE_HDR, sizeof(tree->hdr), &tree->hdr);
 
-	list_start = (struct rtattr *) skb->tail;
+	list_start = (struct rtattr *)skb_tail_pointer(skb);
 	RTA_PUT(skb, TCA_EMATCH_TREE_LIST, 0, NULL);
 
+	tail = skb_tail_pointer(skb);
 	for (i = 0; i < tree->hdr.nmatches; i++) {
-		struct rtattr *match_start = (struct rtattr*) skb->tail;
+		struct rtattr *match_start = (struct rtattr *)tail;
 		struct tcf_ematch *em = tcf_em_get_match(tree, i);
 		struct tcf_ematch_hdr em_hdr = {
 			.kind = em->ops ? em->ops->kind : TCF_EM_CONTAINER,
@@ -447,11 +449,12 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 		} else if (em->datalen > 0)
 			RTA_PUT_NOHDR(skb, em->datalen, (void *) em->data);
 
-		match_start->rta_len = skb->tail - (u8*) match_start;
+		tail = skb_tail_pointer(skb);
+		match_start->rta_len = tail - (u8 *)match_start;
 	}
 
-	list_start->rta_len = skb->tail - (u8 *) list_start;
-	top_start->rta_len = skb->tail - (u8 *) top_start;
+	list_start->rta_len = tail - (u8 *)list_start;
+	top_start->rta_len = tail - (u8 *)top_start;
 
 	return 0;
 

@@ -783,7 +783,7 @@ static int do_trace(struct t3cdev *dev, struct sk_buff *skb)
 	skb->protocol = htons(0xffff);
 	skb->dev = dev->lldev;
 	skb_pull(skb, sizeof(*p));
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	netif_receive_skb(skb);
 	return 0;
 }

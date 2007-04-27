@@ -506,7 +506,6 @@ for (;;) {
 			cep->stats.rx_dropped++;
 		}
 		else {
-			skb->dev = dev;
 			skb_put(skb,pkt_len-4);	/* Make room */
 			eth_copy_and_sum(skb,
 				cep->rx_vaddr[bdp - cep->rx_bd_base],

@@ -7,7 +7,6 @@
 #ifndef __SPARC64_ISA_H
 #define __SPARC64_ISA_H
 
-#include <asm/pbm.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
 #include <asm/of_device.h>
@@ -29,7 +28,6 @@ struct sparc_isa_bridge {
 	struct of_device	ofdev;
 	struct sparc_isa_bridge	*next;
 	struct sparc_isa_device	*devices;
-	struct pci_pbm_info	*parent;
 	struct pci_dev		*self;
 	int			index;
 	struct device_node	*prom_node;

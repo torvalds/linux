@@ -652,7 +652,7 @@ static int write_modem(struct cardstate *cs)
 	 * transmit data
 	 */
 	count = min(bcs->tx_skb->len, (unsigned) ucs->bulk_out_size);
-	memcpy(ucs->bulk_out_buffer, bcs->tx_skb->data, count);
+	skb_copy_from_linear_data(bcs->tx_skb, ucs->bulk_out_buffer, count);
 	skb_pull(bcs->tx_skb, count);
 	atomic_set(&ucs->busy, 1);
 	gig_dbg(DEBUG_OUTPUT, "write_modem: send %d bytes", count);

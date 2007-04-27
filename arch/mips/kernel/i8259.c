@@ -328,8 +328,8 @@ void __init init_i8259_irqs (void)
 {
 	int i;
 
-	request_resource(&ioport_resource, &pic1_io_resource);
-	request_resource(&ioport_resource, &pic2_io_resource);
+	insert_resource(&ioport_resource, &pic1_io_resource);
+	insert_resource(&ioport_resource, &pic2_io_resource);
 
 	init_8259A(0);
 

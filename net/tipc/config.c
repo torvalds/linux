@@ -89,7 +89,7 @@ struct sk_buff *tipc_cfg_reply_alloc(int payload_size)
 int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type,
 			void *tlv_data, int tlv_data_size)
 {
-	struct tlv_desc *tlv = (struct tlv_desc *)buf->tail;
+	struct tlv_desc *tlv = (struct tlv_desc *)skb_tail_pointer(buf);
 	int new_tlv_space = TLV_SPACE(tlv_data_size);
 
 	if (skb_tailroom(buf) < new_tlv_space) {

@@ -51,7 +51,7 @@ struct vlan_ethhdr {
 
 static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 {
-	return (struct vlan_ethhdr *)skb->mac.raw;
+	return (struct vlan_ethhdr *)skb_mac_header(skb);
 }
 
 struct vlan_hdr {
@@ -275,8 +275,8 @@ static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, unsigned short
 	veth->h_vlan_TCI = htons(tag);
 
 	skb->protocol = __constant_htons(ETH_P_8021Q);
-	skb->mac.raw -= VLAN_HLEN;
-	skb->nh.raw -= VLAN_HLEN;
+	skb->mac_header -= VLAN_HLEN;
+	skb->network_header -= VLAN_HLEN;
 
 	return skb;
 }

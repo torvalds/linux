@@ -122,10 +122,8 @@ static void rx(struct net_device *dev, int bufnum,
 	}
 	skb_put(skb, length + ARC_HDR_SIZE + sizeof(int));
 	skb->dev = dev;
-
-	pkt = (struct archdr *) skb->data;
-
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
+	pkt = (struct archdr *)skb_mac_header(skb);
 	skb_pull(skb, ARC_HDR_SIZE);
 
 	/* up to sizeof(pkt->soft) has already been copied from the card */
@@ -270,13 +268,13 @@ static int ack_tx(struct net_device *dev, int acked)
   skb_put(ackskb, length + ARC_HDR_SIZE );
   ackskb->dev = dev;
 
-  ackpkt = (struct archdr *) ackskb->data;
-
-  ackskb->mac.raw = ackskb->data;
+  skb_reset_mac_header(ackskb);
+  ackpkt = (struct archdr *)skb_mac_header(ackskb);
   /* skb_pull(ackskb, ARC_HDR_SIZE); */
 
 
-  memcpy(ackpkt, lp->outgoing.skb->data, ARC_HDR_SIZE+sizeof(struct arc_cap));
+  skb_copy_from_linear_data(lp->outgoing.skb, ackpkt,
+		ARC_HDR_SIZE + sizeof(struct arc_cap));
   ackpkt->soft.cap.proto=0; /* using protocol 0 for acknowledge */
   ackpkt->soft.cap.mes.ack=acked;
 

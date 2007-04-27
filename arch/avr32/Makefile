@@ -27,6 +27,7 @@ head-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/head.o
 head-y					+= arch/avr32/kernel/head.o
 core-$(CONFIG_PLATFORM_AT32AP)		+= arch/avr32/mach-at32ap/
 core-$(CONFIG_BOARD_ATSTK1000)		+= arch/avr32/boards/atstk1000/
+core-$(CONFIG_BOARD_ATNGW100)		+= arch/avr32/boards/atngw100/
 core-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/
 core-y					+= arch/avr32/kernel/
 core-y					+= arch/avr32/mm/

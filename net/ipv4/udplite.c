@@ -31,7 +31,7 @@ static int udplite_v4_get_port(struct sock *sk, unsigned short snum)
 
 static int udplite_rcv(struct sk_buff *skb)
 {
-	return __udp4_lib_rcv(skb, udplite_hash, 1);
+	return __udp4_lib_rcv(skb, udplite_hash, IPPROTO_UDPLITE);
 }
 
 static void udplite_err(struct sk_buff *skb, u32 info)

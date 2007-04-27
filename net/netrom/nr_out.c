@@ -40,7 +40,7 @@ void nr_output(struct sock *sk, struct sk_buff *skb)
 
 	if (skb->len - NR_TRANSPORT_LEN > NR_MAX_PACKET_SIZE) {
 		/* Save a copy of the Transport Header */
-		memcpy(transport, skb->data, NR_TRANSPORT_LEN);
+		skb_copy_from_linear_data(skb, transport, NR_TRANSPORT_LEN);
 		skb_pull(skb, NR_TRANSPORT_LEN);
 
 		frontlen = skb_headroom(skb);
@@ -54,13 +54,13 @@ void nr_output(struct sock *sk, struct sk_buff *skb)
 			len = (NR_MAX_PACKET_SIZE > skb->len) ? skb->len : NR_MAX_PACKET_SIZE;
 
 			/* Copy the user data */
-			memcpy(skb_put(skbn, len), skb->data, len);
+			skb_copy_from_linear_data(skb, skb_put(skbn, len), len);
 			skb_pull(skb, len);
 
 			/* Duplicate the Transport Header */
 			skb_push(skbn, NR_TRANSPORT_LEN);
-			memcpy(skbn->data, transport, NR_TRANSPORT_LEN);
-
+			skb_copy_to_linear_data(skbn, transport,
+						NR_TRANSPORT_LEN);
 			if (skb->len > 0)
 				skbn->data[4] |= NR_MORE_FLAG;
 

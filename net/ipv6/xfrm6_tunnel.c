@@ -257,7 +257,7 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm6_tunnel_rcv(struct sk_buff *skb)
 {
-	struct ipv6hdr *iph = skb->nh.ipv6h;
+	struct ipv6hdr *iph = ipv6_hdr(skb);
 	__be32 spi;
 
 	spi = xfrm6_tunnel_spi_lookup((xfrm_address_t *)&iph->saddr);

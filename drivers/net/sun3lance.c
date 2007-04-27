@@ -629,7 +629,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	head->length = (-len) | 0xf000;
 	head->misc = 0;
 
-	memcpy( PKTBUF_ADDR(head), (void *)skb->data, skb->len );
+	skb_copy_from_linear_data(skb, PKTBUF_ADDR(head), skb->len);
 	if (len != skb->len)
 		memset(PKTBUF_ADDR(head) + skb->len, 0, len-skb->len);
 
@@ -851,10 +851,9 @@ static int lance_rx( struct net_device *dev )
 				}
 
 
-				skb->dev = dev;
 				skb_reserve( skb, 2 );	/* 16 byte align */
 				skb_put( skb, pkt_len );	/* Make room */
-//			        memcpy( skb->data, PKTBUF_ADDR(head), pkt_len );
+//			        skb_copy_to_linear_data(skb, PKTBUF_ADDR(head), pkt_len);
 				eth_copy_and_sum(skb,
 						 PKTBUF_ADDR(head),
 						 pkt_len, 0);

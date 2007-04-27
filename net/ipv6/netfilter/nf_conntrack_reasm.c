@@ -82,7 +82,7 @@ struct nf_ct_frag6_queue
 	struct sk_buff		*fragments;
 	int			len;
 	int			meat;
-	struct timeval		stamp;
+	ktime_t			stamp;
 	unsigned int		csum;
 	__u8			last_in;	/* has first/last segment arrived? */
 #define COMPLETE		4
@@ -353,9 +353,7 @@ nf_ct_frag6_create(unsigned int hash, __be32 id, struct in6_addr *src,				   str
 	ipv6_addr_copy(&fq->saddr, src);
 	ipv6_addr_copy(&fq->daddr, dst);
 
-	init_timer(&fq->timer);
-	fq->timer.function = nf_ct_frag6_expire;
-	fq->timer.data = (long) fq;
+	setup_timer(&fq->timer, nf_ct_frag6_expire, (unsigned long)fq);
 	spin_lock_init(&fq->lock);
 	atomic_set(&fq->refcnt, 1);
 
@@ -400,19 +398,20 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 	}
 
 	offset = ntohs(fhdr->frag_off) & ~0x7;
-	end = offset + (ntohs(skb->nh.ipv6h->payload_len) -
-			((u8 *) (fhdr + 1) - (u8 *) (skb->nh.ipv6h + 1)));
+	end = offset + (ntohs(ipv6_hdr(skb)->payload_len) -
+			((u8 *)(fhdr + 1) - (u8 *)(ipv6_hdr(skb) + 1)));
 
 	if ((unsigned int)end > IPV6_MAXPLEN) {
 		DEBUGP("offset is too large.\n");
 		return -1;
 	}
 
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		const unsigned char *nh = skb_network_header(skb);
 		skb->csum = csum_sub(skb->csum,
-				     csum_partial(skb->nh.raw,
-						  (u8*)(fhdr + 1) - skb->nh.raw,
+				     csum_partial(nh, (u8 *)(fhdr + 1) - nh,
 						  0));
+	}
 
 	/* Is this the final fragment? */
 	if (!(fhdr->frag_off & htons(IP6_MF))) {
@@ -542,7 +541,7 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 		fq->fragments = skb;
 
 	skb->dev = NULL;
-	skb_get_timestamp(skb, &fq->stamp);
+	fq->stamp = skb->tstamp;
 	fq->meat += skb->len;
 	atomic_add(skb->truesize, &nf_ct_frag6_mem);
 
@@ -583,7 +582,9 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	BUG_TRAP(NFCT_FRAG6_CB(head)->offset == 0);
 
 	/* Unfragmented part is taken from the first segment. */
-	payload_len = (head->data - head->nh.raw) - sizeof(struct ipv6hdr) + fq->len - sizeof(struct frag_hdr);
+	payload_len = ((head->data - skb_network_header(head)) -
+		       sizeof(struct ipv6hdr) + fq->len -
+		       sizeof(struct frag_hdr));
 	if (payload_len > IPV6_MAXPLEN) {
 		DEBUGP("payload len is too large.\n");
 		goto out_oversize;
@@ -624,15 +625,15 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	/* We have to remove fragment header from datagram and to relocate
 	 * header in order to calculate ICV correctly. */
-	head->nh.raw[fq->nhoffset] = head->h.raw[0];
+	skb_network_header(head)[fq->nhoffset] = skb_transport_header(head)[0];
 	memmove(head->head + sizeof(struct frag_hdr), head->head,
 		(head->data - head->head) - sizeof(struct frag_hdr));
-	head->mac.raw += sizeof(struct frag_hdr);
-	head->nh.raw += sizeof(struct frag_hdr);
+	head->mac_header += sizeof(struct frag_hdr);
+	head->network_header += sizeof(struct frag_hdr);
 
 	skb_shinfo(head)->frag_list = head->next;
-	head->h.raw = head->data;
-	skb_push(head, head->data - head->nh.raw);
+	skb_reset_transport_header(head);
+	skb_push(head, head->data - skb_network_header(head));
 	atomic_sub(head->truesize, &nf_ct_frag6_mem);
 
 	for (fp=head->next; fp; fp = fp->next) {
@@ -648,12 +649,14 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	head->next = NULL;
 	head->dev = dev;
-	skb_set_timestamp(head, &fq->stamp);
-	head->nh.ipv6h->payload_len = htons(payload_len);
+	head->tstamp = fq->stamp;
+	ipv6_hdr(head)->payload_len = htons(payload_len);
 
 	/* Yes, and fold redundant checksum back. 8) */
 	if (head->ip_summed == CHECKSUM_COMPLETE)
-		head->csum = csum_partial(head->nh.raw, head->h.raw-head->nh.raw, head->csum);
+		head->csum = csum_partial(skb_network_header(head),
+					  skb_network_header_len(head),
+					  head->csum);
 
 	fq->fragments = NULL;
 
@@ -701,9 +704,10 @@ out_fail:
 static int
 find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 {
-	u8 nexthdr = skb->nh.ipv6h->nexthdr;
-	u8 prev_nhoff = (u8 *)&skb->nh.ipv6h->nexthdr - skb->data;
-	int start = (u8 *)(skb->nh.ipv6h+1) - skb->data;
+	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
+	const int netoff = skb_network_offset(skb);
+	u8 prev_nhoff = netoff + offsetof(struct ipv6hdr, nexthdr);
+	int start = netoff + sizeof(struct ipv6hdr);
 	int len = skb->len - start;
 	u8 prevhdr = NEXTHDR_IPV6;
 
@@ -759,7 +763,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 	struct sk_buff *ret_skb = NULL;
 
 	/* Jumbo payload inhibits frag. header */
-	if (skb->nh.ipv6h->payload_len == 0) {
+	if (ipv6_hdr(skb)->payload_len == 0) {
 		DEBUGP("payload len = 0\n");
 		return skb;
 	}
@@ -780,9 +784,9 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 		goto ret_orig;
 	}
 
-	clone->h.raw = clone->data + fhoff;
-	hdr = clone->nh.ipv6h;
-	fhdr = (struct frag_hdr *)clone->h.raw;
+	skb_set_transport_header(clone, fhoff);
+	hdr = ipv6_hdr(clone);
+	fhdr = (struct frag_hdr *)skb_transport_header(clone);
 
 	if (!(fhdr->frag_off & htons(0xFFF9))) {
 		DEBUGP("Invalid fragment offset\n");
@@ -864,8 +868,7 @@ int nf_ct_frag6_init(void)
 	nf_ct_frag6_hash_rnd = (u32) ((num_physpages ^ (num_physpages>>7)) ^
 				   (jiffies ^ (jiffies >> 6)));
 
-	init_timer(&nf_ct_frag6_secret_timer);
-	nf_ct_frag6_secret_timer.function = nf_ct_frag6_secret_rebuild;
+	setup_timer(&nf_ct_frag6_secret_timer, nf_ct_frag6_secret_rebuild, 0);
 	nf_ct_frag6_secret_timer.expires = jiffies
 					   + nf_ct_frag6_secret_interval;
 	add_timer(&nf_ct_frag6_secret_timer);

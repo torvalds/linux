@@ -5,7 +5,7 @@
 #include <linux/skbuff.h>
 
 #include <linux/netfilter/x_tables.h>
-#include <net/netfilter/nf_conntrack_compat.h>
+#include <net/netfilter/nf_conntrack.h>
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_NOTRACK");
@@ -26,7 +26,7 @@ target(struct sk_buff **pskb,
 	   If there is a real ct entry correspondig to this packet,
 	   it'll hang aroun till timing out. We don't deal with it
 	   for performance reasons. JK */
-	nf_ct_untrack(*pskb);
+	(*pskb)->nfct = &nf_conntrack_untracked.ct_general;
 	(*pskb)->nfctinfo = IP_CT_NEW;
 	nf_conntrack_get((*pskb)->nfct);
 

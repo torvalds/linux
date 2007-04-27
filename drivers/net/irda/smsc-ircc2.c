@@ -315,6 +315,7 @@ static struct smsc_chip __initdata lpc_chips_flat[] =
 {
 	/* Base address 0x2E or 0x4E */
 	{ "47N227",	KEY55_1|FIR|SERx4,	0x5a, 0x00 },
+	{ "47N227",	KEY55_1|FIR|SERx4,	0x7a, 0x00 },
 	{ "47N267",	KEY55_1|FIR|SERx4,	0x5e, 0x00 },
 	{ NULL }
 };
@@ -1161,7 +1162,7 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 		self->new_speed = speed;
 	}
 
-	memcpy(self->tx_buff.head, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, self->tx_buff.head, skb->len);
 
 	self->tx_buff.len = skb->len;
 	self->tx_buff.data = self->tx_buff.head;
@@ -1412,7 +1413,7 @@ static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self)
 	self->stats.rx_bytes += len;
 
 	skb->dev = self->netdev;
-	skb->mac.raw  = skb->data;
+	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IRDA);
 	netif_rx(skb);
 }

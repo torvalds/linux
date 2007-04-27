@@ -3,7 +3,7 @@
  * Copyright (c) 2004, 2005 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004, 2005 Topspin Corporation.  All rights reserved.
- * Copyright (c) 2004, 2005 Voltaire Corporation.  All rights reserved.
+ * Copyright (c) 2004-2007 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -34,7 +34,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: smi.c 1389 2004-12-27 22:56:47Z roland $
  */
 
 #include <rdma/ib_smi.h>
@@ -44,9 +43,8 @@
  * Fixup a directed route SMP for sending
  * Return 0 if the SMP should be discarded
  */
-int smi_handle_dr_smp_send(struct ib_smp *smp,
-			   u8 node_type,
-			   int port_num)
+enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
+				       u8 node_type, int port_num)
 {
 	u8 hop_ptr, hop_cnt;
 
@@ -59,18 +57,18 @@ int smi_handle_dr_smp_send(struct ib_smp *smp,
 		if (hop_cnt && hop_ptr == 0) {
 			smp->hop_ptr++;
 			return (smp->initial_path[smp->hop_ptr] ==
-				port_num);
+				port_num ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-9:2 */
 		if (hop_ptr && hop_ptr < hop_cnt) {
 			if (node_type != RDMA_NODE_IB_SWITCH)
-				return 0;
+				return IB_SMI_DISCARD;
 
 			/* smp->return_path set when received */
 			smp->hop_ptr++;
 			return (smp->initial_path[smp->hop_ptr] ==
-				port_num);
+				port_num ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-9:3 -- We're at the end of the DR segment of path */
@@ -78,29 +76,30 @@ int smi_handle_dr_smp_send(struct ib_smp *smp,
 			/* smp->return_path set when received */
 			smp->hop_ptr++;
 			return (node_type == RDMA_NODE_IB_SWITCH ||
-				smp->dr_dlid == IB_LID_PERMISSIVE);
+				smp->dr_dlid == IB_LID_PERMISSIVE ?
+				IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-9:4 -- hop_ptr = hop_cnt + 1 -> give to SMA/SM */
 		/* C14-9:5 -- Fail unreasonable hop pointer */
-		return (hop_ptr == hop_cnt + 1);
+		return (hop_ptr == hop_cnt + 1 ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 
 	} else {
 		/* C14-13:1 */
 		if (hop_cnt && hop_ptr == hop_cnt + 1) {
 			smp->hop_ptr--;
 			return (smp->return_path[smp->hop_ptr] ==
-				port_num);
+				port_num ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-13:2 */
 		if (2 <= hop_ptr && hop_ptr <= hop_cnt) {
 			if (node_type != RDMA_NODE_IB_SWITCH)
-				return 0;
+				return IB_SMI_DISCARD;
 
 			smp->hop_ptr--;
 			return (smp->return_path[smp->hop_ptr] ==
-				port_num);
+				port_num ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-13:3 -- at the end of the DR segment of path */
@@ -108,15 +107,16 @@ int smi_handle_dr_smp_send(struct ib_smp *smp,
 			smp->hop_ptr--;
 			/* C14-13:3 -- SMPs destined for SM shouldn't be here */
 			return (node_type == RDMA_NODE_IB_SWITCH ||
-				smp->dr_slid == IB_LID_PERMISSIVE);
+				smp->dr_slid == IB_LID_PERMISSIVE ?
+				IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-13:4 -- hop_ptr = 0 -> should have gone to SM */
 		if (hop_ptr == 0)
-			return 1;
+			return IB_SMI_HANDLE;
 
 		/* C14-13:5 -- Check for unreasonable hop pointer */
-		return 0;
+		return IB_SMI_DISCARD;
 	}
 }
 
@@ -124,10 +124,8 @@ int smi_handle_dr_smp_send(struct ib_smp *smp,
  * Adjust information for a received SMP
  * Return 0 if the SMP should be dropped
  */
-int smi_handle_dr_smp_recv(struct ib_smp *smp,
-			   u8 node_type,
-			   int port_num,
-			   int phys_port_cnt)
+enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, u8 node_type,
+				       int port_num, int phys_port_cnt)
 {
 	u8 hop_ptr, hop_cnt;
 
@@ -138,16 +136,17 @@ int smi_handle_dr_smp_recv(struct ib_smp *smp,
 	if (!ib_get_smp_direction(smp)) {
 		/* C14-9:1 -- sender should have incremented hop_ptr */
 		if (hop_cnt && hop_ptr == 0)
-			return 0;
+			return IB_SMI_DISCARD;
 
 		/* C14-9:2 -- intermediate hop */
 		if (hop_ptr && hop_ptr < hop_cnt) {
 			if (node_type != RDMA_NODE_IB_SWITCH)
-				return 0;
+				return IB_SMI_DISCARD;
 
 			smp->return_path[hop_ptr] = port_num;
 			/* smp->hop_ptr updated when sending */
-			return (smp->initial_path[hop_ptr+1] <= phys_port_cnt);
+			return (smp->initial_path[hop_ptr+1] <= phys_port_cnt ?
+				IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-9:3 -- We're at the end of the DR segment of path */
@@ -157,12 +156,13 @@ int smi_handle_dr_smp_recv(struct ib_smp *smp,
 			/* smp->hop_ptr updated when sending */
 
 			return (node_type == RDMA_NODE_IB_SWITCH ||
-				smp->dr_dlid == IB_LID_PERMISSIVE);
+				smp->dr_dlid == IB_LID_PERMISSIVE ?
+				IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-9:4 -- hop_ptr = hop_cnt + 1 -> give to SMA/SM */
 		/* C14-9:5 -- fail unreasonable hop pointer */
-		return (hop_ptr == hop_cnt + 1);
+		return (hop_ptr == hop_cnt + 1 ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 
 	} else {
 
@@ -170,16 +170,17 @@ int smi_handle_dr_smp_recv(struct ib_smp *smp,
 		if (hop_cnt && hop_ptr == hop_cnt + 1) {
 			smp->hop_ptr--;
 			return (smp->return_path[smp->hop_ptr] ==
-				port_num);
+				port_num ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-13:2 */
 		if (2 <= hop_ptr && hop_ptr <= hop_cnt) {
 			if (node_type != RDMA_NODE_IB_SWITCH)
-				return 0;
+				return IB_SMI_DISCARD;
 
 			/* smp->hop_ptr updated when sending */
-			return (smp->return_path[hop_ptr-1] <= phys_port_cnt);
+			return (smp->return_path[hop_ptr-1] <= phys_port_cnt ?
+				IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-13:3 -- We're at the end of the DR segment of path */
@@ -187,23 +188,20 @@ int smi_handle_dr_smp_recv(struct ib_smp *smp,
 			if (smp->dr_slid == IB_LID_PERMISSIVE) {
 				/* giving SMP to SM - update hop_ptr */
 				smp->hop_ptr--;
-				return 1;
+				return IB_SMI_HANDLE;
 			}
 			/* smp->hop_ptr updated when sending */
-			return (node_type == RDMA_NODE_IB_SWITCH);
+			return (node_type == RDMA_NODE_IB_SWITCH ?
+				IB_SMI_HANDLE: IB_SMI_DISCARD);
 		}
 
 		/* C14-13:4 -- hop_ptr = 0 -> give to SM */
 		/* C14-13:5 -- Check for unreasonable hop pointer */
-		return (hop_ptr == 0);
+		return (hop_ptr == 0 ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 	}
 }
 
-/*
- * Return 1 if the received DR SMP should be forwarded to the send queue
- * Return 0 if the SMP should be completed up the stack
- */
-int smi_check_forward_dr_smp(struct ib_smp *smp)
+enum smi_forward_action smi_check_forward_dr_smp(struct ib_smp *smp)
 {
 	u8 hop_ptr, hop_cnt;
 
@@ -213,23 +211,25 @@ int smi_check_forward_dr_smp(struct ib_smp *smp)
 	if (!ib_get_smp_direction(smp)) {
 		/* C14-9:2 -- intermediate hop */
 		if (hop_ptr && hop_ptr < hop_cnt)
-			return 1;
+			return IB_SMI_SEND;
 
 		/* C14-9:3 -- at the end of the DR segment of path */
 		if (hop_ptr == hop_cnt)
-			return (smp->dr_dlid == IB_LID_PERMISSIVE);
+			return (smp->dr_dlid == IB_LID_PERMISSIVE ?
+				IB_SMI_SEND : IB_SMI_LOCAL);
 
 		/* C14-9:4 -- hop_ptr = hop_cnt + 1 -> give to SMA/SM */
 		if (hop_ptr == hop_cnt + 1)
-			return 1;
+			return IB_SMI_SEND;
 	} else {
-		/* C14-13:2 */
+		/* C14-13:2  -- intermediate hop */
 		if (2 <= hop_ptr && hop_ptr <= hop_cnt)
-			return 1;
+			return IB_SMI_SEND;
 
 		/* C14-13:3 -- at the end of the DR segment of path */
 		if (hop_ptr == 1)
-			return (smp->dr_slid != IB_LID_PERMISSIVE);
+			return (smp->dr_slid != IB_LID_PERMISSIVE ?
+				IB_SMI_SEND : IB_SMI_LOCAL);
 	}
-	return 0;
+	return IB_SMI_LOCAL;
 }

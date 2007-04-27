@@ -26,23 +26,9 @@
 
 #define MAP_BASE	((u32)0xc0000000)
 
-struct sbus_iommu_arena {
-	unsigned long	*map;
-	unsigned int	hint;
-	unsigned int	limit;
-};
-
-struct sbus_iommu {
-	spinlock_t		lock;
-
-	struct sbus_iommu_arena	arena;
-
-	iopte_t			*page_table;
-	unsigned long		strbuf_regs;
-	unsigned long		iommu_regs;
-	unsigned long		sbus_control_reg;
-
-	volatile unsigned long	strbuf_flushflag;
+struct sbus_info {
+	struct iommu	iommu;
+	struct strbuf	strbuf;
 };
 
 /* Offsets from iommu_regs */
@@ -58,16 +44,17 @@ struct sbus_iommu {
 
 #define IOMMU_DRAM_VALID	(1UL << 30UL)
 
-static void __iommu_flushall(struct sbus_iommu *iommu)
+static void __iommu_flushall(struct iommu *iommu)
 {
-	unsigned long tag = iommu->iommu_regs + IOMMU_TAGDIAG;
+	unsigned long tag;
 	int entry;
 
+	tag = iommu->iommu_control + (IOMMU_TAGDIAG - IOMMU_CONTROL);
 	for (entry = 0; entry < 16; entry++) {
 		upa_writeq(0, tag);
 		tag += 8UL;
 	}
-	upa_readq(iommu->sbus_control_reg);
+	upa_readq(iommu->write_complete_reg);
 }
 
 /* Offsets from strbuf_regs */
@@ -82,15 +69,14 @@ static void __iommu_flushall(struct sbus_iommu *iommu)
 
 #define STRBUF_TAG_VALID	0x02UL
 
-static void sbus_strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long npages, int direction)
+static void sbus_strbuf_flush(struct iommu *iommu, struct strbuf *strbuf, u32 base, unsigned long npages, int direction)
 {
 	unsigned long n;
 	int limit;
 
 	n = npages;
 	while (n--)
-		upa_writeq(base + (n << IO_PAGE_SHIFT),
-			   iommu->strbuf_regs + STRBUF_PFLUSH);
+		upa_writeq(base + (n << IO_PAGE_SHIFT), strbuf->strbuf_pflush);
 
 	/* If the device could not have possibly put dirty data into
 	 * the streaming cache, no flush-flag synchronization needs
@@ -99,15 +85,14 @@ static void sbus_strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long 
 	if (direction == SBUS_DMA_TODEVICE)
 		return;
 
-	iommu->strbuf_flushflag = 0UL;
+	*(strbuf->strbuf_flushflag) = 0UL;
 
 	/* Whoopee cushion! */
-	upa_writeq(__pa(&iommu->strbuf_flushflag),
-		   iommu->strbuf_regs + STRBUF_FSYNC);
-	upa_readq(iommu->sbus_control_reg);
+	upa_writeq(strbuf->strbuf_flushflag_pa, strbuf->strbuf_fsync);
+	upa_readq(iommu->write_complete_reg);
 
 	limit = 100000;
-	while (iommu->strbuf_flushflag == 0UL) {
+	while (*(strbuf->strbuf_flushflag) == 0UL) {
 		limit--;
 		if (!limit)
 			break;
@@ -121,9 +106,9 @@ static void sbus_strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long 
 }
 
 /* Based largely upon the ppc64 iommu allocator.  */
-static long sbus_arena_alloc(struct sbus_iommu *iommu, unsigned long npages)
+static long sbus_arena_alloc(struct iommu *iommu, unsigned long npages)
 {
-	struct sbus_iommu_arena *arena = &iommu->arena;
+	struct iommu_arena *arena = &iommu->arena;
 	unsigned long n, i, start, end, limit;
 	int pass;
 
@@ -162,7 +147,7 @@ again:
 	return n;
 }
 
-static void sbus_arena_free(struct sbus_iommu_arena *arena, unsigned long base, unsigned long npages)
+static void sbus_arena_free(struct iommu_arena *arena, unsigned long base, unsigned long npages)
 {
 	unsigned long i;
 
@@ -170,7 +155,7 @@ static void sbus_arena_free(struct sbus_iommu_arena *arena, unsigned long base, 
 		__clear_bit(i, arena->map);
 }
 
-static void sbus_iommu_table_init(struct sbus_iommu *iommu, unsigned int tsbsize)
+static void sbus_iommu_table_init(struct iommu *iommu, unsigned int tsbsize)
 {
 	unsigned long tsbbase, order, sz, num_tsb_entries;
 
@@ -178,13 +163,14 @@ static void sbus_iommu_table_init(struct sbus_iommu *iommu, unsigned int tsbsize
 
 	/* Setup initial software IOMMU state. */
 	spin_lock_init(&iommu->lock);
+	iommu->page_table_map_base = MAP_BASE;
 
 	/* Allocate and initialize the free area map.  */
 	sz = num_tsb_entries / 8;
 	sz = (sz + 7UL) & ~7UL;
 	iommu->arena.map = kzalloc(sz, GFP_KERNEL);
 	if (!iommu->arena.map) {
-		prom_printf("PCI_IOMMU: Error, kmalloc(arena.map) failed.\n");
+		prom_printf("SBUS_IOMMU: Error, kmalloc(arena.map) failed.\n");
 		prom_halt();
 	}
 	iommu->arena.limit = num_tsb_entries;
@@ -200,7 +186,7 @@ static void sbus_iommu_table_init(struct sbus_iommu *iommu, unsigned int tsbsize
 	memset(iommu->page_table, 0, tsbsize);
 }
 
-static inline iopte_t *alloc_npages(struct sbus_iommu *iommu, unsigned long npages)
+static inline iopte_t *alloc_npages(struct iommu *iommu, unsigned long npages)
 {
 	long entry;
 
@@ -211,14 +197,15 @@ static inline iopte_t *alloc_npages(struct sbus_iommu *iommu, unsigned long npag
 	return iommu->page_table + entry;
 }
 
-static inline void free_npages(struct sbus_iommu *iommu, dma_addr_t base, unsigned long npages)
+static inline void free_npages(struct iommu *iommu, dma_addr_t base, unsigned long npages)
 {
 	sbus_arena_free(&iommu->arena, base >> IO_PAGE_SHIFT, npages);
 }
 
 void *sbus_alloc_consistent(struct sbus_dev *sdev, size_t size, dma_addr_t *dvma_addr)
 {
-	struct sbus_iommu *iommu;
+	struct sbus_info *info;
+	struct iommu *iommu;
 	iopte_t *iopte;
 	unsigned long flags, order, first_page;
 	void *ret;
@@ -234,7 +221,8 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, size_t size, dma_addr_t *dvma
 		return NULL;
 	memset((char *)first_page, 0, PAGE_SIZE << order);
 
-	iommu = sdev->bus->iommu;
+	info = sdev->bus->iommu;
+	iommu = &info->iommu;
 
 	spin_lock_irqsave(&iommu->lock, flags);
 	iopte = alloc_npages(iommu, size >> IO_PAGE_SHIFT);
@@ -245,7 +233,7 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, size_t size, dma_addr_t *dvma
 		return NULL;
 	}
 
-	*dvma_addr = (MAP_BASE +
+	*dvma_addr = (iommu->page_table_map_base +
 		      ((iopte - iommu->page_table) << IO_PAGE_SHIFT));
 	ret = (void *) first_page;
 	npages = size >> IO_PAGE_SHIFT;
@@ -263,18 +251,20 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, size_t size, dma_addr_t *dvma
 
 void sbus_free_consistent(struct sbus_dev *sdev, size_t size, void *cpu, dma_addr_t dvma)
 {
-	struct sbus_iommu *iommu;
+	struct sbus_info *info;
+	struct iommu *iommu;
 	iopte_t *iopte;
 	unsigned long flags, order, npages;
 
 	npages = IO_PAGE_ALIGN(size) >> IO_PAGE_SHIFT;
-	iommu = sdev->bus->iommu;
+	info = sdev->bus->iommu;
+	iommu = &info->iommu;
 	iopte = iommu->page_table +
-		((dvma - MAP_BASE) >> IO_PAGE_SHIFT);
+		((dvma - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	free_npages(iommu, dvma - MAP_BASE, npages);
+	free_npages(iommu, dvma - iommu->page_table_map_base, npages);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
@@ -285,14 +275,16 @@ void sbus_free_consistent(struct sbus_dev *sdev, size_t size, void *cpu, dma_add
 
 dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *ptr, size_t sz, int direction)
 {
-	struct sbus_iommu *iommu;
+	struct sbus_info *info;
+	struct iommu *iommu;
 	iopte_t *base;
 	unsigned long flags, npages, oaddr;
 	unsigned long i, base_paddr;
 	u32 bus_addr, ret;
 	unsigned long iopte_protection;
 
-	iommu = sdev->bus->iommu;
+	info = sdev->bus->iommu;
+	iommu = &info->iommu;
 
 	if (unlikely(direction == SBUS_DMA_NONE))
 		BUG();
@@ -308,7 +300,7 @@ dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *ptr, size_t sz, int dire
 	if (unlikely(!base))
 		BUG();
 
-	bus_addr = (MAP_BASE +
+	bus_addr = (iommu->page_table_map_base +
 		    ((base - iommu->page_table) << IO_PAGE_SHIFT));
 	ret = bus_addr | (oaddr & ~IO_PAGE_MASK);
 	base_paddr = __pa(oaddr & IO_PAGE_MASK);
@@ -325,7 +317,9 @@ dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *ptr, size_t sz, int dire
 
 void sbus_unmap_single(struct sbus_dev *sdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
-	struct sbus_iommu *iommu = sdev->bus->iommu;
+	struct sbus_info *info = sdev->bus->iommu;
+	struct iommu *iommu = &info->iommu;
+	struct strbuf *strbuf = &info->strbuf;
 	iopte_t *base;
 	unsigned long flags, npages, i;
 
@@ -335,15 +329,15 @@ void sbus_unmap_single(struct sbus_dev *sdev, dma_addr_t bus_addr, size_t sz, in
 	npages = IO_PAGE_ALIGN(bus_addr + sz) - (bus_addr & IO_PAGE_MASK);
 	npages >>= IO_PAGE_SHIFT;
 	base = iommu->page_table +
-		((bus_addr - MAP_BASE) >> IO_PAGE_SHIFT);
+		((bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
 
 	bus_addr &= IO_PAGE_MASK;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	sbus_strbuf_flush(iommu, bus_addr, npages, direction);
+	sbus_strbuf_flush(iommu, strbuf, bus_addr, npages, direction);
 	for (i = 0; i < npages; i++)
 		iopte_val(base[i]) = 0UL;
-	free_npages(iommu, bus_addr - MAP_BASE, npages);
+	free_npages(iommu, bus_addr - iommu->page_table_map_base, npages);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -425,7 +419,8 @@ static inline void fill_sg(iopte_t *iopte, struct scatterlist *sg,
 
 int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct sbus_iommu *iommu;
+	struct sbus_info *info;
+	struct iommu *iommu;
 	unsigned long flags, npages, iopte_protection;
 	iopte_t *base;
 	u32 dma_base;
@@ -442,7 +437,8 @@ int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sglist, int nelems, i
 		return 1;
 	}
 
-	iommu = sdev->bus->iommu;
+	info = sdev->bus->iommu;
+	iommu = &info->iommu;
 
 	if (unlikely(direction == SBUS_DMA_NONE))
 		BUG();
@@ -456,7 +452,7 @@ int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sglist, int nelems, i
 	if (unlikely(base == NULL))
 		BUG();
 
-	dma_base = MAP_BASE +
+	dma_base = iommu->page_table_map_base +
 		((base - iommu->page_table) << IO_PAGE_SHIFT);
 
 	/* Normalize DVMA addresses. */
@@ -485,7 +481,9 @@ int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sglist, int nelems, i
 
 void sbus_unmap_sg(struct sbus_dev *sdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct sbus_iommu *iommu;
+	struct sbus_info *info;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
 	iopte_t *base;
 	unsigned long flags, i, npages;
 	u32 bus_addr;
@@ -493,7 +491,9 @@ void sbus_unmap_sg(struct sbus_dev *sdev, struct scatterlist *sglist, int nelems
 	if (unlikely(direction == SBUS_DMA_NONE))
 		BUG();
 
-	iommu = sdev->bus->iommu;
+	info = sdev->bus->iommu;
+	iommu = &info->iommu;
+	strbuf = &info->strbuf;
 
 	bus_addr = sglist->dma_address & IO_PAGE_MASK;
 
@@ -505,29 +505,33 @@ void sbus_unmap_sg(struct sbus_dev *sdev, struct scatterlist *sglist, int nelems
 		  bus_addr) >> IO_PAGE_SHIFT;
 
 	base = iommu->page_table +
-		((bus_addr - MAP_BASE) >> IO_PAGE_SHIFT);
+		((bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	sbus_strbuf_flush(iommu, bus_addr, npages, direction);
+	sbus_strbuf_flush(iommu, strbuf, bus_addr, npages, direction);
 	for (i = 0; i < npages; i++)
 		iopte_val(base[i]) = 0UL;
-	free_npages(iommu, bus_addr - MAP_BASE, npages);
+	free_npages(iommu, bus_addr - iommu->page_table_map_base, npages);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
 void sbus_dma_sync_single_for_cpu(struct sbus_dev *sdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
-	struct sbus_iommu *iommu;
+	struct sbus_info *info;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
 	unsigned long flags, npages;
 
-	iommu = sdev->bus->iommu;
+	info = sdev->bus->iommu;
+	iommu = &info->iommu;
+	strbuf = &info->strbuf;
 
 	npages = IO_PAGE_ALIGN(bus_addr + sz) - (bus_addr & IO_PAGE_MASK);
 	npages >>= IO_PAGE_SHIFT;
 	bus_addr &= IO_PAGE_MASK;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	sbus_strbuf_flush(iommu, bus_addr, npages, direction);
+	sbus_strbuf_flush(iommu, strbuf, bus_addr, npages, direction);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -537,11 +541,15 @@ void sbus_dma_sync_single_for_device(struct sbus_dev *sdev, dma_addr_t base, siz
 
 void sbus_dma_sync_sg_for_cpu(struct sbus_dev *sdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	struct sbus_iommu *iommu;
+	struct sbus_info *info;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
 	unsigned long flags, npages, i;
 	u32 bus_addr;
 
-	iommu = sdev->bus->iommu;
+	info = sdev->bus->iommu;
+	iommu = &info->iommu;
+	strbuf = &info->strbuf;
 
 	bus_addr = sglist[0].dma_address & IO_PAGE_MASK;
 	for (i = 0; i < nelems; i++) {
@@ -553,7 +561,7 @@ void sbus_dma_sync_sg_for_cpu(struct sbus_dev *sdev, struct scatterlist *sglist,
 		  - bus_addr) >> IO_PAGE_SHIFT;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	sbus_strbuf_flush(iommu, bus_addr, npages, direction);
+	sbus_strbuf_flush(iommu, strbuf, bus_addr, npages, direction);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -564,12 +572,13 @@ void sbus_dma_sync_sg_for_device(struct sbus_dev *sdev, struct scatterlist *sg, 
 /* Enable 64-bit DVMA mode for the given device. */
 void sbus_set_sbus64(struct sbus_dev *sdev, int bursts)
 {
-	struct sbus_iommu *iommu = sdev->bus->iommu;
+	struct sbus_info *info = sdev->bus->iommu;
+	struct iommu *iommu = &info->iommu;
 	int slot = sdev->slot;
 	unsigned long cfg_reg;
 	u64 val;
 
-	cfg_reg = iommu->sbus_control_reg;
+	cfg_reg = iommu->write_complete_reg;
 	switch (slot) {
 	case 0:
 		cfg_reg += 0x20UL;
@@ -704,8 +713,9 @@ static unsigned long sysio_imap_to_iclr(unsigned long imap)
 unsigned int sbus_build_irq(void *buscookie, unsigned int ino)
 {
 	struct sbus_bus *sbus = (struct sbus_bus *)buscookie;
-	struct sbus_iommu *iommu = sbus->iommu;
-	unsigned long reg_base = iommu->sbus_control_reg - 0x2000UL;
+	struct sbus_info *info = sbus->iommu;
+	struct iommu *iommu = &info->iommu;
+	unsigned long reg_base = iommu->write_complete_reg - 0x2000UL;
 	unsigned long imap, iclr;
 	int sbus_level = 0;
 
@@ -766,8 +776,9 @@ unsigned int sbus_build_irq(void *buscookie, unsigned int ino)
 static irqreturn_t sysio_ue_handler(int irq, void *dev_id)
 {
 	struct sbus_bus *sbus = dev_id;
-	struct sbus_iommu *iommu = sbus->iommu;
-	unsigned long reg_base = iommu->sbus_control_reg - 0x2000UL;
+	struct sbus_info *info = sbus->iommu;
+	struct iommu *iommu = &info->iommu;
+	unsigned long reg_base = iommu->write_complete_reg - 0x2000UL;
 	unsigned long afsr_reg, afar_reg;
 	unsigned long afsr, afar, error_bits;
 	int reported;
@@ -838,8 +849,9 @@ static irqreturn_t sysio_ue_handler(int irq, void *dev_id)
 static irqreturn_t sysio_ce_handler(int irq, void *dev_id)
 {
 	struct sbus_bus *sbus = dev_id;
-	struct sbus_iommu *iommu = sbus->iommu;
-	unsigned long reg_base = iommu->sbus_control_reg - 0x2000UL;
+	struct sbus_info *info = sbus->iommu;
+	struct iommu *iommu = &info->iommu;
+	unsigned long reg_base = iommu->write_complete_reg - 0x2000UL;
 	unsigned long afsr_reg, afar_reg;
 	unsigned long afsr, afar, error_bits;
 	int reported;
@@ -915,12 +927,13 @@ static irqreturn_t sysio_ce_handler(int irq, void *dev_id)
 static irqreturn_t sysio_sbus_error_handler(int irq, void *dev_id)
 {
 	struct sbus_bus *sbus = dev_id;
-	struct sbus_iommu *iommu = sbus->iommu;
+	struct sbus_info *info = sbus->iommu;
+	struct iommu *iommu = &info->iommu;
 	unsigned long afsr_reg, afar_reg, reg_base;
 	unsigned long afsr, afar, error_bits;
 	int reported;
 
-	reg_base = iommu->sbus_control_reg - 0x2000UL;
+	reg_base = iommu->write_complete_reg - 0x2000UL;
 	afsr_reg = reg_base + SYSIO_SBUS_AFSR;
 	afar_reg = reg_base + SYSIO_SBUS_AFAR;
 
@@ -982,8 +995,9 @@ static irqreturn_t sysio_sbus_error_handler(int irq, void *dev_id)
 
 static void __init sysio_register_error_handlers(struct sbus_bus *sbus)
 {
-	struct sbus_iommu *iommu = sbus->iommu;
-	unsigned long reg_base = iommu->sbus_control_reg - 0x2000UL;
+	struct sbus_info *info = sbus->iommu;
+	struct iommu *iommu = &info->iommu;
+	unsigned long reg_base = iommu->write_complete_reg - 0x2000UL;
 	unsigned int irq;
 	u64 control;
 
@@ -1017,18 +1031,20 @@ static void __init sysio_register_error_handlers(struct sbus_bus *sbus)
 		    SYSIO_ECNTRL_CEEN),
 		   reg_base + ECC_CONTROL);
 
-	control = upa_readq(iommu->sbus_control_reg);
+	control = upa_readq(iommu->write_complete_reg);
 	control |= 0x100UL; /* SBUS Error Interrupt Enable */
-	upa_writeq(control, iommu->sbus_control_reg);
+	upa_writeq(control, iommu->write_complete_reg);
 }
 
 /* Boot time initialization. */
 static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 {
-	struct linux_prom64_registers *pr;
+	const struct linux_prom64_registers *pr;
 	struct device_node *dp;
-	struct sbus_iommu *iommu;
-	unsigned long regs;
+	struct sbus_info *info;
+	struct iommu *iommu;
+	struct strbuf *strbuf;
+	unsigned long regs, reg_base;
 	u64 control;
 	int i;
 
@@ -1043,33 +1059,42 @@ static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 	}
 	regs = pr->phys_addr;
 
-	iommu = kmalloc(sizeof(*iommu) + SMP_CACHE_BYTES, GFP_ATOMIC);
-	if (iommu == NULL) {
-		prom_printf("sbus_iommu_init: Fatal error, kmalloc(iommu) failed\n");
+	info = kzalloc(sizeof(*info), GFP_ATOMIC);
+	if (info == NULL) {
+		prom_printf("sbus_iommu_init: Fatal error, "
+			    "kmalloc(info) failed\n");
 		prom_halt();
 	}
 
-	/* Align on E$ line boundary. */
-	iommu = (struct sbus_iommu *)
-		(((unsigned long)iommu + (SMP_CACHE_BYTES - 1UL)) &
-		 ~(SMP_CACHE_BYTES - 1UL));
+	iommu = &info->iommu;
+	strbuf = &info->strbuf;
 
-	memset(iommu, 0, sizeof(*iommu));
+	reg_base = regs + SYSIO_IOMMUREG_BASE;
+	iommu->iommu_control = reg_base + IOMMU_CONTROL;
+	iommu->iommu_tsbbase = reg_base + IOMMU_TSBBASE;
+	iommu->iommu_flush = reg_base + IOMMU_FLUSH;
 
-	/* Setup spinlock. */
-	spin_lock_init(&iommu->lock);
+	reg_base = regs + SYSIO_STRBUFREG_BASE;
+	strbuf->strbuf_control = reg_base + STRBUF_CONTROL;
+	strbuf->strbuf_pflush = reg_base + STRBUF_PFLUSH;
+	strbuf->strbuf_fsync = reg_base + STRBUF_FSYNC;
 
-	/* Init register offsets. */
-	iommu->iommu_regs = regs + SYSIO_IOMMUREG_BASE;
-	iommu->strbuf_regs = regs + SYSIO_STRBUFREG_BASE;
+	strbuf->strbuf_enabled = 1;
+
+	strbuf->strbuf_flushflag = (volatile unsigned long *)
+		((((unsigned long)&strbuf->__flushflag_buf[0])
+		  + 63UL)
+		 & ~63UL);
+	strbuf->strbuf_flushflag_pa = (unsigned long)
+		__pa(strbuf->strbuf_flushflag);
 
 	/* The SYSIO SBUS control register is used for dummy reads
 	 * in order to ensure write completion.
 	 */
-	iommu->sbus_control_reg = regs + 0x2000UL;
+	iommu->write_complete_reg = regs + 0x2000UL;
 
 	/* Link into SYSIO software state. */
-	sbus->iommu = iommu;
+	sbus->iommu = info;
 
 	printk("SYSIO: UPA portID %x, at %016lx\n",
 	       sbus->portid, regs);
@@ -1077,40 +1102,44 @@ static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 	/* Setup for TSB_SIZE=7, TBW_SIZE=0, MMU_DE=1, MMU_EN=1 */
 	sbus_iommu_table_init(iommu, IO_TSB_SIZE);
 
-	control = upa_readq(iommu->iommu_regs + IOMMU_CONTROL);
+	control = upa_readq(iommu->iommu_control);
 	control = ((7UL << 16UL)	|
 		   (0UL << 2UL)		|
 		   (1UL << 1UL)		|
 		   (1UL << 0UL));
-	upa_writeq(control, iommu->iommu_regs + IOMMU_CONTROL);
+	upa_writeq(control, iommu->iommu_control);
 
 	/* Clean out any cruft in the IOMMU using
 	 * diagnostic accesses.
 	 */
 	for (i = 0; i < 16; i++) {
-		unsigned long dram = iommu->iommu_regs + IOMMU_DRAMDIAG;
-		unsigned long tag = iommu->iommu_regs + IOMMU_TAGDIAG;
+		unsigned long dram, tag;
+
+		dram = iommu->iommu_control + (IOMMU_DRAMDIAG - IOMMU_CONTROL);
+		tag = iommu->iommu_control + (IOMMU_TAGDIAG - IOMMU_CONTROL);
 
 		dram += (unsigned long)i * 8UL;
 		tag += (unsigned long)i * 8UL;
 		upa_writeq(0, dram);
 		upa_writeq(0, tag);
 	}
-	upa_readq(iommu->sbus_control_reg);
+	upa_readq(iommu->write_complete_reg);
 
 	/* Give the TSB to SYSIO. */
-	upa_writeq(__pa(iommu->page_table), iommu->iommu_regs + IOMMU_TSBBASE);
+	upa_writeq(__pa(iommu->page_table), iommu->iommu_tsbbase);
 
 	/* Setup streaming buffer, DE=1 SB_EN=1 */
 	control = (1UL << 1UL) | (1UL << 0UL);
-	upa_writeq(control, iommu->strbuf_regs + STRBUF_CONTROL);
+	upa_writeq(control, strbuf->strbuf_control);
 
 	/* Clear out the tags using diagnostics. */
 	for (i = 0; i < 16; i++) {
 		unsigned long ptag, ltag;
 
-		ptag = iommu->strbuf_regs + STRBUF_PTAGDIAG;
-		ltag = iommu->strbuf_regs + STRBUF_LTAGDIAG;
+		ptag = strbuf->strbuf_control +
+			(STRBUF_PTAGDIAG - STRBUF_CONTROL);
+		ltag = strbuf->strbuf_control +
+			(STRBUF_LTAGDIAG - STRBUF_CONTROL);
 		ptag += (unsigned long)i * 8UL;
 		ltag += (unsigned long)i * 8UL;
 
@@ -1119,9 +1148,9 @@ static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 	}
 
 	/* Enable DVMA arbitration for all devices/slots. */
-	control = upa_readq(iommu->sbus_control_reg);
+	control = upa_readq(iommu->write_complete_reg);
 	control |= 0x3fUL;
-	upa_writeq(control, iommu->sbus_control_reg);
+	upa_writeq(control, iommu->write_complete_reg);
 
 	/* Now some Xfire specific grot... */
 	if (this_is_starfire)
@@ -1133,7 +1162,7 @@ static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 void sbus_fill_device_irq(struct sbus_dev *sdev)
 {
 	struct device_node *dp = of_find_node_by_phandle(sdev->prom_node);
-	struct linux_prom_irqs *irqs;
+	const struct linux_prom_irqs *irqs;
 
 	irqs = of_get_property(dp, "interrupts", NULL);
 	if (!irqs) {

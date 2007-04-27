@@ -225,11 +225,17 @@ static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
 	.flags		= 0,
 };
 
+static struct ocfs2_lock_res_ops ocfs2_inode_open_lops = {
+	.get_osb	= ocfs2_get_inode_osb,
+	.flags		= 0,
+};
+
 static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
 {
 	return lockres->l_type == OCFS2_LOCK_TYPE_META ||
 		lockres->l_type == OCFS2_LOCK_TYPE_DATA ||
-		lockres->l_type == OCFS2_LOCK_TYPE_RW;
+		lockres->l_type == OCFS2_LOCK_TYPE_RW ||
+		lockres->l_type == OCFS2_LOCK_TYPE_OPEN;
 }
 
 static inline struct inode *ocfs2_lock_res_inode(struct ocfs2_lock_res *lockres)
@@ -372,6 +378,9 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			break;
 		case OCFS2_LOCK_TYPE_DATA:
 			ops = &ocfs2_inode_data_lops;
+			break;
+		case OCFS2_LOCK_TYPE_OPEN:
+			ops = &ocfs2_inode_open_lops;
 			break;
 		default:
 			mlog_bug_on_msg(1, "type: %d\n", type);
@@ -1129,6 +1138,12 @@ int ocfs2_create_new_inode_locks(struct inode *inode)
 		goto bail;
 	}
 
+	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_open_lockres, 0, 0);
+	if (ret) {
+		mlog_errno(ret);
+		goto bail;
+	}
+
 bail:
 	mlog_exit(ret);
 	return ret;
@@ -1179,6 +1194,99 @@ void ocfs2_rw_unlock(struct inode *inode, int write)
 	if (!ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
 
+	mlog_exit_void();
+}
+
+/*
+ * ocfs2_open_lock always get PR mode lock.
+ */
+int ocfs2_open_lock(struct inode *inode)
+{
+	int status = 0;
+	struct ocfs2_lock_res *lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	BUG_ON(!inode);
+
+	mlog_entry_void();
+
+	mlog(0, "inode %llu take PRMODE open lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+
+	if (ocfs2_mount_local(osb))
+		goto out;
+
+	lockres = &OCFS2_I(inode)->ip_open_lockres;
+
+	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres,
+				    LKM_PRMODE, 0, 0);
+	if (status < 0)
+		mlog_errno(status);
+
+out:
+	mlog_exit(status);
+	return status;
+}
+
+int ocfs2_try_open_lock(struct inode *inode, int write)
+{
+	int status = 0, level;
+	struct ocfs2_lock_res *lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	BUG_ON(!inode);
+
+	mlog_entry_void();
+
+	mlog(0, "inode %llu try to take %s open lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+	     write ? "EXMODE" : "PRMODE");
+
+	if (ocfs2_mount_local(osb))
+		goto out;
+
+	lockres = &OCFS2_I(inode)->ip_open_lockres;
+
+	level = write ? LKM_EXMODE : LKM_PRMODE;
+
+	/*
+	 * The file system may already holding a PRMODE/EXMODE open lock.
+	 * Since we pass LKM_NOQUEUE, the request won't block waiting on
+	 * other nodes and the -EAGAIN will indicate to the caller that
+	 * this inode is still in use.
+	 */
+	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres,
+				    level, LKM_NOQUEUE, 0);
+
+out:
+	mlog_exit(status);
+	return status;
+}
+
+/*
+ * ocfs2_open_unlock unlock PR and EX mode open locks.
+ */
+void ocfs2_open_unlock(struct inode *inode)
+{
+	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_open_lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	mlog_entry_void();
+
+	mlog(0, "inode %llu drop open lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+
+	if (ocfs2_mount_local(osb))
+		goto out;
+
+	if(lockres->l_ro_holders)
+		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres,
+				     LKM_PRMODE);
+	if(lockres->l_ex_holders)
+		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres,
+				     LKM_EXMODE);
+
+out:
 	mlog_exit_void();
 }
 
@@ -1387,8 +1495,7 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	if (S_ISLNK(inode->i_mode) && !oi->ip_clusters)
 		inode->i_blocks = 0;
 	else
-		inode->i_blocks =
-			ocfs2_align_bytes_to_sectors(i_size_read(inode));
+		inode->i_blocks = ocfs2_inode_sector_count(inode);
 
 	inode->i_uid     = be32_to_cpu(lvb->lvb_iuid);
 	inode->i_gid     = be32_to_cpu(lvb->lvb_igid);
@@ -1479,11 +1586,14 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 {
 	int status = 0;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_lock_res *lockres = NULL;
+	struct ocfs2_lock_res *lockres = &oi->ip_meta_lockres;
 	struct ocfs2_dinode *fe;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry_void();
+
+	if (ocfs2_mount_local(osb))
+		goto bail;
 
 	spin_lock(&oi->ip_lock);
 	if (oi->ip_flags & OCFS2_INODE_DELETED) {
@@ -1496,22 +1606,16 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 	}
 	spin_unlock(&oi->ip_lock);
 
-	if (!ocfs2_mount_local(osb)) {
-		lockres = &oi->ip_meta_lockres;
-
-		if (!ocfs2_should_refresh_lock_res(lockres))
-			goto bail;
-	}
+	if (!ocfs2_should_refresh_lock_res(lockres))
+		goto bail;
 
 	/* This will discard any caching information we might have had
 	 * for the inode metadata. */
 	ocfs2_metadata_cache_purge(inode);
 
-	/* will do nothing for inode types that don't use the extent
-	 * map (directories, bitmap files, etc) */
 	ocfs2_extent_map_trunc(inode, 0);
 
-	if (lockres && ocfs2_meta_lvb_is_trustable(inode, lockres)) {
+	if (ocfs2_meta_lvb_is_trustable(inode, lockres)) {
 		mlog(0, "Trusting LVB on inode %llu\n",
 		     (unsigned long long)oi->ip_blkno);
 		ocfs2_refresh_inode_from_lvb(inode);
@@ -1558,8 +1662,7 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 
 	status = 0;
 bail_refresh:
-	if (lockres)
-		ocfs2_complete_lock_res_refresh(lockres, status);
+	ocfs2_complete_lock_res_refresh(lockres, status);
 bail:
 	mlog_exit(status);
 	return status;
@@ -1630,7 +1733,6 @@ int ocfs2_meta_lock_full(struct inode *inode,
 		wait_event(osb->recovery_event,
 			   ocfs2_node_map_is_empty(osb, &osb->recovery_map));
 
-	acquired = 0;
 	lockres = &OCFS2_I(inode)->ip_meta_lockres;
 	level = ex ? LKM_EXMODE : LKM_PRMODE;
 	dlm_flags = 0;
@@ -2458,11 +2560,18 @@ int ocfs2_drop_inode_locks(struct inode *inode)
 	 * ocfs2_clear_inode has done it for us. */
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_data_lockres);
+			      &OCFS2_I(inode)->ip_open_lockres);
 	if (err < 0)
 		mlog_errno(err);
 
 	status = err;
+
+	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
+			      &OCFS2_I(inode)->ip_data_lockres);
+	if (err < 0)
+		mlog_errno(err);
+	if (err < 0 && !status)
+		status = err;
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
 			      &OCFS2_I(inode)->ip_meta_lockres);

@@ -34,7 +34,6 @@
 #include <linux/if_addr.h>
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
-#include <linux/netlink.h>
 #include <linux/init.h>
 #include <linux/list.h>
 
@@ -46,6 +45,7 @@
 #include <net/icmp.h>
 #include <net/arp.h>
 #include <net/ip_fib.h>
+#include <net/rtnetlink.h>
 
 #define FFprint(a...) printk(KERN_DEBUG a)
 
@@ -540,7 +540,7 @@ errout:
 	return err;
 }
 
-int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct fib_config cfg;
 	struct fib_table *tb;
@@ -561,7 +561,7 @@ errout:
 	return err;
 }
 
-int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct fib_config cfg;
 	struct fib_table *tb;
@@ -582,7 +582,7 @@ errout:
 	return err;
 }
 
-int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
+static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
@@ -777,6 +777,10 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
 							    .tos = frn->fl_tos,
 							    .scope = frn->fl_scope } } };
 
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	res.r = NULL;
+#endif
+
 	frn->err = -ENOENT;
 	if (tb) {
 		local_bh_disable();
@@ -807,7 +811,7 @@ static void nl_fib_input(struct sock *sk, int len)
 	if (skb == NULL)
 		return;
 
-	nlh = (struct nlmsghdr *)skb->data;
+	nlh = nlmsg_hdr(skb);
 	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
 	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn))) {
 		kfree_skb(skb);
@@ -827,7 +831,8 @@ static void nl_fib_input(struct sock *sk, int len)
 
 static void nl_fib_lookup_init(void)
 {
-      netlink_kernel_create(NETLINK_FIB_LOOKUP, 0, nl_fib_input, THIS_MODULE);
+      netlink_kernel_create(NETLINK_FIB_LOOKUP, 0, nl_fib_input, NULL,
+      			    THIS_MODULE);
 }
 
 static void fib_disable_ip(struct net_device *dev, int force)
@@ -925,6 +930,10 @@ void __init ip_fib_init(void)
 	register_netdevice_notifier(&fib_netdev_notifier);
 	register_inetaddr_notifier(&fib_inetaddr_notifier);
 	nl_fib_lookup_init();
+
+	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL);
+	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL);
+	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib);
 }
 
 EXPORT_SYMBOL(inet_addr_type);

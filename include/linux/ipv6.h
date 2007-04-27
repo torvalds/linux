@@ -178,6 +178,9 @@ struct ipv6_devconf {
 #endif
 	__s32		proxy_ndp;
 	__s32		accept_source_route;
+#ifdef CONFIG_IPV6_OPTIMISTIC_DAD
+	__s32		optimistic_dad;
+#endif
 	void		*sysctl;
 };
 
@@ -208,6 +211,7 @@ enum {
 	DEVCONF_PROXY_NDP,
 	__DEVCONF_OPTIMISTIC_DAD,
 	DEVCONF_ACCEPT_SOURCE_ROUTE,
+	DEVCONF_OPTIMISTIC_DAD,
 	DEVCONF_MAX
 };
 
@@ -218,6 +222,16 @@ enum {
 
 #include <net/if_inet6.h>       /* struct ipv6_mc_socklist */
 #include <net/inet_sock.h>
+
+static inline struct ipv6hdr *ipv6_hdr(const struct sk_buff *skb)
+{
+	return (struct ipv6hdr *)skb_network_header(skb);
+}
+
+static inline struct ipv6hdr *ipipv6_hdr(const struct sk_buff *skb)
+{
+	return (struct ipv6hdr *)skb_transport_header(skb);
+}
 
 /* 
    This structure contains results of exthdrs parsing

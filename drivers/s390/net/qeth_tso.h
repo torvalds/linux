@@ -40,8 +40,8 @@ qeth_tso_fill_header(struct qeth_card *card, struct sk_buff *skb)
 	QETH_DBF_TEXT(trace, 5, "tsofhdr");
 
 	hdr  = (struct qeth_hdr_tso *) skb->data;
-	iph  = skb->nh.iph;
-	tcph = skb->h.th;
+	iph  = ip_hdr(skb);
+	tcph = tcp_hdr(skb);
 	/*fix header to TSO values ...*/
 	hdr->hdr.hdr.l3.id = QETH_HEADER_TYPE_TSO;
 	/*set values which are fix for the first approach ...*/
@@ -63,13 +63,9 @@ qeth_tso_fill_header(struct qeth_card *card, struct sk_buff *skb)
 static inline void
 qeth_tso_set_tcpip_header(struct qeth_card *card, struct sk_buff *skb)
 {
-	struct iphdr *iph;
-	struct ipv6hdr *ip6h;
-	struct tcphdr *tcph;
-
-	iph  = skb->nh.iph;
-	ip6h = skb->nh.ipv6h;
-	tcph = skb->h.th;
+	struct iphdr *iph    = ip_hdr(skb);
+	struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	struct tcphdr *tcph  = tcp_hdr(skb);
 
 	tcph->check = 0;
 	if (skb->protocol == ETH_P_IPV6) {

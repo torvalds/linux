@@ -191,11 +191,11 @@ static struct ip_tunnel * ipgre_tunnel_lookup(__be32 remote, __be32 local, __be3
 	return NULL;
 }
 
-static struct ip_tunnel **ipgre_bucket(struct ip_tunnel *t)
+static struct ip_tunnel **__ipgre_bucket(struct ip_tunnel_parm *parms)
 {
-	__be32 remote = t->parms.iph.daddr;
-	__be32 local = t->parms.iph.saddr;
-	__be32 key = t->parms.i_key;
+	__be32 remote = parms->iph.daddr;
+	__be32 local = parms->iph.saddr;
+	__be32 key = parms->i_key;
 	unsigned h = HASH(key);
 	int prio = 0;
 
@@ -207,6 +207,11 @@ static struct ip_tunnel **ipgre_bucket(struct ip_tunnel *t)
 	}
 
 	return &tunnels[prio][h];
+}
+
+static inline struct ip_tunnel **ipgre_bucket(struct ip_tunnel *t)
+{
+	return __ipgre_bucket(&t->parms);
 }
 
 static void ipgre_tunnel_link(struct ip_tunnel *t)
@@ -240,17 +245,9 @@ static struct ip_tunnel * ipgre_tunnel_locate(struct ip_tunnel_parm *parms, int 
 	__be32 key = parms->i_key;
 	struct ip_tunnel *t, **tp, *nt;
 	struct net_device *dev;
-	unsigned h = HASH(key);
-	int prio = 0;
 	char name[IFNAMSIZ];
 
-	if (local)
-		prio |= 1;
-	if (remote && !MULTICAST(remote)) {
-		prio |= 2;
-		h ^= HASH(remote);
-	}
-	for (tp = &tunnels[prio][h]; (t = *tp) != NULL; tp = &t->next) {
+	for (tp = __ipgre_bucket(parms); (t = *tp) != NULL; tp = &t->next) {
 		if (local == t->parms.iph.saddr && remote == t->parms.iph.daddr) {
 			if (key == t->parms.i_key)
 				return t;
@@ -320,8 +317,8 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	struct iphdr *iph = (struct iphdr*)skb->data;
 	__be16	     *p = (__be16*)(skb->data+(iph->ihl<<2));
 	int grehlen = (iph->ihl<<2) + 4;
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	struct ip_tunnel *t;
 	__be16 flags;
 
@@ -388,8 +385,8 @@ out:
 	struct iphdr *iph = (struct iphdr*)dp;
 	struct iphdr *eiph;
 	__be16	     *p = (__be16*)(dp+(iph->ihl<<2));
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	int rel_type = 0;
 	int rel_code = 0;
 	__be32 rel_info = 0;
@@ -422,7 +419,7 @@ out:
 	default:
 		return;
 	case ICMP_PARAMETERPROB:
-		n = ntohl(skb->h.icmph->un.gateway) >> 24;
+		n = ntohl(icmp_hdr(skb)->un.gateway) >> 24;
 		if (n < (iph->ihl<<2))
 			return;
 
@@ -442,7 +439,7 @@ out:
 			return;
 		case ICMP_FRAG_NEEDED:
 			/* And it is the only really necessary thing :-) */
-			n = ntohs(skb->h.icmph->un.frag.mtu);
+			n = ntohs(icmp_hdr(skb)->un.frag.mtu);
 			if (n < grehlen+68)
 				return;
 			n -= grehlen;
@@ -474,7 +471,7 @@ out:
 	dst_release(skb2->dst);
 	skb2->dst = NULL;
 	skb_pull(skb2, skb->data - (u8*)eiph);
-	skb2->nh.raw = skb2->data;
+	skb_reset_network_header(skb2);
 
 	/* Try to guess incoming interface */
 	memset(&fl, 0, sizeof(fl));
@@ -533,9 +530,9 @@ static inline void ipgre_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 {
 	if (INET_ECN_is_ce(iph->tos)) {
 		if (skb->protocol == htons(ETH_P_IP)) {
-			IP_ECN_set_ce(skb->nh.iph);
+			IP_ECN_set_ce(ip_hdr(skb));
 		} else if (skb->protocol == htons(ETH_P_IPV6)) {
-			IP6_ECN_set_ce(skb->nh.ipv6h);
+			IP6_ECN_set_ce(ipv6_hdr(skb));
 		}
 	}
 }
@@ -565,7 +562,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, 16))
 		goto drop_nolock;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	h = skb->data;
 	flags = *(__be16*)h;
 
@@ -616,9 +613,10 @@ static int ipgre_rcv(struct sk_buff *skb)
 				offset += 4;
 		}
 
-		skb->mac.raw = skb->nh.raw;
-		skb->nh.raw = __pskb_pull(skb, offset);
-		skb_postpull_rcsum(skb, skb->h.raw, offset);
+		skb_reset_mac_header(skb);
+		__pskb_pull(skb, offset);
+		skb_reset_network_header(skb);
+		skb_postpull_rcsum(skb, skb_transport_header(skb), offset);
 		skb->pkt_type = PACKET_HOST;
 #ifdef CONFIG_NET_IPGRE_BROADCAST
 		if (MULTICAST(iph->daddr)) {
@@ -669,7 +667,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->stat;
-	struct iphdr  *old_iph = skb->nh.iph;
+	struct iphdr  *old_iph = ip_hdr(skb);
 	struct iphdr  *tiph;
 	u8     tos;
 	__be16 df;
@@ -720,7 +718,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			addr_type = ipv6_addr_type(addr6);
 
 			if (addr_type == IPV6_ADDR_ANY) {
-				addr6 = &skb->nh.ipv6h->daddr;
+				addr6 = &ipv6_hdr(skb)->daddr;
 				addr_type = ipv6_addr_type(addr6);
 			}
 
@@ -824,11 +822,12 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_set_owner_w(new_skb, skb->sk);
 		dev_kfree_skb(skb);
 		skb = new_skb;
-		old_iph = skb->nh.iph;
+		old_iph = ip_hdr(skb);
 	}
 
-	skb->h.raw = skb->nh.raw;
-	skb->nh.raw = skb_push(skb, gre_hlen);
+	skb->transport_header = skb->network_header;
+	skb_push(skb, gre_hlen);
+	skb_reset_network_header(skb);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
 			      IPSKB_REROUTED);
@@ -839,7 +838,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	 *	Push down and install the IPIP header.
 	 */
 
-	iph 			=	skb->nh.iph;
+	iph 			=	ip_hdr(skb);
 	iph->version		=	4;
 	iph->ihl		=	sizeof(struct iphdr) >> 2;
 	iph->frag_off		=	df;

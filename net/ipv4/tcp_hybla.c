@@ -144,7 +144,7 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 	ca->snd_cwnd_cents += odd;
 
 	/* check when fractions goes >=128 and increase cwnd by 1. */
-	while(ca->snd_cwnd_cents >= 128) {
+	while (ca->snd_cwnd_cents >= 128) {
 		tp->snd_cwnd++;
 		ca->snd_cwnd_cents -= 128;
 		tp->snd_cwnd_cnt = 0;

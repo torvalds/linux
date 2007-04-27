@@ -30,6 +30,7 @@
 #include <linux/notifier.h>
 #include <linux/init.h>
 #include <net/ip.h>
+#include <net/netlink.h>
 #include <linux/ipv6.h>
 #include <net/route.h>
 #include <linux/skbuff.h>
@@ -137,7 +138,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	switch (skb->protocol) {
 	case __constant_htons(ETH_P_IP):
 	{
-		struct iphdr *iph = skb->nh.iph;
+		const struct iphdr *iph = ip_hdr(skb);
 		h = iph->daddr;
 		h2 = iph->saddr^iph->protocol;
 		if (!(iph->frag_off&htons(IP_MF|IP_OFFSET)) &&
@@ -152,7 +153,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	}
 	case __constant_htons(ETH_P_IPV6):
 	{
-		struct ipv6hdr *iph = skb->nh.ipv6h;
+		struct ipv6hdr *iph = ipv6_hdr(skb);
 		h = iph->daddr.s6_addr32[3];
 		h2 = iph->saddr.s6_addr32[3]^iph->nexthdr;
 		if (iph->nexthdr == IPPROTO_TCP ||
@@ -461,7 +462,7 @@ static void sfq_destroy(struct Qdisc *sch)
 static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_sfq_qopt opt;
 
 	opt.quantum = q->quantum;
@@ -476,7 +477,7 @@ static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

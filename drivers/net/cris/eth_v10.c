@@ -1348,7 +1348,8 @@ e100_rx(struct net_device *dev)
 
 #ifdef ETHDEBUG
 		printk("head = 0x%x, data = 0x%x, tail = 0x%x, end = 0x%x\n",
-		  skb->head, skb->data, skb->tail, skb->end);
+		       skb->head, skb->data, skb_tail_pointer(skb),
+		       skb_end_pointer(skb));
 		printk("copying packet to 0x%x.\n", skb_data_ptr);
 #endif
 
@@ -1375,7 +1376,6 @@ e100_rx(struct net_device *dev)
 		myNextRxDesc->descr.buf = L1_CACHE_ALIGN(virt_to_phys(myNextRxDesc->skb->data));
 	}
 
-	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 
 	/* Send the packet to the upper layers */
