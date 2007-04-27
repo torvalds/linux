@@ -680,6 +680,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION: name = "Audio Stereo Mode Extension"; break;
 	case V4L2_CID_MPEG_AUDIO_EMPHASIS: 	name = "Audio Emphasis"; break;
 	case V4L2_CID_MPEG_AUDIO_CRC: 		name = "Audio CRC"; break;
+	case V4L2_CID_MPEG_AUDIO_MUTE: 		name = "Audio Mute"; break;
 	case V4L2_CID_MPEG_VIDEO_ENCODING: 	name = "Video Encoding"; break;
 	case V4L2_CID_MPEG_VIDEO_ASPECT: 	name = "Video Aspect"; break;
 	case V4L2_CID_MPEG_VIDEO_B_FRAMES: 	name = "Video B Frames"; break;
@@ -690,6 +691,8 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_VIDEO_BITRATE: 	name = "Video Bitrate"; break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK: 	name = "Video Peak Bitrate"; break;
 	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION: name = "Video Temporal Decimation"; break;
+	case V4L2_CID_MPEG_VIDEO_MUTE: 		name = "Video Mute"; break;
+	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:	name = "Video Mute YUV"; break;
 	case V4L2_CID_MPEG_STREAM_TYPE: 	name = "Stream Type"; break;
 	case V4L2_CID_MPEG_STREAM_PID_PMT: 	name = "Stream PMT Program ID"; break;
 	case V4L2_CID_MPEG_STREAM_PID_AUDIO: 	name = "Stream Audio Program ID"; break;
@@ -705,6 +708,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	switch (qctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 	case V4L2_CID_AUDIO_LOUDNESS:
+	case V4L2_CID_MPEG_AUDIO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
 	case V4L2_CID_MPEG_VIDEO_PULLDOWN:
 		qctrl->type = V4L2_CTRL_TYPE_BOOLEAN;
@@ -838,6 +842,8 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 				V4L2_MPEG_AUDIO_CRC_NONE,
 				V4L2_MPEG_AUDIO_CRC_CRC16, 1,
 				V4L2_MPEG_AUDIO_CRC_NONE);
+	case V4L2_CID_MPEG_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_VIDEO_ENCODING_MPEG_1,
@@ -867,6 +873,10 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 		return v4l2_ctrl_query_fill(qctrl, 0, 27000000, 1, 8000000);
 	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION:
 		return v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 0);
+	case V4L2_CID_MPEG_VIDEO_MUTE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
+	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:  /* Init YUV (really YCbCr) to black */
+		return v4l2_ctrl_query_fill(qctrl, 0, 0xffffff, 1, 0x008080);
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
