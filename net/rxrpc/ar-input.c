@@ -168,7 +168,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 	/* we may already have the packet in the out of sequence queue */
 	ackbit = seq - (call->rx_data_eaten + 1);
 	ASSERTCMP(ackbit, >=, 0);
-	if (__test_and_set_bit(ackbit, &call->ackr_window)) {
+	if (__test_and_set_bit(ackbit, call->ackr_window)) {
 		_debug("dup oos #%u [%u,%u]",
 		       seq, call->rx_data_eaten, call->rx_data_post);
 		ack = RXRPC_ACK_DUPLICATE;
@@ -177,7 +177,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 
 	if (seq >= call->ackr_win_top) {
 		_debug("exceed #%u [%u]", seq, call->ackr_win_top);
-		__clear_bit(ackbit, &call->ackr_window);
+		__clear_bit(ackbit, call->ackr_window);
 		ack = RXRPC_ACK_EXCEEDS_WINDOW;
 		goto discard_and_ack;
 	}
@@ -215,7 +215,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 	ret = rxrpc_queue_rcv_skb(call, skb, false, terminal);
 	if (ret < 0) {
 		if (ret == -ENOMEM || ret == -ENOBUFS) {
-			__clear_bit(ackbit, &call->ackr_window);
+			__clear_bit(ackbit, call->ackr_window);
 			ack = RXRPC_ACK_NOSPACE;
 			goto discard_and_ack;
 		}
