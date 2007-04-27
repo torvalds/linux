@@ -97,6 +97,7 @@
 #include <linux/wireless.h>		/* Pretty obvious */
 #include <net/iw_handler.h>		/* New driver API */
 #include <net/netlink.h>
+#include <net/wext.h>
 
 #include <asm/uaccess.h>		/* copy_to_user() */
 
@@ -696,7 +697,7 @@ static const struct file_operations wireless_seq_fops = {
 	.release = seq_release,
 };
 
-int __init wireless_proc_init(void)
+int __init wext_proc_init(void)
 {
 	/* Create /proc/net/wireless entry */
 	if (!proc_net_fops_create("wireless", S_IRUGO, &wireless_seq_fops))
@@ -1075,11 +1076,10 @@ static inline int ioctl_private_call(struct net_device *	dev,
 
 /* ---------------------------------------------------------------- */
 /*
- * Main IOCTl dispatcher. Called from the main networking code
- * (dev_ioctl() in net/core/dev.c).
+ * Main IOCTl dispatcher.
  * Check the type of IOCTL and call the appropriate wrapper...
  */
-int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd)
+static int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd)
 {
 	struct net_device *dev;
 	iw_handler	handler;
@@ -1143,6 +1143,26 @@ int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd)
 	return -EINVAL;
 }
 
+/* entry point from dev ioctl */
+int wext_handle_ioctl(struct ifreq *ifr, unsigned int cmd,
+		      void __user *arg)
+{
+	int ret;
+
+	/* If command is `set a parameter', or
+	 * `get the encoding parameters', check if
+	 * the user has the right to do it */
+	if (IW_IS_SET(cmd) || cmd == SIOCGIWENCODE || cmd == SIOCGIWENCODEEXT)
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+	dev_load(ifr->ifr_name);
+	rtnl_lock();
+	ret = wireless_process_ioctl(ifr, cmd);
+	rtnl_unlock();
+	if (IW_IS_GET(cmd) && copy_to_user(arg, ifr, sizeof(struct ifreq)))
+		return -EFAULT;
+	return ret;
+}
 
 /************************* EVENT PROCESSING *************************/
 /*
