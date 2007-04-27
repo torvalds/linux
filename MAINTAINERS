@@ -2246,6 +2246,14 @@ L:	linux-mtd@lists.infradead.org
 T:	git git://git.infradead.org/mtd-2.6.git
 S:	Maintained
 
+UNSORTED BLOCK IMAGES (UBI)
+P:	Artem Bityutskiy
+M:	dedekind@infradead.org
+W:	http://www.linux-mtd.infradead.org/
+L:	linux-mtd@lists.infradead.org
+T:	git git://git.infradead.org/ubi-2.6.git
+S:	Maintained
+
 MICROTEK X6 SCANNER
 P:	Oliver Neukum
 M:	oliver@neukum.name

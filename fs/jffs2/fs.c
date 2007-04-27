@@ -672,6 +672,13 @@ static int jffs2_flash_setup(struct jffs2_sb_info *c) {
 			return ret;
 	}
 
+	/* and an UBI volume */
+	if (jffs2_ubivol(c)) {
+		ret = jffs2_ubivol_setup(c);
+		if (ret)
+			return ret;
+	}
+
 	return ret;
 }
 
@@ -689,5 +696,10 @@ void jffs2_flash_cleanup(struct jffs2_sb_info *c) {
 	/* and Intel "Sibley" flash */
 	if (jffs2_nor_wbuf_flash(c)) {
 		jffs2_nor_wbuf_flash_cleanup(c);
+	}
+
+	/* and an UBI volume */
+	if (jffs2_ubivol(c)) {
+		jffs2_ubivol_cleanup(c);
 	}
 }

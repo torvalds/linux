@@ -98,6 +98,9 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_nor_wbuf_flash(c) (0)
 #define jffs2_nor_wbuf_flash_setup(c) (0)
 #define jffs2_nor_wbuf_flash_cleanup(c) do {} while (0)
+#define jffs2_ubivol(c) (0)
+#define jffs2_ubivol_setup(c) (0)
+#define jffs2_ubivol_cleanup(c) do {} while (0)
 
 #else /* NAND and/or ECC'd NOR support present */
 
@@ -133,6 +136,9 @@ void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c);
 #define jffs2_dataflash(c) (c->mtd->type == MTD_DATAFLASH)
 int jffs2_dataflash_setup(struct jffs2_sb_info *c);
 void jffs2_dataflash_cleanup(struct jffs2_sb_info *c);
+#define jffs2_ubivol(c) (c->mtd->type == MTD_UBIVOLUME)
+int jffs2_ubivol_setup(struct jffs2_sb_info *c);
+void jffs2_ubivol_cleanup(struct jffs2_sb_info *c);
 
 #define jffs2_nor_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && ! (c->mtd->flags & MTD_BIT_WRITEABLE))
 int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c);
