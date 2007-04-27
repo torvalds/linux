@@ -33,8 +33,6 @@
 #include <asm/mpc52xx.h>
 #elif defined(CONFIG_MPC10X_BRIDGE)
 #include <asm/mpc10x.h>
-#elif defined(CONFIG_XILINX_VIRTEX)
-#include <platforms/4xx/virtex.h>
 #else
 #error "need definition of ppc_sys_devices"
 #endif

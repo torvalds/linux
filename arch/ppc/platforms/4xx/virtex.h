@@ -19,13 +19,8 @@
 #if !defined(BASE_BAUD)
  #define BASE_BAUD		(0) /* dummy value; not used */
 #endif
-  
-/* Device type enumeration for platform bus definitions */
+
 #ifndef __ASSEMBLY__
-enum ppc_sys_devices {
-	VIRTEX_UART, NUM_PPC_SYS_DEVS,
-};
-  
 typedef struct board_info {
 	unsigned int	 bi_memsize;		/* DRAM installed, in bytes */
 	unsigned char	 bi_enetaddr[6];	/* Local Ethernet MAC address */
