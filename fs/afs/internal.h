@@ -219,7 +219,7 @@ struct afs_vlocation {
 	struct afs_volume	*vols[3];	/* volume access record pointer (index by type) */
 	wait_queue_head_t	waitq;		/* status change waitqueue */
 	time_t			update_at;	/* time at which record should be updated */
-	rwlock_t		lock;		/* access lock */
+	spinlock_t		lock;		/* access lock */
 	afs_vlocation_state_t	state;		/* volume location state */
 	unsigned short		upd_rej_cnt;	/* ENOMEDIUM count during update */
 	unsigned short		upd_busy_cnt;	/* EBUSY count during update */

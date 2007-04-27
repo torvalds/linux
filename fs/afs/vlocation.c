@@ -178,7 +178,7 @@ static struct afs_vlocation *afs_vlocation_alloc(struct afs_cell *cell,
 		INIT_LIST_HEAD(&vl->grave);
 		INIT_LIST_HEAD(&vl->update);
 		init_waitqueue_head(&vl->waitq);
-		rwlock_init(&vl->lock);
+		spin_lock_init(&vl->lock);
 		memcpy(vl->vldb.name, name, namesz);
 	}
 
@@ -414,8 +414,10 @@ fill_in_record:
 	ret = afs_vlocation_fill_in_record(vl, key);
 	if (ret < 0)
 		goto error_abandon;
+	spin_lock(&vl->lock);
 	vl->state = AFS_VL_VALID;
 	wake_up(&vl->waitq);
+	spin_unlock(&vl->lock);
 
 	/* schedule for regular updates */
 	afs_vlocation_queue_for_updates(vl);
@@ -434,22 +436,23 @@ found_in_memory:
 	up_write(&cell->vl_sem);
 
 	/* see if it was an abandoned record that we might try filling in */
+	spin_lock(&vl->lock);
 	while (vl->state != AFS_VL_VALID) {
 		afs_vlocation_state_t state = vl->state;
 
 		_debug("invalid [state %d]", state);
 
 		if ((state == AFS_VL_NEW || state == AFS_VL_NO_VOLUME)) {
-			if (cmpxchg(&vl->state, state, AFS_VL_CREATING) ==
-			    state)
-				goto fill_in_record;
-			continue;
+			vl->state = AFS_VL_CREATING;
+			spin_unlock(&vl->lock);
+			goto fill_in_record;
 		}
 
 		/* must now wait for creation or update by someone else to
 		 * complete */
 		_debug("wait");
 
+		spin_unlock(&vl->lock);
 		ret = wait_event_interruptible(
 			vl->waitq,
 			vl->state == AFS_VL_NEW ||
@@ -457,15 +460,19 @@ found_in_memory:
 			vl->state == AFS_VL_NO_VOLUME);
 		if (ret < 0)
 			goto error;
+		spin_lock(&vl->lock);
 	}
+	spin_unlock(&vl->lock);
 
 success:
 	_leave(" = %p",vl);
 	return vl;
 
 error_abandon:
+	spin_lock(&vl->lock);
 	vl->state = AFS_VL_NEW;
 	wake_up(&vl->waitq);
+	spin_unlock(&vl->lock);
 error:
 	ASSERT(vl != NULL);
 	afs_put_vlocation(vl);
@@ -663,10 +670,12 @@ static void afs_vlocation_updater(struct work_struct *work)
 	vl->upd_busy_cnt = 0;
 
 	ret = afs_vlocation_update_record(vl, NULL, &vldb);
+	spin_lock(&vl->lock);
 	switch (ret) {
 	case 0:
 		afs_vlocation_apply_update(vl, &vldb);
 		vl->state = AFS_VL_VALID;
+		wake_up(&vl->waitq);
 		break;
 	case -ENOMEDIUM:
 		vl->state = AFS_VL_VOLUME_DELETED;
@@ -675,6 +684,7 @@ static void afs_vlocation_updater(struct work_struct *work)
 		vl->state = AFS_VL_UNCERTAIN;
 		break;
 	}
+	spin_unlock(&vl->lock);
 
 	/* and then reschedule */
 	_debug("reschedule");
