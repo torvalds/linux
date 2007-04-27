@@ -101,12 +101,6 @@
 
 #include <asm/uaccess.h>		/* copy_to_user() */
 
-/**************************** CONSTANTS ****************************/
-
-/* Options */
-#define WE_EVENT_RTNETLINK	/* Propagate events using RtNetlink */
-#define WE_SET_EVENT		/* Generate an event on some set commands */
-
 /************************* GLOBAL VARIABLES *************************/
 /*
  * You should not use global variables, because of re-entrancy.
@@ -741,12 +735,10 @@ static int ioctl_standard_call(struct net_device *	dev,
 		/* No extra arguments. Trivial to handle */
 		ret = handler(dev, &info, &(iwr->u), NULL);
 
-#ifdef WE_SET_EVENT
 		/* Generate an event to notify listeners of the change */
 		if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
 		   ((ret == 0) || (ret == -EIWCOMMIT)))
 			wireless_send_event(dev, cmd, &(iwr->u), NULL);
-#endif	/* WE_SET_EVENT */
 	} else {
 		char *	extra;
 		int	extra_size;
@@ -859,7 +851,6 @@ static int ioctl_standard_call(struct net_device *	dev,
 				ret =  -EFAULT;
 		}
 
-#ifdef WE_SET_EVENT
 		/* Generate an event to notify listeners of the change */
 		if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
 		   ((ret == 0) || (ret == -EIWCOMMIT))) {
@@ -871,7 +862,6 @@ static int ioctl_standard_call(struct net_device *	dev,
 				wireless_send_event(dev, cmd, &(iwr->u),
 						    extra);
 		}
-#endif	/* WE_SET_EVENT */
 
 		/* Cleanup - I told you it wasn't that long ;-) */
 		kfree(extra);
@@ -1121,7 +1111,6 @@ int wext_handle_ioctl(struct ifreq *ifr, unsigned int cmd,
  * Most often, the event will be propagated through rtnetlink
  */
 
-#ifdef WE_EVENT_RTNETLINK
 /* ---------------------------------------------------------------- */
 /*
  * Locking...
@@ -1225,8 +1214,6 @@ static inline void rtmsg_iwinfo(struct net_device *	dev,
 	tasklet_schedule(&wireless_nlevent_tasklet);
 }
 
-#endif	/* WE_EVENT_RTNETLINK */
-
 /* ---------------------------------------------------------------- */
 /*
  * Main event dispatcher. Called from other parts and drivers.
@@ -1305,10 +1292,8 @@ void wireless_send_event(struct net_device *	dev,
 	if (extra != NULL)
 		memcpy(((char *) event) + hdr_len, extra, extra_len);
 
-#ifdef WE_EVENT_RTNETLINK
 	/* Send via the RtNetlink event channel */
 	rtmsg_iwinfo(dev, (char *) event, event_len);
-#endif	/* WE_EVENT_RTNETLINK */
 
 	/* Cleanup */
 	kfree(event);
