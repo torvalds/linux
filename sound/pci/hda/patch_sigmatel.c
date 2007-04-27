@@ -62,6 +62,7 @@ enum {
 	STAC_MACBOOK,
 	STAC_MACBOOK_PRO_V1,
 	STAC_MACBOOK_PRO_V2,
+	STAC_IMAC_INTEL,
 	STAC_922X_MODELS
 };
 
@@ -536,6 +537,12 @@ static unsigned int macbook_pro_v2_pin_configs[10] = {
 	0x400000fc, 0x400000fb,
 };
 
+static unsigned int imac_intel_pin_configs[10] = {
+	0x0121e230, 0x90a70120, 0x9017e110, 0x400000fe,
+	0x400000fd, 0x0181e021, 0x1145e040, 0x400000fa,
+	0x400000fc, 0x400000fb,
+};
+
 static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_D945_REF] = ref922x_pin_configs,
 	[STAC_D945GTP3] = d945gtp3_pin_configs,
@@ -544,6 +551,7 @@ static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_MACBOOK] = macbook_pro_v1_pin_configs,
 	[STAC_MACBOOK_PRO_V1] = macbook_pro_v1_pin_configs,
 	[STAC_MACBOOK_PRO_V2] = macbook_pro_v2_pin_configs,
+	[STAC_IMAC_INTEL] = imac_intel_pin_configs,
 };
 
 static const char *stac922x_models[STAC_922X_MODELS] = {
@@ -554,6 +562,7 @@ static const char *stac922x_models[STAC_922X_MODELS] = {
 	[STAC_MACBOOK]	= "macbook",
 	[STAC_MACBOOK_PRO_V1]	= "macbook-pro-v1",
 	[STAC_MACBOOK_PRO_V2]	= "macbook-pro",
+	[STAC_IMAC_INTEL] = "imac-intel",
 };
 
 static struct snd_pci_quirk stac922x_cfg_tbl[] = {
@@ -1919,6 +1928,9 @@ static int patch_stac922x(struct hda_codec *codec)
 			break;
 		case 0x106b1e00: /* MacBook Pro second generation */
 			spec->board_config = STAC_MACBOOK_PRO_V2;
+			break;
+		case 0x106b0700: /* Intel-based iMac */
+			spec->board_config = STAC_IMAC_INTEL;
 			break;
 		}
 	}
