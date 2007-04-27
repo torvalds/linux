@@ -29,6 +29,9 @@ LIST_HEAD(dpm_off_irq);
 DECLARE_MUTEX(dpm_sem);
 DECLARE_MUTEX(dpm_list_sem);
 
+int (*platform_enable_wakeup)(struct device *dev, int is_on);
+
+
 /**
  *	device_pm_set_parent - Specify power dependency.
  *	@dev:		Device who needs power.

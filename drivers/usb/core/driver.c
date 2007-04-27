@@ -287,9 +287,9 @@ static int usb_unbind_interface(struct device *dev)
  * way to bind to an interface is to return the private data from
  * the driver's probe() method.
  *
- * Callers must own the device lock and the driver model's usb_bus_type.subsys
- * writelock.  So driver probe() entries don't need extra locking,
- * but other call contexts may need to explicitly claim those locks.
+ * Callers must own the device lock, so driver probe() entries don't need
+ * extra locking, but other call contexts may need to explicitly claim that
+ * lock.
  */
 int usb_driver_claim_interface(struct usb_driver *driver,
 				struct usb_interface *iface, void* priv)
@@ -330,9 +330,9 @@ EXPORT_SYMBOL(usb_driver_claim_interface);
  * also causes the driver disconnect() method to be called.
  *
  * This call is synchronous, and may not be used in an interrupt context.
- * Callers must own the device lock and the driver model's usb_bus_type.subsys
- * writelock.  So driver disconnect() entries don't need extra locking,
- * but other call contexts may need to explicitly claim those locks.
+ * Callers must own the device lock, so driver disconnect() entries don't
+ * need extra locking, but other call contexts may need to explicitly claim
+ * that lock.
  */
 void usb_driver_release_interface(struct usb_driver *driver,
 					struct usb_interface *iface)

@@ -42,10 +42,6 @@ static char *action_to_string(enum kobject_action action)
 		return "remove";
 	case KOBJ_CHANGE:
 		return "change";
-	case KOBJ_MOUNT:
-		return "mount";
-	case KOBJ_UMOUNT:
-		return "umount";
 	case KOBJ_OFFLINE:
 		return "offline";
 	case KOBJ_ONLINE:
@@ -95,10 +91,8 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 
 	/* search the kset we belong to */
 	top_kobj = kobj;
-	if (!top_kobj->kset && top_kobj->parent) {
-		do {
-			top_kobj = top_kobj->parent;
-		} while (!top_kobj->kset && top_kobj->parent);
+	while (!top_kobj->kset && top_kobj->parent) {
+		top_kobj = top_kobj->parent;
 	}
 	if (!top_kobj->kset) {
 		pr_debug("kobject attempted to send uevent without kset!\n");
@@ -114,6 +108,16 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			pr_debug("kobject filter function caused the event to drop!\n");
 			return 0;
 		}
+
+	/* originating subsystem */
+	if (uevent_ops && uevent_ops->name)
+		subsystem = uevent_ops->name(kset, kobj);
+	else
+		subsystem = kobject_name(&kset->kobj);
+	if (!subsystem) {
+		pr_debug("unset subsytem caused the event to drop!\n");
+		return 0;
+	}
 
 	/* environment index */
 	envp = kzalloc(NUM_ENVP * sizeof (char *), GFP_KERNEL);
@@ -133,12 +137,6 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		retval = -ENOENT;
 		goto exit;
 	}
-
-	/* originating subsystem */
-	if (uevent_ops && uevent_ops->name)
-		subsystem = uevent_ops->name(kset, kobj);
-	else
-		subsystem = kobject_name(&kset->kobj);
 
 	/* event environemnt for helper process only */
 	envp[i++] = "HOME=/";

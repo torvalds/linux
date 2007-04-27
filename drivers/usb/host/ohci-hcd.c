@@ -486,9 +486,6 @@ static int ohci_run (struct ohci_hcd *ohci)
 	 * or if bus glue did the same (e.g. for PCI add-in cards with
 	 * PCI PM support).
 	 */
-	ohci_dbg (ohci, "resetting from state '%s', control = 0x%x\n",
-			hcfs2string (ohci->hc_control & OHCI_CTRL_HCFS),
-			ohci_readl (ohci, &ohci->regs->control));
 	if ((ohci->hc_control & OHCI_CTRL_RWC) != 0
 			&& !device_may_wakeup(hcd->self.controller))
 		device_init_wakeup(hcd->self.controller, 1);
@@ -744,9 +741,6 @@ static void ohci_stop (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 
-	ohci_dbg (ohci, "stop %s controller (state 0x%02x)\n",
-		hcfs2string (ohci->hc_control & OHCI_CTRL_HCFS),
-		hcd->state);
 	ohci_dump (ohci, 1);
 
 	flush_scheduled_work();

@@ -190,16 +190,14 @@ static void gameport_run_poll_handler(unsigned long d)
  * Basic gameport -> driver core mappings
  */
 
-static void gameport_bind_driver(struct gameport *gameport, struct gameport_driver *drv)
+static int gameport_bind_driver(struct gameport *gameport, struct gameport_driver *drv)
 {
 	int error;
-
-	down_write(&gameport_bus.subsys.rwsem);
 
 	gameport->dev.driver = &drv->driver;
 	if (drv->connect(gameport, drv)) {
 		gameport->dev.driver = NULL;
-		goto out;
+		return -ENODEV;
 	}
 
 	error = device_bind_driver(&gameport->dev);
@@ -211,31 +209,21 @@ static void gameport_bind_driver(struct gameport *gameport, struct gameport_driv
 			drv->description, error);
 		drv->disconnect(gameport);
 		gameport->dev.driver = NULL;
-		goto out;
+		return error;
 	}
 
- out:
-	up_write(&gameport_bus.subsys.rwsem);
-}
-
-static void gameport_release_driver(struct gameport *gameport)
-{
-	down_write(&gameport_bus.subsys.rwsem);
-	device_release_driver(&gameport->dev);
-	up_write(&gameport_bus.subsys.rwsem);
+	return 0;
 }
 
 static void gameport_find_driver(struct gameport *gameport)
 {
 	int error;
 
-	down_write(&gameport_bus.subsys.rwsem);
 	error = device_attach(&gameport->dev);
 	if (error < 0)
 		printk(KERN_WARNING
 			"gameport: device_attach() failed for %s (%s), error: %d\n",
 			gameport->phys, gameport->name, error);
-	up_write(&gameport_bus.subsys.rwsem);
 }
 
 
@@ -483,13 +471,12 @@ static ssize_t gameport_rebind_driver(struct device *dev, struct device_attribut
 {
 	struct gameport *gameport = to_gameport_port(dev);
 	struct device_driver *drv;
-	int retval;
+	int error;
 
-	retval = mutex_lock_interruptible(&gameport_mutex);
-	if (retval)
-		return retval;
+	error = mutex_lock_interruptible(&gameport_mutex);
+	if (error)
+		return error;
 
-	retval = count;
 	if (!strncmp(buf, "none", count)) {
 		gameport_disconnect_port(gameport);
 	} else if (!strncmp(buf, "reconnect", count)) {
@@ -499,15 +486,15 @@ static ssize_t gameport_rebind_driver(struct device *dev, struct device_attribut
 		gameport_find_driver(gameport);
 	} else if ((drv = driver_find(buf, &gameport_bus)) != NULL) {
 		gameport_disconnect_port(gameport);
-		gameport_bind_driver(gameport, to_gameport_driver(drv));
+		error = gameport_bind_driver(gameport, to_gameport_driver(drv));
 		put_driver(drv);
 	} else {
-		retval = -EINVAL;
+		error = -EINVAL;
 	}
 
 	mutex_unlock(&gameport_mutex);
 
-	return retval;
+	return error ? error : count;
 }
 
 static struct device_attribute gameport_device_attrs[] = {
@@ -655,7 +642,7 @@ static void gameport_disconnect_port(struct gameport *gameport)
 		do {
 			parent = s->parent;
 
-			gameport_release_driver(s);
+			device_release_driver(&s->dev);
 			gameport_destroy_port(s);
 		} while ((s = parent) != gameport);
 	}
@@ -663,7 +650,7 @@ static void gameport_disconnect_port(struct gameport *gameport)
 	/*
 	 * Ok, no children left, now disconnect this port
 	 */
-	gameport_release_driver(gameport);
+	device_release_driver(&gameport->dev);
 }
 
 void gameport_rescan(struct gameport *gameport)

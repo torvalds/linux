@@ -871,6 +871,12 @@ io_subchannel_register(struct work_struct *work)
 		}
 		goto out;
 	}
+	/*
+	 * Now we know this subchannel will stay, we can throw
+	 * our delayed uevent.
+	 */
+	sch->dev.uevent_suppress = 0;
+	kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 	/* make it known to the system */
 	ret = ccw_device_register(cdev);
 	if (ret) {

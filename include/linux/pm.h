@@ -166,6 +166,24 @@ extern struct pm_ops *pm_ops;
 extern int pm_suspend(suspend_state_t state);
 
 
+/**
+ * arch_suspend_disable_irqs - disable IRQs for suspend
+ *
+ * Disables IRQs (in the default case). This is a weak symbol in the common
+ * code and thus allows architectures to override it if more needs to be
+ * done. Not called for suspend to disk.
+ */
+extern void arch_suspend_disable_irqs(void);
+
+/**
+ * arch_suspend_enable_irqs - enable IRQs after suspend
+ *
+ * Enables IRQs (in the default case). This is a weak symbol in the common
+ * code and thus allows architectures to override it if more needs to be
+ * done. Not called for suspend to disk.
+ */
+extern void arch_suspend_enable_irqs(void);
+
 /*
  * Device power management
  */
@@ -273,6 +291,20 @@ extern void __suspend_report_result(const char *function, void *fn, int ret);
 		__suspend_report_result(__FUNCTION__, fn, ret);		\
 	} while (0)
 
+/*
+ * Platform hook to activate device wakeup capability, if that's not already
+ * handled by enable_irq_wake() etc.
+ * Returns zero on success, else negative errno
+ */
+extern int (*platform_enable_wakeup)(struct device *dev, int is_on);
+
+static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
+{
+	if (platform_enable_wakeup)
+		return (*platform_enable_wakeup)(dev, is_on);
+	return 0;
+}
+
 #else /* !CONFIG_PM */
 
 static inline int device_suspend(pm_message_t state)
@@ -293,6 +325,11 @@ static inline void dpm_runtime_resume(struct device * dev)
 }
 
 #define suspend_report_result(fn, ret) do { } while (0)
+
+static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
+{
+	return -EIO;
+}
 
 #endif
 
