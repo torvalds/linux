@@ -65,7 +65,7 @@ static int rx_copybreak = 100;
 static int csr0 = 0x01A00000 | 0xE000;
 #elif defined(__powerpc__)
 static int csr0 = 0x01B00000 | 0x8000;
-#elif defined(__sparc__)
+#elif defined(CONFIG_SPARC)
 static int csr0 = 0x01B00080 | 0x8000;
 #elif defined(__i386__)
 static int csr0 = 0x01A00000 | 0x8000;

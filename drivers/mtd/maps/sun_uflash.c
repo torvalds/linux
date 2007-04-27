@@ -39,7 +39,7 @@ MODULE_VERSION("2.0");
 
 static LIST_HEAD(device_list);
 struct uflash_dev {
-	char			*name;	/* device name */
+	const char		*name;	/* device name */
 	struct map_info 	map;	/* mtd map info */
 	struct mtd_info		*mtd;	/* mtd info */
 };
@@ -80,7 +80,7 @@ int uflash_devinit(struct linux_ebus_device *edev, struct device_node *dp)
 
 	up->name = of_get_property(dp, "model", NULL);
 	if (up->name && 0 < strlen(up->name))
-		up->map.name = up->name;
+		up->map.name = (char *)up->name;
 
 	up->map.phys = res->start;
 

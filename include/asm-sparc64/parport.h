@@ -103,7 +103,7 @@ static int ebus_ecpp_p(struct linux_ebus_device *edev)
 	if (!strcmp(edev->prom_node->name, "ecpp"))
 		return 1;
 	if (!strcmp(edev->prom_node->name, "parallel")) {
-		char *compat;
+		const char *compat;
 
 		compat = of_get_property(edev->prom_node,
 					 "compatible", NULL);

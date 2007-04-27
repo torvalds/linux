@@ -32,7 +32,7 @@ static void central_probe_failure(int line)
 static void central_ranges_init(struct linux_central *central)
 {
 	struct device_node *dp = central->prom_node;
-	void *pval;
+	const void *pval;
 	int len;
 	
 	central->num_central_ranges = 0;
@@ -47,7 +47,7 @@ static void central_ranges_init(struct linux_central *central)
 static void fhc_ranges_init(struct linux_fhc *fhc)
 {
 	struct device_node *dp = fhc->prom_node;
-	void *pval;
+	const void *pval;
 	int len;
 	
 	fhc->num_fhc_ranges = 0;
@@ -119,7 +119,7 @@ static unsigned long prom_reg_to_paddr(struct linux_prom_registers *r)
 static void probe_other_fhcs(void)
 {
 	struct device_node *dp;
-	struct linux_prom64_registers *fpregs;
+	const struct linux_prom64_registers *fpregs;
 
 	for_each_node_by_name(dp, "fhc") {
 		struct linux_fhc *fhc;
@@ -190,7 +190,8 @@ static void probe_clock_board(struct linux_central *central,
 			      struct device_node *fp)
 {
 	struct device_node *dp;
-	struct linux_prom_registers cregs[3], *pr;
+	struct linux_prom_registers cregs[3];
+	const struct linux_prom_registers *pr;
 	int nslots, tmp, nregs;
 
 	dp = fp->child;
@@ -299,7 +300,8 @@ static void init_all_fhc_hw(void)
 
 void central_probe(void)
 {
-	struct linux_prom_registers fpregs[6], *pr;
+	struct linux_prom_registers fpregs[6];
+	const struct linux_prom_registers *pr;
 	struct linux_fhc *fhc;
 	struct device_node *dp, *fp;
 	int err;

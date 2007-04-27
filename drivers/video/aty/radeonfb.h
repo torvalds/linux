@@ -16,7 +16,7 @@
 
 #include <asm/io.h>
 
-#ifdef CONFIG_PPC_OF
+#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
 #include <asm/prom.h>
 #endif
 
@@ -292,7 +292,7 @@ struct radeonfb_info {
 	unsigned long		fb_local_base;
 
 	struct pci_dev		*pdev;
-#ifdef CONFIG_PPC_OF
+#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
 	struct device_node	*of_node;
 #endif
 

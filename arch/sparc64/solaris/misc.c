@@ -224,7 +224,8 @@ static char *serial(char *buffer, int sz)
 
 	*buffer = 0;
 	if (dp) {
-		char *val = of_get_property(dp, "system-board-serial#", &len);
+		const char *val =
+			of_get_property(dp, "system-board-serial#", &len);
 
 		if (val && len > 0) {
 			if (len > sz)

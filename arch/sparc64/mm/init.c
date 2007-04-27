@@ -122,24 +122,19 @@ static void __init read_obp_memory(const char *property,
 				size = 0UL;
 			base = new_base;
 		}
+		if (size == 0UL) {
+			/* If it is empty, simply get rid of it.
+			 * This simplifies the logic of the other
+			 * functions that process these arrays.
+			 */
+			memmove(&regs[i], &regs[i + 1],
+				(ents - i - 1) * sizeof(regs[0]));
+			i--;
+			ents--;
+			continue;
+		}
 		regs[i].phys_addr = base;
 		regs[i].reg_size = size;
-	}
-
-	for (i = 0; i < ents; i++) {
-		if (regs[i].reg_size == 0UL) {
-			int j;
-
-			for (j = i; j < ents - 1; j++) {
-				regs[j].phys_addr =
-					regs[j+1].phys_addr;
-				regs[j].reg_size =
-					regs[j+1].reg_size;
-			}
-
-			ents--;
-			i--;
-		}
 	}
 
 	*num_ents = ents;
@@ -153,15 +148,6 @@ unsigned long *sparc64_valid_addr_bitmap __read_mostly;
 /* Kernel physical address base and size in bytes.  */
 unsigned long kern_base __read_mostly;
 unsigned long kern_size __read_mostly;
-
-/* get_new_mmu_context() uses "cache + 1".  */
-DEFINE_SPINLOCK(ctx_alloc_lock);
-unsigned long tlb_context_cache = CTX_FIRST_VERSION - 1;
-#define CTX_BMAP_SLOTS (1UL << (CTX_NR_BITS - 6))
-unsigned long mmu_context_bmap[CTX_BMAP_SLOTS];
-
-/* References to special section boundaries */
-extern char  _start[], _end[];
 
 /* Initial ramdisk setup */
 extern unsigned long sparc_ramdisk_image64;
@@ -406,19 +392,70 @@ void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 	if (tlb_type == spitfire) {
 		unsigned long kaddr;
 
-		for (kaddr = start; kaddr < end; kaddr += PAGE_SIZE)
-			__flush_icache_page(__get_phys(kaddr));
+		/* This code only runs on Spitfire cpus so this is
+		 * why we can assume _PAGE_PADDR_4U.
+		 */
+		for (kaddr = start; kaddr < end; kaddr += PAGE_SIZE) {
+			unsigned long paddr, mask = _PAGE_PADDR_4U;
+
+			if (kaddr >= PAGE_OFFSET)
+				paddr = kaddr & mask;
+			else {
+				pgd_t *pgdp = pgd_offset_k(kaddr);
+				pud_t *pudp = pud_offset(pgdp, kaddr);
+				pmd_t *pmdp = pmd_offset(pudp, kaddr);
+				pte_t *ptep = pte_offset_kernel(pmdp, kaddr);
+
+				paddr = pte_val(*ptep) & mask;
+			}
+			__flush_icache_page(paddr);
+		}
 	}
 }
 
 void show_mem(void)
 {
-	printk("Mem-info:\n");
+	unsigned long total = 0, reserved = 0;
+	unsigned long shared = 0, cached = 0;
+	pg_data_t *pgdat;
+
+	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n",
+	printk(KERN_INFO "Free swap:       %6ldkB\n",
 	       nr_swap_pages << (PAGE_SHIFT-10));
-	printk("%ld pages of RAM\n", num_physpages);
-	printk("%lu free pages\n", nr_free_pages());
+	for_each_online_pgdat(pgdat) {
+		unsigned long i, flags;
+
+		pgdat_resize_lock(pgdat, &flags);
+		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+			struct page *page = pgdat_page_nr(pgdat, i);
+			total++;
+			if (PageReserved(page))
+				reserved++;
+			else if (PageSwapCache(page))
+				cached++;
+			else if (page_count(page))
+				shared += page_count(page) - 1;
+		}
+		pgdat_resize_unlock(pgdat, &flags);
+	}
+
+	printk(KERN_INFO "%lu pages of RAM\n", total);
+	printk(KERN_INFO "%lu reserved pages\n", reserved);
+	printk(KERN_INFO "%lu pages shared\n", shared);
+	printk(KERN_INFO "%lu pages swap cached\n", cached);
+
+	printk(KERN_INFO "%lu pages dirty\n",
+	       global_page_state(NR_FILE_DIRTY));
+	printk(KERN_INFO "%lu pages writeback\n",
+	       global_page_state(NR_WRITEBACK));
+	printk(KERN_INFO "%lu pages mapped\n",
+	       global_page_state(NR_FILE_MAPPED));
+	printk(KERN_INFO "%lu pages slab\n",
+		global_page_state(NR_SLAB_RECLAIMABLE) +
+		global_page_state(NR_SLAB_UNRECLAIMABLE));
+	printk(KERN_INFO "%lu pages pagetables\n",
+	       global_page_state(NR_PAGETABLE));
 }
 
 void mmu_info(struct seq_file *m)
@@ -658,6 +695,13 @@ void __flush_dcache_range(unsigned long start, unsigned long end)
 }
 #endif /* DCACHE_ALIASING_POSSIBLE */
 
+/* get_new_mmu_context() uses "cache + 1".  */
+DEFINE_SPINLOCK(ctx_alloc_lock);
+unsigned long tlb_context_cache = CTX_FIRST_VERSION - 1;
+#define MAX_CTX_NR	(1UL << CTX_NR_BITS)
+#define CTX_BMAP_SLOTS	BITS_TO_LONGS(MAX_CTX_NR)
+DECLARE_BITMAP(mmu_context_bmap, MAX_CTX_NR);
+
 /* Caller does TLB context flushing on local CPU if necessary.
  * The caller also ensures that CTX_VALID(mm->context) is false.
  *
@@ -717,95 +761,6 @@ out:
 		smp_new_mmu_context_version();
 }
 
-void sparc_ultra_dump_itlb(void)
-{
-        int slot;
-
-	if (tlb_type == spitfire) {
-		printk ("Contents of itlb: ");
-		for (slot = 0; slot < 14; slot++) printk ("    ");
-		printk ("%2x:%016lx,%016lx\n",
-			0,
-			spitfire_get_itlb_tag(0), spitfire_get_itlb_data(0));
-		for (slot = 1; slot < 64; slot+=3) {
-			printk ("%2x:%016lx,%016lx %2x:%016lx,%016lx %2x:%016lx,%016lx\n", 
-				slot,
-				spitfire_get_itlb_tag(slot), spitfire_get_itlb_data(slot),
-				slot+1,
-				spitfire_get_itlb_tag(slot+1), spitfire_get_itlb_data(slot+1),
-				slot+2,
-				spitfire_get_itlb_tag(slot+2), spitfire_get_itlb_data(slot+2));
-		}
-	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		printk ("Contents of itlb0:\n");
-		for (slot = 0; slot < 16; slot+=2) {
-			printk ("%2x:%016lx,%016lx %2x:%016lx,%016lx\n",
-				slot,
-				cheetah_get_litlb_tag(slot), cheetah_get_litlb_data(slot),
-				slot+1,
-				cheetah_get_litlb_tag(slot+1), cheetah_get_litlb_data(slot+1));
-		}
-		printk ("Contents of itlb2:\n");
-		for (slot = 0; slot < 128; slot+=2) {
-			printk ("%2x:%016lx,%016lx %2x:%016lx,%016lx\n",
-				slot,
-				cheetah_get_itlb_tag(slot), cheetah_get_itlb_data(slot),
-				slot+1,
-				cheetah_get_itlb_tag(slot+1), cheetah_get_itlb_data(slot+1));
-		}
-	}
-}
-
-void sparc_ultra_dump_dtlb(void)
-{
-        int slot;
-
-	if (tlb_type == spitfire) {
-		printk ("Contents of dtlb: ");
-		for (slot = 0; slot < 14; slot++) printk ("    ");
-		printk ("%2x:%016lx,%016lx\n", 0,
-			spitfire_get_dtlb_tag(0), spitfire_get_dtlb_data(0));
-		for (slot = 1; slot < 64; slot+=3) {
-			printk ("%2x:%016lx,%016lx %2x:%016lx,%016lx %2x:%016lx,%016lx\n", 
-				slot,
-				spitfire_get_dtlb_tag(slot), spitfire_get_dtlb_data(slot),
-				slot+1,
-				spitfire_get_dtlb_tag(slot+1), spitfire_get_dtlb_data(slot+1),
-				slot+2,
-				spitfire_get_dtlb_tag(slot+2), spitfire_get_dtlb_data(slot+2));
-		}
-	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		printk ("Contents of dtlb0:\n");
-		for (slot = 0; slot < 16; slot+=2) {
-			printk ("%2x:%016lx,%016lx %2x:%016lx,%016lx\n",
-				slot,
-				cheetah_get_ldtlb_tag(slot), cheetah_get_ldtlb_data(slot),
-				slot+1,
-				cheetah_get_ldtlb_tag(slot+1), cheetah_get_ldtlb_data(slot+1));
-		}
-		printk ("Contents of dtlb2:\n");
-		for (slot = 0; slot < 512; slot+=2) {
-			printk ("%2x:%016lx,%016lx %2x:%016lx,%016lx\n",
-				slot,
-				cheetah_get_dtlb_tag(slot, 2), cheetah_get_dtlb_data(slot, 2),
-				slot+1,
-				cheetah_get_dtlb_tag(slot+1, 2), cheetah_get_dtlb_data(slot+1, 2));
-		}
-		if (tlb_type == cheetah_plus) {
-			printk ("Contents of dtlb3:\n");
-			for (slot = 0; slot < 512; slot+=2) {
-				printk ("%2x:%016lx,%016lx %2x:%016lx,%016lx\n",
-					slot,
-					cheetah_get_dtlb_tag(slot, 3), cheetah_get_dtlb_data(slot, 3),
-					slot+1,
-					cheetah_get_dtlb_tag(slot+1, 3), cheetah_get_dtlb_data(slot+1, 3));
-			}
-		}
-	}
-}
-
-extern unsigned long cmdline_memory_size;
-
 /* Find a free area for the bootmem map, avoiding the kernel image
  * and the initial ramdisk.
  */
@@ -815,8 +770,8 @@ static unsigned long __init choose_bootmap_pfn(unsigned long start_pfn,
 	unsigned long avoid_start, avoid_end, bootmap_size;
 	int i;
 
-	bootmap_size = ((end_pfn - start_pfn) + 7) / 8;
-	bootmap_size = ALIGN(bootmap_size, sizeof(long));
+	bootmap_size = bootmem_bootmap_pages(end_pfn - start_pfn);
+	bootmap_size <<= PAGE_SHIFT;
 
 	avoid_start = avoid_end = 0;
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -983,6 +938,20 @@ static void __init trim_pavail(unsigned long *cur_size_p,
 	}
 }
 
+/* About pages_avail, this is the value we will use to calculate
+ * the zholes_size[] argument given to free_area_init_node().  The
+ * page allocator uses this to calculate nr_kernel_pages,
+ * nr_all_pages and zone->present_pages.  On NUMA it is used
+ * to calculate zone->min_unmapped_pages and zone->min_slab_pages.
+ *
+ * So this number should really be set to what the page allocator
+ * actually ends up with.  This means:
+ * 1) It should include bootmem map pages, we'll release those.
+ * 2) It should not include the kernel image, except for the
+ *    __init sections which we will also release.
+ * 3) It should include the initrd image, since we'll release
+ *    that too.
+ */
 static unsigned long __init bootmem_init(unsigned long *pages_avail,
 					 unsigned long phys_base)
 {
@@ -1069,7 +1038,6 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 			initrd_start, initrd_end);
 #endif
 		reserve_bootmem(initrd_start, size);
-		*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 		initrd_start += PAGE_OFFSET;
 		initrd_end += PAGE_OFFSET;
@@ -1082,6 +1050,11 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 	reserve_bootmem(kern_base, kern_size);
 	*pages_avail -= PAGE_ALIGN(kern_size) >> PAGE_SHIFT;
 
+	/* Add back in the initmem pages. */
+	size = ((unsigned long)(__init_end) & PAGE_MASK) -
+		PAGE_ALIGN((unsigned long)__init_begin);
+	*pages_avail += size >> PAGE_SHIFT;
+
 	/* Reserve the bootmem map.   We do not account for it
 	 * in pages_avail because we will release that memory
 	 * in free_all_bootmem.
@@ -1092,7 +1065,6 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 		    (bootmap_pfn << PAGE_SHIFT), size);
 #endif
 	reserve_bootmem((bootmap_pfn << PAGE_SHIFT), size);
-	*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 	for (i = 0; i < pavail_ents; i++) {
 		unsigned long start_pfn, end_pfn;
@@ -1584,6 +1556,10 @@ void __init mem_init(void)
 #ifdef CONFIG_DEBUG_BOOTMEM
 	prom_printf("mem_init: Calling free_all_bootmem().\n");
 #endif
+
+	/* We subtract one to account for the mem_map_zero page
+	 * allocated below.
+	 */
 	totalram_pages = num_physpages = free_all_bootmem() - 1;
 
 	/*
@@ -1881,62 +1857,6 @@ static unsigned long kern_large_tte(unsigned long paddr)
 		       _PAGE_EXEC_4V | _PAGE_W_4V);
 
 	return val | paddr;
-}
-
-/*
- * Translate PROM's mapping we capture at boot time into physical address.
- * The second parameter is only set from prom_callback() invocations.
- */
-unsigned long prom_virt_to_phys(unsigned long promva, int *error)
-{
-	unsigned long mask;
-	int i;
-
-	mask = _PAGE_PADDR_4U;
-	if (tlb_type == hypervisor)
-		mask = _PAGE_PADDR_4V;
-
-	for (i = 0; i < prom_trans_ents; i++) {
-		struct linux_prom_translation *p = &prom_trans[i];
-
-		if (promva >= p->virt &&
-		    promva < (p->virt + p->size)) {
-			unsigned long base = p->data & mask;
-
-			if (error)
-				*error = 0;
-			return base + (promva & (8192 - 1));
-		}
-	}
-	if (error)
-		*error = 1;
-	return 0UL;
-}
-
-/* XXX We should kill off this ugly thing at so me point. XXX */
-unsigned long sun4u_get_pte(unsigned long addr)
-{
-	pgd_t *pgdp;
-	pud_t *pudp;
-	pmd_t *pmdp;
-	pte_t *ptep;
-	unsigned long mask = _PAGE_PADDR_4U;
-
-	if (tlb_type == hypervisor)
-		mask = _PAGE_PADDR_4V;
-
-	if (addr >= PAGE_OFFSET)
-		return addr & mask;
-
-	if ((addr >= LOW_OBP_ADDRESS) && (addr < HI_OBP_ADDRESS))
-		return prom_virt_to_phys(addr, NULL);
-
-	pgdp = pgd_offset_k(addr);
-	pudp = pud_offset(pgdp, addr);
-	pmdp = pmd_offset(pudp, addr);
-	ptep = pte_offset_kernel(pmdp, addr);
-
-	return pte_val(*ptep) & mask;
 }
 
 /* If not locked, zap it. */

@@ -44,7 +44,6 @@
 #include <asm/openpromio.h>
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
-#include <asm/pbm.h>
 #endif
 
 MODULE_AUTHOR("Thomas K. Dyas (tdyas@noc.rutgers.edu) and Eddie C. Dost  (ecd@skynet.be)");
@@ -141,7 +140,7 @@ static int copyout(void __user *info, struct openpromio *opp, int len)
 
 static int opromgetprop(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize)
 {
-	void *pval;
+	const void *pval;
 	int len;
 
 	if (!dp ||
@@ -248,18 +247,17 @@ static int oprompci2node(void __user *argp, struct device_node *dp, struct openp
 	if (bufsize >= 2*sizeof(int)) {
 #ifdef CONFIG_PCI
 		struct pci_dev *pdev;
-		struct pcidev_cookie *pcp;
+		struct device_node *dp;
+
 		pdev = pci_get_bus_and_slot (((int *) op->oprom_array)[0],
 				      ((int *) op->oprom_array)[1]);
 
-		pcp = pdev->sysdata;
-		if (pcp != NULL) {
-			dp = pcp->prom_node;
-			data->current_node = dp;
-			*((int *)op->oprom_array) = dp->node;
-			op->oprom_size = sizeof(int);
-			err = copyout(argp, op, bufsize + sizeof(int));
-		}
+		dp = pci_device_to_OF_node(pdev);
+		data->current_node = dp;
+		*((int *)op->oprom_array) = dp->node;
+		op->oprom_size = sizeof(int);
+		err = copyout(argp, op, bufsize + sizeof(int));
+
 		pci_dev_put(pdev);
 #endif
 	}
@@ -410,7 +408,7 @@ static int opiocget(void __user *argp, DATA *data)
 	struct opiocdesc op;
 	struct device_node *dp;
 	char *str;
-	void *pval;
+	const void *pval;
 	int err, len;
 
 	if (copy_from_user(&op, argp, sizeof(op)))

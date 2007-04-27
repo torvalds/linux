@@ -47,10 +47,9 @@
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 #include <asm/idprom.h>
-#include <asm/oplib.h>
-#include <asm/pbm.h>
+#include <asm/prom.h>
 #endif
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
@@ -10987,24 +10986,20 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	return err;
 }
 
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 static int __devinit tg3_get_macaddr_sparc(struct tg3 *tp)
 {
 	struct net_device *dev = tp->dev;
 	struct pci_dev *pdev = tp->pdev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
+	struct device_node *dp = pci_device_to_OF_node(pdev);
+	const unsigned char *addr;
+	int len;
 
-	if (pcp != NULL) {
-		unsigned char *addr;
-		int len;
-
-		addr = of_get_property(pcp->prom_node, "local-mac-address",
-					&len);
-		if (addr && len == 6) {
-			memcpy(dev->dev_addr, addr, 6);
-			memcpy(dev->perm_addr, dev->dev_addr, 6);
-			return 0;
-		}
+	addr = of_get_property(dp, "local-mac-address", &len);
+	if (addr && len == 6) {
+		memcpy(dev->dev_addr, addr, 6);
+		memcpy(dev->perm_addr, dev->dev_addr, 6);
+		return 0;
 	}
 	return -ENODEV;
 }
@@ -11025,7 +11020,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 	u32 hi, lo, mac_offset;
 	int addr_ok = 0;
 
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 	if (!tg3_get_macaddr_sparc(tp))
 		return 0;
 #endif

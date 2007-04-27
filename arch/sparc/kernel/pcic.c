@@ -37,8 +37,6 @@
 #include <asm/irq_regs.h>
 
 
-unsigned int pcic_pin_to_irq(unsigned int pin, char *name);
-
 /*
  * I studied different documents and many live PROMs both from 2.30
  * family and 3.xx versions. I came to the amazing conclusion: there is
@@ -681,7 +679,7 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
  * pcic_pin_to_irq() is exported to ebus.c.
  */
 unsigned int
-pcic_pin_to_irq(unsigned int pin, char *name)
+pcic_pin_to_irq(unsigned int pin, const char *name)
 {
 	struct linux_pcic *pcic = &pcic0;
 	unsigned int irq;

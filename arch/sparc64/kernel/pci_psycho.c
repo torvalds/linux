@@ -1,7 +1,6 @@
-/* $Id: pci_psycho.c,v 1.33 2002/02/01 00:58:33 davem Exp $
- * pci_psycho.c: PSYCHO/U2P specific PCI controller support.
+/* pci_psycho.c: PSYCHO/U2P specific PCI controller support.
  *
- * Copyright (C) 1997, 1998, 1999 David S. Miller (davem@caipfs.rutgers.edu)
+ * Copyright (C) 1997, 1998, 1999, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1998, 1999 Eddie C. Dost   (ecd@skynet.be)
  * Copyright (C) 1999 Jakub Jelinek   (jakub@redhat.com)
  */
@@ -119,6 +118,10 @@ static int psycho_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	u16 tmp16;
 	u8 tmp8;
 
+	if (bus_dev == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_read_pci_cfg(bus_dev, devfn, where,
+						    size, value);
+
 	switch (size) {
 	case 1:
 		*value = 0xff;
@@ -172,6 +175,9 @@ static int psycho_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	unsigned char bus = bus_dev->number;
 	u32 *addr;
 
+	if (bus_dev == pbm->pci_bus && devfn == 0x00)
+		return pci_host_bridge_write_pci_cfg(bus_dev, devfn, where,
+						     size, value);
 	addr = psycho_pci_config_mkaddr(pbm, bus, devfn, where);
 	if (!addr)
 		return PCIBIOS_SUCCESSFUL;
@@ -263,7 +269,7 @@ static void __psycho_check_one_stc(struct pci_controller_info *p,
 				   struct pci_pbm_info *pbm,
 				   int is_pbm_a)
 {
-	struct pci_strbuf *strbuf = &pbm->stc;
+	struct strbuf *strbuf = &pbm->stc;
 	unsigned long regbase = p->pbm_A.controller_regs;
 	unsigned long err_base, tag_base, line_base;
 	u64 control;
@@ -412,7 +418,7 @@ static void psycho_check_iommu_error(struct pci_controller_info *p,
 				     unsigned long afar,
 				     enum psycho_error_type type)
 {
-	struct pci_iommu *iommu = p->pbm_A.iommu;
+	struct iommu *iommu = p->pbm_A.iommu;
 	unsigned long iommu_tag[16];
 	unsigned long iommu_data[16];
 	unsigned long flags;
@@ -895,59 +901,6 @@ static void psycho_register_error_handlers(struct pci_controller_info *p)
 }
 
 /* PSYCHO boot time probing and initialization. */
-static void psycho_resource_adjust(struct pci_dev *pdev,
-				   struct resource *res,
-				   struct resource *root)
-{
-	res->start += root->start;
-	res->end += root->start;
-}
-
-static void psycho_base_address_update(struct pci_dev *pdev, int resource)
-{
-	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = pcp->pbm;
-	struct resource *res, *root;
-	u32 reg;
-	int where, size, is_64bit;
-
-	res = &pdev->resource[resource];
-	if (resource < 6) {
-		where = PCI_BASE_ADDRESS_0 + (resource * 4);
-	} else if (resource == PCI_ROM_RESOURCE) {
-		where = pdev->rom_base_reg;
-	} else {
-		/* Somebody might have asked allocation of a non-standard resource */
-		return;
-	}
-
-	is_64bit = 0;
-	if (res->flags & IORESOURCE_IO)
-		root = &pbm->io_space;
-	else {
-		root = &pbm->mem_space;
-		if ((res->flags & PCI_BASE_ADDRESS_MEM_TYPE_MASK)
-		    == PCI_BASE_ADDRESS_MEM_TYPE_64)
-			is_64bit = 1;
-	}
-
-	size = res->end - res->start;
-	pci_read_config_dword(pdev, where, &reg);
-	reg = ((reg & size) |
-	       (((u32)(res->start - root->start)) & ~size));
-	if (resource == PCI_ROM_RESOURCE) {
-		reg |= PCI_ROM_ADDRESS_ENABLE;
-		res->flags |= IORESOURCE_ROM_ENABLE;
-	}
-	pci_write_config_dword(pdev, where, reg);
-
-	/* This knows that the upper 32-bits of the address
-	 * must be zero.  Our PCI common layer enforces this.
-	 */
-	if (is_64bit)
-		pci_write_config_dword(pdev, where + 4, 0);
-}
-
 static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 {
 	u8 *addr;
@@ -968,28 +921,7 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 static void pbm_scan_bus(struct pci_controller_info *p,
 			 struct pci_pbm_info *pbm)
 {
-	struct pcidev_cookie *cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
-
-	if (!cookie) {
-		prom_printf("PSYCHO: Critical allocation failure.\n");
-		prom_halt();
-	}
-
-	/* All we care about is the PBM. */
-	cookie->pbm = pbm;
-
-	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno,
-				    p->pci_ops,
-				    pbm);
-	pci_fixup_host_bridge_self(pbm->pci_bus);
-	pbm->pci_bus->self->sysdata = cookie;
-
-	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node);
-	pci_record_assignments(pbm, pbm->pci_bus);
-	pci_assign_unassigned(pbm, pbm->pci_bus);
-	pci_fixup_irq(pbm, pbm->pci_bus);
-	pci_determine_66mhz_disposition(pbm, pbm->pci_bus);
-	pci_setup_busmastering(pbm, pbm->pci_bus);
+	pbm->pci_bus = pci_scan_one_pbm(pbm);
 }
 
 static void psycho_scan_bus(struct pci_controller_info *p)
@@ -1009,7 +941,7 @@ static void psycho_scan_bus(struct pci_controller_info *p)
 
 static void psycho_iommu_init(struct pci_controller_info *p)
 {
-	struct pci_iommu *iommu = p->pbm_A.iommu;
+	struct iommu *iommu = p->pbm_A.iommu;
 	unsigned long i;
 	u64 control;
 
@@ -1094,19 +1026,6 @@ static void psycho_controller_hwinit(struct pci_controller_info *p)
 	psycho_write(p->pbm_A.controller_regs + PSYCHO_PCIB_DIAG, tmp);
 }
 
-static void pbm_register_toplevel_resources(struct pci_controller_info *p,
-					    struct pci_pbm_info *pbm)
-{
-	char *name = pbm->name;
-
-	pbm->io_space.name = pbm->mem_space.name = name;
-
-	request_resource(&ioport_resource, &pbm->io_space);
-	request_resource(&iomem_resource, &pbm->mem_space);
-	pci_register_legacy_regions(&pbm->io_space,
-				    &pbm->mem_space);
-}
-
 static void psycho_pbm_strbuf_init(struct pci_controller_info *p,
 				   struct pci_pbm_info *pbm,
 				   int is_pbm_a)
@@ -1172,19 +1091,11 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	unsigned int *busrange;
 	struct property *prop;
 	struct pci_pbm_info *pbm;
-	int len;
 
-	if (is_pbm_a) {
+	if (is_pbm_a)
 		pbm = &p->pbm_A;
-		pbm->pci_first_slot = 1;
-		pbm->io_space.start = pbm->controller_regs + PSYCHO_IOSPACE_A;
-		pbm->mem_space.start = pbm->controller_regs + PSYCHO_MEMSPACE_A;
-	} else {
+	else
 		pbm = &p->pbm_B;
-		pbm->pci_first_slot = 2;
-		pbm->io_space.start = pbm->controller_regs + PSYCHO_IOSPACE_B;
-		pbm->mem_space.start = pbm->controller_regs + PSYCHO_MEMSPACE_B;
-	}
 
 	pbm->chip_type = PBM_CHIP_TYPE_PSYCHO;
 	pbm->chip_version = 0;
@@ -1196,41 +1107,15 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	if (prop)
 		pbm->chip_revision = *(int *) prop->value;
 
-	pbm->io_space.end = pbm->io_space.start + PSYCHO_IOSPACE_SIZE;
-	pbm->io_space.flags = IORESOURCE_IO;
-	pbm->mem_space.end = pbm->mem_space.start + PSYCHO_MEMSPACE_SIZE;
-	pbm->mem_space.flags = IORESOURCE_MEM;
-
 	pbm->parent = p;
 	pbm->prom_node = dp;
 	pbm->name = dp->full_name;
-
-	pbm_register_toplevel_resources(p, pbm);
 
 	printk("%s: PSYCHO PCI Bus Module ver[%x:%x]\n",
 	       pbm->name,
 	       pbm->chip_version, pbm->chip_revision);
 
-	prop = of_find_property(dp, "ranges", &len);
-	if (prop) {
-		pbm->pbm_ranges = prop->value;
-		pbm->num_pbm_ranges =
-			(len / sizeof(struct linux_prom_pci_ranges));
-	} else {
-		pbm->num_pbm_ranges = 0;
-	}
-
-	prop = of_find_property(dp, "interrupt-map", &len);
-	if (prop) {
-		pbm->pbm_intmap = prop->value;
-		pbm->num_pbm_intmap =
-			(len / sizeof(struct linux_prom_pci_intmap));
-
-		prop = of_find_property(dp, "interrupt-map-mask", NULL);
-		pbm->pbm_intmask = prop->value;
-	} else {
-		pbm->num_pbm_intmap = 0;
-	}
+	pci_determine_mem_io_space(pbm);
 
 	prop = of_find_property(dp, "bus-range", NULL);
 	busrange = prop->value;
@@ -1246,7 +1131,7 @@ void psycho_init(struct device_node *dp, char *model_name)
 {
 	struct linux_prom64_registers *pr_regs;
 	struct pci_controller_info *p;
-	struct pci_iommu *iommu;
+	struct iommu *iommu;
 	struct property *prop;
 	u32 upa_portid;
 	int is_pbm_a;
@@ -1269,7 +1154,7 @@ void psycho_init(struct device_node *dp, char *model_name)
 		prom_printf("PSYCHO: Fatal memory allocation error.\n");
 		prom_halt();
 	}
-	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu) {
 		prom_printf("PSYCHO: Fatal memory allocation error.\n");
 		prom_halt();
@@ -1282,10 +1167,7 @@ void psycho_init(struct device_node *dp, char *model_name)
 	p->pbm_A.portid = upa_portid;
 	p->pbm_B.portid = upa_portid;
 	p->index = pci_num_controllers++;
-	p->pbms_same_domain = 0;
 	p->scan_bus = psycho_scan_bus;
-	p->base_address_update = psycho_base_address_update;
-	p->resource_adjust = psycho_resource_adjust;
 	p->pci_ops = &psycho_ops;
 
 	prop = of_find_property(dp, "reg", NULL);
