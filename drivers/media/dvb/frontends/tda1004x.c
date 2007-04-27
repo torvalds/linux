@@ -503,6 +503,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 
 	/* The PLLs need to be reprogrammed after sleep */
 	tda10046_init_plls(fe);
+	tda1004x_write_mask(state, TDA1004X_CONFADC2, 0xc0, 0);
 
 	/* don't re-upload unless necessary */
 	if (tda1004x_check_upload_ok(state) == 0)
@@ -1170,6 +1171,7 @@ static int tda1004x_sleep(struct dvb_frontend* fe)
 			tda1004x_write_mask(state, TDA10046H_CONF_POLARITY, 0x0f,
 							(gpio_conf & 0x0f) ^ 0x0a);
 
+		tda1004x_write_mask(state, TDA1004X_CONFADC2, 0xc0, 0xc0);
 		tda1004x_write_mask(state, TDA1004X_CONFC4, 1, 1);
 		break;
 	}

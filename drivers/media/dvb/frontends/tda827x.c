@@ -426,6 +426,7 @@ struct dvb_frontend *tda827x_attach(struct dvb_frontend *fe, int addr,
 {
 	struct tda827x_priv *priv = NULL;
 	u8 data;
+	u8 sb_msg[] = { 0x30, 0xd0 };
 	struct i2c_msg msg = { .addr = addr, .flags = I2C_M_RD,
 			       .buf = &data, .len = 1 };
 	dprintk("%s:\n", __FUNCTION__);
@@ -446,15 +447,21 @@ struct dvb_frontend *tda827x_attach(struct dvb_frontend *fe, int addr,
 	priv->i2c_addr = addr;
 	priv->i2c_adap = i2c;
 	priv->cfg = cfg;
+
+	msg.flags = 0;
+	msg.buf = sb_msg;
+	msg.len = sizeof(sb_msg);
+
 	if ((data & 0x3c) == 0) {
 		dprintk("tda827x tuner found\n");
 		memcpy(&fe->ops.tuner_ops, &tda827xo_tuner_ops, sizeof(struct dvb_tuner_ops));
 	} else {
 		dprintk("tda827xa tuner found\n");
 		memcpy(&fe->ops.tuner_ops, &tda827xa_tuner_ops, sizeof(struct dvb_tuner_ops));
+		sb_msg[1] = 0x90;
 	}
 	fe->tuner_priv = priv;
-
+	i2c_transfer(i2c, &msg, 1);
 	return fe;
 }
 EXPORT_SYMBOL(tda827x_attach);
