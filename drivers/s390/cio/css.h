@@ -146,7 +146,7 @@ extern void css_sch_device_unregister(struct subchannel *);
 extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
-extern int css_process_crw(int, int);
+extern void css_process_crw(int, int);
 extern void css_reiterate_subchannels(void);
 
 #define __MAX_SUBCHANNEL 65535
@@ -186,16 +186,12 @@ int device_trigger_verify(struct subchannel *sch);
 void device_kill_pending_timer(struct subchannel *);
 
 /* Helper functions to build lists for the slow path. */
-extern int css_enqueue_subchannel_slow(struct subchannel_id schid);
-void css_walk_subchannel_slow_list(void (*fn)(unsigned long));
-void css_clear_subchannel_slow_list(void);
-int css_slow_subchannels_exist(void);
-extern int need_rescan;
+void css_schedule_eval(struct subchannel_id schid);
+void css_schedule_eval_all(void);
 
 int sch_is_pseudo_sch(struct subchannel *);
 
 extern struct workqueue_struct *slow_path_wq;
-extern struct work_struct slow_path_work;
 
 int subchannel_add_files (struct device *);
 extern struct attribute_group *subch_attr_groups[];

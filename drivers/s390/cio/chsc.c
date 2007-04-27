@@ -195,12 +195,8 @@ static void terminate_internal_io(struct subchannel *sch)
 	if (cio_clear(sch)) {
 		/* Recheck device in case clear failed. */
 		sch->lpm = 0;
-		if (device_trigger_verify(sch) != 0) {
-			if(css_enqueue_subchannel_slow(sch->schid)) {
-				css_clear_subchannel_slow_list();
-				need_rescan = 1;
-			}
-		}
+		if (device_trigger_verify(sch) != 0)
+			css_schedule_eval(sch->schid);
 		return;
 	}
 	/* Request retry of internal operation. */
@@ -262,11 +258,8 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 
 out_unreg:
 	sch->lpm = 0;
-	if (css_enqueue_subchannel_slow(sch->schid)) {
-		css_clear_subchannel_slow_list();
-		need_rescan = 1;
-	}
 	spin_unlock_irq(sch->lock);
+	css_schedule_eval(sch->schid);
 	return 0;
 }
 
@@ -281,9 +274,6 @@ void chsc_chp_offline(struct chp_id chpid)
 		return;
 	bus_for_each_dev(&css_bus_type, NULL, &chpid,
 			 s390_subchannel_remove_chpid);
-
-	if (need_rescan || css_slow_subchannels_exist())
-		queue_work(slow_path_wq, &slow_path_work);
 }
 
 struct res_acc_data {
@@ -331,7 +321,6 @@ static int
 s390_process_res_acc_new_sch(struct subchannel_id schid)
 {
 	struct schib schib;
-	int ret;
 	/*
 	 * We don't know the device yet, but since a path
 	 * may be available now to the device we'll have
@@ -342,15 +331,10 @@ s390_process_res_acc_new_sch(struct subchannel_id schid)
 	 */
 	if (stsch_err(schid, &schib))
 		/* We're through */
-		return need_rescan ? -EAGAIN : -ENXIO;
+		return -ENXIO;
 
 	/* Put it on the slow path. */
-	ret = css_enqueue_subchannel_slow(schid);
-	if (ret) {
-		css_clear_subchannel_slow_list();
-		need_rescan = 1;
-		return -EAGAIN;
-	}
+	css_schedule_eval(schid);
 	return 0;
 }
 
@@ -392,10 +376,8 @@ __s390_process_res_acc(struct subchannel_id schid, void *data)
 }
 
 
-static int
-s390_process_res_acc (struct res_acc_data *res_data)
+static void s390_process_res_acc (struct res_acc_data *res_data)
 {
-	int rc;
 	char dbf_txt[15];
 
 	sprintf(dbf_txt, "accpr%x.%02x", res_data->chpid.cssid,
@@ -413,12 +395,7 @@ s390_process_res_acc (struct res_acc_data *res_data)
 	 * The more information we have (info), the less scanning
 	 * will we have to do.
 	 */
-	rc = for_each_subchannel(__s390_process_res_acc, res_data);
-	if (css_slow_subchannels_exist())
-		rc = -EAGAIN;
-	else if (rc != -EAGAIN)
-		rc = 0;
-	return rc;
+	for_each_subchannel(__s390_process_res_acc, res_data);
 }
 
 static int
@@ -470,7 +447,7 @@ struct chsc_sei_area {
 	/* ccdf has to be big enough for a link-incident record */
 } __attribute__ ((packed));
 
-static int chsc_process_sei_link_incident(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_link_incident(struct chsc_sei_area *sei_area)
 {
 	struct chp_id chpid;
 	int id;
@@ -478,7 +455,7 @@ static int chsc_process_sei_link_incident(struct chsc_sei_area *sei_area)
 	CIO_CRW_EVENT(4, "chsc: link incident (rs=%02x, rs_id=%04x)\n",
 		      sei_area->rs, sei_area->rsid);
 	if (sei_area->rs != 4)
-		return 0;
+		return;
 	id = __get_chpid_from_lir(sei_area->ccdf);
 	if (id < 0)
 		CIO_CRW_EVENT(4, "chsc: link incident - invalid LIR\n");
@@ -487,21 +464,18 @@ static int chsc_process_sei_link_incident(struct chsc_sei_area *sei_area)
 		chpid.id = id;
 		chsc_chp_offline(chpid);
 	}
-
-	return 0;
 }
 
-static int chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
 {
 	struct res_acc_data res_data;
 	struct chp_id chpid;
 	int status;
-	int rc;
 
 	CIO_CRW_EVENT(4, "chsc: resource accessibility event (rs=%02x, "
 		      "rs_id=%04x)\n", sei_area->rs, sei_area->rsid);
 	if (sei_area->rs != 4)
-		return 0;
+		return;
 	chp_id_init(&chpid);
 	chpid.id = sei_area->rsid;
 	/* allocate a new channel path structure, if needed */
@@ -509,7 +483,7 @@ static int chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
 	if (status < 0)
 		chp_new(chpid);
 	else if (!status)
-		return 0;
+		return;
 	memset(&res_data, 0, sizeof(struct res_acc_data));
 	res_data.chpid = chpid;
 	if ((sei_area->vf & 0xc0) != 0) {
@@ -521,9 +495,7 @@ static int chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
 			/* link address */
 			res_data.fla_mask = 0xff00;
 	}
-	rc = s390_process_res_acc(&res_data);
-
-	return rc;
+	s390_process_res_acc(&res_data);
 }
 
 struct chp_config_data {
@@ -532,7 +504,7 @@ struct chp_config_data {
 	u8 pc;
 };
 
-static int chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
 {
 	struct chp_config_data *data;
 	struct chp_id chpid;
@@ -540,7 +512,7 @@ static int chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
 
 	CIO_CRW_EVENT(4, "chsc: channel-path-configuration notification\n");
 	if (sei_area->rs != 0)
-		return 0;
+		return;
 	data = (struct chp_config_data *) &(sei_area->ccdf);
 	chp_id_init(&chpid);
 	for (num = 0; num <= __MAX_CHPID; num++) {
@@ -561,52 +533,44 @@ static int chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
 			break;
 		}
 	}
-
-	return 0;
 }
 
-static int chsc_process_sei(struct chsc_sei_area *sei_area)
+static void chsc_process_sei(struct chsc_sei_area *sei_area)
 {
-	int rc;
-
 	/* Check if we might have lost some information. */
-	if (sei_area->flags & 0x40)
+	if (sei_area->flags & 0x40) {
 		CIO_CRW_EVENT(2, "chsc: event overflow\n");
+		css_schedule_eval_all();
+	}
 	/* which kind of information was stored? */
-	rc = 0;
 	switch (sei_area->cc) {
 	case 1: /* link incident*/
-		rc = chsc_process_sei_link_incident(sei_area);
+		chsc_process_sei_link_incident(sei_area);
 		break;
 	case 2: /* i/o resource accessibiliy */
-		rc = chsc_process_sei_res_acc(sei_area);
+		chsc_process_sei_res_acc(sei_area);
 		break;
 	case 8: /* channel-path-configuration notification */
-		rc = chsc_process_sei_chp_config(sei_area);
+		chsc_process_sei_chp_config(sei_area);
 		break;
 	default: /* other stuff */
 		CIO_CRW_EVENT(4, "chsc: unhandled sei content code %d\n",
 			      sei_area->cc);
 		break;
 	}
-
-	return rc;
 }
 
-int chsc_process_crw(void)
+void chsc_process_crw(void)
 {
 	struct chsc_sei_area *sei_area;
-	int ret;
-	int rc;
 
 	if (!sei_page)
-		return 0;
+		return;
 	/* Access to sei_page is serialized through machine check handler
 	 * thread, so no need for locking. */
 	sei_area = sei_page;
 
 	CIO_TRACE_EVENT( 2, "prcss");
-	ret = 0;
 	do {
 		memset(sei_area, 0, sizeof(*sei_area));
 		sei_area->request.length = 0x0010;
@@ -616,37 +580,26 @@ int chsc_process_crw(void)
 
 		if (sei_area->response.code == 0x0001) {
 			CIO_CRW_EVENT(4, "chsc: sei successful\n");
-			rc = chsc_process_sei(sei_area);
-			if (rc)
-				ret = rc;
+			chsc_process_sei(sei_area);
 		} else {
 			CIO_CRW_EVENT(2, "chsc: sei failed (rc=%04x)\n",
 				      sei_area->response.code);
-			ret = 0;
 			break;
 		}
 	} while (sei_area->flags & 0x80);
-
-	return ret;
 }
 
 static int
 __chp_add_new_sch(struct subchannel_id schid)
 {
 	struct schib schib;
-	int ret;
 
 	if (stsch_err(schid, &schib))
 		/* We're through */
-		return need_rescan ? -EAGAIN : -ENXIO;
+		return -ENXIO;
 
 	/* Put it on the slow path. */
-	ret = css_enqueue_subchannel_slow(schid);
-	if (ret) {
-		css_clear_subchannel_slow_list();
-		need_rescan = 1;
-		return -EAGAIN;
-	}
+	css_schedule_eval(schid);
 	return 0;
 }
 
@@ -693,22 +646,15 @@ __chp_add(struct subchannel_id schid, void *data)
 	return 0;
 }
 
-int chsc_chp_online(struct chp_id chpid)
+void chsc_chp_online(struct chp_id chpid)
 {
-	int rc;
 	char dbf_txt[15];
 
 	sprintf(dbf_txt, "cadd%x.%02x", chpid.cssid, chpid.id);
 	CIO_TRACE_EVENT(2, dbf_txt);
 
-	if (chp_get_status(chpid) == 0)
-		return 0;
-	rc = for_each_subchannel(__chp_add, &chpid);
-	if (css_slow_subchannels_exist())
-		rc = -EAGAIN;
-	if (rc != -EAGAIN)
-		rc = 0;
-	return rc;
+	if (chp_get_status(chpid) != 0)
+		for_each_subchannel(__chp_add, &chpid);
 }
 
 static void __s390_subchannel_vary_chpid(struct subchannel *sch,
@@ -749,12 +695,8 @@ static void __s390_subchannel_vary_chpid(struct subchannel *sch,
 					sch->driver->verify(&sch->dev);
 			}
 		} else if (!sch->lpm) {
-			if (device_trigger_verify(sch) != 0) {
-				if (css_enqueue_subchannel_slow(sch->schid)) {
-					css_clear_subchannel_slow_list();
-					need_rescan = 1;
-				}
-			}
+			if (device_trigger_verify(sch) != 0)
+				css_schedule_eval(sch->schid);
 		} else if (sch->driver && sch->driver->verify)
 			sch->driver->verify(&sch->dev);
 		break;
@@ -801,11 +743,7 @@ __s390_vary_chpid_on(struct subchannel_id schid, void *data)
 		/* We're through */
 		return -ENXIO;
 	/* Put it on the slow path. */
-	if (css_enqueue_subchannel_slow(schid)) {
-		css_clear_subchannel_slow_list();
-		need_rescan = 1;
-		return -EAGAIN;
-	}
+	css_schedule_eval(schid);
 	return 0;
 }
 
@@ -826,8 +764,6 @@ int chsc_chp_vary(struct chp_id chpid, int on)
 	if (on)
 		/* Scan for new devices on varied on path. */
 		for_each_subchannel(__s390_vary_chpid_on, NULL);
-	if (need_rescan || css_slow_subchannels_exist())
-		queue_work(slow_path_wq, &slow_path_work);
 	return 0;
 }
 

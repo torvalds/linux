@@ -491,7 +491,7 @@ void *chp_get_chp_desc(struct chp_id chpid)
  * Handle channel-report-words indicating that the status of a channel-path
  * has changed.
  */
-int chp_process_crw(int id, int status)
+void chp_process_crw(int id, int status)
 {
 	struct chp_id chpid;
 
@@ -500,11 +500,9 @@ int chp_process_crw(int id, int status)
 	if (status) {
 		if (!chp_is_registered(chpid))
 			chp_new(chpid);
-		return chsc_chp_online(chpid);
-	} else {
+		chsc_chp_online(chpid);
+	} else
 		chsc_chp_offline(chpid);
-		return 0;
-	}
 }
 
 static inline int info_bit_num(struct chp_id id)
