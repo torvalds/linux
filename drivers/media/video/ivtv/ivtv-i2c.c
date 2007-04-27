@@ -567,7 +567,8 @@ int ivtv_call_i2c_client(struct ivtv *itv, int addr, unsigned int cmd, void *arg
 			return retval;
 		}
 	}
-	IVTV_ERR("i2c addr 0x%02x not found for command 0x%x!\n", addr, cmd);
+	if (cmd != VIDIOC_G_CHIP_IDENT)
+		IVTV_ERR("i2c addr 0x%02x not found for command 0x%x!\n", addr, cmd);
 	return -ENODEV;
 }
 
@@ -652,7 +653,8 @@ int ivtv_i2c_id(struct ivtv *itv, u32 id, unsigned int cmd, void *arg)
 
 	addr = ivtv_i2c_id_addr(itv, id);
 	if (addr < 0) {
-		IVTV_ERR("i2c ID 0x%08x (%s) not found for command 0x%x!\n",
+		if (cmd != VIDIOC_G_CHIP_IDENT)
+			IVTV_ERR("i2c ID 0x%08x (%s) not found for command 0x%x!\n",
 				id, ivtv_i2c_id_name(id), cmd);
 		return addr;
 	}
