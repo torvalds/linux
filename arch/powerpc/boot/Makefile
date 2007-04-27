@@ -166,7 +166,7 @@ cuboot-plat-$(CONFIG_83xx) += 83xx
 cuboot-plat-$(CONFIG_85xx) += 85xx
 cuboot-plat-y += unknown-platform
 
-dts = $(if $(shell echo $(CONFIG_) | grep '^/'),\
+dts = $(if $(shell echo $(CONFIG_DEVICE_TREE) | grep '^/'),\
        ,$(srctree)/$(src)/dts/)$(CONFIG_DEVICE_TREE)
 
 $(obj)/cuImage: vmlinux $(wrapperbits)
