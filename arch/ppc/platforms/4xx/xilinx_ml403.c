@@ -72,6 +72,7 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 		},
 	},
 };
+const char* virtex_machine_name = "ML403 Reference Design";
 
 #if defined(XPAR_POWER_0_POWERDOWN_BASEADDR)
 
