@@ -29,6 +29,7 @@
 #include "ioasm.h"
 #include "blacklist.h"
 #include "cio_debug.h"
+#include "chp.h"
 #include "../s390mach.h"
 
 debug_info_t *cio_debug_msg_id;
@@ -592,9 +593,10 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 		err = -ENODEV;
 		goto out;
 	}
-	sch->opm = 0xff;
-	if (!cio_is_console(sch->schid))
-		chsc_validate_chpids(sch);
+	if (cio_is_console(sch->schid))
+		sch->opm = 0xff;
+	else
+		sch->opm = chp_get_sch_opm(sch);
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
 
 	CIO_DEBUG(KERN_INFO, 0,

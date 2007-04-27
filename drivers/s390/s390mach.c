@@ -21,6 +21,7 @@
 #include "cio/cio.h"
 #include "cio/chsc.h"
 #include "cio/css.h"
+#include "cio/chp.h"
 #include "s390mach.h"
 
 static struct semaphore m_sem;

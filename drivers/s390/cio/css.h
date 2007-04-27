@@ -4,6 +4,7 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/device.h>
 
 #include <asm/cio.h>
 

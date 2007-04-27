@@ -5,10 +5,6 @@
 #include <linux/device.h>
 #include "chpid.h"
 
-#define CHSC_SEI_ACC_CHPID        1
-#define CHSC_SEI_ACC_LINKADDR     2
-#define CHSC_SEI_ACC_FULLLINKADDR 3
-
 #define CHSC_SDA_OC_MSS   0x2
 
 struct chsc_header {
@@ -37,23 +33,10 @@ struct channel_path_desc {
 	u8 chpp;
 } __attribute__ ((packed));
 
-struct channel_path {
-	struct chp_id chpid;
-	int state;
-	struct channel_path_desc desc;
-	/* Channel-measurement related stuff: */
-	int cmg;
-	int shared;
-	void *cmg_chars;
-	struct device dev;
-};
+struct channel_path;
 
-extern void s390_process_css( void );
-extern void chsc_validate_chpids(struct subchannel *);
-extern void chpid_is_actually_online(struct chp_id);
 extern int css_get_ssd_info(struct subchannel *);
 extern int chsc_process_crw(void);
-extern int chp_process_crw(int, int);
 
 struct css_general_char {
 	u64 : 41;
@@ -89,12 +72,15 @@ extern struct css_chsc_char css_chsc_characteristics;
 extern int chsc_determine_css_characteristics(void);
 extern int css_characteristics_avail;
 
-extern void *chsc_get_chp_desc(struct subchannel*, int);
-
 extern int chsc_enable_facility(int);
 struct channel_subsystem;
 extern int chsc_secm(struct channel_subsystem *, int);
 
-#define to_channelpath(device) container_of(device, struct channel_path, dev)
+int chsc_chp_vary(struct chp_id chpid, int on);
+int chsc_determine_channel_path_description(struct chp_id chpid,
+					    struct channel_path_desc *desc);
+int chsc_chp_online(struct chp_id chpid);
+void chsc_chp_offline(struct chp_id chpid);
+int chsc_get_channel_measurement_chars(struct channel_path *chp);
 
 #endif

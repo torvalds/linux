@@ -23,6 +23,7 @@
 #include "chsc.h"
 #include "ioasm.h"
 #include "chpid.h"
+#include "chp.h"
 
 int
 device_is_online(struct subchannel *sch)
@@ -221,7 +222,10 @@ __recover_lost_chpids(struct subchannel *sch, int old_lpm)
 		if (old_lpm & mask)
 			continue;
 		chpid.id = sch->schib.pmcw.chpid[i];
-		chpid_is_actually_online(chpid);
+		if (!chp_is_registered(chpid)) {
+			need_rescan = 1;
+			queue_work(slow_path_wq, &slow_path_work);
+		}
 	}
 }
 
