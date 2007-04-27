@@ -245,6 +245,7 @@ struct dvb_pll_desc dvb_pll_lg_tdvs_h06xf = {
 	.name  = "LG TDVS-H06xF",
 	.min   =  54000000,
 	.max   = 863000000,
+	.initdata = tua603x_agc103,
 	.count = 3,
 	.entries = {
 		{  165000000, 44000000, 62500, 0xce, 0x01 },

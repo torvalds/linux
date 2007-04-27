@@ -42,7 +42,6 @@
 #include "cx22702.h"
 #include "or51132.h"
 #include "lgdt330x.h"
-#include "lgh06xf.h"
 #include "nxt200x.h"
 #include "cx24123.h"
 #include "isl6421.h"
@@ -631,8 +630,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &fusionhdtv_5_gold,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(lgh06xf_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap);
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_lg_tdvs_h06xf);
 		}
 		}
 		break;
@@ -650,8 +650,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &pchdtv_hd5500,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(lgh06xf_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap);
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_lg_tdvs_h06xf);
 		}
 		}
 		break;
