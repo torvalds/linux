@@ -587,6 +587,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 	u32 hwords;
 	struct ipath_ib_header hdr;
 	struct ipath_other_headers *ohdr;
+	unsigned long flags;
 
 	/* Don't send ACK or NAK if a RDMA read or atomic is pending. */
 	if (qp->r_head_ack_queue != qp->s_tail_ack_queue)
@@ -640,11 +641,11 @@ static void send_rc_ack(struct ipath_qp *qp)
 	dev->n_rc_qacks++;
 
 queue_ack:
-	spin_lock_irq(&qp->s_lock);
+	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->s_flags |= IPATH_S_ACK_PENDING;
 	qp->s_nak_state = qp->r_nak_state;
 	qp->s_ack_psn = qp->r_ack_psn;
-	spin_unlock_irq(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 
 	/* Call ipath_do_rc_send() in another thread. */
 	tasklet_hi_schedule(&qp->s_task);
@@ -1294,6 +1295,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 	struct ipath_ack_entry *e;
 	u8 i, prev;
 	int old_req;
+	unsigned long flags;
 
 	if (diff > 0) {
 		/*
@@ -1327,7 +1329,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 	psn &= IPATH_PSN_MASK;
 	e = NULL;
 	old_req = 1;
-	spin_lock_irq(&qp->s_lock);
+	spin_lock_irqsave(&qp->s_lock, flags);
 	for (i = qp->r_head_ack_queue; ; i = prev) {
 		if (i == qp->s_tail_ack_queue)
 			old_req = 0;
@@ -1425,7 +1427,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 		 * after all the previous RDMA reads and atomics.
 		 */
 		if (i == qp->r_head_ack_queue) {
-			spin_unlock_irq(&qp->s_lock);
+			spin_unlock_irqrestore(&qp->s_lock, flags);
 			qp->r_nak_state = 0;
 			qp->r_ack_psn = qp->r_psn - 1;
 			goto send_ack;
@@ -1443,7 +1445,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 	tasklet_hi_schedule(&qp->s_task);
 
 unlock_done:
-	spin_unlock_irq(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 done:
 	return 1;
 
@@ -1453,10 +1455,12 @@ send_ack:
 
 static void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err)
 {
-	spin_lock_irq(&qp->s_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->state = IB_QPS_ERR;
 	ipath_error_qp(qp, err);
-	spin_unlock_irq(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
 /**
