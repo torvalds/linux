@@ -3197,6 +3197,9 @@ static void fan_watchdog_reset(void)
 {
 	static int fan_watchdog_active = 0;
 
+	if (fan_control_access_mode == TPACPI_FAN_WR_NONE)
+		return;
+
 	if (fan_watchdog_active)
 		cancel_delayed_work(&fan_watchdog_task);
 
