@@ -1738,10 +1738,17 @@ EXPORT_SYMBOL(mmc_free_host);
  */
 int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 {
-	mmc_claim_host(host);
-	mmc_deselect_cards(host);
+	struct list_head *l, *n;
+
+	mmc_flush_scheduled_work();
+
+	list_for_each_safe(l, n, &host->cards) {
+		struct mmc_card *card = mmc_list_to_card(l);
+
+		mmc_remove_card(card);
+	}
+
 	mmc_power_off(host);
-	mmc_release_host(host);
 
 	return 0;
 }
