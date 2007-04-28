@@ -541,7 +541,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (num_blocks == 0) {
 		fill_prealloc = 1;
 		num_blocks = 1;
-		total_needed = min(level + 2, BTRFS_MAX_LEVEL) * 3;
+		total_needed = (min(level + 1, BTRFS_MAX_LEVEL) + 2) * 3;
 	}
 	find_search_start(root, 0);
 	if (info->block_group_cache &&
