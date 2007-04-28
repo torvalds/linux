@@ -2824,7 +2824,9 @@ static ssize_t fan_pwm1_enable_store(struct device *dev,
 	}
 
 	res = fan_set_level_safe(level);
-	if (res < 0)
+	if (res == -ENXIO)
+		return -EINVAL;
+	else if (res < 0)
 		return res;
 
 	fan_watchdog_reset();
@@ -2888,7 +2890,9 @@ static ssize_t fan_pwm1_store(struct device *dev,
 	if (!rc && (status &
 		    (TP_EC_FAN_AUTO | TP_EC_FAN_FULLSPEED)) == 0) {
 		rc = fan_set_level(newlevel);
-		if (!rc) {
+		if (rc == -ENXIO)
+			rc = -EINVAL;
+		else if (!rc) {
 			fan_update_desired_level(newlevel);
 			fan_watchdog_reset();
 		}
