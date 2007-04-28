@@ -1801,7 +1801,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 				if (!interrupt)
 					return AE_ERROR;
 
-				list_add(&interrupt->list, &dev->interrupts);
+				list_add_tail(&interrupt->list, &dev->interrupts);
 				interrupt->irq.triggering = p->triggering;
 				interrupt->irq.polarity = p->polarity;
 				interrupt->irq.sharable = p->sharable;
@@ -1823,7 +1823,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 			if (!ioport)
 				return AE_ERROR;
 
-			list_add(&ioport->list, &dev->ioports);
+			list_add_tail(&ioport->list, &dev->ioports);
 			memcpy(&ioport->io, io, sizeof(*io));
 			return AE_OK;
 		}

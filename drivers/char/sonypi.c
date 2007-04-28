@@ -97,6 +97,11 @@ module_param(useinput, int, 0444);
 MODULE_PARM_DESC(useinput,
 		 "set this if you would like sonypi to feed events to the input subsystem");
 
+static int check_ioport = 1;
+module_param(check_ioport, int, 0444);
+MODULE_PARM_DESC(check_ioport,
+		 "set this to 0 if you think the automatic ioport check for sony-laptop is wrong");
+
 #define SONYPI_DEVICE_MODEL_TYPE1	1
 #define SONYPI_DEVICE_MODEL_TYPE2	2
 #define SONYPI_DEVICE_MODEL_TYPE3	3
@@ -1262,6 +1267,28 @@ static int __devinit sonypi_create_input_devices(void)
 static int __devinit sonypi_setup_ioports(struct sonypi_device *dev,
 				const struct sonypi_ioport_list *ioport_list)
 {
+	/* try to detect if sony-laptop is being used and thus
+	 * has already requested one of the known ioports.
+	 * As in the deprecated check_region this is racy has we have
+	 * multiple ioports available and one of them can be requested
+	 * between this check and the subsequent request. Anyway, as an
+	 * attempt to be some more user-friendly as we currently are,
+	 * this is enough.
+	 */
+	const struct sonypi_ioport_list *check = ioport_list;
+	while (check_ioport && check->port1) {
+		if (!request_region(check->port1,
+				   sonypi_device.region_size,
+				   "Sony Programable I/O Device Check")) {
+			printk(KERN_ERR "sonypi: ioport 0x%.4x busy, using sony-laptop? "
+					"if not use check_ioport=0\n",
+					check->port1);
+			return -EBUSY;
+		}
+		release_region(check->port1, sonypi_device.region_size);
+		check++;
+	}
+
 	while (ioport_list->port1) {
 
 		if (request_region(ioport_list->port1,
