@@ -296,14 +296,22 @@ static void drv_acpi_handle_init(char *name,
 	int i;
 	acpi_status status;
 
+	vdbg_printk(TPACPI_DBG_INIT, "trying to locate ACPI handle for %s\n",
+		name);
+
 	for (i = 0; i < num_paths; i++) {
 		status = acpi_get_handle(parent, paths[i], handle);
 		if (ACPI_SUCCESS(status)) {
 			*path = paths[i];
+			dbg_printk(TPACPI_DBG_INIT,
+				   "Found ACPI handle %s for %s\n",
+				   *path, name);
 			return;
 		}
 	}
 
+	vdbg_printk(TPACPI_DBG_INIT, "ACPI handle for %s not found\n",
+		    name);
 	*handle = NULL;
 }
 
@@ -320,19 +328,20 @@ static void dispatch_acpi_notify(acpi_handle handle, u32 event, void *data)
 static int __init setup_acpi_notify(struct ibm_struct *ibm)
 {
 	acpi_status status;
-	int ret;
+	int rc;
 
 	BUG_ON(!ibm->acpi);
 
 	if (!*ibm->acpi->handle)
 		return 0;
 
-	dbg_printk(TPACPI_DBG_INIT,
+	vdbg_printk(TPACPI_DBG_INIT,
 		"setting up ACPI notify for %s\n", ibm->name);
 
-	ret = acpi_bus_get_device(*ibm->acpi->handle, &ibm->acpi->device);
-	if (ret < 0) {
-		printk(IBM_ERR "%s device not present\n", ibm->name);
+	rc = acpi_bus_get_device(*ibm->acpi->handle, &ibm->acpi->device);
+	if (rc < 0) {
+		printk(IBM_ERR "acpi_bus_get_device(%s) failed: %d\n",
+			ibm->name, rc);
 		return -ENODEV;
 	}
 
@@ -364,7 +373,7 @@ static int __init tpacpi_device_add(struct acpi_device *device)
 
 static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 {
-	int ret;
+	int rc;
 
 	dbg_printk(TPACPI_DBG_INIT,
 		"registering %s as an ACPI driver\n", ibm->name);
@@ -381,16 +390,16 @@ static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 	ibm->acpi->driver->ids = ibm->acpi->hid;
 	ibm->acpi->driver->ops.add = &tpacpi_device_add;
 
-	ret = acpi_bus_register_driver(ibm->acpi->driver);
-	if (ret < 0) {
+	rc = acpi_bus_register_driver(ibm->acpi->driver);
+	if (rc < 0) {
 		printk(IBM_ERR "acpi_bus_register_driver(%s) failed: %d\n",
-		       ibm->acpi->hid, ret);
+		       ibm->acpi->hid, rc);
 		kfree(ibm->acpi->driver);
 		ibm->acpi->driver = NULL;
-	} else if (!ret)
+	} else if (!rc)
 		ibm->flags.acpi_driver_registered = 1;
 
-	return ret;
+	return rc;
 }
 
 
