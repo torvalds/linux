@@ -95,6 +95,15 @@ config MACH_NAS100D
 	  NAS 100d device. For more information on this platform,
 	  see http://www.nslu2-linux.org/wiki/NAS100d/HomePage
 
+config MACH_DSMG600
+	bool
+	prompt "D-Link DSM-G600 RevA"
+	select PCI
+	help
+	  Say 'Y' here if you want your kernel to support D-Link's
+	  DSM-G600 RevA device. For more information on this platform,
+	  see http://www.nslu2-linux.org/wiki/DSMG600/HomePage
+
 #
 # Avila and IXDP share the same source for now. Will change in future
 #
