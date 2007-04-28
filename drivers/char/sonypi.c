@@ -1,6 +1,8 @@
 /*
  * Sony Programmable I/O Control Device driver for VAIO
  *
+ * Copyright (C) 2007 Mattia Dongili <malattia@linux.it>
+ *
  * Copyright (C) 2001-2005 Stelian Pop <stelian@popies.net>
  *
  * Copyright (C) 2005 Narayanan R S <nars@kadamba.org>
@@ -1320,6 +1322,10 @@ static int __devinit sonypi_probe(struct platform_device *dev)
 	const struct sonypi_irq_list *irq_list;
 	struct pci_dev *pcidev;
 	int error;
+
+	printk(KERN_WARNING "sonypi: please try the sony-laptop module instead "
+			"and report failures, see also "
+			"http://www.linux.it/~malattia/wiki/index.php/Sony_drivers\n");
 
 	spin_lock_init(&sonypi_device.fifo_lock);
 	sonypi_device.fifo = kfifo_alloc(SONYPI_BUF_SIZE, GFP_KERNEL,
