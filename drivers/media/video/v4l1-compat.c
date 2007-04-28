@@ -127,7 +127,7 @@ set_v4l_control(struct inode            *inode,
 
 /* ----------------------------------------------------------------- */
 
-static int palette2pixelformat[] = {
+const static unsigned int palette2pixelformat[] = {
 	[VIDEO_PALETTE_GREY]    = V4L2_PIX_FMT_GREY,
 	[VIDEO_PALETTE_RGB555]  = V4L2_PIX_FMT_RGB555,
 	[VIDEO_PALETTE_RGB565]  = V4L2_PIX_FMT_RGB565,
@@ -145,7 +145,7 @@ static int palette2pixelformat[] = {
 	[VIDEO_PALETTE_YUV422P] = V4L2_PIX_FMT_YUV422P,
 };
 
-static unsigned int
+static unsigned int __attribute_pure__
 palette_to_pixelformat(unsigned int palette)
 {
 	if (palette < ARRAY_SIZE(palette2pixelformat))
@@ -154,8 +154,8 @@ palette_to_pixelformat(unsigned int palette)
 		return 0;
 }
 
-static unsigned int
-pixelformat_to_palette(int pixelformat)
+static unsigned int __attribute_const__
+pixelformat_to_palette(unsigned int pixelformat)
 {
 	int	palette = 0;
 	switch (pixelformat)
