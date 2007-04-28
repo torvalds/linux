@@ -228,13 +228,15 @@ static int dr_controller_setup(struct fsl_udc *udc)
 
 	/* Config PHY interface */
 	portctrl = fsl_readl(&dr_regs->portsc1);
-	portctrl &= ~PORTSCX_PHY_TYPE_SEL;
+	portctrl &= ~(PORTSCX_PHY_TYPE_SEL & PORTSCX_PORT_WIDTH);
 	switch (udc->phy_mode) {
 	case FSL_USB2_PHY_ULPI:
 		portctrl |= PORTSCX_PTS_ULPI;
 		break;
-	case FSL_USB2_PHY_UTMI:
 	case FSL_USB2_PHY_UTMI_WIDE:
+		portctrl |= PORTSCX_PTW_16BIT;
+		/* fall through */
+	case FSL_USB2_PHY_UTMI:
 		portctrl |= PORTSCX_PTS_UTMI;
 		break;
 	case FSL_USB2_PHY_SERIAL:
@@ -625,7 +627,7 @@ static void fsl_free_buffer(struct usb_ep *_ep, void *buf,
 	struct fsl_ep *ep;
 
 	if (!_ep)
-		return NULL;
+		return;
 
 	ep = container_of(_ep, struct fsl_ep, ep);
 
