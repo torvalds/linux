@@ -1145,7 +1145,7 @@ static void mmc_process_ext_csds(struct mmc_host *host)
 
 			mmc_card_set_highspeed(card);
 
-			host->ios.timing = MMC_TIMING_SD_HS;
+			host->ios.timing = MMC_TIMING_MMC_HS;
 			mmc_set_ios(host);
 		}
 
