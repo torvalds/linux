@@ -706,6 +706,108 @@ static struct ibm_struct thinkpad_acpi_driver_data = {
 static int hotkey_orig_status;
 static int hotkey_orig_mask;
 
+static struct attribute_set *hotkey_dev_attributes = NULL;
+
+/* sysfs hotkey enable ------------------------------------------------- */
+static ssize_t hotkey_enable_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int res, status, mask;
+
+	res = hotkey_get(&status, &mask);
+	if (res)
+		return res;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", status);
+}
+
+static ssize_t hotkey_enable_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long t;
+	int res, status, mask;
+
+	if (parse_strtoul(buf, 1, &t))
+		return -EINVAL;
+
+	res = hotkey_get(&status, &mask);
+	if (!res)
+		res = hotkey_set(t, mask);
+
+	return (res) ? res : count;
+}
+
+static struct device_attribute dev_attr_hotkey_enable =
+	__ATTR(enable, S_IWUSR | S_IRUGO,
+		hotkey_enable_show, hotkey_enable_store);
+
+/* sysfs hotkey mask --------------------------------------------------- */
+static ssize_t hotkey_mask_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int res, status, mask;
+
+	res = hotkey_get(&status, &mask);
+	if (res)
+		return res;
+
+	return snprintf(buf, PAGE_SIZE, "0x%04x\n", mask);
+}
+
+static ssize_t hotkey_mask_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long t;
+	int res, status, mask;
+
+	if (parse_strtoul(buf, 0xffff, &t))
+		return -EINVAL;
+
+	res = hotkey_get(&status, &mask);
+	if (!res)
+		hotkey_set(status, t);
+
+	return (res) ? res : count;
+}
+
+static struct device_attribute dev_attr_hotkey_mask =
+	__ATTR(mask, S_IWUSR | S_IRUGO,
+		hotkey_mask_show, hotkey_mask_store);
+
+/* sysfs hotkey bios_enabled ------------------------------------------- */
+static ssize_t hotkey_bios_enabled_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_orig_status);
+}
+
+static struct device_attribute dev_attr_hotkey_bios_enabled =
+	__ATTR(bios_enabled, S_IRUGO, hotkey_bios_enabled_show, NULL);
+
+/* sysfs hotkey bios_mask ---------------------------------------------- */
+static ssize_t hotkey_bios_mask_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%04x\n", hotkey_orig_mask);
+}
+
+static struct device_attribute dev_attr_hotkey_bios_mask =
+	__ATTR(bios_mask, S_IRUGO, hotkey_bios_mask_show, NULL);
+
+/* --------------------------------------------------------------------- */
+
+static struct attribute *hotkey_mask_attributes[] = {
+	&dev_attr_hotkey_mask.attr,
+	&dev_attr_hotkey_bios_enabled.attr,
+	&dev_attr_hotkey_bios_mask.attr,
+};
+
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
 	int res;
@@ -722,6 +824,15 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (tp_features.hotkey) {
+		hotkey_dev_attributes = create_attr_set(4,
+						TPACPI_HOTKEY_SYSFS_GROUP);
+		if (!hotkey_dev_attributes)
+			return -ENOMEM;
+		res = add_to_attr_set(hotkey_dev_attributes,
+				&dev_attr_hotkey_enable.attr);
+		if (res)
+			return res;
+
 		/* mask not supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
 		   A30, R30, R31, T20-22, X20-21, X22-24 */
 		tp_features.hotkey_mask =
@@ -731,6 +842,16 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			str_supported(tp_features.hotkey_mask));
 
 		res = hotkey_get(&hotkey_orig_status, &hotkey_orig_mask);
+		if (!res && tp_features.hotkey_mask) {
+			res = add_many_to_attr_set(hotkey_dev_attributes,
+				hotkey_mask_attributes,
+				ARRAY_SIZE(hotkey_mask_attributes));
+		}
+		if (!res)
+			res = register_attr_set_with_sysfs(
+					hotkey_dev_attributes,
+					&tpacpi_pdev->dev.kobj);
+
 		if (res)
 			return res;
 	}
@@ -747,6 +868,11 @@ static void hotkey_exit(void)
 		res = hotkey_set(hotkey_orig_status, hotkey_orig_mask);
 		if (res)
 			printk(IBM_ERR "failed to restore hotkey to BIOS defaults\n");
+	}
+
+	if (hotkey_dev_attributes) {
+		delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
+		hotkey_dev_attributes = NULL;
 	}
 }
 
@@ -798,6 +924,7 @@ static int hotkey_set(int status, int mask)
 	return 0;
 }
 
+/* procfs -------------------------------------------------------------- */
 static int hotkey_read(char *p)
 {
 	int res, status, mask;

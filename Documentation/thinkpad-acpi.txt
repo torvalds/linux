@@ -134,8 +134,11 @@ end of this document.  Changes to the sysfs interface done by the kernel
 subsystems are not documented here, nor are they tracked by this
 attribute.
 
-Hot keys -- /proc/acpi/ibm/hotkey
----------------------------------
+Hot keys
+--------
+
+procfs: /proc/acpi/ibm/hotkey
+sysfs device attribute: hotkey/*
 
 Without this driver, only the Fn-F4 key (sleep button) generates an
 ACPI event. With the driver loaded, the hotkey feature enabled and the
@@ -148,15 +151,6 @@ The last four digits vary depending on the key combination pressed.
 All labeled Fn-Fx key combinations generate distinct events. In
 addition, the lid microswitch and some docking station buttons may
 also generate such events.
-
-The following commands can be written to this file:
-
-	echo enable > /proc/acpi/ibm/hotkey -- enable the hot keys feature
-	echo disable > /proc/acpi/ibm/hotkey -- disable the hot keys feature
-	echo 0xffff > /proc/acpi/ibm/hotkey -- enable all possible hot keys
-	echo 0x0000 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
-	... any other 4-hex-digit mask ...
-	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
 
 The bit mask allows some control over which hot keys generate ACPI
 events. Not all bits in the mask can be modified. Not all bits that
@@ -188,6 +182,48 @@ ACPI. For example, on the X40, the brightness, volume and "Access IBM"
 buttons do not generate ACPI events even with this driver. They *can*
 be used through the "ThinkPad Buttons" utility, see
 http://www.nongnu.org/tpb/
+
+procfs notes:
+
+The following commands can be written to the /proc/acpi/ibm/hotkey file:
+
+	echo enable > /proc/acpi/ibm/hotkey -- enable the hot keys feature
+	echo disable > /proc/acpi/ibm/hotkey -- disable the hot keys feature
+	echo 0xffff > /proc/acpi/ibm/hotkey -- enable all possible hot keys
+	echo 0x0000 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
+	... any other 4-hex-digit mask ...
+	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
+
+sysfs notes:
+
+	The hot keys attributes are in a hotkey/ subdirectory off the
+	thinkpad device.
+
+	bios_enabled:
+		Returns the status of the hot keys feature when
+		thinkpad-acpi was loaded.  Upon module unload, the hot
+		key feature status will be restored to this value.
+
+		0: hot keys were disabled
+		1: hot keys were enabled
+
+	bios_mask:
+		Returns the hot keys mask when thinkpad-acpi was loaded.
+		Upon module unload, the hot keys mask will be restored
+		to this value.
+
+	enable:
+		Enables/disables the hot keys feature, and reports
+		current status of the hot keys feature.
+
+		0: disables the hot keys feature / feature disabled
+		1: enables the hot keys feature / feature enabled
+
+	mask:
+		bit mask to enable ACPI event generation for each hot
+		key (see above).  Returns the current status of the hot
+		keys mask, and allows one to modify it.
+
 
 Bluetooth -- /proc/acpi/ibm/bluetooth
 -------------------------------------

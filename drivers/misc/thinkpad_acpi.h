@@ -414,6 +414,8 @@ static int fan_write_cmd_watchdog(const char *cmd, int *rc);
  * Hotkey subdriver
  */
 
+#define TPACPI_HOTKEY_SYSFS_GROUP "hotkey"
+
 static int hotkey_orig_status;
 static int hotkey_orig_mask;
 
