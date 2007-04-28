@@ -1408,7 +1408,7 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 	for (i = 0; i < PT64_ENT_PER_PAGE; ++i, va += va_delta) {
 		u64 ent = pt[i];
 
-		if (!ent & PT_PRESENT_MASK)
+		if (!(ent & PT_PRESENT_MASK))
 			continue;
 
 		va = canonicalize(va);
