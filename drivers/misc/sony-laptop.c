@@ -923,6 +923,7 @@ struct sony_pic_dev {
 	int			model;
 	u8			camera_power;
 	u8			bluetooth_power;
+	u8			wwan_power;
 	struct acpi_device	*acpi_dev;
 	struct sony_pic_irq	*cur_irq;
 	struct sony_pic_ioport	*cur_ioport;
@@ -1330,6 +1331,44 @@ static ssize_t sony_pic_camerapower_show(struct device *dev,
 	return count;
 }
 
+/* gprs/edge modem (SZ460N and SZ210P), thanks to Joshua Wise */
+static void sony_pic_set_wwanpower(u8 state)
+{
+	state = !!state;
+	mutex_lock(&spic_dev.lock);
+	if (spic_dev.wwan_power == state) {
+		mutex_unlock(&spic_dev.lock);
+		return;
+	}
+	sony_pic_call2(0xB0, state);
+	spic_dev.wwan_power = state;
+	mutex_unlock(&spic_dev.lock);
+}
+
+static ssize_t sony_pic_wwanpower_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	unsigned long value;
+	if (count > 31)
+		return -EINVAL;
+
+	value = simple_strtoul(buffer, NULL, 10);
+	sony_pic_set_wwanpower(value);
+
+	return count;
+}
+
+static ssize_t sony_pic_wwanpower_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	ssize_t count;
+	mutex_lock(&spic_dev.lock);
+	count = snprintf(buffer, PAGE_SIZE, "%d\n", spic_dev.wwan_power);
+	mutex_unlock(&spic_dev.lock);
+	return count;
+}
+
 /* bluetooth subsystem power state */
 static void __sony_pic_set_bluetoothpower(u8 state)
 {
@@ -1412,11 +1451,13 @@ struct device_attribute spic_attr_##_name = __ATTR(_name,	\
 
 static SPIC_ATTR(camerapower, 0644);
 static SPIC_ATTR(bluetoothpower, 0644);
+static SPIC_ATTR(wwanpower, 0644);
 static SPIC_ATTR(fanspeed, 0644);
 
 static struct attribute *spic_attributes[] = {
 	&spic_attr_camerapower.attr,
 	&spic_attr_bluetoothpower.attr,
+	&spic_attr_wwanpower.attr,
 	&spic_attr_fanspeed.attr,
 	NULL
 };
