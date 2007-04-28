@@ -386,7 +386,7 @@ static u8 fan_control_initial_status;
 static u8 fan_control_desired_level;
 static int fan_watchdog_maxinterval;
 
-struct mutex fan_mutex;
+static struct mutex fan_mutex;
 
 static acpi_handle fans_handle, gfan_handle, sfan_handle;
 
