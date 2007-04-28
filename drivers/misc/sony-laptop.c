@@ -1317,40 +1317,6 @@ static int __sony_pic_camera_on(void)
 	return 0;
 }
 
-static ssize_t sony_pic_camerapower_store(struct device *dev,
-		struct device_attribute *attr,
-		const char *buffer, size_t count)
-{
-	unsigned long value;
-	int result;
-	if (count > 31)
-		return -EINVAL;
-
-	value = simple_strtoul(buffer, NULL, 10);
-
-	mutex_lock(&spic_dev.lock);
-	if (value)
-		result = __sony_pic_camera_on();
-	else
-		result = __sony_pic_camera_off();
-	mutex_unlock(&spic_dev.lock);
-
-	if (result)
-		return result;
-
-	return count;
-}
-
-static ssize_t sony_pic_camerapower_show(struct device *dev,
-		struct device_attribute *attr, char *buffer)
-{
-	ssize_t count;
-	mutex_lock(&spic_dev.lock);
-	count = snprintf(buffer, PAGE_SIZE, "%d\n", spic_dev.camera_power);
-	mutex_unlock(&spic_dev.lock);
-	return count;
-}
-
 /* External camera command (exported to the motion eye v4l driver) */
 int sony_pic_camera_command(int command, u8 value)
 {
@@ -1522,13 +1488,11 @@ struct device_attribute spic_attr_##_name = __ATTR(_name,	\
 		_mode, sony_pic_## _name ##_show,		\
 		sony_pic_## _name ##_store)
 
-static SPIC_ATTR(camerapower, 0644);
 static SPIC_ATTR(bluetoothpower, 0644);
 static SPIC_ATTR(wwanpower, 0644);
 static SPIC_ATTR(fanspeed, 0644);
 
 static struct attribute *spic_attributes[] = {
-	&spic_attr_camerapower.attr,
 	&spic_attr_bluetoothpower.attr,
 	&spic_attr_wwanpower.attr,
 	&spic_attr_fanspeed.attr,
