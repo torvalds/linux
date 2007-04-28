@@ -1519,6 +1519,33 @@ IBM_HANDLE(dock, root, "\\_SB.GDCK",	/* X30, X31, X40 */
 /* don't list other alternatives as we install a notify handler on the 570 */
 IBM_HANDLE(pci, root, "\\_SB.PCI");	/* 570 */
 
+static struct tp_acpi_drv_struct ibm_dock_acpidriver[2] = {
+	{
+	 .notify = dock_notify,
+	 .handle = &dock_handle,
+	 .type = ACPI_SYSTEM_NOTIFY,
+	},
+	{
+	 .hid = IBM_PCI_HID,
+	 .notify = dock_notify,
+	 .handle = &pci_handle,
+	 .type = ACPI_SYSTEM_NOTIFY,
+	},
+};
+
+static struct ibm_struct dock_driver_data[2] = {
+	{
+	 .name = "dock",
+	 .read = dock_read,
+	 .write = dock_write,
+	 .acpi = &ibm_dock_acpidriver[0],
+	},
+	{
+	 .name = "dock",
+	 .acpi = &ibm_dock_acpidriver[1],
+	},
+};
+
 #define dock_docked() (_sta(dock_handle) & 1)
 
 static int __init dock_init(struct ibm_init_struct *iibm)
@@ -1526,12 +1553,33 @@ static int __init dock_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "initializing dock subdriver\n");
 
 	IBM_ACPIHANDLE_INIT(dock);
-	IBM_ACPIHANDLE_INIT(pci);
 
 	vdbg_printk(TPACPI_DBG_INIT, "dock is %s\n",
 		str_supported(dock_handle != NULL));
 
 	return (dock_handle)? 0 : 1;
+}
+
+static int __init dock_init2(struct ibm_init_struct *iibm)
+{
+	int dock2_needed;
+
+	vdbg_printk(TPACPI_DBG_INIT, "initializing dock subdriver part 2\n");
+
+	if (dock_driver_data[0].flags.acpi_driver_registered &&
+	    dock_driver_data[0].flags.acpi_notify_installed) {
+		IBM_ACPIHANDLE_INIT(pci);
+		dock2_needed = (pci_handle != NULL);
+		vdbg_printk(TPACPI_DBG_INIT,
+			    "dock PCI handler for the TP 570 is %s\n",
+			    str_supported(dock2_needed));
+	} else {
+		vdbg_printk(TPACPI_DBG_INIT,
+		"dock subdriver part 2 not required\n");
+		dock2_needed = 0;
+	}
+
+	return (dock2_needed)? 0 : 1;
 }
 
 static void dock_notify(struct ibm_struct *ibm, u32 event)
@@ -1594,33 +1642,6 @@ static int dock_write(char *buf)
 
 	return 0;
 }
-
-static struct tp_acpi_drv_struct ibm_dock_acpidriver[2] = {
-	{
-	 .notify = dock_notify,
-	 .handle = &dock_handle,
-	 .type = ACPI_SYSTEM_NOTIFY,
-	},
-	{
-	 .hid = IBM_PCI_HID,
-	 .notify = dock_notify,
-	 .handle = &pci_handle,
-	 .type = ACPI_SYSTEM_NOTIFY,
-	},
-};
-
-static struct ibm_struct dock_driver_data[2] = {
-	{
-	 .name = "dock",
-	 .read = dock_read,
-	 .write = dock_write,
-	 .acpi = &ibm_dock_acpidriver[0],
-	},
-	{
-	 .name = "dock",
-	 .acpi = &ibm_dock_acpidriver[1],
-	},
-};
 
 #endif /* CONFIG_THINKPAD_ACPI_DOCK */
 
@@ -3850,6 +3871,7 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 		.data = &dock_driver_data[0],
 	},
 	{
+		.init = dock_init2,
 		.data = &dock_driver_data[1],
 	},
 #endif
