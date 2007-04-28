@@ -777,7 +777,7 @@ static unsigned short eexp_start_irq(struct net_device *dev,
 static void eexp_cmd_clear(struct net_device *dev)
 {
 	unsigned long int oldtime = jiffies;
-	while (scb_rdcmd(dev) && ((jiffies-oldtime)<10));
+	while (scb_rdcmd(dev) && (time_before(jiffies, oldtime + 10)));
 	if (scb_rdcmd(dev)) {
 		printk("%s: command didn't clear\n", dev->name);
 	}
@@ -1650,7 +1650,7 @@ eexp_set_multicast(struct net_device *dev)
 #endif
                 oj = jiffies;
                 while ((SCB_CUstat(scb_status(dev)) == 2) &&
-                       (time_after(jiffies, oj + 2000)));
+                       (time_before(jiffies, oj + 2000)));
 		if (SCB_CUstat(scb_status(dev)) == 2)
 			printk("%s: warning, CU didn't stop\n", dev->name);
                 lp->started &= ~(STARTED_CU);
