@@ -6,8 +6,7 @@
 * Check compat and incompat flags on the inode
 * Get rid of struct ctree_path, limiting tree levels held at one time
 * Add generation number to key pointer in nodes
-* Add parent pointer back to extent map.
-* Implement real list of pending transactions
+* Add generation number to inode
 * Release
 * Do real tree locking
 * Add extent mirroring (backup copies of blocks)

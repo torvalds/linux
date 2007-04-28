@@ -291,10 +291,18 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+static int try_remove_page(struct address_space *mapping, unsigned long index)
+{
+	int ret;
+	ret = invalidate_mapping_pages(mapping, index, index);
+	return ret;
+}
+
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			       btrfs_root *root)
 {
 	unsigned long gang[8];
+	struct inode *btree_inode = root->fs_info->btree_inode;
 	u64 first = 0;
 	int ret;
 	int i;
@@ -309,6 +317,9 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			first = gang[0];
 		for (i = 0; i < ret; i++) {
 			clear_radix_bit(pinned_radix, gang[i]);
+			try_remove_page(btree_inode->i_mapping,
+					gang[i] << (PAGE_CACHE_SHIFT -
+						    btree_inode->i_blkbits));
 		}
 	}
 	if (root->fs_info->block_group_cache) {
@@ -600,6 +611,12 @@ check_pending:
 	 */
 	btrfs_release_path(root, path);
 	BUG_ON(ins->objectid < search_start);
+	if (ins->objectid >= btrfs_super_total_blocks(info->disk_super)) {
+		if (search_start == 0)
+			return -ENOSPC;
+		search_start = 0;
+		goto check_failed;
+	}
 	for (test_block = ins->objectid;
 	     test_block < ins->objectid + num_blocks; test_block++) {
 		if (test_radix_bit(&info->pinned_radix, test_block)) {
