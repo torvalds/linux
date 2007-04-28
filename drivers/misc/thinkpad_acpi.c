@@ -2888,9 +2888,10 @@ static ssize_t fan_pwm1_store(struct device *dev,
 	if (!rc && (status &
 		    (TP_EC_FAN_AUTO | TP_EC_FAN_FULLSPEED)) == 0) {
 		rc = fan_set_level(newlevel);
-		if (!rc)
+		if (!rc) {
 			fan_update_desired_level(newlevel);
-		fan_watchdog_reset();
+			fan_watchdog_reset();
+		}
 	}
 
 	mutex_unlock(&fan_mutex);
