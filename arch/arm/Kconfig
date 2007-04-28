@@ -67,6 +67,14 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
 config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default y

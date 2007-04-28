@@ -19,6 +19,19 @@
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
 
+#include "../kernel/stacktrace.h"
+
+static int report_trace(struct stackframe *frame, void *d)
+{
+	unsigned int *depth = d;
+
+	if (*depth) {
+		oprofile_add_trace(frame->lr);
+		(*depth)--;
+	}
+
+	return *depth == 0;
+}
 
 /*
  * The registers we're interested in are at the end of the variable
@@ -31,21 +44,6 @@ struct frame_tail {
 	unsigned long sp;
 	unsigned long lr;
 } __attribute__((packed));
-
-
-#ifdef CONFIG_FRAME_POINTER
-static struct frame_tail* kernel_backtrace(struct frame_tail *tail)
-{
-	oprofile_add_trace(tail->lr);
-
-	/* frame pointers should strictly progress back up the stack
-	 * (towards higher addresses) */
-	if (tail >= tail->fp)
-		return NULL;
-
-	return tail->fp-1;
-}
-#endif
 
 static struct frame_tail* user_backtrace(struct frame_tail *tail)
 {
@@ -67,47 +65,14 @@ static struct frame_tail* user_backtrace(struct frame_tail *tail)
 	return buftail[0].fp-1;
 }
 
-/*
- * |             | /\ Higher addresses
- * |             |
- * --------------- stack base (address of current_thread_info)
- * | thread info |
- * .             .
- * |    stack    |
- * --------------- saved regs->ARM_fp value if valid (frame_tail address)
- * .             .
- * --------------- struct pt_regs stored on stack (struct pt_regs *)
- * |             |
- * .             .
- * |             |
- * --------------- %esp
- * |             |
- * |             | \/ Lower addresses
- *
- * Thus, &pt_regs <-> stack base restricts the valid(ish) fp values
- */
-static int valid_kernel_stack(struct frame_tail *tail, struct pt_regs *regs)
-{
-	unsigned long tailaddr = (unsigned long)tail;
-	unsigned long stack = (unsigned long)regs;
-	unsigned long stack_base = (stack & ~(THREAD_SIZE - 1)) + THREAD_SIZE;
-
-	return (tailaddr > stack) && (tailaddr < stack_base);
-}
-
 void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
-	struct frame_tail *tail;
-
-	tail = ((struct frame_tail *) regs->ARM_fp) - 1;
+	struct frame_tail *tail = ((struct frame_tail *) regs->ARM_fp) - 1;
 
 	if (!user_mode(regs)) {
-
-#ifdef CONFIG_FRAME_POINTER
-		while (depth-- && tail && valid_kernel_stack(tail, regs)) {
-			tail = kernel_backtrace(tail);
-		}
-#endif
+		unsigned long base = ((unsigned long)regs) & ~(THREAD_SIZE - 1);
+		walk_stackframe(regs->ARM_fp, base, base + THREAD_SIZE,
+				report_trace, &depth);
 		return;
 	}
 
