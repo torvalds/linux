@@ -1020,8 +1020,54 @@ static struct ibm_struct hotkey_driver_data = {
  * Bluetooth subdriver
  */
 
+/* sysfs bluetooth enable ---------------------------------------------- */
+static ssize_t bluetooth_enable_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int status;
+
+	status = bluetooth_get_radiosw();
+	if (status < 0)
+		return status;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", status ? 1 : 0);
+}
+
+static ssize_t bluetooth_enable_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long t;
+	int res;
+
+	if (parse_strtoul(buf, 1, &t))
+		return -EINVAL;
+
+	res = bluetooth_set_radiosw(t);
+
+	return (res) ? res : count;
+}
+
+static struct device_attribute dev_attr_bluetooth_enable =
+	__ATTR(enable, S_IWUSR | S_IRUGO,
+		bluetooth_enable_show, bluetooth_enable_store);
+
+/* --------------------------------------------------------------------- */
+
+static struct attribute *bluetooth_attributes[] = {
+	&dev_attr_bluetooth_enable.attr,
+	NULL
+};
+
+static const struct attribute_group bluetooth_attr_group = {
+	.name = TPACPI_BLUETH_SYSFS_GROUP,
+	.attrs = bluetooth_attributes,
+};
+
 static int __init bluetooth_init(struct ibm_init_struct *iibm)
 {
+	int res;
 	int status = 0;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing bluetooth subdriver\n");
@@ -1037,15 +1083,27 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.bluetooth),
 		status);
 
-	if (tp_features.bluetooth &&
-	    !(status & TP_ACPI_BLUETOOTH_HWPRESENT)) {
-		/* no bluetooth hardware present in system */
-		tp_features.bluetooth = 0;
-		dbg_printk(TPACPI_DBG_INIT,
-			   "bluetooth hardware not installed\n");
+	if (tp_features.bluetooth) {
+		if (!(status & TP_ACPI_BLUETOOTH_HWPRESENT)) {
+			/* no bluetooth hardware present in system */
+			tp_features.bluetooth = 0;
+			dbg_printk(TPACPI_DBG_INIT,
+				   "bluetooth hardware not installed\n");
+		} else {
+			res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+					&bluetooth_attr_group);
+			if (res)
+				return res;
+		}
 	}
 
 	return (tp_features.bluetooth)? 0 : 1;
+}
+
+static void bluetooth_exit(void)
+{
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+			&bluetooth_attr_group);
 }
 
 static int bluetooth_get_radiosw(void)
@@ -1080,6 +1138,7 @@ static int bluetooth_set_radiosw(int radio_on)
 	return 0;
 }
 
+/* procfs -------------------------------------------------------------- */
 static int bluetooth_read(char *p)
 {
 	int len = 0;
@@ -1119,14 +1178,61 @@ static struct ibm_struct bluetooth_driver_data = {
 	.name = "bluetooth",
 	.read = bluetooth_read,
 	.write = bluetooth_write,
+	.exit = bluetooth_exit,
 };
 
 /*************************************************************************
  * Wan subdriver
  */
 
+/* sysfs wan enable ---------------------------------------------------- */
+static ssize_t wan_enable_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int status;
+
+	status = wan_get_radiosw();
+	if (status < 0)
+		return status;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", status ? 1 : 0);
+}
+
+static ssize_t wan_enable_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long t;
+	int res;
+
+	if (parse_strtoul(buf, 1, &t))
+		return -EINVAL;
+
+	res = wan_set_radiosw(t);
+
+	return (res) ? res : count;
+}
+
+static struct device_attribute dev_attr_wan_enable =
+	__ATTR(enable, S_IWUSR | S_IRUGO,
+		wan_enable_show, wan_enable_store);
+
+/* --------------------------------------------------------------------- */
+
+static struct attribute *wan_attributes[] = {
+	&dev_attr_wan_enable.attr,
+	NULL
+};
+
+static const struct attribute_group wan_attr_group = {
+	.name = TPACPI_WAN_SYSFS_GROUP,
+	.attrs = wan_attributes,
+};
+
 static int __init wan_init(struct ibm_init_struct *iibm)
 {
+	int res;
 	int status = 0;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing wan subdriver\n");
@@ -1140,15 +1246,27 @@ static int __init wan_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.wan),
 		status);
 
-	if (tp_features.wan &&
-	    !(status & TP_ACPI_WANCARD_HWPRESENT)) {
-		/* no wan hardware present in system */
-		tp_features.wan = 0;
-		dbg_printk(TPACPI_DBG_INIT,
-			   "wan hardware not installed\n");
+	if (tp_features.wan) {
+		if (!(status & TP_ACPI_WANCARD_HWPRESENT)) {
+			/* no wan hardware present in system */
+			tp_features.wan = 0;
+			dbg_printk(TPACPI_DBG_INIT,
+				   "wan hardware not installed\n");
+		} else {
+			res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+					&wan_attr_group);
+			if (res)
+				return res;
+		}
 	}
 
 	return (tp_features.wan)? 0 : 1;
+}
+
+static void wan_exit(void)
+{
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+		&wan_attr_group);
 }
 
 static int wan_get_radiosw(void)
@@ -1183,6 +1301,7 @@ static int wan_set_radiosw(int radio_on)
 	return 0;
 }
 
+/* procfs -------------------------------------------------------------- */
 static int wan_read(char *p)
 {
 	int len = 0;
@@ -1222,6 +1341,7 @@ static struct ibm_struct wan_driver_data = {
 	.name = "wan",
 	.read = wan_read,
 	.write = wan_write,
+	.exit = wan_exit,
 	.flags.experimental = 1,
 };
 

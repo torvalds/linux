@@ -225,14 +225,34 @@ sysfs notes:
 		keys mask, and allows one to modify it.
 
 
-Bluetooth -- /proc/acpi/ibm/bluetooth
--------------------------------------
+Bluetooth
+---------
 
-This feature shows the presence and current state of a Bluetooth
-device. If Bluetooth is installed, the following commands can be used:
+procfs: /proc/acpi/ibm/bluetooth
+sysfs device attribute: bluetooth/enable
+
+This feature shows the presence and current state of a ThinkPad
+Bluetooth device in the internal ThinkPad CDC slot.
+
+Procfs notes:
+
+If Bluetooth is installed, the following commands can be used:
 
 	echo enable > /proc/acpi/ibm/bluetooth
 	echo disable > /proc/acpi/ibm/bluetooth
+
+Sysfs notes:
+
+	If the Bluetooth CDC card is installed, it can be enabled /
+	disabled through the "bluetooth/enable" thinkpad-acpi device
+	attribute, and its current status can also be queried.
+
+	enable:
+		0: disables Bluetooth / Bluetooth is disabled
+		1: enables Bluetooth / Bluetooth is enabled.
+
+	Note: this interface will be probably be superseeded by the
+	generic rfkill class.
 
 Video output control -- /proc/acpi/ibm/video
 --------------------------------------------
@@ -874,23 +894,42 @@ with EINVAL, try to set pwm1_enable to 1 and pwm1 to at least 128 (255
 would be the safest choice, though).
 
 
-EXPERIMENTAL: WAN -- /proc/acpi/ibm/wan
----------------------------------------
+EXPERIMENTAL: WAN
+-----------------
+
+procfs: /proc/acpi/ibm/wan
+sysfs device attribute: wwan/enable
 
 This feature is marked EXPERIMENTAL because the implementation
 directly accesses hardware registers and may not work as expected. USE
 WITH CAUTION! To use this feature, you need to supply the
 experimental=1 parameter when loading the module.
 
-This feature shows the presence and current state of a WAN (Sierra
-Wireless EV-DO) device. If WAN is installed, the following commands can
-be used:
+This feature shows the presence and current state of a W-WAN (Sierra
+Wireless EV-DO) device.
+
+It was tested on a Lenovo Thinkpad X60. It should probably work on other
+Thinkpad models which come with this module installed.
+
+Procfs notes:
+
+If the W-WAN card is installed, the following commands can be used:
 
 	echo enable > /proc/acpi/ibm/wan
 	echo disable > /proc/acpi/ibm/wan
 
-It was tested on a Lenovo Thinkpad X60. It should probably work on other
-Thinkpad models which come with this module installed.
+Sysfs notes:
+
+	If the W-WAN card is installed, it can be enabled /
+	disabled through the "wwan/enable" thinkpad-acpi device
+	attribute, and its current status can also be queried.
+
+	enable:
+		0: disables WWAN card / WWAN card is disabled
+		1: enables WWAN card / WWAN card is enabled.
+
+	Note: this interface will be probably be superseeded by the
+	generic rfkill class.
 
 Multiple Commands, Module Parameters
 ------------------------------------
