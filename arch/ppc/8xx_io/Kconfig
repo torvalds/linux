@@ -74,10 +74,6 @@ config ENET_BIG_BUFFERS
 	  Allocate large buffers for MPC8xx Ethernet. Increases throughput
 	  and decreases the likelihood of dropped packets, but costs memory.
 
-config HTDMSOUND
-	bool "Embedded Planet HIOX Audio"
-	depends on SOUND=y
-
 # This doesn't really belong here, but it is convenient to ask
 # 8xx specific questions.
 comment "Generic MPC8xx Options"

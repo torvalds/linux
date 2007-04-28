@@ -57,10 +57,6 @@ extern bd_t m8xx_board_info;
 #define BCSR1_PCVCTL6          ((uint)0x00020000)
 #define BCSR1_PCVCTL7          ((uint)0x00010000)
 
-#if defined(CONFIG_HTDMSOUND)
-#include <platforms/rpxhiox.h>
-#endif
-
 /* define IO_BASE for pcmcia */
 #define _IO_BASE 0x80000000
 #define _IO_BASE_SIZE 0x1000
