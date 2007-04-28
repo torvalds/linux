@@ -191,6 +191,9 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	q->queuedata = NULL;
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
+	/* Make sure the queue isn't suspended, as that will deadlock */
+	mmc_queue_resume(mq);
+
 	/* Then terminate our worker thread */
 	kthread_stop(mq->thread);
 
