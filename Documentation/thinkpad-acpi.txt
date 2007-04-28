@@ -795,15 +795,23 @@ Sysfs notes:
 The sysfs interface follows the hwmon subsystem guidelines for the most
 part, and the exception is the fan safety watchdog.
 
+Writes to any of the sysfs attributes may return the EINVAL error if
+that operation is not supported in a given ThinkPad or if the parameter
+is out-of-bounds, and EPERM if it is forbidden.  They may also return
+EINTR (interrupted system call), and EIO (I/O error while trying to talk
+to the firmware).
+
+Features not yet implemented by the driver return ENOSYS.
+
 hwmon device attribute pwm1_enable:
 	0: PWM offline (fan is set to full-speed mode)
 	1: Manual PWM control (use pwm1 to set fan level)
 	2: Hardware PWM control (EC "auto" mode)
 	3: reserved (Software PWM control, not implemented yet)
 
-	Modes 0 and 2 are not supported by all ThinkPads, and the driver
-	is not always able to detect this.  If it does know a mode is
-	unsupported, it will return -EINVAL.
+	Modes 0 and 2 are not supported by all ThinkPads, and the
+	driver is not always able to detect this.  If it does know a
+	mode is unsupported, it will return -EINVAL.
 
 hwmon device attribute pwm1:
 	Fan level, scaled from the firmware values of 0-7 to the hwmon
@@ -826,8 +834,8 @@ driver attribute fan_watchdog:
 To stop the fan: set pwm1 to zero, and pwm1_enable to 1.
 
 To start the fan in a safe mode: set pwm1_enable to 2.  If that fails
-with ENOTSUP, set it to 1 and set pwm1 to at least 128 (255 would be the
-safest choice, though).
+with EINVAL, try to set pwm1_enable to 1 and pwm1 to at least 128 (255
+would be the safest choice, though).
 
 
 EXPERIMENTAL: WAN -- /proc/acpi/ibm/wan
