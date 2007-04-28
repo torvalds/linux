@@ -844,34 +844,36 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	 * See ipath_mmap() for details.
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
-		struct ipath_mmap_info *ip;
-		__u64 offset = (__u64) qp->r_rq.wq;
 		int err;
 
-		err = ib_copy_to_udata(udata, &offset, sizeof(offset));
-		if (err) {
-			ret = ERR_PTR(err);
-			goto bail_rwq;
-		}
+		if (!qp->r_rq.wq) {
+			__u64 offset = 0;
 
-		if (qp->r_rq.wq) {
-			/* Allocate info for ipath_mmap(). */
-			ip = kmalloc(sizeof(*ip), GFP_KERNEL);
-			if (!ip) {
+			err = ib_copy_to_udata(udata, &offset,
+					       sizeof(offset));
+			if (err) {
+				ret = ERR_PTR(err);
+				goto bail_rwq;
+			}
+		} else {
+			u32 s = sizeof(struct ipath_rwq) +
+				qp->r_rq.size * sz;
+
+			qp->ip =
+			    ipath_create_mmap_info(dev, s,
+						   ibpd->uobject->context,
+						   qp->r_rq.wq);
+			if (!qp->ip) {
 				ret = ERR_PTR(-ENOMEM);
 				goto bail_rwq;
 			}
-			qp->ip = ip;
-			ip->context = ibpd->uobject->context;
-			ip->obj = qp->r_rq.wq;
-			kref_init(&ip->ref);
-			ip->mmap_cnt = 0;
-			ip->size = PAGE_ALIGN(sizeof(struct ipath_rwq) +
-					      qp->r_rq.size * sz);
-			spin_lock_irq(&dev->pending_lock);
-			ip->next = dev->pending_mmaps;
-			dev->pending_mmaps = ip;
-			spin_unlock_irq(&dev->pending_lock);
+
+			err = ib_copy_to_udata(udata, &(qp->ip->offset),
+					       sizeof(qp->ip->offset));
+			if (err) {
+				ret = ERR_PTR(err);
+				goto bail_ip;
+			}
 		}
 	}
 
@@ -884,6 +886,12 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 
 	dev->n_qps_allocated++;
 	spin_unlock(&dev->n_qps_lock);
+
+	if (qp->ip) {
+		spin_lock_irq(&dev->pending_lock);
+		list_add(&qp->ip->pending_mmaps, &dev->pending_mmaps);
+		spin_unlock_irq(&dev->pending_lock);
+	}
 
 	ret = &qp->ibqp;
 	goto bail;
