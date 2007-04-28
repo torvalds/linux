@@ -23,6 +23,7 @@
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 #include "pvrusb2-fx2-cmd.h"
+#include "pvrusb2.h"
 
 #define trace_i2c(...) pvr2_trace(PVR2_TRACE_I2C,__VA_ARGS__)
 
@@ -37,6 +38,10 @@
 static unsigned int i2c_scan = 0;
 module_param(i2c_scan, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
+
+static int ir_mode[PVR_NUM] = { [0 ... PVR_NUM-1] = 1 };
+module_param_array(ir_mode, int, NULL, 0444);
+MODULE_PARM_DESC(ir_mode,"specify: 0=disable IR reception, 1=normal IR");
 
 static unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *cp,
 					     unsigned int detail,
@@ -271,6 +276,15 @@ static int i2c_hack_wm8775(struct pvr2_hdw *hdw,
 		return 0;
 	}
 	return pvr2_i2c_basic_op(hdw,i2c_addr,wdata,wlen,rdata,rlen);
+}
+
+/* This is an entry point designed to always fail any attempt to perform a
+   transfer.  We use this to cause certain I2C addresses to not be
+   probed. */
+static int i2c_black_hole(struct pvr2_hdw *hdw,
+			   u8 i2c_addr,u8 *wdata,u16 wlen,u8 *rdata,u16 rlen)
+{
+	return -EIO;
 }
 
 /* This is a special entry point that is entered if an I2C operation is
@@ -994,10 +1008,17 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	}
 
 	/* However, deal with various special cases for 24xxx hardware. */
+	if (ir_mode[hdw->unit_number] == 0) {
+		printk(KERN_INFO "%s: IR disabled\n",hdw->name);
+		hdw->i2c_func[0x18] = i2c_black_hole;
+	} else if (ir_mode[hdw->unit_number] == 1) {
+		if (hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
+			hdw->i2c_func[0x18] = i2c_24xxx_ir;
+		}
+	}
 	if (hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
 		hdw->i2c_func[0x1b] = i2c_hack_wm8775;
 		hdw->i2c_func[0x44] = i2c_hack_cx25840;
-		hdw->i2c_func[0x18] = i2c_24xxx_ir;
 	}
 
 	// Configure the adapter and set up everything else related to it.
