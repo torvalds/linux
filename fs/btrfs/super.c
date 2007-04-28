@@ -980,7 +980,6 @@ static int btrfs_sync_fs(struct super_block *sb, int wait)
 		filemap_flush(root->fs_info->btree_inode->i_mapping);
 		return 0;
 	}
-	filemap_write_and_wait(root->fs_info->btree_inode->i_mapping);
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);

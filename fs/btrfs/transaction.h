@@ -9,6 +9,7 @@ struct btrfs_transaction {
 	int commit_done;
 	int magic;
 	struct list_head list;
+	struct radix_tree_root dirty_pages;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
 };

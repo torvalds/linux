@@ -45,6 +45,7 @@ static int join_transaction(struct btrfs_root *root)
 		cur_trans->use_count = 1;
 		cur_trans->commit_done = 0;
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
+		init_bit_radix(&cur_trans->dirty_pages);
 	}
 	cur_trans->num_writers++;
 	return 0;
@@ -106,8 +107,40 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root)
 {
-	filemap_write_and_wait(root->fs_info->btree_inode->i_mapping);
-	return 0;
+	unsigned long gang[16];
+	int ret;
+	int i;
+	int err;
+	int werr = 0;
+	struct page *page;
+	struct radix_tree_root *dirty_pages;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+
+	if (!trans || !trans->transaction) {
+		return filemap_write_and_wait(btree_inode->i_mapping);
+	}
+	dirty_pages = &trans->transaction->dirty_pages;
+	while(1) {
+		ret = find_first_radix_bit(dirty_pages, gang, ARRAY_SIZE(gang));
+		if (!ret)
+			break;
+		for (i = 0; i < ret; i++) {
+			/* FIXME EIO */
+			clear_radix_bit(dirty_pages, gang[i]);
+			page = find_lock_page(btree_inode->i_mapping,
+					      gang[i]);
+			if (!page)
+				continue;
+			err = write_one_page(page, 0);
+			if (err)
+				werr = err;
+			page_cache_release(page);
+		}
+	}
+	err = filemap_fdatawait(btree_inode->i_mapping);
+	if (err)
+		werr = err;
+	return werr;
 }
 
 int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
