@@ -1220,11 +1220,35 @@ static u8 sony_pic_call3(u8 dev, u8 fn, u8 v)
 
 /* camera tests and poweron/poweroff */
 #define SONYPI_CAMERA_PICTURE		5
-#define SONYPI_CAMERA_MUTE_MASK		0x40
 #define SONYPI_CAMERA_CONTROL		0x10
-#define SONYPI_CAMERA_STATUS 		7
-#define SONYPI_CAMERA_STATUS_READY 	0x2
-#define SONYPI_CAMERA_STATUS_POSITION	0x4
+
+#define SONYPI_CAMERA_BRIGHTNESS		0
+#define SONYPI_CAMERA_CONTRAST			1
+#define SONYPI_CAMERA_HUE			2
+#define SONYPI_CAMERA_COLOR			3
+#define SONYPI_CAMERA_SHARPNESS			4
+
+#define SONYPI_CAMERA_EXPOSURE_MASK		0xC
+#define SONYPI_CAMERA_WHITE_BALANCE_MASK	0x3
+#define SONYPI_CAMERA_PICTURE_MODE_MASK		0x30
+#define SONYPI_CAMERA_MUTE_MASK			0x40
+
+/* the rest don't need a loop until not 0xff */
+#define SONYPI_CAMERA_AGC			6
+#define SONYPI_CAMERA_AGC_MASK			0x30
+#define SONYPI_CAMERA_SHUTTER_MASK 		0x7
+
+#define SONYPI_CAMERA_SHUTDOWN_REQUEST		7
+#define SONYPI_CAMERA_CONTROL			0x10
+
+#define SONYPI_CAMERA_STATUS 			7
+#define SONYPI_CAMERA_STATUS_READY 		0x2
+#define SONYPI_CAMERA_STATUS_POSITION		0x4
+
+#define SONYPI_DIRECTION_BACKWARDS 		0x4
+
+#define SONYPI_CAMERA_REVISION 			8
+#define SONYPI_CAMERA_ROMVERSION 		9
 
 static int __sony_pic_camera_ready(void)
 {
@@ -1234,14 +1258,13 @@ static int __sony_pic_camera_ready(void)
 	return (v != 0xff && (v & SONYPI_CAMERA_STATUS_READY));
 }
 
-static int sony_pic_camera_off(void)
+static int __sony_pic_camera_off(void)
 {
 	if (!camera) {
 		printk(KERN_WARNING DRV_PFX "camera control not enabled\n");
 		return -ENODEV;
 	}
 
-	mutex_lock(&spic_dev.lock);
 	wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_PICTURE,
 				SONYPI_CAMERA_MUTE_MASK),
 			ITERATIONS_SHORT);
@@ -1250,23 +1273,20 @@ static int sony_pic_camera_off(void)
 		sony_pic_call2(0x91, 0);
 		spic_dev.camera_power = 0;
 	}
-	mutex_unlock(&spic_dev.lock);
 	return 0;
 }
 
-static int sony_pic_camera_on(void)
+static int __sony_pic_camera_on(void)
 {
 	int i, j, x;
-	int result = 0;
 
 	if (!camera) {
 		printk(KERN_WARNING DRV_PFX "camera control not enabled\n");
 		return -ENODEV;
 	}
 
-	mutex_lock(&spic_dev.lock);
 	if (spic_dev.camera_power)
-		goto out_unlock;
+		return 0;
 
 	for (j = 5; j > 0; j--) {
 
@@ -1285,8 +1305,7 @@ static int sony_pic_camera_on(void)
 
 	if (j == 0) {
 		printk(KERN_WARNING DRV_PFX "failed to power on camera\n");
-		result = -ENODEV;
-		goto out_unlock;
+		return -ENODEV;
 	}
 
 	wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_CONTROL,
@@ -1294,9 +1313,6 @@ static int sony_pic_camera_on(void)
 			ITERATIONS_SHORT);
 
 	spic_dev.camera_power = 1;
-
-out_unlock:
-	mutex_unlock(&spic_dev.lock);
 	return 0;
 }
 
@@ -1310,10 +1326,13 @@ static ssize_t sony_pic_camerapower_store(struct device *dev,
 		return -EINVAL;
 
 	value = simple_strtoul(buffer, NULL, 10);
+
+	mutex_lock(&spic_dev.lock);
 	if (value)
-		result = sony_pic_camera_on();
+		result = __sony_pic_camera_on();
 	else
-		result = sony_pic_camera_off();
+		result = __sony_pic_camera_off();
+	mutex_unlock(&spic_dev.lock);
 
 	if (result)
 		return result;
@@ -1330,6 +1349,59 @@ static ssize_t sony_pic_camerapower_show(struct device *dev,
 	mutex_unlock(&spic_dev.lock);
 	return count;
 }
+
+/* External camera command (exported to the motion eye v4l driver) */
+int sony_pic_camera_command(int command, u8 value)
+{
+	if (!camera)
+		return -EIO;
+
+	mutex_lock(&spic_dev.lock);
+
+	switch (command) {
+	case SONYPI_COMMAND_SETCAMERA:
+		if (value)
+			__sony_pic_camera_on();
+		else
+			__sony_pic_camera_off();
+		break;
+	case SONYPI_COMMAND_SETCAMERABRIGHTNESS:
+		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_BRIGHTNESS, value),
+				ITERATIONS_SHORT);
+		break;
+	case SONYPI_COMMAND_SETCAMERACONTRAST:
+		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_CONTRAST, value),
+				ITERATIONS_SHORT);
+		break;
+	case SONYPI_COMMAND_SETCAMERAHUE:
+		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_HUE, value),
+				ITERATIONS_SHORT);
+		break;
+	case SONYPI_COMMAND_SETCAMERACOLOR:
+		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_COLOR, value),
+				ITERATIONS_SHORT);
+		break;
+	case SONYPI_COMMAND_SETCAMERASHARPNESS:
+		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_SHARPNESS, value),
+				ITERATIONS_SHORT);
+		break;
+	case SONYPI_COMMAND_SETCAMERAPICTURE:
+		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_PICTURE, value),
+				ITERATIONS_SHORT);
+		break;
+	case SONYPI_COMMAND_SETCAMERAAGC:
+		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_AGC, value),
+				ITERATIONS_SHORT);
+		break;
+	default:
+		printk(KERN_ERR DRV_PFX "sony_pic_camera_command invalid: %d\n",
+		       command);
+		break;
+	}
+	mutex_unlock(&spic_dev.lock);
+	return 0;
+}
+EXPORT_SYMBOL(sony_pic_camera_command);
 
 /* gprs/edge modem (SZ460N and SZ210P), thanks to Joshua Wise */
 static void sony_pic_set_wwanpower(u8 state)
