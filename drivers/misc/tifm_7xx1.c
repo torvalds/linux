@@ -10,6 +10,7 @@
  */
 
 #include <linux/tifm.h>
+#include <linux/dma-mapping.h>
 
 #define DRIVER_NAME "tifm_7xx1"
 #define DRIVER_VERSION "0.8"
