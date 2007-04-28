@@ -62,6 +62,7 @@
 #include <acpi/acpi_bus.h>
 #include <asm/uaccess.h>
 #include <linux/sonypi.h>
+#include <linux/sony-laptop.h>
 #ifdef CONFIG_SONY_LAPTOP_OLD
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
@@ -1359,37 +1360,37 @@ int sony_pic_camera_command(int command, u8 value)
 	mutex_lock(&spic_dev.lock);
 
 	switch (command) {
-	case SONYPI_COMMAND_SETCAMERA:
+	case SONY_PIC_COMMAND_SETCAMERA:
 		if (value)
 			__sony_pic_camera_on();
 		else
 			__sony_pic_camera_off();
 		break;
-	case SONYPI_COMMAND_SETCAMERABRIGHTNESS:
+	case SONY_PIC_COMMAND_SETCAMERABRIGHTNESS:
 		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_BRIGHTNESS, value),
 				ITERATIONS_SHORT);
 		break;
-	case SONYPI_COMMAND_SETCAMERACONTRAST:
+	case SONY_PIC_COMMAND_SETCAMERACONTRAST:
 		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_CONTRAST, value),
 				ITERATIONS_SHORT);
 		break;
-	case SONYPI_COMMAND_SETCAMERAHUE:
+	case SONY_PIC_COMMAND_SETCAMERAHUE:
 		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_HUE, value),
 				ITERATIONS_SHORT);
 		break;
-	case SONYPI_COMMAND_SETCAMERACOLOR:
+	case SONY_PIC_COMMAND_SETCAMERACOLOR:
 		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_COLOR, value),
 				ITERATIONS_SHORT);
 		break;
-	case SONYPI_COMMAND_SETCAMERASHARPNESS:
+	case SONY_PIC_COMMAND_SETCAMERASHARPNESS:
 		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_SHARPNESS, value),
 				ITERATIONS_SHORT);
 		break;
-	case SONYPI_COMMAND_SETCAMERAPICTURE:
+	case SONY_PIC_COMMAND_SETCAMERAPICTURE:
 		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_PICTURE, value),
 				ITERATIONS_SHORT);
 		break;
-	case SONYPI_COMMAND_SETCAMERAAGC:
+	case SONY_PIC_COMMAND_SETCAMERAAGC:
 		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_AGC, value),
 				ITERATIONS_SHORT);
 		break;
