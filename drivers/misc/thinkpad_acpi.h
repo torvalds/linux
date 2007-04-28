@@ -375,6 +375,8 @@ enum fan_control_commands {
 						 * and also watchdog cmd */
 };
 
+static int fan_control_allowed;
+
 static enum fan_status_access_mode fan_status_access_mode;
 static enum fan_control_access_mode fan_control_access_mode;
 static enum fan_control_commands fan_control_commands;

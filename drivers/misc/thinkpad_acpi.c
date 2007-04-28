@@ -2935,6 +2935,9 @@ static ssize_t fan_fan_watchdog_store(struct device_driver *drv,
 	if (parse_strtoul(buf, 120, &t))
 		return -EINVAL;
 
+	if (!fan_control_allowed)
+		return -EPERM;
+
 	fan_watchdog_maxinterval = t;
 	fan_watchdog_reset();
 
@@ -3045,6 +3048,14 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		str_supported(fan_status_access_mode != TPACPI_FAN_NONE ||
 		  fan_control_access_mode != TPACPI_FAN_WR_NONE),
 		fan_status_access_mode, fan_control_access_mode);
+
+	/* fan control master switch */
+	if (!fan_control_allowed) {
+		fan_control_access_mode = TPACPI_FAN_WR_NONE;
+		fan_control_commands = 0;
+		dbg_printk(TPACPI_DBG_INIT,
+			   "fan control features disabled by parameter\n");
+	}
 
 	/* update fan_control_desired_level */
 	if (fan_status_access_mode != TPACPI_FAN_NONE)
@@ -3203,6 +3214,9 @@ static void fan_watchdog_reset(void)
 
 static int fan_set_level(int level)
 {
+	if (!fan_control_allowed)
+		return -EPERM;
+
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_SFAN:
 		if (level >= 0 && level <= 7) {
@@ -3242,6 +3256,9 @@ static int fan_set_level_safe(int level)
 {
 	int rc;
 
+	if (!fan_control_allowed)
+		return -EPERM;
+
 	rc = mutex_lock_interruptible(&fan_mutex);
 	if (rc < 0)
 		return rc;
@@ -3261,6 +3278,9 @@ static int fan_set_enable(void)
 {
 	u8 s;
 	int rc;
+
+	if (!fan_control_allowed)
+		return -EPERM;
 
 	rc = mutex_lock_interruptible(&fan_mutex);
 	if (rc < 0)
@@ -3315,6 +3335,9 @@ static int fan_set_disable(void)
 {
 	int rc;
 
+	if (!fan_control_allowed)
+		return -EPERM;
+
 	rc = mutex_lock_interruptible(&fan_mutex);
 	if (rc < 0)
 		return rc;
@@ -3350,6 +3373,9 @@ static int fan_set_disable(void)
 static int fan_set_speed(int speed)
 {
 	int rc;
+
+	if (!fan_control_allowed)
+		return -EPERM;
 
 	rc = mutex_lock_interruptible(&fan_mutex);
 	if (rc < 0)
@@ -3558,7 +3584,6 @@ static struct ibm_struct fan_driver_data = {
 	.read = fan_read,
 	.write = fan_write,
 	.exit = fan_exit,
-	.flags.experimental = 1,
 };
 
 /****************************************************************************
@@ -3878,6 +3903,9 @@ module_param_named(debug, dbg_level, uint, 0);
 
 static int force_load;
 module_param(force_load, int, 0);
+
+static int fan_control_allowed;
+module_param_named(fan_control, fan_control_allowed, int, 0);
 
 #define IBM_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0)

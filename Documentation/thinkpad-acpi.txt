@@ -38,7 +38,7 @@ detailed description):
 	- Experimental: embedded controller register dump
 	- LCD brightness control
 	- Volume control
-	- Experimental: fan speed, fan enable/disable
+	- Fan control and monitoring: fan speed, fan enable/disable
 	- Experimental: WAN enable and disable
 
 A compatibility table by model and feature is maintained on the web
@@ -681,21 +681,20 @@ distinct. The unmute the volume after the mute command, use either the
 up or down command (the level command will not unmute the volume).
 The current volume level and mute state is shown in the file.
 
-EXPERIMENTAL: fan speed, fan enable/disable
--------------------------------------------
+Fan control and monitoring: fan speed, fan enable/disable
+---------------------------------------------------------
 
 procfs: /proc/acpi/ibm/fan
 sysfs device attributes: (hwmon) fan_input, pwm1, pwm1_enable
 
-This feature is marked EXPERIMENTAL because the implementation
-directly accesses hardware registers and may not work as expected. USE
-WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.
+NOTE NOTE NOTE: fan control operations are disabled by default for
+safety reasons.  To enable them, the module parameter "fan_control=1"
+must be given to thinkpad-acpi.
 
 This feature attempts to show the current fan speed, control mode and
 other fan data that might be available.  The speed is read directly
 from the hardware registers of the embedded controller.  This is known
-to work on later R, T and X series ThinkPads but may show a bogus
+to work on later R, T, X and Z series ThinkPads but may show a bogus
 value on other models.
 
 Fan levels:
