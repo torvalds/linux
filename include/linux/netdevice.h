@@ -654,8 +654,10 @@ static inline void netif_start_queue(struct net_device *dev)
 static inline void netif_wake_queue(struct net_device *dev)
 {
 #ifdef CONFIG_NETPOLL_TRAP
-	if (netpoll_trap())
+	if (netpoll_trap()) {
+		clear_bit(__LINK_STATE_XOFF, &dev->state);
 		return;
+	}
 #endif
 	if (test_and_clear_bit(__LINK_STATE_XOFF, &dev->state))
 		__netif_schedule(dev);
@@ -663,10 +665,6 @@ static inline void netif_wake_queue(struct net_device *dev)
 
 static inline void netif_stop_queue(struct net_device *dev)
 {
-#ifdef CONFIG_NETPOLL_TRAP
-	if (netpoll_trap())
-		return;
-#endif
 	set_bit(__LINK_STATE_XOFF, &dev->state);
 }
 
