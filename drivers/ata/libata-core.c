@@ -72,7 +72,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
 static void ata_dev_xfermask(struct ata_device *dev);
 
-static unsigned int ata_print_id = 1;
+unsigned int ata_print_id = 1;
 static struct workqueue_struct *ata_wq;
 
 struct workqueue_struct *ata_aux_wq;
@@ -88,6 +88,10 @@ MODULE_PARM_DESC(atapi_dmadir, "Enable ATAPI DMADIR bridge support (0=off, 1=on)
 int libata_fua = 0;
 module_param_named(fua, libata_fua, int, 0444);
 MODULE_PARM_DESC(fua, "FUA support (0=off, 1=on)");
+
+static int ata_ignore_hpa = 0;
+module_param_named(ignore_hpa, ata_ignore_hpa, int, 0644);
+MODULE_PARM_DESC(ignore_hpa, "Ignore HPA limit (0=keep BIOS limits, 1=ignore limits, using full disk)");
 
 static int ata_probe_timeout = ATA_TMOUT_INTERNAL / HZ;
 module_param(ata_probe_timeout, int, 0444);
@@ -808,6 +812,205 @@ void ata_id_c_string(const u16 *id, unsigned char *s,
 	*p = '\0';
 }
 
+static u64 ata_tf_to_lba48(struct ata_taskfile *tf)
+{
+	u64 sectors = 0;
+
+	sectors |= ((u64)(tf->hob_lbah & 0xff)) << 40;
+	sectors |= ((u64)(tf->hob_lbam & 0xff)) << 32;
+	sectors |= (tf->hob_lbal & 0xff) << 24;
+	sectors |= (tf->lbah & 0xff) << 16;
+	sectors |= (tf->lbam & 0xff) << 8;
+	sectors |= (tf->lbal & 0xff);
+
+	return ++sectors;
+}
+
+static u64 ata_tf_to_lba(struct ata_taskfile *tf)
+{
+	u64 sectors = 0;
+
+	sectors |= (tf->device & 0x0f) << 24;
+	sectors |= (tf->lbah & 0xff) << 16;
+	sectors |= (tf->lbam & 0xff) << 8;
+	sectors |= (tf->lbal & 0xff);
+
+	return ++sectors;
+}
+
+/**
+ *	ata_read_native_max_address_ext	-	LBA48 native max query
+ *	@dev: Device to query
+ *
+ *	Perform an LBA48 size query upon the device in question. Return the
+ *	actual LBA48 size or zero if the command fails.
+ */
+
+static u64 ata_read_native_max_address_ext(struct ata_device *dev)
+{
+	unsigned int err;
+	struct ata_taskfile tf;
+
+	ata_tf_init(dev, &tf);
+
+	tf.command = ATA_CMD_READ_NATIVE_MAX_EXT;
+	tf.flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48 | ATA_TFLAG_ISADDR;
+	tf.protocol |= ATA_PROT_NODATA;
+	tf.device |= 0x40;
+
+	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	if (err)
+		return 0;
+
+	return ata_tf_to_lba48(&tf);
+}
+
+/**
+ *	ata_read_native_max_address	-	LBA28 native max query
+ *	@dev: Device to query
+ *
+ *	Performa an LBA28 size query upon the device in question. Return the
+ *	actual LBA28 size or zero if the command fails.
+ */
+
+static u64 ata_read_native_max_address(struct ata_device *dev)
+{
+	unsigned int err;
+	struct ata_taskfile tf;
+
+	ata_tf_init(dev, &tf);
+
+	tf.command = ATA_CMD_READ_NATIVE_MAX;
+	tf.flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_ISADDR;
+	tf.protocol |= ATA_PROT_NODATA;
+	tf.device |= 0x40;
+
+	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	if (err)
+		return 0;
+
+	return ata_tf_to_lba(&tf);
+}
+
+/**
+ *	ata_set_native_max_address_ext	-	LBA48 native max set
+ *	@dev: Device to query
+ *
+ *	Perform an LBA48 size set max upon the device in question. Return the
+ *	actual LBA48 size or zero if the command fails.
+ */
+
+static u64 ata_set_native_max_address_ext(struct ata_device *dev, u64 new_sectors)
+{
+	unsigned int err;
+	struct ata_taskfile tf;
+
+	new_sectors--;
+
+	ata_tf_init(dev, &tf);
+
+	tf.command = ATA_CMD_SET_MAX_EXT;
+	tf.flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48 | ATA_TFLAG_ISADDR;
+	tf.protocol |= ATA_PROT_NODATA;
+	tf.device |= 0x40;
+
+	tf.lbal = (new_sectors >> 0) & 0xff;
+	tf.lbam = (new_sectors >> 8) & 0xff;
+	tf.lbah = (new_sectors >> 16) & 0xff;
+
+	tf.hob_lbal = (new_sectors >> 24) & 0xff;
+	tf.hob_lbam = (new_sectors >> 32) & 0xff;
+	tf.hob_lbah = (new_sectors >> 40) & 0xff;
+
+	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	if (err)
+		return 0;
+
+	return ata_tf_to_lba48(&tf);
+}
+
+/**
+ *	ata_set_native_max_address	-	LBA28 native max set
+ *	@dev: Device to query
+ *
+ *	Perform an LBA28 size set max upon the device in question. Return the
+ *	actual LBA28 size or zero if the command fails.
+ */
+
+static u64 ata_set_native_max_address(struct ata_device *dev, u64 new_sectors)
+{
+	unsigned int err;
+	struct ata_taskfile tf;
+
+	new_sectors--;
+
+	ata_tf_init(dev, &tf);
+
+	tf.command = ATA_CMD_SET_MAX;
+	tf.flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_ISADDR;
+	tf.protocol |= ATA_PROT_NODATA;
+
+	tf.lbal = (new_sectors >> 0) & 0xff;
+	tf.lbam = (new_sectors >> 8) & 0xff;
+	tf.lbah = (new_sectors >> 16) & 0xff;
+	tf.device |= ((new_sectors >> 24) & 0x0f) | 0x40;
+
+	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	if (err)
+		return 0;
+
+	return ata_tf_to_lba(&tf);
+}
+
+/**
+ *	ata_hpa_resize		-	Resize a device with an HPA set
+ *	@dev: Device to resize
+ *
+ *	Read the size of an LBA28 or LBA48 disk with HPA features and resize
+ *	it if required to the full size of the media. The caller must check
+ *	the drive has the HPA feature set enabled.
+ */
+
+static u64 ata_hpa_resize(struct ata_device *dev)
+{
+	u64 sectors = dev->n_sectors;
+	u64 hpa_sectors;
+	
+	if (ata_id_has_lba48(dev->id))
+		hpa_sectors = ata_read_native_max_address_ext(dev);
+	else
+		hpa_sectors = ata_read_native_max_address(dev);
+
+	/* if no hpa, both should be equal */
+	ata_dev_printk(dev, KERN_INFO, "%s 1: sectors = %lld, "
+				"hpa_sectors = %lld\n",
+		__FUNCTION__, (long long)sectors, (long long)hpa_sectors);
+
+	if (hpa_sectors > sectors) {
+		ata_dev_printk(dev, KERN_INFO,
+			"Host Protected Area detected:\n"
+			"\tcurrent size: %lld sectors\n"
+			"\tnative size: %lld sectors\n",
+			(long long)sectors, (long long)hpa_sectors);
+
+		if (ata_ignore_hpa) {
+			if (ata_id_has_lba48(dev->id))
+				hpa_sectors = ata_set_native_max_address_ext(dev, hpa_sectors);
+			else
+				hpa_sectors = ata_set_native_max_address(dev,
+								hpa_sectors);
+
+			if (hpa_sectors) {
+				ata_dev_printk(dev, KERN_INFO, "native size "
+					"increased to %lld sectors\n",
+					(long long)hpa_sectors);
+				return hpa_sectors;
+			}
+		}
+	}
+	return sectors;
+}
+
 static u64 ata_id_n_sectors(const u16 *id)
 {
 	if (ata_id_has_lba(id)) {
@@ -1270,12 +1473,16 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (ap->ops->post_internal_cmd)
 		ap->ops->post_internal_cmd(qc);
 
-	if ((qc->flags & ATA_QCFLAG_FAILED) && !qc->err_mask) {
-		if (ata_msg_warn(ap))
-			ata_dev_printk(dev, KERN_WARNING,
-				"zero err_mask for failed "
-				"internal command, assuming AC_ERR_OTHER\n");
-		qc->err_mask |= AC_ERR_OTHER;
+	/* perform minimal error analysis */
+	if (qc->flags & ATA_QCFLAG_FAILED) {
+		if (qc->result_tf.command & (ATA_ERR | ATA_DF))
+			qc->err_mask |= AC_ERR_DEV;
+
+		if (!qc->err_mask)
+			qc->err_mask |= AC_ERR_OTHER;
+
+		if (qc->err_mask & ~AC_ERR_OTHER)
+			qc->err_mask &= ~AC_ERR_OTHER;
 	}
 
 	/* finish up */
@@ -1379,30 +1586,44 @@ unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
  *	Check if the current speed of the device requires IORDY. Used
  *	by various controllers for chip configuration.
  */
-
+ 
 unsigned int ata_pio_need_iordy(const struct ata_device *adev)
 {
-	int pio;
-	int speed = adev->pio_mode - XFER_PIO_0;
-
-	if (speed < 2)
+	/* Controller doesn't support  IORDY. Probably a pointless check
+	   as the caller should know this */
+	if (adev->ap->flags & ATA_FLAG_NO_IORDY)
 		return 0;
-	if (speed > 2)
+	/* PIO3 and higher it is mandatory */
+	if (adev->pio_mode > XFER_PIO_2)
 		return 1;
+	/* We turn it on when possible */
+	if (ata_id_has_iordy(adev->id))
+		return 1;
+	return 0;
+}
 
+/**
+ *	ata_pio_mask_no_iordy	-	Return the non IORDY mask
+ *	@adev: ATA device
+ *
+ *	Compute the highest mode possible if we are not using iordy. Return
+ *	-1 if no iordy mode is available.
+ */
+ 
+static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
+{
 	/* If we have no drive specific rule, then PIO 2 is non IORDY */
-
 	if (adev->id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE */
-		pio = adev->id[ATA_ID_EIDE_PIO];
+		u16 pio = adev->id[ATA_ID_EIDE_PIO];
 		/* Is the speed faster than the drive allows non IORDY ? */
 		if (pio) {
 			/* This is cycle times not frequency - watch the logic! */
 			if (pio > 240)	/* PIO2 is 240nS per cycle */
-				return 1;
-			return 0;
+				return 3 << ATA_SHIFT_PIO;
+			return 7 << ATA_SHIFT_PIO;
 		}
 	}
-	return 0;
+	return 3 << ATA_SHIFT_PIO;
 }
 
 /**
@@ -1431,13 +1652,13 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	struct ata_taskfile tf;
 	unsigned int err_mask = 0;
 	const char *reason;
+	int tried_spinup = 0;
 	int rc;
 
 	if (ata_msg_ctl(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __FUNCTION__);
 
 	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
-
  retry:
 	ata_tf_init(dev, &tf);
 
@@ -1492,6 +1713,32 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	} else {
 		if (ata_id_is_ata(id))
 			goto err_out;
+	}
+
+	if (!tried_spinup && (id[2] == 0x37c8 || id[2] == 0x738c)) {
+		tried_spinup = 1;
+		/*
+		 * Drive powered-up in standby mode, and requires a specific
+		 * SET_FEATURES spin-up subcommand before it will accept
+		 * anything other than the original IDENTIFY command.
+		 */
+		ata_tf_init(dev, &tf);
+		tf.command = ATA_CMD_SET_FEATURES;
+		tf.feature = SETFEATURES_SPINUP;
+		tf.protocol = ATA_PROT_NODATA;
+		tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+		err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+		if (err_mask) {
+			rc = -EIO;
+			reason = "SPINUP failed";
+			goto err_out;
+		}
+		/*
+		 * If the drive initially returned incomplete IDENTIFY info,
+		 * we now must reissue the IDENTIFY command.
+		 */
+		if (id[2] == 0x37c8)
+			goto retry;
 	}
 
 	if ((flags & ATA_READID_POSTRESET) && class == ATA_DEV_ATA) {
@@ -1558,20 +1805,6 @@ static void ata_dev_config_ncq(struct ata_device *dev,
 		snprintf(desc, desc_sz, "NCQ (depth %d)", ddepth);
 	else
 		snprintf(desc, desc_sz, "NCQ (depth %d/%d)", hdepth, ddepth);
-}
-
-static void ata_set_port_max_cmd_len(struct ata_port *ap)
-{
-	int i;
-
-	if (ap->scsi_host) {
-		unsigned int len = 0;
-
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			len = max(len, ap->device[i].cdb_len);
-
-		ap->scsi_host->max_cmd_len = len;
-	}
 }
 
 /**
@@ -1658,6 +1891,7 @@ int ata_dev_configure(struct ata_device *dev)
 			snprintf(revbuf, 7, "ATA-%d",  ata_id_major_version(id));
 
 		dev->n_sectors = ata_id_n_sectors(id);
+		dev->n_sectors_boot = dev->n_sectors;
 
 		/* SCSI only uses 4-char revisions, dump full 8 chars from ATA */
 		ata_id_c_string(dev->id, fwrevbuf, ATA_ID_FW_REV,
@@ -1683,6 +1917,9 @@ int ata_dev_configure(struct ata_device *dev)
 				    ata_id_has_flush_ext(id))
 					dev->flags |= ATA_DFLAG_FLUSH_EXT;
 			}
+
+			if (ata_id_hpa_enabled(dev->id))
+				dev->n_sectors = ata_hpa_resize(dev);
 
 			/* config NCQ */
 			ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
@@ -1773,8 +2010,6 @@ int ata_dev_configure(struct ata_device *dev)
 		}
 	}
 
-	ata_set_port_max_cmd_len(ap);
-
 	/* limit bridge transfers to udma5, 200 sectors */
 	if (ata_dev_knobble(dev)) {
 		if (ata_msg_drv(ap) && print_info)
@@ -1785,14 +2020,15 @@ int ata_dev_configure(struct ata_device *dev)
 	}
 
 	if (ata_device_blacklisted(dev) & ATA_HORKAGE_MAX_SEC_128)
-		dev->max_sectors = min(ATA_MAX_SECTORS_128, dev->max_sectors);
+		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
+					 dev->max_sectors);
 
 	/* limit ATAPI DMA to R/W commands only */
 	if (ata_device_blacklisted(dev) & ATA_HORKAGE_DMA_RW_ONLY)
 		dev->horkage |= ATA_HORKAGE_DMA_RW_ONLY;
 
 	if (ap->ops->dev_config)
-		ap->ops->dev_config(ap, dev);
+		ap->ops->dev_config(dev);
 
 	if (ata_msg_probe(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: EXIT, drv_stat = 0x%x\n",
@@ -1804,6 +2040,56 @@ err_out_nosup:
 		ata_dev_printk(dev, KERN_DEBUG,
 			       "%s: EXIT, err\n", __FUNCTION__);
 	return rc;
+}
+
+/**
+ *	ata_cable_40wire	-	return 40 wire cable type
+ *	@ap: port
+ *
+ *	Helper method for drivers which want to hardwire 40 wire cable
+ *	detection.
+ */
+
+int ata_cable_40wire(struct ata_port *ap)
+{
+	return ATA_CBL_PATA40;
+}
+
+/**
+ *	ata_cable_80wire	-	return 80 wire cable type
+ *	@ap: port
+ *
+ *	Helper method for drivers which want to hardwire 80 wire cable
+ *	detection.
+ */
+
+int ata_cable_80wire(struct ata_port *ap)
+{
+	return ATA_CBL_PATA80;
+}
+
+/**
+ *	ata_cable_unknown	-	return unknown PATA cable.
+ *	@ap: port
+ *
+ *	Helper method for drivers which have no PATA cable detection.
+ */
+
+int ata_cable_unknown(struct ata_port *ap)
+{
+	return ATA_CBL_PATA_UNK;
+}
+
+/**
+ *	ata_cable_sata	-	return SATA cable type
+ *	@ap: port
+ *
+ *	Helper method for drivers which have SATA cables
+ */
+
+int ata_cable_sata(struct ata_port *ap)
+{
+	return ATA_CBL_SATA;
 }
 
 /**
@@ -1875,6 +2161,10 @@ int ata_bus_probe(struct ata_port *ap)
 		if (rc)
 			goto fail;
 	}
+
+	/* Now ask for the cable type as PDIAG- should have been released */
+	if (ap->ops->cable_detect)
+		ap->cbl = ap->ops->cable_detect(ap);
 
 	/* After the identify sequence we can now set up the devices. We do
 	   this in the normal order so that the user doesn't get confused */
@@ -1958,7 +2248,7 @@ void ata_port_probe(struct ata_port *ap)
  *	LOCKING:
  *	None.
  */
-static void sata_print_link_status(struct ata_port *ap)
+void sata_print_link_status(struct ata_port *ap)
 {
 	u32 sstatus, scontrol, tmp;
 
@@ -2352,6 +2642,12 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 		t->active += (t->cycle - (t->active + t->recover)) / 2;
 		t->recover = t->cycle - t->active;
 	}
+	
+	/* In a few cases quantisation may produce enough errors to
+	   leave t->cycle too low for the sum of active and recovery
+	   if so we must correct this */
+	if (t->active + t->recover > t->cycle)
+		t->cycle = t->active + t->recover;
 
 	return 0;
 }
@@ -2481,12 +2777,13 @@ static int ata_dev_set_mode(struct ata_device *dev)
 }
 
 /**
- *	ata_set_mode - Program timings and issue SET FEATURES - XFER
+ *	ata_do_set_mode - Program timings and issue SET FEATURES - XFER
  *	@ap: port on which timings will be programmed
  *	@r_failed_dev: out paramter for failed device
  *
- *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).  If
- *	ata_set_mode() fails, pointer to the failing device is
+ *	Standard implementation of the function used to tune and set
+ *	ATA device disk transfer mode (PIO3, UDMA6, etc.).  If
+ *	ata_dev_set_mode() fails, pointer to the failing device is
  *	returned in @r_failed_dev.
  *
  *	LOCKING:
@@ -2495,14 +2792,12 @@ static int ata_dev_set_mode(struct ata_device *dev)
  *	RETURNS:
  *	0 on success, negative errno otherwise
  */
-int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
+
+int ata_do_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 {
 	struct ata_device *dev;
 	int i, rc = 0, used_dma = 0, found = 0;
 
-	/* has private set_mode? */
-	if (ap->ops->set_mode)
-		return ap->ops->set_mode(ap, r_failed_dev);
 
 	/* step 1: calculate xfer_mask */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
@@ -2584,6 +2879,29 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	if (rc)
 		*r_failed_dev = dev;
 	return rc;
+}
+
+/**
+ *	ata_set_mode - Program timings and issue SET FEATURES - XFER
+ *	@ap: port on which timings will be programmed
+ *	@r_failed_dev: out paramter for failed device
+ *
+ *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).  If
+ *	ata_set_mode() fails, pointer to the failing device is
+ *	returned in @r_failed_dev.
+ *
+ *	LOCKING:
+ *	PCI/etc. bus probe sem.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno otherwise
+ */
+int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
+{
+	/* has private set_mode? */
+	if (ap->ops->set_mode)
+		return ap->ops->set_mode(ap, r_failed_dev);
+	return ata_do_set_mode(ap, r_failed_dev);
 }
 
 /**
@@ -3267,6 +3585,11 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 			       "%llu != %llu\n",
 			       (unsigned long long)dev->n_sectors,
 			       (unsigned long long)new_n_sectors);
+		/* Are we the boot time size - if so we appear to be the
+		   same disk at this point and our HPA got reapplied */
+		if (ata_ignore_hpa && dev->n_sectors_boot == new_n_sectors 
+		    && ata_id_hpa_enabled(new_id))
+			return 1;
 		return 0;
 	}
 
@@ -3441,19 +3764,7 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	xfer_mask = ata_pack_xfermask(ap->pio_mask,
 				      ap->mwdma_mask, ap->udma_mask);
 
-	/* Apply cable rule here.  Don't apply it early because when
-	 * we handle hot plug the cable type can itself change.
-	 */
-	if (ap->cbl == ATA_CBL_PATA40)
-		xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
-	/* Apply drive side cable rule. Unknown or 80 pin cables reported
-	 * host side are checked drive side as well. Cases where we know a
-	 * 40wire cable is used safely for 80 are not checked here.
-	 */
-        if (ata_drive_40wire(dev->id) && (ap->cbl == ATA_CBL_PATA_UNK || ap->cbl == ATA_CBL_PATA80))
-		xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
-
-
+	/* drive modes available */
 	xfer_mask &= ata_pack_xfermask(dev->pio_mask,
 				       dev->mwdma_mask, dev->udma_mask);
 	xfer_mask &= ata_id_xfermask(dev->id);
@@ -3482,8 +3793,30 @@ static void ata_dev_xfermask(struct ata_device *dev)
 			       "other device, disabling DMA\n");
 	}
 
+	if (ap->flags & ATA_FLAG_NO_IORDY)
+		xfer_mask &= ata_pio_mask_no_iordy(dev);
+
 	if (ap->ops->mode_filter)
-		xfer_mask = ap->ops->mode_filter(ap, dev, xfer_mask);
+		xfer_mask = ap->ops->mode_filter(dev, xfer_mask);
+
+	/* Apply cable rule here.  Don't apply it early because when
+	 * we handle hot plug the cable type can itself change.
+	 * Check this last so that we know if the transfer rate was
+	 * solely limited by the cable.
+	 * Unknown or 80 wire cables reported host side are checked
+	 * drive side as well. Cases where we know a 40wire cable
+	 * is used safely for 80 are not checked here.
+	 */
+	if (xfer_mask & (0xF8 << ATA_SHIFT_UDMA))
+		/* UDMA/44 or higher would be available */
+		if((ap->cbl == ATA_CBL_PATA40) ||
+   		    (ata_drive_40wire(dev->id) &&
+		     (ap->cbl == ATA_CBL_PATA_UNK ||
+                     ap->cbl == ATA_CBL_PATA80))) {
+		      	ata_dev_printk(dev, KERN_WARNING,
+				 "limited to UDMA/33 due to 40-wire cable\n");
+			xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
+		}
 
 	ata_unpack_xfermask(xfer_mask, &dev->pio_mask,
 			    &dev->mwdma_mask, &dev->udma_mask);
@@ -4022,10 +4355,10 @@ void ata_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
 
 
 /**
- *	ata_pio_sector - Transfer ATA_SECT_SIZE (512 bytes) of data.
+ *	ata_pio_sector - Transfer a sector of data.
  *	@qc: Command on going
  *
- *	Transfer ATA_SECT_SIZE of data from/to the ATA device.
+ *	Transfer qc->sect_size bytes of data from/to the ATA device.
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -4040,7 +4373,7 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	unsigned int offset;
 	unsigned char *buf;
 
-	if (qc->curbytes == qc->nbytes - ATA_SECT_SIZE)
+	if (qc->curbytes == qc->nbytes - qc->sect_size)
 		ap->hsm_task_state = HSM_ST_LAST;
 
 	page = sg[qc->cursg].page;
@@ -4060,17 +4393,17 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 		buf = kmap_atomic(page, KM_IRQ0);
 
 		/* do the actual data transfer */
-		ap->ops->data_xfer(qc->dev, buf + offset, ATA_SECT_SIZE, do_write);
+		ap->ops->data_xfer(qc->dev, buf + offset, qc->sect_size, do_write);
 
 		kunmap_atomic(buf, KM_IRQ0);
 		local_irq_restore(flags);
 	} else {
 		buf = page_address(page);
-		ap->ops->data_xfer(qc->dev, buf + offset, ATA_SECT_SIZE, do_write);
+		ap->ops->data_xfer(qc->dev, buf + offset, qc->sect_size, do_write);
 	}
 
-	qc->curbytes += ATA_SECT_SIZE;
-	qc->cursg_ofs += ATA_SECT_SIZE;
+	qc->curbytes += qc->sect_size;
+	qc->cursg_ofs += qc->sect_size;
 
 	if (qc->cursg_ofs == (&sg[qc->cursg])->length) {
 		qc->cursg++;
@@ -4079,10 +4412,10 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_pio_sectors - Transfer one or many 512-byte sectors.
+ *	ata_pio_sectors - Transfer one or many sectors.
  *	@qc: Command on going
  *
- *	Transfer one or many ATA_SECT_SIZE of data from/to the
+ *	Transfer one or many sectors of data from/to the
  *	ATA device for the DRQ request.
  *
  *	LOCKING:
@@ -4097,7 +4430,7 @@ static void ata_pio_sectors(struct ata_queued_cmd *qc)
 
 		WARN_ON(qc->dev->multi_count == 0);
 
-		nsect = min((qc->nbytes - qc->curbytes) / ATA_SECT_SIZE,
+		nsect = min((qc->nbytes - qc->curbytes) / qc->sect_size,
 			    qc->dev->multi_count);
 		while (nsect--)
 			ata_pio_sector(qc);
@@ -5577,42 +5910,35 @@ void ata_dev_init(struct ata_device *dev)
 }
 
 /**
- *	ata_port_init - Initialize an ata_port structure
- *	@ap: Structure to initialize
- *	@host: Collection of hosts to which @ap belongs
- *	@ent: Probe information provided by low-level driver
- *	@port_no: Port number associated with this ata_port
+ *	ata_port_alloc - allocate and initialize basic ATA port resources
+ *	@host: ATA host this allocated port belongs to
  *
- *	Initialize a new ata_port structure.
+ *	Allocate and initialize basic ATA port resources.
+ *
+ *	RETURNS:
+ *	Allocate ATA port on success, NULL on failure.
  *
  *	LOCKING:
- *	Inherited from caller.
+ *	Inherited from calling layer (may sleep).
  */
-void ata_port_init(struct ata_port *ap, struct ata_host *host,
-		   const struct ata_probe_ent *ent, unsigned int port_no)
+struct ata_port *ata_port_alloc(struct ata_host *host)
 {
+	struct ata_port *ap;
 	unsigned int i;
+
+	DPRINTK("ENTER\n");
+
+	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
+	if (!ap)
+		return NULL;
 
 	ap->lock = &host->lock;
 	ap->flags = ATA_FLAG_DISABLED;
-	ap->print_id = ata_print_id++;
+	ap->print_id = -1;
 	ap->ctl = ATA_DEVCTL_OBS;
 	ap->host = host;
-	ap->dev = ent->dev;
-	ap->port_no = port_no;
-	if (port_no == 1 && ent->pinfo2) {
-		ap->pio_mask = ent->pinfo2->pio_mask;
-		ap->mwdma_mask = ent->pinfo2->mwdma_mask;
-		ap->udma_mask = ent->pinfo2->udma_mask;
-		ap->flags |= ent->pinfo2->flags;
-		ap->ops = ent->pinfo2->port_ops;
-	} else {
-		ap->pio_mask = ent->pio_mask;
-		ap->mwdma_mask = ent->mwdma_mask;
-		ap->udma_mask = ent->udma_mask;
-		ap->flags |= ent->port_flags;
-		ap->ops = ent->port_ops;
-	}
+	ap->dev = host->dev;
+
 	ap->hw_sata_spd_limit = UINT_MAX;
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
@@ -5632,10 +5958,7 @@ void ata_port_init(struct ata_port *ap, struct ata_host *host,
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 
-	/* set cable type */
 	ap->cbl = ATA_CBL_NONE;
-	if (ap->flags & ATA_FLAG_SATA)
-		ap->cbl = ATA_CBL_SATA;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
@@ -5648,72 +5971,6 @@ void ata_port_init(struct ata_port *ap, struct ata_host *host,
 	ap->stats.unhandled_irq = 1;
 	ap->stats.idle_irq = 1;
 #endif
-
-	memcpy(&ap->ioaddr, &ent->port[port_no], sizeof(struct ata_ioports));
-}
-
-/**
- *	ata_port_init_shost - Initialize SCSI host associated with ATA port
- *	@ap: ATA port to initialize SCSI host for
- *	@shost: SCSI host associated with @ap
- *
- *	Initialize SCSI host @shost associated with ATA port @ap.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-static void ata_port_init_shost(struct ata_port *ap, struct Scsi_Host *shost)
-{
-	ap->scsi_host = shost;
-
-	shost->unique_id = ap->print_id;
-	shost->max_id = 16;
-	shost->max_lun = 1;
-	shost->max_channel = 1;
-	shost->max_cmd_len = 12;
-}
-
-/**
- *	ata_port_add - Attach low-level ATA driver to system
- *	@ent: Information provided by low-level driver
- *	@host: Collections of ports to which we add
- *	@port_no: Port number associated with this host
- *
- *	Attach low-level ATA driver to system.
- *
- *	LOCKING:
- *	PCI/etc. bus probe sem.
- *
- *	RETURNS:
- *	New ata_port on success, for NULL on error.
- */
-static struct ata_port * ata_port_add(const struct ata_probe_ent *ent,
-				      struct ata_host *host,
-				      unsigned int port_no)
-{
-	struct Scsi_Host *shost;
-	struct ata_port *ap;
-
-	DPRINTK("ENTER\n");
-
-	if (!ent->port_ops->error_handler &&
-	    !(ent->port_flags & (ATA_FLAG_SATA_RESET | ATA_FLAG_SRST))) {
-		printk(KERN_ERR "ata%u: no reset mechanism available\n",
-		       port_no);
-		return NULL;
-	}
-
-	shost = scsi_host_alloc(ent->sht, sizeof(struct ata_port));
-	if (!shost)
-		return NULL;
-
-	shost->transportt = &ata_scsi_transport_template;
-
-	ap = ata_shost_to_port(shost);
-
-	ata_port_init(ap, host, ent, port_no);
-	ata_port_init_shost(ap, shost);
-
 	return ap;
 }
 
@@ -5725,23 +5982,198 @@ static void ata_host_release(struct device *gendev, void *res)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		if (ap && ap->ops->port_stop)
+		if (!ap)
+			continue;
+
+		if ((host->flags & ATA_HOST_STARTED) && ap->ops->port_stop)
 			ap->ops->port_stop(ap);
 	}
 
-	if (host->ops->host_stop)
+	if ((host->flags & ATA_HOST_STARTED) && host->ops->host_stop)
 		host->ops->host_stop(host);
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		if (ap)
+		if (!ap)
+			continue;
+
+		if (ap->scsi_host)
 			scsi_host_put(ap->scsi_host);
 
+		kfree(ap);
 		host->ports[i] = NULL;
 	}
 
 	dev_set_drvdata(gendev, NULL);
+}
+
+/**
+ *	ata_host_alloc - allocate and init basic ATA host resources
+ *	@dev: generic device this host is associated with
+ *	@max_ports: maximum number of ATA ports associated with this host
+ *
+ *	Allocate and initialize basic ATA host resources.  LLD calls
+ *	this function to allocate a host, initializes it fully and
+ *	attaches it using ata_host_register().
+ *
+ *	@max_ports ports are allocated and host->n_ports is
+ *	initialized to @max_ports.  The caller is allowed to decrease
+ *	host->n_ports before calling ata_host_register().  The unused
+ *	ports will be automatically freed on registration.
+ *
+ *	RETURNS:
+ *	Allocate ATA host on success, NULL on failure.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ */
+struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
+{
+	struct ata_host *host;
+	size_t sz;
+	int i;
+
+	DPRINTK("ENTER\n");
+
+	if (!devres_open_group(dev, NULL, GFP_KERNEL))
+		return NULL;
+
+	/* alloc a container for our list of ATA ports (buses) */
+	sz = sizeof(struct ata_host) + (max_ports + 1) * sizeof(void *);
+	/* alloc a container for our list of ATA ports (buses) */
+	host = devres_alloc(ata_host_release, sz, GFP_KERNEL);
+	if (!host)
+		goto err_out;
+
+	devres_add(dev, host);
+	dev_set_drvdata(dev, host);
+
+	spin_lock_init(&host->lock);
+	host->dev = dev;
+	host->n_ports = max_ports;
+
+	/* allocate ports bound to this host */
+	for (i = 0; i < max_ports; i++) {
+		struct ata_port *ap;
+
+		ap = ata_port_alloc(host);
+		if (!ap)
+			goto err_out;
+
+		ap->port_no = i;
+		host->ports[i] = ap;
+	}
+
+	devres_remove_group(dev, NULL);
+	return host;
+
+ err_out:
+	devres_release_group(dev, NULL);
+	return NULL;
+}
+
+/**
+ *	ata_host_alloc_pinfo - alloc host and init with port_info array
+ *	@dev: generic device this host is associated with
+ *	@ppi: array of ATA port_info to initialize host with
+ *	@n_ports: number of ATA ports attached to this host
+ *
+ *	Allocate ATA host and initialize with info from @ppi.  If NULL
+ *	terminated, @ppi may contain fewer entries than @n_ports.  The
+ *	last entry will be used for the remaining ports.
+ *
+ *	RETURNS:
+ *	Allocate ATA host on success, NULL on failure.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ */
+struct ata_host *ata_host_alloc_pinfo(struct device *dev,
+				      const struct ata_port_info * const * ppi,
+				      int n_ports)
+{
+	const struct ata_port_info *pi;
+	struct ata_host *host;
+	int i, j;
+
+	host = ata_host_alloc(dev, n_ports);
+	if (!host)
+		return NULL;
+
+	for (i = 0, j = 0, pi = NULL; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		if (ppi[j])
+			pi = ppi[j++];
+
+		ap->pio_mask = pi->pio_mask;
+		ap->mwdma_mask = pi->mwdma_mask;
+		ap->udma_mask = pi->udma_mask;
+		ap->flags |= pi->flags;
+		ap->ops = pi->port_ops;
+
+		if (!host->ops && (pi->port_ops != &ata_dummy_port_ops))
+			host->ops = pi->port_ops;
+		if (!host->private_data && pi->private_data)
+			host->private_data = pi->private_data;
+	}
+
+	return host;
+}
+
+/**
+ *	ata_host_start - start and freeze ports of an ATA host
+ *	@host: ATA host to start ports for
+ *
+ *	Start and then freeze ports of @host.  Started status is
+ *	recorded in host->flags, so this function can be called
+ *	multiple times.  Ports are guaranteed to get started only
+ *	once.  If host->ops isn't initialized yet, its set to the
+ *	first non-dummy port ops.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ *
+ *	RETURNS:
+ *	0 if all ports are started successfully, -errno otherwise.
+ */
+int ata_host_start(struct ata_host *host)
+{
+	int i, rc;
+
+	if (host->flags & ATA_HOST_STARTED)
+		return 0;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		if (!host->ops && !ata_port_is_dummy(ap))
+			host->ops = ap->ops;
+
+		if (ap->ops->port_start) {
+			rc = ap->ops->port_start(ap);
+			if (rc) {
+				ata_port_printk(ap, KERN_ERR, "failed to "
+						"start port (errno=%d)\n", rc);
+				goto err_out;
+			}
+		}
+
+		ata_eh_freeze_port(ap);
+	}
+
+	host->flags |= ATA_HOST_STARTED;
+	return 0;
+
+ err_out:
+	while (--i >= 0) {
+		struct ata_port *ap = host->ports[i];
+
+		if (ap->ops->port_stop)
+			ap->ops->port_stop(ap);
+	}
+	return rc;
 }
 
 /**
@@ -5755,7 +6187,7 @@ static void ata_host_release(struct device *gendev, void *res)
  *	PCI/etc. bus probe sem.
  *
  */
-
+/* KILLME - the only user left is ipr */
 void ata_host_init(struct ata_host *host, struct device *dev,
 		   unsigned long flags, const struct ata_port_operations *ops)
 {
@@ -5766,137 +6198,58 @@ void ata_host_init(struct ata_host *host, struct device *dev,
 }
 
 /**
- *	ata_device_add - Register hardware device with ATA and SCSI layers
- *	@ent: Probe information describing hardware device to be registered
+ *	ata_host_register - register initialized ATA host
+ *	@host: ATA host to register
+ *	@sht: template for SCSI host
  *
- *	This function processes the information provided in the probe
- *	information struct @ent, allocates the necessary ATA and SCSI
- *	host information structures, initializes them, and registers
- *	everything with requisite kernel subsystems.
- *
- *	This function requests irqs, probes the ATA bus, and probes
- *	the SCSI bus.
+ *	Register initialized ATA host.  @host is allocated using
+ *	ata_host_alloc() and fully initialized by LLD.  This function
+ *	starts ports, registers @host with ATA and SCSI layers and
+ *	probe registered devices.
  *
  *	LOCKING:
- *	PCI/etc. bus probe sem.
+ *	Inherited from calling layer (may sleep).
  *
  *	RETURNS:
- *	Number of ports registered.  Zero on error (no ports registered).
+ *	0 on success, -errno otherwise.
  */
-int ata_device_add(const struct ata_probe_ent *ent)
+int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 {
-	unsigned int i;
-	struct device *dev = ent->dev;
-	struct ata_host *host;
-	int rc;
+	int i, rc;
 
-	DPRINTK("ENTER\n");
-
-	if (ent->irq == 0) {
-		dev_printk(KERN_ERR, dev, "is not available: No interrupt assigned.\n");
-		return 0;
+	/* host must have been started */
+	if (!(host->flags & ATA_HOST_STARTED)) {
+		dev_printk(KERN_ERR, host->dev,
+			   "BUG: trying to register unstarted host\n");
+		WARN_ON(1);
+		return -EINVAL;
 	}
 
-	if (!devres_open_group(dev, ata_device_add, GFP_KERNEL))
-		return 0;
+	/* Blow away unused ports.  This happens when LLD can't
+	 * determine the exact number of ports to allocate at
+	 * allocation time.
+	 */
+	for (i = host->n_ports; host->ports[i]; i++)
+		kfree(host->ports[i]);
 
-	/* alloc a container for our list of ATA ports (buses) */
-	host = devres_alloc(ata_host_release, sizeof(struct ata_host) +
-			    (ent->n_ports * sizeof(void *)), GFP_KERNEL);
-	if (!host)
-		goto err_out;
-	devres_add(dev, host);
-	dev_set_drvdata(dev, host);
+	/* give ports names and add SCSI hosts */
+	for (i = 0; i < host->n_ports; i++)
+		host->ports[i]->print_id = ata_print_id++;
 
-	ata_host_init(host, dev, ent->_host_flags, ent->port_ops);
-	host->n_ports = ent->n_ports;
-	host->irq = ent->irq;
-	host->irq2 = ent->irq2;
-	host->iomap = ent->iomap;
-	host->private_data = ent->private_data;
+	rc = ata_scsi_add_hosts(host, sht);
+	if (rc)
+		return rc;
 
-	/* register each port bound to this device */
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap;
-		unsigned long xfer_mode_mask;
-		int irq_line = ent->irq;
-
-		ap = ata_port_add(ent, host, i);
-		host->ports[i] = ap;
-		if (!ap)
-			goto err_out;
-
-		/* dummy? */
-		if (ent->dummy_port_mask & (1 << i)) {
-			ata_port_printk(ap, KERN_INFO, "DUMMY\n");
-			ap->ops = &ata_dummy_port_ops;
-			continue;
-		}
-
-		/* start port */
-		rc = ap->ops->port_start(ap);
-		if (rc) {
-			host->ports[i] = NULL;
-			scsi_host_put(ap->scsi_host);
-			goto err_out;
-		}
-
-		/* Report the secondary IRQ for second channel legacy */
-		if (i == 1 && ent->irq2)
-			irq_line = ent->irq2;
-
-		xfer_mode_mask =(ap->udma_mask << ATA_SHIFT_UDMA) |
-				(ap->mwdma_mask << ATA_SHIFT_MWDMA) |
-				(ap->pio_mask << ATA_SHIFT_PIO);
-
-		/* print per-port info to dmesg */
-		ata_port_printk(ap, KERN_INFO, "%cATA max %s cmd 0x%p "
-				"ctl 0x%p bmdma 0x%p irq %d\n",
-				ap->flags & ATA_FLAG_SATA ? 'S' : 'P',
-				ata_mode_string(xfer_mode_mask),
-				ap->ioaddr.cmd_addr,
-				ap->ioaddr.ctl_addr,
-				ap->ioaddr.bmdma_addr,
-				irq_line);
-
-		/* freeze port before requesting IRQ */
-		ata_eh_freeze_port(ap);
-	}
-
-	/* obtain irq, that may be shared between channels */
-	rc = devm_request_irq(dev, ent->irq, ent->port_ops->irq_handler,
-			      ent->irq_flags, DRV_NAME, host);
-	if (rc) {
-		dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
-			   ent->irq, rc);
-		goto err_out;
-	}
-
-	/* do we have a second IRQ for the other channel, eg legacy mode */
-	if (ent->irq2) {
-		/* We will get weird core code crashes later if this is true
-		   so trap it now */
-		BUG_ON(ent->irq == ent->irq2);
-
-		rc = devm_request_irq(dev, ent->irq2,
-				ent->port_ops->irq_handler, ent->irq_flags,
-				DRV_NAME, host);
-		if (rc) {
-			dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
-				   ent->irq2, rc);
-			goto err_out;
-		}
-	}
-
-	/* resource acquisition complete */
-	devres_remove_group(dev, ata_device_add);
-
-	/* perform each probe synchronously */
-	DPRINTK("probe begin\n");
+	/* set cable, sata_spd_limit and report */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
+		int irq_line;
 		u32 scontrol;
-		int rc;
+		unsigned long xfer_mask;
+
+		/* set SATA cable type if still unset */
+		if (ap->cbl == ATA_CBL_NONE && (ap->flags & ATA_FLAG_SATA))
+			ap->cbl = ATA_CBL_SATA;
 
 		/* init sata_spd_limit to the current value */
 		if (sata_scr_read(ap, SCR_CONTROL, &scontrol) == 0) {
@@ -5905,16 +6258,35 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		}
 		ap->sata_spd_limit = ap->hw_sata_spd_limit;
 
-		rc = scsi_add_host(ap->scsi_host, dev);
-		if (rc) {
-			ata_port_printk(ap, KERN_ERR, "scsi_add_host failed\n");
-			/* FIXME: do something useful here */
-			/* FIXME: handle unconditional calls to
-			 * scsi_scan_host and ata_host_remove, below,
-			 * at the very least
-			 */
-		}
+		/* report the secondary IRQ for second channel legacy */
+		irq_line = host->irq;
+		if (i == 1 && host->irq2)
+			irq_line = host->irq2;
 
+		xfer_mask = ata_pack_xfermask(ap->pio_mask, ap->mwdma_mask,
+					      ap->udma_mask);
+
+		/* print per-port info to dmesg */
+		if (!ata_port_is_dummy(ap))
+			ata_port_printk(ap, KERN_INFO, "%cATA max %s cmd 0x%p "
+					"ctl 0x%p bmdma 0x%p irq %d\n",
+					ap->cbl == ATA_CBL_SATA ? 'S' : 'P',
+					ata_mode_string(xfer_mask),
+					ap->ioaddr.cmd_addr,
+					ap->ioaddr.ctl_addr,
+					ap->ioaddr.bmdma_addr,
+					irq_line);
+		else
+			ata_port_printk(ap, KERN_INFO, "DUMMY\n");
+	}
+
+	/* perform each probe synchronously */
+	DPRINTK("probe begin\n");
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+		int rc;
+
+		/* probe */
 		if (ap->ops->error_handler) {
 			struct ata_eh_info *ehi = &ap->eh_info;
 			unsigned long flags;
@@ -5959,13 +6331,49 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		ata_scsi_scan_host(ap);
 	}
 
-	VPRINTK("EXIT, returning %u\n", ent->n_ports);
-	return ent->n_ports; /* success */
-
- err_out:
-	devres_release_group(dev, ata_device_add);
-	VPRINTK("EXIT, returning %d\n", rc);
 	return 0;
+}
+
+/**
+ *	ata_host_activate - start host, request IRQ and register it
+ *	@host: target ATA host
+ *	@irq: IRQ to request
+ *	@irq_handler: irq_handler used when requesting IRQ
+ *	@irq_flags: irq_flags used when requesting IRQ
+ *	@sht: scsi_host_template to use when registering the host
+ *
+ *	After allocating an ATA host and initializing it, most libata
+ *	LLDs perform three steps to activate the host - start host,
+ *	request IRQ and register it.  This helper takes necessasry
+ *	arguments and performs the three steps in one go.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_host_activate(struct ata_host *host, int irq,
+		      irq_handler_t irq_handler, unsigned long irq_flags,
+		      struct scsi_host_template *sht)
+{
+	int rc;
+
+	rc = ata_host_start(host);
+	if (rc)
+		return rc;
+
+	rc = devm_request_irq(host->dev, irq, irq_handler, irq_flags,
+			      dev_driver_string(host->dev), host);
+	if (rc)
+		return rc;
+
+	rc = ata_host_register(host, sht);
+	/* if failed, just free the IRQ and leave ports alone */
+	if (rc)
+		devm_free_irq(host->dev, irq, host);
+
+	return rc;
 }
 
 /**
@@ -6041,32 +6449,6 @@ void ata_host_detach(struct ata_host *host)
 
 	for (i = 0; i < host->n_ports; i++)
 		ata_port_detach(host->ports[i]);
-}
-
-struct ata_probe_ent *
-ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
-{
-	struct ata_probe_ent *probe_ent;
-
-	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (!probe_ent) {
-		printk(KERN_ERR DRV_NAME "(%s): out of memory\n",
-		       kobject_name(&(dev->kobj)));
-		return NULL;
-	}
-
-	INIT_LIST_HEAD(&probe_ent->node);
-	probe_ent->dev = dev;
-
-	probe_ent->sht = port->sht;
-	probe_ent->port_flags = port->flags;
-	probe_ent->pio_mask = port->pio_mask;
-	probe_ent->mwdma_mask = port->mwdma_mask;
-	probe_ent->udma_mask = port->udma_mask;
-	probe_ent->port_ops = port->port_ops;
-	probe_ent->private_data = port->private_data;
-
-	return probe_ent;
 }
 
 /**
@@ -6334,6 +6716,10 @@ const struct ata_port_operations ata_dummy_port_ops = {
 	.port_stop		= ata_dummy_noret,
 };
 
+const struct ata_port_info ata_dummy_port_info = {
+	.port_ops		= &ata_dummy_port_ops,
+};
+
 /*
  * libata is essentially a library of internal helper functions for
  * low-level ATA host controller drivers.  As such, the API/ABI is
@@ -6345,10 +6731,15 @@ EXPORT_SYMBOL_GPL(sata_deb_timing_normal);
 EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
 EXPORT_SYMBOL_GPL(sata_deb_timing_long);
 EXPORT_SYMBOL_GPL(ata_dummy_port_ops);
+EXPORT_SYMBOL_GPL(ata_dummy_port_info);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_host_init);
-EXPORT_SYMBOL_GPL(ata_device_add);
+EXPORT_SYMBOL_GPL(ata_host_alloc);
+EXPORT_SYMBOL_GPL(ata_host_alloc_pinfo);
+EXPORT_SYMBOL_GPL(ata_host_start);
+EXPORT_SYMBOL_GPL(ata_host_register);
+EXPORT_SYMBOL_GPL(ata_host_activate);
 EXPORT_SYMBOL_GPL(ata_host_detach);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
@@ -6360,6 +6751,7 @@ EXPORT_SYMBOL_GPL(ata_tf_load);
 EXPORT_SYMBOL_GPL(ata_tf_read);
 EXPORT_SYMBOL_GPL(ata_noop_dev_select);
 EXPORT_SYMBOL_GPL(ata_std_dev_select);
+EXPORT_SYMBOL_GPL(sata_print_link_status);
 EXPORT_SYMBOL_GPL(ata_tf_to_fis);
 EXPORT_SYMBOL_GPL(ata_tf_from_fis);
 EXPORT_SYMBOL_GPL(ata_check_status);
@@ -6367,6 +6759,7 @@ EXPORT_SYMBOL_GPL(ata_altstatus);
 EXPORT_SYMBOL_GPL(ata_exec_command);
 EXPORT_SYMBOL_GPL(ata_port_start);
 EXPORT_SYMBOL_GPL(ata_interrupt);
+EXPORT_SYMBOL_GPL(ata_do_set_mode);
 EXPORT_SYMBOL_GPL(ata_data_xfer);
 EXPORT_SYMBOL_GPL(ata_data_xfer_noirq);
 EXPORT_SYMBOL_GPL(ata_qc_prep);
@@ -6429,7 +6822,8 @@ EXPORT_SYMBOL_GPL(ata_timing_merge);
 
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL_GPL(pci_test_config_bits);
-EXPORT_SYMBOL_GPL(ata_pci_init_native_mode);
+EXPORT_SYMBOL_GPL(ata_pci_init_native_host);
+EXPORT_SYMBOL_GPL(ata_pci_prepare_native_host);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);
 #ifdef CONFIG_PM
@@ -6461,3 +6855,8 @@ EXPORT_SYMBOL_GPL(ata_dummy_irq_on);
 EXPORT_SYMBOL_GPL(ata_irq_ack);
 EXPORT_SYMBOL_GPL(ata_dummy_irq_ack);
 EXPORT_SYMBOL_GPL(ata_dev_try_classify);
+
+EXPORT_SYMBOL_GPL(ata_cable_40wire);
+EXPORT_SYMBOL_GPL(ata_cable_80wire);
+EXPORT_SYMBOL_GPL(ata_cable_unknown);
+EXPORT_SYMBOL_GPL(ata_cable_sata);

@@ -296,5 +296,31 @@ int pcim_iomap_regions(struct pci_dev *pdev, u16 mask, const char *name)
 	return rc;
 }
 EXPORT_SYMBOL(pcim_iomap_regions);
+
+/**
+ * pcim_iounmap_regions - Unmap and release PCI BARs
+ * @pdev: PCI device to map IO resources for
+ * @mask: Mask of BARs to unmap and release
+ *
+ * Unamp and release regions specified by @mask.
+ */
+void pcim_iounmap_regions(struct pci_dev *pdev, u16 mask)
+{
+	void __iomem * const *iomap;
+	int i;
+
+	iomap = pcim_iomap_table(pdev);
+	if (!iomap)
+		return;
+
+	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+		if (!(mask & (1 << i)))
+			continue;
+
+		pcim_iounmap(pdev, iomap[i]);
+		pci_release_region(pdev, i);
+	}
+}
+EXPORT_SYMBOL(pcim_iounmap_regions);
 #endif
 #endif

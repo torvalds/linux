@@ -104,7 +104,7 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
  * libata transport template.  libata doesn't do real transport stuff.
  * It just needs the eh_timed_out hook.
  */
-struct scsi_transport_template ata_scsi_transport_template = {
+static struct scsi_transport_template ata_scsi_transport_template = {
 	.eh_strategy_handler	= ata_scsi_error,
 	.eh_timed_out		= ata_scsi_timed_out,
 	.user_scan		= ata_scsi_user_scan,
@@ -2678,6 +2678,18 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->device = qc->dev->devno ?
 			tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
 
+	/* READ/WRITE LONG use a non-standard sect_size */
+	qc->sect_size = ATA_SECT_SIZE;
+	switch (tf->command) {
+	case ATA_CMD_READ_LONG:
+	case ATA_CMD_READ_LONG_ONCE:
+	case ATA_CMD_WRITE_LONG:
+	case ATA_CMD_WRITE_LONG_ONCE:
+		if (tf->protocol != ATA_PROT_PIO || tf->nsect != 1)
+			goto invalid_fld;
+		qc->sect_size = scmd->request_bufflen;
+	}
+
 	/*
 	 * Filter SET_FEATURES - XFER MODE command -- otherwise,
 	 * SET_FEATURES - XFER MODE must be preceded/succeeded
@@ -2792,8 +2804,9 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
 {
 	int rc = 0;
 
-	if (unlikely(!scmd->cmd_len)) {
-		ata_dev_printk(dev, KERN_WARNING, "WARNING: zero len CDB\n");
+	if (unlikely(!scmd->cmd_len || scmd->cmd_len > dev->cdb_len)) {
+		DPRINTK("bad CDB len=%u, max=%u\n",
+			scmd->cmd_len, dev->cdb_len);
 		scmd->result = DID_ERROR << 16;
 		done(scmd);
 		return 0;
@@ -2946,6 +2959,48 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			done(cmd);
 			break;
 	}
+}
+
+int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
+{
+	int i, rc;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+		struct Scsi_Host *shost;
+
+		rc = -ENOMEM;
+		shost = scsi_host_alloc(sht, sizeof(struct ata_port *));
+		if (!shost)
+			goto err_alloc;
+
+		*(struct ata_port **)&shost->hostdata[0] = ap;
+		ap->scsi_host = shost;
+
+		shost->transportt = &ata_scsi_transport_template;
+		shost->unique_id = ap->print_id;
+		shost->max_id = 16;
+		shost->max_lun = 1;
+		shost->max_channel = 1;
+		shost->max_cmd_len = 16;
+
+		rc = scsi_add_host(ap->scsi_host, ap->host->dev);
+		if (rc)
+			goto err_add;
+	}
+
+	return 0;
+
+ err_add:
+	scsi_host_put(host->ports[i]->scsi_host);
+ err_alloc:
+	while (--i >= 0) {
+		struct Scsi_Host *shost = host->ports[i]->scsi_host;
+
+		scsi_remove_host(shost);
+		scsi_host_put(shost);
+	}
+	return rc;
 }
 
 void ata_scsi_scan_host(struct ata_port *ap)
@@ -3224,21 +3279,21 @@ struct ata_port *ata_sas_port_alloc(struct ata_host *host,
 				    struct ata_port_info *port_info,
 				    struct Scsi_Host *shost)
 {
-	struct ata_port *ap = kzalloc(sizeof(*ap), GFP_KERNEL);
-	struct ata_probe_ent *ent;
+	struct ata_port *ap;
 
+	ap = ata_port_alloc(host);
 	if (!ap)
 		return NULL;
 
-	ent = ata_probe_ent_alloc(host->dev, port_info);
-	if (!ent) {
-		kfree(ap);
-		return NULL;
-	}
-
-	ata_port_init(ap, host, ent, 0);
+	ap->port_no = 0;
 	ap->lock = shost->host_lock;
-	devm_kfree(host->dev, ent);
+	ap->pio_mask = port_info->pio_mask;
+	ap->mwdma_mask = port_info->mwdma_mask;
+	ap->udma_mask = port_info->udma_mask;
+	ap->flags |= port_info->flags;
+	ap->ops = port_info->port_ops;
+	ap->cbl = ATA_CBL_SATA;
+
 	return ap;
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_alloc);
@@ -3294,8 +3349,10 @@ int ata_sas_port_init(struct ata_port *ap)
 {
 	int rc = ap->ops->port_start(ap);
 
-	if (!rc)
+	if (!rc) {
+		ap->print_id = ata_print_id++;
 		rc = ata_bus_probe(ap);
+	}
 
 	return rc;
 }

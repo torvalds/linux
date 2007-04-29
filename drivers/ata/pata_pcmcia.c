@@ -42,7 +42,7 @@
 
 
 #define DRV_NAME "pata_pcmcia"
-#define DRV_VERSION "0.3.0"
+#define DRV_VERSION "0.3.1"
 
 /*
  *	Private data structure to glue stuff together
@@ -53,6 +53,39 @@ struct ata_pcmcia_info {
 	int		ndev;
 	dev_node_t	node;
 };
+
+/**
+ *	pcmcia_set_mode	-	PCMCIA specific mode setup
+ *	@ap: Port
+ *	@r_failed_dev: Return pointer for failed device
+ *
+ *	Perform the tuning and setup of the devices and timings, which
+ *	for PCMCIA is the same as any other controller. We wrap it however
+ *	as we need to spot hardware with incorrect or missing master/slave
+ *	decode, which alas is embarrassingly common in the PC world
+ */
+
+static int pcmcia_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
+{
+	struct ata_device *master = &ap->device[0];
+	struct ata_device *slave = &ap->device[1];
+
+	if (!ata_dev_enabled(master) || !ata_dev_enabled(slave))
+		return ata_do_set_mode(ap, r_failed_dev);
+
+	if (memcmp(master->id + ATA_ID_FW_REV,  slave->id + ATA_ID_FW_REV,
+			   ATA_ID_FW_REV_LEN + ATA_ID_PROD_LEN) == 0)
+	{
+		/* Suspicious match, but could be two cards from
+		   the same vendor - check serial */
+		if (memcmp(master->id + ATA_ID_SERNO, slave->id + ATA_ID_SERNO,
+			   ATA_ID_SERNO_LEN) == 0 && master->id[ATA_ID_SERNO] >> 8) {
+			ata_dev_printk(slave, KERN_WARNING, "is a ghost device, ignoring.\n");
+			ata_dev_disable(slave);
+		}
+	}
+	return ata_do_set_mode(ap, r_failed_dev);
+}
 
 static struct scsi_host_template pcmcia_sht = {
 	.module			= THIS_MODULE,
@@ -73,6 +106,7 @@ static struct scsi_host_template pcmcia_sht = {
 };
 
 static struct ata_port_operations pcmcia_port_ops = {
+	.set_mode	= pcmcia_set_mode,
 	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
@@ -84,13 +118,13 @@ static struct ata_port_operations pcmcia_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
 	.data_xfer	= ata_data_xfer_noirq,
 
-	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
 	.irq_ack	= ata_irq_ack,
@@ -111,7 +145,8 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 static int pcmcia_init_one(struct pcmcia_device *pdev)
 {
-	struct ata_probe_ent ae;
+	struct ata_host *host;
+	struct ata_port *ap;
 	struct ata_pcmcia_info *info;
 	tuple_t tuple;
 	struct {
@@ -255,24 +290,24 @@ next_entry:
  	 *	Having done the PCMCIA plumbing the ATA side is relatively
  	 *	sane.
 	 */
+	ret = -ENOMEM;
+	host = ata_host_alloc(&pdev->dev, 1);
+	if (!host)
+		goto failed;
+	ap = host->ports[0];
 
-	memset(&ae, 0, sizeof(struct ata_probe_ent));
-	INIT_LIST_HEAD(&ae.node);
-	ae.dev = &pdev->dev;
-	ae.port_ops = &pcmcia_port_ops;
-	ae.sht = &pcmcia_sht;
-	ae.n_ports = 1;
-	ae.pio_mask = 1;		/* ISA so PIO 0 cycles */
-	ae.irq = pdev->irq.AssignedIRQ;
-	ae.irq_flags = IRQF_SHARED;
-	ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
-	ae.port[0].cmd_addr = io_addr;
-	ae.port[0].altstatus_addr = ctl_addr;
-	ae.port[0].ctl_addr = ctl_addr;
-	ata_std_ports(&ae.port[0]);
+	ap->ops = &pcmcia_port_ops;
+	ap->pio_mask = 1;		/* ISA so PIO 0 cycles */
+	ap->flags |= ATA_FLAG_SLAVE_POSS;
+	ap->ioaddr.cmd_addr = io_addr;
+	ap->ioaddr.altstatus_addr = ctl_addr;
+	ap->ioaddr.ctl_addr = ctl_addr;
+	ata_std_ports(&ap->ioaddr);
 
-	ret = -ENODEV;
-	if (ata_device_add(&ae) == 0)
+	/* activate */
+	ret = ata_host_activate(host, pdev->irq.AssignedIRQ, ata_interrupt,
+				IRQF_SHARED, &pcmcia_sht);
+	if (ret)
 		goto failed;
 
 	info->ndev = 1;

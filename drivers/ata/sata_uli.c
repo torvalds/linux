@@ -115,7 +115,6 @@ static const struct ata_port_operations uli_ops = {
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -127,7 +126,6 @@ static const struct ata_port_operations uli_ops = {
 };
 
 static struct ata_port_info uli_port_info = {
-	.sht            = &uli_sht,
 	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 			  ATA_FLAG_IGN_SIMPLEX,
 	.pio_mask       = 0x1f,		/* pio0-4 */
@@ -185,12 +183,13 @@ static void uli_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	struct ata_probe_ent *probe_ent;
-	struct ata_port_info *ppi[2];
-	int rc;
+	const struct ata_port_info *ppi[] = { &uli_port_info, NULL };
 	unsigned int board_idx = (unsigned int) ent->driver_data;
+	struct ata_host *host;
 	struct uli_priv *hpriv;
 	void __iomem * const *iomap;
+	struct ata_ioports *ioaddr;
+	int n_ports, rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
@@ -199,54 +198,42 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc) {
-		pcim_pin_device(pdev);
-		return rc;
-	}
-
-	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
+	n_ports = 2;
+	if (board_idx == uli_5287)
+		n_ports = 4;
+	rc = ata_pci_prepare_native_host(pdev, ppi, n_ports, &host);
 	if (rc)
 		return rc;
-	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-
-	ppi[0] = ppi[1] = &uli_port_info;
-	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
-	if (!probe_ent)
-		return -ENOMEM;
 
 	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
 		return -ENOMEM;
+	host->private_data = hpriv;
 
-	probe_ent->private_data = hpriv;
-
-	iomap = pcim_iomap_table(pdev);
+	iomap = host->iomap;
 
 	switch (board_idx) {
 	case uli_5287:
 		hpriv->scr_cfg_addr[0] = ULI5287_BASE;
 		hpriv->scr_cfg_addr[1] = ULI5287_BASE + ULI5287_OFFS;
-       		probe_ent->n_ports = 4;
 
-		probe_ent->port[2].cmd_addr = iomap[0] + 8;
-		probe_ent->port[2].altstatus_addr =
-		probe_ent->port[2].ctl_addr = (void __iomem *)
+		ioaddr = &host->ports[2]->ioaddr;
+		ioaddr->cmd_addr = iomap[0] + 8;
+		ioaddr->altstatus_addr =
+		ioaddr->ctl_addr = (void __iomem *)
 			((unsigned long)iomap[1] | ATA_PCI_CTL_OFS) + 4;
-		probe_ent->port[2].bmdma_addr = iomap[4] + 16;
+		ioaddr->bmdma_addr = iomap[4] + 16;
 		hpriv->scr_cfg_addr[2] = ULI5287_BASE + ULI5287_OFFS*4;
+		ata_std_ports(ioaddr);
 
-		probe_ent->port[3].cmd_addr = iomap[2] + 8;
-		probe_ent->port[3].altstatus_addr =
-		probe_ent->port[3].ctl_addr = (void __iomem *)
+		ioaddr = &host->ports[3]->ioaddr;
+		ioaddr->cmd_addr = iomap[2] + 8;
+		ioaddr->altstatus_addr =
+		ioaddr->ctl_addr = (void __iomem *)
 			((unsigned long)iomap[3] | ATA_PCI_CTL_OFS) + 4;
-		probe_ent->port[3].bmdma_addr = iomap[4] + 24;
+		ioaddr->bmdma_addr = iomap[4] + 24;
 		hpriv->scr_cfg_addr[3] = ULI5287_BASE + ULI5287_OFFS*5;
-
-		ata_std_ports(&probe_ent->port[2]);
-		ata_std_ports(&probe_ent->port[3]);
+		ata_std_ports(ioaddr);
 		break;
 
 	case uli_5289:
@@ -266,12 +253,8 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 	pci_intx(pdev, 1);
-
-	if (!ata_device_add(probe_ent))
-		return -ENODEV;
-
-	devm_kfree(&pdev->dev, probe_ent);
-	return 0;
+	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
+				 &uli_sht);
 }
 
 static int __init uli_init(void)

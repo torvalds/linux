@@ -183,13 +183,13 @@ static struct ata_port_operations qdi6500_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= qdi_qc_issue_prot,
 
 	.data_xfer	= qdi_data_xfer,
 
-	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
 	.irq_ack	= ata_irq_ack,
@@ -211,13 +211,13 @@ static struct ata_port_operations qdi6580_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= qdi_qc_issue_prot,
 
 	.data_xfer	= qdi_data_xfer,
 
-	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
 	.irq_ack	= ata_irq_ack,
@@ -238,8 +238,9 @@ static struct ata_port_operations qdi6580_port_ops = {
 
 static __init int qdi_init_one(unsigned long port, int type, unsigned long io, int irq, int fast)
 {
-	struct ata_probe_ent ae;
 	struct platform_device *pdev;
+	struct ata_host *host;
+	struct ata_port *ap;
 	void __iomem *io_addr, *ctl_addr;
 	int ret;
 
@@ -257,34 +258,31 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 	if (!io_addr || !ctl_addr)
 		goto fail;
 
-	memset(&ae, 0, sizeof(struct ata_probe_ent));
-	INIT_LIST_HEAD(&ae.node);
-	ae.dev = &pdev->dev;
+	ret = -ENOMEM;
+	host = ata_host_alloc(&pdev->dev, 1);
+	if (!host)
+		goto fail;
+	ap = host->ports[0];
 
 	if (type == 6580) {
-		ae.port_ops = &qdi6580_port_ops;
-		ae.pio_mask = 0x1F;
-		ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
+		ap->ops = &qdi6580_port_ops;
+		ap->pio_mask = 0x1F;
+		ap->flags |= ATA_FLAG_SLAVE_POSS;
 	} else {
-		ae.port_ops = &qdi6500_port_ops;
-		ae.pio_mask = 0x07;	/* Actually PIO3 !IORDY is possible */
-		ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST |
-				ATA_FLAG_NO_IORDY;
+		ap->ops = &qdi6500_port_ops;
+		ap->pio_mask = 0x07;	/* Actually PIO3 !IORDY is possible */
+		ap->flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_NO_IORDY;
 	}
 
-	ae.sht = &qdi_sht;
-	ae.n_ports = 1;
-	ae.irq = irq;
-	ae.irq_flags = 0;
-	ae.port[0].cmd_addr = io_addr;
-	ae.port[0].altstatus_addr = ctl_addr;
-	ae.port[0].ctl_addr = ctl_addr;
-	ata_std_ports(&ae.port[0]);
+	ap->ioaddr.cmd_addr = io_addr;
+	ap->ioaddr.altstatus_addr = ctl_addr;
+	ap->ioaddr.ctl_addr = ctl_addr;
+	ata_std_ports(&ap->ioaddr);
 
 	/*
 	 *	Hook in a private data structure per channel
 	 */
-	ae.private_data = &qdi_data[nr_qdi_host];
+	ap->private_data = &qdi_data[nr_qdi_host];
 
 	qdi_data[nr_qdi_host].timing = port;
 	qdi_data[nr_qdi_host].fast = fast;
@@ -292,8 +290,9 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 
 	printk(KERN_INFO DRV_NAME": qd%d at 0x%lx.\n", type, io);
 
-	ret = -ENODEV;
-	if (!ata_device_add(&ae))
+	/* activate */
+	ret = ata_host_activate(host, irq, ata_interrupt, 0, &qdi_sht);
+	if (ret)
 		goto fail;
 
 	qdi_host[nr_qdi_host++] = dev_get_drvdata(&pdev->dev);

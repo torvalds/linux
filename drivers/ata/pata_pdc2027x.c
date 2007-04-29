@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_pdc2027x"
-#define DRV_VERSION	"0.8"
+#define DRV_VERSION	"0.9"
 #undef PDC_DEBUG
 
 #ifdef PDC_DEBUG
@@ -66,8 +66,10 @@ static int pdc2027x_init_one(struct pci_dev *pdev, const struct pci_device_id *e
 static void pdc2027x_error_handler(struct ata_port *ap);
 static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev);
 static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev);
-static void pdc2027x_post_set_mode(struct ata_port *ap);
 static int pdc2027x_check_atapi_dma(struct ata_queued_cmd *qc);
+static unsigned long pdc2027x_mode_filter(struct ata_device *adev, unsigned long mask);
+static int pdc2027x_cable_detect(struct ata_port *ap);
+static int pdc2027x_set_mode(struct ata_port *ap, struct ata_device **r_failed);
 
 /*
  * ATA Timing Tables based on 133MHz controller clock.
@@ -146,6 +148,7 @@ static struct scsi_host_template pdc2027x_sht = {
 
 static struct ata_port_operations pdc2027x_pata100_ops = {
 	.port_disable		= ata_port_disable,
+	.mode_filter		= ata_pci_default_filter,
 
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -166,8 +169,8 @@ static struct ata_port_operations pdc2027x_pata100_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= pdc2027x_error_handler,
 	.post_internal_cmd 	= ata_bmdma_post_internal_cmd,
+	.cable_detect		= pdc2027x_cable_detect,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -179,7 +182,8 @@ static struct ata_port_operations pdc2027x_pata133_ops = {
 	.port_disable		= ata_port_disable,
 	.set_piomode		= pdc2027x_set_piomode,
 	.set_dmamode		= pdc2027x_set_dmamode,
-	.post_set_mode		= pdc2027x_post_set_mode,
+	.set_mode		= pdc2027x_set_mode,
+	.mode_filter		= pdc2027x_mode_filter,
 
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -200,8 +204,8 @@ static struct ata_port_operations pdc2027x_pata133_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= pdc2027x_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+	.cable_detect		= pdc2027x_cable_detect,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -212,7 +216,6 @@ static struct ata_port_operations pdc2027x_pata133_ops = {
 static struct ata_port_info pdc2027x_port_info[] = {
 	/* PDC_UDMA_100 */
 	{
-		.sht		= &pdc2027x_sht,
 		.flags		= ATA_FLAG_NO_LEGACY | ATA_FLAG_SLAVE_POSS |
 		                  ATA_FLAG_MMIO,
 		.pio_mask	= 0x1f, /* pio0-4 */
@@ -222,7 +225,6 @@ static struct ata_port_info pdc2027x_port_info[] = {
 	},
 	/* PDC_UDMA_133 */
 	{
-		.sht		= &pdc2027x_sht,
 		.flags		= ATA_FLAG_NO_LEGACY | ATA_FLAG_SLAVE_POSS |
                         	  ATA_FLAG_MMIO,
 		.pio_mask	= 0x1f, /* pio0-4 */
@@ -261,7 +263,7 @@ static inline void __iomem *dev_mmio(struct ata_port *ap, struct ata_device *ade
 }
 
 /**
- *	pdc2027x_pata_cbl_detect - Probe host controller cable detect info
+ *	pdc2027x_pata_cable_detect - Probe host controller cable detect info
  *	@ap: Port for which cable detect info is desired
  *
  *	Read 80c cable indicator from Promise extended register.
@@ -270,7 +272,7 @@ static inline void __iomem *dev_mmio(struct ata_port *ap, struct ata_device *ade
  *	LOCKING:
  *	None (inherited from caller).
  */
-static void pdc2027x_cbl_detect(struct ata_port *ap)
+static int pdc2027x_cable_detect(struct ata_port *ap)
 {
 	u32 cgcr;
 
@@ -281,13 +283,10 @@ static void pdc2027x_cbl_detect(struct ata_port *ap)
 
 	PDPRINTK("No cable or 80-conductor cable on port %d\n", ap->port_no);
 
-	ap->cbl = ATA_CBL_PATA80;
-	return;
-
+	return ATA_CBL_PATA80;
 cbl40:
 	printk(KERN_INFO DRV_NAME ": 40-conductor cable detected on port %d\n", ap->port_no);
-	ap->cbl = ATA_CBL_PATA40;
-	ap->udma_mask &= ATA_UDMA_MASK_40C;
+	return ATA_CBL_PATA40;
 }
 
 /**
@@ -314,7 +313,6 @@ static int pdc2027x_prereset(struct ata_port *ap)
 	/* Check whether port enabled */
 	if (!pdc2027x_port_enabled(ap))
 		return -ENOENT;
-	pdc2027x_cbl_detect(ap);
 	return ata_std_prereset(ap);
 }
 
@@ -331,6 +329,32 @@ static int pdc2027x_prereset(struct ata_port *ap)
 static void pdc2027x_error_handler(struct ata_port *ap)
 {
 	ata_bmdma_drive_eh(ap, pdc2027x_prereset, ata_std_softreset, NULL, ata_std_postreset);
+}
+
+/**
+ *	pdc2720x_mode_filter	-	mode selection filter
+ *	@adev: ATA device
+ *	@mask: list of modes proposed
+ *
+ *	Block UDMA on devices that cause trouble with this controller.
+ */
+
+static unsigned long pdc2027x_mode_filter(struct ata_device *adev, unsigned long mask)
+{
+	unsigned char model_num[ATA_ID_PROD_LEN + 1];
+	struct ata_device *pair = ata_dev_pair(adev);
+
+	if (adev->class != ATA_DEV_ATA || adev->devno == 0 || pair == NULL)
+		return ata_pci_default_filter(adev, mask);
+
+	/* Check for slave of a Maxtor at UDMA6 */
+	ata_id_c_string(pair->id, model_num, ATA_ID_PROD,
+			  ATA_ID_PROD_LEN + 1);
+	/* If the master is a maxtor in UDMA6 then the slave should not use UDMA 6 */
+	if(strstr(model_num, "Maxtor") == 0 && pair->dma_mode == XFER_UDMA_6)
+		mask &= ~ (1 << (6 + ATA_SHIFT_UDMA));
+
+	return ata_pci_default_filter(adev, mask);
 }
 
 /**
@@ -444,16 +468,21 @@ static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	pdc2027x_post_set_mode - Set the timing registers back to correct values.
+ *	pdc2027x_set_mode - Set the timing registers back to correct values.
  *	@ap: Port to configure
+ *	@r_failed: Returned device for failure
  *
  *	The pdc2027x hardware will look at "SET FEATURES" and change the timing registers
  *	automatically. The values set by the hardware might be incorrect, under 133Mhz PLL.
  *	This function overwrites the possibly incorrect values set by the hardware to be correct.
  */
-static void pdc2027x_post_set_mode(struct ata_port *ap)
+static int pdc2027x_set_mode(struct ata_port *ap, struct ata_device **r_failed)
 {
 	int i;
+
+	i = ata_do_set_mode(ap, r_failed);
+	if (i < 0)
+		return i;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
@@ -476,6 +505,7 @@ static void pdc2027x_post_set_mode(struct ata_port *ap)
 			}
 		}
 	}
+	return 0;
 }
 
 /**
@@ -521,12 +551,12 @@ static int pdc2027x_check_atapi_dma(struct ata_queued_cmd *qc)
 
 /**
  * pdc_read_counter - Read the ctr counter
- * @probe_ent: for the port address
+ * @host: target ATA host
  */
 
-static long pdc_read_counter(struct ata_probe_ent *probe_ent)
+static long pdc_read_counter(struct ata_host *host)
 {
-	void __iomem *mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
+	void __iomem *mmio_base = host->iomap[PDC_MMIO_BAR];
 	long counter;
 	int retry = 1;
 	u32 bccrl, bccrh, bccrlv, bccrhv;
@@ -564,12 +594,12 @@ retry:
  * adjust_pll - Adjust the PLL input clock in Hz.
  *
  * @pdc_controller: controller specific information
- * @probe_ent: For the port address
+ * @host: target ATA host
  * @pll_clock: The input of PLL in HZ
  */
-static void pdc_adjust_pll(struct ata_probe_ent *probe_ent, long pll_clock, unsigned int board_idx)
+static void pdc_adjust_pll(struct ata_host *host, long pll_clock, unsigned int board_idx)
 {
-	void __iomem *mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
+	void __iomem *mmio_base = host->iomap[PDC_MMIO_BAR];
 	u16 pll_ctl;
 	long pll_clock_khz = pll_clock / 1000;
 	long pout_required = board_idx? PDC_133_MHZ:PDC_100_MHZ;
@@ -649,19 +679,19 @@ static void pdc_adjust_pll(struct ata_probe_ent *probe_ent, long pll_clock, unsi
 
 /**
  * detect_pll_input_clock - Detect the PLL input clock in Hz.
- * @probe_ent: for the port address
+ * @host: target ATA host
  * Ex. 16949000 on 33MHz PCI bus for pdc20275.
  *     Half of the PCI clock.
  */
-static long pdc_detect_pll_input_clock(struct ata_probe_ent *probe_ent)
+static long pdc_detect_pll_input_clock(struct ata_host *host)
 {
-	void __iomem *mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
+	void __iomem *mmio_base = host->iomap[PDC_MMIO_BAR];
 	u32 scr;
 	long start_count, end_count;
 	long pll_clock;
 
 	/* Read current counter value */
-	start_count = pdc_read_counter(probe_ent);
+	start_count = pdc_read_counter(host);
 
 	/* Start the test mode */
 	scr = readl(mmio_base + PDC_SYS_CTL);
@@ -673,7 +703,7 @@ static long pdc_detect_pll_input_clock(struct ata_probe_ent *probe_ent)
 	mdelay(100);
 
 	/* Read the counter values again */
-	end_count = pdc_read_counter(probe_ent);
+	end_count = pdc_read_counter(host);
 
 	/* Stop the test mode */
 	scr = readl(mmio_base + PDC_SYS_CTL);
@@ -692,11 +722,10 @@ static long pdc_detect_pll_input_clock(struct ata_probe_ent *probe_ent)
 
 /**
  * pdc_hardware_init - Initialize the hardware.
- * @pdev: instance of pci_dev found
- * @pdc_controller: controller specific information
- * @pe:  for the port address
+ * @host: target ATA host
+ * @board_idx: board identifier
  */
-static int pdc_hardware_init(struct pci_dev *pdev, struct ata_probe_ent *pe, unsigned int board_idx)
+static int pdc_hardware_init(struct ata_host *host, unsigned int board_idx)
 {
 	long pll_clock;
 
@@ -706,15 +735,15 @@ static int pdc_hardware_init(struct pci_dev *pdev, struct ata_probe_ent *pe, uns
 	 * Ex. 25MHz or 40MHz, we have to adjust the cycle_time.
 	 * The pdc20275 controller employs PLL circuit to help correct timing registers setting.
 	 */
-	pll_clock = pdc_detect_pll_input_clock(pe);
+	pll_clock = pdc_detect_pll_input_clock(host);
 
 	if (pll_clock < 0) /* counter overflow? Try again. */
-		pll_clock = pdc_detect_pll_input_clock(pe);
+		pll_clock = pdc_detect_pll_input_clock(host);
 
-	dev_printk(KERN_INFO, &pdev->dev, "PLL input clock %ld kHz\n", pll_clock/1000);
+	dev_printk(KERN_INFO, host->dev, "PLL input clock %ld kHz\n", pll_clock/1000);
 
 	/* Adjust PLL control register */
-	pdc_adjust_pll(pe, pll_clock, board_idx);
+	pdc_adjust_pll(host, pll_clock, board_idx);
 
 	return 0;
 }
@@ -746,8 +775,7 @@ static void pdc_ata_setup_port(struct ata_ioports *port, void __iomem *base)
  * Called when an instance of PCI adapter is inserted.
  * This function checks whether the hardware is supported,
  * initialize hardware and register an instance of ata_host to
- * libata by providing struct ata_probe_ent and ata_device_add().
- * (implements struct pci_driver.probe() )
+ * libata.  (implements struct pci_driver.probe() )
  *
  * @pdev: instance of pci_dev found
  * @ent:  matching entry in the id_tbl[]
@@ -756,14 +784,21 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 {
 	static int printed_version;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
-
-	struct ata_probe_ent *probe_ent;
+	const struct ata_port_info *ppi[] =
+		{ &pdc2027x_port_info[board_idx], NULL };
+	struct ata_host *host;
 	void __iomem *mmio_base;
 	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
+	/* alloc host */
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
+	if (!host)
+		return -ENOMEM;
+
+	/* acquire resources and fill host */
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
@@ -771,6 +806,7 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	rc = pcim_iomap_regions(pdev, 1 << PDC_MMIO_BAR, DRV_NAME);
 	if (rc)
 		return rc;
+	host->iomap = pcim_iomap_table(pdev);
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
@@ -780,46 +816,22 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	if (rc)
 		return rc;
 
-	/* Prepare the probe entry */
-	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL)
-		return -ENOMEM;
+	mmio_base = host->iomap[PDC_MMIO_BAR];
 
-	probe_ent->dev = pci_dev_to_dev(pdev);
-	INIT_LIST_HEAD(&probe_ent->node);
+	pdc_ata_setup_port(&host->ports[0]->ioaddr, mmio_base + 0x17c0);
+	host->ports[0]->ioaddr.bmdma_addr = mmio_base + 0x1000;
+	pdc_ata_setup_port(&host->ports[1]->ioaddr, mmio_base + 0x15c0);
+	host->ports[1]->ioaddr.bmdma_addr = mmio_base + 0x1008;
 
-	probe_ent->sht		= pdc2027x_port_info[board_idx].sht;
-	probe_ent->port_flags	= pdc2027x_port_info[board_idx].flags;
-	probe_ent->pio_mask	= pdc2027x_port_info[board_idx].pio_mask;
-	probe_ent->mwdma_mask	= pdc2027x_port_info[board_idx].mwdma_mask;
-	probe_ent->udma_mask	= pdc2027x_port_info[board_idx].udma_mask;
-	probe_ent->port_ops	= pdc2027x_port_info[board_idx].port_ops;
-
-       	probe_ent->irq = pdev->irq;
-       	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->iomap = pcim_iomap_table(pdev);
-
-	mmio_base = probe_ent->iomap[PDC_MMIO_BAR];
-
-	pdc_ata_setup_port(&probe_ent->port[0], mmio_base + 0x17c0);
-	probe_ent->port[0].bmdma_addr = mmio_base + 0x1000;
-	pdc_ata_setup_port(&probe_ent->port[1], mmio_base + 0x15c0);
-	probe_ent->port[1].bmdma_addr = mmio_base + 0x1008;
-
-	probe_ent->n_ports = 2;
-
-	pci_set_master(pdev);
 	//pci_enable_intx(pdev);
 
 	/* initialize adapter */
-	if (pdc_hardware_init(pdev, probe_ent, board_idx) != 0)
+	if (pdc_hardware_init(host, board_idx) != 0)
 		return -EIO;
 
-	if (!ata_device_add(probe_ent))
-		return -ENODEV;
-
-	devm_kfree(&pdev->dev, probe_ent);
-	return 0;
+	pci_set_master(pdev);
+	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
+				 &pdc2027x_sht);
 }
 
 /**
