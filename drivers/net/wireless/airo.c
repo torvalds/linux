@@ -1145,6 +1145,7 @@ static void airo_networks_free(struct airo_info *ai);
 struct airo_info {
 	struct net_device_stats	stats;
 	struct net_device             *dev;
+	struct list_head              dev_list;
 	/* Note, we can have MAX_FIDS outstanding.  FIDs are 16-bits, so we
 	   use the high bit to mark whether it is in use. */
 #define MAX_FIDS 6
@@ -2360,6 +2361,21 @@ static int airo_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static LIST_HEAD(airo_devices);
+
+static void add_airo_dev(struct airo_info *ai)
+{
+	/* Upper layers already keep track of PCI devices,
+	 * so we only need to remember our non-PCI cards. */
+	if (!ai->pci)
+		list_add_tail(&ai->dev_list, &airo_devices);
+}
+
+static void del_airo_dev(struct airo_info *ai)
+{
+	if (!ai->pci)
+		list_del(&ai->dev_list);
+}
 
 static int airo_close(struct net_device *dev) {
 	struct airo_info *ai = dev->priv;
@@ -2380,8 +2396,6 @@ static int airo_close(struct net_device *dev) {
 	}
 	return 0;
 }
-
-static void del_airo_dev( struct net_device *dev );
 
 void stop_airo_card( struct net_device *dev, int freeres )
 {
@@ -2434,13 +2448,11 @@ void stop_airo_card( struct net_device *dev, int freeres )
 		}
         }
 	crypto_free_cipher(ai->tfm);
-	del_airo_dev( dev );
+	del_airo_dev(ai);
 	free_netdev( dev );
 }
 
 EXPORT_SYMBOL(stop_airo_card);
-
-static int add_airo_dev( struct net_device *dev );
 
 static int wll_header_parse(struct sk_buff *skb, unsigned char *haddr)
 {
@@ -2740,8 +2752,6 @@ static int airo_networks_allocate(struct airo_info *ai)
 
 static void airo_networks_free(struct airo_info *ai)
 {
-	if (!ai->networks)
-		return;
 	kfree(ai->networks);
 	ai->networks = NULL;
 }
@@ -2816,12 +2826,10 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	if (IS_ERR(ai->airo_thread_task))
 		goto err_out_free;
 	ai->tfm = NULL;
-	rc = add_airo_dev( dev );
-	if (rc)
-		goto err_out_thr;
+	add_airo_dev(ai);
 
 	if (airo_networks_allocate (ai))
-		goto err_out_unlink;
+		goto err_out_thr;
 	airo_networks_initialize (ai);
 
 	/* The Airo-specific entries in the device structure. */
@@ -2937,9 +2945,8 @@ err_out_irq:
 	free_irq(dev->irq, dev);
 err_out_nets:
 	airo_networks_free(ai);
-err_out_unlink:
-	del_airo_dev(dev);
 err_out_thr:
+	del_airo_dev(ai);
 	set_bit(JOB_DIE, &ai->jobs);
 	kthread_stop(ai->airo_thread_task);
 err_out_free:
@@ -5535,11 +5542,6 @@ static int proc_close( struct inode *inode, struct file *file )
 	return 0;
 }
 
-static struct net_device_list {
-	struct net_device *dev;
-	struct net_device_list *next;
-} *airo_devices;
-
 /* Since the card doesn't automatically switch to the right WEP mode,
    we will make it do it.  If the card isn't associated, every secs we
    will switch WEP modes to see if that will help.  If the card is
@@ -5582,26 +5584,6 @@ static void timer_func( struct net_device *dev ) {
 	apriv->expires = RUN_AT(HZ*3);
 }
 
-static int add_airo_dev( struct net_device *dev ) {
-	struct net_device_list *node = kmalloc( sizeof( *node ), GFP_KERNEL );
-	if ( !node )
-		return -ENOMEM;
-
-	node->dev = dev;
-	node->next = airo_devices;
-	airo_devices = node;
-
-	return 0;
-}
-
-static void del_airo_dev( struct net_device *dev ) {
-	struct net_device_list **p = &airo_devices;
-	while( *p && ( (*p)->dev != dev ) )
-		p = &(*p)->next;
-	if ( *p && (*p)->dev == dev )
-		*p = (*p)->next;
-}
-
 #ifdef CONFIG_PCI
 static int __devinit airo_pci_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *pent)
@@ -5625,6 +5607,10 @@ static int __devinit airo_pci_probe(struct pci_dev *pdev,
 
 static void __devexit airo_pci_remove(struct pci_dev *pdev)
 {
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	airo_print_info(dev->name, "Unregistering...");
+	stop_airo_card(dev, 1);
 }
 
 static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -5750,9 +5736,11 @@ static int __init airo_init_module( void )
 
 static void __exit airo_cleanup_module( void )
 {
-	while( airo_devices ) {
-		airo_print_info(airo_devices->dev->name, "Unregistering...\n");
-		stop_airo_card( airo_devices->dev, 1 );
+	struct airo_info *ai;
+	while(!list_empty(&airo_devices)) {
+		ai = list_entry(airo_devices.next, struct airo_info, dev_list);
+		airo_print_info(ai->dev->name, "Unregistering...");
+		stop_airo_card(ai->dev, 1);
 	}
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&airo_driver);

@@ -1582,9 +1582,9 @@ S:	Supported
 
 HOST AP DRIVER
 P:	Jouni Malinen
-M:	jkmaline@cc.hut.fi
+M:	j@w1.fi
+L:	hostap@shmoo.com (subscribers-only)
 L:	linux-wireless@vger.kernel.org
-L:	hostap@shmoo.com
 W:	http://hostap.epitest.fi/
 S:	Maintained
 
@@ -1811,6 +1811,7 @@ P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
 P:	Auke Kok
 M:	auke-jan.h.kok@intel.com
+L:	e1000-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1825,6 +1826,7 @@ P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
 P:	Auke Kok
 M:	auke-jan.h.kok@intel.com
+L:	e1000-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1839,6 +1841,7 @@ P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
 P:	Auke Kok
 M:	auke-jan.h.kok@intel.com
+L:	e1000-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -2499,6 +2502,19 @@ P:	Antonino Daplas
 M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
+
+NETERION (S2IO) Xframe 10GbE DRIVER
+P:	Ramkrishna Vepa
+M:	ram.vepa@neterion.com
+P:	Rastapur Santosh
+M:	santosh.rastapur@neterion.com
+P:	Sivakumar Subramani
+M:	sivakumar.subramani@neterion.com
+P:	Sreenivasa Honnur
+M:	sreenivasa.honnur@neterion.com
+L:	netdev@vger.kernel.org
+W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/TitleIndex?anonymous
+S:	Supported
 
 OPENCORES I2C BUS DRIVER
 P:	Peter Korsgaard

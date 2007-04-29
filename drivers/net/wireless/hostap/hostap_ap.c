@@ -1,8 +1,8 @@
 /*
  * Intersil Prism2 driver with Host AP (software access point) support
  * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
- * <jkmaline@cc.hut.fi>
- * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * <j@w1.fi>
+ * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
  *
  * This file is to be included into hostap.c when S/W AP functionality is
  * compiled.

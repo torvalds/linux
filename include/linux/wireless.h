@@ -186,7 +186,7 @@
  *	- Wireless Event capability in struct iw_range
  *	- Add support for relative TxPower (yick !)
  *
- * V17 to V18 (From Jouni Malinen <jkmaline@cc.hut.fi>)
+ * V17 to V18 (From Jouni Malinen <j@w1.fi>)
  * ----------
  *	- Add support for WPA/WPA2
  *	- Add extended encoding configuration (SIOCSIWENCODEEXT and

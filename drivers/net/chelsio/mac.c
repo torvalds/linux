@@ -363,6 +363,6 @@ static struct cmac *mac_create(adapter_t *adapter, int index)
 	return mac;
 }
 
-struct gmac t1_chelsio_mac_ops = {
+const struct gmac t1_chelsio_mac_ops = {
 	.create = mac_create
 };

@@ -197,7 +197,7 @@ out_kill_hwq:
 	hw_queue_dtor(&cq->hw_queue);
 
 out_freeres:
-	ehea_h_free_resource(adapter->handle, cq->fw_handle);
+	ehea_h_free_resource(adapter->handle, cq->fw_handle, FORCE_FREE);
 
 out_freemem:
 	kfree(cq);
@@ -206,24 +206,37 @@ out_nomem:
 	return NULL;
 }
 
+u64 ehea_destroy_cq_res(struct ehea_cq *cq, u64 force)
+{
+	u64 hret;
+	u64 adapter_handle = cq->adapter->handle;
+
+        /* deregister all previous registered pages */
+	hret = ehea_h_free_resource(adapter_handle, cq->fw_handle, force);
+	if (hret != H_SUCCESS)
+		return hret;
+
+	hw_queue_dtor(&cq->hw_queue);
+	kfree(cq);
+
+	return hret;
+}
+
 int ehea_destroy_cq(struct ehea_cq *cq)
 {
-	u64 adapter_handle, hret;
-
+	u64 hret;
 	if (!cq)
 		return 0;
 
-	adapter_handle = cq->adapter->handle;
+	if ((hret = ehea_destroy_cq_res(cq, NORMAL_FREE)) == H_R_STATE) {
+		ehea_error_data(cq->adapter, cq->fw_handle);
+		hret = ehea_destroy_cq_res(cq, FORCE_FREE);
+	}
 
-	/* deregister all previous registered pages */
-	hret = ehea_h_free_resource(adapter_handle, cq->fw_handle);
 	if (hret != H_SUCCESS) {
 		ehea_error("destroy CQ failed");
 		return -EIO;
 	}
-
-	hw_queue_dtor(&cq->hw_queue);
-	kfree(cq);
 
 	return 0;
 }
@@ -297,7 +310,7 @@ out_kill_hwq:
 	hw_queue_dtor(&eq->hw_queue);
 
 out_freeres:
-	ehea_h_free_resource(adapter->handle, eq->fw_handle);
+	ehea_h_free_resource(adapter->handle, eq->fw_handle, FORCE_FREE);
 
 out_freemem:
 	kfree(eq);
@@ -316,26 +329,40 @@ struct ehea_eqe *ehea_poll_eq(struct ehea_eq *eq)
 	return eqe;
 }
 
-int ehea_destroy_eq(struct ehea_eq *eq)
+u64 ehea_destroy_eq_res(struct ehea_eq *eq, u64 force)
 {
 	u64 hret;
 	unsigned long flags;
 
-	if (!eq)
-		return 0;
-
 	spin_lock_irqsave(&eq->spinlock, flags);
 
-	hret = ehea_h_free_resource(eq->adapter->handle, eq->fw_handle);
+	hret = ehea_h_free_resource(eq->adapter->handle, eq->fw_handle, force);
 	spin_unlock_irqrestore(&eq->spinlock, flags);
 
-	if (hret != H_SUCCESS) {
-		ehea_error("destroy_eq failed");
-		return -EIO;
-	}
+	if (hret != H_SUCCESS)
+		return hret;
 
 	hw_queue_dtor(&eq->hw_queue);
 	kfree(eq);
+
+	return hret;
+}
+
+int ehea_destroy_eq(struct ehea_eq *eq)
+{
+	u64 hret;
+	if (!eq)
+		return 0;
+
+	if ((hret = ehea_destroy_eq_res(eq, NORMAL_FREE)) == H_R_STATE) {
+		ehea_error_data(eq->adapter, eq->fw_handle);
+		hret = ehea_destroy_eq_res(eq, FORCE_FREE);
+	}
+
+	if (hret != H_SUCCESS) {
+		ehea_error("destroy EQ failed");
+		return -EIO;
+        }
 
 	return 0;
 }
@@ -471,41 +498,56 @@ out_kill_hwsq:
 
 out_freeres:
 	ehea_h_disable_and_get_hea(adapter->handle, qp->fw_handle);
-	ehea_h_free_resource(adapter->handle, qp->fw_handle);
+	ehea_h_free_resource(adapter->handle, qp->fw_handle, FORCE_FREE);
 
 out_freemem:
 	kfree(qp);
 	return NULL;
 }
 
-int ehea_destroy_qp(struct ehea_qp *qp)
+u64 ehea_destroy_qp_res(struct ehea_qp *qp, u64 force)
 {
-	u64 hret;
-	struct ehea_qp_init_attr *qp_attr = &qp->init_attr;
+        u64 hret;
+        struct ehea_qp_init_attr *qp_attr = &qp->init_attr;
 
-	if (!qp)
-		return 0;
 
-	ehea_h_disable_and_get_hea(qp->adapter->handle, qp->fw_handle);
-	hret = ehea_h_free_resource(qp->adapter->handle, qp->fw_handle);
-	if (hret != H_SUCCESS) {
-		ehea_error("destroy_qp failed");
-		return -EIO;
-	}
+        ehea_h_disable_and_get_hea(qp->adapter->handle, qp->fw_handle);
+        hret = ehea_h_free_resource(qp->adapter->handle, qp->fw_handle, force);
+        if (hret != H_SUCCESS)
+                return hret;
 
-	hw_queue_dtor(&qp->hw_squeue);
-	hw_queue_dtor(&qp->hw_rqueue1);
+        hw_queue_dtor(&qp->hw_squeue);
+        hw_queue_dtor(&qp->hw_rqueue1);
 
-   	if (qp_attr->rq_count > 1)
-		hw_queue_dtor(&qp->hw_rqueue2);
-   	if (qp_attr->rq_count > 2)
-		hw_queue_dtor(&qp->hw_rqueue3);
-	kfree(qp);
+        if (qp_attr->rq_count > 1)
+                hw_queue_dtor(&qp->hw_rqueue2);
+        if (qp_attr->rq_count > 2)
+                hw_queue_dtor(&qp->hw_rqueue3);
+        kfree(qp);
 
-	return 0;
+        return hret;
 }
 
-int ehea_reg_mr_adapter(struct ehea_adapter *adapter)
+int ehea_destroy_qp(struct ehea_qp *qp)
+{
+        u64 hret;
+        if (!qp)
+                return 0;
+
+        if ((hret = ehea_destroy_qp_res(qp, NORMAL_FREE)) == H_R_STATE) {
+                ehea_error_data(qp->adapter, qp->fw_handle);
+                hret = ehea_destroy_qp_res(qp, FORCE_FREE);
+        }
+
+        if (hret != H_SUCCESS) {
+                ehea_error("destroy QP failed");
+                return -EIO;
+        }
+
+        return 0;
+}
+
+int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 {
 	int i, k, ret;
 	u64 hret, pt_abs, start, end, nr_pages;
@@ -526,14 +568,14 @@ int ehea_reg_mr_adapter(struct ehea_adapter *adapter)
 
 	hret = ehea_h_alloc_resource_mr(adapter->handle, start, end - start,
 					acc_ctrl, adapter->pd,
-					&adapter->mr.handle, &adapter->mr.lkey);
+					&mr->handle, &mr->lkey);
 	if (hret != H_SUCCESS) {
 		ehea_error("alloc_resource_mr failed");
 		ret = -EIO;
 		goto out;
 	}
 
-	adapter->mr.vaddr = KERNELBASE;
+	mr->vaddr = KERNELBASE;
 	k = 0;
 
 	while (nr_pages > 0) {
@@ -545,7 +587,7 @@ int ehea_reg_mr_adapter(struct ehea_adapter *adapter)
 							     EHEA_PAGESIZE)));
 
 			hret = ehea_h_register_rpage_mr(adapter->handle,
-							adapter->mr.handle, 0,
+							mr->handle, 0,
 							0, (u64)pt_abs,
 							num_pages);
 			nr_pages -= num_pages;
@@ -554,32 +596,66 @@ int ehea_reg_mr_adapter(struct ehea_adapter *adapter)
 							  (k * EHEA_PAGESIZE)));
 
 			hret = ehea_h_register_rpage_mr(adapter->handle,
-							adapter->mr.handle, 0,
+							mr->handle, 0,
 							0, abs_adr,1);
 			nr_pages--;
 		}
 
 		if ((hret != H_SUCCESS) && (hret != H_PAGE_REGISTERED)) {
 			ehea_h_free_resource(adapter->handle,
-						adapter->mr.handle);
-			ehea_error("register_rpage_mr failed: hret = %lX",
-				   hret);
+					     mr->handle, FORCE_FREE);
+			ehea_error("register_rpage_mr failed");
 			ret = -EIO;
 			goto out;
 		}
 	}
 
 	if (hret != H_SUCCESS) {
-		ehea_h_free_resource(adapter->handle, adapter->mr.handle);
-		ehea_error("register_rpage failed for last page: hret = %lX",
-			   hret);
+		ehea_h_free_resource(adapter->handle, mr->handle,
+				     FORCE_FREE);
+		ehea_error("register_rpage failed for last page");
 		ret = -EIO;
 		goto out;
 	}
+
+	mr->adapter = adapter;
 	ret = 0;
 out:
 	kfree(pt);
 	return ret;
+}
+
+int ehea_rem_mr(struct ehea_mr *mr)
+{
+	u64 hret;
+
+	if (!mr || !mr->adapter)
+		return -EINVAL;
+
+	hret = ehea_h_free_resource(mr->adapter->handle, mr->handle,
+				    FORCE_FREE);
+	if (hret != H_SUCCESS) {
+		ehea_error("destroy MR failed");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int ehea_gen_smr(struct ehea_adapter *adapter, struct ehea_mr *old_mr,
+		 struct ehea_mr *shared_mr)
+{
+	u64 hret;
+
+	hret = ehea_h_register_smr(adapter->handle, old_mr->handle,
+				   old_mr->vaddr, EHEA_MR_ACC_CTRL,
+				   adapter->pd, shared_mr);
+	if (hret != H_SUCCESS)
+		return -EIO;
+
+	shared_mr->adapter = adapter;
+
+	return 0;
 }
 
 void print_error_data(u64 *data)
@@ -596,6 +672,14 @@ void print_error_data(u64 *data)
 	if (type == 0x8) /* Queue Pair */
 		ehea_error("QP (resource=%lX) state: AER=0x%lX, AERR=0x%lX, "
 			   "port=%lX", resource, data[6], data[12], data[22]);
+
+	if (type == 0x4) /* Completion Queue */
+		ehea_error("CQ (resource=%lX) state: AER=0x%lX", resource,
+			   data[6]);
+
+	if (type == 0x3) /* Event Queue */
+		ehea_error("EQ (resource=%lX) state: AER=0x%lX", resource,
+			   data[6]);
 
 	ehea_dump(data, length, "error data");
 }

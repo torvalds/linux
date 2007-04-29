@@ -142,6 +142,8 @@ struct ehea_rwqe {
 #define EHEA_CQE_STAT_ERR_MASK     0x721F
 #define EHEA_CQE_STAT_FAT_ERR_MASK 0x1F
 #define EHEA_CQE_STAT_ERR_TCP      0x4000
+#define EHEA_CQE_STAT_ERR_IP       0x2000
+#define EHEA_CQE_STAT_ERR_CRC      0x1000
 
 struct ehea_cqe {
 	u64 wr_id;		/* work request ID from WQE */
@@ -320,6 +322,11 @@ static inline struct ehea_cqe *ehea_poll_rq1(struct ehea_qp *qp, int *wqe_index)
 	return hw_qeit_get_valid(queue);
 }
 
+static inline void ehea_inc_cq(struct ehea_cq *cq)
+{
+	hw_qeit_inc(&cq->hw_queue);
+}
+
 static inline void ehea_inc_rq1(struct ehea_qp *qp)
 {
 	hw_qeit_inc(&qp->hw_rqueue1);
@@ -327,7 +334,7 @@ static inline void ehea_inc_rq1(struct ehea_qp *qp)
 
 static inline struct ehea_cqe *ehea_poll_cq(struct ehea_cq *my_cq)
 {
-	return hw_qeit_get_inc_valid(&my_cq->hw_queue);
+	return hw_qeit_get_valid(&my_cq->hw_queue);
 }
 
 #define EHEA_CQ_REGISTER_ORIG 0
@@ -356,7 +363,12 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter * adapter, u32 pd,
 
 int ehea_destroy_qp(struct ehea_qp *qp);
 
-int ehea_reg_mr_adapter(struct ehea_adapter *adapter);
+int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr);
+
+int ehea_gen_smr(struct ehea_adapter *adapter, struct ehea_mr *old_mr,
+		 struct ehea_mr *shared_mr);
+
+int ehea_rem_mr(struct ehea_mr *mr);
 
 void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle);
 

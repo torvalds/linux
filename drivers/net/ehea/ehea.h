@@ -39,7 +39,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0046"
+#define DRV_VERSION	"EHEA_0058"
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -78,10 +78,7 @@
 #define EHEA_RQ2_PKT_SIZE       1522
 #define EHEA_L_PKT_SIZE         256	/* low latency */
 
-#define EHEA_POLL_MAX_RWQE      1000
-
 /* Send completion signaling */
-#define EHEA_SIG_IV_LONG           1
 
 /* Protection Domain Identifier */
 #define EHEA_PD_ID        0xaabcdeff
@@ -108,11 +105,7 @@
 #define EHEA_CACHE_LINE          128
 
 /* Memory Regions */
-#define EHEA_MR_MAX_TX_PAGES   20
-#define EHEA_MR_TX_DATA_PN      3
 #define EHEA_MR_ACC_CTRL       0x00800000
-#define EHEA_RWQES_PER_MR_RQ2  10
-#define EHEA_RWQES_PER_MR_RQ3  10
 
 #define EHEA_WATCH_DOG_TIMEOUT 10*HZ
 
@@ -311,6 +304,7 @@ struct ehea_cq {
  * Memory Region
  */
 struct ehea_mr {
+	struct ehea_adapter *adapter;
 	u64 handle;
 	u64 vaddr;
 	u32 lkey;
@@ -319,17 +313,12 @@ struct ehea_mr {
 /*
  * Port state information
  */
-struct port_state {
-	int poll_max_processed;
+struct port_stats {
 	int poll_receive_errors;
-	int ehea_poll;
 	int queue_stopped;
-	int min_swqe_avail;
-	u64 sqc_stop_sum;
-	int pkt_send;
-	int pkt_xmit;
-	int send_tasklet;
-	int nwqe;
+	int err_tcp_cksum;
+	int err_ip_cksum;
+	int err_frame_crc;
 };
 
 #define EHEA_IRQ_NAME_SIZE 20
@@ -348,6 +337,7 @@ struct ehea_q_skb_arr {
  * Port resources
  */
 struct ehea_port_res {
+	struct port_stats p_stats;
 	struct ehea_mr send_mr;       	/* send memory region */
 	struct ehea_mr recv_mr;       	/* receive memory region */
 	spinlock_t xmit_lock;
@@ -357,9 +347,8 @@ struct ehea_port_res {
 	struct ehea_qp *qp;
 	struct ehea_cq *send_cq;
 	struct ehea_cq *recv_cq;
-	struct ehea_eq *send_eq;
-	struct ehea_eq *recv_eq;
-	spinlock_t send_lock;
+	struct ehea_eq *eq;
+	struct net_device *d_netdev;
 	struct ehea_q_skb_arr rq1_skba;
 	struct ehea_q_skb_arr rq2_skba;
 	struct ehea_q_skb_arr rq3_skba;
@@ -369,21 +358,18 @@ struct ehea_port_res {
 	int swqe_refill_th;
 	atomic_t swqe_avail;
 	int swqe_ll_count;
-	int swqe_count;
 	u32 swqe_id_counter;
 	u64 tx_packets;
-	struct tasklet_struct send_comp_task;
-	spinlock_t recv_lock;
-	struct port_state p_state;
 	u64 rx_packets;
 	u32 poll_counter;
 };
 
 
+#define EHEA_MAX_PORTS 16
 struct ehea_adapter {
 	u64 handle;
-	u8 num_ports;
-	struct ehea_port *port[16];
+	struct ibmebus_dev *ebus_dev;
+	struct ehea_port *port[EHEA_MAX_PORTS];
 	struct ehea_eq *neq;       /* notification event queue */
 	struct workqueue_struct *ehea_wq;
 	struct tasklet_struct neq_tasklet;
@@ -406,7 +392,7 @@ struct ehea_port {
 	struct net_device *netdev;
 	struct net_device_stats stats;
 	struct ehea_port_res port_res[EHEA_MAX_PORT_RES];
-	struct device_node *of_dev_node; /* Open Firmware Device Node */
+	struct of_device  ofdev; /* Open Firmware Device */
 	struct ehea_mc_list *mc_list;	 /* Multicast MAC addresses */
 	struct vlan_group *vgrp;
 	struct ehea_eq *qp_eq;
@@ -415,7 +401,9 @@ struct ehea_port {
 	char int_aff_name[EHEA_IRQ_NAME_SIZE];
 	int allmulti;			 /* Indicates IFF_ALLMULTI state */
 	int promisc;		 	 /* Indicates IFF_PROMISC state */
+	int num_tx_qps;
 	int num_add_tx_qps;
+	int num_mcs;
 	int resets;
 	u64 mac_addr;
 	u32 logical_port_id;

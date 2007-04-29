@@ -139,7 +139,7 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 		return err;
 	}
 	/* Window 1 call */
-	writel(MPORT_SINGLE_FUNCTION_MODE,
+	writel(MPORT_MULTI_FUNCTION_MODE,
 	       NETXEN_CRB_NORMALIZE(adapter, CRB_MPORT_MODE));
 	writel(PHAN_INITIALIZE_ACK,
 	       NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
@@ -226,7 +226,6 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 		adapter->unset_promisc = netxen_niu_set_promiscuous_mode;
 		adapter->phy_read = netxen_niu_gbe_phy_read;
 		adapter->phy_write = netxen_niu_gbe_phy_write;
-		adapter->init_port = netxen_niu_gbe_init_port;
 		adapter->init_niu = netxen_nic_init_niu_gb;
 		adapter->stop_port = netxen_niu_disable_gbe_port;
 		break;
@@ -277,8 +276,8 @@ u32 netxen_decode_crb_addr(u32 addr)
 		return (pci_base + offset);
 }
 
-static long rom_max_timeout = 10000;
-static long rom_lock_timeout = 1000000;
+static long rom_max_timeout = 100;
+static long rom_lock_timeout = 10000;
 static long rom_write_timeout = 700;
 
 static inline int rom_lock(struct netxen_adapter *adapter)
@@ -438,9 +437,9 @@ do_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 
 	for (addridx = addr; addridx < (addr + size); addridx += 4) {
 		ret = do_rom_fast_read(adapter, addridx, (int *)bytes);
-		*(int *)bytes = cpu_to_le32(*(int *)bytes);
 		if (ret != 0)
 			break;
+		*(int *)bytes = cpu_to_le32(*(int *)bytes);
 		bytes += 4;
 	}
 
@@ -499,7 +498,6 @@ static inline int do_rom_fast_write_words(struct netxen_adapter *adapter,
 		int data;
 
 		data = le32_to_cpu((*(u32*)bytes));
-
 		ret = do_rom_fast_write(adapter, addridx, data);
 		if (ret < 0)
 			return ret;
@@ -953,7 +951,8 @@ void netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 
 	if (!pegtune_val) {
 		val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-		while (val != PHAN_INITIALIZE_COMPLETE && loops < 200000) {
+		while (val != PHAN_INITIALIZE_COMPLETE && 
+			val != PHAN_INITIALIZE_ACK && loops < 200000) {
 			udelay(100);
 			schedule();
 			val =
@@ -990,9 +989,7 @@ int netxen_nic_rx_has_work(struct netxen_adapter *adapter)
 
 static inline int netxen_nic_check_temp(struct netxen_adapter *adapter)
 {
-	int port_num;
-	struct netxen_port *port;
-	struct net_device *netdev;
+	struct net_device *netdev = adapter->netdev;
 	uint32_t temp, temp_state, temp_val;
 	int rv = 0;
 
@@ -1006,14 +1003,9 @@ static inline int netxen_nic_check_temp(struct netxen_adapter *adapter)
 		       "%s: Device temperature %d degrees C exceeds"
 		       " maximum allowed. Hardware has been shut down.\n",
 		       netxen_nic_driver_name, temp_val);
-		for (port_num = 0; port_num < adapter->ahw.max_ports;
-		     port_num++) {
-			port = adapter->port[port_num];
-			netdev = port->netdev;
 
-			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
-		}
+		netif_carrier_off(netdev);
+		netif_stop_queue(netdev);
 		rv = 1;
 	} else if (temp_state == NX_TEMP_WARN) {
 		if (adapter->temp == NX_TEMP_NORMAL) {
@@ -1037,28 +1029,22 @@ static inline int netxen_nic_check_temp(struct netxen_adapter *adapter)
 
 void netxen_watchdog_task(struct work_struct *work)
 {
-	int port_num;
-	struct netxen_port *port;
 	struct net_device *netdev;
 	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, watchdog_task);
 
-	if (netxen_nic_check_temp(adapter))
+	if ((adapter->portnum  == 0) && netxen_nic_check_temp(adapter))
 		return;
 
-	for (port_num = 0; port_num < adapter->ahw.max_ports; port_num++) {
-		port = adapter->port[port_num];
-		netdev = port->netdev;
-
-		if ((netif_running(netdev)) && !netif_carrier_ok(netdev)) {
-			printk(KERN_INFO "%s port %d, %s carrier is now ok\n",
-			       netxen_nic_driver_name, port_num, netdev->name);
-			netif_carrier_on(netdev);
-		}
-
-		if (netif_queue_stopped(netdev))
-			netif_wake_queue(netdev);
+	netdev = adapter->netdev;
+	if ((netif_running(netdev)) && !netif_carrier_ok(netdev)) {
+		printk(KERN_INFO "%s port %d, %s carrier is now ok\n",
+		       netxen_nic_driver_name, adapter->portnum, netdev->name);
+		netif_carrier_on(netdev);
 	}
+
+	if (netif_queue_stopped(netdev))
+		netif_wake_queue(netdev);
 
 	if (adapter->handle_phy_intr)
 		adapter->handle_phy_intr(adapter);
@@ -1074,9 +1060,8 @@ void
 netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 		   struct status_desc *desc)
 {
-	struct netxen_port *port = adapter->port[netxen_get_sts_port(desc)];
-	struct pci_dev *pdev = port->pdev;
-	struct net_device *netdev = port->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *netdev = adapter->netdev;
 	int index = netxen_get_sts_refhandle(desc);
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctxid]);
 	struct netxen_rx_buffer *buffer;
@@ -1126,7 +1111,7 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	skb = (struct sk_buff *)buffer->skb;
 
 	if (likely(netxen_get_sts_status(desc) == STATUS_CKSUM_OK)) {
-		port->stats.csummed++;
+		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 	if (desc_ctx == RCV_DESC_LRO_CTXID) {
@@ -1146,27 +1131,27 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	 */
 	switch (ret) {
 	case NET_RX_SUCCESS:
-		port->stats.uphappy++;
+		adapter->stats.uphappy++;
 		break;
 
 	case NET_RX_CN_LOW:
-		port->stats.uplcong++;
+		adapter->stats.uplcong++;
 		break;
 
 	case NET_RX_CN_MOD:
-		port->stats.upmcong++;
+		adapter->stats.upmcong++;
 		break;
 
 	case NET_RX_CN_HIGH:
-		port->stats.uphcong++;
+		adapter->stats.uphcong++;
 		break;
 
 	case NET_RX_DROP:
-		port->stats.updropped++;
+		adapter->stats.updropped++;
 		break;
 
 	default:
-		port->stats.updunno++;
+		adapter->stats.updunno++;
 		break;
 	}
 
@@ -1178,14 +1163,13 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	/*
 	 * We just consumed one buffer so post a buffer.
 	 */
-	adapter->stats.post_called++;
 	buffer->skb = NULL;
 	buffer->state = NETXEN_BUFFER_FREE;
 	buffer->lro_current_frags = 0;
 	buffer->lro_expected_frags = 0;
 
-	port->stats.no_rcv++;
-	port->stats.rxbytes += length;
+	adapter->stats.no_rcv++;
+	adapter->stats.rxbytes += length;
 }
 
 /* Process Receive status ring */
@@ -1226,7 +1210,6 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 
 	/* update the consumer index in phantom */
 	if (count) {
-		adapter->stats.process_rcv++;
 		recv_ctx->status_rx_consumer = consumer;
 		recv_ctx->status_rx_producer = producer;
 
@@ -1249,13 +1232,10 @@ int netxen_process_cmd_ring(unsigned long data)
 	int count1 = 0;
 	int count2 = 0;
 	struct netxen_cmd_buffer *buffer;
-	struct netxen_port *port;	/* port #1 */
-	struct netxen_port *nport;
 	struct pci_dev *pdev;
 	struct netxen_skb_frag *frag;
 	u32 i;
 	struct sk_buff *skb = NULL;
-	int p;
 	int done;
 
 	spin_lock(&adapter->tx_lock);
@@ -1276,7 +1256,6 @@ int netxen_process_cmd_ring(unsigned long data)
 	}
 
 	adapter->proc_cmd_buf_counter++;
-	adapter->stats.process_xmit++;
 	/*
 	 * Not needed - does not seem to be used anywhere.
 	 * adapter->cmd_consumer = consumer;
@@ -1285,8 +1264,7 @@ int netxen_process_cmd_ring(unsigned long data)
 
 	while ((last_consumer != consumer) && (count1 < MAX_STATUS_HANDLE)) {
 		buffer = &adapter->cmd_buf_arr[last_consumer];
-		port = adapter->port[buffer->port];
-		pdev = port->pdev;
+		pdev = adapter->pdev;
 		frag = &buffer->frag_array[0];
 		skb = buffer->skb;
 		if (skb && (cmpxchg(&buffer->skb, skb, 0) == skb)) {
@@ -1299,24 +1277,23 @@ int netxen_process_cmd_ring(unsigned long data)
 					       PCI_DMA_TODEVICE);
 			}
 
-			port->stats.skbfreed++;
+			adapter->stats.skbfreed++;
 			dev_kfree_skb_any(skb);
 			skb = NULL;
 		} else if (adapter->proc_cmd_buf_counter == 1) {
-			port->stats.txnullskb++;
+			adapter->stats.txnullskb++;
 		}
-		if (unlikely(netif_queue_stopped(port->netdev)
-			     && netif_carrier_ok(port->netdev))
-		    && ((jiffies - port->netdev->trans_start) >
-			port->netdev->watchdog_timeo)) {
-			SCHEDULE_WORK(&port->tx_timeout_task);
+		if (unlikely(netif_queue_stopped(adapter->netdev)
+			     && netif_carrier_ok(adapter->netdev))
+		    && ((jiffies - adapter->netdev->trans_start) >
+			adapter->netdev->watchdog_timeo)) {
+			SCHEDULE_WORK(&adapter->tx_timeout_task);
 		}
 
 		last_consumer = get_next_index(last_consumer,
 					       adapter->max_tx_desc_count);
 		count1++;
 	}
-	adapter->stats.noxmitdone += count1;
 
 	count2 = 0;
 	spin_lock(&adapter->tx_lock);
@@ -1336,13 +1313,10 @@ int netxen_process_cmd_ring(unsigned long data)
 		}
 	}
 	if (count1 || count2) {
-		for (p = 0; p < adapter->ahw.max_ports; p++) {
-			nport = adapter->port[p];
-			if (netif_queue_stopped(nport->netdev)
-			    && (nport->flags & NETXEN_NETDEV_STATUS)) {
-				netif_wake_queue(nport->netdev);
-				nport->flags &= ~NETXEN_NETDEV_STATUS;
-			}
+		if (netif_queue_stopped(adapter->netdev)
+		    && (adapter->flags & NETXEN_NETDEV_STATUS)) {
+			netif_wake_queue(adapter->netdev);
+			adapter->flags &= ~NETXEN_NETDEV_STATUS;
 		}
 	}
 	/*
@@ -1388,7 +1362,6 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 	netxen_ctx_msg msg = 0;
 	dma_addr_t dma;
 
-	adapter->stats.post_called++;
 	rcv_desc = &recv_ctx->rcv_desc[ringid];
 
 	producer = rcv_desc->producer;
@@ -1441,8 +1414,6 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 	if (count) {
 		rcv_desc->begin_alloc = index;
 		rcv_desc->rcv_pending += count;
-		adapter->stats.lastposted = count;
-		adapter->stats.posted += count;
 		rcv_desc->producer = producer;
 		if (rcv_desc->rcv_free >= 32) {
 			rcv_desc->rcv_free = 0;
@@ -1450,7 +1421,8 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 			writel((producer - 1) &
 			       (rcv_desc->max_rx_desc_count - 1),
 			       NETXEN_CRB_NORMALIZE(adapter,
-						    recv_crb_registers[0].
+						    recv_crb_registers[
+						    adapter->portnum].
 						    rcv_desc_crb[ringid].
 						    crb_rcv_producer_offset));
 			/*
@@ -1463,7 +1435,7 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 					     ((producer -
 					       1) & (rcv_desc->
 						     max_rx_desc_count - 1)));
-			netxen_set_msg_ctxid(msg, 0);
+			netxen_set_msg_ctxid(msg, adapter->portnum);
 			netxen_set_msg_opcode(msg, NETXEN_RCV_PRODUCER(ringid));
 			writel(msg,
 			       DB_NORMALIZE(adapter,
@@ -1485,7 +1457,6 @@ void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ctx,
 	int count = 0;
 	int index = 0;
 
-	adapter->stats.post_called++;
 	rcv_desc = &recv_ctx->rcv_desc[ringid];
 
 	producer = rcv_desc->producer;
@@ -1532,8 +1503,6 @@ void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ctx,
 	if (count) {
 		rcv_desc->begin_alloc = index;
 		rcv_desc->rcv_pending += count;
-		adapter->stats.lastposted = count;
-		adapter->stats.posted += count;
 		rcv_desc->producer = producer;
 		if (rcv_desc->rcv_free >= 32) {
 			rcv_desc->rcv_free = 0;
@@ -1541,7 +1510,8 @@ void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ctx,
 			writel((producer - 1) &
 			       (rcv_desc->max_rx_desc_count - 1),
 			       NETXEN_CRB_NORMALIZE(adapter,
-						    recv_crb_registers[0].
+						    recv_crb_registers[
+						    adapter->portnum].
 						    rcv_desc_crb[ringid].
 						    crb_rcv_producer_offset));
 			wmb();
@@ -1562,13 +1532,7 @@ int netxen_nic_tx_has_work(struct netxen_adapter *adapter)
 
 void netxen_nic_clear_stats(struct netxen_adapter *adapter)
 {
-	struct netxen_port *port;
-	int port_num;
-
 	memset(&adapter->stats, 0, sizeof(adapter->stats));
-	for (port_num = 0; port_num < adapter->ahw.max_ports; port_num++) {
-		port = adapter->port[port_num];
-		memset(&port->stats, 0, sizeof(port->stats));
-	}
+	return;
 }
 

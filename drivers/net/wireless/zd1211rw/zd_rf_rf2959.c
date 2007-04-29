@@ -21,7 +21,7 @@
 #include "zd_usb.h"
 #include "zd_chip.h"
 
-static u32 rf2959_table[][2] = {
+static const u32 rf2959_table[][2] = {
 	RF_CHANNEL( 1) = { 0x181979, 0x1e6666 },
 	RF_CHANNEL( 2) = { 0x181989, 0x1e6666 },
 	RF_CHANNEL( 3) = { 0x181999, 0x1e6666 },
@@ -228,7 +228,7 @@ static int rf2959_init_hw(struct zd_rf *rf)
 static int rf2959_set_channel(struct zd_rf *rf, u8 channel)
 {
 	int i, r;
-	u32 *rv = rf2959_table[channel-1];
+	const u32 *rv = rf2959_table[channel-1];
 	struct zd_chip *chip = zd_rf_to_chip(rf);
 
 	for (i = 0; i < 2; i++) {

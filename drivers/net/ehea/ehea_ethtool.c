@@ -144,8 +144,8 @@ static int ehea_nway_reset(struct net_device *dev)
 static void ehea_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver) - 1);
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version) - 1);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static u32 ehea_get_msglevel(struct net_device *dev)
@@ -166,33 +166,23 @@ static u32 ehea_get_rx_csum(struct net_device *dev)
 }
 
 static char ehea_ethtool_stats_keys[][ETH_GSTRING_LEN] = {
-	{"poll_max_processed"},
-	{"queue_stopped"},
-	{"min_swqe_avail"},
-	{"poll_receive_err"},
-	{"pkt_send"},
-	{"pkt_xmit"},
-	{"send_tasklet"},
-	{"ehea_poll"},
-	{"nwqe"},
-	{"swqe_available_0"},
 	{"sig_comp_iv"},
 	{"swqe_refill_th"},
 	{"port resets"},
-	{"rxo"},
-	{"rx64"},
-	{"rx65"},
-	{"rx128"},
-	{"rx256"},
-	{"rx512"},
-	{"rx1024"},
-	{"txo"},
-	{"tx64"},
-	{"tx65"},
-	{"tx128"},
-	{"tx256"},
-	{"tx512"},
-	{"tx1024"},
+	{"Receive errors"},
+	{"TCP cksum errors"},
+	{"IP cksum errors"},
+	{"Frame cksum errors"},
+	{"num SQ stopped"},
+	{"SQ stopped"},
+	{"PR0 free_swqes"},
+	{"PR1 free_swqes"},
+	{"PR2 free_swqes"},
+	{"PR3 free_swqes"},
+	{"PR4 free_swqes"},
+	{"PR5 free_swqes"},
+	{"PR6 free_swqes"},
+	{"PR7 free_swqes"},
 };
 
 static void ehea_get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -211,63 +201,44 @@ static int ehea_get_stats_count(struct net_device *dev)
 static void ehea_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 *data)
 {
-	u64 hret;
-	int i;
+	int i, k, tmp;
 	struct ehea_port *port = netdev_priv(dev);
-	struct ehea_adapter *adapter = port->adapter;
-	struct ehea_port_res *pr = &port->port_res[0];
-	struct port_state *p_state = &pr->p_state;
-	struct hcp_ehea_port_cb6 *cb6;
 
 	for (i = 0; i < ehea_get_stats_count(dev); i++)
 		data[i] = 0;
-
 	i = 0;
 
-	data[i++] = p_state->poll_max_processed;
-	data[i++] = p_state->queue_stopped;
-	data[i++] = p_state->min_swqe_avail;
-	data[i++] = p_state->poll_receive_errors;
-	data[i++] = p_state->pkt_send;
-	data[i++] = p_state->pkt_xmit;
-	data[i++] = p_state->send_tasklet;
-	data[i++] = p_state->ehea_poll;
-	data[i++] = p_state->nwqe;
-	data[i++] = atomic_read(&port->port_res[0].swqe_avail);
 	data[i++] = port->sig_comp_iv;
 	data[i++] = port->port_res[0].swqe_refill_th;
 	data[i++] = port->resets;
 
-	cb6 = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!cb6) {
-		ehea_error("no mem for cb6");
-		return;
-	}
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp += port->port_res[k].p_stats.poll_receive_errors;
+	data[i++] = tmp;
 
-	hret = ehea_h_query_ehea_port(adapter->handle, port->logical_port_id,
-				      H_PORT_CB6, H_PORT_CB6_ALL, cb6);
-	if (netif_msg_hw(port))
-		ehea_dump(cb6, sizeof(*cb6), "ehea_get_ethtool_stats");
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp += port->port_res[k].p_stats.err_tcp_cksum;
+	data[i++] = tmp;
 
-	if (hret == H_SUCCESS) {
-		data[i++] = cb6->rxo;
-		data[i++] = cb6->rx64;
-		data[i++] = cb6->rx65;
-		data[i++] = cb6->rx128;
-		data[i++] = cb6->rx256;
-		data[i++] = cb6->rx512;
-		data[i++] = cb6->rx1024;
-		data[i++] = cb6->txo;
-		data[i++] = cb6->tx64;
-		data[i++] = cb6->tx65;
-		data[i++] = cb6->tx128;
-		data[i++] = cb6->tx256;
-		data[i++] = cb6->tx512;
-		data[i++] = cb6->tx1024;
-	} else
-		ehea_error("query_ehea_port failed");
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp += port->port_res[k].p_stats.err_ip_cksum;
+	data[i++] = tmp;
 
-	kfree(cb6);
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp += port->port_res[k].p_stats.err_frame_crc;
+	data[i++] = tmp;
+
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp += port->port_res[k].p_stats.queue_stopped;
+	data[i++] = tmp;
+
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp |= port->port_res[k].queue_stopped;
+	data[i++] = tmp;
+
+	for (k = 0; k < 8; k++)
+		data[i++] = atomic_read(&port->port_res[k].swqe_avail);
+
 }
 
 const struct ethtool_ops ehea_ethtool_ops = {

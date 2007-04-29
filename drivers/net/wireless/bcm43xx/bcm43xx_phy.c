@@ -168,16 +168,16 @@ int bcm43xx_phy_connect(struct bcm43xx_private *bcm, int connect)
 
 	flags = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATEHIGH);
 	if (connect) {
-		if (!(flags & 0x00010000))
+		if (!(flags & BCM43xx_SBTMSTATEHIGH_G_PHY_AVAIL))
 			return -ENODEV;
 		flags = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATELOW);
-		flags |= (0x800 << 18);
+		flags |= BCM43xx_SBTMSTATELOW_G_MODE_ENABLE;
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, flags);
 	} else {
-		if (!(flags & 0x00020000))
+		if (!(flags & BCM43xx_SBTMSTATEHIGH_A_PHY_AVAIL))
 			return -ENODEV;
 		flags = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATELOW);
-		flags &= ~(0x800 << 18);
+		flags &= ~BCM43xx_SBTMSTATELOW_G_MODE_ENABLE;
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, flags);
 	}
 out:
@@ -300,16 +300,20 @@ static void bcm43xx_phy_agcsetup(struct bcm43xx_private *bcm)
 
 	if (phy->rev > 2) {
 		bcm43xx_phy_write(bcm, 0x0422, 0x287A);
-		bcm43xx_phy_write(bcm, 0x0420, (bcm43xx_phy_read(bcm, 0x0420) & 0x0FFF) | 0x3000); 
+		bcm43xx_phy_write(bcm, 0x0420, (bcm43xx_phy_read(bcm, 0x0420)
+				  & 0x0FFF) | 0x3000);
 	}
 		
-	bcm43xx_phy_write(bcm, 0x04A8, (bcm43xx_phy_read(bcm, 0x04A8) & 0x8080) | 0x7874);
+	bcm43xx_phy_write(bcm, 0x04A8, (bcm43xx_phy_read(bcm, 0x04A8) & 0x8080)
+					| 0x7874);
 	bcm43xx_phy_write(bcm, 0x048E, 0x1C00);
 
 	if (phy->rev == 1) {
-		bcm43xx_phy_write(bcm, 0x04AB, (bcm43xx_phy_read(bcm, 0x04AB) & 0xF0FF) | 0x0600);
+		bcm43xx_phy_write(bcm, 0x04AB, (bcm43xx_phy_read(bcm, 0x04AB)
+				  & 0xF0FF) | 0x0600);
 		bcm43xx_phy_write(bcm, 0x048B, 0x005E);
-		bcm43xx_phy_write(bcm, 0x048C, (bcm43xx_phy_read(bcm, 0x048C) & 0xFF00) | 0x001E);
+		bcm43xx_phy_write(bcm, 0x048C, (bcm43xx_phy_read(bcm, 0x048C)
+				  & 0xFF00) | 0x001E);
 		bcm43xx_phy_write(bcm, 0x048D, 0x0002);
 	}
 
@@ -335,7 +339,8 @@ static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 	if (phy->rev == 1) {
 		bcm43xx_phy_write(bcm, 0x0406, 0x4F19);
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_G_CRS,
-				  (bcm43xx_phy_read(bcm, BCM43xx_PHY_G_CRS) & 0xFC3F) | 0x0340);
+				  (bcm43xx_phy_read(bcm, BCM43xx_PHY_G_CRS)
+				  & 0xFC3F) | 0x0340);
 		bcm43xx_phy_write(bcm, 0x042C, 0x005A);
 		bcm43xx_phy_write(bcm, 0x0427, 0x001A);
 

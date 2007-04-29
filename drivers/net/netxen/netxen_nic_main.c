@@ -36,7 +36,6 @@
 #include "netxen_nic_hw.h"
 
 #include "netxen_nic.h"
-#define DEFINE_GLOBAL_RECV_CRB
 #include "netxen_nic_phan_reg.h"
 
 #include <linux/dma-mapping.h>
@@ -77,6 +76,8 @@ static void netxen_nic_poll_controller(struct net_device *netdev);
 #endif
 static irqreturn_t netxen_intr(int irq, void *data);
 
+int physical_port[] = {0, 1, 2, 3};
+
 /*  PCI Device ID Table  */
 static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(0x4040, 0x0001)},
@@ -93,6 +94,67 @@ MODULE_DEVICE_TABLE(pci, netxen_pci_tbl);
 
 struct workqueue_struct *netxen_workq;
 static void netxen_watchdog(unsigned long);
+
+static inline void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
+							uint32_t crb_producer)
+{
+	switch (adapter->portnum) {
+		case 0:
+			writel(crb_producer, NETXEN_CRB_NORMALIZE
+					(adapter, CRB_CMD_PRODUCER_OFFSET));
+			return;
+		case 1:
+			writel(crb_producer, NETXEN_CRB_NORMALIZE
+					(adapter, CRB_CMD_PRODUCER_OFFSET_1));
+			return;
+		case 2:
+			writel(crb_producer, NETXEN_CRB_NORMALIZE
+					(adapter, CRB_CMD_PRODUCER_OFFSET_2));
+			return;
+		case 3:
+			writel(crb_producer, NETXEN_CRB_NORMALIZE
+					(adapter, CRB_CMD_PRODUCER_OFFSET_3));
+			return;
+		default:
+			printk(KERN_WARNING "We tried to update "
+					"CRB_CMD_PRODUCER_OFFSET for invalid "
+					"PCI function id %d\n",
+					adapter->portnum);
+			return;
+	}
+}
+
+static inline void netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter,
+							u32 crb_consumer)
+{
+	switch (adapter->portnum) {
+		case 0:
+			writel(crb_consumer, NETXEN_CRB_NORMALIZE
+				(adapter, CRB_CMD_CONSUMER_OFFSET));
+			return;
+		case 1:
+			writel(crb_consumer, NETXEN_CRB_NORMALIZE
+				(adapter, CRB_CMD_CONSUMER_OFFSET_1));
+			return;
+		case 2:
+			writel(crb_consumer, NETXEN_CRB_NORMALIZE
+				(adapter, CRB_CMD_CONSUMER_OFFSET_2));
+			return;
+		case 3:
+			writel(crb_consumer, NETXEN_CRB_NORMALIZE
+				(adapter, CRB_CMD_CONSUMER_OFFSET_3));
+			return;
+		default:
+			printk(KERN_WARNING "We tried to update "
+					"CRB_CMD_PRODUCER_OFFSET for invalid "
+					"PCI function id %d\n",
+					adapter->portnum);
+			return;
+	}
+}
+
+#define	ADAPTER_LIST_SIZE 12
+int netxen_cards_found;
 
 /*
  * netxen_nic_probe()
@@ -111,26 +173,30 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev = NULL;
 	struct netxen_adapter *adapter = NULL;
-	struct netxen_port *port = NULL;
 	void __iomem *mem_ptr0 = NULL;
 	void __iomem *mem_ptr1 = NULL;
 	void __iomem *mem_ptr2 = NULL;
+	unsigned long first_page_group_end;
+	unsigned long first_page_group_start;
+
 
 	u8 __iomem *db_ptr = NULL;
 	unsigned long mem_base, mem_len, db_base, db_len;
-	int pci_using_dac, i, err;
+	int pci_using_dac, i = 0, err;
 	int ring;
 	struct netxen_recv_context *recv_ctx = NULL;
 	struct netxen_rcv_desc_ctx *rcv_desc = NULL;
 	struct netxen_cmd_buffer *cmd_buf_arr = NULL;
 	u64 mac_addr[FLASH_NUM_PORTS + 1];
 	int valid_mac = 0;
+	u32 val;
+	int pci_func_id = PCI_FUNC(pdev->devfn);
 
 	printk(KERN_INFO "%s \n", netxen_nic_driver_string);
-	/* In current scheme, we use only PCI function 0 */
-	if (PCI_FUNC(pdev->devfn) != 0) {
-		DPRINTK(ERR, "NetXen function %d will not be enabled.\n",
-			PCI_FUNC(pdev->devfn));
+
+	if (pdev->class != 0x020000) {
+		printk(KERN_ERR"NetXen function %d, class %x will not"
+				"be enabled.\n",pci_func_id, pdev->class);
 		return -ENODEV;
 	}
 	if ((err = pci_enable_device(pdev)))
@@ -157,18 +223,52 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_using_dac = 0;
 	}
 
+
+	netdev = alloc_etherdev(sizeof(struct netxen_adapter));
+	if(!netdev) {
+		printk(KERN_ERR"%s: Failed to allocate memory for the "
+				"device block.Check system memory resource"
+				" usage.\n", netxen_nic_driver_name);
+		goto err_out_free_res;
+	}
+
+	SET_MODULE_OWNER(netdev);
+	SET_NETDEV_DEV(netdev, &pdev->dev);
+
+	adapter = netdev->priv;
+	memset(adapter, 0 , sizeof(struct netxen_adapter));
+
+	adapter->ahw.pdev = pdev;
+	adapter->ahw.pci_func  = pci_func_id;
+	spin_lock_init(&adapter->tx_lock);
+	spin_lock_init(&adapter->lock);
+
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
 	mem_len = pci_resource_len(pdev, 0);
 
 	/* 128 Meg of memory */
-	mem_ptr0 = ioremap(mem_base, FIRST_PAGE_GROUP_SIZE);
-	mem_ptr1 =
-	    ioremap(mem_base + SECOND_PAGE_GROUP_START, SECOND_PAGE_GROUP_SIZE);
-	mem_ptr2 =
-	    ioremap(mem_base + THIRD_PAGE_GROUP_START, THIRD_PAGE_GROUP_SIZE);
+	if (mem_len == NETXEN_PCI_128MB_SIZE) {
+		mem_ptr0 = ioremap(mem_base, FIRST_PAGE_GROUP_SIZE);
+		mem_ptr1 = ioremap(mem_base + SECOND_PAGE_GROUP_START,
+				SECOND_PAGE_GROUP_SIZE);
+		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START,
+				THIRD_PAGE_GROUP_SIZE);
+		first_page_group_start = FIRST_PAGE_GROUP_START;
+		first_page_group_end   = FIRST_PAGE_GROUP_END;
+	} else if (mem_len == NETXEN_PCI_32MB_SIZE) {
+		mem_ptr1 = ioremap(mem_base, SECOND_PAGE_GROUP_SIZE);
+		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START -
+			SECOND_PAGE_GROUP_START, THIRD_PAGE_GROUP_SIZE);
+		first_page_group_start = 0;
+		first_page_group_end   = 0;
+	} else {
+		err = -EIO; 
+		goto err_out_free_netdev;
+	}
 
-	if ((mem_ptr0 == 0UL) || (mem_ptr1 == 0UL) || (mem_ptr2 == 0UL)) {
+	if (((mem_ptr0 == 0UL) && (mem_len == NETXEN_PCI_128MB_SIZE)) ||
+			(mem_ptr1 == 0UL) || (mem_ptr2 == 0UL)) {
 		DPRINTK(ERR,
 			"Cannot remap adapter memory aborting.:"
 			"0 -> %p, 1 -> %p, 2 -> %p\n",
@@ -198,29 +298,86 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	DPRINTK(INFO, "doorbell ioremaped at %p\n", db_ptr);
 
-/*
- *      Allocate a adapter structure which will manage all the initialization
- *      as well as the common resources for all ports...
- *      all the ports will have pointer to this adapter as well as Adapter
- *      will have pointers of all the ports structures.
- */
+	adapter->ahw.pci_base0 = mem_ptr0;
+	adapter->ahw.first_page_group_start = first_page_group_start;
+	adapter->ahw.first_page_group_end   = first_page_group_end;
+	adapter->ahw.pci_base1 = mem_ptr1;
+	adapter->ahw.pci_base2 = mem_ptr2;
+	adapter->ahw.db_base = db_ptr;
+	adapter->ahw.db_len = db_len;
 
-	/* One adapter structure for all 4 ports....   */
-	adapter = kzalloc(sizeof(struct netxen_adapter), GFP_KERNEL);
-	if (adapter == NULL) {
-		printk(KERN_ERR "%s: Could not allocate adapter memory:%d\n",
-		       netxen_nic_driver_name,
-		       (int)sizeof(struct netxen_adapter));
-		err = -ENOMEM;
-		goto err_out_dbunmap;
-	}
+	adapter->netdev  = netdev;
+	adapter->pdev    = pdev;
+	adapter->portnum = pci_func_id;
 
-	adapter->max_tx_desc_count = MAX_CMD_DESCRIPTORS;
-	adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS;
+	netdev->open		   = netxen_nic_open;
+	netdev->stop		   = netxen_nic_close;
+	netdev->hard_start_xmit    = netxen_nic_xmit_frame;
+	netdev->get_stats	   = netxen_nic_get_stats;	
+	netdev->set_multicast_list = netxen_nic_set_multi;
+	netdev->set_mac_address    = netxen_nic_set_mac;
+	netdev->change_mtu	   = netxen_nic_change_mtu;
+	netdev->tx_timeout	   = netxen_tx_timeout;
+	netdev->watchdog_timeo     = HZ;
+
+	netxen_nic_change_mtu(netdev, netdev->mtu);
+
+	SET_ETHTOOL_OPS(netdev, &netxen_nic_ethtool_ops);
+	netdev->poll = netxen_nic_poll;
+	netdev->weight = NETXEN_NETDEV_WEIGHT;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	netdev->poll_controller = netxen_nic_poll_controller;
+#endif
+	/* ScatterGather support */
+	netdev->features = NETIF_F_SG;
+	netdev->features |= NETIF_F_IP_CSUM;
+	netdev->features |= NETIF_F_TSO;
+
+	if (pci_using_dac)
+		netdev->features |= NETIF_F_HIGHDMA;
+
+	if (pci_enable_msi(pdev)) {
+		adapter->flags &= ~NETXEN_NIC_MSI_ENABLED;
+		printk(KERN_WARNING "%s: unable to allocate MSI interrupt"
+		       " error\n", netxen_nic_driver_name);
+	} else
+		adapter->flags |= NETXEN_NIC_MSI_ENABLED;
+
+	netdev->irq = pdev->irq;
+	INIT_WORK(&adapter->tx_timeout_task, netxen_tx_timeout_task);
+
+	/*
+	 * Set the CRB window to invalid. If any register in window 0 is
+	 * accessed it should set the window to 0 and then reset it to 1.
+	 */
+	adapter->curr_window = 255;
+
+	/* initialize the adapter */
+	netxen_initialize_adapter_hw(adapter);
+
+#ifdef CONFIG_PPC
+	if ((adapter->ahw.boardcfg.board_type ==
+		NETXEN_BRDTYPE_P2_SB31_10G_IMEZ) &&
+			(pci_func_id == 2))
+		    goto err_out_free_adapter;
+#endif /* CONFIG_PPC */
+
+	/*
+	 *  Adapter in our case is quad port so initialize it before
+	 *  initializing the ports
+	 */
+
+	netxen_initialize_adapter_ops(adapter);
+
+	adapter->max_tx_desc_count = MAX_CMD_DESCRIPTORS_HOST;
+	if ((adapter->ahw.boardcfg.board_type == NETXEN_BRDTYPE_P2_SB35_4G) ||
+			(adapter->ahw.boardcfg.board_type == 
+			 NETXEN_BRDTYPE_P2_SB31_2G)) 
+		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
+	else
+		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS;
 	adapter->max_jumbo_rx_desc_count = MAX_JUMBO_RCV_DESCRIPTORS;
 	adapter->max_lro_rx_desc_count = MAX_LRO_RCV_DESCRIPTORS;
-
-	pci_set_drvdata(pdev, adapter);
 
 	cmd_buf_arr = (struct netxen_cmd_buffer *)vmalloc(TX_RINGSIZE);
 	if (cmd_buf_arr == NULL) {
@@ -231,6 +388,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_adapter;
 	}
 	memset(cmd_buf_arr, 0, TX_RINGSIZE);
+	adapter->cmd_buf_arr = cmd_buf_arr;
 
 	for (i = 0; i < MAX_RCV_CTX; ++i) {
 		recv_ctx = &adapter->recv_ctx[i];
@@ -278,33 +436,20 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	}
 
-	adapter->cmd_buf_arr = cmd_buf_arr;
-	adapter->ahw.pci_base0 = mem_ptr0;
-	adapter->ahw.pci_base1 = mem_ptr1;
-	adapter->ahw.pci_base2 = mem_ptr2;
-	adapter->ahw.db_base = db_ptr;
-	adapter->ahw.db_len = db_len;
-	spin_lock_init(&adapter->tx_lock);
-	spin_lock_init(&adapter->lock);
 	netxen_initialize_adapter_sw(adapter);	/* initialize the buffers in adapter */
+
+	/* Mezz cards have PCI function 0,2,3 enabled */
+	if ((adapter->ahw.boardcfg.board_type == NETXEN_BRDTYPE_P2_SB31_10G_IMEZ)
+		&& (pci_func_id >= 2))
+			adapter->portnum = pci_func_id - 2;
+
 #ifdef CONFIG_IA64
-	netxen_pinit_from_rom(adapter, 0);
-	udelay(500);
-	netxen_load_firmware(adapter);
+	if(adapter->portnum == 0) {
+		netxen_pinit_from_rom(adapter, 0);
+		udelay(500);
+		netxen_load_firmware(adapter);
+	}
 #endif
-
-	/*
-	 * Set the CRB window to invalid. If any register in window 0 is
-	 * accessed it should set the window to 0 and then reset it to 1.
-	 */
-	adapter->curr_window = 255;
-	/*
-	 *  Adapter in our case is quad port so initialize it before
-	 *  initializing the ports
-	 */
-	netxen_initialize_adapter_hw(adapter);	/* initialize the adapter */
-
-	netxen_initialize_adapter_ops(adapter);
 
 	init_timer(&adapter->watchdog_timer);
 	adapter->ahw.xg_linkup = 0;
@@ -315,12 +460,12 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->proc_cmd_buf_counter = 0;
 	adapter->ahw.revision_id = nx_p2_id;
 
-	if (pci_enable_msi(pdev)) {
-		adapter->flags &= ~NETXEN_NIC_MSI_ENABLED;
-		printk(KERN_WARNING "%s: unable to allocate MSI interrupt"
-		       " error\n", netxen_nic_driver_name);
-	} else
-		adapter->flags |= NETXEN_NIC_MSI_ENABLED;
+	/* make sure Window == 1 */
+	netxen_nic_pci_change_crbwindow(adapter, 1);
+
+	netxen_nic_update_cmd_producer(adapter, 0);
+	netxen_nic_update_cmd_consumer(adapter, 0);
+	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_HOST_CMD_ADDR_LO));
 
 	if (netxen_is_flash_supported(adapter) == 0 &&
 	    netxen_get_flash_mac_addr(adapter, mac_addr) == 0)
@@ -328,153 +473,118 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	else
 		valid_mac = 0;
 
-	/*
-	 * Initialize all the CRB registers here.
-	 */
-	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMD_PRODUCER_OFFSET));
-	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMD_CONSUMER_OFFSET));
-	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_HOST_CMD_ADDR_LO));
+	if (valid_mac) {
+		unsigned char *p = (unsigned char *)&mac_addr[adapter->portnum];
+		netdev->dev_addr[0] = *(p + 5);
+		netdev->dev_addr[1] = *(p + 4);
+		netdev->dev_addr[2] = *(p + 3);
+		netdev->dev_addr[3] = *(p + 2);
+		netdev->dev_addr[4] = *(p + 1);
+		netdev->dev_addr[5] = *(p + 0);
 
-	/* do this before waking up pegs so that we have valid dummy dma addr */
-	err = netxen_initialize_adapter_offload(adapter);
-	if (err) {
+		memcpy(netdev->perm_addr, netdev->dev_addr,
+			netdev->addr_len);
+		if (!is_valid_ether_addr(netdev->perm_addr)) {
+			printk(KERN_ERR "%s: Bad MAC address "
+				"%02x:%02x:%02x:%02x:%02x:%02x.\n",
+				netxen_nic_driver_name,
+				netdev->dev_addr[0],
+				netdev->dev_addr[1],
+				netdev->dev_addr[2],
+				netdev->dev_addr[3],
+				netdev->dev_addr[4],
+				netdev->dev_addr[5]);
+		} else {
+			if (adapter->macaddr_set)
+				adapter->macaddr_set(adapter,
+							netdev->dev_addr);
+		}
+	}
+
+	if (adapter->portnum == 0) {
+		err = netxen_initialize_adapter_offload(adapter);
+		if (err) 
+			goto err_out_free_rx_buffer;
+		val = readl(NETXEN_CRB_NORMALIZE(adapter, 
+					NETXEN_CAM_RAM(0x1fc)));
+		if (val == 0x55555555) {
+		    /* This is the first boot after power up */
+		    val = readl(NETXEN_CRB_NORMALIZE(adapter,
+					NETXEN_ROMUSB_GLB_SW_RESET));
+		    printk(KERN_INFO"NetXen: read 0x%08x for reset reg.\n",val);
+		    if (val != 0x80000f) {
+			/* clear the register for future unloads/loads */
+			writel(0, NETXEN_CRB_NORMALIZE(adapter,
+						NETXEN_CAM_RAM(0x1fc)));
+			printk(KERN_ERR "ERROR in NetXen HW init sequence.\n");
+			err = -ENODEV;
+			goto err_out_free_dev;
+		    }
+
+		    /* clear the register for future unloads/loads */
+		    writel(0, NETXEN_CRB_NORMALIZE(adapter, 
+					    NETXEN_CAM_RAM(0x1fc)));
+		}
+		printk(KERN_INFO "State: 0x%0x\n",
+			readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE)));
+
+		/*
+		 * Tell the hardware our version number.
+		 */
+		i = (_NETXEN_NIC_LINUX_MAJOR << 16) 
+			| ((_NETXEN_NIC_LINUX_MINOR << 8))
+			| (_NETXEN_NIC_LINUX_SUBVERSION);
+		writel(i, NETXEN_CRB_NORMALIZE(adapter, CRB_DRIVER_VERSION));
+
+		/* Unlock the HW, prompting the boot sequence */
+		writel(1,
+			NETXEN_CRB_NORMALIZE(adapter,
+				NETXEN_ROMUSB_GLB_PEGTUNE_DONE));
+		/* Handshake with the card before we register the devices. */
+		netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
+	}
+
+	/*
+	 * See if the firmware gave us a virtual-physical port mapping.
+	 */
+	i = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_V2P(adapter->portnum)));
+	if (i != 0x55555555)
+		physical_port[adapter->portnum] = i;
+
+	netif_carrier_off(netdev);
+	netif_stop_queue(netdev);
+
+	if ((err = register_netdev(netdev))) {
+		printk(KERN_ERR "%s: register_netdev failed port #%d"
+			       " aborting\n", netxen_nic_driver_name,
+			       adapter->portnum);
+		err = -EIO;
 		goto err_out_free_dev;
 	}
 
-	/* Unlock the HW, prompting the boot sequence */
-	writel(1,
-	       NETXEN_CRB_NORMALIZE(adapter, NETXEN_ROMUSB_GLB_PEGTUNE_DONE));
-
-	/* Handshake with the card before we register the devices. */
-	netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
-
-	/* initialize the all the ports */
-	adapter->active_ports = 0;
-
-	for (i = 0; i < adapter->ahw.max_ports; i++) {
-		netdev = alloc_etherdev(sizeof(struct netxen_port));
-		if (!netdev) {
-			printk(KERN_ERR "%s: could not allocate netdev for port"
-			       " %d\n", netxen_nic_driver_name, i + 1);
-			goto err_out_free_dev;
-		}
-
-		SET_MODULE_OWNER(netdev);
-		SET_NETDEV_DEV(netdev, &pdev->dev);
-
-		port = netdev_priv(netdev);
-		port->netdev = netdev;
-		port->pdev = pdev;
-		port->adapter = adapter;
-		port->portnum = i;	/* Gigabit port number from 0-3 */
-
-		netdev->open = netxen_nic_open;
-		netdev->stop = netxen_nic_close;
-		netdev->hard_start_xmit = netxen_nic_xmit_frame;
-		netdev->get_stats = netxen_nic_get_stats;
-		netdev->set_multicast_list = netxen_nic_set_multi;
-		netdev->set_mac_address = netxen_nic_set_mac;
-		netdev->change_mtu = netxen_nic_change_mtu;
-		netdev->tx_timeout = netxen_tx_timeout;
-		netdev->watchdog_timeo = HZ;
-
-		netxen_nic_change_mtu(netdev, netdev->mtu);
-
-		SET_ETHTOOL_OPS(netdev, &netxen_nic_ethtool_ops);
-		netdev->poll = netxen_nic_poll;
-		netdev->weight = NETXEN_NETDEV_WEIGHT;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-		netdev->poll_controller = netxen_nic_poll_controller;
-#endif
-		/* ScatterGather support */
-		netdev->features = NETIF_F_SG;
-		netdev->features |= NETIF_F_IP_CSUM;
-		netdev->features |= NETIF_F_TSO;
-
-		if (pci_using_dac)
-			netdev->features |= NETIF_F_HIGHDMA;
-
-		if (valid_mac) {
-			unsigned char *p = (unsigned char *)&mac_addr[i];
-			netdev->dev_addr[0] = *(p + 5);
-			netdev->dev_addr[1] = *(p + 4);
-			netdev->dev_addr[2] = *(p + 3);
-			netdev->dev_addr[3] = *(p + 2);
-			netdev->dev_addr[4] = *(p + 1);
-			netdev->dev_addr[5] = *(p + 0);
-
-			memcpy(netdev->perm_addr, netdev->dev_addr,
-			       netdev->addr_len);
-			if (!is_valid_ether_addr(netdev->perm_addr)) {
-				printk(KERN_ERR "%s: Bad MAC address "
-				       "%02x:%02x:%02x:%02x:%02x:%02x.\n",
-				       netxen_nic_driver_name,
-				       netdev->dev_addr[0],
-				       netdev->dev_addr[1],
-				       netdev->dev_addr[2],
-				       netdev->dev_addr[3],
-				       netdev->dev_addr[4],
-				       netdev->dev_addr[5]);
-			} else {
-				if (adapter->macaddr_set)
-					adapter->macaddr_set(port,
-							     netdev->dev_addr);
-			}
-		}
-		INIT_WORK(&port->tx_timeout_task, netxen_tx_timeout_task);
-		netif_carrier_off(netdev);
-		netif_stop_queue(netdev);
-
-		if ((err = register_netdev(netdev))) {
-			printk(KERN_ERR "%s: register_netdev failed port #%d"
-			       " aborting\n", netxen_nic_driver_name, i + 1);
-			err = -EIO;
-			free_netdev(netdev);
-			goto err_out_free_dev;
-		}
-		adapter->port_count++;
-		adapter->port[i] = port;
-	}
-	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-	netxen_pinit_from_rom(adapter, 0);
-	udelay(500);
-	netxen_load_firmware(adapter);
-	netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
-	/*
-	 * delay a while to ensure that the Pegs are up & running.
-	 * Otherwise, we might see some flaky behaviour.
-	 */
-	udelay(100);
+	pci_set_drvdata(pdev, adapter);
 
 	switch (adapter->ahw.board_type) {
-	case NETXEN_NIC_GBE:
-		printk("%s: QUAD GbE board initialized\n",
-		       netxen_nic_driver_name);
-		break;
+		case NETXEN_NIC_GBE:
+			printk(KERN_INFO "%s: QUAD GbE board initialized\n",
+			       netxen_nic_driver_name);
+			break;
 
-	case NETXEN_NIC_XGBE:
-		printk("%s: XGbE board initialized\n", netxen_nic_driver_name);
-		break;
+		case NETXEN_NIC_XGBE:
+			printk(KERN_INFO "%s: XGbE board initialized\n", 
+					netxen_nic_driver_name);
+			break;
 	}
 
 	adapter->driver_mismatch = 0;
 
 	return 0;
 
-      err_out_free_dev:
-	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
-		pci_disable_msi(pdev);
-	for (i = 0; i < adapter->port_count; i++) {
-		port = adapter->port[i];
-		if ((port) && (port->netdev)) {
-			unregister_netdev(port->netdev);
-			free_netdev(port->netdev);
-		}
-	}
+err_out_free_dev:
+	if (adapter->portnum == 0)
+		netxen_free_adapter_offload(adapter);
 
-	netxen_free_adapter_offload(adapter);
-
-      err_out_free_rx_buffer:
+err_out_free_rx_buffer:
 	for (i = 0; i < MAX_RCV_CTX; ++i) {
 		recv_ctx = &adapter->recv_ctx[i];
 		for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++) {
@@ -487,15 +597,16 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	vfree(cmd_buf_arr);
 
-      err_out_free_adapter:
-	pci_set_drvdata(pdev, NULL);
-	kfree(adapter);
+err_out_free_adapter:
+	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
+		pci_disable_msi(pdev);
 
-      err_out_dbunmap:
+	pci_set_drvdata(pdev, NULL);
+
 	if (db_ptr)
 		iounmap(db_ptr);
 
-      err_out_iounmap:
+err_out_iounmap:
 	if (mem_ptr0)
 		iounmap(mem_ptr0);
 	if (mem_ptr1)
@@ -503,9 +614,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (mem_ptr2)
 		iounmap(mem_ptr2);
 
-      err_out_free_res:
+err_out_free_netdev:
+	free_netdev(netdev);
+
+err_out_free_res:
 	pci_release_regions(pdev);
-      err_out_disable_pdev:
+
+err_out_disable_pdev:
 	pci_disable_device(pdev);
 	return err;
 }
@@ -513,7 +628,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 {
 	struct netxen_adapter *adapter;
-	struct netxen_port *port;
+	struct net_device *netdev;
 	struct netxen_rx_buffer *buffer;
 	struct netxen_recv_context *recv_ctx;
 	struct netxen_rcv_desc_ctx *rcv_desc;
@@ -524,38 +639,34 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	if (adapter == NULL)
 		return;
 
+	netdev = adapter->netdev;
+
+	netxen_nic_disable_int(adapter);
 	if (adapter->irq)
 		free_irq(adapter->irq, adapter);
-	netxen_nic_stop_all_ports(adapter);
-	/* leave the hw in the same state as reboot */
-	writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-	netxen_pinit_from_rom(adapter, 0);
-	udelay(500);
-	netxen_load_firmware(adapter);
-	netxen_free_adapter_offload(adapter);
-
-	mdelay(1000);		/* Delay for a while to drain the DMA engines */
-	for (i = 0; i < adapter->port_count; i++) {
-		port = adapter->port[i];
-		if ((port) && (port->netdev)) {
-			unregister_netdev(port->netdev);
-			free_netdev(port->netdev);
-		}
-	}
+	
+	if (adapter->stop_port)
+		adapter->stop_port(adapter);
 
 	if ((adapter->flags & NETXEN_NIC_MSI_ENABLED))
 		pci_disable_msi(pdev);
+
+	if (adapter->portnum == 0)
+		netxen_free_adapter_offload(adapter);
+
+	if (adapter->irq)
+		free_irq(adapter->irq, adapter);
+	if(adapter->portnum == 0) {
+		/* leave the hw in the same state as reboot */
+		writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
+		netxen_pinit_from_rom(adapter, 0);
+		udelay(500);
+		netxen_load_firmware(adapter);
+		netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
+	}
+
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC)
 		netxen_free_hw_resources(adapter);
-
-	iounmap(adapter->ahw.db_base);
-	iounmap(adapter->ahw.pci_base0);
-	iounmap(adapter->ahw.pci_base1);
-	iounmap(adapter->ahw.pci_base2);
-
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	for (ctxid = 0; ctxid < MAX_RCV_CTX; ++ctxid) {
 		recv_ctx = &adapter->recv_ctx[ctxid];
@@ -575,8 +686,20 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		}
 	}
 
+	unregister_netdev(netdev);
+
 	vfree(adapter->cmd_buf_arr);
-	kfree(adapter);
+
+	iounmap(adapter->ahw.db_base);
+	iounmap(adapter->ahw.pci_base0);
+	iounmap(adapter->ahw.pci_base1);
+	iounmap(adapter->ahw.pci_base2);
+
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
+
+	free_netdev(netdev);
 }
 
 /*
@@ -585,8 +708,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
  */
 static int netxen_nic_open(struct net_device *netdev)
 {
-	struct netxen_port *port = netdev_priv(netdev);
-	struct netxen_adapter *adapter = port->adapter;
+	struct netxen_adapter *adapter = (struct netxen_adapter *)netdev->priv;
 	int err = 0;
 	int ctx, ring;
 
@@ -597,8 +719,6 @@ static int netxen_nic_open(struct net_device *netdev)
 			return -EIO;
 		}
 		netxen_nic_flash_print(adapter);
-		if (adapter->init_niu)
-			adapter->init_niu(adapter);
 
 		/* setup all the resources for the Phantom... */
 		/* this include the descriptors for rcv, tx, and status */
@@ -609,21 +729,14 @@ static int netxen_nic_open(struct net_device *netdev)
 			       err);
 			return err;
 		}
-		if (adapter->init_port
-		    && adapter->init_port(adapter, port->portnum) != 0) {
-			printk(KERN_ERR "%s: Failed to initialize port %d\n",
-			       netxen_nic_driver_name, port->portnum);
-			netxen_free_hw_resources(adapter);
-			return -EIO;
-		}
 		for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
 			for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++)
 				netxen_post_rx_buffers(adapter, ctx, ring);
 		}
 		adapter->irq = adapter->ahw.pdev->irq;
-		err = request_irq(adapter->ahw.pdev->irq, &netxen_intr,
-				  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-				  netdev->name, adapter);
+		err = request_irq(adapter->ahw.pdev->irq, netxen_intr,
+				  SA_SHIRQ | SA_SAMPLE_RANDOM, netdev->name,
+				  adapter);
 		if (err) {
 			printk(KERN_ERR "request_irq failed with: %d\n", err);
 			netxen_free_hw_resources(adapter);
@@ -632,23 +745,28 @@ static int netxen_nic_open(struct net_device *netdev)
 
 		adapter->is_up = NETXEN_ADAPTER_UP_MAGIC;
 	}
-	adapter->active_ports++;
-	if (adapter->active_ports == 1) {
-		if (!adapter->driver_mismatch)
-			mod_timer(&adapter->watchdog_timer, jiffies);
+	if (!adapter->driver_mismatch)
+		mod_timer(&adapter->watchdog_timer, jiffies);
 
-		netxen_nic_enable_int(adapter);
-	}
+	netxen_nic_enable_int(adapter);
 
 	/* Done here again so that even if phantom sw overwrote it,
 	 * we set it */
 	if (adapter->macaddr_set)
-		adapter->macaddr_set(port, netdev->dev_addr);
-	netxen_nic_set_link_parameters(port);
+		adapter->macaddr_set(adapter, netdev->dev_addr);
+	if (adapter->init_port
+	    && adapter->init_port(adapter, adapter->portnum) != 0) {
+	    del_timer_sync(&adapter->watchdog_timer);
+		printk(KERN_ERR "%s: Failed to initialize port %d\n",
+				netxen_nic_driver_name, adapter->portnum);
+		return -EIO;
+	}
+
+	netxen_nic_set_link_parameters(adapter);
 
 	netxen_nic_set_multi(netdev);
 	if (adapter->set_mtu)
-		adapter->set_mtu(port, netdev->mtu);
+		adapter->set_mtu(adapter, netdev->mtu);
 
 	if (!adapter->driver_mismatch)
 		netif_start_queue(netdev);
@@ -661,8 +779,7 @@ static int netxen_nic_open(struct net_device *netdev)
  */
 static int netxen_nic_close(struct net_device *netdev)
 {
-	struct netxen_port *port = netdev_priv(netdev);
-	struct netxen_adapter *adapter = port->adapter;
+	struct netxen_adapter *adapter = netdev_priv(netdev);
 	int i, j;
 	struct netxen_cmd_buffer *cmd_buff;
 	struct netxen_skb_frag *buffrag;
@@ -670,47 +787,39 @@ static int netxen_nic_close(struct net_device *netdev)
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	adapter->active_ports--;
-
-	if (!adapter->active_ports) {
-		netxen_nic_disable_int(adapter);
-		cmd_buff = adapter->cmd_buf_arr;
-		for (i = 0; i < adapter->max_tx_desc_count; i++) {
-			buffrag = cmd_buff->frag_array;
+	cmd_buff = adapter->cmd_buf_arr;
+	for (i = 0; i < adapter->max_tx_desc_count; i++) {
+		buffrag = cmd_buff->frag_array;
+		if (buffrag->dma) {
+			pci_unmap_single(adapter->pdev, buffrag->dma,
+					 buffrag->length, PCI_DMA_TODEVICE);
+			buffrag->dma = (u64) NULL;
+		}
+		for (j = 0; j < cmd_buff->frag_count; j++) {
+			buffrag++;
 			if (buffrag->dma) {
-				pci_unmap_single(port->pdev, buffrag->dma,
-						 buffrag->length,
-						 PCI_DMA_TODEVICE);
+				pci_unmap_page(adapter->pdev, buffrag->dma,
+					       buffrag->length, 
+					       PCI_DMA_TODEVICE);
 				buffrag->dma = (u64) NULL;
 			}
-			for (j = 0; j < cmd_buff->frag_count; j++) {
-				buffrag++;
-				if (buffrag->dma) {
-					pci_unmap_page(port->pdev,
-						       buffrag->dma,
-						       buffrag->length,
-						       PCI_DMA_TODEVICE);
-					buffrag->dma = (u64) NULL;
-				}
-			}
-			/* Free the skb we received in netxen_nic_xmit_frame */
-			if (cmd_buff->skb) {
-				dev_kfree_skb_any(cmd_buff->skb);
-				cmd_buff->skb = NULL;
-			}
-			cmd_buff++;
 		}
-		FLUSH_SCHEDULED_WORK();
-		del_timer_sync(&adapter->watchdog_timer);
+		/* Free the skb we received in netxen_nic_xmit_frame */
+		if (cmd_buff->skb) {
+			dev_kfree_skb_any(cmd_buff->skb);
+			cmd_buff->skb = NULL;
+		}
+		cmd_buff++;
 	}
+	FLUSH_SCHEDULED_WORK();
+	del_timer_sync(&adapter->watchdog_timer);
 
 	return 0;
 }
 
 static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
-	struct netxen_port *port = netdev_priv(netdev);
-	struct netxen_adapter *adapter = port->adapter;
+	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct netxen_hardware_context *hw = &adapter->ahw;
 	unsigned int first_seg_len = skb->len - skb->data_len;
 	struct netxen_skb_frag *buffrag;
@@ -728,12 +837,12 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	u32 last_cmd_consumer = 0;
 	int no_of_desc;
 
-	port->stats.xmitcalled++;
+	adapter->stats.xmitcalled++;
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
 
 	if (unlikely(skb->len <= 0)) {
 		dev_kfree_skb_any(skb);
-		port->stats.badskblen++;
+		adapter->stats.badskblen++;
 		return NETDEV_TX_OK;
 	}
 
@@ -742,7 +851,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		       "too large, can handle only %d frags\n",
 		       netxen_nic_driver_name, netdev->name,
 		       frag_count, MAX_BUFFERS_PER_CMD);
-		port->stats.txdropped++;
+		adapter->stats.txdropped++;
 		if ((++dropped_packet & 0xff) == 0xff)
 			printk("%s: %s droppped packets = %d\n",
 			       netxen_nic_driver_name, netdev->name,
@@ -759,7 +868,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	 */
       retry_getting_window:
 	spin_lock_bh(&adapter->tx_lock);
-	if (adapter->total_threads == MAX_XMIT_PRODUCERS) {
+	if (adapter->total_threads >= MAX_XMIT_PRODUCERS) {
 		spin_unlock_bh(&adapter->tx_lock);
 		/*
 		 * Yield CPU
@@ -792,15 +901,8 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if ((k + no_of_desc) >=
 	    ((last_cmd_consumer <= k) ? last_cmd_consumer + max_tx_desc_count :
 	     last_cmd_consumer)) {
-		port->stats.nocmddescriptor++;
-		DPRINTK(ERR, "No command descriptors available,"
-			" producer = %d, consumer = %d count=%llu,"
-			" dropping packet\n", producer,
-			adapter->last_cmd_consumer,
-			port->stats.nocmddescriptor);
-
 		netif_stop_queue(netdev);
-		port->flags |= NETXEN_NETDEV_STATUS;
+		adapter->flags |= NETXEN_NETDEV_STATUS;
 		spin_unlock_bh(&adapter->tx_lock);
 		return NETDEV_TX_BUSY;
 	}
@@ -828,16 +930,17 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	pbuf->skb = skb;
 	pbuf->cmd = TX_ETHER_PKT;
 	pbuf->frag_count = frag_count;
-	pbuf->port = port->portnum;
+	pbuf->port = adapter->portnum;
 	buffrag = &pbuf->frag_array[0];
-	buffrag->dma = pci_map_single(port->pdev, skb->data, first_seg_len,
+	buffrag->dma = pci_map_single(adapter->pdev, skb->data, first_seg_len,
 				      PCI_DMA_TODEVICE);
 	buffrag->length = first_seg_len;
 	netxen_set_cmd_desc_totallength(hwdesc, skb->len);
 	netxen_set_cmd_desc_num_of_buff(hwdesc, frag_count);
 	netxen_set_cmd_desc_opcode(hwdesc, TX_ETHER_PKT);
 
-	netxen_set_cmd_desc_port(hwdesc, port->portnum);
+	netxen_set_cmd_desc_port(hwdesc, adapter->portnum);
+	netxen_set_cmd_desc_ctxid(hwdesc, adapter->portnum);
 	hwdesc->buffer1_length = cpu_to_le16(first_seg_len);
 	hwdesc->addr_buffer1 = cpu_to_le64(buffrag->dma);
 
@@ -860,7 +963,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		offset = frag->page_offset;
 
 		temp_len = len;
-		temp_dma = pci_map_page(port->pdev, frag->page, offset,
+		temp_dma = pci_map_page(adapter->pdev, frag->page, offset,
 					len, PCI_DMA_TODEVICE);
 
 		buffrag++;
@@ -927,21 +1030,29 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			producer = get_next_index(producer, max_tx_desc_count);
 		}
 	}
+
+	i = netxen_get_cmd_desc_totallength(&hw->cmd_desc_head[saved_producer]);
+
+	hw->cmd_desc_head[saved_producer].flags_opcode =
+		cpu_to_le16(hw->cmd_desc_head[saved_producer].flags_opcode);
+	hw->cmd_desc_head[saved_producer].num_of_buffers_total_length =
+	  cpu_to_le32(hw->cmd_desc_head[saved_producer].
+			  num_of_buffers_total_length);
+
 	spin_lock_bh(&adapter->tx_lock);
-	port->stats.txbytes +=
-	    netxen_get_cmd_desc_totallength(&hw->cmd_desc_head[saved_producer]);
+	adapter->stats.txbytes += i;
+
 	/* Code to update the adapter considering how many producer threads
 	   are currently working */
 	if ((--adapter->num_threads) == 0) {
 		/* This is the last thread */
 		u32 crb_producer = adapter->cmd_producer;
-		writel(crb_producer,
-		       NETXEN_CRB_NORMALIZE(adapter, CRB_CMD_PRODUCER_OFFSET));
+		netxen_nic_update_cmd_producer(adapter, crb_producer);
 		wmb();
 		adapter->total_threads = 0;
 	}
 
-	port->stats.xmitfinished++;
+	adapter->stats.xmitfinished++;
 	spin_unlock_bh(&adapter->tx_lock);
 
 	netdev->trans_start = jiffies;
@@ -961,27 +1072,26 @@ static void netxen_watchdog(unsigned long v)
 
 static void netxen_tx_timeout(struct net_device *netdev)
 {
-	struct netxen_port *port = (struct netxen_port *)netdev_priv(netdev);
-
-	SCHEDULE_WORK(&port->tx_timeout_task);
+	struct netxen_adapter *adapter = (struct netxen_adapter *)
+						netdev_priv(netdev);
+	SCHEDULE_WORK(&adapter->tx_timeout_task);
 }
 
 static void netxen_tx_timeout_task(struct work_struct *work)
 {
-	struct netxen_port *port =
-		container_of(work, struct netxen_port, tx_timeout_task);
-	struct net_device *netdev = port->netdev;
+	struct netxen_adapter *adapter = 
+		container_of(work, struct netxen_adapter, tx_timeout_task);
 	unsigned long flags;
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
-	       netxen_nic_driver_name, netdev->name);
+	       netxen_nic_driver_name, adapter->netdev->name);
 
-	spin_lock_irqsave(&port->adapter->lock, flags);
-	netxen_nic_close(netdev);
-	netxen_nic_open(netdev);
-	spin_unlock_irqrestore(&port->adapter->lock, flags);
-	netdev->trans_start = jiffies;
-	netif_wake_queue(netdev);
+	spin_lock_irqsave(&adapter->lock, flags);
+	netxen_nic_close(adapter->netdev);
+	netxen_nic_open(adapter->netdev);
+	spin_unlock_irqrestore(&adapter->lock, flags);
+	adapter->netdev->trans_start = jiffies;
+	netif_wake_queue(adapter->netdev);
 }
 
 static int
@@ -990,17 +1100,16 @@ netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
 	u32 ret = 0;
 
 	DPRINTK(INFO, "Entered handle ISR\n");
-
 	adapter->stats.ints++;
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		int count = 0;
 		u32 mask;
-		mask = readl(pci_base_offset(adapter, ISR_INT_VECTOR));
-		if ((mask & 0x80) == 0) {
-			/* not our interrupt */
+		u32 our_int = 0;
+		our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+		/* not our interrupt */
+		if ((our_int & (0x80 << adapter->portnum)) == 0)
 			return ret;
-		}
 		netxen_nic_disable_int(adapter);
 		/* Window = 0 or 1 */
 		do {
@@ -1012,7 +1121,6 @@ netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
 			printk("Could not disable interrupt completely\n");
 
 	}
-	adapter->stats.hostints++;
 
 	if (netxen_nic_rx_has_work(adapter) || netxen_nic_tx_has_work(adapter)) {
 		if (netif_rx_schedule_prep(netdev)) {
@@ -1046,33 +1154,24 @@ netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
 irqreturn_t netxen_intr(int irq, void *data)
 {
 	struct netxen_adapter *adapter;
-	struct netxen_port *port;
 	struct net_device *netdev;
-	int i;
 
 	if (unlikely(!irq)) {
 		return IRQ_NONE;	/* Not our interrupt */
 	}
 
 	adapter = (struct netxen_adapter *)data;
-	for (i = 0; i < adapter->ahw.max_ports; i++) {
-		port = adapter->port[i];
-		netdev = port->netdev;
-
-		/* process our status queue (for all 4 ports) */
-		if (netif_running(netdev)) {
-			netxen_handle_int(adapter, netdev);
-			break;
-		}
-	}
+	netdev  = adapter->netdev;
+	/* process our status queue (for all 4 ports) */
+	if (netif_running(netdev))
+		netxen_handle_int(adapter, netdev);
 
 	return IRQ_HANDLED;
 }
 
 static int netxen_nic_poll(struct net_device *netdev, int *budget)
 {
-	struct netxen_port *port = (struct netxen_port *)netdev_priv(netdev);
-	struct netxen_adapter *adapter = port->adapter;
+	struct netxen_adapter *adapter = netdev_priv(netdev);
 	int work_to_do = min(*budget, netdev->quota);
 	int done = 1;
 	int ctx;
@@ -1080,7 +1179,6 @@ static int netxen_nic_poll(struct net_device *netdev, int *budget)
 	int work_done = 0;
 
 	DPRINTK(INFO, "polling for %d descriptors\n", *budget);
-	port->stats.polled++;
 
 	work_done = 0;
 	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
@@ -1124,8 +1222,7 @@ static int netxen_nic_poll(struct net_device *netdev, int *budget)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev)
 {
-	struct netxen_port *port = netdev_priv(netdev);
-	struct netxen_adapter *adapter = port->adapter;
+	struct netxen_adapter *adapter = netdev_priv(netdev);
 	disable_irq(adapter->irq);
 	netxen_intr(adapter->irq, adapter);
 	enable_irq(adapter->irq);

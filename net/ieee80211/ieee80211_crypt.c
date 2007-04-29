@@ -1,7 +1,7 @@
 /*
  * Host AP crypto routines
  *
- * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
  * Portions Copyright (C) 2004, Intel Corporation <jketreno@linux.intel.com>
  *
  * This program is free software; you can redistribute it and/or modify

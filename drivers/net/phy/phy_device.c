@@ -74,11 +74,13 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 }
 EXPORT_SYMBOL(phy_device_create);
 
-/* get_phy_device
+/**
+ * get_phy_device - reads the specified PHY device and returns its @phy_device struct
+ * @bus: the target MII bus
+ * @addr: PHY address on the MII bus
  *
- * description: Reads the ID registers of the PHY at addr on the
- *   bus, then allocates and returns the phy_device to
- *   represent it.
+ * Description: Reads the ID registers of the PHY at @addr on the
+ *   @bus, then allocates and returns the phy_device to represent it.
  */
 struct phy_device * get_phy_device(struct mii_bus *bus, int addr)
 {
@@ -112,23 +114,33 @@ struct phy_device * get_phy_device(struct mii_bus *bus, int addr)
 	return dev;
 }
 
-/* phy_prepare_link:
+/**
+ * phy_prepare_link - prepares the PHY layer to monitor link status
+ * @phydev: target phy_device struct
+ * @handler: callback function for link status change notifications
  *
- * description: Tells the PHY infrastructure to handle the
+ * Description: Tells the PHY infrastructure to handle the
  *   gory details on monitoring link status (whether through
  *   polling or an interrupt), and to call back to the
  *   connected device driver when the link status changes.
  *   If you want to monitor your own link state, don't call
- *   this function */
+ *   this function.
+ */
 void phy_prepare_link(struct phy_device *phydev,
 		void (*handler)(struct net_device *))
 {
 	phydev->adjust_link = handler;
 }
 
-/* phy_connect:
+/**
+ * phy_connect - connect an ethernet device to a PHY device
+ * @dev: the network device to connect
+ * @phy_id: the PHY device to connect
+ * @handler: callback function for state change notifications
+ * @flags: PHY device's dev_flags
+ * @interface: PHY device's interface
  *
- * description: Convenience function for connecting ethernet
+ * Description: Convenience function for connecting ethernet
  *   devices to PHY devices.  The default behavior is for
  *   the PHY infrastructure to handle everything, and only notify
  *   the connected driver when the link status changes.  If you
@@ -158,6 +170,10 @@ struct phy_device * phy_connect(struct net_device *dev, const char *phy_id,
 }
 EXPORT_SYMBOL(phy_connect);
 
+/**
+ * phy_disconnect - disable interrupts, stop state machine, and detach a PHY device
+ * @phydev: target phy_device struct
+ */
 void phy_disconnect(struct phy_device *phydev)
 {
 	if (phydev->irq > 0)
@@ -171,21 +187,25 @@ void phy_disconnect(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_disconnect);
 
-/* phy_attach:
- *
- *   description: Called by drivers to attach to a particular PHY
- *     device. The phy_device is found, and properly hooked up
- *     to the phy_driver.  If no driver is attached, then the
- *     genphy_driver is used.  The phy_device is given a ptr to
- *     the attaching device, and given a callback for link status
- *     change.  The phy_device is returned to the attaching
- *     driver.
- */
 static int phy_compare_id(struct device *dev, void *data)
 {
 	return strcmp((char *)data, dev->bus_id) ? 0 : 1;
 }
 
+/**
+ * phy_attach - attach a network device to a particular PHY device
+ * @dev: network device to attach
+ * @phy_id: PHY device to attach
+ * @flags: PHY device's dev_flags
+ * @interface: PHY device's interface
+ *
+ * Description: Called by drivers to attach to a particular PHY
+ *     device. The phy_device is found, and properly hooked up
+ *     to the phy_driver.  If no driver is attached, then the
+ *     genphy_driver is used.  The phy_device is given a ptr to
+ *     the attaching device, and given a callback for link status
+ *     change.  The phy_device is returned to the attaching driver.
+ */
 struct phy_device *phy_attach(struct net_device *dev,
 		const char *phy_id, u32 flags, phy_interface_t interface)
 {
@@ -246,6 +266,10 @@ struct phy_device *phy_attach(struct net_device *dev,
 }
 EXPORT_SYMBOL(phy_attach);
 
+/**
+ * phy_detach - detach a PHY device from its network device
+ * @phydev: target phy_device struct
+ */
 void phy_detach(struct phy_device *phydev)
 {
 	phydev->attached_dev = NULL;
@@ -262,11 +286,13 @@ EXPORT_SYMBOL(phy_detach);
 
 /* Generic PHY support and helper functions */
 
-/* genphy_config_advert
+/**
+ * genphy_config_advert - sanitize and advertise auto-negotation parameters
+ * @phydev: target phy_device struct
  *
- * description: Writes MII_ADVERTISE with the appropriate values,
+ * Description: Writes MII_ADVERTISE with the appropriate values,
  *   after sanitizing the values to make sure we only advertise
- *   what is supported
+ *   what is supported.
  */
 int genphy_config_advert(struct phy_device *phydev)
 {
@@ -328,11 +354,14 @@ int genphy_config_advert(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_config_advert);
 
-/* genphy_setup_forced
+/**
+ * genphy_setup_forced - configures/forces speed/duplex from @phydev
+ * @phydev: target phy_device struct
  *
- * description: Configures MII_BMCR to force speed/duplex
+ * Description: Configures MII_BMCR to force speed/duplex
  *   to the values in phydev. Assumes that the values are valid.
- *   Please see phy_sanitize_settings() */
+ *   Please see phy_sanitize_settings().
+ */
 int genphy_setup_forced(struct phy_device *phydev)
 {
 	int ctl = BMCR_RESET;
@@ -361,7 +390,10 @@ int genphy_setup_forced(struct phy_device *phydev)
 }
 
 
-/* Enable and Restart Autonegotiation */
+/**
+ * genphy_restart_aneg - Enable and Restart Autonegotiation
+ * @phydev: target phy_device struct
+ */
 int genphy_restart_aneg(struct phy_device *phydev)
 {
 	int ctl;
@@ -382,11 +414,13 @@ int genphy_restart_aneg(struct phy_device *phydev)
 }
 
 
-/* genphy_config_aneg
+/**
+ * genphy_config_aneg - restart auto-negotiation or write BMCR
+ * @phydev: target phy_device struct
  *
- * description: If auto-negotiation is enabled, we configure the
+ * Description: If auto-negotiation is enabled, we configure the
  *   advertising, and then restart auto-negotiation.  If it is not
- *   enabled, then we write the BMCR
+ *   enabled, then we write the BMCR.
  */
 int genphy_config_aneg(struct phy_device *phydev)
 {
@@ -406,11 +440,13 @@ int genphy_config_aneg(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_config_aneg);
 
-/* genphy_update_link
+/**
+ * genphy_update_link - update link status in @phydev
+ * @phydev: target phy_device struct
  *
- * description: Update the value in phydev->link to reflect the
+ * Description: Update the value in phydev->link to reflect the
  *   current link value.  In order to do this, we need to read
- *   the status register twice, keeping the second value
+ *   the status register twice, keeping the second value.
  */
 int genphy_update_link(struct phy_device *phydev)
 {
@@ -437,9 +473,11 @@ int genphy_update_link(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_update_link);
 
-/* genphy_read_status
+/**
+ * genphy_read_status - check the link status and update current link state
+ * @phydev: target phy_device struct
  *
- * description: Check the link, then figure out the current state
+ * Description: Check the link, then figure out the current state
  *   by comparing what we advertise with what the link partner
  *   advertises.  Start by checking the gigabit possibilities,
  *   then move on to 10/100.
@@ -579,9 +617,11 @@ static int genphy_config_init(struct phy_device *phydev)
 }
 
 
-/* phy_probe
+/**
+ * phy_probe - probe and init a PHY device
+ * @dev: device to probe and init
  *
- * description: Take care of setting up the phy_device structure,
+ * Description: Take care of setting up the phy_device structure,
  *   set the state to READY (the driver's init function should
  *   set it to STARTING if needed).
  */
@@ -643,6 +683,10 @@ static int phy_remove(struct device *dev)
 	return 0;
 }
 
+/**
+ * phy_driver_register - register a phy_driver with the PHY layer
+ * @new_driver: new phy_driver to register
+ */
 int phy_driver_register(struct phy_driver *new_driver)
 {
 	int retval;

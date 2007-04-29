@@ -42,7 +42,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"1.10"
+#define DRV_VERSION		"1.11"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -2621,6 +2621,7 @@ static int skge_down(struct net_device *dev)
 
 static inline int skge_avail(const struct skge_ring *ring)
 {
+	smp_mb();
 	return ((ring->to_clean > ring->to_use) ? 0 : ring->count)
 		+ (ring->to_clean - ring->to_use) - 1;
 }
@@ -2709,6 +2710,8 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		       dev->name, e - skge->tx_ring.start, skb->len);
 
 	skge->tx_ring.to_use = e->next;
+	smp_wmb();
+
 	if (skge_avail(&skge->tx_ring) <= TX_LOW_WATER) {
 		pr_debug("%s: transmit queue full\n", dev->name);
 		netif_stop_queue(dev);
@@ -2725,8 +2728,6 @@ static void skge_tx_free(struct skge_port *skge, struct skge_element *e,
 			 u32 control)
 {
 	struct pci_dev *pdev = skge->hw->pdev;
-
-	BUG_ON(!e->skb);
 
 	/* skb header vs. fragment */
 	if (control & BMU_STF)
@@ -2745,7 +2746,6 @@ static void skge_tx_free(struct skge_port *skge, struct skge_element *e,
 
 		dev_kfree_skb(e->skb);
 	}
-	e->skb = NULL;
 }
 
 /* Free all buffers in transmit ring */
@@ -3017,21 +3017,29 @@ static void skge_tx_done(struct net_device *dev)
 
 	skge_write8(skge->hw, Q_ADDR(txqaddr[skge->port], Q_CSR), CSR_IRQ_CL_F);
 
-	netif_tx_lock(dev);
 	for (e = ring->to_clean; e != ring->to_use; e = e->next) {
-		struct skge_tx_desc *td = e->desc;
+		u32 control = ((const struct skge_tx_desc *) e->desc)->control;
 
-		if (td->control & BMU_OWN)
+		if (control & BMU_OWN)
 			break;
 
-		skge_tx_free(skge, e, td->control);
+		skge_tx_free(skge, e, control);
 	}
 	skge->tx_ring.to_clean = e;
 
-	if (skge_avail(&skge->tx_ring) > TX_LOW_WATER)
-		netif_wake_queue(dev);
+	/* Can run lockless until we need to synchronize to restart queue. */
+	smp_mb();
 
-	netif_tx_unlock(dev);
+	if (unlikely(netif_queue_stopped(dev) &&
+		     skge_avail(&skge->tx_ring) > TX_LOW_WATER)) {
+		netif_tx_lock(dev);
+		if (unlikely(netif_queue_stopped(dev) &&
+			     skge_avail(&skge->tx_ring) > TX_LOW_WATER)) {
+			netif_wake_queue(dev);
+
+		}
+		netif_tx_unlock(dev);
+	}
 }
 
 static int skge_poll(struct net_device *dev, int *budget)
