@@ -2035,7 +2035,7 @@ void tcp_send_fin(struct sock *sk)
 /* We get here when a process closes a file descriptor (either due to
  * an explicit close() or as a byproduct of exit()'ing) and there
  * was unread data in the receive queue.  This behavior is recommended
- * by draft-ietf-tcpimpl-prob-03.txt section 3.10.  -DaveM
+ * by RFC 2525, section 2.17.  -DaveM
  */
 void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 {
