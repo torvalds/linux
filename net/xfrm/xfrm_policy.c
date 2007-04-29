@@ -579,8 +579,22 @@ static inline int xfrm_byidx_should_resize(int total)
 	return 0;
 }
 
-static DEFINE_MUTEX(hash_resize_mutex);
+void xfrm_spd_getinfo(struct xfrm_spdinfo *si)
+{
+	read_lock_bh(&xfrm_policy_lock);
+	si->incnt = xfrm_policy_count[XFRM_POLICY_IN];
+	si->outcnt = xfrm_policy_count[XFRM_POLICY_OUT];
+	si->fwdcnt = xfrm_policy_count[XFRM_POLICY_FWD];
+	si->inscnt = xfrm_policy_count[XFRM_POLICY_IN+XFRM_POLICY_MAX];
+	si->outscnt = xfrm_policy_count[XFRM_POLICY_OUT+XFRM_POLICY_MAX];
+	si->fwdscnt = xfrm_policy_count[XFRM_POLICY_FWD+XFRM_POLICY_MAX];
+	si->spdhcnt = xfrm_idx_hmask;
+	si->spdhmcnt = xfrm_policy_hashmax;
+	read_unlock_bh(&xfrm_policy_lock);
+}
+EXPORT_SYMBOL(xfrm_spd_getinfo);
 
+static DEFINE_MUTEX(hash_resize_mutex);
 static void xfrm_hash_resize(struct work_struct *__unused)
 {
 	int dir, total;
