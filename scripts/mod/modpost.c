@@ -626,7 +626,6 @@ static int strrcmp(const char *s, const char *sub)
  *   tosec   = .init.text
  *   fromsec = .text
  *   atsym = kernel_init
- *   Some symbols belong to init section but still it is ok to reference
  *
  * Pattern 7:
  *  Logos used in drivers/video/logo reside in __initdata but the
