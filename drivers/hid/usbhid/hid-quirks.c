@@ -477,8 +477,6 @@ static struct hid_blacklist *usbhid_exists_dquirk(const u16 idVendor,
 	struct quirks_list_struct *q;
 	struct hid_blacklist *bl_entry = NULL;
 
-	WARN_ON(idVendor == 0);
-
 	list_for_each_entry(q, &dquirks_list, node) {
 		if (q->hid_bl_item.idVendor == idVendor &&
 				q->hid_bl_item.idProduct == idProduct) {
