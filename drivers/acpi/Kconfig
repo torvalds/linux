@@ -85,8 +85,8 @@ config ACPI_PROCFS
 	depends on ACPI
 	default y
 	---help---
-	  Procfs interface for ACPI is made optional for back-compatible.
-	  As the same functions are duplicated in sysfs interface
+	  The Procfs interface for ACPI is made optional for backward compatibility.
+	  As the same functions are duplicated in the sysfs interface
 	  and this proc interface will be removed some time later,
 	  it's marked as deprecated.
 	  ( /proc/acpi/debug_layer && debug_level are deprecated by

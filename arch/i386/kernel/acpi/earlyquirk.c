@@ -23,10 +23,13 @@ static int __init nvidia_hpet_check(struct acpi_table_header *header)
 static int __init check_bridge(int vendor, int device)
 {
 #ifdef CONFIG_ACPI
+	static int warned;
 	/* According to Nvidia all timer overrides are bogus unless HPET
 	   is enabled. */
 	if (!acpi_use_timer_override && vendor == PCI_VENDOR_ID_NVIDIA) {
-		if (acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check)) {
+		if (!warned && acpi_table_parse(ACPI_SIG_HPET,
+						nvidia_hpet_check)) {
+			warned = 1;
 			acpi_skip_timer_override = 1;
 			  printk(KERN_INFO "Nvidia board "
                        "detected. Ignoring ACPI "
