@@ -522,8 +522,6 @@ static void init_vmcb(struct vmcb *vmcb)
 	control->msrpm_base_pa = msrpm_base;
 	control->tsc_offset = 0;
 	control->int_ctl = V_INTR_MASKING_MASK;
-	if (svm_has(SVM_FEATURE_LBRV))
-		control->lbr_ctl = 1ULL;
 
 	init_seg(&save->es);
 	init_seg(&save->ss);
@@ -611,7 +609,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 
 static void svm_vcpu_load(struct kvm_vcpu *vcpu)
 {
-	int cpu;
+	int cpu, i;
 
 	cpu = get_cpu();
 	if (unlikely(cpu != vcpu->cpu)) {
@@ -626,10 +624,18 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu)
 		vcpu->svm->vmcb->control.tsc_offset += delta;
 		vcpu->cpu = cpu;
 	}
+
+	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
+		rdmsrl(host_save_user_msrs[i], vcpu->svm->host_user_msrs[i]);
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 {
+	int i;
+
+	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
+		wrmsrl(host_save_user_msrs[i], vcpu->svm->host_user_msrs[i]);
+
 	rdtscll(vcpu->host_tsc);
 	put_cpu();
 }
@@ -815,18 +821,16 @@ static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_debug_guest *dbg)
 
 static void load_host_msrs(struct kvm_vcpu *vcpu)
 {
-	int i;
-
-	for ( i = 0; i < NR_HOST_SAVE_MSRS; i++)
-		wrmsrl(host_save_msrs[i], vcpu->svm->host_msrs[i]);
+#ifdef CONFIG_X86_64
+	wrmsrl(MSR_GS_BASE, vcpu->svm->host_gs_base);
+#endif
 }
 
 static void save_host_msrs(struct kvm_vcpu *vcpu)
 {
-	int i;
-
-	for ( i = 0; i < NR_HOST_SAVE_MSRS; i++)
-		rdmsrl(host_save_msrs[i], vcpu->svm->host_msrs[i]);
+#ifdef CONFIG_X86_64
+	rdmsrl(MSR_GS_BASE, vcpu->svm->host_gs_base);
+#endif
 }
 
 static void new_asid(struct kvm_vcpu *vcpu, struct svm_cpu_data *svm_data)
