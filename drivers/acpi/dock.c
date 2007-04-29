@@ -29,6 +29,7 @@
 #include <linux/notifier.h>
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
+#include <linux/stddef.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -667,6 +668,23 @@ static ssize_t write_undock(struct device *dev, struct device_attribute *attr,
 }
 DEVICE_ATTR(undock, S_IWUSR, NULL, write_undock);
 
+/*
+ * show_dock_uid - read method for "uid" file in sysfs
+ */
+static ssize_t show_dock_uid(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	unsigned long lbuf;
+	acpi_status status = acpi_evaluate_integer(dock_station->handle, "_UID", NULL, &lbuf);
+	if(ACPI_FAILURE(status)) {
+	    return 0;
+	}
+	return snprintf(buf, PAGE_SIZE, "%lx\n", lbuf);
+}
+DEVICE_ATTR(uid, S_IRUGO, show_dock_uid, NULL);
+
+
+
 /**
  * dock_add - add a new dock station
  * @handle: the dock station handle
@@ -711,6 +729,13 @@ static int dock_add(acpi_handle handle)
 	if (ret) {
 		printk("Error %d adding sysfs file\n", ret);
 		device_remove_file(&dock_device.dev, &dev_attr_docked);
+		platform_device_unregister(&dock_device);
+		kfree(dock_station);
+		return ret;
+	}
+	ret = device_create_file(&dock_device.dev, &dev_attr_uid);
+	if (ret) {
+		printk("Error %d adding sysfs file\n", ret);
 		platform_device_unregister(&dock_device);
 		kfree(dock_station);
 		return ret;

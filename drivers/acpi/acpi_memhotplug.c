@@ -44,11 +44,6 @@ MODULE_AUTHOR("Naveen B S <naveen.b.s@intel.com>");
 MODULE_DESCRIPTION("Hotplug Mem Driver");
 MODULE_LICENSE("GPL");
 
-/* ACPI _STA method values */
-#define ACPI_MEMORY_STA_PRESENT		(0x00000001UL)
-#define ACPI_MEMORY_STA_ENABLED		(0x00000002UL)
-#define ACPI_MEMORY_STA_FUNCTIONAL	(0x00000008UL)
-
 /* Memory Device States */
 #define MEMORY_INVALID_STATE	0
 #define MEMORY_POWER_ON_STATE	1
@@ -204,9 +199,9 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
 	 * Check for device status. Device should be
 	 * present/enabled/functioning.
 	 */
-	if (!((current_status & ACPI_MEMORY_STA_PRESENT)
-	      && (current_status & ACPI_MEMORY_STA_ENABLED)
-	      && (current_status & ACPI_MEMORY_STA_FUNCTIONAL)))
+	if (!((current_status & ACPI_STA_DEVICE_PRESENT)
+	      && (current_status & ACPI_STA_DEVICE_ENABLED)
+	      && (current_status & ACPI_STA_DEVICE_FUNCTIONING)))
 		return -ENODEV;
 
 	return 0;
@@ -286,7 +281,7 @@ static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
 		return -ENODEV;
 
 	/* Check for device status.  Device should be disabled */
-	if (current_status & ACPI_MEMORY_STA_ENABLED)
+	if (current_status & ACPI_STA_DEVICE_ENABLED)
 		return -EINVAL;
 
 	return 0;

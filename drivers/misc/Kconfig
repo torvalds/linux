@@ -112,14 +112,70 @@ config SONY_LAPTOP
 	depends on X86 && ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	  ---help---
-	  This mini-driver drives the SNC device present in the ACPI BIOS of
-	  the Sony Vaio laptops.
+	  This mini-driver drives the SNC and SPIC devices present in the ACPI
+	  BIOS of the Sony Vaio laptops.
 
-	  It gives access to some extra laptop functionalities. In its current
-	  form, this driver let the user set or query the screen brightness
-	  through the backlight subsystem and remove/apply power to some
+	  It gives access to some extra laptop functionalities like Bluetooth,
+	  screen brightness control, Fn keys and allows powering on/off some
 	  devices.
 
 	  Read <file:Documentation/sony-laptop.txt> for more information.
+
+config SONY_LAPTOP_OLD
+	bool "Sonypi compatibility"
+	depends on SONY_LAPTOP
+	  ---help---
+	  Build the sonypi driver compatibility code into the sony-laptop driver.
+
+config THINKPAD_ACPI
+	tristate "ThinkPad ACPI Laptop Extras"
+	depends on X86 && ACPI
+	select BACKLIGHT_CLASS_DEVICE
+	select HWMON
+	---help---
+	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
+	  support for Fn-Fx key combinations, Bluetooth control, video
+	  output switching, ThinkLight control, UltraBay eject and more.
+	  For more information about this driver see 
+	  <file:Documentation/thinkpad-acpi.txt> and <http://ibm-acpi.sf.net/> .
+
+	  This driver was formely known as ibm-acpi.
+
+	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
+
+config THINKPAD_ACPI_DEBUG
+	bool "Verbose debug mode"
+	depends on THINKPAD_ACPI
+	default n
+	---help---
+	  Enables extra debugging information, at the expense of a slightly
+	  increase in driver size.
+
+	  If you are not sure, say N here.
+
+config THINKPAD_ACPI_DOCK
+	bool "Legacy Docking Station Support"
+	depends on THINKPAD_ACPI
+	depends on ACPI_DOCK=n
+	default n
+	---help---
+	  Allows the thinkpad_acpi driver to handle docking station events.
+	  This support was made obsolete by the generic ACPI docking station
+	  support (CONFIG_ACPI_DOCK).  It will allow locking and removing the
+	  laptop from the docking station, but will not properly connect PCI
+	  devices.
+
+	  If you are not sure, say N here.
+
+config THINKPAD_ACPI_BAY
+	bool "Legacy Removable Bay Support"
+	depends on THINKPAD_ACPI
+	default y
+	---help---
+	  Allows the thinkpad_acpi driver to handle removable bays.  It will
+	  eletrically disable the device in the bay, and also generate
+	  notifications when the bay lever is ejected or inserted.
+
+	  If you are not sure, say Y here.
 
 endmenu

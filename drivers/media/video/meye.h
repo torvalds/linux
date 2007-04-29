@@ -255,7 +255,7 @@
 /****************************************************************************/
 
 /* Sony Programmable I/O Controller for accessing the camera commands */
-#include <linux/sonypi.h>
+#include <linux/sony-laptop.h>
 
 /* private API definitions */
 #include <linux/meye.h>
