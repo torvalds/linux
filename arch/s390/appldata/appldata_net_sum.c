@@ -109,9 +109,6 @@ static void appldata_get_net_sum_data(void *data)
 	read_lock(&dev_base_lock);
 	for (dev = dev_base; dev != NULL; dev = dev->next) {
 		stats = dev->get_stats(dev);
-		if (stats == NULL) {
-			continue;
-		}
 		rx_packets += stats->rx_packets;
 		tx_packets += stats->tx_packets;
 		rx_bytes   += stats->rx_bytes;
