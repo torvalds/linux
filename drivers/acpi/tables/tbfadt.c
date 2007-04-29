@@ -347,6 +347,18 @@ static void acpi_tb_convert_fadt(void)
 		acpi_gbl_xpm1b_enable.space_id = acpi_gbl_FADT.xpm1a_event_block.space_id;
 
 	}
+
+	/*
+	 * For ACPI 1.0 FADTs, ensure that reserved fields (which should be zero)
+	 * are indeed zero. This will workaround BIOSs that inadvertently placed
+	 * values in these fields.
+	 */
+	if (acpi_gbl_FADT.header.revision < 3) {
+		acpi_gbl_FADT.preferred_profile = 0;
+		acpi_gbl_FADT.pstate_control = 0;
+		acpi_gbl_FADT.cst_control = 0;
+		acpi_gbl_FADT.boot_flags = 0;
+	}
 }
 
 /******************************************************************************
