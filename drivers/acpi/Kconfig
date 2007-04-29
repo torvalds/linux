@@ -351,11 +351,10 @@ config ACPI_HOTPLUG_MEMORY
 
 config ACPI_SBS
 	tristate "Smart Battery System (EXPERIMENTAL)"
-	depends on X86 && I2C
+	depends on X86
 	depends on EXPERIMENTAL
 	help
 	  This driver adds support for the Smart Battery System.
-	  Depends on I2C (Device Drivers ---> I2C support)
 	  A "Smart Battery" is quite old and quite rare compared
 	  to today's ACPI "Control Method" battery.
 
