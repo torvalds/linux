@@ -267,7 +267,7 @@ config IPW2200_DEBUG
 
 config LIBERTAS_USB
 	tristate "Marvell Libertas 8388 802.11a/b/g cards"
-	depends on NET_RADIO && USB
+	depends on USB && WLAN_80211
 	select FW_LOADER
 	---help---
 	  A driver for Marvell Libertas 8388 USB devices.
