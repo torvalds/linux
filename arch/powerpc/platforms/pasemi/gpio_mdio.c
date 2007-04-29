@@ -258,7 +258,7 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 	new_bus->write = &gpio_mdio_write,
 	new_bus->reset = &gpio_mdio_reset,
 
-	prop = get_property(np, "reg", NULL);
+	prop = of_get_property(np, "reg", NULL);
 	new_bus->id = *prop;
 	new_bus->priv = priv;
 
@@ -269,10 +269,10 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 		new_bus->irq[i] = irq_create_mapping(NULL, 10);
 
 
-	prop = get_property(np, "mdc-pin", NULL);
+	prop = of_get_property(np, "mdc-pin", NULL);
 	priv->mdc_pin = *prop;
 
-	prop = get_property(np, "mdio-pin", NULL);
+	prop = of_get_property(np, "mdio-pin", NULL);
 	priv->mdio_pin = *prop;
 
 	new_bus->dev = dev;

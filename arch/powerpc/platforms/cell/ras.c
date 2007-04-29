@@ -149,7 +149,7 @@ static int __init cbe_ptcal_enable(void)
 	if (!np)
 		return -ENODEV;
 
-	size = get_property(np, "ibm,cbe-ptcal-size", NULL);
+	size = of_get_property(np, "ibm,cbe-ptcal-size", NULL);
 	if (!size)
 		return -ENODEV;
 
@@ -168,7 +168,7 @@ static int __init cbe_ptcal_enable(void)
 
 	/* support for older device tree - use cpu nodes */
 	for_each_node_by_type(np, "cpu") {
-		const u32 *nid = get_property(np, "node-id", NULL);
+		const u32 *nid = of_get_property(np, "node-id", NULL);
 		if (!nid) {
 			printk(KERN_ERR "%s: node %s is missing node-id?\n",
 					__FUNCTION__, np->full_name);

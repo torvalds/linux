@@ -134,7 +134,8 @@ void restore_astate(int cpu)
 
 static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	u32 *max_freq;
+	const u32 *max_freqp;
+	u32 max_freq;
 	int i, cur_astate;
 	struct resource res;
 	struct device_node *cpu, *dn;
@@ -175,16 +176,16 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	pr_debug("init cpufreq on CPU %d\n", policy->cpu);
 
-	max_freq = (u32*) get_property(cpu, "clock-frequency", NULL);
-	if (!max_freq) {
+	max_freqp = of_get_property(cpu, "clock-frequency", NULL);
+	if (!max_freqp) {
 		err = -EINVAL;
 		goto out_unmap_sdcpwr;
 	}
 
 	/* we need the freq in kHz */
-	*max_freq /= 1000;
+	max_freq = *max_freqp / 1000;
 
-	pr_debug("max clock-frequency is at %u kHz\n", *max_freq);
+	pr_debug("max clock-frequency is at %u kHz\n", max_freq);
 	pr_debug("initializing frequency table\n");
 
 	/* initialize frequency table */

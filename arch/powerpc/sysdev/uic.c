@@ -230,7 +230,7 @@ static struct uic * __init uic_init_one(struct device_node *node)
 	memset(uic, 0, sizeof(*uic));
 	spin_lock_init(&uic->lock);
 	uic->of_node = of_node_get(node);
-	indexp = get_property(node, "cell-index", &len);
+	indexp = of_get_property(node, "cell-index", &len);
 	if (!indexp || (len != sizeof(u32))) {
 		printk(KERN_ERR "uic: Device node %s has missing or invalid "
 		       "cell-index property\n", node->full_name);
@@ -238,7 +238,7 @@ static struct uic * __init uic_init_one(struct device_node *node)
 	}
 	uic->index = *indexp;
 
-	dcrreg = get_property(node, "dcr-reg", &len);
+	dcrreg = of_get_property(node, "dcr-reg", &len);
 	if (!dcrreg || (len != 2*sizeof(u32))) {
 		printk(KERN_ERR "uic: Device node %s has missing or invalid "
 		       "dcr-reg property\n", node->full_name);
@@ -278,7 +278,7 @@ void __init uic_init_tree(void)
 
 	np = of_find_compatible_node(NULL, NULL, "ibm,uic");
 	while (np) {
-		interrupts = get_property(np, "interrupts", NULL);
+		interrupts = of_get_property(np, "interrupts", NULL);
 		if (! interrupts)
 			break;
 
@@ -297,7 +297,7 @@ void __init uic_init_tree(void)
 	/* The scan again for cascaded UICs */
 	np = of_find_compatible_node(NULL, NULL, "ibm,uic");
 	while (np) {
-		interrupts = get_property(np, "interrupts", NULL);
+		interrupts = of_get_property(np, "interrupts", NULL);
 		if (interrupts) {
 			/* Secondary UIC */
 			int cascade_virq;
