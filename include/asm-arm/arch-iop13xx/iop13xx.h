@@ -455,4 +455,5 @@ static inline int iop13xx_cpu_id(void)
 #define IOP13XX_PBI_BAR1      		IOP13XX_PBI_OFFSET(0x10)
 #define IOP13XX_PBI_LR1       		IOP13XX_PBI_OFFSET(0x14)
 
+#define IOP13XX_PROCESSOR_FREQ		IOP13XX_REG_ADDR32(0x2180)
 #endif /* _IOP13XX_HW_H_ */
