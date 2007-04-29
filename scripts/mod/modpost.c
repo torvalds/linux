@@ -635,6 +635,13 @@ static int strrcmp(const char *s, const char *sub)
  *  tosec      = .init.data
  *  fromsec    = .text*
  *  refsymname = logo_
+ *
+ * Pattern 8:
+ *  Symbols contained in .paravirtprobe may safely reference .init.text.
+ *  The pattern is:
+ *  tosec   = .init.text
+ *  fromsec  = .paravirtprobe
+ *
  **/
 static int secref_whitelist(const char *modname, const char *tosec,
 			    const char *fromsec, const char *atsym,
@@ -712,6 +719,12 @@ static int secref_whitelist(const char *modname, const char *tosec,
 	    (strncmp(fromsec, ".text", strlen(".text")) == 0) &&
 	    (strncmp(refsymname, "logo_", strlen("logo_")) == 0))
 		return 1;
+
+	/* Check for pattern 8 */
+	if ((strcmp(tosec, ".init.text") == 0) &&
+	    (strcmp(fromsec, ".paravirtprobe") == 0))
+		return 1;
+
 	return 0;
 }
 
