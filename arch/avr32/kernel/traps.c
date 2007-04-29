@@ -123,7 +123,7 @@ asmlinkage void do_address_exception(unsigned long ecr, struct pt_regs *regs)
 
 /* This way of handling undefined instructions is stolen from ARM */
 static LIST_HEAD(undef_hook);
-static spinlock_t undef_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(undef_lock);
 
 void register_undef_hook(struct undef_hook *hook)
 {
