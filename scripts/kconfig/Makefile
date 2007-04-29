@@ -184,8 +184,8 @@ $(obj)/.tmp_qtcheck:
 	  done; \
 	  if [ -z "$$dir" ]; then \
 	    echo "*"; \
-	    echo "* Unable to find the QT installation. Please make sure that"; \
-	    echo "* the QT development package is correctly installed and"; \
+	    echo "* Unable to find the QT3 installation. Please make sure that"; \
+	    echo "* the QT3 development package is correctly installed and"; \
 	    echo "* either install pkg-config or set the QTDIR environment"; \
 	    echo "* variable to the correct location."; \
 	    echo "*"; \
