@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 10
+#define KVM_API_VERSION 11
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
@@ -58,9 +58,8 @@ enum kvm_exit_reason {
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
 	/* in */
-	__u32 io_completed; /* mmio/pio request completed */
 	__u8 request_interrupt_window;
-	__u8 padding1[3];
+	__u8 padding1[7];
 
 	/* out */
 	__u32 exit_reason;
