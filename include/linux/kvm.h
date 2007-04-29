@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 11
+#define KVM_API_VERSION 12
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
@@ -63,10 +63,9 @@ struct kvm_run {
 
 	/* out */
 	__u32 exit_reason;
-	__u32 instruction_length;
 	__u8 ready_for_interrupt_injection;
 	__u8 if_flag;
-	__u8 padding2[6];
+	__u8 padding2[2];
 
 	/* in (pre_kvm_run), out (post_kvm_run) */
 	__u64 cr8;
