@@ -228,6 +228,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	struct usb_kbd *kbd;
 	struct input_dev *input_dev;
 	int i, pipe, maxp;
+	int error = -ENOMEM;
 
 	interface = iface->cur_altsetting;
 
@@ -306,15 +307,19 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	kbd->led->transfer_dma = kbd->leds_dma;
 	kbd->led->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 
-	input_register_device(kbd->dev);
+	error = input_register_device(kbd->dev);
+	if (error)
+		goto fail2;
 
 	usb_set_intfdata(iface, kbd);
 	return 0;
 
-fail2:	usb_kbd_free_mem(dev, kbd);
-fail1:	input_free_device(input_dev);
+fail2:	
+	usb_kbd_free_mem(dev, kbd);
+fail1:	
+	input_free_device(input_dev);
 	kfree(kbd);
-	return -ENOMEM;
+	return error;
 }
 
 static void usb_kbd_disconnect(struct usb_interface *intf)

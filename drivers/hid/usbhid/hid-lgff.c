@@ -52,6 +52,7 @@ static const struct dev_type devices[] = {
 	{ 0x046d, 0xc211, ff_rumble },
 	{ 0x046d, 0xc219, ff_rumble },
 	{ 0x046d, 0xc283, ff_joystick },
+	{ 0x046d, 0xc286, ff_joystick },
 	{ 0x046d, 0xc294, ff_joystick },
 	{ 0x046d, 0xc295, ff_joystick },
 	{ 0x046d, 0xca03, ff_joystick },

@@ -120,6 +120,7 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	struct usb_mouse *mouse;
 	struct input_dev *input_dev;
 	int pipe, maxp;
+	int error = -ENOMEM;
 
 	interface = intf->cur_altsetting;
 
@@ -188,15 +189,21 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	mouse->irq->transfer_dma = mouse->data_dma;
 	mouse->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	input_register_device(mouse->dev);
+	error = input_register_device(mouse->dev);
+	if (error)
+		goto fail3;
 
 	usb_set_intfdata(intf, mouse);
 	return 0;
 
-fail2:	usb_buffer_free(dev, 8, mouse->data, mouse->data_dma);
-fail1:	input_free_device(input_dev);
+fail3:	
+	usb_free_urb(mouse->irq);
+fail2:	
+	usb_buffer_free(dev, 8, mouse->data, mouse->data_dma);
+fail1:	
+	input_free_device(input_dev);
 	kfree(mouse);
-	return -ENOMEM;
+	return error;
 }
 
 static void usb_mouse_disconnect(struct usb_interface *intf)
