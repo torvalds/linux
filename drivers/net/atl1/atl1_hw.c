@@ -38,6 +38,7 @@
  */
 s32 atl1_reset_hw(struct atl1_hw *hw)
 {
+	struct pci_dev *pdev = hw->back->pdev;
 	u32 icr;
 	int i;
 
@@ -74,7 +75,7 @@ s32 atl1_reset_hw(struct atl1_hw *hw)
 	}
 
 	if (icr) {
-		printk (KERN_DEBUG "icr = %x\n", icr); 
+		dev_dbg(&pdev->dev, "ICR = 0x%x\n", icr);
 		return icr;
 	}
 
@@ -437,6 +438,7 @@ s32 atl1_phy_enter_power_saving(struct atl1_hw *hw)
  */
 static s32 atl1_phy_reset(struct atl1_hw *hw)
 {
+	struct pci_dev *pdev = hw->back->pdev;
 	s32 ret_val;
 	u16 phy_data;
 
@@ -468,8 +470,7 @@ static s32 atl1_phy_reset(struct atl1_hw *hw)
 		u32 val;
 		int i;
 		/* pcie serdes link may be down! */
-		printk(KERN_DEBUG "%s: autoneg caused pcie phy link down\n", 
-			atl1_driver_name);
+		dev_dbg(&pdev->dev, "pcie phy link down\n");
 
 		for (i = 0; i < 25; i++) {
 			msleep(1);
@@ -479,9 +480,7 @@ static s32 atl1_phy_reset(struct atl1_hw *hw)
 		}
 
 		if ((val & (MDIO_START | MDIO_BUSY)) != 0) {
-			printk(KERN_WARNING 
-				"%s: pcie link down at least for 25ms\n", 
-				atl1_driver_name);
+			dev_warn(&pdev->dev, "pcie link down at least 25ms\n");
 			return ret_val;
 		}
 	}
@@ -571,6 +570,7 @@ s32 atl1_phy_setup_autoneg_adv(struct atl1_hw *hw)
  */
 static s32 atl1_setup_link(struct atl1_hw *hw)
 {
+	struct pci_dev *pdev = hw->back->pdev;
 	s32 ret_val;
 
 	/*
@@ -581,15 +581,13 @@ static s32 atl1_setup_link(struct atl1_hw *hw)
 	 */
 	ret_val = atl1_phy_setup_autoneg_adv(hw);
 	if (ret_val) {
-		printk(KERN_DEBUG "%s: error setting up autonegotiation\n", 
-			atl1_driver_name);
+		dev_dbg(&pdev->dev, "error setting up autonegotiation\n");
 		return ret_val;
 	}
 	/* SW.Reset , En-Auto-Neg if needed */
 	ret_val = atl1_phy_reset(hw);
 	if (ret_val) {
-		printk(KERN_DEBUG "%s: error resetting the phy\n", 
-			atl1_driver_name);
+		dev_dbg(&pdev->dev, "error resetting phy\n");
 		return ret_val;
 	}
 	hw->phy_configured = true;
@@ -669,6 +667,7 @@ s32 atl1_init_hw(struct atl1_hw *hw)
  */
 s32 atl1_get_speed_and_duplex(struct atl1_hw *hw, u16 *speed, u16 *duplex)
 {
+	struct pci_dev *pdev = hw->back->pdev;
 	s32 ret_val;
 	u16 phy_data;
 
@@ -691,8 +690,7 @@ s32 atl1_get_speed_and_duplex(struct atl1_hw *hw, u16 *speed, u16 *duplex)
 		*speed = SPEED_10;
 		break;
 	default:
-		printk(KERN_DEBUG "%s: error getting speed\n", 
-			atl1_driver_name);
+		dev_dbg(&pdev->dev, "error getting speed\n");
 		return ATL1_ERR_PHY_SPEED;
 		break;
 	}

@@ -156,8 +156,7 @@ static int atl1_set_settings(struct net_device *netdev,
 	u16 old_media_type = hw->media_type;
 
 	if (netif_running(adapter->netdev)) {
-		printk(KERN_DEBUG "%s: ethtool shutting down adapter\n",
-			atl1_driver_name);
+		dev_dbg(&adapter->pdev->dev, "ethtool shutting down adapter\n");
 		atl1_down(adapter);
 	}
 
@@ -166,9 +165,8 @@ static int atl1_set_settings(struct net_device *netdev,
 	else {
 		if (ecmd->speed == SPEED_1000) {
 			if (ecmd->duplex != DUPLEX_FULL) {
-				printk(KERN_WARNING
-				       "%s: can't force to 1000M half duplex\n",
-					atl1_driver_name);
+				dev_warn(&adapter->pdev->dev,
+					"can't force to 1000M half duplex\n");
 				ret_val = -EINVAL;
 				goto exit_sset;
 			}
@@ -206,9 +204,8 @@ static int atl1_set_settings(struct net_device *netdev,
 	}
 	if (atl1_phy_setup_autoneg_adv(hw)) {
 		ret_val = -EINVAL;
-		printk(KERN_WARNING
-			"%s: invalid ethtool speed/duplex setting\n",
-			atl1_driver_name);
+		dev_warn(&adapter->pdev->dev,
+			"invalid ethtool speed/duplex setting\n");
 		goto exit_sset;
 	}
 	if (hw->media_type == MEDIA_TYPE_AUTO_SENSOR ||
@@ -239,12 +236,10 @@ exit_sset:
 		hw->media_type = old_media_type;
 
 	if (netif_running(adapter->netdev)) {
-		printk(KERN_DEBUG "%s: ethtool starting adapter\n",
-			atl1_driver_name);
+		dev_dbg(&adapter->pdev->dev, "ethtool starting adapter\n");
 		atl1_up(adapter);
 	} else if (!ret_val) {
-		printk(KERN_DEBUG "%s: ethtool resetting adapter\n",
-			atl1_driver_name);
+		dev_dbg(&adapter->pdev->dev, "ethtool resetting adapter\n");
 		atl1_reset(adapter);
 	}
 	return ret_val;
