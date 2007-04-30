@@ -1,6 +1,10 @@
 
-menu "Macintosh device drivers"
+menuconfig MACINTOSH_DRIVERS
+	bool "Macintosh device drivers"
 	depends on PPC || MAC || X86
+	default y
+
+if MACINTOSH_DRIVERS
 
 config ADB
 	bool "Apple Desktop Bus (ADB) support"
@@ -236,4 +240,4 @@ config PMAC_RACKMETER
 	  This driver procides some support to control the front panel
           blue LEDs "vu-meter" of the XServer macs.
 
-endmenu
+endif # MACINTOSH_DRIVERS
