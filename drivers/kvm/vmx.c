@@ -34,6 +34,9 @@ MODULE_LICENSE("GPL");
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
 static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
 
+static struct page *vmx_io_bitmap_a;
+static struct page *vmx_io_bitmap_b;
+
 #ifdef CONFIG_X86_64
 #define HOST_IS_64 1
 #else
@@ -1129,8 +1132,8 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 	vmcs_write32(GUEST_PENDING_DBG_EXCEPTIONS, 0);
 
 	/* I/O */
-	vmcs_write64(IO_BITMAP_A, 0);
-	vmcs_write64(IO_BITMAP_B, 0);
+	vmcs_write64(IO_BITMAP_A, page_to_phys(vmx_io_bitmap_a));
+	vmcs_write64(IO_BITMAP_B, page_to_phys(vmx_io_bitmap_b));
 
 	guest_write_tsc(0);
 
@@ -1150,7 +1153,7 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 			       CPU_BASED_HLT_EXITING         /* 20.6.2 */
 			       | CPU_BASED_CR8_LOAD_EXITING    /* 20.6.2 */
 			       | CPU_BASED_CR8_STORE_EXITING   /* 20.6.2 */
-			       | CPU_BASED_UNCOND_IO_EXITING   /* 20.6.2 */
+			       | CPU_BASED_ACTIVATE_IO_BITMAP  /* 20.6.2 */
 			       | CPU_BASED_MOV_DR_EXITING
 			       | CPU_BASED_USE_TSC_OFFSETING   /* 21.3 */
 			);
@@ -2188,11 +2191,50 @@ static struct kvm_arch_ops vmx_arch_ops = {
 
 static int __init vmx_init(void)
 {
-	return kvm_init_arch(&vmx_arch_ops, THIS_MODULE);
+	void *iova;
+	int r;
+
+	vmx_io_bitmap_a = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
+	if (!vmx_io_bitmap_a)
+		return -ENOMEM;
+
+	vmx_io_bitmap_b = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
+	if (!vmx_io_bitmap_b) {
+		r = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * Allow direct access to the PC debug port (it is often used for I/O
+	 * delays, but the vmexits simply slow things down).
+	 */
+	iova = kmap(vmx_io_bitmap_a);
+	memset(iova, 0xff, PAGE_SIZE);
+	clear_bit(0x80, iova);
+	kunmap(iova);
+
+	iova = kmap(vmx_io_bitmap_b);
+	memset(iova, 0xff, PAGE_SIZE);
+	kunmap(iova);
+
+	r = kvm_init_arch(&vmx_arch_ops, THIS_MODULE);
+	if (r)
+		goto out1;
+
+	return 0;
+
+out1:
+	__free_page(vmx_io_bitmap_b);
+out:
+	__free_page(vmx_io_bitmap_a);
+	return r;
 }
 
 static void __exit vmx_exit(void)
 {
+	__free_page(vmx_io_bitmap_b);
+	__free_page(vmx_io_bitmap_a);
+
 	kvm_exit_arch();
 }
 
