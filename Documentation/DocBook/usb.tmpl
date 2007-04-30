@@ -185,7 +185,7 @@
 
     </chapter>
 
-<chapter><title>USB-Standard Types</title>
+<chapter id="types"><title>USB-Standard Types</title>
 
     <para>In <filename>&lt;linux/usb/ch9.h&gt;</filename> you will find
     the USB data types defined in chapter 9 of the USB specification.
@@ -197,7 +197,7 @@
 
     </chapter>
 
-<chapter><title>Host-Side Data Types and Macros</title>
+<chapter id="hostside"><title>Host-Side Data Types and Macros</title>
 
     <para>The host side API exposes several layers to drivers, some of
     which are more necessary than others.
@@ -211,7 +211,7 @@
 
     </chapter>
 
-    <chapter><title>USB Core APIs</title>
+    <chapter id="usbcore"><title>USB Core APIs</title>
 
     <para>There are two basic I/O models in the USB API.
     The most elemental one is asynchronous:  drivers submit requests
@@ -248,7 +248,7 @@
 !Edrivers/usb/core/hub.c
     </chapter>
 
-    <chapter><title>Host Controller APIs</title>
+    <chapter id="hcd"><title>Host Controller APIs</title>
 
     <para>These APIs are only for use by host controller drivers,
     most of which implement standard register interfaces such as
@@ -285,7 +285,7 @@
 !Idrivers/usb/core/buffer.c
     </chapter>
 
-    <chapter>
+    <chapter id="usbfs">
 	<title>The USB Filesystem (usbfs)</title>
 
 	<para>This chapter presents the Linux <emphasis>usbfs</emphasis>.
@@ -317,7 +317,7 @@
 	not it has a kernel driver.
 	</para>
 
-	<sect1>
+	<sect1 id="usbfs-files">
 	    <title>What files are in "usbfs"?</title>
 
 	    <para>Conventionally mounted at
@@ -356,7 +356,7 @@
 
 	</sect1>
 
-	<sect1>
+	<sect1 id="usbfs-fstab">
 	    <title>Mounting and Access Control</title>
 
 	    <para>There are a number of mount options for usbfs, which will
@@ -439,7 +439,7 @@
 
 	</sect1>
 
-	<sect1>
+	<sect1 id="usbfs-devices">
 	    <title>/proc/bus/usb/devices</title>
 
 	    <para>This file is handy for status viewing tools in user
@@ -473,7 +473,7 @@ for (;;) {
 	    </para>
 	</sect1>
 
-	<sect1>
+	<sect1 id="usbfs-bbbddd">
 	    <title>/proc/bus/usb/BBB/DDD</title>
 
 	    <para>Use these files in one of these basic ways:
@@ -510,7 +510,7 @@ for (;;) {
 	    </sect1>
 
 
-	<sect1>
+	<sect1 id="usbfs-lifecycle">
 	    <title>Life Cycle of User Mode Drivers</title>
 
 	    <para>Such a driver first needs to find a device file
@@ -565,7 +565,7 @@ for (;;) {
 
 	    </sect1>
 
-	<sect1><title>The ioctl() Requests</title>
+	<sect1 id="usbfs-ioctl"><title>The ioctl() Requests</title>
 
 	    <para>To use these ioctls, you need to include the following
 	    headers in your userspace program:
@@ -604,7 +604,7 @@ for (;;) {
 	    </para>
 
 
-	    <sect2>
+	    <sect2 id="usbfs-mgmt">
 		<title>Management/Status Requests</title>
 
 		<para>A number of usbfs requests don't deal very directly
@@ -736,7 +736,7 @@ usbdev_ioctl (int fd, int ifno, unsigned request, void *param)
 
 		</sect2>
 
-	    <sect2>
+	    <sect2 id="usbfs-sync">
 		<title>Synchronous I/O Support</title>
 
 		<para>Synchronous requests involve the kernel blocking
@@ -865,7 +865,7 @@ usbdev_ioctl (int fd, int ifno, unsigned request, void *param)
 		</variablelist>
 	    </sect2>
 
-	    <sect2>
+	    <sect2 id="usbfs-async">
 		<title>Asynchronous I/O Support</title>
 
 		<para>As mentioned above, there are situations where it may be
