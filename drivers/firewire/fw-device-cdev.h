@@ -133,10 +133,10 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_ADD_DESCRIPTOR	_IOWR('#', 0x06, struct fw_cdev_add_descriptor)
 #define FW_CDEV_IOC_REMOVE_DESCRIPTOR	_IOW('#', 0x07, struct fw_cdev_remove_descriptor)
 
-#define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IOW('#', 0x08, struct fw_cdev_create_iso_context)
+#define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IOWR('#', 0x08, struct fw_cdev_create_iso_context)
 #define FW_CDEV_IOC_QUEUE_ISO		_IOWR('#', 0x09, struct fw_cdev_queue_iso)
 #define FW_CDEV_IOC_START_ISO		_IOW('#', 0x0a, struct fw_cdev_start_iso)
-#define FW_CDEV_IOC_STOP_ISO		_IO('#', 0x0b)
+#define FW_CDEV_IOC_STOP_ISO		_IOW('#', 0x0b, struct fw_cdev_stop_iso)
 
 /* FW_CDEV_VERSION History
  *
@@ -233,6 +233,8 @@ struct fw_cdev_create_iso_context {
 	__u32 header_size;
 	__u32 channel;
 	__u32 speed;
+	__u64 closure;
+	__u32 handle;
 };
 
 struct fw_cdev_iso_packet {
@@ -249,12 +251,18 @@ struct fw_cdev_queue_iso {
 	__u64 packets;
 	__u64 data;
 	__u32 size;
+	__u32 handle;
 };
 
 struct fw_cdev_start_iso {
 	__s32 cycle;
 	__u32 sync;
 	__u32 tags;
+	__u32 handle;
+};
+
+struct fw_cdev_stop_iso {
+	__u32 handle;
 };
 
 #endif /* __fw_cdev_h */

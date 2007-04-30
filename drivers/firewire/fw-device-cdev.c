@@ -80,6 +80,7 @@ struct client {
 	u64 bus_reset_closure;
 
 	struct fw_iso_context *iso_context;
+	u64 iso_closure;
 	struct fw_iso_buffer buffer;
 	unsigned long vm_start;
 
@@ -626,7 +627,7 @@ iso_callback(struct fw_iso_context *context, u32 cycle,
 		return;
 
 	interrupt->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
-	interrupt->interrupt.closure   = 0;
+	interrupt->interrupt.closure   = client->iso_closure;
 	interrupt->interrupt.cycle     = cycle;
 	interrupt->interrupt.header_length = header_length;
 	memcpy(interrupt->interrupt.header, header, header_length);
@@ -659,6 +660,7 @@ static int ioctl_create_iso_context(struct client *client, void *buffer)
 		return -EINVAL;
 	}
 
+	client->iso_closure = request->closure;
 	client->iso_context = fw_iso_context_create(client->device->card,
 						    request->type,
 						    request->channel,
@@ -667,6 +669,9 @@ static int ioctl_create_iso_context(struct client *client, void *buffer)
 						    iso_callback, client);
 	if (IS_ERR(client->iso_context))
 		return PTR_ERR(client->iso_context);
+
+	/* We only support one context at this time. */
+	request->handle = 0;
 
 	return 0;
 }
@@ -683,7 +688,7 @@ static int ioctl_queue_iso(struct client *client, void *buffer)
 		u8 header[256];
 	} u;
 
-	if (ctx == NULL)
+	if (ctx == NULL || request->handle != 0)
 		return -EINVAL;
 
 	/* If the user passes a non-NULL data pointer, has mmap()'ed
@@ -759,6 +764,8 @@ static int ioctl_start_iso(struct client *client, void *buffer)
 {
 	struct fw_cdev_start_iso *request = buffer;
 
+	if (request->handle != 0)
+		return -EINVAL;
 	if (client->iso_context->type == FW_ISO_CONTEXT_RECEIVE) {
 		if (request->tags == 0 || request->tags > 15)
 			return -EINVAL;
@@ -773,6 +780,11 @@ static int ioctl_start_iso(struct client *client, void *buffer)
 
 static int ioctl_stop_iso(struct client *client, void *buffer)
 {
+	struct fw_cdev_stop_iso *request = buffer;
+
+	if (request->handle != 0)
+		return -EINVAL;
+
 	return fw_iso_context_stop(client->iso_context);
 }
 
