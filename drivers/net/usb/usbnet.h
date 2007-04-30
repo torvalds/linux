@@ -32,6 +32,7 @@ struct usbnet {
 	const char		*driver_name;
 	wait_queue_head_t	*wait;
 	struct mutex		phy_mutex;
+	unsigned char		suspend_count;
 
 	/* i/o info: pipes etc */
 	unsigned		in, out;
