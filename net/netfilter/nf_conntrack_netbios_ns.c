@@ -46,7 +46,7 @@ static int help(struct sk_buff **pskb, unsigned int protoff,
 		struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
 	struct nf_conntrack_expect *exp;
-	struct iphdr *iph = (*pskb)->nh.iph;
+	struct iphdr *iph = ip_hdr(*pskb);
 	struct rtable *rt = (struct rtable *)(*pskb)->dst;
 	struct in_device *in_dev;
 	__be32 mask = 0;

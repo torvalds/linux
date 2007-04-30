@@ -78,8 +78,13 @@ enum sn9c102_stream_state {
 
 typedef char sn9c102_sof_header_t[62];
 
+struct sn9c102_sof_t {
+	sn9c102_sof_header_t header;
+	u16 bytesread;
+};
+
 struct sn9c102_sysfs_attr {
-	u8 reg, i2c_reg;
+	u16 reg, i2c_reg;
 	sn9c102_sof_header_t frame_header;
 };
 
@@ -112,7 +117,7 @@ struct sn9c102_device {
 	struct v4l2_jpegcompression compression;
 
 	struct sn9c102_sysfs_attr sysfs;
-	sn9c102_sof_header_t sof_header;
+	struct sn9c102_sof_t sof;
 	u16 reg[384];
 
 	struct sn9c102_module_param module_param;
@@ -182,8 +187,8 @@ do {                                                                          \
 		if ((level) == 1 || (level) == 2)                             \
 			pr_info("sn9c102: " fmt "\n", ## args);               \
 		else if ((level) == 3)                                        \
-			pr_debug("sn9c102: [%s:%d] " fmt "\n", __FUNCTION__,  \
-				 __LINE__ , ## args);                         \
+			pr_debug("sn9c102: [%s:%d] " fmt "\n",                \
+				 __FUNCTION__, __LINE__ , ## args);           \
 	}                                                                     \
 } while (0)
 #else
@@ -194,8 +199,8 @@ do {                                                                          \
 
 #undef PDBG
 #define PDBG(fmt, args...)                                                    \
-dev_info(&cam->usbdev->dev, "[%s:%d] " fmt "\n",                              \
-	 __FUNCTION__, __LINE__ , ## args)
+dev_info(&cam->usbdev->dev, "[%s:%s:%d] " fmt "\n", __FILE__, __FUNCTION__,   \
+	 __LINE__ , ## args)
 
 #undef PDBGG
 #define PDBGG(fmt, args...) do {;} while(0) /* placeholder */

@@ -42,6 +42,8 @@
 struct vlan_group;
 struct ethtool_ops;
 struct netpoll_info;
+/* 802.11 specific */
+struct wireless_dev;
 					/* source back-compat hooks */
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
@@ -323,6 +325,7 @@ struct net_device
 #define NETIF_F_VLAN_CHALLENGED	1024	/* Device cannot handle VLAN packets */
 #define NETIF_F_GSO		2048	/* Enable software GSO. */
 #define NETIF_F_LLTX		4096	/* LockLess TX */
+#define NETIF_F_INTERNAL_STATS	8192	/* Use stats structure in net_device */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
@@ -347,13 +350,15 @@ struct net_device
 
 
 	struct net_device_stats* (*get_stats)(struct net_device *dev);
+	struct net_device_stats	stats;
 
+#ifdef CONFIG_WIRELESS_EXT
 	/* List of functions to handle Wireless Extensions (instead of ioctl).
 	 * See <net/iw_handler.h> for details. Jean II */
 	const struct iw_handler_def *	wireless_handlers;
 	/* Instance data managed by the core of Wireless Extensions. */
 	struct iw_public_data *	wireless_data;
-
+#endif
 	const struct ethtool_ops *ethtool_ops;
 
 	/*
@@ -398,6 +403,8 @@ struct net_device
 	void                    *ip6_ptr;       /* IPv6 specific data */
 	void			*ec_ptr;	/* Econet specific data	*/
 	void			*ax25_ptr;	/* AX.25 specific data */
+	struct wireless_dev	*ieee80211_ptr;	/* IEEE 802.11 specific data,
+						   assign before registering */
 
 /*
  * Cache line mostly used on receive path (including eth_type_trans())

@@ -285,6 +285,26 @@ static void __init conmode_default(void)
 	}
 }
 
+#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
+static void __init setup_zfcpdump(unsigned int console_devno)
+{
+	static char str[64];
+
+	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
+		return;
+	if (console_devno != -1)
+		sprintf(str, "cio_ignore=all,!0.0.%04x,!0.0.%04x",
+			ipl_info.data.fcp.dev_id.devno, console_devno);
+	else
+		sprintf(str, "cio_ignore=all,!0.0.%04x",
+			ipl_info.data.fcp.dev_id.devno);
+	strcat(COMMAND_LINE, str);
+	console_loglevel = 2;
+}
+#else
+static inline void setup_zfcpdump(unsigned int console_devno) {}
+#endif /* CONFIG_ZFCPDUMP */
+
 #ifdef CONFIG_SMP
 void (*_machine_restart)(char *command) = machine_restart_smp;
 void (*_machine_halt)(void) = machine_halt_smp;
@@ -586,13 +606,20 @@ setup_resources(void)
 	}
 }
 
+unsigned long real_memory_size;
+EXPORT_SYMBOL_GPL(real_memory_size);
+
 static void __init setup_memory_end(void)
 {
-	unsigned long real_size, memory_size;
+	unsigned long memory_size;
 	unsigned long max_mem, max_phys;
 	int i;
 
-	memory_size = real_size = 0;
+#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP)
+		memory_end = ZFCPDUMP_HSA_SIZE;
+#endif
+	memory_size = 0;
 	max_phys = VMALLOC_END_INIT - VMALLOC_MIN_SIZE;
 	memory_end &= PAGE_MASK;
 
@@ -601,7 +628,8 @@ static void __init setup_memory_end(void)
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];
 
-		real_size = max(real_size, chunk->addr + chunk->size);
+		real_memory_size = max(real_memory_size,
+				       chunk->addr + chunk->size);
 		if (chunk->addr >= max_mem) {
 			memset(chunk, 0, sizeof(*chunk));
 			continue;
@@ -765,6 +793,7 @@ setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	setup_ipl_info();
 	setup_memory_end();
 	setup_addressing_mode();
 	setup_memory();
@@ -782,6 +811,9 @@ setup_arch(char **cmdline_p)
 
         /* Setup default console */
 	conmode_default();
+
+	/* Setup zfcpdump support */
+	setup_zfcpdump(console_devno);
 }
 
 void print_cpu_info(struct cpuinfo_S390 *cpuinfo)

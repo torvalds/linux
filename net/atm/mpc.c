@@ -504,11 +504,13 @@ static int send_via_shortcut(struct sk_buff *skb, struct mpoa_client *mpc)
 		tagged_llc_snap_hdr.tag = entry->ctrl_info.tag;
 		skb_pull(skb, ETH_HLEN);                       /* get rid of Eth header */
 		skb_push(skb, sizeof(tagged_llc_snap_hdr));    /* add LLC/SNAP header   */
-		memcpy(skb->data, &tagged_llc_snap_hdr, sizeof(tagged_llc_snap_hdr));
+		skb_copy_to_linear_data(skb, &tagged_llc_snap_hdr,
+					sizeof(tagged_llc_snap_hdr));
 	} else {
 		skb_pull(skb, ETH_HLEN);                        /* get rid of Eth header */
 		skb_push(skb, sizeof(struct llc_snap_hdr));     /* add LLC/SNAP header + tag  */
-		memcpy(skb->data, &llc_snap_mpoa_data, sizeof(struct llc_snap_hdr));
+		skb_copy_to_linear_data(skb, &llc_snap_mpoa_data,
+					sizeof(struct llc_snap_hdr));
 	}
 
 	atomic_add(skb->truesize, &sk_atm(entry->shortcut)->sk_wmem_alloc);
@@ -711,11 +713,12 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		return;
 	}
 	skb_push(new_skb, eg->ctrl_info.DH_length);     /* add MAC header */
-	memcpy(new_skb->data, eg->ctrl_info.DLL_header, eg->ctrl_info.DH_length);
+	skb_copy_to_linear_data(new_skb, eg->ctrl_info.DLL_header,
+				eg->ctrl_info.DH_length);
 	new_skb->protocol = eth_type_trans(new_skb, dev);
-	new_skb->nh.raw = new_skb->data;
+	skb_reset_network_header(new_skb);
 
-	eg->latest_ip_addr = new_skb->nh.iph->saddr;
+	eg->latest_ip_addr = ip_hdr(new_skb)->saddr;
 	eg->packets_rcvd++;
 	mpc->eg_ops->put(eg);
 
@@ -734,7 +737,7 @@ static struct atm_dev mpc_dev = {
 	.ops	= &mpc_ops,
 	.type	= "mpc",
 	.number	= 42,
-	.lock	= SPIN_LOCK_UNLOCKED
+	.lock	= __SPIN_LOCK_UNLOCKED(mpc_dev.lock)
 	/* members not explicitly initialised will be 0 */
 };
 
@@ -936,7 +939,7 @@ int msg_to_mpoad(struct k_message *mesg, struct mpoa_client *mpc)
 	if (skb == NULL)
 		return -ENOMEM;
 	skb_put(skb, sizeof(struct k_message));
-	memcpy(skb->data, mesg, sizeof(struct k_message));
+	skb_copy_to_linear_data(skb, mesg, sizeof(*mesg));
 	atm_force_charge(mpc->mpoad_vcc, skb->truesize);
 
 	sk = sk_atm(mpc->mpoad_vcc);

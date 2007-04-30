@@ -17,6 +17,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/unistd.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -198,7 +199,6 @@ void sp_work_handle_request(void)
 	int cmd;
 
 	char *vcwd;
-	mm_segment_t old_fs;
 	int size;
 
 	ret.retval = -1;
@@ -241,8 +241,6 @@ void sp_work_handle_request(void)
  		if ((ret.retval = sp_syscall(__NR_gettimeofday, (int)&tv,
  		                             (int)&tz, 0,0)) == 0)
 		ret.retval = tv.tv_sec;
-
-		ret.errno = errno;
 		break;
 
  	case MTSP_SYSCALL_EXIT:
@@ -279,7 +277,6 @@ void sp_work_handle_request(void)
 		if (cmd >= 0) {
 			ret.retval = sp_syscall(cmd, generic.arg0, generic.arg1,
 			                        generic.arg2, generic.arg3);
-			ret.errno = errno;
 		} else
  			printk(KERN_WARNING
 			       "KSPD: Unknown SP syscall number %d\n", sc.cmd);

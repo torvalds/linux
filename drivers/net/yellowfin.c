@@ -1137,7 +1137,6 @@ static int yellowfin_rx(struct net_device *dev)
 				skb = dev_alloc_skb(pkt_len + 2);
 				if (skb == NULL)
 					break;
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				eth_copy_and_sum(skb, rx_skb->data, pkt_len, 0);
 				skb_put(skb, pkt_len);

@@ -8,7 +8,6 @@
 #ifndef __SPARC64_EBUS_H
 #define __SPARC64_EBUS_H
 
-#include <asm/pbm.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
 #include <asm/of_device.h>
@@ -41,7 +40,6 @@ struct linux_ebus {
 	struct of_device		ofdev;
 	struct linux_ebus		*next;
 	struct linux_ebus_device	*devices;
-	struct pci_pbm_info		*parent;
 	struct pci_dev			*self;
 	int				 index;
 	int				 is_rio;

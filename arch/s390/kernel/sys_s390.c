@@ -266,23 +266,3 @@ s390_fadvise64_64(struct fadvise64_64_args __user *args)
 		return -EFAULT;
 	return sys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
 }
-
-/*
- * Do a system call from kernel instead of calling sys_execve so we
- * end up with proper pt_regs.
- */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
-{
-	register const char *__arg1 asm("2") = filename;
-	register char *const*__arg2 asm("3") = argv;
-	register char *const*__arg3 asm("4") = envp;
-	register long __svcres asm("2");
-	asm volatile(
-		"svc %b1"
-		: "=d" (__svcres)
-		: "i" (__NR_execve),
-		  "0" (__arg1),
-		  "d" (__arg2),
-		  "d" (__arg3) : "memory");
-	return __svcres;
-}

@@ -177,6 +177,7 @@ struct planb {
 	struct mutex lock;
 	unsigned int	irq;			/* interrupt number */
 	volatile unsigned int intr_mask;
+	struct pci_dev *dev;			/* Our PCI device */
 
 	int	overlay;			/* overlay running? */
 	struct	planb_window win;

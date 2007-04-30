@@ -72,15 +72,12 @@ struct sk_buff;
  */
 static inline __sum16 __udp_lib_checksum_complete(struct sk_buff *skb)
 {
-	if (! UDP_SKB_CB(skb)->partial_cov)
-		return __skb_checksum_complete(skb);
-	return csum_fold(skb_checksum(skb, 0, UDP_SKB_CB(skb)->cscov,
-				      skb->csum));
+	return __skb_checksum_complete_head(skb, UDP_SKB_CB(skb)->cscov);
 }
 
 static inline int udp_lib_checksum_complete(struct sk_buff *skb)
 {
-	return skb->ip_summed != CHECKSUM_UNNECESSARY &&
+	return !skb_csum_unnecessary(skb) &&
 		__udp_lib_checksum_complete(skb);
 }
 
@@ -92,8 +89,8 @@ static inline int udp_lib_checksum_complete(struct sk_buff *skb)
  */
 static inline __wsum udp_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 {
-	__wsum csum = csum_partial(skb->h.raw, sizeof(struct udphdr), 0);
-
+	__wsum csum = csum_partial(skb_transport_header(skb),
+				   sizeof(struct udphdr), 0);
 	skb_queue_walk(&sk->sk_write_queue, skb) {
 		csum = csum_add(csum, skb->csum);
 	}

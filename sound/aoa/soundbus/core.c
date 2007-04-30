@@ -61,10 +61,9 @@ static int soundbus_uevent(struct device *dev, char **envp, int num_envp,
 {
 	struct soundbus_dev * soundbus_dev;
 	struct of_device * of;
-	char *scratch;
 	const char *compat;
-	int i = 0;
-	int length, cplen, seen = 0;
+	int retval = 0, i = 0, length = 0;
+	int cplen, seen = 0;
 
 	if (!dev)
 		return -ENODEV;
@@ -76,21 +75,17 @@ static int soundbus_uevent(struct device *dev, char **envp, int num_envp,
 	of = &soundbus_dev->ofdev;
 
 	/* stuff we want to pass to /sbin/hotplug */
-	envp[i++] = scratch = buffer;
-	length = scnprintf (scratch, buffer_size, "OF_NAME=%s", of->node->name);
-	++length;
-	buffer_size -= length;
-	if ((buffer_size <= 0) || (i >= num_envp))
-		return -ENOMEM;
-	scratch += length;
+	retval = add_uevent_var(envp, num_envp, &i,
+				buffer, buffer_size, &length,
+				"OF_NAME=%s", of->node->name);
+	if (retval)
+		return retval;
 
-	envp[i++] = scratch;
-	length = scnprintf (scratch, buffer_size, "OF_TYPE=%s", of->node->type);
-	++length;
-	buffer_size -= length;
-	if ((buffer_size <= 0) || (i >= num_envp))
-		return -ENOMEM;
-	scratch += length;
+	retval = add_uevent_var(envp, num_envp, &i,
+				buffer, buffer_size, &length,
+				"OF_TYPE=%s", of->node->type);
+	if (retval)
+		return retval;
 
 	/* Since the compatible field can contain pretty much anything
 	 * it's not really legal to split it out with commas. We split it
@@ -98,39 +93,29 @@ static int soundbus_uevent(struct device *dev, char **envp, int num_envp,
 
 	compat = of_get_property(of->node, "compatible", &cplen);
 	while (compat && cplen > 0) {
-		envp[i++] = scratch;
-		length = scnprintf (scratch, buffer_size,
-				     "OF_COMPATIBLE_%d=%s", seen, compat);
-		++length;
-		buffer_size -= length;
-		if ((buffer_size <= 0) || (i >= num_envp))
-			return -ENOMEM;
-		scratch += length;
-		length = strlen (compat) + 1;
-		compat += length;
-		cplen -= length;
-		seen++;
+		int tmp = length;
+		retval = add_uevent_var(envp, num_envp, &i,
+					buffer, buffer_size, &length,
+					"OF_COMPATIBLE_%d=%s", seen, compat);
+		if (retval)
+			return retval;
+		compat += length - tmp;
+		cplen -= length - tmp;
+		seen += 1;
 	}
 
-	envp[i++] = scratch;
-	length = scnprintf (scratch, buffer_size, "OF_COMPATIBLE_N=%d", seen);
-	++length;
-	buffer_size -= length;
-	if ((buffer_size <= 0) || (i >= num_envp))
-		return -ENOMEM;
-	scratch += length;
-
-	envp[i++] = scratch;
-	length = scnprintf (scratch, buffer_size, "MODALIAS=%s",
-			soundbus_dev->modalias);
-
-	buffer_size -= length;
-	if ((buffer_size <= 0) || (i >= num_envp))
-		return -ENOMEM;
+	retval = add_uevent_var(envp, num_envp, &i,
+				buffer, buffer_size, &length,
+				"OF_COMPATIBLE_N=%d", seen);
+	if (retval)
+		return retval;
+	retval = add_uevent_var(envp, num_envp, &i,
+				buffer, buffer_size, &length,
+				"MODALIAS=%s", soundbus_dev->modalias);
 
 	envp[i] = NULL;
 
-	return 0;
+	return retval;
 }
 
 static int soundbus_device_remove(struct device *dev)

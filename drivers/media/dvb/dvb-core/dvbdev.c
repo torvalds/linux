@@ -233,6 +233,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	dvbdev->adapter = adap;
 	dvbdev->priv = priv;
 	dvbdev->fops = dvbdevfops;
+	init_waitqueue_head (&dvbdev->wait_queue);
 
 	memcpy(dvbdev->fops, template->fops, sizeof(struct file_operations));
 	dvbdev->fops->owner = adap->module;

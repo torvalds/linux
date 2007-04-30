@@ -122,26 +122,24 @@ SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			     int type, int code, int offset, __be32 info)
 {
 	struct inet6_dev *idev;
-	struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
-	struct sctphdr *sh = (struct sctphdr *)(skb->data + offset);
 	struct sock *sk;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
 	struct ipv6_pinfo *np;
-	char *saveip, *savesctp;
+	sk_buff_data_t saveip, savesctp;
 	int err;
 
 	idev = in6_dev_get(skb->dev);
 
 	/* Fix up skb to look at the embedded net header. */
-	saveip = skb->nh.raw;
-	savesctp  = skb->h.raw;
-	skb->nh.ipv6h = iph;
-	skb->h.raw = (char *)sh;
-	sk = sctp_err_lookup(AF_INET6, skb, sh, &asoc, &transport);
+	saveip	 = skb->network_header;
+	savesctp = skb->transport_header;
+	skb_reset_network_header(skb);
+	skb_set_transport_header(skb, offset);
+	sk = sctp_err_lookup(AF_INET6, skb, sctp_hdr(skb), &asoc, &transport);
 	/* Put back, the original pointers. */
-	skb->nh.raw = saveip;
-	skb->h.raw = savesctp;
+	skb->network_header   = saveip;
+	skb->transport_header = savesctp;
 	if (!sk) {
 		ICMP6_INC_STATS_BH(idev, ICMP6_MIB_INERRORS);
 		goto out;
@@ -391,13 +389,13 @@ static void sctp_v6_from_skb(union sctp_addr *addr,struct sk_buff *skb,
 	addr->v6.sin6_flowinfo = 0; /* FIXME */
 	addr->v6.sin6_scope_id = ((struct inet6_skb_parm *)skb->cb)->iif;
 
-	sh = (struct sctphdr *) skb->h.raw;
+	sh = sctp_hdr(skb);
 	if (is_saddr) {
 		*port  = sh->source;
-		from = &skb->nh.ipv6h->saddr;
+		from = &ipv6_hdr(skb)->saddr;
 	} else {
 		*port = sh->dest;
-		from = &skb->nh.ipv6h->daddr;
+		from = &ipv6_hdr(skb)->daddr;
 	}
 	ipv6_addr_copy(&addr->v6.sin6_addr, from);
 }
@@ -606,7 +604,7 @@ static sctp_scope_t sctp_v6_scope(union sctp_addr *addr)
 	default:
 		retval = SCTP_SCOPE_GLOBAL;
 		break;
-	};
+	}
 
 	return retval;
 }
@@ -699,7 +697,7 @@ static int sctp_v6_skb_iif(const struct sk_buff *skb)
 /* Was this packet marked by Explicit Congestion Notification? */
 static int sctp_v6_is_ce(const struct sk_buff *skb)
 {
-	return *((__u32 *)(skb->nh.ipv6h)) & htonl(1<<20);
+	return *((__u32 *)(ipv6_hdr(skb))) & htonl(1 << 20);
 }
 
 /* Dump the v6 addr to the seq file. */
@@ -766,19 +764,19 @@ static void sctp_inet6_skb_msgname(struct sk_buff *skb, char *msgname,
 	if (msgname) {
 		sctp_inet6_msgname(msgname, addr_len);
 		sin6 = (struct sockaddr_in6 *)msgname;
-		sh = (struct sctphdr *)skb->h.raw;
+		sh = sctp_hdr(skb);
 		sin6->sin6_port = sh->source;
 
 		/* Map ipv4 address into v4-mapped-on-v6 address. */
 		if (sctp_sk(skb->sk)->v4mapped &&
-		    skb->nh.iph->version == 4) {
+		    ip_hdr(skb)->version == 4) {
 			sctp_v4_map_v6((union sctp_addr *)sin6);
-			sin6->sin6_addr.s6_addr32[3] = skb->nh.iph->saddr;
+			sin6->sin6_addr.s6_addr32[3] = ip_hdr(skb)->saddr;
 			return;
 		}
 
 		/* Otherwise, just copy the v6 address. */
-		ipv6_addr_copy(&sin6->sin6_addr, &skb->nh.ipv6h->saddr);
+		ipv6_addr_copy(&sin6->sin6_addr, &ipv6_hdr(skb)->saddr);
 		if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL) {
 			struct sctp_ulpevent *ev = sctp_skb2event(skb);
 			sin6->sin6_scope_id = ev->iif;

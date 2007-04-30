@@ -61,12 +61,14 @@ static int ax25_rx_fragment(ax25_cb *ax25, struct sk_buff *skb)
 					skb_reserve(skbn, AX25_MAX_HEADER_LEN);
 
 					skbn->dev   = ax25->ax25_dev->dev;
-					skbn->h.raw = skbn->data;
-					skbn->nh.raw = skbn->data;
+					skb_reset_network_header(skbn);
+					skb_reset_transport_header(skbn);
 
 					/* Copy data from the fragments */
 					while ((skbo = skb_dequeue(&ax25->frag_queue)) != NULL) {
-						memcpy(skb_put(skbn, skbo->len), skbo->data, skbo->len);
+						skb_copy_from_linear_data(skbo,
+							  skb_put(skbn, skbo->len),
+									  skbo->len);
 						kfree_skb(skbo);
 					}
 
@@ -122,8 +124,8 @@ int ax25_rx_iframe(ax25_cb *ax25, struct sk_buff *skb)
 		}
 
 		skb_pull(skb, 1);	/* Remove PID */
-		skb->mac.raw  = skb->nh.raw;
-		skb->nh.raw   = skb->data;
+		skb_reset_mac_header(skb);
+		skb_reset_network_header(skb);
 		skb->dev      = ax25->ax25_dev->dev;
 		skb->pkt_type = PACKET_HOST;
 		skb->protocol = htons(ETH_P_IP);
@@ -196,7 +198,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 	 *	Process the AX.25/LAPB frame.
 	 */
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL) {
 		kfree_skb(skb);
@@ -233,7 +235,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	/* UI frame - bypass LAPB processing */
 	if ((*skb->data & ~0x10) == AX25_UI && dp.lastrepeat + 1 == dp.ndigi) {
-		skb->h.raw = skb->data + 2;		/* skip control and pid */
+		skb_set_transport_header(skb, 2); /* skip control and pid */
 
 		ax25_send_to_raw(&dest, skb, skb->data[1]);
 
@@ -246,8 +248,8 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 		switch (skb->data[1]) {
 		case AX25_P_IP:
 			skb_pull(skb,2);		/* drop PID/CTRL */
-			skb->h.raw    = skb->data;
-			skb->nh.raw   = skb->data;
+			skb_reset_transport_header(skb);
+			skb_reset_network_header(skb);
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;
 			skb->protocol = htons(ETH_P_IP);
@@ -256,8 +258,8 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		case AX25_P_ARP:
 			skb_pull(skb,2);
-			skb->h.raw    = skb->data;
-			skb->nh.raw   = skb->data;
+			skb_reset_transport_header(skb);
+			skb_reset_network_header(skb);
 			skb->dev      = dev;
 			skb->pkt_type = PACKET_HOST;
 			skb->protocol = htons(ETH_P_ARP);

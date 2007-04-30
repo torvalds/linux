@@ -31,23 +31,12 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/types.h>
-#include <asm/jmr3927/txx927.h>
-#include <asm/jmr3927/tx3927.h>
 #include <asm/jmr3927/jmr3927.h>
 
 #define TIMEOUT       0xffffff
-#define SLOW_DOWN
-
-static const char digits[16] = "0123456789abcdef";
-
-#ifdef SLOW_DOWN
-#define slow_down() { int k; for (k=0; k<10000; k++); }
-#else
-#define slow_down()
-#endif
 
 static int remoteDebugInitialized = 0;
+static void debugInit(int baud)
 
 int putDebugChar(unsigned char c)
 {
@@ -103,20 +92,8 @@ unsigned char getDebugChar(void)
 	return c;
 }
 
-void debugInit(int baud)
+static void debugInit(int baud)
 {
-	/*
-	volatile unsigned long lcr;
-	volatile unsigned long dicr;
-	volatile unsigned long disr;
-	volatile unsigned long cisr;
-	volatile unsigned long fcr;
-	volatile unsigned long flcr;
-	volatile unsigned long bgr;
-	volatile unsigned long tfifo;
-	volatile unsigned long rfifo;
-	*/
-
 	tx3927_sioptr(0)->lcr = 0x020;
 	tx3927_sioptr(0)->dicr = 0;
 	tx3927_sioptr(0)->disr = 0x4100;
@@ -125,31 +102,4 @@ void debugInit(int baud)
 	tx3927_sioptr(0)->flcr = 0x02;
 	tx3927_sioptr(0)->bgr = ((JMR3927_BASE_BAUD + baud / 2) / baud) |
 		TXx927_SIBGR_BCLK_T0;
-#if 0
-	/*
-	 * Reset the UART.
-	 */
-	tx3927_sioptr(0)->fcr = TXx927_SIFCR_SWRST;
-	while (tx3927_sioptr(0)->fcr & TXx927_SIFCR_SWRST)
-		;
-
-	/*
-	 * and set the speed of the serial port
-	 * (currently hardwired to 9600 8N1
-	 */
-
-	tx3927_sioptr(0)->lcr = TXx927_SILCR_UMODE_8BIT |
-		TXx927_SILCR_USBL_1BIT |
-		TXx927_SILCR_SCS_IMCLK_BG;
-	tx3927_sioptr(0)->bgr =
-		((JMR3927_BASE_BAUD + baud / 2) / baud) |
-		TXx927_SIBGR_BCLK_T0;
-
-	/* HW RTS/CTS control */
-	if (ser->flags & ASYNC_HAVE_CTS_LINE)
-		tx3927_sioptr(0)->flcr = TXx927_SIFLCR_RCS | TXx927_SIFLCR_TES |
-			TXx927_SIFLCR_RTSTL_MAX /* 15 */;
-	/* Enable RX/TX */
-	tx3927_sioptr(0)->flcr &= ~(TXx927_SIFLCR_RSDE | TXx927_SIFLCR_TSDE);
-#endif
 }

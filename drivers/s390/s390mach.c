@@ -21,6 +21,7 @@
 #include "cio/cio.h"
 #include "cio/chsc.h"
 #include "cio/css.h"
+#include "cio/chp.h"
 #include "s390mach.h"
 
 static struct semaphore m_sem;
@@ -44,14 +45,13 @@ static int
 s390_collect_crw_info(void *param)
 {
 	struct crw crw[2];
-	int ccode, ret, slow;
+	int ccode;
 	struct semaphore *sem;
 	unsigned int chain;
 
 	sem = (struct semaphore *)param;
 repeat:
 	down_interruptible(sem);
-	slow = 0;
 	chain = 0;
 	while (1) {
 		if (unlikely(chain > 1)) {
@@ -84,9 +84,8 @@ repeat:
 		/* Check for overflows. */
 		if (crw[chain].oflw) {
 			pr_debug("%s: crw overflow detected!\n", __FUNCTION__);
-			css_reiterate_subchannels();
+			css_schedule_eval_all();
 			chain = 0;
-			slow = 1;
 			continue;
 		}
 		switch (crw[chain].rsc) {
@@ -94,10 +93,7 @@ repeat:
 			if (crw[0].chn && !chain)
 				break;
 			pr_debug("source is subchannel %04X\n", crw[0].rsid);
-			ret = css_process_crw (crw[0].rsid,
-					       chain ? crw[1].rsid : 0);
-			if (ret == -EAGAIN)
-				slow = 1;
+			css_process_crw(crw[0].rsid, chain ? crw[1].rsid : 0);
 			break;
 		case CRW_RSC_MONITOR:
 			pr_debug("source is monitoring facility\n");
@@ -116,28 +112,23 @@ repeat:
 			}
 			switch (crw[0].erc) {
 			case CRW_ERC_IPARM: /* Path has come. */
-				ret = chp_process_crw(crw[0].rsid, 1);
+				chp_process_crw(crw[0].rsid, 1);
 				break;
 			case CRW_ERC_PERRI: /* Path has gone. */
 			case CRW_ERC_PERRN:
-				ret = chp_process_crw(crw[0].rsid, 0);
+				chp_process_crw(crw[0].rsid, 0);
 				break;
 			default:
 				pr_debug("Don't know how to handle erc=%x\n",
 					 crw[0].erc);
-				ret = 0;
 			}
-			if (ret == -EAGAIN)
-				slow = 1;
 			break;
 		case CRW_RSC_CONFIG:
 			pr_debug("source is configuration-alert facility\n");
 			break;
 		case CRW_RSC_CSS:
 			pr_debug("source is channel subsystem\n");
-			ret = chsc_process_crw();
-			if (ret == -EAGAIN)
-				slow = 1;
+			chsc_process_crw();
 			break;
 		default:
 			pr_debug("unknown source\n");
@@ -146,8 +137,6 @@ repeat:
 		/* chain is always 0 or 1 here. */
 		chain = crw[chain].chn ? chain + 1 : 0;
 	}
-	if (slow)
-		queue_work(slow_path_wq, &slow_path_work);
 	goto repeat;
 	return 0;
 }

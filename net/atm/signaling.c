@@ -256,7 +256,7 @@ static struct atm_dev sigd_dev = {
 	.ops =		&sigd_dev_ops,
 	.type =		"sig",
 	.number =	999,
-	.lock =		SPIN_LOCK_UNLOCKED
+	.lock =		__SPIN_LOCK_UNLOCKED(sigd_dev.lock)
 };
 
 

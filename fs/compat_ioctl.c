@@ -266,6 +266,23 @@ static int do_siocgstamp(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
+static int do_siocgstampns(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_timespec __user *up = compat_ptr(arg);
+	struct timespec kts;
+	mm_segment_t old_fs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	err = sys_ioctl(fd, cmd, (unsigned long)&kts);
+	set_fs(old_fs);
+	if (!err) {
+		err = put_user(kts.tv_sec, &up->tv_sec);
+		err |= __put_user(kts.tv_nsec, &up->tv_nsec);
+	}
+	return err;
+}
+
 struct ifmap32 {
 	compat_ulong_t mem_start;
 	compat_ulong_t mem_end;
@@ -2437,6 +2454,7 @@ HANDLE_IOCTL(SIOCBRDELIF, dev_ifsioc)
 /* Note SIOCRTMSG is no longer, so this is safe and * the user would have seen just an -EINVAL anyways. */
 HANDLE_IOCTL(SIOCRTMSG, ret_einval)
 HANDLE_IOCTL(SIOCGSTAMP, do_siocgstamp)
+HANDLE_IOCTL(SIOCGSTAMPNS, do_siocgstampns)
 #endif
 #ifdef CONFIG_BLOCK
 HANDLE_IOCTL(HDIO_GETGEO, hdio_getgeo)

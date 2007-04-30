@@ -390,15 +390,23 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 
 	/* setup the chip-specific functions, as early as possible. */
 	switch (ent->device) {
-#ifdef CONFIG_HT_IRQ
 	case PCI_DEVICE_ID_INFINIPATH_HT:
+#ifdef CONFIG_HT_IRQ
 		ipath_init_iba6110_funcs(dd);
 		break;
+#else
+		ipath_dev_err(dd, "QLogic HT device 0x%x cannot work if "
+			      "CONFIG_HT_IRQ is not enabled\n", ent->device);
+		return -ENODEV;
 #endif
-#ifdef CONFIG_PCI_MSI
 	case PCI_DEVICE_ID_INFINIPATH_PE800:
+#ifdef CONFIG_PCI_MSI
 		ipath_init_iba6120_funcs(dd);
 		break;
+#else
+		ipath_dev_err(dd, "QLogic PCIE device 0x%x cannot work if "
+			      "CONFIG_PCI_MSI is not enabled\n", ent->device);
+		return -ENODEV;
 #endif
 	default:
 		ipath_dev_err(dd, "Found unknown QLogic deviceid 0x%x, "
@@ -486,7 +494,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 
 	ret = ipath_init_chip(dd, 0);	/* do the chip-specific init */
 	if (ret)
-		goto bail_iounmap;
+		goto bail_irqsetup;
 
 	ret = ipath_enable_wc(dd);
 
@@ -504,6 +512,9 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	ipath_register_ib_device(dd);
 
 	goto bail;
+
+bail_irqsetup:
+	if (pdev->irq) free_irq(pdev->irq, dd);
 
 bail_iounmap:
 	iounmap((volatile void __iomem *) dd->ipath_kregbase);
@@ -524,8 +535,6 @@ bail:
 static void __devexit cleanup_device(struct ipath_devdata *dd)
 {
 	int port;
-
-	ipath_shutdown_device(dd);
 
 	if (*dd->ipath_statusp & IPATH_STATUS_CHIP_PRESENT) {
 		/* can't do anything more with chip; needs re-init */
@@ -594,8 +603,9 @@ static void __devexit cleanup_device(struct ipath_devdata *dd)
 
 		ipath_cdbg(VERBOSE, "Free shadow page tid array at %p\n",
 			   dd->ipath_pageshadow);
-		vfree(dd->ipath_pageshadow);
+		tmpp = dd->ipath_pageshadow;
 		dd->ipath_pageshadow = NULL;
+		vfree(tmpp);
 	}
 
 	/*
@@ -621,6 +631,12 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 	struct ipath_devdata *dd = pci_get_drvdata(pdev);
 
 	ipath_cdbg(VERBOSE, "removing, pdev=%p, dd=%p\n", pdev, dd);
+
+	/*
+	 * disable the IB link early, to be sure no new packets arrive, which
+	 * complicates the shutdown process
+	 */
+	ipath_shutdown_device(dd);
 
 	if (dd->verbs_dev)
 		ipath_unregister_ib_device(dd->verbs_dev);
@@ -754,9 +770,42 @@ static int ipath_wait_linkstate(struct ipath_devdata *dd, u32 state,
 	return (dd->ipath_flags & state) ? 0 : -ETIMEDOUT;
 }
 
-void ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
+/*
+ * Decode the error status into strings, deciding whether to always
+ * print * it or not depending on "normal packet errors" vs everything
+ * else.   Return 1 if "real" errors, otherwise 0 if only packet
+ * errors, so caller can decide what to print with the string.
+ */
+int ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 {
+	int iserr = 1;
 	*buf = '\0';
+	if (err & INFINIPATH_E_PKTERRS) {
+		if (!(err & ~INFINIPATH_E_PKTERRS))
+			iserr = 0; // if only packet errors.
+		if (ipath_debug & __IPATH_ERRPKTDBG) {
+			if (err & INFINIPATH_E_REBP)
+				strlcat(buf, "EBP ", blen);
+			if (err & INFINIPATH_E_RVCRC)
+				strlcat(buf, "VCRC ", blen);
+			if (err & INFINIPATH_E_RICRC) {
+				strlcat(buf, "CRC ", blen);
+				// clear for check below, so only once
+				err &= INFINIPATH_E_RICRC;
+			}
+			if (err & INFINIPATH_E_RSHORTPKTLEN)
+				strlcat(buf, "rshortpktlen ", blen);
+			if (err & INFINIPATH_E_SDROPPEDDATAPKT)
+				strlcat(buf, "sdroppeddatapkt ", blen);
+			if (err & INFINIPATH_E_SPKTLEN)
+				strlcat(buf, "spktlen ", blen);
+		}
+		if ((err & INFINIPATH_E_RICRC) &&
+			!(err&(INFINIPATH_E_RVCRC|INFINIPATH_E_REBP)))
+			strlcat(buf, "CRC ", blen);
+		if (!iserr)
+			goto done;
+	}
 	if (err & INFINIPATH_E_RHDRLEN)
 		strlcat(buf, "rhdrlen ", blen);
 	if (err & INFINIPATH_E_RBADTID)
@@ -767,12 +816,12 @@ void ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 		strlcat(buf, "rhdr ", blen);
 	if (err & INFINIPATH_E_RLONGPKTLEN)
 		strlcat(buf, "rlongpktlen ", blen);
-	if (err & INFINIPATH_E_RSHORTPKTLEN)
-		strlcat(buf, "rshortpktlen ", blen);
 	if (err & INFINIPATH_E_RMAXPKTLEN)
 		strlcat(buf, "rmaxpktlen ", blen);
 	if (err & INFINIPATH_E_RMINPKTLEN)
 		strlcat(buf, "rminpktlen ", blen);
+	if (err & INFINIPATH_E_SMINPKTLEN)
+		strlcat(buf, "sminpktlen ", blen);
 	if (err & INFINIPATH_E_RFORMATERR)
 		strlcat(buf, "rformaterr ", blen);
 	if (err & INFINIPATH_E_RUNSUPVL)
@@ -781,32 +830,20 @@ void ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 		strlcat(buf, "runexpchar ", blen);
 	if (err & INFINIPATH_E_RIBFLOW)
 		strlcat(buf, "ribflow ", blen);
-	if (err & INFINIPATH_E_REBP)
-		strlcat(buf, "EBP ", blen);
 	if (err & INFINIPATH_E_SUNDERRUN)
 		strlcat(buf, "sunderrun ", blen);
 	if (err & INFINIPATH_E_SPIOARMLAUNCH)
 		strlcat(buf, "spioarmlaunch ", blen);
 	if (err & INFINIPATH_E_SUNEXPERRPKTNUM)
 		strlcat(buf, "sunexperrpktnum ", blen);
-	if (err & INFINIPATH_E_SDROPPEDDATAPKT)
-		strlcat(buf, "sdroppeddatapkt ", blen);
 	if (err & INFINIPATH_E_SDROPPEDSMPPKT)
 		strlcat(buf, "sdroppedsmppkt ", blen);
 	if (err & INFINIPATH_E_SMAXPKTLEN)
 		strlcat(buf, "smaxpktlen ", blen);
-	if (err & INFINIPATH_E_SMINPKTLEN)
-		strlcat(buf, "sminpktlen ", blen);
 	if (err & INFINIPATH_E_SUNSUPVL)
 		strlcat(buf, "sunsupVL ", blen);
-	if (err & INFINIPATH_E_SPKTLEN)
-		strlcat(buf, "spktlen ", blen);
 	if (err & INFINIPATH_E_INVALIDADDR)
 		strlcat(buf, "invalidaddr ", blen);
-	if (err & INFINIPATH_E_RICRC)
-		strlcat(buf, "CRC ", blen);
-	if (err & INFINIPATH_E_RVCRC)
-		strlcat(buf, "VCRC ", blen);
 	if (err & INFINIPATH_E_RRCVEGRFULL)
 		strlcat(buf, "rcvegrfull ", blen);
 	if (err & INFINIPATH_E_RRCVHDRFULL)
@@ -819,6 +856,8 @@ void ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 		strlcat(buf, "hardware ", blen);
 	if (err & INFINIPATH_E_RESET)
 		strlcat(buf, "reset ", blen);
+done:
+	return iserr;
 }
 
 /**
@@ -1662,6 +1701,22 @@ int ipath_set_linkstate(struct ipath_devdata *dd, u8 newstate)
 		lstate = IPATH_LINKACTIVE;
 		break;
 
+	case IPATH_IB_LINK_LOOPBACK:
+		dev_info(&dd->pcidev->dev, "Enabling IB local loopback\n");
+		dd->ipath_ibcctrl |= INFINIPATH_IBCC_LOOPBACK;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
+				 dd->ipath_ibcctrl);
+		ret = 0;
+		goto bail; // no state change to wait for
+
+	case IPATH_IB_LINK_EXTERNAL:
+		dev_info(&dd->pcidev->dev, "Disabling IB local loopback (normal)\n");
+		dd->ipath_ibcctrl &= ~INFINIPATH_IBCC_LOOPBACK;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
+				 dd->ipath_ibcctrl);
+		ret = 0;
+		goto bail; // no state change to wait for
+
 	default:
 		ipath_dbg("Invalid linkstate 0x%x requested\n", newstate);
 		ret = -EINVAL;
@@ -1765,29 +1820,6 @@ int ipath_set_lid(struct ipath_devdata *dd, u32 arg, u8 lmc)
 	return 0;
 }
 
-/**
- * ipath_read_kreg64_port - read a device's per-port 64-bit kernel register
- * @dd: the infinipath device
- * @regno: the register number to read
- * @port: the port containing the register
- *
- * Registers that vary with the chip implementation constants (port)
- * use this routine.
- */
-u64 ipath_read_kreg64_port(const struct ipath_devdata *dd, ipath_kreg regno,
-			   unsigned port)
-{
-	u16 where;
-
-	if (port < dd->ipath_portcnt &&
-	    (regno == dd->ipath_kregs->kr_rcvhdraddr ||
-	     regno == dd->ipath_kregs->kr_rcvhdrtailaddr))
-		where = regno + port;
-	else
-		where = -1;
-
-	return ipath_read_kreg64(dd, where);
-}
 
 /**
  * ipath_write_kreg_port - write a device's per-port 64-bit kernel register
@@ -1973,7 +2005,8 @@ static int __init infinipath_init(void)
 {
 	int ret;
 
-	ipath_dbg(KERN_INFO DRIVER_LOAD_MSG "%s", ib_ipath_version);
+	if (ipath_debug & __IPATH_DBG)
+		printk(KERN_INFO DRIVER_LOAD_MSG "%s", ib_ipath_version);
 
 	/*
 	 * These must be called before the driver is registered with

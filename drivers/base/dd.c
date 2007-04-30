@@ -94,19 +94,11 @@ int device_bind_driver(struct device *dev)
 	return ret;
 }
 
-struct stupid_thread_structure {
-	struct device_driver *drv;
-	struct device *dev;
-};
-
 static atomic_t probe_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(probe_waitqueue);
 
-static int really_probe(void *void_data)
+static int really_probe(struct device *dev, struct device_driver *drv)
 {
-	struct stupid_thread_structure *data = void_data;
-	struct device_driver *drv = data->drv;
-	struct device *dev = data->dev;
 	int ret = 0;
 
 	atomic_inc(&probe_count);
@@ -154,7 +146,6 @@ probe_failed:
 	 */
 	ret = 0;
 done:
-	kfree(data);
 	atomic_dec(&probe_count);
 	wake_up(&probe_waitqueue);
 	return ret;
@@ -186,16 +177,14 @@ int driver_probe_done(void)
  * format of the ID structures, nor what is to be considered a match and
  * what is not.
  *
- * This function returns 1 if a match is found, an error if one occurs
- * (that is not -ENODEV or -ENXIO), and 0 otherwise.
+ * This function returns 1 if a match is found, -ENODEV if the device is
+ * not registered, and 0 otherwise.
  *
  * This function must be called with @dev->sem held.  When called for a
  * USB interface, @dev->parent->sem must be held as well.
  */
 int driver_probe_device(struct device_driver * drv, struct device * dev)
 {
-	struct stupid_thread_structure *data;
-	struct task_struct *probe_task;
 	int ret = 0;
 
 	if (!device_is_registered(dev))
@@ -206,19 +195,7 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 	pr_debug("%s: Matched Device %s with Driver %s\n",
 		 drv->bus->name, dev->bus_id, drv->name);
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-	data->drv = drv;
-	data->dev = dev;
-
-	if (drv->multithread_probe) {
-		probe_task = kthread_run(really_probe, data,
-					 "probe-%s", dev->bus_id);
-		if (IS_ERR(probe_task))
-			ret = really_probe(data);
-	} else
-		ret = really_probe(data);
+	ret = really_probe(dev, drv);
 
 done:
 	return ret;
@@ -230,30 +207,57 @@ static int __device_attach(struct device_driver * drv, void * data)
 	return driver_probe_device(drv, dev);
 }
 
+static int device_probe_drivers(void *data)
+{
+	struct device *dev = data;
+	int ret = 0;
+
+	if (dev->bus) {
+		down(&dev->sem);
+		ret = bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
+		up(&dev->sem);
+	}
+	return ret;
+}
+
 /**
  *	device_attach - try to attach device to a driver.
  *	@dev:	device.
  *
  *	Walk the list of drivers that the bus has and call
  *	driver_probe_device() for each pair. If a compatible
- *	pair is found, break out and return.
+ *	pair is found, break out and return. If the bus specifies
+ *	multithreaded probing, walking the list of drivers is done
+ *	on a probing thread.
  *
  *	Returns 1 if the device was bound to a driver;
- *	0 if no matching device was found; error code otherwise.
+ *	0 if no matching device was found or multithreaded probing is done;
+ *	-ENODEV if the device is not registered.
  *
  *	When called for a USB interface, @dev->parent->sem must be held.
  */
 int device_attach(struct device * dev)
 {
 	int ret = 0;
+	struct task_struct *probe_task = ERR_PTR(-ENOMEM);
 
 	down(&dev->sem);
 	if (dev->driver) {
 		ret = device_bind_driver(dev);
 		if (ret == 0)
 			ret = 1;
-	} else
-		ret = bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
+		else {
+			dev->driver = NULL;
+			ret = 0;
+		}
+	} else {
+		if (dev->bus->multithread_probe)
+			probe_task = kthread_run(device_probe_drivers, dev,
+						 "probe-%s", dev->bus_id);
+		if(IS_ERR(probe_task))
+			ret = bus_for_each_drv(dev->bus, NULL, dev,
+					       __device_attach);
+	}
 	up(&dev->sem);
 	return ret;
 }

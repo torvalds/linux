@@ -1,6 +1,9 @@
 /*
  *    Support for OR51132 (pcHDTV HD-3000) - VSB/QAM
  *
+ *
+ *    Copyright (C) 2007 Trent Piepho <xyzzy@speakeasy.org>
+ *
  *    Copyright (C) 2005 Kirk Lapray <kirk_lapray@bigfoot.com>
  *
  *    Based on code from Jack Kelliher (kelliher@xmission.com)
@@ -69,46 +72,70 @@ struct or51132_state
 	u32 current_frequency;
 };
 
-static int i2c_writebytes (struct or51132_state* state, u8 reg, u8 *buf, int len)
+
+/* Write buffer to demod */
+static int or51132_writebuf(struct or51132_state *state, const u8 *buf, int len)
 {
 	int err;
-	struct i2c_msg msg;
-	msg.addr  = reg;
-	msg.flags = 0;
-	msg.len   = len;
-	msg.buf   = buf;
+	struct i2c_msg msg = { .addr = state->config->demod_address,
+			       .flags = 0, .buf = (u8*)buf, .len = len };
 
+	/* msleep(20); */ /* doesn't appear to be necessary */
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-		printk(KERN_WARNING "or51132: i2c_writebytes error (addr %02x, err == %i)\n", reg, err);
+		printk(KERN_WARNING "or51132: I2C write (addr 0x%02x len %d) error: %d\n",
+		       msg.addr, msg.len, err);
 		return -EREMOTEIO;
 	}
-
 	return 0;
 }
 
-static u8 i2c_readbytes (struct or51132_state* state, u8 reg, u8* buf, int len)
+/* Write constant bytes, e.g. or51132_writebytes(state, 0x04, 0x42, 0x00);
+   Less code and more efficient that loading a buffer on the stack with
+   the bytes to send and then calling or51132_writebuf() on that. */
+#define or51132_writebytes(state, data...)  \
+	({ const static u8 _data[] = {data}; \
+	or51132_writebuf(state, _data, sizeof(_data)); })
+
+/* Read data from demod into buffer.  Returns 0 on success. */
+static int or51132_readbuf(struct or51132_state *state, u8 *buf, int len)
 {
 	int err;
-	struct i2c_msg msg;
-	msg.addr   = reg;
-	msg.flags = I2C_M_RD;
-	msg.len = len;
-	msg.buf = buf;
+	struct i2c_msg msg = { .addr = state->config->demod_address,
+			       .flags = I2C_M_RD, .buf = buf, .len = len };
 
+	/* msleep(20); */ /* doesn't appear to be necessary */
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-		printk(KERN_WARNING "or51132: i2c_readbytes error (addr %02x, err == %i)\n", reg, err);
+		printk(KERN_WARNING "or51132: I2C read (addr 0x%02x len %d) error: %d\n",
+		       msg.addr, msg.len, err);
 		return -EREMOTEIO;
 	}
-
 	return 0;
+}
+
+/* Reads a 16-bit demod register.  Returns <0 on error. */
+static int or51132_readreg(struct or51132_state *state, u8 reg)
+{
+	u8 buf[2] = { 0x04, reg };
+	struct i2c_msg msg[2] = {
+		{.addr = state->config->demod_address, .flags = 0,
+		 .buf = buf, .len = 2 },
+		{.addr = state->config->demod_address, .flags = I2C_M_RD,
+		 .buf = buf, .len = 2 }};
+	int err;
+
+	if ((err = i2c_transfer(state->i2c, msg, 2)) != 2) {
+		printk(KERN_WARNING "or51132: I2C error reading register %d: %d\n",
+		       reg, err);
+		return -EREMOTEIO;
+	}
+	return le16_to_cpup((u16*)buf);
 }
 
 static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware *fw)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	static u8 run_buf[] = {0x7F,0x01};
+	const static u8 run_buf[] = {0x7F,0x01};
 	u8 rec_buf[8];
-	u8 cmd_buf[3];
 	u32 firmwareAsize, firmwareBsize;
 	int i,ret;
 
@@ -121,30 +148,21 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 	dprintk("FirmwareB is %i bytes\n",firmwareBsize);
 
 	/* Upload firmware */
-	if ((ret = i2c_writebytes(state,state->config->demod_address,
-				 &fw->data[8],firmwareAsize))) {
+	if ((ret = or51132_writebuf(state, &fw->data[8], firmwareAsize))) {
 		printk(KERN_WARNING "or51132: load_firmware error 1\n");
 		return ret;
 	}
-	msleep(1); /* 1ms */
-	if ((ret = i2c_writebytes(state,state->config->demod_address,
-				 &fw->data[8+firmwareAsize],firmwareBsize))) {
+	if ((ret = or51132_writebuf(state, &fw->data[8+firmwareAsize],
+				    firmwareBsize))) {
 		printk(KERN_WARNING "or51132: load_firmware error 2\n");
 		return ret;
 	}
-	msleep(1); /* 1ms */
 
-	if ((ret = i2c_writebytes(state,state->config->demod_address,
-				 run_buf,2))) {
+	if ((ret = or51132_writebuf(state, run_buf, 2))) {
 		printk(KERN_WARNING "or51132: load_firmware error 3\n");
 		return ret;
 	}
-
-	/* Wait at least 5 msec */
-	msleep(20); /* 10ms */
-
-	if ((ret = i2c_writebytes(state,state->config->demod_address,
-				 run_buf,2))) {
+	if ((ret = or51132_writebuf(state, run_buf, 2))) {
 		printk(KERN_WARNING "or51132: load_firmware error 4\n");
 		return ret;
 	}
@@ -154,43 +172,25 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 
 	/* Read back ucode version to besure we loaded correctly and are really up and running */
 	/* Get uCode version */
-	cmd_buf[0] = 0x10;
-	cmd_buf[1] = 0x10;
-	cmd_buf[2] = 0x00;
-	msleep(20); /* 20ms */
-	if ((ret = i2c_writebytes(state,state->config->demod_address,
-				 cmd_buf,3))) {
+	if ((ret = or51132_writebytes(state, 0x10, 0x10, 0x00))) {
 		printk(KERN_WARNING "or51132: load_firmware error a\n");
 		return ret;
 	}
-
-	cmd_buf[0] = 0x04;
-	cmd_buf[1] = 0x17;
-	msleep(20); /* 20ms */
-	if ((ret = i2c_writebytes(state,state->config->demod_address,
-				 cmd_buf,2))) {
+	if ((ret = or51132_writebytes(state, 0x04, 0x17))) {
 		printk(KERN_WARNING "or51132: load_firmware error b\n");
 		return ret;
 	}
-
-	cmd_buf[0] = 0x00;
-	cmd_buf[1] = 0x00;
-	msleep(20); /* 20ms */
-	if ((ret = i2c_writebytes(state,state->config->demod_address,
-				 cmd_buf,2))) {
+	if ((ret = or51132_writebytes(state, 0x00, 0x00))) {
 		printk(KERN_WARNING "or51132: load_firmware error c\n");
 		return ret;
 	}
-
-	for(i=0;i<4;i++) {
-		msleep(20); /* 20ms */
+	for (i=0;i<4;i++) {
 		/* Once upon a time, this command might have had something
 		   to do with getting the firmware version, but it's
 		   not used anymore:
 		   {0x04,0x00,0x30,0x00,i+1} */
 		/* Read 8 bytes, two bytes at a time */
-		if ((ret = i2c_readbytes(state,state->config->demod_address,
-					&rec_buf[i*2],2))) {
+		if ((ret = or51132_readbuf(state, &rec_buf[i*2], 2))) {
 			printk(KERN_WARNING
 			       "or51132: load_firmware error d - %d\n",i);
 			return ret;
@@ -204,12 +204,7 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 	       rec_buf[3],rec_buf[2]>>4,rec_buf[2]&0x0f,
 	       rec_buf[5],rec_buf[4]>>4,rec_buf[4]&0x0f);
 
-	cmd_buf[0] = 0x10;
-	cmd_buf[1] = 0x00;
-	cmd_buf[2] = 0x00;
-	msleep(20); /* 20ms */
-	if ((ret = i2c_writebytes(state,state->config->demod_address,
-				 cmd_buf,3))) {
+	if ((ret = or51132_writebytes(state, 0x10, 0x00, 0x00))) {
 		printk(KERN_WARNING "or51132: load_firmware error e\n");
 		return ret;
 	}
@@ -241,70 +236,55 @@ static int or51132_sleep(struct dvb_frontend* fe)
 static int or51132_setmode(struct dvb_frontend* fe)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	unsigned char cmd_buf[3];
+	u8 cmd_buf1[3] = {0x04, 0x01, 0x5f};
+	u8 cmd_buf2[3] = {0x1c, 0x00, 0 };
 
 	dprintk("setmode %d\n",(int)state->current_modulation);
-	/* set operation mode in Receiver 1 register; */
-	cmd_buf[0] = 0x04;
-	cmd_buf[1] = 0x01;
+
 	switch (state->current_modulation) {
-	case QAM_256:
-	case QAM_64:
-	case QAM_AUTO:
-		/* Auto-deinterleave; MPEG ser, MPEG2tr, phase noise-high*/
-		cmd_buf[2] = 0x5F;
-		break;
 	case VSB_8:
-		/* Auto CH, Auto NTSC rej, MPEGser, MPEG2tr, phase noise-high*/
-		cmd_buf[2] = 0x50;
+		/* Auto CH, Auto NTSC rej, MPEGser, MPEG2tr, phase noise-high */
+		cmd_buf1[2] = 0x50;
+		/* REC MODE inv IF spectrum, Normal */
+		cmd_buf2[1] = 0x03;
+		/* Channel MODE ATSC/VSB8 */
+		cmd_buf2[2] = 0x06;
+		break;
+	/* All QAM modes are:
+	   Auto-deinterleave; MPEGser, MPEG2tr, phase noise-high
+	   REC MODE Normal Carrier Lock */
+	case QAM_AUTO:
+		/* Channel MODE Auto QAM64/256 */
+		cmd_buf2[2] = 0x4f;
+		break;
+	case QAM_256:
+		/* Channel MODE QAM256 */
+		cmd_buf2[2] = 0x45;
+		break;
+	case QAM_64:
+		/* Channel MODE QAM64 */
+		cmd_buf2[2] = 0x43;
 		break;
 	default:
-		printk("setmode:Modulation set to unsupported value\n");
-	};
-	if (i2c_writebytes(state,state->config->demod_address,
-			   cmd_buf,3)) {
-		printk(KERN_WARNING "or51132: set_mode error 1\n");
-		return -1;
+		printk(KERN_WARNING
+		       "or51132: setmode: Modulation set to unsupported value (%d)\n",
+		       state->current_modulation);
+		return -EINVAL;
 	}
-	dprintk("or51132: set #1 to %02x\n", cmd_buf[2]);
+
+	/* Set Receiver 1 register */
+	if (or51132_writebuf(state, cmd_buf1, 3)) {
+		printk(KERN_WARNING "or51132: set_mode error 1\n");
+		return -EREMOTEIO;
+	}
+	dprintk("set #1 to %02x\n", cmd_buf1[2]);
 
 	/* Set operation mode in Receiver 6 register */
-	cmd_buf[0] = 0x1C;
-	switch (state->current_modulation) {
-	case QAM_AUTO:
-		/* REC MODE Normal Carrier Lock */
-		cmd_buf[1] = 0x00;
-		/* Channel MODE Auto QAM64/256 */
-		cmd_buf[2] = 0x4f;
-		break;
-	case QAM_256:
-		/* REC MODE Normal Carrier Lock */
-		cmd_buf[1] = 0x00;
-		/* Channel MODE QAM256 */
-		cmd_buf[2] = 0x45;
-		break;
-	case QAM_64:
-		/* REC MODE Normal Carrier Lock */
-		cmd_buf[1] = 0x00;
-		/* Channel MODE QAM64 */
-		cmd_buf[2] = 0x43;
-		break;
-	case VSB_8:
-		 /* REC MODE inv IF spectrum, Normal */
-		cmd_buf[1] = 0x03;
-		/* Channel MODE ATSC/VSB8 */
-		cmd_buf[2] = 0x06;
-		break;
-	default:
-		printk("setmode: Modulation set to unsupported value\n");
-	};
-	msleep(20); /* 20ms */
-	if (i2c_writebytes(state,state->config->demod_address,
-			   cmd_buf,3)) {
+	if (or51132_writebuf(state, cmd_buf2, 3)) {
 		printk(KERN_WARNING "or51132: set_mode error 2\n");
-		return -1;
+		return -EREMOTEIO;
 	}
-	dprintk("or51132: set #6 to 0x%02x%02x\n", cmd_buf[1], cmd_buf[2]);
+	dprintk("set #6 to 0x%02x%02x\n", cmd_buf2[1], cmd_buf2[2]);
 
 	return 0;
 }
@@ -401,28 +381,23 @@ static int or51132_get_parameters(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters *param)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	u8 buf[2];
+	int status;
+	int retry = 1;
 
+start:
 	/* Receiver Status */
-	buf[0]=0x04;
-	buf[1]=0x00;
-	msleep(30); /* 30ms */
-	if (i2c_writebytes(state,state->config->demod_address,buf,2)) {
-		printk(KERN_WARNING "or51132: get_parameters write error\n");
+	if ((status = or51132_readreg(state, 0x00)) < 0) {
+		printk(KERN_WARNING "or51132: get_parameters: error reading receiver status\n");
 		return -EREMOTEIO;
 	}
-	msleep(30); /* 30ms */
-	if (i2c_readbytes(state,state->config->demod_address,buf,2)) {
-		printk(KERN_WARNING "or51132: get_parameters read error\n");
-		return -EREMOTEIO;
-	}
-	switch(buf[0]) {
+	switch(status&0xff) {
 		case 0x06: param->u.vsb.modulation = VSB_8; break;
 		case 0x43: param->u.vsb.modulation = QAM_64; break;
 		case 0x45: param->u.vsb.modulation = QAM_256; break;
 		default:
+			if (retry--) goto start;
 			printk(KERN_WARNING "or51132: unknown status 0x%02x\n",
-			       buf[0]);
+			       status&0xff);
 			return -EREMOTEIO;
 	}
 
@@ -438,32 +413,21 @@ static int or51132_get_parameters(struct dvb_frontend* fe,
 static int or51132_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	unsigned char rec_buf[2];
-	unsigned char snd_buf[2];
-	*status = 0;
+	int reg;
 
 	/* Receiver Status */
-	snd_buf[0]=0x04;
-	snd_buf[1]=0x00;
-	msleep(30); /* 30ms */
-	if (i2c_writebytes(state,state->config->demod_address,snd_buf,2)) {
-		printk(KERN_WARNING "or51132: read_status write error\n");
-		return -1;
+	if ((reg = or51132_readreg(state, 0x00)) < 0) {
+		printk(KERN_WARNING "or51132: read_status: error reading receiver status: %d\n", reg);
+		*status = 0;
+		return -EREMOTEIO;
 	}
-	msleep(30); /* 30ms */
-	if (i2c_readbytes(state,state->config->demod_address,rec_buf,2)) {
-		printk(KERN_WARNING "or51132: read_status read error\n");
-		return -1;
-	}
-	dprintk("read_status %x %x\n",rec_buf[0],rec_buf[1]);
+	dprintk("%s: read_status %04x\n", __FUNCTION__, reg);
 
-	if (rec_buf[1] & 0x01) { /* Receiver Lock */
-		*status |= FE_HAS_SIGNAL;
-		*status |= FE_HAS_CARRIER;
-		*status |= FE_HAS_VITERBI;
-		*status |= FE_HAS_SYNC;
-		*status |= FE_HAS_LOCK;
-	}
+	if (reg & 0x0100) /* Receiver Lock */
+		*status = FE_HAS_SIGNAL|FE_HAS_CARRIER|FE_HAS_VITERBI|
+			  FE_HAS_SYNC|FE_HAS_LOCK;
+	else
+		*status = 0;
 	return 0;
 }
 
@@ -506,47 +470,30 @@ static u32 calculate_snr(u32 mse, u32 c)
 static int or51132_read_snr(struct dvb_frontend* fe, u16* snr)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	u8 rec_buf[2];
-	u8 snd_buf[2];
-	u32 noise;
-	u32 c;
-	u32 usK;
+	int noise, reg;
+	u32 c, usK = 0;
+	int retry = 1;
 
-	/* Register is same for VSB or QAM firmware */
-	snd_buf[0]=0x04;
-	snd_buf[1]=0x02; /* SNR after Equalizer */
-	msleep(30); /* 30ms */
-	if (i2c_writebytes(state,state->config->demod_address,snd_buf,2)) {
-		printk(KERN_WARNING "or51132: snr write error\n");
+start:
+	/* SNR after Equalizer */
+	noise = or51132_readreg(state, 0x02);
+	if (noise < 0) {
+		printk(KERN_WARNING "or51132: read_snr: error reading equalizer\n");
 		return -EREMOTEIO;
 	}
-	msleep(30); /* 30ms */
-	if (i2c_readbytes(state,state->config->demod_address,rec_buf,2)) {
-		printk(KERN_WARNING "or51132: snr read error\n");
-		return -EREMOTEIO;
-	}
-	noise = rec_buf[0] | (rec_buf[1] << 8);
-	dprintk("read_snr noise %x %x (%i)\n",rec_buf[0],rec_buf[1],noise);
+	dprintk("read_snr noise (%d)\n", noise);
 
 	/* Read status, contains modulation type for QAM_AUTO and
 	   NTSC filter for VSB */
-	snd_buf[0]=0x04;
-	snd_buf[1]=0x00; /* Status register */
-	msleep(30); /* 30ms */
-	if (i2c_writebytes(state,state->config->demod_address,snd_buf,2)) {
-		printk(KERN_WARNING "or51132: status write error\n");
-		return -EREMOTEIO;
-	}
-	msleep(30); /* 30ms */
-	if (i2c_readbytes(state,state->config->demod_address,rec_buf,2)) {
-		printk(KERN_WARNING "or51132: status read error\n");
+	reg = or51132_readreg(state, 0x00);
+	if (reg < 0) {
+		printk(KERN_WARNING "or51132: read_snr: error reading receiver status\n");
 		return -EREMOTEIO;
 	}
 
-	usK = 0;
-	switch (rec_buf[0]) {
+	switch (reg&0xff) {
 	case 0x06:
-		usK = (rec_buf[1] & 0x10) ? 0x03000000 : 0;
+		if (reg & 0x1000) usK = 3 << 24;
 		/* Fall through to QAM64 case */
 	case 0x43:
 		c = 150204167;
@@ -555,11 +502,12 @@ static int or51132_read_snr(struct dvb_frontend* fe, u16* snr)
 		c = 150290396;
 		break;
 	default:
-		printk(KERN_ERR "or51132: unknown status 0x%02x\n", rec_buf[0]);
+		printk(KERN_WARNING "or51132: unknown status 0x%02x\n", reg&0xff);
+		if (retry--) goto start;
 		return -EREMOTEIO;
 	}
 	dprintk("%s: modulation %02x, NTSC rej O%s\n", __FUNCTION__,
-		rec_buf[0], rec_buf[1]&0x10?"n":"ff");
+		reg&0xff, reg&0x1000?"n":"ff");
 
 	/* Calculate SNR using noise, c, and NTSC rejection correction */
 	state->snr = calculate_snr(noise, c) - usK;
@@ -671,6 +619,7 @@ MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 MODULE_DESCRIPTION("OR51132 ATSC [pcHDTV HD-3000] (8VSB & ITU J83 AnnexB FEC QAM64/256) Demodulator Driver");
 MODULE_AUTHOR("Kirk Lapray");
+MODULE_AUTHOR("Trent Piepho");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(or51132_attach);

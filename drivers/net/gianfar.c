@@ -942,18 +942,18 @@ static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
 
 	/* Tell the controller what the protocol is */
 	/* And provide the already calculated phcs */
-	if (skb->nh.iph->protocol == IPPROTO_UDP) {
+	if (ip_hdr(skb)->protocol == IPPROTO_UDP) {
 		flags |= TXFCB_UDP;
-		fcb->phcs = skb->h.uh->check;
+		fcb->phcs = udp_hdr(skb)->check;
 	} else
-		fcb->phcs = skb->h.th->check;
+		fcb->phcs = udp_hdr(skb)->check;
 
 	/* l3os is the distance between the start of the
 	 * frame (skb->data) and the start of the IP hdr.
 	 * l4os is the distance between the start of the
 	 * l3 hdr and the l4 hdr */
-	fcb->l3os = (u16)(skb->nh.raw - skb->data - GMAC_FCB_LEN);
-	fcb->l4os = (u16)(skb->h.raw - skb->nh.raw);
+	fcb->l3os = (u16)(skb_network_offset(skb) - GMAC_FCB_LEN);
+	fcb->l4os = skb_network_header_len(skb);
 
 	fcb->flags = flags;
 }
@@ -1294,8 +1294,6 @@ struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
 	 * as many bytes as needed to align the data properly
 	 */
 	skb_reserve(skb, alignamount);
-
-	skb->dev = dev;
 
 	bdp->bufPtr = dma_map_single(NULL, skb->data,
 			priv->rx_buffer_size, DMA_FROM_DEVICE);

@@ -230,121 +230,123 @@ static int zol_is_stereo (struct zol_device *dev)
 	return 0;
 }
 
-static int zol_do_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, void *arg)
+static int vidioc_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *v)
+{
+	strlcpy(v->driver, "radio-zoltrix", sizeof(v->driver));
+	strlcpy(v->card, "Zoltrix Radio", sizeof(v->card));
+	sprintf(v->bus_info, "ISA");
+	v->version = RADIO_VERSION;
+	v->capabilities = V4L2_CAP_TUNER;
+	return 0;
+}
+
+static int vidioc_g_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
 {
 	struct video_device *dev = video_devdata(file);
 	struct zol_device *zol = dev->priv;
 
-	switch (cmd) {
-		case VIDIOC_QUERYCAP:
-		{
-			struct v4l2_capability *v = arg;
-			memset(v,0,sizeof(*v));
-			strlcpy(v->driver, "radio-zoltrix", sizeof (v->driver));
-			strlcpy(v->card, "Zoltrix Radio", sizeof (v->card));
-			sprintf(v->bus_info,"ISA");
-			v->version = RADIO_VERSION;
-			v->capabilities = V4L2_CAP_TUNER;
+	if (v->index > 0)
+		return -EINVAL;
 
+	strcpy(v->name, "FM");
+	v->type = V4L2_TUNER_RADIO;
+	v->rangelow = (88*16000);
+	v->rangehigh = (108*16000);
+	v->rxsubchans = V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
+	v->capability = V4L2_TUNER_CAP_LOW;
+	if (zol_is_stereo(zol))
+		v->audmode = V4L2_TUNER_MODE_STEREO;
+	else
+		v->audmode = V4L2_TUNER_MODE_MONO;
+	v->signal = 0xFFFF*zol_getsigstr(zol);
+	return 0;
+}
+
+static int vidioc_s_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
+{
+	if (v->index > 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
+{
+	struct video_device *dev = video_devdata(file);
+	struct zol_device *zol = dev->priv;
+
+	zol->curfreq = f->frequency;
+	zol_setfreq(zol, zol->curfreq);
+	return 0;
+}
+
+static int vidioc_g_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
+{
+	struct video_device *dev = video_devdata(file);
+	struct zol_device *zol = dev->priv;
+
+	f->type = V4L2_TUNER_RADIO;
+	f->frequency = zol->curfreq;
+	return 0;
+}
+
+static int vidioc_queryctrl(struct file *file, void *priv,
+					struct v4l2_queryctrl *qc)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+		if (qc->id && qc->id == radio_qctrl[i].id) {
+			memcpy(qc, &(radio_qctrl[i]),
+						sizeof(*qc));
 			return 0;
 		}
-		case VIDIOC_G_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
+	}
+	return -EINVAL;
+}
 
-			if (v->index > 0)
-				return -EINVAL;
+static int vidioc_g_ctrl(struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct zol_device *zol = dev->priv;
 
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "FM");
-			v->type = V4L2_TUNER_RADIO;
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = zol->muted;
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = zol->curvol * 4096;
+		return 0;
+	}
+	return -EINVAL;
+}
 
-			v->rangelow=(88*16000);
-			v->rangehigh=(108*16000);
-			v->rxsubchans =V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
-			v->capability=V4L2_TUNER_CAP_LOW;
-			if(zol_is_stereo(zol))
-				v->audmode = V4L2_TUNER_MODE_STEREO;
-			else
-				v->audmode = V4L2_TUNER_MODE_MONO;
-			v->signal=0xFFFF*zol_getsigstr(zol);
+static int vidioc_s_ctrl(struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct zol_device *zol = dev->priv;
 
-			return 0;
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		if (ctrl->value)
+			zol_mute(zol);
+		else {
+			zol_unmute(zol);
+			zol_setvol(zol,zol->curvol);
 		}
-		case VIDIOC_S_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			return 0;
-		}
-		case VIDIOC_S_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			zol->curfreq = f->frequency;
-			zol_setfreq(zol, zol->curfreq);
-			return 0;
-		}
-		case VIDIOC_G_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			f->type = V4L2_TUNER_RADIO;
-			f->frequency = zol->curfreq;
-
-			return 0;
-		}
-		case VIDIOC_QUERYCTRL:
-		{
-			struct v4l2_queryctrl *qc = arg;
-			int i;
-
-			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-				if (qc->id && qc->id == radio_qctrl[i].id) {
-					memcpy(qc, &(radio_qctrl[i]),
-								sizeof(*qc));
-					return (0);
-				}
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_G_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					ctrl->value=zol->muted;
-					return (0);
-				case V4L2_CID_AUDIO_VOLUME:
-					ctrl->value=zol->curvol * 4096;
-					return (0);
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					if (ctrl->value) {
-						zol_mute(zol);
-					} else {
-						zol_unmute(zol);
-						zol_setvol(zol,zol->curvol);
-					}
-					return (0);
-				case V4L2_CID_AUDIO_VOLUME:
-					zol_setvol(zol,ctrl->value/4096);
-					return (0);
-			}
-			zol->stereo = 1;
-			zol_setfreq(zol, zol->curfreq);
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		zol_setvol(zol,ctrl->value/4096);
+		return 0;
+	}
+	zol->stereo = 1;
+	zol_setfreq(zol, zol->curfreq);
 #if 0
 /* FIXME: Implement stereo/mono switch on V4L2 */
 			if (v->mode & VIDEO_SOUND_STEREO) {
@@ -356,19 +358,39 @@ static int zol_do_ioctl(struct inode *inode, struct file *file,
 				zol_setfreq(zol, zol->curfreq);
 			}
 #endif
-			return -EINVAL;
-		}
-
-		default:
-			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-							  zol_do_ioctl);
-	}
+	return -EINVAL;
 }
 
-static int zol_ioctl(struct inode *inode, struct file *file,
-		     unsigned int cmd, unsigned long arg)
+static int vidioc_g_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
 {
-	return video_usercopy(inode, file, cmd, arg, zol_do_ioctl);
+	if (a->index > 1)
+		return -EINVAL;
+
+	strcpy(a->name, "Radio");
+	a->capability = V4L2_AUDCAP_STEREO;
+	return 0;
+}
+
+static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
+{
+	if (i != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index != 0)
+		return -EINVAL;
+	return 0;
 }
 
 static struct zol_device zoltrix_unit;
@@ -378,7 +400,7 @@ static const struct file_operations zoltrix_fops =
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
-	.ioctl		= zol_ioctl,
+	.ioctl		= video_ioctl2,
 	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
@@ -390,6 +412,18 @@ static struct video_device zoltrix_radio =
 	.type		= VID_TYPE_TUNER,
 	.hardware	= 0,
 	.fops           = &zoltrix_fops,
+	.vidioc_querycap    = vidioc_querycap,
+	.vidioc_g_tuner     = vidioc_g_tuner,
+	.vidioc_s_tuner     = vidioc_s_tuner,
+	.vidioc_g_audio     = vidioc_g_audio,
+	.vidioc_s_audio     = vidioc_s_audio,
+	.vidioc_g_input     = vidioc_g_input,
+	.vidioc_s_input     = vidioc_s_input,
+	.vidioc_g_frequency = vidioc_g_frequency,
+	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_queryctrl   = vidioc_queryctrl,
+	.vidioc_g_ctrl      = vidioc_g_ctrl,
+	.vidioc_s_ctrl      = vidioc_s_ctrl,
 };
 
 static int __init zoltrix_init(void)

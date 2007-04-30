@@ -502,7 +502,6 @@ static inline void	 smc911x_rcv(struct net_device *dev)
 		DBG(SMC_DEBUG_PKTS, "%s: Received packet\n", dev->name,);
 		PRINT_PKT(data, ((pkt_len - 4) <= 64) ? pkt_len - 4 : 64);
 		dev->last_rx = jiffies;
-		skb->dev = dev;
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
 		lp->stats.rx_packets++;
@@ -1307,7 +1306,6 @@ smc911x_rx_dma_irq(int dma, void *data)
 	lp->current_rx_skb = NULL;
 	PRINT_PKT(skb->data, skb->len);
 	dev->last_rx = jiffies;
-	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 	netif_rx(skb);
 	lp->stats.rx_packets++;

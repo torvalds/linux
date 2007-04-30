@@ -115,7 +115,6 @@ static int rionet_rx_clean(struct net_device *ndev)
 
 		rnet->rx_skb[i]->data = data;
 		skb_put(rnet->rx_skb[i], RIO_MAX_MSG_SIZE);
-		rnet->rx_skb[i]->dev = ndev;
 		rnet->rx_skb[i]->protocol =
 		    eth_type_trans(rnet->rx_skb[i], ndev);
 		error = netif_rx(rnet->rx_skb[i]);

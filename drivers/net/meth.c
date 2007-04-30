@@ -421,7 +421,6 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 					/* Write metadata, and then pass to the receive level */
 					skb_put(skb_c, len);
 					priv->rx_skbs[priv->rx_write] = skb;
-					skb_c->dev = dev;
 					skb_c->protocol = eth_type_trans(skb_c, dev);
 					dev->last_rx = jiffies;
 					priv->stats.rx_packets++;
@@ -609,7 +608,7 @@ static void meth_tx_short_prepare(struct meth_private *priv,
 
 	desc->header.raw = METH_TX_CMD_INT_EN | (len-1) | ((128-len) << 16);
 	/* maybe I should set whole thing to 0 first... */
-	memcpy(desc->data.dt + (120 - len), skb->data, skb->len);
+	skb_copy_from_linear_data(skb, desc->data.dt + (120 - len), skb->len);
 	if (skb->len < len)
 		memset(desc->data.dt + 120 - len + skb->len, 0, len-skb->len);
 }
@@ -627,8 +626,8 @@ static void meth_tx_1page_prepare(struct meth_private *priv,
 
 	/* unaligned part */
 	if (unaligned_len) {
-		memcpy(desc->data.dt + (120 - unaligned_len),
-		       skb->data, unaligned_len);
+		skb_copy_from_linear_data(skb, desc->data.dt + (120 - unaligned_len),
+			      unaligned_len);
 		desc->header.raw |= (128 - unaligned_len) << 16;
 	}
 
@@ -653,8 +652,8 @@ static void meth_tx_2page_prepare(struct meth_private *priv,
 	desc->header.raw = METH_TX_CMD_INT_EN | TX_CATBUF1 | TX_CATBUF2| (skb->len - 1);
 	/* unaligned part */
 	if (unaligned_len){
-		memcpy(desc->data.dt + (120 - unaligned_len),
-		       skb->data, unaligned_len);
+		skb_copy_from_linear_data(skb, desc->data.dt + (120 - unaligned_len),
+			      unaligned_len);
 		desc->header.raw |= (128 - unaligned_len) << 16;
 	}
 

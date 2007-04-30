@@ -1,6 +1,6 @@
-/* file.c: AFS filesystem file handling
+/* AFS filesystem file handling
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -15,22 +15,25 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
-#include "volume.h"
-#include "vnode.h"
-#include <rxrpc/call.h>
 #include "internal.h"
-
-#if 0
-static int afs_file_open(struct inode *inode, struct file *file);
-static int afs_file_release(struct inode *inode, struct file *file);
-#endif
 
 static int afs_file_readpage(struct file *file, struct page *page);
 static void afs_file_invalidatepage(struct page *page, unsigned long offset);
 static int afs_file_releasepage(struct page *page, gfp_t gfp_flags);
 
+const struct file_operations afs_file_operations = {
+	.open		= afs_open,
+	.release	= afs_release,
+	.llseek		= generic_file_llseek,
+	.read		= do_sync_read,
+	.aio_read	= generic_file_aio_read,
+	.mmap		= generic_file_readonly_mmap,
+	.sendfile	= generic_file_sendfile,
+};
+
 const struct inode_operations afs_file_inode_operations = {
 	.getattr	= afs_inode_getattr,
+	.permission	= afs_permission,
 };
 
 const struct address_space_operations afs_fs_aops = {
@@ -40,7 +43,48 @@ const struct address_space_operations afs_fs_aops = {
 	.invalidatepage	= afs_file_invalidatepage,
 };
 
-/*****************************************************************************/
+/*
+ * open an AFS file or directory and attach a key to it
+ */
+int afs_open(struct inode *inode, struct file *file)
+{
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct key *key;
+	int ret;
+
+	_enter("{%x:%x},", vnode->fid.vid, vnode->fid.vnode);
+
+	key = afs_request_key(vnode->volume->cell);
+	if (IS_ERR(key)) {
+		_leave(" = %ld [key]", PTR_ERR(key));
+		return PTR_ERR(key);
+	}
+
+	ret = afs_validate(vnode, key);
+	if (ret < 0) {
+		_leave(" = %d [val]", ret);
+		return ret;
+	}
+
+	file->private_data = key;
+	_leave(" = 0");
+	return 0;
+}
+
+/*
+ * release an AFS file or directory and discard its key
+ */
+int afs_release(struct inode *inode, struct file *file)
+{
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+
+	_enter("{%x:%x},", vnode->fid.vid, vnode->fid.vnode);
+
+	key_put(file->private_data);
+	_leave(" = 0");
+	return 0;
+}
+
 /*
  * deal with notification that a page was read from the cache
  */
@@ -58,10 +102,9 @@ static void afs_file_readpage_read_complete(void *cookie_data,
 		SetPageUptodate(page);
 	unlock_page(page);
 
-} /* end afs_file_readpage_read_complete() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * deal with notification that a page was written to the cache
  */
@@ -74,41 +117,38 @@ static void afs_file_readpage_write_complete(void *cookie_data,
 	_enter("%p,%p,%p,%d", cookie_data, page, data, error);
 
 	unlock_page(page);
-
-} /* end afs_file_readpage_write_complete() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * AFS read page from file (or symlink)
  */
 static int afs_file_readpage(struct file *file, struct page *page)
 {
-	struct afs_rxfs_fetch_descriptor desc;
-#ifdef AFS_CACHING_SUPPORT
-	struct cachefs_page *pageio;
-#endif
 	struct afs_vnode *vnode;
 	struct inode *inode;
+	struct key *key;
+	size_t len;
+	off_t offset;
 	int ret;
 
 	inode = page->mapping->host;
 
-	_enter("{%lu},{%lu}", inode->i_ino, page->index);
+	ASSERT(file != NULL);
+	key = file->private_data;
+	ASSERT(key != NULL);
+
+	_enter("{%x},{%lu},{%lu}", key_serial(key), inode->i_ino, page->index);
 
 	vnode = AFS_FS_I(inode);
 
 	BUG_ON(!PageLocked(page));
 
 	ret = -ESTALE;
-	if (vnode->flags & AFS_VNODE_DELETED)
+	if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 		goto error;
 
 #ifdef AFS_CACHING_SUPPORT
-	ret = cachefs_page_get_private(page, &pageio, GFP_NOIO);
-	if (ret < 0)
-		goto error;
-
 	/* is it cached? */
 	ret = cachefs_read_or_alloc_page(vnode->cache,
 					 page,
@@ -132,26 +172,19 @@ static int afs_file_readpage(struct file *file, struct page *page)
 	case -ENOBUFS:
 	case -ENODATA:
 	default:
-		desc.fid	= vnode->fid;
-		desc.offset	= page->index << PAGE_CACHE_SHIFT;
-		desc.size	= min((size_t) (inode->i_size - desc.offset),
-				      (size_t) PAGE_SIZE);
-		desc.buffer	= kmap(page);
-
-		clear_page(desc.buffer);
+		offset = page->index << PAGE_CACHE_SHIFT;
+		len = min_t(size_t, i_size_read(inode) - offset, PAGE_SIZE);
 
 		/* read the contents of the file from the server into the
 		 * page */
-		ret = afs_vnode_fetch_data(vnode, &desc);
-		kunmap(page);
+		ret = afs_vnode_fetch_data(vnode, key, offset, len, page);
 		if (ret < 0) {
-			if (ret==-ENOENT) {
+			if (ret == -ENOENT) {
 				_debug("got NOENT from server"
 				       " - marking file deleted and stale");
-				vnode->flags |= AFS_VNODE_DELETED;
+				set_bit(AFS_VNODE_DELETED, &vnode->flags);
 				ret = -ESTALE;
 			}
-
 #ifdef AFS_CACHING_SUPPORT
 			cachefs_uncache_page(vnode->cache, page);
 #endif
@@ -178,16 +211,13 @@ static int afs_file_readpage(struct file *file, struct page *page)
 	_leave(" = 0");
 	return 0;
 
- error:
+error:
 	SetPageError(page);
 	unlock_page(page);
-
 	_leave(" = %d", ret);
 	return ret;
+}
 
-} /* end afs_file_readpage() */
-
-/*****************************************************************************/
 /*
  * get a page cookie for the specified page
  */
@@ -202,10 +232,9 @@ int afs_cache_get_page_cookie(struct page *page,
 
 	_leave(" = %d", ret);
 	return ret;
-} /* end afs_cache_get_page_cookie() */
+}
 #endif
 
-/*****************************************************************************/
 /*
  * invalidate part or all of a page
  */
@@ -240,9 +269,8 @@ static void afs_file_invalidatepage(struct page *page, unsigned long offset)
 	}
 
 	_leave(" = %d", ret);
-} /* end afs_file_invalidatepage() */
+}
 
-/*****************************************************************************/
 /*
  * release a page and cleanup its private data
  */
@@ -267,4 +295,4 @@ static int afs_file_releasepage(struct page *page, gfp_t gfp_flags)
 
 	_leave(" = 0");
 	return 0;
-} /* end afs_file_releasepage() */
+}

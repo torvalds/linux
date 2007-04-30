@@ -250,7 +250,6 @@ PRODUCT COMPONENTS AND RELATED FILES
 	sdladrv.h	SDLA support module API definitions
 	sdlasfm.h	SDLA firmware module definitions
 	if_wanpipe.h	WANPIPE Socket definitions
-	if_wanpipe_common.h	WANPIPE Socket/Driver common definitions.
 	sdlapci.h	WANPIPE PCI definitions
 	
 

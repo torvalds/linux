@@ -93,8 +93,6 @@ static int typhoon_setfreq(struct typhoon_device *dev, unsigned long frequency);
 static void typhoon_mute(struct typhoon_device *dev);
 static void typhoon_unmute(struct typhoon_device *dev);
 static int typhoon_setvol(struct typhoon_device *dev, int vol);
-static int typhoon_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_RADIO_TYPHOON_PROC_FS
 static int typhoon_get_info(char *buf, char **start, off_t offset, int len);
 #endif
@@ -186,129 +184,148 @@ static int typhoon_setvol(struct typhoon_device *dev, int vol)
 	return 0;
 }
 
+static int vidioc_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *v)
+{
+	strlcpy(v->driver, "radio-typhoon", sizeof(v->driver));
+	strlcpy(v->card, "Typhoon Radio", sizeof(v->card));
+	sprintf(v->bus_info, "ISA");
+	v->version = RADIO_VERSION;
+	v->capabilities = V4L2_CAP_TUNER;
+	return 0;
+}
 
-static int typhoon_do_ioctl(struct inode *inode, struct file *file,
-			    unsigned int cmd, void *arg)
+static int vidioc_g_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
+{
+	if (v->index > 0)
+		return -EINVAL;
+
+	strcpy(v->name, "FM");
+	v->type = V4L2_TUNER_RADIO;
+	v->rangelow = (87.5*16000);
+	v->rangehigh = (108*16000);
+	v->rxsubchans = V4L2_TUNER_SUB_MONO;
+	v->capability = V4L2_TUNER_CAP_LOW;
+	v->audmode = V4L2_TUNER_MODE_MONO;
+	v->signal = 0xFFFF;     /* We can't get the signal strength */
+	return 0;
+}
+
+static int vidioc_s_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
+{
+	if (v->index > 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
 	struct typhoon_device *typhoon = dev->priv;
 
-	switch (cmd) {
-		case VIDIOC_QUERYCAP:
-		{
-			struct v4l2_capability *v = arg;
-			memset(v,0,sizeof(*v));
-			strlcpy(v->driver, "radio-typhoon", sizeof (v->driver));
-			strlcpy(v->card, "Typhoon Radio", sizeof (v->card));
-			sprintf(v->bus_info,"ISA");
-			v->version = RADIO_VERSION;
-			v->capabilities = V4L2_CAP_TUNER;
-
-			return 0;
-		}
-		case VIDIOC_G_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "FM");
-			v->type = V4L2_TUNER_RADIO;
-
-			v->rangelow=(87.5*16000);
-			v->rangehigh=(108*16000);
-			v->rxsubchans =V4L2_TUNER_SUB_MONO;
-			v->capability=V4L2_TUNER_CAP_LOW;
-			v->audmode = V4L2_TUNER_MODE_MONO;
-			v->signal = 0xFFFF;	/* We can't get the signal strength */
-
-			return 0;
-		}
-		case VIDIOC_S_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			return 0;
-		}
-		case VIDIOC_S_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			typhoon->curfreq = f->frequency;
-			typhoon_setfreq(typhoon, typhoon->curfreq);
-			return 0;
-		}
-		case VIDIOC_G_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			f->type = V4L2_TUNER_RADIO;
-			f->frequency = typhoon->curfreq;
-
-			return 0;
-		}
-		case VIDIOC_QUERYCTRL:
-		{
-			struct v4l2_queryctrl *qc = arg;
-			int i;
-
-			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-				if (qc->id && qc->id == radio_qctrl[i].id) {
-					memcpy(qc, &(radio_qctrl[i]),
-								sizeof(*qc));
-					return (0);
-				}
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_G_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					ctrl->value=typhoon->muted;
-					return (0);
-				case V4L2_CID_AUDIO_VOLUME:
-					ctrl->value=typhoon->curvol;
-					return (0);
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					if (ctrl->value) {
-						typhoon_mute(typhoon);
-					} else {
-						typhoon_unmute(typhoon);
-					}
-					return (0);
-				case V4L2_CID_AUDIO_VOLUME:
-					typhoon_setvol(typhoon, ctrl->value);
-					return (0);
-			}
-			return -EINVAL;
-		}
-
-		default:
-			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-							  typhoon_do_ioctl);
-	}
+	typhoon->curfreq = f->frequency;
+	typhoon_setfreq(typhoon, typhoon->curfreq);
+	return 0;
 }
 
-static int typhoon_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static int vidioc_g_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
 {
-	return video_usercopy(inode, file, cmd, arg, typhoon_do_ioctl);
+	struct video_device *dev = video_devdata(file);
+	struct typhoon_device *typhoon = dev->priv;
+
+	f->type = V4L2_TUNER_RADIO;
+	f->frequency = typhoon->curfreq;
+
+	return 0;
+}
+
+static int vidioc_queryctrl(struct file *file, void *priv,
+					struct v4l2_queryctrl *qc)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+		if (qc->id && qc->id == radio_qctrl[i].id) {
+			memcpy(qc, &(radio_qctrl[i]),
+						sizeof(*qc));
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct typhoon_device *typhoon = dev->priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = typhoon->muted;
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = typhoon->curvol;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_s_ctrl (struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct typhoon_device *typhoon = dev->priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		if (ctrl->value)
+			typhoon_mute(typhoon);
+		else
+			typhoon_unmute(typhoon);
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		typhoon_setvol(typhoon, ctrl->value);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index > 1)
+		return -EINVAL;
+
+	strcpy(a->name, "Radio");
+	a->capability = V4L2_AUDCAP_STEREO;
+	return 0;
+}
+
+static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
+{
+	if (i != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index != 0)
+		return -EINVAL;
+	return 0;
 }
 
 static struct typhoon_device typhoon_unit =
@@ -322,7 +339,7 @@ static const struct file_operations typhoon_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
-	.ioctl		= typhoon_ioctl,
+	.ioctl		= video_ioctl2,
 	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
@@ -334,6 +351,18 @@ static struct video_device typhoon_radio =
 	.type		= VID_TYPE_TUNER,
 	.hardware	= 0,
 	.fops           = &typhoon_fops,
+	.vidioc_querycap    = vidioc_querycap,
+	.vidioc_g_tuner     = vidioc_g_tuner,
+	.vidioc_s_tuner     = vidioc_s_tuner,
+	.vidioc_g_audio     = vidioc_g_audio,
+	.vidioc_s_audio     = vidioc_s_audio,
+	.vidioc_g_input     = vidioc_g_input,
+	.vidioc_s_input     = vidioc_s_input,
+	.vidioc_g_frequency = vidioc_g_frequency,
+	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_queryctrl   = vidioc_queryctrl,
+	.vidioc_g_ctrl      = vidioc_g_ctrl,
+	.vidioc_s_ctrl      = vidioc_s_ctrl,
 };
 
 #ifdef CONFIG_RADIO_TYPHOON_PROC_FS

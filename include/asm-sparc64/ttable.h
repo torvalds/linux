@@ -157,23 +157,6 @@
 	ba,a,pt	%xcc, rtrap_irq;			\
 	.previous;
 
-#define TICK_SMP_IRQ					\
-	rdpr	%pil, %g2;				\
-	wrpr	%g0, 15, %pil;				\
-	sethi	%hi(1f-4), %g7;				\
-	ba,pt	%xcc, etrap_irq;			\
-	 or	%g7, %lo(1f-4), %g7;			\
-	nop;						\
-	nop;						\
-	nop;						\
-	.subsection	2;				\
-1:	call	trace_hardirqs_off;			\
-	 nop;						\
-	call	smp_percpu_timer_interrupt;		\
-	 add	%sp, PTREGS_OFF, %o0;			\
-	ba,a,pt	%xcc, rtrap_irq;			\
-	.previous;
-
 #else
 
 #define TRAP_IRQ(routine, level)			\
@@ -186,16 +169,6 @@
 	 add	%sp, PTREGS_OFF, %o1;			\
 	ba,a,pt	%xcc, rtrap_irq;
 	
-#define TICK_SMP_IRQ					\
-	rdpr	%pil, %g2;				\
-	wrpr	%g0, 15, %pil;				\
-	sethi	%hi(109f), %g7;				\
-	ba,pt	%xcc, etrap_irq;			\
-109:	 or	%g7, %lo(109b), %g7;			\
-	call	smp_percpu_timer_interrupt;		\
-	 add	%sp, PTREGS_OFF, %o0;			\
-	ba,a,pt	%xcc, rtrap_irq;
-
 #endif
 
 #define TRAP_IVEC TRAP_NOSAVE(do_ivec)

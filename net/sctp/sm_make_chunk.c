@@ -86,7 +86,7 @@ int sctp_chunk_iif(const struct sctp_chunk *chunk)
 	struct sctp_af *af;
 	int iif = 0;
 
-	af = sctp_get_af_specific(ipver2af(chunk->skb->nh.iph->version));
+	af = sctp_get_af_specific(ipver2af(ip_hdr(chunk->skb)->version));
 	if (af)
 		iif = af->skb_iif(chunk->skb);
 
@@ -1143,7 +1143,7 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length = htons(chunklen + padlen + len);
-	chunk->chunk_end = chunk->skb->tail;
+	chunk->chunk_end = skb_tail_pointer(chunk->skb);
 
 	return target;
 }
@@ -1168,7 +1168,7 @@ int sctp_user_addto_chunk(struct sctp_chunk *chunk, int off, int len,
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length =
 		htons(ntohs(chunk->chunk_hdr->length) + len);
-	chunk->chunk_end = chunk->skb->tail;
+	chunk->chunk_end = skb_tail_pointer(chunk->skb);
 
 out:
 	return err;
@@ -1233,7 +1233,7 @@ struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
 	asoc->temp = 1;
 	skb = chunk->skb;
 	/* Create an entry for the source address of the packet.  */
-	af = sctp_get_af_specific(ipver2af(skb->nh.iph->version));
+	af = sctp_get_af_specific(ipver2af(ip_hdr(skb)->version));
 	if (unlikely(!af))
 		goto fail;
 	af->from_skb(&asoc->c.peer_addr, skb, 1);
@@ -2077,7 +2077,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 
 			default: /* Just ignore anything else.  */
 				break;
-			};
+			}
 		}
 		break;
 
@@ -2118,7 +2118,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 		SCTP_DEBUG_PRINTK("Ignoring param: %d for association %p.\n",
 				  ntohs(param.p->type), asoc);
 		break;
-	};
+	}
 
 	return retval;
 }

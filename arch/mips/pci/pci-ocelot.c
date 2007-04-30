@@ -81,7 +81,7 @@ static struct resource ocelot_io_resource = {
 };
 
 static struct pci_controller ocelot_pci_controller = {
-	.pci_ops	= gt64120_pci_ops;
+	.pci_ops	= gt64xxx_pci0_ops;
 	.mem_resource	= &ocelot_mem_resource;
 	.io_resource	= &ocelot_io_resource;
 };

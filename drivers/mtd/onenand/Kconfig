@@ -2,20 +2,18 @@
 # linux/drivers/mtd/onenand/Kconfig
 #
 
-menu "OneNAND Flash Device Drivers"
-	depends on MTD != n
-
-config MTD_ONENAND
+menuconfig MTD_ONENAND
 	tristate "OneNAND Device Support"
 	depends on MTD
 	help
 	  This enables support for accessing all type of OneNAND flash
 	  devices. For further information see
-	  <http://www.samsung.com/Products/Semiconductor/Flash/OneNAND_TM/index.htm>.
+	  <http://www.samsung.com/Products/Semiconductor/OneNAND/index.htm>
+
+if MTD_ONENAND
 
 config MTD_ONENAND_VERIFY_WRITE
 	bool "Verify OneNAND page writes"
-	depends on MTD_ONENAND
 	help
 	  This adds an extra check when data is written to the flash. The
 	  OneNAND flash device internally checks only bits transitioning
@@ -25,13 +23,12 @@ config MTD_ONENAND_VERIFY_WRITE
 
 config MTD_ONENAND_GENERIC
 	tristate "OneNAND Flash device via platform device driver"
-	depends on MTD_ONENAND && ARM
+	depends on ARM
 	help
 	  Support for OneNAND flash via platform device driver.
 
 config MTD_ONENAND_OTP
 	bool "OneNAND OTP Support"
-	depends on MTD_ONENAND
 	help
 	  One Block of the NAND Flash Array memory is reserved as
 	  a One-Time Programmable Block memory area.
@@ -43,4 +40,4 @@ config MTD_ONENAND_OTP
 
 	  OTP block is fully-guaranteed to be a valid block.
 
-endmenu
+endif # MTD_ONENAND

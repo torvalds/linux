@@ -31,7 +31,7 @@
 #define FSL_SOC_USB_SNOOP1	0x400	/* NOTE: big-endian */
 #define FSL_SOC_USB_SNOOP2	0x404	/* NOTE: big-endian */
 #define FSL_SOC_USB_AGECNTTHRSH	0x408	/* NOTE: big-endian */
-#define FSL_SOC_USB_SICTRL	0x40c	/* NOTE: big-endian */
-#define FSL_SOC_USB_PRICTRL	0x410	/* NOTE: big-endian */
+#define FSL_SOC_USB_PRICTRL	0x40c	/* NOTE: big-endian */
+#define FSL_SOC_USB_SICTRL	0x410	/* NOTE: big-endian */
 #define FSL_SOC_USB_CTRL	0x500	/* NOTE: big-endian */
 #endif				/* _EHCI_FSL_H */

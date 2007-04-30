@@ -575,6 +575,8 @@ struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
 	return NULL;
 }
 
+EXPORT_SYMBOL(rt6_lookup);
+
 /* ip6_ins_rt is called with FREE table->tb6_lock.
    It takes new route entry, the addition fails by any reason the
    route is freed. In any case, if caller does not hold it, it may
@@ -724,7 +726,7 @@ out2:
 
 void ip6_route_input(struct sk_buff *skb)
 {
-	struct ipv6hdr *iph = skb->nh.ipv6h;
+	struct ipv6hdr *iph = ipv6_hdr(skb);
 	int flags = RT6_LOOKUP_F_HAS_SADDR;
 	struct flowi fl = {
 		.iif = skb->dev->ifindex,
@@ -829,6 +831,7 @@ struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 	return fib6_rule_lookup(fl, flags, ip6_pol_route_output);
 }
 
+EXPORT_SYMBOL(ip6_route_output);
 
 /*
  *	Destination cache support functions
@@ -1757,7 +1760,7 @@ int ipv6_route_ioctl(unsigned int cmd, void __user *arg)
 		rtnl_unlock();
 
 		return err;
-	};
+	}
 
 	return -EINVAL;
 }
@@ -1766,13 +1769,22 @@ int ipv6_route_ioctl(unsigned int cmd, void __user *arg)
  *	Drop the packet on the floor
  */
 
-static inline int ip6_pkt_drop(struct sk_buff *skb, int code)
+static inline int ip6_pkt_drop(struct sk_buff *skb, int code,
+			       int ipstats_mib_noroutes)
 {
-	int type = ipv6_addr_type(&skb->nh.ipv6h->daddr);
-	if (type == IPV6_ADDR_ANY || type == IPV6_ADDR_RESERVED)
-		IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_INADDRERRORS);
-
-	IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_OUTNOROUTES);
+	int type;
+	switch (ipstats_mib_noroutes) {
+	case IPSTATS_MIB_INNOROUTES:
+		type = ipv6_addr_type(&ipv6_hdr(skb)->daddr);
+		if (type == IPV6_ADDR_ANY || type == IPV6_ADDR_RESERVED) {
+			IP6_INC_STATS(ip6_dst_idev(skb->dst), IPSTATS_MIB_INADDRERRORS);
+			break;
+		}
+		/* FALLTHROUGH */
+	case IPSTATS_MIB_OUTNOROUTES:
+		IP6_INC_STATS(ip6_dst_idev(skb->dst), ipstats_mib_noroutes);
+		break;
+	}
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, code, 0, skb->dev);
 	kfree_skb(skb);
 	return 0;
@@ -1780,26 +1792,26 @@ static inline int ip6_pkt_drop(struct sk_buff *skb, int code)
 
 static int ip6_pkt_discard(struct sk_buff *skb)
 {
-	return ip6_pkt_drop(skb, ICMPV6_NOROUTE);
+	return ip6_pkt_drop(skb, ICMPV6_NOROUTE, IPSTATS_MIB_INNOROUTES);
 }
 
 static int ip6_pkt_discard_out(struct sk_buff *skb)
 {
 	skb->dev = skb->dst->dev;
-	return ip6_pkt_discard(skb);
+	return ip6_pkt_drop(skb, ICMPV6_NOROUTE, IPSTATS_MIB_OUTNOROUTES);
 }
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 
 static int ip6_pkt_prohibit(struct sk_buff *skb)
 {
-	return ip6_pkt_drop(skb, ICMPV6_ADM_PROHIBITED);
+	return ip6_pkt_drop(skb, ICMPV6_ADM_PROHIBITED, IPSTATS_MIB_INNOROUTES);
 }
 
 static int ip6_pkt_prohibit_out(struct sk_buff *skb)
 {
 	skb->dev = skb->dst->dev;
-	return ip6_pkt_prohibit(skb);
+	return ip6_pkt_drop(skb, ICMPV6_ADM_PROHIBITED, IPSTATS_MIB_OUTNOROUTES);
 }
 
 static int ip6_pkt_blk_hole(struct sk_buff *skb)
@@ -2003,7 +2015,7 @@ errout:
 	return err;
 }
 
-int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct fib6_config cfg;
 	int err;
@@ -2015,7 +2027,7 @@ int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	return ip6_route_del(&cfg);
 }
 
-int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct fib6_config cfg;
 	int err;
@@ -2152,7 +2164,7 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 		     prefix, NLM_F_MULTI);
 }
 
-int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
+static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct nlattr *tb[RTA_MAX+1];
 	struct rt6_info *rt;
@@ -2206,7 +2218,7 @@ int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 	/* Reserve room for dummy headers, this skb can pass
 	   through good chunk of routing engine.
 	 */
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_reserve(skb, MAX_HEADER + sizeof(struct ipv6hdr));
 
 	rt = (struct rt6_info*) ip6_route_output(NULL, &fl);
@@ -2477,8 +2489,9 @@ ctl_table ipv6_route_table[] = {
 
 void __init ip6_route_init(void)
 {
+#ifdef 	CONFIG_PROC_FS
 	struct proc_dir_entry *p;
-
+#endif
 	ip6_dst_ops.kmem_cachep =
 		kmem_cache_create("ip6_dst_cache", sizeof(struct rt6_info), 0,
 				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
@@ -2496,6 +2509,10 @@ void __init ip6_route_init(void)
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	fib6_rules_init();
 #endif
+
+	__rtnl_register(PF_INET6, RTM_NEWROUTE, inet6_rtm_newroute, NULL);
+	__rtnl_register(PF_INET6, RTM_DELROUTE, inet6_rtm_delroute, NULL);
+	__rtnl_register(PF_INET6, RTM_GETROUTE, inet6_rtm_getroute, NULL);
 }
 
 void ip6_route_cleanup(void)

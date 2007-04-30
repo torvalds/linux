@@ -259,11 +259,10 @@ static int vfc_debug(struct vfc_dev *dev, int cmd, void __user *argp)
 		if (copy_from_user(&inout, argp, sizeof(inout)))
 			return -EFAULT;
 
-		buffer = kmalloc(inout.len, GFP_KERNEL);
+		buffer = kzalloc(inout.len, GFP_KERNEL);
 		if (buffer == NULL)
 			return -ENOMEM;
 
-		memset(buffer,0,inout.len);
 		vfc_lock_device(dev);
 		inout.ret=
 			vfc_i2c_recvbuf(dev,inout.addr & 0xff

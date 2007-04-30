@@ -46,62 +46,6 @@ config NET_SCH_FIFO
 
 if NET_SCHED
 
-choice
-	prompt "Packet scheduler clock source"
-	default NET_SCH_CLK_GETTIMEOFDAY
-	---help---
-	  Packet schedulers need a monotonic clock that increments at a static
-	  rate. The kernel provides several suitable interfaces, each with
-	  different properties:
-	  
-	  - high resolution (us or better)
-	  - fast to read (minimal locking, no i/o access)
-	  - synchronized on all processors
-	  - handles cpu clock frequency changes
-
-	  but nothing provides all of the above.
-
-config NET_SCH_CLK_JIFFIES
-	bool "Timer interrupt"
-	---help---
-	  Say Y here if you want to use the timer interrupt (jiffies) as clock
-	  source. This clock source is fast, synchronized on all processors and
-	  handles cpu clock frequency changes, but its resolution is too low
-	  for accurate shaping except at very low speed.
-
-config NET_SCH_CLK_GETTIMEOFDAY
-	bool "gettimeofday"
-	---help---
-	  Say Y here if you want to use gettimeofday as clock source. This clock
-	  source has high resolution, is synchronized on all processors and
-	  handles cpu clock frequency changes, but it is slow.
-
-	  Choose this if you need a high resolution clock source but can't use
-	  the CPU's cycle counter.
-
-# don't allow on SMP x86 because they can have unsynchronized TSCs.
-# gettimeofday is a good alternative
-config NET_SCH_CLK_CPU
-	bool "CPU cycle counter"
-	depends on ((X86_TSC || X86_64) && !SMP) || ALPHA || SPARC64 || PPC64 || IA64
-	---help---
-	  Say Y here if you want to use the CPU's cycle counter as clock source.
-	  This is a cheap and high resolution clock source, but on some
-	  architectures it is not synchronized on all processors and doesn't
-	  handle cpu clock frequency changes.
-
-	  The useable cycle counters are:
-
-	  	x86/x86_64	- Timestamp Counter
-		alpha		- Cycle Counter
-		sparc64		- %ticks register
-		ppc64		- Time base
-		ia64		- Interval Time Counter
-
-	  Choose this if your CPU's cycle counter is working properly.
-
-endchoice
-
 comment "Queueing/Scheduling"
 
 config NET_SCH_CBQ

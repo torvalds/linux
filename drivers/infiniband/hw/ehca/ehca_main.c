@@ -587,6 +587,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		ehca_gen_err("Cannot allocate shca memory.");
 		return -ENOMEM;
 	}
+	mutex_init(&shca->modify_mutex);
 
 	shca->ibmebus_dev = dev;
 	shca->ipz_hca_handle.handle = *handle;

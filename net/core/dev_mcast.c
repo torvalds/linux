@@ -264,7 +264,7 @@ static int dev_mc_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations dev_mc_seq_ops = {
+static const struct seq_operations dev_mc_seq_ops = {
 	.start = dev_mc_seq_start,
 	.next  = dev_mc_seq_next,
 	.stop  = dev_mc_seq_stop,

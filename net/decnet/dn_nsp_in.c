@@ -362,7 +362,8 @@ static void dn_nsp_conn_conf(struct sock *sk, struct sk_buff *skb)
 			u16 dlen = *skb->data;
 			if ((dlen <= 16) && (dlen <= skb->len)) {
 				scp->conndata_in.opt_optl = dn_htons(dlen);
-				memcpy(scp->conndata_in.opt_data, skb->data + 1, dlen);
+				skb_copy_from_linear_data_offset(skb, 1,
+					      scp->conndata_in.opt_data, dlen);
 			}
 		}
 		dn_nsp_send_link(sk, DN_NOCHANGE, 0);
@@ -406,7 +407,7 @@ static void dn_nsp_disc_init(struct sock *sk, struct sk_buff *skb)
 		u16 dlen = *skb->data;
 		if ((dlen <= 16) && (dlen <= skb->len)) {
 			scp->discdata_in.opt_optl = dn_htons(dlen);
-			memcpy(scp->discdata_in.opt_data, skb->data + 1, dlen);
+			skb_copy_from_linear_data_offset(skb, 1, scp->discdata_in.opt_data, dlen);
 		}
 	}
 
@@ -725,7 +726,7 @@ static int dn_nsp_rx_packet(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, 2))
 		goto free_out;
 
-	skb->h.raw    = skb->data;
+	skb_reset_transport_header(skb);
 	cb->nsp_flags = *ptr++;
 
 	if (decnet_debug_level & 2)

@@ -26,6 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/upd64083.h>
 
 MODULE_DESCRIPTION("uPD64083 driver");
@@ -155,6 +156,10 @@ static int upd64083_command(struct i2c_client *client, unsigned int cmd, void *a
 		break;
 	}
 #endif
+
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_UPD64083, 0);
+
 	default:
 		break;
 	}

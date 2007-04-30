@@ -162,7 +162,7 @@ static int econet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	err = memcpy_toiovec(msg->msg_iov, skb->data, copied);
 	if (err)
 		goto out_free;
-	skb_get_timestamp(skb, &sk->sk_stamp);
+	sk->sk_stamp = skb->tstamp;
 
 	if (msg->msg_name)
 		memcpy(msg->msg_name, skb->cb, msg->msg_namelen);
@@ -345,7 +345,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 			goto out_unlock;
 
 		skb_reserve(skb, LL_RESERVED_SPACE(dev));
-		skb->nh.raw = skb->data;
+		skb_reset_network_header(skb);
 
 		eb = (struct ec_cb *)&skb->cb;
 
@@ -366,7 +366,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 			fh->cb = cb;
 			fh->port = port;
 			if (sock->type != SOCK_DGRAM) {
-				skb->tail = skb->data;
+				skb_reset_tail_pointer(skb);
 				skb->len = 0;
 			} else if (res < 0)
 				goto out_free;
@@ -727,6 +727,9 @@ static int econet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 		case SIOCGSTAMP:
 			return sock_get_timestamp(sk, argp);
 
+		case SIOCGSTAMPNS:
+			return sock_get_timestampns(sk, argp);
+
 		case SIOCSIFADDR:
 		case SIOCGIFADDR:
 			return ec_dev_ioctl(sock, cmd, argp);
@@ -845,7 +848,7 @@ static void aun_send_response(__u32 addr, unsigned long seq, int code, int cb)
 
 static void aun_incoming(struct sk_buff *skb, struct aunhdr *ah, size_t len)
 {
-	struct iphdr *ip = skb->nh.iph;
+	struct iphdr *ip = ip_hdr(skb);
 	unsigned char stn = ntohl(ip->saddr) & 0xff;
 	struct sock *sk;
 	struct sk_buff *newskb;
@@ -940,10 +943,10 @@ static void aun_data_available(struct sock *sk, int slen)
 		printk(KERN_DEBUG "AUN: recvfrom() error %d\n", -err);
 	}
 
-	data = skb->h.raw + sizeof(struct udphdr);
+	data = skb_transport_header(skb) + sizeof(struct udphdr);
 	ah = (struct aunhdr *)data;
 	len = skb->len - sizeof(struct udphdr);
-	ip = skb->nh.iph;
+	ip = ip_hdr(skb);
 
 	switch (ah->code)
 	{

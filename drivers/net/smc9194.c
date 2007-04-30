@@ -1262,7 +1262,6 @@ static void smc_rcv(struct net_device *dev)
 
 		skb_reserve( skb, 2 );   /* 16 bit alignment */
 
-		skb->dev = dev;
 		data = skb_put( skb, packet_length);
 
 #ifdef USE_32_BIT

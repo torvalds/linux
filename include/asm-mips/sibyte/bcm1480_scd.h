@@ -10,7 +10,7 @@
     *
     *********************************************************************
     *
-    *  Copyright 2000,2001,2002,2003
+    *  Copyright 2000,2001,2002,2003,2004,2005
     *  Broadcom Corporation. All rights reserved.
     *
     *  This program is free software; you can redistribute it and/or
@@ -78,6 +78,7 @@
 #define K_SYS_PART_BCM1280          0x1206
 #define K_SYS_PART_BCM1455          0x1407
 #define K_SYS_PART_BCM1255          0x1257
+#define K_SYS_PART_BCM1158          0x1156
 
 /*
  * Manufacturing Information Register (Table 14)
@@ -237,58 +238,42 @@
  * System Performance Counter Configuration Register (Table 31)
  * Register: PERF_CNT_CFG_0
  *
- * Since the clear/enable bits are moved compared to the
- * 1250 and there are more fields, this register will be BCM1480 specific.
+ * SPC_CFG_SRC[0-3] is the same as the 1250.
+ * SPC_CFG_SRC[4-7] only exist on the 1480
+ * The clear/enable bits are in different locations on the 1250 and 1480.
  */
 
-#define S_BCM1480_SPC_CFG_SRC0              0
-#define M_BCM1480_SPC_CFG_SRC0              _SB_MAKEMASK(8,S_BCM1480_SPC_CFG_SRC0)
-#define V_BCM1480_SPC_CFG_SRC0(x)           _SB_MAKEVALUE(x,S_BCM1480_SPC_CFG_SRC0)
-#define G_BCM1480_SPC_CFG_SRC0(x)           _SB_GETVALUE(x,S_BCM1480_SPC_CFG_SRC0,M_BCM1480_SPC_CFG_SRC0)
+#define S_SPC_CFG_SRC4              32
+#define M_SPC_CFG_SRC4              _SB_MAKEMASK(8,S_SPC_CFG_SRC4)
+#define V_SPC_CFG_SRC4(x)           _SB_MAKEVALUE(x,S_SPC_CFG_SRC4)
+#define G_SPC_CFG_SRC4(x)           _SB_GETVALUE(x,S_SPC_CFG_SRC4,M_SPC_CFG_SRC4)
 
-#define S_BCM1480_SPC_CFG_SRC1              8
-#define M_BCM1480_SPC_CFG_SRC1              _SB_MAKEMASK(8,S_BCM1480_SPC_CFG_SRC1)
-#define V_BCM1480_SPC_CFG_SRC1(x)           _SB_MAKEVALUE(x,S_BCM1480_SPC_CFG_SRC1)
-#define G_BCM1480_SPC_CFG_SRC1(x)           _SB_GETVALUE(x,S_BCM1480_SPC_CFG_SRC1,M_BCM1480_SPC_CFG_SRC1)
+#define S_SPC_CFG_SRC5              40
+#define M_SPC_CFG_SRC5              _SB_MAKEMASK(8,S_SPC_CFG_SRC5)
+#define V_SPC_CFG_SRC5(x)           _SB_MAKEVALUE(x,S_SPC_CFG_SRC5)
+#define G_SPC_CFG_SRC5(x)           _SB_GETVALUE(x,S_SPC_CFG_SRC5,M_SPC_CFG_SRC5)
 
-#define S_BCM1480_SPC_CFG_SRC2              16
-#define M_BCM1480_SPC_CFG_SRC2              _SB_MAKEMASK(8,S_BCM1480_SPC_CFG_SRC2)
-#define V_BCM1480_SPC_CFG_SRC2(x)           _SB_MAKEVALUE(x,S_BCM1480_SPC_CFG_SRC2)
-#define G_BCM1480_SPC_CFG_SRC2(x)           _SB_GETVALUE(x,S_BCM1480_SPC_CFG_SRC2,M_BCM1480_SPC_CFG_SRC2)
+#define S_SPC_CFG_SRC6              48
+#define M_SPC_CFG_SRC6              _SB_MAKEMASK(8,S_SPC_CFG_SRC6)
+#define V_SPC_CFG_SRC6(x)           _SB_MAKEVALUE(x,S_SPC_CFG_SRC6)
+#define G_SPC_CFG_SRC6(x)           _SB_GETVALUE(x,S_SPC_CFG_SRC6,M_SPC_CFG_SRC6)
 
-#define S_BCM1480_SPC_CFG_SRC3              24
-#define M_BCM1480_SPC_CFG_SRC3              _SB_MAKEMASK(8,S_BCM1480_SPC_CFG_SRC3)
-#define V_BCM1480_SPC_CFG_SRC3(x)           _SB_MAKEVALUE(x,S_BCM1480_SPC_CFG_SRC3)
-#define G_BCM1480_SPC_CFG_SRC3(x)           _SB_GETVALUE(x,S_BCM1480_SPC_CFG_SRC3,M_BCM1480_SPC_CFG_SRC3)
-
-#define S_BCM1480_SPC_CFG_SRC4              32
-#define M_BCM1480_SPC_CFG_SRC4              _SB_MAKEMASK(8,S_BCM1480_SPC_CFG_SRC4)
-#define V_BCM1480_SPC_CFG_SRC4(x)           _SB_MAKEVALUE(x,S_BCM1480_SPC_CFG_SRC4)
-#define G_BCM1480_SPC_CFG_SRC4(x)           _SB_GETVALUE(x,S_BCM1480_SPC_CFG_SRC4,M_BCM1480_SPC_CFG_SRC4)
-
-#define S_BCM1480_SPC_CFG_SRC5              40
-#define M_BCM1480_SPC_CFG_SRC5              _SB_MAKEMASK(8,S_BCM1480_SPC_CFG_SRC5)
-#define V_BCM1480_SPC_CFG_SRC5(x)           _SB_MAKEVALUE(x,S_BCM1480_SPC_CFG_SRC5)
-#define G_BCM1480_SPC_CFG_SRC5(x)           _SB_GETVALUE(x,S_BCM1480_SPC_CFG_SRC5,M_BCM1480_SPC_CFG_SRC5)
-
-#define S_BCM1480_SPC_CFG_SRC6              48
-#define M_BCM1480_SPC_CFG_SRC6              _SB_MAKEMASK(8,S_BCM1480_SPC_CFG_SRC6)
-#define V_BCM1480_SPC_CFG_SRC6(x)           _SB_MAKEVALUE(x,S_BCM1480_SPC_CFG_SRC6)
-#define G_BCM1480_SPC_CFG_SRC6(x)           _SB_GETVALUE(x,S_BCM1480_SPC_CFG_SRC6,M_BCM1480_SPC_CFG_SRC6)
-
-#define S_BCM1480_SPC_CFG_SRC7              56
-#define M_BCM1480_SPC_CFG_SRC7              _SB_MAKEMASK(8,S_BCM1480_SPC_CFG_SRC7)
-#define V_BCM1480_SPC_CFG_SRC7(x)           _SB_MAKEVALUE(x,S_BCM1480_SPC_CFG_SRC7)
-#define G_BCM1480_SPC_CFG_SRC7(x)           _SB_GETVALUE(x,S_BCM1480_SPC_CFG_SRC7,M_BCM1480_SPC_CFG_SRC7)
+#define S_SPC_CFG_SRC7              56
+#define M_SPC_CFG_SRC7              _SB_MAKEMASK(8,S_SPC_CFG_SRC7)
+#define V_SPC_CFG_SRC7(x)           _SB_MAKEVALUE(x,S_SPC_CFG_SRC7)
+#define G_SPC_CFG_SRC7(x)           _SB_GETVALUE(x,S_SPC_CFG_SRC7,M_SPC_CFG_SRC7)
 
 /*
  * System Performance Counter Control Register (Table 32)
  * Register: PERF_CNT_CFG_1
  * BCM1480 specific
  */
-
-#define M_BCM1480_SPC_CFG_CLEAR             _SB_MAKEMASK1(0)
-#define M_BCM1480_SPC_CFG_ENABLE            _SB_MAKEMASK1(1)
+#define M_BCM1480_SPC_CFG_CLEAR     _SB_MAKEMASK1(0)
+#define M_BCM1480_SPC_CFG_ENABLE    _SB_MAKEMASK1(1)
+#if SIBYTE_HDR_FEATURE_CHIP(1480)
+#define M_SPC_CFG_CLEAR			M_BCM1480_SPC_CFG_CLEAR
+#define M_SPC_CFG_ENABLE		M_BCM1480_SPC_CFG_ENABLE
+#endif
 
 /*
  * System Performance Counters (Table 33)
@@ -405,19 +390,9 @@
  * Trace Control Register (Table 49)
  * Register: TRACE_CFG
  *
- * Bits 0..8 are the same as the BCM1250, rest are different.
- * Entire register is redefined below.
+ * BCM1480 changes to this register (other than location of the CUR_ADDR field)
+ * are defined below.
  */
-
-#define M_BCM1480_SCD_TRACE_CFG_RESET       _SB_MAKEMASK1(0)
-#define M_BCM1480_SCD_TRACE_CFG_START_READ  _SB_MAKEMASK1(1)
-#define M_BCM1480_SCD_TRACE_CFG_START       _SB_MAKEMASK1(2)
-#define M_BCM1480_SCD_TRACE_CFG_STOP        _SB_MAKEMASK1(3)
-#define M_BCM1480_SCD_TRACE_CFG_FREEZE      _SB_MAKEMASK1(4)
-#define M_BCM1480_SCD_TRACE_CFG_FREEZE_FULL _SB_MAKEMASK1(5)
-#define M_BCM1480_SCD_TRACE_CFG_DEBUG_FULL  _SB_MAKEMASK1(6)
-#define M_BCM1480_SCD_TRACE_CFG_FULL        _SB_MAKEMASK1(7)
-#define M_BCM1480_SCD_TRACE_CFG_FORCE_CNT   _SB_MAKEMASK1(8)
 
 #define S_BCM1480_SCD_TRACE_CFG_MODE        16
 #define M_BCM1480_SCD_TRACE_CFG_MODE        _SB_MAKEMASK(2,S_BCM1480_SCD_TRACE_CFG_MODE)
@@ -427,10 +402,5 @@
 #define K_BCM1480_SCD_TRACE_CFG_MODE_BLOCKERS	0
 #define K_BCM1480_SCD_TRACE_CFG_MODE_BYTEEN_INT	1
 #define K_BCM1480_SCD_TRACE_CFG_MODE_FLOW_ID	2
-
-#define S_BCM1480_SCD_TRACE_CFG_CUR_ADDR    24
-#define M_BCM1480_SCD_TRACE_CFG_CUR_ADDR    _SB_MAKEMASK(8,S_BCM1480_SCD_TRACE_CFG_CUR_ADDR)
-#define V_BCM1480_SCD_TRACE_CFG_CUR_ADDR(x) _SB_MAKEVALUE(x,S_BCM1480_SCD_TRACE_CFG_CUR_ADDR)
-#define G_BCM1480_SCD_TRACE_CFG_CUR_ADDR(x) _SB_GETVALUE(x,S_BCM1480_SCD_TRACE_CFG_CUR_ADDR,M_BCM1480_SCD_TRACE_CFG_CUR_ADDR)
 
 #endif /* _BCM1480_SCD_H */

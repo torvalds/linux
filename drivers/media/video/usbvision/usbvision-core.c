@@ -2040,8 +2040,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 		return 0;
 
 	/* Set input format expected from decoder*/
-	if (usbvision_device_data[usbvision->DevModel].Vin_Reg1 >= 0) {
-		value[0] = usbvision_device_data[usbvision->DevModel].Vin_Reg1 & 0xff;
+	if (usbvision_device_data[usbvision->DevModel].Vin_Reg1_override) {
+		value[0] = usbvision_device_data[usbvision->DevModel].Vin_Reg1;
 	} else if(usbvision_device_data[usbvision->DevModel].Codec == CODEC_SAA7113) {
 		/* SAA7113 uses 8 bit output */
 		value[0] = USBVISION_8_422_SYNC;
@@ -2112,8 +2112,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 
 	dvi_yuv_value = 0x00;	/* U comes after V, Ya comes after U/V, Yb comes after Yb */
 
-	if(usbvision_device_data[usbvision->DevModel].Dvi_yuv >= 0){
-		dvi_yuv_value = usbvision_device_data[usbvision->DevModel].Dvi_yuv & 0xff;
+	if(usbvision_device_data[usbvision->DevModel].Dvi_yuv_override){
+		dvi_yuv_value = usbvision_device_data[usbvision->DevModel].Dvi_yuv;
 	}
 	else if(usbvision_device_data[usbvision->DevModel].Codec == CODEC_SAA7113) {
 	/* This changes as the fine sync control changes. Further investigation necessary */
@@ -2238,7 +2238,7 @@ static void call_usbvision_power_off(struct work_struct *work)
 	PDEBUG(DBG_FUNC, "");
 	down_interruptible(&usbvision->lock);
 	if(usbvision->user == 0) {
-		usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+		usbvision_i2c_unregister(usbvision);
 
 		usbvision_power_off(usbvision);
 		usbvision->initialized = 0;

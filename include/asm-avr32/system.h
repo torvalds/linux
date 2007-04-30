@@ -9,6 +9,7 @@
 #define __ASM_AVR32_SYSTEM_H
 
 #include <linux/compiler.h>
+#include <linux/linkage.h>
 #include <linux/types.h>
 
 #include <asm/ptrace.h>
@@ -140,15 +141,9 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 				   sizeof(*(ptr))))
 
 struct pt_regs;
-extern void __die(const char *, struct pt_regs *, unsigned long,
-		  const char *, const char *, unsigned long);
-extern void __die_if_kernel(const char *, struct pt_regs *, unsigned long,
-			    const char *, const char *, unsigned long);
-
-#define die(msg, regs, err)					\
-	__die(msg, regs, err, __FILE__ ":", __FUNCTION__, __LINE__)
-#define die_if_kernel(msg, regs, err)					\
-	__die_if_kernel(msg, regs, err, __FILE__ ":", __FUNCTION__, __LINE__)
+void NORET_TYPE die(const char *str, struct pt_regs *regs, long err);
+void _exception(long signr, struct pt_regs *regs, int code,
+		unsigned long addr);
 
 #define arch_align_stack(x)	(x)
 

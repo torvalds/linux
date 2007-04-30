@@ -22,7 +22,6 @@
 #include <linux/sysfs.h>
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
-#include <linux/rwsem.h>
 #include <linux/kref.h>
 #include <linux/kernel.h>
 #include <linux/wait.h>
@@ -43,11 +42,9 @@ enum kobject_action {
 	KOBJ_ADD	= (__force kobject_action_t) 0x01,	/* exclusive to core */
 	KOBJ_REMOVE	= (__force kobject_action_t) 0x02,	/* exclusive to core */
 	KOBJ_CHANGE	= (__force kobject_action_t) 0x03,	/* device state change */
-	KOBJ_MOUNT	= (__force kobject_action_t) 0x04,	/* mount event for block devices (broken) */
-	KOBJ_UMOUNT	= (__force kobject_action_t) 0x05,	/* umount event for block devices (broken) */
-	KOBJ_OFFLINE	= (__force kobject_action_t) 0x06,	/* device offline */
-	KOBJ_ONLINE	= (__force kobject_action_t) 0x07,	/* device online */
-	KOBJ_MOVE	= (__force kobject_action_t) 0x08,	/* device move */
+	KOBJ_OFFLINE	= (__force kobject_action_t) 0x04,	/* device offline */
+	KOBJ_ONLINE	= (__force kobject_action_t) 0x05,	/* device online */
+	KOBJ_MOVE	= (__force kobject_action_t) 0x06,	/* device move */
 };
 
 struct kobject {
@@ -89,6 +86,8 @@ extern void kobject_unregister(struct kobject *);
 extern struct kobject * kobject_get(struct kobject *);
 extern void kobject_put(struct kobject *);
 
+extern struct kobject *kobject_kset_add_dir(struct kset *kset,
+					    struct kobject *, const char *);
 extern struct kobject *kobject_add_dir(struct kobject *, const char *);
 
 extern char * kobject_get_path(struct kobject *, gfp_t);
@@ -175,7 +174,6 @@ extern struct kobject * kset_find_obj(struct kset *, const char *);
 
 struct subsystem {
 	struct kset		kset;
-	struct rw_semaphore	rwsem;
 };
 
 #define decl_subsys(_name,_type,_uevent_ops) \

@@ -267,7 +267,8 @@ qeth_eddp_copy_data_tcp(char *dst, struct qeth_eddp_data *eddp, int len,
 
 	QETH_DBF_TEXT(trace, 5, "eddpcdtc");
 	if (skb_shinfo(eddp->skb)->nr_frags == 0) {
-		memcpy(dst, eddp->skb->data + eddp->skb_offset, len);
+		skb_copy_from_linear_data_offset(eddp->skb, eddp->skb_offset,
+						 dst, len);
 		*hcsum = csum_partial(eddp->skb->data + eddp->skb_offset, len,
 				      *hcsum);
 		eddp->skb_offset += len;
@@ -416,7 +417,7 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
                        eddp->skb_offset += VLAN_HLEN;
 #endif /* CONFIG_QETH_VLAN */
        }
-	tcph = eddp->skb->h.th;
+	tcph = tcp_hdr(eddp->skb);
 	while (eddp->skb_offset < eddp->skb->len) {
 		data_len = min((int)skb_shinfo(eddp->skb)->gso_size,
 			       (int)(eddp->skb->len - eddp->skb_offset));
@@ -473,20 +474,24 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 	QETH_DBF_TEXT(trace, 5, "eddpficx");
 	/* create our segmentation headers and copy original headers */
 	if (skb->protocol == htons(ETH_P_IP))
-		eddp = qeth_eddp_create_eddp_data(qhdr, (u8 *)skb->nh.iph,
-				skb->nh.iph->ihl*4,
-				(u8 *)skb->h.th, skb->h.th->doff*4);
+		eddp = qeth_eddp_create_eddp_data(qhdr,
+						  skb_network_header(skb),
+						  ip_hdrlen(skb),
+						  skb_transport_header(skb),
+						  tcp_hdrlen(skb));
 	else
-		eddp = qeth_eddp_create_eddp_data(qhdr, (u8 *)skb->nh.ipv6h,
-				sizeof(struct ipv6hdr),
-				(u8 *)skb->h.th, skb->h.th->doff*4);
+		eddp = qeth_eddp_create_eddp_data(qhdr,
+						  skb_network_header(skb),
+						  sizeof(struct ipv6hdr),
+						  skb_transport_header(skb),
+						  tcp_hdrlen(skb));
 
 	if (eddp == NULL) {
 		QETH_DBF_TEXT(trace, 2, "eddpfcnm");
 		return -ENOMEM;
 	}
 	if (qhdr->hdr.l2.id == QETH_HEADER_TYPE_LAYER2) {
-		skb->mac.raw = (skb->data) + sizeof(struct qeth_hdr);
+		skb_set_mac_header(skb, sizeof(struct qeth_hdr));
 		memcpy(&eddp->mac, eth_hdr(skb), ETH_HLEN);
 #ifdef CONFIG_QETH_VLAN
 		if (eddp->mac.h_proto == __constant_htons(ETH_P_8021Q)) {
@@ -590,12 +595,13 @@ qeth_eddp_create_context_tcp(struct qeth_card *card, struct sk_buff *skb,
 	QETH_DBF_TEXT(trace, 5, "creddpct");
 	if (skb->protocol == htons(ETH_P_IP))
 		ctx = qeth_eddp_create_context_generic(card, skb,
-			sizeof(struct qeth_hdr) + skb->nh.iph->ihl*4 +
-			skb->h.th->doff*4);
+						       (sizeof(struct qeth_hdr) +
+						        ip_hdrlen(skb) +
+							tcp_hdrlen(skb)));
 	else if (skb->protocol == htons(ETH_P_IPV6))
 		ctx = qeth_eddp_create_context_generic(card, skb,
 			sizeof(struct qeth_hdr) + sizeof(struct ipv6hdr) +
-			skb->h.th->doff*4);
+			tcp_hdrlen(skb));
 	else
 		QETH_DBF_TEXT(trace, 2, "cetcpinv");
 

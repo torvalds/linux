@@ -31,9 +31,21 @@
  * to a local DoS. But we have to keep to root in order to prevent
  * password sniffing from HID devices.
  */
-#define EVENT_MAX  (2*PAGE_SIZE / sizeof(struct mon_event_text))
+#define EVENT_MAX  (4*PAGE_SIZE / sizeof(struct mon_event_text))
 
-#define PRINTF_DFL  160
+/*
+ * Potentially unlimited number; we limit it for similar allocations.
+ * The usbfs limits this to 128, but we're not quite as generous.
+ */
+#define ISODESC_MAX   5
+
+#define PRINTF_DFL  250   /* with 5 ISOs segs */
+
+struct mon_iso_desc {
+	int status;
+	unsigned int offset;
+	unsigned int length;	/* Unsigned here, signed in URB. Historic. */
+};
 
 struct mon_event_text {
 	struct list_head e_link;
@@ -41,10 +53,16 @@ struct mon_event_text {
 	unsigned int pipe;	/* Pipe */
 	unsigned long id;	/* From pointer, most of the time */
 	unsigned int tstamp;
+	int busnum;
 	int length;		/* Depends on type: xfer length or act length */
 	int status;
+	int interval;
+	int start_frame;
+	int error_count;
 	char setup_flag;
 	char data_flag;
+	int numdesc;		/* Full number */
+	struct mon_iso_desc isodesc[ISODESC_MAX];
 	unsigned char setup[SETUP_MAX];
 	unsigned char data[DATA_MAX];
 };
@@ -68,6 +86,28 @@ static struct dentry *mon_dir;		/* Usually /sys/kernel/debug/usbmon */
 
 static void mon_text_ctor(void *, struct kmem_cache *, unsigned long);
 
+struct mon_text_ptr {
+	int cnt, limit;
+	char *pbuf;
+};
+
+static struct mon_event_text *
+    mon_text_read_wait(struct mon_reader_text *rp, struct file *file);
+static void mon_text_read_head_t(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep);
+static void mon_text_read_head_u(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep);
+static void mon_text_read_statset(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep);
+static void mon_text_read_intstat(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep);
+static void mon_text_read_isostat(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep);
+static void mon_text_read_isodesc(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep);
+static void mon_text_read_data(struct mon_reader_text *rp,
+    struct mon_text_ptr *p, const struct mon_event_text *ep);
+
 /*
  * mon_text_submit
  * mon_text_complete
@@ -84,8 +124,10 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
 	if (!usb_pipecontrol(urb->pipe) || ev_type != 'S')
 		return '-';
 
-	if (mbus->uses_dma && (urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
+	if (urb->dev->bus->uses_dma &&
+	    (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)) {
 		return mon_dmapeek(ep->setup, urb->setup_dma, SETUP_MAX);
+	}
 	if (urb->setup_packet == NULL)
 		return 'Z';	/* '0' would be not as pretty. */
 
@@ -104,10 +146,10 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 		len = DATA_MAX;
 
 	if (usb_pipein(pipe)) {
-		if (ev_type == 'S')
+		if (ev_type != 'C')
 			return '<';
 	} else {
-		if (ev_type == 'C')
+		if (ev_type != 'S')
 			return '>';
 	}
 
@@ -120,8 +162,10 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 	 * contain non-NULL garbage in case the upper level promised to
 	 * set DMA for the HCD.
 	 */
-	if (mbus->uses_dma && (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP))
+	if (urb->dev->bus->uses_dma &&
+	    (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)) {
 		return mon_dmapeek(ep->data, urb->transfer_dma, len);
+	}
 
 	if (urb->transfer_buffer == NULL)
 		return 'Z';	/* '0' would be not as pretty. */
@@ -146,6 +190,9 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 {
 	struct mon_event_text *ep;
 	unsigned int stamp;
+	struct usb_iso_packet_descriptor *fp;
+	struct mon_iso_desc *dp;
+	int i, ndesc;
 
 	stamp = mon_get_timestamp();
 
@@ -158,11 +205,35 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 	ep->type = ev_type;
 	ep->pipe = urb->pipe;
 	ep->id = (unsigned long) urb;
+	ep->busnum = urb->dev->bus->busnum;
 	ep->tstamp = stamp;
 	ep->length = (ev_type == 'S') ?
 	    urb->transfer_buffer_length : urb->actual_length;
 	/* Collecting status makes debugging sense for submits, too */
 	ep->status = urb->status;
+
+	if (usb_pipeint(urb->pipe)) {
+		ep->interval = urb->interval;
+	} else if (usb_pipeisoc(urb->pipe)) {
+		ep->interval = urb->interval;
+		ep->start_frame = urb->start_frame;
+		ep->error_count = urb->error_count;
+	}
+	ep->numdesc = urb->number_of_packets;
+	if (usb_pipeisoc(urb->pipe) && urb->number_of_packets > 0) {
+		if ((ndesc = urb->number_of_packets) > ISODESC_MAX)
+			ndesc = ISODESC_MAX;
+		fp = urb->iso_frame_desc;
+		dp = ep->isodesc;
+		for (i = 0; i < ndesc; i++) {
+			dp->status = fp->status;
+			dp->offset = fp->offset;
+			dp->length = (ev_type == 'S') ?
+			    fp->length : fp->actual_length;
+			fp++;
+			dp++;
+		}
+	}
 
 	ep->setup_flag = mon_text_get_setup(ep, urb, ev_type, rp->r.m_bus);
 	ep->data_flag = mon_text_get_data(ep, urb, ep->length, ev_type,
@@ -199,6 +270,7 @@ static void mon_text_error(void *data, struct urb *urb, int error)
 	ep->type = 'E';
 	ep->pipe = urb->pipe;
 	ep->id = (unsigned long) urb;
+	ep->busnum = 0;
 	ep->tstamp = 0;
 	ep->length = 0;
 	ep->status = error;
@@ -237,13 +309,11 @@ static struct mon_event_text *mon_text_fetch(struct mon_reader_text *rp,
 static int mon_text_open(struct inode *inode, struct file *file)
 {
 	struct mon_bus *mbus;
-	struct usb_bus *ubus;
 	struct mon_reader_text *rp;
 	int rc;
 
 	mutex_lock(&mon_lock);
 	mbus = inode->i_private;
-	ubus = mbus->u_bus;
 
 	rp = kzalloc(sizeof(struct mon_reader_text), GFP_KERNEL);
 	if (rp == NULL) {
@@ -267,8 +337,7 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	rp->r.rnf_error = mon_text_error;
 	rp->r.rnf_complete = mon_text_complete;
 
-	snprintf(rp->slab_name, SLAB_NAME_SZ, "mon%dt_%lx", ubus->busnum,
-	    (long)rp);
+	snprintf(rp->slab_name, SLAB_NAME_SZ, "mon_text_%p", rp);
 	rp->e_slab = kmem_cache_create(rp->slab_name,
 	    sizeof(struct mon_event_text), sizeof(long), 0,
 	    mon_text_ctor, NULL);
@@ -300,17 +369,75 @@ err_alloc:
  *   dd if=/dbg/usbmon/0t bs=10
  * Also, we do not allow seeks and do not bother advancing the offset.
  */
-static ssize_t mon_text_read(struct file *file, char __user *buf,
+static ssize_t mon_text_read_t(struct file *file, char __user *buf,
 				size_t nbytes, loff_t *ppos)
 {
 	struct mon_reader_text *rp = file->private_data;
+	struct mon_event_text *ep;
+	struct mon_text_ptr ptr;
+
+	if (IS_ERR(ep = mon_text_read_wait(rp, file)))
+		return PTR_ERR(ep);
+	mutex_lock(&rp->printf_lock);
+	ptr.cnt = 0;
+	ptr.pbuf = rp->printf_buf;
+	ptr.limit = rp->printf_size;
+
+	mon_text_read_head_t(rp, &ptr, ep);
+	mon_text_read_statset(rp, &ptr, ep);
+	ptr.cnt += snprintf(ptr.pbuf + ptr.cnt, ptr.limit - ptr.cnt,
+	    " %d", ep->length);
+	mon_text_read_data(rp, &ptr, ep);
+
+	if (copy_to_user(buf, rp->printf_buf, ptr.cnt))
+		ptr.cnt = -EFAULT;
+	mutex_unlock(&rp->printf_lock);
+	kmem_cache_free(rp->e_slab, ep);
+	return ptr.cnt;
+}
+
+static ssize_t mon_text_read_u(struct file *file, char __user *buf,
+				size_t nbytes, loff_t *ppos)
+{
+	struct mon_reader_text *rp = file->private_data;
+	struct mon_event_text *ep;
+	struct mon_text_ptr ptr;
+
+	if (IS_ERR(ep = mon_text_read_wait(rp, file)))
+		return PTR_ERR(ep);
+	mutex_lock(&rp->printf_lock);
+	ptr.cnt = 0;
+	ptr.pbuf = rp->printf_buf;
+	ptr.limit = rp->printf_size;
+
+	mon_text_read_head_u(rp, &ptr, ep);
+	if (ep->type == 'E') {
+		mon_text_read_statset(rp, &ptr, ep);
+	} else if (usb_pipeisoc(ep->pipe)) {
+		mon_text_read_isostat(rp, &ptr, ep);
+		mon_text_read_isodesc(rp, &ptr, ep);
+	} else if (usb_pipeint(ep->pipe)) {
+		mon_text_read_intstat(rp, &ptr, ep);
+	} else {
+		mon_text_read_statset(rp, &ptr, ep);
+	}
+	ptr.cnt += snprintf(ptr.pbuf + ptr.cnt, ptr.limit - ptr.cnt,
+	    " %d", ep->length);
+	mon_text_read_data(rp, &ptr, ep);
+
+	if (copy_to_user(buf, rp->printf_buf, ptr.cnt))
+		ptr.cnt = -EFAULT;
+	mutex_unlock(&rp->printf_lock);
+	kmem_cache_free(rp->e_slab, ep);
+	return ptr.cnt;
+}
+
+static struct mon_event_text *mon_text_read_wait(struct mon_reader_text *rp,
+    struct file *file)
+{
 	struct mon_bus *mbus = rp->r.m_bus;
 	DECLARE_WAITQUEUE(waita, current);
 	struct mon_event_text *ep;
-	int cnt, limit;
-	char *pbuf;
-	char udir, utype;
-	int data_len, i;
 
 	add_wait_queue(&rp->wait, &waita);
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -318,7 +445,7 @@ static ssize_t mon_text_read(struct file *file, char __user *buf,
 		if (file->f_flags & O_NONBLOCK) {
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&rp->wait, &waita);
-			return -EWOULDBLOCK;	/* Same as EAGAIN in Linux */
+			return ERR_PTR(-EWOULDBLOCK);
 		}
 		/*
 		 * We do not count nwaiters, because ->release is supposed
@@ -327,17 +454,19 @@ static ssize_t mon_text_read(struct file *file, char __user *buf,
 		schedule();
 		if (signal_pending(current)) {
 			remove_wait_queue(&rp->wait, &waita);
-			return -EINTR;
+			return ERR_PTR(-EINTR);
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&rp->wait, &waita);
+	return ep;
+}
 
-	mutex_lock(&rp->printf_lock);
-	cnt = 0;
-	pbuf = rp->printf_buf;
-	limit = rp->printf_size;
+static void mon_text_read_head_t(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep)
+{
+	char udir, utype;
 
 	udir = usb_pipein(ep->pipe) ? 'i' : 'o';
 	switch (usb_pipetype(ep->pipe)) {
@@ -346,13 +475,38 @@ static ssize_t mon_text_read(struct file *file, char __user *buf,
 	case PIPE_CONTROL:	utype = 'C'; break;
 	default: /* PIPE_BULK */  utype = 'B';
 	}
-	cnt += snprintf(pbuf + cnt, limit - cnt,
+	p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
 	    "%lx %u %c %c%c:%03u:%02u",
 	    ep->id, ep->tstamp, ep->type,
-	    utype, udir, usb_pipedevice(ep->pipe), usb_pipeendpoint(ep->pipe));
+	    utype, udir,
+	    usb_pipedevice(ep->pipe), usb_pipeendpoint(ep->pipe));
+}
+
+static void mon_text_read_head_u(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep)
+{
+	char udir, utype;
+
+	udir = usb_pipein(ep->pipe) ? 'i' : 'o';
+	switch (usb_pipetype(ep->pipe)) {
+	case PIPE_ISOCHRONOUS:	utype = 'Z'; break;
+	case PIPE_INTERRUPT:	utype = 'I'; break;
+	case PIPE_CONTROL:	utype = 'C'; break;
+	default: /* PIPE_BULK */  utype = 'B';
+	}
+	p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
+	    "%lx %u %c %c%c:%d:%03u:%u",
+	    ep->id, ep->tstamp, ep->type,
+	    utype, udir,
+	    ep->busnum, usb_pipedevice(ep->pipe), usb_pipeendpoint(ep->pipe));
+}
+
+static void mon_text_read_statset(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep)
+{
 
 	if (ep->setup_flag == 0) {   /* Setup packet is present and captured */
-		cnt += snprintf(pbuf + cnt, limit - cnt,
+		p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
 		    " s %02x %02x %04x %04x %04x",
 		    ep->setup[0],
 		    ep->setup[1],
@@ -360,40 +514,86 @@ static ssize_t mon_text_read(struct file *file, char __user *buf,
 		    (ep->setup[5] << 8) | ep->setup[4],
 		    (ep->setup[7] << 8) | ep->setup[6]);
 	} else if (ep->setup_flag != '-') { /* Unable to capture setup packet */
-		cnt += snprintf(pbuf + cnt, limit - cnt,
+		p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
 		    " %c __ __ ____ ____ ____", ep->setup_flag);
 	} else {                     /* No setup for this kind of URB */
-		cnt += snprintf(pbuf + cnt, limit - cnt, " %d", ep->status);
+		p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
+		    " %d", ep->status);
 	}
-	cnt += snprintf(pbuf + cnt, limit - cnt, " %d", ep->length);
+}
+
+static void mon_text_read_intstat(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep)
+{
+	p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
+	    " %d:%d", ep->status, ep->interval);
+}
+
+static void mon_text_read_isostat(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep)
+{
+	if (ep->type == 'S') {
+		p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
+		    " %d:%d:%d", ep->status, ep->interval, ep->start_frame);
+	} else {
+		p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
+		    " %d:%d:%d:%d",
+		    ep->status, ep->interval, ep->start_frame, ep->error_count);
+	}
+}
+
+static void mon_text_read_isodesc(struct mon_reader_text *rp,
+	struct mon_text_ptr *p, const struct mon_event_text *ep)
+{
+	int ndesc;	/* Display this many */
+	int i;
+	const struct mon_iso_desc *dp;
+
+	p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
+	    " %d", ep->numdesc);
+	ndesc = ep->numdesc;
+	if (ndesc > ISODESC_MAX)
+		ndesc = ISODESC_MAX;
+	if (ndesc < 0)
+		ndesc = 0;
+	dp = ep->isodesc;
+	for (i = 0; i < ndesc; i++) {
+		p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
+		    " %d:%u:%u", dp->status, dp->offset, dp->length);
+		dp++;
+	}
+}
+
+static void mon_text_read_data(struct mon_reader_text *rp,
+    struct mon_text_ptr *p, const struct mon_event_text *ep)
+{
+	int data_len, i;
 
 	if ((data_len = ep->length) > 0) {
 		if (ep->data_flag == 0) {
-			cnt += snprintf(pbuf + cnt, limit - cnt, " =");
+			p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
+			    " =");
 			if (data_len >= DATA_MAX)
 				data_len = DATA_MAX;
 			for (i = 0; i < data_len; i++) {
 				if (i % 4 == 0) {
-					cnt += snprintf(pbuf + cnt, limit - cnt,
+					p->cnt += snprintf(p->pbuf + p->cnt,
+					    p->limit - p->cnt,
 					    " ");
 				}
-				cnt += snprintf(pbuf + cnt, limit - cnt,
+				p->cnt += snprintf(p->pbuf + p->cnt,
+				    p->limit - p->cnt,
 				    "%02x", ep->data[i]);
 			}
-			cnt += snprintf(pbuf + cnt, limit - cnt, "\n");
+			p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
+			    "\n");
 		} else {
-			cnt += snprintf(pbuf + cnt, limit - cnt,
+			p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
 			    " %c\n", ep->data_flag);
 		}
 	} else {
-		cnt += snprintf(pbuf + cnt, limit - cnt, "\n");
+		p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt, "\n");
 	}
-
-	if (copy_to_user(buf, rp->printf_buf, cnt))
-		cnt = -EFAULT;
-	mutex_unlock(&rp->printf_lock);
-	kmem_cache_free(rp->e_slab, ep);
-	return cnt;
 }
 
 static int mon_text_release(struct inode *inode, struct file *file)
@@ -439,34 +639,46 @@ static int mon_text_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations mon_fops_text = {
+static const struct file_operations mon_fops_text_t = {
 	.owner =	THIS_MODULE,
 	.open =		mon_text_open,
 	.llseek =	no_llseek,
-	.read =		mon_text_read,
-	/* .write =	mon_text_write, */
-	/* .poll =		mon_text_poll, */
-	/* .ioctl =	mon_text_ioctl, */
+	.read =		mon_text_read_t,
 	.release =	mon_text_release,
 };
 
-int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
+static const struct file_operations mon_fops_text_u = {
+	.owner =	THIS_MODULE,
+	.open =		mon_text_open,
+	.llseek =	no_llseek,
+	.read =		mon_text_read_u,
+	.release =	mon_text_release,
+};
+
+int mon_text_add(struct mon_bus *mbus, int busnum)
 {
 	struct dentry *d;
 	enum { NAMESZ = 10 };
 	char name[NAMESZ];
 	int rc;
 
-	rc = snprintf(name, NAMESZ, "%dt", ubus->busnum);
+	rc = snprintf(name, NAMESZ, "%dt", busnum);
 	if (rc <= 0 || rc >= NAMESZ)
 		goto err_print_t;
-	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_text);
+	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_text_t);
 	if (d == NULL)
 		goto err_create_t;
 	mbus->dent_t = d;
 
-	/* XXX The stats do not belong to here (text API), but oh well... */
-	rc = snprintf(name, NAMESZ, "%ds", ubus->busnum);
+	rc = snprintf(name, NAMESZ, "%du", busnum);
+	if (rc <= 0 || rc >= NAMESZ)
+		goto err_print_u;
+	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_text_u);
+	if (d == NULL)
+		goto err_create_u;
+	mbus->dent_u = d;
+
+	rc = snprintf(name, NAMESZ, "%ds", busnum);
 	if (rc <= 0 || rc >= NAMESZ)
 		goto err_print_s;
 	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_stat);
@@ -478,6 +690,10 @@ int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 
 err_create_s:
 err_print_s:
+	debugfs_remove(mbus->dent_u);
+	mbus->dent_u = NULL;
+err_create_u:
+err_print_u:
 	debugfs_remove(mbus->dent_t);
 	mbus->dent_t = NULL;
 err_create_t:
@@ -487,6 +703,7 @@ err_print_t:
 
 void mon_text_del(struct mon_bus *mbus)
 {
+	debugfs_remove(mbus->dent_u);
 	debugfs_remove(mbus->dent_t);
 	debugfs_remove(mbus->dent_s);
 }

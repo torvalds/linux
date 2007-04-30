@@ -5,6 +5,7 @@
 #include <linux/socket.h>
 #include <linux/netdevice.h>
 #include <linux/i2c.h>
+#include <linux/input.h>
 
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
@@ -63,6 +64,27 @@ struct dvb_video_events {
 	int			  overflow;
 	wait_queue_head_t	  wait_queue;
 	spinlock_t		  lock;
+};
+
+
+struct av7110;
+
+/* infrared remote control */
+struct infrared {
+	u16	key_map[256];
+	struct input_dev	*input_dev;
+	char			input_phys[32];
+	struct timer_list	keyup_timer;
+	struct tasklet_struct	ir_tasklet;
+	void			(*ir_handler)(struct av7110 *av7110, u32 ircom);
+	u32			ir_command;
+	u32			ir_config;
+	u32			device_mask;
+	u8			protocol;
+	u8			inversion;
+	u16			last_key;
+	u16			last_toggle;
+	u8			delay_timer_finished;
 };
 
 
@@ -227,10 +249,7 @@ struct av7110 {
 	u16			wssMode;
 	u16			wssData;
 
-	u32			ir_config;
-	u32			ir_command;
-	void			(*ir_handler)(struct av7110 *av7110, u32 ircom);
-	struct tasklet_struct	ir_tasklet;
+	struct infrared		ir;
 
 	/* firmware stuff */
 	unsigned char *bin_fw;
@@ -268,6 +287,7 @@ struct av7110 {
 extern int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 		       u16 subpid, u16 pcrpid);
 
+extern int av7110_check_ir_config(struct av7110 *av7110, int force);
 extern int av7110_ir_init(struct av7110 *av7110);
 extern void av7110_ir_exit(struct av7110 *av7110);
 

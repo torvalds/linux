@@ -6,7 +6,6 @@ menu "RAM/ROM/Flash chip drivers"
 
 config MTD_CFI
 	tristate "Detect flash chips by Common Flash Interface (CFI) probe"
-	depends on MTD
 	select MTD_GEN_PROBE
 	help
 	  The Common Flash Interface specification was developed by Intel,
@@ -18,7 +17,6 @@ config MTD_CFI
 
 config MTD_JEDECPROBE
 	tristate "Detect non-CFI AMD/JEDEC-compatible flash chips"
-	depends on MTD
 	select MTD_GEN_PROBE
 	help
 	  This option enables JEDEC-style probing of flash chips which are not
@@ -213,21 +211,18 @@ config MTD_CFI_UTIL
 
 config MTD_RAM
 	tristate "Support for RAM chips in bus mapping"
-	depends on MTD
 	help
 	  This option enables basic support for RAM chips accessed through
 	  a bus mapping driver.
 
 config MTD_ROM
 	tristate "Support for ROM chips in bus mapping"
-	depends on MTD
 	help
 	  This option enables basic support for ROM chips accessed through
 	  a bus mapping driver.
 
 config MTD_ABSENT
 	tristate "Support for absent chips in bus mapping"
-	depends on MTD
 	help
 	  This option enables support for a dummy probing driver used to
 	  allocated placeholder MTD devices on systems that have socketed
@@ -237,7 +232,6 @@ config MTD_ABSENT
 	  with this driver will return -ENODEV upon access.
 
 config MTD_OBSOLETE_CHIPS
-	depends on MTD
 	bool "Older (theoretically obsoleted now) drivers for non-CFI chips"
 	help
 	  This option does not enable any code directly, but will allow you to
@@ -250,7 +244,7 @@ config MTD_OBSOLETE_CHIPS
 
 config MTD_AMDSTD
 	tristate "AMD compatible flash chip support (non-CFI)"
-	depends on MTD && MTD_OBSOLETE_CHIPS && BROKEN
+	depends on MTD_OBSOLETE_CHIPS && BROKEN
 	help
 	  This option enables support for flash chips using AMD-compatible
 	  commands, including some which are not CFI-compatible and hence
@@ -260,7 +254,7 @@ config MTD_AMDSTD
 
 config MTD_SHARP
 	tristate "pre-CFI Sharp chip support"
-	depends on MTD && MTD_OBSOLETE_CHIPS
+	depends on MTD_OBSOLETE_CHIPS
 	help
 	  This option enables support for flash chips using Sharp-compatible
 	  commands, including some which are not CFI-compatible and hence
@@ -268,7 +262,7 @@ config MTD_SHARP
 
 config MTD_JEDEC
 	tristate "JEDEC device support"
-	depends on MTD && MTD_OBSOLETE_CHIPS && BROKEN
+	depends on MTD_OBSOLETE_CHIPS && BROKEN
 	help
 	  Enable older JEDEC flash interface devices for self
 	  programming flash.  It is commonly used in older AMD chips.  It is

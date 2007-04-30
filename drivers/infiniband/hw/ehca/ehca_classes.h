@@ -106,6 +106,7 @@ struct ehca_shca {
 	struct ehca_mr *maxmr;
 	struct ehca_pd *pd;
 	struct h_galpas galpas;
+	struct mutex modify_mutex;
 };
 
 struct ehca_pd {

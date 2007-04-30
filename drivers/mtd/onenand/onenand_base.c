@@ -836,9 +836,11 @@ static int onenand_transfer_auto_oob(struct mtd_info *mtd, uint8_t *buf, int col
 	int readcol = column;
 	int readend = column + thislen;
 	int lastgap = 0;
+	unsigned int i;
 	uint8_t *oob_buf = this->oob_buf;
 
-	for (free = this->ecclayout->oobfree; free->length; ++free) {
+	free = this->ecclayout->oobfree;
+	for (i = 0; i < MTD_MAX_OOBFREE_ENTRIES && free->length; i++, free++) {
 		if (readcol >= lastgap)
 			readcol += free->offset - lastgap;
 		if (readend >= lastgap)
@@ -846,7 +848,8 @@ static int onenand_transfer_auto_oob(struct mtd_info *mtd, uint8_t *buf, int col
 		lastgap = free->offset + free->length;
 	}
 	this->read_bufferram(mtd, ONENAND_SPARERAM, oob_buf, 0, mtd->oobsize);
-	for (free = this->ecclayout->oobfree; free->length; ++free) {
+	free = this->ecclayout->oobfree;
+	for (i = 0; i < MTD_MAX_OOBFREE_ENTRIES && free->length; i++, free++) {
 		int free_end = free->offset + free->length;
 		if (free->offset < readend && free_end > readcol) {
 			int st = max_t(int,free->offset,readcol);
@@ -854,7 +857,7 @@ static int onenand_transfer_auto_oob(struct mtd_info *mtd, uint8_t *buf, int col
 			int n = ed - st;
 			memcpy(buf, oob_buf + st, n);
 			buf += n;
-		} else
+		} else if (column == 0)
 			break;
 	}
 	return 0;
@@ -1280,15 +1283,18 @@ static int onenand_fill_auto_oob(struct mtd_info *mtd, u_char *oob_buf,
 	int writecol = column;
 	int writeend = column + thislen;
 	int lastgap = 0;
+	unsigned int i;
 
-	for (free = this->ecclayout->oobfree; free->length; ++free) {
+	free = this->ecclayout->oobfree;
+	for (i = 0; i < MTD_MAX_OOBFREE_ENTRIES && free->length; i++, free++) {
 		if (writecol >= lastgap)
 			writecol += free->offset - lastgap;
 		if (writeend >= lastgap)
 			writeend += free->offset - lastgap;
 		lastgap = free->offset + free->length;
 	}
-	for (free = this->ecclayout->oobfree; free->length; ++free) {
+	free = this->ecclayout->oobfree;
+	for (i = 0; i < MTD_MAX_OOBFREE_ENTRIES && free->length; i++, free++) {
 		int free_end = free->offset + free->length;
 		if (free->offset < writeend && free_end > writecol) {
 			int st = max_t(int,free->offset,writecol);
@@ -1296,7 +1302,7 @@ static int onenand_fill_auto_oob(struct mtd_info *mtd, u_char *oob_buf,
 			int n = ed - st;
 			memcpy(oob_buf + st, buf, n);
 			buf += n;
-		} else
+		} else if (column == 0)
 			break;
 	}
 	return 0;
@@ -2386,7 +2392,8 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	 * the out of band area
 	 */
 	this->ecclayout->oobavail = 0;
-	for (i = 0; this->ecclayout->oobfree[i].length; i++)
+	for (i = 0; i < MTD_MAX_OOBFREE_ENTRIES &&
+	    this->ecclayout->oobfree[i].length; i++)
 		this->ecclayout->oobavail +=
 			this->ecclayout->oobfree[i].length;
 	mtd->oobavail = this->ecclayout->oobavail;

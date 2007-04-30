@@ -67,12 +67,12 @@ static inline long sync_writeback_pages(void)
 /*
  * Start background writeback (via pdflush) at this percentage
  */
-int dirty_background_ratio = 10;
+int dirty_background_ratio = 5;
 
 /*
  * The generator of dirty data starts writeback at this percentage
  */
-int vm_dirty_ratio = 40;
+int vm_dirty_ratio = 10;
 
 /*
  * The interval between `kupdate'-style writebacks, in jiffies

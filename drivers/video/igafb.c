@@ -44,8 +44,8 @@
 
 #include <asm/io.h>
 
-#ifdef __sparc__
-#include <asm/pbm.h>
+#ifdef CONFIG_SPARC
+#include <asm/prom.h>
 #include <asm/pcic.h>
 #endif
 
@@ -96,7 +96,7 @@ struct fb_var_screeninfo default_var = {
 	.vmode		= FB_VMODE_NONINTERLACED
 };
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 struct fb_var_screeninfo default_var_1024x768 __initdata = {
 	/* 1024x768, 75 Hz, Non-Interlaced (78.75 MHz dotclock) */
 	.xres		= 1024,
@@ -188,7 +188,7 @@ static inline void iga_outb(struct iga_par *par, unsigned char val,
         pci_outb(par, val, reg+1);
 }
 
-#endif /* __sparc__ */
+#endif /* CONFIG_SPARC */
 
 /*
  *  Very important functionality for the JavaEngine1 computer:
@@ -217,7 +217,7 @@ static void iga_blank_border(struct iga_par *par)
 		iga_outb(par, 0, IGA_EXT_CNTRL, IGA_IDX_OVERSCAN_COLOR + i);
 }
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 static int igafb_mmap(struct fb_info *info,
 		      struct vm_area_struct *vma)
 {
@@ -271,7 +271,7 @@ static int igafb_mmap(struct fb_info *info,
 	vma->vm_flags |= VM_IO;
 	return 0;
 }
-#endif /* __sparc__ */
+#endif /* CONFIG_SPARC */
 
 static int igafb_setcolreg(unsigned regno, unsigned red, unsigned green,
                            unsigned blue, unsigned transp,
@@ -323,7 +323,7 @@ static struct fb_ops igafb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 	.fb_mmap 	= igafb_mmap,
 #endif
 };
@@ -424,7 +424,7 @@ int __init igafb_init(void)
 
 	par->frame_buffer_phys = addr & PCI_BASE_ADDRESS_MEM_MASK;
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 	/*
 	 * The following is sparc specific and this is why:
 	 *
@@ -477,8 +477,8 @@ int __init igafb_init(void)
 	 * Set default vmode and cmode from PROM properties.
 	 */
 	{
-                struct pcidev_cookie *cookie = pdev->sysdata;
-                int node = cookie->prom_node;
+		struct device_node *dp = pci_device_to_OF_node(pdev);
+                int node = dp->node;
                 int width = prom_getintdefault(node, "width", 1024);
                 int height = prom_getintdefault(node, "height", 768);
                 int depth = prom_getintdefault(node, "depth", 8);
@@ -534,7 +534,7 @@ int __init igafb_init(void)
 		kfree(info);
         }
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 	    /*
 	     * Add /dev/fb mmap values.
 	     */
@@ -552,7 +552,7 @@ int __init igafb_init(void)
 	    par->mmap_map[1].size = PAGE_SIZE * 2; /* X wants 2 pages */
 	    par->mmap_map[1].prot_mask = SRMMU_CACHE;
 	    par->mmap_map[1].prot_flag = SRMMU_WRITE;
-#endif /* __sparc__ */
+#endif /* CONFIG_SPARC */
 
 	return 0;
 }

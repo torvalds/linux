@@ -50,6 +50,7 @@ extern int msp_stereo_thresh;
 
 struct msp_state {
 	int rev1, rev2;
+	int ident;
 	u8 has_nicam;
 	u8 has_radio;
 	u8 has_headphones;

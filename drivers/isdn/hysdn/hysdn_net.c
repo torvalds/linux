@@ -214,8 +214,6 @@ hysdn_rx_netpkt(hysdn_card * card, unsigned char *buf, unsigned short len)
 		lp->stats.rx_dropped++;
 		return;
 	}
-	skb->dev = &lp->netdev;
-
 	/* copy the data */
 	memcpy(skb_put(skb, len), buf, len);
 

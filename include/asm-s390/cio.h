@@ -13,6 +13,7 @@
 #ifdef __KERNEL__
 
 #define LPM_ANYPATH 0xff
+#define __MAX_CSSID 0
 
 /*
  * subchannel status word
@@ -291,6 +292,13 @@ extern void wait_cons_dev(void);
 extern void css_schedule_reprobe(void);
 
 extern void reipl_ccw_dev(struct ccw_dev_id *id);
+
+struct cio_iplinfo {
+	u16 devno;
+	int is_qdio;
+};
+
+extern int cio_get_iplinfo(struct cio_iplinfo *iplinfo);
 
 #endif
 

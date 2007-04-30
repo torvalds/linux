@@ -395,14 +395,10 @@ static void path_rec_completion(int status,
 	skb_queue_head_init(&skqueue);
 
 	if (!status) {
-		struct ib_ah_attr av = {
-			.dlid 	       = be16_to_cpu(pathrec->dlid),
-			.sl 	       = pathrec->sl,
-			.port_num      = priv->port,
-			.static_rate   = pathrec->rate
-		};
+		struct ib_ah_attr av;
 
-		ah = ipoib_create_ah(dev, priv->pd, &av);
+		if (!ib_init_ah_from_path(priv->ca, priv->port, pathrec, &av))
+			ah = ipoib_create_ah(dev, priv->pd, &av);
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);

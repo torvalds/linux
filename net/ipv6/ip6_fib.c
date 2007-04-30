@@ -359,7 +359,7 @@ end:
 	return res;
 }
 
-int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
+static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
@@ -1486,6 +1486,8 @@ void __init fib6_init(void)
 					   NULL, NULL);
 
 	fib6_tables_init();
+
+	__rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib);
 }
 
 void fib6_gc_cleanup(void)

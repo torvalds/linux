@@ -125,9 +125,10 @@ static __u16 const msstab[] = {
 __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	const struct iphdr *iph = ip_hdr(skb);
+	const struct tcphdr *th = tcp_hdr(skb);
 	int mssind;
 	const __u16 mss = *mssp;
-
 
 	tp->last_synq_overflow = jiffies;
 
@@ -138,9 +139,8 @@ __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 
 	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESSENT);
 
-	return secure_tcp_syn_cookie(skb->nh.iph->saddr, skb->nh.iph->daddr,
-				     skb->h.th->source, skb->h.th->dest,
-				     ntohl(skb->h.th->seq),
+	return secure_tcp_syn_cookie(iph->saddr, iph->daddr,
+				     th->source, th->dest, ntohl(th->seq),
 				     jiffies / (HZ * 60), mssind);
 }
 
@@ -157,14 +157,13 @@ __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
  */
 static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 {
-	__u32 seq;
-	__u32 mssind;
-
-	seq = ntohl(skb->h.th->seq)-1;
-	mssind = check_tcp_syn_cookie(cookie,
-				      skb->nh.iph->saddr, skb->nh.iph->daddr,
-				      skb->h.th->source, skb->h.th->dest,
-				      seq, jiffies / (HZ * 60), COUNTER_TRIES);
+	const struct iphdr *iph = ip_hdr(skb);
+	const struct tcphdr *th = tcp_hdr(skb);
+	__u32 seq = ntohl(th->seq) - 1;
+	__u32 mssind = check_tcp_syn_cookie(cookie, iph->saddr, iph->daddr,
+					    th->source, th->dest, seq,
+					    jiffies / (HZ * 60),
+					    COUNTER_TRIES);
 
 	return mssind < NUM_MSS ? msstab[mssind] + 1 : 0;
 }
@@ -191,14 +190,15 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	struct inet_request_sock *ireq;
 	struct tcp_request_sock *treq;
 	struct tcp_sock *tp = tcp_sk(sk);
-	__u32 cookie = ntohl(skb->h.th->ack_seq) - 1;
+	const struct tcphdr *th = tcp_hdr(skb);
+	__u32 cookie = ntohl(th->ack_seq) - 1;
 	struct sock *ret = sk;
 	struct request_sock *req;
 	int mss;
 	struct rtable *rt;
 	__u8 rcv_wscale;
 
-	if (!sysctl_tcp_syncookies || !skb->h.th->ack)
+	if (!sysctl_tcp_syncookies || !th->ack)
 		goto out;
 
 	if (time_after(jiffies, tp->last_synq_overflow + TCP_TIMEOUT_INIT) ||
@@ -220,12 +220,12 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	}
 	ireq = inet_rsk(req);
 	treq = tcp_rsk(req);
-	treq->rcv_isn		= ntohl(skb->h.th->seq) - 1;
+	treq->rcv_isn		= ntohl(th->seq) - 1;
 	treq->snt_isn		= cookie;
 	req->mss		= mss;
-	ireq->rmt_port		= skb->h.th->source;
-	ireq->loc_addr		= skb->nh.iph->daddr;
-	ireq->rmt_addr		= skb->nh.iph->saddr;
+	ireq->rmt_port		= th->source;
+	ireq->loc_addr		= ip_hdr(skb)->daddr;
+	ireq->rmt_addr		= ip_hdr(skb)->saddr;
 	ireq->opt		= NULL;
 
 	/* We throwed the options of the initial SYN away, so we hope
@@ -261,8 +261,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 						.tos = RT_CONN_FLAGS(sk) } },
 				    .proto = IPPROTO_TCP,
 				    .uli_u = { .ports =
-					       { .sport = skb->h.th->dest,
-						 .dport = skb->h.th->source } } };
+					       { .sport = th->dest,
+						 .dport = th->source } } };
 		security_req_classify_flow(req, &fl);
 		if (ip_route_output_key(&rt, &fl)) {
 			reqsk_free(req);

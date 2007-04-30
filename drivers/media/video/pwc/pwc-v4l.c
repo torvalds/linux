@@ -1168,7 +1168,7 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 			buf->sequence = 0;
 			buf->memory = V4L2_MEMORY_MMAP;
 			buf->m.offset = pdev->fill_image * pdev->len_per_image;
-			buf->length = buf->bytesused;
+			buf->length = pdev->len_per_image;
 			pwc_next_image(pdev);
 
 			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: buf->index=%d\n",buf->index);
@@ -1190,6 +1190,64 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOC_STREAMOFF:
 		{
 			pwc_isoc_cleanup(pdev);
+			return 0;
+		}
+
+		case VIDIOC_ENUM_FRAMESIZES:
+		{
+			struct v4l2_frmsizeenum *fsize = arg;
+			unsigned int i = 0, index = fsize->index;
+
+			if (fsize->pixel_format == V4L2_PIX_FMT_YUV420) {
+				for (i = 0; i < PSZ_MAX; i++) {
+					if (pdev->image_mask & (1UL << i)) {
+						if (!index--) {
+							fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+							fsize->discrete.width = pwc_image_sizes[i].x;
+							fsize->discrete.height = pwc_image_sizes[i].y;
+							return 0;
+						}
+					}
+				}
+			} else if (fsize->index == 0 &&
+				   ((fsize->pixel_format == V4L2_PIX_FMT_PWC1 && DEVICE_USE_CODEC1(pdev->type)) ||
+				    (fsize->pixel_format == V4L2_PIX_FMT_PWC2 && DEVICE_USE_CODEC23(pdev->type)))) {
+
+				fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+				fsize->discrete.width = pdev->abs_max.x;
+				fsize->discrete.height = pdev->abs_max.y;
+				return 0;
+			}
+			return -EINVAL;
+		}
+
+		case VIDIOC_ENUM_FRAMEINTERVALS:
+		{
+			struct v4l2_frmivalenum *fival = arg;
+			int size = -1;
+			unsigned int i;
+
+			for (i = 0; i < PSZ_MAX; i++) {
+				if (pwc_image_sizes[i].x == fival->width &&
+				    pwc_image_sizes[i].y == fival->height) {
+					size = i;
+					break;
+				}
+			}
+
+			/* TODO: Support raw format */
+			if (size < 0 || fival->pixel_format != V4L2_PIX_FMT_YUV420) {
+				return -EINVAL;
+			}
+
+			i = pwc_get_fps(pdev, fival->index, size);
+			if (!i)
+				return -EINVAL;
+
+			fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+			fival->discrete.numerator = 1;
+			fival->discrete.denominator = i;
+
 			return 0;
 		}
 

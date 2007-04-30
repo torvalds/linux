@@ -297,7 +297,8 @@ out:
 
 int mthca_write_mtt_size(struct mthca_dev *dev)
 {
-	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy ||
+	    !(dev->mthca_flags & MTHCA_FLAG_FMR))
 		/*
 		 * Be friendly to WRITE_MTT command
 		 * and leave two empty slots for the
@@ -355,7 +356,8 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 	int size = mthca_write_mtt_size(dev);
 	int chunk;
 
-	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy ||
+	    !(dev->mthca_flags & MTHCA_FLAG_FMR))
 		return __mthca_write_mtt(dev, mtt, start_index, buffer_list, list_len);
 
 	while (list_len > 0) {
@@ -835,6 +837,7 @@ void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 
 	key = arbel_key_to_hw_index(fmr->ibmr.lkey);
 	key &= dev->limits.num_mpts - 1;
+	key = adjust_key(dev, key);
 	fmr->ibmr.lkey = fmr->ibmr.rkey = arbel_hw_index_to_key(key);
 
 	fmr->maps = 0;

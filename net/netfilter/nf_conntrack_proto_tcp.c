@@ -4,24 +4,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>:
- *	- Real stateful connection tracking
- *	- Modified state transitions table
- *	- Window scaling support added
- *	- SACK support added
- *
- * Willy Tarreau:
- *	- State table bugfixes
- *	- More robust state changes
- *	- Tuning timer parameters
- *
- * 27 Oct 2004: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- genelized Layer 3 protocol part.
- *
- * Derived from net/ipv4/netfilter/ip_conntrack_proto_tcp.c
- *
- * version 2.2
  */
 
 #include <linux/types.h>
@@ -470,11 +452,10 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 
 	/* Fast path for timestamp-only option */
 	if (length == TCPOLEN_TSTAMP_ALIGNED*4
-	    && *(__be32 *)ptr ==
-		__constant_htonl((TCPOPT_NOP << 24)
-				 | (TCPOPT_NOP << 16)
-				 | (TCPOPT_TIMESTAMP << 8)
-				 | TCPOLEN_TIMESTAMP))
+	    && *(__be32 *)ptr == htonl((TCPOPT_NOP << 24)
+				       | (TCPOPT_NOP << 16)
+				       | (TCPOPT_TIMESTAMP << 8)
+				       | TCPOLEN_TIMESTAMP))
 		return;
 
 	while (length > 0) {
@@ -765,26 +746,18 @@ EXPORT_SYMBOL_GPL(nf_conntrack_tcp_update);
 #define	TH_ECE	0x40
 #define	TH_CWR	0x80
 
-/* table of valid flag combinations - ECE and CWR are always valid */
-static u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG) + 1] =
+/* table of valid flag combinations - PUSH, ECE and CWR are always valid */
+static u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG) + 1] =
 {
 	[TH_SYN]			= 1,
-	[TH_SYN|TH_PUSH]		= 1,
 	[TH_SYN|TH_URG]			= 1,
-	[TH_SYN|TH_PUSH|TH_URG]		= 1,
 	[TH_SYN|TH_ACK]			= 1,
-	[TH_SYN|TH_ACK|TH_PUSH]		= 1,
 	[TH_RST]			= 1,
 	[TH_RST|TH_ACK]			= 1,
-	[TH_RST|TH_ACK|TH_PUSH]		= 1,
 	[TH_FIN|TH_ACK]			= 1,
-	[TH_ACK]			= 1,
-	[TH_ACK|TH_PUSH]		= 1,
-	[TH_ACK|TH_URG]			= 1,
-	[TH_ACK|TH_URG|TH_PUSH]		= 1,
-	[TH_FIN|TH_ACK|TH_PUSH]		= 1,
 	[TH_FIN|TH_ACK|TH_URG]		= 1,
-	[TH_FIN|TH_ACK|TH_URG|TH_PUSH]	= 1,
+	[TH_ACK]			= 1,
+	[TH_ACK|TH_URG]			= 1,
 };
 
 /* Protect conntrack agaist broken packets. Code taken from ipt_unclean.c.  */
@@ -831,7 +804,7 @@ static int tcp_error(struct sk_buff *skb,
 	}
 
 	/* Check TCP flags. */
-	tcpflags = (((u_int8_t *)th)[13] & ~(TH_ECE|TH_CWR));
+	tcpflags = (((u_int8_t *)th)[13] & ~(TH_ECE|TH_CWR|TH_PUSH));
 	if (!tcp_valid_flags[tcpflags]) {
 		if (LOG_INVALID(IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
@@ -1110,11 +1083,26 @@ static int tcp_to_nfattr(struct sk_buff *skb, struct nfattr *nfa,
 			 const struct nf_conn *ct)
 {
 	struct nfattr *nest_parms;
+	struct nf_ct_tcp_flags tmp = {};
 
 	read_lock_bh(&tcp_lock);
 	nest_parms = NFA_NEST(skb, CTA_PROTOINFO_TCP);
 	NFA_PUT(skb, CTA_PROTOINFO_TCP_STATE, sizeof(u_int8_t),
 		&ct->proto.tcp.state);
+
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_WSCALE_ORIGINAL, sizeof(u_int8_t),
+		&ct->proto.tcp.seen[0].td_scale);
+
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_WSCALE_REPLY, sizeof(u_int8_t),
+		&ct->proto.tcp.seen[1].td_scale);
+
+	tmp.flags = ct->proto.tcp.seen[0].flags;
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_FLAGS_ORIGINAL,
+		sizeof(struct nf_ct_tcp_flags), &tmp);
+
+	tmp.flags = ct->proto.tcp.seen[1].flags;
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_FLAGS_REPLY,
+		sizeof(struct nf_ct_tcp_flags), &tmp);
 	read_unlock_bh(&tcp_lock);
 
 	NFA_NEST_END(skb, nest_parms);
@@ -1127,7 +1115,11 @@ nfattr_failure:
 }
 
 static const size_t cta_min_tcp[CTA_PROTOINFO_TCP_MAX] = {
-	[CTA_PROTOINFO_TCP_STATE-1]	= sizeof(u_int8_t),
+	[CTA_PROTOINFO_TCP_STATE-1]	      = sizeof(u_int8_t),
+	[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL-1] = sizeof(u_int8_t),
+	[CTA_PROTOINFO_TCP_WSCALE_REPLY-1]    = sizeof(u_int8_t),
+	[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL-1]  = sizeof(struct nf_ct_tcp_flags),
+	[CTA_PROTOINFO_TCP_FLAGS_REPLY-1]     = sizeof(struct nf_ct_tcp_flags)
 };
 
 static int nfattr_to_tcp(struct nfattr *cda[], struct nf_conn *ct)
@@ -1151,6 +1143,30 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct nf_conn *ct)
 	write_lock_bh(&tcp_lock);
 	ct->proto.tcp.state =
 		*(u_int8_t *)NFA_DATA(tb[CTA_PROTOINFO_TCP_STATE-1]);
+
+	if (tb[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL-1]) {
+		struct nf_ct_tcp_flags *attr =
+			NFA_DATA(tb[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL-1]);
+		ct->proto.tcp.seen[0].flags &= ~attr->mask;
+		ct->proto.tcp.seen[0].flags |= attr->flags & attr->mask;
+	}
+
+	if (tb[CTA_PROTOINFO_TCP_FLAGS_REPLY-1]) {
+		struct nf_ct_tcp_flags *attr =
+			NFA_DATA(tb[CTA_PROTOINFO_TCP_FLAGS_REPLY-1]);
+		ct->proto.tcp.seen[1].flags &= ~attr->mask;
+		ct->proto.tcp.seen[1].flags |= attr->flags & attr->mask;
+	}
+
+	if (tb[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL-1] &&
+	    tb[CTA_PROTOINFO_TCP_WSCALE_REPLY-1] &&
+	    ct->proto.tcp.seen[0].flags & IP_CT_TCP_FLAG_WINDOW_SCALE &&
+	    ct->proto.tcp.seen[1].flags & IP_CT_TCP_FLAG_WINDOW_SCALE) {
+		ct->proto.tcp.seen[0].td_scale = *(u_int8_t *)
+			NFA_DATA(tb[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL-1]);
+		ct->proto.tcp.seen[1].td_scale = *(u_int8_t *)
+			NFA_DATA(tb[CTA_PROTOINFO_TCP_WSCALE_REPLY-1]);
+	}
 	write_unlock_bh(&tcp_lock);
 
 	return 0;

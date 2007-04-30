@@ -203,6 +203,8 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_capability *cap = arg;
 
 		memcpy(cap, &pvr_capability, sizeof(struct v4l2_capability));
+		strlcpy(cap->bus_info,pvr2_hdw_get_bus_info(hdw),
+			sizeof(cap->bus_info));
 
 		ret = 0;
 		break;

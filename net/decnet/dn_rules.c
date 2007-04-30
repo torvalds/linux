@@ -31,6 +31,7 @@
 #include <net/dn_fib.h>
 #include <net/dn_neigh.h>
 #include <net/dn_dev.h>
+#include <net/dn_route.h>
 
 static struct fib_rules_ops dn_fib_rules_ops;
 
@@ -239,9 +240,9 @@ static u32 dn_fib_rule_default_pref(void)
 	return 0;
 }
 
-int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
+static void dn_fib_rule_flush_cache(void)
 {
-	return fib_rules_dump(skb, cb, AF_DECnet);
+	dn_rt_cache_flush(-1);
 }
 
 static struct fib_rules_ops dn_fib_rules_ops = {
@@ -254,6 +255,7 @@ static struct fib_rules_ops dn_fib_rules_ops = {
 	.compare	= dn_fib_rule_compare,
 	.fill		= dn_fib_rule_fill,
 	.default_pref	= dn_fib_rule_default_pref,
+	.flush_cache	= dn_fib_rule_flush_cache,
 	.nlgroup	= RTNLGRP_DECnet_RULE,
 	.policy		= dn_fib_rule_policy,
 	.rules_list	= &dn_fib_rules,

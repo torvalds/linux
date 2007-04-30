@@ -370,9 +370,7 @@ static ssize_t fw_set_ignore_driver(struct device *dev, struct device_attribute 
 
 	if (state == 1) {
 		ud->ignore_driver = 1;
-		down_write(&ieee1394_bus_type.subsys.rwsem);
 		device_release_driver(dev);
-		up_write(&ieee1394_bus_type.subsys.rwsem);
 	} else if (state == 0)
 		ud->ignore_driver = 0;
 
@@ -1163,6 +1161,7 @@ static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
 	struct unit_directory *ud;
 	int i = 0;
 	int length = 0;
+	int retval = 0;
 	/* ieee1394:venNmoNspNverN */
 	char buf[8 + 1 + 3 + 8 + 2 + 8 + 2 + 8 + 3 + 8 + 1];
 
@@ -1176,14 +1175,11 @@ static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
 
 #define PUT_ENVP(fmt,val) 					\
 do {								\
-    	int printed;						\
-	envp[i++] = buffer;					\
-	printed = snprintf(buffer, buffer_size - length,	\
-			   fmt, val);				\
-	if ((buffer_size - (length+printed) <= 0) || (i >= num_envp))	\
-		return -ENOMEM;					\
-	length += printed+1;					\
-	buffer += printed+1;					\
+	retval = add_uevent_var(envp, num_envp, &i,		\
+				buffer, buffer_size, &length,	\
+				fmt, val);			\
+	if (retval)						\
+		return retval;					\
 } while (0)
 
 	PUT_ENVP("VENDOR_ID=%06x", ud->vendor_id);
@@ -1393,12 +1389,10 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 		if (ud->ne != ne)
 			continue;
 
-		down_write(&ieee1394_bus_type.subsys.rwsem);
 		if (ud->device.driver &&
 		    (!ud->device.driver->suspend ||
 		      ud->device.driver->suspend(&ud->device, PMSG_SUSPEND)))
 			device_release_driver(&ud->device);
-		up_write(&ieee1394_bus_type.subsys.rwsem);
 	}
 	up(&nodemgr_ud_class.sem);
 }
@@ -1418,10 +1412,8 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 		if (ud->ne != ne)
 			continue;
 
-		down_read(&ieee1394_bus_type.subsys.rwsem);
 		if (ud->device.driver && ud->device.driver->resume)
 			ud->device.driver->resume(&ud->device);
-		up_read(&ieee1394_bus_type.subsys.rwsem);
 	}
 	up(&nodemgr_ud_class.sem);
 
@@ -1442,7 +1434,6 @@ static void nodemgr_update_pdrv(struct node_entry *ne)
 		if (ud->ne != ne)
 			continue;
 
-		down_write(&ieee1394_bus_type.subsys.rwsem);
 		if (ud->device.driver) {
 			pdrv = container_of(ud->device.driver,
 					    struct hpsb_protocol_driver,
@@ -1450,7 +1441,6 @@ static void nodemgr_update_pdrv(struct node_entry *ne)
 			if (pdrv->update && pdrv->update(ud))
 				device_release_driver(&ud->device);
 		}
-		up_write(&ieee1394_bus_type.subsys.rwsem);
 	}
 	up(&nodemgr_ud_class.sem);
 }

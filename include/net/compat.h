@@ -25,6 +25,7 @@ struct compat_cmsghdr {
 };
 
 extern int compat_sock_get_timestamp(struct sock *, struct timeval __user *);
+extern int compat_sock_get_timestampns(struct sock *, struct timespec __user *);
 
 #else /* defined(CONFIG_COMPAT) */
 #define compat_msghdr	msghdr		/* to avoid compiler warnings */

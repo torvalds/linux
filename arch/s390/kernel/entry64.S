@@ -244,8 +244,6 @@ sysc_noemu:
 	jnz	sysc_tracesys
 	basr	%r14,%r8	# call sys_xxxx
 	stg	%r2,SP_R2(%r15) # store return value (change R2 on stack)
-				# ATTENTION: check sys_execve_glue before
-				# changing anything here !!
 
 sysc_return:
 	tm	SP_PSW+1(%r15),0x01	# returning to user ?
@@ -371,77 +369,35 @@ ret_from_fork:
 	j	sysc_return
 
 #
-# clone, fork, vfork, exec and sigreturn need glue,
-# because they all expect pt_regs as parameter,
-# but are called with different parameter.
-# return-address is set up above
+# kernel_execve function needs to deal with pt_regs that is not
+# at the usual place
 #
-sys_clone_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs
-	jg	sys_clone		# branch to sys_clone
-
-#ifdef CONFIG_COMPAT
-sys32_clone_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs
-	jg	sys32_clone		# branch to sys32_clone
-#endif
-
-sys_fork_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs
-	jg	sys_fork		# branch to sys_fork
-
-sys_vfork_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs
-	jg	sys_vfork		# branch to sys_vfork
-
-sys_execve_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs
-	lgr	%r12,%r14		# save return address
-	brasl	%r14,sys_execve 	# call sys_execve
-	ltgr	%r2,%r2 		# check if execve failed
-	bnz	0(%r12) 		# it did fail -> store result in gpr2
-	b	6(%r12) 		# SKIP STG 2,SP_R2(15) in
-					# system_call/sysc_tracesys
-#ifdef CONFIG_COMPAT
-sys32_execve_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs
-	lgr	%r12,%r14		# save return address
-	brasl	%r14,sys32_execve	# call sys32_execve
-	ltgr	%r2,%r2 		# check if execve failed
-	bnz	0(%r12) 		# it did fail -> store result in gpr2
-	b	6(%r12) 		# SKIP STG 2,SP_R2(15) in
-					# system_call/sysc_tracesys
-#endif
-
-sys_sigreturn_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs as parameter
-	jg	sys_sigreturn		# branch to sys_sigreturn
-
-#ifdef CONFIG_COMPAT
-sys32_sigreturn_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs as parameter
-	jg	sys32_sigreturn 	# branch to sys32_sigreturn
-#endif
-
-sys_rt_sigreturn_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs as parameter
-	jg	sys_rt_sigreturn	# branch to sys_sigreturn
-
-#ifdef CONFIG_COMPAT
-sys32_rt_sigreturn_glue:
-	la	%r2,SP_PTREGS(%r15)	# load pt_regs as parameter
-	jg	sys32_rt_sigreturn	# branch to sys32_sigreturn
-#endif
-
-sys_sigaltstack_glue:
-	la	%r4,SP_PTREGS(%r15)	# load pt_regs as parameter
-	jg	sys_sigaltstack 	# branch to sys_sigreturn
-
-#ifdef CONFIG_COMPAT
-sys32_sigaltstack_glue:
-	la	%r4,SP_PTREGS(%r15)	# load pt_regs as parameter
-	jg	sys32_sigaltstack_wrapper # branch to sys_sigreturn
-#endif
+	.globl	kernel_execve
+kernel_execve:
+	stmg	%r12,%r15,96(%r15)
+	lgr	%r14,%r15
+	aghi	%r15,-SP_SIZE
+	stg	%r14,__SF_BACKCHAIN(%r15)
+	la	%r12,SP_PTREGS(%r15)
+	xc	0(__PT_SIZE,%r12),0(%r12)
+	lgr	%r5,%r12
+	brasl	%r14,do_execve
+	ltgfr	%r2,%r2
+	je	0f
+	aghi	%r15,SP_SIZE
+	lmg	%r12,%r15,96(%r15)
+	br	%r14
+	# execve succeeded.
+0:	stnsm	__SF_EMPTY(%r15),0xfc	# disable interrupts
+	lg	%r15,__LC_KERNEL_STACK	# load ksp
+	aghi	%r15,-SP_SIZE		# make room for registers & psw
+	lg	%r13,__LC_SVC_NEW_PSW+8
+	lg	%r9,__LC_THREAD_INFO
+	mvc	SP_PTREGS(__PT_SIZE,%r15),0(%r12)	# copy pt_regs
+	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
+	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
+	brasl	%r14,execve_tail
+	j	sysc_return
 
 /*
  * Program check handler routine

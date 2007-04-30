@@ -167,7 +167,7 @@ hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 
 	ret = skb->len - phdrlen;
 	skb->dev = dev;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, hdrlen);
 	if (prism_header)
 		skb_pull(skb, phdrlen);
@@ -933,12 +933,14 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		if (frag == 0) {
 			/* copy first fragment (including full headers) into
 			 * beginning of the fragment cache skb */
-			memcpy(skb_put(frag_skb, flen), skb->data, flen);
+			skb_copy_from_linear_data(skb, skb_put(frag_skb, flen),
+						  flen);
 		} else {
 			/* append frame payload to the end of the fragment
 			 * cache skb */
-			memcpy(skb_put(frag_skb, flen), skb->data + hdrlen,
-			       flen);
+			skb_copy_from_linear_data_offset(skb, hdrlen,
+							 skb_put(frag_skb,
+								 flen), flen);
 		}
 		dev_kfree_skb(skb);
 		skb = NULL;
@@ -1044,8 +1046,9 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	    skb->len >= ETH_HLEN + ETH_ALEN) {
 		/* Non-standard frame: get addr4 from its bogus location after
 		 * the payload */
-		memcpy(skb->data + ETH_ALEN,
-		       skb->data + skb->len - ETH_ALEN, ETH_ALEN);
+		skb_copy_from_linear_data_offset(skb, skb->len - ETH_ALEN,
+						 skb->data + ETH_ALEN,
+						 ETH_ALEN);
 		skb_trim(skb, skb->len - ETH_ALEN);
 	}
 
@@ -1073,17 +1076,17 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 	if (skb2 != NULL) {
 		/* send to wireless media */
-		skb2->protocol = __constant_htons(ETH_P_802_3);
-		skb2->mac.raw = skb2->nh.raw = skb2->data;
-		/* skb2->nh.raw = skb2->data + ETH_HLEN; */
 		skb2->dev = dev;
+		skb2->protocol = __constant_htons(ETH_P_802_3);
+		skb_reset_mac_header(skb2);
+		skb_reset_network_header(skb2);
+		/* skb2->network_header += ETH_HLEN; */
 		dev_queue_xmit(skb2);
 	}
 
 	if (skb) {
 		skb->protocol = eth_type_trans(skb, dev);
 		memset(skb->cb, 0, sizeof(skb->cb));
-		skb->dev = dev;
 		netif_rx(skb);
 	}
 

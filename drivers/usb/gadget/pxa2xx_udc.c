@@ -71,7 +71,7 @@
  * by the host to interact with this device, and allocates endpoints to
  * the different protocol interfaces.  The controller driver virtualizes
  * usb hardware so that the gadget drivers will be more portable.
- * 
+ *
  * This UDC hardware wants to implement a bit too much USB protocol, so
  * it constrains the sorts of USB configuration change events that work.
  * The errata for these chips are misleading; some "fixed" bugs from
@@ -141,7 +141,7 @@ MODULE_PARM_DESC (fifo_mode, "pxa2xx udc fifo mode");
 #endif
 
 /* ---------------------------------------------------------------------------
- * 	endpoint related parts of the api to the usb controller hardware,
+ *	endpoint related parts of the api to the usb controller hardware,
  *	used by gadget driver; and the inner talker-to-hardware core.
  * ---------------------------------------------------------------------------
  */
@@ -293,7 +293,7 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 
 #ifdef	USE_DMA
 	/* for (some) bulk and ISO endpoints, try to get a DMA channel and
-	 * bind it to the endpoint.  otherwise use PIO. 
+	 * bind it to the endpoint.  otherwise use PIO.
 	 */
 	switch (ep->bmAttributes) {
 	case USB_ENDPOINT_XFER_ISOC:
@@ -304,7 +304,7 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 		if (!use_dma || !ep->reg_drcmr)
 			break;
 		ep->dma = pxa_request_dma ((char *)_ep->name,
- 				(le16_to_cpu (desc->wMaxPacketSize) > 64)
+				(le16_to_cpu (desc->wMaxPacketSize) > 64)
 					? DMA_PRIO_MEDIUM /* some iso */
 					: DMA_PRIO_LOW,
 				dma_nodesc_handler, ep);
@@ -361,7 +361,7 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
  */
 
 /*
- * 	pxa2xx_ep_alloc_request - allocate a request data structure
+ *	pxa2xx_ep_alloc_request - allocate a request data structure
  */
 static struct usb_request *
 pxa2xx_ep_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
@@ -378,7 +378,7 @@ pxa2xx_ep_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 
 
 /*
- * 	pxa2xx_ep_free_request - deallocate a request data structure
+ *	pxa2xx_ep_free_request - deallocate a request data structure
  */
 static void
 pxa2xx_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
@@ -1031,7 +1031,7 @@ pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 
 /*
- * 	nuke - dequeue ALL requests
+ *	nuke - dequeue ALL requests
  */
 static void nuke(struct pxa2xx_ep *ep, int status)
 {
@@ -1136,16 +1136,16 @@ static int pxa2xx_ep_set_halt(struct usb_ep *_ep, int value)
 		ep->dev->req_pending = 0;
 		ep->dev->ep0state = EP0_STALL;
 
- 	/* and bulk/intr endpoints like dropping stalls too */
- 	} else {
- 		unsigned i;
- 		for (i = 0; i < 1000; i += 20) {
- 			if (*ep->reg_udccs & UDCCS_BI_SST)
- 				break;
- 			udelay(20);
- 		}
-  	}
- 	local_irq_restore(flags);
+	/* and bulk/intr endpoints like dropping stalls too */
+	} else {
+		unsigned i;
+		for (i = 0; i < 1000; i += 20) {
+			if (*ep->reg_udccs & UDCCS_BI_SST)
+				break;
+			udelay(20);
+		}
+	}
+	local_irq_restore(flags);
 
 	DBG(DBG_VERBOSE, "%s halt\n", _ep->name);
 	return 0;
@@ -1216,7 +1216,7 @@ static struct usb_ep_ops pxa2xx_ep_ops = {
 
 
 /* ---------------------------------------------------------------------------
- * 	device-scoped parts of the api to the usb controller hardware
+ *	device-scoped parts of the api to the usb controller hardware
  * ---------------------------------------------------------------------------
  */
 
@@ -1239,7 +1239,7 @@ static void udc_enable (struct pxa2xx_udc *);
 static void udc_disable(struct pxa2xx_udc *);
 
 /* We disable the UDC -- and its 48 MHz clock -- whenever it's not
- * in active use.  
+ * in active use.
  */
 static int pullup(struct pxa2xx_udc *udc, int is_active)
 {
@@ -1464,24 +1464,10 @@ done:
 
 #endif	/* CONFIG_USB_GADGET_DEBUG_FILES */
 
-/* "function" sysfs attribute */
-static ssize_t
-show_function (struct device *_dev, struct device_attribute *attr, char *buf)
-{
-	struct pxa2xx_udc	*dev = dev_get_drvdata (_dev);
-
-	if (!dev->driver
-			|| !dev->driver->function
-			|| strlen (dev->driver->function) > PAGE_SIZE)
-		return 0;
-	return scnprintf (buf, PAGE_SIZE, "%s\n", dev->driver->function);
-}
-static DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
-
 /*-------------------------------------------------------------------------*/
 
 /*
- * 	udc_disable - disable USB device controller
+ *	udc_disable - disable USB device controller
  */
 static void udc_disable(struct pxa2xx_udc *dev)
 {
@@ -1507,7 +1493,7 @@ static void udc_disable(struct pxa2xx_udc *dev)
 
 
 /*
- * 	udc_reinit - initialize software state
+ *	udc_reinit - initialize software state
  */
 static void udc_reinit(struct pxa2xx_udc *dev)
 {
@@ -1635,18 +1621,20 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	dev->gadget.dev.driver = &driver->driver;
 	dev->pullup = 1;
 
-	device_add (&dev->gadget.dev);
+	retval = device_add (&dev->gadget.dev);
+	if (retval) {
+fail:
+		dev->driver = NULL;
+		dev->gadget.dev.driver = NULL;
+		return retval;
+	}
 	retval = driver->bind(&dev->gadget);
 	if (retval) {
 		DMSG("bind to driver %s --> error %d\n",
 				driver->driver.name, retval);
 		device_del (&dev->gadget.dev);
-
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
+		goto fail;
 	}
-	device_create_file(dev->dev, &dev_attr_function);
 
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
@@ -1704,7 +1692,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	dev->driver = NULL;
 
 	device_del (&dev->gadget.dev);
-	device_remove_file(dev->dev, &dev_attr_function);
 
 	DMSG("unregistered gadget driver '%s'\n", driver->driver.name);
 	dump_state(dev);
@@ -2474,12 +2461,12 @@ static struct pxa2xx_udc memory = {
 #define IXP465_AD		0x00000200
 
 /*
- * 	probe - binds to the platform device
+ *	probe - binds to the platform device
  */
 static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 {
 	struct pxa2xx_udc *dev = &memory;
-	int retval, out_dma = 1, vbus_irq;
+	int retval, out_dma = 1, vbus_irq, irq;
 	u32 chiprev;
 
 	/* insist on Intel/ARM/XScale */
@@ -2522,7 +2509,11 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pr_debug("%s: IRQ %d%s%s%s\n", driver_name, IRQ_USB,
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return -ENODEV;
+
+	pr_debug("%s: IRQ %d%s%s%s\n", driver_name, irq,
 		dev->has_cfr ? "" : " (!cfr)",
 		out_dma ? "" : " (broken dma-out)",
 		SIZE_STR DMASTR
@@ -2570,11 +2561,11 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	dev->vbus = is_vbus_present();
 
 	/* irq setup after old hardware state is cleaned up */
-	retval = request_irq(IRQ_USB, pxa2xx_udc_irq,
+	retval = request_irq(irq, pxa2xx_udc_irq,
 			IRQF_DISABLED, driver_name, dev);
 	if (retval != 0) {
-		printk(KERN_ERR "%s: can't get irq %i, err %d\n",
-			driver_name, IRQ_USB, retval);
+		printk(KERN_ERR "%s: can't get irq %d, err %d\n",
+			driver_name, irq, retval);
 		return -EBUSY;
 	}
 	dev->got_irq = 1;
@@ -2589,7 +2580,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_DISC_IRQ, retval);
 lubbock_fail0:
-			free_irq(IRQ_USB, dev);
+			free_irq(irq, dev);
 			return -EBUSY;
 		}
 		retval = request_irq(LUBBOCK_USB_IRQ,
@@ -2616,7 +2607,7 @@ lubbock_fail0:
 		if (retval != 0) {
 			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
 				driver_name, vbus_irq, retval);
-			free_irq(IRQ_USB, dev);
+			free_irq(irq, dev);
 			return -EBUSY;
 		}
 	}
@@ -2641,7 +2632,7 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
 	remove_proc_files();
 
 	if (dev->got_irq) {
-		free_irq(IRQ_USB, dev);
+		free_irq(platform_get_irq(pdev, 0), dev);
 		dev->got_irq = 0;
 	}
 #ifdef CONFIG_ARCH_LUBBOCK
@@ -2668,7 +2659,7 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
  *
  * For now, we punt and forcibly disconnect from the USB host when PXA
  * enters any suspend state.  While we're disconnected, we always disable
- * the 48MHz USB clock ... allowing PXA sleep and/or 33 MHz idle states. 
+ * the 48MHz USB clock ... allowing PXA sleep and/or 33 MHz idle states.
  * Boards without software pullup control shouldn't use those states.
  * VBUS IRQs should probably be ignored so that the PXA device just acts
  * "dead" to USB hosts until system resume.
@@ -2701,7 +2692,6 @@ static int pxa2xx_udc_resume(struct platform_device *dev)
 /*-------------------------------------------------------------------------*/
 
 static struct platform_driver udc_driver = {
-	.probe		= pxa2xx_udc_probe,
 	.shutdown	= pxa2xx_udc_shutdown,
 	.remove		= __exit_p(pxa2xx_udc_remove),
 	.suspend	= pxa2xx_udc_suspend,
@@ -2715,7 +2705,7 @@ static struct platform_driver udc_driver = {
 static int __init udc_init(void)
 {
 	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);
-	return platform_driver_register(&udc_driver);
+	return platform_driver_probe(&udc_driver, pxa2xx_udc_probe);
 }
 module_init(udc_init);
 

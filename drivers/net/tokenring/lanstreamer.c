@@ -944,8 +944,6 @@ static void streamer_rx(struct net_device *dev)
 				printk(KERN_WARNING "%s: Not enough memory to copy packet to upper layers. \n",	dev->name);
 				streamer_priv->streamer_stats.rx_dropped++;
 			} else {	/* we allocated an skb OK */
-				skb->dev = dev;
-
 				if (buffer_cnt == 1) {
 					/* release the DMA mapping */
 					pci_unmap_single(streamer_priv->pci_dev, 
@@ -1607,10 +1605,11 @@ static void streamer_arb_cmd(struct net_device *dev)
 				      frame_data, buffer_len);
 		} while (next_ptr && (buff_off = next_ptr));
 
+		mac_frame->protocol = tr_type_trans(mac_frame, dev);
 #if STREAMER_NETWORK_MONITOR
 		printk(KERN_WARNING "%s: Received MAC Frame, details: \n",
 		       dev->name);
-		mac_hdr = (struct trh_hdr *) mac_frame->data;
+		mac_hdr = tr_hdr(mac_frame);
 		printk(KERN_WARNING
 		       "%s: MAC Frame Dest. Addr: %02x:%02x:%02x:%02x:%02x:%02x \n",
 		       dev->name, mac_hdr->daddr[0], mac_hdr->daddr[1],
@@ -1622,8 +1621,6 @@ static void streamer_arb_cmd(struct net_device *dev)
 		       mac_hdr->saddr[2], mac_hdr->saddr[3],
 		       mac_hdr->saddr[4], mac_hdr->saddr[5]);
 #endif
-		mac_frame->dev = dev;
-		mac_frame->protocol = tr_type_trans(mac_frame, dev);
 		netif_rx(mac_frame);
 
 		/* Now tell the card we have dealt with the received frame */

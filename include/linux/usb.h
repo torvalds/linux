@@ -299,8 +299,9 @@ struct usb_bus {
 	int bandwidth_int_reqs;		/* number of Interrupt requests */
 	int bandwidth_isoc_reqs;	/* number of Isoc. requests */
 
+#ifdef CONFIG_USB_DEVICEFS
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the bus */
-
+#endif
 	struct class_device *class_dev;	/* class device for this bus */
 
 #if defined(CONFIG_USB_MON)
@@ -373,9 +374,12 @@ struct usb_device {
 	char *serial;			/* iSerialNumber string, if present */
 
 	struct list_head filelist;
-	struct device *usbfs_dev;
+#ifdef CONFIG_USB_DEVICE_CLASS
+	struct device *usb_classdev;
+#endif
+#ifdef CONFIG_USB_DEVICEFS
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the device */
-
+#endif
 	/*
 	 * Child devices - these can be either new devices
 	 * (if this is a hub device), or different instances
@@ -394,10 +398,13 @@ struct usb_device {
 	struct delayed_work autosuspend; /* for delayed autosuspends */
 	struct mutex pm_mutex;		/* protects PM operations */
 
-	unsigned autosuspend_delay;	/* in jiffies */
+	unsigned long last_busy;	/* time of last use */
+	int autosuspend_delay;		/* in jiffies */
 
 	unsigned auto_pm:1;		/* autosuspend/resume in progress */
 	unsigned do_remote_wakeup:1;	/* remote wakeup should be enabled */
+	unsigned autosuspend_disabled:1; /* autosuspend and autoresume */
+	unsigned autoresume_disabled:1;  /*  disabled by the user */
 #endif
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
@@ -437,6 +444,11 @@ static inline void usb_autopm_disable(struct usb_interface *intf)
 	usb_autopm_set_interface(intf);
 }
 
+static inline void usb_mark_last_busy(struct usb_device *udev)
+{
+	udev->last_busy = jiffies;
+}
+
 #else
 
 static inline int usb_autopm_set_interface(struct usb_interface *intf)
@@ -450,6 +462,8 @@ static inline void usb_autopm_put_interface(struct usb_interface *intf)
 static inline void usb_autopm_enable(struct usb_interface *intf)
 { }
 static inline void usb_autopm_disable(struct usb_interface *intf)
+{ }
+static inline void usb_mark_last_busy(struct usb_device *udev)
 { }
 #endif
 

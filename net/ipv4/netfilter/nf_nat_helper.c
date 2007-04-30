@@ -87,12 +87,13 @@ static void mangle_contents(struct sk_buff *skb,
 	unsigned char *data;
 
 	BUG_ON(skb_is_nonlinear(skb));
-	data = (unsigned char *)skb->nh.iph + dataoff;
+	data = skb_network_header(skb) + dataoff;
 
 	/* move post-replacement */
 	memmove(data + match_offset + rep_len,
 		data + match_offset + match_len,
-		skb->tail - (data + match_offset + match_len));
+		skb->tail - (skb->network_header + dataoff +
+			     match_offset + match_len));
 
 	/* insert data from buffer */
 	memcpy(data + match_offset, rep_buffer, rep_len);
@@ -111,8 +112,8 @@ static void mangle_contents(struct sk_buff *skb,
 	}
 
 	/* fix IP hdr checksum information */
-	skb->nh.iph->tot_len = htons(skb->len);
-	ip_send_check(skb->nh.iph);
+	ip_hdr(skb)->tot_len = htons(skb->len);
+	ip_send_check(ip_hdr(skb));
 }
 
 /* Unusual, but possible case. */
@@ -152,6 +153,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 			 const char *rep_buffer,
 			 unsigned int rep_len)
 {
+	struct rtable *rt = (struct rtable *)(*pskb)->dst;
 	struct iphdr *iph;
 	struct tcphdr *tcph;
 	int oldlen, datalen;
@@ -166,7 +168,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 
 	SKB_LINEAR_ASSERT(*pskb);
 
-	iph = (*pskb)->nh.iph;
+	iph = ip_hdr(*pskb);
 	tcph = (void *)iph + iph->ihl*4;
 
 	oldlen = (*pskb)->len - iph->ihl*4;
@@ -175,11 +177,22 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 
 	datalen = (*pskb)->len - iph->ihl*4;
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
-		tcph->check = 0;
-		tcph->check = tcp_v4_check(datalen,
-					   iph->saddr, iph->daddr,
-					   csum_partial((char *)tcph,
-							datalen, 0));
+		if (!(rt->rt_flags & RTCF_LOCAL) &&
+		    (*pskb)->dev->features & NETIF_F_ALL_CSUM) {
+			(*pskb)->ip_summed = CHECKSUM_PARTIAL;
+			(*pskb)->csum_start = skb_headroom(*pskb) +
+					      skb_network_offset(*pskb) +
+					      iph->ihl * 4;
+			(*pskb)->csum_offset = offsetof(struct tcphdr, check);
+			tcph->check = ~tcp_v4_check(datalen,
+						    iph->saddr, iph->daddr, 0);
+		} else {
+			tcph->check = 0;
+			tcph->check = tcp_v4_check(datalen,
+						   iph->saddr, iph->daddr,
+						   csum_partial((char *)tcph,
+								datalen, 0));
+		}
 	} else
 		nf_proto_csum_replace2(&tcph->check, *pskb,
 				       htons(oldlen), htons(datalen), 1);
@@ -190,7 +203,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff **pskb,
 				    (int)rep_len - (int)match_len,
 				    ct, ctinfo);
 		/* Tell TCP window tracking about seq change */
-		nf_conntrack_tcp_update(*pskb, (*pskb)->nh.iph->ihl*4,
+		nf_conntrack_tcp_update(*pskb, ip_hdrlen(*pskb),
 					ct, CTINFO2DIR(ctinfo));
 	}
 	return 1;
@@ -216,12 +229,13 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 			 const char *rep_buffer,
 			 unsigned int rep_len)
 {
+	struct rtable *rt = (struct rtable *)(*pskb)->dst;
 	struct iphdr *iph;
 	struct udphdr *udph;
 	int datalen, oldlen;
 
 	/* UDP helpers might accidentally mangle the wrong packet */
-	iph = (*pskb)->nh.iph;
+	iph = ip_hdr(*pskb);
 	if ((*pskb)->len < iph->ihl*4 + sizeof(*udph) +
 			       match_offset + match_len)
 		return 0;
@@ -234,7 +248,7 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 	    !enlarge_skb(pskb, rep_len - match_len))
 		return 0;
 
-	iph = (*pskb)->nh.iph;
+	iph = ip_hdr(*pskb);
 	udph = (void *)iph + iph->ihl*4;
 
 	oldlen = (*pskb)->len - iph->ihl*4;
@@ -250,13 +264,25 @@ nf_nat_mangle_udp_packet(struct sk_buff **pskb,
 		return 1;
 
 	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
-		udph->check = 0;
-		udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
-						datalen, IPPROTO_UDP,
-						csum_partial((char *)udph,
-							     datalen, 0));
-		if (!udph->check)
-			udph->check = CSUM_MANGLED_0;
+		if (!(rt->rt_flags & RTCF_LOCAL) &&
+		    (*pskb)->dev->features & NETIF_F_ALL_CSUM) {
+			(*pskb)->ip_summed = CHECKSUM_PARTIAL;
+			(*pskb)->csum_start = skb_headroom(*pskb) +
+					      skb_network_offset(*pskb) +
+					      iph->ihl * 4;
+			(*pskb)->csum_offset = offsetof(struct udphdr, check);
+			udph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
+							 datalen, IPPROTO_UDP,
+							 0);
+		} else {
+			udph->check = 0;
+			udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
+							datalen, IPPROTO_UDP,
+							csum_partial((char *)udph,
+								     datalen, 0));
+			if (!udph->check)
+				udph->check = CSUM_MANGLED_0;
+		}
 	} else
 		nf_proto_csum_replace2(&udph->check, *pskb,
 				       htons(oldlen), htons(datalen), 1);
@@ -318,8 +344,8 @@ nf_nat_sack_adjust(struct sk_buff **pskb,
 	unsigned int dir, optoff, optend;
 	struct nf_conn_nat *nat = nfct_nat(ct);
 
-	optoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct tcphdr);
-	optend = (*pskb)->nh.iph->ihl*4 + tcph->doff*4;
+	optoff = ip_hdrlen(*pskb) + sizeof(struct tcphdr);
+	optend = ip_hdrlen(*pskb) + tcph->doff * 4;
 
 	if (!skb_make_writable(pskb, optend))
 		return 0;
@@ -371,10 +397,10 @@ nf_nat_seq_adjust(struct sk_buff **pskb,
 	this_way = &nat->info.seq[dir];
 	other_way = &nat->info.seq[!dir];
 
-	if (!skb_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
+	if (!skb_make_writable(pskb, ip_hdrlen(*pskb) + sizeof(*tcph)))
 		return 0;
 
-	tcph = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
+	tcph = (void *)(*pskb)->data + ip_hdrlen(*pskb);
 	if (after(ntohl(tcph->seq), this_way->correction_pos))
 		newseq = htonl(ntohl(tcph->seq) + this_way->offset_after);
 	else
@@ -399,7 +425,7 @@ nf_nat_seq_adjust(struct sk_buff **pskb,
 	if (!nf_nat_sack_adjust(pskb, tcph, ct, ctinfo))
 		return 0;
 
-	nf_conntrack_tcp_update(*pskb, (*pskb)->nh.iph->ihl*4, ct, dir);
+	nf_conntrack_tcp_update(*pskb, ip_hdrlen(*pskb), ct, dir);
 
 	return 1;
 }

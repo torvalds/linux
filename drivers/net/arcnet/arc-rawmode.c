@@ -110,7 +110,7 @@ static void rx(struct net_device *dev, int bufnum,
 
 	pkt = (struct archdr *) skb->data;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, ARC_HDR_SIZE);
 
 	/* up to sizeof(pkt->soft) has already been copied from the card */

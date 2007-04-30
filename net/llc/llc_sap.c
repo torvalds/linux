@@ -36,11 +36,12 @@ struct sk_buff *llc_alloc_frame(struct sock *sk, struct net_device *dev)
 	struct sk_buff *skb = alloc_skb(128, GFP_ATOMIC);
 
 	if (skb) {
+		skb_reset_mac_header(skb);
 		skb_reserve(skb, 50);
-		skb->nh.raw   = skb->h.raw = skb->data;
+		skb_reset_network_header(skb);
+		skb_reset_transport_header(skb);
 		skb->protocol = htons(ETH_P_802_2);
 		skb->dev      = dev;
-		skb->mac.raw  = skb->head;
 		if (sk != NULL)
 			skb_set_owner_w(skb, sk);
 	}

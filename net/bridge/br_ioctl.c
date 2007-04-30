@@ -137,7 +137,8 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		b.topology_change = br->topology_change;
 		b.topology_change_detected = br->topology_change_detected;
 		b.root_port = br->root_port;
-		b.stp_enabled = br->stp_enabled;
+
+		b.stp_enabled = (br->stp_enabled != BR_NO_STP);
 		b.ageing_time = jiffies_to_clock_t(br->ageing_time);
 		b.hello_timer_value = br_timer_value(&br->hello_timer);
 		b.tcn_timer_value = br_timer_value(&br->tcn_timer);
@@ -251,7 +252,7 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
-		br->stp_enabled = args[1]?1:0;
+		br_stp_set_enabled(br, args[1]);
 		return 0;
 
 	case BRCTL_SET_BRIDGE_PRIORITY:

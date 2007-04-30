@@ -57,6 +57,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 struct ib_sa_sm_ah {
 	struct ib_ah        *ah;
 	struct kref          ref;
+	u8		     src_path_mask;
 };
 
 struct ib_sa_port {
@@ -380,6 +381,7 @@ static void update_sm_ah(struct work_struct *work)
 	}
 
 	kref_init(&new_ah->ref);
+	new_ah->src_path_mask = (1 << port_attr.lmc) - 1;
 
 	memset(&ah_attr, 0, sizeof ah_attr);
 	ah_attr.dlid     = port_attr.sm_lid;
@@ -460,6 +462,25 @@ void ib_sa_cancel_query(int id, struct ib_sa_query *query)
 }
 EXPORT_SYMBOL(ib_sa_cancel_query);
 
+static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
+{
+	struct ib_sa_device *sa_dev;
+	struct ib_sa_port   *port;
+	unsigned long flags;
+	u8 src_path_mask;
+
+	sa_dev = ib_get_client_data(device, &sa_client);
+	if (!sa_dev)
+		return 0x7f;
+
+	port  = &sa_dev->port[port_num - sa_dev->start_port];
+	spin_lock_irqsave(&port->ah_lock, flags);
+	src_path_mask = port->sm_ah ? port->sm_ah->src_path_mask : 0x7f;
+	spin_unlock_irqrestore(&port->ah_lock, flags);
+
+	return src_path_mask;
+}
+
 int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 			 struct ib_sa_path_rec *rec, struct ib_ah_attr *ah_attr)
 {
@@ -469,7 +490,8 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	memset(ah_attr, 0, sizeof *ah_attr);
 	ah_attr->dlid = be16_to_cpu(rec->dlid);
 	ah_attr->sl = rec->sl;
-	ah_attr->src_path_bits = be16_to_cpu(rec->slid) & 0x7f;
+	ah_attr->src_path_bits = be16_to_cpu(rec->slid) &
+				 get_src_path_mask(device, port_num);
 	ah_attr->port_num = port_num;
 	ah_attr->static_rate = rec->rate;
 

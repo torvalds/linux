@@ -207,7 +207,7 @@ void ipath_get_faststats(unsigned long opaque)
 	 * don't access the chip while running diags, or memory diags can
 	 * fail
 	 */
-	if (!dd->ipath_kregbase || !(dd->ipath_flags & IPATH_PRESENT) ||
+	if (!dd->ipath_kregbase || !(dd->ipath_flags & IPATH_INITTED) ||
 	    ipath_diag_inuse)
 		/* but re-arm the timer, for diags case; won't hurt other */
 		goto done;
@@ -237,11 +237,13 @@ void ipath_get_faststats(unsigned long opaque)
 	if ((dd->ipath_maskederrs & ~dd->ipath_ignorederrs)
 	    && time_after(jiffies, dd->ipath_unmasktime)) {
 		char ebuf[256];
-		ipath_decode_err(ebuf, sizeof ebuf,
+		int iserr;
+		iserr = ipath_decode_err(ebuf, sizeof ebuf,
 				 (dd->ipath_maskederrs & ~dd->
 				  ipath_ignorederrs));
 		if ((dd->ipath_maskederrs & ~dd->ipath_ignorederrs) &
-		    ~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL))
+				~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL |
+				INFINIPATH_E_PKTERRS ))
 			ipath_dev_err(dd, "Re-enabling masked errors "
 				      "(%s)\n", ebuf);
 		else {
@@ -252,8 +254,12 @@ void ipath_get_faststats(unsigned long opaque)
 			 * them.  So only complain about these at debug
 			 * level.
 			 */
-			ipath_dbg("Disabling frequent queue full errors "
-				  "(%s)\n", ebuf);
+			if (iserr)
+					ipath_dbg("Re-enabling queue full errors (%s)\n",
+							ebuf);
+			else
+				ipath_cdbg(ERRPKT, "Re-enabling packet"
+						" problem interrupt (%s)\n", ebuf);
 		}
 		dd->ipath_maskederrs = dd->ipath_ignorederrs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,

@@ -47,11 +47,10 @@ static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
 		return 1;
 	}
 
-        UDP_SKB_CB(skb)->partial_cov = 0;
 	cscov = ntohs(uh->len);
 
 	if (cscov == 0)		 /* Indicates that full coverage is required. */
-		cscov = skb->len;
+		;
 	else if (cscov < 8  || cscov > skb->len) {
 		/*
 		 * Coverage length violates RFC 3828: log and discard silently.
@@ -60,40 +59,14 @@ static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
 			       cscov, skb->len);
 		return 1;
 
-	} else if (cscov < skb->len)
+	} else if (cscov < skb->len) {
         	UDP_SKB_CB(skb)->partial_cov = 1;
-
-        UDP_SKB_CB(skb)->cscov = cscov;
-
-	/*
-	 * There is no known NIC manufacturer supporting UDP-Lite yet,
-	 * hence ip_summed is always (re-)set to CHECKSUM_NONE.
-	 */
-	skb->ip_summed = CHECKSUM_NONE;
+		UDP_SKB_CB(skb)->cscov = cscov;
+		if (skb->ip_summed == CHECKSUM_COMPLETE)
+			skb->ip_summed = CHECKSUM_NONE;
+        }
 
 	return 0;
-}
-
-static __inline__ int udplite4_csum_init(struct sk_buff *skb, struct udphdr *uh)
-{
-	int rc = udplite_checksum_init(skb, uh);
-
-	if (!rc)
-		skb->csum = csum_tcpudp_nofold(skb->nh.iph->saddr,
-					       skb->nh.iph->daddr,
-					       skb->len, IPPROTO_UDPLITE, 0);
-	return rc;
-}
-
-static __inline__ int udplite6_csum_init(struct sk_buff *skb, struct udphdr *uh)
-{
-	int rc = udplite_checksum_init(skb, uh);
-
-	if (!rc)
-		skb->csum = ~csum_unfold(csum_ipv6_magic(&skb->nh.ipv6h->saddr,
-					     &skb->nh.ipv6h->daddr,
-					     skb->len, IPPROTO_UDPLITE, 0));
-	return rc;
 }
 
 static inline int udplite_sender_cscov(struct udp_sock *up, struct udphdr *uh)
@@ -128,14 +101,14 @@ static inline int udplite_sender_cscov(struct udp_sock *up, struct udphdr *uh)
 
 static inline __wsum udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 {
-	int off, len, cscov = udplite_sender_cscov(udp_sk(sk), skb->h.uh);
+	int cscov = udplite_sender_cscov(udp_sk(sk), udp_hdr(skb));
 	__wsum csum = 0;
 
 	skb->ip_summed = CHECKSUM_NONE;     /* no HW support for checksumming */
 
 	skb_queue_walk(&sk->sk_write_queue, skb) {
-		off = skb->h.raw - skb->data;
-		len = skb->len - off;
+		const int off = skb_transport_offset(skb);
+		const int len = skb->len - off;
 
 		csum = skb_checksum(skb, off, (cscov > len)? len : cscov, csum);
 

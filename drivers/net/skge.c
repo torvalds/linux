@@ -2654,12 +2654,12 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	td->dma_hi = map >> 32;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		int offset = skb->h.raw - skb->data;
+		const int offset = skb_transport_offset(skb);
 
 		/* This seems backwards, but it is what the sk98lin
 		 * does.  Looks like hardware is wrong?
 		 */
-		if (skb->h.ipiph->protocol == IPPROTO_UDP
+		if (ipip_hdr(skb)->protocol == IPPROTO_UDP
 	            && hw->chip_rev == 0 && hw->chip_id == CHIP_ID_YUKON)
 			control = BMU_TCP_CHECK;
 		else
@@ -2950,7 +2950,7 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		pci_dma_sync_single_for_cpu(skge->hw->pdev,
 					    pci_unmap_addr(e, mapaddr),
 					    len, PCI_DMA_FROMDEVICE);
-		memcpy(skb->data, e->skb->data, len);
+		skb_copy_from_linear_data(e->skb, skb->data, len);
 		pci_dma_sync_single_for_device(skge->hw->pdev,
 					       pci_unmap_addr(e, mapaddr),
 					       len, PCI_DMA_FROMDEVICE);

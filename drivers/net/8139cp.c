@@ -573,7 +573,6 @@ rx_status_loop:
 		}
 
 		skb_reserve(new_skb, RX_OFFSET);
-		new_skb->dev = dev;
 
 		pci_unmap_single(cp->pdev, mapping,
 				 buflen, PCI_DMA_FROMDEVICE);
@@ -807,7 +806,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		if (mss)
 			flags |= LargeSend | ((mss & MSSMask) << MSSShift);
 		else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			const struct iphdr *ip = skb->nh.iph;
+			const struct iphdr *ip = ip_hdr(skb);
 			if (ip->protocol == IPPROTO_TCP)
 				flags |= IPCS | TCPCS;
 			else if (ip->protocol == IPPROTO_UDP)
@@ -826,7 +825,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		u32 first_len, first_eor;
 		dma_addr_t first_mapping;
 		int frag, first_entry = entry;
-		const struct iphdr *ip = skb->nh.iph;
+		const struct iphdr *ip = ip_hdr(skb);
 
 		/* We must give this initial chunk to the device last.
 		 * Otherwise we could race with the device.
@@ -1082,7 +1081,6 @@ static int cp_refill_rx (struct cp_private *cp)
 		if (!skb)
 			goto err_out;
 
-		skb->dev = cp->dev;
 		skb_reserve(skb, RX_OFFSET);
 
 		mapping = pci_map_single(cp->pdev, skb->data, cp->rx_buf_sz,

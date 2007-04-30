@@ -154,7 +154,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_LUN, D_DLY};
 #include <linux/blkpg.h>
 #include <asm/uaccess.h>
 
-static spinlock_t pf_spin_lock;
+static DEFINE_SPINLOCK(pf_spin_lock);
 
 module_param(verbose, bool, 0644);
 module_param(major, int, 0);

@@ -410,7 +410,7 @@ static int  __devinit radeon_find_mem_vbios(struct radeonfb_info *rinfo)
 }
 #endif
 
-#ifdef CONFIG_PPC_OF
+#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
 /*
  * Read XTAL (ref clock), SCLK and MCLK from Open Firmware device
  * tree. Hopefully, ATI OF driver is kind enough to fill these
@@ -440,7 +440,7 @@ static int __devinit radeon_read_xtal_OF (struct radeonfb_info *rinfo)
 
        	return 0;
 }
-#endif /* CONFIG_PPC_OF */
+#endif /* CONFIG_PPC_OF || CONFIG_SPARC */
 
 /*
  * Read PLL infos from chip registers
@@ -645,7 +645,7 @@ static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
 	rinfo->pll.ref_div = INPLL(PPLL_REF_DIV) & PPLL_REF_DIV_MASK;
 
 
-#ifdef CONFIG_PPC_OF
+#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
 	/*
 	 * Retrieve PLL infos from Open Firmware first
 	 */
@@ -653,7 +653,7 @@ static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
        		printk(KERN_INFO "radeonfb: Retrieved PLL infos from Open Firmware\n");
 		goto found;
 	}
-#endif /* CONFIG_PPC_OF */
+#endif /* CONFIG_PPC_OF || CONFIG_SPARC */
 
 	/*
 	 * Check out if we have an X86 which gave us some PLL informations
@@ -2231,7 +2231,7 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 	    rinfo->family == CHIP_FAMILY_RS200)
 		rinfo->errata |= CHIP_ERRATA_PLL_DELAY;
 
-#ifdef CONFIG_PPC_OF
+#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
 	/* On PPC, we obtain the OF device-node pointer to the firmware
 	 * data for this chip
 	 */
@@ -2240,6 +2240,8 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 		printk(KERN_WARNING "radeonfb (%s): Cannot match card to OF node !\n",
 		       pci_name(rinfo->pdev));
 
+#endif /* CONFIG_PPC_OF || CONFIG_SPARC */
+#ifdef CONFIG_PPC_OF
 	/* On PPC, the firmware sets up a memory mapping that tends
 	 * to cause lockups when enabling the engine. We reconfigure
 	 * the card internal memory mappings properly

@@ -49,6 +49,27 @@ MODULE_PARM_DESC(debug,"enable debug messages [mpeg]");
 #define mpeg_dbg(level,fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG "%s/2-mpeg: " fmt, core->name, ## arg)
 
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct cx8802_dev *dev=container_of(work, struct cx8802_dev, request_module_wk);
+
+	if (cx88_boards[dev->core->board].mpeg & CX88_MPEG_DVB)
+		request_module("cx88-dvb");
+	if (cx88_boards[dev->core->board].mpeg & CX88_MPEG_BLACKBIRD)
+		request_module("cx88-blackbird");
+}
+
+static void request_modules(struct cx8802_dev *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#endif /* CONFIG_MODULES */
+
+
 static LIST_HEAD(cx8802_devlist);
 /* ------------------------------------------------------------------ */
 
@@ -345,7 +366,8 @@ static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 
 	if (debug || (status & mask & ~0xff))
 		cx88_print_irqbits(core->name, "irq mpeg ",
-				   cx88_mpeg_irqs, status, mask);
+				   cx88_mpeg_irqs, ARRAY_SIZE(cx88_mpeg_irqs),
+				   status, mask);
 
 	/* risc op code error */
 	if (status & (1 << 16)) {
@@ -427,7 +449,7 @@ int cx8802_init_common(struct cx8802_dev *dev)
 	if (pci_enable_device(dev->pci))
 		return -EIO;
 	pci_set_master(dev->pci);
-	if (!pci_dma_supported(dev->pci,0xffffffff)) {
+	if (!pci_dma_supported(dev->pci,DMA_32BIT_MASK)) {
 		printk("%s/2: Oops: no 32bit PCI DMA ???\n",dev->core->name);
 		return -EIO;
 	}
@@ -778,6 +800,9 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 
 	/* Maintain a reference so cx88-video can query the 8802 device. */
 	core->dvbdev = dev;
+
+	/* now autoload cx88-dvb or cx88-blackbird */
+	request_modules(dev);
 	return 0;
 
  fail_free:

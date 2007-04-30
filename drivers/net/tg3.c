@@ -40,16 +40,16 @@
 #include <linux/dma-mapping.h>
 
 #include <net/checksum.h>
+#include <net/ip.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 #include <asm/idprom.h>
-#include <asm/oplib.h>
-#include <asm/pbm.h>
+#include <asm/prom.h>
 #endif
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
@@ -3349,7 +3349,7 @@ static int tg3_rx(struct tg3 *tp, int budget)
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
-			memcpy(copy_skb->data, skb->data, len);
+			skb_copy_from_linear_data(skb, copy_skb->data, len);
 			pci_dma_sync_single_for_device(tp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
 
 			/* We'll reuse the original ring buffer. */
@@ -3908,20 +3908,20 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
 			mss |= (skb_headlen(skb) - ETH_HLEN) << 9;
 		else {
-			tcp_opt_len = ((skb->h.th->doff - 5) * 4);
-			ip_tcp_len = (skb->nh.iph->ihl * 4) +
-				     sizeof(struct tcphdr);
+			struct iphdr *iph = ip_hdr(skb);
 
-			skb->nh.iph->check = 0;
-			skb->nh.iph->tot_len = htons(mss + ip_tcp_len +
-						     tcp_opt_len);
+			tcp_opt_len = tcp_optlen(skb);
+			ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
+
+			iph->check = 0;
+			iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
 			mss |= (ip_tcp_len + tcp_opt_len) << 9;
 		}
 
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
 
-		skb->h.th->check = 0;
+		tcp_hdr(skb)->check = 0;
 
 	}
 	else if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -4055,6 +4055,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
 	    (mss = skb_shinfo(skb)->gso_size) != 0) {
+		struct iphdr *iph;
 		int tcp_opt_len, ip_tcp_len, hdr_len;
 
 		if (skb_header_cloned(skb) &&
@@ -4063,8 +4064,8 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 			goto out_unlock;
 		}
 
-		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
-		ip_tcp_len = (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
+		tcp_opt_len = tcp_optlen(skb);
+		ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
 		hdr_len = ip_tcp_len + tcp_opt_len;
 		if (unlikely((ETH_HLEN + hdr_len) > 80) &&
@@ -4074,34 +4075,31 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
 
-		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = htons(mss + hdr_len);
+		iph = ip_hdr(skb);
+		iph->check = 0;
+		iph->tot_len = htons(mss + hdr_len);
 		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
-			skb->h.th->check = 0;
+			tcp_hdr(skb)->check = 0;
 			base_flags &= ~TXD_FLAG_TCPUDP_CSUM;
-		}
-		else {
-			skb->h.th->check =
-				~csum_tcpudp_magic(skb->nh.iph->saddr,
-						   skb->nh.iph->daddr,
-						   0, IPPROTO_TCP, 0);
-		}
+		} else
+			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
+								 iph->daddr, 0,
+								 IPPROTO_TCP,
+								 0);
 
 		if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO) ||
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705)) {
-			if (tcp_opt_len || skb->nh.iph->ihl > 5) {
+			if (tcp_opt_len || iph->ihl > 5) {
 				int tsflags;
 
-				tsflags = ((skb->nh.iph->ihl - 5) +
-					   (tcp_opt_len >> 2));
+				tsflags = (iph->ihl - 5) + (tcp_opt_len >> 2);
 				mss |= (tsflags << 11);
 			}
 		} else {
-			if (tcp_opt_len || skb->nh.iph->ihl > 5) {
+			if (tcp_opt_len || iph->ihl > 5) {
 				int tsflags;
 
-				tsflags = ((skb->nh.iph->ihl - 5) +
-					   (tcp_opt_len >> 2));
+				tsflags = (iph->ihl - 5) + (tcp_opt_len >> 2);
 				base_flags |= tsflags << 12;
 			}
 		}
@@ -10988,24 +10986,20 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	return err;
 }
 
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 static int __devinit tg3_get_macaddr_sparc(struct tg3 *tp)
 {
 	struct net_device *dev = tp->dev;
 	struct pci_dev *pdev = tp->pdev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
+	struct device_node *dp = pci_device_to_OF_node(pdev);
+	const unsigned char *addr;
+	int len;
 
-	if (pcp != NULL) {
-		unsigned char *addr;
-		int len;
-
-		addr = of_get_property(pcp->prom_node, "local-mac-address",
-					&len);
-		if (addr && len == 6) {
-			memcpy(dev->dev_addr, addr, 6);
-			memcpy(dev->perm_addr, dev->dev_addr, 6);
-			return 0;
-		}
+	addr = of_get_property(dp, "local-mac-address", &len);
+	if (addr && len == 6) {
+		memcpy(dev->dev_addr, addr, 6);
+		memcpy(dev->perm_addr, dev->dev_addr, 6);
+		return 0;
 	}
 	return -ENODEV;
 }
@@ -11026,7 +11020,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 	u32 hi, lo, mac_offset;
 	int addr_ok = 0;
 
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 	if (!tg3_get_macaddr_sparc(tp))
 		return 0;
 #endif

@@ -906,7 +906,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 			}
 		}
 		else {
-			skb->h.raw = skb->data;
+			skb_reset_transport_header(skb);
 			res = rose_process_rx_frame(sk, skb);
 			goto out;
 		}

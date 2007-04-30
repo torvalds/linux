@@ -61,7 +61,7 @@ gnet_stats_start_copy_compat(struct sk_buff *skb, int type, int tc_stats_type,
 	spin_lock_bh(lock);
 	d->lock = lock;
 	if (type)
-		d->tail = (struct rtattr *) skb->tail;
+		d->tail = (struct rtattr *)skb_tail_pointer(skb);
 	d->skb = skb;
 	d->compat_tc_stats = tc_stats_type;
 	d->compat_xstats = xstats_type;
@@ -212,7 +212,7 @@ int
 gnet_stats_finish_copy(struct gnet_dump *d)
 {
 	if (d->tail)
-		d->tail->rta_len = d->skb->tail - (u8 *) d->tail;
+		d->tail->rta_len = skb_tail_pointer(d->skb) - (u8 *)d->tail;
 
 	if (d->compat_tc_stats)
 		if (gnet_stats_copy(d, d->compat_tc_stats, &d->tc_stats,

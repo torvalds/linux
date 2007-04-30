@@ -993,7 +993,6 @@ static int ewrk3_rx(struct net_device *dev)
 
 					if ((skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 						unsigned char *p;
-						skb->dev = dev;
 						skb_reserve(skb, 2);	/* Align to 16 bytes */
 						p = skb_put(skb, pkt_len);
 

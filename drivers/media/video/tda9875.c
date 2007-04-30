@@ -27,7 +27,6 @@
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 #include <linux/init.h>
 
 

@@ -636,8 +636,6 @@ static void kaweth_usb_receive(struct urb *urb)
 
 		skb_reserve(skb, 2);    /* Align IP on 16 byte boundaries */
 
-		skb->dev = net;
-
 		eth_copy_and_sum(skb, kaweth->rx_buf + 2, pkt_len, 0);
 
 		skb_put(skb, pkt_len);

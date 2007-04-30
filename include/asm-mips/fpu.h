@@ -68,8 +68,6 @@ do {									\
 	/* We don't care about the c0 hazard here  */			\
 } while (0)
 
-#define __fpu_enabled()	(read_c0_status() & ST0_CU1)
-
 #define enable_fpu()							\
 do {									\
 	if (cpu_has_fpu)						\
@@ -102,14 +100,19 @@ static inline void __own_fpu(void)
 	set_thread_flag(TIF_USEDFPU);
 }
 
-static inline void own_fpu(int restore)
+static inline void own_fpu_inatomic(int restore)
 {
-	preempt_disable();
 	if (cpu_has_fpu && !__is_fpu_owner()) {
 		__own_fpu();
 		if (restore)
 			_restore_fp(current);
 	}
+}
+
+static inline void own_fpu(int restore)
+{
+	preempt_disable();
+	own_fpu_inatomic(restore);
 	preempt_enable();
 }
 
@@ -160,20 +163,6 @@ static inline fpureg_t *get_fpu_regs(struct task_struct *tsk)
 	}
 
 	return tsk->thread.fpu.fpr;
-}
-
-static inline void enable_fp_in_kernel(void)
-{
-	set_thread_flag(TIF_ALLOW_FP_IN_KERNEL);
-	/* make sure CU1 and FPU ownership are consistent */
-	if (!__is_fpu_owner() && __fpu_enabled())
-		__disable_fpu();
-}
-
-static inline void disable_fp_in_kernel(void)
-{
-	BUG_ON(!__is_fpu_owner() && __fpu_enabled());
-	clear_thread_flag(TIF_ALLOW_FP_IN_KERNEL);
 }
 
 #endif /* _ASM_FPU_H */

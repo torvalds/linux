@@ -30,7 +30,7 @@
 
 /* Event type structure for write message and write priority message */
 static struct sclp_register sclp_rw_event = {
-	.send_mask = EvTyp_Msg_Mask | EvTyp_PMsgCmd_Mask
+	.send_mask = EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK
 };
 
 /*
@@ -64,7 +64,7 @@ sclp_make_buffer(void *page, unsigned short columns, unsigned short htab)
 	memset(sccb, 0, sizeof(struct write_sccb));
 	sccb->header.length = sizeof(struct write_sccb);
 	sccb->msg_buf.header.length = sizeof(struct msg_buf);
-	sccb->msg_buf.header.type = EvTyp_Msg;
+	sccb->msg_buf.header.type = EVTYP_MSG;
 	sccb->msg_buf.mdb.header.length = sizeof(struct mdb);
 	sccb->msg_buf.mdb.header.type = 1;
 	sccb->msg_buf.mdb.header.tag = 0xD4C4C240;	/* ebcdic "MDB " */
@@ -114,7 +114,7 @@ sclp_initialize_mto(struct sclp_buffer *buffer, int max_len)
 	memset(mto, 0, sizeof(struct mto));
 	mto->length = sizeof(struct mto);
 	mto->type = 4;	/* message text object */
-	mto->line_type_flags = LnTpFlgs_EndText; /* end text */
+	mto->line_type_flags = LNTPFLGS_ENDTEXT; /* end text */
 
 	/* set pointer to first byte after struct mto. */
 	buffer->current_line = (char *) (mto + 1);
@@ -215,7 +215,7 @@ sclp_write(struct sclp_buffer *buffer, const unsigned char *msg, int count)
 		case '\a':	/* bell, one for several times	*/
 			/* set SCLP sound alarm bit in General Object */
 			buffer->sccb->msg_buf.mdb.go.general_msg_flags |=
-				GnrlMsgFlgs_SndAlrm;
+				GNRLMSGFLGS_SNDALRM;
 			break;
 		case '\t':	/* horizontal tabulator	 */
 			/* check if new mto needs to be created */
@@ -452,12 +452,12 @@ sclp_emit_buffer(struct sclp_buffer *buffer,
 		return -EIO;
 
 	sccb = buffer->sccb;
-	if (sclp_rw_event.sclp_send_mask & EvTyp_Msg_Mask)
+	if (sclp_rw_event.sclp_send_mask & EVTYP_MSG_MASK)
 		/* Use normal write message */
-		sccb->msg_buf.header.type = EvTyp_Msg;
-	else if (sclp_rw_event.sclp_send_mask & EvTyp_PMsgCmd_Mask)
+		sccb->msg_buf.header.type = EVTYP_MSG;
+	else if (sclp_rw_event.sclp_send_mask & EVTYP_PMSGCMD_MASK)
 		/* Use write priority message */
-		sccb->msg_buf.header.type = EvTyp_PMsgCmd;
+		sccb->msg_buf.header.type = EVTYP_PMSGCMD;
 	else
 		return -ENOSYS;
 	buffer->request.command = SCLP_CMDW_WRITE_EVENT_DATA;

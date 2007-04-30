@@ -147,6 +147,7 @@ int ehca_query_port(struct ib_device *ibdev,
 		break;
 	}
 
+	props->port_cap_flags  = rblock->capability_mask;
 	props->gid_tbl_len     = rblock->gid_tbl_len;
 	props->max_msg_sz      = rblock->max_msg_sz;
 	props->bad_pkey_cntr   = rblock->bad_pkey_cntr;
@@ -236,10 +237,60 @@ query_gid1:
 	return ret;
 }
 
+const u32 allowed_port_caps = (
+	IB_PORT_SM | IB_PORT_LED_INFO_SUP | IB_PORT_CM_SUP |
+	IB_PORT_SNMP_TUNNEL_SUP | IB_PORT_DEVICE_MGMT_SUP |
+	IB_PORT_VENDOR_CLASS_SUP);
+
 int ehca_modify_port(struct ib_device *ibdev,
 		     u8 port, int port_modify_mask,
 		     struct ib_port_modify *props)
 {
-	/* Not implemented yet */
-	return -EFAULT;
+	int ret = 0;
+	struct ehca_shca *shca = container_of(ibdev, struct ehca_shca, ib_device);
+	struct hipz_query_port *rblock;
+	u32 cap;
+	u64 hret;
+
+	if ((props->set_port_cap_mask | props->clr_port_cap_mask)
+	    & ~allowed_port_caps) {
+		ehca_err(&shca->ib_device, "Non-changeable bits set in masks  "
+			 "set=%x  clr=%x  allowed=%x", props->set_port_cap_mask,
+			 props->clr_port_cap_mask, allowed_port_caps);
+		return -EINVAL;
+	}
+
+	if (mutex_lock_interruptible(&shca->modify_mutex))
+                return -ERESTARTSYS;
+
+	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
+	if (!rblock) {
+		ehca_err(&shca->ib_device,  "Can't allocate rblock memory.");
+		ret = -ENOMEM;
+		goto modify_port1;
+	}
+
+	if (hipz_h_query_port(shca->ipz_hca_handle, port, rblock) != H_SUCCESS) {
+		ehca_err(&shca->ib_device, "Can't query port properties");
+		ret = -EINVAL;
+		goto modify_port2;
+	}
+
+	cap = (rblock->capability_mask | props->set_port_cap_mask)
+		& ~props->clr_port_cap_mask;
+
+	hret = hipz_h_modify_port(shca->ipz_hca_handle, port,
+				  cap, props->init_type, port_modify_mask);
+	if (hret != H_SUCCESS) {
+		ehca_err(&shca->ib_device, "Modify port failed  hret=%lx", hret);
+		ret = -EINVAL;
+	}
+
+modify_port2:
+	ehca_free_fw_ctrlblock(rblock);
+
+modify_port1:
+        mutex_unlock(&shca->modify_mutex);
+
+	return ret;
 }

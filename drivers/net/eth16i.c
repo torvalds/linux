@@ -1175,7 +1175,6 @@ static void eth16i_rx(struct net_device *dev)
 				break;
 			}
 
-			skb->dev = dev;
 			skb_reserve(skb,2);
 
 			/*

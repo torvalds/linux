@@ -51,4 +51,8 @@ obj-$(CONFIG_DVB_USB_TTUSB2) += dvb-usb-ttusb2.o
 dvb-usb-dib0700-objs = dib0700_core.o dib0700_devices.o
 obj-$(CONFIG_DVB_USB_DIB0700) += dvb-usb-dib0700.o
 
+dvb-usb-opera-objs = opera1.o
+obj-$(CONFIG_DVB_USB_OPERA1) += dvb-usb-opera.o
+
+
 EXTRA_CFLAGS = -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/

@@ -138,6 +138,11 @@ struct nlattr
 #include <linux/capability.h>
 #include <linux/skbuff.h>
 
+static inline struct nlmsghdr *nlmsg_hdr(const struct sk_buff *skb)
+{
+	return (struct nlmsghdr *)skb->data;
+}
+
 struct netlink_skb_parms
 {
 	struct ucred		creds;		/* Skb credentials	*/
@@ -152,7 +157,10 @@ struct netlink_skb_parms
 #define NETLINK_CREDS(skb)	(&NETLINK_CB((skb)).creds)
 
 
-extern struct sock *netlink_kernel_create(int unit, unsigned int groups, void (*input)(struct sock *sk, int len), struct module *module);
+extern struct sock *netlink_kernel_create(int unit, unsigned int groups,
+					  void (*input)(struct sock *sk, int len),
+					  struct mutex *cb_mutex,
+					  struct module *module);
 extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
 extern int netlink_has_listeners(struct sock *sk, unsigned int group);
 extern int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 pid, int nonblock);
@@ -171,9 +179,16 @@ int netlink_sendskb(struct sock *sk, struct sk_buff *skb, int protocol);
 
 /*
  *	skb should fit one page. This choice is good for headerless malloc.
+ *	But we should limit to 8K so that userspace does not have to
+ *	use enormous buffer sizes on recvmsg() calls just to avoid
+ *	MSG_TRUNC when PAGE_SIZE is very large.
  */
-#define NLMSG_GOODORDER 0
-#define NLMSG_GOODSIZE (SKB_MAX_ORDER(0, NLMSG_GOODORDER))
+#if PAGE_SIZE < 8192UL
+#define NLMSG_GOODSIZE	SKB_WITH_OVERHEAD(PAGE_SIZE)
+#else
+#define NLMSG_GOODSIZE	SKB_WITH_OVERHEAD(8192UL)
+#endif
+
 #define NLMSG_DEFAULT_SIZE (NLMSG_GOODSIZE - NLMSG_HDRLEN)
 
 
@@ -216,18 +231,6 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 
 #define NLMSG_PUT(skb, pid, seq, type, len) \
 	NLMSG_NEW(skb, pid, seq, type, len, 0)
-
-#define NLMSG_NEW_ANSWER(skb, cb, type, len, flags) \
-	NLMSG_NEW(skb, NETLINK_CB((cb)->skb).pid, \
-		  (cb)->nlh->nlmsg_seq, type, len, flags)
-
-#define NLMSG_END(skb, nlh) \
-({	(nlh)->nlmsg_len = (skb)->tail - (unsigned char *) (nlh); \
-	(skb)->len; })
-
-#define NLMSG_CANCEL(skb, nlh) \
-({	skb_trim(skb, (unsigned char *) (nlh) - (skb)->data); \
-	-1; })
 
 extern int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 			      struct nlmsghdr *nlh,

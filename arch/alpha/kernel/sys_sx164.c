@@ -132,7 +132,7 @@ sx164_init_arch(void)
 
 	if (amask(AMASK_MAX) != 0
 	    && alpha_using_srm
-	    && (cpu->pal_revision & 0xffff) == 0x117) {
+	    && (cpu->pal_revision & 0xffff) <= 0x117) {
 		__asm__ __volatile__(
 		"lda	$16,8($31)\n"
 		"call_pal 9\n"		/* Allow PALRES insns in kernel mode */

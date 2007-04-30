@@ -124,7 +124,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	skb_put(skb, sizeof(struct cisco_packet));
 	skb->priority = TC_PRIO_CONTROL;
 	skb->dev = dev;
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	dev_queue_xmit(skb);
 }

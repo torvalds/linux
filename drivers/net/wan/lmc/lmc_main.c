@@ -1636,7 +1636,7 @@ static int lmc_rx (struct net_device *dev) /*fold00*/
             if (nsb) {
                 sc->lmc_rxq[i] = nsb;
                 nsb->dev = dev;
-                sc->lmc_rxring[i].buffer1 = virt_to_bus (nsb->tail);
+                sc->lmc_rxring[i].buffer1 = virt_to_bus(skb_tail_pointer(nsb));
             }
             sc->failed_recv_alloc = 1;
             goto skip_packet;
@@ -1667,8 +1667,8 @@ static int lmc_rx (struct net_device *dev) /*fold00*/
             skb_put (skb, len);
             skb->protocol = lmc_proto_type(sc, skb);
             skb->protocol = htons(ETH_P_WAN_PPP);
-            skb->mac.raw = skb->data;
-//            skb->nh.raw = skb->data;
+            skb_reset_mac_header(skb);
+            /* skb_reset_network_header(skb); */
             skb->dev = dev;
             lmc_proto_netif(sc, skb);
 
@@ -1679,7 +1679,7 @@ static int lmc_rx (struct net_device *dev) /*fold00*/
             if (nsb) {
                 sc->lmc_rxq[i] = nsb;
                 nsb->dev = dev;
-                sc->lmc_rxring[i].buffer1 = virt_to_bus (nsb->tail);
+                sc->lmc_rxring[i].buffer1 = virt_to_bus(skb_tail_pointer(nsb));
                 /* Transferred to 21140 below */
             }
             else {
@@ -1702,11 +1702,11 @@ static int lmc_rx (struct net_device *dev) /*fold00*/
             if(!nsb) {
                 goto give_it_anyways;
             }
-            memcpy(skb_put(nsb, len), skb->data, len);
+            skb_copy_from_linear_data(skb, skb_put(nsb, len), len);
             
             nsb->protocol = lmc_proto_type(sc, skb);
-            nsb->mac.raw = nsb->data;
-//            nsb->nh.raw = nsb->data;
+            skb_reset_mac_header(nsb);
+            /* skb_reset_network_header(nsb); */
             nsb->dev = dev;
             lmc_proto_netif(sc, nsb);
         }
@@ -1932,7 +1932,7 @@ static void lmc_softreset (lmc_softc_t * const sc) /*fold00*/
         sc->lmc_rxring[i].status = 0x80000000;
 
         /* used to be PKT_BUF_SZ now uses skb since we lose some to head room */
-        sc->lmc_rxring[i].length = skb->end - skb->data;
+        sc->lmc_rxring[i].length = skb_tailroom(skb);
 
         /* use to be tail which is dumb since you're thinking why write
          * to the end of the packj,et but since there's nothing there tail == data

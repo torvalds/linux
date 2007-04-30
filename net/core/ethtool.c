@@ -836,7 +836,7 @@ int dev_ethtool(struct ifreq *ifr)
 			return -EPERM;
 	}
 
-	if(dev->ethtool_ops->begin)
+	if (dev->ethtool_ops->begin)
 		if ((rc = dev->ethtool_ops->begin(dev)) < 0)
 			return rc;
 
@@ -952,7 +952,7 @@ int dev_ethtool(struct ifreq *ifr)
 		rc =  -EOPNOTSUPP;
 	}
 
-	if(dev->ethtool_ops->complete)
+	if (dev->ethtool_ops->complete)
 		dev->ethtool_ops->complete(dev);
 
 	if (old_features != dev->features)

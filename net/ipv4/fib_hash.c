@@ -1027,7 +1027,7 @@ out:
 	return 0;
 }
 
-static struct seq_operations fib_seq_ops = {
+static const struct seq_operations fib_seq_ops = {
 	.start  = fib_seq_start,
 	.next   = fib_seq_next,
 	.stop   = fib_seq_stop,

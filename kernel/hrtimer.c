@@ -59,6 +59,7 @@ ktime_t ktime_get(void)
 
 	return timespec_to_ktime(now);
 }
+EXPORT_SYMBOL_GPL(ktime_get);
 
 /**
  * ktime_get_real - get the real (wall-) time in ktime_t format
@@ -278,6 +279,8 @@ ktime_t ktime_add_ns(const ktime_t kt, u64 nsec)
 
 	return ktime_add(kt, tmp);
 }
+
+EXPORT_SYMBOL_GPL(ktime_add_ns);
 # endif /* !CONFIG_KTIME_SCALAR */
 
 /*

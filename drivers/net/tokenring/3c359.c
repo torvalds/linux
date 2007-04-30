@@ -933,20 +933,21 @@ static void xl_rx(struct net_device *dev)
 				return ; 				
 			}
 	
-			skb->dev = dev ; 
-
 			while (xl_priv->rx_ring_tail != temp_ring_loc) { 
 				copy_len = xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfraglen & 0x7FFF ; 
 				frame_length -= copy_len ;  
 				pci_dma_sync_single_for_cpu(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
-				memcpy(skb_put(skb,copy_len), xl_priv->rx_ring_skb[xl_priv->rx_ring_tail]->data, copy_len) ; 
+				skb_copy_from_linear_data(xl_priv->rx_ring_skb[xl_priv->rx_ring_tail],
+							  skb_put(skb, copy_len),
+							  copy_len);
 				pci_dma_sync_single_for_device(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
 				adv_rx_ring(dev) ; 
 			} 
 
 			/* Now we have found the last fragment */
 			pci_dma_sync_single_for_cpu(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
-			memcpy(skb_put(skb,copy_len), xl_priv->rx_ring_skb[xl_priv->rx_ring_tail]->data, frame_length) ; 
+			skb_copy_from_linear_data(xl_priv->rx_ring_skb[xl_priv->rx_ring_tail],
+				      skb_put(skb,copy_len), frame_length);
 /*			memcpy(skb_put(skb,frame_length), bus_to_virt(xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr), frame_length) ; */
 			pci_dma_sync_single_for_device(xl_priv->pdev,xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr,xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ;
 			adv_rx_ring(dev) ; 
@@ -966,8 +967,6 @@ static void xl_rx(struct net_device *dev)
 				writel(ACK_INTERRUPT | UPCOMPACK | LATCH_ACK , xl_mmio + MMIO_COMMAND) ; 
 				return ; 
 			}
-
-			skb->dev = dev ; 
 
 			skb2 = xl_priv->rx_ring_skb[xl_priv->rx_ring_tail] ; 
 			pci_unmap_single(xl_priv->pdev, xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr, xl_priv->pkt_buf_sz,PCI_DMA_FROMDEVICE) ; 

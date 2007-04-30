@@ -166,13 +166,9 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 		return 0;
 	}
 
-	for (i = 0, ret = 0; i < IFNAMSIZ/sizeof(unsigned long); i++) {
-		unsigned long odev;
-		memcpy(&odev, outdev + i*sizeof(unsigned long),
-		       sizeof(unsigned long));
-		ret |= (odev
-			^ ((const unsigned long *)arpinfo->outiface)[i])
-			& ((const unsigned long *)arpinfo->outiface_mask)[i];
+	for (i = 0, ret = 0; i < IFNAMSIZ; i++) {
+		ret |= (outdev[i] ^ arpinfo->outiface[i])
+			& arpinfo->outiface_mask[i];
 	}
 
 	if (FWINV(ret != 0, ARPT_INV_VIA_OUT)) {
@@ -249,7 +245,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 	e = get_entry(table_base, private->hook_entry[hook]);
 	back = get_entry(table_base, private->underflow[hook]);
 
-	arp = (*pskb)->nh.arph;
+	arp = arp_hdr(*pskb);
 	do {
 		if (arp_packet_match(arp, (*pskb)->dev, indev, outdev, &e->arp)) {
 			struct arpt_entry_target *t;
@@ -301,7 +297,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 								     t->data);
 
 				/* Target might have changed stuff. */
-				arp = (*pskb)->nh.arph;
+				arp = arp_hdr(*pskb);
 
 				if (verdict == ARPT_CONTINUE)
 					e = (void *)e + e->next_offset;

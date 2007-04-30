@@ -12,7 +12,7 @@
 #include "qt1010.h"
 
 /* debug */
-int dvb_usb_gl861_debug;
+static int dvb_usb_gl861_debug;
 module_param_named(debug,dvb_usb_gl861_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
@@ -20,7 +20,7 @@ static int gl861_i2c_msg(struct dvb_usb_device *d, u8 addr,
 			 u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
 	u16 index;
-	u16 value = addr << 8;
+	u16 value = addr << (8 + 1);
 	int wo = (rbuf == NULL || rlen == 0); /* write-only */
 	u8 req, type;
 
@@ -101,7 +101,7 @@ static int gl861_identify_state(struct usb_device *udev,
 }
 
 static struct zl10353_config gl861_zl10353_config = {
-	.demod_address = 0x1e,
+	.demod_address = 0x0f,
 	.no_tuner = 1,
 	.parallel_ts = 1,
 };
@@ -117,7 +117,7 @@ static int gl861_frontend_attach(struct dvb_usb_adapter *adap)
 }
 
 static struct qt1010_config gl861_qt1010_config = {
-	.i2c_address = 0xc4
+	.i2c_address = 0x62
 };
 
 static int gl861_tuner_attach(struct dvb_usb_adapter *adap)

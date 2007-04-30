@@ -261,7 +261,7 @@ static int dn_long_output(struct sk_buff *skb)
 	lp->s_class  = 0;
 	lp->pt       = 0;
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	return NF_HOOK(PF_DECnet, NF_DN_POST_ROUTING, skb, NULL, neigh->dev, dn_neigh_output_packet);
 }
@@ -300,7 +300,7 @@ static int dn_short_output(struct sk_buff *skb)
 	sp->srcnode    = cb->src;
 	sp->forward    = cb->hops & 0x3f;
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	return NF_HOOK(PF_DECnet, NF_DN_POST_ROUTING, skb, NULL, neigh->dev, dn_neigh_output_packet);
 }
@@ -342,7 +342,7 @@ static int dn_phase3_output(struct sk_buff *skb)
 	sp->srcnode  = cb->src & dn_htons(0x03ff);
 	sp->forward  = cb->hops & 0x3f;
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	return NF_HOOK(PF_DECnet, NF_DN_POST_ROUTING, skb, NULL, neigh->dev, dn_neigh_output_packet);
 }

@@ -357,7 +357,6 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 	}
 
 	skb_reserve(skb, RX_OFFSET);
-	skb->dev = bp->dev;
 	skb->ip_summed = CHECKSUM_NONE;
 	skb_put(skb, len);
 
@@ -368,9 +367,10 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 			BUG_ON(frag != last_frag);
 			frag_len = len - offset;
 		}
-		memcpy(skb->data + offset,
-		       bp->rx_buffers + (RX_BUFFER_SIZE * frag),
-		       frag_len);
+		skb_copy_to_linear_data_offset(skb, offset,
+					       (bp->rx_buffers +
+					        (RX_BUFFER_SIZE * frag)),
+					       frag_len);
 		offset += RX_BUFFER_SIZE;
 		bp->rx_ring[frag].addr &= ~MACB_BIT(RX_USED);
 		wmb();
@@ -576,7 +576,8 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i;
 	dev_dbg(&bp->pdev->dev,
 		"start_xmit: len %u head %p data %p tail %p end %p\n",
-		skb->len, skb->head, skb->data, skb->tail, skb->end);
+		skb->len, skb->head, skb->data,
+		skb_tail_pointer(skb), skb_end_pointer(skb));
 	dev_dbg(&bp->pdev->dev,
 		"data:");
 	for (i = 0; i < 16; i++)

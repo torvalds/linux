@@ -583,7 +583,7 @@ static int uli526x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* transmit this packet */
 	txptr = db->tx_insert_ptr;
-	memcpy(txptr->tx_buf_ptr, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, txptr->tx_buf_ptr, skb->len);
 	txptr->tdes1 = cpu_to_le32(0xe1000000 | skb->len);
 
 	/* Point to next transmit free descriptor */
@@ -828,14 +828,14 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 					( (skb = dev_alloc_skb(rxlen + 2) )
 					!= NULL) ) {
 					/* size less than COPY_SIZE, allocate a rxlen SKB */
-					skb->dev = dev;
 					skb_reserve(skb, 2); /* 16byte align */
-					memcpy(skb_put(skb, rxlen), rxptr->rx_skb_ptr->tail, rxlen);
+					memcpy(skb_put(skb, rxlen),
+					       skb_tail_pointer(rxptr->rx_skb_ptr),
+					       rxlen);
 					uli526x_reuse_skb(db, rxptr->rx_skb_ptr);
-				} else {
-					skb->dev = dev;
+				} else
 					skb_put(skb, rxlen);
-				}
+
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;
@@ -1177,7 +1177,10 @@ static void uli526x_reuse_skb(struct uli526x_board_info *db, struct sk_buff * sk
 
 	if (!(rxptr->rdes0 & cpu_to_le32(0x80000000))) {
 		rxptr->rx_skb_ptr = skb;
-		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->tail, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
+		rxptr->rdes2 = cpu_to_le32(pci_map_single(db->pdev,
+							  skb_tail_pointer(skb),
+							  RX_ALLOC_SIZE,
+							  PCI_DMA_FROMDEVICE));
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		db->rx_avail_cnt++;
@@ -1341,7 +1344,10 @@ static void allocate_rx_buffer(struct uli526x_board_info *db)
 		if ( ( skb = dev_alloc_skb(RX_ALLOC_SIZE) ) == NULL )
 			break;
 		rxptr->rx_skb_ptr = skb; /* FIXME (?) */
-		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->tail, RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE) );
+		rxptr->rdes2 = cpu_to_le32(pci_map_single(db->pdev,
+							  skb_tail_pointer(skb),
+							  RX_ALLOC_SIZE,
+							  PCI_DMA_FROMDEVICE));
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		rxptr = rxptr->next_rx_desc;

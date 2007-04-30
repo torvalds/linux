@@ -17,6 +17,7 @@
 
 #include <net/fib_rules.h>
 #include <net/ipv6.h>
+#include <net/addrconf.h>
 #include <net/ip6_route.h>
 #include <net/netlink.h>
 
@@ -95,8 +96,27 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 	if (table)
 		rt = lookup(table, flp, flags);
 
-	if (rt != &ip6_null_entry)
+	if (rt != &ip6_null_entry) {
+		struct fib6_rule *r = (struct fib6_rule *)rule;
+
+		/*
+		 * If we need to find a source address for this traffic,
+		 * we check the result if it meets requirement of the rule.
+		 */
+		if ((rule->flags & FIB_RULE_FIND_SADDR) &&
+		    r->src.plen && !(flags & RT6_LOOKUP_F_HAS_SADDR)) {
+			struct in6_addr saddr;
+			if (ipv6_get_saddr(&rt->u.dst, &flp->fl6_dst,
+					   &saddr))
+				goto again;
+			if (!ipv6_prefix_equal(&saddr, &r->src.addr,
+					       r->src.plen))
+				goto again;
+			ipv6_addr_copy(&flp->fl6_src, &saddr);
+		}
 		goto out;
+	}
+again:
 	dst_release(&rt->u.dst);
 	rt = NULL;
 	goto out;
@@ -117,9 +137,17 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	    !ipv6_prefix_equal(&fl->fl6_dst, &r->dst.addr, r->dst.plen))
 		return 0;
 
+	/*
+	 * If FIB_RULE_FIND_SADDR is set and we do not have a
+	 * source address for the traffic, we defer check for
+	 * source address.
+	 */
 	if (r->src.plen) {
-		if (!(flags & RT6_LOOKUP_F_HAS_SADDR) ||
-		    !ipv6_prefix_equal(&fl->fl6_src, &r->src.addr, r->src.plen))
+		if (flags & RT6_LOOKUP_F_HAS_SADDR) {
+			if (!ipv6_prefix_equal(&fl->fl6_src, &r->src.addr,
+					       r->src.plen))
+				return 0;
+		} else if (!(r->common.flags & FIB_RULE_FIND_SADDR))
 			return 0;
 	}
 
@@ -214,11 +242,6 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 
 nla_put_failure:
 	return -ENOBUFS;
-}
-
-int fib6_rules_dump(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	return fib_rules_dump(skb, cb, AF_INET6);
 }
 
 static u32 fib6_rule_default_pref(void)

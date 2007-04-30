@@ -20,8 +20,9 @@
 #include "ioasm.h"
 #include "chsc.h"
 #include "device.h"
+#include "idset.h"
+#include "chp.h"
 
-int need_rescan = 0;
 int css_init_done = 0;
 static int need_reprobe = 0;
 static int max_ssid = 0;
@@ -125,8 +126,52 @@ void css_sch_device_unregister(struct subchannel *sch)
 	mutex_unlock(&sch->reg_mutex);
 }
 
-static int
-css_register_subchannel(struct subchannel *sch)
+static void ssd_from_pmcw(struct chsc_ssd_info *ssd, struct pmcw *pmcw)
+{
+	int i;
+	int mask;
+
+	memset(ssd, 0, sizeof(struct chsc_ssd_info));
+	ssd->path_mask = pmcw->pim;
+	for (i = 0; i < 8; i++) {
+		mask = 0x80 >> i;
+		if (pmcw->pim & mask) {
+			chp_id_init(&ssd->chpid[i]);
+			ssd->chpid[i].id = pmcw->chpid[i];
+		}
+	}
+}
+
+static void ssd_register_chpids(struct chsc_ssd_info *ssd)
+{
+	int i;
+	int mask;
+
+	for (i = 0; i < 8; i++) {
+		mask = 0x80 >> i;
+		if (ssd->path_mask & mask)
+			if (!chp_is_registered(ssd->chpid[i]))
+				chp_new(ssd->chpid[i]);
+	}
+}
+
+void css_update_ssd_info(struct subchannel *sch)
+{
+	int ret;
+
+	if (cio_is_console(sch->schid)) {
+		/* Console is initialized too early for functions requiring
+		 * memory allocation. */
+		ssd_from_pmcw(&sch->ssd_info, &sch->schib.pmcw);
+	} else {
+		ret = chsc_get_ssd_info(sch->schid, &sch->ssd_info);
+		if (ret)
+			ssd_from_pmcw(&sch->ssd_info, &sch->schib.pmcw);
+		ssd_register_chpids(&sch->ssd_info);
+	}
+}
+
+static int css_register_subchannel(struct subchannel *sch)
 {
 	int ret;
 
@@ -135,9 +180,7 @@ css_register_subchannel(struct subchannel *sch)
 	sch->dev.bus = &css_bus_type;
 	sch->dev.release = &css_subchannel_release;
 	sch->dev.groups = subch_attr_groups;
-
-	css_get_ssd_info(sch);
-
+	css_update_ssd_info(sch);
 	/* make it known to the system */
 	ret = css_sch_device_register(sch);
 	if (ret) {
@@ -306,7 +349,7 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 	return css_probe_device(schid);
 }
 
-static int css_evaluate_subchannel(struct subchannel_id schid, int slow)
+static void css_evaluate_subchannel(struct subchannel_id schid, int slow)
 {
 	struct subchannel *sch;
 	int ret;
@@ -317,52 +360,65 @@ static int css_evaluate_subchannel(struct subchannel_id schid, int slow)
 		put_device(&sch->dev);
 	} else
 		ret = css_evaluate_new_subchannel(schid, slow);
-
-	return ret;
+	if (ret == -EAGAIN)
+		css_schedule_eval(schid);
 }
 
-static int
-css_rescan_devices(struct subchannel_id schid, void *data)
+static struct idset *slow_subchannel_set;
+static spinlock_t slow_subchannel_lock;
+
+static int __init slow_subchannel_init(void)
 {
-	return css_evaluate_subchannel(schid, 1);
-}
-
-struct slow_subchannel {
-	struct list_head slow_list;
-	struct subchannel_id schid;
-};
-
-static LIST_HEAD(slow_subchannels_head);
-static DEFINE_SPINLOCK(slow_subchannel_lock);
-
-static void
-css_trigger_slow_path(struct work_struct *unused)
-{
-	CIO_TRACE_EVENT(4, "slowpath");
-
-	if (need_rescan) {
-		need_rescan = 0;
-		for_each_subchannel(css_rescan_devices, NULL);
-		return;
+	spin_lock_init(&slow_subchannel_lock);
+	slow_subchannel_set = idset_sch_new();
+	if (!slow_subchannel_set) {
+		printk(KERN_WARNING "cio: could not allocate slow subchannel "
+		       "set\n");
+		return -ENOMEM;
 	}
+	return 0;
+}
 
+subsys_initcall(slow_subchannel_init);
+
+static void css_slow_path_func(struct work_struct *unused)
+{
+	struct subchannel_id schid;
+
+	CIO_TRACE_EVENT(4, "slowpath");
 	spin_lock_irq(&slow_subchannel_lock);
-	while (!list_empty(&slow_subchannels_head)) {
-		struct slow_subchannel *slow_sch =
-			list_entry(slow_subchannels_head.next,
-				   struct slow_subchannel, slow_list);
-
-		list_del_init(slow_subchannels_head.next);
+	init_subchannel_id(&schid);
+	while (idset_sch_get_first(slow_subchannel_set, &schid)) {
+		idset_sch_del(slow_subchannel_set, schid);
 		spin_unlock_irq(&slow_subchannel_lock);
-		css_evaluate_subchannel(slow_sch->schid, 1);
+		css_evaluate_subchannel(schid, 1);
 		spin_lock_irq(&slow_subchannel_lock);
-		kfree(slow_sch);
 	}
 	spin_unlock_irq(&slow_subchannel_lock);
 }
 
-DECLARE_WORK(slow_path_work, css_trigger_slow_path);
+static DECLARE_WORK(slow_path_work, css_slow_path_func);
 struct workqueue_struct *slow_path_wq;
+
+void css_schedule_eval(struct subchannel_id schid)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&slow_subchannel_lock, flags);
+	idset_sch_add(slow_subchannel_set, schid);
+	queue_work(slow_path_wq, &slow_path_work);
+	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
+}
+
+void css_schedule_eval_all(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&slow_subchannel_lock, flags);
+	idset_fill(slow_subchannel_set);
+	queue_work(slow_path_wq, &slow_path_work);
+	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
+}
 
 /* Reprobe subchannel if unregistered. */
 static int reprobe_subchannel(struct subchannel_id schid, void *data)
@@ -426,33 +482,14 @@ void css_schedule_reprobe(void)
 EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 
 /*
- * Rescan for new devices. FIXME: This is slow.
- * This function is called when we have lost CRWs due to overflows and we have
- * to do subchannel housekeeping.
- */
-void
-css_reiterate_subchannels(void)
-{
-	css_clear_subchannel_slow_list();
-	need_rescan = 1;
-}
-
-/*
  * Called from the machine check handler for subchannel report words.
  */
-int
-css_process_crw(int rsid1, int rsid2)
+void css_process_crw(int rsid1, int rsid2)
 {
-	int ret;
 	struct subchannel_id mchk_schid;
 
 	CIO_CRW_EVENT(2, "source is subchannel %04X, subsystem id %x\n",
 		      rsid1, rsid2);
-
-	if (need_rescan)
-		/* We need to iterate all subchannels anyway. */
-		return -EAGAIN;
-
 	init_subchannel_id(&mchk_schid);
 	mchk_schid.sch_no = rsid1;
 	if (rsid2 != 0)
@@ -463,14 +500,7 @@ css_process_crw(int rsid1, int rsid2)
 	 * use stsch() to find out if the subchannel in question has come
 	 * or gone.
 	 */
-	ret = css_evaluate_subchannel(mchk_schid, 0);
-	if (ret == -EAGAIN) {
-		if (css_enqueue_subchannel_slow(mchk_schid)) {
-			css_clear_subchannel_slow_list();
-			need_rescan = 1;
-		}
-	}
-	return ret;
+	css_evaluate_subchannel(mchk_schid, 0);
 }
 
 static int __init
@@ -744,47 +774,6 @@ struct bus_type css_bus_type = {
 };
 
 subsys_initcall(init_channel_subsystem);
-
-int
-css_enqueue_subchannel_slow(struct subchannel_id schid)
-{
-	struct slow_subchannel *new_slow_sch;
-	unsigned long flags;
-
-	new_slow_sch = kzalloc(sizeof(struct slow_subchannel), GFP_ATOMIC);
-	if (!new_slow_sch)
-		return -ENOMEM;
-	new_slow_sch->schid = schid;
-	spin_lock_irqsave(&slow_subchannel_lock, flags);
-	list_add_tail(&new_slow_sch->slow_list, &slow_subchannels_head);
-	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
-	return 0;
-}
-
-void
-css_clear_subchannel_slow_list(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&slow_subchannel_lock, flags);
-	while (!list_empty(&slow_subchannels_head)) {
-		struct slow_subchannel *slow_sch =
-			list_entry(slow_subchannels_head.next,
-				   struct slow_subchannel, slow_list);
-
-		list_del_init(slow_subchannels_head.next);
-		kfree(slow_sch);
-	}
-	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
-}
-
-
-
-int
-css_slow_subchannels_exist(void)
-{
-	return (!list_empty(&slow_subchannels_head));
-}
 
 MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(css_bus_type);

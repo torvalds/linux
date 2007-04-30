@@ -12,7 +12,7 @@
 #include <asm/bootinfo.h>
 
 extern struct pci_ops nile4_pci_ops;
-extern struct pci_ops gt64120_pci_ops;
+extern struct pci_ops gt64xxx_pci0_ops;
 static struct resource lasat_pci_mem_resource = {
 	.name	= "LASAT PCI MEM",
 	.start	= 0x18000000,
@@ -38,7 +38,7 @@ static int __init lasat_pci_setup(void)
 
 	switch (mips_machtype) {
 	case MACH_LASAT_100:
-                lasat_pci_controller.pci_ops = &gt64120_pci_ops;
+                lasat_pci_controller.pci_ops = &gt64xxx_pci0_ops;
                 break;
 	case MACH_LASAT_200:
                 lasat_pci_controller.pci_ops = &nile4_pci_ops;

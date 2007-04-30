@@ -312,7 +312,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 		/* Select the NAND device */
 		chip->select_chip(mtd, chipnr);
 	} else
-		page = (int)ofs;
+		page = (int)(ofs >> chip->page_shift);
 
 	if (chip->options & NAND_BUSWIDTH_16) {
 		chip->cmdfunc(mtd, NAND_CMD_READOOB, chip->badblockpos & 0xFE,
@@ -350,7 +350,7 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	int block, ret;
 
 	/* Get block number */
-	block = ((int)ofs) >> chip->bbt_erase_shift;
+	block = (int)(ofs >> chip->bbt_erase_shift);
 	if (chip->bbt)
 		chip->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
 
@@ -771,7 +771,7 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *ecc_code = chip->buffers->ecccode;
 	int *eccpos = chip->ecc.layout->eccpos;
 
-	nand_read_page_raw(mtd, chip, buf);
+	chip->ecc.read_page_raw(mtd, chip, buf);
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize)
 		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
@@ -1426,7 +1426,7 @@ static void nand_write_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	for (i = 0; i < chip->ecc.total; i++)
 		chip->oob_poi[eccpos[i]] = ecc_calc[i];
 
-	nand_write_page_raw(mtd, chip, buf);
+	chip->ecc.write_page_raw(mtd, chip, buf);
 }
 
 /**

@@ -266,7 +266,7 @@ static void __devinit cg3_init_fix(struct fb_info *info, int linebytes,
 static void __devinit cg3_rdi_maybe_fixup_var(struct fb_var_screeninfo *var,
 					      struct device_node *dp)
 {
-	char *params;
+	const char *params;
 	char *p;
 	int ww, hh;
 

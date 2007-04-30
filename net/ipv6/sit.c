@@ -99,10 +99,10 @@ static struct ip_tunnel * ipip6_tunnel_lookup(__be32 remote, __be32 local)
 	return NULL;
 }
 
-static struct ip_tunnel ** ipip6_bucket(struct ip_tunnel *t)
+static struct ip_tunnel **__ipip6_bucket(struct ip_tunnel_parm *parms)
 {
-	__be32 remote = t->parms.iph.daddr;
-	__be32 local = t->parms.iph.saddr;
+	__be32 remote = parms->iph.daddr;
+	__be32 local = parms->iph.saddr;
 	unsigned h = 0;
 	int prio = 0;
 
@@ -115,6 +115,11 @@ static struct ip_tunnel ** ipip6_bucket(struct ip_tunnel *t)
 		h ^= HASH(local);
 	}
 	return &tunnels[prio][h];
+}
+
+static inline struct ip_tunnel **ipip6_bucket(struct ip_tunnel *t)
+{
+	return __ipip6_bucket(&t->parms);
 }
 
 static void ipip6_tunnel_unlink(struct ip_tunnel *t)
@@ -147,19 +152,9 @@ static struct ip_tunnel * ipip6_tunnel_locate(struct ip_tunnel_parm *parms, int 
 	__be32 local = parms->iph.saddr;
 	struct ip_tunnel *t, **tp, *nt;
 	struct net_device *dev;
-	unsigned h = 0;
-	int prio = 0;
 	char name[IFNAMSIZ];
 
-	if (remote) {
-		prio |= 2;
-		h ^= HASH(remote);
-	}
-	if (local) {
-		prio |= 1;
-		h ^= HASH(local);
-	}
-	for (tp = &tunnels[prio][h]; (t = *tp) != NULL; tp = &t->next) {
+	for (tp = __ipip6_bucket(parms); (t = *tp) != NULL; tp = &t->next) {
 		if (local == t->parms.iph.saddr && remote == t->parms.iph.daddr)
 			return t;
 	}
@@ -224,8 +219,8 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
    ICMP in the real Internet is absolutely infeasible.
  */
 	struct iphdr *iph = (struct iphdr*)skb->data;
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	struct ip_tunnel *t;
 	int err;
 
@@ -280,8 +275,8 @@ out:
 	struct iphdr *iph = (struct iphdr*)dp;
 	int hlen = iph->ihl<<2;
 	struct ipv6hdr *iph6;
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	int rel_type = 0;
 	int rel_code = 0;
 	int rel_info = 0;
@@ -296,14 +291,14 @@ out:
 	default:
 		return;
 	case ICMP_PARAMETERPROB:
-		if (skb->h.icmph->un.gateway < hlen)
+		if (icmp_hdr(skb)->un.gateway < hlen)
 			return;
 
 		/* So... This guy found something strange INSIDE encapsulated
 		   packet. Well, he is fool, but what can we do ?
 		 */
 		rel_type = ICMPV6_PARAMPROB;
-		rel_info = skb->h.icmph->un.gateway - hlen;
+		rel_info = icmp_hdr(skb)->un.gateway - hlen;
 		break;
 
 	case ICMP_DEST_UNREACH:
@@ -340,7 +335,7 @@ out:
 	dst_release(skb2->dst);
 	skb2->dst = NULL;
 	skb_pull(skb2, skb->data - (u8*)iph6);
-	skb2->nh.raw = skb2->data;
+	skb_reset_network_header(skb2);
 
 	/* Try to guess incoming interface */
 	rt6i = rt6_lookup(&iph6->saddr, NULL, NULL, 0);
@@ -366,7 +361,7 @@ out:
 static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 {
 	if (INET_ECN_is_ce(iph->tos))
-		IP6_ECN_set_ce(skb->nh.ipv6h);
+		IP6_ECN_set_ce(ipv6_hdr(skb));
 }
 
 static int ipip6_rcv(struct sk_buff *skb)
@@ -377,13 +372,13 @@ static int ipip6_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto out;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
 	read_lock(&ipip6_lock);
 	if ((tunnel = ipip6_tunnel_lookup(iph->saddr, iph->daddr)) != NULL) {
 		secpath_reset(skb);
-		skb->mac.raw = skb->nh.raw;
-		skb->nh.raw = skb->data;
+		skb->mac_header = skb->network_header;
+		skb_reset_network_header(skb);
 		IPCB(skb)->flags = 0;
 		skb->protocol = htons(ETH_P_IPV6);
 		skb->pkt_type = PACKET_HOST;
@@ -430,7 +425,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->stat;
 	struct iphdr  *tiph = &tunnel->parms.iph;
-	struct ipv6hdr *iph6 = skb->nh.ipv6h;
+	struct ipv6hdr *iph6 = ipv6_hdr(skb);
 	u8     tos = tunnel->parms.iph.tos;
 	struct rtable *rt;     			/* Route to the other host */
 	struct net_device *tdev;			/* Device to other host */
@@ -468,7 +463,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		addr_type = ipv6_addr_type(addr6);
 
 		if (addr_type == IPV6_ADDR_ANY) {
-			addr6 = &skb->nh.ipv6h->daddr;
+			addr6 = &ipv6_hdr(skb)->daddr;
 			addr_type = ipv6_addr_type(addr6);
 		}
 
@@ -550,11 +545,12 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_set_owner_w(new_skb, skb->sk);
 		dev_kfree_skb(skb);
 		skb = new_skb;
-		iph6 = skb->nh.ipv6h;
+		iph6 = ipv6_hdr(skb);
 	}
 
-	skb->h.raw = skb->nh.raw;
-	skb->nh.raw = skb_push(skb, sizeof(struct iphdr));
+	skb->transport_header = skb->network_header;
+	skb_push(skb, sizeof(struct iphdr));
+	skb_reset_network_header(skb);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	IPCB(skb)->flags = 0;
 	dst_release(skb->dst);
@@ -564,7 +560,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	 *	Push down and install the IPIP header.
 	 */
 
-	iph 			=	skb->nh.iph;
+	iph 			=	ip_hdr(skb);
 	iph->version		=	4;
 	iph->ihl		=	sizeof(struct iphdr)>>2;
 	if (mtu > IPV6_MIN_MTU)

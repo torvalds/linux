@@ -17,7 +17,7 @@
 #include <asm/irq_cpu.h>
 #include <asm/gt64120.h>
 
-#include <asm/mach-cobalt/cobalt.h>
+#include <cobalt.h>
 
 /*
  * We have two types of interrupts that we handle, ones that come in through

@@ -1,0 +1,104 @@
+comment "UBI debugging options"
+	depends on MTD_UBI
+
+config MTD_UBI_DEBUG
+	bool "UBI debugging"
+	depends on SYSFS
+	depends on MTD_UBI
+	select DEBUG_FS
+	select KALLSYMS_ALL
+	help
+	  This option enables UBI debugging.
+
+config MTD_UBI_DEBUG_MSG
+	bool "UBI debugging messages"
+	depends on MTD_UBI_DEBUG
+	default n
+	help
+	  This option enables UBI debugging messages.
+
+config MTD_UBI_DEBUG_PARANOID
+	bool "Extra self-checks"
+	default n
+	depends on MTD_UBI_DEBUG
+	help
+	  This option enables extra checks in UBI code. Note this slows UBI down
+	  significantly.
+
+config MTD_UBI_DEBUG_DISABLE_BGT
+	bool "Do not enable the UBI background thread"
+	depends on MTD_UBI_DEBUG
+	default n
+	help
+	  This option switches the background thread off by default. The thread
+	  may be also be enabled/disabled via UBI sysfs.
+
+config MTD_UBI_DEBUG_USERSPACE_IO
+	bool "Direct user-space write/erase support"
+	default n
+	depends on MTD_UBI_DEBUG
+	help
+	  By default, users cannot directly write and erase individual
+	  eraseblocks of dynamic volumes, and have to use update operation
+	  instead. This option enables this capability - it is very useful for
+	  debugging and testing.
+
+config MTD_UBI_DEBUG_EMULATE_BITFLIPS
+	bool "Emulate flash bit-flips"
+	depends on MTD_UBI_DEBUG
+	default n
+	help
+	  This option emulates bit-flips with probability 1/50, which in turn
+	  causes scrubbing. Useful for debugging and stressing UBI.
+
+config MTD_UBI_DEBUG_EMULATE_WRITE_FAILURES
+	bool "Emulate flash write failures"
+	depends on MTD_UBI_DEBUG
+	default n
+	help
+	  This option emulates write failures with probability 1/100. Useful for
+	  debugging and testing how UBI handlines errors.
+
+config MTD_UBI_DEBUG_EMULATE_ERASE_FAILURES
+	bool "Emulate flash erase failures"
+	depends on MTD_UBI_DEBUG
+	default n
+	help
+	  This option emulates erase failures with probability 1/100. Useful for
+	  debugging and testing how UBI handlines errors.
+
+menu "Additional UBI debugging messages"
+	depends on MTD_UBI_DEBUG
+
+config MTD_UBI_DEBUG_MSG_BLD
+	bool "Additional UBI initialization and build messages"
+	default n
+	depends on MTD_UBI_DEBUG
+	help
+	  This option enables detailed UBI initialization and device build
+	  debugging messages.
+
+config MTD_UBI_DEBUG_MSG_EBA
+	bool "Eraseblock association unit messages"
+	default n
+	depends on MTD_UBI_DEBUG
+	help
+	  This option enables debugging messages from the UBI eraseblock
+	  association unit.
+
+config MTD_UBI_DEBUG_MSG_WL
+	bool "Wear-leveling unit messages"
+	default n
+	depends on MTD_UBI_DEBUG
+	help
+	  This option enables debugging messages from the UBI wear-leveling
+	  unit.
+
+config MTD_UBI_DEBUG_MSG_IO
+	bool "Input/output unit messages"
+	default n
+	depends on MTD_UBI_DEBUG
+	help
+	  This option enables debugging messages from the UBI input/output unit.
+
+endmenu # UBI debugging messages

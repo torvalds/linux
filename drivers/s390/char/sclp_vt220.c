@@ -99,8 +99,8 @@ static void sclp_vt220_emit_current(void);
 
 /* Registration structure for our interest in SCLP event buffers */
 static struct sclp_register sclp_vt220_register = {
-	.send_mask		= EvTyp_VT220Msg_Mask,
-	.receive_mask		= EvTyp_VT220Msg_Mask,
+	.send_mask		= EVTYP_VT220MSG_MASK,
+	.receive_mask		= EVTYP_VT220MSG_MASK,
 	.state_change_fn	= NULL,
 	.receiver_fn		= sclp_vt220_receiver_fn
 };
@@ -202,7 +202,7 @@ sclp_vt220_callback(struct sclp_req *request, void *data)
 static int
 __sclp_vt220_emit(struct sclp_vt220_request *request)
 {
-	if (!(sclp_vt220_register.sclp_send_mask & EvTyp_VT220Msg_Mask)) {
+	if (!(sclp_vt220_register.sclp_send_mask & EVTYP_VT220MSG_MASK)) {
 		request->sclp_req.status = SCLP_REQ_FAILED;
 		return -EIO;
 	}
@@ -284,7 +284,7 @@ sclp_vt220_initialize_page(void *page)
 	sccb->header.length = sizeof(struct sclp_vt220_sccb);
 	sccb->header.function_code = SCLP_NORMAL_WRITE;
 	sccb->header.response_code = 0x0000;
-	sccb->evbuf.type = EvTyp_VT220Msg;
+	sccb->evbuf.type = EVTYP_VT220MSG;
 	sccb->evbuf.length = sizeof(struct evbuf_header);
 
 	return request;

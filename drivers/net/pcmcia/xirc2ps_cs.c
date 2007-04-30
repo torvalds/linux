@@ -1226,7 +1226,6 @@ xirc2ps_interrupt(int irq, void *dev_id)
 			    (pktlen+1)>>1);
 		}
 		skb->protocol = eth_type_trans(skb, dev);
-		skb->dev = dev;
 		netif_rx(skb);
 		dev->last_rx = jiffies;
 		lp->stats.rx_packets++;

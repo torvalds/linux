@@ -550,7 +550,6 @@ static void seeq8005_rx(struct net_device *dev)
 				lp->stats.rx_dropped++;
 				break;
 			}
-			skb->dev = dev;
 			skb_reserve(skb, 2);	/* align data on 16 byte */
 			buf = skb_put(skb,pkt_len);
 

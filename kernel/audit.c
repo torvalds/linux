@@ -151,7 +151,7 @@ struct audit_buffer {
 
 static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
+	struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 	nlh->nlmsg_pid = pid;
 }
 
@@ -750,7 +750,7 @@ static void audit_receive_skb(struct sk_buff *skb)
 	u32		rlen;
 
 	while (skb->len >= NLMSG_SPACE(0)) {
-		nlh = (struct nlmsghdr *)skb->data;
+		nlh = nlmsg_hdr(skb);
 		if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
 			return;
 		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
@@ -795,7 +795,7 @@ static int __init audit_init(void)
 	printk(KERN_INFO "audit: initializing netlink socket (%s)\n",
 	       audit_default ? "enabled" : "disabled");
 	audit_sock = netlink_kernel_create(NETLINK_AUDIT, 0, audit_receive,
-					   THIS_MODULE);
+					   NULL, THIS_MODULE);
 	if (!audit_sock)
 		audit_panic("cannot initialize netlink socket");
 	else
@@ -1073,7 +1073,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 			goto out;
 	}
 	va_copy(args2, args);
-	len = vsnprintf(skb->tail, avail, fmt, args);
+	len = vsnprintf(skb_tail_pointer(skb), avail, fmt, args);
 	if (len >= avail) {
 		/* The printk buffer is 1024 bytes long, so if we get
 		 * here and AUDIT_BUFSIZ is at least 1024, then we can
@@ -1082,7 +1082,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 			max_t(unsigned, AUDIT_BUFSIZ, 1+len-avail));
 		if (!avail)
 			goto out;
-		len = vsnprintf(skb->tail, avail, fmt, args2);
+		len = vsnprintf(skb_tail_pointer(skb), avail, fmt, args2);
 	}
 	if (len > 0)
 		skb_put(skb, len);
@@ -1143,7 +1143,7 @@ void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
 			return;
 	}
 
-	ptr = skb->tail;
+	ptr = skb_tail_pointer(skb);
 	for (i=0; i<len; i++) {
 		*ptr++ = hex[(buf[i] & 0xF0)>>4]; /* Upper nibble */
 		*ptr++ = hex[buf[i] & 0x0F];	  /* Lower nibble */
@@ -1175,7 +1175,7 @@ static void audit_log_n_string(struct audit_buffer *ab, size_t slen,
 		if (!avail)
 			return;
 	}
-	ptr = skb->tail;
+	ptr = skb_tail_pointer(skb);
 	*ptr++ = '"';
 	memcpy(ptr, string, slen);
 	ptr += slen;
@@ -1268,7 +1268,7 @@ void audit_log_end(struct audit_buffer *ab)
 		audit_log_lost("rate limit exceeded");
 	} else {
 		if (audit_pid) {
-			struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
+			struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 			nlh->nlmsg_len = ab->skb->len - NLMSG_SPACE(0);
 			skb_queue_tail(&audit_skb_queue, ab->skb);
 			ab->skb = NULL;

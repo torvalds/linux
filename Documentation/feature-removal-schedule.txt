@@ -6,6 +6,18 @@ be removed from this file.
 
 ---------------------------
 
+What:	V4L2 VIDIOC_G_MPEGCOMP and VIDIOC_S_MPEGCOMP
+When:	October 2007
+Why:	Broken attempt to set MPEG compression parameters. These ioctls are
+	not able to implement the wide variety of parameters that can be set
+	by hardware MPEG encoders. A new MPEG control mechanism was created
+	in kernel 2.6.18 that replaces these ioctls. See the V4L2 specification
+	(section 1.9: Extended controls) for more information on this topic.
+Who:	Hans Verkuil <hverkuil@xs4all.nl> and
+	Mauro Carvalho Chehab <mchehab@infradead.org>
+
+---------------------------
+
 What:	/sys/devices/.../power/state
 	dev->power.power_state
 	dpm_runtime_{suspend,resume)()
@@ -134,15 +146,6 @@ Who:	Arjan van de Ven <arjan@linux.intel.com>
 
 ---------------------------
 
-What:	mount/umount uevents
-When:	February 2007
-Why:	These events are not correct, and do not properly let userspace know
-	when a file system has been mounted or unmounted.  Userspace should
-	poll the /proc/mounts file instead to detect this properly.
-Who:	Greg Kroah-Hartman <gregkh@suse.de>
-
----------------------------
-
 What:	USB driver API moves to EXPORT_SYMBOL_GPL
 When:	February 2008
 Files:	include/linux/usb.h, drivers/usb/core/driver.c
@@ -208,15 +211,6 @@ What:  drivers depending on OBSOLETE_OSS
 When:  options in 2.6.22, code in 2.6.24
 Why:   OSS drivers with ALSA replacements
 Who:   Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
-What:	IPv4 only connection tracking/NAT/helpers
-When:	2.6.22
-Why:	The new layer 3 independant connection tracking replaces the old
-	IPv4 only version. After some stabilization of the new code the
-	old one will be removed.
-Who:	Patrick McHardy <kaber@trash.net>
 
 ---------------------------
 
@@ -294,22 +288,29 @@ Who:	Richard Purdie <rpurdie@rpsys.net>
 
 ---------------------------
 
-What:	Wireless extensions over netlink (CONFIG_NET_WIRELESS_RTNETLINK)
-When:	with the merge of wireless-dev, 2.6.22 or later
-Why:	The option/code is
-	 * not enabled on most kernels
-	 * not required by any userspace tools (except an experimental one,
-	   and even there only for some parts, others use ioctl)
-	 * pointless since wext is no longer evolving and the ioctl
-	   interface needs to be kept
-Who:	Johannes Berg <johannes@sipsolutions.net>
-
----------------------------
-
 What:	i8xx_tco watchdog driver
 When:	in 2.6.22
 Why:	the i8xx_tco watchdog driver has been replaced by the iTCO_wdt
 	watchdog driver.
 Who:	Wim Van Sebroeck <wim@iguana.be>
+
+---------------------------
+
+What:	Multipath cached routing support in ipv4
+When:	in 2.6.23
+Why:	Code was merged, then submitter immediately disappeared leaving
+	us with no maintainer and lots of bugs.  The code should not have
+	been merged in the first place, and many aspects of it's
+	implementation are blocking more critical core networking
+	development.  It's marked EXPERIMENTAL and no distribution
+	enables it because it cause obscure crashes due to unfixable bugs
+	(interfaces don't return errors so memory allocation can't be
+	handled, calling contexts of these interfaces make handling
+	errors impossible too because they get called after we've
+	totally commited to creating a route object, for example).
+	This problem has existed for years and no forward progress
+	has ever been made, and nobody steps up to try and salvage
+	this code, so we're going to finally just get rid of it.
+Who:	David S. Miller <davem@davemloft.net>
 
 ---------------------------

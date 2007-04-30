@@ -35,13 +35,13 @@
 #include <asm/ppc_sys.h>
 
 extern unsigned char __res[];
-static void setup_smc1_ioports(void);
-static void setup_smc2_ioports(void);
+static void setup_smc1_ioports(struct fs_uart_platform_info*);
+static void setup_smc2_ioports(struct fs_uart_platform_info*);
 
 static struct fs_mii_fec_platform_info	mpc8xx_mdio_fec_pdata;
-static void setup_fec1_ioports(void);
-static void setup_fec2_ioports(void);
-static void setup_scc3_ioports(void);
+static void setup_fec1_ioports(struct fs_platform_info*);
+static void setup_fec2_ioports(struct fs_platform_info*);
+static void setup_scc3_ioports(struct fs_platform_info*);
 
 static struct fs_uart_platform_info mpc885_uart_pdata[] = {
 	[fsid_smc1_uart] = {
@@ -161,7 +161,7 @@ void __init board_init(void)
 #endif
 }
 
-static void setup_fec1_ioports(struct fs_platform_info*)
+static void setup_fec1_ioports(struct fs_platform_info* pdata)
 {
 	immap_t *immap = (immap_t *) IMAP_ADDR;
 
@@ -181,7 +181,7 @@ static void setup_fec1_ioports(struct fs_platform_info*)
 	clrbits32(&immap->im_cpm.cp_cptr, 0x00000100);
 }
 
-static void setup_fec2_ioports(struct fs_platform_info*)
+static void setup_fec2_ioports(struct fs_platform_info* pdata)
 {
 	immap_t *immap = (immap_t *) IMAP_ADDR;
 
@@ -193,7 +193,7 @@ static void setup_fec2_ioports(struct fs_platform_info*)
 	clrbits32(&immap->im_cpm.cp_cptr, 0x00000080);
 }
 
-static void setup_scc3_ioports(struct fs_platform_info*)
+static void setup_scc3_ioports(struct fs_platform_info* pdata)
 {
 	immap_t *immap = (immap_t *) IMAP_ADDR;
 	unsigned *bcsr_io;
@@ -315,7 +315,7 @@ static void __init mpc885ads_fixup_scc_enet_pdata(struct platform_device *pdev,
 	mpc885ads_fixup_enet_pdata(pdev, fsid_scc1 + pdev->id - 1);
 }
 
-static void setup_smc1_ioports(struct fs_uart_platform_info*)
+static void setup_smc1_ioports(struct fs_uart_platform_info* pdata)
 {
         immap_t *immap = (immap_t *) IMAP_ADDR;
         unsigned *bcsr_io;
@@ -335,7 +335,7 @@ static void setup_smc1_ioports(struct fs_uart_platform_info*)
         clrbits16(&immap->im_cpm.cp_pbodr, iobits);
 }
 
-static void setup_smc2_ioports(struct fs_uart_platform_info*)
+static void setup_smc2_ioports(struct fs_uart_platform_info* pdata)
 {
         immap_t *immap = (immap_t *) IMAP_ADDR;
         unsigned *bcsr_io;

@@ -3423,6 +3423,25 @@ static void cciss_remove_one(struct pci_dev *pdev)
 		       "already be removed \n");
 		return;
 	}
+
+	remove_proc_entry(hba[i]->devname, proc_cciss);
+	unregister_blkdev(hba[i]->major, hba[i]->devname);
+
+	/* remove it from the disk list */
+	for (j = 0; j < CISS_MAX_LUN; j++) {
+		struct gendisk *disk = hba[i]->gendisk[j];
+		if (disk) {
+			request_queue_t *q = disk->queue;
+
+			if (disk->flags & GENHD_FL_UP)
+				del_gendisk(disk);
+			if (q)
+				blk_cleanup_queue(q);
+		}
+	}
+
+	cciss_unregister_scsi(i);	/* unhook from SCSI subsystem */
+
 	/* Turn board interrupts off  and send the flush cache command */
 	/* sendcmd will turn off interrupt, and send the flush...
 	 * To write all data in the battery backed cache to disks */
@@ -3444,22 +3463,6 @@ static void cciss_remove_one(struct pci_dev *pdev)
 #endif				/* CONFIG_PCI_MSI */
 
 	iounmap(hba[i]->vaddr);
-	cciss_unregister_scsi(i);	/* unhook from SCSI subsystem */
-	unregister_blkdev(hba[i]->major, hba[i]->devname);
-	remove_proc_entry(hba[i]->devname, proc_cciss);
-
-	/* remove it from the disk list */
-	for (j = 0; j < CISS_MAX_LUN; j++) {
-		struct gendisk *disk = hba[i]->gendisk[j];
-		if (disk) {
-			request_queue_t *q = disk->queue;
-
-			if (disk->flags & GENHD_FL_UP)
-				del_gendisk(disk);
-			if (q)
-				blk_cleanup_queue(q);
-		}
-	}
 
 	pci_free_consistent(hba[i]->pdev, hba[i]->nr_cmds * sizeof(CommandList_struct),
 			    hba[i]->cmd_pool, hba[i]->cmd_pool_dhandle);

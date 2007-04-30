@@ -79,9 +79,9 @@ static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Remove ipcomp header and decompress original payload */
-	iph = skb->nh.ipv6h;
+	iph = ipv6_hdr(skb);
 	ipch = (void *)skb->data;
-	skb->h.raw = skb->nh.raw + sizeof(*ipch);
+	skb->transport_header = skb->network_header + sizeof(*ipch);
 	__skb_pull(skb, sizeof(*ipch));
 
 	/* decompression */
@@ -111,7 +111,7 @@ static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->truesize += dlen - plen;
 	__skb_put(skb, dlen - plen);
-	memcpy(skb->data, scratch, dlen);
+	skb_copy_to_linear_data(skb, scratch, dlen);
 	err = ipch->nexthdr;
 
 out_put_cpu:
@@ -124,15 +124,13 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
 	struct ipv6hdr *top_iph;
-	int hdr_len;
 	struct ipv6_comp_hdr *ipch;
 	struct ipcomp_data *ipcd = x->data;
 	int plen, dlen;
 	u8 *start, *scratch;
 	struct crypto_comp *tfm;
 	int cpu;
-
-	hdr_len = skb->h.raw - skb->data;
+	int hdr_len = skb_transport_offset(skb);
 
 	/* check whether datagram len is larger than threshold */
 	if ((skb->len - hdr_len) < ipcd->threshold) {
@@ -145,7 +143,7 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	/* compression */
 	plen = skb->len - hdr_len;
 	dlen = IPCOMP_SCRATCH_SIZE;
-	start = skb->h.raw;
+	start = skb_transport_header(skb);
 
 	cpu = get_cpu();
 	scratch = *per_cpu_ptr(ipcomp6_scratches, cpu);
@@ -166,10 +164,10 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 
 	ipch = (struct ipv6_comp_hdr *)start;
-	ipch->nexthdr = *skb->nh.raw;
+	ipch->nexthdr = *skb_network_header(skb);
 	ipch->flags = 0;
 	ipch->cpi = htons((u16 )ntohl(x->id.spi));
-	*skb->nh.raw = IPPROTO_COMP;
+	*skb_network_header(skb) = IPPROTO_COMP;
 
 out_ok:
 	return 0;

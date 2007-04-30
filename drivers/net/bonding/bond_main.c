@@ -2524,7 +2524,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 				 (2 * sizeof(u32)))))
 		goto out_unlock;
 
-	arp = skb->nh.arph;
+	arp = arp_hdr(skb);
 	if (arp->ar_hln != dev->addr_len ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    skb->pkt_type == PACKET_LOOPBACK ||
@@ -3476,7 +3476,7 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
 				    struct net_device *bond_dev, int count)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	u16 *layer4hdr = (u16 *)((u32 *)iph + iph->ihl);
 	int layer4_xor = 0;
 
@@ -3640,9 +3640,8 @@ static struct net_device_stats *bond_get_stats(struct net_device *bond_dev)
 	read_lock_bh(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev->get_stats) {
-			sstats = slave->dev->get_stats(slave->dev);
-
+		sstats = slave->dev->get_stats(slave->dev);
+		if (sstats) {
 			stats->rx_packets += sstats->rx_packets;
 			stats->rx_bytes += sstats->rx_bytes;
 			stats->rx_errors += sstats->rx_errors;

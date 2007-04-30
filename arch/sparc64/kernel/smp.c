@@ -45,7 +45,7 @@
 extern void calibrate_delay(void);
 
 /* Please don't make this stuff initdata!!!  --DaveM */
-static unsigned char boot_cpu_id;
+unsigned char boot_cpu_id;
 
 cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
 cpumask_t phys_cpu_present_map __read_mostly = CPU_MASK_NONE;
@@ -81,8 +81,6 @@ void __init smp_store_cpu_info(int id)
 	struct device_node *dp;
 	int def;
 
-	/* multiplier and counter set by
-	   smp_setup_percpu_timer()  */
 	cpu_data(id).udelay_val			= loops_per_jiffy;
 
 	cpu_find_by_mid(id, &dp);
@@ -125,7 +123,7 @@ void __init smp_store_cpu_info(int id)
 	       cpu_data(id).ecache_size, cpu_data(id).ecache_line_size);
 }
 
-static void smp_setup_percpu_timer(void);
+extern void setup_sparc64_timer(void);
 
 static volatile unsigned long callin_flag = 0;
 
@@ -140,7 +138,7 @@ void __init smp_callin(void)
 
 	__flush_tlb_all();
 
-	smp_setup_percpu_timer();
+	setup_sparc64_timer();
 
 	if (cheetah_pcache_forced_on)
 		cheetah_enable_pcache();
@@ -176,8 +174,6 @@ void cpu_panic(void)
 	printk("CPU[%d]: Returns from cpu_idle!\n", smp_processor_id());
 	panic("SMP bolixed\n");
 }
-
-static unsigned long current_tick_offset __read_mostly;
 
 /* This tick register synchronization scheme is taken entirely from
  * the ia64 port, see arch/ia64/kernel/smpboot.c for details and credit.
@@ -261,7 +257,7 @@ void smp_synchronize_tick_client(void)
 				} else
 					adj = -delta;
 
-				tick_ops->add_tick(adj, current_tick_offset);
+				tick_ops->add_tick(adj);
 			}
 #if DEBUG_TICK_SYNC
 			t[i].rt = rt;
@@ -1180,117 +1176,15 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	preempt_enable();
 }
 
-#define prof_multiplier(__cpu)		cpu_data(__cpu).multiplier
-#define prof_counter(__cpu)		cpu_data(__cpu).counter
-
-void smp_percpu_timer_interrupt(struct pt_regs *regs)
-{
-	unsigned long compare, tick, pstate;
-	int cpu = smp_processor_id();
-	int user = user_mode(regs);
-	struct pt_regs *old_regs;
-
-	/*
-	 * Check for level 14 softint.
-	 */
-	{
-		unsigned long tick_mask = tick_ops->softint_mask;
-
-		if (!(get_softint() & tick_mask)) {
-			extern void handler_irq(int, struct pt_regs *);
-
-			handler_irq(14, regs);
-			return;
-		}
-		clear_softint(tick_mask);
-	}
-
-	old_regs = set_irq_regs(regs);
-	do {
-		profile_tick(CPU_PROFILING);
-		if (!--prof_counter(cpu)) {
-			irq_enter();
-
-			if (cpu == boot_cpu_id) {
-				kstat_this_cpu.irqs[0]++;
-				timer_tick_interrupt(regs);
-			}
-
-			update_process_times(user);
-
-			irq_exit();
-
-			prof_counter(cpu) = prof_multiplier(cpu);
-		}
-
-		/* Guarantee that the following sequences execute
-		 * uninterrupted.
-		 */
-		__asm__ __volatile__("rdpr	%%pstate, %0\n\t"
-				     "wrpr	%0, %1, %%pstate"
-				     : "=r" (pstate)
-				     : "i" (PSTATE_IE));
-
-		compare = tick_ops->add_compare(current_tick_offset);
-		tick = tick_ops->get_tick();
-
-		/* Restore PSTATE_IE. */
-		__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
-				     : /* no outputs */
-				     : "r" (pstate));
-	} while (time_after_eq(tick, compare));
-	set_irq_regs(old_regs);
-}
-
-static void __init smp_setup_percpu_timer(void)
-{
-	int cpu = smp_processor_id();
-	unsigned long pstate;
-
-	prof_counter(cpu) = prof_multiplier(cpu) = 1;
-
-	/* Guarantee that the following sequences execute
-	 * uninterrupted.
-	 */
-	__asm__ __volatile__("rdpr	%%pstate, %0\n\t"
-			     "wrpr	%0, %1, %%pstate"
-			     : "=r" (pstate)
-			     : "i" (PSTATE_IE));
-
-	tick_ops->init_tick(current_tick_offset);
-
-	/* Restore PSTATE_IE. */
-	__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
-			     : /* no outputs */
-			     : "r" (pstate));
-}
-
 void __init smp_tick_init(void)
 {
 	boot_cpu_id = hard_smp_processor_id();
-	current_tick_offset = timer_tick_offset;
-
-	prof_counter(boot_cpu_id) = prof_multiplier(boot_cpu_id) = 1;
 }
 
 /* /proc/profile writes can call this, don't __init it please. */
-static DEFINE_SPINLOCK(prof_setup_lock);
-
 int setup_profiling_timer(unsigned int multiplier)
 {
-	unsigned long flags;
-	int i;
-
-	if ((!multiplier) || (timer_tick_offset / multiplier) < 1000)
-		return -EINVAL;
-
-	spin_lock_irqsave(&prof_setup_lock, flags);
-	for_each_possible_cpu(i)
-		prof_multiplier(i) = multiplier;
-	current_tick_offset = (timer_tick_offset / multiplier);
-	spin_unlock_irqrestore(&prof_setup_lock, flags);
-
-	return 0;
+	return -EINVAL;
 }
 
 static void __init smp_tune_scheduling(void)

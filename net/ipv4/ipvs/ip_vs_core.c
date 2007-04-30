@@ -212,7 +212,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		    __be16 ports[2])
 {
 	struct ip_vs_conn *cp = NULL;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *ct;
 	__be16  dport;	 /* destination port to forward */
@@ -381,7 +381,7 @@ struct ip_vs_conn *
 ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 {
 	struct ip_vs_conn *cp = NULL;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	struct ip_vs_dest *dest;
 	__be16 _ports[2], *pptr;
 
@@ -447,7 +447,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		struct ip_vs_protocol *pp)
 {
 	__be16 _ports[2], *pptr;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 
 	pptr = skb_header_pointer(skb, iph->ihl*4,
 				  sizeof(_ports), _ports);
@@ -546,7 +546,7 @@ ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
 	skb = ip_defrag(skb, user);
 	if (skb)
-		ip_send_check(skb->nh.iph);
+		ip_send_check(ip_hdr(skb));
 	return skb;
 }
 
@@ -557,9 +557,10 @@ ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
 void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		    struct ip_vs_conn *cp, int inout)
 {
-	struct iphdr *iph	 = skb->nh.iph;
+	struct iphdr *iph	 = ip_hdr(skb);
 	unsigned int icmp_offset = iph->ihl*4;
-	struct icmphdr *icmph	 = (struct icmphdr *)(skb->nh.raw + icmp_offset);
+	struct icmphdr *icmph	 = (struct icmphdr *)(skb_network_header(skb) +
+						      icmp_offset);
 	struct iphdr *ciph	 = (struct iphdr *)(icmph + 1);
 
 	if (inout) {
@@ -617,14 +618,14 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 	*related = 1;
 
 	/* reassemble IP fragments */
-	if (skb->nh.iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) {
+	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
 		if (!skb)
 			return NF_STOLEN;
 		*pskb = skb;
 	}
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	offset = ihl = iph->ihl * 4;
 	ic = skb_header_pointer(skb, offset, sizeof(_icmph), &_icmph);
 	if (ic == NULL)
@@ -659,7 +660,7 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 		return NF_ACCEPT;
 
 	/* Is the embedded protocol header present? */
-	if (unlikely(cih->frag_off & __constant_htons(IP_OFFSET) &&
+	if (unlikely(cih->frag_off & htons(IP_OFFSET) &&
 		     pp->dont_defrag))
 		return NF_ACCEPT;
 
@@ -680,8 +681,7 @@ static int ip_vs_out_icmp(struct sk_buff **pskb, int *related)
 	}
 
 	/* Ensure the checksum is correct */
-	if (skb->ip_summed != CHECKSUM_UNNECESSARY &&
-	    ip_vs_checksum_complete(skb, ihl)) {
+	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
 		/* Failed checksum! */
 		IP_VS_DBG(1, "Forward ICMP: failed checksum from %d.%d.%d.%d!\n",
 			  NIPQUAD(iph->saddr));
@@ -712,8 +712,7 @@ static inline int is_tcp_reset(const struct sk_buff *skb)
 {
 	struct tcphdr _tcph, *th;
 
-	th = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
-				sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return 0;
 	return th->rst;
@@ -740,14 +739,14 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	if (skb->ipvs_property)
 		return NF_ACCEPT;
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	if (unlikely(iph->protocol == IPPROTO_ICMP)) {
 		int related, verdict = ip_vs_out_icmp(pskb, &related);
 
 		if (related)
 			return verdict;
 		skb = *pskb;
-		iph = skb->nh.iph;
+		iph = ip_hdr(skb);
 	}
 
 	pp = ip_vs_proto_get(iph->protocol);
@@ -755,12 +754,12 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 		return NF_ACCEPT;
 
 	/* reassemble IP fragments */
-	if (unlikely(iph->frag_off & __constant_htons(IP_MF|IP_OFFSET) &&
+	if (unlikely(iph->frag_off & htons(IP_MF|IP_OFFSET) &&
 		     !pp->dont_defrag)) {
 		skb = ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT);
 		if (!skb)
 			return NF_STOLEN;
-		iph = skb->nh.iph;
+		iph = ip_hdr(skb);
 		*pskb = skb;
 	}
 
@@ -810,8 +809,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 	if (pp->snat_handler && !pp->snat_handler(pskb, pp, cp))
 		goto drop;
 	skb = *pskb;
-	skb->nh.iph->saddr = cp->vaddr;
-	ip_send_check(skb->nh.iph);
+	ip_hdr(skb)->saddr = cp->vaddr;
+	ip_send_check(ip_hdr(skb));
 
 	/* For policy routing, packets originating from this
 	 * machine itself may be routed differently to packets
@@ -861,7 +860,7 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 	*related = 1;
 
 	/* reassemble IP fragments */
-	if (skb->nh.iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) {
+	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 		skb = ip_vs_gather_frags(skb,
 					 hooknum == NF_IP_LOCAL_IN ?
 					 IP_DEFRAG_VS_IN : IP_DEFRAG_VS_FWD);
@@ -870,7 +869,7 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 		*pskb = skb;
 	}
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	offset = ihl = iph->ihl * 4;
 	ic = skb_header_pointer(skb, offset, sizeof(_icmph), &_icmph);
 	if (ic == NULL)
@@ -905,7 +904,7 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 		return NF_ACCEPT;
 
 	/* Is the embedded protocol header present? */
-	if (unlikely(cih->frag_off & __constant_htons(IP_OFFSET) &&
+	if (unlikely(cih->frag_off & htons(IP_OFFSET) &&
 		     pp->dont_defrag))
 		return NF_ACCEPT;
 
@@ -921,8 +920,7 @@ ip_vs_in_icmp(struct sk_buff **pskb, int *related, unsigned int hooknum)
 	verdict = NF_DROP;
 
 	/* Ensure the checksum is correct */
-	if (skb->ip_summed != CHECKSUM_UNNECESSARY &&
-	    ip_vs_checksum_complete(skb, ihl)) {
+	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
 		/* Failed checksum! */
 		IP_VS_DBG(1, "Incoming ICMP: failed checksum from %d.%d.%d.%d!\n",
 			  NIPQUAD(iph->saddr));
@@ -966,19 +964,19 @@ ip_vs_in(unsigned int hooknum, struct sk_buff **pskb,
 		     || skb->dev == &loopback_dev || skb->sk)) {
 		IP_VS_DBG(12, "packet type=%d proto=%d daddr=%d.%d.%d.%d ignored\n",
 			  skb->pkt_type,
-			  skb->nh.iph->protocol,
-			  NIPQUAD(skb->nh.iph->daddr));
+			  ip_hdr(skb)->protocol,
+			  NIPQUAD(ip_hdr(skb)->daddr));
 		return NF_ACCEPT;
 	}
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	if (unlikely(iph->protocol == IPPROTO_ICMP)) {
 		int related, verdict = ip_vs_in_icmp(pskb, &related, hooknum);
 
 		if (related)
 			return verdict;
 		skb = *pskb;
-		iph = skb->nh.iph;
+		iph = ip_hdr(skb);
 	}
 
 	/* Protocol supported? */
@@ -1064,7 +1062,7 @@ ip_vs_forward_icmp(unsigned int hooknum, struct sk_buff **pskb,
 {
 	int r;
 
-	if ((*pskb)->nh.iph->protocol != IPPROTO_ICMP)
+	if (ip_hdr(*pskb)->protocol != IPPROTO_ICMP)
 		return NF_ACCEPT;
 
 	return ip_vs_in_icmp(pskb, &r, hooknum);

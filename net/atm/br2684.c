@@ -173,7 +173,7 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct br2684_dev *brdev,
 	}
 	skb_push(skb, minheadroom);
 	if (brvcc->encaps == e_llc)
-		memcpy(skb->data, llc_oui_pid_pad, 10);
+		skb_copy_to_linear_data(skb, llc_oui_pid_pad, 10);
 	else
 		memset(skb->data, 0, 2);
 #endif /* FASTER_VERSION */
@@ -375,11 +375,11 @@ packet_fails_filter(__be16 type, struct br2684_vcc *brvcc, struct sk_buff *skb)
 {
 	if (brvcc->filter.netmask == 0)
 		return 0;			/* no filter in place */
-	if (type == __constant_htons(ETH_P_IP) &&
+	if (type == htons(ETH_P_IP) &&
 	    (((struct iphdr *) (skb->data))->daddr & brvcc->filter.
 	     netmask) == brvcc->filter.prefix)
 		return 0;
-	if (type == __constant_htons(ETH_P_ARP))
+	if (type == htons(ETH_P_ARP))
 		return 0;
 	/* TODO: we should probably filter ARPs too.. don't want to have
 	 *   them returning values that don't make sense, or is that ok?
@@ -458,7 +458,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	/* FIXME: tcpdump shows that pointer to mac header is 2 bytes earlier,
 	   than should be. What else should I set? */
 	skb_pull(skb, plen);
-	skb->mac.raw = ((char *) (skb->data)) - ETH_HLEN;
+	skb_set_mac_header(skb, -ETH_HLEN);
 	skb->pkt_type = PACKET_HOST;
 #ifdef CONFIG_BR2684_FAST_TRANS
 	skb->protocol = ((u16 *) skb->data)[-1];

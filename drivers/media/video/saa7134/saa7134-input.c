@@ -321,6 +321,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keydown = 0x0040000;
 		break;
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
+	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
 		ir_codes     = ir_codes_asus_pc39;
 		mask_keydown = 0x0040000;
 		rc5_gpio = 1;

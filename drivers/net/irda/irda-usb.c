@@ -441,7 +441,7 @@ static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto drop;
 	}
 
-	memcpy(self->tx_buff + self->header_length, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, self->tx_buff + self->header_length, skb->len);
 
 	/* Change setting for next frame */
 	if (self->capability & IUC_STIR421X) {
@@ -902,7 +902,7 @@ static void irda_usb_receive(struct urb *urb)
 
 	if(docopy) {
 		/* Copy packet, so we can recycle the original */
-		memcpy(newskb->data, skb->data, urb->actual_length);
+		skb_copy_from_linear_data(skb, newskb->data, urb->actual_length);
 		/* Deliver this new skb */
 		dataskb = newskb;
 		/* And hook the old skb to the URB
@@ -921,7 +921,7 @@ static void irda_usb_receive(struct urb *urb)
 
 	/* Ask the networking layer to queue the packet for the IrDA stack */
 	dataskb->dev = self->netdev;
-	dataskb->mac.raw  = dataskb->data;
+	skb_reset_mac_header(dataskb);
 	dataskb->protocol = htons(ETH_P_IRDA);
 	len = dataskb->len;
 	netif_rx(dataskb);

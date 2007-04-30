@@ -53,17 +53,20 @@ static int x25_queue_rx_frame(struct sock *sk, struct sk_buff *skb, int more)
 
 		skb_queue_tail(&x25->fragment_queue, skb);
 
-		skbn->h.raw = skbn->data;
+		skb_reset_transport_header(skbn);
 
 		skbo = skb_dequeue(&x25->fragment_queue);
-		memcpy(skb_put(skbn, skbo->len), skbo->data, skbo->len);
+		skb_copy_from_linear_data(skbo, skb_put(skbn, skbo->len),
+					  skbo->len);
 		kfree_skb(skbo);
 
 		while ((skbo =
 			skb_dequeue(&x25->fragment_queue)) != NULL) {
 			skb_pull(skbo, (x25->neighbour->extended) ?
 					X25_EXT_MIN_LEN : X25_STD_MIN_LEN);
-			memcpy(skb_put(skbn, skbo->len), skbo->data, skbo->len);
+			skb_copy_from_linear_data(skbo,
+						  skb_put(skbn, skbo->len),
+						  skbo->len);
 			kfree_skb(skbo);
 		}
 
@@ -112,8 +115,9 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 			 *	Copy any Call User Data.
 			 */
 			if (skb->len >= 0) {
-				memcpy(x25->calluserdata.cuddata, skb->data,
-				       skb->len);
+				skb_copy_from_linear_data(skb,
+					      x25->calluserdata.cuddata,
+					      skb->len);
 				x25->calluserdata.cudlength = skb->len;
 			}
 			if (!sock_flag(sk, SOCK_DEAD))

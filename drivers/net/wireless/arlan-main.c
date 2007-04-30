@@ -1500,7 +1500,6 @@ static void arlan_rx_interrupt(struct net_device *dev, u_char rxStatus, u_short 
 				break;
 			}
 			skb_reserve(skb, 2);
-			skb->dev = dev;
 			skbtmp = skb_put(skb, pkt_len);
 
 			memcpy_fromio(skbtmp + ARLAN_FAKE_HDR_LEN, ((char __iomem *) arlan) + rxOffset, pkt_len - ARLAN_FAKE_HDR_LEN);

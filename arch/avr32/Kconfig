@@ -57,9 +57,6 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
-config GENERIC_BUST_SPINLOCK
-	bool
-
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -67,6 +64,11 @@ config GENERIC_HWEIGHT
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
+
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
 
 source "init/Kconfig"
 
@@ -106,6 +108,9 @@ choice
 config BOARD_ATSTK1000
 	bool "ATSTK1000 evaluation board"
 	select BOARD_ATSTK1002 if CPU_AT32AP7000
+
+config BOARD_ATNGW100
+	bool "ATNGW100 Network Gateway"
 endchoice
 
 choice
@@ -115,6 +120,8 @@ choice
 config	LOADER_U_BOOT
 	bool "U-Boot (or similar) bootloader"
 endchoice
+
+source "arch/avr32/mach-at32ap/Kconfig"
 
 config LOAD_ADDRESS
 	hex

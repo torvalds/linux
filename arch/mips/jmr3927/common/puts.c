@@ -32,137 +32,29 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/types.h>
-#include <asm/jmr3927/txx927.h>
 #include <asm/jmr3927/tx3927.h>
-#include <asm/jmr3927/jmr3927.h>
 
 #define TIMEOUT       0xffffff
-#define SLOW_DOWN
-
-static const char digits[16] = "0123456789abcdef";
-
-#ifdef SLOW_DOWN
-#define slow_down() { int k; for (k=0; k<10000; k++); }
-#else
-#define slow_down()
-#endif
 
 void
-putch(const unsigned char c)
+prom_putchar(char c)
 {
         int i = 0;
 
         do {
-            slow_down();
             i++;
-            if (i>TIMEOUT) {
+            if (i>TIMEOUT)
                 break;
-            }
         } while (!(tx3927_sioptr(1)->cisr & TXx927_SICISR_TXALS));
 	tx3927_sioptr(1)->tfifo = c;
 	return;
 }
 
-unsigned char getch(void)
-{
-        int i = 0;
-	int dicr;
-	char c;
-
-	/* diable RX int. */
-	dicr = tx3927_sioptr(1)->dicr;
-	tx3927_sioptr(1)->dicr = 0;
-
-        do {
-            slow_down();
-            i++;
-            if (i>TIMEOUT) {
-                break;
-            }
-        } while (tx3927_sioptr(1)->disr & TXx927_SIDISR_UVALID)
-		;
-	c = tx3927_sioptr(1)->rfifo;
-
-	/* clear RX int. status */
-	tx3927_sioptr(1)->disr &= ~TXx927_SIDISR_RDIS;
-	/* enable RX int. */
-	tx3927_sioptr(1)->dicr = dicr;
-
-	return c;
-}
 void
-do_jmr3927_led_set(char n)
+puts(const char *cp)
 {
-    /* and with current leds */
-    jmr3927_led_and_set(n);
-}
-
-void
-puts(unsigned char *cp)
-{
-    int i = 0;
-
-    while (*cp) {
-        do {
-            slow_down();
-            i++;
-            if (i>TIMEOUT) {
-                break;
-            }
-        } while (!(tx3927_sioptr(1)->cisr & TXx927_SICISR_TXALS));
-	tx3927_sioptr(1)->tfifo = *cp++;
-    }
-    putch('\r');
-    putch('\n');
-}
-
-void
-fputs(unsigned char *cp)
-{
-    int i = 0;
-
-    while (*cp) {
-        do {
-             slow_down();
-            i++;
-            if (i>TIMEOUT) {
-                break;
-            }
-        } while (!(tx3927_sioptr(1)->cisr & TXx927_SICISR_TXALS));
-	tx3927_sioptr(1)->tfifo = *cp++;
-    }
-}
-
-
-void
-put64(uint64_t ul)
-{
-    int cnt;
-    unsigned ch;
-
-    cnt = 16;            /* 16 nibbles in a 64 bit long */
-    putch('0');
-    putch('x');
-    do {
-        cnt--;
-        ch = (unsigned char)(ul >> cnt * 4) & 0x0F;
-                putch(digits[ch]);
-    } while (cnt > 0);
-}
-
-void
-put32(unsigned u)
-{
-    int cnt;
-    unsigned ch;
-
-    cnt = 8;            /* 8 nibbles in a 32 bit long */
-    putch('0');
-    putch('x');
-    do {
-        cnt--;
-        ch = (unsigned char)(u >> cnt * 4) & 0x0F;
-                putch(digits[ch]);
-    } while (cnt > 0);
+    while (*cp)
+	prom_putchar(*cp++);
+    prom_putchar('\r');
+    prom_putchar('\n');
 }

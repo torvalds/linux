@@ -26,7 +26,10 @@
 #define BR_PORT_BITS	10
 #define BR_MAX_PORTS	(1<<BR_PORT_BITS)
 
-#define BR_VERSION	"2.2"
+#define BR_VERSION	"2.3"
+
+/* Path to usermode spanning tree program */
+#define BR_STP_PROG	"/sbin/bridge-stp"
 
 typedef struct bridge_id bridge_id;
 typedef struct mac_addr mac_addr;
@@ -107,7 +110,13 @@ struct net_bridge
 
 	u8				group_addr[ETH_ALEN];
 	u16				root_port;
-	unsigned char			stp_enabled;
+
+	enum {
+		BR_NO_STP, 		/* no spanning tree */
+		BR_KERNEL_STP,		/* old STP in kernel */
+		BR_USER_STP,		/* new RSTP in userspace */
+	} stp_enabled;
+
 	unsigned char			topology_change;
 	unsigned char			topology_change_detected;
 
@@ -127,14 +136,14 @@ static inline int br_is_root_bridge(const struct net_bridge *br)
 	return !memcmp(&br->bridge_id, &br->designated_root, 8);
 }
 
-
 /* br_device.c */
 extern void br_dev_setup(struct net_device *dev);
 extern int br_dev_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* br_fdb.c */
-extern void br_fdb_init(void);
+extern int br_fdb_init(void);
 extern void br_fdb_fini(void);
+extern void br_fdb_flush(struct net_bridge *br);
 extern void br_fdb_changeaddr(struct net_bridge_port *p,
 			      const unsigned char *newaddr);
 extern void br_fdb_cleanup(unsigned long arg);
@@ -182,7 +191,8 @@ extern void br_features_recompute(struct net_bridge *br);
 
 /* br_input.c */
 extern int br_handle_frame_finish(struct sk_buff *skb);
-extern int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb);
+extern struct sk_buff *br_handle_frame(struct net_bridge_port *p,
+				       struct sk_buff *skb);
 
 /* br_ioctl.c */
 extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -207,6 +217,7 @@ extern void br_become_designated_port(struct net_bridge_port *p);
 /* br_stp_if.c */
 extern void br_stp_enable_bridge(struct net_bridge *br);
 extern void br_stp_disable_bridge(struct net_bridge *br);
+extern void br_stp_set_enabled(struct net_bridge *br, unsigned long val);
 extern void br_stp_enable_port(struct net_bridge_port *p);
 extern void br_stp_disable_port(struct net_bridge_port *p);
 extern void br_stp_recalculate_bridge_id(struct net_bridge *br);
@@ -235,7 +246,7 @@ extern void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent);
 
 
 /* br_netlink.c */
-extern void br_netlink_init(void);
+extern int br_netlink_init(void);
 extern void br_netlink_fini(void);
 extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 

@@ -152,6 +152,8 @@ static void del_nbp(struct net_bridge_port *p)
 	br_stp_disable_port(p);
 	spin_unlock_bh(&br->lock);
 
+	br_ifinfo_notify(RTM_DELLINK, p);
+
 	br_fdb_delete_by_port(br, p, 1);
 
 	list_del_rcu(&p->list);
@@ -203,7 +205,7 @@ static struct net_device *new_bridge_dev(const char *name)
 	memcpy(br->group_addr, br_group_address, ETH_ALEN);
 
 	br->feature_mask = dev->features;
-	br->stp_enabled = 0;
+	br->stp_enabled = BR_NO_STP;
 	br->designated_root = br->bridge_id;
 	br->root_path_cost = 0;
 	br->root_port = 0;
@@ -433,6 +435,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	    (br->dev->flags & IFF_UP))
 		br_stp_enable_port(p);
 	spin_unlock_bh(&br->lock);
+
+	br_ifinfo_notify(RTM_NEWLINK, p);
 
 	dev_set_mtu(br->dev, br_min_mtu(br));
 

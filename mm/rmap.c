@@ -498,8 +498,10 @@ int page_mkclean(struct page *page)
 		struct address_space *mapping = page_mapping(page);
 		if (mapping)
 			ret = page_mkclean_file(mapping, page);
-		if (page_test_and_clear_dirty(page))
+		if (page_test_dirty(page)) {
+			page_clear_dirty(page);
 			ret = 1;
+		}
 	}
 
 	return ret;
@@ -605,8 +607,10 @@ void page_remove_rmap(struct page *page, struct vm_area_struct *vma)
 		 * Leaving it set also helps swapoff to reinstate ptes
 		 * faster for those pages still in swapcache.
 		 */
-		if (page_test_and_clear_dirty(page))
+		if (page_test_dirty(page)) {
+			page_clear_dirty(page);
 			set_page_dirty(page);
+		}
 		__dec_zone_page_state(page,
 				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
 	}

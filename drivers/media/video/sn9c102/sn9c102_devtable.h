@@ -89,16 +89,22 @@ static const struct usb_device_id sn9c102_id_table[] = {
 	{ SN9C102_USB_DEVICE(0x0471, 0x0327, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0471, 0x0328, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60c0, BRIDGE_SN9C105), },
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60c2, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60c8, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60cc, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60ea, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60ec, BRIDGE_SN9C105), },
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60ef, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60fa, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60fb, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60fc, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60fe, BRIDGE_SN9C105), },
 	/* SN9C120 */
+	{ SN9C102_USB_DEVICE(0x0c45, 0x6102, BRIDGE_SN9C120), },
+	{ SN9C102_USB_DEVICE(0x0c45, 0x6108, BRIDGE_SN9C120), },
+	{ SN9C102_USB_DEVICE(0x0c45, 0x610f, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6130, BRIDGE_SN9C120), },
+	{ SN9C102_USB_DEVICE(0x0c45, 0x6138, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613a, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613b, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613c, BRIDGE_SN9C120), },
@@ -114,12 +120,15 @@ static const struct usb_device_id sn9c102_id_table[] = {
    Functions must return 0 on success, the appropriate error otherwise.
 */
 extern int sn9c102_probe_hv7131d(struct sn9c102_device* cam);
+extern int sn9c102_probe_hv7131r(struct sn9c102_device* cam);
 extern int sn9c102_probe_mi0343(struct sn9c102_device* cam);
+extern int sn9c102_probe_mi0360(struct sn9c102_device* cam);
 extern int sn9c102_probe_ov7630(struct sn9c102_device* cam);
 extern int sn9c102_probe_ov7660(struct sn9c102_device* cam);
 extern int sn9c102_probe_pas106b(struct sn9c102_device* cam);
 extern int sn9c102_probe_pas202bcb(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5110c1b(struct sn9c102_device* cam);
+extern int sn9c102_probe_tas5110d(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5130d1b(struct sn9c102_device* cam);
 
 /*
@@ -128,13 +137,16 @@ extern int sn9c102_probe_tas5130d1b(struct sn9c102_device* cam);
    the order of the list below, from top to bottom.
 */
 static int (*sn9c102_sensor_table[])(struct sn9c102_device*) = {
+	&sn9c102_probe_hv7131d, /* strong detection based on SENSOR ids */
+	&sn9c102_probe_hv7131r, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_mi0343, /* strong detection based on SENSOR ids */
+	&sn9c102_probe_mi0360, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_pas106b, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_pas202bcb, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_hv7131d, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_ov7630, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_ov7660, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_tas5110c1b, /* detection based on USB pid/vid */
+	&sn9c102_probe_tas5110d, /* detection based on USB pid/vid */
 	&sn9c102_probe_tas5130d1b, /* detection based on USB pid/vid */
 	NULL,
 };

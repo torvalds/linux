@@ -72,6 +72,8 @@
  *
  */
 
+#define MCPCIA_MAX_HOSES 4
+
 #define MCPCIA_MID(m)		((unsigned long)(m) << 33)
 
 /* Dodge has PCI0 and PCI1 at MID 4 and 5 respectively. 

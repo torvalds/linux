@@ -23,12 +23,12 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/stddef.h>
+#include <net/ip.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <net/transp_v6.h>
 #include <net/ipv6.h>
 
-#ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *proc_net_devsnmp6;
 
 static int fold_prot_inuse(struct proto *proto)
@@ -142,26 +142,13 @@ static struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static unsigned long
-fold_field(void *mib[], int offt)
-{
-	unsigned long res = 0;
-	int i;
-
-	for_each_possible_cpu(i) {
-		res += *(((unsigned long *)per_cpu_ptr(mib[0], i)) + offt);
-		res += *(((unsigned long *)per_cpu_ptr(mib[1], i)) + offt);
-	}
-	return res;
-}
-
 static inline void
 snmp6_seq_show_item(struct seq_file *seq, void **mib, struct snmp_mib *itemlist)
 {
 	int i;
 	for (i=0; itemlist[i].name; i++)
 		seq_printf(seq, "%-32s\t%lu\n", itemlist[i].name,
-				fold_field(mib, itemlist[i].entry));
+			   snmp_fold_field(mib, itemlist[i].entry));
 }
 
 static int snmp6_seq_show(struct seq_file *seq, void *v)
@@ -270,48 +257,4 @@ void ipv6_misc_proc_exit(void)
 	proc_net_remove("dev_snmp6");
 	proc_net_remove("snmp6");
 }
-
-#else	/* CONFIG_PROC_FS */
-
-
-int snmp6_register_dev(struct inet6_dev *idev)
-{
-	return 0;
-}
-
-int snmp6_unregister_dev(struct inet6_dev *idev)
-{
-	return 0;
-}
-#endif	/* CONFIG_PROC_FS */
-
-int snmp6_alloc_dev(struct inet6_dev *idev)
-{
-	int err = -ENOMEM;
-
-	if (!idev || !idev->dev)
-		return -EINVAL;
-
-	if (snmp6_mib_init((void **)idev->stats.ipv6, sizeof(struct ipstats_mib),
-			   __alignof__(struct ipstats_mib)) < 0)
-		goto err_ip;
-	if (snmp6_mib_init((void **)idev->stats.icmpv6, sizeof(struct icmpv6_mib),
-			   __alignof__(struct icmpv6_mib)) < 0)
-		goto err_icmp;
-
-	return 0;
-
-err_icmp:
-	snmp6_mib_free((void **)idev->stats.ipv6);
-err_ip:
-	return err;
-}
-
-int snmp6_free_dev(struct inet6_dev *idev)
-{
-	snmp6_mib_free((void **)idev->stats.icmpv6);
-	snmp6_mib_free((void **)idev->stats.ipv6);
-	return 0;
-}
-
 

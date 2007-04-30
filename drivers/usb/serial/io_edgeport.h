@@ -19,12 +19,6 @@
 #define MAX_RS232_PORTS		8	/* Max # of RS-232 ports per device */
 
 /* typedefs that the insideout headers need */
-#ifndef TRUE
-	#define TRUE		(1)
-#endif
-#ifndef FALSE
-	#define FALSE		(0)
-#endif
 #ifndef LOW8
 	#define LOW8(a)		((unsigned char)(a & 0xff))
 #endif

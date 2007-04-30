@@ -279,7 +279,7 @@ struct xfrm_type
 	xfrm_address_t		*(*local_addr)(struct xfrm_state *, xfrm_address_t *);
 	xfrm_address_t		*(*remote_addr)(struct xfrm_state *, xfrm_address_t *);
 	/* Estimate maximal size of result of transformation of a dgram */
-	u32			(*get_max_size)(struct xfrm_state *, int size);
+	u32			(*get_mtu)(struct xfrm_state *, int size);
 };
 
 extern int xfrm_register_type(struct xfrm_type *type, unsigned short family);
@@ -416,6 +416,13 @@ struct xfrm_audit
 	u32	secid;
 };
 
+/* SAD metadata, add more later */
+struct xfrm_sadinfo
+{
+	u32 sadhcnt; /* current hash bkts */
+	u32 sadhmcnt; /* max allowed hash bkts */
+	u32 sadcnt; /* current running count */
+};
 #ifdef CONFIG_AUDITSYSCALL
 extern void xfrm_audit_log(uid_t auid, u32 secid, int type, int result,
 		    struct xfrm_policy *xp, struct xfrm_state *x);
@@ -938,6 +945,7 @@ static inline int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **s
 extern struct xfrm_state *xfrm_find_acq_byseq(u32 seq);
 extern int xfrm_state_delete(struct xfrm_state *x);
 extern void xfrm_state_flush(u8 proto, struct xfrm_audit *audit_info);
+extern void xfrm_sad_getinfo(struct xfrm_sadinfo *si);
 extern int xfrm_replay_check(struct xfrm_state *x, __be32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, __be32 seq);
 extern void xfrm_replay_notify(struct xfrm_state *x, int event);

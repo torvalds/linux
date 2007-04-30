@@ -124,19 +124,12 @@ struct tagtable {
 #define for_each_tag(t,base)						\
 	for (t = base; t->hdr.size; t = tag_next(t))
 
-extern struct tag_mem_range *mem_phys;
-extern struct tag_mem_range *mem_reserved;
-extern struct tag_mem_range *mem_ramdisk;
-
 extern struct tag *bootloader_tags;
 
-extern void setup_bootmem(void);
-extern void setup_processor(void);
-extern void board_setup_fbmem(unsigned long fbmem_start,
-			      unsigned long fbmem_size);
+extern resource_size_t fbmem_start;
+extern resource_size_t fbmem_size;
 
-/* Chip-specific hook to enable the use of SDRAM */
-void chip_enable_sdram(void);
+void setup_processor(void);
 
 #endif /* !__ASSEMBLY__ */
 

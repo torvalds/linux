@@ -2,6 +2,7 @@
 #define __ASM_ARM_DIV64
 
 #include <asm/system.h>
+#include <linux/types.h>
 
 /*
  * The semantics of do_div() are:
@@ -222,5 +223,7 @@
 })
 
 #endif
+
+extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
 
 #endif

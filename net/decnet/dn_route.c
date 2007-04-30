@@ -77,6 +77,7 @@
 #include <linux/rcupdate.h>
 #include <linux/times.h>
 #include <asm/errno.h>
+#include <net/netlink.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
@@ -386,7 +387,7 @@ static int dn_return_short(struct sk_buff *skb)
 	__le16 tmp;
 
 	/* Add back headers */
-	skb_push(skb, skb->data - skb->nh.raw);
+	skb_push(skb, skb->data - skb_network_header(skb));
 
 	if ((skb = skb_unshare(skb, GFP_ATOMIC)) == NULL)
 		return NET_RX_DROP;
@@ -425,7 +426,7 @@ static int dn_return_long(struct sk_buff *skb)
 	unsigned char tmp[ETH_ALEN];
 
 	/* Add back all headers */
-	skb_push(skb, skb->data - skb->nh.raw);
+	skb_push(skb, skb->data - skb_network_header(skb));
 
 	if ((skb = skb_unshare(skb, GFP_ATOMIC)) == NULL)
 		return NET_RX_DROP;
@@ -504,7 +505,7 @@ static int dn_route_rx_long(struct sk_buff *skb)
 		goto drop_it;
 
 	skb_pull(skb, 20);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	/* Destination info */
 	ptr += 2;
@@ -542,7 +543,7 @@ static int dn_route_rx_short(struct sk_buff *skb)
 		goto drop_it;
 
 	skb_pull(skb, 5);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 
 	cb->dst = *(__le16 *)ptr;
 	ptr += 2;
@@ -615,7 +616,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 		flags = *skb->data;
 	}
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	/*
 	 * Weed out future version DECnet
@@ -1468,7 +1469,7 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	struct dn_route *rt = (struct dn_route *)skb->dst;
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	long expires;
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*r), flags);
@@ -1509,19 +1510,19 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	if (rt->fl.iif)
 		RTA_PUT(skb, RTA_IIF, sizeof(int), &rt->fl.iif);
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
 /*
  * This is called by both endnodes and routers now.
  */
-int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void *arg)
+static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct rtattr **rta = arg;
 	struct rtmsg *rtm = NLMSG_DATA(nlh);
@@ -1537,7 +1538,7 @@ int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void *arg)
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (skb == NULL)
 		return -ENOBUFS;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	cb = DN_SKB_CB(skb);
 
 	if (rta[RTA_SRC-1])
@@ -1812,6 +1813,13 @@ void __init dn_route_init(void)
 	dn_dst_ops.gc_thresh = (dn_rt_hash_mask + 1);
 
 	proc_net_fops_create("decnet_cache", S_IRUGO, &dn_rt_cache_seq_fops);
+
+#ifdef CONFIG_DECNET_ROUTER
+	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute, dn_fib_dump);
+#else
+	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
+		      dn_cache_dump);
+#endif
 }
 
 void __exit dn_route_cleanup(void)

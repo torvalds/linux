@@ -372,9 +372,9 @@ static __inline__ int led_get_net_activity(void)
 		continue;
 	    if (LOOPBACK(in_dev->ifa_list->ifa_local))
 		continue;
-	    if (!dev->get_stats) 
-		continue;
 	    stats = dev->get_stats(dev);
+	    if (!stats)
+		continue;
 	    rx_total += stats->rx_packets;
 	    tx_total += stats->tx_packets;
 	}

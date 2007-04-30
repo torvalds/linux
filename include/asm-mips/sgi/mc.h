@@ -57,7 +57,7 @@ struct sgimc_regs {
 	volatile u32 divider;	/* Divider reg for RPSS */
 
 	u32 _unused5;
-	volatile u32 eeprom;	/* EEPROM byte reg for r4k */
+	u32 eeprom;		/* EEPROM byte reg for r4k */
 #define SGIMC_EEPROM_PRE	0x00000001 /* eeprom chip PRE pin assertion */
 #define SGIMC_EEPROM_CSEL	0x00000002 /* Active high, eeprom chip select */
 #define SGIMC_EEPROM_SECLOCK	0x00000004 /* EEPROM serial clock */

@@ -34,18 +34,25 @@ static struct usb_device_id skel_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, skel_table);
 
+/* to prevent a race between open and disconnect */
+static DEFINE_MUTEX(skel_open_lock);
+
 
 /* Get a minor range for your devices from the usb maintainer */
 #define USB_SKEL_MINOR_BASE	192
 
 /* our private defines. if this grows any larger, use your own .h file */
 #define MAX_TRANSFER		(PAGE_SIZE - 512)
+/* MAX_TRANSFER is chosen so that the VM is not stressed by
+   allocations > PAGE_SIZE and the number of packets in a page
+   is an integer 512 is the largest possible packet on EHCI */
 #define WRITES_IN_FLIGHT	8
+/* arbitrarily chosen */
 
 /* Structure to hold all of our device specific stuff */
 struct usb_skel {
-	struct usb_device       *dev;			/* the usb device for this device */
-	struct usb_interface    *interface;		/* the interface for this device */
+	struct usb_device	*udev;			/* the usb device for this device */
+	struct usb_interface	*interface;		/* the interface for this device */
 	struct semaphore	limit_sem;		/* limiting the number of writes in progress */
 	unsigned char           *bulk_in_buffer;	/* the buffer to receive data */
 	size_t			bulk_in_size;		/* the size of the receive buffer */
@@ -76,8 +83,10 @@ static int skel_open(struct inode *inode, struct file *file)
 
 	subminor = iminor(inode);
 
+	mutex_lock(&skel_open_lock);
 	interface = usb_find_interface(&skel_driver, subminor);
 	if (!interface) {
+		mutex_unlock(&skel_open_lock);
 		err ("%s - error, can't find device for minor %d",
 		     __FUNCTION__, subminor);
 		retval = -ENODEV;
@@ -86,12 +95,15 @@ static int skel_open(struct inode *inode, struct file *file)
 
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
+		mutex_unlock(&skel_open_lock);
 		retval = -ENODEV;
 		goto exit;
 	}
 
 	/* increment our usage count for the device */
 	kref_get(&dev->kref);
+	/* now we can drop the lock */
+	mutex_unlock(&skel_open_lock);
 
 	/* prevent the device from being autosuspended */
 	retval = usb_autopm_get_interface(interface);
@@ -201,12 +213,6 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 		goto exit;
 	}
 
-	mutex_lock(&dev->io_mutex);
-	if (!dev->interface) {		/* disconnect() was called */
-		retval = -ENODEV;
-		goto error;
-	}
-
 	/* create a urb, and a buffer for it, and copy the data to the urb */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb) {
@@ -225,6 +231,14 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 		goto error;
 	}
 
+	/* this lock makes sure we don't submit URBs to gone devices */
+	mutex_lock(&dev->io_mutex);
+	if (!dev->interface) {		/* disconnect() was called */
+		mutex_unlock(&dev->io_mutex);
+		retval = -ENODEV;
+		goto error;
+	}
+
 	/* initialize the urb properly */
 	usb_fill_bulk_urb(urb, dev->udev,
 			  usb_sndbulkpipe(dev->udev, dev->bulk_out_endpointAddr),
@@ -233,6 +247,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 
 	/* send the data out the bulk port */
 	retval = usb_submit_urb(urb, GFP_KERNEL);
+	mutex_unlock(&dev->io_mutex);
 	if (retval) {
 		err("%s - failed submitting write urb, error %d", __FUNCTION__, retval);
 		goto error;
@@ -241,7 +256,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	/* release our reference to this urb, the USB core will eventually free it entirely */
 	usb_free_urb(urb);
 
-	mutex_unlock(&dev->io_mutex);
+
 	return writesize;
 
 error:
@@ -249,7 +264,6 @@ error:
 		usb_buffer_free(dev->udev, writesize, buf, urb->transfer_dma);
 		usb_free_urb(urb);
 	}
-	mutex_unlock(&dev->io_mutex);
 	up(&dev->limit_sem);
 
 exit:
@@ -344,6 +358,7 @@ static int skel_probe(struct usb_interface *interface, const struct usb_device_i
 
 error:
 	if (dev)
+		/* this frees allocated memory */
 		kref_put(&dev->kref, skel_delete);
 	return retval;
 }
@@ -354,20 +369,21 @@ static void skel_disconnect(struct usb_interface *interface)
 	int minor = interface->minor;
 
 	/* prevent skel_open() from racing skel_disconnect() */
-	lock_kernel();
+	mutex_lock(&skel_open_lock);
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
 	/* give back our minor */
 	usb_deregister_dev(interface, &skel_class);
+	mutex_unlock(&skel_open_lock);
 
 	/* prevent more I/O from starting */
 	mutex_lock(&dev->io_mutex);
 	dev->interface = NULL;
 	mutex_unlock(&dev->io_mutex);
 
-	unlock_kernel();
+
 
 	/* decrement our usage count */
 	kref_put(&dev->kref, skel_delete);
@@ -380,6 +396,7 @@ static struct usb_driver skel_driver = {
 	.probe =	skel_probe,
 	.disconnect =	skel_disconnect,
 	.id_table =	skel_table,
+	.supports_autosuspend = 1,
 };
 
 static int __init usb_skel_init(void)

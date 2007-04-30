@@ -22,9 +22,6 @@
 #include "sn9c102_sensor.h"
 
 
-static struct sn9c102_sensor ov7630;
-
-
 static int ov7630_init(struct sn9c102_device* cam)
 {
 	int err = 0;
@@ -32,21 +29,20 @@ static int ov7630_init(struct sn9c102_device* cam)
 	switch (sn9c102_get_bridge(cam)) {
 	case BRIDGE_SN9C101:
 	case BRIDGE_SN9C102:
-	err += sn9c102_write_reg(cam, 0x00, 0x14);
-	err += sn9c102_write_reg(cam, 0x60, 0x17);
-	err += sn9c102_write_reg(cam, 0x0f, 0x18);
-	err += sn9c102_write_reg(cam, 0x50, 0x19);
+		err = sn9c102_write_const_regs(cam, {0x00, 0x14},
+					       {0x60, 0x17}, {0x0f, 0x18},
+					       {0x50, 0x19});
 
 		err += sn9c102_i2c_write(cam, 0x12, 0x8d);
 		err += sn9c102_i2c_write(cam, 0x12, 0x0d);
 		err += sn9c102_i2c_write(cam, 0x11, 0x00);
-	err += sn9c102_i2c_write(cam, 0x15, 0x34);
-	err += sn9c102_i2c_write(cam, 0x16, 0x03);
-	err += sn9c102_i2c_write(cam, 0x17, 0x1c);
-	err += sn9c102_i2c_write(cam, 0x18, 0xbd);
-	err += sn9c102_i2c_write(cam, 0x19, 0x06);
-	err += sn9c102_i2c_write(cam, 0x1a, 0xf6);
-	err += sn9c102_i2c_write(cam, 0x1b, 0x04);
+		err += sn9c102_i2c_write(cam, 0x15, 0x35);
+		err += sn9c102_i2c_write(cam, 0x16, 0x03);
+		err += sn9c102_i2c_write(cam, 0x17, 0x1c);
+		err += sn9c102_i2c_write(cam, 0x18, 0xbd);
+		err += sn9c102_i2c_write(cam, 0x19, 0x06);
+		err += sn9c102_i2c_write(cam, 0x1a, 0xf6);
+		err += sn9c102_i2c_write(cam, 0x1b, 0x04);
 		err += sn9c102_i2c_write(cam, 0x20, 0x44);
 		err += sn9c102_i2c_write(cam, 0x23, 0xee);
 		err += sn9c102_i2c_write(cam, 0x26, 0xa0);
@@ -65,42 +61,26 @@ static int ov7630_init(struct sn9c102_device* cam)
 		err += sn9c102_i2c_write(cam, 0x71, 0x00);
 		err += sn9c102_i2c_write(cam, 0x74, 0x21);
 		err += sn9c102_i2c_write(cam, 0x7d, 0xf7);
+
 		break;
 	case BRIDGE_SN9C103:
-		err += sn9c102_write_reg(cam, 0x00, 0x02);
-		err += sn9c102_write_reg(cam, 0x00, 0x03);
-		err += sn9c102_write_reg(cam, 0x1a, 0x04);
-		err += sn9c102_write_reg(cam, 0x20, 0x05);
-		err += sn9c102_write_reg(cam, 0x20, 0x06);
-		err += sn9c102_write_reg(cam, 0x20, 0x07);
-		err += sn9c102_write_reg(cam, 0x03, 0x10);
-		err += sn9c102_write_reg(cam, 0x0a, 0x14);
-		err += sn9c102_write_reg(cam, 0x60, 0x17);
-		err += sn9c102_write_reg(cam, 0x0f, 0x18);
-		err += sn9c102_write_reg(cam, 0x50, 0x19);
-		err += sn9c102_write_reg(cam, 0x1d, 0x1a);
-		err += sn9c102_write_reg(cam, 0x10, 0x1b);
-		err += sn9c102_write_reg(cam, 0x02, 0x1c);
-		err += sn9c102_write_reg(cam, 0x03, 0x1d);
-		err += sn9c102_write_reg(cam, 0x0f, 0x1e);
-		err += sn9c102_write_reg(cam, 0x0c, 0x1f);
-		err += sn9c102_write_reg(cam, 0x00, 0x20);
-		err += sn9c102_write_reg(cam, 0x10, 0x21);
-		err += sn9c102_write_reg(cam, 0x20, 0x22);
-		err += sn9c102_write_reg(cam, 0x30, 0x23);
-		err += sn9c102_write_reg(cam, 0x40, 0x24);
-		err += sn9c102_write_reg(cam, 0x50, 0x25);
-		err += sn9c102_write_reg(cam, 0x60, 0x26);
-		err += sn9c102_write_reg(cam, 0x70, 0x27);
-		err += sn9c102_write_reg(cam, 0x80, 0x28);
-		err += sn9c102_write_reg(cam, 0x90, 0x29);
-		err += sn9c102_write_reg(cam, 0xa0, 0x2a);
-		err += sn9c102_write_reg(cam, 0xb0, 0x2b);
-		err += sn9c102_write_reg(cam, 0xc0, 0x2c);
-		err += sn9c102_write_reg(cam, 0xd0, 0x2d);
-		err += sn9c102_write_reg(cam, 0xe0, 0x2e);
-		err += sn9c102_write_reg(cam, 0xf0, 0x2f);
-		err += sn9c102_write_reg(cam, 0xff, 0x30);
+		err = sn9c102_write_const_regs(cam, {0x00, 0x02}, {0x00, 0x03},
+					       {0x1a, 0x04}, {0x20, 0x05},
+					       {0x20, 0x06}, {0x20, 0x07},
+					       {0x03, 0x10}, {0x0a, 0x14},
+					       {0x60, 0x17}, {0x0f, 0x18},
+					       {0x50, 0x19}, {0x1d, 0x1a},
+					       {0x10, 0x1b}, {0x02, 0x1c},
+					       {0x03, 0x1d}, {0x0f, 0x1e},
+					       {0x0c, 0x1f}, {0x00, 0x20},
+					       {0x10, 0x21}, {0x20, 0x22},
+					       {0x30, 0x23}, {0x40, 0x24},
+					       {0x50, 0x25}, {0x60, 0x26},
+					       {0x70, 0x27}, {0x80, 0x28},
+					       {0x90, 0x29}, {0xa0, 0x2a},
+					       {0xb0, 0x2b}, {0xc0, 0x2c},
+					       {0xd0, 0x2d}, {0xe0, 0x2e},
+					       {0xf0, 0x2f}, {0xff, 0x30});
 
 		err += sn9c102_i2c_write(cam, 0x12, 0x8d);
 		err += sn9c102_i2c_write(cam, 0x12, 0x0d);
@@ -108,23 +88,23 @@ static int ov7630_init(struct sn9c102_device* cam)
 		err += sn9c102_i2c_write(cam, 0x11, 0x01);
 		err += sn9c102_i2c_write(cam, 0x1b, 0x04);
 		err += sn9c102_i2c_write(cam, 0x20, 0x44);
-	err += sn9c102_i2c_write(cam, 0x23, 0xee);
-	err += sn9c102_i2c_write(cam, 0x26, 0xa0);
-	err += sn9c102_i2c_write(cam, 0x27, 0x9a);
+		err += sn9c102_i2c_write(cam, 0x23, 0xee);
+		err += sn9c102_i2c_write(cam, 0x26, 0xa0);
+		err += sn9c102_i2c_write(cam, 0x27, 0x9a);
 		err += sn9c102_i2c_write(cam, 0x28, 0x20);
-	err += sn9c102_i2c_write(cam, 0x29, 0x30);
-	err += sn9c102_i2c_write(cam, 0x2f, 0x3d);
-	err += sn9c102_i2c_write(cam, 0x30, 0x24);
-	err += sn9c102_i2c_write(cam, 0x32, 0x86);
-	err += sn9c102_i2c_write(cam, 0x60, 0xa9);
-	err += sn9c102_i2c_write(cam, 0x61, 0x42);
-	err += sn9c102_i2c_write(cam, 0x65, 0x00);
-	err += sn9c102_i2c_write(cam, 0x69, 0x38);
-	err += sn9c102_i2c_write(cam, 0x6f, 0x88);
-	err += sn9c102_i2c_write(cam, 0x70, 0x0b);
-	err += sn9c102_i2c_write(cam, 0x71, 0x00);
-	err += sn9c102_i2c_write(cam, 0x74, 0x21);
-	err += sn9c102_i2c_write(cam, 0x7d, 0xf7);
+		err += sn9c102_i2c_write(cam, 0x29, 0x30);
+		err += sn9c102_i2c_write(cam, 0x2f, 0x3d);
+		err += sn9c102_i2c_write(cam, 0x30, 0x24);
+		err += sn9c102_i2c_write(cam, 0x32, 0x86);
+		err += sn9c102_i2c_write(cam, 0x60, 0xa9);
+		err += sn9c102_i2c_write(cam, 0x61, 0x42);
+		err += sn9c102_i2c_write(cam, 0x65, 0x00);
+		err += sn9c102_i2c_write(cam, 0x69, 0x38);
+		err += sn9c102_i2c_write(cam, 0x6f, 0x88);
+		err += sn9c102_i2c_write(cam, 0x70, 0x0b);
+		err += sn9c102_i2c_write(cam, 0x71, 0x00);
+		err += sn9c102_i2c_write(cam, 0x74, 0x21);
+		err += sn9c102_i2c_write(cam, 0x7d, 0xf7);
 		break;
 	default:
 		break;
@@ -428,15 +408,14 @@ int sn9c102_probe_ov7630(struct sn9c102_device* cam)
 	switch (sn9c102_get_bridge(cam)) {
 	case BRIDGE_SN9C101:
 	case BRIDGE_SN9C102:
-	err += sn9c102_write_reg(cam, 0x01, 0x01);
-	err += sn9c102_write_reg(cam, 0x00, 0x01);
-	err += sn9c102_write_reg(cam, 0x28, 0x17);
+		err = sn9c102_write_const_regs(cam, {0x01, 0x01},
+					       {0x00, 0x01}, {0x28, 0x17});
+
 		break;
 	case BRIDGE_SN9C103: /* do _not_ change anything! */
-		err += sn9c102_write_reg(cam, 0x09, 0x01);
-		err += sn9c102_write_reg(cam, 0x42, 0x01);
-		err += sn9c102_write_reg(cam, 0x28, 0x17);
-		err += sn9c102_write_reg(cam, 0x44, 0x02);
+		err = sn9c102_write_const_regs(cam, {0x09, 0x01},
+					       {0x42, 0x01}, {0x28, 0x17},
+					       {0x44, 0x02});
 		pid = sn9c102_i2c_try_read(cam, &ov7630, 0x0a);
 		if (err || pid < 0) { /* try a different initialization */
 			err = sn9c102_write_reg(cam, 0x01, 0x01);

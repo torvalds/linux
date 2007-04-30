@@ -50,6 +50,7 @@
 #include <linux/skbuff.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
+#include <net/netlink.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <linux/rbtree.h>
@@ -128,7 +129,7 @@ struct htb_class {
 	} un;
 	struct rb_node node[TC_HTB_NUMPRIO];	/* node for self or feed tree */
 	struct rb_node pq_node;	/* node for event queue */
-	unsigned long pq_key;	/* the same type as jiffies global */
+	psched_time_t pq_key;
 
 	int prio_activity;	/* for which prios are we active */
 	enum htb_cmode cmode;	/* current mode of the class */
@@ -179,10 +180,7 @@ struct htb_sched {
 	struct rb_root wait_pq[TC_HTB_MAXDEPTH];
 
 	/* time of nearest event per level (row) */
-	unsigned long near_ev_cache[TC_HTB_MAXDEPTH];
-
-	/* cached value of jiffies in dequeue */
-	unsigned long jiffies;
+	psched_time_t near_ev_cache[TC_HTB_MAXDEPTH];
 
 	/* whether we hit non-work conserving class during this dequeue; we use */
 	int nwc_hit;		/* this to disable mindelay complaint in dequeue */
@@ -195,7 +193,7 @@ struct htb_sched {
 
 	int rate2quantum;	/* quant = rate / rate2quantum */
 	psched_time_t now;	/* cached dequeue time */
-	struct timer_list timer;	/* send delay timer */
+	struct qdisc_watchdog watchdog;
 #ifdef HTB_RATECM
 	struct timer_list rttim;	/* rate computer timer */
 	int recmp_bucket;	/* which hash bucket to recompute next */
@@ -342,19 +340,19 @@ static void htb_add_to_wait_tree(struct htb_sched *q,
 {
 	struct rb_node **p = &q->wait_pq[cl->level].rb_node, *parent = NULL;
 
-	cl->pq_key = q->jiffies + PSCHED_US2JIFFIE(delay);
-	if (cl->pq_key == q->jiffies)
+	cl->pq_key = q->now + delay;
+	if (cl->pq_key == q->now)
 		cl->pq_key++;
 
 	/* update the nearest event cache */
-	if (time_after(q->near_ev_cache[cl->level], cl->pq_key))
+	if (q->near_ev_cache[cl->level] > cl->pq_key)
 		q->near_ev_cache[cl->level] = cl->pq_key;
 
 	while (*p) {
 		struct htb_class *c;
 		parent = *p;
 		c = rb_entry(parent, struct htb_class, pq_node);
-		if (time_after_eq(cl->pq_key, c->pq_key))
+		if (cl->pq_key >= c->pq_key)
 			p = &parent->rb_right;
 		else
 			p = &parent->rb_left;
@@ -679,14 +677,6 @@ static int htb_requeue(struct sk_buff *skb, struct Qdisc *sch)
 	return NET_XMIT_SUCCESS;
 }
 
-static void htb_timer(unsigned long arg)
-{
-	struct Qdisc *sch = (struct Qdisc *)arg;
-	sch->flags &= ~TCQ_F_THROTTLED;
-	wmb();
-	netif_schedule(sch->dev);
-}
-
 #ifdef HTB_RATECM
 #define RT_GEN(D,R) R+=D-(R/HTB_EWMAC);D=0
 static void htb_rate_timer(unsigned long arg)
@@ -739,7 +729,7 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 	cl->T = toks
 
 	while (cl) {
-		diff = PSCHED_TDIFF_SAFE(q->now, cl->t_c, (u32) cl->mbuffer);
+		diff = psched_tdiff_bounded(q->now, cl->t_c, cl->mbuffer);
 		if (cl->level >= level) {
 			if (cl->level == level)
 				cl->xstats.lends++;
@@ -778,11 +768,11 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 /**
  * htb_do_events - make mode changes to classes at the level
  *
- * Scans event queue for pending events and applies them. Returns jiffies to
+ * Scans event queue for pending events and applies them. Returns time of
  * next pending event (0 for no event in pq).
- * Note: Aplied are events whose have cl->pq_key <= jiffies.
+ * Note: Applied are events whose have cl->pq_key <= q->now.
  */
-static long htb_do_events(struct htb_sched *q, int level)
+static psched_time_t htb_do_events(struct htb_sched *q, int level)
 {
 	int i;
 
@@ -795,18 +785,18 @@ static long htb_do_events(struct htb_sched *q, int level)
 			return 0;
 
 		cl = rb_entry(p, struct htb_class, pq_node);
-		if (time_after(cl->pq_key, q->jiffies)) {
-			return cl->pq_key - q->jiffies;
-		}
+		if (cl->pq_key > q->now)
+			return cl->pq_key;
+
 		htb_safe_rb_erase(p, q->wait_pq + level);
-		diff = PSCHED_TDIFF_SAFE(q->now, cl->t_c, (u32) cl->mbuffer);
+		diff = psched_tdiff_bounded(q->now, cl->t_c, cl->mbuffer);
 		htb_change_class_mode(q, cl, &diff);
 		if (cl->cmode != HTB_CAN_SEND)
 			htb_add_to_wait_tree(q, cl, diff);
 	}
 	if (net_ratelimit())
 		printk(KERN_WARNING "htb: too many events !\n");
-	return HZ / 10;
+	return q->now + PSCHED_TICKS_PER_SEC / 10;
 }
 
 /* Returns class->node+prio from id-tree where classe's id is >= id. NULL
@@ -958,30 +948,12 @@ next:
 	return skb;
 }
 
-static void htb_delay_by(struct Qdisc *sch, long delay)
-{
-	struct htb_sched *q = qdisc_priv(sch);
-	if (delay <= 0)
-		delay = 1;
-	if (unlikely(delay > 5 * HZ)) {
-		if (net_ratelimit())
-			printk(KERN_INFO "HTB delay %ld > 5sec\n", delay);
-		delay = 5 * HZ;
-	}
-	/* why don't use jiffies here ? because expires can be in past */
-	mod_timer(&q->timer, q->jiffies + delay);
-	sch->flags |= TCQ_F_THROTTLED;
-	sch->qstats.overlimits++;
-}
-
 static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 {
 	struct sk_buff *skb = NULL;
 	struct htb_sched *q = qdisc_priv(sch);
 	int level;
-	long min_delay;
-
-	q->jiffies = jiffies;
+	psched_time_t next_event;
 
 	/* try to dequeue direct packets as high prio (!) to minimize cpu work */
 	skb = __skb_dequeue(&q->direct_queue);
@@ -993,23 +965,25 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 
 	if (!sch->q.qlen)
 		goto fin;
-	PSCHED_GET_TIME(q->now);
+	q->now = psched_get_time();
 
-	min_delay = LONG_MAX;
+	next_event = q->now + 5 * PSCHED_TICKS_PER_SEC;
 	q->nwc_hit = 0;
 	for (level = 0; level < TC_HTB_MAXDEPTH; level++) {
 		/* common case optimization - skip event handler quickly */
 		int m;
-		long delay;
-		if (time_after_eq(q->jiffies, q->near_ev_cache[level])) {
-			delay = htb_do_events(q, level);
-			q->near_ev_cache[level] =
-			    q->jiffies + (delay ? delay : HZ);
-		} else
-			delay = q->near_ev_cache[level] - q->jiffies;
+		psched_time_t event;
 
-		if (delay && min_delay > delay)
-			min_delay = delay;
+		if (q->now >= q->near_ev_cache[level]) {
+			event = htb_do_events(q, level);
+			q->near_ev_cache[level] = event ? event :
+							  PSCHED_TICKS_PER_SEC;
+		} else
+			event = q->near_ev_cache[level];
+
+		if (event && next_event > event)
+			next_event = event;
+
 		m = ~q->row_mask[level];
 		while (m != (int)(-1)) {
 			int prio = ffz(m);
@@ -1022,7 +996,8 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 			}
 		}
 	}
-	htb_delay_by(sch, min_delay > 5 * HZ ? 5 * HZ : min_delay);
+	sch->qstats.overlimits++;
+	qdisc_watchdog_schedule(&q->watchdog, next_event);
 fin:
 	return skb;
 }
@@ -1075,8 +1050,7 @@ static void htb_reset(struct Qdisc *sch)
 
 		}
 	}
-	sch->flags &= ~TCQ_F_THROTTLED;
-	del_timer(&q->timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 	__skb_queue_purge(&q->direct_queue);
 	sch->q.qlen = 0;
 	memset(q->row, 0, sizeof(q->row));
@@ -1113,14 +1087,12 @@ static int htb_init(struct Qdisc *sch, struct rtattr *opt)
 	for (i = 0; i < TC_HTB_NUMPRIO; i++)
 		INIT_LIST_HEAD(q->drops + i);
 
-	init_timer(&q->timer);
+	qdisc_watchdog_init(&q->watchdog, sch);
 	skb_queue_head_init(&q->direct_queue);
 
 	q->direct_qlen = sch->dev->tx_queue_len;
 	if (q->direct_qlen < 2)	/* some devices have zero tx_queue_len */
 		q->direct_qlen = 2;
-	q->timer.function = htb_timer;
-	q->timer.data = (unsigned long)sch;
 
 #ifdef HTB_RATECM
 	init_timer(&q->rttim);
@@ -1139,7 +1111,7 @@ static int htb_init(struct Qdisc *sch, struct rtattr *opt)
 static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct htb_sched *q = qdisc_priv(sch);
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 	struct tc_htb_glob gopt;
 	spin_lock_bh(&sch->dev->queue_lock);
@@ -1152,12 +1124,12 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	rta = (struct rtattr *)b;
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	RTA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
 rtattr_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
-	skb_trim(skb, skb->tail - skb->data);
+	nlmsg_trim(skb, skb_tail_pointer(skb));
 	return -1;
 }
 
@@ -1165,7 +1137,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 			  struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 	struct tc_htb_opt opt;
 
@@ -1188,12 +1160,12 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	opt.prio = cl->un.leaf.prio;
 	opt.level = cl->level;
 	RTA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
 rtattr_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -1264,16 +1236,6 @@ static unsigned long htb_get(struct Qdisc *sch, u32 classid)
 	return (unsigned long)cl;
 }
 
-static void htb_destroy_filters(struct tcf_proto **fl)
-{
-	struct tcf_proto *tp;
-
-	while ((tp = *fl) != NULL) {
-		*fl = tp->next;
-		tcf_destroy(tp);
-	}
-}
-
 static inline int htb_parent_last_child(struct htb_class *cl)
 {
 	if (!cl->parent)
@@ -1302,7 +1264,7 @@ static void htb_parent_to_leaf(struct htb_class *cl, struct Qdisc *new_q)
 	parent->un.leaf.prio = parent->prio;
 	parent->tokens = parent->buffer;
 	parent->ctokens = parent->cbuffer;
-	PSCHED_GET_TIME(parent->t_c);
+	parent->t_c = psched_get_time();
 	parent->cmode = HTB_CAN_SEND;
 }
 
@@ -1317,7 +1279,7 @@ static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 	qdisc_put_rtab(cl->rate);
 	qdisc_put_rtab(cl->ceil);
 
-	htb_destroy_filters(&cl->filter_list);
+	tcf_destroy_chain(cl->filter_list);
 
 	while (!list_empty(&cl->children))
 		htb_destroy_class(sch, list_entry(cl->children.next,
@@ -1341,7 +1303,7 @@ static void htb_destroy(struct Qdisc *sch)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 
-	del_timer_sync(&q->timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 #ifdef HTB_RATECM
 	del_timer_sync(&q->rttim);
 #endif
@@ -1349,7 +1311,7 @@ static void htb_destroy(struct Qdisc *sch)
 	   and surprisingly it worked in 2.4. But it must precede it
 	   because filter need its target class alive to be able to call
 	   unbind_filter on it (without Oops). */
-	htb_destroy_filters(&q->filter_list);
+	tcf_destroy_chain(q->filter_list);
 
 	while (!list_empty(&q->root))
 		htb_destroy_class(sch, list_entry(q->root.next,
@@ -1498,8 +1460,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		/* set class to be in HTB_CAN_SEND state */
 		cl->tokens = hopt->buffer;
 		cl->ctokens = hopt->cbuffer;
-		cl->mbuffer = PSCHED_JIFFIE2US(HZ * 60);	/* 1min */
-		PSCHED_GET_TIME(cl->t_c);
+		cl->mbuffer = 60 * PSCHED_TICKS_PER_SEC;	/* 1min */
+		cl->t_c = psched_get_time();
 		cl->cmode = HTB_CAN_SEND;
 
 		/* attach to the hash list and parent's family */

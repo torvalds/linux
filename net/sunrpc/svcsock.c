@@ -452,6 +452,8 @@ union svc_pktinfo_u {
 	struct in_pktinfo pkti;
 	struct in6_pktinfo pkti6;
 };
+#define SVC_PKTINFO_SPACE \
+	CMSG_SPACE(sizeof(union svc_pktinfo_u))
 
 static void svc_set_cmsg_data(struct svc_rqst *rqstp, struct cmsghdr *cmh)
 {
@@ -491,8 +493,11 @@ svc_sendto(struct svc_rqst *rqstp, struct xdr_buf *xdr)
 	struct svc_sock	*svsk = rqstp->rq_sock;
 	struct socket	*sock = svsk->sk_sock;
 	int		slen;
-	char 		buffer[CMSG_SPACE(sizeof(union svc_pktinfo_u))];
-	struct cmsghdr *cmh = (struct cmsghdr *)buffer;
+	union {
+		struct cmsghdr	hdr;
+		long		all[SVC_PKTINFO_SPACE / sizeof(long)];
+	} buffer;
+	struct cmsghdr *cmh = &buffer.hdr;
 	int		len = 0;
 	int		result;
 	int		size;
@@ -745,8 +750,11 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 	struct svc_sock	*svsk = rqstp->rq_sock;
 	struct svc_serv	*serv = svsk->sk_server;
 	struct sk_buff	*skb;
-	char		buffer[CMSG_SPACE(sizeof(union svc_pktinfo_u))];
-	struct cmsghdr *cmh = (struct cmsghdr *)buffer;
+	union {
+		struct cmsghdr	hdr;
+		long		all[SVC_PKTINFO_SPACE / sizeof(long)];
+	} buffer;
+	struct cmsghdr *cmh = &buffer.hdr;
 	int		err, len;
 	struct msghdr msg = {
 		.msg_name = svc_addr(rqstp),
@@ -790,16 +798,12 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		dprintk("svc: recvfrom returned error %d\n", -err);
 	}
 	rqstp->rq_addrlen = sizeof(rqstp->rq_addr);
-	if (skb->tstamp.off_sec == 0) {
-		struct timeval tv;
-
-		tv.tv_sec = xtime.tv_sec;
-		tv.tv_usec = xtime.tv_nsec / NSEC_PER_USEC;
-		skb_set_timestamp(skb, &tv);
+	if (skb->tstamp.tv64 == 0) {
+		skb->tstamp = ktime_get_real();
 		/* Don't enable netstamp, sunrpc doesn't
 		   need that much accuracy */
 	}
-	skb_get_timestamp(skb, &svsk->sk_sk->sk_stamp);
+	svsk->sk_sk->sk_stamp = skb->tstamp;
 	set_bit(SK_DATA, &svsk->sk_flags); /* there may be more data... */
 
 	/*

@@ -988,7 +988,6 @@ static void elmc_rcv_int(struct net_device *dev)
 				rbd->status = 0;
 				skb = (struct sk_buff *) dev_alloc_skb(totlen + 2);
 				if (skb != NULL) {
-					skb->dev = dev;
 					skb_reserve(skb, 2);	/* 16 byte alignment */
 					skb_put(skb,totlen);
 					eth_copy_and_sum(skb, (char *) p->base+(unsigned long) rbd->buffer,totlen,0);
@@ -1146,7 +1145,7 @@ static int elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	if (len != skb->len)
 		memset((char *) p->xmit_cbuffs[p->xmit_count], 0, ETH_ZLEN);
-	memcpy((char *) p->xmit_cbuffs[p->xmit_count], (char *) (skb->data), skb->len);
+	skb_copy_from_linear_data(skb, (char *) p->xmit_cbuffs[p->xmit_count], skb->len);
 
 #if (NUM_XMIT_BUFFS == 1)
 #ifdef NO_NOPCOMMANDS

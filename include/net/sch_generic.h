@@ -5,10 +5,10 @@
 #include <linux/types.h>
 #include <linux/rcupdate.h>
 #include <linux/module.h>
-#include <linux/rtnetlink.h>
 #include <linux/pkt_sched.h>
 #include <linux/pkt_cls.h>
 #include <net/gen_stats.h>
+#include <net/rtnetlink.h>
 
 struct Qdisc_ops;
 struct qdisc_walker;
@@ -177,14 +177,8 @@ extern void qdisc_tree_decrease_qlen(struct Qdisc *qdisc, unsigned int n);
 extern struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops);
 extern struct Qdisc *qdisc_create_dflt(struct net_device *dev,
 				       struct Qdisc_ops *ops, u32 parentid);
-
-static inline void
-tcf_destroy(struct tcf_proto *tp)
-{
-	tp->ops->destroy(tp);
-	module_put(tp->ops->owner);
-	kfree(tp);
-}
+extern void tcf_destroy(struct tcf_proto *tp);
+extern void tcf_destroy_chain(struct tcf_proto *fl);
 
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 				       struct sk_buff_head *list)

@@ -206,7 +206,7 @@ struct hpc3_regs {
 #define HPC3_GIOMISC_ERTIME	0x1	/* Enable external timer real time. */
 #define HPC3_GIOMISC_DENDIAN	0x2	/* dma descriptor endian, 1=lit 0=big */
 
-	volatile u32 eeprom;		/* EEPROM data reg. */
+	u32 eeprom;			/* EEPROM data reg. */
 #define HPC3_EEPROM_EPROT	0x01	/* Protect register enable */
 #define HPC3_EEPROM_CSEL	0x02	/* Chip select */
 #define HPC3_EEPROM_ECLK	0x04	/* EEPROM clock */

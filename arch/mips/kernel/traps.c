@@ -650,7 +650,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	unsigned int opcode, bcode;
 	siginfo_t info;
 
-	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+	if (__get_user(opcode, (unsigned int __user *) exception_epc(regs)))
 		goto out_sigsegv;
 
 	/*
@@ -700,7 +700,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	unsigned int opcode, tcode = 0;
 	siginfo_t info;
 
-	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+	if (__get_user(opcode, (unsigned int __user *) exception_epc(regs)))
 		goto out_sigsegv;
 
 	/* Immediate versions don't provide a code.  */
@@ -757,11 +757,12 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 {
 	unsigned int cpid;
 
+	die_if_kernel("do_cpu invoked from kernel context!", regs);
+
 	cpid = (regs->cp0_cause >> CAUSEB_CE) & 3;
 
 	switch (cpid) {
 	case 0:
-		die_if_kernel("do_cpu invoked from kernel context!", regs);
 		if (!cpu_has_llsc)
 			if (!simulate_llsc(regs))
 				return;
@@ -772,9 +773,6 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 		break;
 
 	case 1:
-		if (!test_thread_flag(TIF_ALLOW_FP_IN_KERNEL))
-			die_if_kernel("do_cpu invoked from kernel context!",
-				      regs);
 		if (used_math())	/* Using the FPU again.  */
 			own_fpu(1);
 		else {			/* First time FPU user.  */
@@ -782,19 +780,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			set_used_math();
 		}
 
-		if (raw_cpu_has_fpu) {
-			if (test_thread_flag(TIF_ALLOW_FP_IN_KERNEL)) {
-				local_irq_disable();
-				if (cpu_has_fpu)
-					regs->cp0_status |= ST0_CU1;
-				/*
-				 * We must return without enabling
-				 * interrupts to ensure keep FPU
-				 * ownership until resume.
-				 */
-				return;
-			}
-		} else {
+		if (!raw_cpu_has_fpu) {
 			int sig;
 			sig = fpu_emulator_cop1Handler(regs,
 						&current->thread.fpu, 0);
@@ -836,7 +822,6 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 	case 2:
 	case 3:
-		die_if_kernel("do_cpu invoked from kernel context!", regs);
 		break;
 	}
 

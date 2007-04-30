@@ -231,6 +231,10 @@ struct saa7134_format {
 #define SAA7134_BOARD_ENCORE_ENLTV         106
 #define SAA7134_BOARD_ENCORE_ENLTV_FM      107
 #define SAA7134_BOARD_CINERGY_HT_PCI       108
+#define SAA7134_BOARD_PHILIPS_TIGER_S      109
+#define SAA7134_BOARD_AVERMEDIA_M102	   110
+#define SAA7134_BOARD_ASUS_P7131_4871	   111
+#define SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA 112
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -280,6 +284,7 @@ struct saa7134_board {
 	unsigned char		radio_addr;
 
 	unsigned int            tda9887_conf;
+	unsigned int            tuner_config;
 
 	/* peripheral I/O */
 	enum saa7134_video_out  video_out;
@@ -435,6 +440,8 @@ struct saa7134_dev {
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;
 #endif
+	/* workstruct for loading modules */
+	struct work_struct request_module_wk;
 
 	/* insmod option/autodetected */
 	int                        autodetected;
@@ -562,6 +569,8 @@ extern struct list_head  saa7134_devlist;
 extern int saa7134_no_overlay;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
+void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);
+int saa7134_tuner_callback(void *ptr, int command, int arg);
 
 #define SAA7134_PGTABLE_SIZE 4096
 
@@ -620,7 +629,6 @@ int saa7134_common_ioctl(struct saa7134_dev *dev,
 
 int saa7134_video_init1(struct saa7134_dev *dev);
 int saa7134_video_init2(struct saa7134_dev *dev);
-int saa7134_video_fini(struct saa7134_dev *dev);
 void saa7134_irq_video_intl(struct saa7134_dev *dev);
 void saa7134_irq_video_done(struct saa7134_dev *dev, unsigned long status);
 

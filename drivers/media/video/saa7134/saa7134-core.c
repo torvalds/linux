@@ -117,6 +117,64 @@ void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 	       dev->name, mode, (~mode) & status, mode & status, msg);
 }
 
+void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
+{
+	u32 index, bitval;
+
+	index = 1 << bit_no;
+	switch (value) {
+	case 0: /* static value */
+	case 1:	dprintk("setting GPIO%d to static %d\n", bit_no, value);
+		/* turn sync mode off if necessary */
+		if (index & 0x00c00000)
+			saa_andorb(SAA7134_VIDEO_PORT_CTRL6, 0x0f, 0x00);
+		if (value)
+			bitval = index;
+		else
+			bitval = 0;
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, index, index);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, index, bitval);
+		break;
+	case 3:	/* tristate */
+		dprintk("setting GPIO%d to tristate\n", bit_no);
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, index, 0);
+		break;
+	}
+}
+
+int saa7134_tuner_callback(void *ptr, int command, int arg)
+{
+	u8 sync_control;
+	struct saa7134_dev *dev = ptr;
+
+	switch (dev->tuner_type) {
+	case TUNER_PHILIPS_TDA8290:
+		switch (command) {
+		case 0: /* switch LNA gain through GPIO 22*/
+			saa7134_set_gpio(dev, 22, arg) ;
+			break;
+		case 1: /* vsync output at GPIO22. 50 / 60Hz */
+			dprintk("setting GPIO22 to vsync %d\n", arg);
+			saa_andorb(SAA7134_VIDEO_PORT_CTRL3, 0x80, 0x80);
+			saa_andorb(SAA7134_VIDEO_PORT_CTRL6, 0x0f, 0x03);
+			if (arg == 1)
+				sync_control = 11;
+			else
+				sync_control = 17;
+			saa_writeb(SAA7134_VGATE_START, sync_control);
+			saa_writeb(SAA7134_VGATE_STOP, sync_control + 1);
+			saa_andorb(SAA7134_MISC_VGATE_MSB, 0x03, 0x00);
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	default:
+		return -ENODEV;
+	}
+	return 0;
+}
+
 /* ------------------------------------------------------------------ */
 
 
@@ -124,55 +182,28 @@ void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 /* delayed request_module                                      */
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
-static int need_empress;
-static int need_dvb;
-static int need_alsa;
-static int need_oss;
 
-static int pending_call(struct notifier_block *self, unsigned long state,
-			void *module)
-{
-	if (module != THIS_MODULE || state != MODULE_STATE_LIVE)
-		return NOTIFY_DONE;
 
-	if (need_empress)
+static void request_module_async(struct work_struct *work){
+	struct saa7134_dev* dev = container_of(work, struct saa7134_dev, request_module_wk);
+	if (card_is_empress(dev))
 		request_module("saa7134-empress");
-	if (need_dvb)
+	if (card_is_dvb(dev))
 		request_module("saa7134-dvb");
-	if (need_alsa)
+	if (alsa)
 		request_module("saa7134-alsa");
-	if (need_oss)
+	if (oss)
 		request_module("saa7134-oss");
-	return NOTIFY_DONE;
 }
 
-static int pending_registered;
-static struct notifier_block pending_notifier = {
-	.notifier_call = pending_call,
-};
-
-static void request_module_depend(char *name, int *flag)
+static void request_submodules(struct saa7134_dev *dev)
 {
-	int err;
-	switch (THIS_MODULE->state) {
-	case MODULE_STATE_COMING:
-		if (!pending_registered) {
-			err = register_module_notifier(&pending_notifier);
-			pending_registered = 1;
-		}
-		*flag = 1;
-		break;
-	case MODULE_STATE_LIVE:
-		request_module(name);
-		break;
-	default:
-		/* nothing */;
-		break;
-	}
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
 }
 
 #else
-#define request_module_depend(name,flag)
+#define request_submodules(dev)
 #endif /* CONFIG_MODULES */
 
 /* ------------------------------------------------------------------ */
@@ -703,7 +734,6 @@ static int saa7134_hwfini(struct saa7134_dev *dev)
 		saa7134_ts_fini(dev);
 	saa7134_input_fini(dev);
 	saa7134_vbi_fini(dev);
-	saa7134_video_fini(dev);
 	saa7134_tvaudio_fini(dev);
 	return 0;
 }
@@ -944,18 +974,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		request_module("tuner");
 	if (card_is_empress(dev)) {
 		request_module("saa6752hs");
-		request_module_depend("saa7134-empress",&need_empress);
 	}
 
-	if (card_is_dvb(dev))
-		request_module_depend("saa7134-dvb",&need_dvb);
-
-
-	if (alsa)
-		request_module_depend("saa7134-alsa",&need_alsa);
-
-	if (oss)
-		request_module_depend("saa7134-oss",&need_oss);
+	request_submodules(dev);
 
 	v4l2_prio_init(&dev->prio);
 
@@ -1012,6 +1033,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (saa7134_dmasound_init && !dev->dmasound.priv_data) {
 		saa7134_dmasound_init(dev);
 	}
+
+	if (TUNER_ABSENT != dev->tuner_type)
+		saa7134_i2c_call_clients(dev, TUNER_SET_STANDBY, NULL);
 
 	return 0;
 
@@ -1152,10 +1176,6 @@ static int saa7134_init(void)
 
 static void saa7134_fini(void)
 {
-#if defined(CONFIG_MODULES) && defined(MODULE)
-	if (pending_registered)
-		unregister_module_notifier(&pending_notifier);
-#endif /* CONFIG_MODULES */
 	pci_unregister_driver(&saa7134_pci_driver);
 }
 
@@ -1164,6 +1184,7 @@ module_exit(saa7134_fini);
 
 /* ----------------------------------------------------------- */
 
+EXPORT_SYMBOL(saa7134_set_gpio);
 EXPORT_SYMBOL(saa7134_i2c_call_clients);
 EXPORT_SYMBOL(saa7134_devlist);
 EXPORT_SYMBOL(saa7134_boards);

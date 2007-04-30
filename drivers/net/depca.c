@@ -1044,7 +1044,6 @@ static int depca_rx(struct net_device *dev)
 					unsigned char *buf;
 					skb_reserve(skb, 2);	/* 16 byte align the IP header */
 					buf = skb_put(skb, pkt_len);
-					skb->dev = dev;
 					if (entry < lp->rx_old) {	/* Wrapped buffer */
 						len = (lp->rxRingMask - lp->rx_old + 1) * RX_BUFF_SZ;
 						memcpy_fromio(buf, lp->rx_buff[lp->rx_old], len);
@@ -1491,8 +1490,9 @@ static void __init depca_platform_probe (void)
 		depca_io_ports[i].device = pldev;
 
 		if (platform_device_add(pldev)) {
-			platform_device_put(pldev);
 			depca_io_ports[i].device = NULL;
+			pldev->dev.platform_data = NULL;
+			platform_device_put(pldev);
 			continue;
 		}
 

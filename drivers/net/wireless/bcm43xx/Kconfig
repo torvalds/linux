@@ -1,6 +1,7 @@
 config BCM43XX
 	tristate "Broadcom BCM43xx wireless support"
-	depends on PCI && IEEE80211 && IEEE80211_SOFTMAC && NET_RADIO && EXPERIMENTAL
+	depends on PCI && IEEE80211 && IEEE80211_SOFTMAC && WLAN_80211 && EXPERIMENTAL
+	select WIRELESS_EXT
 	select FW_LOADER
 	select HW_RANDOM
 	---help---

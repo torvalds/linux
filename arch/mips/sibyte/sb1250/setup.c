@@ -141,6 +141,18 @@ static int __init setup_bcm112x(void)
 		periph_rev = 3;
 		pass_str = "A2";
 		break;
+	case K_SYS_REVISION_BCM112x_A3:
+		periph_rev = 3;
+		pass_str = "A3";
+		break;
+	case K_SYS_REVISION_BCM112x_A4:
+		periph_rev = 3;
+		pass_str = "A4";
+		break;
+	case K_SYS_REVISION_BCM112x_B0:
+		periph_rev = 3;
+		pass_str = "B0";
+		break;
 	default:
 		printk("Unknown %s rev %x\n", soc_str, soc_pass);
 		ret = 1;

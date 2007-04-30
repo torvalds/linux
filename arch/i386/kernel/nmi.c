@@ -41,16 +41,17 @@ int nmi_watchdog_enabled;
  *   different subsystems this reservation system just tries to coordinate
  *   things a little
  */
-static DEFINE_PER_CPU(unsigned long, perfctr_nmi_owner);
-static DEFINE_PER_CPU(unsigned long, evntsel_nmi_owner[3]);
-
-static cpumask_t backtrace_mask = CPU_MASK_NONE;
 
 /* this number is calculated from Intel's MSR_P4_CRU_ESCR5 register and it's
  * offset from MSR_P4_BSU_ESCR0.  It will be the max for all platforms (for now)
  */
 #define NMI_MAX_COUNTER_BITS 66
+#define NMI_MAX_COUNTER_LONGS BITS_TO_LONGS(NMI_MAX_COUNTER_BITS)
 
+static DEFINE_PER_CPU(unsigned long, perfctr_nmi_owner[NMI_MAX_COUNTER_LONGS]);
+static DEFINE_PER_CPU(unsigned long, evntsel_nmi_owner[NMI_MAX_COUNTER_LONGS]);
+
+static cpumask_t backtrace_mask = CPU_MASK_NONE;
 /* nmi_active:
  * >0: the lapic NMI watchdog is active, but can be disabled
  * <0: the lapic NMI watchdog has not been set up, and cannot
@@ -125,7 +126,7 @@ int avail_to_resrv_perfctr_nmi_bit(unsigned int counter)
 	int cpu;
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
 	for_each_possible_cpu (cpu) {
-		if (test_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)))
+		if (test_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)[0]))
 			return 0;
 	}
 	return 1;
@@ -141,7 +142,7 @@ int avail_to_resrv_perfctr_nmi(unsigned int msr)
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
 
 	for_each_possible_cpu (cpu) {
-		if (test_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)))
+		if (test_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)[0]))
 			return 0;
 	}
 	return 1;
@@ -156,7 +157,7 @@ static int __reserve_perfctr_nmi(int cpu, unsigned int msr)
 	counter = nmi_perfctr_msr_to_bit(msr);
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
 
-	if (!test_and_set_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)))
+	if (!test_and_set_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)[0]))
 		return 1;
 	return 0;
 }
@@ -170,7 +171,7 @@ static void __release_perfctr_nmi(int cpu, unsigned int msr)
 	counter = nmi_perfctr_msr_to_bit(msr);
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
 
-	clear_bit(counter, &per_cpu(perfctr_nmi_owner, cpu));
+	clear_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)[0]);
 }
 
 int reserve_perfctr_nmi(unsigned int msr)

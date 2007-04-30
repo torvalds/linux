@@ -91,6 +91,17 @@ struct usb_cdc_union_desc {
 	/* ... and there could be other slave interfaces */
 } __attribute__ ((packed));
 
+/* "Country Selection Functional Descriptor" from CDC spec 5.2.3.9 */
+struct usb_cdc_country_functional_desc {
+	__u8	bLength;
+	__u8	bDescriptorType;
+	__u8	bDescriptorSubType;
+
+	__u8	iCountryCodeRelDate;
+	__le16	wCountyCode0;
+	/* ... and there can be a lot of country codes */
+} __attribute__ ((packed));
+
 /* "Network Channel Terminal Functional Descriptor" from CDC spec 5.2.3.11 */
 struct usb_cdc_network_terminal_desc {
 	__u8	bLength;

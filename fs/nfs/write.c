@@ -38,7 +38,6 @@
 static struct nfs_page * nfs_update_request(struct nfs_open_context*,
 					    struct page *,
 					    unsigned int, unsigned int);
-static void nfs_mark_request_dirty(struct nfs_page *req);
 static long nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how);
 static const struct rpc_call_ops nfs_write_partial_ops;
 static const struct rpc_call_ops nfs_write_full_ops;
@@ -218,9 +217,11 @@ int nfs_congestion_kb;
 #define NFS_CONGESTION_OFF_THRESH	\
 	(NFS_CONGESTION_ON_THRESH - (NFS_CONGESTION_ON_THRESH >> 2))
 
-static void nfs_set_page_writeback(struct page *page)
+static int nfs_set_page_writeback(struct page *page)
 {
-	if (!test_set_page_writeback(page)) {
+	int ret = test_set_page_writeback(page);
+
+	if (!ret) {
 		struct inode *inode = page->mapping->host;
 		struct nfs_server *nfss = NFS_SERVER(inode);
 
@@ -228,6 +229,7 @@ static void nfs_set_page_writeback(struct page *page)
 				NFS_CONGESTION_ON_THRESH)
 			set_bdi_congested(&nfss->backing_dev_info, WRITE);
 	}
+	return ret;
 }
 
 static void nfs_end_page_writeback(struct page *page)
@@ -252,7 +254,8 @@ static void nfs_end_page_writeback(struct page *page)
 static int nfs_page_mark_flush(struct page *page)
 {
 	struct nfs_page *req;
-	spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
+	struct nfs_inode *nfsi = NFS_I(page->mapping->host);
+	spinlock_t *req_lock = &nfsi->req_lock;
 	int ret;
 
 	spin_lock(req_lock);
@@ -276,11 +279,23 @@ static int nfs_page_mark_flush(struct page *page)
 			return ret;
 		spin_lock(req_lock);
 	}
-	spin_unlock(req_lock);
-	if (test_and_set_bit(PG_FLUSHING, &req->wb_flags) == 0) {
-		nfs_mark_request_dirty(req);
-		nfs_set_page_writeback(page);
+	if (test_bit(PG_NEED_COMMIT, &req->wb_flags)) {
+		/* This request is marked for commit */
+		spin_unlock(req_lock);
+		nfs_unlock_request(req);
+		return 1;
 	}
+	if (nfs_set_page_writeback(page) == 0) {
+		nfs_list_remove_request(req);
+		/* add the request to the inode's dirty list. */
+		radix_tree_tag_set(&nfsi->nfs_page_tree,
+				req->wb_index, NFS_PAGE_TAG_DIRTY);
+		nfs_list_add_request(req, &nfsi->dirty);
+		nfsi->ndirty++;
+		spin_unlock(req_lock);
+		__mark_inode_dirty(page->mapping->host, I_DIRTY_PAGES);
+	} else
+		spin_unlock(req_lock);
 	ret = test_bit(PG_NEED_FLUSH, &req->wb_flags);
 	nfs_unlock_request(req);
 	return ret;
@@ -373,6 +388,8 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	}
 	SetPagePrivate(req->wb_page);
 	set_page_private(req->wb_page, (unsigned long)req);
+	if (PageDirty(req->wb_page))
+		set_bit(PG_NEED_FLUSH, &req->wb_flags);
 	nfsi->npages++;
 	atomic_inc(&req->wb_count);
 	return 0;
@@ -392,6 +409,8 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	set_page_private(req->wb_page, 0);
 	ClearPagePrivate(req->wb_page);
 	radix_tree_delete(&nfsi->nfs_page_tree, req->wb_index);
+	if (test_and_clear_bit(PG_NEED_FLUSH, &req->wb_flags))
+		__set_page_dirty_nobuffers(req->wb_page);
 	nfsi->npages--;
 	if (!nfsi->npages) {
 		spin_unlock(&nfsi->req_lock);
@@ -403,28 +422,9 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	nfs_release_request(req);
 }
 
-/*
- * Add a request to the inode's dirty list.
- */
-static void
-nfs_mark_request_dirty(struct nfs_page *req)
-{
-	struct inode *inode = req->wb_context->dentry->d_inode;
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	spin_lock(&nfsi->req_lock);
-	radix_tree_tag_set(&nfsi->nfs_page_tree,
-			req->wb_index, NFS_PAGE_TAG_DIRTY);
-	nfs_list_add_request(req, &nfsi->dirty);
-	nfsi->ndirty++;
-	spin_unlock(&nfsi->req_lock);
-	__mark_inode_dirty(inode, I_DIRTY_PAGES);
-}
-
 static void
 nfs_redirty_request(struct nfs_page *req)
 {
-	clear_bit(PG_FLUSHING, &req->wb_flags);
 	__set_page_dirty_nobuffers(req->wb_page);
 }
 
@@ -434,7 +434,11 @@ nfs_redirty_request(struct nfs_page *req)
 static inline int
 nfs_dirty_request(struct nfs_page *req)
 {
-	return test_bit(PG_FLUSHING, &req->wb_flags) == 0;
+	struct page *page = req->wb_page;
+
+	if (page == NULL || test_bit(PG_NEED_COMMIT, &req->wb_flags))
+		return 0;
+	return !PageWriteback(req->wb_page);
 }
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
@@ -450,9 +454,47 @@ nfs_mark_request_commit(struct nfs_page *req)
 	spin_lock(&nfsi->req_lock);
 	nfs_list_add_request(req, &nfsi->commit);
 	nfsi->ncommit++;
+	set_bit(PG_NEED_COMMIT, &(req)->wb_flags);
 	spin_unlock(&nfsi->req_lock);
 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+}
+
+static inline
+int nfs_write_need_commit(struct nfs_write_data *data)
+{
+	return data->verf.committed != NFS_FILE_SYNC;
+}
+
+static inline
+int nfs_reschedule_unstable_write(struct nfs_page *req)
+{
+	if (test_bit(PG_NEED_COMMIT, &req->wb_flags)) {
+		nfs_mark_request_commit(req);
+		return 1;
+	}
+	if (test_and_clear_bit(PG_NEED_RESCHED, &req->wb_flags)) {
+		nfs_redirty_request(req);
+		return 1;
+	}
+	return 0;
+}
+#else
+static inline void
+nfs_mark_request_commit(struct nfs_page *req)
+{
+}
+
+static inline
+int nfs_write_need_commit(struct nfs_write_data *data)
+{
+	return 0;
+}
+
+static inline
+int nfs_reschedule_unstable_write(struct nfs_page *req)
+{
+	return 0;
 }
 #endif
 
@@ -500,6 +542,7 @@ static void nfs_cancel_dirty_list(struct list_head *head)
 	while(!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
+		nfs_end_page_writeback(req->wb_page);
 		nfs_inode_remove_request(req);
 		nfs_clear_page_writeback(req);
 	}
@@ -513,6 +556,7 @@ static void nfs_cancel_commit_list(struct list_head *head)
 		req = nfs_list_entry(head->next);
 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 		nfs_list_remove_request(req);
+		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
 		nfs_inode_remove_request(req);
 		nfs_unlock_request(req);
 	}
@@ -739,26 +783,12 @@ int nfs_updatepage(struct file *file, struct page *page,
 
 static void nfs_writepage_release(struct nfs_page *req)
 {
-	nfs_end_page_writeback(req->wb_page);
 
-#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-	if (!PageError(req->wb_page)) {
-		if (NFS_NEED_RESCHED(req)) {
-			nfs_redirty_request(req);
-			goto out;
-		} else if (NFS_NEED_COMMIT(req)) {
-			nfs_mark_request_commit(req);
-			goto out;
-		}
-	}
-	nfs_inode_remove_request(req);
-
-out:
-	nfs_clear_commit(req);
-	nfs_clear_reschedule(req);
-#else
-	nfs_inode_remove_request(req);
-#endif
+	if (PageError(req->wb_page) || !nfs_reschedule_unstable_write(req)) {
+		nfs_end_page_writeback(req->wb_page);
+		nfs_inode_remove_request(req);
+	} else
+		nfs_end_page_writeback(req->wb_page);
 	nfs_clear_page_writeback(req);
 }
 
@@ -891,6 +921,7 @@ out_bad:
 		nfs_writedata_release(data);
 	}
 	nfs_redirty_request(req);
+	nfs_end_page_writeback(req->wb_page);
 	nfs_clear_page_writeback(req);
 	return -ENOMEM;
 }
@@ -936,6 +967,7 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
 		struct nfs_page *req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_redirty_request(req);
+		nfs_end_page_writeback(req->wb_page);
 		nfs_clear_page_writeback(req);
 	}
 	return -ENOMEM;
@@ -971,6 +1003,7 @@ out_err:
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_redirty_request(req);
+		nfs_end_page_writeback(req->wb_page);
 		nfs_clear_page_writeback(req);
 	}
 	return error;
@@ -998,22 +1031,28 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 		nfs_set_pageerror(page);
 		req->wb_context->error = task->tk_status;
 		dprintk(", error = %d\n", task->tk_status);
-	} else {
-#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-		if (data->verf.committed < NFS_FILE_SYNC) {
-			if (!NFS_NEED_COMMIT(req)) {
-				nfs_defer_commit(req);
-				memcpy(&req->wb_verf, &data->verf, sizeof(req->wb_verf));
-				dprintk(" defer commit\n");
-			} else if (memcmp(&req->wb_verf, &data->verf, sizeof(req->wb_verf))) {
-				nfs_defer_reschedule(req);
-				dprintk(" server reboot detected\n");
-			}
-		} else
-#endif
-			dprintk(" OK\n");
+		goto out;
 	}
 
+	if (nfs_write_need_commit(data)) {
+		spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
+
+		spin_lock(req_lock);
+		if (test_bit(PG_NEED_RESCHED, &req->wb_flags)) {
+			/* Do nothing we need to resend the writes */
+		} else if (!test_and_set_bit(PG_NEED_COMMIT, &req->wb_flags)) {
+			memcpy(&req->wb_verf, &data->verf, sizeof(req->wb_verf));
+			dprintk(" defer commit\n");
+		} else if (memcmp(&req->wb_verf, &data->verf, sizeof(req->wb_verf))) {
+			set_bit(PG_NEED_RESCHED, &req->wb_flags);
+			clear_bit(PG_NEED_COMMIT, &req->wb_flags);
+			dprintk(" server reboot detected\n");
+		}
+		spin_unlock(req_lock);
+	} else
+		dprintk(" OK\n");
+
+out:
 	if (atomic_dec_and_test(&req->wb_complete))
 		nfs_writepage_release(req);
 }
@@ -1054,25 +1093,21 @@ static void nfs_writeback_done_full(struct rpc_task *task, void *calldata)
 		if (task->tk_status < 0) {
 			nfs_set_pageerror(page);
 			req->wb_context->error = task->tk_status;
-			nfs_end_page_writeback(page);
-			nfs_inode_remove_request(req);
 			dprintk(", error = %d\n", task->tk_status);
-			goto next;
+			goto remove_request;
 		}
-		nfs_end_page_writeback(page);
 
-#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-		if (data->args.stable != NFS_UNSTABLE || data->verf.committed == NFS_FILE_SYNC) {
-			nfs_inode_remove_request(req);
-			dprintk(" OK\n");
+		if (nfs_write_need_commit(data)) {
+			memcpy(&req->wb_verf, &data->verf, sizeof(req->wb_verf));
+			nfs_mark_request_commit(req);
+			nfs_end_page_writeback(page);
+			dprintk(" marked for commit\n");
 			goto next;
 		}
-		memcpy(&req->wb_verf, &data->verf, sizeof(req->wb_verf));
-		nfs_mark_request_commit(req);
-		dprintk(" marked for commit\n");
-#else
+		dprintk(" OK\n");
+remove_request:
+		nfs_end_page_writeback(page);
 		nfs_inode_remove_request(req);
-#endif
 	next:
 		nfs_clear_page_writeback(req);
 	}
@@ -1260,6 +1295,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 	while (!list_empty(&data->pages)) {
 		req = nfs_list_entry(data->pages.next);
 		nfs_list_remove_request(req);
+		clear_bit(PG_NEED_COMMIT, &(req)->wb_flags);
 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 
 		dprintk("NFS: commit (%s/%Ld %d@%Ld)",
@@ -1495,15 +1531,22 @@ int nfs_wb_page(struct inode *inode, struct page* page)
 
 int nfs_set_page_dirty(struct page *page)
 {
+	spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
 	struct nfs_page *req;
+	int ret;
 
-	req = nfs_page_find_request(page);
+	spin_lock(req_lock);
+	req = nfs_page_find_request_locked(page);
 	if (req != NULL) {
 		/* Mark any existing write requests for flushing */
-		set_bit(PG_NEED_FLUSH, &req->wb_flags);
+		ret = !test_and_set_bit(PG_NEED_FLUSH, &req->wb_flags);
+		spin_unlock(req_lock);
 		nfs_release_request(req);
+		return ret;
 	}
-	return __set_page_dirty_nobuffers(page);
+	ret = __set_page_dirty_nobuffers(page);
+	spin_unlock(req_lock);
+	return ret;
 }
 
 

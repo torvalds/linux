@@ -1680,7 +1680,6 @@ void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 	rxd->rxd_os.skb = NULL;
 	skb_trim(skb, len);
 	skb->protocol = fddi_type_trans(skb, bp->dev);
-	skb->dev = bp->dev;	/* pass up device pointer */
 
 	netif_rx(skb);
 	bp->dev->last_rx = jiffies;
@@ -1938,7 +1937,7 @@ int mac_drv_rx_init(struct s_smc *smc, int len, int fc,
 	}
 	skb_reserve(skb, 3);
 	skb_put(skb, len);
-	memcpy(skb->data, look_ahead, len);
+	skb_copy_to_linear_data(skb, look_ahead, len);
 
 	// deliver frame to system
 	skb->protocol = fddi_type_trans(skb, smc->os.dev);

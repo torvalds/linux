@@ -37,7 +37,9 @@ static int __init br_init(void)
 		return -EADDRINUSE;
 	}
 
-	br_fdb_init();
+	err = br_fdb_init();
+	if (err)
+		goto err_out1;
 
 	err = br_netfilter_init();
 	if (err)
@@ -47,7 +49,10 @@ static int __init br_init(void)
 	if (err)
 		goto err_out2;
 
-	br_netlink_init();
+	err = br_netlink_init();
+	if (err)
+		goto err_out3;
+
 	brioctl_set(br_ioctl_deviceless_stub);
 	br_handle_frame_hook = br_handle_frame;
 
@@ -55,7 +60,8 @@ static int __init br_init(void)
 	br_fdb_put_hook = br_fdb_put;
 
 	return 0;
-
+err_out3:
+	unregister_netdevice_notifier(&br_device_notifier);
 err_out2:
 	br_netfilter_fini();
 err_out1:

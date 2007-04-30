@@ -18,6 +18,7 @@
 #include <asm/arch/sm.h>
 
 #include "clock.h"
+#include "hmatrix.h"
 #include "pio.h"
 #include "sm.h"
 
@@ -416,7 +417,15 @@ struct platform_device at32_sm_device = {
 	.resource	= sm_resource,
 	.num_resources	= ARRAY_SIZE(sm_resource),
 };
-DEV_CLK(pclk, at32_sm, pbb, 0);
+static struct clk at32_sm_pclk = {
+	.name		= "pclk",
+	.dev		= &at32_sm_device.dev,
+	.parent		= &pbb_clk,
+	.mode		= pbb_clk_mode,
+	.get_rate	= pbb_clk_get_rate,
+	.users		= 1,
+	.index		= 0,
+};
 
 static struct resource intc0_resource[] = {
 	PBMEM(0xfff00400),
@@ -442,6 +451,7 @@ static struct clk hramc_clk = {
 	.mode		= hsb_clk_mode,
 	.get_rate	= hsb_clk_get_rate,
 	.users		= 1,
+	.index		= 3,
 };
 
 static struct resource smc0_resource[] = {
@@ -465,6 +475,57 @@ static struct clk pico_clk = {
 	.get_rate	= cpu_clk_get_rate,
 	.users		= 1,
 };
+
+/* --------------------------------------------------------------------
+ * HMATRIX
+ * -------------------------------------------------------------------- */
+
+static struct clk hmatrix_clk = {
+	.name		= "hmatrix_clk",
+	.parent		= &pbb_clk,
+	.mode		= pbb_clk_mode,
+	.get_rate	= pbb_clk_get_rate,
+	.index		= 2,
+	.users		= 1,
+};
+#define HMATRIX_BASE	((void __iomem *)0xfff00800)
+
+#define hmatrix_readl(reg)					\
+	__raw_readl((HMATRIX_BASE) + HMATRIX_##reg)
+#define hmatrix_writel(reg,value)				\
+	__raw_writel((value), (HMATRIX_BASE) + HMATRIX_##reg)
+
+/*
+ * Set bits in the HMATRIX Special Function Register (SFR) used by the
+ * External Bus Interface (EBI). This can be used to enable special
+ * features like CompactFlash support, NAND Flash support, etc. on
+ * certain chipselects.
+ */
+static inline void set_ebi_sfr_bits(u32 mask)
+{
+	u32 sfr;
+
+	clk_enable(&hmatrix_clk);
+	sfr = hmatrix_readl(SFR4);
+	sfr |= mask;
+	hmatrix_writel(SFR4, sfr);
+	clk_disable(&hmatrix_clk);
+}
+
+/* --------------------------------------------------------------------
+ *  System Timer/Counter (TC)
+ * -------------------------------------------------------------------- */
+static struct resource at32_systc0_resource[] = {
+	PBMEM(0xfff00c00),
+	IRQ(22),
+};
+struct platform_device at32_systc0_device = {
+	.name		= "systc",
+	.id		= 0,
+	.resource	= at32_systc0_resource,
+	.num_resources	= ARRAY_SIZE(at32_systc0_resource),
+};
+DEV_CLK(pclk, at32_systc0, pbb, 3);
 
 /* --------------------------------------------------------------------
  *  PIO
@@ -513,6 +574,8 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&at32_intc0_device);
 	platform_device_register(&smc0_device);
 	platform_device_register(&pdc_device);
+
+	platform_device_register(&at32_systc0_device);
 
 	platform_device_register(&pio0_device);
 	platform_device_register(&pio1_device);
@@ -950,6 +1013,7 @@ struct clk *at32_clock_list[] = {
 	&pbb_clk,
 	&at32_sm_pclk,
 	&at32_intc0_pclk,
+	&hmatrix_clk,
 	&ebi_clk,
 	&hramc_clk,
 	&smc0_pclk,
@@ -962,6 +1026,7 @@ struct clk *at32_clock_list[] = {
 	&pio2_mck,
 	&pio3_mck,
 	&pio4_mck,
+	&at32_systc0_pclk,
 	&atmel_usart0_usart,
 	&atmel_usart1_usart,
 	&atmel_usart2_usart,
@@ -1023,6 +1088,9 @@ void __init at32_clock_init(void)
 	 */
 	for (i = 0; i < ARRAY_SIZE(at32_clock_list); i++) {
 		struct clk *clk = at32_clock_list[i];
+
+		if (clk->users == 0)
+			continue;
 
 		if (clk->mode == &cpu_clk_mode)
 			cpu_mask |= 1 << clk->index;

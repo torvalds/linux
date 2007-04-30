@@ -783,7 +783,7 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		if (conn->type == ACL_LINK && hdev->link_policy) {
 			struct hci_cp_write_link_policy cp;
 			cp.handle = ev->handle;
-			cp.policy = __cpu_to_le16(hdev->link_policy);
+			cp.policy = cpu_to_le16(hdev->link_policy);
 			hci_send_cmd(hdev, OGF_LINK_POLICY,
 				OCF_WRITE_LINK_POLICY, sizeof(cp), &cp);
 		}
@@ -793,8 +793,8 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			struct hci_cp_change_conn_ptype cp;
 			cp.handle = ev->handle;
 			cp.pkt_type = (conn->type == ACL_LINK) ?
-				__cpu_to_le16(hdev->pkt_type & ACL_PTYPE_MASK):
-				__cpu_to_le16(hdev->pkt_type & SCO_PTYPE_MASK);
+				cpu_to_le16(hdev->pkt_type & ACL_PTYPE_MASK):
+				cpu_to_le16(hdev->pkt_type & SCO_PTYPE_MASK);
 
 			hci_send_cmd(hdev, OGF_LINK_CTL,
 				OCF_CHANGE_CONN_PTYPE, sizeof(cp), &cp);
@@ -970,7 +970,7 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend)) {
 			if (!ev->status) {
 				struct hci_cp_set_conn_encrypt cp;
-				cp.handle  = __cpu_to_le16(conn->handle);
+				cp.handle  = cpu_to_le16(conn->handle);
 				cp.encrypt = 1;
 				hci_send_cmd(conn->hdev, OGF_LINK_CTL,
 					OCF_SET_CONN_ENCRYPT, sizeof(cp), &cp);

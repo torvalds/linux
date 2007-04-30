@@ -27,9 +27,10 @@ static inline void TCP_ECN_send_synack(struct tcp_sock *tp,
 		TCP_SKB_CB(skb)->flags &= ~TCPCB_FLAG_ECE;
 }
 
-static inline void TCP_ECN_send_syn(struct sock *sk, struct tcp_sock *tp,
-				    struct sk_buff *skb)
+static inline void TCP_ECN_send_syn(struct sock *sk, struct sk_buff *skb)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	tp->ecn_flags = 0;
 	if (sysctl_tcp_ecn) {
 		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_ECE|TCPCB_FLAG_CWR;
@@ -44,9 +45,11 @@ TCP_ECN_make_synack(struct request_sock *req, struct tcphdr *th)
 		th->ece = 1;
 }
 
-static inline void TCP_ECN_send(struct sock *sk, struct tcp_sock *tp,
-				struct sk_buff *skb, int tcp_header_len)
+static inline void TCP_ECN_send(struct sock *sk, struct sk_buff *skb,
+				int tcp_header_len)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	if (tp->ecn_flags & TCP_ECN_OK) {
 		/* Not-retransmitted data segment: set ECT and inject CWR. */
 		if (skb->len != tcp_header_len &&
@@ -54,7 +57,7 @@ static inline void TCP_ECN_send(struct sock *sk, struct tcp_sock *tp,
 			INET_ECN_xmit(sk);
 			if (tp->ecn_flags&TCP_ECN_QUEUE_CWR) {
 				tp->ecn_flags &= ~TCP_ECN_QUEUE_CWR;
-				skb->h.th->cwr = 1;
+				tcp_hdr(skb)->cwr = 1;
 				skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
 			}
 		} else {
@@ -62,7 +65,7 @@ static inline void TCP_ECN_send(struct sock *sk, struct tcp_sock *tp,
 			INET_ECN_dontxmit(sk);
 		}
 		if (tp->ecn_flags & TCP_ECN_DEMAND_CWR)
-			skb->h.th->ece = 1;
+			tcp_hdr(skb)->ece = 1;
 	}
 }
 
@@ -70,7 +73,7 @@ static inline void TCP_ECN_send(struct sock *sk, struct tcp_sock *tp,
 
 static inline void TCP_ECN_accept_cwr(struct tcp_sock *tp, struct sk_buff *skb)
 {
-	if (skb->h.th->cwr)
+	if (tcp_hdr(skb)->cwr)
 		tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
 }
 

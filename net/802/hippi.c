@@ -60,7 +60,7 @@ static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 	 * Due to the stupidity of the little endian byte-order we
 	 * have to set the fp field this way.
 	 */
-	hip->fp.fixed		= __constant_htonl(0x04800018);
+	hip->fp.fixed		= htonl(0x04800018);
 	hip->fp.d2_size		= htonl(len + 8);
 	hip->le.fc		= 0;
 	hip->le.double_wide	= 0;	/* only HIPPI 800 for the time being */
@@ -104,7 +104,7 @@ static int hippi_rebuild_header(struct sk_buff *skb)
 	 * Only IP is currently supported
 	 */
 
-	if(hip->snap.ethertype != __constant_htons(ETH_P_IP))
+	if(hip->snap.ethertype != htons(ETH_P_IP))
 	{
 		printk(KERN_DEBUG "%s: unable to resolve type %X addresses.\n",skb->dev->name,ntohs(hip->snap.ethertype));
 		return 0;
@@ -126,14 +126,14 @@ __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hippi_hdr *hip;
 
-	hip = (struct hippi_hdr *) skb->data;
-
 	/*
 	 * This is actually wrong ... question is if we really should
 	 * set the raw address here.
 	 */
-	 skb->mac.raw = skb->data;
-	 skb_pull(skb, HIPPI_HLEN);
+	skb->dev = dev;
+	skb_reset_mac_header(skb);
+	hip = (struct hippi_hdr *)skb_mac_header(skb);
+	skb_pull(skb, HIPPI_HLEN);
 
 	/*
 	 * No fancy promisc stuff here now.

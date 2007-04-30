@@ -77,7 +77,7 @@
 #include "objsec.h"
 #include "netif.h"
 #include "xfrm.h"
-#include "selinux_netlabel.h"
+#include "netlabel.h"
 
 #define XATTR_SELINUX_SUFFIX "selinux"
 #define XATTR_NAME_SELINUX XATTR_SECURITY_PREFIX XATTR_SELINUX_SUFFIX
@@ -2944,7 +2944,7 @@ static int selinux_parse_skb_ipv4(struct sk_buff *skb,
 	int offset, ihlen, ret = -EINVAL;
 	struct iphdr _iph, *ih;
 
-	offset = skb->nh.raw - skb->data;
+	offset = skb_network_offset(skb);
 	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
 	if (ih == NULL)
 		goto out;
@@ -3026,7 +3026,7 @@ static int selinux_parse_skb_ipv6(struct sk_buff *skb,
 	int ret = -EINVAL, offset;
 	struct ipv6hdr _ipv6h, *ip6;
 
-	offset = skb->nh.raw - skb->data;
+	offset = skb_network_offset(skb);
 	ip6 = skb_header_pointer(skb, offset, sizeof(_ipv6h), &_ipv6h);
 	if (ip6 == NULL)
 		goto out;
@@ -3121,6 +3121,34 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 	}
 
 	return ret;
+}
+
+/**
+ * selinux_skb_extlbl_sid - Determine the external label of a packet
+ * @skb: the packet
+ * @base_sid: the SELinux SID to use as a context for MLS only external labels
+ * @sid: the packet's SID
+ *
+ * Description:
+ * Check the various different forms of external packet labeling and determine
+ * the external SID for the packet.
+ *
+ */
+static void selinux_skb_extlbl_sid(struct sk_buff *skb,
+				   u32 base_sid,
+				   u32 *sid)
+{
+	u32 xfrm_sid;
+	u32 nlbl_sid;
+
+	selinux_skb_xfrm_sid(skb, &xfrm_sid);
+	if (selinux_netlbl_skbuff_getsid(skb,
+					 (xfrm_sid == SECSID_NULL ?
+					  base_sid : xfrm_sid),
+					 &nlbl_sid) != 0)
+		nlbl_sid = SECSID_NULL;
+
+	*sid = (nlbl_sid == SECSID_NULL ? xfrm_sid : nlbl_sid);
 }
 
 /* socket security operations */
@@ -3664,9 +3692,7 @@ static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *
 	if (sock && sock->sk->sk_family == PF_UNIX)
 		selinux_get_inode_sid(SOCK_INODE(sock), &peer_secid);
 	else if (skb)
-		security_skb_extlbl_sid(skb,
-					SECINITSID_UNLABELED,
-					&peer_secid);
+		selinux_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &peer_secid);
 
 	if (peer_secid == SECSID_NULL)
 		err = -EINVAL;
@@ -3727,7 +3753,7 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	u32 newsid;
 	u32 peersid;
 
-	security_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &peersid);
+	selinux_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &peersid);
 	if (peersid == SECSID_NULL) {
 		req->secid = sksec->sid;
 		req->peer_secid = SECSID_NULL;
@@ -3765,7 +3791,7 @@ static void selinux_inet_conn_established(struct sock *sk,
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	security_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &sksec->peer_sid);
+	selinux_skb_extlbl_sid(skb, SECINITSID_UNLABELED, &sksec->peer_sid);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,
@@ -3786,7 +3812,7 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 		err = -EINVAL;
 		goto out;
 	}
-	nlh = (struct nlmsghdr *)skb->data;
+	nlh = nlmsg_hdr(skb);
 	
 	err = selinux_nlmsg_lookup(isec->sclass, nlh->nlmsg_type, &perm);
 	if (err) {

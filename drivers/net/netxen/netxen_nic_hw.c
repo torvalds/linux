@@ -35,6 +35,8 @@
 #include "netxen_nic_hw.h"
 #include "netxen_nic_phan_reg.h"
 
+#include <net/ip.h>
+
 /*  PCI Windowing for DDR regions.  */
 
 #define ADDR_IN_RANGE(addr, low, high)	\
@@ -371,22 +373,21 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 		      struct cmd_desc_type0 *desc, struct sk_buff *skb)
 {
 	if (desc->mss) {
-		desc->total_hdr_length = sizeof(struct ethhdr) +
-		    ((skb->nh.iph)->ihl * sizeof(u32)) +
-		    ((skb->h.th)->doff * sizeof(u32));
+		desc->total_hdr_length = (sizeof(struct ethhdr) +
+					  ip_hdrlen(skb) + tcp_hdrlen(skb));
 		netxen_set_cmd_desc_opcode(desc, TX_TCP_LSO);
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		if (skb->nh.iph->protocol == IPPROTO_TCP) {
+		if (ip_hdr(skb)->protocol == IPPROTO_TCP) {
 			netxen_set_cmd_desc_opcode(desc, TX_TCP_PKT);
-		} else if (skb->nh.iph->protocol == IPPROTO_UDP) {
+		} else if (ip_hdr(skb)->protocol == IPPROTO_UDP) {
 			netxen_set_cmd_desc_opcode(desc, TX_UDP_PKT);
 		} else {
 			return;
 		}
 	}
 	adapter->stats.xmitcsummed++;
-	desc->tcp_hdr_offset = skb->h.raw - skb->data;
-	desc->ip_hdr_offset = skb->nh.raw - skb->data;
+	desc->tcp_hdr_offset = skb_transport_offset(skb);
+	desc->ip_hdr_offset = skb_network_offset(skb);
 }
 
 int netxen_is_flash_supported(struct netxen_adapter *adapter)

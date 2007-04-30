@@ -452,6 +452,7 @@ struct timespec ns_to_timespec(const s64 nsec)
 
 	return ts;
 }
+EXPORT_SYMBOL(ns_to_timespec);
 
 /**
  * ns_to_timeval - Convert nanoseconds to timeval
@@ -469,6 +470,7 @@ struct timeval ns_to_timeval(const s64 nsec)
 
 	return tv;
 }
+EXPORT_SYMBOL(ns_to_timeval);
 
 /*
  * Convert jiffies to milliseconds and back.

@@ -1428,6 +1428,7 @@ static void video_close(struct saa7146_dev *dev, struct file *file)
 {
 	struct saa7146_fh *fh = (struct saa7146_fh *)file->private_data;
 	struct saa7146_vv *vv = dev->vv_data;
+	struct videobuf_queue *q = &fh->video_q;
 	int err;
 
 	if (IS_CAPTURE_ACTIVE(fh) != 0) {
@@ -1435,6 +1436,11 @@ static void video_close(struct saa7146_dev *dev, struct file *file)
 	} else if (IS_OVERLAY_ACTIVE(fh) != 0) {
 		err = saa7146_stop_preview(fh);
 	}
+
+	// release all capture buffers
+	mutex_lock(&q->lock);
+	videobuf_read_stop(q);
+	mutex_unlock(&q->lock);
 
 	/* hmm, why is this function declared void? */
 	/* return err */

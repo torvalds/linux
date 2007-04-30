@@ -386,7 +386,7 @@ static int iss_net_rx(struct net_device *dev)
 	/* Setup skb */
 
 	skb->dev = dev;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	pkt_len = lp->tp.read(lp, &skb);
 	skb_put(skb, pkt_len);
 

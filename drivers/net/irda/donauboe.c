@@ -1119,7 +1119,7 @@ dumpbufs(skb->data,skb->len,'>');
   else
     {
       len = skb->len;
-      memcpy (self->tx_bufs[self->txs], skb->data, len);
+      skb_copy_from_linear_data(skb, self->tx_bufs[self->txs], len);
     }
   self->ring->tx[self->txs].len = len & 0x0fff;
 
@@ -1282,11 +1282,11 @@ dumpbufs(self->rx_bufs[self->rxs],len,'<');
                       skb_reserve (skb, 1);
 
                       skb_put (skb, len);
-                      memcpy (skb->data, self->rx_bufs[self->rxs], len);
-
+                      skb_copy_to_linear_data(skb, self->rx_bufs[self->rxs],
+					      len);
                       self->stats.rx_packets++;
                       skb->dev = self->netdev;
-                      skb->mac.raw = skb->data;
+                      skb_reset_mac_header(skb);
                       skb->protocol = htons (ETH_P_IRDA);
                     }
                   else

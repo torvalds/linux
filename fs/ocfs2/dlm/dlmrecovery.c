@@ -611,6 +611,7 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 			}
 		} while (status != 0);
 
+		spin_lock(&dlm_reco_state_lock);
 		switch (ndata->state) {
 			case DLM_RECO_NODE_DATA_INIT:
 			case DLM_RECO_NODE_DATA_FINALIZE_SENT:
@@ -641,6 +642,7 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 				     ndata->node_num, dead_node);
 				break;
 		}
+		spin_unlock(&dlm_reco_state_lock);
 	}
 
 	mlog(0, "done requesting all lock info\n");

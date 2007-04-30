@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/kmod.h>
+#include <net/netlink.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <linux/tc_act/tc_ipt.h>
@@ -245,7 +246,7 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 
 static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_ipt *ipt = a->priv;
 	struct ipt_entry_target *t;
 	struct tcf_t tm;
@@ -277,7 +278,7 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int 
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	kfree(t);
 	return -1;
 }

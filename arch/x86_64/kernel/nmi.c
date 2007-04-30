@@ -39,15 +39,17 @@ int panic_on_unrecovered_nmi;
  *   different subsystems this reservation system just tries to coordinate
  *   things a little
  */
-static DEFINE_PER_CPU(unsigned, perfctr_nmi_owner);
-static DEFINE_PER_CPU(unsigned, evntsel_nmi_owner[2]);
-
-static cpumask_t backtrace_mask = CPU_MASK_NONE;
 
 /* this number is calculated from Intel's MSR_P4_CRU_ESCR5 register and it's
  * offset from MSR_P4_BSU_ESCR0.  It will be the max for all platforms (for now)
  */
 #define NMI_MAX_COUNTER_BITS 66
+#define NMI_MAX_COUNTER_LONGS BITS_TO_LONGS(NMI_MAX_COUNTER_BITS)
+
+static DEFINE_PER_CPU(unsigned, perfctr_nmi_owner[NMI_MAX_COUNTER_LONGS]);
+static DEFINE_PER_CPU(unsigned, evntsel_nmi_owner[NMI_MAX_COUNTER_LONGS]);
+
+static cpumask_t backtrace_mask = CPU_MASK_NONE;
 
 /* nmi_active:
  * >0: the lapic NMI watchdog is active, but can be disabled

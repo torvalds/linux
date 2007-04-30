@@ -20,6 +20,7 @@
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
 #include <linux/compiler.h>
+#include <linux/uaccess.h>
 
 #include <asm/abi.h>
 #include <asm/asm.h>
@@ -27,7 +28,6 @@
 #include <asm/cacheflush.h>
 #include <asm/fpu.h>
 #include <asm/sim.h>
-#include <asm/uaccess.h>
 #include <asm/ucontext.h>
 #include <asm/cpu-features.h>
 #include <asm/war.h>
@@ -78,6 +78,46 @@ struct rt_sigframe {
 /*
  * Helper routines
  */
+static int protected_save_fp_context(struct sigcontext __user *sc)
+{
+	int err;
+	while (1) {
+		lock_fpu_owner();
+		own_fpu_inatomic(1);
+		err = save_fp_context(sc); /* this might fail */
+		unlock_fpu_owner();
+		if (likely(!err))
+			break;
+		/* touch the sigcontext and try again */
+		err = __put_user(0, &sc->sc_fpregs[0]) |
+			__put_user(0, &sc->sc_fpregs[31]) |
+			__put_user(0, &sc->sc_fpc_csr);
+		if (err)
+			break;	/* really bad sigcontext */
+	}
+	return err;
+}
+
+static int protected_restore_fp_context(struct sigcontext __user *sc)
+{
+	int err, tmp;
+	while (1) {
+		lock_fpu_owner();
+		own_fpu_inatomic(0);
+		err = restore_fp_context(sc); /* this might fail */
+		unlock_fpu_owner();
+		if (likely(!err))
+			break;
+		/* touch the sigcontext and try again */
+		err = __get_user(tmp, &sc->sc_fpregs[0]) |
+			__get_user(tmp, &sc->sc_fpregs[31]) |
+			__get_user(tmp, &sc->sc_fpc_csr);
+		if (err)
+			break;	/* really bad sigcontext */
+	}
+	return err;
+}
+
 int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
 	int err = 0;
@@ -113,10 +153,7 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		 * Save FPU state to signal context. Signal handler
 		 * will "inherit" current FPU state.
 		 */
-		own_fpu(1);
-		enable_fp_in_kernel();
-		err |= save_fp_context(sc);
-		disable_fp_in_kernel();
+		err |= protected_save_fp_context(sc);
 	}
 	return err;
 }
@@ -148,7 +185,7 @@ check_and_restore_fp_context(struct sigcontext __user *sc)
 	err = sig = fpcsr_pending(&sc->sc_fpc_csr);
 	if (err > 0)
 		err = 0;
-	err |= restore_fp_context(sc);
+	err |= protected_restore_fp_context(sc);
 	return err ?: sig;
 }
 
@@ -187,11 +224,8 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 
 	if (used_math) {
 		/* restore fpu context if we have used it before */
-		own_fpu(0);
-		enable_fp_in_kernel();
 		if (!err)
 			err = check_and_restore_fp_context(sc);
-		disable_fp_in_kernel();
 	} else {
 		/* signal handler may have used FPU.  Give it up. */
 		lose_fpu(0);

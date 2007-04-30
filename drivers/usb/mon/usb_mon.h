@@ -22,7 +22,7 @@ struct mon_bus {
 	int text_inited;
 	struct dentry *dent_s;		/* Debugging file */
 	struct dentry *dent_t;		/* Text interface file */
-	int uses_dma;
+	struct dentry *dent_u;		/* Second text interface file */
 
 	/* Ref */
 	int nreaders;			/* Under mon_lock AND mbus->lock */
@@ -52,7 +52,7 @@ void mon_reader_del(struct mon_bus *mbus, struct mon_reader *r);
 
 struct mon_bus *mon_bus_lookup(unsigned int num);
 
-int /*bool*/ mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus);
+int /*bool*/ mon_text_add(struct mon_bus *mbus, int busnum);
 void mon_text_del(struct mon_bus *mbus);
 // void mon_bin_add(struct mon_bus *);
 
@@ -80,5 +80,7 @@ extern unsigned int mon_copy_to_buff(const struct mon_reader_bin *rp,
 extern struct mutex mon_lock;
 
 extern const struct file_operations mon_fops_stat;
+
+extern struct mon_bus mon_bus0;		/* Only for redundant checks */
 
 #endif /* __USB_MON_H */

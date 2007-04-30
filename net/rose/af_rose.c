@@ -812,26 +812,26 @@ rose_try_next_neigh:
 	 * closed.
 	 */
 	if (sk->sk_state == TCP_SYN_SENT) {
-		struct task_struct *tsk = current;
-		DECLARE_WAITQUEUE(wait, tsk);
+		DEFINE_WAIT(wait);
 
-		add_wait_queue(sk->sk_sleep, &wait);
 		for (;;) {
-			set_current_state(TASK_INTERRUPTIBLE);
+			prepare_to_wait(sk->sk_sleep, &wait,
+			                TASK_INTERRUPTIBLE);
 			if (sk->sk_state != TCP_SYN_SENT)
 				break;
-			release_sock(sk);
-			if (!signal_pending(tsk)) {
+			if (!signal_pending(current)) {
+				release_sock(sk);
 				schedule();
 				lock_sock(sk);
 				continue;
 			}
-			current->state = TASK_RUNNING;
-			remove_wait_queue(sk->sk_sleep, &wait);
-			return -ERESTARTSYS;
+			err = -ERESTARTSYS;
+			break;
 		}
-		current->state = TASK_RUNNING;
-		remove_wait_queue(sk->sk_sleep, &wait);
+		finish_wait(sk->sk_sleep, &wait);
+
+		if (err)
+			goto out_release;
 	}
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
@@ -856,10 +856,9 @@ out_release:
 
 static int rose_accept(struct socket *sock, struct socket *newsock, int flags)
 {
-	struct task_struct *tsk = current;
-	DECLARE_WAITQUEUE(wait, tsk);
 	struct sk_buff *skb;
 	struct sock *newsk;
+	DEFINE_WAIT(wait);
 	struct sock *sk;
 	int err = 0;
 
@@ -869,42 +868,41 @@ static int rose_accept(struct socket *sock, struct socket *newsock, int flags)
 	lock_sock(sk);
 	if (sk->sk_type != SOCK_SEQPACKET) {
 		err = -EOPNOTSUPP;
-		goto out;
+		goto out_release;
 	}
 
 	if (sk->sk_state != TCP_LISTEN) {
 		err = -EINVAL;
-		goto out;
+		goto out_release;
 	}
 
 	/*
 	 *	The write queue this time is holding sockets ready to use
 	 *	hooked into the SABM we saved
 	 */
-	add_wait_queue(sk->sk_sleep, &wait);
 	for (;;) {
+		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+
 		skb = skb_dequeue(&sk->sk_receive_queue);
 		if (skb)
 			break;
 
-		current->state = TASK_INTERRUPTIBLE;
-		release_sock(sk);
 		if (flags & O_NONBLOCK) {
-			current->state = TASK_RUNNING;
-			remove_wait_queue(sk->sk_sleep, &wait);
-			return -EWOULDBLOCK;
+			err = -EWOULDBLOCK;
+			break;
 		}
-		if (!signal_pending(tsk)) {
+		if (!signal_pending(current)) {
+			release_sock(sk);
 			schedule();
 			lock_sock(sk);
 			continue;
 		}
-		current->state = TASK_RUNNING;
-		remove_wait_queue(sk->sk_sleep, &wait);
-		return -ERESTARTSYS;
+		err = -ERESTARTSYS;
+		break;
 	}
-	current->state = TASK_RUNNING;
-	remove_wait_queue(sk->sk_sleep, &wait);
+	finish_wait(sk->sk_sleep, &wait);
+	if (err)
+		goto out_release;
 
 	newsk = skb->sk;
 	newsk->sk_socket = newsock;
@@ -916,7 +914,7 @@ static int rose_accept(struct socket *sock, struct socket *newsock, int flags)
 	sk->sk_ack_backlog--;
 	newsock->sk = newsk;
 
-out:
+out_release:
 	release_sock(sk);
 
 	return err;
@@ -1105,9 +1103,10 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 */
 	SOCK_DEBUG(sk, "ROSE: Appending user data\n");
 
-	asmptr = skb->h.raw = skb_put(skb, len);
+	skb_reset_transport_header(skb);
+	skb_put(skb, len);
 
-	err = memcpy_fromiovec(asmptr, msg->msg_iov, len);
+	err = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
 	if (err) {
 		kfree_skb(skb);
 		return err;
@@ -1155,7 +1154,7 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 		int lg;
 
 		/* Save a copy of the Header */
-		memcpy(header, skb->data, ROSE_MIN_LEN);
+		skb_copy_from_linear_data(skb, header, ROSE_MIN_LEN);
 		skb_pull(skb, ROSE_MIN_LEN);
 
 		frontlen = skb_headroom(skb);
@@ -1175,12 +1174,12 @@ static int rose_sendmsg(struct kiocb *iocb, struct socket *sock,
 			lg = (ROSE_PACLEN > skb->len) ? skb->len : ROSE_PACLEN;
 
 			/* Copy the user data */
-			memcpy(skb_put(skbn, lg), skb->data, lg);
+			skb_copy_from_linear_data(skb, skb_put(skbn, lg), lg);
 			skb_pull(skb, lg);
 
 			/* Duplicate the Header */
 			skb_push(skbn, ROSE_MIN_LEN);
-			memcpy(skbn->data, header, ROSE_MIN_LEN);
+			skb_copy_to_linear_data(skbn, header, ROSE_MIN_LEN);
 
 			if (skb->len > 0)
 				skbn->data[2] |= M_BIT;
@@ -1234,7 +1233,7 @@ static int rose_recvmsg(struct kiocb *iocb, struct socket *sock,
 		*asmptr = qbit;
 	}
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	copied     = skb->len;
 
 	if (copied > size) {
@@ -1295,6 +1294,9 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 	case SIOCGSTAMP:
 		return sock_get_timestamp(sk, (struct timeval __user *) argp);
+
+	case SIOCGSTAMPNS:
+		return sock_get_timestampns(sk, (struct timespec __user *) argp);
 
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:

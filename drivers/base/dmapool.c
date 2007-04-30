@@ -37,7 +37,7 @@ struct dma_page {	/* cacheable header for 'allocation' bytes */
 
 #define	POOL_TIMEOUT_JIFFIES	((100 /* msec */ * HZ) / 1000)
 
-static DECLARE_MUTEX (pools_lock);
+static DEFINE_MUTEX (pools_lock);
 
 static ssize_t
 show_pools (struct device *dev, struct device_attribute *attr, char *buf)
@@ -55,7 +55,7 @@ show_pools (struct device *dev, struct device_attribute *attr, char *buf)
 	size -= temp;
 	next += temp;
 
-	down (&pools_lock);
+	mutex_lock(&pools_lock);
 	list_for_each_entry(pool, &dev->dma_pools, pools) {
 		unsigned pages = 0;
 		unsigned blocks = 0;
@@ -73,7 +73,7 @@ show_pools (struct device *dev, struct device_attribute *attr, char *buf)
 		size -= temp;
 		next += temp;
 	}
-	up (&pools_lock);
+	mutex_unlock(&pools_lock);
 
 	return PAGE_SIZE - size;
 }
@@ -143,7 +143,7 @@ dma_pool_create (const char *name, struct device *dev,
 	if (dev) {
 		int ret;
 
-		down (&pools_lock);
+		mutex_lock(&pools_lock);
 		if (list_empty (&dev->dma_pools))
 			ret = device_create_file (dev, &dev_attr_pools);
 		else
@@ -155,7 +155,7 @@ dma_pool_create (const char *name, struct device *dev,
 			kfree(retval);
 			retval = NULL;
 		}
-		up (&pools_lock);
+		mutex_unlock(&pools_lock);
 	} else
 		INIT_LIST_HEAD (&retval->pools);
 
@@ -231,11 +231,11 @@ pool_free_page (struct dma_pool *pool, struct dma_page *page)
 void
 dma_pool_destroy (struct dma_pool *pool)
 {
-	down (&pools_lock);
+	mutex_lock(&pools_lock);
 	list_del (&pool->pools);
 	if (pool->dev && list_empty (&pool->dev->dma_pools))
 		device_remove_file (pool->dev, &dev_attr_pools);
-	up (&pools_lock);
+	mutex_unlock(&pools_lock);
 
 	while (!list_empty (&pool->page_list)) {
 		struct dma_page		*page;

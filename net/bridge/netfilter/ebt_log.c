@@ -196,14 +196,10 @@ static int __init ebt_log_init(void)
 	ret = ebt_register_watcher(&log);
 	if (ret < 0)
 		return ret;
-	if (nf_log_register(PF_BRIDGE, &ebt_log_logger) < 0) {
-		printk(KERN_WARNING "ebt_log: not logging via system console "
-		       "since somebody else already registered for PF_INET\n");
-		/* we cannot make module load fail here, since otherwise
-		 * ebtables userspace would abort */
-	}
-
-	return 0;
+	ret = nf_log_register(PF_BRIDGE, &ebt_log_logger);
+	if (ret < 0 && ret != -EEXIST)
+		ebt_unregister_watcher(&log);
+	return ret;
 }
 
 static void __exit ebt_log_fini(void)

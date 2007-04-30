@@ -163,7 +163,7 @@ hauppauge_tuner[] =
 	/* 60-69 */
 	{ TUNER_PHILIPS_FM1216ME_MK3, "LG S001D MK3"},
 	{ TUNER_ABSENT,        "LG M001D MK3"},
-	{ TUNER_ABSENT,        "LG S701D MK3"},
+	{ TUNER_PHILIPS_FM1216ME_MK3, "LG S701D MK3"},
 	{ TUNER_ABSENT,        "LG M701D MK3"},
 	{ TUNER_ABSENT,        "Temic 4146FM5"},
 	{ TUNER_ABSENT,        "Temic 4136FY5"},
@@ -229,6 +229,36 @@ hauppauge_tuner[] =
 	/* 120-129 */
 	{ TUNER_ABSENT,        "Xceive XC3028"},
 	{ TUNER_ABSENT,        "Philips FQ1216LME MK5"},
+	{ TUNER_ABSENT,        "Philips FQD1216LME"},
+	{ TUNER_ABSENT,        "Conexant CX24118A"},
+	{ TUNER_ABSENT,        "TCL DMF11WIP"},
+	{ TUNER_ABSENT,        "TCL MFNM05_4H_E"},
+	{ TUNER_ABSENT,        "TCL MNM05_4H_E"},
+	{ TUNER_ABSENT,        "TCL MPE05_2H_E"},
+	{ TUNER_ABSENT,        "TCL MQNM05_4_U"},
+	{ TUNER_ABSENT,        "TCL M2523_5NH_E"},
+	/* 130-139 */
+	{ TUNER_ABSENT,        "TCL M2523_3DBH_E"},
+	{ TUNER_ABSENT,        "TCL M2523_3DIH_E"},
+	{ TUNER_ABSENT,        "TCL MFPE05_2_U"},
+	{ TUNER_ABSENT,        "Philips FMD1216MEX"},
+	{ TUNER_ABSENT,        "Philips FRH2036B"},
+	{ TUNER_ABSENT,        "Panasonic ENGF75_01GF"},
+	{ TUNER_ABSENT,        "MaxLinear MXL5005"},
+	{ TUNER_ABSENT,        "MaxLinear MXL5003"},
+	{ TUNER_ABSENT,        "Xceive XC2028"},
+	{ TUNER_ABSENT,        "Microtune MT2131"},
+	/* 140-149 */
+	{ TUNER_ABSENT,        "Philips 8275A_8295"},
+	{ TUNER_ABSENT,        "TCL MF02GIP_5N_E"},
+	{ TUNER_ABSENT,        "TCL MF02GIP_3DB_E"},
+	{ TUNER_ABSENT,        "TCL MF02GIP_3DI_E"},
+	{ TUNER_ABSENT,        "Microtune MT2266"},
+	{ TUNER_ABSENT,        "TCL MF10WPP_4N_E"},
+	{ TUNER_ABSENT,        "LG TAPQ_H702F"},
+	{ TUNER_ABSENT,        "TCL M09WPP_4N_E"},
+	{ TUNER_ABSENT,        "MaxLinear MXL5005_v2"},
+	{ TUNER_ABSENT,        "Philips 18271_8295"},
 };
 
 static struct HAUPPAUGE_AUDIOIC
@@ -280,11 +310,16 @@ audioIC[] =
 	{AUDIO_CHIP_INTERNAL, "CX883"},
 	{AUDIO_CHIP_INTERNAL, "CX882"},
 	{AUDIO_CHIP_INTERNAL, "CX25840"},
-	/* 35-38 */
+	/* 35-39 */
 	{AUDIO_CHIP_INTERNAL, "CX25841"},
 	{AUDIO_CHIP_INTERNAL, "CX25842"},
 	{AUDIO_CHIP_INTERNAL, "CX25843"},
 	{AUDIO_CHIP_INTERNAL, "CX23418"},
+	{AUDIO_CHIP_INTERNAL, "CX23885"},
+	/* 40-42 */
+	{AUDIO_CHIP_INTERNAL, "CX23888"},
+	{AUDIO_CHIP_INTERNAL, "SAA7131"},
+	{AUDIO_CHIP_INTERNAL, "CX23887"},
 };
 
 /* This list is supplied by Hauppauge. Thanks! */
@@ -301,8 +336,10 @@ static const char *decoderIC[] = {
 	"CX880", "CX881", "CX883", "SAA7111", "SAA7113",
 	/* 25-29 */
 	"CX882", "TVP5150A", "CX25840", "CX25841", "CX25842",
-	/* 30-31 */
-	"CX25843", "CX23418",
+	/* 30-34 */
+	"CX25843", "CX23418", "NEC61153", "CX23885", "CX23888",
+	/* 35-37 */
+	"SAA7131", "CX25837", "CX23887"
 };
 
 static int hasRadioTuner(int tunerType)

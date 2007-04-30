@@ -29,6 +29,7 @@ struct usbnet {
 	/* housekeeping */
 	struct usb_device	*udev;
 	struct driver_info	*driver_info;
+	const char		*driver_name;
 	wait_queue_head_t	*wait;
 	struct mutex		phy_mutex;
 

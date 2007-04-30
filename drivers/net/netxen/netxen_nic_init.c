@@ -1129,7 +1129,6 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 		port->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
-	skb->dev = netdev;
 	if (desc_ctx == RCV_DESC_LRO_CTXID) {
 		/* True length was only available on the last pkt */
 		skb_put(skb, buffer->lro_length);

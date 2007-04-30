@@ -91,6 +91,14 @@ Sending MADs
 	if (ret != sizeof *mad + mad_length)
 		perror("write");
 
+Transaction IDs
+
+  Users of the umad devices can use the lower 32 bits of the
+  transaction ID field (that is, the least significant half of the
+  field in network byte order) in MADs being sent to match
+  request/response pairs.  The upper 32 bits are reserved for use by
+  the kernel and will be overwritten before a MAD is sent.
+
 Setting IsSM Capability Bit
 
   To set the IsSM capability bit for a port, simply open the

@@ -553,7 +553,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		ops.datbuf = NULL;
 		ops.mode = MTD_OOB_PLACE;
 
-		if (ops.ooboffs && ops.len > (mtd->oobsize - ops.ooboffs))
+		if (ops.ooboffs && ops.ooblen > (mtd->oobsize - ops.ooboffs))
 			return -EINVAL;
 
 		ops.oobbuf = kmalloc(buf.length, GFP_KERNEL);

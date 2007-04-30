@@ -2899,7 +2899,7 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 			struct fb_info *info, unsigned long addr)
 {
 	struct atyfb_par *par = info->par;
-	struct pcidev_cookie *pcp;
+	struct device_node *dp;
 	char prop[128];
 	int node, len, i, j, ret;
 	u32 mem, chip_id;
@@ -3037,8 +3037,8 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 			node = 0;
 	}
 
-	pcp = pdev->sysdata;
-	if (node == pcp->prom_node->node) {
+	dp = pci_device_to_OF_node(pdev);
+	if (node == dp->node) {
 		struct fb_var_screeninfo *var = &default_var;
 		unsigned int N, P, Q, M, T, R;
 		u32 v_total, h_total;

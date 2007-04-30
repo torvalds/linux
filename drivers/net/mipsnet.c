@@ -101,7 +101,6 @@ static inline ssize_t mipsnet_get_fromdev(struct net_device *dev, size_t count)
 	if (ioiocpy_frommipsnet(dev, skb_put(skb, len), len))
 		return -EFAULT;
 
-	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 

@@ -310,14 +310,12 @@ static int proc_ide_read_driver
 	ide_driver_t	*ide_drv;
 	int		len;
 
-	down_read(&dev->bus->subsys.rwsem);
 	if (dev->driver) {
 		ide_drv = container_of(dev->driver, ide_driver_t, gen_driver);
 		len = sprintf(page, "%s version %s\n",
 				dev->driver->name, ide_drv->version);
 	} else
 		len = sprintf(page, "ide-default version 0.9.newide\n");
-	up_read(&dev->bus->subsys.rwsem);
 	PROC_IDE_READ_RETURN(page,start,off,count,eof,len);
 }
 
@@ -327,7 +325,6 @@ static int ide_replace_subdriver(ide_drive_t *drive, const char *driver)
 	int ret = 1;
 	int err;
 
-	down_write(&dev->bus->subsys.rwsem);
 	device_release_driver(dev);
 	/* FIXME: device can still be in use by previous driver */
 	strlcpy(drive->driver_req, driver, sizeof(drive->driver_req));
@@ -345,7 +342,6 @@ static int ide_replace_subdriver(ide_drive_t *drive, const char *driver)
 	}
 	if (dev->driver && !strcmp(dev->driver->name, driver))
 		ret = 0;
-	up_write(&dev->bus->subsys.rwsem);
 
 	return ret;
 }

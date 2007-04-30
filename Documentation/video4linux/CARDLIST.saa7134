@@ -53,7 +53,7 @@
  52 -> AverMedia AverTV/305                     [1461:2108]
  53 -> ASUS TV-FM 7135                          [1043:4845]
  54 -> LifeView FlyTV Platinum FM / Gold        [5168:0214,1489:0214,5168:0304]
- 55 -> LifeView FlyDVB-T DUO                    [5168:0306]
+ 55 -> LifeView FlyDVB-T DUO / MSI TV@nywhere Duo [5168:0306,4E42:0306]
  56 -> Avermedia AVerTV 307                     [1461:a70a]
  57 -> Avermedia AVerTV GO 007 FM               [1461:f31f]
  58 -> ADS Tech Instant TV (saa7135)            [1421:0350,1421:0351,1421:0370,1421:1370]
@@ -76,7 +76,7 @@
  75 -> AVerMedia AVerTVHD MCE A180              [1461:1044]
  76 -> SKNet MonsterTV Mobile                   [1131:4ee9]
  77 -> Pinnacle PCTV 40i/50i/110i (saa7133)     [11bd:002e]
- 78 -> ASUSTeK P7131 Dual                       [1043:4862,1043:4876]
+ 78 -> ASUSTeK P7131 Dual                       [1043:4862,1043:4857]
  79 -> Sedna/MuchTV PC TV Cardbus TV/Radio (ITO25 Rev:2B)
  80 -> ASUS Digimatrix TV                       [1043:0210]
  81 -> Philips Tiger reference design           [1131:2018]
@@ -107,3 +107,7 @@
 106 -> Encore ENLTV                             [1131:2342,1131:2341,3016:2344]
 107 -> Encore ENLTV-FM                          [1131:230f]
 108 -> Terratec Cinergy HT PCI                  [153b:1175]
+109 -> Philips Tiger - S Reference design
+110 -> Avermedia M102                           [1461:f31e]
+111 -> ASUS P7131 4871                          [1043:4871]
+112 -> ASUSTeK P7131 Hybrid                     [1043:4876]

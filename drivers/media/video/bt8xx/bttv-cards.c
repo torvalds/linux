@@ -291,6 +291,9 @@ static struct CARD {
 
 	{ 0x15409511, BTTV_BOARD_ACORP_Y878F, "Acorp Y878F" },
 
+	{ 0x53534149, BTTV_BOARD_SSAI_SECURITY, "SSAI Security Video Interface" },
+	{ 0x5353414a, BTTV_BOARD_SSAI_ULTRASOUND, "SSAI Ultrasound Video Interface" },
+
 	/* likely broken, vendor id doesn't match the other magic views ...
 	 * { 0xa0fca04f, BTTV_BOARD_MAGICTVIEW063, "Guillemot Maxi TV Video 3" }, */
 
@@ -2907,6 +2910,28 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio      = 1,
 		.has_remote     = 1,
 	},
+	[BTTV_BOARD_SSAI_SECURITY] = {
+		.name		= "SSAI Security Video Interface",
+		.video_inputs	= 4,
+		.audio_inputs	= 0,
+		.tuner		= -1,
+		.svhs		= -1,
+		.muxsel		= { 0, 1, 2, 3 },
+		.tuner_type	= -1,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
+	[BTTV_BOARD_SSAI_ULTRASOUND] = {
+		.name		= "SSAI Ultrasound Video Interface",
+		.video_inputs	= 2,
+		.audio_inputs	= 0,
+		.tuner		= -1,
+		.svhs		= 1,
+		.muxsel		= { 2, 0, 1, 3 },
+		.tuner_type	= -1,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -2970,20 +2995,20 @@ void __devinit bttv_idcard(struct bttv *btv)
 
 	if (UNSET != audiomux[0]) {
 		gpiobits = 0;
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < ARRAY_SIZE(bttv_tvcards->gpiomux); i++) {
 			bttv_tvcards[btv->c.type].gpiomux[i] = audiomux[i];
 			gpiobits |= audiomux[i];
 		}
 	} else {
 		gpiobits = audioall;
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < ARRAY_SIZE(bttv_tvcards->gpiomux); i++) {
 			bttv_tvcards[btv->c.type].gpiomux[i] = audioall;
 		}
 	}
 	bttv_tvcards[btv->c.type].gpiomask = (UNSET != gpiomask) ? gpiomask : gpiobits;
 	printk(KERN_INFO "bttv%d: gpio config override: mask=0x%x, mux=",
 	       btv->c.nr,bttv_tvcards[btv->c.type].gpiomask);
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < ARRAY_SIZE(bttv_tvcards->gpiomux); i++) {
 		printk("%s0x%x", i ? "," : "", bttv_tvcards[btv->c.type].gpiomux[i]);
 	}
 	printk("\n");
@@ -3638,7 +3663,7 @@ static int __devinit pvr_altera_load(struct bttv *btv, u8 *micro, u32 microlen)
 
 	for (n = 0; n < microlen; n++) {
 		bits = micro[n];
-		for ( i = 0 ; i < 8 ; i++ ) {
+		for (i = 0 ; i < 8 ; i++) {
 			gpio_bits(BTTV_ALT_DCLK,0);
 			if (bits & 0x01)
 				gpio_bits(BTTV_ALT_DATA,BTTV_ALT_DATA);
@@ -3691,7 +3716,7 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 	       /* this might be an antique... check for MMAC label in eeprom */
 	       if ((ee[0]=='M') && (ee[1]=='M') && (ee[2]=='A') && (ee[3]=='C')) {
 		       unsigned char checksum = 0;
-		       for (i =0; i<21; i++)
+		       for (i = 0; i < 21; i++)
 			       checksum += ee[i];
 		       if (checksum != ee[21])
 			       return;
@@ -3703,12 +3728,13 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 	       unsigned short type;
 	       int offset = 4*16;
 
-	       for(; offset < 8*16; offset += 16) {
+	       for (; offset < 8*16; offset += 16) {
 		       unsigned short checksum = 0;
 		       /* verify the checksum */
-		       for(i = 0; i<14; i++) checksum += ee[i+offset];
-			       checksum = ~checksum;  /* no idea why */
-			       if ((((checksum>>8)&0x0FF) == ee[offset+14]) &&
+		       for (i = 0; i < 14; i++)
+				checksum += ee[i+offset];
+			checksum = ~checksum;  /* no idea why */
+			if ((((checksum>>8)&0x0FF) == ee[offset+14]) &&
 				   ((checksum & 0x0FF) == ee[offset+15])) {
 			       break;
 		       }
@@ -3721,7 +3747,6 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 	       type = (ee[offset+4]<<8) | (ee[offset+5]);
 
 	       switch(type) {
-
 	       /* 848 based */
 	       case 0x0004:
 		       btv->c.type = BTTV_BOARD_OSPREY1x0_848;
@@ -4149,8 +4174,7 @@ static int tea5757_read(struct bttv *btv)
 	}
 
 	dprintk("bttv%d: tea5757:",btv->c.nr);
-	for(i = 0; i < 24; i++)
-	{
+	for (i = 0; i < 24; i++) {
 		udelay(5);
 		bus_high(btv,btv->mbox_clk);
 		udelay(5);
@@ -4182,8 +4206,7 @@ static int tea5757_write(struct bttv *btv, int value)
 	dprintk("bttv%d: tea5757: write 0x%X\n", btv->c.nr, value);
 	bus_low(btv,btv->mbox_clk);
 	bus_high(btv,btv->mbox_we);
-	for(i = 0; i < 25; i++)
-	{
+	for (i = 0; i < 25; i++) {
 		if (reg & 0x1000000)
 			bus_high(btv,btv->mbox_data);
 		else
@@ -4755,7 +4778,7 @@ static void kodicom4400r_init(struct bttv *btv)
 	gpio_write(1 << 9);	/* reset MUX */
 	gpio_write(0);
 	/* Preset camera 0 to the 4 controllers */
-	for (ix=0; ix<4; ix++) {
+	for (ix = 0; ix < 4; ix++) {
 		sw_status[ix] = ix;
 		kodicom4400r_write(btv, ix, ix, 1);
 	}

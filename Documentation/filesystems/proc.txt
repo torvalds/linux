@@ -1421,6 +1421,15 @@ fewer messages that will be written. Message_burst controls when messages will
 be dropped.  The  default  settings  limit  warning messages to one every five
 seconds.
 
+warnings
+--------
+
+This controls console messages from the networking stack that can occur because
+of problems on the network like duplicate address or bad checksums. Normally,
+this should be enabled, but if the problem persists the messages can be
+disabled.
+
+
 netdev_max_backlog
 ------------------
 

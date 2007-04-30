@@ -25,6 +25,7 @@ config NETFILTER_NETLINK_LOG
 	  and is also scheduled to replace the old syslog-based ipt_LOG
 	  and ip6t_LOG modules.
 
+# Rename this to NF_CONNTRACK in a 2.6.25
 config NF_CONNTRACK_ENABLED
 	tristate "Netfilter connection tracking support"
 	help
@@ -39,42 +40,9 @@ config NF_CONNTRACK_ENABLED
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-choice
-	prompt "Netfilter connection tracking support"
-	depends on NF_CONNTRACK_ENABLED
-
-config NF_CONNTRACK_SUPPORT
-	bool "Layer 3 Independent Connection tracking"
-	help
-	  Layer 3 independent connection tracking is experimental scheme
-	  which generalize ip_conntrack to support other layer 3 protocols.
-
-	  This is required to do Masquerading or other kinds of Network
-	  Address Translation (except for Fast NAT).  It can also be used to
-	  enhance packet filtering (see `Connection state match support'
-	  below).
-
-config IP_NF_CONNTRACK_SUPPORT
-	bool "Layer 3 Dependent Connection tracking (OBSOLETE)"
-	help
-	  The old, Layer 3 dependent ip_conntrack subsystem of netfilter.
-
-	  This is required to do Masquerading or other kinds of Network
-	  Address Translation (except for Fast NAT).  It can also be used to
-	  enhance packet filtering (see `Connection state match support'
-	  below).
-
-endchoice
-
 config NF_CONNTRACK
 	tristate
-	default m if NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=m
-	default y if NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=y
-
-config IP_NF_CONNTRACK
-	tristate
-	default m if IP_NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=m
-	default y if IP_NF_CONNTRACK_SUPPORT && NF_CONNTRACK_ENABLED=y
+	default NF_CONNTRACK_ENABLED
 
 config NF_CT_ACCT
 	bool "Connection tracking flow accounting"
@@ -303,9 +271,8 @@ config NETFILTER_XT_TARGET_CONNMARK
 	tristate  '"CONNMARK" target support'
 	depends on NETFILTER_XTABLES
 	depends on IP_NF_MANGLE || IP6_NF_MANGLE
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK
-	select IP_NF_CONNTRACK_MARK if IP_NF_CONNTRACK
-	select NF_CONNTRACK_MARK if NF_CONNTRACK
+	depends on NF_CONNTRACK
+	select NF_CONNTRACK_MARK
 	help
 	  This option adds a `CONNMARK' target, which allows one to manipulate
 	  the connection mark value.  Similar to the MARK target, but
@@ -366,7 +333,7 @@ config NETFILTER_XT_TARGET_NOTRACK
 	tristate  '"NOTRACK" target support'
 	depends on NETFILTER_XTABLES
 	depends on IP_NF_RAW || IP6_NF_RAW
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	depends on NF_CONNTRACK
 	help
 	  The NOTRACK target allows a select rule to specify
 	  which packets *not* to enter the conntrack/NAT
@@ -387,9 +354,7 @@ config NETFILTER_XT_TARGET_SECMARK
 
 config NETFILTER_XT_TARGET_CONNSECMARK
 	tristate '"CONNSECMARK" target support'
-	depends on NETFILTER_XTABLES && \
-		   ((NF_CONNTRACK && NF_CONNTRACK_SECMARK) || \
-		    (IP_NF_CONNTRACK && IP_NF_CONNTRACK_SECMARK))
+	depends on NETFILTER_XTABLES && NF_CONNTRACK && NF_CONNTRACK_SECMARK
 	help
 	  The CONNSECMARK target copies security markings from packets
 	  to connections, and restores security markings from connections
@@ -437,9 +402,8 @@ config NETFILTER_XT_MATCH_COMMENT
 config NETFILTER_XT_MATCH_CONNBYTES
 	tristate  '"connbytes" per-connection counter match support'
 	depends on NETFILTER_XTABLES
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK
-	select IP_NF_CT_ACCT if IP_NF_CONNTRACK
-	select NF_CT_ACCT if NF_CONNTRACK
+	depends on NF_CONNTRACK
+	select NF_CT_ACCT
 	help
 	  This option adds a `connbytes' match, which allows you to match the
 	  number of bytes and/or packets for each direction within a connection.
@@ -450,9 +414,8 @@ config NETFILTER_XT_MATCH_CONNBYTES
 config NETFILTER_XT_MATCH_CONNMARK
 	tristate  '"connmark" connection mark match support'
 	depends on NETFILTER_XTABLES
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK
-	select IP_NF_CONNTRACK_MARK if IP_NF_CONNTRACK
-	select NF_CONNTRACK_MARK if NF_CONNTRACK
+	depends on NF_CONNTRACK
+	select NF_CONNTRACK_MARK
 	help
 	  This option adds a `connmark' match, which allows you to match the
 	  connection mark value previously set for the session by `CONNMARK'. 
@@ -464,7 +427,7 @@ config NETFILTER_XT_MATCH_CONNMARK
 config NETFILTER_XT_MATCH_CONNTRACK
 	tristate '"conntrack" connection tracking match support'
 	depends on NETFILTER_XTABLES
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	depends on NF_CONNTRACK
 	help
 	  This is a general conntrack match module, a superset of the state match.
 
@@ -508,7 +471,7 @@ config NETFILTER_XT_MATCH_ESP
 config NETFILTER_XT_MATCH_HELPER
 	tristate '"helper" match support'
 	depends on NETFILTER_XTABLES
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	depends on NF_CONNTRACK
 	help
 	  Helper matching allows you to match packets in dynamic connections
 	  tracked by a conntrack-helper, ie. ip_conntrack_ftp
@@ -632,7 +595,7 @@ config NETFILTER_XT_MATCH_SCTP
 config NETFILTER_XT_MATCH_STATE
 	tristate '"state" match support'
 	depends on NETFILTER_XTABLES
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	depends on NF_CONNTRACK
 	help
 	  Connection state matching allows you to match packets based on their
 	  relationship to a tracked connection (ie. previous packets).  This

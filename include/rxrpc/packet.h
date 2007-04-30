@@ -1,6 +1,6 @@
 /* packet.h: Rx packet layout and definitions
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -12,28 +12,25 @@
 #ifndef _LINUX_RXRPC_PACKET_H
 #define _LINUX_RXRPC_PACKET_H
 
-#include <rxrpc/types.h>
-
-#define RXRPC_IPUDP_SIZE		28
-extern size_t RXRPC_MAX_PACKET_SIZE;
-#define RXRPC_MAX_PACKET_DATA_SIZE	(RXRPC_MAX_PACKET_SIZE - sizeof(struct rxrpc_header))
-#define RXRPC_LOCAL_PACKET_SIZE		RXRPC_MAX_PACKET_SIZE
-#define RXRPC_REMOTE_PACKET_SIZE	(576 - RXRPC_IPUDP_SIZE)
+typedef u32	rxrpc_seq_t;	/* Rx message sequence number */
+typedef u32	rxrpc_serial_t;	/* Rx message serial number */
+typedef __be32	rxrpc_seq_net_t; /* on-the-wire Rx message sequence number */
+typedef __be32	rxrpc_serial_net_t; /* on-the-wire Rx message serial number */
 
 /*****************************************************************************/
 /*
  * on-the-wire Rx packet header
  * - all multibyte fields should be in network byte order
  */
-struct rxrpc_header
-{
+struct rxrpc_header {
 	__be32		epoch;		/* client boot timestamp */
 
 	__be32		cid;		/* connection and channel ID */
 #define RXRPC_MAXCALLS		4			/* max active calls per conn */
 #define RXRPC_CHANNELMASK	(RXRPC_MAXCALLS-1)	/* mask for channel ID */
 #define RXRPC_CIDMASK		(~RXRPC_CHANNELMASK)	/* mask for connection ID */
-#define RXRPC_CIDSHIFT		2			/* shift for connection ID */
+#define RXRPC_CIDSHIFT		ilog2(RXRPC_MAXCALLS)	/* shift for connection ID */
+#define RXRPC_CID_INC		(1 << RXRPC_CIDSHIFT)	/* connection ID increment */
 
 	__be32		callNumber;	/* call ID (0 for connection-level packets) */
 #define RXRPC_PROCESS_MAXCALLS	(1<<2)	/* maximum number of active calls per conn (power of 2) */
@@ -62,7 +59,10 @@ struct rxrpc_header
 
 	uint8_t		userStatus;	/* app-layer defined status */
 	uint8_t		securityIndex;	/* security protocol ID */
-	__be16		_rsvd;		/* reserved (used by kerberos security as cksum) */
+	union {
+		__be16	_rsvd;		/* reserved */
+		__be16	cksum;		/* kerberos security checksum */
+	};
 	__be16		serviceId;	/* service ID */
 
 } __attribute__((packed));
@@ -81,8 +81,7 @@ extern const char *rxrpc_pkts[];
  *   - new__rsvd = j__rsvd
  *   - duplicating all other fields
  */
-struct rxrpc_jumbo_header
-{
+struct rxrpc_jumbo_header {
 	uint8_t		flags;		/* packet flags (as per rxrpc_header) */
 	uint8_t		pad;
 	__be16		_rsvd;		/* reserved (used by kerberos security as cksum) */
@@ -95,8 +94,7 @@ struct rxrpc_jumbo_header
  * on-the-wire Rx ACK packet data payload
  * - all multibyte fields should be in network byte order
  */
-struct rxrpc_ackpacket
-{
+struct rxrpc_ackpacket {
 	__be16		bufferSpace;	/* number of packet buffers available */
 	__be16		maxSkew;	/* diff between serno being ACK'd and highest serial no
 					 * received */
@@ -123,5 +121,94 @@ struct rxrpc_ackpacket
 #define RXRPC_ACK_TYPE_ACK		1
 
 } __attribute__((packed));
+
+/*
+ * ACK packets can have a further piece of information tagged on the end
+ */
+struct rxrpc_ackinfo {
+	__be32		rxMTU;		/* maximum Rx MTU size (bytes) [AFS 3.3] */
+	__be32		maxMTU;		/* maximum interface MTU size (bytes) [AFS 3.3] */
+	__be32		rwind;		/* Rx window size (packets) [AFS 3.4] */
+	__be32		jumbo_max;	/* max packets to stick into a jumbo packet [AFS 3.5] */
+};
+
+/*****************************************************************************/
+/*
+ * Kerberos security type-2 challenge packet
+ */
+struct rxkad_challenge {
+	__be32		version;	/* version of this challenge type */
+	__be32		nonce;		/* encrypted random number */
+	__be32		min_level;	/* minimum security level */
+	__be32		__padding;	/* padding to 8-byte boundary */
+} __attribute__((packed));
+
+/*****************************************************************************/
+/*
+ * Kerberos security type-2 response packet
+ */
+struct rxkad_response {
+	__be32		version;	/* version of this reponse type */
+	__be32		__pad;
+
+	/* encrypted bit of the response */
+	struct {
+		__be32		epoch;		/* current epoch */
+		__be32		cid;		/* parent connection ID */
+		__be32		checksum;	/* checksum */
+		__be32		securityIndex;	/* security type */
+		__be32		call_id[4];	/* encrypted call IDs */
+		__be32		inc_nonce;	/* challenge nonce + 1 */
+		__be32		level;		/* desired level */
+	} encrypted;
+
+	__be32		kvno;		/* Kerberos key version number */
+	__be32		ticket_len;	/* Kerberos ticket length  */
+} __attribute__((packed));
+
+/*****************************************************************************/
+/*
+ * RxRPC-level abort codes
+ */
+#define RX_CALL_DEAD		-1	/* call/conn has been inactive and is shut down */
+#define RX_INVALID_OPERATION	-2	/* invalid operation requested / attempted */
+#define RX_CALL_TIMEOUT		-3	/* call timeout exceeded */
+#define RX_EOF			-4	/* unexpected end of data on read op */
+#define RX_PROTOCOL_ERROR	-5	/* low-level protocol error */
+#define RX_USER_ABORT		-6	/* generic user abort */
+#define RX_ADDRINUSE		-7	/* UDP port in use */
+#define RX_DEBUGI_BADTYPE	-8	/* bad debugging packet type */
+
+/*
+ * (un)marshalling abort codes (rxgen)
+ */
+#define	RXGEN_CC_MARSHAL    -450
+#define	RXGEN_CC_UNMARSHAL  -451
+#define	RXGEN_SS_MARSHAL    -452
+#define	RXGEN_SS_UNMARSHAL  -453
+#define	RXGEN_DECODE	    -454
+#define	RXGEN_OPCODE	    -455
+#define	RXGEN_SS_XDRFREE    -456
+#define	RXGEN_CC_XDRFREE    -457
+
+/*
+ * Rx kerberos security abort codes
+ * - unfortunately we have no generalised security abort codes to say things
+ *   like "unsupported security", so we have to use these instead and hope the
+ *   other side understands
+ */
+#define RXKADINCONSISTENCY	19270400	/* security module structure inconsistent */
+#define RXKADPACKETSHORT	19270401	/* packet too short for security challenge */
+#define RXKADLEVELFAIL		19270402	/* security level negotiation failed */
+#define RXKADTICKETLEN		19270403	/* ticket length too short or too long */
+#define RXKADOUTOFSEQUENCE	19270404	/* packet had bad sequence number */
+#define RXKADNOAUTH		19270405	/* caller not authorised */
+#define RXKADBADKEY		19270406	/* illegal key: bad parity or weak */
+#define RXKADBADTICKET		19270407	/* security object was passed a bad ticket */
+#define RXKADUNKNOWNKEY		19270408	/* ticket contained unknown key version number */
+#define RXKADEXPIRED		19270409	/* authentication expired */
+#define RXKADSEALEDINCON	19270410	/* sealed data inconsistent */
+#define RXKADDATALEN		19270411	/* user data too long */
+#define RXKADILLEGALLEVEL	19270412	/* caller not authorised to use encrypted conns */
 
 #endif /* _LINUX_RXRPC_PACKET_H */

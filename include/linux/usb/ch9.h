@@ -181,12 +181,15 @@ struct usb_ctrlrequest {
 #define USB_DT_WIRE_ADAPTER		0x21
 #define USB_DT_RPIPE			0x22
 
-/* conventional codes for class-specific descriptors */
-#define USB_DT_CS_DEVICE		0x21
-#define USB_DT_CS_CONFIG		0x22
-#define USB_DT_CS_STRING		0x23
-#define USB_DT_CS_INTERFACE		0x24
-#define USB_DT_CS_ENDPOINT		0x25
+/* Conventional codes for class-specific descriptors.  The convention is
+ * defined in the USB "Common Class" Spec (3.11).  Individual class specs
+ * are authoritative for their usage, not the "common class" writeup.
+ */
+#define USB_DT_CS_DEVICE		(USB_TYPE_CLASS | USB_DT_DEVICE)
+#define USB_DT_CS_CONFIG		(USB_TYPE_CLASS | USB_DT_CONFIG)
+#define USB_DT_CS_STRING		(USB_TYPE_CLASS | USB_DT_STRING)
+#define USB_DT_CS_INTERFACE		(USB_TYPE_CLASS | USB_DT_INTERFACE)
+#define USB_DT_CS_ENDPOINT		(USB_TYPE_CLASS | USB_DT_ENDPOINT)
 
 /* All standard descriptors have these 2 fields at the beginning */
 struct usb_descriptor_header {

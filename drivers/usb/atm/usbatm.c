@@ -274,6 +274,9 @@ static void usbatm_complete(struct urb *urb)
 			(!(channel->usbatm->flags & UDSL_IGNORE_EILSEQ) ||
 			 urb->status != -EILSEQ ))
 	{
+		if (urb->status == -ESHUTDOWN)
+			return;
+
 		if (printk_ratelimit())
 			atm_warn(channel->usbatm, "%s: urb 0x%p failed (%d)!\n",
 				__func__, urb, urb->status);
@@ -343,7 +346,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 		UDSL_ASSERT(sarb->tail + ATM_CELL_PAYLOAD <= sarb->end);
 	}
 
-	memcpy(sarb->tail, source + ATM_CELL_HEADER, ATM_CELL_PAYLOAD);
+	memcpy(skb_tail_pointer(sarb), source + ATM_CELL_HEADER, ATM_CELL_PAYLOAD);
 	__skb_put(sarb, ATM_CELL_PAYLOAD);
 
 	if (pti & 1) {
@@ -370,7 +373,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 			goto out;
 		}
 
-		if (crc32_be(~0, sarb->tail - pdu_length, pdu_length) != 0xc704dd7b) {
+		if (crc32_be(~0, skb_tail_pointer(sarb) - pdu_length, pdu_length) != 0xc704dd7b) {
 			atm_rldbg(instance, "%s: packet failed crc check (vcc: 0x%p)!\n",
 				  __func__, vcc);
 			atomic_inc(&vcc->stats->rx_err);
@@ -396,7 +399,9 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 			goto out;	/* atm_charge increments rx_drop */
 		}
 
-		memcpy(skb->data, sarb->tail - pdu_length, length);
+		skb_copy_to_linear_data(skb,
+					skb_tail_pointer(sarb) - pdu_length,
+					length);
 		__skb_put(skb, length);
 
 		vdbg("%s: sending skb 0x%p, skb->len %u, skb->truesize %u",
@@ -484,7 +489,7 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 		ptr[4] = 0xec;
 		ptr += ATM_CELL_HEADER;
 
-		memcpy(ptr, skb->data, data_len);
+		skb_copy_from_linear_data(skb, ptr, data_len);
 		ptr += data_len;
 		__skb_pull(skb, data_len);
 
@@ -966,6 +971,14 @@ static int usbatm_atm_init(struct usbatm_data *instance)
 	/* temp init ATM device, set to 128kbit */
 	atm_dev->link_rate = 128 * 1000 / 424;
 
+	ret = sysfs_create_link(&atm_dev->class_dev.kobj,
+				&instance->usb_intf->dev.kobj, "device");
+	if (ret) {
+		atm_err(instance, "%s: sysfs_create_link failed: %d\n",
+					__func__, ret);
+		goto fail_sysfs;
+	}
+
 	if (instance->driver->atm_start && ((ret = instance->driver->atm_start(instance, atm_dev)) < 0)) {
 		atm_err(instance, "%s: atm_start failed: %d!\n", __func__, ret);
 		goto fail;
@@ -984,6 +997,8 @@ static int usbatm_atm_init(struct usbatm_data *instance)
 	return 0;
 
  fail:
+	sysfs_remove_link(&atm_dev->class_dev.kobj, "device");
+ fail_sysfs:
 	instance->atm_dev = NULL;
 	atm_dev_deregister(atm_dev); /* usbatm_atm_dev_close will eventually be called */
 	return ret;
@@ -1316,8 +1331,10 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 	kfree(instance->cell_buf);
 
 	/* ATM finalize */
-	if (instance->atm_dev)
+	if (instance->atm_dev) {
+		sysfs_remove_link(&instance->atm_dev->class_dev.kobj, "device");
 		atm_dev_deregister(instance->atm_dev);
+	}
 
 	usbatm_put_instance(instance);	/* taken in usbatm_usb_probe */
 }

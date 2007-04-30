@@ -481,6 +481,8 @@ struct cx8802_dev {
 
 	/* List of attached drivers */
 	struct cx8802_driver       drvlist;
+	struct work_struct request_module_wk;
+
 };
 
 /* ----------------------------------------------------------- */
@@ -510,7 +512,7 @@ struct cx8802_dev {
 /* cx88-core.c                                                 */
 
 extern void cx88_print_irqbits(char *name, char *tag, char **strings,
-			       u32 bits, u32 mask);
+			       int len, u32 bits, u32 mask);
 
 extern int cx88_core_irq(struct cx88_core *core, u32 status);
 extern void cx88_wakeup(struct cx88_core *core,

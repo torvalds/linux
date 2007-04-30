@@ -46,6 +46,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/reboot.h>
 
 #include "heartbeat.h"
 #include "nodemanager.h"
@@ -72,7 +73,9 @@ static void o2quo_fence_self(void)
 	/* panic spins with interrupts enabled.  with preempt
 	 * threads can still schedule, etc, etc */
 	o2hb_stop_all_regions();
-	panic("ocfs2 is very sorry to be fencing this system by panicing\n");
+
+	printk("ocfs2 is very sorry to be fencing this system by restarting\n");
+	emergency_restart();
 }
 
 /* Indicate that a timeout occured on a hearbeat region write. The

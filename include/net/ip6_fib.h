@@ -219,8 +219,6 @@ extern void			fib6_init(void);
 
 extern void			fib6_rules_init(void);
 extern void			fib6_rules_cleanup(void);
-extern int			fib6_rules_dump(struct sk_buff *,
-						struct netlink_callback *);
 
 #endif
 #endif

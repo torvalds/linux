@@ -2289,7 +2289,6 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 			 * without copying to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak
 			    && (skb = dev_alloc_skb(pkt_len + RX_OFFSET)) != NULL) {
-				skb->dev = dev;
 				/* 16 byte align the IP header */
 				skb_reserve(skb, RX_OFFSET);
 				pci_dma_sync_single_for_cpu(np->pci_dev,

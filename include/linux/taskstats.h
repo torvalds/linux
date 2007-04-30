@@ -31,7 +31,7 @@
  */
 
 
-#define TASKSTATS_VERSION	3
+#define TASKSTATS_VERSION	4
 #define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
 					 * in linux/sched.h */
 
@@ -66,7 +66,7 @@ struct taskstats {
 	/* Delay waiting for cpu, while runnable
 	 * count, delay_total NOT updated atomically
 	 */
-	__u64	cpu_count;
+	__u64	cpu_count __attribute__((aligned(8)));
 	__u64	cpu_delay_total;
 
 	/* Following four fields atomically updated using task->delays->lock */
@@ -101,14 +101,17 @@ struct taskstats {
 
 	/* Basic Accounting Fields start */
 	char	ac_comm[TS_COMM_LEN];	/* Command name */
-	__u8	ac_sched;		/* Scheduling discipline */
+	__u8	ac_sched __attribute__((aligned(8)));
+					/* Scheduling discipline */
 	__u8	ac_pad[3];
-	__u32	ac_uid;			/* User ID */
+	__u32	ac_uid __attribute__((aligned(8)));
+					/* User ID */
 	__u32	ac_gid;			/* Group ID */
 	__u32	ac_pid;			/* Process ID */
 	__u32	ac_ppid;		/* Parent process ID */
 	__u32	ac_btime;		/* Begin time [sec since 1970] */
-	__u64	ac_etime;		/* Elapsed time [usec] */
+	__u64	ac_etime __attribute__((aligned(8)));
+					/* Elapsed time [usec] */
 	__u64	ac_utime;		/* User CPU time [usec] */
 	__u64	ac_stime;		/* SYstem CPU time [usec] */
 	__u64	ac_minflt;		/* Minor Page Fault Count */

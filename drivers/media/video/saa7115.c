@@ -45,6 +45,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/saa7115.h>
 #include <asm/div64.h>
 
@@ -80,7 +81,7 @@ struct saa711x_state {
 	int sat;
 	int width;
 	int height;
-	enum v4l2_chip_ident ident;
+	u32 ident;
 	u32 audclk_freq;
 	u32 crystal_freq;
 	u8 ucgc;
@@ -1232,7 +1233,6 @@ static void saa711x_decode_vbi_line(struct i2c_client *client,
 static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct saa711x_state *state = i2c_get_clientdata(client);
-	int *iarg = arg;
 
 	/* ioctls to allow direct access to the saa7115 registers for testing */
 	switch (cmd) {
@@ -1437,9 +1437,8 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 	}
 #endif
 
-	case VIDIOC_INT_G_CHIP_IDENT:
-		*iarg = state->ident;
-		break;
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, state->ident, 0);
 
 	default:
 		return -EINVAL;
@@ -1487,6 +1486,7 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (memcmp(name, "1f711", 5)) {
 		v4l_dbg(1, debug, client, "chip found @ 0x%x (ID %s) does not match a known saa711x chip.\n",
 			address << 1, name);
+		kfree(client);
 		return 0;
 	}
 
