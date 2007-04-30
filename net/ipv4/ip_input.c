@@ -416,7 +416,10 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 		goto inhdr_error;
 
 	len = ntohs(iph->tot_len);
-	if (skb->len < len || len < (iph->ihl*4))
+	if (skb->len < len) {
+		IP_INC_STATS_BH(IPSTATS_MIB_INTRUNCATEDPKTS);
+		goto drop;
+	} else if (len < (iph->ihl*4))
 		goto inhdr_error;
 
 	/* Our transport medium may have padded the buffer out. Now we know it
