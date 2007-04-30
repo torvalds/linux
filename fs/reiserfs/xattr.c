@@ -68,7 +68,7 @@ static struct dentry *get_xa_root(struct super_block *sb, int flags)
 	if (!privroot)
 		return ERR_PTR(-ENODATA);
 
-	mutex_lock(&privroot->d_inode->i_mutex);
+	mutex_lock_nested(&privroot->d_inode->i_mutex, I_MUTEX_XATTR);
 	if (REISERFS_SB(sb)->xattr_root) {
 		xaroot = dget(REISERFS_SB(sb)->xattr_root);
 		goto out;
