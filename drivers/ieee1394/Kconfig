@@ -1,11 +1,8 @@
-# -*- shell-script -*-
-
 menu "IEEE 1394 (FireWire) support"
 
 config IEEE1394
 	tristate "IEEE 1394 (FireWire) support"
 	depends on PCI || BROKEN
-	select NET
 	help
 	  IEEE 1394 describes a high performance serial bus, which is also
 	  known as FireWire(tm) or i.Link(tm) and is used for connecting all
@@ -35,24 +32,7 @@ config IEEE1394_VERBOSEDEBUG
 	  Say Y if you really want or need the debugging output, everyone
 	  else says N.
 
-config IEEE1394_EXTRA_CONFIG_ROMS
-	bool "Build in extra config rom entries for certain functionality"
-	depends on IEEE1394
-	help
-	  Some IEEE1394 functionality depends on extra config rom entries
-	  being available in the host adapters CSR. These options will
-	  allow you to choose which ones.
-
-config IEEE1394_CONFIG_ROM_IP1394
-	bool "IP-1394 Entry"
-	depends on IEEE1394_EXTRA_CONFIG_ROMS && IEEE1394
-	help
-	  Adds an entry for using IP-over-1394. If you want to use your
-	  IEEE1394 bus as a network for IP systems (including interacting
-	  with MacOSX and WinXP IP-over-1394), enable this option and the
-	  eth1394 option below.
-
-comment "Device Drivers"
+comment "Controllers"
 	depends on IEEE1394
 
 comment "Texas Instruments PCILynx requires I2C"
@@ -70,6 +50,10 @@ config IEEE1394_PCILYNX
 	  To compile this driver as a module, say M here: the
 	  module will be called pcilynx.
 
+	  Only some old and now very rare PCI and CardBus cards and
+	  PowerMacs G3 B&W contain the PCILynx controller.  Therefore
+	  almost everybody can say N here.
+
 config IEEE1394_OHCI1394
 	tristate "OHCI-1394 support"
 	depends on PCI && IEEE1394
@@ -83,7 +67,7 @@ config IEEE1394_OHCI1394
 	  To compile this driver as a module, say M here: the
 	  module will be called ohci1394.
 
-comment "Protocol Drivers"
+comment "Protocols"
 	depends on IEEE1394
 
 config IEEE1394_VIDEO1394
@@ -121,11 +105,15 @@ config IEEE1394_SBP2_PHYS_DMA
 	  This option is buggy and currently broken on some architectures.
 	  If unsure, say N.
 
+config IEEE1394_ETH1394_ROM_ENTRY
+	depends on IEEE1394
+	bool
+	default n
+
 config IEEE1394_ETH1394
-	tristate "Ethernet over 1394"
+	tristate "IP over 1394"
 	depends on IEEE1394 && EXPERIMENTAL && INET
-	select IEEE1394_CONFIG_ROM_IP1394
-	select IEEE1394_EXTRA_CONFIG_ROMS
+	select IEEE1394_ETH1394_ROM_ENTRY
 	help
 	  This driver implements a functional majority of RFC 2734: IPv4 over
 	  1394.  It will provide IP connectivity with implementations of RFC
@@ -133,6 +121,8 @@ config IEEE1394_ETH1394
 	  older versions of this driver found in stock kernels prior to 2.6.3.
 	  This driver is still considered experimental.  It does not yet support
 	  MCAP, therefore multicast support is significantly limited.
+
+	  The module is called eth1394 although it does not emulate Ethernet.
 
 config IEEE1394_DV1394
 	tristate "OHCI-DV I/O support (deprecated)"
@@ -146,12 +136,12 @@ config IEEE1394_RAWIO
 	tristate "Raw IEEE1394 I/O support"
 	depends on IEEE1394
 	help
-	  Say Y here if you want support for the raw device. This is generally
-	  a good idea, so you should say Y here. The raw device enables
-	  direct communication of user programs with the IEEE 1394 bus and
-	  thus with the attached peripherals.
+	  This option adds support for the raw1394 device file which enables
+	  direct communication of user programs with the IEEE 1394 bus and thus
+	  with the attached peripherals.  Almost all application programs which
+	  access FireWire require this option.
 
-	  To compile this driver as a module, say M here: the
-	  module will be called raw1394.
+	  To compile this driver as a module, say M here: the module will be
+	  called raw1394.
 
 endmenu

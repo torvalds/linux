@@ -150,8 +150,6 @@ struct hpsb_iso {
 
 /* functions available to high-level drivers (e.g. raw1394) */
 
-/* allocate the buffer and DMA context */
-
 struct hpsb_iso* hpsb_iso_xmit_init(struct hpsb_host *host,
 				    unsigned int data_buf_size,
 				    unsigned int buf_packets,
@@ -159,8 +157,6 @@ struct hpsb_iso* hpsb_iso_xmit_init(struct hpsb_host *host,
 				    int speed,
 				    int irq_interval,
 				    void (*callback)(struct hpsb_iso*));
-
-/* note: if channel = -1, multi-channel receive is enabled */
 struct hpsb_iso* hpsb_iso_recv_init(struct hpsb_host *host,
 				    unsigned int data_buf_size,
 				    unsigned int buf_packets,
@@ -168,56 +164,29 @@ struct hpsb_iso* hpsb_iso_recv_init(struct hpsb_host *host,
 				    int dma_mode,
 				    int irq_interval,
 				    void (*callback)(struct hpsb_iso*));
-
-/* multi-channel only */
 int hpsb_iso_recv_listen_channel(struct hpsb_iso *iso, unsigned char channel);
 int hpsb_iso_recv_unlisten_channel(struct hpsb_iso *iso, unsigned char channel);
 int hpsb_iso_recv_set_channel_mask(struct hpsb_iso *iso, u64 mask);
-
-/* start/stop DMA */
 int hpsb_iso_xmit_start(struct hpsb_iso *iso, int start_on_cycle,
 			int prebuffer);
 int hpsb_iso_recv_start(struct hpsb_iso *iso, int start_on_cycle,
 			int tag_mask, int sync);
 void hpsb_iso_stop(struct hpsb_iso *iso);
-
-/* deallocate buffer and DMA context */
 void hpsb_iso_shutdown(struct hpsb_iso *iso);
-
-/* queue a packet for transmission.
- * 'offset' is relative to the beginning of the DMA buffer, where the packet's
- * data payload should already have been placed. */
 int hpsb_iso_xmit_queue_packet(struct hpsb_iso *iso, u32 offset, u16 len,
 			       u8 tag, u8 sy);
-
-/* wait until all queued packets have been transmitted to the bus */
 int hpsb_iso_xmit_sync(struct hpsb_iso *iso);
-
-/* N packets have been read out of the buffer, re-use the buffer space */
-int  hpsb_iso_recv_release_packets(struct hpsb_iso *recv,
-				   unsigned int n_packets);
-
-/* check for arrival of new packets immediately (even if irq_interval
- * has not yet been reached) */
+int hpsb_iso_recv_release_packets(struct hpsb_iso *recv,
+				  unsigned int n_packets);
 int hpsb_iso_recv_flush(struct hpsb_iso *iso);
-
-/* returns # of packets ready to send or receive */
 int hpsb_iso_n_ready(struct hpsb_iso *iso);
 
 /* the following are callbacks available to low-level drivers */
 
-/* call after a packet has been transmitted to the bus (interrupt context is OK)
- * 'cycle' is the _exact_ cycle the packet was sent on
- * 'error' should be non-zero if some sort of error occurred when sending the
- *  packet */
 void hpsb_iso_packet_sent(struct hpsb_iso *iso, int cycle, int error);
-
-/* call after a packet has been received (interrupt context OK) */
 void hpsb_iso_packet_received(struct hpsb_iso *iso, u32 offset, u16 len,
 			      u16 total_len, u16 cycle, u8 channel, u8 tag,
 			      u8 sy);
-
-/* call to wake waiting processes after buffer space has opened up. */
 void hpsb_iso_wake(struct hpsb_iso *iso);
 
 #endif /* IEEE1394_ISO_H */
