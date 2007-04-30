@@ -146,7 +146,7 @@ static void ams_pmu_exit(void)
 
 int __init ams_pmu_init(struct device_node *np)
 {
-	u32 *prop;
+	const u32 *prop;
 	int result;
 
 	mutex_lock(&ams_info.lock);
@@ -160,7 +160,7 @@ int __init ams_pmu_init(struct device_node *np)
 	ams_info.bustype = BUS_HOST;
 
 	/* Get PMU command, should be 0x4e, but we can never know */
-	prop = (u32*)get_property(ams_info.of_node, "reg", NULL);
+	prop = get_property(ams_info.of_node, "reg", NULL);
 	if (!prop) {
 		result = -ENODEV;
 		goto exit;

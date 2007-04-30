@@ -1,11 +1,9 @@
 /*
- * arch/ppc/platforms/4xx/xilinx_ml403.c
- *
  * Xilinx ML403 evaluation board initialization
  *
  * Author: Grant Likely <grant.likely@secretlab.ca>
  *
- * 2005 (c) Secret Lab Technologies Ltd.
+ * 2005-2007 (c) Secret Lab Technologies Ltd.
  * 2002-2004 (c) MontaVista Software, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
@@ -22,9 +20,9 @@
 #include <linux/serialP.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/ppc_sys.h>
 
 #include <syslib/gen550.h>
+#include <syslib/virtex_devices.h>
 #include <platforms/4xx/xparameters/xparameters.h>
 
 /*
@@ -57,24 +55,9 @@
  *          ppc4xx_pic_init			arch/ppc/syslib/xilinx_pic.c
  */
 
-/* Board specifications structures */
-struct ppc_sys_spec *cur_ppc_sys_spec;
-struct ppc_sys_spec ppc_sys_specs[] = {
-	{
-		/* Only one entry, always assume the same design */
-		.ppc_sys_name	= "Xilinx ML403 Reference Design",
-		.mask 		= 0x00000000,
-		.value 		= 0x00000000,
-		.num_devices	= 1,
-		.device_list	= (enum ppc_sys_devices[])
-		{
-			VIRTEX_UART,
-		},
-	},
-};
+const char* virtex_machine_name = "ML403 Reference Design";
 
 #if defined(XPAR_POWER_0_POWERDOWN_BASEADDR)
-
 static volatile unsigned *powerdown_base =
     (volatile unsigned *) XPAR_POWER_0_POWERDOWN_BASEADDR;
 
@@ -99,47 +82,10 @@ ml403_map_io(void)
 #endif
 }
 
-/* Early serial support functions */
-static void __init
-ml403_early_serial_init(int num, struct plat_serial8250_port *pdata)
-{
-#if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
-	struct uart_port serial_req;
-
-	memset(&serial_req, 0, sizeof(serial_req));
-	serial_req.mapbase	= pdata->mapbase;
-	serial_req.membase	= pdata->membase;
-	serial_req.irq		= pdata->irq;
-	serial_req.uartclk	= pdata->uartclk;
-	serial_req.regshift	= pdata->regshift;
-	serial_req.iotype	= pdata->iotype;
-	serial_req.flags	= pdata->flags;
-	gen550_init(num, &serial_req);
-#endif
-}
-
-void __init
-ml403_early_serial_map(void)
-{
-#ifdef CONFIG_SERIAL_8250
-	struct plat_serial8250_port *pdata;
-	int i = 0;
-
-	pdata = (struct plat_serial8250_port *) ppc_sys_get_pdata(VIRTEX_UART);
-	while(pdata && pdata->flags)
-	{
-		pdata->membase = ioremap(pdata->mapbase, 0x100);
-		ml403_early_serial_init(i, pdata);
-		pdata++;
-		i++;
-	}
-#endif /* CONFIG_SERIAL_8250 */
-}
-
 void __init
 ml403_setup_arch(void)
 {
-	ml403_early_serial_map();
+	virtex_early_serial_map();
 	ppc4xx_setup_arch();	/* calls ppc4xx_find_bridges() */
 
 	/* Identify the system */
@@ -159,8 +105,6 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 {
 	ppc4xx_init(r3, r4, r5, r6, r7);
 
-	identify_ppc_sys_by_id(mfspr(SPRN_PVR));
-
 	ppc_md.setup_arch = ml403_setup_arch;
 	ppc_md.setup_io_mappings = ml403_map_io;
 	ppc_md.init_IRQ = ml403_init_irq;
@@ -170,7 +114,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif
 
 #ifdef CONFIG_KGDB
-	ppc_md.early_serial_map = ml403_early_serial_map;
+	ppc_md.early_serial_map = virtex_early_serial_map;
 #endif
 }
 

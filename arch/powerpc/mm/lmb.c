@@ -146,6 +146,10 @@ static long __init lmb_add_region(struct lmb_region *rgn, unsigned long base,
 		unsigned long rgnbase = rgn->region[i].base;
 		unsigned long rgnsize = rgn->region[i].size;
 
+		if ((rgnbase == base) && (rgnsize == size))
+			/* Already have this region, so we're done */
+			return 0;
+
 		adjacent = lmb_addrs_adjacent(base,size,rgnbase,rgnsize);
 		if ( adjacent > 0 ) {
 			rgn->region[i].base -= size;

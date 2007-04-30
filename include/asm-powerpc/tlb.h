@@ -38,7 +38,6 @@ extern void pte_free_finish(void);
 
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
-	flush_tlb_pending();
 	pte_free_finish();
 }
 

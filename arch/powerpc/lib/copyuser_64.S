@@ -24,7 +24,7 @@ _GLOBAL(__copy_tofrom_user)
 	dcbt	0,r4
 	beq	.Lcopy_page_4K
 	andi.	r6,r6,7
-	mtcrf	0x01,r5
+	PPC_MTOCRF	0x01,r5
 	blt	cr1,.Lshort_copy
 	bne	.Ldst_unaligned
 .Ldst_aligned:
@@ -135,7 +135,7 @@ _GLOBAL(__copy_tofrom_user)
 	b	.Ldo_tail
 
 .Ldst_unaligned:
-	mtcrf	0x01,r6		/* put #bytes to 8B bdry into cr7 */
+	PPC_MTOCRF	0x01,r6		/* put #bytes to 8B bdry into cr7 */
 	subf	r5,r6,r5
 	li	r7,0
 	cmpldi	r1,r5,16
@@ -150,7 +150,7 @@ _GLOBAL(__copy_tofrom_user)
 2:	bf	cr7*4+1,3f
 37:	lwzx	r0,r7,r4
 83:	stwx	r0,r7,r3
-3:	mtcrf	0x01,r5
+3:	PPC_MTOCRF	0x01,r5
 	add	r4,r6,r4
 	add	r3,r6,r3
 	b	.Ldst_aligned

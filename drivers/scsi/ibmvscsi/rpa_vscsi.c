@@ -157,7 +157,7 @@ static void gather_partition_info(void)
 	const unsigned int *p_number_ptr;
 
 	/* Retrieve information about this partition */
-	rootdn = find_path_device("/");
+	rootdn = of_find_node_by_path("/");
 	if (!rootdn) {
 		return;
 	}
@@ -169,6 +169,7 @@ static void gather_partition_info(void)
 	p_number_ptr = get_property(rootdn, "ibm,partition-no", NULL);
 	if (p_number_ptr)
 		partition_number = *p_number_ptr;
+	of_node_put(rootdn);
 }
 
 static void set_adapter_info(struct ibmvscsi_host_data *hostdata)

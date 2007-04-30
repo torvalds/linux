@@ -134,7 +134,7 @@ static int wf_max6690_attach(struct i2c_adapter *adapter)
 		if (!device_is_compatible(dev, "max6690"))
 			continue;
 		addr = pmac_i2c_get_dev_addr(dev);
-		loc = get_property(dev, "hwsensor-location", NULL);
+		loc = of_get_property(dev, "hwsensor-location", NULL);
 		if (loc == NULL || addr == 0)
 			continue;
 		printk("found max6690, loc=%s addr=0x%02x\n", loc, addr);

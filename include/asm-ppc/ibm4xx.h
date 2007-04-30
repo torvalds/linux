@@ -47,12 +47,8 @@
 #include <platforms/4xx/walnut.h>
 #endif
 
-#if defined(CONFIG_XILINX_ML300)
-#include <platforms/4xx/xilinx_ml300.h>
-#endif
-
-#if defined(CONFIG_XILINX_ML403)
-#include <platforms/4xx/xilinx_ml403.h>
+#if defined(CONFIG_XILINX_VIRTEX)
+#include <platforms/4xx/virtex.h>
 #endif
 
 #ifndef __ASSEMBLY__

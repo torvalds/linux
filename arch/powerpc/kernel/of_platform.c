@@ -133,6 +133,7 @@ static int of_platform_device_resume(struct device * dev)
 struct bus_type of_platform_bus_type = {
        .name	= "of_platform",
        .match	= of_platform_bus_match,
+       .uevent	= of_device_uevent,
        .probe	= of_platform_device_probe,
        .remove	= of_platform_device_remove,
        .suspend	= of_platform_device_suspend,
@@ -177,7 +178,7 @@ static void of_platform_make_bus_id(struct of_device *dev)
 	 * and 'D' for MMIO DCRs.
 	 */
 #ifdef CONFIG_PPC_DCR
-	reg = get_property(node, "dcr-reg", NULL);
+	reg = of_get_property(node, "dcr-reg", NULL);
 	if (reg) {
 #ifdef CONFIG_PPC_DCR_NATIVE
 		snprintf(name, BUS_ID_SIZE, "d%x.%s",
@@ -197,7 +198,7 @@ static void of_platform_make_bus_id(struct of_device *dev)
 	/*
 	 * For MMIO, get the physical address
 	 */
-	reg = get_property(node, "reg", NULL);
+	reg = of_get_property(node, "reg", NULL);
 	if (reg) {
 		addr = of_translate_address(node, reg);
 		if (addr != OF_BAD_ADDR) {

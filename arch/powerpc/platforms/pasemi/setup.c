@@ -35,6 +35,7 @@
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
+#include <asm/of_platform.h>
 
 #include "pasemi.h"
 
@@ -101,12 +102,6 @@ void __init pas_setup_arch(void)
 	pasemi_idle_init();
 }
 
-/* No legacy IO on our parts */
-static int pas_check_legacy_ioport(unsigned int baseport)
-{
-	return -ENODEV;
-}
-
 static __init void pas_init_IRQ(void)
 {
 	struct device_node *np;
@@ -136,8 +131,8 @@ static __init void pas_init_IRQ(void)
 
 	/* Find address list in /platform-open-pic */
 	root = of_find_node_by_path("/");
-	naddr = prom_n_addr_cells(root);
-	opprop = get_property(root, "platform-open-pic", &opplen);
+	naddr = of_n_addr_cells(root);
+	opprop = of_get_property(root, "platform-open-pic", &opplen);
 	if (!opprop) {
 		printk(KERN_ERR "No platform-open-pic property.\n");
 		of_node_put(root);
@@ -147,7 +142,7 @@ static __init void pas_init_IRQ(void)
 	printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
 
 	mpic = mpic_alloc(mpic_node, openpic_addr,
-			  MPIC_PRIMARY|MPIC_LARGE_VECTORS,
+			  MPIC_PRIMARY|MPIC_LARGE_VECTORS|MPIC_WANTS_RESET,
 			  0, 0, " PAS-OPIC  ");
 	BUG_ON(!mpic);
 
@@ -209,6 +204,20 @@ static void __init pas_init_early(void)
 	iommu_init_early_pasemi();
 }
 
+static struct of_device_id pasemi_bus_ids[] = {
+	{ .type = "sdc", },
+	{},
+};
+
+static int __init pasemi_publish_devices(void)
+{
+	/* Publish OF platform devices for southbridge IOs */
+	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
+
+	return 0;
+}
+device_initcall(pasemi_publish_devices);
+
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
@@ -237,7 +246,6 @@ define_machine(pas) {
 	.restart		= pas_restart,
 	.get_boot_time		= pas_get_boot_time,
 	.calibrate_decr		= generic_calibrate_decr,
-	.check_legacy_ioport    = pas_check_legacy_ioport,
 	.progress		= pas_progress,
 	.machine_check_exception = pas_machine_check_handler,
 	.pci_irq_fixup		= pas_pci_irq_fixup,

@@ -19,8 +19,13 @@
  *  2 of the License, or (at your option) any later version.
  *
  */
+#include <linux/mm.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu.h>
+
+extern void hash_preload(struct mm_struct *mm, unsigned long ea,
+			 unsigned long access, unsigned long trap);
+
 
 #ifdef CONFIG_PPC32
 extern void mapin_ram(void);

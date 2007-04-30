@@ -97,11 +97,6 @@ extern void cbe_disable_pm_interrupts(u32 cpu);
 extern u32  cbe_get_and_clear_pm_interrupts(u32 cpu);
 extern void cbe_sync_irq(int node);
 
-/* Utility functions, macros */
-extern u32 cbe_get_hw_thread_id(int cpu);
-
-#define cbe_cpu_to_node(cpu) ((cpu) >> 1)
-
 #define CBE_COUNT_SUPERVISOR_MODE       0
 #define CBE_COUNT_HYPERVISOR_MODE       1
 #define CBE_COUNT_PROBLEM_MODE          2

@@ -18,27 +18,6 @@ void spufs_stop_callback(struct spu *spu)
 	wake_up_all(&ctx->stop_wq);
 }
 
-void spufs_dma_callback(struct spu *spu, int type)
-{
-	struct spu_context *ctx = spu->ctx;
-
-	if (ctx->flags & SPU_CREATE_EVENTS_ENABLED) {
-		ctx->event_return |= type;
-		wake_up_all(&ctx->stop_wq);
-	} else {
-		switch (type) {
-		case SPE_EVENT_DMA_ALIGNMENT:
-		case SPE_EVENT_SPE_DATA_STORAGE:
-		case SPE_EVENT_INVALID_DMA:
-			force_sig(SIGBUS, /* info, */ current);
-			break;
-		case SPE_EVENT_SPE_ERROR:
-			force_sig(SIGILL, /* info */ current);
-			break;
-		}
-	}
-}
-
 static inline int spu_stopped(struct spu_context *ctx, u32 * stat)
 {
 	struct spu *spu;
@@ -63,12 +42,17 @@ static int spu_setup_isolated(struct spu_context *ctx)
 	const u32 status_loading = SPU_STATUS_RUNNING
 		| SPU_STATUS_ISOLATED_STATE | SPU_STATUS_ISOLATED_LOAD_STATUS;
 
+	ret = -ENODEV;
 	if (!isolated_loader)
-		return -ENODEV;
-
-	ret = spu_acquire_exclusive(ctx);
-	if (ret)
 		goto out;
+
+	/*
+	 * We need to exclude userspace access to the context.
+	 *
+	 * To protect against memory access we invalidate all ptes
+	 * and make sure the pagefault handlers block on the mutex.
+	 */
+	spu_unmap_mappings(ctx);
 
 	mfc_cntl = &ctx->spu->priv2->mfc_control_RW;
 
@@ -82,7 +66,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 			printk(KERN_ERR "%s: timeout flushing MFC DMA queue\n",
 					__FUNCTION__);
 			ret = -EIO;
-			goto out_unlock;
+			goto out;
 		}
 		cond_resched();
 	}
@@ -119,12 +103,15 @@ static int spu_setup_isolated(struct spu_context *ctx)
 		pr_debug("%s: isolated LOAD failed\n", __FUNCTION__);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 		ret = -EACCES;
+		goto out_drop_priv;
+	}
 
-	} else if (!(status & SPU_STATUS_ISOLATED_STATE)) {
+	if (!(status & SPU_STATUS_ISOLATED_STATE)) {
 		/* This isn't allowed by the CBEA, but check anyway */
 		pr_debug("%s: SPU fell out of isolated mode?\n", __FUNCTION__);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_STOP);
 		ret = -EINVAL;
+		goto out_drop_priv;
 	}
 
 out_drop_priv:
@@ -132,30 +119,19 @@ out_drop_priv:
 	sr1 |= MFC_STATE1_PROBLEM_STATE_MASK;
 	spu_mfc_sr1_set(ctx->spu, sr1);
 
-out_unlock:
-	spu_release(ctx);
 out:
 	return ret;
 }
 
-static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
+static int spu_run_init(struct spu_context *ctx, u32 * npc)
 {
-	int ret;
-	unsigned long runcntl = SPU_RUNCNTL_RUNNABLE;
-
-	ret = spu_acquire_runnable(ctx, 0);
-	if (ret)
-		return ret;
-
 	if (ctx->flags & SPU_CREATE_ISOLATE) {
+		unsigned long runcntl;
+
 		if (!(ctx->ops->status_read(ctx) & SPU_STATUS_ISOLATED_STATE)) {
-			/* Need to release ctx, because spu_setup_isolated will
-			 * acquire it exclusively.
-			 */
-			spu_release(ctx);
-			ret = spu_setup_isolated(ctx);
-			if (!ret)
-				ret = spu_acquire_runnable(ctx, 0);
+			int ret = spu_setup_isolated(ctx);
+			if (ret)
+				return ret;
 		}
 
 		/* if userspace has set the runcntrl register (eg, to issue an
@@ -164,16 +140,17 @@ static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
 			(SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
 		if (runcntl == 0)
 			runcntl = SPU_RUNCNTL_RUNNABLE;
+		ctx->ops->runcntl_write(ctx, runcntl);
 	} else {
 		spu_start_tick(ctx);
 		ctx->ops->npc_write(ctx, *npc);
+		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 	}
 
-	ctx->ops->runcntl_write(ctx, runcntl);
-	return ret;
+	return 0;
 }
 
-static inline int spu_run_fini(struct spu_context *ctx, u32 * npc,
+static int spu_run_fini(struct spu_context *ctx, u32 * npc,
 			       u32 * status)
 {
 	int ret = 0;
@@ -189,19 +166,27 @@ static inline int spu_run_fini(struct spu_context *ctx, u32 * npc,
 	return ret;
 }
 
-static inline int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
+static int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
 				         u32 *status)
 {
 	int ret;
 
-	if ((ret = spu_run_fini(ctx, npc, status)) != 0)
+	ret = spu_run_fini(ctx, npc, status);
+	if (ret)
 		return ret;
-	if (*status & (SPU_STATUS_STOPPED_BY_STOP |
-		       SPU_STATUS_STOPPED_BY_HALT)) {
+
+	if (*status & (SPU_STATUS_STOPPED_BY_STOP | SPU_STATUS_STOPPED_BY_HALT))
 		return *status;
-	}
-	if ((ret = spu_run_init(ctx, npc)) != 0)
+
+	ret = spu_acquire_runnable(ctx, 0);
+	if (ret)
 		return ret;
+
+	ret = spu_run_init(ctx, npc);
+	if (ret) {
+		spu_release(ctx);
+		return ret;
+	}
 	return 0;
 }
 
@@ -253,17 +238,17 @@ int spu_process_callback(struct spu_context *ctx)
 {
 	struct spu_syscall_block s;
 	u32 ls_pointer, npc;
-	char *ls;
+	void __iomem *ls;
 	long spu_ret;
 	int ret;
 
 	/* get syscall block from local store */
-	npc = ctx->ops->npc_read(ctx);
-	ls = ctx->ops->get_ls(ctx);
-	ls_pointer = *(u32*)(ls + npc);
+	npc = ctx->ops->npc_read(ctx) & ~3;
+	ls = (void __iomem *)ctx->ops->get_ls(ctx);
+	ls_pointer = in_be32(ls + npc);
 	if (ls_pointer > (LS_SIZE - sizeof(s)))
 		return -EFAULT;
-	memcpy(&s, ls + ls_pointer, sizeof (s));
+	memcpy_fromio(&s, ls + ls_pointer, sizeof(s));
 
 	/* do actual syscall without pinning the spu */
 	ret = 0;
@@ -283,7 +268,7 @@ int spu_process_callback(struct spu_context *ctx)
 	}
 
 	/* write result, jump over indirect pointer */
-	memcpy(ls + ls_pointer, &spu_ret, sizeof (spu_ret));
+	memcpy_toio(ls + ls_pointer, &spu_ret, sizeof(spu_ret));
 	ctx->ops->npc_write(ctx, npc);
 	ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 	return ret;
@@ -292,11 +277,8 @@ int spu_process_callback(struct spu_context *ctx)
 static inline int spu_process_events(struct spu_context *ctx)
 {
 	struct spu *spu = ctx->spu;
-	u64 pte_fault = MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED;
 	int ret = 0;
 
-	if (spu->dsisr & pte_fault)
-		ret = spu_irq_class_1_bottom(spu);
 	if (spu->class_0_pending)
 		ret = spu_irq_class_0_bottom(spu);
 	if (!ret && signal_pending(current))
@@ -310,14 +292,21 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 	int ret;
 	u32 status;
 
-	if (down_interruptible(&ctx->run_sema))
+	if (mutex_lock_interruptible(&ctx->run_mutex))
 		return -ERESTARTSYS;
 
 	ctx->ops->master_start(ctx);
 	ctx->event_return = 0;
-	ret = spu_run_init(ctx, npc);
+
+	ret = spu_acquire_runnable(ctx, 0);
 	if (ret)
+		return ret;
+
+	ret = spu_run_init(ctx, npc);
+	if (ret) {
+		spu_release(ctx);
 		goto out;
+	}
 
 	do {
 		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, &status));
@@ -330,6 +319,10 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 				break;
 			status &= ~SPU_STATUS_STOPPED_BY_STOP;
 		}
+		ret = spufs_handle_class1(ctx);
+		if (ret)
+			break;
+
 		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
 			ret = spu_reacquire_runnable(ctx, npc, &status);
 			if (ret) {
@@ -363,6 +356,6 @@ out2:
 
 out:
 	*event = ctx->event_return;
-	up(&ctx->run_sema);
+	mutex_unlock(&ctx->run_mutex);
 	return ret;
 }

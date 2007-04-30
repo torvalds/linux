@@ -146,4 +146,12 @@ typedef struct elf64_phdr {
 #define ELFOSABI_NONE	0
 #define ELFOSABI_LINUX	3
 
+struct elf_info {
+	unsigned long loadsize;
+	unsigned long memsize;
+	unsigned long elfoffset;
+};
+int parse_elf64(void *hdr, struct elf_info *info);
+int parse_elf32(void *hdr, struct elf_info *info);
+
 #endif				/* _PPC_BOOT_ELF_H_ */

@@ -176,7 +176,7 @@ static int wf_lm75_attach(struct i2c_adapter *adapter)
 	for (dev = NULL;
 	     (dev = of_get_next_child(busnode, dev)) != NULL;) {
 		const char *loc =
-			get_property(dev, "hwsensor-location", NULL);
+			of_get_property(dev, "hwsensor-location", NULL);
 		u8 addr;
 
 		/* We must re-match the adapter in order to properly check

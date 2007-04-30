@@ -48,7 +48,7 @@ phys_addr_t get_csrbase(void)
 	tsi = of_find_node_by_type(NULL, "tsi-bridge");
 	if (tsi) {
 		unsigned int size;
-		const void *prop = get_property(tsi, "reg", &size);
+		const void *prop = of_get_property(tsi, "reg", &size);
 		tsi108_csr_base = of_translate_address(tsi, prop);
 		of_node_put(tsi);
 	};
@@ -77,10 +77,10 @@ static int __init tsi108_eth_of_init(void)
 		struct resource r[2];
 		struct device_node *phy;
 		hw_info tsi_eth_data;
-		unsigned int *id;
-		unsigned int *phy_id;
+		const unsigned int *id;
+		const unsigned int *phy_id;
 		const void *mac_addr;
-		phandle *ph;
+		const phandle *ph;
 
 		memset(r, 0, sizeof(r));
 		memset(&tsi_eth_data, 0, sizeof(tsi_eth_data));
@@ -107,10 +107,10 @@ static int __init tsi108_eth_of_init(void)
 			goto err;
 		}
 
-		mac_addr = get_property(np, "address", NULL);
+		mac_addr = of_get_property(np, "address", NULL);
 		memcpy(tsi_eth_data.mac_addr, mac_addr, 6);
 
-		ph = (phandle *) get_property(np, "phy-handle", NULL);
+		ph = of_get_property(np, "phy-handle", NULL);
 		phy = of_find_node_by_phandle(*ph);
 
 		if (phy == NULL) {
@@ -118,8 +118,8 @@ static int __init tsi108_eth_of_init(void)
 			goto unreg;
 		}
 
-		id = (u32 *) get_property(phy, "reg", NULL);
-		phy_id = (u32 *) get_property(phy, "phy-id", NULL);
+		id = of_get_property(phy, "reg", NULL);
+		phy_id = of_get_property(phy, "phy-id", NULL);
 		ret = of_address_to_resource(phy, 0, &res);
 		if (ret) {
 			of_node_put(phy);

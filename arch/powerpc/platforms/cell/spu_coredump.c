@@ -26,19 +26,18 @@
 
 #include <asm/spu.h>
 
-static struct spu_coredump_calls spu_coredump_calls;
+static struct spu_coredump_calls *spu_coredump_calls;
 static DEFINE_MUTEX(spu_coredump_mutex);
 
 int arch_notes_size(void)
 {
 	long ret;
-	struct module *owner = spu_coredump_calls.owner;
 
 	ret = -ENOSYS;
 	mutex_lock(&spu_coredump_mutex);
-	if (owner && try_module_get(owner)) {
-		ret = spu_coredump_calls.arch_notes_size();
-		module_put(owner);
+	if (spu_coredump_calls && try_module_get(spu_coredump_calls->owner)) {
+		ret = spu_coredump_calls->arch_notes_size();
+		module_put(spu_coredump_calls->owner);
 	}
 	mutex_unlock(&spu_coredump_mutex);
 	return ret;
@@ -46,36 +45,35 @@ int arch_notes_size(void)
 
 void arch_write_notes(struct file *file)
 {
-	struct module *owner = spu_coredump_calls.owner;
-
 	mutex_lock(&spu_coredump_mutex);
-	if (owner && try_module_get(owner)) {
-		spu_coredump_calls.arch_write_notes(file);
-		module_put(owner);
+	if (spu_coredump_calls && try_module_get(spu_coredump_calls->owner)) {
+		spu_coredump_calls->arch_write_notes(file);
+		module_put(spu_coredump_calls->owner);
 	}
 	mutex_unlock(&spu_coredump_mutex);
 }
 
 int register_arch_coredump_calls(struct spu_coredump_calls *calls)
 {
-	if (spu_coredump_calls.owner)
-		return -EBUSY;
+	int ret = 0;
+
 
 	mutex_lock(&spu_coredump_mutex);
-	spu_coredump_calls.arch_notes_size = calls->arch_notes_size;
-	spu_coredump_calls.arch_write_notes = calls->arch_write_notes;
-	spu_coredump_calls.owner = calls->owner;
+	if (spu_coredump_calls)
+		ret = -EBUSY;
+	else
+		spu_coredump_calls = calls;
 	mutex_unlock(&spu_coredump_mutex);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(register_arch_coredump_calls);
 
 void unregister_arch_coredump_calls(struct spu_coredump_calls *calls)
 {
-	BUG_ON(spu_coredump_calls.owner != calls->owner);
+	BUG_ON(spu_coredump_calls != calls);
 
 	mutex_lock(&spu_coredump_mutex);
-	spu_coredump_calls.owner = NULL;
+	spu_coredump_calls = NULL;
 	mutex_unlock(&spu_coredump_mutex);
 }
 EXPORT_SYMBOL_GPL(unregister_arch_coredump_calls);

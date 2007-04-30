@@ -155,7 +155,7 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	node = of_find_node_by_path("/");
 	sysid = NULL;
 	if (node != NULL)
-		sysid = get_property(node, "system-id", NULL);
+		sysid = of_get_property(node, "system-id", NULL);
 
 	if (sysid == NULL)
 		seq_printf(m, "SRLNBR=<UNKNOWN>\n");

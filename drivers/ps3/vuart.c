@@ -82,14 +82,6 @@ struct ports_bmp {
 	u64 unused[3];
 } __attribute__ ((aligned (32)));
 
-/* redefine dev_dbg to do a syntax check */
-
-#if !defined(DEBUG)
-#undef dev_dbg
-static inline int __attribute__ ((format (printf, 2, 3))) dev_dbg(
-	const struct device *_dev, const char *fmt, ...) {return 0;}
-#endif
-
 #define dump_ports_bmp(_b) _dump_ports_bmp(_b, __func__, __LINE__)
 static void __attribute__ ((unused)) _dump_ports_bmp(
 	const struct ports_bmp* bmp, const char* func, int line)

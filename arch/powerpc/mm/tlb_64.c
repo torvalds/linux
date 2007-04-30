@@ -120,17 +120,20 @@ void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
 }
 
 /*
- * Update the MMU hash table to correspond with a change to
- * a Linux PTE.  If wrprot is true, it is permissible to
- * change the existing HPTE to read-only rather than removing it
- * (if we remove it we should clear the _PTE_HPTEFLAGS bits).
+ * A linux PTE was changed and the corresponding hash table entry
+ * neesd to be flushed. This function will either perform the flush
+ * immediately or will batch it up if the current CPU has an active
+ * batch on it.
+ *
+ * Must be called from within some kind of spinlock/non-preempt region...
  */
-void hpte_update(struct mm_struct *mm, unsigned long addr,
-		 pte_t *ptep, unsigned long pte, int huge)
+void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
+		     pte_t *ptep, unsigned long pte, int huge)
 {
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
-	unsigned long vsid;
+	unsigned long vsid, vaddr;
 	unsigned int psize;
+	real_pte_t rpte;
 	int i;
 
 	i = batch->index;
@@ -151,6 +154,26 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 	} else
 		psize = pte_pagesize_index(pte);
 
+	/* Build full vaddr */
+	if (!is_kernel_addr(addr)) {
+		vsid = get_vsid(mm->context.id, addr);
+		WARN_ON(vsid == 0);
+	} else
+		vsid = get_kernel_vsid(addr);
+	vaddr = (vsid << 28 ) | (addr & 0x0fffffff);
+	rpte = __real_pte(__pte(pte), ptep);
+
+	/*
+	 * Check if we have an active batch on this CPU. If not, just
+	 * flush now and return. For now, we don global invalidates
+	 * in that case, might be worth testing the mm cpu mask though
+	 * and decide to use local invalidates instead...
+	 */
+	if (!batch->active) {
+		flush_hash_page(vaddr, rpte, psize, 0);
+		return;
+	}
+
 	/*
 	 * This can happen when we are in the middle of a TLB batch and
 	 * we encounter memory pressure (eg copy_page_range when it tries
@@ -162,47 +185,42 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 	 * batch
 	 */
 	if (i != 0 && (mm != batch->mm || batch->psize != psize)) {
-		flush_tlb_pending();
+		__flush_tlb_pending(batch);
 		i = 0;
 	}
 	if (i == 0) {
 		batch->mm = mm;
 		batch->psize = psize;
 	}
-	if (!is_kernel_addr(addr)) {
-		vsid = get_vsid(mm->context.id, addr);
-		WARN_ON(vsid == 0);
-	} else
-		vsid = get_kernel_vsid(addr);
-	batch->vaddr[i] = (vsid << 28 ) | (addr & 0x0fffffff);
-	batch->pte[i] = __real_pte(__pte(pte), ptep);
+	batch->pte[i] = rpte;
+	batch->vaddr[i] = vaddr;
 	batch->index = ++i;
 	if (i >= PPC64_TLB_BATCH_NR)
-		flush_tlb_pending();
+		__flush_tlb_pending(batch);
 }
 
+/*
+ * This function is called when terminating an mmu batch or when a batch
+ * is full. It will perform the flush of all the entries currently stored
+ * in a batch.
+ *
+ * Must be called from within some kind of spinlock/non-preempt region...
+ */
 void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 {
-	int i;
-	int cpu;
 	cpumask_t tmp;
-	int local = 0;
+	int i, local = 0;
 
-	BUG_ON(in_interrupt());
-
-	cpu = get_cpu();
 	i = batch->index;
-	tmp = cpumask_of_cpu(cpu);
+	tmp = cpumask_of_cpu(smp_processor_id());
 	if (cpus_equal(batch->mm->cpu_vm_mask, tmp))
 		local = 1;
-
 	if (i == 1)
 		flush_hash_page(batch->vaddr[0], batch->pte[0],
 				batch->psize, local);
 	else
 		flush_hash_range(i, local);
 	batch->index = 0;
-	put_cpu();
 }
 
 void pte_free_finish(void)

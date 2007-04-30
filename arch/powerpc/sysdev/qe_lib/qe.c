@@ -71,7 +71,7 @@ phys_addr_t get_qe_base(void)
 	qe = of_find_node_by_type(NULL, "qe");
 	if (qe) {
 		unsigned int size;
-		const void *prop = get_property(qe, "reg", &size);
+		const void *prop = of_get_property(qe, "reg", &size);
 		qebase = of_translate_address(qe, prop);
 		of_node_put(qe);
 	};
@@ -158,7 +158,7 @@ unsigned int get_brg_clk(void)
 	qe = of_find_node_by_type(NULL, "qe");
 	if (qe) {
 		unsigned int size;
-		const u32 *prop = get_property(qe, "brg-frequency", &size);
+		const u32 *prop = of_get_property(qe, "brg-frequency", &size);
 		brg_clk = *prop;
 		of_node_put(qe);
 	};

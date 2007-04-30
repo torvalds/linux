@@ -278,8 +278,12 @@ exception_marker:
 	beq-	1f;							   \
 	ld	r1,PACAKSAVE(r13);	/* kernel stack to use		*/ \
 1:	cmpdi	cr1,r1,0;		/* check if r1 is in userspace	*/ \
-	bge-	cr1,bad_stack;		/* abort if it is		*/ \
-	std	r9,_CCR(r1);		/* save CR in stackframe	*/ \
+	bge-	cr1,2f;			/* abort if it is		*/ \
+	b	3f;							   \
+2:	li	r1,(n);			/* will be reloaded later	*/ \
+	sth	r1,PACA_TRAP_SAVE(r13);					   \
+	b	bad_stack;						   \
+3:	std	r9,_CCR(r1);		/* save CR in stackframe	*/ \
 	std	r11,_NIP(r1);		/* save SRR0 in stackframe	*/ \
 	std	r12,_MSR(r1);		/* save SRR1 in stackframe	*/ \
 	std	r10,0(r1);		/* make stack chain pointer	*/ \
@@ -940,6 +944,8 @@ bad_stack:
 	SAVE_2GPRS(7,r1)
 	SAVE_10GPRS(12,r1)
 	SAVE_10GPRS(22,r1)
+	lhz	r12,PACA_TRAP_SAVE(r13)
+	std	r12,_TRAP(r1)
 	addi	r11,r1,INT_FRAME_SIZE
 	std	r11,0(r1)
 	li	r12,0
@@ -1555,7 +1561,6 @@ _GLOBAL(generic_secondary_smp_init)
 	
 	/* turn on 64-bit mode */
 	bl	.enable_64b_mode
-	isync
 
 	/* Set up a paca value for this processor. Since we have the
 	 * physical cpu id in r24, we need to search the pacas to find
@@ -1735,10 +1740,6 @@ _STATIC(__boot_from_prom)
 	/* We never return */
 	trap
 
-/*
- * At this point, r3 contains the physical address we are running at,
- * returned by prom_init()
- */
 _STATIC(__after_prom_start)
 
 /*
@@ -1851,7 +1852,6 @@ __secondary_start_pmac_0:
 _GLOBAL(pmac_secondary_start)
 	/* turn on 64-bit mode */
 	bl	.enable_64b_mode
-	isync
 
 	/* Copy some CPU settings from CPU 0 */
 	bl	.__restore_cpu_ppc970

@@ -33,7 +33,17 @@
 
 #define PA_PXP_CFA(bus, devfn, off) (((bus) << 20) | ((devfn) << 12) | (off))
 
-#define CONFIG_OFFSET_VALID(off) ((off) < 4096)
+static inline int pa_pxp_offset_valid(u8 bus, u8 devfn, int offset)
+{
+	/* Device 0 Function 0 is special: It's config space spans function 1 as
+	 * well, so allow larger offset. It's really a two-function device but the
+	 * second function does not probe.
+	 */
+	if (bus == 0 && devfn == 0)
+		return offset < 8192;
+	else
+		return offset < 4096;
+}
 
 static void volatile __iomem *pa_pxp_cfg_addr(struct pci_controller *hose,
 				       u8 bus, u8 devfn, int offset)
@@ -51,7 +61,7 @@ static int pa_pxp_read_config(struct pci_bus *bus, unsigned int devfn,
 	if (!hose)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (!CONFIG_OFFSET_VALID(offset))
+	if (!pa_pxp_offset_valid(bus->number, devfn, offset))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	addr = pa_pxp_cfg_addr(hose, bus->number, devfn, offset);
@@ -85,7 +95,7 @@ static int pa_pxp_write_config(struct pci_bus *bus, unsigned int devfn,
 	if (!hose)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (!CONFIG_OFFSET_VALID(offset))
+	if (!pa_pxp_offset_valid(bus->number, devfn, offset))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	addr = pa_pxp_cfg_addr(hose, bus->number, devfn, offset);

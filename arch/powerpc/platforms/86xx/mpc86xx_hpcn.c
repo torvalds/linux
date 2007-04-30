@@ -349,7 +349,7 @@ mpc86xx_hpcn_setup_arch(void)
 	if (np != 0) {
 		const unsigned int *fp;
 
-		fp = get_property(np, "clock-frequency", NULL);
+		fp = of_get_property(np, "clock-frequency", NULL);
 		if (fp != 0)
 			loops_per_jiffy = *fp / HZ;
 		else
@@ -384,7 +384,7 @@ mpc86xx_hpcn_show_cpuinfo(struct seq_file *m)
 
 	root = of_find_node_by_path("/");
 	if (root)
-		model = get_property(root, "model", NULL);
+		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "Machine\t\t: %s\n", model);
 	of_node_put(root);
 

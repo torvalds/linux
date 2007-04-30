@@ -389,6 +389,8 @@ static struct cpu_spec cpu_specs[] = {
 		.pmc_type		= PPC_PMC_PA6T,
 		.cpu_setup		= __setup_cpu_pa6t,
 		.cpu_restore		= __restore_cpu_pa6t,
+		.oprofile_cpu_type	= "ppc64/pa6t",
+		.oprofile_type		= PPC_OPROFILE_PA6T,
 		.platform		= "pa6t",
 	},
 	{	/* default match */
@@ -556,6 +558,18 @@ static struct cpu_spec cpu_specs[] = {
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
 		.cpu_setup		= __setup_cpu_750cx,
+		.platform		= "ppc750",
+	},
+	{	/* 750CL */
+		.pvr_mask		= 0xfffff0f0,
+		.pvr_value		= 0x00087010,
+		.cpu_name		= "750CL",
+		.cpu_features		= CPU_FTRS_750CL,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.num_pmcs		= 4,
+		.cpu_setup		= __setup_cpu_750,
 		.platform		= "ppc750",
 	},
 	{	/* 745/755 */

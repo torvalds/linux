@@ -1,3 +1,19 @@
+config PPC_PS3
+	bool "Sony PS3 (incomplete)"
+	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_CELL
+	select USB_ARCH_HAS_OHCI
+	select USB_OHCI_LITTLE_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_MMIO
+	select USB_ARCH_HAS_EHCI
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	help
+	  This option enables support for the Sony PS3 game console
+	  and other platforms using the PS3 hypervisor.
+	  Support for this platform is not yet complete, so
+	  enabling this will not result in a bootable kernel on a
+	  PS3 system.
+
 menu "PS3 Platform Options"
 	depends on PPC_PS3
 

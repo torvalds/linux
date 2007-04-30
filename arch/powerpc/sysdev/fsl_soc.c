@@ -52,7 +52,7 @@ phys_addr_t get_immrbase(void)
 	soc = of_find_node_by_type(NULL, "soc");
 	if (soc) {
 		unsigned int size;
-		const void *prop = get_property(soc, "reg", &size);
+		const void *prop = of_get_property(soc, "reg", &size);
 
 		if (prop)
 			immrbase = of_translate_address(soc, prop);
@@ -78,8 +78,8 @@ u32 get_brgfreq(void)
 	node = of_find_node_by_type(NULL, "cpm");
 	if (node) {
 		unsigned int size;
-		const unsigned int *prop = get_property(node, "brg-frequency",
-					&size);
+		const unsigned int *prop = of_get_property(node,
+					"brg-frequency", &size);
 
 		if (prop)
 			brgfreq = *prop;
@@ -103,8 +103,8 @@ u32 get_baudrate(void)
 	node = of_find_node_by_type(NULL, "serial");
 	if (node) {
 		unsigned int size;
-		const unsigned int *prop = get_property(node, "current-speed",
-				&size);
+		const unsigned int *prop = of_get_property(node,
+				"current-speed", &size);
 
 		if (prop)
 			fs_baudrate = *prop;
@@ -153,7 +153,8 @@ static int __init gfar_mdio_of_init(void)
 		while ((child = of_get_next_child(np, child)) != NULL) {
 			int irq = irq_of_parse_and_map(child, 0);
 			if (irq != NO_IRQ) {
-				const u32 *id = get_property(child, "reg", NULL);
+				const u32 *id = of_get_property(child,
+							"reg", NULL);
 				mdio_data.irq[*id] = irq;
 			}
 		}
@@ -209,7 +210,7 @@ static int __init gfar_of_init(void)
 
 		of_irq_to_resource(np, 0, &r[1]);
 
-		model = get_property(np, "model", NULL);
+		model = of_get_property(np, "model", NULL);
 
 		/* If we aren't the FEC we have multiple interrupts */
 		if (model && strcasecmp(model, "FEC")) {
@@ -253,7 +254,7 @@ static int __init gfar_of_init(void)
 			    FSL_GIANFAR_DEV_HAS_VLAN |
 			    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH;
 
-		ph = get_property(np, "phy-handle", NULL);
+		ph = of_get_property(np, "phy-handle", NULL);
 		phy = of_find_node_by_phandle(*ph);
 
 		if (phy == NULL) {
@@ -263,7 +264,7 @@ static int __init gfar_of_init(void)
 
 		mdio = of_get_parent(phy);
 
-		id = get_property(phy, "reg", NULL);
+		id = of_get_property(phy, "reg", NULL);
 		ret = of_address_to_resource(mdio, 0, &res);
 		if (ret) {
 			of_node_put(phy);
@@ -325,11 +326,11 @@ static int __init fsl_i2c_of_init(void)
 		}
 
 		i2c_data.device_flags = 0;
-		flags = get_property(np, "dfsrr", NULL);
+		flags = of_get_property(np, "dfsrr", NULL);
 		if (flags)
 			i2c_data.device_flags |= FSL_I2C_DEV_SEPARATE_DFSRR;
 
-		flags = get_property(np, "fsl5200-clocking", NULL);
+		flags = of_get_property(np, "fsl5200-clocking", NULL);
 		if (flags)
 			i2c_data.device_flags |= FSL_I2C_DEV_CLOCK_5200;
 
@@ -374,7 +375,7 @@ static int __init mpc83xx_wdt_init(void)
 		goto nosoc;
 	}
 
-	freq = get_property(soc, "bus-frequency", NULL);
+	freq = of_get_property(soc, "bus-frequency", NULL);
 	if (!freq) {
 		ret = -ENODEV;
 		goto err;
@@ -466,15 +467,15 @@ static int __init fsl_usb_of_init(void)
 
 		usb_data.operating_mode = FSL_USB2_MPH_HOST;
 
-		prop = get_property(np, "port0", NULL);
+		prop = of_get_property(np, "port0", NULL);
 		if (prop)
 			usb_data.port_enables |= FSL_USB2_PORT0_ENABLED;
 
-		prop = get_property(np, "port1", NULL);
+		prop = of_get_property(np, "port1", NULL);
 		if (prop)
 			usb_data.port_enables |= FSL_USB2_PORT1_ENABLED;
 
-		prop = get_property(np, "phy_type", NULL);
+		prop = of_get_property(np, "phy_type", NULL);
 		usb_data.phy_mode = determine_usb_phy(prop);
 
 		ret =
@@ -501,7 +502,7 @@ static int __init fsl_usb_of_init(void)
 
 		of_irq_to_resource(np, 0, &r[1]);
 
-		prop = get_property(np, "dr_mode", NULL);
+		prop = of_get_property(np, "dr_mode", NULL);
 
 		if (!prop || !strcmp(prop, "host")) {
 			usb_data.operating_mode = FSL_USB2_DR_HOST;
@@ -538,7 +539,7 @@ static int __init fsl_usb_of_init(void)
 			goto err;
 		}
 
-		prop = get_property(np, "phy_type", NULL);
+		prop = of_get_property(np, "phy_type", NULL);
 		usb_data.phy_mode = determine_usb_phy(prop);
 
 		if (usb_dev_dr_host) {
@@ -633,7 +634,7 @@ static int __init fs_enet_of_init(void)
 			goto err;
 		}
 
-		model = get_property(np, "model", NULL);
+		model = of_get_property(np, "model", NULL);
 		if (model == NULL) {
 			ret = -ENODEV;
 			goto unreg;
@@ -643,7 +644,7 @@ static int __init fs_enet_of_init(void)
 		if (mac_addr)
 			memcpy(fs_enet_data.macaddr, mac_addr, 6);
 
-		ph = get_property(np, "phy-handle", NULL);
+		ph = of_get_property(np, "phy-handle", NULL);
 		phy = of_find_node_by_phandle(*ph);
 
 		if (phy == NULL) {
@@ -651,12 +652,12 @@ static int __init fs_enet_of_init(void)
 			goto unreg;
 		}
 
-		phy_addr = get_property(phy, "reg", NULL);
+		phy_addr = of_get_property(phy, "reg", NULL);
 		fs_enet_data.phy_addr = *phy_addr;
 
-		phy_irq = get_property(phy, "interrupts", NULL);
+		phy_irq = of_get_property(phy, "interrupts", NULL);
 
-		id = get_property(np, "device-id", NULL);
+		id = of_get_property(np, "device-id", NULL);
 		fs_enet_data.fs_no = *id;
 		strcpy(fs_enet_data.fs_type, model);
 
@@ -668,8 +669,10 @@ static int __init fs_enet_of_init(void)
                         goto unreg;
                 }
 
-		fs_enet_data.clk_rx = *((u32 *) get_property(np, "rx-clock", NULL));
-		fs_enet_data.clk_tx = *((u32 *) get_property(np, "tx-clock", NULL));
+		fs_enet_data.clk_rx = *((u32 *)of_get_property(np,
+						"rx-clock", NULL));
+		fs_enet_data.clk_tx = *((u32 *)of_get_property(np,
+						"tx-clock", NULL));
 
 		if (strstr(model, "FCC")) {
 			int fcc_index = *id - 1;
@@ -690,7 +693,7 @@ static int __init fs_enet_of_init(void)
 			fs_enet_data.bus_id = (char*)&bus_id[(*id)];
 			fs_enet_data.init_ioports = init_fcc_ioports;
 
-			mdio_bb_prop = get_property(phy, "bitbang", NULL);
+			mdio_bb_prop = of_get_property(phy, "bitbang", NULL);
 			if (mdio_bb_prop) {
 				struct platform_device *fs_enet_mdio_bb_dev;
 				struct fs_mii_bb_platform_info fs_enet_mdio_bb_data;
@@ -796,10 +799,10 @@ static int __init cpm_uart_of_init(void)
 			goto err;
 		}
 
-		id = get_property(np, "device-id", NULL);
+		id = of_get_property(np, "device-id", NULL);
 		cpm_uart_data.fs_no = *id;
 
-		model = (char*)get_property(np, "model", NULL);
+		model = of_get_property(np, "model", NULL);
 		strcpy(cpm_uart_data.fs_type, model);
 
 		cpm_uart_data.uart_clk = ppc_proc_freq;
@@ -808,8 +811,10 @@ static int __init cpm_uart_of_init(void)
 		cpm_uart_data.tx_buf_size = 32;
 		cpm_uart_data.rx_num_fifo = 4;
 		cpm_uart_data.rx_buf_size = 32;
-		cpm_uart_data.clk_rx = *((u32 *) get_property(np, "rx-clock", NULL));
-		cpm_uart_data.clk_tx = *((u32 *) get_property(np, "tx-clock", NULL));
+		cpm_uart_data.clk_rx = *((u32 *)of_get_property(np,
+						"rx-clock", NULL));
+		cpm_uart_data.clk_tx = *((u32 *)of_get_property(np,
+						"tx-clock", NULL));
 
 		ret =
 		    platform_device_add_data(cpm_uart_dev, &cpm_uart_data,
@@ -833,7 +838,7 @@ arch_initcall(cpm_uart_of_init);
 #ifdef CONFIG_8xx
 
 extern void init_scc_ioports(struct fs_platform_info*);
-extern int platform_device_skip(char *model, int id);
+extern int platform_device_skip(const char *model, int id);
 
 static int __init fs_enet_mdio_of_init(void)
 {
@@ -900,21 +905,22 @@ static int __init fs_enet_of_init(void)
 		struct resource r[4];
 		struct device_node *phy = NULL, *mdio = NULL;
 		struct fs_platform_info fs_enet_data;
-		unsigned int *id, *phy_addr;
+		const unsigned int *id;
+		const unsigned int *phy_addr;
 		void *mac_addr;
-		phandle *ph;
-		char *model;
+		const phandle *ph;
+		const char *model;
 
 		memset(r, 0, sizeof(r));
 		memset(&fs_enet_data, 0, sizeof(fs_enet_data));
 
-		model = (char *)get_property(np, "model", NULL);
+		model = of_get_property(np, "model", NULL);
 		if (model == NULL) {
 			ret = -ENODEV;
 			goto unreg;
 		}
 
-		id = (u32 *) get_property(np, "device-id", NULL);
+		id = of_get_property(np, "device-id", NULL);
 		fs_enet_data.fs_no = *id;
 
 		if (platform_device_skip(model, *id))
@@ -929,12 +935,12 @@ static int __init fs_enet_of_init(void)
 		if (mac_addr)
 			memcpy(fs_enet_data.macaddr, mac_addr, 6);
 
-		ph = (phandle *) get_property(np, "phy-handle", NULL);
+		ph = of_get_property(np, "phy-handle", NULL);
 		if (ph != NULL)
 			phy = of_find_node_by_phandle(*ph);
 
 		if (phy != NULL) {
-			phy_addr = (u32 *) get_property(phy, "reg", NULL);
+			phy_addr = of_get_property(phy, "reg", NULL);
 			fs_enet_data.phy_addr = *phy_addr;
 			fs_enet_data.has_phy = 1;
 
@@ -947,7 +953,7 @@ static int __init fs_enet_of_init(void)
 			}
 		}
 
-		model = (char*)get_property(np, "model", NULL);
+		model = of_get_property(np, "model", NULL);
 		strcpy(fs_enet_data.fs_type, model);
 
 		if (strstr(model, "FEC")) {
@@ -1038,8 +1044,8 @@ static int __init cpm_smc_uart_of_init(void)
 	     i++) {
 		struct resource r[3];
 		struct fs_uart_platform_info cpm_uart_data;
-		int *id;
-		char *model;
+		const int *id;
+		const char *model;
 
 		memset(r, 0, sizeof(r));
 		memset(&cpm_uart_data, 0, sizeof(cpm_uart_data));
@@ -1066,10 +1072,10 @@ static int __init cpm_smc_uart_of_init(void)
 			goto err;
 		}
 
-		model = (char*)get_property(np, "model", NULL);
+		model = of_get_property(np, "model", NULL);
 		strcpy(cpm_uart_data.fs_type, model);
 
-		id = (int*)get_property(np, "device-id", NULL);
+		id = of_get_property(np, "device-id", NULL);
 		cpm_uart_data.fs_no = *id;
 		cpm_uart_data.uart_clk = ppc_proc_freq;
 

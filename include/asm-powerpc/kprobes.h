@@ -87,6 +87,11 @@ extern void arch_remove_kprobe(struct kprobe *p);
 struct arch_specific_insn {
 	/* copy of original instruction */
 	kprobe_opcode_t *insn;
+	/*
+	 * Set in kprobes code, initially to 0. If the instruction can be
+	 * eumulated, this is set to 1, if not, to -1.
+	 */
+	int boostable;
 };
 
 struct prev_kprobe {

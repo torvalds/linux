@@ -692,8 +692,7 @@ static int pmf_add_functions(struct pmf_device *dev, void *driverdata)
 		name = pp->name + plen;
 		if (strlen(name) && pp->length >= 12)
 			count += pmf_add_function_prop(dev, driverdata, name,
-						       (u32 *)pp->value,
-						       pp->length);
+						       pp->value, pp->length);
 	}
 	return count;
 }
@@ -821,7 +820,7 @@ struct pmf_function *__pmf_find_function(struct device_node *target,
 	 * one, then we fallback to a direct call attempt
 	 */
 	snprintf(fname, 63, "platform-%s", name);
-	prop = get_property(target, fname, NULL);
+	prop = of_get_property(target, fname, NULL);
 	if (prop == NULL)
 		goto find_it;
 	ph = *prop;

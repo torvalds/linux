@@ -40,10 +40,11 @@ zliblinuxheader := zlib.h zconf.h zutil.h
 $(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) \
 		$(addprefix $(obj)/,$(zlibheader))
 
-src-wlib := string.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
-		ns16550.c serial.c simple_alloc.c div64.S util.S $(zlib)
-src-plat := of.c
-src-boot := crt0.S $(src-wlib) $(src-plat) empty.c
+src-wlib := string.S crt0.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
+		ns16550.c serial.c simple_alloc.c div64.S util.S \
+		gunzip_util.c elf_util.c $(zlib) devtree.c
+src-plat := of.c cuboot-83xx.c cuboot-85xx.c
+src-boot := $(src-wlib) $(src-plat) empty.c
 
 src-boot := $(addprefix $(obj)/, $(src-boot))
 obj-boot := $(addsuffix .o, $(basename $(src-boot)))
@@ -75,7 +76,7 @@ $(obj)/zImage.lds $(obj)/zImage.coff.lds: $(obj)/%: $(srctree)/$(src)/%.S
 	@cp $< $@
 
 clean-files := $(zlib) $(zlibheader) $(zliblinuxheader) \
-		empty.c zImage zImage.coff.lds zImage.lds zImage.sandpoint
+		empty.c zImage.coff.lds zImage.lds
 
 quiet_cmd_bootcc = BOOTCC  $@
       cmd_bootcc = $(CROSS32CC) -Wp,-MD,$(depfile) $(BOOTCFLAGS) -c -o $@ $<
@@ -84,23 +85,25 @@ quiet_cmd_bootas = BOOTAS  $@
       cmd_bootas = $(CROSS32CC) -Wp,-MD,$(depfile) $(BOOTAFLAGS) -c -o $@ $<
 
 quiet_cmd_bootar = BOOTAR  $@
-      cmd_bootar = $(CROSS32AR) -cr $@.$$$$ $^; mv $@.$$$$ $@
+      cmd_bootar = $(CROSS32AR) -cr $@.$$$$ $(filter-out FORCE,$^); mv $@.$$$$ $@
 
-$(patsubst %.c,%.o, $(filter %.c, $(src-boot))): %.o: %.c
+$(patsubst %.c,%.o, $(filter %.c, $(src-boot))): %.o: %.c FORCE
 	$(call if_changed_dep,bootcc)
-$(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S
+$(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S FORCE
 	$(call if_changed_dep,bootas)
 
-$(obj)/wrapper.a: $(obj-wlib)
-	$(call cmd,bootar)
+$(obj)/wrapper.a: $(obj-wlib) FORCE
+	$(call if_changed,bootar)
 
 hostprogs-y	:= addnote addRamDisk hack-coff mktree
 
-extra-y		:= $(obj)/crt0.o $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
+targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a)
+extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds
 
 wrapper		:=$(srctree)/$(src)/wrapper
-wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree)
+wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree) \
+			$(wrapper) FORCE
 
 #############
 # Bits for building various flavours of zImage
@@ -113,50 +116,10 @@ CROSSWRAP := -C "$(CROSS_COMPILE)"
 endif
 endif
 
+# args (to if_changed): 1 = (this rule), 2 = platform, 3 = dts 4=dtb 5=initrd
 quiet_cmd_wrap	= WRAP    $@
-      cmd_wrap	=$(CONFIG_SHELL) $(wrapper) -c -o $@ -p $2 $(CROSSWRAP) vmlinux
-quiet_cmd_wrap_initrd = WRAP    $@
-      cmd_wrap_initrd =$(CONFIG_SHELL) $(wrapper) -c -o $@ -p $2 $(CROSSWRAP) \
-				-i $(obj)/ramdisk.image.gz vmlinux
-
-$(obj)/zImage.chrp: vmlinux $(wrapperbits)
-	$(call cmd,wrap,chrp)
-
-$(obj)/zImage.initrd.chrp: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,chrp)
-
-$(obj)/zImage.pseries:	vmlinux $(wrapperbits)
-	$(call cmd,wrap,pseries)
-
-$(obj)/zImage.initrd.pseries: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,pseries)
-
-$(obj)/zImage.pmac: vmlinux $(wrapperbits)
-	$(call cmd,wrap,pmac)
-
-$(obj)/zImage.initrd.pmac: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,pmac)
-
-$(obj)/zImage.coff: vmlinux $(wrapperbits)
-	$(call cmd,wrap,pmaccoff)
-
-$(obj)/zImage.initrd.coff: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,pmaccoff)
-
-$(obj)/zImage.miboot: vmlinux $(wrapperbits)
-	$(call cmd,wrap,miboot)
-
-$(obj)/zImage.initrd.miboot: vmlinux $(wrapperbits)
-	$(call cmd,wrap_initrd,miboot)
-
-$(obj)/zImage.ps3: vmlinux
-	$(STRIP) -s -R .comment $< -o $@
-
-$(obj)/zImage.initrd.ps3: vmlinux
-	@echo "  WARNING zImage.initrd.ps3 not supported (yet)"
-
-$(obj)/uImage: vmlinux $(wrapperbits)
-	$(call cmd,wrap,uboot)
+      cmd_wrap	=$(CONFIG_SHELL) $(wrapper) -c -o $@ -p $2 $(CROSSWRAP) \
+		$(if $3, -s $3)$(if $4, -d $4)$(if $5, -i $5) vmlinux
 
 image-$(CONFIG_PPC_PSERIES)		+= zImage.pseries
 image-$(CONFIG_PPC_MAPLE)		+= zImage.pseries
@@ -166,7 +129,7 @@ image-$(CONFIG_PPC_CELLEB)		+= zImage.pseries
 image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
 image-$(CONFIG_PPC_EFIKA)		+= zImage.chrp
 image-$(CONFIG_PPC_PMAC)		+= zImage.pmac
-image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
+image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage cuImage
 
 # For 32-bit powermacs, build the COFF and miboot images
 # as well as the ELF images.
@@ -174,16 +137,55 @@ ifeq ($(CONFIG_PPC32),y)
 image-$(CONFIG_PPC_PMAC)	+= zImage.coff zImage.miboot
 endif
 
+initrd-  := $(patsubst zImage%, zImage.initrd%, $(image-n) $(image-))
 initrd-y := $(patsubst zImage%, zImage.initrd%, $(image-y))
+initrd-y := $(filter-out $(image-y), $(initrd-y))
+targets	+= $(image-y) $(initrd-y)
+
+$(addprefix $(obj)/, $(initrd-y)): $(obj)/ramdisk.image.gz
+
+# Don't put the ramdisk on the pattern rule; when its missing make will try
+# the pattern rule with less dependencies that also matches (even with the
+# hard dependency listed).
+$(obj)/zImage.initrd.%: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,$*,,,$(obj)/ramdisk.image.gz)
+
+$(obj)/zImage.%: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,$*)
+
+$(obj)/zImage.ps3: vmlinux
+	$(STRIP) -s -R .comment $< -o $@
+
+$(obj)/zImage.initrd.ps3: vmlinux
+	@echo "  WARNING zImage.initrd.ps3 not supported (yet)"
+
+$(obj)/uImage: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,uboot)
+
+cuboot-plat-$(CONFIG_83xx) += 83xx
+cuboot-plat-$(CONFIG_85xx) += 85xx
+cuboot-plat-y += unknown-platform
+
+dts = $(if $(shell echo $(CONFIG_DEVICE_TREE) | grep '^/'),\
+       ,$(srctree)/$(src)/dts/)$(CONFIG_DEVICE_TREE)
+
+$(obj)/cuImage: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,cuboot-$(word 1,$(cuboot-plat-y)),$(dts))
 
 $(obj)/zImage:		$(addprefix $(obj)/, $(image-y))
 	@rm -f $@; ln $< $@
 $(obj)/zImage.initrd:	$(addprefix $(obj)/, $(initrd-y))
 	@rm -f $@; ln $< $@
 
-install: $(CONFIGURE) $(image-y)
+install: $(CONFIGURE) $(addprefix $(obj)/, $(image-y))
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" $<
 
-clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.strip.gz)
-clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.bin.gz)
-clean-files += $(image-)
+# anything not in $(targets)
+clean-files += $(image-) $(initrd-) zImage zImage.initrd \
+               cuImage.elf cuImage.bin.gz
+
+# clean up files cached by wrapper
+clean-kernel := vmlinux.strip vmlinux.bin
+clean-kernel += $(addsuffix .gz,$(clean-kernel))
+# If not absolute clean-files are relative to $(obj).
+clean-files += $(addprefix $(objtree)/, $(clean-kernel))

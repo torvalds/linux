@@ -734,10 +734,6 @@ _GLOBAL(abs)
 	sub	r3,r3,r4
 	blr
 
-_GLOBAL(_get_SP)
-	mr	r3,r1		/* Close enough */
-	blr
-
 /*
  * Create a kernel thread
  *   kernel_thread(fn, arg, flags)

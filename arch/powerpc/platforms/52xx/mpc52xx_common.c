@@ -60,7 +60,7 @@ mpc52xx_find_ipb_freq(struct device_node *node)
 
 	of_node_get(node);
 	while (node) {
-		p_ipb_freq = get_property(node, "bus-frequency", NULL);
+		p_ipb_freq = of_get_property(node, "bus-frequency", NULL);
 		if (p_ipb_freq)
 			break;
 

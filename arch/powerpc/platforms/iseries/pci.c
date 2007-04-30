@@ -24,7 +24,6 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/ide.h>
 #include <linux/pci.h>
 
 #include <asm/io.h>
@@ -177,7 +176,7 @@ void __init iSeries_pci_final_fixup(void)
 			struct pci_dn *pdn = PCI_DN(node);
 			const u32 *agent;
 
-			agent = get_property(node, "linux,agent-id", NULL);
+			agent = of_get_property(node, "linux,agent-id", NULL);
 			if ((pdn != NULL) && (agent != NULL)) {
 				u8 irq = iSeries_allocate_IRQ(pdn->busno, 0,
 						pdn->bussubno);
@@ -755,7 +754,7 @@ void __init iSeries_pcibios_init(void)
 		if ((node->type == NULL) || (strcmp(node->type, "pci") != 0))
 			continue;
 
-		busp = get_property(node, "bus-range", NULL);
+		busp = of_get_property(node, "bus-range", NULL);
 		if (busp == NULL)
 			continue;
 		bus = *busp;

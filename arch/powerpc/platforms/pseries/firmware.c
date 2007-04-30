@@ -80,7 +80,7 @@ void __init fw_feature_init(void)
 		goto out;
 	}
 
-	hypertas = get_property(dn, "ibm,hypertas-functions", &len);
+	hypertas = of_get_property(dn, "ibm,hypertas-functions", &len);
 	if (hypertas == NULL)
 		goto out;
 

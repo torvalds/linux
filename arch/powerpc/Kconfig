@@ -11,6 +11,11 @@ config PPC64
 	  This option selects whether a 32-bit or a 64-bit kernel
 	  will be built.
 
+config PPC_PM_NEEDS_RTC_LIB
+	bool
+	select RTC_LIB
+	default y if PM
+
 config PPC32
 	bool
 	default y if !PPC64
@@ -89,7 +94,7 @@ config SCHED_NO_NO_OMIT_FRAME_POINTER
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
-	default y
+	default !PPC_PSERIES || PCI
 
 config PPC_OF
 	def_bool y
@@ -157,17 +162,20 @@ config PPC_83xx
 	select FSL_SOC
 	select 83xx
 	select PPC_FPU
+	select WANT_DEVICE_TREE
 
 config PPC_85xx
 	bool "Freescale 85xx"
 	select E500
 	select FSL_SOC
 	select 85xx
+	select WANT_DEVICE_TREE
 
 config PPC_86xx
 	bool "Freescale 86xx"
 	select 6xx
 	select FSL_SOC
+	select FSL_PCIE
 	select PPC_FPU
 	select ALTIVEC
 	help
@@ -185,7 +193,6 @@ config 40x
 config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
-
 
 config E200
 	bool "Freescale e200"
@@ -367,394 +374,7 @@ endmenu
 
 source "init/Kconfig"
 
-menu "Platform support"
-	depends on PPC64 || CLASSIC32
-
-choice
-	prompt "Machine type"
-	default PPC_MULTIPLATFORM
-
-config PPC_MULTIPLATFORM
-	bool "Generic desktop/server/laptop"
-	help
-	  Select this option if configuring for an IBM pSeries or
-	  RS/6000 machine, an Apple machine, or a PReP, CHRP,
-	  Maple or Cell-based machine.
-
-config EMBEDDED6xx
-	bool "Embedded 6xx/7xx/7xxx-based board"
-	depends on PPC32 && (BROKEN||BROKEN_ON_SMP)
-
-config APUS
-	bool "Amiga-APUS"
-	depends on PPC32 && BROKEN
-	help
-	  Select APUS if configuring for a PowerUP Amiga.
-	  More information is available at:
-	  <http://linux-apus.sourceforge.net/>.
-endchoice
-
-config QUICC_ENGINE
-	bool
-	depends on PPC_MPC836x || PPC_MPC832x
-	default y
-	help
-	  The QUICC Engine (QE) is a new generation of communications
-	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
-	  Selecting this option means that you wish to build a kernel
-	  for a machine with a QE coprocessor.
-
-config PPC_PSERIES
-	depends on PPC_MULTIPLATFORM && PPC64
-	bool "IBM pSeries & new (POWER5-based) iSeries"
-	select MPIC
-	select PPC_I8259
-	select PPC_RTAS
-	select RTAS_ERROR_LOGGING
-	select PPC_UDBG_16550
-	select PPC_NATIVE
-	default y
-
-config PPC_ISERIES
-	bool "IBM Legacy iSeries"
-	depends on PPC_MULTIPLATFORM && PPC64
-	select PPC_INDIRECT_IO
-
-config PPC_CHRP
-	bool "Common Hardware Reference Platform (CHRP) based machines"
-	depends on PPC_MULTIPLATFORM && PPC32
-	select MPIC
-	select PPC_I8259
-	select PPC_INDIRECT_PCI
-	select PPC_RTAS
-	select PPC_MPC106
-	select PPC_UDBG_16550
-	select PPC_NATIVE
-	default y
-
-config PPC_MPC52xx
-	bool
-	default n
-
-config PPC_MPC5200
-	bool
-	select PPC_MPC52xx
-	default n
-
-config PPC_MPC5200_BUGFIX
-	bool "MPC5200 (L25R) bugfix support"
-	depends on PPC_MPC5200
-	default n
-	help
-	  Enable workarounds for original MPC5200 errata.  This is not required
-	  for MPC5200B based boards.
-
-	  It is safe to say 'Y' here
-
-config PPC_EFIKA
-	bool "bPlan Efika 5k2. MPC5200B based computer"
-	depends on PPC_MULTIPLATFORM && PPC32
-	select PPC_RTAS
-	select RTAS_PROC
-	select PPC_MPC52xx
-	select PPC_NATIVE
-	default n
-
-config PPC_LITE5200
-	bool "Freescale Lite5200 Eval Board"
-	depends on PPC_MULTIPLATFORM && PPC32
-	select PPC_MPC5200
-	default n
-
-config PPC_PMAC
-	bool "Apple PowerMac based machines"
-	depends on PPC_MULTIPLATFORM
-	select MPIC
-	select PPC_INDIRECT_PCI if PPC32
-	select PPC_MPC106 if PPC32
-	select PPC_NATIVE
-	default y
-
-config PPC_PMAC64
-	bool
-	depends on PPC_PMAC && POWER4
-	select MPIC
-	select U3_DART
-	select MPIC_BROKEN_U3
-	select GENERIC_TBSYNC
-	select PPC_970_NAP
-	default y
-
-config PPC_PREP
-	bool "PowerPC Reference Platform (PReP) based machines"
-	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
-	select MPIC
-	select PPC_I8259
-	select PPC_INDIRECT_PCI
-	select PPC_UDBG_16550
-	select PPC_NATIVE
-	default n
-
-config PPC_MAPLE
-	depends on PPC_MULTIPLATFORM && PPC64
-	bool "Maple 970FX Evaluation Board"
-	select MPIC
-	select U3_DART
-	select MPIC_BROKEN_U3
-	select GENERIC_TBSYNC
-	select PPC_UDBG_16550
-	select PPC_970_NAP
-	select PPC_NATIVE
-	select PPC_RTAS
-	select MMIO_NVRAM
-	select ATA_NONSTANDARD if ATA
-	default n
-	help
-          This option enables support for the Maple 970FX Evaluation Board.
-	  For more information, refer to <http://www.970eval.com>
-
-config PPC_PASEMI
-	depends on PPC_MULTIPLATFORM && PPC64
-	bool "PA Semi SoC-based platforms"
-	default n
-	select MPIC
-	select PPC_UDBG_16550
-	select GENERIC_TBSYNC
-	select PPC_NATIVE
-	help
-	  This option enables support for PA Semi's PWRficient line
-	  of SoC processors, including PA6T-1682M
-
-config PPC_CELL
-	bool
-	default n
-
-config PPC_CELL_NATIVE
-	bool
-	select PPC_CELL
-	select PPC_DCR_MMIO
-	select PPC_OF_PLATFORM_PCI
-	select PPC_INDIRECT_IO
-	select PPC_NATIVE
-	select MPIC
-	default n
-
-config PPC_IBM_CELL_BLADE
-	bool "IBM Cell Blade"
-	depends on PPC_MULTIPLATFORM && PPC64
-	select PPC_CELL_NATIVE
-	select PPC_RTAS
-	select MMIO_NVRAM
-	select PPC_UDBG_16550
-	select UDBG_RTAS_CONSOLE
-
-config PPC_PS3
-	bool "Sony PS3 (incomplete)"
-	depends on PPC_MULTIPLATFORM && PPC64
-	select PPC_CELL
-	select USB_ARCH_HAS_OHCI
-	select USB_OHCI_LITTLE_ENDIAN
-	select USB_OHCI_BIG_ENDIAN_MMIO
-	select USB_ARCH_HAS_EHCI
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	help
-	  This option enables support for the Sony PS3 game console
-	  and other platforms using the PS3 hypervisor.
-	  Support for this platform is not yet complete, so
-	  enabling this will not result in a bootable kernel on a
-	  PS3 system.
-
-config PPC_CELLEB
-	bool "Toshiba's Cell Reference Set 'Celleb' Architecture"
-	depends on PPC_MULTIPLATFORM && PPC64
-	select PPC_CELL
-	select PPC_OF_PLATFORM_PCI
-	select HAS_TXX9_SERIAL
-	select PPC_UDBG_BEAT
-	select USB_OHCI_BIG_ENDIAN_MMIO
-	select USB_EHCI_BIG_ENDIAN_MMIO
-
-config PPC_NATIVE
-	bool
-	depends on PPC_MULTIPLATFORM
-	help
-	  Support for running natively on the hardware, i.e. without
-	  a hypervisor. This option is not user-selectable but should
-	  be selected by all platforms that need it.
-
-config UDBG_RTAS_CONSOLE
-	bool "RTAS based debug console"
-	depends on PPC_RTAS
-	default n
-
-config PPC_UDBG_BEAT
-	bool "BEAT based debug console"
-	depends on PPC_CELLEB
-	default n
-
-config XICS
-	depends on PPC_PSERIES
-	bool
-	default y
-
-config U3_DART
-	bool 
-	depends on PPC_MULTIPLATFORM && PPC64
-	default n
-
-config PPC_RTAS
-	bool
-	default n
-
-config RTAS_ERROR_LOGGING
-	bool
-	depends on PPC_RTAS
-	default n
-
-config RTAS_PROC
-	bool "Proc interface to RTAS"
-	depends on PPC_RTAS
-	default y
-
-config RTAS_FLASH
-	tristate "Firmware flash interface"
-	depends on PPC64 && RTAS_PROC
-
-config PPC_PMI
-	tristate "Support for PMI"
-	depends PPC_IBM_CELL_BLADE
-	help
-	  PMI (Platform Management Interrupt) is a way to
-	  communicate with the BMC (Baseboard Mangement Controller).
-	  It is used in some IBM Cell blades.
-	default m
-
-config MMIO_NVRAM
-	bool
-	default n
-
-config MPIC_BROKEN_U3
-	bool
-	depends on PPC_MAPLE
-	default y
-
-config IBMVIO
-	depends on PPC_PSERIES || PPC_ISERIES
-	bool
-	default y
-
-config IBMEBUS
-	depends on PPC_PSERIES
-	bool "Support for GX bus based adapters"
-	help
-	  Bus device driver for GX bus based adapters.
-
-config PPC_MPC106
-	bool
-	default n
-
-config PPC_970_NAP
-	bool
-	default n
-
-config PPC_INDIRECT_IO
-	bool
-	select GENERIC_IOMAP
-	default n
-
-config GENERIC_IOMAP
-	bool
-	default n
-
-source "drivers/cpufreq/Kconfig"
-
-config CPU_FREQ_PMAC
-	bool "Support for Apple PowerBooks"
-	depends on CPU_FREQ && ADB_PMU && PPC32
-	select CPU_FREQ_TABLE
-	help
-	  This adds support for frequency switching on Apple PowerBooks,
-	  this currently includes some models of iBook & Titanium
-	  PowerBook.
-
-config CPU_FREQ_PMAC64
-	bool "Support for some Apple G5s"
-	depends on CPU_FREQ && PPC64
-	select CPU_FREQ_TABLE
-	help
-	  This adds support for frequency switching on Apple iMac G5,
-	  and some of the more recent desktop G5 machines as well.
-
-config PPC601_SYNC_FIX
-	bool "Workarounds for PPC601 bugs"
-	depends on 6xx && (PPC_PREP || PPC_PMAC)
-	help
-	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
-	  mean that extra synchronization instructions are required near
-	  certain instructions, typically those that make major changes to the
-	  CPU state.  These extra instructions reduce performance slightly.
-	  If you say N here, these extra instructions will not be included,
-	  resulting in a kernel which will run faster but may not run at all
-	  on some systems with the PPC601 chip.
-
-	  If in doubt, say Y here.
-
-config TAU
-	bool "On-chip CPU temperature sensor support"
-	depends on 6xx
-	help
-	  G3 and G4 processors have an on-chip temperature sensor called the
-	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
-	  temperature within 2-4 degrees Celsius. This option shows the current
-	  on-die temperature in /proc/cpuinfo if the cpu supports it.
-
-	  Unfortunately, on some chip revisions, this sensor is very inaccurate
-	  and in many cases, does not work at all, so don't assume the cpu
-	  temp is actually what /proc/cpuinfo says it is.
-
-config TAU_INT
-	bool "Interrupt driven TAU driver (DANGEROUS)"
-	depends on TAU
-	---help---
-	  The TAU supports an interrupt driven mode which causes an interrupt
-	  whenever the temperature goes out of range. This is the fastest way
-	  to get notified the temp has exceeded a range. With this option off,
-	  a timer is used to re-check the temperature periodically.
-
-	  However, on some cpus it appears that the TAU interrupt hardware
-	  is buggy and can cause a situation which would lead unexplained hard
-	  lockups.
-
-	  Unless you are extending the TAU driver, or enjoy kernel/hardware
-	  debugging, leave this option off.
-
-config TAU_AVERAGE
-	bool "Average high and low temp"
-	depends on TAU
-	---help---
-	  The TAU hardware can compare the temperature to an upper and lower
-	  bound.  The default behavior is to show both the upper and lower
-	  bound in /proc/cpuinfo. If the range is large, the temperature is
-	  either changing a lot, or the TAU hardware is broken (likely on some
-	  G4's). If the range is small (around 4 degrees), the temperature is
-	  relatively stable.  If you say Y here, a single temperature value,
-	  halfway between the upper and lower bounds, will be reported in
-	  /proc/cpuinfo.
-
-	  If in doubt, say N here.
-
-endmenu
-
-source arch/powerpc/platforms/embedded6xx/Kconfig
-source arch/powerpc/platforms/4xx/Kconfig
-source arch/powerpc/platforms/82xx/Kconfig
-source arch/powerpc/platforms/83xx/Kconfig
-source arch/powerpc/platforms/85xx/Kconfig
-source arch/powerpc/platforms/86xx/Kconfig
-source arch/powerpc/platforms/8xx/Kconfig
-source arch/powerpc/platforms/cell/Kconfig
-source arch/powerpc/platforms/ps3/Kconfig
-source arch/powerpc/platforms/pasemi/Kconfig
+source "arch/powerpc/platforms/Kconfig"
 
 menu "Kernel options"
 
@@ -837,15 +457,6 @@ config CRASH_DUMP
 
 	  Don't change this unless you know what you are doing.
 
-config EMBEDDEDBOOT
-	bool
-	depends on 8xx || 8260
-	default y
-
-config PC_KEYBOARD
-	bool "PC PS/2 style Keyboard"
-	depends on 4xx || CPM2
-
 config PPCBUG_NVRAM
 	bool "Enable reading PPCBUG NVRAM during boot" if PPLUS || LOPEC
 	default y if PPC_PREP
@@ -858,8 +469,6 @@ config IRQ_ALL_CPUS
 	  multiple CPUs.  Saying N here will route all IRQs to the first
 	  CPU.  Generally saying Y is safe, although some problems have been
 	  reported with SMP Power Macintoshes with this option enabled.
-
-source "arch/powerpc/platforms/pseries/Kconfig"
 
 config NUMA
 	bool "NUMA support"
@@ -910,10 +519,10 @@ config PPC_64K_PAGES
 	depends on PPC64
 	help
 	  This option changes the kernel logical page size to 64k. On machines
-          without processor support for 64k pages, the kernel will simulate
-          them by loading each individual 4k page on demand transparently,
-          while on hardware with such support, it will be used to map
-          normal application pages.
+	  without processor support for 64k pages, the kernel will simulate
+	  them by loading each individual 4k page on demand transparently,
+	  while on hardware with such support, it will be used to map
+	  normal application pages.
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -930,8 +539,6 @@ config PROC_DEVICETREE
 	  This option adds a device-tree directory under /proc which contains
 	  an image of the device tree that the kernel copies from Open
 	  Firmware or other boot firmware. If unsure, say Y here.
-
-source "arch/powerpc/platforms/prep/Kconfig"
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
@@ -967,6 +574,29 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
+config WANT_DEVICE_TREE
+	bool
+	default n
+
+config DEVICE_TREE
+	string "Static device tree source file"
+	depends on WANT_DEVICE_TREE
+	help
+	  This specifies the device tree source (.dts) file to be
+	  compiled and included when building the bootwrapper.  If a
+	  relative filename is given, then it will be relative to
+	  arch/powerpc/boot/dts.  If you are not using the bootwrapper,
+	  or do not need to build a dts into the bootwrapper, this
+	  field is ignored.
+
+	  For example, this is required when building a cuImage target
+	  for an older U-Boot, which cannot pass a device tree itself.
+	  Such a kernel will not work with a newer U-Boot that tries to
+	  pass a device tree (unless you tell it not to).  If your U-Boot
+	  does not mention a device tree in "help bootm", then use the
+	  cuImage target and specify a device tree here.  Otherwise, use
+	  the uImage target and leave this field blank.
+
 endmenu
 
 config ISA_DMA_API
@@ -995,22 +625,15 @@ config GENERIC_ISA_DMA
 	depends on PPC64 || POWER4 || 6xx && !CPM2
 	default y
 
-config MPIC
-	bool
-	default n
-
-config MPIC_WEIRD
-	bool
-	default n
-
-config PPC_I8259
-	bool
-	default n
-
 config PPC_INDIRECT_PCI
 	bool
 	depends on PCI
 	default y if 40x || 44x
+	default n
+
+config PPC_INDIRECT_PCI_BE
+	bool
+	depends PPC_INDIRECT_PCI
 	default n
 
 config EISA
@@ -1022,13 +645,18 @@ config SBUS
 config FSL_SOC
 	bool
 
+config FSL_PCIE
+	bool
+	depends on PPC_86xx
+
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA
 	bool
 
 config PCI
 	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
-		|| PPC_MPC52xx || (EMBEDDED && PPC_ISERIES) || MPC7448HPC2 || PPC_PS3
+		|| PPC_MPC52xx || (EMBEDDED && (PPC_PSERIES || PPC_ISERIES)) \
+		|| MPC7448HPC2 || PPC_PS3
 	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
@@ -1228,12 +856,10 @@ source "fs/Kconfig"
 
 source "arch/powerpc/sysdev/qe_lib/Kconfig"
 
-source "arch/powerpc/platforms/iseries/Kconfig"
-
 source "lib/Kconfig"
 
 menu "Instrumentation Support"
-        depends on EXPERIMENTAL
+	depends on EXPERIMENTAL
 
 source "arch/powerpc/oprofile/Kconfig"
 

@@ -28,7 +28,6 @@
 #include <linux/adb.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/ide.h>
 #include <linux/console.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
@@ -111,9 +110,9 @@ void chrp_show_cpuinfo(struct seq_file *m)
 	struct device_node *root;
 	const char *model = "";
 
-	root = find_path_device("/");
+	root = of_find_node_by_path("/");
 	if (root)
-		model = get_property(root, "model", NULL);
+		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
 
 	/* longtrail (goldengate) stuff */
@@ -161,6 +160,7 @@ void chrp_show_cpuinfo(struct seq_file *m)
 			   gg2_cachetypes[(t>>2) & 3],
 			   gg2_cachemodes[t & 3]);
 	}
+	of_node_put(root);
 }
 
 /*
@@ -205,13 +205,15 @@ static void __init sio_init(void)
 {
 	struct device_node *root;
 
-	if ((root = find_path_device("/")) &&
-	    !strncmp(get_property(root, "model", NULL), "IBM,LongTrail", 13)) {
+	if ((root = of_find_node_by_path("/")) &&
+	    !strncmp(of_get_property(root, "model", NULL),
+			"IBM,LongTrail", 13)) {
 		/* logical device 0 (KBC/Keyboard) */
 		sio_fixup_irq("keyboard", 0, 1, 2);
 		/* select logical device 1 (KBC/Mouse) */
 		sio_fixup_irq("mouse", 1, 12, 2);
 	}
+	of_node_put(root);
 }
 
 
@@ -224,12 +226,12 @@ static void __init pegasos_set_l2cr(void)
 		return;
 
 	/* Enable L2 cache if needed */
-	np = find_type_devices("cpu");
+	np = of_find_node_by_type(NULL, "cpu");
 	if (np != NULL) {
-		const unsigned int *l2cr = get_property(np, "l2cr", NULL);
+		const unsigned int *l2cr = of_get_property(np, "l2cr", NULL);
 		if (l2cr == NULL) {
 			printk ("Pegasos l2cr : no cpu l2cr property found\n");
-			return;
+			goto out;
 		}
 		if (!((*l2cr) & 0x80000000)) {
 			printk ("Pegasos l2cr : L2 cache was not active, "
@@ -238,6 +240,8 @@ static void __init pegasos_set_l2cr(void)
 			_set_L2CR((*l2cr) | 0x80000000);
 		}
 	}
+out:
+	of_node_put(np);
 }
 
 static void briq_restart(char *cmd)
@@ -250,14 +254,14 @@ static void briq_restart(char *cmd)
 
 void __init chrp_setup_arch(void)
 {
-	struct device_node *root = find_path_device ("/");
+	struct device_node *root = of_find_node_by_path("/");
 	const char *machine = NULL;
 
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000/HZ;
 
 	if (root)
-		machine = get_property(root, "model", NULL);
+		machine = of_get_property(root, "model", NULL);
 	if (machine && strncmp(machine, "Pegasos", 7) == 0) {
 		_chrp_type = _CHRP_Pegasos;
 	} else if (machine && strncmp(machine, "IBM", 3) == 0) {
@@ -273,6 +277,7 @@ void __init chrp_setup_arch(void)
 		/* Let's assume it is an IBM chrp if all else fails */
 		_chrp_type = _CHRP_IBM;
 	}
+	of_node_put(root);
 	printk("chrp type = %x [%s]\n", _chrp_type, chrp_names[_chrp_type]);
 
 	rtas_initialize();
@@ -361,8 +366,8 @@ static void __init chrp_find_openpic(void)
 		return;
 	root = of_find_node_by_path("/");
 	if (root) {
-		opprop = get_property(root, "platform-open-pic", &oplen);
-		na = prom_n_addr_cells(root);
+		opprop = of_get_property(root, "platform-open-pic", &oplen);
+		na = of_n_addr_cells(root);
 	}
 	if (opprop && oplen >= na * sizeof(unsigned int)) {
 		opaddr = opprop[na-1];	/* assume 32-bit */
@@ -378,7 +383,7 @@ static void __init chrp_find_openpic(void)
 
 	printk(KERN_INFO "OpenPIC at %lx\n", opaddr);
 
-	iranges = get_property(np, "interrupt-ranges", &len);
+	iranges = of_get_property(np, "interrupt-ranges", &len);
 	if (iranges == NULL)
 		len = 0;	/* non-distributed mpic */
 	else
@@ -427,7 +432,7 @@ static void __init chrp_find_openpic(void)
 	of_node_put(np);
 }
 
-#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
+#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
 static struct irqaction xmon_irqaction = {
 	.handler = xmon_irq,
 	.mask = CPU_MASK_NONE,
@@ -463,15 +468,16 @@ static void __init chrp_find_8259(void)
 	 * Also, Pegasos-type platforms don't have a proper node to start
 	 * from anyway
 	 */
-	for (np = find_devices("pci"); np != NULL; np = np->next) {
-		const unsigned int *addrp = get_property(np,
+	for_each_node_by_name(np, "pci") {
+		const unsigned int *addrp = of_get_property(np,
 				"8259-interrupt-acknowledge", NULL);
 
 		if (addrp == NULL)
 			continue;
-		chrp_int_ack = addrp[prom_n_addr_cells(np)-1];
+		chrp_int_ack = addrp[of_n_addr_cells(np)-1];
 		break;
 	}
+	of_node_put(np);
 	if (np == NULL)
 		printk(KERN_WARNING "Cannot find PCI interrupt acknowledge"
 		       " address, polling\n");
@@ -493,7 +499,7 @@ static void __init chrp_find_8259(void)
 
 void __init chrp_init_IRQ(void)
 {
-#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
+#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
 	struct device_node *kbd;
 #endif
 	chrp_find_openpic();
@@ -510,13 +516,14 @@ void __init chrp_init_IRQ(void)
 	if (_chrp_type == _CHRP_Pegasos)
 		ppc_md.get_irq        = i8259_irq;
 
-#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
+#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
 	/* see if there is a keyboard in the device tree
 	   with a parent of type "adb" */
-	for (kbd = find_devices("keyboard"); kbd; kbd = kbd->next)
+	for_each_node_by_name(kbd, "keyboard")
 		if (kbd->parent && kbd->parent->type
 		    && strcmp(kbd->parent->type, "adb") == 0)
 			break;
+	of_node_put(kbd);
 	if (kbd)
 		setup_irq(HYDRA_INT_ADB_NMI, &xmon_irqaction);
 #endif
@@ -542,9 +549,9 @@ chrp_init2(void)
 	/* Get the event scan rate for the rtas so we know how
 	 * often it expects a heartbeat. -- Cort
 	 */
-	device = find_devices("rtas");
+	device = of_find_node_by_name(NULL, "rtas");
 	if (device)
-		p = get_property(device, "rtas-event-scan-rate", NULL);
+		p = of_get_property(device, "rtas-event-scan-rate", NULL);
 	if (p && *p) {
 		/*
 		 * Arrange to call chrp_event_scan at least *p times
@@ -571,6 +578,7 @@ chrp_init2(void)
 		printk("RTAS Event Scan Rate: %u (%lu jiffies)\n",
 		       *p, interval);
 	}
+	of_node_put(device);
 
 	if (ppc_md.progress)
 		ppc_md.progress("  Have fun!    ", 0x7777);

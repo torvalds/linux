@@ -387,7 +387,7 @@ static int __devinit rackmeter_probe(struct macio_dev* mdev,
 	       if (strcmp(np->name, "lightshow") == 0)
 		       break;
 	       if ((strcmp(np->name, "sound") == 0) &&
-		   get_property(np, "virtual", NULL) != NULL)
+		   of_get_property(np, "virtual", NULL) != NULL)
 		       break;
 	}
 	if (np == NULL) {

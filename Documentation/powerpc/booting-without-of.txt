@@ -39,7 +39,7 @@
                            and property data. The old style variable
                            alignment would make it impossible to do
                            "simple" insertion of properties using
-                           memove (thanks Milton for
+                           memmove (thanks Milton for
                            noticing). Updated kernel patch as well
 			 - Correct a few more alignment constraints
 			 - Add a chapter about the device-tree
@@ -55,7 +55,7 @@
 
  ToDo:
 	- Add some definitions of interrupt tree (simple/complex)
-	- Add some definitions for pci host bridges
+	- Add some definitions for PCI host bridges
 	- Add some common address format examples
 	- Add definitions for standard properties and "compatible"
 	  names for cells that are not already defined by the existing
@@ -114,7 +114,7 @@ it with special cases.
         forth words isn't required), you can enter the kernel with:
 
               r5 : OF callback pointer as defined by IEEE 1275
-              bindings to powerpc. Only the 32 bit client interface
+              bindings to powerpc. Only the 32-bit client interface
               is currently supported
 
               r3, r4 : address & length of an initrd if any or 0
@@ -194,7 +194,7 @@ it with special cases.
   for this is to keep kernels on embedded systems small and efficient;
   part of this is due to the fact the code is already that way. In the
   future, a kernel may support multiple platforms, but only if the
-  platforms feature the same core architectire.  A single kernel build
+  platforms feature the same core architecture.  A single kernel build
   cannot support both configurations with Book E and configurations
   with classic Powerpc architectures.
 
@@ -215,7 +215,7 @@ of the boot sequences.... someone speak up if this is wrong!
   enable another config option to select the specific board
   supported.
 
-NOTE: If ben doesn't merge the setup files, may need to change this to
+NOTE: If Ben doesn't merge the setup files, may need to change this to
 point to setup_32.c
 
 
@@ -256,7 +256,7 @@ struct boot_param_header {
         u32     off_dt_struct;          /* offset to structure */
         u32     off_dt_strings;         /* offset to strings */
         u32     off_mem_rsvmap;         /* offset to memory reserve map
-*/
+                                           */
         u32     version;                /* format version */
         u32     last_comp_version;      /* last compatible version */
 
@@ -265,6 +265,9 @@ struct boot_param_header {
                                            booting on */
         /* version 3 fields below */
         u32     size_dt_strings;        /* size of the strings block */
+
+        /* version 17 fields below */
+        u32	size_dt_struct;		/* size of the DT structure block */
 };
 
    Along with the constants:
@@ -273,7 +276,7 @@ struct boot_param_header {
 #define OF_DT_HEADER            0xd00dfeed      /* 4: version,
 						   4: total size */
 #define OF_DT_BEGIN_NODE        0x1             /* Start node: full name
-*/
+						   */
 #define OF_DT_END_NODE          0x2             /* End node */
 #define OF_DT_PROP              0x3             /* Property: name off,
                                                    size, content */
@@ -310,9 +313,8 @@ struct boot_param_header {
    - off_mem_rsvmap
 
      This is an offset from the beginning of the header to the start
-     of the reserved memory map. This map is a list of pairs of 64
+     of the reserved memory map. This map is a list of pairs of 64-
      bit integers. Each pair is a physical address and a size. The
-
      list is terminated by an entry of size 0. This map provides the
      kernel with a list of physical memory areas that are "reserved"
      and thus not to be used for memory allocations, especially during
@@ -325,7 +327,7 @@ struct boot_param_header {
      contain _at least_ this DT block itself (header,total_size). If
      you are passing an initrd to the kernel, you should reserve it as
      well. You do not need to reserve the kernel image itself. The map
-     should be 64 bit aligned.
+     should be 64-bit aligned.
 
    - version
 
@@ -335,10 +337,13 @@ struct boot_param_header {
      to reallocate it easily at boot and free up the unused flattened
      structure after expansion. Version 16 introduces a new more
      "compact" format for the tree itself that is however not backward
-     compatible. You should always generate a structure of the highest
-     version defined at the time of your implementation. Currently
-     that is version 16, unless you explicitly aim at being backward
-     compatible.
+     compatible. Version 17 adds an additional field, size_dt_struct,
+     allowing it to be reallocated or moved more easily (this is
+     particularly useful for bootloaders which need to make
+     adjustments to a device tree based on probed information). You
+     should always generate a structure of the highest version defined
+     at the time of your implementation. Currently that is version 17,
+     unless you explicitly aim at being backward compatible.
 
    - last_comp_version
 
@@ -347,7 +352,7 @@ struct boot_param_header {
      is backward compatible with version 1 (that is, a kernel build
      for version 1 will be able to boot with a version 2 format). You
      should put a 1 in this field if you generate a device tree of
-     version 1 to 3, or 0x10 if you generate a tree of version 0x10
+     version 1 to 3, or 16 if you generate a tree of version 16 or 17
      using the new unit name format.
 
    - boot_cpuid_phys
@@ -360,6 +365,17 @@ struct boot_param_header {
      point (see further chapters for more informations on the required
      device-tree contents)
 
+   - size_dt_strings
+
+     This field only exists on version 3 and later headers.  It
+     gives the size of the "strings" section of the device tree (which
+     starts at the offset given by off_dt_strings).
+
+   - size_dt_struct
+
+     This field only exists on version 17 and later headers.  It gives
+     the size of the "structure" section of the device tree (which
+     starts at the offset given by off_dt_struct).
 
    So the typical layout of a DT block (though the various parts don't
    need to be in that order) looks like this (addresses go from top to
@@ -417,7 +433,7 @@ root node who has no parent.
 A node has 2 names. The actual node name is generally contained in a
 property of type "name" in the node property list whose value is a
 zero terminated string and is mandatory for version 1 to 3 of the
-format definition (as it is in Open Firmware). Version 0x10 makes it
+format definition (as it is in Open Firmware). Version 16 makes it
 optional as it can generate it from the unit name defined below.
 
 There is also a "unit name" that is used to differentiate nodes with
@@ -461,7 +477,7 @@ referencing another node via "phandle" is when laying out the
 interrupt tree which will be described in a further version of this
 document.
 
-This "linux, phandle" property is a 32 bit value that uniquely
+This "linux, phandle" property is a 32-bit value that uniquely
 identifies a node. You are free to use whatever values or system of
 values, internal pointers, or whatever to generate these, the only
 requirement is that every node for which you provide that property has
@@ -471,7 +487,7 @@ Here is an example of a simple device-tree. In this example, an "o"
 designates a node followed by the node unit name. Properties are
 presented with their name followed by their content. "content"
 represents an ASCII string (zero terminated) value, while <content>
-represents a 32 bit hexadecimal value. The various nodes in this
+represents a 32-bit hexadecimal value. The various nodes in this
 example will be discussed in a later chapter. At this point, it is
 only meant to give you a idea of what a device-tree looks like. I have
 purposefully kept the "name" and "linux,phandle" properties which
@@ -543,15 +559,15 @@ Here's the basic structure of a single node:
      * [align gap to next 4 bytes boundary]
      * for each property:
         * token OF_DT_PROP (that is 0x00000003)
-        * 32 bit value of property value size in bytes (or 0 of no
-     * value)
-        * 32 bit value of offset in string block of property name
+        * 32-bit value of property value size in bytes (or 0 if no
+          value)
+        * 32-bit value of offset in string block of property name
         * property value data if any
         * [align gap to next 4 bytes boundary]
      * [child nodes if any]
      * token OF_DT_END_NODE (that is 0x00000002)
 
-So the node content can be summarised as a start token, a full path,
+So the node content can be summarized as a start token, a full path,
 a list of properties, a list of child nodes, and an end token. Every
 child node is a full node structure itself as defined above.
 
@@ -583,7 +599,7 @@ provide those properties yourself.
 ----------------------------------------------
 
 The general rule is documented in the various Open Firmware
-documentations. If you chose to describe a bus with the device-tree
+documentations. If you choose to describe a bus with the device-tree
 and there exist an OF bus binding, then you should follow the
 specification. However, the kernel does not require every single
 device or bus to be described by the device tree.
@@ -596,9 +612,9 @@ those properties defining addresses format for devices directly mapped
 on the processor bus.
 
 Those 2 properties define 'cells' for representing an address and a
-size. A "cell" is a 32 bit number. For example, if both contain 2
+size. A "cell" is a 32-bit number. For example, if both contain 2
 like the example tree given above, then an address and a size are both
-composed of 2 cells, and each is a 64 bit number (cells are
+composed of 2 cells, and each is a 64-bit number (cells are
 concatenated and expected to be in big endian format). Another example
 is the way Apple firmware defines them, with 2 cells for an address
 and one cell for a size.  Most 32-bit implementations should define
@@ -632,7 +648,7 @@ prom_parse.c file of the recent kernels for your bus type.
 
 The "reg" property only defines addresses and sizes (if #size-cells
 is non-0) within a given bus. In order to translate addresses upward
-(that is into parent bus addresses, and possibly into cpu physical
+(that is into parent bus addresses, and possibly into CPU physical
 addresses), all busses must contain a "ranges" property. If the
 "ranges" property is missing at a given level, it's assumed that
 translation isn't possible. The format of the "ranges" property for a
@@ -648,9 +664,9 @@ example, for a PCI host controller, that would be a CPU address. For a
 PCI<->ISA bridge, that would be a PCI address. It defines the base
 address in the parent bus where the beginning of that range is mapped.
 
-For a new 64 bit powerpc board, I recommend either the 2/2 format or
+For a new 64-bit powerpc board, I recommend either the 2/2 format or
 Apple's 2/1 format which is slightly more compact since sizes usually
-fit in a single 32 bit word.   New 32 bit powerpc boards should use a
+fit in a single 32-bit word.   New 32-bit powerpc boards should use a
 1/1 format, unless the processor supports physical addresses greater
 than 32-bits, in which case a 2/1 format is recommended.
 
@@ -764,7 +780,7 @@ address which can extend beyond that limit.
   Required properties:
 
     - device_type : has to be "cpu"
-    - reg : This is the physical cpu number, it's a single 32 bit cell
+    - reg : This is the physical CPU number, it's a single 32-bit cell
       and is also used as-is as the unit number for constructing the
       unit name in the full path. For example, with 2 CPUs, you would
       have the full path:
@@ -785,7 +801,7 @@ address which can extend beyond that limit.
       the kernel timebase/decrementer calibration based on this
       value.
     - clock-frequency : a cell indicating the CPU core clock frequency
-      in Hz. A new property will be defined for 64 bit values, but if
+      in Hz. A new property will be defined for 64-bit values, but if
       your frequency is < 4Ghz, one cell is enough. Here as well as
       for the above, the common code doesn't use that property, but
       you are welcome to re-use the pSeries or Maple one. A future
@@ -832,8 +848,7 @@ address which can extend beyond that limit.
 
   This node is a bit "special". Normally, that's where open firmware
   puts some variable environment information, like the arguments, or
-  phandle pointers to nodes like the main interrupt controller, or the
-  default input/output devices.
+  the default input/output devices.
 
   This specification makes a few of these mandatory, but also defines
   some linux-specific properties that would be normally constructed by
@@ -853,13 +868,13 @@ address which can extend beyond that limit.
       that the kernel tries to find out the default console and has
       knowledge of various types like 8250 serial ports. You may want
       to extend this function to add your own.
-    - interrupt-controller : This is one cell containing a phandle
-      value that matches the "linux,phandle" property of your main
-      interrupt controller node. May be used for interrupt routing.
-
 
   Note that u-boot creates and fills in the chosen node for platforms
   that use it.
+
+  (Note: a practice that is now obsolete was to include a property
+  under /chosen called interrupt-controller which had a phandle value
+  that pointed to the main interrupt controller)
 
   f) the /soc<SOCname> node
 
@@ -908,8 +923,7 @@ address which can extend beyond that limit.
   The SOC node may contain child nodes for each SOC device that the
   platform uses.  Nodes should not be created for devices which exist
   on the SOC but are not used by a particular platform. See chapter VI
-  for more information on how to specify devices that are part of an
-SOC.
+  for more information on how to specify devices that are part of a SOC.
 
   Example SOC node for the MPC8540:
 
@@ -972,7 +986,7 @@ The syntax of the dtc tool is
         [-o output-filename] [-V output_version] input_filename
 
 
-The "output_version" defines what versio of the "blob" format will be
+The "output_version" defines what version of the "blob" format will be
 generated. Supported versions are 1,2,3 and 16. The default is
 currently version 3 but that may change in the future to version 16.
 
@@ -994,12 +1008,12 @@ supported currently at the toplevel.
 				 */
 
   property2 = <1234abcd>;	/* define a property containing a
-                                 * numerical 32 bits value (hexadecimal)
+                                 * numerical 32-bit value (hexadecimal)
 				 */
 
   property3 = <12345678 12345678 deadbeef>;
                                 /* define a property containing 3
-                                 * numerical 32 bits values (cells) in
+                                 * numerical 32-bit values (cells) in
                                  * hexadecimal
 				 */
   property4 = [0a 0b 0c 0d de ea ad be ef];
@@ -1068,7 +1082,7 @@ while all this has been defined and implemented.
     its usage in early_init_devtree(), and the corresponding various
     early_init_dt_scan_*() callbacks. That code can be re-used in a
     GPL bootloader, and as the author of that code, I would be happy
-    to discuss possible free licencing to any vendor who wishes to
+    to discuss possible free licensing to any vendor who wishes to
     integrate all or part of this code into a non-GPL bootloader.
 
 
@@ -1077,7 +1091,7 @@ VI - System-on-a-chip devices and nodes
 =======================================
 
 Many companies are now starting to develop system-on-a-chip
-processors, where the processor core (cpu) and many peripheral devices
+processors, where the processor core (CPU) and many peripheral devices
 exist on a single piece of silicon.  For these SOCs, an SOC node
 should be used that defines child nodes for the devices that make
 up the SOC. While platforms are not required to use this model in
@@ -1109,42 +1123,7 @@ See appendix A for an example partial SOC node definition for the
 MPC8540.
 
 
-2) Specifying interrupt information for SOC devices
----------------------------------------------------
-
-Each device that is part of an SOC and which generates interrupts
-should have the following properties:
-
-	- interrupt-parent : contains the phandle of the interrupt
-          controller which handles interrupts for this device
-	- interrupts : a list of tuples representing the interrupt
-          number and the interrupt sense and level for each interrupt
-          for this device.
-
-This information is used by the kernel to build the interrupt table
-for the interrupt controllers in the system.
-
-Sense and level information should be encoded as follows:
-
-   Devices connected to openPIC-compatible controllers should encode
-   sense and polarity as follows:
-
-	0 = low to high edge sensitive type enabled
-	1 = active low level sensitive type enabled
-	2 = active high level sensitive type enabled
-	3 = high to low edge sensitive type enabled
-
-   ISA PIC interrupt controllers should adhere to the ISA PIC
-   encodings listed below:
-
-	0 =  active low level sensitive type enabled
-	1 =  active high level sensitive type enabled
-	2 =  high to low edge sensitive type enabled
-	3 =  low to high edge sensitive type enabled
-
-
-
-3) Representing devices without a current OF specification
+2) Representing devices without a current OF specification
 ----------------------------------------------------------
 
 Currently, there are many devices on SOCs that do not have a standard
@@ -1200,6 +1179,13 @@ platforms are moved over to use the flattened-device-tree model.
       services interrupts for this device.
     - phy-handle : The phandle for the PHY connected to this ethernet
       controller.
+
+  Recommended properties:
+
+    - linux,network-index : This is the intended "index" of this
+      network device.  This is used by the bootwrapper to interpret
+      MAC addresses passed by the firmware when no information other
+      than indices is available to associate an address with a device.
 
   Example:
 
@@ -1312,10 +1298,10 @@ platforms are moved over to use the flattened-device-tree model.
    and additions :  
 
    Required properties :
-    - compatible : Should be "fsl-usb2-mph" for multi port host usb
-      controllers, or "fsl-usb2-dr" for dual role usb controllers
-    - phy_type : For multi port host usb controllers, should be one of
-      "ulpi", or "serial". For dual role usb controllers, should be
+    - compatible : Should be "fsl-usb2-mph" for multi port host USB
+      controllers, or "fsl-usb2-dr" for dual role USB controllers
+    - phy_type : For multi port host USB controllers, should be one of
+      "ulpi", or "serial". For dual role USB controllers, should be
       one of "ulpi", "utmi", "utmi_wide", or "serial".
     - reg : Offset and length of the register set for the device
     - port0 : boolean; if defined, indicates port0 is connected for
@@ -1339,7 +1325,7 @@ platforms are moved over to use the flattened-device-tree model.
     - interrupt-parent : the phandle for the interrupt controller that
       services interrupts for this device.
 
-   Example multi port host usb controller device node : 
+   Example multi port host USB controller device node :
 	usb@22000 {
 	        device_type = "usb";
 		compatible = "fsl-usb2-mph";
@@ -1353,7 +1339,7 @@ platforms are moved over to use the flattened-device-tree model.
 		port1;
 	};
 
-   Example dual role usb controller device node : 
+   Example dual role USB controller device node :
 	usb@23000 {
 		device_type = "usb";
 		compatible = "fsl-usb2-dr";
@@ -1387,7 +1373,7 @@ platforms are moved over to use the flattened-device-tree model.
     - channel-fifo-len : An integer representing the number of
       descriptor pointers each channel fetch fifo can hold.
     - exec-units-mask : The bitmask representing what execution units
-      (EUs) are available. It's a single 32 bit cell. EU information
+      (EUs) are available. It's a single 32-bit cell. EU information
       should be encoded following the SEC's Descriptor Header Dword
       EU_SEL0 field documentation, i.e. as follows:
 
@@ -1403,7 +1389,7 @@ platforms are moved over to use the flattened-device-tree model.
       bits 8 through 31 are reserved for future SEC EUs.
 
     - descriptor-types-mask : The bitmask representing what descriptors
-      are available. It's a single 32 bit cell. Descriptor type
+      are available. It's a single 32-bit cell. Descriptor type
       information should be encoded following the SEC's Descriptor
       Header Dword DESC_TYPE field documentation, i.e. as follows:
 
@@ -1492,7 +1478,7 @@ platforms are moved over to use the flattened-device-tree model.
    Required properties:
    - device_type : should be "spi".
    - compatible : should be "fsl_spi".
-   - mode : the spi operation mode, it can be "cpu" or "qe".
+   - mode : the SPI operation mode, it can be "cpu" or "qe".
    - reg : Offset and length of the register set for the device
    - interrupts : <a b> where a is the interrupt number and b is a
      field that represents an encoding of the sense and level
@@ -1568,6 +1554,12 @@ platforms are moved over to use the flattened-device-tree model.
    Required properties for network device_type:
    - mac-address : list of bytes representing the ethernet address.
    - phy-handle : The phandle for the PHY connected to this controller.
+
+   Recommended properties:
+   - linux,network-index : This is the intended "index" of this
+     network device.  This is used by the bootwrapper to interpret
+     MAC addresses passed by the firmware when no information other
+     than indices is available to associate an address with a device.
 
    Example:
 	ucc@2000 {
@@ -1712,7 +1704,7 @@ platforms are moved over to use the flattened-device-tree model.
      - partitions : Several pairs of 32-bit values where the first value is
        partition's offset from the start of the device and the second one is
        partition size in bytes with LSB used to signify a read only
-       partition (so, the parition size should always be an even number).
+       partition (so, the partition size should always be an even number).
      - partition-names : The list of concatenated zero terminated strings
        representing the partition names.
      - probe-type : The type of probe which should be done for the chip
@@ -1732,6 +1724,92 @@ platforms are moved over to use the flattened-device-tree model.
  	};
 
    More devices will be defined as this spec matures.
+
+VII - Specifying interrupt information for devices
+===================================================
+
+The device tree represents the busses and devices of a hardware
+system in a form similar to the physical bus topology of the
+hardware.
+
+In addition, a logical 'interrupt tree' exists which represents the
+hierarchy and routing of interrupts in the hardware.
+
+The interrupt tree model is fully described in the
+document "Open Firmware Recommended Practice: Interrupt
+Mapping Version 0.9".  The document is available at:
+<http://playground.sun.com/1275/practice>.
+
+1) interrupts property
+----------------------
+
+Devices that generate interrupts to a single interrupt controller
+should use the conventional OF representation described in the
+OF interrupt mapping documentation.
+
+Each device which generates interrupts must have an 'interrupt'
+property.  The interrupt property value is an arbitrary number of
+of 'interrupt specifier' values which describe the interrupt or
+interrupts for the device.
+
+The encoding of an interrupt specifier is determined by the
+interrupt domain in which the device is located in the
+interrupt tree.  The root of an interrupt domain specifies in
+its #interrupt-cells property the number of 32-bit cells
+required to encode an interrupt specifier.  See the OF interrupt
+mapping documentation for a detailed description of domains.
+
+For example, the binding for the OpenPIC interrupt controller
+specifies  an #interrupt-cells value of 2 to encode the interrupt
+number and level/sense information. All interrupt children in an
+OpenPIC interrupt domain use 2 cells per interrupt in their interrupts
+property.
+
+The PCI bus binding specifies a #interrupt-cell value of 1 to encode
+which interrupt pin (INTA,INTB,INTC,INTD) is used.
+
+2) interrupt-parent property
+----------------------------
+
+The interrupt-parent property is specified to define an explicit
+link between a device node and its interrupt parent in
+the interrupt tree.  The value of interrupt-parent is the
+phandle of the parent node.
+
+If the interrupt-parent property is not defined for a node, it's
+interrupt parent is assumed to be an ancestor in the node's
+_device tree_ hierarchy.
+
+3) OpenPIC Interrupt Controllers
+--------------------------------
+
+OpenPIC interrupt controllers require 2 cells to encode
+interrupt information.  The first cell defines the interrupt
+number.  The second cell defines the sense and level
+information.
+
+Sense and level information should be encoded as follows:
+
+	0 = low to high edge sensitive type enabled
+	1 = active low level sensitive type enabled
+	2 = active high level sensitive type enabled
+	3 = high to low edge sensitive type enabled
+
+4) ISA Interrupt Controllers
+----------------------------
+
+ISA PIC interrupt controllers require 2 cells to encode
+interrupt information.  The first cell defines the interrupt
+number.  The second cell defines the sense and level
+information.
+
+ISA PIC interrupt controllers should adhere to the ISA PIC
+encodings listed below:
+
+	0 =  active low level sensitive type enabled
+	1 =  active high level sensitive type enabled
+	2 =  high to low edge sensitive type enabled
+	3 =  low to high edge sensitive type enabled
 
 
 Appendix A - Sample SOC node for MPC8540

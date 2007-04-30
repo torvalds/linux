@@ -70,11 +70,11 @@ static int __init fixup_one_level_bus_range(struct device_node *node, int higher
 		int len;
 
 		/* For PCI<->PCI bridges or CardBus bridges, we go down */
-		class_code = get_property(node, "class-code", NULL);
+		class_code = of_get_property(node, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		bus_range = get_property(node, "bus-range", &len);
+		bus_range = of_get_property(node, "bus-range", &len);
 		if (bus_range != NULL && len > 2 * sizeof(int)) {
 			if (bus_range[1] > higher)
 				higher = bus_range[1];
@@ -100,7 +100,7 @@ static void __init fixup_bus_range(struct device_node *bridge)
 	if (prop == NULL || prop->length < 2 * sizeof(int))
 		return;
 
-	bus_range = (int *)prop->value;
+	bus_range = prop->value;
 	bus_range[1] = fixup_one_level_bus_range(bridge->child, bus_range[1]);
 }
 
@@ -246,8 +246,8 @@ static int chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
 	if (np == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	vendor = get_property(np, "vendor-id", NULL);
-	device = get_property(np, "device-id", NULL);
+	vendor = of_get_property(np, "vendor-id", NULL);
+	device = of_get_property(np, "device-id", NULL);
 	if (vendor == NULL || device == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
@@ -622,13 +622,14 @@ static void __init init_p2pbridge(void)
 
 	/* XXX it would be better here to identify the specific
 	   PCI-PCI bridge chip we have. */
-	if ((p2pbridge = find_devices("pci-bridge")) == 0
+	p2pbridge = of_find_node_by_name(NULL, "pci-bridge");
+	if (p2pbridge == NULL
 	    || p2pbridge->parent == NULL
 	    || strcmp(p2pbridge->parent->name, "pci") != 0)
-		return;
+		goto done;
 	if (pci_device_from_OF_node(p2pbridge, &bus, &devfn) < 0) {
 		DBG("Can't find PCI infos for PCI<->PCI bridge\n");
-		return;
+		goto done;
 	}
 	/* Warning: At this point, we have not yet renumbered all busses.
 	 * So we must use OF walking to find out hose
@@ -636,16 +637,18 @@ static void __init init_p2pbridge(void)
 	hose = pci_find_hose_for_OF_device(p2pbridge);
 	if (!hose) {
 		DBG("Can't find hose for PCI<->PCI bridge\n");
-		return;
+		goto done;
 	}
 	if (early_read_config_word(hose, bus, devfn,
 				   PCI_BRIDGE_CONTROL, &val) < 0) {
 		printk(KERN_ERR "init_p2pbridge: couldn't read bridge"
 		       " control\n");
-		return;
+		goto done;
 	}
 	val &= ~PCI_BRIDGE_CTL_MASTER_ABORT;
 	early_write_config_word(hose, bus, devfn, PCI_BRIDGE_CONTROL, val);
+done:
+	of_node_put(p2pbridge);
 }
 
 static void __init init_second_ohare(void)
@@ -691,17 +694,17 @@ static void __init fixup_nec_usb2(void)
 		const u32 *prop;
 		u8 bus, devfn;
 
-		prop = get_property(nec, "vendor-id", NULL);
+		prop = of_get_property(nec, "vendor-id", NULL);
 		if (prop == NULL)
 			continue;
 		if (0x1033 != *prop)
 			continue;
-		prop = get_property(nec, "device-id", NULL);
+		prop = of_get_property(nec, "device-id", NULL);
 		if (prop == NULL)
 			continue;
 		if (0x0035 != *prop)
 			continue;
-		prop = get_property(nec, "reg", NULL);
+		prop = of_get_property(nec, "reg", NULL);
 		if (prop == NULL)
 			continue;
 		devfn = (prop[0] >> 8) & 0xff;
@@ -909,7 +912,7 @@ static int __init add_bridge(struct device_node *dev)
 	has_address = (of_address_to_resource(dev, 0, &rsrc) == 0);
 
 	/* Get bus range if any */
-	bus_range = get_property(dev, "bus-range", &len);
+	bus_range = of_get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 		       " bus 0\n", dev->full_name);
@@ -1199,8 +1202,7 @@ void __init pmac_pcibios_after_init(void)
 	}
 #endif /* CONFIG_BLK_DEV_IDE */
 
-	nd = find_devices("firewire");
-	while (nd) {
+	for_each_node_by_name(nd, "firewire") {
 		if (nd->parent && (device_is_compatible(nd, "pci106b,18") ||
 				   device_is_compatible(nd, "pci106b,30") ||
 				   device_is_compatible(nd, "pci11c1,5811"))
@@ -1208,15 +1210,14 @@ void __init pmac_pcibios_after_init(void)
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, nd, 0, 0);
 			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, nd, 0, 0);
 		}
-		nd = nd->next;
 	}
-	nd = find_devices("ethernet");
-	while (nd) {
+	of_node_put(nd);
+	for_each_node_by_name(nd, "ethernet") {
 		if (nd->parent && device_is_compatible(nd, "gmac")
 		    && device_is_compatible(nd->parent, "uni-north"))
 			pmac_call_feature(PMAC_FTR_GMAC_ENABLE, nd, 0, 0);
-		nd = nd->next;
 	}
+	of_node_put(nd);
 }
 
 #ifdef CONFIG_PPC32

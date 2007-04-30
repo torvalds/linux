@@ -20,7 +20,6 @@
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/ide.h>
 #include <asm/atomic.h>
 #include <asm/checksum.h>
 #include <asm/pgtable.h>

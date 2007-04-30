@@ -178,7 +178,7 @@ ocotea_setup_pcix(void)
 	/* Setup 2GB PCI->PLB inbound memory window at 0, enable MSIs */
 	PCIX_WRITEL(0x00000000, PCIX0_PIM0LAH);
 	PCIX_WRITEL(0x00000000, PCIX0_PIM0LAL);
-	PCIX_WRITEL(0xe0000007, PCIX0_PIM0SA);
+	PCIX_WRITEL(0x80000007, PCIX0_PIM0SA);
 
 	eieio();
 }
@@ -289,7 +289,7 @@ ocotea_setup_arch(void)
 	 * from FPGA, because it can be changed by on-board switches
 	 * --ebs
 	 */
-	ibm440gx_get_clocks(&clocks, 33333333, 6 * 1843200);
+	ibm440gx_get_clocks(&clocks, 33300000, 6 * 1843200);
 	ocp_sys_info.opb_bus_freq = clocks.opb;
 
 	/* Setup TODC access */

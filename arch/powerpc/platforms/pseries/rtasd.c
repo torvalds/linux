@@ -363,7 +363,7 @@ static int get_eventscan_parms(void)
 
 	node = of_find_node_by_path("/rtas");
 
-	ip = get_property(node, "rtas-event-scan-rate", NULL);
+	ip = of_get_property(node, "rtas-event-scan-rate", NULL);
 	if (ip == NULL) {
 		printk(KERN_ERR "rtasd: no rtas-event-scan-rate\n");
 		of_node_put(node);

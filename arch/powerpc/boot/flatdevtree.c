@@ -29,11 +29,19 @@
 
 #define _ALIGN(x, al)	(((x) + (al) - 1) & ~((al) - 1))
 
+static char *ft_root_node(struct ft_cxt *cxt)
+{
+	return cxt->rgn[FT_STRUCT].start;
+}
+
 /* Routines for keeping node ptrs returned by ft_find_device current */
 /* First entry not used b/c it would return 0 and be taken as NULL/error */
-static void *ft_node_add(struct ft_cxt *cxt, char *node)
+static void *ft_get_phandle(struct ft_cxt *cxt, char *node)
 {
 	unsigned int i;
+
+	if (!node)
+		return NULL;
 
 	for (i = 1; i < cxt->nodes_used; i++)	/* already there? */
 		if (cxt->node_tbl[i] == node)
@@ -238,7 +246,7 @@ static int ft_shuffle(struct ft_cxt *cxt, char **pp, enum ft_rgn_id rgn,
 			if (rgn == FT_STRUCT)
 				ft_node_update_before(cxt, p, -nextra);
 		}
-		*p -= nextra;
+		*pp -= nextra;
 		cxt->rgn[rgn].start -= nextra;
 		cxt->rgn[rgn].size += nextra;
 		return 1;
@@ -253,8 +261,14 @@ static int ft_make_space(struct ft_cxt *cxt, char **pp, enum ft_rgn_id rgn,
 	char *str, *next;
 	enum ft_rgn_id r;
 
-	if (!cxt->isordered && !ft_reorder(cxt, nextra))
-		return 0;
+	if (!cxt->isordered) {
+		unsigned long rgn_off = *pp - cxt->rgn[rgn].start;
+
+		if (!ft_reorder(cxt, nextra))
+			return 0;
+
+		*pp = cxt->rgn[rgn].start + rgn_off;
+	}
 	if (ft_shuffle(cxt, pp, rgn, nextra))
 		return 1;
 
@@ -415,7 +429,7 @@ int ft_prop(struct ft_cxt *cxt, const char *name, const void *data,
 {
 	int off, len;
 
-	off = lookup_string(cxt, name);
+	off = map_string(cxt, name);
 	if (off == NO_STRING)
 		return -1;
 
@@ -590,7 +604,7 @@ int ft_add_rsvmap(struct ft_cxt *cxt, u64 physaddr, u64 size)
 
 void ft_begin_tree(struct ft_cxt *cxt)
 {
-	cxt->p = cxt->rgn[FT_STRUCT].start;
+	cxt->p = ft_root_node(cxt);
 }
 
 void ft_end_tree(struct ft_cxt *cxt)
@@ -636,8 +650,21 @@ void *ft_find_device(struct ft_cxt *cxt, const char *srch_path)
 	/* require absolute path */
 	if (srch_path[0] != '/')
 		return NULL;
-	node = ft_find_descendent(cxt, cxt->rgn[FT_STRUCT].start, srch_path);
-	return ft_node_add(cxt, node);
+	node = ft_find_descendent(cxt, ft_root_node(cxt), srch_path);
+	return ft_get_phandle(cxt, node);
+}
+
+void *ft_find_device_rel(struct ft_cxt *cxt, const void *top,
+                         const char *srch_path)
+{
+	char *node;
+
+	node = ft_node_ph2node(cxt, top);
+	if (node == NULL)
+		return NULL;
+
+	node = ft_find_descendent(cxt, node, srch_path);
+	return ft_get_phandle(cxt, node);
 }
 
 void *ft_find_descendent(struct ft_cxt *cxt, void *top, const char *srch_path)
@@ -701,23 +728,18 @@ void *ft_find_descendent(struct ft_cxt *cxt, void *top, const char *srch_path)
 	return NULL;
 }
 
-void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
+void *__ft_get_parent(struct ft_cxt *cxt, void *node)
 {
-	void *node;
 	int d;
 	struct ft_atom atom;
 	char *p;
 
-	node = ft_node_ph2node(cxt, phandle);
-	if (node == NULL)
-		return NULL;
-
 	for (d = 0; cxt->genealogy[d] != NULL; ++d)
 		if (cxt->genealogy[d] == node)
-			return cxt->genealogy[d > 0 ? d - 1 : 0];
+			return d > 0 ? cxt->genealogy[d - 1] : NULL;
 
 	/* have to do it the hard way... */
-	p = cxt->rgn[FT_STRUCT].start;
+	p = ft_root_node(cxt);
 	d = 0;
 	while ((p = ft_next(cxt, p, &atom)) != NULL) {
 		switch (atom.tag) {
@@ -726,7 +748,7 @@ void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
 			if (node == atom.data) {
 				/* found it */
 				cxt->genealogy[d + 1] = NULL;
-				return d > 0 ? cxt->genealogy[d - 1] : node;
+				return d > 0 ? cxt->genealogy[d - 1] : NULL;
 			}
 			++d;
 			break;
@@ -738,39 +760,129 @@ void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
 	return NULL;
 }
 
-int ft_get_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
-		void *buf, const unsigned int buflen)
+void *ft_get_parent(struct ft_cxt *cxt, const void *phandle)
+{
+	void *node = ft_node_ph2node(cxt, phandle);
+	if (node == NULL)
+		return NULL;
+
+	node = __ft_get_parent(cxt, node);
+	return ft_get_phandle(cxt, node);
+}
+
+static const void *__ft_get_prop(struct ft_cxt *cxt, void *node,
+                                 const char *propname, unsigned int *len)
 {
 	struct ft_atom atom;
-	void *node;
-	char *p;
-	int depth;
-	unsigned int size;
+	int depth = 0;
 
-	node = ft_node_ph2node(cxt, phandle);
-	if (node == NULL)
-		return -1;
-
-	depth = 0;
-	p = (char *)node;
-
-	while ((p = ft_next(cxt, p, &atom)) != NULL) {
+	while ((node = ft_next(cxt, node, &atom)) != NULL) {
 		switch (atom.tag) {
 		case OF_DT_BEGIN_NODE:
 			++depth;
 			break;
+
 		case OF_DT_PROP:
-			if ((depth != 1) || strcmp(atom.name, propname))
+			if (depth != 1 || strcmp(atom.name, propname))
 				break;
-			size = min(atom.size, buflen);
-			memcpy(buf, atom.data, size);
-			return atom.size;
+
+			if (len)
+				*len = atom.size;
+
+			return atom.data;
+
 		case OF_DT_END_NODE:
 			if (--depth <= 0)
-				return -1;
+				return NULL;
 		}
 	}
+
+	return NULL;
+}
+
+int ft_get_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
+		void *buf, const unsigned int buflen)
+{
+	const void *data;
+	unsigned int size;
+
+	void *node = ft_node_ph2node(cxt, phandle);
+	if (!node)
+		return -1;
+
+	data = __ft_get_prop(cxt, node, propname, &size);
+	if (data) {
+		unsigned int clipped_size = min(size, buflen);
+		memcpy(buf, data, clipped_size);
+		return size;
+	}
+
 	return -1;
+}
+
+void *__ft_find_node_by_prop_value(struct ft_cxt *cxt, void *prev,
+                                   const char *propname, const char *propval,
+                                   unsigned int proplen)
+{
+	struct ft_atom atom;
+	char *p = ft_root_node(cxt);
+	char *next;
+	int past_prev = prev ? 0 : 1;
+	int depth = -1;
+
+	while ((next = ft_next(cxt, p, &atom)) != NULL) {
+		const void *data;
+		unsigned int size;
+
+		switch (atom.tag) {
+		case OF_DT_BEGIN_NODE:
+			depth++;
+
+			if (prev == p) {
+				past_prev = 1;
+				break;
+			}
+
+			if (!past_prev || depth < 1)
+				break;
+
+			data = __ft_get_prop(cxt, p, propname, &size);
+			if (!data || size != proplen)
+				break;
+			if (memcmp(data, propval, size))
+				break;
+
+			return p;
+
+		case OF_DT_END_NODE:
+			if (depth-- == 0)
+				return NULL;
+
+			break;
+		}
+
+		p = next;
+	}
+
+	return NULL;
+}
+
+void *ft_find_node_by_prop_value(struct ft_cxt *cxt, const void *prev,
+                                 const char *propname, const char *propval,
+                                 int proplen)
+{
+	void *node = NULL;
+
+	if (prev) {
+		node = ft_node_ph2node(cxt, prev);
+
+		if (!node)
+			return NULL;
+	}
+
+	node = __ft_find_node_by_prop_value(cxt, node, propname,
+	                                    propval, proplen);
+	return ft_get_phandle(cxt, node);
 }
 
 int ft_set_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
@@ -849,19 +961,26 @@ int ft_del_prop(struct ft_cxt *cxt, const void *phandle, const char *propname)
 	return -1;
 }
 
-void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *path)
+void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *name)
 {
 	struct ft_atom atom;
 	char *p, *next;
 	int depth = 0;
 
-	p = cxt->rgn[FT_STRUCT].start;
+	if (parent) {
+		p = ft_node_ph2node(cxt, parent);
+		if (!p)
+			return NULL;
+	} else {
+		p = ft_root_node(cxt);
+	}
+
 	while ((next = ft_next(cxt, p, &atom)) != NULL) {
 		switch (atom.tag) {
 		case OF_DT_BEGIN_NODE:
 			++depth;
-			if (depth == 1 && strcmp(atom.name, path) == 0)
-				/* duplicate node path, return error */
+			if (depth == 1 && strcmp(atom.name, name) == 0)
+				/* duplicate node name, return error */
 				return NULL;
 			break;
 		case OF_DT_END_NODE:
@@ -870,7 +989,7 @@ void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *path)
 				break;
 			/* end of node, insert here */
 			cxt->p = p;
-			ft_begin_node(cxt, path);
+			ft_begin_node(cxt, name);
 			ft_end_node(cxt);
 			return p;
 		}

@@ -38,7 +38,7 @@ static int property_read_proc(char *page, char **start, off_t off,
 		n = count;
 	else
 		*eof = 1;
-	memcpy(page, pp->value + off, n);
+	memcpy(page, (char *)pp->value + off, n);
 	*start = page;
 	return n;
 }

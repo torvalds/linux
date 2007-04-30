@@ -122,7 +122,7 @@ static int i2sbus_get_and_fixup_rsrc(struct device_node *np, int index,
 {
 	struct device_node *parent;
 	int pindex, rc = -ENXIO;
-	u32 *reg;
+	const u32 *reg;
 
 	/* Machines with layout 76 and 36 (K2 based) have a weird device
 	 * tree what we need to special case.
@@ -141,7 +141,7 @@ static int i2sbus_get_and_fixup_rsrc(struct device_node *np, int index,
 	rc = of_address_to_resource(parent, pindex, res);
 	if (rc)
 		goto bail;
-	reg = (u32 *)get_property(np, "reg", NULL);
+	reg = of_get_property(np, "reg", NULL);
 	if (reg == NULL) {
 		rc = -ENXIO;
 		goto bail;
@@ -188,8 +188,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		}
 	}
 	if (i == 1) {
-		u32 *layout_id;
-		layout_id = (u32*) get_property(sound, "layout-id", NULL);
+		const u32 *layout_id =
+			of_get_property(sound, "layout-id", NULL);
 		if (layout_id) {
 			layout = *layout_id;
 			snprintf(dev->sound.modalias, 32,

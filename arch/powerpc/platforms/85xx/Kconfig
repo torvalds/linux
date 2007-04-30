@@ -1,8 +1,6 @@
-menu "Platform support"
-	depends on PPC_85xx
-
 choice
 	prompt "Machine Type"
+	depends on PPC_85xx
 	default MPC8540_ADS
 
 config MPC8540_ADS
@@ -30,6 +28,12 @@ config MPC85xx_MDS
 	help
 	  This option enables support for the MPC85xx MDS board
 
+config MPC8544_DS
+	bool "Freescale MPC8544 DS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC8544 DS board
+
 endchoice
 
 config MPC8540
@@ -40,33 +44,15 @@ config MPC8540
 
 config MPC8560
 	bool
-	select PPC_INDIRECT_PCI
+	select CPM2
 	default y if MPC8560_ADS
 
 config MPC85xx
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
+	select PPC_INDIRECT_PCI_BE
+	select MPIC
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
-	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS || MPC85xx_MDS
-
-config PPC_INDIRECT_PCI_BE
-	bool
-	depends on PPC_85xx
-	default y
-
-config MPIC
-	bool
-	default y
-
-config CPM2
-	bool
-	depends on MPC8560
-	default y
-	help
-	  The CPM2 (Communications Processor Module) is a coprocessor on
-	  embedded CPUs made by Motorola.  Selecting this option means that
-	  you wish to build a kernel for a machine with a CPM2 coprocessor
-	  on it.
-
-endmenu
+	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS \
+		|| MPC85xx_MDS || MPC8544_DS

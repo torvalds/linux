@@ -263,7 +263,7 @@ int __init ams_i2c_init(struct device_node *np)
 {
 	char *tmp_bus;
 	int result;
-	u32 *prop;
+	const u32 *prop;
 
 	mutex_lock(&ams_info.lock);
 
@@ -276,7 +276,7 @@ int __init ams_i2c_init(struct device_node *np)
 	ams_info.bustype = BUS_I2C;
 
 	/* look for bus either using "reg" or by path */
-	prop = (u32*)get_property(ams_info.of_node, "reg", NULL);
+	prop = get_property(ams_info.of_node, "reg", NULL);
 	if (!prop) {
 		result = -ENODEV;
 

@@ -305,9 +305,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		set_dabr(new->thread.dabr);
 		__get_cpu_var(current_dabr) = new->thread.dabr;
 	}
-
-	flush_tlb_pending();
-#endif
+#endif /* CONFIG_PPC64 */
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
@@ -402,11 +400,11 @@ static void printbits(unsigned long val, struct regbit *bits)
 }
 
 #ifdef CONFIG_PPC64
-#define REG		"%016lX"
+#define REG		"%016lx"
 #define REGS_PER_LINE	4
 #define LAST_VOLATILE	13
 #else
-#define REG		"%08lX"
+#define REG		"%08lx"
 #define REGS_PER_LINE	8
 #define LAST_VOLATILE	12
 #endif
@@ -421,7 +419,7 @@ void show_regs(struct pt_regs * regs)
 	       regs, regs->trap, print_tainted(), init_utsname()->release);
 	printk("MSR: "REG" ", regs->msr);
 	printbits(regs->msr, msr_bits);
-	printk("  CR: %08lX  XER: %08lX\n", regs->ccr, regs->xer);
+	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
 	if (trap == 0x300 || trap == 0x600)
 		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
@@ -572,7 +570,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	kregs->nip = *((unsigned long *)ret_from_fork);
 #else
 	kregs->nip = (unsigned long)ret_from_fork;
-	p->thread.last_syscall = -1;
 #endif
 
 	return 0;
@@ -823,6 +820,35 @@ out:
 	return error;
 }
 
+#ifdef CONFIG_IRQSTACKS
+static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
+				  unsigned long nbytes)
+{
+	unsigned long stack_page;
+	unsigned long cpu = task_cpu(p);
+
+	/*
+	 * Avoid crashing if the stack has overflowed and corrupted
+	 * task_cpu(p), which is in the thread_info struct.
+	 */
+	if (cpu < NR_CPUS && cpu_possible(cpu)) {
+		stack_page = (unsigned long) hardirq_ctx[cpu];
+		if (sp >= stack_page + sizeof(struct thread_struct)
+		    && sp <= stack_page + THREAD_SIZE - nbytes)
+			return 1;
+
+		stack_page = (unsigned long) softirq_ctx[cpu];
+		if (sp >= stack_page + sizeof(struct thread_struct)
+		    && sp <= stack_page + THREAD_SIZE - nbytes)
+			return 1;
+	}
+	return 0;
+}
+
+#else
+#define valid_irq_stack(sp, p, nb)	0
+#endif /* CONFIG_IRQSTACKS */
+
 int validate_sp(unsigned long sp, struct task_struct *p,
 		       unsigned long nbytes)
 {
@@ -832,19 +858,7 @@ int validate_sp(unsigned long sp, struct task_struct *p,
 	    && sp <= stack_page + THREAD_SIZE - nbytes)
 		return 1;
 
-#ifdef CONFIG_IRQSTACKS
-	stack_page = (unsigned long) hardirq_ctx[task_cpu(p)];
-	if (sp >= stack_page + sizeof(struct thread_struct)
-	    && sp <= stack_page + THREAD_SIZE - nbytes)
-		return 1;
-
-	stack_page = (unsigned long) softirq_ctx[task_cpu(p)];
-	if (sp >= stack_page + sizeof(struct thread_struct)
-	    && sp <= stack_page + THREAD_SIZE - nbytes)
-		return 1;
-#endif
-
-	return 0;
+	return valid_irq_stack(sp, p, nbytes);
 }
 
 #ifdef CONFIG_PPC64

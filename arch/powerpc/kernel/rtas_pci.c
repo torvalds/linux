@@ -60,7 +60,7 @@ static int of_device_available(struct device_node * dn)
 {
         const char *status;
 
-        status = get_property(dn, "status", NULL);
+        status = of_get_property(dn, "status", NULL);
 
         if (!status)
                 return 1;
@@ -177,7 +177,7 @@ struct pci_ops rtas_pci_ops = {
 
 int is_python(struct device_node *dev)
 {
-	const char *model = get_property(dev, "model", NULL);
+	const char *model = of_get_property(dev, "model", NULL);
 
 	if (model && strstr(model, "Python"))
 		return 1;
@@ -247,7 +247,7 @@ static int phb_set_bus_ranges(struct device_node *dev,
 	const int *bus_range;
 	unsigned int len;
 
-	bus_range = get_property(dev, "bus-range", &len);
+	bus_range = of_get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		return 1;
  	}
@@ -274,7 +274,7 @@ int __devinit rtas_setup_phb(struct pci_controller *phb)
 	return 0;
 }
 
-unsigned long __init find_and_init_phbs(void)
+void __init find_and_init_phbs(void)
 {
 	struct device_node *node;
 	struct pci_controller *phb;
@@ -309,18 +309,16 @@ unsigned long __init find_and_init_phbs(void)
 	if (of_chosen) {
 		const int *prop;
 
-		prop = get_property(of_chosen,
+		prop = of_get_property(of_chosen,
 				"linux,pci-probe-only", NULL);
 		if (prop)
 			pci_probe_only = *prop;
 
-		prop = get_property(of_chosen,
+		prop = of_get_property(of_chosen,
 				"linux,pci-assign-all-buses", NULL);
 		if (prop)
 			pci_assign_all_buses = *prop;
 	}
-
-	return 0;
 }
 
 /* RPA-specific bits for removing PHBs */
