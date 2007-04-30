@@ -490,7 +490,7 @@ static struct key_entry keymap_acer_travelmate_610[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x11, {KEY_PROG1} },
-	{ KE_KEY, 0x12, {KEY_PROG3} },
+	{ KE_KEY, 0x12, {KEY_PROG2} },
 	{ KE_KEY, 0x13, {KEY_PROG3} },
 	{ KE_KEY, 0x14, {KEY_MAIL} },
 	{ KE_KEY, 0x15, {KEY_WWW} },
