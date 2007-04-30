@@ -3,7 +3,7 @@
 #
 
 fw-core-objs := fw-card.o fw-topology.o fw-transaction.o fw-iso.o \
-	fw-device.o fw-device-cdev.o
+	fw-device.o fw-cdev.o
 
 obj-$(CONFIG_FIREWIRE) += fw-core.o
 obj-$(CONFIG_FIREWIRE_OHCI) += fw-ohci.o

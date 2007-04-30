@@ -30,11 +30,11 @@
 #include <linux/mm.h>
 #include <linux/idr.h>
 #include <linux/compat.h>
+#include <linux/firewire-cdev.h>
 #include <asm/uaccess.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
 #include "fw-device.h"
-#include "fw-device-cdev.h"
 
 /* dequeue_event() just kfree()'s the event, so the event has to be
  * the first field in the struct. */
