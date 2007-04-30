@@ -125,12 +125,12 @@ typedef int __bitwise suspend_disk_method_t;
  * struct pm_ops - Callbacks for managing platform dependent suspend states.
  * @valid: Callback to determine whether the given state can be entered.
  * 	If %CONFIG_SOFTWARE_SUSPEND is set then %PM_SUSPEND_DISK is
- *	always valid and never passed to this call.
- *	If not assigned, all suspend states are advertised as valid
- *	in /sys/power/state (but can still be rejected by prepare or enter.)
- *	Since new states can be added for other platforms, you should
- *	assign this callback. There is a %pm_valid_only_mem function
- *	available if you only implemented mem sleep.
+ *	always valid and never passed to this call. If not assigned,
+ *	no suspend states are valid.
+ *	Valid states are advertised in /sys/power/state but can still
+ *	be rejected by prepare or enter if the conditions aren't right.
+ *	There is a %pm_valid_only_mem function available that can be assigned
+ *	to this if you only implement mem sleep.
  *
  * @prepare: Prepare the platform for the given suspend state. Can return a
  *	negative error code if necessary.
