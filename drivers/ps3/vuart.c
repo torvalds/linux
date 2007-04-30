@@ -886,12 +886,12 @@ static int ps3_vuart_probe(struct device *_dev)
 
 	if (++vuart_bus_priv.use_count == 1) {
 
-		result = ps3_alloc_vuart_irq(PS3_BINDING_CPU_ANY,
+		result = ps3_vuart_irq_setup(PS3_BINDING_CPU_ANY,
 			(void*)&vuart_bus_priv.bmp.status, &vuart_bus_priv.virq);
 
 		if (result) {
 			dev_dbg(&dev->core,
-				"%s:%d: ps3_alloc_vuart_irq failed (%d)\n",
+				"%s:%d: ps3_vuart_irq_setup failed (%d)\n",
 				__func__, __LINE__, result);
 			result = -EPERM;
 			goto fail_alloc_irq;
@@ -937,7 +937,7 @@ static int ps3_vuart_probe(struct device *_dev)
 fail_probe:
 	ps3_vuart_set_interrupt_mask(dev, 0);
 fail_request_irq:
-	ps3_free_vuart_irq(vuart_bus_priv.virq);
+	ps3_vuart_irq_destroy(vuart_bus_priv.virq);
 	vuart_bus_priv.virq = NO_IRQ;
 fail_alloc_irq:
 	--vuart_bus_priv.use_count;
@@ -975,7 +975,7 @@ static int ps3_vuart_remove(struct device *_dev)
 	if (--vuart_bus_priv.use_count == 0) {
 		BUG();
 		free_irq(vuart_bus_priv.virq, &vuart_bus_priv);
-		ps3_free_vuart_irq(vuart_bus_priv.virq);
+		ps3_vuart_irq_destroy(vuart_bus_priv.virq);
 		vuart_bus_priv.virq = NO_IRQ;
 	}
 

@@ -110,7 +110,7 @@ static void __init ps3_smp_setup_cpu(int cpu)
 	BUILD_BUG_ON(PPC_MSG_DEBUGGER_BREAK != 3);
 
 	for (i = 0; i < MSG_COUNT; i++) {
-		result = ps3_alloc_event_irq(cpu, &virqs[i]);
+		result = ps3_event_receive_port_setup(cpu, &virqs[i]);
 
 		if (result)
 			continue;
@@ -134,11 +134,13 @@ void ps3_smp_cleanup_cpu(int cpu)
 	int i;
 
 	DBG(" -> %s:%d: (%d)\n", __func__, __LINE__, cpu);
+
 	for (i = 0; i < MSG_COUNT; i++) {
-		ps3_free_event_irq(virqs[i]);
 		free_irq(virqs[i], (void*)(long)i);
+		ps3_event_receive_port_destroy(virqs[i]);
 		virqs[i] = NO_IRQ;
 	}
+
 	DBG(" <- %s:%d: (%d)\n", __func__, __LINE__, cpu);
 }
 

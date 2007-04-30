@@ -89,7 +89,18 @@ struct ps3_private {
 
 static DEFINE_PER_CPU(struct ps3_private, ps3_private);
 
-int ps3_alloc_irq(enum ps3_cpu_binding cpu, unsigned long outlet,
+/**
+ * ps3_virq_setup - virq related setup.
+ * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
+ * serviced on.
+ * @outlet: The HV outlet from the various create outlet routines.
+ * @virq: The assigned Linux virq.
+ *
+ * Calls irq_create_mapping() to get a virq and sets the chip data to
+ * ps3_private data.
+ */
+
+int ps3_virq_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
 	unsigned int *virq)
 {
 	int result;
@@ -111,17 +122,6 @@ int ps3_alloc_irq(enum ps3_cpu_binding cpu, unsigned long outlet,
 		goto fail_create;
 	}
 
-	/* Binds outlet to cpu + virq. */
-
-	result = lv1_connect_irq_plug_ext(pd->node, pd->cpu, *virq, outlet, 0);
-
-	if (result) {
-		pr_info("%s:%d: lv1_connect_irq_plug_ext failed: %s\n",
-		__func__, __LINE__, ps3_result(result));
-		result = -EPERM;
-		goto fail_connect;
-	}
-
 	pr_debug("%s:%d: outlet %lu => cpu %u, virq %u\n", __func__, __LINE__,
 		outlet, cpu, *virq);
 
@@ -136,15 +136,87 @@ int ps3_alloc_irq(enum ps3_cpu_binding cpu, unsigned long outlet,
 	return result;
 
 fail_set:
-	lv1_disconnect_irq_plug_ext(pd->node, pd->cpu, *virq);
-fail_connect:
 	irq_dispose_mapping(*virq);
 fail_create:
 	return result;
 }
-EXPORT_SYMBOL_GPL(ps3_alloc_irq);
 
-int ps3_free_irq(unsigned int virq)
+/**
+ * ps3_virq_destroy - virq related teardown.
+ * @virq: The assigned Linux virq.
+ *
+ * Clears chip data and calls irq_dispose_mapping() for the virq.
+ */
+
+int ps3_virq_destroy(unsigned int virq)
+{
+	const struct ps3_private *pd = get_irq_chip_data(virq);
+
+	pr_debug("%s:%d: node %lu, cpu %d, virq %u\n", __func__, __LINE__,
+		pd->node, pd->cpu, virq);
+
+	set_irq_chip_data(virq, NULL);
+	irq_dispose_mapping(virq);
+
+	pr_debug("%s:%d <-\n", __func__, __LINE__);
+	return 0;
+}
+
+/**
+ * ps3_irq_plug_setup - Generic outlet and virq related setup.
+ * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
+ * serviced on.
+ * @outlet: The HV outlet from the various create outlet routines.
+ * @virq: The assigned Linux virq.
+ *
+ * Sets up virq and connects the irq plug.
+ */
+
+int ps3_irq_plug_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
+	unsigned int *virq)
+{
+	int result;
+	struct ps3_private *pd;
+
+	result = ps3_virq_setup(cpu, outlet, virq);
+
+	if (result) {
+		pr_debug("%s:%d: ps3_virq_setup failed\n", __func__, __LINE__);
+		goto fail_setup;
+	}
+
+	pd = get_irq_chip_data(*virq);
+
+	/* Binds outlet to cpu + virq. */
+
+	result = lv1_connect_irq_plug_ext(pd->node, pd->cpu, *virq, outlet, 0);
+
+	if (result) {
+		pr_info("%s:%d: lv1_connect_irq_plug_ext failed: %s\n",
+		__func__, __LINE__, ps3_result(result));
+		result = -EPERM;
+		goto fail_connect;
+	}
+
+	return result;
+
+fail_connect:
+	ps3_virq_destroy(*virq);
+fail_setup:
+	return result;
+}
+EXPORT_SYMBOL_GPL(ps3_irq_plug_setup);
+
+/**
+ * ps3_irq_plug_destroy - Generic outlet and virq related teardown.
+ * @virq: The assigned Linux virq.
+ *
+ * Disconnects the irq plug and tears down virq.
+ * Do not call for system bus event interrupts setup with
+ * ps3_sb_event_receive_port_setup().
+ */
+
+int ps3_irq_plug_destroy(unsigned int virq)
 {
 	int result;
 	const struct ps3_private *pd = get_irq_chip_data(virq);
@@ -158,72 +230,24 @@ int ps3_free_irq(unsigned int virq)
 		pr_info("%s:%d: lv1_disconnect_irq_plug_ext failed: %s\n",
 		__func__, __LINE__, ps3_result(result));
 
-	set_irq_chip_data(virq, NULL);
-	irq_dispose_mapping(virq);
+	ps3_virq_destroy(virq);
+
 	return result;
 }
-EXPORT_SYMBOL_GPL(ps3_free_irq);
+EXPORT_SYMBOL_GPL(ps3_irq_plug_destroy);
 
 /**
- * ps3_alloc_io_irq - Assign a virq to a system bus device.
- * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
- * serviced on.
- * @interrupt_id: The device interrupt id read from the system repository.
- * @virq: The assigned Linux virq.
- *
- * An io irq represents a non-virtualized device interrupt.  interrupt_id
- * coresponds to the interrupt number of the interrupt controller.
- */
-
-int ps3_alloc_io_irq(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
-	unsigned int *virq)
-{
-	int result;
-	unsigned long outlet;
-
-	result = lv1_construct_io_irq_outlet(interrupt_id, &outlet);
-
-	if (result) {
-		pr_debug("%s:%d: lv1_construct_io_irq_outlet failed: %s\n",
-			__func__, __LINE__, ps3_result(result));
-		return result;
-	}
-
-	result = ps3_alloc_irq(cpu, outlet, virq);
-	BUG_ON(result);
-
-	return result;
-}
-EXPORT_SYMBOL_GPL(ps3_alloc_io_irq);
-
-int ps3_free_io_irq(unsigned int virq)
-{
-	int result;
-
-	result = lv1_destruct_io_irq_outlet(virq_to_hw(virq));
-
-	if (result)
-		pr_debug("%s:%d: lv1_destruct_io_irq_outlet failed: %s\n",
-			__func__, __LINE__, ps3_result(result));
-
-	ps3_free_irq(virq);
-
-	return result;
-}
-EXPORT_SYMBOL_GPL(ps3_free_io_irq);
-
-/**
- * ps3_alloc_event_irq - Allocate a virq for use with a system event.
+ * ps3_event_receive_port_setup - Setup an event receive port.
  * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
  * serviced on.
  * @virq: The assigned Linux virq.
  *
  * The virq can be used with lv1_connect_interrupt_event_receive_port() to
- * arrange to receive events, or with ps3_send_event_locally() to signal
- * events.
+ * arrange to receive interrupts from system-bus devices, or with
+ * ps3_send_event_locally() to signal events.
  */
 
-int ps3_alloc_event_irq(enum ps3_cpu_binding cpu, unsigned int *virq)
+int ps3_event_receive_port_setup(enum ps3_cpu_binding cpu, unsigned int *virq)
 {
 	int result;
 	unsigned long outlet;
@@ -237,17 +261,27 @@ int ps3_alloc_event_irq(enum ps3_cpu_binding cpu, unsigned int *virq)
 		return result;
 	}
 
-	result = ps3_alloc_irq(cpu, outlet, virq);
+	result = ps3_irq_plug_setup(cpu, outlet, virq);
 	BUG_ON(result);
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_event_receive_port_setup);
 
-int ps3_free_event_irq(unsigned int virq)
+/**
+ * ps3_event_receive_port_destroy - Destroy an event receive port.
+ * @virq: The assigned Linux virq.
+ *
+ * Since ps3_event_receive_port_destroy destroys the receive port outlet,
+ * SB devices need to call disconnect_interrupt_event_receive_port() before
+ * this.
+ */
+
+int ps3_event_receive_port_destroy(unsigned int virq)
 {
 	int result;
 
-	pr_debug(" -> %s:%d\n", __func__, __LINE__);
+	pr_debug(" -> %s:%d virq: %u\n", __func__, __LINE__, virq);
 
 	result = lv1_destruct_event_receive_port(virq_to_hw(virq));
 
@@ -255,11 +289,17 @@ int ps3_free_event_irq(unsigned int virq)
 		pr_debug("%s:%d: lv1_destruct_event_receive_port failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 
-	ps3_free_irq(virq);
+	/* lv1_destruct_event_receive_port() destroys the IRQ plug,
+	 * so don't call ps3_irq_plug_destroy() here.
+	 */
+
+	result = ps3_virq_destroy(virq);
+	BUG_ON(result);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 	return result;
 }
+EXPORT_SYMBOL_GPL(ps3_event_receive_port_destroy);
 
 int ps3_send_event_locally(unsigned int virq)
 {
@@ -267,7 +307,7 @@ int ps3_send_event_locally(unsigned int virq)
 }
 
 /**
- * ps3_connect_event_irq - Assign a virq to a system bus device.
+ * ps3_sb_event_receive_port_setup - Setup a system bus event receive port.
  * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
  * serviced on.
  * @did: The HV device identifier read from the system repository.
@@ -278,13 +318,15 @@ int ps3_send_event_locally(unsigned int virq)
  * coresponds to the software interrupt number.
  */
 
-int ps3_connect_event_irq(enum ps3_cpu_binding cpu,
+int ps3_sb_event_receive_port_setup(enum ps3_cpu_binding cpu,
 	const struct ps3_device_id *did, unsigned int interrupt_id,
 	unsigned int *virq)
 {
+	/* this should go in system-bus.c */
+
 	int result;
 
-	result = ps3_alloc_event_irq(cpu, virq);
+	result = ps3_event_receive_port_setup(cpu, virq);
 
 	if (result)
 		return result;
@@ -296,7 +338,7 @@ int ps3_connect_event_irq(enum ps3_cpu_binding cpu,
 		pr_debug("%s:%d: lv1_connect_interrupt_event_receive_port"
 			" failed: %s\n", __func__, __LINE__,
 			ps3_result(result));
-		ps3_free_event_irq(*virq);
+		ps3_event_receive_port_destroy(*virq);
 		*virq = NO_IRQ;
 		return result;
 	}
@@ -306,10 +348,13 @@ int ps3_connect_event_irq(enum ps3_cpu_binding cpu,
 
 	return 0;
 }
+EXPORT_SYMBOL(ps3_sb_event_receive_port_setup);
 
-int ps3_disconnect_event_irq(const struct ps3_device_id *did,
+int ps3_sb_event_receive_port_destroy(const struct ps3_device_id *did,
 	unsigned int interrupt_id, unsigned int virq)
 {
+	/* this should go in system-bus.c */
+
 	int result;
 
 	pr_debug(" -> %s:%d: interrupt_id %u, virq %u\n", __func__, __LINE__,
@@ -323,14 +368,65 @@ int ps3_disconnect_event_irq(const struct ps3_device_id *did,
 			" failed: %s\n", __func__, __LINE__,
 			ps3_result(result));
 
-	ps3_free_event_irq(virq);
+	result = ps3_event_receive_port_destroy(virq);
+	BUG_ON(result);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 	return result;
 }
+EXPORT_SYMBOL(ps3_sb_event_receive_port_destroy);
 
 /**
- * ps3_alloc_vuart_irq - Configure the system virtual uart virq.
+ * ps3_io_irq_setup - Setup a system bus io irq.
+ * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
+ * serviced on.
+ * @interrupt_id: The device interrupt id read from the system repository.
+ * @virq: The assigned Linux virq.
+ *
+ * An io irq represents a non-virtualized device interrupt.  interrupt_id
+ * coresponds to the interrupt number of the interrupt controller.
+ */
+
+int ps3_io_irq_setup(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
+	unsigned int *virq)
+{
+	int result;
+	unsigned long outlet;
+
+	result = lv1_construct_io_irq_outlet(interrupt_id, &outlet);
+
+	if (result) {
+		pr_debug("%s:%d: lv1_construct_io_irq_outlet failed: %s\n",
+			__func__, __LINE__, ps3_result(result));
+		return result;
+	}
+
+	result = ps3_irq_plug_setup(cpu, outlet, virq);
+	BUG_ON(result);
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(ps3_io_irq_setup);
+
+int ps3_io_irq_destroy(unsigned int virq)
+{
+	int result;
+
+	result = lv1_destruct_io_irq_outlet(virq_to_hw(virq));
+
+	if (result)
+		pr_debug("%s:%d: lv1_destruct_io_irq_outlet failed: %s\n",
+			__func__, __LINE__, ps3_result(result));
+
+	result = ps3_irq_plug_destroy(virq);
+	BUG_ON(result);
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(ps3_io_irq_destroy);
+
+/**
+ * ps3_vuart_irq_setup - Setup the system virtual uart virq.
  * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
  * serviced on.
  * @virt_addr_bmp: The caller supplied virtual uart interrupt bitmap.
@@ -340,7 +436,7 @@ int ps3_disconnect_event_irq(const struct ps3_device_id *did,
  * freeing the interrupt will return a wrong state error.
  */
 
-int ps3_alloc_vuart_irq(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
+int ps3_vuart_irq_setup(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
 	unsigned int *virq)
 {
 	int result;
@@ -359,13 +455,13 @@ int ps3_alloc_vuart_irq(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
 		return result;
 	}
 
-	result = ps3_alloc_irq(cpu, outlet, virq);
+	result = ps3_irq_plug_setup(cpu, outlet, virq);
 	BUG_ON(result);
 
 	return result;
 }
 
-int ps3_free_vuart_irq(unsigned int virq)
+int ps3_vuart_irq_destroy(unsigned int virq)
 {
 	int result;
 
@@ -377,13 +473,14 @@ int ps3_free_vuart_irq(unsigned int virq)
 		return result;
 	}
 
-	ps3_free_irq(virq);
+	result = ps3_irq_plug_destroy(virq);
+	BUG_ON(result);
 
 	return result;
 }
 
 /**
- * ps3_alloc_spe_irq - Configure an spe virq.
+ * ps3_spe_irq_setup - Setup an spe virq.
  * @cpu: enum ps3_cpu_binding indicating the cpu the interrupt should be
  * serviced on.
  * @spe_id: The spe_id returned from lv1_construct_logical_spe().
@@ -392,7 +489,7 @@ int ps3_free_vuart_irq(unsigned int virq)
  *
  */
 
-int ps3_alloc_spe_irq(enum ps3_cpu_binding cpu, unsigned long spe_id,
+int ps3_spe_irq_setup(enum ps3_cpu_binding cpu, unsigned long spe_id,
 	unsigned int class, unsigned int *virq)
 {
 	int result;
@@ -408,15 +505,16 @@ int ps3_alloc_spe_irq(enum ps3_cpu_binding cpu, unsigned long spe_id,
 		return result;
 	}
 
-	result = ps3_alloc_irq(cpu, outlet, virq);
+	result = ps3_irq_plug_setup(cpu, outlet, virq);
 	BUG_ON(result);
 
 	return result;
 }
 
-int ps3_free_spe_irq(unsigned int virq)
+int ps3_spe_irq_destroy(unsigned int virq)
 {
-	ps3_free_irq(virq);
+	int result = ps3_irq_plug_destroy(virq);
+	BUG_ON(result);
 	return 0;
 }
 
