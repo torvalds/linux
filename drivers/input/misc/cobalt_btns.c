@@ -18,19 +18,17 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/init.h>
-#include <linux/input.h>
+#include <linux/input-polldev.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/jiffies.h>
-#include <linux/timer.h>
 
 #define BUTTONS_POLL_INTERVAL	30	/* msec */
 #define BUTTONS_COUNT_THRESHOLD	3
 #define BUTTONS_STATUS_MASK	0xfe000000
 
 struct buttons_dev {
-	struct input_dev *input;
+	struct input_polled_dev *poll_dev;
 	void __iomem *reg;
 };
 
@@ -50,16 +48,14 @@ static struct buttons_map buttons_map[] = {
 	{ 0x80000000, KEY_SELECT, },
 };
 
-static struct timer_list buttons_timer;
-
-static void handle_buttons(unsigned long data)
+static void handle_buttons(struct input_polled_dev *dev)
 {
 	struct buttons_map *button = buttons_map;
-	struct buttons_dev *bdev;
+	struct buttons_dev *bdev = dev->private;
+	struct input_dev *input = dev->input;
 	uint32_t status;
 	int i;
 
-	bdev = (struct buttons_dev *)data;
 	status = readl(bdev->reg);
 	status = ~status & BUTTONS_STATUS_MASK;
 
@@ -68,55 +64,45 @@ static void handle_buttons(unsigned long data)
 			button->count++;
 		} else {
 			if (button->count >= BUTTONS_COUNT_THRESHOLD) {
-				input_report_key(bdev->input, button->keycode, 0);
-				input_sync(bdev->input);
+				input_report_key(input, button->keycode, 0);
+				input_sync(input);
 			}
 			button->count = 0;
 		}
 
 		if (button->count == BUTTONS_COUNT_THRESHOLD) {
-			input_report_key(bdev->input, button->keycode, 1);
-			input_sync(bdev->input);
+			input_report_key(input, button->keycode, 1);
+			input_sync(input);
 		}
 
 		button++;
 	}
-
-	mod_timer(&buttons_timer, jiffies + msecs_to_jiffies(BUTTONS_POLL_INTERVAL));
-}
-
-static int cobalt_buttons_open(struct input_dev *dev)
-{
-	mod_timer(&buttons_timer, jiffies + msecs_to_jiffies(BUTTONS_POLL_INTERVAL));
-
-	return 0;
-}
-
-static void cobalt_buttons_close(struct input_dev *dev)
-{
-	del_timer_sync(&buttons_timer);
 }
 
 static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
 {
 	struct buttons_dev *bdev;
+	struct input_polled_dev *poll_dev;
 	struct input_dev *input;
 	struct resource *res;
 	int error, i;
 
 	bdev = kzalloc(sizeof(struct buttons_dev), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!bdev || !input) {
+	poll_dev = input_allocate_polled_device();
+	if (!bdev || !poll_dev) {
 		error = -ENOMEM;
 		goto err_free_mem;
 	}
 
+	poll_dev->private = bdev;
+	poll_dev->poll = handle_buttons;
+	poll_dev->poll_interval = BUTTONS_POLL_INTERVAL;
+
+	input = poll_dev->input;
 	input->name = "Cobalt buttons";
 	input->phys = "cobalt/input0";
 	input->id.bustype = BUS_HOST;
 	input->cdev.dev = &pdev->dev;
-	input->open = cobalt_buttons_open;
-	input->close = cobalt_buttons_close;
 
 	input->evbit[0] = BIT(EV_KEY);
 	for (i = 0; i < ARRAY_SIZE(buttons_map); i++) {
@@ -130,13 +116,11 @@ static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	bdev->input = input;
+	bdev->poll_dev = poll_dev;
 	bdev->reg = ioremap(res->start, res->end - res->start + 1);
 	dev_set_drvdata(&pdev->dev, bdev);
 
-	setup_timer(&buttons_timer, handle_buttons, (unsigned long)bdev);
-
-	error = input_register_device(input);
+	error = input_register_polled_device(poll_dev);
 	if (error)
 		goto err_iounmap;
 
@@ -145,7 +129,7 @@ static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
  err_iounmap:
 	iounmap(bdev->reg);
  err_free_mem:
-	input_free_device(input);
+	input_free_polled_device(poll_dev);
 	kfree(bdev);
 	dev_set_drvdata(&pdev->dev, NULL);
 	return error;
@@ -156,7 +140,8 @@ static int __devexit cobalt_buttons_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct buttons_dev *bdev = dev_get_drvdata(dev);
 
-	input_unregister_device(bdev->input);
+	input_unregister_polled_device(bdev->poll_dev);
+	input_free_polled_device(bdev->poll_dev);
 	iounmap(bdev->reg);
 	kfree(bdev);
 	dev_set_drvdata(dev, NULL);

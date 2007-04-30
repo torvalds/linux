@@ -43,6 +43,7 @@ config INPUT_M68K_BEEP
 config INPUT_COBALT_BTNS
 	tristate "Cobalt button interface"
 	depends on MIPS_COBALT
+	select INPUT_POLLDEV
 	help
 	  Say Y here if you want to support MIPS Cobalt button interface.
 
