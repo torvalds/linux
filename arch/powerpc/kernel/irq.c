@@ -67,6 +67,7 @@
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/firmware.h>
+#include <asm/lv1call.h>
 #endif
 
 int __irq_offset_value;
@@ -162,6 +163,16 @@ void local_irq_restore(unsigned long en)
 	local_paca->hard_enabled = en;
 	if ((int)mfspr(SPRN_DEC) < 0)
 		mtspr(SPRN_DEC, 1);
+
+	/*
+	 * Force the delivery of pending soft-disabled interrupts on PS3.
+	 * Any HV call will have this side effect.
+	 */
+	if (firmware_has_feature(FW_FEATURE_PS3_LV1)) {
+		u64 tmp;
+		lv1_get_version_info(&tmp);
+	}
+
 	hard_irq_enable();
 }
 #endif /* CONFIG_PPC64 */
