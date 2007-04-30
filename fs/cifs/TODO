@@ -80,7 +80,7 @@ need to add ability to set time to server (utimes command)
 
 u) DOS attrs - returned as pseudo-xattr in Samba format (check VFAT and NTFS for this too)
 
-v) mount check for unmatched uids - and uid override
+v) mount check for unmatched uids
 
 w) Add mount option for Linux extension disable per mount, and partial
 disable per mount (uid off, symlink/fifo/mknod on but what about posix acls?)

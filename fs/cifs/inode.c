@@ -90,7 +90,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 				(*pinode)->i_ino =
 					(unsigned long)findData.UniqueId;
 			} /* note ino incremented to unique num in new_inode */
-			if(sb->s_flags & MS_NOATIME)
+			if (sb->s_flags & MS_NOATIME)
 				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
 				
 			insert_inode_hash(*pinode);
@@ -139,8 +139,17 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			inode->i_mode |= S_IFREG;
 			cFYI(1,("unknown type %d",type));
 		}
-		inode->i_uid = le64_to_cpu(findData.Uid);
-		inode->i_gid = le64_to_cpu(findData.Gid);
+		
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
+			inode->i_uid = cifs_sb->mnt_uid;
+		else
+			inode->i_uid = le64_to_cpu(findData.Uid);
+
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
+			inode->i_gid = cifs_sb->mnt_gid;
+		else
+			inode->i_gid = le64_to_cpu(findData.Gid);
+			
 		inode->i_nlink = le64_to_cpu(findData.Nlinks);
 
 		spin_lock(&inode->i_lock);
@@ -178,13 +187,13 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 						&cifs_file_direct_nobrl_ops;
 				else
 					inode->i_fop = &cifs_file_direct_ops;
-			} else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 				inode->i_fop = &cifs_file_nobrl_ops;
 			else /* not direct, send byte range locks */ 
 				inode->i_fop = &cifs_file_ops;
 
 			/* check if server can support readpages */
-			if(pTcon->ses->server->maxBuf < 
+			if (pTcon->ses->server->maxBuf < 
 			    PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
 				inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
 			else
@@ -220,7 +229,7 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 
 	pbuf = buf;
 
-	if(size == 0) {
+	if (size == 0) {
 		inode->i_mode |= S_IFIFO;
 		return 0;
 	} else if (size < 8) {
@@ -239,11 +248,11 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 			         netfid,
 				 24 /* length */, 0 /* offset */,
 				 &bytes_read, &pbuf, &buf_type);
-		if((rc == 0) && (bytes_read >= 8)) {
-			if(memcmp("IntxBLK", pbuf, 8) == 0) {
+		if ((rc == 0) && (bytes_read >= 8)) {
+			if (memcmp("IntxBLK", pbuf, 8) == 0) {
 				cFYI(1,("Block device"));
 				inode->i_mode |= S_IFBLK;
-				if(bytes_read == 24) {
+				if (bytes_read == 24) {
 					/* we have enough to decode dev num */
 					__u64 mjr; /* major */
 					__u64 mnr; /* minor */
@@ -251,10 +260,10 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 					mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
 					inode->i_rdev = MKDEV(mjr, mnr);
 				}
-			} else if(memcmp("IntxCHR", pbuf, 8) == 0) {
+			} else if (memcmp("IntxCHR", pbuf, 8) == 0) {
 				cFYI(1,("Char device"));
 				inode->i_mode |= S_IFCHR;
-				if(bytes_read == 24) {
+				if (bytes_read == 24) {
 					/* we have enough to decode dev num */
 					__u64 mjr; /* major */
 					__u64 mnr; /* minor */
@@ -262,7 +271,7 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 					mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
 					inode->i_rdev = MKDEV(mjr, mnr);
                                 }
-			} else if(memcmp("IntxLNK", pbuf, 7) == 0) {
+			} else if (memcmp("IntxLNK", pbuf, 7) == 0) {
 				cFYI(1,("Symlink"));
 				inode->i_mode |= S_IFLNK;
 			} else {
@@ -293,7 +302,7 @@ static int get_sfu_uid_mode(struct inode * inode,
 	rc = CIFSSMBQueryEA(xid, cifs_sb->tcon, path, "SETFILEBITS",
 			ea_value, 4 /* size of buf */, cifs_sb->local_nls,
                         cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if(rc < 0)
+	if (rc < 0)
 		return (int)rc;
 	else if (rc > 3) {
 		mode = le32_to_cpu(*((__le32 *)ea_value));
@@ -348,7 +357,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		/* BB optimize code so we do not make the above call
 		when server claims no NT SMB support and the above call
 		failed at least once - set flag in tcon or mount */
-		if((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
+		if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
 			rc = SMBQueryInformation(xid, pTcon, search_path,
 					pfindData, cifs_sb->local_nls, 
 					cifs_sb->mnt_cifs_flags &
@@ -425,7 +434,7 @@ int cifs_get_inode_info(struct inode **pinode,
 				} else /* do we need cast or hash to ino? */
 					(*pinode)->i_ino = inode_num;
 			} /* else ino incremented to unique num in new_inode*/
-			if(sb->s_flags & MS_NOATIME)
+			if (sb->s_flags & MS_NOATIME)
 				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
 			insert_inode_hash(*pinode);
 		}
@@ -442,7 +451,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		(pTcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE) & 0xFFFFFE00;*/
 
 		/* Linux can not store file creation time so ignore it */
-		if(pfindData->LastAccessTime)
+		if (pfindData->LastAccessTime)
 			inode->i_atime = cifs_NTtimeToUnix
 				(le64_to_cpu(pfindData->LastAccessTime));
 		else /* do not need to use current_fs_time - time not stored */
@@ -452,7 +461,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		inode->i_ctime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
 		cFYI(0, ("Attributes came in as 0x%x", attr));
-		if(adjustTZ && (pTcon->ses) && (pTcon->ses->server)) {
+		if (adjustTZ && (pTcon->ses) && (pTcon->ses->server)) {
 			inode->i_ctime.tv_sec += pTcon->ses->server->timeAdj;
 	                inode->i_mtime.tv_sec += pTcon->ses->server->timeAdj;
 		}
@@ -521,8 +530,10 @@ int cifs_get_inode_info(struct inode **pinode,
 
 		/* BB fill in uid and gid here? with help from winbind? 
 		   or retrieve from NTFS stream extended attribute */
-		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
 			/* fill in uid, gid, mode from server ACL */
+			/* BB FIXME this should also take into account the
+			 * default uid specified on mount if present */
 			get_sfu_uid_mode(inode, search_path, cifs_sb, xid);
 		} else if (atomic_read(&cifsInfo->inUse) == 0) {
 			inode->i_uid = cifs_sb->mnt_uid;
@@ -541,12 +552,12 @@ int cifs_get_inode_info(struct inode **pinode,
 						&cifs_file_direct_nobrl_ops;
 				else
 					inode->i_fop = &cifs_file_direct_ops;
-			} else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 				inode->i_fop = &cifs_file_nobrl_ops;
 			else /* not direct, send byte range locks */
 				inode->i_fop = &cifs_file_ops;
 
-			if(pTcon->ses->server->maxBuf < 
+			if (pTcon->ses->server->maxBuf < 
 			     PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
 				inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
 			else
@@ -597,7 +608,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 
 	xid = GetXid();
 
-	if(inode)
+	if (inode)
 		cifs_sb = CIFS_SB(inode->i_sb);
 	else
 		cifs_sb = CIFS_SB(direntry->d_sb);
@@ -723,7 +734,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 					   when needed */
 		direntry->d_inode->i_ctime = current_fs_time(inode->i_sb);
 	}
-	if(inode) {
+	if (inode) {
 		inode->i_ctime = inode->i_mtime = current_fs_time(inode->i_sb);
 		cifsInode = CIFS_I(inode);
 		cifsInode->time = 0;	/* force revalidate of dir as well */
