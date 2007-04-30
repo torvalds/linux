@@ -174,6 +174,7 @@ struct btrfs_inode_item {
 	__le64 generation;
 	__le64 size;
 	__le64 nblocks;
+	__le64 block_group;
 	__le32 nlink;
 	__le32 uid;
 	__le32 gid;
@@ -241,6 +242,7 @@ struct btrfs_device_item {
 
 /* tag for the radix tree of block groups in ram */
 #define BTRFS_BLOCK_GROUP_DIRTY 0
+#define BTRFS_BLOCK_GROUP_AVAIL 1
 #define BTRFS_BLOCK_GROUP_HINTS 8
 #define BTRFS_BLOCK_GROUP_SIZE (256 * 1024 * 1024)
 struct btrfs_block_group_item {
@@ -408,6 +410,17 @@ static inline u64 btrfs_inode_nblocks(struct btrfs_inode_item *i)
 static inline void btrfs_set_inode_nblocks(struct btrfs_inode_item *i, u64 val)
 {
 	i->nblocks = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_inode_block_group(struct btrfs_inode_item *i)
+{
+	return le64_to_cpu(i->block_group);
+}
+
+static inline void btrfs_set_inode_block_group(struct btrfs_inode_item *i,
+						u64 val)
+{
+	i->block_group = cpu_to_le64(val);
 }
 
 static inline u32 btrfs_inode_nlink(struct btrfs_inode_item *i)
@@ -1054,10 +1067,13 @@ static inline void btrfs_mark_buffer_dirty(struct buffer_head *bh)
 	btrfs_item_offset((leaf)->items + (slot))))
 
 /* extent-tree.c */
+struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
+						 struct btrfs_block_group_cache
+						 *hint, int data);
 int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
-					    struct btrfs_root *root);
+					    struct btrfs_root *root, u64 hint);
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, u64 owner,
 		       u64 num_blocks, u64 search_start,

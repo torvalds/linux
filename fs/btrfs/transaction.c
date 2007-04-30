@@ -77,6 +77,7 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 	h->transaction = root->fs_info->running_transaction;
 	h->blocks_reserved = num_blocks;
 	h->blocks_used = 0;
+	h->block_group = NULL;
 	root->fs_info->running_transaction->use_count++;
 	mutex_unlock(&root->fs_info->trans_mutex);
 	h->magic = h->magic2 = TRANS_MAGIC;

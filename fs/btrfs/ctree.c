@@ -61,7 +61,7 @@ static int btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 		*cow_ret = buf;
 		return 0;
 	}
-	cow = btrfs_alloc_free_block(trans, root);
+	cow = btrfs_alloc_free_block(trans, root, buf->b_blocknr);
 	cow_node = btrfs_buffer_node(cow);
 	if (buf->b_size != root->blocksize || cow->b_size != root->blocksize)
 		WARN_ON(1);
@@ -800,7 +800,7 @@ static int insert_new_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	BUG_ON(path->nodes[level]);
 	BUG_ON(path->nodes[level-1] != root->node);
 
-	t = btrfs_alloc_free_block(trans, root);
+	t = btrfs_alloc_free_block(trans, root, root->node->b_blocknr);
 	c = btrfs_buffer_node(t);
 	memset(c, 0, root->blocksize);
 	btrfs_set_header_nritems(&c->header, 1);
@@ -905,7 +905,7 @@ static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 
 	c_nritems = btrfs_header_nritems(&c->header);
-	split_buffer = btrfs_alloc_free_block(trans, root);
+	split_buffer = btrfs_alloc_free_block(trans, root, t->b_blocknr);
 	split = btrfs_buffer_node(split_buffer);
 	btrfs_set_header_flags(&split->header, btrfs_header_flags(&c->header));
 	btrfs_set_header_level(&split->header, btrfs_header_level(&c->header));
@@ -1277,7 +1277,7 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	slot = path->slots[0];
 	nritems = btrfs_header_nritems(&l->header);
 	mid = (nritems + 1)/ 2;
-	right_buffer = btrfs_alloc_free_block(trans, root);
+	right_buffer = btrfs_alloc_free_block(trans, root, l_buf->b_blocknr);
 	BUG_ON(!right_buffer);
 	right = btrfs_buffer_leaf(right_buffer);
 	memset(&right->header, 0, sizeof(right->header));
@@ -1374,7 +1374,7 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	if (!double_split)
 		return ret;
-	right_buffer = btrfs_alloc_free_block(trans, root);
+	right_buffer = btrfs_alloc_free_block(trans, root, l_buf->b_blocknr);
 	BUG_ON(!right_buffer);
 	right = btrfs_buffer_leaf(right_buffer);
 	memset(&right->header, 0, sizeof(right->header));

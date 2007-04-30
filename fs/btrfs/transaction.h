@@ -1,5 +1,6 @@
 #ifndef __TRANSACTION__
 #define __TRANSACTION__
+#include "btrfs_inode.h"
 
 struct btrfs_transaction {
 	u64 transid;
@@ -20,9 +21,23 @@ struct btrfs_trans_handle {
 	unsigned long blocks_reserved;
 	unsigned long blocks_used;
 	struct btrfs_transaction *transaction;
+	struct btrfs_block_group_cache *block_group;
 	int magic2;
 };
 
+
+static inline void btrfs_set_trans_block_group(struct btrfs_trans_handle *trans,
+					       struct inode *inode)
+{
+	trans->block_group = BTRFS_I(inode)->block_group;
+}
+
+static inline void btrfs_update_inode_block_group(struct
+						  btrfs_trans_handle *trans,
+						  struct inode *inode)
+{
+	BTRFS_I(inode)->block_group = trans->block_group;
+}
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root);
