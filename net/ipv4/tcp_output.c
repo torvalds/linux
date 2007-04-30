@@ -1035,8 +1035,10 @@ static inline int tcp_nagle_test(struct tcp_sock *tp, struct sk_buff *skb,
 	if (nonagle & TCP_NAGLE_PUSH)
 		return 1;
 
-	/* Don't use the nagle rule for urgent data (or for the final FIN).  */
-	if (tp->urg_mode ||
+	/* Don't use the nagle rule for urgent data (or for the final FIN).
+	 * Nagle can be ignored during F-RTO too (see RFC4138).
+	 */
+	if (tp->urg_mode || (tp->frto_counter == 2) ||
 	    (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN))
 		return 1;
 
