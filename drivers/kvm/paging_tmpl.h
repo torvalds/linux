@@ -421,6 +421,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		pgprintk("%s: guest page fault\n", __FUNCTION__);
 		inject_page_fault(vcpu, addr, walker.error_code);
 		FNAME(release_walker)(&walker);
+		vcpu->last_pt_write_count = 0; /* reset fork detector */
 		return 0;
 	}
 
@@ -441,6 +442,9 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		 shadow_pte, *shadow_pte);
 
 	FNAME(release_walker)(&walker);
+
+	if (!write_pt)
+		vcpu->last_pt_write_count = 0; /* reset fork detector */
 
 	/*
 	 * mmio: emulate if accessible, otherwise its a guest fault.
