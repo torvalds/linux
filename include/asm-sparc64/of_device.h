@@ -10,7 +10,8 @@
 extern struct bus_type isa_bus_type;
 extern struct bus_type ebus_bus_type;
 extern struct bus_type sbus_bus_type;
-extern struct bus_type of_bus_type;
+extern struct bus_type of_platform_bus_type;
+#define of_bus_type	of_platform_bus_type	/* for compatibility */
 
 /*
  * The of_device is a kind of "base class" that is a superset of

@@ -21,7 +21,7 @@ static int of_platform_bus_match(struct device *dev, struct device_driver *drv)
 	return of_match_device(matches, of_dev) != NULL;
 }
 
-static int of_device_probe(struct device *dev)
+static int of_platform_device_probe(struct device *dev)
 {
 	int error = -ENODEV;
 	struct of_platform_driver *drv;
@@ -45,7 +45,7 @@ static int of_device_probe(struct device *dev)
 	return error;
 }
 
-static int of_device_remove(struct device *dev)
+static int of_platform_device_remove(struct device *dev)
 {
 	struct of_device * of_dev = to_of_device(dev);
 	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
@@ -55,7 +55,7 @@ static int of_device_remove(struct device *dev)
 	return 0;
 }
 
-static int of_device_suspend(struct device *dev, pm_message_t state)
+static int of_platform_device_suspend(struct device *dev, pm_message_t state)
 {
 	struct of_device * of_dev = to_of_device(dev);
 	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
@@ -66,7 +66,7 @@ static int of_device_suspend(struct device *dev, pm_message_t state)
 	return error;
 }
 
-static int of_device_resume(struct device * dev)
+static int of_platform_device_resume(struct device * dev)
 {
 	struct of_device * of_dev = to_of_device(dev);
 	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
@@ -112,7 +112,7 @@ static int node_match(struct device *dev, void *data)
 
 struct of_device *of_find_device_by_node(struct device_node *dp)
 {
-	struct device *dev = bus_find_device(&of_bus_type, NULL,
+	struct device *dev = bus_find_device(&of_platform_bus_type, NULL,
 					     dp, node_match);
 
 	if (dev)
@@ -126,20 +126,20 @@ EXPORT_SYMBOL(of_find_device_by_node);
 struct bus_type isa_bus_type = {
        .name	= "isa",
        .match	= of_platform_bus_match,
-       .probe	= of_device_probe,
-       .remove	= of_device_remove,
-       .suspend	= of_device_suspend,
-       .resume	= of_device_resume,
+       .probe	= of_platform_device_probe,
+       .remove	= of_platform_device_remove,
+       .suspend	= of_platform_device_suspend,
+       .resume	= of_platform_device_resume,
 };
 EXPORT_SYMBOL(isa_bus_type);
 
 struct bus_type ebus_bus_type = {
        .name	= "ebus",
        .match	= of_platform_bus_match,
-       .probe	= of_device_probe,
-       .remove	= of_device_remove,
-       .suspend	= of_device_suspend,
-       .resume	= of_device_resume,
+       .probe	= of_platform_device_probe,
+       .remove	= of_platform_device_remove,
+       .suspend	= of_platform_device_suspend,
+       .resume	= of_platform_device_resume,
 };
 EXPORT_SYMBOL(ebus_bus_type);
 #endif
@@ -148,23 +148,23 @@ EXPORT_SYMBOL(ebus_bus_type);
 struct bus_type sbus_bus_type = {
        .name	= "sbus",
        .match	= of_platform_bus_match,
-       .probe	= of_device_probe,
-       .remove	= of_device_remove,
-       .suspend	= of_device_suspend,
-       .resume	= of_device_resume,
+       .probe	= of_platform_device_probe,
+       .remove	= of_platform_device_remove,
+       .suspend	= of_platform_device_suspend,
+       .resume	= of_platform_device_resume,
 };
 EXPORT_SYMBOL(sbus_bus_type);
 #endif
 
-struct bus_type of_bus_type = {
+struct bus_type of_platform_bus_type = {
        .name	= "of",
        .match	= of_platform_bus_match,
-       .probe	= of_device_probe,
-       .remove	= of_device_remove,
-       .suspend	= of_device_suspend,
-       .resume	= of_device_resume,
+       .probe	= of_platform_device_probe,
+       .remove	= of_platform_device_remove,
+       .suspend	= of_platform_device_suspend,
+       .resume	= of_platform_device_resume,
 };
-EXPORT_SYMBOL(of_bus_type);
+EXPORT_SYMBOL(of_platform_bus_type);
 
 static inline u64 of_read_addr(const u32 *cell, int size)
 {
@@ -882,7 +882,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		op->irqs[i] = build_one_device_irq(op, parent, op->irqs[i]);
 
 	op->dev.parent = parent;
-	op->dev.bus = &of_bus_type;
+	op->dev.bus = &of_platform_bus_type;
 	if (!parent)
 		strcpy(op->dev.bus_id, "root");
 	else
@@ -926,7 +926,7 @@ static int __init of_bus_driver_init(void)
 {
 	int err;
 
-	err = bus_register(&of_bus_type);
+	err = bus_register(&of_platform_bus_type);
 #ifdef CONFIG_PCI
 	if (!err)
 		err = bus_register(&isa_bus_type);
