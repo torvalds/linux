@@ -1333,8 +1333,11 @@ unsigned int mpic_get_one_irq(struct mpic *mpic)
 #ifdef DEBUG_LOW
 	DBG("%s: get_one_irq(): %d\n", mpic->name, src);
 #endif
-	if (unlikely(src == mpic->spurious_vec))
+	if (unlikely(src == mpic->spurious_vec)) {
+		if (mpic->flags & MPIC_SPV_EOI)
+			mpic_eoi(mpic);
 		return NO_IRQ;
+	}
 	return irq_linear_revmap(mpic->irqhost, src);
 }
 
