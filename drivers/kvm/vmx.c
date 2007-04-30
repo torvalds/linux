@@ -1998,39 +1998,39 @@ again:
 
 	asm ("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 
-	if (fail) {
+	if (unlikely(fail)) {
 		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		kvm_run->fail_entry.hardware_entry_failure_reason
 			= vmcs_read32(VM_INSTRUCTION_ERROR);
 		r = 0;
-	} else {
-		/*
-		 * Profile KVM exit RIPs:
-		 */
-		if (unlikely(prof_on == KVM_PROFILING))
-			profile_hit(KVM_PROFILING, (void *)vmcs_readl(GUEST_RIP));
+		goto out;
+	}
+	/*
+	 * Profile KVM exit RIPs:
+	 */
+	if (unlikely(prof_on == KVM_PROFILING))
+		profile_hit(KVM_PROFILING, (void *)vmcs_readl(GUEST_RIP));
 
-		vcpu->launched = 1;
-		r = kvm_handle_exit(kvm_run, vcpu);
-		if (r > 0) {
-			/* Give scheduler a change to reschedule. */
-			if (signal_pending(current)) {
-				r = -EINTR;
-				kvm_run->exit_reason = KVM_EXIT_INTR;
-				++vcpu->stat.signal_exits;
-				goto out;
-			}
+	vcpu->launched = 1;
+	r = kvm_handle_exit(kvm_run, vcpu);
+	if (r > 0) {
+		/* Give scheduler a change to reschedule. */
+		if (signal_pending(current)) {
+			r = -EINTR;
+			kvm_run->exit_reason = KVM_EXIT_INTR;
+			++vcpu->stat.signal_exits;
+			goto out;
+		}
 
-			if (dm_request_for_irq_injection(vcpu, kvm_run)) {
-				r = -EINTR;
-				kvm_run->exit_reason = KVM_EXIT_INTR;
-				++vcpu->stat.request_irq_exits;
-				goto out;
-			}
-			if (!need_resched()) {
-				++vcpu->stat.light_exits;
-				goto again;
-			}
+		if (dm_request_for_irq_injection(vcpu, kvm_run)) {
+			r = -EINTR;
+			kvm_run->exit_reason = KVM_EXIT_INTR;
+			++vcpu->stat.request_irq_exits;
+			goto out;
+		}
+		if (!need_resched()) {
+			++vcpu->stat.light_exits;
+			goto again;
 		}
 	}
 
