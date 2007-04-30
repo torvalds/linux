@@ -329,6 +329,7 @@ drop:
 static inline int ip_rcv_finish(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
+	struct rtable *rt;
 
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
@@ -359,6 +360,12 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 
 	if (iph->ihl > 5 && ip_rcv_options(skb))
 		goto drop;
+
+	rt = (struct rtable*)skb->dst;
+	if (rt->rt_type == RTN_MULTICAST)
+		IP_INC_STATS_BH(IPSTATS_MIB_INMCASTPKTS);
+	else if (rt->rt_type == RTN_BROADCAST)
+		IP_INC_STATS_BH(IPSTATS_MIB_INBCASTPKTS);
 
 	return dst_input(skb);
 
