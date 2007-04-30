@@ -28,7 +28,7 @@
 #include <linux/blktrace_api.h>
 #include <scsi/sg.h>		/* for struct sg_iovec */
 
-#define BIO_POOL_SIZE 256
+#define BIO_POOL_SIZE 2
 
 static struct kmem_cache *bio_slab __read_mostly;
 
@@ -38,7 +38,7 @@ static struct kmem_cache *bio_slab __read_mostly;
  * a small number of entries is fine, not going to be performance critical.
  * basically we just need to survive
  */
-#define BIO_SPLIT_ENTRIES 8	
+#define BIO_SPLIT_ENTRIES 2
 mempool_t *bio_split_pool __read_mostly;
 
 struct biovec_slab {
@@ -1120,16 +1120,13 @@ struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
  * create memory pools for biovec's in a bio_set.
  * use the global biovec slabs created for general use.
  */
-static int biovec_create_pools(struct bio_set *bs, int pool_entries, int scale)
+static int biovec_create_pools(struct bio_set *bs, int pool_entries)
 {
 	int i;
 
 	for (i = 0; i < BIOVEC_NR_POOLS; i++) {
 		struct biovec_slab *bp = bvec_slabs + i;
 		mempool_t **bvp = bs->bvec_pools + i;
-
-		if (pool_entries > 1 && i >= scale)
-			pool_entries >>= 1;
 
 		*bvp = mempool_create_slab_pool(pool_entries, bp->slab);
 		if (!*bvp)
@@ -1161,7 +1158,7 @@ void bioset_free(struct bio_set *bs)
 	kfree(bs);
 }
 
-struct bio_set *bioset_create(int bio_pool_size, int bvec_pool_size, int scale)
+struct bio_set *bioset_create(int bio_pool_size, int bvec_pool_size)
 {
 	struct bio_set *bs = kzalloc(sizeof(*bs), GFP_KERNEL);
 
@@ -1172,7 +1169,7 @@ struct bio_set *bioset_create(int bio_pool_size, int bvec_pool_size, int scale)
 	if (!bs->bio_pool)
 		goto bad;
 
-	if (!biovec_create_pools(bs, bvec_pool_size, scale))
+	if (!biovec_create_pools(bs, bvec_pool_size))
 		return bs;
 
 bad:
@@ -1196,38 +1193,12 @@ static void __init biovec_init_slabs(void)
 
 static int __init init_bio(void)
 {
-	int megabytes, bvec_pool_entries;
-	int scale = BIOVEC_NR_POOLS;
-
 	bio_slab = kmem_cache_create("bio", sizeof(struct bio), 0,
 				SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
 
 	biovec_init_slabs();
 
-	megabytes = nr_free_pages() >> (20 - PAGE_SHIFT);
-
-	/*
-	 * find out where to start scaling
-	 */
-	if (megabytes <= 16)
-		scale = 0;
-	else if (megabytes <= 32)
-		scale = 1;
-	else if (megabytes <= 64)
-		scale = 2;
-	else if (megabytes <= 96)
-		scale = 3;
-	else if (megabytes <= 128)
-		scale = 4;
-
-	/*
-	 * Limit number of entries reserved -- mempools are only used when
-	 * the system is completely unable to allocate memory, so we only
-	 * need enough to make progress.
-	 */
-	bvec_pool_entries = 1 + scale;
-
-	fs_bio_set = bioset_create(BIO_POOL_SIZE, bvec_pool_entries, scale);
+	fs_bio_set = bioset_create(BIO_POOL_SIZE, 2);
 	if (!fs_bio_set)
 		panic("bio: can't allocate bios\n");
 

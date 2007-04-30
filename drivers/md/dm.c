@@ -1012,7 +1012,7 @@ static struct mapped_device *alloc_dev(int minor)
 	if (!md->tio_pool)
 		goto bad3;
 
-	md->bs = bioset_create(16, 16, 4);
+	md->bs = bioset_create(16, 16);
 	if (!md->bs)
 		goto bad_no_bioset;
 
