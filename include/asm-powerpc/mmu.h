@@ -5,9 +5,12 @@
 #ifdef CONFIG_PPC64
 /* 64-bit classic hash table MMU */
 #  include <asm/mmu-hash64.h>
+#elif defined(CONFIG_44x)
+/* 44x-style software loaded TLB */
+#  include <asm/mmu-44x.h>
 #else
-/* 32-bit.  FIXME: split up the 32-bit MMU types, and revise for
- * arch/powerpc */
+/* Other 32-bit.  FIXME: split up the other 32-bit MMU types, and
+ * revise for arch/powerpc */
 #  include <asm-ppc/mmu.h>
 #endif
 
