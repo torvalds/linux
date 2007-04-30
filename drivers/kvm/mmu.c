@@ -1169,6 +1169,7 @@ void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
 			continue;
 		pte_size = page->role.glevels == PT32_ROOT_LEVEL ? 4 : 8;
 		misaligned = (offset ^ (offset + bytes - 1)) & ~(pte_size - 1);
+		misaligned |= bytes < 4;
 		if (misaligned || flooded) {
 			/*
 			 * Misaligned accesses are too much trouble to fix
