@@ -536,15 +536,6 @@ do_boot_cpu(__u8 cpu)
 		& ~( voyager_extended_vic_processors
 		     & voyager_allowed_boot_processors);
 
-	/* For the 486, we can't use the 4Mb page table trick, so
-	 * must map a region of memory */
-#ifdef CONFIG_M486
-	int i;
-	unsigned long *page_table_copies = (unsigned long *)
-		__get_free_page(GFP_KERNEL);
-#endif
-	pgd_t orig_swapper_pg_dir0;
-
 	/* This is an area in head.S which was used to set up the
 	 * initial kernel stack.  We need to alter this to give the
 	 * booting CPU a new stack (taken from its idle process) */
@@ -595,24 +586,11 @@ do_boot_cpu(__u8 cpu)
 	VDEBUG(("VOYAGER SMP: Booting CPU%d at 0x%lx[%x:%x], stack %p\n", cpu, 
 		(unsigned long)hijack_source.val, hijack_source.idt.Segment,
 		hijack_source.idt.Offset, stack_start.esp));
-	/* set the original swapper_pg_dir[0] to map 0 to 4Mb transparently
-	 * (so that the booting CPU can find start_32 */
-	orig_swapper_pg_dir0 = swapper_pg_dir[0];
-#ifdef CONFIG_M486
-	if(page_table_copies == NULL)
-		panic("No free memory for 486 page tables\n");
-	for(i = 0; i < PAGE_SIZE/sizeof(unsigned long); i++)
-		page_table_copies[i] = (i * PAGE_SIZE) 
-			| _PAGE_RW | _PAGE_USER | _PAGE_PRESENT;
 
-	((unsigned long *)swapper_pg_dir)[0] = 
-		((virt_to_phys(page_table_copies)) & PAGE_MASK)
-		| _PAGE_RW | _PAGE_USER | _PAGE_PRESENT;
-#else
-	((unsigned long *)swapper_pg_dir)[0] = 
-		(virt_to_phys(pg0) & PAGE_MASK)
-		| _PAGE_RW | _PAGE_USER | _PAGE_PRESENT;
-#endif
+	/* init lowmem identity mapping */
+	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
+			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
+	flush_tlb_all();
 
 	if(quad_boot) {
 		printk("CPU %d: non extended Quad boot\n", cpu);
@@ -655,11 +633,7 @@ do_boot_cpu(__u8 cpu)
 		udelay(100);
 	}
 	/* reset the page table */
-	swapper_pg_dir[0] = orig_swapper_pg_dir0;
-	local_flush_tlb();
-#ifdef CONFIG_M486
-	free_page((unsigned long)page_table_copies);
-#endif
+	zap_low_mappings();
 	  
 	if (cpu_booted_map) {
 		VDEBUG(("CPU%d: Booted successfully, back in CPU %d\n",
