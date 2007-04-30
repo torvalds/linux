@@ -184,7 +184,7 @@ static int __init setup_areas(struct spu *spu)
 
 	spu_pdata(spu)->shadow = __ioremap(
 		spu_pdata(spu)->shadow_addr, sizeof(struct spe_shadow),
-		PAGE_READONLY | _PAGE_NO_CACHE | _PAGE_GUARDED);
+		pgprot_val(PAGE_READONLY) | _PAGE_NO_CACHE | _PAGE_GUARDED);
 	if (!spu_pdata(spu)->shadow) {
 		pr_debug("%s:%d: ioremap shadow failed\n", __func__, __LINE__);
 		goto fail_ioremap;

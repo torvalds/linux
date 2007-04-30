@@ -126,7 +126,7 @@ typedef struct { unsigned long pmd; } pmd_t;
 #define __pmd(x)	((pmd_t) { (x) })
 
 /* PUD level exusts only on 4k pages */
-#ifndef CONFIG_PPC_64K_PAGES
+#if defined(CONFIG_PPC64) && !defined(CONFIG_PPC_64K_PAGES)
 typedef struct { unsigned long pud; } pud_t;
 #define pud_val(x)	((x).pud)
 #define __pud(x)	((pud_t) { (x) })
