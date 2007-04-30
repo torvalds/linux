@@ -1,6 +1,5 @@
 #ifndef _ASM_POWERPC_PGTABLE_64K_H
 #define _ASM_POWERPC_PGTABLE_64K_H
-#ifdef __KERNEL__
 
 #include <asm-generic/pgtable-nopud.h>
 
@@ -65,8 +64,6 @@
 /* Bits to mask out from a PGD/PUD to get to the PMD page */
 #define PUD_MASKED_BITS		0x1ff
 
-#ifndef __ASSEMBLY__
-
 /* Manipulate "rpte" values */
 #define __real_pte(e,p) 	((real_pte_t) { \
 	(e), pte_val(*((p) + PTRS_PER_PTE)) })
@@ -98,6 +95,4 @@
 	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,		\
 			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN))
 
-#endif /*  __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PGTABLE_64K_H */
