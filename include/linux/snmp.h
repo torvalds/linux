@@ -40,6 +40,8 @@ enum
 	IPSTATS_MIB_FRAGCREATES,		/* FragCreates */
 	IPSTATS_MIB_INMCASTPKTS,		/* InMcastPkts */
 	IPSTATS_MIB_OUTMCASTPKTS,		/* OutMcastPkts */
+	IPSTATS_MIB_INBCASTPKTS,		/* InBcastPkts */
+	IPSTATS_MIB_OUTBCASTPKTS,		/* OutBcastPkts */
 	__IPSTATS_MIB_MAX
 };
 

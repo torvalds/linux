@@ -1265,20 +1265,15 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	return flag;
 }
 
-/* F-RTO can only be used if these conditions are satisfied:
- *  - there must be some unsent new data
- *  - the advertised window should allow sending it
- *  - TCP has never retransmitted anything other than head (SACK enhanced
- *    variant from Appendix B of RFC4138 is more robust here)
+/* F-RTO can only be used if TCP has never retransmitted anything other than
+ * head (SACK enhanced variant from Appendix B of RFC4138 is more robust here)
  */
 int tcp_use_frto(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 
-	if (!sysctl_tcp_frto || !tcp_send_head(sk) ||
-		after(TCP_SKB_CB(tcp_send_head(sk))->end_seq,
-		      tp->snd_una + tp->snd_wnd))
+	if (!sysctl_tcp_frto)
 		return 0;
 
 	if (IsSackFrto())
@@ -2642,7 +2637,9 @@ static void tcp_undo_spur_to_response(struct sock *sk, int flag)
  *                  algorithm is not part of the F-RTO detection algorithm
  *                  given in RFC4138 but can be selected separately).
  * Otherwise (basically on duplicate ACK), RTO was (likely) caused by a loss
- * and TCP falls back to conventional RTO recovery.
+ * and TCP falls back to conventional RTO recovery. F-RTO allows overriding
+ * of Nagle, this is done using frto_counter states 2 and 3, when a new data
+ * segment of any size sent during F-RTO, state 2 is upgraded to 3.
  *
  * Rationale: if the RTO was spurious, new ACKs should arrive from the
  * original window even after we transmit two new data segments.
@@ -2671,7 +2668,7 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 		inet_csk(sk)->icsk_retransmits = 0;
 
 	if (!before(tp->snd_una, tp->frto_highmark)) {
-		tcp_enter_frto_loss(sk, tp->frto_counter + 1, flag);
+		tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 2 : 3), flag);
 		return 1;
 	}
 
@@ -2697,7 +2694,7 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 			return 1;
 		}
 
-		if ((tp->frto_counter == 2) &&
+		if ((tp->frto_counter >= 2) &&
 		    (!(flag&FLAG_FORWARD_PROGRESS) ||
 		     ((flag&FLAG_DATA_SACKED) && !(flag&FLAG_ONLY_ORIG_SACKED)))) {
 			/* RFC4138 shortcoming (see comment above) */
@@ -2710,10 +2707,19 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 	}
 
 	if (tp->frto_counter == 1) {
+		/* Sending of the next skb must be allowed or no FRTO */
+		if (!tcp_send_head(sk) ||
+		    after(TCP_SKB_CB(tcp_send_head(sk))->end_seq,
+				     tp->snd_una + tp->snd_wnd)) {
+			tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 2 : 3),
+					    flag);
+			return 1;
+		}
+
 		tp->snd_cwnd = tcp_packets_in_flight(tp) + 2;
 		tp->frto_counter = 2;
 		return 1;
-	} else /* frto_counter == 2 */ {
+	} else {
 		switch (sysctl_tcp_frto_response) {
 		case 2:
 			tcp_undo_spur_to_response(sk, flag);

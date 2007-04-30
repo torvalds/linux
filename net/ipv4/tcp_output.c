@@ -1035,8 +1035,10 @@ static inline int tcp_nagle_test(struct tcp_sock *tp, struct sk_buff *skb,
 	if (nonagle & TCP_NAGLE_PUSH)
 		return 1;
 
-	/* Don't use the nagle rule for urgent data (or for the final FIN).  */
-	if (tp->urg_mode ||
+	/* Don't use the nagle rule for urgent data (or for the final FIN).
+	 * Nagle can be ignored during F-RTO too (see RFC4138).
+	 */
+	if (tp->urg_mode || (tp->frto_counter == 2) ||
 	    (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN))
 		return 1;
 
@@ -2035,7 +2037,7 @@ void tcp_send_fin(struct sock *sk)
 /* We get here when a process closes a file descriptor (either due to
  * an explicit close() or as a byproduct of exit()'ing) and there
  * was unread data in the receive queue.  This behavior is recommended
- * by draft-ietf-tcpimpl-prob-03.txt section 3.10.  -DaveM
+ * by RFC 2525, section 2.17.  -DaveM
  */
 void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 {

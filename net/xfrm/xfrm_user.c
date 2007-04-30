@@ -672,6 +672,81 @@ static struct sk_buff *xfrm_state_netlink(struct sk_buff *in_skb,
 	return skb;
 }
 
+static int build_spdinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
+{
+	struct xfrm_spdinfo si;
+	struct nlmsghdr *nlh;
+	u32 *f;
+
+	nlh = nlmsg_put(skb, pid, seq, XFRM_MSG_NEWSPDINFO, sizeof(u32), 0);
+	if (nlh == NULL) /* shouldnt really happen ... */
+		return -EMSGSIZE;
+
+	f = nlmsg_data(nlh);
+	*f = flags;
+	xfrm_spd_getinfo(&si);
+
+	if (flags & XFRM_SPD_HMASK)
+		NLA_PUT_U32(skb, XFRMA_SPDHMASK, si.spdhcnt);
+	if (flags & XFRM_SPD_HMAX)
+		NLA_PUT_U32(skb, XFRMA_SPDHMAX, si.spdhmcnt);
+	if (flags & XFRM_SPD_ICNT)
+		NLA_PUT_U32(skb, XFRMA_SPDICNT, si.incnt);
+	if (flags & XFRM_SPD_OCNT)
+		NLA_PUT_U32(skb, XFRMA_SPDOCNT, si.outcnt);
+	if (flags & XFRM_SPD_FCNT)
+		NLA_PUT_U32(skb, XFRMA_SPDFCNT, si.fwdcnt);
+	if (flags & XFRM_SPD_ISCNT)
+		NLA_PUT_U32(skb, XFRMA_SPDISCNT, si.inscnt);
+	if (flags & XFRM_SPD_OSCNT)
+		NLA_PUT_U32(skb, XFRMA_SPDOSCNT, si.inscnt);
+	if (flags & XFRM_SPD_FSCNT)
+		NLA_PUT_U32(skb, XFRMA_SPDFSCNT, si.inscnt);
+
+	return nlmsg_end(skb, nlh);
+
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+static int xfrm_get_spdinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
+		struct rtattr **xfrma)
+{
+	struct sk_buff *r_skb;
+	u32 *flags = NLMSG_DATA(nlh);
+	u32 spid = NETLINK_CB(skb).pid;
+	u32 seq = nlh->nlmsg_seq;
+	int len = NLMSG_LENGTH(sizeof(u32));
+
+
+	if (*flags & XFRM_SPD_HMASK)
+		len += RTA_SPACE(sizeof(u32));
+	if (*flags & XFRM_SPD_HMAX)
+		len += RTA_SPACE(sizeof(u32));
+	if (*flags & XFRM_SPD_ICNT)
+		len += RTA_SPACE(sizeof(u32));
+	if (*flags & XFRM_SPD_OCNT)
+		len += RTA_SPACE(sizeof(u32));
+	if (*flags & XFRM_SPD_FCNT)
+		len += RTA_SPACE(sizeof(u32));
+	if (*flags & XFRM_SPD_ISCNT)
+		len += RTA_SPACE(sizeof(u32));
+	if (*flags & XFRM_SPD_OSCNT)
+		len += RTA_SPACE(sizeof(u32));
+	if (*flags & XFRM_SPD_FSCNT)
+		len += RTA_SPACE(sizeof(u32));
+
+	r_skb = alloc_skb(len, GFP_ATOMIC);
+	if (r_skb == NULL)
+		return -ENOMEM;
+
+	if (build_spdinfo(r_skb, spid, seq, *flags) < 0)
+		BUG();
+
+	return nlmsg_unicast(xfrm_nl, r_skb, spid);
+}
+
 static int build_sadinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
 {
 	struct xfrm_sadinfo si;
@@ -1879,6 +1954,7 @@ static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_REPORT      - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_report),
 	[XFRM_MSG_MIGRATE     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_id),
 	[XFRM_MSG_GETSADINFO  - XFRM_MSG_BASE] = NLMSG_LENGTH(sizeof(u32)),
+	[XFRM_MSG_GETSPDINFO  - XFRM_MSG_BASE] = NLMSG_LENGTH(sizeof(u32)),
 };
 
 #undef XMSGSIZE
@@ -1907,6 +1983,7 @@ static struct xfrm_link {
 	[XFRM_MSG_GETAE       - XFRM_MSG_BASE] = { .doit = xfrm_get_ae  },
 	[XFRM_MSG_MIGRATE     - XFRM_MSG_BASE] = { .doit = xfrm_do_migrate    },
 	[XFRM_MSG_GETSADINFO  - XFRM_MSG_BASE] = { .doit = xfrm_get_sadinfo   },
+	[XFRM_MSG_GETSPDINFO  - XFRM_MSG_BASE] = { .doit = xfrm_get_spdinfo   },
 };
 
 static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)

@@ -329,6 +329,7 @@ drop:
 static inline int ip_rcv_finish(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
+	struct rtable *rt;
 
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
@@ -340,6 +341,8 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 		if (unlikely(err)) {
 			if (err == -EHOSTUNREACH)
 				IP_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
+			else if (err == -ENETUNREACH)
+				IP_INC_STATS_BH(IPSTATS_MIB_INNOROUTES);
 			goto drop;
 		}
 	}
@@ -357,6 +360,12 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 
 	if (iph->ihl > 5 && ip_rcv_options(skb))
 		goto drop;
+
+	rt = (struct rtable*)skb->dst;
+	if (rt->rt_type == RTN_MULTICAST)
+		IP_INC_STATS_BH(IPSTATS_MIB_INMCASTPKTS);
+	else if (rt->rt_type == RTN_BROADCAST)
+		IP_INC_STATS_BH(IPSTATS_MIB_INBCASTPKTS);
 
 	return dst_input(skb);
 
@@ -414,7 +423,10 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 		goto inhdr_error;
 
 	len = ntohs(iph->tot_len);
-	if (skb->len < len || len < (iph->ihl*4))
+	if (skb->len < len) {
+		IP_INC_STATS_BH(IPSTATS_MIB_INTRUNCATEDPKTS);
+		goto drop;
+	} else if (len < (iph->ihl*4))
 		goto inhdr_error;
 
 	/* Our transport medium may have padded the buffer out. Now we know it

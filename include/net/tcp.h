@@ -736,9 +736,7 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 
 static inline void tcp_sync_left_out(struct tcp_sock *tp)
 {
-	if (tp->rx_opt.sack_ok &&
-	    (tp->sacked_out >= tp->packets_out - tp->lost_out))
-		tp->sacked_out = tp->packets_out - tp->lost_out;
+	BUG_ON(tp->sacked_out + tp->lost_out > tp->packets_out);
 	tp->left_out = tp->sacked_out + tp->lost_out;
 }
 
@@ -1201,9 +1199,14 @@ static inline struct sk_buff *tcp_send_head(struct sock *sk)
 
 static inline void tcp_advance_send_head(struct sock *sk, struct sk_buff *skb)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	sk->sk_send_head = skb->next;
 	if (sk->sk_send_head == (struct sk_buff *)&sk->sk_write_queue)
 		sk->sk_send_head = NULL;
+	/* Don't override Nagle indefinately with F-RTO */
+	if (tp->frto_counter == 2)
+		tp->frto_counter = 3;
 }
 
 static inline void tcp_check_send_head(struct sock *sk, struct sk_buff *skb_unlinked)

@@ -223,6 +223,7 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 		return -EINVAL;
 	remove_proc_entry(idev->stats.proc_dir_entry->name,
 			  proc_net_devsnmp6);
+	idev->stats.proc_dir_entry = NULL;
 	return 0;
 }
 
