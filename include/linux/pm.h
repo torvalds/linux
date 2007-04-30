@@ -332,7 +332,7 @@ static inline void dpm_runtime_resume(struct device * dev)
 
 static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
 {
-	return -EIO;
+	return 0;
 }
 
 #endif
