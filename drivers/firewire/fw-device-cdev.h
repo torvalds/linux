@@ -124,18 +124,18 @@ union fw_cdev_event {
 	struct fw_cdev_event_iso_interrupt iso_interrupt;
 };
 
-#define FW_CDEV_IOC_GET_INFO		_IO('#', 0x00)
-#define FW_CDEV_IOC_SEND_REQUEST	_IO('#', 0x01)
-#define FW_CDEV_IOC_ALLOCATE		_IO('#', 0x02)
-#define FW_CDEV_IOC_DEALLOCATE		_IO('#', 0x03)
-#define FW_CDEV_IOC_SEND_RESPONSE	_IO('#', 0x04)
-#define FW_CDEV_IOC_INITIATE_BUS_RESET	_IO('#', 0x05)
-#define FW_CDEV_IOC_ADD_DESCRIPTOR	_IO('#', 0x06)
-#define FW_CDEV_IOC_REMOVE_DESCRIPTOR	_IO('#', 0x07)
+#define FW_CDEV_IOC_GET_INFO		_IOWR('#', 0x00, struct fw_cdev_get_info)
+#define FW_CDEV_IOC_SEND_REQUEST	_IOW('#', 0x01, struct fw_cdev_send_request)
+#define FW_CDEV_IOC_ALLOCATE		_IOWR('#', 0x02, struct fw_cdev_allocate)
+#define FW_CDEV_IOC_DEALLOCATE		_IOW('#', 0x03, struct fw_cdev_deallocate)
+#define FW_CDEV_IOC_SEND_RESPONSE	_IOW('#', 0x04, struct fw_cdev_send_response)
+#define FW_CDEV_IOC_INITIATE_BUS_RESET	_IOW('#', 0x05, struct fw_cdev_initiate_bus_reset)
+#define FW_CDEV_IOC_ADD_DESCRIPTOR	_IOWR('#', 0x06, struct fw_cdev_add_descriptor)
+#define FW_CDEV_IOC_REMOVE_DESCRIPTOR	_IOW('#', 0x07, struct fw_cdev_remove_descriptor)
 
-#define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IO('#', 0x08)
-#define FW_CDEV_IOC_QUEUE_ISO		_IO('#', 0x09)
-#define FW_CDEV_IOC_START_ISO		_IO('#', 0x0a)
+#define FW_CDEV_IOC_CREATE_ISO_CONTEXT	_IOW('#', 0x08, struct fw_cdev_create_iso_context)
+#define FW_CDEV_IOC_QUEUE_ISO		_IOWR('#', 0x09, struct fw_cdev_queue_iso)
+#define FW_CDEV_IOC_START_ISO		_IOW('#', 0x0a, struct fw_cdev_start_iso)
 #define FW_CDEV_IOC_STOP_ISO		_IO('#', 0x0b)
 
 /* FW_CDEV_VERSION History
