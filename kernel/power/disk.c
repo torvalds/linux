@@ -122,8 +122,6 @@ static int prepare_processes(void)
 /**
  *	pm_suspend_disk - The granpappy of hibernation power management.
  *
- *	If we're going through the firmware, then get it over with quickly.
- *
  *	If not, then call swsusp to do its thing, then figure out how
  *	to power down the system.
  */
@@ -292,7 +290,6 @@ late_initcall(software_resume);
 
 
 static const char * const pm_disk_modes[] = {
-	[PM_DISK_FIRMWARE]	= "firmware",
 	[PM_DISK_PLATFORM]	= "platform",
 	[PM_DISK_SHUTDOWN]	= "shutdown",
 	[PM_DISK_REBOOT]	= "reboot",
@@ -303,27 +300,25 @@ static const char * const pm_disk_modes[] = {
 /**
  *	disk - Control suspend-to-disk mode
  *
- *	Suspend-to-disk can be handled in several ways. The greatest
- *	distinction is who writes memory to disk - the firmware or the OS.
- *	If the firmware does it, we assume that it also handles suspending
- *	the system.
- *	If the OS does it, then we have three options for putting the system
- *	to sleep - using the platform driver (e.g. ACPI or other PM registers),
- *	powering off the system or rebooting the system (for testing).
+ *	Suspend-to-disk can be handled in several ways. We have a few options
+ *	for putting the system to sleep - using the platform driver (e.g. ACPI
+ *	or other pm_ops), powering off the system or rebooting the system
+ *	(for testing) as well as the two test modes.
  *
- *	The system will support either 'firmware' or 'platform', and that is
- *	known a priori (and encoded in pm_ops). But, the user may choose
- *	'shutdown' or 'reboot' as alternatives.
+ *	The system can support 'platform', and that is known a priori (and
+ *	encoded in pm_ops). However, the user may choose 'shutdown' or 'reboot'
+ *	as alternatives, as well as the test modes 'test' and 'testproc'.
  *
  *	show() will display what the mode is currently set to.
  *	store() will accept one of
  *
- *	'firmware'
  *	'platform'
  *	'shutdown'
  *	'reboot'
+ *	'test'
+ *	'testproc'
  *
- *	It will only change to 'firmware' or 'platform' if the system
+ *	It will only change to 'platform' if the system
  *	supports it (as determined from pm_ops->pm_disk_mode).
  */
 
@@ -345,7 +340,7 @@ static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
 	len = p ? p - buf : n;
 
 	mutex_lock(&pm_mutex);
-	for (i = PM_DISK_FIRMWARE; i < PM_DISK_MAX; i++) {
+	for (i = PM_DISK_PLATFORM; i < PM_DISK_MAX; i++) {
 		if (!strncmp(buf, pm_disk_modes[i], len)) {
 			mode = i;
 			break;

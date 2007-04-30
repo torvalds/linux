@@ -18,17 +18,10 @@ states.
 
 
 /sys/power/disk controls the operating mode of the suspend-to-disk
-mechanism. Suspend-to-disk can be handled in several ways. The
-greatest distinction is who writes memory to disk - the firmware or
-the kernel. If the firmware does it, we assume that it also handles
-suspending the system. 
-
-If the kernel does it, then we have three options for putting the system
-to sleep - using the platform driver (e.g. ACPI or other PM
-registers), powering off the system or rebooting the system (for
-testing). The system will support either 'firmware' or 'platform', and
-that is known a priori. But, the user may choose 'shutdown' or
-'reboot' as alternatives. 
+mechanism. Suspend-to-disk can be handled in several ways. We have a
+few options for putting the system to sleep - using the platform driver
+(e.g. ACPI or other pm_ops), powering off the system or rebooting the
+system (for testing).
 
 Additionally, /sys/power/disk can be used to turn on one of the two testing
 modes of the suspend-to-disk mechanism: 'testproc' or 'test'.  If the
@@ -44,15 +37,11 @@ is being slow and which device drivers are misbehaving.
 Reading from this file will display what the mode is currently set
 to. Writing to this file will accept one of
 
-       'firmware'
-       'platform'
+       'platform' (only if the platform supports it)
        'shutdown'
        'reboot'
        'testproc'
        'test'
-
-It will only change to 'firmware' or 'platform' if the system supports
-it. 
 
 /sys/power/image_size controls the size of the image created by
 the suspend-to-disk mechanism.  It can be written a string
