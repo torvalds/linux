@@ -1082,20 +1082,11 @@ smp_call_function_interrupt(void)
 	}
 }
 
-/* Call this function on all CPUs using the function_interrupt above 
-    <func> The function to run. This must be fast and non-blocking.
-    <info> An arbitrary pointer to pass to the function.
-    <retry> If true, keep retrying until ready.
-    <wait> If true, wait until function has completed on other CPUs.
-    [RETURNS] 0 on success, else a negative status code. Does not return until
-    remote CPUs are nearly ready to execute <<func>> or are or have executed.
-*/
-int
-smp_call_function (void (*func) (void *info), void *info, int retry,
-		   int wait)
+static int
+__smp_call_function_mask (void (*func) (void *info), void *info, int retry,
+			  int wait, __u32 mask)
 {
 	struct call_data_struct data;
-	__u32 mask = cpus_addr(cpu_online_map)[0];
 
 	mask &= ~(1<<smp_processor_id());
 
@@ -1116,7 +1107,7 @@ smp_call_function (void (*func) (void *info), void *info, int retry,
 	call_data = &data;
 	wmb();
 	/* Send a message to all other CPUs and wait for them to respond */
-	send_CPI_allbutself(VIC_CALL_FUNCTION_CPI);
+	send_CPI(mask, VIC_CALL_FUNCTION_CPI);
 
 	/* Wait for response */
 	while (data.started)
@@ -1130,7 +1121,47 @@ smp_call_function (void (*func) (void *info), void *info, int retry,
 
 	return 0;
 }
+
+/* Call this function on all CPUs using the function_interrupt above
+    <func> The function to run. This must be fast and non-blocking.
+    <info> An arbitrary pointer to pass to the function.
+    <retry> If true, keep retrying until ready.
+    <wait> If true, wait until function has completed on other CPUs.
+    [RETURNS] 0 on success, else a negative status code. Does not return until
+    remote CPUs are nearly ready to execute <<func>> or are or have executed.
+*/
+int
+smp_call_function(void (*func) (void *info), void *info, int retry,
+		   int wait)
+{
+	__u32 mask = cpus_addr(cpu_online_map)[0];
+
+	return __smp_call_function_mask(func, info, retry, wait, mask);
+}
 EXPORT_SYMBOL(smp_call_function);
+
+/*
+ * smp_call_function_single - Run a function on another CPU
+ * @func: The function to run. This must be fast and non-blocking.
+ * @info: An arbitrary pointer to pass to the function.
+ * @nonatomic: Currently unused.
+ * @wait: If true, wait until function has completed on other CPUs.
+ *
+ * Retrurns 0 on success, else a negative status code.
+ *
+ * Does not return until the remote CPU is nearly ready to execute <func>
+ * or is or has executed.
+ */
+
+int
+smp_call_function_single(int cpu, void (*func) (void *info), void *info,
+			 int nonatomic, int wait)
+{
+	__u32 mask = 1 << cpu;
+
+	return __smp_call_function_mask(func, info, nonatomic, wait, mask);
+}
+EXPORT_SYMBOL(smp_call_function_single);
 
 /* Sorry about the name.  In an APIC based system, the APICs
  * themselves are programmed to send a timer interrupt.  This is used
