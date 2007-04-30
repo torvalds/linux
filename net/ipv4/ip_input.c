@@ -340,6 +340,8 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 		if (unlikely(err)) {
 			if (err == -EHOSTUNREACH)
 				IP_INC_STATS_BH(IPSTATS_MIB_INADDRERRORS);
+			else if (err == -ENETUNREACH)
+				IP_INC_STATS_BH(IPSTATS_MIB_INNOROUTES);
 			goto drop;
 		}
 	}
