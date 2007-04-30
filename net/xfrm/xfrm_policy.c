@@ -1344,6 +1344,40 @@ xfrm_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int nx,
 	return err;
 }
 
+static int inline
+xfrm_dst_alloc_copy(void **target, void *src, int size)
+{
+	if (!*target) {
+		*target = kmalloc(size, GFP_ATOMIC);
+		if (!*target)
+			return -ENOMEM;
+	}
+	memcpy(*target, src, size);
+	return 0;
+}
+
+static int inline
+xfrm_dst_update_parent(struct dst_entry *dst, struct xfrm_selector *sel)
+{
+#ifdef CONFIG_XFRM_SUB_POLICY
+	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
+	return xfrm_dst_alloc_copy((void **)&(xdst->partner),
+				   sel, sizeof(*sel));
+#else
+	return 0;
+#endif
+}
+
+static int inline
+xfrm_dst_update_origin(struct dst_entry *dst, struct flowi *fl)
+{
+#ifdef CONFIG_XFRM_SUB_POLICY
+	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
+	return xfrm_dst_alloc_copy((void **)&(xdst->origin), fl, sizeof(*fl));
+#else
+	return 0;
+#endif
+}
 
 static int stale_bundle(struct dst_entry *dst);
 
@@ -1532,6 +1566,18 @@ restart:
 			err = -EHOSTUNREACH;
 			goto error;
 		}
+
+		if (npols > 1)
+			err = xfrm_dst_update_parent(dst, &pols[1]->selector);
+		else
+			err = xfrm_dst_update_origin(dst, fl);
+		if (unlikely(err)) {
+			write_unlock_bh(&policy->lock);
+			if (dst)
+				dst_free(dst);
+			goto error;
+		}
+
 		dst->next = policy->bundles;
 		policy->bundles = dst;
 		dst_hold(dst);
@@ -1947,6 +1993,15 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 	if (!dst_check(dst->path, ((struct xfrm_dst *)dst)->path_cookie) ||
 	    (dst->dev && !netif_running(dst->dev)))
 		return 0;
+#ifdef CONFIG_XFRM_SUB_POLICY
+	if (fl) {
+		if (first->origin && !flow_cache_uli_match(first->origin, fl))
+			return 0;
+		if (first->partner &&
+		    !xfrm_selector_match(first->partner, fl, family))
+			return 0;
+	}
+#endif
 
 	last = NULL;
 

@@ -97,4 +97,10 @@ extern void *flow_cache_lookup(struct flowi *key, u16 family, u8 dir,
 extern void flow_cache_flush(void);
 extern atomic_t flow_cache_genid;
 
+static inline int flow_cache_uli_match(struct flowi *fl1, struct flowi *fl2)
+{
+	return (fl1->proto == fl2->proto &&
+		!memcmp(&fl1->uli_u, &fl2->uli_u, sizeof(fl1->uli_u)));
+}
+
 #endif

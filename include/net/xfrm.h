@@ -603,6 +603,10 @@ struct xfrm_dst
 		struct rt6_info		rt6;
 	} u;
 	struct dst_entry *route;
+#ifdef CONFIG_XFRM_SUB_POLICY
+	struct flowi *origin;
+	struct xfrm_selector *partner;
+#endif
 	u32 genid;
 	u32 route_mtu_cached;
 	u32 child_mtu_cached;
@@ -615,6 +619,12 @@ static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 	dst_release(xdst->route);
 	if (likely(xdst->u.dst.xfrm))
 		xfrm_state_put(xdst->u.dst.xfrm);
+#ifdef CONFIG_XFRM_SUB_POLICY
+	kfree(xdst->origin);
+	xdst->origin = NULL;
+	kfree(xdst->partner);
+	xdst->partner = NULL;
+#endif
 }
 
 extern void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev);
