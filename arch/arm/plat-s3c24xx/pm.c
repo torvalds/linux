@@ -612,26 +612,9 @@ static int s3c2410_pm_enter(suspend_state_t state)
 	return 0;
 }
 
-/*
- * Called after processes are frozen, but before we shut down devices.
- */
-static int s3c2410_pm_prepare(suspend_state_t state)
-{
-	return 0;
-}
-
-/*
- * Called after devices are re-setup, but before processes are thawed.
- */
-static int s3c2410_pm_finish(suspend_state_t state)
-{
-	return 0;
-}
-
 static struct pm_ops s3c2410_pm_ops = {
-	.prepare	= s3c2410_pm_prepare,
 	.enter		= s3c2410_pm_enter,
-	.finish		= s3c2410_pm_finish,
+	.valid		= pm_valid_only_mem,
 };
 
 /* s3c2410_pm_init

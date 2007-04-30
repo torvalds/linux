@@ -701,6 +701,7 @@ static struct pm_ops omap_pm_ops ={
 	.prepare	= omap_pm_prepare,
 	.enter		= omap_pm_enter,
 	.finish		= omap_pm_finish,
+	.valid		= pm_valid_only_mem,
 };
 
 static int __init omap_pm_init(void)

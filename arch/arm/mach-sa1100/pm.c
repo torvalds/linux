@@ -133,6 +133,7 @@ unsigned long sleep_phys_sp(void *sp)
 
 static struct pm_ops sa11x0_pm_ops = {
 	.enter		= sa11x0_pm_enter,
+	.valid		= pm_valid_only_mem,
 };
 
 static int __init sa11x0_pm_init(void)

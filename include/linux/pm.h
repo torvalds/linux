@@ -128,6 +128,9 @@ typedef int __bitwise suspend_disk_method_t;
  *	always valid and never passed to this call.
  *	If not assigned, all suspend states are advertised as valid
  *	in /sys/power/state (but can still be rejected by prepare or enter.)
+ *	Since new states can be added for other platforms, you should
+ *	assign this callback. There is a %pm_valid_only_mem function
+ *	available if you only implemented mem sleep.
  *
  * @prepare: Prepare the platform for the given suspend state. Can return a
  *	negative error code if necessary.
@@ -165,6 +168,7 @@ extern void pm_set_ops(struct pm_ops *pm_ops);
 extern struct pm_ops *pm_ops;
 extern int pm_suspend(suspend_state_t state);
 
+extern int pm_valid_only_mem(suspend_state_t state);
 
 /**
  * arch_suspend_disable_irqs - disable IRQs for suspend

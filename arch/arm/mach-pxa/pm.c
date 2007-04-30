@@ -227,6 +227,7 @@ static struct pm_ops pxa_pm_ops = {
 	.prepare	= pxa_pm_prepare,
 	.enter		= pxa_pm_enter,
 	.finish		= pxa_pm_finish,
+	.valid		= pm_valid_only_mem,
 };
 
 static int __init pxa_pm_init(void)

@@ -69,6 +69,7 @@ static int hp6x0_pm_enter(suspend_state_t state)
 
 static struct pm_ops hp6x0_pm_ops = {
 	.enter		= hp6x0_pm_enter,
+	.valid		= pm_valid_only_mem,
 };
 
 static int __init hp6x0_pm_init(void)

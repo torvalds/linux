@@ -373,6 +373,7 @@ static struct pm_ops omap_pm_ops = {
 	.prepare	= omap2_pm_prepare,
 	.enter		= omap2_pm_enter,
 	.finish		= omap2_pm_finish,
+	.valid		= pm_valid_only_mem,
 };
 
 int __init omap2_pm_init(void)
