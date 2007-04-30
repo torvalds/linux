@@ -59,9 +59,6 @@ static int sa11x0_pm_enter(suspend_state_t state)
 	unsigned long gpio, sleep_save[SLEEP_SAVE_SIZE];
 	struct timespec delta, rtc;
 
-	if (state != PM_SUSPEND_MEM)
-		return -EINVAL;
-
 	/* preserve current time */
 	rtc.tv_sec = RCNR;
 	rtc.tv_nsec = 0;
@@ -134,11 +131,7 @@ unsigned long sleep_phys_sp(void *sp)
 	return virt_to_phys(sp);
 }
 
-/*
- * Set to PM_DISK_FIRMWARE so we can quickly veto suspend-to-disk.
- */
 static struct pm_ops sa11x0_pm_ops = {
-	.pm_disk_mode	= PM_DISK_FIRMWARE,
 	.enter		= sa11x0_pm_enter,
 };
 

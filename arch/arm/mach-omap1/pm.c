@@ -698,7 +698,6 @@ static struct irqaction omap_wakeup_irq = {
 
 
 static struct pm_ops omap_pm_ops ={
-	.pm_disk_mode	= 0,
 	.prepare	= omap_pm_prepare,
 	.enter		= omap_pm_enter,
 	.finish		= omap_pm_finish,

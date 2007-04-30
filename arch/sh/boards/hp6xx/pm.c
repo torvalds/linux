@@ -27,9 +27,6 @@ static int hp6x0_pm_enter(suspend_state_t state)
 	u16 hd64461_stbcr;
 #endif
 
-	if (state != PM_SUSPEND_MEM)
-		return -EINVAL;
-
 #ifdef CONFIG_HD64461_ENABLER
 	outb(0, HD64461_PCC1CSCIER);
 
@@ -70,11 +67,7 @@ static int hp6x0_pm_enter(suspend_state_t state)
 	return 0;
 }
 
-/*
- * Set to PM_DISK_FIRMWARE so we can quickly veto suspend-to-disk.
- */
 static struct pm_ops hp6x0_pm_ops = {
-	.pm_disk_mode	= PM_DISK_FIRMWARE,
 	.enter		= hp6x0_pm_enter,
 };
 

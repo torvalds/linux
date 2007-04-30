@@ -39,7 +39,13 @@ static inline int platform_prepare(void)
 {
 	int error = 0;
 
-	if (pm_disk_mode == PM_DISK_PLATFORM) {
+	switch (pm_disk_mode) {
+	case PM_DISK_TEST:
+	case PM_DISK_TESTPROC:
+	case PM_DISK_SHUTDOWN:
+	case PM_DISK_REBOOT:
+		break;
+	default:
 		if (pm_ops && pm_ops->prepare)
 			error = pm_ops->prepare(PM_SUSPEND_DISK);
 	}
@@ -48,40 +54,48 @@ static inline int platform_prepare(void)
 
 /**
  *	power_down - Shut machine down for hibernate.
- *	@mode:		Suspend-to-disk mode
  *
- *	Use the platform driver, if configured so, and return gracefully if it
- *	fails.
- *	Otherwise, try to power off and reboot. If they fail, halt the machine,
- *	there ain't no turning back.
+ *	Use the platform driver, if configured so; otherwise try
+ *	to power off or reboot.
  */
 
-static void power_down(suspend_disk_method_t mode)
+static void power_down(void)
 {
-	switch(mode) {
-	case PM_DISK_PLATFORM:
-		if (pm_ops && pm_ops->enter) {
-			kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
-			pm_ops->enter(PM_SUSPEND_DISK);
-			break;
-		}
+	switch (pm_disk_mode) {
+	case PM_DISK_TEST:
+	case PM_DISK_TESTPROC:
+		break;
 	case PM_DISK_SHUTDOWN:
 		kernel_power_off();
 		break;
 	case PM_DISK_REBOOT:
 		kernel_restart(NULL);
 		break;
+	default:
+		if (pm_ops && pm_ops->enter) {
+			kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
+			pm_ops->enter(PM_SUSPEND_DISK);
+			break;
+		}
 	}
 	kernel_halt();
-	/* Valid image is on the disk, if we continue we risk serious data corruption
-	   after resume. */
+	/*
+	 * Valid image is on the disk, if we continue we risk serious data
+	 * corruption after resume.
+	 */
 	printk(KERN_CRIT "Please power me down manually\n");
 	while(1);
 }
 
 static inline void platform_finish(void)
 {
-	if (pm_disk_mode == PM_DISK_PLATFORM) {
+	switch (pm_disk_mode) {
+	case PM_DISK_TEST:
+	case PM_DISK_TESTPROC:
+	case PM_DISK_SHUTDOWN:
+	case PM_DISK_REBOOT:
+		break;
+	default:
 		if (pm_ops && pm_ops->finish)
 			pm_ops->finish(PM_SUSPEND_DISK);
 	}
@@ -166,7 +180,7 @@ int pm_suspend_disk(void)
 		pr_debug("PM: writing image.\n");
 		error = swsusp_write();
 		if (!error)
-			power_down(pm_disk_mode);
+			power_down();
 		else {
 			swsusp_free();
 			goto Thaw;
@@ -338,10 +352,14 @@ static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
 		}
 	}
 	if (mode) {
-		if (mode == PM_DISK_SHUTDOWN || mode == PM_DISK_REBOOT ||
-		     mode == PM_DISK_TEST || mode == PM_DISK_TESTPROC) {
+		switch (mode) {
+		case PM_DISK_SHUTDOWN:
+		case PM_DISK_REBOOT:
+		case PM_DISK_TEST:
+		case PM_DISK_TESTPROC:
 			pm_disk_mode = mode;
-		} else {
+			break;
+		default:
 			if (pm_ops && pm_ops->enter &&
 			    (mode == pm_ops->pm_disk_mode))
 				pm_disk_mode = mode;

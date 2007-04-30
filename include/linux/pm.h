@@ -112,6 +112,8 @@ typedef int __bitwise suspend_state_t;
 
 typedef int __bitwise suspend_disk_method_t;
 
+/* invalid must be 0 so struct pm_ops initialisers can leave it out */
+#define PM_DISK_INVALID		((__force suspend_disk_method_t) 0)
 #define	PM_DISK_FIRMWARE	((__force suspend_disk_method_t) 1)
 #define	PM_DISK_PLATFORM	((__force suspend_disk_method_t) 2)
 #define	PM_DISK_SHUTDOWN	((__force suspend_disk_method_t) 3)
@@ -137,17 +139,16 @@ typedef int __bitwise suspend_disk_method_t;
  * @finish: Called when the system has left the given state and all devices
  *	are resumed. The return value is ignored.
  *
- * @pm_disk_mode: Set to the disk method that the user should be able to
- *	configure for suspend-to-disk. Since %PM_DISK_SHUTDOWN,
- *	%PM_DISK_REBOOT, %PM_DISK_TEST and %PM_DISK_TESTPROC
- *	are always allowed, currently only %PM_DISK_PLATFORM
- *	makes sense. If the user then choses %PM_DISK_PLATFORM,
- *	the @prepare call will be called before suspending to disk
- *	(if present), the @enter call should be present and will
- *	be called after all state has been saved and the machine
- *	is ready to be shut down/suspended/..., and the @finish
- *	callback is called after state has been restored. All
- *	these calls are called with %PM_SUSPEND_DISK as the state.
+ * @pm_disk_mode: The generic code always allows one of the shutdown methods
+ *	%PM_DISK_SHUTDOWN, %PM_DISK_REBOOT, %PM_DISK_TEST and
+ *	%PM_DISK_TESTPROC. If this variable is set, the mode it is set
+ *	to is allowed in addition to those modes and is also made default.
+ *	When this mode is sent selected, the @prepare call will be called
+ *	before suspending to disk (if present), the @enter call should be
+ *	present and will be called after all state has been saved and the
+ *	machine is ready to be powered off; the @finish callback is called
+ *	after state has been restored. All these calls are called with
+ *	%PM_SUSPEND_DISK as the state.
  */
 struct pm_ops {
 	int (*valid)(suspend_state_t state);

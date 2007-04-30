@@ -370,7 +370,6 @@ static int omap2_pm_finish(suspend_state_t state)
 }
 
 static struct pm_ops omap_pm_ops = {
-	.pm_disk_mode	= 0,
 	.prepare	= omap2_pm_prepare,
 	.enter		= omap2_pm_enter,
 	.finish		= omap2_pm_finish,

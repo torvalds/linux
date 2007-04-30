@@ -223,11 +223,7 @@ int pxa_pm_finish(suspend_state_t state)
 
 EXPORT_SYMBOL_GPL(pxa_pm_finish);
 
-/*
- * Set to PM_DISK_FIRMWARE so we can quickly veto suspend-to-disk.
- */
 static struct pm_ops pxa_pm_ops = {
-	.pm_disk_mode	= PM_DISK_FIRMWARE,
 	.prepare	= pxa_pm_prepare,
 	.enter		= pxa_pm_enter,
 	.finish		= pxa_pm_finish,
