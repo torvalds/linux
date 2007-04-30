@@ -1265,20 +1265,15 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	return flag;
 }
 
-/* F-RTO can only be used if these conditions are satisfied:
- *  - there must be some unsent new data
- *  - the advertised window should allow sending it
- *  - TCP has never retransmitted anything other than head (SACK enhanced
- *    variant from Appendix B of RFC4138 is more robust here)
+/* F-RTO can only be used if TCP has never retransmitted anything other than
+ * head (SACK enhanced variant from Appendix B of RFC4138 is more robust here)
  */
 int tcp_use_frto(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 
-	if (!sysctl_tcp_frto || !tcp_send_head(sk) ||
-		after(TCP_SKB_CB(tcp_send_head(sk))->end_seq,
-		      tp->snd_una + tp->snd_wnd))
+	if (!sysctl_tcp_frto)
 		return 0;
 
 	if (IsSackFrto())
@@ -2710,6 +2705,14 @@ static int tcp_process_frto(struct sock *sk, u32 prior_snd_una, int flag)
 	}
 
 	if (tp->frto_counter == 1) {
+		/* Sending of the next skb must be allowed or no FRTO */
+		if (!tcp_send_head(sk) ||
+		    after(TCP_SKB_CB(tcp_send_head(sk))->end_seq,
+				     tp->snd_una + tp->snd_wnd)) {
+			tcp_enter_frto_loss(sk, tp->frto_counter + 1, flag);
+			return 1;
+		}
+
 		tp->snd_cwnd = tcp_packets_in_flight(tp) + 2;
 		tp->frto_counter = 2;
 		return 1;
