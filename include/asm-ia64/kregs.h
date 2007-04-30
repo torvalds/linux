@@ -29,8 +29,7 @@
  */
 #define IA64_TR_KERNEL		0	/* itr0, dtr0: maps kernel image (code & data) */
 #define IA64_TR_PALCODE		1	/* itr1: maps PALcode as required by EFI */
-#define IA64_TR_PERCPU_DATA	1	/* dtr1: percpu data */
-#define IA64_TR_CURRENT_STACK	2	/* dtr2: maps kernel's memory- & register-stacks */
+#define IA64_TR_CURRENT_STACK	1	/* dtr1: maps kernel's memory- & register-stacks */
 
 /* Processor status register bits: */
 #define IA64_PSR_BE_BIT		1
