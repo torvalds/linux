@@ -1742,7 +1742,7 @@ static int usbvision_set_video_format(struct usb_usbvision *usbvision, int forma
 		format = ISOC_MODE_YUV420;
 	}
 	value[0] = 0x0A;  //TODO: See the effect of the filter
-	value[1] = format;
+	value[1] = format; // Sets the VO_MODE register which follows FILT_CONT
 	rc = usb_control_msg(usbvision->dev, usb_sndctrlpipe(usbvision->dev, 1),
 			     USBVISION_OP_CODE,
 			     USB_DIR_OUT | USB_TYPE_VENDOR |
