@@ -16,7 +16,7 @@ AFLAGS		+= -mrelax -mno-pic
 CFLAGS_MODULE	+= -mno-relax
 LDFLAGS_vmlinux	+= --relax
 
-cpuflags-$(CONFIG_CPU_AP7000)	+= -mcpu=ap7000
+cpuflags-$(CONFIG_CPU_AT32AP7000)	+= -mcpu=ap7000
 
 CFLAGS		+= $(cpuflags-y)
 AFLAGS		+= $(cpuflags-y)
