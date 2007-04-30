@@ -483,6 +483,13 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 	case MSR_GS_BASE:
 		vmcs_writel(GUEST_GS_BASE, data);
 		break;
+	case MSR_LSTAR:
+	case MSR_SYSCALL_MASK:
+		msr = find_msr_entry(vcpu, msr_index);
+		if (msr)
+			msr->data = data;
+		load_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
+		break;
 #endif
 	case MSR_IA32_SYSENTER_CS:
 		vmcs_write32(GUEST_SYSENTER_CS, data);
@@ -1820,7 +1827,7 @@ static int vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int fs_gs_ldt_reload_needed;
 	int r;
 
-again:
+preempted:
 	/*
 	 * Set host fs and gs selectors.  Unfortunately, 22.2.3 does not
 	 * allow segment selectors with cpl > 0 or ti == 1.
@@ -1851,19 +1858,20 @@ again:
 	if (vcpu->guest_debug.enabled)
 		kvm_guest_debug_pre(vcpu);
 
-	kvm_load_guest_fpu(vcpu);
-
-	/*
-	 * Loading guest fpu may have cleared host cr0.ts
-	 */
-	vmcs_writel(HOST_CR0, read_cr0());
-
 #ifdef CONFIG_X86_64
 	if (is_long_mode(vcpu)) {
 		save_msrs(vcpu->host_msrs + msr_offset_kernel_gs_base, 1);
 		load_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
 	}
 #endif
+
+again:
+	kvm_load_guest_fpu(vcpu);
+
+	/*
+	 * Loading guest fpu may have cleared host cr0.ts
+	 */
+	vmcs_writel(HOST_CR0, read_cr0());
 
 	asm (
 		/* Store host registers */
@@ -1984,35 +1992,7 @@ again:
 		[cr2]"i"(offsetof(struct kvm_vcpu, cr2))
 	      : "cc", "memory" );
 
-	/*
-	 * Reload segment selectors ASAP. (it's needed for a functional
-	 * kernel: x86 relies on having __KERNEL_PDA in %fs and x86_64
-	 * relies on having 0 in %gs for the CPU PDA to work.)
-	 */
-	if (fs_gs_ldt_reload_needed) {
-		load_ldt(ldt_sel);
-		load_fs(fs_sel);
-		/*
-		 * If we have to reload gs, we must take care to
-		 * preserve our gs base.
-		 */
-		local_irq_disable();
-		load_gs(gs_sel);
-#ifdef CONFIG_X86_64
-		wrmsrl(MSR_GS_BASE, vmcs_readl(HOST_GS_BASE));
-#endif
-		local_irq_enable();
-
-		reload_tss();
-	}
 	++vcpu->stat.exits;
-
-#ifdef CONFIG_X86_64
-	if (is_long_mode(vcpu)) {
-		save_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
-		load_msrs(vcpu->host_msrs, NR_BAD_MSRS);
-	}
-#endif
 
 	vcpu->interrupt_window_open = (vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0;
 
@@ -2035,22 +2015,57 @@ again:
 		if (r > 0) {
 			/* Give scheduler a change to reschedule. */
 			if (signal_pending(current)) {
-				++vcpu->stat.signal_exits;
-				post_kvm_run_save(vcpu, kvm_run);
+				r = -EINTR;
 				kvm_run->exit_reason = KVM_EXIT_INTR;
-				return -EINTR;
+				++vcpu->stat.signal_exits;
+				goto out;
 			}
 
 			if (dm_request_for_irq_injection(vcpu, kvm_run)) {
-				++vcpu->stat.request_irq_exits;
-				post_kvm_run_save(vcpu, kvm_run);
+				r = -EINTR;
 				kvm_run->exit_reason = KVM_EXIT_INTR;
-				return -EINTR;
+				++vcpu->stat.request_irq_exits;
+				goto out;
 			}
-
-			kvm_resched(vcpu);
-			goto again;
+			if (!need_resched()) {
+				++vcpu->stat.light_exits;
+				goto again;
+			}
 		}
+	}
+
+out:
+	/*
+	 * Reload segment selectors ASAP. (it's needed for a functional
+	 * kernel: x86 relies on having __KERNEL_PDA in %fs and x86_64
+	 * relies on having 0 in %gs for the CPU PDA to work.)
+	 */
+	if (fs_gs_ldt_reload_needed) {
+		load_ldt(ldt_sel);
+		load_fs(fs_sel);
+		/*
+		 * If we have to reload gs, we must take care to
+		 * preserve our gs base.
+		 */
+		local_irq_disable();
+		load_gs(gs_sel);
+#ifdef CONFIG_X86_64
+		wrmsrl(MSR_GS_BASE, vmcs_readl(HOST_GS_BASE));
+#endif
+		local_irq_enable();
+
+		reload_tss();
+	}
+#ifdef CONFIG_X86_64
+	if (is_long_mode(vcpu)) {
+		save_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
+		load_msrs(vcpu->host_msrs, NR_BAD_MSRS);
+	}
+#endif
+
+	if (r > 0) {
+		kvm_resched(vcpu);
+		goto preempted;
 	}
 
 	post_kvm_run_save(vcpu, kvm_run);

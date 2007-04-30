@@ -252,6 +252,7 @@ struct kvm_stat {
 	u32 halt_exits;
 	u32 request_irq_exits;
 	u32 irq_exits;
+	u32 light_exits;
 };
 
 struct kvm_vcpu {

@@ -72,6 +72,7 @@ static struct kvm_stats_debugfs_item {
 	{ "halt_exits", STAT_OFFSET(halt_exits) },
 	{ "request_irq", STAT_OFFSET(request_irq_exits) },
 	{ "irq_exits", STAT_OFFSET(irq_exits) },
+	{ "light_exits", STAT_OFFSET(light_exits) },
 	{ NULL }
 };
 
