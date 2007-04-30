@@ -203,6 +203,13 @@ int __udp_lib_get_port(struct sock *sk, unsigned short snum,
 				result = sysctl_local_port_range[0]
 					+ ((result - sysctl_local_port_range[0]) &
 					   (UDP_HTABLE_SIZE - 1));
+			hash = hash_port_and_addr(result, 0);
+			if (__udp_lib_port_inuse(hash, result,
+						 0, udptable))
+				continue;
+			if (!inet_sk(sk)->rcv_saddr)
+				break;
+
 			hash = hash_port_and_addr(result,
 					inet_sk(sk)->rcv_saddr);
 			if (! __udp_lib_port_inuse(hash, result,
@@ -214,18 +221,36 @@ int __udp_lib_get_port(struct sock *sk, unsigned short snum,
 gotit:
 		*port_rover = snum = result;
 	} else {
-		hash = hash_port_and_addr(snum, inet_sk(sk)->rcv_saddr);
+		hash = hash_port_and_addr(snum, 0);
 		head = &udptable[hash & (UDP_HTABLE_SIZE - 1)];
 
 		sk_for_each(sk2, node, head)
-			if (sk2->sk_hash == hash                             &&
-			    sk2 != sk                                        &&
-			    inet_sk(sk2)->num == snum	                     &&
-			    (!sk2->sk_reuse        || !sk->sk_reuse)         &&
-			    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if
-			     || sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
-			    (*saddr_comp)(sk, sk2)                             )
+			if (sk2->sk_hash == hash &&
+			    sk2 != sk &&
+			    inet_sk(sk2)->num == snum &&
+			    (!sk2->sk_reuse || !sk->sk_reuse) &&
+			    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if ||
+			     sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
+			    (*saddr_comp)(sk, sk2))
 				goto fail;
+
+		if (inet_sk(sk)->rcv_saddr) {
+			hash = hash_port_and_addr(snum,
+						  inet_sk(sk)->rcv_saddr);
+			head = &udptable[hash & (UDP_HTABLE_SIZE - 1)];
+
+			sk_for_each(sk2, node, head)
+				if (sk2->sk_hash == hash &&
+				    sk2 != sk &&
+				    inet_sk(sk2)->num == snum &&
+				    (!sk2->sk_reuse || !sk->sk_reuse) &&
+				    (!sk2->sk_bound_dev_if ||
+				     !sk->sk_bound_dev_if ||
+				     sk2->sk_bound_dev_if ==
+				     sk->sk_bound_dev_if) &&
+				    (*saddr_comp)(sk, sk2))
+					goto fail;
+		}
 	}
 	inet_sk(sk)->num = snum;
 	sk->sk_hash = hash;
