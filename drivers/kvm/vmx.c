@@ -1832,16 +1832,21 @@ preempted:
 	 * Set host fs and gs selectors.  Unfortunately, 22.2.3 does not
 	 * allow segment selectors with cpl > 0 or ti == 1.
 	 */
-	fs_sel = read_fs();
-	gs_sel = read_gs();
 	ldt_sel = read_ldt();
-	fs_gs_ldt_reload_needed = (fs_sel & 7) | (gs_sel & 7) | ldt_sel;
-	if (!fs_gs_ldt_reload_needed) {
+	fs_gs_ldt_reload_needed = ldt_sel;
+	fs_sel = read_fs();
+	if (!(fs_sel & 7))
 		vmcs_write16(HOST_FS_SELECTOR, fs_sel);
-		vmcs_write16(HOST_GS_SELECTOR, gs_sel);
-	} else {
+	else {
 		vmcs_write16(HOST_FS_SELECTOR, 0);
+		fs_gs_ldt_reload_needed = 1;
+	}
+	gs_sel = read_gs();
+	if (!(gs_sel & 7))
+		vmcs_write16(HOST_GS_SELECTOR, gs_sel);
+	else {
 		vmcs_write16(HOST_GS_SELECTOR, 0);
+		fs_gs_ldt_reload_needed = 1;
 	}
 
 #ifdef CONFIG_X86_64
@@ -2035,11 +2040,6 @@ again:
 	}
 
 out:
-	/*
-	 * Reload segment selectors ASAP. (it's needed for a functional
-	 * kernel: x86 relies on having __KERNEL_PDA in %fs and x86_64
-	 * relies on having 0 in %gs for the CPU PDA to work.)
-	 */
 	if (fs_gs_ldt_reload_needed) {
 		load_ldt(ldt_sel);
 		load_fs(fs_sel);
