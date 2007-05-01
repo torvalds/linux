@@ -52,7 +52,7 @@ MODULE_LICENSE("GPL v2");
 
 #elif defined(CONFIG_HP300)
 
- #define HILBASE		0xf0428000 /* HP300 (m86k) port address */
+ #define HILBASE		0xf0428000UL /* HP300 (m68k) port address */
  #define HIL_DATA		0x1
  #define HIL_CMD		0x3
  #define HIL_IRQ		2
