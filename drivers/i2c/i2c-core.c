@@ -1298,6 +1298,22 @@ s32 i2c_smbus_write_word_data(struct i2c_client *client, u8 command, u16 value)
 }
 EXPORT_SYMBOL(i2c_smbus_write_word_data);
 
+/* Returns the number of read bytes */
+s32 i2c_smbus_read_block_data(struct i2c_client *client, u8 command,
+			      u8 *values)
+{
+	union i2c_smbus_data data;
+
+	if (i2c_smbus_xfer(client->adapter, client->addr, client->flags,
+	                   I2C_SMBUS_READ, command,
+	                   I2C_SMBUS_BLOCK_DATA, &data))
+		return -1;
+
+	memcpy(values, &data.block[1], data.block[0]);
+	return data.block[0];
+}
+EXPORT_SYMBOL(i2c_smbus_read_block_data);
+
 s32 i2c_smbus_write_block_data(struct i2c_client *client, u8 command,
 			       u8 length, const u8 *values)
 {
