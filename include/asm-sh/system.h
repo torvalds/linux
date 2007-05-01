@@ -9,6 +9,7 @@
 #include <linux/irqflags.h>
 #include <linux/compiler.h>
 #include <asm/types.h>
+#include <asm/ptrace.h>
 
 /*
  *	switch_to() should switch tasks to task nr n, first
@@ -254,6 +255,8 @@ static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
      (__typeof__(*(ptr))) __cmpxchg((ptr), (unsigned long)_o_,		 \
 				    (unsigned long)_n_, sizeof(*(ptr))); \
   })
+
+extern void die(const char *str, struct pt_regs *regs, long err) __attribute__ ((noreturn));
 
 extern void *set_exception_table_vec(unsigned int vec, void *handler);
 

@@ -5,7 +5,7 @@
  *  SuperH version: Copyright (C) 1999 Niibe Yutaka
  *                  Copyright (C) 2000 Philipp Rumpf
  *                  Copyright (C) 2000 David Howells
- *                  Copyright (C) 2002 - 2006 Paul Mundt
+ *                  Copyright (C) 2002 - 2007 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -23,6 +23,7 @@
 #include <linux/limits.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/kdebug.h>
 
 #ifdef CONFIG_SH_KGDB
 #include <asm/kgdb.h>
@@ -75,7 +76,21 @@ static void dump_mem(const char *str, unsigned long bottom, unsigned long top)
 	}
 }
 
-DEFINE_SPINLOCK(die_lock);
+ATOMIC_NOTIFIER_HEAD(shdie_chain);
+
+int register_die_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&shdie_chain, nb);
+}
+EXPORT_SYMBOL(register_die_notifier);
+
+int unregister_die_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&shdie_chain, nb);
+}
+EXPORT_SYMBOL(unregister_die_notifier);
+
+static DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
 {
