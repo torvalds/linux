@@ -395,7 +395,7 @@ static irqreturn_t scsi_tt_intr (int irq, void *dummy)
 
 #endif /* REAL_DMA */
 	
-	NCR5380_intr (0, 0, 0);
+	NCR5380_intr(0, 0);
 
 #if 0
 	/* To be sure the int is not masked */
@@ -461,7 +461,7 @@ static irqreturn_t scsi_falcon_intr (int irq, void *dummy)
 
 #endif /* REAL_DMA */
 
-	NCR5380_intr (0, 0, 0);
+	NCR5380_intr(0, 0);
 	return IRQ_HANDLED;
 }
 
@@ -557,11 +557,11 @@ static void falcon_get_lock( void )
 
 	local_irq_save(flags);
 
-	while( !in_interrupt() && falcon_got_lock && stdma_others_waiting() )
+	while (!in_irq() && falcon_got_lock && stdma_others_waiting())
 		sleep_on( &falcon_fairness_wait );
 
 	while (!falcon_got_lock) {
-		if (in_interrupt())
+		if (in_irq())
 			panic( "Falcon SCSI hasn't ST-DMA lock in interrupt" );
 		if (!falcon_trying_lock) {
 			falcon_trying_lock = 1;
@@ -763,7 +763,6 @@ int atari_scsi_detect (struct scsi_host_template *host)
 	return( 1 );
 }
 
-#ifdef MODULE
 int atari_scsi_release (struct Scsi_Host *sh)
 {
 	if (IS_A_TT())
@@ -772,7 +771,6 @@ int atari_scsi_release (struct Scsi_Host *sh)
 		atari_stram_free (atari_dma_buffer);
 	return 1;
 }
-#endif
 
 void __init atari_scsi_setup(char *str, int *ints)
 {
