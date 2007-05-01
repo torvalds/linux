@@ -88,7 +88,7 @@ static void mmc_decode_cid(struct mmc_card *card)
 /*
  * Given a 128-bit response, decode to our card CSD structure.
  */
-static void mmc_decode_csd(struct mmc_card *card)
+static int mmc_decode_csd(struct mmc_card *card)
 {
 	struct mmc_csd *csd = &card->csd;
 	unsigned int e, m, csd_struct;
@@ -151,15 +151,16 @@ static void mmc_decode_csd(struct mmc_card *card)
 	default:
 		printk("%s: unrecognised CSD structure version %d\n",
 			mmc_hostname(card->host), csd_struct);
-		mmc_card_set_bad(card);
-		return;
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 /*
  * Given a 64-bit response, decode to our card SCR structure.
  */
-static void mmc_decode_scr(struct mmc_card *card)
+static int mmc_decode_scr(struct mmc_card *card)
 {
 	struct sd_scr *scr = &card->scr;
 	unsigned int scr_struct;
@@ -174,12 +175,13 @@ static void mmc_decode_scr(struct mmc_card *card)
 	if (scr_struct != 0) {
 		printk("%s: unrecognised SCR structure version %d\n",
 			mmc_hostname(card->host), scr_struct);
-		mmc_card_set_bad(card);
-		return;
+		return -EINVAL;
 	}
 
 	scr->sda_vsn = UNSTUFF_BITS(resp, 56, 4);
 	scr->bus_widths = UNSTUFF_BITS(resp, 48, 4);
+
+	return 0;
 }
 
 /*
@@ -342,7 +344,10 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		if (err != MMC_ERR_NONE)
 			goto free_card;
 
-		mmc_decode_csd(card);
+		err = mmc_decode_csd(card);
+		if (err < 0)
+			goto free_card;
+
 		mmc_decode_cid(card);
 	}
 
@@ -361,7 +366,9 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		if (err != MMC_ERR_NONE)
 			goto free_card;
 
-		mmc_decode_scr(card);
+		err = mmc_decode_scr(card);
+		if (err < 0)
+			goto free_card;
 
 		/*
 		 * Fetch switch information from card.

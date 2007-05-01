@@ -56,7 +56,7 @@ static const unsigned int tacc_mant[] = {
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
  */
-static void mmc_decode_cid(struct mmc_card *card)
+static int mmc_decode_cid(struct mmc_card *card)
 {
 	u32 *resp = card->raw_cid;
 
@@ -101,15 +101,16 @@ static void mmc_decode_cid(struct mmc_card *card)
 	default:
 		printk("%s: card has unknown MMCA version %d\n",
 			mmc_hostname(card->host), card->csd.mmca_vsn);
-		mmc_card_set_bad(card);
-		break;
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 /*
  * Given a 128-bit response, decode to our card CSD structure.
  */
-static void mmc_decode_csd(struct mmc_card *card)
+static int mmc_decode_csd(struct mmc_card *card)
 {
 	struct mmc_csd *csd = &card->csd;
 	unsigned int e, m, csd_struct;
@@ -123,8 +124,7 @@ static void mmc_decode_csd(struct mmc_card *card)
 	if (csd_struct != 1 && csd_struct != 2) {
 		printk("%s: unrecognised CSD structure version %d\n",
 			mmc_hostname(card->host), csd_struct);
-		mmc_card_set_bad(card);
-		return;
+		return -EINVAL;
 	}
 
 	csd->mmca_vsn	 = UNSTUFF_BITS(resp, 122, 4);
@@ -149,6 +149,8 @@ static void mmc_decode_csd(struct mmc_card *card)
 	csd->r2w_factor = UNSTUFF_BITS(resp, 26, 3);
 	csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
 	csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
+
+	return 0;
 }
 
 /*
@@ -300,8 +302,12 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		if (err != MMC_ERR_NONE)
 			goto free_card;
 
-		mmc_decode_csd(card);
-		mmc_decode_cid(card);
+		err = mmc_decode_csd(card);
+		if (err < 0)
+			goto free_card;
+		err = mmc_decode_cid(card);
+		if (err < 0)
+			goto free_card;
 	}
 
 	/*

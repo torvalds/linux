@@ -72,12 +72,11 @@ static void mmc_release_card(struct device *dev)
 /*
  * This currently matches any MMC driver to any MMC card - drivers
  * themselves make the decision whether to drive this card in their
- * probe method.  However, we force "bad" cards to fail.
+ * probe method.
  */
 static int mmc_bus_match(struct device *dev, struct device_driver *drv)
 {
-	struct mmc_card *card = dev_to_mmc_card(dev);
-	return !mmc_card_bad(card);
+	return 1;
 }
 
 static int
