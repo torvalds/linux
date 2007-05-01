@@ -37,16 +37,16 @@
 struct hdlc_header {
 	u8 address;
 	u8 control;
-	u16 protocol;
+	__be16 protocol;
 }__attribute__ ((packed));
 
 
 struct cisco_packet {
-	u32 type;		/* code */
-	u32 par1;
-	u32 par2;
-	u16 rel;		/* reliability */
-	u32 time;
+	__be32 type;		/* code */
+	__be32 par1;
+	__be32 par2;
+	__be16 rel;		/* reliability */
+	__be32 time;
 }__attribute__ ((packed));
 #define	CISCO_PACKET_LEN	18
 #define	CISCO_BIG_PACKET_LEN	20
@@ -97,7 +97,7 @@ static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 
 static void cisco_keepalive_send(struct net_device *dev, u32 type,
-				 u32 par1, u32 par2)
+				 __be32 par1, __be32 par2)
 {
 	struct sk_buff *skb;
 	struct cisco_packet *data;
@@ -115,16 +115,16 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	data = (struct cisco_packet*)(skb->data + 4);
 
 	data->type = htonl(type);
-	data->par1 = htonl(par1);
-	data->par2 = htonl(par2);
-	data->rel = 0xFFFF;
+	data->par1 = par1;
+	data->par2 = par2;
+	data->rel = __constant_htons(0xFFFF);
 	/* we will need do_div here if 1000 % HZ != 0 */
 	data->time = htonl((jiffies - INITIAL_JIFFIES) * (1000 / HZ));
 
 	skb_put(skb, sizeof(struct cisco_packet));
 	skb->priority = TC_PRIO_CONTROL;
 	skb->dev = dev;
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	dev_queue_xmit(skb);
 }
@@ -193,7 +193,7 @@ static int cisco_rx(struct sk_buff *skb)
 		case CISCO_ADDR_REQ: /* Stolen from syncppp.c :-) */
 			in_dev = dev->ip_ptr;
 			addr = 0;
-			mask = ~0; /* is the mask correct? */
+			mask = __constant_htonl(~0); /* is the mask correct? */
 
 			if (in_dev != NULL) {
 				struct in_ifaddr **ifap = &in_dev->ifa_list;
@@ -245,7 +245,7 @@ static int cisco_rx(struct sk_buff *skb)
 	} /* switch(protocol) */
 
 	printk(KERN_INFO "%s: Unsupported protocol %x\n", dev->name,
-	       data->protocol);
+	       ntohs(data->protocol));
 	dev_kfree_skb_any(skb);
 	return NET_RX_DROP;
 
@@ -270,8 +270,9 @@ static void cisco_timer(unsigned long arg)
 		netif_dormant_on(dev);
 	}
 
-	cisco_keepalive_send(dev, CISCO_KEEPALIVE_REQ, ++state(hdlc)->txseq,
-			     state(hdlc)->rxseq);
+	cisco_keepalive_send(dev, CISCO_KEEPALIVE_REQ,
+			     htonl(++state(hdlc)->txseq),
+			     htonl(state(hdlc)->rxseq));
 	state(hdlc)->request_sent = 1;
 	state(hdlc)->timer.expires = jiffies +
 		state(hdlc)->settings.interval * HZ;

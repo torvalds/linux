@@ -291,9 +291,9 @@ static int cell_iommu_find_ioc(int nid, unsigned long *base)
 		const unsigned int *nidp;
 		const unsigned long *tmp;
 
-		nidp = get_property(np, "node-id", NULL);
+		nidp = of_get_property(np, "node-id", NULL);
 		if (nidp && *nidp == nid) {
-			tmp = get_property(np, "ioc-translation", NULL);
+			tmp = of_get_property(np, "ioc-translation", NULL);
 			if (tmp) {
 				*base = *tmp;
 				of_node_put(np);
@@ -430,7 +430,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	struct iommu_window *window;
 	const unsigned int *ioid;
 
-	ioid = get_property(np, "ioid", NULL);
+	ioid = of_get_property(np, "ioid", NULL);
 	if (ioid == NULL)
 		printk(KERN_WARNING "iommu: missing ioid for %s using 0\n",
 		       np->full_name);
@@ -496,7 +496,7 @@ static void cell_dma_dev_setup(struct device *dev)
 	struct dev_archdata *archdata = &dev->archdata;
 
 	/* If we run without iommu, no need to do anything */
-	if (pci_dma_ops == &dma_direct_ops)
+	if (get_pci_dma_ops() == &dma_direct_ops)
 		return;
 
 	/* Current implementation uses the first window available in that
@@ -530,7 +530,7 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
 		return 0;
 
 	/* We use the PCI DMA ops */
-	dev->archdata.dma_ops = pci_dma_ops;
+	dev->archdata.dma_ops = get_pci_dma_ops();
 
 	cell_dma_dev_setup(dev);
 
@@ -549,7 +549,7 @@ static int __init cell_iommu_get_window(struct device_node *np,
 	unsigned long index;
 
 	/* Use ibm,dma-window if available, else, hard code ! */
-	dma_window = get_property(np, "ibm,dma-window", NULL);
+	dma_window = of_get_property(np, "ibm,dma-window", NULL);
 	if (dma_window == NULL) {
 		*base = 0;
 		*size = 0x80000000u;
@@ -646,7 +646,7 @@ static int __init cell_iommu_init_disabled(void)
 	unsigned long base = 0, size;
 
 	/* When no iommu is present, we use direct DMA ops */
-	pci_dma_ops = &dma_direct_ops;
+	set_pci_dma_ops(&dma_direct_ops);
 
 	/* First make sure all IOC translation is turned off */
 	cell_disable_iommus();
@@ -734,7 +734,7 @@ static int __init cell_iommu_init(void)
 	}
 
 	/* Setup default PCI iommu ops */
-	pci_dma_ops = &dma_iommu_ops;
+	set_pci_dma_ops(&dma_iommu_ops);
 
  bail:
 	/* Register callbacks on OF platform device addition/removal

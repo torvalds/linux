@@ -565,11 +565,11 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 				const struct of_device_id *id)
 {
 	struct ehca_shca *shca;
-	u64 *handle;
+	const u64 *handle;
 	struct ib_pd *ibpd;
 	int ret;
 
-	handle = (u64 *)get_property(dev->ofdev.node, "ibm,hca-handle", NULL);
+	handle = get_property(dev->ofdev.node, "ibm,hca-handle", NULL);
 	if (!handle) {
 		ehca_gen_err("Cannot get eHCA handle for adapter: %s.",
 			     dev->ofdev.node->full_name);
@@ -587,6 +587,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		ehca_gen_err("Cannot allocate shca memory.");
 		return -ENOMEM;
 	}
+	mutex_init(&shca->modify_mutex);
 
 	shca->ibmebus_dev = dev;
 	shca->ipz_hca_handle.handle = *handle;

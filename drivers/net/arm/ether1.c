@@ -875,7 +875,6 @@ ether1_recv_done (struct net_device *dev)
 			skb = dev_alloc_skb (length + 2);
 
 			if (skb) {
-				skb->dev = dev;
 				skb_reserve (skb, 2);
 
 				ether1_readbuffer (dev, skb_put (skb, length), rbd.rbd_bufl, length);

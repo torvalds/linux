@@ -22,6 +22,37 @@
 extern void vide(void);
 __asm__(".align 4\nvide: ret");
 
+#define ENABLE_C1E_MASK         0x18000000
+#define CPUID_PROCESSOR_SIGNATURE       1
+#define CPUID_XFAM              0x0ff00000
+#define CPUID_XFAM_K8           0x00000000
+#define CPUID_XFAM_10H          0x00100000
+#define CPUID_XFAM_11H          0x00200000
+#define CPUID_XMOD              0x000f0000
+#define CPUID_XMOD_REV_F        0x00040000
+
+/* AMD systems with C1E don't have a working lAPIC timer. Check for that. */
+static __cpuinit int amd_apic_timer_broken(void)
+{
+	u32 lo, hi;
+	u32 eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
+	switch (eax & CPUID_XFAM) {
+	case CPUID_XFAM_K8:
+		if ((eax & CPUID_XMOD) < CPUID_XMOD_REV_F)
+			break;
+	case CPUID_XFAM_10H:
+	case CPUID_XFAM_11H:
+		rdmsr(MSR_K8_ENABLE_C1E, lo, hi);
+		if (lo & ENABLE_C1E_MASK)
+			return 1;
+                break;
+        default:
+                /* err on the side of caution */
+		return 1;
+        }
+	return 0;
+}
+
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
@@ -241,6 +272,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	if (cpuid_eax(0x80000000) >= 0x80000006)
 		num_cache_leaves = 3;
+
+	if (amd_apic_timer_broken())
+		set_bit(X86_FEATURE_LAPIC_TIMER_BROKEN, c->x86_capability);
 }
 
 static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)

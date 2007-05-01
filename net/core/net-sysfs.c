@@ -352,8 +352,8 @@ static ssize_t wireless_show(struct device *d, char *buf,
 
 	read_lock(&dev_base_lock);
 	if (dev_isalive(dev)) {
-		if(dev->wireless_handlers &&
-		   dev->wireless_handlers->get_wireless_stats)
+		if (dev->wireless_handlers &&
+		    dev->wireless_handlers->get_wireless_stats)
 			iw = dev->wireless_handlers->get_wireless_stats(dev);
 		if (iw != NULL)
 			ret = (*format)(iw, buf);
@@ -412,20 +412,25 @@ static int netdev_uevent(struct device *d, char **envp,
 			 int num_envp, char *buf, int size)
 {
 	struct net_device *dev = to_net_dev(d);
-	int i = 0;
-	int n;
+	int retval, len = 0, i = 0;
 
 	/* pass interface to uevent. */
-	envp[i++] = buf;
-	n = snprintf(buf, size, "INTERFACE=%s", dev->name) + 1;
-	buf += n;
-	size -= n;
+	retval = add_uevent_var(envp, num_envp, &i,
+				buf, size, &len,
+				"INTERFACE=%s", dev->name);
+	if (retval)
+		goto exit;
 
-	if ((size <= 0) || (i >= num_envp))
-		return -ENOMEM;
+	/* pass ifindex to uevent.
+	 * ifindex is useful as it won't change (interface name may change)
+	 * and is what RtNetlink uses natively. */
+	retval = add_uevent_var(envp, num_envp, &i,
+				buf, size, &len,
+				"IFINDEX=%d", dev->ifindex);
 
+exit:
 	envp[i] = NULL;
-	return 0;
+	return retval;
 }
 #endif
 

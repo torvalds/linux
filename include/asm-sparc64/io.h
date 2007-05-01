@@ -24,14 +24,6 @@ extern unsigned long kern_base, kern_size;
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 #define BIO_VMERGE_BOUNDARY	8192
 
-/* Different PCI controllers we support have their PCI MEM space
- * mapped to an either 2GB (Psycho) or 4GB (Sabre) aligned area,
- * so need to chop off the top 33 or 32 bits.
- */
-extern unsigned long pci_memspace_mask;
-
-#define bus_dvma_to_mem(__vaddr) ((__vaddr) & pci_memspace_mask)
-
 static __inline__ u8 _inb(unsigned long addr)
 {
 	u8 ret;

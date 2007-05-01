@@ -318,7 +318,7 @@ static int __init spider_pci_workaround_init(void)
 	 */
 	list_for_each_entry(phb, &hose_list, list_node) {
 		struct device_node *np = phb->arch_data;
-		const char *model = get_property(np, "model", NULL);
+		const char *model = of_get_property(np, "model", NULL);
 
 		/* If no model property or name isn't exactly "pci", skip */
 		if (model == NULL || strcmp(np->name, "pci"))

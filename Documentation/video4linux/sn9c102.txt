@@ -25,7 +25,7 @@ Index
 
 1. Copyright
 ============
-Copyright (C) 2004-2006 by Luca Risolia <luca.risolia@studio.unibo.it>
+Copyright (C) 2004-2007 by Luca Risolia <luca.risolia@studio.unibo.it>
 
 
 2. Disclaimer
@@ -216,10 +216,10 @@ Description:    Debugging information level, from 0 to 3:
 		1 = critical errors
 		2 = significant informations
 		3 = more verbose messages
-		Level 3 is useful for testing only, when only one device
-		is used. It also shows some more informations about the
-		hardware being detected. This parameter can be changed at
-		runtime thanks to the /sys filesystem interface.
+		Level 3 is useful for testing only. It also shows some more
+		informations about the hardware being detected.
+		This parameter can be changed at runtime thanks to the /sys
+		filesystem interface.
 Default:        2
 -------------------------------------------------------------------------------
 
@@ -235,7 +235,7 @@ created in the /sys/class/video4linux/videoX directory. You can set the green
 channel's gain by writing the desired value to it. The value may range from 0
 to 15 for the SN9C101 or SN9C102 bridges, from 0 to 127 for the SN9C103,
 SN9C105 and SN9C120 bridges.
-Similarly, only for the SN9C103, SN9C105 and SN9120 controllers, blue and red
+Similarly, only for the SN9C103, SN9C105 and SN9C120 controllers, blue and red
 gain control files are available in the same directory, for which accepted
 values may range from 0 to 127.
 
@@ -402,38 +402,49 @@ Vendor ID  Product ID
 0x0c45     0x60bc
 0x0c45     0x60be
 0x0c45     0x60c0
+0x0c45     0x60c2
 0x0c45     0x60c8
 0x0c45     0x60cc
 0x0c45     0x60ea
 0x0c45     0x60ec
+0x0c45     0x60ef
 0x0c45     0x60fa
 0x0c45     0x60fb
 0x0c45     0x60fc
 0x0c45     0x60fe
+0x0c45     0x6102
+0x0c45     0x6108
+0x0c45     0x610f
 0x0c45     0x6130
+0x0c45     0x6138
 0x0c45     0x613a
 0x0c45     0x613b
 0x0c45     0x613c
 0x0c45     0x613e
 
 The list above does not imply that all those devices work with this driver: up
-until now only the ones that assemble the following image sensors are
-supported; kernel messages will always tell you whether this is the case (see
-"Module loading" paragraph):
+until now only the ones that assemble the following pairs of SN9C1xx bridges
+and image sensors are supported; kernel messages will always tell you whether
+this is the case (see "Module loading" paragraph):
 
-Model       Manufacturer
------       ------------
-HV7131D     Hynix Semiconductor, Inc.
-MI-0343     Micron Technology, Inc.
-OV7630      OmniVision Technologies, Inc.
-OV7660      OmniVision Technologies, Inc.
-PAS106B     PixArt Imaging, Inc.
-PAS202BCA   PixArt Imaging, Inc.
-PAS202BCB   PixArt Imaging, Inc.
-TAS5110C1B  Taiwan Advanced Sensor Corporation
-TAS5130D1B  Taiwan Advanced Sensor Corporation
+Image sensor / SN9C1xx bridge      | SN9C10[12]  SN9C103  SN9C105  SN9C120
+-------------------------------------------------------------------------------
+HV7131D    Hynix Semiconductor     | Yes         No       No       No
+HV7131R    Hynix Semiconductor     | No          Yes      Yes      Yes
+MI-0343    Micron Technology       | Yes         No       No       No
+MI-0360    Micron Technology       | No          Yes      No       No
+OV7630     OmniVision Technologies | Yes         Yes      No       No
+OV7660     OmniVision Technologies | No          No       Yes      Yes
+PAS106B    PixArt Imaging          | Yes         No       No       No
+PAS202B    PixArt Imaging          | Yes         Yes      No       No
+TAS5110C1B Taiwan Advanced Sensor  | Yes         No       No       No
+TAS5110D   Taiwan Advanced Sensor  | Yes         No       No       No
+TAS5130D1B Taiwan Advanced Sensor  | Yes         No       No       No
 
-Some of the available control settings of each image sensor are supported
+"Yes" means that the pair is supported by the driver, while "No" means that the
+pair does not exist or is not supported by the driver.
+
+Only some of the available control settings of each image sensor are supported
 through the V4L2 interface.
 
 Donations of new models for further testing and support would be much
@@ -482,8 +493,8 @@ The SN9C1xx PC Camera Controllers can send images in two possible video
 formats over the USB: either native "Sequential RGB Bayer" or compressed.
 The compression is used to achieve high frame rates. With regard to the
 SN9C101, SN9C102 and SN9C103, the compression is based on the Huffman encoding
-algorithm described below, while the SN9C105 and SN9C120 the compression is
-based on the JPEG standard.
+algorithm described below, while with regard to the SN9C105 and SN9C120 the
+compression is based on the JPEG standard.
 The current video format may be selected or queried from the user application
 by calling the VIDIOC_S_FMT or VIDIOC_G_FMT ioctl's, as described in the V4L2
 API specifications.
@@ -573,4 +584,5 @@ order):
 - Mizuno Takafumi for the donation of a webcam;
 - an "anonymous" donator (who didn't want his name to be revealed) for the
   donation of a webcam.
-- an anonymous donator for the donation of four webcams.
+- an anonymous donator for the donation of four webcams and two boards with ten
+  image sensors.

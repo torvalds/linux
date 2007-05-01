@@ -71,7 +71,7 @@ phys_addr_t get_qe_base(void)
 	qe = of_find_node_by_type(NULL, "qe");
 	if (qe) {
 		unsigned int size;
-		const void *prop = get_property(qe, "reg", &size);
+		const void *prop = of_get_property(qe, "reg", &size);
 		qebase = of_translate_address(qe, prop);
 		of_node_put(qe);
 	};
@@ -158,7 +158,7 @@ unsigned int get_brg_clk(void)
 	qe = of_find_node_by_type(NULL, "qe");
 	if (qe) {
 		unsigned int size;
-		const u32 *prop = get_property(qe, "brg-frequency", &size);
+		const u32 *prop = of_get_property(qe, "brg-frequency", &size);
 		brg_clk = *prop;
 		of_node_put(qe);
 	};
@@ -251,13 +251,13 @@ static int qe_sdma_init(void)
 
 	/* allocate 2 internal temporary buffers (512 bytes size each) for
 	 * the SDMA */
-	sdma_buf_offset = qe_muram_alloc(512 * 2, 64);
+ 	sdma_buf_offset = qe_muram_alloc(512 * 2, 4096);
 	if (IS_MURAM_ERR(sdma_buf_offset))
 		return -ENOMEM;
 
 	out_be32(&sdma->sdebcr, sdma_buf_offset & QE_SDEBCR_BA_MASK);
-	out_be32(&sdma->sdmr, (QE_SDMR_GLB_1_MSK | (0x1 >>
-					QE_SDMR_CEN_SHIFT)));
+ 	out_be32(&sdma->sdmr, (QE_SDMR_GLB_1_MSK |
+ 					(0x1 << QE_SDMR_CEN_SHIFT)));
 
 	return 0;
 }

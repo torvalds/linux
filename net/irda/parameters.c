@@ -160,7 +160,7 @@ static int irda_insert_integer(void *self, __u8 *buf, int len, __u8 pi,
 	}
 	/* Check if buffer is long enough for insertion */
 	if (len < (2+p.pl)) {
-		IRDA_WARNING("%s: buffer to short for insertion!\n",
+		IRDA_WARNING("%s: buffer too short for insertion!\n",
 			     __FUNCTION__);
 		return -1;
 	}
@@ -216,7 +216,7 @@ static int irda_extract_integer(void *self, __u8 *buf, int len, __u8 pi,
 
 	/* Check if buffer is long enough for parsing */
 	if (len < (2+p.pl)) {
-		IRDA_WARNING("%s: buffer to short for parsing! "
+		IRDA_WARNING("%s: buffer too short for parsing! "
 			     "Need %d bytes, but len is only %d\n",
 			     __FUNCTION__, p.pl, len);
 		return -1;
@@ -304,7 +304,7 @@ static int irda_extract_string(void *self, __u8 *buf, int len, __u8 pi,
 
 	/* Check if buffer is long enough for parsing */
 	if (len < (2+p.pl)) {
-		IRDA_WARNING("%s: buffer to short for parsing! "
+		IRDA_WARNING("%s: buffer too short for parsing! "
 			     "Need %d bytes, but len is only %d\n",
 			     __FUNCTION__, p.pl, len);
 		return -1;
@@ -343,7 +343,7 @@ static int irda_extract_octseq(void *self, __u8 *buf, int len, __u8 pi,
 
 	/* Check if buffer is long enough for parsing */
 	if (len < (2+p.pl)) {
-		IRDA_WARNING("%s: buffer to short for parsing! "
+		IRDA_WARNING("%s: buffer too short for parsing! "
 			     "Need %d bytes, but len is only %d\n",
 			     __FUNCTION__, p.pl, len);
 		return -1;

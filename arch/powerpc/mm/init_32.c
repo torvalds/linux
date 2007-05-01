@@ -115,6 +115,10 @@ void MMU_setup(void)
 	if (strstr(cmd_line, "noltlbs")) {
 		__map_without_ltlbs = 1;
 	}
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	__map_without_bats = 1;
+	__map_without_ltlbs = 1;
+#endif
 }
 
 /*

@@ -2027,7 +2027,6 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 		 */
 		csum = retdesc->tcp_udp_csum;
 
-		skb->dev = dev;
 		skb->protocol = eth_type_trans(skb, dev);
 
 		/*

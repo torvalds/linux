@@ -67,7 +67,7 @@ static void celleb_show_cpuinfo(struct seq_file *m)
 
 	root = of_find_node_by_path("/");
 	if (root)
-		model = get_property(root, "model", NULL);
+		model = of_get_property(root, "model", NULL);
 	/* using "CHRP" is to trick anaconda into installing FCx into Celleb */
 	seq_printf(m, "machine\t\t: %s %s\n", celleb_machine_type, model);
 	of_node_put(root);
@@ -128,15 +128,6 @@ static int __init celleb_probe(void)
 	return 1;
 }
 
-/*
- * Cell has no legacy IO; anything calling this function has to
- * fail or bad things will happen
- */
-static int celleb_check_legacy_ioport(unsigned int baseport)
-{
-	return -ENODEV;
-}
-
 #ifdef CONFIG_KEXEC
 static void celleb_kexec_cpu_down(int crash, int secondary)
 {
@@ -173,7 +164,6 @@ define_machine(celleb) {
 	.get_rtc_time		= beat_get_rtc_time,
 	.set_rtc_time		= beat_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
-	.check_legacy_ioport	= celleb_check_legacy_ioport,
 	.progress		= celleb_progress,
 	.power_save		= beat_power_save,
 	.nvram_size		= beat_nvram_get_size,

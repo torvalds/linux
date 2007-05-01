@@ -633,8 +633,6 @@ static inline void ioc3_rx(struct ioc3_private *ip)
 
 			ip->rx_skbs[rx_entry] = NULL;	/* Poison  */
 
-			new_skb->dev = priv_netdev(ip);
-
 			/* Because we reserve afterwards. */
 			skb_put(new_skb, (1664 + RX_OFFSET));
 			rxb = (struct ioc3_erxbuf *) new_skb->data;
@@ -940,7 +938,6 @@ static void ioc3_alloc_rings(struct net_device *dev)
 			}
 
 			ip->rx_skbs[i] = skb;
-			skb->dev = dev;
 
 			/* Because we reserve afterwards. */
 			skb_put(skb, (1664 + RX_OFFSET));
@@ -1396,9 +1393,9 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * manually.
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		int proto = ntohs(skb->nh.iph->protocol);
+		const struct iphdr *ih = ip_hdr(skb);
+		const int proto = ntohs(ih->protocol);
 		unsigned int csoff;
-		struct iphdr *ih = skb->nh.iph;
 		uint32_t csum, ehsum;
 		uint16_t *eh;
 
@@ -1425,11 +1422,11 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		csoff = ETH_HLEN + (ih->ihl << 2);
 		if (proto == IPPROTO_UDP) {
 			csoff += offsetof(struct udphdr, check);
-			skb->h.uh->check = csum;
+			udp_hdr(skb)->check = csum;
 		}
 		if (proto == IPPROTO_TCP) {
 			csoff += offsetof(struct tcphdr, check);
-			skb->h.th->check = csum;
+			tcp_hdr(skb)->check = csum;
 		}
 
 		w0 = ETXD_DOCHECKSUM | (csoff << ETXD_CHKOFF_SHIFT);
@@ -1446,7 +1443,7 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (len <= 104) {
 		/* Short packet, let's copy it directly into the ring.  */
-		memcpy(desc->data, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, desc->data, skb->len);
 		if (len < ETH_ZLEN) {
 			/* Very short packet, pad with zeros at the end. */
 			memset(desc->data + len, 0, ETH_ZLEN - len);

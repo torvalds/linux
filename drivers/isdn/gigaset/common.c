@@ -944,8 +944,8 @@ static DEFINE_SPINLOCK(driver_lock);
 struct cardstate *gigaset_get_cs_by_id(int id)
 {
 	unsigned long flags;
-	static struct cardstate *ret = NULL;
-	static struct cardstate *cs;
+	struct cardstate *ret = NULL;
+	struct cardstate *cs;
 	struct gigaset_driver *drv;
 	unsigned i;
 
@@ -999,7 +999,7 @@ void gigaset_debugdrivers(void)
 static struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
 {
 	unsigned long flags;
-	static struct cardstate *ret = NULL;
+	struct cardstate *ret = NULL;
 	struct gigaset_driver *drv;
 	unsigned index;
 

@@ -1763,9 +1763,15 @@ config SUN3X_ESP
 	  The ESP was an on-board SCSI controller used on Sun 3/80
 	  machines.  Say Y here to compile in support for it.
 
+config SCSI_ESP_CORE
+	tristate "ESP Scsi Driver Core"
+	depends on SCSI
+	select SCSI_SPI_ATTRS
+
 config SCSI_SUNESP
 	tristate "Sparc ESP Scsi Driver"
 	depends on SBUS && SCSI
+	select SCSI_ESP_CORE
 	help
 	  This is the driver for the Sun ESP SCSI host adapter. The ESP
 	  chipset is present in most SPARC SBUS-based computers.

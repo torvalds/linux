@@ -272,7 +272,10 @@ static inline pte_t pte_mkhuge(pte_t pte) {
 	return pte; }
 
 /* Atomic PTE updates */
-static inline unsigned long pte_update(pte_t *p, unsigned long clr)
+static inline unsigned long pte_update(struct mm_struct *mm,
+				       unsigned long addr,
+				       pte_t *ptep, unsigned long clr,
+				       int huge)
 {
 	unsigned long old, tmp;
 
@@ -283,19 +286,14 @@ static inline unsigned long pte_update(pte_t *p, unsigned long clr)
 	andc	%1,%0,%4 \n\
 	stdcx.	%1,0,%3 \n\
 	bne-	1b"
-	: "=&r" (old), "=&r" (tmp), "=m" (*p)
-	: "r" (p), "r" (clr), "m" (*p), "i" (_PAGE_BUSY)
+	: "=&r" (old), "=&r" (tmp), "=m" (*ptep)
+	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY)
 	: "cc" );
+
+	if (old & _PAGE_HASHPTE)
+		hpte_need_flush(mm, addr, ptep, old, huge);
 	return old;
 }
-
-/* PTE updating functions, this function puts the PTE in the
- * batch, doesn't actually triggers the hash flush immediately,
- * you need to call flush_tlb_pending() to do that.
- * Pass -1 for "normal" size (4K or 64K)
- */
-extern void hpte_update(struct mm_struct *mm, unsigned long addr,
-			pte_t *ptep, unsigned long pte, int huge);
 
 static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
 					      unsigned long addr, pte_t *ptep)
@@ -304,11 +302,7 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
 
        	if ((pte_val(*ptep) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
 		return 0;
-	old = pte_update(ptep, _PAGE_ACCESSED);
-	if (old & _PAGE_HASHPTE) {
-		hpte_update(mm, addr, ptep, old, 0);
-		flush_tlb_pending();
-	}
+	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0);
 	return (old & _PAGE_ACCESSED) != 0;
 }
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
@@ -331,9 +325,7 @@ static inline int __ptep_test_and_clear_dirty(struct mm_struct *mm,
 
        	if ((pte_val(*ptep) & _PAGE_DIRTY) == 0)
 		return 0;
-	old = pte_update(ptep, _PAGE_DIRTY);
-	if (old & _PAGE_HASHPTE)
-		hpte_update(mm, addr, ptep, old, 0);
+	old = pte_update(mm, addr, ptep, _PAGE_DIRTY, 0);
 	return (old & _PAGE_DIRTY) != 0;
 }
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
@@ -352,9 +344,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 
        	if ((pte_val(*ptep) & _PAGE_RW) == 0)
        		return;
-	old = pte_update(ptep, _PAGE_RW);
-	if (old & _PAGE_HASHPTE)
-		hpte_update(mm, addr, ptep, old, 0);
+	old = pte_update(mm, addr, ptep, _PAGE_RW, 0);
 }
 
 /*
@@ -378,7 +368,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 ({									\
 	int __dirty = __ptep_test_and_clear_dirty((__vma)->vm_mm, __address, \
 						  __ptep); 		\
-	flush_tlb_page(__vma, __address);				\
 	__dirty;							\
 })
 
@@ -386,20 +375,14 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long addr, pte_t *ptep)
 {
-	unsigned long old = pte_update(ptep, ~0UL);
-
-	if (old & _PAGE_HASHPTE)
-		hpte_update(mm, addr, ptep, old, 0);
+	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 0);
 	return __pte(old);
 }
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 			     pte_t * ptep)
 {
-	unsigned long old = pte_update(ptep, ~0UL);
-
-	if (old & _PAGE_HASHPTE)
-		hpte_update(mm, addr, ptep, old, 0);
+	pte_update(mm, addr, ptep, ~0UL, 0);
 }
 
 /*
@@ -408,10 +391,8 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-	if (pte_present(*ptep)) {
+	if (pte_present(*ptep))
 		pte_clear(mm, addr, ptep);
-		flush_tlb_pending();
-	}
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
 	*ptep = pte;
 }
@@ -467,16 +448,6 @@ extern pgd_t swapper_pg_dir[];
 
 extern void paging_init(void);
 
-/*
- * This gets called at the end of handling a page fault, when
- * the kernel has put a new PTE into the page table for the process.
- * We use it to put a corresponding HPTE into the hash table
- * ahead of time, instead of waiting for the inevitable extra
- * hash-table miss exception.
- */
-struct vm_area_struct;
-extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
-
 /* Encode and de-code a swap entry */
 #define __swp_type(entry)	(((entry).val >> 1) & 0x3f)
 #define __swp_offset(entry)	((entry).val >> 8)
@@ -521,6 +492,7 @@ void pgtable_cache_init(void);
 	}
 	return pt;
 }
+
 
 #include <asm-generic/pgtable.h>
 

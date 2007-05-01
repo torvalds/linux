@@ -12,11 +12,13 @@ struct dvb_pll_desc {
 	char *name;
 	u32  min;
 	u32  max;
+	u32  iffreq;
 	void (*setbw)(u8 *buf, u32 freq, int bandwidth);
+	u8   *initdata;
+	u8   *sleepdata;
 	int  count;
 	struct {
 		u32 limit;
-		u32 offset;
 		u32 stepsize;
 		u8  config;
 		u8  cb;
@@ -46,6 +48,7 @@ extern struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261;
 extern struct dvb_pll_desc dvb_pll_philips_td1316;
 
 extern struct dvb_pll_desc dvb_pll_thomson_fe6600;
+extern struct dvb_pll_desc dvb_pll_opera1;
 
 extern int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 			     u32 freq, int bandwidth);
@@ -59,9 +62,20 @@ extern int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
  * @param desc dvb_pll_desc to use.
  * @return Frontend pointer on success, NULL on failure
  */
+#if defined(CONFIG_DVB_PLL) || (defined(CONFIG_DVB_PLL_MODULE) && defined(MODULE))
 extern struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe,
 					   int pll_addr,
 					   struct i2c_adapter *i2c,
 					   struct dvb_pll_desc *desc);
+#else
+static inline struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe,
+					   int pll_addr,
+					   struct i2c_adapter *i2c,
+					   struct dvb_pll_desc *desc)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	return NULL;
+}
+#endif
 
 #endif

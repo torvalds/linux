@@ -1,0 +1,41 @@
+What:		/sys/bus/usb/devices/.../power/autosuspend
+Date:		March 2007
+KernelVersion:	2.6.21
+Contact:	Alan Stern <stern@rowland.harvard.edu>
+Description:
+		Each USB device directory will contain a file named
+		power/autosuspend.  This file holds the time (in seconds)
+		the device must be idle before it will be autosuspended.
+		0 means the device will be autosuspended as soon as
+		possible.  Negative values will prevent the device from
+		being autosuspended at all, and writing a negative value
+		will resume the device if it is already suspended.
+
+		The autosuspend delay for newly-created devices is set to
+		the value of the usbcore.autosuspend module parameter.
+
+What:		/sys/bus/usb/devices/.../power/level
+Date:		March 2007
+KernelVersion:	2.6.21
+Contact:	Alan Stern <stern@rowland.harvard.edu>
+Description:
+		Each USB device directory will contain a file named
+		power/level.  This file holds a power-level setting for
+		the device, one of "on", "auto", or "suspend".
+
+		"on" means that the device is not allowed to autosuspend,
+		although normal suspends for system sleep will still
+		be honored.  "auto" means the device will autosuspend
+		and autoresume in the usual manner, according to the
+		capabilities of its driver.  "suspend" means the device
+		is forced into a suspended state and it will not autoresume
+		in response to I/O requests.  However remote-wakeup requests
+		from the device may still be enabled (the remote-wakeup
+		setting is controlled separately by the power/wakeup
+		attribute).
+
+		During normal use, devices should be left in the "auto"
+		level.  The other levels are meant for administrative uses.
+		If you want to suspend a device immediately but leave it
+		free to wake up in response to I/O requests, you should
+		write "0" to power/autosuspend.

@@ -71,7 +71,7 @@ static void cell_show_cpuinfo(struct seq_file *m)
 
 	root = of_find_node_by_path("/");
 	if (root)
-		model = get_property(root, "model", NULL);
+		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
 	of_node_put(root);
 }
@@ -190,15 +190,6 @@ static int __init cell_probe(void)
 	return 1;
 }
 
-/*
- * Cell has no legacy IO; anything calling this function has to
- * fail or bad things will happen
- */
-static int cell_check_legacy_ioport(unsigned int baseport)
-{
-	return -ENODEV;
-}
-
 define_machine(cell) {
 	.name			= "Cell",
 	.probe			= cell_probe,
@@ -211,7 +202,6 @@ define_machine(cell) {
 	.get_rtc_time		= rtas_get_rtc_time,
 	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
-	.check_legacy_ioport	= cell_check_legacy_ioport,
 	.progress		= cell_progress,
 	.init_IRQ       	= cell_init_irq,
 	.pci_setup_phb		= rtas_setup_phb,

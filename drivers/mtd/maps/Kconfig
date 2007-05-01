@@ -6,7 +6,6 @@ menu "Mapping drivers for chip access"
 
 config MTD_COMPLEX_MAPPINGS
 	bool "Support non-linear mappings of flash chips"
-	depends on MTD
 	help
 	  This causes the chip drivers to allow for complicated
 	  paged mappings of flash chips.
@@ -68,6 +67,39 @@ config MTD_PHYSMAP_OF
 	  ROM driver code to communicate with chips which are mapped
 	  physically into the CPU's memory. The mapping description here is
 	  taken from OF device tree.
+
+config MTD_PMC_MSP_EVM
+	tristate "CFI Flash device mapped on PMC-Sierra MSP"
+	depends on PMC_MSP && MTD_CFI
+	select MTD_PARTITIONS
+	help
+	  This provides a 'mapping' driver which support the way
+          in which user-programmable flash chips are connected on the
+          PMC-Sierra MSP eval/demo boards
+
+choice
+	prompt "Maximum mappable memory avialable for flash IO"
+	depends on MTD_PMC_MSP_EVM
+	default MSP_FLASH_MAP_LIMIT_32M
+
+config MSP_FLASH_MAP_LIMIT_32M
+	bool "32M"
+
+endchoice
+
+config MSP_FLASH_MAP_LIMIT
+	hex
+	default "0x02000000"
+	depends on MSP_FLASH_MAP_LIMIT_32M
+
+config MTD_PMC_MSP_RAMROOT
+	tristate "Embedded RAM block device for root on PMC-Sierra MSP"
+	depends on PMC_MSP_EMBEDDED_ROOTFS && \
+			(MTD_BLOCK || MTD_BLOCK_RO) && \
+			MTD_RAM
+	help
+	  This provides support for the embedded root file system
+          on PMC MSP devices.  This memory is mapped as a MTD block device.
 
 config MTD_SUN_UFLASH
 	tristate "Sun Microsystems userflash support"
@@ -240,13 +272,13 @@ config MTD_NETtel
 
 config MTD_ALCHEMY
 	tristate "AMD Alchemy Pb1xxx/Db1xxx/RDK MTD support"
-	depends on SOC_AU1X00
+	depends on SOC_AU1X00 && MTD_PARTITIONS && MTD_CFI
 	help
 	  Flash memory access on AMD Alchemy Pb/Db/RDK Reference Boards
 
 config MTD_MTX1
 	tristate "4G Systems MTX-1 Flash device"
-	depends on MIPS && MIPS_MTX1
+	depends on MIPS_MTX1 && MTD_CFI
 	help
 	  Flash memory access on 4G Systems MTX-1 Board. If you have one of
 	  these boards and would like to use the flash chips on it, say 'Y'.
@@ -384,7 +416,7 @@ config MTD_TQM834x
 
 config MTD_OCELOT
 	tristate "Momenco Ocelot boot flash device"
-	depends on MIPS && MOMENCO_OCELOT
+	depends on MOMENCO_OCELOT
 	help
 	  This enables access routines for the boot flash device and for the
 	  NVRAM on the Momenco Ocelot board. If you have one of these boards
@@ -517,7 +549,7 @@ config MTD_OMAP_NOR
 # This needs CFI or JEDEC, depending on the cards found.
 config MTD_PCI
 	tristate "PCI MTD driver"
-	depends on MTD && PCI && MTD_COMPLEX_MAPPINGS
+	depends on PCI && MTD_COMPLEX_MAPPINGS
 	help
 	  Mapping for accessing flash devices on add-in cards like the Intel XScale
 	  IQ80310 card, and the Intel EBSA285 card in blank ROM programming mode
@@ -527,7 +559,7 @@ config MTD_PCI
 
 config MTD_PCMCIA
 	tristate "PCMCIA MTD driver"
-	depends on MTD && PCMCIA && MTD_COMPLEX_MAPPINGS && BROKEN
+	depends on PCMCIA && MTD_COMPLEX_MAPPINGS && BROKEN
 	help
 	  Map driver for accessing PCMCIA linear flash memory cards. These
 	  cards are usually around 4-16MiB in size. This does not include
@@ -591,13 +623,12 @@ config MTD_BAST_MAXSIZE
 
 config MTD_SHARP_SL
 	bool "ROM mapped on Sharp SL Series"
-	depends on MTD && ARCH_PXA
+	depends on ARCH_PXA
 	help
 	  This enables access to the flash chip on the Sharp SL Series of PDAs.
 
 config MTD_PLATRAM
 	tristate "Map driver for platform device RAM (mtd-ram)"
-	depends on MTD
 	select MTD_RAM
 	help
 	  Map driver for RAM areas described via the platform device

@@ -1,0 +1,20 @@
+config PPC_PMAC
+	bool "Apple PowerMac based machines"
+	depends on PPC_MULTIPLATFORM
+	select MPIC
+	select PPC_INDIRECT_PCI if PPC32
+	select PPC_MPC106 if PPC32
+	select PPC_NATIVE
+	default y
+
+config PPC_PMAC64
+	bool
+	depends on PPC_PMAC && POWER4
+	select MPIC
+	select U3_DART
+	select MPIC_U3_HT_IRQS
+	select GENERIC_TBSYNC
+	select PPC_970_NAP
+	default y
+
+

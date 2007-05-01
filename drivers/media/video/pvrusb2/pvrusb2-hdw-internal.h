@@ -283,6 +283,8 @@ struct pvr2_hdw {
 	int unit_number;             /* ID for driver instance */
 	unsigned long serial_number; /* ID for hardware itself */
 
+	char bus_info[32]; /* Bus location info */
+
 	/* Minor numbers used by v4l logic (yes, this is a hack, as there
 	   should be no v4l junk here).  Probably a better way to do this. */
 	int v4l_minor_number_video;

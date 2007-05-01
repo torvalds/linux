@@ -81,7 +81,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 		struct iommu_table *tbl;
 		unsigned long offset, size;
 
-		dma_window = get_property(dev->dev.archdata.of_node,
+		dma_window = of_get_property(dev->dev.archdata.of_node,
 					  "ibm,my-dma-window", NULL);
 		if (!dma_window)
 			return NULL;
@@ -226,7 +226,7 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 		return NULL;
 	}
 
-	unit_address = get_property(of_node, "reg", NULL);
+	unit_address = of_get_property(of_node, "reg", NULL);
 	if (unit_address == NULL) {
 		printk(KERN_WARNING "%s: node %s missing 'reg'\n",
 				__FUNCTION__,
@@ -246,7 +246,7 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 	viodev->type = of_node->type;
 	viodev->unit_address = *unit_address;
 	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		unit_address = get_property(of_node,
+		unit_address = of_get_property(of_node,
 				"linux,unit_address", NULL);
 		if (unit_address != NULL)
 			viodev->unit_address = *unit_address;
@@ -308,7 +308,7 @@ static int __init vio_bus_init(void)
 		return err;
 	}
 
-	node_vroot = find_devices("vdevice");
+	node_vroot = of_find_node_by_name(NULL, "vdevice");
 	if (node_vroot) {
 		struct device_node *of_node;
 
@@ -322,6 +322,7 @@ static int __init vio_bus_init(void)
 					__FUNCTION__, of_node);
 			vio_register_device_node(of_node);
 		}
+		of_node_put(node_vroot);
 	}
 
 	return 0;
@@ -377,7 +378,7 @@ static int vio_hotplug(struct device *dev, char **envp, int num_envp,
 	dn = dev->archdata.of_node;
 	if (!dn)
 		return -ENODEV;
-	cp = get_property(dn, "compatible", &length);
+	cp = of_get_property(dn, "compatible", &length);
 	if (!cp)
 		return -ENODEV;
 
@@ -406,12 +407,12 @@ struct bus_type vio_bus_type = {
  * @which:	The property/attribute to be extracted.
  * @length:	Pointer to length of returned data size (unused if NULL).
  *
- * Calls prom.c's get_property() to return the value of the
+ * Calls prom.c's of_get_property() to return the value of the
  * attribute specified by @which
 */
 const void *vio_get_attribute(struct vio_dev *vdev, char *which, int *length)
 {
-	return get_property(vdev->dev.archdata.of_node, which, length);
+	return of_get_property(vdev->dev.archdata.of_node, which, length);
 }
 EXPORT_SYMBOL(vio_get_attribute);
 
@@ -443,7 +444,7 @@ struct vio_dev *vio_find_node(struct device_node *vnode)
 	char kobj_name[BUS_ID_SIZE];
 
 	/* construct the kobject name from the device node */
-	unit_address = get_property(vnode, "reg", NULL);
+	unit_address = of_get_property(vnode, "reg", NULL);
 	if (!unit_address)
 		return NULL;
 	snprintf(kobj_name, BUS_ID_SIZE, "%x", *unit_address);

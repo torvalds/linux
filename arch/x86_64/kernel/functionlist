@@ -514,7 +514,6 @@
 *(.text.dentry_open)
 *(.text.dentry_iput)
 *(.text.bio_alloc)
-*(.text.alloc_skb_from_cache)
 *(.text.wait_on_page_bit)
 *(.text.vfs_readdir)
 *(.text.vfs_lstat)

@@ -16,6 +16,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter.h>
 #include <linux/smp.h>
+#include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -169,7 +170,7 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 			skb->tc_index = TC_H_MIN(res.classid);
 			result = TC_ACT_OK;
 			break;
-	};
+	}
 /* backward compat */
 #else
 #ifdef	CONFIG_NET_CLS_POLICE
@@ -186,7 +187,7 @@ static int ingress_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 		sch->bstats.bytes += skb->len;
 		result = NF_ACCEPT;
 		break;
-	};
+	}
 
 #else
 	D2PRINTK("Overriding result to ACCEPT\n");
@@ -247,16 +248,11 @@ ing_hook(unsigned int hook, struct sk_buff **pskb,
 		skb->dev ? (*pskb)->dev->name : "(no dev)",
 		skb->len);
 
-/*
-revisit later: Use a private since lock dev->queue_lock is also
-used on the egress (might slow things for an iota)
-*/
-
 	if (dev->qdisc_ingress) {
-		spin_lock(&dev->queue_lock);
+		spin_lock(&dev->ingress_lock);
 		if ((q = dev->qdisc_ingress) != NULL)
 			fwres = q->enqueue(skb, q);
-		spin_unlock(&dev->queue_lock);
+		spin_unlock(&dev->ingress_lock);
 	}
 
 	return fwres;
@@ -345,14 +341,9 @@ static void ingress_reset(struct Qdisc *sch)
 static void ingress_destroy(struct Qdisc *sch)
 {
 	struct ingress_qdisc_data *p = PRIV(sch);
-	struct tcf_proto *tp;
 
 	DPRINTK("ingress_destroy(sch %p,[qdisc %p])\n", sch, p);
-	while (p->filter_list) {
-		tp = p->filter_list;
-		p->filter_list = tp->next;
-		tcf_destroy(tp);
-	}
+	tcf_destroy_chain(p->filter_list);
 #if 0
 /* for future use */
 	qdisc_destroy(p->q);
@@ -362,16 +353,16 @@ static void ingress_destroy(struct Qdisc *sch)
 
 static int ingress_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 
 	rta = (struct rtattr *) b;
 	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

@@ -16,7 +16,7 @@ situation as with tcpdump.
 
 Unlike the packet socket, usbmon has an interface which provides traces
 in a text format. This is used for two purposes. First, it serves as a
-common trace exchange format for tools while most sophisticated formats
+common trace exchange format for tools while more sophisticated formats
 are finalized. Second, humans can read it in case tools are not available.
 
 To collect a raw text trace, execute following steps.
@@ -34,7 +34,7 @@ if usbmon is built into the kernel.
 Verify that bus sockets are present.
 
 # ls /sys/kernel/debug/usbmon
-1s  1t  2s  2t  3s  3t  4s  4t
+1s  1t  1u  2s  2t  2u  3s  3t  3u  4s  4t  4u
 #
 
 2. Find which bus connects to the desired device
@@ -54,7 +54,7 @@ Bus=03 means it's bus 3.
 
 3. Start 'cat'
 
-# cat /sys/kernel/debug/usbmon/3t > /tmp/1.mon.out
+# cat /sys/kernel/debug/usbmon/3u > /tmp/1.mon.out
 
 This process will be reading until killed. Naturally, the output can be
 redirected to a desirable location. This is preferred, because it is going
@@ -75,46 +75,80 @@ that the file size is not excessive for your favourite editor.
 
 * Raw text data format
 
-The '1t' type data consists of a stream of events, such as URB submission,
+Two formats are supported currently: the original, or '1t' format, and
+the '1u' format. The '1t' format is deprecated in kernel 2.6.21. The '1u'
+format adds a few fields, such as ISO frame descriptors, interval, etc.
+It produces slightly longer lines, but otherwise is a perfect superset
+of '1t' format.
+
+If it is desired to recognize one from the other in a program, look at the
+"address" word (see below), where '1u' format adds a bus number. If 2 colons
+are present, it's the '1t' format, otherwise '1u'.
+
+Any text format data consists of a stream of events, such as URB submission,
 URB callback, submission error. Every event is a text line, which consists
 of whitespace separated words. The number or position of words may depend
 on the event type, but there is a set of words, common for all types.
 
 Here is the list of words, from left to right:
+
 - URB Tag. This is used to identify URBs is normally a kernel mode address
  of the URB structure in hexadecimal.
+
 - Timestamp in microseconds, a decimal number. The timestamp's resolution
   depends on available clock, and so it can be much worse than a microsecond
   (if the implementation uses jiffies, for example).
+
 - Event Type. This type refers to the format of the event, not URB type.
   Available types are: S - submission, C - callback, E - submission error.
-- "Pipe". The pipe concept is deprecated. This is a composite word, used to
-  be derived from information in pipes. It consists of three fields, separated
-  by colons: URB type and direction, Device address, Endpoint number.
+
+- "Address" word (formerly a "pipe"). It consists of four fields, separated by
+  colons: URB type and direction, Bus number, Device address, Endpoint number.
   Type and direction are encoded with two bytes in the following manner:
     Ci Co   Control input and output
     Zi Zo   Isochronous input and output
     Ii Io   Interrupt input and output
     Bi Bo   Bulk input and output
-  Device address and Endpoint number are 3-digit and 2-digit (respectively)
-  decimal numbers, with leading zeroes.
-- URB Status. In most cases, this field contains a number, sometimes negative,
-  which represents a "status" field of the URB. This field makes no sense for
-  submissions, but is present anyway to help scripts with parsing. When an
-  error occurs, the field contains the error code. In case of a submission of
-  a Control packet, this field contains a Setup Tag instead of an error code.
-  It is easy to tell whether the Setup Tag is present because it is never a
-  number. Thus if scripts find a number in this field, they proceed to read
-  Data Length. If they find something else, like a letter, they read the setup
-  packet before reading the Data Length.
+  Bus number, Device address, and Endpoint are decimal numbers, but they may
+  have leading zeros, for the sake of human readers.
+
+- URB Status word. This is either a letter, or several numbers separated
+  by colons: URB status, interval, start frame, and error count. Unlike the
+  "address" word, all fields save the status are optional. Interval is printed
+  only for interrupt and isochronous URBs. Start frame is printed only for
+  isochronous URBs. Error count is printed only for isochronous callback
+  events.
+
+  The status field is a decimal number, sometimes negative, which represents
+  a "status" field of the URB. This field makes no sense for submissions, but
+  is present anyway to help scripts with parsing. When an error occurs, the
+  field contains the error code.
+
+  In case of a submission of a Control packet, this field contains a Setup Tag
+  instead of an group of numbers. It is easy to tell whether the Setup Tag is
+  present because it is never a number. Thus if scripts find a set of numbers
+  in this word, they proceed to read Data Length (except for isochronous URBs).
+  If they find something else, like a letter, they read the setup packet before
+  reading the Data Length or isochronous descriptors.
+
 - Setup packet, if present, consists of 5 words: one of each for bmRequestType,
   bRequest, wValue, wIndex, wLength, as specified by the USB Specification 2.0.
   These words are safe to decode if Setup Tag was 's'. Otherwise, the setup
   packet was present, but not captured, and the fields contain filler.
+
+- Number of isochronous frame descriptors and descriptors themselves.
+  If an Isochronous transfer event has a set of descriptors, a total number
+  of them in an URB is printed first, then a word per descriptor, up to a
+  total of 5. The word consists of 3 colon-separated decimal numbers for
+  status, offset, and length respectively. For submissions, initial length
+  is reported. For callbacks, actual length is reported.
+
 - Data Length. For submissions, this is the requested length. For callbacks,
   this is the actual length.
+
 - Data tag. The usbmon may not always capture data, even if length is nonzero.
   The data words are present only if this tag is '='.
+
 - Data words follow, in big endian hexadecimal format. Notice that they are
   not machine words, but really just a byte stream split into words to make
   it easier to read. Thus, the last word may contain from one to four bytes.
@@ -153,20 +187,18 @@ class ParsedLine {
 	}
 }
 
-This format may be changed in the future.
-
 Examples:
 
 An input control transfer to get a port status.
 
-d5ea89a0 3575914555 S Ci:001:00 s a3 00 0000 0003 0004 4 <
-d5ea89a0 3575914560 C Ci:001:00 0 4 = 01050000
+d5ea89a0 3575914555 S Ci:1:001:0 s a3 00 0000 0003 0004 4 <
+d5ea89a0 3575914560 C Ci:1:001:0 0 4 = 01050000
 
 An output bulk transfer to send a SCSI command 0x5E in a 31-byte Bulk wrapper
 to a storage device at address 5:
 
-dd65f0e8 4128379752 S Bo:005:02 -115 31 = 55534243 5e000000 00000000 00000600 00000000 00000000 00000000 000000
-dd65f0e8 4128379808 C Bo:005:02 0 31 >
+dd65f0e8 4128379752 S Bo:1:005:2 -115 31 = 55534243 5e000000 00000000 00000600 00000000 00000000 00000000 000000
+dd65f0e8 4128379808 C Bo:1:005:2 0 31 >
 
 * Raw binary format and API
 

@@ -11,9 +11,15 @@
 #ifndef _XTENSA_DIV64_H
 #define _XTENSA_DIV64_H
 
+#include <linux/types.h>
+
 #define do_div(n,base) ({ \
 	int __res = n % ((unsigned int) base); \
 	n /= (unsigned int) base; \
 	__res; })
 
+static inline uint64_t div64_64(uint64_t dividend, uint64_t divisor)
+{
+	return dividend / divisor;
+}
 #endif

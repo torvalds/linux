@@ -344,8 +344,7 @@ config I2C_PARPORT_LIGHT
 
 config I2C_PASEMI
 	tristate "PA Semi SMBus interface"
-#	depends on PPC_PASEMI && I2C && PCI
-	depends on I2C && PCI
+	depends on PPC_PASEMI && I2C && PCI
 	help
 	  Supports the PA Semi PWRficient on-chip SMBus interfaces.
 

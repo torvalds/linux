@@ -606,6 +606,7 @@ static void dvb_frontend_stop(struct dvb_frontend *fe)
 		return;
 
 	kthread_stop(fepriv->thread);
+
 	init_MUTEX (&fepriv->sem);
 	fepriv->state = FESTATE_IDLE;
 
@@ -1023,6 +1024,7 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	int ret;
 
 	dprintk ("%s\n", __FUNCTION__);
 
@@ -1032,7 +1034,14 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 	if (fe->ops.ts_bus_ctrl)
 		fe->ops.ts_bus_ctrl (fe, 0);
 
-	return dvb_generic_release (inode, file);
+	ret = dvb_generic_release (inode, file);
+
+	if (dvbdev->users==-1 && fepriv->exit==1) {
+		fops_put(file->f_op);
+		file->f_op = NULL;
+		wake_up(&dvbdev->wait_queue);
+	}
+	return ret;
 }
 
 static struct file_operations dvb_frontend_fops = {
@@ -1092,8 +1101,15 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 	dprintk ("%s\n", __FUNCTION__);
 
 	mutex_lock(&frontend_mutex);
-	dvb_unregister_device (fepriv->dvbdev);
 	dvb_frontend_stop (fe);
+	mutex_unlock(&frontend_mutex);
+
+	if (fepriv->dvbdev->users < -1)
+		wait_event(fepriv->dvbdev->wait_queue,
+				fepriv->dvbdev->users==-1);
+
+	mutex_lock(&frontend_mutex);
+	dvb_unregister_device (fepriv->dvbdev);
 
 	/* fe is invalid now */
 	kfree(fepriv);

@@ -428,10 +428,6 @@ void generic_mach_cpu_die(void)
 	smp_wmb();
 	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
 		cpu_relax();
-
-#ifdef CONFIG_PPC64
-	flush_tlb_pending();
-#endif
 	cpu_set(cpu, cpu_online_map);
 	local_irq_enable();
 }

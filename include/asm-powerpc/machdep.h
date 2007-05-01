@@ -153,9 +153,6 @@ struct machdep_calls {
 	 */
 	long	 	(*feature_call)(unsigned int feature, ...);
 
-	/* Check availability of legacy devices like i8042 */
-	int 		(*check_legacy_ioport)(unsigned int baseport);
-
 	/* Get legacy PCI/IDE interrupt mapping */ 
 	int		(*pci_get_legacy_ide_irq)(struct pci_dev *dev, int channel);
 	

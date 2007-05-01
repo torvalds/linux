@@ -14,7 +14,6 @@
 #include "stv0297.h"
 #include "mt312.h"
 #include "lgdt330x.h"
-#include "lgh06xf.h"
 #include "dvb-pll.h"
 
 /* lnb control */
@@ -507,7 +506,7 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	/* try the air atsc 3nd generation (lgdt3303) */
 	if ((fc->fe = dvb_attach(lgdt330x_attach, &air2pc_atsc_hd5000_config, &fc->i2c_adap)) != NULL) {
 		fc->dev_type          = FC_AIR_ATSC3;
-		dvb_attach(lgh06xf_attach, fc->fe, &fc->i2c_adap);
+		dvb_attach(dvb_pll_attach, fc->fe, 0x61, &fc->i2c_adap, &dvb_pll_lg_tdvs_h06xf);
 		info("found the lgdt3303 at i2c address: 0x%02x",air2pc_atsc_hd5000_config.demod_address);
 	} else
 	/* try the air atsc 1nd generation (bcm3510)/panasonic ct10s */

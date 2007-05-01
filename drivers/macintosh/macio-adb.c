@@ -82,7 +82,14 @@ struct adb_driver macio_adb_driver = {
 
 int macio_probe(void)
 {
-	return find_compatible_devices("adb", "chrp,adb0")? 0: -ENODEV;
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, "adb", "chrp,adb0");
+	if (np) {
+		of_node_put(np);
+		return 0;
+	}
+	return -ENODEV;
 }
 
 int macio_init(void)
@@ -91,12 +98,14 @@ int macio_init(void)
 	struct resource r;
 	unsigned int irq;
 
-	adbs = find_compatible_devices("adb", "chrp,adb0");
+	adbs = of_find_compatible_node(NULL, "adb", "chrp,adb0");
 	if (adbs == 0)
 		return -ENXIO;
 
-	if (of_address_to_resource(adbs, 0, &r))
+	if (of_address_to_resource(adbs, 0, &r)) {
+		of_node_put(adbs);
 		return -ENXIO;
+	}
 	adb = ioremap(r.start, sizeof(struct adb_regs));
 
 	out_8(&adb->ctrl.r, 0);
@@ -107,6 +116,7 @@ int macio_init(void)
 	out_8(&adb->autopoll.r, APE);
 
 	irq = irq_of_parse_and_map(adbs, 0);
+	of_node_put(adbs);
 	if (request_irq(irq, macio_adb_interrupt, 0, "ADB", (void *)0)) {
 		printk(KERN_ERR "ADB: can't get irq %d\n", irq);
 		return -EAGAIN;

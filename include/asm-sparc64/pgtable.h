@@ -737,20 +737,6 @@ extern unsigned long pte_file(pte_t);
 extern pte_t pgoff_to_pte(unsigned long);
 #define PTE_FILE_MAX_BITS	(64UL - PAGE_SHIFT - 1UL)
 
-extern unsigned long prom_virt_to_phys(unsigned long, int *);
-
-extern unsigned long sun4u_get_pte(unsigned long);
-
-static inline unsigned long __get_phys(unsigned long addr)
-{
-	return sun4u_get_pte(addr);
-}
-
-static inline int __get_iospace(unsigned long addr)
-{
-	return ((sun4u_get_pte(addr) & 0xf0000000) >> 28);
-}
-
 extern unsigned long *sparc64_valid_addr_bitmap;
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
@@ -790,6 +776,8 @@ extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
 extern void pgtable_cache_init(void);
 extern void sun4v_register_fault_status(void);
 extern void sun4v_ktsb_register(void);
+
+extern unsigned long cmdline_memory_size;
 
 #endif /* !(__ASSEMBLY__) */
 

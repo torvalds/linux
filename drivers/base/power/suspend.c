@@ -78,6 +78,18 @@ int suspend_device(struct device * dev, pm_message_t state)
 		suspend_report_result(dev->class->suspend, error);
 	}
 
+	if (!error && dev->type && dev->type->suspend && !dev->power.power_state.event) {
+		dev_dbg(dev, "%s%s\n",
+			suspend_verb(state.event),
+			((state.event == PM_EVENT_SUSPEND)
+					&& device_may_wakeup(dev))
+				? ", may wakeup"
+				: ""
+			);
+		error = dev->type->suspend(dev, state);
+		suspend_report_result(dev->type->suspend, error);
+	}
+
 	if (!error && dev->bus && dev->bus->suspend && !dev->power.power_state.event) {
 		dev_dbg(dev, "%s%s\n",
 			suspend_verb(state.event),

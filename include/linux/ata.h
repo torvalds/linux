@@ -40,6 +40,7 @@ enum {
 	ATA_MAX_DEVICES		= 2,	/* per bus/port */
 	ATA_MAX_PRD		= 256,	/* we could make these 256/256 */
 	ATA_SECT_SIZE		= 512,
+	ATA_MAX_SECTORS_128	= 128,
 	ATA_MAX_SECTORS		= 256,
 	ATA_MAX_SECTORS_LBA48	= 65535,/* TODO: 65536? */
 
@@ -158,10 +159,18 @@ enum {
 	ATA_CMD_INIT_DEV_PARAMS	= 0x91,
 	ATA_CMD_READ_NATIVE_MAX	= 0xF8,
 	ATA_CMD_READ_NATIVE_MAX_EXT = 0x27,
+	ATA_CMD_SET_MAX		= 0xF9,
+	ATA_CMD_SET_MAX_EXT	= 0x37,
 	ATA_CMD_READ_LOG_EXT	= 0x2f,
 
 	/* READ_LOG_EXT pages */
 	ATA_LOG_SATA_NCQ	= 0x10,
+
+	/* READ/WRITE LONG (obsolete) */
+	ATA_CMD_READ_LONG	= 0x22,
+	ATA_CMD_READ_LONG_ONCE	= 0x23,
+	ATA_CMD_WRITE_LONG	= 0x32,
+	ATA_CMD_WRITE_LONG_ONCE	= 0x33,
 
 	/* SETFEATURES stuff */
 	SETFEATURES_XFER	= 0x03,
@@ -192,6 +201,8 @@ enum {
 
 	SETFEATURES_WC_ON	= 0x02, /* Enable write cache */
 	SETFEATURES_WC_OFF	= 0x82, /* Disable write cache */
+
+	SETFEATURES_SPINUP	= 0x07, /* Spin-up drive */
 
 	/* ATAPI stuff */
 	ATAPI_PKT_DMA		= (1 << 0),

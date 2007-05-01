@@ -1,13 +1,10 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
+ * Copyright © 2004   Ferenc Havasi <havasi@inf.u-szeged.hu>,
  *                    University of Szeged, Hungary
  *
- * For licensing information, see the file 'LICENCE' in the
- * jffs2 directory.
- *
- * $Id: compr.h,v 1.9 2005/11/07 11:14:38 gleixner Exp $
+ * For licensing information, see the file 'LICENCE' in this directory.
  *
  */
 
@@ -75,16 +72,6 @@ int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
                      unsigned char *data_out, uint32_t cdatalen, uint32_t datalen);
 
 void jffs2_free_comprbuf(unsigned char *comprbuf, unsigned char *orig);
-
-#ifdef CONFIG_JFFS2_PROC
-int jffs2_enable_compressor_name(const char *name);
-int jffs2_disable_compressor_name(const char *name);
-int jffs2_set_compression_mode_name(const char *mode_name);
-char *jffs2_get_compression_mode_name(void);
-int jffs2_set_compressor_priority(const char *mode_name, int priority);
-char *jffs2_list_compressors(void);
-char *jffs2_stats(void);
-#endif
 
 /* Compressor modules */
 /* These functions will be called by jffs2_compressors_init/exit */

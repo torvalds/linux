@@ -40,7 +40,6 @@
 extern struct file_system_type v9fs_fs_type;
 extern const struct address_space_operations v9fs_addr_operations;
 extern const struct file_operations v9fs_file_operations;
-extern const struct file_operations v9fs_cached_file_operations;
 extern const struct file_operations v9fs_dir_operations;
 extern struct dentry_operations v9fs_dentry_operations;
 extern struct dentry_operations v9fs_cached_dentry_operations;

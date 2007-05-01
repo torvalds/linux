@@ -33,7 +33,7 @@
 #include <asm/of_platform.h>
 #include <asm/io.h>
 #include <asm/pmi.h>
-
+#include <asm/prom.h>
 
 struct pmi_data {
 	struct list_head	handler;
@@ -47,21 +47,6 @@ struct pmi_data {
 	u8 __iomem		*pmi_reg;
 	struct work_struct	work;
 };
-
-
-
-static void __iomem *of_iomap(struct device_node *np)
-{
-	struct resource res;
-
-	if (of_address_to_resource(np, 0, &res))
-		return NULL;
-
-	pr_debug("Resource start: 0x%lx\n", res.start);
-	pr_debug("Resource end: 0x%lx\n", res.end);
-
-	return ioremap(res.start, 1 + res.end - res.start);
-}
 
 
 static int pmi_irq_handler(int irq, void *dev_id)
@@ -118,6 +103,7 @@ out:
 
 static struct of_device_id pmi_match[] = {
 	{ .type = "ibm,pmi", .name = "ibm,pmi" },
+	{ .type = "ibm,pmi" },
 	{},
 };
 
@@ -153,7 +139,7 @@ static int pmi_of_probe(struct of_device *dev,
 		goto out;
 	}
 
-	data->pmi_reg = of_iomap(np);
+	data->pmi_reg = of_iomap(np, 0);
 	if (!data->pmi_reg) {
 		printk(KERN_ERR "pmi: invalid register address.\n");
 		rc = -EFAULT;
@@ -279,6 +265,9 @@ void pmi_register_handler(struct of_device *device,
 	struct pmi_data *data;
 	data = device->dev.driver_data;
 
+	if (!data)
+		return;
+
 	spin_lock(&data->handler_spinlock);
 	list_add_tail(&handler->node, &data->handler);
 	spin_unlock(&data->handler_spinlock);
@@ -289,10 +278,12 @@ void pmi_unregister_handler(struct of_device *device,
 			    struct pmi_handler *handler)
 {
 	struct pmi_data *data;
+	data = device->dev.driver_data;
+
+	if (!data)
+		return;
 
 	pr_debug("pmi: unregistering handler %p\n", handler);
-
-	data = device->dev.driver_data;
 
 	spin_lock(&data->handler_spinlock);
 	list_del(&handler->node);

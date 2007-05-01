@@ -57,7 +57,6 @@
 
 #define USB_MAXBUS			64
 #define USB_DEVICE_MAX			USB_MAXBUS * 128
-static struct class *usb_device_class;
 
 /* Mutual exclusion for removal, open, and release */
 DEFINE_MUTEX(usbfs_mutex);
@@ -421,14 +420,11 @@ static int claimintf(struct dev_state *ps, unsigned int ifnum)
 	if (test_bit(ifnum, &ps->ifclaimed))
 		return 0;
 
-	/* lock against other changes to driver bindings */
-	down_write(&usb_bus_type.subsys.rwsem);
 	intf = usb_ifnum_to_if(dev, ifnum);
 	if (!intf)
 		err = -ENOENT;
 	else
 		err = usb_driver_claim_interface(&usbfs_driver, intf, ps);
-	up_write(&usb_bus_type.subsys.rwsem);
 	if (err == 0)
 		set_bit(ifnum, &ps->ifclaimed);
 	return err;
@@ -444,8 +440,6 @@ static int releaseintf(struct dev_state *ps, unsigned int ifnum)
 	if (ifnum >= 8*sizeof(ps->ifclaimed))
 		return err;
 	dev = ps->dev;
-	/* lock against other changes to driver bindings */
-	down_write(&usb_bus_type.subsys.rwsem);
 	intf = usb_ifnum_to_if(dev, ifnum);
 	if (!intf)
 		err = -ENOENT;
@@ -453,7 +447,6 @@ static int releaseintf(struct dev_state *ps, unsigned int ifnum)
 		usb_driver_release_interface(&usbfs_driver, intf);
 		err = 0;
 	}
-	up_write(&usb_bus_type.subsys.rwsem);
 	return err;
 }
 
@@ -520,22 +513,25 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype, unsig
 	return ret;
 }
 
-static struct usb_device *usbdev_lookup_minor(int minor)
+static int __match_minor(struct device *dev, void *data)
 {
-	struct device *device;
-	struct usb_device *udev = NULL;
+	int minor = *((int *)data);
 
-	down(&usb_device_class->sem);
-	list_for_each_entry(device, &usb_device_class->devices, node) {
-		if (device->devt == MKDEV(USB_DEVICE_MAJOR, minor)) {
-			udev = device->platform_data;
-			break;
-		}
-	}
-	up(&usb_device_class->sem);
+	if (dev->devt == MKDEV(USB_DEVICE_MAJOR, minor))
+		return 1;
+	return 0;
+}
 
-	return udev;
-};
+static struct usb_device *usbdev_lookup_by_minor(int minor)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&usb_bus_type, NULL, &minor, __match_minor);
+	if (!dev)
+		return NULL;
+	put_device(dev);
+	return container_of(dev, struct usb_device, dev);
+}
 
 /*
  * file operations
@@ -554,11 +550,14 @@ static int usbdev_open(struct inode *inode, struct file *file)
 		goto out;
 
 	ret = -ENOENT;
-	/* check if we are called from a real node or usbfs */
+	/* usbdev device-node */
 	if (imajor(inode) == USB_DEVICE_MAJOR)
-		dev = usbdev_lookup_minor(iminor(inode));
+		dev = usbdev_lookup_by_minor(iminor(inode));
+#ifdef CONFIG_USB_DEVICEFS
+	/* procfs file */
 	if (!dev)
 		dev = inode->i_private;
+#endif
 	if (!dev)
 		goto out;
 	ret = usb_autoresume_device(dev);
@@ -581,7 +580,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	ps->disccontext = NULL;
 	ps->ifclaimed = 0;
 	security_task_getsecid(current, &ps->secid);
-	wmb();
+	smp_wmb();
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
  out:
@@ -813,7 +812,6 @@ static int proc_getdriver(struct dev_state *ps, void __user *arg)
 
 	if (copy_from_user(&gd, arg, sizeof(gd)))
 		return -EFAULT;
-	down_read(&usb_bus_type.subsys.rwsem);
 	intf = usb_ifnum_to_if(ps->dev, gd.interface);
 	if (!intf || !intf->dev.driver)
 		ret = -ENODATA;
@@ -822,7 +820,6 @@ static int proc_getdriver(struct dev_state *ps, void __user *arg)
 				sizeof(gd.driver));
 		ret = (copy_to_user(arg, &gd, sizeof(gd)) ? -EFAULT : 0);
 	}
-	up_read(&usb_bus_type.subsys.rwsem);
 	return ret;
 }
 
@@ -1351,15 +1348,12 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 
 	/* disconnect kernel driver from interface */
 	case USBDEVFS_DISCONNECT:
-
-		down_write(&usb_bus_type.subsys.rwsem);
 		if (intf->dev.driver) {
 			driver = to_usb_driver(intf->dev.driver);
 			dev_dbg (&intf->dev, "disconnect by usbfs\n");
 			usb_driver_release_interface(driver, intf);
 		} else
 			retval = -ENODATA;
-		up_write(&usb_bus_type.subsys.rwsem);
 		break;
 
 	/* let kernel drivers try to (re)bind to the interface */
@@ -1371,7 +1365,6 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 
 	/* talk directly to the interface's driver */
 	default:
-		down_read(&usb_bus_type.subsys.rwsem);
 		if (intf->dev.driver)
 			driver = to_usb_driver(intf->dev.driver);
 		if (driver == NULL || driver->ioctl == NULL) {
@@ -1381,7 +1374,6 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 			if (retval == -ENOIOCTLCMD)
 				retval = -ENOTTY;
 		}
-		up_read(&usb_bus_type.subsys.rwsem);
 	}
 
 	/* cleanup and return */
@@ -1583,7 +1575,7 @@ static unsigned int usbdev_poll(struct file *file, struct poll_table_struct *wai
 	return mask;
 }
 
-const struct file_operations usbfs_device_file_operations = {
+const struct file_operations usbdev_file_operations = {
 	.llseek =	usbdev_lseek,
 	.read =		usbdev_read,
 	.poll =		usbdev_poll,
@@ -1592,50 +1584,53 @@ const struct file_operations usbfs_device_file_operations = {
 	.release =	usbdev_release,
 };
 
-static int usbdev_add(struct usb_device *dev)
+#ifdef CONFIG_USB_DEVICE_CLASS
+static struct class *usb_classdev_class;
+
+static int usb_classdev_add(struct usb_device *dev)
 {
 	int minor = ((dev->bus->busnum-1) * 128) + (dev->devnum-1);
 
-	dev->usbfs_dev = device_create(usb_device_class, &dev->dev,
+	dev->usb_classdev = device_create(usb_classdev_class, &dev->dev,
 				MKDEV(USB_DEVICE_MAJOR, minor),
 				"usbdev%d.%d", dev->bus->busnum, dev->devnum);
-	if (IS_ERR(dev->usbfs_dev))
-		return PTR_ERR(dev->usbfs_dev);
+	if (IS_ERR(dev->usb_classdev))
+		return PTR_ERR(dev->usb_classdev);
 
-	dev->usbfs_dev->platform_data = dev;
 	return 0;
 }
 
-static void usbdev_remove(struct usb_device *dev)
+static void usb_classdev_remove(struct usb_device *dev)
 {
-	device_unregister(dev->usbfs_dev);
+	device_unregister(dev->usb_classdev);
 }
 
-static int usbdev_notify(struct notifier_block *self, unsigned long action,
-			 void *dev)
+static int usb_classdev_notify(struct notifier_block *self,
+			       unsigned long action, void *dev)
 {
 	switch (action) {
 	case USB_DEVICE_ADD:
-		if (usbdev_add(dev))
+		if (usb_classdev_add(dev))
 			return NOTIFY_BAD;
 		break;
 	case USB_DEVICE_REMOVE:
-		usbdev_remove(dev);
+		usb_classdev_remove(dev);
 		break;
 	}
 	return NOTIFY_OK;
 }
 
 static struct notifier_block usbdev_nb = {
-	.notifier_call = 	usbdev_notify,
+	.notifier_call = 	usb_classdev_notify,
 };
+#endif
 
 static struct cdev usb_device_cdev = {
 	.kobj   = {.name = "usb_device", },
 	.owner  = THIS_MODULE,
 };
 
-int __init usbdev_init(void)
+int __init usb_devio_init(void)
 {
 	int retval;
 
@@ -1645,38 +1640,38 @@ int __init usbdev_init(void)
 		err("unable to register minors for usb_device");
 		goto out;
 	}
-	cdev_init(&usb_device_cdev, &usbfs_device_file_operations);
+	cdev_init(&usb_device_cdev, &usbdev_file_operations);
 	retval = cdev_add(&usb_device_cdev, USB_DEVICE_DEV, USB_DEVICE_MAX);
 	if (retval) {
 		err("unable to get usb_device major %d", USB_DEVICE_MAJOR);
 		goto error_cdev;
 	}
-	usb_device_class = class_create(THIS_MODULE, "usb_device");
-	if (IS_ERR(usb_device_class)) {
+#ifdef CONFIG_USB_DEVICE_CLASS
+	usb_classdev_class = class_create(THIS_MODULE, "usb_device");
+	if (IS_ERR(usb_classdev_class)) {
 		err("unable to register usb_device class");
-		retval = PTR_ERR(usb_device_class);
-		goto error_class;
+		retval = PTR_ERR(usb_classdev_class);
+		cdev_del(&usb_device_cdev);
+		usb_classdev_class = NULL;
+		goto out;
 	}
 
 	usb_register_notify(&usbdev_nb);
-
+#endif
 out:
 	return retval;
-
-error_class:
-	usb_device_class = NULL;
-	cdev_del(&usb_device_cdev);
 
 error_cdev:
 	unregister_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX);
 	goto out;
 }
 
-void usbdev_cleanup(void)
+void usb_devio_cleanup(void)
 {
+#ifdef CONFIG_USB_DEVICE_CLASS
 	usb_unregister_notify(&usbdev_nb);
-	class_destroy(usb_device_class);
+	class_destroy(usb_classdev_class);
+#endif
 	cdev_del(&usb_device_cdev);
 	unregister_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX);
 }
-

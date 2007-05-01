@@ -547,7 +547,6 @@ static void lance_rx_dvma(struct net_device *dev)
 
 			lp->stats.rx_bytes += len;
 
-			skb->dev = dev;
 			skb_reserve(skb, 2);		/* 16 byte align */
 			skb_put(skb, len);		/* make room */
 			eth_copy_and_sum(skb,
@@ -721,7 +720,6 @@ static void lance_rx_pio(struct net_device *dev)
 
 			lp->stats.rx_bytes += len;
 
-			skb->dev = dev;
 			skb_reserve (skb, 2);		/* 16 byte align */
 			skb_put(skb, len);		/* make room */
 			lance_piocopy_to_skb(skb, &(ib->rx_buf[entry][0]), len);
@@ -1145,7 +1143,7 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct lance_init_block *ib = lp->init_block_mem;
 		ib->btx_ring [entry].length = (-len) | 0xf000;
 		ib->btx_ring [entry].misc = 0;
-		memcpy((char *)&ib->tx_buf [entry][0], skb->data, skblen);
+		skb_copy_from_linear_data(skb, &ib->tx_buf [entry][0], skblen);
 		if (len != skblen)
 			memset((char *) &ib->tx_buf [entry][skblen], 0, len - skblen);
 		ib->btx_ring [entry].tmd1_bits = (LE_T1_POK | LE_T1_OWN);
@@ -1550,7 +1548,7 @@ static int __exit sunlance_sun4_remove(void)
 	struct lance_private *lp = dev_get_drvdata(&sun4_sdev.ofdev.dev);
 	struct net_device *net_dev = lp->dev;
 
-	unregister_netdevice(net_dev);
+	unregister_netdev(net_dev);
 
 	lance_free_hwresources(lp);
 
@@ -1590,7 +1588,7 @@ static int __devexit sunlance_sbus_remove(struct of_device *dev)
 	struct lance_private *lp = dev_get_drvdata(&dev->dev);
 	struct net_device *net_dev = lp->dev;
 
-	unregister_netdevice(net_dev);
+	unregister_netdev(net_dev);
 
 	lance_free_hwresources(lp);
 

@@ -1,6 +1,6 @@
 #
 # Makefile for the Linux ACPI interpreter
-# 
+#
 
 export ACPI_CFLAGS
 
@@ -32,16 +32,17 @@ obj-y				+= osl.o utils.o \
 processor-objs	+= processor_core.o processor_throttling.o \
 				processor_idle.o processor_thermal.o
 ifdef CONFIG_CPU_FREQ
-processor-objs	+= processor_perflib.o			
+processor-objs	+= processor_perflib.o
 endif
 
 obj-y				+= sleep/
 obj-y				+= bus.o glue.o
 obj-y				+= scan.o
+# Keep EC driver first. Initialization of others depend on it.
+obj-$(CONFIG_ACPI_EC)		+= ec.o
 obj-$(CONFIG_ACPI_AC) 		+= ac.o
 obj-$(CONFIG_ACPI_BATTERY)	+= battery.o
 obj-$(CONFIG_ACPI_BUTTON)	+= button.o
-obj-$(CONFIG_ACPI_EC)		+= ec.o
 obj-$(CONFIG_ACPI_FAN)		+= fan.o
 obj-$(CONFIG_ACPI_DOCK)		+= dock.o
 obj-$(CONFIG_ACPI_BAY)		+= bay.o
@@ -55,8 +56,7 @@ obj-$(CONFIG_ACPI_SYSTEM)	+= system.o event.o
 obj-$(CONFIG_ACPI_DEBUG)	+= debug.o
 obj-$(CONFIG_ACPI_NUMA)		+= numa.o
 obj-$(CONFIG_ACPI_ASUS)		+= asus_acpi.o
-obj-$(CONFIG_ACPI_IBM)		+= ibm_acpi.o
 obj-$(CONFIG_ACPI_TOSHIBA)	+= toshiba_acpi.o
 obj-$(CONFIG_ACPI_HOTPLUG_MEMORY)	+= acpi_memhotplug.o
 obj-y				+= cm_sbs.o
-obj-$(CONFIG_ACPI_SBS)		+= i2c_ec.o sbs.o
+obj-$(CONFIG_ACPI_SBS)		+= sbs.o

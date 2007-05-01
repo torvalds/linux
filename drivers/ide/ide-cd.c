@@ -735,6 +735,15 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 			cdrom_saw_media_change (drive);
 			/*printk("%s: media changed\n",drive->name);*/
 			return 0;
+ 		} else if ((sense_key == ILLEGAL_REQUEST) &&
+ 			   (rq->cmd[0] == GPCMD_START_STOP_UNIT)) {
+ 			/*
+ 			 * Don't print error message for this condition--
+ 			 * SFF8090i indicates that 5/24/00 is the correct
+ 			 * response to a request to close the tray if the
+ 			 * drive doesn't have that capability.
+ 			 * cdrom_log_sense() knows this!
+ 			 */
 		} else if (!(rq->cmd_flags & REQ_QUIET)) {
 			/* Otherwise, print an error. */
 			ide_dump_status(drive, "packet command error", stat);

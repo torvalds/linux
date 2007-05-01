@@ -341,7 +341,7 @@ static int ark3116_open(struct usb_serial_port *port, struct file *filp)
 
 	result = usb_serial_generic_open(port, filp);
 	if (result)
-		return result;
+		goto err_out;
 
 	/* open */
 	ARK3116_RCV(serial, 111, 0xFE, 0xC0, 0x0000, 0x0003, 0x02, buf);
@@ -372,6 +372,7 @@ static int ark3116_open(struct usb_serial_port *port, struct file *filp)
 	if (port->tty)
 		ark3116_set_termios(port, &tmp_termios);
 
+err_out:
 	kfree(buf);
 
 	return result;

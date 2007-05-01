@@ -346,10 +346,6 @@ static void eth_port_init(struct mv643xx_private *mp);
 static void eth_port_reset(unsigned int eth_port_num);
 static void eth_port_start(struct net_device *dev);
 
-/* Port MAC address routines */
-static void eth_port_uc_addr_set(unsigned int eth_port_num,
-				 unsigned char *p_addr);
-
 /* PHY and MIB routines */
 static void ethernet_phy_reset(unsigned int eth_port_num);
 

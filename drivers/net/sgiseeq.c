@@ -318,7 +318,6 @@ static inline void sgiseeq_rx(struct net_device *dev, struct sgiseeq_private *sp
 			skb = dev_alloc_skb(len + 2);
 
 			if (skb) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);
 				skb_put(skb, len);
 
@@ -535,7 +534,7 @@ static int sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 *    entry and the HPC got to the end of the chain before we
 	 *    added this new entry and restarted it.
 	 */
-	memcpy((char *)(long)td->buf_vaddr, skb->data, skblen);
+	skb_copy_from_linear_data(skb, (char *)(long)td->buf_vaddr, skblen);
 	if (len != skblen)
 		memset((char *)(long)td->buf_vaddr + skb->len, 0, len-skblen);
 	td->tdma.cntinfo = (len & HPCDMA_BCNT) |
@@ -625,7 +624,7 @@ static inline void setup_rx_ring(struct sgiseeq_rx_desc *buf, int nbufs)
 
 #define ALIGNED(x)  ((((unsigned long)(x)) + 0xf) & ~(0xf))
 
-static int sgiseeq_init(struct hpc3_regs* hpcregs, int irq)
+static int sgiseeq_init(struct hpc3_regs* hpcregs, int irq, int has_eeprom)
 {
 	struct sgiseeq_init_block *sr;
 	struct sgiseeq_private *sp;
@@ -651,7 +650,9 @@ static int sgiseeq_init(struct hpc3_regs* hpcregs, int irq)
 
 #define EADDR_NVOFS     250
 	for (i = 0; i < 3; i++) {
-		unsigned short tmp = ip22_nvram_read(EADDR_NVOFS / 2 + i);
+		unsigned short tmp = has_eeprom ?
+			ip22_eeprom_read(&hpcregs->eeprom, EADDR_NVOFS / 2+i) :
+			ip22_nvram_read(EADDR_NVOFS / 2+i);
 
 		dev->dev_addr[2 * i]     = tmp >> 8;
 		dev->dev_addr[2 * i + 1] = tmp & 0xff;
@@ -678,6 +679,11 @@ static int sgiseeq_init(struct hpc3_regs* hpcregs, int irq)
 	/* A couple calculations now, saves many cycles later. */
 	setup_rx_ring(sp->rx_desc, SEEQ_RX_BUFFERS);
 	setup_tx_ring(sp->tx_desc, SEEQ_TX_BUFFERS);
+
+	/* Setup PIO and DMA transfer timing */
+	sp->hregs->pconfig = 0x161;
+	sp->hregs->dconfig = HPC3_EDCFG_FIRQ | HPC3_EDCFG_FEOP |
+			     HPC3_EDCFG_FRXDC | HPC3_EDCFG_PTO | 0x026;
 
 	/* Setup PIO and DMA transfer timing */
 	sp->hregs->pconfig = 0x161;
@@ -730,8 +736,23 @@ err_out:
 
 static int __init sgiseeq_probe(void)
 {
+	unsigned int tmp, ret1, ret2 = 0;
+
 	/* On board adapter on 1st HPC is always present */
-	return sgiseeq_init(hpc3c0, SGI_ENET_IRQ);
+	ret1 = sgiseeq_init(hpc3c0, SGI_ENET_IRQ, 0);
+	/* Let's see if second HPC is there */
+	if (!(ip22_is_fullhouse()) &&
+	    get_dbe(tmp, (unsigned int *)&hpc3c1->pbdma[1]) == 0) {
+		sgimc->giopar |= SGIMC_GIOPAR_MASTEREXP1 |
+				 SGIMC_GIOPAR_EXP164 |
+				 SGIMC_GIOPAR_HPC264;
+		hpc3c1->pbus_piocfg[0][0] = 0x3ffff;
+		/* interrupt/config register on Challenge S Mezz board */
+		hpc3c1->pbus_extregs[0][0] = 0x30;
+		ret2 = sgiseeq_init(hpc3c1, SGI_GIO_0_IRQ, 1);
+	}
+
+	return (ret1 & ret2) ? ret1 : 0;
 }
 
 static void __exit sgiseeq_exit(void)

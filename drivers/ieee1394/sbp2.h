@@ -250,15 +250,15 @@ enum sbp2_dma_types {
 /* Per SCSI command */
 struct sbp2_command_info {
 	struct list_head list;
-	struct sbp2_command_orb command_orb ____cacheline_aligned;
-	dma_addr_t command_orb_dma ____cacheline_aligned;
+	struct sbp2_command_orb command_orb;
+	dma_addr_t command_orb_dma;
 	struct scsi_cmnd *Current_SCpnt;
 	void (*Current_done)(struct scsi_cmnd *);
 
 	/* Also need s/g structure for each sbp2 command */
 	struct sbp2_unrestricted_page_table
-			scatter_gather_element[SG_ALL] ____cacheline_aligned;
-	dma_addr_t sge_dma ____cacheline_aligned;
+		scatter_gather_element[SG_ALL] __attribute__((aligned(8)));
+	dma_addr_t sge_dma;
 	void *sge_buffer;
 	dma_addr_t cmd_dma;
 	enum sbp2_dma_types dma_type;

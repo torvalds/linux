@@ -32,12 +32,13 @@ static struct device_node *allnodes;
  */
 static DEFINE_RWLOCK(devtree_lock);
 
-int of_device_is_compatible(struct device_node *device, const char *compat)
+int of_device_is_compatible(const struct device_node *device,
+			    const char *compat)
 {
 	const char* cp;
 	int cplen, l;
 
-	cp = (char *) of_get_property(device, "compatible", &cplen);
+	cp = of_get_property(device, "compatible", &cplen);
 	if (cp == NULL)
 		return 0;
 	while (cplen > 0) {
@@ -150,13 +151,14 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 }
 EXPORT_SYMBOL(of_find_compatible_node);
 
-struct property *of_find_property(struct device_node *np, const char *name,
+struct property *of_find_property(const struct device_node *np,
+				  const char *name,
 				  int *lenp)
 {
 	struct property *pp;
 
 	for (pp = np->properties; pp != 0; pp = pp->next) {
-		if (strcmp(pp->name, name) == 0) {
+		if (strcasecmp(pp->name, name) == 0) {
 			if (lenp != 0)
 				*lenp = pp->length;
 			break;
@@ -170,7 +172,8 @@ EXPORT_SYMBOL(of_find_property);
  * Find a property with a given name for a given node
  * and return the value.
  */
-void *of_get_property(struct device_node *np, const char *name, int *lenp)
+const void *of_get_property(const struct device_node *np, const char *name,
+			    int *lenp)
 {
 	struct property *pp = of_find_property(np,name,lenp);
 	return pp ? pp->value : NULL;
@@ -192,7 +195,7 @@ EXPORT_SYMBOL(of_getintprop_default);
 
 int of_n_addr_cells(struct device_node *np)
 {
-	int* ip;
+	const int* ip;
 	do {
 		if (np->parent)
 			np = np->parent;
@@ -207,7 +210,7 @@ EXPORT_SYMBOL(of_n_addr_cells);
 
 int of_n_size_cells(struct device_node *np)
 {
-	int* ip;
+	const int* ip;
 	do {
 		if (np->parent)
 			np = np->parent;
@@ -239,7 +242,7 @@ int of_set_property(struct device_node *dp, const char *name, void *val, int len
 	while (*prevp) {
 		struct property *prop = *prevp;
 
-		if (!strcmp(prop->name, name)) {
+		if (!strcasecmp(prop->name, name)) {
 			void *old_val = prop->value;
 			int ret;
 

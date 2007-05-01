@@ -322,7 +322,7 @@ void init_smc_ioports(struct fs_uart_platform_info *data)
 	}
 }
 
-int platform_device_skip(char *model, int id)
+int platform_device_skip(const char *model, int id)
 {
 #ifdef CONFIG_MPC8xx_SECOND_ETH_SCC3
 	const char *dev = "FEC";
@@ -346,7 +346,7 @@ static void __init mpc885ads_setup_arch(void)
 	if (cpu != 0) {
 		const unsigned int *fp;
 
-		fp = get_property(cpu, "clock-frequency", NULL);
+		fp = of_get_property(cpu, "clock-frequency", NULL);
 		if (fp != 0)
 			loops_per_jiffy = *fp / HZ;
 		else

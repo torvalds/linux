@@ -295,66 +295,46 @@ int genl_unregister_family(struct genl_family *family)
 	return -ENOENT;
 }
 
-static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
-			       int *errp)
+static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct genl_ops *ops;
 	struct genl_family *family;
 	struct genl_info info;
 	struct genlmsghdr *hdr = nlmsg_data(nlh);
-	int hdrlen, err = -EINVAL;
-
-	if (!(nlh->nlmsg_flags & NLM_F_REQUEST))
-		goto ignore;
-
-	if (nlh->nlmsg_type < NLMSG_MIN_TYPE)
-		goto ignore;
+	int hdrlen, err;
 
 	family = genl_family_find_byid(nlh->nlmsg_type);
-	if (family == NULL) {
-		err = -ENOENT;
-		goto errout;
-	}
+	if (family == NULL)
+		return -ENOENT;
 
 	hdrlen = GENL_HDRLEN + family->hdrsize;
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
-		goto errout;
+		return -EINVAL;
 
 	ops = genl_get_cmd(hdr->cmd, family);
-	if (ops == NULL) {
-		err = -EOPNOTSUPP;
-		goto errout;
-	}
+	if (ops == NULL)
+		return -EOPNOTSUPP;
 
-	if ((ops->flags & GENL_ADMIN_PERM) && security_netlink_recv(skb, CAP_NET_ADMIN)) {
-		err = -EPERM;
-		goto errout;
-	}
+	if ((ops->flags & GENL_ADMIN_PERM) &&
+	    security_netlink_recv(skb, CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-		if (ops->dumpit == NULL) {
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
+		if (ops->dumpit == NULL)
+			return -EOPNOTSUPP;
 
-		*errp = err = netlink_dump_start(genl_sock, skb, nlh,
-						 ops->dumpit, ops->done);
-		if (err == 0)
-			skb_pull(skb, min(NLMSG_ALIGN(nlh->nlmsg_len),
-					  skb->len));
-		return -1;
+		return netlink_dump_start(genl_sock, skb, nlh,
+					  ops->dumpit, ops->done);
 	}
 
-	if (ops->doit == NULL) {
-		err = -EOPNOTSUPP;
-		goto errout;
-	}
+	if (ops->doit == NULL)
+		return -EOPNOTSUPP;
 
 	if (family->attrbuf) {
 		err = nlmsg_parse(nlh, hdrlen, family->attrbuf, family->maxattr,
 				  ops->policy);
 		if (err < 0)
-			goto errout;
+			return err;
 	}
 
 	info.snd_seq = nlh->nlmsg_seq;
@@ -364,15 +344,7 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	info.userhdr = nlmsg_data(nlh) + GENL_HDRLEN;
 	info.attrs = family->attrbuf;
 
-	*errp = err = ops->doit(skb, &info);
-	return err;
-
-ignore:
-	return 0;
-
-errout:
-	*errp = err;
-	return -1;
+	return ops->doit(skb, &info);
 }
 
 static void genl_rcv(struct sock *sk, int len)
@@ -586,7 +558,7 @@ static int __init genl_init(void)
 
 	netlink_set_nonroot(NETLINK_GENERIC, NL_NONROOT_RECV);
 	genl_sock = netlink_kernel_create(NETLINK_GENERIC, GENL_MAX_ID,
-					  genl_rcv, THIS_MODULE);
+					  genl_rcv, NULL, THIS_MODULE);
 	if (genl_sock == NULL)
 		panic("GENL: Cannot initialize generic netlink\n");
 

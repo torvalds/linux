@@ -610,7 +610,8 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		lgdt330x_reset(card);
 		card->fe = dvb_attach(lgdt330x_attach, &tdvs_tua6034_config, card->i2c_adapter);
 		if (card->fe != NULL) {
-			dvb_attach(lgh06xf_attach, card->fe, card->i2c_adapter);
+			dvb_attach(dvb_pll_attach, card->fe, 0x61,
+				   card->i2c_adapter, &dvb_pll_lg_tdvs_h06xf);
 			dprintk ("dvb_bt8xx: lgdt330x detected\n");
 		}
 		break;

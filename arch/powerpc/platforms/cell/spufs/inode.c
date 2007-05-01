@@ -36,6 +36,7 @@
 #include <asm/prom.h>
 #include <asm/semaphore.h>
 #include <asm/spu.h>
+#include <asm/spu_priv1.h>
 #include <asm/uaccess.h>
 
 #include "spufs.h"
@@ -54,6 +55,7 @@ spufs_alloc_inode(struct super_block *sb)
 
 	ei->i_gang = NULL;
 	ei->i_ctx = NULL;
+	ei->i_openers = 0;
 
 	return &ei->vfs_inode;
 }
@@ -520,13 +522,14 @@ out:
 
 /* File system initialization */
 enum {
-	Opt_uid, Opt_gid, Opt_err,
+	Opt_uid, Opt_gid, Opt_mode, Opt_err,
 };
 
 static match_table_t spufs_tokens = {
-	{ Opt_uid, "uid=%d" },
-	{ Opt_gid, "gid=%d" },
-	{ Opt_err, NULL  },
+	{ Opt_uid,  "uid=%d" },
+	{ Opt_gid,  "gid=%d" },
+	{ Opt_mode, "mode=%o" },
+	{ Opt_err,   NULL  },
 };
 
 static int
@@ -553,11 +556,21 @@ spufs_parse_options(char *options, struct inode *root)
 				return 0;
 			root->i_gid = option;
 			break;
+		case Opt_mode:
+			if (match_octal(&args[0], &option))
+				return 0;
+			root->i_mode = option | S_IFDIR;
+			break;
 		default:
 			return 0;
 		}
 	}
 	return 1;
+}
+
+static void spufs_exit_isolated_loader(void)
+{
+	kfree(isolated_loader);
 }
 
 static void
@@ -571,7 +584,7 @@ spufs_init_isolated_loader(void)
 	if (!dn)
 		return;
 
-	loader = get_property(dn, "loader", &size);
+	loader = of_get_property(dn, "loader", &size);
 	if (!loader)
 		return;
 
@@ -653,6 +666,10 @@ static int __init spufs_init(void)
 {
 	int ret;
 
+	ret = -ENODEV;
+	if (!spu_management_ops)
+		goto out;
+
 	ret = -ENOMEM;
 	spufs_inode_cache = kmem_cache_create("spufs_inode_cache",
 			sizeof(struct spufs_inode_info), 0,
@@ -660,25 +677,29 @@ static int __init spufs_init(void)
 
 	if (!spufs_inode_cache)
 		goto out;
-	if (spu_sched_init() != 0) {
-		kmem_cache_destroy(spufs_inode_cache);
-		goto out;
-	}
-	ret = register_filesystem(&spufs_type);
+	ret = spu_sched_init();
 	if (ret)
 		goto out_cache;
+	ret = register_filesystem(&spufs_type);
+	if (ret)
+		goto out_sched;
 	ret = register_spu_syscalls(&spufs_calls);
 	if (ret)
 		goto out_fs;
 	ret = register_arch_coredump_calls(&spufs_coredump_calls);
 	if (ret)
-		goto out_fs;
+		goto out_syscalls;
 
 	spufs_init_isolated_loader();
 
 	return 0;
+
+out_syscalls:
+	unregister_spu_syscalls(&spufs_calls);
 out_fs:
 	unregister_filesystem(&spufs_type);
+out_sched:
+	spu_sched_exit();
 out_cache:
 	kmem_cache_destroy(spufs_inode_cache);
 out:
@@ -689,6 +710,7 @@ module_init(spufs_init);
 static void __exit spufs_exit(void)
 {
 	spu_sched_exit();
+	spufs_exit_isolated_loader();
 	unregister_arch_coredump_calls(&spufs_coredump_calls);
 	unregister_spu_syscalls(&spufs_calls);
 	unregister_filesystem(&spufs_type);

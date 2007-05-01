@@ -709,6 +709,24 @@ struct hci_sco_hdr {
 	__u8 	dlen;
 } __attribute__ ((packed));
 
+#ifdef __KERNEL__
+#include <linux/skbuff.h>
+static inline struct hci_event_hdr *hci_event_hdr(const struct sk_buff *skb)
+{
+	return (struct hci_event_hdr *)skb->data;
+}
+
+static inline struct hci_acl_hdr *hci_acl_hdr(const struct sk_buff *skb)
+{
+	return (struct hci_acl_hdr *)skb->data;
+}
+
+static inline struct hci_sco_hdr *hci_sco_hdr(const struct sk_buff *skb)
+{
+	return (struct hci_sco_hdr *)skb->data;
+}
+#endif
+
 /* Command opcode pack/unpack */
 #define hci_opcode_pack(ogf, ocf)	(__u16) ((ocf & 0x03ff)|(ogf << 10))
 #define hci_opcode_ogf(op)		(op >> 10)

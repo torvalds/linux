@@ -32,7 +32,7 @@ static u64 tick_length, tick_length_base;
 /* TIME_ERROR prevents overwriting the CMOS clock */
 static int time_state = TIME_OK;	/* clock synchronization status	*/
 int time_status = STA_UNSYNC;		/* clock status bits		*/
-static long time_offset;		/* time adjustment (ns)		*/
+static s64 time_offset;		/* time adjustment (ns)		*/
 static long time_constant = 2;		/* pll time constant		*/
 long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
 long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
@@ -196,7 +196,7 @@ void __attribute__ ((weak)) notify_arch_cmos_timer(void)
  */
 int do_adjtimex(struct timex *txc)
 {
-	long ltemp, mtemp, save_adjust;
+	long mtemp, save_adjust, rem;
 	s64 freq_adj, temp64;
 	int result;
 
@@ -277,14 +277,14 @@ int do_adjtimex(struct timex *txc)
 		    time_adjust = txc->offset;
 		}
 		else if (time_status & STA_PLL) {
-		    ltemp = txc->offset * NSEC_PER_USEC;
+		    time_offset = txc->offset * NSEC_PER_USEC;
 
 		    /*
 		     * Scale the phase adjustment and
 		     * clamp to the operating range.
 		     */
-		    time_offset = min(ltemp, MAXPHASE * NSEC_PER_USEC);
-		    time_offset = max(time_offset, -MAXPHASE * NSEC_PER_USEC);
+		    time_offset = min(time_offset, (s64)MAXPHASE * NSEC_PER_USEC);
+		    time_offset = max(time_offset, (s64)-MAXPHASE * NSEC_PER_USEC);
 
 		    /*
 		     * Select whether the frequency is to be controlled
@@ -297,11 +297,11 @@ int do_adjtimex(struct timex *txc)
 		    mtemp = xtime.tv_sec - time_reftime;
 		    time_reftime = xtime.tv_sec;
 
-		    freq_adj = (s64)time_offset * mtemp;
+		    freq_adj = time_offset * mtemp;
 		    freq_adj = shift_right(freq_adj, time_constant * 2 +
 					   (SHIFT_PLL + 2) * 2 - SHIFT_NSEC);
 		    if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
-			temp64 = (s64)time_offset << (SHIFT_NSEC - SHIFT_FLL);
+			temp64 = time_offset << (SHIFT_NSEC - SHIFT_FLL);
 			if (time_offset < 0) {
 			    temp64 = -temp64;
 			    do_div(temp64, mtemp);
@@ -314,8 +314,10 @@ int do_adjtimex(struct timex *txc)
 		    freq_adj += time_freq;
 		    freq_adj = min(freq_adj, (s64)MAXFREQ_NSEC);
 		    time_freq = max(freq_adj, (s64)-MAXFREQ_NSEC);
-		    time_offset = (time_offset / NTP_INTERVAL_FREQ)
-		    			<< SHIFT_UPDATE;
+		    time_offset = div_long_long_rem_signed(time_offset,
+							   NTP_INTERVAL_FREQ,
+							   &rem);
+		    time_offset <<= SHIFT_UPDATE;
 		} /* STA_PLL */
 	    } /* txc->modes & ADJ_OFFSET */
 	    if (txc->modes & ADJ_TICK)
@@ -328,12 +330,12 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 		result = TIME_ERROR;
 
 	if ((txc->modes & ADJ_OFFSET_SINGLESHOT) == ADJ_OFFSET_SINGLESHOT)
-	    txc->offset	   = save_adjust;
+		txc->offset = save_adjust;
 	else
-	    txc->offset    = shift_right(time_offset, SHIFT_UPDATE)
-	    			* NTP_INTERVAL_FREQ / 1000;
-	txc->freq	   = (time_freq / NSEC_PER_USEC)
-				<< (SHIFT_USEC - SHIFT_NSEC);
+		txc->offset = ((long)shift_right(time_offset, SHIFT_UPDATE)) *
+	    			NTP_INTERVAL_FREQ / 1000;
+	txc->freq	   = (time_freq / NSEC_PER_USEC) <<
+				(SHIFT_USEC - SHIFT_NSEC);
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;
 	txc->status	   = time_status;

@@ -114,9 +114,17 @@ extern int sn9c102_i2c_write(struct sn9c102_device*, u8 address, u8 value);
 extern int sn9c102_i2c_read(struct sn9c102_device*, u8 address);
 
 /* I/O on registers in the bridge. Could be used by the sensor methods too */
-extern int sn9c102_write_regs(struct sn9c102_device*, u8* buff, u16 index);
-extern int sn9c102_write_reg(struct sn9c102_device*, u8 value, u16 index);
 extern int sn9c102_pread_reg(struct sn9c102_device*, u16 index);
+extern int sn9c102_write_reg(struct sn9c102_device*, u8 value, u16 index);
+extern int sn9c102_write_regs(struct sn9c102_device*, const u8 valreg[][2],
+			      int count);
+/*
+ * Write multiple registers with constant values.  For example:
+ * sn9c102_write_const_regs(cam, {0x00, 0x14}, {0x60, 0x17}, {0x0f, 0x18});
+ */
+#define sn9c102_write_const_regs(device, data...) \
+	({ const static u8 _data[][2] = {data}; \
+	sn9c102_write_regs(device, _data, ARRAY_SIZE(_data)); })
 
 /*****************************************************************************/
 

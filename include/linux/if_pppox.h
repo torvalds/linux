@@ -111,7 +111,17 @@ struct pppoe_hdr {
 	struct pppoe_tag tag[0];
 } __attribute__ ((packed));
 
+/* Length of entire PPPoE + PPP header */
+#define PPPOE_SES_HLEN	8
+
 #ifdef __KERNEL__
+#include <linux/skbuff.h>
+
+static inline struct pppoe_hdr *pppoe_hdr(const struct sk_buff *skb)
+{
+	return (struct pppoe_hdr *)skb_network_header(skb);
+}
+
 struct pppoe_opt {
 	struct net_device      *dev;	  /* device associated with socket*/
 	int			ifindex;  /* ifindex of device associated with socket */

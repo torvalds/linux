@@ -145,11 +145,12 @@ anslcd_init(void)
 	int retval;
 	struct device_node* node;
 
-	node = find_devices("lcd");
-	if (!node || !node->parent)
+	node = of_find_node_by_name(NULL, "lcd");
+	if (!node || !node->parent || strcmp(node->parent->name, "gc")) {
+		of_node_put(node);
 		return -ENODEV;
-	if (strcmp(node->parent->name, "gc"))
-		return -ENODEV;
+	}
+	of_node_put(node);
 
 	anslcd_ptr = ioremap(ANSLCD_ADDR, 0x20);
 	

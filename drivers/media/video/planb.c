@@ -2160,7 +2160,7 @@ static int find_planb(void)
 	if (!machine_is(powermac))
 		return 0;
 
-	planb_devices = find_devices("planb");
+	planb_devices = of_find_node_by_name(NULL, "planb");
 	if (planb_devices == 0) {
 		planb_num=0;
 		printk(KERN_WARNING "PlanB: no device found!\n");
@@ -2175,12 +2175,14 @@ static int find_planb(void)
 	if (planb_devices->n_addrs != 1) {
 		printk (KERN_WARNING "PlanB: expecting 1 address for planb "
 			"(got %d)", planb_devices->n_addrs);
+		of_node_put(planb_devices);
 		return 0;
 	}
 
 	if (planb_devices->n_intrs == 0) {
 		printk(KERN_WARNING "PlanB: no intrs for device %s\n",
 		       planb_devices->full_name);
+		of_node_put(planb_devices);
 		return 0;
 	} else {
 		irq = planb_devices->intrs[0].line;
@@ -2202,12 +2204,13 @@ static int find_planb(void)
 	confreg = planb_devices->addrs[0].space & 0xff;
 	old_base = planb_devices->addrs[0].address;
 	new_base = 0xf1000000;
+	of_node_put(planb_devices);
 
 	DEBUG("PlanB: Found on bus %d, dev %d, func %d, "
 		"membase 0x%x (base reg. 0x%x)\n",
 		bus, PCI_SLOT(dev_fn), PCI_FUNC(dev_fn), old_base, confreg);
 
-	pdev = pci_find_slot (bus, dev_fn);
+	pdev = pci_get_bus_and_slot(bus, dev_fn);
 	if (!pdev) {
 		printk(KERN_ERR "planb: cannot find slot\n");
 		goto err_out;
@@ -2237,6 +2240,7 @@ static int find_planb(void)
 	pb->planb_base = planb_regs;
 	pb->planb_base_phys = (struct planb_registers *)new_base;
 	pb->irq	= irq;
+	pb->dev = pdev;
 
 	return planb_num;
 
@@ -2244,6 +2248,7 @@ err_out_disable:
 	pci_disable_device(pdev);
 err_out:
 	/* FIXME handle error */   /* comment moved from pci_find_slot, above */
+	pci_dev_put(pdev);
 	return 0;
 }
 
@@ -2270,6 +2275,8 @@ static void release_planb(void)
 
 		printk(KERN_INFO "PlanB: unregistering with v4l\n");
 		video_unregister_device(&pb->video_dev);
+
+		pci_dev_put(pb->dev);
 
 		/* note that iounmap() does nothing on the PPC right now */
 		iounmap ((void *)pb->planb_base);

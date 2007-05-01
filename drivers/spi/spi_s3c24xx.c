@@ -77,7 +77,7 @@ static void s3c24xx_spi_chipsel(struct spi_device *spi, int value)
 
 	switch (value) {
 	case BITBANG_CS_INACTIVE:
-		hw->pdata->set_cs(hw->pdata, spi->chip_select, cspol^1);
+		hw->set_cs(hw->pdata, spi->chip_select, cspol^1);
 		break;
 
 	case BITBANG_CS_ACTIVE:
@@ -98,7 +98,7 @@ static void s3c24xx_spi_chipsel(struct spi_device *spi, int value)
 		/* write new configration */
 
 		writeb(spcon, hw->regs + S3C2410_SPCON);
-		hw->pdata->set_cs(hw->pdata, spi->chip_select, cspol);
+		hw->set_cs(hw->pdata, spi->chip_select, cspol);
 
 		break;
 	}

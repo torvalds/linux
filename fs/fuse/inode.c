@@ -330,6 +330,8 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d, int is_bdev)
 		case OPT_ROOTMODE:
 			if (match_octal(&args[0], &value))
 				return 0;
+			if (!fuse_valid_type(value))
+				return 0;
 			d->rootmode = value;
 			d->rootmode_present = 1;
 			break;

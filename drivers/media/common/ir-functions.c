@@ -310,13 +310,15 @@ void ir_rc5_timer_end(unsigned long data)
 		    tv.tv_usec - ir->base_time.tv_usec;
 	}
 
-	/* Allow some timmer jitter (RC5 is ~24ms anyway so this is ok) */
+	/* signal we're ready to start a new code */
+	ir->active = 0;
+
+	/* Allow some timer jitter (RC5 is ~24ms anyway so this is ok) */
 	if (gap < 28000) {
 		dprintk(1, "ir-common: spurious timer_end\n");
 		return;
 	}
 
-	ir->active = 0;
 	if (ir->last_bit < 20) {
 		/* ignore spurious codes (caused by light/other remotes) */
 		dprintk(1, "ir-common: short code: %x\n", ir->code);

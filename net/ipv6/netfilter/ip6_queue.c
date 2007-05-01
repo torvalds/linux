@@ -11,18 +11,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 2001-11-06: First try. Working with ip_queue.c for IPv4 and trying
- *             to adapt it to IPv6
- *             HEAVILY based in ipqueue.c by James Morris. It's just
- *             a little modified version of it, so he's nearly the
- *             real coder of this.
- *             Few changes needed, mainly the hard_routing code and
- *             the netlink socket protocol (we're NETLINK_IP6_FW).
- * 2002-06-25: Code cleanup. [JM: ported cleanup over from ip_queue.c]
- * 2005-02-04: Added /proc counter for dropped packets; fixed so
- *             packets aren't delivered to user space if they're going
- *             to be dropped.
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -189,12 +177,13 @@ ipq_flush(int verdict)
 static struct sk_buff *
 ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 {
-	unsigned char *old_tail;
+	sk_buff_data_t old_tail;
 	size_t size = 0;
 	size_t data_len = 0;
 	struct sk_buff *skb;
 	struct ipq_packet_msg *pmsg;
 	struct nlmsghdr *nlh;
+	struct timeval tv;
 
 	read_lock_bh(&queue_lock);
 
@@ -232,15 +221,16 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 	if (!skb)
 		goto nlmsg_failure;
 
-	old_tail= skb->tail;
+	old_tail = skb->tail;
 	nlh = NLMSG_PUT(skb, 0, 0, IPQM_PACKET, size - sizeof(*nlh));
 	pmsg = NLMSG_DATA(nlh);
 	memset(pmsg, 0, sizeof(*pmsg));
 
 	pmsg->packet_id       = (unsigned long )entry;
 	pmsg->data_len        = data_len;
-	pmsg->timestamp_sec   = entry->skb->tstamp.off_sec;
-	pmsg->timestamp_usec  = entry->skb->tstamp.off_usec;
+	tv = ktime_to_timeval(entry->skb->tstamp);
+	pmsg->timestamp_sec   = tv.tv_sec;
+	pmsg->timestamp_usec  = tv.tv_usec;
 	pmsg->mark            = entry->skb->mark;
 	pmsg->hook            = entry->info->hook;
 	pmsg->hw_protocol     = entry->skb->protocol;
@@ -376,7 +366,7 @@ ipq_mangle_ipv6(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 	}
 	if (!skb_make_writable(&e->skb, v->data_len))
 		return -ENOMEM;
-	memcpy(e->skb->data, v->payload, v->data_len);
+	skb_copy_to_linear_data(e->skb, v->payload, v->data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;
 
 	return 0;
@@ -485,7 +475,7 @@ ipq_rcv_skb(struct sk_buff *skb)
 	if (skblen < sizeof(*nlh))
 		return;
 
-	nlh = (struct nlmsghdr *)skb->data;
+	nlh = nlmsg_hdr(skb);
 	nlmsglen = nlh->nlmsg_len;
 	if (nlmsglen < sizeof(*nlh) || skblen < nlmsglen)
 		return;
@@ -667,7 +657,7 @@ static int __init ip6_queue_init(void)
 	struct proc_dir_entry *proc;
 
 	netlink_register_notifier(&ipq_nl_notifier);
-	ipqnl = netlink_kernel_create(NETLINK_IP6_FW, 0, ipq_rcv_sk,
+	ipqnl = netlink_kernel_create(NETLINK_IP6_FW, 0, ipq_rcv_sk, NULL,
 				      THIS_MODULE);
 	if (ipqnl == NULL) {
 		printk(KERN_ERR "ip6_queue: failed to create netlink socket\n");

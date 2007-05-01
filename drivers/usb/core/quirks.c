@@ -30,7 +30,8 @@
 static const struct usb_device_id usb_quirk_list[] = {
 	/* HP 5300/5370C scanner */
 	{ USB_DEVICE(0x03f0, 0x0701), .driver_info = USB_QUIRK_STRING_FETCH_255 },
-
+	/* Seiko Epson Corp - Perfection 1670 */
+	{ USB_DEVICE(0x04b8, 0x011f), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Elsa MicroLink 56k (V.250) */
 	{ USB_DEVICE(0x05cc, 0x2267), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 
@@ -41,7 +42,7 @@ static void usb_autosuspend_quirk(struct usb_device *udev)
 {
 #ifdef	CONFIG_USB_SUSPEND
 	/* disable autosuspend, but allow the user to re-enable it via sysfs */
-	udev->autosuspend_delay = 0;
+	udev->autosuspend_disabled = 1;
 #endif
 }
 

@@ -22,7 +22,7 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"",			0	}
 };
 
-static void reserve_range(char *pnpid, int start, int end, int port)
+static void reserve_range(const char *pnpid, resource_size_t start, resource_size_t end, int port)
 {
 	struct resource *res;
 	char *regionid;
@@ -32,9 +32,9 @@ static void reserve_range(char *pnpid, int start, int end, int port)
 		return;
 	snprintf(regionid, 16, "pnp %s", pnpid);
 	if (port)
-		res = request_region(start,end-start+1,regionid);
+		res = request_region(start, end-start+1, regionid);
 	else
-		res = request_mem_region(start,end-start+1,regionid);
+		res = request_mem_region(start, end-start+1, regionid);
 	if (res == NULL)
 		kfree(regionid);
 	else
@@ -45,12 +45,13 @@ static void reserve_range(char *pnpid, int start, int end, int port)
 	 * have double reservations.
 	 */
 	printk(KERN_INFO
-		"pnp: %s: %s range 0x%x-0x%x %s reserved\n",
-		pnpid, port ? "ioport" : "iomem", start, end,
+		"pnp: %s: %s range 0x%llx-0x%llx %s reserved\n",
+		pnpid, port ? "ioport" : "iomem",
+                (unsigned long long)start, (unsigned long long)end,
 		NULL != res ? "has been" : "could not be");
 }
 
-static void reserve_resources_of_dev(struct pnp_dev *dev)
+static void reserve_resources_of_dev(const struct pnp_dev *dev)
 {
 	int i;
 

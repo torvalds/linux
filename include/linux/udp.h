@@ -26,6 +26,15 @@ struct udphdr {
 	__sum16	check;
 };
 
+#ifdef __KERNEL__
+#include <linux/skbuff.h>
+
+static inline struct udphdr *udp_hdr(const struct sk_buff *skb)
+{
+	return (struct udphdr *)skb_transport_header(skb);
+}
+#endif
+
 /* UDP socket options */
 #define UDP_CORK	1	/* Never send partially complete segments */
 #define UDP_ENCAP	100	/* Set the socket to accept encapsulated packets */

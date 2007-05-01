@@ -627,6 +627,12 @@ int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 			retval = -EINVAL;
 			goto err_bindx_rem;
 		}
+
+		if (!af->addr_valid(sa_addr, sp, NULL)) {
+			retval = -EADDRNOTAVAIL;
+			goto err_bindx_rem;
+		}
+
 		if (sa_addr->v4.sin_port != htons(bp->port)) {
 			retval = -EINVAL;
 			goto err_bindx_rem;
@@ -935,7 +941,7 @@ SCTP_STATIC int sctp_setsockopt_bindx(struct sock* sk,
 	default:
 		err = -EINVAL;
 		break;
-	};
+	}
 
 out:
 	kfree(kaddrs);
@@ -2033,6 +2039,10 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *                     SPP_HB_DEMAND - Request a user initiated heartbeat
  *                     to be made immediately.
  *
+ *                     SPP_HB_TIME_IS_ZERO - Specify's that the time for
+ *                     heartbeat delayis to be set to the value of 0
+ *                     milliseconds.
+ *
  *                     SPP_PMTUD_ENABLE - This field will enable PMTU
  *                     discovery upon the specified address. Note that
  *                     if the address feild is empty then all addresses
@@ -2075,13 +2085,30 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 			return error;
 	}
 
-	if (params->spp_hbinterval) {
-		if (trans) {
-			trans->hbinterval = msecs_to_jiffies(params->spp_hbinterval);
-		} else if (asoc) {
-			asoc->hbinterval = msecs_to_jiffies(params->spp_hbinterval);
-		} else {
-			sp->hbinterval = params->spp_hbinterval;
+	/* Note that unless the spp_flag is set to SPP_HB_ENABLE the value of
+	 * this field is ignored.  Note also that a value of zero indicates
+	 * the current setting should be left unchanged.
+	 */
+	if (params->spp_flags & SPP_HB_ENABLE) {
+
+		/* Re-zero the interval if the SPP_HB_TIME_IS_ZERO is
+		 * set.  This lets us use 0 value when this flag
+		 * is set.
+		 */
+		if (params->spp_flags & SPP_HB_TIME_IS_ZERO)
+			params->spp_hbinterval = 0;
+
+		if (params->spp_hbinterval ||
+		    (params->spp_flags & SPP_HB_TIME_IS_ZERO)) {
+			if (trans) {
+				trans->hbinterval =
+				    msecs_to_jiffies(params->spp_hbinterval);
+			} else if (asoc) {
+				asoc->hbinterval =
+				    msecs_to_jiffies(params->spp_hbinterval);
+			} else {
+				sp->hbinterval = params->spp_hbinterval;
+			}
 		}
 	}
 
@@ -2098,7 +2125,12 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 		}
 	}
 
-	if (params->spp_pathmtu) {
+	/* When Path MTU discovery is disabled the value specified here will
+	 * be the "fixed" path mtu (i.e. the value of the spp_flags field must
+	 * include the flag SPP_PMTUD_DISABLE for this field to have any
+	 * effect).
+	 */
+	if ((params->spp_flags & SPP_PMTUD_DISABLE) && params->spp_pathmtu) {
 		if (trans) {
 			trans->pathmtu = params->spp_pathmtu;
 			sctp_assoc_sync_pmtu(asoc);
@@ -2129,7 +2161,11 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 		}
 	}
 
-	if (params->spp_sackdelay) {
+	/* Note that unless the spp_flag is set to SPP_SACKDELAY_ENABLE the
+	 * value of this field is ignored.  Note also that a value of zero
+	 * indicates the current setting should be left unchanged.
+	 */
+	if ((params->spp_flags & SPP_SACKDELAY_ENABLE) && params->spp_sackdelay) {
 		if (trans) {
 			trans->sackdelay =
 				msecs_to_jiffies(params->spp_sackdelay);
@@ -2157,7 +2193,11 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 		}
 	}
 
-	if (params->spp_pathmaxrxt) {
+	/* Note that unless the spp_flag is set to SPP_PMTUD_ENABLE the value
+	 * of this field is ignored.  Note also that a value of zero
+	 * indicates the current setting should be left unchanged.
+	 */
+	if ((params->spp_flags & SPP_PMTUD_ENABLE) && params->spp_pathmaxrxt) {
 		if (trans) {
 			trans->pathmaxrxt = params->spp_pathmaxrxt;
 		} else if (asoc) {
@@ -2249,7 +2289,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	return 0;
 }
 
-/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+/* 7.1.23. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
  *
  *   This options will get or set the delayed ack timer.  The time is set
  *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
@@ -2786,6 +2826,102 @@ static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
 	return 0;
 }
 
+/*
+ * 7.1.24.  Get or set fragmented interleave (SCTP_FRAGMENT_INTERLEAVE)
+ *
+ * This options will at a minimum specify if the implementation is doing
+ * fragmented interleave.  Fragmented interleave, for a one to many
+ * socket, is when subsequent calls to receive a message may return
+ * parts of messages from different associations.  Some implementations
+ * may allow you to turn this value on or off.  If so, when turned off,
+ * no fragment interleave will occur (which will cause a head of line
+ * blocking amongst multiple associations sharing the same one to many
+ * socket).  When this option is turned on, then each receive call may
+ * come from a different association (thus the user must receive data
+ * with the extended calls (e.g. sctp_recvmsg) to keep track of which
+ * association each receive belongs to.
+ *
+ * This option takes a boolean value.  A non-zero value indicates that
+ * fragmented interleave is on.  A value of zero indicates that
+ * fragmented interleave is off.
+ *
+ * Note that it is important that an implementation that allows this
+ * option to be turned on, have it off by default.  Otherwise an unaware
+ * application using the one to many model may become confused and act
+ * incorrectly.
+ */
+static int sctp_setsockopt_fragment_interleave(struct sock *sk,
+					       char __user *optval,
+					       int optlen)
+{
+	int val;
+
+	if (optlen != sizeof(int))
+		return -EINVAL;
+	if (get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	sctp_sk(sk)->frag_interleave = (val == 0) ? 0 : 1;
+
+	return 0;
+}
+
+/*
+ * 7.1.25.  Set or Get the sctp partial delivery point
+ *       (SCTP_PARTIAL_DELIVERY_POINT)
+ * This option will set or get the SCTP partial delivery point.  This
+ * point is the size of a message where the partial delivery API will be
+ * invoked to help free up rwnd space for the peer.  Setting this to a
+ * lower value will cause partial delivery's to happen more often.  The
+ * calls argument is an integer that sets or gets the partial delivery
+ * point.
+ */
+static int sctp_setsockopt_partial_delivery_point(struct sock *sk,
+						  char __user *optval,
+						  int optlen)
+{
+	u32 val;
+
+	if (optlen != sizeof(u32))
+		return -EINVAL;
+	if (get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	sctp_sk(sk)->pd_point = val;
+
+	return 0; /* is this the right error code? */
+}
+
+/*
+ * 7.1.28.  Set or Get the maximum burst (SCTP_MAX_BURST)
+ *
+ * This option will allow a user to change the maximum burst of packets
+ * that can be emitted by this association.  Note that the default value
+ * is 4, and some implementations may restrict this setting so that it
+ * can only be lowered.
+ *
+ * NOTE: This text doesn't seem right.  Do this on a socket basis with
+ * future associations inheriting the socket value.
+ */
+static int sctp_setsockopt_maxburst(struct sock *sk,
+				    char __user *optval,
+				    int optlen)
+{
+	int val;
+
+	if (optlen != sizeof(int))
+		return -EINVAL;
+	if (get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	if (val < 0)
+		return -EINVAL;
+
+	sctp_sk(sk)->max_burst = val;
+
+	return 0;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -2865,6 +3001,9 @@ SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
 	case SCTP_DELAYED_ACK_TIME:
 		retval = sctp_setsockopt_delayed_ack_time(sk, optval, optlen);
 		break;
+	case SCTP_PARTIAL_DELIVERY_POINT:
+		retval = sctp_setsockopt_partial_delivery_point(sk, optval, optlen);
+		break;
 
 	case SCTP_INITMSG:
 		retval = sctp_setsockopt_initmsg(sk, optval, optlen);
@@ -2900,11 +3039,16 @@ SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
 	case SCTP_CONTEXT:
 		retval = sctp_setsockopt_context(sk, optval, optlen);
 		break;
-
+	case SCTP_FRAGMENT_INTERLEAVE:
+		retval = sctp_setsockopt_fragment_interleave(sk, optval, optlen);
+		break;
+	case SCTP_MAX_BURST:
+		retval = sctp_setsockopt_maxburst(sk, optval, optlen);
+		break;
 	default:
 		retval = -ENOPROTOOPT;
 		break;
-	};
+	}
 
 	sctp_release_sock(sk);
 
@@ -3060,6 +3204,7 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->default_timetolive = 0;
 
 	sp->default_rcv_context = 0;
+	sp->max_burst = sctp_max_burst;
 
 	/* Initialize default setup parameters. These parameters
 	 * can be modified with the SCTP_INITMSG socket option or
@@ -3128,8 +3273,9 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->pf = sctp_get_pf_specific(sk->sk_family);
 
 	/* Control variables for partial data delivery. */
-	sp->pd_mode           = 0;
+	atomic_set(&sp->pd_mode, 0);
 	skb_queue_head_init(&sp->pd_lobby);
+	sp->frag_interleave = 0;
 
 	/* Create a per socket endpoint structure.  Even if we
 	 * change the data structure relationships, this may still
@@ -3636,7 +3782,7 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 	return 0;
 }
 
-/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+/* 7.1.23. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
  *
  *   This options will get or set the delayed ack timer.  The time is set
  *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
@@ -3841,7 +3987,7 @@ static int sctp_getsockopt_peer_addrs(struct sock *sk, int len,
 		memcpy(&temp, &from->ipaddr, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp, &temp);
 		addrlen = sctp_get_af_specific(sk->sk_family)->sockaddr_len;
-		if(space_left < addrlen)
+		if (space_left < addrlen)
 			return -ENOMEM;
 		if (copy_to_user(to, &temp, addrlen))
 			return -EFAULT;
@@ -3930,8 +4076,9 @@ done:
 /* Helper function that copies local addresses to user and returns the number
  * of addresses copied.
  */
-static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_addrs,
-					void __user *to)
+static int sctp_copy_laddrs_old(struct sock *sk, __u16 port,
+					int max_addrs, void *to,
+					int *bytes_copied)
 {
 	struct list_head *pos, *next;
 	struct sctp_sockaddr_entry *addr;
@@ -3948,10 +4095,10 @@ static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_add
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 								&temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
-		if (copy_to_user(to, &temp, addrlen))
-			return -EFAULT;
+		memcpy(to, &temp, addrlen);
 
 		to += addrlen;
+		*bytes_copied += addrlen;
 		cnt ++;
 		if (cnt >= max_addrs) break;
 	}
@@ -3959,8 +4106,8 @@ static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_add
 	return cnt;
 }
 
-static int sctp_copy_laddrs_to_user(struct sock *sk, __u16 port,
-				    void __user **to, size_t space_left)
+static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
+			    size_t space_left, int *bytes_copied)
 {
 	struct list_head *pos, *next;
 	struct sctp_sockaddr_entry *addr;
@@ -3977,14 +4124,14 @@ static int sctp_copy_laddrs_to_user(struct sock *sk, __u16 port,
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 								&temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
-		if(space_left<addrlen)
+		if (space_left < addrlen)
 			return -ENOMEM;
-		if (copy_to_user(*to, &temp, addrlen))
-			return -EFAULT;
+		memcpy(to, &temp, addrlen);
 
-		*to += addrlen;
+		to += addrlen;
 		cnt ++;
 		space_left -= addrlen;
+		bytes_copied += addrlen;
 	}
 
 	return cnt;
@@ -4008,6 +4155,8 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 	int addrlen;
 	rwlock_t *addr_lock;
 	int err = 0;
+	void *addrs;
+	int bytes_copied = 0;
 
 	if (len != sizeof(struct sctp_getaddrs_old))
 		return -EINVAL;
@@ -4035,6 +4184,15 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 
 	to = getaddrs.addrs;
 
+	/* Allocate space for a local instance of packed array to hold all
+	 * the data.  We store addresses here first and then put write them
+	 * to the user in one shot.
+	 */
+	addrs = kmalloc(sizeof(union sctp_addr) * getaddrs.addr_num,
+			GFP_KERNEL);
+	if (!addrs)
+		return -ENOMEM;
+
 	sctp_read_lock(addr_lock);
 
 	/* If the endpoint is bound to 0.0.0.0 or ::0, get the valid
@@ -4044,13 +4202,9 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
 		if (sctp_is_any(&addr->a)) {
-			cnt = sctp_copy_laddrs_to_user_old(sk, bp->port,
-							   getaddrs.addr_num,
-							   to);
-			if (cnt < 0) {
-				err = cnt;
-				goto unlock;
-			}
+			cnt = sctp_copy_laddrs_old(sk, bp->port,
+						   getaddrs.addr_num,
+						   addrs, &bytes_copied);
 			goto copy_getaddrs;
 		}
 	}
@@ -4060,22 +4214,29 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 		memcpy(&temp, &addr->a, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp, &temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
-		if (copy_to_user(to, &temp, addrlen)) {
-			err = -EFAULT;
-			goto unlock;
-		}
+		memcpy(addrs, &temp, addrlen);
 		to += addrlen;
+		bytes_copied += addrlen;
 		cnt ++;
 		if (cnt >= getaddrs.addr_num) break;
 	}
 
 copy_getaddrs:
+	sctp_read_unlock(addr_lock);
+
+	/* copy the entire address list into the user provided space */
+	if (copy_to_user(to, addrs, bytes_copied)) {
+		err = -EFAULT;
+		goto error;
+	}
+
+	/* copy the leading structure back to user */
 	getaddrs.addr_num = cnt;
 	if (copy_to_user(optval, &getaddrs, sizeof(struct sctp_getaddrs_old)))
 		err = -EFAULT;
 
-unlock:
-	sctp_read_unlock(addr_lock);
+error:
+	kfree(addrs);
 	return err;
 }
 
@@ -4095,7 +4256,8 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 	rwlock_t *addr_lock;
 	int err = 0;
 	size_t space_left;
-	int bytes_copied;
+	int bytes_copied = 0;
+	void *addrs;
 
 	if (len <= sizeof(struct sctp_getaddrs))
 		return -EINVAL;
@@ -4123,6 +4285,9 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 	to = optval + offsetof(struct sctp_getaddrs,addrs);
 	space_left = len - sizeof(struct sctp_getaddrs) -
 			 offsetof(struct sctp_getaddrs,addrs);
+	addrs = kmalloc(space_left, GFP_KERNEL);
+	if (!addrs)
+		return -ENOMEM;
 
 	sctp_read_lock(addr_lock);
 
@@ -4133,11 +4298,11 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
 		if (sctp_is_any(&addr->a)) {
-			cnt = sctp_copy_laddrs_to_user(sk, bp->port,
-						       &to, space_left);
+			cnt = sctp_copy_laddrs(sk, bp->port, addrs,
+						space_left, &bytes_copied);
 			if (cnt < 0) {
 				err = cnt;
-				goto unlock;
+				goto error;
 			}
 			goto copy_getaddrs;
 		}
@@ -4148,26 +4313,31 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 		memcpy(&temp, &addr->a, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp, &temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
-		if(space_left < addrlen)
-			return -ENOMEM; /*fixme: right error?*/
-		if (copy_to_user(to, &temp, addrlen)) {
-			err = -EFAULT;
-			goto unlock;
+		if (space_left < addrlen) {
+			err =  -ENOMEM; /*fixme: right error?*/
+			goto error;
 		}
+		memcpy(addrs, &temp, addrlen);
 		to += addrlen;
+		bytes_copied += addrlen;
 		cnt ++;
 		space_left -= addrlen;
 	}
 
 copy_getaddrs:
+	sctp_read_unlock(addr_lock);
+
+	if (copy_to_user(to, addrs, bytes_copied)) {
+		err = -EFAULT;
+		goto error;
+	}
 	if (put_user(cnt, &((struct sctp_getaddrs __user *)optval)->addr_num))
 		return -EFAULT;
-	bytes_copied = ((char __user *)to) - optval;
 	if (put_user(bytes_copied, optlen))
 		return -EFAULT;
 
-unlock:
-	sctp_read_unlock(addr_lock);
+error:
+	kfree(addrs);
 	return err;
 }
 
@@ -4530,6 +4700,77 @@ static int sctp_getsockopt_maxseg(struct sock *sk, int len,
 	return 0;
 }
 
+/*
+ * 7.1.24.  Get or set fragmented interleave (SCTP_FRAGMENT_INTERLEAVE)
+ * (chapter and verse is quoted at sctp_setsockopt_fragment_interleave())
+ */
+static int sctp_getsockopt_fragment_interleave(struct sock *sk, int len,
+					       char __user *optval, int __user *optlen)
+{
+	int val;
+
+	if (len < sizeof(int))
+		return -EINVAL;
+
+	len = sizeof(int);
+
+	val = sctp_sk(sk)->frag_interleave;
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
+/*
+ * 7.1.25.  Set or Get the sctp partial delivery point
+ * (chapter and verse is quoted at sctp_setsockopt_partial_delivery_point())
+ */
+static int sctp_getsockopt_partial_delivery_point(struct sock *sk, int len,
+						  char __user *optval,
+						  int __user *optlen)
+{
+        u32 val;
+
+	if (len < sizeof(u32))
+		return -EINVAL;
+
+	len = sizeof(u32);
+
+	val = sctp_sk(sk)->pd_point;
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return -ENOTSUPP;
+}
+
+/*
+ * 7.1.28.  Set or Get the maximum burst (SCTP_MAX_BURST)
+ * (chapter and verse is quoted at sctp_setsockopt_maxburst())
+ */
+static int sctp_getsockopt_maxburst(struct sock *sk, int len,
+				    char __user *optval,
+				    int __user *optlen)
+{
+        int val;
+
+	if (len < sizeof(int))
+		return -EINVAL;
+
+	len = sizeof(int);
+
+	val = sctp_sk(sk)->max_burst;
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return -ENOTSUPP;
+}
+
 SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 				char __user *optval, int __user *optlen)
 {
@@ -4642,10 +4883,21 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 	case SCTP_CONTEXT:
 		retval = sctp_getsockopt_context(sk, len, optval, optlen);
 		break;
+	case SCTP_FRAGMENT_INTERLEAVE:
+		retval = sctp_getsockopt_fragment_interleave(sk, len, optval,
+							     optlen);
+		break;
+	case SCTP_PARTIAL_DELIVERY_POINT:
+		retval = sctp_getsockopt_partial_delivery_point(sk, len, optval,
+								optlen);
+		break;
+	case SCTP_MAX_BURST:
+		retval = sctp_getsockopt_maxburst(sk, len, optval, optlen);
+		break;
 	default:
 		retval = -ENOPROTOOPT;
 		break;
-	};
+	}
 
 	sctp_release_sock(sk);
 	return retval;
@@ -4970,7 +5222,8 @@ int sctp_inet_listen(struct socket *sock, int backlog)
 		break;
 	default:
 		break;
-	};
+	}
+
 	if (err)
 		goto cleanup;
 
@@ -5233,7 +5486,7 @@ SCTP_STATIC int sctp_msghdr_parse(const struct msghdr *msg,
 
 		default:
 			return -EINVAL;
-		};
+		}
 	}
 	return 0;
 }
@@ -5638,6 +5891,36 @@ void sctp_wait_for_close(struct sock *sk, long timeout)
 	finish_wait(sk->sk_sleep, &wait);
 }
 
+static void sctp_sock_rfree_frag(struct sk_buff *skb)
+{
+	struct sk_buff *frag;
+
+	if (!skb->data_len)
+		goto done;
+
+	/* Don't forget the fragments. */
+	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next)
+		sctp_sock_rfree_frag(frag);
+
+done:
+	sctp_sock_rfree(skb);
+}
+
+static void sctp_skb_set_owner_r_frag(struct sk_buff *skb, struct sock *sk)
+{
+	struct sk_buff *frag;
+
+	if (!skb->data_len)
+		goto done;
+
+	/* Don't forget the fragments. */
+	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next)
+		sctp_skb_set_owner_r_frag(frag, sk);
+
+done:
+	sctp_skb_set_owner_r(skb, sk);
+}
+
 /* Populate the fields of the newsk from the oldsk and migrate the assoc
  * and its messages to the newsk.
  */
@@ -5692,10 +5975,10 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	sctp_skb_for_each(skb, &oldsk->sk_receive_queue, tmp) {
 		event = sctp_skb2event(skb);
 		if (event->asoc == assoc) {
-			sctp_sock_rfree(skb);
+			sctp_sock_rfree_frag(skb);
 			__skb_unlink(skb, &oldsk->sk_receive_queue);
 			__skb_queue_tail(&newsk->sk_receive_queue, skb);
-			sctp_skb_set_owner_r(skb, newsk);
+			sctp_skb_set_owner_r_frag(skb, newsk);
 		}
 	}
 
@@ -5706,9 +5989,9 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	 * 3) Peeling off non-partial delivery; move pd_lobby to receive_queue.
 	 */
 	skb_queue_head_init(&newsp->pd_lobby);
-	sctp_sk(newsk)->pd_mode = assoc->ulpq.pd_mode;
+	atomic_set(&sctp_sk(newsk)->pd_mode, assoc->ulpq.pd_mode);
 
-	if (sctp_sk(oldsk)->pd_mode) {
+	if (atomic_read(&sctp_sk(oldsk)->pd_mode)) {
 		struct sk_buff_head *queue;
 
 		/* Decide which queue to move pd_lobby skbs to. */
@@ -5723,10 +6006,10 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		sctp_skb_for_each(skb, &oldsp->pd_lobby, tmp) {
 			event = sctp_skb2event(skb);
 			if (event->asoc == assoc) {
-				sctp_sock_rfree(skb);
+				sctp_sock_rfree_frag(skb);
 				__skb_unlink(skb, &oldsp->pd_lobby);
 				__skb_queue_tail(queue, skb);
-				sctp_skb_set_owner_r(skb, newsk);
+				sctp_skb_set_owner_r_frag(skb, newsk);
 			}
 		}
 
@@ -5734,8 +6017,18 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		 * delivery to finish.
 		 */
 		if (assoc->ulpq.pd_mode)
-			sctp_clear_pd(oldsk);
+			sctp_clear_pd(oldsk, NULL);
 
+	}
+
+	sctp_skb_for_each(skb, &assoc->ulpq.reasm, tmp) {
+		sctp_sock_rfree_frag(skb);
+		sctp_skb_set_owner_r_frag(skb, newsk);
+	}
+
+	sctp_skb_for_each(skb, &assoc->ulpq.lobby, tmp) {
+		sctp_sock_rfree_frag(skb);
+		sctp_skb_set_owner_r_frag(skb, newsk);
 	}
 
 	/* Set the type of socket to indicate that it is peeled off from the

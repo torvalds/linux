@@ -80,13 +80,13 @@ static struct ata_port_operations pata_platform_port_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+	.cable_detect		= ata_cable_unknown,
 
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 
 	.data_xfer		= ata_data_xfer_noirq,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -135,7 +135,8 @@ static void pata_platform_setup_port(struct ata_ioports *ioaddr,
 static int __devinit pata_platform_probe(struct platform_device *pdev)
 {
 	struct resource *io_res, *ctl_res;
-	struct ata_probe_ent ae;
+	struct ata_host *host;
+	struct ata_port *ap;
 	unsigned int mmio;
 
 	/*
@@ -175,44 +176,41 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 	/*
 	 * Now that that's out of the way, wire up the port..
 	 */
-	memset(&ae, 0, sizeof(struct ata_probe_ent));
-	INIT_LIST_HEAD(&ae.node);
-	ae.dev = &pdev->dev;
-	ae.port_ops = &pata_platform_port_ops;
-	ae.sht = &pata_platform_sht;
-	ae.n_ports = 1;
-	ae.pio_mask = pio_mask;
-	ae.irq = platform_get_irq(pdev, 0);
-	ae.irq_flags = 0;
-	ae.port_flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST;
+	host = ata_host_alloc(&pdev->dev, 1);
+	if (!host)
+		return -ENOMEM;
+	ap = host->ports[0];
+
+	ap->ops = &pata_platform_port_ops;
+	ap->pio_mask = pio_mask;
+	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
 	/*
 	 * Handle the MMIO case
 	 */
 	if (mmio) {
-		ae.port[0].cmd_addr = devm_ioremap(&pdev->dev, io_res->start,
+		ap->ioaddr.cmd_addr = devm_ioremap(&pdev->dev, io_res->start,
 				io_res->end - io_res->start + 1);
-		ae.port[0].ctl_addr = devm_ioremap(&pdev->dev, ctl_res->start,
+		ap->ioaddr.ctl_addr = devm_ioremap(&pdev->dev, ctl_res->start,
 				ctl_res->end - ctl_res->start + 1);
 	} else {
-		ae.port[0].cmd_addr = devm_ioport_map(&pdev->dev, io_res->start,
+		ap->ioaddr.cmd_addr = devm_ioport_map(&pdev->dev, io_res->start,
 				io_res->end - io_res->start + 1);
-		ae.port[0].ctl_addr = devm_ioport_map(&pdev->dev, ctl_res->start,
+		ap->ioaddr.ctl_addr = devm_ioport_map(&pdev->dev, ctl_res->start,
 				ctl_res->end - ctl_res->start + 1);
 	}
-	if (!ae.port[0].cmd_addr || !ae.port[0].ctl_addr) {
+	if (!ap->ioaddr.cmd_addr || !ap->ioaddr.ctl_addr) {
 		dev_err(&pdev->dev, "failed to map IO/CTL base\n");
 		return -ENOMEM;
 	}
 
-	ae.port[0].altstatus_addr = ae.port[0].ctl_addr;
+	ap->ioaddr.altstatus_addr = ap->ioaddr.ctl_addr;
 
-	pata_platform_setup_port(&ae.port[0], pdev->dev.platform_data);
+	pata_platform_setup_port(&ap->ioaddr, pdev->dev.platform_data);
 
-	if (unlikely(ata_device_add(&ae) == 0))
-		return -ENODEV;
-
-	return 0;
+	/* activate */
+	return ata_host_activate(host, platform_get_irq(pdev, 0), ata_interrupt,
+				 0, &pata_platform_sht);
 }
 
 /**

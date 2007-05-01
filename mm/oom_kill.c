@@ -176,6 +176,8 @@ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
 	struct zone **z;
 	nodemask_t nodes;
 	int node;
+
+	nodes_clear(nodes);
 	/* node has memory ? */
 	for_each_online_node(node)
 		if (NODE_DATA(node)->node_present_pages)
@@ -333,7 +335,7 @@ static int oom_kill_task(struct task_struct *p)
 	 */
 	do_each_thread(g, q) {
 		if (q->mm == mm && q->tgid != p->tgid)
-			force_sig(SIGKILL, p);
+			force_sig(SIGKILL, q);
 	} while_each_thread(g, q);
 
 	return 0;

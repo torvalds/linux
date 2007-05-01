@@ -89,7 +89,7 @@ static const struct
 {
 	int	error;
 	u8	scope;
-} fib_props[RTA_MAX + 1] = {
+} fib_props[RTN_MAX + 1] = {
 	{
 		.error	= 0,
 		.scope	= RT_SCOPE_NOWHERE,
@@ -927,7 +927,7 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 			default:
 				printk(KERN_DEBUG "impossible 102\n");
 				return -EINVAL;
-			};
+			}
 		}
 		return err;
 	}

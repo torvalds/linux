@@ -212,7 +212,6 @@ EXPORT_SYMBOL(insl);
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL(ebus_chain);
 EXPORT_SYMBOL(isa_chain);
-EXPORT_SYMBOL(pci_memspace_mask);
 EXPORT_SYMBOL(pci_alloc_consistent);
 EXPORT_SYMBOL(pci_free_consistent);
 EXPORT_SYMBOL(pci_map_single);

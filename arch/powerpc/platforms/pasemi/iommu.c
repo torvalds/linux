@@ -249,13 +249,13 @@ void iommu_init_early_pasemi(void)
 	iommu_off = 1;
 #else
 	iommu_off = of_chosen &&
-			get_property(of_chosen, "linux,iommu-off", NULL);
+			of_get_property(of_chosen, "linux,iommu-off", NULL);
 #endif
 	if (iommu_off) {
 		/* Direct I/O, IOMMU off */
 		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_null;
 		ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_null;
-		pci_dma_ops = &dma_direct_ops;
+		set_pci_dma_ops(&dma_direct_ops);
 
 		return;
 	}
@@ -266,7 +266,7 @@ void iommu_init_early_pasemi(void)
 	ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_pasemi;
 	ppc_md.tce_build = iobmap_build;
 	ppc_md.tce_free  = iobmap_free;
-	pci_dma_ops = &dma_iommu_ops;
+	set_pci_dma_ops(&dma_iommu_ops);
 }
 
 void __init alloc_iobmap_l2(void)

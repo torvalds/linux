@@ -529,7 +529,7 @@ int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Decide if we should use PIO or DMA transfer */
 	if (self->io.speed > PIO_MAX_SPEED) {
 		self->tx_buff.data = self->tx_buff.head;
-		memcpy(self->tx_buff.data, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, self->tx_buff.data, skb->len);
 		self->tx_buff.len = skb->len;
 		
 		mtt = irda_get_mtt(skb);
@@ -908,10 +908,14 @@ int w83977af_dma_receive_complete(struct w83977af_ir *self)
 			/* Copy frame without CRC */
 			if (self->io.speed < 4000000) {
 				skb_put(skb, len-2);
-				memcpy(skb->data, self->rx_buff.data, len-2);
+				skb_copy_to_linear_data(skb,
+							self->rx_buff.data,
+							len - 2);
 			} else {
 				skb_put(skb, len-4);
-				memcpy(skb->data, self->rx_buff.data, len-4);
+				skb_copy_to_linear_data(skb,
+							self->rx_buff.data,
+							len - 4);
 			}
 
 			/* Move to next frame */
@@ -919,7 +923,7 @@ int w83977af_dma_receive_complete(struct w83977af_ir *self)
 			self->stats.rx_packets++;
 			
 			skb->dev = self->netdev;
-			skb->mac.raw  = skb->data;
+			skb_reset_mac_header(skb);
 			skb->protocol = htons(ETH_P_IRDA);
 			netif_rx(skb);
 			self->netdev->last_rx = jiffies;

@@ -75,11 +75,13 @@
 #include <linux/ioport.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
 #include <linux/hdlcdrv.h>
 #include <linux/baycom.h>
 #include <linux/jiffies.h>
+
+#include <asm/uaccess.h>
+#include <asm/io.h>
+#include <asm/irq.h>
 
 /* --------------------------------------------------------------------- */
 
@@ -413,11 +415,18 @@ static int ser12_open(struct net_device *dev)
 
 	if (!dev || !bc)
 		return -ENXIO;
-	if (!dev->base_addr || dev->base_addr > 0x1000-SER12_EXTENT ||
-	    dev->irq < 2 || dev->irq > 15)
+	if (!dev->base_addr || dev->base_addr > 0xffff-SER12_EXTENT ||
+	    dev->irq < 2 || dev->irq > NR_IRQS) {
+		printk(KERN_INFO "baycom_ser_fdx: invalid portnumber (max %u) "
+				"or irq (2 <= irq <= %d)\n",
+				0xffff-SER12_EXTENT, NR_IRQS);
 		return -ENXIO;
-	if (bc->baud < 300 || bc->baud > 4800)
+	}
+	if (bc->baud < 300 || bc->baud > 4800) {
+		printk(KERN_INFO "baycom_ser_fdx: invalid baudrate "
+				"(300...4800)\n");
 		return -EINVAL;
+	}
 	if (!request_region(dev->base_addr, SER12_EXTENT, "baycom_ser_fdx")) {
 		printk(KERN_WARNING "BAYCOM_SER_FSX: I/O port 0x%04lx busy \n", 
 		       dev->base_addr);

@@ -11,7 +11,7 @@
 
 int ip6_route_me_harder(struct sk_buff *skb)
 {
-	struct ipv6hdr *iph = skb->nh.ipv6h;
+	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct dst_entry *dst;
 	struct flowi fl = {
 		.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0,
@@ -61,7 +61,7 @@ static void nf_ip6_saveroute(const struct sk_buff *skb, struct nf_info *info)
 	struct ip6_rt_info *rt_info = nf_info_reroute(info);
 
 	if (info->hook == NF_IP6_LOCAL_OUT) {
-		struct ipv6hdr *iph = skb->nh.ipv6h;
+		struct ipv6hdr *iph = ipv6_hdr(skb);
 
 		rt_info->daddr = iph->daddr;
 		rt_info->saddr = iph->saddr;
@@ -73,7 +73,7 @@ static int nf_ip6_reroute(struct sk_buff **pskb, const struct nf_info *info)
 	struct ip6_rt_info *rt_info = nf_info_reroute(info);
 
 	if (info->hook == NF_IP6_LOCAL_OUT) {
-		struct ipv6hdr *iph = (*pskb)->nh.ipv6h;
+		struct ipv6hdr *iph = ipv6_hdr(*pskb);
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
 		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr))
 			return ip6_route_me_harder(*pskb);
@@ -84,7 +84,7 @@ static int nf_ip6_reroute(struct sk_buff **pskb, const struct nf_info *info)
 __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 			     unsigned int dataoff, u_int8_t protocol)
 {
-	struct ipv6hdr *ip6h = skb->nh.ipv6h;
+	struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	__sum16 csum = 0;
 
 	switch (skb->ip_summed) {

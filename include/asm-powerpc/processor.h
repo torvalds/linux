@@ -133,7 +133,6 @@ struct thread_struct {
 	mm_segment_t	fs;		/* for get_fs() validation */
 #ifdef CONFIG_PPC32
 	void		*pgdir;		/* root of page-table tree */
-	signed long	last_syscall;
 #endif
 #if defined(CONFIG_4xx) || defined (CONFIG_BOOKE)
 	unsigned long	dbcr0;		/* debug control register values */

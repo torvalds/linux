@@ -758,7 +758,8 @@ static void acpi_thermal_check(void *data)
 			del_timer(&(tz->timer));
 	} else {
 		if (timer_pending(&(tz->timer)))
-			mod_timer(&(tz->timer), (HZ * sleep_time) / 1000);
+			mod_timer(&(tz->timer),
+					jiffies + (HZ * sleep_time) / 1000);
 		else {
 			tz->timer.data = (unsigned long)tz;
 			tz->timer.function = acpi_thermal_run;

@@ -66,35 +66,23 @@ struct dma_region {
 	int direction;
 };
 
-/* clear out all fields but do not allocate anything */
 void dma_region_init(struct dma_region *dma);
-
-/* allocate the buffer and map it to the IOMMU */
 int dma_region_alloc(struct dma_region *dma, unsigned long n_bytes,
 		     struct pci_dev *dev, int direction);
-
-/* unmap and free the buffer */
 void dma_region_free(struct dma_region *dma);
-
-/* sync the CPU's view of the buffer */
 void dma_region_sync_for_cpu(struct dma_region *dma, unsigned long offset,
 			     unsigned long len);
-
-/* sync the IO bus' view of the buffer */
 void dma_region_sync_for_device(struct dma_region *dma, unsigned long offset,
 				unsigned long len);
-
-/* map the buffer into a user space process */
 int  dma_region_mmap(struct dma_region *dma, struct file *file,
 		     struct vm_area_struct *vma);
-
-/* macro to index into a DMA region (or dma_prog_region) */
-#define dma_region_i(_dma, _type, _index) \
-	( ((_type*) ((_dma)->kvirt)) + (_index) )
-
-/* return the DMA bus address of the byte with the given offset
- * relative to the beginning of the dma_region */
 dma_addr_t dma_region_offset_to_bus(struct dma_region *dma,
 				    unsigned long offset);
+
+/**
+ * dma_region_i - macro to index into a DMA region (or dma_prog_region)
+ */
+#define dma_region_i(_dma, _type, _index) \
+	( ((_type*) ((_dma)->kvirt)) + (_index) )
 
 #endif /* IEEE1394_DMA_H */

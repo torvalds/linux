@@ -22,21 +22,14 @@
 #include "sn9c102_sensor.h"
 
 
-static struct sn9c102_sensor tas5130d1b;
-
-
 static int tas5130d1b_init(struct sn9c102_device* cam)
 {
-	int err = 0;
+	int err;
 
-	err += sn9c102_write_reg(cam, 0x01, 0x01);
-	err += sn9c102_write_reg(cam, 0x20, 0x17);
-	err += sn9c102_write_reg(cam, 0x04, 0x01);
-	err += sn9c102_write_reg(cam, 0x01, 0x10);
-	err += sn9c102_write_reg(cam, 0x00, 0x11);
-	err += sn9c102_write_reg(cam, 0x00, 0x14);
-	err += sn9c102_write_reg(cam, 0x60, 0x17);
-	err += sn9c102_write_reg(cam, 0x07, 0x18);
+	err = sn9c102_write_const_regs(cam, {0x01, 0x01}, {0x20, 0x17},
+				       {0x04, 0x01}, {0x01, 0x10},
+				       {0x00, 0x11}, {0x00, 0x14},
+				       {0x60, 0x17}, {0x07, 0x18});
 
 	return err;
 }
@@ -99,7 +92,7 @@ static int tas5130d1b_set_pix_format(struct sn9c102_device* cam,
 static struct sn9c102_sensor tas5130d1b = {
 	.name = "TAS5130D1B",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
-	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102 | BRIDGE_SN9C103,
+	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102,
 	.sysfs_ops = SN9C102_I2C_WRITE,
 	.frequency = SN9C102_I2C_100KHZ,
 	.interface = SN9C102_I2C_3WIRES,

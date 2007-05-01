@@ -123,7 +123,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 		goto exit;
 	skb_push(skb, ETH_HLEN);	/* (1) */
 
-	h = (struct aoe_hdr *) skb->mac.raw;
+	h = aoe_hdr(skb);
 	n = be32_to_cpu(get_unaligned(&h->tag));
 	if ((h->verfl & AOEFL_RSP) == 0 || (n & 1<<31))
 		goto exit;

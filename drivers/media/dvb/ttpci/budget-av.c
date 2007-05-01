@@ -35,7 +35,7 @@
 
 #include "budget.h"
 #include "stv0299.h"
-#include "tda10021.h"
+#include "tda1002x.h"
 #include "tda1004x.h"
 #include "tua6100.h"
 #include "dvb-pll.h"
@@ -66,9 +66,6 @@ struct budget_av {
 	int slot_status;
 	struct dvb_ca_en50221 ca;
 	u8 reinitialise_demod:1;
-	u8 tda10021_poclkp:1;
-	u8 tda10021_ts_enabled;
-	int (*tda10021_set_frontend)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p);
 };
 
 static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot);
@@ -234,12 +231,6 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	if (budget_av->reinitialise_demod)
 		dvb_frontend_reinitialise(budget_av->budget.dvb_frontend);
 
-	/* set tda10021 back to original clock configuration on reset */
-	if (budget_av->tda10021_poclkp) {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa0);
-		budget_av->tda10021_ts_enabled = 0;
-	}
-
 	return 0;
 }
 
@@ -256,11 +247,6 @@ static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 	ttpci_budget_set_video_port(saa, BUDGET_VIDEO_PORTB);
 	budget_av->slot_status = SLOTSTATUS_NONE;
 
-	/* set tda10021 back to original clock configuration when cam removed */
-	if (budget_av->tda10021_poclkp) {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa0);
-		budget_av->tda10021_ts_enabled = 0;
-	}
 	return 0;
 }
 
@@ -275,12 +261,6 @@ static int ciintf_slot_ts_enable(struct dvb_ca_en50221 *ca, int slot)
 	dprintk(1, "ciintf_slot_ts_enable: %d\n", budget_av->slot_status);
 
 	ttpci_budget_set_video_port(saa, BUDGET_VIDEO_PORTA);
-
-	/* tda10021 seems to need a different TS clock config when data is routed to the CAM */
-	if (budget_av->tda10021_poclkp) {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa1);
-		budget_av->tda10021_ts_enabled = 1;
-	}
 
 	return 0;
 }
@@ -631,36 +611,61 @@ static struct stv0299_config cinergy_1200s_1894_0010_config = {
 static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct budget *budget = (struct budget *) fe->dvb->priv;
-	u8 buf[4];
+	u8 buf[6];
 	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
+	int i;
 
+#define CU1216_IF 36125000
 #define TUNER_MUL 62500
 
-	u32 div = (params->frequency + 36125000 + TUNER_MUL / 2) / TUNER_MUL;
+	u32 div = (params->frequency + CU1216_IF + TUNER_MUL / 2) / TUNER_MUL;
 
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
-	buf[2] = 0x86;
+	buf[2] = 0xce;
 	buf[3] = (params->frequency < 150000000 ? 0x01 :
 		  params->frequency < 445000000 ? 0x02 : 0x04);
+	buf[4] = 0xde;
+	buf[5] = 0x20;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
+
+	/* wait for the pll lock */
+	msg.flags = I2C_M_RD;
+	msg.len = 1;
+	for (i = 0; i < 20; i++) {
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+		if (i2c_transfer(&budget->i2c_adap, &msg, 1) == 1 && (buf[0] & 0x40))
+			break;
+		msleep(10);
+	}
+
+	/* switch the charge pump to the lower current */
+	msg.flags = 0;
+	msg.len = 2;
+	msg.buf = &buf[2];
+	buf[2] &= ~0x40;
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
+		return -EIO;
+
 	return 0;
 }
 
-static struct tda10021_config philips_cu1216_config = {
+static struct tda1002x_config philips_cu1216_config = {
 	.demod_address = 0x0c,
+	.invert = 1,
 };
 
-static struct tda10021_config philips_cu1216_config_altaddress = {
+static struct tda1002x_config philips_cu1216_config_altaddress = {
 	.demod_address = 0x0d,
+	.invert = 0,
 };
-
-
-
 
 static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 {
@@ -908,41 +913,28 @@ static u8 read_pwm(struct budget_av *budget_av)
 	return pwm;
 }
 
-#define SUBID_DVBS_KNC1		0x0010
-#define SUBID_DVBS_KNC1_PLUS	0x0011
-#define SUBID_DVBS_TYPHOON	0x4f56
-#define SUBID_DVBS_CINERGY1200	0x1154
-#define SUBID_DVBS_CYNERGY1200N 0x1155
+#define SUBID_DVBS_KNC1			0x0010
+#define SUBID_DVBS_KNC1_PLUS		0x0011
+#define SUBID_DVBS_TYPHOON		0x4f56
+#define SUBID_DVBS_CINERGY1200		0x1154
+#define SUBID_DVBS_CYNERGY1200N 	0x1155
+#define SUBID_DVBS_TV_STAR		0x0014
+#define SUBID_DVBS_TV_STAR_CI		0x0016
+#define SUBID_DVBS_EASYWATCH_1  	0x001a
+#define SUBID_DVBS_EASYWATCH		0x001e
 
-#define SUBID_DVBS_TV_STAR	0x0014
-#define SUBID_DVBS_TV_STAR_CI	0x0016
-#define SUBID_DVBS_EASYWATCH_1  0x001a
-#define SUBID_DVBS_EASYWATCH	0x001e
-#define SUBID_DVBC_EASYWATCH	0x002a
-#define SUBID_DVBC_KNC1		0x0020
-#define SUBID_DVBC_KNC1_PLUS	0x0021
-#define SUBID_DVBC_CINERGY1200	0x1156
+#define SUBID_DVBC_EASYWATCH		0x002a
+#define SUBID_DVBC_EASYWATCH_MK3	0x002c
+#define SUBID_DVBC_KNC1			0x0020
+#define SUBID_DVBC_KNC1_PLUS		0x0021
+#define SUBID_DVBC_KNC1_MK3		0x0022
+#define SUBID_DVBC_KNC1_PLUS_MK3	0x0023
+#define SUBID_DVBC_CINERGY1200		0x1156
+#define SUBID_DVBC_CINERGY1200_MK3	0x1176
 
-#define SUBID_DVBT_KNC1_PLUS	0x0031
-#define SUBID_DVBT_KNC1		0x0030
-#define SUBID_DVBT_CINERGY1200	0x1157
-
-
-static int tda10021_set_frontend(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *p)
-{
-	struct budget_av* budget_av = fe->dvb->priv;
-	int result;
-
-	result = budget_av->tda10021_set_frontend(fe, p);
-	if (budget_av->tda10021_ts_enabled) {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa1);
-	} else {
-		tda10021_writereg(budget_av->budget.dvb_frontend, 0x12, 0xa0);
-	}
-
-	return result;
-}
+#define SUBID_DVBT_KNC1_PLUS		0x0031
+#define SUBID_DVBT_KNC1			0x0030
+#define SUBID_DVBT_CINERGY1200		0x1157
 
 static void frontend_init(struct budget_av *budget_av)
 {
@@ -961,6 +953,7 @@ static void frontend_init(struct budget_av *budget_av)
 		case SUBID_DVBC_KNC1_PLUS:
 		case SUBID_DVBT_KNC1_PLUS:
 		case SUBID_DVBC_EASYWATCH:
+		case SUBID_DVBC_KNC1_PLUS_MK3:
 			saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTHI);
 			break;
 	}
@@ -1017,6 +1010,7 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBC_CINERGY1200:
 	case SUBID_DVBC_EASYWATCH:
 		budget_av->reinitialise_demod = 1;
+		budget_av->budget.dev->i2c_bitrate = SAA7146_I2C_BUS_BIT_RATE_240;
 		fe = dvb_attach(tda10021_attach, &philips_cu1216_config,
 				     &budget_av->budget.i2c_adap,
 				     read_pwm(budget_av));
@@ -1025,9 +1019,20 @@ static void frontend_init(struct budget_av *budget_av)
 					     &budget_av->budget.i2c_adap,
 					     read_pwm(budget_av));
 		if (fe) {
-			budget_av->tda10021_poclkp = 1;
-			budget_av->tda10021_set_frontend = fe->ops.set_frontend;
-			fe->ops.set_frontend = tda10021_set_frontend;
+			fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set_params;
+		}
+		break;
+
+	case SUBID_DVBC_EASYWATCH_MK3:
+	case SUBID_DVBC_CINERGY1200_MK3:
+	case SUBID_DVBC_KNC1_MK3:
+	case SUBID_DVBC_KNC1_PLUS_MK3:
+		budget_av->reinitialise_demod = 1;
+		budget_av->budget.dev->i2c_bitrate = SAA7146_I2C_BUS_BIT_RATE_240;
+		fe = dvb_attach(tda10023_attach, &philips_cu1216_config,
+				     &budget_av->budget.i2c_adap,
+				     read_pwm(budget_av));
+		if (fe) {
 			fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set_params;
 		}
 		break;
@@ -1260,12 +1265,16 @@ MAKE_BUDGET_INFO(kncxs, "KNC TV STAR DVB-S", BUDGET_TVSTAR);
 MAKE_BUDGET_INFO(satewpls, "Satelco EasyWatch DVB-S light", BUDGET_TVSTAR);
 MAKE_BUDGET_INFO(satewpls1, "Satelco EasyWatch DVB-S light", BUDGET_KNC1S);
 MAKE_BUDGET_INFO(satewplc, "Satelco EasyWatch DVB-C", BUDGET_KNC1CP);
+MAKE_BUDGET_INFO(satewcmk3, "Satelco EasyWatch DVB-C MK3", BUDGET_KNC1C_MK3);
 MAKE_BUDGET_INFO(knc1sp, "KNC1 DVB-S Plus", BUDGET_KNC1SP);
 MAKE_BUDGET_INFO(knc1cp, "KNC1 DVB-C Plus", BUDGET_KNC1CP);
+MAKE_BUDGET_INFO(knc1cmk3, "KNC1 DVB-C MK3", BUDGET_KNC1C_MK3);
+MAKE_BUDGET_INFO(knc1cpmk3, "KNC1 DVB-C Plus MK3", BUDGET_KNC1CP_MK3);
 MAKE_BUDGET_INFO(knc1tp, "KNC1 DVB-T Plus", BUDGET_KNC1TP);
 MAKE_BUDGET_INFO(cin1200s, "TerraTec Cinergy 1200 DVB-S", BUDGET_CIN1200S);
 MAKE_BUDGET_INFO(cin1200sn, "TerraTec Cinergy 1200 DVB-S", BUDGET_CIN1200S);
 MAKE_BUDGET_INFO(cin1200c, "Terratec Cinergy 1200 DVB-C", BUDGET_CIN1200C);
+MAKE_BUDGET_INFO(cin1200cmk3, "Terratec Cinergy 1200 DVB-C MK3", BUDGET_CIN1200C_MK3);
 MAKE_BUDGET_INFO(cin1200t, "Terratec Cinergy 1200 DVB-T", BUDGET_CIN1200T);
 
 static struct pci_device_id pci_tbl[] = {
@@ -1279,13 +1288,17 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(satewpls, 0x1894, 0x001e),
 	MAKE_EXTENSION_PCI(satewpls1, 0x1894, 0x001a),
 	MAKE_EXTENSION_PCI(satewplc, 0x1894, 0x002a),
+	MAKE_EXTENSION_PCI(satewcmk3, 0x1894, 0x002c),
 	MAKE_EXTENSION_PCI(knc1c, 0x1894, 0x0020),
 	MAKE_EXTENSION_PCI(knc1cp, 0x1894, 0x0021),
+	MAKE_EXTENSION_PCI(knc1cmk3, 0x1894, 0x0022),
+	MAKE_EXTENSION_PCI(knc1cpmk3, 0x1894, 0x0023),
 	MAKE_EXTENSION_PCI(knc1t, 0x1894, 0x0030),
 	MAKE_EXTENSION_PCI(knc1tp, 0x1894, 0x0031),
 	MAKE_EXTENSION_PCI(cin1200s, 0x153b, 0x1154),
 	MAKE_EXTENSION_PCI(cin1200sn, 0x153b, 0x1155),
 	MAKE_EXTENSION_PCI(cin1200c, 0x153b, 0x1156),
+	MAKE_EXTENSION_PCI(cin1200cmk3, 0x153b, 0x1176),
 	MAKE_EXTENSION_PCI(cin1200t, 0x153b, 0x1157),
 	{
 	 .vendor = 0,

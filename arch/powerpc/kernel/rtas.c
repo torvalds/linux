@@ -192,18 +192,19 @@ void rtas_progress(char *s, unsigned short hex)
 
 	if (display_width == 0) {
 		display_width = 0x10;
-		if ((root = find_path_device("/rtas"))) {
-			if ((p = get_property(root,
+		if ((root = of_find_node_by_path("/rtas"))) {
+			if ((p = of_get_property(root,
 					"ibm,display-line-length", NULL)))
 				display_width = *p;
-			if ((p = get_property(root,
+			if ((p = of_get_property(root,
 					"ibm,form-feed", NULL)))
 				form_feed = *p;
-			if ((p = get_property(root,
+			if ((p = of_get_property(root,
 					"ibm,display-number-of-lines", NULL)))
 				display_lines = *p;
-			row_width = get_property(root,
+			row_width = of_get_property(root,
 					"ibm,display-truncation-length", NULL);
+			of_node_put(root);
 		}
 		display_character = rtas_token("display-character");
 		set_indicator = rtas_token("set-indicator");
@@ -298,7 +299,7 @@ int rtas_token(const char *service)
 	const int *tokp;
 	if (rtas.dev == NULL)
 		return RTAS_UNKNOWN_SERVICE;
-	tokp = get_property(rtas.dev, service, NULL);
+	tokp = of_get_property(rtas.dev, service, NULL);
 	return tokp ? *tokp : RTAS_UNKNOWN_SERVICE;
 }
 EXPORT_SYMBOL(rtas_token);
@@ -832,12 +833,12 @@ void __init rtas_initialize(void)
 	if (rtas.dev) {
 		const u32 *basep, *entryp, *sizep;
 
-		basep = get_property(rtas.dev, "linux,rtas-base", NULL);
-		sizep = get_property(rtas.dev, "rtas-size", NULL);
+		basep = of_get_property(rtas.dev, "linux,rtas-base", NULL);
+		sizep = of_get_property(rtas.dev, "rtas-size", NULL);
 		if (basep != NULL && sizep != NULL) {
 			rtas.base = *basep;
 			rtas.size = *sizep;
-			entryp = get_property(rtas.dev,
+			entryp = of_get_property(rtas.dev,
 					"linux,rtas-entry", NULL);
 			if (entryp == NULL) /* Ugh */
 				rtas.entry = rtas.base;

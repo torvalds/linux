@@ -60,7 +60,7 @@ static int resize_pool(unsigned int new_ios)
 		if (!_io_pool)
 			return -ENOMEM;
 
-		_bios = bioset_create(16, 16, 4);
+		_bios = bioset_create(16, 16);
 		if (!_bios) {
 			mempool_destroy(_io_pool);
 			_io_pool = NULL;

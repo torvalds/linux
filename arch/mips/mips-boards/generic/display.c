@@ -24,16 +24,16 @@
 
 void mips_display_message(const char *str)
 {
-	static volatile unsigned int *display = NULL;
+	static unsigned int __iomem *display = NULL;
 	int i;
 
 	if (unlikely(display == NULL))
-		display = (volatile unsigned int *)ioremap(ASCII_DISPLAY_POS_BASE, 16*sizeof(int));
+		display = ioremap(ASCII_DISPLAY_POS_BASE, 16*sizeof(int));
 
 	for (i = 0; i <= 14; i=i+2) {
 	         if (*str)
-		         display[i] = *str++;
+		         writel(*str++, display + i);
 		 else
-		         display[i] = ' ';
+		         writel(' ', display + i);
 	}
 }

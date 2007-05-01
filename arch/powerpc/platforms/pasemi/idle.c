@@ -61,6 +61,10 @@ static int pasemi_system_reset_exception(struct pt_regs *regs)
 		/* do system reset */
 		return 0;
 	}
+
+	/* Set higher astate since we come out of power savings at 0 */
+	restore_astate(hard_smp_processor_id());
+
 	/* everything handled */
 	regs->msr |= MSR_RI;
 	return 1;
@@ -68,6 +72,11 @@ static int pasemi_system_reset_exception(struct pt_regs *regs)
 
 void __init pasemi_idle_init(void)
 {
+#ifndef CONFIG_PPC_PASEMI_CPUFREQ
+	printk(KERN_WARNING "No cpufreq driver, powersavings modes disabled\n");
+	current_mode = 0;
+#endif
+
 	ppc_md.system_reset_exception = pasemi_system_reset_exception;
 	ppc_md.power_save = modes[current_mode].entry;
 	printk(KERN_INFO "Using PA6T idle loop (%s)\n", modes[current_mode].name);

@@ -28,13 +28,13 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_ns87410"
-#define DRV_VERSION "0.4.3"
+#define DRV_VERSION "0.4.6"
 
 /**
  *	ns87410_pre_reset		-	probe begin
  *	@ap: ATA port
  *
- *	Set up cable type and use generic probe init
+ *	Check enabled ports
  */
 
 static int ns87410_pre_reset(struct ata_port *ap)
@@ -47,7 +47,6 @@ static int ns87410_pre_reset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &ns87410_enable_bits[ap->port_no]))
 		return -ENOENT;
-	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
 
@@ -177,6 +176,7 @@ static struct ata_port_operations ns87410_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ns87410_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ns87410_qc_issue_prot,

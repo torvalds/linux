@@ -136,7 +136,7 @@ static void ax25_kiss_cmd(ax25_dev *ax25_dev, unsigned char cmd, unsigned char p
 	if ((skb = alloc_skb(2, GFP_ATOMIC)) == NULL)
 		return;
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 	p = skb_put(skb, 2);
 
 	*p++ = cmd;

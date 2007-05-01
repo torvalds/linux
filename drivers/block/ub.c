@@ -2132,10 +2132,13 @@ static int ub_get_pipes(struct ub_dev *sc, struct usb_device *dev,
 		if ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 				== USB_ENDPOINT_XFER_BULK) {
 			/* BULK in or out? */
-			if (ep->bEndpointAddress & USB_DIR_IN)
-				ep_in = ep;
-			else
-				ep_out = ep;
+			if (ep->bEndpointAddress & USB_DIR_IN) {
+				if (ep_in == NULL)
+					ep_in = ep;
+			} else {
+				if (ep_out == NULL)
+					ep_out = ep;
+			}
 		}
 	}
 

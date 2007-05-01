@@ -155,7 +155,7 @@ ia64_set_rbs_bot (void)
 
 	if (stack_size > MAX_USER_STACK_SIZE)
 		stack_size = MAX_USER_STACK_SIZE;
-	current->thread.rbs_bot = STACK_TOP - stack_size;
+	current->thread.rbs_bot = PAGE_ALIGN(current->mm->start_stack - stack_size);
 }
 
 /*

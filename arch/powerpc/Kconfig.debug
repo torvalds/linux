@@ -18,6 +18,15 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
+config DEBUG_PAGEALLOC
+        bool "Debug page memory allocations"
+        depends on DEBUG_KERNEL && !SOFTWARE_SUSPEND
+        help
+          Unmap pages from the kernel linear mapping after free_pages().
+          This results in a large slowdown, but helps to find certain types
+          of memory corruptions.
+
+
 config HCALL_STATS
 	bool "Hypervisor call instrumentation"
 	depends on PPC_PSERIES && DEBUG_FS
@@ -132,8 +141,7 @@ config BOOTX_TEXT
 
 config SERIAL_TEXT_DEBUG
 	bool "Support for early boot texts over serial port"
-	depends on 4xx || LOPEC || MV64X60 || PPLUS || PRPMC800 || \
-		PPC_GEN550 || PPC_MPC52xx
+	depends on 4xx
 
 config PPC_EARLY_DEBUG
 	bool "Early debugging (dangerous)"

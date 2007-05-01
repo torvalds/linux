@@ -20,19 +20,28 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/jhash.h>
+#include <linux/random.h>
 #include <asm/atomic.h>
+#include <asm/unaligned.h>
 #include "br_private.h"
 
 static struct kmem_cache *br_fdb_cache __read_mostly;
 static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		      const unsigned char *addr);
 
-void __init br_fdb_init(void)
+static u32 fdb_salt __read_mostly;
+
+int __init br_fdb_init(void)
 {
 	br_fdb_cache = kmem_cache_create("bridge_fdb_cache",
 					 sizeof(struct net_bridge_fdb_entry),
 					 0,
 					 SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (!br_fdb_cache)
+		return -ENOMEM;
+
+	get_random_bytes(&fdb_salt, sizeof(fdb_salt));
+	return 0;
 }
 
 void __exit br_fdb_fini(void)
@@ -44,24 +53,26 @@ void __exit br_fdb_fini(void)
 /* if topology_changing then use forward_delay (default 15 sec)
  * otherwise keep longer (default 5 minutes)
  */
-static __inline__ unsigned long hold_time(const struct net_bridge *br)
+static inline unsigned long hold_time(const struct net_bridge *br)
 {
 	return br->topology_change ? br->forward_delay : br->ageing_time;
 }
 
-static __inline__ int has_expired(const struct net_bridge *br,
+static inline int has_expired(const struct net_bridge *br,
 				  const struct net_bridge_fdb_entry *fdb)
 {
 	return !fdb->is_static
 		&& time_before_eq(fdb->ageing_timer + hold_time(br), jiffies);
 }
 
-static __inline__ int br_mac_hash(const unsigned char *mac)
+static inline int br_mac_hash(const unsigned char *mac)
 {
-	return jhash(mac, ETH_ALEN, 0) & (BR_HASH_SIZE - 1);
+	/* use 1 byte of OUI cnd 3 bytes of NIC */
+	u32 key = get_unaligned((u32 *)(mac + 2));
+	return jhash_1word(key, fdb_salt) & (BR_HASH_SIZE - 1);
 }
 
-static __inline__ void fdb_delete(struct net_bridge_fdb_entry *f)
+static inline void fdb_delete(struct net_bridge_fdb_entry *f)
 {
 	hlist_del_rcu(&f->hlist);
 	br_fdb_put(f);
@@ -128,7 +139,26 @@ void br_fdb_cleanup(unsigned long _data)
 	mod_timer(&br->gc_timer, jiffies + HZ/10);
 }
 
+/* Completely flush all dynamic entries in forwarding database.*/
+void br_fdb_flush(struct net_bridge *br)
+{
+	int i;
 
+	spin_lock_bh(&br->hash_lock);
+	for (i = 0; i < BR_HASH_SIZE; i++) {
+		struct net_bridge_fdb_entry *f;
+		struct hlist_node *h, *n;
+		hlist_for_each_entry_safe(f, h, n, &br->hash[i], hlist) {
+			if (!f->is_static)
+				fdb_delete(f);
+		}
+	}
+	spin_unlock_bh(&br->hash_lock);
+}
+
+/* Flush all entries refering to a specific port.
+ * if do_all is set also flush static entries
+ */
 void br_fdb_delete_by_port(struct net_bridge *br,
 			   const struct net_bridge_port *p,
 			   int do_all)

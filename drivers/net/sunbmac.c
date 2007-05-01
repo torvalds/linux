@@ -855,7 +855,6 @@ static void bigmac_rx(struct bigmac *bp)
 				drops++;
 				goto drop_it;
 			}
-			copy_skb->dev = bp->dev;
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			sbus_dma_sync_single_for_cpu(bp->bigmac_sdev,

@@ -1,7 +1,5 @@
 /* IP tables module for matching the value of the TTL
  *
- * ipt_ttl.c,v 1.5 2000/11/13 11:16:08 laforge Exp
- *
  * (C) 2000,2001 by Harald Welte <laforge@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,19 +24,20 @@ static int match(const struct sk_buff *skb,
 		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_ttl_info *info = matchinfo;
+	const u8 ttl = ip_hdr(skb)->ttl;
 
 	switch (info->mode) {
 		case IPT_TTL_EQ:
-			return (skb->nh.iph->ttl == info->ttl);
+			return (ttl == info->ttl);
 			break;
 		case IPT_TTL_NE:
-			return (!(skb->nh.iph->ttl == info->ttl));
+			return (!(ttl == info->ttl));
 			break;
 		case IPT_TTL_LT:
-			return (skb->nh.iph->ttl < info->ttl);
+			return (ttl < info->ttl);
 			break;
 		case IPT_TTL_GT:
-			return (skb->nh.iph->ttl > info->ttl);
+			return (ttl > info->ttl);
 			break;
 		default:
 			printk(KERN_WARNING "ipt_ttl: unknown mode %d\n",

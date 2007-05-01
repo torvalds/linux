@@ -74,7 +74,7 @@ static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
 
 	while ((cpu_node = of_find_node_by_type(cpu_node, "cpu")) != NULL) {
 		/* Try interrupt server first */
-		interrupt_server = get_property(cpu_node,
+		interrupt_server = of_get_property(cpu_node,
 					"ibm,ppc-interrupt-server#s", &len);
 
 		len = len / sizeof(u32);
@@ -85,7 +85,7 @@ static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
 					return cpu_node;
 			}
 		} else {
-			reg = get_property(cpu_node, "reg", &len);
+			reg = of_get_property(cpu_node, "reg", &len);
 			if (reg && (len > 0) && (reg[0] == hw_cpuid))
 				return cpu_node;
 		}
@@ -97,7 +97,7 @@ static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
 /* must hold reference to node during call */
 static const int *of_get_associativity(struct device_node *dev)
 {
-	return get_property(dev, "ibm,associativity", NULL);
+	return of_get_property(dev, "ibm,associativity", NULL);
 }
 
 /* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
@@ -179,7 +179,7 @@ static int __init find_min_common_depth(void)
 	 * configuration (should be all 0's) and the second is for a normal
 	 * NUMA configuration.
 	 */
-	ref_points = get_property(rtas_root,
+	ref_points = of_get_property(rtas_root,
 			"ibm,associativity-reference-points", &len);
 
 	if ((len >= 1) && ref_points) {
@@ -201,8 +201,8 @@ static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 	if (!memory)
 		panic("numa.c: No memory nodes found!");
 
-	*n_addr_cells = prom_n_addr_cells(memory);
-	*n_size_cells = prom_n_size_cells(memory);
+	*n_addr_cells = of_n_addr_cells(memory);
+	*n_size_cells = of_n_size_cells(memory);
 	of_node_put(memory);
 }
 
@@ -308,9 +308,9 @@ static void __init parse_drconf_memory(struct device_node *memory)
 	int nid, default_nid = 0;
 	unsigned int start, ai, flags;
 
-	lm = get_property(memory, "ibm,lmb-size", &ls);
-	dm = get_property(memory, "ibm,dynamic-memory", &ld);
-	aa = get_property(memory, "ibm,associativity-lookup-arrays", &la);
+	lm = of_get_property(memory, "ibm,lmb-size", &ls);
+	dm = of_get_property(memory, "ibm,dynamic-memory", &ld);
+	aa = of_get_property(memory, "ibm,associativity-lookup-arrays", &la);
 	if (!lm || !dm || !aa ||
 	    ls < sizeof(unsigned int) || ld < sizeof(unsigned int) ||
 	    la < 2 * sizeof(unsigned int))
@@ -404,10 +404,10 @@ static int __init parse_numa_properties(void)
 		const unsigned int *memcell_buf;
 		unsigned int len;
 
-		memcell_buf = get_property(memory,
+		memcell_buf = of_get_property(memory,
 			"linux,usable-memory", &len);
 		if (!memcell_buf || len <= 0)
-			memcell_buf = get_property(memory, "reg", &len);
+			memcell_buf = of_get_property(memory, "reg", &len);
 		if (!memcell_buf || len <= 0)
 			continue;
 
@@ -725,7 +725,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 		const unsigned int *memcell_buf;
 		unsigned int len;
 
-		memcell_buf = get_property(memory, "reg", &len);
+		memcell_buf = of_get_property(memory, "reg", &len);
 		if (!memcell_buf || len <= 0)
 			continue;
 

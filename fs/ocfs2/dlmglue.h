@@ -80,6 +80,9 @@ void ocfs2_data_unlock(struct inode *inode,
 		       int write);
 int ocfs2_rw_lock(struct inode *inode, int write);
 void ocfs2_rw_unlock(struct inode *inode, int write);
+int ocfs2_open_lock(struct inode *inode);
+int ocfs2_try_open_lock(struct inode *inode, int write);
+void ocfs2_open_unlock(struct inode *inode);
 int ocfs2_meta_lock_atime(struct inode *inode,
 			  struct vfsmount *vfsmnt,
 			  int *level);

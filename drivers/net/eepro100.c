@@ -1793,7 +1793,6 @@ speedo_rx(struct net_device *dev)
 			   copying to a properly sized skbuff. */
 			if (pkt_len < rx_copybreak
 				&& (skb = dev_alloc_skb(pkt_len + 2)) != 0) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				pci_dma_sync_single_for_cpu(sp->pdev, sp->rx_ring_dma[entry],
@@ -1805,8 +1804,9 @@ speedo_rx(struct net_device *dev)
 				eth_copy_and_sum(skb, sp->rx_skbuff[entry]->data, pkt_len, 0);
 				skb_put(skb, pkt_len);
 #else
-				memcpy(skb_put(skb, pkt_len), sp->rx_skbuff[entry]->data,
-					   pkt_len);
+				skb_copy_from_linear_data(sp->rx_skbuff[entry],
+							  skb_put(skb, pkt_len),
+							  pkt_len);
 #endif
 				pci_dma_sync_single_for_device(sp->pdev, sp->rx_ring_dma[entry],
 											   sizeof(struct RxFD) + pkt_len,

@@ -726,7 +726,7 @@ static struct miscdevice envctrl_dev = {
  * Return: None.
  */
 static void envctrl_set_mon(struct i2c_child_t *pchild,
-			    char *chnl_desc,
+			    const char *chnl_desc,
 			    int chnl_no)
 {
 	/* Firmware only has temperature type.  It does not distinguish
@@ -763,8 +763,8 @@ static void envctrl_set_mon(struct i2c_child_t *pchild,
 static void envctrl_init_adc(struct i2c_child_t *pchild, struct device_node *dp)
 {
 	int i = 0, len;
-	char *pos;
-	unsigned int *pval;
+	const char *pos;
+	const unsigned int *pval;
 
 	/* Firmware describe channels into a stream separated by a '\0'. */
 	pos = of_get_property(dp, "channels-description", &len);
@@ -859,7 +859,7 @@ static void envctrl_init_i2c_child(struct linux_ebus_child *edev_child,
 {
 	int len, i, tbls_size = 0;
 	struct device_node *dp = edev_child->prom_node;
-	void *pval;
+	const void *pval;
 
 	/* Get device address. */
 	pval = of_get_property(dp, "reg", &len);

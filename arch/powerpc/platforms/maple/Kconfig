@@ -1,0 +1,17 @@
+config PPC_MAPLE
+	depends on PPC_MULTIPLATFORM && PPC64
+	bool "Maple 970FX Evaluation Board"
+	select MPIC
+	select U3_DART
+	select MPIC_U3_HT_IRQS
+	select GENERIC_TBSYNC
+	select PPC_UDBG_16550
+	select PPC_970_NAP
+	select PPC_NATIVE
+	select PPC_RTAS
+	select MMIO_NVRAM
+	select ATA_NONSTANDARD if ATA
+	default n
+	help
+          This option enables support for the Maple 970FX Evaluation Board.
+	  For more information, refer to <http://www.970eval.com>

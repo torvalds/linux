@@ -28,6 +28,8 @@
 #include <asm/ucc.h>
 #include <asm/ucc_fast.h>
 
+#include "ucc_geth_mii.h"
+
 #define NUM_TX_QUEUES                   8
 #define NUM_RX_QUEUES                   8
 #define NUM_BDS_IN_PREFETCHED_BDS       4
@@ -35,15 +37,6 @@
 #define NUM_OF_PADDRS                   4
 #define ENET_INIT_PARAM_MAX_ENTRIES_RX  9
 #define ENET_INIT_PARAM_MAX_ENTRIES_TX  8
-
-struct ucc_mii_mng {
-	u32 miimcfg;		/* MII management configuration reg */
-	u32 miimcom;		/* MII management command reg */
-	u32 miimadd;		/* MII management address reg */
-	u32 miimcon;		/* MII management control reg */
-	u32 miimstat;		/* MII management status reg */
-	u32 miimind;		/* MII management indication reg */
-} __attribute__ ((packed));
 
 struct ucc_geth {
 	struct ucc_fast uccf;
@@ -53,7 +46,7 @@ struct ucc_geth {
 	u32 ipgifg;		/* interframe gap reg.  */
 	u32 hafdup;		/* half-duplex reg.  */
 	u8 res1[0x10];
-	struct ucc_mii_mng miimng;	/* MII management structure */
+	u8 miimng[0x18];	/* MII management structure moved to _mii.h */
 	u32 ifctl;		/* interface control reg */
 	u32 ifstat;		/* interface statux reg */
 	u32 macstnaddr1;	/* mac station address part 1 reg */
@@ -211,6 +204,9 @@ struct ucc_geth {
 			UCCE_RXF3 | UCCE_RXF2 | UCCE_RXF1 | UCCE_RXF0)
 #define UCCE_OTHER       (UCCE_SCAR | UCCE_GRA  | UCCE_CBPR | UCCE_BSY  |\
 			UCCE_RXC  | UCCE_TXC  | UCCE_TXE)
+
+#define UCCE_RX_EVENTS							(UCCE_RXF | UCCE_BSY)
+#define UCCE_TX_EVENTS							(UCCE_TXB | UCCE_TXE)
 
 /* UCC GETH UPSMR (Protocol Specific Mode Register) */
 #define UPSMR_ECM                               0x04000000	/* Enable CAM
@@ -380,66 +376,6 @@ struct ucc_geth {
 							   duplex mode) */
 #define UCCS_MPD                                0x01	/* Magic Packet
 							   Detected */
-
-/* UCC GETH MIIMCFG (MII Management Configuration Register) */
-#define MIIMCFG_RESET_MANAGEMENT                0x80000000	/* Reset
-								   management */
-#define MIIMCFG_NO_PREAMBLE                     0x00000010	/* Preamble
-								   suppress */
-#define MIIMCFG_CLOCK_DIVIDE_SHIFT              (31 - 31)	/* clock divide
-								   << shift */
-#define MIIMCFG_CLOCK_DIVIDE_MAX                0xf	/* clock divide max val
-							 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_2    0x00000000	/* divide by 2 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_4    0x00000001	/* divide by 4 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_6    0x00000002	/* divide by 6 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_8    0x00000003	/* divide by 8 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_10   0x00000004	/* divide by 10
-								 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_14   0x00000005	/* divide by 14
-								 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_16   0x00000008	/* divide by 16
-								 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_20   0x00000006	/* divide by 20
-								 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_28   0x00000007	/* divide by 28
-								 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_32   0x00000009	/* divide by 32
-								 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_48   0x0000000a	/* divide by 48
-								 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_64   0x0000000b	/* divide by 64
-								 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_80   0x0000000c	/* divide by 80
-								 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_112  0x0000000d	/* divide by
-								   112 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_160  0x0000000e	/* divide by
-								   160 */
-#define MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_224  0x0000000f	/* divide by
-								   224 */
-
-/* UCC GETH MIIMCOM (MII Management Command Register) */
-#define MIIMCOM_SCAN_CYCLE                      0x00000002	/* Scan cycle */
-#define MIIMCOM_READ_CYCLE                      0x00000001	/* Read cycle */
-
-/* UCC GETH MIIMADD (MII Management Address Register) */
-#define MIIMADD_PHY_ADDRESS_SHIFT               (31 - 23)	/* PHY Address
-								   << shift */
-#define MIIMADD_PHY_REGISTER_SHIFT              (31 - 31)	/* PHY Register
-								   << shift */
-
-/* UCC GETH MIIMCON (MII Management Control Register) */
-#define MIIMCON_PHY_CONTROL_SHIFT               (31 - 31)	/* PHY Control
-								   << shift */
-#define MIIMCON_PHY_STATUS_SHIFT                (31 - 31)	/* PHY Status
-								   << shift */
-
-/* UCC GETH MIIMIND (MII Management Indicator Register) */
-#define MIIMIND_NOT_VALID                       0x00000004	/* Not valid */
-#define MIIMIND_SCAN                            0x00000002	/* Scan in
-								   progress */
-#define MIIMIND_BUSY                            0x00000001
 
 /* UCC GETH IFSTAT (Interface Status Register) */
 #define IFSTAT_EXCESS_DEFER                     0x00000200	/* Excessive
@@ -931,8 +867,7 @@ struct ucc_geth_hardware_statistics {
 #define UCC_GETH_SCHEDULER_ALIGNMENT		4	/* This is a guess */
 #define UCC_GETH_TX_STATISTICS_ALIGNMENT	4	/* This is a guess */
 #define UCC_GETH_RX_STATISTICS_ALIGNMENT	4	/* This is a guess */
-#define UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT	4	/* This is a
-								   guess */
+#define UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT	64
 #define UCC_GETH_RX_BD_QUEUES_ALIGNMENT		8	/* This is a guess */
 #define UCC_GETH_RX_PREFETCHED_BDS_ALIGNMENT	128	/* This is a guess */
 #define UCC_GETH_RX_EXTENDED_FILTERING_GLOBAL_PARAMETERS_ALIGNMENT 4	/* This
@@ -1009,37 +944,12 @@ struct ucc_geth_hardware_statistics {
 								   register */
 #define UCC_GETH_MACCFG1_INIT                   0
 #define UCC_GETH_MACCFG2_INIT                   (MACCFG2_RESERVED_1)
-#define UCC_GETH_MIIMCFG_MNGMNT_CLC_DIV_INIT    \
-				(MIIMCFG_MANAGEMENT_CLOCK_DIVIDE_BY_112)
-
-/* Ethernet speed */
-enum enet_speed {
-	ENET_SPEED_10BT,	/* 10 Base T */
-	ENET_SPEED_100BT,	/* 100 Base T */
-	ENET_SPEED_1000BT	/* 1000 Base T */
-};
 
 /* Ethernet Address Type. */
 enum enet_addr_type {
 	ENET_ADDR_TYPE_INDIVIDUAL,
 	ENET_ADDR_TYPE_GROUP,
 	ENET_ADDR_TYPE_BROADCAST
-};
-
-/* TBI / MII Set Register */
-enum enet_tbi_mii_reg {
-	ENET_TBI_MII_CR = 0x00,	/* Control (CR ) */
-	ENET_TBI_MII_SR = 0x01,	/* Status (SR ) */
-	ENET_TBI_MII_ANA = 0x04,	/* AN advertisement (ANA ) */
-	ENET_TBI_MII_ANLPBPA = 0x05,	/* AN link partner base page ability
-					   (ANLPBPA) */
-	ENET_TBI_MII_ANEX = 0x06,	/* AN expansion (ANEX ) */
-	ENET_TBI_MII_ANNPT = 0x07,	/* AN next page transmit (ANNPT ) */
-	ENET_TBI_MII_ANLPANP = 0x08,	/* AN link partner ability next page
-					   (ANLPANP) */
-	ENET_TBI_MII_EXST = 0x0F,	/* Extended status (EXST ) */
-	ENET_TBI_MII_JD = 0x10,	/* Jitter diagnostics (JD ) */
-	ENET_TBI_MII_TBICON = 0x11	/* TBI control (TBICON ) */
 };
 
 /* UCC GETH 82xx Ethernet Address Recognition Location */
@@ -1239,8 +1149,7 @@ struct ucc_geth_info {
 	u16 pausePeriod;
 	u16 extensionField;
 	u8 phy_address;
-	u32 board_flags;
-	u32 phy_interrupt;
+	u32 mdio_bus;
 	u8 weightfactor[NUM_TX_QUEUES];
 	u8 interruptcoalescingmaxvalue[NUM_RX_QUEUES];
 	u8 l2qt[UCC_GETH_VLAN_PRIORITY_MAX];
@@ -1249,7 +1158,6 @@ struct ucc_geth_info {
 	u8 iphoffset[TX_IP_OFFSET_ENTRY_MAX];
 	u16 bdRingLenTx[NUM_TX_QUEUES];
 	u16 bdRingLenRx[NUM_RX_QUEUES];
-	enum enet_interface enet_interface;
 	enum ucc_geth_num_of_station_addresses numStationAddresses;
 	enum qe_fltr_largest_external_tbl_lookup_key_size
 	    largestexternallookupkeysize;
@@ -1326,9 +1234,11 @@ struct ucc_geth_private {
 	/* index of the first skb which hasn't been transmitted yet. */
 	u16 skb_dirtytx[NUM_TX_QUEUES];
 
-	struct work_struct tq;
-	struct timer_list phy_info_timer;
 	struct ugeth_mii_info *mii_info;
+	struct phy_device *phydev;
+	phy_interface_t phy_interface;
+	int max_speed;
+	uint32_t msg_enable;
 	int oldspeed;
 	int oldduplex;
 	int oldlink;

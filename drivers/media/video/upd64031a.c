@@ -27,6 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/upd64031a.h>
 
 // --------------------- read registers functions define -----------------------
@@ -178,6 +179,9 @@ static int upd64031a_command(struct i2c_client *client, unsigned int cmd, void *
 		break;
 	}
 #endif
+
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_UPD64031A, 0);
 
 	default:
 		break;

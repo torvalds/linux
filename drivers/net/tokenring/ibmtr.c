@@ -1771,7 +1771,6 @@ static void tr_rx(struct net_device *dev)
 	/*BMS again, if she comes in with few but leaves with many */
 	skb_reserve(skb, sizeof(struct trh_hdr) - lan_hdr_len);
 	skb_put(skb, length);
-	skb->dev = dev;
 	data = skb->data;
 	rbuffer_len = ntohs(readw(rbuf + offsetof(struct rec_buf, buf_len)));
 	rbufdata = rbuf + offsetof(struct rec_buf, data);

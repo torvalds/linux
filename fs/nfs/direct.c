@@ -432,10 +432,10 @@ static void nfs_direct_commit_result(struct rpc_task *task, void *calldata)
 	if (NFS_PROTO(data->inode)->commit_done(task, data) != 0)
 		return;
 	if (unlikely(task->tk_status < 0)) {
-		dreq->error = task->tk_status;
+		dprintk("NFS: %5u commit failed with error %d.\n",
+				task->tk_pid, task->tk_status);
 		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
-	}
-	if (memcmp(&dreq->verf, &data->verf, sizeof(data->verf))) {
+	} else if (memcmp(&dreq->verf, &data->verf, sizeof(data->verf))) {
 		dprintk("NFS: %5u commit verify failed\n", task->tk_pid);
 		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 	}
@@ -531,9 +531,12 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 
 	spin_lock(&dreq->lock);
 
-	if (unlikely(status < 0)) {
-		dreq->error = status;
+	if (unlikely(dreq->error != 0))
 		goto out_unlock;
+	if (unlikely(status < 0)) {
+		/* An error has occured, so we should not commit */
+		dreq->flags = 0;
+		dreq->error = status;
 	}
 
 	dreq->count += data->res.count;

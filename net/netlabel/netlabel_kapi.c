@@ -263,9 +263,6 @@ int netlbl_socket_setattr(const struct socket *sock,
 	int ret_val = -ENOENT;
 	struct netlbl_dom_map *dom_entry;
 
-	if ((secattr->flags & NETLBL_SECATTR_DOMAIN) == 0)
-		return -ENOENT;
-
 	rcu_read_lock();
 	dom_entry = netlbl_domhsh_getentry(secattr->domain);
 	if (dom_entry == NULL)

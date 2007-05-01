@@ -236,11 +236,11 @@ void free_irqs(void)
 	struct chan *chan;
 	LIST_HEAD(list);
 	struct list_head *ele;
+	unsigned long flags;
 
-	spin_lock_irq(&irqs_to_free_lock);
+	spin_lock_irqsave(&irqs_to_free_lock, flags);
 	list_splice_init(&irqs_to_free, &list);
-	INIT_LIST_HEAD(&irqs_to_free);
-	spin_unlock_irq(&irqs_to_free_lock);
+	spin_unlock_irqrestore(&irqs_to_free_lock, flags);
 
 	list_for_each(ele, &list){
 		chan = list_entry(ele, struct chan, free_list);
@@ -255,13 +255,15 @@ void free_irqs(void)
 
 static void close_one_chan(struct chan *chan, int delay_free_irq)
 {
+	unsigned long flags;
+
 	if(!chan->opened)
 		return;
 
 	if(delay_free_irq){
-		spin_lock_irq(&irqs_to_free_lock);
+		spin_lock_irqsave(&irqs_to_free_lock, flags);
 		list_add(&chan->free_list, &irqs_to_free);
-		spin_unlock_irq(&irqs_to_free_lock);
+		spin_unlock_irqrestore(&irqs_to_free_lock, flags);
 	}
 	else {
 		if(chan->input)

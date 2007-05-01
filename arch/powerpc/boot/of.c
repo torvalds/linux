@@ -173,7 +173,7 @@ static void *claim(unsigned long virt, unsigned long size, unsigned long align)
 	return (void *) virt;
 }
 
-static void *of_try_claim(u32 size)
+static void *of_try_claim(unsigned long size)
 {
 	unsigned long addr = 0;
 
@@ -206,6 +206,16 @@ static void of_image_hdr(const void *hdr)
 		if (claim_base < PROG_START)
 			claim_base = PROG_START;
 	}
+}
+
+static void *of_vmlinux_alloc(unsigned long size)
+{
+	void *p = malloc(size);
+
+	if (!p)
+		fatal("Can't allocate memory for kernel image!\n\r");
+
+	return p;
 }
 
 static void of_exit(void)
@@ -256,11 +266,12 @@ static void of_console_write(char *buf, int len)
 	call_prom("write", 3, 1, of_stdout_handle, buf, len);
 }
 
-int platform_init(void *promptr, char *dt_blob_start, char *dt_blob_end)
+void platform_init(unsigned long a1, unsigned long a2, void *promptr)
 {
 	platform_ops.image_hdr = of_image_hdr;
 	platform_ops.malloc = of_try_claim;
 	platform_ops.exit = of_exit;
+	platform_ops.vmlinux_alloc = of_vmlinux_alloc;
 
 	dt_ops.finddevice = of_finddevice;
 	dt_ops.getprop = of_getprop;
@@ -270,5 +281,9 @@ int platform_init(void *promptr, char *dt_blob_start, char *dt_blob_end)
 	console_ops.write = of_console_write;
 
 	prom = (int (*)(void *))promptr;
-	return 0;
+	loader_info.promptr = promptr;
+	if (a1 && a2 && a2 != 0xdeadbeef) {
+		loader_info.initrd_addr = a1;
+		loader_info.initrd_size = a2;
+	}
 }

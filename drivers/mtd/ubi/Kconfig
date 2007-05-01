@@ -1,0 +1,58 @@
+# drivers/mtd/ubi/Kconfig
+
+menu "UBI - Unsorted block images"
+	depends on MTD
+
+config MTD_UBI
+	tristate "Enable UBI"
+	depends on MTD
+	select CRC32
+	help
+	  UBI is a software layer above MTD layer which admits of LVM-like
+	  logical volumes on top of MTD devices, hides some complexities of
+	  flash chips like wear and bad blocks and provides some other useful
+	  capabilities. Please, consult the MTD web site for more details
+	  (www.linux-mtd.infradead.org).
+
+config MTD_UBI_WL_THRESHOLD
+	int "UBI wear-leveling threshold"
+	default 4096
+	range 2 65536
+	depends on MTD_UBI
+	help
+	  This parameter defines the maximum difference between the highest
+	  erase counter value and the lowest erase counter value of eraseblocks
+	  of UBI devices. When this threshold is exceeded, UBI starts performing
+	  wear leveling by means of moving data from eraseblock with low erase
+	  counter to eraseblocks with high erase counter. Leave the default
+	  value if unsure.
+
+config MTD_UBI_BEB_RESERVE
+	int "Percentage of reserved eraseblocks for bad eraseblocks handling"
+	default 1
+	range 0 25
+	depends on MTD_UBI
+	help
+	  If the MTD device admits of bad eraseblocks (e.g. NAND flash), UBI
+	  reserves some amount of physical eraseblocks to handle new bad
+	  eraseblocks. For example, if a flash physical eraseblock becomes bad,
+	  UBI uses these reserved physical eraseblocks to relocate the bad one.
+	  This option specifies how many physical eraseblocks will be reserved
+	  for bad eraseblock handling (percents of total number of good flash
+	  eraseblocks). If the underlying flash does not admit of bad
+	  eraseblocks (e.g. NOR flash), this value is ignored and nothing is
+	  reserved. Leave the default value if unsure.
+
+config MTD_UBI_GLUEBI
+	bool "Emulate MTD devices"
+	default n
+	depends on MTD_UBI
+	help
+	   This option enables MTD devices emulation on top of UBI volumes: for
+	   each UBI volumes an MTD device is created, and all I/O to this MTD
+	   device is redirected to the UBI volume. This is handy to make
+	   MTD-oriented software (like JFFS2) work on top of UBI. Do not enable
+	   this if no legacy software will be used.
+
+source "drivers/mtd/ubi/Kconfig.debug"
+endmenu

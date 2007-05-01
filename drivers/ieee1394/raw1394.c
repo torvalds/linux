@@ -938,7 +938,8 @@ static int handle_async_send(struct file_info *fi, struct pending_request *req)
 	int header_length = req->req.misc & 0xffff;
 	int expect_response = req->req.misc >> 16;
 
-	if ((header_length > req->req.length) || (header_length < 12)) {
+	if (header_length > req->req.length || header_length < 12 ||
+	    header_length > FIELD_SIZEOF(struct hpsb_packet, header)) {
 		req->req.error = RAW1394_ERROR_INVALID_ARG;
 		req->req.length = 0;
 		queue_complete_req(req);

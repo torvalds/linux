@@ -1576,7 +1576,7 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 	header->offset = card->tx_buffer->count;
 	header->type = card->lan_type;
 	header->slot = card->portno;
-	memcpy(header + 1, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, header + 1, skb->len);
 	spin_unlock(&card->lock);
 	card->stats.tx_bytes += skb->len;
 	card->stats.tx_packets++;
@@ -1784,7 +1784,6 @@ lcs_get_skb(struct lcs_card *card, char *skb_data, unsigned int skb_len)
 		card->stats.rx_dropped++;
 		return;
 	}
-	skb->dev = card->dev;
 	memcpy(skb_put(skb, skb_len), skb_data, skb_len);
 	skb->protocol =	card->lan_type_trans(skb, card->dev);
 	card->stats.rx_bytes += skb_len;

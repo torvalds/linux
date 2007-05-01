@@ -1,7 +1,7 @@
 /*
  * Host AP crypt: host-based WEP encryption implementation for Host AP driver
  *
- * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2004, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -152,7 +152,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 
 	/* Copy the IV into the first 3 bytes of the key */
-	memcpy(key, skb->data + hdr_len, 3);
+	skb_copy_from_linear_data_offset(skb, hdr_len, key, 3);
 
 	/* Copy rest of the WEP key (the secret part) */
 	memcpy(key + 3, wep->key, wep->key_len);

@@ -2009,7 +2009,7 @@ static void deliver_packet(struct strip *strip_info, STRIP_Header * header,
 		       packetlen);
 		skb->dev = get_strip_dev(strip_info);
 		skb->protocol = header->protocol;
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 
 		/* Having put a fake header on the front of the sk_buff for the */
 		/* benefit of tools like tcpdump, skb_pull now 'consumes' that  */

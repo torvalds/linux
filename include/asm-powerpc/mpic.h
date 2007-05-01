@@ -199,7 +199,7 @@ enum {
 };
 
 
-#ifdef CONFIG_MPIC_BROKEN_U3
+#ifdef CONFIG_MPIC_U3_HT_IRQS
 /* Fixup table entry */
 struct mpic_irq_fixup
 {
@@ -208,7 +208,7 @@ struct mpic_irq_fixup
 	u32		data;
 	unsigned int	index;
 };
-#endif /* CONFIG_MPIC_BROKEN_U3 */
+#endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 
 enum mpic_reg_type {
@@ -239,7 +239,7 @@ struct mpic
 
 	/* The "linux" controller struct */
 	struct irq_chip		hc_irq;
-#ifdef CONFIG_MPIC_BROKEN_U3
+#ifdef CONFIG_MPIC_U3_HT_IRQS
 	struct irq_chip		hc_ht_irq;
 #endif
 #ifdef CONFIG_SMP
@@ -268,7 +268,7 @@ struct mpic
 	/* Spurious vector to program into unused sources */
 	unsigned int		spurious_vec;
 
-#ifdef CONFIG_MPIC_BROKEN_U3
+#ifdef CONFIG_MPIC_U3_HT_IRQS
 	/* The fixup table */
 	struct mpic_irq_fixup	*fixups;
 	spinlock_t		fixup_lock;
@@ -313,7 +313,7 @@ struct mpic
 /* Set this for a big-endian MPIC */
 #define MPIC_BIG_ENDIAN			0x00000002
 /* Broken U3 MPIC */
-#define MPIC_BROKEN_U3			0x00000004
+#define MPIC_U3_HT_IRQS			0x00000004
 /* Broken IPI registers (autodetected) */
 #define MPIC_BROKEN_IPI			0x00000008
 /* MPIC wants a reset */
@@ -352,7 +352,7 @@ struct mpic
  * @senses_num: number of entries in the array
  *
  * Note about the sense array. If none is passed, all interrupts are
- * setup to be level negative unless MPIC_BROKEN_U3 is set in which
+ * setup to be level negative unless MPIC_U3_HT_IRQS is set in which
  * case they are edge positive (and the array is ignored anyway).
  * The values in the array start at the first source of the MPIC,
  * that is senses[0] correspond to linux irq "irq_offset".

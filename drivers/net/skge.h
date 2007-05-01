@@ -232,7 +232,6 @@ enum {
 	IS_R2_PAR_ERR	= 1<<0,	/* Queue R2 Parity Error */
 
 	IS_ERR_MSK	= IS_IRQ_MST_ERR | IS_IRQ_STAT
-			| IS_NO_STAT_M1 | IS_NO_STAT_M2
 			| IS_RAM_RD_PAR | IS_RAM_WR_PAR
 			| IS_M1_PAR_ERR | IS_M2_PAR_ERR
 			| IS_R1_PAR_ERR | IS_R2_PAR_ERR,
@@ -2447,15 +2446,15 @@ enum pause_status {
 
 
 struct skge_port {
-	u32		     msg_enable;
 	struct skge_hw	     *hw;
 	struct net_device    *netdev;
 	int		     port;
+	u32		     msg_enable;
 
 	struct skge_ring     tx_ring;
-	struct skge_ring     rx_ring;
 
-	struct net_device_stats net_stats;
+	struct skge_ring     rx_ring ____cacheline_aligned_in_smp;
+	unsigned int	     rx_buf_size;
 
 	struct timer_list    link_timer;
 	enum pause_control   flow_control;
@@ -2471,7 +2470,8 @@ struct skge_port {
 	void		     *mem;	/* PCI memory for rings */
 	dma_addr_t	     dma;
 	unsigned long	     mem_size;
-	unsigned int	     rx_buf_size;
+
+	struct net_device_stats net_stats;
 };
 
 

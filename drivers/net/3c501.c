@@ -735,7 +735,6 @@ static void el_receive(struct net_device *dev)
 	else
 	{
     		skb_reserve(skb,2);	/* Force 16 byte alignment */
-		skb->dev = dev;
 		/*
 		 *	The read increments through the bytes. The interrupt
 		 *	handler will fix the pointer when it returns to

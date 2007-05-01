@@ -1,0 +1,9 @@
+What:		dv1394 (a.k.a. "OHCI-DV I/O support" for FireWire)
+Contact:	linux1394-devel@lists.sourceforge.net
+Description:
+	New application development should use raw1394 + userspace libraries
+	instead, notably libiec61883 which is functionally equivalent.
+
+Users:
+	ffmpeg/libavformat (used by a variety of media players)
+	dvgrab v1.x (replaced by dvgrab2 on top of raw1394 and resp. libraries)

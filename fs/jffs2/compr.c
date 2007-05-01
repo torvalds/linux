@@ -1,15 +1,13 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001-2003 Red Hat, Inc.
+ * Copyright © 2001-2007 Red Hat, Inc.
  * Created by Arjan van de Ven <arjanv@redhat.com>
  *
- * Copyright (C) 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
+ * Copyright © 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
  *                    University of Szeged, Hungary
  *
  * For licensing information, see the file 'LICENCE' in this directory.
- *
- * $Id: compr.c,v 1.46 2005/11/07 11:14:38 gleixner Exp $
  *
  */
 
@@ -267,144 +265,6 @@ int jffs2_unregister_compressor(struct jffs2_compressor *comp)
         spin_unlock(&jffs2_compressor_list_lock);
         return 0;
 }
-
-#ifdef CONFIG_JFFS2_PROC
-
-#define JFFS2_STAT_BUF_SIZE 16000
-
-char *jffs2_list_compressors(void)
-{
-        struct jffs2_compressor *this;
-        char *buf, *act_buf;
-
-        act_buf = buf = kmalloc(JFFS2_STAT_BUF_SIZE,GFP_KERNEL);
-        list_for_each_entry(this, &jffs2_compressor_list, list) {
-                act_buf += sprintf(act_buf, "%10s priority:%d ", this->name, this->priority);
-                if ((this->disabled)||(!this->compress))
-                        act_buf += sprintf(act_buf,"disabled");
-                else
-                        act_buf += sprintf(act_buf,"enabled");
-                act_buf += sprintf(act_buf,"\n");
-        }
-        return buf;
-}
-
-char *jffs2_stats(void)
-{
-        struct jffs2_compressor *this;
-        char *buf, *act_buf;
-
-        act_buf = buf = kmalloc(JFFS2_STAT_BUF_SIZE,GFP_KERNEL);
-
-        act_buf += sprintf(act_buf,"JFFS2 compressor statistics:\n");
-        act_buf += sprintf(act_buf,"%10s   ","none");
-        act_buf += sprintf(act_buf,"compr: %d blocks (%d)  decompr: %d blocks\n", none_stat_compr_blocks,
-                           none_stat_compr_size, none_stat_decompr_blocks);
-        spin_lock(&jffs2_compressor_list_lock);
-        list_for_each_entry(this, &jffs2_compressor_list, list) {
-                act_buf += sprintf(act_buf,"%10s ",this->name);
-                if ((this->disabled)||(!this->compress))
-                        act_buf += sprintf(act_buf,"- ");
-                else
-                        act_buf += sprintf(act_buf,"+ ");
-                act_buf += sprintf(act_buf,"compr: %d blocks (%d/%d)  decompr: %d blocks ", this->stat_compr_blocks,
-                                   this->stat_compr_new_size, this->stat_compr_orig_size,
-                                   this->stat_decompr_blocks);
-                act_buf += sprintf(act_buf,"\n");
-        }
-        spin_unlock(&jffs2_compressor_list_lock);
-
-        return buf;
-}
-
-char *jffs2_get_compression_mode_name(void)
-{
-        switch (jffs2_compression_mode) {
-        case JFFS2_COMPR_MODE_NONE:
-                return "none";
-        case JFFS2_COMPR_MODE_PRIORITY:
-                return "priority";
-        case JFFS2_COMPR_MODE_SIZE:
-                return "size";
-        }
-        return "unkown";
-}
-
-int jffs2_set_compression_mode_name(const char *name)
-{
-        if (!strcmp("none",name)) {
-                jffs2_compression_mode = JFFS2_COMPR_MODE_NONE;
-                return 0;
-        }
-        if (!strcmp("priority",name)) {
-                jffs2_compression_mode = JFFS2_COMPR_MODE_PRIORITY;
-                return 0;
-        }
-        if (!strcmp("size",name)) {
-                jffs2_compression_mode = JFFS2_COMPR_MODE_SIZE;
-                return 0;
-        }
-        return 1;
-}
-
-static int jffs2_compressor_Xable(const char *name, int disabled)
-{
-        struct jffs2_compressor *this;
-        spin_lock(&jffs2_compressor_list_lock);
-        list_for_each_entry(this, &jffs2_compressor_list, list) {
-                if (!strcmp(this->name, name)) {
-                        this->disabled = disabled;
-                        spin_unlock(&jffs2_compressor_list_lock);
-                        return 0;
-                }
-        }
-        spin_unlock(&jffs2_compressor_list_lock);
-        printk(KERN_WARNING "JFFS2: compressor %s not found.\n",name);
-        return 1;
-}
-
-int jffs2_enable_compressor_name(const char *name)
-{
-        return jffs2_compressor_Xable(name, 0);
-}
-
-int jffs2_disable_compressor_name(const char *name)
-{
-        return jffs2_compressor_Xable(name, 1);
-}
-
-int jffs2_set_compressor_priority(const char *name, int priority)
-{
-        struct jffs2_compressor *this,*comp;
-        spin_lock(&jffs2_compressor_list_lock);
-        list_for_each_entry(this, &jffs2_compressor_list, list) {
-                if (!strcmp(this->name, name)) {
-                        this->priority = priority;
-                        comp = this;
-                        goto reinsert;
-                }
-        }
-        spin_unlock(&jffs2_compressor_list_lock);
-        printk(KERN_WARNING "JFFS2: compressor %s not found.\n",name);
-        return 1;
-reinsert:
-        /* list is sorted in the order of priority, so if
-           we change it we have to reinsert it into the
-           good place */
-        list_del(&comp->list);
-        list_for_each_entry(this, &jffs2_compressor_list, list) {
-                if (this->priority < comp->priority) {
-                        list_add(&comp->list, this->list.prev);
-                        spin_unlock(&jffs2_compressor_list_lock);
-                        return 0;
-                }
-        }
-        list_add_tail(&comp->list, &jffs2_compressor_list);
-        spin_unlock(&jffs2_compressor_list_lock);
-        return 0;
-}
-
-#endif
 
 void jffs2_free_comprbuf(unsigned char *comprbuf, unsigned char *orig)
 {

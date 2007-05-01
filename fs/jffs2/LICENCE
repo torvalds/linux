@@ -1,7 +1,7 @@
 The files in this directory and elsewhere which refer to this LICENCE
 file are part of JFFS2, the Journalling Flash File System v2.
 
-	Copyright (C) 2001, 2002 Red Hat, Inc.
+	Copyright © 2001-2007 Red Hat, Inc. and others
 
 JFFS2 is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
@@ -28,8 +28,3 @@ of the GNU General Public License.
 This exception does not invalidate any other reasons why a work based on
 this file might be covered by the GNU General Public License.
 
-For information on obtaining alternative licences for JFFS2, see 
-http://sources.redhat.com/jffs2/jffs2-licence.html
-
-
-	$Id: LICENCE,v 1.1 2002/05/20 14:56:37 dwmw2 Exp $

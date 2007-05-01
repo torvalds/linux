@@ -452,6 +452,7 @@ struct timespec ns_to_timespec(const s64 nsec)
 
 	return ts;
 }
+EXPORT_SYMBOL(ns_to_timespec);
 
 /**
  * ns_to_timeval - Convert nanoseconds to timeval
@@ -469,6 +470,7 @@ struct timeval ns_to_timeval(const s64 nsec)
 
 	return tv;
 }
+EXPORT_SYMBOL(ns_to_timeval);
 
 /*
  * Convert jiffies to milliseconds and back.
@@ -635,6 +637,7 @@ timeval_to_jiffies(const struct timeval *value)
 		(((u64)usec * USEC_CONVERSION + USEC_ROUND) >>
 		 (USEC_JIFFIE_SC - SEC_JIFFIE_SC))) >> SEC_JIFFIE_SC;
 }
+EXPORT_SYMBOL(timeval_to_jiffies);
 
 void jiffies_to_timeval(const unsigned long jiffies, struct timeval *value)
 {
@@ -649,6 +652,7 @@ void jiffies_to_timeval(const unsigned long jiffies, struct timeval *value)
 	tv_usec /= NSEC_PER_USEC;
 	value->tv_usec = tv_usec;
 }
+EXPORT_SYMBOL(jiffies_to_timeval);
 
 /*
  * Convert jiffies/jiffies_64 to clock_t and back.

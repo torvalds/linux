@@ -26,7 +26,7 @@ OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 OUTPUT_ARCH(i386)
 ENTRY(phys_startup_32)
 jiffies = jiffies_64;
-_proxy_pda = 0;
+_proxy_pda = 1;
 
 PHDRS {
 	text PT_LOAD FLAGS(5);	/* R_E */

@@ -1,4 +1,4 @@
-/* cache.h: AFS local cache management interface
+/* AFS local cache management interface
  *
  * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,8 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_AFS_CACHE_H
-#define _LINUX_AFS_CACHE_H
+#ifndef AFS_CACHE_H
+#define AFS_CACHE_H
 
 #undef AFS_CACHING_SUPPORT
 
@@ -20,8 +20,4 @@
 #endif
 #include "types.h"
 
-#ifdef __KERNEL__
-
-#endif /* __KERNEL__ */
-
-#endif /* _LINUX_AFS_CACHE_H */
+#endif /* AFS_CACHE_H */

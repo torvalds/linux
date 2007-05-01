@@ -32,6 +32,7 @@
 #include <linux/etherdevice.h>
 #include <linux/notifier.h>
 #include <net/ip.h>
+#include <net/netlink.h>
 #include <net/route.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
@@ -127,8 +128,8 @@ struct tbf_sched_data
 	long	tokens;			/* Current number of B tokens */
 	long	ptokens;		/* Current number of P tokens */
 	psched_time_t	t_c;		/* Time check-point */
-	struct timer_list wd_timer;	/* Watchdog timer */
 	struct Qdisc	*qdisc;		/* Inner qdisc, default - bfifo queue */
+	struct qdisc_watchdog watchdog;	/* Watchdog timer */
 };
 
 #define L2T(q,L)   ((q)->R_tab->data[(L)>>(q)->R_tab->rate.cell_log])
@@ -185,14 +186,6 @@ static unsigned int tbf_drop(struct Qdisc* sch)
 	return len;
 }
 
-static void tbf_watchdog(unsigned long arg)
-{
-	struct Qdisc *sch = (struct Qdisc*)arg;
-
-	sch->flags &= ~TCQ_F_THROTTLED;
-	netif_schedule(sch->dev);
-}
-
 static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
@@ -202,13 +195,12 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 
 	if (skb) {
 		psched_time_t now;
-		long toks, delay;
+		long toks;
 		long ptoks = 0;
 		unsigned int len = skb->len;
 
-		PSCHED_GET_TIME(now);
-
-		toks = PSCHED_TDIFF_SAFE(now, q->t_c, q->buffer);
+		now = psched_get_time();
+		toks = psched_tdiff_bounded(now, q->t_c, q->buffer);
 
 		if (q->P_tab) {
 			ptoks = toks + q->ptokens;
@@ -230,12 +222,8 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 			return skb;
 		}
 
-		delay = PSCHED_US2JIFFIE(max_t(long, -toks, -ptoks));
-
-		if (delay == 0)
-			delay = 1;
-
-		mod_timer(&q->wd_timer, jiffies+delay);
+		qdisc_watchdog_schedule(&q->watchdog,
+					now + max_t(long, -toks, -ptoks));
 
 		/* Maybe we have a shorter packet in the queue,
 		   which can be sent now. It sounds cool,
@@ -254,7 +242,6 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 			sch->qstats.drops++;
 		}
 
-		sch->flags |= TCQ_F_THROTTLED;
 		sch->qstats.overlimits++;
 	}
 	return NULL;
@@ -266,11 +253,10 @@ static void tbf_reset(struct Qdisc* sch)
 
 	qdisc_reset(q->qdisc);
 	sch->q.qlen = 0;
-	PSCHED_GET_TIME(q->t_c);
+	q->t_c = psched_get_time();
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
-	sch->flags &= ~TCQ_F_THROTTLED;
-	del_timer(&q->wd_timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 }
 
 static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
@@ -377,11 +363,8 @@ static int tbf_init(struct Qdisc* sch, struct rtattr *opt)
 	if (opt == NULL)
 		return -EINVAL;
 
-	PSCHED_GET_TIME(q->t_c);
-	init_timer(&q->wd_timer);
-	q->wd_timer.function = tbf_watchdog;
-	q->wd_timer.data = (unsigned long)sch;
-
+	q->t_c = psched_get_time();
+	qdisc_watchdog_init(&q->watchdog, sch);
 	q->qdisc = &noop_qdisc;
 
 	return tbf_change(sch, opt);
@@ -391,7 +374,7 @@ static void tbf_destroy(struct Qdisc *sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
-	del_timer(&q->wd_timer);
+	qdisc_watchdog_cancel(&q->watchdog);
 
 	if (q->P_tab)
 		qdisc_put_rtab(q->P_tab);
@@ -404,7 +387,7 @@ static void tbf_destroy(struct Qdisc *sch)
 static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 	struct tc_tbf_qopt opt;
 
@@ -420,12 +403,12 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opt.mtu = q->mtu;
 	opt.buffer = q->buffer;
 	RTA_PUT(skb, TCA_TBF_PARMS, sizeof(opt), &opt);
-	rta->rta_len = skb->tail - b;
+	rta->rta_len = skb_tail_pointer(skb) - b;
 
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

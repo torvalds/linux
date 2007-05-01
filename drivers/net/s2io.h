@@ -1,6 +1,6 @@
 /************************************************************************
  * s2io.h: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
- * Copyright(c) 2002-2005 Neterion Inc.
+ * Copyright(c) 2002-2007 Neterion Inc.
 
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
@@ -760,7 +760,6 @@ struct s2io_nic {
 #define MAX_SUPPORTED_MULTICASTS MAX_MAC_SUPPORTED
 
 	struct mac_addr def_mac_addr[MAX_MAC_SUPPORTED];
-	struct mac_addr pre_mac_addr[MAX_MAC_SUPPORTED];
 
 	struct net_device_stats stats;
 	int high_dma_flag;
@@ -793,11 +792,6 @@ struct s2io_nic {
 	u16 m_cast_flg;
 	u16 all_multi_pos;
 	u16 promisc_flg;
-
-	u16 tx_pkt_count;
-	u16 rx_pkt_count;
-	u16 tx_err_count;
-	u16 rx_err_count;
 
 	/*  Id timer, used to blink NIC to physically identify NIC. */
 	struct timer_list id_timer;

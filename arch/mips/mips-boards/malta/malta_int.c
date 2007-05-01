@@ -42,8 +42,6 @@
 #include <asm/mips-boards/msc01_pci.h>
 #include <asm/msc01_ic.h>
 
-extern void mips_timer_interrupt(void);
-
 static DEFINE_SPINLOCK(mips_irq_lock);
 
 static inline int mips_pcibios_iack(void)
@@ -85,7 +83,7 @@ static inline int mips_pcibios_iack(void)
 		dummy = BONITO_PCIMAP_CFG;
 		iob();    /* sync */
 
-		irq = *(volatile u32 *)(_pcictrl_bonito_pcicfg);
+		irq = readl((u32 *)_pcictrl_bonito_pcicfg);
 		iob();    /* sync */
 		irq &= 0xff;
 		BONITO_PCIMAP_CFG = 0;

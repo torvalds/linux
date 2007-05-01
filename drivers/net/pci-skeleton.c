@@ -1344,7 +1344,7 @@ static int netdrv_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 	tp->tx_info[entry].skb = skb;
 	/* tp->tx_info[entry].mapping = 0; */
-	memcpy (tp->tx_buf[entry], skb->data, skb->len);
+	skb_copy_from_linear_data(skb, tp->tx_buf[entry], skb->len);
 
 	/* Note: the chip doesn't have auto-pad! */
 	NETDRV_W32 (TxStatus0 + (entry * sizeof(u32)),
@@ -1565,7 +1565,6 @@ static void netdrv_rx_interrupt (struct net_device *dev,
 
 		skb = dev_alloc_skb (pkt_size + 2);
 		if (skb) {
-			skb->dev = dev;
 			skb_reserve (skb, 2);	/* 16 byte align the IP fields. */
 
 			eth_copy_and_sum (skb, &rx_ring[ring_offset + 4], pkt_size, 0);

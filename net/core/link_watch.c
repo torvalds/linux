@@ -79,7 +79,7 @@ static void rfc2863_policy(struct net_device *dev)
 	case IF_LINK_MODE_DEFAULT:
 	default:
 		break;
-	};
+	}
 
 	dev->operstate = operstate;
 

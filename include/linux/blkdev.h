@@ -116,6 +116,7 @@ struct io_context {
 
 	struct as_io_context *aic;
 	struct rb_root cic_root;
+	void *ioc_data;
 };
 
 void put_io_context(struct io_context *ioc);

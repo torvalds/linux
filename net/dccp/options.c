@@ -29,8 +29,6 @@ int sysctl_dccp_feat_ack_ratio	      = DCCPF_INITIAL_ACK_RATIO;
 int sysctl_dccp_feat_send_ack_vector = DCCPF_INITIAL_SEND_ACK_VECTOR;
 int sysctl_dccp_feat_send_ndp_count  = DCCPF_INITIAL_SEND_NDP_COUNT;
 
-EXPORT_SYMBOL_GPL(sysctl_dccp_feat_sequence_window);
-
 void dccp_minisock_init(struct dccp_minisock *dmsk)
 {
 	dmsk->dccpms_sequence_window = sysctl_dccp_feat_sequence_window;
@@ -174,20 +172,24 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			opt_recv->dccpor_timestamp_echo = ntohl(*(__be32 *)value);
 
 			dccp_pr_debug("%s rx opt: TIMESTAMP_ECHO=%u, len=%d, "
-				      "ackno=%llu, ",  dccp_role(sk),
+				      "ackno=%llu", dccp_role(sk),
 				      opt_recv->dccpor_timestamp_echo,
 				      len + 2,
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 
 
-			if (len == 4)
+			if (len == 4) {
+				dccp_pr_debug_cat("\n");
 				break;
+			}
 
 			if (len == 6)
 				elapsed_time = ntohs(*(__be16 *)(value + 4));
 			else
 				elapsed_time = ntohl(*(__be32 *)(value + 4));
+
+			dccp_pr_debug_cat(", ELAPSED_TIME=%d\n", elapsed_time);
 
 			/* Give precedence to the biggest ELAPSED_TIME */
 			if (elapsed_time > opt_recv->dccpor_elapsed_time)
@@ -563,6 +565,14 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 	if (DCCP_SKB_CB(skb)->dccpd_type != DCCP_PKT_DATA &&
 	    DCCP_SKB_CB(skb)->dccpd_type != DCCP_PKT_DATAACK &&
 	    dccp_insert_options_feat(sk, skb))
+		return -1;
+
+	/*
+	 * Obtain RTT sample from Request/Response exchange.
+	 * This is currently used in CCID 3 initialisation.
+	 */
+	if (DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_REQUEST &&
+	    dccp_insert_option_timestamp(sk, skb))
 		return -1;
 
 	/* XXX: insert other options when appropriate */

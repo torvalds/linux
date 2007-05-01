@@ -100,55 +100,49 @@ dtlb_miss_write:
 
 	.global	tlb_miss_common
 tlb_miss_common:
-	mfsr	r0, SYSREG_PTBR
-	mfsr	r1, SYSREG_TLBEAR
+	mfsr	r0, SYSREG_TLBEAR
+	mfsr	r1, SYSREG_PTBR
 
 	/* Is it the vmalloc space? */
-	bld	r1, 31
+	bld	r0, 31
 	brcs	handle_vmalloc_miss
 
 	/* First level lookup */
 pgtbl_lookup:
-	lsr	r2, r1, PGDIR_SHIFT
-	ld.w	r0, r0[r2 << 2]
-	bld	r0, _PAGE_BIT_PRESENT
+	lsr	r2, r0, PGDIR_SHIFT
+	ld.w	r3, r1[r2 << 2]
+	bfextu	r1, r0, PAGE_SHIFT, PGDIR_SHIFT - PAGE_SHIFT
+	bld	r3, _PAGE_BIT_PRESENT
 	brcc	page_table_not_present
 
-	/* TODO: Check access rights on page table if necessary */
-
 	/* Translate to virtual address in P1. */
-	andl	r0, 0xf000
-	sbr	r0, 31
+	andl	r3, 0xf000
+	sbr	r3, 31
 
 	/* Second level lookup */
-	lsl	r1, (32 - PGDIR_SHIFT)
-	lsr	r1, (32 - PGDIR_SHIFT) + PAGE_SHIFT
-	add	r2, r0, r1 << 2
-	ld.w	r1, r2[0]
-	bld	r1, _PAGE_BIT_PRESENT
+	ld.w	r2, r3[r1 << 2]
+	mfsr	r0, SYSREG_TLBARLO
+	bld	r2, _PAGE_BIT_PRESENT
 	brcc	page_not_present
 
 	/* Mark the page as accessed */
-	sbr	r1, _PAGE_BIT_ACCESSED
-	st.w	r2[0], r1
+	sbr	r2, _PAGE_BIT_ACCESSED
+	st.w	r3[r1 << 2], r2
 
 	/* Drop software flags */
-	andl	r1, _PAGE_FLAGS_HARDWARE_MASK & 0xffff
-	mtsr	SYSREG_TLBELO, r1
+	andl	r2, _PAGE_FLAGS_HARDWARE_MASK & 0xffff
+	mtsr	SYSREG_TLBELO, r2
 
 	/* Figure out which entry we want to replace */
-	mfsr	r0, SYSREG_TLBARLO
+	mfsr	r1, SYSREG_MMUCR
 	clz	r2, r0
 	brcc	1f
-	mov	r1, -1			/* All entries have been accessed, */
-	mtsr	SYSREG_TLBARLO, r1	/* so reset TLBAR */
-	mov	r2, 0			/* and start at 0 */
-1:	mfsr	r1, SYSREG_MMUCR
-	lsl	r2, 14
-	andl	r1, 0x3fff, COH
-	or	r1, r2
-	mtsr	SYSREG_MMUCR, r1
+	mov	r3, -1			/* All entries have been accessed, */
+	mov	r2, 0			/* so start at 0 */
+	mtsr	SYSREG_TLBARLO, r3	/* and reset TLBAR */
 
+1:	bfins	r1, r2, SYSREG_DRP_OFFSET, SYSREG_DRP_SIZE
+	mtsr	SYSREG_MMUCR, r1
 	tlbw
 
 	tlbmiss_restore
@@ -156,8 +150,8 @@ pgtbl_lookup:
 
 handle_vmalloc_miss:
 	/* Simply do the lookup in init's page table */
-	mov	r0, lo(swapper_pg_dir)
-	orh	r0, hi(swapper_pg_dir)
+	mov	r1, lo(swapper_pg_dir)
+	orh	r1, hi(swapper_pg_dir)
 	rjmp	pgtbl_lookup
 
 
@@ -340,12 +334,34 @@ do_bus_error_read:
 do_nmi_ll:
 	sub	sp, 4
 	stmts	--sp, r0-lr
-	/* FIXME: Make sure RAR_NMI and RSR_NMI are pushed instead of *_EX */
-	rcall	save_full_context_ex
+	mfsr	r9, SYSREG_RSR_NMI
+	mfsr	r8, SYSREG_RAR_NMI
+	bfextu	r0, r9, MODE_SHIFT, 3
+	brne	2f
+
+1:	pushm	r8, r9	/* PC and SR */
 	mfsr	r12, SYSREG_ECR
 	mov	r11, sp
 	rcall	do_nmi
-	rjmp	bad_return
+	popm	r8-r9
+	mtsr	SYSREG_RAR_NMI, r8
+	tst	r0, r0
+	mtsr	SYSREG_RSR_NMI, r9
+	brne	3f
+
+	ldmts	sp++, r0-lr
+	sub	sp, -4		/* skip r12_orig */
+	rete
+
+2:	sub	r10, sp, -(FRAME_SIZE_FULL - REG_LR)
+	stdsp	sp[4], r10	/* replace saved SP */
+	rjmp	1b
+
+3:	popm	lr
+	sub	sp, -4		/* skip sp */
+	popm	r0-r12
+	sub	sp, -4		/* skip r12_orig */
+	rete
 
 handle_address_fault:
 	sub	sp, 4
@@ -630,9 +646,12 @@ irq_level\level:
 	rcall	do_IRQ
 
 	lddsp	r4, sp[REG_SR]
-	andh	r4, (MODE_MASK >> 16), COH
+	bfextu	r4, r4, SYSREG_M0_OFFSET, 3
+	cp.w	r4, MODE_SUPERVISOR >> SYSREG_M0_OFFSET
+	breq	2f
+	cp.w	r4, MODE_USER >> SYSREG_M0_OFFSET
 #ifdef CONFIG_PREEMPT
-	brne	2f
+	brne	3f
 #else
 	brne	1f
 #endif
@@ -649,9 +668,18 @@ irq_level\level:
 	sub	sp, -4		/* ignore r12_orig */
 	rete
 
+2:	get_thread_info	r0
+	ld.w	r1, r0[TI_flags]
+	bld	r1, TIF_CPU_GOING_TO_SLEEP
 #ifdef CONFIG_PREEMPT
-2:
-	get_thread_info	r0
+	brcc	3f
+#else
+	brcc	1b
+#endif
+	sub	r1, pc, . - cpu_idle_skip_sleep
+	stdsp	sp[REG_PC], r1
+#ifdef CONFIG_PREEMPT
+3:	get_thread_info r0
 	ld.w	r2, r0[TI_preempt_count]
 	cp.w	r2, 0
 	brne	1b
@@ -662,11 +690,31 @@ irq_level\level:
 	bld	r4, SYSREG_GM_OFFSET
 	brcs	1b
 	rcall	preempt_schedule_irq
-	rjmp	1b
 #endif
+	rjmp	1b
 	.endm
 
 	.section .irq.text,"ax",@progbits
+
+.global cpu_idle_sleep
+cpu_idle_sleep:
+	mask_interrupts
+	get_thread_info r8
+	ld.w	r9, r8[TI_flags]
+	bld	r9, TIF_NEED_RESCHED
+	brcs	cpu_idle_enable_int_and_exit
+	sbr	r9, TIF_CPU_GOING_TO_SLEEP
+	st.w	r8[TI_flags], r9
+	unmask_interrupts
+	sleep 0
+cpu_idle_skip_sleep:
+	mask_interrupts
+	ld.w	r9, r8[TI_flags]
+	cbr	r9, TIF_CPU_GOING_TO_SLEEP
+	st.w	r8[TI_flags], r9
+cpu_idle_enable_int_and_exit:
+	unmask_interrupts
+	retal	r12
 
 	.global	irq_level0
 	.global	irq_level1

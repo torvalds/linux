@@ -10,6 +10,8 @@
 #define _ASM_POWERPC_PPC_PCI_H
 #ifdef __KERNEL__
 
+#ifdef CONFIG_PCI
+
 #include <linux/pci.h>
 #include <asm/pci-bridge.h>
 
@@ -22,7 +24,7 @@ extern void pci_setup_phb_io_dynamic(struct pci_controller *hose, int primary);
 extern struct list_head hose_list;
 extern int global_phb_number;
 
-extern unsigned long find_and_init_phbs(void);
+extern void find_and_init_phbs(void);
 
 extern struct pci_dev *ppc64_isabridge_dev;	/* may be NULL if no ISA bus */
 
@@ -68,7 +70,7 @@ struct pci_dev *pci_get_device_by_addr(unsigned long addr);
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
 
 /**
- * rtas_pci_enableo - enable IO transfers for this slot
+ * rtas_pci_enable - enable IO transfers for this slot
  * @pdn:       pci device node
  * @function:  either EEH_THAW_MMIO or EEH_THAW_DMA 
  *
@@ -89,6 +91,7 @@ int rtas_pci_enable(struct pci_dn *pdn, int function);
  * Returns a non-zero value if the reset failed.
  */
 int rtas_set_slot_reset (struct pci_dn *);
+int eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs);
 
 /** 
  * eeh_restore_bars - Restore device configuration info.
@@ -125,6 +128,11 @@ void eeh_clear_slot (struct device_node *dn, int mode_flag);
 struct device_node * find_device_pe(struct device_node *dn);
 
 #endif
+
+#else /* CONFIG_PCI */
+static inline void find_and_init_phbs(void) { }
+static inline void init_pci_config_tokens(void) { }
+#endif /* !CONFIG_PCI */
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PPC_PCI_H */

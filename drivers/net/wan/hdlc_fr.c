@@ -288,31 +288,31 @@ static int fr_hard_header(struct sk_buff **skb_p, u16 dlci)
 	struct sk_buff *skb = *skb_p;
 
 	switch (skb->protocol) {
-	case __constant_ntohs(NLPID_CCITT_ANSI_LMI):
+	case __constant_htons(NLPID_CCITT_ANSI_LMI):
 		head_len = 4;
 		skb_push(skb, head_len);
 		skb->data[3] = NLPID_CCITT_ANSI_LMI;
 		break;
 
-	case __constant_ntohs(NLPID_CISCO_LMI):
+	case __constant_htons(NLPID_CISCO_LMI):
 		head_len = 4;
 		skb_push(skb, head_len);
 		skb->data[3] = NLPID_CISCO_LMI;
 		break;
 
-	case __constant_ntohs(ETH_P_IP):
+	case __constant_htons(ETH_P_IP):
 		head_len = 4;
 		skb_push(skb, head_len);
 		skb->data[3] = NLPID_IP;
 		break;
 
-	case __constant_ntohs(ETH_P_IPV6):
+	case __constant_htons(ETH_P_IPV6):
 		head_len = 4;
 		skb_push(skb, head_len);
 		skb->data[3] = NLPID_IPV6;
 		break;
 
-	case __constant_ntohs(ETH_P_802_3):
+	case __constant_htons(ETH_P_802_3):
 		head_len = 10;
 		if (skb_headroom(skb) < head_len) {
 			struct sk_buff *skb2 = skb_realloc_headroom(skb,
@@ -340,7 +340,7 @@ static int fr_hard_header(struct sk_buff **skb_p, u16 dlci)
 		skb->data[5] = FR_PAD;
 		skb->data[6] = FR_PAD;
 		skb->data[7] = FR_PAD;
-		*(u16*)(skb->data + 8) = skb->protocol;
+		*(__be16*)(skb->data + 8) = skb->protocol;
 	}
 
 	dlci_to_q922(skb->data, dlci);
@@ -533,7 +533,7 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 		skb->protocol = __constant_htons(NLPID_CCITT_ANSI_LMI);
 		fr_hard_header(&skb, LMI_CCITT_ANSI_DLCI);
 	}
-	data = skb->tail;
+	data = skb_tail_pointer(skb);
 	data[i++] = LMI_CALLREF;
 	data[i++] = dce ? LMI_STATUS : LMI_STATUS_ENQUIRY;
 	if (lmi == LMI_ANSI)
@@ -590,7 +590,7 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	skb_put(skb, i);
 	skb->priority = TC_PRIO_CONTROL;
 	skb->dev = dev;
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	dev_queue_xmit(skb);
 }
@@ -974,8 +974,8 @@ static int fr_rx(struct sk_buff *skb)
 
 	} else if (skb->len > 10 && data[3] == FR_PAD &&
 		   data[4] == NLPID_SNAP && data[5] == FR_PAD) {
-		u16 oui = ntohs(*(u16*)(data + 6));
-		u16 pid = ntohs(*(u16*)(data + 8));
+		u16 oui = ntohs(*(__be16*)(data + 6));
+		u16 pid = ntohs(*(__be16*)(data + 8));
 		skb_pull(skb, 10);
 
 		switch ((((u32)oui) << 16) | pid) {
@@ -1011,7 +1011,6 @@ static int fr_rx(struct sk_buff *skb)
 		stats->rx_bytes += skb->len;
 		if (pvc->state.becn)
 			stats->rx_compressed++;
-		skb->dev = dev;
 		netif_rx(skb);
 		return NET_RX_SUCCESS;
 	} else {
@@ -1128,7 +1127,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 		memcpy(dev->dev_addr, "\x00\x01", 2);
                 get_random_bytes(dev->dev_addr + 2, ETH_ALEN - 2);
 	} else {
-		*(u16*)dev->dev_addr = htons(dlci);
+		*(__be16*)dev->dev_addr = htons(dlci);
 		dlci_to_q922(dev->broadcast, dlci);
 	}
 	dev->hard_start_xmit = pvc_xmit;

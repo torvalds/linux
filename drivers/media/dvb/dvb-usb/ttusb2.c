@@ -184,6 +184,7 @@ static int ttusb2_probe(struct usb_interface *intf,
 
 static struct usb_device_id ttusb2_table [] = {
 		{ USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_400E) },
+		{ USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_450E) },
 		{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, ttusb2_table);
@@ -227,10 +228,14 @@ static struct dvb_usb_device_properties ttusb2_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.num_device_descs = 1,
+	.num_device_descs = 2,
 	.devices = {
 		{   "Pinnacle 400e DVB-S USB2.0",
 			{ &ttusb2_table[0], NULL },
+			{ NULL },
+		},
+		{   "Pinnacle 450e DVB-S USB2.0",
+			{ &ttusb2_table[1], NULL },
 			{ NULL },
 		},
 	}

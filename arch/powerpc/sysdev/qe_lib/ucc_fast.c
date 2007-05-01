@@ -210,6 +210,9 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	uf_regs = uccf->uf_regs;
 	uccf->p_ucce = (u32 *) & (uf_regs->ucce);
 	uccf->p_uccm = (u32 *) & (uf_regs->uccm);
+#ifdef CONFIG_UGETH_TX_ON_DEMAND
+	uccf->p_utodr = (u16 *) & (uf_regs->utodr);
+#endif
 #ifdef STATISTICS
 	uccf->tx_frames = 0;
 	uccf->rx_frames = 0;

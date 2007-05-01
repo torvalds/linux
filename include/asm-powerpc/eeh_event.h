@@ -30,8 +30,6 @@ struct eeh_event {
 	struct list_head     list;
 	struct device_node 	*dn;   /* struct device node */
 	struct pci_dev       *dev;  /* affected device */
-	enum pci_channel_state state; /* PCI bus state for the affected device */
-	int time_unavail;    /* milliseconds until device might be available */
 };
 
 /**
@@ -46,9 +44,7 @@ struct eeh_event {
  * (from a workqueue).
  */
 int eeh_send_failure_event (struct device_node *dn,
-                            struct pci_dev *dev,
-                            enum pci_channel_state state,
-                            int time_unavail);
+                            struct pci_dev *dev);
 
 /* Main recovery function */
 struct pci_dn * handle_eeh_events (struct eeh_event *);

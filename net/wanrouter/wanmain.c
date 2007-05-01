@@ -277,8 +277,8 @@ int wanrouter_encapsulate(struct sk_buff *skb, struct net_device *dev,
 		skb_push(skb, 7);
 		skb->data[0] = 0;
 		skb->data[1] = NLPID_SNAP;
-		memcpy(&skb->data[2], wanrouter_oui_ether,
-		       sizeof(wanrouter_oui_ether));
+		skb_copy_to_linear_data_offset(skb, 2, wanrouter_oui_ether,
+					       sizeof(wanrouter_oui_ether));
 		*((unsigned short*)&skb->data[5]) = htons(type);
 		break;
 
@@ -339,7 +339,7 @@ __be16 wanrouter_type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb->protocol = ethertype;
 	skb->pkt_type = PACKET_HOST;	/*	Physically point to point */
 	skb_pull(skb, cnt);
-	skb->mac.raw  = skb->data;
+	skb_reset_mac_header(skb);
 	return ethertype;
 }
 

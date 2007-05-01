@@ -54,87 +54,18 @@
 
 #include <asm/addrspace.h>
 #include <asm/time.h>
-#include <asm/bcache.h>
-#include <asm/irq.h>
 #include <asm/reboot.h>
-#include <asm/gdb-stub.h>
 #include <asm/jmr3927/jmr3927.h>
 #include <asm/mipsregs.h>
-#include <asm/traps.h>
 
-extern void puts(unsigned char *cp);
+extern void puts(const char *cp);
 
 /* Tick Timer divider */
 #define JMR3927_TIMER_CCD	0	/* 1/2 */
 #define JMR3927_TIMER_CLK	(JMR3927_IMCLK / (2 << JMR3927_TIMER_CCD))
 
-unsigned char led_state = 0xf;
-
-struct {
-    struct resource ram0;
-    struct resource ram1;
-    struct resource pcimem;
-    struct resource iob;
-    struct resource ioc;
-    struct resource pciio;
-    struct resource jmy1394;
-    struct resource rom1;
-    struct resource rom0;
-    struct resource sio0;
-    struct resource sio1;
-} jmr3927_resources = {
-	{
-		.start	= 0,
-		.end	= 0x01FFFFFF,
-		.name	= "RAM0",
-		.flags = IORESOURCE_MEM
-	}, {
-		.start	= 0x02000000,
-		.end	= 0x03FFFFFF,
-		.name	= "RAM1",
-		.flags = IORESOURCE_MEM
-	}, {
-		.start	= 0x08000000,
-		.end	= 0x07FFFFFF,
-		.name	= "PCIMEM",
-		.flags = IORESOURCE_MEM
-	}, {
-		.start	= 0x10000000,
-		.end	= 0x13FFFFFF,
-		.name	= "IOB"
-	}, {
-		.start	= 0x14000000,
-		.end	= 0x14FFFFFF,
-		.name	= "IOC"
-	}, {
-		.start	= 0x15000000,
-		.end	= 0x15FFFFFF,
-		.name	= "PCIIO"
-	}, {
-		.start	= 0x1D000000,
-		.end	= 0x1D3FFFFF,
-		.name	= "JMY1394"
-	}, {
-		.start	= 0x1E000000,
-		.end	= 0x1E3FFFFF,
-		.name	= "ROM1"
-	}, {
-		.start	= 0x1FC00000,
-		.end	= 0x1FFFFFFF,
-		.name	= "ROM0"
-	}, {
-		.start	= 0xFFFEF300,
-		.end	= 0xFFFEF3FF,
-		.name	= "SIO0"
-	}, {
-		.start	= 0xFFFEF400,
-		.end	= 0xFFFEF4FF,
-		.name	= "SIO1"
-	},
-};
-
 /* don't enable - see errata */
-int jmr3927_ccfg_toeon = 0;
+static int jmr3927_ccfg_toeon;
 
 static inline void do_reset(void)
 {
@@ -173,9 +104,15 @@ static cycle_t jmr3927_hpt_read(void)
 	return jiffies * (JMR3927_TIMER_CLK / HZ) + jmr3927_tmrptr->trr;
 }
 
+static void jmr3927_timer_ack(void)
+{
+	jmr3927_tmrptr->tisr = 0;       /* ack interrupt */
+}
+
 static void __init jmr3927_time_init(void)
 {
 	clocksource_mips.read = jmr3927_hpt_read;
+	mips_timer_ack = jmr3927_timer_ack;
 	mips_hpt_frequency = JMR3927_TIMER_CLK;
 }
 
@@ -190,9 +127,6 @@ void __init plat_timer_setup(struct irqaction *irq)
 	setup_irq(JMR3927_IRQ_TICK, irq);
 }
 
-#define USECS_PER_JIFFY (1000000/HZ)
-
-//#undef DO_WRITE_THROUGH
 #define DO_WRITE_THROUGH
 #define DO_ENABLE_CACHE
 
@@ -224,12 +158,6 @@ void __init plat_mem_setup(void)
 	/* Reboot on panic */
 	panic_timeout = 180;
 
-	{
-		unsigned int conf;
-		conf = read_c0_conf();
-	}
-
-#if 1
 	/* cache setup */
 	{
 		unsigned int conf;
@@ -256,16 +184,14 @@ void __init plat_mem_setup(void)
 		write_c0_conf(conf);
 		write_c0_cache(0);
 	}
-#endif
 
 	/* initialize board */
 	jmr3927_board_init();
 
 	argptr = prom_getcmdline();
 
-	if ((argptr = strstr(argptr, "toeon")) != NULL) {
-			jmr3927_ccfg_toeon = 1;
-	}
+	if ((argptr = strstr(argptr, "toeon")) != NULL)
+		jmr3927_ccfg_toeon = 1;
 	argptr = prom_getcmdline();
 	if ((argptr = strstr(argptr, "ip=")) == NULL) {
 		argptr = prom_getcmdline();
@@ -281,7 +207,7 @@ void __init plat_mem_setup(void)
 			memset(&req, 0, sizeof(req));
 			req.line = i;
 			req.iotype = UPIO_MEM;
-			req.membase = (char *)TX3927_SIO_REG(i);
+			req.membase = (unsigned char __iomem *)TX3927_SIO_REG(i);
 			req.mapbase = TX3927_SIO_REG(i);
 			req.irq = i == 0 ?
 				JMR3927_IRQ_IRC_SIO0 : JMR3927_IRQ_IRC_SIO1;
@@ -303,65 +229,33 @@ void __init plat_mem_setup(void)
 
 static void tx3927_setup(void);
 
-#ifdef CONFIG_PCI
-unsigned long mips_pci_io_base;
-unsigned long mips_pci_io_size;
-unsigned long mips_pci_mem_base;
-unsigned long mips_pci_mem_size;
-/* for legacy I/O, PCI I/O PCI Bus address must be 0 */
-unsigned long mips_pci_io_pciaddr = 0;
-#endif
-
 static void __init jmr3927_board_init(void)
 {
-	char *argptr;
-
-#ifdef CONFIG_PCI
-	mips_pci_io_base = JMR3927_PCIIO;
-	mips_pci_io_size = JMR3927_PCIIO_SIZE;
-	mips_pci_mem_base = JMR3927_PCIMEM;
-	mips_pci_mem_size = JMR3927_PCIMEM_SIZE;
-#endif
-
 	tx3927_setup();
-
-	if (jmr3927_have_isac()) {
-
-#ifdef CONFIG_FB_E1355
-		argptr = prom_getcmdline();
-		if ((argptr = strstr(argptr, "video=")) == NULL) {
-			argptr = prom_getcmdline();
-			strcat(argptr, " video=e1355fb:crt16h");
-		}
-#endif
-
-#ifdef CONFIG_BLK_DEV_IDE
-		/* overrides PCI-IDE */
-#endif
-	}
 
 	/* SIO0 DTR on */
 	jmr3927_ioc_reg_out(0, JMR3927_IOC_DTR_ADDR);
 
 	jmr3927_led_set(0);
 
-
-	if (jmr3927_have_isac())
-		jmr3927_io_led_set(0);
 	printk("JMR-TX3927 (Rev %d) --- IOC(Rev %d) DIPSW:%d,%d,%d,%d\n",
 	       jmr3927_ioc_reg_in(JMR3927_IOC_BREV_ADDR) & JMR3927_REV_MASK,
 	       jmr3927_ioc_reg_in(JMR3927_IOC_REV_ADDR) & JMR3927_REV_MASK,
 	       jmr3927_dipsw1(), jmr3927_dipsw2(),
 	       jmr3927_dipsw3(), jmr3927_dipsw4());
-	if (jmr3927_have_isac())
-		printk("JMI-3927IO2 --- ISAC(Rev %d) DIPSW:%01x\n",
-		       jmr3927_isac_reg_in(JMR3927_ISAC_REV_ADDR) & JMR3927_REV_MASK,
-		       jmr3927_io_dipsw());
 }
 
-void __init tx3927_setup(void)
+static void __init tx3927_setup(void)
 {
 	int i;
+#ifdef CONFIG_PCI
+	unsigned long mips_pci_io_base = JMR3927_PCIIO;
+	unsigned long mips_pci_io_size = JMR3927_PCIIO_SIZE;
+	unsigned long mips_pci_mem_base = JMR3927_PCIMEM;
+	unsigned long mips_pci_mem_size = JMR3927_PCIMEM_SIZE;
+	/* for legacy I/O, PCI I/O PCI Bus address must be 0 */
+	unsigned long mips_pci_io_pciaddr = 0;
+#endif
 
 	/* SDRAMC are configured by PROM */
 
@@ -475,10 +369,8 @@ void __init tx3927_setup(void)
 		tx3927_pcicptr->mbas = ~(mips_pci_mem_size - 1);
 		tx3927_pcicptr->mba = 0;
 		tx3927_pcicptr->tlbmma = 0;
-#ifndef JMR3927_INIT_INDIRECT_PCI
 		/* Enable Direct mapping Address Space Decoder */
 		tx3927_pcicptr->lbc |= TX3927_PCIC_LBC_ILMDE | TX3927_PCIC_LBC_ILIDE;
-#endif
 
 		/* Clear All Local Bus Status */
 		tx3927_pcicptr->lbstat = TX3927_PCIC_LBIM_ALL;
@@ -491,22 +383,15 @@ void __init tx3927_setup(void)
 
 		/* PCIC Int => IRC IRQ10 */
 		tx3927_pcicptr->il = TX3927_IR_PCI;
-#if 1
 		/* Target Control (per errata) */
 		tx3927_pcicptr->tc = TX3927_PCIC_TC_OF8E | TX3927_PCIC_TC_IF8E;
-#endif
 
 		/* Enable Bus Arbiter */
-#if 0
-		tx3927_pcicptr->req_trace = 0x73737373;
-#endif
 		tx3927_pcicptr->pbapmc = TX3927_PCIC_PBAPMC_PBAEN;
 
 		tx3927_pcicptr->pcicmd = PCI_COMMAND_MASTER |
 			PCI_COMMAND_MEMORY |
-#if 1
 			PCI_COMMAND_IO |
-#endif
 			PCI_COMMAND_PARITY | PCI_COMMAND_SERR;
 	}
 #endif /* CONFIG_PCI */
@@ -555,8 +440,6 @@ static int __init jmr3927_rtc_init(void)
 		.flags	= IORESOURCE_MEM,
 	};
 	struct platform_device *dev;
-	if (!jmr3927_have_nvram())
-		return -ENODEV;
 	dev = platform_device_register_simple("ds1742", -1, &res, 1);
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }

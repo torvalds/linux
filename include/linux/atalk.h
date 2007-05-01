@@ -101,7 +101,7 @@ struct ddpehdr {
 
 static __inline__ struct ddpehdr *ddp_hdr(struct sk_buff *skb)
 {
-	return (struct ddpehdr *)skb->h.raw;
+	return (struct ddpehdr *)skb_transport_header(skb);
 }
 
 /* AppleTalk AARP headers */
@@ -129,7 +129,7 @@ struct elapaarp {
 
 static __inline__ struct elapaarp *aarp_hdr(struct sk_buff *skb)
 {
-	return (struct elapaarp *)skb->h.raw;
+	return (struct elapaarp *)skb_transport_header(skb);
 }
 
 /* Not specified - how long till we drop a resolved entry */

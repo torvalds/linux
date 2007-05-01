@@ -482,14 +482,14 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 	pmac_call_feature(PMAC_FTR_ENABLE_MPIC, np, 0, 0);
 
 	flags |= MPIC_WANTS_RESET;
-	if (get_property(np, "big-endian", NULL))
+	if (of_get_property(np, "big-endian", NULL))
 		flags |= MPIC_BIG_ENDIAN;
 
 	/* Primary Big Endian means HT interrupts. This is quite dodgy
 	 * but works until I find a better way
 	 */
 	if (master && (flags & MPIC_BIG_ENDIAN))
-		flags |= MPIC_BROKEN_U3;
+		flags |= MPIC_U3_HT_IRQS;
 
 	mpic = mpic_alloc(np, r.start, flags, 0, 0, name);
 	if (mpic == NULL)
@@ -510,7 +510,7 @@ static int __init pmac_pic_probe_mpic(void)
 	for (np = NULL; (np = of_find_node_by_type(np, "open-pic"))
 		     != NULL;) {
 		if (master == NULL &&
-		    get_property(np, "interrupts", NULL) == NULL)
+		    of_get_property(np, "interrupts", NULL) == NULL)
 			master = of_node_get(np);
 		else if (slave == NULL)
 			slave = of_node_get(np);
@@ -575,7 +575,7 @@ void __init pmac_pic_init(void)
 #ifdef CONFIG_PPC32
 	if (!pmac_newworld)
 		flags |= OF_IMAP_OLDWORLD_MAC;
-	if (get_property(of_chosen, "linux,bootx", NULL) != NULL)
+	if (of_get_property(of_chosen, "linux,bootx", NULL) != NULL)
 		flags |= OF_IMAP_NO_PHANDLE;
 #endif /* CONFIG_PPC_32 */
 

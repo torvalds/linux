@@ -132,7 +132,7 @@ static __inline__ int icmp_filter(struct sock *sk, struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct icmphdr)))
 		return 1;
 
-	type = skb->h.icmph->type;
+	type = icmp_hdr(skb)->type;
 	if (type < 32) {
 		__u32 data = raw_sk(sk)->filter.data;
 
@@ -184,8 +184,8 @@ out:
 void raw_err (struct sock *sk, struct sk_buff *skb, u32 info)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	int type = skb->h.icmph->type;
-	int code = skb->h.icmph->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	int err = 0;
 	int harderr = 0;
 
@@ -256,7 +256,7 @@ int raw_rcv(struct sock *sk, struct sk_buff *skb)
 	}
 	nf_reset(skb);
 
-	skb_push(skb, skb->data - skb->nh.raw);
+	skb_push(skb, skb->data - skb_network_header(skb));
 
 	raw_rcv_skb(sk, skb);
 	return 0;
@@ -291,11 +291,13 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	skb->priority = sk->sk_priority;
 	skb->dst = dst_clone(&rt->u.dst);
 
-	skb->nh.iph = iph = (struct iphdr *)skb_put(skb, length);
+	skb_reset_network_header(skb);
+	iph = ip_hdr(skb);
+	skb_put(skb, length);
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	skb->h.raw = skb->nh.raw;
+	skb->transport_header = skb->network_header;
 	err = memcpy_fromiovecend((void *)iph, from, 0, length);
 	if (err)
 		goto error_fault;
@@ -613,7 +615,7 @@ static int raw_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	/* Copy the address. */
 	if (sin) {
 		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = skb->nh.iph->saddr;
+		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
 		sin->sin_port = 0;
 		memset(&sin->sin_zero, 0, sizeof(sin->sin_zero));
 	}
@@ -887,7 +889,7 @@ static int raw_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations raw_seq_ops = {
+static const struct seq_operations raw_seq_ops = {
 	.start = raw_seq_start,
 	.next  = raw_seq_next,
 	.stop  = raw_seq_stop,

@@ -201,7 +201,6 @@ error:
 
 
 static struct pm_ops at91_pm_ops ={
-	.pm_disk_mode	= 0,
 	.valid		= at91_pm_valid_state,
 	.prepare	= at91_pm_prepare,
 	.enter		= at91_pm_enter,

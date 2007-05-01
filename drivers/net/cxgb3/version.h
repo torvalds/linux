@@ -36,6 +36,9 @@
 #define DRV_NAME "cxgb3"
 /* Driver version */
 #define DRV_VERSION "1.0-ko"
+
+/* Firmware version */
 #define FW_VERSION_MAJOR 3
-#define FW_VERSION_MINOR 2
+#define FW_VERSION_MINOR 3
+#define FW_VERSION_MICRO 0
 #endif				/* __CHELSIO_VERSION_H */

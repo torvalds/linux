@@ -61,6 +61,7 @@
 #define ETH_P_8021Q	0x8100          /* 802.1Q VLAN Extended Header  */
 #define ETH_P_IPX	0x8137		/* IPX over DIX			*/
 #define ETH_P_IPV6	0x86DD		/* IPv6 over bluebook		*/
+#define ETH_P_PAUSE	0x8808		/* IEEE Pause frames. See 802.3 31B */
 #define ETH_P_SLOW	0x8809		/* Slow Protocol. See 802.3ad 43B */
 #define ETH_P_WCCP	0x883E		/* Web-cache coordination protocol
 					 * defined in draft-wilson-wrec-wccp-v2-00.txt */
@@ -112,7 +113,7 @@ struct ethhdr {
 
 static inline struct ethhdr *eth_hdr(const struct sk_buff *skb)
 {
-	return (struct ethhdr *)skb->mac.raw;
+	return (struct ethhdr *)skb_mac_header(skb);
 }
 
 #ifdef CONFIG_SYSCTL

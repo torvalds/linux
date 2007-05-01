@@ -798,9 +798,7 @@ static int amd8111e_rx_poll(struct net_device *dev, int * budget)
 			pci_unmap_single(lp->pci_dev,lp->rx_dma_addr[rx_index],
 					 lp->rx_buff_len-2, PCI_DMA_FROMDEVICE);
 			skb_put(skb, pkt_len);
-			skb->dev = dev;
 			lp->rx_skbuff[rx_index] = new_skb;
-			new_skb->dev = dev;
 			lp->rx_dma_addr[rx_index] = pci_map_single(lp->pci_dev,
 								   new_skb->data,
 								   lp->rx_buff_len-2,
@@ -926,9 +924,7 @@ static int amd8111e_rx(struct net_device *dev)
 		pci_unmap_single(lp->pci_dev,lp->rx_dma_addr[rx_index],
 			lp->rx_buff_len-2, PCI_DMA_FROMDEVICE);
 		skb_put(skb, pkt_len);
-		skb->dev = dev;
 		lp->rx_skbuff[rx_index] = new_skb;
-		new_skb->dev = dev;
 		lp->rx_dma_addr[rx_index] = pci_map_single(lp->pci_dev,
 			new_skb->data, lp->rx_buff_len-2,PCI_DMA_FROMDEVICE);
 

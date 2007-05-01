@@ -181,6 +181,15 @@ enum {
 	XFRM_MSG_MIGRATE,
 #define XFRM_MSG_MIGRATE XFRM_MSG_MIGRATE
 
+	XFRM_MSG_NEWSADINFO,
+#define XFRM_MSG_NEWSADINFO XFRM_MSG_NEWSADINFO
+	XFRM_MSG_GETSADINFO,
+#define XFRM_MSG_GETSADINFO XFRM_MSG_GETSADINFO
+
+	XFRM_MSG_NEWSPDINFO,
+#define XFRM_MSG_NEWSPDINFO XFRM_MSG_NEWSPDINFO
+	XFRM_MSG_GETSPDINFO,
+#define XFRM_MSG_GETSPDINFO XFRM_MSG_GETSPDINFO
 	__XFRM_MSG_MAX
 };
 #define XFRM_MSG_MAX (__XFRM_MSG_MAX - 1)
@@ -234,6 +243,17 @@ enum xfrm_ae_ftype_t {
 #define XFRM_AE_MAX (__XFRM_AE_MAX - 1)
 };
 
+/* SAD Table filter flags  */
+enum xfrm_sad_ftype_t {
+	XFRM_SAD_UNSPEC,
+	XFRM_SAD_HMASK=1,
+	XFRM_SAD_HMAX=2,
+	XFRM_SAD_CNT=4,
+	__XFRM_SAD_MAX
+
+#define XFRM_SAD_MAX (__XFRM_SAD_MAX - 1)
+};
+
 struct xfrm_userpolicy_type {
 	__u8		type;
 	__u16		reserved1;
@@ -263,6 +283,46 @@ enum xfrm_attr_type_t {
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)
+};
+
+enum xfrm_sadattr_type_t {
+	XFRMA_SAD_UNSPEC,
+	XFRMA_SADHMASK,
+	XFRMA_SADHMAX,
+	XFRMA_SADCNT,
+	__XFRMA_SAD_MAX
+
+#define XFRMA_SAD_MAX (__XFRMA_SAD_MAX - 1)
+};
+
+/* SPD Table filter flags  */
+enum xfrm_spd_ftype_t {
+	XFRM_SPD_UNSPEC,
+	XFRM_SPD_HMASK=1,
+	XFRM_SPD_HMAX=2,
+	XFRM_SPD_ICNT=4,
+	XFRM_SPD_OCNT=8,
+	XFRM_SPD_FCNT=16,
+	XFRM_SPD_ISCNT=32,
+	XFRM_SPD_OSCNT=64,
+	XFRM_SPD_FSCNT=128,
+	__XFRM_SPD_MAX
+
+#define XFRM_SPD_MAX (__XFRM_SPD_MAX - 1)
+};
+enum xfrm_spdattr_type_t {
+	XFRMA_SPD_UNSPEC,
+	XFRMA_SPDHMASK,
+	XFRMA_SPDHMAX,
+	XFRMA_SPDICNT,
+	XFRMA_SPDOCNT,
+	XFRMA_SPDFCNT,
+	XFRMA_SPDISCNT,
+	XFRMA_SPDOSCNT,
+	XFRMA_SPDFSCNT,
+	__XFRMA_SPD_MAX
+
+#define XFRMA_SPD_MAX (__XFRMA_SPD_MAX - 1)
 };
 
 struct xfrm_usersa_info {

@@ -227,7 +227,7 @@ static void sppp_input (struct net_device *dev, struct sk_buff *skb)
 	unsigned long flags;
 
 	skb->dev=dev;
-	skb->mac.raw=skb->data;
+	skb_reset_mac_header(skb);
 
 	if (dev->flags & IFF_RUNNING)
 	{

@@ -7,6 +7,7 @@
  */
 
 #include <linux/irqflags.h>
+#include <linux/compiler.h>
 #include <asm/types.h>
 
 /*

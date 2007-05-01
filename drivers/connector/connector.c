@@ -212,7 +212,7 @@ static void cn_rx_skb(struct sk_buff *__skb)
 	skb = skb_get(__skb);
 
 	if (skb->len >= NLMSG_SPACE(0)) {
-		nlh = (struct nlmsghdr *)skb->data;
+		nlh = nlmsg_hdr(skb);
 
 		if (nlh->nlmsg_len < sizeof(struct cn_msg) ||
 		    skb->len < nlh->nlmsg_len ||
@@ -448,7 +448,7 @@ static int __devinit cn_init(void)
 
 	dev->nls = netlink_kernel_create(NETLINK_CONNECTOR,
 					 CN_NETLINK_USERS + 0xf,
-					 dev->input, THIS_MODULE);
+					 dev->input, NULL, THIS_MODULE);
 	if (!dev->nls)
 		return -EIO;
 

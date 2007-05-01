@@ -1,10 +1,7 @@
 # drivers/mtd/nand/Kconfig
 # $Id: Kconfig,v 1.35 2005/11/07 11:14:30 gleixner Exp $
 
-menu "NAND Flash Device Drivers"
-	depends on MTD!=n
-
-config MTD_NAND
+menuconfig MTD_NAND
 	tristate "NAND Device Support"
 	depends on MTD
 	select MTD_NAND_IDS
@@ -13,9 +10,10 @@ config MTD_NAND
 	  devices. For further information see
 	  <http://www.linux-mtd.infradead.org/doc/nand.html>.
 
+if MTD_NAND
+
 config MTD_NAND_VERIFY_WRITE
 	bool "Verify NAND page writes"
-	depends on MTD_NAND
 	help
 	  This adds an extra check when data is written to the flash. The
 	  NAND flash device internally checks only bits transitioning
@@ -25,53 +23,61 @@ config MTD_NAND_VERIFY_WRITE
 
 config MTD_NAND_ECC_SMC
 	bool "NAND ECC Smart Media byte order"
-	depends on MTD_NAND
 	default n
 	help
 	  Software ECC according to the Smart Media Specification.
 	  The original Linux implementation had byte 0 and 1 swapped.
 
+config MTD_NAND_MUSEUM_IDS
+	bool "Enable chip ids for obsolete ancient NAND devices"
+	depends on MTD_NAND
+	default n
+	help
+	  Enable this option only when your board has first generation
+	  NAND chips (page size 256 byte, erase size 4-8KiB). The IDs
+	  of these chips were reused by later, larger chips.
+
 config MTD_NAND_AUTCPU12
 	tristate "SmartMediaCard on autronix autcpu12 board"
-	depends on MTD_NAND && ARCH_AUTCPU12
+	depends on ARCH_AUTCPU12
 	help
 	  This enables the driver for the autronix autcpu12 board to
 	  access the SmartMediaCard.
 
 config MTD_NAND_EDB7312
 	tristate "Support for Cirrus Logic EBD7312 evaluation board"
-	depends on MTD_NAND && ARCH_EDB7312
+	depends on ARCH_EDB7312
 	help
 	  This enables the driver for the Cirrus Logic EBD7312 evaluation
 	  board to access the onboard NAND Flash.
 
 config MTD_NAND_H1900
 	tristate "iPAQ H1900 flash"
-	depends on MTD_NAND && ARCH_PXA && MTD_PARTITIONS
+	depends on ARCH_PXA && MTD_PARTITIONS
 	help
 	  This enables the driver for the iPAQ h1900 flash.
 
 config MTD_NAND_SPIA
 	tristate "NAND Flash device on SPIA board"
-	depends on ARCH_P720T && MTD_NAND
+	depends on ARCH_P720T
 	help
 	  If you had to ask, you don't have one. Say 'N'.
 
 config MTD_NAND_AMS_DELTA
 	tristate "NAND Flash device on Amstrad E3"
-	depends on MACH_AMS_DELTA && MTD_NAND
+	depends on MACH_AMS_DELTA
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
 
 config MTD_NAND_TOTO
 	tristate "NAND Flash device on TOTO board"
-	depends on ARCH_OMAP && MTD_NAND && BROKEN
+	depends on ARCH_OMAP && BROKEN
 	help
 	  Support for NAND flash on Texas Instruments Toto platform.
 
 config MTD_NAND_TS7250
 	tristate "NAND Flash device on TS-7250 board"
-	depends on MACH_TS72XX && MTD_NAND
+	depends on MACH_TS72XX
 	help
 	  Support for NAND flash on Technologic Systems TS-7250 platform.
 
@@ -80,14 +86,14 @@ config MTD_NAND_IDS
 
 config MTD_NAND_AU1550
 	tristate "Au1550/1200 NAND support"
-	depends on (SOC_AU1200 || SOC_AU1550) && MTD_NAND
+	depends on SOC_AU1200 || SOC_AU1550
 	help
 	  This enables the driver for the NAND flash controller on the
 	  AMD/Alchemy 1550 SOC.
 
 config MTD_NAND_RTC_FROM4
 	tristate "Renesas Flash ROM 4-slot interface board (FROM_BOARD4)"
-	depends on MTD_NAND && SH_SOLUTION_ENGINE
+	depends on SH_SOLUTION_ENGINE
 	select REED_SOLOMON
 	select REED_SOLOMON_DEC8
 	select BITREVERSE
@@ -97,13 +103,13 @@ config MTD_NAND_RTC_FROM4
 
 config MTD_NAND_PPCHAMELEONEVB
 	tristate "NAND Flash device on PPChameleonEVB board"
-	depends on PPCHAMELEONEVB && MTD_NAND && BROKEN
+	depends on PPCHAMELEONEVB && BROKEN
 	help
 	  This enables the NAND flash driver on the PPChameleon EVB Board.
 
 config MTD_NAND_S3C2410
 	tristate "NAND Flash support for S3C2410/S3C2440 SoC"
-	depends on ARCH_S3C2410 && MTD_NAND
+	depends on ARCH_S3C2410
 	help
 	  This enables the NAND flash controller on the S3C2410 and S3C2440
 	  SoCs
@@ -128,7 +134,7 @@ config MTD_NAND_S3C2410_HWECC
 
 config MTD_NAND_NDFC
 	tristate "NDFC NanD Flash Controller"
-	depends on MTD_NAND && 44x
+	depends on 44x
 	select MTD_NAND_ECC_SMC
 	help
 	 NDFC Nand Flash Controllers are integrated in EP44x SoCs
@@ -145,7 +151,7 @@ config MTD_NAND_S3C2410_CLKSTOP
 
 config MTD_NAND_DISKONCHIP
 	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
-	depends on MTD_NAND && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	select REED_SOLOMON
 	select REED_SOLOMON_DEC16
 	help
@@ -215,11 +221,11 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 
 config MTD_NAND_SHARPSL
 	tristate "Support for NAND Flash on Sharp SL Series (C7xx + others)"
-	depends on MTD_NAND && ARCH_PXA
+	depends on ARCH_PXA
 
 config MTD_NAND_BASLER_EXCITE
 	tristate  "Support for NAND Flash on Basler eXcite"
-	depends on MTD_NAND && BASLER_EXCITE
+	depends on BASLER_EXCITE
 	help
           This enables the driver for the NAND flash device found on the
           Basler eXcite Smart Camera. If built as a module, the driver
@@ -227,14 +233,14 @@ config MTD_NAND_BASLER_EXCITE
 
 config MTD_NAND_CAFE
        tristate "NAND support for OLPC CAFÉ chip"
-       depends on MTD_NAND && PCI
+       depends on PCI
        help
 	 Use NAND flash attached to the CAFÉ chip designed for the $100
 	 laptop.
 
 config MTD_NAND_CS553X
 	tristate "NAND support for CS5535/CS5536 (AMD Geode companion chip)"
-	depends on MTD_NAND && X86_32 && (X86_PC || X86_GENERICARCH)
+	depends on X86_32 && (X86_PC || X86_GENERICARCH)
 	help
 	  The CS553x companion chips for the AMD Geode processor
 	  include NAND flash controllers with built-in hardware ECC
@@ -247,16 +253,21 @@ config MTD_NAND_CS553X
 
 config MTD_NAND_AT91
 	bool "Support for NAND Flash / SmartMedia on AT91"
-	depends on MTD_NAND && ARCH_AT91
+	depends on ARCH_AT91
 	help
 	  Enables support for NAND Flash / Smart Media Card interface
 	  on Atmel AT91 processors.
 
+config MTD_NAND_CM_X270
+	tristate "Support for NAND Flash on CM-X270 modules"
+	depends on MTD_NAND && MACH_ARMCORE
+
+
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"
-	depends on MTD_NAND && MTD_PARTITIONS
+	depends on MTD_PARTITIONS
 	help
 	  The simulator may simulate various NAND flash chips for the
 	  MTD nand layer.
 
-endmenu
+endif # MTD_NAND

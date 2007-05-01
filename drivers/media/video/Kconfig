@@ -577,14 +577,14 @@ config VIDEO_ZORAN_AVS6EYES
 
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
-	depends on PCI && SONYPI && VIDEO_V4L1
+	depends on PCI && SONY_LAPTOP && VIDEO_V4L1
 	---help---
 	  This is the video4linux driver for the Motion Eye camera found
 	  in the Vaio Picturebook laptops. Please read the material in
 	  <file:Documentation/video4linux/meye.txt> for more information.
 
-	  If you say Y or M here, you need to say Y or M to "Sony Programmable
-	  I/O Control Device" in the character device section.
+	  If you say Y or M here, you need to say Y or M to "Sony Laptop
+	  Extras" in the misc device section.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called meye.
@@ -646,6 +646,8 @@ config VIDEO_HEXIUM_GEMINI
 	  module will be called hexium_gemini.
 
 source "drivers/media/video/cx88/Kconfig"
+
+source "drivers/media/video/ivtv/Kconfig"
 
 config VIDEO_M32R_AR
 	tristate "AR devices"
@@ -760,6 +762,18 @@ config USB_STV680
 source "drivers/media/video/zc0301/Kconfig"
 
 source "drivers/media/video/pwc/Kconfig"
+
+config USB_ZR364XX
+	tristate "USB ZR364XX Camera support"
+	depends on USB && VIDEO_V4L2
+	---help---
+	  Say Y here if you want to connect this type of camera to your
+	  computer's USB port.
+	  See <file:Documentation/video4linux/zr364xx.txt> for more info
+	  and list of supported cameras.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zr364xx.
 
 endmenu # V4L USB devices
 

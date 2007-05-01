@@ -536,7 +536,7 @@ static int rx_aal0(struct atm_vcc *vcc)
 		return 0;
 	}
 	skb_put(skb,length);
-	skb_set_timestamp(skb, &eni_vcc->timestamp);
+	skb->tstamp = eni_vcc->timestamp;
 	DPRINTK("got len %ld\n",length);
 	if (do_rx_dma(vcc,skb,1,length >> 2,length >> 2)) return 1;
 	eni_vcc->rxing++;
@@ -701,7 +701,7 @@ static void get_service(struct atm_dev *dev)
 			DPRINTK("Grr, servicing VCC %ld twice\n",vci);
 			continue;
 		}
-		do_gettimeofday(&ENI_VCC(vcc)->timestamp);
+		ENI_VCC(vcc)->timestamp = ktime_get_real();
 		ENI_VCC(vcc)->next = NULL;
 		if (vcc->qos.rxtp.traffic_class == ATM_CBR) {
 			if (eni_dev->fast)

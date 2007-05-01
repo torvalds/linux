@@ -14,6 +14,8 @@
 #include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/ptrace.h>
+#include <asm/of_device.h>
+#include <asm/of_platform.h>
 
 #include "cbe_regs.h"
 
@@ -27,6 +29,7 @@
 static struct cbe_regs_map
 {
 	struct device_node *cpu_node;
+	struct device_node *be_node;
 	struct cbe_pmd_regs __iomem *pmd_regs;
 	struct cbe_iic_regs __iomem *iic_regs;
 	struct cbe_mic_tm_regs __iomem *mic_tm_regs;
@@ -37,30 +40,43 @@ static int cbe_regs_map_count;
 static struct cbe_thread_map
 {
 	struct device_node *cpu_node;
+	struct device_node *be_node;
 	struct cbe_regs_map *regs;
+	unsigned int thread_id;
+	unsigned int cbe_id;
 } cbe_thread_map[NR_CPUS];
+
+static cpumask_t cbe_local_mask[MAX_CBE] = { [0 ... MAX_CBE-1] = CPU_MASK_NONE };
+static cpumask_t cbe_first_online_cpu = CPU_MASK_NONE;
 
 static struct cbe_regs_map *cbe_find_map(struct device_node *np)
 {
 	int i;
 	struct device_node *tmp_np;
 
-	if (strcasecmp(np->type, "spe") == 0) {
-		if (np->data == NULL) {
-			/* walk up path until cpu node was found */
-			tmp_np = np->parent;
-			while (tmp_np != NULL && strcasecmp(tmp_np->type, "cpu") != 0)
-				tmp_np = tmp_np->parent;
-
-			np->data = cbe_find_map(tmp_np);
-		}
-		return np->data;
+	if (strcasecmp(np->type, "spe")) {
+		for (i = 0; i < cbe_regs_map_count; i++)
+			if (cbe_regs_maps[i].cpu_node == np ||
+			    cbe_regs_maps[i].be_node == np)
+				return &cbe_regs_maps[i];
+		return NULL;
 	}
 
-	for (i = 0; i < cbe_regs_map_count; i++)
-		if (cbe_regs_maps[i].cpu_node == np)
-			return &cbe_regs_maps[i];
-	return NULL;
+	if (np->data)
+		return np->data;
+
+	/* walk up path until cpu or be node was found */
+	tmp_np = np;
+	do {
+		tmp_np = tmp_np->parent;
+		/* on a correct devicetree we wont get up to root */
+		BUG_ON(!tmp_np);
+	} while (strcasecmp(tmp_np->type, "cpu") &&
+		 strcasecmp(tmp_np->type, "be"));
+
+	np->data = cbe_find_map(tmp_np);
+
+	return np->data;
 }
 
 struct cbe_pmd_regs __iomem *cbe_get_pmd_regs(struct device_node *np)
@@ -130,38 +146,105 @@ struct cbe_mic_tm_regs __iomem *cbe_get_cpu_mic_tm_regs(int cpu)
 }
 EXPORT_SYMBOL_GPL(cbe_get_cpu_mic_tm_regs);
 
-/* FIXME
- * This is little more than a stub at the moment.  It should be
- * fleshed out so that it works for both SMT and non-SMT, no
- * matter if the passed cpu is odd or even.
- * For SMT enabled, returns 0 for even-numbered cpu; otherwise 1.
- * For SMT disabled, returns 0 for all cpus.
- */
 u32 cbe_get_hw_thread_id(int cpu)
 {
-	return (cpu & 1);
+	return cbe_thread_map[cpu].thread_id;
 }
 EXPORT_SYMBOL_GPL(cbe_get_hw_thread_id);
 
-void __init cbe_regs_init(void)
+u32 cbe_cpu_to_node(int cpu)
 {
-	int i;
-	struct device_node *cpu;
+	return cbe_thread_map[cpu].cbe_id;
+}
+EXPORT_SYMBOL_GPL(cbe_cpu_to_node);
 
-	/* Build local fast map of CPUs */
-	for_each_possible_cpu(i)
-		cbe_thread_map[i].cpu_node = of_get_cpu_node(i, NULL);
+u32 cbe_node_to_cpu(int node)
+{
+	return find_first_bit( (unsigned long *) &cbe_local_mask[node], sizeof(cpumask_t));
+}
+EXPORT_SYMBOL_GPL(cbe_node_to_cpu);
 
-	/* Find maps for each device tree CPU */
-	for_each_node_by_type(cpu, "cpu") {
-		struct cbe_regs_map *map = &cbe_regs_maps[cbe_regs_map_count++];
+static struct device_node *cbe_get_be_node(int cpu_id)
+{
+	struct device_node *np;
 
+	for_each_node_by_type (np, "be") {
+		int len,i;
+		const phandle *cpu_handle;
+
+		cpu_handle = of_get_property(np, "cpus", &len);
+
+		for (i=0; i<len; i++)
+			if (of_find_node_by_phandle(cpu_handle[i]) == of_get_cpu_node(cpu_id, NULL))
+				return np;
+	}
+
+	return NULL;
+}
+
+void __init cbe_fill_regs_map(struct cbe_regs_map *map)
+{
+	if(map->be_node) {
+		struct device_node *be, *np;
+
+		be = map->be_node;
+
+		for_each_node_by_type(np, "pervasive")
+			if (of_get_parent(np) == be)
+				map->pmd_regs = of_iomap(np, 0);
+
+		for_each_node_by_type(np, "CBEA-Internal-Interrupt-Controller")
+			if (of_get_parent(np) == be)
+				map->iic_regs = of_iomap(np, 2);
+
+		for_each_node_by_type(np, "mic-tm")
+			if (of_get_parent(np) == be)
+				map->mic_tm_regs = of_iomap(np, 0);
+	} else {
+		struct device_node *cpu;
 		/* That hack must die die die ! */
 		const struct address_prop {
 			unsigned long address;
 			unsigned int len;
 		} __attribute__((packed)) *prop;
 
+		cpu = map->cpu_node;
+
+		prop = of_get_property(cpu, "pervasive", NULL);
+		if (prop != NULL)
+			map->pmd_regs = ioremap(prop->address, prop->len);
+
+		prop = of_get_property(cpu, "iic", NULL);
+		if (prop != NULL)
+			map->iic_regs = ioremap(prop->address, prop->len);
+
+		prop = of_get_property(cpu, "mic-tm", NULL);
+		if (prop != NULL)
+			map->mic_tm_regs = ioremap(prop->address, prop->len);
+	}
+}
+
+
+void __init cbe_regs_init(void)
+{
+	int i;
+	unsigned int thread_id;
+	struct device_node *cpu;
+
+	/* Build local fast map of CPUs */
+	for_each_possible_cpu(i) {
+		cbe_thread_map[i].cpu_node = of_get_cpu_node(i, &thread_id);
+		cbe_thread_map[i].be_node = cbe_get_be_node(i);
+		cbe_thread_map[i].thread_id = thread_id;
+	}
+
+	/* Find maps for each device tree CPU */
+	for_each_node_by_type(cpu, "cpu") {
+		struct cbe_regs_map *map;
+		unsigned int cbe_id;
+
+		cbe_id = cbe_regs_map_count++;
+		map = &cbe_regs_maps[cbe_id];
 
 		if (cbe_regs_map_count > MAX_CBE) {
 			printk(KERN_ERR "cbe_regs: More BE chips than supported"
@@ -170,22 +253,21 @@ void __init cbe_regs_init(void)
 			return;
 		}
 		map->cpu_node = cpu;
-		for_each_possible_cpu(i)
-			if (cbe_thread_map[i].cpu_node == cpu)
-				cbe_thread_map[i].regs = map;
 
-		prop = get_property(cpu, "pervasive", NULL);
-		if (prop != NULL)
-			map->pmd_regs = ioremap(prop->address, prop->len);
+		for_each_possible_cpu(i) {
+			struct cbe_thread_map *thread = &cbe_thread_map[i];
 
-		prop = get_property(cpu, "iic", NULL);
-		if (prop != NULL)
-			map->iic_regs = ioremap(prop->address, prop->len);
+			if (thread->cpu_node == cpu) {
+				thread->regs = map;
+				thread->cbe_id = cbe_id;
+				map->be_node = thread->be_node;
+				cpu_set(i, cbe_local_mask[cbe_id]);
+				if(thread->thread_id == 0)
+					cpu_set(i, cbe_first_online_cpu);
+			}
+		}
 
-		prop = (struct address_prop *)get_property(cpu, "mic-tm",
-							   NULL);
-		if (prop != NULL)
-			map->mic_tm_regs = ioremap(prop->address, prop->len);
+		cbe_fill_regs_map(map);
 	}
 }
 

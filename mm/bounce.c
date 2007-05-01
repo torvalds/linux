@@ -204,7 +204,7 @@ static void __blk_queue_bounce(request_queue_t *q, struct bio **bio_orig,
 		/*
 		 * is destination page below bounce pfn?
 		 */
-		if (page_to_pfn(page) < q->bounce_pfn)
+		if (page_to_pfn(page) <= q->bounce_pfn)
 			continue;
 
 		/*

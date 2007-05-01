@@ -368,7 +368,7 @@ static __be16 myri_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct ethhdr *eth;
 	unsigned char *rawp;
 
-	skb->mac.raw = (((unsigned char *)skb->data) + MYRI_PAD_LEN);
+	skb_set_mac_header(skb, MYRI_PAD_LEN);
 	skb_pull(skb, dev->hard_header_len);
 	eth = eth_hdr(skb);
 
@@ -502,7 +502,7 @@ static void myri_rx(struct myri_eth *mp, struct net_device *dev)
 			copy_skb->dev = dev;
 			DRX(("resv_and_put "));
 			skb_put(copy_skb, len);
-			memcpy(copy_skb->data, skb->data, len);
+			skb_copy_from_linear_data(skb, copy_skb->data, len);
 
 			/* Reuse original ring buffer. */
 			DRX(("reuse "));

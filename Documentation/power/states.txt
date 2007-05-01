@@ -62,17 +62,18 @@ setup via another operating system for it to use. Despite the
 inconvenience, this method requires minimal work by the kernel, since
 the firmware will also handle restoring memory contents on resume. 
 
-If the kernel is responsible for persistently saving state, a mechanism
-called 'swsusp' (Swap Suspend) is used to write memory contents to
-free swap space. swsusp has some restrictive requirements, but should
-work in most cases. Some, albeit outdated, documentation can be found
-in Documentation/power/swsusp.txt. 
+For suspend-to-disk, a mechanism called swsusp called 'swsusp' (Swap
+Suspend) is used to write memory contents to free swap space.
+swsusp has some restrictive requirements, but should work in most
+cases. Some, albeit outdated, documentation can be found in
+Documentation/power/swsusp.txt. Alternatively, userspace can do most
+of the actual suspend to disk work, see userland-swsusp.txt.
 
 Once memory state is written to disk, the system may either enter a
 low-power state (like ACPI S4), or it may simply power down. Powering
 down offers greater savings, and allows this mechanism to work on any
 system. However, entering a real low-power state allows the user to
-trigger wake up events (e.g. pressing a key or opening a laptop lid). 
+trigger wake up events (e.g. pressing a key or opening a laptop lid).
 
 A transition from Suspend-to-Disk to the On state should take about 30
 seconds, though it's typically a bit more with the current

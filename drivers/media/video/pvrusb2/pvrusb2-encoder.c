@@ -324,7 +324,7 @@ static int pvr2_encoder_vcmd(struct pvr2_hdw *hdw, int cmd,
 
 /* This implements some extra setup for the encoder that seems to be
    specific to the PVR USB2 hardware. */
-int pvr2_encoder_prep_config(struct pvr2_hdw *hdw)
+static int pvr2_encoder_prep_config(struct pvr2_hdw *hdw)
 {
 	int ret = 0;
 	int encMisc3Arg = 0;

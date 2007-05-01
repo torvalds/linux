@@ -71,7 +71,6 @@ struct bus_type bttv_sub_bus_type = {
 	.probe  = bttv_sub_probe,
 	.remove = bttv_sub_remove,
 };
-EXPORT_SYMBOL(bttv_sub_bus_type);
 
 static void release_sub_device(struct device *dev)
 {
@@ -152,7 +151,6 @@ void bttv_gpio_inout(struct bttv_core *core, u32 mask, u32 outbits)
 	btwrite(data,BT848_GPIO_OUT_EN);
 	spin_unlock_irqrestore(&btv->gpio_lock,flags);
 }
-EXPORT_SYMBOL(bttv_gpio_inout);
 
 u32 bttv_gpio_read(struct bttv_core *core)
 {
@@ -162,7 +160,6 @@ u32 bttv_gpio_read(struct bttv_core *core)
 	value = btread(BT848_GPIO_DATA);
 	return value;
 }
-EXPORT_SYMBOL(bttv_gpio_read);
 
 void bttv_gpio_write(struct bttv_core *core, u32 value)
 {
@@ -170,7 +167,6 @@ void bttv_gpio_write(struct bttv_core *core, u32 value)
 
 	btwrite(value,BT848_GPIO_DATA);
 }
-EXPORT_SYMBOL(bttv_gpio_write);
 
 void bttv_gpio_bits(struct bttv_core *core, u32 mask, u32 bits)
 {
@@ -185,7 +181,6 @@ void bttv_gpio_bits(struct bttv_core *core, u32 mask, u32 bits)
 	btwrite(data,BT848_GPIO_DATA);
 	spin_unlock_irqrestore(&btv->gpio_lock,flags);
 }
-EXPORT_SYMBOL(bttv_gpio_bits);
 
 /*
  * Local variables:

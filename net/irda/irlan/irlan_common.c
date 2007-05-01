@@ -1039,7 +1039,7 @@ static int __irlan_insert_param(struct sk_buff *skb, char *param, int type,
 	}
 
 	/* Insert at end of sk-buffer */
-	frame = skb->tail;
+	frame = skb_tail_pointer(skb);
 
 	/* Make space for data */
 	if (skb_tailroom(skb) < (param_len+value_len+3)) {

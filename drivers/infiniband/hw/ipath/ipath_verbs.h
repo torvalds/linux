@@ -40,8 +40,11 @@
 #include <linux/interrupt.h>
 #include <linux/kref.h>
 #include <rdma/ib_pack.h>
+#include <rdma/ib_user_verbs.h>
 
 #include "ipath_layer.h"
+
+#define IPATH_MAX_RDMA_ATOMIC	4
 
 #define QPN_MAX                 (1 << 24)
 #define QPNMAP_ENTRIES          (QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
@@ -89,7 +92,7 @@ struct ib_reth {
 } __attribute__ ((packed));
 
 struct ib_atomic_eth {
-	__be64 vaddr;
+	__be32 vaddr[2];	/* unaligned so access as 2 32-bit words */
 	__be32 rkey;
 	__be64 swap_data;
 	__be64 compare_data;
@@ -108,7 +111,7 @@ struct ipath_other_headers {
 		} rc;
 		struct {
 			__be32 aeth;
-			__be64 atomic_ack_eth;
+			__be32 atomic_ack_eth[2];
 		} at;
 		__be32 imm_data;
 		__be32 aeth;
@@ -186,7 +189,7 @@ struct ipath_mmap_info {
 struct ipath_cq_wc {
 	u32 head;		/* index of next entry to fill */
 	u32 tail;		/* index of next ib_poll_cq() entry */
-	struct ib_wc queue[1];	/* this is actually size ibcq.cqe + 1 */
+	struct ib_uverbs_wc queue[1]; /* this is actually size ibcq.cqe + 1 */
 };
 
 /*
@@ -312,6 +315,19 @@ struct ipath_sge_state {
 };
 
 /*
+ * This structure holds the information that the send tasklet needs
+ * to send a RDMA read response or atomic operation.
+ */
+struct ipath_ack_entry {
+	u8 opcode;
+	u32 psn;
+	union {
+		struct ipath_sge_state rdma_sge;
+		u64 atomic_data;
+	};
+};
+
+/*
  * Variables prefixed with s_ are for the requester (sender).
  * Variables prefixed with r_ are for the responder (receiver).
  * Variables prefixed with ack_ are for responder replies.
@@ -333,24 +349,24 @@ struct ipath_qp {
 	struct ipath_mmap_info *ip;
 	struct ipath_sge_state *s_cur_sge;
 	struct ipath_sge_state s_sge;	/* current send request data */
-	/* current RDMA read send data */
-	struct ipath_sge_state s_rdma_sge;
+	struct ipath_ack_entry s_ack_queue[IPATH_MAX_RDMA_ATOMIC + 1];
+	struct ipath_sge_state s_ack_rdma_sge;
+	struct ipath_sge_state s_rdma_read_sge;
 	struct ipath_sge_state r_sge;	/* current receive data */
 	spinlock_t s_lock;
-	unsigned long s_flags;
+	unsigned long s_busy;
 	u32 s_hdrwords;		/* size of s_hdr in 32 bit words */
 	u32 s_cur_size;		/* size of send packet in bytes */
 	u32 s_len;		/* total length of s_sge */
-	u32 s_rdma_len;		/* total length of s_rdma_sge */
+	u32 s_rdma_read_len;	/* total length of s_rdma_read_sge */
 	u32 s_next_psn;		/* PSN for next request */
 	u32 s_last_psn;		/* last response PSN processed */
 	u32 s_psn;		/* current packet sequence number */
-	u32 s_ack_psn;		/* PSN for RDMA_READ */
+	u32 s_ack_rdma_psn;	/* PSN for sending RDMA read responses */
+	u32 s_ack_psn;		/* PSN for acking sends and RDMA writes */
 	u32 s_rnr_timeout;	/* number of milliseconds for RNR timeout */
 	u32 r_ack_psn;		/* PSN for next ACK or atomic ACK */
 	u64 r_wr_id;		/* ID for current receive WQE */
-	u64 r_atomic_data;	/* data for last atomic op */
-	u32 r_atomic_psn;	/* PSN of last atomic op */
 	u32 r_len;		/* total length of r_sge */
 	u32 r_rcv_len;		/* receive data len processed */
 	u32 r_psn;		/* expected rcv packet sequence number */
@@ -360,12 +376,13 @@ struct ipath_qp {
 	u8 s_ack_state;		/* opcode of packet to ACK */
 	u8 s_nak_state;		/* non-zero if NAK is pending */
 	u8 r_state;		/* opcode of last packet received */
-	u8 r_ack_state;		/* opcode of packet to ACK */
 	u8 r_nak_state;		/* non-zero if NAK is pending */
 	u8 r_min_rnr_timer;	/* retry timeout value for RNR NAKs */
 	u8 r_reuse_sge;		/* for UC receive errors */
 	u8 r_sge_inx;		/* current index into sg_list */
 	u8 r_wrid_valid;	/* r_wrid set but CQ entry not yet made */
+	u8 r_max_rd_atomic;	/* max number of RDMA read/atomic to receive */
+	u8 r_head_ack_queue;	/* index into s_ack_queue[] */
 	u8 qp_access_flags;
 	u8 s_max_sge;		/* size of s_wq->sg_list */
 	u8 s_retry_cnt;		/* number of times to retry */
@@ -374,6 +391,10 @@ struct ipath_qp {
 	u8 s_rnr_retry;		/* requester RNR retry counter */
 	u8 s_wait_credit;	/* limit number of unacked packets sent */
 	u8 s_pkey_index;	/* PKEY index to use */
+	u8 s_max_rd_atomic;	/* max number of RDMA read/atomic to send */
+	u8 s_num_rd_atomic;	/* number of RDMA read/atomic pending */
+	u8 s_tail_ack_queue;	/* index into s_ack_queue[] */
+	u8 s_flags;
 	u8 timeout;		/* Timeout for this QP */
 	enum ib_mtu path_mtu;
 	u32 remote_qpn;
@@ -390,11 +411,16 @@ struct ipath_qp {
 	struct ipath_sge r_sg_list[0];	/* verified SGEs */
 };
 
+/* Bit definition for s_busy. */
+#define IPATH_S_BUSY		0
+
 /*
  * Bit definitions for s_flags.
  */
-#define IPATH_S_BUSY		0
-#define IPATH_S_SIGNAL_REQ_WR	1
+#define IPATH_S_SIGNAL_REQ_WR	0x01
+#define IPATH_S_FENCE_PENDING	0x02
+#define IPATH_S_RDMAR_PENDING	0x04
+#define IPATH_S_ACK_PENDING	0x08
 
 #define IPATH_PSN_CREDIT	2048
 
@@ -706,8 +732,6 @@ int ipath_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 
 int ipath_destroy_srq(struct ib_srq *ibsrq);
 
-void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int sig);
-
 int ipath_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
 
 struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
@@ -756,9 +780,6 @@ u32 ipath_make_grh(struct ipath_ibdev *dev, struct ib_grh *hdr,
 		   struct ib_global_route *grh, u32 hwords, u32 nwords);
 
 void ipath_do_ruc_send(unsigned long data);
-
-u32 ipath_make_rc_ack(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
-		      u32 pmtu);
 
 int ipath_make_rc_req(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
 		      u32 pmtu, u32 *bth0p, u32 *bth2p);

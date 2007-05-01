@@ -1,3 +1,13 @@
+config PPC_PSERIES
+	depends on PPC_MULTIPLATFORM && PPC64
+	bool "IBM pSeries & new (POWER5-based) iSeries"
+	select MPIC
+	select PPC_I8259
+	select PPC_RTAS
+	select RTAS_ERROR_LOGGING
+	select PPC_UDBG_16550
+	select PPC_NATIVE
+	default y
 
 config PPC_SPLPAR
 	depends on PPC_PSERIES

@@ -33,9 +33,6 @@ static void br_send_bpdu(struct net_bridge_port *p,
 {
 	struct sk_buff *skb;
 
-	if (!p->br->stp_enabled)
-		return;
-
 	skb = dev_alloc_skb(length+LLC_RESERVE);
 	if (!skb)
 		return;
@@ -74,6 +71,9 @@ static inline int br_get_ticks(const unsigned char *src)
 void br_send_config_bpdu(struct net_bridge_port *p, struct br_config_bpdu *bpdu)
 {
 	unsigned char buf[35];
+
+	if (p->br->stp_enabled != BR_KERNEL_STP)
+		return;
 
 	buf[0] = 0;
 	buf[1] = 0;
@@ -117,6 +117,9 @@ void br_send_tcn_bpdu(struct net_bridge_port *p)
 {
 	unsigned char buf[4];
 
+	if (p->br->stp_enabled != BR_KERNEL_STP)
+		return;
+
 	buf[0] = 0;
 	buf[1] = 0;
 	buf[2] = 0;
@@ -157,9 +160,13 @@ int br_stp_rcv(struct sk_buff *skb, struct net_device *dev,
 	br = p->br;
 	spin_lock(&br->lock);
 
-	if (p->state == BR_STATE_DISABLED
-	    || !br->stp_enabled
-	    || !(br->dev->flags & IFF_UP))
+	if (br->stp_enabled != BR_KERNEL_STP)
+		goto out;
+
+	if (!(br->dev->flags & IFF_UP))
+		goto out;
+
+	if (p->state == BR_STATE_DISABLED)
 		goto out;
 
 	if (compare_ether_addr(dest, br->group_addr) != 0)

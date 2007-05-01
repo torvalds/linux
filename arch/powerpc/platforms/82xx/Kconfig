@@ -1,21 +1,36 @@
-menu "Platform support"
-       depends on PPC_82xx
-
 choice
-       prompt "Machine Type"
-       default MPC82xx_ADS
+	prompt "Machine Type"
+	depends on PPC_82xx
+	default MPC82xx_ADS
 
 config MPC82xx_ADS
-       bool "Freescale MPC82xx ADS"
-       select DEFAULT_UIMAGE
-       select PQ2ADS
-       select 8272
-       select 8260
-       select CPM2
-       select FSL_SOC
-       help
-         This option enables support for the MPC8272 ADS board
+	bool "Freescale MPC82xx ADS"
+	select DEFAULT_UIMAGE
+	select PQ2ADS
+	select 8272
+	select 8260
+	select FSL_SOC
+	help
+	This option enables support for the MPC8272 ADS board
 
 endchoice
 
-endmenu
+config PQ2ADS
+	bool
+	default n
+
+config 8260
+	bool
+	depends on 6xx
+	select CPM2
+	help
+	  The MPC8260 is a typical embedded CPU made by Freescale.  Selecting
+	  this option means that you wish to build a kernel for a machine with
+	  an 8260 class CPU.
+
+config 8272
+	bool
+	select 8260
+	help
+	  The MPC8272 CPM has a different internal dpram setup than other CPM2
+	  devices

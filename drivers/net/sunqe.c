@@ -437,7 +437,6 @@ static void qe_rx(struct sunqe *qep)
 				drops++;
 				qep->net_stats.rx_dropped++;
 			} else {
-				skb->dev = qep->dev;
 				skb_reserve(skb, 2);
 				skb_put(skb, len);
 				eth_copy_and_sum(skb, (unsigned char *) this_qbuf,
@@ -593,7 +592,7 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Avoid a race... */
 	qep->qe_block->qe_txd[entry].tx_flags = TXD_UPDATE;
 
-	memcpy(txbuf, skb->data, len);
+	skb_copy_from_linear_data(skb, txbuf, len);
 
 	qep->qe_block->qe_txd[entry].tx_addr = txbuf_dvma;
 	qep->qe_block->qe_txd[entry].tx_flags =
@@ -845,6 +844,8 @@ static int __init qec_ether_init(struct sbus_dev *sdev)
 	if (!dev)
 		return -ENOMEM;
 
+	memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
+
 	qe = netdev_priv(dev);
 
 	i = of_getintprop_default(sdev->ofdev.node, "channel#", -1);
@@ -960,7 +961,7 @@ static int __devexit qec_sbus_remove(struct of_device *dev)
 	struct sunqe *qp = dev_get_drvdata(&dev->dev);
 	struct net_device *net_dev = qp->dev;
 
-	unregister_netdevice(net_dev);
+	unregister_netdev(net_dev);
 
 	sbus_iounmap(qp->qcregs, CREG_REG_SIZE);
 	sbus_iounmap(qp->mregs, MREGS_REG_SIZE);

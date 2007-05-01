@@ -498,9 +498,9 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	u64 sge_cmd, ctx0, ctx1;
 	u64 base_addr;
 	struct t3_modify_qp_wr *wqe;
-	struct sk_buff *skb = alloc_skb(sizeof(*wqe), GFP_KERNEL);
+	struct sk_buff *skb;
 
-
+	skb = alloc_skb(sizeof(*wqe), GFP_KERNEL);
 	if (!skb) {
 		PDBG("%s alloc_skb failed\n", __FUNCTION__);
 		return -ENOMEM;
@@ -508,7 +508,7 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	err = cxio_hal_init_ctrl_cq(rdev_p);
 	if (err) {
 		PDBG("%s err %d initializing ctrl_cq\n", __FUNCTION__, err);
-		return err;
+		goto err;
 	}
 	rdev_p->ctrl_qp.workq = dma_alloc_coherent(
 					&(rdev_p->rnic_info.pdev->dev),
@@ -518,7 +518,8 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 					GFP_KERNEL);
 	if (!rdev_p->ctrl_qp.workq) {
 		PDBG("%s dma_alloc_coherent failed\n", __FUNCTION__);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err;
 	}
 	pci_unmap_addr_set(&rdev_p->ctrl_qp, mapping,
 			   rdev_p->ctrl_qp.dma_addr);
@@ -556,6 +557,9 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	     rdev_p->ctrl_qp.workq, 1 << T3_CTRL_QP_SIZE_LOG2);
 	skb->priority = CPL_PRIORITY_CONTROL;
 	return (cxgb3_ofld_send(rdev_p->t3cdev_p, skb));
+err:
+	kfree_skb(skb);
+	return err;
 }
 
 static int cxio_hal_destroy_ctrl_qp(struct cxio_rdev *rdev_p)

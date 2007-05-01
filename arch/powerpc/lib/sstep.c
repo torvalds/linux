@@ -54,7 +54,7 @@ static int __kprobes branch_taken(unsigned int instr, struct pt_regs *regs)
  */
 int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 {
-	unsigned int opcode, rd;
+	unsigned int opcode, rs, rb, rd, spr;
 	unsigned long int imm;
 
 	opcode = instr >> 26;
@@ -152,6 +152,49 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 				regs->nip &= 0xffffffffUL;
 			return 1;
 #endif
+		case 0x26:	/* mfcr */
+			regs->gpr[rd] = regs->ccr;
+			regs->gpr[rd] &= 0xffffffffUL;
+			goto mtspr_out;
+		case 0x2a6:	/* mfspr */
+			spr = (instr >> 11) & 0x3ff;
+			switch (spr) {
+			case 0x20:	/* mfxer */
+				regs->gpr[rd] = regs->xer;
+				regs->gpr[rd] &= 0xffffffffUL;
+				goto mtspr_out;
+			case 0x100:	/* mflr */
+				regs->gpr[rd] = regs->link;
+				goto mtspr_out;
+			case 0x120:	/* mfctr */
+				regs->gpr[rd] = regs->ctr;
+				goto mtspr_out;
+			}
+			break;
+		case 0x378:	/* orx */
+			rs = (instr >> 21) & 0x1f;
+			rb = (instr >> 11) & 0x1f;
+			if (rs == rb) {		/* mr */
+				rd = (instr >> 16) & 0x1f;
+				regs->gpr[rd] = regs->gpr[rs];
+				goto mtspr_out;
+			}
+			break;
+		case 0x3a6:	/* mtspr */
+			spr = (instr >> 11) & 0x3ff;
+			switch (spr) {
+			case 0x20:	/* mtxer */
+				regs->xer = (regs->gpr[rd] & 0xffffffffUL);
+				goto mtspr_out;
+			case 0x100:	/* mtlr */
+				regs->link = regs->gpr[rd];
+				goto mtspr_out;
+			case 0x120:	/* mtctr */
+				regs->ctr = regs->gpr[rd];
+mtspr_out:
+				regs->nip += 4;
+				return 1;
+			}
 		}
 	}
 	return 0;

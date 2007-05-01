@@ -129,8 +129,8 @@ static struct ata_port_operations ixp4xx_port_ops = {
 	.qc_issue	= ata_qc_issue_prot,
 	.eng_timeout	= ata_eng_timeout,
 	.data_xfer	= ixp4xx_mmio_data_xfer,
+	.cable_detect	= ata_cable_40wire,
 
-	.irq_handler	= ata_interrupt,
 	.irq_clear	= ixp4xx_irq_clear,
 	.irq_on		= ata_irq_on,
 	.irq_ack	= ata_irq_ack,
@@ -173,12 +173,12 @@ static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
 
 static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 {
-	int ret;
 	unsigned int irq;
 	struct resource *cs0, *cs1;
-	struct ata_probe_ent ae;
-
+	struct ata_host *host;
+	struct ata_port *ap;
 	struct ixp4xx_pata_data *data = pdev->dev.platform_data;
+	int rc;
 
 	cs0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	cs1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -186,6 +186,12 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 	if (!cs0 || !cs1)
 		return -EINVAL;
 
+	/* allocate host */
+	host = ata_host_alloc(&pdev->dev, 1);
+	if (!host)
+		return -ENOMEM;
+
+	/* acquire resources and fill host */
 	pdev->dev.coherent_dma_mask = DMA_32BIT_MASK;
 
 	data->cs0 = devm_ioremap(&pdev->dev, cs0->start, 0x1000);
@@ -199,32 +205,22 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 	*data->cs0_cfg = data->cs0_bits;
 	*data->cs1_cfg = data->cs1_bits;
 
-	memset(&ae, 0, sizeof(struct ata_probe_ent));
-	INIT_LIST_HEAD(&ae.node);
+	ap = host->ports[0];
 
-	ae.dev		= &pdev->dev;
-	ae.port_ops	= &ixp4xx_port_ops;
-	ae.sht		= &ixp4xx_sht;
-	ae.n_ports	= 1;
-	ae.pio_mask	= 0x1f; /* PIO4 */
-	ae.irq		= irq;
-	ae.irq_flags	= 0;
-	ae.port_flags	= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY
-			| ATA_FLAG_NO_ATAPI | ATA_FLAG_SRST;
+	ap->ops	= &ixp4xx_port_ops;
+	ap->pio_mask = 0x1f; /* PIO4 */
+	ap->flags |= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY | ATA_FLAG_NO_ATAPI;
 
 	/* run in polling mode if no irq has been assigned */
 	if (!irq)
-		ae.port_flags |= ATA_FLAG_PIO_POLLING;
+		ap->flags |= ATA_FLAG_PIO_POLLING;
 
-	ixp4xx_setup_port(&ae.port[0], data);
+	ixp4xx_setup_port(&ap->ioaddr, data);
 
 	dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
-	ret = ata_device_add(&ae);
-	if (ret == 0)
-		return -ENODEV;
-
-	return 0;
+	/* activate host */
+	return ata_host_activate(host, irq, ata_interrupt, 0, &ixp4xx_sht);
 }
 
 static __devexit int ixp4xx_pata_remove(struct platform_device *dev)

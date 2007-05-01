@@ -766,10 +766,10 @@ static void sharpsl_apm_get_power_status(struct apm_power_info *info)
 }
 
 static struct pm_ops sharpsl_pm_ops = {
-	.pm_disk_mode	= PM_DISK_FIRMWARE,
 	.prepare	= pxa_pm_prepare,
 	.enter		= corgi_pxa_pm_enter,
 	.finish		= pxa_pm_finish,
+	.valid		= pm_valid_only_mem,
 };
 
 static int __init sharpsl_pm_probe(struct platform_device *pdev)

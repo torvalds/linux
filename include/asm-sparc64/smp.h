@@ -42,15 +42,15 @@ extern int hard_smp_processor_id(void);
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
 extern void smp_setup_cpu_possible_map(void);
+extern unsigned char boot_cpu_id;
 
 #endif /* !(__ASSEMBLY__) */
 
 #else
 
 #define smp_setup_cpu_possible_map() do { } while (0)
+#define boot_cpu_id	(0)
 
 #endif /* !(CONFIG_SMP) */
-
-#define NO_PROC_ID		0xFF
 
 #endif /* !(_SPARC64_SMP_H) */

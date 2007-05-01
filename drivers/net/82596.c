@@ -830,7 +830,6 @@ memory_squeeze:
 				lp->stats.rx_dropped++;
 			}
 			else {
-				skb->dev = dev;
 				if (!rx_in_place) {
 					/* 16 byte align the data fields */
 					skb_reserve(skb, 2);

@@ -1,10 +1,7 @@
 /*
  * Flash memory access on AMD Alchemy evaluation boards
  *
- * $Id: alchemy-flash.c,v 1.2 2005/11/07 11:14:26 gleixner Exp $
- *
  * (C) 2003, 2004 Pete Popov <ppopov@embeddedalley.com>
- *
  */
 
 #include <linux/init.h>
@@ -17,12 +14,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
-
-#ifdef 	DEBUG_RW
-#define	DBG(x...)	printk(x)
-#else
-#define	DBG(x...)
-#endif
 
 #ifdef CONFIG_MIPS_PB1000
 #define BOARD_MAP_NAME "Pb1000 Flash"

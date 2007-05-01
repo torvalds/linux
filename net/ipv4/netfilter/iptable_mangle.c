@@ -7,8 +7,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Extended to all five netfilter hooks by Brad Chapman & Harald Welte
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
@@ -17,6 +15,7 @@
 #include <net/sock.h>
 #include <net/route.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
@@ -130,13 +129,14 @@ ipt_local_hook(unsigned int hook,
 		   int (*okfn)(struct sk_buff *))
 {
 	unsigned int ret;
+	const struct iphdr *iph;
 	u_int8_t tos;
 	__be32 saddr, daddr;
 	u_int32_t mark;
 
 	/* root is playing with raw sockets. */
 	if ((*pskb)->len < sizeof(struct iphdr)
-	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr)) {
+	    || ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
 			printk("ipt_hook: happy cracking.\n");
 		return NF_ACCEPT;
@@ -144,19 +144,23 @@ ipt_local_hook(unsigned int hook,
 
 	/* Save things which could affect route */
 	mark = (*pskb)->mark;
-	saddr = (*pskb)->nh.iph->saddr;
-	daddr = (*pskb)->nh.iph->daddr;
-	tos = (*pskb)->nh.iph->tos;
+	iph = ip_hdr(*pskb);
+	saddr = iph->saddr;
+	daddr = iph->daddr;
+	tos = iph->tos;
 
 	ret = ipt_do_table(pskb, hook, in, out, &packet_mangler);
 	/* Reroute for ANY change. */
-	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE
-	    && ((*pskb)->nh.iph->saddr != saddr
-		|| (*pskb)->nh.iph->daddr != daddr
-		|| (*pskb)->mark != mark
-		|| (*pskb)->nh.iph->tos != tos))
-		if (ip_route_me_harder(pskb, RTN_UNSPEC))
-			ret = NF_DROP;
+	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE) {
+		iph = ip_hdr(*pskb);
+
+		if (iph->saddr != saddr ||
+		    iph->daddr != daddr ||
+		    (*pskb)->mark != mark ||
+		    iph->tos != tos)
+			if (ip_route_me_harder(pskb, RTN_UNSPEC))
+				ret = NF_DROP;
+	}
 
 	return ret;
 }

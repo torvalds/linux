@@ -12,7 +12,7 @@
 	.align	7
 _GLOBAL(memcpy)
 	std	r3,48(r1)	/* save destination pointer for return value */
-	mtcrf	0x01,r5
+	PPC_MTOCRF	0x01,r5
 	cmpldi	cr1,r5,16
 	neg	r6,r3		# LS 3 bits = # bytes to 8-byte dest bdry
 	andi.	r6,r6,7
@@ -128,7 +128,7 @@ _GLOBAL(memcpy)
 	b	.Ldo_tail
 
 .Ldst_unaligned:
-	mtcrf	0x01,r6		# put #bytes to 8B bdry into cr7
+	PPC_MTOCRF	0x01,r6		# put #bytes to 8B bdry into cr7
 	subf	r5,r6,r5
 	li	r7,0
 	cmpldi	r1,r5,16
@@ -143,7 +143,7 @@ _GLOBAL(memcpy)
 2:	bf	cr7*4+1,3f
 	lwzx	r0,r7,r4
 	stwx	r0,r7,r3
-3:	mtcrf	0x01,r5
+3:	PPC_MTOCRF	0x01,r5
 	add	r4,r6,r4
 	add	r3,r6,r3
 	b	.Ldst_aligned

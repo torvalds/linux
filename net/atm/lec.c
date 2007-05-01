@@ -283,8 +283,8 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	DPRINTK("skbuff head:%lx data:%lx tail:%lx end:%lx\n",
-		(long)skb->head, (long)skb->data, (long)skb->tail,
-		(long)skb->end);
+		(long)skb->head, (long)skb->data, (long)skb_tail_pointer(skb),
+		(long)skb_end_pointer(skb));
 #if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
 	if (memcmp(skb->data, bridge_ula_lec, sizeof(bridge_ula_lec)) == 0)
 		lec_handle_bridge(skb, dev);
@@ -576,8 +576,8 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 					break;
 				}
 				skb2->len = sizeof(struct atmlec_msg);
-				memcpy(skb2->data, mesg,
-				       sizeof(struct atmlec_msg));
+				skb_copy_to_linear_data(skb2, mesg,
+							sizeof(*mesg));
 				atm_force_charge(priv->lecd, skb2->truesize);
 				sk = sk_atm(priv->lecd);
 				skb_queue_tail(&sk->sk_receive_queue, skb2);
@@ -630,7 +630,7 @@ static struct atm_dev lecatm_dev = {
 	.ops = &lecdev_ops,
 	.type = "lec",
 	.number = 999,		/* dummy device number */
-	.lock = SPIN_LOCK_UNLOCKED
+	.lock = __SPIN_LOCK_UNLOCKED(lecatm_dev.lock)
 };
 
 /*
@@ -825,7 +825,6 @@ static void lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		if (!hlist_empty(&priv->lec_arp_empty_ones)) {
 			lec_arp_check_empties(priv, vcc, skb);
 		}
-		skb->dev = dev;
 		skb_pull(skb, 2);	/* skip lec_id */
 #ifdef CONFIG_TR
 		if (priv->is_trdev)
@@ -1338,7 +1337,7 @@ static int lane2_resolve(struct net_device *dev, u8 *dst_mac, int force,
 		if (skb == NULL)
 			return -1;
 		skb->len = *sizeoftlvs;
-		memcpy(skb->data, *tlvs, *sizeoftlvs);
+		skb_copy_to_linear_data(skb, *tlvs, *sizeoftlvs);
 		retval = send_to_lecd(priv, l_arp_xmt, dst_mac, NULL, skb);
 	}
 	return retval;
@@ -1372,7 +1371,7 @@ static int lane2_associate_req(struct net_device *dev, u8 *lan_dst,
 	if (skb == NULL)
 		return 0;
 	skb->len = sizeoftlvs;
-	memcpy(skb->data, tlvs, sizeoftlvs);
+	skb_copy_to_linear_data(skb, tlvs, sizeoftlvs);
 	retval = send_to_lecd(priv, l_associate_req, NULL, NULL, skb);
 	if (retval != 0)
 		printk("lec.c: lane2_associate_req() failed\n");

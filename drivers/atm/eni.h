@@ -59,7 +59,7 @@ struct eni_vcc {
 	int rxing;			/* number of pending PDUs */
 	int servicing;			/* number of waiting VCs (0 or 1) */
 	int txing;			/* number of pending TX bytes */
-	struct timeval timestamp;	/* for RX timing */
+	ktime_t timestamp;		/* for RX timing */
 	struct atm_vcc *next;		/* next pending RX */
 	struct sk_buff *last;		/* last PDU being DMAed (used to carry
 					   discard information) */

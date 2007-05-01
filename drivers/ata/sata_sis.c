@@ -121,7 +121,6 @@ static const struct ata_port_operations sis_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -131,7 +130,6 @@ static const struct ata_port_operations sis_ops = {
 };
 
 static struct ata_port_info sis_port_info = {
-	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 	.pio_mask	= 0x1f,
 	.mwdma_mask	= 0x7,
@@ -256,30 +254,18 @@ static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	struct ata_probe_ent *probe_ent = NULL;
-	int rc;
+	struct ata_port_info pi = sis_port_info;
+	const struct ata_port_info *ppi[2] = { &pi, &pi };
+	struct ata_host *host;
 	u32 genctl, val;
-	struct ata_port_info pi = sis_port_info, *ppi[2] = { &pi, &pi };
 	u8 pmr;
 	u8 port2_start = 0x20;
+	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pcim_enable_device(pdev);
-	if (rc)
-		return rc;
-
-	rc = pci_request_regions(pdev, DRV_NAME);
-	if (rc) {
-		pcim_pin_device(pdev);
-		return rc;
-	}
-
-	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
 		return rc;
 
@@ -349,30 +335,26 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
-	if (!probe_ent)
-		return -ENOMEM;
+	rc = ata_pci_prepare_native_host(pdev, ppi, 2, &host);
+	if (rc)
+		return rc;
 
-	if (!(probe_ent->port_flags & SIS_FLAG_CFGSCR)) {
+	if (!(pi.flags & SIS_FLAG_CFGSCR)) {
 		void __iomem *mmio;
 
-		mmio = pcim_iomap(pdev, SIS_SCR_PCI_BAR, 0);
-		if (!mmio)
-			return -ENOMEM;
+		rc = pcim_iomap_regions(pdev, 1 << SIS_SCR_PCI_BAR, DRV_NAME);
+		if (rc)
+			return rc;
+		mmio = host->iomap[SIS_SCR_PCI_BAR];
 
-		probe_ent->port[0].scr_addr = mmio;
-		probe_ent->port[1].scr_addr = mmio + port2_start;
+		host->ports[0]->ioaddr.scr_addr = mmio;
+		host->ports[1]->ioaddr.scr_addr = mmio + port2_start;
 	}
 
 	pci_set_master(pdev);
 	pci_intx(pdev, 1);
-
-	if (!ata_device_add(probe_ent))
-		return -EIO;
-
-	devm_kfree(&pdev->dev, probe_ent);
-	return 0;
-
+	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
+				 &sis_sht);
 }
 
 static int __init sis_init(void)

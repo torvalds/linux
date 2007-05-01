@@ -33,7 +33,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_optidma"
-#define DRV_VERSION "0.2.4"
+#define DRV_VERSION "0.3.2"
 
 enum {
 	READ_REG	= 0,	/* index of Read cycle timing register */
@@ -62,7 +62,6 @@ static int optidma_pre_reset(struct ata_port *ap)
 	if (ap->port_no && !pci_test_config_bits(pdev, &optidma_enable_bits))
 		return -ENOENT;
 
-	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
 
@@ -115,7 +114,7 @@ static void optidma_lock(struct ata_port *ap)
 }
 
 /**
- *	optidma_set_mode	-	set mode data
+ *	optidma_mode_setup	-	set mode data
  *	@ap: ATA interface
  *	@adev: ATA device
  *	@mode: Mode to set
@@ -128,7 +127,7 @@ static void optidma_lock(struct ata_port *ap)
  *	IRQ here we depend on the host set locking to avoid catastrophe.
  */
 
-static void optidma_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mode)
+static void optidma_mode_setup(struct ata_port *ap, struct ata_device *adev, u8 mode)
 {
 	struct ata_device *pair = ata_dev_pair(adev);
 	int pio = adev->pio_mode - XFER_PIO_0;
@@ -202,7 +201,7 @@ static void optidma_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
 }
 
 /**
- *	optiplus_set_mode	-	DMA setup for Firestar Plus
+ *	optiplus_mode_setup	-	DMA setup for Firestar Plus
  *	@ap: ATA port
  *	@adev: device
  *	@mode: desired mode
@@ -213,7 +212,7 @@ static void optidma_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mo
  *	one
  */
 
-static void optiplus_set_mode(struct ata_port *ap, struct ata_device *adev, u8 mode)
+static void optiplus_mode_setup(struct ata_port *ap, struct ata_device *adev, u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 udcfg;
@@ -225,7 +224,7 @@ static void optiplus_set_mode(struct ata_port *ap, struct ata_device *adev, u8 m
 	pci_read_config_byte(pdev, 0x44, &udcfg);
 	if (mode <= XFER_UDMA_0) {
 		udcfg &= ~(1 << unit);
-		optidma_set_mode(ap, adev, adev->dma_mode);
+		optidma_mode_setup(ap, adev, adev->dma_mode);
 	} else {
 		udcfg |=  (1 << unit);
 		if (ap->port_no) {
@@ -253,7 +252,7 @@ static void optiplus_set_mode(struct ata_port *ap, struct ata_device *adev, u8 m
 
 static void optidma_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
 {
-	optidma_set_mode(ap, adev, adev->pio_mode);
+	optidma_mode_setup(ap, adev, adev->pio_mode);
 }
 
 /**
@@ -268,7 +267,7 @@ static void optidma_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
 
 static void optidma_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
 {
-	optidma_set_mode(ap, adev, adev->dma_mode);
+	optidma_mode_setup(ap, adev, adev->dma_mode);
 }
 
 /**
@@ -283,7 +282,7 @@ static void optidma_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
 
 static void optiplus_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
 {
-	optiplus_set_mode(ap, adev, adev->pio_mode);
+	optiplus_mode_setup(ap, adev, adev->pio_mode);
 }
 
 /**
@@ -298,7 +297,7 @@ static void optiplus_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
 
 static void optiplus_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
 {
-	optiplus_set_mode(ap, adev, adev->dma_mode);
+	optiplus_mode_setup(ap, adev, adev->dma_mode);
 }
 
 /**
@@ -322,26 +321,29 @@ static u8 optidma_make_bits43(struct ata_device *adev)
 }
 
 /**
- *	optidma_post_set_mode	-	finalize PCI setup
+ *	optidma_set_mode	-	mode setup
  *	@ap: port to set up
  *
- *	Finalise the configuration by writing the nibble of extra bits
- *	of data into the chip.
+ *	Use the standard setup to tune the chipset and then finalise the
+ *	configuration by writing the nibble of extra bits of data into
+ *	the chip.
  */
 
-static void optidma_post_set_mode(struct ata_port *ap)
+static int optidma_set_mode(struct ata_port *ap, struct ata_device **r_failed)
 {
 	u8 r;
 	int nybble = 4 * ap->port_no;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	int rc  = ata_do_set_mode(ap, r_failed);
+	if (rc == 0) {
+		pci_read_config_byte(pdev, 0x43, &r);
 
-	pci_read_config_byte(pdev, 0x43, &r);
-
-	r &= (0x0F << nybble);
-	r |= (optidma_make_bits43(&ap->device[0]) +
-	     (optidma_make_bits43(&ap->device[0]) << 2)) << nybble;
-
-	pci_write_config_byte(pdev, 0x43, r);
+		r &= (0x0F << nybble);
+		r |= (optidma_make_bits43(&ap->device[0]) +
+		     (optidma_make_bits43(&ap->device[0]) << 2)) << nybble;
+		pci_write_config_byte(pdev, 0x43, r);
+	}
+	return rc;
 }
 
 static struct scsi_host_template optidma_sht = {
@@ -381,7 +383,8 @@ static struct ata_port_operations optidma_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
 	.error_handler	= optidma_error_handler,
-	.post_set_mode	= optidma_post_set_mode,
+	.set_mode	= optidma_set_mode,
+	.cable_detect	= ata_cable_40wire,
 
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= ata_bmdma_start,
@@ -416,7 +419,8 @@ static struct ata_port_operations optiplus_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
 	.error_handler	= optidma_error_handler,
-	.post_set_mode	= optidma_post_set_mode,
+	.set_mode	= optidma_set_mode,
+	.cable_detect	= ata_cable_40wire,
 
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= ata_bmdma_start,

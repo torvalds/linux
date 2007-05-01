@@ -399,9 +399,9 @@ ipt_log_packet(unsigned int pf,
 		/* MAC logging for input chain only. */
 		printk("MAC=");
 		if (skb->dev && skb->dev->hard_header_len
-		    && skb->mac.raw != (void*)skb->nh.iph) {
+		    && skb->mac_header != skb->network_header) {
 			int i;
-			unsigned char *p = skb->mac.raw;
+			const unsigned char *p = skb_mac_header(skb);
 			for (i = 0; i < skb->dev->hard_header_len; i++,p++)
 				printk("%02x%c", *p,
 				       i==skb->dev->hard_header_len - 1
@@ -477,14 +477,10 @@ static int __init ipt_log_init(void)
 	ret = xt_register_target(&ipt_log_reg);
 	if (ret < 0)
 		return ret;
-	if (nf_log_register(PF_INET, &ipt_log_logger) < 0) {
-		printk(KERN_WARNING "ipt_LOG: not logging via system console "
-		       "since somebody else already registered for PF_INET\n");
-		/* we cannot make module load fail here, since otherwise
-		 * iptables userspace would abort */
-	}
-
-	return 0;
+	ret = nf_log_register(PF_INET, &ipt_log_logger);
+	if (ret < 0 && ret != -EEXIST)
+		xt_unregister_target(&ipt_log_reg);
+	return ret;
 }
 
 static void __exit ipt_log_fini(void)

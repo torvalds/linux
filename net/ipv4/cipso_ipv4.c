@@ -92,6 +92,33 @@ int cipso_v4_rbm_optfmt = 0;
 int cipso_v4_rbm_strictvalid = 1;
 
 /*
+ * Protocol Constants
+ */
+
+/* Maximum size of the CIPSO IP option, derived from the fact that the maximum
+ * IPv4 header size is 60 bytes and the base IPv4 header is 20 bytes long. */
+#define CIPSO_V4_OPT_LEN_MAX          40
+
+/* Length of the base CIPSO option, this includes the option type (1 byte), the
+ * option length (1 byte), and the DOI (4 bytes). */
+#define CIPSO_V4_HDR_LEN              6
+
+/* Base length of the restrictive category bitmap tag (tag #1). */
+#define CIPSO_V4_TAG_RBM_BLEN         4
+
+/* Base length of the enumerated category tag (tag #2). */
+#define CIPSO_V4_TAG_ENUM_BLEN        4
+
+/* Base length of the ranged categories bitmap tag (tag #5). */
+#define CIPSO_V4_TAG_RNG_BLEN         4
+/* The maximum number of category ranges permitted in the ranged category tag
+ * (tag #5).  You may note that the IETF draft states that the maximum number
+ * of category ranges is 7, but if the low end of the last category range is
+ * zero then it is possibile to fit 8 category ranges because the zero should
+ * be omitted. */
+#define CIPSO_V4_TAG_RNG_CAT_MAX      8
+
+/*
  * Helper Functions
  */
 
@@ -1109,16 +1136,15 @@ static int cipso_v4_map_cat_rng_hton(const struct cipso_v4_doi *doi_def,
 				     unsigned char *net_cat,
 				     u32 net_cat_len)
 {
-	/* The constant '16' is not random, it is the maximum number of
-	 * high/low category range pairs as permitted by the CIPSO draft based
-	 * on a maximum IPv4 header length of 60 bytes - the BUG_ON() assertion
-	 * does a sanity check to make sure we don't overflow the array. */
 	int iter = -1;
-	u16 array[16];
+	u16 array[CIPSO_V4_TAG_RNG_CAT_MAX * 2];
 	u32 array_cnt = 0;
 	u32 cat_size = 0;
 
-	BUG_ON(net_cat_len > 30);
+	/* make sure we don't overflow the 'array[]' variable */
+	if (net_cat_len >
+	    (CIPSO_V4_OPT_LEN_MAX - CIPSO_V4_HDR_LEN - CIPSO_V4_TAG_RNG_BLEN))
+		return -ENOSPC;
 
 	for (;;) {
 		iter = netlbl_secattr_catmap_walk(secattr->mls_cat, iter + 1);
@@ -1174,7 +1200,7 @@ static int cipso_v4_map_cat_rng_ntoh(const struct cipso_v4_doi *doi_def,
 	u16 cat_low;
 	u16 cat_high;
 
-	for(net_iter = 0; net_iter < net_cat_len; net_iter += 4) {
+	for (net_iter = 0; net_iter < net_cat_len; net_iter += 4) {
 		cat_high = ntohs(*((__be16 *)&net_cat[net_iter]));
 		if ((net_iter + 4) <= net_cat_len)
 			cat_low = ntohs(*((__be16 *)&net_cat[net_iter + 2]));
@@ -1195,9 +1221,6 @@ static int cipso_v4_map_cat_rng_ntoh(const struct cipso_v4_doi *doi_def,
 /*
  * Protocol Handling Functions
  */
-
-#define CIPSO_V4_OPT_LEN_MAX          40
-#define CIPSO_V4_HDR_LEN              6
 
 /**
  * cipso_v4_gentag_hdr - Generate a CIPSO option header
@@ -1676,7 +1699,7 @@ validate_return:
  */
 void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway)
 {
-	if (skb->nh.iph->protocol == IPPROTO_ICMP || error != -EACCES)
+	if (ip_hdr(skb)->protocol == IPPROTO_ICMP || error != -EACCES)
 		return;
 
 	if (gateway)

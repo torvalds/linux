@@ -71,14 +71,27 @@ static inline int node_allowed(int node)
 
 void spu_start_tick(struct spu_context *ctx)
 {
-	if (ctx->policy == SCHED_RR)
+	if (ctx->policy == SCHED_RR) {
+		/*
+		 * Make sure the exiting bit is cleared.
+		 */
+		clear_bit(SPU_SCHED_EXITING, &ctx->sched_flags);
+		mb();
 		queue_delayed_work(spu_sched_wq, &ctx->sched_work, SPU_TIMESLICE);
+	}
 }
 
 void spu_stop_tick(struct spu_context *ctx)
 {
-	if (ctx->policy == SCHED_RR)
+	if (ctx->policy == SCHED_RR) {
+		/*
+		 * While the work can be rearming normally setting this flag
+		 * makes sure it does not rearm itself anymore.
+		 */
+		set_bit(SPU_SCHED_EXITING, &ctx->sched_flags);
+		mb();
 		cancel_delayed_work(&ctx->sched_work);
+	}
 }
 
 void spu_sched_tick(struct work_struct *work)
@@ -86,7 +99,15 @@ void spu_sched_tick(struct work_struct *work)
 	struct spu_context *ctx =
 		container_of(work, struct spu_context, sched_work.work);
 	struct spu *spu;
-	int rearm = 1;
+	int preempted = 0;
+
+	/*
+	 * If this context is being stopped avoid rescheduling from the
+	 * scheduler tick because we would block on the state_mutex.
+	 * The caller will yield the spu later on anyway.
+	 */
+	if (test_bit(SPU_SCHED_EXITING, &ctx->sched_flags))
+		return;
 
 	mutex_lock(&ctx->state_mutex);
 	spu = ctx->spu;
@@ -94,12 +115,19 @@ void spu_sched_tick(struct work_struct *work)
 		int best = sched_find_first_bit(spu_prio->bitmap);
 		if (best <= ctx->prio) {
 			spu_deactivate(ctx);
-			rearm = 0;
+			preempted = 1;
 		}
 	}
 	mutex_unlock(&ctx->state_mutex);
 
-	if (rearm)
+	if (preempted) {
+		/*
+		 * We need to break out of the wait loop in spu_run manually
+		 * to ensure this context gets put on the runqueue again
+		 * ASAP.
+		 */
+		wake_up(&ctx->stop_wq);
+	} else
 		spu_start_tick(ctx);
 }
 
@@ -208,58 +236,40 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
  * spu_add_to_rq - add a context to the runqueue
  * @ctx:       context to add
  */
-static void spu_add_to_rq(struct spu_context *ctx)
+static void __spu_add_to_rq(struct spu_context *ctx)
 {
-	spin_lock(&spu_prio->runq_lock);
-	list_add_tail(&ctx->rq, &spu_prio->runq[ctx->prio]);
-	set_bit(ctx->prio, spu_prio->bitmap);
-	spin_unlock(&spu_prio->runq_lock);
+	int prio = ctx->prio;
+
+	list_add_tail(&ctx->rq, &spu_prio->runq[prio]);
+	set_bit(prio, spu_prio->bitmap);
 }
 
-/**
- * spu_del_from_rq - remove a context from the runqueue
- * @ctx:       context to remove
- */
-static void spu_del_from_rq(struct spu_context *ctx)
+static void __spu_del_from_rq(struct spu_context *ctx)
 {
-	spin_lock(&spu_prio->runq_lock);
-	list_del_init(&ctx->rq);
-	if (list_empty(&spu_prio->runq[ctx->prio]))
-		clear_bit(ctx->prio, spu_prio->bitmap);
-	spin_unlock(&spu_prio->runq_lock);
-}
+	int prio = ctx->prio;
 
-/**
- * spu_grab_context - remove one context from the runqueue
- * @prio:      priority of the context to be removed
- *
- * This function removes one context from the runqueue for priority @prio.
- * If there is more than one context with the given priority the first
- * task on the runqueue will be taken.
- *
- * Returns the spu_context it just removed.
- *
- * Must be called with spu_prio->runq_lock held.
- */
-static struct spu_context *spu_grab_context(int prio)
-{
-	struct list_head *rq = &spu_prio->runq[prio];
-
-	if (list_empty(rq))
-		return NULL;
-	return list_entry(rq->next, struct spu_context, rq);
+	if (!list_empty(&ctx->rq))
+		list_del_init(&ctx->rq);
+	if (list_empty(&spu_prio->runq[prio]))
+		clear_bit(prio, spu_prio->bitmap);
 }
 
 static void spu_prio_wait(struct spu_context *ctx)
 {
 	DEFINE_WAIT(wait);
 
+	spin_lock(&spu_prio->runq_lock);
 	prepare_to_wait_exclusive(&ctx->stop_wq, &wait, TASK_INTERRUPTIBLE);
 	if (!signal_pending(current)) {
+		__spu_add_to_rq(ctx);
+		spin_unlock(&spu_prio->runq_lock);
 		mutex_unlock(&ctx->state_mutex);
 		schedule();
 		mutex_lock(&ctx->state_mutex);
+		spin_lock(&spu_prio->runq_lock);
+		__spu_del_from_rq(ctx);
 	}
+	spin_unlock(&spu_prio->runq_lock);
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&ctx->stop_wq, &wait);
 }
@@ -280,9 +290,14 @@ static void spu_reschedule(struct spu *spu)
 	spin_lock(&spu_prio->runq_lock);
 	best = sched_find_first_bit(spu_prio->bitmap);
 	if (best < MAX_PRIO) {
-		struct spu_context *ctx = spu_grab_context(best);
-		if (ctx)
-			wake_up(&ctx->stop_wq);
+		struct list_head *rq = &spu_prio->runq[best];
+		struct spu_context *ctx;
+
+		BUG_ON(list_empty(rq));
+
+		ctx = list_entry(rq->next, struct spu_context, rq);
+		__spu_del_from_rq(ctx);
+		wake_up(&ctx->stop_wq);
 	}
 	spin_unlock(&spu_prio->runq_lock);
 }
@@ -365,6 +380,12 @@ static struct spu *find_victim(struct spu_context *ctx)
 			}
 			spu_unbind_context(spu, victim);
 			mutex_unlock(&victim->state_mutex);
+			/*
+			 * We need to break out of the wait loop in spu_run
+			 * manually to ensure this context gets put on the
+			 * runqueue again ASAP.
+			 */
+			wake_up(&victim->stop_wq);
 			return spu;
 		}
 	}
@@ -377,7 +398,7 @@ static struct spu *find_victim(struct spu_context *ctx)
  * @ctx:	spu context to schedule
  * @flags:	flags (currently ignored)
  *
- * Tries to find a free spu to run @ctx.  If no free spu is availble
+ * Tries to find a free spu to run @ctx.  If no free spu is available
  * add the context to the runqueue so it gets woken up once an spu
  * is available.
  */
@@ -402,9 +423,7 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 			return 0;
 		}
 
-		spu_add_to_rq(ctx);
 		spu_prio_wait(ctx);
-		spu_del_from_rq(ctx);
 	} while (!signal_pending(current));
 
 	return -ERESTARTSYS;
@@ -438,7 +457,6 @@ void spu_deactivate(struct spu_context *ctx)
 void spu_yield(struct spu_context *ctx)
 {
 	struct spu *spu;
-	int need_yield = 0;
 
 	if (mutex_trylock(&ctx->state_mutex)) {
 		if ((spu = ctx->spu) != NULL) {
@@ -447,13 +465,10 @@ void spu_yield(struct spu_context *ctx)
 				pr_debug("%s: yielding SPU %d NODE %d\n",
 					 __FUNCTION__, spu->number, spu->node);
 				spu_deactivate(ctx);
-				need_yield = 1;
 			}
 		}
 		mutex_unlock(&ctx->state_mutex);
 	}
-	if (unlikely(need_yield))
-		yield();
 }
 
 int __init spu_sched_init(void)

@@ -100,7 +100,20 @@
 
 #define CRB_CMD_PRODUCER_OFFSET_1   NETXEN_NIC_REG(0x1ac)
 #define CRB_CMD_CONSUMER_OFFSET_1   NETXEN_NIC_REG(0x1b0)
+#define CRB_CMD_PRODUCER_OFFSET_2   NETXEN_NIC_REG(0x1b8)
+#define CRB_CMD_CONSUMER_OFFSET_2   NETXEN_NIC_REG(0x1bc)
+
+// 1c0 to 1cc used for signature reg
+#define CRB_CMD_PRODUCER_OFFSET_3   NETXEN_NIC_REG(0x1d0)
+#define CRB_CMD_CONSUMER_OFFSET_3   NETXEN_NIC_REG(0x1d4)
 #define CRB_TEMP_STATE              NETXEN_NIC_REG(0x1b4)
+
+#define CRB_V2P_0		    NETXEN_NIC_REG(0x290)
+#define CRB_V2P_1		    NETXEN_NIC_REG(0x294)
+#define CRB_V2P_2		    NETXEN_NIC_REG(0x298)
+#define CRB_V2P_3		    NETXEN_NIC_REG(0x29c)
+#define CRB_V2P(port)		    (CRB_V2P_0+((port)*4))
+#define CRB_DRIVER_VERSION	    NETXEN_NIC_REG(0x2a0)
 
 /* used for ethtool tests */
 #define CRB_SCRATCHPAD_TEST	    NETXEN_NIC_REG(0x280)
@@ -139,128 +152,13 @@ struct netxen_recv_crb {
 };
 
 #if defined(DEFINE_GLOBAL_RECV_CRB)
-struct netxen_recv_crb recv_crb_registers[] = {
-	/*
-	 * Instance 0.
-	 */
-	{
-	 /* rcv_desc_crb: */
-	 {
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x100),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x104),
-	   /* crb_gloablrcv_ring: */
-	   NETXEN_NIC_REG(0x108),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x10c),
-
-	   },
-	  /* Jumbo frames */
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x110),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x114),
-	   /* crb_gloablrcv_ring: */
-	   NETXEN_NIC_REG(0x118),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x11c),
-	   },
-	  /* LRO */
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x120),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x124),
-	   /* crb_gloablrcv_ring: */
-	   NETXEN_NIC_REG(0x128),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x12c),
-	   }
-	  },
-	 /* crb_rcvstatus_ring: */
-	 NETXEN_NIC_REG(0x130),
-	 /* crb_rcv_status_producer: */
-	 NETXEN_NIC_REG(0x134),
-	 /* crb_rcv_status_consumer: */
-	 NETXEN_NIC_REG(0x138),
-	 /* crb_rcvpeg_state: */
-	 NETXEN_NIC_REG(0x13c),
-	 /* crb_status_ring_size */
-	 NETXEN_NIC_REG(0x140),
-
-	 },
-	/*
-	 * Instance 1,
-	 */
-	{
-	 /* rcv_desc_crb: */
-	 {
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x144),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x148),
-	   /* crb_globalrcv_ring: */
-	   NETXEN_NIC_REG(0x14c),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x150),
-
-	   },
-	  /* Jumbo frames */
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x154),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x158),
-	   /* crb_globalrcv_ring: */
-	   NETXEN_NIC_REG(0x15c),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x160),
-	   },
-	  /* LRO */
-	  {
-	   /* crb_rcv_producer_offset: */
-	   NETXEN_NIC_REG(0x164),
-	   /* crb_rcv_consumer_offset: */
-	   NETXEN_NIC_REG(0x168),
-	   /* crb_globalrcv_ring: */
-	   NETXEN_NIC_REG(0x16c),
-	   /* crb_rcv_ring_size */
-	   NETXEN_NIC_REG(0x170),
-	   }
-
-	  },
-	 /* crb_rcvstatus_ring: */
-	 NETXEN_NIC_REG(0x174),
-	 /* crb_rcv_status_producer: */
-	 NETXEN_NIC_REG(0x178),
-	 /* crb_rcv_status_consumer: */
-	 NETXEN_NIC_REG(0x17c),
-	 /* crb_rcvpeg_state: */
-	 NETXEN_NIC_REG(0x180),
-	 /* crb_status_ring_size */
-	 NETXEN_NIC_REG(0x184),
-
-	 },
-};
-
-u64 ctx_addr_sig_regs[][3] = {
-	{NETXEN_NIC_REG(0x188), NETXEN_NIC_REG(0x18c), NETXEN_NIC_REG(0x1c0)},
-	{NETXEN_NIC_REG(0x190), NETXEN_NIC_REG(0x194), NETXEN_NIC_REG(0x1c4)},
-	{NETXEN_NIC_REG(0x198), NETXEN_NIC_REG(0x19c), NETXEN_NIC_REG(0x1c8)},
-	{NETXEN_NIC_REG(0x1a0), NETXEN_NIC_REG(0x1a4), NETXEN_NIC_REG(0x1cc)}
-};
-
 #else
 extern struct netxen_recv_crb recv_crb_registers[];
 extern u64 ctx_addr_sig_regs[][3];
-#define CRB_CTX_ADDR_REG_LO            (ctx_addr_sig_regs[0][0])
-#define CRB_CTX_ADDR_REG_HI            (ctx_addr_sig_regs[0][2])
-#define CRB_CTX_SIGNATURE_REG       (ctx_addr_sig_regs[0][1])
 #endif				/* DEFINE_GLOBAL_RECEIVE_CRB */
+#define CRB_CTX_ADDR_REG_LO(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][0])
+#define CRB_CTX_ADDR_REG_HI(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][2])
+#define CRB_CTX_SIGNATURE_REG(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][1])
 
 /*
  * Temperature control.

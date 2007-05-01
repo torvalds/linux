@@ -63,17 +63,10 @@ struct ocfs2_msg_hdr
 	__be32 h_node_num;    /* node sending this particular message. */
 };
 
-/* OCFS2_MAX_FILENAME_LEN is 255 characters, but we want to align this
- * for the network. */
-#define OCFS2_VOTE_FILENAME_LEN 256
 struct ocfs2_vote_msg
 {
 	struct ocfs2_msg_hdr v_hdr;
-	union {
-		__be32 v_generic1;
-		__be32 v_orphaned_slot;	/* Used during delete votes */
-		__be32 v_nlink;		/* Used during unlink votes */
-	} md1;				/* Message type dependant 1 */
+	__be32 v_reserved1;
 };
 
 /* Responses are given these values to maintain backwards
@@ -86,7 +79,6 @@ struct ocfs2_response_msg
 {
 	struct ocfs2_msg_hdr r_hdr;
 	__be32 r_response;
-	__be32 r_orphaned_slot;
 };
 
 struct ocfs2_vote_work {
@@ -96,7 +88,6 @@ struct ocfs2_vote_work {
 
 enum ocfs2_vote_request {
 	OCFS2_VOTE_REQ_INVALID = 0,
-	OCFS2_VOTE_REQ_DELETE,
 	OCFS2_VOTE_REQ_MOUNT,
 	OCFS2_VOTE_REQ_UMOUNT,
 	OCFS2_VOTE_REQ_LAST
@@ -151,135 +142,23 @@ static void ocfs2_process_umount_request(struct ocfs2_super *osb,
 	ocfs2_node_map_set_bit(osb, &osb->umount_map, node_num);
 }
 
-void ocfs2_mark_inode_remotely_deleted(struct inode *inode)
-{
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-
-	assert_spin_locked(&oi->ip_lock);
-	/* We set the SKIP_DELETE flag on the inode so we don't try to
-	 * delete it in delete_inode ourselves, thus avoiding
-	 * unecessary lock pinging. If the other node failed to wipe
-	 * the inode as a result of a crash, then recovery will pick
-	 * up the slack. */
-	oi->ip_flags |= OCFS2_INODE_DELETED|OCFS2_INODE_SKIP_DELETE;
-}
-
-static int ocfs2_process_delete_request(struct inode *inode,
-					int *orphaned_slot)
-{
-	int response = OCFS2_RESPONSE_BUSY;
-
-	mlog(0, "DELETE vote on inode %lu, read lnk_cnt = %u, slot = %d\n",
-	     inode->i_ino, inode->i_nlink, *orphaned_slot);
-
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-
-	/* Whatever our vote response is, we want to make sure that
-	 * the orphaned slot is recorded properly on this node *and*
-	 * on the requesting node. Technically, if the requesting node
-	 * did not know which slot the inode is orphaned in but we
-	 * respond with BUSY he doesn't actually need the orphaned
-	 * slot, but it doesn't hurt to do it here anyway. */
-	if ((*orphaned_slot) != OCFS2_INVALID_SLOT) {
-		mlog_bug_on_msg(OCFS2_I(inode)->ip_orphaned_slot !=
-				OCFS2_INVALID_SLOT &&
-				OCFS2_I(inode)->ip_orphaned_slot !=
-				(*orphaned_slot),
-				"Inode %llu: This node thinks it's "
-				"orphaned in slot %d, messaged it's in %d\n",
-				(unsigned long long)OCFS2_I(inode)->ip_blkno,
-				OCFS2_I(inode)->ip_orphaned_slot,
-				*orphaned_slot);
-
-		mlog(0, "Setting orphaned slot for inode %llu to %d\n",
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		     *orphaned_slot);
-
-		OCFS2_I(inode)->ip_orphaned_slot = *orphaned_slot;
-	} else {
-		mlog(0, "Sending back orphaned slot %d for inode %llu\n",
-		     OCFS2_I(inode)->ip_orphaned_slot,
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-
-		*orphaned_slot = OCFS2_I(inode)->ip_orphaned_slot;
-	}
-
-	/* vote no if the file is still open. */
-	if (OCFS2_I(inode)->ip_open_count) {
-		mlog(0, "open count = %u\n",
-		     OCFS2_I(inode)->ip_open_count);
-		spin_unlock(&OCFS2_I(inode)->ip_lock);
-		goto done;
-	}
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
-
-	/* directories are a bit ugly... What if someone is sitting in
-	 * it? We want to make sure the inode is removed completely as
-	 * a result of the iput in process_vote. */
-	if (S_ISDIR(inode->i_mode) && (atomic_read(&inode->i_count) != 1)) {
-		mlog(0, "i_count = %u\n", atomic_read(&inode->i_count));
-		goto done;
-	}
-
-	if (filemap_fdatawrite(inode->i_mapping)) {
-		mlog(ML_ERROR, "Could not sync inode %llu for delete!\n",
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-		goto done;
-	}
-	sync_mapping_buffers(inode->i_mapping);
-	truncate_inode_pages(inode->i_mapping, 0);
-	ocfs2_extent_map_trunc(inode, 0);
-
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	/* double check open count - someone might have raced this
-	 * thread into ocfs2_file_open while we were writing out
-	 * data. If we're to allow a wipe of this inode now, we *must*
-	 * hold the spinlock until we've marked it. */
-	if (OCFS2_I(inode)->ip_open_count) {
-		mlog(0, "Raced to wipe! open count = %u\n",
-		     OCFS2_I(inode)->ip_open_count);
-		spin_unlock(&OCFS2_I(inode)->ip_lock);
-		goto done;
-	}
-
-	/* Mark the inode as being wiped from disk. */
-	ocfs2_mark_inode_remotely_deleted(inode);
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
-
-	/* Not sure this is necessary anymore. */
-	d_prune_aliases(inode);
-
-	/* If we get here, then we're voting 'yes', so commit the
-	 * delete on our side. */
-	response = OCFS2_RESPONSE_OK;
-done:
-	return response;
-}
-
 static void ocfs2_process_vote(struct ocfs2_super *osb,
 			       struct ocfs2_vote_msg *msg)
 {
 	int net_status, vote_response;
-	int orphaned_slot = 0;
-	unsigned int node_num, generation;
+	unsigned int node_num;
 	u64 blkno;
 	enum ocfs2_vote_request request;
-	struct inode *inode = NULL;
 	struct ocfs2_msg_hdr *hdr = &msg->v_hdr;
 	struct ocfs2_response_msg response;
 
 	/* decode the network mumbo jumbo into local variables. */
 	request = be32_to_cpu(hdr->h_request);
 	blkno = be64_to_cpu(hdr->h_blkno);
-	generation = be32_to_cpu(hdr->h_generation);
 	node_num = be32_to_cpu(hdr->h_node_num);
-	if (request == OCFS2_VOTE_REQ_DELETE)
-		orphaned_slot = be32_to_cpu(msg->md1.v_orphaned_slot);
 
-	mlog(0, "processing vote: request = %u, blkno = %llu, "
-	     "generation = %u, node_num = %u, priv1 = %u\n", request,
-	     (unsigned long long)blkno, generation, node_num,
-	     be32_to_cpu(msg->md1.v_generic1));
+	mlog(0, "processing vote: request = %u, blkno = %llu, node_num = %u\n",
+	     request, (unsigned long long)blkno, node_num);
 
 	if (!ocfs2_is_valid_vote_request(request)) {
 		mlog(ML_ERROR, "Invalid vote request %d from node %u\n",
@@ -302,52 +181,6 @@ static void ocfs2_process_vote(struct ocfs2_super *osb,
 		break;
 	}
 
-	/* We cannot process the remaining message types before we're
-	 * fully mounted. It's perfectly safe however to send a 'yes'
-	 * response as we can't possibly have any of the state they're
-	 * asking us to modify yet. */
-	if (atomic_read(&osb->vol_state) == VOLUME_INIT)
-		goto respond;
-
-	/* If we get here, then the request is against an inode. */
-	inode = ocfs2_ilookup_for_vote(osb, blkno,
-				       request == OCFS2_VOTE_REQ_DELETE);
-
-	/* Not finding the inode is perfectly valid - it means we're
-	 * not interested in what the other node is about to do to it
-	 * so in those cases we automatically respond with an
-	 * affirmative. Cluster locking ensures that we won't race
-	 * interest in the inode with this vote request. */
-	if (!inode)
-		goto respond;
-
-	/* Check generation values. It's possible for us to get a
-	 * request against a stale inode. If so then we proceed as if
-	 * we had not found an inode in the first place. */
-	if (inode->i_generation != generation) {
-		mlog(0, "generation passed %u != inode generation = %u, "
-		     "ip_flags = %x, ip_blkno = %llu, msg %llu, i_count = %u, "
-		     "message type = %u\n", generation, inode->i_generation,
-		     OCFS2_I(inode)->ip_flags,
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		     (unsigned long long)blkno, atomic_read(&inode->i_count),
-		     request);
-		iput(inode);
-		inode = NULL;
-		goto respond;
-	}
-
-	switch (request) {
-	case OCFS2_VOTE_REQ_DELETE:
-		vote_response = ocfs2_process_delete_request(inode,
-							     &orphaned_slot);
-		break;
-	default:
-		mlog(ML_ERROR, "node %u, invalid request: %u\n",
-		     node_num, request);
-		vote_response = OCFS2_RESPONSE_BAD_MSG;
-	}
-
 respond:
 	/* Response struture is small so we just put it on the stack
 	 * and stuff it inline. */
@@ -357,7 +190,6 @@ respond:
 	response.r_hdr.h_generation = hdr->h_generation;
 	response.r_hdr.h_node_num = cpu_to_be32(osb->node_num);
 	response.r_response = cpu_to_be32(vote_response);
-	response.r_orphaned_slot = cpu_to_be32(orphaned_slot);
 
 	net_status = o2net_send_message(OCFS2_MESSAGE_TYPE_RESPONSE,
 					osb->net_key,
@@ -373,9 +205,6 @@ respond:
 	    && net_status != -ENOTCONN)
 		mlog(ML_ERROR, "message to node %u fails with error %d!\n",
 		     node_num, net_status);
-
-	if (inode)
-		iput(inode);
 }
 
 static void ocfs2_vote_thread_do_work(struct ocfs2_super *osb)
@@ -634,8 +463,7 @@ bail:
 static struct ocfs2_vote_msg * ocfs2_new_vote_request(struct ocfs2_super *osb,
 						      u64 blkno,
 						      unsigned int generation,
-						      enum ocfs2_vote_request type,
-						      u32 priv)
+						      enum ocfs2_vote_request type)
 {
 	struct ocfs2_vote_msg *request;
 	struct ocfs2_msg_hdr *hdr;
@@ -651,8 +479,6 @@ static struct ocfs2_vote_msg * ocfs2_new_vote_request(struct ocfs2_super *osb,
 		hdr->h_request = cpu_to_be32(type);
 		hdr->h_blkno = cpu_to_be64(blkno);
 		hdr->h_generation = cpu_to_be32(generation);
-
-		request->md1.v_generic1 = cpu_to_be32(priv);
 	}
 
 	return request;
@@ -664,7 +490,7 @@ static int ocfs2_do_request_vote(struct ocfs2_super *osb,
 				 struct ocfs2_vote_msg *request,
 				 struct ocfs2_net_response_cb *callback)
 {
-	int status, response;
+	int status, response = -EBUSY;
 	unsigned int response_id;
 	struct ocfs2_msg_hdr *hdr;
 
@@ -686,109 +512,12 @@ bail:
 	return status;
 }
 
-static int ocfs2_request_vote(struct inode *inode,
-			      struct ocfs2_vote_msg *request,
-			      struct ocfs2_net_response_cb *callback)
-{
-	int status;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-
-	if (ocfs2_inode_is_new(inode))
-		return 0;
-
-	status = -EAGAIN;
-	while (status == -EAGAIN) {
-		if (!(osb->s_mount_opt & OCFS2_MOUNT_NOINTR) &&
-		    signal_pending(current))
-			return -ERESTARTSYS;
-
-		status = ocfs2_super_lock(osb, 0);
-		if (status < 0) {
-			mlog_errno(status);
-			break;
-		}
-
-		status = 0;
-		if (!ocfs2_node_map_is_only(osb, &osb->mounted_map,
-					   osb->node_num))
-			status = ocfs2_do_request_vote(osb, request, callback);
-
-		ocfs2_super_unlock(osb, 0);
-	}
-	return status;
-}
-
-static void ocfs2_delete_response_cb(void *priv,
-				     struct ocfs2_response_msg *resp)
-{
-	int orphaned_slot, node;
-	struct inode *inode = priv;
-
-	orphaned_slot = be32_to_cpu(resp->r_orphaned_slot);
-	node = be32_to_cpu(resp->r_hdr.h_node_num);
-	mlog(0, "node %d tells us that inode %llu is orphaned in slot %d\n",
-	     node, (unsigned long long)OCFS2_I(inode)->ip_blkno,
-	     orphaned_slot);
-
-	/* The other node may not actually know which slot the inode
-	 * is orphaned in. */
-	if (orphaned_slot == OCFS2_INVALID_SLOT)
-		return;
-
-	/* Ok, the responding node knows which slot this inode is
-	 * orphaned in. We verify that the information is correct and
-	 * then record this in the inode. ocfs2_delete_inode will use
-	 * this information to determine which lock to take. */
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	mlog_bug_on_msg(OCFS2_I(inode)->ip_orphaned_slot != orphaned_slot &&
-			OCFS2_I(inode)->ip_orphaned_slot
-			!= OCFS2_INVALID_SLOT, "Inode %llu: Node %d says it's "
-			"orphaned in slot %d, we think it's in %d\n",
-			(unsigned long long)OCFS2_I(inode)->ip_blkno,
-			be32_to_cpu(resp->r_hdr.h_node_num),
-			orphaned_slot, OCFS2_I(inode)->ip_orphaned_slot);
-
-	OCFS2_I(inode)->ip_orphaned_slot = orphaned_slot;
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
-}
-
-int ocfs2_request_delete_vote(struct inode *inode)
-{
-	int orphaned_slot, status;
-	struct ocfs2_net_response_cb delete_cb;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_vote_msg *request;
-
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	orphaned_slot = OCFS2_I(inode)->ip_orphaned_slot;
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
-
-	delete_cb.rc_cb = ocfs2_delete_response_cb;
-	delete_cb.rc_priv = inode;
-
-	mlog(0, "Inode %llu, we start thinking orphaned slot is %d\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, orphaned_slot);
-
-	status = -ENOMEM;
-	request = ocfs2_new_vote_request(osb, OCFS2_I(inode)->ip_blkno,
-					 inode->i_generation,
-					 OCFS2_VOTE_REQ_DELETE, orphaned_slot);
-	if (request) {
-		status = ocfs2_request_vote(inode, request, &delete_cb);
-
-		kfree(request);
-	}
-
-	return status;
-}
-
 int ocfs2_request_mount_vote(struct ocfs2_super *osb)
 {
 	int status;
 	struct ocfs2_vote_msg *request = NULL;
 
-	request = ocfs2_new_vote_request(osb, 0ULL, 0,
-					 OCFS2_VOTE_REQ_MOUNT, 0);
+	request = ocfs2_new_vote_request(osb, 0ULL, 0, OCFS2_VOTE_REQ_MOUNT);
 	if (!request) {
 		status = -ENOMEM;
 		goto bail;
@@ -821,8 +550,7 @@ int ocfs2_request_umount_vote(struct ocfs2_super *osb)
 	int status;
 	struct ocfs2_vote_msg *request = NULL;
 
-	request = ocfs2_new_vote_request(osb, 0ULL, 0,
-					 OCFS2_VOTE_REQ_UMOUNT, 0);
+	request = ocfs2_new_vote_request(osb, 0ULL, 0, OCFS2_VOTE_REQ_UMOUNT);
 	if (!request) {
 		status = -ENOMEM;
 		goto bail;
@@ -969,7 +697,6 @@ static int ocfs2_handle_vote_message(struct o2net_msg *msg,
 	     be32_to_cpu(work->w_msg.v_hdr.h_generation));
 	mlog(0, "h_node_num = %u\n",
 	     be32_to_cpu(work->w_msg.v_hdr.h_node_num));
-	mlog(0, "v_generic1 = %u\n", be32_to_cpu(work->w_msg.md1.v_generic1));
 
 	spin_lock(&osb->vote_task_lock);
 	list_add_tail(&work->w_list, &osb->vote_list);

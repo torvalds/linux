@@ -4,14 +4,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 16 Dec 2003: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- move L3 protocol dependent part to this file.
- * 23 Mar 2004: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- add get_features() to support various size of conntrack
- *	  structures.
- *
- * Derived from net/ipv4/netfilter/ip_conntrack_standalone.c
  */
 
 #include <linux/types.h>
@@ -87,7 +79,7 @@ nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 	local_bh_enable();
 
 	if (skb)
-		ip_send_check(skb->nh.iph);
+		ip_send_check(ip_hdr(skb));
 
 	return skb;
 }
@@ -97,16 +89,16 @@ ipv4_prepare(struct sk_buff **pskb, unsigned int hooknum, unsigned int *dataoff,
 	     u_int8_t *protonum)
 {
 	/* Never happen */
-	if ((*pskb)->nh.iph->frag_off & htons(IP_OFFSET)) {
+	if (ip_hdr(*pskb)->frag_off & htons(IP_OFFSET)) {
 		if (net_ratelimit()) {
 			printk(KERN_ERR "ipv4_prepare: Frag of proto %u (hook=%u)\n",
-			(*pskb)->nh.iph->protocol, hooknum);
+			ip_hdr(*pskb)->protocol, hooknum);
 		}
 		return -NF_DROP;
 	}
 
-	*dataoff = (*pskb)->nh.raw - (*pskb)->data + (*pskb)->nh.iph->ihl*4;
-	*protonum = (*pskb)->nh.iph->protocol;
+	*dataoff = skb_network_offset(*pskb) + ip_hdrlen(*pskb);
+	*protonum = ip_hdr(*pskb)->protocol;
 
 	return NF_ACCEPT;
 }
@@ -152,9 +144,8 @@ static unsigned int ipv4_conntrack_help(unsigned int hooknum,
 		return NF_ACCEPT;
 
 	return help->helper->help(pskb,
-			       (*pskb)->nh.raw - (*pskb)->data
-					       + (*pskb)->nh.iph->ihl*4,
-			       ct, ctinfo);
+				  skb_network_offset(*pskb) + ip_hdrlen(*pskb),
+				  ct, ctinfo);
 }
 
 static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
@@ -171,7 +162,7 @@ static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
 #endif
 
 	/* Gather fragments. */
-	if ((*pskb)->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
+	if (ip_hdr(*pskb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 		*pskb = nf_ct_ipv4_gather_frags(*pskb,
 						hooknum == NF_IP_PRE_ROUTING ?
 						IP_DEFRAG_CONNTRACK_IN :
@@ -199,7 +190,7 @@ static unsigned int ipv4_conntrack_local(unsigned int hooknum,
 {
 	/* root is playing with raw sockets. */
 	if ((*pskb)->len < sizeof(struct iphdr)
-	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr)) {
+	    || ip_hdrlen(*pskb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
 			printk("ipt_hook: happy cracking.\n");
 		return NF_ACCEPT;

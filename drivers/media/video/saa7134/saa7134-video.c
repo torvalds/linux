@@ -26,6 +26,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/sort.h>
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
@@ -516,14 +517,12 @@ static int res_get(struct saa7134_dev *dev, struct saa7134_fh *fh, unsigned int 
 	return 1;
 }
 
-static
-int res_check(struct saa7134_fh *fh, unsigned int bit)
+static int res_check(struct saa7134_fh *fh, unsigned int bit)
 {
 	return (fh->resources & bit);
 }
 
-static
-int res_locked(struct saa7134_dev *dev, unsigned int bit)
+static int res_locked(struct saa7134_dev *dev, unsigned int bit)
 {
 	return (dev->resources & bit);
 }
@@ -603,7 +602,14 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 	saa_writeb(SAA7134_RAW_DATA_GAIN,         0x40);
 	saa_writeb(SAA7134_RAW_DATA_OFFSET,       0x80);
 
-	saa7134_i2c_call_clients(dev,VIDIOC_S_STD,&norm->id);
+	/* only tell the tuner if this is a tv input */
+	if (card_in(dev,dev->ctl_input).tv) {
+		if ((card(dev).tuner_type == TUNER_PHILIPS_TDA8290)
+				&& ((card(dev).tuner_config == 1)
+				||  (card(dev).tuner_config == 2)))
+			saa7134_set_gpio(dev, 22, 5);
+		saa7134_i2c_call_clients(dev,VIDIOC_S_STD,&norm->id);
+	}
 }
 
 static void video_mux(struct saa7134_dev *dev, int input)
@@ -732,25 +738,6 @@ struct cliplist {
 	__u8  disable;
 };
 
-static void sort_cliplist(struct cliplist *cl, int entries)
-{
-	struct cliplist swap;
-	int i,j,n;
-
-	for (i = entries-2; i >= 0; i--) {
-		for (n = 0, j = 0; j <= i; j++) {
-			if (cl[j].position > cl[j+1].position) {
-				swap = cl[j];
-				cl[j] = cl[j+1];
-				cl[j+1] = swap;
-				n++;
-			}
-		}
-		if (0 == n)
-			break;
-	}
-}
-
 static void set_cliplist(struct saa7134_dev *dev, int reg,
 			struct cliplist *cl, int entries, char *name)
 {
@@ -784,15 +771,27 @@ static int clip_range(int val)
 	return val;
 }
 
+/* Sort into smallest position first order */
+static int cliplist_cmp(const void *a, const void *b)
+{
+	const struct cliplist *cla = a;
+	const struct cliplist *clb = b;
+	if (cla->position < clb->position)
+		return -1;
+	if (cla->position > clb->position)
+		return 1;
+	return 0;
+}
+
 static int setup_clipping(struct saa7134_dev *dev, struct v4l2_clip *clips,
 			  int nclips, int interlace)
 {
 	struct cliplist col[16], row[16];
-	int cols, rows, i;
+	int cols = 0, rows = 0, i;
 	int div = interlace ? 2 : 1;
 
-	memset(col,0,sizeof(col)); cols = 0;
-	memset(row,0,sizeof(row)); rows = 0;
+	memset(col, 0, sizeof(col));
+	memset(row, 0, sizeof(row));
 	for (i = 0; i < nclips && i < 8; i++) {
 		col[cols].position = clip_range(clips[i].c.left);
 		col[cols].enable   = (1 << i);
@@ -808,8 +807,8 @@ static int setup_clipping(struct saa7134_dev *dev, struct v4l2_clip *clips,
 		row[rows].disable  = (1 << i);
 		rows++;
 	}
-	sort_cliplist(col,cols);
-	sort_cliplist(row,rows);
+	sort(col, cols, sizeof col[0], cliplist_cmp, NULL);
+	sort(row, rows, sizeof row[0], cliplist_cmp, NULL);
 	set_cliplist(dev,0x380,col,cols,"cols");
 	set_cliplist(dev,0x384,row,rows,"rows");
 	return 0;
@@ -1261,19 +1260,14 @@ static struct videobuf_queue* saa7134_queue(struct saa7134_fh *fh)
 
 static int saa7134_resource(struct saa7134_fh *fh)
 {
-	int res = 0;
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return RESOURCE_VIDEO;
 
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		res = RESOURCE_VIDEO;
-		break;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		res = RESOURCE_VBI;
-		break;
-	default:
-		BUG();
-	}
-	return res;
+	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		return RESOURCE_VBI;
+
+	BUG();
+	return 0;
 }
 
 static int video_open(struct inode *inode, struct file *file)
@@ -1461,8 +1455,7 @@ static int video_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int
-video_mmap(struct file *file, struct vm_area_struct * vma)
+static int video_mmap(struct file *file, struct vm_area_struct * vma)
 {
 	struct saa7134_fh *fh = file->private_data;
 
@@ -2458,12 +2451,6 @@ int saa7134_video_init2(struct saa7134_dev *dev)
 	video_mux(dev,0);
 	saa7134_tvaudio_setmute(dev);
 	saa7134_tvaudio_setvolume(dev,dev->ctl_volume);
-	return 0;
-}
-
-int saa7134_video_fini(struct saa7134_dev *dev)
-{
-	/* nothing */
 	return 0;
 }
 

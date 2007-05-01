@@ -316,12 +316,11 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 {
 	if (pte_present(*ptep)) {
 		/* We open-code pte_clear because we need to pass the right
-		 * argument to hpte_update (huge / !huge)
+		 * argument to hpte_need_flush (huge / !huge). Might not be
+		 * necessary anymore if we make hpte_need_flush() get the
+		 * page size from the slices
 		 */
-		unsigned long old = pte_update(ptep, ~0UL);
-		if (old & _PAGE_HASHPTE)
-			hpte_update(mm, addr & HPAGE_MASK, ptep, old, 1);
-		flush_tlb_pending();
+		pte_update(mm, addr & HPAGE_MASK, ptep, ~0UL, 1);
 	}
 	*ptep = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
 }
@@ -329,12 +328,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep)
 {
-	unsigned long old = pte_update(ptep, ~0UL);
-
-	if (old & _PAGE_HASHPTE)
-		hpte_update(mm, addr & HPAGE_MASK, ptep, old, 1);
-	*ptep = __pte(0);
-
+	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 1);
 	return __pte(old);
 }
 

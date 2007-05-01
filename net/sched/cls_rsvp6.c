@@ -34,6 +34,7 @@
 #include <net/sock.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
+#include <net/netlink.h>
 
 #define RSVP_DST_LEN	4
 #define RSVP_ID		"rsvp6"

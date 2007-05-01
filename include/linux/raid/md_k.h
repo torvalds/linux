@@ -104,6 +104,7 @@ struct mdk_rdev_s
 					   * for reporting to userspace and storing
 					   * in superblock.
 					   */
+	struct work_struct del_work;	/* used for delayed sysfs removal */
 };
 
 struct mddev_s

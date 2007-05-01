@@ -40,6 +40,7 @@ struct mem_chunk {
 };
 
 extern struct mem_chunk memory_chunk[];
+extern unsigned long real_memory_size;
 
 #ifdef CONFIG_S390_SWITCH_AMODE
 extern unsigned int switch_amode;
@@ -77,6 +78,7 @@ extern unsigned long machine_flags;
 #endif /* __s390x__ */
 
 #define MACHINE_HAS_SCLP	(!MACHINE_IS_P390)
+#define ZFCPDUMP_HSA_SIZE	(32UL<<20)
 
 /*
  * Console mode. Override with conmode=

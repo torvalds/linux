@@ -5,8 +5,13 @@
 #include <linux/rtnetlink.h>
 
 /* rule is permanent, and cannot be deleted */
-#define FIB_RULE_PERMANENT	1
-#define FIB_RULE_INVERT		2
+#define FIB_RULE_PERMANENT	0x00000001
+#define FIB_RULE_INVERT		0x00000002
+#define FIB_RULE_UNRESOLVED	0x00000004
+#define FIB_RULE_DEV_DETACHED	0x00000008
+
+/* try to find source address in routing lookups */
+#define FIB_RULE_FIND_SADDR	0x00010000
 
 struct fib_rule_hdr
 {
@@ -29,7 +34,7 @@ enum
 	FRA_DST,	/* destination address */
 	FRA_SRC,	/* source address */
 	FRA_IFNAME,	/* interface name */
-	FRA_UNUSED1,
+	FRA_GOTO,	/* target to jump to (FR_ACT_GOTO) */
 	FRA_UNUSED2,
 	FRA_PRIORITY,	/* priority/preference */
 	FRA_UNUSED3,
@@ -51,8 +56,8 @@ enum
 {
 	FR_ACT_UNSPEC,
 	FR_ACT_TO_TBL,		/* Pass to fixed table */
-	FR_ACT_RES1,
-	FR_ACT_RES2,
+	FR_ACT_GOTO,		/* Jump to another rule */
+	FR_ACT_NOP,		/* No operation */
 	FR_ACT_RES3,
 	FR_ACT_RES4,
 	FR_ACT_BLACKHOLE,	/* Drop without notification */

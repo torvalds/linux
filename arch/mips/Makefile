@@ -530,25 +530,29 @@ cflags-$(CONFIG_SGI_IP32)	+= -Iinclude/asm-mips/mach-ip32
 load-$(CONFIG_SGI_IP32)		+= 0xffffffff80004000
 
 #
-# Sibyte SB1250 SOC
+# Sibyte SB1250/BCM1480 SOC
 #
 # This is a LIB so that it links at the end, and initcalls are later
 # the sequence; but it is built as an object so that modules don't get
 # removed (as happens, even if they have __initcall/module_init)
 #
 core-$(CONFIG_SIBYTE_BCM112X)	+= arch/mips/sibyte/sb1250/
+core-$(CONFIG_SIBYTE_BCM112X)	+= arch/mips/sibyte/common/
 cflags-$(CONFIG_SIBYTE_BCM112X)	+= -Iinclude/asm-mips/mach-sibyte \
 			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1250_112x_ALL
 
 core-$(CONFIG_SIBYTE_SB1250)	+= arch/mips/sibyte/sb1250/
+core-$(CONFIG_SIBYTE_SB1250)	+= arch/mips/sibyte/common/
 cflags-$(CONFIG_SIBYTE_SB1250)	+= -Iinclude/asm-mips/mach-sibyte \
 			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1250_112x_ALL
 
 core-$(CONFIG_SIBYTE_BCM1x55)	+= arch/mips/sibyte/bcm1480/
+core-$(CONFIG_SIBYTE_BCM1x55)	+= arch/mips/sibyte/common/
 cflags-$(CONFIG_SIBYTE_BCM1x55)	+= -Iinclude/asm-mips/mach-sibyte \
 			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1480_ALL
 
 core-$(CONFIG_SIBYTE_BCM1x80)	+= arch/mips/sibyte/bcm1480/
+core-$(CONFIG_SIBYTE_BCM1x80)	+= arch/mips/sibyte/common/
 cflags-$(CONFIG_SIBYTE_BCM1x80)	+= -Iinclude/asm-mips/mach-sibyte \
 			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1480_ALL
 

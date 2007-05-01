@@ -439,7 +439,8 @@ static void c2_rx_error(struct c2_port *c2_port, struct c2_element *elem)
 	}
 
 	/* Setup the skb for reuse since we're dropping this pkt */
-	elem->skb->tail = elem->skb->data = elem->skb->head;
+	elem->skb->data = elem->skb->head;
+	skb_reset_tail_pointer(elem->skb);
 
 	/* Zero out the rxp hdr in the sk_buff */
 	memset(elem->skb->data, 0, sizeof(*rxp_hdr));
@@ -521,9 +522,8 @@ static void c2_rx_interrupt(struct net_device *netdev)
 		 * "sizeof(struct c2_rxp_hdr)".
 		 */
 		skb->data += sizeof(*rxp_hdr);
-		skb->tail = skb->data + buflen;
+		skb_set_tail_pointer(skb, buflen);
 		skb->len = buflen;
-		skb->dev = netdev;
 		skb->protocol = eth_type_trans(skb, netdev);
 
 		netif_rx(skb);

@@ -16,24 +16,43 @@
 
 static struct ft_cxt cxt;
 
-static void *ft_finddevice(const char *name)
+static void *fdtm_finddevice(const char *name)
 {
 	return ft_find_device(&cxt, name);
 }
 
-static int ft_getprop(const void *phandle, const char *propname, void *buf,
-		const int buflen)
+static int fdtm_getprop(const void *phandle, const char *propname,
+                        void *buf, const int buflen)
 {
 	return ft_get_prop(&cxt, phandle, propname, buf, buflen);
 }
 
-static int ft_setprop(const void *phandle, const char *propname,
-		const void *buf, const int buflen)
+static int fdtm_setprop(const void *phandle, const char *propname,
+                        const void *buf, const int buflen)
 {
 	return ft_set_prop(&cxt, phandle, propname, buf, buflen);
 }
 
-static unsigned long ft_finalize(void)
+static void *fdtm_get_parent(const void *phandle)
+{
+	return ft_get_parent(&cxt, phandle);
+}
+
+static void *fdtm_create_node(const void *phandle, const char *name)
+{
+	return ft_create_node(&cxt, phandle, name);
+}
+
+static void *fdtm_find_node_by_prop_value(const void *prev,
+                                          const char *propname,
+                                          const char *propval,
+                                          int proplen)
+{
+	return ft_find_node_by_prop_value(&cxt, prev, propname,
+	                                  propval, proplen);
+}
+
+static unsigned long fdtm_finalize(void)
 {
 	ft_end_tree(&cxt);
 	return (unsigned long)cxt.bph;
@@ -41,10 +60,13 @@ static unsigned long ft_finalize(void)
 
 int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device)
 {
-	dt_ops.finddevice = ft_finddevice;
-	dt_ops.getprop = ft_getprop;
-	dt_ops.setprop = ft_setprop;
-	dt_ops.finalize = ft_finalize;
+	dt_ops.finddevice = fdtm_finddevice;
+	dt_ops.getprop = fdtm_getprop;
+	dt_ops.setprop = fdtm_setprop;
+	dt_ops.get_parent = fdtm_get_parent;
+	dt_ops.create_node = fdtm_create_node;
+	dt_ops.find_node_by_prop_value = fdtm_find_node_by_prop_value;
+	dt_ops.finalize = fdtm_finalize;
 
 	return ft_open(&cxt, dt_blob, max_size, max_find_device,
 			platform_ops.realloc);

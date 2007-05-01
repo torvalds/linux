@@ -18,7 +18,9 @@
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
+#include <asm/irq.h>
 #include <asm/atomic.h>
+#include <asm/io.h>
 
 /* Definitions used by the flattened device tree */
 #define OF_DT_HEADER		0xd00dfeed	/* marker */
@@ -58,6 +60,8 @@ struct boot_param_header
 	u32	boot_cpuid_phys;	/* Physical CPU id we're booting on */
 	/* version 3 fields below */
 	u32	dt_strings_size;	/* size of the DT strings block */
+	/* version 17 fields below */
+	u32	dt_struct_size;		/* size of the DT structure block */
 };
 
 
@@ -68,7 +72,7 @@ typedef u32 ihandle;
 struct property {
 	char	*name;
 	int	length;
-	unsigned char *value;
+	void	*value;
 	struct property *next;
 };
 
@@ -107,14 +111,6 @@ static inline void set_node_proc_entry(struct device_node *dn, struct proc_dir_e
 	dn->pde = de;
 }
 
-
-/* OBSOLETE: Old style node lookup */
-extern struct device_node *find_devices(const char *name);
-extern struct device_node *find_type_devices(const char *type);
-extern struct device_node *find_path_device(const char *path);
-extern struct device_node *find_compatible_devices(const char *type,
-						   const char *compat);
-extern struct device_node *find_all_nodes(void);
 
 /* New style node lookup */
 extern struct device_node *of_find_node_by_name(struct device_node *from,
@@ -159,15 +155,17 @@ extern void of_detach_node(const struct device_node *);
 extern void finish_device_tree(void);
 extern void unflatten_device_tree(void);
 extern void early_init_devtree(void *);
-extern int device_is_compatible(const struct device_node *device,
+extern int of_device_is_compatible(const struct device_node *device,
 				const char *);
+#define device_is_compatible(d, c)	of_device_is_compatible((d), (c))
 extern int machine_is_compatible(const char *compat);
-extern const void *get_property(const struct device_node *node,
+extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
+#define get_property(a, b, c)	of_get_property((a), (b), (c))
 extern void print_properties(struct device_node *node);
-extern int prom_n_addr_cells(struct device_node* np);
-extern int prom_n_size_cells(struct device_node* np);
+extern int of_n_addr_cells(struct device_node* np);
+extern int of_n_size_cells(struct device_node* np);
 extern int prom_n_intr_cells(struct device_node* np);
 extern void prom_get_irq_senses(unsigned char *senses, int off, int max);
 extern int prom_add_property(struct device_node* np, struct property* prop);
@@ -348,6 +346,16 @@ static inline int of_irq_to_resource(struct device_node *dev, int index, struct 
 	}
 
 	return irq;
+}
+
+static inline void __iomem *of_iomap(struct device_node *np, int index)
+{
+	struct resource res;
+
+	if (of_address_to_resource(np, index, &res))
+		return NULL;
+
+	return ioremap(res.start, 1 + res.end - res.start);
 }
 
 

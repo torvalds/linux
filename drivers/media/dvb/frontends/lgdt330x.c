@@ -475,7 +475,7 @@ static int lgdt3302_read_status(struct dvb_frontend* fe, fe_status_t* status)
 			*status |= FE_HAS_CARRIER;
 		break;
 	default:
-		printk("KERN_WARNING lgdt330x: %s: Modulation set to unsupported value\n", __FUNCTION__);
+		printk(KERN_WARNING "lgdt330x: %s: Modulation set to unsupported value\n", __FUNCTION__);
 	}
 
 	return 0;
@@ -534,7 +534,7 @@ static int lgdt3303_read_status(struct dvb_frontend* fe, fe_status_t* status)
 		}
 		break;
 	default:
-		printk("KERN_WARNING lgdt330x: %s: Modulation set to unsupported value\n", __FUNCTION__);
+		printk(KERN_WARNING "lgdt330x: %s: Modulation set to unsupported value\n", __FUNCTION__);
 	}
 	return 0;
 }

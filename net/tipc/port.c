@@ -464,7 +464,7 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	msg_set_size(rmsg, data_sz + hdr_sz);
 	msg_set_nametype(rmsg, msg_nametype(msg));
 	msg_set_nameinst(rmsg, msg_nameinst(msg));
-	memcpy(rbuf->data + hdr_sz, msg_data(msg), data_sz);
+	skb_copy_to_linear_data_offset(rbuf, hdr_sz, msg_data(msg), data_sz);
 
 	/* send self-abort message when rejecting on a connected port */
 	if (msg_connected(msg)) {
@@ -1419,7 +1419,7 @@ int tipc_send_buf(u32 ref, struct sk_buff *buf, unsigned int dsz)
 		return -ENOMEM;
 
 	skb_push(buf, hsz);
-	memcpy(buf->data, (unchar *)msg, hsz);
+	skb_copy_to_linear_data(buf, msg, hsz);
 	destnode = msg_destnode(msg);
 	p_ptr->publ.congested = 1;
 	if (!tipc_port_congested(p_ptr)) {
@@ -1555,7 +1555,7 @@ int tipc_forward_buf2name(u32 ref,
 	if (skb_cow(buf, LONG_H_SIZE))
 		return -ENOMEM;
 	skb_push(buf, LONG_H_SIZE);
-	memcpy(buf->data, (unchar *)msg, LONG_H_SIZE);
+	skb_copy_to_linear_data(buf, msg, LONG_H_SIZE);
 	msg_dbg(buf_msg(buf),"PREP:");
 	if (likely(destport || destnode)) {
 		p_ptr->sent++;
@@ -1679,7 +1679,7 @@ int tipc_forward_buf2port(u32 ref,
 		return -ENOMEM;
 
 	skb_push(buf, DIR_MSG_H_SIZE);
-	memcpy(buf->data, (unchar *)msg, DIR_MSG_H_SIZE);
+	skb_copy_to_linear_data(buf, msg, DIR_MSG_H_SIZE);
 	msg_dbg(msg, "buf2port: ");
 	p_ptr->sent++;
 	if (dest->node == tipc_own_addr)

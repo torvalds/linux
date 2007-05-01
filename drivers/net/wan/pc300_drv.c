@@ -1755,17 +1755,17 @@ cpc_trace(struct net_device *dev, struct sk_buff *skb_main, char rx_tx)
 
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_CUST);
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb->pkt_type = PACKET_HOST;
 	skb->len = 10 + skb_main->len;
 
-	memcpy(skb->data, dev->name, 5);
+	skb_copy_to_linear_data(skb, dev->name, 5);
 	skb->data[5] = '[';
 	skb->data[6] = rx_tx;
 	skb->data[7] = ']';
 	skb->data[8] = ':';
 	skb->data[9] = ' ';
-	memcpy(&skb->data[10], skb_main->data, skb_main->len);
+	skb_copy_from_linear_data(skb_main, &skb->data[10], skb_main->len);
 
 	netif_rx(skb);
 }

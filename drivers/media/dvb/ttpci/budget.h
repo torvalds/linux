@@ -99,6 +99,9 @@ static struct saa7146_pci_extension_data x_var = { \
 #define BUDGET_KNC1CP		   12
 #define BUDGET_KNC1TP		   13
 #define BUDGET_TVSTAR		   14
+#define BUDGET_CIN1200C_MK3	   15
+#define BUDGET_KNC1C_MK3	   16
+#define BUDGET_KNC1CP_MK3	   17
 
 #define BUDGET_VIDEO_PORTA         0
 #define BUDGET_VIDEO_PORTB         1

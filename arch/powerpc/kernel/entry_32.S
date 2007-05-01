@@ -191,7 +191,6 @@ stack_ovf:
 0:
 
 _GLOBAL(DoSyscall)
-	stw	r0,THREAD+LAST_SYSCALL(r2)
 	stw	r3,ORIG_GPR3(r1)
 	li	r12,0
 	stw	r12,RESULT(r1)

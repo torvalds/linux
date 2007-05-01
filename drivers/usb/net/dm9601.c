@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/stddef.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -85,7 +86,7 @@ static int dm_write_reg(struct usbnet *dev, u8 reg, u8 value)
 			       usb_sndctrlpipe(dev->udev, 0),
 			       DM_WRITE_REG,
 			       USB_DIR_OUT | USB_TYPE_VENDOR |USB_RECIP_DEVICE,
-			       value, reg, 0, 0, USB_CTRL_SET_TIMEOUT);
+			       value, reg, NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
 
 static void dm_write_async_callback(struct urb *urb)
@@ -171,7 +172,7 @@ static void dm_write_reg_async(struct usbnet *dev, u8 reg, u8 value)
 
 	usb_fill_control_urb(urb, dev->udev,
 			     usb_sndctrlpipe(dev->udev, 0),
-			     (void *)req, 0, 0, dm_write_async_callback, req);
+			     (void *)req, NULL, 0, dm_write_async_callback, req);
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status < 0) {

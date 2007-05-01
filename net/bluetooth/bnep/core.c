@@ -326,7 +326,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 		return 0;
 	}
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 
 	/* Verify and pull out header */
 	if (!skb_pull(skb, __bnep_rx_hlen[type & BNEP_TYPE_MASK]))
@@ -364,26 +364,28 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 
 	case BNEP_COMPRESSED_SRC_ONLY:
 		memcpy(__skb_put(nskb, ETH_ALEN), s->eh.h_dest, ETH_ALEN);
-		memcpy(__skb_put(nskb, ETH_ALEN), skb->mac.raw, ETH_ALEN);
+		memcpy(__skb_put(nskb, ETH_ALEN), skb_mac_header(skb), ETH_ALEN);
 		put_unaligned(s->eh.h_proto, (__be16 *) __skb_put(nskb, 2));
 		break;
 
 	case BNEP_COMPRESSED_DST_ONLY:
-		memcpy(__skb_put(nskb, ETH_ALEN), skb->mac.raw, ETH_ALEN);
-		memcpy(__skb_put(nskb, ETH_ALEN + 2), s->eh.h_source, ETH_ALEN + 2);
+		memcpy(__skb_put(nskb, ETH_ALEN), skb_mac_header(skb),
+		       ETH_ALEN);
+		memcpy(__skb_put(nskb, ETH_ALEN + 2), s->eh.h_source,
+		       ETH_ALEN + 2);
 		break;
 
 	case BNEP_GENERAL:
-		memcpy(__skb_put(nskb, ETH_ALEN * 2), skb->mac.raw, ETH_ALEN * 2);
+		memcpy(__skb_put(nskb, ETH_ALEN * 2), skb_mac_header(skb),
+		       ETH_ALEN * 2);
 		put_unaligned(s->eh.h_proto, (__be16 *) __skb_put(nskb, 2));
 		break;
 	}
 
-	memcpy(__skb_put(nskb, skb->len), skb->data, skb->len);
+	skb_copy_from_linear_data(skb, __skb_put(nskb, skb->len), skb->len);
 	kfree_skb(skb);
 
 	s->stats.rx_packets++;
-	nskb->dev       = dev;
 	nskb->ip_summed = CHECKSUM_NONE;
 	nskb->protocol  = eth_type_trans(nskb, dev);
 	netif_rx_ni(nskb);

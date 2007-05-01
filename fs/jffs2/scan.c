@@ -1,15 +1,14 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001-2003 Red Hat, Inc.
+ * Copyright © 2001-2007 Red Hat, Inc.
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: scan.c,v 1.125 2005/09/30 13:59:13 dedekind Exp $
- *
  */
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -636,16 +635,17 @@ scan_more:
 
 		if (*(uint32_t *)(&buf[ofs-buf_ofs]) == 0xffffffff) {
 			uint32_t inbuf_ofs;
-			uint32_t empty_start;
+			uint32_t empty_start, scan_end;
 
 			empty_start = ofs;
 			ofs += 4;
+			scan_end = min_t(uint32_t, EMPTY_SCAN_SIZE(c->sector_size)/8, buf_len);
 
 			D1(printk(KERN_DEBUG "Found empty flash at 0x%08x\n", ofs));
 		more_empty:
 			inbuf_ofs = ofs - buf_ofs;
-			while (inbuf_ofs < buf_len) {
-				if (*(uint32_t *)(&buf[inbuf_ofs]) != 0xffffffff) {
+			while (inbuf_ofs < scan_end) {
+				if (unlikely(*(uint32_t *)(&buf[inbuf_ofs]) != 0xffffffff)) {
 					printk(KERN_WARNING "Empty flash at 0x%08x ends at 0x%08x\n",
 					       empty_start, ofs);
 					if ((err = jffs2_scan_dirty_space(c, jeb, ofs-empty_start)))
@@ -666,7 +666,11 @@ scan_more:
 				D1(printk(KERN_DEBUG "%d bytes at start of block seems clean... assuming all clean\n", EMPTY_SCAN_SIZE(c->sector_size)));
 				return BLK_STATE_CLEANMARKER;
 			}
-
+			if (!buf_size && (scan_end != buf_len)) {/* XIP/point case */
+				scan_end = buf_len;
+				goto more_empty;
+			}
+			
 			/* See how much more there is to read in this eraseblock... */
 			buf_len = min_t(uint32_t, buf_size, jeb->offset + c->sector_size - ofs);
 			if (!buf_len) {
@@ -676,6 +680,8 @@ scan_more:
 					  empty_start));
 				break;
 			}
+			/* point never reaches here */
+			scan_end = buf_len;
 			D1(printk(KERN_DEBUG "Reading another 0x%x at 0x%08x\n", buf_len, ofs));
 			err = jffs2_fill_scan_buf(c, buf, ofs, buf_len);
 			if (err)
@@ -734,18 +740,8 @@ scan_more:
 			ofs += 4;
 			continue;
 		}
-		/* Due to poor choice of crc32 seed, an all-zero node will have a correct CRC */
-		if (!je32_to_cpu(node->hdr_crc) && !je16_to_cpu(node->nodetype) &&
-		    !je16_to_cpu(node->magic) && !je32_to_cpu(node->totlen)) {
-			noisy_printk(&noise, "jffs2_scan_eraseblock(): All zero node header at 0x%08x.\n", ofs);
-			if ((err = jffs2_scan_dirty_space(c, jeb, 4)))
-				return err;
-			ofs += 4;
-			continue;
-		}
 
-		if (ofs + je32_to_cpu(node->totlen) >
-		    jeb->offset + c->sector_size) {
+		if (ofs + je32_to_cpu(node->totlen) > jeb->offset + c->sector_size) {
 			/* Eep. Node goes over the end of the erase block. */
 			printk(KERN_WARNING "Node at 0x%08x with length 0x%08x would run over the end of the erase block\n",
 			       ofs, je32_to_cpu(node->totlen));
@@ -952,8 +948,7 @@ static int jffs2_scan_inode_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 				 struct jffs2_raw_inode *ri, uint32_t ofs, struct jffs2_summary *s)
 {
 	struct jffs2_inode_cache *ic;
-	uint32_t ino = je32_to_cpu(ri->ino);
-	int err;
+	uint32_t crc, ino = je32_to_cpu(ri->ino);
 
 	D1(printk(KERN_DEBUG "jffs2_scan_inode_node(): Node at 0x%08x\n", ofs));
 
@@ -966,21 +961,22 @@ static int jffs2_scan_inode_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	   Which means that the _full_ amount of time to get to proper write mode with GC
 	   operational may actually be _longer_ than before. Sucks to be me. */
 
+	/* Check the node CRC in any case. */
+	crc = crc32(0, ri, sizeof(*ri)-8);
+	if (crc != je32_to_cpu(ri->node_crc)) {
+		printk(KERN_NOTICE "jffs2_scan_inode_node(): CRC failed on "
+		       "node at 0x%08x: Read 0x%08x, calculated 0x%08x\n",
+		       ofs, je32_to_cpu(ri->node_crc), crc);
+		/*
+		 * We believe totlen because the CRC on the node
+		 * _header_ was OK, just the node itself failed.
+		 */
+		return jffs2_scan_dirty_space(c, jeb,
+					      PAD(je32_to_cpu(ri->totlen)));
+	}
+
 	ic = jffs2_get_ino_cache(c, ino);
 	if (!ic) {
-		/* Inocache get failed. Either we read a bogus ino# or it's just genuinely the
-		   first node we found for this inode. Do a CRC check to protect against the former
-		   case */
-		uint32_t crc = crc32(0, ri, sizeof(*ri)-8);
-
-		if (crc != je32_to_cpu(ri->node_crc)) {
-			printk(KERN_NOTICE "jffs2_scan_inode_node(): CRC failed on node at 0x%08x: Read 0x%08x, calculated 0x%08x\n",
-			       ofs, je32_to_cpu(ri->node_crc), crc);
-			/* We believe totlen because the CRC on the node _header_ was OK, just the node itself failed. */
-			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(ri->totlen)))))
-				return err;
-			return 0;
-		}
 		ic = jffs2_scan_make_ino_cache(c, ino);
 		if (!ic)
 			return -ENOMEM;

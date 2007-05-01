@@ -104,6 +104,20 @@ struct iphdr {
 	/*The options start here. */
 };
 
+#ifdef __KERNEL__
+#include <linux/skbuff.h>
+
+static inline struct iphdr *ip_hdr(const struct sk_buff *skb)
+{
+	return (struct iphdr *)skb_network_header(skb);
+}
+
+static inline struct iphdr *ipip_hdr(const struct sk_buff *skb)
+{
+	return (struct iphdr *)skb_transport_header(skb);
+}
+#endif
+
 struct ip_auth_hdr {
 	__u8  nexthdr;
 	__u8  hdrlen;		/* This one is measured in 32 bit units! */

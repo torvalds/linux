@@ -370,11 +370,11 @@ static void br_make_blocking(struct net_bridge_port *p)
 static void br_make_forwarding(struct net_bridge_port *p)
 {
 	if (p->state == BR_STATE_BLOCKING) {
-		if (p->br->stp_enabled) {
+		if (p->br->stp_enabled == BR_KERNEL_STP)
 			p->state = BR_STATE_LISTENING;
-		} else {
+		else
 			p->state = BR_STATE_LEARNING;
-		}
+
 		br_log_state(p);
 		mod_timer(&p->forward_delay_timer, jiffies + p->br->forward_delay);	}
 }
@@ -383,6 +383,10 @@ static void br_make_forwarding(struct net_bridge_port *p)
 void br_port_state_selection(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
+
+	/* Don't change port states if userspace is handling STP */
+	if (br->stp_enabled == BR_USER_STP)
+		return;
 
 	list_for_each_entry(p, &br->port_list, list) {
 		if (p->state != BR_STATE_DISABLED) {

@@ -202,6 +202,7 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 	wq->tail = tail;
 
 	ret = 1;
+	qp->r_wrid_valid = 1;
 	if (handler) {
 		u32 n;
 
@@ -229,7 +230,6 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 		}
 	}
 	spin_unlock_irqrestore(&rq->lock, flags);
-	qp->r_wrid_valid = 1;
 
 bail:
 	return ret;
@@ -255,6 +255,7 @@ static void ipath_ruc_loopback(struct ipath_qp *sqp)
 	unsigned long flags;
 	struct ib_wc wc;
 	u64 sdata;
+	atomic64_t *maddr;
 
 	qp = ipath_lookup_qpn(&dev->qp_table, sqp->remote_qpn);
 	if (!qp) {
@@ -265,7 +266,8 @@ static void ipath_ruc_loopback(struct ipath_qp *sqp)
 again:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 
-	if (!(ib_ipath_state_ops[sqp->state] & IPATH_PROCESS_SEND_OK)) {
+	if (!(ib_ipath_state_ops[sqp->state] & IPATH_PROCESS_SEND_OK) ||
+	    qp->s_rnr_timeout) {
 		spin_unlock_irqrestore(&sqp->s_lock, flags);
 		goto done;
 	}
@@ -310,7 +312,7 @@ again:
 				sqp->s_rnr_retry--;
 			dev->n_rnr_naks++;
 			sqp->s_rnr_timeout =
-				ib_ipath_rnr_table[sqp->r_min_rnr_timer];
+				ib_ipath_rnr_table[qp->r_min_rnr_timer];
 			ipath_insert_rnr_queue(sqp);
 			goto done;
 		}
@@ -343,19 +345,21 @@ again:
 			wc.sl = sqp->remote_ah_attr.sl;
 			wc.dlid_path_bits = 0;
 			wc.port_num = 0;
+			spin_lock_irqsave(&sqp->s_lock, flags);
 			ipath_sqerror_qp(sqp, &wc);
+			spin_unlock_irqrestore(&sqp->s_lock, flags);
 			goto done;
 		}
 		break;
 
 	case IB_WR_RDMA_READ:
+		if (unlikely(!(qp->qp_access_flags &
+			       IB_ACCESS_REMOTE_READ)))
+			goto acc_err;
 		if (unlikely(!ipath_rkey_ok(qp, &sqp->s_sge, wqe->length,
 					    wqe->wr.wr.rdma.remote_addr,
 					    wqe->wr.wr.rdma.rkey,
 					    IB_ACCESS_REMOTE_READ)))
-			goto acc_err;
-		if (unlikely(!(qp->qp_access_flags &
-			       IB_ACCESS_REMOTE_READ)))
 			goto acc_err;
 		qp->r_sge.sge = wqe->sg_list[0];
 		qp->r_sge.sg_list = wqe->sg_list + 1;
@@ -364,22 +368,22 @@ again:
 
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
+		if (unlikely(!(qp->qp_access_flags &
+			       IB_ACCESS_REMOTE_ATOMIC)))
+			goto acc_err;
 		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge, sizeof(u64),
-					    wqe->wr.wr.rdma.remote_addr,
-					    wqe->wr.wr.rdma.rkey,
+					    wqe->wr.wr.atomic.remote_addr,
+					    wqe->wr.wr.atomic.rkey,
 					    IB_ACCESS_REMOTE_ATOMIC)))
 			goto acc_err;
 		/* Perform atomic OP and save result. */
-		sdata = wqe->wr.wr.atomic.swap;
-		spin_lock_irqsave(&dev->pending_lock, flags);
-		qp->r_atomic_data = *(u64 *) qp->r_sge.sge.vaddr;
-		if (wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
-			*(u64 *) qp->r_sge.sge.vaddr =
-				qp->r_atomic_data + sdata;
-		else if (qp->r_atomic_data == wqe->wr.wr.atomic.compare_add)
-			*(u64 *) qp->r_sge.sge.vaddr = sdata;
-		spin_unlock_irqrestore(&dev->pending_lock, flags);
-		*(u64 *) sqp->s_sge.sge.vaddr = qp->r_atomic_data;
+		maddr = (atomic64_t *) qp->r_sge.sge.vaddr;
+		sdata = wqe->wr.wr.atomic.compare_add;
+		*(u64 *) sqp->s_sge.sge.vaddr =
+			(wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD) ?
+			(u64) atomic64_add_return(sdata, maddr) - sdata :
+			(u64) cmpxchg((u64 *) qp->r_sge.sge.vaddr,
+				      sdata, wqe->wr.wr.atomic.swap);
 		goto send_comp;
 
 	default:
@@ -440,7 +444,7 @@ again:
 send_comp:
 	sqp->s_rnr_retry = sqp->s_rnr_retry_cnt;
 
-	if (!test_bit(IPATH_S_SIGNAL_REQ_WR, &sqp->s_flags) ||
+	if (!(sqp->s_flags & IPATH_S_SIGNAL_REQ_WR) ||
 	    (wqe->wr.send_flags & IB_SEND_SIGNALED)) {
 		wc.wr_id = wqe->wr.wr_id;
 		wc.status = IB_WC_SUCCESS;
@@ -502,7 +506,7 @@ void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 	 * We clear the tasklet flag now since we are committing to return
 	 * from the tasklet function.
 	 */
-	clear_bit(IPATH_S_BUSY, &qp->s_flags);
+	clear_bit(IPATH_S_BUSY, &qp->s_busy);
 	tasklet_unlock(&qp->s_task);
 	want_buffer(dev->dd);
 	dev->n_piowait++;
@@ -539,6 +543,9 @@ int ipath_post_ruc_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 		   (wr->num_sge == 0 ||
 		    wr->sg_list[0].length < sizeof(u64) ||
 		    wr->sg_list[0].addr & (sizeof(u64) - 1))) {
+		ret = -EINVAL;
+		goto bail;
+	} else if (wr->opcode >= IB_WR_RDMA_READ && !qp->s_max_rd_atomic) {
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -647,7 +654,7 @@ void ipath_do_ruc_send(unsigned long data)
 	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
 	struct ipath_other_headers *ohdr;
 
-	if (test_and_set_bit(IPATH_S_BUSY, &qp->s_flags))
+	if (test_and_set_bit(IPATH_S_BUSY, &qp->s_busy))
 		goto bail;
 
 	if (unlikely(qp->remote_ah_attr.dlid == dev->dd->ipath_lid)) {
@@ -683,19 +690,15 @@ again:
 	 */
 	spin_lock_irqsave(&qp->s_lock, flags);
 
-	/* Sending responses has higher priority over sending requests. */
-	if (qp->s_ack_state != IB_OPCODE_RC_ACKNOWLEDGE &&
-	    (bth0 = ipath_make_rc_ack(qp, ohdr, pmtu)) != 0)
-		bth2 = qp->s_ack_psn++ & IPATH_PSN_MASK;
-	else if (!((qp->ibqp.qp_type == IB_QPT_RC) ?
-		   ipath_make_rc_req(qp, ohdr, pmtu, &bth0, &bth2) :
-		   ipath_make_uc_req(qp, ohdr, pmtu, &bth0, &bth2))) {
+	if (!((qp->ibqp.qp_type == IB_QPT_RC) ?
+	       ipath_make_rc_req(qp, ohdr, pmtu, &bth0, &bth2) :
+	       ipath_make_uc_req(qp, ohdr, pmtu, &bth0, &bth2))) {
 		/*
 		 * Clear the busy bit before unlocking to avoid races with
 		 * adding new work queue items and then failing to process
 		 * them.
 		 */
-		clear_bit(IPATH_S_BUSY, &qp->s_flags);
+		clear_bit(IPATH_S_BUSY, &qp->s_busy);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 		goto bail;
 	}
@@ -728,7 +731,7 @@ again:
 	goto again;
 
 clear:
-	clear_bit(IPATH_S_BUSY, &qp->s_flags);
+	clear_bit(IPATH_S_BUSY, &qp->s_busy);
 bail:
 	return;
 }

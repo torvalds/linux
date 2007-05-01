@@ -254,25 +254,25 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	}
 
 	/* Now do the horrible hacks */
-	tmp = get_property(pic->of_node, "#interrupt-cells", NULL);
+	tmp = of_get_property(pic->of_node, "#interrupt-cells", NULL);
 	if (tmp == NULL)
 		return NO_IRQ;
 	intsize = *tmp;
-	imap = get_property(pic->of_node, "interrupt-map", &imaplen);
+	imap = of_get_property(pic->of_node, "interrupt-map", &imaplen);
 	if (imap == NULL || imaplen < (intsize + 1))
 		return NO_IRQ;
 	iic = of_find_node_by_phandle(imap[intsize]);
 	if (iic == NULL)
 		return NO_IRQ;
 	imap += intsize + 1;
-	tmp = get_property(iic, "#interrupt-cells", NULL);
+	tmp = of_get_property(iic, "#interrupt-cells", NULL);
 	if (tmp == NULL)
 		return NO_IRQ;
 	intsize = *tmp;
 	/* Assume unit is last entry of interrupt specifier */
 	unit = imap[intsize - 1];
 	/* Ok, we have a unit, now let's try to get the node */
-	tmp = get_property(iic, "ibm,interrupt-server-ranges", NULL);
+	tmp = of_get_property(iic, "ibm,interrupt-server-ranges", NULL);
 	if (tmp == NULL) {
 		of_node_put(iic);
 		return NO_IRQ;

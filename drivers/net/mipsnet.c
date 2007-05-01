@@ -26,8 +26,6 @@ struct mipsnet_priv {
 	struct net_device_stats stats;
 };
 
-static struct platform_device *mips_plat_dev;
-
 static char mipsnet_string[] = "mipsnet";
 
 /*
@@ -101,7 +99,6 @@ static inline ssize_t mipsnet_get_fromdev(struct net_device *dev, size_t count)
 	if (ioiocpy_frommipsnet(dev, skb_put(skb, len), len))
 		return -EFAULT;
 
-	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -298,64 +295,17 @@ static struct device_driver mipsnet_driver = {
 	.remove	= __devexit_p(mipsnet_device_remove),
 };
 
-static void mipsnet_platform_release(struct device *device)
-{
-	struct platform_device *pldev;
-
-	/* free device */
-	pldev = to_platform_device(device);
-	kfree(pldev);
-}
-
 static int __init mipsnet_init_module(void)
 {
-	struct platform_device *pldev;
 	int err;
 
 	printk(KERN_INFO "MIPSNet Ethernet driver. Version: %s. "
 	       "(c)2005 MIPS Technologies, Inc.\n", MIPSNET_VERSION);
 
-	if (driver_register(&mipsnet_driver)) {
+	err = driver_register(&mipsnet_driver);
+	if (err)
 		printk(KERN_ERR "Driver registration failed\n");
-		err = -ENODEV;
-		goto out;
-	}
 
-        if (!(pldev = kmalloc (sizeof (*pldev), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto out_unregister_driver;
-	}
-
-	memset (pldev, 0, sizeof (*pldev));
-	pldev->name		= mipsnet_string;
-	pldev->id		= 0;
-	pldev->dev.release	= mipsnet_platform_release;
-
-	if (platform_device_register(pldev)) {
-		err = -ENODEV;
-		goto out_free_pldev;
-	}
-
-        if (!pldev->dev.driver) {
-		/*
-		 * The driver was not bound to this device, there was
-                 * no hardware at this address. Unregister it, as the
-		 * release fuction will take care of freeing the
-		 * allocated structure
-		 */
-		platform_device_unregister (pldev);
-	}
-
-	mips_plat_dev		= pldev;
-
-	return 0;
-
-out_free_pldev:
-	kfree(pldev);
-
-out_unregister_driver:
-	driver_unregister(&mipsnet_driver);
-out:
 	return err;
 }
 

@@ -81,7 +81,7 @@ static struct led_classdev pmu_led = {
 };
 
 #ifdef CONFIG_PM
-static int pmu_led_sleep_call(struct pmu_sleep_notifier *self, int when)
+static void pmu_led_sleep_call(struct pmu_sleep_notifier *self, int when)
 {
 	unsigned long flags;
 
@@ -99,8 +99,6 @@ static int pmu_led_sleep_call(struct pmu_sleep_notifier *self, int when)
 		break;
 	}
 	spin_unlock_irqrestore(&pmu_blink_lock, flags);
-
-	return PBOOK_SLEEP_OK;
 }
 
 static struct pmu_sleep_notifier via_pmu_led_sleep_notif = {
@@ -120,11 +118,13 @@ static int __init via_pmu_led_init(void)
 	dt = of_find_node_by_path("/");
 	if (dt == NULL)
 		return -ENODEV;
-	model = get_property(dt, "model", NULL);
+	model = of_get_property(dt, "model", NULL);
 	if (model == NULL)
 		return -ENODEV;
 	if (strncmp(model, "PowerBook", strlen("PowerBook")) != 0 &&
-	    strncmp(model, "iBook", strlen("iBook")) != 0) {
+	    strncmp(model, "iBook", strlen("iBook")) != 0 &&
+	    strcmp(model, "PowerMac7,2") != 0 &&
+	    strcmp(model, "PowerMac7,3") != 0) {
 		of_node_put(dt);
 		/* ignore */
 		return -ENODEV;

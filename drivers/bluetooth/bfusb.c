@@ -527,7 +527,7 @@ static int bfusb_send_frame(struct sk_buff *skb)
 		buf[2] = (size == BFUSB_MAX_BLOCK_SIZE) ? 0 : size;
 
 		memcpy(skb_put(nskb, 3), buf, 3);
-		memcpy(skb_put(nskb, size), skb->data + sent, size);
+		skb_copy_from_linear_data_offset(skb, sent, skb_put(nskb, size), size);
 
 		sent  += size;
 		count -= size;

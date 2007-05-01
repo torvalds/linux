@@ -939,7 +939,6 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 		else	/* Ethernet header; mace includes FCS */
 		    nb -= 8;
 		skb_put(skb, nb);
-		skb->dev = dev;
 		skb->protocol = eth_type_trans(skb, dev);
 		mp->stats.rx_bytes += skb->len;
 		netif_rx(skb);

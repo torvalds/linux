@@ -103,11 +103,9 @@ static void mos7720_interrupt_callback(struct urb *urb)
 {
 	int result;
 	int length;
-	__u32 *data;
-	unsigned int status;
+	__u8 *data;
 	__u8 sp1;
 	__u8 sp2;
-	__u8 st;
 
 	dbg("%s"," : Entering\n");
 
@@ -141,18 +139,19 @@ static void mos7720_interrupt_callback(struct urb *urb)
 	 * Byte 2 IIR Port 2 (port.number is 1)
 	 * Byte 3 --------------
 	 * Byte 4 FIFO status for both */
-	if (length && length > 4) {
+
+	/* the above description is inverted
+	 * 	oneukum 2007-03-14 */
+
+	if (unlikely(length != 4)) {
 		dbg("Wrong data !!!");
 		return;
 	}
 
-	status = *data;
+	sp1 = data[3];
+	sp2 = data[2];
 
-	sp1 = (status & 0xff000000)>>24;
-	sp2 = (status & 0x00ff0000)>>16;
-	st = status & 0x000000ff;
-
-	if ((sp1 & 0x01) || (sp2 & 0x01)) {
+	if ((sp1 | sp2) & 0x01) {
 		/* No Interrupt Pending in both the ports */
 		dbg("No Interrupt !!!");
 	} else {
@@ -333,6 +332,7 @@ static int mos7720_open(struct usb_serial_port *port, struct file * filp)
 	int response;
 	int port_number;
 	char data;
+	int allocated_urbs = 0;
 	int j;
 
 	serial = port->serial;
@@ -353,7 +353,7 @@ static int mos7720_open(struct usb_serial_port *port, struct file * filp)
 
 	/* Initialising the write urb pool */
 	for (j = 0; j < NUM_URBS; ++j) {
-		urb = usb_alloc_urb(0,GFP_ATOMIC);
+		urb = usb_alloc_urb(0,GFP_KERNEL);
 		mos7720_port->write_urb_pool[j] = urb;
 
 		if (urb == NULL) {
@@ -365,9 +365,15 @@ static int mos7720_open(struct usb_serial_port *port, struct file * filp)
 					       GFP_KERNEL);
 		if (!urb->transfer_buffer) {
 			err("%s-out of memory for urb buffers.", __FUNCTION__);
+			usb_free_urb(mos7720_port->write_urb_pool[j]);
+			mos7720_port->write_urb_pool[j] = NULL;
 			continue;
 		}
+		allocated_urbs++;
 	}
+
+	if (!allocated_urbs)
+		return -ENOMEM;
 
 	 /* Initialize MCS7720 -- Write Init values to corresponding Registers
 	  *
@@ -526,7 +532,7 @@ static int mos7720_chars_in_buffer(struct usb_serial_port *port)
 	}
 
 	for (i = 0; i < NUM_URBS; ++i) {
-		if (mos7720_port->write_urb_pool[i]->status == -EINPROGRESS)
+		if (mos7720_port->write_urb_pool[i] && mos7720_port->write_urb_pool[i]->status == -EINPROGRESS)
 			chars += URB_TRANSFER_BUFFER_SIZE;
 	}
 	dbg("%s - returns %d", __FUNCTION__, chars);
@@ -629,7 +635,7 @@ static int mos7720_write_room(struct usb_serial_port *port)
 	}
 
 	for (i = 0; i < NUM_URBS; ++i) {
-		if (mos7720_port->write_urb_pool[i]->status != -EINPROGRESS)
+		if (mos7720_port->write_urb_pool[i] && mos7720_port->write_urb_pool[i]->status != -EINPROGRESS)
 			room += URB_TRANSFER_BUFFER_SIZE;
 	}
 
@@ -664,7 +670,7 @@ static int mos7720_write(struct usb_serial_port *port,
 	urb = NULL;
 
 	for (i = 0; i < NUM_URBS; ++i) {
-		if (mos7720_port->write_urb_pool[i]->status != -EINPROGRESS) {
+		if (mos7720_port->write_urb_pool[i] && mos7720_port->write_urb_pool[i]->status != -EINPROGRESS) {
 			urb = mos7720_port->write_urb_pool[i];
 			dbg("URB:%d",i);
 			break;

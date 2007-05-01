@@ -469,49 +469,49 @@ int irlap_insert_qos_negotiation_params(struct irlap_cb *self,
 	int ret;
 
 	/* Insert data rate */
-	ret = irda_param_insert(self, PI_BAUD_RATE, skb->tail,
+	ret = irda_param_insert(self, PI_BAUD_RATE, skb_tail_pointer(skb),
 				skb_tailroom(skb), &irlap_param_info);
 	if (ret < 0)
 		return ret;
 	skb_put(skb, ret);
 
 	/* Insert max turnaround time */
-	ret = irda_param_insert(self, PI_MAX_TURN_TIME, skb->tail,
+	ret = irda_param_insert(self, PI_MAX_TURN_TIME, skb_tail_pointer(skb),
 				skb_tailroom(skb), &irlap_param_info);
 	if (ret < 0)
 		return ret;
 	skb_put(skb, ret);
 
 	/* Insert data size */
-	ret = irda_param_insert(self, PI_DATA_SIZE, skb->tail,
+	ret = irda_param_insert(self, PI_DATA_SIZE, skb_tail_pointer(skb),
 				skb_tailroom(skb), &irlap_param_info);
 	if (ret < 0)
 		return ret;
 	skb_put(skb, ret);
 
 	/* Insert window size */
-	ret = irda_param_insert(self, PI_WINDOW_SIZE, skb->tail,
+	ret = irda_param_insert(self, PI_WINDOW_SIZE, skb_tail_pointer(skb),
 				skb_tailroom(skb), &irlap_param_info);
 	if (ret < 0)
 		return ret;
 	skb_put(skb, ret);
 
 	/* Insert additional BOFs */
-	ret = irda_param_insert(self, PI_ADD_BOFS, skb->tail,
+	ret = irda_param_insert(self, PI_ADD_BOFS, skb_tail_pointer(skb),
 				skb_tailroom(skb), &irlap_param_info);
 	if (ret < 0)
 		return ret;
 	skb_put(skb, ret);
 
 	/* Insert minimum turnaround time */
-	ret = irda_param_insert(self, PI_MIN_TURN_TIME, skb->tail,
+	ret = irda_param_insert(self, PI_MIN_TURN_TIME, skb_tail_pointer(skb),
 				skb_tailroom(skb), &irlap_param_info);
 	if (ret < 0)
 		return ret;
 	skb_put(skb, ret);
 
 	/* Insert link disconnect/threshold time */
-	ret = irda_param_insert(self, PI_LINK_DISC, skb->tail,
+	ret = irda_param_insert(self, PI_LINK_DISC, skb_tail_pointer(skb),
 				skb_tailroom(skb), &irlap_param_info);
 	if (ret < 0)
 		return ret;

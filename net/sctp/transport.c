@@ -507,7 +507,7 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 			transport->cwnd = max(transport->cwnd/2,
 						 4*transport->asoc->pathmtu);
 		break;
-	};
+	}
 
 	transport->partial_bytes_acked = 0;
 	SCTP_DEBUG_PRINTK("%s: transport: %p reason: %d cwnd: "

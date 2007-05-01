@@ -393,7 +393,7 @@ static void sco_sock_close(struct sock *sk)
 	default:
 		sock_set_flag(sk, SOCK_ZAPPED);
 		break;
-	};
+	}
 
 	release_sock(sk);
 

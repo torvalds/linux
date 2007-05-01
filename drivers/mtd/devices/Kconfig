@@ -6,7 +6,7 @@ menu "Self-contained MTD device drivers"
 
 config MTD_PMC551
 	tristate "Ramix PMC551 PCI Mezzanine RAM card support"
-	depends on MTD && PCI
+	depends on PCI
 	---help---
 	  This provides a MTD device driver for the Ramix PMC551 RAM PCI card
 	  from Ramix Inc. <http://www.ramix.com/products/memory/pmc551.html>.
@@ -40,7 +40,7 @@ config MTD_PMC551_DEBUG
 
 config MTD_MS02NV
 	tristate "DEC MS02-NV NVRAM module support"
-	depends on MTD && MACH_DECSTATION
+	depends on MACH_DECSTATION
 	help
 	  This is an MTD driver for the DEC's MS02-NV (54-20948-01) battery
 	  backed-up NVRAM module.  The module was originally meant as an NFS
@@ -54,15 +54,23 @@ config MTD_MS02NV
 
 config MTD_DATAFLASH
 	tristate "Support for AT45xxx DataFlash"
-	depends on MTD && SPI_MASTER && EXPERIMENTAL
+	depends on SPI_MASTER && EXPERIMENTAL
 	help
 	  This enables access to AT45xxx DataFlash chips, using SPI.
 	  Sometimes DataFlash chips are packaged inside MMC-format
 	  cards; at this writing, the MMC stack won't handle those.
 
+config MTD_DATAFLASH26
+	tristate "AT91RM9200 DataFlash AT26xxx"
+	depends on MTD && ARCH_AT91RM9200 && AT91_SPI
+	help
+	  This enables access to the DataFlash chip (AT26xxx) on an
+	  AT91RM9200-based board.
+	  If you have such a board and such a DataFlash, say 'Y'.
+
 config MTD_M25P80
 	tristate "Support for M25 SPI Flash"
-	depends on MTD && SPI_MASTER && EXPERIMENTAL
+	depends on SPI_MASTER && EXPERIMENTAL
 	help
 	  This enables access to ST M25P80 and similar SPI flash chips,
 	  used for program and data storage.  Set up your spi devices
@@ -70,7 +78,6 @@ config MTD_M25P80
 
 config MTD_SLRAM
 	tristate "Uncached system RAM"
-	depends on MTD
 	help
 	  If your CPU cannot cache all of the physical memory in your machine,
 	  you can still use it for storage or swap by using this driver to
@@ -78,7 +85,6 @@ config MTD_SLRAM
 
 config MTD_PHRAM
 	tristate "Physical system RAM"
-	depends on MTD
 	help
 	  This is a re-implementation of the slram driver above.
 
@@ -88,7 +94,7 @@ config MTD_PHRAM
 
 config MTD_LART
 	tristate "28F160xx flash driver for LART"
-	depends on SA1100_LART && MTD
+	depends on SA1100_LART
 	help
 	  This enables the flash driver for LART. Please note that you do
 	  not need any mapping/chip driver for LART. This one does it all
@@ -96,7 +102,6 @@ config MTD_LART
 
 config MTD_MTDRAM
 	tristate "Test driver using RAM"
-	depends on MTD
 	help
 	  This enables a test MTD device driver which uses vmalloc() to
 	  provide storage.  You probably want to say 'N' unless you're
@@ -136,7 +141,7 @@ config MTDRAM_ABS_POS
 
 config MTD_BLOCK2MTD
 	tristate "MTD using block device"
-	depends on MTD && BLOCK
+	depends on BLOCK
 	help
 	  This driver allows a block device to appear as an MTD. It would
 	  generally be used in the following cases:
@@ -150,7 +155,6 @@ comment "Disk-On-Chip Device Drivers"
 
 config MTD_DOC2000
 	tristate "M-Systems Disk-On-Chip 2000 and Millennium (DEPRECATED)"
-	depends on MTD
 	select MTD_DOCPROBE
 	select MTD_NAND_IDS
 	---help---
@@ -173,7 +177,6 @@ config MTD_DOC2000
 
 config MTD_DOC2001
 	tristate "M-Systems Disk-On-Chip Millennium-only alternative driver (DEPRECATED)"
-	depends on MTD
 	select MTD_DOCPROBE
 	select MTD_NAND_IDS
 	---help---
@@ -195,7 +198,6 @@ config MTD_DOC2001
 
 config MTD_DOC2001PLUS
 	tristate "M-Systems Disk-On-Chip Millennium Plus"
-	depends on MTD
 	select MTD_DOCPROBE
 	select MTD_NAND_IDS
 	---help---

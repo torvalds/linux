@@ -85,8 +85,8 @@ config ACPI_PROCFS
 	depends on ACPI
 	default y
 	---help---
-	  Procfs interface for ACPI is made optional for back-compatible.
-	  As the same functions are duplicated in sysfs interface
+	  The Procfs interface for ACPI is made optional for backward compatibility.
+	  As the same functions are duplicated in the sysfs interface
 	  and this proc interface will be removed some time later,
 	  it's marked as deprecated.
 	  ( /proc/acpi/debug_layer && debug_level are deprecated by
@@ -217,43 +217,6 @@ config ACPI_ASUS
 
 	  NOTE: This driver is deprecated and will probably be removed soon,
 	  use asus-laptop instead.
-
-config ACPI_IBM
-	tristate "IBM ThinkPad Laptop Extras"
-	depends on X86
-	select BACKLIGHT_CLASS_DEVICE
-	---help---
-	  This is a Linux ACPI driver for the IBM ThinkPad laptops. It adds
-	  support for Fn-Fx key combinations, Bluetooth control, video
-	  output switching, ThinkLight control, UltraBay eject and more.
-	  For more information about this driver see <file:Documentation/ibm-acpi.txt>
-	  and <http://ibm-acpi.sf.net/> .
-
-	  If you have an IBM ThinkPad laptop, say Y or M here.
-
-config ACPI_IBM_DOCK
-	bool "Legacy Docking Station Support"
-	depends on ACPI_IBM
-	depends on ACPI_DOCK=n
-	default n
-	---help---
-	  Allows the ibm_acpi driver to handle docking station events.
-	  This support is obsoleted by CONFIG_HOTPLUG_PCI_ACPI.  It will
-	  allow locking and removing the laptop from the docking station,
-	  but will not properly connect PCI devices.
-
-	  If you are not sure, say N here.
-
-config ACPI_IBM_BAY
-	bool "Legacy Removable Bay Support"
-	depends on ACPI_IBM
-	default y
-	---help---
-	  Allows the ibm_acpi driver to handle removable bays.  It will allow
-	  disabling the device in the bay, and also generate notifications when
-	  the bay lever is ejected or inserted.
-
-	  If you are not sure, say Y here.
 
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
@@ -388,11 +351,10 @@ config ACPI_HOTPLUG_MEMORY
 
 config ACPI_SBS
 	tristate "Smart Battery System (EXPERIMENTAL)"
-	depends on X86 && I2C
+	depends on X86
 	depends on EXPERIMENTAL
 	help
 	  This driver adds support for the Smart Battery System.
-	  Depends on I2C (Device Drivers ---> I2C support)
 	  A "Smart Battery" is quite old and quite rare compared
 	  to today's ACPI "Control Method" battery.
 

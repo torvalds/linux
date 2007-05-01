@@ -25,7 +25,6 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/serial.h>
@@ -82,7 +81,7 @@ static void __init mpc7448_hpc2_setup_arch(void)
 	if (cpu != 0) {
 		const unsigned int *fp;
 
-		fp = get_property(cpu, "clock-frequency", NULL);
+		fp = of_get_property(cpu, "clock-frequency", NULL);
 		if (fp != 0)
 			loops_per_jiffy = *fp / HZ;
 		else
@@ -90,16 +89,6 @@ static void __init mpc7448_hpc2_setup_arch(void)
 		of_node_put(cpu);
 	}
 	tsi108_csr_vir_base = get_vir_csrbase();
-
-#ifdef	CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
-#endif
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = Root_RAM0;
-#endif
 
 	/* setup PCI host bridge */
 #ifdef CONFIG_PCI
@@ -143,7 +132,7 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 	tsi_pic = of_find_node_by_type(NULL, "open-pic");
 	if (tsi_pic) {
 		unsigned int size;
-		const void *prop = get_property(tsi_pic, "reg", &size);
+		const void *prop = of_get_property(tsi_pic, "reg", &size);
 		mpic_paddr = of_translate_address(tsi_pic, prop);
 	}
 

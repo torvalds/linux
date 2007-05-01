@@ -317,6 +317,12 @@ S: 2322 37th Ave SW
 S: Seattle, Washington 98126-2010
 S: USA
 
+N: Johannes Berg
+E: johannes@sipsolutions.net
+W: http://johannes.sipsolutions.net/
+P: 1024D/9AB78CA5 AD02 0176 4E29 C137 1DF6 08D2 FC44 CF86 9AB7 8CA5
+D: powerpc & 802.11 hacker
+
 N: Stephen R. van den Berg (AKA BuGless)
 E: berg@pool.informatik.rwth-aachen.de
 D: General kernel, gcc, and libc hacker
@@ -2286,14 +2292,14 @@ S: D-90453 Nuernberg
 S: Germany
 
 N: Arnaldo Carvalho de Melo
-E: acme@mandriva.com
 E: acme@ghostprotocols.net
+E: arnaldo.melo@gmail.com
+E: acme@redhat.com
 W: http://oops.ghostprotocols.net:81/blog/
 P: 1024D/9224DF01 D5DF E3BB E3C8 BCBB F8AD  841A B6AB 4681 9224 DF01
 D: IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
-S: Mandriva
-S: R. Tocantins, 89 - Cristo Rei
-S: 80050-430 - Curitiba - Paraná
+S: R. Brasílio Itiberê, 4270/1010 - Água Verde
+S: 80240-060 - Curitiba - Paraná
 S: Brazil
 
 N: Karsten Merker
@@ -3294,6 +3300,14 @@ D: Original kernel hacker
 S: 12725 SW Millikan Way, Suite 400
 S: Beaverton, Oregon 97005
 S: USA
+
+N: Li Yang
+E: leoli@freescale.com
+D: Freescale Highspeed USB device driver
+D: Freescale QE SoC support and Ethernet driver
+S: B-1206 Jingmao Guojigongyu
+S: 16 Baliqiao Nanjie, Beijing 101100
+S: People's Repulic of China
 
 N: Marcelo Tosatti
 E: marcelo@kvack.org

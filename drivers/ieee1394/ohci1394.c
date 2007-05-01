@@ -507,9 +507,8 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	/* Set up self-id dma buffer */
 	reg_write(ohci, OHCI1394_SelfIDBuffer, ohci->selfid_buf_bus);
 
-	/* enable self-id and phys */
-	reg_write(ohci, OHCI1394_LinkControlSet, OHCI1394_LinkControl_RcvSelfID |
-		  OHCI1394_LinkControl_RcvPhyPkt);
+	/* enable self-id */
+	reg_write(ohci, OHCI1394_LinkControlSet, OHCI1394_LinkControl_RcvSelfID);
 
 	/* Set the Config ROM mapping register */
 	reg_write(ohci, OHCI1394_ConfigROMmap, ohci->csr_config_rom_bus);
@@ -518,9 +517,6 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	ohci->max_packet_size =
 		1<<(((reg_read(ohci, OHCI1394_BusOptions)>>12)&0xf)+1);
 		
-	/* Don't accept phy packets into AR request context */
-	reg_write(ohci, OHCI1394_LinkControlClear, 0x00000400);
-
 	/* Clear the interrupt mask */
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, 0xffffffff);
 	reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 0xffffffff);
@@ -617,7 +613,7 @@ static void ohci_initialize(struct ti_ohci *ohci)
 #endif
 
 		PRINT(KERN_DEBUG, "Serial EEPROM has suspicious values, "
-                      "attempting to setting max_packet_size to 512 bytes");
+                      "attempting to set max_packet_size to 512 bytes");
 		reg_write(ohci, OHCI1394_BusOptions,
 			  (reg_read(ohci, OHCI1394_BusOptions) & 0xf007) | 0x8002);
 		ohci->max_packet_size = 512;
@@ -2377,6 +2373,7 @@ static irqreturn_t ohci_irq_handler(int irq, void *dev_id)
 	if (event & OHCI1394_postedWriteErr) {
 		PRINT(KERN_ERR, "physical posted write error");
 		/* no recovery strategy yet, had to involve protocol drivers */
+		event &= ~OHCI1394_postedWriteErr;
 	}
 	if (event & OHCI1394_cycleTooLong) {
 		if(printk_ratelimit())
@@ -3658,6 +3655,7 @@ static struct pci_driver ohci1394_pci_driver = {
 /* essentially the only purpose of this code is to allow another
    module to hook into ohci's interrupt handler */
 
+/* returns zero if successful, one if DMA context is locked up */
 int ohci1394_stop_context(struct ti_ohci *ohci, int reg, char *msg)
 {
 	int i=0;

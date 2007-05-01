@@ -20,10 +20,16 @@
 
 /*-------------------------------------------------------------------------*/
 
+static int broken_suspend(struct usb_hcd *hcd)
+{
+	device_init_wakeup(&hcd->self.root_hub->dev, 0);
+	return 0;
+}
+
 /* AMD 756, for most chips (early revs), corrupts register
  * values on read ... so enable the vendor workaround.
  */
-static int __devinit ohci_quirk_amd756(struct usb_hcd *hcd)
+static int ohci_quirk_amd756(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 
@@ -31,16 +37,14 @@ static int __devinit ohci_quirk_amd756(struct usb_hcd *hcd)
 	ohci_dbg (ohci, "AMD756 erratum 4 workaround\n");
 
 	/* also erratum 10 (suspend/resume issues) */
-	device_init_wakeup(&hcd->self.root_hub->dev, 0);
-
-	return 0;
+	return broken_suspend(hcd);
 }
 
 /* Apple's OHCI driver has a lot of bizarre workarounds
  * for this chip.  Evidently control and bulk lists
  * can get confused.  (B&W G3 models, and ...)
  */
-static int __devinit ohci_quirk_opti(struct usb_hcd *hcd)
+static int ohci_quirk_opti(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 
@@ -53,7 +57,7 @@ static int __devinit ohci_quirk_opti(struct usb_hcd *hcd)
  * identify the USB (fn2). This quirk might apply to more or
  * even all NSC stuff.
  */
-static int __devinit ohci_quirk_ns(struct usb_hcd *hcd)
+static int ohci_quirk_ns(struct usb_hcd *hcd)
 {
 	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 	struct pci_dev	*b;
@@ -75,7 +79,7 @@ static int __devinit ohci_quirk_ns(struct usb_hcd *hcd)
  * delays before control or bulk queues get re-activated
  * in finish_unlinks()
  */
-static int __devinit ohci_quirk_zfmicro(struct usb_hcd *hcd)
+static int ohci_quirk_zfmicro(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 
@@ -88,7 +92,7 @@ static int __devinit ohci_quirk_zfmicro(struct usb_hcd *hcd)
 /* Check for Toshiba SCC OHCI which has big endian registers
  * and little endian in memory data structures
  */
-static int __devinit ohci_quirk_toshiba_scc(struct usb_hcd *hcd)
+static int ohci_quirk_toshiba_scc(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 
@@ -128,6 +132,18 @@ static const struct pci_device_id ohci_pci_quirks[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, 0x01b6),
 		.driver_data = (unsigned long)ohci_quirk_toshiba_scc,
+	},
+	{
+		/* Toshiba portege 4000 */
+		.vendor		= PCI_VENDOR_ID_AL,
+		.device		= 0x5237,
+		.subvendor	= PCI_VENDOR_ID_TOSHIBA_2,
+		.subdevice	= 0x0004,
+		.driver_data	= (unsigned long) broken_suspend,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_ITE, 0x8152),
+		.driver_data = (unsigned long) broken_suspend,
 	},
 	/* FIXME for some of the early AMD 760 southbridges, OHCI
 	 * won't work at all.  blacklist them.

@@ -301,7 +301,7 @@ static __inline__ void sun4_clock_probe(void)
 static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
-	char *model = of_get_property(dp, "model", NULL);
+	const char *model = of_get_property(dp, "model", NULL);
 
 	if (!model)
 		return -ENODEV;

@@ -495,29 +495,34 @@ sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo)
  * sys32_execve() executes a new program after the asm stub has set
  * things up for us.  This should basically do what I want it to.
  */
-asmlinkage long
-sys32_execve(struct pt_regs regs)
+asmlinkage long sys32_execve(void)
 {
-        int error;
-        char * filename;
+	struct pt_regs *regs = task_pt_regs(current);
+	char *filename;
+	unsigned long result;
+	int rc;
 
-        filename = getname(compat_ptr(regs.orig_gpr2));
-        error = PTR_ERR(filename);
-        if (IS_ERR(filename))
+	filename = getname(compat_ptr(regs->orig_gpr2));
+	if (IS_ERR(filename)) {
+		result = PTR_ERR(filename);
                 goto out;
-        error = compat_do_execve(filename, compat_ptr(regs.gprs[3]),
-				 compat_ptr(regs.gprs[4]), &regs);
-	if (error == 0)
-	{
-		task_lock(current);
-		current->ptrace &= ~PT_DTRACE;
-		task_unlock(current);
-		current->thread.fp_regs.fpc=0;
-		asm volatile("sfpc %0,0" : : "d" (0));
 	}
+	rc = compat_do_execve(filename, compat_ptr(regs->gprs[3]),
+			      compat_ptr(regs->gprs[4]), regs);
+	if (rc) {
+		result = rc;
+		goto out_putname;
+	}
+	task_lock(current);
+	current->ptrace &= ~PT_DTRACE;
+	task_unlock(current);
+	current->thread.fp_regs.fpc=0;
+	asm volatile("sfpc %0,0" : : "d" (0));
+	result = regs->gprs[2];
+out_putname:
         putname(filename);
 out:
-        return error;
+	return result;
 }
 
 
@@ -918,19 +923,20 @@ asmlinkage long sys32_write(unsigned int fd, char __user * buf, size_t count)
 	return sys_write(fd, buf, count);
 }
 
-asmlinkage long sys32_clone(struct pt_regs regs)
+asmlinkage long sys32_clone(void)
 {
-        unsigned long clone_flags;
-        unsigned long newsp;
+	struct pt_regs *regs = task_pt_regs(current);
+	unsigned long clone_flags;
+	unsigned long newsp;
 	int __user *parent_tidptr, *child_tidptr;
 
-        clone_flags = regs.gprs[3] & 0xffffffffUL;
-        newsp = regs.orig_gpr2 & 0x7fffffffUL;
-	parent_tidptr = compat_ptr(regs.gprs[4]);
-	child_tidptr = compat_ptr(regs.gprs[5]);
-        if (!newsp)
-                newsp = regs.gprs[15];
-        return do_fork(clone_flags, newsp, &regs, 0,
+	clone_flags = regs->gprs[3] & 0xffffffffUL;
+	newsp = regs->orig_gpr2 & 0x7fffffffUL;
+	parent_tidptr = compat_ptr(regs->gprs[4]);
+	child_tidptr = compat_ptr(regs->gprs[5]);
+	if (!newsp)
+		newsp = regs->gprs[15];
+	return do_fork(clone_flags, newsp, regs, 0,
 		       parent_tidptr, child_tidptr);
 }
 

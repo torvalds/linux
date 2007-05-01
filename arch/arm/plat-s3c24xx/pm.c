@@ -511,11 +511,6 @@ static int s3c2410_pm_enter(suspend_state_t state)
 		return -EINVAL;
 	}
 
-	if (state != PM_SUSPEND_MEM) {
-		printk(KERN_ERR PFX "error: only PM_SUSPEND_MEM supported\n");
-		return -EINVAL;
-	}
-
 	/* check if we have anything to wake-up with... bad things seem
 	 * to happen if you suspend with no wakeup (system will often
 	 * require a full power-cycle)
@@ -617,30 +612,9 @@ static int s3c2410_pm_enter(suspend_state_t state)
 	return 0;
 }
 
-/*
- * Called after processes are frozen, but before we shut down devices.
- */
-static int s3c2410_pm_prepare(suspend_state_t state)
-{
-	return 0;
-}
-
-/*
- * Called after devices are re-setup, but before processes are thawed.
- */
-static int s3c2410_pm_finish(suspend_state_t state)
-{
-	return 0;
-}
-
-/*
- * Set to PM_DISK_FIRMWARE so we can quickly veto suspend-to-disk.
- */
 static struct pm_ops s3c2410_pm_ops = {
-	.pm_disk_mode	= PM_DISK_FIRMWARE,
-	.prepare	= s3c2410_pm_prepare,
 	.enter		= s3c2410_pm_enter,
-	.finish		= s3c2410_pm_finish,
+	.valid		= pm_valid_only_mem,
 };
 
 /* s3c2410_pm_init

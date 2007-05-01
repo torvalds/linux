@@ -126,7 +126,7 @@ static unsigned char status_sunbpp_to_pc(struct parport *p)
 	if (!(value_tcr & P_TCR_BUSY))
 		bits |= PARPORT_STATUS_BUSY;
 
-	dprintk((KERN_DEBUG "tcr 0x%x ir 0x%x\n", regs->p_tcr, regs->p_ir));
+	dprintk((KERN_DEBUG "tcr 0x%x ir 0x%x\n", value_tcr, value_ir));
 	dprintk((KERN_DEBUG "read status 0x%x\n", bits));
 	return bits;
 }
@@ -147,7 +147,7 @@ static unsigned char control_sunbpp_to_pc(struct parport *p)
 	if (value_or & P_OR_SLCT_IN)
 		bits |= PARPORT_CONTROL_SELECT;
 
-	dprintk((KERN_DEBUG "tcr 0x%x or 0x%x\n", regs->p_tcr, regs->p_or));
+	dprintk((KERN_DEBUG "tcr 0x%x or 0x%x\n", value_tcr, value_or));
 	dprintk((KERN_DEBUG "read control 0x%x\n", bits));
 	return bits;
 }
@@ -165,7 +165,8 @@ static unsigned char parport_sunbpp_frob_control(struct parport *p,
 	unsigned char value_tcr = sbus_readb(&regs->p_tcr);
 	unsigned char value_or = sbus_readb(&regs->p_or);
 
-	dprintk((KERN_DEBUG "frob1: tcr 0x%x or 0x%x\n", regs->p_tcr, regs->p_or));
+	dprintk((KERN_DEBUG "frob1: tcr 0x%x or 0x%x\n",
+		 value_tcr, value_or));
 	if (mask & PARPORT_CONTROL_STROBE) {
 		if (val & PARPORT_CONTROL_STROBE) {
 			value_tcr &= ~P_TCR_DS;
@@ -197,7 +198,8 @@ static unsigned char parport_sunbpp_frob_control(struct parport *p,
 
 	sbus_writeb(value_or, &regs->p_or);
 	sbus_writeb(value_tcr, &regs->p_tcr);
-	dprintk((KERN_DEBUG "frob2: tcr 0x%x or 0x%x\n", regs->p_tcr, regs->p_or));
+	dprintk((KERN_DEBUG "frob2: tcr 0x%x or 0x%x\n",
+		 value_tcr, value_or));
 	return parport_sunbpp_read_control(p);
 }
 

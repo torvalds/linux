@@ -156,8 +156,7 @@ instead set the PF_NOFREEZE process flag when creating the thread (and
 be very careful).
 
 
-Q: What is the difference between "platform", "shutdown" and
-"firmware" in /sys/power/disk?
+Q: What is the difference between "platform" and "shutdown"?
 
 A:
 
@@ -166,11 +165,8 @@ shutdown: save state in linux, then tell bios to powerdown
 platform: save state in linux, then tell bios to powerdown and blink
           "suspended led"
 
-firmware: tell bios to save state itself [needs BIOS-specific suspend
-	  partition, and has very little to do with swsusp]
-
-"platform" is actually right thing to do, but "shutdown" is most
-reliable.
+"platform" is actually right thing to do where supported, but
+"shutdown" is most reliable (except on ACPI systems).
 
 Q: I do not understand why you have such strong objections to idea of
 selective suspend.
@@ -388,8 +384,8 @@ while the system is asleep, maintaining the connection, using true sleep
 modes like "suspend-to-RAM" or "standby".  (Don't write "disk" to the
 /sys/power/state file; write "standby" or "mem".)  We've not seen any
 hardware that can use these modes through software suspend, although in
-theory some systems might support "platform" or "firmware" modes that
-won't break the USB connections.
+theory some systems might support "platform" modes that won't break the
+USB connections.
 
 Remember that it's always a bad idea to unplug a disk drive containing a
 mounted filesystem.  That's true even when your system is asleep!  The

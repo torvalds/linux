@@ -216,11 +216,11 @@ enum av7110_command_type {
 #define VID_CENTRE_CUT_PREF	0x05	/* PanScan with zero vector */
 
 /* MPEG video decoder commands */
-#define VIDEO_CMD_STOP		0x000e
-#define VIDEO_CMD_PLAY		0x000d
-#define VIDEO_CMD_FREEZE	0x0102
-#define VIDEO_CMD_FFWD		0x0016
-#define VIDEO_CMD_SLOW		0x0022
+#define AV_VIDEO_CMD_STOP	0x000e
+#define AV_VIDEO_CMD_PLAY	0x000d
+#define AV_VIDEO_CMD_FREEZE	0x0102
+#define AV_VIDEO_CMD_FFWD	0x0016
+#define AV_VIDEO_CMD_SLOW	0x0022
 
 /* MPEG audio decoder commands */
 #define AUDIO_CMD_MUTE		0x0001

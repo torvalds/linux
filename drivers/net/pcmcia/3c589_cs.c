@@ -883,7 +883,6 @@ static int el3_rx(struct net_device *dev)
 	    DEBUG(3, "    Receiving packet size %d status %4.4x.\n",
 		  pkt_len, rx_status);
 	    if (skb != NULL) {
-		skb->dev = dev;
 		skb_reserve(skb, 2);
 		insl(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
 			(pkt_len+3)>>2);

@@ -25,31 +25,6 @@
 
 
 /**
- *	rz1000_prereset		-	probe begin
- *	@ap: ATA port
- *
- *	Set up cable type and use generics
- */
-
-static int rz1000_prereset(struct ata_port *ap)
-{
-	ap->cbl = ATA_CBL_PATA40;
-	return ata_std_prereset(ap);
-}
-
-/**
- *	rz1000_error_handler		-	probe reset
- *	@ap: ATA port
- *
- *	Perform the ATA standard reset sequence
- */
-
-static void rz1000_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, rz1000_prereset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-/**
  *	rz1000_set_mode		-	mode setting function
  *	@ap: ATA interface
  *	@unused: returned device on set_mode failure
@@ -122,8 +97,9 @@ static struct ata_port_operations rz1000_port_ops = {
 
 	.freeze		= ata_bmdma_freeze,
 	.thaw		= ata_bmdma_thaw,
-	.error_handler	= rz1000_error_handler,
+	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,

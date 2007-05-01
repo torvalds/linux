@@ -32,5 +32,8 @@ extern int of_device_register(struct of_device *ofdev);
 extern void of_device_unregister(struct of_device *ofdev);
 extern void of_release_dev(struct device *dev);
 
+extern int of_device_uevent(struct device *dev,
+	char **envp, int num_envp, char *buffer, int buffer_size);
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_OF_DEVICE_H */

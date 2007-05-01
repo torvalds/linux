@@ -18,7 +18,8 @@ do {									\
 
 #define BUG_ON(condition)						\
 do {									\
-	__asm__ __volatile__("tne $0, %0" : : "r" (condition));		\
+	__asm__ __volatile__("tne $0, %0, %1"				\
+			     : : "r" (condition), "i" (BRK_BUG));	\
 } while (0)
 
 #define HAVE_ARCH_BUG_ON

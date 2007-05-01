@@ -56,10 +56,6 @@ static int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u
 	if (txlen > 3)
 		index |= tx[3];
 
-	/* think about swapping here */
-	value = le16_to_cpu(value);
-	index = le16_to_cpu(index);
-
 	status = usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev,0), tx[0],
 			USB_TYPE_VENDOR | USB_DIR_IN, value, index, rx, rxlen,
 			USB_CTRL_GET_TIMEOUT);

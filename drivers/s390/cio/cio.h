@@ -1,18 +1,11 @@
 #ifndef S390_CIO_H
 #define S390_CIO_H
 
-#include "schid.h"
 #include <linux/mutex.h>
-
-/*
- * where we put the ssd info
- */
-struct ssd_info {
-	__u8  valid:1;
-	__u8  type:7;		/* subchannel type */
-	__u8  chpid[8];		/* chpids */
-	__u16 fla[8];		/* full link addresses */
-} __attribute__ ((packed));
+#include <linux/device.h>
+#include <asm/chpid.h>
+#include "chsc.h"
+#include "schid.h"
 
 /*
  * path management control word
@@ -108,7 +101,7 @@ struct subchannel {
 	struct schib schib;	/* subchannel information block */
 	struct orb orb;		/* operation request block */
 	struct ccw1 sense_ccw;	/* static ccw for sense command */
-	struct ssd_info ssd_info;	/* subchannel description */
+	struct chsc_ssd_info ssd_info;	/* subchannel description */
 	struct device dev;	/* entry in device tree */
 	struct css_driver *driver;
 } __attribute__ ((aligned(8)));

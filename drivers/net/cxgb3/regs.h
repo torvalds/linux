@@ -1234,9 +1234,15 @@
 
 #define A_ULPRX_ISCSI_TAGMASK 0x514
 
+#define S_HPZ0    0
+#define M_HPZ0    0xf
+#define V_HPZ0(x) ((x) << S_HPZ0)
+#define G_HPZ0(x) (((x) >> S_HPZ0) & M_HPZ0)
+
 #define A_ULPRX_TDDP_LLIMIT 0x51c
 
 #define A_ULPRX_TDDP_ULIMIT 0x520
+#define A_ULPRX_TDDP_PSZ 0x528
 
 #define A_ULPRX_STAG_LLIMIT 0x52c
 
@@ -1939,6 +1945,10 @@
 #define M_TXFIFOTHRESH    0x1ff
 
 #define V_TXFIFOTHRESH(x) ((x) << S_TXFIFOTHRESH)
+
+#define S_ENDROPPKT    21
+#define V_ENDROPPKT(x) ((x) << S_ENDROPPKT)
+#define F_ENDROPPKT    V_ENDROPPKT(1U)
 
 #define A_XGM_SERDES_CTRL 0x890
 #define A_XGM_SERDES_CTRL0 0x8e0

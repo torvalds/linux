@@ -194,6 +194,7 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb)
 		rc = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
 		if (rc <= 0)
 			break;
+		dccp_pr_debug("delayed send by %d msec\n", rc);
 		delay = msecs_to_jiffies(rc);
 		sk->sk_write_pending++;
 		release_sock(sk);
@@ -255,7 +256,7 @@ void dccp_write_xmit(struct sock *sk, int block)
 				DCCP_BUG("err=%d after ccid_hc_tx_packet_sent",
 					 err);
 		} else {
-			dccp_pr_debug("packet discarded\n");
+			dccp_pr_debug("packet discarded due to err=%d\n", err);
 			kfree_skb(skb);
 		}
 	}

@@ -96,6 +96,6 @@ extern void (*flush_data_cache_page)(unsigned long addr);
 unsigned long __init run_uncached(void *func);
 
 extern void *kmap_coherent(struct page *page, unsigned long addr);
-extern void kunmap_coherent(struct page *page);
+extern void kunmap_coherent(void);
 
 #endif /* _ASM_CACHEFLUSH_H */

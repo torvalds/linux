@@ -1360,13 +1360,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_undo_flags;
 	}
 
-	if (slave_dev->get_stats == NULL) {
-		printk(KERN_NOTICE DRV_NAME
-			": %s: the driver for slave device %s does not provide "
-			"get_stats function, network statistics will be "
-			"inaccurate.\n", bond_dev->name, slave_dev->name);
-	}
-
 	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
 	if (!new_slave) {
 		res = -ENOMEM;
@@ -2524,7 +2517,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 				 (2 * sizeof(u32)))))
 		goto out_unlock;
 
-	arp = skb->nh.arph;
+	arp = arp_hdr(skb);
 	if (arp->ar_hln != dev->addr_len ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    skb->pkt_type == PACKET_LOOPBACK ||
@@ -3476,7 +3469,7 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
 				    struct net_device *bond_dev, int count)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	u16 *layer4hdr = (u16 *)((u32 *)iph + iph->ihl);
 	int layer4_xor = 0;
 
@@ -3640,35 +3633,32 @@ static struct net_device_stats *bond_get_stats(struct net_device *bond_dev)
 	read_lock_bh(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev->get_stats) {
-			sstats = slave->dev->get_stats(slave->dev);
+		sstats = slave->dev->get_stats(slave->dev);
+		stats->rx_packets += sstats->rx_packets;
+		stats->rx_bytes += sstats->rx_bytes;
+		stats->rx_errors += sstats->rx_errors;
+		stats->rx_dropped += sstats->rx_dropped;
 
-			stats->rx_packets += sstats->rx_packets;
-			stats->rx_bytes += sstats->rx_bytes;
-			stats->rx_errors += sstats->rx_errors;
-			stats->rx_dropped += sstats->rx_dropped;
+		stats->tx_packets += sstats->tx_packets;
+		stats->tx_bytes += sstats->tx_bytes;
+		stats->tx_errors += sstats->tx_errors;
+		stats->tx_dropped += sstats->tx_dropped;
 
-			stats->tx_packets += sstats->tx_packets;
-			stats->tx_bytes += sstats->tx_bytes;
-			stats->tx_errors += sstats->tx_errors;
-			stats->tx_dropped += sstats->tx_dropped;
+		stats->multicast += sstats->multicast;
+		stats->collisions += sstats->collisions;
 
-			stats->multicast += sstats->multicast;
-			stats->collisions += sstats->collisions;
+		stats->rx_length_errors += sstats->rx_length_errors;
+		stats->rx_over_errors += sstats->rx_over_errors;
+		stats->rx_crc_errors += sstats->rx_crc_errors;
+		stats->rx_frame_errors += sstats->rx_frame_errors;
+		stats->rx_fifo_errors += sstats->rx_fifo_errors;
+		stats->rx_missed_errors += sstats->rx_missed_errors;
 
-			stats->rx_length_errors += sstats->rx_length_errors;
-			stats->rx_over_errors += sstats->rx_over_errors;
-			stats->rx_crc_errors += sstats->rx_crc_errors;
-			stats->rx_frame_errors += sstats->rx_frame_errors;
-			stats->rx_fifo_errors += sstats->rx_fifo_errors;
-			stats->rx_missed_errors += sstats->rx_missed_errors;
-
-			stats->tx_aborted_errors += sstats->tx_aborted_errors;
-			stats->tx_carrier_errors += sstats->tx_carrier_errors;
-			stats->tx_fifo_errors += sstats->tx_fifo_errors;
-			stats->tx_heartbeat_errors += sstats->tx_heartbeat_errors;
-			stats->tx_window_errors += sstats->tx_window_errors;
-		}
+		stats->tx_aborted_errors += sstats->tx_aborted_errors;
+		stats->tx_carrier_errors += sstats->tx_carrier_errors;
+		stats->tx_fifo_errors += sstats->tx_fifo_errors;
+		stats->tx_heartbeat_errors += sstats->tx_heartbeat_errors;
+		stats->tx_window_errors += sstats->tx_window_errors;
 	}
 
 	read_unlock_bh(&bond->lock);

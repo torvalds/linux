@@ -221,7 +221,7 @@ static int atmtcp_v_send(struct atm_vcc *vcc,struct sk_buff *skb)
 	hdr->vpi = htons(vcc->vpi);
 	hdr->vci = htons(vcc->vci);
 	hdr->length = htonl(skb->len);
-	memcpy(skb_put(new_skb,skb->len),skb->data,skb->len);
+	skb_copy_from_linear_data(skb, skb_put(new_skb, skb->len), skb->len);
 	if (vcc->pop) vcc->pop(vcc,skb);
 	else dev_kfree_skb(skb);
 	out_vcc->push(out_vcc,new_skb);
@@ -310,7 +310,7 @@ static int atmtcp_c_send(struct atm_vcc *vcc,struct sk_buff *skb)
 		goto done;
 	}
 	__net_timestamp(new_skb);
-	memcpy(skb_put(new_skb,skb->len),skb->data,skb->len);
+	skb_copy_from_linear_data(skb, skb_put(new_skb, skb->len), skb->len);
 	out_vcc->push(out_vcc,new_skb);
 	atomic_inc(&vcc->stats->tx);
 	atomic_inc(&out_vcc->stats->rx);
@@ -352,7 +352,7 @@ static struct atm_dev atmtcp_control_dev = {
 	.ops		= &atmtcp_c_dev_ops,
 	.type		= "atmtcp",
 	.number		= 999,
-	.lock		= SPIN_LOCK_UNLOCKED
+	.lock		= __SPIN_LOCK_UNLOCKED(atmtcp_control_dev.lock)
 };
 
 

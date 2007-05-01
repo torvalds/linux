@@ -429,8 +429,9 @@ int capi_decode_conn_ind(struct pcbit_chan * chan,
 		if (!(info->data.setup.CallingPN = kmalloc(len - count + 1, GFP_ATOMIC)))
 			return -1;
        
-		memcpy(info->data.setup.CallingPN, skb->data + count + 1, 
-		       len - count);
+		skb_copy_from_linear_data_offset(skb, count + 1,
+						 info->data.setup.CallingPN,
+						 len - count);
 		info->data.setup.CallingPN[len - count] = 0;
 
 	}
@@ -457,8 +458,9 @@ int capi_decode_conn_ind(struct pcbit_chan * chan,
 		if (!(info->data.setup.CalledPN = kmalloc(len - count + 1, GFP_ATOMIC)))
 			return -1;
         
-		memcpy(info->data.setup.CalledPN, skb->data + count + 1, 
-		       len - count); 
+		skb_copy_from_linear_data_offset(skb, count + 1,
+						 info->data.setup.CalledPN,
+						 len - count);
 		info->data.setup.CalledPN[len - count] = 0;
 
 	}
@@ -539,7 +541,7 @@ int capi_decode_conn_actv_ind(struct pcbit_chan * chan, struct sk_buff *skb)
 
 #ifdef DEBUG
 	if (len > 1 && len < 31) {
-		memcpy(str, skb->data + 2, len - 1);
+		skb_copy_from_linear_data_offset(skb, 2, str, len - 1);
 		str[len] = 0;
 		printk(KERN_DEBUG "Connected Party Number: %s\n", str);
 	}

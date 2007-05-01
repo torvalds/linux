@@ -94,7 +94,7 @@ static unsigned short type_trans(struct sk_buff *skb, struct net_device *dev)
 	int hdr_size = ARC_HDR_SIZE + RFC1051_HDR_SIZE;
 
 	/* Pull off the arcnet header. */
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, hdr_size);
 
 	if (pkt->hard.dest == 0)

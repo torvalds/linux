@@ -17,7 +17,6 @@
 	#size-cells = <1>;
 
 	cpus {
-		#cpus = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -300,6 +299,30 @@
 			};
 
 		};
+
+		pci@9000 {
+			compatible = "86xx";
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			reg = <9000 1000>;
+			bus-range = <0 ff>;
+			ranges = <02000000 0 a0000000 a0000000 0 20000000
+				  01000000 0 00000000 e3000000 0 00100000>;
+			clock-frequency = <1fca055>;
+			interrupt-parent = <&mpic>;
+			interrupts = <19 2>;
+			interrupt-map-mask = <f800 0 0 7>;
+			interrupt-map = <
+				/* IDSEL 0x0 */
+				0000 0 0 1 &mpic 44 1
+				0000 0 0 2 &mpic 45 1
+				0000 0 0 3 &mpic 46 1
+				0000 0 0 4 &mpic 47 1
+				>;
+		};
+
 		mpic: pic@40000 {
 			clock-frequency = <0>;
 			interrupt-controller;

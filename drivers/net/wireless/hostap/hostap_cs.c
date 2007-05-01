@@ -22,7 +22,7 @@
 #include "hostap_wlan.h"
 
 
-static char *version = PRISM2_VERSION " (Jouni Malinen <jkmaline@cc.hut.fi>)";
+static char *version = PRISM2_VERSION " (Jouni Malinen <j@w1.fi>)";
 static dev_info_t dev_info = "hostap_cs";
 
 MODULE_AUTHOR("Jouni Malinen");
@@ -838,6 +838,8 @@ static struct pcmcia_device_id hostap_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0005),
 	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0010),
 	PCMCIA_DEVICE_MANF_CARD(0x0126, 0x0002),
+	PCMCIA_DEVICE_MANF_CARD_PROD_ID1(0xd601, 0x0005, "ADLINK 345 CF",
+					 0x2d858104),
 	PCMCIA_DEVICE_MANF_CARD_PROD_ID1(0x0156, 0x0002, "INTERSIL",
 					 0x74c5e40d),
 	PCMCIA_DEVICE_MANF_CARD_PROD_ID1(0x0156, 0x0002, "Intersil",
@@ -848,6 +850,11 @@ static struct pcmcia_device_id hostap_cs_ids[] = {
 		"Intersil", "PRISM 2_5 PCMCIA ADAPTER",	"ISL37300P",
 		"Eval-RevA",
 		0x4b801a17, 0x6345a0bf, 0xc9049a39, 0xc23adc0e),
+	/* D-Link DWL-650 Rev. P1; manfid 0x000b, 0x7110 */
+	PCMCIA_DEVICE_PROD_ID1234(
+		"D-Link", "DWL-650 Wireless PC Card RevP", "ISL37101P-10",
+		"A3",
+		0x1a424a1c, 0x6ea57632, 0xdd97a26b, 0x56b21f52),
 	PCMCIA_DEVICE_PROD_ID123(
 		"Addtron", "AWP-100 Wireless PCMCIA", "Version 01.02",
 		0xe6ec52ce, 0x08649af2, 0x4b74baa0),

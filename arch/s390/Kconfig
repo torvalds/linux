@@ -41,6 +41,11 @@ config GENERIC_HWEIGHT
 config GENERIC_TIME
 	def_bool y
 
+config GENERIC_BUG
+	bool
+	depends on BUG
+	default y
+
 config NO_IOMEM
 	def_bool y
 
@@ -513,6 +518,14 @@ config KEXEC
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
 	  but is independent of hardware/microcode support.
+
+config ZFCPDUMP
+	tristate "zfcpdump support"
+	select SMP
+	default n
+	help
+	  Select this option if you want to build an zfcpdump enabled kernel.
+	  Refer to "Documentation/s390/zfcpdump.txt" for more details on this.
 
 endmenu
 

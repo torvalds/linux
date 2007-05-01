@@ -17,11 +17,11 @@
 
 #define DRV_NAME	"tulip"
 #ifdef CONFIG_TULIP_NAPI
-#define DRV_VERSION    "1.1.14-NAPI" /* Keep at least for test */
+#define DRV_VERSION    "1.1.15-NAPI" /* Keep at least for test */
 #else
-#define DRV_VERSION	"1.1.14"
+#define DRV_VERSION	"1.1.15"
 #endif
-#define DRV_RELDATE	"May 11, 2002"
+#define DRV_RELDATE	"Feb 27, 2007"
 
 
 #include <linux/module.h>
@@ -36,8 +36,8 @@
 #include <asm/unaligned.h>
 #include <asm/uaccess.h>
 
-#ifdef __sparc__
-#include <asm/pbm.h>
+#ifdef CONFIG_SPARC
+#include <asm/prom.h>
 #endif
 
 static char version[] __devinitdata =
@@ -67,7 +67,7 @@ const char * const medianame[32] = {
 
 /* Set the copy breakpoint for the copy-only-tiny-buffer Rx structure. */
 #if defined(__alpha__) || defined(__arm__) || defined(__hppa__) \
-	|| defined(__sparc__) || defined(__ia64__) \
+	|| defined(CONFIG_SPARC) || defined(__ia64__) \
 	|| defined(__sh__) || defined(__mips__)
 static int rx_copybreak = 1518;
 #else
@@ -91,7 +91,7 @@ static int rx_copybreak = 100;
 static int csr0 = 0x01A00000 | 0xE000;
 #elif defined(__i386__) || defined(__powerpc__) || defined(__x86_64__)
 static int csr0 = 0x01A00000 | 0x8000;
-#elif defined(__sparc__) || defined(__hppa__)
+#elif defined(CONFIG_SPARC) || defined(__hppa__)
 /* The UltraSparc PCI controllers will disconnect at every 64-byte
  * crossing anyways so it makes no sense to tell Tulip to burst
  * any more than that.
@@ -1315,7 +1315,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	/* DM9102A has troubles with MRM & clear reserved bits 24:22, 20, 16, 7:1 */
 	if (tulip_uli_dm_quirk(pdev)) {
 		csr0 &= ~0x01f100ff;
-#if defined(__sparc__)
+#if defined(CONFIG_SPARC)
                 csr0 = (csr0 & ~0xff00) | 0xe000;
 #endif
 	}
@@ -1535,23 +1535,19 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	   Many PCI BIOSes also incorrectly report the IRQ line, so we correct
 	   that here as well. */
 	if (sum == 0  || sum == 6*0xff) {
-#if defined(__sparc__)
-		struct pcidev_cookie *pcp = pdev->sysdata;
+#if defined(CONFIG_SPARC)
+		struct device_node *dp = pci_device_to_OF_node(pdev);
+		const unsigned char *addr;
+		int len;
 #endif
 		eeprom_missing = 1;
 		for (i = 0; i < 5; i++)
 			dev->dev_addr[i] = last_phys_addr[i];
 		dev->dev_addr[i] = last_phys_addr[i] + 1;
-#if defined(__sparc__)
-		if (pcp) {
-			unsigned char *addr;
-			int len;
-
-			addr = of_get_property(pcp->prom_node,
-					       "local-mac-address", &len);
-			if (addr && len == 6)
-				memcpy(dev->dev_addr, addr, 6);
-		}
+#if defined(CONFIG_SPARC)
+		addr = of_get_property(dp, "local-mac-address", &len);
+		if (addr && len == 6)
+			memcpy(dev->dev_addr, addr, 6);
 #endif
 #if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
 		if (last_irq)

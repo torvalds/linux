@@ -26,12 +26,6 @@ struct hpsb_config_rom_entry {
 	/* Base initialization, called at module load */
 	int (*init)(void);
 
-	/* Add entry to specified host */
-	int (*add)(struct hpsb_host *host);
-
-	/* Remove entry from specified host */
-	void (*remove)(struct hpsb_host *host);
-
 	/* Cleanup called at module exit */
 	void (*cleanup)(void);
 
@@ -39,7 +33,7 @@ struct hpsb_config_rom_entry {
 	unsigned int flag;
 };
 
-
+/* The default host entry. This must succeed. */
 int hpsb_default_host_entry(struct hpsb_host *host)
 {
 	struct csr1212_keyval *root;
@@ -63,9 +57,9 @@ int hpsb_default_host_entry(struct hpsb_host *host)
 		return -ENOMEM;
 	}
 
-	ret = csr1212_associate_keyval(vend_id, text);
+	csr1212_associate_keyval(vend_id, text);
 	csr1212_release_keyval(text);
-	ret |= csr1212_attach_keyval_to_directory(root, vend_id);
+	ret = csr1212_attach_keyval_to_directory(root, vend_id);
 	csr1212_release_keyval(vend_id);
 	if (ret != CSR1212_SUCCESS) {
 		csr1212_destroy_csr(host->csr.rom);
@@ -78,7 +72,7 @@ int hpsb_default_host_entry(struct hpsb_host *host)
 }
 
 
-#ifdef CONFIG_IEEE1394_CONFIG_ROM_IP1394
+#ifdef CONFIG_IEEE1394_ETH1394_ROM_ENTRY
 #include "eth1394.h"
 
 static struct csr1212_keyval *ip1394_ud;
@@ -103,10 +97,12 @@ static int config_rom_ip1394_init(void)
 	if (!ip1394_ud || !spec_id || !spec_desc || !ver || !ver_desc)
 		goto ip1394_fail;
 
-	if (csr1212_associate_keyval(spec_id, spec_desc) == CSR1212_SUCCESS &&
-	    csr1212_associate_keyval(ver, ver_desc) == CSR1212_SUCCESS &&
-	    csr1212_attach_keyval_to_directory(ip1394_ud, spec_id) == CSR1212_SUCCESS &&
-	    csr1212_attach_keyval_to_directory(ip1394_ud, ver) == CSR1212_SUCCESS)
+	csr1212_associate_keyval(spec_id, spec_desc);
+	csr1212_associate_keyval(ver, ver_desc);
+	if (csr1212_attach_keyval_to_directory(ip1394_ud, spec_id)
+			== CSR1212_SUCCESS &&
+	    csr1212_attach_keyval_to_directory(ip1394_ud, ver)
+			== CSR1212_SUCCESS)
 		ret = 0;
 
 ip1394_fail:
@@ -135,7 +131,7 @@ static void config_rom_ip1394_cleanup(void)
 	}
 }
 
-static int config_rom_ip1394_add(struct hpsb_host *host)
+int hpsb_config_rom_ip1394_add(struct hpsb_host *host)
 {
 	if (!ip1394_ud)
 		return -ENODEV;
@@ -144,92 +140,55 @@ static int config_rom_ip1394_add(struct hpsb_host *host)
 					       ip1394_ud) != CSR1212_SUCCESS)
 		return -ENOMEM;
 
+	host->config_roms |= HPSB_CONFIG_ROM_ENTRY_IP1394;
+	host->update_config_rom = 1;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hpsb_config_rom_ip1394_add);
 
-static void config_rom_ip1394_remove(struct hpsb_host *host)
+void hpsb_config_rom_ip1394_remove(struct hpsb_host *host)
 {
 	csr1212_detach_keyval_from_directory(host->csr.rom->root_kv, ip1394_ud);
+	host->config_roms &= ~HPSB_CONFIG_ROM_ENTRY_IP1394;
+	host->update_config_rom = 1;
 }
+EXPORT_SYMBOL_GPL(hpsb_config_rom_ip1394_remove);
 
 static struct hpsb_config_rom_entry ip1394_entry = {
 	.name		= "ip1394",
 	.init		= config_rom_ip1394_init,
-	.add		= config_rom_ip1394_add,
-	.remove		= config_rom_ip1394_remove,
 	.cleanup	= config_rom_ip1394_cleanup,
 	.flag		= HPSB_CONFIG_ROM_ENTRY_IP1394,
 };
-#endif /* CONFIG_IEEE1394_CONFIG_ROM_IP1394 */
 
+#endif /* CONFIG_IEEE1394_ETH1394_ROM_ENTRY */
 
 static struct hpsb_config_rom_entry *const config_rom_entries[] = {
-#ifdef CONFIG_IEEE1394_CONFIG_ROM_IP1394
+#ifdef CONFIG_IEEE1394_ETH1394_ROM_ENTRY
 	&ip1394_entry,
 #endif
-	NULL,
 };
 
-
+/* Initialize all config roms */
 int hpsb_init_config_roms(void)
 {
 	int i, error = 0;
 
-	for (i = 0; config_rom_entries[i]; i++) {
-		if (!config_rom_entries[i]->init)
-			continue;
-
+	for (i = 0; i < ARRAY_SIZE(config_rom_entries); i++)
 		if (config_rom_entries[i]->init()) {
 			HPSB_ERR("Failed to initialize config rom entry `%s'",
 				 config_rom_entries[i]->name);
 			error = -1;
-		} else
-			HPSB_DEBUG("Initialized config rom entry `%s'",
-				   config_rom_entries[i]->name);
-	}
+		}
 
 	return error;
 }
 
+/* Cleanup all config roms */
 void hpsb_cleanup_config_roms(void)
 {
 	int i;
 
-	for (i = 0; config_rom_entries[i]; i++) {
-		if (config_rom_entries[i]->cleanup)
-			config_rom_entries[i]->cleanup();
-	}
-}
-
-int hpsb_add_extra_config_roms(struct hpsb_host *host)
-{
-	int i, error = 0;
-
-	for (i = 0; config_rom_entries[i]; i++) {
-		if (config_rom_entries[i]->add(host)) {
-			HPSB_ERR("fw-host%d: Failed to attach config rom entry `%s'",
-				 host->id, config_rom_entries[i]->name);
-			error = -1;
-		} else {
-			host->config_roms |= config_rom_entries[i]->flag;
-			host->update_config_rom = 1;
-		}
-	}
-
-	return error;
-}
-
-void hpsb_remove_extra_config_roms(struct hpsb_host *host)
-{
-	int i;
-
-	for (i = 0; config_rom_entries[i]; i++) {
-		if (!(host->config_roms & config_rom_entries[i]->flag))
-			continue;
-
-		config_rom_entries[i]->remove(host);
-
-		host->config_roms &= ~config_rom_entries[i]->flag;
-		host->update_config_rom = 1;
-	}
+	for (i = 0; i < ARRAY_SIZE(config_rom_entries); i++)
+		config_rom_entries[i]->cleanup();
 }

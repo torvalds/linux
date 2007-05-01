@@ -52,9 +52,9 @@
 /* macro to calculate base address for ADMA regs */
 #define ADMA_REGS(base,port_no)		((base) + 0x80 + ((port_no) * 0x20))
 
-/* macro to obtain addresses from ata_host */
-#define ADMA_HOST_REGS(host,port_no) \
-	ADMA_REGS((host)->iomap[ADMA_MMIO_BAR], port_no)
+/* macro to obtain addresses from ata_port */
+#define ADMA_PORT_REGS(ap) \
+	ADMA_REGS((ap)->host->iomap[ADMA_MMIO_BAR], ap->port_no)
 
 enum {
 	ADMA_MMIO_BAR		= 4,
@@ -128,7 +128,6 @@ struct adma_port_priv {
 
 static int adma_ata_init_one (struct pci_dev *pdev,
 				const struct pci_device_id *ent);
-static irqreturn_t adma_intr (int irq, void *dev_instance);
 static int adma_port_start(struct ata_port *ap);
 static void adma_host_stop(struct ata_host *host);
 static void adma_port_stop(struct ata_port *ap);
@@ -172,7 +171,6 @@ static const struct ata_port_operations adma_ata_ops = {
 	.qc_issue		= adma_qc_issue,
 	.eng_timeout		= adma_eng_timeout,
 	.data_xfer		= ata_data_xfer,
-	.irq_handler		= adma_intr,
 	.irq_clear		= adma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -186,7 +184,6 @@ static const struct ata_port_operations adma_ata_ops = {
 static struct ata_port_info adma_port_info[] = {
 	/* board_1841_idx */
 	{
-		.sht		= &adma_ata_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST |
 				  ATA_FLAG_NO_LEGACY | ATA_FLAG_MMIO |
 				  ATA_FLAG_PIO_POLLING,
@@ -229,8 +226,10 @@ static void adma_irq_clear(struct ata_port *ap)
 	/* nothing */
 }
 
-static void adma_reset_engine(void __iomem *chan)
+static void adma_reset_engine(struct ata_port *ap)
 {
+	void __iomem *chan = ADMA_PORT_REGS(ap);
+
 	/* reset ADMA to idle state */
 	writew(aPIOMD4 | aNIEN | aRSTADM, chan + ADMA_CONTROL);
 	udelay(2);
@@ -241,14 +240,14 @@ static void adma_reset_engine(void __iomem *chan)
 static void adma_reinit_engine(struct ata_port *ap)
 {
 	struct adma_port_priv *pp = ap->private_data;
-	void __iomem *chan = ADMA_HOST_REGS(ap->host, ap->port_no);
+	void __iomem *chan = ADMA_PORT_REGS(ap);
 
 	/* mask/clear ATA interrupts */
 	writeb(ATA_NIEN, ap->ioaddr.ctl_addr);
 	ata_check_status(ap);
 
 	/* reset the ADMA engine */
-	adma_reset_engine(chan);
+	adma_reset_engine(ap);
 
 	/* set in-FIFO threshold to 0x100 */
 	writew(0x100, chan + ADMA_FIFO_IN);
@@ -268,7 +267,7 @@ static void adma_reinit_engine(struct ata_port *ap)
 
 static inline void adma_enter_reg_mode(struct ata_port *ap)
 {
-	void __iomem *chan = ADMA_HOST_REGS(ap->host, ap->port_no);
+	void __iomem *chan = ADMA_PORT_REGS(ap);
 
 	writew(aPIOMD4, chan + ADMA_CONTROL);
 	readb(chan + ADMA_STATUS);	/* flush */
@@ -415,7 +414,7 @@ static void adma_qc_prep(struct ata_queued_cmd *qc)
 static inline void adma_packet_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	void __iomem *chan = ADMA_HOST_REGS(ap->host, ap->port_no);
+	void __iomem *chan = ADMA_PORT_REGS(ap);
 
 	VPRINTK("ENTER, ap %p\n", ap);
 
@@ -453,7 +452,7 @@ static inline unsigned int adma_intr_pkt(struct ata_host *host)
 		struct ata_port *ap = host->ports[port_no];
 		struct adma_port_priv *pp;
 		struct ata_queued_cmd *qc;
-		void __iomem *chan = ADMA_HOST_REGS(host, port_no);
+		void __iomem *chan = ADMA_PORT_REGS(ap);
 		u8 status = readb(chan + ADMA_STATUS);
 
 		if (status == 0)
@@ -575,7 +574,7 @@ static int adma_port_start(struct ata_port *ap)
 
 static void adma_port_stop(struct ata_port *ap)
 {
-	adma_reset_engine(ADMA_HOST_REGS(ap->host, ap->port_no));
+	adma_reset_engine(ap);
 }
 
 static void adma_host_stop(struct ata_host *host)
@@ -583,21 +582,19 @@ static void adma_host_stop(struct ata_host *host)
 	unsigned int port_no;
 
 	for (port_no = 0; port_no < ADMA_PORTS; ++port_no)
-		adma_reset_engine(ADMA_HOST_REGS(host, port_no));
+		adma_reset_engine(host->ports[port_no]);
 }
 
-static void adma_host_init(unsigned int chip_id,
-				struct ata_probe_ent *probe_ent)
+static void adma_host_init(struct ata_host *host, unsigned int chip_id)
 {
 	unsigned int port_no;
-	void __iomem *mmio_base = probe_ent->iomap[ADMA_MMIO_BAR];
 
 	/* enable/lock aGO operation */
-	writeb(7, mmio_base + ADMA_MODE_LOCK);
+	writeb(7, host->iomap[ADMA_MMIO_BAR] + ADMA_MODE_LOCK);
 
 	/* reset the ADMA logic */
 	for (port_no = 0; port_no < ADMA_PORTS; ++port_no)
-		adma_reset_engine(ADMA_REGS(mmio_base, port_no));
+		adma_reset_engine(host->ports[port_no]);
 }
 
 static int adma_set_dma_masks(struct pci_dev *pdev, void __iomem *mmio_base)
@@ -623,14 +620,21 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 			     const struct pci_device_id *ent)
 {
 	static int printed_version;
-	struct ata_probe_ent *probe_ent = NULL;
-	void __iomem *mmio_base;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
+	const struct ata_port_info *ppi[] = { &adma_port_info[board_idx], NULL };
+	struct ata_host *host;
+	void __iomem *mmio_base;
 	int rc, port_no;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
+	/* alloc host */
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, ADMA_PORTS);
+	if (!host)
+		return -ENOMEM;
+
+	/* acquire resources and fill host */
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
@@ -641,46 +645,23 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 	rc = pcim_iomap_regions(pdev, 1 << ADMA_MMIO_BAR, DRV_NAME);
 	if (rc)
 		return rc;
-	mmio_base = pcim_iomap_table(pdev)[ADMA_MMIO_BAR];
+	host->iomap = pcim_iomap_table(pdev);
+	mmio_base = host->iomap[ADMA_MMIO_BAR];
 
 	rc = adma_set_dma_masks(pdev, mmio_base);
 	if (rc)
 		return rc;
 
-	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL)
-		return -ENOMEM;
-
-	probe_ent->dev = pci_dev_to_dev(pdev);
-	INIT_LIST_HEAD(&probe_ent->node);
-
-	probe_ent->sht		= adma_port_info[board_idx].sht;
-	probe_ent->port_flags	= adma_port_info[board_idx].flags;
-	probe_ent->pio_mask	= adma_port_info[board_idx].pio_mask;
-	probe_ent->mwdma_mask	= adma_port_info[board_idx].mwdma_mask;
-	probe_ent->udma_mask	= adma_port_info[board_idx].udma_mask;
-	probe_ent->port_ops	= adma_port_info[board_idx].port_ops;
-
-	probe_ent->irq		= pdev->irq;
-	probe_ent->irq_flags	= IRQF_SHARED;
-	probe_ent->n_ports	= ADMA_PORTS;
-	probe_ent->iomap	= pcim_iomap_table(pdev);
-
-	for (port_no = 0; port_no < probe_ent->n_ports; ++port_no) {
-		adma_ata_setup_port(&probe_ent->port[port_no],
+	for (port_no = 0; port_no < ADMA_PORTS; ++port_no)
+		adma_ata_setup_port(&host->ports[port_no]->ioaddr,
 				    ADMA_ATA_REGS(mmio_base, port_no));
-	}
-
-	pci_set_master(pdev);
 
 	/* initialize adapter */
-	adma_host_init(board_idx, probe_ent);
+	adma_host_init(host, board_idx);
 
-	if (!ata_device_add(probe_ent))
-		return -ENODEV;
-
-	devm_kfree(&pdev->dev, probe_ent);
-	return 0;
+	pci_set_master(pdev);
+	return ata_host_activate(host, pdev->irq, adma_intr, IRQF_SHARED,
+				 &adma_ata_sht);
 }
 
 static int __init adma_ata_init(void)

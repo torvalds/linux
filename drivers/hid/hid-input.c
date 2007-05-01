@@ -431,6 +431,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x000: goto ignore;
 				case 0x034: map_key_clear(KEY_SLEEP);		break;
 				case 0x036: map_key_clear(BTN_MISC);		break;
+				/*
+				 * The next three are reported by Belkin wireless
+				 * keyboard (1020:0006). These values are "reserved"
+				 * in HUT 1.12.
+				 */
+				case 0x03a: map_key_clear(KEY_SOUND);           break;
+				case 0x03b: map_key_clear(KEY_CAMERA);          break;
+				case 0x03c: map_key_clear(KEY_DOCUMENTS);       break;
+
 				case 0x040: map_key_clear(KEY_MENU);		break;
 				case 0x045: map_key_clear(KEY_RADIO);		break;
 
@@ -531,10 +540,26 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x302: map_key_clear(KEY_PROG2);		break;
 				case 0x303: map_key_clear(KEY_PROG3);		break;
 
-				/* Reported on Logitech S510 wireless keyboard */
+				/* Reported on certain Logitech wireless keyboards */
+				case 0x1001: map_key_clear(KEY_MESSENGER);	break;
+				case 0x1003: map_key_clear(KEY_SOUND);		break;
+				case 0x1004: map_key_clear(KEY_VIDEO);		break;
+				case 0x1005: map_key_clear(KEY_AUDIO);		break;
+				case 0x100a: map_key_clear(KEY_DOCUMENTS);	break;
+				case 0x1011: map_key_clear(KEY_PREVIOUSSONG);	break;
+				case 0x1012: map_key_clear(KEY_NEXTSONG);	break;
+				case 0x1013: map_key_clear(KEY_CAMERA);		break;
+				case 0x1014: map_key_clear(KEY_MESSENGER);	break;
+				case 0x1015: map_key_clear(KEY_RECORD);		break;
+				case 0x1016: map_key_clear(KEY_PLAYER);		break;
+				case 0x1017: map_key_clear(KEY_EJECTCD);	break;
+				case 0x1019: map_key_clear(KEY_PROG1);		break;
+				case 0x101a: map_key_clear(KEY_PROG2);		break;
+				case 0x101b: map_key_clear(KEY_PROG3);		break;
 				case 0x101f: map_key_clear(KEY_ZOOMIN);		break;
 				case 0x1020: map_key_clear(KEY_ZOOMOUT);	break;
 				case 0x1021: map_key_clear(KEY_ZOOMRESET);	break;
+				case 0x1023: map_key_clear(KEY_CLOSE);		break;
 				/* this one is marked as 'Rotate' */
 				case 0x1028: map_key_clear(KEY_ANGLE);		break;
 				case 0x1029: map_key_clear(KEY_SHUFFLE);	break;

@@ -46,11 +46,6 @@
 #include "endian.h"
 #include "ocfs2_lockid.h"
 
-struct ocfs2_extent_map {
-	u32		em_clusters;
-	struct rb_root	em_extents;
-};
-
 /* Most user visible OCFS2 inodes will have very few pieces of
  * metadata, but larger files (including bitmaps, etc) must be taken
  * into account when designing an access scheme. We allow a small
@@ -303,6 +298,13 @@ static inline int ocfs2_should_order_data(struct inode *inode)
 	return 1;
 }
 
+static inline int ocfs2_sparse_alloc(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC)
+		return 1;
+	return 0;
+}
+
 /* set / clear functions because cluster events can make these happen
  * in parallel so we want the transitions to be atomic. this also
  * means that any future flags osb_flags must be protected by spinlock
@@ -459,6 +461,49 @@ static inline u64 ocfs2_align_bytes_to_blocks(struct super_block *sb,
 static inline unsigned long ocfs2_align_bytes_to_sectors(u64 bytes)
 {
 	return (unsigned long)((bytes + 511) >> 9);
+}
+
+static inline unsigned int ocfs2_page_index_to_clusters(struct super_block *sb,
+							unsigned long pg_index)
+{
+	u32 clusters = pg_index;
+	unsigned int cbits = OCFS2_SB(sb)->s_clustersize_bits;
+
+	if (unlikely(PAGE_CACHE_SHIFT > cbits))
+		clusters = pg_index << (PAGE_CACHE_SHIFT - cbits);
+	else if (PAGE_CACHE_SHIFT < cbits)
+		clusters = pg_index >> (cbits - PAGE_CACHE_SHIFT);
+
+	return clusters;
+}
+
+/*
+ * Find the 1st page index which covers the given clusters.
+ */
+static inline unsigned long ocfs2_align_clusters_to_page_index(struct super_block *sb,
+							u32 clusters)
+{
+	unsigned int cbits = OCFS2_SB(sb)->s_clustersize_bits;
+	unsigned long index = clusters;
+
+	if (PAGE_CACHE_SHIFT > cbits) {
+		index = clusters >> (PAGE_CACHE_SHIFT - cbits);
+	} else if (PAGE_CACHE_SHIFT < cbits) {
+		index = clusters << (cbits - PAGE_CACHE_SHIFT);
+	}
+
+	return index;
+}
+
+static inline unsigned int ocfs2_pages_per_cluster(struct super_block *sb)
+{
+	unsigned int cbits = OCFS2_SB(sb)->s_clustersize_bits;
+	unsigned int pages_per_cluster = 1;
+
+	if (PAGE_CACHE_SHIFT < cbits)
+		pages_per_cluster = 1 << (cbits - PAGE_CACHE_SHIFT);
+
+	return pages_per_cluster;
 }
 
 #define ocfs2_set_bit ext2_set_bit

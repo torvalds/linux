@@ -190,7 +190,7 @@ static int __init flash_init(void)
 	}
 	if (!sdev) {
 #ifdef CONFIG_PCI
-		struct linux_prom_registers *ebus_regs;
+		const struct linux_prom_registers *ebus_regs;
 
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {

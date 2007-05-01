@@ -71,7 +71,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.3.0-1.226"
+#define MYRI10GE_VERSION_STR "1.3.0-1.233"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -879,7 +879,7 @@ myri10ge_rx_skb_build(struct sk_buff *skb, u8 * va,
 	 * skb_pull() (for ether_pad and eth_type_trans()) requires
 	 * the beginning of the packet in skb_headlen(), move it
 	 * manually */
-	memcpy(skb->data, va, hlen);
+	skb_copy_to_linear_data(skb, va, hlen);
 	skb_shinfo(skb)->frags[0].page_offset += hlen;
 	skb_shinfo(skb)->frags[0].size -= hlen;
 	skb->data_len -= hlen;
@@ -900,19 +900,9 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 	/* try to refill entire ring */
 	while (rx->fill_cnt != (rx->cnt + rx->mask + 1)) {
 		idx = rx->fill_cnt & rx->mask;
-
-		if ((bytes < MYRI10GE_ALLOC_SIZE / 2) &&
-		    (rx->page_offset + bytes <= MYRI10GE_ALLOC_SIZE)) {
+		if (rx->page_offset + bytes <= MYRI10GE_ALLOC_SIZE) {
 			/* we can use part of previous page */
 			get_page(rx->page);
-#if MYRI10GE_ALLOC_SIZE > 4096
-			/* Firmware cannot cross 4K boundary.. */
-			if ((rx->page_offset >> 12) !=
-			    ((rx->page_offset + bytes - 1) >> 12)) {
-				rx->page_offset =
-				    (rx->page_offset + bytes) & ~4095;
-			}
-#endif
 		} else {
 			/* we need a new page */
 			page =
@@ -941,6 +931,13 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 
 		/* start next packet on a cacheline boundary */
 		rx->page_offset += SKB_DATA_ALIGN(bytes);
+
+#if MYRI10GE_ALLOC_SIZE > 4096
+		/* don't cross a 4KB boundary */
+		if ((rx->page_offset >> 12) !=
+		    ((rx->page_offset + bytes - 1) >> 12))
+			rx->page_offset = (rx->page_offset + 4096) & ~4095;
+#endif
 		rx->fill_cnt++;
 
 		/* copy 8 descriptors to the firmware at a time */
@@ -1023,7 +1020,6 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 		skb_shinfo(skb)->nr_frags = 0;
 	}
 	skb->protocol = eth_type_trans(skb, dev);
-	skb->dev = dev;
 
 	if (mgp->csum_flag) {
 		if ((skb->protocol == htons(ETH_P_IP)) ||
@@ -2015,10 +2011,9 @@ again:
 	mss = 0;
 	max_segments = MXGEFW_MAX_SEND_DESC;
 
-	if (skb->len > (dev->mtu + ETH_HLEN)) {
+	if (skb_is_gso(skb)) {
 		mss = skb_shinfo(skb)->gso_size;
-		if (mss != 0)
-			max_segments = MYRI10GE_MAX_SEND_DESC_TSO;
+		max_segments = MYRI10GE_MAX_SEND_DESC_TSO;
 	}
 
 	if ((unlikely(avail < max_segments))) {
@@ -2034,7 +2029,7 @@ again:
 	odd_flag = 0;
 	flags = (MXGEFW_FLAGS_NO_TSO | MXGEFW_FLAGS_FIRST);
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
-		cksum_offset = (skb->h.raw - skb->data);
+		cksum_offset = skb_transport_offset(skb);
 		pseudo_hdr_offset = cksum_offset + skb->csum_offset;
 		/* If the headers are excessively large, then we must
 		 * fall back to a software checksum */
@@ -2059,7 +2054,7 @@ again:
 		 * send loop that we are still in the
 		 * header portion of the TSO packet.
 		 * TSO header must be at most 134 bytes long */
-		cum_len = -((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
+		cum_len = -(skb_transport_offset(skb) + tcp_hdrlen(skb));
 
 		/* for TSO, pseudo_hdr_offset holds mss.
 		 * The firmware figures out where to put
@@ -2491,6 +2486,10 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE23 0x25f7
 #define PCI_DEVICE_ID_INTEL_E5000_PCIE47 0x25fa
+#define PCI_DEVICE_ID_INTEL_6300ESB_PCIEE1 0x3510
+#define PCI_DEVICE_ID_INTEL_6300ESB_PCIEE4 0x351b
+#define PCI_DEVICE_ID_INTEL_E3000_PCIE	0x2779
+#define PCI_DEVICE_ID_INTEL_E3010_PCIE	0x277a
 #define PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_FIRST 0x140
 #define PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_LAST 0x142
 
@@ -2530,6 +2529,18 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 				PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_FIRST
 				&& bridge->device <=
 				PCI_DEVICE_ID_SERVERWORKS_HT2100_PCIE_LAST)
+			    /* All Intel E3000/E3010 PCIE ports */
+			    || (bridge->vendor == PCI_VENDOR_ID_INTEL
+				&& (bridge->device ==
+				    PCI_DEVICE_ID_INTEL_E3000_PCIE
+				    || bridge->device ==
+				    PCI_DEVICE_ID_INTEL_E3010_PCIE))
+			    /* All Intel 6310/6311/6321ESB PCIE ports */
+			    || (bridge->vendor == PCI_VENDOR_ID_INTEL
+				&& bridge->device >=
+				PCI_DEVICE_ID_INTEL_6300ESB_PCIEE1
+				&& bridge->device <=
+				PCI_DEVICE_ID_INTEL_6300ESB_PCIEE4)
 			    /* All Intel E5000 PCIE ports */
 			    || (bridge->vendor == PCI_VENDOR_ID_INTEL
 				&& bridge->device >=

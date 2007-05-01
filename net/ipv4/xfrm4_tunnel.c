@@ -12,9 +12,8 @@
 
 static int ipip_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct iphdr *iph;
+	struct iphdr *iph = ip_hdr(skb);
 
-	iph = skb->nh.iph;
 	iph->tot_len = htons(skb->len);
 	ip_send_check(iph);
 

@@ -47,8 +47,6 @@
 #define HVC_MAJOR	229
 #define HVC_MINOR	0
 
-#define TIMEOUT		(10)
-
 /*
  * Wait this long per iteration while trying to push buffered data to the
  * hypervisor before allowing the tty to complete a close operation.
@@ -104,12 +102,12 @@ static DEFINE_SPINLOCK(hvc_structs_lock);
 /*
  * This value is used to assign a tty->index value to a hvc_struct based
  * upon order of exposure via hvc_probe(), when we can not match it to
- * a console canidate registered with hvc_instantiate().
+ * a console candidate registered with hvc_instantiate().
  */
 static int last_hvc = -1;
 
 /*
- * Do not call this function with either the hvc_strucst_lock or the hvc_struct
+ * Do not call this function with either the hvc_structs_lock or the hvc_struct
  * lock held.  If successful, this function increments the kobject reference
  * count against the target hvc_struct so it should be released when finished.
  */
@@ -162,7 +160,7 @@ void hvc_console_print(struct console *co, const char *b, unsigned count)
 	if (index >= MAX_NR_HVC_CONSOLES)
 		return;
 
-	/* This console adapter was removed so it is not useable. */
+	/* This console adapter was removed so it is not usable. */
 	if (vtermnos[index] < 0)
 		return;
 
@@ -220,7 +218,7 @@ struct console hvc_con_driver = {
 };
 
 /*
- * Early console initialization.  Preceeds driver initialization.
+ * Early console initialization.  Precedes driver initialization.
  *
  * (1) we are first, and the user specified another driver
  * -- index will remain -1
@@ -257,7 +255,7 @@ int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops)
 	if (vtermnos[index] != -1)
 		return -1;
 
-	/* make sure no no tty has been registerd in this index */
+	/* make sure no no tty has been registered in this index */
 	hp = hvc_get_by_index(index);
 	if (hp) {
 		kobject_put(&hp->kobj);
@@ -267,7 +265,7 @@ int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops)
 	vtermnos[index] = vtermno;
 	cons_ops[index] = ops;
 
-	/* reserve all indices upto and including this index */
+	/* reserve all indices up to and including this index */
 	if (last_hvc < index)
 		last_hvc = index;
 
@@ -528,7 +526,7 @@ static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count
 
 /*
  * This is actually a contract between the driver and the tty layer outlining
- * how much write room the driver can guarentee will be sent OR BUFFERED.  This
+ * how much write room the driver can guarantee will be sent OR BUFFERED.  This
  * driver MUST honor the return value.
  */
 static int hvc_write_room(struct tty_struct *tty)
@@ -549,6 +547,18 @@ static int hvc_chars_in_buffer(struct tty_struct *tty)
 		return -1;
 	return hp->n_outbuf;
 }
+
+/*
+ * timeout will vary between the MIN and MAX values defined here.  By default
+ * and during console activity we will use a default MIN_TIMEOUT of 10.  When
+ * the console is idle, we increase the timeout value on each pass through
+ * msleep until we reach the max.  This may be noticeable as a brief (average
+ * one second) delay on the console before the console responds to input when
+ * there has been no input for some time.
+ */
+#define MIN_TIMEOUT		(10)
+#define MAX_TIMEOUT		(2000)
+static u32 timeout = MIN_TIMEOUT;
 
 #define HVC_POLL_READ	0x00000001
 #define HVC_POLL_WRITE	0x00000002
@@ -642,9 +652,14 @@ static int hvc_poll(struct hvc_struct *hp)
  bail:
 	spin_unlock_irqrestore(&hp->lock, flags);
 
-	if (read_total)
+	if (read_total) {
+		/* Activity is occurring, so reset the polling backoff value to
+		   a minimum for performance. */
+		timeout = MIN_TIMEOUT;
+
 		tty_flip_buffer_push(tty);
-	
+	}
+
 	return poll_mask;
 }
 
@@ -688,8 +703,12 @@ int khvcd(void *unused)
 		if (!hvc_kicked) {
 			if (poll_mask == 0)
 				schedule();
-			else
-				msleep_interruptible(TIMEOUT);
+			else {
+				if (timeout < MAX_TIMEOUT)
+					timeout += (timeout >> 6) + 1;
+
+				msleep_interruptible(timeout);
+			}
 		}
 		__set_current_state(TASK_RUNNING);
 	} while (!kthread_should_stop());
@@ -794,7 +813,7 @@ int __devexit hvc_remove(struct hvc_struct *hp)
 
 	/*
 	 * We 'put' the instance that was grabbed when the kobject instance
-	 * was intialized using kobject_init().  Let the last holder of this
+	 * was initialized using kobject_init().  Let the last holder of this
 	 * kobject cause it to be removed, which will probably be the tty_hangup
 	 * below.
 	 */
@@ -850,7 +869,7 @@ int __init hvc_init(void)
 }
 module_init(hvc_init);
 
-/* This isn't particularily necessary due to this being a console driver
+/* This isn't particularly necessary due to this being a console driver
  * but it is nice to be thorough.
  */
 static void __exit hvc_exit(void)

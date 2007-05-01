@@ -562,7 +562,6 @@ static void ni5010_rx(struct net_device *dev)
 		return;
 	}
 
-	skb->dev = dev;
 	skb_reserve(skb, 2);
 
 	/* Read packet into buffer */

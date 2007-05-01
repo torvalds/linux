@@ -30,10 +30,7 @@ MODULE_ALIAS("ipt_CONNMARK");
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_CONNMARK.h>
-#include <net/netfilter/nf_conntrack_compat.h>
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netfilter/nf_conntrack_ecache.h>
-#endif
 
 static unsigned int
 target(struct sk_buff **pskb,
@@ -44,40 +41,33 @@ target(struct sk_buff **pskb,
        const void *targinfo)
 {
 	const struct xt_connmark_target_info *markinfo = targinfo;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
 	u_int32_t diff;
 	u_int32_t mark;
 	u_int32_t newmark;
-	u_int32_t ctinfo;
-	u_int32_t *ctmark = nf_ct_get_mark(*pskb, &ctinfo);
 
-	if (ctmark) {
+	ct = nf_ct_get(*pskb, &ctinfo);
+	if (ct) {
 		switch(markinfo->mode) {
 		case XT_CONNMARK_SET:
-			newmark = (*ctmark & ~markinfo->mask) | markinfo->mark;
-			if (newmark != *ctmark) {
-				*ctmark = newmark;
-#if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
-				ip_conntrack_event_cache(IPCT_MARK, *pskb);
-#else
+			newmark = (ct->mark & ~markinfo->mask) | markinfo->mark;
+			if (newmark != ct->mark) {
+				ct->mark = newmark;
 				nf_conntrack_event_cache(IPCT_MARK, *pskb);
-#endif
 			}
 			break;
 		case XT_CONNMARK_SAVE:
-			newmark = (*ctmark & ~markinfo->mask) |
+			newmark = (ct->mark & ~markinfo->mask) |
 				  ((*pskb)->mark & markinfo->mask);
-			if (*ctmark != newmark) {
-				*ctmark = newmark;
-#if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
-				ip_conntrack_event_cache(IPCT_MARK, *pskb);
-#else
+			if (ct->mark != newmark) {
+				ct->mark = newmark;
 				nf_conntrack_event_cache(IPCT_MARK, *pskb);
-#endif
 			}
 			break;
 		case XT_CONNMARK_RESTORE:
 			mark = (*pskb)->mark;
-			diff = (*ctmark ^ mark) & markinfo->mask;
+			diff = (ct->mark ^ mark) & markinfo->mask;
 			(*pskb)->mark = mark ^ diff;
 			break;
 		}

@@ -213,7 +213,7 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		return;
 	}
 	ATM_SKB(skb)->vcc = vcc;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	if (!clip_vcc->encap
 	    || skb->len < RFC1483LLC_LEN
 	    || memcmp(skb->data, llc_oui, sizeof (llc_oui)))
@@ -259,14 +259,6 @@ static void clip_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 			netif_wake_queue(dev);
 	}
 	spin_unlock_irqrestore(&PRIV(dev)->xoff_lock, flags);
-}
-
-static void clip_neigh_destroy(struct neighbour *neigh)
-{
-	DPRINTK("clip_neigh_destroy (neigh %p)\n", neigh);
-	if (NEIGH2ENTRY(neigh)->vccs)
-		printk(KERN_CRIT "clip_neigh_destroy: vccs != NULL !!!\n");
-	NEIGH2ENTRY(neigh)->vccs = (void *) NEIGHBOR_DEAD;
 }
 
 static void clip_neigh_solicit(struct neighbour *neigh, struct sk_buff *skb)
@@ -342,7 +334,6 @@ static struct neigh_table clip_tbl = {
 	/* parameters are copied from ARP ... */
 	.parms = {
 		.tbl 			= &clip_tbl,
-		.neigh_destructor	= clip_neigh_destroy,
 		.base_reachable_time 	= 30 * HZ,
 		.retrans_time 		= 1 * HZ,
 		.gc_staletime 		= 60 * HZ,
@@ -711,7 +702,7 @@ static struct atm_dev atmarpd_dev = {
 	.ops =			&atmarpd_dev_ops,
 	.type =			"arpd",
 	.number = 		999,
-	.lock =			SPIN_LOCK_UNLOCKED
+	.lock =			__SPIN_LOCK_UNLOCKED(atmarpd_dev.lock)
 };
 
 

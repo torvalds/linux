@@ -370,6 +370,8 @@ static int attach_inform(struct i2c_client *client)
 
 		tun_setup.type = tuner;
 		tun_setup.addr = saa7134_boards[dev->board].tuner_addr;
+		tun_setup.config = saa7134_boards[dev->board].tuner_config;
+		tun_setup.tuner_callback = saa7134_tuner_callback;
 
 		if ((tun_setup.addr == ADDR_UNSET)||(tun_setup.addr == client->addr)) {
 
@@ -445,7 +447,7 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 	unsigned char buf;
 	int i,rc;
 
-	for (i = 0; i < 128; i++) {
+	for (i = 0; i < ARRAY_SIZE(i2c_devs); i++) {
 		c->addr = i;
 		rc = i2c_master_recv(c,&buf,0);
 		if (rc < 0)

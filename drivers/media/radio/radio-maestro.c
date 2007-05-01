@@ -75,8 +75,6 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 static int radio_nr = -1;
 module_param(radio_nr, int, 0);
 
-static int radio_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg);
 static int maestro_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void maestro_remove(struct pci_dev *pdev);
 
@@ -102,16 +100,9 @@ static const struct file_operations maestro_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
-	.ioctl		= radio_ioctl,
+	.ioctl		= video_ioctl2,
 	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
-};
-
-static struct video_device maestro_radio = {
-	.name		= "Maestro radio",
-	.type		= VID_TYPE_TUNER,
-	.hardware	= 0,
-	.fops		= &maestro_fops,
 };
 
 struct radio_device {
@@ -190,142 +181,153 @@ static void radio_bits_set(struct radio_device *dev, u32 data)
 	msleep(125);
 }
 
-static inline int radio_function(struct inode *inode, struct file *file,
-	unsigned int cmd, void *arg)
+static int vidioc_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *v)
 {
-	struct video_device *dev = video_devdata(file);
-	struct radio_device *card = video_get_drvdata(dev);
-
-	switch (cmd) {
-		case VIDIOC_QUERYCAP:
-		{
-			struct v4l2_capability *v = arg;
-			memset(v,0,sizeof(*v));
-			strlcpy(v->driver, "radio-maestro", sizeof (v->driver));
-			strlcpy(v->card, "Maestro Radio", sizeof (v->card));
-			sprintf(v->bus_info,"PCI");
-			v->version = RADIO_VERSION;
-			v->capabilities = V4L2_CAP_TUNER;
-
-			return 0;
-		}
-		case VIDIOC_G_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			(void)radio_bits_get(card);
-
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "FM");
-			v->type = V4L2_TUNER_RADIO;
-
-			v->rangelow = FREQ_LO;
-			v->rangehigh = FREQ_HI;
-			v->rxsubchans =V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
-			v->capability=V4L2_TUNER_CAP_LOW;
-			if(card->stereo)
-				v->audmode = V4L2_TUNER_MODE_STEREO;
-			else
-				v->audmode = V4L2_TUNER_MODE_MONO;
-			v->signal=card->tuned;
-
-			return 0;
-		}
-		case VIDIOC_S_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			return 0;
-		}
-		case VIDIOC_S_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			if (f->frequency < FREQ_LO || f->frequency > FREQ_HI)
-				return -EINVAL;
-			radio_bits_set(card, FREQ2BITS(f->frequency));
-
-			return 0;
-		}
-		case VIDIOC_G_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			f->type = V4L2_TUNER_RADIO;
-			f->frequency = BITS2FREQ(radio_bits_get(card));
-
-			return 0;
-		}
-		case VIDIOC_QUERYCTRL:
-		{
-			struct v4l2_queryctrl *qc = arg;
-			int i;
-
-			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-				if (qc->id && qc->id == radio_qctrl[i].id) {
-					memcpy(qc, &(radio_qctrl[i]),
-								sizeof(*qc));
-					return (0);
-				}
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_G_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					ctrl->value=card->muted;
-					return (0);
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-				{
-					register u16 io = card->io;
-					register u16 omask = inw(io + IO_MASK);
-					outw(~STR_WREN, io + IO_MASK);
-					outw((card->muted = ctrl->value ) ?
-						STR_WREN : 0, io);
-					udelay(4);
-					outw(omask, io + IO_MASK);
-					msleep(125);
-
-					return (0);
-				}
-			}
-			return -EINVAL;
-		}
-		default:
-			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-							  radio_function);
-	}
+	strlcpy(v->driver, "radio-maestro", sizeof(v->driver));
+	strlcpy(v->card, "Maestro Radio", sizeof(v->card));
+	sprintf(v->bus_info, "PCI");
+	v->version = RADIO_VERSION;
+	v->capabilities = V4L2_CAP_TUNER;
+	return 0;
 }
 
-static int radio_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static int vidioc_g_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
 {
 	struct video_device *dev = video_devdata(file);
 	struct radio_device *card = video_get_drvdata(dev);
-	int ret;
 
-	mutex_lock(&card->lock);
-	ret = video_usercopy(inode, file, cmd, arg, radio_function);
-	mutex_unlock(&card->lock);
+	if (v->index > 0)
+		return -EINVAL;
 
-	return ret;
+	(void)radio_bits_get(card);
+
+	strcpy(v->name, "FM");
+	v->type = V4L2_TUNER_RADIO;
+	v->rangelow = FREQ_LO;
+	v->rangehigh = FREQ_HI;
+	v->rxsubchans = V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
+	v->capability = V4L2_TUNER_CAP_LOW;
+	if(card->stereo)
+		v->audmode = V4L2_TUNER_MODE_STEREO;
+	else
+		v->audmode = V4L2_TUNER_MODE_MONO;
+	v->signal = card->tuned;
+	return 0;
+}
+
+static int vidioc_s_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
+{
+	if (v->index > 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
+{
+	struct video_device *dev = video_devdata(file);
+	struct radio_device *card = video_get_drvdata(dev);
+
+	if (f->frequency < FREQ_LO || f->frequency > FREQ_HI)
+		return -EINVAL;
+	radio_bits_set(card, FREQ2BITS(f->frequency));
+	return 0;
+}
+
+static int vidioc_g_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
+{
+	struct video_device *dev = video_devdata(file);
+	struct radio_device *card = video_get_drvdata(dev);
+
+	f->type = V4L2_TUNER_RADIO;
+	f->frequency = BITS2FREQ(radio_bits_get(card));
+	return 0;
+}
+
+static int vidioc_queryctrl(struct file *file, void *priv,
+					struct v4l2_queryctrl *qc)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+		if (qc->id && qc->id == radio_qctrl[i].id) {
+			memcpy(qc, &(radio_qctrl[i]),
+						sizeof(*qc));
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct radio_device *card = video_get_drvdata(dev);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = card->muted;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_s_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct radio_device *card = video_get_drvdata(dev);
+	register u16 io = card->io;
+	register u16 omask = inw(io + IO_MASK);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		outw(~STR_WREN, io + IO_MASK);
+		outw((card->muted = ctrl->value ) ?
+				STR_WREN : 0, io);
+		udelay(4);
+		outw(omask, io + IO_MASK);
+		msleep(125);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index > 1)
+		return -EINVAL;
+
+	strcpy(a->name, "Radio");
+	a->capability = V4L2_AUDCAP_STEREO;
+	return 0;
+}
+
+static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
+{
+	if (i != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index != 0)
+		return -EINVAL;
+	return 0;
 }
 
 static u16 __devinit radio_power_on(struct radio_device *dev)
@@ -351,6 +353,24 @@ static u16 __devinit radio_power_on(struct radio_device *dev)
 
 	return (ofreq == radio_bits_get(dev));
 }
+
+static struct video_device maestro_radio = {
+	.name           = "Maestro radio",
+	.type           = VID_TYPE_TUNER,
+	.fops           = &maestro_fops,
+	.vidioc_querycap    = vidioc_querycap,
+	.vidioc_g_tuner     = vidioc_g_tuner,
+	.vidioc_s_tuner     = vidioc_s_tuner,
+	.vidioc_g_audio     = vidioc_g_audio,
+	.vidioc_s_audio     = vidioc_s_audio,
+	.vidioc_g_input     = vidioc_g_input,
+	.vidioc_s_input     = vidioc_s_input,
+	.vidioc_g_frequency = vidioc_g_frequency,
+	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_queryctrl   = vidioc_queryctrl,
+	.vidioc_g_ctrl      = vidioc_g_ctrl,
+	.vidioc_s_ctrl      = vidioc_s_ctrl,
+};
 
 static int __devinit maestro_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)

@@ -232,7 +232,8 @@ static void cx8801_aud_irq(snd_cx88_card_t *chip)
 	cx_write(MO_AUD_INTSTAT, status);
 	if (debug > 1  ||  (status & mask & ~0xff))
 		cx88_print_irqbits(core->name, "irq aud",
-				   cx88_aud_irqs, status, mask);
+				   cx88_aud_irqs, ARRAY_SIZE(cx88_aud_irqs),
+				   status, mask);
 	/* risc op code error */
 	if (status & (1 << 16)) {
 		printk(KERN_WARNING "%s/0: audio risc op code error\n",core->name);
@@ -413,11 +414,9 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 
 	dprintk(1,"Setting buffer\n");
 
-	buf = kmalloc(sizeof(*buf),GFP_KERNEL);
+	buf = kzalloc(sizeof(*buf),GFP_KERNEL);
 	if (NULL == buf)
 		return -ENOMEM;
-	memset(buf,0,sizeof(*buf));
-
 
 	buf->vb.memory = V4L2_MEMORY_MMAP;
 	buf->vb.width  = chip->period_size;
@@ -682,7 +681,7 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 		return err;
 	}
 
-	if (!pci_dma_supported(pci,0xffffffff)) {
+	if (!pci_dma_supported(pci,DMA_32BIT_MASK)) {
 		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n",core->name);
 		err = -EIO;
 		cx88_core_put(core,pci);

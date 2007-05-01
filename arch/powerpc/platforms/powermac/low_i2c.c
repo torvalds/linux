@@ -491,7 +491,7 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 	 * on all i2c keywest nodes so far ... we would have to fallback
 	 * to macio parsing if that wasn't the case
 	 */
-	addrp = get_property(np, "AAPL,address", NULL);
+	addrp = of_get_property(np, "AAPL,address", NULL);
 	if (addrp == NULL) {
 		printk(KERN_ERR "low_i2c: Can't find address for %s\n",
 		       np->full_name);
@@ -505,13 +505,13 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 	host->timeout_timer.function = kw_i2c_timeout;
 	host->timeout_timer.data = (unsigned long)host;
 
-	psteps = get_property(np, "AAPL,address-step", NULL);
+	psteps = of_get_property(np, "AAPL,address-step", NULL);
 	steps = psteps ? (*psteps) : 0x10;
 	for (host->bsteps = 0; (steps & 0x01) == 0; host->bsteps++)
 		steps >>= 1;
 	/* Select interface rate */
 	host->speed = KW_I2C_MODE_25KHZ;
-	prate = get_property(np, "AAPL,i2c-rate", NULL);
+	prate = of_get_property(np, "AAPL,i2c-rate", NULL);
 	if (prate) switch(*prate) {
 	case 100:
 		host->speed = KW_I2C_MODE_100KHZ;
@@ -619,7 +619,7 @@ static void __init kw_i2c_probe(void)
 		} else {
 			for (child = NULL;
 			     (child = of_get_next_child(np, child)) != NULL;) {
-				const u32 *reg = get_property(child,
+				const u32 *reg = of_get_property(child,
 						"reg", NULL);
 				if (reg == NULL)
 					continue;
@@ -905,7 +905,7 @@ static void __init smu_i2c_probe(void)
 		if (strcmp(busnode->type, "i2c") &&
 		    strcmp(busnode->type, "i2c-bus"))
 			continue;
-		reg = get_property(busnode, "reg", NULL);
+		reg = of_get_property(busnode, "reg", NULL);
 		if (reg == NULL)
 			continue;
 
@@ -950,7 +950,8 @@ struct pmac_i2c_bus *pmac_i2c_find_bus(struct device_node *node)
 			if (p == bus->busnode) {
 				if (prev && bus->flags & pmac_i2c_multibus) {
 					const u32 *reg;
-					reg = get_property(prev, "reg", NULL);
+					reg = of_get_property(prev, "reg",
+								NULL);
 					if (!reg)
 						continue;
 					if (((*reg) >> 8) != bus->channel)
@@ -971,7 +972,7 @@ EXPORT_SYMBOL_GPL(pmac_i2c_find_bus);
 
 u8 pmac_i2c_get_dev_addr(struct device_node *device)
 {
-	const u32 *reg = get_property(device, "reg", NULL);
+	const u32 *reg = of_get_property(device, "reg", NULL);
 
 	if (reg == NULL)
 		return 0;

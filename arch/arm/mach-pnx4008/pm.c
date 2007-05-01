@@ -107,50 +107,19 @@ static int pnx4008_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		pnx4008_suspend();
 		break;
-	case PM_SUSPEND_DISK:
-		return -ENOTSUPP;
-	default:
-		return -EINVAL;
 	}
 	return 0;
 }
 
-/*
- * Called after processes are frozen, but before we shut down devices.
- */
-static int pnx4008_pm_prepare(suspend_state_t state)
+static int pnx4008_pm_valid(suspend_state_t state)
 {
-	switch (state) {
-	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
-		break;
-
-	case PM_SUSPEND_DISK:
-		return -ENOTSUPP;
-		break;
-
-	default:
-		return -EINVAL;
-		break;
-	}
-	return 0;
+	return (state == PM_SUSPEND_STANDBY) ||
+	       (state == PM_SUSPEND_MEM);
 }
 
-/*
- * Called after devices are re-setup, but before processes are thawed.
- */
-static int pnx4008_pm_finish(suspend_state_t state)
-{
-	return 0;
-}
-
-/*
- * Set to PM_DISK_FIRMWARE so we can quickly veto suspend-to-disk.
- */
 static struct pm_ops pnx4008_pm_ops = {
-	.prepare = pnx4008_pm_prepare,
 	.enter = pnx4008_pm_enter,
-	.finish = pnx4008_pm_finish,
+	.valid = pnx4008_pm_valid,
 };
 
 static int __init pnx4008_pm_init(void)

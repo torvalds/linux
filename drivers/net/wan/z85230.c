@@ -1656,7 +1656,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 		else
 		{
 			skb_put(skb, ct);
-			memcpy(skb->data, rxb, ct);
+			skb_copy_to_linear_data(skb, rxb, ct);
 			c->stats.rx_packets++;
 			c->stats.rx_bytes+=ct;
 		}
@@ -1782,7 +1782,7 @@ int z8530_queue_xmit(struct z8530_channel *c, struct sk_buff *skb)
 		 */
 		c->tx_next_ptr=c->tx_dma_buf[c->tx_dma_used];
 		c->tx_dma_used^=1;	/* Flip temp buffer */
-		memcpy(c->tx_next_ptr, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, c->tx_next_ptr, skb->len);
 	}
 	else
 		c->tx_next_ptr=skb->data;	

@@ -42,6 +42,7 @@ void *kmap_atomic(struct page *page, enum km_type type)
 
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 	set_pte(kmap_pte-idx, mk_pte(page, kmap_prot));
+	arch_flush_lazy_mmu_mode();
 
 	return (void*) vaddr;
 }
@@ -82,6 +83,7 @@ void *kmap_atomic_pfn(unsigned long pfn, enum km_type type)
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 	set_pte(kmap_pte-idx, pfn_pte(pfn, kmap_prot));
+	arch_flush_lazy_mmu_mode();
 
 	return (void*) vaddr;
 }

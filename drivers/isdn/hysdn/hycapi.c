@@ -398,8 +398,9 @@ static u16 hycapi_send_message(struct capi_ctr *ctrl, struct sk_buff *skb)
 			_len = CAPIMSG_LEN(skb->data);
 			if (_len > 22) {
 				_len2 = _len - 22;
-				memcpy(msghead, skb->data, 22);
-				memcpy(skb->data + _len2, msghead, 22);
+				skb_copy_from_linear_data(skb, msghead, 22);
+				skb_copy_to_linear_data_offset(skb, _len2,
+							       msghead, 22);
 				skb_pull(skb, _len2);
 				CAPIMSG_SETLEN(skb->data, 22);
 				retval = capilib_data_b3_req(&cinfo->ncci_head,

@@ -65,6 +65,7 @@
 #include <asm/udbg.h>
 #include <asm/smp.h>
 #include <asm/firmware.h>
+#include <asm/eeh.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
@@ -92,7 +93,7 @@ static void pSeries_show_cpuinfo(struct seq_file *m)
 
 	root = of_find_node_by_path("/");
 	if (root)
-		model = get_property(root, "model", NULL);
+		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
 	of_node_put(root);
 }
@@ -138,8 +139,8 @@ static void __init pseries_mpic_init_IRQ(void)
 	struct mpic *mpic;
 
 	np = of_find_node_by_path("/");
-	naddr = prom_n_addr_cells(np);
-	opprop = get_property(np, "platform-open-pic", &opplen);
+	naddr = of_n_addr_cells(np);
+	opprop = of_get_property(np, "platform-open-pic", &opplen);
 	if (opprop != 0) {
 		openpic_addr = of_read_number(opprop, naddr);
 		printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
@@ -188,11 +189,11 @@ static void __init pseries_mpic_init_IRQ(void)
 			break;
 		if (strcmp(np->name, "pci") != 0)
 			continue;
-		addrp = get_property(np, "8259-interrupt-acknowledge",
+		addrp = of_get_property(np, "8259-interrupt-acknowledge",
 					    NULL);
 		if (addrp == NULL)
 			continue;
-		naddr = prom_n_addr_cells(np);
+		naddr = of_n_addr_cells(np);
 		intack = addrp[naddr-1];
 		if (naddr > 1)
 			intack |= ((unsigned long)addrp[naddr-2]) << 32;
@@ -225,7 +226,7 @@ static void __init pseries_discover_pic(void)
 
 	for (np = NULL; (np = of_find_node_by_name(np,
 						   "interrupt-controller"));) {
-		typep = get_property(np, "compatible", NULL);
+		typep = of_get_property(np, "compatible", NULL);
 		if (strstr(typep, "open-pic")) {
 			pSeries_mpic_node = of_node_get(np);
 			ppc_md.init_IRQ       = pseries_mpic_init_IRQ;
@@ -332,32 +333,6 @@ static void __init pSeries_init_early(void)
 	iommu_init_early_pSeries();
 
 	DBG(" <- pSeries_init_early()\n");
-}
-
-
-static int pSeries_check_legacy_ioport(unsigned int baseport)
-{
-	struct device_node *np;
-
-#define I8042_DATA_REG	0x60
-#define FDC_BASE	0x3f0
-
-
-	switch(baseport) {
-	case I8042_DATA_REG:
-		np = of_find_node_by_type(NULL, "8042");
-		if (np == NULL)
-			return -ENODEV;
-		of_node_put(np);
-		break;
-	case FDC_BASE:
-		np = of_find_node_by_type(NULL, "fdc");
-		if (np == NULL)
-			return -ENODEV;
-		of_node_put(np);
-		break;
-	}
-	return 0;
 }
 
 /*
@@ -514,6 +489,10 @@ void pSeries_power_off(void)
 	for (;;);
 }
 
+#ifndef CONFIG_PCI
+void pSeries_final_fixup(void) { }
+#endif
+
 define_machine(pseries) {
 	.name			= "pSeries",
 	.probe			= pSeries_probe,
@@ -532,7 +511,6 @@ define_machine(pseries) {
 	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= rtas_progress,
-	.check_legacy_ioport	= pSeries_check_legacy_ioport,
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,
 };

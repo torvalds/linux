@@ -35,6 +35,7 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/cx25840.h>
 
 #include "cx25840-core.h"
@@ -827,9 +828,8 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 			cx25840_initialize(client, 0);
 		break;
 
-	case VIDIOC_INT_G_CHIP_IDENT:
-		*(enum v4l2_chip_ident *)arg = state->id;
-		break;
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, state->id, state->rev);
 
 	default:
 		return -EINVAL;
@@ -847,7 +847,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 {
 	struct i2c_client *client;
 	struct cx25840_state *state;
-	enum v4l2_chip_ident id;
+	u32 id;
 	u16 device_id;
 
 	/* Check if the adapter supports the needed features
@@ -902,6 +902,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	state->audmode = V4L2_TUNER_MODE_LANG1;
 	state->vbi_line_offset = 8;
 	state->id = id;
+	state->rev = device_id;
 
 	i2c_attach_client(client);
 

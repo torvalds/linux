@@ -91,7 +91,7 @@ u32 dccp_li_hist_calc_i_mean(struct list_head *list)
 	u32 w_tot  = 0;
 
 	list_for_each_entry_safe(li_entry, li_next, list, dccplih_node) {
-		if (li_entry->dccplih_interval != ~0) {
+		if (li_entry->dccplih_interval != ~0U) {
 			i_tot0 += li_entry->dccplih_interval * dccp_li_hist_w[i];
 			w_tot  += dccp_li_hist_w[i];
 			if (i != 0)

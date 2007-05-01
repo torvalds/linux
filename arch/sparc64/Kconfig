@@ -19,6 +19,14 @@ config SPARC64
 	  SPARC64 ports; its web page is available at
 	  <http://www.ultralinux.org/>.
 
+config GENERIC_TIME
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS
+	bool
+	default y
+
 config 64BIT
 	def_bool y
 
@@ -31,10 +39,6 @@ config STACKTRACE_SUPPORT
 	default y
 
 config LOCKDEP_SUPPORT
-	bool
-	default y
-
-config TIME_INTERPOLATION
 	bool
 	default y
 
@@ -112,6 +116,8 @@ config GENERIC_HARDIRQS
 	default y
 
 menu "General machine setup"
+
+source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -214,6 +220,7 @@ config ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
+	select SPARSEMEM_STATIC
 
 config LARGE_ALLOCS
 	def_bool y

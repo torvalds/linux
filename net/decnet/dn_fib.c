@@ -63,7 +63,7 @@ static struct
 {
 	int error;
 	u8 scope;
-} dn_fib_props[RTA_MAX+1] = {
+} dn_fib_props[RTN_MAX+1] = {
 	[RTN_UNSPEC] =      { .error = 0,       .scope = RT_SCOPE_NOWHERE },
 	[RTN_UNICAST] =     { .error = 0,       .scope = RT_SCOPE_UNIVERSE },
 	[RTN_LOCAL] =       { .error = 0,       .scope = RT_SCOPE_HOST },
@@ -275,6 +275,9 @@ struct dn_fib_info *dn_fib_create_info(const struct rtmsg *r, struct dn_kern_rta
 	struct dn_fib_info *fi = NULL;
 	struct dn_fib_info *ofi;
 	int nhs = 1;
+
+	if (r->rtm_type > RTN_MAX)
+		goto err_inval;
 
 	if (dn_fib_props[r->rtm_type].scope > r->rtm_scope)
 		goto err_inval;
@@ -501,7 +504,7 @@ static int dn_fib_check_attr(struct rtmsg *r, struct rtattr **rta)
 	return 0;
 }
 
-int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct dn_fib_table *tb;
 	struct rtattr **rta = arg;
@@ -517,7 +520,7 @@ int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return -ESRCH;
 }
 
-int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct dn_fib_table *tb;
 	struct rtattr **rta = arg;
@@ -745,11 +748,13 @@ void __exit dn_fib_cleanup(void)
 
 void __init dn_fib_init(void)
 {
-
 	dn_fib_table_init();
 	dn_fib_rules_init();
 
 	register_dnaddr_notifier(&dn_fib_dnaddr_notifier);
+
+	rtnl_register(PF_DECnet, RTM_NEWROUTE, dn_fib_rtm_newroute, NULL);
+	rtnl_register(PF_DECnet, RTM_DELROUTE, dn_fib_rtm_delroute, NULL);
 }
 
 

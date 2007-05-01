@@ -99,4 +99,8 @@ extern ssize_t splice_from_pipe(struct pipe_inode_info *, struct file *,
 				loff_t *, size_t, unsigned int,
 				splice_actor *);
 
+extern ssize_t __splice_from_pipe(struct pipe_inode_info *, struct file *,
+				  loff_t *, size_t, unsigned int,
+				  splice_actor *);
+
 #endif

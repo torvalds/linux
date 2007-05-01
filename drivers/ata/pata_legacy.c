@@ -162,6 +162,7 @@ static struct ata_port_operations simple_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
@@ -185,6 +186,7 @@ static struct ata_port_operations legacy_port_ops = {
 	.check_status 	= ata_check_status,
 	.exec_command	= ata_exec_command,
 	.dev_select 	= ata_std_dev_select,
+	.cable_detect	= ata_cable_40wire,
 
 	.freeze		= ata_bmdma_freeze,
 	.thaw		= ata_bmdma_thaw,
@@ -305,6 +307,7 @@ static struct ata_port_operations pdc20230_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
@@ -360,6 +363,7 @@ static struct ata_port_operations ht6560a_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
@@ -426,6 +430,7 @@ static struct ata_port_operations ht6560b_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
@@ -547,6 +552,7 @@ static struct ata_port_operations opti82c611a_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
@@ -680,6 +686,7 @@ static struct ata_port_operations opti82c46x_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= opti82c46x_qc_issue_prot,
@@ -709,7 +716,8 @@ static struct ata_port_operations opti82c46x_port_ops = {
 static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl, int irq)
 {
 	struct legacy_data *ld = &legacy_data[nr_legacy_host];
-	struct ata_probe_ent ae;
+	struct ata_host *host;
+	struct ata_port *ap;
 	struct platform_device *pdev;
 	struct ata_port_operations *ops = &legacy_port_ops;
 	void __iomem *io_addr, *ctrl_addr;
@@ -791,24 +799,23 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	if (ops == &legacy_port_ops && (autospeed & mask))
 		ops = &simple_port_ops;
 
-	memset(&ae, 0, sizeof(struct ata_probe_ent));
-	INIT_LIST_HEAD(&ae.node);
-	ae.dev = &pdev->dev;
-	ae.port_ops = ops;
-	ae.sht = &legacy_sht;
-	ae.n_ports = 1;
-	ae.pio_mask = pio_modes;
-	ae.irq = irq;
-	ae.irq_flags = 0;
-	ae.port_flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST|iordy;
-	ae.port[0].cmd_addr = io_addr;
-	ae.port[0].altstatus_addr = ctrl_addr;
-	ae.port[0].ctl_addr = ctrl_addr;
-	ata_std_ports(&ae.port[0]);
-	ae.private_data = ld;
+	ret = -ENOMEM;
+	host = ata_host_alloc(&pdev->dev, 1);
+	if (!host)
+		goto fail;
+	ap = host->ports[0];
 
-	ret = -ENODEV;
-	if (!ata_device_add(&ae))
+	ap->ops = ops;
+	ap->pio_mask = pio_modes;
+	ap->flags |= ATA_FLAG_SLAVE_POSS | iordy;
+	ap->ioaddr.cmd_addr = io_addr;
+	ap->ioaddr.altstatus_addr = ctrl_addr;
+	ap->ioaddr.ctl_addr = ctrl_addr;
+	ata_std_ports(&ap->ioaddr);
+	ap->private_data = ld;
+
+	ret = ata_host_activate(host, irq, ata_interrupt, 0, &legacy_sht);
+	if (ret)
 		goto fail;
 
 	legacy_host[nr_legacy_host++] = dev_get_drvdata(&pdev->dev);

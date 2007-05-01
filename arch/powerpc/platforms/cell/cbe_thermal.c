@@ -1,6 +1,31 @@
 /*
  * thermal support for the cell processor
  *
+ * This module adds some sysfs attributes to cpu and spu nodes.
+ * Base for measurements are the digital thermal sensors (DTS)
+ * located on the chip.
+ * The accuracy is 2 degrees, starting from 65 up to 125 degrees celsius
+ * The attributes can be found under
+ * /sys/devices/system/cpu/cpuX/thermal
+ * /sys/devices/system/spu/spuX/thermal
+ *
+ * The following attributes are added for each node:
+ * temperature:
+ *	contains the current temperature measured by the DTS
+ * throttle_begin:
+ *	throttling begins when temperature is greater or equal to
+ *	throttle_begin. Setting this value to 125 prevents throttling.
+ * throttle_end:
+ *	throttling is being ceased, if the temperature is lower than
+ *	throttle_end. Due to a delay between applying throttling and
+ *	a reduced temperature this value should be less than throttle_begin.
+ *	A value equal to throttle_begin provides only a very little hysteresis.
+ * throttle_full_stop:
+ *	If the temperatrue is greater or equal to throttle_full_stop,
+ *	full throttling is applied to the cpu or spu. This value should be
+ *	greater than throttle_begin and throttle_end. Setting this value to
+ *	65 prevents the unit from running code at all.
+ *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Christian Krafft <krafft@de.ibm.com>
@@ -31,6 +56,26 @@
 #include "cbe_regs.h"
 #include "spu_priv1_mmio.h"
 
+#define TEMP_MIN 65
+#define TEMP_MAX 125
+
+#define SYSDEV_PREFIX_ATTR(_prefix,_name,_mode)			\
+struct sysdev_attribute attr_ ## _prefix ## _ ## _name = {	\
+	.attr = { .name = __stringify(_name), .mode = _mode },	\
+	.show	= _prefix ## _show_ ## _name,			\
+	.store	= _prefix ## _store_ ## _name,			\
+};
+
+static inline u8 reg_to_temp(u8 reg_value)
+{
+	return ((reg_value & 0x3f) << 1) + TEMP_MIN;
+}
+
+static inline u8 temp_to_reg(u8 temp)
+{
+	return ((temp - TEMP_MIN) >> 1) & 0x3f;
+}
+
 static struct cbe_pmd_regs __iomem *get_pmd_regs(struct sys_device *sysdev)
 {
 	struct spu *spu;
@@ -43,14 +88,14 @@ static struct cbe_pmd_regs __iomem *get_pmd_regs(struct sys_device *sysdev)
 /* returns the value for a given spu in a given register */
 static u8 spu_read_register_value(struct sys_device *sysdev, union spe_reg __iomem *reg)
 {
-	unsigned int *id;
+	const unsigned int *id;
 	union spe_reg value;
 	struct spu *spu;
 
 	/* getting the id from the reg attribute will not work on future device-tree layouts
 	 * in future we should store the id to the spu struct and use it here */
 	spu = container_of(sysdev, struct spu, sysdev);
-	id = (unsigned int *)get_property(spu_devnode(spu), "reg", NULL);
+	id = of_get_property(spu_devnode(spu), "reg", NULL);
 	value.val = in_be64(&reg->val);
 
 	return value.spe[*id];
@@ -58,20 +103,81 @@ static u8 spu_read_register_value(struct sys_device *sysdev, union spe_reg __iom
 
 static ssize_t spu_show_temp(struct sys_device *sysdev, char *buf)
 {
-	int value;
+	u8 value;
 	struct cbe_pmd_regs __iomem *pmd_regs;
 
 	pmd_regs = get_pmd_regs(sysdev);
 
 	value = spu_read_register_value(sysdev, &pmd_regs->ts_ctsr1);
-	/* clear all other bits */
-	value &= 0x3F;
-	/* temp is stored in steps of 2 degrees */
-	value *= 2;
-	/* base temp is 65 degrees */
-	value += 65;
 
-	return sprintf(buf, "%d\n", (int) value);
+	return sprintf(buf, "%d\n", reg_to_temp(value));
+}
+
+static ssize_t show_throttle(struct cbe_pmd_regs __iomem *pmd_regs, char *buf, int pos)
+{
+	u64 value;
+
+	value = in_be64(&pmd_regs->tm_tpr.val);
+	/* access the corresponding byte */
+	value >>= pos;
+	value &= 0x3F;
+
+	return sprintf(buf, "%d\n", reg_to_temp(value));
+}
+
+static ssize_t store_throttle(struct cbe_pmd_regs __iomem *pmd_regs, const char *buf, size_t size, int pos)
+{
+	u64 reg_value;
+	int temp;
+	u64 new_value;
+	int ret;
+
+	ret = sscanf(buf, "%u", &temp);
+
+	if (ret != 1 || temp < TEMP_MIN || temp > TEMP_MAX)
+		return -EINVAL;
+
+	new_value = temp_to_reg(temp);
+
+	reg_value = in_be64(&pmd_regs->tm_tpr.val);
+
+	/* zero out bits for new value */
+	reg_value &= ~(0xffull << pos);
+	/* set bits to new value */
+	reg_value |= new_value << pos;
+
+	out_be64(&pmd_regs->tm_tpr.val, reg_value);
+	return size;
+}
+
+static ssize_t spu_show_throttle_end(struct sys_device *sysdev, char *buf)
+{
+	return show_throttle(get_pmd_regs(sysdev), buf, 0);
+}
+
+static ssize_t spu_show_throttle_begin(struct sys_device *sysdev, char *buf)
+{
+	return show_throttle(get_pmd_regs(sysdev), buf, 8);
+}
+
+static ssize_t spu_show_throttle_full_stop(struct sys_device *sysdev, char *buf)
+{
+	return show_throttle(get_pmd_regs(sysdev), buf, 16);
+}
+
+static ssize_t spu_store_throttle_end(struct sys_device *sysdev, const char *buf, size_t size)
+{
+	return store_throttle(get_pmd_regs(sysdev), buf, size, 0);
+}
+
+static ssize_t spu_store_throttle_begin(struct sys_device *sysdev, const char *buf, size_t size)
+{
+	return store_throttle(get_pmd_regs(sysdev), buf, size, 8);
+}
+
+static ssize_t spu_store_throttle_full_stop(struct sys_device *sysdev, const char *buf, size_t size)
+{
+	return store_throttle(get_pmd_regs(sysdev), buf, size, 16);
 }
 
 static ssize_t ppe_show_temp(struct sys_device *sysdev, char *buf, int pos)
@@ -82,16 +188,9 @@ static ssize_t ppe_show_temp(struct sys_device *sysdev, char *buf, int pos)
 	pmd_regs = cbe_get_cpu_pmd_regs(sysdev->id);
 	value = in_be64(&pmd_regs->ts_ctsr2);
 
-	/* access the corresponding byte */
-	value >>= pos;
-	/* clear all other bits */
-	value &= 0x3F;
-	/* temp is stored in steps of 2 degrees */
-	value *= 2;
-	/* base temp is 65 degrees */
-	value += 65;
+	value = (value >> pos) & 0x3f;
 
-	return sprintf(buf, "%d\n", (int) value);
+	return sprintf(buf, "%d\n", reg_to_temp(value));
 }
 
 
@@ -108,13 +207,52 @@ static ssize_t ppe_show_temp1(struct sys_device *sysdev, char *buf)
 	return ppe_show_temp(sysdev, buf, 0);
 }
 
+static ssize_t ppe_show_throttle_end(struct sys_device *sysdev, char *buf)
+{
+	return show_throttle(cbe_get_cpu_pmd_regs(sysdev->id), buf, 32);
+}
+
+static ssize_t ppe_show_throttle_begin(struct sys_device *sysdev, char *buf)
+{
+	return show_throttle(cbe_get_cpu_pmd_regs(sysdev->id), buf, 40);
+}
+
+static ssize_t ppe_show_throttle_full_stop(struct sys_device *sysdev, char *buf)
+{
+	return show_throttle(cbe_get_cpu_pmd_regs(sysdev->id), buf, 48);
+}
+
+static ssize_t ppe_store_throttle_end(struct sys_device *sysdev, const char *buf, size_t size)
+{
+	return store_throttle(cbe_get_cpu_pmd_regs(sysdev->id), buf, size, 32);
+}
+
+static ssize_t ppe_store_throttle_begin(struct sys_device *sysdev, const char *buf, size_t size)
+{
+	return store_throttle(cbe_get_cpu_pmd_regs(sysdev->id), buf, size, 40);
+}
+
+static ssize_t ppe_store_throttle_full_stop(struct sys_device *sysdev, const char *buf, size_t size)
+{
+	return store_throttle(cbe_get_cpu_pmd_regs(sysdev->id), buf, size, 48);
+}
+
+
 static struct sysdev_attribute attr_spu_temperature = {
 	.attr = {.name = "temperature", .mode = 0400 },
 	.show = spu_show_temp,
 };
 
+static SYSDEV_PREFIX_ATTR(spu, throttle_end, 0600);
+static SYSDEV_PREFIX_ATTR(spu, throttle_begin, 0600);
+static SYSDEV_PREFIX_ATTR(spu, throttle_full_stop, 0600);
+
+
 static struct attribute *spu_attributes[] = {
 	&attr_spu_temperature.attr,
+	&attr_spu_throttle_end.attr,
+	&attr_spu_throttle_begin.attr,
+	&attr_spu_throttle_full_stop.attr,
 	NULL,
 };
 
@@ -133,9 +271,16 @@ static struct sysdev_attribute attr_ppe_temperature1 = {
 	.show = ppe_show_temp1,
 };
 
+static SYSDEV_PREFIX_ATTR(ppe, throttle_end, 0600);
+static SYSDEV_PREFIX_ATTR(ppe, throttle_begin, 0600);
+static SYSDEV_PREFIX_ATTR(ppe, throttle_full_stop, 0600);
+
 static struct attribute *ppe_attributes[] = {
 	&attr_ppe_temperature0.attr,
 	&attr_ppe_temperature1.attr,
+	&attr_ppe_throttle_end.attr,
+	&attr_ppe_throttle_begin.attr,
+	&attr_ppe_throttle_full_stop.attr,
 	NULL,
 };
 

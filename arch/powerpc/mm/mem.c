@@ -58,9 +58,6 @@ int init_bootmem_done;
 int mem_init_done;
 unsigned long memory_limit;
 
-extern void hash_preload(struct mm_struct *mm, unsigned long ea,
-			 unsigned long access, unsigned long trap);
-
 int page_is_ram(unsigned long pfn)
 {
 	unsigned long paddr = (pfn << PAGE_SHIFT);

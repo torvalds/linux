@@ -45,8 +45,6 @@
  * First, the interrupt numbers.
  */
 
-#if SIBYTE_HDR_FEATURE_1250_112x
-
 #define K_INT_SOURCES               64
 
 #define K_INT_WATCHDOG_TIMER_0      0
@@ -152,6 +150,7 @@
 #define M_INT_MBOX_1                _SB_MAKEMASK1(K_INT_MBOX_1)
 #define M_INT_MBOX_2                _SB_MAKEMASK1(K_INT_MBOX_2)
 #define M_INT_MBOX_3                _SB_MAKEMASK1(K_INT_MBOX_3)
+#define M_INT_MBOX_ALL              _SB_MAKEMASK(4,K_INT_MBOX_0)
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
 #define M_INT_CYCLE_CP0_INT	    _SB_MAKEMASK1(K_INT_CYCLE_CP0_INT)
 #define M_INT_CYCLE_CP1_INT	    _SB_MAKEMASK1(K_INT_CYCLE_CP1_INT)
@@ -247,5 +246,3 @@
 
 
 #endif	/* 1250/112x */
-
-#endif

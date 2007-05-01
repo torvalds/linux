@@ -372,7 +372,7 @@ int au1x00_pcmcia_socket_probe(struct device *dev, struct pcmcia_low_level *ops,
 		skt->socket.resource_ops = &pccard_static_ops;
 		skt->socket.ops = &au1x00_pcmcia_operations;
 		skt->socket.owner = ops->owner;
-		skt->socket.dev.dev = dev;
+		skt->socket.dev.parent = dev;
 
 		init_timer(&skt->poll_timer);
 		skt->poll_timer.function = au1x00_pcmcia_poll_event;

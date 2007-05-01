@@ -723,7 +723,7 @@ static int vsc7326_mac_reset(adapter_t *adapter)
 	return 0;
 }
 
-struct gmac t1_vsc7326_ops = {
+const struct gmac t1_vsc7326_ops = {
 	.stats_update_period = STATS_TICK_SECS,
 	.create              = vsc7326_mac_create,
 	.reset               = vsc7326_mac_reset,

@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/udp.h>
 
 #include <net/netfilter/nf_nat.h>
@@ -92,7 +93,7 @@ static int map_sip_addr(struct sk_buff **pskb, enum ip_conntrack_info ctinfo,
 	if (!nf_nat_mangle_udp_packet(pskb, ct, ctinfo,
 				      matchoff, matchlen, addr, addrlen))
 		return 0;
-	*dptr = (*pskb)->data + (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
+	*dptr = (*pskb)->data + ip_hdrlen(*pskb) + sizeof(struct udphdr);
 	return 1;
 
 }
@@ -106,7 +107,7 @@ static unsigned int ip_nat_sip(struct sk_buff **pskb,
 	struct addr_map map;
 	int dataoff, datalen;
 
-	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
+	dataoff = ip_hdrlen(*pskb) + sizeof(struct udphdr);
 	datalen = (*pskb)->len - dataoff;
 	if (datalen < sizeof("SIP/2.0") - 1)
 		return NF_DROP;
@@ -155,7 +156,7 @@ static unsigned int mangle_sip_packet(struct sk_buff **pskb,
 		return 0;
 
 	/* We need to reload this. Thanks Patrick. */
-	*dptr = (*pskb)->data + (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
+	*dptr = (*pskb)->data + ip_hdrlen(*pskb) + sizeof(struct udphdr);
 	return 1;
 }
 
@@ -168,7 +169,7 @@ static int mangle_content_len(struct sk_buff **pskb,
 	char buffer[sizeof("65536")];
 	int bufflen;
 
-	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
+	dataoff = ip_hdrlen(*pskb) + sizeof(struct udphdr);
 
 	/* Get actual SDP lenght */
 	if (ct_sip_get_info(ct, dptr, (*pskb)->len - dataoff, &matchoff,
@@ -200,7 +201,7 @@ static unsigned int mangle_sdp(struct sk_buff **pskb,
 	char buffer[sizeof("nnn.nnn.nnn.nnn")];
 	unsigned int dataoff, bufflen;
 
-	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
+	dataoff = ip_hdrlen(*pskb) + sizeof(struct udphdr);
 
 	/* Mangle owner and contact info. */
 	bufflen = sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(newip));

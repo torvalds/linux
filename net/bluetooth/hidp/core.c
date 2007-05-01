@@ -679,6 +679,27 @@ static void hidp_close(struct hid_device *hid)
 {
 }
 
+static const struct {
+	__u16 idVendor;
+	__u16 idProduct;
+	unsigned quirks;
+} hidp_blacklist[] = {
+	/* Apple wireless Mighty Mouse */
+	{ 0x05ac, 0x030c, HID_QUIRK_MIGHTYMOUSE | HID_QUIRK_INVERT_HWHEEL },
+
+	{ }	/* Terminating entry */
+};
+
+static void hidp_setup_quirks(struct hid_device *hid)
+{
+	unsigned int n;
+
+	for (n = 0; hidp_blacklist[n].idVendor; n++)
+		if (hidp_blacklist[n].idVendor == le16_to_cpu(hid->vendor) &&
+				hidp_blacklist[n].idProduct == le16_to_cpu(hid->product))
+			hid->quirks = hidp_blacklist[n].quirks;
+}
+
 static inline void hidp_setup_hid(struct hidp_session *session, struct hidp_connadd_req *req)
 {
 	struct hid_device *hid = session->hid;
@@ -707,6 +728,8 @@ static inline void hidp_setup_hid(struct hidp_session *session, struct hidp_conn
 	hid->hid_close = hidp_close;
 
 	hid->hidinput_input_event = hidp_hidinput_event;
+
+	hidp_setup_quirks(hid);
 
 	list_for_each_entry(report, &hid->report_enum[HID_INPUT_REPORT].report_list, list)
 		hidp_send_report(session, report);

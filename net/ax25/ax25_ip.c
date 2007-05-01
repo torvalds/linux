@@ -121,7 +121,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 		digipeat = route->digipeat;
 		dev = route->dev;
 		ip_mode = route->ip_mode;
-	};
+	}
 
 	if (dev == NULL)
 		dev = skb->dev;
@@ -171,7 +171,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 			src_c = *(ax25_address *)(bp + 8);
 
 			skb_pull(ourskb, AX25_HEADER_LEN - 1);	/* Keep PID */
-			ourskb->nh.raw = ourskb->data;
+			skb_reset_network_header(ourskb);
 
 			ax25=ax25_send_frame(
 			    ourskb,

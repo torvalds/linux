@@ -925,13 +925,13 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		if (p->palette != VIDEO_PALETTE_YUV422 && p->palette != VIDEO_PALETTE_YUYV)
 			return -EINVAL;
 		mutex_lock(&meye.lock);
-		sonypi_camera_command(SONYPI_COMMAND_SETCAMERABRIGHTNESS,
+		sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERABRIGHTNESS,
 				      p->brightness >> 10);
-		sonypi_camera_command(SONYPI_COMMAND_SETCAMERAHUE,
+		sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAHUE,
 				      p->hue >> 10);
-		sonypi_camera_command(SONYPI_COMMAND_SETCAMERACOLOR,
+		sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERACOLOR,
 				      p->colour >> 10);
-		sonypi_camera_command(SONYPI_COMMAND_SETCAMERACONTRAST,
+		sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERACONTRAST,
 				      p->contrast >> 10);
 		meye.picture = *p;
 		mutex_unlock(&meye.lock);
@@ -1043,11 +1043,11 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		    meye.params.quality != jp->quality)
 			mchip_hic_stop();	/* need restart */
 		meye.params = *jp;
-		sonypi_camera_command(SONYPI_COMMAND_SETCAMERASHARPNESS,
+		sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERASHARPNESS,
 				      meye.params.sharpness);
-		sonypi_camera_command(SONYPI_COMMAND_SETCAMERAAGC,
+		sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAAGC,
 				      meye.params.agc);
-		sonypi_camera_command(SONYPI_COMMAND_SETCAMERAPICTURE,
+		sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAPICTURE,
 				      meye.params.picture);
 		mutex_unlock(&meye.lock);
 		break;
@@ -1287,38 +1287,38 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		mutex_lock(&meye.lock);
 		switch (c->id) {
 		case V4L2_CID_BRIGHTNESS:
-			sonypi_camera_command(
-				SONYPI_COMMAND_SETCAMERABRIGHTNESS, c->value);
+			sony_pic_camera_command(
+				SONY_PIC_COMMAND_SETCAMERABRIGHTNESS, c->value);
 			meye.picture.brightness = c->value << 10;
 			break;
 		case V4L2_CID_HUE:
-			sonypi_camera_command(
-				SONYPI_COMMAND_SETCAMERAHUE, c->value);
+			sony_pic_camera_command(
+				SONY_PIC_COMMAND_SETCAMERAHUE, c->value);
 			meye.picture.hue = c->value << 10;
 			break;
 		case V4L2_CID_CONTRAST:
-			sonypi_camera_command(
-				SONYPI_COMMAND_SETCAMERACONTRAST, c->value);
+			sony_pic_camera_command(
+				SONY_PIC_COMMAND_SETCAMERACONTRAST, c->value);
 			meye.picture.contrast = c->value << 10;
 			break;
 		case V4L2_CID_SATURATION:
-			sonypi_camera_command(
-				SONYPI_COMMAND_SETCAMERACOLOR, c->value);
+			sony_pic_camera_command(
+				SONY_PIC_COMMAND_SETCAMERACOLOR, c->value);
 			meye.picture.colour = c->value << 10;
 			break;
 		case V4L2_CID_AGC:
-			sonypi_camera_command(
-				SONYPI_COMMAND_SETCAMERAAGC, c->value);
+			sony_pic_camera_command(
+				SONY_PIC_COMMAND_SETCAMERAAGC, c->value);
 			meye.params.agc = c->value;
 			break;
 		case V4L2_CID_SHARPNESS:
-			sonypi_camera_command(
-				SONYPI_COMMAND_SETCAMERASHARPNESS, c->value);
+			sony_pic_camera_command(
+				SONY_PIC_COMMAND_SETCAMERASHARPNESS, c->value);
 			meye.params.sharpness = c->value;
 			break;
 		case V4L2_CID_PICTURE:
-			sonypi_camera_command(
-				SONYPI_COMMAND_SETCAMERAPICTURE, c->value);
+			sony_pic_camera_command(
+				SONY_PIC_COMMAND_SETCAMERAPICTURE, c->value);
 			meye.params.picture = c->value;
 			break;
 		case V4L2_CID_JPEGQUAL:
@@ -1848,7 +1848,7 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	memcpy(meye.video_dev, &meye_template, sizeof(meye_template));
 	meye.video_dev->dev = &meye.mchip_dev->dev;
 
-	if ((ret = sonypi_camera_command(SONYPI_COMMAND_SETCAMERA, 1))) {
+	if ((ret = sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 1))) {
 		printk(KERN_ERR "meye: unable to power on the camera\n");
 		printk(KERN_ERR "meye: did you enable the camera in "
 				"sonypi using the module options ?\n");
@@ -1928,13 +1928,13 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	meye.params.picture = 0;
 	meye.params.framerate = 0;
 
-	sonypi_camera_command(SONYPI_COMMAND_SETCAMERABRIGHTNESS, 32);
-	sonypi_camera_command(SONYPI_COMMAND_SETCAMERAHUE, 32);
-	sonypi_camera_command(SONYPI_COMMAND_SETCAMERACOLOR, 32);
-	sonypi_camera_command(SONYPI_COMMAND_SETCAMERACONTRAST, 32);
-	sonypi_camera_command(SONYPI_COMMAND_SETCAMERASHARPNESS, 32);
-	sonypi_camera_command(SONYPI_COMMAND_SETCAMERAPICTURE, 0);
-	sonypi_camera_command(SONYPI_COMMAND_SETCAMERAAGC, 48);
+	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERABRIGHTNESS, 32);
+	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAHUE, 32);
+	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERACOLOR, 32);
+	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERACONTRAST, 32);
+	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERASHARPNESS, 32);
+	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAPICTURE, 0);
+	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAAGC, 48);
 
 	printk(KERN_INFO "meye: Motion Eye Camera Driver v%s.\n",
 	       MEYE_DRIVER_VERSION);
@@ -1953,7 +1953,7 @@ outremap:
 outregions:
 	pci_disable_device(meye.mchip_dev);
 outenabledev:
-	sonypi_camera_command(SONYPI_COMMAND_SETCAMERA, 0);
+	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 0);
 outsonypienable:
 	kfifo_free(meye.doneq);
 outkfifoalloc2:
@@ -1986,7 +1986,7 @@ static void __devexit meye_remove(struct pci_dev *pcidev)
 
 	pci_disable_device(meye.mchip_dev);
 
-	sonypi_camera_command(SONYPI_COMMAND_SETCAMERA, 0);
+	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 0);
 
 	kfifo_free(meye.doneq);
 	kfifo_free(meye.grabq);

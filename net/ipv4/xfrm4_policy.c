@@ -119,7 +119,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 
 		if (xfrm[i]->props.mode == XFRM_MODE_TUNNEL) {
 			unsigned short encap_family = xfrm[i]->props.family;
-			switch(encap_family) {
+			switch (encap_family) {
 			case AF_INET:
 				fl_tunnel.fl4_dst = xfrm[i]->id.daddr.a4;
 				fl_tunnel.fl4_src = xfrm[i]->props.saddr.a4;
@@ -209,8 +209,8 @@ error:
 static void
 _decode_session4(struct sk_buff *skb, struct flowi *fl)
 {
-	struct iphdr *iph = skb->nh.iph;
-	u8 *xprth = skb->nh.raw + iph->ihl*4;
+	struct iphdr *iph = ip_hdr(skb);
+	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
 
 	memset(fl, 0, sizeof(struct flowi));
 	if (!(iph->frag_off & htons(IP_MF | IP_OFFSET))) {
@@ -263,7 +263,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 		default:
 			fl->fl_ipsec_spi = 0;
 			break;
-		};
+		}
 	}
 	fl->proto = iph->protocol;
 	fl->fl4_dst = iph->daddr;

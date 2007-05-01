@@ -85,8 +85,11 @@ int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret = 0, lock_level = 0;
 	struct ocfs2_super *osb = OCFS2_SB(file->f_dentry->d_inode->i_sb);
 
-	/* We don't want to support shared writable mappings yet. */
-	if (!ocfs2_mount_local(osb) &&
+	/*
+	 * Only support shared writeable mmap for local mounts which
+	 * don't know about holes.
+	 */
+	if ((!ocfs2_mount_local(osb) || ocfs2_sparse_alloc(osb)) &&
 	    ((vma->vm_flags & VM_SHARED) || (vma->vm_flags & VM_MAYSHARE)) &&
 	    ((vma->vm_flags & VM_WRITE) || (vma->vm_flags & VM_MAYWRITE))) {
 		mlog(0, "disallow shared writable mmaps %lx\n", vma->vm_flags);

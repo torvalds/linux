@@ -78,6 +78,15 @@
 #define PPC_STLCX	stringify_in_c(stdcx.)
 #define PPC_CNTLZL	stringify_in_c(cntlzd)
 
+/* Move to CR, single-entry optimized version. Only available
+ * on POWER4 and later.
+ */
+#ifdef CONFIG_POWER4_ONLY
+#define PPC_MTOCRF	stringify_in_c(mtocrf)
+#else
+#define PPC_MTOCRF	stringify_in_c(mtcrf)
+#endif
+
 #else /* 32-bit */
 
 /* operations for longs and pointers */
@@ -89,6 +98,7 @@
 #define PPC_LLARX	stringify_in_c(lwarx)
 #define PPC_STLCX	stringify_in_c(stwcx.)
 #define PPC_CNTLZL	stringify_in_c(cntlzw)
+#define PPC_MTOCRF	stringify_in_c(mtcrf)
 
 #endif
 

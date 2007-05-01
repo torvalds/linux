@@ -26,7 +26,9 @@ int resume_device(struct device * dev)
 
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
+
 	down(&dev->sem);
+
 	if (dev->power.pm_parent
 			&& dev->power.pm_parent->power.power_state.event) {
 		dev_err(dev, "PM: resume from %d, parent %s still %d\n",
@@ -34,15 +36,24 @@ int resume_device(struct device * dev)
 			dev->power.pm_parent->bus_id,
 			dev->power.pm_parent->power.power_state.event);
 	}
+
 	if (dev->bus && dev->bus->resume) {
 		dev_dbg(dev,"resuming\n");
 		error = dev->bus->resume(dev);
 	}
-	if (dev->class && dev->class->resume) {
+
+	if (!error && dev->type && dev->type->resume) {
+		dev_dbg(dev,"resuming\n");
+		error = dev->type->resume(dev);
+	}
+
+	if (!error && dev->class && dev->class->resume) {
 		dev_dbg(dev,"class resume\n");
 		error = dev->class->resume(dev);
 	}
+
 	up(&dev->sem);
+
 	TRACE_RESUME(error);
 	return error;
 }

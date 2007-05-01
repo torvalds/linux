@@ -192,131 +192,158 @@ static inline unsigned int gemtek_pci_getsignal( struct gemtek_pci_card *card )
 	return ( inb( card->iobase ) & 0x08 ) ? 0 : 1;
 }
 
-static int gemtek_pci_do_ioctl(struct inode *inode, struct file *file,
-			       unsigned int cmd, void *arg)
+static int vidioc_querycap(struct file *file, void *priv,
+					struct v4l2_capability *v)
+{
+	strlcpy(v->driver, "radio-gemtek-pci", sizeof(v->driver));
+	strlcpy(v->card, "GemTek PCI Radio", sizeof(v->card));
+	sprintf(v->bus_info, "ISA");
+	v->version = RADIO_VERSION;
+	v->capabilities = V4L2_CAP_TUNER;
+	return 0;
+}
+
+static int vidioc_g_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
 {
 	struct video_device *dev = video_devdata(file);
 	struct gemtek_pci_card *card = dev->priv;
 
-	switch ( cmd ) {
-		case VIDIOC_QUERYCAP:
-		{
-			struct v4l2_capability *v = arg;
-			memset(v,0,sizeof(*v));
-			strlcpy(v->driver, "radio-gemtek-pci", sizeof (v->driver));
-			strlcpy(v->card, "GemTek PCI Radio", sizeof (v->card));
-			sprintf(v->bus_info,"ISA");
-			v->version = RADIO_VERSION;
-			v->capabilities = V4L2_CAP_TUNER;
+	if (v->index > 0)
+		return -EINVAL;
 
-			return 0;
-		}
-		case VIDIOC_G_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "FM");
-			v->type = V4L2_TUNER_RADIO;
-
-			v->rangelow = GEMTEK_PCI_RANGE_LOW;
-			v->rangehigh = GEMTEK_PCI_RANGE_HIGH;
-			v->rxsubchans =V4L2_TUNER_SUB_MONO;
-			v->capability=V4L2_TUNER_CAP_LOW;
-			v->audmode = V4L2_TUNER_MODE_MONO;
-			v->signal=0xFFFF*gemtek_pci_getsignal( card );
-
-			return 0;
-		}
-		case VIDIOC_S_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			return 0;
-		}
-		case VIDIOC_S_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			if ( (f->frequency < GEMTEK_PCI_RANGE_LOW) ||
-			     (f->frequency > GEMTEK_PCI_RANGE_HIGH) )
-				return -EINVAL;
-
-
-			gemtek_pci_setfrequency( card, f->frequency );
-			card->current_frequency = f->frequency;
-			card->mute = false;
-			return 0;
-		}
-		case VIDIOC_QUERYCTRL:
-		{
-			struct v4l2_queryctrl *qc = arg;
-			int i;
-
-			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-				if (qc->id && qc->id == radio_qctrl[i].id) {
-					memcpy(qc, &(radio_qctrl[i]),
-								sizeof(*qc));
-					return (0);
-				}
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_G_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					ctrl->value=card->mute;
-					return (0);
-				case V4L2_CID_AUDIO_VOLUME:
-					if (card->mute)
-						ctrl->value=0;
-					else
-						ctrl->value=65535;
-					return (0);
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					if (ctrl->value) {
-						gemtek_pci_mute(card);
-					} else {
-						gemtek_pci_unmute(card);
-					}
-					return (0);
-				case V4L2_CID_AUDIO_VOLUME:
-					if (ctrl->value) {
-						gemtek_pci_unmute(card);
-					} else {
-						gemtek_pci_mute(card);
-					}
-					return (0);
-			}
-			return -EINVAL;
-		}
-		default:
-			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-							  gemtek_pci_do_ioctl);
-	}
+	strcpy(v->name, "FM");
+	v->type = V4L2_TUNER_RADIO;
+	v->rangelow = GEMTEK_PCI_RANGE_LOW;
+	v->rangehigh = GEMTEK_PCI_RANGE_HIGH;
+	v->rxsubchans = V4L2_TUNER_SUB_MONO;
+	v->capability = V4L2_TUNER_CAP_LOW;
+	v->audmode = V4L2_TUNER_MODE_MONO;
+	v->signal = 0xffff * gemtek_pci_getsignal(card);
+	return 0;
 }
 
-static int gemtek_pci_ioctl(struct inode *inode, struct file *file,
-			    unsigned int cmd, unsigned long arg)
+static int vidioc_s_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
 {
-	return video_usercopy(inode, file, cmd, arg, gemtek_pci_do_ioctl);
+	if (v->index > 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
+{
+	struct video_device *dev = video_devdata(file);
+	struct gemtek_pci_card *card = dev->priv;
+
+	if ( (f->frequency < GEMTEK_PCI_RANGE_LOW) ||
+			(f->frequency > GEMTEK_PCI_RANGE_HIGH) )
+		return -EINVAL;
+	gemtek_pci_setfrequency(card, f->frequency);
+	card->current_frequency = f->frequency;
+	card->mute = false;
+	return 0;
+}
+
+static int vidioc_g_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
+{
+	struct video_device *dev = video_devdata(file);
+	struct gemtek_pci_card *card = dev->priv;
+
+	f->type = V4L2_TUNER_RADIO;
+	f->frequency = card->current_frequency;
+	return 0;
+}
+
+static int vidioc_queryctrl(struct file *file, void *priv,
+					struct v4l2_queryctrl *qc)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+		if (qc->id && qc->id == radio_qctrl[i].id) {
+			memcpy(qc, &(radio_qctrl[i]),
+						sizeof(*qc));
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct gemtek_pci_card *card = dev->priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = card->mute;
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		if (card->mute)
+			ctrl->value = 0;
+		else
+			ctrl->value = 65535;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_s_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct gemtek_pci_card *card = dev->priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		if (ctrl->value)
+			gemtek_pci_mute(card);
+		else
+			gemtek_pci_unmute(card);
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		if (ctrl->value)
+			gemtek_pci_unmute(card);
+		else
+			gemtek_pci_mute(card);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index > 1)
+		return -EINVAL;
+
+	strcpy(a->name, "Radio");
+	a->capability = V4L2_AUDCAP_STEREO;
+	return 0;
+}
+
+static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
+{
+	if (i != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index != 0)
+		return -EINVAL;
+	return 0;
 }
 
 enum {
@@ -342,7 +369,7 @@ static const struct file_operations gemtek_pci_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
-	.ioctl		= gemtek_pci_ioctl,
+	.ioctl		= video_ioctl2,
 	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
@@ -353,6 +380,18 @@ static struct video_device vdev_template = {
 	.type          = VID_TYPE_TUNER,
 	.hardware      = 0,
 	.fops          = &gemtek_pci_fops,
+	.vidioc_querycap    = vidioc_querycap,
+	.vidioc_g_tuner     = vidioc_g_tuner,
+	.vidioc_s_tuner     = vidioc_s_tuner,
+	.vidioc_g_audio     = vidioc_g_audio,
+	.vidioc_s_audio     = vidioc_s_audio,
+	.vidioc_g_input     = vidioc_g_input,
+	.vidioc_s_input     = vidioc_s_input,
+	.vidioc_g_frequency = vidioc_g_frequency,
+	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_queryctrl   = vidioc_queryctrl,
+	.vidioc_g_ctrl      = vidioc_g_ctrl,
+	.vidioc_s_ctrl      = vidioc_s_ctrl,
 };
 
 static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci_device_id *pci_id )

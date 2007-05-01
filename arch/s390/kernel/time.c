@@ -280,7 +280,6 @@ static void clock_comparator_interrupt(__u16 code)
 }
 
 static void etr_reset(void);
-static void etr_init(void);
 static void etr_ext_handler(__u16);
 
 /*
@@ -355,7 +354,6 @@ void __init time_init(void)
 #ifdef CONFIG_VIRT_TIMER
 	vtime_init();
 #endif
-	etr_init();
 }
 
 /*
@@ -426,11 +424,11 @@ static struct etr_aib etr_port1;
 static int etr_port1_uptodate;
 static unsigned long etr_events;
 static struct timer_list etr_timer;
-static struct tasklet_struct etr_tasklet;
 static DEFINE_PER_CPU(atomic_t, etr_sync_word);
 
 static void etr_timeout(unsigned long dummy);
-static void etr_tasklet_fn(unsigned long dummy);
+static void etr_work_fn(struct work_struct *work);
+static DECLARE_WORK(etr_work, etr_work_fn);
 
 /*
  * The etr get_clock function. It will write the current clock value
@@ -507,28 +505,30 @@ static void etr_reset(void)
 	}
 }
 
-static void etr_init(void)
+static int __init etr_init(void)
 {
 	struct etr_aib aib;
 
 	if (test_bit(ETR_FLAG_ENOSYS, &etr_flags))
-		return;
+		return 0;
 	/* Check if this machine has the steai instruction. */
 	if (etr_steai(&aib, ETR_STEAI_STEPPING_PORT) == 0)
 		set_bit(ETR_FLAG_STEAI, &etr_flags);
 	setup_timer(&etr_timer, etr_timeout, 0UL);
-	tasklet_init(&etr_tasklet, etr_tasklet_fn, 0);
 	if (!etr_port0_online && !etr_port1_online)
 		set_bit(ETR_FLAG_EACCES, &etr_flags);
 	if (etr_port0_online) {
 		set_bit(ETR_EVENT_PORT0_CHANGE, &etr_events);
-		tasklet_hi_schedule(&etr_tasklet);
+		schedule_work(&etr_work);
 	}
 	if (etr_port1_online) {
 		set_bit(ETR_EVENT_PORT1_CHANGE, &etr_events);
-		tasklet_hi_schedule(&etr_tasklet);
+		schedule_work(&etr_work);
 	}
+	return 0;
 }
+
+arch_initcall(etr_init);
 
 /*
  * Two sorts of ETR machine checks. The architecture reads:
@@ -549,7 +549,7 @@ void etr_switch_to_local(void)
 		return;
 	etr_disable_sync_clock(NULL);
 	set_bit(ETR_EVENT_SWITCH_LOCAL, &etr_events);
-	tasklet_hi_schedule(&etr_tasklet);
+	schedule_work(&etr_work);
 }
 
 /*
@@ -564,7 +564,7 @@ void etr_sync_check(void)
 		return;
 	etr_disable_sync_clock(NULL);
 	set_bit(ETR_EVENT_SYNC_CHECK, &etr_events);
-	tasklet_hi_schedule(&etr_tasklet);
+	schedule_work(&etr_work);
 }
 
 /*
@@ -591,13 +591,13 @@ static void etr_ext_handler(__u16 code)
 		 * Both ports are not up-to-date now.
 		 */
 		set_bit(ETR_EVENT_PORT_ALERT, &etr_events);
-	tasklet_hi_schedule(&etr_tasklet);
+	schedule_work(&etr_work);
 }
 
 static void etr_timeout(unsigned long dummy)
 {
 	set_bit(ETR_EVENT_UPDATE, &etr_events);
-	tasklet_hi_schedule(&etr_tasklet);
+	schedule_work(&etr_work);
 }
 
 /*
@@ -927,7 +927,7 @@ static struct etr_eacr etr_handle_update(struct etr_aib *aib,
 	if (!eacr.e0 && !eacr.e1)
 		return eacr;
 
-	/* Update port0 or port1 with aib stored in etr_tasklet_fn. */
+	/* Update port0 or port1 with aib stored in etr_work_fn. */
 	if (aib->esw.q == 0) {
 		/* Information for port 0 stored. */
 		if (eacr.p0 && !etr_port0_uptodate) {
@@ -1007,7 +1007,7 @@ static void etr_update_eacr(struct etr_eacr eacr)
  * particular this is the only function that calls etr_update_eacr(),
  * it "controls" the etr control register.
  */
-static void etr_tasklet_fn(unsigned long dummy)
+static void etr_work_fn(struct work_struct *work)
 {
 	unsigned long long now;
 	struct etr_eacr eacr;
@@ -1220,13 +1220,13 @@ static ssize_t etr_online_store(struct sys_device *dev,
 			return count;	/* Nothing to do. */
 		etr_port0_online = value;
 		set_bit(ETR_EVENT_PORT0_CHANGE, &etr_events);
-		tasklet_hi_schedule(&etr_tasklet);
+		schedule_work(&etr_work);
 	} else {
 		if (etr_port1_online == value)
 			return count;	/* Nothing to do. */
 		etr_port1_online = value;
 		set_bit(ETR_EVENT_PORT1_CHANGE, &etr_events);
-		tasklet_hi_schedule(&etr_tasklet);
+		schedule_work(&etr_work);
 	}
 	return count;
 }

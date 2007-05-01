@@ -8,15 +8,12 @@
  * Copyright (C) 1995, 1996, 1997 by Ralf Baechle
  * Copyright (C) 2001 by Liam Davies (ldavies@agile.tv)
  */
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <asm/cacheflush.h>
+#include <linux/jiffies.h>
+
 #include <asm/io.h>
-#include <asm/processor.h>
 #include <asm/reboot.h>
-#include <asm/system.h>
-#include <asm/mipsregs.h>
-#include <asm/mach-cobalt/cobalt.h>
+
+#include <cobalt.h>
 
 void cobalt_machine_halt(void)
 {

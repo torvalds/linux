@@ -93,8 +93,9 @@ const char *sctp_cname(const sctp_subtype_t cid)
 		return "FWD_TSN";
 
 	default:
-		return "unknown chunk";
-	};
+		break;
+	}
+
 	return "unknown chunk";
 }
 

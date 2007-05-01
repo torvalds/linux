@@ -203,7 +203,7 @@ struct llc_pdu_sn {
 
 static inline struct llc_pdu_sn *llc_pdu_sn_hdr(struct sk_buff *skb)
 {
-	return (struct llc_pdu_sn *)skb->nh.raw;
+	return (struct llc_pdu_sn *)skb_network_header(skb);
 }
 
 /* Un-numbered PDU format (3 bytes in length) */
@@ -215,12 +215,7 @@ struct llc_pdu_un {
 
 static inline struct llc_pdu_un *llc_pdu_un_hdr(struct sk_buff *skb)
 {
-	return (struct llc_pdu_un *)skb->nh.raw;
-}
-
-static inline void *llc_set_pdu_hdr(struct sk_buff *skb, void *ptr)
-{
-	return skb->nh.raw = ptr;
+	return (struct llc_pdu_un *)skb_network_header(skb);
 }
 
 /**
@@ -237,7 +232,11 @@ static inline void llc_pdu_header_init(struct sk_buff *skb, u8 type,
 				       u8 ssap, u8 dsap, u8 cr)
 {
 	const int hlen = type == LLC_PDU_TYPE_U ? 3 : 4;
-	struct llc_pdu_un *pdu = llc_set_pdu_hdr(skb, skb_push(skb, hlen));
+	struct llc_pdu_un *pdu;
+
+	skb_push(skb, hlen);
+	skb_reset_network_header(skb);
+	pdu = llc_pdu_un_hdr(skb);
 	pdu->dsap = dsap;
 	pdu->ssap = ssap;
 	pdu->ssap |= cr;

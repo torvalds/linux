@@ -54,9 +54,6 @@ extern int smp_call_function_on(void (*func) (void *info), void *info,
 
 #define raw_smp_processor_id()	(S390_lowcore.cpu_data.cpu_nr)
 
-extern int smp_get_cpu(cpumask_t cpu_map);
-extern void smp_put_cpu(int cpu);
-
 static inline __u16 hard_smp_processor_id(void)
 {
         __u16 cpu_address;
@@ -114,9 +111,8 @@ static inline void smp_send_stop(void)
 }
 
 #define smp_cpu_not_running(cpu)	1
-#define smp_get_cpu(cpu) ({ 0; })
-#define smp_put_cpu(cpu) ({ 0; })
 #define smp_setup_cpu_possible_map()	do { } while (0)
 #endif
 
+extern union save_area *zfcpdump_save_areas[NR_CPUS + 1];
 #endif

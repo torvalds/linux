@@ -173,7 +173,7 @@ static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 		return -EIO;
 	}
 
-	for (start = 0; start<4; start++) {
+	for (start = 0; start < ARRAY_SIZE(b); start++) {
 		if (b[start] == marker) {
 			code=b[(start+parity_offset+1)%4];
 			parity=b[(start+parity_offset)%4];

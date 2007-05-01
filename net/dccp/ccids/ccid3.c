@@ -33,7 +33,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
 #include "../ccid.h"
 #include "../dccp.h"
 #include "lib/packet_history.h"
@@ -52,6 +51,9 @@ static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
 static struct dccp_li_hist *ccid3_li_hist;
 
+/*
+ *	Transmitter Half-Connection Routines
+ */
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 {
@@ -80,23 +82,37 @@ static void ccid3_hc_tx_set_state(struct sock *sk,
 }
 
 /*
- * Recalculate scheduled nominal send time t_nom, inter-packet interval
- * t_ipi, and delta value. Should be called after each change to X.
+ * Compute the initial sending rate X_init according to RFC 3390:
+ *	w_init   =    min(4 * MSS, max(2 * MSS, 4380 bytes))
+ *	X_init   =    w_init / RTT
+ * For consistency with other parts of the code, X_init is scaled by 2^6.
  */
-static inline void ccid3_update_send_time(struct ccid3_hc_tx_sock *hctx)
+static inline u64 rfc3390_initial_rate(struct sock *sk)
 {
-	timeval_sub_usecs(&hctx->ccid3hctx_t_nom, hctx->ccid3hctx_t_ipi);
+	const struct dccp_sock *dp = dccp_sk(sk);
+	const __u32 w_init = min(4 * dp->dccps_mss_cache,
+				 max(2 * dp->dccps_mss_cache, 4380U));
 
+	return scaled_div(w_init << 6, ccid3_hc_tx_sk(sk)->ccid3hctx_rtt);
+}
+
+/*
+ * Recalculate t_ipi and delta (should be called whenever X changes)
+ */
+static inline void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hctx)
+{
 	/* Calculate new t_ipi = s / X_inst (X_inst is in 64 * bytes/second) */
-	hctx->ccid3hctx_t_ipi = scaled_div(hctx->ccid3hctx_s,
-					   hctx->ccid3hctx_x >> 6);
-
-	/* Update nominal send time with regard to the new t_ipi */
-	timeval_add_usecs(&hctx->ccid3hctx_t_nom, hctx->ccid3hctx_t_ipi);
+	hctx->ccid3hctx_t_ipi = scaled_div32(((u64)hctx->ccid3hctx_s) << 6,
+					     hctx->ccid3hctx_x);
 
 	/* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
 	hctx->ccid3hctx_delta = min_t(u32, hctx->ccid3hctx_t_ipi / 2,
 					   TFRC_OPSYS_HALF_TIME_GRAN);
+
+	ccid3_pr_debug("t_ipi=%u, delta=%u, s=%u, X=%u\n",
+		       hctx->ccid3hctx_t_ipi, hctx->ccid3hctx_delta,
+		       hctx->ccid3hctx_s, (unsigned)(hctx->ccid3hctx_x >> 6));
+
 }
 /*
  * Update X by
@@ -112,19 +128,28 @@ static inline void ccid3_update_send_time(struct ccid3_hc_tx_sock *hctx)
  *       fine-grained resolution of sending rates. This requires scaling by 2^6
  *       throughout the code. Only X_calc is unscaled (in bytes/second).
  *
- * If X has changed, we also update the scheduled send time t_now,
- * the inter-packet interval t_ipi, and the delta value.
  */
 static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
 
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	__u64 min_rate = 2 * hctx->ccid3hctx_x_recv;
 	const  __u64 old_x = hctx->ccid3hctx_x;
+
+	/*
+	 * Handle IDLE periods: do not reduce below RFC3390 initial sending rate
+	 * when idling [RFC 4342, 5.1]. See also draft-ietf-dccp-rfc3448bis.
+	 * For consistency with X and X_recv, min_rate is also scaled by 2^6.
+	 */
+	if (unlikely(hctx->ccid3hctx_idle)) {
+		min_rate = rfc3390_initial_rate(sk);
+		min_rate = max(min_rate, 2 * hctx->ccid3hctx_x_recv);
+	}
 
 	if (hctx->ccid3hctx_p > 0) {
 
 		hctx->ccid3hctx_x = min(((__u64)hctx->ccid3hctx_x_calc) << 6,
-					hctx->ccid3hctx_x_recv * 2);
+					min_rate);
 		hctx->ccid3hctx_x = max(hctx->ccid3hctx_x,
 					(((__u64)hctx->ccid3hctx_s) << 6) /
 								TFRC_T_MBI);
@@ -133,14 +158,21 @@ static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
 			(suseconds_t)hctx->ccid3hctx_rtt >= 0) {
 
 		hctx->ccid3hctx_x =
-			max(2 * min(hctx->ccid3hctx_x, hctx->ccid3hctx_x_recv),
+			max(min(2 * hctx->ccid3hctx_x, min_rate),
 			    scaled_div(((__u64)hctx->ccid3hctx_s) << 6,
 				       hctx->ccid3hctx_rtt));
 		hctx->ccid3hctx_t_ld = *now;
 	}
 
-	if (hctx->ccid3hctx_x != old_x)
-		ccid3_update_send_time(hctx);
+	if (hctx->ccid3hctx_x != old_x) {
+		ccid3_pr_debug("X_prev=%u, X_now=%u, X_calc=%u, "
+			       "X_recv=%u\n", (unsigned)(old_x >> 6),
+			       (unsigned)(hctx->ccid3hctx_x >> 6),
+			       hctx->ccid3hctx_x_calc,
+			       (unsigned)(hctx->ccid3hctx_x_recv >> 6));
+
+		ccid3_update_send_interval(hctx);
+	}
 }
 
 /*
@@ -149,17 +181,12 @@ static void ccid3_hc_tx_update_x(struct sock *sk, struct timeval *now)
  */
 static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
 {
-	if (unlikely(len == 0))
-		ccid3_pr_debug("Packet payload length is 0 - not updating\n");
-	else
-		hctx->ccid3hctx_s = hctx->ccid3hctx_s == 0 ? len :
-				    (9 * hctx->ccid3hctx_s + len) / 10;
-	/*
-	 * Note: We could do a potential optimisation here - when `s' changes,
-	 *	 recalculate sending rate and consequently t_ipi, t_delta, and
-	 *	 t_now. This is however non-standard, and the benefits are not
-	 *	 clear, so it is currently left out.
-	 */
+	const u16 old_s = hctx->ccid3hctx_s;
+
+	hctx->ccid3hctx_s = old_s == 0 ? len : (9 * old_s + len) / 10;
+
+	if (hctx->ccid3hctx_s != old_s)
+		ccid3_update_send_interval(hctx);
 }
 
 /*
@@ -193,6 +220,7 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	struct timeval now;
 	unsigned long t_nfb = USEC_PER_SEC / 5;
 
 	bh_lock_sock(sk);
@@ -204,6 +232,8 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 
 	ccid3_pr_debug("%s(%p, state=%s) - entry \n", dccp_role(sk), sk,
 		       ccid3_tx_state_name(hctx->ccid3hctx_state));
+
+	hctx->ccid3hctx_idle = 1;
 
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_FBACK:
@@ -219,53 +249,37 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 		/* The value of R is still undefined and so we can not recompute
 		 * the timout value. Keep initial value as per [RFC 4342, 5]. */
 		t_nfb = TFRC_INITIAL_TIMEOUT;
-		ccid3_update_send_time(hctx);
+		ccid3_update_send_interval(hctx);
 		break;
 	case TFRC_SSTATE_FBACK:
 		/*
-		 * Check if IDLE since last timeout and recv rate is less than
-		 * 4 packets (in units of 64*bytes/sec) per RTT
+		 *  Modify the cached value of X_recv [RFC 3448, 4.4]
+		 *
+		 *  If (p == 0 || X_calc > 2 * X_recv)
+		 *    X_recv = max(X_recv / 2, s / (2 * t_mbi));
+		 *  Else
+		 *    X_recv = X_calc / 4;
+		 *
+		 *  Note that X_recv is scaled by 2^6 while X_calc is not
 		 */
-		if (!hctx->ccid3hctx_idle ||
-		    (hctx->ccid3hctx_x_recv >= 4 *
-		     scaled_div(((__u64)hctx->ccid3hctx_s) << 6,
-				hctx->ccid3hctx_rtt))) {
-			struct timeval now;
+		BUG_ON(hctx->ccid3hctx_p && !hctx->ccid3hctx_x_calc);
 
-			ccid3_pr_debug("%s(%p, state=%s), not idle\n",
-				       dccp_role(sk), sk,
-				   ccid3_tx_state_name(hctx->ccid3hctx_state));
+		if (hctx->ccid3hctx_p == 0 ||
+		    (hctx->ccid3hctx_x_calc > (hctx->ccid3hctx_x_recv >> 5))) {
 
-			/*
-			 *  Modify the cached value of X_recv [RFC 3448, 4.4]
-			 *
-			 *  If (p == 0 || X_calc > 2 * X_recv)
-			 *    X_recv = max(X_recv / 2, s / (2 * t_mbi));
-			 *  Else
-			 *    X_recv = X_calc / 4;
-			 *
-			 *  Note that X_recv is scaled by 2^6 while X_calc is not
-			 */
-			BUG_ON(hctx->ccid3hctx_p && !hctx->ccid3hctx_x_calc);
+			hctx->ccid3hctx_x_recv =
+				max(hctx->ccid3hctx_x_recv / 2,
+				    (((__u64)hctx->ccid3hctx_s) << 6) /
+							      (2 * TFRC_T_MBI));
 
-			if (hctx->ccid3hctx_p  == 0 ||
-			    (hctx->ccid3hctx_x_calc >
-			     (hctx->ccid3hctx_x_recv >> 5))) {
-
-				hctx->ccid3hctx_x_recv =
-					max(hctx->ccid3hctx_x_recv / 2,
-					    (((__u64)hctx->ccid3hctx_s) << 6) /
-							  (2 * TFRC_T_MBI));
-
-				if (hctx->ccid3hctx_p == 0)
-					dccp_timestamp(sk, &now);
-			} else {
-				hctx->ccid3hctx_x_recv = hctx->ccid3hctx_x_calc;
-				hctx->ccid3hctx_x_recv <<= 4;
-			}
-			/* Now recalculate X [RFC 3448, 4.3, step (4)] */
-			ccid3_hc_tx_update_x(sk, &now);
+			if (hctx->ccid3hctx_p == 0)
+				dccp_timestamp(sk, &now);
+		} else {
+			hctx->ccid3hctx_x_recv = hctx->ccid3hctx_x_calc;
+			hctx->ccid3hctx_x_recv <<= 4;
 		}
+		/* Now recalculate X [RFC 3448, 4.3, step (4)] */
+		ccid3_hc_tx_update_x(sk, &now);
 		/*
 		 * Schedule no feedback timer to expire in
 		 * max(t_RTO, 2 * s/X)  =  max(t_RTO, 2 * t_ipi)
@@ -279,8 +293,6 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	case TFRC_SSTATE_TERM:
 		goto out;
 	}
-
-	hctx->ccid3hctx_idle = 1;
 
 restart_timer:
 	sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer,
@@ -322,24 +334,35 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 				usecs_to_jiffies(TFRC_INITIAL_TIMEOUT)));
 		hctx->ccid3hctx_last_win_count	 = 0;
 		hctx->ccid3hctx_t_last_win_count = now;
-		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
-
-		/* Set initial sending rate X/s to 1pps (X is scaled by 2^6) */
-		ccid3_hc_tx_update_s(hctx, skb->len);
-		hctx->ccid3hctx_x = hctx->ccid3hctx_s;
-		hctx->ccid3hctx_x <<= 6;
-
-		/* First timeout, according to [RFC 3448, 4.2], is 1 second */
-		hctx->ccid3hctx_t_ipi = USEC_PER_SEC;
-		/* Initial delta: minimum of 0.5 sec and t_gran/2 */
-		hctx->ccid3hctx_delta = TFRC_OPSYS_HALF_TIME_GRAN;
 
 		/* Set t_0 for initial packet */
 		hctx->ccid3hctx_t_nom = now;
+
+		hctx->ccid3hctx_s = skb->len;
+
+		/*
+		 * Use initial RTT sample when available: recommended by erratum
+		 * to RFC 4342. This implements the initialisation procedure of
+		 * draft rfc3448bis, section 4.2. Remember, X is scaled by 2^6.
+		 */
+		if (dp->dccps_syn_rtt) {
+			ccid3_pr_debug("SYN RTT = %uus\n", dp->dccps_syn_rtt);
+			hctx->ccid3hctx_rtt  = dp->dccps_syn_rtt;
+			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
+			hctx->ccid3hctx_t_ld = now;
+		} else {
+			/* Sender does not have RTT sample: X = MSS/second */
+			hctx->ccid3hctx_x = dp->dccps_mss_cache;
+			hctx->ccid3hctx_x <<= 6;
+		}
+		ccid3_update_send_interval(hctx);
+
+		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
 		break;
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
 		delay = timeval_delta(&hctx->ccid3hctx_t_nom, &now);
+		ccid3_pr_debug("delay=%ld\n", (long)delay);
 		/*
 		 *	Scheduling of packet transmissions [RFC 3448, 4.6]
 		 *
@@ -361,6 +384,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	/* prepare to send now (add options etc.) */
 	dp->dccps_hc_tx_insert_options = 1;
 	DCCP_SKB_CB(skb)->dccpd_ccval = hctx->ccid3hctx_last_win_count;
+	hctx->ccid3hctx_idle = 0;
 
 	/* set the nominal send time for the next following packet */
 	timeval_add_usecs(&hctx->ccid3hctx_t_nom, hctx->ccid3hctx_t_ipi);
@@ -391,7 +415,6 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 	packet->dccphtx_seqno  = dccp_sk(sk)->dccps_gss;
 	packet->dccphtx_rtt    = hctx->ccid3hctx_rtt;
 	packet->dccphtx_sent   = 1;
-	hctx->ccid3hctx_idle   = 0;
 }
 
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
@@ -402,8 +425,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct dccp_tx_hist_entry *packet;
 	struct timeval now;
 	unsigned long t_nfb;
-	u32 pinv;
-	suseconds_t r_sample, t_elapsed;
+	u32 pinv, r_sample;
 
 	BUG_ON(hctx == NULL);
 
@@ -445,18 +467,10 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		 * Calculate new round trip sample as per [RFC 3448, 4.3] by
 		 *	R_sample  =  (now - t_recvdata) - t_elapsed
 		 */
-		r_sample  = timeval_delta(&now, &packet->dccphtx_tstamp);
-		t_elapsed = dp->dccps_options_received.dccpor_elapsed_time * 10;
+		r_sample = dccp_sample_rtt(sk, &now, &packet->dccphtx_tstamp);
 
-		DCCP_BUG_ON(r_sample < 0);
-		if (unlikely(r_sample <= t_elapsed))
-			DCCP_WARN("WARNING: r_sample=%dus <= t_elapsed=%dus\n",
-				  (int)r_sample, (int)t_elapsed);
-		else
-			r_sample -= t_elapsed;
-		CCID3_RTT_SANITY_CHECK(r_sample);
-
-		/* Update RTT estimate by
+		/*
+		 * Update RTT estimate by
 		 * If (No feedback recv)
 		 *    R = R_sample;
 		 * Else
@@ -467,27 +481,23 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		if (hctx->ccid3hctx_state == TFRC_SSTATE_NO_FBACK) {
 			/*
 			 * Larger Initial Windows [RFC 4342, sec. 5]
-			 * We deviate in that we use `s' instead of `MSS'.
 			 */
-			__u64 w_init = min(4 * hctx->ccid3hctx_s,
-					   max(2 * hctx->ccid3hctx_s, 4380));
 			hctx->ccid3hctx_rtt  = r_sample;
-			hctx->ccid3hctx_x    = scaled_div(w_init << 6, r_sample);
+			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
 			hctx->ccid3hctx_t_ld = now;
 
-			ccid3_update_send_time(hctx);
+			ccid3_update_send_interval(hctx);
 
-			ccid3_pr_debug("%s(%p), s=%u, w_init=%llu, "
-				       "R_sample=%dus, X=%u\n", dccp_role(sk),
+			ccid3_pr_debug("%s(%p), s=%u, MSS=%u, "
+				       "R_sample=%uus, X=%u\n", dccp_role(sk),
 				       sk, hctx->ccid3hctx_s,
-				       (unsigned long long)w_init,
-				       (int)r_sample,
+				       dp->dccps_mss_cache, r_sample,
 				       (unsigned)(hctx->ccid3hctx_x >> 6));
 
 			ccid3_hc_tx_set_state(sk, TFRC_SSTATE_FBACK);
 		} else {
 			hctx->ccid3hctx_rtt = (9 * hctx->ccid3hctx_rtt +
-						   (u32)r_sample) / 10;
+						   r_sample) / 10;
 
 			/* Update sending rate (step 4 of [RFC 3448, 4.3]) */
 			if (hctx->ccid3hctx_p > 0)
@@ -497,10 +507,10 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 						    hctx->ccid3hctx_p);
 			ccid3_hc_tx_update_x(sk, &now);
 
-			ccid3_pr_debug("%s(%p), RTT=%uus (sample=%dus), s=%u, "
+			ccid3_pr_debug("%s(%p), RTT=%uus (sample=%uus), s=%u, "
 				       "p=%u, X_calc=%u, X_recv=%u, X=%u\n",
 				       dccp_role(sk),
-				       sk, hctx->ccid3hctx_rtt, (int)r_sample,
+				       sk, hctx->ccid3hctx_rtt, r_sample,
 				       hctx->ccid3hctx_s, hctx->ccid3hctx_p,
 				       hctx->ccid3hctx_x_calc,
 				       (unsigned)(hctx->ccid3hctx_x_recv >> 6),
@@ -644,10 +654,50 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 	dccp_tx_hist_purge(ccid3_tx_hist, &hctx->ccid3hctx_hist);
 }
 
-/*
- * RX Half Connection methods
- */
+static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
+{
+	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
+	/* Listen socks doesn't have a private CCID block */
+	if (sk->sk_state == DCCP_LISTEN)
+		return;
+
+	BUG_ON(hctx == NULL);
+
+	info->tcpi_rto = hctx->ccid3hctx_t_rto;
+	info->tcpi_rtt = hctx->ccid3hctx_rtt;
+}
+
+static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
+				  u32 __user *optval, int __user *optlen)
+{
+	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	const void *val;
+
+	/* Listen socks doesn't have a private CCID block */
+	if (sk->sk_state == DCCP_LISTEN)
+		return -EINVAL;
+
+	switch (optname) {
+	case DCCP_SOCKOPT_CCID_TX_INFO:
+		if (len < sizeof(hctx->ccid3hctx_tfrc))
+			return -EINVAL;
+		len = sizeof(hctx->ccid3hctx_tfrc);
+		val = &hctx->ccid3hctx_tfrc;
+		break;
+	default:
+		return -ENOPROTOOPT;
+	}
+
+	if (put_user(len, optlen) || copy_to_user(optval, val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
+/*
+ *	Receiver Half-Connection Routines
+ */
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 {
@@ -977,8 +1027,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	const struct dccp_options_received *opt_recv;
 	struct dccp_rx_hist_entry *packet;
 	struct timeval now;
-	u32 p_prev, rtt_prev;
-	suseconds_t r_sample, t_elapsed;
+	u32 p_prev, r_sample, rtt_prev;
 	int loss, payload_size;
 
 	BUG_ON(hcrx == NULL);
@@ -994,17 +1043,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			break;
 		rtt_prev = hcrx->ccid3hcrx_rtt;
 		dccp_timestamp(sk, &now);
-		timeval_sub_usecs(&now, opt_recv->dccpor_timestamp_echo * 10);
-		r_sample = timeval_usecs(&now);
-		t_elapsed = opt_recv->dccpor_elapsed_time * 10;
-
-		DCCP_BUG_ON(r_sample < 0);
-		if (unlikely(r_sample <= t_elapsed))
-			DCCP_WARN("r_sample=%ldus, t_elapsed=%ldus\n",
-				  (long)r_sample, (long)t_elapsed);
-		else
-			r_sample -= t_elapsed;
-		CCID3_RTT_SANITY_CHECK(r_sample);
+		r_sample = dccp_sample_rtt(sk, &now, NULL);
 
 		if (hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)
 			hcrx->ccid3hcrx_rtt = r_sample;
@@ -1132,20 +1171,6 @@ static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_rcv_rtt  = hcrx->ccid3hcrx_rtt;
 }
 
-static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
-{
-	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-
-	/* Listen socks doesn't have a private CCID block */
-	if (sk->sk_state == DCCP_LISTEN)
-		return;
-
-	BUG_ON(hctx == NULL);
-
-	info->tcpi_rto = hctx->ccid3hctx_t_rto;
-	info->tcpi_rtt = hctx->ccid3hctx_rtt;
-}
-
 static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 				  u32 __user *optval, int __user *optlen)
 {
@@ -1162,33 +1187,6 @@ static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 			return -EINVAL;
 		len = sizeof(hcrx->ccid3hcrx_tfrc);
 		val = &hcrx->ccid3hcrx_tfrc;
-		break;
-	default:
-		return -ENOPROTOOPT;
-	}
-
-	if (put_user(len, optlen) || copy_to_user(optval, val, len))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
-				  u32 __user *optval, int __user *optlen)
-{
-	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	const void *val;
-
-	/* Listen socks doesn't have a private CCID block */
-	if (sk->sk_state == DCCP_LISTEN)
-		return -EINVAL;
-
-	switch (optname) {
-	case DCCP_SOCKOPT_CCID_TX_INFO:
-		if (len < sizeof(hctx->ccid3hctx_tfrc))
-			return -EINVAL;
-		len = sizeof(hctx->ccid3hctx_tfrc);
-		val = &hctx->ccid3hctx_tfrc;
 		break;
 	default:
 		return -ENOPROTOOPT;

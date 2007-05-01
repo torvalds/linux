@@ -65,7 +65,7 @@ static const u8 DASD_DIAG_CMS1[] = { 0xc3, 0xd4, 0xe2, 0xf1 };/* EBCDIC CMS1 */
  * resulting condition code and DIAG return code. */
 static inline int dia250(void *iob, int cmd)
 {
-	register unsigned long reg0 asm ("0") = (unsigned long) iob;
+	register unsigned long reg2 asm ("2") = (unsigned long) iob;
 	typedef union {
 		struct dasd_diag_init_io init_io;
 		struct dasd_diag_rw_io rw_io;
@@ -74,15 +74,15 @@ static inline int dia250(void *iob, int cmd)
 
 	rc = 3;
 	asm volatile(
-		"	diag	0,%2,0x250\n"
+		"	diag	2,%2,0x250\n"
 		"0:	ipm	%0\n"
 		"	srl	%0,28\n"
-		"	or	%0,1\n"
+		"	or	%0,3\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
 		: "+d" (rc), "=m" (*(addr_type *) iob)
-		: "d" (cmd), "d" (reg0), "m" (*(addr_type *) iob)
-		: "1", "cc");
+		: "d" (cmd), "d" (reg2), "m" (*(addr_type *) iob)
+		: "3", "cc");
 	return rc;
 }
 

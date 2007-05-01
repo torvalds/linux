@@ -61,10 +61,10 @@ static inline void write_seqlock(seqlock_t *sl)
 {
 	spin_lock(&sl->lock);
 	++sl->sequence;
-	smp_wmb();			
-}	
+	smp_wmb();
+}
 
-static inline void write_sequnlock(seqlock_t *sl) 
+static inline void write_sequnlock(seqlock_t *sl)
 {
 	smp_wmb();
 	sl->sequence++;
@@ -77,7 +77,7 @@ static inline int write_tryseqlock(seqlock_t *sl)
 
 	if (ret) {
 		++sl->sequence;
-		smp_wmb();			
+		smp_wmb();
 	}
 	return ret;
 }

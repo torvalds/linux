@@ -62,6 +62,9 @@ void dma_prog_region_free(struct dma_prog_region *prog)
 
 /* dma_region */
 
+/**
+ * dma_region_init - clear out all fields but do not allocate anything
+ */
 void dma_region_init(struct dma_region *dma)
 {
 	dma->kvirt = NULL;
@@ -71,6 +74,9 @@ void dma_region_init(struct dma_region *dma)
 	dma->sglist = NULL;
 }
 
+/**
+ * dma_region_alloc - allocate the buffer and map it to the IOMMU
+ */
 int dma_region_alloc(struct dma_region *dma, unsigned long n_bytes,
 		     struct pci_dev *dev, int direction)
 {
@@ -128,6 +134,9 @@ int dma_region_alloc(struct dma_region *dma, unsigned long n_bytes,
 	return -ENOMEM;
 }
 
+/**
+ * dma_region_free - unmap and free the buffer
+ */
 void dma_region_free(struct dma_region *dma)
 {
 	if (dma->n_dma_pages) {
@@ -167,6 +176,12 @@ static inline int dma_region_find(struct dma_region *dma, unsigned long offset,
 	return i;
 }
 
+/**
+ * dma_region_offset_to_bus - get bus address of an offset within a DMA region
+ *
+ * Returns the DMA bus address of the byte with the given @offset relative to
+ * the beginning of the @dma.
+ */
 dma_addr_t dma_region_offset_to_bus(struct dma_region * dma,
 				    unsigned long offset)
 {
@@ -177,6 +192,9 @@ dma_addr_t dma_region_offset_to_bus(struct dma_region * dma,
 	return sg_dma_address(sg) + rem;
 }
 
+/**
+ * dma_region_sync_for_cpu - sync the CPU's view of the buffer
+ */
 void dma_region_sync_for_cpu(struct dma_region *dma, unsigned long offset,
 			     unsigned long len)
 {
@@ -193,6 +211,9 @@ void dma_region_sync_for_cpu(struct dma_region *dma, unsigned long offset,
 				dma->direction);
 }
 
+/**
+ * dma_region_sync_for_device - sync the IO bus' view of the buffer
+ */
 void dma_region_sync_for_device(struct dma_region *dma, unsigned long offset,
 				unsigned long len)
 {
@@ -244,6 +265,9 @@ static struct vm_operations_struct dma_region_vm_ops = {
 	.nopage = dma_region_pagefault,
 };
 
+/**
+ * dma_region_mmap - map the buffer into a user space process
+ */
 int dma_region_mmap(struct dma_region *dma, struct file *file,
 		    struct vm_area_struct *vma)
 {

@@ -98,6 +98,8 @@ u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
 
 struct i2c_client; /* forward reference */
 int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 id_type, u32 chip_id);
+int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_chip_ident *chip,
+		u32 ident, u32 revision);
 int v4l2_chip_match_host(u32 id_type, u32 chip_id);
 
 /* ------------------------------------------------------------------------- */
@@ -112,39 +114,6 @@ struct v4l2_decode_vbi_line {
 				   On exit points to the start of the payload. */
 	u32 line;		/* Line number of the sliced VBI data (1-23) */
 	u32 type;		/* VBI service type (V4L2_SLICED_*). 0 if no service found */
-};
-
-/* VIDIOC_INT_G_CHIP_IDENT: identifies the actual chip installed on the board */
-enum v4l2_chip_ident {
-	/* general idents: reserved range 0-49 */
-	V4L2_IDENT_UNKNOWN = 0,
-
-	/* module saa7110: just ident= 100 */
-	V4L2_IDENT_SAA7110 = 100,
-
-	/* module saa7111: just ident= 101 */
-	V4L2_IDENT_SAA7111 = 101,
-
-	/* module saa7115: reserved range 102-149 */
-	V4L2_IDENT_SAA7113 = 103,
-	V4L2_IDENT_SAA7114 = 104,
-	V4L2_IDENT_SAA7115 = 105,
-	V4L2_IDENT_SAA7118 = 108,
-
-	/* module saa7127: reserved range 150-199 */
-	V4L2_IDENT_SAA7127 = 157,
-	V4L2_IDENT_SAA7129 = 159,
-
-	/* module cx25840: reserved range 200-249 */
-	V4L2_IDENT_CX25836 = 236,
-	V4L2_IDENT_CX25837 = 237,
-	V4L2_IDENT_CX25840 = 240,
-	V4L2_IDENT_CX25841 = 241,
-	V4L2_IDENT_CX25842 = 242,
-	V4L2_IDENT_CX25843 = 243,
-
-	/* OmniVision sensors - range 250-299 */
-	V4L2_IDENT_OV7670 = 250,
 };
 
 /* audio ioctls */
@@ -208,10 +177,6 @@ enum v4l2_chip_ident {
    whether CC data from the first or second field should be obtained). */
 #define VIDIOC_INT_G_VBI_DATA 		_IOWR('d', 106, struct v4l2_sliced_vbi_data)
 
-/* Returns the chip identifier or V4L2_IDENT_UNKNOWN if no identification can
-   be made. */
-#define VIDIOC_INT_G_CHIP_IDENT		_IOR ('d', 107, enum v4l2_chip_ident)
-
 /* Sets I2S speed in bps. This is used to provide a standard way to select I2S
    clock used by driving digital audio streams at some board designs.
    Usual values for the frequency are 1024000 and 2048000.
@@ -253,5 +218,13 @@ struct v4l2_crystal_freq {
 /* Initialize the sensor registors to some sort of reasonable
    default values. */
 #define VIDIOC_INT_INIT			_IOW ('d', 114, u32)
+
+/* Set v4l2_std_id for video OUTPUT devices. This is ignored by
+   video input devices. */
+#define VIDIOC_INT_S_STD_OUTPUT		_IOW  ('d', 115, v4l2_std_id)
+
+/* Get v4l2_std_id for video OUTPUT devices. This is ignored by
+   video input devices. */
+#define VIDIOC_INT_G_STD_OUTPUT		_IOW  ('d', 116, v4l2_std_id)
 
 #endif /* V4L2_COMMON_H_ */

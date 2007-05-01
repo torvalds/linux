@@ -101,14 +101,14 @@ static int ipv6_gso_send_check(struct sk_buff *skb)
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
 		goto out;
 
-	ipv6h = skb->nh.ipv6h;
+	ipv6h = ipv6_hdr(skb);
 	__skb_pull(skb, sizeof(*ipv6h));
 	err = -EPROTONOSUPPORT;
 
 	rcu_read_lock();
 	ops = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
 	if (likely(ops && ops->gso_send_check)) {
-		skb->h.raw = skb->data;
+		skb_reset_transport_header(skb);
 		err = ops->gso_send_check(skb);
 	}
 	rcu_read_unlock();
@@ -137,14 +137,14 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
 		goto out;
 
-	ipv6h = skb->nh.ipv6h;
+	ipv6h = ipv6_hdr(skb);
 	__skb_pull(skb, sizeof(*ipv6h));
 	segs = ERR_PTR(-EPROTONOSUPPORT);
 
 	rcu_read_lock();
 	ops = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
 	if (likely(ops && ops->gso_segment)) {
-		skb->h.raw = skb->data;
+		skb_reset_transport_header(skb);
 		segs = ops->gso_segment(skb, features);
 	}
 	rcu_read_unlock();
@@ -153,7 +153,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 		goto out;
 
 	for (skb = segs; skb; skb = skb->next) {
-		ipv6h = skb->nh.ipv6h;
+		ipv6h = ipv6_hdr(skb);
 		ipv6h->payload_len = htons(skb->len - skb->mac_len -
 					   sizeof(*ipv6h));
 	}
@@ -694,7 +694,7 @@ done:
 		retv = ip6_ra_control(sk, val, NULL);
 		break;
 	case IPV6_MTU_DISCOVER:
-		if (val<0 || val>2)
+		if (val<0 || val>3)
 			goto e_inval;
 		np->pmtudisc = val;
 		retv = 0;
@@ -761,6 +761,7 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 	return err;
 }
 
+EXPORT_SYMBOL(ipv6_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
@@ -796,18 +797,37 @@ EXPORT_SYMBOL(compat_ipv6_setsockopt);
 #endif
 
 static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
-				  char __user *optval, int len)
+				  int optname, char __user *optval, int len)
 {
 	struct ipv6_opt_hdr *hdr;
 
-	if (!opt || !opt->hopopt)
+	if (!opt)
 		return 0;
-	hdr = opt->hopopt;
+
+	switch(optname) {
+	case IPV6_HOPOPTS:
+		hdr = opt->hopopt;
+		break;
+	case IPV6_RTHDRDSTOPTS:
+		hdr = opt->dst0opt;
+		break;
+	case IPV6_RTHDR:
+		hdr = (struct ipv6_opt_hdr *)opt->srcrt;
+		break;
+	case IPV6_DSTOPTS:
+		hdr = opt->dst1opt;
+		break;
+	default:
+		return -EINVAL;	/* should not happen */
+	}
+
+	if (!hdr)
+		return 0;
 
 	len = min_t(unsigned int, len, ipv6_optlen(hdr));
-	if (copy_to_user(optval, hdr, ipv6_optlen(hdr)))
+	if (copy_to_user(optval, hdr, len));
 		return -EFAULT;
-	return len;
+	return ipv6_optlen(hdr);
 }
 
 static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
@@ -945,7 +965,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 		lock_sock(sk);
 		len = ipv6_getsockopt_sticky(sk, np->opt,
-					     optval, len);
+					     optname, optval, len);
 		release_sock(sk);
 		return put_user(len, optlen);
 	}
@@ -1065,6 +1085,8 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 #endif
 	return err;
 }
+
+EXPORT_SYMBOL(ipv6_getsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,

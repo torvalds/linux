@@ -102,31 +102,28 @@ pci_save_state
 --------------
 
 Usage:
-	pci_save_state(dev, buffer);
+	pci_save_state(struct pci_dev *dev);
 
 Description:
-	Save first 64 bytes of PCI config space. Buffer must be allocated by
-	caller.
+	Save first 64 bytes of PCI config space, along with any additional
+	PCI-Express or PCI-X information.
 
 
 pci_restore_state
 -----------------
 
 Usage:
-	pci_restore_state(dev, buffer);
+	pci_restore_state(struct pci_dev *dev);
 
 Description:
-	Restore previously saved config space. (First 64 bytes only);
-
-	If buffer is NULL, then restore what information we know about the
-	device from bootup: BARs and interrupt line.
+	Restore previously saved config space.
 
 
 pci_set_power_state
 -------------------
 
 Usage:
-	pci_set_power_state(dev, state);
+	pci_set_power_state(struct pci_dev *dev, pci_power_t state);
 
 Description:
 	Transition device to low power state using PCI PM Capabilities
@@ -142,7 +139,7 @@ pci_enable_wake
 ---------------
 
 Usage:
-	pci_enable_wake(dev, state, enable);
+	pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable);
 
 Description:
 	Enable device to generate PME# during low power state using PCI PM 

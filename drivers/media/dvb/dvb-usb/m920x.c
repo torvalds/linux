@@ -14,6 +14,8 @@
 #include "mt352.h"
 #include "mt352_priv.h"
 #include "qt1010.h"
+#include "tda1004x.h"
+#include "tda827x.h"
 
 /* debug */
 static int dvb_usb_m920x_debug;
@@ -47,11 +49,15 @@ static inline int m9206_read(struct usb_device *udev, u8 request, u16 value,\
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			      request, USB_TYPE_VENDOR | USB_DIR_IN,
 			      value, index, data, size, 2000);
-	if (ret < 0)
+	if (ret < 0) {
+		printk(KERN_INFO "m920x_read = error: %d\n", ret);
 		return ret;
+	}
 
-	if (ret != size)
+	if (ret != size) {
+		deb_rc("m920x_read = no data\n");
 		return -EIO;
+	}
 
 	return 0;
 }
@@ -64,19 +70,22 @@ static inline int m9206_write(struct usb_device *udev, u8 request,
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			      request, USB_TYPE_VENDOR | USB_DIR_OUT,
 			      value, index, NULL, 0, 2000);
+
 	return ret;
 }
 
-static int m9206_rc_init(struct usb_device *udev)
+static int m9206_init(struct dvb_usb_device *d)
 {
 	int ret = 0;
 
 	/* Remote controller init. */
-	if ((ret = m9206_write(udev, M9206_CORE, 0xa8, M9206_RC_INIT2)) != 0)
-		return ret;
+	if (d->props.rc_query) {
+		if ((ret = m9206_write(d->udev, M9206_CORE, 0xa8, M9206_RC_INIT2)) != 0)
+			return ret;
 
-	if ((ret = m9206_write(udev, M9206_CORE, 0x51, M9206_RC_INIT1)) != 0)
-		return ret;
+		if ((ret = m9206_write(d->udev, M9206_CORE, 0x51, M9206_RC_INIT1)) != 0)
+			return ret;
+	}
 
 	return ret;
 }
@@ -87,16 +96,15 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	int i, ret = 0;
 	u8 rc_state[2];
 
-
 	if ((ret = m9206_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, rc_state, 1)) != 0)
 		goto unlock;
 
 	if ((ret = m9206_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
 		goto unlock;
 
-	for (i = 0; i < ARRAY_SIZE(megasky_rc_keys); i++)
-		if (megasky_rc_keys[i].data == rc_state[1]) {
-			*event = megasky_rc_keys[i].event;
+	for (i = 0; i < d->props.rc_key_map_size; i++)
+		if (d->props.rc_key_map[i].data == rc_state[1]) {
+			*event = d->props.rc_key_map[i].event;
 
 			switch(rc_state[0]) {
 			case 0x80:
@@ -137,53 +145,51 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			  int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
-	struct m9206_state *m = d->priv;
-	int i;
+	int i, j;
 	int ret = 0;
+
+	if (!num)
+		return -EINVAL;
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
-	if (num > 2)
-		return -EINVAL;
-
 	for (i = 0; i < num; i++) {
-		if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].addr, 0x80)) != 0)
+		if (msg[i].flags & (I2C_M_NO_RD_ACK|I2C_M_IGNORE_NAK|I2C_M_TEN) ||
+		    msg[i].len == 0) {
+			/* For a 0 byte message, I think sending the address to index 0x80|0x40
+			 * would be the correct thing to do.  However, zero byte messages are
+			 * only used for probing, and since we don't know how to get the slave's
+			 * ack, we can't probe. */
+			ret = -ENOTSUPP;
 			goto unlock;
-
-		if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[0], 0x0)) != 0)
-			goto unlock;
-
-		if (i + 1 < num && msg[i + 1].flags & I2C_M_RD) {
-			int i2c_i;
-
-			for (i2c_i = 0; i2c_i < M9206_I2C_MAX; i2c_i++)
-				if (msg[i].addr == m->i2c_r[i2c_i].addr)
-					break;
-
-			if (i2c_i >= M9206_I2C_MAX) {
-				deb_rc("No magic for i2c addr!\n");
-				ret = -EINVAL;
+		}
+		/* Send START & address/RW bit */
+		if (!(msg[i].flags & I2C_M_NOSTART)) {
+			if ((ret = m9206_write(d->udev, M9206_I2C, (msg[i].addr<<1)|(msg[i].flags&I2C_M_RD?0x01:0), 0x80)) != 0)
 				goto unlock;
+			/* Should check for ack here, if we knew how. */
+		}
+		if (msg[i].flags & I2C_M_RD) {
+			for (j = 0; j < msg[i].len; j++) {
+				/* Last byte of transaction? Send STOP, otherwise send ACK. */
+				int stop = (i+1 == num && j+1 == msg[i].len)?0x40:0x01;
+				if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x20|stop, &msg[i].buf[j], 1)) != 0)
+					goto unlock;
 			}
-
-			if ((ret = m9206_write(d->udev, M9206_I2C, m->i2c_r[i2c_i].magic, 0x80)) != 0)
-				goto unlock;
-
-			if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x60, msg[i + 1].buf, msg[i + 1].len)) != 0)
-				goto unlock;
-
-			i++;
 		} else {
-			if (msg[i].len != 2)
-				return -EINVAL;
-
-			if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[1], 0x40)) != 0)
-				goto unlock;
+			for (j = 0; j < msg[i].len; j++) {
+				/* Last byte of transaction? Then send STOP. */
+				int stop = (i+1 == num && j+1 == msg[i].len)?0x40:0x00;
+				if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[j], stop)) != 0)
+					goto unlock;
+				/* Should check for ack here too. */
+			}
 		}
 	}
-	ret = i;
-	unlock:
+	ret = num;
+
+unlock:
 	mutex_unlock(&d->i2c_mutex);
 
 	return ret;
@@ -324,6 +330,7 @@ static int m9206_firmware_download(struct usb_device *udev,
 			i += size;
 		}
 		if (i != fw->size) {
+			deb_rc("bad firmware file!\n");
 			ret = -EINVAL;
 			goto done;
 		}
@@ -342,10 +349,10 @@ static int m9206_firmware_download(struct usb_device *udev,
 }
 
 /* Callbacks for DVB USB */
-static int megasky_identify_state(struct usb_device *udev,
-				  struct dvb_usb_device_properties *props,
-				  struct dvb_usb_device_description **desc,
-				  int *cold)
+static int m920x_identify_state(struct usb_device *udev,
+				struct dvb_usb_device_properties *props,
+				struct dvb_usb_device_description **desc,
+				int *cold)
 {
 	struct usb_host_interface *alt;
 
@@ -381,19 +388,14 @@ static int megasky_mt352_demod_init(struct dvb_frontend *fe)
 }
 
 static struct mt352_config megasky_mt352_config = {
-	.demod_address = 0x1e,
+	.demod_address = 0x0f,
 	.no_tuner = 1,
 	.demod_init = megasky_mt352_demod_init,
 };
 
 static int megasky_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	struct m9206_state *m = adap->dev->priv;
-
 	deb_rc("megasky_frontend_attach!\n");
-
-	m->i2c_r[M9206_I2C_DEMOD].addr = megasky_mt352_config.demod_address;
-	m->i2c_r[M9206_I2C_DEMOD].magic = 0x1f;
 
 	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config, &adap->dev->i2c_adap)) == NULL)
 		return -EIO;
@@ -402,16 +404,11 @@ static int megasky_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 }
 
 static struct qt1010_config megasky_qt1010_config = {
-	.i2c_address = 0xc4
+	.i2c_address = 0x62
 };
 
 static int megasky_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	struct m9206_state *m = adap->dev->priv;
-
-	m->i2c_r[M9206_I2C_TUNER].addr = megasky_qt1010_config.i2c_address;
-	m->i2c_r[M9206_I2C_TUNER].magic = 0xc5;
-
 	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
 		       &megasky_qt1010_config) == NULL)
 		return -ENODEV;
@@ -419,8 +416,40 @@ static int megasky_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static struct tda1004x_config digivox_tda10046_config = {
+	.demod_address = 0x08,
+	.invert = 0,
+	.invert_oclk = 0,
+	.ts_mode = TDA10046_TS_SERIAL,
+	.xtal_freq = TDA10046_XTAL_16M,
+	.if_freq = TDA10046_FREQ_045,
+	.agc_config = TDA10046_AGC_TDA827X,
+	.gpio_config = TDA10046_GPTRI,
+	.request_firmware = NULL,
+};
+
+static int digivox_tda10046_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	deb_rc("digivox_tda10046_frontend_attach!\n");
+
+	if ((adap->fe = dvb_attach(tda10046_attach, &digivox_tda10046_config,
+				   &adap->dev->i2c_adap)) == NULL)
+		return -EIO;
+
+	return 0;
+}
+
+static int digivox_tda8275_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
+		       NULL) == NULL)
+		return -ENODEV;
+	return 0;
+}
+
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties megasky_properties;
+static struct dvb_usb_device_properties digivox_mini_ii_properties;
 
 static int m920x_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -429,30 +458,36 @@ static int m920x_probe(struct usb_interface *intf,
 	struct usb_host_interface *alt;
 	int ret;
 
-	if ((ret = dvb_usb_device_init(intf, &megasky_properties, THIS_MODULE, &d)) == 0) {
-		deb_rc("probed!\n");
+	deb_rc("Probed!\n");
 
-		alt = usb_altnum_to_altsetting(intf, 1);
-		if (alt == NULL) {
-			deb_rc("not alt found!\n");
-			return -ENODEV;
-		}
+	if (((ret = dvb_usb_device_init(intf, &megasky_properties, THIS_MODULE, &d)) == 0) ||
+	    ((ret = dvb_usb_device_init(intf, &digivox_mini_ii_properties, THIS_MODULE, &d)) == 0))
+		goto found;
 
-		ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber,
-					alt->desc.bAlternateSetting);
-		if (ret < 0)
-			return ret;
+	return ret;
 
-		deb_rc("Changed to alternate setting!\n");
-
-		if ((ret = m9206_rc_init(d->udev)) != 0)
-			return ret;
+found:
+	alt = usb_altnum_to_altsetting(intf, 1);
+	if (alt == NULL) {
+		deb_rc("No alt found!\n");
+		return -ENODEV;
 	}
+
+	ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber,
+				alt->desc.bAlternateSetting);
+	if (ret < 0)
+		return ret;
+
+	if ((ret = m9206_init(d)) != 0)
+		return ret;
+
 	return ret;
 }
 
 static struct usb_device_id m920x_table [] = {
 		{ USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY580) },
+		{ USB_DEVICE(USB_VID_ANUBIS_ELECTRONIC,
+			     USB_PID_MSI_DIGI_VOX_MINI_II) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, m920x_table);
@@ -471,7 +506,7 @@ static struct dvb_usb_device_properties megasky_properties = {
 
 	.size_of_priv     = sizeof(struct m9206_state),
 
-	.identify_state   = megasky_identify_state,
+	.identify_state   = m920x_identify_state,
 	.num_adapters = 1,
 	.adapter = {{
 		.caps = DVB_USB_ADAP_HAS_PID_FILTER |
@@ -501,6 +536,50 @@ static struct dvb_usb_device_properties megasky_properties = {
 	.devices = {
 		{   "MSI Mega Sky 580 DVB-T USB2.0",
 			{ &m920x_table[0], NULL },
+			{ NULL },
+		}
+	}
+};
+
+static struct dvb_usb_device_properties digivox_mini_ii_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl = DEVICE_SPECIFIC,
+	.firmware = "dvb-usb-digivox-02.fw",
+	.download_firmware = m9206_firmware_download,
+
+	.size_of_priv     = sizeof(struct m9206_state),
+
+	.identify_state   = m920x_identify_state,
+	.num_adapters = 1,
+	.adapter = {{
+		.caps = DVB_USB_ADAP_HAS_PID_FILTER |
+		DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+
+		.pid_filter_count = 8,
+		.pid_filter       = m9206_pid_filter,
+		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
+
+		.frontend_attach  = digivox_tda10046_frontend_attach,
+		.tuner_attach     = digivox_tda8275_tuner_attach,
+
+		.stream = {
+			.type = USB_BULK,
+			.count = 8,
+			.endpoint = 0x81,
+			.u = {
+				.bulk = {
+					.buffersize = 0x4000,
+				}
+			}
+		},
+	}},
+	.i2c_algo         = &m9206_i2c_algo,
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "MSI DIGI VOX mini II DVB-T USB2.0",
+			{ &m920x_table[1], NULL },
 			{ NULL },
 		},
 	}

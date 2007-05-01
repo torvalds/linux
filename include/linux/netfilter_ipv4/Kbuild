@@ -1,9 +1,3 @@
-header-y += ip_conntrack_helper.h
-header-y += ip_conntrack_protocol.h
-header-y += ip_conntrack_sctp.h
-header-y += ip_conntrack_tcp.h
-header-y += ip_conntrack_tftp.h
-header-y += ip_nat_pptp.h
 header-y += ipt_addrtype.h
 header-y += ipt_ah.h
 header-y += ipt_CLASSIFY.h
@@ -49,13 +43,5 @@ header-y += ipt_ttl.h
 header-y += ipt_TTL.h
 header-y += ipt_ULOG.h
 
-unifdef-y += ip_conntrack.h
-unifdef-y += ip_conntrack_h323.h
-unifdef-y += ip_conntrack_irc.h
-unifdef-y += ip_conntrack_pptp.h
-unifdef-y += ip_conntrack_proto_gre.h
-unifdef-y += ip_conntrack_tuple.h
-unifdef-y += ip_nat.h
-unifdef-y += ip_nat_rule.h
 unifdef-y += ip_queue.h
 unifdef-y += ip_tables.h

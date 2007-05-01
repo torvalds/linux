@@ -338,7 +338,7 @@ static int __init init_ck804xrom(void)
 	}
 	return -ENXIO;
 #if 0
-	return pci_module_init(&ck804xrom_driver);
+	return pci_register_driver(&ck804xrom_driver);
 #endif
 }
 

@@ -61,8 +61,6 @@ extern void * __memsetw(void *dest, unsigned short, size_t count);
  ? __constant_c_memset((s),0x0001000100010001UL*(unsigned short)(c),(n)) \
  : __memsetw((s),(c),(n)))
 
-extern int strcasecmp(const char *, const char *);
-
 #endif /* __KERNEL__ */
 
 #endif /* __ALPHA_STRING_H__ */
