@@ -211,7 +211,10 @@ static struct of_device_id pasemi_bus_ids[] = {
 
 static int __init pasemi_publish_devices(void)
 {
-	/* Publish OF platform devices for southbridge IOs */
+	if (!machine_is(pasemi))
+		return 0;
+
+	/* Publish OF platform devices for SDC and other non-PCI devices */
 	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
 
 	return 0;
