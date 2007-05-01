@@ -259,7 +259,7 @@ static void tifm_sd_bounce_block(struct tifm_sd *host, struct mmc_data *r_data)
 	}
 }
 
-int tifm_sd_set_dma_data(struct tifm_sd *host, struct mmc_data *r_data)
+static int tifm_sd_set_dma_data(struct tifm_sd *host, struct mmc_data *r_data)
 {
 	struct tifm_dev *sock = host->dev;
 	unsigned int t_size = TIFM_DMA_TSIZE * r_data->blksz;
