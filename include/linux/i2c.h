@@ -228,17 +228,14 @@ struct i2c_adapter {
 	int timeout;
 	int retries;
 	struct device dev;		/* the adapter device */
-	struct class_device class_dev;	/* the class device */
 
 	int nr;
 	struct list_head clients;
 	struct list_head list;
 	char name[I2C_NAME_SIZE];
 	struct completion dev_released;
-	struct completion class_dev_released;
 };
 #define dev_to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
-#define class_dev_to_i2c_adapter(d) container_of(d, struct i2c_adapter, class_dev)
 
 static inline void *i2c_get_adapdata (struct i2c_adapter *dev)
 {

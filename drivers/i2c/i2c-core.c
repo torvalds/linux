@@ -123,28 +123,9 @@ struct device_driver i2c_adapter_driver = {
 
 /* I2C bus adapters -- one roots each I2C or SMBUS segment */
 
-static void i2c_adapter_class_dev_release(struct class_device *dev)
-{
-	struct i2c_adapter *adap = class_dev_to_i2c_adapter(dev);
-	complete(&adap->class_dev_released);
-}
-
-static ssize_t i2c_adapter_show_name(struct class_device *cdev, char *buf)
-{
-	struct i2c_adapter *adap = class_dev_to_i2c_adapter(cdev);
-	return sprintf(buf, "%s\n", adap->name);
-}
-
-static struct class_device_attribute i2c_adapter_attrs[] = {
-	__ATTR(name, S_IRUGO, i2c_adapter_show_name, NULL),
-	{ },
-};
-
 struct class i2c_adapter_class = {
 	.owner			= THIS_MODULE,
 	.name			= "i2c-adapter",
-	.class_dev_attrs	= i2c_adapter_attrs,
-	.release		= &i2c_adapter_class_dev_release,
 };
 
 static ssize_t show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -223,21 +204,13 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	sprintf(adap->dev.bus_id, "i2c-%d", adap->nr);
 	adap->dev.driver = &i2c_adapter_driver;
 	adap->dev.release = &i2c_adapter_dev_release;
+	adap->dev.class = &i2c_adapter_class;
 	res = device_register(&adap->dev);
 	if (res)
 		goto out_list;
 	res = device_create_file(&adap->dev, &dev_attr_name);
 	if (res)
 		goto out_unregister;
-
-	/* Add this adapter to the i2c_adapter class */
-	memset(&adap->class_dev, 0x00, sizeof(struct class_device));
-	adap->class_dev.dev = &adap->dev;
-	adap->class_dev.class = &i2c_adapter_class;
-	strlcpy(adap->class_dev.class_id, adap->dev.bus_id, BUS_ID_SIZE);
-	res = class_device_register(&adap->class_dev);
-	if (res)
-		goto out_remove_name;
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
@@ -253,8 +226,6 @@ out_unlock:
 	mutex_unlock(&core_lists);
 	return res;
 
-out_remove_name:
-	device_remove_file(&adap->dev, &dev_attr_name);
 out_unregister:
 	init_completion(&adap->dev_released); /* Needed? */
 	device_unregister(&adap->dev);
@@ -314,15 +285,12 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 
 	/* clean up the sysfs representation */
 	init_completion(&adap->dev_released);
-	init_completion(&adap->class_dev_released);
-	class_device_unregister(&adap->class_dev);
 	device_remove_file(&adap->dev, &dev_attr_name);
 	device_unregister(&adap->dev);
 	list_del(&adap->list);
 
 	/* wait for sysfs to drop all references */
 	wait_for_completion(&adap->dev_released);
-	wait_for_completion(&adap->class_dev_released);
 
 	/* free dynamically allocated bus id */
 	idr_remove(&i2c_adapter_idr, adap->nr);
