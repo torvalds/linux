@@ -590,8 +590,9 @@ int i2c_transfer(struct i2c_adapter * adap, struct i2c_msg *msgs, int num)
 #ifdef DEBUG
 		for (ret = 0; ret < num; ret++) {
 			dev_dbg(&adap->dev, "master_xfer[%d] %c, addr=0x%02x, "
-				"len=%d\n", ret, msgs[ret].flags & I2C_M_RD ?
-				'R' : 'W', msgs[ret].addr, msgs[ret].len);
+				"len=%d%s\n", ret, (msgs[ret].flags & I2C_M_RD)
+				? 'R' : 'W', msgs[ret].addr, msgs[ret].len,
+				(msgs[ret].flags & I2C_M_RECV_LEN) ? "+" : "");
 		}
 #endif
 
@@ -1050,9 +1051,9 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 		if (read_write == I2C_SMBUS_READ) {
-			dev_err(&adapter->dev, "Block read not supported "
-			       "under I2C emulation!\n");
-			return -1;
+			msg[1].flags |= I2C_M_RECV_LEN;
+			msg[1].len = 1; /* block length will be added by
+					   the underlying bus driver */
 		} else {
 			msg[0].len = data->block[0] + 2;
 			if (msg[0].len > I2C_SMBUS_BLOCK_MAX + 2) {
@@ -1066,9 +1067,21 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		}
 		break;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
-		dev_dbg(&adapter->dev, "Block process call not supported "
-		       "under I2C emulation!\n");
-		return -1;
+		num = 2; /* Another special case */
+		read_write = I2C_SMBUS_READ;
+		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
+			dev_err(&adapter->dev, "%s called with invalid "
+				"block proc call size (%d)\n", __FUNCTION__,
+				data->block[0]);
+			return -1;
+		}
+		msg[0].len = data->block[0] + 2;
+		for (i = 1; i < msg[0].len; i++)
+			msgbuf0[i] = data->block[i-1];
+		msg[1].flags |= I2C_M_RECV_LEN;
+		msg[1].len = 1; /* block length will be added by
+				   the underlying bus driver */
+		break;
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 		if (read_write == I2C_SMBUS_READ) {
 			msg[1].len = I2C_SMBUS_BLOCK_MAX;
@@ -1131,6 +1144,11 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 				data->block[0] = I2C_SMBUS_BLOCK_MAX;
 				for (i = 0; i < I2C_SMBUS_BLOCK_MAX; i++)
 					data->block[i+1] = msgbuf1[i];
+				break;
+			case I2C_SMBUS_BLOCK_DATA:
+			case I2C_SMBUS_BLOCK_PROC_CALL:
+				for (i = 0; i < msgbuf1[0] + 1; i++)
+					data->block[i] = msgbuf1[i];
 				break;
 		}
 	return 0;

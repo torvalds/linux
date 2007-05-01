@@ -366,6 +366,7 @@ struct i2c_msg {
 #define I2C_M_REV_DIR_ADDR	0x2000
 #define I2C_M_IGNORE_NAK	0x1000
 #define I2C_M_NO_RD_ACK		0x0800
+#define I2C_M_RECV_LEN		0x0400 /* length will be first received byte */
 	__u16 len;		/* msg length				*/
 	__u8 *buf;		/* pointer to msg data			*/
 };
