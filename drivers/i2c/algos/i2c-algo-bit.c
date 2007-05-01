@@ -540,7 +540,7 @@ static const struct i2c_algorithm i2c_bit_algo = {
 /* 
  * registering functions to load algorithms at runtime 
  */
-int i2c_bit_add_bus(struct i2c_adapter *adap)
+static int i2c_bit_prepare_bus(struct i2c_adapter *adap)
 {
 	struct i2c_algo_bit_data *bit_adap = adap->algo_data;
 
@@ -558,9 +558,32 @@ int i2c_bit_add_bus(struct i2c_adapter *adap)
 	adap->timeout = 100;	/* default values, should	*/
 	adap->retries = 3;	/* be replaced by defines	*/
 
+	return 0;
+}
+
+int i2c_bit_add_bus(struct i2c_adapter *adap)
+{
+	int err;
+
+	err = i2c_bit_prepare_bus(adap);
+	if (err)
+		return err;
+
 	return i2c_add_adapter(adap);
 }
 EXPORT_SYMBOL(i2c_bit_add_bus);
+
+int i2c_bit_add_numbered_bus(struct i2c_adapter *adap)
+{
+	int err;
+
+	err = i2c_bit_prepare_bus(adap);
+	if (err)
+		return err;
+
+	return i2c_add_numbered_adapter(adap);
+}
+EXPORT_SYMBOL(i2c_bit_add_numbered_bus);
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");
 MODULE_DESCRIPTION("I2C-Bus bit-banging algorithm");
