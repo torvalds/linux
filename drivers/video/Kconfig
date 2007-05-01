@@ -389,7 +389,10 @@ config FB_ARC
 
 config FB_ATARI
 	bool "Atari native chipset support"
-	depends on (FB = y) && ATARI && BROKEN
+	depends on (FB = y) && ATARI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
 	help
 	  This is the frame buffer device driver for the builtin graphics
 	  chipset found in Ataris.
