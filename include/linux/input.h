@@ -676,6 +676,7 @@ struct input_absinfo {
 #define BUS_I2C			0x18
 #define BUS_HOST		0x19
 #define BUS_GSC			0x1A
+#define BUS_ATARI		0x1B
 
 /*
  * Values describing the status of a force-feedback effect

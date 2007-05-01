@@ -36,5 +36,11 @@ void ikbd_joystick_disable(void);
 extern void (*atari_MIDI_interrupt_hook) (void);
 /* Hook for mouse driver */
 extern void (*atari_mouse_interrupt_hook) (char *);
+/* Hook for keyboard inputdev  driver */
+extern void (*atari_input_keyboard_interrupt_hook) (unsigned char, char);
+/* Hook for mouse inputdev  driver */
+extern void (*atari_input_mouse_interrupt_hook) (char *);
+
+int atari_keyb_init(void);
 
 #endif /* _LINUX_ATARIKB_H */

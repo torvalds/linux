@@ -96,6 +96,17 @@ config MOUSE_AMIGA
 	  To compile this driver as a module, choose M here: the
 	  module will be called amimouse.
 
+config MOUSE_ATARI
+	tristate "Atari mouse"
+	depends on ATARI
+	select ATARI_KBD_CORE
+	help
+	  Say Y here if you have an Atari and want its native mouse
+	  supported by the kernel.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atarimouse.
+
 config MOUSE_RISCPC
 	tristate "Acorn RiscPC mouse"
 	depends on ARCH_ACORN

@@ -409,6 +409,9 @@ config STRAM_PROC
 	help
 	  Say Y here to report ST-RAM usage statistics in /proc/stram.
 
+config ATARI_KBD_CORE
+	bool
+
 config HEARTBEAT
 	bool "Use power LED as a heartbeat" if AMIGA || APOLLO || ATARI || MAC ||Q40
 	default y if !AMIGA && !APOLLO && !ATARI && !MAC && !Q40 && HP300
