@@ -599,13 +599,11 @@ EXPORT_SYMBOL(i2c_register_driver);
  * i2c_del_driver - unregister I2C driver
  * @driver: the driver being unregistered
  */
-int i2c_del_driver(struct i2c_driver *driver)
+void i2c_del_driver(struct i2c_driver *driver)
 {
 	struct list_head   *item1, *item2, *_n;
 	struct i2c_client  *client;
 	struct i2c_adapter *adap;
-
-	int res = 0;
 
 	mutex_lock(&core_lists);
 
@@ -620,11 +618,10 @@ int i2c_del_driver(struct i2c_driver *driver)
 	list_for_each(item1,&adapters) {
 		adap = list_entry(item1, struct i2c_adapter, list);
 		if (driver->detach_adapter) {
-			if ((res = driver->detach_adapter(adap))) {
+			if (driver->detach_adapter(adap)) {
 				dev_err(&adap->dev, "detach_adapter failed "
 					"for driver [%s]\n",
 					driver->driver.name);
-				goto out_unlock;
 			}
 		} else {
 			list_for_each_safe(item2, _n, &adap->clients) {
@@ -634,12 +631,11 @@ int i2c_del_driver(struct i2c_driver *driver)
 				dev_dbg(&adap->dev, "detaching client [%s] "
 					"at 0x%02x\n", client->name,
 					client->addr);
-				if ((res = driver->detach_client(client))) {
+				if (driver->detach_client(client)) {
 					dev_err(&adap->dev, "detach_client "
 						"failed for client [%s] at "
 						"0x%02x\n", client->name,
 						client->addr);
-					goto out_unlock;
 				}
 			}
 		}
@@ -650,9 +646,7 @@ int i2c_del_driver(struct i2c_driver *driver)
 	list_del(&driver->list);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
 
- out_unlock:
 	mutex_unlock(&core_lists);
-	return 0;
 }
 EXPORT_SYMBOL(i2c_del_driver);
 

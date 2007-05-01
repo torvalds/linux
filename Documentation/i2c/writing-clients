@@ -586,10 +586,7 @@ the driver module is usually enough.
   void foo_cleanup(void)
   {
     if (foo_initialized == 1) {
-      if ((res = i2c_del_driver(&foo_driver))) {
-        printk("foo: Driver registration failed, module not removed.\n");
-        return;
-      }
+      i2c_del_driver(&foo_driver);
       foo_initialized --;
     }
   }

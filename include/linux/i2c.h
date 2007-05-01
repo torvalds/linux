@@ -371,7 +371,7 @@ extern int i2c_del_adapter(struct i2c_adapter *);
 extern int i2c_add_numbered_adapter(struct i2c_adapter *);
 
 extern int i2c_register_driver(struct module *, struct i2c_driver *);
-extern int i2c_del_driver(struct i2c_driver *);
+extern void i2c_del_driver(struct i2c_driver *);
 
 static inline int i2c_add_driver(struct i2c_driver *driver)
 {
