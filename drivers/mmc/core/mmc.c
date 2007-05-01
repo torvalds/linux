@@ -152,10 +152,9 @@ static void mmc_decode_csd(struct mmc_card *card)
 }
 
 /*
- * Read and decode extended CSD. Switch to high-speed and wide bus
- * if supported.
+ * Read and decode extended CSD.
  */
-static int mmc_process_ext_csd(struct mmc_card *card)
+static int mmc_read_ext_csd(struct mmc_card *card)
 {
 	int err;
 	u8 *ext_csd;
@@ -221,39 +220,6 @@ static int mmc_process_ext_csd(struct mmc_card *card)
 			"support any high-speed modes.\n",
 			mmc_hostname(card->host));
 		goto out;
-	}
-
-	if (card->host->caps & MMC_CAP_MMC_HIGHSPEED) {
-		/* Activate highspeed support. */
-		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			EXT_CSD_HS_TIMING, 1);
-		if (err != MMC_ERR_NONE) {
-			printk(KERN_WARNING "%s: failed to switch "
-				"card to mmc v4 high-speed mode.\n",
-			       mmc_hostname(card->host));
-			err = MMC_ERR_NONE;
-			goto out;
-		}
-
-		mmc_card_set_highspeed(card);
-
-		mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
-	}
-
-	/* Check for host support for wide-bus modes. */
-	if (card->host->caps & MMC_CAP_4_BIT_DATA) {
-		/* Activate 4-bit support. */
-		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			EXT_CSD_BUS_WIDTH, EXT_CSD_BUS_WIDTH_4);
-		if (err != MMC_ERR_NONE) {
-			printk(KERN_WARNING "%s: failed to switch "
-				"card to mmc v4 4-bit bus mode.\n",
-			       mmc_hostname(card->host));
-			err = MMC_ERR_NONE;
-			goto out;
-		}
-
-		mmc_set_bus_width(card->host, MMC_BUS_WIDTH_4);
 	}
 
 out:
@@ -391,17 +357,33 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	mmc_decode_cid(card);
 
 	/*
-	 * Fetch and process extened CSD.
-	 * This will switch into high-speed and wide bus modes,
-	 * as available.
+	 * Select card, as all following commands rely on that.
 	 */
 	err = mmc_select_card(card);
 	if (err != MMC_ERR_NONE)
 		goto free_card;
 
-	err = mmc_process_ext_csd(card);
+	/*
+	 * Fetch and process extened CSD.
+	 */
+	err = mmc_read_ext_csd(card);
 	if (err != MMC_ERR_NONE)
 		goto free_card;
+
+	/*
+	 * Activate high speed (if supported)
+	 */
+	if ((card->ext_csd.hs_max_dtr != 0) &&
+		(host->caps & MMC_CAP_MMC_HIGHSPEED)) {
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			EXT_CSD_HS_TIMING, 1);
+		if (err != MMC_ERR_NONE)
+			goto free_card;
+
+		mmc_card_set_highspeed(card);
+
+		mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
+	}
 
 	/*
 	 * Compute bus speed.
@@ -416,6 +398,19 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	}
 
 	mmc_set_clock(host, max_dtr);
+
+	/*
+	 * Activate wide bus (if supported).
+	 */
+	if ((card->csd.mmca_vsn >= CSD_SPEC_VER_4) &&
+		(host->caps & MMC_CAP_4_BIT_DATA)) {
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			EXT_CSD_BUS_WIDTH, EXT_CSD_BUS_WIDTH_4);
+		if (err != MMC_ERR_NONE)
+			goto free_card;
+
+		mmc_set_bus_width(card->host, MMC_BUS_WIDTH_4);
+	}
 
 	host->card = card;
 
