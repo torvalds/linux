@@ -111,7 +111,6 @@ static int pmu_send_request(struct adb_request *req, int sync);
 static int pmu_autopoll(int devs);
 void pmu_poll(void);
 static int pmu_reset_bus(void);
-static int pmu_queue_request(struct adb_request *req);
 
 static void pmu_start(void);
 static void send_byte(int x);
@@ -475,7 +474,7 @@ pmu_request(struct adb_request *req, void (*done)(struct adb_request *),
 	return pmu_queue_request(req);
 }
 
-static int 
+int
 pmu_queue_request(struct adb_request *req)
 {
 	unsigned long flags;
