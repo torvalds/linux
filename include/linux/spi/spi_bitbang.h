@@ -25,7 +25,6 @@ struct spi_bitbang {
 	spinlock_t		lock;
 	struct list_head	queue;
 	u8			busy;
-	u8			shutdown;
 	u8			use_dma;
 
 	struct spi_master	*master;

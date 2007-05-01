@@ -94,7 +94,7 @@ static int indy_rtc_set_time(unsigned long tim)
 static unsigned long dosample(void)
 {
 	u32 ct0, ct1;
-	volatile u8 msb, lsb;
+	u8 msb, lsb;
 
 	/* Start the counter. */
 	sgint->tcword = (SGINT_TCWORD_CNT2 | SGINT_TCWORD_CALL |
@@ -107,21 +107,21 @@ static unsigned long dosample(void)
 
 	/* Latch and spin until top byte of counter2 is zero */
 	do {
-		sgint->tcword = SGINT_TCWORD_CNT2 | SGINT_TCWORD_CLAT;
-		lsb = sgint->tcnt2;
-		msb = sgint->tcnt2;
+		writeb(SGINT_TCWORD_CNT2 | SGINT_TCWORD_CLAT, &sgint->tcword);
+		lsb = readb(&sgint->tcnt2);
+		msb = readb(&sgint->tcnt2);
 		ct1 = read_c0_count();
 	} while (msb);
 
 	/* Stop the counter. */
-	sgint->tcword = (SGINT_TCWORD_CNT2 | SGINT_TCWORD_CALL |
-			 SGINT_TCWORD_MSWST);
+	writeb(sgint->tcword, (SGINT_TCWORD_CNT2 | SGINT_TCWORD_CALL |
+			       SGINT_TCWORD_MSWST));
 	/*
 	 * Return the difference, this is how far the r4k counter increments
 	 * for every 1/HZ seconds. We round off the nearest 1 MHz of master
 	 * clock (= 1000000 / HZ / 2).
 	 */
-	/*return (ct1 - ct0 + (500000/HZ/2)) / (500000/HZ) * (500000/HZ);*/
+
 	return (ct1 - ct0) / (500000/HZ) * (500000/HZ);
 }
 

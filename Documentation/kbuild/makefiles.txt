@@ -34,7 +34,7 @@ This document describes the Linux kernel Makefiles.
 	   --- 6.1 Set variables to tweak the build to the architecture
 	   --- 6.2 Add prerequisites to archprepare:
 	   --- 6.3 List directories to visit when descending
-	   --- 6.4 Architecture specific boot images
+	   --- 6.4 Architecture-specific boot images
 	   --- 6.5 Building non-kbuild targets
 	   --- 6.6 Commands useful for building a boot image
 	   --- 6.7 Custom kbuild commands
@@ -124,7 +124,7 @@ more details, with real examples.
 	Example:
 		obj-y += foo.o
 
-	This tell kbuild that there is one object in that directory, named
+	This tells kbuild that there is one object in that directory, named
 	foo.o. foo.o will be built from foo.c or foo.S.
 
 	If foo.o shall be built as a module, the variable obj-m is used.
@@ -353,7 +353,7 @@ more details, with real examples.
 	Special rules are used when the kbuild infrastructure does
 	not provide the required support. A typical example is
 	header files generated during the build process.
-	Another example are the architecture specific Makefiles which
+	Another example are the architecture-specific Makefiles which
 	need special rules to prepare boot images etc.
 
 	Special rules are written as normal Make rules.
@@ -416,7 +416,7 @@ more details, with real examples.
 		#arch/i386/kernel/Makefile
 		vsyscall-flags += $(call ld-option, -Wl$(comma)--hash-style=sysv)
 
-	In the above example vsyscall-flags will be assigned the option
+	In the above example, vsyscall-flags will be assigned the option
 	-Wl$(comma)--hash-style=sysv if it is supported by $(CC).
 	The second argument is optional, and if supplied will be used
 	if first argument is not supported.
@@ -434,7 +434,7 @@ more details, with real examples.
 		#arch/i386/Makefile
 		cflags-y += $(call cc-option,-march=pentium-mmx,-march=i586)
 
-	In the above example cflags-y will be assigned the option
+	In the above example, cflags-y will be assigned the option
 	-march=pentium-mmx if supported by $(CC), otherwise -march=i586.
 	The second argument to cc-option is optional, and if omitted,
 	cflags-y will be assigned no value if first option is not supported.
@@ -750,10 +750,10 @@ When kbuild executes, the following steps are followed (roughly):
    located at the root of the obj tree.
    The very first objects linked are listed in head-y, assigned by
    arch/$(ARCH)/Makefile.
-7) Finally, the architecture specific part does any required post processing
+7) Finally, the architecture-specific part does any required post processing
    and builds the final bootimage.
    - This includes building boot records
-   - Preparing initrd images and thelike
+   - Preparing initrd images and the like
 
 
 --- 6.1 Set variables to tweak the build to the architecture
@@ -880,7 +880,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	$(head-y) lists objects to be linked first in vmlinux.
 	$(libs-y) lists directories where a lib.a archive can be located.
-	The rest lists directories where a built-in.o object file can be
+	The rest list directories where a built-in.o object file can be
 	located.
 
 	$(init-y) objects will be located after $(head-y).
@@ -888,7 +888,7 @@ When kbuild executes, the following steps are followed (roughly):
 	$(core-y), $(libs-y), $(drivers-y) and $(net-y).
 
 	The top level Makefile defines values for all generic directories,
-	and arch/$(ARCH)/Makefile only adds architecture specific directories.
+	and arch/$(ARCH)/Makefile only adds architecture-specific directories.
 
 	Example:
 		#arch/sparc64/Makefile
@@ -897,7 +897,7 @@ When kbuild executes, the following steps are followed (roughly):
 		drivers-$(CONFIG_OPROFILE)  += arch/sparc64/oprofile/
 
 
---- 6.4 Architecture specific boot images
+--- 6.4 Architecture-specific boot images
 
 	An arch Makefile specifies goals that take the vmlinux file, compress
 	it, wrap it in bootstrapping code, and copy the resulting files
@@ -924,7 +924,7 @@ When kbuild executes, the following steps are followed (roughly):
 	"$(Q)$(MAKE) $(build)=<dir>" is the recommended way to invoke
 	make in a subdirectory.
 
-	There are no rules for naming architecture specific targets,
+	There are no rules for naming architecture-specific targets,
 	but executing "make help" will list all relevant targets.
 	To support this, $(archhelp) must be defined.
 
@@ -982,7 +982,7 @@ When kbuild executes, the following steps are followed (roughly):
 			$(call if_changed,ld/objcopy/gzip)
 
 	When the rule is evaluated, it is checked to see if any files
-	needs an update, or the command line has changed since the last
+	need an update, or the command line has changed since the last
 	invocation. The latter will force a rebuild if any options
 	to the executable have changed.
 	Any target that utilises if_changed must be listed in $(targets),
@@ -1089,7 +1089,7 @@ When kbuild executes, the following steps are followed (roughly):
 	                  assignment.
 
 	The kbuild infrastructure for *lds file are used in several
-	architecture specific files.
+	architecture-specific files.
 
 
 === 7 Kbuild Variables
@@ -1133,7 +1133,7 @@ The top Makefile exports the following variables:
 
 	This variable defines a place for the arch Makefiles to install
 	the resident kernel image and System.map file.
-	Use this for architecture specific install targets.
+	Use this for architecture-specific install targets.
 
     INSTALL_MOD_PATH, MODLIB
 

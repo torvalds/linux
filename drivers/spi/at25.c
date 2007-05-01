@@ -291,7 +291,7 @@ static int at25_probe(struct spi_device *spi)
 	 */
 	sr = spi_w8r8(spi, AT25_RDSR);
 	if (sr < 0 || sr & AT25_SR_nRDY) {
-		dev_dbg(&at25->spi->dev, "rdsr --> %d (%02x)\n", sr, sr);
+		dev_dbg(&spi->dev, "rdsr --> %d (%02x)\n", sr, sr);
 		err = -ENXIO;
 		goto fail;
 	}

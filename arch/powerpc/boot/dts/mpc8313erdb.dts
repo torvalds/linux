@@ -11,12 +11,11 @@
 
 / {
 	model = "MPC8313ERDB";
-	compatible = "MPC83xx";
+	compatible = "MPC8313ERDB", "MPC831xRDB", "MPC83xxRDB";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
 	cpus {
-		#cpus = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -59,7 +58,7 @@
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <e 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			dfsrr;
 		};
 
@@ -68,7 +67,7 @@
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
 			interrupts = <f 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			dfsrr;
 		};
 
@@ -77,7 +76,7 @@
 			compatible = "mpc83xx_spi";
 			reg = <7000 1000>;
 			interrupts = <10 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			mode = <0>;
 		};
 
@@ -88,8 +87,8 @@
 			reg = <23000 1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupt-parent = <700>;
-			interrupts = <26 2>;
+			interrupt-parent = < &ipic >;
+			interrupts = <26 8>;
 			phy_type = "utmi_wide";
 		};
 
@@ -99,18 +98,15 @@
 			reg = <24520 20>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			linux,phandle = <24520>;
-			ethernet-phy@1 {
-				linux,phandle = <2452001>;
-				interrupt-parent = <700>;
-				interrupts = <13 2>;
+			phy1: ethernet-phy@1 {
+				interrupt-parent = < &ipic >;
+				interrupts = <13 8>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@4 {
-				linux,phandle = <2452004>;
-				interrupt-parent = <700>;
-				interrupts = <14 2>;
+			phy4: ethernet-phy@4 {
+				interrupt-parent = < &ipic >;
+				interrupts = <14 8>;
 				reg = <4>;
 				device_type = "ethernet-phy";
 			};
@@ -123,8 +119,8 @@
 			reg = <24000 1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <25 8 24 8 23 8>;
-			interrupt-parent = <700>;
-			phy-handle = <2452001>;
+			interrupt-parent = < &ipic >;
+			phy-handle = < &phy1 >;
 		};
 
 		ethernet@25000 {
@@ -134,8 +130,8 @@
 			reg = <25000 1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <22 8 21 8 20 8>;
-			interrupt-parent = <700>;
-			phy-handle = <2452004>;
+			interrupt-parent = < &ipic >;
+			phy-handle = < &phy4 >;
 		};
 
 		serial@4500 {
@@ -144,7 +140,7 @@
 			reg = <4500 100>;
 			clock-frequency = <0>;
 			interrupts = <9 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 		};
 
 		serial@4600 {
@@ -153,7 +149,7 @@
 			reg = <4600 100>;
 			clock-frequency = <0>;
 			interrupts = <a 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 		};
 
 		pci@8500 {
@@ -161,17 +157,17 @@
 			interrupt-map = <
 
 					/* IDSEL 0x0E -mini PCI */
-					 7000 0 0 1 700 12 8
-					 7000 0 0 2 700 12 8
-					 7000 0 0 3 700 12 8
-					 7000 0 0 4 700 12 8
+					 7000 0 0 1 &ipic 12 8
+					 7000 0 0 2 &ipic 12 8
+					 7000 0 0 3 &ipic 12 8
+					 7000 0 0 4 &ipic 12 8
 
 					/* IDSEL 0x0F - PCI slot */
-					 7800 0 0 1 700 11 8
-					 7800 0 0 2 700 12 8
-					 7800 0 0 3 700 11 8
-					 7800 0 0 4 700 12 8>;
-			interrupt-parent = <700>;
+					 7800 0 0 1 &ipic 11 8
+					 7800 0 0 2 &ipic 12 8
+					 7800 0 0 3 &ipic 11 8
+					 7800 0 0 4 &ipic 12 8>;
+			interrupt-parent = < &ipic >;
 			interrupts = <42 8>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 90000000 90000000 0 10000000
@@ -192,7 +188,7 @@
 			compatible = "talitos";
 			reg = <30000 7000>;
 			interrupts = <b 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			/* Rev. 2.2 */
 			num-channels = <1>;
 			channel-fifo-len = <18>;
@@ -206,8 +202,7 @@
 		 * sense == 8: Level, low assertion
 		 * sense == 2: Edge, high-to-low change
 		 */
-		pic@700 {
-			linux,phandle = <700>;
+		ipic: pic@700 {
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;

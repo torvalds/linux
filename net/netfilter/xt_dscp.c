@@ -1,7 +1,5 @@
 /* IP tables module for matching the value of the IPv4/IPv6 DSCP field
  *
- * xt_dscp.c,v 1.3 2002/08/05 19:00:21 laforge Exp
- *
  * (C) 2002 by Harald Welte <laforge@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -34,7 +32,7 @@ static int match(const struct sk_buff *skb,
 		 int *hotdrop)
 {
 	const struct xt_dscp_info *info = matchinfo;
-	u_int8_t dscp = ipv4_get_dsfield(skb->nh.iph) >> XT_DSCP_SHIFT;
+	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	return (dscp == info->dscp) ^ !!info->invert;
 }
@@ -49,7 +47,7 @@ static int match6(const struct sk_buff *skb,
 		  int *hotdrop)
 {
 	const struct xt_dscp_info *info = matchinfo;
-	u_int8_t dscp = ipv6_get_dsfield(skb->nh.ipv6h) >> XT_DSCP_SHIFT;
+	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	return (dscp == info->dscp) ^ !!info->invert;
 }

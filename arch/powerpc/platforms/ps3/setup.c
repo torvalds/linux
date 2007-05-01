@@ -42,6 +42,10 @@
 #define DBG(fmt...) do{if(0)printk(fmt);}while(0)
 #endif
 
+#if !defined(CONFIG_SMP)
+static void smp_send_stop(void) {}
+#endif
+
 int ps3_get_firmware_version(union ps3_firmware_version *v)
 {
 	int result = lv1_get_version_info(&v->raw);
@@ -66,21 +70,34 @@ static void ps3_power_save(void)
 	lv1_pause(0);
 }
 
+static void ps3_restart(char *cmd)
+{
+	DBG("%s:%d cmd '%s'\n", __func__, __LINE__, cmd);
+
+	smp_send_stop();
+	ps3_sys_manager_restart(); /* never returns */
+}
+
+static void ps3_power_off(void)
+{
+	DBG("%s:%d\n", __func__, __LINE__);
+
+	smp_send_stop();
+	ps3_sys_manager_power_off(); /* never returns */
+}
+
 static void ps3_panic(char *str)
 {
 	DBG("%s:%d %s\n", __func__, __LINE__, str);
 
-#ifdef CONFIG_SMP
 	smp_send_stop();
-#endif
 	printk("\n");
 	printk("   System does not reboot automatically.\n");
 	printk("   Please press POWER button.\n");
 	printk("\n");
 
-	for (;;) ;
+	while(1);
 }
-
 
 static void prealloc(struct ps3_prealloc *p)
 {
@@ -219,6 +236,8 @@ define_machine(ps3) {
 	.get_rtc_time			= ps3_get_rtc_time,
 	.calibrate_decr			= ps3_calibrate_decr,
 	.progress			= ps3_progress,
+	.restart			= ps3_restart,
+	.power_off			= ps3_power_off,
 #if defined(CONFIG_KEXEC)
 	.kexec_cpu_down			= ps3_kexec_cpu_down,
 	.machine_kexec			= ps3_machine_kexec,

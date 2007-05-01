@@ -24,7 +24,7 @@
 #define ATI_GART_CACHE_ENTRY_CNTRL	0x10
 
 
-static struct aper_size_info_lvl2 ati_generic_sizes[7] =
+static const struct aper_size_info_lvl2 ati_generic_sizes[7] =
 {
 	{2048, 524288, 0x0000000c},
 	{1024, 262144, 0x0000000a},
@@ -410,7 +410,7 @@ static int ati_free_gatt_table(struct agp_bridge_data *bridge)
 	return 0;
 }
 
-static struct agp_bridge_driver ati_generic_bridge = {
+static const struct agp_bridge_driver ati_generic_bridge = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= ati_generic_sizes,
 	.size_type		= LVL2_APER_SIZE,

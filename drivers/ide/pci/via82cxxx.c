@@ -240,8 +240,9 @@ static int via82cxxx_ide_dma_check (ide_drive_t *drive)
 	via_set_drive(drive, speed);
 
 	if (drive->autodma && (speed & XFER_MODE) != XFER_PIO)
-		return hwif->ide_dma_on(drive);
-	return hwif->ide_dma_off_quietly(drive);
+		return 0;
+
+	return -1;
 }
 
 static struct via_isa_bridge *via_config_find(struct pci_dev **isa)

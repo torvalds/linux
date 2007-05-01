@@ -30,7 +30,7 @@
 DEFINE_MUTEX(pm_mutex);
 
 struct pm_ops *pm_ops;
-suspend_disk_method_t pm_disk_mode = PM_DISK_PLATFORM;
+suspend_disk_method_t pm_disk_mode = PM_DISK_SHUTDOWN;
 
 /**
  *	pm_set_ops - Set the global power method table. 
@@ -41,8 +41,25 @@ void pm_set_ops(struct pm_ops * ops)
 {
 	mutex_lock(&pm_mutex);
 	pm_ops = ops;
+	if (ops && ops->pm_disk_mode != PM_DISK_INVALID) {
+		pm_disk_mode = ops->pm_disk_mode;
+	} else
+		pm_disk_mode = PM_DISK_SHUTDOWN;
 	mutex_unlock(&pm_mutex);
 }
+
+/**
+ * pm_valid_only_mem - generic memory-only valid callback
+ *
+ * pm_ops drivers that implement mem suspend only and only need
+ * to check for that in their .valid callback can use this instead
+ * of rolling their own .valid callback.
+ */
+int pm_valid_only_mem(suspend_state_t state)
+{
+	return state == PM_SUSPEND_MEM;
+}
+
 
 static inline void pm_finish(suspend_state_t state)
 {
@@ -111,13 +128,24 @@ static int suspend_prepare(suspend_state_t state)
 	return error;
 }
 
+/* default implementation */
+void __attribute__ ((weak)) arch_suspend_disable_irqs(void)
+{
+	local_irq_disable();
+}
+
+/* default implementation */
+void __attribute__ ((weak)) arch_suspend_enable_irqs(void)
+{
+	local_irq_enable();
+}
 
 int suspend_enter(suspend_state_t state)
 {
 	int error = 0;
-	unsigned long flags;
 
-	local_irq_save(flags);
+	arch_suspend_disable_irqs();
+	BUG_ON(!irqs_disabled());
 
 	if ((error = device_power_down(PMSG_SUSPEND))) {
 		printk(KERN_ERR "Some devices failed to power down\n");
@@ -126,7 +154,8 @@ int suspend_enter(suspend_state_t state)
 	error = pm_ops->enter(state);
 	device_power_up();
  Done:
-	local_irq_restore(flags);
+	arch_suspend_enable_irqs();
+	BUG_ON(irqs_disabled());
 	return error;
 }
 
@@ -167,7 +196,10 @@ static inline int valid_state(suspend_state_t state)
 	if (state == PM_SUSPEND_DISK)
 		return 1;
 
-	if (pm_ops && pm_ops->valid && !pm_ops->valid(state))
+	/* all other states need lowlevel support and need to be
+	 * valid to the lowlevel implementation, no valid callback
+	 * implies that none are valid. */
+	if (!pm_ops || !pm_ops->valid || !pm_ops->valid(state))
 		return 0;
 	return 1;
 }

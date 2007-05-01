@@ -22,6 +22,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -48,7 +49,18 @@ const char *usbcore_name = "usbcore";
 
 static int nousb;	/* Disable USB when built into kernel image */
 
-struct workqueue_struct *ksuspend_usb_wq;	/* For autosuspend */
+/* Workqueue for autosuspend and for remote wakeup of root hubs */
+struct workqueue_struct *ksuspend_usb_wq;
+
+#ifdef	CONFIG_USB_SUSPEND
+static int usb_autosuspend_delay = 2;		/* Default delay value,
+						 * in seconds */
+module_param_named(autosuspend, usb_autosuspend_delay, int, 0644);
+MODULE_PARM_DESC(autosuspend, "default autosuspend delay");
+
+#else
+#define usb_autosuspend_delay		0
+#endif
 
 
 /**
@@ -185,6 +197,11 @@ static void usb_release_dev(struct device *dev)
 	kfree(udev);
 }
 
+struct device_type usb_device_type = {
+	.name =		"usb_device",
+	.release =	usb_release_dev,
+};
+
 #ifdef	CONFIG_PM
 
 static int ksuspend_usb_init(void)
@@ -199,27 +216,6 @@ static void ksuspend_usb_cleanup(void)
 {
 	destroy_workqueue(ksuspend_usb_wq);
 }
-
-#ifdef	CONFIG_USB_SUSPEND
-
-/* usb_autosuspend_work - callback routine to autosuspend a USB device */
-static void usb_autosuspend_work(struct work_struct *work)
-{
-	struct usb_device *udev =
-		container_of(work, struct usb_device, autosuspend.work);
-
-	usb_pm_lock(udev);
-	udev->auto_pm = 1;
-	usb_suspend_both(udev, PMSG_SUSPEND);
-	usb_pm_unlock(udev);
-}
-
-#else
-
-static void usb_autosuspend_work(struct work_struct *work)
-{}
-
-#endif	/* CONFIG_USB_SUSPEND */
 
 #else
 
@@ -256,12 +252,9 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 
 	device_initialize(&dev->dev);
 	dev->dev.bus = &usb_bus_type;
+	dev->dev.type = &usb_device_type;
 	dev->dev.dma_mask = bus->controller->dma_mask;
-	dev->dev.release = usb_release_dev;
 	dev->state = USB_STATE_ATTACHED;
-
-	/* This magic assignment distinguishes devices from interfaces */
-	dev->dev.platform_data = &usb_generic_driver;
 
 	INIT_LIST_HEAD(&dev->ep0.urb_list);
 	dev->ep0.desc.bLength = USB_DT_ENDPOINT_SIZE;
@@ -306,6 +299,7 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 #ifdef	CONFIG_PM
 	mutex_init(&dev->pm_mutex);
 	INIT_DELAYED_WORK(&dev->autosuspend, usb_autosuspend_work);
+	dev->autosuspend_delay = usb_autosuspend_delay * HZ;
 #endif
 	return dev;
 }
@@ -890,9 +884,9 @@ static int __init usb_init(void)
 	retval = usb_register(&usbfs_driver);
 	if (retval)
 		goto driver_register_failed;
-	retval = usbdev_init();
+	retval = usb_devio_init();
 	if (retval)
-		goto usbdevice_init_failed;
+		goto usb_devio_init_failed;
 	retval = usbfs_init();
 	if (retval)
 		goto fs_init_failed;
@@ -907,8 +901,8 @@ static int __init usb_init(void)
 hub_init_failed:
 	usbfs_cleanup();
 fs_init_failed:
-	usbdev_cleanup();
-usbdevice_init_failed:
+	usb_devio_cleanup();
+usb_devio_init_failed:
 	usb_deregister(&usbfs_driver);
 driver_register_failed:
 	usb_major_cleanup();
@@ -935,7 +929,7 @@ static void __exit usb_exit(void)
 	usb_major_cleanup();
 	usbfs_cleanup();
 	usb_deregister(&usbfs_driver);
-	usbdev_cleanup();
+	usb_devio_cleanup();
 	usb_hub_cleanup();
 	usb_host_cleanup();
 	bus_unregister(&usb_bus_type);

@@ -263,6 +263,7 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
  */
 #define pte_update(mm, addr, ptep)		do { } while (0)
 #define pte_update_defer(mm, addr, ptep)	do { } while (0)
+#define paravirt_map_pt_hook(slot, va, pfn)	do { } while (0)
 #endif
 
 /*
@@ -469,10 +470,24 @@ extern pte_t *lookup_address(unsigned long address);
 #endif
 
 #if defined(CONFIG_HIGHPTE)
-#define pte_offset_map(dir, address) \
-	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE0) + pte_index(address))
-#define pte_offset_map_nested(dir, address) \
-	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE1) + pte_index(address))
+#define pte_offset_map(dir, address)				\
+({								\
+	pte_t *__ptep;						\
+	unsigned pfn = pmd_val(*(dir)) >> PAGE_SHIFT;	   	\
+	__ptep = (pte_t *)kmap_atomic(pfn_to_page(pfn),KM_PTE0);\
+	paravirt_map_pt_hook(KM_PTE0,__ptep, pfn);		\
+	__ptep = __ptep + pte_index(address);			\
+	__ptep;							\
+})
+#define pte_offset_map_nested(dir, address)			\
+({								\
+	pte_t *__ptep;						\
+	unsigned pfn = pmd_val(*(dir)) >> PAGE_SHIFT;	   	\
+	__ptep = (pte_t *)kmap_atomic(pfn_to_page(pfn),KM_PTE1);\
+	paravirt_map_pt_hook(KM_PTE1,__ptep, pfn);		\
+	__ptep = __ptep + pte_index(address);			\
+	__ptep;							\
+})
 #define pte_unmap(pte) kunmap_atomic(pte, KM_PTE0)
 #define pte_unmap_nested(pte) kunmap_atomic(pte, KM_PTE1)
 #else

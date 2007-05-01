@@ -1,6 +1,6 @@
-/* vnode.c: AFS vnode management
+/* AFS vnode management
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -14,142 +14,237 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
-#include <linux/pagemap.h>
-#include "volume.h"
-#include "cell.h"
-#include "cmservice.h"
-#include "fsclient.h"
-#include "vlclient.h"
-#include "vnode.h"
 #include "internal.h"
 
-static void afs_vnode_cb_timed_out(struct afs_timer *timer);
-
-struct afs_timer_ops afs_vnode_cb_timed_out_ops = {
-	.timed_out	= afs_vnode_cb_timed_out,
-};
-
-#ifdef AFS_CACHING_SUPPORT
-static cachefs_match_val_t afs_vnode_cache_match(void *target,
-						 const void *entry);
-static void afs_vnode_cache_update(void *source, void *entry);
-
-struct cachefs_index_def afs_vnode_cache_index_def = {
-	.name		= "vnode",
-	.data_size	= sizeof(struct afs_cache_vnode),
-	.keys[0]	= { CACHEFS_INDEX_KEYS_BIN, 4 },
-	.match		= afs_vnode_cache_match,
-	.update		= afs_vnode_cache_update,
-};
-#endif
-
-/*****************************************************************************/
-/*
- * handle a callback timing out
- * TODO: retain a ref to vnode struct for an outstanding callback timeout
- */
-static void afs_vnode_cb_timed_out(struct afs_timer *timer)
+#if 0
+static noinline bool dump_tree_aux(struct rb_node *node, struct rb_node *parent,
+				   int depth, char lr)
 {
-	struct afs_server *oldserver;
 	struct afs_vnode *vnode;
+	bool bad = false;
 
-	vnode = list_entry(timer, struct afs_vnode, cb_timeout);
+	if (!node)
+		return false;
 
-	_enter("%p", vnode);
+	if (node->rb_left)
+		bad = dump_tree_aux(node->rb_left, node, depth + 2, '/');
 
-	/* set the changed flag in the vnode and release the server */
-	spin_lock(&vnode->lock);
-
-	oldserver = xchg(&vnode->cb_server, NULL);
-	if (oldserver) {
-		vnode->flags |= AFS_VNODE_CHANGED;
-
-		spin_lock(&afs_cb_hash_lock);
-		list_del_init(&vnode->cb_hash_link);
-		spin_unlock(&afs_cb_hash_lock);
-
-		spin_lock(&oldserver->cb_lock);
-		list_del_init(&vnode->cb_link);
-		spin_unlock(&oldserver->cb_lock);
+	vnode = rb_entry(node, struct afs_vnode, cb_promise);
+	_debug("%c %*.*s%c%p {%d}",
+	       rb_is_red(node) ? 'R' : 'B',
+	       depth, depth, "", lr,
+	       vnode, vnode->cb_expires_at);
+	if (rb_parent(node) != parent) {
+		printk("BAD: %p != %p\n", rb_parent(node), parent);
+		bad = true;
 	}
 
-	spin_unlock(&vnode->lock);
+	if (node->rb_right)
+		bad |= dump_tree_aux(node->rb_right, node, depth + 2, '\\');
 
-	afs_put_server(oldserver);
+	return bad;
+}
 
-	_leave("");
-} /* end afs_vnode_cb_timed_out() */
+static noinline void dump_tree(const char *name, struct afs_server *server)
+{
+	_enter("%s", name);
+	if (dump_tree_aux(server->cb_promises.rb_node, NULL, 0, '-'))
+		BUG();
+}
+#endif
 
-/*****************************************************************************/
 /*
- * finish off updating the recorded status of a file
+ * insert a vnode into the backing server's vnode tree
+ */
+static void afs_install_vnode(struct afs_vnode *vnode,
+			      struct afs_server *server)
+{
+	struct afs_server *old_server = vnode->server;
+	struct afs_vnode *xvnode;
+	struct rb_node *parent, **p;
+
+	_enter("%p,%p", vnode, server);
+
+	if (old_server) {
+		spin_lock(&old_server->fs_lock);
+		rb_erase(&vnode->server_rb, &old_server->fs_vnodes);
+		spin_unlock(&old_server->fs_lock);
+	}
+
+	afs_get_server(server);
+	vnode->server = server;
+	afs_put_server(old_server);
+
+	/* insert into the server's vnode tree in FID order */
+	spin_lock(&server->fs_lock);
+
+	parent = NULL;
+	p = &server->fs_vnodes.rb_node;
+	while (*p) {
+		parent = *p;
+		xvnode = rb_entry(parent, struct afs_vnode, server_rb);
+		if (vnode->fid.vid < xvnode->fid.vid)
+			p = &(*p)->rb_left;
+		else if (vnode->fid.vid > xvnode->fid.vid)
+			p = &(*p)->rb_right;
+		else if (vnode->fid.vnode < xvnode->fid.vnode)
+			p = &(*p)->rb_left;
+		else if (vnode->fid.vnode > xvnode->fid.vnode)
+			p = &(*p)->rb_right;
+		else if (vnode->fid.unique < xvnode->fid.unique)
+			p = &(*p)->rb_left;
+		else if (vnode->fid.unique > xvnode->fid.unique)
+			p = &(*p)->rb_right;
+		else
+			BUG(); /* can't happen unless afs_iget() malfunctions */
+	}
+
+	rb_link_node(&vnode->server_rb, parent, p);
+	rb_insert_color(&vnode->server_rb, &server->fs_vnodes);
+
+	spin_unlock(&server->fs_lock);
+	_leave("");
+}
+
+/*
+ * insert a vnode into the promising server's update/expiration tree
+ * - caller must hold vnode->lock
+ */
+static void afs_vnode_note_promise(struct afs_vnode *vnode,
+				   struct afs_server *server)
+{
+	struct afs_server *old_server;
+	struct afs_vnode *xvnode;
+	struct rb_node *parent, **p;
+
+	_enter("%p,%p", vnode, server);
+
+	ASSERT(server != NULL);
+
+	old_server = vnode->server;
+	if (vnode->cb_promised) {
+		if (server == old_server &&
+		    vnode->cb_expires == vnode->cb_expires_at) {
+			_leave(" [no change]");
+			return;
+		}
+
+		spin_lock(&old_server->cb_lock);
+		if (vnode->cb_promised) {
+			_debug("delete");
+			rb_erase(&vnode->cb_promise, &old_server->cb_promises);
+			vnode->cb_promised = false;
+		}
+		spin_unlock(&old_server->cb_lock);
+	}
+
+	if (vnode->server != server)
+		afs_install_vnode(vnode, server);
+
+	vnode->cb_expires_at = vnode->cb_expires;
+	_debug("PROMISE on %p {%lu}",
+	       vnode, (unsigned long) vnode->cb_expires_at);
+
+	/* abuse an RB-tree to hold the expiration order (we may have multiple
+	 * items with the same expiration time) */
+	spin_lock(&server->cb_lock);
+
+	parent = NULL;
+	p = &server->cb_promises.rb_node;
+	while (*p) {
+		parent = *p;
+		xvnode = rb_entry(parent, struct afs_vnode, cb_promise);
+		if (vnode->cb_expires_at < xvnode->cb_expires_at)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&vnode->cb_promise, parent, p);
+	rb_insert_color(&vnode->cb_promise, &server->cb_promises);
+	vnode->cb_promised = true;
+
+	spin_unlock(&server->cb_lock);
+	_leave("");
+}
+
+/*
+ * handle remote file deletion by discarding the callback promise
+ */
+static void afs_vnode_deleted_remotely(struct afs_vnode *vnode)
+{
+	struct afs_server *server;
+
+	set_bit(AFS_VNODE_DELETED, &vnode->flags);
+
+	server = vnode->server;
+	if (vnode->cb_promised) {
+		spin_lock(&server->cb_lock);
+		if (vnode->cb_promised) {
+			rb_erase(&vnode->cb_promise, &server->cb_promises);
+			vnode->cb_promised = false;
+		}
+		spin_unlock(&server->cb_lock);
+	}
+
+	spin_lock(&vnode->server->fs_lock);
+	rb_erase(&vnode->server_rb, &vnode->server->fs_vnodes);
+	spin_unlock(&vnode->server->fs_lock);
+
+	vnode->server = NULL;
+	afs_put_server(server);
+}
+
+/*
+ * finish off updating the recorded status of a file after a successful
+ * operation completion
  * - starts callback expiry timer
  * - adds to server's callback list
  */
-static void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
-					     struct afs_server *server,
-					     int ret)
+void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
+				      struct afs_server *server)
 {
 	struct afs_server *oldserver = NULL;
 
-	_enter("%p,%p,%d", vnode, server, ret);
+	_enter("%p,%p", vnode, server);
 
 	spin_lock(&vnode->lock);
-
-	vnode->flags &= ~AFS_VNODE_CHANGED;
-
-	if (ret == 0) {
-		/* adjust the callback timeout appropriately */
-		afs_kafstimod_add_timer(&vnode->cb_timeout,
-					vnode->cb_expiry * HZ);
-
-		spin_lock(&afs_cb_hash_lock);
-		list_move_tail(&vnode->cb_hash_link,
-			      &afs_cb_hash(server, &vnode->fid));
-		spin_unlock(&afs_cb_hash_lock);
-
-		/* swap ref to old callback server with that for new callback
-		 * server */
-		oldserver = xchg(&vnode->cb_server, server);
-		if (oldserver != server) {
-			if (oldserver) {
-				spin_lock(&oldserver->cb_lock);
-				list_del_init(&vnode->cb_link);
-				spin_unlock(&oldserver->cb_lock);
-			}
-
-			afs_get_server(server);
-			spin_lock(&server->cb_lock);
-			list_add_tail(&vnode->cb_link, &server->cb_promises);
-			spin_unlock(&server->cb_lock);
-		}
-		else {
-			/* same server */
-			oldserver = NULL;
-		}
-	}
-	else if (ret == -ENOENT) {
-		/* the file was deleted - clear the callback timeout */
-		oldserver = xchg(&vnode->cb_server, NULL);
-		afs_kafstimod_del_timer(&vnode->cb_timeout);
-
-		_debug("got NOENT from server - marking file deleted");
-		vnode->flags |= AFS_VNODE_DELETED;
-	}
-
+	clear_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
+	afs_vnode_note_promise(vnode, server);
 	vnode->update_cnt--;
-
+	ASSERTCMP(vnode->update_cnt, >=, 0);
 	spin_unlock(&vnode->lock);
 
 	wake_up_all(&vnode->update_waitq);
-
 	afs_put_server(oldserver);
-
 	_leave("");
+}
 
-} /* end afs_vnode_finalise_status_update() */
+/*
+ * finish off updating the recorded status of a file after an operation failed
+ */
+static void afs_vnode_status_update_failed(struct afs_vnode *vnode, int ret)
+{
+	_enter("%p,%d", vnode, ret);
 
-/*****************************************************************************/
+	spin_lock(&vnode->lock);
+
+	clear_bit(AFS_VNODE_CB_BROKEN, &vnode->flags);
+
+	if (ret == -ENOENT) {
+		/* the file was deleted on the server */
+		_debug("got NOENT from server - marking file deleted");
+		afs_vnode_deleted_remotely(vnode);
+	}
+
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+
+	wake_up_all(&vnode->update_waitq);
+	_leave("");
+}
+
 /*
  * fetch file status from the volume
  * - don't issue a fetch if:
@@ -157,9 +252,11 @@ static void afs_vnode_finalise_status_update(struct afs_vnode *vnode,
  *   - there are any outstanding ops that will fetch the status
  * - TODO implement local caching
  */
-int afs_vnode_fetch_status(struct afs_vnode *vnode)
+int afs_vnode_fetch_status(struct afs_vnode *vnode,
+			   struct afs_vnode *auth_vnode, struct key *key)
 {
 	struct afs_server *server;
+	unsigned long acl_order;
 	int ret;
 
 	DECLARE_WAITQUEUE(myself, current);
@@ -168,38 +265,49 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode)
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 
-	if (!(vnode->flags & AFS_VNODE_CHANGED) && vnode->cb_server) {
+	if (!test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags) &&
+	    vnode->cb_promised) {
 		_leave(" [unchanged]");
 		return 0;
 	}
 
-	if (vnode->flags & AFS_VNODE_DELETED) {
+	if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
 		_leave(" [deleted]");
 		return -ENOENT;
 	}
 
+	acl_order = 0;
+	if (auth_vnode)
+		acl_order = auth_vnode->acl_order;
+
 	spin_lock(&vnode->lock);
 
-	if (!(vnode->flags & AFS_VNODE_CHANGED)) {
+	if (!test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags) &&
+	    vnode->cb_promised) {
 		spin_unlock(&vnode->lock);
 		_leave(" [unchanged]");
 		return 0;
 	}
 
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+
 	if (vnode->update_cnt > 0) {
 		/* someone else started a fetch */
+		_debug("wait on fetch %d", vnode->update_cnt);
+
 		set_current_state(TASK_UNINTERRUPTIBLE);
+		ASSERT(myself.func != NULL);
 		add_wait_queue(&vnode->update_waitq, &myself);
 
 		/* wait for the status to be updated */
 		for (;;) {
-			if (!(vnode->flags & AFS_VNODE_CHANGED))
+			if (!test_bit(AFS_VNODE_CB_BROKEN, &vnode->flags))
 				break;
-			if (vnode->flags & AFS_VNODE_DELETED)
+			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 				break;
 
-			/* it got updated and invalidated all before we saw
-			 * it */
+			/* check to see if it got updated and invalidated all
+			 * before we saw it */
 			if (vnode->update_cnt == 0) {
 				remove_wait_queue(&vnode->update_waitq,
 						  &myself);
@@ -219,10 +327,11 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode)
 		spin_unlock(&vnode->lock);
 		set_current_state(TASK_RUNNING);
 
-		return vnode->flags & AFS_VNODE_DELETED ? -ENOENT : 0;
+		return test_bit(AFS_VNODE_DELETED, &vnode->flags) ?
+			-ENOENT : 0;
 	}
 
- get_anyway:
+get_anyway:
 	/* okay... we're going to have to initiate the op */
 	vnode->update_cnt++;
 
@@ -232,39 +341,60 @@ int afs_vnode_fetch_status(struct afs_vnode *vnode)
 	 * vnode */
 	do {
 		/* pick a server to query */
-		ret = afs_volume_pick_fileserver(vnode->volume, &server);
-		if (ret<0)
-			return ret;
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			goto no_server;
 
-		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+		_debug("USING SERVER: %p{%08x}",
+		       server, ntohl(server->addr.s_addr));
 
-		ret = afs_rxfs_fetch_file_status(server, vnode, NULL);
+		ret = afs_fs_fetch_file_status(server, key, vnode, NULL,
+					       &afs_sync_call);
 
-	} while (!afs_volume_release_fileserver(vnode->volume, server, ret));
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
 	/* adjust the flags */
-	afs_vnode_finalise_status_update(vnode, server, ret);
+	if (ret == 0) {
+		_debug("adjust");
+		if (auth_vnode)
+			afs_cache_permit(vnode, key, acl_order);
+		afs_vnode_finalise_status_update(vnode, server);
+		afs_put_server(server);
+	} else {
+		_debug("failed [%d]", ret);
+		afs_vnode_status_update_failed(vnode, ret);
+	}
 
-	_leave(" = %d", ret);
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+
+	_leave(" = %d [cnt %d]", ret, vnode->update_cnt);
 	return ret;
-} /* end afs_vnode_fetch_status() */
 
-/*****************************************************************************/
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+	_leave(" = %ld [cnt %d]", PTR_ERR(server), vnode->update_cnt);
+	return PTR_ERR(server);
+}
+
 /*
  * fetch file data from the volume
- * - TODO implement caching and server failover
+ * - TODO implement caching
  */
-int afs_vnode_fetch_data(struct afs_vnode *vnode,
-			 struct afs_rxfs_fetch_descriptor *desc)
+int afs_vnode_fetch_data(struct afs_vnode *vnode, struct key *key,
+			 off_t offset, size_t length, struct page *page)
 {
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s,{%u,%u,%u}",
+	_enter("%s{%u,%u,%u},%x,,,",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
-	       vnode->fid.unique);
+	       vnode->fid.unique,
+	       key_serial(key));
 
 	/* this op will fetch the status */
 	spin_lock(&vnode->lock);
@@ -275,120 +405,351 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode,
 	 * vnode */
 	do {
 		/* pick a server to query */
-		ret = afs_volume_pick_fileserver(vnode->volume, &server);
-		if (ret < 0)
-			return ret;
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			goto no_server;
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_rxfs_fetch_file_data(server, vnode, desc, NULL);
+		ret = afs_fs_fetch_data(server, key, vnode, offset, length,
+					page, &afs_sync_call);
 
-	} while (!afs_volume_release_fileserver(vnode->volume, server, ret));
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
 	/* adjust the flags */
-	afs_vnode_finalise_status_update(vnode, server, ret);
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(vnode, server);
+		afs_put_server(server);
+	} else {
+		afs_vnode_status_update_failed(vnode, ret);
+	}
 
 	_leave(" = %d", ret);
 	return ret;
 
-} /* end afs_vnode_fetch_data() */
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+	return PTR_ERR(server);
+}
 
-/*****************************************************************************/
 /*
- * break any outstanding callback on a vnode
- * - only relevent to server that issued it
+ * make a file or a directory
  */
-int afs_vnode_give_up_callback(struct afs_vnode *vnode)
+int afs_vnode_create(struct afs_vnode *vnode, struct key *key,
+		     const char *name, umode_t mode, struct afs_fid *newfid,
+		     struct afs_file_status *newstatus,
+		     struct afs_callback *newcb, struct afs_server **_server)
 {
 	struct afs_server *server;
 	int ret;
 
-	_enter("%s,{%u,%u,%u}",
+	_enter("%s{%u,%u,%u},%x,%s,,",
 	       vnode->volume->vlocation->vldb.name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
-	       vnode->fid.unique);
+	       vnode->fid.unique,
+	       key_serial(key),
+	       name);
 
-	spin_lock(&afs_cb_hash_lock);
-	list_del_init(&vnode->cb_hash_link);
-	spin_unlock(&afs_cb_hash_lock);
-
-	/* set the changed flag in the vnode and release the server */
+	/* this op will fetch the status on the directory we're creating in */
 	spin_lock(&vnode->lock);
-
-	afs_kafstimod_del_timer(&vnode->cb_timeout);
-
-	server = xchg(&vnode->cb_server, NULL);
-	if (server) {
-		vnode->flags |= AFS_VNODE_CHANGED;
-
-		spin_lock(&server->cb_lock);
-		list_del_init(&vnode->cb_link);
-		spin_unlock(&server->cb_lock);
-	}
-
+	vnode->update_cnt++;
 	spin_unlock(&vnode->lock);
 
-	ret = 0;
-	if (server) {
-		ret = afs_rxfs_give_up_callback(server, vnode);
-		afs_put_server(server);
+	do {
+		/* pick a server to query */
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			goto no_server;
+
+		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+
+		ret = afs_fs_create(server, key, vnode, name, mode, newfid,
+				    newstatus, newcb, &afs_sync_call);
+
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
+
+	/* adjust the flags */
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(vnode, server);
+		*_server = server;
+	} else {
+		afs_vnode_status_update_failed(vnode, ret);
+		*_server = NULL;
 	}
 
-	_leave(" = %d", ret);
+	_leave(" = %d [cnt %d]", ret, vnode->update_cnt);
 	return ret;
-} /* end afs_vnode_give_up_callback() */
 
-/*****************************************************************************/
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+	_leave(" = %ld [cnt %d]", PTR_ERR(server), vnode->update_cnt);
+	return PTR_ERR(server);
+}
+
 /*
- * match a vnode record stored in the cache
+ * remove a file or directory
  */
-#ifdef AFS_CACHING_SUPPORT
-static cachefs_match_val_t afs_vnode_cache_match(void *target,
-						 const void *entry)
+int afs_vnode_remove(struct afs_vnode *vnode, struct key *key, const char *name,
+		     bool isdir)
 {
-	const struct afs_cache_vnode *cvnode = entry;
-	struct afs_vnode *vnode = target;
+	struct afs_server *server;
+	int ret;
 
-	_enter("{%x,%x,%Lx},{%x,%x,%Lx}",
+	_enter("%s{%u,%u,%u},%x,%s",
+	       vnode->volume->vlocation->vldb.name,
+	       vnode->fid.vid,
 	       vnode->fid.vnode,
 	       vnode->fid.unique,
-	       vnode->status.version,
-	       cvnode->vnode_id,
-	       cvnode->vnode_unique,
-	       cvnode->data_version);
+	       key_serial(key),
+	       name);
 
-	if (vnode->fid.vnode != cvnode->vnode_id) {
-		_leave(" = FAILED");
-		return CACHEFS_MATCH_FAILED;
+	/* this op will fetch the status on the directory we're removing from */
+	spin_lock(&vnode->lock);
+	vnode->update_cnt++;
+	spin_unlock(&vnode->lock);
+
+	do {
+		/* pick a server to query */
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			goto no_server;
+
+		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+
+		ret = afs_fs_remove(server, key, vnode, name, isdir,
+				    &afs_sync_call);
+
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
+
+	/* adjust the flags */
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(vnode, server);
+		afs_put_server(server);
+	} else {
+		afs_vnode_status_update_failed(vnode, ret);
 	}
 
-	if (vnode->fid.unique != cvnode->vnode_unique ||
-	    vnode->status.version != cvnode->data_version) {
-		_leave(" = DELETE");
-		return CACHEFS_MATCH_SUCCESS_DELETE;
-	}
+	_leave(" = %d [cnt %d]", ret, vnode->update_cnt);
+	return ret;
 
-	_leave(" = SUCCESS");
-	return CACHEFS_MATCH_SUCCESS;
-} /* end afs_vnode_cache_match() */
-#endif
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+	_leave(" = %ld [cnt %d]", PTR_ERR(server), vnode->update_cnt);
+	return PTR_ERR(server);
+}
 
-/*****************************************************************************/
 /*
- * update a vnode record stored in the cache
+ * create a hard link
  */
-#ifdef AFS_CACHING_SUPPORT
-static void afs_vnode_cache_update(void *source, void *entry)
+extern int afs_vnode_link(struct afs_vnode *dvnode, struct afs_vnode *vnode,
+			  struct key *key, const char *name)
 {
-	struct afs_cache_vnode *cvnode = entry;
-	struct afs_vnode *vnode = source;
+	struct afs_server *server;
+	int ret;
 
-	_enter("");
+	_enter("%s{%u,%u,%u},%s{%u,%u,%u},%x,%s",
+	       dvnode->volume->vlocation->vldb.name,
+	       dvnode->fid.vid,
+	       dvnode->fid.vnode,
+	       dvnode->fid.unique,
+	       vnode->volume->vlocation->vldb.name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(key),
+	       name);
 
-	cvnode->vnode_id	= vnode->fid.vnode;
-	cvnode->vnode_unique	= vnode->fid.unique;
-	cvnode->data_version	= vnode->status.version;
+	/* this op will fetch the status on the directory we're removing from */
+	spin_lock(&vnode->lock);
+	vnode->update_cnt++;
+	spin_unlock(&vnode->lock);
+	spin_lock(&dvnode->lock);
+	dvnode->update_cnt++;
+	spin_unlock(&dvnode->lock);
 
-} /* end afs_vnode_cache_update() */
-#endif
+	do {
+		/* pick a server to query */
+		server = afs_volume_pick_fileserver(dvnode);
+		if (IS_ERR(server))
+			goto no_server;
+
+		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+
+		ret = afs_fs_link(server, key, dvnode, vnode, name,
+				  &afs_sync_call);
+
+	} while (!afs_volume_release_fileserver(dvnode, server, ret));
+
+	/* adjust the flags */
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(vnode, server);
+		afs_vnode_finalise_status_update(dvnode, server);
+		afs_put_server(server);
+	} else {
+		afs_vnode_status_update_failed(vnode, ret);
+		afs_vnode_status_update_failed(dvnode, ret);
+	}
+
+	_leave(" = %d [cnt %d]", ret, vnode->update_cnt);
+	return ret;
+
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+	spin_lock(&dvnode->lock);
+	dvnode->update_cnt--;
+	ASSERTCMP(dvnode->update_cnt, >=, 0);
+	spin_unlock(&dvnode->lock);
+	_leave(" = %ld [cnt %d]", PTR_ERR(server), vnode->update_cnt);
+	return PTR_ERR(server);
+}
+
+/*
+ * create a symbolic link
+ */
+int afs_vnode_symlink(struct afs_vnode *vnode, struct key *key,
+		      const char *name, const char *content,
+		      struct afs_fid *newfid,
+		      struct afs_file_status *newstatus,
+		      struct afs_server **_server)
+{
+	struct afs_server *server;
+	int ret;
+
+	_enter("%s{%u,%u,%u},%x,%s,%s,,,",
+	       vnode->volume->vlocation->vldb.name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       key_serial(key),
+	       name, content);
+
+	/* this op will fetch the status on the directory we're creating in */
+	spin_lock(&vnode->lock);
+	vnode->update_cnt++;
+	spin_unlock(&vnode->lock);
+
+	do {
+		/* pick a server to query */
+		server = afs_volume_pick_fileserver(vnode);
+		if (IS_ERR(server))
+			goto no_server;
+
+		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+
+		ret = afs_fs_symlink(server, key, vnode, name, content,
+				     newfid, newstatus, &afs_sync_call);
+
+	} while (!afs_volume_release_fileserver(vnode, server, ret));
+
+	/* adjust the flags */
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(vnode, server);
+		*_server = server;
+	} else {
+		afs_vnode_status_update_failed(vnode, ret);
+		*_server = NULL;
+	}
+
+	_leave(" = %d [cnt %d]", ret, vnode->update_cnt);
+	return ret;
+
+no_server:
+	spin_lock(&vnode->lock);
+	vnode->update_cnt--;
+	ASSERTCMP(vnode->update_cnt, >=, 0);
+	spin_unlock(&vnode->lock);
+	_leave(" = %ld [cnt %d]", PTR_ERR(server), vnode->update_cnt);
+	return PTR_ERR(server);
+}
+
+/*
+ * rename a file
+ */
+int afs_vnode_rename(struct afs_vnode *orig_dvnode,
+		     struct afs_vnode *new_dvnode,
+		     struct key *key,
+		     const char *orig_name,
+		     const char *new_name)
+{
+	struct afs_server *server;
+	int ret;
+
+	_enter("%s{%u,%u,%u},%s{%u,%u,%u},%x,%s,%s",
+	       orig_dvnode->volume->vlocation->vldb.name,
+	       orig_dvnode->fid.vid,
+	       orig_dvnode->fid.vnode,
+	       orig_dvnode->fid.unique,
+	       new_dvnode->volume->vlocation->vldb.name,
+	       new_dvnode->fid.vid,
+	       new_dvnode->fid.vnode,
+	       new_dvnode->fid.unique,
+	       key_serial(key),
+	       orig_name,
+	       new_name);
+
+	/* this op will fetch the status on both the directories we're dealing
+	 * with */
+	spin_lock(&orig_dvnode->lock);
+	orig_dvnode->update_cnt++;
+	spin_unlock(&orig_dvnode->lock);
+	if (new_dvnode != orig_dvnode) {
+		spin_lock(&new_dvnode->lock);
+		new_dvnode->update_cnt++;
+		spin_unlock(&new_dvnode->lock);
+	}
+
+	do {
+		/* pick a server to query */
+		server = afs_volume_pick_fileserver(orig_dvnode);
+		if (IS_ERR(server))
+			goto no_server;
+
+		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
+
+		ret = afs_fs_rename(server, key, orig_dvnode, orig_name,
+				    new_dvnode, new_name, &afs_sync_call);
+
+	} while (!afs_volume_release_fileserver(orig_dvnode, server, ret));
+
+	/* adjust the flags */
+	if (ret == 0) {
+		afs_vnode_finalise_status_update(orig_dvnode, server);
+		if (new_dvnode != orig_dvnode)
+			afs_vnode_finalise_status_update(new_dvnode, server);
+		afs_put_server(server);
+	} else {
+		afs_vnode_status_update_failed(orig_dvnode, ret);
+		if (new_dvnode != orig_dvnode)
+			afs_vnode_status_update_failed(new_dvnode, ret);
+	}
+
+	_leave(" = %d [cnt %d]", ret, orig_dvnode->update_cnt);
+	return ret;
+
+no_server:
+	spin_lock(&orig_dvnode->lock);
+	orig_dvnode->update_cnt--;
+	ASSERTCMP(orig_dvnode->update_cnt, >=, 0);
+	spin_unlock(&orig_dvnode->lock);
+	if (new_dvnode != orig_dvnode) {
+		spin_lock(&new_dvnode->lock);
+		new_dvnode->update_cnt--;
+		ASSERTCMP(new_dvnode->update_cnt, >=, 0);
+		spin_unlock(&new_dvnode->lock);
+	}
+	_leave(" = %ld [cnt %d]", PTR_ERR(server), orig_dvnode->update_cnt);
+	return PTR_ERR(server);
+}

@@ -74,7 +74,7 @@ static int ufs_trunc_direct(struct inode *inode)
 	unsigned i, tmp;
 	int retry;
 	
-	UFSD("ENTER\n");
+	UFSD("ENTER: ino %lu\n", inode->i_ino);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -96,8 +96,8 @@ static int ufs_trunc_direct(struct inode *inode)
 		block2 = ufs_fragstoblks (frag3);
 	}
 
-	UFSD("frag1 %llu, frag2 %llu, block1 %llu, block2 %llu, frag3 %llu,"
-	     " frag4 %llu\n",
+	UFSD("ino %lu, frag1 %llu, frag2 %llu, block1 %llu, block2 %llu,"
+	     " frag3 %llu, frag4 %llu\n", inode->i_ino,
 	     (unsigned long long)frag1, (unsigned long long)frag2,
 	     (unsigned long long)block1, (unsigned long long)block2,
 	     (unsigned long long)frag3, (unsigned long long)frag4);
@@ -163,7 +163,7 @@ next1:
 	mark_inode_dirty(inode);
  next3:
 
-	UFSD("EXIT\n");
+	UFSD("EXIT: ino %lu\n", inode->i_ino);
 	return retry;
 }
 
@@ -248,7 +248,7 @@ static int ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 	}
 	ubh_brelse (ind_ubh);
 	
-	UFSD("EXIT\n");
+	UFSD("EXIT: ino %lu\n", inode->i_ino);
 	
 	return retry;
 }
@@ -262,7 +262,7 @@ static int ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 	void *dind;
 	int retry = 0;
 	
-	UFSD("ENTER\n");
+	UFSD("ENTER: ino %lu\n", inode->i_ino);
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -312,7 +312,7 @@ static int ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 	}
 	ubh_brelse (dind_bh);
 	
-	UFSD("EXIT\n");
+	UFSD("EXIT: ino %lu\n", inode->i_ino);
 	
 	return retry;
 }
@@ -327,7 +327,7 @@ static int ufs_trunc_tindirect(struct inode *inode)
 	void *tind, *p;
 	int retry;
 	
-	UFSD("ENTER\n");
+	UFSD("ENTER: ino %lu\n", inode->i_ino);
 
 	retry = 0;
 	
@@ -348,7 +348,7 @@ static int ufs_trunc_tindirect(struct inode *inode)
 	}
 
 	for (i = tindirect_block ; i < uspi->s_apb ; i++) {
-		tind = ubh_get_addr32 (tind_bh, i);
+		tind = ubh_get_data_ptr(uspi, tind_bh, i);
 		retry |= ufs_trunc_dindirect(inode, UFS_NDADDR + 
 			uspi->s_apb + ((i + 1) << uspi->s_2apbshift), tind);
 		ubh_mark_buffer_dirty(tind_bh);
@@ -372,19 +372,21 @@ static int ufs_trunc_tindirect(struct inode *inode)
 	}
 	ubh_brelse (tind_bh);
 	
-	UFSD("EXIT\n");
+	UFSD("EXIT: ino %lu\n", inode->i_ino);
 	return retry;
 }
 
 static int ufs_alloc_lastblock(struct inode *inode)
 {
 	int err = 0;
+	struct super_block *sb = inode->i_sb;
 	struct address_space *mapping = inode->i_mapping;
-	struct ufs_sb_private_info *uspi = UFS_SB(inode->i_sb)->s_uspi;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	unsigned i, end;
 	sector_t lastfrag;
 	struct page *lastpage;
 	struct buffer_head *bh;
+	u64 phys64;
 
 	lastfrag = (i_size_read(inode) + uspi->s_fsize - 1) >> uspi->s_fshift;
 
@@ -424,6 +426,20 @@ static int ufs_alloc_lastblock(struct inode *inode)
 	       set_page_dirty(lastpage);
        }
 
+       if (lastfrag >= UFS_IND_FRAGMENT) {
+	       end = uspi->s_fpb - ufs_fragnum(lastfrag) - 1;
+	       phys64 = bh->b_blocknr + 1;
+	       for (i = 0; i < end; ++i) {
+		       bh = sb_getblk(sb, i + phys64);
+		       lock_buffer(bh);
+		       memset(bh->b_data, 0, sb->s_blocksize);
+		       set_buffer_uptodate(bh);
+		       mark_buffer_dirty(bh);
+		       unlock_buffer(bh);
+		       sync_dirty_buffer(bh);
+		       brelse(bh);
+	       }
+       }
 out_unlock:
        ufs_put_locked_page(lastpage);
 out:

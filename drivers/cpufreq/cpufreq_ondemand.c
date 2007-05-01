@@ -432,9 +432,6 @@ static void do_dbs_timer(struct work_struct *work)
 	/* We want all CPUs to do sampling nearly on same jiffy */
 	int delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
 
-	/* Permit rescheduling of this work item */
-	work_release(work);
-
 	delay -= jiffies % delay;
 
 	if (lock_policy_rwsem_write(cpu) < 0)
@@ -473,7 +470,7 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 	dbs_info->enable = 1;
 	ondemand_powersave_bias_init();
 	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
-	INIT_DELAYED_WORK_NAR(&dbs_info->work, do_dbs_timer);
+	INIT_DELAYED_WORK(&dbs_info->work, do_dbs_timer);
 	queue_delayed_work_on(dbs_info->cpu, kondemand_wq, &dbs_info->work,
 	                      delay);
 }

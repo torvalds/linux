@@ -48,6 +48,15 @@ struct aoe_hdr {
 	__be32 tag;
 };
 
+#ifdef __KERNEL__
+#include <linux/skbuff.h>
+
+static inline struct aoe_hdr *aoe_hdr(const struct sk_buff *skb)
+{
+	return (struct aoe_hdr *)skb_mac_header(skb);
+}
+#endif
+
 struct aoe_atahdr {
 	unsigned char aflags;
 	unsigned char errfeat;

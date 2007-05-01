@@ -138,7 +138,7 @@ static int __devinit vt586b_probe(struct pci_dev *dev, const struct pci_device_i
 	outb(inb(I2C_DIR) & ~(I2C_SDA | I2C_SCL), I2C_DIR);
 	outb(inb(I2C_OUT) & ~(I2C_SDA | I2C_SCL), I2C_OUT);
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	vt586b_adapter.dev.parent = &dev->dev;
 
 	res = i2c_bit_add_bus(&vt586b_adapter);

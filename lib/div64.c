@@ -23,7 +23,7 @@
 /* Not needed on 64bit architectures */
 #if BITS_PER_LONG == 32
 
-uint32_t __div64_32(uint64_t *n, uint32_t base)
+uint32_t __attribute__((weak)) __div64_32(uint64_t *n, uint32_t base)
 {
 	uint64_t rem = *n;
 	uint64_t b = base;
@@ -57,5 +57,25 @@ uint32_t __div64_32(uint64_t *n, uint32_t base)
 }
 
 EXPORT_SYMBOL(__div64_32);
+
+/* 64bit divisor, dividend and result. dynamic precision */
+uint64_t div64_64(uint64_t dividend, uint64_t divisor)
+{
+	uint32_t high, d;
+
+	high = divisor >> 32;
+	if (high) {
+		unsigned int shift = fls(high);
+
+		d = divisor >> shift;
+		dividend >>= shift;
+	} else
+		d = divisor;
+
+	do_div(dividend, d);
+
+	return dividend;
+}
+EXPORT_SYMBOL(div64_64);
 
 #endif /* BITS_PER_LONG == 32 */

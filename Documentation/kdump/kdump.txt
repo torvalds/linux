@@ -30,6 +30,10 @@ On x86 machines, the first 640 KB of physical memory is needed to boot,
 regardless of where the kernel loads. Therefore, kexec backs up this
 region just before rebooting into the dump-capture kernel.
 
+Similarly on PPC64 machines first 32KB of physical memory is needed for
+booting regardless of where the kernel is loaded and to support 64K page
+size kexec backs up the first 64KB memory.
+
 All of the necessary information about the system kernel's core image is
 encoded in the ELF format, and stored in a reserved area of memory
 before a crash. The physical address of the start of the ELF header is
@@ -224,7 +228,7 @@ Dump-capture kernel config options (Arch Dependent, x86_64)
 Dump-capture kernel config options (Arch Dependent, ppc64)
 ----------------------------------------------------------
 
--  Make and install the kernel and its modules. DO NOT add this kernel
+*  Make and install the kernel and its modules. DO NOT add this kernel
    to the boot loader configuration files.
 
 Dump-capture kernel config options (Arch Dependent, ia64)
@@ -251,8 +255,8 @@ Dump-capture kernel config options (Arch Dependent, ia64)
 Boot into System Kernel
 =======================
 
-1) Make and install the kernel and its modules. Update the boot loader
-   (such as grub, yaboot, or lilo) configuration files as necessary.
+1) Update the boot loader (such as grub, yaboot, or lilo) configuration
+   files as necessary.
 
 2) Boot the system kernel with the boot parameter "crashkernel=Y@X",
    where Y specifies how much memory to reserve for the dump-capture kernel
@@ -356,10 +360,11 @@ If die() is called, and it happens to be a thread with pid 0 or 1, or die()
 is called inside interrupt context or die() is called and panic_on_oops is set,
 the system will boot into the dump-capture kernel.
 
-On powererpc systems when a soft-reset is generated, die() is called by all cpus and the system will boot into the dump-capture kernel.
+On powererpc systems when a soft-reset is generated, die() is called by all cpus
+and the system will boot into the dump-capture kernel.
 
 For testing purposes, you can trigger a crash by using "ALT-SysRq-c",
-"echo c > /proc/sysrq-trigger or write a module to force the panic.
+"echo c > /proc/sysrq-trigger" or write a module to force the panic.
 
 Write Out the Dump File
 =======================
@@ -410,12 +415,9 @@ format. Crash is available on Dave Anderson's site at the following URL:
 To Do
 =====
 
-1) Provide a kernel pages filtering mechanism, so core file size is not
-   extreme on systems with huge memory banks.
-
-2) Relocatable kernel can help in maintaining multiple kernels for
-   crash_dump, and the same kernel as the system kernel can be used to
-   capture the dump.
+1) Provide relocatable kernels for all architectures to help in maintaining
+   multiple kernels for crash_dump, and the same kernel as the system kernel
+   can be used to capture the dump.
 
 
 Contact

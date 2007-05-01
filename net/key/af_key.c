@@ -379,7 +379,7 @@ static int verify_address_len(void *p)
 		 */
 		return -EINVAL;
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -630,6 +630,35 @@ pfkey_sockaddr_size(sa_family_t family)
 	/* NOTREACHED */
 }
 
+static inline int pfkey_mode_from_xfrm(int mode)
+{
+	switch(mode) {
+	case XFRM_MODE_TRANSPORT:
+		return IPSEC_MODE_TRANSPORT;
+	case XFRM_MODE_TUNNEL:
+		return IPSEC_MODE_TUNNEL;
+	case XFRM_MODE_BEET:
+		return IPSEC_MODE_BEET;
+	default:
+		return -1;
+	}
+}
+
+static inline int pfkey_mode_to_xfrm(int mode)
+{
+	switch(mode) {
+	case IPSEC_MODE_ANY:	/*XXX*/
+	case IPSEC_MODE_TRANSPORT:
+		return XFRM_MODE_TRANSPORT;
+	case IPSEC_MODE_TUNNEL:
+		return XFRM_MODE_TUNNEL;
+	case IPSEC_MODE_BEET:
+		return XFRM_MODE_BEET;
+	default:
+		return -1;
+	}
+}
+
 static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys, int hsc)
 {
 	struct sk_buff *skb;
@@ -651,6 +680,7 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 	int encrypt_key_size = 0;
 	int sockaddr_size;
 	struct xfrm_encap_tmpl *natt = NULL;
+	int mode;
 
 	/* address family check */
 	sockaddr_size = pfkey_sockaddr_size(x->props.family);
@@ -928,7 +958,11 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 	sa2 = (struct sadb_x_sa2 *)  skb_put(skb, sizeof(struct sadb_x_sa2));
 	sa2->sadb_x_sa2_len = sizeof(struct sadb_x_sa2)/sizeof(uint64_t);
 	sa2->sadb_x_sa2_exttype = SADB_X_EXT_SA2;
-	sa2->sadb_x_sa2_mode = x->props.mode + 1;
+	if ((mode = pfkey_mode_from_xfrm(x->props.mode)) < 0) {
+		kfree_skb(skb);
+		return ERR_PTR(-EINVAL);
+	}
+	sa2->sadb_x_sa2_mode = mode;
 	sa2->sadb_x_sa2_reserved1 = 0;
 	sa2->sadb_x_sa2_reserved2 = 0;
 	sa2->sadb_x_sa2_sequence = 0;
@@ -1155,9 +1189,12 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 
 	if (ext_hdrs[SADB_X_EXT_SA2-1]) {
 		struct sadb_x_sa2 *sa2 = (void*)ext_hdrs[SADB_X_EXT_SA2-1];
-		x->props.mode = sa2->sadb_x_sa2_mode;
-		if (x->props.mode)
-			x->props.mode--;
+		int mode = pfkey_mode_to_xfrm(sa2->sadb_x_sa2_mode);
+		if (mode < 0) {
+			err = -EINVAL;
+			goto out;
+		}
+		x->props.mode = mode;
 		x->props.reqid = sa2->sadb_x_sa2_reqid;
 	}
 
@@ -1218,7 +1255,7 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	struct sadb_address *saddr, *daddr;
 	struct sadb_msg *out_hdr;
 	struct xfrm_state *x = NULL;
-	u8 mode;
+	int mode;
 	u32 reqid;
 	u8 proto;
 	unsigned short family;
@@ -1233,7 +1270,9 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		return -EINVAL;
 
 	if ((sa2 = ext_hdrs[SADB_X_EXT_SA2-1]) != NULL) {
-		mode = sa2->sadb_x_sa2_mode - 1;
+		mode = pfkey_mode_to_xfrm(sa2->sadb_x_sa2_mode);
+		if (mode < 0)
+			return -EINVAL;
 		reqid = sa2->sadb_x_sa2_reqid;
 	} else {
 		mode = 0;
@@ -1467,9 +1506,6 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 
 	err = xfrm_state_delete(x);
 
-	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
-		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
-
 	if (err < 0)
 		goto out;
 
@@ -1478,6 +1514,8 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	c.event = XFRM_MSG_DELSA;
 	km_state_notify(x, &c);
 out:
+	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
 	xfrm_state_put(x);
 
 	return err;
@@ -1757,6 +1795,7 @@ parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	struct sockaddr_in6 *sin6;
 #endif
+	int mode;
 
 	if (xp->xfrm_nr >= XFRM_MAX_DEPTH)
 		return -ELOOP;
@@ -1765,7 +1804,9 @@ parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 		return -EINVAL;
 
 	t->id.proto = rq->sadb_x_ipsecrequest_proto; /* XXX check proto */
-	t->mode = rq->sadb_x_ipsecrequest_mode-1;
+	if ((mode = pfkey_mode_to_xfrm(rq->sadb_x_ipsecrequest_mode)) < 0)
+		return -EINVAL;
+	t->mode = mode;
 	if (rq->sadb_x_ipsecrequest_level == IPSEC_LEVEL_USE)
 		t->optional = 1;
 	else if (rq->sadb_x_ipsecrequest_level == IPSEC_LEVEL_UNIQUE) {
@@ -1878,7 +1919,7 @@ static struct sk_buff * pfkey_xfrm_policy2msg_prep(struct xfrm_policy *xp)
 	return skb;
 }
 
-static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, int dir)
+static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, int dir)
 {
 	struct sadb_msg *hdr;
 	struct sadb_address *addr;
@@ -2015,6 +2056,7 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 		struct sadb_x_ipsecrequest *rq;
 		struct xfrm_tmpl *t = xp->xfrm_vec + i;
 		int req_size;
+		int mode;
 
 		req_size = sizeof(struct sadb_x_ipsecrequest);
 		if (t->mode == XFRM_MODE_TUNNEL)
@@ -2028,7 +2070,9 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 		memset(rq, 0, sizeof(*rq));
 		rq->sadb_x_ipsecrequest_len = req_size;
 		rq->sadb_x_ipsecrequest_proto = t->id.proto;
-		rq->sadb_x_ipsecrequest_mode = t->mode+1;
+		if ((mode = pfkey_mode_from_xfrm(t->mode)) < 0)
+			return -EINVAL;
+		rq->sadb_x_ipsecrequest_mode = mode;
 		rq->sadb_x_ipsecrequest_level = IPSEC_LEVEL_REQUIRE;
 		if (t->reqid)
 			rq->sadb_x_ipsecrequest_level = IPSEC_LEVEL_UNIQUE;
@@ -2090,6 +2134,8 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 
 	hdr->sadb_msg_len = size / sizeof(uint64_t);
 	hdr->sadb_msg_reserved = atomic_read(&xp->refcnt);
+
+	return 0;
 }
 
 static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c)
@@ -2103,7 +2149,9 @@ static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c
 		err = PTR_ERR(out_skb);
 		goto out;
 	}
-	pfkey_xfrm_policy2msg(out_skb, xp, dir);
+	err = pfkey_xfrm_policy2msg(out_skb, xp, dir);
+	if (err < 0)
+		return err;
 
 	out_hdr = (struct sadb_msg *) out_skb->data;
 	out_hdr->sadb_msg_version = PF_KEY_V2;
@@ -2294,13 +2342,11 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	}
 
 	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN, pol->sadb_x_policy_dir-1,
-				   &sel, tmp.security, 1);
+				   &sel, tmp.security, 1, &err);
 	security_xfrm_policy_free(&tmp);
 
 	if (xp == NULL)
 		return -ENOENT;
-
-	err = security_xfrm_policy_delete(xp);
 
 	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
 		       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
@@ -2330,7 +2376,9 @@ static int key_pol_get_resp(struct sock *sk, struct xfrm_policy *xp, struct sadb
 		err =  PTR_ERR(out_skb);
 		goto out;
 	}
-	pfkey_xfrm_policy2msg(out_skb, xp, dir);
+	err = pfkey_xfrm_policy2msg(out_skb, xp, dir);
+	if (err < 0)
+		goto out;
 
 	out_hdr = (struct sadb_msg *) out_skb->data;
 	out_hdr->sadb_msg_version = hdr->sadb_msg_version;
@@ -2412,6 +2460,7 @@ static int ipsecrequests_to_migrate(struct sadb_x_ipsecrequest *rq1, int len,
 {
 	int err;
 	struct sadb_x_ipsecrequest *rq2;
+	int mode;
 
 	if (len <= sizeof(struct sadb_x_ipsecrequest) ||
 	    len < rq1->sadb_x_ipsecrequest_len)
@@ -2442,7 +2491,9 @@ static int ipsecrequests_to_migrate(struct sadb_x_ipsecrequest *rq1, int len,
 		return -EINVAL;
 
 	m->proto = rq1->sadb_x_ipsecrequest_proto;
-	m->mode = rq1->sadb_x_ipsecrequest_mode - 1;
+	if ((mode = pfkey_mode_to_xfrm(rq1->sadb_x_ipsecrequest_mode)) < 0)
+		return -EINVAL;
+	m->mode = mode;
 	m->reqid = rq1->sadb_x_ipsecrequest_reqid;
 
 	return ((int)(rq1->sadb_x_ipsecrequest_len +
@@ -2539,7 +2590,7 @@ static int pfkey_migrate(struct sock *sk, struct sk_buff *skb,
 static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
 	unsigned int dir;
-	int err;
+	int err = 0, delete;
 	struct sadb_x_policy *pol;
 	struct xfrm_policy *xp;
 	struct km_event c;
@@ -2551,16 +2602,20 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if (dir >= XFRM_POLICY_MAX)
 		return -EINVAL;
 
+	delete = (hdr->sadb_msg_type == SADB_X_SPDDELETE2);
 	xp = xfrm_policy_byid(XFRM_POLICY_TYPE_MAIN, dir, pol->sadb_x_policy_id,
-			      hdr->sadb_msg_type == SADB_X_SPDDELETE2);
+			      delete, &err);
 	if (xp == NULL)
 		return -ENOENT;
 
-	err = 0;
+	if (delete) {
+		xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
+			       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
 
-	c.seq = hdr->sadb_msg_seq;
-	c.pid = hdr->sadb_msg_pid;
-	if (hdr->sadb_msg_type == SADB_X_SPDDELETE2) {
+		if (err)
+			goto out;
+		c.seq = hdr->sadb_msg_seq;
+		c.pid = hdr->sadb_msg_pid;
 		c.data.byid = 1;
 		c.event = XFRM_MSG_DELPOLICY;
 		km_policy_notify(xp, dir, &c);
@@ -2568,6 +2623,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		err = key_pol_get_resp(sk, xp, hdr, dir);
 	}
 
+out:
 	xfrm_pol_put(xp);
 	return err;
 }
@@ -2577,12 +2633,15 @@ static int dump_sp(struct xfrm_policy *xp, int dir, int count, void *ptr)
 	struct pfkey_dump_data *data = ptr;
 	struct sk_buff *out_skb;
 	struct sadb_msg *out_hdr;
+	int err;
 
 	out_skb = pfkey_xfrm_policy2msg_prep(xp);
 	if (IS_ERR(out_skb))
 		return PTR_ERR(out_skb);
 
-	pfkey_xfrm_policy2msg(out_skb, xp, dir);
+	err = pfkey_xfrm_policy2msg(out_skb, xp, dir);
+	if (err < 0)
+		return err;
 
 	out_hdr = (struct sadb_msg *) out_skb->data;
 	out_hdr->sadb_msg_version = data->hdr->sadb_msg_version;
@@ -3511,7 +3570,10 @@ static int pfkey_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 
 	for (i = 0, mp = m; i < num_bundles; i++, mp++) {
 		/* old ipsecrequest */
-		if (set_ipsecrequest(skb, mp->proto, mp->mode + 1,
+		int mode = pfkey_mode_from_xfrm(mp->mode);
+		if (mode < 0)
+			return -EINVAL;
+		if (set_ipsecrequest(skb, mp->proto, mode,
 				     (mp->reqid ?  IPSEC_LEVEL_UNIQUE : IPSEC_LEVEL_REQUIRE),
 				     mp->reqid, mp->old_family,
 				     &mp->old_saddr, &mp->old_daddr) < 0) {
@@ -3519,7 +3581,7 @@ static int pfkey_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 		}
 
 		/* new ipsecrequest */
-		if (set_ipsecrequest(skb, mp->proto, mp->mode + 1,
+		if (set_ipsecrequest(skb, mp->proto, mode,
 				     (mp->reqid ? IPSEC_LEVEL_UNIQUE : IPSEC_LEVEL_REQUIRE),
 				     mp->reqid, mp->new_family,
 				     &mp->new_saddr, &mp->new_daddr) < 0) {
@@ -3605,7 +3667,7 @@ static int pfkey_recvmsg(struct kiocb *kiocb,
 		copied = len;
 	}
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
 	if (err)
 		goto out_free;

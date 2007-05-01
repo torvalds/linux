@@ -6518,6 +6518,7 @@ struct bnx2 {
 #define CHIP_ID_5708_B0			0x57081000
 #define CHIP_ID_5708_B1			0x57081010
 #define CHIP_ID_5709_A0			0x57090000
+#define CHIP_ID_5709_A1			0x57090010
 
 #define CHIP_BOND_ID(bp)		(((bp)->chip_id) & 0xf)
 

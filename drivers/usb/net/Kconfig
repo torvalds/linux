@@ -84,6 +84,7 @@ config USB_PEGASUS
 config USB_RTL8150
 	tristate "USB RTL8150 based ethernet device support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
+	select MII
 	help
 	  Say Y here if you have RTL8150 based usb-ethernet adapter.
 	  Send me <petkan@users.sourceforge.net> any comments you may have.
@@ -98,7 +99,7 @@ config USB_USBNET_MII
 
 config USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
-	select MII if USBNET_MII != n
+	select MII if USB_USBNET_MII != n
 	---help---
 	  This driver supports several kinds of network links over USB,
 	  with "minidrivers" built around a common network driver core
@@ -185,6 +186,15 @@ config USB_NET_CDCETHER
 	  IEEE 802 "local assignment" bit is set in the address, a "usbX"
 	  name is used instead.
 
+config USB_NET_DM9601
+	tristate "Davicom DM9601 based USB 1.1 10/100 ethernet devices"
+	depends on USB_USBNET
+	select CRC32
+	select USB_USBNET_MII
+	help
+	  This option adds support for Davicom DM9601 based USB 1.1
+	  10/100 Ethernet adapters.
+
 config USB_NET_GL620A
 	tristate "GeneSys GL620USB-A based cables"
 	depends on USB_USBNET
@@ -239,6 +249,7 @@ config USB_NET_RNDIS_HOST
 config USB_NET_CDC_SUBSET
 	tristate "Simple USB Network Links (CDC Ethernet subset)"
 	depends on USB_USBNET
+	default y
 	help
 	  This driver module supports USB network devices that can work
 	  without any device-specific information.  Select it if you have
@@ -297,6 +308,13 @@ config USB_EPSON2888
 	help
 	  Choose this option to support the usb networking links used
 	  by some sample firmware from Epson.
+
+config USB_KC2190
+	boolean "KT Technology KC2190 based cables (InstaNet)"
+	depends on USB_NET_CDC_SUBSET && EXPERIMENTAL
+	help
+	  Choose this option if you're using a host-to-host cable
+	  with one of these chips.
 
 config USB_NET_ZAURUS
 	tristate "Sharp Zaurus (stock ROMs) and compatible"

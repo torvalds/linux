@@ -32,6 +32,7 @@
 #include <net/ip.h>
 #include <net/route.h>
 #include <linux/skbuff.h>
+#include <net/netlink.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 
@@ -61,7 +62,7 @@ prio_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 			*qerr = NET_XMIT_SUCCESS;
 		case TC_ACT_SHOT:
 			return NULL;
-		};
+		}
 
 		if (!q->filter_list ) {
 #else
@@ -188,13 +189,8 @@ prio_destroy(struct Qdisc* sch)
 {
 	int prio;
 	struct prio_sched_data *q = qdisc_priv(sch);
-	struct tcf_proto *tp;
 
-	while ((tp = q->filter_list) != NULL) {
-		q->filter_list = tp->next;
-		tcf_destroy(tp);
-	}
-
+	tcf_destroy_chain(q->filter_list);
 	for (prio=0; prio<q->bands; prio++)
 		qdisc_destroy(q->queues[prio]);
 }
@@ -271,7 +267,7 @@ static int prio_init(struct Qdisc *sch, struct rtattr *opt)
 static int prio_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_prio_qopt opt;
 
 	opt.bands = q->bands;
@@ -280,7 +276,7 @@ static int prio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

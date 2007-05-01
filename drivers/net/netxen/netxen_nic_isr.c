@@ -6,12 +6,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *                            
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *                                   
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -40,35 +40,35 @@
  */
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 {
-	struct netxen_port *port = netdev_priv(netdev);
-	struct net_device_stats *stats = &port->net_stats;
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+	struct net_device_stats *stats = &adapter->net_stats;
 
 	memset(stats, 0, sizeof(*stats));
 
 	/* total packets received   */
-	stats->rx_packets = port->stats.no_rcv;
+	stats->rx_packets = adapter->stats.no_rcv;
 	/* total packets transmitted    */
-	stats->tx_packets = port->stats.xmitedframes + port->stats.xmitfinished;
+	stats->tx_packets = adapter->stats.xmitedframes + 
+		adapter->stats.xmitfinished;
 	/* total bytes received     */
-	stats->rx_bytes = port->stats.rxbytes;
+	stats->rx_bytes = adapter->stats.rxbytes;
 	/* total bytes transmitted  */
-	stats->tx_bytes = port->stats.txbytes;
+	stats->tx_bytes = adapter->stats.txbytes;
 	/* bad packets received     */
-	stats->rx_errors = port->stats.rcvdbadskb;
+	stats->rx_errors = adapter->stats.rcvdbadskb;
 	/* packet transmit problems */
-	stats->tx_errors = port->stats.nocmddescriptor;
+	stats->tx_errors = adapter->stats.nocmddescriptor;
 	/* no space in linux buffers    */
-	stats->rx_dropped = port->stats.updropped;
+	stats->rx_dropped = adapter->stats.updropped;
 	/* no space available in linux  */
-	stats->tx_dropped = port->stats.txdropped;
+	stats->tx_dropped = adapter->stats.txdropped;
 
 	return stats;
 }
 
-void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 portno,
-				 u32 link)
+void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link)
 {
-	struct net_device *netdev = (adapter->port[portno])->netdev;
+	struct net_device *netdev = adapter->netdev;
 
 	if (link)
 		netif_carrier_on(netdev);
@@ -76,15 +76,13 @@ void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 portno,
 		netif_carrier_off(netdev);
 }
 
-void netxen_handle_port_int(struct netxen_adapter *adapter, u32 portno,
-			    u32 enable)
+void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 {
 	__u32 int_src;
-	struct netxen_port *port;
 
 	/*  This should clear the interrupt source */
 	if (adapter->phy_read)
-		adapter->phy_read(adapter, portno,
+		adapter->phy_read(adapter, 
 				  NETXEN_NIU_GB_MII_MGMT_ADDR_INT_STATUS,
 				  &int_src);
 	if (int_src == 0) {
@@ -92,9 +90,7 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 portno,
 		return;
 	}
 	if (adapter->disable_phy_interrupts)
-		adapter->disable_phy_interrupts(adapter, portno);
-
-	port = adapter->port[portno];
+		adapter->disable_phy_interrupts(adapter);
 
 	if (netxen_get_phy_int_jabber(int_src))
 		DPRINTK(INFO, "Jabber interrupt \n");
@@ -115,64 +111,57 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 portno,
 		DPRINTK(INFO, "SPEED CHANGED OR LINK STATUS CHANGED \n");
 
 		if (adapter->phy_read
-		    && adapter->phy_read(adapter, portno,
+		    && adapter->phy_read(adapter, 
 					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
 					 &status) == 0) {
 			if (netxen_get_phy_int_link_status_changed(int_src)) {
 				if (netxen_get_phy_link(status)) {
-					netxen_niu_gbe_init_port(adapter,
-								 portno);
-					printk("%s: %s Link UP\n",
+					printk(KERN_INFO "%s: %s Link UP\n",
 					       netxen_nic_driver_name,
-					       port->netdev->name);
+					       adapter->netdev->name);
 
 				} else {
-					printk("%s: %s Link DOWN\n",
+					printk(KERN_INFO "%s: %s Link DOWN\n",
 					       netxen_nic_driver_name,
-					       port->netdev->name);
+					       adapter->netdev->name);
 				}
-				netxen_indicate_link_status(adapter, portno,
+				netxen_indicate_link_status(adapter, 
 							    netxen_get_phy_link
 							    (status));
 			}
 		}
 	}
 	if (adapter->enable_phy_interrupts)
-		adapter->enable_phy_interrupts(adapter, portno);
+		adapter->enable_phy_interrupts(adapter);
 }
 
 void netxen_nic_isr_other(struct netxen_adapter *adapter)
 {
-	u32 portno;
+	int portno = adapter->portnum;
 	u32 val, linkup, qg_linksup;
 
 	/* verify the offset */
 	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
+	val = val >> physical_port[adapter->portnum];
 	if (val == adapter->ahw.qg_linksup)
 		return;
 
 	qg_linksup = adapter->ahw.qg_linksup;
 	adapter->ahw.qg_linksup = val;
 	DPRINTK(INFO, "link update 0x%08x\n", val);
-	for (portno = 0; portno < NETXEN_NIU_MAX_GBE_PORTS; portno++) {
-		linkup = val & 1;
-		if (linkup != (qg_linksup & 1)) {
-			printk(KERN_INFO "%s: %s PORT %d link %s\n",
-			       adapter->port[portno]->netdev->name,
-			       netxen_nic_driver_name, portno,
-			       ((linkup == 0) ? "down" : "up"));
-			netxen_indicate_link_status(adapter, portno, linkup);
-			if (linkup)
-				netxen_nic_set_link_parameters(adapter->
-							       port[portno]);
 
-		}
-		val = val >> 1;
-		qg_linksup = qg_linksup >> 1;
+	linkup = val & 1;
+
+	if (linkup != (qg_linksup & 1)) {
+		printk(KERN_INFO "%s: %s PORT %d link %s\n",
+		       adapter->netdev->name,
+		       netxen_nic_driver_name, portno,
+		       ((linkup == 0) ? "down" : "up"));
+		netxen_indicate_link_status(adapter, linkup);
+		if (linkup)
+			netxen_nic_set_link_parameters(adapter);
+
 	}
-
-	adapter->stats.otherints++;
-
 }
 
 void netxen_nic_gbe_handle_phy_intr(struct netxen_adapter *adapter)
@@ -182,26 +171,28 @@ void netxen_nic_gbe_handle_phy_intr(struct netxen_adapter *adapter)
 
 void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 {
-	struct net_device *netdev = adapter->port[0]->netdev;
-	u32 val;
+	struct net_device *netdev = adapter->netdev;
+	u32 val, val1;
 
 	/* WINDOW = 1 */
 	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
+	val >>= (physical_port[adapter->portnum] * 8);
+	val1 = val & 0xff;
 
-	if (adapter->ahw.xg_linkup == 1 && val != XG_LINK_UP) {
+	if (adapter->ahw.xg_linkup == 1 && val1 != XG_LINK_UP) {
 		printk(KERN_INFO "%s: %s NIC Link is down\n",
 		       netxen_nic_driver_name, netdev->name);
 		adapter->ahw.xg_linkup = 0;
 		/* read twice to clear sticky bits */
 		/* WINDOW = 0 */
-		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_STATUS, &val);
-		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_STATUS, &val);
+		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_STATUS, &val1);
+		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_STATUS, &val1);
 
 		if ((val & 0xffb) != 0xffb) {
 			printk(KERN_INFO "%s ISR: Sync/Align BAD: 0x%08x\n",
-			       netxen_nic_driver_name, val);
+			       netxen_nic_driver_name, val1);
 		}
-	} else if (adapter->ahw.xg_linkup == 0 && val == XG_LINK_UP) {
+	} else if (adapter->ahw.xg_linkup == 0 && val1 == XG_LINK_UP) {
 		printk(KERN_INFO "%s: %s NIC Link is up\n",
 		       netxen_nic_driver_name, netdev->name);
 		adapter->ahw.xg_linkup = 1;

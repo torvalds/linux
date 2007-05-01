@@ -518,6 +518,10 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring  *pring;
 	uint32_t event_data;
+	/* If the pci channel is offline, ignore possible errors,
+	 * since we cannot communicate with the pci card anyway. */
+	if (pci_channel_offline(phba->pcidev))
+		return;
 
 	if (phba->work_hs & HS_FFER6 ||
 	    phba->work_hs & HS_FFER5) {
@@ -1797,6 +1801,91 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
+/**
+ * lpfc_io_error_detected - called when PCI error is detected
+ * @pdev: Pointer to PCI device
+ * @state: The current pci conneection state
+ *
+ * This function is called after a PCI bus error affecting
+ * this device has been detected.
+ */
+static pci_ers_result_t lpfc_io_error_detected(struct pci_dev *pdev,
+				pci_channel_state_t state)
+{
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
+	struct lpfc_hba *phba = (struct lpfc_hba *)host->hostdata;
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring  *pring;
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	pci_disable_device(pdev);
+	/*
+	 * There may be I/Os dropped by the firmware.
+	 * Error iocb (I/O) on txcmplq and let the SCSI layer
+	 * retry it after re-establishing link.
+	 */
+	pring = &psli->ring[psli->fcp_ring];
+	lpfc_sli_abort_iocb_ring(phba, pring);
+
+	/* Request a slot reset. */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * lpfc_io_slot_reset - called after the pci bus has been reset.
+ * @pdev: Pointer to PCI device
+ *
+ * Restart the card from scratch, as if from a cold-boot.
+ */
+static pci_ers_result_t lpfc_io_slot_reset(struct pci_dev *pdev)
+{
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
+	struct lpfc_hba *phba = (struct lpfc_hba *)host->hostdata;
+	struct lpfc_sli *psli = &phba->sli;
+	int bars = pci_select_bars(pdev, IORESOURCE_MEM);
+
+	dev_printk(KERN_INFO, &pdev->dev, "recovering from a slot reset.\n");
+	if (pci_enable_device_bars(pdev, bars)) {
+		printk(KERN_ERR "lpfc: Cannot re-enable "
+			"PCI device after reset.\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_set_master(pdev);
+
+	/* Re-establishing Link */
+	spin_lock_irq(phba->host->host_lock);
+	phba->fc_flag |= FC_ESTABLISH_LINK;
+	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+	spin_unlock_irq(phba->host->host_lock);
+
+
+	/* Take device offline; this will perform cleanup */
+	lpfc_offline(phba);
+	lpfc_sli_brdrestart(phba);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * lpfc_io_resume - called when traffic can start flowing again.
+ * @pdev: Pointer to PCI device
+ *
+ * This callback is called when the error recovery driver tells us that
+ * its OK to resume normal operation.
+ */
+static void lpfc_io_resume(struct pci_dev *pdev)
+{
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
+	struct lpfc_hba *phba = (struct lpfc_hba *)host->hostdata;
+
+	if (lpfc_online(phba) == 0) {
+		mod_timer(&phba->fc_estabtmo, jiffies + HZ * 60);
+	}
+}
+
 static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_VIPER,
 		PCI_ANY_ID, PCI_ANY_ID, },
@@ -1857,11 +1946,18 @@ static struct pci_device_id lpfc_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, lpfc_id_table);
 
+static struct pci_error_handlers lpfc_err_handler = {
+	.error_detected = lpfc_io_error_detected,
+	.slot_reset = lpfc_io_slot_reset,
+	.resume = lpfc_io_resume,
+};
+
 static struct pci_driver lpfc_driver = {
 	.name		= LPFC_DRIVER_NAME,
 	.id_table	= lpfc_id_table,
 	.probe		= lpfc_pci_probe_one,
 	.remove		= __devexit_p(lpfc_pci_remove_one),
+	.err_handler = &lpfc_err_handler,
 };
 
 static int __init

@@ -95,8 +95,8 @@ static const struct usb_device_id pwc_device_table [] = {
 	{ USB_DEVICE(0x046D, 0x08B3) }, /* Logitech QuickCam Zoom (old model) */
 	{ USB_DEVICE(0x046D, 0x08B4) }, /* Logitech QuickCam Zoom (new model) */
 	{ USB_DEVICE(0x046D, 0x08B5) }, /* Logitech QuickCam Orbit/Sphere */
-	{ USB_DEVICE(0x046D, 0x08B6) }, /* Logitech (reserved) */
-	{ USB_DEVICE(0x046D, 0x08B7) }, /* Logitech (reserved) */
+	{ USB_DEVICE(0x046D, 0x08B6) }, /* Cisco VT Camera */
+	{ USB_DEVICE(0x046D, 0x08B7) }, /* Logitech ViewPort AV 100 */
 	{ USB_DEVICE(0x046D, 0x08B8) }, /* Logitech (reserved) */
 	{ USB_DEVICE(0x055D, 0x9000) }, /* Samsung MPC-C10 */
 	{ USB_DEVICE(0x055D, 0x9001) }, /* Samsung MPC-C30 */
@@ -128,7 +128,7 @@ static int default_size = PSZ_QCIF;
 static int default_fps = 10;
 static int default_fbufs = 3;   /* Default number of frame buffers */
        int pwc_mbufs = 2;	/* Default number of mmap() buffers */
-#if CONFIG_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DEBUG
        int pwc_trace = PWC_DEBUG_LEVEL;
 #endif
 static int power_save = 0;
@@ -1051,7 +1051,7 @@ static void pwc_remove_sysfs_files(struct video_device *vdev)
 	video_device_remove_file(vdev, &class_device_attr_button);
 }
 
-#if CONFIG_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DEBUG
 static const char *pwc_sensor_type_to_string(unsigned int sensor_type)
 {
 	switch(sensor_type) {
@@ -1493,7 +1493,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		case 0x0329:
 			PWC_INFO("Philips SPC 900NC USB webcam detected.\n");
 			name = "Philips SPC 900NC webcam";
-			type_id = 720;
+			type_id = 740;
 			break;
 		default:
 			return -ENODEV;
@@ -1547,8 +1547,16 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			features |= FEATURE_MOTOR_PANTILT;
 			break;
 		case 0x08b6:
+			PWC_INFO("Logitech/Cisco VT Camera webcam detected.\n");
+			name = "Cisco VT Camera";
+			type_id = 740; /* CCD sensor */
+			break;
 		case 0x08b7:
-		case 0x08b8:
+			PWC_INFO("Logitech ViewPort AV 100 webcam detected.\n");
+			name = "Logitech ViewPort AV 100";
+			type_id = 740; /* CCD sensor */
+			break;
+		case 0x08b8: /* Where this released? */
 			PWC_INFO("Logitech QuickCam detected (reserved ID).\n");
 			name = "Logitech QuickCam (res.)";
 			type_id = 730; /* Assuming CMOS */
@@ -1835,7 +1843,7 @@ module_param(size, charp, 0444);
 module_param(fps, int, 0444);
 module_param(fbufs, int, 0444);
 module_param(mbufs, int, 0444);
-#if CONFIG_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DEBUG
 module_param_named(trace, pwc_trace, int, 0644);
 #endif
 module_param(power_save, int, 0444);
@@ -1908,7 +1916,7 @@ static int __init usb_pwc_init(void)
 		default_fbufs = fbufs;
 		PWC_DEBUG_MODULE("Number of frame buffers set to %d.\n", default_fbufs);
 	}
-#if CONFIG_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DEBUG
 	if (pwc_trace >= 0) {
 		PWC_DEBUG_MODULE("Trace options: 0x%04x\n", pwc_trace);
 	}

@@ -633,8 +633,6 @@ static inline void ioc3_rx(struct ioc3_private *ip)
 
 			ip->rx_skbs[rx_entry] = NULL;	/* Poison  */
 
-			new_skb->dev = priv_netdev(ip);
-
 			/* Because we reserve afterwards. */
 			skb_put(new_skb, (1664 + RX_OFFSET));
 			rxb = (struct ioc3_erxbuf *) new_skb->data;
@@ -836,13 +834,17 @@ static int ioc3_mii_init(struct ioc3_private *ip)
 	}
 
 	ip->mii.phy_id = i;
+
+out:
+	return res;
+}
+
+static void ioc3_mii_start(struct ioc3_private *ip)
+{
 	ip->ioc3_timer.expires = jiffies + (12 * HZ)/10;  /* 1.2 sec. */
 	ip->ioc3_timer.data = (unsigned long) ip;
 	ip->ioc3_timer.function = &ioc3_timer;
 	add_timer(&ip->ioc3_timer);
-
-out:
-	return res;
 }
 
 static inline void ioc3_clean_rx_ring(struct ioc3_private *ip)
@@ -936,7 +938,6 @@ static void ioc3_alloc_rings(struct net_device *dev)
 			}
 
 			ip->rx_skbs[i] = skb;
-			skb->dev = dev;
 
 			/* Because we reserve afterwards. */
 			skb_put(skb, (1664 + RX_OFFSET));
@@ -1071,6 +1072,7 @@ static int ioc3_open(struct net_device *dev)
 	ip->ehar_h = 0;
 	ip->ehar_l = 0;
 	ioc3_init(dev);
+	ioc3_mii_start(ip);
 
 	netif_start_queue(dev);
 	return 0;
@@ -1274,6 +1276,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_stop;
 	}
 
+	ioc3_mii_start(ip);
 	ioc3_ssram_disc(ip);
 	ioc3_get_eaddr(ip);
 
@@ -1314,6 +1317,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 out_stop:
 	ioc3_stop(ip);
+	del_timer_sync(&ip->ioc3_timer);
 	ioc3_free_rings(ip);
 out_res:
 	pci_release_regions(pdev);
@@ -1335,6 +1339,8 @@ static void __devexit ioc3_remove_one (struct pci_dev *pdev)
 	struct ioc3 *ioc3 = ip->regs;
 
 	unregister_netdev(dev);
+	del_timer_sync(&ip->ioc3_timer);
+
 	iounmap(ioc3);
 	pci_release_regions(pdev);
 	free_netdev(dev);
@@ -1387,9 +1393,9 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * manually.
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		int proto = ntohs(skb->nh.iph->protocol);
+		const struct iphdr *ih = ip_hdr(skb);
+		const int proto = ntohs(ih->protocol);
 		unsigned int csoff;
-		struct iphdr *ih = skb->nh.iph;
 		uint32_t csum, ehsum;
 		uint16_t *eh;
 
@@ -1416,11 +1422,11 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		csoff = ETH_HLEN + (ih->ihl << 2);
 		if (proto == IPPROTO_UDP) {
 			csoff += offsetof(struct udphdr, check);
-			skb->h.uh->check = csum;
+			udp_hdr(skb)->check = csum;
 		}
 		if (proto == IPPROTO_TCP) {
 			csoff += offsetof(struct tcphdr, check);
-			skb->h.th->check = csum;
+			tcp_hdr(skb)->check = csum;
 		}
 
 		w0 = ETXD_DOCHECKSUM | (csoff << ETXD_CHKOFF_SHIFT);
@@ -1437,7 +1443,7 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (len <= 104) {
 		/* Short packet, let's copy it directly into the ring.  */
-		memcpy(desc->data, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, desc->data, skb->len);
 		if (len < ETH_ZLEN) {
 			/* Very short packet, pad with zeros at the end. */
 			memset(desc->data + len, 0, ETH_ZLEN - len);
@@ -1492,6 +1498,7 @@ static void ioc3_timeout(struct net_device *dev)
 	ioc3_stop(ip);
 	ioc3_init(dev);
 	ioc3_mii_init(ip);
+	ioc3_mii_start(ip);
 
 	spin_unlock_irq(&ip->ioc3_lock);
 

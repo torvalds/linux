@@ -92,6 +92,13 @@ struct nand_bbt_descr {
  */
 #define ONENAND_BADBLOCK_POS	0
 
+/*
+ * Bad block scanning errors
+ */
+#define ONENAND_BBT_READ_ERROR		1
+#define ONENAND_BBT_READ_ECC_ERROR	2
+#define ONENAND_BBT_READ_FATAL_ERROR	4
+
 /**
  * struct bbm_info - [GENERIC] Bad Block Table data structure
  * @bbt_erase_shift:	[INTERN] number of address bits in a bbt entry

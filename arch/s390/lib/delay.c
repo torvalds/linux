@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/timex.h>
 #include <linux/irqflags.h>
+#include <linux/interrupt.h>
 
 void __delay(unsigned long loops)
 {
@@ -35,7 +36,11 @@ void __udelay(unsigned long usecs)
 {
 	u64 end, time, jiffy_timer = 0;
 	unsigned long flags, cr0, mask, dummy;
+	int irq_context;
 
+	irq_context = in_interrupt();
+	if (!irq_context)
+		local_bh_disable();
 	local_irq_save(flags);
 	if (raw_irqs_disabled_flags(flags)) {
 		jiffy_timer = S390_lowcore.jiffy_timer;
@@ -62,6 +67,8 @@ void __udelay(unsigned long usecs)
 		__ctl_load(cr0, 0, 0);
 		S390_lowcore.jiffy_timer = jiffy_timer;
 	}
+	if (!irq_context)
+		_local_bh_enable();
 	set_clock_comparator(S390_lowcore.jiffy_timer);
 	local_irq_restore(flags);
 }

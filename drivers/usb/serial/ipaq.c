@@ -247,12 +247,15 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x04AD, 0x0301) }, /* USB Sync 0301 */
 	{ USB_DEVICE(0x04AD, 0x0302) }, /* USB Sync 0302 */
 	{ USB_DEVICE(0x04AD, 0x0303) }, /* USB Sync 0303 */
+	{ USB_DEVICE(0x04AD, 0x0306) }, /* GPS Pocket PC USB Sync */
+	{ USB_DEVICE(0x04B7, 0x0531) }, /* MyGuide 7000 XL USB Sync */
 	{ USB_DEVICE(0x04C5, 0x1058) }, /* FUJITSU USB Sync */
 	{ USB_DEVICE(0x04C5, 0x1079) }, /* FUJITSU USB Sync */
 	{ USB_DEVICE(0x04DA, 0x2500) }, /* Panasonic USB Sync */
 	{ USB_DEVICE(0x04DD, 0x9102) }, /* SHARP WS003SH USB Modem */
 	{ USB_DEVICE(0x04DD, 0x9121) }, /* SHARP WS004SH USB Modem */
 	{ USB_DEVICE(0x04DD, 0x9123) }, /* SHARP WS007SH USB Modem */
+	{ USB_DEVICE(0x04DD, 0x9151) }, /* SHARP S01SH USB Modem */
 	{ USB_DEVICE(0x04E8, 0x5F00) }, /* Samsung NEXiO USB Sync */
 	{ USB_DEVICE(0x04E8, 0x5F01) }, /* Samsung NEXiO USB Sync */
 	{ USB_DEVICE(0x04E8, 0x5F02) }, /* Samsung NEXiO USB Sync */

@@ -11,7 +11,9 @@
 #ifndef _PPC_BOOT_OPS_H_
 #define _PPC_BOOT_OPS_H_
 
+#include <stddef.h>
 #include "types.h"
+#include "string.h"
 
 #define	COMMAND_LINE_SIZE	512
 #define	MAX_PATH_LEN		256
@@ -21,10 +23,11 @@
 struct platform_ops {
 	void	(*fixups)(void);
 	void	(*image_hdr)(const void *);
-	void *	(*malloc)(u32 size);
+	void *	(*malloc)(unsigned long size);
 	void	(*free)(void *ptr);
 	void *	(*realloc)(void *ptr, unsigned long size);
 	void	(*exit)(void);
+	void *	(*vmlinux_alloc)(unsigned long size);
 };
 extern struct platform_ops platform_ops;
 
@@ -35,6 +38,12 @@ struct dt_ops {
 			const int buflen);
 	int	(*setprop)(const void *phandle, const char *name,
 			const void *buf, const int buflen);
+	void *(*get_parent)(const void *phandle);
+	/* The node must not already exist. */
+	void *(*create_node)(const void *parent, const char *name);
+	void *(*find_node_by_prop_value)(const void *prev,
+	                                 const char *propname,
+	                                 const char *propval, int proplen);
 	unsigned long (*finalize)(void);
 };
 extern struct dt_ops dt_ops;
@@ -58,13 +67,23 @@ struct serial_console_data {
 	void		(*close)(void);
 };
 
-int platform_init(void *promptr, char *dt_blob_start, char *dt_blob_end);
+struct loader_info {
+	void *promptr;
+	unsigned long initrd_addr, initrd_size;
+	char *cmdline;
+	int cmdline_len;
+};
+extern struct loader_info loader_info;
+
+void start(void);
 int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device);
 int serial_console_init(void);
 int ns16550_console_init(void *devp, struct serial_console_data *scdp);
-void *simple_alloc_init(char *base, u32 heap_size, u32 granularity,
-		u32 max_allocs);
-
+void *simple_alloc_init(char *base, unsigned long heap_size,
+			unsigned long granularity, unsigned long max_allocs);
+extern void flush_cache(void *, unsigned long);
+int dt_xlate_reg(void *node, int res, unsigned long *addr, unsigned long *size);
+int dt_xlate_addr(void *node, u32 *buf, int buflen, unsigned long *xlated_addr);
 
 static inline void *finddevice(const char *name)
 {
@@ -76,12 +95,76 @@ static inline int getprop(void *devp, const char *name, void *buf, int buflen)
 	return (dt_ops.getprop) ? dt_ops.getprop(devp, name, buf, buflen) : -1;
 }
 
-static inline int setprop(void *devp, const char *name, void *buf, int buflen)
+static inline int setprop(void *devp, const char *name,
+                          const void *buf, int buflen)
 {
 	return (dt_ops.setprop) ? dt_ops.setprop(devp, name, buf, buflen) : -1;
 }
+#define setprop_val(devp, name, val) \
+	do { \
+		typeof(val) x = (val); \
+		setprop((devp), (name), &x, sizeof(x)); \
+	} while (0)
 
-static inline void *malloc(u32 size)
+static inline int setprop_str(void *devp, const char *name, const char *buf)
+{
+	if (dt_ops.setprop)
+		return dt_ops.setprop(devp, name, buf, strlen(buf) + 1);
+
+	return -1;
+}
+
+static inline void *get_parent(const char *devp)
+{
+	return dt_ops.get_parent ? dt_ops.get_parent(devp) : NULL;
+}
+
+static inline void *create_node(const void *parent, const char *name)
+{
+	return dt_ops.create_node ? dt_ops.create_node(parent, name) : NULL;
+}
+
+
+static inline void *find_node_by_prop_value(const void *prev,
+                                            const char *propname,
+                                            const char *propval, int proplen)
+{
+	if (dt_ops.find_node_by_prop_value)
+		return dt_ops.find_node_by_prop_value(prev, propname,
+		                                      propval, proplen);
+
+	return NULL;
+}
+
+static inline void *find_node_by_prop_value_str(const void *prev,
+                                                const char *propname,
+                                                const char *propval)
+{
+	return find_node_by_prop_value(prev, propname, propval,
+	                               strlen(propval) + 1);
+}
+
+static inline void *find_node_by_devtype(const void *prev,
+                                         const char *type)
+{
+	return find_node_by_prop_value_str(prev, "device_type", type);
+}
+
+void dt_fixup_memory(u64 start, u64 size);
+void dt_fixup_cpu_clocks(u32 cpufreq, u32 tbfreq, u32 busfreq);
+void dt_fixup_clock(const char *path, u32 freq);
+void __dt_fixup_mac_addresses(u32 startindex, ...);
+#define dt_fixup_mac_addresses(...) \
+	__dt_fixup_mac_addresses(0, __VA_ARGS__, NULL)
+
+
+static inline void *find_node_by_linuxphandle(const u32 linuxphandle)
+{
+	return find_node_by_prop_value(NULL, "linux,phandle",
+			(char *)&linuxphandle, sizeof(u32));
+}
+
+static inline void *malloc(unsigned long size)
 {
 	return (platform_ops.malloc) ? platform_ops.malloc(size) : NULL;
 }
@@ -98,5 +181,11 @@ static inline void exit(void)
 		platform_ops.exit();
 	for(;;);
 }
+#define fatal(args...) { printf(args); exit(); }
+
+
+#define BSS_STACK(size) \
+	static char _bss_stack[size]; \
+	void *_platform_stack_top = _bss_stack + sizeof(_bss_stack);
 
 #endif /* _PPC_BOOT_OPS_H_ */

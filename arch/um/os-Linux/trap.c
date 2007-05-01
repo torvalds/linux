@@ -16,6 +16,7 @@ void usr2_handler(int sig, union uml_pt_regs *regs)
 	CHOOSE_MODE(syscall_handler_tt(sig, regs), (void) 0);
 }
 
+/* Initialized from linux_main() */
 void (*sig_info[NSIG])(int, union uml_pt_regs *);
 
 void os_fill_handlinfo(struct kern_handlers h)

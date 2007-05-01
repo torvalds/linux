@@ -60,7 +60,7 @@ static void ia64_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
 	msg.address_lo = addr;
 
 	write_msi_msg(irq, &msg);
-	set_native_irq_info(irq, cpu_mask);
+	irq_desc[irq].affinity = cpu_mask;
 }
 #endif /* CONFIG_SMP */
 
@@ -68,7 +68,7 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct msi_msg	msg;
 	unsigned long	dest_phys_id;
-	unsigned int	irq, vector;
+	int	irq, vector;
 
 	irq = create_irq();
 	if (irq < 0)
@@ -76,7 +76,7 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 
 	set_irq_msi(irq, desc);
 	dest_phys_id = cpu_physical_id(first_cpu(cpu_online_map));
-	vector = irq;
+	vector = irq_to_vector(irq);
 
 	msg.address_hi = 0;
 	msg.address_lo =
@@ -110,7 +110,7 @@ static void ia64_ack_msi_irq(unsigned int irq)
 
 static int ia64_msi_retrigger_irq(unsigned int irq)
 {
-	unsigned int vector = irq;
+	unsigned int vector = irq_to_vector(irq);
 	ia64_resend_irq(vector);
 
 	return 1;

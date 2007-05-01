@@ -394,7 +394,7 @@ EXPORT_SYMBOL(do_softirq);
 #ifdef CONFIG_PPC_MERGE
 
 static LIST_HEAD(irq_hosts);
-static spinlock_t irq_big_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(irq_big_lock);
 static DEFINE_PER_CPU(unsigned int, irq_radix_reader);
 static unsigned int irq_radix_writer;
 struct irq_map_entry irq_map[NR_IRQS];
@@ -968,7 +968,6 @@ void pci_scan_msi_device(struct pci_dev *dev) {}
 int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec) {return -1;}
 void pci_disable_msix(struct pci_dev *dev) {}
 void msi_remove_pci_irq_vectors(struct pci_dev *dev) {}
-void disable_msi_mode(struct pci_dev *dev, int pos, int type) {}
 void pci_no_msi(void) {}
 EXPORT_SYMBOL(pci_enable_msix);
 EXPORT_SYMBOL(pci_disable_msix);

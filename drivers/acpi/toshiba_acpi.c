@@ -125,7 +125,7 @@ static int write_acpi_int(const char *methodName, int val)
 	union acpi_object in_objs[1];
 	acpi_status status;
 
-	params.count = sizeof(in_objs) / sizeof(in_objs[0]);
+	params.count = ARRAY_SIZE(in_objs);
 	params.pointer = in_objs;
 	in_objs[0].type = ACPI_TYPE_INTEGER;
 	in_objs[0].integer.value = val;
@@ -315,7 +315,7 @@ static int set_lcd(int value)
 
 static int set_lcd_status(struct backlight_device *bd)
 {
-	return set_lcd(bd->props->brightness);
+	return set_lcd(bd->props.brightness);
 }
 
 static unsigned long write_lcd(const char *buffer, unsigned long count)
@@ -533,11 +533,9 @@ static acpi_status __exit remove_device(void)
 	return AE_OK;
 }
 
-static struct backlight_properties toshiba_backlight_data = {
-        .owner          = THIS_MODULE,
+static struct backlight_ops toshiba_backlight_data = {
         .get_brightness = get_lcd,
         .update_status  = set_lcd_status,
-        .max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1,
 };
 
 static void __exit toshiba_acpi_exit(void)
@@ -561,10 +559,6 @@ static int __init toshiba_acpi_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (!acpi_specific_hotkey_enabled) {
-		printk(MY_INFO "Using generic hotkey driver\n");
-		return -ENODEV;
-	}
 	/* simple device detection: look for HCI method */
 	if (is_valid_acpi_path(METHOD_HCI_1))
 		method_hci = METHOD_HCI_1;
@@ -601,6 +595,7 @@ static int __init toshiba_acpi_init(void)
 		toshiba_backlight_device = NULL;
 		toshiba_acpi_exit();
 	}
+        toshiba_backlight_device->props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
 
 	return (ACPI_SUCCESS(status)) ? 0 : -ENODEV;
 }

@@ -47,8 +47,8 @@
 #include <linux/workqueue.h>
 
 #include <rdma/ib_pack.h>
-#include <rdma/ib_sa.h>
 #include <rdma/ib_cache.h>
+#include "sa.h"
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand subnet administration query support");
@@ -57,6 +57,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 struct ib_sa_sm_ah {
 	struct ib_ah        *ah;
 	struct kref          ref;
+	u8		     src_path_mask;
 };
 
 struct ib_sa_port {
@@ -380,6 +381,7 @@ static void update_sm_ah(struct work_struct *work)
 	}
 
 	kref_init(&new_ah->ref);
+	new_ah->src_path_mask = (1 << port_attr.lmc) - 1;
 
 	memset(&ah_attr, 0, sizeof ah_attr);
 	ah_attr.dlid     = port_attr.sm_lid;
@@ -425,17 +427,6 @@ void ib_sa_register_client(struct ib_sa_client *client)
 }
 EXPORT_SYMBOL(ib_sa_register_client);
 
-static inline void ib_sa_client_get(struct ib_sa_client *client)
-{
-	atomic_inc(&client->users);
-}
-
-static inline void ib_sa_client_put(struct ib_sa_client *client)
-{
-	if (atomic_dec_and_test(&client->users))
-		complete(&client->comp);
-}
-
 void ib_sa_unregister_client(struct ib_sa_client *client)
 {
 	ib_sa_client_put(client);
@@ -471,6 +462,25 @@ void ib_sa_cancel_query(int id, struct ib_sa_query *query)
 }
 EXPORT_SYMBOL(ib_sa_cancel_query);
 
+static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
+{
+	struct ib_sa_device *sa_dev;
+	struct ib_sa_port   *port;
+	unsigned long flags;
+	u8 src_path_mask;
+
+	sa_dev = ib_get_client_data(device, &sa_client);
+	if (!sa_dev)
+		return 0x7f;
+
+	port  = &sa_dev->port[port_num - sa_dev->start_port];
+	spin_lock_irqsave(&port->ah_lock, flags);
+	src_path_mask = port->sm_ah ? port->sm_ah->src_path_mask : 0x7f;
+	spin_unlock_irqrestore(&port->ah_lock, flags);
+
+	return src_path_mask;
+}
+
 int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 			 struct ib_sa_path_rec *rec, struct ib_ah_attr *ah_attr)
 {
@@ -480,8 +490,10 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	memset(ah_attr, 0, sizeof *ah_attr);
 	ah_attr->dlid = be16_to_cpu(rec->dlid);
 	ah_attr->sl = rec->sl;
-	ah_attr->src_path_bits = be16_to_cpu(rec->slid) & 0x7f;
+	ah_attr->src_path_bits = be16_to_cpu(rec->slid) &
+				 get_src_path_mask(device, port_num);
 	ah_attr->port_num = port_num;
+	ah_attr->static_rate = rec->rate;
 
 	if (rec->hop_limit > 1) {
 		ah_attr->ah_flags = IB_AH_GRH;
@@ -901,7 +913,6 @@ err1:
 	kfree(query);
 	return ret;
 }
-EXPORT_SYMBOL(ib_sa_mcmember_rec_query);
 
 static void send_handler(struct ib_mad_agent *agent,
 			 struct ib_mad_send_wc *mad_send_wc)
@@ -1053,14 +1064,27 @@ static int __init ib_sa_init(void)
 	get_random_bytes(&tid, sizeof tid);
 
 	ret = ib_register_client(&sa_client);
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR "Couldn't register ib_sa client\n");
+		goto err1;
+	}
 
+	ret = mcast_init();
+	if (ret) {
+		printk(KERN_ERR "Couldn't initialize multicast handling\n");
+		goto err2;
+	}
+
+	return 0;
+err2:
+	ib_unregister_client(&sa_client);
+err1:
 	return ret;
 }
 
 static void __exit ib_sa_cleanup(void)
 {
+	mcast_cleanup();
 	ib_unregister_client(&sa_client);
 	idr_destroy(&query_idr);
 }

@@ -32,13 +32,6 @@
 #include "ptrace.h"
 #include "signal.h"
 
-const char *processor_modes[]=
-{ "USER_26", "FIQ_26" , "IRQ_26" , "SVC_26" , "UK4_26" , "UK5_26" , "UK6_26" , "UK7_26" ,
-  "UK8_26" , "UK9_26" , "UK10_26", "UK11_26", "UK12_26", "UK13_26", "UK14_26", "UK15_26",
-  "USER_32", "FIQ_32" , "IRQ_32" , "SVC_32" , "UK4_32" , "UK5_32" , "UK6_32" , "ABT_32" ,
-  "UK8_32" , "UK9_32" , "UK10_32", "UND_32" , "UK12_32", "UK13_32", "UK14_32", "SYS_32"
-};
-
 static const char *handler[]= { "prefetch abort", "data abort", "address exception", "interrupt" };
 
 #ifdef CONFIG_DEBUG_USER
@@ -289,7 +282,10 @@ asmlinkage void do_undefinstr(struct pt_regs *regs)
 	regs->ARM_pc -= correction;
 
 	pc = (void __user *)instruction_pointer(regs);
-	if (thumb_mode(regs)) {
+
+	if (processor_mode(regs) == SVC_MODE) {
+		instr = *(u32 *) pc;
+	} else if (thumb_mode(regs)) {
 		get_user(instr, (u16 __user *)pc);
 	} else {
 		get_user(instr, (u32 __user *)pc);
@@ -337,12 +333,11 @@ asmlinkage void do_unexp_fiq (struct pt_regs *regs)
  * It never returns, and never tries to sync.  We hope that we can at least
  * dump out some state information...
  */
-asmlinkage void bad_mode(struct pt_regs *regs, int reason, int proc_mode)
+asmlinkage void bad_mode(struct pt_regs *regs, int reason)
 {
 	console_verbose();
 
-	printk(KERN_CRIT "Bad mode in %s handler detected: mode %s\n",
-		handler[reason], processor_modes[proc_mode]);
+	printk(KERN_CRIT "Bad mode in %s handler detected\n", handler[reason]);
 
 	die("Oops - bad mode", regs, 0);
 	local_irq_disable();

@@ -29,6 +29,8 @@
 
 #include <media/pwc-ioctl.h>
 
+#define PWC_FPS_MAX_KIARA 6
+
 struct Kiara_table_entry
 {
 	char alternate;			/* USB alternate interface */
@@ -37,8 +39,9 @@ struct Kiara_table_entry
 	unsigned char mode[12];		/* precomputed mode settings for cam */
 };
 
-extern const struct Kiara_table_entry Kiara_table[PSZ_MAX][6][4];
+extern const struct Kiara_table_entry Kiara_table[PSZ_MAX][PWC_FPS_MAX_KIARA][4];
 extern const unsigned int KiaraRomTable[8][2][16][8];
+extern const unsigned int Kiara_fps_vector[PWC_FPS_MAX_KIARA];
 
 #endif
 

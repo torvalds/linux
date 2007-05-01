@@ -100,5 +100,7 @@
 	_IO  ('#', 0x28)
 #define RAW1394_IOC_ISO_RECV_FLUSH		\
 	_IO  ('#', 0x29)
+#define RAW1394_IOC_GET_CYCLE_TIMER		\
+	_IOR ('#', 0x30, struct raw1394_cycle_timer)
 
 #endif /* __IEEE1394_IOCTL_H */

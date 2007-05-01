@@ -514,8 +514,7 @@ static void ns83820_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid
 
 	spin_lock_irq(&dev->misc_lock);
 	spin_lock(&dev->tx_lock);
-	if (dev->vlgrp)
-		dev->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(dev->vlgrp, vid, NULL);
 	spin_unlock(&dev->tx_lock);
 	spin_unlock_irq(&dev->misc_lock);
 }
@@ -608,7 +607,6 @@ static inline int rx_refill(struct net_device *ndev, gfp_t gfp)
 		res &= 0xf;
 		skb_reserve(skb, res);
 
-		skb->dev = ndev;
 		if (gfp != GFP_ATOMIC)
 			spin_lock_irqsave(&dev->rx_info.lock, flags);
 		res = ns83820_add_rx_skb(dev, skb);
@@ -1158,9 +1156,9 @@ again:
 	extsts = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		extsts |= EXTSTS_IPPKT;
-		if (IPPROTO_TCP == skb->nh.iph->protocol)
+		if (IPPROTO_TCP == ip_hdr(skb)->protocol)
 			extsts |= EXTSTS_TCPPKT;
-		else if (IPPROTO_UDP == skb->nh.iph->protocol)
+		else if (IPPROTO_UDP == ip_hdr(skb)->protocol)
 			extsts |= EXTSTS_UDPPKT;
 	}
 

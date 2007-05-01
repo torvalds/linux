@@ -50,9 +50,9 @@
 
 #include <linux/serial_8250.h>
 
-#include "clock.h"
-#include "devs.h"
-#include "cpu.h"
+#include <asm/plat-s3c24xx/clock.h>
+#include <asm/plat-s3c24xx/devs.h>
+#include <asm/plat-s3c24xx/cpu.h>
 #include "usb-simtec.h"
 
 #define COPYRIGHT ", (c) 2004-2005 Simtec Electronics"

@@ -231,10 +231,8 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 		 * Obtain the method mutex if necessary. Do not acquire mutex for a
 		 * recursive call.
 		 */
-		if (!walk_state ||
-		    !obj_desc->method.mutex->mutex.owner_thread ||
-		    (walk_state->thread !=
-		     obj_desc->method.mutex->mutex.owner_thread)) {
+		if (acpi_os_get_thread_id() !=
+		    obj_desc->method.mutex->mutex.owner_thread_id) {
 			/*
 			 * Acquire the method mutex. This releases the interpreter if we
 			 * block (and reacquires it before it returns)
@@ -248,14 +246,14 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 			}
 
 			/* Update the mutex and walk info and save the original sync_level */
+			obj_desc->method.mutex->mutex.owner_thread_id =
+				acpi_os_get_thread_id();
 
 			if (walk_state) {
 				obj_desc->method.mutex->mutex.
 				    original_sync_level =
 				    walk_state->thread->current_sync_level;
 
-				obj_desc->method.mutex->mutex.owner_thread =
-				    walk_state->thread;
 				walk_state->thread->current_sync_level =
 				    obj_desc->method.sync_level;
 			} else {
@@ -569,7 +567,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 
 			acpi_os_release_mutex(method_desc->method.mutex->mutex.
 					      os_mutex);
-			method_desc->method.mutex->mutex.owner_thread = NULL;
+			method_desc->method.mutex->mutex.owner_thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 		}
 	}
 

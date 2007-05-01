@@ -73,33 +73,11 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 	purge_tlb_end();
 }
 
-static inline void flush_tlb_range(struct vm_area_struct *vma,
-	unsigned long start, unsigned long end)
-{
-	unsigned long npages;
+void __flush_tlb_range(unsigned long sid,
+	unsigned long start, unsigned long end);
 
-	npages = ((end - (start & PAGE_MASK)) + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	if (npages >= 512)  /* 2MB of space: arbitrary, should be tuned */
-		flush_tlb_all();
-	else {
-		mtsp(vma->vm_mm->context,1);
-		purge_tlb_start();
-		if (split_tlb) {
-			while (npages--) {
-				pdtlb(start);
-				pitlb(start);
-				start += PAGE_SIZE;
-			}
-		} else {
-			while (npages--) {
-				pdtlb(start);
-				start += PAGE_SIZE;
-			}
-		}
-		purge_tlb_end();
-	}
-}
+#define flush_tlb_range(vma,start,end) __flush_tlb_range((vma)->vm_mm->context,start,end)
 
-#define flush_tlb_kernel_range(start, end) flush_tlb_all()
+#define flush_tlb_kernel_range(start, end) __flush_tlb_range(0,start,end)
 
 #endif

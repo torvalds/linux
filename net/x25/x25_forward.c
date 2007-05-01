@@ -26,57 +26,57 @@ int x25_forward_call(struct x25_address *dest_addr, struct x25_neigh *from,
 	short same_lci = 0;
 	int rc = 0;
 
-	if ((rt = x25_get_route(dest_addr)) != NULL) {
+	if ((rt = x25_get_route(dest_addr)) == NULL)
+		goto out_no_route;
 
-		if ((neigh_new = x25_get_neigh(rt->dev)) == NULL) {
-			/* This shouldnt happen, if it occurs somehow
-			 * do something sensible
-			 */
-			goto out_put_route;
-		}
-
-		/* Avoid a loop. This is the normal exit path for a
-		 * system with only one x.25 iface and default route
+	if ((neigh_new = x25_get_neigh(rt->dev)) == NULL) {
+		/* This shouldnt happen, if it occurs somehow
+		 * do something sensible
 		 */
-		if (rt->dev == from->dev) {
-			goto out_put_nb;
-		}
-
-		/* Remote end sending a call request on an already
-		 * established LCI? It shouldnt happen, just in case..
-		 */
-		read_lock_bh(&x25_forward_list_lock);
-		list_for_each(entry, &x25_forward_list) {
-			x25_frwd = list_entry(entry, struct x25_forward, node);
-			if (x25_frwd->lci == lci) {
-				printk(KERN_WARNING "X.25: call request for lci which is already registered!, transmitting but not registering new pair\n");
-				same_lci = 1;
-			}
-		}
-		read_unlock_bh(&x25_forward_list_lock);
-
-		/* Save the forwarding details for future traffic */
-		if (!same_lci){
-			if ((new_frwd = kmalloc(sizeof(struct x25_forward),
-							GFP_ATOMIC)) == NULL){
-				rc = -ENOMEM;
-				goto out_put_nb;
-			}
-			new_frwd->lci = lci;
-			new_frwd->dev1 = rt->dev;
-			new_frwd->dev2 = from->dev;
-			write_lock_bh(&x25_forward_list_lock);
-			list_add(&new_frwd->node, &x25_forward_list);
-			write_unlock_bh(&x25_forward_list_lock);
-		}
-
-		/* Forward the call request */
-		if ( (skbn = skb_clone(skb, GFP_ATOMIC)) == NULL){
-			goto out_put_nb;
-		}
-		x25_transmit_link(skbn, neigh_new);
-		rc = 1;
+		goto out_put_route;
 	}
+
+	/* Avoid a loop. This is the normal exit path for a
+	 * system with only one x.25 iface and default route
+	 */
+	if (rt->dev == from->dev) {
+		goto out_put_nb;
+	}
+
+	/* Remote end sending a call request on an already
+	 * established LCI? It shouldnt happen, just in case..
+	 */
+	read_lock_bh(&x25_forward_list_lock);
+	list_for_each(entry, &x25_forward_list) {
+		x25_frwd = list_entry(entry, struct x25_forward, node);
+		if (x25_frwd->lci == lci) {
+			printk(KERN_WARNING "X.25: call request for lci which is already registered!, transmitting but not registering new pair\n");
+			same_lci = 1;
+		}
+	}
+	read_unlock_bh(&x25_forward_list_lock);
+
+	/* Save the forwarding details for future traffic */
+	if (!same_lci){
+		if ((new_frwd = kmalloc(sizeof(struct x25_forward),
+						GFP_ATOMIC)) == NULL){
+			rc = -ENOMEM;
+			goto out_put_nb;
+		}
+		new_frwd->lci = lci;
+		new_frwd->dev1 = rt->dev;
+		new_frwd->dev2 = from->dev;
+		write_lock_bh(&x25_forward_list_lock);
+		list_add(&new_frwd->node, &x25_forward_list);
+		write_unlock_bh(&x25_forward_list_lock);
+	}
+
+	/* Forward the call request */
+	if ( (skbn = skb_clone(skb, GFP_ATOMIC)) == NULL){
+		goto out_put_nb;
+	}
+	x25_transmit_link(skbn, neigh_new);
+	rc = 1;
 
 
 out_put_nb:
@@ -84,6 +84,8 @@ out_put_nb:
 
 out_put_route:
 	x25_route_put(rt);
+
+out_no_route:
 	return rc;
 }
 

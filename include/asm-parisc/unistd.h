@@ -772,7 +772,7 @@
 #define __NR_mknodat		(__NR_Linux + 277)
 #define __NR_fchownat		(__NR_Linux + 278)
 #define __NR_futimesat		(__NR_Linux + 279)
-#define __NR_newfstatat		(__NR_Linux + 280)
+#define __NR_fstatat64		(__NR_Linux + 280)
 #define __NR_unlinkat		(__NR_Linux + 281)
 #define __NR_renameat		(__NR_Linux + 282)
 #define __NR_linkat		(__NR_Linux + 283)
@@ -786,8 +786,14 @@
 #define __NR_splice		(__NR_Linux + 291)
 #define __NR_sync_file_range	(__NR_Linux + 292)
 #define __NR_tee		(__NR_Linux + 293)
+#define __NR_vmsplice		(__NR_Linux + 294)
+#define __NR_move_pages		(__NR_Linux + 295)
+#define __NR_getcpu		(__NR_Linux + 296)
+#define __NR_epoll_pwait	(__NR_Linux + 297)
+#define __NR_statfs64		(__NR_Linux + 298)
+#define __NR_fstatfs64		(__NR_Linux + 299)
 
-#define __NR_Linux_syscalls     294
+#define __NR_Linux_syscalls     (__NR_fstatfs64 + 1)
 
 #define HPUX_GATEWAY_ADDR       0xC0000004
 #define LINUX_GATEWAY_ADDR      0x100
@@ -951,6 +957,8 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5)	\
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+#define __ARCH_WANT_SYS_RT_SIGSUSPEND
+#define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 
 #endif /* __ASSEMBLY__ */
 

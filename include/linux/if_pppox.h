@@ -111,9 +111,20 @@ struct pppoe_hdr {
 	struct pppoe_tag tag[0];
 } __attribute__ ((packed));
 
+/* Length of entire PPPoE + PPP header */
+#define PPPOE_SES_HLEN	8
+
 #ifdef __KERNEL__
+#include <linux/skbuff.h>
+
+static inline struct pppoe_hdr *pppoe_hdr(const struct sk_buff *skb)
+{
+	return (struct pppoe_hdr *)skb_network_header(skb);
+}
+
 struct pppoe_opt {
 	struct net_device      *dev;	  /* device associated with socket*/
+	int			ifindex;  /* ifindex of device associated with socket */
 	struct pppoe_addr	pa;	  /* what this socket is bound to*/
 	struct sockaddr_pppox	relay;	  /* what socket data will be
 					     relayed to (PPPoE relaying) */
@@ -132,6 +143,7 @@ struct pppox_sock {
 	unsigned short		num;
 };
 #define pppoe_dev	proto.pppoe.dev
+#define pppoe_ifindex	proto.pppoe.ifindex
 #define pppoe_pa	proto.pppoe.pa
 #define pppoe_relay	proto.pppoe.relay
 

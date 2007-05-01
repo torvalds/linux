@@ -686,6 +686,30 @@ static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf_Addr addr,
 	return NULL;
 }
 
+static inline int is_arm_mapping_symbol(const char *str)
+{
+	return str[0] == '$' && strchr("atd", str[1])
+	       && (str[2] == '\0' || str[2] == '.');
+}
+
+/*
+ * If there's no name there, ignore it; likewise, ignore it if it's
+ * one of the magic symbols emitted used by current ARM tools.
+ *
+ * Otherwise if find_symbols_between() returns those symbols, they'll
+ * fail the whitelist tests and cause lots of false alarms ... fixable
+ * only by merging __exit and __init sections into __text, bloating
+ * the kernel (which is especially evil on embedded platforms).
+ */
+static inline int is_valid_name(struct elf_info *elf, Elf_Sym *sym)
+{
+	const char *name = elf->strtab + sym->st_name;
+
+	if (!name || !strlen(name))
+		return 0;
+	return !is_arm_mapping_symbol(name);
+}
+
 /*
  * Find symbols before or equal addr and after addr - in the section sec.
  * If we find two symbols with equal offset prefer one with a valid name.
@@ -714,16 +738,15 @@ static void find_symbols_between(struct elf_info *elf, Elf_Addr addr,
 		symsec = secstrings + elf->sechdrs[sym->st_shndx].sh_name;
 		if (strcmp(symsec, sec) != 0)
 			continue;
+		if (!is_valid_name(elf, sym))
+			continue;
 		if (sym->st_value <= addr) {
 			if ((addr - sym->st_value) < beforediff) {
 				beforediff = addr - sym->st_value;
 				*before = sym;
 			}
 			else if ((addr - sym->st_value) == beforediff) {
-				/* equal offset, valid name? */
-				const char *name = elf->strtab + sym->st_name;
-				if (name && strlen(name))
-					*before = sym;
+				*before = sym;
 			}
 		}
 		else
@@ -733,10 +756,7 @@ static void find_symbols_between(struct elf_info *elf, Elf_Addr addr,
 				*after = sym;
 			}
 			else if ((sym->st_value - addr) == afterdiff) {
-				/* equal offset, valid name? */
-				const char *name = elf->strtab + sym->st_name;
-				if (name && strlen(name))
-					*after = sym;
+				*after = sym;
 			}
 		}
 	}
@@ -941,7 +961,7 @@ static int init_section_ref_ok(const char *name)
 		".opd",   /* see comment [OPD] at exit_section_ref_ok() */
 		".toc1",  /* used by ppc64 */
 		".stab",
-		".rodata",
+		".data.rel.ro", /* used by parisc64 */
 		".parainstructions",
 		".text.lock",
 		"__bug_table", /* used by powerpc for BUG() */
@@ -964,6 +984,7 @@ static int init_section_ref_ok(const char *name)
 		".eh_frame",
 		".debug",
 		".parainstructions",
+		".rodata",
 		NULL
 	};
 	/* part of section name */

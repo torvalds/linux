@@ -21,9 +21,7 @@
 #define cpu_has_watch		0
 #define cpu_has_mips16		0
 #define cpu_has_divec		0
-#define cpu_has_vce		0
 #define cpu_has_cache_cdex_p	1
-#define cpu_has_cache_cdex_s	0
 #define cpu_has_prefetch	0
 #define cpu_has_mcheck		0
 #define cpu_has_ejtag		0
@@ -34,9 +32,6 @@
 #define cpu_has_dsp		0
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1
-
-#define cpu_dcache_line_size()	32
-#define cpu_icache_line_size()	32
 
 #define cpu_has_mips32r1	0
 #define cpu_has_mips32r2	0

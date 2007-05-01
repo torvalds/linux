@@ -10,12 +10,11 @@
  */
 / {
 	model = "MPC8349EMITX";
-	compatible = "MPC834xMITX";
+	compatible = "MPC8349EMITX", "MPC834xMITX", "MPC83xxMITX";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
 	cpus {
-		#cpus = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -58,7 +57,7 @@
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <e 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			dfsrr;
 		};
 
@@ -67,7 +66,7 @@
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
 			interrupts = <f 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			dfsrr;
 		};
 
@@ -76,7 +75,7 @@
 			compatible = "mpc83xx_spi";
 			reg = <7000 1000>;
 			interrupts = <10 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			mode = <0>;
 		};
 
@@ -86,8 +85,8 @@
 			reg = <22000 1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupt-parent = <700>;
-			interrupts = <27 2>;
+			interrupt-parent = < &ipic >;
+			interrupts = <27 8>;
 			phy_type = "ulpi";
 			port1;
 		};
@@ -98,8 +97,8 @@
 			reg = <23000 1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupt-parent = <700>;
-			interrupts = <26 2>;
+			interrupt-parent = < &ipic >;
+			interrupts = <26 8>;
 			phy_type = "ulpi";
 		};
 
@@ -109,22 +108,19 @@
 			reg = <24520 20>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			linux,phandle = <24520>;
 
 			/* Vitesse 8201 */
-			ethernet-phy@1c {
-				linux,phandle = <245201c>;
-				interrupt-parent = <700>;
-				interrupts = <12 2>;
+			phy1c: ethernet-phy@1c {
+				interrupt-parent = < &ipic >;
+				interrupts = <12 8>;
 				reg = <1c>;
 				device_type = "ethernet-phy";
 			};
 
 			/* Vitesse 7385 */
-			ethernet-phy@1f {
-				linux,phandle = <245201f>;
-				interrupt-parent = <700>;
-				interrupts = <12 2>;
+			phy1f: ethernet-phy@1f {
+				interrupt-parent = < &ipic >;
+				interrupts = <12 8>;
 				reg = <1f>;
 				device_type = "ethernet-phy";
 			};
@@ -138,8 +134,8 @@
 			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <20 8 21 8 22 8>;
-			interrupt-parent = <700>;
-			phy-handle = <245201c>;
+			interrupt-parent = < &ipic >;
+			phy-handle = < &phy1c >;
 		};
 
 		ethernet@25000 {
@@ -152,8 +148,8 @@
 			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <23 8 24 8 25 8>;
-			interrupt-parent = <700>;
-			phy-handle = <245201f>;
+			interrupt-parent = < &ipic >;
+			phy-handle = < &phy1f >;
 		};
 
 		serial@4500 {
@@ -162,7 +158,7 @@
 			reg = <4500 100>;
 			clock-frequency = <0>;		// from bootloader
 			interrupts = <9 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 		};
 
 		serial@4600 {
@@ -171,16 +167,16 @@
 			reg = <4600 100>;
 			clock-frequency = <0>;		// from bootloader
 			interrupts = <a 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 		};
 
 		pci@8500 {
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
 					/* IDSEL 0x10 - SATA */
-					8000 0 0 1 700 16 8 /* SATA_INTA */
+					8000 0 0 1 &ipic 16 8 /* SATA_INTA */
 					>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			interrupts = <42 8>;
 			bus-range = <0 0>;
 			ranges = <42000000 0 80000000 80000000 0 10000000
@@ -199,13 +195,13 @@
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
 					/* IDSEL 0x0E - MiniPCI Slot */
-					7000 0 0 1 700 15 8 /* PCI_INTA */
+					7000 0 0 1 &ipic 15 8 /* PCI_INTA */
 
 					/* IDSEL 0x0F - PCI Slot */
-					7800 0 0 1 700 14 8 /* PCI_INTA */
-					7800 0 0 2 700 15 8 /* PCI_INTB */
+					7800 0 0 1 &ipic 14 8 /* PCI_INTA */
+					7800 0 0 2 &ipic 15 8 /* PCI_INTB */
 					 >;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			interrupts = <43 8>;
 			bus-range = <1 1>;
 			ranges = <42000000 0 a0000000 a0000000 0 10000000
@@ -226,15 +222,14 @@
 			compatible = "talitos";
 			reg = <30000 10000>;
 			interrupts = <b 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			num-channels = <4>;
 			channel-fifo-len = <18>;
 			exec-units-mask = <0000007e>;
 			descriptor-types-mask = <01010ebf>;
 		};
 
-		pic@700 {
-			linux,phandle = <700>;
+		ipic: pic@700 {
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;

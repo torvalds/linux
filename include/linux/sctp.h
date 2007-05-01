@@ -63,6 +63,15 @@ typedef struct sctphdr {
 	__be32 checksum;
 } __attribute__((packed)) sctp_sctphdr_t;
 
+#ifdef __KERNEL__
+#include <linux/skbuff.h>
+
+static inline struct sctphdr *sctp_hdr(const struct sk_buff *skb)
+{
+	return (struct sctphdr *)skb_transport_header(skb);
+}
+#endif
+
 /* Section 3.2.  Chunk Field Descriptions. */
 typedef struct sctp_chunkhdr {
 	__u8 type;

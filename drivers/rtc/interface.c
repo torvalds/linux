@@ -179,7 +179,7 @@ struct class_device *rtc_class_open(char *name)
 	down(&rtc_class->sem);
 	list_for_each_entry(class_dev_tmp, &rtc_class->children, node) {
 		if (strncmp(class_dev_tmp->class_id, name, BUS_ID_SIZE) == 0) {
-			class_dev = class_dev_tmp;
+			class_dev = class_device_get(class_dev_tmp);
 			break;
 		}
 	}
@@ -197,6 +197,7 @@ EXPORT_SYMBOL_GPL(rtc_class_open);
 void rtc_class_close(struct class_device *class_dev)
 {
 	module_put(to_rtc_device(class_dev)->owner);
+	class_device_put(class_dev);
 }
 EXPORT_SYMBOL_GPL(rtc_class_close);
 

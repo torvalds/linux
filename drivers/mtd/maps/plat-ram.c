@@ -169,7 +169,8 @@ static int platram_probe(struct platform_device *pdev)
 		goto exit_free;
 	}
 
-	dev_dbg(&pdev->dev, "got platform resource %p (0x%lx)\n", res, res->start);
+	dev_dbg(&pdev->dev, "got platform resource %p (0x%llx)\n", res,
+		(unsigned long long)res->start);
 
 	/* setup map parameters */
 

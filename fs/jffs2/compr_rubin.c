@@ -1,22 +1,93 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001, 2002 Red Hat, Inc.
+ * Copyright © 2001-2007 Red Hat, Inc.
  *
  * Created by Arjan van de Ven <arjanv@redhat.com>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
- *
- * $Id: compr_rubin.c,v 1.20 2004/06/23 16:34:40 havasi Exp $
  *
  */
 
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/jffs2.h>
-#include "compr_rubin.h"
-#include "histo_mips.h"
+#include <linux/errno.h>
 #include "compr.h"
+
+
+#define RUBIN_REG_SIZE   16
+#define UPPER_BIT_RUBIN    (((long) 1)<<(RUBIN_REG_SIZE-1))
+#define LOWER_BITS_RUBIN   ((((long) 1)<<(RUBIN_REG_SIZE-1))-1)
+
+
+#define BIT_DIVIDER_MIPS 1043
+static int bits_mips[8] = { 277,249,290,267,229,341,212,241}; /* mips32 */
+
+#include <linux/errno.h>
+
+struct pushpull {
+	unsigned char *buf;
+	unsigned int buflen;
+	unsigned int ofs;
+	unsigned int reserve;
+};
+
+struct rubin_state {
+	unsigned long p;
+	unsigned long q;
+	unsigned long rec_q;
+	long bit_number;
+	struct pushpull pp;
+	int bit_divider;
+	int bits[8];
+};
+
+static inline void init_pushpull(struct pushpull *pp, char *buf, unsigned buflen, unsigned ofs, unsigned reserve)
+{
+	pp->buf = buf;
+	pp->buflen = buflen;
+	pp->ofs = ofs;
+	pp->reserve = reserve;
+}
+
+static inline int pushbit(struct pushpull *pp, int bit, int use_reserved)
+{
+	if (pp->ofs >= pp->buflen - (use_reserved?0:pp->reserve)) {
+		return -ENOSPC;
+	}
+
+	if (bit) {
+		pp->buf[pp->ofs >> 3] |= (1<<(7-(pp->ofs &7)));
+	}
+	else {
+		pp->buf[pp->ofs >> 3] &= ~(1<<(7-(pp->ofs &7)));
+	}
+	pp->ofs++;
+
+	return 0;
+}
+
+static inline int pushedbits(struct pushpull *pp)
+{
+	return pp->ofs;
+}
+
+static inline int pullbit(struct pushpull *pp)
+{
+	int bit;
+
+	bit = (pp->buf[pp->ofs >> 3] >> (7-(pp->ofs & 7))) & 1;
+
+	pp->ofs++;
+	return bit;
+}
+
+static inline int pulledbits(struct pushpull *pp)
+{
+	return pp->ofs;
+}
+
 
 static void init_rubin(struct rubin_state *rs, int div, int *bits)
 {

@@ -939,7 +939,7 @@ struct cdrom_device_info {
 	int speed;			/* maximum speed for reading data */
 	int capacity;			/* number of discs in jukebox */
 /* device-related storage */
-	int options		: 30;	/* options flags */
+	unsigned int options	: 30;	/* options flags */
 	unsigned mc_flags	: 2;	/* media change buffer flags */
     	int use_count;                  /* number of times device opened */
     	char name[20];                  /* name of the device type */

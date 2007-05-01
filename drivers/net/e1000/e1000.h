@@ -155,9 +155,6 @@ struct e1000_adapter;
 /* Number of packet split data buffers (not including the header buffer) */
 #define PS_PAGE_BUFFERS MAX_PS_BUFFERS-1
 
-/* only works for sizes that are powers of 2 */
-#define E1000_ROUNDUP(i, size) ((i) = (((i) + (size) - 1) & ~((size) - 1)))
-
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
 struct e1000_buffer {
@@ -337,7 +334,6 @@ struct e1000_adapter {
 	struct e1000_rx_ring test_rx_ring;
 
 
-	uint32_t *config_space;
 	int msg_enable;
 #ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;

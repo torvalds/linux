@@ -47,7 +47,7 @@ enum hrtimer_restart {
  *	HRTIMER_CB_IRQSAFE:		Callback may run in hardirq context
  *	HRTIMER_CB_IRQSAFE_NO_RESTART:	Callback may run in hardirq context and
  *					does not restart the timer
- *	HRTIMER_CB_IRQSAFE_NO_SOFTIRQ:	Callback must run in softirq context
+ *	HRTIMER_CB_IRQSAFE_NO_SOFTIRQ:	Callback must run in hardirq context
  *					Special mode for tick emultation
  */
 enum hrtimer_cb_mode {
@@ -139,7 +139,8 @@ struct hrtimer_sleeper {
 };
 
 /**
- * struct hrtimer_base - the timer base for a specific clock
+ * struct hrtimer_clock_base - the timer base for a specific clock
+ * @cpu_base:		per cpu clock base
  * @index:		clock type index for per_cpu support when moving a
  *			timer to a base on another cpu.
  * @active:		red black tree root node for the active timers
@@ -205,6 +206,7 @@ struct hrtimer_cpu_base {
 struct clock_event_device;
 
 extern void clock_was_set(void);
+extern void hres_timers_resume(void);
 extern void hrtimer_interrupt(struct clock_event_device *dev);
 
 /*
@@ -234,6 +236,8 @@ static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
  * is expired in the next softirq when the clock was advanced.
  */
 static inline void clock_was_set(void) { }
+
+static inline void hres_timers_resume(void) { }
 
 /*
  * In non high resolution mode the time reference is taken from

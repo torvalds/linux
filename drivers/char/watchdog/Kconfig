@@ -301,6 +301,7 @@ config I6300ESB_WDT
 config I8XX_TCO
 	tristate "Intel i8xx TCO Timer/Watchdog"
 	depends on WATCHDOG && (X86 || IA64) && PCI
+	default n
 	---help---
 	  Hardware driver for the TCO timer built into the Intel 82801
 	  I/O Controller Hub family.  The TCO (Total Cost of Ownership)
@@ -547,7 +548,7 @@ config MV64X60_WDT
 	depends on WATCHDOG && MV64X60
 
 config BOOKE_WDT
-	tristate "PowerPC Book-E Watchdog Timer"
+	bool "PowerPC Book-E Watchdog Timer"
 	depends on WATCHDOG && (BOOKE || 4xx)
 	---help---
 	  Please see Documentation/watchdog/watchdog-api.txt for

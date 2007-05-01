@@ -25,10 +25,8 @@
 #define __ASM_ARCH_PXA_GPIO_H
 
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/hardware.h>
-
-#include <asm/errno.h>
+#include <asm/irq.h>
+#include <asm/hardware.h>
 
 static inline int gpio_request(unsigned gpio, const char *label)
 {
@@ -42,26 +40,36 @@ static inline void gpio_free(unsigned gpio)
 
 static inline int gpio_direction_input(unsigned gpio)
 {
-	if (gpio > PXA_LAST_GPIO)
-		return -EINVAL;
-	pxa_gpio_mode(gpio | GPIO_IN);
+	return pxa_gpio_mode(gpio | GPIO_IN);
 }
 
-static inline int gpio_direction_output(unsigned gpio)
+static inline int gpio_direction_output(unsigned gpio, int value)
 {
-	if (gpio > PXA_LAST_GPIO)
-		return -EINVAL;
-	pxa_gpio_mode(gpio | GPIO_OUT);
+	return pxa_gpio_mode(gpio | GPIO_OUT | (value ? 0 : GPIO_DFLT_LOW));
 }
 
-/* REVISIT these macros are correct, but suffer code explosion
- * for non-constant parameters.  Provide out-line versions too.
- */
-#define gpio_get_value(gpio) \
-	(GPLR(gpio) & GPIO_bit(gpio))
+static inline int __gpio_get_value(unsigned gpio)
+{
+	return GPLR(gpio) & GPIO_bit(gpio);
+}
 
-#define gpio_set_value(gpio,value) \
-	((value) ? (GPSR(gpio) = GPIO_bit(gpio)):(GPCR(gpio) = GPIO_bit(gpio)))
+#define gpio_get_value(gpio)			\
+	(__builtin_constant_p(gpio) ?		\
+	 __gpio_get_value(gpio) :		\
+	 pxa_gpio_get_value(gpio))
+
+static inline void __gpio_set_value(unsigned gpio, int value)
+{
+	if (value)
+		GPSR(gpio) = GPIO_bit(gpio);
+	else
+		GPCR(gpio) = GPIO_bit(gpio);
+}
+
+#define gpio_set_value(gpio,value)		\
+	(__builtin_constant_p(gpio) ?		\
+	 __gpio_set_value(gpio, value) :	\
+	 pxa_gpio_set_value(gpio, value))
 
 #include <asm-generic/gpio.h>			/* cansleep wrappers */
 

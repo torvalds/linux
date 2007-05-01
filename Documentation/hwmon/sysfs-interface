@@ -166,16 +166,21 @@ pwm[1-*]	Pulse width modulation fan control.
 
 pwm[1-*]_enable
 		Switch PWM on and off.
-		Not always present even if fan*_pwm is.
+		Not always present even if pwmN is.
 		0: turn off
 		1: turn on in manual mode
 		2+: turn on in automatic mode
-		Check individual chip documentation files for automatic mode details.
+		Check individual chip documentation files for automatic mode
+		details.
 		RW
 
-pwm[1-*]_mode
-		0: DC mode
-		1: PWM mode
+pwm[1-*]_mode	0: DC mode (direct current)
+		1: PWM mode (pulse-width modulation)
+		RW
+
+pwm[1-*]_freq	Base PWM frequency in Hz.
+		Only possibly available when pwmN_mode is PWM, but not always
+		present even then.
 		RW
 
 pwm[1-*]_auto_channels_temp

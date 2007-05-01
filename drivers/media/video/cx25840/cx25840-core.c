@@ -35,6 +35,7 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/cx25840.h>
 
 #include "cx25840-core.h"
@@ -628,25 +629,19 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/* ioctls to allow direct access to the
 	 * cx25840 registers for testing */
-	case VIDIOC_INT_G_REGISTER:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
 
-		if (reg->i2c_id != I2C_DRIVERID_CX25840)
-			return -EINVAL;
-		reg->val = cx25840_read(client, reg->reg & 0x0fff);
-		break;
-	}
-
-	case VIDIOC_INT_S_REGISTER:
-	{
-		struct v4l2_register *reg = arg;
-
-		if (reg->i2c_id != I2C_DRIVERID_CX25840)
+		if (!v4l2_chip_match_i2c_client(client, reg->match_type, reg->match_chip))
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		cx25840_write(client, reg->reg & 0x0fff, reg->val & 0xff);
+		if (cmd == VIDIOC_DBG_G_REGISTER)
+			reg->val = cx25840_read(client, reg->reg & 0x0fff);
+		else
+			cx25840_write(client, reg->reg & 0x0fff, reg->val & 0xff);
 		break;
 	}
 #endif
@@ -833,9 +828,8 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 			cx25840_initialize(client, 0);
 		break;
 
-	case VIDIOC_INT_G_CHIP_IDENT:
-		*(enum v4l2_chip_ident *)arg = state->id;
-		break;
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, state->id, state->rev);
 
 	default:
 		return -EINVAL;
@@ -853,7 +847,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 {
 	struct i2c_client *client;
 	struct cx25840_state *state;
-	enum v4l2_chip_ident id;
+	u32 id;
 	u16 device_id;
 
 	/* Check if the adapter supports the needed features
@@ -893,9 +887,11 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 		return 0;
 	}
 
+	/* Note: revision '(device_id & 0x0f) == 2' was never built. The
+	   marking skips from 0x1 == 22 to 0x3 == 23. */
 	v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",
 		    (device_id & 0xfff0) >> 4,
-		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : 3,
+		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : (device_id & 0x0f),
 		    address << 1, adapter->name);
 
 	i2c_set_clientdata(client, state);
@@ -906,13 +902,14 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	state->audmode = V4L2_TUNER_MODE_LANG1;
 	state->vbi_line_offset = 8;
 	state->id = id;
+	state->rev = device_id;
+
+	i2c_attach_client(client);
 
 	if (state->is_cx25836)
 		cx25836_initialize(client);
 	else
 		cx25840_initialize(client, 1);
-
-	i2c_attach_client(client);
 
 	return 0;
 }

@@ -77,26 +77,15 @@ static int port_cost(struct net_device *dev)
  * Called from work queue to allow for calling functions that
  * might sleep (such as speed check), and to debounce.
  */
-static void port_carrier_check(struct work_struct *work)
+void br_port_carrier_check(struct net_bridge_port *p)
 {
-	struct net_bridge_port *p;
-	struct net_device *dev;
-	struct net_bridge *br;
-
-	dev = container_of(work, struct net_bridge_port,
-			   carrier_check.work)->dev;
-	work_release(work);
-
-	rtnl_lock();
-	p = dev->br_port;
-	if (!p)
-		goto done;
-	br = p->br;
+	struct net_device *dev = p->dev;
+	struct net_bridge *br = p->br;
 
 	if (netif_carrier_ok(dev))
 		p->path_cost = port_cost(dev);
 
-	if (br->dev->flags & IFF_UP) {
+	if (netif_running(br->dev)) {
 		spin_lock_bh(&br->lock);
 		if (netif_carrier_ok(dev)) {
 			if (p->state == BR_STATE_DISABLED)
@@ -107,9 +96,6 @@ static void port_carrier_check(struct work_struct *work)
 		}
 		spin_unlock_bh(&br->lock);
 	}
-done:
-	dev_put(dev);
-	rtnl_unlock();
 }
 
 static void release_nbp(struct kobject *kobj)
@@ -162,12 +148,11 @@ static void del_nbp(struct net_bridge_port *p)
 
 	dev_set_promiscuity(dev, -1);
 
-	if (cancel_delayed_work(&p->carrier_check))
-		dev_put(dev);
-
 	spin_lock_bh(&br->lock);
 	br_stp_disable_port(p);
 	spin_unlock_bh(&br->lock);
+
+	br_ifinfo_notify(RTM_DELLINK, p);
 
 	br_fdb_delete_by_port(br, p, 1);
 
@@ -220,7 +205,7 @@ static struct net_device *new_bridge_dev(const char *name)
 	memcpy(br->group_addr, br_group_address, ETH_ALEN);
 
 	br->feature_mask = dev->features;
-	br->stp_enabled = 0;
+	br->stp_enabled = BR_NO_STP;
 	br->designated_root = br->bridge_id;
 	br->root_path_cost = 0;
 	br->root_port = 0;
@@ -282,7 +267,6 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->port_no = index;
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
-	INIT_DELAYED_WORK_NAR(&p->carrier_check, port_carrier_check);
 	br_stp_port_timer_init(p);
 
 	kobject_init(&p->kobj);
@@ -446,12 +430,16 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	spin_lock_bh(&br->lock);
 	br_stp_recalculate_bridge_id(br);
 	br_features_recompute(br);
-	if (schedule_delayed_work(&p->carrier_check, BR_PORT_DEBOUNCE))
-		dev_hold(dev);
 
+	if ((dev->flags & IFF_UP) && netif_carrier_ok(dev) &&
+	    (br->dev->flags & IFF_UP))
+		br_stp_enable_port(p);
 	spin_unlock_bh(&br->lock);
 
+	br_ifinfo_notify(RTM_NEWLINK, p);
+
 	dev_set_mtu(br->dev, br_min_mtu(br));
+
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
 	return 0;

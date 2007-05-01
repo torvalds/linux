@@ -43,8 +43,6 @@
 
 #define IDEDISK_VERSION	"1.18"
 
-#undef REALLY_SLOW_IO		/* most systems can safely undef this */
-
 //#define DEBUG
 
 #include <linux/module.h>
@@ -77,6 +75,7 @@ struct ide_disk_obj {
 	ide_driver_t	*driver;
 	struct gendisk	*disk;
 	struct kref	kref;
+	unsigned int	openers;	/* protected by BKL for now */
 };
 
 static DEFINE_MUTEX(idedisk_ref_mutex);
@@ -1081,8 +1080,9 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 
 	drive = idkp->drive;
 
-	drive->usage++;
-	if (drive->removable && drive->usage == 1) {
+	idkp->openers++;
+
+	if (drive->removable && idkp->openers == 1) {
 		ide_task_t args;
 		memset(&args, 0, sizeof(ide_task_t));
 		args.tfRegister[IDE_COMMAND_OFFSET] = WIN_DOORLOCK;
@@ -1106,9 +1106,10 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 	struct ide_disk_obj *idkp = ide_disk_g(disk);
 	ide_drive_t *drive = idkp->drive;
 
-	if (drive->usage == 1)
+	if (idkp->openers == 1)
 		ide_cacheflush_p(drive);
-	if (drive->removable && drive->usage == 1) {
+
+	if (drive->removable && idkp->openers == 1) {
 		ide_task_t args;
 		memset(&args, 0, sizeof(ide_task_t));
 		args.tfRegister[IDE_COMMAND_OFFSET] = WIN_DOORUNLOCK;
@@ -1117,7 +1118,8 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 		if (drive->doorlocking && ide_raw_taskfile(drive, &args, NULL))
 			drive->doorlocking = 0;
 	}
-	drive->usage--;
+
+	idkp->openers--;
 
 	ide_disk_put(idkp);
 

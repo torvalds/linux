@@ -1067,7 +1067,7 @@ static int __devinit inia100_probe_one(struct pci_dev *pdev,
 		goto out_disable_device;
 	}
 
-	/* <02> read from base address + 0x50 offset to get the bios balue. */
+	/* <02> read from base address + 0x50 offset to get the bios value. */
 	bios = ORC_RDWORD(port, 0x50);
 
 

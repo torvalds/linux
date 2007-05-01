@@ -22,6 +22,7 @@
 #include "lockspace.h"
 #include "lock.h"
 #include "lvb_table.h"
+#include "user.h"
 
 static const char *name_prefix="dlm";
 static struct miscdevice ctl_device;

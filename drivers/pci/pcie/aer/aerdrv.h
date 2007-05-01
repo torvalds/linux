@@ -85,7 +85,7 @@ struct aer_rpc {
 	struct mutex rpc_mutex;		/*
 					 * only one thread could do
 					 * recovery on the same
-					 * root port hierachy
+					 * root port hierarchy
 					 */
 	wait_queue_head_t wait_release;
 };

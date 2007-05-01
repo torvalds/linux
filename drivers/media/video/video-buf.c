@@ -148,6 +148,8 @@ int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
 	dprintk(1,"init user [0x%lx+0x%lx => %d pages]\n",
 		data,size,dma->nr_pages);
 
+	dma->varea = (void *) data;
+
 	down_read(&current->mm->mmap_sem);
 	err = get_user_pages(current,current->mm,
 			     data & PAGE_MASK, dma->nr_pages,
@@ -285,6 +287,7 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 
 	vfree(dma->vmalloc);
 	dma->vmalloc = NULL;
+	dma->varea = NULL;
 
 	if (dma->bus_addr) {
 		dma->bus_addr = 0;

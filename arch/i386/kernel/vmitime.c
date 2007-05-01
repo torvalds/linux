@@ -123,12 +123,10 @@ static struct clocksource clocksource_vmi = {
 static irqreturn_t vmi_timer_interrupt(int irq, void *dev_id);
 
 static struct irqaction vmi_timer_irq  = {
-	vmi_timer_interrupt,
-	SA_INTERRUPT,
-	CPU_MASK_NONE,
-	"VMI-alarm",
-	NULL,
-	NULL
+	.handler = vmi_timer_interrupt,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "VMI-alarm",
 };
 
 /* Alarm rate */
@@ -153,13 +151,6 @@ static void vmi_get_wallclock_ts(struct timespec *ts)
 	ts->tv_sec = wallclock;
 }
 
-static void update_xtime_from_wallclock(void)
-{
-	struct timespec ts;
-	vmi_get_wallclock_ts(&ts);
-	do_settimeofday(&ts);
-}
-
 unsigned long vmi_get_wallclock(void)
 {
 	struct timespec ts;
@@ -172,9 +163,18 @@ int vmi_set_wallclock(unsigned long now)
 	return -1;
 }
 
-unsigned long long vmi_sched_clock(void)
+unsigned long long vmi_get_sched_cycles(void)
 {
 	return read_available_cycles();
+}
+
+unsigned long vmi_cpu_khz(void)
+{
+	unsigned long long khz;
+
+	khz = vmi_timer_ops.get_cycle_frequency();
+	(void)do_div(khz, 1000);
+	return khz;
 }
 
 void __init vmi_time_init(void)
@@ -188,25 +188,16 @@ void __init vmi_time_init(void)
 	set_intr_gate(LOCAL_TIMER_VECTOR, apic_vmi_timer_interrupt);
 #endif
 
-	no_sync_cmos_clock = 1;
-
-	vmi_get_wallclock_ts(&xtime);
-	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
-
 	real_cycles_accounted_system = read_real_cycles();
-	update_xtime_from_wallclock();
 	per_cpu(process_times_cycles_accounted_cpu, 0) = read_available_cycles();
 
 	cycles_per_sec = vmi_timer_ops.get_cycle_frequency();
-
 	cycles_per_jiffy = cycles_per_sec;
 	(void)do_div(cycles_per_jiffy, HZ);
 	cycles_per_alarm = cycles_per_sec;
 	(void)do_div(cycles_per_alarm, alarm_hz);
 	cycles_per_msec = cycles_per_sec;
 	(void)do_div(cycles_per_msec, 1000);
-	cpu_khz = cycles_per_msec;
 
 	printk(KERN_WARNING "VMI timer cycles/sec = %llu ; cycles/jiffy = %llu ;"
 	       "cycles/alarm = %llu\n", cycles_per_sec, cycles_per_jiffy,
@@ -250,7 +241,7 @@ void __init vmi_timer_setup_boot_alarm(void)
 
 /* Initialize the time accounting variables for an AP on an SMP system.
  * Also, set the local alarm for the AP. */
-void __init vmi_timer_setup_secondary_alarm(void)
+void __devinit vmi_timer_setup_secondary_alarm(void)
 {
 	int cpu = smp_processor_id();
 
@@ -276,15 +267,12 @@ static void vmi_account_real_cycles(unsigned long long cur_real_cycles)
 
 	cycles_not_accounted = cur_real_cycles - real_cycles_accounted_system;
 	while (cycles_not_accounted >= cycles_per_jiffy) {
-		/* systems wide jiffies and wallclock. */
+		/* systems wide jiffies. */
 		do_timer(1);
 
 		cycles_not_accounted -= cycles_per_jiffy;
 		real_cycles_accounted_system += cycles_per_jiffy;
 	}
-
-	if (vmi_timer_ops.wallclock_updated())
-		update_xtime_from_wallclock();
 
 	write_sequnlock(&xtime_lock);
 }
@@ -380,7 +368,6 @@ int vmi_stop_hz_timer(void)
 	unsigned long seq, next;
 	unsigned long long real_cycles_expiry;
 	int cpu = smp_processor_id();
-	int idle;
 
 	BUG_ON(!irqs_disabled());
 	if (sysctl_hz_timer != 0)
@@ -388,13 +375,13 @@ int vmi_stop_hz_timer(void)
 
 	cpu_set(cpu, nohz_cpu_mask);
 	smp_mb();
+
 	if (rcu_needs_cpu(cpu) || local_softirq_pending() ||
-	    (next = next_timer_interrupt(), time_before_eq(next, jiffies))) {
+	    (next = next_timer_interrupt(),
+	     time_before_eq(next, jiffies + HZ/CONFIG_VMI_ALARM_HZ))) {
 		cpu_clear(cpu, nohz_cpu_mask);
-		next = jiffies;
-		idle = 0;
-	} else
-		idle = 1;
+		return 0;
+	}
 
 	/* Convert jiffies to the real cycle counter. */
 	do {
@@ -404,17 +391,13 @@ int vmi_stop_hz_timer(void)
 	} while (read_seqretry(&xtime_lock, seq));
 
 	/* This cpu is going idle. Disable the periodic alarm. */
-	if (idle) {
-		vmi_timer_ops.cancel_alarm(VMI_CYCLES_AVAILABLE);
-		per_cpu(idle_start_jiffies, cpu) = jiffies;
-	}
-
+	vmi_timer_ops.cancel_alarm(VMI_CYCLES_AVAILABLE);
+	per_cpu(idle_start_jiffies, cpu) = jiffies;
 	/* Set the real time alarm to expire at the next event. */
 	vmi_timer_ops.set_alarm(
-		      VMI_ALARM_WIRING | VMI_ALARM_IS_ONESHOT | VMI_CYCLES_REAL,
-		      real_cycles_expiry, 0);
-
-	return idle;
+		VMI_ALARM_WIRING | VMI_ALARM_IS_ONESHOT | VMI_CYCLES_REAL,
+		real_cycles_expiry, 0);
+	return 1;
 }
 
 static void vmi_reenable_hz_timer(int cpu)

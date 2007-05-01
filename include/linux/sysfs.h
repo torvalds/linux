@@ -11,12 +11,14 @@
 #define _SYSFS_H_
 
 #include <linux/compiler.h>
+#include <linux/errno.h>
 #include <linux/list.h>
 #include <asm/atomic.h>
 
 struct kobject;
 struct module;
 struct nameidata;
+struct dentry;
 
 struct attribute {
 	const char		* name;
@@ -68,18 +70,6 @@ struct sysfs_ops {
 	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
 };
 
-struct sysfs_dirent {
-	atomic_t		s_count;
-	struct list_head	s_sibling;
-	struct list_head	s_children;
-	void 			* s_element;
-	int			s_type;
-	umode_t			s_mode;
-	struct dentry		* s_dentry;
-	struct iattr		* s_iattr;
-	atomic_t		s_event;
-};
-
 #define SYSFS_ROOT		0x0001
 #define SYSFS_DIR		0x0002
 #define SYSFS_KOBJ_ATTR 	0x0004
@@ -88,6 +78,9 @@ struct sysfs_dirent {
 #define SYSFS_NOT_PINNED	(SYSFS_KOBJ_ATTR | SYSFS_KOBJ_BIN_ATTR | SYSFS_KOBJ_LINK)
 
 #ifdef CONFIG_SYSFS
+
+extern int sysfs_schedule_callback(struct kobject *kobj,
+		void (*func)(void *), void *data, struct module *owner);
 
 extern int __must_check
 sysfs_create_dir(struct kobject *, struct dentry *);
@@ -126,6 +119,11 @@ void sysfs_remove_bin_file(struct kobject *kobj, struct bin_attribute *attr);
 int __must_check sysfs_create_group(struct kobject *,
 					const struct attribute_group *);
 void sysfs_remove_group(struct kobject *, const struct attribute_group *);
+int sysfs_add_file_to_group(struct kobject *kobj,
+		const struct attribute *attr, const char *group);
+void sysfs_remove_file_from_group(struct kobject *kobj,
+		const struct attribute *attr, const char *group);
+
 void sysfs_notify(struct kobject * k, char *dir, char *attr);
 
 
@@ -137,6 +135,12 @@ extern void sysfs_remove_shadow_dir(struct dentry *dir);
 extern int __must_check sysfs_init(void);
 
 #else /* CONFIG_SYSFS */
+
+static inline int sysfs_schedule_callback(struct kobject *kobj,
+		void (*func)(void *), void *data, struct module *owner)
+{
+	return -ENOSYS;
+}
 
 static inline int sysfs_create_dir(struct kobject * k, struct dentry *shadow)
 {
@@ -208,6 +212,17 @@ static inline int sysfs_create_group(struct kobject * k, const struct attribute_
 static inline void sysfs_remove_group(struct kobject * k, const struct attribute_group * g)
 {
 	;
+}
+
+static inline int sysfs_add_file_to_group(struct kobject *kobj,
+		const struct attribute *attr, const char *group)
+{
+	return 0;
+}
+
+static inline void sysfs_remove_file_from_group(struct kobject *kobj,
+		const struct attribute *attr, const char *group)
+{
 }
 
 static inline void sysfs_notify(struct kobject * k, char *dir, char *attr)

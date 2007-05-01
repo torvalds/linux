@@ -521,7 +521,7 @@ ip_vs_lblc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	struct ip_vs_dest *dest;
 	struct ip_vs_lblc_table *tbl;
 	struct ip_vs_lblc_entry *en;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 
 	IP_VS_DBG(6, "ip_vs_lblc_schedule(): Scheduling...\n");
 

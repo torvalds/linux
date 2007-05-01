@@ -3,8 +3,8 @@
  * Intersil Prism2/2.5/3 - hostap.o module, common routines
  *
  * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
- * <jkmaline@cc.hut.fi>
- * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * <j@w1.fi>
+ * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -590,20 +590,20 @@ void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 
 int hostap_80211_header_parse(struct sk_buff *skb, unsigned char *haddr)
 {
-	memcpy(haddr, skb->mac.raw + 10, ETH_ALEN); /* addr2 */
+	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN); /* addr2 */
 	return ETH_ALEN;
 }
 
 
 int hostap_80211_prism_header_parse(struct sk_buff *skb, unsigned char *haddr)
 {
-	if (*(u32 *)skb->mac.raw == LWNG_CAP_DID_BASE) {
-		memcpy(haddr, skb->mac.raw +
-		       sizeof(struct linux_wlan_ng_prism_hdr) + 10,
+	const unsigned char *mac = skb_mac_header(skb);
+
+	if (*(u32 *)mac == LWNG_CAP_DID_BASE) {
+		memcpy(haddr, mac + sizeof(struct linux_wlan_ng_prism_hdr) + 10,
 		       ETH_ALEN); /* addr2 */
-	} else { /* (*(u32 *)skb->mac.raw == htonl(LWNG_CAPHDR_VERSION)) */
-		memcpy(haddr, skb->mac.raw +
-		       sizeof(struct linux_wlan_ng_cap_hdr) + 10,
+	} else { /* (*(u32 *)mac == htonl(LWNG_CAPHDR_VERSION)) */
+		memcpy(haddr, mac + sizeof(struct linux_wlan_ng_cap_hdr) + 10,
 		       ETH_ALEN); /* addr2 */
 	}
 	return ETH_ALEN;
@@ -1063,7 +1063,8 @@ int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u16 stype,
 	meta->iface = netdev_priv(dev);
 
 	skb->dev = dev;
-	skb->mac.raw = skb->nh.raw = skb->data;
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
 	dev_queue_xmit(skb);
 
 	return 0;

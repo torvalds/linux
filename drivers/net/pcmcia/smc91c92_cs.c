@@ -1669,7 +1669,6 @@ static void smc_rx(struct net_device *dev)
 	     (packet_length+1)>>1);
 	skb->protocol = eth_type_trans(skb, dev);
 	
-	skb->dev = dev;
 	netif_rx(skb);
 	dev->last_rx = jiffies;
 	smc->stats.rx_packets++;
@@ -1927,7 +1926,7 @@ static void media_check(u_long arg)
     if (smc->watchdog++ && ((i>>8) & i)) {
 	if (!smc->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-	smc_interrupt(dev->irq, smc);
+	smc_interrupt(dev->irq, dev);
 	smc->fast_poll = HZ;
     }
     if (smc->fast_poll) {

@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"0.7"
+#define DRV_VERSION	"0.8"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -137,14 +137,19 @@ enum {
 	PCI_ERR			= (1 << 18),
 	TRAN_LO_DONE		= (1 << 19),	/* 6xxx: IRQ coalescing */
 	TRAN_HI_DONE		= (1 << 20),	/* 6xxx: IRQ coalescing */
+	PORTS_0_3_COAL_DONE	= (1 << 8),
+	PORTS_4_7_COAL_DONE	= (1 << 17),
 	PORTS_0_7_COAL_DONE	= (1 << 21),	/* 6xxx: IRQ coalescing */
 	GPIO_INT		= (1 << 22),
 	SELF_INT		= (1 << 23),
 	TWSI_INT		= (1 << 24),
 	HC_MAIN_RSVD		= (0x7f << 25),	/* bits 31-25 */
+	HC_MAIN_RSVD_5		= (0x1fff << 19), /* bits 31-19 */
 	HC_MAIN_MASKED_IRQS	= (TRAN_LO_DONE | TRAN_HI_DONE |
 				   PORTS_0_7_COAL_DONE | GPIO_INT | TWSI_INT |
 				   HC_MAIN_RSVD),
+	HC_MAIN_MASKED_IRQS_5	= (PORTS_0_3_COAL_DONE | PORTS_4_7_COAL_DONE |
+				   HC_MAIN_RSVD_5),
 
 	/* SATAHC registers */
 	HC_CFG_OFS		= 0,
@@ -248,10 +253,7 @@ enum {
 #define IS_GEN_IIE(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_IIE)
 
 enum {
-	/* Our DMA boundary is determined by an ePRD being unable to handle
-	 * anything larger than 64KB
-	 */
-	MV_DMA_BOUNDARY		= 0xffffU,
+	MV_DMA_BOUNDARY		= 0xffffffffU,
 
 	EDMA_REQ_Q_BASE_LO_MASK	= 0xfffffc00U,
 
@@ -345,7 +347,6 @@ static void mv_port_stop(struct ata_port *ap);
 static void mv_qc_prep(struct ata_queued_cmd *qc);
 static void mv_qc_prep_iie(struct ata_queued_cmd *qc);
 static unsigned int mv_qc_issue(struct ata_queued_cmd *qc);
-static irqreturn_t mv_interrupt(int irq, void *dev_instance);
 static void mv_eng_timeout(struct ata_port *ap);
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
@@ -379,10 +380,10 @@ static struct scsi_host_template mv_sht = {
 	.queuecommand		= ata_scsi_queuecmd,
 	.can_queue		= MV_USE_Q_DEPTH,
 	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= MV_MAX_SG_CT / 2,
+	.sg_tablesize		= MV_MAX_SG_CT,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
+	.use_clustering		= 1,
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= MV_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
@@ -400,6 +401,7 @@ static const struct ata_port_operations mv5_ops = {
 	.dev_select		= ata_std_dev_select,
 
 	.phy_reset		= mv_phy_reset,
+	.cable_detect		= ata_cable_sata,
 
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
@@ -407,7 +409,6 @@ static const struct ata_port_operations mv5_ops = {
 
 	.eng_timeout		= mv_eng_timeout,
 
-	.irq_handler		= mv_interrupt,
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -429,6 +430,7 @@ static const struct ata_port_operations mv6_ops = {
 	.dev_select		= ata_std_dev_select,
 
 	.phy_reset		= mv_phy_reset,
+	.cable_detect		= ata_cable_sata,
 
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
@@ -436,7 +438,6 @@ static const struct ata_port_operations mv6_ops = {
 
 	.eng_timeout		= mv_eng_timeout,
 
-	.irq_handler		= mv_interrupt,
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -458,6 +459,7 @@ static const struct ata_port_operations mv_iie_ops = {
 	.dev_select		= ata_std_dev_select,
 
 	.phy_reset		= mv_phy_reset,
+	.cable_detect		= ata_cable_sata,
 
 	.qc_prep		= mv_qc_prep_iie,
 	.qc_issue		= mv_qc_issue,
@@ -465,7 +467,6 @@ static const struct ata_port_operations mv_iie_ops = {
 
 	.eng_timeout		= mv_eng_timeout,
 
-	.irq_handler		= mv_interrupt,
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -479,35 +480,30 @@ static const struct ata_port_operations mv_iie_ops = {
 
 static const struct ata_port_info mv_port_info[] = {
 	{  /* chip_504x */
-		.sht		= &mv_sht,
 		.flags		= MV_COMMON_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_508x */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_5080 */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_604x */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_608x */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS |
 				   MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
@@ -515,14 +511,12 @@ static const struct ata_port_info mv_port_info[] = {
 		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_6042 */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
 		.port_ops	= &mv_iie_ops,
 	},
 	{  /* chip_7042 */
-		.sht		= &mv_sht,
 		.flags		= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
@@ -545,6 +539,9 @@ static const struct pci_device_id mv_pci_tbl[] = {
 	{ PCI_VDEVICE(ADAPTEC2, 0x0241), chip_604x },
 
 	{ PCI_VDEVICE(TTI, 0x2310), chip_7042 },
+
+	/* add Marvell 7042 support */
+	{ PCI_VDEVICE(MARVELL, 0x7042), chip_7042 },
 
 	{ }			/* terminate list */
 };
@@ -579,6 +576,39 @@ static const struct mv_hw_ops mv6xxx_ops = {
  */
 static int msi;	      /* Use PCI msi; either zero (off, default) or non-zero */
 
+
+/* move to PCI layer or libata core? */
+static int pci_go_64(struct pci_dev *pdev)
+{
+	int rc;
+
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+		rc = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		if (rc) {
+			rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			if (rc) {
+				dev_printk(KERN_ERR, &pdev->dev,
+					   "64-bit DMA enable failed\n");
+				return rc;
+			}
+		}
+	} else {
+		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		if (rc) {
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit DMA enable failed\n");
+			return rc;
+		}
+		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		if (rc) {
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit consistent DMA enable failed\n");
+			return rc;
+		}
+	}
+
+	return rc;
+}
 
 /*
  * Functions
@@ -793,20 +823,18 @@ static u32 mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
-	if (0xffffffffU != ofs) {
+	if (0xffffffffU != ofs)
 		return readl(mv_ap_base(ap) + ofs);
-	} else {
+	else
 		return (u32) ofs;
-	}
 }
 
 static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 {
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
-	if (0xffffffffU != ofs) {
+	if (0xffffffffU != ofs)
 		writelfl(val, mv_ap_base(ap) + ofs);
-	}
 }
 
 static void mv_edma_cfg(struct mv_host_priv *hpriv, void __iomem *port_mmio)
@@ -814,23 +842,27 @@ static void mv_edma_cfg(struct mv_host_priv *hpriv, void __iomem *port_mmio)
 	u32 cfg = readl(port_mmio + EDMA_CFG_OFS);
 
 	/* set up non-NCQ EDMA configuration */
-	cfg &= ~0x1f;		/* clear queue depth */
-	cfg &= ~EDMA_CFG_NCQ;	/* clear NCQ mode */
 	cfg &= ~(1 << 9);	/* disable equeue */
 
-	if (IS_GEN_I(hpriv))
+	if (IS_GEN_I(hpriv)) {
+		cfg &= ~0x1f;		/* clear queue depth */
 		cfg |= (1 << 8);	/* enab config burst size mask */
+	}
 
-	else if (IS_GEN_II(hpriv))
+	else if (IS_GEN_II(hpriv)) {
+		cfg &= ~0x1f;		/* clear queue depth */
 		cfg |= EDMA_CFG_RD_BRST_EXT | EDMA_CFG_WR_BUFF_LEN;
+		cfg &= ~(EDMA_CFG_NCQ | EDMA_CFG_NCQ_GO_ON_ERR); /* clear NCQ */
+	}
 
 	else if (IS_GEN_IIE(hpriv)) {
-		cfg |= (1 << 23);	/* dis RX PM port mask */
-		cfg &= ~(1 << 16);	/* dis FIS-based switching (for now) */
+		cfg |= (1 << 23);	/* do not mask PM field in rx'd FIS */
+		cfg |= (1 << 22);	/* enab 4-entry host queue cache */
 		cfg &= ~(1 << 19);	/* dis 128-entry queue (for now?) */
 		cfg |= (1 << 18);	/* enab early completion */
-		cfg |= (1 << 17);	/* enab host q cache */
-		cfg |= (1 << 22);	/* enab cutthrough */
+		cfg |= (1 << 17);	/* enab cut-through (dis stor&forwrd) */
+		cfg &= ~(1 << 16);	/* dis FIS-based switching (for now) */
+		cfg &= ~(EDMA_CFG_NCQ | EDMA_CFG_NCQ_GO_ON_ERR); /* clear NCQ */
 	}
 
 	writelfl(cfg, port_mmio + EDMA_CFG_OFS);
@@ -950,38 +982,30 @@ static void mv_port_stop(struct ata_port *ap)
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_fill_sg(struct ata_queued_cmd *qc)
+static unsigned int mv_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct mv_port_priv *pp = qc->ap->private_data;
-	unsigned int i = 0;
+	unsigned int n_sg = 0;
 	struct scatterlist *sg;
+	struct mv_sg *mv_sg;
 
+	mv_sg = pp->sg_tbl;
 	ata_for_each_sg(sg, qc) {
-		dma_addr_t addr;
-		u32 sg_len, len, offset;
+		dma_addr_t addr = sg_dma_address(sg);
+		u32 sg_len = sg_dma_len(sg);
 
-		addr = sg_dma_address(sg);
-		sg_len = sg_dma_len(sg);
+		mv_sg->addr = cpu_to_le32(addr & 0xffffffff);
+		mv_sg->addr_hi = cpu_to_le32((addr >> 16) >> 16);
+		mv_sg->flags_size = cpu_to_le32(sg_len & 0xffff);
 
-		while (sg_len) {
-			offset = addr & MV_DMA_BOUNDARY;
-			len = sg_len;
-			if ((offset + sg_len) > 0x10000)
-				len = 0x10000 - offset;
+		if (ata_sg_is_last(sg, qc))
+			mv_sg->flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
 
-			pp->sg_tbl[i].addr = cpu_to_le32(addr & 0xffffffff);
-			pp->sg_tbl[i].addr_hi = cpu_to_le32((addr >> 16) >> 16);
-			pp->sg_tbl[i].flags_size = cpu_to_le32(len & 0xffff);
-
-			sg_len -= len;
-			addr += len;
-
-			if (!sg_len && ata_sg_is_last(sg, qc))
-				pp->sg_tbl[i].flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
-
-			i++;
-		}
+		mv_sg++;
+		n_sg++;
 	}
+
+	return n_sg;
 }
 
 static inline unsigned mv_inc_q_index(unsigned index)
@@ -1276,7 +1300,7 @@ static void mv_err_intr(struct ata_port *ap, int reset_allowed)
 		pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
 	}
 	DPRINTK(KERN_ERR "ata%u: port error; EDMA err cause: 0x%08x "
-		"SERR: 0x%08x\n", ap->id, edma_err_cause, serr);
+		"SERR: 0x%08x\n", ap->print_id, edma_err_cause, serr);
 
 	/* Clear EDMA now that SERR cleanup done */
 	writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
@@ -1311,17 +1335,15 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 	int shift, port, port0, hard_port, handled;
 	unsigned int err_mask;
 
-	if (hc == 0) {
+	if (hc == 0)
 		port0 = 0;
-	} else {
+	else
 		port0 = MV_PORTS_PER_HC;
-	}
 
 	/* we'll need the HC success int register in most cases */
 	hc_irq_cause = readl(hc_mmio + HC_IRQ_CAUSE_OFS);
-	if (hc_irq_cause) {
+	if (hc_irq_cause)
 		writelfl(~hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
-	}
 
 	VPRINTK("ENTER, hc%u relevant=0x%08x HC IRQ cause=0x%08x\n",
 		hc,relevant,hc_irq_cause);
@@ -1416,9 +1438,8 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 	/* check the cases where we either have nothing pending or have read
 	 * a bogus register value which can indicate HW removal or PCI fault
 	 */
-	if (!irq_stat || (0xffffffffU == irq_stat)) {
+	if (!irq_stat || (0xffffffffU == irq_stat))
 		return IRQ_NONE;
-	}
 
 	n_hcs = mv_get_hc_count(host->ports[0]->flags);
 	spin_lock(&host->lock);
@@ -1943,7 +1964,6 @@ comreset_retry:
 		ata_port_disable(ap);
 		return;
 	}
-	ap->cbl = ATA_CBL_SATA;
 
 	/* even after SStatus reflects that device is ready,
 	 * it seems to take a while for link to be fully
@@ -2052,7 +2072,7 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 	port->altstatus_addr = port->ctl_addr = shd_base + SHD_CTL_AST_OFS;
 
 	/* unused: */
-	port->cmd_addr = port->bmdma_addr = port->scr_addr = 0;
+	port->cmd_addr = port->bmdma_addr = port->scr_addr = NULL;
 
 	/* Clear any currently outstanding port interrupt conditions */
 	serr_ofs = mv_scr_offset(SCR_ERROR);
@@ -2068,9 +2088,10 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 		readl(port_mmio + EDMA_ERR_IRQ_MASK_OFS));
 }
 
-static int mv_chip_id(struct pci_dev *pdev, struct mv_host_priv *hpriv,
-		      unsigned int board_idx)
+static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 {
+	struct pci_dev *pdev = to_pci_dev(host->dev);
+	struct mv_host_priv *hpriv = host->private_data;
 	u8 rev_id;
 	u32 hp_flags = hpriv->hp_flags;
 
@@ -2168,8 +2189,8 @@ static int mv_chip_id(struct pci_dev *pdev, struct mv_host_priv *hpriv,
 
 /**
  *      mv_init_host - Perform some early initialization of the host.
- *	@pdev: host PCI device
- *      @probe_ent: early data struct representing the host
+ *	@host: ATA host to initialize
+ *      @board_idx: controller index
  *
  *      If possible, do an early global reset of the host.  Then do
  *      our port init and clear/unmask all/relevant host interrupts.
@@ -2177,24 +2198,23 @@ static int mv_chip_id(struct pci_dev *pdev, struct mv_host_priv *hpriv,
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
-			unsigned int board_idx)
+static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 {
 	int rc = 0, n_hc, port, hc;
-	void __iomem *mmio = probe_ent->iomap[MV_PRIMARY_BAR];
-	struct mv_host_priv *hpriv = probe_ent->private_data;
+	struct pci_dev *pdev = to_pci_dev(host->dev);
+	void __iomem *mmio = host->iomap[MV_PRIMARY_BAR];
+	struct mv_host_priv *hpriv = host->private_data;
 
 	/* global interrupt mask */
 	writel(0, mmio + HC_MAIN_IRQ_MASK_OFS);
 
-	rc = mv_chip_id(pdev, hpriv, board_idx);
+	rc = mv_chip_id(host, board_idx);
 	if (rc)
 		goto done;
 
-	n_hc = mv_get_hc_count(probe_ent->port_flags);
-	probe_ent->n_ports = MV_PORTS_PER_HC * n_hc;
+	n_hc = mv_get_hc_count(host->ports[0]->flags);
 
-	for (port = 0; port < probe_ent->n_ports; port++)
+	for (port = 0; port < host->n_ports; port++)
 		hpriv->ops->read_preamp(hpriv, port, mmio);
 
 	rc = hpriv->ops->reset_hc(hpriv, mmio, n_hc);
@@ -2205,7 +2225,7 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 	hpriv->ops->reset_bus(pdev, mmio);
 	hpriv->ops->enable_leds(hpriv, mmio);
 
-	for (port = 0; port < probe_ent->n_ports; port++) {
+	for (port = 0; port < host->n_ports; port++) {
 		if (IS_60XX(hpriv)) {
 			void __iomem *port_mmio = mv_port_base(mmio, port);
 
@@ -2218,9 +2238,9 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 		hpriv->ops->phy_errata(hpriv, mmio, port);
 	}
 
-	for (port = 0; port < probe_ent->n_ports; port++) {
+	for (port = 0; port < host->n_ports; port++) {
 		void __iomem *port_mmio = mv_port_base(mmio, port);
-		mv_port_init(&probe_ent->port[port], port_mmio);
+		mv_port_init(&host->ports[port]->ioaddr, port_mmio);
 	}
 
 	for (hc = 0; hc < n_hc; hc++) {
@@ -2240,7 +2260,11 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 
 	/* and unmask interrupt generation for host regs */
 	writelfl(PCI_UNMASK_ALL_IRQS, mmio + PCI_IRQ_MASK_OFS);
-	writelfl(~HC_MAIN_MASKED_IRQS, mmio + HC_MAIN_IRQ_MASK_OFS);
+
+	if (IS_50XX(hpriv))
+		writelfl(~HC_MAIN_MASKED_IRQS_5, mmio + HC_MAIN_IRQ_MASK_OFS);
+	else
+		writelfl(~HC_MAIN_MASKED_IRQS, mmio + HC_MAIN_IRQ_MASK_OFS);
 
 	VPRINTK("HC MAIN IRQ cause/mask=0x%08x/0x%08x "
 		"PCI int cause/mask=0x%08x/0x%08x\n",
@@ -2255,17 +2279,17 @@ done:
 
 /**
  *      mv_print_info - Dump key info to kernel log for perusal.
- *      @probe_ent: early data struct representing the host
+ *      @host: ATA host to print info about
  *
  *      FIXME: complete this.
  *
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_print_info(struct ata_probe_ent *probe_ent)
+static void mv_print_info(struct ata_host *host)
 {
-	struct pci_dev *pdev = to_pci_dev(probe_ent->dev);
-	struct mv_host_priv *hpriv = probe_ent->private_data;
+	struct pci_dev *pdev = to_pci_dev(host->dev);
+	struct mv_host_priv *hpriv = host->private_data;
 	u8 rev_id, scc;
 	const char *scc_s;
 
@@ -2284,7 +2308,7 @@ static void mv_print_info(struct ata_probe_ent *probe_ent)
 
 	dev_printk(KERN_INFO, &pdev->dev,
 	       "%u slots %u ports %s mode IRQ via %s\n",
-	       (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports,
+	       (unsigned)MV_MAX_Q_DEPTH, host->n_ports,
 	       scc_s, (MV_HP_FLAG_MSI & hpriv->hp_flags) ? "MSI" : "INTx");
 }
 
@@ -2299,65 +2323,55 @@ static void mv_print_info(struct ata_probe_ent *probe_ent)
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
-	struct device *dev = &pdev->dev;
-	struct ata_probe_ent *probe_ent;
-	struct mv_host_priv *hpriv;
 	unsigned int board_idx = (unsigned int)ent->driver_data;
-	int rc;
+	const struct ata_port_info *ppi[] = { &mv_port_info[board_idx], NULL };
+	struct ata_host *host;
+	struct mv_host_priv *hpriv;
+	int n_ports, rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
+	/* allocate host */
+	n_ports = mv_get_hc_count(ppi[0]->flags) * MV_PORTS_PER_HC;
+
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
+	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	if (!host || !hpriv)
+		return -ENOMEM;
+	host->private_data = hpriv;
+
+	/* acquire resources */
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
-	pci_set_master(pdev);
 
 	rc = pcim_iomap_regions(pdev, 1 << MV_PRIMARY_BAR, DRV_NAME);
 	if (rc == -EBUSY)
 		pcim_pin_device(pdev);
 	if (rc)
 		return rc;
+	host->iomap = pcim_iomap_table(pdev);
 
-	probe_ent = devm_kzalloc(dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL)
-		return -ENOMEM;
-
-	probe_ent->dev = pci_dev_to_dev(pdev);
-	INIT_LIST_HEAD(&probe_ent->node);
-
-	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv)
-		return -ENOMEM;
-
-	probe_ent->sht = mv_port_info[board_idx].sht;
-	probe_ent->port_flags = mv_port_info[board_idx].flags;
-	probe_ent->pio_mask = mv_port_info[board_idx].pio_mask;
-	probe_ent->udma_mask = mv_port_info[board_idx].udma_mask;
-	probe_ent->port_ops = mv_port_info[board_idx].port_ops;
-
-	probe_ent->irq = pdev->irq;
-	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->iomap = pcim_iomap_table(pdev);
-	probe_ent->private_data = hpriv;
+	rc = pci_go_64(pdev);
+	if (rc)
+		return rc;
 
 	/* initialize adapter */
-	rc = mv_init_host(pdev, probe_ent, board_idx);
+	rc = mv_init_host(host, board_idx);
 	if (rc)
 		return rc;
 
 	/* Enable interrupts */
-	if (msi && !pci_enable_msi(pdev))
+	if (msi && pci_enable_msi(pdev))
 		pci_intx(pdev, 1);
 
 	mv_dump_pci_cfg(pdev, 0x68);
-	mv_print_info(probe_ent);
+	mv_print_info(host);
 
-	if (ata_device_add(probe_ent) == 0)
-		return -ENODEV;
-
-	devm_kfree(dev, probe_ent);
-	return 0;
+	pci_set_master(pdev);
+	return ata_host_activate(host, pdev->irq, mv_interrupt, IRQF_SHARED,
+				 &mv_sht);
 }
 
 static int __init mv_init(void)

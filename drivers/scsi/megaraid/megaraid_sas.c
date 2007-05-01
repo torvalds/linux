@@ -10,11 +10,13 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version	: v00.00.03.05
+ * Version	: v00.00.03.10-rc1
  *
  * Authors:
- * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsi.com>
- * 	Sumant Patro		<Sumant.Patro@lsi.com>
+ *	(email-id : megaraidlinux@lsi.com)
+ * 	Sreenivas Bagalkote
+ * 	Sumant Patro
+ *	Bo Yang
  *
  * List of supported controllers
  *
@@ -35,6 +37,7 @@
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 #include <linux/compat.h>
+#include <linux/blkdev.h>
 #include <linux/mutex.h>
 
 #include <scsi/scsi.h>
@@ -841,6 +844,11 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 
 	instance = (struct megasas_instance *)
 	    scmd->device->host->hostdata;
+
+	/* Don't process if we have already declared adapter dead */
+	if (instance->hw_crit_error)
+		return SCSI_MLQUEUE_HOST_BUSY;
+
 	scmd->scsi_done = done;
 	scmd->result = 0;
 
@@ -848,6 +856,18 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 	    (scmd->device->id >= MEGASAS_MAX_LD || scmd->device->lun)) {
 		scmd->result = DID_BAD_TARGET << 16;
 		goto out_done;
+	}
+
+	switch (scmd->cmnd[0]) {
+	case SYNCHRONIZE_CACHE:
+		/*
+		 * FW takes care of flush cache on its own
+		 * No need to send it down
+		 */
+		scmd->result = DID_OK << 16;
+		goto out_done;
+	default:
+		break;
 	}
 
 	cmd = megasas_get_cmd(instance);
@@ -1010,6 +1030,49 @@ static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 }
 
 /**
+ * megasas_bios_param - Returns disk geometry for a disk
+ * @sdev: 		device handle
+ * @bdev:		block device
+ * @capacity:		drive capacity
+ * @geom:		geometry parameters
+ */
+static int
+megasas_bios_param(struct scsi_device *sdev, struct block_device *bdev,
+		 sector_t capacity, int geom[])
+{
+	int heads;
+	int sectors;
+	sector_t cylinders;
+	unsigned long tmp;
+	/* Default heads (64) & sectors (32) */
+	heads = 64;
+	sectors = 32;
+
+	tmp = heads * sectors;
+	cylinders = capacity;
+
+	sector_div(cylinders, tmp);
+
+	/*
+	 * Handle extended translation size for logical drives > 1Gb
+	 */
+
+	if (capacity >= 0x200000) {
+		heads = 255;
+		sectors = 63;
+		tmp = heads*sectors;
+		cylinders = capacity;
+		sector_div(cylinders, tmp);
+	}
+
+	geom[0] = heads;
+	geom[1] = sectors;
+	geom[2] = cylinders;
+
+	return 0;
+}
+
+/**
  * megasas_service_aen -	Processes an event notification
  * @instance:			Adapter soft state
  * @cmd:			AEN command completed by the ISR
@@ -1049,6 +1112,7 @@ static struct scsi_host_template megasas_template = {
 	.eh_device_reset_handler = megasas_reset_device,
 	.eh_bus_reset_handler = megasas_reset_bus_host,
 	.eh_host_reset_handler = megasas_reset_bus_host,
+	.bios_param = megasas_bios_param,
 	.use_clustering = ENABLE_CLUSTERING,
 };
 
@@ -1282,11 +1346,13 @@ megasas_deplete_reply_queue(struct megasas_instance *instance, u8 alt_status)
 	if(instance->instancet->clear_intr(instance->reg_set))
 		return IRQ_NONE;
 
+	if (instance->hw_crit_error)
+		goto out_done;
         /*
 	 * Schedule the tasklet for cmd completion
 	 */
 	tasklet_schedule(&instance->isr_tasklet);
-
+out_done:
 	return IRQ_HANDLED;
 }
 
@@ -1740,6 +1806,10 @@ static void megasas_complete_cmd_dpc(unsigned long instance_addr)
 	u32 context;
 	struct megasas_cmd *cmd;
 	struct megasas_instance *instance = (struct megasas_instance *)instance_addr;
+
+	/* If we have already declared adapter dead, donot complete cmds */
+	if (instance->hw_crit_error)
+		return;
 
 	producer = *instance->producer;
 	consumer = *instance->consumer;
@@ -2655,9 +2725,9 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	 * For each user buffer, create a mirror buffer and copy in
 	 */
 	for (i = 0; i < ioc->sge_count; i++) {
-		kbuff_arr[i] = pci_alloc_consistent(instance->pdev,
+		kbuff_arr[i] = dma_alloc_coherent(&instance->pdev->dev,
 						    ioc->sgl[i].iov_len,
-						    &buf_handle);
+						    &buf_handle, GFP_KERNEL);
 		if (!kbuff_arr[i]) {
 			printk(KERN_DEBUG "megasas: Failed to alloc "
 			       "kernel SGL buffer for IOCTL \n");
@@ -2684,8 +2754,8 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	}
 
 	if (ioc->sense_len) {
-		sense = pci_alloc_consistent(instance->pdev, ioc->sense_len,
-					     &sense_handle);
+		sense = dma_alloc_coherent(&instance->pdev->dev, ioc->sense_len,
+					     &sense_handle, GFP_KERNEL);
 		if (!sense) {
 			error = -ENOMEM;
 			goto out;
@@ -2744,12 +2814,12 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 
       out:
 	if (sense) {
-		pci_free_consistent(instance->pdev, ioc->sense_len,
+		dma_free_coherent(&instance->pdev->dev, ioc->sense_len,
 				    sense, sense_handle);
 	}
 
 	for (i = 0; i < ioc->sge_count && kbuff_arr[i]; i++) {
-		pci_free_consistent(instance->pdev,
+		dma_free_coherent(&instance->pdev->dev,
 				    kern_sge32[i].length,
 				    kbuff_arr[i], kern_sge32[i].phys_addr);
 	}

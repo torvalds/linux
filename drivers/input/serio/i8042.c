@@ -553,7 +553,8 @@ static int __devinit i8042_check_aux(void)
  */
 
 	param = 0x5a;
-	if (i8042_command(&param, I8042_CMD_AUX_LOOP) || param != 0x5a) {
+	retval = i8042_command(&param, I8042_CMD_AUX_LOOP);
+	if (retval || param != 0x5a) {
 
 /*
  * External connection test - filters out AT-soldered PS/2 i8042's
@@ -567,7 +568,12 @@ static int __devinit i8042_check_aux(void)
 		    (param && param != 0xfa && param != 0xff))
 			return -1;
 
-		aux_loop_broken = 1;
+/*
+ * If AUX_LOOP completed without error but returned unexpected data
+ * mark it as broken
+ */
+		if (!retval)
+			aux_loop_broken = 1;
 	}
 
 /*

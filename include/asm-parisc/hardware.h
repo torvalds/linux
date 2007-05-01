@@ -1,19 +1,13 @@
 #ifndef _PARISC_HARDWARE_H
 #define _PARISC_HARDWARE_H
 
+#include <linux/mod_devicetable.h>
 #include <asm/pdc.h>
 
-struct parisc_device_id {
-	unsigned char	hw_type;	/* 5 bits used */
-	unsigned char	hversion_rev;	/* 4 bits */
-	unsigned short	hversion;	/* 12 bits */
-	unsigned int	sversion;	/* 20 bits */
-};
-
-#define HWTYPE_ANY_ID	0xff
-#define HVERSION_REV_ANY_ID	0xff
-#define HVERSION_ANY_ID	0xffff
-#define SVERSION_ANY_ID	0xffffffffU
+#define HWTYPE_ANY_ID		PA_HWTYPE_ANY_ID
+#define HVERSION_ANY_ID		PA_HVERSION_ANY_ID
+#define HVERSION_REV_ANY_ID	PA_HVERSION_REV_ANY_ID
+#define SVERSION_ANY_ID		PA_SVERSION_ANY_ID
 
 struct hp_hardware {
 	unsigned short	hw_type:5;	/* HPHW_xxx */

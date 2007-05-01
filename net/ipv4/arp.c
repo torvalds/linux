@@ -342,13 +342,13 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	switch (IN_DEV_ARP_ANNOUNCE(in_dev)) {
 	default:
 	case 0:		/* By default announce any local IP */
-		if (skb && inet_addr_type(skb->nh.iph->saddr) == RTN_LOCAL)
-			saddr = skb->nh.iph->saddr;
+		if (skb && inet_addr_type(ip_hdr(skb)->saddr) == RTN_LOCAL)
+			saddr = ip_hdr(skb)->saddr;
 		break;
 	case 1:		/* Restrict announcements of saddr in same subnet */
 		if (!skb)
 			break;
-		saddr = skb->nh.iph->saddr;
+		saddr = ip_hdr(skb)->saddr;
 		if (inet_addr_type(saddr) == RTN_LOCAL) {
 			/* saddr should be known to target */
 			if (inet_addr_onlink(in_dev, target, saddr))
@@ -578,7 +578,7 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 		return NULL;
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 	arp = (struct arphdr *) skb_put(skb,sizeof(struct arphdr) + 2*(dev->addr_len+4));
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_ARP);
@@ -721,7 +721,7 @@ static int arp_process(struct sk_buff *skb)
 	if (in_dev == NULL)
 		goto out;
 
-	arp = skb->nh.arph;
+	arp = arp_hdr(skb);
 
 	switch (dev_type) {
 	default:
@@ -937,7 +937,7 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 				 (2 * sizeof(u32)))))
 		goto freeskb;
 
-	arp = skb->nh.arph;
+	arp = arp_hdr(skb);
 	if (arp->ar_hln != dev->addr_len ||
 	    dev->flags & IFF_NOARP ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
@@ -1178,7 +1178,7 @@ int arp_ioctl(unsigned int cmd, void __user *arg)
 		goto out;
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCDARP:
 		err = arp_req_delete(&r, dev);
 		break;
@@ -1360,7 +1360,7 @@ static void *arp_seq_start(struct seq_file *seq, loff_t *pos)
 
 /* ------------------------------------------------------------------------ */
 
-static struct seq_operations arp_seq_ops = {
+static const struct seq_operations arp_seq_ops = {
 	.start  = arp_seq_start,
 	.next   = neigh_seq_next,
 	.stop   = neigh_seq_stop,

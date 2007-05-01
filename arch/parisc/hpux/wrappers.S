@@ -20,19 +20,16 @@
  *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #warning PA64 support needs more work...did first cut
 #endif
 
 #include <asm/asm-offsets.h>
 #include <asm/assembly.h>
 #include <asm/signal.h>
+#include <linux/linkage.h>
 
-#ifdef __LP64__
-	.level          2.0w
-#else
-	.level		1.1
-#endif
+	.level	LEVEL
 	.text
 
 	/* These should probably go in a header file somewhere.
@@ -41,7 +38,7 @@
 	 * register save/restore macros.
 	 */
 	.macro	reg_save regs
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #warning NEEDS WORK for 64-bit
 #endif
 	STREG	%r3, PT_GR3(\regs)
@@ -82,11 +79,9 @@
 	.endm
 
 
-	.export hpux_fork_wrapper
-	.export hpux_child_return
 	.import sys_fork
 
-hpux_fork_wrapper:
+ENTRY(hpux_fork_wrapper)
 	ldo	TASK_REGS-TASK_SZ_ALGN-64(%r30),%r1	    ;! get pt regs
 							    ;! pointer in task
 	reg_save %r1
@@ -128,27 +123,26 @@ fork_return:
 fork_exit:
 	bv	%r0(%r2)
 	nop
+ENDPROC(hpux_fork_wrapper)
 
 	/* Set the return value for the child */
 
-hpux_child_return:
+ENTRY(hpux_child_return)
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
-	bl	schedule_tail, %r2
-	nop
+	bl,n	schedule_tail, %r2
 #endif
 
 	LDREG	TASK_PT_GR19-TASK_SZ_ALGN-128(%r30),%r2
 	b fork_return
 	copy %r0,%r28
+ENDPROC(hpux_child_return)
 
-	.export hpux_execve_wrapper
-	.export hpux_execv_wrapper
 	.import hpux_execve
 
-hpux_execv_wrapper:
+ENTRY(hpux_execv_wrapper)
 	copy %r0,%r24  /* NULL environment */
 
-hpux_execve_wrapper:
+ENTRY(hpux_execve_wrapper)
 
 	ldo	TASK_REGS-TASK_SZ_ALGN-64(%r30),%r1	    ;! get pt regs
 
@@ -187,13 +181,13 @@ hpux_execve_wrapper:
 exec_error:
 	bv %r0(%r19)
 	nop
+ENDPROC(hpux_execv_wrapper)
 
-	.export hpux_pipe_wrapper
 	.import hpux_pipe
 
 	/* HP-UX expects pipefd's returned in r28 & r29 */
 
-hpux_pipe_wrapper:
+ENTRY(hpux_pipe_wrapper)
 	STREG %r2,-20(%r30)
 	ldo 64(%r30),%r30
 	bl hpux_pipe,%r2
@@ -212,12 +206,11 @@ hpux_pipe_wrapper:
 pipe_exit:
 	bv %r0(%r2)
 	ldo -64(%r30),%r30
+ENDPROC(hpux_pipe_wrapper)
 
-	.export hpux_syscall_exit
 	.import syscall_exit
 
-hpux_syscall_exit:
-
+ENTRY(hpux_syscall_exit)
 	/*
 	 *
 	 * HP-UX call return conventions:
@@ -246,12 +239,12 @@ hpux_syscall_exit:
 	ldo 1(%r0),%r22
 
 no_error:
-	b syscall_exit
-	nop
+	b,n syscall_exit
+ENDPROC(hpux_syscall_exit)
 
-	.export hpux_unimplemented_wrapper
 	.import hpux_unimplemented
 
-hpux_unimplemented_wrapper:
+ENTRY(hpux_unimplemented_wrapper)
 	b hpux_unimplemented
 	STREG %r22,-64(%r30)  /* overwrite arg8 with syscall number */
+ENDPROC(hpux_unimplemented_wrapper)

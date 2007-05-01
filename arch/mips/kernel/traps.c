@@ -229,6 +229,9 @@ void show_regs(struct pt_regs *regs)
 			printk("\n");
 	}
 
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
+	printk("Acx    : %0*lx\n", field, regs->acx);
+#endif
 	printk("Hi    : %0*lx\n", field, regs->hi);
 	printk("Lo    : %0*lx\n", field, regs->lo);
 
@@ -340,13 +343,9 @@ NORET_TYPE void ATTRIB_NORET die(const char * str, struct pt_regs * regs)
 extern const struct exception_table_entry __start___dbe_table[];
 extern const struct exception_table_entry __stop___dbe_table[];
 
-void __declare_dbe_table(void)
-{
-	__asm__ __volatile__(
-	".section\t__dbe_table,\"a\"\n\t"
-	".previous"
-	);
-}
+__asm__(
+"	.section	__dbe_table, \"a\"\n"
+"	.previous			\n");
 
 /* Given an address, look for it in the exception tables. */
 static const struct exception_table_entry *search_dbe_tables(unsigned long addr)
@@ -611,16 +610,6 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 	if (fcr31 & FPU_CSR_UNI_X) {
 		int sig;
 
-		preempt_disable();
-
-#ifdef CONFIG_PREEMPT
-		if (!is_fpu_owner()) {
-			/* We might lose fpu before disabling preempt... */
-			own_fpu();
-			BUG_ON(!used_math());
-			restore_fp(current);
-		}
-#endif
 		/*
 		 * Unimplemented operation exception.  If we've got the full
 		 * software emulator on-board, let's use it...
@@ -631,18 +620,12 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		 * register operands before invoking the emulator, which seems
 		 * a bit extreme for what should be an infrequent event.
 		 */
-		save_fp(current);
 		/* Ensure 'resume' not overwrite saved fp context again. */
-		lose_fpu();
-
-		preempt_enable();
+		lose_fpu(1);
 
 		/* Run the emulator */
 		sig = fpu_emulator_cop1Handler (regs, &current->thread.fpu, 1);
 
-		preempt_disable();
-
-		own_fpu();	/* Using the FPU again.  */
 		/*
 		 * We can't allow the emulated instruction to leave any of
 		 * the cause bit set in $fcr31.
@@ -650,9 +633,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
 
 		/* Restore the hardware register state */
-		restore_fp(current);
-
-		preempt_enable();
+		own_fpu(1);	/* Using the FPU again.  */
 
 		/* If something went wrong, signal */
 		if (sig)
@@ -669,7 +650,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	unsigned int opcode, bcode;
 	siginfo_t info;
 
-	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+	if (__get_user(opcode, (unsigned int __user *) exception_epc(regs)))
 		goto out_sigsegv;
 
 	/*
@@ -708,6 +689,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 		die_if_kernel("Break instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
+	return;
 
 out_sigsegv:
 	force_sig(SIGSEGV, current);
@@ -718,7 +700,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	unsigned int opcode, tcode = 0;
 	siginfo_t info;
 
-	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+	if (__get_user(opcode, (unsigned int __user *) exception_epc(regs)))
 		goto out_sigsegv;
 
 	/* Immediate versions don't provide a code.  */
@@ -751,6 +733,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 		die_if_kernel("Trap instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
+	return;
 
 out_sigsegv:
 	force_sig(SIGSEGV, current);
@@ -790,21 +773,15 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 		break;
 
 	case 1:
-		preempt_disable();
-
-		own_fpu();
-		if (used_math()) {	/* Using the FPU again.  */
-			restore_fp(current);
-		} else {			/* First time FPU user.  */
+		if (used_math())	/* Using the FPU again.  */
+			own_fpu(1);
+		else {			/* First time FPU user.  */
 			init_fpu();
 			set_used_math();
 		}
 
-		if (cpu_has_fpu) {
-			preempt_enable();
-		} else {
+		if (!raw_cpu_has_fpu) {
 			int sig;
-			preempt_enable();
 			sig = fpu_emulator_cop1Handler(regs,
 						&current->thread.fpu, 0);
 			if (sig)
@@ -845,7 +822,6 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 	case 2:
 	case 3:
-		die_if_kernel("do_cpu invoked from kernel context!", regs);
 		break;
 	}
 
@@ -1258,26 +1234,26 @@ static inline void mips_srs_init(void)
 /*
  * This is used by native signal handling
  */
-asmlinkage int (*save_fp_context)(struct sigcontext *sc);
-asmlinkage int (*restore_fp_context)(struct sigcontext *sc);
+asmlinkage int (*save_fp_context)(struct sigcontext __user *sc);
+asmlinkage int (*restore_fp_context)(struct sigcontext __user *sc);
 
-extern asmlinkage int _save_fp_context(struct sigcontext *sc);
-extern asmlinkage int _restore_fp_context(struct sigcontext *sc);
+extern asmlinkage int _save_fp_context(struct sigcontext __user *sc);
+extern asmlinkage int _restore_fp_context(struct sigcontext __user *sc);
 
-extern asmlinkage int fpu_emulator_save_context(struct sigcontext *sc);
-extern asmlinkage int fpu_emulator_restore_context(struct sigcontext *sc);
+extern asmlinkage int fpu_emulator_save_context(struct sigcontext __user *sc);
+extern asmlinkage int fpu_emulator_restore_context(struct sigcontext __user *sc);
 
 #ifdef CONFIG_SMP
-static int smp_save_fp_context(struct sigcontext *sc)
+static int smp_save_fp_context(struct sigcontext __user *sc)
 {
-	return cpu_has_fpu
+	return raw_cpu_has_fpu
 	       ? _save_fp_context(sc)
 	       : fpu_emulator_save_context(sc);
 }
 
-static int smp_restore_fp_context(struct sigcontext *sc)
+static int smp_restore_fp_context(struct sigcontext __user *sc)
 {
-	return cpu_has_fpu
+	return raw_cpu_has_fpu
 	       ? _restore_fp_context(sc)
 	       : fpu_emulator_restore_context(sc);
 }
@@ -1305,14 +1281,14 @@ static inline void signal_init(void)
 /*
  * This is used by 32-bit signal stuff on the 64-bit kernel
  */
-asmlinkage int (*save_fp_context32)(struct sigcontext32 *sc);
-asmlinkage int (*restore_fp_context32)(struct sigcontext32 *sc);
+asmlinkage int (*save_fp_context32)(struct sigcontext32 __user *sc);
+asmlinkage int (*restore_fp_context32)(struct sigcontext32 __user *sc);
 
-extern asmlinkage int _save_fp_context32(struct sigcontext32 *sc);
-extern asmlinkage int _restore_fp_context32(struct sigcontext32 *sc);
+extern asmlinkage int _save_fp_context32(struct sigcontext32 __user *sc);
+extern asmlinkage int _restore_fp_context32(struct sigcontext32 __user *sc);
 
-extern asmlinkage int fpu_emulator_save_context32(struct sigcontext32 *sc);
-extern asmlinkage int fpu_emulator_restore_context32(struct sigcontext32 *sc);
+extern asmlinkage int fpu_emulator_save_context32(struct sigcontext32 __user *sc);
+extern asmlinkage int fpu_emulator_restore_context32(struct sigcontext32 __user *sc);
 
 static inline void signal32_init(void)
 {

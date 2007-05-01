@@ -307,7 +307,7 @@ sys_call_table:
 	PTR	compat_sys_statfs
 	PTR	compat_sys_fstatfs		/* 4100 */
 	PTR	sys_ni_syscall			/* sys_ioperm */
-	PTR	sys32_socketcall
+	PTR	compat_sys_socketcall
 	PTR	sys_syslog
 	PTR	compat_sys_setitimer
 	PTR	compat_sys_getitimer		/* 4105 */
@@ -462,7 +462,7 @@ sys_call_table:
 	PTR	sys_fadvise64_64
 	PTR	compat_sys_statfs64		/* 4255 */
 	PTR	compat_sys_fstatfs64
-	PTR	sys32_timer_create
+	PTR	compat_sys_timer_create
 	PTR	compat_sys_timer_settime
 	PTR	compat_sys_timer_gettime
 	PTR	sys_timer_getoverrun		/* 4260 */
@@ -518,5 +518,7 @@ sys_call_table:
 	PTR	compat_sys_get_robust_list	/* 4310 */
 	PTR	compat_sys_kexec_load
 	PTR	sys_getcpu
-	PTR	sys_epoll_pwait
+	PTR	compat_sys_epoll_pwait
+	PTR	sys_ioprio_set
+	PTR	sys_ioprio_get			/* 4315 */
 	.size	sys_call_table,.-sys_call_table

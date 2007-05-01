@@ -244,9 +244,10 @@ static struct Scsi_Host * __init sgiwd93_setup_scsi(
 	regs.SASR = wdregs + 3;
 	regs.SCMD = wdregs + 7;
 
-	wd33c93_init(host, regs, dma_setup, dma_stop, WD33C93_FS_16_20);
+	wd33c93_init(host, regs, dma_setup, dma_stop, WD33C93_FS_MHZ(20));
 
-	hdata->wh.no_sync = 0;
+	if (hdata->wh.no_sync == 0xff)
+		hdata->wh.no_sync = 0;
 
 	if (request_irq(irq, sgiwd93_intr, 0, "SGI WD93", (void *) host)) {
 		printk(KERN_WARNING "sgiwd93: Could not register irq %d "

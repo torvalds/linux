@@ -27,7 +27,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt366"
-#define DRV_VERSION	"0.5.3"
+#define DRV_VERSION	"0.6.1"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -169,13 +169,12 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr, cons
 
 /**
  *	hpt366_filter	-	mode selection filter
- *	@ap: ATA interface
  *	@adev: ATA device
  *
  *	Block UDMA on devices that cause trouble with this controller.
  */
 
-static unsigned long hpt366_filter(const struct ata_port *ap, struct ata_device *adev, unsigned long mask)
+static unsigned long hpt366_filter(struct ata_device *adev, unsigned long mask)
 {
 	if (adev->class == ATA_DEV_ATA) {
 		if (hpt_dma_blacklisted(adev, "UDMA",  bad_ata33))
@@ -185,7 +184,7 @@ static unsigned long hpt366_filter(const struct ata_port *ap, struct ata_device 
 		if (hpt_dma_blacklisted(adev, "UDMA4", bad_ata66_4))
 			mask &= ~(0x0F << ATA_SHIFT_UDMA);
 	}
-	return ata_pci_default_filter(ap, adev, mask);
+	return ata_pci_default_filter(adev, mask);
 }
 
 /**
@@ -210,24 +209,28 @@ static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
 	return 0xffffffffU;	/* silence compiler warning */
 }
 
+static int hpt36x_cable_detect(struct ata_port *ap)
+{
+	u8 ata66;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+
+	pci_read_config_byte(pdev, 0x5A, &ata66);
+	if (ata66 & (1 << ap->port_no))
+		return ATA_CBL_PATA40;
+	return ATA_CBL_PATA80;
+}
+
 static int hpt36x_pre_reset(struct ata_port *ap)
 {
 	static const struct pci_bits hpt36x_enable_bits[] = {
 		{ 0x50, 1, 0x04, 0x04 },
 		{ 0x54, 1, 0x04, 0x04 }
 	};
-
-	u8 ata66;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (!pci_test_config_bits(pdev, &hpt36x_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	pci_read_config_byte(pdev, 0x5A, &ata66);
-	if (ata66 & (1 << ap->port_no))
-		ap->cbl = ATA_CBL_PATA40;
-	else
-		ap->cbl = ATA_CBL_PATA80;
 	return ata_std_prereset(ap);
 }
 
@@ -328,8 +331,10 @@ static struct scsi_host_template hpt36x_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.resume			= ata_scsi_device_resume,
 	.suspend		= ata_scsi_device_suspend,
+#endif
 };
 
 /*
@@ -352,6 +357,7 @@ static struct ata_port_operations hpt366_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= hpt36x_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= hpt36x_cable_detect,
 
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= ata_bmdma_start,
@@ -457,12 +463,13 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, port_info, 2);
 }
 
+#ifdef CONFIG_PM
 static int hpt36x_reinit_one(struct pci_dev *dev)
 {
 	hpt36x_init_chipset(dev);
 	return ata_pci_device_resume(dev);
 }
-
+#endif
 
 static const struct pci_device_id hpt36x[] = {
 	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT366), },
@@ -474,8 +481,10 @@ static struct pci_driver hpt36x_pci_driver = {
 	.id_table	= hpt36x,
 	.probe 		= hpt36x_init_one,
 	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
 	.resume		= hpt36x_reinit_one,
+#endif
 };
 
 static int __init hpt36x_init(void)

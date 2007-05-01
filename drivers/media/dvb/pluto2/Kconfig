@@ -2,7 +2,6 @@ config DVB_PLUTO2
 	tristate "Pluto2 cards"
 	depends on DVB_CORE && PCI && I2C
 	select I2C_ALGOBIT
-	select DVB_PLL
 	select DVB_TDA1004X
 	help
 	  Support for PCI cards based on the Pluto2 FPGA like the Satelco

@@ -27,7 +27,6 @@
 #include <linux/irq.h>
 #include <linux/types.h>
 
-#include <asm/i8259.h>
 #include <asm/system.h>
 #include <asm/mipsregs.h>
 #include <asm/debug.h>

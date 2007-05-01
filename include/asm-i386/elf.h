@@ -88,16 +88,16 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 	pr_reg[4] = regs->edi;				\
 	pr_reg[5] = regs->ebp;				\
 	pr_reg[6] = regs->eax;				\
-	pr_reg[7] = regs->xds;				\
-	pr_reg[8] = regs->xes;				\
-	pr_reg[9] = regs->xfs;				\
+	pr_reg[7] = regs->xds & 0xffff;			\
+	pr_reg[8] = regs->xes & 0xffff;			\
+	pr_reg[9] = regs->xfs & 0xffff;			\
 	savesegment(gs,pr_reg[10]);			\
 	pr_reg[11] = regs->orig_eax;			\
 	pr_reg[12] = regs->eip;				\
-	pr_reg[13] = regs->xcs;				\
+	pr_reg[13] = regs->xcs & 0xffff;		\
 	pr_reg[14] = regs->eflags;			\
 	pr_reg[15] = regs->esp;				\
-	pr_reg[16] = regs->xss;
+	pr_reg[16] = regs->xss & 0xffff;
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This could be done in user space,

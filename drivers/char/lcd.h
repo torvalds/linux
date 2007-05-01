@@ -14,11 +14,7 @@
 
 // function headers
 
-static int dqpoll(volatile unsigned long, volatile unsigned char );
-static int timeout(volatile unsigned long);
-
 #define LCD_CHARS_PER_LINE 40
-#define FLASH_SIZE 524288
 #define MAX_IDLE_TIME 120
 
 struct lcd_display {
@@ -54,26 +50,6 @@ struct lcd_display {
 #define LCDTimeoutValue	0xfff
 
 
-// Flash definitions AMD 29F040
-#define kFlashBase	0x0FC00000
-
-#define kFlash_Addr1    0x5555
-#define kFlash_Addr2    0x2AAA
-#define kFlash_Data1    0xAA
-#define kFlash_Data2    0x55
-#define kFlash_Prog     0xA0
-#define kFlash_Erase3   0x80
-#define kFlash_Erase6   0x10
-#define kFlash_Read     0xF0
-
-#define kFlash_ID       0x90
-#define kFlash_VenAddr  0x00
-#define kFlash_DevAddr  0x01
-#define kFlash_VenID    0x01
-#define kFlash_DevID    0xA4    // 29F040
-//#define kFlash_DevID  0xAD    // 29F016
-
-
 // Macros
 
 #define LCDWriteData(x)	outl((x << 24), kLCD_DR)
@@ -88,9 +64,6 @@ struct lcd_display {
 
 #define WRITE_GAL(x,y)	outl(y, 0x04000000 | (x))
 #define BusyCheck()	while ((LCDReadInst & 0x80) == 0x80)
-
-#define WRITE_FLASH(x,y) outb((char)y, kFlashBase | (x))
-#define READ_FLASH(x)	(inb(kFlashBase | (x)))
 
 
 
@@ -123,11 +96,6 @@ struct lcd_display {
 
 //  Button defs
 #define BUTTON_Read             50
-
-//  Flash command codes
-#define FLASH_Erase		60
-#define FLASH_Burn		61
-#define FLASH_Read		62
 
 
 // Ethernet LINK check hackaroo

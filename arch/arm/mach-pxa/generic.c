@@ -36,6 +36,7 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/gpio.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/mmc.h>
@@ -106,12 +107,15 @@ unsigned long long sched_clock(void)
  * Handy function to set GPIO alternate functions
  */
 
-void pxa_gpio_mode(int gpio_mode)
+int pxa_gpio_mode(int gpio_mode)
 {
 	unsigned long flags;
 	int gpio = gpio_mode & GPIO_MD_MASK_NR;
 	int fn = (gpio_mode & GPIO_MD_MASK_FN) >> 8;
 	int gafr;
+
+	if (gpio > PXA_LAST_GPIO)
+		return -EINVAL;
 
 	local_irq_save(flags);
 	if (gpio_mode & GPIO_DFLT_LOW)
@@ -125,9 +129,31 @@ void pxa_gpio_mode(int gpio_mode)
 	gafr = GAFR(gpio) & ~(0x3 << (((gpio) & 0xf)*2));
 	GAFR(gpio) = gafr |  (fn  << (((gpio) & 0xf)*2));
 	local_irq_restore(flags);
+
+	return 0;
 }
 
 EXPORT_SYMBOL(pxa_gpio_mode);
+
+/*
+ * Return GPIO level
+ */
+int pxa_gpio_get_value(unsigned gpio)
+{
+	return __gpio_get_value(gpio);
+}
+
+EXPORT_SYMBOL(pxa_gpio_get_value);
+
+/*
+ * Set output GPIO level
+ */
+void pxa_gpio_set_value(unsigned gpio, int value)
+{
+	__gpio_set_value(gpio, value);
+}
+
+EXPORT_SYMBOL(pxa_gpio_set_value);
 
 /*
  * Routine to safely enable or disable a clock in the CKEN
@@ -338,6 +364,27 @@ static struct platform_device i2c_device = {
 	.num_resources	= ARRAY_SIZE(i2c_resources),
 };
 
+#ifdef CONFIG_PXA27x
+static struct resource i2c_power_resources[] = {
+	{
+		.start	= 0x40f00180,
+		.end	= 0x40f001a3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_PWRI2C,
+		.end	= IRQ_PWRI2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device i2c_power_device = {
+	.name		= "pxa2xx-i2c",
+	.id		= 1,
+	.resource	= i2c_power_resources,
+	.num_resources	= ARRAY_SIZE(i2c_resources),
+};
+#endif
+
 void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 {
 	i2c_device.dev.platform_data = info;
@@ -392,6 +439,9 @@ static struct platform_device *devices[] __initdata = {
 	&stuart_device,
 	&pxaficp_device,
 	&i2c_device,
+#ifdef CONFIG_PXA27x
+	&i2c_power_device,
+#endif
 	&i2s_device,
 	&pxartc_device,
 };

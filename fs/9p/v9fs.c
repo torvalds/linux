@@ -53,6 +53,8 @@ enum {
 	Opt_uname, Opt_remotename,
 	/* Options that take no arguments */
 	Opt_legacy, Opt_nodevmap, Opt_unix, Opt_tcp, Opt_fd,
+	/* Cache options */
+	Opt_cache_loose,
 	/* Error token */
 	Opt_err
 };
@@ -76,6 +78,8 @@ static match_table_t tokens = {
 	{Opt_fd, "fd"},
 	{Opt_legacy, "noextend"},
 	{Opt_nodevmap, "nodevmap"},
+	{Opt_cache_loose, "cache=loose"},
+	{Opt_cache_loose, "loose"},
 	{Opt_err, NULL}
 };
 
@@ -106,6 +110,7 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 	v9ses->debug = 0;
 	v9ses->rfdno = ~0;
 	v9ses->wfdno = ~0;
+	v9ses->cache = 0;
 
 	if (!options)
 		return;
@@ -121,7 +126,6 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 					"integer field, but no integer?\n");
 				continue;
 			}
-
 		}
 		switch (token) {
 		case Opt_port:
@@ -168,6 +172,9 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 			break;
 		case Opt_nodevmap:
 			v9ses->nodev = 1;
+			break;
+		case Opt_cache_loose:
+			v9ses->cache = CACHE_LOOSE;
 			break;
 		default:
 			continue;

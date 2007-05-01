@@ -504,7 +504,7 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 
 		skb_put(skb, len);
 		skb->dev = dev;
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 		skb->protocol = htons(ETH_P_IRDA);
 		si->stats.rx_packets++;
 		si->stats.rx_bytes += len;

@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/errno.h>
 #include <linux/seq_file.h>
@@ -41,7 +42,6 @@ static irq_node_t nodes[NUM_IRQ_NODES];
 /* The number of spurious interrupts */
 volatile unsigned int num_spurious;
 
-unsigned int local_bh_count[NR_CPUS];
 unsigned int local_irq_count[NR_CPUS];
 
 static irqreturn_t default_irq_handler(int irq, void *ptr)

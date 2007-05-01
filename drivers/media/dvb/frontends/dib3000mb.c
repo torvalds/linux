@@ -239,7 +239,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend* fe,
 		default:
 			return -EINVAL;
 	}
-	deb_setf("hierachy: ");
+	deb_setf("hierarchy: ");
 	switch (ofdm->hierarchy_information) {
 		case HIERARCHY_NONE:
 			deb_setf("none ");

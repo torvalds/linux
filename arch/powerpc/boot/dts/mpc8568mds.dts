@@ -16,16 +16,13 @@
 
 / {
 	model = "MPC8568EMDS";
-	compatible = "MPC85xxMDS";
+	compatible = "MPC8568EMDS", "MPC85xxMDS";
 	#address-cells = <1>;
 	#size-cells = <1>;
-	linux,phandle = <100>;
 
 	cpus {
-		#cpus = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		linux,phandle = <200>;
 
 		PowerPC,8568@0 {
 			device_type = "cpu";
@@ -38,13 +35,11 @@
 			bus-frequency = <0>;
 			clock-frequency = <0>;
 			32-bit;
-			linux,phandle = <201>;
 		};
 	};
 
 	memory {
 		device_type = "memory";
-		linux,phandle = <300>;
 		reg = <00000000 10000000>;
 	};
 
@@ -67,7 +62,7 @@
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <1b 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
 
@@ -76,7 +71,7 @@
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
 			interrupts = <1b 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
 
@@ -86,32 +81,26 @@
 			device_type = "mdio";
 			compatible = "gianfar";
 			reg = <24520 20>;
-			linux,phandle = <24520>;
-			ethernet-phy@0 {
-				linux,phandle = <2452000>;
-				interrupt-parent = <40000>;
+			phy0: ethernet-phy@0 {
+				interrupt-parent = <&mpic>;
 				interrupts = <31 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@1 {
-				linux,phandle = <2452001>;
-				interrupt-parent = <40000>;
+			phy1: ethernet-phy@1 {
+				interrupt-parent = <&mpic>;
 				interrupts = <32 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
-
-			ethernet-phy@2 {
-				linux,phandle = <2452002>;
-				interrupt-parent = <40000>;
+			phy2: ethernet-phy@2 {
+				interrupt-parent = <&mpic>;
 				interrupts = <31 1>;
 				reg = <2>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@3 {
-				linux,phandle = <2452003>;
-				interrupt-parent = <40000>;
+			phy3: ethernet-phy@3 {
+				interrupt-parent = <&mpic>;
 				interrupts = <32 1>;
 				reg = <3>;
 				device_type = "ethernet-phy";
@@ -127,8 +116,8 @@
 			reg = <24000 1000>;
 			mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <d 2 e 2 12 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452002>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy2>;
 		};
 
 		ethernet@25000 {
@@ -140,8 +129,8 @@
 			reg = <25000 1000>;
 			mac-address = [ 00 00 00 00 00 00];
 			interrupts = <13 2 14 2 18 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452003>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy3>;
 		};
 
 		serial@4500 {
@@ -150,7 +139,7 @@
 			reg = <4500 100>;
 			clock-frequency = <0>;
 			interrupts = <1a 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 		};
 
 		serial@4600 {
@@ -159,7 +148,7 @@
 			reg = <4600 100>;
 			clock-frequency = <0>;
 			interrupts = <1a 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 		};
 
 		crypto@30000 {
@@ -168,15 +157,14 @@
 			compatible = "talitos";
 			reg = <30000 f000>;
 			interrupts = <1d 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 			num-channels = <4>;
 			channel-fifo-len = <18>;
 			exec-units-mask = <000000fe>;
 			descriptor-types-mask = <012b0ebf>;
 		};
 
-		pic@40000 {
-			linux,phandle = <40000>;
+		mpic: pic@40000 {
 			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;
@@ -192,8 +180,7 @@
 			device_type = "par_io";
 			num-ports = <7>;
 
-			ucc_pin@01 {
-				linux,phandle = <e010001>;
+			pio1: ucc_pin@01 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					4  0a  1  0  2  0 	/* TxD0 */
@@ -220,8 +207,7 @@
 					4  13  1  0  2  0 	/* GTX_CLK */
 					1  1f  2  0  3  0>;	/* GTX125 */
 			};
-			ucc_pin@02 {
-				linux,phandle = <e010002>;
+			pio2: ucc_pin@02 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					5  0a 1  0  2  0   /* TxD0 */
@@ -277,7 +263,7 @@
 			compatible = "fsl_spi";
 			reg = <4c0 40>;
 			interrupts = <2>;
-			interrupt-parent = <80>;
+			interrupt-parent = <&qeic>;
 			mode = "cpu";
 		};
 
@@ -286,7 +272,7 @@
 			compatible = "fsl_spi";
 			reg = <500 40>;
 			interrupts = <1>;
-			interrupt-parent = <80>;
+			interrupt-parent = <&qeic>;
 			mode = "cpu";
 		};
 
@@ -297,12 +283,12 @@
 			device-id = <1>;
 			reg = <2000 200>;
 			interrupts = <20>;
-			interrupt-parent = <80>;
+			interrupt-parent = <&qeic>;
 			mac-address = [ 00 04 9f 00 23 23 ];
 			rx-clock = <0>;
 			tx-clock = <19>;
-			phy-handle = <212000>;
-			pio-handle = <e010001>;
+			phy-handle = <&qe_phy0>;
+			pio-handle = <&pio1>;
 		};
 
 		ucc@3000 {
@@ -312,12 +298,12 @@
 			device-id = <2>;
 			reg = <3000 200>;
 			interrupts = <21>;
-			interrupt-parent = <80>;
+			interrupt-parent = <&qeic>;
 			mac-address = [ 00 11 22 33 44 55 ];
 			rx-clock = <0>;
 			tx-clock = <14>;
-			phy-handle = <212001>;
-			pio-handle = <e010002>;
+			phy-handle = <&qe_phy1>;
+			pio-handle = <&pio2>;
 		};
 
 		mdio@2120 {
@@ -329,33 +315,29 @@
 
 			/* These are the same PHYs as on
 			 * gianfar's MDIO bus */
-			ethernet-phy@00 {
-				linux,phandle = <212000>;
-				interrupt-parent = <40000>;
+			qe_phy0: ethernet-phy@00 {
+				interrupt-parent = <&mpic>;
 				interrupts = <31 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 				interface = <6>; //ENET_1000_GMII
 			};
-			ethernet-phy@01 {
-				linux,phandle = <212001>;
-				interrupt-parent = <40000>;
+			qe_phy1: ethernet-phy@01 {
+				interrupt-parent = <&mpic>;
 				interrupts = <32 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 				interface = <6>;
 			};
-			ethernet-phy@02 {
-				linux,phandle = <212002>;
-				interrupt-parent = <40000>;
+			qe_phy2: ethernet-phy@02 {
+				interrupt-parent = <&mpic>;
 				interrupts = <31 1>;
 				reg = <2>;
 				device_type = "ethernet-phy";
 				interface = <6>; //ENET_1000_GMII
 			};
-			ethernet-phy@03 {
-				linux,phandle = <212003>;
-				interrupt-parent = <40000>;
+			qe_phy3: ethernet-phy@03 {
+				interrupt-parent = <&mpic>;
 				interrupts = <32 1>;
 				reg = <3>;
 				device_type = "ethernet-phy";
@@ -363,8 +345,7 @@
 			};
 		};
 
-		qeic@80 {
-			linux,phandle = <80>;
+		qeic: qeic@80 {
 			interrupt-controller;
 			device_type = "qeic";
 			#address-cells = <0>;
@@ -373,7 +354,7 @@
 			built-in;
 			big-endian;
 			interrupts = <1e 2 1e 2>; //high:30 low:30
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 		};
 
 	};

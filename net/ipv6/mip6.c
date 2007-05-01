@@ -90,23 +90,26 @@ int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 {
 	struct ip6_mh *mh;
 
-	if (!pskb_may_pull(skb, (skb->h.raw - skb->data) + 8) ||
-	    !pskb_may_pull(skb, (skb->h.raw - skb->data) + ((skb->h.raw[1] + 1) << 3)))
+	if (!pskb_may_pull(skb, (skb_transport_offset(skb)) + 8) ||
+	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
+				 ((skb_transport_header(skb)[1] + 1) << 3))))
 		return -1;
 
-	mh = (struct ip6_mh *)skb->h.raw;
+	mh = (struct ip6_mh *)skb_transport_header(skb);
 
 	if (mh->ip6mh_hdrlen < mip6_mh_len(mh->ip6mh_type)) {
 		LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH message too short: %d vs >=%d\n",
 			       mh->ip6mh_hdrlen, mip6_mh_len(mh->ip6mh_type));
-		mip6_param_prob(skb, 0, (&mh->ip6mh_hdrlen) - skb->nh.raw);
+		mip6_param_prob(skb, 0, ((&mh->ip6mh_hdrlen) -
+					 skb_network_header(skb)));
 		return -1;
 	}
 
 	if (mh->ip6mh_proto != IPPROTO_NONE) {
 		LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH invalid payload proto = %d\n",
 			       mh->ip6mh_proto);
-		mip6_param_prob(skb, 0, (&mh->ip6mh_proto) - skb->nh.raw);
+		mip6_param_prob(skb, 0, ((&mh->ip6mh_proto) -
+					 skb_network_header(skb)));
 		return -1;
 	}
 
@@ -122,12 +125,12 @@ struct mip6_report_rate_limiter {
 };
 
 static struct mip6_report_rate_limiter mip6_report_rl = {
-	.lock = SPIN_LOCK_UNLOCKED
+	.lock = __SPIN_LOCK_UNLOCKED(mip6_report_rl.lock)
 };
 
 static int mip6_destopt_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct ipv6hdr *iph = skb->nh.ipv6h;
+	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct ipv6_destopt_hdr *destopt = (struct ipv6_destopt_hdr *)skb->data;
 
 	if (!ipv6_addr_equal(&iph->saddr, (struct in6_addr *)x->coaddr) &&
@@ -152,10 +155,10 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	iph = (struct ipv6hdr *)skb->data;
 	iph->payload_len = htons(skb->len - sizeof(*iph));
 
-	nexthdr = *skb->nh.raw;
-	*skb->nh.raw = IPPROTO_DSTOPTS;
+	nexthdr = *skb_network_header(skb);
+	*skb_network_header(skb) = IPPROTO_DSTOPTS;
 
-	dstopt = (struct ipv6_destopt_hdr *)skb->h.raw;
+	dstopt = (struct ipv6_destopt_hdr *)skb_transport_header(skb);
 	dstopt->nexthdr = nexthdr;
 
 	hao = mip6_padn((char *)(dstopt + 1),
@@ -215,21 +218,22 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct
 	if (likely(opt->dsthao)) {
 		offset = ipv6_find_tlv(skb, opt->dsthao, IPV6_TLV_HAO);
 		if (likely(offset >= 0))
-			hao = (struct ipv6_destopt_hao *)(skb->nh.raw + offset);
+			hao = (struct ipv6_destopt_hao *)
+					(skb_network_header(skb) + offset);
 	}
 
 	skb_get_timestamp(skb, &stamp);
 
-	if (!mip6_report_rl_allow(&stamp, &skb->nh.ipv6h->daddr,
-				  hao ? &hao->addr : &skb->nh.ipv6h->saddr,
+	if (!mip6_report_rl_allow(&stamp, &ipv6_hdr(skb)->daddr,
+				  hao ? &hao->addr : &ipv6_hdr(skb)->saddr,
 				  opt->iif))
 		goto out;
 
 	memset(&sel, 0, sizeof(sel));
-	memcpy(&sel.daddr, (xfrm_address_t *)&skb->nh.ipv6h->daddr,
+	memcpy(&sel.daddr, (xfrm_address_t *)&ipv6_hdr(skb)->daddr,
 	       sizeof(sel.daddr));
 	sel.prefixlen_d = 128;
-	memcpy(&sel.saddr, (xfrm_address_t *)&skb->nh.ipv6h->saddr,
+	memcpy(&sel.saddr, (xfrm_address_t *)&ipv6_hdr(skb)->saddr,
 	       sizeof(sel.saddr));
 	sel.prefixlen_s = 128;
 	sel.family = AF_INET6;
@@ -253,11 +257,13 @@ static int mip6_destopt_offset(struct xfrm_state *x, struct sk_buff *skb,
 			       u8 **nexthdr)
 {
 	u16 offset = sizeof(struct ipv6hdr);
-	struct ipv6_opt_hdr *exthdr = (struct ipv6_opt_hdr*)(skb->nh.ipv6h + 1);
-	unsigned int packet_len = skb->tail - skb->nh.raw;
+	struct ipv6_opt_hdr *exthdr =
+				   (struct ipv6_opt_hdr *)(ipv6_hdr(skb) + 1);
+	const unsigned char *nh = skb_network_header(skb);
+	unsigned int packet_len = skb->tail - skb->network_header;
 	int found_rhdr = 0;
 
-	*nexthdr = &skb->nh.ipv6h->nexthdr;
+	*nexthdr = &ipv6_hdr(skb)->nexthdr;
 
 	while (offset + 1 <= packet_len) {
 
@@ -288,7 +294,7 @@ static int mip6_destopt_offset(struct xfrm_state *x, struct sk_buff *skb,
 
 		offset += ipv6_optlen(exthdr);
 		*nexthdr = &exthdr->nexthdr;
-		exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
+		exthdr = (struct ipv6_opt_hdr *)(nh + offset);
 	}
 
 	return offset;
@@ -361,10 +367,10 @@ static int mip6_rthdr_output(struct xfrm_state *x, struct sk_buff *skb)
 	iph = (struct ipv6hdr *)skb->data;
 	iph->payload_len = htons(skb->len - sizeof(*iph));
 
-	nexthdr = *skb->nh.raw;
-	*skb->nh.raw = IPPROTO_ROUTING;
+	nexthdr = *skb_network_header(skb);
+	*skb_network_header(skb) = IPPROTO_ROUTING;
 
-	rt2 = (struct rt2_hdr *)skb->h.raw;
+	rt2 = (struct rt2_hdr *)skb_transport_header(skb);
 	rt2->rt_hdr.nexthdr = nexthdr;
 	rt2->rt_hdr.hdrlen = (x->props.header_len >> 3) - 1;
 	rt2->rt_hdr.type = IPV6_SRCRT_TYPE_2;
@@ -383,11 +389,13 @@ static int mip6_rthdr_offset(struct xfrm_state *x, struct sk_buff *skb,
 			     u8 **nexthdr)
 {
 	u16 offset = sizeof(struct ipv6hdr);
-	struct ipv6_opt_hdr *exthdr = (struct ipv6_opt_hdr*)(skb->nh.ipv6h + 1);
-	unsigned int packet_len = skb->tail - skb->nh.raw;
+	struct ipv6_opt_hdr *exthdr =
+				   (struct ipv6_opt_hdr *)(ipv6_hdr(skb) + 1);
+	const unsigned char *nh = skb_network_header(skb);
+	unsigned int packet_len = skb->tail - skb->network_header;
 	int found_rhdr = 0;
 
-	*nexthdr = &skb->nh.ipv6h->nexthdr;
+	*nexthdr = &ipv6_hdr(skb)->nexthdr;
 
 	while (offset + 1 <= packet_len) {
 
@@ -397,7 +405,7 @@ static int mip6_rthdr_offset(struct xfrm_state *x, struct sk_buff *skb,
 		case NEXTHDR_ROUTING:
 			if (offset + 3 <= packet_len) {
 				struct ipv6_rt_hdr *rt;
-				rt = (struct ipv6_rt_hdr *)(skb->nh.raw + offset);
+				rt = (struct ipv6_rt_hdr *)(nh + offset);
 				if (rt->type != 0)
 					return offset;
 			}
@@ -417,7 +425,7 @@ static int mip6_rthdr_offset(struct xfrm_state *x, struct sk_buff *skb,
 
 		offset += ipv6_optlen(exthdr);
 		*nexthdr = &exthdr->nexthdr;
-		exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
+		exthdr = (struct ipv6_opt_hdr *)(nh + offset);
 	}
 
 	return offset;

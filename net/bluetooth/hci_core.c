@@ -149,7 +149,7 @@ static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev,
 	default:
 		err = -ETIMEDOUT;
 		break;
-	};
+	}
 
 	hdev->req_status = hdev->req_result = 0;
 
@@ -216,10 +216,10 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	/* Host buffer size */
 	{
 		struct hci_cp_host_buffer_size cp;
-		cp.acl_mtu = __cpu_to_le16(HCI_MAX_ACL_SIZE);
+		cp.acl_mtu = cpu_to_le16(HCI_MAX_ACL_SIZE);
 		cp.sco_mtu = HCI_MAX_SCO_SIZE;
-		cp.acl_max_pkt = __cpu_to_le16(0xffff);
-		cp.sco_max_pkt = __cpu_to_le16(0xffff);
+		cp.acl_max_pkt = cpu_to_le16(0xffff);
+		cp.sco_max_pkt = cpu_to_le16(0xffff);
 		hci_send_cmd(hdev, OGF_HOST_CTL, OCF_HOST_BUFFER_SIZE, sizeof(cp), &cp);
 	}
 #endif
@@ -240,11 +240,11 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	}
 
 	/* Page timeout ~20 secs */
-	param = __cpu_to_le16(0x8000);
+	param = cpu_to_le16(0x8000);
 	hci_send_cmd(hdev, OGF_HOST_CTL, OCF_WRITE_PG_TIMEOUT, 2, &param);
 
 	/* Connection accept timeout ~20 secs */
-	param = __cpu_to_le16(0x7d00);
+	param = cpu_to_le16(0x7d00);
 	hci_send_cmd(hdev, OGF_HOST_CTL, OCF_WRITE_CA_TIMEOUT, 2, &param);
 }
 
@@ -1034,7 +1034,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 ogf, __u16 ocf, __u32 plen, void *p
 	}
 
 	hdr = (struct hci_command_hdr *) skb_put(skb, HCI_COMMAND_HDR_SIZE);
-	hdr->opcode = __cpu_to_le16(hci_opcode_pack(ogf, ocf));
+	hdr->opcode = cpu_to_le16(hci_opcode_pack(ogf, ocf));
 	hdr->plen   = plen;
 
 	if (plen)
@@ -1060,7 +1060,7 @@ void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 ogf, __u16 ocf)
 
 	hdr = (void *) hdev->sent_cmd->data;
 
-	if (hdr->opcode != __cpu_to_le16(hci_opcode_pack(ogf, ocf)))
+	if (hdr->opcode != cpu_to_le16(hci_opcode_pack(ogf, ocf)))
 		return NULL;
 
 	BT_DBG("%s ogf 0x%x ocf 0x%x", hdev->name, ogf, ocf);
@@ -1074,11 +1074,11 @@ static void hci_add_acl_hdr(struct sk_buff *skb, __u16 handle, __u16 flags)
 	struct hci_acl_hdr *hdr;
 	int len = skb->len;
 
-	hdr = (struct hci_acl_hdr *) skb_push(skb, HCI_ACL_HDR_SIZE);
-	hdr->handle = __cpu_to_le16(hci_handle_pack(handle, flags));
-	hdr->dlen   = __cpu_to_le16(len);
-
-	skb->h.raw = (void *) hdr;
+	skb_push(skb, HCI_ACL_HDR_SIZE);
+	skb_reset_transport_header(skb);
+	hdr = (struct hci_acl_hdr *)skb_transport_header(skb);
+	hdr->handle = cpu_to_le16(hci_handle_pack(handle, flags));
+	hdr->dlen   = cpu_to_le16(len);
 }
 
 int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
@@ -1140,11 +1140,12 @@ int hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-	hdr.handle = __cpu_to_le16(conn->handle);
+	hdr.handle = cpu_to_le16(conn->handle);
 	hdr.dlen   = skb->len;
 
-	skb->h.raw = skb_push(skb, HCI_SCO_HDR_SIZE);
-	memcpy(skb->h.raw, &hdr, HCI_SCO_HDR_SIZE);
+	skb_push(skb, HCI_SCO_HDR_SIZE);
+	skb_reset_transport_header(skb);
+	memcpy(skb_transport_header(skb), &hdr, HCI_SCO_HDR_SIZE);
 
 	skb->dev = (void *) hdev;
 	bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
@@ -1387,7 +1388,7 @@ static void hci_rx_task(unsigned long arg)
 			case HCI_SCODATA_PKT:
 				kfree_skb(skb);
 				continue;
-			};
+			}
 		}
 
 		/* Process frame */

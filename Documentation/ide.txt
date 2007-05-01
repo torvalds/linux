@@ -232,7 +232,9 @@ Summary of ide driver parameters for kernel command line
 
  "hdx=remap63"		: remap the drive: add 63 to all sector numbers
 			  (for DM OnTrack)
- 
+
+ "idex=noautotune"	: driver will NOT attempt to tune interface speed
+
  "hdx=autotune"		: driver will attempt to tune interface speed
 			  to the fastest PIO mode supported,
 			  if possible for this drive only.
@@ -267,17 +269,6 @@ Summary of ide driver parameters for kernel command line
  "idex=base,ctl"	: specify both base and ctl
 
  "idex=base,ctl,irq"	: specify base, ctl, and irq number
- 
- "idex=autotune"	: driver will attempt to tune interface speed
-			  to the fastest PIO mode supported,
-			  for all drives on this interface.
-			  Not fully supported by all chipset types,
-			  and quite likely to cause trouble with
-			  older/odd IDE drives.
-
- "idex=noautotune"	: driver will NOT attempt to tune interface speed 
-			  This is the default for most chipsets,
-			  except the cmd640.
 
  "idex=serialize"	: do not overlap operations on idex. Please note
 			  that you will have to specify this option for
@@ -303,19 +294,23 @@ The following are valid ONLY on ide0, which usually corresponds
 to the first ATA interface found on the particular host, and the defaults for
 the base,ctl ports must not be altered.
 
- "ide0=dtc2278"		: probe/support DTC2278 interface
- "ide0=ht6560b"		: probe/support HT6560B interface
  "ide0=cmd640_vlb"	: *REQUIRED* for VLB cards with the CMD640 chip
 			  (not for PCI -- automatically detected)
- "ide0=qd65xx"		: probe/support qd65xx interface
- "ide0=ali14xx"		: probe/support ali14xx chipsets (ALI M1439/M1443/M1445)
- "ide0=umc8672"		: probe/support umc8672 chipsets
 
  "ide=doubler"		: probe/support IDE doublers on Amiga
 
 There may be more options than shown -- use the source, Luke!
 
 Everything else is rejected with a "BAD OPTION" message.
+
+For legacy IDE VLB host drivers (ali14xx/dtc2278/ht6560b/qd65xx/umc8672)
+you need to explicitly enable probing by using "probe" kernel parameter,
+i.e. to enable probing for ALI M14xx chipsets (ali14xx host driver) use:
+
+* "ali14xx.probe" boot option when ali14xx driver is built-in the kernel
+
+* "probe" module parameter when ali14xx driver is compiled as module
+  ("modprobe ali14xx probe")
 
 ================================================================================
 

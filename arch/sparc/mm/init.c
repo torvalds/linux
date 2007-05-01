@@ -75,7 +75,7 @@ void show_mem(void)
 	printk("Free swap:       %6ldkB\n",
 	       nr_swap_pages << (PAGE_SHIFT-10));
 	printk("%ld pages of RAM\n", totalram_pages);
-	printk("%d free pages\n", nr_free_pages());
+	printk("%ld free pages\n", nr_free_pages());
 #if 0 /* undefined pgtable_cache_size, pgd_cache_size */
 	printk("%ld pages in page table cache\n",pgtable_cache_size);
 #ifndef CONFIG_SMP

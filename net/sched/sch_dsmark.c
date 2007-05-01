@@ -216,17 +216,17 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 		/* FIXME: Safe with non-linear skbs? --RR */
 		switch (skb->protocol) {
 			case __constant_htons(ETH_P_IP):
-				skb->tc_index = ipv4_get_dsfield(skb->nh.iph)
+				skb->tc_index = ipv4_get_dsfield(ip_hdr(skb))
 					& ~INET_ECN_MASK;
 				break;
 			case __constant_htons(ETH_P_IPV6):
-				skb->tc_index = ipv6_get_dsfield(skb->nh.ipv6h)
+				skb->tc_index = ipv6_get_dsfield(ipv6_hdr(skb))
 					& ~INET_ECN_MASK;
 				break;
 			default:
 				skb->tc_index = 0;
 				break;
-		};
+		}
 	}
 
 	if (TC_H_MAJ(skb->priority) == sch->handle)
@@ -257,7 +257,7 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 				if (p->default_index != NO_DEFAULT_INDEX)
 					skb->tc_index = p->default_index;
 				break;
-		};
+		}
 	}
 
 	err = p->q->enqueue(skb,p->q);
@@ -292,11 +292,11 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 
 	switch (skb->protocol) {
 		case __constant_htons(ETH_P_IP):
-			ipv4_change_dsfield(skb->nh.iph, p->mask[index],
+			ipv4_change_dsfield(ip_hdr(skb), p->mask[index],
 					    p->value[index]);
 			break;
 		case __constant_htons(ETH_P_IPV6):
-			ipv6_change_dsfield(skb->nh.ipv6h, p->mask[index],
+			ipv6_change_dsfield(ipv6_hdr(skb), p->mask[index],
 					    p->value[index]);
 			break;
 		default:
@@ -310,7 +310,7 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 				       "unsupported protocol %d\n",
 				       ntohs(skb->protocol));
 			break;
-	};
+	}
 
 	return skb;
 }
@@ -412,16 +412,10 @@ static void dsmark_reset(struct Qdisc *sch)
 static void dsmark_destroy(struct Qdisc *sch)
 {
 	struct dsmark_qdisc_data *p = PRIV(sch);
-	struct tcf_proto *tp;
 
 	DPRINTK("dsmark_destroy(sch %p,[qdisc %p])\n", sch, p);
 
-	while (p->filter_list) {
-		tp = p->filter_list;
-		p->filter_list = tp->next;
-		tcf_destroy(tp);
-	}
-
+	tcf_destroy_chain(p->filter_list);
 	qdisc_destroy(p->q);
 	kfree(p->mask);
 }

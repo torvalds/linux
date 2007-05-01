@@ -99,16 +99,6 @@ struct hpsb_address_ops {
 void highlevel_add_host(struct hpsb_host *host);
 void highlevel_remove_host(struct hpsb_host *host);
 void highlevel_host_reset(struct hpsb_host *host);
-
-/*
- * These functions are called to handle transactions. They are called when a
- * packet arrives.  The flags argument contains the second word of the first
- * header quadlet of the incoming packet (containing transaction label, retry
- * code, transaction code and priority).  These functions either return a
- * response code or a negative number.  In the first case a response will be
- * generated.  In the latter case, no response will be sent and the driver which
- * handled the request will send the response itself.
- */
 int highlevel_read(struct hpsb_host *host, int nodeid, void *data, u64 addr,
 		   unsigned int length, u16 flags);
 int highlevel_write(struct hpsb_host *host, int nodeid, int destid, void *data,
@@ -119,30 +109,13 @@ int highlevel_lock(struct hpsb_host *host, int nodeid, quadlet_t *store,
 int highlevel_lock64(struct hpsb_host *host, int nodeid, octlet_t *store,
 		     u64 addr, octlet_t data, octlet_t arg, int ext_tcode,
 		     u16 flags);
-
 void highlevel_iso_receive(struct hpsb_host *host, void *data, size_t length);
 void highlevel_fcp_request(struct hpsb_host *host, int nodeid, int direction,
 			   void *data, size_t length);
 
-/*
- * Register highlevel driver.  The name pointer has to stay valid at all times
- * because the string is not copied.
- */
 void hpsb_register_highlevel(struct hpsb_highlevel *hl);
 void hpsb_unregister_highlevel(struct hpsb_highlevel *hl);
 
-/*
- * Register handlers for host address spaces.  Start and end are 48 bit pointers
- * and have to be quadlet aligned.  Argument "end" points to the first address
- * behind the handled addresses.  This function can be called multiple times for
- * a single hpsb_highlevel to implement sparse register sets.  The requested
- * region must not overlap any previously allocated region, otherwise
- * registering will fail.
- *
- * It returns true for successful allocation.  Address spaces can be
- * unregistered with hpsb_unregister_addrspace.  All remaining address spaces
- * are automatically deallocated together with the hpsb_highlevel.
- */
 u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
 					 struct hpsb_host *host,
 					 struct hpsb_address_ops *ops,
@@ -152,45 +125,19 @@ int hpsb_register_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 			    struct hpsb_address_ops *ops, u64 start, u64 end);
 int hpsb_unregister_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 			      u64 start);
-
-/*
- * Enable or disable receving a certain isochronous channel through the
- * iso_receive op.
- */
 int hpsb_listen_channel(struct hpsb_highlevel *hl, struct hpsb_host *host,
-			 unsigned int channel);
+			unsigned int channel);
 void hpsb_unlisten_channel(struct hpsb_highlevel *hl, struct hpsb_host *host,
 			   unsigned int channel);
 
-/* Retrieve a hostinfo pointer bound to this driver/host */
 void *hpsb_get_hostinfo(struct hpsb_highlevel *hl, struct hpsb_host *host);
-
-/* Allocate a hostinfo pointer of data_size bound to this driver/host */
 void *hpsb_create_hostinfo(struct hpsb_highlevel *hl, struct hpsb_host *host,
 			   size_t data_size);
-
-/* Free and remove the hostinfo pointer bound to this driver/host */
 void hpsb_destroy_hostinfo(struct hpsb_highlevel *hl, struct hpsb_host *host);
-
-/* Set an alternate lookup key for the hostinfo bound to this driver/host */
 void hpsb_set_hostinfo_key(struct hpsb_highlevel *hl, struct hpsb_host *host,
 			   unsigned long key);
-
-/* Retrieve the alternate lookup key for the hostinfo bound to this
- * driver/host */
-unsigned long hpsb_get_hostinfo_key(struct hpsb_highlevel *hl,
-				    struct hpsb_host *host);
-
-/* Retrieve a hostinfo pointer bound to this driver using its alternate key */
 void *hpsb_get_hostinfo_bykey(struct hpsb_highlevel *hl, unsigned long key);
-
-/* Set the hostinfo pointer to something useful. Usually follows a call to
- * hpsb_create_hostinfo, where the size is 0. */
 int hpsb_set_hostinfo(struct hpsb_highlevel *hl, struct hpsb_host *host,
 		      void *data);
-
-/* Retrieve hpsb_host using a highlevel handle and a key */
-struct hpsb_host *hpsb_get_host_bykey(struct hpsb_highlevel *hl,
-				      unsigned long key);
 
 #endif /* IEEE1394_HIGHLEVEL_H */

@@ -22,8 +22,6 @@
 #define TX3927_SIO_REG(ch)	(0xfffef300 + (ch) * 0x100)
 #define TX3927_PIO_REG		0xfffef500
 
-#ifndef __ASSEMBLY__
-
 struct tx3927_sdramc_reg {
 	volatile unsigned long cr[8];
 	volatile unsigned long tr[3];
@@ -163,8 +161,6 @@ struct tx3927_ccfg_reg {
 	volatile unsigned long tear;
 	volatile unsigned long pdcr;
 };
-
-#endif /* !__ASSEMBLY__ */
 
 /*
  * SDRAMC
@@ -348,8 +344,6 @@ struct tx3927_ccfg_reg {
 #define TX3927_PCFG_SELDMA_ALL	0x0000000f
 #define TX3927_PCFG_SELDMA(ch)	(0x00000001<<(ch))
 
-#ifndef __ASSEMBLY__
-
 #define tx3927_sdramcptr	((struct tx3927_sdramc_reg *)TX3927_SDRAMC_REG)
 #define tx3927_romcptr		((struct tx3927_romc_reg *)TX3927_ROMC_REG)
 #define tx3927_dmaptr		((struct tx3927_dma_reg *)TX3927_DMA_REG)
@@ -359,7 +353,5 @@ struct tx3927_ccfg_reg {
 #define tx3927_tmrptr(ch)	((struct txx927_tmr_reg *)TX3927_TMR_REG(ch))
 #define tx3927_sioptr(ch)	((struct txx927_sio_reg *)TX3927_SIO_REG(ch))
 #define tx3927_pioptr		((struct txx927_pio_reg *)TX3927_PIO_REG)
-
-#endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_TX3927_H */

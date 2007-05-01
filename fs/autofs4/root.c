@@ -263,7 +263,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 		 */
 		status = d_invalidate(dentry);
 		if (status != -EBUSY)
-			return -ENOENT;
+			return -EAGAIN;
 	}
 
 	DPRINTK("dentry=%p %.*s ino=%p",
@@ -413,7 +413,16 @@ static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 		 */
 		status = try_to_fill_dentry(dentry, flags);
 		if (status == 0)
-				return 1;
+			return 1;
+
+		/*
+		 * A status of EAGAIN here means that the dentry has gone
+		 * away while waiting for an expire to complete. If we are
+		 * racing with expire lookup will wait for it so this must
+		 * be a revalidate and we need to send it to lookup.
+		 */
+		if (status == -EAGAIN)
+			return 0;
 
 		return status;
 	}
@@ -459,6 +468,15 @@ void autofs4_dentry_release(struct dentry *de)
 	de->d_fsdata = NULL;
 
 	if (inf) {
+		struct autofs_sb_info *sbi = autofs4_sbi(de->d_sb);
+
+		if (sbi) {
+			spin_lock(&sbi->rehash_lock);
+			if (!list_empty(&inf->rehash))
+				list_del(&inf->rehash);
+			spin_unlock(&sbi->rehash_lock);
+		}
+
 		inf->dentry = NULL;
 		inf->inode = NULL;
 
@@ -478,10 +496,80 @@ static struct dentry_operations autofs4_dentry_operations = {
 	.d_release	= autofs4_dentry_release,
 };
 
+static struct dentry *autofs4_lookup_unhashed(struct autofs_sb_info *sbi, struct dentry *parent, struct qstr *name)
+{
+	unsigned int len = name->len;
+	unsigned int hash = name->hash;
+	const unsigned char *str = name->name;
+	struct list_head *p, *head;
+
+	spin_lock(&dcache_lock);
+	spin_lock(&sbi->rehash_lock);
+	head = &sbi->rehash_list;
+	list_for_each(p, head) {
+		struct autofs_info *ino;
+		struct dentry *dentry;
+		struct qstr *qstr;
+
+		ino = list_entry(p, struct autofs_info, rehash);
+		dentry = ino->dentry;
+
+		spin_lock(&dentry->d_lock);
+
+		/* Bad luck, we've already been dentry_iput */
+		if (!dentry->d_inode)
+			goto next;
+
+		qstr = &dentry->d_name;
+
+		if (dentry->d_name.hash != hash)
+			goto next;
+		if (dentry->d_parent != parent)
+			goto next;
+
+		if (qstr->len != len)
+			goto next;
+		if (memcmp(qstr->name, str, len))
+			goto next;
+
+		if (d_unhashed(dentry)) {
+			struct autofs_info *ino = autofs4_dentry_ino(dentry);
+			struct inode *inode = dentry->d_inode;
+
+			list_del_init(&ino->rehash);
+			dget(dentry);
+			/*
+			 * Make the rehashed dentry negative so the VFS
+			 * behaves as it should.
+			 */
+			if (inode) {
+				dentry->d_inode = NULL;
+				list_del_init(&dentry->d_alias);
+				spin_unlock(&dentry->d_lock);
+				spin_unlock(&sbi->rehash_lock);
+				spin_unlock(&dcache_lock);
+				iput(inode);
+				return dentry;
+			}
+			spin_unlock(&dentry->d_lock);
+			spin_unlock(&sbi->rehash_lock);
+			spin_unlock(&dcache_lock);
+			return dentry;
+		}
+next:
+		spin_unlock(&dentry->d_lock);
+	}
+	spin_unlock(&sbi->rehash_lock);
+	spin_unlock(&dcache_lock);
+
+	return NULL;
+}
+
 /* Lookups in the root directory */
 static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
 	struct autofs_sb_info *sbi;
+	struct dentry *unhashed;
 	int oz_mode;
 
 	DPRINTK("name = %.*s",
@@ -497,25 +585,46 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 	DPRINTK("pid = %u, pgrp = %u, catatonic = %d, oz_mode = %d",
 		 current->pid, process_group(current), sbi->catatonic, oz_mode);
 
-	/*
-	 * Mark the dentry incomplete, but add it. This is needed so
-	 * that the VFS layer knows about the dentry, and we can count
-	 * on catching any lookups through the revalidate.
-	 *
-	 * Let all the hard work be done by the revalidate function that
-	 * needs to be able to do this anyway..
-	 *
-	 * We need to do this before we release the directory semaphore.
-	 */
-	dentry->d_op = &autofs4_root_dentry_operations;
+	unhashed = autofs4_lookup_unhashed(sbi, dentry->d_parent, &dentry->d_name);
+	if (!unhashed) {
+		/*
+		 * Mark the dentry incomplete, but add it. This is needed so
+		 * that the VFS layer knows about the dentry, and we can count
+		 * on catching any lookups through the revalidate.
+		 *
+		 * Let all the hard work be done by the revalidate function that
+		 * needs to be able to do this anyway..
+		 *
+		 * We need to do this before we release the directory semaphore.
+		 */
+		dentry->d_op = &autofs4_root_dentry_operations;
+
+		dentry->d_fsdata = NULL;
+		d_add(dentry, NULL);
+	} else {
+		struct autofs_info *ino = autofs4_dentry_ino(unhashed);
+		DPRINTK("rehash %p with %p", dentry, unhashed);
+		/*
+		 * If we are racing with expire the request might not
+		 * be quite complete but the directory has been removed
+		 * so it must have been successful, so just wait for it.
+		 */
+		if (ino && (ino->flags & AUTOFS_INF_EXPIRING)) {
+			DPRINTK("wait for incomplete expire %p name=%.*s",
+				unhashed, unhashed->d_name.len,
+				unhashed->d_name.name);
+			autofs4_wait(sbi, unhashed, NFY_NONE);
+			DPRINTK("request completed");
+		}
+		d_rehash(unhashed);
+		dentry = unhashed;
+	}
 
 	if (!oz_mode) {
 		spin_lock(&dentry->d_lock);
 		dentry->d_flags |= DCACHE_AUTOFS_PENDING;
 		spin_unlock(&dentry->d_lock);
 	}
-	dentry->d_fsdata = NULL;
-	d_add(dentry, NULL);
 
 	if (dentry->d_op && dentry->d_op->d_revalidate) {
 		mutex_unlock(&dir->i_mutex);
@@ -534,6 +643,8 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 			if (sigismember (sigset, SIGKILL) ||
 			    sigismember (sigset, SIGQUIT) ||
 			    sigismember (sigset, SIGINT)) {
+			    if (unhashed)
+				dput(unhashed);
 			    return ERR_PTR(-ERESTARTNOINTR);
 			}
 		}
@@ -544,12 +655,33 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 
 	/*
 	 * If this dentry is unhashed, then we shouldn't honour this
-	 * lookup even if the dentry is positive.  Returning ENOENT here
-	 * doesn't do the right thing for all system calls, but it should
-	 * be OK for the operations we permit from an autofs.
+	 * lookup.  Returning ENOENT here doesn't do the right thing
+	 * for all system calls, but it should be OK for the operations
+	 * we permit from an autofs.
 	 */
-	if (dentry->d_inode && d_unhashed(dentry))
-		return ERR_PTR(-ENOENT);
+	if (dentry->d_inode && d_unhashed(dentry)) {
+		/*
+		 * A user space application can (and has done in the past)
+		 * remove and re-create this directory during the callback.
+		 * This can leave us with an unhashed dentry, but a
+		 * successful mount!  So we need to perform another
+		 * cached lookup in case the dentry now exists.
+		 */
+		struct dentry *parent = dentry->d_parent;
+		struct dentry *new = d_lookup(parent, &dentry->d_name);
+		if (new != NULL)
+			dentry = new;
+		else
+			dentry = ERR_PTR(-ENOENT);
+
+		if (unhashed)
+			dput(unhashed);
+
+		return dentry;
+	}
+
+	if (unhashed)
+		return dentry;
 
 	return NULL;
 }
@@ -611,9 +743,10 @@ static int autofs4_dir_symlink(struct inode *dir,
  * Normal filesystems would do a "d_delete()" to tell the VFS dcache
  * that the file no longer exists. However, doing that means that the
  * VFS layer can turn the dentry into a negative dentry.  We don't want
- * this, because since the unlink is probably the result of an expire.
- * We simply d_drop it, which allows the dentry lookup to remount it
- * if necessary.
+ * this, because the unlink is probably the result of an expire.
+ * We simply d_drop it and add it to a rehash candidates list in the
+ * super block, which allows the dentry lookup to reuse it retaining
+ * the flags, such as expire in progress, in case we're racing with expire.
  *
  * If a process is blocked on the dentry waiting for the expire to finish,
  * it will invalidate the dentry and try to mount with a new one.
@@ -642,7 +775,14 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 
 	dir->i_mtime = CURRENT_TIME;
 
-	d_drop(dentry);
+	spin_lock(&dcache_lock);
+	spin_lock(&sbi->rehash_lock);
+	list_add(&ino->rehash, &sbi->rehash_list);
+	spin_unlock(&sbi->rehash_lock);
+	spin_lock(&dentry->d_lock);
+	__d_drop(dentry);
+	spin_unlock(&dentry->d_lock);
+	spin_unlock(&dcache_lock);
 
 	return 0;
 }
@@ -653,6 +793,9 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 	
+	DPRINTK("dentry %p, removing %.*s",
+		dentry, dentry->d_name.len, dentry->d_name.name);
+
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
 
@@ -661,6 +804,9 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 		spin_unlock(&dcache_lock);
 		return -ENOTEMPTY;
 	}
+	spin_lock(&sbi->rehash_lock);
+	list_add(&ino->rehash, &sbi->rehash_list);
+	spin_unlock(&sbi->rehash_lock);
 	spin_lock(&dentry->d_lock);
 	__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);

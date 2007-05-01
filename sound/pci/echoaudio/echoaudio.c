@@ -2033,6 +2033,8 @@ static int __devinit snd_echo_probe(struct pci_dev *pci,
 	if (card == NULL)
 		return -ENOMEM;
 
+	snd_card_set_dev(card, &pci->dev);
+
 	if ((err = snd_echo_create(card, pci, &chip)) < 0) {
 		snd_card_free(card);
 		return err;

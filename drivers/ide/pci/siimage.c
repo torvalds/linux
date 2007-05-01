@@ -1,8 +1,9 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.07	Nov 30, 2003
+ * linux/drivers/ide/pci/siimage.c		Version 1.11	Jan 27, 2007
  *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
+ * Copyright (C) 2007		MontaVista Software, Inc.
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
@@ -25,6 +26,11 @@
  *	If you have strange problems with nVidia chipset systems please
  *	see the SI support documentation and update your system BIOS
  *	if neccessary
+ *
+ *  The Dell DRAC4 has some interesting features including effectively hot
+ *  unplugging/replugging the virtual CD interface when the DRAC is reset.
+ *  This often causes drivers/ide/siimage to panic but is ok with the rather
+ *  smarter code in libata.
  */
 
 #include <linux/types.h>
@@ -205,41 +211,39 @@ static void siimage_tuneproc (ide_drive_t *drive, byte mode_wanted)
 	unsigned long tfaddr	= siimage_selreg(hwif, 0x02);
 	
 	/* cheat for now and use the docs */
-	switch(mode_wanted) {
-		case 4:	
-			speedp = 0x10c1; 
-			speedt = 0x10c1;
-			break;
-		case 3:	
-			speedp = 0x10C3; 
-			speedt = 0x10C3;
-			break;
-		case 2:	
-			speedp = 0x1104; 
-			speedt = 0x1281;
-			break;
-		case 1:		
-			speedp = 0x2283; 
-			speedt = 0x1281;
-			break;
-		case 0:
-		default:
-			speedp = 0x328A; 
-			speedt = 0x328A;
-			break;
+	switch (mode_wanted) {
+	case 4:
+		speedp = 0x10c1;
+		speedt = 0x10c1;
+		break;
+	case 3:
+		speedp = 0x10c3;
+		speedt = 0x10c3;
+		break;
+	case 2:
+		speedp = 0x1104;
+		speedt = 0x1281;
+		break;
+	case 1:
+		speedp = 0x2283;
+		speedt = 0x2283;
+		break;
+	case 0:
+	default:
+		speedp = 0x328a;
+		speedt = 0x328a;
+		break;
 	}
-	if (hwif->mmio)
-	{
-		hwif->OUTW(speedt, addr);
-		hwif->OUTW(speedp, tfaddr);
+
+	if (hwif->mmio) {
+		hwif->OUTW(speedp, addr);
+		hwif->OUTW(speedt, tfaddr);
 		/* Now set up IORDY */
 		if(mode_wanted == 3 || mode_wanted == 4)
 			hwif->OUTW(hwif->INW(tfaddr-2)|0x200, tfaddr-2);
 		else
 			hwif->OUTW(hwif->INW(tfaddr-2)&~0x200, tfaddr-2);
-	}
-	else
-	{
+	} else {
 		pci_write_config_word(hwif->pci_dev, addr, speedp);
 		pci_write_config_word(hwif->pci_dev, tfaddr, speedt);
 		pci_read_config_word(hwif->pci_dev, tfaddr-2, &speedp);
@@ -397,11 +401,8 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 	if (!speed)
 		return 0;
 
-	if (ide_set_xfer_rate(drive, speed))
+	if (siimage_tune_chipset(drive, speed))
 		return 0;
-
-	if (!drive->init_speed)
-		drive->init_speed = speed;
 
 	return ide_dma_enable(drive);
 }
@@ -418,25 +419,13 @@ static int config_chipset_for_dma (ide_drive_t *drive)
  
 static int siimage_config_drive_for_dma (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-	if ((id->capability & 1) != 0 && drive->autodma) {
-
-		if (ide_use_dma(drive)) {
-			if (config_chipset_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
-
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive))
 		config_chipset_for_pio(drive, 1);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return -1;
 }
 
 /* returns 1 if dma irq issued, 0 otherwise */
@@ -472,11 +461,11 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 	unsigned long addr	= siimage_selreg(hwif, 0x1);
 
 	if (SATA_ERROR_REG) {
-		u32 ext_stat = hwif->INL(base + 0x10);
+		u32 ext_stat = readl((void __iomem *)(base + 0x10));
 		u8 watchdog = 0;
 		if (ext_stat & ((hwif->channel) ? 0x40 : 0x10)) {
-			u32 sata_error = hwif->INL(SATA_ERROR_REG);
-			hwif->OUTL(sata_error, SATA_ERROR_REG);
+			u32 sata_error = readl((void __iomem *)SATA_ERROR_REG);
+			writel(sata_error, (void __iomem *)SATA_ERROR_REG);
 			watchdog = (sata_error & 0x00680000) ? 1 : 0;
 			printk(KERN_WARNING "%s: sata_error = 0x%08x, "
 				"watchdog = %d, %s\n",
@@ -493,11 +482,11 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 	}
 
 	/* return 1 if INTR asserted */
-	if ((hwif->INB(hwif->dma_status) & 0x04) == 0x04)
+	if ((readb((void __iomem *)hwif->dma_status) & 0x04) == 0x04)
 		return 1;
 
 	/* return 1 if Device INTR asserted */
-	if ((hwif->INB(addr) & 8) == 8)
+	if ((readb((void __iomem *)addr) & 8) == 8)
 		return 0;	//return 1;
 
 	return 0;
@@ -519,9 +508,9 @@ static int siimage_busproc (ide_drive_t * drive, int state)
 	u32 stat_config		= 0;
 	unsigned long addr	= siimage_selreg(hwif, 0);
 
-	if (hwif->mmio) {
-		stat_config = hwif->INL(addr);
-	} else
+	if (hwif->mmio)
+		stat_config = readl((void __iomem *)addr);
+	else
 		pci_read_config_dword(hwif->pci_dev, addr, &stat_config);
 
 	switch (state) {
@@ -557,9 +546,10 @@ static int siimage_reset_poll (ide_drive_t *drive)
 	if (SATA_STATUS_REG) {
 		ide_hwif_t *hwif	= HWIF(drive);
 
-		if ((hwif->INL(SATA_STATUS_REG) & 0x03) != 0x03) {
+		/* SATA_STATUS_REG is valid only when in MMIO mode */
+		if ((readl((void __iomem *)SATA_STATUS_REG) & 0x03) != 0x03) {
 			printk(KERN_WARNING "%s: reset phy dead, status=0x%08x\n",
-				hwif->name, hwif->INL(SATA_STATUS_REG));
+				hwif->name, readl((void __iomem *)SATA_STATUS_REG));
 			HWGROUP(drive)->polling = 0;
 			return ide_started;
 		}
@@ -619,7 +609,8 @@ static void siimage_reset (ide_drive_t *drive)
 	}
 
 	if (SATA_STATUS_REG) {
-		u32 sata_stat = hwif->INL(SATA_STATUS_REG);
+		/* SATA_STATUS_REG is valid only when in MMIO mode */
+		u32 sata_stat = readl((void __iomem *)SATA_STATUS_REG);
 		printk(KERN_WARNING "%s: reset phy, status=0x%08x, %s\n",
 			hwif->name, sata_stat, __FUNCTION__);
 		if (!(sata_stat)) {
@@ -898,7 +889,8 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
        	base = (unsigned long) addr;
 
 	hwif->dma_base			= base + (ch ? 0x08 : 0x00);
-	hwif->mmio			= 2;
+
+	hwif->mmio = 1;
 }
 
 static int is_dev_seagate_sata(ide_drive_t *drive)

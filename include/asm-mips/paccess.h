@@ -34,7 +34,7 @@ struct __large_pstruct { unsigned long buf[100]; };
 #define __get_dbe(x,ptr,size)						\
 ({									\
 	long __gu_err;							\
-	__typeof(*(ptr)) __gu_val;					\
+	__typeof__(*(ptr)) __gu_val;					\
 	unsigned long __gu_addr;					\
 	__asm__("":"=r" (__gu_val));					\
 	__gu_addr = (unsigned long) (ptr);				\

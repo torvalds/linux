@@ -94,8 +94,8 @@ static void __init lite5200_setup_arch(void)
 
 	np = of_find_node_by_type(NULL, "cpu");
 	if (np) {
-		unsigned int *fp =
-		    (int *)get_property(np, "clock-frequency", NULL);
+		const unsigned int *fp =
+			of_get_property(np, "clock-frequency", NULL);
 		if (fp != 0)
 			loops_per_jiffy = *fp / HZ;
 		else
@@ -108,9 +108,11 @@ static void __init lite5200_setup_arch(void)
 	lite5200_setup_cpu();	/* Platorm specific */
 
 #ifdef CONFIG_PCI
-	np = of_find_node_by_type(np, "pci");
-	if (np)
+	np = of_find_node_by_type(NULL, "pci");
+	if (np) {
 		mpc52xx_add_bridge(np);
+		of_node_put(np);
+	}
 #endif
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -132,7 +134,7 @@ void lite5200_show_cpuinfo(struct seq_file *m)
 	const char *model = NULL;
 
 	if (np)
-		model = get_property(np, "model", NULL);
+		model = of_get_property(np, "model", NULL);
 
 	seq_printf(m, "vendor\t\t:	Freescale Semiconductor\n");
 	seq_printf(m, "machine\t\t:	%s\n", model ? model : "unknown");

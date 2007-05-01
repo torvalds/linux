@@ -83,7 +83,7 @@ iop3xx_i2c_enable(struct i2c_algo_iop3xx_data *iop3xx_adap)
 	 * Every time unit enable is asserted, GPOD needs to be cleared
 	 * on IOP3XX to avoid data corruption on the bus.
 	 */
-#ifdef CONFIG_PLAT_IOP
+#if defined(CONFIG_ARCH_IOP32X) || defined(CONFIG_ARCH_IOP33X)
 	if (iop3xx_adap->id == 0) {
 		gpio_line_set(IOP3XX_GPIO_LINE(7), GPIO_LOW);
 		gpio_line_set(IOP3XX_GPIO_LINE(6), GPIO_LOW);

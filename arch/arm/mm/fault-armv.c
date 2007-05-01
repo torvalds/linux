@@ -119,8 +119,6 @@ make_coherent(struct address_space *mapping, struct vm_area_struct *vma, unsigne
 		flush_cache_page(vma, addr, pfn);
 }
 
-void __flush_dcache_page(struct address_space *mapping, struct page *page);
-
 /*
  * Take care of architecture specific things when placing a new PTE into
  * a page table, or changing an existing PTE.  Basically, there are two

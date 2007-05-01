@@ -214,8 +214,8 @@ static ssize_t ci_ll_read(struct dvb_ringbuffer *cibuf, struct file *file,
 
 static int dvb_ca_open(struct inode *inode, struct file *file)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct av7110 *av7110 = (struct av7110 *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct av7110 *av7110 = dvbdev->priv;
 	int err = dvb_generic_open(inode, file);
 
 	dprintk(8, "av7110:%p\n",av7110);
@@ -228,8 +228,8 @@ static int dvb_ca_open(struct inode *inode, struct file *file)
 
 static unsigned int dvb_ca_poll (struct file *file, poll_table *wait)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct av7110 *av7110 = (struct av7110 *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct av7110 *av7110 = dvbdev->priv;
 	struct dvb_ringbuffer *rbuf = &av7110->ci_rbuffer;
 	struct dvb_ringbuffer *wbuf = &av7110->ci_wbuffer;
 	unsigned int mask = 0;
@@ -251,8 +251,8 @@ static unsigned int dvb_ca_poll (struct file *file, poll_table *wait)
 static int dvb_ca_ioctl(struct inode *inode, struct file *file,
 		 unsigned int cmd, void *parg)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct av7110 *av7110 = (struct av7110 *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct av7110 *av7110 = dvbdev->priv;
 	unsigned long arg = (unsigned long) parg;
 
 	dprintk(8, "av7110:%p\n",av7110);
@@ -329,8 +329,8 @@ static int dvb_ca_ioctl(struct inode *inode, struct file *file,
 static ssize_t dvb_ca_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct av7110 *av7110 = (struct av7110 *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct av7110 *av7110 = dvbdev->priv;
 
 	dprintk(8, "av7110:%p\n",av7110);
 	return ci_ll_write(&av7110->ci_wbuffer, file, buf, count, ppos);
@@ -339,14 +339,12 @@ static ssize_t dvb_ca_write(struct file *file, const char __user *buf,
 static ssize_t dvb_ca_read(struct file *file, char __user *buf,
 			   size_t count, loff_t *ppos)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct av7110 *av7110 = (struct av7110 *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct av7110 *av7110 = dvbdev->priv;
 
 	dprintk(8, "av7110:%p\n",av7110);
 	return ci_ll_read(&av7110->ci_rbuffer, file, buf, count, ppos);
 }
-
-
 
 static struct file_operations dvb_ca_fops = {
 	.owner		= THIS_MODULE,

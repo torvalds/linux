@@ -10,7 +10,7 @@
  *    Copyright (C) 2000 Grant Grundler <grundler at parisc-linux.org>
  *    Copyright (C) 2001 Richard Hirst <rhirst with parisc-linux.org>
  *    Copyright (C) 2001-2002 Ryan Bradetich <rbrad at parisc-linux.org>
- *    Copyright (C) 2001 Helge Deller <deller at parisc-linux.org>
+ *    Copyright (C) 2001-2007 Helge Deller <deller at parisc-linux.org>
  *    Copyright (C) 2000-2001 Thomas Bogendoerfer <tsbogend at parisc-linux.org>
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
  *    Copyright (C) 2005-2006 Kyle McMartin <kyle at parisc-linux.org>
@@ -282,8 +282,8 @@
 	 * to worry about faulting trying to copy in a larger 64-bit
 	 * struct from a 32-bit user-space app.
 	 */
-	ENTRY_SAME(rt_sigqueueinfo)
-	ENTRY_SAME(rt_sigsuspend_wrapper) /* not really SAME -- see the code */
+	ENTRY_COMP(rt_sigqueueinfo)
+	ENTRY_COMP(rt_sigsuspend)
 	ENTRY_SAME(chown)		/* 180 */
 	/* setsockopt() used by iptables: SO_SET_REPLACE/SO_SET_ADD_COUNTERS */
 	ENTRY_COMP(setsockopt)
@@ -377,9 +377,9 @@
 	ENTRY_SAME(inotify_init)
 	ENTRY_SAME(inotify_add_watch)	/* 270 */
 	ENTRY_SAME(inotify_rm_watch)
-	ENTRY_SAME(ni_syscall)		/* 271 ENTRY_COMP(pselect6) */
-	ENTRY_SAME(ni_syscall)		/* 272 ENTRY_COMP(ppoll) */
 	ENTRY_SAME(migrate_pages)
+	ENTRY_COMP(pselect6)
+	ENTRY_COMP(ppoll)
 	ENTRY_COMP(openat)		/* 275 */
 	ENTRY_SAME(mkdirat)
 	ENTRY_SAME(mknodat)
@@ -399,5 +399,11 @@
 	ENTRY_SAME(splice)
 	ENTRY_OURS(sync_file_range)
 	ENTRY_SAME(tee)
+	ENTRY_COMP(vmsplice)
+	ENTRY_COMP(move_pages)		/* 295 */
+	ENTRY_SAME(getcpu)
+	ENTRY_SAME(epoll_pwait)
+	ENTRY_COMP(statfs64)
+	ENTRY_COMP(fstatfs64)
 	/* Nothing yet */
 

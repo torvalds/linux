@@ -322,7 +322,7 @@ static inline void remove_debug_files (struct ehci_hcd *bus) { }
 
 #else
 
-/* troubleshooting help: expose state in driverfs */
+/* troubleshooting help: expose state in sysfs */
 
 #define speed_char(info1) ({ char tmp; \
 		switch (info1 & (3 << 12)) { \

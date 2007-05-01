@@ -37,7 +37,7 @@ static int __init find_dma_window(u64 *io_space_id, u64 *ioid,
 	const unsigned long *dma_window;
 
 	for_each_node_by_type(dn, "ioif") {
-		dma_window = get_property(dn, "toshiba,dma-window", NULL);
+		dma_window = of_get_property(dn, "toshiba,dma-window", NULL);
 		if (dma_window) {
 			*io_space_id = (dma_window[0] >> 32) & 0xffffffffUL;
 			*ioid = dma_window[0] & 0x7ffUL;
@@ -80,7 +80,7 @@ static int celleb_of_bus_notify(struct notifier_block *nb,
 	if (action != BUS_NOTIFY_ADD_DEVICE)
 		return 0;
 
-	dev->archdata.dma_ops = pci_dma_ops;
+	dev->archdata.dma_ops = get_pci_dma_ops();
 
 	return 0;
 }
@@ -95,7 +95,7 @@ static int __init celleb_init_iommu(void)
 		return -ENODEV;
 
 	celleb_init_direct_mapping();
-	pci_dma_ops = &dma_direct_ops;
+	set_pci_dma_ops(&dma_direct_ops);
 	bus_register_notifier(&of_platform_bus_type, &celleb_of_bus_notifier);
 
 	return 0;

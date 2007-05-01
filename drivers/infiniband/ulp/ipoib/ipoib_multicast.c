@@ -60,14 +60,11 @@ static DEFINE_MUTEX(mcast_mutex);
 /* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
 struct ipoib_mcast {
 	struct ib_sa_mcmember_rec mcmember;
+	struct ib_sa_multicast	 *mc;
 	struct ipoib_ah          *ah;
 
 	struct rb_node    rb_node;
 	struct list_head  list;
-	struct completion done;
-
-	int                 query_id;
-	struct ib_sa_query *query;
 
 	unsigned long created;
 	unsigned long backoff;
@@ -299,18 +296,22 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	return 0;
 }
 
-static void
+static int
 ipoib_mcast_sendonly_join_complete(int status,
-				   struct ib_sa_mcmember_rec *mcmember,
-				   void *mcast_ptr)
+				   struct ib_sa_multicast *multicast)
 {
-	struct ipoib_mcast *mcast = mcast_ptr;
+	struct ipoib_mcast *mcast = multicast->context;
 	struct net_device *dev = mcast->dev;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
+	/* We trap for port events ourselves. */
+	if (status == -ENETRESET)
+		return 0;
+
 	if (!status)
-		ipoib_mcast_join_finish(mcast, mcmember);
-	else {
+		status = ipoib_mcast_join_finish(mcast, &multicast->rec);
+
+	if (status) {
 		if (mcast->logcount++ < 20)
 			ipoib_dbg_mcast(netdev_priv(dev), "multicast join failed for "
 					IPOIB_GID_FMT ", status %d\n",
@@ -325,11 +326,10 @@ ipoib_mcast_sendonly_join_complete(int status,
 		spin_unlock_irq(&priv->tx_lock);
 
 		/* Clear the busy flag so we try again */
-		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
-		mcast->query = NULL;
+		status = test_and_clear_bit(IPOIB_MCAST_FLAG_BUSY,
+					    &mcast->flags);
 	}
-
-	complete(&mcast->done);
+	return status;
 }
 
 static int ipoib_mcast_sendonly_join(struct ipoib_mcast *mcast)
@@ -359,35 +359,33 @@ static int ipoib_mcast_sendonly_join(struct ipoib_mcast *mcast)
 	rec.port_gid = priv->local_gid;
 	rec.pkey     = cpu_to_be16(priv->pkey);
 
-	init_completion(&mcast->done);
-
-	ret = ib_sa_mcmember_rec_set(&ipoib_sa_client, priv->ca, priv->port, &rec,
-				     IB_SA_MCMEMBER_REC_MGID		|
-				     IB_SA_MCMEMBER_REC_PORT_GID	|
-				     IB_SA_MCMEMBER_REC_PKEY		|
-				     IB_SA_MCMEMBER_REC_JOIN_STATE,
-				     1000, GFP_ATOMIC,
-				     ipoib_mcast_sendonly_join_complete,
-				     mcast, &mcast->query);
-	if (ret < 0) {
-		ipoib_warn(priv, "ib_sa_mcmember_rec_set failed (ret = %d)\n",
+	mcast->mc = ib_sa_join_multicast(&ipoib_sa_client, priv->ca,
+					 priv->port, &rec,
+					 IB_SA_MCMEMBER_REC_MGID	|
+					 IB_SA_MCMEMBER_REC_PORT_GID	|
+					 IB_SA_MCMEMBER_REC_PKEY	|
+					 IB_SA_MCMEMBER_REC_JOIN_STATE,
+					 GFP_ATOMIC,
+					 ipoib_mcast_sendonly_join_complete,
+					 mcast);
+	if (IS_ERR(mcast->mc)) {
+		ret = PTR_ERR(mcast->mc);
+		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
+		ipoib_warn(priv, "ib_sa_join_multicast failed (ret = %d)\n",
 			   ret);
 	} else {
 		ipoib_dbg_mcast(priv, "no multicast record for " IPOIB_GID_FMT
 				", starting join\n",
 				IPOIB_GID_ARG(mcast->mcmember.mgid));
-
-		mcast->query_id = ret;
 	}
 
 	return ret;
 }
 
-static void ipoib_mcast_join_complete(int status,
-				      struct ib_sa_mcmember_rec *mcmember,
-				      void *mcast_ptr)
+static int ipoib_mcast_join_complete(int status,
+				     struct ib_sa_multicast *multicast)
 {
-	struct ipoib_mcast *mcast = mcast_ptr;
+	struct ipoib_mcast *mcast = multicast->context;
 	struct net_device *dev = mcast->dev;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -395,24 +393,29 @@ static void ipoib_mcast_join_complete(int status,
 			" (status %d)\n",
 			IPOIB_GID_ARG(mcast->mcmember.mgid), status);
 
-	if (!status && !ipoib_mcast_join_finish(mcast, mcmember)) {
+	/* We trap for port events ourselves. */
+	if (status == -ENETRESET)
+		return 0;
+
+	if (!status)
+		status = ipoib_mcast_join_finish(mcast, &multicast->rec);
+
+	if (!status) {
 		mcast->backoff = 1;
 		mutex_lock(&mcast_mutex);
 		if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 			queue_delayed_work(ipoib_workqueue,
 					   &priv->mcast_task, 0);
 		mutex_unlock(&mcast_mutex);
-		complete(&mcast->done);
-		return;
+
+		if (mcast == priv->broadcast)
+			netif_carrier_on(dev);
+
+		return 0;
 	}
 
-	if (status == -EINTR) {
-		complete(&mcast->done);
-		return;
-	}
-
-	if (status && mcast->logcount++ < 20) {
-		if (status == -ETIMEDOUT || status == -EINTR) {
+	if (mcast->logcount++ < 20) {
+		if (status == -ETIMEDOUT) {
 			ipoib_dbg_mcast(priv, "multicast join failed for " IPOIB_GID_FMT
 					", status %d\n",
 					IPOIB_GID_ARG(mcast->mcmember.mgid),
@@ -429,24 +432,18 @@ static void ipoib_mcast_join_complete(int status,
 	if (mcast->backoff > IPOIB_MAX_BACKOFF_SECONDS)
 		mcast->backoff = IPOIB_MAX_BACKOFF_SECONDS;
 
+	/* Clear the busy flag so we try again */
+	status = test_and_clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
+
 	mutex_lock(&mcast_mutex);
-
 	spin_lock_irq(&priv->lock);
-	mcast->query = NULL;
-
-	if (test_bit(IPOIB_MCAST_RUN, &priv->flags)) {
-		if (status == -ETIMEDOUT)
-			queue_delayed_work(ipoib_workqueue, &priv->mcast_task,
-					   0);
-		else
-			queue_delayed_work(ipoib_workqueue, &priv->mcast_task,
-					   mcast->backoff * HZ);
-	} else
-		complete(&mcast->done);
+	if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
+		queue_delayed_work(ipoib_workqueue, &priv->mcast_task,
+				   mcast->backoff * HZ);
 	spin_unlock_irq(&priv->lock);
 	mutex_unlock(&mcast_mutex);
 
-	return;
+	return status;
 }
 
 static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
@@ -495,15 +492,14 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		rec.hop_limit	  = priv->broadcast->mcmember.hop_limit;
 	}
 
-	init_completion(&mcast->done);
-
-	ret = ib_sa_mcmember_rec_set(&ipoib_sa_client, priv->ca, priv->port,
-				     &rec, comp_mask, mcast->backoff * 1000,
-				     GFP_ATOMIC, ipoib_mcast_join_complete,
-				     mcast, &mcast->query);
-
-	if (ret < 0) {
-		ipoib_warn(priv, "ib_sa_mcmember_rec_set failed, status %d\n", ret);
+	set_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
+	mcast->mc = ib_sa_join_multicast(&ipoib_sa_client, priv->ca, priv->port,
+					 &rec, comp_mask, GFP_KERNEL,
+					 ipoib_mcast_join_complete, mcast);
+	if (IS_ERR(mcast->mc)) {
+		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
+		ret = PTR_ERR(mcast->mc);
+		ipoib_warn(priv, "ib_sa_join_multicast failed, status %d\n", ret);
 
 		mcast->backoff *= 2;
 		if (mcast->backoff > IPOIB_MAX_BACKOFF_SECONDS)
@@ -515,8 +511,7 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 					   &priv->mcast_task,
 					   mcast->backoff * HZ);
 		mutex_unlock(&mcast_mutex);
-	} else
-		mcast->query_id = ret;
+	}
 }
 
 void ipoib_mcast_join_task(struct work_struct *work)
@@ -536,12 +531,10 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	{
 		struct ib_port_attr attr;
 
-		if (!ib_query_port(priv->ca, priv->port, &attr)) {
-			priv->local_lid  = attr.lid;
-			priv->local_rate = attr.active_speed *
-				ib_width_enum_to_int(attr.active_width);
-		} else
-		ipoib_warn(priv, "ib_query_port failed\n");
+		if (!ib_query_port(priv->ca, priv->port, &attr))
+			priv->local_lid = attr.lid;
+		else
+			ipoib_warn(priv, "ib_query_port failed\n");
 	}
 
 	if (!priv->broadcast) {
@@ -568,7 +561,8 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	}
 
 	if (!test_bit(IPOIB_MCAST_FLAG_ATTACHED, &priv->broadcast->flags)) {
-		ipoib_mcast_join(dev, priv->broadcast, 0);
+		if (!test_bit(IPOIB_MCAST_FLAG_BUSY, &priv->broadcast->flags))
+			ipoib_mcast_join(dev, priv->broadcast, 0);
 		return;
 	}
 
@@ -604,7 +598,6 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	ipoib_dbg_mcast(priv, "successfully joined all multicast groups\n");
 
 	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
-	netif_carrier_on(dev);
 }
 
 int ipoib_mcast_start_thread(struct net_device *dev)
@@ -625,26 +618,9 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	return 0;
 }
 
-static void wait_for_mcast_join(struct ipoib_dev_priv *priv,
-				struct ipoib_mcast *mcast)
-{
-	spin_lock_irq(&priv->lock);
-	if (mcast && mcast->query) {
-		ib_sa_cancel_query(mcast->query_id, mcast->query);
-		mcast->query = NULL;
-		spin_unlock_irq(&priv->lock);
-		ipoib_dbg_mcast(priv, "waiting for MGID " IPOIB_GID_FMT "\n",
-				IPOIB_GID_ARG(mcast->mcmember.mgid));
-		wait_for_completion(&mcast->done);
-	}
-	else
-		spin_unlock_irq(&priv->lock);
-}
-
 int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ipoib_mcast *mcast;
 
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
 
@@ -660,52 +636,27 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 	if (flush)
 		flush_workqueue(ipoib_workqueue);
 
-	wait_for_mcast_join(priv, priv->broadcast);
-
-	list_for_each_entry(mcast, &priv->multicast_list, list)
-		wait_for_mcast_join(priv, mcast);
-
 	return 0;
 }
 
 static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ib_sa_mcmember_rec rec = {
-		.join_state = 1
-	};
 	int ret = 0;
 
-	if (!test_and_clear_bit(IPOIB_MCAST_FLAG_ATTACHED, &mcast->flags))
-		return 0;
+	if (test_and_clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
+		ib_sa_free_multicast(mcast->mc);
 
-	ipoib_dbg_mcast(priv, "leaving MGID " IPOIB_GID_FMT "\n",
-			IPOIB_GID_ARG(mcast->mcmember.mgid));
+	if (test_and_clear_bit(IPOIB_MCAST_FLAG_ATTACHED, &mcast->flags)) {
+		ipoib_dbg_mcast(priv, "leaving MGID " IPOIB_GID_FMT "\n",
+				IPOIB_GID_ARG(mcast->mcmember.mgid));
 
-	rec.mgid     = mcast->mcmember.mgid;
-	rec.port_gid = priv->local_gid;
-	rec.pkey     = cpu_to_be16(priv->pkey);
-
-	/* Remove ourselves from the multicast group */
-	ret = ipoib_mcast_detach(dev, be16_to_cpu(mcast->mcmember.mlid),
-				 &mcast->mcmember.mgid);
-	if (ret)
-		ipoib_warn(priv, "ipoib_mcast_detach failed (result = %d)\n", ret);
-
-	/*
-	 * Just make one shot at leaving and don't wait for a reply;
-	 * if we fail, too bad.
-	 */
-	ret = ib_sa_mcmember_rec_delete(&ipoib_sa_client, priv->ca, priv->port, &rec,
-					IB_SA_MCMEMBER_REC_MGID		|
-					IB_SA_MCMEMBER_REC_PORT_GID	|
-					IB_SA_MCMEMBER_REC_PKEY		|
-					IB_SA_MCMEMBER_REC_JOIN_STATE,
-					0, GFP_ATOMIC, NULL,
-					mcast, &mcast->query);
-	if (ret < 0)
-		ipoib_warn(priv, "ib_sa_mcmember_rec_delete failed "
-			   "for leave (result = %d)\n", ret);
+		/* Remove ourselves from the multicast group */
+		ret = ipoib_mcast_detach(dev, be16_to_cpu(mcast->mcmember.mlid),
+					 &mcast->mcmember.mgid);
+		if (ret)
+			ipoib_warn(priv, "ipoib_mcast_detach failed (result = %d)\n", ret);
+	}
 
 	return 0;
 }
@@ -758,7 +709,7 @@ void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb)
 			dev_kfree_skb_any(skb);
 		}
 
-		if (mcast->query)
+		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
 			ipoib_dbg_mcast(priv, "no address vector, "
 					"but multicast join already started\n");
 		else if (test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags))
@@ -916,7 +867,6 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 
 	/* We have to cancel outside of the spinlock */
 	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
-		wait_for_mcast_join(priv, mcast);
 		ipoib_mcast_leave(mcast->dev, mcast);
 		ipoib_mcast_free(mcast);
 	}

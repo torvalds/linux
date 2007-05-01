@@ -452,10 +452,22 @@ store_rescan_field (struct device *dev, struct device_attribute *attr, const cha
 }
 static DEVICE_ATTR(rescan, S_IWUSR, NULL, store_rescan_field);
 
+static void sdev_store_delete_callback(struct device *dev)
+{
+	scsi_remove_device(to_scsi_device(dev));
+}
+
 static ssize_t sdev_store_delete(struct device *dev, struct device_attribute *attr, const char *buf,
 				 size_t count)
 {
-	scsi_remove_device(to_scsi_device(dev));
+	int rc;
+
+	/* An attribute cannot be unregistered by one of its own methods,
+	 * so we have to use this roundabout approach.
+	 */
+	rc = device_schedule_callback(dev, sdev_store_delete_callback);
+	if (rc)
+		count = rc;
 	return count;
 };
 static DEVICE_ATTR(delete, S_IWUSR, NULL, sdev_store_delete);
@@ -922,7 +934,7 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	snprintf(sdev->sdev_classdev.class_id, BUS_ID_SIZE,
 		 "%d:%d:%d:%d", sdev->host->host_no,
 		 sdev->channel, sdev->id, sdev->lun);
-	sdev->scsi_level = SCSI_2;
+	sdev->scsi_level = starget->scsi_level;
 	transport_setup_device(&sdev->sdev_gendev);
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_add_tail(&sdev->same_target_siblings, &starget->devices);

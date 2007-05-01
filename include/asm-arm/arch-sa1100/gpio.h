@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-arm/arch-pxa/gpio.h
+ * linux/include/asm-arm/arch-sa1100/gpio.h
  *
  * SA1100 GPIO wrappers for arch-neutral GPIO calls
  *
@@ -24,11 +24,8 @@
 #ifndef __ASM_ARCH_SA1100_GPIO_H
 #define __ASM_ARCH_SA1100_GPIO_H
 
-#include <asm/arch/SA-1100.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/hardware.h>
-
-#include <asm/errno.h>
+#include <asm/hardware.h>
+#include <asm/irq.h>
 
 static inline int gpio_request(unsigned gpio, const char *label)
 {
@@ -40,25 +37,22 @@ static inline void gpio_free(unsigned gpio)
 	return;
 }
 
-static inline int gpio_direction_input(unsigned gpio)
+extern int gpio_direction_input(unsigned gpio);
+extern int gpio_direction_output(unsigned gpio, int value);
+
+
+static inline int gpio_get_value(unsigned gpio)
 {
-	if (gpio > GPIO_MAX)
-		return -EINVAL;
-	GPDR = (GPDR_In << gpio) 0
+	return GPLR & GPIO_GPIO(gpio);
 }
 
-static inline int gpio_direction_output(unsigned gpio)
+static inline void gpio_set_value(unsigned gpio, int value)
 {
-	if (gpio > GPIO_MAX)
-		return -EINVAL;
-	GPDR = (GPDR_Out << gpio) 0
+	if (value)
+		GPSR = GPIO_GPIO(gpio);
+	else
+		GPCR = GPIO_GPIO(gpio);
 }
-
-#define gpio_get_value(gpio) \
-	(GPLR & GPIO_GPIO(gpio))
-
-#define gpio_set_value(gpio,value) \
-	((value) ? (GPSR = GPIO_GPIO(gpio)) : (GPCR(gpio) = GPIO_GPIO(gpio)))
 
 #include <asm-generic/gpio.h>			/* cansleep wrappers */
 

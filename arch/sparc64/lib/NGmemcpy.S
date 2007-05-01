@@ -247,6 +247,8 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	/* fall through */
 
 60:	
+	membar		#Sync
+
 	/* %o2 contains any final bytes still needed to be copied
 	 * over. If anything is left, we copy it one byte at a time.
 	 */

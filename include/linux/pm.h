@@ -112,26 +112,81 @@ typedef int __bitwise suspend_state_t;
 
 typedef int __bitwise suspend_disk_method_t;
 
-#define	PM_DISK_FIRMWARE	((__force suspend_disk_method_t) 1)
-#define	PM_DISK_PLATFORM	((__force suspend_disk_method_t) 2)
-#define	PM_DISK_SHUTDOWN	((__force suspend_disk_method_t) 3)
-#define	PM_DISK_REBOOT		((__force suspend_disk_method_t) 4)
-#define	PM_DISK_TEST		((__force suspend_disk_method_t) 5)
-#define	PM_DISK_TESTPROC	((__force suspend_disk_method_t) 6)
-#define	PM_DISK_MAX		((__force suspend_disk_method_t) 7)
+/* invalid must be 0 so struct pm_ops initialisers can leave it out */
+#define PM_DISK_INVALID		((__force suspend_disk_method_t) 0)
+#define	PM_DISK_PLATFORM	((__force suspend_disk_method_t) 1)
+#define	PM_DISK_SHUTDOWN	((__force suspend_disk_method_t) 2)
+#define	PM_DISK_REBOOT		((__force suspend_disk_method_t) 3)
+#define	PM_DISK_TEST		((__force suspend_disk_method_t) 4)
+#define	PM_DISK_TESTPROC	((__force suspend_disk_method_t) 5)
+#define	PM_DISK_MAX		((__force suspend_disk_method_t) 6)
 
+/**
+ * struct pm_ops - Callbacks for managing platform dependent suspend states.
+ * @valid: Callback to determine whether the given state can be entered.
+ * 	If %CONFIG_SOFTWARE_SUSPEND is set then %PM_SUSPEND_DISK is
+ *	always valid and never passed to this call. If not assigned,
+ *	no suspend states are valid.
+ *	Valid states are advertised in /sys/power/state but can still
+ *	be rejected by prepare or enter if the conditions aren't right.
+ *	There is a %pm_valid_only_mem function available that can be assigned
+ *	to this if you only implement mem sleep.
+ *
+ * @prepare: Prepare the platform for the given suspend state. Can return a
+ *	negative error code if necessary.
+ *
+ * @enter: Enter the given suspend state, must be assigned. Can return a
+ *	negative error code if necessary.
+ *
+ * @finish: Called when the system has left the given state and all devices
+ *	are resumed. The return value is ignored.
+ *
+ * @pm_disk_mode: The generic code always allows one of the shutdown methods
+ *	%PM_DISK_SHUTDOWN, %PM_DISK_REBOOT, %PM_DISK_TEST and
+ *	%PM_DISK_TESTPROC. If this variable is set, the mode it is set
+ *	to is allowed in addition to those modes and is also made default.
+ *	When this mode is sent selected, the @prepare call will be called
+ *	before suspending to disk (if present), the @enter call should be
+ *	present and will be called after all state has been saved and the
+ *	machine is ready to be powered off; the @finish callback is called
+ *	after state has been restored. All these calls are called with
+ *	%PM_SUSPEND_DISK as the state.
+ */
 struct pm_ops {
-	suspend_disk_method_t pm_disk_mode;
 	int (*valid)(suspend_state_t state);
 	int (*prepare)(suspend_state_t state);
 	int (*enter)(suspend_state_t state);
 	int (*finish)(suspend_state_t state);
+	suspend_disk_method_t pm_disk_mode;
 };
 
-extern void pm_set_ops(struct pm_ops *);
+/**
+ * pm_set_ops - set platform dependent power management ops
+ * @pm_ops: The new power management operations to set.
+ */
+extern void pm_set_ops(struct pm_ops *pm_ops);
 extern struct pm_ops *pm_ops;
 extern int pm_suspend(suspend_state_t state);
 
+extern int pm_valid_only_mem(suspend_state_t state);
+
+/**
+ * arch_suspend_disable_irqs - disable IRQs for suspend
+ *
+ * Disables IRQs (in the default case). This is a weak symbol in the common
+ * code and thus allows architectures to override it if more needs to be
+ * done. Not called for suspend to disk.
+ */
+extern void arch_suspend_disable_irqs(void);
+
+/**
+ * arch_suspend_enable_irqs - enable IRQs after suspend
+ *
+ * Enables IRQs (in the default case). This is a weak symbol in the common
+ * code and thus allows architectures to override it if more needs to be
+ * done. Not called for suspend to disk.
+ */
+extern void arch_suspend_enable_irqs(void);
 
 /*
  * Device power management
@@ -240,6 +295,20 @@ extern void __suspend_report_result(const char *function, void *fn, int ret);
 		__suspend_report_result(__FUNCTION__, fn, ret);		\
 	} while (0)
 
+/*
+ * Platform hook to activate device wakeup capability, if that's not already
+ * handled by enable_irq_wake() etc.
+ * Returns zero on success, else negative errno
+ */
+extern int (*platform_enable_wakeup)(struct device *dev, int is_on);
+
+static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
+{
+	if (platform_enable_wakeup)
+		return (*platform_enable_wakeup)(dev, is_on);
+	return 0;
+}
+
 #else /* !CONFIG_PM */
 
 static inline int device_suspend(pm_message_t state)
@@ -260,6 +329,11 @@ static inline void dpm_runtime_resume(struct device * dev)
 }
 
 #define suspend_report_result(fn, ret) do { } while (0)
+
+static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
+{
+	return 0;
+}
 
 #endif
 

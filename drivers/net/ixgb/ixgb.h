@@ -111,9 +111,6 @@ struct ixgb_adapter;
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IXGB_RX_BUFFER_WRITE	8	/* Must be power of 2 */
 
-/* only works for sizes that are powers of 2 */
-#define IXGB_ROUNDUP(i, size) ((i) = (((i) + (size) - 1) & ~((size) - 1)))
-
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
 struct ixgb_buffer {

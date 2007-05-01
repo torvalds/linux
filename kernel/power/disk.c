@@ -39,7 +39,13 @@ static inline int platform_prepare(void)
 {
 	int error = 0;
 
-	if (pm_disk_mode == PM_DISK_PLATFORM) {
+	switch (pm_disk_mode) {
+	case PM_DISK_TEST:
+	case PM_DISK_TESTPROC:
+	case PM_DISK_SHUTDOWN:
+	case PM_DISK_REBOOT:
+		break;
+	default:
 		if (pm_ops && pm_ops->prepare)
 			error = pm_ops->prepare(PM_SUSPEND_DISK);
 	}
@@ -48,40 +54,48 @@ static inline int platform_prepare(void)
 
 /**
  *	power_down - Shut machine down for hibernate.
- *	@mode:		Suspend-to-disk mode
  *
- *	Use the platform driver, if configured so, and return gracefully if it
- *	fails.
- *	Otherwise, try to power off and reboot. If they fail, halt the machine,
- *	there ain't no turning back.
+ *	Use the platform driver, if configured so; otherwise try
+ *	to power off or reboot.
  */
 
-static void power_down(suspend_disk_method_t mode)
+static void power_down(void)
 {
-	switch(mode) {
-	case PM_DISK_PLATFORM:
-		if (pm_ops && pm_ops->enter) {
-			kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
-			pm_ops->enter(PM_SUSPEND_DISK);
-			break;
-		}
+	switch (pm_disk_mode) {
+	case PM_DISK_TEST:
+	case PM_DISK_TESTPROC:
+		break;
 	case PM_DISK_SHUTDOWN:
 		kernel_power_off();
 		break;
 	case PM_DISK_REBOOT:
 		kernel_restart(NULL);
 		break;
+	default:
+		if (pm_ops && pm_ops->enter) {
+			kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
+			pm_ops->enter(PM_SUSPEND_DISK);
+			break;
+		}
 	}
 	kernel_halt();
-	/* Valid image is on the disk, if we continue we risk serious data corruption
-	   after resume. */
+	/*
+	 * Valid image is on the disk, if we continue we risk serious data
+	 * corruption after resume.
+	 */
 	printk(KERN_CRIT "Please power me down manually\n");
 	while(1);
 }
 
 static inline void platform_finish(void)
 {
-	if (pm_disk_mode == PM_DISK_PLATFORM) {
+	switch (pm_disk_mode) {
+	case PM_DISK_TEST:
+	case PM_DISK_TESTPROC:
+	case PM_DISK_SHUTDOWN:
+	case PM_DISK_REBOOT:
+		break;
+	default:
 		if (pm_ops && pm_ops->finish)
 			pm_ops->finish(PM_SUSPEND_DISK);
 	}
@@ -107,8 +121,6 @@ static int prepare_processes(void)
 
 /**
  *	pm_suspend_disk - The granpappy of hibernation power management.
- *
- *	If we're going through the firmware, then get it over with quickly.
  *
  *	If not, then call swsusp to do its thing, then figure out how
  *	to power down the system.
@@ -166,7 +178,7 @@ int pm_suspend_disk(void)
 		pr_debug("PM: writing image.\n");
 		error = swsusp_write();
 		if (!error)
-			power_down(pm_disk_mode);
+			power_down();
 		else {
 			swsusp_free();
 			goto Thaw;
@@ -240,12 +252,6 @@ static int software_resume(void)
 		goto Done;
 	}
 
-	error = platform_prepare();
-	if (error) {
-		swsusp_free();
-		goto Thaw;
-	}
-
 	pr_debug("PM: Reading swsusp image.\n");
 
 	error = swsusp_read();
@@ -268,7 +274,6 @@ static int software_resume(void)
 	enable_nonboot_cpus();
  Free:
 	swsusp_free();
-	platform_finish();
 	device_resume();
 	resume_console();
  Thaw:
@@ -285,7 +290,6 @@ late_initcall(software_resume);
 
 
 static const char * const pm_disk_modes[] = {
-	[PM_DISK_FIRMWARE]	= "firmware",
 	[PM_DISK_PLATFORM]	= "platform",
 	[PM_DISK_SHUTDOWN]	= "shutdown",
 	[PM_DISK_REBOOT]	= "reboot",
@@ -296,27 +300,25 @@ static const char * const pm_disk_modes[] = {
 /**
  *	disk - Control suspend-to-disk mode
  *
- *	Suspend-to-disk can be handled in several ways. The greatest
- *	distinction is who writes memory to disk - the firmware or the OS.
- *	If the firmware does it, we assume that it also handles suspending
- *	the system.
- *	If the OS does it, then we have three options for putting the system
- *	to sleep - using the platform driver (e.g. ACPI or other PM registers),
- *	powering off the system or rebooting the system (for testing).
+ *	Suspend-to-disk can be handled in several ways. We have a few options
+ *	for putting the system to sleep - using the platform driver (e.g. ACPI
+ *	or other pm_ops), powering off the system or rebooting the system
+ *	(for testing) as well as the two test modes.
  *
- *	The system will support either 'firmware' or 'platform', and that is
- *	known a priori (and encoded in pm_ops). But, the user may choose
- *	'shutdown' or 'reboot' as alternatives.
+ *	The system can support 'platform', and that is known a priori (and
+ *	encoded in pm_ops). However, the user may choose 'shutdown' or 'reboot'
+ *	as alternatives, as well as the test modes 'test' and 'testproc'.
  *
  *	show() will display what the mode is currently set to.
  *	store() will accept one of
  *
- *	'firmware'
  *	'platform'
  *	'shutdown'
  *	'reboot'
+ *	'test'
+ *	'testproc'
  *
- *	It will only change to 'firmware' or 'platform' if the system
+ *	It will only change to 'platform' if the system
  *	supports it (as determined from pm_ops->pm_disk_mode).
  */
 
@@ -338,17 +340,21 @@ static ssize_t disk_store(struct subsystem * s, const char * buf, size_t n)
 	len = p ? p - buf : n;
 
 	mutex_lock(&pm_mutex);
-	for (i = PM_DISK_FIRMWARE; i < PM_DISK_MAX; i++) {
+	for (i = PM_DISK_PLATFORM; i < PM_DISK_MAX; i++) {
 		if (!strncmp(buf, pm_disk_modes[i], len)) {
 			mode = i;
 			break;
 		}
 	}
 	if (mode) {
-		if (mode == PM_DISK_SHUTDOWN || mode == PM_DISK_REBOOT ||
-		     mode == PM_DISK_TEST || mode == PM_DISK_TESTPROC) {
+		switch (mode) {
+		case PM_DISK_SHUTDOWN:
+		case PM_DISK_REBOOT:
+		case PM_DISK_TEST:
+		case PM_DISK_TESTPROC:
 			pm_disk_mode = mode;
-		} else {
+			break;
+		default:
 			if (pm_ops && pm_ops->enter &&
 			    (mode == pm_ops->pm_disk_mode))
 				pm_disk_mode = mode;

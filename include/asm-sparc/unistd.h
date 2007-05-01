@@ -319,16 +319,17 @@
 #define __NR_set_robust_list	300
 #define __NR_get_robust_list	301
 #define __NR_migrate_pages	302
+#define __NR_mbind		303
+#define __NR_get_mempolicy	304
+#define __NR_set_mempolicy	305
+#define __NR_kexec_load		306
+#define __NR_move_pages		307
+#define __NR_getcpu		308
+#define __NR_epoll_pwait	309
 
-#define NR_SYSCALLS		303
+#define NR_SYSCALLS		310
 
 #ifdef __KERNEL__
-/* WARNING: You MAY NOT add syscall numbers larger than 302, since
- *          all of the syscall tables in the Sparc kernel are
- *          sized to have 302 entries (starting at zero).  Therefore
- *          find a free slot in the 0-302 range.
- */
-
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_STAT64
@@ -345,7 +346,6 @@
 #define __ARCH_WANT_SYS_GETPGRP
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_NICE
-#define __ARCH_WANT_SYS_OLD_GETRLIMIT
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK

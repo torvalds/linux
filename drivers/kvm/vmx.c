@@ -19,6 +19,7 @@
 #include "vmx.h"
 #include "kvm_vmx.h"
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/profile.h>
@@ -26,7 +27,6 @@
 #include <asm/desc.h>
 
 #include "segment_descriptor.h"
-
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -76,7 +76,7 @@ static const u32 vmx_msr_index[] = {
 #endif
 	MSR_EFER, MSR_K6_STAR,
 };
-#define NR_VMX_MSR (sizeof(vmx_msr_index) / sizeof(*vmx_msr_index))
+#define NR_VMX_MSR ARRAY_SIZE(vmx_msr_index)
 
 static inline int is_page_fault(u32 intr_info)
 {
@@ -204,7 +204,7 @@ static void vmcs_write64(unsigned long field, u64 value)
  * Switches to specified vcpu, until a matching vcpu_put(), but assumes
  * vcpu mutex is already taken.
  */
-static struct kvm_vcpu *vmx_vcpu_load(struct kvm_vcpu *vcpu)
+static void vmx_vcpu_load(struct kvm_vcpu *vcpu)
 {
 	u64 phys_addr = __pa(vcpu->vmcs);
 	int cpu;
@@ -242,7 +242,6 @@ static struct kvm_vcpu *vmx_vcpu_load(struct kvm_vcpu *vcpu)
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
 	}
-	return vcpu;
 }
 
 static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
@@ -372,10 +371,10 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 		data = vmcs_read32(GUEST_SYSENTER_CS);
 		break;
 	case MSR_IA32_SYSENTER_EIP:
-		data = vmcs_read32(GUEST_SYSENTER_EIP);
+		data = vmcs_readl(GUEST_SYSENTER_EIP);
 		break;
 	case MSR_IA32_SYSENTER_ESP:
-		data = vmcs_read32(GUEST_SYSENTER_ESP);
+		data = vmcs_readl(GUEST_SYSENTER_ESP);
 		break;
 	default:
 		msr = find_msr_entry(vcpu, msr_index);
@@ -413,15 +412,14 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		vmcs_write32(GUEST_SYSENTER_CS, data);
 		break;
 	case MSR_IA32_SYSENTER_EIP:
-		vmcs_write32(GUEST_SYSENTER_EIP, data);
+		vmcs_writel(GUEST_SYSENTER_EIP, data);
 		break;
 	case MSR_IA32_SYSENTER_ESP:
-		vmcs_write32(GUEST_SYSENTER_ESP, data);
+		vmcs_writel(GUEST_SYSENTER_ESP, data);
 		break;
-	case MSR_IA32_TIME_STAMP_COUNTER: {
+	case MSR_IA32_TIME_STAMP_COUNTER:
 		guest_write_tsc(data);
 		break;
-	}
 	default:
 		msr = find_msr_entry(vcpu, msr_index);
 		if (msr) {
@@ -620,7 +618,7 @@ static void fix_pmode_dataseg(int seg, struct kvm_save_segment *save)
 {
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 
-	if (vmcs_readl(sf->base) == save->base) {
+	if (vmcs_readl(sf->base) == save->base && (save->base & AR_S_MASK)) {
 		vmcs_write16(sf->selector, save->selector);
 		vmcs_writel(sf->base, save->base);
 		vmcs_write32(sf->limit, save->limit);
@@ -793,6 +791,9 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
  */
 static void vmx_set_cr0_no_modeswitch(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
+	if (!vcpu->rmode.active && !(cr0 & CR0_PE_MASK))
+		enter_rmode(vcpu);
+
 	vcpu->rmode.active = ((cr0 & CR0_PE_MASK) == 0);
 	update_exception_bitmap(vcpu);
 	vmcs_writel(CR0_READ_SHADOW, cr0);
@@ -1467,6 +1468,18 @@ static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 }
 
+static void
+vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
+{
+	/*
+	 * Patch in the VMCALL instruction:
+	 */
+	hypercall[0] = 0x0f;
+	hypercall[1] = 0x01;
+	hypercall[2] = 0xc1;
+	hypercall[3] = 0xc3;
+}
+
 static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u64 exit_qualification;
@@ -1643,6 +1656,12 @@ static int handle_halt(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 }
 
+static int handle_vmcall(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	vmcs_writel(GUEST_RIP, vmcs_readl(GUEST_RIP)+3);
+	return kvm_hypercall(vcpu, kvm_run);
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -1661,6 +1680,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[EXIT_REASON_MSR_WRITE]               = handle_wrmsr,
 	[EXIT_REASON_PENDING_INTERRUPT]       = handle_interrupt_window,
 	[EXIT_REASON_HLT]                     = handle_halt,
+	[EXIT_REASON_VMCALL]                  = handle_vmcall,
 };
 
 static const int kvm_vmx_max_exit_handlers =
@@ -1868,6 +1888,27 @@ again:
 		[cr2]"i"(offsetof(struct kvm_vcpu, cr2))
 	      : "cc", "memory" );
 
+	/*
+	 * Reload segment selectors ASAP. (it's needed for a functional
+	 * kernel: x86 relies on having __KERNEL_PDA in %fs and x86_64
+	 * relies on having 0 in %gs for the CPU PDA to work.)
+	 */
+	if (fs_gs_ldt_reload_needed) {
+		load_ldt(ldt_sel);
+		load_fs(fs_sel);
+		/*
+		 * If we have to reload gs, we must take care to
+		 * preserve our gs base.
+		 */
+		local_irq_disable();
+		load_gs(gs_sel);
+#ifdef CONFIG_X86_64
+		wrmsrl(MSR_GS_BASE, vmcs_readl(HOST_GS_BASE));
+#endif
+		local_irq_enable();
+
+		reload_tss();
+	}
 	++kvm_stat.exits;
 
 	save_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
@@ -1885,22 +1926,6 @@ again:
 		kvm_run->exit_reason = vmcs_read32(VM_INSTRUCTION_ERROR);
 		r = 0;
 	} else {
-		if (fs_gs_ldt_reload_needed) {
-			load_ldt(ldt_sel);
-			load_fs(fs_sel);
-			/*
-			 * If we have to reload gs, we must take care to
-			 * preserve our gs base.
-			 */
-			local_irq_disable();
-			load_gs(gs_sel);
-#ifdef CONFIG_X86_64
-			wrmsrl(MSR_GS_BASE, vmcs_readl(HOST_GS_BASE));
-#endif
-			local_irq_enable();
-
-			reload_tss();
-		}
 		/*
 		 * Profile KVM exit RIPs:
 		 */
@@ -2062,6 +2087,7 @@ static struct kvm_arch_ops vmx_arch_ops = {
 	.run = vmx_vcpu_run,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.vcpu_setup = vmx_vcpu_setup,
+	.patch_hypercall = vmx_patch_hypercall,
 };
 
 static int __init vmx_init(void)

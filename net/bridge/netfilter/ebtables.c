@@ -833,8 +833,7 @@ static int translate_table(char *name, struct ebt_table_info *newinfo)
 		/* this will get free'd in do_replace()/ebt_register_table()
 		   if an error occurs */
 		newinfo->chainstack =
-			vmalloc((highest_possible_processor_id()+1)
-					* sizeof(*(newinfo->chainstack)));
+			vmalloc(nr_cpu_ids * sizeof(*(newinfo->chainstack)));
 		if (!newinfo->chainstack)
 			return -ENOMEM;
 		for_each_possible_cpu(i) {
@@ -947,8 +946,7 @@ static int do_replace(void __user *user, unsigned int len)
 	if (tmp.num_counters >= INT_MAX / sizeof(struct ebt_counter))
 		return -ENOMEM;
 
-	countersize = COUNTER_OFFSET(tmp.nentries) *
-					(highest_possible_processor_id()+1);
+	countersize = COUNTER_OFFSET(tmp.nentries) * nr_cpu_ids;
 	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	if (!newinfo)
 		return -ENOMEM;
@@ -1168,8 +1166,7 @@ int ebt_register_table(struct ebt_table *table)
 		return -EINVAL;
 	}
 
-	countersize = COUNTER_OFFSET(repl->nentries) *
-					(highest_possible_processor_id()+1);
+	countersize = COUNTER_OFFSET(repl->nentries) * nr_cpu_ids;
 	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	ret = -ENOMEM;
 	if (!newinfo)

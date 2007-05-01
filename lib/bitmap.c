@@ -97,10 +97,10 @@ EXPORT_SYMBOL(__bitmap_complement);
 
 /**
  * __bitmap_shift_right - logical right shift of the bits in a bitmap
- *   @dst - destination bitmap
- *   @src - source bitmap
- *   @nbits - shift by this many bits
- *   @bits - bitmap size, in bits
+ *   @dst : destination bitmap
+ *   @src : source bitmap
+ *   @shift : shift by this many bits
+ *   @bits : bitmap size, in bits
  *
  * Shifting right (dividing) means moving bits in the MS -> LS bit
  * direction.  Zeros are fed into the vacated MS positions and the
@@ -141,10 +141,10 @@ EXPORT_SYMBOL(__bitmap_shift_right);
 
 /**
  * __bitmap_shift_left - logical left shift of the bits in a bitmap
- *   @dst - destination bitmap
- *   @src - source bitmap
- *   @nbits - shift by this many bits
- *   @bits - bitmap size, in bits
+ *   @dst : destination bitmap
+ *   @src : source bitmap
+ *   @shift : shift by this many bits
+ *   @bits : bitmap size, in bits
  *
  * Shifting left (multiplying) means moving bits in the LS -> MS
  * direction.  Zeros are fed into the vacated LS bit positions

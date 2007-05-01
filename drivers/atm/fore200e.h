@@ -869,7 +869,7 @@ typedef struct fore200e {
 
     struct stats*              stats;                  /* last snapshot of the stats         */
     
-    struct semaphore           rate_sf;                /* protects rate reservation ops      */
+    struct mutex               rate_mtx;               /* protects rate reservation ops      */
     spinlock_t                 q_lock;                 /* protects queue ops                 */
 #ifdef FORE200E_USE_TASKLET
     struct tasklet_struct      tx_tasklet;             /* performs tx interrupt work         */

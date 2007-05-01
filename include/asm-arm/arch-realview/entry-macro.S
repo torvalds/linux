@@ -13,6 +13,12 @@
 		.macro	disable_fiq
 		.endm
 
+		.macro  get_irqnr_preamble, base, tmp
+		.endm
+
+		.macro  arch_ret_to_user, tmp1, tmp2
+		.endm
+
 		/*
 		 * The interrupt numbering scheme is defined in the
 		 * interrupt controller spec.  To wit:

@@ -796,7 +796,6 @@ int c2_register_device(struct c2_dev *dev)
 	memcpy(&dev->ibdev.node_guid, dev->pseudo_netdev->dev_addr, 6);
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.dma_device = &dev->pcidev->dev;
-	dev->ibdev.class_dev.dev = &dev->pcidev->dev;
 	dev->ibdev.query_device = c2_query_device;
 	dev->ibdev.query_port = c2_query_port;
 	dev->ibdev.modify_port = c2_modify_port;

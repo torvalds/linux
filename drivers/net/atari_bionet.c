@@ -453,7 +453,8 @@ bionet_send_packet(struct sk_buff *skb, struct net_device *dev) {
 		stdma_lock(bionet_intr, NULL);
 		local_irq_restore(flags);
 		if( !STRAM_ADDR(buf+length-1) ) {
-			memcpy(nic_packet->buffer, skb->data, length);
+			skb_copy_from_linear_data(skb, nic_packet->buffer,
+						  length);
 			buf = (unsigned long)&((struct nic_pkt_s *)phys_nic_packet)->buffer;
 		}
 
@@ -544,13 +545,13 @@ bionet_poll_rx(struct net_device *dev) {
 				break;
 			}
 
-			skb->dev = dev;
 			skb_reserve( skb, 2 );		/* 16 Byte align  */
 			skb_put( skb, pkt_len );	/* make room */
 
 			/* 'skb->data' points to the start of sk_buff data area.
 			 */
-			memcpy(skb->data, nic_packet->buffer, pkt_len);
+			skb_copy_to_linear_data(skb, nic_packet->buffer,
+						pkt_len);
 			skb->protocol = eth_type_trans( skb, dev );
 			netif_rx(skb);
 			dev->last_rx = jiffies;

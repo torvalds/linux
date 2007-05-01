@@ -179,7 +179,7 @@ static struct console ssl_cons = {
 	.write		= ssl_console_write,
 	.device		= ssl_console_device,
 	.setup		= ssl_console_setup,
-	.flags		= CON_PRINTBUFFER,
+	.flags		= CON_PRINTBUFFER|CON_ANYTIME,
 	.index		= -1,
 };
 

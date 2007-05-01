@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/mroute.h>
 #include <linux/init.h>
+#include <linux/random.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -47,21 +48,6 @@
 #include <net/ip_mp_alg.h>
 
 #define MULTIPATH_MAX_CANDIDATES 40
-
-/* interface to random number generation */
-static unsigned int RANDOM_SEED = 93186752;
-
-static inline unsigned int random(unsigned int ubound)
-{
-	static unsigned int a = 1588635695,
-		q = 2,
-		r = 1117695901;
-
-	RANDOM_SEED = a*(RANDOM_SEED % q) - r*(RANDOM_SEED / q);
-
-	return RANDOM_SEED % ubound;
-}
-
 
 static void random_select_route(const struct flowi *flp,
 				struct rtable *first,
@@ -84,7 +70,7 @@ static void random_select_route(const struct flowi *flp,
 	if (candidate_count > 1) {
 		unsigned char i = 0;
 		unsigned char candidate_no = (unsigned char)
-			random(candidate_count);
+			(random32() % candidate_count);
 
 		/* find chosen candidate and adjust GC data for all candidates
 		 * to ensure they stay in cache

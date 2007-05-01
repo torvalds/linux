@@ -415,7 +415,7 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	file_inode = file->d_inode;
 	sb = file_inode->i_sb;
 	v9ses = v9fs_inode2v9ses(file_inode);
-	v9fid = v9fs_fid_lookup(file);
+	v9fid = v9fs_fid_clone(file);
 	if(IS_ERR(v9fid))
 		return PTR_ERR(v9fid);
 
@@ -504,7 +504,10 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 		goto error;
 	}
 
-	dentry->d_op = &v9fs_dentry_operations;
+	if(v9ses->cache)
+		dentry->d_op = &v9fs_cached_dentry_operations;
+	else
+		dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(dentry, inode);
 
 	if (nd && nd->flags & LOOKUP_OPEN) {
@@ -589,7 +592,10 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		goto error;
 	}
 
-	dentry->d_op = &v9fs_dentry_operations;
+	if(v9ses->cache)
+		dentry->d_op = &v9fs_cached_dentry_operations;
+	else
+		dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(dentry, inode);
 	return 0;
 
@@ -626,7 +632,6 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	sb = dir->i_sb;
 	v9ses = v9fs_inode2v9ses(dir);
-	dentry->d_op = &v9fs_dentry_operations;
 	dirfid = v9fs_fid_lookup(dentry->d_parent);
 
 	if(IS_ERR(dirfid))
@@ -697,6 +702,10 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	fid->qid = fcall->params.rstat.stat.qid;
 	v9fs_stat2inode(&fcall->params.rstat.stat, inode, inode->i_sb);
+	if((fid->qid.version)&&(v9ses->cache))
+		dentry->d_op = &v9fs_cached_dentry_operations;
+	else
+		dentry->d_op = &v9fs_dentry_operations;
 
 	d_add(dentry, inode);
 	kfree(fcall);
@@ -1184,7 +1193,10 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 		goto free_vfid;
 	}
 
-	dentry->d_op = &v9fs_dentry_operations;
+	if(v9ses->cache)
+		dentry->d_op = &v9fs_cached_dentry_operations;
+	else
+		dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(dentry, inode);
 	return 0;
 

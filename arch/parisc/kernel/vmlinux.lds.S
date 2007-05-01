@@ -68,6 +68,8 @@ SECTIONS
 
   RODATA
 
+  BUG_TABLE
+
   /* writeable */
   . = ALIGN(ASM_PAGE_SIZE);	/* Make sure this is page aligned so
   				   that we can properly leave these

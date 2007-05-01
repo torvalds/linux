@@ -27,22 +27,26 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCDSP
 
+#define svc_serv_is_pooled(serv)    ((serv)->sv_function)
+
 /*
  * Mode for mapping cpus to pools.
  */
 enum {
-	SVC_POOL_NONE = -1,	/* uninitialised, choose one of the others */
+	SVC_POOL_AUTO = -1,	/* choose one of the others */
 	SVC_POOL_GLOBAL,	/* no mapping, just a single global pool
 				 * (legacy & UP mode) */
 	SVC_POOL_PERCPU,	/* one pool per cpu */
 	SVC_POOL_PERNODE	/* one pool per numa node */
 };
+#define SVC_POOL_DEFAULT	SVC_POOL_GLOBAL
 
 /*
  * Structure for mapping cpus to pools and vice versa.
  * Setup once during sunrpc initialisation.
  */
 static struct svc_pool_map {
+	int count;			/* How many svc_servs use us */
 	int mode;			/* Note: int not enum to avoid
 					 * warnings about "enumeration value
 					 * not handled in switch" */
@@ -50,9 +54,63 @@ static struct svc_pool_map {
 	unsigned int *pool_to;		/* maps pool id to cpu or node */
 	unsigned int *to_pool;		/* maps cpu or node to pool id */
 } svc_pool_map = {
-	.mode = SVC_POOL_NONE
+	.count = 0,
+	.mode = SVC_POOL_DEFAULT
 };
+static DEFINE_MUTEX(svc_pool_map_mutex);/* protects svc_pool_map.count only */
 
+static int
+param_set_pool_mode(const char *val, struct kernel_param *kp)
+{
+	int *ip = (int *)kp->arg;
+	struct svc_pool_map *m = &svc_pool_map;
+	int err;
+
+	mutex_lock(&svc_pool_map_mutex);
+
+	err = -EBUSY;
+	if (m->count)
+		goto out;
+
+	err = 0;
+	if (!strncmp(val, "auto", 4))
+		*ip = SVC_POOL_AUTO;
+	else if (!strncmp(val, "global", 6))
+		*ip = SVC_POOL_GLOBAL;
+	else if (!strncmp(val, "percpu", 6))
+		*ip = SVC_POOL_PERCPU;
+	else if (!strncmp(val, "pernode", 7))
+		*ip = SVC_POOL_PERNODE;
+	else
+		err = -EINVAL;
+
+out:
+	mutex_unlock(&svc_pool_map_mutex);
+	return err;
+}
+
+static int
+param_get_pool_mode(char *buf, struct kernel_param *kp)
+{
+	int *ip = (int *)kp->arg;
+
+	switch (*ip)
+	{
+	case SVC_POOL_AUTO:
+		return strlcpy(buf, "auto", 20);
+	case SVC_POOL_GLOBAL:
+		return strlcpy(buf, "global", 20);
+	case SVC_POOL_PERCPU:
+		return strlcpy(buf, "percpu", 20);
+	case SVC_POOL_PERNODE:
+		return strlcpy(buf, "pernode", 20);
+	default:
+		return sprintf(buf, "%d", *ip);
+	}
+}
+
+module_param_call(pool_mode, param_set_pool_mode, param_get_pool_mode,
+		 &svc_pool_map.mode, 0644);
 
 /*
  * Detect best pool mapping mode heuristically,
@@ -115,7 +173,7 @@ fail:
 static int
 svc_pool_map_init_percpu(struct svc_pool_map *m)
 {
-	unsigned int maxpools = highest_possible_processor_id()+1;
+	unsigned int maxpools = nr_cpu_ids;
 	unsigned int pidx = 0;
 	unsigned int cpu;
 	int err;
@@ -143,7 +201,7 @@ svc_pool_map_init_percpu(struct svc_pool_map *m)
 static int
 svc_pool_map_init_pernode(struct svc_pool_map *m)
 {
-	unsigned int maxpools = highest_possible_node_id()+1;
+	unsigned int maxpools = nr_node_ids;
 	unsigned int pidx = 0;
 	unsigned int node;
 	int err;
@@ -166,18 +224,25 @@ svc_pool_map_init_pernode(struct svc_pool_map *m)
 
 
 /*
- * Build the global map of cpus to pools and vice versa.
+ * Add a reference to the global map of cpus to pools (and
+ * vice versa).  Initialise the map if we're the first user.
+ * Returns the number of pools.
  */
 static unsigned int
-svc_pool_map_init(void)
+svc_pool_map_get(void)
 {
 	struct svc_pool_map *m = &svc_pool_map;
 	int npools = -1;
 
-	if (m->mode != SVC_POOL_NONE)
-		return m->npools;
+	mutex_lock(&svc_pool_map_mutex);
 
-	m->mode = svc_pool_map_choose_mode();
+	if (m->count++) {
+		mutex_unlock(&svc_pool_map_mutex);
+		return m->npools;
+	}
+
+	if (m->mode == SVC_POOL_AUTO)
+		m->mode = svc_pool_map_choose_mode();
 
 	switch (m->mode) {
 	case SVC_POOL_PERCPU:
@@ -195,8 +260,35 @@ svc_pool_map_init(void)
 	}
 	m->npools = npools;
 
+	mutex_unlock(&svc_pool_map_mutex);
 	return m->npools;
 }
+
+
+/*
+ * Drop a reference to the global map of cpus to pools.
+ * When the last reference is dropped, the map data is
+ * freed; this allows the sysadmin to change the pool
+ * mode using the pool_mode module option without
+ * rebooting or re-loading sunrpc.ko.
+ */
+static void
+svc_pool_map_put(void)
+{
+	struct svc_pool_map *m = &svc_pool_map;
+
+	mutex_lock(&svc_pool_map_mutex);
+
+	if (!--m->count) {
+		m->mode = SVC_POOL_DEFAULT;
+		kfree(m->to_pool);
+		kfree(m->pool_to);
+		m->npools = 0;
+	}
+
+	mutex_unlock(&svc_pool_map_mutex);
+}
+
 
 /*
  * Set the current thread's cpus_allowed mask so that it
@@ -212,10 +304,9 @@ svc_pool_map_set_cpumask(unsigned int pidx, cpumask_t *oldmask)
 
 	/*
 	 * The caller checks for sv_nrpools > 1, which
-	 * implies that we've been initialized and the
-	 * map mode is not NONE.
+	 * implies that we've been initialized.
 	 */
-	BUG_ON(m->mode == SVC_POOL_NONE);
+	BUG_ON(m->count == 0);
 
 	switch (m->mode)
 	{
@@ -246,18 +337,19 @@ svc_pool_for_cpu(struct svc_serv *serv, int cpu)
 	unsigned int pidx = 0;
 
 	/*
-	 * SVC_POOL_NONE happens in a pure client when
+	 * An uninitialised map happens in a pure client when
 	 * lockd is brought up, so silently treat it the
 	 * same as SVC_POOL_GLOBAL.
 	 */
-
-	switch (m->mode) {
-	case SVC_POOL_PERCPU:
-		pidx = m->to_pool[cpu];
-		break;
-	case SVC_POOL_PERNODE:
-		pidx = m->to_pool[cpu_to_node(cpu)];
-		break;
+	if (svc_serv_is_pooled(serv)) {
+		switch (m->mode) {
+		case SVC_POOL_PERCPU:
+			pidx = m->to_pool[cpu];
+			break;
+		case SVC_POOL_PERNODE:
+			pidx = m->to_pool[cpu_to_node(cpu)];
+			break;
+		}
 	}
 	return &serv->sv_pools[pidx % serv->sv_nrpools];
 }
@@ -347,7 +439,7 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 		  svc_thread_fn func, int sig, struct module *mod)
 {
 	struct svc_serv *serv;
-	unsigned int npools = svc_pool_map_init();
+	unsigned int npools = svc_pool_map_get();
 
 	serv = __svc_create(prog, bufsize, npools, shutdown);
 
@@ -367,6 +459,7 @@ void
 svc_destroy(struct svc_serv *serv)
 {
 	struct svc_sock	*svsk;
+	struct svc_sock *tmp;
 
 	dprintk("svc: svc_destroy(%s, %d)\n",
 				serv->sv_program->pg_name,
@@ -382,23 +475,22 @@ svc_destroy(struct svc_serv *serv)
 
 	del_timer_sync(&serv->sv_temptimer);
 
-	while (!list_empty(&serv->sv_tempsocks)) {
-		svsk = list_entry(serv->sv_tempsocks.next,
-				  struct svc_sock,
-				  sk_list);
-		svc_close_socket(svsk);
-	}
+	list_for_each_entry_safe(svsk, tmp, &serv->sv_tempsocks, sk_list)
+		svc_force_close_socket(svsk);
+
 	if (serv->sv_shutdown)
 		serv->sv_shutdown(serv);
 
-	while (!list_empty(&serv->sv_permsocks)) {
-		svsk = list_entry(serv->sv_permsocks.next,
-				  struct svc_sock,
-				  sk_list);
-		svc_close_socket(svsk);
-	}
+	list_for_each_entry_safe(svsk, tmp, &serv->sv_permsocks, sk_list)
+		svc_force_close_socket(svsk);
+
+	BUG_ON(!list_empty(&serv->sv_permsocks));
+	BUG_ON(!list_empty(&serv->sv_tempsocks));
 
 	cache_clean_deferred(serv);
+
+	if (svc_serv_is_pooled(serv))
+		svc_pool_map_put();
 
 	/* Unregister service with the portmapper */
 	svc_register(serv, 0, 0);

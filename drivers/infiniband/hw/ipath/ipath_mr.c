@@ -210,9 +210,15 @@ struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	m = 0;
 	n = 0;
 	list_for_each_entry(chunk, &region->chunk_list, list) {
-		for (i = 0; i < chunk->nmap; i++) {
-			mr->mr.map[m]->segs[n].vaddr =
-				page_address(chunk->page_list[i].page);
+		for (i = 0; i < chunk->nents; i++) {
+			void *vaddr;
+
+			vaddr = page_address(chunk->page_list[i].page);
+			if (!vaddr) {
+				ret = ERR_PTR(-EINVAL);
+				goto bail;
+			}
+			mr->mr.map[m]->segs[n].vaddr = vaddr;
 			mr->mr.map[m]->segs[n].length = region->page_size;
 			n++;
 			if (n == IPATH_SEGSZ) {

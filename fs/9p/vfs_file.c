@@ -42,6 +42,8 @@
 #include "v9fs_vfs.h"
 #include "fid.h"
 
+static const struct file_operations v9fs_cached_file_operations;
+
 /**
  * v9fs_file_open - open a file (or directory)
  * @inode: inode to be opened
@@ -78,6 +80,13 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	vfid->rdir_fcall = NULL;
 	vfid->filp = file;
 	kfree(fcall);
+
+	if((vfid->qid.version) && (v9ses->cache)) {
+		dprintk(DEBUG_VFS, "cached");
+		/* enable cached file options */
+		if(file->f_op == &v9fs_file_operations)
+			file->f_op = &v9fs_cached_file_operations;
+	}
 
 	return 0;
 
@@ -237,6 +246,17 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	invalidate_inode_pages2(inode->i_mapping);
 	return total;
 }
+
+static const struct file_operations v9fs_cached_file_operations = {
+	.llseek = generic_file_llseek,
+	.read = do_sync_read,
+	.aio_read = generic_file_aio_read,
+	.write = v9fs_file_write,
+	.open = v9fs_file_open,
+	.release = v9fs_dir_release,
+	.lock = v9fs_file_lock,
+	.mmap = generic_file_mmap,
+};
 
 const struct file_operations v9fs_file_operations = {
 	.llseek = generic_file_llseek,

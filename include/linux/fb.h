@@ -516,13 +516,15 @@ struct fb_cursor_user {
 #define FB_EVENT_GET_CONSOLE_MAP        0x07
 /*      CONSOLE-SPECIFIC: set console to framebuffer mapping */
 #define FB_EVENT_SET_CONSOLE_MAP        0x08
-/*      A display blank is requested       */
+/*      A hardware display blank change occured */
 #define FB_EVENT_BLANK                  0x09
 /*      Private modelist is to be replaced */
 #define FB_EVENT_NEW_MODELIST           0x0A
 /*	The resolution of the passed in fb_info about to change and
         all vc's should be changed         */
 #define FB_EVENT_MODE_CHANGE_ALL	0x0B
+/*	A software display blank change occured */
+#define FB_EVENT_CONBLANK               0x0C
 
 struct fb_event {
 	struct fb_info *info;
@@ -767,16 +769,13 @@ struct fb_info {
 	struct fb_videomode *mode;	/* current mode */
 
 #ifdef CONFIG_FB_BACKLIGHT
-	/* Lock ordering:
-	 * bl_mutex (protects bl_dev and bl_curve)
-	 *   bl_dev->sem (backlight class)
-	 */
-	struct mutex bl_mutex;
-
 	/* assigned backlight device */
+	/* set before framebuffer registration, 
+	   remove after unregister */
 	struct backlight_device *bl_dev;
 
 	/* Backlight level curve */
+	struct mutex bl_curve_mutex;	
 	u8 bl_curve[FB_BACKLIGHT_LEVELS];
 #endif
 

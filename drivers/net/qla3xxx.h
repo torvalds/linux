@@ -293,6 +293,16 @@ struct net_rsp_iocb {
 
 #define MII_SCAN_REGISTER 0x00000001
 
+#define PHY_ID_0_REG    2
+#define PHY_ID_1_REG    3
+
+#define PHY_OUI_1_MASK       0xfc00
+#define PHY_MODEL_MASK       0x03f0
+
+/*  Address for the Agere Phy */
+#define MII_AGERE_ADDR_1  0x00001000
+#define MII_AGERE_ADDR_2  0x00001100
+
 /* 32-bit ispControlStatus */
 enum {
 	ISP_CONTROL_NP_MASK = 0x0003,
@@ -789,6 +799,7 @@ enum {
 	PHY_CTRL_LOOPBACK = 0x4000,
 
 	PETBI_CONTROL_REG = 0x00,
+	PETBI_CTRL_ALL_PARAMS = 0x7140,
 	PETBI_CTRL_SOFT_RESET = 0x8000,
 	PETBI_CTRL_AUTO_NEG = 0x1000,
 	PETBI_CTRL_RESTART_NEG = 0x0200,
@@ -811,6 +822,23 @@ enum {
 	PETBI_EXPANSION_REG = 0x06,
 	PETBI_EXP_PAGE_RX = 0x0002,
 
+	PHY_GIG_CONTROL = 9,
+	PHY_GIG_ENABLE_MAN = 0x1000,  /* Enable Master/Slave Manual Config*/
+	PHY_GIG_SET_MASTER = 0x0800,  /* Set Master (slave if clear)*/
+	PHY_GIG_ALL_PARAMS = 0x0300,
+	PHY_GIG_ADV_1000F = 0x0200,
+	PHY_GIG_ADV_1000H = 0x0100,
+
+	PHY_NEG_ADVER = 4,
+	PHY_NEG_ALL_PARAMS = 0x0fe0,
+	PHY_NEG_ASY_PAUSE =  0x0800,
+	PHY_NEG_SYM_PAUSE =  0x0400,
+	PHY_NEG_ADV_SPEED =  0x01e0,
+	PHY_NEG_ADV_100F =   0x0100,
+	PHY_NEG_ADV_100H =   0x0080,
+	PHY_NEG_ADV_10F =    0x0040,
+	PHY_NEG_ADV_10H =    0x0020,
+
 	PETBI_TBI_CTRL = 0x11,
 	PETBI_TBI_RESET = 0x8000,
 	PETBI_TBI_AUTO_SENSE = 0x0100,
@@ -826,8 +854,7 @@ enum {
 	PHY_AUX_RESET_STICK = 0x0002,
 	PHY_NEG_PAUSE = 0x0400,
 	PHY_CTRL_SOFT_RESET = 0x8000,
-	PHY_NEG_ADVER = 4,
-	PHY_NEG_ADV_SPEED = 0x01e0,
+	PHY_CTRL_AUTO_NEG = 0x1000,
 	PHY_CTRL_RESTART_NEG = 0x0200,
 };
 enum {
@@ -892,6 +919,7 @@ enum {EEPROM_SIZE = FM93C86A_SIZE_16,
 	u16 pauseThreshold_mac;
 	u16 resumeThreshold_mac;
 	u16 portConfiguration;
+#define PORT_CONFIG_DEFAULT                 0xf700
 #define PORT_CONFIG_AUTO_NEG_ENABLED        0x8000
 #define PORT_CONFIG_SYM_PAUSE_ENABLED       0x4000
 #define PORT_CONFIG_FULL_DUPLEX_ENABLED     0x2000
@@ -1014,13 +1042,14 @@ struct eeprom_data {
 
 /* Transmit and Receive Buffers */
 #define NUM_LBUFQ_ENTRIES   	128
+#define JUMBO_NUM_LBUFQ_ENTRIES 32
 #define NUM_SBUFQ_ENTRIES   	64
 #define QL_SMALL_BUFFER_SIZE    32
 #define QL_ADDR_ELE_PER_BUFQ_ENTRY \
 (sizeof(struct lrg_buf_q_entry) / sizeof(struct bufq_addr_element))
     /* Each send has at least control block.  This is how many we keep. */
 #define NUM_SMALL_BUFFERS     	NUM_SBUFQ_ENTRIES * QL_ADDR_ELE_PER_BUFQ_ENTRY
-#define NUM_LARGE_BUFFERS     	NUM_LBUFQ_ENTRIES * QL_ADDR_ELE_PER_BUFQ_ENTRY
+
 #define QL_HEADER_SPACE 32	/* make header space at top of skb. */
 /*
  * Large & Small Buffers for Receives
@@ -1092,7 +1121,6 @@ struct oal_entry {
 	u32 len;
 #define OAL_LAST_ENTRY   0x80000000	/* Last valid buffer in list. */
 #define OAL_CONT_ENTRY   0x40000000	/* points to an OAL. (continuation) */
-	u32 reserved;
 };
 
 struct oal {
@@ -1193,7 +1221,7 @@ struct ql3_adapter {
 	struct net_rsp_iocb *rsp_current;
 	u16 rsp_consumer_index;
 	u16 reserved_06;
-	u32 *prsp_producer_index;
+	volatile u32 *prsp_producer_index;
 	u32 rsp_producer_index_phy_addr_high;
 	u32 rsp_producer_index_phy_addr_low;
 
@@ -1207,9 +1235,11 @@ struct ql3_adapter {
 	u32 lrg_buf_q_producer_index;
 	u32 lrg_buf_release_cnt;
 	struct bufq_addr_element *lrg_buf_next_free;
+	u32 num_large_buffers;
+	u32 num_lbufq_entries;
 
 	/* Large (Receive) Buffers */
-	struct ql_rcv_buf_cb lrg_buf[NUM_LARGE_BUFFERS];
+	struct ql_rcv_buf_cb *lrg_buf;
 	struct ql_rcv_buf_cb *lrg_buf_free_head;
 	struct ql_rcv_buf_cb *lrg_buf_free_tail;
 	u32 lrg_buf_free_count;
@@ -1257,6 +1287,7 @@ struct ql3_adapter {
 	struct delayed_work tx_timeout_work;
 	u32 max_frame_size;
 	u32 device_id;
+	u16 phyType;
 };
 
 #endif				/* _QLA3XXX_H_ */

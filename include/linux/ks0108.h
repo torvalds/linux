@@ -43,4 +43,7 @@ extern void ks0108_address(unsigned char address);
 /* Set the controller's current page (0..7) */
 extern void ks0108_page(unsigned char page);
 
+/* Is the module inited? */
+extern unsigned char ks0108_isinited(void);
+
 #endif /* _KS0108_H_ */

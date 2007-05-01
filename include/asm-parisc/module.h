@@ -3,7 +3,7 @@
 /*
  * This file contains the parisc architecture specific module code.
  */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define Elf_Shdr Elf64_Shdr
 #define Elf_Sym Elf64_Sym
 #define Elf_Ehdr Elf64_Ehdr

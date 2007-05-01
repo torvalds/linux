@@ -55,9 +55,9 @@ static int mpc834x_usb_cfg(void)
 	struct device_node *np = NULL;
 	int port0_is_dr = 0;
 
-	if ((np = of_find_compatible_node(np, "usb", "fsl-usb2-dr")) != NULL)
+	if ((np = of_find_compatible_node(NULL, "usb", "fsl-usb2-dr")) != NULL)
 		port0_is_dr = 1;
-	if ((np = of_find_compatible_node(np, "usb", "fsl-usb2-mph")) != NULL){
+	if ((np = of_find_compatible_node(NULL, "usb", "fsl-usb2-mph")) != NULL){
 		if (port0_is_dr) {
 			printk(KERN_WARNING
 				"There is only one USB port on PB board! \n");
@@ -103,8 +103,8 @@ static int mpc834x_usb_cfg(void)
 		return -1;
 
 	/*
-	 * if MDS board is plug into PIB board,
-	 * force to use the PHY on MDS board
+	 * if Processor Board is plugged into PIB board,
+	 * force to use the PHY on Processor Board
 	 */
 	bcsr5 = in_8(bcsr_regs + 5);
 	if (!(bcsr5 & BCSR5_INT_USB))
@@ -125,17 +125,6 @@ static void __init mpc834x_mds_setup_arch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("mpc834x_mds_setup_arch()", 0);
 
-	np = of_find_node_by_type(NULL, "cpu");
-	if (np != 0) {
-		const unsigned int *fp =
-			get_property(np, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(np);
-	}
-
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
 		add_bridge(np);
@@ -144,12 +133,6 @@ static void __init mpc834x_mds_setup_arch(void)
 #endif
 
 	mpc834x_usb_cfg();
-
-#ifdef  CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
-#endif
 }
 
 static void __init mpc834x_mds_init_IRQ(void)
@@ -176,6 +159,9 @@ static int __init mpc834x_rtc_hookup(void)
 {
 	struct timespec tv;
 
+	if (!machine_is(mpc834x_mds))
+		return 0;
+
 	ppc_md.get_rtc_time = ds1374_get_rtc_time;
 	ppc_md.set_rtc_time = ds1374_set_rtc_time;
 
@@ -194,10 +180,9 @@ late_initcall(mpc834x_rtc_hookup);
  */
 static int __init mpc834x_mds_probe(void)
 {
-	/* We always match for now, eventually we should look at the flat
-	   dev tree to ensure this is the board we are suppose to run on
-	*/
-	return 1;
+        unsigned long root = of_get_flat_dt_root();
+
+        return of_flat_dt_is_compatible(root, "MPC834xMDS");
 }
 
 define_machine(mpc834x_mds) {

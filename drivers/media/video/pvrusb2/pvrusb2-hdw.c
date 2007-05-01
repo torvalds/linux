@@ -36,6 +36,10 @@
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-encoder.h"
 #include "pvrusb2-debug.h"
+#include "pvrusb2-fx2-cmd.h"
+
+#define TV_MIN_FREQ     55250000L
+#define TV_MAX_FREQ    850000000L
 
 struct usb_device_id pvr2_device_table[] = {
 	[PVR2_HDW_TYPE_29XXX] = { USB_DEVICE(0x2040, 0x2900) },
@@ -71,12 +75,10 @@ static const char *pvr2_client_29xxx[] = {
 
 static struct pvr2_string_table pvr2_client_lists[] = {
 	[PVR2_HDW_TYPE_29XXX] = {
-		pvr2_client_29xxx,
-		sizeof(pvr2_client_29xxx)/sizeof(pvr2_client_29xxx[0]),
+		pvr2_client_29xxx, ARRAY_SIZE(pvr2_client_29xxx)
 	},
 	[PVR2_HDW_TYPE_24XXX] = {
-		pvr2_client_24xxx,
-		sizeof(pvr2_client_24xxx)/sizeof(pvr2_client_24xxx[0]),
+		pvr2_client_24xxx, ARRAY_SIZE(pvr2_client_24xxx)
 	},
 };
 
@@ -160,9 +162,6 @@ static const struct pvr2_mpeg_ids mpeg_ids[] = {
 		.strid = "video_gop_closure",
 		.id = V4L2_CID_MPEG_VIDEO_GOP_CLOSURE,
 	},{
-		.strid = "video_pulldown",
-		.id = V4L2_CID_MPEG_VIDEO_PULLDOWN,
-	},{
 		.strid = "video_bitrate_mode",
 		.id = V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
 	},{
@@ -212,7 +211,7 @@ static const struct pvr2_mpeg_ids mpeg_ids[] = {
 		.id = V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM,
 	}
 };
-#define MPEGDEF_COUNT (sizeof(mpeg_ids)/sizeof(mpeg_ids[0]))
+#define MPEGDEF_COUNT ARRAY_SIZE(mpeg_ids)
 
 
 static const char *control_values_srate[] = {
@@ -255,10 +254,10 @@ static const char *control_values_subsystem[] = {
 	[PVR2_SUBSYS_B_ENC_RUN] = "enc_run",
 };
 
+static void pvr2_hdw_set_cur_freq(struct pvr2_hdw *,unsigned long);
 static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl);
 static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw);
 static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw);
-static unsigned int pvr2_hdw_get_signal_status_internal(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw);
 static void pvr2_hdw_render_useless_unlocked(struct pvr2_hdw *hdw);
@@ -272,8 +271,6 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 				unsigned int timeout,int probe_fl,
 				void *write_data,unsigned int write_len,
 				void *read_data,unsigned int read_len);
-static int pvr2_write_u16(struct pvr2_hdw *hdw, u16 data, int res);
-static int pvr2_write_u8(struct pvr2_hdw *hdw, u8 data, int res);
 
 static int ctrl_channelfreq_get(struct pvr2_ctrl *cptr,int *vp)
 {
@@ -289,8 +286,21 @@ static int ctrl_channelfreq_get(struct pvr2_ctrl *cptr,int *vp)
 static int ctrl_channelfreq_set(struct pvr2_ctrl *cptr,int m,int v)
 {
 	struct pvr2_hdw *hdw = cptr->hdw;
-	if ((hdw->freqProgSlot > 0) && (hdw->freqProgSlot <= FREQTABLE_SIZE)) {
-		hdw->freqTable[hdw->freqProgSlot-1] = v;
+	unsigned int slotId = hdw->freqProgSlot;
+	if ((slotId > 0) && (slotId <= FREQTABLE_SIZE)) {
+		hdw->freqTable[slotId-1] = v;
+		/* Handle side effects correctly - if we're tuned to this
+		   slot, then forgot the slot id relation since the stored
+		   frequency has been changed. */
+		if (hdw->freqSelector) {
+			if (hdw->freqSlotRadio == slotId) {
+				hdw->freqSlotRadio = 0;
+			}
+		} else {
+			if (hdw->freqSlotTelevision == slotId) {
+				hdw->freqSlotTelevision = 0;
+			}
+		}
 	}
 	return 0;
 }
@@ -312,28 +322,32 @@ static int ctrl_channelprog_set(struct pvr2_ctrl *cptr,int m,int v)
 
 static int ctrl_channel_get(struct pvr2_ctrl *cptr,int *vp)
 {
-	*vp = cptr->hdw->freqSlot;
+	struct pvr2_hdw *hdw = cptr->hdw;
+	*vp = hdw->freqSelector ? hdw->freqSlotRadio : hdw->freqSlotTelevision;
 	return 0;
 }
 
-static int ctrl_channel_set(struct pvr2_ctrl *cptr,int m,int v)
+static int ctrl_channel_set(struct pvr2_ctrl *cptr,int m,int slotId)
 {
 	unsigned freq = 0;
 	struct pvr2_hdw *hdw = cptr->hdw;
-	hdw->freqSlot = v;
-	if ((hdw->freqSlot > 0) && (hdw->freqSlot <= FREQTABLE_SIZE)) {
-		freq = hdw->freqTable[hdw->freqSlot-1];
+	if ((slotId < 0) || (slotId > FREQTABLE_SIZE)) return 0;
+	if (slotId > 0) {
+		freq = hdw->freqTable[slotId-1];
+		if (!freq) return 0;
+		pvr2_hdw_set_cur_freq(hdw,freq);
 	}
-	if (freq && (freq != hdw->freqVal)) {
-		hdw->freqVal = freq;
-		hdw->freqDirty = !0;
+	if (hdw->freqSelector) {
+		hdw->freqSlotRadio = slotId;
+	} else {
+		hdw->freqSlotTelevision = slotId;
 	}
 	return 0;
 }
 
 static int ctrl_freq_get(struct pvr2_ctrl *cptr,int *vp)
 {
-	*vp = cptr->hdw->freqVal;
+	*vp = pvr2_hdw_get_cur_freq(cptr->hdw);
 	return 0;
 }
 
@@ -349,10 +363,7 @@ static void ctrl_freq_clear_dirty(struct pvr2_ctrl *cptr)
 
 static int ctrl_freq_set(struct pvr2_ctrl *cptr,int m,int v)
 {
-	struct pvr2_hdw *hdw = cptr->hdw;
-	hdw->freqVal = v;
-	hdw->freqDirty = !0;
-	hdw->freqSlot = 0;
+	pvr2_hdw_set_cur_freq(cptr->hdw,v);
 	return 0;
 }
 
@@ -375,6 +386,89 @@ static int ctrl_vres_min_get(struct pvr2_ctrl *cptr,int *vp)
 	} else {
 		*vp = 17;
 	}
+	return 0;
+}
+
+static int ctrl_get_input(struct pvr2_ctrl *cptr,int *vp)
+{
+	*vp = cptr->hdw->input_val;
+	return 0;
+}
+
+static int ctrl_set_input(struct pvr2_ctrl *cptr,int m,int v)
+{
+	struct pvr2_hdw *hdw = cptr->hdw;
+
+	if (hdw->input_val != v) {
+		hdw->input_val = v;
+		hdw->input_dirty = !0;
+	}
+
+	/* Handle side effects - if we switch to a mode that needs the RF
+	   tuner, then select the right frequency choice as well and mark
+	   it dirty. */
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		hdw->freqSelector = 0;
+		hdw->freqDirty = !0;
+	} else if (hdw->input_val == PVR2_CVAL_INPUT_TV) {
+		hdw->freqSelector = 1;
+		hdw->freqDirty = !0;
+	}
+	return 0;
+}
+
+static int ctrl_isdirty_input(struct pvr2_ctrl *cptr)
+{
+	return cptr->hdw->input_dirty != 0;
+}
+
+static void ctrl_cleardirty_input(struct pvr2_ctrl *cptr)
+{
+	cptr->hdw->input_dirty = 0;
+}
+
+
+static int ctrl_freq_max_get(struct pvr2_ctrl *cptr, int *vp)
+{
+	unsigned long fv;
+	struct pvr2_hdw *hdw = cptr->hdw;
+	if (hdw->tuner_signal_stale) {
+		pvr2_i2c_core_status_poll(hdw);
+	}
+	fv = hdw->tuner_signal_info.rangehigh;
+	if (!fv) {
+		/* Safety fallback */
+		*vp = TV_MAX_FREQ;
+		return 0;
+	}
+	if (hdw->tuner_signal_info.capability & V4L2_TUNER_CAP_LOW) {
+		fv = (fv * 125) / 2;
+	} else {
+		fv = fv * 62500;
+	}
+	*vp = fv;
+	return 0;
+}
+
+static int ctrl_freq_min_get(struct pvr2_ctrl *cptr, int *vp)
+{
+	unsigned long fv;
+	struct pvr2_hdw *hdw = cptr->hdw;
+	if (hdw->tuner_signal_stale) {
+		pvr2_i2c_core_status_poll(hdw);
+	}
+	fv = hdw->tuner_signal_info.rangelow;
+	if (!fv) {
+		/* Safety fallback */
+		*vp = TV_MIN_FREQ;
+		return 0;
+	}
+	if (hdw->tuner_signal_info.capability & V4L2_TUNER_CAP_LOW) {
+		fv = (fv * 125) / 2;
+	} else {
+		fv = fv * 62500;
+	}
+	*vp = fv;
 	return 0;
 }
 
@@ -534,8 +628,32 @@ static void ctrl_stdcur_clear_dirty(struct pvr2_ctrl *cptr)
 
 static int ctrl_signal_get(struct pvr2_ctrl *cptr,int *vp)
 {
-	*vp = ((pvr2_hdw_get_signal_status_internal(cptr->hdw) &
-		PVR2_SIGNAL_OK) ? 1 : 0);
+	struct pvr2_hdw *hdw = cptr->hdw;
+	pvr2_i2c_core_status_poll(hdw);
+	*vp = hdw->tuner_signal_info.signal;
+	return 0;
+}
+
+static int ctrl_audio_modes_present_get(struct pvr2_ctrl *cptr,int *vp)
+{
+	int val = 0;
+	unsigned int subchan;
+	struct pvr2_hdw *hdw = cptr->hdw;
+	pvr2_i2c_core_status_poll(hdw);
+	subchan = hdw->tuner_signal_info.rxsubchans;
+	if (subchan & V4L2_TUNER_SUB_MONO) {
+		val |= (1 << V4L2_TUNER_MODE_MONO);
+	}
+	if (subchan & V4L2_TUNER_SUB_STEREO) {
+		val |= (1 << V4L2_TUNER_MODE_STEREO);
+	}
+	if (subchan & V4L2_TUNER_SUB_LANG1) {
+		val |= (1 << V4L2_TUNER_MODE_LANG1);
+	}
+	if (subchan & V4L2_TUNER_SUB_LANG2) {
+		val |= (1 << V4L2_TUNER_MODE_LANG2);
+	}
+	*vp = val;
 	return 0;
 }
 
@@ -604,7 +722,7 @@ static void ctrl_stdenumcur_clear_dirty(struct pvr2_ctrl *cptr)
 
 #define DEFENUM(tab) \
 	.type = pvr2_ctl_enum, \
-	.def.type_enum.count = (sizeof(tab)/sizeof((tab)[0])), \
+	.def.type_enum.count = ARRAY_SIZE(tab), \
 	.def.type_enum.value_names = tab
 
 #define DEFBOOL \
@@ -641,14 +759,10 @@ VCREATE_FUNCS(balance)
 VCREATE_FUNCS(bass)
 VCREATE_FUNCS(treble)
 VCREATE_FUNCS(mute)
-VCREATE_FUNCS(input)
 VCREATE_FUNCS(audiomode)
 VCREATE_FUNCS(res_hor)
 VCREATE_FUNCS(res_ver)
 VCREATE_FUNCS(srate)
-
-#define MIN_FREQ 55250000L
-#define MAX_FREQ 850000000L
 
 /* Table definition of all controls which can be manipulated */
 static const struct pvr2_ctl_info control_defs[] = {
@@ -684,7 +798,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.v4l_id = V4L2_CID_AUDIO_VOLUME,
 		.desc = "Volume",
 		.name = "volume",
-		.default_value = 65535,
+		.default_value = 62000,
 		DEFREF(volume),
 		DEFINT(0,65535),
 	},{
@@ -758,12 +872,16 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.desc = "Tuner Frequency (Hz)",
 		.name = "frequency",
 		.internal_id = PVR2_CID_FREQUENCY,
-		.default_value = 175250000L,
+		.default_value = 0,
 		.set_value = ctrl_freq_set,
 		.get_value = ctrl_freq_get,
 		.is_dirty = ctrl_freq_is_dirty,
 		.clear_dirty = ctrl_freq_clear_dirty,
-		DEFINT(MIN_FREQ,MAX_FREQ),
+		DEFINT(0,0),
+		/* Hook in check for input value (tv/radio) and adjust
+		   max/min values accordingly */
+		.get_max_value = ctrl_freq_max_get,
+		.get_min_value = ctrl_freq_min_get,
 	},{
 		.desc = "Channel",
 		.name = "channel",
@@ -775,7 +893,11 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.name = "freq_table_value",
 		.set_value = ctrl_channelfreq_set,
 		.get_value = ctrl_channelfreq_get,
-		DEFINT(MIN_FREQ,MAX_FREQ),
+		DEFINT(0,0),
+		/* Hook in check for input value (tv/radio) and adjust
+		   max/min values accordingly */
+		.get_max_value = ctrl_freq_max_get,
+		.get_min_value = ctrl_freq_min_get,
 	},{
 		.desc = "Channel Program ID",
 		.name = "freq_table_channel",
@@ -796,7 +918,20 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.desc = "Signal Present",
 		.name = "signal_present",
 		.get_value = ctrl_signal_get,
-		DEFBOOL,
+		DEFINT(0,65535),
+	},{
+		.desc = "Audio Modes Present",
+		.name = "audio_modes_present",
+		.get_value = ctrl_audio_modes_present_get,
+		/* For this type we "borrow" the V4L2_TUNER_MODE enum from
+		   v4l.  Nothing outside of this module cares about this,
+		   but I reuse it in order to also reuse the
+		   control_values_audiomode string table. */
+		DEFMASK(((1 << V4L2_TUNER_MODE_MONO)|
+			 (1 << V4L2_TUNER_MODE_STEREO)|
+			 (1 << V4L2_TUNER_MODE_LANG1)|
+			 (1 << V4L2_TUNER_MODE_LANG2)),
+			control_values_audiomode),
 	},{
 		.desc = "Video Standards Available Mask",
 		.name = "video_standard_mask_available",
@@ -846,7 +981,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 	}
 };
 
-#define CTRLDEF_COUNT (sizeof(control_defs)/sizeof(control_defs[0]))
+#define CTRLDEF_COUNT ARRAY_SIZE(control_defs)
 
 
 const char *pvr2_config_get_name(enum pvr2_config cfg)
@@ -855,7 +990,8 @@ const char *pvr2_config_get_name(enum pvr2_config cfg)
 	case pvr2_config_empty: return "empty";
 	case pvr2_config_mpeg: return "mpeg";
 	case pvr2_config_vbi: return "vbi";
-	case pvr2_config_radio: return "radio";
+	case pvr2_config_pcm: return "pcm";
+	case pvr2_config_rawvideo: return "raw video";
 	}
 	return "<unknown>";
 }
@@ -870,6 +1006,47 @@ struct usb_device *pvr2_hdw_get_dev(struct pvr2_hdw *hdw)
 unsigned long pvr2_hdw_get_sn(struct pvr2_hdw *hdw)
 {
 	return hdw->serial_number;
+}
+
+
+const char *pvr2_hdw_get_bus_info(struct pvr2_hdw *hdw)
+{
+	return hdw->bus_info;
+}
+
+
+unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *hdw)
+{
+	return hdw->freqSelector ? hdw->freqValTelevision : hdw->freqValRadio;
+}
+
+/* Set the currently tuned frequency and account for all possible
+   driver-core side effects of this action. */
+void pvr2_hdw_set_cur_freq(struct pvr2_hdw *hdw,unsigned long val)
+{
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		if (hdw->freqSelector) {
+			/* Swing over to radio frequency selection */
+			hdw->freqSelector = 0;
+			hdw->freqDirty = !0;
+		}
+		if (hdw->freqValRadio != val) {
+			hdw->freqValRadio = val;
+			hdw->freqSlotRadio = 0;
+			hdw->freqDirty = !0;
+		}
+	} else {
+		if (!(hdw->freqSelector)) {
+			/* Swing over to television frequency selection */
+			hdw->freqSelector = 1;
+			hdw->freqDirty = !0;
+		}
+		if (hdw->freqValTelevision != val) {
+			hdw->freqValTelevision = val;
+			hdw->freqSlotTelevision = 0;
+			hdw->freqDirty = !0;
+		}
+	}
 }
 
 int pvr2_hdw_get_unit_number(struct pvr2_hdw *hdw)
@@ -960,12 +1137,10 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	};
 	static const struct pvr2_string_table fw_file_defs[] = {
 		[PVR2_HDW_TYPE_29XXX] = {
-			fw_files_29xxx,
-			sizeof(fw_files_29xxx)/sizeof(fw_files_29xxx[0]),
+			fw_files_29xxx, ARRAY_SIZE(fw_files_29xxx)
 		},
 		[PVR2_HDW_TYPE_24XXX] = {
-			fw_files_24xxx,
-			sizeof(fw_files_24xxx)/sizeof(fw_files_24xxx[0]),
+			fw_files_24xxx, ARRAY_SIZE(fw_files_24xxx)
 		},
 	};
 	hdw->fw1_state = FW1_STATE_FAILED; // default result
@@ -1041,7 +1216,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 {
 	const struct firmware *fw_entry = NULL;
 	void  *fw_ptr;
-	unsigned int pipe, fw_len, fw_done;
+	unsigned int pipe, fw_len, fw_done, bcnt, icnt;
 	int actual_length;
 	int ret = 0;
 	int fwidx;
@@ -1052,8 +1227,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	trace_firmware("pvr2_upload_firmware2");
 
 	ret = pvr2_locate_firmware(hdw,&fw_entry,"encoder",
-				   sizeof(fw_files)/sizeof(fw_files[0]),
-				   fw_files);
+				   ARRAY_SIZE(fw_files), fw_files);
 	if (ret < 0) return ret;
 	fwidx = ret;
 	ret = 0;
@@ -1079,8 +1253,13 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	ret |= pvr2_write_register(hdw, 0xaa04, 0x00057810); /*unknown*/
 	ret |= pvr2_write_register(hdw, 0xaa10, 0x00148500); /*unknown*/
 	ret |= pvr2_write_register(hdw, 0xaa18, 0x00840000); /*unknown*/
-	ret |= pvr2_write_u8(hdw, 0x52, 0);
-	ret |= pvr2_write_u16(hdw, 0x0600, 0);
+	LOCK_TAKE(hdw->ctl_lock); do {
+		hdw->cmd_buffer[0] = FX2CMD_FWPOST1;
+		ret |= pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
+		hdw->cmd_buffer[0] = FX2CMD_MEMSEL;
+		hdw->cmd_buffer[1] = 0;
+		ret |= pvr2_send_request(hdw,hdw->cmd_buffer,2,NULL,0);
+	} while (0); LOCK_GIVE(hdw->ctl_lock);
 
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -1093,11 +1272,11 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 
 	fw_len = fw_entry->size;
 
-	if (fw_len % FIRMWARE_CHUNK_SIZE) {
+	if (fw_len % sizeof(u32)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "size of %s firmware"
-			   " must be a multiple of 8192B",
-			   fw_files[fwidx]);
+			   " must be a multiple of %zu bytes",
+			   fw_files[fwidx],sizeof(u32));
 		release_firmware(fw_entry);
 		return -1;
 	}
@@ -1112,18 +1291,21 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 
 	pipe = usb_sndbulkpipe(hdw->usb_dev, PVR2_FIRMWARE_ENDPOINT);
 
-	for (fw_done = 0 ; (fw_done < fw_len) && !ret ;
-	     fw_done += FIRMWARE_CHUNK_SIZE ) {
-		int i;
-		memcpy(fw_ptr, fw_entry->data + fw_done, FIRMWARE_CHUNK_SIZE);
-		/* Usbsnoop log  shows that we must swap bytes... */
-		for (i = 0; i < FIRMWARE_CHUNK_SIZE/4 ; i++)
-			((u32 *)fw_ptr)[i] = ___swab32(((u32 *)fw_ptr)[i]);
+	fw_done = 0;
+	for (fw_done = 0; fw_done < fw_len;) {
+		bcnt = fw_len - fw_done;
+		if (bcnt > FIRMWARE_CHUNK_SIZE) bcnt = FIRMWARE_CHUNK_SIZE;
+		memcpy(fw_ptr, fw_entry->data + fw_done, bcnt);
+		/* Usbsnoop log shows that we must swap bytes... */
+		for (icnt = 0; icnt < bcnt/4 ; icnt++)
+			((u32 *)fw_ptr)[icnt] =
+				___swab32(((u32 *)fw_ptr)[icnt]);
 
-		ret |= usb_bulk_msg(hdw->usb_dev, pipe, fw_ptr,
-				    FIRMWARE_CHUNK_SIZE,
+		ret |= usb_bulk_msg(hdw->usb_dev, pipe, fw_ptr,bcnt,
 				    &actual_length, HZ);
-		ret |= (actual_length != FIRMWARE_CHUNK_SIZE);
+		ret |= (actual_length != bcnt);
+		if (ret) break;
+		fw_done += bcnt;
 	}
 
 	trace_firmware("upload of %s : %i / %i ",
@@ -1142,7 +1324,11 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 
 	ret |= pvr2_write_register(hdw, 0x9054, 0xffffffff); /*reset hw blocks*/
 	ret |= pvr2_write_register(hdw, 0x9058, 0xffffffe8); /*VPU ctrl*/
-	ret |= pvr2_write_u16(hdw, 0x0600, 0);
+	LOCK_TAKE(hdw->ctl_lock); do {
+		hdw->cmd_buffer[0] = FX2CMD_MEMSEL;
+		hdw->cmd_buffer[1] = 0;
+		ret |= pvr2_send_request(hdw,hdw->cmd_buffer,2,NULL,0);
+	} while (0); LOCK_GIVE(hdw->ctl_lock);
 
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -1479,7 +1665,7 @@ static int pvr2_hdw_check_firmware(struct pvr2_hdw *hdw)
 	   firmware needs be loaded. */
 	int result;
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = 0xeb;
+		hdw->cmd_buffer[0] = FX2CMD_GET_EEPROM_ADDR;
 		result = pvr2_send_request_ex(hdw,HZ*1,!0,
 					   hdw->cmd_buffer,1,
 					   hdw->cmd_buffer,1);
@@ -1610,6 +1796,16 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 		if (!cptr->info->set_value) continue;
 		cptr->info->set_value(cptr,~0,cptr->info->default_value);
 	}
+
+	/* Set up special default values for the television and radio
+	   frequencies here.  It's not really important what these defaults
+	   are, but I set them to something usable in the Chicago area just
+	   to make driver testing a little easier. */
+
+	/* US Broadcast channel 7 (175.25 MHz) */
+	hdw->freqValTelevision = 175250000L;
+	/* 104.3 MHz, a usable FM station for my area */
+	hdw->freqValRadio = 104300000L;
 
 	// Do not use pvr2_reset_ctl_endpoints() here.  It is not
 	// thread-safe against the normal pvr2_send_request() mechanism.
@@ -1750,26 +1946,24 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	struct pvr2_ctl_info *ciptr;
 
 	hdw_type = devid - pvr2_device_table;
-	if (hdw_type >=
-	    sizeof(pvr2_device_names)/sizeof(pvr2_device_names[0])) {
+	if (hdw_type >= ARRAY_SIZE(pvr2_device_names)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Bogus device type of %u reported",hdw_type);
 		return NULL;
 	}
 
-	hdw = kmalloc(sizeof(*hdw),GFP_KERNEL);
+	hdw = kzalloc(sizeof(*hdw),GFP_KERNEL);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_create: hdw=%p, type \"%s\"",
 		   hdw,pvr2_device_names[hdw_type]);
 	if (!hdw) goto fail;
-	memset(hdw,0,sizeof(*hdw));
+	hdw->tuner_signal_stale = !0;
 	cx2341x_fill_defaults(&hdw->enc_ctl_state);
 
 	hdw->control_cnt = CTRLDEF_COUNT;
 	hdw->control_cnt += MPEGDEF_COUNT;
-	hdw->controls = kmalloc(sizeof(struct pvr2_ctrl) * hdw->control_cnt,
+	hdw->controls = kzalloc(sizeof(struct pvr2_ctrl) * hdw->control_cnt,
 				GFP_KERNEL);
 	if (!hdw->controls) goto fail;
-	memset(hdw->controls,0,sizeof(struct pvr2_ctrl) * hdw->control_cnt);
 	hdw->hdw_type = hdw_type;
 	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
@@ -1783,11 +1977,9 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		cptr->info = control_defs+idx;
 	}
 	/* Define and configure additional controls from cx2341x module. */
-	hdw->mpeg_ctrl_info = kmalloc(
+	hdw->mpeg_ctrl_info = kzalloc(
 		sizeof(*(hdw->mpeg_ctrl_info)) * MPEGDEF_COUNT, GFP_KERNEL);
 	if (!hdw->mpeg_ctrl_info) goto fail;
-	memset(hdw->mpeg_ctrl_info,0,
-	       sizeof(*(hdw->mpeg_ctrl_info)) * MPEGDEF_COUNT);
 	for (idx = 0; idx < MPEGDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx + CTRLDEF_COUNT;
 		ciptr = &(hdw->mpeg_ctrl_info[idx].info);
@@ -1872,7 +2064,9 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	hdw->eeprom_addr = -1;
 	hdw->unit_number = -1;
-	hdw->v4l_minor_number = -1;
+	hdw->v4l_minor_number_video = -1;
+	hdw->v4l_minor_number_vbi = -1;
+	hdw->v4l_minor_number_radio = -1;
 	hdw->ctl_write_buffer = kmalloc(PVR2_CTL_BUFFSIZE,GFP_KERNEL);
 	if (!hdw->ctl_write_buffer) goto fail;
 	hdw->ctl_read_buffer = kmalloc(PVR2_CTL_BUFFSIZE,GFP_KERNEL);
@@ -1918,6 +2112,11 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->usb_intf = intf;
 	hdw->usb_dev = interface_to_usbdev(intf);
 
+	scnprintf(hdw->bus_info,sizeof(hdw->bus_info),
+		  "usb %s address %d",
+		  hdw->usb_dev->dev.bus_id,
+		  hdw->usb_dev->devnum);
+
 	ifnum = hdw->usb_intf->cur_altsetting->desc.bInterfaceNumber;
 	usb_set_interface(hdw->usb_dev,ifnum,0);
 
@@ -1929,10 +2128,10 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	if (hdw) {
 		usb_free_urb(hdw->ctl_read_urb);
 		usb_free_urb(hdw->ctl_write_urb);
-		if (hdw->ctl_read_buffer) kfree(hdw->ctl_read_buffer);
-		if (hdw->ctl_write_buffer) kfree(hdw->ctl_write_buffer);
-		if (hdw->controls) kfree(hdw->controls);
-		if (hdw->mpeg_ctrl_info) kfree(hdw->mpeg_ctrl_info);
+		kfree(hdw->ctl_read_buffer);
+		kfree(hdw->ctl_write_buffer);
+		kfree(hdw->controls);
+		kfree(hdw->mpeg_ctrl_info);
 		kfree(hdw);
 	}
 	return NULL;
@@ -1982,9 +2181,6 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 		pvr2_stream_destroy(hdw->vid_stream);
 		hdw->vid_stream = NULL;
 	}
-	if (hdw->audio_stat) {
-		hdw->audio_stat->detach(hdw->audio_stat->ctxt);
-	}
 	if (hdw->decoder_ctrl) {
 		hdw->decoder_ctrl->detach(hdw->decoder_ctrl->ctxt);
 	}
@@ -1997,10 +2193,10 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 			unit_pointers[hdw->unit_number] = NULL;
 		}
 	} while (0); up(&pvr2_unit_sem);
-	if (hdw->controls) kfree(hdw->controls);
-	if (hdw->mpeg_ctrl_info) kfree(hdw->mpeg_ctrl_info);
-	if (hdw->std_defs) kfree(hdw->std_defs);
-	if (hdw->std_enum_names) kfree(hdw->std_enum_names);
+	kfree(hdw->controls);
+	kfree(hdw->mpeg_ctrl_info);
+	kfree(hdw->std_defs);
+	kfree(hdw->std_enum_names);
 	kfree(hdw);
 }
 
@@ -2210,10 +2406,9 @@ static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 		cptr = hdw->controls + idx;
 		if (cptr->info->is_dirty == 0) continue;
 		if (!cptr->info->is_dirty(cptr)) continue;
-		if (!commit_flag) {
-			commit_flag = !0;
-		}
+		commit_flag = !0;
 
+		if (!(pvrusb2_debug & PVR2_TRACE_CTL)) continue;
 		bcnt = scnprintf(buf,sizeof(buf),"\"%s\" <-- ",
 				 cptr->info->name);
 		value = 0;
@@ -2262,6 +2457,13 @@ static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 		   reconfigured, and we need to reset the stream. */
 		stale_subsys_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
 	}
+
+	if (hdw->input_dirty) {
+		/* pk: If input changes to or from radio, then the encoder
+		   needs to be restarted (for ENC_MUTE_VIDEO to work) */
+		stale_subsys_mask |= (1<<PVR2_SUBSYS_B_ENC_RUN);
+	}
+
 
 	if (hdw->srate_dirty) {
 		/* Write new sample rate into control structure since
@@ -2343,39 +2545,11 @@ const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *hdw)
 }
 
 
-/* Return bit mask indicating signal status */
-static unsigned int pvr2_hdw_get_signal_status_internal(struct pvr2_hdw *hdw)
-{
-	unsigned int msk = 0;
-	switch (hdw->input_val) {
-	case PVR2_CVAL_INPUT_TV:
-	case PVR2_CVAL_INPUT_RADIO:
-		if (hdw->decoder_ctrl &&
-		    hdw->decoder_ctrl->tuned(hdw->decoder_ctrl->ctxt)) {
-			msk |= PVR2_SIGNAL_OK;
-			if (hdw->audio_stat &&
-			    hdw->audio_stat->status(hdw->audio_stat->ctxt)) {
-				if (hdw->flag_stereo) {
-					msk |= PVR2_SIGNAL_STEREO;
-				}
-				if (hdw->flag_bilingual) {
-					msk |= PVR2_SIGNAL_SAP;
-				}
-			}
-		}
-		break;
-	default:
-		msk |= PVR2_SIGNAL_OK | PVR2_SIGNAL_STEREO;
-	}
-	return msk;
-}
-
-
 int pvr2_hdw_is_hsm(struct pvr2_hdw *hdw)
 {
 	int result;
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = 0x0b;
+		hdw->cmd_buffer[0] = FX2CMD_GET_USB_SPEED;
 		result = pvr2_send_request(hdw,
 					   hdw->cmd_buffer,1,
 					   hdw->cmd_buffer,1);
@@ -2386,14 +2560,25 @@ int pvr2_hdw_is_hsm(struct pvr2_hdw *hdw)
 }
 
 
-/* Return bit mask indicating signal status */
-unsigned int pvr2_hdw_get_signal_status(struct pvr2_hdw *hdw)
+/* Execute poll of tuner status */
+void pvr2_hdw_execute_tuner_poll(struct pvr2_hdw *hdw)
 {
-	unsigned int msk = 0;
 	LOCK_TAKE(hdw->big_lock); do {
-		msk = pvr2_hdw_get_signal_status_internal(hdw);
+		pvr2_i2c_core_status_poll(hdw);
 	} while (0); LOCK_GIVE(hdw->big_lock);
-	return msk;
+}
+
+
+/* Return information about the tuner */
+int pvr2_hdw_get_tuner_status(struct pvr2_hdw *hdw,struct v4l2_tuner *vtp)
+{
+	LOCK_TAKE(hdw->big_lock); do {
+		if (hdw->tuner_signal_stale) {
+			pvr2_i2c_core_status_poll(hdw);
+		}
+		memcpy(vtp,&hdw->tuner_signal_info,sizeof(struct v4l2_tuner));
+	} while (0); LOCK_GIVE(hdw->big_lock);
+	return 0;
 }
 
 
@@ -2442,13 +2627,11 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw, int enable_flag)
 		pvr2_trace(PVR2_TRACE_FIRMWARE,
 			   "Preparing to suck out CPU firmware");
 		hdw->fw_size = 0x2000;
-		hdw->fw_buffer = kmalloc(hdw->fw_size,GFP_KERNEL);
+		hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
 		if (!hdw->fw_buffer) {
 			hdw->fw_size = 0;
 			break;
 		}
-
-		memset(hdw->fw_buffer,0,hdw->fw_size);
 
 		/* We have to hold the CPU during firmware upload. */
 		pvr2_hdw_cpureset_assert(hdw,1);
@@ -2513,16 +2696,28 @@ int pvr2_hdw_cpufw_get(struct pvr2_hdw *hdw,unsigned int offs,
 }
 
 
-int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *hdw)
+int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *hdw,
+				  enum pvr2_v4l_type index)
 {
-	return hdw->v4l_minor_number;
+	switch (index) {
+	case pvr2_v4l_type_video: return hdw->v4l_minor_number_video;
+	case pvr2_v4l_type_vbi: return hdw->v4l_minor_number_vbi;
+	case pvr2_v4l_type_radio: return hdw->v4l_minor_number_radio;
+	default: return -1;
+	}
 }
 
 
-/* Store the v4l minor device number */
-void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *hdw,int v)
+/* Store a v4l minor device number */
+void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *hdw,
+				     enum pvr2_v4l_type index,int v)
 {
-	hdw->v4l_minor_number = v;
+	switch (index) {
+	case pvr2_v4l_type_video: hdw->v4l_minor_number_video = v;
+	case pvr2_v4l_type_vbi: hdw->v4l_minor_number_vbi = v;
+	case pvr2_v4l_type_radio: hdw->v4l_minor_number_radio = v;
+	default: break;
+	}
 }
 
 
@@ -2804,7 +2999,7 @@ int pvr2_write_register(struct pvr2_hdw *hdw, u16 reg, u32 data)
 
 	LOCK_TAKE(hdw->ctl_lock);
 
-	hdw->cmd_buffer[0] = 0x04;  /* write register prefix */
+	hdw->cmd_buffer[0] = FX2CMD_REG_WRITE;  /* write register prefix */
 	PVR2_DECOMPOSE_LE(hdw->cmd_buffer,1,data);
 	hdw->cmd_buffer[5] = 0;
 	hdw->cmd_buffer[6] = (reg >> 8) & 0xff;
@@ -2825,7 +3020,7 @@ static int pvr2_read_register(struct pvr2_hdw *hdw, u16 reg, u32 *data)
 
 	LOCK_TAKE(hdw->ctl_lock);
 
-	hdw->cmd_buffer[0] = 0x05;  /* read register prefix */
+	hdw->cmd_buffer[0] = FX2CMD_REG_READ;  /* read register prefix */
 	hdw->cmd_buffer[1] = 0;
 	hdw->cmd_buffer[2] = 0;
 	hdw->cmd_buffer[3] = 0;
@@ -2836,39 +3031,6 @@ static int pvr2_read_register(struct pvr2_hdw *hdw, u16 reg, u32 *data)
 
 	ret |= pvr2_send_request(hdw, hdw->cmd_buffer, 8, hdw->cmd_buffer, 4);
 	*data = PVR2_COMPOSE_LE(hdw->cmd_buffer,0);
-
-	LOCK_GIVE(hdw->ctl_lock);
-
-	return ret;
-}
-
-
-static int pvr2_write_u16(struct pvr2_hdw *hdw, u16 data, int res)
-{
-	int ret;
-
-	LOCK_TAKE(hdw->ctl_lock);
-
-	hdw->cmd_buffer[0] = (data >> 8) & 0xff;
-	hdw->cmd_buffer[1] = data & 0xff;
-
-	ret = pvr2_send_request(hdw, hdw->cmd_buffer, 2, hdw->cmd_buffer, res);
-
-	LOCK_GIVE(hdw->ctl_lock);
-
-	return ret;
-}
-
-
-static int pvr2_write_u8(struct pvr2_hdw *hdw, u8 data, int res)
-{
-	int ret;
-
-	LOCK_TAKE(hdw->ctl_lock);
-
-	hdw->cmd_buffer[0] = data;
-
-	ret = pvr2_send_request(hdw, hdw->cmd_buffer, 1, hdw->cmd_buffer, res);
 
 	LOCK_GIVE(hdw->ctl_lock);
 
@@ -2949,7 +3111,7 @@ int pvr2_hdw_cmd_deep_reset(struct pvr2_hdw *hdw)
 	LOCK_TAKE(hdw->ctl_lock); do {
 		pvr2_trace(PVR2_TRACE_INIT,"Requesting uproc hard reset");
 		hdw->flag_ok = !0;
-		hdw->cmd_buffer[0] = 0xdd;
+		hdw->cmd_buffer[0] = FX2CMD_DEEP_RESET;
 		status = pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
 	} while (0); LOCK_GIVE(hdw->ctl_lock);
 	return status;
@@ -2961,7 +3123,7 @@ int pvr2_hdw_cmd_powerup(struct pvr2_hdw *hdw)
 	int status;
 	LOCK_TAKE(hdw->ctl_lock); do {
 		pvr2_trace(PVR2_TRACE_INIT,"Requesting powerup");
-		hdw->cmd_buffer[0] = 0xde;
+		hdw->cmd_buffer[0] = FX2CMD_POWER_ON;
 		status = pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
 	} while (0); LOCK_GIVE(hdw->ctl_lock);
 	return status;
@@ -2994,7 +3156,8 @@ static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
 {
 	int status;
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = (runFl ? 0x36 : 0x37);
+		hdw->cmd_buffer[0] =
+			(runFl ? FX2CMD_STREAMING_ON : FX2CMD_STREAMING_OFF);
 		status = pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
 	} while (0); LOCK_GIVE(hdw->ctl_lock);
 	if (!status) {
@@ -3093,7 +3256,7 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 {
 	int result;
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = 0xeb;
+		hdw->cmd_buffer[0] = FX2CMD_GET_EEPROM_ADDR;
 		result = pvr2_send_request(hdw,
 					   hdw->cmd_buffer,1,
 					   hdw->cmd_buffer,1);
@@ -3105,8 +3268,8 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 
 
 int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
-			     u32 chip_id,unsigned long reg_id,
-			     int setFl,u32 *val_ptr)
+			     u32 match_type, u32 match_chip, u64 reg_id,
+			     int setFl,u64 *val_ptr)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	struct list_head *item;
@@ -3115,16 +3278,23 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	int stat = 0;
 	int okFl = 0;
 
-	req.i2c_id = chip_id;
+	if (!capable(CAP_SYS_ADMIN)) return -EPERM;
+
+	req.match_type = match_type;
+	req.match_chip = match_chip;
 	req.reg = reg_id;
 	if (setFl) req.val = *val_ptr;
 	mutex_lock(&hdw->i2c_list_lock); do {
 		list_for_each(item,&hdw->i2c_clients) {
 			cp = list_entry(item,struct pvr2_i2c_client,list);
-			if (cp->client->driver->id != chip_id) continue;
+			if (!v4l2_chip_match_i2c_client(
+				    cp->client,
+				    req.match_type, req.match_chip)) {
+				continue;
+			}
 			stat = pvr2_i2c_client_cmd(
-				cp,(setFl ? VIDIOC_INT_S_REGISTER :
-				    VIDIOC_INT_G_REGISTER),&req);
+				cp,(setFl ? VIDIOC_DBG_S_REGISTER :
+				    VIDIOC_DBG_G_REGISTER),&req);
 			if (!setFl) *val_ptr = req.val;
 			okFl = !0;
 			break;

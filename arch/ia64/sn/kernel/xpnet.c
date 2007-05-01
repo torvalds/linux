@@ -233,7 +233,7 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
 			"%lu)\n", skb->data, &msg->data,
 			(size_t) msg->embedded_bytes);
 
-		memcpy(skb->data, &msg->data, (size_t) msg->embedded_bytes);
+		skb_copy_to_linear_data(skb, &msg->data, (size_t)msg->embedded_bytes);
 	} else {
 		dev_dbg(xpnet, "transferring buffer to the skb->data area;\n\t"
 			"bte_copy(0x%p, 0x%p, %hu)\n", (void *)msg->buf_pa,
@@ -264,17 +264,16 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
 
 	dev_dbg(xpnet, "<skb->head=0x%p skb->data=0x%p skb->tail=0x%p "
 		"skb->end=0x%p skb->len=%d\n", (void *) skb->head,
-		(void *) skb->data, (void *) skb->tail, (void *) skb->end,
+		(void *)skb->data, skb_tail_pointer(skb), skb_end_pointer(skb),
 		skb->len);
 
-	skb->dev = xpnet_device;
 	skb->protocol = eth_type_trans(skb, xpnet_device);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	dev_dbg(xpnet, "passing skb to network layer; \n\tskb->head=0x%p "
 		"skb->data=0x%p skb->tail=0x%p skb->end=0x%p skb->len=%d\n",
-		(void *) skb->head, (void *) skb->data, (void *) skb->tail,
-		(void *) skb->end, skb->len);
+		(void *)skb->head, (void *)skb->data, skb_tail_pointer(skb),
+		skb_end_pointer(skb), skb->len);
 
 
 	xpnet_device->last_rx = jiffies;
@@ -476,7 +475,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_dbg(xpnet, ">skb->head=0x%p skb->data=0x%p skb->tail=0x%p "
 		"skb->end=0x%p skb->len=%d\n", (void *) skb->head,
-		(void *) skb->data, (void *) skb->tail, (void *) skb->end,
+		(void *)skb->data, skb_tail_pointer(skb), skb_end_pointer(skb),
 		skb->len);
 
 
@@ -498,7 +497,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* get the beginning of the first cacheline and end of last */
 	start_addr = ((u64) skb->data & ~(L1_CACHE_BYTES - 1));
-	end_addr = L1_CACHE_ALIGN((u64) skb->tail);
+	end_addr = L1_CACHE_ALIGN((u64)skb_tail_pointer(skb));
 
 	/* calculate how many bytes to embed in the XPC message */
 	embedded_bytes = 0;
@@ -567,14 +566,15 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			msg->version = XPNET_VERSION_EMBED;
 			dev_dbg(xpnet, "calling memcpy(0x%p, 0x%p, 0x%lx)\n",
 				&msg->data, skb->data, (size_t) embedded_bytes);
-			memcpy(&msg->data, skb->data, (size_t) embedded_bytes);
+			skb_copy_from_linear_data(skb, &msg->data,
+						  (size_t)embedded_bytes);
 		} else {
 			msg->version = XPNET_VERSION;
 		}
 		msg->magic = XPNET_MAGIC;
 		msg->size = end_addr - start_addr;
 		msg->leadin_ignore = (u64) skb->data - start_addr;
-		msg->tailout_ignore = end_addr - (u64) skb->tail;
+		msg->tailout_ignore = end_addr - (u64)skb_tail_pointer(skb);
 		msg->buf_pa = __pa(start_addr);
 
 		dev_dbg(xpnet, "sending XPC message to %d:%d\nmsg->buf_pa="

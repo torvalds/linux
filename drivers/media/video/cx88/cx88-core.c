@@ -5,6 +5,11 @@
  *
  * (c) 2003 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
+ * (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *     - Multituner support
+ *     - video_ioctl2 conversion
+ *     - PAL/M fixes
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -484,12 +489,12 @@ static char *cx88_pci_irqs[32] = {
 };
 
 void cx88_print_irqbits(char *name, char *tag, char **strings,
-			u32 bits, u32 mask)
+			int len, u32 bits, u32 mask)
 {
 	unsigned int i;
 
 	printk(KERN_DEBUG "%s: %s [0x%x]", name, tag, bits);
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < len; i++) {
 		if (!(bits & (1 << i)))
 			continue;
 		if (strings[i])
@@ -515,8 +520,8 @@ int cx88_core_irq(struct cx88_core *core, u32 status)
 	}
 	if (!handled)
 		cx88_print_irqbits(core->name, "irq pci",
-				   cx88_pci_irqs, status,
-				   core->pci_irqmask);
+				   cx88_pci_irqs, ARRAY_SIZE(cx88_pci_irqs),
+				   status, core->pci_irqmask);
 	return handled;
 }
 
@@ -631,30 +636,30 @@ int cx88_reset(struct cx88_core *core)
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int inline norm_swidth(struct cx88_tvnorm *norm)
+static unsigned int inline norm_swidth(v4l2_std_id norm)
 {
-	return (norm->id & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 754 : 922;
+	return (norm & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 754 : 922;
 }
 
-static unsigned int inline norm_hdelay(struct cx88_tvnorm *norm)
+static unsigned int inline norm_hdelay(v4l2_std_id norm)
 {
-	return (norm->id & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 135 : 186;
+	return (norm & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 135 : 186;
 }
 
-static unsigned int inline norm_vdelay(struct cx88_tvnorm *norm)
+static unsigned int inline norm_vdelay(v4l2_std_id norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 0x24 : 0x18;
+	return (norm & V4L2_STD_625_50) ? 0x24 : 0x18;
 }
 
-static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
+static unsigned int inline norm_fsc8(v4l2_std_id norm)
 {
-	if (norm->id & V4L2_STD_PAL_M)
+	if (norm & V4L2_STD_PAL_M)
 		return 28604892;      // 3.575611 MHz
 
-	if (norm->id & (V4L2_STD_PAL_Nc))
+	if (norm & (V4L2_STD_PAL_Nc))
 		return 28656448;      // 3.582056 MHz
 
-	if (norm->id & V4L2_STD_NTSC) // All NTSC/M and variants
+	if (norm & V4L2_STD_NTSC) // All NTSC/M and variants
 		return 28636360;      // 3.57954545 MHz +/- 10 Hz
 
 	/* SECAM have also different sub carrier for chroma,
@@ -666,20 +671,20 @@ static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
 	return 35468950;      // 4.43361875 MHz +/- 5 Hz
 }
 
-static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
+static unsigned int inline norm_htotal(v4l2_std_id norm)
 {
 
 	unsigned int fsc4=norm_fsc8(norm)/2;
 
 	/* returns 4*FSC / vtotal / frames per seconds */
-	return (norm->id & V4L2_STD_625_50) ?
+	return (norm & V4L2_STD_625_50) ?
 				((fsc4+312)/625+12)/25 :
 				((fsc4+262)/525*1001+15000)/30000;
 }
 
-static unsigned int inline norm_vbipack(struct cx88_tvnorm *norm)
+static unsigned int inline norm_vbipack(v4l2_std_id norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 511 : 400;
+	return (norm & V4L2_STD_625_50) ? 511 : 400;
 }
 
 int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int height,
@@ -692,7 +697,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 	dprintk(1,"set_scale: %dx%d [%s%s,%s]\n", width, height,
 		V4L2_FIELD_HAS_TOP(field)    ? "T" : "",
 		V4L2_FIELD_HAS_BOTTOM(field) ? "B" : "",
-		core->tvnorm->name);
+		v4l2_norm_to_name(core->tvnorm));
 	if (!V4L2_FIELD_HAS_BOTH(field))
 		height *= 2;
 
@@ -729,7 +734,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 	// setup filters
 	value = 0;
 	value |= (1 << 19);        // CFILT (default)
-	if (core->tvnorm->id & V4L2_STD_SECAM) {
+	if (core->tvnorm & V4L2_STD_SECAM) {
 		value |= (1 << 15);
 		value |= (1 << 16);
 	}
@@ -826,36 +831,36 @@ int cx88_stop_audio_dma(struct cx88_core *core)
 
 static int set_tvaudio(struct cx88_core *core)
 {
-	struct cx88_tvnorm *norm = core->tvnorm;
+	v4l2_std_id norm = core->tvnorm;
 
 	if (CX88_VMUX_TELEVISION != INPUT(core->input)->type)
 		return 0;
 
-	if (V4L2_STD_PAL_BG & norm->id) {
+	if (V4L2_STD_PAL_BG & norm) {
 		core->tvaudio = WW_BG;
 
-	} else if (V4L2_STD_PAL_DK & norm->id) {
+	} else if (V4L2_STD_PAL_DK & norm) {
 		core->tvaudio = WW_DK;
 
-	} else if (V4L2_STD_PAL_I & norm->id) {
+	} else if (V4L2_STD_PAL_I & norm) {
 		core->tvaudio = WW_I;
 
-	} else if (V4L2_STD_SECAM_L & norm->id) {
+	} else if (V4L2_STD_SECAM_L & norm) {
 		core->tvaudio = WW_L;
 
-	} else if (V4L2_STD_SECAM_DK & norm->id) {
+	} else if (V4L2_STD_SECAM_DK & norm) {
 		core->tvaudio = WW_DK;
 
-	} else if ((V4L2_STD_NTSC_M & norm->id) ||
-		   (V4L2_STD_PAL_M  & norm->id)) {
+	} else if ((V4L2_STD_NTSC_M & norm) ||
+		   (V4L2_STD_PAL_M  & norm)) {
 		core->tvaudio = WW_BTSC;
 
-	} else if (V4L2_STD_NTSC_M_JP & norm->id) {
+	} else if (V4L2_STD_NTSC_M_JP & norm) {
 		core->tvaudio = WW_EIAJ;
 
 	} else {
 		printk("%s/0: tvaudio support needs work for this tv norm [%s], sorry\n",
-		       core->name, norm->name);
+		       core->name, v4l2_norm_to_name(core->tvnorm));
 		core->tvaudio = 0;
 		return 0;
 	}
@@ -874,7 +879,7 @@ static int set_tvaudio(struct cx88_core *core)
 
 
 
-int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
+int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 {
 	u32 fsc8;
 	u32 adc_clock;
@@ -882,6 +887,7 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	u32 step_db,step_dr;
 	u64 tmp64;
 	u32 bdelay,agcdelay,htotal;
+	u32 cxiformat, cxoformat;
 
 	core->tvnorm = norm;
 	fsc8       = norm_fsc8(norm);
@@ -890,23 +896,51 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	step_db    = fsc8;
 	step_dr    = fsc8;
 
-	if (norm->id & V4L2_STD_SECAM) {
+	if (norm & V4L2_STD_NTSC_M_JP) {
+		cxiformat = VideoFormatNTSCJapan;
+		cxoformat = 0x181f0008;
+	} else if (norm & V4L2_STD_NTSC_443) {
+		cxiformat = VideoFormatNTSC443;
+		cxoformat = 0x181f0008;
+	} else if (norm & V4L2_STD_PAL_M) {
+		cxiformat = VideoFormatPALM;
+		cxoformat = 0x1c1f0008;
+	} else if (norm & V4L2_STD_PAL_N) {
+		cxiformat = VideoFormatPALN;
+		cxoformat = 0x1c1f0008;
+	} else if (norm & V4L2_STD_PAL_Nc) {
+		cxiformat = VideoFormatPALNC;
+		cxoformat = 0x1c1f0008;
+	} else if (norm & V4L2_STD_PAL_60) {
+		cxiformat = VideoFormatPAL60;
+		cxoformat = 0x181f0008;
+	} else if (norm & V4L2_STD_NTSC) {
+		cxiformat = VideoFormatNTSC;
+		cxoformat = 0x181f0008;
+	} else if (norm & V4L2_STD_SECAM) {
 		step_db = 4250000 * 8;
 		step_dr = 4406250 * 8;
+
+		cxiformat = VideoFormatSECAM;
+		cxoformat = 0x181f0008;
+	} else { /* PAL */
+		cxiformat = VideoFormatPAL;
+		cxoformat = 0x181f0008;
 	}
 
 	dprintk(1,"set_tvnorm: \"%s\" fsc8=%d adc=%d vdec=%d db/dr=%d/%d\n",
-		norm->name, fsc8, adc_clock, vdec_clock, step_db, step_dr);
+		v4l2_norm_to_name(core->tvnorm), fsc8, adc_clock, vdec_clock,
+		step_db, step_dr);
 	set_pll(core,2,vdec_clock);
 
 	dprintk(1,"set_tvnorm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
-		norm->cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
-	cx_andor(MO_INPUT_FORMAT, 0xf, norm->cxiformat);
+		cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
+	cx_andor(MO_INPUT_FORMAT, 0xf, cxiformat);
 
 	// FIXME: as-is from DScaler
 	dprintk(1,"set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
-		norm->cxoformat, cx_read(MO_OUTPUT_FORMAT));
-	cx_write(MO_OUTPUT_FORMAT, norm->cxoformat);
+		cxoformat, cx_read(MO_OUTPUT_FORMAT));
+	cx_write(MO_OUTPUT_FORMAT, cxoformat);
 
 	// MO_SCONV_REG = adc clock / video dec clock * 2^17
 	tmp64  = adc_clock * (u64)(1 << 17);
@@ -955,7 +989,7 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	set_tvaudio(core);
 
 	// tell i2c chips
-	cx88_call_i2c_clients(core,VIDIOC_S_STD,&norm->id);
+	cx88_call_i2c_clients(core,VIDIOC_S_STD,&norm);
 
 	// done
 	return 0;

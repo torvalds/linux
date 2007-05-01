@@ -647,7 +647,10 @@ tape_std_mtcompression(struct tape_device *device, int mt_count)
 		return PTR_ERR(request);
 	request->op = TO_NOP;
 	/* setup ccws */
-	*device->modeset_byte = (mt_count == 0) ? 0x00 : 0x08;
+	if (mt_count == 0)
+		*device->modeset_byte &= ~0x08;
+	else
+		*device->modeset_byte |= 0x08;
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
 	tape_ccw_end(request->cpaddr + 1, NOP, 0, NULL);
 	/* execute it */

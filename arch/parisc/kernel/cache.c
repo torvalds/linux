@@ -68,16 +68,6 @@ flush_cache_all_local(void)
 }
 EXPORT_SYMBOL(flush_cache_all_local);
 
-/* flushes EVERYTHING (tlb & cache) */
-
-void
-flush_all_caches(void)
-{
-	flush_cache_all();
-	flush_tlb_all();
-}
-EXPORT_SYMBOL(flush_all_caches);
-
 void
 update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
@@ -99,7 +89,7 @@ show_cache_info(struct seq_file *m)
 
 	seq_printf(m, "I-cache\t\t: %ld KB\n", 
 		cache_info.ic_size/1024 );
-	if (cache_info.dc_loop == 1)
+	if (cache_info.dc_loop != 1)
 		snprintf(buf, 32, "%lu-way associative", cache_info.dc_loop);
 	seq_printf(m, "D-cache\t\t: %ld KB (%s%s, %s)\n",
 		cache_info.dc_size/1024,
@@ -270,6 +260,83 @@ void disable_sr_hashing(void)
 		panic("SpaceID hashing is still on!\n");
 }
 
+/* Simple function to work out if we have an existing address translation
+ * for a user space vma. */
+static inline int translation_exists(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long pfn)
+{
+	pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
+	pmd_t *pmd;
+	pte_t pte;
+
+	if(pgd_none(*pgd))
+		return 0;
+
+	pmd = pmd_offset(pgd, addr);
+	if(pmd_none(*pmd) || pmd_bad(*pmd))
+		return 0;
+
+	/* We cannot take the pte lock here: flush_cache_page is usually
+	 * called with pte lock already held.  Whereas flush_dcache_page
+	 * takes flush_dcache_mmap_lock, which is lower in the hierarchy:
+	 * the vma itself is secure, but the pte might come or go racily.
+	 */
+	pte = *pte_offset_map(pmd, addr);
+	/* But pte_unmap() does nothing on this architecture */
+
+	/* Filter out coincidental file entries and swap entries */
+	if (!(pte_val(pte) & (_PAGE_FLUSH|_PAGE_PRESENT)))
+		return 0;
+
+	return pte_pfn(pte) == pfn;
+}
+
+/* Private function to flush a page from the cache of a non-current
+ * process.  cr25 contains the Page Directory of the current user
+ * process; we're going to hijack both it and the user space %sr3 to
+ * temporarily make the non-current process current.  We have to do
+ * this because cache flushing may cause a non-access tlb miss which
+ * the handlers have to fill in from the pgd of the non-current
+ * process. */
+static inline void
+flush_user_cache_page_non_current(struct vm_area_struct *vma,
+				  unsigned long vmaddr)
+{
+	/* save the current process space and pgd */
+	unsigned long space = mfsp(3), pgd = mfctl(25);
+
+	/* we don't mind taking interrups since they may not
+	 * do anything with user space, but we can't
+	 * be preempted here */
+	preempt_disable();
+
+	/* make us current */
+	mtctl(__pa(vma->vm_mm->pgd), 25);
+	mtsp(vma->vm_mm->context, 3);
+
+	flush_user_dcache_page(vmaddr);
+	if(vma->vm_flags & VM_EXEC)
+		flush_user_icache_page(vmaddr);
+
+	/* put the old current process back */
+	mtsp(space, 3);
+	mtctl(pgd, 25);
+	preempt_enable();
+}
+
+
+static inline void
+__flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr)
+{
+	if (likely(vma->vm_mm->context == mfsp(3))) {
+		flush_user_dcache_page(vmaddr);
+		if (vma->vm_flags & VM_EXEC)
+			flush_user_icache_page(vmaddr);
+	} else {
+		flush_user_cache_page_non_current(vma, vmaddr);
+	}
+}
+
 void flush_dcache_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
@@ -342,7 +409,7 @@ void clear_user_page_asm(void *page, unsigned long vaddr)
 #define FLUSH_THRESHOLD 0x80000 /* 0.5MB */
 int parisc_cache_flush_threshold __read_mostly = FLUSH_THRESHOLD;
 
-void parisc_setup_cache_timing(void)
+void __init parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
 	unsigned long size;
@@ -365,6 +432,9 @@ void parisc_setup_cache_timing(void)
 	parisc_cache_flush_threshold = (parisc_cache_flush_threshold + L1_CACHE_BYTES - 1) &~ (L1_CACHE_BYTES - 1); 
 	if (!parisc_cache_flush_threshold)
 		parisc_cache_flush_threshold = FLUSH_THRESHOLD;
+
+	if (parisc_cache_flush_threshold > cache_info.dc_size)
+		parisc_cache_flush_threshold = cache_info.dc_size;
 
 	printk(KERN_INFO "Setting cache flush threshold to %x (%d CPUs online)\n", parisc_cache_flush_threshold, num_online_cpus());
 }
@@ -410,3 +480,97 @@ void kunmap_parisc(void *addr)
 }
 EXPORT_SYMBOL(kunmap_parisc);
 #endif
+
+void __flush_tlb_range(unsigned long sid, unsigned long start,
+		       unsigned long end)
+{
+	unsigned long npages;
+
+	npages = ((end - (start & PAGE_MASK)) + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
+	if (npages >= 512)  /* 2MB of space: arbitrary, should be tuned */
+		flush_tlb_all();
+	else {
+		mtsp(sid, 1);
+		purge_tlb_start();
+		if (split_tlb) {
+			while (npages--) {
+				pdtlb(start);
+				pitlb(start);
+				start += PAGE_SIZE;
+			}
+		} else {
+			while (npages--) {
+				pdtlb(start);
+				start += PAGE_SIZE;
+			}
+		}
+		purge_tlb_end();
+	}
+}
+
+static void cacheflush_h_tmp_function(void *dummy)
+{
+	flush_cache_all_local();
+}
+
+void flush_cache_all(void)
+{
+	on_each_cpu(cacheflush_h_tmp_function, NULL, 1, 1);
+}
+
+void flush_cache_mm(struct mm_struct *mm)
+{
+#ifdef CONFIG_SMP
+	flush_cache_all();
+#else
+	flush_cache_all_local();
+#endif
+}
+
+void
+flush_user_dcache_range(unsigned long start, unsigned long end)
+{
+	if ((end - start) < parisc_cache_flush_threshold)
+		flush_user_dcache_range_asm(start,end);
+	else
+		flush_data_cache();
+}
+
+void
+flush_user_icache_range(unsigned long start, unsigned long end)
+{
+	if ((end - start) < parisc_cache_flush_threshold)
+		flush_user_icache_range_asm(start,end);
+	else
+		flush_instruction_cache();
+}
+
+
+void flush_cache_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end)
+{
+	int sr3;
+
+	if (!vma->vm_mm->context) {
+		BUG();
+		return;
+	}
+
+	sr3 = mfsp(3);
+	if (vma->vm_mm->context == sr3) {
+		flush_user_dcache_range(start,end);
+		flush_user_icache_range(start,end);
+	} else {
+		flush_cache_all();
+	}
+}
+
+void
+flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long pfn)
+{
+	BUG_ON(!vma->vm_mm->context);
+
+	if (likely(translation_exists(vma, vmaddr, pfn)))
+		__flush_cache_page(vma, vmaddr);
+
+}

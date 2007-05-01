@@ -11,7 +11,7 @@
 #include <asm/types.h>
 #include <linux/ioctl.h>
 
-#define KVM_API_VERSION 3
+#define KVM_API_VERSION 4
 
 /*
  * Architectural interrupt line count, and the size of the bitmap needed
@@ -52,11 +52,10 @@ enum kvm_exit_reason {
 /* for KVM_RUN */
 struct kvm_run {
 	/* in */
-	__u32 vcpu;
 	__u32 emulated;  /* skip current instruction */
 	__u32 mmio_completed; /* mmio request completed */
 	__u8 request_interrupt_window;
-	__u8 padding1[3];
+	__u8 padding1[7];
 
 	/* out */
 	__u32 exit_type;
@@ -111,10 +110,6 @@ struct kvm_run {
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
-	/* in */
-	__u32 vcpu;
-	__u32 padding;
-
 	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
 	__u64 rax, rbx, rcx, rdx;
 	__u64 rsi, rdi, rsp, rbp;
@@ -141,10 +136,6 @@ struct kvm_dtable {
 
 /* for KVM_GET_SREGS and KVM_SET_SREGS */
 struct kvm_sregs {
-	/* in */
-	__u32 vcpu;
-	__u32 padding;
-
 	/* out (KVM_GET_SREGS) / in (KVM_SET_SREGS) */
 	struct kvm_segment cs, ds, es, fs, gs, ss;
 	struct kvm_segment tr, ldt;
@@ -163,8 +154,8 @@ struct kvm_msr_entry {
 
 /* for KVM_GET_MSRS and KVM_SET_MSRS */
 struct kvm_msrs {
-	__u32 vcpu;
 	__u32 nmsrs; /* number of msrs in entries */
+	__u32 pad;
 
 	struct kvm_msr_entry entries[0];
 };
@@ -179,8 +170,6 @@ struct kvm_msr_list {
 struct kvm_translation {
 	/* in */
 	__u64 linear_address;
-	__u32 vcpu;
-	__u32 padding;
 
 	/* out */
 	__u64 physical_address;
@@ -193,7 +182,6 @@ struct kvm_translation {
 /* for KVM_INTERRUPT */
 struct kvm_interrupt {
 	/* in */
-	__u32 vcpu;
 	__u32 irq;
 };
 
@@ -206,8 +194,8 @@ struct kvm_breakpoint {
 /* for KVM_DEBUG_GUEST */
 struct kvm_debug_guest {
 	/* int */
-	__u32 vcpu;
 	__u32 enabled;
+	__u32 pad;
 	struct kvm_breakpoint breakpoints[4];
 	__u32 singlestep;
 };
@@ -224,20 +212,36 @@ struct kvm_dirty_log {
 
 #define KVMIO 0xAE
 
+/*
+ * ioctls for /dev/kvm fds:
+ */
 #define KVM_GET_API_VERSION       _IO(KVMIO, 1)
+#define KVM_CREATE_VM             _IO(KVMIO, 2) /* returns a VM fd */
+#define KVM_GET_MSR_INDEX_LIST    _IOWR(KVMIO, 15, struct kvm_msr_list)
+
+/*
+ * ioctls for VM fds
+ */
+#define KVM_SET_MEMORY_REGION     _IOW(KVMIO, 10, struct kvm_memory_region)
+/*
+ * KVM_CREATE_VCPU receives as a parameter the vcpu slot, and returns
+ * a vcpu fd.
+ */
+#define KVM_CREATE_VCPU           _IOW(KVMIO, 11, int)
+#define KVM_GET_DIRTY_LOG         _IOW(KVMIO, 12, struct kvm_dirty_log)
+
+/*
+ * ioctls for vcpu fds
+ */
 #define KVM_RUN                   _IOWR(KVMIO, 2, struct kvm_run)
-#define KVM_GET_REGS              _IOWR(KVMIO, 3, struct kvm_regs)
+#define KVM_GET_REGS              _IOR(KVMIO, 3, struct kvm_regs)
 #define KVM_SET_REGS              _IOW(KVMIO, 4, struct kvm_regs)
-#define KVM_GET_SREGS             _IOWR(KVMIO, 5, struct kvm_sregs)
+#define KVM_GET_SREGS             _IOR(KVMIO, 5, struct kvm_sregs)
 #define KVM_SET_SREGS             _IOW(KVMIO, 6, struct kvm_sregs)
 #define KVM_TRANSLATE             _IOWR(KVMIO, 7, struct kvm_translation)
 #define KVM_INTERRUPT             _IOW(KVMIO, 8, struct kvm_interrupt)
 #define KVM_DEBUG_GUEST           _IOW(KVMIO, 9, struct kvm_debug_guest)
-#define KVM_SET_MEMORY_REGION     _IOW(KVMIO, 10, struct kvm_memory_region)
-#define KVM_CREATE_VCPU           _IOW(KVMIO, 11, int /* vcpu_slot */)
-#define KVM_GET_DIRTY_LOG         _IOW(KVMIO, 12, struct kvm_dirty_log)
 #define KVM_GET_MSRS              _IOWR(KVMIO, 13, struct kvm_msrs)
-#define KVM_SET_MSRS              _IOWR(KVMIO, 14, struct kvm_msrs)
-#define KVM_GET_MSR_INDEX_LIST    _IOWR(KVMIO, 15, struct kvm_msr_list)
+#define KVM_SET_MSRS              _IOW(KVMIO, 14, struct kvm_msrs)
 
 #endif

@@ -82,7 +82,6 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
 #include <linux/pkt_sched.h>
@@ -104,6 +103,7 @@
 #include <net/xfrm.h>
 #include <net/ip_mp_alg.h>
 #include <net/netevent.h>
+#include <net/rtnetlink.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
@@ -364,7 +364,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations rt_cache_seq_ops = {
+static const struct seq_operations rt_cache_seq_ops = {
 	.start  = rt_cache_seq_start,
 	.next   = rt_cache_seq_next,
 	.stop   = rt_cache_seq_stop,
@@ -470,7 +470,7 @@ static int rt_cpu_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations rt_cpu_seq_ops = {
+static const struct seq_operations rt_cpu_seq_ops = {
 	.start  = rt_cpu_seq_start,
 	.next   = rt_cpu_seq_next,
 	.stop   = rt_cpu_seq_stop,
@@ -1519,7 +1519,7 @@ static void ipv4_link_failure(struct sk_buff *skb)
 static int ip_rt_bug(struct sk_buff *skb)
 {
 	printk(KERN_DEBUG "ip_rt_bug: %u.%u.%u.%u -> %u.%u.%u.%u, %s\n",
-		NIPQUAD(skb->nh.iph->saddr), NIPQUAD(skb->nh.iph->daddr),
+		NIPQUAD(ip_hdr(skb)->saddr), NIPQUAD(ip_hdr(skb)->daddr),
 		skb->dev ? skb->dev->name : "?");
 	kfree_skb(skb);
 	return 0;
@@ -1698,9 +1698,9 @@ static void ip_handle_martian_source(struct net_device *dev,
 		printk(KERN_WARNING "martian source %u.%u.%u.%u from "
 			"%u.%u.%u.%u, on dev %s\n",
 			NIPQUAD(daddr), NIPQUAD(saddr), dev->name);
-		if (dev->hard_header_len && skb->mac.raw) {
+		if (dev->hard_header_len && skb_mac_header_was_set(skb)) {
 			int i;
-			unsigned char *p = skb->mac.raw;
+			const unsigned char *p = skb_mac_header(skb);
 			printk(KERN_WARNING "ll header: ");
 			for (i = 0; i < dev->hard_header_len; i++, p++) {
 				printk("%02x", *p);
@@ -2134,7 +2134,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		rcu_read_lock();
 		if ((in_dev = __in_dev_get_rcu(dev)) != NULL) {
 			int our = ip_check_mc(in_dev, daddr, saddr,
-				skb->nh.iph->protocol);
+				ip_hdr(skb)->protocol);
 			if (our
 #ifdef CONFIG_IP_MROUTE
 			    || (!LOCAL_MCAST(daddr) && IN_DEV_MFORWARD(in_dev))
@@ -2396,7 +2396,7 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 
 		/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
 		dev_out = ip_dev_find(oldflp->fl4_src);
-		if (dev_out == NULL)
+		if ((dev_out == NULL) && !(sysctl_ip_nonlocal_bind))
 			goto out;
 
 		/* I removed check for oif == dev_out->oif here.
@@ -2407,7 +2407,7 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 		      of another iface. --ANK
 		 */
 
-		if (oldflp->oif == 0
+		if (dev_out && oldflp->oif == 0
 		    && (MULTICAST(oldflp->fl4_dst) || oldflp->fl4_dst == htonl(0xFFFFFFFF))) {
 			/* Special hack: user can direct multicasts
 			   and limited broadcast via necessary interface
@@ -2683,7 +2683,7 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 		id = rt->peer->ip_id_count;
 		if (rt->peer->tcp_ts_stamp) {
 			ts = rt->peer->tcp_ts;
-			tsage = xtime.tv_sec - rt->peer->tcp_ts_stamp;
+			tsage = get_seconds() - rt->peer->tcp_ts_stamp;
 		}
 	}
 
@@ -2721,7 +2721,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
+static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct rtmsg *rtm;
 	struct nlattr *tb[RTA_MAX+1];
@@ -2747,10 +2747,11 @@ int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 	/* Reserve room for dummy headers, this skb can pass
 	   through good chunk of routing engine.
 	 */
-	skb->mac.raw = skb->nh.raw = skb->data;
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
 
 	/* Bugfix: need to give ip_route_input enough of an IP header to not gag. */
-	skb->nh.iph->protocol = IPPROTO_ICMP;
+	ip_hdr(skb)->protocol = IPPROTO_ICMP;
 	skb_reserve(skb, MAX_HEADER + sizeof(struct iphdr));
 
 	src = tb[RTA_SRC] ? nla_get_be32(tb[RTA_SRC]) : 0;
@@ -3193,6 +3194,8 @@ int __init ip_rt_init(void)
 	xfrm_init();
 	xfrm4_init();
 #endif
+	rtnl_register(PF_INET, RTM_GETROUTE, inet_rtm_getroute, NULL);
+
 	return rc;
 }
 

@@ -846,7 +846,8 @@ static ctl_table vm_table[] = {
 		.extra2		= &one_hundred,
 	},
 #endif
-#ifdef CONFIG_X86_32
+#if defined(CONFIG_X86_32) || \
+   (defined(CONFIG_SUPERH) && defined(CONFIG_VSYSCALL))
 	{
 		.ctl_name	= VM_VDSO_ENABLED,
 		.procname	= "vdso_enabled",
@@ -1359,8 +1360,7 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 }
 
 #else /* !CONFIG_SYSCTL */
-struct ctl_table_header * register_sysctl_table(ctl_table * table,
-						int insert_at_head)
+struct ctl_table_header *register_sysctl_table(ctl_table * table)
 {
 	return NULL;
 }
@@ -1676,7 +1676,7 @@ static int proc_dointvec_taint(ctl_table *table, int write, struct file *filp,
 {
 	int op;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	op = OP_OR;

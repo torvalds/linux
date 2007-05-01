@@ -1,30 +1,69 @@
-if ARCH_S3C2410
+# arch/arm/mach-s3c2410/Kconfig
+#
+# Copyright 2007 Simtec Electronics
+#
+# Licensed under GPLv2
 
-menu "S3C24XX Implementations"
+config CPU_S3C2410
+	bool
+	depends on ARCH_S3C2410
+	select S3C2410_CLOCK
+	select S3C2410_GPIO
+	select S3C2410_PM if PM
+	help
+	  Support for S3C2410 and S3C2410A family from the S3C24XX line
+	  of Samsung Mobile CPUs.
 
-config MACH_AML_M5900
-	bool "AML M5900 Series"
+config CPU_S3C2410_DMA
+	bool
+	depends on S3C2410_DMA && (CPU_S3C2410 || CPU_S3C2442)
+	default y if CPU_S3C2410 || CPU_S3C2442
+	help
+	  DMA device selection for S3C2410 and compatible CPUs
+
+config S3C2410_PM
+	bool
+	help
+	  Power Management code common to S3C2410 and better
+
+config S3C2410_GPIO
+	bool
+	help
+	  GPIO code for S3C2410 and similar processors
+
+config S3C2410_CLOCK
+	bool
+	help
+	  Clock code for the S3C2410, and similar processors
+
+
+menu "S3C2410 Machines"
+
+config ARCH_SMDK2410
+	bool "SMDK2410/A9M2410"
 	select CPU_S3C2410
-	select PM_SIMTEC if PM
+	select MACH_SMDK
 	help
-	   Say Y here if you are using the American Microsystems M5900 Series
-           <http://www.amltd.com>
+	   Say Y here if you are using the SMDK2410 or the derived module A9M2410
+           <http://www.fsforth.de>
 
-config MACH_ANUBIS
-	bool "Simtec Electronics ANUBIS"
-	select CPU_S3C2440
-	select PM_SIMTEC if PM
+config ARCH_H1940
+	bool "IPAQ H1940"
+	select CPU_S3C2410
+	select PM_H1940 if PM
 	help
-	  Say Y here if you are using the Simtec Electronics ANUBIS
-	  development system
+	  Say Y here if you are using the HP IPAQ H1940
 
-config MACH_OSIRIS
-	bool "Simtec IM2440D20 (OSIRIS) module"
-	select CPU_S3C2440
-	select PM_SIMTEC if PM
+config PM_H1940
+	bool
 	help
-	  Say Y here if you are using the Simtec IM2440D20 module, also
-	  known as the Osiris.
+	  Internal node for H1940 and related PM
+
+config MACH_N30
+	bool "Acer N30"
+	select CPU_S3C2410
+	help
+	  Say Y here if you are using the Acer N30
 
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
@@ -35,7 +74,19 @@ config ARCH_BAST
 	  Say Y here if you are using the Simtec Electronics EB2410ITX
 	  development board (also known as BAST)
 
-	  Product page: <http://www.simtec.co.uk/products/EB2410ITX/>.
+config MACH_OTOM
+ 	bool "NexVision OTOM Board"
+ 	select CPU_S3C2410
+	help
+ 	  Say Y here if you are using the Nex Vision OTOM board
+
+config MACH_AML_M5900
+	bool "AML M5900 Series"
+	select CPU_S3C2410
+	select PM_SIMTEC if PM
+	help
+	   Say Y here if you are using the American Microsystems M5900 Series
+           <http://www.amltd.com>
 
 config BAST_PC104_IRQ
 	bool "BAST PC104 IRQ support"
@@ -45,74 +96,6 @@ config BAST_PC104_IRQ
 	  Say Y	here to enable the PC104 IRQ routing on the
 	  Simtec BAST (EB2410ITX)
 
-config PM_H1940
-	bool
-	help
-	  Internal node for H1940 and related PM
-
-config ARCH_H1940
-	bool "IPAQ H1940"
-	select CPU_S3C2410
-	select PM_H1940 if PM
-	help
-	  Say Y here if you are using the HP IPAQ H1940
-
-	  <http://www.handhelds.org/projects/h1940.html>.
-
-config MACH_N30
-	bool "Acer N30"
-	select CPU_S3C2410
-	help
-	  Say Y here if you are using the Acer N30
-
-	  <http://zoo.weinigel.se/n30>.
-
-config MACH_SMDK
-	bool
-	help
-	  Common machine code for SMDK2410 and SMDK2440
-
-config ARCH_SMDK2410
-	bool "SMDK2410/A9M2410"
-	select CPU_S3C2410
-	select MACH_SMDK
-	help
-	   Say Y here if you are using the SMDK2410 or the derived module A9M2410
-           <http://www.fsforth.de>
-
-config ARCH_S3C2440
-	bool "SMDK2440"
-	select CPU_S3C2440
-	select MACH_SMDK
-	help
-	  Say Y here if you are using the SMDK2440.
-
-config SMDK2440_CPU2440
-	bool "SMDK2440 with S3C2440 CPU module"
-	depends on ARCH_S3C2440
-	default y if ARCH_S3C2440
-	select CPU_S3C2440
-
-config SMDK2440_CPU2442
-	bool "SMDM2440 with S3C2442 CPU module"
-	depends on ARCH_S3C2440
-	select CPU_S3C2442
-
-config MACH_S3C2413
-	bool
-	help
-	  Internal node for S3C2413 version of SMDK2413, so that
-	  machine_is_s3c2413() will work when MACH_SMDK2413 is
-	  selected
-
-config MACH_SMDK2413
-	bool "SMDK2413"
-	select CPU_S3C2412
-	select MACH_S3C2413
-	select MACH_SMDK
-	help
-	  Say Y here if you are using an SMDK2413
-
 config MACH_VR1000
 	bool "Thorcom VR1000"
 	select PM_SIMTEC if PM
@@ -120,202 +103,11 @@ config MACH_VR1000
 	help
 	  Say Y here if you are using the Thorcom VR1000 board.
 
-	  This linux port is currently being maintained by Simtec, on behalf
-	  of Thorcom. Any queries, please contact Thorcom first.
-
-config MACH_RX3715
-	bool "HP iPAQ rx3715"
-	select CPU_S3C2440
-	select PM_H1940 if PM
+config MACH_QT2410
+	bool "QT2410"
+	select CPU_S3C2410
 	help
-	  Say Y here if you are using the HP iPAQ rx3715.
-
-	  See <http://www.handhelds.org/projects/rx3715.html> for more
-	  information on this project
-
-config MACH_OTOM
- 	bool "NexVision OTOM Board"
- 	select CPU_S3C2410
-	help
- 	  Say Y here if you are using the Nex Vision OTOM board
-
-config MACH_NEXCODER_2440
- 	bool "NexVision NEXCODER 2440 Light Board"
- 	select CPU_S3C2440
-	help
- 	  Say Y here if you are using the Nex Vision NEXCODER 2440 Light Board
-
-config MACH_VSTMS
-	bool "VMSTMS"
-	select CPU_S3C2412
-	help
-	  Say Y here if you are using an VSTMS board
+	   Say Y here if you are using the Armzone QT2410
 
 endmenu
 
-config S3C2410_CLOCK
-	bool
-	help
-	  Clock code for the S3C2410, and similar processors
-
-config S3C2410_PM
-	bool
-	help
-	  Power Management code common to S3C2410 and better
-
-config CPU_S3C2410_DMA
-	bool
-	depends on S3C2410_DMA && (CPU_S3C2410 || CPU_S3C2442)
-	default y if CPU_S3C2410 || CPU_S3C2442
-	help
-	  DMA device selection for S3C2410 and compatible CPUs
-
-config CPU_S3C2410
-	bool
-	depends on ARCH_S3C2410
-	select S3C2410_CLOCK
-	select S3C2410_PM if PM
-	help
-	  Support for S3C2410 and S3C2410A family from the S3C24XX line
-	  of Samsung Mobile CPUs.
-
-# internal node to signify if we are only dealing with an S3C2412
-
-config CPU_S3C2412_ONLY
-	bool
-	depends on ARCH_S3C2410 && !CPU_S3C2400 && !CPU_S3C2410 && \
-		   !CPU_S3C2440 && !CPU_S3C2442 && CPU_S3C2412
-	default y if CPU_S3C2412
-
-config S3C2412_PM
-	bool
-	help
-	  Internal config node to apply S3C2412 power management
-
-config CPU_S3C2412
-	bool
-	depends on ARCH_S3C2410
-	select S3C2412_PM if PM
-	help
-	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
-
-config CPU_S3C244X
-	bool
-	depends on ARCH_S3C2410 && (CPU_S3C2440 || CPU_S3C2442)
-	help
-	  Support for S3C2440 and S3C2442 Samsung Mobile CPU based systems.
-
-config CPU_S3C2440
-	bool
-	depends on ARCH_S3C2410
-	select S3C2410_CLOCK
-	select S3C2410_PM if PM
-	select CPU_S3C244X
-	help
-	  Support for S3C2440 Samsung Mobile CPU based systems.
-
-config CPU_S3C2442
-	bool
-	depends on ARCH_S3C2420
-	select S3C2410_CLOCK
-	select S3C2410_PM if PM
-	select CPU_S3C244X
-	help
-	  Support for S3C2442 Samsung Mobile CPU based systems.
-
-comment "S3C2410 Boot"
-
-config S3C2410_BOOT_WATCHDOG
-	bool "S3C2410 Initialisation watchdog"
-	depends on ARCH_S3C2410 && S3C2410_WATCHDOG
-	help
-	  Say y to enable the watchdog during the kernel decompression
-	  stage. If the kernel fails to uncompress, then the watchdog
-	  will trigger a reset and the system should restart.
-
-	  Although this uses the same hardware unit as the kernel watchdog
-	  driver, it is not a replacement for it. If you use this option,
-	  you will have to use the watchdg driver to either stop the timeout
-	  or restart it. If you do not, then your kernel will reboot after
-	  startup.
-
-	  The driver uses a fixed timeout value, so the exact time till the
-	  system resets depends on the value of PCLK. The timeout on an
-	  200MHz s3c2410 should be about 30 seconds.
-
-config S3C2410_BOOT_ERROR_RESET
-	bool "S3C2410 Reboot on decompression error"
-	depends on ARCH_S3C2410
-	help
-	  Say y here to use the watchdog to reset the system if the
-	  kernel decompressor detects an error during decompression.
-
-
-comment "S3C2410 Setup"
-
-config S3C2410_DMA
-	bool "S3C2410 DMA support"
-	depends on ARCH_S3C2410
-	help
-	  S3C2410 DMA support. This is needed for drivers like sound which
-	  use the S3C2410's DMA system to move data to and from the
-	  peripheral blocks.
-
-config S3C2410_DMA_DEBUG
-	bool "S3C2410 DMA support debug"
-	depends on ARCH_S3C2410 && S3C2410_DMA
-	help
-	  Enable debugging output for the DMA code. This option sends info
-	  to the kernel log, at priority KERN_DEBUG.
-
-	  Note, it is easy to create and fill the log buffer in a small
-	  amount of time, as well as using an significant percentage of
-	  the CPU time doing so.
-
-
-config S3C2410_PM_DEBUG
-	bool "S3C2410 PM Suspend debug"
-	depends on ARCH_S3C2410 && PM
-	help
-	  Say Y here if you want verbose debugging from the PM Suspend and
-	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
-	  for more information.
-
-config S3C2410_PM_CHECK
-	bool "S3C2410 PM Suspend Memory CRC"
-	depends on ARCH_S3C2410 && PM && CRC32
-	help
- 	  Enable the PM code's memory area checksum over sleep. This option
-	  will generate CRCs of all blocks of memory, and store them before
-	  going to sleep. The blocks are then checked on resume for any
-	  errors.
-
-config S3C2410_PM_CHECK_CHUNKSIZE
-	int "S3C2410 PM Suspend CRC Chunksize (KiB)"
-	depends on ARCH_S3C2410 && PM && S3C2410_PM_CHECK
-	default 64
-	help
-	  Set the chunksize in Kilobytes of the CRC for checking memory
-	  corruption over suspend and resume. A smaller value will mean that
-	  the CRC data block will take more memory, but wil identify any
-	  faults with better precision.
-
-config PM_SIMTEC
-	bool
-	help
-	  Common power management code for systems that are
-	  compatible with the Simtec style of power management
-
-config S3C2410_LOWLEVEL_UART_PORT
-	int "S3C2410 UART to use for low-level messages"
-	default 0
-	help
-	  Choice of which UART port to use for the low-level messages,
-	  such as the `Uncompressing...` at start time. The value of
-	  this configuration should be between zero and two. The port
-	  must have been initialised by the boot-loader before use.
-
-	  Note, this does not affect the port used by the debug messages,
-	  which is a separate configuration.
-
-endif

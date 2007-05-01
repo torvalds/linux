@@ -765,7 +765,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 			goto out;
 	}
 
-	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
+	rq->cmd_len = COMMAND_SIZE(cgc->cmd[0]);
 	memcpy(rq->cmd, cgc->cmd, CDROM_PACKET_SIZE);
 	if (sizeof(rq->cmd) > CDROM_PACKET_SIZE)
 		memset(rq->cmd + CDROM_PACKET_SIZE, 0, sizeof(rq->cmd) - CDROM_PACKET_SIZE);
@@ -777,7 +777,8 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 		rq->cmd_flags |= REQ_QUIET;
 
 	blk_execute_rq(rq->q, pd->bdev->bd_disk, rq, 0);
-	ret = rq->errors;
+	if (rq->errors)
+		ret = -EIO;
 out:
 	blk_put_request(rq);
 	return ret;

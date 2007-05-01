@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <asm/div64.h>
 #include <asm/hardware.h>
@@ -124,7 +125,7 @@ static unsigned long calc_pll_rate(u32 config_word)
 	return (unsigned long)rate;
 }
 
-void ep93xx_clock_init(void)
+static int __init ep93xx_clock_init(void)
 {
 	u32 value;
 
@@ -153,4 +154,7 @@ void ep93xx_clock_init(void)
 	printk(KERN_INFO "ep93xx: FCLK %ld MHz, HCLK %ld MHz, PCLK %ld MHz\n",
 		clk_f.rate / 1000000, clk_h.rate / 1000000,
 		clk_p.rate / 1000000);
+
+	return 0;
 }
+arch_initcall(ep93xx_clock_init);

@@ -104,7 +104,7 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
  * libata transport template.  libata doesn't do real transport stuff.
  * It just needs the eh_timed_out hook.
  */
-struct scsi_transport_template ata_scsi_transport_template = {
+static struct scsi_transport_template ata_scsi_transport_template = {
 	.eh_strategy_handler	= ata_scsi_error,
 	.eh_timed_out		= ata_scsi_timed_out,
 	.user_scan		= ata_scsi_user_scan,
@@ -333,6 +333,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	scsi_cmd[8]  = args[3];
 	scsi_cmd[10] = args[4];
 	scsi_cmd[12] = args[5];
+	scsi_cmd[13] = args[6] & 0x4f;
 	scsi_cmd[14] = args[0];
 
 	/* Good values for timeout and retries?  Values below
@@ -509,6 +510,7 @@ static void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 	}
 }
 
+#ifdef CONFIG_PM
 /**
  *	ata_scsi_device_suspend - suspend ATA device associated with sdev
  *	@sdev: the SCSI device to suspend
@@ -633,6 +635,7 @@ int ata_scsi_device_resume(struct scsi_device *sdev)
 	sdev->sdev_gendev.power.power_state = PMSG_ON;
 	return 0;
 }
+#endif /* CONFIG_PM */
 
 /**
  *	ata_to_sense_error - convert ATA error to SCSI error
@@ -781,7 +784,7 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 	 */
 	if (qc->err_mask ||
 	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
-		ata_to_sense_error(qc->ap->id, tf->command, tf->feature,
+		ata_to_sense_error(qc->ap->print_id, tf->command, tf->feature,
 				   &sb[1], &sb[2], &sb[3], verbose);
 		sb[1] &= 0x0f;
 	}
@@ -854,7 +857,7 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	 */
 	if (qc->err_mask ||
 	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
-		ata_to_sense_error(qc->ap->id, tf->command, tf->feature,
+		ata_to_sense_error(qc->ap->print_id, tf->command, tf->feature,
 				   &sb[1], &sb[2], &sb[3], verbose);
 		sb[1] &= 0x0f;
 	}
@@ -986,29 +989,32 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev;
 	unsigned long flags;
-	int max_depth;
 
-	if (queue_depth < 1)
+	if (queue_depth < 1 || queue_depth == sdev->queue_depth)
 		return sdev->queue_depth;
 
 	dev = ata_scsi_find_dev(ap, sdev);
 	if (!dev || !ata_dev_enabled(dev))
 		return sdev->queue_depth;
 
-	max_depth = min(sdev->host->can_queue, ata_id_queue_depth(dev->id));
-	max_depth = min(ATA_MAX_QUEUE - 1, max_depth);
-	if (queue_depth > max_depth)
-		queue_depth = max_depth;
-
-	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, queue_depth);
-
+	/* NCQ enabled? */
 	spin_lock_irqsave(ap->lock, flags);
-	if (queue_depth > 1)
-		dev->flags &= ~ATA_DFLAG_NCQ_OFF;
-	else
+	dev->flags &= ~ATA_DFLAG_NCQ_OFF;
+	if (queue_depth == 1 || !ata_ncq_enabled(dev)) {
 		dev->flags |= ATA_DFLAG_NCQ_OFF;
+		queue_depth = 1;
+	}
 	spin_unlock_irqrestore(ap->lock, flags);
 
+	/* limit and apply queue depth */
+	queue_depth = min(queue_depth, sdev->host->can_queue);
+	queue_depth = min(queue_depth, ata_id_queue_depth(dev->id));
+	queue_depth = min(queue_depth, ATA_MAX_QUEUE - 1);
+
+	if (sdev->queue_depth == queue_depth)
+		return -EINVAL;
+
+	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, queue_depth);
 	return queue_depth;
 }
 
@@ -1469,7 +1475,7 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	}
 
 	if (need_sense && !ap->ops->error_handler)
-		ata_dump_status(ap->id, &qc->result_tf);
+		ata_dump_status(ap->print_id, &qc->result_tf);
 
 	qc->scsidone(cmd);
 
@@ -1495,11 +1501,9 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 static int ata_scmd_need_defer(struct ata_device *dev, int is_io)
 {
 	struct ata_port *ap = dev->ap;
+	int is_ncq = is_io && ata_ncq_enabled(dev);
 
-	if (!(dev->flags & ATA_DFLAG_NCQ))
-		return 0;
-
-	if (is_io) {
+	if (is_ncq) {
 		if (!ata_tag_valid(ap->active_tag))
 			return 0;
 	} else {
@@ -2674,6 +2678,18 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->device = qc->dev->devno ?
 			tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
 
+	/* READ/WRITE LONG use a non-standard sect_size */
+	qc->sect_size = ATA_SECT_SIZE;
+	switch (tf->command) {
+	case ATA_CMD_READ_LONG:
+	case ATA_CMD_READ_LONG_ONCE:
+	case ATA_CMD_WRITE_LONG:
+	case ATA_CMD_WRITE_LONG_ONCE:
+		if (tf->protocol != ATA_PROT_PIO || tf->nsect != 1)
+			goto invalid_fld;
+		qc->sect_size = scmd->request_bufflen;
+	}
+
 	/*
 	 * Filter SET_FEATURES - XFER MODE command -- otherwise,
 	 * SET_FEATURES - XFER MODE must be preceded/succeeded
@@ -2774,7 +2790,7 @@ static inline void ata_scsi_dump_cdb(struct ata_port *ap,
 	u8 *scsicmd = cmd->cmnd;
 
 	DPRINTK("CDB (%u:%d,%d,%d) %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		ap->id,
+		ap->print_id,
 		scsidev->channel, scsidev->id, scsidev->lun,
 		scsicmd[0], scsicmd[1], scsicmd[2], scsicmd[3],
 		scsicmd[4], scsicmd[5], scsicmd[6], scsicmd[7],
@@ -2788,8 +2804,9 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
 {
 	int rc = 0;
 
-	if (unlikely(!scmd->cmd_len)) {
-		ata_dev_printk(dev, KERN_WARNING, "WARNING: zero len CDB\n");
+	if (unlikely(!scmd->cmd_len || scmd->cmd_len > dev->cdb_len)) {
+		DPRINTK("bad CDB len=%u, max=%u\n",
+			scmd->cmd_len, dev->cdb_len);
 		scmd->result = DID_ERROR << 16;
 		done(scmd);
 		return 0;
@@ -2942,6 +2959,48 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			done(cmd);
 			break;
 	}
+}
+
+int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
+{
+	int i, rc;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+		struct Scsi_Host *shost;
+
+		rc = -ENOMEM;
+		shost = scsi_host_alloc(sht, sizeof(struct ata_port *));
+		if (!shost)
+			goto err_alloc;
+
+		*(struct ata_port **)&shost->hostdata[0] = ap;
+		ap->scsi_host = shost;
+
+		shost->transportt = &ata_scsi_transport_template;
+		shost->unique_id = ap->print_id;
+		shost->max_id = 16;
+		shost->max_lun = 1;
+		shost->max_channel = 1;
+		shost->max_cmd_len = 16;
+
+		rc = scsi_add_host(ap->scsi_host, ap->host->dev);
+		if (rc)
+			goto err_add;
+	}
+
+	return 0;
+
+ err_add:
+	scsi_host_put(host->ports[i]->scsi_host);
+ err_alloc:
+	while (--i >= 0) {
+		struct Scsi_Host *shost = host->ports[i]->scsi_host;
+
+		scsi_remove_host(shost);
+		scsi_host_put(shost);
+	}
+	return rc;
 }
 
 void ata_scsi_scan_host(struct ata_port *ap)
@@ -3220,21 +3279,21 @@ struct ata_port *ata_sas_port_alloc(struct ata_host *host,
 				    struct ata_port_info *port_info,
 				    struct Scsi_Host *shost)
 {
-	struct ata_port *ap = kzalloc(sizeof(*ap), GFP_KERNEL);
-	struct ata_probe_ent *ent;
+	struct ata_port *ap;
 
+	ap = ata_port_alloc(host);
 	if (!ap)
 		return NULL;
 
-	ent = ata_probe_ent_alloc(host->dev, port_info);
-	if (!ent) {
-		kfree(ap);
-		return NULL;
-	}
-
-	ata_port_init(ap, host, ent, 0);
+	ap->port_no = 0;
 	ap->lock = shost->host_lock;
-	kfree(ent);
+	ap->pio_mask = port_info->pio_mask;
+	ap->mwdma_mask = port_info->mwdma_mask;
+	ap->udma_mask = port_info->udma_mask;
+	ap->flags |= port_info->flags;
+	ap->ops = port_info->port_ops;
+	ap->cbl = ATA_CBL_SATA;
+
 	return ap;
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_alloc);
@@ -3290,8 +3349,10 @@ int ata_sas_port_init(struct ata_port *ap)
 {
 	int rc = ap->ops->port_start(ap);
 
-	if (!rc)
+	if (!rc) {
+		ap->print_id = ata_print_id++;
 		rc = ata_bus_probe(ap);
+	}
 
 	return rc;
 }

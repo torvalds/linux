@@ -21,15 +21,14 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <net/netfilter/nf_conntrack.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/netfilter/xt_connmark.h>
 
 MODULE_AUTHOR("Henrik Nordstrom <hno@marasytems.com>");
 MODULE_DESCRIPTION("IP tables connmark match module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_connmark");
-
-#include <linux/netfilter/x_tables.h>
-#include <linux/netfilter/xt_connmark.h>
-#include <net/netfilter/nf_conntrack_compat.h>
 
 static int
 match(const struct sk_buff *skb,
@@ -42,12 +41,14 @@ match(const struct sk_buff *skb,
       int *hotdrop)
 {
 	const struct xt_connmark_info *info = matchinfo;
-	u_int32_t ctinfo;
-	const u_int32_t *ctmark = nf_ct_get_mark(skb, &ctinfo);
-	if (!ctmark)
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct)
 		return 0;
 
-	return (((*ctmark) & info->mask) == info->mark) ^ info->invert;
+	return (((ct->mark) & info->mask) == info->mark) ^ info->invert;
 }
 
 static int

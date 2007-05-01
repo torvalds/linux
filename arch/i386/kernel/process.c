@@ -49,7 +49,6 @@
 #include <asm/i387.h>
 #include <asm/desc.h>
 #include <asm/vm86.h>
-#include <asm/idle.h>
 #ifdef CONFIG_MATH_EMULATION
 #include <asm/math_emu.h>
 #endif
@@ -81,42 +80,6 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 void (*pm_idle)(void);
 EXPORT_SYMBOL(pm_idle);
 static DEFINE_PER_CPU(unsigned int, cpu_idle_state);
-
-static ATOMIC_NOTIFIER_HEAD(idle_notifier);
-
-void idle_notifier_register(struct notifier_block *n)
-{
-	atomic_notifier_chain_register(&idle_notifier, n);
-}
-
-void idle_notifier_unregister(struct notifier_block *n)
-{
-	atomic_notifier_chain_unregister(&idle_notifier, n);
-}
-
-static DEFINE_PER_CPU(volatile unsigned long, idle_state);
-
-void enter_idle(void)
-{
-	/* needs to be atomic w.r.t. interrupts, not against other CPUs */
-	__set_bit(0, &__get_cpu_var(idle_state));
-	atomic_notifier_call_chain(&idle_notifier, IDLE_START, NULL);
-}
-
-static void __exit_idle(void)
-{
-	/* needs to be atomic w.r.t. interrupts, not against other CPUs */
-	if (__test_and_clear_bit(0, &__get_cpu_var(idle_state)) == 0)
-		return;
-	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
-}
-
-void exit_idle(void)
-{
-	if (current->pid)
-		return;
-	__exit_idle();
-}
 
 void disable_hlt(void)
 {
@@ -168,7 +131,6 @@ EXPORT_SYMBOL(default_idle);
  */
 static void poll_idle (void)
 {
-	local_irq_enable();
 	cpu_relax();
 }
 
@@ -229,16 +191,7 @@ void cpu_idle(void)
 				play_dead();
 
 			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
-
-			/*
-			 * Idle routines should keep interrupts disabled
-			 * from here on, until they go to idle.
-			 * Otherwise, idle callbacks can misfire.
-			 */
-			local_irq_disable();
-			enter_idle();
 			idle();
-			__exit_idle();
 		}
 		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();
@@ -293,11 +246,7 @@ void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())
-			__sti_mwait(eax, ecx);
-		else
-			local_irq_enable();
-	} else {
-		local_irq_enable();
+			__mwait(eax, ecx);
 	}
 }
 

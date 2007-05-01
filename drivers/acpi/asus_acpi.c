@@ -141,6 +141,7 @@ struct asus_hotk {
 		W5A,		//W5A
 		W3V,            //W3030V
 		xxN,		//M2400N, M3700N, M5200N, M6800N, S1300N, S5200N
+		A4S,            //Z81sp
 		//(Centrino)
 		END_MODEL
 	} model;		//Models currently supported
@@ -397,7 +398,16 @@ static struct model_data model_conf[END_MODEL] = {
 	 .brightness_set = "SPLV",
 	 .brightness_get = "GPLV",
 	 .display_set = "SDSP",
-	 .display_get = "\\ADVG"}
+	.display_get = "\\ADVG"},
+
+	{
+		.name              = "A4S",
+		.brightness_set    = "SPLV",
+		.brightness_get    = "GPLV",
+		.mt_bt_switch      = "BLED",
+		.mt_wled           = "WLED"
+	}
+
 };
 
 /* procdir we use */
@@ -421,7 +431,7 @@ static struct asus_hotk *hotk;
 static int asus_hotk_add(struct acpi_device *device);
 static int asus_hotk_remove(struct acpi_device *device, int type);
 static struct acpi_driver asus_hotk_driver = {
-	.name = ACPI_HOTK_NAME,
+	.name = "asus_acpi",
 	.class = ACPI_HOTK_CLASS,
 	.ids = ACPI_HOTK_HID,
 	.ops = {
@@ -838,7 +848,7 @@ out:
 
 static int set_brightness_status(struct backlight_device *bd)
 {
-	return set_brightness(bd->props->brightness);
+	return set_brightness(bd->props.brightness);
 }
 
 static int
@@ -1117,6 +1127,8 @@ static int asus_model_match(char *model)
 		return W3V;
 	else if (strncmp(model, "W5A", 3) == 0)
 		return W5A;
+	else if (strncmp(model, "A4S", 3) == 0)
+		return A4S;
 	else
 		return END_MODEL;
 }
@@ -1340,11 +1352,9 @@ static int asus_hotk_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static struct backlight_properties asus_backlight_data = {
-        .owner          = THIS_MODULE,
+static struct backlight_ops asus_backlight_data = {
         .get_brightness = read_brightness,
         .update_status  = set_brightness_status,
-        .max_brightness = 15,
 };
 
 static void __exit asus_acpi_exit(void)
@@ -1365,10 +1375,6 @@ static int __init asus_acpi_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (!acpi_specific_hotkey_enabled) {
-		printk(KERN_ERR "Using generic hotkey driver\n");
-		return -ENODEV;
-	}
 	asus_proc_dir = proc_mkdir(PROC_ASUS, acpi_root_dir);
 	if (!asus_proc_dir) {
 		printk(KERN_ERR "Asus ACPI: Unable to create /proc entry\n");
@@ -1402,6 +1408,7 @@ static int __init asus_acpi_init(void)
 		asus_backlight_device = NULL;
 		asus_acpi_exit();
 	}
+        asus_backlight_device->props.max_brightness = 15;
 
 	return 0;
 }

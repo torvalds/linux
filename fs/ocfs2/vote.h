@@ -38,13 +38,10 @@ static inline void ocfs2_kick_vote_thread(struct ocfs2_super *osb)
 	wake_up(&osb->vote_event);
 }
 
-int ocfs2_request_delete_vote(struct inode *inode);
 int ocfs2_request_mount_vote(struct ocfs2_super *osb);
 int ocfs2_request_umount_vote(struct ocfs2_super *osb);
 int ocfs2_register_net_handlers(struct ocfs2_super *osb);
 void ocfs2_unregister_net_handlers(struct ocfs2_super *osb);
-
-void ocfs2_mark_inode_remotely_deleted(struct inode *inode);
 
 void ocfs2_remove_node_from_vote_queues(struct ocfs2_super *osb,
 					int node_num);

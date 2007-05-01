@@ -2304,7 +2304,6 @@ static int ftdi_elan_checkingPCI(struct usb_ftdi *ftdi)
 #define OHCI_QUIRK_SUPERIO 0x02
 #define OHCI_QUIRK_INITRESET 0x04
 #define OHCI_BIG_ENDIAN 0x08
-#define OHCI_QUIRK_ZFMICRO 0x10
 #define OHCI_CONTROL_INIT OHCI_CTRL_CBSR
 #define OHCI_INTR_INIT (OHCI_INTR_MIE | OHCI_INTR_UE | OHCI_INTR_RD | \
         OHCI_INTR_WDH)
@@ -2905,17 +2904,35 @@ static int __init ftdi_elan_init(void)
 {
         int result;
         printk(KERN_INFO "driver %s built at %s on %s\n", ftdi_elan_driver.name,
-                 __TIME__, __DATE__);
+	       __TIME__, __DATE__);
         init_MUTEX(&ftdi_module_lock);
         INIT_LIST_HEAD(&ftdi_static_list);
         status_queue = create_singlethread_workqueue("ftdi-status-control");
+	if (!status_queue)
+		goto err_status_queue;
         command_queue = create_singlethread_workqueue("ftdi-command-engine");
+	if (!command_queue)
+		goto err_command_queue;
         respond_queue = create_singlethread_workqueue("ftdi-respond-engine");
+	if (!respond_queue)
+		goto err_respond_queue;
         result = usb_register(&ftdi_elan_driver);
-        if (result)
+        if (result) {
+		destroy_workqueue(status_queue);
+		destroy_workqueue(command_queue);
+		destroy_workqueue(respond_queue);
                 printk(KERN_ERR "usb_register failed. Error number %d\n",
-                        result);
+		       result);
+	}
         return result;
+
+ err_respond_queue:
+	destroy_workqueue(command_queue);
+ err_command_queue:
+	destroy_workqueue(status_queue);
+ err_status_queue:
+	printk(KERN_ERR "%s couldn't create workqueue\n", ftdi_elan_driver.name);
+	return -ENOMEM;
 }
 
 static void __exit ftdi_elan_exit(void)

@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2006 Chelsio, Inc. All rights reserved.
- * Copyright (c) 2006 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -179,7 +178,6 @@ static inline struct iwch_qp *to_iwch_qp(struct ib_qp *ibqp)
 
 void iwch_qp_add_ref(struct ib_qp *qp);
 void iwch_qp_rem_ref(struct ib_qp *qp);
-struct ib_qp *iwch_get_qp(struct ib_device *dev, int qpn);
 
 struct iwch_ucontext {
 	struct ib_ucontext ibucontext;
@@ -288,27 +286,20 @@ static inline int iwch_convert_state(enum ib_qp_state ib_state)
 	}
 }
 
-enum iwch_mem_perms {
-	IWCH_MEM_ACCESS_LOCAL_READ = 1 << 0,
-	IWCH_MEM_ACCESS_LOCAL_WRITE = 1 << 1,
-	IWCH_MEM_ACCESS_REMOTE_READ = 1 << 2,
-	IWCH_MEM_ACCESS_REMOTE_WRITE = 1 << 3,
-	IWCH_MEM_ACCESS_ATOMICS = 1 << 4,
-	IWCH_MEM_ACCESS_BINDING = 1 << 5,
-	IWCH_MEM_ACCESS_LOCAL =
-	    (IWCH_MEM_ACCESS_LOCAL_READ | IWCH_MEM_ACCESS_LOCAL_WRITE),
-	IWCH_MEM_ACCESS_REMOTE =
-	    (IWCH_MEM_ACCESS_REMOTE_WRITE | IWCH_MEM_ACCESS_REMOTE_READ)
-	    /* cannot go beyond 1 << 31 */
-} __attribute__ ((packed));
-
-static inline u32 iwch_convert_access(int acc)
+static inline u32 iwch_ib_to_tpt_access(int acc)
 {
-	return (acc & IB_ACCESS_REMOTE_WRITE ? IWCH_MEM_ACCESS_REMOTE_WRITE : 0)
-	    | (acc & IB_ACCESS_REMOTE_READ ? IWCH_MEM_ACCESS_REMOTE_READ : 0) |
-	    (acc & IB_ACCESS_LOCAL_WRITE ? IWCH_MEM_ACCESS_LOCAL_WRITE : 0) |
-	    (acc & IB_ACCESS_MW_BIND ? IWCH_MEM_ACCESS_BINDING : 0) |
-	    IWCH_MEM_ACCESS_LOCAL_READ;
+	return (acc & IB_ACCESS_REMOTE_WRITE ? TPT_REMOTE_WRITE : 0) |
+	       (acc & IB_ACCESS_REMOTE_READ ? TPT_REMOTE_READ : 0) |
+	       (acc & IB_ACCESS_LOCAL_WRITE ? TPT_LOCAL_WRITE : 0) |
+	       TPT_LOCAL_READ;
+}
+
+static inline u32 iwch_ib_to_mwbind_access(int acc)
+{
+	return (acc & IB_ACCESS_REMOTE_WRITE ? T3_MEM_ACCESS_REM_WRITE : 0) |
+	       (acc & IB_ACCESS_REMOTE_READ ? T3_MEM_ACCESS_REM_READ : 0) |
+	       (acc & IB_ACCESS_LOCAL_WRITE ? T3_MEM_ACCESS_LOCAL_WRITE : 0) |
+	       T3_MEM_ACCESS_LOCAL_READ;
 }
 
 enum iwch_mmid_state {

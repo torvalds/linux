@@ -2,7 +2,7 @@
  * Gateway between the kernel (e.g., selinux) and the user-space audit daemon.
  * System-call specific features have moved to auditsc.c
  *
- * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
+ * Copyright 2003-2007 Red Hat Inc., Durham, North Carolina.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -65,7 +65,9 @@
  * (Initialization happens after skb_init is called.) */
 static int	audit_initialized;
 
-/* No syscall auditing will take place unless audit_enabled != 0. */
+/* 0 - no auditing
+ * 1 - auditing enabled
+ * 2 - auditing enabled and configuration is locked/unchangeable. */
 int		audit_enabled;
 
 /* Default state when kernel boots without any parameters. */
@@ -149,7 +151,7 @@ struct audit_buffer {
 
 static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
 {
-	struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
+	struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 	nlh->nlmsg_pid = pid;
 }
 
@@ -239,102 +241,150 @@ void audit_log_lost(const char *message)
 
 static int audit_set_rate_limit(int limit, uid_t loginuid, u32 sid)
 {
-	int old	= audit_rate_limit;
+	int res, rc = 0, old = audit_rate_limit;
+
+	/* check if we are locked */
+	if (audit_enabled == 2)
+		res = 0;
+	else
+		res = 1;
 
 	if (sid) {
 		char *ctx = NULL;
 		u32 len;
-		int rc;
-		if ((rc = selinux_sid_to_string(sid, &ctx, &len)))
-			return rc;
-		else
+		if ((rc = selinux_sid_to_string(sid, &ctx, &len)) == 0) {
 			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				"audit_rate_limit=%d old=%d by auid=%u subj=%s",
-				limit, old, loginuid, ctx);
-		kfree(ctx);
-	} else
-		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-			"audit_rate_limit=%d old=%d by auid=%u",
-			limit, old, loginuid);
-	audit_rate_limit = limit;
-	return 0;
+				"audit_rate_limit=%d old=%d by auid=%u"
+				" subj=%s res=%d",
+				limit, old, loginuid, ctx, res);
+			kfree(ctx);
+		} else
+			res = 0; /* Something weird, deny request */
+	}
+	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+		"audit_rate_limit=%d old=%d by auid=%u res=%d",
+		limit, old, loginuid, res);
+
+	/* If we are allowed, make the change */
+	if (res == 1)
+		audit_rate_limit = limit;
+	/* Not allowed, update reason */
+	else if (rc == 0)
+		rc = -EPERM;
+	return rc;
 }
 
 static int audit_set_backlog_limit(int limit, uid_t loginuid, u32 sid)
 {
-	int old	= audit_backlog_limit;
+	int res, rc = 0, old = audit_backlog_limit;
+
+	/* check if we are locked */
+	if (audit_enabled == 2)
+		res = 0;
+	else
+		res = 1;
 
 	if (sid) {
 		char *ctx = NULL;
 		u32 len;
-		int rc;
-		if ((rc = selinux_sid_to_string(sid, &ctx, &len)))
-			return rc;
-		else
+		if ((rc = selinux_sid_to_string(sid, &ctx, &len)) == 0) {
 			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-			    "audit_backlog_limit=%d old=%d by auid=%u subj=%s",
-				limit, old, loginuid, ctx);
-		kfree(ctx);
-	} else
-		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-			"audit_backlog_limit=%d old=%d by auid=%u",
-			limit, old, loginuid);
-	audit_backlog_limit = limit;
-	return 0;
+				"audit_backlog_limit=%d old=%d by auid=%u"
+				" subj=%s res=%d",
+				limit, old, loginuid, ctx, res);
+			kfree(ctx);
+		} else
+			res = 0; /* Something weird, deny request */
+	}
+	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+		"audit_backlog_limit=%d old=%d by auid=%u res=%d",
+		limit, old, loginuid, res);
+
+	/* If we are allowed, make the change */
+	if (res == 1)
+		audit_backlog_limit = limit;
+	/* Not allowed, update reason */
+	else if (rc == 0)
+		rc = -EPERM;
+	return rc;
 }
 
 static int audit_set_enabled(int state, uid_t loginuid, u32 sid)
 {
-	int old = audit_enabled;
+	int res, rc = 0, old = audit_enabled;
 
-	if (state != 0 && state != 1)
+	if (state < 0 || state > 2)
 		return -EINVAL;
+
+	/* check if we are locked */
+	if (audit_enabled == 2)
+		res = 0;
+	else
+		res = 1;
 
 	if (sid) {
 		char *ctx = NULL;
 		u32 len;
-		int rc;
-		if ((rc = selinux_sid_to_string(sid, &ctx, &len)))
-			return rc;
-		else
+		if ((rc = selinux_sid_to_string(sid, &ctx, &len)) == 0) {
 			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				"audit_enabled=%d old=%d by auid=%u subj=%s",
-				state, old, loginuid, ctx);
-		kfree(ctx);
-	} else
-		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-			"audit_enabled=%d old=%d by auid=%u",
-			state, old, loginuid);
-	audit_enabled = state;
-	return 0;
+				"audit_enabled=%d old=%d by auid=%u"
+				" subj=%s res=%d",
+				state, old, loginuid, ctx, res);
+			kfree(ctx);
+		} else
+			res = 0; /* Something weird, deny request */
+	}
+	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+		"audit_enabled=%d old=%d by auid=%u res=%d",
+		state, old, loginuid, res);
+
+	/* If we are allowed, make the change */
+	if (res == 1)
+		audit_enabled = state;
+	/* Not allowed, update reason */
+	else if (rc == 0)
+		rc = -EPERM;
+	return rc;
 }
 
 static int audit_set_failure(int state, uid_t loginuid, u32 sid)
 {
-	int old = audit_failure;
+	int res, rc = 0, old = audit_failure;
 
 	if (state != AUDIT_FAIL_SILENT
 	    && state != AUDIT_FAIL_PRINTK
 	    && state != AUDIT_FAIL_PANIC)
 		return -EINVAL;
 
+	/* check if we are locked */
+	if (audit_enabled == 2)
+		res = 0;
+	else
+		res = 1;
+
 	if (sid) {
 		char *ctx = NULL;
 		u32 len;
-		int rc;
-		if ((rc = selinux_sid_to_string(sid, &ctx, &len)))
-			return rc;
-		else
+		if ((rc = selinux_sid_to_string(sid, &ctx, &len)) == 0) {
 			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				"audit_failure=%d old=%d by auid=%u subj=%s",
-				state, old, loginuid, ctx);
-		kfree(ctx);
-	} else
-		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-			"audit_failure=%d old=%d by auid=%u",
-			state, old, loginuid);
-	audit_failure = state;
-	return 0;
+				"audit_failure=%d old=%d by auid=%u"
+				" subj=%s res=%d",
+				state, old, loginuid, ctx, res);
+			kfree(ctx);
+		} else
+			res = 0; /* Something weird, deny request */
+	}
+	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+		"audit_failure=%d old=%d by auid=%u res=%d",
+		state, old, loginuid, res);
+
+	/* If we are allowed, make the change */
+	if (res == 1)
+		audit_failure = state;
+	/* Not allowed, update reason */
+	else if (rc == 0)
+		rc = -EPERM;
+	return rc;
 }
 
 static int kauditd_thread(void *dummy)
@@ -599,6 +649,30 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_DEL:
 		if (nlmsg_len(nlh) < sizeof(struct audit_rule))
 			return -EINVAL;
+		if (audit_enabled == 2) {
+			ab = audit_log_start(NULL, GFP_KERNEL,
+					AUDIT_CONFIG_CHANGE);
+			if (ab) {
+				audit_log_format(ab,
+						 "pid=%d uid=%u auid=%u",
+						 pid, uid, loginuid);
+				if (sid) {
+					if (selinux_sid_to_string(
+							sid, &ctx, &len)) {
+						audit_log_format(ab,
+							" ssid=%u", sid);
+						/* Maybe call audit_panic? */
+					} else
+						audit_log_format(ab,
+							" subj=%s", ctx);
+					kfree(ctx);
+				}
+				audit_log_format(ab, " audit_enabled=%d res=0",
+					audit_enabled);
+				audit_log_end(ab);
+			}
+			return -EPERM;
+		}
 		/* fallthrough */
 	case AUDIT_LIST:
 		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
@@ -609,6 +683,30 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_DEL_RULE:
 		if (nlmsg_len(nlh) < sizeof(struct audit_rule_data))
 			return -EINVAL;
+		if (audit_enabled == 2) {
+			ab = audit_log_start(NULL, GFP_KERNEL,
+					AUDIT_CONFIG_CHANGE);
+			if (ab) {
+				audit_log_format(ab,
+						 "pid=%d uid=%u auid=%u",
+						 pid, uid, loginuid);
+				if (sid) {
+					if (selinux_sid_to_string(
+							sid, &ctx, &len)) {
+						audit_log_format(ab,
+							" ssid=%u", sid);
+						/* Maybe call audit_panic? */
+					} else
+						audit_log_format(ab,
+							" subj=%s", ctx);
+					kfree(ctx);
+				}
+				audit_log_format(ab, " audit_enabled=%d res=0",
+					audit_enabled);
+				audit_log_end(ab);
+			}
+			return -EPERM;
+		}
 		/* fallthrough */
 	case AUDIT_LIST_RULES:
 		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
@@ -652,7 +750,7 @@ static void audit_receive_skb(struct sk_buff *skb)
 	u32		rlen;
 
 	while (skb->len >= NLMSG_SPACE(0)) {
-		nlh = (struct nlmsghdr *)skb->data;
+		nlh = nlmsg_hdr(skb);
 		if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
 			return;
 		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
@@ -697,7 +795,7 @@ static int __init audit_init(void)
 	printk(KERN_INFO "audit: initializing netlink socket (%s)\n",
 	       audit_default ? "enabled" : "disabled");
 	audit_sock = netlink_kernel_create(NETLINK_AUDIT, 0, audit_receive,
-					   THIS_MODULE);
+					   NULL, THIS_MODULE);
 	if (!audit_sock)
 		audit_panic("cannot initialize netlink socket");
 	else
@@ -975,7 +1073,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 			goto out;
 	}
 	va_copy(args2, args);
-	len = vsnprintf(skb->tail, avail, fmt, args);
+	len = vsnprintf(skb_tail_pointer(skb), avail, fmt, args);
 	if (len >= avail) {
 		/* The printk buffer is 1024 bytes long, so if we get
 		 * here and AUDIT_BUFSIZ is at least 1024, then we can
@@ -984,7 +1082,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 			max_t(unsigned, AUDIT_BUFSIZ, 1+len-avail));
 		if (!avail)
 			goto out;
-		len = vsnprintf(skb->tail, avail, fmt, args2);
+		len = vsnprintf(skb_tail_pointer(skb), avail, fmt, args2);
 	}
 	if (len > 0)
 		skb_put(skb, len);
@@ -1045,7 +1143,7 @@ void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
 			return;
 	}
 
-	ptr = skb->tail;
+	ptr = skb_tail_pointer(skb);
 	for (i=0; i<len; i++) {
 		*ptr++ = hex[(buf[i] & 0xF0)>>4]; /* Upper nibble */
 		*ptr++ = hex[buf[i] & 0x0F];	  /* Lower nibble */
@@ -1077,7 +1175,7 @@ static void audit_log_n_string(struct audit_buffer *ab, size_t slen,
 		if (!avail)
 			return;
 	}
-	ptr = skb->tail;
+	ptr = skb_tail_pointer(skb);
 	*ptr++ = '"';
 	memcpy(ptr, string, slen);
 	ptr += slen;
@@ -1170,7 +1268,7 @@ void audit_log_end(struct audit_buffer *ab)
 		audit_log_lost("rate limit exceeded");
 	} else {
 		if (audit_pid) {
-			struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
+			struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 			nlh->nlmsg_len = ab->skb->len - NLMSG_SPACE(0);
 			skb_queue_tail(&audit_skb_queue, ab->skb);
 			ab->skb = NULL;

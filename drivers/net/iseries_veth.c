@@ -1540,7 +1540,6 @@ static void veth_receive(struct veth_lpar_connection *cnx,
 		}
 
 		skb_put(skb, length);
-		skb->dev = dev;
 		skb->protocol = eth_type_trans(skb, dev);
 		skb->ip_summed = CHECKSUM_NONE;
 		netif_rx(skb);	/* send it up */

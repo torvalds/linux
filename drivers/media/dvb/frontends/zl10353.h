@@ -29,6 +29,9 @@ struct zl10353_config
 	/* demodulator's I2C address */
 	u8 demod_address;
 
+	/* frequencies in kHz */
+	int adc_clock;  // default: 22528
+
 	/* set if no pll is connected to the secondary i2c bus */
 	int no_tuner;
 

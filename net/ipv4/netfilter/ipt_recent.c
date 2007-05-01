@@ -183,11 +183,11 @@ ipt_recent_match(const struct sk_buff *skb,
 	int ret = info->invert;
 
 	if (info->side == IPT_RECENT_DEST)
-		addr = skb->nh.iph->daddr;
+		addr = ip_hdr(skb)->daddr;
 	else
-		addr = skb->nh.iph->saddr;
+		addr = ip_hdr(skb)->saddr;
 
-	ttl = skb->nh.iph->ttl;
+	ttl = ip_hdr(skb)->ttl;
 	/* use TTL as seen before forwarding */
 	if (out && !skb->sk)
 		ttl++;

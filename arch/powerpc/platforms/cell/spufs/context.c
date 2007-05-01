@@ -41,9 +41,10 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 		goto out_free;
 	}
 	spin_lock_init(&ctx->mmio_lock);
+	spin_lock_init(&ctx->mapping_lock);
 	kref_init(&ctx->kref);
 	mutex_init(&ctx->state_mutex);
-	init_MUTEX(&ctx->run_sema);
+	mutex_init(&ctx->run_mutex);
 	init_waitqueue_head(&ctx->ibox_wq);
 	init_waitqueue_head(&ctx->wbox_wq);
 	init_waitqueue_head(&ctx->stop_wq);
@@ -51,6 +52,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	ctx->state = SPU_STATE_SAVED;
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
+	INIT_LIST_HEAD(&ctx->rq);
 	if (gang)
 		spu_gang_add_ctx(gang, ctx);
 	ctx->rt_priority = current->rt_priority;
@@ -75,6 +77,7 @@ void destroy_spu_context(struct kref *kref)
 	spu_fini_csa(&ctx->csa);
 	if (ctx->gang)
 		spu_gang_remove_ctx(ctx->gang, ctx);
+	BUG_ON(!list_empty(&ctx->rq));
 	kfree(ctx);
 }
 
@@ -116,46 +119,6 @@ void spu_unmap_mappings(struct spu_context *ctx)
 		unmap_mapping_range(ctx->mss, 0, 0x1000, 1);
 	if (ctx->psmap)
 		unmap_mapping_range(ctx->psmap, 0, 0x20000, 1);
-}
-
-/**
- * spu_acquire_exclusive - lock spu contex and protect against userspace access
- * @ctx:	spu contex to lock
- *
- * Note:
- *	Returns 0 and with the context locked on success
- *	Returns negative error and with the context _unlocked_ on failure.
- */
-int spu_acquire_exclusive(struct spu_context *ctx)
-{
-	int ret = -EINVAL;
-
-	spu_acquire(ctx);
-	/*
-	 * Context is about to be freed, so we can't acquire it anymore.
-	 */
-	if (!ctx->owner)
-		goto out_unlock;
-
-	if (ctx->state == SPU_STATE_SAVED) {
-		ret = spu_activate(ctx, 0);
-		if (ret)
-			goto out_unlock;
-	} else {
-		/*
-		 * We need to exclude userspace access to the context.
-		 *
-		 * To protect against memory access we invalidate all ptes
-		 * and make sure the pagefault handlers block on the mutex.
-		 */
-		spu_unmap_mappings(ctx);
-	}
-
-	return 0;
-
- out_unlock:
-	spu_release(ctx);
-	return ret;
 }
 
 /**

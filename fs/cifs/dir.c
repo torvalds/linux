@@ -31,7 +31,7 @@
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 
-void
+static void
 renew_parental_timestamps(struct dentry *direntry)
 {
 	/* BB check if there is a way to get the kernel to do this or if we really need this */

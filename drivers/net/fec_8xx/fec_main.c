@@ -551,7 +551,9 @@ static int fec_enet_rx_common(struct net_device *dev, int *budget)
 				skbn = dev_alloc_skb(pkt_len + 2);
 				if (skbn != NULL) {
 					skb_reserve(skbn, 2);	/* align IP header */
-					memcpy(skbn->data, skb->data, pkt_len);
+					skb_copy_from_linear_data(skb
+								  skbn->data,
+								  pkt_len);
 					/* swap */
 					skbt = skb;
 					skb = skbn;
@@ -561,7 +563,6 @@ static int fec_enet_rx_common(struct net_device *dev, int *budget)
 				skbn = dev_alloc_skb(ENET_RX_FRSIZE);
 
 			if (skbn != NULL) {
-				skb->dev = dev;
 				skb_put(skb, pkt_len);	/* Make room */
 				skb->protocol = eth_type_trans(skb, dev);
 				received++;

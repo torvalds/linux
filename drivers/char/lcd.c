@@ -11,9 +11,6 @@
  *       March 2001: Ported from 2.0.34  by Liam Davies
  *
  */
-
-#define RTC_IO_EXTENT	0x10	/*Only really two ports, but... */
-
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
@@ -31,8 +28,6 @@
 #include <linux/delay.h>
 
 #include "lcd.h"
-
-static DEFINE_SPINLOCK(lcd_lock);
 
 static int lcd_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg);
@@ -409,138 +404,6 @@ static int lcd_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-//  Erase the flash
-
-	case FLASH_Erase:{
-
-			int ctr = 0;
-
-			if ( !capable(CAP_SYS_ADMIN) ) return -EPERM;
-
-			pr_info(LCD "Erasing Flash\n");
-
-			// Chip Erase Sequence
-			WRITE_FLASH(kFlash_Addr1, kFlash_Data1);
-			WRITE_FLASH(kFlash_Addr2, kFlash_Data2);
-			WRITE_FLASH(kFlash_Addr1, kFlash_Erase3);
-			WRITE_FLASH(kFlash_Addr1, kFlash_Data1);
-			WRITE_FLASH(kFlash_Addr2, kFlash_Data2);
-			WRITE_FLASH(kFlash_Addr1, kFlash_Erase6);
-
-			while ((!dqpoll(0x00000000, 0xFF))
-			       && (!timeout(0x00000000))) {
-				ctr++;
-			}
-
-			if (READ_FLASH(0x07FFF0) == 0xFF) {
-				pr_info(LCD "Erase Successful\n");
-			} else if (timeout) {
-				pr_info(LCD "Erase Timed Out\n");
-			}
-
-			break;
-		}
-
-// burn the flash
-
-	case FLASH_Burn:{
-
-			volatile unsigned long burn_addr;
-			unsigned long flags;
-			unsigned int i, index;
-			unsigned char *rom;
-
-
-			struct lcd_display display;
-
-			if ( !capable(CAP_SYS_ADMIN) ) return -EPERM;
-
-			if (copy_from_user
-			    (&display, (struct lcd_display *) arg,
-			     sizeof(struct lcd_display)))
-				return -EFAULT;
-			rom = kmalloc((128), GFP_ATOMIC);
-			if (rom == NULL) {
-				printk(KERN_ERR LCD "kmalloc() failed in %s\n",
-						__FUNCTION__);
-				return -ENOMEM;
-			}
-
-			pr_info(LCD "Starting Flash burn\n");
-			for (i = 0; i < FLASH_SIZE; i = i + 128) {
-
-				if (copy_from_user
-				    (rom, display.RomImage + i, 128)) {
-					kfree(rom);
-					return -EFAULT;
-				}
-				burn_addr = kFlashBase + i;
-				spin_lock_irqsave(&lcd_lock, flags);
-				for (index = 0; index < (128); index++) {
-
-					WRITE_FLASH(kFlash_Addr1,
-						    kFlash_Data1);
-					WRITE_FLASH(kFlash_Addr2,
-						    kFlash_Data2);
-					WRITE_FLASH(kFlash_Addr1,
-						    kFlash_Prog);
-					*((volatile unsigned char *)burn_addr) =
-					  (volatile unsigned char) rom[index];
-
-					while ((!dqpoll (burn_addr,
-						(volatile unsigned char)
-						rom[index])) &&
-						(!timeout(burn_addr))) { }
-					burn_addr++;
-				}
-				spin_unlock_irqrestore(&lcd_lock, flags);
-				if (* ((volatile unsigned char *)
-					(burn_addr - 1)) ==
-					(volatile unsigned char)
-					rom[index - 1]) {
-				} else if (timeout) {
-					pr_info(LCD "Flash burn timed out\n");
-				}
-
-
-			}
-			kfree(rom);
-
-			pr_info(LCD "Flash successfully burned\n");
-
-			break;
-		}
-
-//  read the flash all at once
-
-	case FLASH_Read:{
-
-			unsigned char *user_bytes;
-			volatile unsigned long read_addr;
-			unsigned int i;
-
-			user_bytes =
-			    &(((struct lcd_display *) arg)->RomImage[0]);
-
-			if (!access_ok
-			    (VERIFY_WRITE, user_bytes, FLASH_SIZE))
-				return -EFAULT;
-
-			pr_info(LCD "Reading Flash");
-			for (i = 0; i < FLASH_SIZE; i++) {
-				unsigned char tmp_byte;
-				read_addr = kFlashBase + i;
-				tmp_byte =
-				    *((volatile unsigned char *)
-				      read_addr);
-				if (__put_user(tmp_byte, &user_bytes[i]))
-					return -EFAULT;
-			}
-
-
-			break;
-		}
-
 	default:
 		return -EINVAL;
 
@@ -642,42 +505,6 @@ static int lcd_init(void)
 static void __exit lcd_exit(void)
 {
 	misc_deregister(&lcd_dev);
-}
-
-//
-// Function: dqpoll
-//
-// Description:  Polls the data lines to see if the flash is busy
-//
-// In: address, byte data
-//
-// Out: 0 = busy, 1 = write or erase complete
-//
-//
-
-static int dqpoll(volatile unsigned long address, volatile unsigned char data)
-{
-	volatile unsigned char dq7;
-
-	dq7 = data & 0x80;
-
-	return ((READ_FLASH(address) & 0x80) == dq7);
-}
-
-//
-// Function: timeout
-//
-// Description: Checks to see if erase or write has timed out
-//              By polling dq5
-//
-// In: address
-//
-//
-// Out: 0 = not timed out, 1 = timed out
-
-static int timeout(volatile unsigned long address)
-{
-	return (READ_FLASH(address) & 0x20) == 0x20;
 }
 
 module_init(lcd_init);

@@ -343,6 +343,7 @@ struct nand_buffers {
  * @options:		[BOARDSPECIFIC] various chip options. They can partly be set to inform nand_scan about
  *			special functionality. See the defines for further explanation
  * @badblockpos:	[INTERN] position of the bad block marker in the oob area
+ * @cellinfo:		[INTERN] MLC/multichip data from chip ident
  * @numchips:		[INTERN] number of physical chips
  * @chipsize:		[INTERN] the size of one chip for multichip arrays
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
@@ -430,6 +431,7 @@ struct nand_chip {
 #define NAND_MFR_RENESAS	0x07
 #define NAND_MFR_STMICRO	0x20
 #define NAND_MFR_HYNIX		0xad
+#define NAND_MFR_MICRON		0x2c
 
 /**
  * struct nand_flash_dev - NAND Flash Device ID Structure

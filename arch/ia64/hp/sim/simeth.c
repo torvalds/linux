@@ -427,7 +427,6 @@ make_new_skb(struct net_device *dev)
 		printk(KERN_NOTICE "%s: memory squeeze. dropping packet.\n", dev->name);
 		return NULL;
 	}
-	nskb->dev = dev;
 
 	skb_reserve(nskb, 2);	/* Align IP on 16 byte boundaries */
 
@@ -474,7 +473,7 @@ simeth_rx(struct net_device *dev)
 		 * XXX Fix me
 		 * Should really do a csum+copy here
 		 */
-		memcpy(skb->data, frame, len);
+		skb_copy_to_linear_data(skb, frame, len);
 #endif
 		skb->protocol = eth_type_trans(skb, dev);
 

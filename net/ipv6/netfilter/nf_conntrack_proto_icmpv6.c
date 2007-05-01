@@ -7,13 +7,6 @@
  *
  * Author:
  *	Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *
- * 16 Dec 2003: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- ICMPv6 tracking support. Derived from the original ip_conntrack code
- *	  net/ipv4/netfilter/ip_conntrack_proto_icmp.c which had the following
- *	  copyright information:
- *		(C) 1999-2001 Paul `Rusty' Russell
- *		(C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
  */
 
 #include <linux/types.h>
@@ -244,8 +237,7 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 	return icmpv6_error_message(skb, dataoff, ctinfo, hooknum);
 }
 
-#if defined(CONFIG_NF_CT_NETLINK) || \
-    defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
@@ -327,8 +319,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 	.packet			= icmpv6_packet,
 	.new			= icmpv6_new,
 	.error			= icmpv6_error,
-#if defined(CONFIG_NF_CT_NETLINK) || \
-    defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nfattr	= icmpv6_tuple_to_nfattr,
 	.nfattr_to_tuple	= icmpv6_nfattr_to_tuple,
 #endif

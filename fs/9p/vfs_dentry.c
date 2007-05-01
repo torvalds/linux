@@ -53,7 +53,28 @@
 static int v9fs_dentry_delete(struct dentry *dentry)
 {
 	dprintk(DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_iname, dentry);
+
 	return 1;
+}
+
+/**
+ * v9fs_cached_dentry_delete - called when dentry refcount equals 0
+ * @dentry:  dentry in question
+ *
+ * Only return 1 if our inode is invalid.  Only non-synthetic files
+ * (ones without mtime == 0) should be calling this function.
+ *
+ */
+
+static int v9fs_cached_dentry_delete(struct dentry *dentry)
+{
+	struct inode *inode = dentry->d_inode;
+	dprintk(DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_iname, dentry);
+
+	if(!inode)
+		return 1;
+
+	return 0;
 }
 
 /**
@@ -86,6 +107,11 @@ void v9fs_dentry_release(struct dentry *dentry)
 		kfree(dentry->d_fsdata);	/* free the list_head */
 	}
 }
+
+struct dentry_operations v9fs_cached_dentry_operations = {
+	.d_delete = v9fs_cached_dentry_delete,
+	.d_release = v9fs_dentry_release,
+};
 
 struct dentry_operations v9fs_dentry_operations = {
 	.d_delete = v9fs_dentry_delete,

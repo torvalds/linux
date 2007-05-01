@@ -150,10 +150,10 @@ struct rpc_call_ops {
 #define RPC_TASK_HAS_TIMER	3
 #define RPC_TASK_ACTIVE		4
 
-#define RPC_IS_RUNNING(t)	(test_bit(RPC_TASK_RUNNING, &(t)->tk_runstate))
-#define rpc_set_running(t)	(set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate))
+#define RPC_IS_RUNNING(t)	test_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
+#define rpc_set_running(t)	set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
 #define rpc_test_and_set_running(t) \
-				(test_and_set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate))
+				test_and_set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
 #define rpc_clear_running(t)	\
 	do { \
 		smp_mb__before_clear_bit(); \
@@ -161,8 +161,8 @@ struct rpc_call_ops {
 		smp_mb__after_clear_bit(); \
 	} while (0)
 
-#define RPC_IS_QUEUED(t)	(test_bit(RPC_TASK_QUEUED, &(t)->tk_runstate))
-#define rpc_set_queued(t)	(set_bit(RPC_TASK_QUEUED, &(t)->tk_runstate))
+#define RPC_IS_QUEUED(t)	test_bit(RPC_TASK_QUEUED, &(t)->tk_runstate)
+#define rpc_set_queued(t)	set_bit(RPC_TASK_QUEUED, &(t)->tk_runstate)
 #define rpc_clear_queued(t)	\
 	do { \
 		smp_mb__before_clear_bit(); \
@@ -179,7 +179,7 @@ struct rpc_call_ops {
 		smp_mb__after_clear_bit(); \
 	} while (0)
 
-#define RPC_IS_ACTIVATED(t)	(test_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate))
+#define RPC_IS_ACTIVATED(t)	test_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate)
 
 /*
  * Task priorities.

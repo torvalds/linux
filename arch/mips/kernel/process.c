@@ -26,7 +26,6 @@
 #include <linux/completion.h>
 #include <linux/kallsyms.h>
 
-#include <asm/abi.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/dsp.h>
@@ -52,11 +51,11 @@ ATTRIB_NORET void cpu_idle(void)
 	/* endless idle loop with no priority at all */
 	while (1) {
 		while (!need_resched()) {
-#ifdef CONFIG_MIPS_MT_SMTC
+#ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 			extern void smtc_idle_loop_hook(void);
 
 			smtc_idle_loop_hook();
-#endif /* CONFIG_MIPS_MT_SMTC */
+#endif
 			if (cpu_wait)
 				(*cpu_wait)();
 		}
@@ -65,38 +64,6 @@ ATTRIB_NORET void cpu_idle(void)
 		preempt_disable();
 	}
 }
-
-/*
- * Native o32 and N64 ABI without DSP ASE
- */
-struct mips_abi mips_abi = {
-	.do_signal	= do_signal,
-#ifdef CONFIG_TRAD_SIGNALS
-	.setup_frame	= setup_frame,
-#endif
-	.setup_rt_frame	= setup_rt_frame
-};
-
-#ifdef CONFIG_MIPS32_O32
-/*
- * o32 compatibility on 64-bit kernels, without DSP ASE
- */
-struct mips_abi mips_abi_32 = {
-	.do_signal	= do_signal32,
-	.setup_frame	= setup_frame_32,
-	.setup_rt_frame	= setup_rt_frame_32
-};
-#endif /* CONFIG_MIPS32_O32 */
-
-#ifdef CONFIG_MIPS32_N32
-/*
- * N32 on 64-bit kernels, without DSP ASE
- */
-struct mips_abi mips_abi_n32 = {
-	.do_signal	= do_signal,
-	.setup_rt_frame	= setup_rt_frame_n32
-};
-#endif /* CONFIG_MIPS32_N32 */
 
 asmlinkage void ret_from_fork(void);
 
@@ -246,7 +213,7 @@ int dump_task_fpu (struct task_struct *t, elf_fpregset_t *fpr)
 /*
  * Create a kernel thread
  */
-ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
+static ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
 {
 	do_exit(fn(arg));
 }

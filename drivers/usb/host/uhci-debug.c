@@ -145,7 +145,8 @@ static int uhci_show_urbp(struct urb_priv *urbp, char *buf, int len, int space)
 	return out - buf;
 }
 
-static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
+static int uhci_show_qh(struct uhci_hcd *uhci,
+		struct uhci_qh *qh, char *buf, int len, int space)
 {
 	char *out = buf;
 	int i, nurbs;
@@ -190,13 +191,16 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 
 	if (list_empty(&qh->queue)) {
 		out += sprintf(out, "%*s  queue is empty\n", space, "");
+		if (qh == uhci->skel_async_qh)
+			out += uhci_show_td(uhci->term_td, out,
+					len - (out - buf), 0);
 	} else {
 		struct urb_priv *urbp = list_entry(qh->queue.next,
 				struct urb_priv, node);
 		struct uhci_td *td = list_entry(urbp->td_list.next,
 				struct uhci_td, list);
 
-		if (cpu_to_le32(td->dma_handle) != (element & ~UHCI_PTR_BITS))
+		if (element != LINK_TO_TD(td))
 			out += sprintf(out, "%*s Element != First TD\n",
 					space, "");
 		i = nurbs = 0;
@@ -219,16 +223,6 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 
 	return out - buf;
 }
-
-static const char * const qh_names[] = {
-  "skel_unlink_qh", "skel_iso_qh",
-  "skel_int128_qh", "skel_int64_qh",
-  "skel_int32_qh", "skel_int16_qh",
-  "skel_int8_qh", "skel_int4_qh",
-  "skel_int2_qh", "skel_int1_qh",
-  "skel_ls_control_qh", "skel_fs_control_qh",
-  "skel_bulk_qh", "skel_term_qh"
-};
 
 static int uhci_show_sc(int port, unsigned short status, char *buf, int len)
 {
@@ -352,6 +346,13 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 	struct uhci_td *td;
 	struct list_head *tmp, *head;
 	int nframes, nerrs;
+	__le32 link;
+	__le32 fsbr_link;
+
+	static const char * const qh_names[] = {
+		"unlink", "iso", "int128", "int64", "int32", "int16",
+		"int8", "int4", "int2", "async", "term"
+	};
 
 	out += uhci_show_root_hub_state(uhci, out, len - (out - buf));
 	out += sprintf(out, "HC status\n");
@@ -374,7 +375,7 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 	nframes = 10;
 	nerrs = 0;
 	for (i = 0; i < UHCI_NUMFRAMES; ++i) {
-		__le32 link, qh_dma;
+		__le32 qh_dma;
 
 		j = 0;
 		td = uhci->frame_cpu[i];
@@ -393,7 +394,7 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 		do {
 			td = list_entry(tmp, struct uhci_td, fl_list);
 			tmp = tmp->next;
-			if (cpu_to_le32(td->dma_handle) != link) {
+			if (link != LINK_TO_TD(td)) {
 				if (nframes > 0)
 					out += sprintf(out, "    link does "
 						"not match list entry!\n");
@@ -428,25 +429,24 @@ check_link:
 
 	out += sprintf(out, "Skeleton QHs\n");
 
+	fsbr_link = 0;
 	for (i = 0; i < UHCI_NUM_SKELQH; ++i) {
 		int cnt = 0;
 
 		qh = uhci->skelqh[i];
-		out += sprintf(out, "- %s\n", qh_names[i]); \
-		out += uhci_show_qh(qh, out, len - (out - buf), 4);
+		out += sprintf(out, "- skel_%s_qh\n", qh_names[i]); \
+		out += uhci_show_qh(uhci, qh, out, len - (out - buf), 4);
 
 		/* Last QH is the Terminating QH, it's different */
-		if (i == UHCI_NUM_SKELQH - 1) {
-			if (qh->link != UHCI_PTR_TERM)
-				out += sprintf(out, "    bandwidth reclamation on!\n");
-
-			if (qh_element(qh) != cpu_to_le32(uhci->term_td->dma_handle))
+		if (i == SKEL_TERM) {
+			if (qh_element(qh) != LINK_TO_TD(uhci->term_td))
 				out += sprintf(out, "    skel_term_qh element is not set to term_td!\n");
-
-			continue;
+			link = fsbr_link;
+			if (!link)
+				link = LINK_TO_QH(uhci->skel_term_qh);
+			goto check_qh_link;
 		}
 
-		j = (i < 9) ? 9 : i+1;		/* Next skeleton */
 		head = &qh->node;
 		tmp = head->next;
 
@@ -454,17 +454,26 @@ check_link:
 			qh = list_entry(tmp, struct uhci_qh, node);
 			tmp = tmp->next;
 			if (++cnt <= 10)
-				out += uhci_show_qh(qh, out,
+				out += uhci_show_qh(uhci, qh, out,
 						len - (out - buf), 4);
+			if (!fsbr_link && qh->skel >= SKEL_FSBR)
+				fsbr_link = LINK_TO_QH(qh);
 		}
 		if ((cnt -= 10) > 0)
 			out += sprintf(out, "    Skipped %d QHs\n", cnt);
 
-		if (i > 1 && i < UHCI_NUM_SKELQH - 1) {
-			if (qh->link !=
-			    (cpu_to_le32(uhci->skelqh[j]->dma_handle) | UHCI_PTR_QH))
-				out += sprintf(out, "    last QH not linked to next skeleton!\n");
-		}
+		link = UHCI_PTR_TERM;
+		if (i <= SKEL_ISO)
+			;
+		else if (i < SKEL_ASYNC)
+			link = LINK_TO_QH(uhci->skel_async_qh);
+		else if (!uhci->fsbr_is_on)
+			;
+		else
+			link = LINK_TO_QH(uhci->skel_term_qh);
+check_qh_link:
+		if (qh->link != link)
+			out += sprintf(out, "    last QH not linked to next skeleton!\n");
 	}
 
 	return out - buf;
@@ -568,8 +577,8 @@ static const struct file_operations uhci_debug_operations = {
 static inline void lprintk(char *buf)
 {}
 
-static inline int uhci_show_qh(struct uhci_qh *qh, char *buf,
-		int len, int space)
+static inline int uhci_show_qh(struct uhci_hcd *uhci,
+		struct uhci_qh *qh, char *buf, int len, int space)
 {
 	return 0;
 }

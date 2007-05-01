@@ -746,8 +746,7 @@ typhoon_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct typhoon *tp = netdev_priv(dev);
 	spin_lock_bh(&tp->state_lock);
-	if(tp->vlgrp)
-		tp->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(tp->vlgrp, vid, NULL);
 	spin_unlock_bh(&tp->state_lock);
 }
 
@@ -1709,7 +1708,6 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile u32 * ready,
 
 		if(pkt_len < rx_copybreak &&
 		   (new_skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
-			new_skb->dev = tp->dev;
 			skb_reserve(new_skb, 2);
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr,
 						    PKT_BUF_SZ,

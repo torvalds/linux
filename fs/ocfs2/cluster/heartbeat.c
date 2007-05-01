@@ -1234,6 +1234,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 				     const char *page,
 				     size_t count)
 {
+	struct task_struct *hb_task;
 	long fd;
 	int sectsize;
 	char *p = (char *)page;
@@ -1319,20 +1320,28 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	 */
 	atomic_set(&reg->hr_steady_iterations, O2HB_LIVE_THRESHOLD + 1);
 
-	reg->hr_task = kthread_run(o2hb_thread, reg, "o2hb-%s",
-				   reg->hr_item.ci_name);
-	if (IS_ERR(reg->hr_task)) {
-		ret = PTR_ERR(reg->hr_task);
+	hb_task = kthread_run(o2hb_thread, reg, "o2hb-%s",
+			      reg->hr_item.ci_name);
+	if (IS_ERR(hb_task)) {
+		ret = PTR_ERR(hb_task);
 		mlog_errno(ret);
-		reg->hr_task = NULL;
 		goto out;
 	}
+
+	spin_lock(&o2hb_live_lock);
+	reg->hr_task = hb_task;
+	spin_unlock(&o2hb_live_lock);
 
 	ret = wait_event_interruptible(o2hb_steady_queue,
 				atomic_read(&reg->hr_steady_iterations) == 0);
 	if (ret) {
-		kthread_stop(reg->hr_task);
+		spin_lock(&o2hb_live_lock);
+		hb_task = reg->hr_task;
 		reg->hr_task = NULL;
+		spin_unlock(&o2hb_live_lock);
+
+		if (hb_task)
+			kthread_stop(hb_task);
 		goto out;
 	}
 
@@ -1354,10 +1363,17 @@ out:
 static ssize_t o2hb_region_pid_read(struct o2hb_region *reg,
                                       char *page)
 {
-	if (!reg->hr_task)
+	pid_t pid = 0;
+
+	spin_lock(&o2hb_live_lock);
+	if (reg->hr_task)
+		pid = reg->hr_task->pid;
+	spin_unlock(&o2hb_live_lock);
+
+	if (!pid)
 		return 0;
 
-	return sprintf(page, "%u\n", reg->hr_task->pid);
+	return sprintf(page, "%u\n", pid);
 }
 
 struct o2hb_region_attribute {
@@ -1495,13 +1511,17 @@ out:
 static void o2hb_heartbeat_group_drop_item(struct config_group *group,
 					   struct config_item *item)
 {
+	struct task_struct *hb_task;
 	struct o2hb_region *reg = to_o2hb_region(item);
 
 	/* stop the thread when the user removes the region dir */
-	if (reg->hr_task) {
-		kthread_stop(reg->hr_task);
-		reg->hr_task = NULL;
-	}
+	spin_lock(&o2hb_live_lock);
+	hb_task = reg->hr_task;
+	reg->hr_task = NULL;
+	spin_unlock(&o2hb_live_lock);
+
+	if (hb_task)
+		kthread_stop(hb_task);
 
 	config_item_put(item);
 }
@@ -1682,7 +1702,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(o2hb_register_callback);
 
-int o2hb_unregister_callback(struct o2hb_callback_func *hc)
+void o2hb_unregister_callback(struct o2hb_callback_func *hc)
 {
 	BUG_ON(hc->hc_magic != O2HB_CB_MAGIC);
 
@@ -1690,15 +1710,13 @@ int o2hb_unregister_callback(struct o2hb_callback_func *hc)
 	     __builtin_return_address(0), hc);
 
 	if (list_empty(&hc->hc_item))
-		return 0;
+		return;
 
 	down_write(&o2hb_callback_sem);
 
 	list_del_init(&hc->hc_item);
 
 	up_write(&o2hb_callback_sem);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(o2hb_unregister_callback);
 

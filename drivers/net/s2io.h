@@ -1,6 +1,6 @@
 /************************************************************************
  * s2io.h: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
- * Copyright(c) 2002-2005 Neterion Inc.
+ * Copyright(c) 2002-2007 Neterion Inc.
 
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
@@ -32,7 +32,8 @@
 #define FAILURE -1
 #define S2IO_MINUS_ONE 0xFFFFFFFFFFFFFFFFULL
 #define S2IO_MAX_PCI_CONFIG_SPACE_REINIT 100
-
+#define S2IO_BIT_RESET 1
+#define S2IO_BIT_SET 2
 #define CHECKBIT(value, nbit) (value & (1 << nbit))
 
 /* Maximum time to flicker LED when asked to identify NIC using ethtool */
@@ -295,6 +296,9 @@ struct stat_block {
 	struct swStat sw_stat;
 	struct xpakStat xpak_stat;
 };
+
+/* Default value for 'vlan_strip_tag' configuration parameter */
+#define NO_STRIP_IN_PROMISC 2
 
 /*
  * Structures representing different init time configuration
@@ -756,7 +760,6 @@ struct s2io_nic {
 #define MAX_SUPPORTED_MULTICASTS MAX_MAC_SUPPORTED
 
 	struct mac_addr def_mac_addr[MAX_MAC_SUPPORTED];
-	struct mac_addr pre_mac_addr[MAX_MAC_SUPPORTED];
 
 	struct net_device_stats stats;
 	int high_dma_flag;
@@ -789,11 +792,6 @@ struct s2io_nic {
 	u16 m_cast_flg;
 	u16 all_multi_pos;
 	u16 promisc_flg;
-
-	u16 tx_pkt_count;
-	u16 rx_pkt_count;
-	u16 tx_err_count;
-	u16 rx_err_count;
 
 	/*  Id timer, used to blink NIC to physically identify NIC. */
 	struct timer_list id_timer;
@@ -1005,7 +1003,8 @@ static int s2io_set_swapper(struct s2io_nic * sp);
 static void s2io_card_down(struct s2io_nic *nic);
 static int s2io_card_up(struct s2io_nic *nic);
 static int get_xena_rev_id(struct pci_dev *pdev);
-static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit);
+static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit,
+					int bit_state);
 static int s2io_add_isr(struct s2io_nic * sp);
 static void s2io_rem_isr(struct s2io_nic * sp);
 
@@ -1019,6 +1018,7 @@ static void queue_rx_frame(struct sk_buff *skb);
 static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro);
 static void lro_append_pkt(struct s2io_nic *sp, struct lro *lro,
 			   struct sk_buff *skb, u32 tcp_len);
+static int rts_ds_steer(struct s2io_nic *nic, u8 ds_codepoint, u8 ring);
 
 #define s2io_tcp_mss(skb) skb_shinfo(skb)->gso_size
 #define s2io_udp_mss(skb) skb_shinfo(skb)->gso_size

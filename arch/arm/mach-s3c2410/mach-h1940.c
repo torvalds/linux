@@ -25,23 +25,24 @@
 #include <asm/mach/irq.h>
 
 #include <asm/hardware.h>
-#include <asm/hardware/iomd.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-lcd.h>
+#include <asm/arch/regs-gpio.h>
+#include <asm/arch/regs-clock.h>
 
 #include <asm/arch/h1940.h>
 #include <asm/arch/h1940-latch.h>
 #include <asm/arch/fb.h>
+#include <asm/arch/udc.h>
 
-#include "clock.h"
-#include "devs.h"
-#include "cpu.h"
-#include "pm.h"
+#include <asm/plat-s3c24xx/clock.h>
+#include <asm/plat-s3c24xx/devs.h>
+#include <asm/plat-s3c24xx/cpu.h>
+#include <asm/plat-s3c24xx/pm.h>
 
 static struct map_desc h1940_iodesc[] __initdata = {
 	[0] = {
@@ -102,6 +103,32 @@ void h1940_latch_control(unsigned int clear, unsigned int set)
 
 EXPORT_SYMBOL_GPL(h1940_latch_control);
 
+static void h1940_udc_pullup(enum s3c2410_udc_cmd_e cmd)
+{
+	printk(KERN_DEBUG "udc: pullup(%d)\n",cmd);
+
+	switch (cmd)
+	{
+		case S3C2410_UDC_P_ENABLE :
+			h1940_latch_control(0, H1940_LATCH_USB_DP);
+			break;
+		case S3C2410_UDC_P_DISABLE :
+			h1940_latch_control(H1940_LATCH_USB_DP, 0);
+			break;
+		case S3C2410_UDC_P_RESET :
+			break;
+		default:
+			break;
+	}
+}
+
+static struct s3c2410_udc_mach_info h1940_udc_cfg __initdata = {
+	.udc_command		= h1940_udc_pullup,
+	.vbus_pin		= S3C2410_GPG5,
+	.vbus_pin_inverted	= 1,
+};
+
+
 
 /**
  * Set lcd on or off
@@ -146,12 +173,19 @@ static struct s3c2410fb_mach_info h1940_lcdcfg __initdata = {
 	.bpp=		{16,16,16},
 };
 
+static struct platform_device s3c_device_leds = {
+	.name             = "h1940-leds",
+	.id               = -1,
+};
+
 static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c,
 	&s3c_device_iis,
+	&s3c_device_usbgadget,
+	&s3c_device_leds,
 };
 
 static struct s3c24xx_board h1940_board __initdata = {
@@ -168,7 +202,9 @@ static void __init h1940_map_io(void)
 
 	/* setup PM */
 
+#ifdef CONFIG_PM_H1940
 	memcpy(phys_to_virt(H1940_SUSPEND_RESUMEAT), h1940_pm_return, 1024);
+#endif
 	s3c2410_pm_init();
 }
 
@@ -179,7 +215,23 @@ static void __init h1940_init_irq(void)
 
 static void __init h1940_init(void)
 {
+	u32 tmp;
+
 	s3c24xx_fb_set_platdata(&h1940_lcdcfg);
+ 	s3c24xx_udc_set_platdata(&h1940_udc_cfg);
+
+	/* Turn off suspend on both USB ports, and switch the
+	 * selectable USB port to USB device mode. */
+
+	s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
+			      S3C2410_MISCCR_USBSUSPND0 |
+			      S3C2410_MISCCR_USBSUSPND1, 0x0);
+
+	tmp = (
+		 0x78 << S3C2410_PLLCON_MDIVSHIFT)
+	      | (0x02 << S3C2410_PLLCON_PDIVSHIFT)
+	      | (0x03 << S3C2410_PLLCON_SDIVSHIFT);
+	writel(tmp, S3C2410_UPLLCON);
 }
 
 MACHINE_START(H1940, "IPAQ-H1940")
@@ -189,6 +241,6 @@ MACHINE_START(H1940, "IPAQ-H1940")
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= h1940_map_io,
 	.init_irq	= h1940_init_irq,
-	.init_machine   = h1940_init,
+	.init_machine	= h1940_init,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

@@ -45,7 +45,7 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-char	__initdata command_line[COMMAND_LINE_SIZE] __read_mostly;
+char	__initdata command_line[COMMAND_LINE_SIZE];
 
 /* Intended for ccio/sba/cpu statistics under /proc/bus/{runway|gsc} */
 struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
@@ -120,13 +120,13 @@ extern void collect_boot_cpu_data(void);
 
 void __init setup_arch(char **cmdline_p)
 {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	extern int parisc_narrow_firmware;
 #endif
 
 	init_per_cpu(smp_processor_id());	/* Set Modes & Enable FP */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	printk(KERN_INFO "The 64-bit Kernel has started...\n");
 #else
 	printk(KERN_INFO "The 32-bit Kernel has started...\n");
@@ -134,7 +134,7 @@ void __init setup_arch(char **cmdline_p)
 
 	pdc_console_init();
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	if(parisc_narrow_firmware) {
 		printk(KERN_INFO "Kernel is using PDC in 32-bit mode.\n");
 	}

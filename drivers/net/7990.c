@@ -331,7 +331,6 @@ static int lance_rx (struct net_device *dev)
                                 return 0;
                         }
 
-                        skb->dev = dev;
                         skb_reserve (skb, 2);           /* 16 byte align */
                         skb_put (skb, len);             /* make room */
                         eth_copy_and_sum(skb,
@@ -568,7 +567,7 @@ int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
     	if (skb->len < ETH_ZLEN)
     		memset((char *)&ib->tx_buf[entry][0], 0, ETH_ZLEN);
-        memcpy ((char *)&ib->tx_buf [entry][0], skb->data, skblen);
+        skb_copy_from_linear_data(skb, &ib->tx_buf[entry][0], skblen);
 
         /* Now, give the packet to the lance */
         ib->btx_ring [entry].tmd1_bits = (LE_T1_POK|LE_T1_OWN);

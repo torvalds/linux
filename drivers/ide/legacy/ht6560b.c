@@ -36,8 +36,6 @@
 
 #define HT6560B_VERSION "v0.07"
 
-#undef REALLY_SLOW_IO		/* most systems can safely undef this */
-
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -143,16 +141,16 @@ static void ht6560b_selectproc (ide_drive_t *drive)
 		current_timing = timing;
 		if (drive->media != ide_disk || !drive->present)
 			select |= HT_PREFETCH_MODE;
-		(void) HWIF(drive)->INB(HT_CONFIG_PORT);
-		(void) HWIF(drive)->INB(HT_CONFIG_PORT);
-		(void) HWIF(drive)->INB(HT_CONFIG_PORT);
-		(void) HWIF(drive)->INB(HT_CONFIG_PORT);
-		HWIF(drive)->OUTB(select, HT_CONFIG_PORT);
+		(void)inb(HT_CONFIG_PORT);
+		(void)inb(HT_CONFIG_PORT);
+		(void)inb(HT_CONFIG_PORT);
+		(void)inb(HT_CONFIG_PORT);
+		outb(select, HT_CONFIG_PORT);
 		/*
 		 * Set timing for this drive:
 		 */
-		HWIF(drive)->OUTB(timing, IDE_SELECT_REG);
-		(void) HWIF(drive)->INB(IDE_STATUS_REG);
+		outb(timing, IDE_SELECT_REG);
+		(void)inb(IDE_STATUS_REG);
 #ifdef DEBUG
 		printk("ht6560b: %s: select=%#x timing=%#x\n",
 			drive->name, select, timing);
@@ -303,11 +301,19 @@ static void tune_ht6560b (ide_drive_t *drive, u8 pio)
 #endif
 }
 
+int probe_ht6560b = 0;
+
+module_param_named(probe, probe_ht6560b, bool, 0);
+MODULE_PARM_DESC(probe, "probe for HT6560B chipset");
+
 /* Can be called directly from ide.c. */
 int __init ht6560b_init(void)
 {
 	ide_hwif_t *hwif, *mate;
 	int t;
+
+	if (probe_ht6560b == 0)
+		return -ENODEV;
 
 	hwif = &ide_hwifs[0];
 	mate = &ide_hwifs[1];

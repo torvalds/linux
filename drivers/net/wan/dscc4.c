@@ -1904,7 +1904,8 @@ static struct sk_buff *dscc4_init_dummy_skb(struct dscc4_dev_priv *dpriv)
 		struct TxFD *tx_fd = dpriv->tx_fd + last;
 
 		skb->len = DUMMY_SKB_SIZE;
-		memcpy(skb->data, version, strlen(version)%DUMMY_SKB_SIZE);
+		skb_copy_to_linear_data(skb, version,
+					strlen(version) % DUMMY_SKB_SIZE);
 		tx_fd->state = FrameEnd | TO_STATE_TX(DUMMY_SKB_SIZE);
 		tx_fd->data = pci_map_single(dpriv->pci_priv->pdev, skb->data,
 					     DUMMY_SKB_SIZE, PCI_DMA_TODEVICE);

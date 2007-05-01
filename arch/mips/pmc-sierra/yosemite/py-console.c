@@ -107,8 +107,3 @@ void prom_putchar(char c)
 	while ((readb_outer_space(lsr) & 0x20) == 0);
 	writeb_outer_space(thr, c);
 }
-
-char __init prom_getchar(void)
-{
-	return 0;
-}

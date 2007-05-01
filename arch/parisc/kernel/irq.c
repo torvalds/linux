@@ -336,11 +336,7 @@ unsigned int txn_alloc_data(unsigned int virt_irq)
 
 static inline int eirr_to_irq(unsigned long eirr)
 {
-#ifdef CONFIG_64BIT
-	int bit = fls64(eirr);
-#else
-	int bit = fls(eirr);
-#endif
+	int bit = fls_long(eirr);
 	return (BITS_PER_LONG - bit) + TIMER_IRQ;
 }
 

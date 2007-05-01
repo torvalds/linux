@@ -42,7 +42,6 @@
 #define ACPI_BATTERY_COMPONENT		0x00040000
 #define ACPI_BATTERY_CLASS		"battery"
 #define ACPI_BATTERY_HID		"PNP0C0A"
-#define ACPI_BATTERY_DRIVER_NAME	"ACPI Battery Driver"
 #define ACPI_BATTERY_DEVICE_NAME	"Battery"
 #define ACPI_BATTERY_FILE_INFO		"info"
 #define ACPI_BATTERY_FILE_STATUS	"state"
@@ -53,10 +52,10 @@
 #define ACPI_BATTERY_UNITS_AMPS		"mA"
 
 #define _COMPONENT		ACPI_BATTERY_COMPONENT
-ACPI_MODULE_NAME("acpi_battery")
+ACPI_MODULE_NAME("battery");
 
-    MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION(ACPI_BATTERY_DRIVER_NAME);
+MODULE_AUTHOR("Paul Diefenbaugh");
+MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
 
 extern struct proc_dir_entry *acpi_lock_battery_dir(void);
@@ -67,7 +66,7 @@ static int acpi_battery_remove(struct acpi_device *device, int type);
 static int acpi_battery_resume(struct acpi_device *device);
 
 static struct acpi_driver acpi_battery_driver = {
-	.name = ACPI_BATTERY_DRIVER_NAME,
+	.name = "battery",
 	.class = ACPI_BATTERY_CLASS,
 	.ids = ACPI_BATTERY_HID,
 	.ops = {
@@ -324,6 +323,13 @@ static int acpi_battery_check(struct acpi_battery *battery)
 	return result;
 }
 
+static void acpi_battery_check_present(struct acpi_battery *battery)
+{
+	if (!battery->flags.present) {
+		acpi_battery_check(battery);
+	}
+}
+
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
@@ -339,6 +345,8 @@ static int acpi_battery_read_info(struct seq_file *seq, void *offset)
 
 	if (!battery)
 		goto end;
+
+	acpi_battery_check_present(battery);
 
 	if (battery->flags.present)
 		seq_printf(seq, "present:                 yes\n");
@@ -424,6 +432,8 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 	if (!battery)
 		goto end;
 
+	acpi_battery_check_present(battery);
+
 	if (battery->flags.present)
 		seq_printf(seq, "present:                 yes\n");
 	else {
@@ -499,6 +509,8 @@ static int acpi_battery_read_alarm(struct seq_file *seq, void *offset)
 	if (!battery)
 		goto end;
 
+	acpi_battery_check_present(battery);
+
 	if (!battery->flags.present) {
 		seq_printf(seq, "present:                 no\n");
 		goto end;
@@ -535,6 +547,8 @@ acpi_battery_write_alarm(struct file *file,
 
 	if (!battery || (count > sizeof(alarm_string) - 1))
 		return -EINVAL;
+
+	acpi_battery_check_present(battery);
 
 	if (!battery->flags.present)
 		return -ENODEV;

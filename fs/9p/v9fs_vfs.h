@@ -42,6 +42,7 @@ extern const struct address_space_operations v9fs_addr_operations;
 extern const struct file_operations v9fs_file_operations;
 extern const struct file_operations v9fs_dir_operations;
 extern struct dentry_operations v9fs_dentry_operations;
+extern struct dentry_operations v9fs_cached_dentry_operations;
 
 struct inode *v9fs_get_inode(struct super_block *sb, int mode);
 ino_t v9fs_qid2ino(struct v9fs_qid *qid);

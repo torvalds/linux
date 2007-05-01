@@ -1262,7 +1262,7 @@ static void radeon_pm_full_reset_sdram(struct radeonfb_info *rinfo)
 	/* This is the code for the Aluminium PowerBooks M10 / iBooks M11 */
 	if (rinfo->family == CHIP_FAMILY_RV350) {
 		u32 sdram_mode_reg = rinfo->save_regs[35];
-		static u32 default_mrtable[] =
+		static const u32 default_mrtable[] =
 			{ 0x21320032,
 			  0x21321000, 0xa1321000, 0x21321000, 0xffffffff,
 			  0x21320032, 0xa1320032, 0x21320032, 0xffffffff,

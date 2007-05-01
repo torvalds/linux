@@ -44,12 +44,6 @@
 #define PVR2_CVAL_INPUT_COMPOSITE 2
 #define PVR2_CVAL_INPUT_RADIO 3
 
-/* Values that pvr2_hdw_get_signal_status() returns */
-#define PVR2_SIGNAL_OK     0x0001
-#define PVR2_SIGNAL_STEREO 0x0002
-#define PVR2_SIGNAL_SAP    0x0004
-
-
 /* Subsystem definitions - these are various pieces that can be
    independently stopped / started.  Usually you don't want to mess with
    this directly (let the driver handle things itself), but it is useful
@@ -72,10 +66,17 @@
 	PVR2_SUBSYS_RUN_ALL )
 
 enum pvr2_config {
-	pvr2_config_empty,
-	pvr2_config_mpeg,
-	pvr2_config_vbi,
-	pvr2_config_radio,
+	pvr2_config_empty,    /* No configuration */
+	pvr2_config_mpeg,     /* Encoded / compressed video */
+	pvr2_config_vbi,      /* Standard vbi info */
+	pvr2_config_pcm,      /* Audio raw pcm stream */
+	pvr2_config_rawvideo, /* Video raw frames */
+};
+
+enum pvr2_v4l_type {
+	pvr2_v4l_type_video,
+	pvr2_v4l_type_vbi,
+	pvr2_v4l_type_radio,
 };
 
 const char *pvr2_config_get_name(enum pvr2_config);
@@ -123,6 +124,9 @@ struct usb_device *pvr2_hdw_get_dev(struct pvr2_hdw *);
 /* Retrieve serial number of device */
 unsigned long pvr2_hdw_get_sn(struct pvr2_hdw *);
 
+/* Retrieve bus location info of device */
+const char *pvr2_hdw_get_bus_info(struct pvr2_hdw *);
+
 /* Called when hardware has been unplugged */
 void pvr2_hdw_disconnect(struct pvr2_hdw *);
 
@@ -148,8 +152,11 @@ int pvr2_hdw_commit_ctl(struct pvr2_hdw *);
 /* Return name for this driver instance */
 const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *);
 
-/* Return PVR2_SIGNAL_XXXX bit mask indicating signal status */
-unsigned int pvr2_hdw_get_signal_status(struct pvr2_hdw *);
+/* Mark tuner status stale so that it will be re-fetched */
+void pvr2_hdw_execute_tuner_poll(struct pvr2_hdw *);
+
+/* Return information about the tuner */
+int pvr2_hdw_get_tuner_status(struct pvr2_hdw *,struct v4l2_tuner *);
 
 /* Query device and see if it thinks it is on a high-speed USB link */
 int pvr2_hdw_is_hsm(struct pvr2_hdw *);
@@ -205,20 +212,22 @@ int pvr2_hdw_cpufw_get_enabled(struct pvr2_hdw *);
 int pvr2_hdw_cpufw_get(struct pvr2_hdw *,unsigned int offs,
 		       char *buf,unsigned int cnt);
 
-/* Retrieve previously stored v4l minor device number */
-int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *);
+/* Retrieve a previously stored v4l minor device number */
+int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *,enum pvr2_v4l_type index);
 
-/* Store the v4l minor device number */
-void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,int);
+/* Store a v4l minor device number */
+void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,
+				     enum pvr2_v4l_type index,int);
 
 /* Direct read/write access to chip's registers:
-   chip_id - unique id of chip (e.g. I2C_DRIVERD_xxxx)
+   match_type - how to interpret match_chip (e.g. driver ID, i2c address)
+   match_chip - chip match value (e.g. I2C_DRIVERD_xxxx)
    reg_id  - register number to access
    setFl   - true to set the register, false to read it
    val_ptr - storage location for source / result. */
 int pvr2_hdw_register_access(struct pvr2_hdw *,
-			     u32 chip_id,unsigned long reg_id,
-			     int setFl,u32 *val_ptr);
+			     u32 match_type, u32 match_chip,u64 reg_id,
+			     int setFl,u64 *val_ptr);
 
 /* The following entry points are all lower level things you normally don't
    want to worry about. */

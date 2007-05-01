@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
+#include <asm/ipl.h>
 #include <asm/lowcore.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
@@ -109,7 +110,7 @@ static inline void create_kernel_nss(void) { }
  */
 static noinline __init void clear_bss_section(void)
 {
-	memset(__bss_start, 0, _end - __bss_start);
+	memset(__bss_start, 0, __bss_stop - __bss_start);
 }
 
 /*
@@ -129,7 +130,7 @@ static noinline __init void detect_machine_type(void)
 {
 	struct cpuinfo_S390 *cpuinfo = &S390_lowcore.cpu_data;
 
-	asm volatile("stidp %0" : "=m" (S390_lowcore.cpu_data.cpu_id));
+	get_cpu_id(&S390_lowcore.cpu_data.cpu_id);
 
 	/* Running under z/VM ? */
 	if (cpuinfo->cpu_id.version == 0xff)
@@ -140,9 +141,9 @@ static noinline __init void detect_machine_type(void)
 		machine_flags |= 4;
 }
 
+#ifdef CONFIG_64BIT
 static noinline __init int memory_fast_detect(void)
 {
-
 	unsigned long val0 = 0;
 	unsigned long val1 = 0xc;
 	int ret = -ENOSYS;
@@ -160,9 +161,15 @@ static noinline __init int memory_fast_detect(void)
 	if (ret || val0 != val1)
 		return -ENOSYS;
 
-	memory_chunk[0].size = val0;
+	memory_chunk[0].size = val0 + 1;
 	return 0;
 }
+#else
+static inline int memory_fast_detect(void)
+{
+	return -ENOSYS;
+}
+#endif
 
 #define ADDR2G	(1UL << 31)
 
@@ -246,11 +253,10 @@ static noinline __init void find_memory_chunks(unsigned long memsize)
 			break;
 #endif
 		/*
-		 * Finish memory detection at the first hole, unless
-		 * - we reached the hsa -> skip it.
-		 * - we know there must be more.
+		 * Finish memory detection at the first hole
+		 * if storage size is unknown.
 		 */
-		if (cc == -1UL && !memsize && old_addr != ADDR2G)
+		if (cc == -1UL && !memsize)
 			break;
 		if (memsize && addr >= memsize)
 			break;

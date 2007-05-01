@@ -3,5 +3,3 @@
 #
 
 obj-y	+= bcu.o cmu.o icu.o init.o irq.o pmu.o type.o
-
-EXTRA_AFLAGS := $(CFLAGS)

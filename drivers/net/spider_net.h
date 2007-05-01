@@ -1,7 +1,8 @@
 /*
- * Network device driver for Cell Processor-Based Blade
+ * Network device driver for Cell Processor-Based Blade and Celleb platform
  *
  * (C) Copyright IBM Corp. 2005
+ * (C) Copyright 2006 TOSHIBA CORPORATION
  *
  * Authors : Utz Bacher <utz.bacher@de.ibm.com>
  *           Jens Osterkamp <Jens.Osterkamp@de.ibm.com>
@@ -24,7 +25,7 @@
 #ifndef _SPIDER_NET_H
 #define _SPIDER_NET_H
 
-#define VERSION "1.6 B"
+#define VERSION "2.0 A"
 
 #include "sungem_phy.h"
 
@@ -50,6 +51,8 @@ extern char spider_net_driver_name[];
 #define SPIDER_NET_TX_DESCRIPTORS_MAX		512
 
 #define SPIDER_NET_TX_TIMER			(HZ/5)
+#define SPIDER_NET_ANEG_TIMER			(HZ)
+#define SPIDER_NET_ANEG_TIMEOUT			2
 
 #define SPIDER_NET_RX_CSUM_DEFAULT		1
 
@@ -104,6 +107,7 @@ extern char spider_net_driver_name[];
 
 #define SPIDER_NET_GMACOPEMD		0x00000100
 #define SPIDER_NET_GMACLENLMT		0x00000108
+#define SPIDER_NET_GMACST		0x00000110
 #define SPIDER_NET_GMACINTEN		0x00000118
 #define SPIDER_NET_GMACPHYCTRL		0x00000120
 
@@ -181,7 +185,8 @@ extern char spider_net_driver_name[];
 
 /* pause frames: automatic, no upper retransmission count */
 /* outside loopback mode: ETOMOD signal dont matter, not connected */
-#define SPIDER_NET_OPMODE_VALUE		0x00000063
+/* ETOMOD signal is brought to PHY reset. bit 2 must be 1 in Celleb */
+#define SPIDER_NET_OPMODE_VALUE		0x00000067
 /*#define SPIDER_NET_OPMODE_VALUE		0x001b0062*/
 #define SPIDER_NET_LENLMT_VALUE		0x00000908
 
@@ -333,9 +338,12 @@ enum spider_net_int2_status {
 /* We rely on flagged descriptor interrupts */
 #define SPIDER_NET_RXINT	( (1 << SPIDER_NET_GDAFDCINT) )
 
+#define SPIDER_NET_LINKINT	( 1 << SPIDER_NET_GMAC2INT )
+
 #define SPIDER_NET_ERRINT	( 0xffffffff & \
 				  (~SPIDER_NET_TXINT) & \
-				  (~SPIDER_NET_RXINT) )
+				  (~SPIDER_NET_RXINT) & \
+				  (~SPIDER_NET_LINKINT) )
 
 #define SPIDER_NET_GPREXEC			0x80000000
 #define SPIDER_NET_GPRDAT_MASK			0x0000ffff
@@ -356,8 +364,8 @@ enum spider_net_int2_status {
 #define SPIDER_NET_DESCR_NOT_IN_USE		0xF0000000
 #define SPIDER_NET_DESCR_TXDESFLG		0x00800000
 
-struct spider_net_descr {
-	/* as defined by the hardware */
+/* Descriptor, as defined by the hardware */
+struct spider_net_hw_descr {
 	u32 buf_addr;
 	u32 buf_size;
 	u32 next_descr_addr;
@@ -366,13 +374,15 @@ struct spider_net_descr {
 	u32 valid_size;	/* all zeroes for tx */
 	u32 data_status;
 	u32 data_error;	/* all zeroes for tx */
+} __attribute__((aligned(32)));
 
-	/* used in the driver */
+struct spider_net_descr {
+	struct spider_net_hw_descr *hwdescr;
 	struct sk_buff *skb;
 	u32 bus_addr;
 	struct spider_net_descr *next;
 	struct spider_net_descr *prev;
-} __attribute__((aligned(32)));
+};
 
 struct spider_net_descr_chain {
 	spinlock_t lock;
@@ -380,6 +390,7 @@ struct spider_net_descr_chain {
 	struct spider_net_descr *tail;
 	struct spider_net_descr *ring;
 	int num_desc;
+	struct spider_net_hw_descr *hwring;
 	dma_addr_t dma_addr;
 };
 
@@ -436,12 +447,16 @@ struct spider_net_card {
 	struct pci_dev *pdev;
 	struct mii_phy phy;
 
+	int medium;
+
 	void __iomem *regs;
 
 	struct spider_net_descr_chain tx_chain;
 	struct spider_net_descr_chain rx_chain;
 	struct spider_net_descr *low_watermark;
 
+	int aneg_count;
+	struct timer_list aneg_timer;
 	struct timer_list tx_timer;
 	struct work_struct tx_timeout_task;
 	atomic_t tx_timeout_task_counter;
@@ -452,6 +467,9 @@ struct spider_net_card {
 	struct net_device_stats netdev_stats;
 	struct spider_net_extra_stats spider_stats;
 	struct spider_net_options options;
+
+	/* Must be last item in struct */
+	struct spider_net_descr darray[0];
 };
 
 #define pr_err(fmt,arg...) \

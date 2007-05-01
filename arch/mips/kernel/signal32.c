@@ -22,6 +22,7 @@
 #include <linux/compat.h>
 #include <linux/suspend.h>
 #include <linux/compiler.h>
+#include <linux/uaccess.h>
 
 #include <asm/abi.h>
 #include <asm/asm.h>
@@ -29,7 +30,6 @@
 #include <linux/bitops.h>
 #include <asm/cacheflush.h>
 #include <asm/sim.h>
-#include <asm/uaccess.h>
 #include <asm/ucontext.h>
 #include <asm/system.h>
 #include <asm/fpu.h>
@@ -104,16 +104,9 @@ typedef struct compat_siginfo {
  */
 #define __NR_O32_sigreturn		4119
 #define __NR_O32_rt_sigreturn		4193
-#define __NR_O32_restart_syscall	4253
+#define __NR_O32_restart_syscall        4253
 
 /* 32-bit compatibility types */
-
-#define _NSIG_BPW32	32
-#define _NSIG_WORDS32	(_NSIG / _NSIG_BPW32)
-
-typedef struct {
-	unsigned int sig[_NSIG_WORDS32];
-} sigset_t32;
 
 typedef unsigned int __sighandler32_t;
 typedef void (*vfptr_t)(void);
@@ -136,7 +129,7 @@ struct ucontext32 {
 	s32                 uc_link;
 	stack32_t           uc_stack;
 	struct sigcontext32 uc_mcontext;
-	sigset_t32          uc_sigmask;   /* mask last for extensibility */
+	compat_sigset_t     uc_sigmask;   /* mask last for extensibility */
 };
 
 /*
@@ -150,7 +143,7 @@ struct sigframe32 {
 	u32 sf_ass[4];		/* argument save space for o32 */
 	u32 sf_code[2];		/* signal trampoline */
 	struct sigcontext32 sf_sc;
-	sigset_t sf_mask;
+	compat_sigset_t sf_mask;
 };
 
 struct rt_sigframe32 {
@@ -166,7 +159,7 @@ struct sigframe32 {
 	u32 sf_ass[4];			/* argument save space for o32 */
 	u32 sf_pad[2];
 	struct sigcontext32 sf_sc;	/* hw context */
-	sigset_t sf_mask;
+	compat_sigset_t sf_mask;
 	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
 };
 
@@ -183,11 +176,52 @@ struct rt_sigframe32 {
 /*
  * sigcontext handlers
  */
+static int protected_save_fp_context32(struct sigcontext32 __user *sc)
+{
+	int err;
+	while (1) {
+		lock_fpu_owner();
+		own_fpu_inatomic(1);
+		err = save_fp_context32(sc); /* this might fail */
+		unlock_fpu_owner();
+		if (likely(!err))
+			break;
+		/* touch the sigcontext and try again */
+		err = __put_user(0, &sc->sc_fpregs[0]) |
+			__put_user(0, &sc->sc_fpregs[31]) |
+			__put_user(0, &sc->sc_fpc_csr);
+		if (err)
+			break;	/* really bad sigcontext */
+	}
+	return err;
+}
+
+static int protected_restore_fp_context32(struct sigcontext32 __user *sc)
+{
+	int err, tmp;
+	while (1) {
+		lock_fpu_owner();
+		own_fpu_inatomic(0);
+		err = restore_fp_context32(sc); /* this might fail */
+		unlock_fpu_owner();
+		if (likely(!err))
+			break;
+		/* touch the sigcontext and try again */
+		err = __get_user(tmp, &sc->sc_fpregs[0]) |
+			__get_user(tmp, &sc->sc_fpregs[31]) |
+			__get_user(tmp, &sc->sc_fpc_csr);
+		if (err)
+			break;	/* really bad sigcontext */
+	}
+	return err;
+}
+
 static int setup_sigcontext32(struct pt_regs *regs,
 			      struct sigcontext32 __user *sc)
 {
 	int err = 0;
 	int i;
+	u32 used_math;
 
 	err |= __put_user(regs->cp0_epc, &sc->sc_pc);
 
@@ -207,24 +241,29 @@ static int setup_sigcontext32(struct pt_regs *regs,
 		err |= __put_user(mflo3(), &sc->sc_lo3);
 	}
 
-	err |= __put_user(!!used_math(), &sc->sc_used_math);
+	used_math = !!used_math();
+	err |= __put_user(used_math, &sc->sc_used_math);
 
-	if (used_math()) {
+	if (used_math) {
 		/*
 		 * Save FPU state to signal context.  Signal handler
 		 * will "inherit" current FPU state.
 		 */
-		preempt_disable();
-
-		if (!is_fpu_owner()) {
-			own_fpu();
-			restore_fp(current);
-		}
-		err |= save_fp_context32(sc);
-
-		preempt_enable();
+		err |= protected_save_fp_context32(sc);
 	}
 	return err;
+}
+
+static int
+check_and_restore_fp_context32(struct sigcontext32 __user *sc)
+{
+	int err, sig;
+
+	err = sig = fpcsr_pending(&sc->sc_fpc_csr);
+	if (err > 0)
+		err = 0;
+	err |= protected_restore_fp_context32(sc);
+	return err ?: sig;
 }
 
 static int restore_sigcontext32(struct pt_regs *regs,
@@ -257,18 +296,14 @@ static int restore_sigcontext32(struct pt_regs *regs,
 	err |= __get_user(used_math, &sc->sc_used_math);
 	conditional_used_math(used_math);
 
-	preempt_disable();
-
-	if (used_math()) {
+	if (used_math) {
 		/* restore fpu context if we have used it before */
-		own_fpu();
-		err |= restore_fp_context32(sc);
+		if (!err)
+			err = check_and_restore_fp_context32(sc);
 	} else {
 		/* signal handler may have used FPU.  Give it up. */
-		lose_fpu();
+		lose_fpu(0);
 	}
-
-	preempt_enable();
 
 	return err;
 }
@@ -515,6 +550,7 @@ asmlinkage void sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct sigframe32 __user *frame;
 	sigset_t blocked;
+	int sig;
 
 	frame = (struct sigframe32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
@@ -528,8 +564,11 @@ asmlinkage void sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext32(&regs, &frame->sf_sc))
+	sig = restore_sigcontext32(&regs, &frame->sf_sc);
+	if (sig < 0)
 		goto badframe;
+	else if (sig)
+		force_sig(sig, current);
 
 	/*
 	 * Don't let your children do this ...
@@ -552,6 +591,7 @@ asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	sigset_t set;
 	stack_t st;
 	s32 sp;
+	int sig;
 
 	frame = (struct rt_sigframe32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
@@ -565,8 +605,11 @@ asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext32(&regs, &frame->rs_uc.uc_mcontext))
+	sig = restore_sigcontext32(&regs, &frame->rs_uc.uc_mcontext);
+	if (sig < 0)
 		goto badframe;
+	else if (sig)
+		force_sig(sig, current);
 
 	/* The ucontext contains a stack32_t, so we must convert!  */
 	if (__get_user(sp, &frame->rs_uc.uc_stack.ss_sp))
@@ -598,7 +641,7 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+static int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
 	struct sigframe32 __user *frame;
@@ -644,7 +687,7 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+static int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe32 __user *frame;
@@ -704,110 +747,14 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-static inline int handle_signal(unsigned long sig, siginfo_t *info,
-	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs * regs)
-{
-	int ret;
-
-	switch (regs->regs[0]) {
-	case ERESTART_RESTARTBLOCK:
-	case ERESTARTNOHAND:
-		regs->regs[2] = EINTR;
-		break;
-	case ERESTARTSYS:
-		if (!(ka->sa.sa_flags & SA_RESTART)) {
-			regs->regs[2] = EINTR;
-			break;
-		}
-	/* fallthrough */
-	case ERESTARTNOINTR:		/* Userland will reload $v0.  */
-		regs->regs[7] = regs->regs[26];
-		regs->cp0_epc -= 8;
-	}
-
-	regs->regs[0] = 0;		/* Don't deal with this again.  */
-
-	if (ka->sa.sa_flags & SA_SIGINFO)
-		ret = current->thread.abi->setup_rt_frame(ka, regs, sig, oldset, info);
-	else
-		ret = current->thread.abi->setup_frame(ka, regs, sig, oldset);
-
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked,sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	return ret;
-}
-
-void do_signal32(struct pt_regs *regs)
-{
-	struct k_sigaction ka;
-	sigset_t *oldset;
-	siginfo_t info;
-	int signr;
-
-	/*
-	 * We want the common case to go fast, which is why we may in certain
-	 * cases get here from kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (!user_mode(regs))
-		return;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
-		/* Whee! Actually deliver the signal. */
-		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
-			/*
-			* A signal was successfully delivered; the saved
-			* sigmask will have been stored in the signal frame,
-			* and will be restored by sigreturn, so we can simply
-			* clear the TIF_RESTORE_SIGMASK flag.
-			*/
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
-
-		return;
-	}
-
-	/*
-	 * Who's code doesn't conform to the restartable syscall convention
-	 * dies here!!!  The li instruction, a single machine instruction,
-	 * must directly be followed by the syscall instruction.
-	 */
-	if (regs->regs[0]) {
-		if (regs->regs[2] == ERESTARTNOHAND ||
-		    regs->regs[2] == ERESTARTSYS ||
-		    regs->regs[2] == ERESTARTNOINTR) {
-			regs->regs[7] = regs->regs[26];
-			regs->cp0_epc -= 8;
-		}
-		if (regs->regs[2] == ERESTART_RESTARTBLOCK) {
-			regs->regs[2] = __NR_O32_restart_syscall;
-			regs->regs[7] = regs->regs[26];
-			regs->cp0_epc -= 4;
-		}
-		regs->regs[0] = 0;	/* Don't deal with this again.  */
-	}
-
-	/*
-	* If there's no signal to deliver, we just put the saved sigmask
-	* back
-	*/
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-}
+/*
+ * o32 compatibility on 64-bit kernels, without DSP ASE
+ */
+struct mips_abi mips_abi_32 = {
+	.setup_frame	= setup_frame_32,
+	.setup_rt_frame	= setup_rt_frame_32,
+	.restart	= __NR_O32_restart_syscall
+};
 
 asmlinkage int sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
 				  struct sigaction32 __user *oact,

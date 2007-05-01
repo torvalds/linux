@@ -1901,13 +1901,13 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 			case ATM_AAL0:
 				/* 2.10.1.5 raw cell receive */
 				skb->len = ATM_AAL0_SDU;
-				skb->tail = skb->data + skb->len;
+				skb_set_tail_pointer(skb, skb->len);
 				break;
 			case ATM_AAL5:
 				/* 2.10.1.2 aal5 receive */
 
 				skb->len = AAL5_LEN(skb->data, he_vcc->pdu_len);
-				skb->tail = skb->data + skb->len;
+				skb_set_tail_pointer(skb, skb->len);
 #ifdef USE_CHECKSUM_HW
 				if (vcc->vpi == 0 && vcc->vci >= ATM_NOT_RSV_VCI) {
 					skb->ip_summed = CHECKSUM_COMPLETE;
@@ -3017,7 +3017,7 @@ read_prom_byte(struct he_dev *he_dev, int addr)
 	he_writel(he_dev, val, HOST_CNTL);
        
 	/* Send READ instruction */
-	for (i = 0; i < sizeof(readtab)/sizeof(readtab[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(readtab); i++) {
 		he_writel(he_dev, val | readtab[i], HOST_CNTL);
 		udelay(EEPROM_DELAY);
 	}

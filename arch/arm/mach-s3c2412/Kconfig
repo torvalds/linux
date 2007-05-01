@@ -1,0 +1,58 @@
+# arch/arm/mach-s3c2412/Kconfig
+#
+# Copyright 2007 Simtec Electronics
+#
+# Licensed under GPLv2
+
+config CPU_S3C2412
+	bool
+	depends on ARCH_S3C2410
+	select S3C2412_PM if PM
+	select S3C2412_DMA if S3C2410_DMA
+	help
+	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
+
+config CPU_S3C2412_ONLY
+	bool
+	depends on ARCH_S3C2410 && !CPU_S3C2400 && !CPU_S3C2410 && \
+		   !CPU_S3C2440 && !CPU_S3C2442 && !CPU_S3C2443 && CPU_S3C2412
+	default y if CPU_S3C2412
+
+config S3C2412_DMA
+	bool
+	depends on CPU_S3C2412
+	help
+	  Internal config node for S3C2412 DMA support
+
+config S3C2412_PM
+	bool
+	help
+	  Internal config node to apply S3C2412 power management
+
+
+menu "S3C2412 Machines"
+
+config MACH_SMDK2413
+	bool "SMDK2413"
+	select CPU_S3C2412
+	select MACH_S3C2413
+	select MACH_SMDK
+	help
+	  Say Y here if you are using an SMDK2413
+
+config MACH_S3C2413
+	bool
+	help
+	  Internal node for S3C2413 version of SMDK2413, so that
+	  machine_is_s3c2413() will work when MACH_SMDK2413 is
+	  selected
+
+config MACH_VSTMS
+	bool "VMSTMS"
+	select CPU_S3C2412
+	help
+	  Say Y here if you are using an VSTMS board
+
+
+endmenu
+

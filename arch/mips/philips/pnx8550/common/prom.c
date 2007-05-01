@@ -112,7 +112,7 @@ void __init prom_free_prom_memory(void)
 
 extern int pnx8550_console_port;
 
-/* used by prom_printf */
+/* used by early printk */
 void prom_putchar(char c)
 {
 	if (pnx8550_console_port != -1) {

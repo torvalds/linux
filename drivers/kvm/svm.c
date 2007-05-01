@@ -15,6 +15,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/profile.h>
@@ -75,7 +76,7 @@ struct svm_init_data {
 
 static u32 msrpm_ranges[] = {0, 0xc0000000, 0xc0010000};
 
-#define NUM_MSR_MAPS (sizeof(msrpm_ranges) / sizeof(*msrpm_ranges))
+#define NUM_MSR_MAPS ARRAY_SIZE(msrpm_ranges)
 #define MSRS_RANGE_SIZE 2048
 #define MSRS_IN_RANGE (MSRS_RANGE_SIZE * 8 / 2)
 
@@ -485,6 +486,7 @@ static void init_vmcb(struct vmcb *vmcb)
 
 	control->intercept = 	(1ULL << INTERCEPT_INTR) |
 				(1ULL << INTERCEPT_NMI) |
+				(1ULL << INTERCEPT_SMI) |
 		/*
 		 * selective cr0 intercept bug?
 		 *    	0:   0f 22 d8                mov    %eax,%cr3
@@ -553,7 +555,7 @@ static void init_vmcb(struct vmcb *vmcb)
 	 * cr0 val on cpu init should be 0x60000010, we enable cpu
 	 * cache by default. the orderly way is to enable cache in bios.
 	 */
-	save->cr0 = 0x00000010 | CR0_PG_MASK;
+	save->cr0 = 0x00000010 | CR0_PG_MASK | CR0_WP_MASK;
 	save->cr4 = CR4_PAE_MASK;
 	/* rdx = ?? */
 }
@@ -598,10 +600,9 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 	kfree(vcpu->svm);
 }
 
-static struct kvm_vcpu *svm_vcpu_load(struct kvm_vcpu *vcpu)
+static void svm_vcpu_load(struct kvm_vcpu *vcpu)
 {
 	get_cpu();
-	return vcpu;
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
@@ -1042,21 +1043,21 @@ static int io_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 		addr_mask = io_adress(vcpu, _in, &kvm_run->io.address);
 		if (!addr_mask) {
-			printk(KERN_DEBUG "%s: get io address failed\n", __FUNCTION__);
+			printk(KERN_DEBUG "%s: get io address failed\n",
+			       __FUNCTION__);
 			return 1;
 		}
 
 		if (kvm_run->io.rep) {
-			kvm_run->io.count = vcpu->regs[VCPU_REGS_RCX] & addr_mask;
+			kvm_run->io.count
+				= vcpu->regs[VCPU_REGS_RCX] & addr_mask;
 			kvm_run->io.string_down = (vcpu->svm->vmcb->save.rflags
 						   & X86_EFLAGS_DF) != 0;
 		}
-	} else {
+	} else
 		kvm_run->io.value = vcpu->svm->vmcb->save.rax;
-	}
 	return 0;
 }
-
 
 static int nop_on_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
@@ -1073,6 +1074,12 @@ static int halt_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	kvm_run->exit_reason = KVM_EXIT_HLT;
 	++kvm_stat.halt_exits;
 	return 0;
+}
+
+static int vmmcall_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	vcpu->svm->vmcb->save.rip += 3;
+	return kvm_hypercall(vcpu, kvm_run);
 }
 
 static int invalid_op_interception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
@@ -1275,7 +1282,7 @@ static int (*svm_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[SVM_EXIT_TASK_SWITCH]			= task_switch_interception,
 	[SVM_EXIT_SHUTDOWN]			= shutdown_interception,
 	[SVM_EXIT_VMRUN]			= invalid_op_interception,
-	[SVM_EXIT_VMMCALL]			= invalid_op_interception,
+	[SVM_EXIT_VMMCALL]			= vmmcall_interception,
 	[SVM_EXIT_VMLOAD]			= invalid_op_interception,
 	[SVM_EXIT_VMSAVE]			= invalid_op_interception,
 	[SVM_EXIT_STGI]				= invalid_op_interception,
@@ -1297,7 +1304,7 @@ static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		       __FUNCTION__, vcpu->svm->vmcb->control.exit_int_info,
 		       exit_code);
 
-	if (exit_code >= sizeof(svm_exit_handlers) / sizeof(*svm_exit_handlers)
+	if (exit_code >= ARRAY_SIZE(svm_exit_handlers)
 	    || svm_exit_handlers[exit_code] == 0) {
 		kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
 		printk(KERN_ERR "%s: 0x%x @ 0x%llx cr0 0x%lx rflags 0x%llx\n",
@@ -1668,6 +1675,18 @@ static int is_disabled(void)
 	return 0;
 }
 
+static void
+svm_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
+{
+	/*
+	 * Patch in the VMMCALL instruction:
+	 */
+	hypercall[0] = 0x0f;
+	hypercall[1] = 0x01;
+	hypercall[2] = 0xd9;
+	hypercall[3] = 0xc3;
+}
+
 static struct kvm_arch_ops svm_arch_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -1716,6 +1735,7 @@ static struct kvm_arch_ops svm_arch_ops = {
 	.run = svm_vcpu_run,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.vcpu_setup = svm_vcpu_setup,
+	.patch_hypercall = svm_patch_hypercall,
 };
 
 static int __init svm_init(void)

@@ -31,7 +31,7 @@ typedef unsigned long long __u64;
  */
 #ifdef __KERNEL__
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define BITS_PER_LONG 64
 #define SHIFT_PER_LONG 6
 #else

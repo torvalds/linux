@@ -430,10 +430,10 @@ config HPLANCE
 
 config LASI_82596
 	tristate "Lasi ethernet"
-	depends on NET_ETHERNET && PARISC && GSC_LASI
+	depends on NET_ETHERNET && GSC
 	help
-	  Say Y here to support the on-board Intel 82596 ethernet controller
-	  built into Hewlett-Packard PA-RISC machines.
+	  Say Y here to support the builtin Intel 82596 ethernet controller
+	  found in Hewlett-Packard PA-RISC machines with 10Mbit ethernet.
 
 config MIPS_JAZZ_SONIC
 	tristate "MIPS JAZZ onboard SONIC Ethernet support"
@@ -486,8 +486,8 @@ config SGI_IOC3_ETH_HW_TX_CSUM
 	  enables offloading for checksums on transmit.  If unsure, say Y.
 
 config MIPS_SIM_NET
-	tristate "MIPS simulator Network device (EXPERIMENTAL)"
-	depends on MIPS_SIM && EXPERIMENTAL
+	tristate "MIPS simulator Network device"
+	depends on NET_ETHERNET && MIPS_SIM
 	help
 	  The MIPSNET device is a simple Ethernet network device which is
 	  emulated by the MIPS Simulator.
@@ -1284,8 +1284,8 @@ config PCNET32
 	  will be called pcnet32.
 
 config PCNET32_NAPI
-	bool "Use RX polling (NAPI) (EXPERIMENTAL)"
-	depends on PCNET32 && EXPERIMENTAL
+	bool "Use RX polling (NAPI)"
+	depends on PCNET32
 	help
 	  NAPI is a new driver API designed to reduce CPU and interrupt load
 	  when the driver is receiving lots of packets from the card. It is
@@ -1444,7 +1444,8 @@ config CS89x0
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
-	depends on NET_PCI && PCI && TOSHIBA_JMR3927
+	depends on NET_PCI && PCI && MIPS
+	select MII
 
 config DGRS
 	tristate "Digi Intl. RightSwitch SE-X support"
@@ -2125,14 +2126,16 @@ config SKY2
 	  will be called sky2.  This is recommended.
 
 config SK98LIN
-	tristate "Marvell Yukon Chipset / SysKonnect SK-98xx Support"
+	tristate "Marvell Yukon Chipset / SysKonnect SK-98xx Support (DEPRECATED)"
 	depends on PCI
 	---help---
 	  Say Y here if you have a Marvell Yukon or SysKonnect SK-98xx/SK-95xx
 	  compliant Gigabit Ethernet Adapter.
 
-	  This driver supports the original Yukon chipset. A cleaner driver is 
-	  also available (skge) which seems to work better than this one.
+	  This driver supports the original Yukon chipset. This driver is
+	  deprecated and will be removed from the kernel in the near future,
+	  it has been replaced by the skge driver. skge is cleaner and
+	  seems to work better.
 
 	  This driver does not support the newer Yukon2 chipset. A separate
 	  driver, sky2, is provided to support Yukon2-based adapters.
@@ -2243,7 +2246,7 @@ config BNX2
 
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"
-	depends on PCI && PPC_IBM_CELL_BLADE
+	depends on PCI && (PPC_IBM_CELL_BLADE || PPC_CELLEB)
 	select FW_LOADER
 	help
 	  This driver supports the Gigabit Ethernet chips present on the
@@ -2261,6 +2264,7 @@ config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on 85xx || 83xx || PPC_86xx
 	select PHYLIB
+	select CRC32
 	help
 	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
 	  and MPC86xx family of chips, and the FEC on the 8540.
@@ -2270,11 +2274,12 @@ config GFAR_NAPI
 	depends on GIANFAR
 
 config UCC_GETH
-	tristate "Freescale QE UCC GETH"
-	depends on QUICC_ENGINE && UCC_FAST
+	tristate "Freescale QE Gigabit Ethernet"
+	depends on QUICC_ENGINE
+	select UCC_FAST
 	help
-	  This driver supports the Gigabit Ethernet mode of QE UCC.
-	  QE can be found on MPC836x CPUs.
+	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,
+	  which is available on some Freescale SOCs.
 
 config UGETH_NAPI
 	bool "NAPI Support"
@@ -2288,13 +2293,9 @@ config UGETH_FILTERING
 	bool "Mac address filtering support"
 	depends on UCC_GETH
 
-config UGETH_TX_ON_DEMOND
-	bool "Transmit on Demond support"
+config UGETH_TX_ON_DEMAND
+	bool "Transmit on Demand support"
 	depends on UCC_GETH
-
-config UGETH_HAS_GIGA
-	bool
-	depends on UCC_GETH && PPC_MPC836x
 
 config MV643XX_ETH
 	tristate "MV-643XX Ethernet support"
@@ -2304,27 +2305,6 @@ config MV643XX_ETH
 	  This driver supports the gigabit Ethernet on the Marvell MV643XX
 	  chipset which is used in the Momenco Ocelot C and Jaguar ATX and
 	  Pegasos II, amongst other PPC and MIPS boards.
-
-config MV643XX_ETH_0
-	bool "MV-643XX Port 0"
-	depends on MV643XX_ETH
-	help
-	  This enables support for Port 0 of the Marvell MV643XX Gigabit
-	  Ethernet.
-
-config MV643XX_ETH_1
-	bool "MV-643XX Port 1"
-	depends on MV643XX_ETH
-	help
-	  This enables support for Port 1 of the Marvell MV643XX Gigabit
-	  Ethernet.
-
-config MV643XX_ETH_2
-	bool "MV-643XX Port 2"
-	depends on MV643XX_ETH
-	help
-	  This enables support for Port 2 of the Marvell MV643XX Gigabit
-	  Ethernet.
 
 config QLA3XXX
 	tristate "QLogic QLA3XXX Network Driver Support"
@@ -2337,7 +2317,7 @@ config QLA3XXX
 
 config ATL1
 	tristate "Attansic L1 Gigabit Ethernet support (EXPERIMENTAL)"
-	depends on NET_PCI && PCI && EXPERIMENTAL
+	depends on PCI && EXPERIMENTAL
 	select CRC32
 	select MII
 	help
@@ -2391,22 +2371,23 @@ config CHELSIO_T1_NAPI
 	  when the driver is receiving lots of packets from the card.
 
 config CHELSIO_T3
-        tristate "Chelsio Communications T3 10Gb Ethernet support"
-        depends on PCI
-        help
-          This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
-          adapters.
+	tristate "Chelsio Communications T3 10Gb Ethernet support"
+	depends on PCI
+	select FW_LOADER
+	help
+	  This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
+	  adapters.
 
-          For general information about Chelsio and our products, visit
-          our website at <http://www.chelsio.com>.
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
 
-          For customer support, please visit our customer support page at
-          <http://www.chelsio.com/support.htm>.
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.htm>.
 
-          Please send feedback to <linux-bugs@chelsio.com>.
+	  Please send feedback to <linux-bugs@chelsio.com>.
 
-          To compile this driver as a module, choose M here: the module
-          will be called cxgb3.
+	  To compile this driver as a module, choose M here: the module
+	  will be called cxgb3.
 
 config EHEA
 	tristate "eHEA Ethernet support"
@@ -2945,11 +2926,6 @@ endif #NETDEVICES
 
 config NETPOLL
 	def_bool NETCONSOLE
-
-config NETPOLL_RX
-	bool "Netpoll support for trapping incoming packets"
-	default n
-	depends on NETPOLL
 
 config NETPOLL_TRAP
 	bool "Netpoll traffic trapping"

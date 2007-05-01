@@ -1,8 +1,8 @@
 /***************************************************************************
- * API for image sensors connected to the ZC0301 Image Processor and       *
+ * API for image sensors connected to the ZC0301[P] Image Processor and    *
  * Control Chip                                                            *
  *                                                                         *
- * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -70,7 +70,7 @@ static const struct usb_device_id zc0301_id_table[] =  {                      \
 	{ ZC0301_USB_DEVICE(0x041e, 0x4036, 0xff), }, /* HV7131 */            \
 	{ ZC0301_USB_DEVICE(0x041e, 0x403a, 0xff), }, /* HV7131 */            \
 	{ ZC0301_USB_DEVICE(0x0458, 0x7007, 0xff), }, /* TAS5130 */           \
-	{ ZC0301_USB_DEVICE(0x0458, 0x700C, 0xff), }, /* TAS5130 */           \
+	{ ZC0301_USB_DEVICE(0x0458, 0x700c, 0xff), }, /* TAS5130 */           \
 	{ ZC0301_USB_DEVICE(0x0458, 0x700f, 0xff), }, /* TAS5130 */           \
 	{ ZC0301_USB_DEVICE(0x046d, 0x08ae, 0xff), }, /* PAS202 */            \
 	{ ZC0301_USB_DEVICE(0x055f, 0xd003, 0xff), }, /* TAS5130 */           \
@@ -93,9 +93,9 @@ extern int zc0301_i2c_read(struct zc0301_device*, u16 address, u8 length);
 
 /*****************************************************************************/
 
-#define ZC0301_MAX_CTRLS V4L2_CID_LASTP1-V4L2_CID_BASE+10
-#define ZC0301_V4L2_CID_DAC_MAGNITUDE V4L2_CID_PRIVATE_BASE
-#define ZC0301_V4L2_CID_GREEN_BALANCE V4L2_CID_PRIVATE_BASE + 1
+#define ZC0301_MAX_CTRLS (V4L2_CID_LASTP1 - V4L2_CID_BASE + 10)
+#define ZC0301_V4L2_CID_DAC_MAGNITUDE (V4L2_CID_PRIVATE_BASE + 0)
+#define ZC0301_V4L2_CID_GREEN_BALANCE (V4L2_CID_PRIVATE_BASE + 1)
 
 struct zc0301_sensor {
 	char name[32];

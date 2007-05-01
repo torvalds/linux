@@ -17,7 +17,6 @@
 #include <linux/stat.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
-#include <asm/pgtable.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>

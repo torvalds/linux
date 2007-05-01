@@ -9,13 +9,10 @@
 #define __ASM_PARISC_PROCESSOR_H
 
 #ifndef __ASSEMBLY__
-#include <asm/prefetch.h>	/* lockdep.h needs <linux/prefetch.h> */
-
 #include <linux/threads.h>
-#include <linux/spinlock_types.h>
 
+#include <asm/prefetch.h>
 #include <asm/hardware.h>
-#include <asm/page.h>
 #include <asm/pdc.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
@@ -41,7 +38,7 @@
 #define DEFAULT_TASK_SIZE32	(0xFFF00000UL)
 #define DEFAULT_MAP_BASE32	(0x40000000UL)
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define DEFAULT_TASK_SIZE       (MAX_ADDRESS-0xf000000)
 #define DEFAULT_MAP_BASE        (0x200000000UL)
 #else
@@ -87,7 +84,6 @@ struct cpuinfo_parisc {
 	unsigned long hpa;          /* Host Physical address */
 	unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
 #ifdef CONFIG_SMP
-	spinlock_t lock;            /* synchronization for ipi's */
 	unsigned long pending_ipi;  /* bitmap of type ipi_message_type */
 	unsigned long ipi_count;    /* number ipi Interrupts */
 #endif
@@ -277,7 +273,7 @@ on downward growing arches, it looks like this:
  * it in here from the current->personality
  */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define USER_WIDE_MODE	(!test_thread_flag(TIF_32BIT))
 #else
 #define USER_WIDE_MODE	0

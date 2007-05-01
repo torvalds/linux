@@ -186,7 +186,7 @@ sctp_disposition_t sctp_sf_do_4_C(const struct sctp_endpoint *ep,
 	 * notification is passed to the upper layer.
 	 */
 	ev = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_SHUTDOWN_COMP,
-					     0, 0, 0, GFP_ATOMIC);
+					     0, 0, 0, NULL, GFP_ATOMIC);
 	if (ev)
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
 				SCTP_ULPEVENT(ev));
@@ -629,7 +629,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 		case -SCTP_IERROR_BAD_SIG:
 		default:
 			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
-		};
+		}
 	}
 
 
@@ -661,7 +661,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	ev = sctp_ulpevent_make_assoc_change(new_asoc, 0, SCTP_COMM_UP, 0,
 					     new_asoc->c.sinit_num_ostreams,
 					     new_asoc->c.sinit_max_instreams,
-					     GFP_ATOMIC);
+					     NULL, GFP_ATOMIC);
 	if (!ev)
 		goto nomem_ev;
 
@@ -790,7 +790,7 @@ sctp_disposition_t sctp_sf_do_5_1E_ca(const struct sctp_endpoint *ep,
 	ev = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_COMM_UP,
 					     0, asoc->c.sinit_num_ostreams,
 					     asoc->c.sinit_max_instreams,
-					     GFP_ATOMIC);
+					     NULL, GFP_ATOMIC);
 
 	if (!ev)
 		goto nomem;
@@ -1195,7 +1195,7 @@ static void sctp_tietags_populate(struct sctp_association *new_asoc,
 		new_asoc->c.my_ttag   = asoc->c.my_vtag;
 		new_asoc->c.peer_ttag = asoc->c.peer_vtag;
 		break;
-	};
+	}
 
 	/* Other parameters for the endpoint SHOULD be copied from the
 	 * existing parameters of the association (e.g. number of
@@ -1625,7 +1625,7 @@ static sctp_disposition_t sctp_sf_do_dupcook_a(const struct sctp_endpoint *ep,
 	ev = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_RESTART, 0,
 					     new_asoc->c.sinit_num_ostreams,
 					     new_asoc->c.sinit_max_instreams,
-					     GFP_ATOMIC);
+					     NULL, GFP_ATOMIC);
 	if (!ev)
 		goto nomem_ev;
 
@@ -1691,7 +1691,7 @@ static sctp_disposition_t sctp_sf_do_dupcook_b(const struct sctp_endpoint *ep,
 	ev = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_COMM_UP, 0,
 					     new_asoc->c.sinit_num_ostreams,
 					     new_asoc->c.sinit_max_instreams,
-					     GFP_ATOMIC);
+					     NULL, GFP_ATOMIC);
 	if (!ev)
 		goto nomem_ev;
 
@@ -1786,7 +1786,7 @@ static sctp_disposition_t sctp_sf_do_dupcook_d(const struct sctp_endpoint *ep,
 					     SCTP_COMM_UP, 0,
 					     asoc->c.sinit_num_ostreams,
 					     asoc->c.sinit_max_instreams,
-					     GFP_ATOMIC);
+                                             NULL, GFP_ATOMIC);
 		if (!ev)
 			goto nomem;
 
@@ -1904,7 +1904,7 @@ sctp_disposition_t sctp_sf_do_5_2_4_dupcook(const struct sctp_endpoint *ep,
 		case -SCTP_IERROR_BAD_SIG:
 		default:
 			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
-		};
+		}
 	}
 
 	/* Compare the tie_tag in cookie with the verification tag of
@@ -1936,7 +1936,7 @@ sctp_disposition_t sctp_sf_do_5_2_4_dupcook(const struct sctp_endpoint *ep,
 	default: /* Discard packet for all others. */
 		retval = sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 		break;
-	};
+	}
 
 	/* Delete the tempory new association. */
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_ASOC, SCTP_ASOC(new_asoc));
@@ -3035,7 +3035,7 @@ sctp_disposition_t sctp_sf_do_9_2_final(const struct sctp_endpoint *ep,
 	 * notification is passed to the upper layer.
 	 */
 	ev = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_SHUTDOWN_COMP,
-					     0, 0, 0, GFP_ATOMIC);
+					     0, 0, 0, NULL, GFP_ATOMIC);
 	if (!ev)
 		goto nomem;
 
@@ -3115,7 +3115,7 @@ sctp_disposition_t sctp_sf_ootb(const struct sctp_endpoint *ep,
 			break;
 
 		ch_end = ((__u8 *)ch) + WORD_ROUND(ntohs(ch->length));
-		if (ch_end > skb->tail)
+		if (ch_end > skb_tail_pointer(skb))
 			break;
 
 		if (SCTP_CID_SHUTDOWN_ACK == ch->type)
@@ -3130,7 +3130,7 @@ sctp_disposition_t sctp_sf_ootb(const struct sctp_endpoint *ep,
 			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 
 		ch = (sctp_chunkhdr_t *) ch_end;
-	} while (ch_end < skb->tail);
+	} while (ch_end < skb_tail_pointer(skb));
 
 	if (ootb_shut_ack)
 		sctp_sf_shut_8_4_5(ep, asoc, type, arg, commands);
@@ -4342,8 +4342,24 @@ sctp_disposition_t sctp_sf_do_prm_requestheartbeat(
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
-	return sctp_sf_heartbeat(ep, asoc, type, (struct sctp_transport *)arg,
-				 commands);
+	if (SCTP_DISPOSITION_NOMEM == sctp_sf_heartbeat(ep, asoc, type,
+				      (struct sctp_transport *)arg, commands))
+		return SCTP_DISPOSITION_NOMEM;
+
+	/*
+	 * RFC 2960 (bis), section 8.3
+	 *
+	 *    D) Request an on-demand HEARTBEAT on a specific destination
+	 *    transport address of a given association.
+	 *
+	 *    The endpoint should increment the respective error  counter of
+	 *    the destination transport address each time a HEARTBEAT is sent
+	 *    to that address and not acknowledged within one RTO.
+	 *
+	 */
+	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_RESET,
+			SCTP_TRANSPORT(arg));
+	return SCTP_DISPOSITION_CONSUME;
 }
 
 /*
@@ -4605,11 +4621,11 @@ sctp_disposition_t sctp_sf_do_6_3_3_rtx(const struct sctp_endpoint *ep,
 	 * sent as soon as cwnd allows (normally when a SACK arrives).
 	 */
 
-	/* NB: Rules E4 and F1 are implicit in R1.  */
-	sctp_add_cmd_sf(commands, SCTP_CMD_RETRAN, SCTP_TRANSPORT(transport));
-
 	/* Do some failure management (Section 8.2). */
 	sctp_add_cmd_sf(commands, SCTP_CMD_STRIKE, SCTP_TRANSPORT(transport));
+
+	/* NB: Rules E4 and F1 are implicit in R1.  */
+	sctp_add_cmd_sf(commands, SCTP_CMD_RETRAN, SCTP_TRANSPORT(transport));
 
 	return SCTP_DISPOSITION_CONSUME;
 }
@@ -4800,7 +4816,7 @@ sctp_disposition_t sctp_sf_t2_timer_expire(const struct sctp_endpoint *ep,
 	default:
 		BUG();
 		break;
-	};
+	}
 
 	if (!reply)
 		goto nomem;
@@ -5270,7 +5286,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 		chunk->ecn_ce_done = 1;
 
 		af = sctp_get_af_specific(
-			ipver2af(chunk->skb->nh.iph->version));
+			ipver2af(ip_hdr(chunk->skb)->version));
 
 		if (af && af->is_ce(chunk->skb) && asoc->peer.ecn_capable) {
 			/* Do real work as sideffect. */

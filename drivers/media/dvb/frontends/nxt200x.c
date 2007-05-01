@@ -562,7 +562,7 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 
 			/* set input */
 			if (state->config->set_pll_input)
-				state->config->set_pll_input(buf, 1);
+				state->config->set_pll_input(buf+1, 1);
 			break;
 		case VSB_8:
 			/* Set non-punctured clock for VSB */
@@ -571,7 +571,7 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 
 			/* set input */
 			if (state->config->set_pll_input)
-				state->config->set_pll_input(buf, 0);
+				state->config->set_pll_input(buf+1, 0);
 			break;
 		default:
 			return -EINVAL;

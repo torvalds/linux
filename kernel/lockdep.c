@@ -2228,6 +2228,10 @@ out_calc_hash:
 
 	curr->lockdep_depth++;
 	check_chain_key(curr);
+#ifdef CONFIG_DEBUG_LOCKDEP
+	if (unlikely(!debug_locks))
+		return 0;
+#endif
 	if (unlikely(curr->lockdep_depth >= MAX_LOCK_DEPTH)) {
 		debug_locks_off();
 		printk("BUG: MAX_LOCK_DEPTH too low!\n");
@@ -2598,7 +2602,7 @@ out_restore:
 	raw_local_irq_restore(flags);
 }
 
-void __init lockdep_init(void)
+void lockdep_init(void)
 {
 	int i;
 
@@ -2738,6 +2742,10 @@ void debug_show_all_locks(void)
 	int count = 10;
 	int unlock = 1;
 
+	if (unlikely(!debug_locks)) {
+		printk("INFO: lockdep is turned off.\n");
+		return;
+	}
 	printk("\nShowing all locks held in the system:\n");
 
 	/*
@@ -2781,6 +2789,10 @@ EXPORT_SYMBOL_GPL(debug_show_all_locks);
 
 void debug_show_held_locks(struct task_struct *task)
 {
+	if (unlikely(!debug_locks)) {
+		printk("INFO: lockdep is turned off.\n");
+		return;
+	}
 	lockdep_print_held_locks(task);
 }
 

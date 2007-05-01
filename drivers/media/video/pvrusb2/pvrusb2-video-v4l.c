@@ -66,7 +66,9 @@ static void set_input(struct pvr2_v4l_decoder *ctxt)
 		route.input = SAA7115_SVIDEO2;
 		break;
 	case PVR2_CVAL_INPUT_RADIO:
-		// ????? No idea yet what to do here
+		// In radio mode, we mute the video, but point at one
+		// spot just to stay consistent
+		route.input = SAA7115_COMPOSITE5;
 	default:
 		return;
 	}
@@ -137,8 +139,7 @@ static int decoder_check(struct pvr2_v4l_decoder *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(decoder_ops)/sizeof(decoder_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(decoder_ops); idx++) {
 		msk = 1 << idx;
 		if (ctxt->stale_mask & msk) continue;
 		if (decoder_ops[idx].check(ctxt)) {
@@ -154,8 +155,7 @@ static void decoder_update(struct pvr2_v4l_decoder *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(decoder_ops)/sizeof(decoder_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(decoder_ops); idx++) {
 		msk = 1 << idx;
 		if (!(ctxt->stale_mask & msk)) continue;
 		ctxt->stale_mask &= ~msk;
@@ -183,25 +183,13 @@ static void decoder_enable(struct pvr2_v4l_decoder *ctxt,int fl)
 }
 
 
-static int decoder_is_tuned(struct pvr2_v4l_decoder *ctxt)
-{
-	struct v4l2_tuner vt;
-	int ret;
-
-	memset(&vt,0,sizeof(vt));
-	ret = pvr2_i2c_client_cmd(ctxt->client,VIDIOC_G_TUNER,&vt);
-	if (ret < 0) return -EINVAL;
-	return vt.signal ? 1 : 0;
-}
-
-
 static unsigned int decoder_describe(struct pvr2_v4l_decoder *ctxt,char *buf,unsigned int cnt)
 {
 	return scnprintf(buf,cnt,"handler: pvrusb2-video-v4l");
 }
 
 
-const static struct pvr2_i2c_handler_functions hfuncs = {
+static const struct pvr2_i2c_handler_functions hfuncs = {
 	.detach = (void (*)(void *))decoder_detach,
 	.check = (int (*)(void *))decoder_check,
 	.update = (void (*)(void *))decoder_update,
@@ -218,20 +206,17 @@ int pvr2_i2c_decoder_v4l_setup(struct pvr2_hdw *hdw,
 	if (cp->handler) return 0;
 	if (!decoder_detect(cp)) return 0;
 
-	ctxt = kmalloc(sizeof(*ctxt),GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt),GFP_KERNEL);
 	if (!ctxt) return 0;
-	memset(ctxt,0,sizeof(*ctxt));
 
 	ctxt->handler.func_data = ctxt;
 	ctxt->handler.func_table = &hfuncs;
 	ctxt->ctrl.ctxt = ctxt;
 	ctxt->ctrl.detach = (void (*)(void *))decoder_detach;
 	ctxt->ctrl.enable = (void (*)(void *,int))decoder_enable;
-	ctxt->ctrl.tuned = (int (*)(void *))decoder_is_tuned;
 	ctxt->client = cp;
 	ctxt->hdw = hdw;
-	ctxt->stale_mask = (1 << (sizeof(decoder_ops)/
-				  sizeof(decoder_ops[0]))) - 1;
+	ctxt->stale_mask = (1 << ARRAY_SIZE(decoder_ops)) - 1;
 	hdw->decoder_ctrl = &ctxt->ctrl;
 	cp->handler = &ctxt->handler;
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c 0x%x saa711x V4L2 handler set up",

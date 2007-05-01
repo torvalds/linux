@@ -264,6 +264,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	be,a,pt		%xcc, OK_LABEL; \
 	 mov		REG4, REG1;
 
+#ifndef CONFIG_DEBUG_PAGEALLOC
 	/* This version uses a trick, the TAG is already (VADDR >> 22) so
 	 * we can make use of that for the index computation.
 	 */
@@ -277,5 +278,6 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	cmp		REG3, TAG; \
 	be,a,pt		%xcc, OK_LABEL; \
 	 mov		REG4, REG1;
+#endif
 
 #endif /* !(_SPARC64_TSB_H) */

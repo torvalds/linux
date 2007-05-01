@@ -86,7 +86,8 @@
 	OCFS2_SB(sb)->s_feature_incompat &= ~(mask)
 
 #define OCFS2_FEATURE_COMPAT_SUPP	OCFS2_FEATURE_COMPAT_BACKUP_SB
-#define OCFS2_FEATURE_INCOMPAT_SUPP	OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT
+#define OCFS2_FEATURE_INCOMPAT_SUPP	(OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT \
+					 | OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC)
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	0
 
 /*
@@ -153,6 +154,12 @@
 
 #define OCFS2_FL_VISIBLE	(0x000100FF)	/* User visible flags */
 #define OCFS2_FL_MODIFIABLE	(0x000100FF)	/* User modifiable flags */
+
+/*
+ * Extent record flags (e_node.leaf.flags)
+ */
+#define OCFS2_EXT_UNWRITTEN	(0x01)	/* Extent is allocated but
+					 * unwritten */
 
 /*
  * ioctl commands
@@ -282,10 +289,21 @@ static unsigned char ocfs2_type_by_mode[S_IFMT >> S_SHIFT] = {
 /*
  * On disk extent record for OCFS2
  * It describes a range of clusters on disk.
+ *
+ * Length fields are divided into interior and leaf node versions.
+ * This leaves room for a flags field (OCFS2_EXT_*) in the leaf nodes.
  */
 struct ocfs2_extent_rec {
 /*00*/	__le32 e_cpos;		/* Offset into the file, in clusters */
-	__le32 e_clusters;	/* Clusters covered by this extent */
+	union {
+		__le32 e_int_clusters; /* Clusters covered by all children */
+		struct {
+			__le16 e_leaf_clusters; /* Clusters covered by this
+						   extent */
+			__u8 e_reserved1;
+			__u8 e_flags; /* Extent flags */
+		};
+	};
 	__le64 e_blkno;		/* Physical disk offset, in blocks */
 /*10*/
 };
@@ -311,7 +329,10 @@ struct ocfs2_extent_list {
 /*00*/	__le16 l_tree_depth;		/* Extent tree depth from this
 					   point.  0 means data extents
 					   hang directly off this
-					   header (a leaf) */
+					   header (a leaf)
+					   NOTE: The high 8 bits cannot be
+					   used - tree_depth is never that big.
+					*/
 	__le16 l_count;			/* Number of extent records */
 	__le16 l_next_free_rec;		/* Next unused extent slot */
 	__le16 l_reserved1;
@@ -446,7 +467,9 @@ struct ocfs2_dinode {
 	__le32 i_ctime_nsec;
 	__le32 i_mtime_nsec;
 	__le32 i_attr;
-	__le32 i_reserved1;
+	__le16 i_orphaned_slot;		/* Only valid when OCFS2_ORPHANED_FL
+					   was set in i_flags */
+	__le16 i_reserved1;
 /*70*/	__le64 i_reserved2[8];
 /*B8*/	union {
 		__le64 i_pad1;		/* Generic way to refer to this

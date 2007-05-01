@@ -1,10 +1,10 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.46	December 3, 2006
+ *  linux/drivers/ide/pci/piix.c	Version 0.47	February 8, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
- *  Copyright (C) 2006 MontaVista Software, Inc. <source@mvista.com>
+ *  Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
@@ -205,14 +205,13 @@ static u8 piix_dma_2_pio (u8 xfer_rate) {
 }
 
 /**
- *	piix_tune_drive		-	tune a drive attached to a PIIX
+ *	piix_tune_pio		-	tune PIIX for PIO mode
  *	@drive: drive to tune
  *	@pio: desired PIO mode
  *
- *	Set the interface PIO mode based upon  the settings done by AMI BIOS
- *	(might be useful if drive is not registered in CMOS for any reason).
+ *	Set the interface PIO mode based upon the settings done by AMI BIOS.
  */
-static void piix_tune_drive (ide_drive_t *drive, u8 pio)
+static void piix_tune_pio (ide_drive_t *drive, u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -233,8 +232,6 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 					{ 2, 1 },
 					{ 2, 3 }, };
 
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
-
 	/*
 	 * Master vs slave is synchronized above us but the slave register is
 	 * shared by the two hwifs so the corner case of two slave timeouts in
@@ -253,24 +250,40 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 		master_data |=  0x4000;
 		master_data &= ~0x0070;
 		if (pio > 1) {
-			/* enable PPE, IE and TIME */
-			master_data = master_data | (control << 4);
+			/* Set PPE, IE and TIME */
+			master_data |= control << 4;
 		}
 		pci_read_config_byte(dev, slave_port, &slave_data);
-		slave_data = slave_data & (hwif->channel ? 0x0f : 0xf0);
-		slave_data = slave_data | (((timings[pio][0] << 2) | timings[pio][1]) << (hwif->channel ? 4 : 0));
+		slave_data &= hwif->channel ? 0x0f : 0xf0;
+		slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) <<
+			       (hwif->channel ? 4 : 0);
 	} else {
 		master_data &= ~0x3307;
 		if (pio > 1) {
 			/* enable PPE, IE and TIME */
-			master_data = master_data | control;
+			master_data |= control;
 		}
-		master_data = master_data | (timings[pio][0] << 12) | (timings[pio][1] << 8);
+		master_data |= (timings[pio][0] << 12) | (timings[pio][1] << 8);
 	}
 	pci_write_config_word(dev, master_port, master_data);
 	if (is_slave)
 		pci_write_config_byte(dev, slave_port, slave_data);
 	spin_unlock_irqrestore(&tune_lock, flags);
+}
+
+/**
+ *	piix_tune_drive		-	tune a drive attached to PIIX
+ *	@drive: drive to tune
+ *	@pio: desired PIO mode
+ *
+ *	Set the drive's PIO mode (might be useful if drive is not registered
+ *	in CMOS for any reason).
+ */
+static void piix_tune_drive (ide_drive_t *drive, u8 pio)
+{
+	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	piix_tune_pio(drive, pio);
+	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
 /**
@@ -348,8 +361,8 @@ static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
 	}
 
-	piix_tune_drive(drive, piix_dma_2_pio(speed));
-	return (ide_config_drive_speed(drive, speed));
+	piix_tune_pio(drive, piix_dma_2_pio(speed));
+	return ide_config_drive_speed(drive, speed);
 }
 
 /**
@@ -369,7 +382,7 @@ static int piix_config_drive_for_dma (ide_drive_t *drive)
 	 * If no DMA speed was available or the chipset has DMA bugs
 	 * then disable DMA and use PIO
 	 */
-	if (!speed || no_piix_dma)
+	if (!speed)
 		return 0;
 
 	(void) piix_tune_chipset(drive, speed);
@@ -386,41 +399,26 @@ static int piix_config_drive_for_dma (ide_drive_t *drive)
  
 static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
-
 	drive->init_speed = 0;
 
-	if ((id->capability & 1) && drive->autodma) {
+	if (ide_use_dma(drive) && piix_config_drive_for_dma(drive))
+		return 0;
 
-		if (ide_use_dma(drive) && piix_config_drive_for_dma(drive))
-			return hwif->ide_dma_on(drive);
+	if (ide_use_fast_pio(drive))
+		piix_tune_drive(drive, 255);
 
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
-		/* Find best PIO mode. */
-		(void) hwif->speedproc(drive, XFER_PIO_0 +
-				       ide_get_best_pio_mode(drive, 255, 4, NULL));
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+	return -1;
 }
 
 /**
- *	init_chipset_piix	-	set up the PIIX chipset
- *	@dev: PCI device to set up
- *	@name: Name of the device
+ *	piix_is_ichx	-	check if ICHx
+ *	@dev: PCI device to check
  *
- *	Initialize the PCI device as required. For the PIIX this turns
- *	out to be nice and simple
+ *	returns 1 if ICHx, 0 otherwise.
  */
- 
-static unsigned int __devinit init_chipset_piix (struct pci_dev *dev, const char *name)
+static int piix_is_ichx(struct pci_dev *dev)
 {
-        switch(dev->device) {
+        switch (dev->device) {
 		case PCI_DEVICE_ID_INTEL_82801EB_1:
 		case PCI_DEVICE_ID_INTEL_82801AA_1:
 		case PCI_DEVICE_ID_INTEL_82801AB_1:
@@ -438,16 +436,58 @@ static unsigned int __devinit init_chipset_piix (struct pci_dev *dev, const char
 		case PCI_DEVICE_ID_INTEL_ICH7_21:
 		case PCI_DEVICE_ID_INTEL_ESB2_18:
 		case PCI_DEVICE_ID_INTEL_ICH8_6:
-		{
-			unsigned int extra = 0;
-			pci_read_config_dword(dev, 0x54, &extra);
-			pci_write_config_dword(dev, 0x54, extra|0x400);
-		}
-		default:
-			break;
+			return 1;
 	}
 
 	return 0;
+}
+
+/**
+ *	init_chipset_piix	-	set up the PIIX chipset
+ *	@dev: PCI device to set up
+ *	@name: Name of the device
+ *
+ *	Initialize the PCI device as required. For the PIIX this turns
+ *	out to be nice and simple
+ */
+
+static unsigned int __devinit init_chipset_piix (struct pci_dev *dev, const char *name)
+{
+	if (piix_is_ichx(dev)) {
+		unsigned int extra = 0;
+		pci_read_config_dword(dev, 0x54, &extra);
+		pci_write_config_dword(dev, 0x54, extra|0x400);
+	}
+
+	return 0;
+}
+
+/**
+ *	piix_dma_clear_irq	-	clear BMDMA status
+ *	@drive: IDE drive to clear
+ *
+ *	Called from ide_intr() for PIO interrupts
+ *	to clear BMDMA status as needed by ICHx
+ */
+static void piix_dma_clear_irq(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = HWIF(drive);
+	u8 dma_stat;
+
+	/* clear the INTR & ERROR bits */
+	dma_stat = hwif->INB(hwif->dma_status);
+	/* Should we force the bit as well ? */
+	hwif->OUTB(dma_stat, hwif->dma_status);
+}
+
+static int __devinit piix_cable_detect(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev = hwif->pci_dev;
+	u8 reg54h = 0, mask = hwif->channel ? 0xc0 : 0x30;
+
+	pci_read_config_byte(dev, 0x54, &reg54h);
+
+	return (reg54h & mask) ? 1 : 0;
 }
 
 /**
@@ -460,9 +500,6 @@ static unsigned int __devinit init_chipset_piix (struct pci_dev *dev, const char
 
 static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 {
-	u8 reg54h = 0, reg55h = 0, ata66 = 0;
-	u8 mask = hwif->channel ? 0xc0 : 0x30;
-
 #ifndef CONFIG_IA64
 	if (!hwif->irq)
 		hwif->irq = hwif->channel ? 15 : 14;
@@ -472,10 +509,6 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		/* This is a painful system best to let it self tune for now */
 		return;
 	}
-	/* ESB2 appears to generate spurious DMA interrupts in PIO mode
-	   when in native mode */
-	if (hwif->pci_dev->device == PCI_DEVICE_ID_INTEL_ESB2_18)
-		hwif->atapi_irq_bogon = 1;
 
 	hwif->autodma = 0;
 	hwif->tuneproc = &piix_tune_drive;
@@ -486,15 +519,16 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
+	/* ICHx need to clear the bmdma status for all interrupts */
+	if (piix_is_ichx(hwif->pci_dev))
+		hwif->ide_dma_clear_irq = &piix_dma_clear_irq;
+
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x3f;
 	hwif->mwdma_mask = 0x06;
 	hwif->swdma_mask = 0x04;
 
 	switch(hwif->pci_dev->device) {
-		case PCI_DEVICE_ID_INTEL_82371MX:
-			hwif->mwdma_mask = 0x80;
-			hwif->swdma_mask = 0x80;
 		case PCI_DEVICE_ID_INTEL_82371FB_0:
 		case PCI_DEVICE_ID_INTEL_82371FB_1:
 		case PCI_DEVICE_ID_INTEL_82371SB_1:
@@ -507,14 +541,14 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 			hwif->ultra_mask = 0x07;
 			break;
 		default:
-			pci_read_config_byte(hwif->pci_dev, 0x54, &reg54h);
-			pci_read_config_byte(hwif->pci_dev, 0x55, &reg55h);
-			ata66 = (reg54h & mask) ? 1 : 0;
+			if (!hwif->udma_four)
+				hwif->udma_four = piix_cable_detect(hwif);
 			break;
 	}
 
-	if (!(hwif->udma_four))
-		hwif->udma_four = ata66;
+	if (no_piix_dma)
+		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;
+
 	hwif->ide_dma_check = &piix_config_drive_xfer_rate;
 	if (!noautodma)
 		hwif->autodma = 1;

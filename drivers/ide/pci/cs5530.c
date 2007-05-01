@@ -81,8 +81,8 @@ static void cs5530_tuneproc (ide_drive_t *drive, u8 pio)	/* pio=255 means "autot
 
 	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
 	if (!cs5530_set_xfer_mode(drive, modes[pio])) {
-		format = (hwif->INL(basereg+4) >> 31) & 1;
-		hwif->OUTL(cs5530_pio_timings[format][pio],
+		format = (inl(basereg + 4) >> 31) & 1;
+		outl(cs5530_pio_timings[format][pio],
 			basereg+(drive->select.b.unit<<3));
 	}
 }
@@ -103,16 +103,13 @@ static int cs5530_config_dma (ide_drive_t *drive)
 	int			unit = drive->select.b.unit;
 	ide_drive_t		*mate = &hwif->drives[unit^1];
 	struct hd_driveid	*id = drive->id;
-	unsigned int		reg, timings;
+	unsigned int		reg, timings = 0;
 	unsigned long		basereg;
 
 	/*
 	 * Default to DMA-off in case we run into trouble here.
 	 */
-	hwif->ide_dma_off_quietly(drive);
-	/* turn off DMA while we fiddle */
-	hwif->ide_dma_host_off(drive);
-	/* clear DMA_capable bit */
+	hwif->dma_off_quietly(drive);
 
 	/*
 	 * The CS5530 specifies that two drives sharing a cable cannot
@@ -182,30 +179,24 @@ static int cs5530_config_dma (ide_drive_t *drive)
 		case XFER_MW_DMA_1:	timings = 0x00012121; break;
 		case XFER_MW_DMA_2:	timings = 0x00002020; break;
 		default:
-			printk(KERN_ERR "%s: cs5530_config_dma: huh? mode=%02x\n",
-				drive->name, mode);
-			return 1;	/* failure */
+			BUG();
+			break;
 	}
 	basereg = CS5530_BASEREG(hwif);
-	reg = hwif->INL(basereg+4);		/* get drive0 config register */
+	reg = inl(basereg + 4);			/* get drive0 config register */
 	timings |= reg & 0x80000000;		/* preserve PIO format bit */
 	if (unit == 0) {			/* are we configuring drive0? */
-		hwif->OUTL(timings, basereg+4);	/* write drive0 config register */
+		outl(timings, basereg + 4);	/* write drive0 config register */
 	} else {
 		if (timings & 0x00100000)
 			reg |=  0x00100000;	/* enable UDMA timings for both drives */
 		else
 			reg &= ~0x00100000;	/* disable UDMA timings for both drives */
-		hwif->OUTL(reg,     basereg+4);	/* write drive0 config register */
-		hwif->OUTL(timings, basereg+12);	/* write drive1 config register */
+		outl(reg, basereg + 4);		/* write drive0 config register */
+		outl(timings, basereg + 12);	/* write drive1 config register */
 	}
-	(void) hwif->ide_dma_host_on(drive);
-	/* set DMA_capable bit */
 
-	/*
-	 * Finally, turn DMA on in software, and exit.
-	 */
-	return hwif->ide_dma_on(drive);	/* success */
+	return 0;	/* success */
 }
 
 /**
@@ -321,17 +312,17 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 
 	hwif->tuneproc = &cs5530_tuneproc;
 	basereg = CS5530_BASEREG(hwif);
-	d0_timings = hwif->INL(basereg+0);
+	d0_timings = inl(basereg + 0);
 	if (CS5530_BAD_PIO(d0_timings)) {
 		/* PIO timings not initialized? */
-		hwif->OUTL(cs5530_pio_timings[(d0_timings>>31)&1][0], basereg+0);
+		outl(cs5530_pio_timings[(d0_timings >> 31) & 1][0], basereg + 0);
 		if (!hwif->drives[0].autotune)
 			hwif->drives[0].autotune = 1;
 			/* needs autotuning later */
 	}
-	if (CS5530_BAD_PIO(hwif->INL(basereg+8))) {
-	/* PIO timings not initialized? */
-		hwif->OUTL(cs5530_pio_timings[(d0_timings>>31)&1][0], basereg+8);
+	if (CS5530_BAD_PIO(inl(basereg + 8))) {
+		/* PIO timings not initialized? */
+		outl(cs5530_pio_timings[(d0_timings >> 31) & 1][0], basereg + 8);
 		if (!hwif->drives[1].autotune)
 			hwif->drives[1].autotune = 1;
 			/* needs autotuning later */

@@ -1,6 +1,8 @@
 /*
  * Sony Programmable I/O Control Device driver for VAIO
  *
+ * Copyright (C) 2007 Mattia Dongili <malattia@linux.it>
+ *
  * Copyright (C) 2001-2005 Stelian Pop <stelian@popies.net>
  *
  * Copyright (C) 2005 Narayanan R S <nars@kadamba.org>
@@ -94,6 +96,11 @@ static int useinput = 1;
 module_param(useinput, int, 0444);
 MODULE_PARM_DESC(useinput,
 		 "set this if you would like sonypi to feed events to the input subsystem");
+
+static int check_ioport = 1;
+module_param(check_ioport, int, 0444);
+MODULE_PARM_DESC(check_ioport,
+		 "set this to 0 if you think the automatic ioport check for sony-laptop is wrong");
 
 #define SONYPI_DEVICE_MODEL_TYPE1	1
 #define SONYPI_DEVICE_MODEL_TYPE2	2
@@ -477,7 +484,7 @@ static struct sonypi_device {
 	u16 evtype_offset;
 	int camera_power;
 	int bluetooth_power;
-	struct semaphore lock;
+	struct mutex lock;
 	struct kfifo *fifo;
 	spinlock_t fifo_lock;
 	wait_queue_head_t fifo_proc_list;
@@ -884,7 +891,7 @@ int sonypi_camera_command(int command, u8 value)
 	if (!camera)
 		return -EIO;
 
-	down(&sonypi_device.lock);
+	mutex_lock(&sonypi_device.lock);
 
 	switch (command) {
 	case SONYPI_COMMAND_SETCAMERA:
@@ -919,7 +926,7 @@ int sonypi_camera_command(int command, u8 value)
 		       command);
 		break;
 	}
-	up(&sonypi_device.lock);
+	mutex_unlock(&sonypi_device.lock);
 	return 0;
 }
 
@@ -938,20 +945,20 @@ static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 static int sonypi_misc_release(struct inode *inode, struct file *file)
 {
 	sonypi_misc_fasync(-1, file, 0);
-	down(&sonypi_device.lock);
+	mutex_lock(&sonypi_device.lock);
 	sonypi_device.open_count--;
-	up(&sonypi_device.lock);
+	mutex_unlock(&sonypi_device.lock);
 	return 0;
 }
 
 static int sonypi_misc_open(struct inode *inode, struct file *file)
 {
-	down(&sonypi_device.lock);
+	mutex_lock(&sonypi_device.lock);
 	/* Flush input queue on first open */
 	if (!sonypi_device.open_count)
 		kfifo_reset(sonypi_device.fifo);
 	sonypi_device.open_count++;
-	up(&sonypi_device.lock);
+	mutex_unlock(&sonypi_device.lock);
 	return 0;
 }
 
@@ -1001,7 +1008,7 @@ static int sonypi_misc_ioctl(struct inode *ip, struct file *fp,
 	u8 val8;
 	u16 val16;
 
-	down(&sonypi_device.lock);
+	mutex_lock(&sonypi_device.lock);
 	switch (cmd) {
 	case SONYPI_IOCGBRT:
 		if (sonypi_ec_read(SONYPI_LCD_LIGHT, &val8)) {
@@ -1101,7 +1108,7 @@ static int sonypi_misc_ioctl(struct inode *ip, struct file *fp,
 	default:
 		ret = -EINVAL;
 	}
-	up(&sonypi_device.lock);
+	mutex_unlock(&sonypi_device.lock);
 	return ret;
 }
 
@@ -1260,6 +1267,28 @@ static int __devinit sonypi_create_input_devices(void)
 static int __devinit sonypi_setup_ioports(struct sonypi_device *dev,
 				const struct sonypi_ioport_list *ioport_list)
 {
+	/* try to detect if sony-laptop is being used and thus
+	 * has already requested one of the known ioports.
+	 * As in the deprecated check_region this is racy has we have
+	 * multiple ioports available and one of them can be requested
+	 * between this check and the subsequent request. Anyway, as an
+	 * attempt to be some more user-friendly as we currently are,
+	 * this is enough.
+	 */
+	const struct sonypi_ioport_list *check = ioport_list;
+	while (check_ioport && check->port1) {
+		if (!request_region(check->port1,
+				   sonypi_device.region_size,
+				   "Sony Programable I/O Device Check")) {
+			printk(KERN_ERR "sonypi: ioport 0x%.4x busy, using sony-laptop? "
+					"if not use check_ioport=0\n",
+					check->port1);
+			return -EBUSY;
+		}
+		release_region(check->port1, sonypi_device.region_size);
+		check++;
+	}
+
 	while (ioport_list->port1) {
 
 		if (request_region(ioport_list->port1,
@@ -1321,6 +1350,10 @@ static int __devinit sonypi_probe(struct platform_device *dev)
 	struct pci_dev *pcidev;
 	int error;
 
+	printk(KERN_WARNING "sonypi: please try the sony-laptop module instead "
+			"and report failures, see also "
+			"http://www.linux.it/~malattia/wiki/index.php/Sony_drivers\n");
+
 	spin_lock_init(&sonypi_device.fifo_lock);
 	sonypi_device.fifo = kfifo_alloc(SONYPI_BUF_SIZE, GFP_KERNEL,
 					 &sonypi_device.fifo_lock);
@@ -1330,7 +1363,7 @@ static int __devinit sonypi_probe(struct platform_device *dev)
 	}
 
 	init_waitqueue_head(&sonypi_device.fifo_proc_list);
-	init_MUTEX(&sonypi_device.lock);
+	mutex_init(&sonypi_device.lock);
 	sonypi_device.bluetooth_power = -1;
 
 	if ((pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,

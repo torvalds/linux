@@ -47,7 +47,7 @@ struct v9fs_session_info {
 	unsigned int afid;	/* authentication fid */
 	unsigned int rfdno;	/* read file descriptor number */
 	unsigned int wfdno;	/* write file descriptor number */
-
+	unsigned int cache;	/* cache mode */
 
 	char *name;		/* user name to mount as */
 	char *remotename;	/* name of remote hierarchy being mounted */
@@ -71,6 +71,13 @@ enum {
 	PROTO_TCP,
 	PROTO_UNIX,
 	PROTO_FD,
+};
+
+/* possible values of ->cache */
+/* eventually support loose, tight, time, session, default always none */
+enum {
+	CACHE_NONE,		/* default */
+	CACHE_LOOSE,		/* no consistency */
 };
 
 extern struct dentry *v9fs_debugfs_root;

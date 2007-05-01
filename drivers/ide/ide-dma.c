@@ -348,15 +348,14 @@ EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
 static int config_drive_for_dma (ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
-	ide_hwif_t *hwif = HWIF(drive);
 
-	if ((id->capability & 1) && hwif->autodma) {
+	if ((id->capability & 1) && drive->hwif->autodma) {
 		/*
 		 * Enable DMA on any drive that has
 		 * UltraDMA (mode 0/1/2/3/4/5/6) enabled
 		 */
 		if ((id->field_valid & 4) && ((id->dma_ultra >> 8) & 0x7f))
-			return hwif->ide_dma_on(drive);
+			return 0;
 		/*
 		 * Enable DMA on any drive that has mode2 DMA
 		 * (multi or single) enabled
@@ -364,14 +363,14 @@ static int config_drive_for_dma (ide_drive_t *drive)
 		if (id->field_valid & 2)	/* regular DMA */
 			if ((id->dma_mword & 0x404) == 0x404 ||
 			    (id->dma_1word & 0x404) == 0x404)
-				return hwif->ide_dma_on(drive);
+				return 0;
 
 		/* Consult the list of known "good" drives */
 		if (__ide_dma_good_drive(drive))
-			return hwif->ide_dma_on(drive);
+			return 0;
 	}
-//	if (hwif->tuneproc != NULL) hwif->tuneproc(drive, 255);
-	return hwif->ide_dma_off_quietly(drive);
+
+	return -1;
 }
 
 /**
@@ -415,72 +414,68 @@ static int dma_timer_expiry (ide_drive_t *drive)
 }
 
 /**
- *	__ide_dma_host_off	-	Generic DMA kill
+ *	ide_dma_host_off	-	Generic DMA kill
  *	@drive: drive to control
  *
  *	Perform the generic IDE controller DMA off operation. This
  *	works for most IDE bus mastering controllers
  */
 
-int __ide_dma_host_off (ide_drive_t *drive)
+void ide_dma_host_off(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 unit			= (drive->select.b.unit & 0x01);
 	u8 dma_stat		= hwif->INB(hwif->dma_status);
 
 	hwif->OUTB((dma_stat & ~(1<<(5+unit))), hwif->dma_status);
-	return 0;
 }
 
-EXPORT_SYMBOL(__ide_dma_host_off);
+EXPORT_SYMBOL(ide_dma_host_off);
 
 /**
- *	__ide_dma_host_off_quietly	-	Generic DMA kill
+ *	ide_dma_off_quietly	-	Generic DMA kill
  *	@drive: drive to control
  *
  *	Turn off the current DMA on this IDE controller. 
  */
 
-int __ide_dma_off_quietly (ide_drive_t *drive)
+void ide_dma_off_quietly(ide_drive_t *drive)
 {
 	drive->using_dma = 0;
 	ide_toggle_bounce(drive, 0);
 
-	if (HWIF(drive)->ide_dma_host_off(drive))
-		return 1;
-
-	return 0;
+	drive->hwif->dma_host_off(drive);
 }
 
-EXPORT_SYMBOL(__ide_dma_off_quietly);
+EXPORT_SYMBOL(ide_dma_off_quietly);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 /**
- *	__ide_dma_off	-	disable DMA on a device
+ *	ide_dma_off	-	disable DMA on a device
  *	@drive: drive to disable DMA on
  *
  *	Disable IDE DMA for a device on this IDE controller.
  *	Inform the user that DMA has been disabled.
  */
 
-int __ide_dma_off (ide_drive_t *drive)
+void ide_dma_off(ide_drive_t *drive)
 {
 	printk(KERN_INFO "%s: DMA disabled\n", drive->name);
-	return HWIF(drive)->ide_dma_off_quietly(drive);
+	drive->hwif->dma_off_quietly(drive);
 }
 
-EXPORT_SYMBOL(__ide_dma_off);
+EXPORT_SYMBOL(ide_dma_off);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
- *	__ide_dma_host_on	-	Enable DMA on a host
+ *	ide_dma_host_on	-	Enable DMA on a host
  *	@drive: drive to enable for DMA
  *
  *	Enable DMA on an IDE controller following generic bus mastering
  *	IDE controller behaviour
  */
- 
-int __ide_dma_host_on (ide_drive_t *drive)
+
+void ide_dma_host_on(ide_drive_t *drive)
 {
 	if (drive->using_dma) {
 		ide_hwif_t *hwif	= HWIF(drive);
@@ -488,12 +483,10 @@ int __ide_dma_host_on (ide_drive_t *drive)
 		u8 dma_stat		= hwif->INB(hwif->dma_status);
 
 		hwif->OUTB((dma_stat|(1<<(5+unit))), hwif->dma_status);
-		return 0;
 	}
-	return 1;
 }
 
-EXPORT_SYMBOL(__ide_dma_host_on);
+EXPORT_SYMBOL(ide_dma_host_on);
 
 /**
  *	__ide_dma_on		-	Enable DMA on a device
@@ -511,8 +504,7 @@ int __ide_dma_on (ide_drive_t *drive)
 	drive->using_dma = 1;
 	ide_toggle_bounce(drive, 1);
 
-	if (HWIF(drive)->ide_dma_host_on(drive))
-		return 1;
+	drive->hwif->dma_host_on(drive);
 
 	return 0;
 }
@@ -565,7 +557,10 @@ int ide_dma_setup(ide_drive_t *drive)
 	}
 
 	/* PRD table */
-	hwif->OUTL(hwif->dmatable_dma, hwif->dma_prdtable);
+	if (hwif->mmio)
+		writel(hwif->dmatable_dma, (void __iomem *)hwif->dma_prdtable);
+	else
+		outl(hwif->dmatable_dma, hwif->dma_prdtable);
 
 	/* specify r/w */
 	hwif->OUTB(reading, hwif->dma_command);
@@ -680,6 +675,9 @@ int ide_use_dma(ide_drive_t *drive)
 	struct hd_driveid *id = drive->id;
 	ide_hwif_t *hwif = drive->hwif;
 
+	if ((id->capability & 1) == 0 || drive->autodma == 0)
+		return 0;
+
 	/* consult the list of known "bad" drives */
 	if (__ide_dma_bad_drive(drive))
 		return 0;
@@ -753,11 +751,36 @@ void ide_dma_verbose(ide_drive_t *drive)
 	return;
 bug_dma_off:
 	printk(", BUG DMA OFF");
-	hwif->ide_dma_off_quietly(drive);
+	hwif->dma_off_quietly(drive);
 	return;
 }
 
 EXPORT_SYMBOL(ide_dma_verbose);
+
+int ide_set_dma(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	int rc;
+
+	rc = hwif->ide_dma_check(drive);
+
+	switch(rc) {
+	case -1: /* DMA needs to be disabled */
+		hwif->dma_off_quietly(drive);
+		return -1;
+	case  0: /* DMA needs to be enabled */
+		return hwif->ide_dma_on(drive);
+	case  1: /* DMA setting cannot be changed */
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	return rc;
+}
+
+EXPORT_SYMBOL_GPL(ide_set_dma);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 int __ide_dma_lostirq (ide_drive_t *drive)
@@ -809,7 +832,7 @@ int ide_release_dma(ide_hwif_t *hwif)
 {
 	ide_release_dma_engine(hwif);
 
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return 1;
 	else
 		return ide_release_iomio_dma(hwif);
@@ -878,9 +901,9 @@ static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int port
 
 static int ide_dma_iobase(ide_hwif_t *hwif, unsigned long base, unsigned int ports)
 {
-	if (hwif->mmio == 2)
+	if (hwif->mmio)
 		return ide_mapped_mmio_dma(hwif, base,ports);
-	BUG_ON(hwif->mmio == 1);
+
 	return ide_iomio_dma(hwif, base, ports);
 }
 
@@ -908,14 +931,14 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 	if (!(hwif->dma_prdtable))
 		hwif->dma_prdtable	= (hwif->dma_base + 4);
 
-	if (!hwif->ide_dma_off_quietly)
-		hwif->ide_dma_off_quietly = &__ide_dma_off_quietly;
-	if (!hwif->ide_dma_host_off)
-		hwif->ide_dma_host_off = &__ide_dma_host_off;
+	if (!hwif->dma_off_quietly)
+		hwif->dma_off_quietly = &ide_dma_off_quietly;
+	if (!hwif->dma_host_off)
+		hwif->dma_host_off = &ide_dma_host_off;
 	if (!hwif->ide_dma_on)
 		hwif->ide_dma_on = &__ide_dma_on;
-	if (!hwif->ide_dma_host_on)
-		hwif->ide_dma_host_on = &__ide_dma_host_on;
+	if (!hwif->dma_host_on)
+		hwif->dma_host_on = &ide_dma_host_on;
 	if (!hwif->ide_dma_check)
 		hwif->ide_dma_check = &__ide_dma_check;
 	if (!hwif->dma_setup)

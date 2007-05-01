@@ -459,7 +459,7 @@ static int uwire_setup(struct spi_device *spi)
 	return uwire_setup_transfer(spi, NULL);
 }
 
-static void uwire_cleanup(const struct spi_device *spi)
+static void uwire_cleanup(struct spi_device *spi)
 {
 	kfree(spi->controller_state);
 }

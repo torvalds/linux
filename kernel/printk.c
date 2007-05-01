@@ -54,7 +54,7 @@ int console_printk[4] = {
 };
 
 /*
- * Low lever drivers may need that to know if they can schedule in
+ * Low level drivers may need that to know if they can schedule in
  * their unblank() callback or not. So let's export it.
  */
 int oops_in_progress;

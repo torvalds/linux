@@ -219,7 +219,6 @@ struct ipoib_dev_priv {
 
 	union ib_gid local_gid;
 	u16          local_lid;
-	u8           local_rate;
 
 	unsigned int admin_mtu;
 	unsigned int mcast_mtu;

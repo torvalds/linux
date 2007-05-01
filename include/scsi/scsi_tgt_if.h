@@ -83,8 +83,5 @@ struct tgt_event {
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
 #define TGT_RING_SIZE (1UL << 16)
-#define TGT_RING_PAGES (TGT_RING_SIZE >> PAGE_SHIFT)
-#define TGT_EVENT_PER_PAGE (PAGE_SIZE / sizeof(struct tgt_event))
-#define TGT_MAX_EVENTS (TGT_EVENT_PER_PAGE * TGT_RING_PAGES)
 
 #endif

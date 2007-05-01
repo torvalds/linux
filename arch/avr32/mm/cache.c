@@ -121,9 +121,8 @@ void flush_icache_range(unsigned long start, unsigned long end)
 void flush_icache_page(struct vm_area_struct *vma, struct page *page)
 {
 	if (vma->vm_flags & VM_EXEC) {
-		void *v = kmap(page);
+		void *v = page_address(page);
 		__flush_icache_range((unsigned long)v, (unsigned long)v + PAGE_SIZE);
-		kunmap(v);
 	}
 }
 

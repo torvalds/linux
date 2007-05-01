@@ -9,6 +9,7 @@
 
 #include <asm/io.h>
 #include <asm/scatterlist.h>
+#include <asm/hw_irq.h>
 
 /*
  * Can be used to override the logic in pci_scan_bus for skipping already-configured bus
@@ -170,7 +171,7 @@ pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 #define HAVE_ARCH_PCI_GET_LEGACY_IDE_IRQ
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
-	return channel ? 15 : 14;
+	return channel ? isa_irq_to_vector(15) : isa_irq_to_vector(14);
 }
 
 #endif /* _ASM_IA64_PCI_H */

@@ -43,9 +43,9 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/leds-gpio.h>
 
-#include "clock.h"
-#include "devs.h"
-#include "cpu.h"
+#include <asm/plat-s3c24xx/clock.h>
+#include <asm/plat-s3c24xx/devs.h>
+#include <asm/plat-s3c24xx/cpu.h>
 #include "usb-simtec.h"
 
 /* macros for virtual address mods for the io space entries */

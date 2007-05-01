@@ -109,6 +109,7 @@ static unsigned char virt_irq_alloc(unsigned int real_irq)
 	return ent;
 }
 
+#ifdef CONFIG_PCI_MSI
 static void virt_irq_free(unsigned int virt_irq)
 {
 	unsigned int real_irq;
@@ -121,6 +122,7 @@ static void virt_irq_free(unsigned int virt_irq)
 
 	__bucket(real_irq)->virt_irq = 0;
 }
+#endif
 
 static unsigned int virt_to_real_irq(unsigned char virt_irq)
 {
@@ -587,32 +589,6 @@ void ack_bad_irq(unsigned int virt_irq)
 	       ino, virt_irq);
 }
 
-#ifndef CONFIG_SMP
-extern irqreturn_t timer_interrupt(int, void *);
-
-void timer_irq(int irq, struct pt_regs *regs)
-{
-	unsigned long clr_mask = 1 << irq;
-	unsigned long tick_mask = tick_ops->softint_mask;
-	struct pt_regs *old_regs;
-
-	if (get_softint() & tick_mask) {
-		irq = 0;
-		clr_mask = tick_mask;
-	}
-	clear_softint(clr_mask);
-
-	old_regs = set_irq_regs(regs);
-	irq_enter();
-
-	kstat_this_cpu.irqs[0]++;
-	timer_interrupt(irq, NULL);
-
-	irq_exit();
-	set_irq_regs(old_regs);
-}
-#endif
-
 void handler_irq(int irq, struct pt_regs *regs)
 {
 	struct ino_bucket *bucket;
@@ -651,7 +627,7 @@ static u64 prom_limit0, prom_limit1;
 static void map_prom_timers(void)
 {
 	struct device_node *dp;
-	unsigned int *addr;
+	const unsigned int *addr;
 
 	/* PROM timer node hangs out in the top level of device siblings... */
 	dp = of_find_node_by_path("/");

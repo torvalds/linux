@@ -192,7 +192,7 @@ static u64 amd64_configure (struct pci_dev *hammer, u64 gatt_table)
 }
 
 
-static struct aper_size_info_32 amd_8151_sizes[7] =
+static const struct aper_size_info_32 amd_8151_sizes[7] =
 {
 	{2048, 524288, 9, 0x00000000 },	/* 0 0 0 0 0 0 */
 	{1024, 262144, 8, 0x00000400 },	/* 1 0 0 0 0 0 */
@@ -232,7 +232,7 @@ static void amd64_cleanup(void)
 }
 
 
-static struct agp_bridge_driver amd_8151_driver = {
+static const struct agp_bridge_driver amd_8151_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= amd_8151_sizes,
 	.size_type		= U32_APER_SIZE,

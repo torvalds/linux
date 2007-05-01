@@ -145,26 +145,6 @@ static int chipsfb_set_par(struct fb_info *info)
 
 static int chipsfb_blank(int blank, struct fb_info *info)
 {
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-
-	if (pmac_backlight) {
-		/* used to disable backlight only for blank > 1, but it seems
-		 * useful at blank = 1 too (saves battery, extends backlight
-		 * life)
-	 	 */
-		down(&pmac_backlight->sem);
-		if (blank)
-			pmac_backlight->props->power = FB_BLANK_POWERDOWN;
-		else
-			pmac_backlight->props->power = FB_BLANK_UNBLANK;
-		pmac_backlight->props->update_status(pmac_backlight);
-		up(&pmac_backlight->sem);
-	}
-
-	mutex_unlock(&pmac_backlight_mutex);
-#endif /* CONFIG_PMAC_BACKLIGHT */
-
 	return 1;	/* get fb_blank to set the colormap to all black */
 }
 
@@ -415,10 +395,8 @@ chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 	/* turn on the backlight */
 	mutex_lock(&pmac_backlight_mutex);
 	if (pmac_backlight) {
-		down(&pmac_backlight->sem);
-		pmac_backlight->props->power = FB_BLANK_UNBLANK;
-		pmac_backlight->props->update_status(pmac_backlight);
-		up(&pmac_backlight->sem);
+		pmac_backlight->props.power = FB_BLANK_UNBLANK;
+		backlight_update_status(pmac_backlight);
 	}
 	mutex_unlock(&pmac_backlight_mutex);
 #endif /* CONFIG_PMAC_BACKLIGHT */

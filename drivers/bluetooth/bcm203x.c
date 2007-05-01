@@ -307,3 +307,5 @@ MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Broadcom Blutonium firmware driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("BCM2033-MD.hex");
+MODULE_FIRMWARE("BCM2033-FW.bin");

@@ -209,6 +209,7 @@ static void aircable_send(struct usb_serial_port *port)
 	int count, result;
 	struct aircable_private *priv = usb_get_serial_port_data(port);
 	unsigned char* buf;
+	u16 *dbuf;
 	dbg("%s - port %d", __FUNCTION__, port->number);
 	if (port->write_urb_busy)
 		return;
@@ -226,8 +227,8 @@ static void aircable_send(struct usb_serial_port *port)
 
 	buf[0] = TX_HEADER_0;
 	buf[1] = TX_HEADER_1;
-	buf[2] = (unsigned char)count;
-	buf[3] = (unsigned char)(count >> 8);
+	dbuf = (u16 *)&buf[2];
+	*dbuf = cpu_to_le16((u16)count);
 	serial_buf_get(priv->tx_buf,buf + HCI_HEADER_LENGTH, MAX_HCI_FRAMESIZE);
 
 	memcpy(port->write_urb->transfer_buffer, buf,
@@ -434,7 +435,7 @@ static void aircable_write_bulk_callback(struct urb *urb)
 			    __FUNCTION__, urb->status);
 			port->write_urb->transfer_buffer_length = 1;
 			port->write_urb->dev = port->serial->dev;
-			result = usb_submit_urb(port->write_urb, GFP_KERNEL);
+			result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 			if (result)
 				dev_err(&urb->dev->dev,
 					"%s - failed resubmitting write urb, error %d\n",

@@ -65,7 +65,7 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 		char 		buf[60];
 	} tmp_iph;
 
-	top_iph = skb->nh.iph;
+	top_iph = ip_hdr(skb);
 	iph = &tmp_iph.iph;
 
 	iph->tos = top_iph->tos;
@@ -152,9 +152,9 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->ip_summed = CHECKSUM_NONE;
 
 	ah = (struct ip_auth_hdr*)skb->data;
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 
-	ihl = skb->data - skb->nh.raw;
+	ihl = skb->data - skb_network_header(skb);
 	memcpy(work_buf, iph, ihl);
 
 	iph->ttl = 0;
@@ -181,7 +181,9 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 		}
 	}
 	((struct iphdr*)work_buf)->protocol = ah->nexthdr;
-	skb->h.raw = memcpy(skb->nh.raw += ah_hlen, work_buf, ihl);
+	skb->network_header += ah_hlen;
+	memcpy(skb_network_header(skb), work_buf, ihl);
+	skb->transport_header = skb->network_header;
 	__skb_pull(skb, ah_hlen + ihl);
 
 	return 0;
@@ -196,8 +198,8 @@ static void ah4_err(struct sk_buff *skb, u32 info)
 	struct ip_auth_hdr *ah = (struct ip_auth_hdr*)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;
 
-	if (skb->h.icmph->type != ICMP_DEST_UNREACH ||
-	    skb->h.icmph->code != ICMP_FRAG_NEEDED)
+	if (icmp_hdr(skb)->type != ICMP_DEST_UNREACH ||
+	    icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
 		return;
 
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET);

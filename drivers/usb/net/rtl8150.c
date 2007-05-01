@@ -646,7 +646,6 @@ static void fill_skb_pool(rtl8150_t *dev)
 		if (!skb) {
 			return;
 		}
-		skb->dev = dev->netdev;
 		skb_reserve(skb, 2);
 		dev->rx_skb_pool[i] = skb;
 	}

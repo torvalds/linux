@@ -414,7 +414,11 @@ u64 ehea_h_register_rpage(const u64 adapter_handle,
 
 u64 ehea_h_disable_and_get_hea(const u64 adapter_handle, const u64 qp_handle);
 
-u64 ehea_h_free_resource(const u64 adapter_handle, const u64 res_handle);
+#define FORCE_FREE 1
+#define NORMAL_FREE 0
+
+u64 ehea_h_free_resource(const u64 adapter_handle, const u64 res_handle,
+			 u64 force_bit);
 
 u64 ehea_h_alloc_resource_mr(const u64 adapter_handle, const u64 vaddr,
 			     const u64 length, const u32 access_ctrl,
@@ -453,5 +457,8 @@ u64 ehea_h_reg_dereg_bcmc(const u64 adapter_handle, const u16 port_num,
 
 u64 ehea_h_reset_events(const u64 adapter_handle, const u64 neq_handle,
 			const u64 event_mask);
+
+u64 ehea_h_error_data(const u64 adapter_handle, const u64 ressource_handle,
+		      void *rblock);
 
 #endif	/* __EHEA_PHYP_H__ */

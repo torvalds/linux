@@ -21,13 +21,14 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct blkcipher_desc desc;
 	struct esp_data *esp;
 	struct sk_buff *trailer;
+	u8 *tail;
 	int blksize;
 	int clen;
 	int alen;
 	int nfrags;
 
 	/* Strip IP+ESP header. */
-	__skb_pull(skb, skb->h.raw - skb->data);
+	__skb_pull(skb, skb_transport_offset(skb));
 	/* Now skb is pure payload to encrypt */
 
 	err = -ENOMEM;
@@ -49,19 +50,21 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 		goto error;
 
 	/* Fill padding... */
+	tail = skb_tail_pointer(trailer);
 	do {
 		int i;
 		for (i=0; i<clen-skb->len - 2; i++)
-			*(u8*)(trailer->tail + i) = i+1;
+			tail[i] = i + 1;
 	} while (0);
-	*(u8*)(trailer->tail + clen-skb->len - 2) = (clen - skb->len)-2;
+	tail[clen - skb->len - 2] = (clen - skb->len) - 2;
 	pskb_put(skb, trailer, clen - skb->len);
 
-	__skb_push(skb, skb->data - skb->nh.raw);
-	top_iph = skb->nh.iph;
-	esph = (struct ip_esp_hdr *)(skb->nh.raw + top_iph->ihl*4);
+	__skb_push(skb, skb->data - skb_network_header(skb));
+	top_iph = ip_hdr(skb);
+	esph = (struct ip_esp_hdr *)(skb_network_header(skb) +
+				     top_iph->ihl * 4);
 	top_iph->tot_len = htons(skb->len + alen);
-	*(u8*)(trailer->tail - 1) = top_iph->protocol;
+	*(skb_tail_pointer(trailer) - 1) = top_iph->protocol;
 
 	/* this is non-NULL only with UDP Encapsulation */
 	if (x->encap) {
@@ -217,12 +220,12 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* ... check padding bits here. Silly. :-) */
 
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 	ihl = iph->ihl * 4;
 
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
-		struct udphdr *uh = (void *)(skb->nh.raw + ihl);
+		struct udphdr *uh = (void *)(skb_network_header(skb) + ihl);
 
 		/*
 		 * 1) if the NAT-T peer's IP or port changed then
@@ -260,7 +263,8 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	iph->protocol = nexthdr[1];
 	pskb_trim(skb, skb->len - alen - padlen - 2);
-	skb->h.raw = __skb_pull(skb, sizeof(*esph) + esp->conf.ivlen) - ihl;
+	__skb_pull(skb, sizeof(*esph) + esp->conf.ivlen);
+	skb_set_transport_header(skb, -ihl);
 
 	return 0;
 
@@ -268,32 +272,33 @@ out:
 	return -EINVAL;
 }
 
-static u32 esp4_get_max_size(struct xfrm_state *x, int mtu)
+static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 {
 	struct esp_data *esp = x->data;
 	u32 blksize = ALIGN(crypto_blkcipher_blocksize(esp->conf.tfm), 4);
-	int enclen = 0;
+	u32 align = max_t(u32, blksize, esp->conf.padlen);
+	u32 rem;
+
+	mtu -= x->props.header_len + esp->auth.icv_trunc_len;
+	rem = mtu & (align - 1);
+	mtu &= ~(align - 1);
 
 	switch (x->props.mode) {
 	case XFRM_MODE_TUNNEL:
-		mtu = ALIGN(mtu +2, blksize);
 		break;
 	default:
 	case XFRM_MODE_TRANSPORT:
 		/* The worst case */
-		mtu = ALIGN(mtu + 2, 4) + blksize - 4;
+		mtu -= blksize - 4;
+		mtu += min_t(u32, blksize - 4, rem);
 		break;
 	case XFRM_MODE_BEET:
 		/* The worst case. */
-		enclen = IPV4_BEET_PHMAXLEN;
-		mtu = ALIGN(mtu + enclen + 2, blksize);
+		mtu += min_t(u32, IPV4_BEET_PHMAXLEN, rem);
 		break;
 	}
 
-	if (esp->conf.padlen)
-		mtu = ALIGN(mtu, esp->conf.padlen);
-
-	return mtu + x->props.header_len + esp->auth.icv_trunc_len - enclen;
+	return mtu - 2;
 }
 
 static void esp4_err(struct sk_buff *skb, u32 info)
@@ -302,8 +307,8 @@ static void esp4_err(struct sk_buff *skb, u32 info)
 	struct ip_esp_hdr *esph = (struct ip_esp_hdr*)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;
 
-	if (skb->h.icmph->type != ICMP_DEST_UNREACH ||
-	    skb->h.icmph->code != ICMP_FRAG_NEEDED)
+	if (icmp_hdr(skb)->type != ICMP_DEST_UNREACH ||
+	    icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
 		return;
 
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, esph->spi, IPPROTO_ESP, AF_INET);
@@ -336,6 +341,7 @@ static int esp_init_state(struct xfrm_state *x)
 {
 	struct esp_data *esp = NULL;
 	struct crypto_blkcipher *tfm;
+	u32 align;
 
 	/* null auth and encryption can have zero length keys */
 	if (x->aalg) {
@@ -402,6 +408,8 @@ static int esp_init_state(struct xfrm_state *x)
 	x->props.header_len = sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct iphdr);
+	else if (x->props.mode == XFRM_MODE_BEET)
+		x->props.header_len += IPV4_BEET_PHMAXLEN;
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
 
@@ -417,7 +425,10 @@ static int esp_init_state(struct xfrm_state *x)
 		}
 	}
 	x->data = esp;
-	x->props.trailer_len = esp4_get_max_size(x, 0) - x->props.header_len;
+	align = ALIGN(crypto_blkcipher_blocksize(esp->conf.tfm), 4);
+	if (esp->conf.padlen)
+		align = max_t(u32, align, esp->conf.padlen);
+	x->props.trailer_len = align + 1 + esp->auth.icv_trunc_len;
 	return 0;
 
 error:
@@ -434,7 +445,7 @@ static struct xfrm_type esp_type =
 	.proto	     	= IPPROTO_ESP,
 	.init_state	= esp_init_state,
 	.destructor	= esp_destroy,
-	.get_max_size	= esp4_get_max_size,
+	.get_mtu	= esp4_get_mtu,
 	.input		= esp_input,
 	.output		= esp_output
 };

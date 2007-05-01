@@ -80,6 +80,7 @@ static inline void init_SCp(struct scsi_cmnd *SCpnt)
 			 (page_address(SCpnt->SCp.buffer->page) +
 			  SCpnt->SCp.buffer->offset);
 		SCpnt->SCp.this_residual = SCpnt->SCp.buffer->length;
+		SCpnt->SCp.phase = SCpnt->request_bufflen;
 
 #ifdef BELT_AND_BRACES
 		/*
@@ -98,6 +99,7 @@ static inline void init_SCp(struct scsi_cmnd *SCpnt)
 	} else {
 		SCpnt->SCp.ptr = (unsigned char *)SCpnt->request_buffer;
 		SCpnt->SCp.this_residual = SCpnt->request_bufflen;
+		SCpnt->SCp.phase = SCpnt->request_bufflen;
 	}
 
 	/*

@@ -266,6 +266,23 @@ static int do_siocgstamp(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
+static int do_siocgstampns(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_timespec __user *up = compat_ptr(arg);
+	struct timespec kts;
+	mm_segment_t old_fs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	err = sys_ioctl(fd, cmd, (unsigned long)&kts);
+	set_fs(old_fs);
+	if (!err) {
+		err = put_user(kts.tv_sec, &up->tv_sec);
+		err |= __put_user(kts.tv_nsec, &up->tv_nsec);
+	}
+	return err;
+}
+
 struct ifmap32 {
 	compat_ulong_t mem_start;
 	compat_ulong_t mem_end;
@@ -2437,6 +2454,7 @@ HANDLE_IOCTL(SIOCBRDELIF, dev_ifsioc)
 /* Note SIOCRTMSG is no longer, so this is safe and * the user would have seen just an -EINVAL anyways. */
 HANDLE_IOCTL(SIOCRTMSG, ret_einval)
 HANDLE_IOCTL(SIOCGSTAMP, do_siocgstamp)
+HANDLE_IOCTL(SIOCGSTAMPNS, do_siocgstampns)
 #endif
 #ifdef CONFIG_BLOCK
 HANDLE_IOCTL(HDIO_GETGEO, hdio_getgeo)
@@ -2553,11 +2571,15 @@ HANDLE_IOCTL(I2C_RDWR, do_i2c_rdwr_ioctl)
 HANDLE_IOCTL(I2C_SMBUS, do_i2c_smbus_ioctl)
 /* wireless */
 HANDLE_IOCTL(SIOCGIWRANGE, do_wireless_ioctl)
+HANDLE_IOCTL(SIOCGIWPRIV, do_wireless_ioctl)
+HANDLE_IOCTL(SIOCGIWSTATS, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIWSPY, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCGIWSPY, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIWTHRSPY, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCGIWTHRSPY, do_wireless_ioctl)
+HANDLE_IOCTL(SIOCSIWMLME, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCGIWAPLIST, do_wireless_ioctl)
+HANDLE_IOCTL(SIOCSIWSCAN, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCGIWSCAN, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIWESSID, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCGIWESSID, do_wireless_ioctl)
@@ -2565,6 +2587,11 @@ HANDLE_IOCTL(SIOCSIWNICKN, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCGIWNICKN, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIWENCODE, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCGIWENCODE, do_wireless_ioctl)
+HANDLE_IOCTL(SIOCSIWGENIE, do_wireless_ioctl)
+HANDLE_IOCTL(SIOCGIWGENIE, do_wireless_ioctl)
+HANDLE_IOCTL(SIOCSIWENCODEEXT, do_wireless_ioctl)
+HANDLE_IOCTL(SIOCGIWENCODEEXT, do_wireless_ioctl)
+HANDLE_IOCTL(SIOCSIWPMKSA, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIFBR, old_bridge_ioctl)
 HANDLE_IOCTL(SIOCGIFBR, old_bridge_ioctl)
 HANDLE_IOCTL(RTC_IRQP_READ32, rtc_ioctl)

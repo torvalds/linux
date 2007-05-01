@@ -40,7 +40,7 @@ struct pcf8583 {
 #define CTRL_ALARM	0x02
 #define CTRL_TIMER	0x01
 
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x50, I2C_CLIENT_END };
 
 /* Module parameters */
 I2C_CLIENT_INSMOD;
@@ -81,11 +81,11 @@ static int pcf8583_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 		buf[4] &= 0x3f;
 		buf[5] &= 0x1f;
 
-		dt->tm_sec = BCD_TO_BIN(buf[1]);
-		dt->tm_min = BCD_TO_BIN(buf[2]);
-		dt->tm_hour = BCD_TO_BIN(buf[3]);
-		dt->tm_mday = BCD_TO_BIN(buf[4]);
-		dt->tm_mon = BCD_TO_BIN(buf[5]);
+		dt->tm_sec = BCD2BIN(buf[1]);
+		dt->tm_min = BCD2BIN(buf[2]);
+		dt->tm_hour = BCD2BIN(buf[3]);
+		dt->tm_mday = BCD2BIN(buf[4]);
+		dt->tm_mon = BCD2BIN(buf[5]) - 1;
 	}
 
 	return ret == 2 ? 0 : -EIO;
@@ -99,14 +99,14 @@ static int pcf8583_set_datetime(struct i2c_client *client, struct rtc_time *dt, 
 	buf[0] = 0;
 	buf[1] = get_ctrl(client) | 0x80;
 	buf[2] = 0;
-	buf[3] = BIN_TO_BCD(dt->tm_sec);
-	buf[4] = BIN_TO_BCD(dt->tm_min);
-	buf[5] = BIN_TO_BCD(dt->tm_hour);
+	buf[3] = BIN2BCD(dt->tm_sec);
+	buf[4] = BIN2BCD(dt->tm_min);
+	buf[5] = BIN2BCD(dt->tm_hour);
 
 	if (datetoo) {
 		len = 8;
-		buf[6] = BIN_TO_BCD(dt->tm_mday) | (dt->tm_year << 6);
-		buf[7] = BIN_TO_BCD(dt->tm_mon)  | (dt->tm_wday << 5);
+		buf[6] = BIN2BCD(dt->tm_mday) | (dt->tm_year << 6);
+		buf[7] = BIN2BCD(dt->tm_mon + 1)  | (dt->tm_wday << 5);
 	}
 
 	ret = i2c_master_send(client, (char *)buf, len);
@@ -226,7 +226,7 @@ static int pcf8583_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		 */
 		year_offset += 4;
 
-	tm->tm_year = real_year + year_offset + year[1] * 100;
+	tm->tm_year = (real_year + year_offset + year[1] * 100) - 1900;
 
 	return 0;
 }
@@ -237,6 +237,7 @@ static int pcf8583_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	unsigned char year[2], chk;
 	struct rtc_mem cmos_year  = { CMOS_YEAR, sizeof(year), year };
 	struct rtc_mem cmos_check = { CMOS_CHECKSUM, 1, &chk };
+	unsigned int proper_year = tm->tm_year + 1900;
 	int ret;
 
 	/*
@@ -258,8 +259,8 @@ static int pcf8583_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	chk -= year[1] + year[0];
 
-	year[1] = tm->tm_year / 100;
-	year[0] = tm->tm_year % 100;
+	year[1] = proper_year / 100;
+	year[0] = proper_year % 100;
 
 	chk += year[1] + year[0];
 

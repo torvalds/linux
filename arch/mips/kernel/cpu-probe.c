@@ -16,6 +16,7 @@
 #include <linux/ptrace.h>
 #include <linux/stddef.h>
 
+#include <asm/bugs.h>
 #include <asm/cpu.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
@@ -97,7 +98,7 @@ static void au1k_wait(void)
 
 static int __initdata nowait = 0;
 
-int __init wait_disable(char *s)
+static int __init wait_disable(char *s)
 {
 	nowait = 1;
 

@@ -11,6 +11,7 @@
 #include <linux/timer.h>
 #include <linux/ctype.h>
 #include <linux/device.h>
+#include <linux/usb/quirks.h>
 #include <asm/byteorder.h>
 #include <asm/scatterlist.h>
 
@@ -220,10 +221,15 @@ int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 
 	if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 			USB_ENDPOINT_XFER_INT) {
+		int interval;
+
+		if (usb_dev->speed == USB_SPEED_HIGH)
+			interval = 1 << min(15, ep->desc.bInterval - 1);
+		else
+			interval = ep->desc.bInterval;
 		pipe = (pipe & ~(3 << 30)) | (PIPE_INTERRUPT << 30);
 		usb_fill_int_urb(urb, usb_dev, pipe, data, len,
-				usb_api_blocking_completion, NULL,
-				ep->desc.bInterval);
+				usb_api_blocking_completion, NULL, interval);
 	} else
 		usb_fill_bulk_urb(urb, usb_dev, pipe, data, len,
 				usb_api_blocking_completion, NULL);
@@ -406,10 +412,24 @@ int usb_sg_init (
 		io->urbs [i]->status = -EINPROGRESS;
 		io->urbs [i]->actual_length = 0;
 
+		/*
+		 * Some systems need to revert to PIO when DMA is temporarily
+		 * unavailable.  For their sakes, both transfer_buffer and
+		 * transfer_dma are set when possible.  However this can only
+		 * work on systems without HIGHMEM, since DMA buffers located
+		 * in high memory are not directly addressable by the CPU for
+		 * PIO ... so when HIGHMEM is in use, transfer_buffer is NULL
+		 * to prevent stale pointers and to help spot bugs.
+		 */
 		if (dma) {
-			/* hc may use _only_ transfer_dma */
 			io->urbs [i]->transfer_dma = sg_dma_address (sg + i);
 			len = sg_dma_len (sg + i);
+#ifdef CONFIG_HIGHMEM
+			io->urbs[i]->transfer_buffer = NULL;
+#else
+			io->urbs[i]->transfer_buffer =
+				page_address(sg[i].page) + sg[i].offset;
+#endif
 		} else {
 			/* hc may use _only_ transfer_buffer */
 			io->urbs [i]->transfer_buffer =
@@ -685,7 +705,10 @@ static int usb_string_sub(struct usb_device *dev, unsigned int langid,
 
 	/* Try to read the string descriptor by asking for the maximum
 	 * possible number of bytes */
-	rc = usb_get_string(dev, langid, index, buf, 255);
+	if (dev->quirks & USB_QUIRK_STRING_FETCH_255)
+		rc = -EIO;
+	else
+		rc = usb_get_string(dev, langid, index, buf, 255);
 
 	/* If that failed try to read the descriptor length, then
 	 * ask for just that many bytes */
@@ -1296,7 +1319,7 @@ int usb_reset_configuration(struct usb_device *dev)
 	return 0;
 }
 
-static void release_interface(struct device *dev)
+void usb_release_interface(struct device *dev)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_interface_cache *intfc =
@@ -1305,6 +1328,67 @@ static void release_interface(struct device *dev)
 	kref_put(&intfc->ref, usb_release_interface_cache);
 	kfree(intf);
 }
+
+#ifdef	CONFIG_HOTPLUG
+static int usb_if_uevent(struct device *dev, char **envp, int num_envp,
+		 char *buffer, int buffer_size)
+{
+	struct usb_device *usb_dev;
+	struct usb_interface *intf;
+	struct usb_host_interface *alt;
+	int i = 0;
+	int length = 0;
+
+	if (!dev)
+		return -ENODEV;
+
+	/* driver is often null here; dev_dbg() would oops */
+	pr_debug ("usb %s: uevent\n", dev->bus_id);
+
+	intf = to_usb_interface(dev);
+	usb_dev = interface_to_usbdev(intf);
+	alt = intf->cur_altsetting;
+
+	if (add_uevent_var(envp, num_envp, &i,
+		   buffer, buffer_size, &length,
+		   "INTERFACE=%d/%d/%d",
+		   alt->desc.bInterfaceClass,
+		   alt->desc.bInterfaceSubClass,
+		   alt->desc.bInterfaceProtocol))
+		return -ENOMEM;
+
+	if (add_uevent_var(envp, num_envp, &i,
+		   buffer, buffer_size, &length,
+		   "MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
+		   le16_to_cpu(usb_dev->descriptor.idVendor),
+		   le16_to_cpu(usb_dev->descriptor.idProduct),
+		   le16_to_cpu(usb_dev->descriptor.bcdDevice),
+		   usb_dev->descriptor.bDeviceClass,
+		   usb_dev->descriptor.bDeviceSubClass,
+		   usb_dev->descriptor.bDeviceProtocol,
+		   alt->desc.bInterfaceClass,
+		   alt->desc.bInterfaceSubClass,
+		   alt->desc.bInterfaceProtocol))
+		return -ENOMEM;
+
+	envp[i] = NULL;
+	return 0;
+}
+
+#else
+
+static int usb_if_uevent(struct device *dev, char **envp,
+			 int num_envp, char *buffer, int buffer_size)
+{
+	return -ENODEV;
+}
+#endif	/* CONFIG_HOTPLUG */
+
+struct device_type usb_if_device_type = {
+	.name =		"usb_interface",
+	.release =	usb_release_interface,
+	.uevent =	usb_if_uevent,
+};
 
 /*
  * usb_set_configuration - Makes a particular device setting be current
@@ -1315,6 +1399,14 @@ static void release_interface(struct device *dev)
  * This is used to enable non-default device modes.  Not all devices
  * use this kind of configurability; many devices only have one
  * configuration.
+ *
+ * @configuration is the value of the configuration to be installed.
+ * According to the USB spec (e.g. section 9.1.1.5), configuration values
+ * must be non-zero; a value of zero indicates that the device in
+ * unconfigured.  However some devices erroneously use 0 as one of their
+ * configuration values.  To help manage such devices, this routine will
+ * accept @configuration = -1 as indicating the device should be put in
+ * an unconfigured state.
  *
  * USB device configurations may affect Linux interoperability,
  * power consumption and the functionality available.  For example,
@@ -1332,7 +1424,7 @@ static void release_interface(struct device *dev)
  *
  * This call is synchronous. The calling context must be able to sleep,
  * must own the device lock, and must not hold the driver model's USB
- * bus rwsem; usb device driver probe() methods cannot use this routine.
+ * bus mutex; usb device driver probe() methods cannot use this routine.
  *
  * Returns zero on success, or else the status code returned by the
  * underlying call that failed.  On successful completion, each interface
@@ -1347,10 +1439,15 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	struct usb_interface **new_interfaces = NULL;
 	int n, nintf;
 
-	for (i = 0; i < dev->descriptor.bNumConfigurations; i++) {
-		if (dev->config[i].desc.bConfigurationValue == configuration) {
-			cp = &dev->config[i];
-			break;
+	if (configuration == -1)
+		configuration = 0;
+	else {
+		for (i = 0; i < dev->descriptor.bNumConfigurations; i++) {
+			if (dev->config[i].desc.bConfigurationValue ==
+					configuration) {
+				cp = &dev->config[i];
+				break;
+			}
 		}
 	}
 	if ((!cp && configuration != 0))
@@ -1359,6 +1456,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	/* The USB spec says configuration 0 means unconfigured.
 	 * But if a device includes a configuration numbered 0,
 	 * we will accept it as a correctly configured state.
+	 * Use -1 if you really want to unconfigure the device.
 	 */
 	if (cp && configuration == 0)
 		dev_warn(&dev->dev, "config 0 descriptor??\n");
@@ -1455,8 +1553,8 @@ free_interfaces:
 		intf->dev.parent = &dev->dev;
 		intf->dev.driver = NULL;
 		intf->dev.bus = &usb_bus_type;
+		intf->dev.type = &usb_if_device_type;
 		intf->dev.dma_mask = dev->dev.dma_mask;
-		intf->dev.release = release_interface;
 		device_initialize (&intf->dev);
 		mark_quiesced(intf);
 		sprintf (&intf->dev.bus_id[0], "%d-%s:%d.%d",

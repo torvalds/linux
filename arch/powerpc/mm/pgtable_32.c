@@ -183,8 +183,8 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 	 * mem_init() sets high_memory so only do the check after that.
 	 */
 	if (mem_init_done && (p < virt_to_phys(high_memory))) {
-		printk("__ioremap(): phys addr "PHYS_FMT" is RAM lr %p\n", p,
-		       __builtin_return_address(0));
+		printk("__ioremap(): phys addr 0x%llx is RAM lr %p\n",
+		       (unsigned long long)p, __builtin_return_address(0));
 		return NULL;
 	}
 
@@ -266,9 +266,12 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 	pg = pte_alloc_kernel(pd, va);
 	if (pg != 0) {
 		err = 0;
-		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT, __pgprot(flags)));
-		if (mem_init_done)
-			flush_HPTE(0, va, pmd_val(*pd));
+		/* The PTE should never be already set nor present in the
+		 * hash table
+		 */
+		BUG_ON(pte_val(*pg) & (_PAGE_PRESENT | _PAGE_HASHPTE));
+		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT,
+						     __pgprot(flags)));
 	}
 	return err;
 }
@@ -279,16 +282,19 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 void __init mapin_ram(void)
 {
 	unsigned long v, p, s, f;
+	int ktext;
 
 	s = mmu_mapin_ram();
 	v = KERNELBASE + s;
 	p = PPC_MEMSTART + s;
 	for (; s < total_lowmem; s += PAGE_SIZE) {
-		if ((char *) v >= _stext && (char *) v < etext)
-			f = _PAGE_RAM_TEXT;
-		else
-			f = _PAGE_RAM;
+		ktext = ((char *) v >= _stext && (char *) v < etext);
+		f = ktext ?_PAGE_RAM_TEXT : _PAGE_RAM;
 		map_page(v, p, f);
+#ifdef CONFIG_PPC_STD_MMU_32
+		if (ktext)
+			hash_preload(&init_mm, v, 0, 0x300);
+#endif
 		v += PAGE_SIZE;
 		p += PAGE_SIZE;
 	}
@@ -445,3 +451,55 @@ exit:
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+
+static int __change_page_attr(struct page *page, pgprot_t prot)
+{
+	pte_t *kpte;
+	pmd_t *kpmd;
+	unsigned long address;
+
+	BUG_ON(PageHighMem(page));
+	address = (unsigned long)page_address(page);
+
+	if (v_mapped_by_bats(address) || v_mapped_by_tlbcam(address))
+		return 0;
+	if (!get_pteptr(&init_mm, address, &kpte, &kpmd))
+		return -EINVAL;
+	set_pte_at(&init_mm, address, kpte, mk_pte(page, prot));
+	wmb();
+	flush_HPTE(0, address, pmd_val(*kpmd));
+	pte_unmap(kpte);
+
+	return 0;
+}
+
+/*
+ * Change the page attributes of an page in the linear mapping.
+ *
+ * THIS CONFLICTS WITH BAT MAPPINGS, DEBUG USE ONLY
+ */
+static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
+{
+	int i, err = 0;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	for (i = 0; i < numpages; i++, page++) {
+		err = __change_page_attr(page, prot);
+		if (err)
+			break;
+	}
+	local_irq_restore(flags);
+	return err;
+}
+
+
+void kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	if (PageHighMem(page))
+		return;
+
+	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
+}
+#endif /* CONFIG_DEBUG_PAGEALLOC */

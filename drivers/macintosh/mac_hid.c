@@ -102,8 +102,6 @@ int mac_hid_mouse_emulate_buttons(int caller, unsigned int keycode, int down)
 	return 0;
 }
 
-EXPORT_SYMBOL(mac_hid_mouse_emulate_buttons);
-
 static int emumousebtn_input_register(void)
 {
 	int ret;

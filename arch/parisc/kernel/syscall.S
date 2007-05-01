@@ -12,9 +12,10 @@
 #include <asm/errno.h>
 #include <asm/psw.h>
 #include <asm/thread_info.h>
-
 #include <asm/assembly.h>
 #include <asm/processor.h>
+
+#include <linux/linkage.h>
 
 	/* We fill the empty parts of the gateway page with
  	 * something that will kill the kernel or a
@@ -22,17 +23,12 @@
 	 */
 #define KILL_INSN	break	0,0
 
-#ifdef CONFIG_64BIT
-	.level          2.0w
-#else
-	.level		1.1
-#endif
+	.level          LEVEL
 
 	.text
 
 	.import syscall_exit,code
 	.import syscall_exit_rfi,code
-	.export linux_gateway_page
 
 	/* Linux gateway page is aliased to virtual page 0 in the kernel
 	 * address space. Since it is a gateway page it cannot be
@@ -43,7 +39,7 @@
 	 */
 
 	.align ASM_PAGE_SIZE
-linux_gateway_page:
+ENTRY(linux_gateway_page)
 
         /* ADDRESS 0x00 to 0xb0 = 176 bytes / 4 bytes per insn = 44 insns */
 	.rept 44
@@ -595,73 +591,43 @@ cas_action:
 	   the other for the store. Either return -EFAULT.
 	   Each of the entries must be relocated. */
 	.section __ex_table,"aw"
-#ifdef CONFIG_64BIT
-	/* Pad the address calculation */
-	.word	0,(2b - linux_gateway_page)
-	.word	0,(3b - linux_gateway_page)
-#else
-	.word	(2b - linux_gateway_page)
-	.word	(3b - linux_gateway_page)
-#endif
+	ASM_ULONG_INSN (1b - linux_gateway_page), (3b - linux_gateway_page)
+	ASM_ULONG_INSN (2b - linux_gateway_page), (3b - linux_gateway_page)
 	.previous
 
-	.section __ex_table,"aw"
-#ifdef CONFIG_64BIT
-	/* Pad the address calculation */
-	.word	0,(1b - linux_gateway_page)
-	.word	0,(3b - linux_gateway_page)
-#else
-	.word	(1b - linux_gateway_page)
-	.word	(3b - linux_gateway_page)
-#endif
-	.previous
-
-end_compare_and_swap:
 
 	/* Make sure nothing else is placed on this page */
 	.align ASM_PAGE_SIZE
-	.export end_linux_gateway_page
-end_linux_gateway_page:
+END(linux_gateway_page)
+ENTRY(end_linux_gateway_page)
 
 	/* Relocate symbols assuming linux_gateway_page is mapped
 	   to virtual address 0x0 */
-#ifdef CONFIG_64BIT
-	/* FIXME: The code will always be on the gateay page
-		  and thus it will be on the first 4k, the
-		  assembler seems to think that the final
-		  subtraction result is only a word in
-		  length, so we pad the value.
-	*/
-#define LWS_ENTRY(_name_) .word 0,(lws_##_name_ - linux_gateway_page)
-#else
-#define LWS_ENTRY(_name_) .word  (lws_##_name_ - linux_gateway_page)
-#endif
+
+#define LWS_ENTRY(_name_) ASM_ULONG_INSN (lws_##_name_ - linux_gateway_page)
 
 	.section .rodata,"a"
 
 	.align ASM_PAGE_SIZE
 	/* Light-weight-syscall table */
 	/* Start of lws table. */
-	.export lws_table
-.Llws_table:
-lws_table:
+ENTRY(lws_table)
 	LWS_ENTRY(compare_and_swap32)	/* 0 - ELF32 Atomic compare and swap */
 	LWS_ENTRY(compare_and_swap64)	/* 1 - ELF64 Atomic compare and swap */
+END(lws_table)
 	/* End of lws table */
 
 	.align ASM_PAGE_SIZE
-	.export sys_call_table
-.Lsys_call_table:
-sys_call_table:
+ENTRY(sys_call_table)
 #include "syscall_table.S"
+END(sys_call_table)
 
 #ifdef CONFIG_64BIT
 	.align ASM_PAGE_SIZE
-	.export sys_call_table64
-.Lsys_call_table64:
-sys_call_table64:
+ENTRY(sys_call_table64)
 #define SYSCALL_TABLE_64BIT
 #include "syscall_table.S"
+END(sys_call_table64)
 #endif
 
 #ifdef CONFIG_SMP
@@ -671,9 +637,7 @@ sys_call_table64:
 	*/
 	.section .data
 	.align 4096
-	.export lws_lock_start
-.Llws_lock_start:
-lws_lock_start:
+ENTRY(lws_lock_start)
 	/* lws locks */
 	.align 16
 	.rept 16
@@ -683,6 +647,7 @@ lws_lock_start:
 	.word 0
 	.word 0
 	.endr
+END(lws_lock_start)
 	.previous
 #endif
 /* CONFIG_SMP for lws_lock_start */

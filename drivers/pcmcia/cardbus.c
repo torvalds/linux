@@ -40,8 +40,6 @@
 
 /*====================================================================*/
 
-#define FIND_FIRST_BIT(n)	((n) - ((n) & ((n)-1)))
-
 /* Offsets in the Expansion ROM Image Header */
 #define ROM_SIGNATURE		0x0000	/* 2 bytes */
 #define ROM_DATA_PTR		0x0018	/* 2 bytes */

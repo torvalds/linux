@@ -5,23 +5,23 @@
  * Current Maintainer: Lennert Buytenhek <buytenh@wantstofly.org>
  *
  * Copyright 2004 (C) Intel Corp.
- * Copyright 2005 (c) MontaVista Software, Inc.
+ * Copyright 2005 (C) MontaVista Software, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * MMU functions for the Intel XScale3 Core (XSC3).  The XSC3 core is an
- * extension to Intel's original XScale core that adds the following
+ * MMU functions for the Intel XScale3 Core (XSC3).  The XSC3 core is
+ * an extension to Intel's original XScale core that adds the following
  * features:
  *
  * - ARMv6 Supersections
  * - Low Locality Reference pages (replaces mini-cache)
  * - 36-bit addressing
  * - L2 cache
- * - Cache-coherency if chipset supports it
+ * - Cache coherency if chipset supports it
  *
- * Based on orignal XScale code by Nicolas Pitre
+ * Based on original XScale code by Nicolas Pitre.
  */
 
 #include <linux/linkage.h>
@@ -42,12 +42,12 @@
 #define MAX_AREA_SIZE	32768
 
 /*
- * The cache line size of the I and D cache.
+ * The cache line size of the L1 I, L1 D and unified L2 cache.
  */
 #define CACHELINESIZE	32
 
 /*
- * The size of the data cache.
+ * The size of the L1 D cache.
  */
 #define CACHESIZE	32768
 
@@ -57,9 +57,9 @@
 #define L2_CACHE_ENABLE	1
 
 /*
- * This macro is used to wait for a CP15 write and is needed
- * when we have to ensure that the last operation to the co-pro
- * was completed before continuing with operation.
+ * This macro is used to wait for a CP15 write and is needed when we
+ * have to ensure that the last operation to the coprocessor was
+ * completed before continuing with operation.
  */
 	.macro	cpwait_ret, lr, rd
 	mrc	p15, 0, \rd, c2, c0, 0		@ arbitrary read of cp15
@@ -68,13 +68,13 @@
 	.endm
 
 /*
- * This macro cleans & invalidates the entire xsc3 dcache by set & way.
+ * This macro cleans and invalidates the entire L1 D cache.
  */
 
  	.macro  clean_d_cache rd, rs
 	mov	\rd, #0x1f00
 	orr	\rd, \rd, #0x00e0
-1:	mcr	p15, 0, \rd, c7, c14, 2		@ clean/inv set/way
+1:	mcr	p15, 0, \rd, c7, c14, 2		@ clean/invalidate L1 D line
 	adds	\rd, \rd, #0x40000000
 	bcc	1b
 	subs	\rd, \rd, #0x20
@@ -119,15 +119,15 @@ ENTRY(cpu_xsc3_reset)
 	mov	r1, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
 	msr	cpsr_c, r1			@ reset CPSR
 	mrc	p15, 0, r1, c1, c0, 0		@ ctrl register
-	bic	r1, r1, #0x0086			@ ........B....CA.
 	bic	r1, r1, #0x3900			@ ..VIZ..S........
+	bic	r1, r1, #0x0086			@ ........B....CA.
 	mcr	p15, 0, r1, c1, c0, 0		@ ctrl register
-	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches & BTB
+	mcr	p15, 0, ip, c7, c7, 0		@ invalidate L1 caches and BTB
 	bic	r1, r1, #0x0001			@ ...............M
 	mcr	p15, 0, r1, c1, c0, 0		@ ctrl register
 	@ CAUTION: MMU turned off from this point.  We count on the pipeline
 	@ already containing those two last instructions to survive.
-	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
+	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I and D TLBs
 	mov	pc, r0
 
 /*
@@ -139,14 +139,12 @@ ENTRY(cpu_xsc3_reset)
  *
  * XScale supports clock switching, but using idle mode support
  * allows external hardware to react to system state changes.
-
- MMG: Come back to this one.
  */
 	.align	5
 
 ENTRY(cpu_xsc3_do_idle)
 	mov	r0, #1
-	mcr	p14, 0, r0, c7, c0, 0		@ Go to IDLE
+	mcr	p14, 0, r0, c7, c0, 0		@ go to idle
 	mov	pc, lr
 
 /* ================================= CACHE ================================ */
@@ -171,9 +169,9 @@ ENTRY(xsc3_flush_kern_cache_all)
 __flush_whole_cache:
 	clean_d_cache r0, r1
 	tst	r2, #VM_EXEC
-	mcrne	p15, 0, ip, c7, c5, 0		@ Invalidate I cache & BTB
-	mcrne	p15, 0, ip, c7, c10, 4		@ Drain Write Buffer
-	mcrne	p15, 0, ip, c7, c5, 4		@ Prefetch Flush
+	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate L1 I cache and BTB
+	mcrne	p15, 0, ip, c7, c10, 4		@ data write barrier
+	mcrne	p15, 0, ip, c7, c5, 4		@ prefetch flush
 	mov	pc, lr
 
 /*
@@ -194,21 +192,21 @@ ENTRY(xsc3_flush_user_cache_range)
 	bhs	__flush_whole_cache
 
 1:	tst	r2, #VM_EXEC
-	mcrne	p15, 0, r0, c7, c5, 1		@ Invalidate I cache line
-	mcr	p15, 0, r0, c7, c14, 1		@ Clean/invalidate D cache line
+	mcrne	p15, 0, r0, c7, c5, 1		@ invalidate L1 I line
+	mcr	p15, 0, r0, c7, c14, 1		@ clean/invalidate L1 D line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
 	tst	r2, #VM_EXEC
-	mcrne	p15, 0, ip, c7, c5, 6		@ Invalidate BTB
-	mcrne	p15, 0, ip, c7, c10, 4		@ Drain Write Buffer
-	mcrne	p15, 0, ip, c7, c5, 4		@ Prefetch Flush
+	mcrne	p15, 0, ip, c7, c5, 6		@ invalidate BTB
+	mcrne	p15, 0, ip, c7, c10, 4		@ data write barrier
+	mcrne	p15, 0, ip, c7, c5, 4		@ prefetch flush
 	mov	pc, lr
 
 /*
  *	coherent_kern_range(start, end)
  *
- *	Ensure coherency between the Icache and the Dcache in the
+ *	Ensure coherency between the I cache and the D cache in the
  *	region described by start.  If you have non-snooping
  *	Harvard caches, you need to implement this function.
  *
@@ -222,34 +220,34 @@ ENTRY(xsc3_coherent_kern_range)
 /* FALLTHROUGH */
 ENTRY(xsc3_coherent_user_range)
 	bic	r0, r0, #CACHELINESIZE - 1
-1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
+1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
 	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 0		@ Invalidate I cache & BTB
-	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write Buffer
-	mcr	p15, 0, r0, c7, c5, 4		@ Prefetch Flush
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate L1 I cache and BTB
+	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
+	mcr	p15, 0, r0, c7, c5, 4		@ prefetch flush
 	mov	pc, lr
 
 /*
  *	flush_kern_dcache_page(void *page)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
- *	the I cache
+ *	the I cache.
  *
  *	- addr	- page aligned address
  */
 ENTRY(xsc3_flush_kern_dcache_page)
 	add	r1, r0, #PAGE_SZ
-1:	mcr	p15, 0, r0, c7, c14, 1		@ Clean/Invalidate D Cache line
+1:	mcr	p15, 0, r0, c7, c14, 1		@ clean/invalidate L1 D line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
 	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 0		@ Invalidate I cache & BTB
-	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write Buffer
-	mcr	p15, 0, r0, c7, c5, 4		@ Prefetch Flush
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate L1 I cache and BTB
+	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
+	mcr	p15, 0, r0, c7, c5, 4		@ prefetch flush
 	mov	pc, lr
 
 /*
@@ -266,17 +264,17 @@ ENTRY(xsc3_flush_kern_dcache_page)
 ENTRY(xsc3_dma_inv_range)
 	tst	r0, #CACHELINESIZE - 1
 	bic	r0, r0, #CACHELINESIZE - 1
-	mcrne	p15, 0, r0, c7, c10, 1		@ clean L1 D entry
-	mcrne	p15, 1, r0, c7, c11, 1		@ clean L2 D entry
+	mcrne	p15, 0, r0, c7, c10, 1		@ clean L1 D line
+	mcrne	p15, 1, r0, c7, c11, 1		@ clean L2 line
 	tst	r1, #CACHELINESIZE - 1
-	mcrne	p15, 0, r1, c7, c10, 1		@ clean L1 D entry
-	mcrne	p15, 1, r1, c7, c11, 1		@ clean L2 D entry
-1:	mcr	p15, 0, r0, c7, c6, 1		@ invalidate L1 D entry
-	mcr	p15, 1, r0, c7, c7, 1		@ Invalidate L2 D cache line
+	mcrne	p15, 0, r1, c7, c10, 1		@ clean L1 D line
+	mcrne	p15, 1, r1, c7, c11, 1		@ clean L2 line
+1:	mcr	p15, 0, r0, c7, c6, 1		@ invalidate L1 D line
+	mcr	p15, 1, r0, c7, c7, 1		@ invalidate L2 line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
-	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write Buffer
+	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	mov	pc, lr
 
 /*
@@ -289,12 +287,12 @@ ENTRY(xsc3_dma_inv_range)
  */
 ENTRY(xsc3_dma_clean_range)
 	bic	r0, r0, #CACHELINESIZE - 1
-1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D entry
-	mcr	p15, 1, r0, c7, c11, 1		@ clean L2 D entry
+1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
+	mcr	p15, 1, r0, c7, c11, 1		@ clean L2 line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
-	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write Buffer
+	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	mov	pc, lr
 
 /*
@@ -307,13 +305,13 @@ ENTRY(xsc3_dma_clean_range)
  */
 ENTRY(xsc3_dma_flush_range)
 	bic	r0, r0, #CACHELINESIZE - 1
-1:	mcr	p15, 0, r0, c7, c14, 1	@ Clean/invalidate L1 D cache line
-	mcr	p15, 1, r0, c7, c11, 1	@ Clean L2 D cache line
-	mcr	p15, 1, r0, c7, c7, 1	@ Invalidate L2 D cache line
+1:	mcr	p15, 0, r0, c7, c14, 1		@ clean/invalidate L1 D line
+	mcr	p15, 1, r0, c7, c11, 1		@ clean L2 line
+	mcr	p15, 1, r0, c7, c7, 1		@ invalidate L2 line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
-	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write Buffer
+	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	mov	pc, lr
 
 ENTRY(xsc3_cache_fns)
@@ -328,7 +326,7 @@ ENTRY(xsc3_cache_fns)
 	.long	xsc3_dma_flush_range
 
 ENTRY(cpu_xsc3_dcache_clean_area)
-1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
+1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
 	add	r0, r0, #CACHELINESIZE
 	subs	r1, r1, #CACHELINESIZE
 	bhi	1b
@@ -346,14 +344,14 @@ ENTRY(cpu_xsc3_dcache_clean_area)
 	.align	5
 ENTRY(cpu_xsc3_switch_mm)
 	clean_d_cache r1, r2
-	mcr	p15, 0, ip, c7, c5, 0		@ Invalidate I cache & BTB
-	mcr	p15, 0, ip, c7, c10, 4		@ Drain Write Buffer
-	mcr	p15, 0, ip, c7, c5, 4		@ Prefetch Flush
+	mcr	p15, 0, ip, c7, c5, 0		@ invalidate L1 I cache and BTB
+	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
+	mcr	p15, 0, ip, c7, c5, 4		@ prefetch flush
 #ifdef L2_CACHE_ENABLE
 	orr	r0, r0, #0x18			@ cache the page table in L2
 #endif
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
-	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
+	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I and D TLBs
 	cpwait_ret lr, ip
 
 /*
@@ -366,34 +364,34 @@ ENTRY(cpu_xsc3_switch_mm)
 ENTRY(cpu_xsc3_set_pte_ext)
 	str	r1, [r0], #-2048		@ linux version
 
-	bic	r2, r1, #0xff0			@ Keep C, B bits
+	bic	r2, r1, #0xff0			@ keep C, B bits
 	orr	r2, r2, #PTE_TYPE_EXT		@ extended page
-	tst	r1, #L_PTE_SHARED		@ Shared?
+	tst	r1, #L_PTE_SHARED		@ shared?
 	orrne	r2, r2, #0x200
 
 	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
 
-	tst	r3, #L_PTE_USER			@ User?
+	tst	r3, #L_PTE_USER			@ user?
 	orrne	r2, r2, #PTE_EXT_AP_URO_SRW	@ yes -> user r/o, system r/w
 
-	tst	r3, #L_PTE_WRITE | L_PTE_DIRTY	@ Write and Dirty?
+	tst	r3, #L_PTE_WRITE | L_PTE_DIRTY	@ write and dirty?
 	orreq	r2, r2, #PTE_EXT_AP_UNO_SRW	@ yes -> user n/a, system r/w
 						@ combined with user -> user r/w
 
 #if L2_CACHE_ENABLE
-	@ If its cacheable it needs to be in L2 also.
+	@ If it's cacheable, it needs to be in L2 also.
 	eor	ip, r1, #L_PTE_CACHEABLE
 	tst	ip, #L_PTE_CACHEABLE
 	orreq	r2, r2, #PTE_EXT_TEX(0x5)
 #endif
 
-	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ Present and Young?
+	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ present and young?
 	movne	r2, #0				@ no -> fault
 
 	str	r2, [r0]			@ hardware version
 	mov	ip, #0
-	mcr	p15, 0, r0, c7, c10, 1		@ Clean D cache line mcr
-	mcr	p15, 0, ip, c7, c10, 4		@ Drain Write Buffer
+	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
+	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
 	mov	pc, lr
 
 	.ltorg
@@ -406,17 +404,18 @@ ENTRY(cpu_xsc3_set_pte_ext)
 __xsc3_setup:
 	mov	r0, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
 	msr	cpsr_c, r0
-	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I, D caches & BTB
-	mcr	p15, 0, ip, c7, c10, 4		@ Drain Write Buffer
-	mcr	p15, 0, ip, c7, c5, 4		@ Prefetch Flush
-	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I, D TLBs
+	mcr	p15, 0, ip, c7, c7, 0		@ invalidate L1 caches and BTB
+	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
+	mcr	p15, 0, ip, c7, c5, 4		@ prefetch flush
+	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I and D TLBs
 #if L2_CACHE_ENABLE
 	orr	r4, r4, #0x18			@ cache the page table in L2
 #endif
 	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
-	mov	r0, #1				@ Allow access to CP0 and CP13
-	orr	r0, r0, #1 << 13		@ Its undefined whether this
-	mcr	p15, 0, r0, c15, c1, 0		@ affects USR or SVC modes
+
+	mov	r0, #0				@ don't allow CP access
+	mcr	p15, 0, r0, c15, c1, 0		@ write CP access register
+
 	mrc	p15, 0, r0, c1, c0, 1		@ get auxiliary control reg
 	and	r0, r0, #2			@ preserve bit P bit setting
 #if L2_CACHE_ENABLE
@@ -427,9 +426,9 @@ __xsc3_setup:
 	adr	r5, xsc3_crval
 	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0, 0		@ get control register
-	bic	r0, r0, r5			@ .... .... .... ..A.
-	orr	r0, r0, r6			@ .... .... .... .C.M
-	orr	r0, r0, #0x00000800		@ ..VI Z..S .... ....
+	bic	r0, r0, r5			@ ..V. ..R. .... ..A.
+	orr	r0, r0, r6			@ ..VI Z..S .... .C.M (mmu)
+						@ ...I Z..S .... .... (uc)
 #if L2_CACHE_ENABLE
 	orr 	r0, r0, #0x04000000		@ L2 enable
 #endif
@@ -439,7 +438,7 @@ __xsc3_setup:
 
 	.type	xsc3_crval, #object
 xsc3_crval:
-	crval	clear=0x04003b02, mmuset=0x00003105, ucset=0x00001100
+	crval	clear=0x04002202, mmuset=0x00003905, ucset=0x00001900
 
 	__INITDATA
 
@@ -474,7 +473,7 @@ cpu_elf_name:
 
 	.type	cpu_xsc3_name, #object
 cpu_xsc3_name:
-	.asciz	"XScale-Core3"
+	.asciz	"XScale-V3 based processor"
 	.size	cpu_xsc3_name, . - cpu_xsc3_name
 
 	.align
@@ -490,7 +489,7 @@ __xsc3_proc_info:
 		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
-	.long   PMD_TYPE_SECT | \
+	.long	PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
 	b	__xsc3_setup

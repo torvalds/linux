@@ -43,8 +43,7 @@ struct hdlc_proto {
 	void (*stop)(struct net_device *dev); /* if open & !DCD */
 	void (*detach)(struct net_device *dev);
 	int (*ioctl)(struct net_device *dev, struct ifreq *ifr);
-	unsigned short (*type_trans)(struct sk_buff *skb,
-				     struct net_device *dev);
+	__be16 (*type_trans)(struct sk_buff *skb, struct net_device *dev);
 	struct module *module;
 	struct hdlc_proto *next; /* next protocol in the list */
 };
@@ -132,8 +131,8 @@ static __inline__ __be16 hdlc_type_trans(struct sk_buff *skb,
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 
-	skb->mac.raw  = skb->data;
-	skb->dev      = dev;
+	skb->dev = dev;
+	skb_reset_mac_header(skb);
 
 	if (hdlc->proto->type_trans)
 		return hdlc->proto->type_trans(skb, dev);

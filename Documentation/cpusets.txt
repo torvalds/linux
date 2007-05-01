@@ -557,6 +557,9 @@ Set some flags:
 Add some cpus:
 # /bin/echo 0-7 > cpus
 
+Add some mems:
+# /bin/echo 0-7 > mems
+
 Now attach your shell to this cpuset:
 # /bin/echo $$ > tasks
 

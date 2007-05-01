@@ -23,7 +23,7 @@ Index
 
 1. Copyright
 ============
-Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>
+Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>
 
 
 2. Disclaimer
@@ -135,8 +135,9 @@ And finally:
 6. Module loading
 =================
 To use the driver, it is necessary to load the "et61x251" module into memory
-after every other module required: "videodev", "usbcore" and, depending on
-the USB host controller you have, "ehci-hcd", "uhci-hcd" or "ohci-hcd".
+after every other module required: "videodev", "v4l2_common", "compat_ioctl32",
+"usbcore" and, depending on the USB host controller you have, "ehci-hcd",
+"uhci-hcd" or "ohci-hcd".
 
 Loading can be done as shown below:
 

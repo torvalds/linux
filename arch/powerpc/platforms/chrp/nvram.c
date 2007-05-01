@@ -74,7 +74,7 @@ void __init chrp_nvram_init(void)
 	if (nvram == NULL)
 		return;
 
-	nbytes_p = get_property(nvram, "#bytes", &proplen);
+	nbytes_p = of_get_property(nvram, "#bytes", &proplen);
 	if (nbytes_p == NULL || proplen != sizeof(unsigned int))
 		return;
 

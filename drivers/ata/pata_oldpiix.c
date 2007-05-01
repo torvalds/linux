@@ -25,7 +25,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_oldpiix"
-#define DRV_VERSION	"0.5.3"
+#define DRV_VERSION	"0.5.5"
 
 /**
  *	oldpiix_pre_reset		-	probe begin
@@ -44,7 +44,6 @@ static int oldpiix_pre_reset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &oldpiix_enable_bits[ap->port_no]))
 		return -ENOENT;
-	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
 
@@ -65,7 +64,7 @@ static void oldpiix_pata_error_handler(struct ata_port *ap)
 /**
  *	oldpiix_set_piomode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
- *	@adev: um
+ *	@adev: Device whose timings we are configuring
  *
  *	Set PIO mode for device, in host controller PCI config space.
  *
@@ -209,10 +208,9 @@ static unsigned int oldpiix_qc_issue_prot(struct ata_queued_cmd *qc)
 	struct ata_device *adev = qc->dev;
 
 	if (adev != ap->private_data) {
+		oldpiix_set_piomode(ap, adev);
 		if (adev->dma_mode)
 			oldpiix_set_dmamode(ap, adev);
-		else if (adev->pio_mode)
-			oldpiix_set_piomode(ap, adev);
 	}
 	return ata_qc_issue_prot(qc);
 }
@@ -234,8 +232,10 @@ static struct scsi_host_template oldpiix_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.resume			= ata_scsi_device_resume,
 	.suspend		= ata_scsi_device_suspend,
+#endif
 };
 
 static const struct ata_port_operations oldpiix_pata_ops = {
@@ -254,6 +254,7 @@ static const struct ata_port_operations oldpiix_pata_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= oldpiix_pata_error_handler,
 	.post_internal_cmd 	= ata_bmdma_post_internal_cmd,
+	.cable_detect		= ata_cable_40wire,
 
 	.bmdma_setup		= ata_bmdma_setup,
 	.bmdma_start		= ata_bmdma_start,
@@ -317,8 +318,10 @@ static struct pci_driver oldpiix_pci_driver = {
 	.id_table		= oldpiix_pci_tbl,
 	.probe			= oldpiix_init_one,
 	.remove			= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend		= ata_pci_device_suspend,
 	.resume			= ata_pci_device_resume,
+#endif
 };
 
 static int __init oldpiix_init(void)

@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/namei.h>
 #include <linux/debugfs.h>
 
 static ssize_t default_read_file(struct file *file, char __user *buf,
@@ -42,6 +43,17 @@ const struct file_operations debugfs_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
+};
+
+static void *debugfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+{
+	nd_set_link(nd, dentry->d_inode->i_private);
+	return NULL;
+}
+
+const struct inode_operations debugfs_link_operations = {
+	.readlink       = generic_readlink,
+	.follow_link    = debugfs_follow_link,
 };
 
 static void debugfs_u8_set(void *data, u64 val)
@@ -166,6 +178,48 @@ struct dentry *debugfs_create_u32(const char *name, mode_t mode,
 	return debugfs_create_file(name, mode, parent, value, &fops_u32);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u32);
+
+static void debugfs_u64_set(void *data, u64 val)
+{
+	*(u64 *)data = val;
+}
+
+static u64 debugfs_u64_get(void *data)
+{
+	return *(u64 *)data;
+}
+DEFINE_SIMPLE_ATTRIBUTE(fops_u64, debugfs_u64_get, debugfs_u64_set, "%llu\n");
+
+/**
+ * debugfs_create_u64 - create a debugfs file that is used to read and write an unsigned 64-bit value
+ * @name: a pointer to a string containing the name of the file to create.
+ * @mode: the permission that the file should have
+ * @parent: a pointer to the parent dentry for this file.  This should be a
+ *          directory dentry if set.  If this parameter is %NULL, then the
+ *          file will be created in the root of the debugfs filesystem.
+ * @value: a pointer to the variable that the file should read to and write
+ *         from.
+ *
+ * This function creates a file in debugfs with the given name that
+ * contains the value of the variable @value.  If the @mode variable is so
+ * set, it can be read from, and written to.
+ *
+ * This function will return a pointer to a dentry if it succeeds.  This
+ * pointer must be passed to the debugfs_remove() function when the file is
+ * to be removed (no automatic cleanup happens if your module is unloaded,
+ * you are responsible here.)  If an error occurs, %NULL will be returned.
+ *
+ * If debugfs is not enabled in the kernel, the value -%ENODEV will be
+ * returned.  It is not wise to check for this value, but rather, check for
+ * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
+ * code.
+ */
+struct dentry *debugfs_create_u64(const char *name, mode_t mode,
+				 struct dentry *parent, u64 *value)
+{
+	return debugfs_create_file(name, mode, parent, value, &fops_u64);
+}
+EXPORT_SYMBOL_GPL(debugfs_create_u64);
 
 static ssize_t read_file_bool(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)

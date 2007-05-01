@@ -148,16 +148,7 @@ extern void dn_fib_rules_cleanup(void);
 extern unsigned dnet_addr_type(__le16 addr);
 extern int dn_fib_lookup(struct flowi *fl, struct dn_fib_res *res);
 
-/*
- * rtnetlink interface
- */
-extern int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
-extern int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
 extern int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb);
-
-extern int dn_fib_rtm_delrule(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
-extern int dn_fib_rtm_newrule(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
-extern int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb);
 
 extern void dn_fib_free_info(struct dn_fib_info *fi);
 

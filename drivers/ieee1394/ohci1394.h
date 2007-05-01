@@ -461,9 +461,7 @@ int ohci1394_register_iso_tasklet(struct ti_ohci *ohci,
 				  struct ohci1394_iso_tasklet *tasklet);
 void ohci1394_unregister_iso_tasklet(struct ti_ohci *ohci,
 				     struct ohci1394_iso_tasklet *tasklet);
-
-/* returns zero if successful, one if DMA context is locked up */
-int ohci1394_stop_context      (struct ti_ohci *ohci, int reg, char *msg);
+int ohci1394_stop_context(struct ti_ohci *ohci, int reg, char *msg);
 struct ti_ohci *ohci1394_get_struct(int card_num);
 
 #endif

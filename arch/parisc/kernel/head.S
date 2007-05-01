@@ -2,7 +2,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999 by Helge Deller
+ * Copyright (C) 1999-2007 by Helge Deller <deller@gmx.de>
  * Copyright 1999 SuSE GmbH (Philipp Rumpf)
  * Copyright 1999 Philipp Rumpf (prumpf@tux.org)
  * Copyright 2000 Hewlett Packard (Paul Bame, bame@puffin.external.hp.com)
@@ -19,16 +19,17 @@
 #include <asm/assembly.h>
 #include <asm/pgtable.h>
 
+#include <linux/linkage.h>
+
 	.level	LEVEL
 
 	.data
-
-	.export boot_args
-boot_args:
+ENTRY(boot_args)
 	.word 0 /* arg0 */
 	.word 0 /* arg1 */
 	.word 0 /* arg2 */
 	.word 0 /* arg3 */
+END(boot_args)
 
 	.text
 	.align	4
@@ -38,10 +39,9 @@ boot_args:
         .import fault_vector_11,code    /* IVA parisc 1.1 32 bit */
 	.import	$global$		/* forward declaration */
 #endif /*!CONFIG_64BIT*/
-	.export stext
 	.export _stext,data		/* Kernel want it this way! */
 _stext:
-stext:
+ENTRY(stext)
 	.proc
 	.callinfo
 
@@ -343,6 +343,9 @@ smp_slave_stext:
 
 	.procend
 #endif /* CONFIG_SMP */
+
+ENDPROC(stext)
+
 #ifndef CONFIG_64BIT
 	.data
 

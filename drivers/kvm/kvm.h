@@ -14,6 +14,7 @@
 
 #include "vmx.h"
 #include <linux/kvm.h>
+#include <linux/kvm_para.h>
 
 #define CR0_PE_MASK (1ULL << 0)
 #define CR0_TS_MASK (1ULL << 3)
@@ -237,6 +238,9 @@ struct kvm_vcpu {
 	unsigned long cr0;
 	unsigned long cr2;
 	unsigned long cr3;
+	gpa_t para_state_gpa;
+	struct page *para_state_page;
+	gpa_t hypercall_gpa;
 	unsigned long cr4;
 	unsigned long cr8;
 	u64 pdptrs[4]; /* pae */
@@ -305,6 +309,7 @@ struct kvm {
 	int busy;
 	unsigned long rmap_overflow;
 	struct list_head vm_list;
+	struct file *filp;
 };
 
 struct kvm_stat {
@@ -339,7 +344,7 @@ struct kvm_arch_ops {
 	int (*vcpu_create)(struct kvm_vcpu *vcpu);
 	void (*vcpu_free)(struct kvm_vcpu *vcpu);
 
-	struct kvm_vcpu *(*vcpu_load)(struct kvm_vcpu *vcpu);
+	void (*vcpu_load)(struct kvm_vcpu *vcpu);
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 	void (*vcpu_decache)(struct kvm_vcpu *vcpu);
 
@@ -382,6 +387,8 @@ struct kvm_arch_ops {
 	int (*run)(struct kvm_vcpu *vcpu, struct kvm_run *run);
 	int (*vcpu_setup)(struct kvm_vcpu *vcpu);
 	void (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
+	void (*patch_hypercall)(struct kvm_vcpu *vcpu,
+				unsigned char *hypercall_addr);
 };
 
 extern struct kvm_stat kvm_stat;
@@ -476,6 +483,8 @@ void kvm_mmu_post_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes);
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
 void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
 
+int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run);
+
 static inline int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 				     u32 error_code)
 {
@@ -523,7 +532,7 @@ static inline struct kvm_mmu_page *page_header(hpa_t shadow_page)
 {
 	struct page *page = pfn_to_page(shadow_page >> PAGE_SHIFT);
 
-	return (struct kvm_mmu_page *)page->private;
+	return (struct kvm_mmu_page *)page_private(page);
 }
 
 static inline u16 read_fs(void)

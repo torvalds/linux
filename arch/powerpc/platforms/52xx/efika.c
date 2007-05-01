@@ -112,7 +112,7 @@ void __init efika_pcisetup(void)
 		return;
 	}
 
-	bus_range = get_property(pcictrl, "bus-range", &len);
+	bus_range = of_get_property(pcictrl, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING EFIKA_PLATFORM_NAME
 		       ": Can't get bus-range for %s\n", pcictrl->full_name);
@@ -158,18 +158,17 @@ void __init efika_pcisetup(void)
 static void efika_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *root;
-	const char *revision = NULL;
-	const char *codegendescription = NULL;
-	const char *codegenvendor = NULL;
+	const char *revision;
+	const char *codegendescription;
+	const char *codegenvendor;
 
 	root = of_find_node_by_path("/");
 	if (!root)
 		return;
 
-	revision = get_property(root, "revision", NULL);
-	codegendescription =
-		    get_property(root, "CODEGEN,description", NULL);
-	codegenvendor = get_property(root, "CODEGEN,vendor", NULL);
+	revision = of_get_property(root, "revision", NULL);
+	codegendescription = of_get_property(root, "CODEGEN,description", NULL);
+	codegenvendor = of_get_property(root, "CODEGEN,vendor", NULL);
 
 	if (codegendescription)
 		seq_printf(m, "machine\t\t: %s\n", codegendescription);

@@ -505,6 +505,8 @@ out:
 	return ret;
 }
 
+EXPORT_SYMBOL(try_to_del_timer_sync);
+
 /**
  * del_timer_sync - deactivate a timer and wait for the handler to finish.
  * @timer: the timer to be deactivated
@@ -695,15 +697,28 @@ static unsigned long cmp_next_hrtimer_event(unsigned long now,
 {
 	ktime_t hr_delta = hrtimer_get_next_event();
 	struct timespec tsdelta;
+	unsigned long delta;
 
 	if (hr_delta.tv64 == KTIME_MAX)
 		return expires;
 
-	if (hr_delta.tv64 <= TICK_NSEC)
-		return now;
+	/*
+	 * Expired timer available, let it expire in the next tick
+	 */
+	if (hr_delta.tv64 <= 0)
+		return now + 1;
 
 	tsdelta = ktime_to_timespec(hr_delta);
-	now += timespec_to_jiffies(&tsdelta);
+	delta = timespec_to_jiffies(&tsdelta);
+	/*
+	 * Take rounding errors in to account and make sure, that it
+	 * expires in the next tick. Otherwise we go into an endless
+	 * ping pong due to tick_nohz_stop_sched_tick() retriggering
+	 * the timer softirq
+	 */
+	if (delta < 1)
+		delta = 1;
+	now += delta;
 	if (time_before(now, expires))
 		return now;
 	return expires;
@@ -711,6 +726,7 @@ static unsigned long cmp_next_hrtimer_event(unsigned long now,
 
 /**
  * next_timer_interrupt - return the jiffy of the next pending timer
+ * @now: current time (in jiffies)
  */
 unsigned long get_next_timer_interrupt(unsigned long now)
 {
@@ -861,6 +877,8 @@ int do_settimeofday(struct timespec *tv)
 	clock->error = 0;
 	ntp_clear();
 
+	update_vsyscall(&xtime, clock);
+
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	/* signal hrtimers about time change */
@@ -908,7 +926,7 @@ static inline void change_clocksource(void) { }
 #endif
 
 /**
- * timeofday_is_continuous - check to see if timekeeping is free running
+ * timekeeping_is_continuous - check to see if timekeeping is free running
  */
 int timekeeping_is_continuous(void)
 {
@@ -996,8 +1014,11 @@ static int timekeeping_resume(struct sys_device *dev)
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	touch_softlockup_watchdog();
+
+	clockevents_notify(CLOCK_EVT_NOTIFY_RESUME, NULL);
+
 	/* Resume hrtimers */
-	clock_was_set();
+	hres_timers_resume();
 
 	return 0;
 }
@@ -1010,6 +1031,9 @@ static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
 	timekeeping_suspended = 1;
 	timekeeping_suspend_time = read_persistent_clock();
 	write_sequnlock_irqrestore(&xtime_lock, flags);
+
+	clockevents_notify(CLOCK_EVT_NOTIFY_SUSPEND, NULL);
+
 	return 0;
 }
 
@@ -1650,8 +1674,8 @@ static void __devinit migrate_timers(int cpu)
 	new_base = get_cpu_var(tvec_bases);
 
 	local_irq_disable();
-	spin_lock(&new_base->lock);
-	spin_lock(&old_base->lock);
+	double_spin_lock(&new_base->lock, &old_base->lock,
+			 smp_processor_id() < cpu);
 
 	BUG_ON(old_base->running_timer);
 
@@ -1664,8 +1688,8 @@ static void __devinit migrate_timers(int cpu)
 		migrate_timer_list(new_base, old_base->tv5.vec + i);
 	}
 
-	spin_unlock(&old_base->lock);
-	spin_unlock(&new_base->lock);
+	double_spin_unlock(&new_base->lock, &old_base->lock,
+			   smp_processor_id() < cpu);
 	local_irq_enable();
 	put_cpu_var(tvec_bases);
 }

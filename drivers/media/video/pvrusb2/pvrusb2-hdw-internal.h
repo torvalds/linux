@@ -60,6 +60,7 @@ struct pvr2_decoder;
 
 typedef int (*pvr2_ctlf_is_dirty)(struct pvr2_ctrl *);
 typedef void (*pvr2_ctlf_clear_dirty)(struct pvr2_ctrl *);
+typedef int (*pvr2_ctlf_check_value)(struct pvr2_ctrl *,int);
 typedef int (*pvr2_ctlf_get_value)(struct pvr2_ctrl *,int *);
 typedef int (*pvr2_ctlf_set_value)(struct pvr2_ctrl *,int msk,int val);
 typedef int (*pvr2_ctlf_val_to_sym)(struct pvr2_ctrl *,int msk,int val,
@@ -83,6 +84,7 @@ struct pvr2_ctl_info {
 	pvr2_ctlf_get_value get_min_value;  /* Get minimum allowed value */
 	pvr2_ctlf_get_value get_max_value;  /* Get maximum allowed value */
 	pvr2_ctlf_set_value set_value;      /* Set its value */
+	pvr2_ctlf_check_value check_value;  /* Check that value is valid */
 	pvr2_ctlf_val_to_sym val_to_sym;    /* Custom convert value->symbol */
 	pvr2_ctlf_sym_to_val sym_to_val;    /* Custom convert symbol->value */
 	pvr2_ctlf_is_dirty is_dirty;        /* Return true if dirty */
@@ -135,17 +137,10 @@ struct pvr2_ctrl {
 };
 
 
-struct pvr2_audio_stat {
-	void *ctxt;
-	void (*detach)(void *);
-	int (*status)(void *);
-};
-
 struct pvr2_decoder_ctrl {
 	void *ctxt;
 	void (*detach)(void *);
 	void (*enable)(void *,int);
-	int (*tuned)(void *);
 	void (*force_reset)(void *);
 };
 
@@ -212,7 +207,6 @@ struct pvr2_hdw {
 	/* Frequency table */
 	unsigned int freqTable[FREQTABLE_SIZE];
 	unsigned int freqProgSlot;
-	unsigned int freqSlot;
 
 	/* Stuff for handling low level control interaction with device */
 	struct mutex ctl_lock_mutex;
@@ -258,8 +252,16 @@ struct pvr2_hdw {
 	/* Tuner / frequency control stuff */
 	unsigned int tuner_type;
 	int tuner_updated;
-	unsigned int freqVal;
+	unsigned int freqValTelevision;  /* Current freq for tv mode */
+	unsigned int freqValRadio;       /* Current freq for radio mode */
+	unsigned int freqSlotTelevision; /* Current slot for tv mode */
+	unsigned int freqSlotRadio;      /* Current slot for radio mode */
+	unsigned int freqSelector;       /* 0=radio 1=television */
 	int freqDirty;
+
+	/* Current tuner info - this information is polled from the I2C bus */
+	struct v4l2_tuner tuner_signal_info;
+	int tuner_signal_stale;
 
 	/* Video standard handling */
 	v4l2_std_id std_mask_eeprom; // Hardware supported selections
@@ -281,19 +283,18 @@ struct pvr2_hdw {
 	int unit_number;             /* ID for driver instance */
 	unsigned long serial_number; /* ID for hardware itself */
 
-	/* Minor number used by v4l logic (yes, this is a hack, as there should
-	   be no v4l junk here).  Probably a better way to do this. */
-	int v4l_minor_number;
+	char bus_info[32]; /* Bus location info */
+
+	/* Minor numbers used by v4l logic (yes, this is a hack, as there
+	   should be no v4l junk here).  Probably a better way to do this. */
+	int v4l_minor_number_video;
+	int v4l_minor_number_vbi;
+	int v4l_minor_number_radio;
 
 	/* Location of eeprom or a negative number if none */
 	int eeprom_addr;
 
 	enum pvr2_config config;
-
-	/* Information about what audio signal we're hearing */
-	int flag_stereo;
-	int flag_bilingual;
-	struct pvr2_audio_stat *audio_stat;
 
 	/* Control state needed for cx2341x module */
 	struct cx2341x_mpeg_params enc_cur_state;
@@ -326,6 +327,9 @@ struct pvr2_hdw {
 	struct pvr2_ctrl *controls;
 	unsigned int control_cnt;
 };
+
+/* This function gets the current frequency */
+unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *);
 
 #endif /* __PVRUSB2_HDW_INTERNAL_H */
 

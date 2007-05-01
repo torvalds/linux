@@ -192,14 +192,52 @@ static struct tda827xa_data tda827xa_analog[] = {
 	{ .lomax =     0, .svco = 0, .spd = 0, .scr = 0, .sbs = 0, .gc3 = 0}   /* End */
 };
 
+static void tda827xa_lna_gain(struct i2c_client *c, int high)
+{
+	struct tuner *t = i2c_get_clientdata(c);
+	unsigned char buf[] = {0x22, 0x01};
+	int arg;
+	struct i2c_msg msg = {.addr = c->addr, .flags = 0, .buf = buf, .len = sizeof(buf)};
+	if (t->config) {
+		if (high)
+			tuner_dbg("setting LNA to high gain\n");
+		else
+			tuner_dbg("setting LNA to low gain\n");
+	}
+	switch (t->config) {
+	case 0: /* no LNA */
+		break;
+	case 1: /* switch is GPIO 0 of tda8290 */
+	case 2:
+		/* turn Vsync on */
+		if (t->std & V4L2_STD_MN)
+			arg = 1;
+		else
+			arg = 0;
+		if (t->tuner_callback)
+			t->tuner_callback(c->adapter->algo_data, 1, arg);
+		buf[1] = high ? 0 : 1;
+		if (t->config == 2)
+			buf[1] = high ? 1 : 0;
+		i2c_transfer(c->adapter, &msg, 1);
+		break;
+	case 3: /* switch with GPIO of saa713x */
+		if (t->tuner_callback)
+			t->tuner_callback(c->adapter->algo_data, 0, high);
+		break;
+	}
+}
+
 static void tda827xa_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 {
-	unsigned char tuner_reg[14];
-	unsigned char reg2[2];
+	unsigned char tuner_reg[11];
 	u32 N;
 	int i;
 	struct tuner *t = i2c_get_clientdata(c);
-	struct i2c_msg msg = {.addr = t->tda827x_addr, .flags = 0};
+	struct i2c_msg msg = {.addr = t->tda827x_addr, .flags = 0, .buf = tuner_reg};
+
+	tda827xa_lna_gain( c, 1);
+	msleep(10);
 
 	if (t->mode == V4L2_TUNER_RADIO)
 		freq = freq / 1000;
@@ -222,48 +260,58 @@ static void tda827xa_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 	tuner_reg[5] = (tda827xa_analog[i].spd << 5) + (tda827xa_analog[i].svco << 3) +
 			tda827xa_analog[i].sbs;
 	tuner_reg[6] = 0x8b + (tda827xa_analog[i].gc3 << 4);
-	tuner_reg[7] = 0x0c;
+	tuner_reg[7] = 0x1c;
 	tuner_reg[8] = 4;
 	tuner_reg[9] = 0x20;
-	tuner_reg[10] = 0xff;
-	tuner_reg[11] = 0xe0;
-	tuner_reg[12] = 0;
-	tuner_reg[13] = 0x39 + (t->tda827x_lpsel << 1);
-
-	msg.buf = tuner_reg;
-	msg.len = 14;
+	tuner_reg[10] = 0x00;
+	msg.len = 11;
 	i2c_transfer(c->adapter, &msg, 1);
 
-	msg.buf= reg2;
+	tuner_reg[0] = 0x90;
+	tuner_reg[1] = 0xff;
+	tuner_reg[2] = 0xe0;
+	tuner_reg[3] = 0;
+	tuner_reg[4] = 0x99 + (t->tda827x_lpsel << 1);
+	msg.len = 5;
+	i2c_transfer(c->adapter, &msg, 1);
+
+	tuner_reg[0] = 0xa0;
+	tuner_reg[1] = 0xc0;
 	msg.len = 2;
-	reg2[0] = 0x60;
-	reg2[1] = 0x3c;
 	i2c_transfer(c->adapter, &msg, 1);
 
-	reg2[0] = 0xa0;
-	reg2[1] = 0xc0;
+	tuner_reg[0] = 0x30;
+	tuner_reg[1] = 0x10 + tda827xa_analog[i].scr;
 	i2c_transfer(c->adapter, &msg, 1);
 
-	msleep(2);
-	reg2[0] = 0x30;
-	reg2[1] = 0x10 + tda827xa_analog[i].scr;
+	msg.flags = I2C_M_RD;
+	i2c_transfer(c->adapter, &msg, 1);
+	msg.flags = 0;
+	tuner_reg[1] >>= 4;
+	tuner_dbg("AGC2 gain is: %d\n", tuner_reg[1]);
+	if (tuner_reg[1] < 1)
+		tda827xa_lna_gain( c, 0);
+
+	msleep(100);
+	tuner_reg[0] = 0x60;
+	tuner_reg[1] = 0x3c;
 	i2c_transfer(c->adapter, &msg, 1);
 
-	msleep(550);
-	reg2[0] = 0x50;
-	reg2[1] = 0x8f + (tda827xa_analog[i].gc3 << 4);
+	msleep(163);
+	tuner_reg[0] = 0x50;
+	tuner_reg[1] = 0x8f + (tda827xa_analog[i].gc3 << 4);
 	i2c_transfer(c->adapter, &msg, 1);
 
-	reg2[0] = 0x80;
-	reg2[1] = 0x28;
+	tuner_reg[0] = 0x80;
+	tuner_reg[1] = 0x28;
 	i2c_transfer(c->adapter, &msg, 1);
 
-	reg2[0] = 0xb0;
-	reg2[1] = 0x01;
+	tuner_reg[0] = 0xb0;
+	tuner_reg[1] = 0x01;
 	i2c_transfer(c->adapter, &msg, 1);
 
-	reg2[0] = 0xc0;
-	reg2[1] = 0x19 + (t->tda827x_lpsel << 1);
+	tuner_reg[0] = 0xc0;
+	tuner_reg[1] = 0x19 + (t->tda827x_lpsel << 1);
 	i2c_transfer(c->adapter, &msg, 1);
 }
 
@@ -319,7 +367,9 @@ static int tda8290_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 	unsigned char addr_pll_stat = 0x1b;
 	unsigned char adc_sat, agc_stat,
 		      pll_stat;
+	int i;
 
+	tuner_dbg("tda827xa config is 0x%02x\n", t->config);
 	i2c_master_send(c, easy_mode, 2);
 	i2c_master_send(c, agc_out_on, 2);
 	i2c_master_send(c, soft_reset, 2);
@@ -340,17 +390,22 @@ static int tda8290_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 		tda827xa_tune(c, ifc, freq);
 	else
 		tda827x_tune(c, ifc, freq);
+	for (i = 0; i < 3; i++) {
+		i2c_master_send(c, &addr_pll_stat, 1);
+		i2c_master_recv(c, &pll_stat, 1);
+		if (pll_stat & 0x80) {
+			i2c_master_send(c, &addr_adc_sat, 1);
+			i2c_master_recv(c, &adc_sat, 1);
+			i2c_master_send(c, &addr_agc_stat, 1);
+			i2c_master_recv(c, &agc_stat, 1);
+			tuner_dbg("tda8290 is locked, AGC: %d\n", agc_stat);
+			break;
+		} else {
+			tuner_dbg("tda8290 not locked, no signal?\n");
+			msleep(100);
+		}
+	}
 	/* adjust headroom resp. gain */
-	i2c_master_send(c, &addr_adc_sat, 1);
-	i2c_master_recv(c, &adc_sat, 1);
-	i2c_master_send(c, &addr_agc_stat, 1);
-	i2c_master_recv(c, &agc_stat, 1);
-	i2c_master_send(c, &addr_pll_stat, 1);
-	i2c_master_recv(c, &pll_stat, 1);
-	if (pll_stat & 0x80)
-		tuner_dbg("tda8290 is locked, AGC: %d\n", agc_stat);
-	else
-		tuner_dbg("tda8290 not locked, no signal?\n");
 	if ((agc_stat > 115) || (!(pll_stat & 0x80) && (adc_sat < 20))) {
 		tuner_dbg("adjust gain, step 1. Agc: %d, ADC stat: %d, lock: %d\n",
 			   agc_stat, adc_sat, pll_stat & 0x80);
@@ -407,7 +462,6 @@ static void set_audio(struct tuner *t)
 	char* mode;
 
 	t->tda827x_lpsel = 0;
-	mode = "xx";
 	if (t->std & V4L2_STD_MN) {
 		t->sgIF = 92;
 		t->tda8290_easy_mode = 0x01;
@@ -437,8 +491,12 @@ static void set_audio(struct tuner *t)
 		t->sgIF = 20;
 		t->tda8290_easy_mode = 0x40;
 		mode = "LC";
+	} else {
+		t->sgIF = 124;
+		t->tda8290_easy_mode = 0x10;
+		mode = "xx";
 	}
-    tuner_dbg("setting tda8290 to system %s\n", mode);
+	tuner_dbg("setting tda8290 to system %s\n", mode);
 }
 
 static void set_tv_freq(struct i2c_client *c, unsigned int freq)
@@ -487,11 +545,16 @@ static void standby(struct i2c_client *c)
 
 static void tda8290_init_if(struct i2c_client *c)
 {
+	struct tuner *t = i2c_get_clientdata(c);
 	unsigned char set_VS[] = { 0x30, 0x6F };
+	unsigned char set_GP00_CF[] = { 0x20, 0x01 };
 	unsigned char set_GP01_CF[] = { 0x20, 0x0B };
 
+	if ((t->config == 1) || (t->config == 2))
+		i2c_master_send(c, set_GP00_CF, 2);
+	else
+		i2c_master_send(c, set_GP01_CF, 2);
 	i2c_master_send(c, set_VS, 2);
-	i2c_master_send(c, set_GP01_CF, 2);
 }
 
 static void tda8290_init_tuner(struct i2c_client *c)
@@ -576,6 +639,7 @@ int tda8290_init(struct i2c_client *c)
 	t->has_signal = has_signal;
 	t->standby = standby;
 	t->tda827x_lpsel = 0;
+	t->mode = V4L2_TUNER_ANALOG_TV;
 
 	tda8290_init_tuner(c);
 	tda8290_init_if(c);

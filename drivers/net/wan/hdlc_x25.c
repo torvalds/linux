@@ -215,9 +215,7 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 						   x25_rx, 0)) != 0)
 			return result;
 		dev->hard_start_xmit = x25_xmit;
-		dev->hard_header = NULL;
 		dev->type = ARPHRD_X25;
-		dev->addr_len = 0;
 		netif_dormant_off(dev);
 		return 0;
 	}

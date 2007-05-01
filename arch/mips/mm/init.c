@@ -61,8 +61,6 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-unsigned long highstart_pfn, highend_pfn;
-
 /*
  * We have up to 8 empty zeroed pages so we can map one of the right colour
  * when needed.  This is necessary only on R4000 / R4400 SC and MC versions
@@ -125,7 +123,7 @@ static void __init kmap_coherent_init(void)
 static inline void kmap_coherent_init(void) {}
 #endif
 
-static inline void *kmap_coherent(struct page *page, unsigned long addr)
+void *kmap_coherent(struct page *page, unsigned long addr)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr, flags, entrylo;
@@ -179,7 +177,7 @@ static inline void *kmap_coherent(struct page *page, unsigned long addr)
 
 #define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
 
-static inline void kunmap_coherent(struct page *page)
+void kunmap_coherent(void)
 {
 #ifndef CONFIG_MIPS_MT_SMTC
 	unsigned int wired;
@@ -212,7 +210,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 	if (cpu_has_dc_aliases) {
 		vfrom = kmap_coherent(from, vaddr);
 		copy_page(vto, vfrom);
-		kunmap_coherent(from);
+		kunmap_coherent();
 	} else {
 		vfrom = kmap_atomic(from, KM_USER0);
 		copy_page(vto, vfrom);
@@ -235,7 +233,7 @@ void copy_to_user_page(struct vm_area_struct *vma,
 	if (cpu_has_dc_aliases) {
 		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(vto, src, len);
-		kunmap_coherent(page);
+		kunmap_coherent();
 	} else
 		memcpy(dst, src, len);
 	if ((vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc)
@@ -252,7 +250,7 @@ void copy_from_user_page(struct vm_area_struct *vma,
 		void *vfrom =
 			kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(dst, vfrom, len);
-		kunmap_coherent(page);
+		kunmap_coherent();
 	} else
 		memcpy(dst, src, len);
 }
@@ -261,6 +259,8 @@ EXPORT_SYMBOL(copy_from_user_page);
 
 
 #ifdef CONFIG_HIGHMEM
+unsigned long highstart_pfn, highend_pfn;
+
 pte_t *kmap_pte;
 pgprot_t kmap_prot;
 
@@ -314,8 +314,6 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-extern void pagetable_init(void);
-
 static int __init page_is_ram(unsigned long pagenr)
 {
 	int i;
@@ -353,18 +351,15 @@ void __init paging_init(void)
 #endif
 	kmap_coherent_init();
 
-#ifdef CONFIG_ISA
-	if (max_low_pfn >= MAX_DMA_PFN)
-		if (min_low_pfn >= MAX_DMA_PFN) {
-			zones_size[ZONE_DMA] = 0;
-			zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
-		} else {
-			zones_size[ZONE_DMA] = MAX_DMA_PFN - min_low_pfn;
-			zones_size[ZONE_NORMAL] = max_low_pfn - MAX_DMA_PFN;
-		}
+#ifdef CONFIG_ZONE_DMA
+	if (min_low_pfn < MAX_DMA_PFN && MAX_DMA_PFN <= max_low_pfn) {
+		zones_size[ZONE_DMA] = MAX_DMA_PFN - min_low_pfn;
+		zones_size[ZONE_NORMAL] = max_low_pfn - MAX_DMA_PFN;
+	} else if (max_low_pfn < MAX_DMA_PFN)
+		zones_size[ZONE_DMA] = max_low_pfn - min_low_pfn;
 	else
 #endif
-	zones_size[ZONE_DMA] = max_low_pfn - min_low_pfn;
+	zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
 
 #ifdef CONFIG_HIGHMEM
 	zones_size[ZONE_HIGHMEM] = highend_pfn - highstart_pfn;
@@ -379,7 +374,7 @@ void __init paging_init(void)
 #ifdef CONFIG_FLATMEM
 	free_area_init(zones_size);
 #else
-	pfn = 0;
+	pfn = min_low_pfn;
 	for (i = 0; i < MAX_NR_ZONES; i++)
 		for (j = 0; j < zones_size[i]; j++, pfn++)
 			if (!page_is_ram(pfn))

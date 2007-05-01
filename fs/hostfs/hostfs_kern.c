@@ -20,7 +20,6 @@
 #include "hostfs.h"
 #include "kern_util.h"
 #include "kern.h"
-#include "user_util.h"
 #include "init.h"
 
 struct hostfs_inode_info {
@@ -47,7 +46,7 @@ struct dentry_operations hostfs_dentry_ops = {
 };
 
 /* Changed in hostfs_args before the kernel starts running */
-static char *root_ino = "/";
+static char *root_ino = "";
 static int append = 0;
 
 #define HOSTFS_SUPER_MAGIC 0x00c0ffee
@@ -939,7 +938,7 @@ static const struct address_space_operations hostfs_link_aops = {
 static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 {
 	struct inode *root_inode;
-	char *name, *data = d;
+	char *host_root_path, *req_root = d;
 	int err;
 
 	sb->s_blocksize = 1024;
@@ -947,15 +946,17 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	sb->s_magic = HOSTFS_SUPER_MAGIC;
 	sb->s_op = &hostfs_sbops;
 
-	if((data == NULL) || (*data == '\0'))
-		data = root_ino;
+	/* NULL is printed as <NULL> by sprintf: avoid that. */
+	if (req_root == NULL)
+		req_root = "";
 
 	err = -ENOMEM;
-	name = kmalloc(strlen(data) + 1, GFP_KERNEL);
-	if(name == NULL)
+	host_root_path = kmalloc(strlen(root_ino) + 1
+				 + strlen(req_root) + 1, GFP_KERNEL);
+	if(host_root_path == NULL)
 		goto out;
 
-	strcpy(name, data);
+	sprintf(host_root_path, "%s/%s", root_ino, req_root);
 
 	root_inode = iget(sb, 0);
 	if(root_inode == NULL)
@@ -965,7 +966,10 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	if(err)
 		goto out_put;
 
-	HOSTFS_I(root_inode)->host_filename = name;
+	HOSTFS_I(root_inode)->host_filename = host_root_path;
+	/* Avoid that in the error path, iput(root_inode) frees again
+	 * host_root_path through hostfs_destroy_inode! */
+	host_root_path = NULL;
 
 	err = -ENOMEM;
 	sb->s_root = d_alloc_root(root_inode);
@@ -977,7 +981,7 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
                 /* No iput in this case because the dput does that for us */
                 dput(sb->s_root);
                 sb->s_root = NULL;
-		goto out_free;
+		goto out;
         }
 
 	return(0);
@@ -985,7 +989,7 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
  out_put:
         iput(root_inode);
  out_free:
-	kfree(name);
+	kfree(host_root_path);
  out:
 	return(err);
 }

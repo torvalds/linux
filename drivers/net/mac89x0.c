@@ -530,7 +530,6 @@ net_rx(struct net_device *dev)
 		return;
 	}
 	skb_put(skb, length);
-	skb->dev = dev;
 
 	memcpy_fromio(skb->data, dev->mem_start + PP_RxFrame, length);
 

@@ -102,5 +102,6 @@ void switch_ipi_to_APIC_timer(void *cpumask);
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
 extern unsigned boot_cpu_id;
+extern int local_apic_timer_c2_ok;
 
 #endif /* __ASM_APIC_H */

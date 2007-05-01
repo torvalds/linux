@@ -29,6 +29,9 @@
 #define _SA1111(x)	((x) + sa1111->resource.start)
 #endif
 
+#define sa1111_writel(val,addr)	__raw_writel(val, addr)
+#define sa1111_readl(addr)	__raw_readl(addr)
+
 /*
  * 26 bits of the SA-1110 address bus are available to the SA-1111.
  * Use these when feeding target addresses to the DMA engines.
@@ -43,14 +46,6 @@
  */
 
 #define SA1111_SAC_DMA_MIN_XFER	(0x800)
-
-/*
- * SA1111 register definitions.
- */
-#define __CCREG(x)	__REGP(SA1111_VBASE + (x))
-
-#define sa1111_writel(val,addr)	__raw_writel(val, addr)
-#define sa1111_readl(addr)	__raw_readl(addr)
 
 /*
  * System Bus Interface (SBI)
@@ -194,55 +189,37 @@
  *    SADR              Serial Audio Data Register (16 x 32-bit)
  */
 
-#define _SACR0          _SA1111( 0x0600 )
-#define _SACR1          _SA1111( 0x0604 )
-#define _SACR2          _SA1111( 0x0608 )
-#define _SASR0          _SA1111( 0x060c )
-#define _SASR1          _SA1111( 0x0610 )
-#define _SASCR          _SA1111( 0x0618 )
-#define _L3_CAR         _SA1111( 0x061c )
-#define _L3_CDR         _SA1111( 0x0620 )
-#define _ACCAR          _SA1111( 0x0624 )
-#define _ACCDR          _SA1111( 0x0628 )
-#define _ACSAR          _SA1111( 0x062c )
-#define _ACSDR          _SA1111( 0x0630 )
-#define _SADTCS         _SA1111( 0x0634 )
-#define _SADTSA         _SA1111( 0x0638 )
-#define _SADTCA         _SA1111( 0x063c )
-#define _SADTSB         _SA1111( 0x0640 )
-#define _SADTCB         _SA1111( 0x0644 )
-#define _SADRCS         _SA1111( 0x0648 )
-#define _SADRSA         _SA1111( 0x064c )
-#define _SADRCA         _SA1111( 0x0650 )
-#define _SADRSB         _SA1111( 0x0654 )
-#define _SADRCB         _SA1111( 0x0658 )
-#define _SAITR          _SA1111( 0x065c )
-#define _SADR           _SA1111( 0x0680 )
+#define SA1111_SERAUDIO		0x0600
 
-#define SACR0		__CCREG(0x0600)
-#define SACR1		__CCREG(0x0604)
-#define SACR2		__CCREG(0x0608)
-#define SASR0		__CCREG(0x060c)
-#define SASR1		__CCREG(0x0610)
-#define SASCR		__CCREG(0x0618)
-#define L3_CAR		__CCREG(0x061c)
-#define L3_CDR		__CCREG(0x0620)
-#define ACCAR		__CCREG(0x0624)
-#define ACCDR		__CCREG(0x0628)
-#define ACSAR		__CCREG(0x062c)
-#define ACSDR		__CCREG(0x0630)
-#define SADTCS		__CCREG(0x0634)
-#define SADTSA		__CCREG(0x0638)
-#define SADTCA		__CCREG(0x063c)
-#define SADTSB		__CCREG(0x0640)
-#define SADTCB		__CCREG(0x0644)
-#define SADRCS		__CCREG(0x0648)
-#define SADRSA		__CCREG(0x064c)
-#define SADRCA		__CCREG(0x0650)
-#define SADRSB		__CCREG(0x0654)
-#define SADRCB		__CCREG(0x0658)
-#define SAITR		__CCREG(0x065c)
-#define SADR		__CCREG(0x0680)
+/*
+ * These are offsets from the above base.
+ */
+#define SA1111_SACR0		0x00
+#define SA1111_SACR1		0x04
+#define SA1111_SACR2		0x08
+#define SA1111_SASR0		0x0c
+#define SA1111_SASR1		0x10
+#define SA1111_SASCR		0x18
+#define SA1111_L3_CAR		0x1c
+#define SA1111_L3_CDR		0x20
+#define SA1111_ACCAR		0x24
+#define SA1111_ACCDR		0x28
+#define SA1111_ACSAR		0x2c
+#define SA1111_ACSDR		0x30
+#define SA1111_SADTCS		0x34
+#define SA1111_SADTSA		0x38
+#define SA1111_SADTCA		0x3c
+#define SA1111_SADTSB		0x40
+#define SA1111_SADTCB		0x44
+#define SA1111_SADRCS		0x48
+#define SA1111_SADRSA		0x4c
+#define SA1111_SADRCA		0x50
+#define SA1111_SADRSB		0x54
+#define SA1111_SADRCB		0x58
+#define SA1111_SAITR		0x5c
+#define SA1111_SADR		0x80
+
+#ifndef CONFIG_ARCH_PXA
 
 #define SACR0_ENB	(1<<0)
 #define SACR0_BCKD	(1<<2)
@@ -329,6 +306,8 @@
 #define SAITR_TDBDB	(1<<9)
 #define SAITR_RDBDA	(1<<10)
 #define SAITR_RDBDB	(1<<11)
+
+#endif  /* !CONFIG_ARCH_PXA */
 
 /*
  * General-Purpose I/O Interface

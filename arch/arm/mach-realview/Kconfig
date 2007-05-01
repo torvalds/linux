@@ -10,9 +10,20 @@ config MACH_REALVIEW_EB
 config REALVIEW_MPCORE
 	bool "Support MPcore tile"
 	depends on MACH_REALVIEW_EB
+	select CACHE_L2X0
 	help
 	  Enable support for the MPCore tile on the Realview platform.
 	  Since there are device address and interrupt differences, a
+	  kernel built with this option enabled is not compatible with
+	  other tiles.
+
+config REALVIEW_MPCORE_REVB
+	bool "Support MPcore RevB tile"
+	depends on REALVIEW_MPCORE
+	default n
+	help
+	  Enable support for the MPCore RevB tile on the Realview platform.
+	  Since there are device address differences, a
 	  kernel built with this option enabled is not compatible with
 	  other tiles.
 

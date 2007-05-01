@@ -118,7 +118,9 @@ static void __aarp_send_query(struct aarp_entry *a)
 
 	/* Set up the buffer */
 	skb_reserve(skb, dev->hard_header_len + aarp_dl->header_length);
-	skb->nh.raw      = skb->h.raw = skb_put(skb, sizeof(*eah));
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+	skb_put(skb, sizeof(*eah));
 	skb->protocol    = htons(ETH_P_ATALK);
 	skb->dev	 = dev;
 	eah		 = aarp_hdr(skb);
@@ -163,7 +165,9 @@ static void aarp_send_reply(struct net_device *dev, struct atalk_addr *us,
 
 	/* Set up the buffer */
 	skb_reserve(skb, dev->hard_header_len + aarp_dl->header_length);
-	skb->nh.raw      = skb->h.raw = skb_put(skb, sizeof(*eah));
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+	skb_put(skb, sizeof(*eah));
 	skb->protocol    = htons(ETH_P_ATALK);
 	skb->dev	 = dev;
 	eah		 = aarp_hdr(skb);
@@ -212,7 +216,9 @@ static void aarp_send_probe(struct net_device *dev, struct atalk_addr *us)
 
 	/* Set up the buffer */
 	skb_reserve(skb, dev->hard_header_len + aarp_dl->header_length);
-	skb->nh.raw      = skb->h.raw = skb_put(skb, sizeof(*eah));
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+	skb_put(skb, sizeof(*eah));
 	skb->protocol    = htons(ETH_P_ATALK);
 	skb->dev	 = dev;
 	eah		 = aarp_hdr(skb);
@@ -539,7 +545,7 @@ int aarp_send_ddp(struct net_device *dev, struct sk_buff *skb,
 	int hash;
 	struct aarp_entry *a;
 
-	skb->nh.raw = skb->data;
+	skb_reset_network_header(skb);
 
 	/* Check for LocalTalk first */
 	if (dev->type == ARPHRD_LOCALTLK) {

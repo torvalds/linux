@@ -6,6 +6,9 @@
  *    (c) 2004 Jelle Foks <jelle@foks.8m.com>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
  *
+ *    (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *        - video_ioctl2 conversion
+ *
  *  Includes parts from the ivtv driver( http://ivtv.sourceforge.net/),
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -53,7 +56,8 @@ MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
 
 /* ------------------------------------------------------------------ */
 
-#define BLACKBIRD_FIRM_IMAGE_SIZE 256*1024
+#define OLD_BLACKBIRD_FIRM_IMAGE_SIZE 262144
+#define     BLACKBIRD_FIRM_IMAGE_SIZE 376836
 
 /* defines below are from ivtv-driver.h */
 
@@ -401,7 +405,7 @@ static int blackbird_find_mailbox(struct cx8802_dev *dev)
 	u32 value;
 	int i;
 
-	for (i = 0; i < BLACKBIRD_FIRM_IMAGE_SIZE; i++) {
+	for (i = 0; i < dev->fw_size; i++) {
 		memory_read(dev->core, i, &value);
 		if (value == signature[signaturecnt])
 			signaturecnt++;
@@ -449,12 +453,15 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 		return -1;
 	}
 
-	if (firmware->size != BLACKBIRD_FIRM_IMAGE_SIZE) {
-		dprintk(0, "ERROR: Firmware size mismatch (have %zd, expected %d)\n",
-			firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE);
+	if ((firmware->size != BLACKBIRD_FIRM_IMAGE_SIZE) &&
+	    (firmware->size != OLD_BLACKBIRD_FIRM_IMAGE_SIZE)) {
+		dprintk(0, "ERROR: Firmware size mismatch (have %zd, expected %d or %d)\n",
+			firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE,
+			OLD_BLACKBIRD_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
 		return -1;
 	}
+	dev->fw_size = firmware->size;
 
 	if (0 != memcmp(firmware->data, magic, 8)) {
 		dprintk(0, "ERROR: Firmware magic mismatch, wrong file?\n");
@@ -520,7 +527,7 @@ static void blackbird_codec_settings(struct cx8802_dev *dev)
 
 	dev->params.width = dev->width;
 	dev->params.height = dev->height;
-	dev->params.is_50hz = (dev->core->tvnorm->id & V4L2_STD_625_50) != 0;
+	dev->params.is_50hz = (dev->core->tvnorm & V4L2_STD_625_50) != 0;
 
 	cx2341x_update(dev, blackbird_mbox_func, NULL, &dev->params);
 }
@@ -710,8 +717,13 @@ static int blackbird_queryctrl(struct cx8802_dev *dev, struct v4l2_queryctrl *qc
 	return 0;
 }
 
-static int blackbird_querymenu(struct cx8802_dev *dev, struct v4l2_querymenu *qmenu)
+/* ------------------------------------------------------------------ */
+/* IOCTL Handlers                                                     */
+
+static int vidioc_querymenu (struct file *file, void *priv,
+				struct v4l2_querymenu *qmenu)
 {
+	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
 	struct v4l2_queryctrl qctrl;
 
 	qctrl.id = qmenu->id;
@@ -719,220 +731,346 @@ static int blackbird_querymenu(struct cx8802_dev *dev, struct v4l2_querymenu *qm
 	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
 }
 
-/* ------------------------------------------------------------------ */
-
-static int mpeg_do_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, void *arg)
+static int vidioc_querycap (struct file *file, void  *priv,
+					struct v4l2_capability *cap)
 {
-	struct cx8802_fh  *fh  = file->private_data;
-	struct cx8802_dev *dev = fh->dev;
+	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
 	struct cx88_core  *core = dev->core;
 
-	if (debug > 1)
-		v4l_print_ioctl(core->name,cmd);
-
-	switch (cmd) {
-
-	/* --- capabilities ------------------------------------------ */
-	case VIDIOC_QUERYCAP:
-	{
-		struct v4l2_capability *cap = arg;
-
-		memset(cap,0,sizeof(*cap));
-		strcpy(cap->driver, "cx88_blackbird");
-		strlcpy(cap->card, cx88_boards[core->board].name,sizeof(cap->card));
-		sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
-		cap->version = CX88_VERSION_CODE;
-		cap->capabilities =
-			V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_READWRITE     |
-			V4L2_CAP_STREAMING     |
-			0;
-		if (UNSET != core->tuner_type)
-			cap->capabilities |= V4L2_CAP_TUNER;
-
-		return 0;
-	}
-
-	/* --- capture ioctls ---------------------------------------- */
-	case VIDIOC_ENUM_FMT:
-	{
-		struct v4l2_fmtdesc *f = arg;
-		int index;
-
-		index = f->index;
-		if (index != 0)
-			return -EINVAL;
-
-		memset(f,0,sizeof(*f));
-		f->index = index;
-		strlcpy(f->description, "MPEG", sizeof(f->description));
-		f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		f->pixelformat = V4L2_PIX_FMT_MPEG;
-		return 0;
-	}
-	case VIDIOC_G_FMT:
-	{
-		struct v4l2_format *f = arg;
-
-		memset(f,0,sizeof(*f));
-		f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-		f->fmt.pix.bytesperline = 0;
-		f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */
-		f->fmt.pix.colorspace   = 0;
-		f->fmt.pix.width        = dev->width;
-		f->fmt.pix.height       = dev->height;
-		f->fmt.pix.field        = fh->mpegq.field;
-		dprintk(0,"VIDIOC_G_FMT: w: %d, h: %d, f: %d\n",
-			dev->width, dev->height, fh->mpegq.field );
-		return 0;
-	}
-	case VIDIOC_TRY_FMT:
-	{
-		struct v4l2_format *f = arg;
-
-		f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-		f->fmt.pix.bytesperline = 0;
-		f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */;
-		f->fmt.pix.colorspace   = 0;
-		dprintk(0,"VIDIOC_TRY_FMT: w: %d, h: %d, f: %d\n",
-			dev->width, dev->height, fh->mpegq.field );
-		return 0;
-	}
-	case VIDIOC_S_FMT:
-	{
-		struct v4l2_format *f = arg;
-
-		f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-		f->fmt.pix.bytesperline = 0;
-		f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */;
-		f->fmt.pix.colorspace   = 0;
-		dprintk(0,"VIDIOC_S_FMT: w: %d, h: %d, f: %d\n",
-			f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.field );
-		return 0;
-	}
-
-	/* --- streaming capture ------------------------------------- */
-	case VIDIOC_REQBUFS:
-		return videobuf_reqbufs(&fh->mpegq, arg);
-
-	case VIDIOC_QUERYBUF:
-		return videobuf_querybuf(&fh->mpegq, arg);
-
-	case VIDIOC_QBUF:
-		return videobuf_qbuf(&fh->mpegq, arg);
-
-	case VIDIOC_DQBUF:
-		return videobuf_dqbuf(&fh->mpegq, arg,
-				      file->f_flags & O_NONBLOCK);
-
-	case VIDIOC_STREAMON:
-		return videobuf_streamon(&fh->mpegq);
-
-	case VIDIOC_STREAMOFF:
-		return videobuf_streamoff(&fh->mpegq);
-
-	/* --- mpeg compression -------------------------------------- */
-	case VIDIOC_G_MPEGCOMP:
-	{
-		struct v4l2_mpeg_compression *f = arg;
-
-		printk(KERN_WARNING "VIDIOC_G_MPEGCOMP is obsolete. "
-				    "Replace with VIDIOC_G_EXT_CTRLS!");
-		memcpy(f,&default_mpeg_params,sizeof(*f));
-		return 0;
-	}
-	case VIDIOC_S_MPEGCOMP:
-		printk(KERN_WARNING "VIDIOC_S_MPEGCOMP is obsolete. "
-				    "Replace with VIDIOC_S_EXT_CTRLS!");
-		return 0;
-	case VIDIOC_G_EXT_CTRLS:
-	{
-		struct v4l2_ext_controls *f = arg;
-
-		if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
-			return -EINVAL;
-		return cx2341x_ext_ctrls(&dev->params, f, cmd);
-	}
-	case VIDIOC_S_EXT_CTRLS:
-	case VIDIOC_TRY_EXT_CTRLS:
-	{
-		struct v4l2_ext_controls *f = arg;
-		struct cx2341x_mpeg_params p;
-		int err;
-
-		if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
-			return -EINVAL;
-		p = dev->params;
-		err = cx2341x_ext_ctrls(&p, f, cmd);
-		if (err == 0 && cmd == VIDIOC_S_EXT_CTRLS) {
-			err = cx2341x_update(dev, blackbird_mbox_func, &dev->params, &p);
-			dev->params = p;
-		}
-		return err;
-	}
-	case VIDIOC_S_FREQUENCY:
-	{
-		blackbird_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
-				  BLACKBIRD_END_NOW,
-				  BLACKBIRD_MPEG_CAPTURE,
-				  BLACKBIRD_RAW_BITS_NONE);
-
-		cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, cx88_ioctl_hook);
-
-		blackbird_initialize_codec(dev);
-		cx88_set_scale(dev->core, dev->width, dev->height,
-			       fh->mpegq.field);
-		return 0;
-	}
-	case VIDIOC_LOG_STATUS:
-	{
-		char name[32 + 2];
-
-		snprintf(name, sizeof(name), "%s/2", core->name);
-		printk("%s/2: ============  START LOG STATUS  ============\n",
-		       core->name);
-		cx88_call_i2c_clients(core, VIDIOC_LOG_STATUS, NULL);
-		cx2341x_log_status(&dev->params, name);
-		printk("%s/2: =============  END LOG STATUS  =============\n",
-		       core->name);
-		return 0;
-	}
-	case VIDIOC_QUERYMENU:
-		return blackbird_querymenu(dev, arg);
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *c = arg;
-
-		if (blackbird_queryctrl(dev, c) == 0)
-			return 0;
-		return cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, mpeg_do_ioctl);
-	}
-
-	default:
-		return cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, cx88_ioctl_hook);
-	}
+	strcpy(cap->driver, "cx88_blackbird");
+	strlcpy(cap->card, cx88_boards[core->board].name,sizeof(cap->card));
+	sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
+	cap->version = CX88_VERSION_CODE;
+	cap->capabilities =
+		V4L2_CAP_VIDEO_CAPTURE |
+		V4L2_CAP_READWRITE     |
+		V4L2_CAP_STREAMING;
+	if (UNSET != core->tuner_type)
+		cap->capabilities |= V4L2_CAP_TUNER;
 	return 0;
 }
 
-int (*cx88_ioctl_hook)(struct inode *inode, struct file *file,
-			unsigned int cmd, void *arg);
-unsigned int (*cx88_ioctl_translator)(unsigned int cmd);
-
-static unsigned int mpeg_translate_ioctl(unsigned int cmd)
+static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
+					struct v4l2_fmtdesc *f)
 {
-	return cmd;
+	if (f->index != 0)
+		return -EINVAL;
+
+	strlcpy(f->description, "MPEG", sizeof(f->description));
+	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	f->pixelformat = V4L2_PIX_FMT_MPEG;
+	return 0;
 }
 
-static int mpeg_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg)
+static int vidioc_g_fmt_cap (struct file *file, void *priv,
+					struct v4l2_format *f)
 {
-	cmd = cx88_ioctl_translator( cmd );
-	return video_usercopy(inode, file, cmd, arg, cx88_ioctl_hook);
+	struct cx8802_fh  *fh   = priv;
+	struct cx8802_dev *dev  = fh->dev;
+
+	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
+	f->fmt.pix.bytesperline = 0;
+	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */
+	f->fmt.pix.colorspace   = 0;
+	f->fmt.pix.width        = dev->width;
+	f->fmt.pix.height       = dev->height;
+	f->fmt.pix.field        = fh->mpegq.field;
+	dprintk(0,"VIDIOC_G_FMT: w: %d, h: %d, f: %d\n",
+		dev->width, dev->height, fh->mpegq.field );
+	return 0;
 }
+
+static int vidioc_try_fmt_cap (struct file *file, void *priv,
+			struct v4l2_format *f)
+{
+	struct cx8802_fh  *fh   = priv;
+	struct cx8802_dev *dev  = fh->dev;
+
+	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
+	f->fmt.pix.bytesperline = 0;
+	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */;
+	f->fmt.pix.colorspace   = 0;
+	dprintk(0,"VIDIOC_TRY_FMT: w: %d, h: %d, f: %d\n",
+		dev->width, dev->height, fh->mpegq.field );
+	return 0;
+}
+
+static int vidioc_s_fmt_cap (struct file *file, void *priv,
+					struct v4l2_format *f)
+{
+	struct cx8802_fh  *fh   = priv;
+	struct cx8802_dev *dev  = fh->dev;
+	struct cx88_core  *core = dev->core;
+
+	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
+	f->fmt.pix.bytesperline = 0;
+	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */;
+	f->fmt.pix.colorspace   = 0;
+	dev->width              = f->fmt.pix.width;
+	dev->height             = f->fmt.pix.height;
+	fh->mpegq.field         = f->fmt.pix.field;
+	cx88_set_scale(core, f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.field);
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_SIZE, 2, 0,
+				f->fmt.pix.height, f->fmt.pix.width);
+	dprintk(0,"VIDIOC_S_FMT: w: %d, h: %d, f: %d\n",
+		f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.field );
+	return 0;
+}
+
+static int vidioc_reqbufs (struct file *file, void *priv, struct v4l2_requestbuffers *p)
+{
+	struct cx8802_fh  *fh   = priv;
+	return (videobuf_reqbufs(&fh->mpegq, p));
+}
+
+static int vidioc_querybuf (struct file *file, void *priv, struct v4l2_buffer *p)
+{
+	struct cx8802_fh  *fh   = priv;
+	return (videobuf_querybuf(&fh->mpegq, p));
+}
+
+static int vidioc_qbuf (struct file *file, void *priv, struct v4l2_buffer *p)
+{
+	struct cx8802_fh  *fh   = priv;
+	return (videobuf_qbuf(&fh->mpegq, p));
+}
+
+static int vidioc_dqbuf (struct file *file, void *priv, struct v4l2_buffer *p)
+{
+	struct cx8802_fh  *fh   = priv;
+	return (videobuf_dqbuf(&fh->mpegq, p,
+				file->f_flags & O_NONBLOCK));
+}
+
+static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
+{
+	struct cx8802_fh  *fh   = priv;
+	return videobuf_streamon(&fh->mpegq);
+}
+
+static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
+{
+	struct cx8802_fh  *fh   = priv;
+	return videobuf_streamoff(&fh->mpegq);
+}
+
+static int vidioc_g_mpegcomp (struct file *file, void *fh,
+			      struct v4l2_mpeg_compression *f)
+{
+	printk(KERN_WARNING "VIDIOC_G_MPEGCOMP is obsolete. "
+				"Replace with VIDIOC_G_EXT_CTRLS!");
+	memcpy(f,&default_mpeg_params,sizeof(*f));
+	return 0;
+}
+
+static int vidioc_s_mpegcomp (struct file *file, void *fh,
+			      struct v4l2_mpeg_compression *f)
+{
+	printk(KERN_WARNING "VIDIOC_S_MPEGCOMP is obsolete. "
+				"Replace with VIDIOC_S_EXT_CTRLS!");
+	return 0;
+}
+
+static int vidioc_g_ext_ctrls (struct file *file, void *priv,
+			       struct v4l2_ext_controls *f)
+{
+	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
+
+	if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+		return -EINVAL;
+	return cx2341x_ext_ctrls(&dev->params, f, VIDIOC_G_EXT_CTRLS);
+}
+
+static int vidioc_s_ext_ctrls (struct file *file, void *priv,
+			       struct v4l2_ext_controls *f)
+{
+	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
+	struct cx2341x_mpeg_params p;
+	int err;
+
+	if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+		return -EINVAL;
+	p = dev->params;
+	err = cx2341x_ext_ctrls(&p, f, VIDIOC_S_EXT_CTRLS);
+	if (!err) {
+		err = cx2341x_update(dev, blackbird_mbox_func, &dev->params, &p);
+		dev->params = p;
+	}
+	return err;
+}
+
+static int vidioc_try_ext_ctrls (struct file *file, void *priv,
+			       struct v4l2_ext_controls *f)
+{
+	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
+	struct cx2341x_mpeg_params p;
+	int err;
+
+	if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+		return -EINVAL;
+	p = dev->params;
+	err = cx2341x_ext_ctrls(&p, f, VIDIOC_TRY_EXT_CTRLS);
+
+	return err;
+}
+
+static int vidioc_s_frequency (struct file *file, void *priv,
+				struct v4l2_frequency *f)
+{
+	struct cx8802_fh  *fh   = priv;
+	struct cx8802_dev *dev  = fh->dev;
+	struct cx88_core  *core = dev->core;
+
+	blackbird_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
+				BLACKBIRD_END_NOW,
+				BLACKBIRD_MPEG_CAPTURE,
+				BLACKBIRD_RAW_BITS_NONE);
+	cx88_set_freq (core,f);
+	blackbird_initialize_codec(dev);
+	cx88_set_scale(dev->core, dev->width, dev->height,
+			fh->mpegq.field);
+	return 0;
+}
+
+static int vidioc_log_status (struct file *file, void *priv)
+{
+	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
+	struct cx88_core  *core = dev->core;
+	char name[32 + 2];
+
+	snprintf(name, sizeof(name), "%s/2", core->name);
+	printk("%s/2: ============  START LOG STATUS  ============\n",
+		core->name);
+	cx88_call_i2c_clients(core, VIDIOC_LOG_STATUS, NULL);
+	cx2341x_log_status(&dev->params, name);
+	printk("%s/2: =============  END LOG STATUS  =============\n",
+		core->name);
+	return 0;
+}
+
+static int vidioc_queryctrl (struct file *file, void *priv,
+				struct v4l2_queryctrl *qctrl)
+{
+	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
+
+	if (blackbird_queryctrl(dev, qctrl) == 0)
+		return 0;
+
+	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
+	if (unlikely(qctrl->id == 0))
+		return -EINVAL;
+	return cx8800_ctrl_query(qctrl);
+}
+
+static int vidioc_enum_input (struct file *file, void *priv,
+				struct v4l2_input *i)
+{
+	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+	return cx88_enum_input (core,i);
+}
+
+static int vidioc_g_ctrl (struct file *file, void *priv,
+				struct v4l2_control *ctl)
+{
+	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+	return
+		cx88_get_control(core,ctl);
+}
+
+static int vidioc_s_ctrl (struct file *file, void *priv,
+				struct v4l2_control *ctl)
+{
+	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+	return
+		cx88_set_control(core,ctl);
+}
+
+static int vidioc_g_frequency (struct file *file, void *priv,
+				struct v4l2_frequency *f)
+{
+	struct cx8802_fh  *fh   = priv;
+	struct cx88_core  *core = fh->dev->core;
+
+	if (unlikely(UNSET == core->tuner_type))
+		return -EINVAL;
+
+	f->type = V4L2_TUNER_ANALOG_TV;
+	f->frequency = core->freq;
+	cx88_call_i2c_clients(core,VIDIOC_G_FREQUENCY,f);
+
+	return 0;
+}
+
+static int vidioc_g_input (struct file *file, void *priv, unsigned int *i)
+{
+	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+
+	*i = core->input;
+	return 0;
+}
+
+static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
+{
+	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+
+	if (i >= 4)
+		return -EINVAL;
+
+	mutex_lock(&core->lock);
+	cx88_newstation(core);
+	cx88_video_mux(core,i);
+	mutex_unlock(&core->lock);
+	return 0;
+}
+
+static int vidioc_g_tuner (struct file *file, void *priv,
+				struct v4l2_tuner *t)
+{
+	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+	u32 reg;
+
+	if (unlikely(UNSET == core->tuner_type))
+		return -EINVAL;
+
+	strcpy(t->name, "Television");
+	t->type       = V4L2_TUNER_ANALOG_TV;
+	t->capability = V4L2_TUNER_CAP_NORM;
+	t->rangehigh  = 0xffffffffUL;
+
+	cx88_get_stereo(core ,t);
+	reg = cx_read(MO_DEVICE_STATUS);
+	t->signal = (reg & (1<<5)) ? 0xffff : 0x0000;
+	return 0;
+}
+
+static int vidioc_s_tuner (struct file *file, void *priv,
+				struct v4l2_tuner *t)
+{
+	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+
+	if (UNSET == core->tuner_type)
+		return -EINVAL;
+	if (0 != t->index)
+		return -EINVAL;
+
+	cx88_set_stereo(core, t->audmode, 1);
+	return 0;
+}
+
+static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
+
+	mutex_lock(&core->lock);
+	cx88_set_tvnorm(core,*id);
+	mutex_unlock(&core->lock);
+	return 0;
+}
+
+/* FIXME: cx88_ioctl_hook not implemented */
 
 static int mpeg_open(struct inode *inode, struct file *file)
 {
@@ -1059,17 +1197,47 @@ static const struct file_operations mpeg_fops =
 	.read	       = mpeg_read,
 	.poll          = mpeg_poll,
 	.mmap	       = mpeg_mmap,
-	.ioctl	       = mpeg_ioctl,
+	.ioctl	       = video_ioctl2,
 	.llseek        = no_llseek,
 };
 
 static struct video_device cx8802_mpeg_template =
 {
-	.name          = "cx8802",
-	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES|VID_TYPE_MPEG_ENCODER,
-	.hardware      = 0,
-	.fops          = &mpeg_fops,
-	.minor         = -1,
+	.name                 = "cx8802",
+	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES|VID_TYPE_MPEG_ENCODER,
+	.fops                 = &mpeg_fops,
+	.minor                = -1,
+	.vidioc_querymenu     = vidioc_querymenu,
+	.vidioc_querycap      = vidioc_querycap,
+	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
+	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
+	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
+	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
+	.vidioc_reqbufs       = vidioc_reqbufs,
+	.vidioc_querybuf      = vidioc_querybuf,
+	.vidioc_qbuf          = vidioc_qbuf,
+	.vidioc_dqbuf         = vidioc_dqbuf,
+	.vidioc_streamon      = vidioc_streamon,
+	.vidioc_streamoff     = vidioc_streamoff,
+	.vidioc_g_mpegcomp    = vidioc_g_mpegcomp,
+	.vidioc_s_mpegcomp    = vidioc_s_mpegcomp,
+	.vidioc_g_ext_ctrls   = vidioc_g_ext_ctrls,
+	.vidioc_s_ext_ctrls   = vidioc_s_ext_ctrls,
+	.vidioc_try_ext_ctrls = vidioc_try_ext_ctrls,
+	.vidioc_s_frequency   = vidioc_s_frequency,
+	.vidioc_log_status    = vidioc_log_status,
+	.vidioc_queryctrl     = vidioc_queryctrl,
+	.vidioc_enum_input    = vidioc_enum_input,
+	.vidioc_g_ctrl        = vidioc_g_ctrl,
+	.vidioc_s_ctrl        = vidioc_s_ctrl,
+	.vidioc_g_frequency   = vidioc_g_frequency,
+	.vidioc_g_input       = vidioc_g_input,
+	.vidioc_s_input       = vidioc_s_input,
+	.vidioc_g_tuner       = vidioc_g_tuner,
+	.vidioc_s_tuner       = vidioc_s_tuner,
+	.vidioc_s_std         = vidioc_s_std,
+	.tvnorms              = CX88_NORMS,
+       .current_norm         = V4L2_STD_NTSC_M,
 };
 
 /* ------------------------------------------------------------------ */
@@ -1164,7 +1332,9 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	cx2341x_fill_defaults(&dev->params);
 	dev->params.port = CX2341X_PORT_STREAMING;
 
-	if (core->tvnorm->id & V4L2_STD_525_60) {
+	cx8802_mpeg_template.current_norm = core->tvnorm;
+
+	if (core->tvnorm & V4L2_STD_525_60) {
 		dev->height = 480;
 	} else {
 		dev->height = 576;
@@ -1178,6 +1348,11 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	blackbird_register_video(dev);
 
 	/* initial device configuration: needed ? */
+	mutex_lock(&dev->core->lock);
+//	init_controls(core);
+	cx88_set_tvnorm(core,core->tvnorm);
+	cx88_video_mux(core,0);
+	mutex_unlock(&dev->core->lock);
 
 	return 0;
 
@@ -1212,8 +1387,6 @@ static int blackbird_init(void)
 	printk(KERN_INFO "cx2388x: snapshot date %04d-%02d-%02d\n",
 	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
 #endif
-	cx88_ioctl_hook = mpeg_do_ioctl;
-	cx88_ioctl_translator = mpeg_translate_ioctl;
 	return cx8802_register_driver(&cx8802_blackbird_driver);
 }
 
@@ -1225,8 +1398,8 @@ static void blackbird_fini(void)
 module_init(blackbird_init);
 module_exit(blackbird_fini);
 
-EXPORT_SYMBOL(cx88_ioctl_hook);
-EXPORT_SYMBOL(cx88_ioctl_translator);
+module_param_named(video_debug,cx8802_mpeg_template.debug, int, 0644);
+MODULE_PARM_DESC(debug,"enable debug messages [video]");
 
 /* ----------------------------------------------------------- */
 /*

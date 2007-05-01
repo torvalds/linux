@@ -48,7 +48,7 @@
 #include <asm/mach-au1x00/au1000.h>
 
 char irq_tab_alchemy[][5] __initdata = {
- [0] = { -1, INTA, INTB, INTX, INTX},   /* IDSEL 00 - AdapterA-Slot0 (top)    */
+ [0] = { -1, INTA, INTA, INTX, INTX},   /* IDSEL 00 - AdapterA-Slot0 (top)    */
  [1] = { -1, INTB, INTA, INTX, INTX},   /* IDSEL 01 - AdapterA-Slot1 (bottom) */
  [2] = { -1, INTC, INTD, INTX, INTX},   /* IDSEL 02 - AdapterB-Slot0 (top)    */
  [3] = { -1, INTD, INTC, INTX, INTX},   /* IDSEL 03 - AdapterB-Slot1 (bottom) */

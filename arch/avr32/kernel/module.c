@@ -12,10 +12,11 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/moduleloader.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
+#include <linux/bug.h>
 #include <linux/elf.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/moduleloader.h>
 #include <linux/vmalloc.h>
 
 void *module_alloc(unsigned long size)
@@ -315,10 +316,10 @@ int module_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
 	vfree(module->arch.syminfo);
 	module->arch.syminfo = NULL;
 
-	return 0;
+	return module_bug_finalize(hdr, sechdrs, module);
 }
 
 void module_arch_cleanup(struct module *module)
 {
-
+	module_bug_cleanup(module);
 }

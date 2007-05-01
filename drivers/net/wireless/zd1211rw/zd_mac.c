@@ -156,18 +156,8 @@ void zd_mac_clear(struct zd_mac *mac)
 static int reset_mode(struct zd_mac *mac)
 {
 	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
-	struct zd_ioreq32 ioreqs[3] = {
-		{ CR_RX_FILTER, STA_RX_FILTER },
-		{ CR_SNIFFER_ON, 0U },
-	};
-
-	if (ieee->iw_mode == IW_MODE_MONITOR) {
-		ioreqs[0].value = 0xffffffff;
-		ioreqs[1].value = 0x1;
-		ioreqs[2].value = ENC_SNIFFER;
-	}
-
-	return zd_iowrite32a(&mac->chip, ioreqs, 3);
+	u32 filter = (ieee->iw_mode == IW_MODE_MONITOR) ? ~0 : STA_RX_FILTER;
+	return zd_iowrite32(&mac->chip, CR_RX_FILTER, filter);
 }
 
 int zd_mac_open(struct net_device *netdev)
@@ -904,16 +894,21 @@ static int fill_ctrlset(struct zd_mac *mac,
 static int zd_mac_tx(struct zd_mac *mac, struct ieee80211_txb *txb, int pri)
 {
 	int i, r;
+	struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
 
 	for (i = 0; i < txb->nr_frags; i++) {
 		struct sk_buff *skb = txb->fragments[i];
 
 		r = fill_ctrlset(mac, txb, i);
-		if (r)
+		if (r) {
+			ieee->stats.tx_dropped++;
 			return r;
+		}
 		r = zd_usb_tx(&mac->chip.usb, skb->data, skb->len);
-		if (r)
+		if (r) {
+			ieee->stats.tx_dropped++;
 			return r;
+		}
 	}
 
 	/* FIXME: shouldn't this be handled by the upper layers? */
@@ -970,14 +965,14 @@ static int is_data_packet_for_us(struct ieee80211_device *ieee,
 	switch (ieee->iw_mode) {
 	case IW_MODE_ADHOC:
 		if ((fc & (IEEE80211_FCTL_TODS|IEEE80211_FCTL_FROMDS)) != 0 ||
-		    memcmp(hdr->addr3, ieee->bssid, ETH_ALEN) != 0)
+		    compare_ether_addr(hdr->addr3, ieee->bssid) != 0)
 			return 0;
 		break;
 	case IW_MODE_AUTO:
 	case IW_MODE_INFRA:
 		if ((fc & (IEEE80211_FCTL_TODS|IEEE80211_FCTL_FROMDS)) !=
 		    IEEE80211_FCTL_FROMDS ||
-		    memcmp(hdr->addr2, ieee->bssid, ETH_ALEN) != 0)
+		    compare_ether_addr(hdr->addr2, ieee->bssid) != 0)
 			return 0;
 		break;
 	default:
@@ -985,9 +980,9 @@ static int is_data_packet_for_us(struct ieee80211_device *ieee,
 		return 0;
 	}
 
-	return memcmp(hdr->addr1, netdev->dev_addr, ETH_ALEN) == 0 ||
+	return compare_ether_addr(hdr->addr1, netdev->dev_addr) == 0 ||
 	       (is_multicast_ether_addr(hdr->addr1) &&
-		memcmp(hdr->addr3, netdev->dev_addr, ETH_ALEN) != 0) ||
+		compare_ether_addr(hdr->addr3, netdev->dev_addr) != 0) ||
 	       (netdev->flags & IFF_PROMISC);
 }
 
@@ -1043,7 +1038,7 @@ static void update_qual_rssi(struct zd_mac *mac,
 	hdr = (struct ieee80211_hdr_3addr *)buffer;
 	if (length < offsetof(struct ieee80211_hdr_3addr, addr3))
 		return;
-	if (memcmp(hdr->addr2, zd_mac_to_ieee80211(mac)->bssid, ETH_ALEN) != 0)
+	if (compare_ether_addr(hdr->addr2, zd_mac_to_ieee80211(mac)->bssid) != 0)
 		return;
 
 	spin_lock_irqsave(&mac->lock, flags);
@@ -1063,9 +1058,23 @@ static int fill_rx_stats(struct ieee80211_rx_stats *stats,
 
 	*pstatus = status = zd_tail(buffer, length, sizeof(struct rx_status));
 	if (status->frame_status & ZD_RX_ERROR) {
-		/* FIXME: update? */
+		struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
+		ieee->stats.rx_errors++;
+		if (status->frame_status & ZD_RX_TIMEOUT_ERROR)
+			ieee->stats.rx_missed_errors++;
+		else if (status->frame_status & ZD_RX_FIFO_OVERRUN_ERROR)
+			ieee->stats.rx_fifo_errors++;
+		else if (status->frame_status & ZD_RX_DECRYPTION_ERROR)
+			ieee->ieee_stats.rx_discards_undecryptable++;
+		else if (status->frame_status & ZD_RX_CRC32_ERROR) {
+			ieee->stats.rx_crc_errors++;
+			ieee->ieee_stats.rx_fcs_errors++;
+		}
+		else if (status->frame_status & ZD_RX_CRC16_ERROR)
+			ieee->stats.rx_crc_errors++;
 		return -EINVAL;
 	}
+
 	memset(stats, 0, sizeof(struct ieee80211_rx_stats));
 	stats->len = length - (ZD_PLCP_HEADER_SIZE + IEEE80211_FCS_LEN +
 		               + sizeof(struct rx_status));
@@ -1094,14 +1103,16 @@ static void zd_mac_rx(struct zd_mac *mac, struct sk_buff *skb)
 	if (skb->len < ZD_PLCP_HEADER_SIZE + IEEE80211_1ADDR_LEN +
 	               IEEE80211_FCS_LEN + sizeof(struct rx_status))
 	{
-		dev_dbg_f(zd_mac_dev(mac), "Packet with length %u to small.\n",
-			 skb->len);
+		ieee->stats.rx_errors++;
+		ieee->stats.rx_length_errors++;
 		goto free_skb;
 	}
 
 	r = fill_rx_stats(&stats, &status, mac, skb->data, skb->len);
 	if (r) {
-		/* Only packets with rx errors are included here. */
+		/* Only packets with rx errors are included here.
+		 * The error stats have already been set in fill_rx_stats.
+		 */
 		goto free_skb;
 	}
 
@@ -1114,8 +1125,10 @@ static void zd_mac_rx(struct zd_mac *mac, struct sk_buff *skb)
 
 	r = filter_rx(ieee, skb->data, skb->len, &stats);
 	if (r <= 0) {
-		if (r < 0)
+		if (r < 0) {
+			ieee->stats.rx_errors++;
 			dev_dbg_f(zd_mac_dev(mac), "Error in packet.\n");
+		}
 		goto free_skb;
 	}
 
@@ -1146,7 +1159,9 @@ int zd_mac_rx_irq(struct zd_mac *mac, const u8 *buffer, unsigned int length)
 
 	skb = dev_alloc_skb(sizeof(struct zd_rt_hdr) + length);
 	if (!skb) {
+		struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
 		dev_warn(zd_mac_dev(mac), "Could not allocate skb.\n");
+		ieee->stats.rx_dropped++;
 		return -ENOMEM;
 	}
 	skb_reserve(skb, sizeof(struct zd_rt_hdr));

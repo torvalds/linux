@@ -94,9 +94,9 @@ static u8 aec62xx_ratemask (ide_drive_t *drive)
 	switch(hwif->pci_dev->device) {
 		case PCI_DEVICE_ID_ARTOP_ATP865:
 		case PCI_DEVICE_ID_ARTOP_ATP865R:
-			mode = (hwif->INB(((hwif->channel) ?
-					hwif->mate->dma_status :
-					hwif->dma_status)) & 0x10) ? 4 : 3;
+			mode = (inb(hwif->channel ?
+				    hwif->mate->dma_status :
+				    hwif->dma_status) & 0x10) ? 4 : 3;
 			break;
 		case PCI_DEVICE_ID_ARTOP_ATP860:
 		case PCI_DEVICE_ID_ARTOP_ATP860R:
@@ -209,25 +209,13 @@ static void aec62xx_tune_drive (ide_drive_t *drive, u8 pio)
 
 static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-	if ((id->capability & 1) && drive->autodma) {
-
-		if (ide_use_dma(drive)) {
-			if (config_chipset_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
-
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive))
 		aec62xx_tune_drive(drive, 5);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return -1;
 }
 
 static int aec62xx_irq_timeout (ide_drive_t *drive)
@@ -286,10 +274,8 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	hwif->tuneproc = &aec62xx_tune_drive;
 	hwif->speedproc = &aec62xx_tune_chipset;
 
-	if (hwif->pci_dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
+	if (hwif->pci_dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
 		hwif->serialized = hwif->channel;
-		hwif->no_dsc = 1;
-	}
 
 	if (hwif->mate)
 		hwif->mate->serialized = hwif->serialized;

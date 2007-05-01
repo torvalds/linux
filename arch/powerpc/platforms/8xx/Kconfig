@@ -1,6 +1,3 @@
-menu "Platform support"
-        depends on PPC_8xx
-
 config FADS
 	bool
 
@@ -9,6 +6,7 @@ config CPM1
 
 choice
 	prompt "8xx Machine Type"
+	depends on PPC_8xx
 	depends on 8xx
 	default MPC885ADS
 
@@ -36,38 +34,36 @@ config MPC885ADS
 endchoice
 
 menu "Freescale Ethernet driver platform-specific options"
-        depends on (FS_ENET && MPC885ADS)
+	depends on (FS_ENET && MPC885ADS)
 
-        config MPC8xx_SECOND_ETH
-        bool "Second Ethernet channel"
-        depends on MPC885ADS
-        default y
-        help
-          This enables support for second Ethernet on MPC885ADS and MPC86xADS boards.
-          The latter will use SCC1, for 885ADS you can select it below.
+	config MPC8xx_SECOND_ETH
+	bool "Second Ethernet channel"
+	depends on MPC885ADS
+	default y
+	help
+	  This enables support for second Ethernet on MPC885ADS and MPC86xADS boards.
+	  The latter will use SCC1, for 885ADS you can select it below.
 
-        choice
-                prompt "Second Ethernet channel"
-                depends on MPC8xx_SECOND_ETH
-                default MPC8xx_SECOND_ETH_FEC2
+	choice
+		prompt "Second Ethernet channel"
+		depends on MPC8xx_SECOND_ETH
+		default MPC8xx_SECOND_ETH_FEC2
 
-                config MPC8xx_SECOND_ETH_FEC2
-                bool "FEC2"
-                depends on MPC885ADS
-                help
-                  Enable FEC2 to serve as 2-nd Ethernet channel. Note that SMC2
-                  (often 2-nd UART) will not work if this is enabled.
+		config MPC8xx_SECOND_ETH_FEC2
+		bool "FEC2"
+		depends on MPC885ADS
+		help
+		  Enable FEC2 to serve as 2-nd Ethernet channel. Note that SMC2
+		  (often 2-nd UART) will not work if this is enabled.
 
-                config MPC8xx_SECOND_ETH_SCC3
-                bool "SCC3"
-                depends on MPC885ADS
-                help
-                  Enable SCC3 to serve as 2-nd Ethernet channel. Note that SMC1
-                  (often 1-nd UART) will not work if this is enabled.
+		config MPC8xx_SECOND_ETH_SCC3
+		bool "SCC3"
+		depends on MPC885ADS
+		help
+		  Enable SCC3 to serve as 2-nd Ethernet channel. Note that SMC1
+		  (often 1-nd UART) will not work if this is enabled.
 
-        endchoice
-
-endmenu
+	endchoice
 
 endmenu
 
@@ -98,7 +94,7 @@ config 8xx_CPU6
 	  require workarounds for Linux (and most other OSes to work).  If you
 	  get a BUG() very early in boot, this might fix the problem.  For
 	  more details read the document entitled "MPC860 Family Device Errata
-	  Reference" on Motorola's website.  This option also incurs a
+	  Reference" on Freescale's website.  This option also incurs a
 	  performance hit.
 
 	  If in doubt, say N here.
@@ -135,4 +131,3 @@ config UCODE_PATCH
 	depends on !NO_UCODE_PATCH
 
 endmenu
-

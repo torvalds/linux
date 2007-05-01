@@ -59,6 +59,9 @@ enum {
 	STAC_D945GTP3,
 	STAC_D945GTP5,
 	STAC_MACMINI,
+	STAC_MACBOOK,
+	STAC_MACBOOK_PRO_V1,
+	STAC_MACBOOK_PRO_V2,
 	STAC_922X_MODELS
 };
 
@@ -461,6 +464,8 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 		      "Dell Inspiron E1705/9400", STAC_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ce,
 		      "Dell XPS M1710", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cf,
+		      "Dell Precision M90", STAC_REF),
 	{} /* terminator */
 };
 
@@ -519,11 +524,32 @@ static unsigned int d945gtp5_pin_configs[10] = {
 	0x02a19320, 0x40000100,
 };
 
+static unsigned int macbook_pin_configs[10] = {
+	0x0321e230, 0x03a1e020, 0x400000fd, 0x9017e110,
+	0x400000fe, 0x0381e021, 0x1345e240, 0x13c5e22e,
+	0x400000fc, 0x400000fb,
+};
+
+static unsigned int macbook_pro_v1_pin_configs[10] = {
+	0x0321e230, 0x03a1e020, 0x9017e110, 0x01014010,
+	0x01a19021, 0x0381e021, 0x1345e240, 0x13c5e22e,
+	0x02a19320, 0x400000fb
+};
+
+static unsigned int macbook_pro_v2_pin_configs[10] = {
+	0x0221401f, 0x90a70120, 0x01813024, 0x01014010,
+	0x400000fd, 0x01016011, 0x1345e240, 0x13c5e22e,
+	0x400000fc, 0x400000fb,
+};
+
 static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_D945_REF] = ref922x_pin_configs,
 	[STAC_D945GTP3] = d945gtp3_pin_configs,
 	[STAC_D945GTP5] = d945gtp5_pin_configs,
 	[STAC_MACMINI] = d945gtp5_pin_configs,
+	[STAC_MACBOOK] = macbook_pin_configs,
+	[STAC_MACBOOK_PRO_V1] = macbook_pro_v1_pin_configs,
+	[STAC_MACBOOK_PRO_V2] = macbook_pro_v2_pin_configs,
 };
 
 static const char *stac922x_models[STAC_922X_MODELS] = {
@@ -531,6 +557,9 @@ static const char *stac922x_models[STAC_922X_MODELS] = {
 	[STAC_D945GTP5]	= "5stack",
 	[STAC_D945GTP3]	= "3stack",
 	[STAC_MACMINI]	= "macmini",
+	[STAC_MACBOOK]	= "macbook",
+	[STAC_MACBOOK_PRO_V1]	= "macbook-pro-v1",
+	[STAC_MACBOOK_PRO_V2]	= "macbook-pro",
 };
 
 static struct snd_pci_quirk stac922x_cfg_tbl[] = {
@@ -1580,6 +1609,11 @@ static int stac92xx_init(struct hda_codec *codec)
 		for (i = 0; i < cfg->hp_outs; i++)
 			enable_pin_detect(codec, cfg->hp_pins[i],
 					  STAC_HP_EVENT);
+		/* force to enable the first line-out; the others are set up
+		 * in unsol_event
+		 */
+		stac92xx_auto_set_pinctl(codec, spec->autocfg.line_out_pins[0],
+					 AC_PINCTL_OUT_EN);
 		stac92xx_auto_init_hp_out(codec);
 		/* fake event to set up pins */
 		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
@@ -1864,6 +1898,22 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec->board_config = snd_hda_check_board_config(codec, STAC_922X_MODELS,
 							stac922x_models,
 							stac922x_cfg_tbl);
+	if (spec->board_config == STAC_MACMINI) {
+		spec->gpio_mute = 1;
+		/* Intel Macs have all same PCI SSID, so we need to check
+		 * codec SSID to distinguish the exact models
+		 */
+		printk(KERN_INFO "hda_codec: STAC922x, Apple subsys_id=%x\n", codec->subsystem_id);
+		switch (codec->subsystem_id) {
+		case 0x106b0200: /* MacBook Pro first generation */
+			spec->board_config = STAC_MACBOOK_PRO_V1;
+			break;
+		case 0x106b1e00: /* MacBook Pro second generation */
+			spec->board_config = STAC_MACBOOK_PRO_V2;
+			break;
+		}
+	}
+
  again:
 	if (spec->board_config < 0) {
 		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC922x, "
@@ -1903,9 +1953,6 @@ static int patch_stac922x(struct hda_codec *codec)
 		stac92xx_free(codec);
 		return err;
 	}
-
-	if (spec->board_config == STAC_MACMINI)
-		spec->gpio_mute = 1;
 
 	codec->patch_ops = stac92xx_patch_ops;
 

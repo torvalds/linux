@@ -43,11 +43,34 @@
 
 #define iob()  __asm__ __volatile__("eieio; sync":::"memory")
 
+static inline volatile void __iomem *celleb_epci_get_epci_base(
+					struct pci_controller *hose)
+{
+	/*
+	 * Note:
+	 * Celleb epci uses cfg_addr as a base address for
+	 * epci control registers.
+	 */
+
+	return hose->cfg_addr;
+}
+
+static inline volatile void __iomem *celleb_epci_get_epci_cfg(
+					struct pci_controller *hose)
+{
+	/*
+	 * Note:
+	 * Celleb epci uses cfg_data as a base address for
+	 * configuration area for epci devices.
+	 */
+
+	return hose->cfg_data;
+}
 
 #if 0 /* test code for epci dummy read */
 static void celleb_epci_dummy_read(struct pci_dev *dev)
 {
-	void __iomem *epci_base;
+	volatile void __iomem *epci_base;
 	struct device_node *node;
 	struct pci_controller *hose;
 	u32 val;
@@ -58,7 +81,7 @@ static void celleb_epci_dummy_read(struct pci_dev *dev)
 	if (!hose)
 		return;
 
-	epci_base = hose->cfg_addr;
+	epci_base = celleb_epci_get_epci_base(hose);
 
 	val = in_be32(epci_base + SCC_EPCI_WATRP);
 	iosync();
@@ -70,19 +93,20 @@ static void celleb_epci_dummy_read(struct pci_dev *dev)
 static inline void clear_and_disable_master_abort_interrupt(
 					struct pci_controller *hose)
 {
-	void __iomem *addr;
-	addr = hose->cfg_addr + PCI_COMMAND;
-	out_be32(addr, in_be32(addr) | (PCI_STATUS_REC_MASTER_ABORT << 16));
+	volatile void __iomem *epci_base, *reg;
+	epci_base = celleb_epci_get_epci_base(hose);
+	reg = epci_base + PCI_COMMAND;
+	out_be32(reg, in_be32(reg) | (PCI_STATUS_REC_MASTER_ABORT << 16));
 }
 
 static int celleb_epci_check_abort(struct pci_controller *hose,
-				   void __iomem *addr)
+				   volatile void __iomem *addr)
 {
-	void __iomem *reg, *epci_base;
+	volatile void __iomem *reg, *epci_base;
 	u32 val;
 
 	iob();
-	epci_base = hose->cfg_addr;
+	epci_base = celleb_epci_get_epci_base(hose);
 
 	reg = epci_base + PCI_COMMAND;
 	val = in_be32(reg);
@@ -108,20 +132,21 @@ static int celleb_epci_check_abort(struct pci_controller *hose,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static void __iomem *celleb_epci_make_config_addr(struct pci_controller *hose,
+static volatile void __iomem *celleb_epci_make_config_addr(
+					struct pci_controller *hose,
 					unsigned int devfn, int where)
 {
-	void __iomem *addr;
+	volatile void __iomem *addr;
 	struct pci_bus *bus = hose->bus;
 
 	if (bus->self)
-		addr = hose->cfg_data +
+		addr = celleb_epci_get_epci_cfg(hose) +
 		       (((bus->number & 0xff) << 16)
 		        | ((devfn & 0xff) << 8)
 		        | (where & 0xff)
 		        | 0x01000000);
 	else
-		addr = hose->cfg_data +
+		addr = celleb_epci_get_epci_cfg(hose) +
 		       (((devfn & 0xff) << 8) | (where & 0xff));
 
 	pr_debug("EPCI: config_addr = 0x%p\n", addr);
@@ -132,7 +157,7 @@ static void __iomem *celleb_epci_make_config_addr(struct pci_controller *hose,
 static int celleb_epci_read_config(struct pci_bus *bus,
 			unsigned int devfn, int where, int size, u32 * val)
 {
-	void __iomem *addr;
+	volatile void __iomem *epci_base, *addr;
 	struct device_node *node;
 	struct pci_controller *hose;
 
@@ -142,13 +167,14 @@ static int celleb_epci_read_config(struct pci_bus *bus,
 	node = (struct device_node *)bus->sysdata;
 	hose = pci_find_hose_for_OF_device(node);
 
-	if (!hose->cfg_data)
+	if (!celleb_epci_get_epci_cfg(hose))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (bus->number == hose->first_busno && devfn == 0) {
 		/* EPCI controller self */
 
-		addr = hose->cfg_addr + where;
+		epci_base = celleb_epci_get_epci_base(hose);
+		addr = epci_base + where;
 
 		switch (size) {
 		case 1:
@@ -185,7 +211,7 @@ static int celleb_epci_read_config(struct pci_bus *bus,
 	}
 
 	pr_debug("EPCI: "
-		 "addr=0x%lx, devfn=0x%x, where=0x%x, size=0x%x, val=0x%x\n",
+		 "addr=0x%p, devfn=0x%x, where=0x%x, size=0x%x, val=0x%x\n",
 		 addr, devfn, where, size, *val);
 
 	return celleb_epci_check_abort(hose, NULL);
@@ -194,7 +220,7 @@ static int celleb_epci_read_config(struct pci_bus *bus,
 static int celleb_epci_write_config(struct pci_bus *bus,
 			unsigned int devfn, int where, int size, u32 val)
 {
-	void __iomem *addr;
+	volatile void __iomem *epci_base, *addr;
 	struct device_node *node;
 	struct pci_controller *hose;
 
@@ -204,13 +230,15 @@ static int celleb_epci_write_config(struct pci_bus *bus,
 	node = (struct device_node *)bus->sysdata;
 	hose = pci_find_hose_for_OF_device(node);
 
-	if (!hose->cfg_data)
+
+	if (!celleb_epci_get_epci_cfg(hose))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (bus->number == hose->first_busno && devfn == 0) {
 		/* EPCI controller self */
 
-		addr = hose->cfg_addr + where;
+		epci_base = celleb_epci_get_epci_base(hose);
+		addr = epci_base + where;
 
 		switch (size) {
 		case 1:
@@ -258,10 +286,10 @@ struct pci_ops celleb_epci_ops = {
 static int __devinit celleb_epci_init(struct pci_controller *hose)
 {
 	u32 val;
-	void __iomem *reg, *epci_base;
+	volatile void __iomem *reg, *epci_base;
 	int hwres = 0;
 
-	epci_base = hose->cfg_addr;
+	epci_base = celleb_epci_get_epci_base(hose);
 
 	/* PCI core reset(Internal bus and PCI clock) */
 	reg = epci_base + SCC_EPCI_CKCTRL;
@@ -381,6 +409,18 @@ int __devinit celleb_setup_epci(struct device_node *node,
 	struct resource r;
 
 	pr_debug("PCI: celleb_setup_epci()\n");
+
+	/*
+	 * Note:
+	 * Celleb epci uses cfg_addr and cfg_data member of
+	 * pci_controller structure in irregular way.
+	 *
+	 * cfg_addr is used to map for control registers of
+	 * celleb epci.
+	 *
+	 * cfg_data is used for configuration area of devices
+	 * on Celleb epci buses.
+	 */
 
 	if (of_address_to_resource(node, 0, &r))
 		goto error;

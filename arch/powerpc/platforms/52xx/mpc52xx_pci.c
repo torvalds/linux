@@ -370,7 +370,7 @@ mpc52xx_add_bridge(struct device_node *node)
 		return -EINVAL;
 	}
 
-	bus_range = get_property(node, "bus-range", &len);
+	bus_range = of_get_property(node, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get %s bus-range, assume bus 0\n",
 		       node->full_name);

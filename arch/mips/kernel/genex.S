@@ -128,6 +128,37 @@ handle_vcei:
 
 	.align  5
 NESTED(handle_int, PT_SIZE, sp)
+#ifdef CONFIG_TRACE_IRQFLAGS
+	/*
+	 * Check to see if the interrupted code has just disabled
+	 * interrupts and ignore this interrupt for now if so.
+	 *
+	 * local_irq_disable() disables interrupts and then calls
+	 * trace_hardirqs_off() to track the state. If an interrupt is taken
+	 * after interrupts are disabled but before the state is updated
+	 * it will appear to restore_all that it is incorrectly returning with
+	 * interrupts disabled
+	 */
+	.set	push
+	.set	noat
+	mfc0	k0, CP0_STATUS
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+	and	k0, ST0_IEP
+	bnez	k0, 1f
+
+	mfc0	k0, EP0_EPC
+	.set	noreorder
+	j	k0
+	rfe
+#else
+	and	k0, ST0_IE
+	bnez	k0, 1f
+
+	eret
+#endif
+1:
+	.set pop
+#endif
 	SAVE_ALL
 	CLI
 	TRACE_IRQS_OFF
@@ -181,13 +212,13 @@ NESTED(except_vec_vi, 0, sp)
 	 * during service by SMTC kernel, we also want to
 	 * pass the IM value to be cleared.
 	 */
-EXPORT(except_vec_vi_mori)
+FEXPORT(except_vec_vi_mori)
 	ori	a0, $0, 0
 #endif /* CONFIG_MIPS_MT_SMTC */
-EXPORT(except_vec_vi_lui)
+FEXPORT(except_vec_vi_lui)
 	lui	v0, 0		/* Patched */
 	j	except_vec_vi_handler
-EXPORT(except_vec_vi_ori)
+FEXPORT(except_vec_vi_ori)
 	 ori	v0, 0		/* Patched */
 	.set	pop
 	END(except_vec_vi)
@@ -220,7 +251,17 @@ NESTED(except_vec_vi_handler, 0, sp)
 	_ehb
 #endif /* CONFIG_MIPS_MT_SMTC */
 	CLI
+#ifdef CONFIG_TRACE_IRQFLAGS
+	move	s0, v0
+#ifdef CONFIG_MIPS_MT_SMTC
+	move	s1, a0
+#endif
 	TRACE_IRQS_OFF
+#ifdef CONFIG_MIPS_MT_SMTC
+	move	a0, s1
+#endif
+	move	v0, s0
+#endif
 
 	LONG_L	s0, TI_REGS($28)
 	LONG_S	sp, TI_REGS($28)

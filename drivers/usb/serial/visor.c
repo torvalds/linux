@@ -384,19 +384,21 @@ static int visor_write (struct usb_serial_port *port, const unsigned char *buf, 
 		dbg("%s - write limit hit\n", __FUNCTION__);
 		return 0;
 	}
+	priv->outstanding_urbs++;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	buffer = kmalloc (count, GFP_ATOMIC);
 	if (!buffer) {
 		dev_err(&port->dev, "out of memory\n");
-		return -ENOMEM;
+		count = -ENOMEM;
+		goto error_no_buffer;
 	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		dev_err(&port->dev, "no more free urbs\n");
-		kfree (buffer);
-		return -ENOMEM;
+		count = -ENOMEM;
+		goto error_no_urb;
 	}
 
 	memcpy (buffer, buf, count);
@@ -415,18 +417,26 @@ static int visor_write (struct usb_serial_port *port, const unsigned char *buf, 
 		dev_err(&port->dev, "%s - usb_submit_urb(write bulk) failed with status = %d\n",
 			__FUNCTION__, status);
 		count = status;
-		kfree (buffer);
+		goto error;
 	} else {
 		spin_lock_irqsave(&priv->lock, flags);
-		++priv->outstanding_urbs;
 		priv->bytes_out += count;
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	/* we are done with this urb, so let the host driver
 	 * really free it when it is finished with it */
-	usb_free_urb (urb);
+	usb_free_urb(urb);
 
+	return count;
+error:
+	usb_free_urb(urb);
+error_no_urb:
+	kfree(buffer);
+error_no_buffer:
+	spin_lock_irqsave(&priv->lock, flags);
+	--priv->outstanding_urbs;
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return count;
 }
 

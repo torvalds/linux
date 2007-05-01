@@ -2312,6 +2312,8 @@ static int __devinit snd_ali_create(struct snd_card *card,
 		return err;
 	}
 
+	snd_card_set_dev(card, &pci->dev);
+
 	/* initialise synth voices*/
 	for (i = 0; i < ALI_CHANNELS; i++ ) {
 		codec->synth.voices[i].number = i;

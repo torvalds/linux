@@ -145,16 +145,14 @@ dma_addr_t map_descbuffer(struct bcm43xx_dmaring *ring,
 			  int tx)
 {
 	dma_addr_t dmaaddr;
+	int direction = PCI_DMA_FROMDEVICE;
 
-	if (tx) {
-		dmaaddr = dma_map_single(&ring->bcm->pci_dev->dev,
+	if (tx)
+		direction = PCI_DMA_TODEVICE;
+
+	dmaaddr = pci_map_single(ring->bcm->pci_dev,
 					 buf, len,
-					 DMA_TO_DEVICE);
-	} else {
-		dmaaddr = dma_map_single(&ring->bcm->pci_dev->dev,
-					 buf, len,
-					 DMA_FROM_DEVICE);
-	}
+					 direction);
 
 	return dmaaddr;
 }
@@ -166,13 +164,13 @@ void unmap_descbuffer(struct bcm43xx_dmaring *ring,
 		      int tx)
 {
 	if (tx) {
-		dma_unmap_single(&ring->bcm->pci_dev->dev,
+		pci_unmap_single(ring->bcm->pci_dev,
 				 addr, len,
-				 DMA_TO_DEVICE);
+				 PCI_DMA_TODEVICE);
 	} else {
-		dma_unmap_single(&ring->bcm->pci_dev->dev,
+		pci_unmap_single(ring->bcm->pci_dev,
 				 addr, len,
-				 DMA_FROM_DEVICE);
+				 PCI_DMA_FROMDEVICE);
 	}
 }
 
@@ -183,8 +181,8 @@ void sync_descbuffer_for_cpu(struct bcm43xx_dmaring *ring,
 {
 	assert(!ring->tx);
 
-	dma_sync_single_for_cpu(&ring->bcm->pci_dev->dev,
-				addr, len, DMA_FROM_DEVICE);
+	pci_dma_sync_single_for_cpu(ring->bcm->pci_dev,
+				    addr, len, PCI_DMA_FROMDEVICE);
 }
 
 static inline
@@ -194,8 +192,8 @@ void sync_descbuffer_for_device(struct bcm43xx_dmaring *ring,
 {
 	assert(!ring->tx);
 
-	dma_sync_single_for_device(&ring->bcm->pci_dev->dev,
-				   addr, len, DMA_FROM_DEVICE);
+	pci_dma_sync_single_for_cpu(ring->bcm->pci_dev,
+				    addr, len, PCI_DMA_TODEVICE);
 }
 
 /* Unmap and free a descriptor buffer. */
@@ -214,17 +212,53 @@ void free_descriptor_buffer(struct bcm43xx_dmaring *ring,
 
 static int alloc_ringmemory(struct bcm43xx_dmaring *ring)
 {
-	struct device *dev = &(ring->bcm->pci_dev->dev);
-
-	ring->descbase = dma_alloc_coherent(dev, BCM43xx_DMA_RINGMEMSIZE,
-					    &(ring->dmabase), GFP_KERNEL);
+	ring->descbase = pci_alloc_consistent(ring->bcm->pci_dev, BCM43xx_DMA_RINGMEMSIZE,
+					    &(ring->dmabase));
 	if (!ring->descbase) {
-		printk(KERN_ERR PFX "DMA ringmemory allocation failed\n");
-		return -ENOMEM;
+		/* Allocation may have failed due to pci_alloc_consistent
+		   insisting on use of GFP_DMA, which is more restrictive
+		   than necessary...  */
+		struct dma_desc *rx_ring;
+		dma_addr_t rx_ring_dma;
+
+		rx_ring = kzalloc(BCM43xx_DMA_RINGMEMSIZE, GFP_KERNEL);
+		if (!rx_ring)
+			goto out_err;
+
+		rx_ring_dma = pci_map_single(ring->bcm->pci_dev, rx_ring,
+					     BCM43xx_DMA_RINGMEMSIZE,
+					     PCI_DMA_BIDIRECTIONAL);
+
+		if (pci_dma_mapping_error(rx_ring_dma) ||
+		    rx_ring_dma + BCM43xx_DMA_RINGMEMSIZE > ring->bcm->dma_mask) {
+			/* Sigh... */
+			if (!pci_dma_mapping_error(rx_ring_dma))
+				pci_unmap_single(ring->bcm->pci_dev,
+						 rx_ring_dma, BCM43xx_DMA_RINGMEMSIZE,
+						 PCI_DMA_BIDIRECTIONAL);
+			rx_ring_dma = pci_map_single(ring->bcm->pci_dev,
+						 rx_ring, BCM43xx_DMA_RINGMEMSIZE,
+						 PCI_DMA_BIDIRECTIONAL);
+			if (pci_dma_mapping_error(rx_ring_dma) ||
+			    rx_ring_dma + BCM43xx_DMA_RINGMEMSIZE > ring->bcm->dma_mask) {
+				assert(0);
+				if (!pci_dma_mapping_error(rx_ring_dma))
+					pci_unmap_single(ring->bcm->pci_dev,
+							 rx_ring_dma, BCM43xx_DMA_RINGMEMSIZE,
+							 PCI_DMA_BIDIRECTIONAL);
+				goto out_err;
+			}
+                }
+
+                ring->descbase = rx_ring;
+                ring->dmabase = rx_ring_dma;
 	}
 	memset(ring->descbase, 0, BCM43xx_DMA_RINGMEMSIZE);
 
 	return 0;
+out_err:
+	printk(KERN_ERR PFX "DMA ringmemory allocation failed\n");
+	return -ENOMEM;
 }
 
 static void free_ringmemory(struct bcm43xx_dmaring *ring)
@@ -407,6 +441,29 @@ static int setup_rx_descbuffer(struct bcm43xx_dmaring *ring,
 	if (unlikely(!skb))
 		return -ENOMEM;
 	dmaaddr = map_descbuffer(ring, skb->data, ring->rx_buffersize, 0);
+	/* This hardware bug work-around adapted from the b44 driver.
+	   The chip may be unable to do PCI DMA to/from anything above 1GB */
+	if (pci_dma_mapping_error(dmaaddr) ||
+	    dmaaddr + ring->rx_buffersize > ring->bcm->dma_mask) {
+		/* This one has 30-bit addressing... */
+		if (!pci_dma_mapping_error(dmaaddr))
+			pci_unmap_single(ring->bcm->pci_dev,
+					 dmaaddr, ring->rx_buffersize,
+					 PCI_DMA_FROMDEVICE);
+		dev_kfree_skb_any(skb);
+		skb = __dev_alloc_skb(ring->rx_buffersize,GFP_DMA);
+		if (skb == NULL)
+			return -ENOMEM;
+		dmaaddr = pci_map_single(ring->bcm->pci_dev,
+					 skb->data, ring->rx_buffersize,
+					 PCI_DMA_FROMDEVICE);
+		if (pci_dma_mapping_error(dmaaddr) ||
+		    dmaaddr + ring->rx_buffersize > ring->bcm->dma_mask) {
+			assert(0);
+			dev_kfree_skb_any(skb);
+			return -ENOMEM;
+		}
+	}
 	meta->skb = skb;
 	meta->dmaaddr = dmaaddr;
 	skb->dev = ring->bcm->net_dev;
@@ -636,8 +693,10 @@ struct bcm43xx_dmaring * bcm43xx_setup_dmaring(struct bcm43xx_private *bcm,
 	err = dmacontroller_setup(ring);
 	if (err)
 		goto err_free_ringmemory;
+	return ring;
 
 out:
+	printk(KERN_ERR PFX "Error in bcm43xx_setup_dmaring\n");
 	return ring;
 
 err_free_ringmemory:
@@ -705,30 +764,16 @@ int bcm43xx_dma_init(struct bcm43xx_private *bcm)
 	struct bcm43xx_dmaring *ring;
 	int err = -ENOMEM;
 	int dma64 = 0;
-	u64 mask = bcm43xx_get_supported_dma_mask(bcm);
-	int nobits;
 
-	if (mask == DMA_64BIT_MASK) {
+	bcm->dma_mask = bcm43xx_get_supported_dma_mask(bcm);
+	if (bcm->dma_mask == DMA_64BIT_MASK)
 		dma64 = 1;
-		nobits = 64;
-	} else if (mask == DMA_32BIT_MASK)
-		nobits = 32;
-	else
-		nobits = 30;
-	err = pci_set_dma_mask(bcm->pci_dev, mask);
-	err |= pci_set_consistent_dma_mask(bcm->pci_dev, mask);
-	if (err) {
-#ifdef CONFIG_BCM43XX_PIO
-		printk(KERN_WARNING PFX "DMA not supported on this device."
-					" Falling back to PIO.\n");
-		bcm->__using_pio = 1;
-		return -ENOSYS;
-#else
-		printk(KERN_ERR PFX "FATAL: DMA not supported and PIO not configured. "
-				    "Please recompile the driver with PIO support.\n");
-		return -ENODEV;
-#endif /* CONFIG_BCM43XX_PIO */
-	}
+	err = pci_set_dma_mask(bcm->pci_dev, bcm->dma_mask);
+	if (err)
+		goto no_dma;
+	err = pci_set_consistent_dma_mask(bcm->pci_dev, bcm->dma_mask);
+	if (err)
+		goto no_dma;
 
 	/* setup TX DMA channels. */
 	ring = bcm43xx_setup_dmaring(bcm, 0, 1, dma64);
@@ -774,7 +819,9 @@ int bcm43xx_dma_init(struct bcm43xx_private *bcm)
 		dma->rx_ring3 = ring;
 	}
 
-	dprintk(KERN_INFO PFX "%d-bit DMA initialized\n", nobits);
+	dprintk(KERN_INFO PFX "%d-bit DMA initialized\n",
+		(bcm->dma_mask == DMA_64BIT_MASK) ? 64 :
+		(bcm->dma_mask == DMA_32BIT_MASK) ? 32 : 30);
 	err = 0;
 out:
 	return err;
@@ -800,7 +847,17 @@ err_destroy_tx1:
 err_destroy_tx0:
 	bcm43xx_destroy_dmaring(dma->tx_ring0);
 	dma->tx_ring0 = NULL;
-	goto out;
+no_dma:
+#ifdef CONFIG_BCM43XX_PIO
+	printk(KERN_WARNING PFX "DMA not supported on this device."
+				" Falling back to PIO.\n");
+	bcm->__using_pio = 1;
+	return -ENOSYS;
+#else
+	printk(KERN_ERR PFX "FATAL: DMA not supported and PIO not configured. "
+			    "Please recompile the driver with PIO support.\n");
+	return -ENODEV;
+#endif /* CONFIG_BCM43XX_PIO */
 }
 
 /* Generate a cookie for the TX header. */
@@ -905,6 +962,7 @@ static void dma_tx_fragment(struct bcm43xx_dmaring *ring,
 	struct bcm43xx_dmadesc_generic *desc;
 	struct bcm43xx_dmadesc_meta *meta;
 	dma_addr_t dmaaddr;
+	struct sk_buff *bounce_skb;
 
 	assert(skb_shinfo(skb)->nr_frags == 0);
 
@@ -924,9 +982,29 @@ static void dma_tx_fragment(struct bcm43xx_dmaring *ring,
 			       skb->len - sizeof(struct bcm43xx_txhdr),
 			       (cur_frag == 0),
 			       generate_cookie(ring, slot));
+	dmaaddr = map_descbuffer(ring, skb->data, skb->len, 1);
+	if (dma_mapping_error(dmaaddr) || dmaaddr + skb->len > ring->bcm->dma_mask) {
+		/* chip cannot handle DMA to/from > 1GB, use bounce buffer (copied from b44 driver) */
+		if (!dma_mapping_error(dmaaddr))
+			unmap_descbuffer(ring, dmaaddr, skb->len, 1);
+		bounce_skb = __dev_alloc_skb(skb->len, GFP_ATOMIC|GFP_DMA);
+		if (!bounce_skb)
+			return;
+		dmaaddr = map_descbuffer(ring, bounce_skb->data, bounce_skb->len, 1);
+		if (dma_mapping_error(dmaaddr) || dmaaddr + skb->len > ring->bcm->dma_mask) {
+			if (!dma_mapping_error(dmaaddr))
+				unmap_descbuffer(ring, dmaaddr, skb->len, 1);
+			dev_kfree_skb_any(bounce_skb);
+			assert(0);
+			return;
+		}
+		skb_copy_from_linear_data(skb, skb_put(bounce_skb, skb->len),
+					  skb->len);
+		dev_kfree_skb_any(skb);
+		skb = bounce_skb;
+	}
 
 	meta->skb = skb;
-	dmaaddr = map_descbuffer(ring, skb->data, skb->len, 1);
 	meta->dmaaddr = dmaaddr;
 
 	fill_descriptor(ring, desc, dmaaddr,

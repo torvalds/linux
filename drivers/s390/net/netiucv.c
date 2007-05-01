@@ -635,7 +635,7 @@ static void netiucv_unpack_skb(struct iucv_connection *conn,
 			return;
 		}
 		skb_put(pskb, header->next);
-		pskb->mac.raw = pskb->data;
+		skb_reset_mac_header(pskb);
 		skb = dev_alloc_skb(pskb->len);
 		if (!skb) {
 			PRINT_WARN("%s Out of memory in netiucv_unpack_skb\n",
@@ -645,8 +645,9 @@ static void netiucv_unpack_skb(struct iucv_connection *conn,
 			privptr->stats.rx_dropped++;
 			return;
 		}
-		memcpy(skb_put(skb, pskb->len), pskb->data, pskb->len);
-		skb->mac.raw = skb->data;
+		skb_copy_from_linear_data(pskb, skb_put(skb, pskb->len),
+					  pskb->len);
+		skb_reset_mac_header(skb);
 		skb->dev = pskb->dev;
 		skb->protocol = pskb->protocol;
 		pskb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -689,7 +690,8 @@ static void conn_action_rx(fsm_instance *fi, int event, void *arg)
 			       msg->length, conn->max_buffsize);
 		return;
 	}
-	conn->rx_buff->data = conn->rx_buff->tail = conn->rx_buff->head;
+	conn->rx_buff->data = conn->rx_buff->head;
+	skb_reset_tail_pointer(conn->rx_buff);
 	conn->rx_buff->len = 0;
 	rc = iucv_message_receive(conn->path, msg, 0, conn->rx_buff->data,
 				  msg->length, NULL);
@@ -735,14 +737,17 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 			}
 		}
 	}
-	conn->tx_buff->data = conn->tx_buff->tail = conn->tx_buff->head;
+	conn->tx_buff->data = conn->tx_buff->head;
+	skb_reset_tail_pointer(conn->tx_buff);
 	conn->tx_buff->len = 0;
 	spin_lock_irqsave(&conn->collect_lock, saveflags);
 	while ((skb = skb_dequeue(&conn->collect_queue))) {
 		header.next = conn->tx_buff->len + skb->len + NETIUCV_HDRLEN;
 		memcpy(skb_put(conn->tx_buff, NETIUCV_HDRLEN), &header,
 		       NETIUCV_HDRLEN);
-		memcpy(skb_put(conn->tx_buff, skb->len), skb->data, skb->len);
+		skb_copy_from_linear_data(skb,
+					  skb_put(conn->tx_buff, skb->len),
+					  skb->len);
 		txbytes += skb->len;
 		txpackets++;
 		stat_maxcq++;
@@ -1164,8 +1169,8 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 		 * Copy the skb to a new allocated skb in lowmem only if the
 		 * data is located above 2G in memory or tailroom is < 2.
 		 */
-		unsigned long hi =
-			((unsigned long)(skb->tail + NETIUCV_HDRLEN)) >> 31;
+		unsigned long hi = ((unsigned long)(skb_tail_pointer(skb) +
+				    NETIUCV_HDRLEN)) >> 31;
 		int copied = 0;
 		if (hi || (skb_tailroom(skb) < 2)) {
 			nskb = alloc_skb(skb->len + NETIUCV_HDRLEN +

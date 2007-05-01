@@ -13,6 +13,7 @@ extern void usb_disable_interface (struct usb_device *dev,
 		struct usb_interface *intf);
 extern void usb_release_interface_cache(struct kref *ref);
 extern void usb_disable_device (struct usb_device *dev, int skip_ep0);
+extern void usb_detect_quirks(struct usb_device *udev);
 
 extern int usb_get_device_descriptor(struct usb_device *dev,
 		unsigned int size);
@@ -20,7 +21,8 @@ extern char *usb_cache_string(struct usb_device *udev, int index);
 extern int usb_set_configuration(struct usb_device *dev, int configuration);
 
 extern void usb_kick_khubd(struct usb_device *dev);
-extern void usb_resume_root_hub(struct usb_device *dev);
+extern int usb_match_device(struct usb_device *dev,
+			    const struct usb_device_id *id);
 
 extern int  usb_hub_init(void);
 extern void usb_hub_cleanup(void);
@@ -31,10 +33,12 @@ extern void usb_host_cleanup(void);
 
 #ifdef	CONFIG_PM
 
-extern int usb_suspend_both(struct usb_device *udev, pm_message_t msg);
-extern int usb_resume_both(struct usb_device *udev);
+extern void usb_autosuspend_work(struct work_struct *work);
 extern int usb_port_suspend(struct usb_device *dev);
 extern int usb_port_resume(struct usb_device *dev);
+extern int usb_external_suspend_device(struct usb_device *udev,
+		pm_message_t msg);
+extern int usb_external_resume_device(struct usb_device *udev);
 
 static inline void usb_pm_lock(struct usb_device *udev)
 {
@@ -48,11 +52,6 @@ static inline void usb_pm_unlock(struct usb_device *udev)
 
 #else
 
-#define usb_suspend_both(udev, msg)	0
-static inline int usb_resume_both(struct usb_device *udev)
-{
-	return 0;
-}
 #define usb_port_suspend(dev)		0
 #define usb_port_resume(dev)		0
 static inline void usb_pm_lock(struct usb_device *udev) {}
@@ -62,14 +61,14 @@ static inline void usb_pm_unlock(struct usb_device *udev) {}
 
 #ifdef CONFIG_USB_SUSPEND
 
-#define USB_AUTOSUSPEND_DELAY	(HZ*2)
-
 extern void usb_autosuspend_device(struct usb_device *udev);
+extern void usb_try_autosuspend_device(struct usb_device *udev);
 extern int usb_autoresume_device(struct usb_device *udev);
 
 #else
 
-#define usb_autosuspend_device(udev)	do {} while (0)
+#define usb_autosuspend_device(udev)		do {} while (0)
+#define usb_try_autosuspend_device(udev)	do {} while (0)
 static inline int usb_autoresume_device(struct usb_device *udev)
 {
 	return 0;
@@ -79,15 +78,13 @@ static inline int usb_autoresume_device(struct usb_device *udev)
 
 extern struct workqueue_struct *ksuspend_usb_wq;
 extern struct bus_type usb_bus_type;
+extern struct device_type usb_device_type;
+extern struct device_type usb_if_device_type;
 extern struct usb_device_driver usb_generic_driver;
-
-/* Here's how we tell apart devices and interfaces.  Luckily there's
- * no such thing as a platform USB device, so we can steal the use
- * of the platform_data field. */
 
 static inline int is_usb_device(const struct device *dev)
 {
-	return dev->platform_data == &usb_generic_driver;
+	return dev->type == &usb_device_type;
 }
 
 /* Do the same for device drivers and interface drivers. */
@@ -123,11 +120,11 @@ extern const char *usbcore_name;
 extern struct mutex usbfs_mutex;
 extern struct usb_driver usbfs_driver;
 extern const struct file_operations usbfs_devices_fops;
-extern const struct file_operations usbfs_device_file_operations;
+extern const struct file_operations usbdev_file_operations;
 extern void usbfs_conn_disc_event(void);
 
-extern int usbdev_init(void);
-extern void usbdev_cleanup(void);
+extern int usb_devio_init(void);
+extern void usb_devio_cleanup(void);
 
 struct dev_state {
 	struct list_head list;      /* state list */

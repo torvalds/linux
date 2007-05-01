@@ -356,6 +356,7 @@
 		CALL(sys_move_pages)
 /* 345 */	CALL(sys_getcpu)
 		CALL(sys_ni_syscall)		/* eventually epoll_pwait */
+		CALL(sys_kexec_load)
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

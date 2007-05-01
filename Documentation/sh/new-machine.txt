@@ -17,7 +17,7 @@ of the board-specific code (with the exception of stboards) ended up
 in arch/sh/kernel/ directly, with board-specific headers ending up in
 include/asm-sh/. For the new kernel, things are broken out by board type,
 companion chip type, and CPU type. Looking at a tree view of this directory
-heirarchy looks like the following:
+hierarchy looks like the following:
 
 Board-specific code:
 
@@ -108,7 +108,7 @@ overloading), and you can feel free to name the directory after the family
 member itself.
 
 There are a few things that each board is required to have, both in the
-arch/sh/boards and the include/asm-sh/ heirarchy. In order to better
+arch/sh/boards and the include/asm-sh/ hierarchy. In order to better
 explain this, we use some examples for adding an imaginary board. For
 setup code, we're required at the very least to provide definitions for
 get_system_type() and platform_setup(). For our imaginary board, this

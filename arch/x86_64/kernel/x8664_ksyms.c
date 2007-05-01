@@ -59,3 +59,4 @@ EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(init_level4_pgt);
 EXPORT_SYMBOL(load_gs_index);
 
+EXPORT_SYMBOL(_proxy_pda);

@@ -1025,7 +1025,7 @@ struct gem {
 
 	struct pci_dev		*pdev;
 	struct net_device	*dev;
-#ifdef CONFIG_PPC_PMAC
+#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_SPARC)
 	struct device_node	*of_node;
 #endif
 };

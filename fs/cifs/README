@@ -1,5 +1,5 @@
 The CIFS VFS support for Linux supports many advanced network filesystem 
-features such as heirarchical dfs like namespace, hardlinks, locking and more.  
+features such as hierarchical dfs like namespace, hardlinks, locking and more.  
 It was designed to comply with the SNIA CIFS Technical Reference (which 
 supersedes the 1992 X/Open SMB Standard) as well as to perform best practice 
 practical interoperability with Windows 2000, Windows XP, Samba and equivalent 

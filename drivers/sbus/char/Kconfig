@@ -46,13 +46,6 @@ config SUN_VIDEOPIX
 	  based on the Phillips SAA9051, can handle NTSC and PAL/SECAM and
 	  SVIDEO signals.
 
-config SUN_AURORA
-	tristate "Aurora Multiboard 1600se (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && BROKEN
-	help
-	  The Aurora Multiboard is a multi-port high-speed serial controller.
-	  If you have one of these, say Y.
-
 config TADPOLE_TS102_UCTRL
 	tristate "Tadpole TS102 Microcontroller support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && SPARC32

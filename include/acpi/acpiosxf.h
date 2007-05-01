@@ -240,12 +240,6 @@ acpi_status
 acpi_os_validate_address(u8 space_id,
 			 acpi_physical_address address, acpi_size length);
 
-u8 acpi_os_readable(void *pointer, acpi_size length);
-
-#ifdef ACPI_FUTURE_USAGE
-u8 acpi_os_writable(void *pointer, acpi_size length);
-#endif
-
 u64 acpi_os_get_timer(void);
 
 acpi_status acpi_os_signal(u32 function, void *info);

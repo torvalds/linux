@@ -1,0 +1,175 @@
+if ARCH_AT91
+
+menu "Atmel AT91 System-on-Chip"
+
+choice
+	prompt "Atmel AT91 Processor"
+
+config ARCH_AT91RM9200
+	bool "AT91RM9200"
+
+config ARCH_AT91SAM9260
+	bool "AT91SAM9260 or AT91SAM9XE"
+
+config ARCH_AT91SAM9261
+	bool "AT91SAM9261"
+
+config ARCH_AT91SAM9263
+	bool "AT91SAM9263"
+
+endchoice
+
+# ----------------------------------------------------------
+
+if ARCH_AT91RM9200
+
+comment "AT91RM9200 Board Type"
+
+config MACH_ONEARM
+	bool "Ajeco 1ARM Single Board Computer"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Ajeco's 1ARM Single Board Computer.
+	  <http://www.ajeco.fi/products.htm>
+
+config ARCH_AT91RM9200DK
+	bool "Atmel AT91RM9200-DK Development board"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Atmel's AT91RM9200-DK Development board.
+	  (Discontinued)
+
+config MACH_AT91RM9200EK
+	bool "Atmel AT91RM9200-EK Evaluation Kit"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Atmel's AT91RM9200-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3507>
+
+config MACH_CSB337
+	bool "Cogent CSB337"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Cogent's CSB337 board.
+	  <http://www.cogcomp.com/csb_csb337.htm>
+
+config MACH_CSB637
+	bool "Cogent CSB637"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Cogent's CSB637 board.
+	  <http://www.cogcomp.com/csb_csb637.htm>
+
+config MACH_CARMEVA
+	bool "Conitec ARM&EVA"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Conitec's AT91RM9200-MCU-Module.
+	  <http://www.conitec.net/english/linuxboard.htm>
+
+config MACH_ATEB9200
+	bool "Embest ATEB9200"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Embest's ATEB9200 board.
+	  <http://www.embedinfo.com/english/product/ATEB9200.asp>
+
+config MACH_KB9200
+	bool "KwikByte KB920x"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using KwikByte's KB920x board.
+	  <http://kwikbyte.com/KB9202_description_new.htm>
+
+config MACH_KAFA
+	bool "Sperry-Sun KAFA board"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Sperry-Sun's KAFA board.
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9260
+
+comment "AT91SAM9260 Variants"
+
+config ARCH_AT91SAM9260_SAM9XE
+	bool "AT91SAM9XE"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using Atmel's AT91SAM9XE System-on-Chip.
+	  They are basicaly AT91SAM9260s with various sizes of embedded Flash.
+
+comment "AT91SAM9260 / AT91SAM9XE Board Type"
+
+config MACH_AT91SAM9260EK
+	bool "Atmel AT91SAM9260-EK / AT91SAM9XE Evaluation Kit"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using Atmel's AT91SAM9260-EK or AT91SAM9XE Evaluation Kit
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3933>
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9261
+
+comment "AT91SAM9261 Board Type"
+
+config MACH_AT91SAM9261EK
+	bool "Atmel AT91SAM9261-EK Evaluation Kit"
+	depends on ARCH_AT91SAM9261
+	help
+	  Select this if you are using Atmel's AT91SAM9261-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3820>
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9263
+
+comment "AT91SAM9263 Board Type"
+
+config MACH_AT91SAM9263EK
+	bool "Atmel AT91SAM9263-EK Evaluation Kit"
+	depends on ARCH_AT91SAM9263
+	help
+	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
+
+endif
+
+# ----------------------------------------------------------
+
+comment "AT91 Board Options"
+
+config MTD_AT91_DATAFLASH_CARD
+	bool "Enable DataFlash Card support"
+	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK)
+	help
+	  Enable support for the DataFlash card.
+
+config MTD_NAND_AT91_BUSWIDTH_16
+	bool "Enable 16-bit data bus interface to NAND flash"
+	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK)
+	help
+	  On AT91SAM926x boards both types of NAND flash can be present
+	  (8 and 16 bit data bus width).
+
+# ----------------------------------------------------------
+
+comment "AT91 Feature Selections"
+
+config AT91_PROGRAMMABLE_CLOCKS
+	bool "Programmable Clocks"
+	help
+	  Select this if you need to program one or more of the PCK0..PCK3
+	  programmable clock outputs.
+
+endmenu
+
+endif

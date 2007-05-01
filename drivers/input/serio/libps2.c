@@ -97,7 +97,7 @@ EXPORT_SYMBOL(ps2_drain);
 
 int ps2_is_keyboard_id(char id_byte)
 {
-	const static char keyboard_ids[] = {
+	static const char keyboard_ids[] = {
 		0xab,	/* Regular keyboards		*/
 		0xac,	/* NCD Sun keyboard		*/
 		0x2b,	/* Trust keyboard, translated	*/

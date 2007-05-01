@@ -312,12 +312,30 @@ EXPORT_SYMBOL_GPL(cfag12864b_disable);
 EXPORT_SYMBOL_GPL(cfag12864b_isenabled);
 
 /*
+ * Is the module inited?
+ */
+
+static unsigned char cfag12864b_inited;
+unsigned char cfag12864b_isinited(void)
+{
+	return cfag12864b_inited;
+}
+EXPORT_SYMBOL_GPL(cfag12864b_isinited);
+
+/*
  * Module Init & Exit
  */
 
 static int __init cfag12864b_init(void)
 {
 	int ret = -EINVAL;
+
+	/* ks0108_init() must be called first */
+	if (!ks0108_isinited()) {
+		printk(KERN_ERR CFAG12864B_NAME ": ERROR: "
+			"ks0108 is not initialized\n");
+		goto none;
+	}
 
 	if (PAGE_SIZE < CFAG12864B_SIZE) {
 		printk(KERN_ERR CFAG12864B_NAME ": ERROR: "
@@ -354,6 +372,7 @@ static int __init cfag12864b_init(void)
 	cfag12864b_clear();
 	cfag12864b_on();
 
+	cfag12864b_inited = 1;
 	return 0;
 
 cachealloced:

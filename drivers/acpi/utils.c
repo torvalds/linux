@@ -31,7 +31,7 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_BUS_COMPONENT
-ACPI_MODULE_NAME("acpi_utils")
+ACPI_MODULE_NAME("utils");
 
 /* --------------------------------------------------------------------------
                             Object Evaluation Helpers

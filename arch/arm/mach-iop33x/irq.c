@@ -24,44 +24,32 @@ static u32 iop33x_mask1;
 
 static inline void intctl0_write(u32 val)
 {
-	iop3xx_cp6_enable();
 	asm volatile("mcr p6, 0, %0, c0, c0, 0" : : "r" (val));
-	iop3xx_cp6_disable();
 }
 
 static inline void intctl1_write(u32 val)
 {
-	iop3xx_cp6_enable();
 	asm volatile("mcr p6, 0, %0, c1, c0, 0" : : "r" (val));
-	iop3xx_cp6_disable();
 }
 
 static inline void intstr0_write(u32 val)
 {
-	iop3xx_cp6_enable();
 	asm volatile("mcr p6, 0, %0, c2, c0, 0" : : "r" (val));
-	iop3xx_cp6_disable();
 }
 
 static inline void intstr1_write(u32 val)
 {
-	iop3xx_cp6_enable();
 	asm volatile("mcr p6, 0, %0, c3, c0, 0" : : "r" (val));
-	iop3xx_cp6_disable();
 }
 
 static inline void intbase_write(u32 val)
 {
-	iop3xx_cp6_enable();
 	asm volatile("mcr p6, 0, %0, c12, c0, 0" : : "r" (val));
-	iop3xx_cp6_disable();
 }
 
 static inline void intsize_write(u32 val)
 {
-	iop3xx_cp6_enable();
 	asm volatile("mcr p6, 0, %0, c13, c0, 0" : : "r" (val));
-	iop3xx_cp6_disable();
 }
 
 static void
@@ -109,6 +97,8 @@ struct irq_chip iop33x_irqchip2 = {
 void __init iop33x_init_irq(void)
 {
 	int i;
+
+	iop_init_cp6_handler();
 
 	intctl0_write(0);
 	intctl1_write(0);

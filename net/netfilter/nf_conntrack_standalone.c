@@ -1,20 +1,9 @@
-/* This file contains all the functions required for the standalone
-   nf_conntrack module.
-
-   These are not required by the compatibility layer.
-*/
-
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 16 Dec 2003: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- generalize L3 protocol dependent part.
- *
- * Derived from net/ipv4/netfilter/ip_conntrack_standalone.c
  */
 
 #include <linux/types.h>

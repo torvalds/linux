@@ -337,17 +337,69 @@ static int s3c2412_nand_devready(struct mtd_info *mtd)
 static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 				     u_char *read_ecc, u_char *calc_ecc)
 {
-	pr_debug("s3c2410_nand_correct_data(%p,%p,%p,%p)\n", mtd, dat, read_ecc, calc_ecc);
+	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	unsigned int diff0, diff1, diff2;
+	unsigned int bit, byte;
 
-	pr_debug("eccs: read %02x,%02x,%02x vs calc %02x,%02x,%02x\n",
-		 read_ecc[0], read_ecc[1], read_ecc[2], calc_ecc[0], calc_ecc[1], calc_ecc[2]);
+	pr_debug("%s(%p,%p,%p,%p)\n", __func__, mtd, dat, read_ecc, calc_ecc);
 
-	if (read_ecc[0] == calc_ecc[0] && read_ecc[1] == calc_ecc[1] && read_ecc[2] == calc_ecc[2])
-		return 0;
+	diff0 = read_ecc[0] ^ calc_ecc[0];
+	diff1 = read_ecc[1] ^ calc_ecc[1];
+	diff2 = read_ecc[2] ^ calc_ecc[2];
 
-	/* we curently have no method for correcting the error */
+	pr_debug("%s: rd %02x%02x%02x calc %02x%02x%02x diff %02x%02x%02x\n",
+		 __func__,
+		 read_ecc[0], read_ecc[1], read_ecc[2],
+		 calc_ecc[0], calc_ecc[1], calc_ecc[2],
+		 diff0, diff1, diff2);
 
-	return -1;
+	if (diff0 == 0 && diff1 == 0 && diff2 == 0)
+		return 0;		/* ECC is ok */
+
+	/* Can we correct this ECC (ie, one row and column change).
+	 * Note, this is similar to the 256 error code on smartmedia */
+
+	if (((diff0 ^ (diff0 >> 1)) & 0x55) == 0x55 &&
+	    ((diff1 ^ (diff1 >> 1)) & 0x55) == 0x55 &&
+	    ((diff2 ^ (diff2 >> 1)) & 0x55) == 0x55) {
+		/* calculate the bit position of the error */
+
+		bit  = (diff2 >> 2) & 1;
+		bit |= (diff2 >> 3) & 2;
+		bit |= (diff2 >> 4) & 4;
+
+		/* calculate the byte position of the error */
+
+		byte  = (diff1 << 1) & 0x80;
+		byte |= (diff1 << 2) & 0x40;
+		byte |= (diff1 << 3) & 0x20;
+		byte |= (diff1 << 4) & 0x10;
+
+		byte |= (diff0 >> 3) & 0x08;
+		byte |= (diff0 >> 2) & 0x04;
+		byte |= (diff0 >> 1) & 0x02;
+		byte |= (diff0 >> 0) & 0x01;
+
+		byte |= (diff2 << 8) & 0x100;
+
+		dev_dbg(info->device, "correcting error bit %d, byte %d\n",
+			bit, byte);
+
+		dat[byte] ^= (1 << bit);
+		return 1;
+	}
+
+	/* if there is only one bit difference in the ECC, then
+	 * one of only a row or column parity has changed, which
+	 * means the error is most probably in the ECC itself */
+
+	diff0 |= (diff1 << 8);
+	diff0 |= (diff2 << 16);
+
+	if ((diff0 & ~(1<<fls(diff0))) == 0)
+		return 1;
+
+	return 0;
 }
 
 /* ECC functions
@@ -364,6 +416,15 @@ static void s3c2410_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 	ctrl = readl(info->regs + S3C2410_NFCONF);
 	ctrl |= S3C2410_NFCONF_INITECC;
 	writel(ctrl, info->regs + S3C2410_NFCONF);
+}
+
+static void s3c2412_nand_enable_hwecc(struct mtd_info *mtd, int mode)
+{
+	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	unsigned long ctrl;
+
+	ctrl = readl(info->regs + S3C2440_NFCONT);
+	writel(ctrl | S3C2412_NFCONT_INIT_MAIN_ECC, info->regs + S3C2440_NFCONT);
 }
 
 static void s3c2440_nand_enable_hwecc(struct mtd_info *mtd, int mode)
@@ -383,6 +444,21 @@ static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	ecc_code[1] = readb(info->regs + S3C2410_NFECC + 1);
 	ecc_code[2] = readb(info->regs + S3C2410_NFECC + 2);
 
+	pr_debug("%s: returning ecc %02x%02x%02x\n", __func__,
+		 ecc_code[0], ecc_code[1], ecc_code[2]);
+
+	return 0;
+}
+
+static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+{
+	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	unsigned long ecc = readl(info->regs + S3C2412_NFMECC0);
+
+	ecc_code[0] = ecc;
+	ecc_code[1] = ecc >> 8;
+	ecc_code[2] = ecc >> 16;
+
 	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n", ecc_code[0], ecc_code[1], ecc_code[2]);
 
 	return 0;
@@ -397,7 +473,7 @@ static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n", ecc_code[0], ecc_code[1], ecc_code[2]);
+	pr_debug("%s: returning ecc %06lx\n", __func__, ecc);
 
 	return 0;
 }
@@ -565,6 +641,10 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 			break;
 
 		case TYPE_S3C2412:
+  			chip->ecc.hwctl     = s3c2412_nand_enable_hwecc;
+  			chip->ecc.calculate = s3c2412_nand_calculate_ecc;
+			break;
+
 		case TYPE_S3C2440:
   			chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;
   			chip->ecc.calculate = s3c2440_nand_calculate_ecc;

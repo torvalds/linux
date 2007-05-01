@@ -1376,6 +1376,8 @@ static void do_tty_hangup(struct work_struct *work)
 	read_unlock(&tasklist_lock);
 
 	tty->flags = 0;
+	put_pid(tty->session);
+	put_pid(tty->pgrp);
 	tty->session = NULL;
 	tty->pgrp = NULL;
 	tty->ctrl_status = 0;
@@ -1533,7 +1535,7 @@ void disassociate_ctty(int on_exit)
 
 	spin_lock_irq(&current->sighand->siglock);
 	tty_pgrp = current->signal->tty_old_pgrp;
-	current->signal->tty_old_pgrp = 0;
+	current->signal->tty_old_pgrp = NULL;
 	spin_unlock_irq(&current->sighand->siglock);
 	put_pid(tty_pgrp);
 
@@ -1901,6 +1903,20 @@ static int init_dev(struct tty_driver *driver, int idx,
 	/* check whether we're reopening an existing tty */
 	if (driver->flags & TTY_DRIVER_DEVPTS_MEM) {
 		tty = devpts_get_tty(idx);
+		/*
+		 * If we don't have a tty here on a slave open, it's because
+		 * the master already started the close process and there's
+		 * no relation between devpts file and tty anymore.
+		 */
+		if (!tty && driver->subtype == PTY_TYPE_SLAVE) {
+			retval = -EIO;
+			goto end_init;
+		}
+		/*
+		 * It's safe from now on because init_dev() is called with
+		 * tty_mutex held and release_dev() won't change tty->count
+		 * or tty->flags without having to grab tty_mutex
+		 */
 		if (tty && driver->subtype == PTY_TYPE_MASTER)
 			tty = tty->link;
 	} else {
@@ -3713,15 +3729,14 @@ int tty_register_driver(struct tty_driver *driver)
 
 	if (!driver->major) {
 		error = alloc_chrdev_region(&dev, driver->minor_start, driver->num,
-						(char*)driver->name);
+						driver->name);
 		if (!error) {
 			driver->major = MAJOR(dev);
 			driver->minor_start = MINOR(dev);
 		}
 	} else {
 		dev = MKDEV(driver->major, driver->minor_start);
-		error = register_chrdev_region(dev, driver->num,
-						(char*)driver->name);
+		error = register_chrdev_region(dev, driver->num, driver->name);
 	}
 	if (error < 0) {
 		kfree(p);
@@ -3828,6 +3843,9 @@ static struct pid *__proc_set_tty(struct task_struct *tsk, struct tty_struct *tt
 {
 	struct pid *old_pgrp;
 	if (tty) {
+		/* We should not have a session or pgrp to here but.... */
+		put_pid(tty->session);
+		put_pid(tty->pgrp);
 		tty->session = get_pid(task_session(tsk));
 		tty->pgrp = get_pid(task_pgrp(tsk));
 	}

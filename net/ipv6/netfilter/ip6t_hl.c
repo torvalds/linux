@@ -25,7 +25,7 @@ static int match(const struct sk_buff *skb,
 		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ip6t_hl_info *info = matchinfo;
-	const struct ipv6hdr *ip6h = skb->nh.ipv6h;
+	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 
 	switch (info->mode) {
 		case IP6T_HL_EQ:

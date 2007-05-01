@@ -108,7 +108,7 @@ static void sis_delayed_enable(struct agp_bridge_data *bridge, u32 mode)
 	}
 }
 
-static struct aper_size_info_8 sis_generic_sizes[7] =
+static const struct aper_size_info_8 sis_generic_sizes[7] =
 {
 	{256, 65536, 6, 99},
 	{128, 32768, 5, 83},

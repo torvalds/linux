@@ -1,13 +1,11 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001-2003 Red Hat, Inc.
+ * Copyright © 2001-2007 Red Hat, Inc.
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
- *
- * $Id: write.c,v 1.97 2005/11/07 11:14:42 gleixner Exp $
  *
  */
 
@@ -507,8 +505,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 	uint32_t alloclen;
 	int ret;
 
-	if (1 /* alternative branch needs testing */ ||
-	    !jffs2_can_mark_obsolete(c)) {
+	if (!jffs2_can_mark_obsolete(c)) {
 		/* We can't mark stuff obsolete on the medium. We need to write a deletion dirent */
 
 		rd = jffs2_alloc_raw_dirent();

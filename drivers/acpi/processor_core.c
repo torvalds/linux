@@ -60,7 +60,6 @@
 
 #define ACPI_PROCESSOR_COMPONENT	0x01000000
 #define ACPI_PROCESSOR_CLASS		"processor"
-#define ACPI_PROCESSOR_DRIVER_NAME	"ACPI Processor Driver"
 #define ACPI_PROCESSOR_DEVICE_NAME	"Processor"
 #define ACPI_PROCESSOR_FILE_INFO	"info"
 #define ACPI_PROCESSOR_FILE_THROTTLING	"throttling"
@@ -71,13 +70,11 @@
 #define ACPI_PROCESSOR_LIMIT_USER	0
 #define ACPI_PROCESSOR_LIMIT_THERMAL	1
 
-#define ACPI_STA_PRESENT 0x00000001
-
 #define _COMPONENT		ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("acpi_processor")
+ACPI_MODULE_NAME("processor_core");
 
-    MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION(ACPI_PROCESSOR_DRIVER_NAME);
+MODULE_AUTHOR("Paul Diefenbaugh");
+MODULE_DESCRIPTION("ACPI Processor Driver");
 MODULE_LICENSE("GPL");
 
 static int acpi_processor_add(struct acpi_device *device);
@@ -89,7 +86,7 @@ static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu);
 static int acpi_processor_handle_eject(struct acpi_processor *pr);
 
 static struct acpi_driver acpi_processor_driver = {
-	.name = ACPI_PROCESSOR_DRIVER_NAME,
+	.name = "processor",
 	.class = ACPI_PROCESSOR_CLASS,
 	.ids = ACPI_PROCESSOR_HID,
 	.ops = {
@@ -404,7 +401,7 @@ static int map_lsapic_id(struct acpi_subtable_header *entry,
 	if (lsapic->lapic_flags & ACPI_MADT_ENABLED) {
 		/* First check against id */
 		if (lsapic->processor_id == acpi_id) {
-			*apic_id = lsapic->id;
+			*apic_id = (lsapic->id << 8) | lsapic->eid;
 			return 1;
 		/* Check against optional uid */
 		} else if (entry->length >= 16 &&
@@ -780,7 +777,7 @@ static int is_processor_present(acpi_handle handle)
 
 
 	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
-	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_PRESENT)) {
+	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_PRESENT)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Processor Device is not present"));
 		return 0;
 	}
@@ -1005,7 +1002,7 @@ static int __init acpi_processor_init(void)
 #ifdef CONFIG_SMP
 	if (ACPI_FAILURE(acpi_get_table(ACPI_SIG_MADT, 0,
 				(struct acpi_table_header **)&madt)))
-		madt = 0;
+		madt = NULL;
 #endif
 
 	acpi_processor_dir = proc_mkdir(ACPI_PROCESSOR_CLASS, acpi_root_dir);

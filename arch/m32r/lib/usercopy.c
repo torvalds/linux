@@ -293,7 +293,7 @@ long strnlen_user(const char __user *s, long n)
 		: "0" (n), "1" (s), "r" (n & 3), "r" (mask), "r"(0x01010101)
 		: "r0", "r1", "cbit");
 
-	/* NOTE: strnlen_user() algorism:
+	/* NOTE: strnlen_user() algorithm:
 	 * {
 	 *   char *p;
 	 *   for (p = s; n-- && *p != '\0'; ++p)
@@ -369,7 +369,7 @@ long strnlen_user(const char __user *s, long n)
 		: "0" (n), "1" (s), "r" (n & 3), "r" (mask), "r"(0x01010101)
 		: "r0", "r1", "r2", "r3", "cbit");
 
-	/* NOTE: strnlen_user() algorism:
+	/* NOTE: strnlen_user() algorithm:
 	 * {
 	 *   char *p;
 	 *   for (p = s; n-- && *p != '\0'; ++p)

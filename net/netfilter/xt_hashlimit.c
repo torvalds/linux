@@ -216,10 +216,8 @@ static int htable_create(struct xt_hashlimit_info *minfo, int family)
 	hinfo->pde->proc_fops = &dl_file_ops;
 	hinfo->pde->data = hinfo;
 
-	init_timer(&hinfo->timer);
+	setup_timer(&hinfo->timer, htable_gc, (unsigned long )hinfo);
 	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);
-	hinfo->timer.data = (unsigned long )hinfo;
-	hinfo->timer.function = htable_gc;
 	add_timer(&hinfo->timer);
 
 	spin_lock_bh(&hashlimit_lock);
@@ -380,22 +378,22 @@ hashlimit_init_dst(struct xt_hashlimit_htable *hinfo, struct dsthash_dst *dst,
 	switch (hinfo->family) {
 	case AF_INET:
 		if (hinfo->cfg.mode & XT_HASHLIMIT_HASH_DIP)
-			dst->addr.ip.dst = skb->nh.iph->daddr;
+			dst->addr.ip.dst = ip_hdr(skb)->daddr;
 		if (hinfo->cfg.mode & XT_HASHLIMIT_HASH_SIP)
-			dst->addr.ip.src = skb->nh.iph->saddr;
+			dst->addr.ip.src = ip_hdr(skb)->saddr;
 
 		if (!(hinfo->cfg.mode &
 		      (XT_HASHLIMIT_HASH_DPT | XT_HASHLIMIT_HASH_SPT)))
 			return 0;
-		nexthdr = skb->nh.iph->protocol;
+		nexthdr = ip_hdr(skb)->protocol;
 		break;
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	case AF_INET6:
 		if (hinfo->cfg.mode & XT_HASHLIMIT_HASH_DIP)
-			memcpy(&dst->addr.ip6.dst, &skb->nh.ipv6h->daddr,
+			memcpy(&dst->addr.ip6.dst, &ipv6_hdr(skb)->daddr,
 			       sizeof(dst->addr.ip6.dst));
 		if (hinfo->cfg.mode & XT_HASHLIMIT_HASH_SIP)
-			memcpy(&dst->addr.ip6.src, &skb->nh.ipv6h->saddr,
+			memcpy(&dst->addr.ip6.src, &ipv6_hdr(skb)->saddr,
 			       sizeof(dst->addr.ip6.src));
 
 		if (!(hinfo->cfg.mode &

@@ -2104,6 +2104,10 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 	volatile uint32_t word0, ldata;
 	void __iomem *to_slim;
 
+	/* If the PCI channel is in offline state, do not post mbox. */
+	if (unlikely(pci_channel_offline(phba->pcidev)))
+		return MBX_NOT_FINISHED;
+
 	psli = &phba->sli;
 
 	spin_lock_irqsave(phba->host->host_lock, drvr_flag);
@@ -2406,6 +2410,10 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 {
 	struct lpfc_iocbq *nextiocb;
 	IOCB_t *iocb;
+
+	/* If the PCI channel is in offline state, do not post iocbs. */
+	if (unlikely(pci_channel_offline(phba->pcidev)))
+		return IOCB_ERROR;
 
 	/*
 	 * We should never get an IOCB if we are in a < LINK_DOWN state
@@ -3152,6 +3160,10 @@ lpfc_intr_handler(int irq, void *dev_id)
 	phba = (struct lpfc_hba *) dev_id;
 
 	if (unlikely(!phba))
+		return IRQ_NONE;
+
+	/* If the pci channel is offline, ignore all the interrupts. */
+	if (unlikely(pci_channel_offline(phba->pcidev)))
 		return IRQ_NONE;
 
 	phba->sli.slistat.sli_intr++;

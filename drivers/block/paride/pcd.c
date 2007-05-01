@@ -140,7 +140,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/blkdev.h>
 #include <asm/uaccess.h>
 
-static spinlock_t pcd_lock;
+static DEFINE_SPINLOCK(pcd_lock);
 
 module_param(verbose, bool, 0644);
 module_param(major, int, 0);

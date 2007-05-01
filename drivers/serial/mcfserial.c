@@ -425,15 +425,13 @@ irqreturn_t mcfrs_interrupt(int irq, void *dev_id)
  * -------------------------------------------------------------------
  */
 
-static void mcfrs_offintr(void *private)
+static void mcfrs_offintr(struct work_struct *work)
 {
-	struct mcf_serial	*info = (struct mcf_serial *) private;
-	struct tty_struct	*tty;
+	struct mcf_serial *info = container_of(work, struct mcf_serial, tqueue);
+	struct tty_struct *tty = info->tty;
 	
-	tty = info->tty;
-	if (!tty)
-		return;
-	tty_wakeup(tty);
+	if (tty)
+		tty_wakeup(tty);
 }
 
 
@@ -497,16 +495,13 @@ static void mcfrs_timer(void)
  * 	do_serial_hangup() -> tty->hangup() -> mcfrs_hangup()
  * 
  */
-static void do_serial_hangup(void *private)
+static void do_serial_hangup(struct work_struct *work)
 {
-	struct mcf_serial	*info = (struct mcf_serial *) private;
-	struct tty_struct	*tty;
+	struct mcf_serial *info = container_of(work, struct mcf_serial, tqueue_hangup);
+	struct tty_struct *tty = info->tty;
 	
-	tty = info->tty;
-	if (!tty)
-		return;
-
-	tty_hangup(tty);
+	if (tty)
+		tty_hangup(tty);
 }
 
 static int startup(struct mcf_serial * info)
@@ -857,7 +852,7 @@ static void mcfrs_throttle(struct tty_struct * tty)
 #ifdef SERIAL_DEBUG_THROTTLE
 	char	buf[64];
 	
-	printk("throttle %s: %d....\n", _tty_name(tty, buf),
+	printk("throttle %s: %d....\n", tty_name(tty, buf),
 	       tty->ldisc.chars_in_buffer(tty));
 #endif
 
@@ -876,7 +871,7 @@ static void mcfrs_unthrottle(struct tty_struct * tty)
 #ifdef SERIAL_DEBUG_THROTTLE
 	char	buf[64];
 	
-	printk("unthrottle %s: %d....\n", _tty_name(tty, buf),
+	printk("unthrottle %s: %d....\n", tty_name(tty, buf),
 	       tty->ldisc.chars_in_buffer(tty));
 #endif
 
@@ -1541,14 +1536,21 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 		 * External Pin Mask Setting & Enable External Pin for Interface
 		 * mrcbis@aliceposta.it
         	 */
-		unsigned short *serpin_enable_mask;
-		serpin_enable_mask = (MCF_IPSBAR + MCF_GPIO_PAR_UART);
+		u16 *serpin_enable_mask;
+		serpin_enable_mask = (u16 *) (MCF_IPSBAR + MCF_GPIO_PAR_UART);
 		if (info->line == 0)
 			*serpin_enable_mask |= UART0_ENABLE_MASK;
 		else if (info->line == 1)
 			*serpin_enable_mask |= UART1_ENABLE_MASK;
 		else if (info->line == 2)
 			*serpin_enable_mask |= UART2_ENABLE_MASK;
+	}
+#endif
+#if defined(CONFIG_M528x)
+	/* make sure PUAPAR is set for UART0 and UART1 */
+	if (info->line < 2) {
+		volatile unsigned char *portp = (volatile unsigned char *) (MCF_MBAR + MCF5282_GPIO_PUAPAR);
+		*portp |= (0x03 << (info->line * 2));
 	}
 #endif
 #elif defined(CONFIG_M520x)
@@ -1783,8 +1785,8 @@ mcfrs_init(void)
 		info->event = 0;
 		info->count = 0;
 		info->blocked_open = 0;
-		INIT_WORK(&info->tqueue, mcfrs_offintr, info);
-		INIT_WORK(&info->tqueue_hangup, do_serial_hangup, info);
+		INIT_WORK(&info->tqueue, mcfrs_offintr);
+		INIT_WORK(&info->tqueue_hangup, do_serial_hangup);
 		init_waitqueue_head(&info->open_wait);
 		init_waitqueue_head(&info->close_wait);
 

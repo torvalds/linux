@@ -1067,8 +1067,8 @@ out_err:
 
 static int __devinit amd7930_obio_attach(struct device_node *dp)
 {
-	struct linux_prom_registers *regs;
-	struct linux_prom_irqs *irqp;
+	const struct linux_prom_registers *regs;
+	const struct linux_prom_irqs *irqp;
 	struct resource res, *rp;
 	int len;
 

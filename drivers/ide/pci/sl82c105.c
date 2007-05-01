@@ -161,14 +161,14 @@ static int sl82c105_check_drive (ide_drive_t *drive)
 		if (id->field_valid & 2) {
 			if ((id->dma_mword & hwif->mwdma_mask) ||
 			    (id->dma_1word & hwif->swdma_mask))
-				return hwif->ide_dma_on(drive);
+				return 0;
 		}
 
-		if (__ide_dma_good_drive(drive))
-			return hwif->ide_dma_on(drive);
+		if (__ide_dma_good_drive(drive) && id->eide_dma_time < 150)
+			return 0;
 	} while (0);
 
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 /*
@@ -215,7 +215,7 @@ static int sl82c105_ide_dma_lost_irq(ide_drive_t *drive)
 	 * Was DMA enabled?  If so, disable it - we're resetting the
 	 * host.  The IDE layer will be handling the drive for us.
 	 */
-	val = hwif->INB(dma_base);
+	val = inb(dma_base);
 	if (val & 1) {
 		outb(val & ~1, dma_base);
 		printk("sl82c105: DMA was enabled\n");
@@ -259,28 +259,22 @@ static int sl82c105_ide_dma_on (ide_drive_t *drive)
 {
 	DBG(("sl82c105_ide_dma_on(drive:%s)\n", drive->name));
 
-	if (config_for_dma(drive)) {
-		config_for_pio(drive, 4, 0, 0);
-		return HWIF(drive)->ide_dma_off_quietly(drive);
-	}
+	if (config_for_dma(drive))
+		return 1;
 	printk(KERN_INFO "%s: DMA enabled\n", drive->name);
 	return __ide_dma_on(drive);
 }
 
-static int sl82c105_ide_dma_off_quietly (ide_drive_t *drive)
+static void sl82c105_dma_off_quietly(ide_drive_t *drive)
 {
 	u8 speed = XFER_PIO_0;
-	int rc;
-	
-	DBG(("sl82c105_ide_dma_off_quietly(drive:%s)\n", drive->name));
 
-	rc = __ide_dma_off_quietly(drive);
+	DBG(("sl82c105_dma_off_quietly(drive:%s)\n", drive->name));
+
+	ide_dma_off_quietly(drive);
 	if (drive->pio_speed)
 		speed = drive->pio_speed - XFER_PIO_0;
 	config_for_pio(drive, speed, 0, 1);
-	drive->current_speed = drive->pio_speed;
-
-	return rc;
 }
 
 /*
@@ -401,11 +395,9 @@ static unsigned int __devinit init_chipset_sl82c105(struct pci_dev *dev, const c
 /*
  * Initialise the chip
  */
-
 static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 {
 	unsigned int rev;
-	u8 dma_state;
 
 	DBG(("init_hwif_sl82c105(hwif: ide%d)\n", hwif->index));
 
@@ -431,7 +423,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	dma_state = hwif->INB(hwif->dma_base + 2) & ~0x60;
 	rev = sl82c105_bridge_revision(hwif->pci_dev);
 	if (rev <= 5) {
 		/*
@@ -441,15 +432,12 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 		printk("    %s: Winbond 553 bridge revision %d, BM-DMA disabled\n",
 		       hwif->name, rev);
 	} else {
-		dma_state |= 0x60;
-
 		hwif->atapi_dma = 1;
-		hwif->mwdma_mask = 0x07;
-		hwif->swdma_mask = 0x07;
+		hwif->mwdma_mask = 0x04;
 
 		hwif->ide_dma_check = &sl82c105_check_drive;
 		hwif->ide_dma_on = &sl82c105_ide_dma_on;
-		hwif->ide_dma_off_quietly = &sl82c105_ide_dma_off_quietly;
+		hwif->dma_off_quietly = &sl82c105_dma_off_quietly;
 		hwif->ide_dma_lostirq = &sl82c105_ide_dma_lost_irq;
 		hwif->dma_start = &sl82c105_ide_dma_start;
 		hwif->ide_dma_timeout = &sl82c105_ide_dma_timeout;
@@ -462,7 +450,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 		if (hwif->mate)
 			hwif->serialized = hwif->mate->serialized = 1;
 	}
-	hwif->OUTB(dma_state, hwif->dma_base + 2);
 }
 
 static ide_pci_device_t sl82c105_chipset __devinitdata = {

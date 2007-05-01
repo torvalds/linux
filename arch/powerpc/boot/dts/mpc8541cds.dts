@@ -12,16 +12,13 @@
 
 / {
 	model = "MPC8541CDS";
-	compatible = "MPC85xxCDS";
+	compatible = "MPC8541CDS", "MPC85xxCDS";
 	#address-cells = <1>;
 	#size-cells = <1>;
-	linux,phandle = <100>;
 
 	cpus {
-		#cpus = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		linux,phandle = <200>;
 
 		PowerPC,8541@0 {
 			device_type = "cpu";
@@ -34,13 +31,11 @@
 			bus-frequency = <0>;	// 166 MHz
 			clock-frequency = <0>;	// 825 MHz, from uboot
 			32-bit;
-			linux,phandle = <201>;
 		};
 	};
 
 	memory {
 		device_type = "memory";
-		linux,phandle = <300>;
 		reg = <00000000 08000000>;	// 128M at 0x0
 	};
 
@@ -58,7 +53,7 @@
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <1b 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
 
@@ -68,17 +63,14 @@
 			device_type = "mdio";
 			compatible = "gianfar";
 			reg = <24520 20>;
-			linux,phandle = <24520>;
-			ethernet-phy@0 {
-				linux,phandle = <2452000>;
-				interrupt-parent = <40000>;
+			phy0: ethernet-phy@0 {
+				interrupt-parent = <&mpic>;
 				interrupts = <35 0>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@1 {
-				linux,phandle = <2452001>;
-				interrupt-parent = <40000>;
+			phy1: ethernet-phy@1 {
+				interrupt-parent = <&mpic>;
 				interrupts = <35 0>;
 				reg = <1>;
 				device_type = "ethernet-phy";
@@ -94,8 +86,8 @@
 			reg = <24000 1000>;
 			local-mac-address = [ 00 E0 0C 00 73 00 ];
 			interrupts = <d 2 e 2 12 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452000>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy0>;
 		};
 
 		ethernet@25000 {
@@ -107,8 +99,8 @@
 			reg = <25000 1000>;
 			local-mac-address = [ 00 E0 0C 00 73 01 ];
 			interrupts = <13 2 14 2 18 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452001>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy1>;
 		};
 
 		serial@4500 {
@@ -117,7 +109,7 @@
 			reg = <4500 100>; 	// reg base, size
 			clock-frequency = <0>; 	// should we fill in in uboot?
 			interrupts = <1a 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 		};
 
 		serial@4600 {
@@ -126,57 +118,56 @@
 			reg = <4600 100>;	// reg base, size
 			clock-frequency = <0>; 	// should we fill in in uboot?
 			interrupts = <1a 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 		};
 
-		pci@8000 {
-			linux,phandle = <8000>;
+		pci1: pci@8000 {
 			interrupt-map-mask = <1f800 0 0 7>;
 			interrupt-map = <
 
 				/* IDSEL 0x10 */
-				08000 0 0 1 40000 30 1
-				08000 0 0 2 40000 31 1
-				08000 0 0 3 40000 32 1
-				08000 0 0 4 40000 33 1
+				08000 0 0 1 &mpic 30 1
+				08000 0 0 2 &mpic 31 1
+				08000 0 0 3 &mpic 32 1
+				08000 0 0 4 &mpic 33 1
 
 				/* IDSEL 0x11 */
-				08800 0 0 1 40000 30 1
-				08800 0 0 2 40000 31 1
-				08800 0 0 3 40000 32 1
-				08800 0 0 4 40000 33 1
+				08800 0 0 1 &mpic 30 1
+				08800 0 0 2 &mpic 31 1
+				08800 0 0 3 &mpic 32 1
+				08800 0 0 4 &mpic 33 1
 
 				/* IDSEL 0x12 (Slot 1) */
-				09000 0 0 1 40000 30 1
-				09000 0 0 2 40000 31 1
-				09000 0 0 3 40000 32 1
-				09000 0 0 4 40000 33 1
+				09000 0 0 1 &mpic 30 1
+				09000 0 0 2 &mpic 31 1
+				09000 0 0 3 &mpic 32 1
+				09000 0 0 4 &mpic 33 1
 
 				/* IDSEL 0x13 (Slot 2) */
-				09800 0 0 1 40000 31 1
-				09800 0 0 2 40000 32 1
-				09800 0 0 3 40000 33 1
-				09800 0 0 4 40000 30 1
+				09800 0 0 1 &mpic 31 1
+				09800 0 0 2 &mpic 32 1
+				09800 0 0 3 &mpic 33 1
+				09800 0 0 4 &mpic 30 1
 
 				/* IDSEL 0x14 (Slot 3) */
-				0a000 0 0 1 40000 32 1
-				0a000 0 0 2 40000 33 1
-				0a000 0 0 3 40000 30 1
-				0a000 0 0 4 40000 31 1
+				0a000 0 0 1 &mpic 32 1
+				0a000 0 0 2 &mpic 33 1
+				0a000 0 0 3 &mpic 30 1
+				0a000 0 0 4 &mpic 31 1
 
 				/* IDSEL 0x15 (Slot 4) */
-				0a800 0 0 1 40000 33 1
-				0a800 0 0 2 40000 30 1
-				0a800 0 0 3 40000 31 1
-				0a800 0 0 4 40000 32 1
+				0a800 0 0 1 &mpic 33 1
+				0a800 0 0 2 &mpic 30 1
+				0a800 0 0 3 &mpic 31 1
+				0a800 0 0 4 &mpic 32 1
 
 				/* Bus 1 (Tundra Bridge) */
 				/* IDSEL 0x12 (ISA bridge) */
-				19000 0 0 1 40000 30 1
-				19000 0 0 2 40000 31 1
-				19000 0 0 3 40000 32 1
-				19000 0 0 4 40000 33 1>;
-			interrupt-parent = <40000>;
+				19000 0 0 1 &mpic 30 1
+				19000 0 0 2 &mpic 31 1
+				19000 0 0 3 &mpic 32 1
+				19000 0 0 4 &mpic 33 1>;
+			interrupt-parent = <&mpic>;
 			interrupts = <08 2>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 80000000 80000000 0 20000000
@@ -200,21 +191,20 @@
 				compatible = "chrp,iic";
 				big-endian;
 				interrupts = <1>;
-				interrupt-parent = <8000>;
+				interrupt-parent = <&pci1>;
 			};
 		};
 
 		pci@9000 {
-			linux,phandle = <9000>;
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
 
 				/* IDSEL 0x15 */
-				a800 0 0 1 40000 3b 1
-				a800 0 0 2 40000 3b 1
-				a800 0 0 3 40000 3b 1
-				a800 0 0 4 40000 3b 1>;
-			interrupt-parent = <40000>;
+				a800 0 0 1 &mpic 3b 1
+				a800 0 0 2 &mpic 3b 1
+				a800 0 0 3 &mpic 3b 1
+				a800 0 0 4 &mpic 3b 1>;
+			interrupt-parent = <&mpic>;
 			interrupts = <09 2>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 a0000000 a0000000 0 20000000
@@ -228,8 +218,7 @@
 			device_type = "pci";
 		};
 
-		pic@40000 {
-			linux,phandle = <40000>;
+		mpic: pic@40000 {
 			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;

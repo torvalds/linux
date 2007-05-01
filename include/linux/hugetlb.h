@@ -4,6 +4,7 @@
 #ifdef CONFIG_HUGETLB_PAGE
 
 #include <linux/mempolicy.h>
+#include <linux/shm.h>
 #include <asm/tlbflush.h>
 
 struct ctl_table;
@@ -168,7 +169,12 @@ void hugetlb_put_quota(struct address_space *mapping);
 
 static inline int is_file_hugepages(struct file *file)
 {
-	return file->f_op == &hugetlbfs_file_operations;
+	if (file->f_op == &hugetlbfs_file_operations)
+		return 1;
+	if (is_file_shm_hugepages(file))
+		return 1;
+
+	return 0;
 }
 
 static inline void set_file_hugepages(struct file *file)

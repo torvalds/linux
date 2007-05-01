@@ -31,6 +31,7 @@
 #define LSEQ_NUM_VECS	11
 
 #define SAS_RAZOR_SEQUENCER_FW_FILE "aic94xx-seq.fw"
+#define SAS_RAZOR_SEQUENCER_FW_MAJOR	1
 
 /* Note:  All quantites in the sequencer file are little endian */
 struct sequencer_file_header {

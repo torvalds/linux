@@ -27,6 +27,7 @@
 #include <net/inet_hashtables.h>
 #include <net/inet_timewait_sock.h>
 #include <net/inet6_hashtables.h>
+#include <net/netlink.h>
 
 #include <linux/inet.h>
 #include <linux/stddef.h>
@@ -60,7 +61,7 @@ static int inet_csk_diag_fill(struct sock *sk,
 	struct nlmsghdr  *nlh;
 	void *info = NULL;
 	struct inet_diag_meminfo  *minfo = NULL;
-	unsigned char	 *b = skb->tail;
+	unsigned char	 *b = skb_tail_pointer(skb);
 	const struct inet_diag_handler *handler;
 
 	handler = inet_diag_table[unlh->nlmsg_type];
@@ -147,12 +148,12 @@ static int inet_csk_diag_fill(struct sock *sk,
 	    icsk->icsk_ca_ops && icsk->icsk_ca_ops->get_info)
 		icsk->icsk_ca_ops->get_info(sk, ext, skb);
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 rtattr_failure:
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -EMSGSIZE;
 }
 
@@ -163,7 +164,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 {
 	long tmo;
 	struct inet_diag_msg *r;
-	const unsigned char *previous_tail = skb->tail;
+	const unsigned char *previous_tail = skb_tail_pointer(skb);
 	struct nlmsghdr *nlh = NLMSG_PUT(skb, pid, seq,
 					 unlh->nlmsg_type, sizeof(*r));
 
@@ -205,10 +206,10 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 			       &tw6->tw_v6_daddr);
 	}
 #endif
-	nlh->nlmsg_len = skb->tail - previous_tail;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - previous_tail;
 	return skb->len;
 nlmsg_failure:
-	skb_trim(skb, previous_tail - skb->data);
+	nlmsg_trim(skb, previous_tail);
 	return -EMSGSIZE;
 }
 
@@ -535,7 +536,7 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct inet_sock *inet = inet_sk(sk);
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct inet_diag_msg *r;
 	struct nlmsghdr *nlh;
 	long tmo;
@@ -574,12 +575,12 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 			       &inet6_rsk(req)->rmt_addr);
 	}
 #endif
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 
 	return skb->len;
 
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -805,68 +806,43 @@ done:
 	return skb->len;
 }
 
-static inline int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	if (!(nlh->nlmsg_flags&NLM_F_REQUEST))
-		return 0;
+	int hdrlen = sizeof(struct inet_diag_req);
 
-	if (nlh->nlmsg_type >= INET_DIAG_GETSOCK_MAX)
-		goto err_inval;
+	if (nlh->nlmsg_type >= INET_DIAG_GETSOCK_MAX ||
+	    nlmsg_len(nlh) < hdrlen)
+		return -EINVAL;
 
 	if (inet_diag_table[nlh->nlmsg_type] == NULL)
 		return -ENOENT;
 
-	if (NLMSG_LENGTH(sizeof(struct inet_diag_req)) > skb->len)
-		goto err_inval;
+	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+		if (nlmsg_attrlen(nlh, hdrlen)) {
+			struct nlattr *attr;
 
-	if (nlh->nlmsg_flags&NLM_F_DUMP) {
-		if (nlh->nlmsg_len >
-		    (4 + NLMSG_SPACE(sizeof(struct inet_diag_req)))) {
-			struct rtattr *rta = (void *)(NLMSG_DATA(nlh) +
-						 sizeof(struct inet_diag_req));
-			if (rta->rta_type != INET_DIAG_REQ_BYTECODE ||
-			    rta->rta_len < 8 ||
-			    rta->rta_len >
-			    (nlh->nlmsg_len -
-			     NLMSG_SPACE(sizeof(struct inet_diag_req))))
-				goto err_inval;
-			if (inet_diag_bc_audit(RTA_DATA(rta), RTA_PAYLOAD(rta)))
-				goto err_inval;
+			attr = nlmsg_find_attr(nlh, hdrlen,
+					       INET_DIAG_REQ_BYTECODE);
+			if (attr == NULL ||
+			    nla_len(attr) < sizeof(struct inet_diag_bc_op) ||
+			    inet_diag_bc_audit(nla_data(attr), nla_len(attr)))
+				return -EINVAL;
 		}
+
 		return netlink_dump_start(idiagnl, skb, nlh,
 					  inet_diag_dump, NULL);
-	} else
-		return inet_diag_get_exact(skb, nlh);
-
-err_inval:
-	return -EINVAL;
-}
-
-
-static inline void inet_diag_rcv_skb(struct sk_buff *skb)
-{
-	if (skb->len >= NLMSG_SPACE(0)) {
-		int err;
-		struct nlmsghdr *nlh = (struct nlmsghdr *)skb->data;
-
-		if (nlh->nlmsg_len < sizeof(*nlh) ||
-		    skb->len < nlh->nlmsg_len)
-			return;
-		err = inet_diag_rcv_msg(skb, nlh);
-		if (err || nlh->nlmsg_flags & NLM_F_ACK)
-			netlink_ack(skb, nlh, err);
 	}
+
+	return inet_diag_get_exact(skb, nlh);
 }
 
 static void inet_diag_rcv(struct sock *sk, int len)
 {
-	struct sk_buff *skb;
-	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
+	unsigned int qlen = 0;
 
-	while (qlen-- && (skb = skb_dequeue(&sk->sk_receive_queue))) {
-		inet_diag_rcv_skb(skb);
-		kfree_skb(skb);
-	}
+	do {
+		netlink_run_queue(sk, &qlen, &inet_diag_rcv_msg);
+	} while (qlen);
 }
 
 static DEFINE_SPINLOCK(inet_diag_register_lock);
@@ -917,7 +893,7 @@ static int __init inet_diag_init(void)
 		goto out;
 
 	idiagnl = netlink_kernel_create(NETLINK_INET_DIAG, 0, inet_diag_rcv,
-					THIS_MODULE);
+					NULL, THIS_MODULE);
 	if (idiagnl == NULL)
 		goto out_free_table;
 	err = 0;

@@ -158,7 +158,8 @@ static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 		return;
 
 	rc = driver->err_handler->slot_reset(dev);
-	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
+	if ((*res == PCI_ERS_RESULT_NONE) ||
+	    (*res == PCI_ERS_RESULT_RECOVERED)) *res = rc;
 	if (*res == PCI_ERS_RESULT_DISCONNECT &&
 	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 }
@@ -248,6 +249,7 @@ static void eeh_report_failure(struct pci_dev *dev, void *userdata)
 
 static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 {
+	struct device_node *dn;
 	int cnt, rc;
 
 	/* pcibios will clear the counter; save the value */
@@ -263,23 +265,20 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 	if (rc)
 		return rc;
 
- 	/* New-style config addrs might be shared across multiple devices,
- 	 * Walk over all functions on this device */
- 	if (pe_dn->eeh_pe_config_addr) {
- 		struct device_node *pe = pe_dn->node;
- 		pe = pe->parent->child;
- 		while (pe) {
- 			struct pci_dn *ppe = PCI_DN(pe);
- 			if (pe_dn->eeh_pe_config_addr == ppe->eeh_pe_config_addr) {
- 				rtas_configure_bridge(ppe);
- 				eeh_restore_bars(ppe);
- 			}
- 			pe = pe->sibling;
+	/* Walk over all functions on this device.  */
+	dn = pe_dn->node;
+	if (!pcibios_find_pci_bus(dn) && PCI_DN(dn->parent))
+		dn = dn->parent->child;
+
+	while (dn) {
+		struct pci_dn *ppe = PCI_DN(dn);
+		/* On Power4, always true because eeh_pe_config_addr=0 */
+		if (pe_dn->eeh_pe_config_addr == ppe->eeh_pe_config_addr) {
+			rtas_configure_bridge(ppe);
+			eeh_restore_bars(ppe);
  		}
- 	} else {
- 		rtas_configure_bridge(pe_dn);
- 		eeh_restore_bars(pe_dn);
- 	}
+		dn = dn->sibling;
+	}
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes, 
@@ -299,7 +298,7 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 /* The longest amount of time to wait for a pci device
  * to come back on line, in seconds.
  */
-#define MAX_WAIT_FOR_RECOVERY 15
+#define MAX_WAIT_FOR_RECOVERY 150
 
 struct pci_dn * handle_eeh_events (struct eeh_event *event)
 {
@@ -315,14 +314,14 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 
 	if (!frozen_dn) {
 
-		location = get_property(event->dn, "ibm,loc-code", NULL);
+		location = of_get_property(event->dn, "ibm,loc-code", NULL);
 		location = location ? location : "unknown";
 		printk(KERN_ERR "EEH: Error: Cannot find partition endpoint "
 		                "for location=%s pci addr=%s\n",
 		        location, pci_name(event->dev));
 		return NULL;
 	}
-	location = get_property(frozen_dn, "ibm,loc-code", NULL);
+	location = of_get_property(frozen_dn, "ibm,loc-code", NULL);
 	location = location ? location : "unknown";
 
 	/* There are two different styles for coming up with the PE.
@@ -341,13 +340,6 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 		return NULL;
 	}
 
-#if 0
-	/* We may get "permanent failure" messages on empty slots.
-	 * These are false alarms. Empty slots have no child dn. */
-	if ((event->state == pci_channel_io_perm_failure) && (frozen_device == NULL))
-		return;
-#endif
-
 	frozen_pdn = PCI_DN(frozen_dn);
 	frozen_pdn->eeh_freeze_count++;
 
@@ -362,13 +354,12 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	if (frozen_pdn->eeh_freeze_count > EEH_MAX_ALLOWED_FREEZES)
 		goto excess_failures;
 
-	/* If the reset state is a '5' and the time to reset is 0 (infinity)
-	 * or is more then 15 seconds, then mark this as a permanent failure.
-	 */
-	if ((event->state == pci_channel_io_perm_failure) &&
-	    ((event->time_unavail <= 0) ||
-	     (event->time_unavail > MAX_WAIT_FOR_RECOVERY*1000)))
+	/* Get the current PCI slot state. */
+	rc = eeh_wait_for_slot_status (frozen_pdn, MAX_WAIT_FOR_RECOVERY*1000);
+	if (rc < 0) {
+		printk(KERN_WARNING "EEH: Permanent failure\n");
 		goto hard_fail;
+	}
 
 	eeh_slot_error_detail(frozen_pdn, 1 /* Temporary Error */);
 	printk(KERN_WARNING
@@ -390,14 +381,18 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	 */
 	if (result == PCI_ERS_RESULT_NONE) {
 		rc = eeh_reset_device(frozen_pdn, frozen_bus);
-		if (rc)
+		if (rc) {
+			printk(KERN_WARNING "EEH: Unable to reset, rc=%d\n", rc);
 			goto hard_fail;
+		}
 	}
 
 	/* If all devices reported they can proceed, then re-enable MMIO */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
 		rc = rtas_pci_enable(frozen_pdn, EEH_THAW_MMIO);
 
+		if (rc < 0)
+			goto hard_fail;
 		if (rc) {
 			result = PCI_ERS_RESULT_NEED_RESET;
 		} else {
@@ -410,6 +405,8 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
 		rc = rtas_pci_enable(frozen_pdn, EEH_THAW_DMA);
 
+		if (rc < 0)
+			goto hard_fail;
 		if (rc)
 			result = PCI_ERS_RESULT_NEED_RESET;
 		else
@@ -417,21 +414,28 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	}
 
 	/* If any device has a hard failure, then shut off everything. */
-	if (result == PCI_ERS_RESULT_DISCONNECT)
+	if (result == PCI_ERS_RESULT_DISCONNECT) {
+		printk(KERN_WARNING "EEH: Device driver gave up\n");
 		goto hard_fail;
+	}
 
 	/* If any device called out for a reset, then reset the slot */
 	if (result == PCI_ERS_RESULT_NEED_RESET) {
 		rc = eeh_reset_device(frozen_pdn, NULL);
-		if (rc)
+		if (rc) {
+			printk(KERN_WARNING "EEH: Cannot reset, rc=%d\n", rc);
 			goto hard_fail;
+		}
 		result = PCI_ERS_RESULT_NONE;
 		pci_walk_bus(frozen_bus, eeh_report_reset, &result);
 	}
 
 	/* All devices should claim they have recovered by now. */
-	if (result != PCI_ERS_RESULT_RECOVERED)
+	if ((result != PCI_ERS_RESULT_RECOVERED) &&
+	    (result != PCI_ERS_RESULT_NONE)) {
+		printk(KERN_WARNING "EEH: Not recovered\n");
 		goto hard_fail;
+	}
 
 	/* Tell all device drivers that they can resume operations */
 	pci_walk_bus(frozen_bus, eeh_report_resume, NULL);

@@ -35,10 +35,12 @@ struct pvr2_i2c_client {
 	struct i2c_client *client;
 	struct pvr2_i2c_handler *handler;
 	struct list_head list;
+	struct pvr2_hdw *hdw;
 	int detected_flag;
 	int recv_enable;
 	unsigned long pend_mask;
 	unsigned long ctl_mask;
+	void (*status_poll)(struct pvr2_i2c_client *);
 };
 
 struct pvr2_i2c_handler {
@@ -67,6 +69,7 @@ int pvr2_i2c_core_cmd(struct pvr2_hdw *,unsigned int cmd,void *arg);
 
 int pvr2_i2c_core_check_stale(struct pvr2_hdw *);
 void pvr2_i2c_core_sync(struct pvr2_hdw *);
+void pvr2_i2c_core_status_poll(struct pvr2_hdw *);
 unsigned int pvr2_i2c_report(struct pvr2_hdw *,char *buf,unsigned int maxlen);
 #define PVR2_I2C_DETAIL_DEBUG   0x0001
 #define PVR2_I2C_DETAIL_HANDLER 0x0002

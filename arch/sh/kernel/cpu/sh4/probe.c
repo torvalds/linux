@@ -195,25 +195,12 @@ int __init detect_cpu_and_cache_system(void)
 
 	}
 
-	/* Setup the rest of the I-cache info */
-	current_cpu_data.icache.entry_mask = current_cpu_data.icache.way_incr -
-				      current_cpu_data.icache.linesz;
-
-	current_cpu_data.icache.way_size = current_cpu_data.icache.sets *
-				    current_cpu_data.icache.linesz;
-
 	/* And the rest of the D-cache */
 	if (current_cpu_data.dcache.ways > 1) {
 		size = sizes[(cvr >> 16) & 0xf];
 		current_cpu_data.dcache.way_incr	= (size >> 1);
 		current_cpu_data.dcache.sets		= (size >> 6);
 	}
-
-	current_cpu_data.dcache.entry_mask = current_cpu_data.dcache.way_incr -
-				      current_cpu_data.dcache.linesz;
-
-	current_cpu_data.dcache.way_size = current_cpu_data.dcache.sets *
-				    current_cpu_data.dcache.linesz;
 
 	/*
 	 * Setup the L2 cache desc

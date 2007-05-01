@@ -38,7 +38,7 @@ config IEEE80211_CRYPT_WEP
 	Include software based cipher suites in support of IEEE
 	802.11's WEP.  This is needed for WEP as well as 802.1x.
 
-	This can be compiled as a modules and it will be called
+	This can be compiled as a module and it will be called
 	"ieee80211_crypt_wep".
 
 config IEEE80211_CRYPT_CCMP
@@ -51,12 +51,13 @@ config IEEE80211_CRYPT_CCMP
 	(aka TGi, WPA, WPA2, WPA-PSK, etc.) for use with CCMP enabled
 	networks.
 
-	This can be compiled as a modules and it will be called
+	This can be compiled as a module and it will be called
 	"ieee80211_crypt_ccmp".
 
 config IEEE80211_CRYPT_TKIP
 	tristate "IEEE 802.11i TKIP encryption"
-	depends on IEEE80211 && NET_RADIO
+	depends on IEEE80211
+	select WIRELESS_EXT
 	select CRYPTO
 	select CRYPTO_MICHAEL_MIC
 	select CRYPTO_ECB
@@ -66,7 +67,7 @@ config IEEE80211_CRYPT_TKIP
 	(aka TGi, WPA, WPA2, WPA-PSK, etc.) for use with TKIP enabled
 	networks.
 
-	This can be compiled as a modules and it will be called
+	This can be compiled as a module and it will be called
 	"ieee80211_crypt_tkip".
 
 source "net/ieee80211/softmac/Kconfig"

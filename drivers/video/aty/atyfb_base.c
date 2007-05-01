@@ -131,7 +131,8 @@
 #define PRINTKI(fmt, args...)	printk(KERN_INFO "atyfb: " fmt, ## args)
 #define PRINTKE(fmt, args...)	 printk(KERN_ERR "atyfb: " fmt, ## args)
 
-#if defined(CONFIG_PM) || defined(CONFIG_PMAC_BACKLIGHT) || defined (CONFIG_FB_ATY_GENERIC_LCD)
+#if defined(CONFIG_PM) || defined(CONFIG_PMAC_BACKLIGHT) || \
+defined (CONFIG_FB_ATY_GENERIC_LCD) || defined(CONFIG_FB_ATY_BACKLIGHT)
 static const u32 lt_lcd_regs[] = {
 	CONFIG_PANEL_LG,
 	LCD_GEN_CNTL_LG,
@@ -307,6 +308,12 @@ static int mclk;
 static int xclk;
 static int comp_sync __devinitdata = -1;
 static char *mode;
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+static int backlight __devinitdata = 1;
+#else
+static int backlight __devinitdata = 0;
+#endif
 
 #ifdef CONFIG_PPC
 static int default_vmode __devinitdata = VMODE_CHOOSE;
@@ -2114,15 +2121,13 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 #ifdef CONFIG_FB_ATY_BACKLIGHT
 #define MAX_LEVEL 0xFF
 
-static struct backlight_properties aty_bl_data;
-
-/* Call with fb_info->bl_mutex held */
 static int aty_bl_get_level_brightness(struct atyfb_par *par, int level)
 {
 	struct fb_info *info = pci_get_drvdata(par->pdev);
 	int atylevel;
 
 	/* Get and convert the value */
+	/* No locking of bl_curve since we read a single value */
 	atylevel = info->bl_curve[level] * FB_BACKLIGHT_MAX / MAX_LEVEL;
 
 	if (atylevel < 0)
@@ -2133,18 +2138,17 @@ static int aty_bl_get_level_brightness(struct atyfb_par *par, int level)
 	return atylevel;
 }
 
-/* Call with fb_info->bl_mutex held */
-static int __aty_bl_update_status(struct backlight_device *bd)
+static int aty_bl_update_status(struct backlight_device *bd)
 {
 	struct atyfb_par *par = class_get_devdata(&bd->class_dev);
 	unsigned int reg = aty_ld_lcd(LCD_MISC_CNTL, par);
 	int level;
 
-	if (bd->props->power != FB_BLANK_UNBLANK ||
-	    bd->props->fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.power != FB_BLANK_UNBLANK ||
+	    bd->props.fb_blank != FB_BLANK_UNBLANK)
 		level = 0;
 	else
-		level = bd->props->brightness;
+		level = bd->props.brightness;
 
 	reg |= (BLMOD_EN | BIASMOD_EN);
 	if (level > 0) {
@@ -2159,44 +2163,15 @@ static int __aty_bl_update_status(struct backlight_device *bd)
 	return 0;
 }
 
-static int aty_bl_update_status(struct backlight_device *bd)
-{
-	struct atyfb_par *par = class_get_devdata(&bd->class_dev);
-	struct fb_info *info = pci_get_drvdata(par->pdev);
-	int ret;
-
-	mutex_lock(&info->bl_mutex);
-	ret = __aty_bl_update_status(bd);
-	mutex_unlock(&info->bl_mutex);
-
-	return ret;
-}
-
 static int aty_bl_get_brightness(struct backlight_device *bd)
 {
-	return bd->props->brightness;
+	return bd->props.brightness;
 }
 
-static struct backlight_properties aty_bl_data = {
-	.owner	  = THIS_MODULE,
+static struct backlight_ops aty_bl_data = {
 	.get_brightness = aty_bl_get_brightness,
 	.update_status	= aty_bl_update_status,
-	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
 };
-
-static void aty_bl_set_power(struct fb_info *info, int power)
-{
-	mutex_lock(&info->bl_mutex);
-
-	if (info->bl_dev) {
-		down(&info->bl_dev->sem);
-		info->bl_dev->props->power = power;
-		__aty_bl_update_status(info->bl_dev);
-		up(&info->bl_dev->sem);
-	}
-
-	mutex_unlock(&info->bl_mutex);
-}
 
 static void aty_bl_init(struct atyfb_par *par)
 {
@@ -2218,25 +2193,15 @@ static void aty_bl_init(struct atyfb_par *par)
 		goto error;
 	}
 
-	mutex_lock(&info->bl_mutex);
 	info->bl_dev = bd;
 	fb_bl_default_curve(info, 0,
 		0x3F * FB_BACKLIGHT_MAX / MAX_LEVEL,
 		0xFF * FB_BACKLIGHT_MAX / MAX_LEVEL);
-	mutex_unlock(&info->bl_mutex);
 
-	down(&bd->sem);
-	bd->props->brightness = aty_bl_data.max_brightness;
-	bd->props->power = FB_BLANK_UNBLANK;
-	bd->props->update_status(bd);
-	up(&bd->sem);
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-	if (!pmac_backlight)
-		pmac_backlight = bd;
-	mutex_unlock(&pmac_backlight_mutex);
-#endif
+	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd->props.brightness = bd->props.max_brightness;
+	bd->props.power = FB_BLANK_UNBLANK;
+	backlight_update_status(bd);
 
 	printk("aty: Backlight initialized (%s)\n", name);
 
@@ -2246,30 +2211,10 @@ error:
 	return;
 }
 
-static void aty_bl_exit(struct atyfb_par *par)
+static void aty_bl_exit(struct backlight_device *bd)
 {
-	struct fb_info *info = pci_get_drvdata(par->pdev);
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_lock(&pmac_backlight_mutex);
-#endif
-
-	mutex_lock(&info->bl_mutex);
-	if (info->bl_dev) {
-#ifdef CONFIG_PMAC_BACKLIGHT
-		if (pmac_backlight == info->bl_dev)
-			pmac_backlight = NULL;
-#endif
-
-		backlight_device_unregister(info->bl_dev);
-
-		printk("aty: Backlight unloaded\n");
-	}
-	mutex_unlock(&info->bl_mutex);
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-	mutex_unlock(&pmac_backlight_mutex);
-#endif
+	backlight_device_unregister(bd);
+	printk("aty: Backlight unloaded\n");
 }
 
 #endif /* CONFIG_FB_ATY_BACKLIGHT */
@@ -2637,7 +2582,7 @@ static int __devinit aty_init(struct fb_info *info)
 			   | (USE_F32KHZ | TRISTATE_MEM_EN), par);
 	} else
 #endif
-	if (M64_HAS(MOBIL_BUS)) {
+	if (M64_HAS(MOBIL_BUS) && backlight) {
 #ifdef CONFIG_FB_ATY_BACKLIGHT
 		aty_bl_init (par);
 #endif
@@ -2814,8 +2759,6 @@ static int atyfb_blank(int blank, struct fb_info *info)
 		return 0;
 
 #ifdef CONFIG_FB_ATY_BACKLIGHT
-	if (machine_is(powermac) && blank > FB_BLANK_NORMAL)
-		aty_bl_set_power(info, FB_BLANK_POWERDOWN);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
 	if (par->lcd_table && blank > FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
@@ -2846,8 +2789,6 @@ static int atyfb_blank(int blank, struct fb_info *info)
 	aty_st_le32(CRTC_GEN_CNTL, gen_cntl, par);
 
 #ifdef CONFIG_FB_ATY_BACKLIGHT
-	if (machine_is(powermac) && blank <= FB_BLANK_NORMAL)
-		aty_bl_set_power(info, FB_BLANK_UNBLANK);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
 	if (par->lcd_table && blank <= FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
@@ -2958,7 +2899,7 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 			struct fb_info *info, unsigned long addr)
 {
 	struct atyfb_par *par = info->par;
-	struct pcidev_cookie *pcp;
+	struct device_node *dp;
 	char prop[128];
 	int node, len, i, j, ret;
 	u32 mem, chip_id;
@@ -3096,8 +3037,8 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 			node = 0;
 	}
 
-	pcp = pdev->sysdata;
-	if (node == pcp->prom_node->node) {
+	dp = pci_device_to_OF_node(pdev);
+	if (node == dp->node) {
 		struct fb_var_screeninfo *var = &default_var;
 		unsigned int N, P, Q, M, T, R;
 		u32 v_total, h_total;
@@ -3726,12 +3667,12 @@ static void __devexit atyfb_remove(struct fb_info *info)
 	aty_set_crtc(par, &saved_crtc);
 	par->pll_ops->set_pll(info, &saved_pll);
 
+	unregister_framebuffer(info);
+
 #ifdef CONFIG_FB_ATY_BACKLIGHT
 	if (M64_HAS(MOBIL_BUS))
-		aty_bl_exit(par);
+		aty_bl_exit(info->bl_dev);
 #endif
-
-	unregister_framebuffer(info);
 
 #ifdef CONFIG_MTRR
 	if (par->mtrr_reg >= 0) {
@@ -3823,6 +3764,8 @@ static int __init atyfb_setup(char *options)
 			xclk = simple_strtoul(this_opt+5, NULL, 0);
 		else if (!strncmp(this_opt, "comp_sync:", 10))
 			comp_sync = simple_strtoul(this_opt+10, NULL, 0);
+		else if (!strncmp(this_opt, "backlight:", 10))
+			backlight = simple_strtoul(this_opt+10, NULL, 0);
 #ifdef CONFIG_PPC
 		else if (!strncmp(this_opt, "vmode:", 6)) {
 			unsigned int vmode =

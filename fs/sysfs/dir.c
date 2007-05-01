@@ -431,6 +431,8 @@ int sysfs_move_dir(struct kobject *kobj, struct kobject *new_parent)
 	new_parent_dentry = new_parent ?
 		new_parent->dentry : sysfs_mount->mnt_sb->s_root;
 
+	if (old_parent_dentry->d_inode == new_parent_dentry->d_inode)
+		return 0;	/* nothing to move */
 again:
 	mutex_lock(&old_parent_dentry->d_inode->i_mutex);
 	if (!mutex_trylock(&new_parent_dentry->d_inode->i_mutex)) {

@@ -91,8 +91,6 @@ static struct resource code_resource = {
 	.name	= "Kernel code",
 	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
 };
-extern void efi_initialize_iomem_resources(struct resource *,
-		struct resource *);
 extern char _text[], _end[], _etext[];
 
 unsigned long ia64_max_cacheline_size;
@@ -249,6 +247,12 @@ reserve_memory (void)
 		rsvd_region[n].end   = rsvd_region[n].start + ia64_boot_param->initrd_size;
 		n++;
 	}
+#endif
+
+#ifdef CONFIG_PROC_VMCORE
+	if (reserve_elfcorehdr(&rsvd_region[n].start,
+			       &rsvd_region[n].end) == 0)
+		n++;
 #endif
 
 	efi_memmap_init(&rsvd_region[n].start, &rsvd_region[n].end);
@@ -453,6 +457,30 @@ static int __init parse_elfcorehdr(char *arg)
 	return 0;
 }
 early_param("elfcorehdr", parse_elfcorehdr);
+
+int __init reserve_elfcorehdr(unsigned long *start, unsigned long *end)
+{
+	unsigned long length;
+
+	/* We get the address using the kernel command line,
+	 * but the size is extracted from the EFI tables.
+	 * Both address and size are required for reservation
+	 * to work properly.
+	 */
+
+	if (elfcorehdr_addr >= ELFCORE_ADDR_MAX)
+		return -EINVAL;
+
+	if ((length = vmcore_find_descriptor_size(elfcorehdr_addr)) == 0) {
+		elfcorehdr_addr = ELFCORE_ADDR_MAX;
+		return -EINVAL;
+	}
+
+	*start = (unsigned long)__va(elfcorehdr_addr);
+	*end = *start + length;
+	return 0;
+}
+
 #endif /* CONFIG_PROC_VMCORE */
 
 void __init
@@ -612,7 +640,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "features   : %s\n"
 		   "cpu number : %lu\n"
 		   "cpu regs   : %u\n"
-		   "cpu MHz    : %lu.%06lu\n"
+		   "cpu MHz    : %lu.%03lu\n"
 		   "itc MHz    : %lu.%06lu\n"
 		   "BogoMIPS   : %lu.%02lu\n",
 		   cpunum, c->vendor, c->family, c->model,
@@ -664,12 +692,15 @@ struct seq_operations cpuinfo_op = {
 	.show =		show_cpuinfo
 };
 
-static char brandname[128];
+#define MAX_BRANDS	8
+static char brandname[MAX_BRANDS][128];
 
 static char * __cpuinit
 get_model_name(__u8 family, __u8 model)
 {
+	static int overflow;
 	char brand[128];
+	int i;
 
 	memcpy(brand, "Unknown", 8);
 	if (ia64_pal_get_brand_info(brand)) {
@@ -681,12 +712,17 @@ get_model_name(__u8 family, __u8 model)
 			case 2: memcpy(brand, "Madison up to 9M cache", 23); break;
 		}
 	}
-	if (brandname[0] == '\0')
-		return strcpy(brandname, brand);
-	else if (strcmp(brandname, brand) == 0)
-		return brandname;
-	else
-		return kstrdup(brand, GFP_KERNEL);
+	for (i = 0; i < MAX_BRANDS; i++)
+		if (strcmp(brandname[i], brand) == 0)
+			return brandname[i];
+	for (i = 0; i < MAX_BRANDS; i++)
+		if (brandname[i][0] == '\0')
+			return strcpy(brandname[i], brand);
+	if (overflow++ == 0)
+		printk(KERN_ERR
+		       "%s: Table overflow. Some processor model information will be missing\n",
+		       __FUNCTION__);
+	return "Unknown";
 }
 
 static void __cpuinit

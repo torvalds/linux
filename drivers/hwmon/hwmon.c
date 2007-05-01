@@ -101,7 +101,7 @@ static void __exit hwmon_exit(void)
 	class_destroy(hwmon_class);
 }
 
-module_init(hwmon_init);
+subsys_initcall(hwmon_init);
 module_exit(hwmon_exit);
 
 EXPORT_SYMBOL_GPL(hwmon_device_register);

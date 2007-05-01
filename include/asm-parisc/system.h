@@ -34,7 +34,7 @@ struct pa_psw {
 	unsigned int i:1;
 };
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define pa_psw(task) ((struct pa_psw *) ((char *) (task) + TASK_PT_PSW + 4))
 #else
 #define pa_psw(task) ((struct pa_psw *) ((char *) (task) + TASK_PT_PSW))

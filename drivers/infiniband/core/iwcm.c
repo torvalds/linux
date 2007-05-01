@@ -146,6 +146,12 @@ static int copy_private_data(struct iw_cm_event *event)
 	return 0;
 }
 
+static void free_cm_id(struct iwcm_id_private *cm_id_priv)
+{
+	dealloc_work_entries(cm_id_priv);
+	kfree(cm_id_priv);
+}
+
 /*
  * Release a reference on cm_id. If the last reference is being
  * released, enable the waiting thread (in iw_destroy_cm_id) to
@@ -153,21 +159,14 @@ static int copy_private_data(struct iw_cm_event *event)
  */
 static int iwcm_deref_id(struct iwcm_id_private *cm_id_priv)
 {
-	int ret = 0;
-
 	BUG_ON(atomic_read(&cm_id_priv->refcount)==0);
 	if (atomic_dec_and_test(&cm_id_priv->refcount)) {
 		BUG_ON(!list_empty(&cm_id_priv->work_list));
-		if (waitqueue_active(&cm_id_priv->destroy_comp.wait)) {
-			BUG_ON(cm_id_priv->state != IW_CM_STATE_DESTROYING);
-			BUG_ON(test_bit(IWCM_F_CALLBACK_DESTROY,
-					&cm_id_priv->flags));
-			ret = 1;
-		}
 		complete(&cm_id_priv->destroy_comp);
+		return 1;
 	}
 
-	return ret;
+	return 0;
 }
 
 static void add_ref(struct iw_cm_id *cm_id)
@@ -181,7 +180,11 @@ static void rem_ref(struct iw_cm_id *cm_id)
 {
 	struct iwcm_id_private *cm_id_priv;
 	cm_id_priv = container_of(cm_id, struct iwcm_id_private, id);
-	iwcm_deref_id(cm_id_priv);
+	if (iwcm_deref_id(cm_id_priv) &&
+	    test_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags)) {
+		BUG_ON(!list_empty(&cm_id_priv->work_list));
+		free_cm_id(cm_id_priv);
+	}
 }
 
 static int cm_event_handler(struct iw_cm_id *cm_id, struct iw_cm_event *event);
@@ -355,7 +358,9 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 	case IW_CM_STATE_CONN_RECV:
 		/*
 		 * App called destroy before/without calling accept after
-		 * receiving connection request event notification.
+		 * receiving connection request event notification or
+		 * returned non zero from the event callback function.
+		 * In either case, must tell the provider to reject.
 		 */
 		cm_id_priv->state = IW_CM_STATE_DESTROYING;
 		break;
@@ -391,9 +396,7 @@ void iw_destroy_cm_id(struct iw_cm_id *cm_id)
 
 	wait_for_completion(&cm_id_priv->destroy_comp);
 
-	dealloc_work_entries(cm_id_priv);
-
-	kfree(cm_id_priv);
+	free_cm_id(cm_id_priv);
 }
 EXPORT_SYMBOL(iw_destroy_cm_id);
 
@@ -647,10 +650,11 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	/* Call the client CM handler */
 	ret = cm_id->cm_handler(cm_id, iw_event);
 	if (ret) {
+		iw_cm_reject(cm_id, NULL, 0);
 		set_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags);
 		destroy_cm_id(cm_id);
 		if (atomic_read(&cm_id_priv->refcount)==0)
-			kfree(cm_id);
+			free_cm_id(cm_id_priv);
 	}
 
 out:
@@ -854,13 +858,12 @@ static void cm_work_handler(struct work_struct *_work)
 			destroy_cm_id(&cm_id_priv->id);
 		}
 		BUG_ON(atomic_read(&cm_id_priv->refcount)==0);
-		if (iwcm_deref_id(cm_id_priv))
-			return;
-
-		if (atomic_read(&cm_id_priv->refcount)==0 &&
-		    test_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags)) {
-			dealloc_work_entries(cm_id_priv);
-			kfree(cm_id_priv);
+		if (iwcm_deref_id(cm_id_priv)) {
+			if (test_bit(IWCM_F_CALLBACK_DESTROY,
+				     &cm_id_priv->flags)) {
+				BUG_ON(!list_empty(&cm_id_priv->work_list));
+				free_cm_id(cm_id_priv);
+			}
 			return;
 		}
 		spin_lock_irqsave(&cm_id_priv->lock, flags);

@@ -569,7 +569,6 @@ void DoC2k_init(struct mtd_info *mtd)
 
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH;
-	mtd->ecctype = MTD_ECC_RS_DiskOnChip;
 	mtd->size = 0;
 	mtd->erasesize = 0;
 	mtd->writesize = 512;

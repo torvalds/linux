@@ -288,6 +288,9 @@ enum {
 		          | Y2_IS_CHK_TXA1 | Y2_IS_CHK_RX1,
 	Y2_IS_PORT_2	= Y2_IS_IRQ_PHY2 | Y2_IS_IRQ_MAC2
 			  | Y2_IS_CHK_TXA2 | Y2_IS_CHK_RX2,
+	Y2_IS_ERROR     = Y2_IS_HW_ERR |
+			  Y2_IS_IRQ_MAC1 | Y2_IS_CHK_TXA1 | Y2_IS_CHK_RX1 |
+			  Y2_IS_IRQ_MAC2 | Y2_IS_CHK_TXA2 | Y2_IS_CHK_RX2,
 };
 
 /*	B2_IRQM_HWE_MSK	32 bit	IRQ Moderation HW Error Mask */
@@ -738,6 +741,11 @@ enum {
 	TX_GMF_RP	= 0x0d70,/* 32 bit 	Tx GMAC FIFO Read Pointer */
 	TX_GMF_RSTP	= 0x0d74,/* 32 bit 	Tx GMAC FIFO Restart Pointer */
 	TX_GMF_RLEV	= 0x0d78,/* 32 bit 	Tx GMAC FIFO Read Level */
+
+	/* Threshold values for Yukon-EC Ultra and Extreme */
+	ECU_AE_THR	= 0x0070, /* Almost Empty Threshold */
+	ECU_TXFF_LEV	= 0x01a0, /* Tx BMU FIFO Level */
+	ECU_JUMBO_WM	= 0x0080, /* Jumbo Mode Watermark */
 };
 
 /* Descriptor Poll Timer Registers */
@@ -1589,7 +1597,7 @@ enum {
 
 	GMR_FS_ANY_ERR	= GMR_FS_RX_FF_OV | GMR_FS_CRC_ERR |
 			  GMR_FS_FRAGMENT | GMR_FS_LONG_ERR |
-		  	  GMR_FS_MII_ERR | GMR_FS_GOOD_FC | GMR_FS_BAD_FC |
+		  	  GMR_FS_MII_ERR | GMR_FS_BAD_FC |
 			  GMR_FS_UN_SIZE | GMR_FS_JABBER,
 };
 
@@ -1630,6 +1638,9 @@ enum {
 
 	TX_VLAN_TAG_ON	= 1<<25,/* enable  VLAN tagging */
 	TX_VLAN_TAG_OFF	= 1<<24,/* disable VLAN tagging */
+
+	TX_JUMBO_ENA	= 1<<23,/* PCI Jumbo Mode enable (Yukon-EC Ultra) */
+	TX_JUMBO_DIS	= 1<<22,/* PCI Jumbo Mode enable (Yukon-EC Ultra) */
 
 	GMF_WSP_TST_ON	= 1<<18,/* Write Shadow Pointer Test On */
 	GMF_WSP_TST_OFF	= 1<<17,/* Write Shadow Pointer Test Off */
@@ -1933,6 +1944,7 @@ struct sky2_hw {
 	dma_addr_t   	     st_dma;
 
 	struct timer_list    idle_timer;
+	struct work_struct   restart_work;
 	int		     msi;
 	wait_queue_head_t    msi_wait;
 };

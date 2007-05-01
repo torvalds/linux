@@ -160,6 +160,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		case PPC_OPROFILE_POWER4:
 			model = &op_model_power4;
 			break;
+		case PPC_OPROFILE_PA6T:
+			model = &op_model_pa6t;
+			break;
 #endif
 #ifdef CONFIG_6xx
 		case PPC_OPROFILE_G4:

@@ -3,8 +3,8 @@
  * Intersil Prism2/2.5/3.
  *
  * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
- * <jkmaline@cc.hut.fi>
- * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * <j@w1.fi>
+ * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1838,13 +1838,14 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 
 	/* skb->data starts with txdesc->frame_control */
 	hdr_len = 24;
-	memcpy(&txdesc.frame_control, skb->data, hdr_len);
+	skb_copy_from_linear_data(skb, &txdesc.frame_control, hdr_len);
  	fc = le16_to_cpu(txdesc.frame_control);
 	if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&
 	    (fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS) &&
 	    skb->len >= 30) {
 		/* Addr4 */
-		memcpy(txdesc.addr4, skb->data + hdr_len, ETH_ALEN);
+		skb_copy_from_linear_data_offset(skb, hdr_len, txdesc.addr4,
+						 ETH_ALEN);
 		hdr_len += ETH_ALEN;
 	}
 
@@ -2217,7 +2218,7 @@ static void hostap_tx_callback(local_info_t *local,
 		memcpy(skb_put(skb, len), payload, len);
 
 	skb->dev = local->dev;
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 
 	cb->func(skb, ok, cb->data);
 }

@@ -20,6 +20,7 @@
 #include <linux/kvm.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/magic.h>
 #include <asm/processor.h>
 #include <linux/percpu.h>
 #include <linux/gfp.h>
@@ -36,6 +37,9 @@
 #include <asm/desc.h>
 #include <linux/sysdev.h>
 #include <linux/cpu.h>
+#include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/mount.h>
 
 #include "x86_emulate.h"
 #include "segment_descriptor.h"
@@ -72,6 +76,8 @@ static struct kvm_stats_debugfs_item {
 
 static struct dentry *debugfs_dir;
 
+struct vfsmount *kvmfs_mnt;
+
 #define MAX_IO_MSRS 256
 
 #define CR0_RESEVED_BITS 0xffffffff1ffaffc0ULL
@@ -89,6 +95,58 @@ struct segment_descriptor_64 {
 };
 
 #endif
+
+static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
+			   unsigned long arg);
+
+static struct inode *kvmfs_inode(struct file_operations *fops)
+{
+	int error = -ENOMEM;
+	struct inode *inode = new_inode(kvmfs_mnt->mnt_sb);
+
+	if (!inode)
+		goto eexit_1;
+
+	inode->i_fop = fops;
+
+	/*
+	 * Mark the inode dirty from the very beginning,
+	 * that way it will never be moved to the dirty
+	 * list because mark_inode_dirty() will think
+	 * that it already _is_ on the dirty list.
+	 */
+	inode->i_state = I_DIRTY;
+	inode->i_mode = S_IRUSR | S_IWUSR;
+	inode->i_uid = current->fsuid;
+	inode->i_gid = current->fsgid;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	return inode;
+
+eexit_1:
+	return ERR_PTR(error);
+}
+
+static struct file *kvmfs_file(struct inode *inode, void *private_data)
+{
+	struct file *file = get_empty_filp();
+
+	if (!file)
+		return ERR_PTR(-ENFILE);
+
+	file->f_path.mnt = mntget(kvmfs_mnt);
+	file->f_path.dentry = d_alloc_anon(inode);
+	if (!file->f_path.dentry)
+		return ERR_PTR(-ENOMEM);
+	file->f_mapping = inode->i_mapping;
+
+	file->f_pos = 0;
+	file->f_flags = O_RDWR;
+	file->f_op = inode->i_fop;
+	file->f_mode = FMODE_READ | FMODE_WRITE;
+	file->f_version = 0;
+	file->private_data = private_data;
+	return file;
+}
 
 unsigned long segment_base(u16 selector)
 {
@@ -126,10 +184,8 @@ static inline int valid_vcpu(int n)
 	return likely(n >= 0 && n < KVM_MAX_VCPUS);
 }
 
-int kvm_read_guest(struct kvm_vcpu *vcpu,
-			     gva_t addr,
-			     unsigned long size,
-			     void *dest)
+int kvm_read_guest(struct kvm_vcpu *vcpu, gva_t addr, unsigned long size,
+		   void *dest)
 {
 	unsigned char *host_buf = dest;
 	unsigned long req_size = size;
@@ -161,10 +217,8 @@ int kvm_read_guest(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(kvm_read_guest);
 
-int kvm_write_guest(struct kvm_vcpu *vcpu,
-			     gva_t addr,
-			     unsigned long size,
-			     void *data)
+int kvm_write_guest(struct kvm_vcpu *vcpu, gva_t addr, unsigned long size,
+		    void *data)
 {
 	unsigned char *host_buf = data;
 	unsigned long req_size = size;
@@ -174,12 +228,15 @@ int kvm_write_guest(struct kvm_vcpu *vcpu,
 		unsigned now;
 		unsigned offset;
 		hva_t guest_buf;
+		gfn_t gfn;
 
 		paddr = gva_to_hpa(vcpu, addr);
 
 		if (is_error_hpa(paddr))
 			break;
 
+		gfn = vcpu->mmu.gva_to_gpa(vcpu, addr) >> PAGE_SHIFT;
+		mark_page_dirty(vcpu->kvm, gfn);
 		guest_buf = (hva_t)kmap_atomic(
 				pfn_to_page(paddr >> PAGE_SHIFT), KM_USER0);
 		offset = addr & ~PAGE_MASK;
@@ -195,24 +252,30 @@ int kvm_write_guest(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(kvm_write_guest);
 
-static int vcpu_slot(struct kvm_vcpu *vcpu)
-{
-	return vcpu - vcpu->kvm->vcpus;
-}
-
 /*
  * Switches to specified vcpu, until a matching vcpu_put()
  */
-static struct kvm_vcpu *vcpu_load(struct kvm *kvm, int vcpu_slot)
+static void vcpu_load(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *vcpu = &kvm->vcpus[vcpu_slot];
+	mutex_lock(&vcpu->mutex);
+	kvm_arch_ops->vcpu_load(vcpu);
+}
+
+/*
+ * Switches to specified vcpu, until a matching vcpu_put(). Will return NULL
+ * if the slot is not populated.
+ */
+static struct kvm_vcpu *vcpu_load_slot(struct kvm *kvm, int slot)
+{
+	struct kvm_vcpu *vcpu = &kvm->vcpus[slot];
 
 	mutex_lock(&vcpu->mutex);
-	if (unlikely(!vcpu->vmcs)) {
+	if (!vcpu->vmcs) {
 		mutex_unlock(&vcpu->mutex);
 		return NULL;
 	}
-	return kvm_arch_ops->vcpu_load(vcpu);
+	kvm_arch_ops->vcpu_load(vcpu);
+	return vcpu;
 }
 
 static void vcpu_put(struct kvm_vcpu *vcpu)
@@ -221,13 +284,13 @@ static void vcpu_put(struct kvm_vcpu *vcpu)
 	mutex_unlock(&vcpu->mutex);
 }
 
-static int kvm_dev_open(struct inode *inode, struct file *filp)
+static struct kvm *kvm_create_vm(void)
 {
 	struct kvm *kvm = kzalloc(sizeof(struct kvm), GFP_KERNEL);
 	int i;
 
 	if (!kvm)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&kvm->lock);
 	INIT_LIST_HEAD(&kvm->active_mmu_pages);
@@ -243,7 +306,11 @@ static int kvm_dev_open(struct inode *inode, struct file *filp)
 		list_add(&kvm->vm_list, &vm_list);
 		spin_unlock(&kvm_lock);
 	}
-	filp->private_data = kvm;
+	return kvm;
+}
+
+static int kvm_dev_open(struct inode *inode, struct file *filp)
+{
 	return 0;
 }
 
@@ -281,9 +348,10 @@ static void kvm_free_physmem(struct kvm *kvm)
 
 static void kvm_free_vcpu(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu_load(vcpu->kvm, vcpu_slot(vcpu)))
+	if (!vcpu->vmcs)
 		return;
 
+	vcpu_load(vcpu);
 	kvm_mmu_destroy(vcpu);
 	vcpu_put(vcpu);
 	kvm_arch_ops->vcpu_free(vcpu);
@@ -299,14 +367,24 @@ static void kvm_free_vcpus(struct kvm *kvm)
 
 static int kvm_dev_release(struct inode *inode, struct file *filp)
 {
-	struct kvm *kvm = filp->private_data;
+	return 0;
+}
 
+static void kvm_destroy_vm(struct kvm *kvm)
+{
 	spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
 	spin_unlock(&kvm_lock);
 	kvm_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
 	kfree(kvm);
+}
+
+static int kvm_vm_release(struct inode *inode, struct file *filp)
+{
+	struct kvm *kvm = filp->private_data;
+
+	kvm_destroy_vm(kvm);
 	return 0;
 }
 
@@ -457,7 +535,7 @@ EXPORT_SYMBOL_GPL(set_cr4);
 void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	if (is_long_mode(vcpu)) {
-		if ( cr3 & CR3_L_MODE_RESEVED_BITS) {
+		if (cr3 & CR3_L_MODE_RESEVED_BITS) {
 			printk(KERN_DEBUG "set_cr3: #GP, reserved bits\n");
 			inject_gp(vcpu);
 			return;
@@ -533,55 +611,11 @@ void fx_init(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(fx_init);
 
-/*
- * Creates some virtual cpus.  Good luck creating more than one.
- */
-static int kvm_dev_ioctl_create_vcpu(struct kvm *kvm, int n)
+static void do_remove_write_access(struct kvm_vcpu *vcpu, int slot)
 {
-	int r;
-	struct kvm_vcpu *vcpu;
-
-	r = -EINVAL;
-	if (!valid_vcpu(n))
-		goto out;
-
-	vcpu = &kvm->vcpus[n];
-
-	mutex_lock(&vcpu->mutex);
-
-	if (vcpu->vmcs) {
-		mutex_unlock(&vcpu->mutex);
-		return -EEXIST;
-	}
-
-	vcpu->host_fx_image = (char*)ALIGN((hva_t)vcpu->fx_buf,
-					   FX_IMAGE_ALIGN);
-	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
-
-	r = kvm_arch_ops->vcpu_create(vcpu);
-	if (r < 0)
-		goto out_free_vcpus;
-
-	r = kvm_mmu_create(vcpu);
-	if (r < 0)
-		goto out_free_vcpus;
-
-	kvm_arch_ops->vcpu_load(vcpu);
-	r = kvm_mmu_setup(vcpu);
-	if (r >= 0)
-		r = kvm_arch_ops->vcpu_setup(vcpu);
-	vcpu_put(vcpu);
-
-	if (r < 0)
-		goto out_free_vcpus;
-
-	return 0;
-
-out_free_vcpus:
-	kvm_free_vcpu(vcpu);
-	mutex_unlock(&vcpu->mutex);
-out:
-	return r;
+	spin_lock(&vcpu->kvm->lock);
+	kvm_mmu_slot_remove_write_access(vcpu, slot);
+	spin_unlock(&vcpu->kvm->lock);
 }
 
 /*
@@ -590,8 +624,8 @@ out:
  *
  * Discontiguous memory is allowed, mostly for framebuffers.
  */
-static int kvm_dev_ioctl_set_memory_region(struct kvm *kvm,
-					   struct kvm_memory_region *mem)
+static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
+					  struct kvm_memory_region *mem)
 {
 	int r;
 	gfn_t base_gfn;
@@ -674,7 +708,7 @@ raced:
 						     | __GFP_ZERO);
 			if (!new.phys_mem[i])
 				goto out_free;
- 			new.phys_mem[i]->private = 0;
+			set_page_private(new.phys_mem[i],0);
 		}
 	}
 
@@ -711,9 +745,11 @@ raced:
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		struct kvm_vcpu *vcpu;
 
-		vcpu = vcpu_load(kvm, i);
+		vcpu = vcpu_load_slot(kvm, i);
 		if (!vcpu)
 			continue;
+		if (new.flags & KVM_MEM_LOG_DIRTY_PAGES)
+			do_remove_write_access(vcpu, mem->slot);
 		kvm_mmu_reset_context(vcpu);
 		vcpu_put(vcpu);
 	}
@@ -729,18 +765,11 @@ out:
 	return r;
 }
 
-static void do_remove_write_access(struct kvm_vcpu *vcpu, int slot)
-{
-	spin_lock(&vcpu->kvm->lock);
-	kvm_mmu_slot_remove_write_access(vcpu, slot);
-	spin_unlock(&vcpu->kvm->lock);
-}
-
 /*
  * Get (and clear) the dirty memory log for a memory slot.
  */
-static int kvm_dev_ioctl_get_dirty_log(struct kvm *kvm,
-				       struct kvm_dirty_log *log)
+static int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
+				      struct kvm_dirty_log *log)
 {
 	struct kvm_memory_slot *memslot;
 	int r, i;
@@ -765,21 +794,21 @@ static int kvm_dev_ioctl_get_dirty_log(struct kvm *kvm,
 	if (!memslot->dirty_bitmap)
 		goto out;
 
-	n = ALIGN(memslot->npages, 8) / 8;
+	n = ALIGN(memslot->npages, BITS_PER_LONG) / 8;
 
-	for (i = 0; !any && i < n; ++i)
+	for (i = 0; !any && i < n/sizeof(long); ++i)
 		any = memslot->dirty_bitmap[i];
 
 	r = -EFAULT;
 	if (copy_to_user(log->dirty_bitmap, memslot->dirty_bitmap, n))
 		goto out;
 
-
 	if (any) {
 		cleared = 0;
 		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-			struct kvm_vcpu *vcpu = vcpu_load(kvm, i);
+			struct kvm_vcpu *vcpu;
 
+			vcpu = vcpu_load_slot(kvm, i);
 			if (!vcpu)
 				continue;
 			if (!cleared) {
@@ -903,8 +932,9 @@ static int emulator_read_emulated(unsigned long addr,
 		return X86EMUL_CONTINUE;
 	else {
 		gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
+
 		if (gpa == UNMAPPED_GVA)
-			return vcpu_printf(vcpu, "not present\n"), X86EMUL_PROPAGATE_FAULT;
+			return X86EMUL_PROPAGATE_FAULT;
 		vcpu->mmio_needed = 1;
 		vcpu->mmio_phys_addr = gpa;
 		vcpu->mmio_size = bytes;
@@ -928,6 +958,7 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 		return 0;
 	page = gfn_to_page(m, gpa >> PAGE_SHIFT);
 	kvm_mmu_pre_write(vcpu, gpa, bytes);
+	mark_page_dirty(vcpu->kvm, gpa >> PAGE_SHIFT);
 	virt = kmap_atomic(page, KM_USER0);
 	memcpy(virt + offset_in_page(gpa), &val, bytes);
 	kunmap_atomic(virt, KM_USER0);
@@ -1142,6 +1173,42 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(emulate_instruction);
 
+int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	unsigned long nr, a0, a1, a2, a3, a4, a5, ret;
+
+	kvm_arch_ops->decache_regs(vcpu);
+	ret = -KVM_EINVAL;
+#ifdef CONFIG_X86_64
+	if (is_long_mode(vcpu)) {
+		nr = vcpu->regs[VCPU_REGS_RAX];
+		a0 = vcpu->regs[VCPU_REGS_RDI];
+		a1 = vcpu->regs[VCPU_REGS_RSI];
+		a2 = vcpu->regs[VCPU_REGS_RDX];
+		a3 = vcpu->regs[VCPU_REGS_RCX];
+		a4 = vcpu->regs[VCPU_REGS_R8];
+		a5 = vcpu->regs[VCPU_REGS_R9];
+	} else
+#endif
+	{
+		nr = vcpu->regs[VCPU_REGS_RBX] & -1u;
+		a0 = vcpu->regs[VCPU_REGS_RAX] & -1u;
+		a1 = vcpu->regs[VCPU_REGS_RCX] & -1u;
+		a2 = vcpu->regs[VCPU_REGS_RDX] & -1u;
+		a3 = vcpu->regs[VCPU_REGS_RSI] & -1u;
+		a4 = vcpu->regs[VCPU_REGS_RDI] & -1u;
+		a5 = vcpu->regs[VCPU_REGS_RBP] & -1u;
+	}
+	switch (nr) {
+	default:
+		;
+	}
+	vcpu->regs[VCPU_REGS_RAX] = ret;
+	kvm_arch_ops->cache_regs(vcpu);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(kvm_hypercall);
+
 static u64 mk_cr_64(u64 curr_cr, u32 new_val)
 {
 	return (curr_cr & ~((1ULL << 32) - 1)) | new_val;
@@ -1206,6 +1273,75 @@ void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 	default:
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __FUNCTION__, cr);
 	}
+}
+
+/*
+ * Register the para guest with the host:
+ */
+static int vcpu_register_para(struct kvm_vcpu *vcpu, gpa_t para_state_gpa)
+{
+	struct kvm_vcpu_para_state *para_state;
+	hpa_t para_state_hpa, hypercall_hpa;
+	struct page *para_state_page;
+	unsigned char *hypercall;
+	gpa_t hypercall_gpa;
+
+	printk(KERN_DEBUG "kvm: guest trying to enter paravirtual mode\n");
+	printk(KERN_DEBUG ".... para_state_gpa: %08Lx\n", para_state_gpa);
+
+	/*
+	 * Needs to be page aligned:
+	 */
+	if (para_state_gpa != PAGE_ALIGN(para_state_gpa))
+		goto err_gp;
+
+	para_state_hpa = gpa_to_hpa(vcpu, para_state_gpa);
+	printk(KERN_DEBUG ".... para_state_hpa: %08Lx\n", para_state_hpa);
+	if (is_error_hpa(para_state_hpa))
+		goto err_gp;
+
+	mark_page_dirty(vcpu->kvm, para_state_gpa >> PAGE_SHIFT);
+	para_state_page = pfn_to_page(para_state_hpa >> PAGE_SHIFT);
+	para_state = kmap_atomic(para_state_page, KM_USER0);
+
+	printk(KERN_DEBUG "....  guest version: %d\n", para_state->guest_version);
+	printk(KERN_DEBUG "....           size: %d\n", para_state->size);
+
+	para_state->host_version = KVM_PARA_API_VERSION;
+	/*
+	 * We cannot support guests that try to register themselves
+	 * with a newer API version than the host supports:
+	 */
+	if (para_state->guest_version > KVM_PARA_API_VERSION) {
+		para_state->ret = -KVM_EINVAL;
+		goto err_kunmap_skip;
+	}
+
+	hypercall_gpa = para_state->hypercall_gpa;
+	hypercall_hpa = gpa_to_hpa(vcpu, hypercall_gpa);
+	printk(KERN_DEBUG ".... hypercall_hpa: %08Lx\n", hypercall_hpa);
+	if (is_error_hpa(hypercall_hpa)) {
+		para_state->ret = -KVM_EINVAL;
+		goto err_kunmap_skip;
+	}
+
+	printk(KERN_DEBUG "kvm: para guest successfully registered.\n");
+	vcpu->para_state_page = para_state_page;
+	vcpu->para_state_gpa = para_state_gpa;
+	vcpu->hypercall_gpa = hypercall_gpa;
+
+	mark_page_dirty(vcpu->kvm, hypercall_gpa >> PAGE_SHIFT);
+	hypercall = kmap_atomic(pfn_to_page(hypercall_hpa >> PAGE_SHIFT),
+				KM_USER1) + (hypercall_hpa & ~PAGE_MASK);
+	kvm_arch_ops->patch_hypercall(vcpu, hypercall);
+	kunmap_atomic(hypercall, KM_USER1);
+
+	para_state->ret = 0;
+err_kunmap_skip:
+	kunmap_atomic(para_state, KM_USER0);
+	return 0;
+err_gp:
+	return 1;
 }
 
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
@@ -1316,6 +1452,12 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	case MSR_IA32_MISC_ENABLE:
 		vcpu->ia32_misc_enable_msr = data;
 		break;
+	/*
+	 * This is the 'probe whether the host is KVM' logic:
+	 */
+	case MSR_KVM_API_MAGIC:
+		return vcpu_register_para(vcpu, data);
+
 	default:
 		printk(KERN_ERR "kvm: unhandled wrmsr: 0x%x\n", msr);
 		return 1;
@@ -1338,8 +1480,7 @@ void kvm_resched(struct kvm_vcpu *vcpu)
 {
 	vcpu_put(vcpu);
 	cond_resched();
-	/* Cannot fail -  no vcpu unplug yet. */
-	vcpu_load(vcpu->kvm, vcpu_slot(vcpu));
+	vcpu_load(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_resched);
 
@@ -1361,17 +1502,11 @@ void save_msrs(struct vmx_msr_entry *e, int n)
 }
 EXPORT_SYMBOL_GPL(save_msrs);
 
-static int kvm_dev_ioctl_run(struct kvm *kvm, struct kvm_run *kvm_run)
+static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	struct kvm_vcpu *vcpu;
 	int r;
 
-	if (!valid_vcpu(kvm_run->vcpu))
-		return -EINVAL;
-
-	vcpu = vcpu_load(kvm, kvm_run->vcpu);
-	if (!vcpu)
-		return -ENOENT;
+	vcpu_load(vcpu);
 
 	/* re-sync apic's tpr */
 	vcpu->cr8 = kvm_run->cr8;
@@ -1394,16 +1529,10 @@ static int kvm_dev_ioctl_run(struct kvm *kvm, struct kvm_run *kvm_run)
 	return r;
 }
 
-static int kvm_dev_ioctl_get_regs(struct kvm *kvm, struct kvm_regs *regs)
+static int kvm_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu,
+				   struct kvm_regs *regs)
 {
-	struct kvm_vcpu *vcpu;
-
-	if (!valid_vcpu(regs->vcpu))
-		return -EINVAL;
-
-	vcpu = vcpu_load(kvm, regs->vcpu);
-	if (!vcpu)
-		return -ENOENT;
+	vcpu_load(vcpu);
 
 	kvm_arch_ops->cache_regs(vcpu);
 
@@ -1440,16 +1569,10 @@ static int kvm_dev_ioctl_get_regs(struct kvm *kvm, struct kvm_regs *regs)
 	return 0;
 }
 
-static int kvm_dev_ioctl_set_regs(struct kvm *kvm, struct kvm_regs *regs)
+static int kvm_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu,
+				   struct kvm_regs *regs)
 {
-	struct kvm_vcpu *vcpu;
-
-	if (!valid_vcpu(regs->vcpu))
-		return -EINVAL;
-
-	vcpu = vcpu_load(kvm, regs->vcpu);
-	if (!vcpu)
-		return -ENOENT;
+	vcpu_load(vcpu);
 
 	vcpu->regs[VCPU_REGS_RAX] = regs->rax;
 	vcpu->regs[VCPU_REGS_RBX] = regs->rbx;
@@ -1486,16 +1609,12 @@ static void get_segment(struct kvm_vcpu *vcpu,
 	return kvm_arch_ops->get_segment(vcpu, var, seg);
 }
 
-static int kvm_dev_ioctl_get_sregs(struct kvm *kvm, struct kvm_sregs *sregs)
+static int kvm_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
+				    struct kvm_sregs *sregs)
 {
-	struct kvm_vcpu *vcpu;
 	struct descriptor_table dt;
 
-	if (!valid_vcpu(sregs->vcpu))
-		return -EINVAL;
-	vcpu = vcpu_load(kvm, sregs->vcpu);
-	if (!vcpu)
-		return -ENOENT;
+	vcpu_load(vcpu);
 
 	get_segment(vcpu, &sregs->cs, VCPU_SREG_CS);
 	get_segment(vcpu, &sregs->ds, VCPU_SREG_DS);
@@ -1537,18 +1656,14 @@ static void set_segment(struct kvm_vcpu *vcpu,
 	return kvm_arch_ops->set_segment(vcpu, var, seg);
 }
 
-static int kvm_dev_ioctl_set_sregs(struct kvm *kvm, struct kvm_sregs *sregs)
+static int kvm_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
+				    struct kvm_sregs *sregs)
 {
-	struct kvm_vcpu *vcpu;
 	int mmu_reset_needed = 0;
 	int i;
 	struct descriptor_table dt;
 
-	if (!valid_vcpu(sregs->vcpu))
-		return -EINVAL;
-	vcpu = vcpu_load(kvm, sregs->vcpu);
-	if (!vcpu)
-		return -ENOENT;
+	vcpu_load(vcpu);
 
 	set_segment(vcpu, &sregs->cs, VCPU_SREG_CS);
 	set_segment(vcpu, &sregs->ds, VCPU_SREG_DS);
@@ -1654,20 +1769,14 @@ static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
  *
  * @return number of msrs set successfully.
  */
-static int __msr_io(struct kvm *kvm, struct kvm_msrs *msrs,
+static int __msr_io(struct kvm_vcpu *vcpu, struct kvm_msrs *msrs,
 		    struct kvm_msr_entry *entries,
 		    int (*do_msr)(struct kvm_vcpu *vcpu,
 				  unsigned index, u64 *data))
 {
-	struct kvm_vcpu *vcpu;
 	int i;
 
-	if (!valid_vcpu(msrs->vcpu))
-		return -EINVAL;
-
-	vcpu = vcpu_load(kvm, msrs->vcpu);
-	if (!vcpu)
-		return -ENOENT;
+	vcpu_load(vcpu);
 
 	for (i = 0; i < msrs->nmsrs; ++i)
 		if (do_msr(vcpu, entries[i].index, &entries[i].data))
@@ -1683,7 +1792,7 @@ static int __msr_io(struct kvm *kvm, struct kvm_msrs *msrs,
  *
  * @return number of msrs set successfully.
  */
-static int msr_io(struct kvm *kvm, struct kvm_msrs __user *user_msrs,
+static int msr_io(struct kvm_vcpu *vcpu, struct kvm_msrs __user *user_msrs,
 		  int (*do_msr)(struct kvm_vcpu *vcpu,
 				unsigned index, u64 *data),
 		  int writeback)
@@ -1711,7 +1820,7 @@ static int msr_io(struct kvm *kvm, struct kvm_msrs __user *user_msrs,
 	if (copy_from_user(entries, user_msrs->entries, size))
 		goto out_free;
 
-	r = n = __msr_io(kvm, &msrs, entries, do_msr);
+	r = n = __msr_io(vcpu, &msrs, entries, do_msr);
 	if (r < 0)
 		goto out_free;
 
@@ -1730,38 +1839,31 @@ out:
 /*
  * Translate a guest virtual address to a guest physical address.
  */
-static int kvm_dev_ioctl_translate(struct kvm *kvm, struct kvm_translation *tr)
+static int kvm_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
+				    struct kvm_translation *tr)
 {
 	unsigned long vaddr = tr->linear_address;
-	struct kvm_vcpu *vcpu;
 	gpa_t gpa;
 
-	vcpu = vcpu_load(kvm, tr->vcpu);
-	if (!vcpu)
-		return -ENOENT;
-	spin_lock(&kvm->lock);
+	vcpu_load(vcpu);
+	spin_lock(&vcpu->kvm->lock);
 	gpa = vcpu->mmu.gva_to_gpa(vcpu, vaddr);
 	tr->physical_address = gpa;
 	tr->valid = gpa != UNMAPPED_GVA;
 	tr->writeable = 1;
 	tr->usermode = 0;
-	spin_unlock(&kvm->lock);
+	spin_unlock(&vcpu->kvm->lock);
 	vcpu_put(vcpu);
 
 	return 0;
 }
 
-static int kvm_dev_ioctl_interrupt(struct kvm *kvm, struct kvm_interrupt *irq)
+static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
+				    struct kvm_interrupt *irq)
 {
-	struct kvm_vcpu *vcpu;
-
-	if (!valid_vcpu(irq->vcpu))
-		return -EINVAL;
 	if (irq->irq < 0 || irq->irq >= 256)
 		return -EINVAL;
-	vcpu = vcpu_load(kvm, irq->vcpu);
-	if (!vcpu)
-		return -ENOENT;
+	vcpu_load(vcpu);
 
 	set_bit(irq->irq, vcpu->irq_pending);
 	set_bit(irq->irq / BITS_PER_LONG, &vcpu->irq_summary);
@@ -1771,17 +1873,12 @@ static int kvm_dev_ioctl_interrupt(struct kvm *kvm, struct kvm_interrupt *irq)
 	return 0;
 }
 
-static int kvm_dev_ioctl_debug_guest(struct kvm *kvm,
-				     struct kvm_debug_guest *dbg)
+static int kvm_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,
+				      struct kvm_debug_guest *dbg)
 {
-	struct kvm_vcpu *vcpu;
 	int r;
 
-	if (!valid_vcpu(dbg->vcpu))
-		return -EINVAL;
-	vcpu = vcpu_load(kvm, dbg->vcpu);
-	if (!vcpu)
-		return -ENOENT;
+	vcpu_load(vcpu);
 
 	r = kvm_arch_ops->set_guest_debug(vcpu, dbg);
 
@@ -1790,30 +1887,129 @@ static int kvm_dev_ioctl_debug_guest(struct kvm *kvm,
 	return r;
 }
 
-static long kvm_dev_ioctl(struct file *filp,
-			  unsigned int ioctl, unsigned long arg)
+static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 {
-	struct kvm *kvm = filp->private_data;
+	struct kvm_vcpu *vcpu = filp->private_data;
+
+	fput(vcpu->kvm->filp);
+	return 0;
+}
+
+static struct file_operations kvm_vcpu_fops = {
+	.release        = kvm_vcpu_release,
+	.unlocked_ioctl = kvm_vcpu_ioctl,
+	.compat_ioctl   = kvm_vcpu_ioctl,
+};
+
+/*
+ * Allocates an inode for the vcpu.
+ */
+static int create_vcpu_fd(struct kvm_vcpu *vcpu)
+{
+	int fd, r;
+	struct inode *inode;
+	struct file *file;
+
+	atomic_inc(&vcpu->kvm->filp->f_count);
+	inode = kvmfs_inode(&kvm_vcpu_fops);
+	if (IS_ERR(inode)) {
+		r = PTR_ERR(inode);
+		goto out1;
+	}
+
+	file = kvmfs_file(inode, vcpu);
+	if (IS_ERR(file)) {
+		r = PTR_ERR(file);
+		goto out2;
+	}
+
+	r = get_unused_fd();
+	if (r < 0)
+		goto out3;
+	fd = r;
+	fd_install(fd, file);
+
+	return fd;
+
+out3:
+	fput(file);
+out2:
+	iput(inode);
+out1:
+	fput(vcpu->kvm->filp);
+	return r;
+}
+
+/*
+ * Creates some virtual cpus.  Good luck creating more than one.
+ */
+static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
+{
+	int r;
+	struct kvm_vcpu *vcpu;
+
+	r = -EINVAL;
+	if (!valid_vcpu(n))
+		goto out;
+
+	vcpu = &kvm->vcpus[n];
+
+	mutex_lock(&vcpu->mutex);
+
+	if (vcpu->vmcs) {
+		mutex_unlock(&vcpu->mutex);
+		return -EEXIST;
+	}
+
+	vcpu->host_fx_image = (char*)ALIGN((hva_t)vcpu->fx_buf,
+					   FX_IMAGE_ALIGN);
+	vcpu->guest_fx_image = vcpu->host_fx_image + FX_IMAGE_SIZE;
+
+	r = kvm_arch_ops->vcpu_create(vcpu);
+	if (r < 0)
+		goto out_free_vcpus;
+
+	r = kvm_mmu_create(vcpu);
+	if (r < 0)
+		goto out_free_vcpus;
+
+	kvm_arch_ops->vcpu_load(vcpu);
+	r = kvm_mmu_setup(vcpu);
+	if (r >= 0)
+		r = kvm_arch_ops->vcpu_setup(vcpu);
+	vcpu_put(vcpu);
+
+	if (r < 0)
+		goto out_free_vcpus;
+
+	r = create_vcpu_fd(vcpu);
+	if (r < 0)
+		goto out_free_vcpus;
+
+	return r;
+
+out_free_vcpus:
+	kvm_free_vcpu(vcpu);
+	mutex_unlock(&vcpu->mutex);
+out:
+	return r;
+}
+
+static long kvm_vcpu_ioctl(struct file *filp,
+			   unsigned int ioctl, unsigned long arg)
+{
+	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	int r = -EINVAL;
 
 	switch (ioctl) {
-	case KVM_GET_API_VERSION:
-		r = KVM_API_VERSION;
-		break;
-	case KVM_CREATE_VCPU: {
-		r = kvm_dev_ioctl_create_vcpu(kvm, arg);
-		if (r)
-			goto out;
-		break;
-	}
 	case KVM_RUN: {
 		struct kvm_run kvm_run;
 
 		r = -EFAULT;
 		if (copy_from_user(&kvm_run, argp, sizeof kvm_run))
 			goto out;
-		r = kvm_dev_ioctl_run(kvm, &kvm_run);
+		r = kvm_vcpu_ioctl_run(vcpu, &kvm_run);
 		if (r < 0 &&  r != -EINTR)
 			goto out;
 		if (copy_to_user(argp, &kvm_run, sizeof kvm_run)) {
@@ -1825,10 +2021,8 @@ static long kvm_dev_ioctl(struct file *filp,
 	case KVM_GET_REGS: {
 		struct kvm_regs kvm_regs;
 
-		r = -EFAULT;
-		if (copy_from_user(&kvm_regs, argp, sizeof kvm_regs))
-			goto out;
-		r = kvm_dev_ioctl_get_regs(kvm, &kvm_regs);
+		memset(&kvm_regs, 0, sizeof kvm_regs);
+		r = kvm_vcpu_ioctl_get_regs(vcpu, &kvm_regs);
 		if (r)
 			goto out;
 		r = -EFAULT;
@@ -1843,7 +2037,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&kvm_regs, argp, sizeof kvm_regs))
 			goto out;
-		r = kvm_dev_ioctl_set_regs(kvm, &kvm_regs);
+		r = kvm_vcpu_ioctl_set_regs(vcpu, &kvm_regs);
 		if (r)
 			goto out;
 		r = 0;
@@ -1852,10 +2046,8 @@ static long kvm_dev_ioctl(struct file *filp,
 	case KVM_GET_SREGS: {
 		struct kvm_sregs kvm_sregs;
 
-		r = -EFAULT;
-		if (copy_from_user(&kvm_sregs, argp, sizeof kvm_sregs))
-			goto out;
-		r = kvm_dev_ioctl_get_sregs(kvm, &kvm_sregs);
+		memset(&kvm_sregs, 0, sizeof kvm_sregs);
+		r = kvm_vcpu_ioctl_get_sregs(vcpu, &kvm_sregs);
 		if (r)
 			goto out;
 		r = -EFAULT;
@@ -1870,7 +2062,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&kvm_sregs, argp, sizeof kvm_sregs))
 			goto out;
-		r = kvm_dev_ioctl_set_sregs(kvm, &kvm_sregs);
+		r = kvm_vcpu_ioctl_set_sregs(vcpu, &kvm_sregs);
 		if (r)
 			goto out;
 		r = 0;
@@ -1882,7 +2074,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&tr, argp, sizeof tr))
 			goto out;
-		r = kvm_dev_ioctl_translate(kvm, &tr);
+		r = kvm_vcpu_ioctl_translate(vcpu, &tr);
 		if (r)
 			goto out;
 		r = -EFAULT;
@@ -1897,7 +2089,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&irq, argp, sizeof irq))
 			goto out;
-		r = kvm_dev_ioctl_interrupt(kvm, &irq);
+		r = kvm_vcpu_ioctl_interrupt(vcpu, &irq);
 		if (r)
 			goto out;
 		r = 0;
@@ -1909,19 +2101,45 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&dbg, argp, sizeof dbg))
 			goto out;
-		r = kvm_dev_ioctl_debug_guest(kvm, &dbg);
+		r = kvm_vcpu_ioctl_debug_guest(vcpu, &dbg);
 		if (r)
 			goto out;
 		r = 0;
 		break;
 	}
+	case KVM_GET_MSRS:
+		r = msr_io(vcpu, argp, get_msr, 1);
+		break;
+	case KVM_SET_MSRS:
+		r = msr_io(vcpu, argp, do_set_msr, 0);
+		break;
+	default:
+		;
+	}
+out:
+	return r;
+}
+
+static long kvm_vm_ioctl(struct file *filp,
+			   unsigned int ioctl, unsigned long arg)
+{
+	struct kvm *kvm = filp->private_data;
+	void __user *argp = (void __user *)arg;
+	int r = -EINVAL;
+
+	switch (ioctl) {
+	case KVM_CREATE_VCPU:
+		r = kvm_vm_ioctl_create_vcpu(kvm, arg);
+		if (r < 0)
+			goto out;
+		break;
 	case KVM_SET_MEMORY_REGION: {
 		struct kvm_memory_region kvm_mem;
 
 		r = -EFAULT;
 		if (copy_from_user(&kvm_mem, argp, sizeof kvm_mem))
 			goto out;
-		r = kvm_dev_ioctl_set_memory_region(kvm, &kvm_mem);
+		r = kvm_vm_ioctl_set_memory_region(kvm, &kvm_mem);
 		if (r)
 			goto out;
 		break;
@@ -1932,16 +2150,112 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&log, argp, sizeof log))
 			goto out;
-		r = kvm_dev_ioctl_get_dirty_log(kvm, &log);
+		r = kvm_vm_ioctl_get_dirty_log(kvm, &log);
 		if (r)
 			goto out;
 		break;
 	}
-	case KVM_GET_MSRS:
-		r = msr_io(kvm, argp, get_msr, 1);
+	default:
+		;
+	}
+out:
+	return r;
+}
+
+static struct page *kvm_vm_nopage(struct vm_area_struct *vma,
+				  unsigned long address,
+				  int *type)
+{
+	struct kvm *kvm = vma->vm_file->private_data;
+	unsigned long pgoff;
+	struct kvm_memory_slot *slot;
+	struct page *page;
+
+	*type = VM_FAULT_MINOR;
+	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+	slot = gfn_to_memslot(kvm, pgoff);
+	if (!slot)
+		return NOPAGE_SIGBUS;
+	page = gfn_to_page(slot, pgoff);
+	if (!page)
+		return NOPAGE_SIGBUS;
+	get_page(page);
+	return page;
+}
+
+static struct vm_operations_struct kvm_vm_vm_ops = {
+	.nopage = kvm_vm_nopage,
+};
+
+static int kvm_vm_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	vma->vm_ops = &kvm_vm_vm_ops;
+	return 0;
+}
+
+static struct file_operations kvm_vm_fops = {
+	.release        = kvm_vm_release,
+	.unlocked_ioctl = kvm_vm_ioctl,
+	.compat_ioctl   = kvm_vm_ioctl,
+	.mmap           = kvm_vm_mmap,
+};
+
+static int kvm_dev_ioctl_create_vm(void)
+{
+	int fd, r;
+	struct inode *inode;
+	struct file *file;
+	struct kvm *kvm;
+
+	inode = kvmfs_inode(&kvm_vm_fops);
+	if (IS_ERR(inode)) {
+		r = PTR_ERR(inode);
+		goto out1;
+	}
+
+	kvm = kvm_create_vm();
+	if (IS_ERR(kvm)) {
+		r = PTR_ERR(kvm);
+		goto out2;
+	}
+
+	file = kvmfs_file(inode, kvm);
+	if (IS_ERR(file)) {
+		r = PTR_ERR(file);
+		goto out3;
+	}
+	kvm->filp = file;
+
+	r = get_unused_fd();
+	if (r < 0)
+		goto out4;
+	fd = r;
+	fd_install(fd, file);
+
+	return fd;
+
+out4:
+	fput(file);
+out3:
+	kvm_destroy_vm(kvm);
+out2:
+	iput(inode);
+out1:
+	return r;
+}
+
+static long kvm_dev_ioctl(struct file *filp,
+			  unsigned int ioctl, unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+	int r = -EINVAL;
+
+	switch (ioctl) {
+	case KVM_GET_API_VERSION:
+		r = KVM_API_VERSION;
 		break;
-	case KVM_SET_MSRS:
-		r = msr_io(kvm, argp, do_set_msr, 0);
+	case KVM_CREATE_VM:
+		r = kvm_dev_ioctl_create_vm();
 		break;
 	case KVM_GET_MSR_INDEX_LIST: {
 		struct kvm_msr_list __user *user_msr_list = argp;
@@ -1977,43 +2291,11 @@ out:
 	return r;
 }
 
-static struct page *kvm_dev_nopage(struct vm_area_struct *vma,
-				   unsigned long address,
-				   int *type)
-{
-	struct kvm *kvm = vma->vm_file->private_data;
-	unsigned long pgoff;
-	struct kvm_memory_slot *slot;
-	struct page *page;
-
-	*type = VM_FAULT_MINOR;
-	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-	slot = gfn_to_memslot(kvm, pgoff);
-	if (!slot)
-		return NOPAGE_SIGBUS;
-	page = gfn_to_page(slot, pgoff);
-	if (!page)
-		return NOPAGE_SIGBUS;
-	get_page(page);
-	return page;
-}
-
-static struct vm_operations_struct kvm_dev_vm_ops = {
-	.nopage = kvm_dev_nopage,
-};
-
-static int kvm_dev_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	vma->vm_ops = &kvm_dev_vm_ops;
-	return 0;
-}
-
 static struct file_operations kvm_chardev_ops = {
 	.open		= kvm_dev_open,
 	.release        = kvm_dev_release,
 	.unlocked_ioctl = kvm_dev_ioctl,
 	.compat_ioctl   = kvm_dev_ioctl,
-	.mmap           = kvm_dev_mmap,
 };
 
 static struct miscdevice kvm_dev = {
@@ -2080,13 +2362,17 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 	int cpu = (long)v;
 
 	switch (val) {
-	case CPU_DEAD:
+	case CPU_DOWN_PREPARE:
 	case CPU_UP_CANCELED:
+		printk(KERN_INFO "kvm: disabling virtualization on CPU%d\n",
+		       cpu);
 		decache_vcpus_on_cpu(cpu);
 		smp_call_function_single(cpu, kvm_arch_ops->hardware_disable,
 					 NULL, 0, 1);
 		break;
-	case CPU_UP_PREPARE:
+	case CPU_ONLINE:
+		printk(KERN_INFO "kvm: enabling virtualization on CPU%d\n",
+		       cpu);
 		smp_call_function_single(cpu, kvm_arch_ops->hardware_enable,
 					 NULL, 0, 1);
 		break;
@@ -2121,13 +2407,13 @@ static void kvm_exit_debug(void)
 static int kvm_suspend(struct sys_device *dev, pm_message_t state)
 {
 	decache_vcpus_on_cpu(raw_smp_processor_id());
-	on_each_cpu(kvm_arch_ops->hardware_disable, 0, 0, 1);
+	on_each_cpu(kvm_arch_ops->hardware_disable, NULL, 0, 1);
 	return 0;
 }
 
 static int kvm_resume(struct sys_device *dev)
 {
-	on_each_cpu(kvm_arch_ops->hardware_enable, 0, 0, 1);
+	on_each_cpu(kvm_arch_ops->hardware_enable, NULL, 0, 1);
 	return 0;
 }
 
@@ -2143,6 +2429,18 @@ static struct sys_device kvm_sysdev = {
 };
 
 hpa_t bad_page_address;
+
+static int kvmfs_get_sb(struct file_system_type *fs_type, int flags,
+			const char *dev_name, void *data, struct vfsmount *mnt)
+{
+	return get_sb_pseudo(fs_type, "kvm:", NULL, KVMFS_SUPER_MAGIC, mnt);
+}
+
+static struct file_system_type kvm_fs_type = {
+	.name		= "kvmfs",
+	.get_sb		= kvmfs_get_sb,
+	.kill_sb	= kill_anon_super,
+};
 
 int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 {
@@ -2166,7 +2464,7 @@ int kvm_init_arch(struct kvm_arch_ops *ops, struct module *module)
 
 	r = kvm_arch_ops->hardware_setup();
 	if (r < 0)
-	    return r;
+		goto out;
 
 	on_each_cpu(kvm_arch_ops->hardware_enable, NULL, 0, 1);
 	r = register_cpu_notifier(&kvm_cpu_notifier);
@@ -2202,6 +2500,8 @@ out_free_2:
 out_free_1:
 	on_each_cpu(kvm_arch_ops->hardware_disable, NULL, 0, 1);
 	kvm_arch_ops->hardware_unsetup();
+out:
+	kvm_arch_ops = NULL;
 	return r;
 }
 
@@ -2220,8 +2520,16 @@ void kvm_exit_arch(void)
 static __init int kvm_init(void)
 {
 	static struct page *bad_page;
-	int r = 0;
+	int r;
 
+	r = register_filesystem(&kvm_fs_type);
+	if (r)
+		goto out3;
+
+	kvmfs_mnt = kern_mount(&kvm_fs_type);
+	r = PTR_ERR(kvmfs_mnt);
+	if (IS_ERR(kvmfs_mnt))
+		goto out2;
 	kvm_init_debug();
 
 	kvm_init_msr_list();
@@ -2234,10 +2542,14 @@ static __init int kvm_init(void)
 	bad_page_address = page_to_pfn(bad_page) << PAGE_SHIFT;
 	memset(__va(bad_page_address), 0, PAGE_SIZE);
 
-	return r;
+	return 0;
 
 out:
 	kvm_exit_debug();
+	mntput(kvmfs_mnt);
+out2:
+	unregister_filesystem(&kvm_fs_type);
+out3:
 	return r;
 }
 
@@ -2245,6 +2557,8 @@ static __exit void kvm_exit(void)
 {
 	kvm_exit_debug();
 	__free_page(pfn_to_page(bad_page_address >> PAGE_SHIFT));
+	mntput(kvmfs_mnt);
+	unregister_filesystem(&kvm_fs_type);
 }
 
 module_init(kvm_init)

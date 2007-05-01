@@ -210,7 +210,7 @@ parisc_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 	agp_device_command(command, (mode & AGP8X_MODE) != 0);
 }
 
-struct agp_bridge_driver parisc_agp_driver = {
+static const struct agp_bridge_driver parisc_agp_driver = {
 	.owner			= THIS_MODULE,
 	.size_type		= FIXED_APER_SIZE,
 	.configure		= parisc_agp_configure,
@@ -236,7 +236,7 @@ static int __init
 agp_ioc_init(void __iomem *ioc_regs)
 {
 	struct _parisc_agp_info *info = &parisc_agp_info;
-        u64 *iova_base, *io_pdir, io_tlb_ps;
+        u64 iova_base, *io_pdir, io_tlb_ps;
         int io_tlb_shift;
 
         printk(KERN_INFO DRVPFX "IO PDIR shared with sba_iommu\n");

@@ -71,12 +71,12 @@ static struct workqueue_struct *cma_wq;
 static DEFINE_IDR(sdp_ps);
 static DEFINE_IDR(tcp_ps);
 static DEFINE_IDR(udp_ps);
+static DEFINE_IDR(ipoib_ps);
 static int next_port;
 
 struct cma_device {
 	struct list_head	list;
 	struct ib_device	*device;
-	__be64			node_guid;
 	struct completion	comp;
 	atomic_t		refcount;
 	struct list_head	id_list;
@@ -116,6 +116,7 @@ struct rdma_id_private {
 	struct list_head	list;
 	struct list_head	listen_list;
 	struct cma_device	*cma_dev;
+	struct list_head	mc_list;
 
 	enum cma_state		state;
 	spinlock_t		lock;
@@ -134,8 +135,21 @@ struct rdma_id_private {
 	} cm_id;
 
 	u32			seq_num;
+	u32			qkey;
 	u32			qp_num;
 	u8			srq;
+};
+
+struct cma_multicast {
+	struct rdma_id_private *id_priv;
+	union {
+		struct ib_sa_multicast *ib;
+	} multicast;
+	struct list_head	list;
+	void			*context;
+	struct sockaddr		addr;
+	u8			pad[sizeof(struct sockaddr_in6) -
+				    sizeof(struct sockaddr)];
 };
 
 struct cma_work {
@@ -243,6 +257,11 @@ static inline void sdp_set_ip_ver(struct sdp_hh *hh, u8 ip_ver)
 	hh->ip_version = (ip_ver << 4) | (hh->ip_version & 0xF);
 }
 
+static inline int cma_is_ud_ps(enum rdma_port_space ps)
+{
+	return (ps == RDMA_PS_UDP || ps == RDMA_PS_IPOIB);
+}
+
 static void cma_attach_to_dev(struct rdma_id_private *id_priv,
 			      struct cma_device *cma_dev)
 {
@@ -265,19 +284,41 @@ static void cma_detach_from_dev(struct rdma_id_private *id_priv)
 	id_priv->cma_dev = NULL;
 }
 
+static int cma_set_qkey(struct ib_device *device, u8 port_num,
+			enum rdma_port_space ps,
+			struct rdma_dev_addr *dev_addr, u32 *qkey)
+{
+	struct ib_sa_mcmember_rec rec;
+	int ret = 0;
+
+	switch (ps) {
+	case RDMA_PS_UDP:
+		*qkey = RDMA_UDP_QKEY;
+		break;
+	case RDMA_PS_IPOIB:
+		ib_addr_get_mgid(dev_addr, &rec.mgid);
+		ret = ib_sa_get_mcmember_rec(device, port_num, &rec.mgid, &rec);
+		*qkey = be32_to_cpu(rec.qkey);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
 static int cma_acquire_dev(struct rdma_id_private *id_priv)
 {
-	enum rdma_node_type dev_type = id_priv->id.route.addr.dev_addr.dev_type;
+	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
 	struct cma_device *cma_dev;
 	union ib_gid gid;
 	int ret = -ENODEV;
 
-	switch (rdma_node_get_transport(dev_type)) {
+	switch (rdma_node_get_transport(dev_addr->dev_type)) {
 	case RDMA_TRANSPORT_IB:
-		ib_addr_get_sgid(&id_priv->id.route.addr.dev_addr, &gid);
+		ib_addr_get_sgid(dev_addr, &gid);
 		break;
 	case RDMA_TRANSPORT_IWARP:
-		iw_addr_get_sgid(&id_priv->id.route.addr.dev_addr, &gid);
+		iw_addr_get_sgid(dev_addr, &gid);
 		break;
 	default:
 		return -ENODEV;
@@ -287,7 +328,12 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 		ret = ib_find_cached_gid(cma_dev->device, &gid,
 					 &id_priv->id.port_num, NULL);
 		if (!ret) {
-			cma_attach_to_dev(id_priv, cma_dev);
+			ret = cma_set_qkey(cma_dev->device,
+					   id_priv->id.port_num,
+					   id_priv->id.ps, dev_addr,
+					   &id_priv->qkey);
+			if (!ret)
+				cma_attach_to_dev(id_priv, cma_dev);
 			break;
 		}
 	}
@@ -325,40 +371,50 @@ struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
 	init_waitqueue_head(&id_priv->wait_remove);
 	atomic_set(&id_priv->dev_remove, 0);
 	INIT_LIST_HEAD(&id_priv->listen_list);
+	INIT_LIST_HEAD(&id_priv->mc_list);
 	get_random_bytes(&id_priv->seq_num, sizeof id_priv->seq_num);
 
 	return &id_priv->id;
 }
 EXPORT_SYMBOL(rdma_create_id);
 
-static int cma_init_ib_qp(struct rdma_id_private *id_priv, struct ib_qp *qp)
+static int cma_init_ud_qp(struct rdma_id_private *id_priv, struct ib_qp *qp)
 {
 	struct ib_qp_attr qp_attr;
-	struct rdma_dev_addr *dev_addr;
-	int ret;
+	int qp_attr_mask, ret;
 
-	dev_addr = &id_priv->id.route.addr.dev_addr;
-	ret = ib_find_cached_pkey(id_priv->id.device, id_priv->id.port_num,
-				  ib_addr_get_pkey(dev_addr),
-				  &qp_attr.pkey_index);
+	qp_attr.qp_state = IB_QPS_INIT;
+	ret = rdma_init_qp_attr(&id_priv->id, &qp_attr, &qp_attr_mask);
 	if (ret)
 		return ret;
 
-	qp_attr.qp_state = IB_QPS_INIT;
-	qp_attr.qp_access_flags = 0;
-	qp_attr.port_num = id_priv->id.port_num;
-	return ib_modify_qp(qp, &qp_attr, IB_QP_STATE | IB_QP_ACCESS_FLAGS |
-					  IB_QP_PKEY_INDEX | IB_QP_PORT);
+	ret = ib_modify_qp(qp, &qp_attr, qp_attr_mask);
+	if (ret)
+		return ret;
+
+	qp_attr.qp_state = IB_QPS_RTR;
+	ret = ib_modify_qp(qp, &qp_attr, IB_QP_STATE);
+	if (ret)
+		return ret;
+
+	qp_attr.qp_state = IB_QPS_RTS;
+	qp_attr.sq_psn = 0;
+	ret = ib_modify_qp(qp, &qp_attr, IB_QP_STATE | IB_QP_SQ_PSN);
+
+	return ret;
 }
 
-static int cma_init_iw_qp(struct rdma_id_private *id_priv, struct ib_qp *qp)
+static int cma_init_conn_qp(struct rdma_id_private *id_priv, struct ib_qp *qp)
 {
 	struct ib_qp_attr qp_attr;
+	int qp_attr_mask, ret;
 
 	qp_attr.qp_state = IB_QPS_INIT;
-	qp_attr.qp_access_flags = IB_ACCESS_LOCAL_WRITE;
+	ret = rdma_init_qp_attr(&id_priv->id, &qp_attr, &qp_attr_mask);
+	if (ret)
+		return ret;
 
-	return ib_modify_qp(qp, &qp_attr, IB_QP_STATE | IB_QP_ACCESS_FLAGS);
+	return ib_modify_qp(qp, &qp_attr, qp_attr_mask);
 }
 
 int rdma_create_qp(struct rdma_cm_id *id, struct ib_pd *pd,
@@ -376,18 +432,10 @@ int rdma_create_qp(struct rdma_cm_id *id, struct ib_pd *pd,
 	if (IS_ERR(qp))
 		return PTR_ERR(qp);
 
-	switch (rdma_node_get_transport(id->device->node_type)) {
-	case RDMA_TRANSPORT_IB:
-		ret = cma_init_ib_qp(id_priv, qp);
-		break;
-	case RDMA_TRANSPORT_IWARP:
-		ret = cma_init_iw_qp(id_priv, qp);
-		break;
-	default:
-		ret = -ENOSYS;
-		break;
-	}
-
+	if (cma_is_ud_ps(id_priv->id.ps))
+		ret = cma_init_ud_qp(id_priv, qp);
+	else
+		ret = cma_init_conn_qp(id_priv, qp);
 	if (ret)
 		goto err;
 
@@ -460,23 +508,55 @@ static int cma_modify_qp_err(struct rdma_cm_id *id)
 	return ib_modify_qp(id->qp, &qp_attr, IB_QP_STATE);
 }
 
+static int cma_ib_init_qp_attr(struct rdma_id_private *id_priv,
+			       struct ib_qp_attr *qp_attr, int *qp_attr_mask)
+{
+	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
+	int ret;
+
+	ret = ib_find_cached_pkey(id_priv->id.device, id_priv->id.port_num,
+				  ib_addr_get_pkey(dev_addr),
+				  &qp_attr->pkey_index);
+	if (ret)
+		return ret;
+
+	qp_attr->port_num = id_priv->id.port_num;
+	*qp_attr_mask = IB_QP_STATE | IB_QP_PKEY_INDEX | IB_QP_PORT;
+
+	if (cma_is_ud_ps(id_priv->id.ps)) {
+		qp_attr->qkey = id_priv->qkey;
+		*qp_attr_mask |= IB_QP_QKEY;
+	} else {
+		qp_attr->qp_access_flags = 0;
+		*qp_attr_mask |= IB_QP_ACCESS_FLAGS;
+	}
+	return 0;
+}
+
 int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 		       int *qp_attr_mask)
 {
 	struct rdma_id_private *id_priv;
-	int ret;
+	int ret = 0;
 
 	id_priv = container_of(id, struct rdma_id_private, id);
 	switch (rdma_node_get_transport(id_priv->id.device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		ret = ib_cm_init_qp_attr(id_priv->cm_id.ib, qp_attr,
-					 qp_attr_mask);
+		if (!id_priv->cm_id.ib || cma_is_ud_ps(id_priv->id.ps))
+			ret = cma_ib_init_qp_attr(id_priv, qp_attr, qp_attr_mask);
+		else
+			ret = ib_cm_init_qp_attr(id_priv->cm_id.ib, qp_attr,
+						 qp_attr_mask);
 		if (qp_attr->qp_state == IB_QPS_RTR)
 			qp_attr->rq_psn = id_priv->seq_num;
 		break;
 	case RDMA_TRANSPORT_IWARP:
-		ret = iw_cm_init_qp_attr(id_priv->cm_id.iw, qp_attr,
-					qp_attr_mask);
+		if (!id_priv->cm_id.iw) {
+			qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE;
+			*qp_attr_mask = IB_QP_STATE | IB_QP_ACCESS_FLAGS;
+		} else
+			ret = iw_cm_init_qp_attr(id_priv->cm_id.iw, qp_attr,
+						 qp_attr_mask);
 		break;
 	default:
 		ret = -ENOSYS;
@@ -698,6 +778,19 @@ static void cma_release_port(struct rdma_id_private *id_priv)
 	mutex_unlock(&lock);
 }
 
+static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
+{
+	struct cma_multicast *mc;
+
+	while (!list_empty(&id_priv->mc_list)) {
+		mc = container_of(id_priv->mc_list.next,
+				  struct cma_multicast, list);
+		list_del(&mc->list);
+		ib_sa_free_multicast(mc->multicast.ib);
+		kfree(mc);
+	}
+}
+
 void rdma_destroy_id(struct rdma_cm_id *id)
 {
 	struct rdma_id_private *id_priv;
@@ -722,6 +815,7 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 		default:
 			break;
 		}
+		cma_leave_mc_groups(id_priv);
 		mutex_lock(&lock);
 		cma_detach_from_dev(id_priv);
 	}
@@ -972,7 +1066,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	memset(&event, 0, sizeof event);
 	offset = cma_user_data_offset(listen_id->id.ps);
 	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
-	if (listen_id->id.ps == RDMA_PS_UDP) {
+	if (cma_is_ud_ps(listen_id->id.ps)) {
 		conn_id = cma_new_udp_id(&listen_id->id, ib_event);
 		event.param.ud.private_data = ib_event->private_data + offset;
 		event.param.ud.private_data_len =
@@ -1397,11 +1491,13 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 	ib_addr_get_dgid(addr, &path_rec.dgid);
 	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(addr));
 	path_rec.numb_path = 1;
+	path_rec.reversible = 1;
 
 	id_priv->query_id = ib_sa_path_rec_get(&sa_client, id_priv->id.device,
 				id_priv->id.port_num, &path_rec,
 				IB_SA_PATH_REC_DGID | IB_SA_PATH_REC_SGID |
-				IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH,
+				IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH |
+				IB_SA_PATH_REC_REVERSIBLE,
 				timeout_ms, GFP_KERNEL,
 				cma_query_handler, work, &id_priv->query);
 
@@ -1847,6 +1943,9 @@ static int cma_get_port(struct rdma_id_private *id_priv)
 	case RDMA_PS_UDP:
 		ps = &udp_ps;
 		break;
+	case RDMA_PS_IPOIB:
+		ps = &ipoib_ps;
+		break;
 	default:
 		return -EPROTONOSUPPORT;
 	}
@@ -1961,7 +2060,7 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 			event.status = ib_event->param.sidr_rep_rcvd.status;
 			break;
 		}
-		if (rep->qkey != RDMA_UD_QKEY) {
+		if (id_priv->qkey != rep->qkey) {
 			event.event = RDMA_CM_EVENT_UNREACHABLE;
 			event.status = -EINVAL;
 			break;
@@ -2160,7 +2259,7 @@ int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (id->ps == RDMA_PS_UDP)
+		if (cma_is_ud_ps(id->ps))
 			ret = cma_resolve_ib_udp(id_priv, conn_param);
 		else
 			ret = cma_connect_ib(id_priv, conn_param);
@@ -2256,7 +2355,7 @@ static int cma_send_sidr_rep(struct rdma_id_private *id_priv,
 	rep.status = status;
 	if (status == IB_SIDR_SUCCESS) {
 		rep.qp_num = id_priv->qp_num;
-		rep.qkey = RDMA_UD_QKEY;
+		rep.qkey = id_priv->qkey;
 	}
 	rep.private_data = private_data;
 	rep.private_data_len = private_data_len;
@@ -2280,7 +2379,7 @@ int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (id->ps == RDMA_PS_UDP)
+		if (cma_is_ud_ps(id->ps))
 			ret = cma_send_sidr_rep(id_priv, IB_SIDR_SUCCESS,
 						conn_param->private_data,
 						conn_param->private_data_len);
@@ -2341,7 +2440,7 @@ int rdma_reject(struct rdma_cm_id *id, const void *private_data,
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (id->ps == RDMA_PS_UDP)
+		if (cma_is_ud_ps(id->ps))
 			ret = cma_send_sidr_rep(id_priv, IB_SIDR_REJECT,
 						private_data, private_data_len);
 		else
@@ -2392,6 +2491,178 @@ out:
 }
 EXPORT_SYMBOL(rdma_disconnect);
 
+static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
+{
+	struct rdma_id_private *id_priv;
+	struct cma_multicast *mc = multicast->context;
+	struct rdma_cm_event event;
+	int ret;
+
+	id_priv = mc->id_priv;
+	atomic_inc(&id_priv->dev_remove);
+	if (!cma_comp(id_priv, CMA_ADDR_BOUND) &&
+	    !cma_comp(id_priv, CMA_ADDR_RESOLVED))
+		goto out;
+
+	if (!status && id_priv->id.qp)
+		status = ib_attach_mcast(id_priv->id.qp, &multicast->rec.mgid,
+					 multicast->rec.mlid);
+
+	memset(&event, 0, sizeof event);
+	event.status = status;
+	event.param.ud.private_data = mc->context;
+	if (!status) {
+		event.event = RDMA_CM_EVENT_MULTICAST_JOIN;
+		ib_init_ah_from_mcmember(id_priv->id.device,
+					 id_priv->id.port_num, &multicast->rec,
+					 &event.param.ud.ah_attr);
+		event.param.ud.qp_num = 0xFFFFFF;
+		event.param.ud.qkey = be32_to_cpu(multicast->rec.qkey);
+	} else
+		event.event = RDMA_CM_EVENT_MULTICAST_ERROR;
+
+	ret = id_priv->id.event_handler(&id_priv->id, &event);
+	if (ret) {
+		cma_exch(id_priv, CMA_DESTROYING);
+		cma_release_remove(id_priv);
+		rdma_destroy_id(&id_priv->id);
+		return 0;
+	}
+out:
+	cma_release_remove(id_priv);
+	return 0;
+}
+
+static void cma_set_mgid(struct rdma_id_private *id_priv,
+			 struct sockaddr *addr, union ib_gid *mgid)
+{
+	unsigned char mc_map[MAX_ADDR_LEN];
+	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
+	struct sockaddr_in *sin = (struct sockaddr_in *) addr;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) addr;
+
+	if (cma_any_addr(addr)) {
+		memset(mgid, 0, sizeof *mgid);
+	} else if ((addr->sa_family == AF_INET6) &&
+		   ((be32_to_cpu(sin6->sin6_addr.s6_addr32[0]) & 0xFF10A01B) ==
+								 0xFF10A01B)) {
+		/* IPv6 address is an SA assigned MGID. */
+		memcpy(mgid, &sin6->sin6_addr, sizeof *mgid);
+	} else {
+		ip_ib_mc_map(sin->sin_addr.s_addr, mc_map);
+		if (id_priv->id.ps == RDMA_PS_UDP)
+			mc_map[7] = 0x01;	/* Use RDMA CM signature */
+		mc_map[8] = ib_addr_get_pkey(dev_addr) >> 8;
+		mc_map[9] = (unsigned char) ib_addr_get_pkey(dev_addr);
+		*mgid = *(union ib_gid *) (mc_map + 4);
+	}
+}
+
+static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
+				 struct cma_multicast *mc)
+{
+	struct ib_sa_mcmember_rec rec;
+	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
+	ib_sa_comp_mask comp_mask;
+	int ret;
+
+	ib_addr_get_mgid(dev_addr, &rec.mgid);
+	ret = ib_sa_get_mcmember_rec(id_priv->id.device, id_priv->id.port_num,
+				     &rec.mgid, &rec);
+	if (ret)
+		return ret;
+
+	cma_set_mgid(id_priv, &mc->addr, &rec.mgid);
+	if (id_priv->id.ps == RDMA_PS_UDP)
+		rec.qkey = cpu_to_be32(RDMA_UDP_QKEY);
+	ib_addr_get_sgid(dev_addr, &rec.port_gid);
+	rec.pkey = cpu_to_be16(ib_addr_get_pkey(dev_addr));
+	rec.join_state = 1;
+
+	comp_mask = IB_SA_MCMEMBER_REC_MGID | IB_SA_MCMEMBER_REC_PORT_GID |
+		    IB_SA_MCMEMBER_REC_PKEY | IB_SA_MCMEMBER_REC_JOIN_STATE |
+		    IB_SA_MCMEMBER_REC_QKEY | IB_SA_MCMEMBER_REC_SL |
+		    IB_SA_MCMEMBER_REC_FLOW_LABEL |
+		    IB_SA_MCMEMBER_REC_TRAFFIC_CLASS;
+
+	mc->multicast.ib = ib_sa_join_multicast(&sa_client, id_priv->id.device,
+						id_priv->id.port_num, &rec,
+						comp_mask, GFP_KERNEL,
+						cma_ib_mc_handler, mc);
+	if (IS_ERR(mc->multicast.ib))
+		return PTR_ERR(mc->multicast.ib);
+
+	return 0;
+}
+
+int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
+			void *context)
+{
+	struct rdma_id_private *id_priv;
+	struct cma_multicast *mc;
+	int ret;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	if (!cma_comp(id_priv, CMA_ADDR_BOUND) &&
+	    !cma_comp(id_priv, CMA_ADDR_RESOLVED))
+		return -EINVAL;
+
+	mc = kmalloc(sizeof *mc, GFP_KERNEL);
+	if (!mc)
+		return -ENOMEM;
+
+	memcpy(&mc->addr, addr, ip_addr_size(addr));
+	mc->context = context;
+	mc->id_priv = id_priv;
+
+	spin_lock(&id_priv->lock);
+	list_add(&mc->list, &id_priv->mc_list);
+	spin_unlock(&id_priv->lock);
+
+	switch (rdma_node_get_transport(id->device->node_type)) {
+	case RDMA_TRANSPORT_IB:
+		ret = cma_join_ib_multicast(id_priv, mc);
+		break;
+	default:
+		ret = -ENOSYS;
+		break;
+	}
+
+	if (ret) {
+		spin_lock_irq(&id_priv->lock);
+		list_del(&mc->list);
+		spin_unlock_irq(&id_priv->lock);
+		kfree(mc);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(rdma_join_multicast);
+
+void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
+{
+	struct rdma_id_private *id_priv;
+	struct cma_multicast *mc;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	spin_lock_irq(&id_priv->lock);
+	list_for_each_entry(mc, &id_priv->mc_list, list) {
+		if (!memcmp(&mc->addr, addr, ip_addr_size(addr))) {
+			list_del(&mc->list);
+			spin_unlock_irq(&id_priv->lock);
+
+			if (id->qp)
+				ib_detach_mcast(id->qp,
+						&mc->multicast.ib->rec.mgid,
+						mc->multicast.ib->rec.mlid);
+			ib_sa_free_multicast(mc->multicast.ib);
+			kfree(mc);
+			return;
+		}
+	}
+	spin_unlock_irq(&id_priv->lock);
+}
+EXPORT_SYMBOL(rdma_leave_multicast);
+
 static void cma_add_one(struct ib_device *device)
 {
 	struct cma_device *cma_dev;
@@ -2402,7 +2673,6 @@ static void cma_add_one(struct ib_device *device)
 		return;
 
 	cma_dev->device = device;
-	cma_dev->node_guid = device->node_guid;
 
 	init_completion(&cma_dev->comp);
 	atomic_set(&cma_dev->refcount, 1);
@@ -2522,6 +2792,7 @@ static void cma_cleanup(void)
 	idr_destroy(&sdp_ps);
 	idr_destroy(&tcp_ps);
 	idr_destroy(&udp_ps);
+	idr_destroy(&ipoib_ps);
 }
 
 module_init(cma_init);

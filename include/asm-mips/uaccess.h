@@ -435,8 +435,34 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_len;							\
 })
 
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
+
+#define __copy_to_user_inatomic(to,from,n)				\
+({									\
+	void __user *__cu_to;						\
+	const void *__cu_from;						\
+	long __cu_len;							\
+									\
+	__cu_to = (to);							\
+	__cu_from = (from);						\
+	__cu_len = (n);							\
+	__cu_len = __invoke_copy_to_user(__cu_to, __cu_from, __cu_len);	\
+	__cu_len;							\
+})
+
+#define __copy_from_user_inatomic(to,from,n)				\
+({									\
+	void *__cu_to;							\
+	const void __user *__cu_from;					\
+	long __cu_len;							\
+									\
+	__cu_to = (to);							\
+	__cu_from = (from);						\
+	__cu_len = (n);							\
+	__cu_len = __invoke_copy_from_user_inatomic(__cu_to, __cu_from,	\
+	                                            __cu_len);		\
+	__cu_len;							\
+})
 
 /*
  * copy_to_user: - Copy a block of data into user space.
@@ -479,6 +505,29 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__asm__ __volatile__(						\
 	".set\tnoreorder\n\t"						\
 	__MODULE_JAL(__copy_user)					\
+	".set\tnoat\n\t"						\
+	__UA_ADDU "\t$1, %1, %2\n\t"					\
+	".set\tat\n\t"							\
+	".set\treorder"							\
+	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
+	:								\
+	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
+	  "memory");							\
+	__cu_len_r;							\
+})
+
+#define __invoke_copy_from_user_inatomic(to,from,n)			\
+({									\
+	register void *__cu_to_r __asm__ ("$4");			\
+	register const void __user *__cu_from_r __asm__ ("$5");		\
+	register long __cu_len_r __asm__ ("$6");			\
+									\
+	__cu_to_r = (to);						\
+	__cu_from_r = (from);						\
+	__cu_len_r = (n);						\
+	__asm__ __volatile__(						\
+	".set\tnoreorder\n\t"						\
+	__MODULE_JAL(__copy_user_inatomic)				\
 	".set\tnoat\n\t"						\
 	__UA_ADDU "\t$1, %1, %2\n\t"					\
 	".set\tat\n\t"							\

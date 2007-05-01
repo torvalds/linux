@@ -38,7 +38,7 @@ static struct dentry *lock_parent(struct dentry *dentry)
 	struct dentry *dir;
 
 	dir = dget(dentry->d_parent);
-	mutex_lock(&(dir->d_inode->i_mutex));
+	mutex_lock_nested(&(dir->d_inode->i_mutex), I_MUTEX_PARENT);
 	return dir;
 }
 
@@ -168,9 +168,9 @@ static int grow_file(struct dentry *ecryptfs_dentry, struct file *lower_file,
 		goto out;
 	}
 	i_size_write(inode, 0);
-	ecryptfs_write_inode_size_to_metadata(lower_file, lower_inode, inode,
-					      ecryptfs_dentry,
-					      ECRYPTFS_LOWER_I_MUTEX_NOT_HELD);
+	rc = ecryptfs_write_inode_size_to_metadata(lower_file, lower_inode,
+			inode, ecryptfs_dentry,
+			ECRYPTFS_LOWER_I_MUTEX_NOT_HELD);
 	ecryptfs_inode_to_private(inode)->crypt_stat.flags |= ECRYPTFS_NEW_FILE;
 out:
 	return rc;
@@ -200,9 +200,6 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 	inode = ecryptfs_dentry->d_inode;
 	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
 	lower_flags = ((O_CREAT | O_TRUNC) & O_ACCMODE) | O_RDWR;
-#if BITS_PER_LONG != 32
-	lower_flags |= O_LARGEFILE;
-#endif
 	lower_mnt = ecryptfs_dentry_to_lower_mnt(ecryptfs_dentry);
 	/* Corresponding fput() at end of this function */
 	if ((rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,

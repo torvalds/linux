@@ -209,13 +209,13 @@ void __init find_udbg_vterm(void)
 	/* find the boot console from /chosen/stdout */
 	if (!of_chosen)
 		return;
-	name = get_property(of_chosen, "linux,stdout-path", NULL);
+	name = of_get_property(of_chosen, "linux,stdout-path", NULL);
 	if (name == NULL)
 		return;
 	stdout_node = of_find_node_by_path(name);
 	if (!stdout_node)
 		return;
-	name = get_property(stdout_node, "name", NULL);
+	name = of_get_property(stdout_node, "name", NULL);
 	if (!name) {
 		printk(KERN_WARNING "stdout node missing 'name' property!\n");
 		goto out;
@@ -226,7 +226,7 @@ void __init find_udbg_vterm(void)
 	/* Check if it's a virtual terminal */
 	if (strncmp(name, "vty", 3) != 0)
 		goto out;
-	termno = get_property(stdout_node, "reg", NULL);
+	termno = of_get_property(stdout_node, "reg", NULL);
 	if (termno == NULL)
 		goto out;
 	vtermno = termno[0];
@@ -378,7 +378,7 @@ static void pSeries_lpar_hptab_clear(void)
 
 	/* TODO: Use bulk call */
 	for (i = 0; i < hpte_count; i++)
-		plpar_pte_remove(0, i, 0, &dummy1, &dummy2);
+		plpar_pte_remove_raw(0, i, 0, &dummy1, &dummy2);
 }
 
 /*

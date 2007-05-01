@@ -83,7 +83,6 @@ static int max_interrupt_work = 10;
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/pm.h>
-#include <linux/pm_legacy.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>	/* for udelay() */
 #include <linux/spinlock.h>
@@ -1091,7 +1090,6 @@ el3_rx(struct net_device *dev)
 				printk("Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);
 			if (skb != NULL) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);     /* Align IP on 16 byte */
 
 				/* 'skb->data' points to the start of sk_buff data area. */

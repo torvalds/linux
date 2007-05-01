@@ -1,8 +1,9 @@
 /*
- * This file holds USB constants and structures that are needed for USB
- * device APIs.  These are used by the USB device model, which is defined
- * in chapter 9 of the USB 2.0 specification.  Linux has several APIs in C
- * that need these:
+ * This file holds USB constants and structures that are needed for
+ * USB device APIs.  These are used by the USB device model, which is
+ * defined in chapter 9 of the USB 2.0 specification and in the
+ * Wireless USB 1.0 (spread around).  Linux has several APIs in C that
+ * need these:
  *
  * - the master/host side Linux-USB kernel driver API;
  * - the "usbfs" user space API; and
@@ -14,6 +15,19 @@
  *
  * There's also "Wireless USB", using low power short range radios for
  * peripheral interconnection but otherwise building on the USB framework.
+ *
+ * Note all descriptors are declared '__attribute__((packed))' so that:
+ *
+ * [a] they never get padded, either internally (USB spec writers
+ *     probably handled that) or externally;
+ *
+ * [b] so that accessing bigger-than-a-bytes fields will never
+ *     generate bus errors on any platform, even when the location of
+ *     its descriptor inside a bundle isn't "naturally aligned", and
+ *
+ * [c] for consistency, removing all doubt even when it appears to
+ *     someone that the two other points are non-issues for that
+ *     particular descriptor type.
  */
 
 #ifndef __LINUX_USB_CH9_H
@@ -167,12 +181,15 @@ struct usb_ctrlrequest {
 #define USB_DT_WIRE_ADAPTER		0x21
 #define USB_DT_RPIPE			0x22
 
-/* conventional codes for class-specific descriptors */
-#define USB_DT_CS_DEVICE		0x21
-#define USB_DT_CS_CONFIG		0x22
-#define USB_DT_CS_STRING		0x23
-#define USB_DT_CS_INTERFACE		0x24
-#define USB_DT_CS_ENDPOINT		0x25
+/* Conventional codes for class-specific descriptors.  The convention is
+ * defined in the USB "Common Class" Spec (3.11).  Individual class specs
+ * are authoritative for their usage, not the "common class" writeup.
+ */
+#define USB_DT_CS_DEVICE		(USB_TYPE_CLASS | USB_DT_DEVICE)
+#define USB_DT_CS_CONFIG		(USB_TYPE_CLASS | USB_DT_CONFIG)
+#define USB_DT_CS_STRING		(USB_TYPE_CLASS | USB_DT_STRING)
+#define USB_DT_CS_INTERFACE		(USB_TYPE_CLASS | USB_DT_INTERFACE)
+#define USB_DT_CS_ENDPOINT		(USB_TYPE_CLASS | USB_DT_ENDPOINT)
 
 /* All standard descriptors have these 2 fields at the beginning */
 struct usb_descriptor_header {
@@ -367,7 +384,7 @@ struct usb_debug_descriptor {
 	/* bulk endpoints with 8 byte maxpacket */
 	__u8  bDebugInEndpoint;
 	__u8  bDebugOutEndpoint;
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -396,7 +413,7 @@ struct usb_security_descriptor {
 
 	__le16 wTotalLength;
 	__u8  bNumEncryptionTypes;
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -410,7 +427,7 @@ struct usb_key_descriptor {
 	__u8  tTKID[3];
 	__u8  bReserved;
 	__u8  bKeyData[0];
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -426,7 +443,7 @@ struct usb_encryption_descriptor {
 #define	USB_ENC_TYPE_RSA_1		3	/* rsa3072/sha1 auth */
 	__u8  bEncryptionValue;		/* use in SET_ENCRYPTION */
 	__u8  bAuthKeyIndex;
-};
+} __attribute__((packed));
 
 
 /*-------------------------------------------------------------------------*/
@@ -438,7 +455,7 @@ struct usb_bos_descriptor {
 
 	__le16 wTotalLength;
 	__u8  bNumDeviceCaps;
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -447,7 +464,7 @@ struct usb_dev_cap_header {
 	__u8  bLength;
 	__u8  bDescriptorType;
 	__u8  bDevCapabilityType;
-};
+} __attribute__((packed));
 
 #define	USB_CAP_TYPE_WIRELESS_USB	1
 
@@ -475,7 +492,7 @@ struct usb_wireless_cap_descriptor {	/* Ultra Wide Band */
 	__u8  bmFFITXPowerInfo;	/* FFI power levels */
 	__le16 bmBandGroup;
 	__u8  bReserved;
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -496,7 +513,7 @@ struct usb_wireless_ep_comp_descriptor {
 #define USB_ENDPOINT_SWITCH_NO		0
 #define USB_ENDPOINT_SWITCH_SWITCH	1
 #define USB_ENDPOINT_SWITCH_SCALE	2
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -512,7 +529,7 @@ struct usb_handshake {
 	__u8 CDID[16];
 	__u8 nonce[16];
 	__u8 MIC[8];
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
@@ -524,7 +541,7 @@ struct usb_connection_context {
 	__u8 CHID[16];		/* persistent host id */
 	__u8 CDID[16];		/* device id (unique w/in host context) */
 	__u8 CK[16];		/* connection key */
-};
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 

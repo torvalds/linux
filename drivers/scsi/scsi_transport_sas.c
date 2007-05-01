@@ -500,7 +500,7 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 EXPORT_SYMBOL(sas_phy_alloc);
 
 /**
- * sas_phy_add  --  add a SAS PHY to the device hierachy
+ * sas_phy_add  --  add a SAS PHY to the device hierarchy
  * @phy:	The PHY to be added
  *
  * Publishes a SAS PHY to the rest of the system.
@@ -1265,7 +1265,7 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 EXPORT_SYMBOL(sas_expander_alloc);
 
 /**
- * sas_rphy_add  --  add a SAS remote PHY to the device hierachy
+ * sas_rphy_add  --  add a SAS remote PHY to the device hierarchy
  * @rphy:	The remote PHY to be added
  *
  * Publishes a SAS remote PHY to the rest of the system.

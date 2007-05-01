@@ -1,6 +1,6 @@
 /************************************************************************
  * regs.h: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
- * Copyright(c) 2002-2005 Neterion Inc.
+ * Copyright(c) 2002-2007 Neterion Inc.
 
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
@@ -430,6 +430,7 @@ struct XENA_dev_config {
 #define TX_PA_CFG_IGNORE_SNAP_OUI          BIT(2)
 #define TX_PA_CFG_IGNORE_LLC_CTRL          BIT(3)
 #define	TX_PA_CFG_IGNORE_L2_ERR			   BIT(6)
+#define RX_PA_CFG_STRIP_VLAN_TAG		BIT(15)
 
 /* Recent add, used only debug purposes. */
 	u64 pcc_enable;

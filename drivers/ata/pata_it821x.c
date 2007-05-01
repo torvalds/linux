@@ -80,7 +80,7 @@
 
 
 #define DRV_NAME "pata_it821x"
-#define DRV_VERSION "0.3.3"
+#define DRV_VERSION "0.3.6"
 
 struct it821x_dev
 {
@@ -111,31 +111,6 @@ struct it821x_dev
  */
 
 static int it8212_noraid;
-
-/**
- *	it821x_pre_reset	-	probe
- *	@ap: ATA port
- *
- *	Set the cable type
- */
-
-static int it821x_pre_reset(struct ata_port *ap)
-{
-	ap->cbl = ATA_CBL_PATA80;
-	return ata_std_prereset(ap);
-}
-
-/**
- *	it821x_error_handler	-	probe/reset
- *	@ap: ATA port
- *
- *	Set the cable type and trigger a probe
- */
-
-static void it821x_error_handler(struct ata_port *ap)
-{
-	return ata_bmdma_drive_eh(ap, it821x_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
 
 /**
  *	it821x_program	-	program the PIO/MWDMA registers
@@ -503,10 +478,12 @@ static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused
 			/* We do need the right mode information for DMA or PIO
 			   and this comes from the current configuration flags */
 			if (dma_enabled & (1 << (5 + i))) {
+				ata_dev_printk(dev, KERN_INFO, "configured for DMA\n");
 				dev->xfer_mode = XFER_MW_DMA_0;
 				dev->xfer_shift = ATA_SHIFT_MWDMA;
 				dev->flags &= ~ATA_DFLAG_PIO;
 			} else {
+				ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
 				dev->xfer_mode = XFER_PIO_0;
 				dev->xfer_shift = ATA_SHIFT_PIO;
 				dev->flags |= ATA_DFLAG_PIO;
@@ -518,7 +495,6 @@ static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused
 
 /**
  *	it821x_dev_config	-	Called each device identify
- *	@ap: ATA port
  *	@adev: Device that has just been identified
  *
  *	Perform the initial setup needed for each device that is chip
@@ -529,7 +505,7 @@ static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused
  *	basically we need to filter commands for this chip.
  */
 
-static void it821x_dev_config(struct ata_port *ap, struct ata_device *adev)
+static void it821x_dev_config(struct ata_device *adev)
 {
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 
@@ -644,8 +620,10 @@ static struct scsi_host_template it821x_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.resume			= ata_scsi_device_resume,
 	.suspend		= ata_scsi_device_suspend,
+#endif
 };
 
 static struct ata_port_operations it821x_smart_port_ops = {
@@ -663,8 +641,9 @@ static struct ata_port_operations it821x_smart_port_ops = {
 
 	.freeze		= ata_bmdma_freeze,
 	.thaw		= ata_bmdma_thaw,
-	.error_handler	= it821x_error_handler,
+	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_unknown,
 
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= ata_bmdma_start,
@@ -699,8 +678,9 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 
 	.freeze		= ata_bmdma_freeze,
 	.thaw		= ata_bmdma_thaw,
-	.error_handler	= it821x_error_handler,
+	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_unknown,
 
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= it821x_passthru_bmdma_start,
@@ -778,6 +758,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
+#ifdef CONFIG_PM
 static int it821x_reinit_one(struct pci_dev *pdev)
 {
 	/* Resume - turn raid back off if need be */
@@ -785,6 +766,7 @@ static int it821x_reinit_one(struct pci_dev *pdev)
 		it821x_disable_raid(pdev);
 	return ata_pci_device_resume(pdev);
 }
+#endif
 
 static const struct pci_device_id it821x[] = {
 	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8211), },
@@ -798,8 +780,10 @@ static struct pci_driver it821x_pci_driver = {
 	.id_table	= it821x,
 	.probe 		= it821x_init_one,
 	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
 	.resume		= it821x_reinit_one,
+#endif
 };
 
 static int __init it821x_init(void)

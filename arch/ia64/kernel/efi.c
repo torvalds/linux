@@ -21,6 +21,7 @@
  *	Skip non-WB memory and ignore empty memory ranges.
  */
 #include <linux/module.h>
+#include <linux/bootmem.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -970,6 +971,11 @@ efi_memmap_init(unsigned long *s, unsigned long *e)
 		if (!is_memory_available(md))
 			continue;
 
+#ifdef CONFIG_CRASH_DUMP
+		/* saved_max_pfn should ignore max_addr= command line arg */
+		if (saved_max_pfn < (efi_md_end(md) >> PAGE_SHIFT))
+			saved_max_pfn = (efi_md_end(md) >> PAGE_SHIFT);
+#endif
 		/*
 		 * Round ends inward to granule boundaries
 		 * Give trimmings to uncached allocator
@@ -1136,7 +1142,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 /* find a block of memory aligned to 64M exclude reserved regions
    rsvd_regions are sorted
  */
-unsigned long
+unsigned long __init
 kdump_find_rsvd_region (unsigned long size,
 		struct rsvd_region *r, int n)
 {
@@ -1175,5 +1181,35 @@ kdump_find_rsvd_region (unsigned long size,
   printk(KERN_WARNING "Cannot reserve 0x%lx byte of memory for crashdump\n",
 	size);
   return ~0UL;
+}
+#endif
+
+#ifdef CONFIG_PROC_VMCORE
+/* locate the size find a the descriptor at a certain address */
+unsigned long
+vmcore_find_descriptor_size (unsigned long address)
+{
+	void *efi_map_start, *efi_map_end, *p;
+	efi_memory_desc_t *md;
+	u64 efi_desc_size;
+	unsigned long ret = 0;
+
+	efi_map_start = __va(ia64_boot_param->efi_memmap);
+	efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
+	efi_desc_size = ia64_boot_param->efi_memdesc_size;
+
+	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
+		md = p;
+		if (efi_wb(md) && md->type == EFI_LOADER_DATA
+		    && md->phys_addr == address) {
+			ret = efi_md_size(md);
+			break;
+		}
+	}
+
+	if (ret == 0)
+		printk(KERN_WARNING "Cannot locate EFI vmcore descriptor\n");
+
+	return ret;
 }
 #endif

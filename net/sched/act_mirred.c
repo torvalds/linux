@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
+#include <net/netlink.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <linux/tc_act/tc_mirred.h>
@@ -198,7 +199,7 @@ bad_mirred:
 		skb2->tc_verd = SET_TC_FROM(skb2->tc_verd, at);
 
 	skb2->dev = dev;
-	skb2->input_dev = skb->dev;
+	skb2->iif = skb->dev->ifindex;
 	dev_queue_xmit(skb2);
 	spin_unlock(&m->tcf_lock);
 	return m->tcf_action;
@@ -206,7 +207,7 @@ bad_mirred:
 
 static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
-	unsigned char *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_mirred *m = a->priv;
 	struct tc_mirred opt;
 	struct tcf_t t;
@@ -225,7 +226,7 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, i
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 

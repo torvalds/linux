@@ -147,7 +147,9 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 {
 	u8 speed	= ide_dma_speed(drive, jmicron_ratemask(drive));
 
-	config_jmicron_chipset_for_pio(drive, !speed);
+	if (!speed)
+		return 0;
+
 	jmicron_tune_chipset(drive, speed);
 	return ide_dma_enable(drive);
 }
@@ -162,14 +164,12 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 static int jmicron_config_drive_for_dma (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-	if (ide_use_dma(drive)) {
-		if (config_chipset_for_dma(drive))
-			return hwif->ide_dma_on(drive);
-	}
 	config_jmicron_chipset_for_pio(drive, 1);
-	return hwif->ide_dma_off_quietly(drive);
+
+	return -1;
 }
 
 /**
@@ -240,12 +240,31 @@ static int __devinit jmicron_init_one(struct pci_dev *dev, const struct pci_devi
 	return 0;
 }
 
+/* If libata is configured, jmicron PCI quirk will configure it such
+ * that the SATA ports are in AHCI function while the PATA ports are
+ * in a separate IDE function.  In such cases, match device class and
+ * attach only to IDE.  If libata isn't configured, keep the old
+ * behavior for backward compatibility.
+ */
+#if defined(CONFIG_ATA) || defined(CONFIG_ATA_MODULE)
+#define JMB_CLASS	PCI_CLASS_STORAGE_IDE << 8
+#define JMB_CLASS_MASK	0xffff00
+#else
+#define JMB_CLASS	0
+#define JMB_CLASS_MASK	0
+#endif
+
 static struct pci_device_id jmicron_pci_tbl[] = {
-	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB361, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB363, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB365, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB366, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3},
-	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB368, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4},
+	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB361,
+	  PCI_ANY_ID, PCI_ANY_ID, JMB_CLASS, JMB_CLASS_MASK, 0},
+	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB363,
+	  PCI_ANY_ID, PCI_ANY_ID, JMB_CLASS, JMB_CLASS_MASK, 1},
+	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB365,
+	  PCI_ANY_ID, PCI_ANY_ID, JMB_CLASS, JMB_CLASS_MASK, 2},
+	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB366,
+	  PCI_ANY_ID, PCI_ANY_ID, JMB_CLASS, JMB_CLASS_MASK, 3},
+	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB368,
+	  PCI_ANY_ID, PCI_ANY_ID, JMB_CLASS, JMB_CLASS_MASK, 4},
 	{ 0, },
 };
 

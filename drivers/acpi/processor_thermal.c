@@ -41,9 +41,8 @@
 
 #define ACPI_PROCESSOR_COMPONENT        0x01000000
 #define ACPI_PROCESSOR_CLASS            "processor"
-#define ACPI_PROCESSOR_DRIVER_NAME      "ACPI Processor Driver"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("acpi_processor")
+ACPI_MODULE_NAME("processor_thermal");
 
 /* --------------------------------------------------------------------------
                                  Limit Interface

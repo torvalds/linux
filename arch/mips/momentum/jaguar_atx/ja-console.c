@@ -74,11 +74,6 @@ void prom_putchar(char c)
 	uart->iu_thr = c;
 }
 
-char __init prom_getchar(void)
-{
-	return 0;
-}
-
 static void inline ja_console_probe(void)
 {
 	struct uart_port up;

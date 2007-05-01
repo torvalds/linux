@@ -16,9 +16,6 @@
 **      the Free Software Foundation; either version 2 of the License, or
 **      (at your option) any later version.
 */
-#undef ENTRY_SYS_CPUS	/* syscall support for iCOD-like functionality */
-
-
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -51,7 +48,15 @@
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 
-#define kDEBUG 0
+#undef DEBUG_SMP
+#ifdef DEBUG_SMP
+static int smp_debug_lvl = 0;
+#define smp_debug(lvl, printargs...)		\
+		if (lvl >= smp_debug_lvl)	\
+			printk(printargs);
+#else
+#define smp_debug(lvl, ...)
+#endif /* DEBUG_SMP */
 
 DEFINE_SPINLOCK(smp_lock);
 
@@ -76,6 +81,7 @@ cpumask_t cpu_possible_map __read_mostly = CPU_MASK_ALL;	/* Bitmap of Present CP
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
 
+DEFINE_PER_CPU(spinlock_t, ipi_lock) = SPIN_LOCK_UNLOCKED;
 
 struct smp_call_struct {
 	void (*func) (void *info);
@@ -107,13 +113,6 @@ enum ipi_message_type {
 static void
 ipi_init(int cpuid)
 {
-
-	/* If CPU is present ... */
-#ifdef ENTRY_SYS_CPUS
-	/* *and* running (not stopped) ... */
-#error iCOD support wants state checked here.
-#endif
-
 #error verify IRQ_OFFSET(IPI_IRQ) is ipi_interrupt() in new IRQ region
 
 	if(cpu_online(cpuid) )
@@ -133,23 +132,12 @@ ipi_init(int cpuid)
 static void
 halt_processor(void) 
 {
-#ifdef ENTRY_SYS_CPUS
-#error halt_processor() needs rework
-/*
-** o migrate I/O interrupts off this CPU.
-** o leave IPI enabled - __cli() will disable IPI.
-** o leave CPU in online map - just change the state
-*/
-	cpu_data[this_cpu].state = STATE_STOPPED;
-	mark_bh(IPI_BH);
-#else
 	/* REVISIT : redirect I/O Interrupts to another CPU? */
 	/* REVISIT : does PM *know* this CPU isn't available? */
 	cpu_clear(smp_processor_id(), cpu_online_map);
 	local_irq_disable();
 	for (;;)
 		;
-#endif
 }
 
 
@@ -167,10 +155,11 @@ ipi_interrupt(int irq, void *dev_id)
 	mb();	/* Order interrupt and bit testing. */
 
 	for (;;) {
-		spin_lock_irqsave(&(p->lock),flags);
+		spinlock_t *lock = &per_cpu(ipi_lock, this_cpu);
+		spin_lock_irqsave(lock, flags);
 		ops = p->pending_ipi;
 		p->pending_ipi = 0;
-		spin_unlock_irqrestore(&(p->lock),flags);
+		spin_unlock_irqrestore(lock, flags);
 
 		mb(); /* Order bit clearing and data access. */
 
@@ -184,15 +173,11 @@ ipi_interrupt(int irq, void *dev_id)
 
 			switch (which) {
 			case IPI_NOP:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_NOP\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_NOP\n", this_cpu);
 				break;
 				
 			case IPI_RESCHEDULE:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_RESCHEDULE\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_RESCHEDULE\n", this_cpu);
 				/*
 				 * Reschedule callback.  Everything to be
 				 * done is done by the interrupt return path.
@@ -200,9 +185,7 @@ ipi_interrupt(int irq, void *dev_id)
 				break;
 
 			case IPI_CALL_FUNC:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_CALL_FUNC\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_CALL_FUNC\n", this_cpu);
 				{
 					volatile struct smp_call_struct *data;
 					void (*func)(void *info);
@@ -233,28 +216,16 @@ ipi_interrupt(int irq, void *dev_id)
 				break;
 
 			case IPI_CPU_START:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_CPU_START\n",this_cpu);
-#endif /* kDEBUG */
-#ifdef ENTRY_SYS_CPUS
-				p->state = STATE_RUNNING;
-#endif
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_CPU_START\n", this_cpu);
 				break;
 
 			case IPI_CPU_STOP:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d IPI_CPU_STOP\n",this_cpu);
-#endif /* kDEBUG */
-#ifdef ENTRY_SYS_CPUS
-#else
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_CPU_STOP\n", this_cpu);
 				halt_processor();
-#endif
 				break;
 
 			case IPI_CPU_TEST:
-#if (kDEBUG>=100)
-				printk(KERN_DEBUG "CPU%d is alive!\n",this_cpu);
-#endif /* kDEBUG */
+				smp_debug(100, KERN_DEBUG "CPU%d is alive!\n", this_cpu);
 				break;
 
 			default:
@@ -275,12 +246,13 @@ static inline void
 ipi_send(int cpu, enum ipi_message_type op)
 {
 	struct cpuinfo_parisc *p = &cpu_data[cpu];
+	spinlock_t *lock = &per_cpu(ipi_lock, cpu);
 	unsigned long flags;
 
-	spin_lock_irqsave(&(p->lock),flags);
+	spin_lock_irqsave(lock, flags);
 	p->pending_ipi |= 1 << op;
 	gsc_writel(IPI_IRQ - CPU_IRQ_BASE, cpu_data[cpu].hpa);
-	spin_unlock_irqrestore(&(p->lock),flags);
+	spin_unlock_irqrestore(lock, flags);
 }
 
 
@@ -560,23 +532,14 @@ int __init smp_boot_one_cpu(int cpuid)
 
 alive:
 	/* Remember the Slave data */
-#if (kDEBUG>=100)
-	printk(KERN_DEBUG "SMP: CPU:%d came alive after %ld _us\n",
+	smp_debug(100, KERN_DEBUG "SMP: CPU:%d came alive after %ld _us\n",
 		cpuid, timeout * 100);
-#endif /* kDEBUG */
-#ifdef ENTRY_SYS_CPUS
-	cpu_data[cpuid].state = STATE_RUNNING;
-#endif
 	return 0;
 }
 
 void __devinit smp_prepare_boot_cpu(void)
 {
 	int bootstrap_processor=cpu_data[0].cpuid;	/* CPU ID of BSP */
-
-#ifdef ENTRY_SYS_CPUS
-	cpu_data[0].state = STATE_RUNNING;
-#endif
 
 	/* Setup BSP mappings */
 	printk("SMP: bootstrap CPU ID is %d\n",bootstrap_processor);
@@ -615,101 +578,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	return cpu_online(cpu) ? 0 : -ENOSYS;
 }
-
-
-
-#ifdef ENTRY_SYS_CPUS
-/* Code goes along with:
-**    entry.s:        ENTRY_NAME(sys_cpus)   / * 215, for cpu stat * /
-*/
-int sys_cpus(int argc, char **argv)
-{
-	int i,j=0;
-	extern int current_pid(int cpu);
-
-	if( argc > 2 ) {
-		printk("sys_cpus:Only one argument supported\n");
-		return (-1);
-	}
-	if ( argc == 1 ){
-	
-#ifdef DUMP_MORE_STATE
-		for_each_online_cpu(i) {
-			int cpus_per_line = 4;
-
-			if (j++ % cpus_per_line)
-				printk(" %3d",i);
-			else
-				printk("\n %3d",i);
-		}
-		printk("\n"); 
-#else
-	    	printk("\n 0\n"); 
-#endif
-	} else if((argc==2) && !(strcmp(argv[1],"-l"))) {
-		printk("\nCPUSTATE  TASK CPUNUM CPUID HARDCPU(HPA)\n");
-#ifdef DUMP_MORE_STATE
-		for_each_online_cpu(i) {
-			if (cpu_data[i].cpuid != NO_PROC_ID) {
-				switch(cpu_data[i].state) {
-					case STATE_RENDEZVOUS:
-						printk("RENDEZVS ");
-						break;
-					case STATE_RUNNING:
-						printk((current_pid(i)!=0) ? "RUNNING  " : "IDLING   ");
-						break;
-					case STATE_STOPPED:
-						printk("STOPPED  ");
-						break;
-					case STATE_HALTED:
-						printk("HALTED   ");
-						break;
-					default:
-						printk("%08x?", cpu_data[i].state);
-						break;
-				}
-				if(cpu_online(i)) {
-					printk(" %4d",current_pid(i));
-				}	
-				printk(" %6d",cpu_number_map(i));
-				printk(" %5d",i);
-				printk(" 0x%lx\n",cpu_data[i].hpa);
-			}	
-		}
-#else
-		printk("\n%s  %4d      0     0 --------",
-			(current->pid)?"RUNNING ": "IDLING  ",current->pid); 
-#endif
-	} else if ((argc==2) && !(strcmp(argv[1],"-s"))) { 
-#ifdef DUMP_MORE_STATE
-     		printk("\nCPUSTATE   CPUID\n");
-		for_each_online_cpu(i) {
-			if (cpu_data[i].cpuid != NO_PROC_ID) {
-				switch(cpu_data[i].state) {
-					case STATE_RENDEZVOUS:
-						printk("RENDEZVS");break;
-					case STATE_RUNNING:
-						printk((current_pid(i)!=0) ? "RUNNING " : "IDLING");
-						break;
-					case STATE_STOPPED:
-						printk("STOPPED ");break;
-					case STATE_HALTED:
-						printk("HALTED  ");break;
-					default:
-				}
-				printk("  %5d\n",i);
-			}	
-		}
-#else
-		printk("\n%s    CPU0",(current->pid==0)?"RUNNING ":"IDLING  "); 
-#endif
-	} else {
-		printk("sys_cpus:Unknown request\n");
-		return (-1);
-	}
-	return 0;
-}
-#endif /* ENTRY_SYS_CPUS */
 
 #ifdef CONFIG_PROC_FS
 int __init

@@ -29,6 +29,7 @@
  */
 
 #include <linux/hid.h>
+#include <linux/hid-debug.h>
 
 struct hid_usage_entry {
 	unsigned  page;

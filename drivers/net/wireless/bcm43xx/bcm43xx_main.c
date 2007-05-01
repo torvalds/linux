@@ -95,13 +95,9 @@ static int modparam_noleds;
 module_param_named(noleds, modparam_noleds, int, 0444);
 MODULE_PARM_DESC(noleds, "Turn off all LED activity");
 
-#ifdef CONFIG_BCM43XX_DEBUG
 static char modparam_fwpostfix[64];
 module_param_string(fwpostfix, modparam_fwpostfix, 64, 0444);
-MODULE_PARM_DESC(fwpostfix, "Postfix for .fw files. Useful for debugging.");
-#else
-# define modparam_fwpostfix  ""
-#endif /* CONFIG_BCM43XX_DEBUG*/
+MODULE_PARM_DESC(fwpostfix, "Postfix for .fw files. Useful for using multiple firmware image versions.");
 
 
 /* If you want to debug with just a single device, enable this,
@@ -855,8 +851,6 @@ static int bcm43xx_sprom_extract(struct bcm43xx_private *bcm)
 	value = sprom[BCM43xx_SPROM_ETHPHY];
 	bcm->sprom.et0phyaddr = (value & 0x001F);
 	bcm->sprom.et1phyaddr = (value & 0x03E0) >> 5;
-	bcm->sprom.et0mdcport = (value & (1 << 14)) >> 14;
-	bcm->sprom.et1mdcport = (value & (1 << 15)) >> 15;
 
 	/* boardrev, antennas, locale */
 	value = sprom[BCM43xx_SPROM_BOARDREV];
@@ -952,6 +946,7 @@ static int bcm43xx_geo_init(struct bcm43xx_private *bcm)
 	u8 channel;
 	struct bcm43xx_phyinfo *phy;
 	const char *iso_country;
+	u8 max_bg_channel;
 
 	geo = kzalloc(sizeof(*geo), GFP_KERNEL);
 	if (!geo)
@@ -973,6 +968,23 @@ static int bcm43xx_geo_init(struct bcm43xx_private *bcm)
 	}
 	iso_country = bcm43xx_locale_iso(bcm->sprom.locale);
 
+/* set the maximum channel based on locale set in sprom or witle locale option */
+	switch (bcm->sprom.locale) {
+	case BCM43xx_LOCALE_THAILAND:
+	case BCM43xx_LOCALE_ISRAEL:
+	case BCM43xx_LOCALE_JORDAN:
+	case BCM43xx_LOCALE_USA_CANADA_ANZ:
+	case BCM43xx_LOCALE_USA_LOW:
+		max_bg_channel = 11;
+		break;
+	case BCM43xx_LOCALE_JAPAN:
+	case BCM43xx_LOCALE_JAPAN_HIGH:
+		max_bg_channel = 14;
+		break;
+	default:
+		max_bg_channel = 13;
+	}
+
  	if (have_a) {
 		for (i = 0, channel = IEEE80211_52GHZ_MIN_CHANNEL;
 		      channel <= IEEE80211_52GHZ_MAX_CHANNEL; channel++) {
@@ -984,7 +996,7 @@ static int bcm43xx_geo_init(struct bcm43xx_private *bcm)
 	}
 	if (have_bg) {
 		for (i = 0, channel = IEEE80211_24GHZ_MIN_CHANNEL;
-		      channel <= IEEE80211_24GHZ_MAX_CHANNEL; channel++) {
+		      channel <= max_bg_channel; channel++) {
 			chan = &geo->bg[i++];
 			chan->freq = bcm43xx_channel_to_freq_bg(channel);
 			chan->channel = channel;
@@ -1395,7 +1407,7 @@ void bcm43xx_wireless_core_reset(struct bcm43xx_private *bcm, int connect_phy)
 				& ~(BCM43xx_SBF_MAC_ENABLED | 0x00000002));
 	} else {
 		if (connect_phy)
-			flags |= 0x20000000;
+			flags |= BCM43xx_SBTMSTATELOW_G_MODE_ENABLE;
 		bcm43xx_phy_connect(bcm, connect_phy);
 		bcm43xx_core_enable(bcm, flags);
 		bcm43xx_write16(bcm, 0x03E6, 0x0000);
@@ -1453,12 +1465,10 @@ static void handle_irq_transmit_status(struct bcm43xx_private *bcm)
 
 		bcm43xx_debugfs_log_txstat(bcm, &stat);
 
-		if (stat.flags & BCM43xx_TXSTAT_FLAG_IGNORE)
+		if (stat.flags & BCM43xx_TXSTAT_FLAG_AMPDU)
 			continue;
-		if (!(stat.flags & BCM43xx_TXSTAT_FLAG_ACK)) {
-			//TODO: packet was not acked (was lost)
-		}
-		//TODO: There are more (unknown) flags to test. see bcm43xx_main.h
+		if (stat.flags & BCM43xx_TXSTAT_FLAG_INTER)
+			continue;
 
 		if (bcm43xx_using_pio(bcm))
 			bcm43xx_pio_handle_xmitstatus(bcm, &stat);
@@ -1866,9 +1876,6 @@ static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id)
 
 	spin_lock(&bcm->irq_lock);
 
-	assert(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED);
-	assert(bcm->current_core->id == BCM43xx_COREID_80211);
-
 	reason = bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON);
 	if (reason == 0xffffffff) {
 		/* irq not for us (shared irq) */
@@ -1878,6 +1885,9 @@ static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id)
 	reason &= bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_MASK);
 	if (!reason)
 		goto out;
+
+	assert(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED);
+	assert(bcm->current_core->id == BCM43xx_COREID_80211);
 
 	bcm->dma_reason[0] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA0_REASON)
 			     & 0x0001DC00;
@@ -2741,8 +2751,9 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 				 * dangling pins on the second core. Be careful
 				 * and ignore these cores here.
 				 */
-				if (bcm->pci_dev->device != 0x4324) {
-					dprintk(KERN_INFO PFX "Ignoring additional 802.11 core.\n");
+				if (1 /*bcm->pci_dev->device != 0x4324*/ ) {
+				/* TODO: A PHY */
+					dprintk(KERN_INFO PFX "Ignoring additional 802.11a core.\n");
 					continue;
 				}
 			}
@@ -2983,8 +2994,10 @@ static int bcm43xx_chipset_attach(struct bcm43xx_private *bcm)
 	err = bcm43xx_pctl_set_crystal(bcm, 1);
 	if (err)
 		goto out;
-	bcm43xx_pci_read_config16(bcm, PCI_STATUS, &pci_status);
-	bcm43xx_pci_write_config16(bcm, PCI_STATUS, pci_status & ~PCI_STATUS_SIG_TARGET_ABORT);
+	err = bcm43xx_pci_read_config16(bcm, PCI_STATUS, &pci_status);
+	if (err)
+		goto out;
+	err = bcm43xx_pci_write_config16(bcm, PCI_STATUS, pci_status & ~PCI_STATUS_SIG_TARGET_ABORT);
 
 out:
 	return err;
@@ -3591,7 +3604,7 @@ int bcm43xx_select_wireless_core(struct bcm43xx_private *bcm,
 		u32 sbtmstatelow;
 
 		sbtmstatelow = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATELOW);
-		sbtmstatelow |= 0x20000000;
+		sbtmstatelow |= BCM43xx_SBTMSTATELOW_G_MODE_ENABLE;
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, sbtmstatelow);
 	}
 	err = wireless_core_up(bcm, 1);
@@ -3698,7 +3711,7 @@ static int bcm43xx_read_phyinfo(struct bcm43xx_private *bcm)
 {
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 value;
-	u8 phy_version;
+	u8 phy_analog;
 	u8 phy_type;
 	u8 phy_rev;
 	int phy_rev_ok = 1;
@@ -3706,12 +3719,12 @@ static int bcm43xx_read_phyinfo(struct bcm43xx_private *bcm)
 
 	value = bcm43xx_read16(bcm, BCM43xx_MMIO_PHY_VER);
 
-	phy_version = (value & 0xF000) >> 12;
+	phy_analog = (value & 0xF000) >> 12;
 	phy_type = (value & 0x0F00) >> 8;
 	phy_rev = (value & 0x000F);
 
-	dprintk(KERN_INFO PFX "Detected PHY: Version: %x, Type %x, Revision %x\n",
-		phy_version, phy_type, phy_rev);
+	dprintk(KERN_INFO PFX "Detected PHY: Analog: %x, Type %x, Revision %x\n",
+		phy_analog, phy_type, phy_rev);
 
 	switch (phy_type) {
 	case BCM43xx_PHYTYPE_A:
@@ -3754,7 +3767,7 @@ static int bcm43xx_read_phyinfo(struct bcm43xx_private *bcm)
 		       phy_rev);
 	}
 
-	phy->version = phy_version;
+	phy->analog = phy_analog;
 	phy->type = phy_type;
 	phy->rev = phy_rev;
 	if ((phy_type == BCM43xx_PHYTYPE_B) || (phy_type == BCM43xx_PHYTYPE_G)) {
@@ -3796,12 +3809,18 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	}
 	net_dev->base_addr = (unsigned long)bcm->mmio_addr;
 
-	bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_VENDOR_ID,
+	err = bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_VENDOR_ID,
 	                          &bcm->board_vendor);
-	bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_ID,
+	if (err)
+		goto err_iounmap;
+	err = bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_ID,
 	                          &bcm->board_type);
-	bcm43xx_pci_read_config16(bcm, PCI_REVISION_ID,
+	if (err)
+		goto err_iounmap;
+	err = bcm43xx_pci_read_config16(bcm, PCI_REVISION_ID,
 	                          &bcm->board_revision);
+	if (err)
+		goto err_iounmap;
 
 	err = bcm43xx_chipset_attach(bcm);
 	if (err)
@@ -3892,6 +3911,7 @@ err_pci_release:
 	pci_release_regions(pci_dev);
 err_pci_disable:
 	pci_disable_device(pci_dev);
+	printk(KERN_ERR PFX "Unable to attach board\n");
 	goto out;
 }
 

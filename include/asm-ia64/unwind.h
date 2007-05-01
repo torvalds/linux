@@ -81,7 +81,7 @@ struct unw_frame_info {
 	struct unw_ireg {
 		unsigned long *loc;
 		struct unw_ireg_nat {
-			long type : 3;			/* enum unw_nat_type */
+			unsigned long type : 3;		/* enum unw_nat_type */
 			signed long off : 61;		/* NaT word is at loc+nat.off */
 		} nat;
 	} r4, r5, r6, r7;

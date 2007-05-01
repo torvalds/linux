@@ -194,7 +194,7 @@ static void vrc5477_irq_dispatch(void)
 
 asmlinkage void plat_irq_dispatch(void)
 {
-	unsigned int pending = read_c0_cause() & read_c0_status();
+	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 
 	if (pending & STATUSF_IP7)
 		do_IRQ(CPU_IRQ_BASE + 7);

@@ -32,7 +32,7 @@ ipt_ttl_target(struct sk_buff **pskb,
 	if (!skb_make_writable(pskb, (*pskb)->len))
 		return NF_DROP;
 
-	iph = (*pskb)->nh.iph;
+	iph = ip_hdr(*pskb);
 
 	switch (info->mode) {
 		case IPT_TTL_SET:

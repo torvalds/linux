@@ -49,8 +49,10 @@ pmd_t *top_pmd;
 
 static unsigned int cachepolicy __initdata = CPOLICY_WRITEBACK;
 static unsigned int ecc_mask __initdata = 0;
+pgprot_t pgprot_user;
 pgprot_t pgprot_kernel;
 
+EXPORT_SYMBOL(pgprot_user);
 EXPORT_SYMBOL(pgprot_kernel);
 
 struct cachepolicy {
@@ -345,6 +347,7 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_MINICLEAN].prot_sect &= ~PMD_SECT_TEX(1);
 	}
 
+	pgprot_user   = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | user_pgprot);
 	pgprot_kernel = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
 				 L_PTE_DIRTY | L_PTE_WRITE |
 				 L_PTE_EXEC | kern_pgprot);

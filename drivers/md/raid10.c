@@ -429,7 +429,7 @@ static sector_t raid10_find_virt(conf_t *conf, sector_t sector, int dev)
 		if (dev < 0)
 			dev += conf->raid_disks;
 	} else {
-		while (sector > conf->stride) {
+		while (sector >= conf->stride) {
 			sector -= conf->stride;
 			if (dev < conf->near_copies)
 				dev += conf->raid_disks - conf->near_copies;
@@ -1801,6 +1801,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 						for (k=0; k<conf->copies; k++)
 							if (r10_bio->devs[k].devnum == i)
 								break;
+						BUG_ON(k == conf->copies);
 						bio = r10_bio->devs[1].bio;
 						bio->bi_next = biolist;
 						biolist = bio;
@@ -2021,19 +2022,30 @@ static int run(mddev_t *mddev)
 	if (!conf->tmppage)
 		goto out_free_conf;
 
+	conf->mddev = mddev;
+	conf->raid_disks = mddev->raid_disks;
 	conf->near_copies = nc;
 	conf->far_copies = fc;
 	conf->copies = nc*fc;
 	conf->far_offset = fo;
 	conf->chunk_mask = (sector_t)(mddev->chunk_size>>9)-1;
 	conf->chunk_shift = ffz(~mddev->chunk_size) - 9;
+	size = mddev->size >> (conf->chunk_shift-1);
+	sector_div(size, fc);
+	size = size * conf->raid_disks;
+	sector_div(size, nc);
+	/* 'size' is now the number of chunks in the array */
+	/* calculate "used chunks per device" in 'stride' */
+	stride = size * conf->copies;
+	sector_div(stride, conf->raid_disks);
+	mddev->size = stride  << (conf->chunk_shift-1);
+
 	if (fo)
-		conf->stride = 1 << conf->chunk_shift;
-	else {
-		stride = mddev->size >> (conf->chunk_shift-1);
+		stride = 1;
+	else
 		sector_div(stride, fc);
-		conf->stride = stride << conf->chunk_shift;
-	}
+	conf->stride = stride << conf->chunk_shift;
+
 	conf->r10bio_pool = mempool_create(NR_RAID10_BIOS, r10bio_pool_alloc,
 						r10bio_pool_free, conf);
 	if (!conf->r10bio_pool) {
@@ -2063,8 +2075,6 @@ static int run(mddev_t *mddev)
 
 		disk->head_position = 0;
 	}
-	conf->raid_disks = mddev->raid_disks;
-	conf->mddev = mddev;
 	spin_lock_init(&conf->device_lock);
 	INIT_LIST_HEAD(&conf->retry_list);
 
@@ -2106,16 +2116,8 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	if (conf->far_offset) {
-		size = mddev->size >> (conf->chunk_shift-1);
-		size *= conf->raid_disks;
-		size <<= conf->chunk_shift;
-		sector_div(size, conf->far_copies);
-	} else
-		size = conf->stride * conf->raid_disks;
-	sector_div(size, conf->near_copies);
-	mddev->array_size = size/2;
-	mddev->resync_max_sectors = size;
+	mddev->array_size = size << (conf->chunk_shift-1);
+	mddev->resync_max_sectors = size << conf->chunk_shift;
 
 	mddev->queue->unplug_fn = raid10_unplug;
 	mddev->queue->issue_flush_fn = raid10_issue_flush;

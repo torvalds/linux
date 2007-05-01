@@ -41,6 +41,7 @@
 #include <linux/ctype.h>
 #include <linux/reboot.h>
 
+#include <asm/ipl.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/smp.h>
@@ -106,7 +107,7 @@ void __devinit cpu_init (void)
         /*
          * Store processor id in lowcore (used e.g. in timer_interrupt)
          */
-	asm volatile("stidp %0": "=m" (S390_lowcore.cpu_data.cpu_id));
+	get_cpu_id(&S390_lowcore.cpu_data.cpu_id);
         S390_lowcore.cpu_data.cpu_addr = addr;
 
         /*
@@ -283,6 +284,26 @@ static void __init conmode_default(void)
 #endif
 	}
 }
+
+#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
+static void __init setup_zfcpdump(unsigned int console_devno)
+{
+	static char str[64];
+
+	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
+		return;
+	if (console_devno != -1)
+		sprintf(str, "cio_ignore=all,!0.0.%04x,!0.0.%04x",
+			ipl_info.data.fcp.dev_id.devno, console_devno);
+	else
+		sprintf(str, "cio_ignore=all,!0.0.%04x",
+			ipl_info.data.fcp.dev_id.devno);
+	strcat(COMMAND_LINE, str);
+	console_loglevel = 2;
+}
+#else
+static inline void setup_zfcpdump(unsigned int console_devno) {}
+#endif /* CONFIG_ZFCPDUMP */
 
 #ifdef CONFIG_SMP
 void (*_machine_restart)(char *command) = machine_restart_smp;
@@ -585,13 +606,20 @@ setup_resources(void)
 	}
 }
 
+unsigned long real_memory_size;
+EXPORT_SYMBOL_GPL(real_memory_size);
+
 static void __init setup_memory_end(void)
 {
-	unsigned long real_size, memory_size;
+	unsigned long memory_size;
 	unsigned long max_mem, max_phys;
 	int i;
 
-	memory_size = real_size = 0;
+#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP)
+		memory_end = ZFCPDUMP_HSA_SIZE;
+#endif
+	memory_size = 0;
 	max_phys = VMALLOC_END_INIT - VMALLOC_MIN_SIZE;
 	memory_end &= PAGE_MASK;
 
@@ -600,7 +628,8 @@ static void __init setup_memory_end(void)
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];
 
-		real_size = max(real_size, chunk->addr + chunk->size);
+		real_memory_size = max(real_memory_size,
+				       chunk->addr + chunk->size);
 		if (chunk->addr >= max_mem) {
 			memset(chunk, 0, sizeof(*chunk));
 			continue;
@@ -689,8 +718,13 @@ setup_memory(void)
 	psw_set_key(PAGE_DEFAULT_KEY);
 
 	free_bootmem_with_active_regions(0, max_pfn);
-	reserve_bootmem(0, PFN_PHYS(start_pfn));
 
+	/*
+	 * Reserve memory used for lowcore/command line/kernel image.
+	 */
+	reserve_bootmem(0, (unsigned long)_ehead);
+	reserve_bootmem((unsigned long)_stext,
+			PFN_PHYS(start_pfn) - (unsigned long)_stext);
 	/*
 	 * Reserve the bootmem bitmap itself as well. We do this in two
 	 * steps (first step was init_bootmem()) because this catches
@@ -759,6 +793,7 @@ setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	setup_ipl_info();
 	setup_memory_end();
 	setup_addressing_mode();
 	setup_memory();
@@ -776,6 +811,9 @@ setup_arch(char **cmdline_p)
 
         /* Setup default console */
 	conmode_default();
+
+	/* Setup zfcpdump support */
+	setup_zfcpdump(console_devno);
 }
 
 void print_cpu_info(struct cpuinfo_S390 *cpuinfo)

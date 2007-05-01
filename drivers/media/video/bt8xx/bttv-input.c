@@ -36,13 +36,18 @@ module_param(repeat_delay, int, 0644);
 static int repeat_period = 33;
 module_param(repeat_period, int, 0644);
 
+static int ir_rc5_remote_gap = 885;
+module_param(ir_rc5_remote_gap, int, 0644);
+static int ir_rc5_key_timeout = 200;
+module_param(ir_rc5_key_timeout, int, 0644);
+
 #define DEVNAME "bttv-input"
 
 /* ---------------------------------------------------------------------- */
 
 static void ir_handle_key(struct bttv *btv)
 {
-	struct bttv_ir *ir = btv->remote;
+	struct card_ir *ir = btv->remote;
 	u32 gpio,data;
 
 	/* read gpio value */
@@ -72,7 +77,7 @@ static void ir_handle_key(struct bttv *btv)
 
 void bttv_input_irq(struct bttv *btv)
 {
-	struct bttv_ir *ir = btv->remote;
+	struct card_ir *ir = btv->remote;
 
 	if (!ir->polling)
 		ir_handle_key(btv);
@@ -81,65 +86,21 @@ void bttv_input_irq(struct bttv *btv)
 static void bttv_input_timer(unsigned long data)
 {
 	struct bttv *btv = (struct bttv*)data;
-	struct bttv_ir *ir = btv->remote;
-	unsigned long timeout;
+	struct card_ir *ir = btv->remote;
 
 	ir_handle_key(btv);
-	timeout = jiffies + (ir->polling * HZ / 1000);
-	mod_timer(&ir->timer, timeout);
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
 /* ---------------------------------------------------------------*/
 
-static int rc5_remote_gap = 885;
-module_param(rc5_remote_gap, int, 0644);
-static int rc5_key_timeout = 200;
-module_param(rc5_key_timeout, int, 0644);
-
-#define RC5_START(x)	(((x)>>12)&3)
-#define RC5_TOGGLE(x)	(((x)>>11)&1)
-#define RC5_ADDR(x)	(((x)>>6)&31)
-#define RC5_INSTR(x)	((x)&63)
-
-/* decode raw bit pattern to RC5 code */
-static u32 rc5_decode(unsigned int code)
-{
-	unsigned int org_code = code;
-	unsigned int pair;
-	unsigned int rc5 = 0;
-	int i;
-
-	code = (code << 1) | 1;
-	for (i = 0; i < 14; ++i) {
-		pair = code & 0x3;
-		code >>= 2;
-
-		rc5 <<= 1;
-		switch (pair) {
-		case 0:
-		case 2:
-			break;
-		case 1:
-			rc5 |= 1;
-			break;
-		case 3:
-			dprintk(KERN_WARNING "bad code: %x\n", org_code);
-			return 0;
-		}
-	}
-	dprintk(KERN_WARNING "code=%x, rc5=%x, start=%x, toggle=%x, address=%x, "
-		"instr=%x\n", rc5, org_code, RC5_START(rc5),
-		RC5_TOGGLE(rc5), RC5_ADDR(rc5), RC5_INSTR(rc5));
-	return rc5;
-}
-
 static int bttv_rc5_irq(struct bttv *btv)
 {
-	struct bttv_ir *ir = btv->remote;
+	struct card_ir *ir = btv->remote;
 	struct timeval tv;
 	u32 gpio;
 	u32 gap;
-	unsigned long current_jiffies, timeout;
+	unsigned long current_jiffies;
 
 	/* read gpio port */
 	gpio = bttv_gpio_read(&btv->c);
@@ -165,8 +126,8 @@ static int bttv_rc5_irq(struct bttv *btv)
 		/* only if in the code (otherwise spurious IRQ or timer
 		   late) */
 		if (ir->last_bit < 28) {
-			ir->last_bit = (gap - rc5_remote_gap / 2) /
-			    rc5_remote_gap;
+			ir->last_bit = (gap - ir_rc5_remote_gap / 2) /
+			    ir_rc5_remote_gap;
 			ir->code |= 1 << ir->last_bit;
 		}
 		/* starting new code */
@@ -176,8 +137,8 @@ static int bttv_rc5_irq(struct bttv *btv)
 		ir->base_time = tv;
 		ir->last_bit = 0;
 
-		timeout = current_jiffies + (500 + 30 * HZ) / 1000;
-		mod_timer(&ir->timer_end, timeout);
+		mod_timer(&ir->timer_end,
+			  current_jiffies + msecs_to_jiffies(30));
 	}
 
 	/* toggle GPIO pin 4 to reset the irq */
@@ -186,96 +147,28 @@ static int bttv_rc5_irq(struct bttv *btv)
 	return 1;
 }
 
-
-static void bttv_rc5_timer_end(unsigned long data)
-{
-	struct bttv_ir *ir = (struct bttv_ir *)data;
-	struct timeval tv;
-	unsigned long current_jiffies, timeout;
-	u32 gap;
-
-	/* get time */
-	current_jiffies = jiffies;
-	do_gettimeofday(&tv);
-
-	/* avoid overflow with gap >1s */
-	if (tv.tv_sec - ir->base_time.tv_sec > 1) {
-		gap = 200000;
-	} else {
-		gap = 1000000 * (tv.tv_sec - ir->base_time.tv_sec) +
-		    tv.tv_usec - ir->base_time.tv_usec;
-	}
-
-	/* Allow some timmer jitter (RC5 is ~24ms anyway so this is ok) */
-	if (gap < 28000) {
-		dprintk(KERN_WARNING "spurious timer_end\n");
-		return;
-	}
-
-	ir->active = 0;
-	if (ir->last_bit < 20) {
-		/* ignore spurious codes (caused by light/other remotes) */
-		dprintk(KERN_WARNING "short code: %x\n", ir->code);
-	} else {
-		u32 rc5 = rc5_decode(ir->code);
-
-		/* two start bits? */
-		if (RC5_START(rc5) != 3) {
-			dprintk(KERN_WARNING "rc5 start bits invalid: %u\n", RC5_START(rc5));
-
-			/* right address? */
-		} else if (RC5_ADDR(rc5) == 0x0) {
-			u32 toggle = RC5_TOGGLE(rc5);
-			u32 instr = RC5_INSTR(rc5);
-
-			/* Good code, decide if repeat/repress */
-			if (toggle != RC5_TOGGLE(ir->last_rc5) ||
-			    instr != RC5_INSTR(ir->last_rc5)) {
-				dprintk(KERN_WARNING "instruction %x, toggle %x\n", instr,
-					toggle);
-				ir_input_nokey(ir->dev, &ir->ir);
-				ir_input_keydown(ir->dev, &ir->ir, instr,
-						 instr);
-			}
-
-			/* Set/reset key-up timer */
-			timeout = current_jiffies + (500 + rc5_key_timeout
-						     * HZ) / 1000;
-			mod_timer(&ir->timer_keyup, timeout);
-
-			/* Save code for repeat test */
-			ir->last_rc5 = rc5;
-		}
-	}
-}
-
-static void bttv_rc5_timer_keyup(unsigned long data)
-{
-	struct bttv_ir *ir = (struct bttv_ir *)data;
-
-	dprintk(KERN_DEBUG "key released\n");
-	ir_input_nokey(ir->dev, &ir->ir);
-}
-
 /* ---------------------------------------------------------------------- */
 
-static void bttv_ir_start(struct bttv *btv, struct bttv_ir *ir)
+static void bttv_ir_start(struct bttv *btv, struct card_ir *ir)
 {
 	if (ir->polling) {
-		init_timer(&ir->timer);
-		ir->timer.function = bttv_input_timer;
-		ir->timer.data     = (unsigned long)btv;
+		setup_timer(&ir->timer, bttv_input_timer, (unsigned long)btv);
 		ir->timer.expires  = jiffies + HZ;
 		add_timer(&ir->timer);
 	} else if (ir->rc5_gpio) {
 		/* set timer_end for code completion */
 		init_timer(&ir->timer_end);
-		ir->timer_end.function = bttv_rc5_timer_end;
+		ir->timer_end.function = ir_rc5_timer_end;
 		ir->timer_end.data = (unsigned long)ir;
 
 		init_timer(&ir->timer_keyup);
-		ir->timer_keyup.function = bttv_rc5_timer_keyup;
+		ir->timer_keyup.function = ir_rc5_timer_keyup;
 		ir->timer_keyup.data = (unsigned long)ir;
+		ir->shift_by = 1;
+		ir->start = 3;
+		ir->addr = 0x0;
+		ir->rc5_key_timeout = ir_rc5_key_timeout;
+		ir->rc5_remote_gap = ir_rc5_remote_gap;
 	}
 }
 
@@ -299,7 +192,7 @@ static void bttv_ir_stop(struct bttv *btv)
 
 int bttv_input_init(struct bttv *btv)
 {
-	struct bttv_ir *ir;
+	struct card_ir *ir;
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	struct input_dev *input_dev;
 	int ir_type = IR_TYPE_OTHER;

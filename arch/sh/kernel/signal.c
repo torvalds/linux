@@ -589,6 +589,8 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 			if (test_thread_flag(TIF_RESTORE_SIGMASK))
 				clear_thread_flag(TIF_RESTORE_SIGMASK);
 		}
+
+		return;
 	}
 
  no_signal:
@@ -598,7 +600,7 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 		if (regs->regs[0] == -ERESTARTNOHAND ||
 		    regs->regs[0] == -ERESTARTSYS ||
 		    regs->regs[0] == -ERESTARTNOINTR) {
-		    	regs->regs[0] = save_r0;
+			regs->regs[0] = save_r0;
 			regs->pc -= 2;
 		} else if (regs->regs[0] == -ERESTART_RESTARTBLOCK) {
 			regs->pc -= 2;

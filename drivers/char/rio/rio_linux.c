@@ -1146,7 +1146,7 @@ static int __init rio_init(void)
 				rio_dprintk(RIO_DEBUG_INIT, "Enabling interrupts on rio card.\n");
 				hp->Mode |= RIO_PCI_INT_ENABLE;
 			} else
-				hp->Mode &= !RIO_PCI_INT_ENABLE;
+				hp->Mode &= ~RIO_PCI_INT_ENABLE;
 			rio_dprintk(RIO_DEBUG_INIT, "New Mode: %x\n", hp->Mode);
 			rio_start_card_running(hp);
 		}

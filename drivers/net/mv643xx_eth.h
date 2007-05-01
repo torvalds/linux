@@ -9,6 +9,8 @@
 
 #include <linux/mv643xx.h>
 
+#include <asm/dma-mapping.h>
+
 /* Checksum offload for Tx works for most packets, but
  * fails if previous packet sent did not use hw csum
  */
@@ -42,23 +44,12 @@
 #define MAX_DESCS_PER_SKB	1
 #endif
 
-/*
- * The MV643XX HW requires 8-byte alignment.  However, when I/O
- * is non-cache-coherent, we need to ensure that the I/O buffers
- * we use don't share cache lines with other data.
- */
-#if defined(CONFIG_DMA_NONCOHERENT) || defined(CONFIG_NOT_COHERENT_CACHE)
-#define ETH_DMA_ALIGN		L1_CACHE_BYTES
-#else
-#define ETH_DMA_ALIGN		8
-#endif
-
 #define ETH_VLAN_HLEN		4
 #define ETH_FCS_LEN		4
 #define ETH_HW_IP_ALIGN		2		/* hw aligns IP header */
 #define ETH_WRAPPER_LEN		(ETH_HW_IP_ALIGN + ETH_HLEN + \
 					ETH_VLAN_HLEN + ETH_FCS_LEN)
-#define ETH_RX_SKB_SIZE		(dev->mtu + ETH_WRAPPER_LEN + ETH_DMA_ALIGN)
+#define ETH_RX_SKB_SIZE		(dev->mtu + ETH_WRAPPER_LEN + dma_get_cache_alignment())
 
 #define ETH_RX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for receive */
 #define ETH_TX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for transmit */
@@ -354,10 +345,6 @@ struct mv643xx_private {
 static void eth_port_init(struct mv643xx_private *mp);
 static void eth_port_reset(unsigned int eth_port_num);
 static void eth_port_start(struct net_device *dev);
-
-/* Port MAC address routines */
-static void eth_port_uc_addr_set(unsigned int eth_port_num,
-				 unsigned char *p_addr);
 
 /* PHY and MIB routines */
 static void ethernet_phy_reset(unsigned int eth_port_num);

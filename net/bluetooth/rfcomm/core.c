@@ -1567,7 +1567,7 @@ static int rfcomm_recv_frame(struct rfcomm_session *s, struct sk_buff *skb)
 
 	/* Trim FCS */
 	skb->len--; skb->tail--;
-	fcs = *(u8 *) skb->tail;
+	fcs = *(u8 *)skb_tail_pointer(skb);
 
 	if (__check_fcs(skb->data, type, fcs)) {
 		BT_ERR("bad checksum in packet");
@@ -1851,18 +1851,18 @@ static void rfcomm_worker(void)
 	BT_DBG("");
 
 	while (!atomic_read(&terminate)) {
+		set_current_state(TASK_INTERRUPTIBLE);
 		if (!test_bit(RFCOMM_SCHED_WAKEUP, &rfcomm_event)) {
 			/* No pending events. Let's sleep.
 			 * Incoming connections and data will wake us up. */
-			set_current_state(TASK_INTERRUPTIBLE);
 			schedule();
 		}
+		set_current_state(TASK_RUNNING);
 
 		/* Process stuff */
 		clear_bit(RFCOMM_SCHED_WAKEUP, &rfcomm_event);
 		rfcomm_process_sessions();
 	}
-	set_current_state(TASK_RUNNING);
 	return;
 }
 

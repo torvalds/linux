@@ -24,6 +24,7 @@
 #ifndef _LINUX_AUDIT_H_
 #define _LINUX_AUDIT_H_
 
+#include <linux/types.h>
 #include <linux/elf-em.h>
 
 /* The netlink messages for the audit system is divided into blocks:
@@ -89,6 +90,7 @@
 #define AUDIT_MQ_NOTIFY		1314	/* POSIX MQ notify record type */
 #define AUDIT_MQ_GETSETATTR	1315	/* POSIX MQ get/set attribute record type */
 #define AUDIT_KERNEL_OTHER	1316	/* For use by 3rd party modules */
+#define AUDIT_FD_PAIR		1317    /* audit record for pipe/socketpair */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -387,6 +389,7 @@ extern int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode
 extern int audit_bprm(struct linux_binprm *bprm);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
+extern int __audit_fd_pair(int fd1, int fd2);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern int audit_set_macxattr(const char *name);
 extern int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr);
@@ -399,6 +402,12 @@ static inline int audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
 	if (unlikely(!audit_dummy_context()))
 		return __audit_ipc_obj(ipcp);
+	return 0;
+}
+static inline int audit_fd_pair(int fd1, int fd2)
+{
+	if (unlikely(!audit_dummy_context()))
+		return __audit_fd_pair(fd1, fd2);
 	return 0;
 }
 static inline int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
@@ -459,6 +468,7 @@ extern int audit_n_rules;
 #define audit_ipc_set_perm(q,u,g,m) ({ 0; })
 #define audit_bprm(p) ({ 0; })
 #define audit_socketcall(n,a) ({ 0; })
+#define audit_fd_pair(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_set_macxattr(n) do { ; } while (0)

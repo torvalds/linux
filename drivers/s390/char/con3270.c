@@ -555,12 +555,6 @@ con3270_unblank(void)
 	spin_unlock_irqrestore(&cp->view.lock, flags);
 }
 
-static int __init 
-con3270_consetup(struct console *co, char *options)
-{
-	return 0;
-}
-
 /*
  *  The console structure for the 3270 console
  */
@@ -569,7 +563,6 @@ static struct console con3270 = {
 	.write	 = con3270_write,
 	.device	 = con3270_device,
 	.unblank = con3270_unblank,
-	.setup	 = con3270_consetup,
 	.flags	 = CON_PRINTBUFFER,
 };
 

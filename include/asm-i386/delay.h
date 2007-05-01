@@ -16,13 +16,6 @@ extern void __ndelay(unsigned long nsecs);
 extern void __const_udelay(unsigned long usecs);
 extern void __delay(unsigned long loops);
 
-#if defined(CONFIG_PARAVIRT) && !defined(USE_REAL_TIME_DELAY)
-#define udelay(n) paravirt_ops.const_udelay((n) * 0x10c7ul)
-
-#define ndelay(n) paravirt_ops.const_udelay((n) * 5ul)
-
-#else /* !PARAVIRT || USE_REAL_TIME_DELAY */
-
 /* 0x10c7 is 2**32 / 1000000 (rounded up) */
 #define udelay(n) (__builtin_constant_p(n) ? \
 	((n) > 20000 ? __bad_udelay() : __const_udelay((n) * 0x10c7ul)) : \
@@ -32,7 +25,6 @@ extern void __delay(unsigned long loops);
 #define ndelay(n) (__builtin_constant_p(n) ? \
 	((n) > 20000 ? __bad_ndelay() : __const_udelay((n) * 5ul)) : \
 	__ndelay(n))
-#endif
 
 void use_tsc_delay(void);
 

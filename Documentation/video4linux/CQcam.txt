@@ -197,10 +197,10 @@ Use the ../../Maintainers file, particularly the  VIDEO FOR LINUX and PARALLEL
 PORT SUPPORT sections
 
 The video4linux page:
-  http://roadrunner.swansea.linux.org.uk/v4l.shtml
+  http://linuxtv.org
 
-The video4linux2 page:
-  http://millennium.diads.com/bdirks/v4l2.htm
+The V4L2 API spec:
+  http://v4l2spec.bytesex.org/
 
 Some web pages about the quickcams:
    http://www.dkfz-heidelberg.de/Macromol/wedemann/mini-HOWTO-cqcam.html

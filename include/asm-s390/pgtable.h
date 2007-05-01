@@ -753,14 +753,14 @@ ptep_establish(struct vm_area_struct *vma,
  * should therefore only be called if it is not mapped in any
  * address space.
  */
-static inline int page_test_and_clear_dirty(struct page *page)
+static inline int page_test_dirty(struct page *page)
 {
-	unsigned long physpage = page_to_phys(page);
-	int skey = page_get_storage_key(physpage);
+	return (page_get_storage_key(page_to_phys(page)) & _PAGE_CHANGED) != 0;
+}
 
-	if (skey & _PAGE_CHANGED)
-		page_set_storage_key(physpage, skey & ~_PAGE_CHANGED);
-	return skey & _PAGE_CHANGED;
+static inline void page_clear_dirty(struct page *page)
+{
+	page_set_storage_key(page_to_phys(page), PAGE_DEFAULT_KEY);
 }
 
 /*
@@ -953,7 +953,8 @@ extern void memmap_init(unsigned long, int, unsigned long, unsigned long);
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME
-#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
+#define __HAVE_ARCH_PAGE_TEST_DIRTY
+#define __HAVE_ARCH_PAGE_CLEAR_DIRTY
 #define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
 #include <asm-generic/pgtable.h>
 

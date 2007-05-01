@@ -801,14 +801,9 @@ static int idescsi_ide_open(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct ide_scsi_obj *scsi;
-	ide_drive_t *drive;
 
 	if (!(scsi = ide_scsi_get(disk)))
 		return -ENXIO;
-
-	drive = scsi->drive;
-
-	drive->usage++;
 
 	return 0;
 }
@@ -817,9 +812,6 @@ static int idescsi_ide_release(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct ide_scsi_obj *scsi = ide_scsi_g(disk);
-	ide_drive_t *drive = scsi->drive;
-
-	drive->usage--;
 
 	ide_scsi_put(scsi);
 

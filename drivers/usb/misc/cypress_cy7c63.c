@@ -246,11 +246,13 @@ static void cypress_disconnect(struct usb_interface *interface)
 	struct cypress *dev;
 
 	dev = usb_get_intfdata(interface);
-	usb_set_intfdata(interface, NULL);
 
 	/* remove device attribute files */
 	device_remove_file(&interface->dev, &dev_attr_port0);
 	device_remove_file(&interface->dev, &dev_attr_port1);
+	/* the intfdata can be set to NULL only after the
+	 * device files have been removed */
+	usb_set_intfdata(interface, NULL);
 
 	usb_put_dev(dev->udev);
 

@@ -301,7 +301,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 
 	{
 		struct ib_pool_fmr *fmr;
-		struct ib_fmr_attr attr = {
+		struct ib_fmr_attr fmr_attr = {
 			.max_pages  = params->max_pages_per_fmr,
 			.max_maps   = pool->max_remaps,
 			.page_shift = params->page_shift
@@ -321,7 +321,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 			fmr->ref_count        = 0;
 			INIT_HLIST_NODE(&fmr->cache_node);
 
-			fmr->fmr = ib_alloc_fmr(pd, params->access, &attr);
+			fmr->fmr = ib_alloc_fmr(pd, params->access, &fmr_attr);
 			if (IS_ERR(fmr->fmr)) {
 				printk(KERN_WARNING "fmr_create failed for FMR %d", i);
 				kfree(fmr);

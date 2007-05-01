@@ -110,6 +110,12 @@ static inline void ib_addr_set_pkey(struct rdma_dev_addr *dev_addr, u16 pkey)
 	dev_addr->broadcast[9] = (unsigned char) pkey;
 }
 
+static inline void ib_addr_get_mgid(struct rdma_dev_addr *dev_addr,
+				    union ib_gid *gid)
+{
+	memcpy(gid, dev_addr->broadcast + 4, sizeof *gid);
+}
+
 static inline void ib_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 				    union ib_gid *gid)
 {

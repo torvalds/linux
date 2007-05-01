@@ -32,6 +32,7 @@
 #include <asm/fixmap.h>
 #include <asm/apic.h>
 #include <asm/tlbflush.h>
+#include <asm/timer.h>
 
 /* nop stub */
 static void native_nop(void)
@@ -493,7 +494,7 @@ struct paravirt_ops paravirt_ops = {
 	.memory_setup = machine_specific_memory_setup,
 	.get_wallclock = native_get_wallclock,
 	.set_wallclock = native_set_wallclock,
-	.time_init = time_init_hook,
+	.time_init = hpet_time_init,
 	.init_IRQ = native_init_IRQ,
 
 	.cpuid = native_cpuid,
@@ -520,6 +521,8 @@ struct paravirt_ops paravirt_ops = {
 	.write_msr = native_write_msr,
 	.read_tsc = native_read_tsc,
 	.read_pmc = native_read_pmc,
+	.get_scheduled_cycles = native_read_tsc,
+	.get_cpu_khz = native_calculate_cpu_khz,
 	.load_tr_desc = native_load_tr_desc,
 	.set_ldt = native_set_ldt,
 	.load_gdt = native_load_gdt,
@@ -535,7 +538,6 @@ struct paravirt_ops paravirt_ops = {
 
 	.set_iopl_mask = native_set_iopl_mask,
 	.io_delay = native_io_delay,
-	.const_udelay = __const_udelay,
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	.apic_write = native_apic_write,
@@ -549,6 +551,8 @@ struct paravirt_ops paravirt_ops = {
 	.flush_tlb_user = native_flush_tlb,
 	.flush_tlb_kernel = native_flush_tlb_global,
 	.flush_tlb_single = native_flush_tlb_single,
+
+	.map_pt_hook = (void *)native_nop,
 
 	.alloc_pt = (void *)native_nop,
 	.alloc_pd = (void *)native_nop,

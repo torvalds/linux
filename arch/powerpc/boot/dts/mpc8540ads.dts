@@ -12,16 +12,13 @@
 
 / {
 	model = "MPC8540ADS";
-	compatible = "MPC85xxADS";
+	compatible = "MPC8540ADS", "MPC85xxADS";
 	#address-cells = <1>;
 	#size-cells = <1>;
-	linux,phandle = <100>;
 
 	cpus {
-		#cpus = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		linux,phandle = <200>;
 
 		PowerPC,8540@0 {
 			device_type = "cpu";
@@ -34,13 +31,11 @@
 			bus-frequency = <0>;	// 166 MHz
 			clock-frequency = <0>;	// 825 MHz, from uboot
 			32-bit;
-			linux,phandle = <201>;
 		};
 	};
 
 	memory {
 		device_type = "memory";
-		linux,phandle = <300>;
 		reg = <00000000 08000000>;	// 128M at 0x0
 	};
 
@@ -58,7 +53,7 @@
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <1b 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
 
@@ -68,24 +63,20 @@
 			device_type = "mdio";
 			compatible = "gianfar";
 			reg = <24520 20>;
-			linux,phandle = <24520>;
-			ethernet-phy@0 {
-				linux,phandle = <2452000>;
-				interrupt-parent = <40000>;
+			phy0: ethernet-phy@0 {
+				interrupt-parent = <&mpic>;
 				interrupts = <35 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@1 {
-				linux,phandle = <2452001>;
-				interrupt-parent = <40000>;
+			phy1: ethernet-phy@1 {
+				interrupt-parent = <&mpic>;
 				interrupts = <35 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@3 {
-				linux,phandle = <2452003>;
-				interrupt-parent = <40000>;
+			phy3: ethernet-phy@3 {
+				interrupt-parent = <&mpic>;
 				interrupts = <37 1>;
 				reg = <3>;
 				device_type = "ethernet-phy";
@@ -102,8 +93,8 @@
 			address = [ 00 E0 0C 00 73 00 ];
 			local-mac-address = [ 00 E0 0C 00 73 00 ];
 			interrupts = <d 2 e 2 12 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452000>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy0>;
 		};
 
 		ethernet@25000 {
@@ -116,8 +107,8 @@
 			address = [ 00 E0 0C 00 73 01 ];
 			local-mac-address = [ 00 E0 0C 00 73 01 ];
 			interrupts = <13 2 14 2 18 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452001>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy1>;
 		};
 
 		ethernet@26000 {
@@ -130,8 +121,8 @@
 			address = [ 00 E0 0C 00 73 02 ];
 			local-mac-address = [ 00 E0 0C 00 73 02 ];
 			interrupts = <19 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452003>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy3>;
 		};
 
 		serial@4500 {
@@ -140,7 +131,7 @@
 			reg = <4500 100>; 	// reg base, size
 			clock-frequency = <0>; 	// should we fill in in uboot?
 			interrupts = <1a 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 		};
 
 		serial@4600 {
@@ -149,85 +140,84 @@
 			reg = <4600 100>;	// reg base, size
 			clock-frequency = <0>; 	// should we fill in in uboot?
 			interrupts = <1a 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 		};
 		pci@8000 {
-			linux,phandle = <8000>;
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
 
 				/* IDSEL 0x02 */
-				1000 0 0 1 40000 31 1
-				1000 0 0 2 40000 32 1
-				1000 0 0 3 40000 33 1
-				1000 0 0 4 40000 34 1
+				1000 0 0 1 &mpic 31 1
+				1000 0 0 2 &mpic 32 1
+				1000 0 0 3 &mpic 33 1
+				1000 0 0 4 &mpic 34 1
 
 				/* IDSEL 0x03 */
-				1800 0 0 1 40000 34 1
-				1800 0 0 2 40000 31 1
-				1800 0 0 3 40000 32 1
-				1800 0 0 4 40000 33 1
+				1800 0 0 1 &mpic 34 1
+				1800 0 0 2 &mpic 31 1
+				1800 0 0 3 &mpic 32 1
+				1800 0 0 4 &mpic 33 1
 
 				/* IDSEL 0x04 */
-				2000 0 0 1 40000 33 1
-				2000 0 0 2 40000 34 1
-				2000 0 0 3 40000 31 1
-				2000 0 0 4 40000 32 1
+				2000 0 0 1 &mpic 33 1
+				2000 0 0 2 &mpic 34 1
+				2000 0 0 3 &mpic 31 1
+				2000 0 0 4 &mpic 32 1
 
 				/* IDSEL 0x05 */
-				2800 0 0 1 40000 32 1
-				2800 0 0 2 40000 33 1
-				2800 0 0 3 40000 34 1
-				2800 0 0 4 40000 31 1
+				2800 0 0 1 &mpic 32 1
+				2800 0 0 2 &mpic 33 1
+				2800 0 0 3 &mpic 34 1
+				2800 0 0 4 &mpic 31 1
 
 				/* IDSEL 0x0c */
-				6000 0 0 1 40000 31 1
-				6000 0 0 2 40000 32 1
-				6000 0 0 3 40000 33 1
-				6000 0 0 4 40000 34 1
+				6000 0 0 1 &mpic 31 1
+				6000 0 0 2 &mpic 32 1
+				6000 0 0 3 &mpic 33 1
+				6000 0 0 4 &mpic 34 1
 
 				/* IDSEL 0x0d */
-				6800 0 0 1 40000 34 1
-				6800 0 0 2 40000 31 1
-				6800 0 0 3 40000 32 1
-				6800 0 0 4 40000 33 1
+				6800 0 0 1 &mpic 34 1
+				6800 0 0 2 &mpic 31 1
+				6800 0 0 3 &mpic 32 1
+				6800 0 0 4 &mpic 33 1
 
 				/* IDSEL 0x0e */
-				7000 0 0 1 40000 33 1
-				7000 0 0 2 40000 34 1
-				7000 0 0 3 40000 31 1
-				7000 0 0 4 40000 32 1
+				7000 0 0 1 &mpic 33 1
+				7000 0 0 2 &mpic 34 1
+				7000 0 0 3 &mpic 31 1
+				7000 0 0 4 &mpic 32 1
 
 				/* IDSEL 0x0f */
-				7800 0 0 1 40000 32 1
-				7800 0 0 2 40000 33 1
-				7800 0 0 3 40000 34 1
-				7800 0 0 4 40000 31 1
+				7800 0 0 1 &mpic 32 1
+				7800 0 0 2 &mpic 33 1
+				7800 0 0 3 &mpic 34 1
+				7800 0 0 4 &mpic 31 1
 
 				/* IDSEL 0x12 */
-				9000 0 0 1 40000 31 1
-				9000 0 0 2 40000 32 1
-				9000 0 0 3 40000 33 1
-				9000 0 0 4 40000 34 1
+				9000 0 0 1 &mpic 31 1
+				9000 0 0 2 &mpic 32 1
+				9000 0 0 3 &mpic 33 1
+				9000 0 0 4 &mpic 34 1
 
 				/* IDSEL 0x13 */
-				9800 0 0 1 40000 34 1
-				9800 0 0 2 40000 31 1
-				9800 0 0 3 40000 32 1
-				9800 0 0 4 40000 33 1
+				9800 0 0 1 &mpic 34 1
+				9800 0 0 2 &mpic 31 1
+				9800 0 0 3 &mpic 32 1
+				9800 0 0 4 &mpic 33 1
 
 				/* IDSEL 0x14 */
-				a000 0 0 1 40000 33 1
-				a000 0 0 2 40000 34 1
-				a000 0 0 3 40000 31 1
-				a000 0 0 4 40000 32 1
+				a000 0 0 1 &mpic 33 1
+				a000 0 0 2 &mpic 34 1
+				a000 0 0 3 &mpic 31 1
+				a000 0 0 4 &mpic 32 1
 
 				/* IDSEL 0x15 */
-				a800 0 0 1 40000 32 1
-				a800 0 0 2 40000 33 1
-				a800 0 0 3 40000 34 1
-				a800 0 0 4 40000 31 1>;
-			interrupt-parent = <40000>;
+				a800 0 0 1 &mpic 32 1
+				a800 0 0 2 &mpic 33 1
+				a800 0 0 3 &mpic 34 1
+				a800 0 0 4 &mpic 31 1>;
+			interrupt-parent = <&mpic>;
 			interrupts = <08 2>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 80000000 80000000 0 20000000
@@ -241,8 +231,7 @@
 			device_type = "pci";
 		};
 
-		pic@40000 {
-			linux,phandle = <40000>;
+		mpic: pic@40000 {
 			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;

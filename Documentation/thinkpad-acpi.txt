@@ -1,0 +1,981 @@
+		     ThinkPad ACPI Extras Driver
+
+                            Version 0.14
+                          April 21st, 2007
+
+               Borislav Deianov <borislav@users.sf.net>
+	     Henrique de Moraes Holschuh <hmh@hmh.eng.br>
+		      http://ibm-acpi.sf.net/
+
+
+This is a Linux driver for the IBM and Lenovo ThinkPad laptops. It
+supports various features of these laptops which are accessible
+through the ACPI and ACPI EC framework, but not otherwise fully
+supported by the generic Linux ACPI drivers.
+
+This driver used to be named ibm-acpi until kernel 2.6.21 and release
+0.13-20070314.  It used to be in the drivers/acpi tree, but it was
+moved to the drivers/misc tree and renamed to thinkpad-acpi for kernel
+2.6.22, and release 0.14.
+
+
+Status
+------
+
+The features currently supported are the following (see below for
+detailed description):
+
+	- Fn key combinations
+	- Bluetooth enable and disable
+	- video output switching, expansion control
+	- ThinkLight on and off
+	- limited docking and undocking
+	- UltraBay eject
+	- CMOS control
+	- LED control
+	- ACPI sounds
+	- temperature sensors
+	- Experimental: embedded controller register dump
+	- LCD brightness control
+	- Volume control
+	- Fan control and monitoring: fan speed, fan enable/disable
+	- Experimental: WAN enable and disable
+
+A compatibility table by model and feature is maintained on the web
+site, http://ibm-acpi.sf.net/. I appreciate any success or failure
+reports, especially if they add to or correct the compatibility table.
+Please include the following information in your report:
+
+	- ThinkPad model name
+	- a copy of your DSDT, from /proc/acpi/dsdt
+	- a copy of the output of dmidecode, with serial numbers
+	  and UUIDs masked off
+	- which driver features work and which don't
+	- the observed behavior of non-working features
+
+Any other comments or patches are also more than welcome.
+
+
+Installation
+------------
+
+If you are compiling this driver as included in the Linux kernel
+sources, simply enable the CONFIG_THINKPAD_ACPI option, and optionally
+enable the CONFIG_THINKPAD_ACPI_BAY option if you want the
+thinkpad-specific bay functionality.
+
+Features
+--------
+
+The driver exports two different interfaces to userspace, which can be
+used to access the features it provides.  One is a legacy procfs-based
+interface, which will be removed at some time in the distant future.
+The other is a new sysfs-based interface which is not complete yet.
+
+The procfs interface creates the /proc/acpi/ibm directory.  There is a
+file under that directory for each feature it supports.  The procfs
+interface is mostly frozen, and will change very little if at all: it
+will not be extended to add any new functionality in the driver, instead
+all new functionality will be implemented on the sysfs interface.
+
+The sysfs interface tries to blend in the generic Linux sysfs subsystems
+and classes as much as possible.  Since some of these subsystems are not
+yet ready or stabilized, it is expected that this interface will change,
+and any and all userspace programs must deal with it.
+
+
+Notes about the sysfs interface:
+
+Unlike what was done with the procfs interface, correctness when talking
+to the sysfs interfaces will be enforced, as will correctness in the
+thinkpad-acpi's implementation of sysfs interfaces.
+
+Also, any bugs in the thinkpad-acpi sysfs driver code or in the
+thinkpad-acpi's implementation of the sysfs interfaces will be fixed for
+maximum correctness, even if that means changing an interface in
+non-compatible ways.  As these interfaces mature both in the kernel and
+in thinkpad-acpi, such changes should become quite rare.
+
+Applications interfacing to the thinkpad-acpi sysfs interfaces must
+follow all sysfs guidelines and correctly process all errors (the sysfs
+interface makes extensive use of errors).  File descriptors and open /
+close operations to the sysfs inodes must also be properly implemented.
+
+The version of thinkpad-acpi's sysfs interface is exported by the driver
+as a driver attribute (see below).
+
+Sysfs driver attributes are on the driver's sysfs attribute space,
+for 2.6.20 this is /sys/bus/platform/drivers/thinkpad-acpi/.
+
+Sysfs device attributes are on the driver's sysfs attribute space,
+for 2.6.20 this is /sys/devices/platform/thinkpad-acpi/.
+
+Driver version
+--------------
+
+procfs: /proc/acpi/ibm/driver
+sysfs driver attribute: version
+
+The driver name and version. No commands can be written to this file.
+
+Sysfs interface version
+-----------------------
+
+sysfs driver attribute: interface_version
+
+Version of the thinkpad-acpi sysfs interface, as an unsigned long
+(output in hex format: 0xAAAABBCC), where:
+	AAAA - major revision
+	BB - minor revision
+	CC - bugfix revision
+
+The sysfs interface version changelog for the driver can be found at the
+end of this document.  Changes to the sysfs interface done by the kernel
+subsystems are not documented here, nor are they tracked by this
+attribute.
+
+Hot keys
+--------
+
+procfs: /proc/acpi/ibm/hotkey
+sysfs device attribute: hotkey/*
+
+Without this driver, only the Fn-F4 key (sleep button) generates an
+ACPI event. With the driver loaded, the hotkey feature enabled and the
+mask set (see below), the various hot keys generate ACPI events in the
+following format:
+
+	ibm/hotkey HKEY 00000080 0000xxxx
+
+The last four digits vary depending on the key combination pressed.
+All labeled Fn-Fx key combinations generate distinct events. In
+addition, the lid microswitch and some docking station buttons may
+also generate such events.
+
+The bit mask allows some control over which hot keys generate ACPI
+events. Not all bits in the mask can be modified. Not all bits that
+can be modified do anything. Not all hot keys can be individually
+controlled by the mask. Most recent ThinkPad models honor the
+following bits (assuming the hot keys feature has been enabled):
+
+	key	bit	behavior when set	behavior when unset
+
+	Fn-F3			always generates ACPI event
+	Fn-F4			always generates ACPI event
+	Fn-F5	0010	generate ACPI event	enable/disable Bluetooth
+	Fn-F7	0040	generate ACPI event	switch LCD and external display
+	Fn-F8	0080	generate ACPI event	expand screen or none
+	Fn-F9	0100	generate ACPI event	none
+	Fn-F12			always generates ACPI event
+
+Some models do not support all of the above. For example, the T30 does
+not support Fn-F5 and Fn-F9. Other models do not support the mask at
+all. On those models, hot keys cannot be controlled individually.
+
+Note that enabling ACPI events for some keys prevents their default
+behavior. For example, if events for Fn-F5 are enabled, that key will
+no longer enable/disable Bluetooth by itself. This can still be done
+from an acpid handler for the ibm/hotkey event.
+
+Note also that not all Fn key combinations are supported through
+ACPI. For example, on the X40, the brightness, volume and "Access IBM"
+buttons do not generate ACPI events even with this driver. They *can*
+be used through the "ThinkPad Buttons" utility, see
+http://www.nongnu.org/tpb/
+
+procfs notes:
+
+The following commands can be written to the /proc/acpi/ibm/hotkey file:
+
+	echo enable > /proc/acpi/ibm/hotkey -- enable the hot keys feature
+	echo disable > /proc/acpi/ibm/hotkey -- disable the hot keys feature
+	echo 0xffff > /proc/acpi/ibm/hotkey -- enable all possible hot keys
+	echo 0x0000 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
+	... any other 4-hex-digit mask ...
+	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
+
+sysfs notes:
+
+	The hot keys attributes are in a hotkey/ subdirectory off the
+	thinkpad device.
+
+	bios_enabled:
+		Returns the status of the hot keys feature when
+		thinkpad-acpi was loaded.  Upon module unload, the hot
+		key feature status will be restored to this value.
+
+		0: hot keys were disabled
+		1: hot keys were enabled
+
+	bios_mask:
+		Returns the hot keys mask when thinkpad-acpi was loaded.
+		Upon module unload, the hot keys mask will be restored
+		to this value.
+
+	enable:
+		Enables/disables the hot keys feature, and reports
+		current status of the hot keys feature.
+
+		0: disables the hot keys feature / feature disabled
+		1: enables the hot keys feature / feature enabled
+
+	mask:
+		bit mask to enable ACPI event generation for each hot
+		key (see above).  Returns the current status of the hot
+		keys mask, and allows one to modify it.
+
+
+Bluetooth
+---------
+
+procfs: /proc/acpi/ibm/bluetooth
+sysfs device attribute: bluetooth/enable
+
+This feature shows the presence and current state of a ThinkPad
+Bluetooth device in the internal ThinkPad CDC slot.
+
+Procfs notes:
+
+If Bluetooth is installed, the following commands can be used:
+
+	echo enable > /proc/acpi/ibm/bluetooth
+	echo disable > /proc/acpi/ibm/bluetooth
+
+Sysfs notes:
+
+	If the Bluetooth CDC card is installed, it can be enabled /
+	disabled through the "bluetooth/enable" thinkpad-acpi device
+	attribute, and its current status can also be queried.
+
+	enable:
+		0: disables Bluetooth / Bluetooth is disabled
+		1: enables Bluetooth / Bluetooth is enabled.
+
+	Note: this interface will be probably be superseeded by the
+	generic rfkill class.
+
+Video output control -- /proc/acpi/ibm/video
+--------------------------------------------
+
+This feature allows control over the devices used for video output -
+LCD, CRT or DVI (if available). The following commands are available:
+
+	echo lcd_enable > /proc/acpi/ibm/video
+	echo lcd_disable > /proc/acpi/ibm/video
+	echo crt_enable > /proc/acpi/ibm/video
+	echo crt_disable > /proc/acpi/ibm/video
+	echo dvi_enable > /proc/acpi/ibm/video
+	echo dvi_disable > /proc/acpi/ibm/video
+	echo auto_enable > /proc/acpi/ibm/video
+	echo auto_disable > /proc/acpi/ibm/video
+	echo expand_toggle > /proc/acpi/ibm/video
+	echo video_switch > /proc/acpi/ibm/video
+
+Each video output device can be enabled or disabled individually.
+Reading /proc/acpi/ibm/video shows the status of each device.
+
+Automatic video switching can be enabled or disabled.  When automatic
+video switching is enabled, certain events (e.g. opening the lid,
+docking or undocking) cause the video output device to change
+automatically. While this can be useful, it also causes flickering
+and, on the X40, video corruption. By disabling automatic switching,
+the flickering or video corruption can be avoided.
+
+The video_switch command cycles through the available video outputs
+(it simulates the behavior of Fn-F7).
+
+Video expansion can be toggled through this feature. This controls
+whether the display is expanded to fill the entire LCD screen when a
+mode with less than full resolution is used. Note that the current
+video expansion status cannot be determined through this feature.
+
+Note that on many models (particularly those using Radeon graphics
+chips) the X driver configures the video card in a way which prevents
+Fn-F7 from working. This also disables the video output switching
+features of this driver, as it uses the same ACPI methods as
+Fn-F7. Video switching on the console should still work.
+
+UPDATE: There's now a patch for the X.org Radeon driver which
+addresses this issue. Some people are reporting success with the patch
+while others are still having problems. For more information:
+
+https://bugs.freedesktop.org/show_bug.cgi?id=2000
+
+ThinkLight control -- /proc/acpi/ibm/light
+------------------------------------------
+
+The current status of the ThinkLight can be found in this file. A few
+models which do not make the status available will show it as
+"unknown". The available commands are:
+
+	echo on  > /proc/acpi/ibm/light
+	echo off > /proc/acpi/ibm/light
+
+Docking / undocking -- /proc/acpi/ibm/dock
+------------------------------------------
+
+Docking and undocking (e.g. with the X4 UltraBase) requires some
+actions to be taken by the operating system to safely make or break
+the electrical connections with the dock.
+
+The docking feature of this driver generates the following ACPI events:
+
+	ibm/dock GDCK 00000003 00000001 -- eject request
+	ibm/dock GDCK 00000003 00000002 -- undocked
+	ibm/dock GDCK 00000000 00000003 -- docked
+
+NOTE: These events will only be generated if the laptop was docked
+when originally booted. This is due to the current lack of support for
+hot plugging of devices in the Linux ACPI framework. If the laptop was
+booted while not in the dock, the following message is shown in the
+logs:
+
+	Mar 17 01:42:34 aero kernel: thinkpad_acpi: dock device not present
+
+In this case, no dock-related events are generated but the dock and
+undock commands described below still work. They can be executed
+manually or triggered by Fn key combinations (see the example acpid
+configuration files included in the driver tarball package available
+on the web site).
+
+When the eject request button on the dock is pressed, the first event
+above is generated. The handler for this event should issue the
+following command:
+
+	echo undock > /proc/acpi/ibm/dock
+
+After the LED on the dock goes off, it is safe to eject the laptop.
+Note: if you pressed this key by mistake, go ahead and eject the
+laptop, then dock it back in. Otherwise, the dock may not function as
+expected.
+
+When the laptop is docked, the third event above is generated. The
+handler for this event should issue the following command to fully
+enable the dock:
+
+	echo dock > /proc/acpi/ibm/dock
+
+The contents of the /proc/acpi/ibm/dock file shows the current status
+of the dock, as provided by the ACPI framework.
+
+The docking support in this driver does not take care of enabling or
+disabling any other devices you may have attached to the dock. For
+example, a CD drive plugged into the UltraBase needs to be disabled or
+enabled separately. See the provided example acpid configuration files
+for how this can be accomplished.
+
+There is no support yet for PCI devices that may be attached to a
+docking station, e.g. in the ThinkPad Dock II. The driver currently
+does not recognize, enable or disable such devices. This means that
+the only docking stations currently supported are the X-series
+UltraBase docks and "dumb" port replicators like the Mini Dock (the
+latter don't need any ACPI support, actually).
+
+UltraBay eject -- /proc/acpi/ibm/bay
+------------------------------------
+
+Inserting or ejecting an UltraBay device requires some actions to be
+taken by the operating system to safely make or break the electrical
+connections with the device.
+
+This feature generates the following ACPI events:
+
+	ibm/bay MSTR 00000003 00000000 -- eject request
+	ibm/bay MSTR 00000001 00000000 -- eject lever inserted
+
+NOTE: These events will only be generated if the UltraBay was present
+when the laptop was originally booted (on the X series, the UltraBay
+is in the dock, so it may not be present if the laptop was undocked).
+This is due to the current lack of support for hot plugging of devices
+in the Linux ACPI framework. If the laptop was booted without the
+UltraBay, the following message is shown in the logs:
+
+	Mar 17 01:42:34 aero kernel: thinkpad_acpi: bay device not present
+
+In this case, no bay-related events are generated but the eject
+command described below still works. It can be executed manually or
+triggered by a hot key combination.
+
+Sliding the eject lever generates the first event shown above. The
+handler for this event should take whatever actions are necessary to
+shut down the device in the UltraBay (e.g. call idectl), then issue
+the following command:
+
+	echo eject > /proc/acpi/ibm/bay
+
+After the LED on the UltraBay goes off, it is safe to pull out the
+device.
+
+When the eject lever is inserted, the second event above is
+generated. The handler for this event should take whatever actions are
+necessary to enable the UltraBay device (e.g. call idectl).
+
+The contents of the /proc/acpi/ibm/bay file shows the current status
+of the UltraBay, as provided by the ACPI framework.
+
+EXPERIMENTAL warm eject support on the 600e/x, A22p and A3x (To use
+this feature, you need to supply the experimental=1 parameter when
+loading the module):
+
+These models do not have a button near the UltraBay device to request
+a hot eject but rather require the laptop to be put to sleep
+(suspend-to-ram) before the bay device is ejected or inserted).
+The sequence of steps to eject the device is as follows:
+
+	echo eject > /proc/acpi/ibm/bay
+	put the ThinkPad to sleep
+	remove the drive
+	resume from sleep
+	cat /proc/acpi/ibm/bay should show that the drive was removed
+
+On the A3x, both the UltraBay 2000 and UltraBay Plus devices are
+supported. Use "eject2" instead of "eject" for the second bay.
+
+Note: the UltraBay eject support on the 600e/x, A22p and A3x is
+EXPERIMENTAL and may not work as expected. USE WITH CAUTION!
+
+CMOS control
+------------
+
+procfs: /proc/acpi/ibm/cmos
+sysfs device attribute: cmos_command
+
+This feature is used internally by the ACPI firmware to control the
+ThinkLight on most newer ThinkPad models. It may also control LCD
+brightness, sounds volume and more, but only on some models.
+
+The range of valid cmos command numbers is 0 to 21, but not all have an
+effect and the behavior varies from model to model.  Here is the behavior
+on the X40 (tpb is the ThinkPad Buttons utility):
+
+	0 - no effect but tpb reports "Volume down"
+	1 - no effect but tpb reports "Volume up"
+	2 - no effect but tpb reports "Mute on"
+	3 - simulate pressing the "Access IBM" button
+	4 - LCD brightness up
+	5 - LCD brightness down
+	11 - toggle screen expansion
+	12 - ThinkLight on
+	13 - ThinkLight off
+	14 - no effect but tpb reports ThinkLight status change
+
+The cmos command interface is prone to firmware split-brain problems, as
+in newer ThinkPads it is just a compatibility layer.
+
+LED control -- /proc/acpi/ibm/led
+---------------------------------
+
+Some of the LED indicators can be controlled through this feature. The
+available commands are:
+
+	echo '<led number> on' >/proc/acpi/ibm/led
+	echo '<led number> off' >/proc/acpi/ibm/led
+	echo '<led number> blink' >/proc/acpi/ibm/led
+
+The <led number> range is 0 to 7. The set of LEDs that can be
+controlled varies from model to model. Here is the mapping on the X40:
+
+	0 - power
+	1 - battery (orange)
+	2 - battery (green)
+	3 - UltraBase
+	4 - UltraBay
+	7 - standby
+
+All of the above can be turned on and off and can be made to blink.
+
+ACPI sounds -- /proc/acpi/ibm/beep
+----------------------------------
+
+The BEEP method is used internally by the ACPI firmware to provide
+audible alerts in various situations. This feature allows the same
+sounds to be triggered manually.
+
+The commands are non-negative integer numbers:
+
+	echo <number> >/proc/acpi/ibm/beep
+
+The valid <number> range is 0 to 17. Not all numbers trigger sounds
+and the sounds vary from model to model. Here is the behavior on the
+X40:
+
+	0 - stop a sound in progress (but use 17 to stop 16)
+	2 - two beeps, pause, third beep ("low battery")
+	3 - single beep
+	4 - high, followed by low-pitched beep ("unable")
+	5 - single beep
+	6 - very high, followed by high-pitched beep ("AC/DC")
+	7 - high-pitched beep
+	9 - three short beeps
+	10 - very long beep
+	12 - low-pitched beep
+	15 - three high-pitched beeps repeating constantly, stop with 0
+	16 - one medium-pitched beep repeating constantly, stop with 17
+	17 - stop 16
+
+Temperature sensors
+-------------------
+
+procfs: /proc/acpi/ibm/thermal
+sysfs device attributes: (hwmon) temp*_input
+
+Most ThinkPads include six or more separate temperature sensors but
+only expose the CPU temperature through the standard ACPI methods.
+This feature shows readings from up to eight different sensors on older
+ThinkPads, and it has experimental support for up to sixteen different
+sensors on newer ThinkPads.
+
+EXPERIMENTAL: The 16-sensors feature is marked EXPERIMENTAL because the
+implementation directly accesses hardware registers and may not work as
+expected. USE WITH CAUTION! To use this feature, you need to supply the
+experimental=1 parameter when loading the module.  When EXPERIMENTAL
+mode is enabled, reading the first 8 sensors on newer ThinkPads will
+also use an new experimental thermal sensor access mode.
+
+For example, on the X40, a typical output may be:
+temperatures:   42 42 45 41 36 -128 33 -128
+
+EXPERIMENTAL: On the T43/p, a typical output may be:
+temperatures:   48 48 36 52 38 -128 31 -128 48 52 48 -128 -128 -128 -128 -128
+
+The mapping of thermal sensors to physical locations varies depending on
+system-board model (and thus, on ThinkPad model).
+
+http://thinkwiki.org/wiki/Thermal_Sensors is a public wiki page that
+tries to track down these locations for various models.
+
+Most (newer?) models seem to follow this pattern:
+
+1:  CPU
+2:  (depends on model)
+3:  (depends on model)
+4:  GPU
+5:  Main battery: main sensor
+6:  Bay battery: main sensor
+7:  Main battery: secondary sensor
+8:  Bay battery: secondary sensor
+9-15: (depends on model)
+
+For the R51 (source: Thomas Gruber):
+2:  Mini-PCI
+3:  Internal HDD
+
+For the T43, T43/p (source: Shmidoax/Thinkwiki.org)
+http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
+2:  System board, left side (near PCMCIA slot), reported as HDAPS temp
+3:  PCMCIA slot
+9:  MCH (northbridge) to DRAM Bus
+10: ICH (southbridge), under Mini-PCI card, under touchpad
+11: Power regulator, underside of system board, below F2 key
+
+The A31 has a very atypical layout for the thermal sensors
+(source: Milos Popovic, http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_A31)
+1:  CPU
+2:  Main Battery: main sensor
+3:  Power Converter
+4:  Bay Battery: main sensor
+5:  MCH (northbridge)
+6:  PCMCIA/ambient
+7:  Main Battery: secondary sensor
+8:  Bay Battery: secondary sensor
+
+
+Procfs notes:
+	Readings from sensors that are not available return -128.
+	No commands can be written to this file.
+
+Sysfs notes:
+	Sensors that are not available return the ENXIO error.  This
+	status may change at runtime, as there are hotplug thermal
+	sensors, like those inside the batteries and docks.
+
+	thinkpad-acpi thermal sensors are reported through the hwmon
+	subsystem, and follow all of the hwmon guidelines at
+	Documentation/hwmon.
+
+
+EXPERIMENTAL: Embedded controller register dump -- /proc/acpi/ibm/ecdump
+------------------------------------------------------------------------
+
+This feature is marked EXPERIMENTAL because the implementation
+directly accesses hardware registers and may not work as expected. USE
+WITH CAUTION! To use this feature, you need to supply the
+experimental=1 parameter when loading the module.
+
+This feature dumps the values of 256 embedded controller
+registers. Values which have changed since the last time the registers
+were dumped are marked with a star:
+
+[root@x40 ibm-acpi]# cat /proc/acpi/ibm/ecdump
+EC       +00 +01 +02 +03 +04 +05 +06 +07 +08 +09 +0a +0b +0c +0d +0e +0f
+EC 0x00:  a7  47  87  01  fe  96  00  08  01  00  cb  00  00  00  40  00
+EC 0x10:  00  00  ff  ff  f4  3c  87  09  01  ff  42  01  ff  ff  0d  00
+EC 0x20:  00  00  00  00  00  00  00  00  00  00  00  03  43  00  00  80
+EC 0x30:  01  07  1a  00  30  04  00  00 *85  00  00  10  00  50  00  00
+EC 0x40:  00  00  00  00  00  00  14  01  00  04  00  00  00  00  00  00
+EC 0x50:  00  c0  02  0d  00  01  01  02  02  03  03  03  03 *bc *02 *bc
+EC 0x60: *02 *bc *02  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0x70:  00  00  00  00  00  12  30  40 *24 *26 *2c *27 *20  80 *1f  80
+EC 0x80:  00  00  00  06 *37 *0e  03  00  00  00  0e  07  00  00  00  00
+EC 0x90:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0xa0: *ff  09  ff  09  ff  ff *64  00 *00 *00 *a2  41 *ff *ff *e0  00
+EC 0xb0:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0xc0:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0xd0:  03  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0xe0:  00  00  00  00  00  00  00  00  11  20  49  04  24  06  55  03
+EC 0xf0:  31  55  48  54  35  38  57  57  08  2f  45  73  07  65  6c  1a
+
+This feature can be used to determine the register holding the fan
+speed on some models. To do that, do the following:
+
+	- make sure the battery is fully charged
+	- make sure the fan is running
+	- run 'cat /proc/acpi/ibm/ecdump' several times, once per second or so
+
+The first step makes sure various charging-related values don't
+vary. The second ensures that the fan-related values do vary, since
+the fan speed fluctuates a bit. The third will (hopefully) mark the
+fan register with a star:
+
+[root@x40 ibm-acpi]# cat /proc/acpi/ibm/ecdump
+EC       +00 +01 +02 +03 +04 +05 +06 +07 +08 +09 +0a +0b +0c +0d +0e +0f
+EC 0x00:  a7  47  87  01  fe  96  00  08  01  00  cb  00  00  00  40  00
+EC 0x10:  00  00  ff  ff  f4  3c  87  09  01  ff  42  01  ff  ff  0d  00
+EC 0x20:  00  00  00  00  00  00  00  00  00  00  00  03  43  00  00  80
+EC 0x30:  01  07  1a  00  30  04  00  00  85  00  00  10  00  50  00  00
+EC 0x40:  00  00  00  00  00  00  14  01  00  04  00  00  00  00  00  00
+EC 0x50:  00  c0  02  0d  00  01  01  02  02  03  03  03  03  bc  02  bc
+EC 0x60:  02  bc  02  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0x70:  00  00  00  00  00  12  30  40  24  27  2c  27  21  80  1f  80
+EC 0x80:  00  00  00  06 *be  0d  03  00  00  00  0e  07  00  00  00  00
+EC 0x90:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0xa0:  ff  09  ff  09  ff  ff  64  00  00  00  a2  41  ff  ff  e0  00
+EC 0xb0:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0xc0:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0xd0:  03  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+EC 0xe0:  00  00  00  00  00  00  00  00  11  20  49  04  24  06  55  03
+EC 0xf0:  31  55  48  54  35  38  57  57  08  2f  45  73  07  65  6c  1a
+
+Another set of values that varies often is the temperature
+readings. Since temperatures don't change vary fast, you can take
+several quick dumps to eliminate them.
+
+You can use a similar method to figure out the meaning of other
+embedded controller registers - e.g. make sure nothing else changes
+except the charging or discharging battery to determine which
+registers contain the current battery capacity, etc. If you experiment
+with this, do send me your results (including some complete dumps with
+a description of the conditions when they were taken.)
+
+LCD brightness control
+----------------------
+
+procfs: /proc/acpi/ibm/brightness
+sysfs backlight device "thinkpad_screen"
+
+This feature allows software control of the LCD brightness on ThinkPad
+models which don't have a hardware brightness slider.
+
+It has some limitations: the LCD backlight cannot be actually turned on or off
+by this interface, and in many ThinkPad models, the "dim while on battery"
+functionality will be enabled by the BIOS when this interface is used, and
+cannot be controlled.
+
+The backlight control has eight levels, ranging from 0 to 7.  Some of the
+levels may not be distinct.
+
+Procfs notes:
+
+	The available commands are:
+
+	echo up   >/proc/acpi/ibm/brightness
+	echo down >/proc/acpi/ibm/brightness
+	echo 'level <level>' >/proc/acpi/ibm/brightness
+
+Sysfs notes:
+
+The interface is implemented through the backlight sysfs class, which is poorly
+documented at this time.
+
+Locate the thinkpad_screen device under /sys/class/backlight, and inside it
+there will be the following attributes:
+
+	max_brightness:
+		Reads the maximum brightness the hardware can be set to.
+		The minimum is always zero.
+
+	actual_brightness:
+		Reads what brightness the screen is set to at this instant.
+
+	brightness:
+		Writes request the driver to change brightness to the given
+		value.  Reads will tell you what brightness the driver is trying
+		to set the display to when "power" is set to zero and the display
+		has not been dimmed by a kernel power management event.
+
+	power:
+		power management mode, where 0 is "display on", and 1 to 3 will
+		dim the display backlight to brightness level 0 because
+		thinkpad-acpi cannot really turn the backlight off.  Kernel
+		power management events can temporarily increase the current
+		power management level, i.e. they can dim the display.
+
+
+Volume control -- /proc/acpi/ibm/volume
+---------------------------------------
+
+This feature allows volume control on ThinkPad models which don't have
+a hardware volume knob. The available commands are:
+
+	echo up   >/proc/acpi/ibm/volume
+	echo down >/proc/acpi/ibm/volume
+	echo mute >/proc/acpi/ibm/volume
+	echo 'level <level>' >/proc/acpi/ibm/volume
+
+The <level> number range is 0 to 15 although not all of them may be
+distinct. The unmute the volume after the mute command, use either the
+up or down command (the level command will not unmute the volume).
+The current volume level and mute state is shown in the file.
+
+Fan control and monitoring: fan speed, fan enable/disable
+---------------------------------------------------------
+
+procfs: /proc/acpi/ibm/fan
+sysfs device attributes: (hwmon) fan_input, pwm1, pwm1_enable
+
+NOTE NOTE NOTE: fan control operations are disabled by default for
+safety reasons.  To enable them, the module parameter "fan_control=1"
+must be given to thinkpad-acpi.
+
+This feature attempts to show the current fan speed, control mode and
+other fan data that might be available.  The speed is read directly
+from the hardware registers of the embedded controller.  This is known
+to work on later R, T, X and Z series ThinkPads but may show a bogus
+value on other models.
+
+Fan levels:
+
+Most ThinkPad fans work in "levels" at the firmware interface.  Level 0
+stops the fan.  The higher the level, the higher the fan speed, although
+adjacent levels often map to the same fan speed.  7 is the highest
+level, where the fan reaches the maximum recommended speed.
+
+Level "auto" means the EC changes the fan level according to some
+internal algorithm, usually based on readings from the thermal sensors.
+
+There is also a "full-speed" level, also known as "disengaged" level.
+In this level, the EC disables the speed-locked closed-loop fan control,
+and drives the fan as fast as it can go, which might exceed hardware
+limits, so use this level with caution.
+
+The fan usually ramps up or down slowly from one speed to another, and
+it is normal for the EC to take several seconds to react to fan
+commands.  The full-speed level may take up to two minutes to ramp up to
+maximum speed, and in some ThinkPads, the tachometer readings go stale
+while the EC is transitioning to the full-speed level.
+
+WARNING WARNING WARNING: do not leave the fan disabled unless you are
+monitoring all of the temperature sensor readings and you are ready to
+enable it if necessary to avoid overheating.
+
+An enabled fan in level "auto" may stop spinning if the EC decides the
+ThinkPad is cool enough and doesn't need the extra airflow.  This is
+normal, and the EC will spin the fan up if the varios thermal readings
+rise too much.
+
+On the X40, this seems to depend on the CPU and HDD temperatures.
+Specifically, the fan is turned on when either the CPU temperature
+climbs to 56 degrees or the HDD temperature climbs to 46 degrees.  The
+fan is turned off when the CPU temperature drops to 49 degrees and the
+HDD temperature drops to 41 degrees.  These thresholds cannot
+currently be controlled.
+
+The ThinkPad's ACPI DSDT code will reprogram the fan on its own when
+certain conditions are met.  It will override any fan programming done
+through thinkpad-acpi.
+
+The thinkpad-acpi kernel driver can be programmed to revert the fan
+level to a safe setting if userspace does not issue one of the procfs
+fan commands: "enable", "disable", "level" or "watchdog", or if there
+are no writes to pwm1_enable (or to pwm1 *if and only if* pwm1_enable is
+set to 1, manual mode) within a configurable amount of time of up to
+120 seconds.  This functionality is called fan safety watchdog.
+
+Note that the watchdog timer stops after it enables the fan.  It will be
+rearmed again automatically (using the same interval) when one of the
+above mentioned fan commands is received.  The fan watchdog is,
+therefore, not suitable to protect against fan mode changes made through
+means other than the "enable", "disable", and "level" procfs fan
+commands, or the hwmon fan control sysfs interface.
+
+Procfs notes:
+
+The fan may be enabled or disabled with the following commands:
+
+	echo enable  >/proc/acpi/ibm/fan
+	echo disable >/proc/acpi/ibm/fan
+
+Placing a fan on level 0 is the same as disabling it.  Enabling a fan
+will try to place it in a safe level if it is too slow or disabled.
+
+The fan level can be controlled with the command:
+
+	echo 'level <level>' > /proc/acpi/ibm/fan
+
+Where <level> is an integer from 0 to 7, or one of the words "auto" or
+"full-speed" (without the quotes).  Not all ThinkPads support the "auto"
+and "full-speed" levels.  The driver accepts "disengaged" as an alias for
+"full-speed", and reports it as "disengaged" for backwards
+compatibility.
+
+On the X31 and X40 (and ONLY on those models), the fan speed can be
+controlled to a certain degree.  Once the fan is running, it can be
+forced to run faster or slower with the following command:
+
+	echo 'speed <speed>' > /proc/acpi/ibm/fan
+
+The sustainable range of fan speeds on the X40 appears to be from about
+3700 to about 7350. Values outside this range either do not have any
+effect or the fan speed eventually settles somewhere in that range.  The
+fan cannot be stopped or started with this command.  This functionality
+is incomplete, and not available through the sysfs interface.
+
+To program the safety watchdog, use the "watchdog" command.
+
+	echo 'watchdog <interval in seconds>' > /proc/acpi/ibm/fan
+
+If you want to disable the watchdog, use 0 as the interval.
+
+Sysfs notes:
+
+The sysfs interface follows the hwmon subsystem guidelines for the most
+part, and the exception is the fan safety watchdog.
+
+Writes to any of the sysfs attributes may return the EINVAL error if
+that operation is not supported in a given ThinkPad or if the parameter
+is out-of-bounds, and EPERM if it is forbidden.  They may also return
+EINTR (interrupted system call), and EIO (I/O error while trying to talk
+to the firmware).
+
+Features not yet implemented by the driver return ENOSYS.
+
+hwmon device attribute pwm1_enable:
+	0: PWM offline (fan is set to full-speed mode)
+	1: Manual PWM control (use pwm1 to set fan level)
+	2: Hardware PWM control (EC "auto" mode)
+	3: reserved (Software PWM control, not implemented yet)
+
+	Modes 0 and 2 are not supported by all ThinkPads, and the
+	driver is not always able to detect this.  If it does know a
+	mode is unsupported, it will return -EINVAL.
+
+hwmon device attribute pwm1:
+	Fan level, scaled from the firmware values of 0-7 to the hwmon
+	scale of 0-255.  0 means fan stopped, 255 means highest normal
+	speed (level 7).
+
+	This attribute only commands the fan if pmw1_enable is set to 1
+	(manual PWM control).
+
+hwmon device attribute fan1_input:
+	Fan tachometer reading, in RPM.  May go stale on certain
+	ThinkPads while the EC transitions the PWM to offline mode,
+	which can take up to two minutes.  May return rubbish on older
+	ThinkPads.
+
+driver attribute fan_watchdog:
+	Fan safety watchdog timer interval, in seconds.  Minimum is
+	1 second, maximum is 120 seconds.  0 disables the watchdog.
+
+To stop the fan: set pwm1 to zero, and pwm1_enable to 1.
+
+To start the fan in a safe mode: set pwm1_enable to 2.  If that fails
+with EINVAL, try to set pwm1_enable to 1 and pwm1 to at least 128 (255
+would be the safest choice, though).
+
+
+EXPERIMENTAL: WAN
+-----------------
+
+procfs: /proc/acpi/ibm/wan
+sysfs device attribute: wwan/enable
+
+This feature is marked EXPERIMENTAL because the implementation
+directly accesses hardware registers and may not work as expected. USE
+WITH CAUTION! To use this feature, you need to supply the
+experimental=1 parameter when loading the module.
+
+This feature shows the presence and current state of a W-WAN (Sierra
+Wireless EV-DO) device.
+
+It was tested on a Lenovo Thinkpad X60. It should probably work on other
+Thinkpad models which come with this module installed.
+
+Procfs notes:
+
+If the W-WAN card is installed, the following commands can be used:
+
+	echo enable > /proc/acpi/ibm/wan
+	echo disable > /proc/acpi/ibm/wan
+
+Sysfs notes:
+
+	If the W-WAN card is installed, it can be enabled /
+	disabled through the "wwan/enable" thinkpad-acpi device
+	attribute, and its current status can also be queried.
+
+	enable:
+		0: disables WWAN card / WWAN card is disabled
+		1: enables WWAN card / WWAN card is enabled.
+
+	Note: this interface will be probably be superseeded by the
+	generic rfkill class.
+
+Multiple Commands, Module Parameters
+------------------------------------
+
+Multiple commands can be written to the proc files in one shot by
+separating them with commas, for example:
+
+	echo enable,0xffff > /proc/acpi/ibm/hotkey
+	echo lcd_disable,crt_enable > /proc/acpi/ibm/video
+
+Commands can also be specified when loading the thinkpad-acpi module,
+for example:
+
+	modprobe thinkpad_acpi hotkey=enable,0xffff video=auto_disable
+
+Enabling debugging output
+-------------------------
+
+The module takes a debug paramater which can be used to selectively
+enable various classes of debugging output, for example:
+
+	 modprobe ibm_acpi debug=0xffff
+
+will enable all debugging output classes.  It takes a bitmask, so
+to enable more than one output class, just add their values.
+
+	Debug bitmask		Description
+	0x0001			Initialization and probing
+	0x0002			Removal
+
+There is also a kernel build option to enable more debugging
+information, which may be necessary to debug driver problems.
+
+The level of debugging information output by the driver can be changed
+at runtime through sysfs, using the driver attribute debug_level.  The
+attribute takes the same bitmask as the debug module parameter above.
+
+Force loading of module
+-----------------------
+
+If thinkpad-acpi refuses to detect your ThinkPad, you can try to specify
+the module parameter force_load=1.  Regardless of whether this works or
+not, please contact ibm-acpi-devel@lists.sourceforge.net with a report.
+
+
+Sysfs interface changelog:
+
+0x000100:	Initial sysfs support, as a single platform driver and
+		device.

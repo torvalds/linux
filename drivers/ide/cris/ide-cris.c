@@ -17,8 +17,6 @@
  * device can't do DMA handshaking for some stupid reason. We don't need to do that.
  */
 
-#undef REALLY_SLOW_IO           /* most systems can safely undef this */
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/timer.h>
@@ -682,8 +680,11 @@ static void cris_ide_input_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_ide_output_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_input_bytes(ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_output_bytes(ide_drive_t *drive, void *, unsigned int);
-static int cris_dma_off (ide_drive_t *drive);
 static int cris_dma_on (ide_drive_t *drive);
+
+static void cris_dma_off(ide_drive_t *drive)
+{
+}
 
 static void tune_cris_ide(ide_drive_t *drive, u8 pio)
 {
@@ -795,7 +796,7 @@ init_e100_ide (void)
 		                0, 0, cris_ide_ack_intr,
 		                ide_default_irq(0));
 		ide_register_hw(&hw, &hwif);
-		hwif->mmio = 2;
+		hwif->mmio = 1;
 		hwif->chipset = ide_etrax100;
 		hwif->tuneproc = &tune_cris_ide;
 		hwif->speedproc = &speed_cris_ide;
@@ -814,13 +815,16 @@ init_e100_ide (void)
 		hwif->OUTBSYNC = &cris_ide_outbsync;
 		hwif->INB = &cris_ide_inb;
 		hwif->INW = &cris_ide_inw;
-		hwif->ide_dma_host_off = &cris_dma_off;
-		hwif->ide_dma_host_on = &cris_dma_on;
-		hwif->ide_dma_off_quietly = &cris_dma_off;
+		hwif->dma_host_off = &cris_dma_off;
+		hwif->dma_host_on = &cris_dma_on;
+		hwif->dma_off_quietly = &cris_dma_off;
 		hwif->udma_four = 0;
 		hwif->ultra_mask = cris_ultra_mask;
 		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
 		hwif->swdma_mask = 0x07; /* Singleword DMA 0-2 */
+		hwif->autodma = 1;
+		hwif->drives[0].autodma = 1;
+		hwif->drives[1].autodma = 1;
 	}
 
 	/* Reset pulse */
@@ -833,11 +837,6 @@ init_e100_ide (void)
 	cris_ide_set_speed(TYPE_PIO, ATA_PIO4_SETUP, ATA_PIO4_STROBE, ATA_PIO4_HOLD);
 	cris_ide_set_speed(TYPE_DMA, 0, ATA_DMA2_STROBE, ATA_DMA2_HOLD);
 	cris_ide_set_speed(TYPE_UDMA, ATA_UDMA2_CYC, ATA_UDMA2_DVS, 0);
-}
-
-static int cris_dma_off (ide_drive_t *drive)
-{
-	return 0;
 }
 
 static int cris_dma_on (ide_drive_t *drive)
@@ -1045,17 +1044,10 @@ static ide_startstop_t cris_dma_intr (ide_drive_t *drive)
 
 static int cris_dma_check(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
-	struct hd_driveid* id = drive->id;
+	if (ide_use_dma(drive) && cris_config_drive_for_dma(drive))
+		return 0;
 
-	if (id && (id->capability & 1)) {
-		if (ide_use_dma(drive)) {
-			if (cris_config_drive_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
-	}
-
-	return hwif->ide_dma_off_quietly(drive);
+	return -1;
 }
 
 static int cris_dma_end(ide_drive_t *drive)

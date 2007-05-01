@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 20
+SUBLEVEL = 21
 EXTRAVERSION =
-NAME = Homicidal Dwarf Hamster
+NAME = Nocturnal Monster Puppy
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

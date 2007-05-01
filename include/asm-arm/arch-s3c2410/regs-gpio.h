@@ -201,7 +201,7 @@
 #define S3C2400_GPBDAT	   S3C2410_GPIOREG(0x0C)
 #define S3C2400_GPBUP	   S3C2410_GPIOREG(0x10)
 
-/* no i/o pin in port b can have value 3! */
+/* no i/o pin in port b can have value 3 (unless it is a s3c2443) ! */
 
 #define S3C2410_GPB0         S3C2410_GPIONO(S3C2410_GPIO_BANKB, 0)
 #define S3C2410_GPB0_INP     (0x00 << 0)
@@ -242,6 +242,7 @@
 #define S3C2410_GPB5_INP     (0x00 << 10)
 #define S3C2410_GPB5_OUTP    (0x01 << 10)
 #define S3C2410_GPB5_nXBACK  (0x02 << 10)
+#define S3C2443_GPB5_XBACK   (0x03 << 10)
 #define S3C2400_GPB5_DATA21  (0x02 << 10)
 #define S3C2400_GPB5_nCTS1   (0x03 << 10)
 
@@ -249,6 +250,7 @@
 #define S3C2410_GPB6_INP     (0x00 << 12)
 #define S3C2410_GPB6_OUTP    (0x01 << 12)
 #define S3C2410_GPB6_nXBREQ  (0x02 << 12)
+#define S3C2443_GPB6_XBREQ   (0x03 << 12)
 #define S3C2400_GPB6_DATA22  (0x02 << 12)
 #define S3C2400_GPB6_nRTS1   (0x03 << 12)
 
@@ -256,6 +258,7 @@
 #define S3C2410_GPB7_INP     (0x00 << 14)
 #define S3C2410_GPB7_OUTP    (0x01 << 14)
 #define S3C2410_GPB7_nXDACK1 (0x02 << 14)
+#define S3C2443_GPB7_XDACK1  (0x03 << 14)
 #define S3C2400_GPB7_DATA23  (0x02 << 14)
 
 #define S3C2410_GPB8         S3C2410_GPIONO(S3C2410_GPIO_BANKB, 8)
@@ -268,6 +271,7 @@
 #define S3C2410_GPB9_INP     (0x00 << 18)
 #define S3C2410_GPB9_OUTP    (0x01 << 18)
 #define S3C2410_GPB9_nXDACK0 (0x02 << 18)
+#define S3C2443_GPB9_XDACK0  (0x03 << 18)
 #define S3C2400_GPB9_DATA25  (0x02 << 18)
 #define S3C2400_GPB9_I2SSDI  (0x03 << 18)
 
@@ -275,6 +279,7 @@
 #define S3C2410_GPB10_INP    (0x00 << 20)
 #define S3C2410_GPB10_OUTP   (0x01 << 20)
 #define S3C2410_GPB10_nXDRE0 (0x02 << 20)
+#define S3C2443_GPB10_XDREQ0 (0x03 << 20)
 #define S3C2400_GPB10_DATA26 (0x02 << 20)
 #define S3C2400_GPB10_nSS    (0x03 << 20)
 
@@ -556,6 +561,7 @@
 #define S3C2410_GPE0_INP       (0x00 << 0)
 #define S3C2410_GPE0_OUTP      (0x01 << 0)
 #define S3C2410_GPE0_I2SLRCK   (0x02 << 0)
+#define S3C2443_GPE0_AC_nRESET (0x03 << 0)
 #define S3C2400_GPE0_EINT0     (0x02 << 0)
 #define S3C2410_GPE0_MASK      (0x03 << 0)
 
@@ -563,6 +569,7 @@
 #define S3C2410_GPE1_INP       (0x00 << 2)
 #define S3C2410_GPE1_OUTP      (0x01 << 2)
 #define S3C2410_GPE1_I2SSCLK   (0x02 << 2)
+#define S3C2443_GPE1_AC_SYNC   (0x03 << 2)
 #define S3C2400_GPE1_EINT1     (0x02 << 2)
 #define S3C2400_GPE1_nSS       (0x03 << 2)
 #define S3C2410_GPE1_MASK      (0x03 << 2)
@@ -571,6 +578,7 @@
 #define S3C2410_GPE2_INP       (0x00 << 4)
 #define S3C2410_GPE2_OUTP      (0x01 << 4)
 #define S3C2410_GPE2_CDCLK     (0x02 << 4)
+#define S3C2443_GPE2_AC_BITCLK (0x03 << 4)
 #define S3C2400_GPE2_EINT2     (0x02 << 4)
 #define S3C2400_GPE2_I2SSDI    (0x03 << 4)
 
@@ -578,6 +586,7 @@
 #define S3C2410_GPE3_INP       (0x00 << 6)
 #define S3C2410_GPE3_OUTP      (0x01 << 6)
 #define S3C2410_GPE3_I2SSDI    (0x02 << 6)
+#define S3C2443_GPE3_AC_SDI    (0x03 << 6)
 #define S3C2400_GPE3_EINT3     (0x02 << 6)
 #define S3C2400_GPE3_nCTS1     (0x03 << 6)
 #define S3C2410_GPE3_nSS0      (0x03 << 6)
@@ -587,6 +596,7 @@
 #define S3C2410_GPE4_INP       (0x00 << 8)
 #define S3C2410_GPE4_OUTP      (0x01 << 8)
 #define S3C2410_GPE4_I2SSDO    (0x02 << 8)
+#define S3C2443_GPE4_AC_SDO    (0x03 << 8)
 #define S3C2400_GPE4_EINT4     (0x02 << 8)
 #define S3C2400_GPE4_nRTS1     (0x03 << 8)
 #define S3C2410_GPE4_I2SSDI    (0x03 << 8)
@@ -596,6 +606,7 @@
 #define S3C2410_GPE5_INP       (0x00 << 10)
 #define S3C2410_GPE5_OUTP      (0x01 << 10)
 #define S3C2410_GPE5_SDCLK     (0x02 << 10)
+#define S3C2443_GPE5_SD1_CLK   (0x02 << 10)
 #define S3C2400_GPE5_EINT5     (0x02 << 10)
 #define S3C2400_GPE5_TCLK1     (0x03 << 10)
 
@@ -603,24 +614,32 @@
 #define S3C2410_GPE6_INP       (0x00 << 12)
 #define S3C2410_GPE6_OUTP      (0x01 << 12)
 #define S3C2410_GPE6_SDCMD     (0x02 << 12)
+#define S3C2443_GPE6_SD1_CMD   (0x02 << 12)
+#define S3C2443_GPE6_AC_BITCLK (0x03 << 12)
 #define S3C2400_GPE6_EINT6     (0x02 << 12)
 
 #define S3C2410_GPE7           S3C2410_GPIONO(S3C2410_GPIO_BANKE, 7)
 #define S3C2410_GPE7_INP       (0x00 << 14)
 #define S3C2410_GPE7_OUTP      (0x01 << 14)
 #define S3C2410_GPE7_SDDAT0    (0x02 << 14)
+#define S3C2443_GPE5_SD1_DAT0  (0x02 << 14)
+#define S3C2443_GPE7_AC_SDI    (0x03 << 14)
 #define S3C2400_GPE7_EINT7     (0x02 << 14)
 
 #define S3C2410_GPE8           S3C2410_GPIONO(S3C2410_GPIO_BANKE, 8)
 #define S3C2410_GPE8_INP       (0x00 << 16)
 #define S3C2410_GPE8_OUTP      (0x01 << 16)
 #define S3C2410_GPE8_SDDAT1    (0x02 << 16)
+#define S3C2443_GPE8_SD1_DAT1  (0x02 << 16)
+#define S3C2443_GPE8_AC_SDO    (0x03 << 16)
 #define S3C2400_GPE8_nXDACK0   (0x02 << 16)
 
 #define S3C2410_GPE9           S3C2410_GPIONO(S3C2410_GPIO_BANKE, 9)
 #define S3C2410_GPE9_INP       (0x00 << 18)
 #define S3C2410_GPE9_OUTP      (0x01 << 18)
 #define S3C2410_GPE9_SDDAT2    (0x02 << 18)
+#define S3C2443_GPE9_SD1_DAT2  (0x02 << 18)
+#define S3C2443_GPE9_AC_SYNC   (0x03 << 18)
 #define S3C2400_GPE9_nXDACK1   (0x02 << 18)
 #define S3C2400_GPE9_nXBACK    (0x03 << 18)
 
@@ -628,6 +647,8 @@
 #define S3C2410_GPE10_INP      (0x00 << 20)
 #define S3C2410_GPE10_OUTP     (0x01 << 20)
 #define S3C2410_GPE10_SDDAT3   (0x02 << 20)
+#define S3C2443_GPE10_SD1_DAT3 (0x02 << 20)
+#define S3C2443_GPE10_AC_nRESET (0x03 << 20)
 #define S3C2400_GPE10_nXDREQ0  (0x02 << 20)
 
 #define S3C2410_GPE11          S3C2410_GPIONO(S3C2410_GPIO_BANKE, 11)
@@ -796,6 +817,7 @@
 #define S3C2400_GPG4_MMCCLK   (0x02 << 8)
 #define S3C2400_GPG4_I2SSDI   (0x03 << 8)
 #define S3C2410_GPG4_LCDPWREN (0x03 << 8)
+#define S3C2443_GPG4_LCDPWRDN (0x03 << 8)
 
 #define S3C2410_GPG5          S3C2410_GPIONO(S3C2410_GPIO_BANKG, 5)
 #define S3C2410_GPG5_INP      (0x00 << 10)
@@ -803,7 +825,7 @@
 #define S3C2410_GPG5_EINT13   (0x02 << 10)
 #define S3C2400_GPG5_MMCCMD   (0x02 << 10)
 #define S3C2400_GPG5_IICSDA   (0x03 << 10)
-#define S3C2410_GPG5_SPIMISO1 (0x03 << 10)
+#define S3C2410_GPG5_SPIMISO1 (0x03 << 10)	/* not s3c2443 */
 
 #define S3C2410_GPG6          S3C2410_GPIONO(S3C2410_GPIO_BANKG, 6)
 #define S3C2410_GPG6_INP      (0x00 << 12)
@@ -845,6 +867,7 @@
 #define S3C2410_GPG11_OUTP    (0x01 << 22)
 #define S3C2410_GPG11_EINT19  (0x02 << 22)
 #define S3C2410_GPG11_TCLK1   (0x03 << 22)
+#define S3C2443_GPG11_CF_nIREQ (0x03 << 22)
 
 #define S3C2410_GPG12         S3C2410_GPIONO(S3C2410_GPIO_BANKG, 12)
 #define S3C2410_GPG12_INP     (0x00 << 24)
@@ -852,25 +875,28 @@
 #define S3C2410_GPG12_EINT20  (0x02 << 24)
 #define S3C2410_GPG12_XMON    (0x03 << 24)
 #define S3C2442_GPG12_nSPICS0 (0x03 << 24)
+#define S3C2443_GPG12_nINPACK (0x03 << 24)
 
 #define S3C2410_GPG13         S3C2410_GPIONO(S3C2410_GPIO_BANKG, 13)
 #define S3C2410_GPG13_INP     (0x00 << 26)
 #define S3C2410_GPG13_OUTP    (0x01 << 26)
 #define S3C2410_GPG13_EINT21  (0x02 << 26)
 #define S3C2410_GPG13_nXPON   (0x03 << 26)
+#define S3C2443_GPG13_CF_nREG (0x03 << 26)
 
 #define S3C2410_GPG14         S3C2410_GPIONO(S3C2410_GPIO_BANKG, 14)
 #define S3C2410_GPG14_INP     (0x00 << 28)
 #define S3C2410_GPG14_OUTP    (0x01 << 28)
 #define S3C2410_GPG14_EINT22  (0x02 << 28)
 #define S3C2410_GPG14_YMON    (0x03 << 28)
+#define S3C2443_GPG14_CF_RESET (0x03 << 28)
 
 #define S3C2410_GPG15         S3C2410_GPIONO(S3C2410_GPIO_BANKG, 15)
 #define S3C2410_GPG15_INP     (0x00 << 30)
 #define S3C2410_GPG15_OUTP    (0x01 << 30)
 #define S3C2410_GPG15_EINT23  (0x02 << 30)
 #define S3C2410_GPG15_nYPON   (0x03 << 30)
-
+#define S3C2443_GPG15_CF_PWR  (0x03 << 30)
 
 #define S3C2410_GPG_PUPDIS(x)  (1<<(x))
 

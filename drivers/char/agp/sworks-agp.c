@@ -385,12 +385,12 @@ static int serverworks_remove_memory(struct agp_memory *mem, off_t pg_start,
 	return 0;
 }
 
-static struct gatt_mask serverworks_masks[] =
+static const struct gatt_mask serverworks_masks[] =
 {
 	{.mask = 1, .type = 0}
 };
 
-static struct aper_size_info_lvl2 serverworks_sizes[7] =
+static const struct aper_size_info_lvl2 serverworks_sizes[7] =
 {
 	{2048, 524288, 0x80000000},
 	{1024, 262144, 0xc0000000},
@@ -423,7 +423,7 @@ static void serverworks_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 	agp_device_command(command, 0);
 }
 
-static struct agp_bridge_driver sworks_driver = {
+static const struct agp_bridge_driver sworks_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= serverworks_sizes,
 	.size_type		= LVL2_APER_SIZE,

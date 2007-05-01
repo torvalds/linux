@@ -28,7 +28,7 @@
  * moves to arch independent land
  */
 
-static int i8259A_auto_eoi;
+static int i8259A_auto_eoi = -1;
 DEFINE_SPINLOCK(i8259A_lock);
 /* some platforms call this... */
 void mask_and_ack_8259A(unsigned int);
@@ -216,7 +216,8 @@ spurious_8259A_irq:
 
 static int i8259A_resume(struct sys_device *dev)
 {
-	init_8259A(i8259A_auto_eoi);
+	if (i8259A_auto_eoi >= 0)
+		init_8259A(i8259A_auto_eoi);
 	return 0;
 }
 
@@ -226,8 +227,10 @@ static int i8259A_shutdown(struct sys_device *dev)
 	 * the kernel initialization code can get it
 	 * out of.
 	 */
-	outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
-	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-1 */
+	if (i8259A_auto_eoi >= 0) {
+		outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
+		outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-1 */
+	}
 	return 0;
 }
 
@@ -252,7 +255,7 @@ static int __init i8259A_init_sysfs(void)
 
 device_initcall(i8259A_init_sysfs);
 
-void __init init_8259A(int auto_eoi)
+void init_8259A(int auto_eoi)
 {
 	unsigned long flags;
 
@@ -325,8 +328,8 @@ void __init init_i8259_irqs (void)
 {
 	int i;
 
-	request_resource(&ioport_resource, &pic1_io_resource);
-	request_resource(&ioport_resource, &pic2_io_resource);
+	insert_resource(&ioport_resource, &pic1_io_resource);
+	insert_resource(&ioport_resource, &pic2_io_resource);
 
 	init_8259A(0);
 

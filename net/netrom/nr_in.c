@@ -51,10 +51,12 @@ static int nr_queue_rx_frame(struct sock *sk, struct sk_buff *skb, int more)
 		if ((skbn = alloc_skb(nr->fraglen, GFP_ATOMIC)) == NULL)
 			return 1;
 
-		skbn->h.raw = skbn->data;
+		skb_reset_transport_header(skbn);
 
 		while ((skbo = skb_dequeue(&nr->frag_queue)) != NULL) {
-			memcpy(skb_put(skbn, skbo->len), skbo->data, skbo->len);
+			skb_copy_from_linear_data(skbo,
+						  skb_put(skbn, skbo->len),
+						  skbo->len);
 			kfree_skb(skbo);
 		}
 

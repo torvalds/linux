@@ -31,6 +31,7 @@
 #include <linux/ppp_defs.h>
 #include <linux/if_ppp.h>
 #include <linux/ppp_channel.h>
+#include <linux/kmod.h>
 
 #include <net/sock.h>
 
@@ -58,7 +59,7 @@ void pppox_unbind_sock(struct sock *sk)
 {
 	/* Clear connection to ppp device, if attached. */
 
-	if (sk->sk_state & (PPPOX_BOUND | PPPOX_ZOMBIE)) {
+	if (sk->sk_state & (PPPOX_BOUND | PPPOX_CONNECTED | PPPOX_ZOMBIE)) {
 		ppp_unregister_channel(&pppox_sk(sk)->chan);
 		sk->sk_state = PPPOX_DEAD;
 	}
@@ -114,6 +115,13 @@ static int pppox_create(struct socket *sock, int protocol)
 		goto out;
 
 	rc = -EPROTONOSUPPORT;
+#ifdef CONFIG_KMOD
+	if (!pppox_protos[protocol]) {
+		char buffer[32];
+		sprintf(buffer, "pppox-proto-%d", protocol);
+		request_module(buffer);
+	}
+#endif
 	if (!pppox_protos[protocol] ||
 	    !try_module_get(pppox_protos[protocol]->owner))
 		goto out;

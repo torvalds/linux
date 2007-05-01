@@ -55,16 +55,18 @@ static DEFINE_SPINLOCK(clocksource_lock);
 static char override_name[32];
 static int finished_booting;
 
-/* clocksource_done_booting - Called near the end of bootup
+/* clocksource_done_booting - Called near the end of core bootup
  *
- * Hack to avoid lots of clocksource churn at boot time
+ * Hack to avoid lots of clocksource churn at boot time.
+ * We use fs_initcall because we want this to start before
+ * device_initcall but after subsys_initcall.
  */
 static int __init clocksource_done_booting(void)
 {
 	finished_booting = 1;
 	return 0;
 }
-late_initcall(clocksource_done_booting);
+fs_initcall(clocksource_done_booting);
 
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG
 static LIST_HEAD(watchdog_list);
@@ -149,7 +151,8 @@ static void clocksource_check_watchdog(struct clocksource *cs)
 			watchdog_timer.expires = jiffies + WATCHDOG_INTERVAL;
 			add_timer(&watchdog_timer);
 		}
-	} else if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) {
+	} else {
+		if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS)
 			cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
 
 		if (!watchdog || cs->rating > watchdog->rating) {

@@ -126,7 +126,7 @@
 125 -> MATRIX Vision Sigma-SQ
 126 -> MATRIX Vision Sigma-SLC
 127 -> APAC Viewcomp 878(AMAX)
-128 -> DViCO FusionHDTV DVB-T Lite                         [18ac:db10]
+128 -> DViCO FusionHDTV DVB-T Lite                         [18ac:db10,18ac:db11]
 129 -> V-Gear MyVCD
 130 -> Super TV Tuner
 131 -> Tibet Systems 'Progress DVR' CS16
@@ -143,3 +143,5 @@
 142 -> Sabrent TV-FM (bttv version)
 143 -> Hauppauge ImpactVCB (bt878)                         [0070:13eb]
 144 -> MagicTV
+145 -> SSAI Security Video Interface                       [4149:5353]
+146 -> SSAI Ultrasound Video Interface                     [414a:5353]

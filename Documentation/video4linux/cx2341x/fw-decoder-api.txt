@@ -21,7 +21,7 @@ Param[0]
 	0 based frame number in GOP to begin playback from.
 Param[1]
 	Specifies the number of muted audio frames to play before normal
-	audio resumes.
+	audio resumes. (This is not implemented in the firmware, leave at 0)
 
 -------------------------------------------------------------------------------
 
@@ -32,6 +32,10 @@ Description
 	playback stops at specified PTS.
 Param[0]
 	Display 0=last frame, 1=black
+	Note: this takes effect immediately, so if you want to wait for a PTS,
+	then use '0', otherwise the screen goes to black at once.
+	You can call this later (even if there is no playback) with a 1 value
+	to set the screen to black.
 Param[1]
 	PTS low
 Param[2]
@@ -60,8 +64,12 @@ Param[0]
 	    31   Speed:
 		     '0' slow
 		     '1' fast
+	Note: n is limited to 2. Anything higher does not result in
+	faster playback. Instead the host should start dropping frames.
 Param[1]
 	Direction: 0=forward, 1=reverse
+	Note: to make reverse playback work you have to write full GOPs in
+	reverse order.
 Param[2]
 	Picture mask:
 	    1=I frames
@@ -69,13 +77,16 @@ Param[2]
 	    7=I, P, B frames
 Param[3]
 	B frames per GOP (for reverse play only)
+	Note: for reverse playback the Picture Mask should be set to I or I, P.
+	Adding B frames to the mask will result in corrupt video. This field
+	has to be set to the correct value in order to keep the timing correct.
 Param[4]
 	Mute audio: 0=disable, 1=enable
 Param[5]
 	Display 0=frame, 1=field
 Param[6]
 	Specifies the number of muted audio frames to play before normal audio
-	resumes.
+	resumes. (Not implemented in the firmware, leave at 0)
 
 -------------------------------------------------------------------------------
 
@@ -212,6 +223,7 @@ Description
 	Select audio mode
 Param[0]
 	Dual mono mode action
+	    0=Stereo, 1=Left, 2=Right, 3=Mono, 4=Swap, -1=Unchanged
 Param[1]
 	Stereo mode action:
 	    0=Stereo, 1=Left, 2=Right, 3=Mono, 4=Swap, -1=Unchanged
@@ -224,7 +236,10 @@ Description
 	Setup firmware to notify the host about a particular event.
 	Counterpart to API 0xD5
 Param[0]
-	Event: 0=Audio mode change between stereo and dual channel
+	Event: 0=Audio mode change between mono, (joint) stereo and dual channel.
+	Event: 3=Decoder started
+	Event: 4=Unknown: goes off 10-15 times per second while decoding.
+	Event: 5=Some sync event: goes off once per frame.
 Param[1]
 	Notification 0=disabled, 1=enabled
 Param[2]
@@ -270,43 +285,6 @@ Param[2]
 	YUV picture height
 Param[3]
 	Bitmap: see Param[0] of API 0xBD
-
--------------------------------------------------------------------------------
-
-Name 	CX2341X_DEC_SET_AUDIO_OUTPUT
-Enum 	27/0x1B
-Description
-	Select audio output format
-Param[0]
-	Bitmask:
-	     0:1  Data size:
-		      '00' 16 bit
-		      '01' 20 bit
-		      '10' 24 bit
-	     2:7  Unused
-	     8:9  Mode:
-		      '00' 2 channels
-		      '01' 4 channels
-		      '10' 6 channels
-		      '11' 6 channels with one line data mode
-			   (for left justified MSB first mode, 20 bit only)
-	    10:11 Unused
-	    12:13 Channel format:
-		      '00' right justified MSB first mode
-		      '01' left justified MSB first mode
-		      '10' I2S mode
-	    14:15 Unused
-	    16:21 Right justify bit count
-	    22:31 Unused
-
--------------------------------------------------------------------------------
-
-Name 	CX2341X_DEC_SET_AV_DELAY
-Enum 	28/0x1C
-Description
-	Set audio/video delay in 90Khz ticks
-Param[0]
-	0=A/V in sync, negative=audio lags, positive=video lags
 
 -------------------------------------------------------------------------------
 

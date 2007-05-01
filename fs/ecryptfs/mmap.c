@@ -238,7 +238,6 @@ int ecryptfs_do_readpage(struct file *file, struct page *page,
 	lower_page_data = kmap_atomic(lower_page, KM_USER1);
 	memcpy(page_data, lower_page_data, PAGE_CACHE_SIZE);
 	kunmap_atomic(lower_page_data, KM_USER1);
-	flush_dcache_page(lower_page);
 	kunmap_atomic(page_data, KM_USER0);
 	flush_dcache_page(page);
 	rc = 0;
@@ -422,9 +421,11 @@ out:
 	return rc;
 }
 
-static void ecryptfs_release_lower_page(struct page *lower_page)
+static
+void ecryptfs_release_lower_page(struct page *lower_page, int page_locked)
 {
-	unlock_page(lower_page);
+	if (page_locked)
+		unlock_page(lower_page);
 	page_cache_release(lower_page);
 }
 
@@ -445,6 +446,7 @@ static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	const struct address_space_operations *lower_a_ops;
 	u64 file_size;
 
+retry:
 	header_page = grab_cache_page(lower_inode->i_mapping, 0);
 	if (!header_page) {
 		ecryptfs_printk(KERN_ERR, "grab_cache_page for "
@@ -454,6 +456,14 @@ static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	}
 	lower_a_ops = lower_inode->i_mapping->a_ops;
 	rc = lower_a_ops->prepare_write(lower_file, header_page, 0, 8);
+	if (rc) {
+		if (rc == AOP_TRUNCATED_PAGE) {
+			ecryptfs_release_lower_page(header_page, 0);
+			goto retry;
+		} else
+			ecryptfs_release_lower_page(header_page, 1);
+		goto out;
+	}
 	file_size = (u64)i_size_read(inode);
 	ecryptfs_printk(KERN_DEBUG, "Writing size: [0x%.16x]\n", file_size);
 	file_size = cpu_to_be64(file_size);
@@ -465,7 +475,11 @@ static int ecryptfs_write_inode_size_to_header(struct file *lower_file,
 	if (rc < 0)
 		ecryptfs_printk(KERN_ERR, "Error commiting header page "
 				"write\n");
-	ecryptfs_release_lower_page(header_page);
+	if (rc == AOP_TRUNCATED_PAGE) {
+		ecryptfs_release_lower_page(header_page, 0);
+		goto retry;
+	} else
+		ecryptfs_release_lower_page(header_page, 1);
 	lower_inode->i_mtime = lower_inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty_sync(inode);
 out:
@@ -491,7 +505,8 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *lower_inode,
 		goto out;
 	}
 	lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
-	if (!lower_dentry->d_inode->i_op->getxattr) {
+	if (!lower_dentry->d_inode->i_op->getxattr ||
+			!lower_dentry->d_inode->i_op->setxattr) {
 		printk(KERN_WARNING
 		       "No support for setting xattr in lower filesystem\n");
 		rc = -ENOSYS;
@@ -553,6 +568,7 @@ int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
 {
 	int rc = 0;
 
+retry:
 	*lower_page = grab_cache_page(lower_inode->i_mapping, lower_page_index);
 	if (!(*lower_page)) {
 		rc = -EINVAL;
@@ -566,15 +582,18 @@ int ecryptfs_get_lower_page(struct page **lower_page, struct inode *lower_inode,
 							  byte_offset,
 							  region_bytes);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "prepare_write for "
+		if (rc == AOP_TRUNCATED_PAGE) {
+			ecryptfs_release_lower_page(*lower_page, 0);
+			goto retry;
+		} else {
+			ecryptfs_printk(KERN_ERR, "prepare_write for "
 				"lower_page_index = [0x%.16x] failed; rc = "
 				"[%d]\n", lower_page_index, rc);
+			ecryptfs_release_lower_page(*lower_page, 1);
+			(*lower_page) = NULL;
+		}
 	}
 out:
-	if (rc && (*lower_page)) {
-		ecryptfs_release_lower_page(*lower_page);
-		(*lower_page) = NULL;
-	}
 	return rc;
 }
 
@@ -588,16 +607,19 @@ ecryptfs_commit_lower_page(struct page *lower_page, struct inode *lower_inode,
 			   struct file *lower_file, int byte_offset,
 			   int region_size)
 {
+	int page_locked = 1;
 	int rc = 0;
 
 	rc = lower_inode->i_mapping->a_ops->commit_write(
 		lower_file, lower_page, byte_offset, region_size);
+	if (rc == AOP_TRUNCATED_PAGE)
+		page_locked = 0;
 	if (rc < 0) {
 		ecryptfs_printk(KERN_ERR,
 				"Error committing write; rc = [%d]\n", rc);
 	} else
 		rc = 0;
-	ecryptfs_release_lower_page(lower_page);
+	ecryptfs_release_lower_page(lower_page, page_locked);
 	return rc;
 }
 

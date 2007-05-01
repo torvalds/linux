@@ -152,22 +152,30 @@ struct sys_timer ep93xx_timer = {
 /*************************************************************************
  * GPIO handling for EP93xx
  *************************************************************************/
-static unsigned char gpio_int_enable[2];
-static unsigned char gpio_int_type1[2];
-static unsigned char gpio_int_type2[2];
+static unsigned char gpio_int_unmasked[3];
+static unsigned char gpio_int_enabled[3];
+static unsigned char gpio_int_type1[3];
+static unsigned char gpio_int_type2[3];
 
-static void update_gpio_ab_int_params(int port)
+static void update_gpio_int_params(int abf)
 {
-	if (port == 0) {
+	if (abf == 0) {
 		__raw_writeb(0, EP93XX_GPIO_A_INT_ENABLE);
 		__raw_writeb(gpio_int_type2[0], EP93XX_GPIO_A_INT_TYPE2);
 		__raw_writeb(gpio_int_type1[0], EP93XX_GPIO_A_INT_TYPE1);
-		__raw_writeb(gpio_int_enable[0], EP93XX_GPIO_A_INT_ENABLE);
-	} else if (port == 1) {
+		__raw_writeb(gpio_int_unmasked[0] & gpio_int_enabled[0], EP93XX_GPIO_A_INT_ENABLE);
+	} else if (abf == 1) {
 		__raw_writeb(0, EP93XX_GPIO_B_INT_ENABLE);
 		__raw_writeb(gpio_int_type2[1], EP93XX_GPIO_B_INT_TYPE2);
 		__raw_writeb(gpio_int_type1[1], EP93XX_GPIO_B_INT_TYPE1);
-		__raw_writeb(gpio_int_enable[1], EP93XX_GPIO_B_INT_ENABLE);
+		__raw_writeb(gpio_int_unmasked[1] & gpio_int_enabled[1], EP93XX_GPIO_B_INT_ENABLE);
+	} else if (abf == 2) {
+		__raw_writeb(0, EP93XX_GPIO_F_INT_ENABLE);
+		__raw_writeb(gpio_int_type2[2], EP93XX_GPIO_F_INT_TYPE2);
+		__raw_writeb(gpio_int_type1[2], EP93XX_GPIO_F_INT_TYPE1);
+		__raw_writeb(gpio_int_unmasked[2] & gpio_int_enabled[2], EP93XX_GPIO_F_INT_ENABLE);
+	} else {
+		BUG();
 	}
 }
 
@@ -192,8 +200,13 @@ void gpio_line_config(int line, int direction)
 	local_irq_save(flags);
 	if (direction == GPIO_OUT) {
 		if (line >= 0 && line < 16) {
-			gpio_int_enable[line >> 3] &= ~(1 << (line & 7));
-			update_gpio_ab_int_params(line >> 3);
+			/* Port A/B.  */
+			gpio_int_unmasked[line >> 3] &= ~(1 << (line & 7));
+			update_gpio_int_params(line >> 3);
+		} else if (line >= 40 && line < 48) {
+			/* Port F.  */
+			gpio_int_unmasked[2] &= ~(1 << (line & 7));
+			update_gpio_int_params(2);
 		}
 
 		v = __raw_readb(data_direction_register);
@@ -244,8 +257,7 @@ EXPORT_SYMBOL(gpio_line_set);
 /*************************************************************************
  * EP93xx IRQ handling
  *************************************************************************/
-static void ep93xx_gpio_ab_irq_handler(unsigned int irq,
-		struct irq_desc *desc)
+static void ep93xx_gpio_ab_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned char status;
 	int i;
@@ -267,37 +279,46 @@ static void ep93xx_gpio_ab_irq_handler(unsigned int irq,
 	}
 }
 
-static void ep93xx_gpio_ab_irq_mask_ack(unsigned int irq)
+static void ep93xx_gpio_f_irq_handler(unsigned int irq, struct irq_desc *desc)
+{
+	int gpio_irq = IRQ_EP93XX_GPIO(16) + (((irq + 1) & 7) ^ 4);
+
+	desc_handle_irq(gpio_irq, irq_desc + gpio_irq);
+}
+
+static void ep93xx_gpio_irq_mask_ack(unsigned int irq)
 {
 	int line = irq - IRQ_EP93XX_GPIO(0);
 	int port = line >> 3;
 
-	gpio_int_enable[port] &= ~(1 << (line & 7));
-	update_gpio_ab_int_params(port);
+	gpio_int_unmasked[port] &= ~(1 << (line & 7));
+	update_gpio_int_params(port);
 
-	if (line >> 3) {
-		__raw_writel(1 << (line & 7), EP93XX_GPIO_B_INT_ACK);
-	} else {
+	if (port == 0) {
 		__raw_writel(1 << (line & 7), EP93XX_GPIO_A_INT_ACK);
+	} else if (port == 1) {
+		__raw_writel(1 << (line & 7), EP93XX_GPIO_B_INT_ACK);
+	} else if (port == 2) {
+		__raw_writel(1 << (line & 7), EP93XX_GPIO_F_INT_ACK);
 	}
 }
 
-static void ep93xx_gpio_ab_irq_mask(unsigned int irq)
+static void ep93xx_gpio_irq_mask(unsigned int irq)
 {
 	int line = irq - IRQ_EP93XX_GPIO(0);
 	int port = line >> 3;
 
-	gpio_int_enable[port] &= ~(1 << (line & 7));
-	update_gpio_ab_int_params(port);
+	gpio_int_unmasked[port] &= ~(1 << (line & 7));
+	update_gpio_int_params(port);
 }
 
-static void ep93xx_gpio_ab_irq_unmask(unsigned int irq)
+static void ep93xx_gpio_irq_unmask(unsigned int irq)
 {
 	int line = irq - IRQ_EP93XX_GPIO(0);
 	int port = line >> 3;
 
-	gpio_int_enable[port] |= 1 << (line & 7);
-	update_gpio_ab_int_params(port);
+	gpio_int_unmasked[port] |= 1 << (line & 7);
+	update_gpio_int_params(port);
 }
 
 
@@ -306,40 +327,51 @@ static void ep93xx_gpio_ab_irq_unmask(unsigned int irq)
  * edge (1) triggered, while gpio_int_type2 controls whether it
  * triggers on low/falling (0) or high/rising (1).
  */
-static int ep93xx_gpio_ab_irq_type(unsigned int irq, unsigned int type)
+static int ep93xx_gpio_irq_type(unsigned int irq, unsigned int type)
 {
 	int port;
 	int line;
 
 	line = irq - IRQ_EP93XX_GPIO(0);
-	gpio_line_config(line, GPIO_IN);
+	if (line >= 0 && line < 16) {
+		gpio_line_config(line, GPIO_IN);
+	} else {
+		gpio_line_config(EP93XX_GPIO_LINE_F(line), GPIO_IN);
+	}
 
 	port = line >> 3;
 	line &= 7;
 
 	if (type & IRQT_RISING) {
+		gpio_int_enabled[port] |= 1 << line;
 		gpio_int_type1[port] |= 1 << line;
 		gpio_int_type2[port] |= 1 << line;
 	} else if (type & IRQT_FALLING) {
+		gpio_int_enabled[port] |= 1 << line;
 		gpio_int_type1[port] |= 1 << line;
 		gpio_int_type2[port] &= ~(1 << line);
 	} else if (type & IRQT_HIGH) {
+		gpio_int_enabled[port] |= 1 << line;
 		gpio_int_type1[port] &= ~(1 << line);
 		gpio_int_type2[port] |= 1 << line;
 	} else if (type & IRQT_LOW) {
+		gpio_int_enabled[port] |= 1 << line;
 		gpio_int_type1[port] &= ~(1 << line);
 		gpio_int_type2[port] &= ~(1 << line);
+	} else {
+		gpio_int_enabled[port] &= ~(1 << line);
 	}
-	update_gpio_ab_int_params(port);
+	update_gpio_int_params(port);
 
 	return 0;
 }
 
-static struct irq_chip ep93xx_gpio_ab_irq_chip = {
-	.ack		= ep93xx_gpio_ab_irq_mask_ack,
-	.mask		= ep93xx_gpio_ab_irq_mask,
-	.unmask		= ep93xx_gpio_ab_irq_unmask,
-	.set_type	= ep93xx_gpio_ab_irq_type,
+static struct irq_chip ep93xx_gpio_irq_chip = {
+	.name		= "GPIO",
+	.ack		= ep93xx_gpio_irq_mask_ack,
+	.mask		= ep93xx_gpio_irq_mask,
+	.unmask		= ep93xx_gpio_irq_unmask,
+	.set_type	= ep93xx_gpio_irq_type,
 };
 
 
@@ -350,12 +382,21 @@ void __init ep93xx_init_irq(void)
 	vic_init((void *)EP93XX_VIC1_BASE, 0, EP93XX_VIC1_VALID_IRQ_MASK);
 	vic_init((void *)EP93XX_VIC2_BASE, 32, EP93XX_VIC2_VALID_IRQ_MASK);
 
-	for (irq = IRQ_EP93XX_GPIO(0) ; irq <= IRQ_EP93XX_GPIO(15); irq++) {
-		set_irq_chip(irq, &ep93xx_gpio_ab_irq_chip);
+	for (irq = IRQ_EP93XX_GPIO(0); irq <= IRQ_EP93XX_GPIO(23); irq++) {
+		set_irq_chip(irq, &ep93xx_gpio_irq_chip);
 		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
+
 	set_irq_chained_handler(IRQ_EP93XX_GPIO_AB, ep93xx_gpio_ab_irq_handler);
+	set_irq_chained_handler(IRQ_EP93XX_GPIO0MUX, ep93xx_gpio_f_irq_handler);
+	set_irq_chained_handler(IRQ_EP93XX_GPIO1MUX, ep93xx_gpio_f_irq_handler);
+	set_irq_chained_handler(IRQ_EP93XX_GPIO2MUX, ep93xx_gpio_f_irq_handler);
+	set_irq_chained_handler(IRQ_EP93XX_GPIO3MUX, ep93xx_gpio_f_irq_handler);
+	set_irq_chained_handler(IRQ_EP93XX_GPIO4MUX, ep93xx_gpio_f_irq_handler);
+	set_irq_chained_handler(IRQ_EP93XX_GPIO5MUX, ep93xx_gpio_f_irq_handler);
+	set_irq_chained_handler(IRQ_EP93XX_GPIO6MUX, ep93xx_gpio_f_irq_handler);
+	set_irq_chained_handler(IRQ_EP93XX_GPIO7MUX, ep93xx_gpio_f_irq_handler);
 }
 
 
@@ -461,8 +502,6 @@ void __init ep93xx_init_devices(void)
 {
 	unsigned int v;
 
-	ep93xx_clock_init();
-
 	/*
 	 * Disallow access to MaverickCrunch initially.
 	 */
@@ -477,8 +516,4 @@ void __init ep93xx_init_devices(void)
 
 	platform_device_register(&ep93xx_rtc_device);
 	platform_device_register(&ep93xx_ohci_device);
-
-#ifdef CONFIG_CRUNCH
-	elf_hwcap |= HWCAP_CRUNCH;
-#endif
 }

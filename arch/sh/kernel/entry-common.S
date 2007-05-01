@@ -224,7 +224,7 @@ work_resched:
 syscall_exit_work:
 	! r0: current_thread_info->flags
 	! r8: current_thread_info
-	tst	#_TIF_SYSCALL_TRACE, r0
+	tst	#_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP, r0
 	bt/s	work_pending
 	 tst	#_TIF_NEED_RESCHED, r0
 #ifdef CONFIG_TRACE_IRQFLAGS

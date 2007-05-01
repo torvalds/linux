@@ -7,12 +7,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 16 Dec 2003: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *	- enable working with Layer 3 protocol independent connection tracking.
- *	- track EPRT and EPSV commands with IPv6 address.
- *
- * Derived from net/ipv4/netfilter/ip_conntrack_ftp.c
  */
 
 #include <linux/module.h>

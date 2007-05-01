@@ -20,7 +20,6 @@
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/ide.h>
 #include <asm/atomic.h>
 #include <asm/checksum.h>
 #include <asm/pgtable.h>
@@ -84,8 +83,6 @@ EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strcat);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strcasecmp);
-EXPORT_SYMBOL(strncasecmp);
 
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);

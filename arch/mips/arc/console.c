@@ -29,35 +29,3 @@ void prom_putchar(char c)
 	ArcWrite(1, &it, 1, &cnt);
 	bc_enable();
 }
-
-char prom_getchar(void)
-{
-	ULONG cnt;
-	CHAR c;
-
-	bc_disable();
-	ArcRead(0, &c, 1, &cnt);
-	bc_enable();
-
-	return c;
-}
-
-void prom_printf(char *fmt, ...)
-{
-	va_list args;
-	char ppbuf[1024];
-	char *bptr;
-
-	va_start(args, fmt);
-	vsprintf(ppbuf, fmt, args);
-
-	bptr = ppbuf;
-
-	while (*bptr != 0) {
-		if (*bptr == '\n')
-			prom_putchar('\r');
-
-		prom_putchar(*bptr++);
-	}
-	va_end(args);
-}

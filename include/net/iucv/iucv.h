@@ -16,7 +16,7 @@
  * completed a register, it can exploit the other functions.
  * For furthur reference on all IUCV functionality, refer to the
  * CP Programming Services book, also available on the web thru
- * www.ibm.com/s390/vm/pubs, manual # SC24-5760
+ * www.vm.ibm.com/pubs, manual # SC24-6084
  *
  * Definition of Return Codes
  * - All positive return codes including zero are reflected back

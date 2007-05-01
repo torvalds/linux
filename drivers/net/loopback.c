@@ -75,8 +75,9 @@ static DEFINE_PER_CPU(struct pcpu_lstats, pcpu_lstats);
 #ifdef LOOPBACK_TSO
 static void emulate_large_send_offload(struct sk_buff *skb)
 {
-	struct iphdr *iph = skb->nh.iph;
-	struct tcphdr *th = (struct tcphdr*)(skb->nh.raw + (iph->ihl * 4));
+	struct iphdr *iph = ip_hdr(skb);
+	struct tcphdr *th = (struct tcphdr *)(skb_network_header(skb) +
+					      (iph->ihl * 4));
 	unsigned int doffset = (iph->ihl + th->doff) * 4;
 	unsigned int mtu = skb_shinfo(skb)->gso_size + doffset;
 	unsigned int offset = 0;
@@ -90,10 +91,11 @@ static void emulate_large_send_offload(struct sk_buff *skb)
 		if (!nskb)
 			break;
 		skb_reserve(nskb, 32);
-		nskb->mac.raw = nskb->data - 14;
-		nskb->nh.raw = nskb->data;
-		iph = nskb->nh.iph;
-		memcpy(nskb->data, skb->nh.raw, doffset);
+		skb_set_mac_header(nskb, -ETH_HLEN);
+		skb_reset_network_header(nskb);
+		iph = ip_hdr(nskb);
+		skb_copy_to_linear_data(nskb, skb_network_header(skb),
+					doffset);
 		if (skb_copy_bits(skb,
 				  doffset + offset,
 				  nskb->data + doffset,
@@ -108,7 +110,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
 		nskb->pkt_type = skb->pkt_type;
 
-		th = (struct tcphdr*)(nskb->nh.raw + iph->ihl*4);
+		th = (struct tcphdr *)(skb_network_header(nskb) + iph->ihl * 4);
 		iph->tot_len = htons(frag_size + doffset);
 		iph->id = htons(id);
 		iph->check = 0;
@@ -137,7 +139,6 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_orphan(skb);
 
 	skb->protocol = eth_type_trans(skb,dev);
-	skb->dev = dev;
 #ifndef LOOPBACK_MUST_CHECKSUM
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 #endif
@@ -145,7 +146,7 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 #ifdef LOOPBACK_TSO
 	if (skb_is_gso(skb)) {
 		BUG_ON(skb->protocol != htons(ETH_P_IP));
-		BUG_ON(skb->nh.iph->protocol != IPPROTO_TCP);
+		BUG_ON(ip_hdr(skb)->protocol != IPPROTO_TCP);
 
 		emulate_large_send_offload(skb);
 		return 0;
@@ -163,11 +164,9 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats loopback_stats;
-
 static struct net_device_stats *get_stats(struct net_device *dev)
 {
-	struct net_device_stats *stats = &loopback_stats;
+	struct net_device_stats *stats = &dev->stats;
 	unsigned long bytes = 0;
 	unsigned long packets = 0;
 	int i;
@@ -207,7 +206,6 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 struct net_device loopback_dev = {
 	.name	 		= "lo",
 	.get_stats		= &get_stats,
-	.priv			= &loopback_stats,
 	.mtu			= (16 * 1024) + 20 + 20 + 12,
 	.hard_start_xmit	= loopback_xmit,
 	.hard_header		= eth_header,

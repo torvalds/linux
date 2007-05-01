@@ -129,11 +129,12 @@ struct uhci_qh {
 	__le32 element;			/* Queue element (TD) pointer */
 
 	/* Software fields */
+	dma_addr_t dma_handle;
+
 	struct list_head node;		/* Node in the list of QHs */
 	struct usb_host_endpoint *hep;	/* Endpoint information */
 	struct usb_device *udev;
 	struct list_head queue;		/* Queue of urbps for this QH */
-	struct uhci_qh *skel;		/* Skeleton for this QH */
 	struct uhci_td *dummy_td;	/* Dummy TD to end the queue */
 	struct uhci_td *post_td;	/* Last TD completed */
 
@@ -149,8 +150,7 @@ struct uhci_qh {
 
 	int state;			/* QH_STATE_xxx; see above */
 	int type;			/* Queue type (control, bulk, etc) */
-
-	dma_addr_t dma_handle;
+	int skel;			/* Skeleton queue number */
 
 	unsigned int initial_toggle:1;	/* Endpoint's current toggle value */
 	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */
@@ -170,6 +170,8 @@ static inline __le32 qh_element(struct uhci_qh *qh) {
 	barrier();
 	return element;
 }
+
+#define LINK_TO_QH(qh)		(UHCI_PTR_QH | cpu_to_le32((qh)->dma_handle))
 
 
 /*
@@ -264,6 +266,8 @@ static inline u32 td_status(struct uhci_td *td) {
 	return le32_to_cpu(status);
 }
 
+#define LINK_TO_TD(td)		(cpu_to_le32((td)->dma_handle))
+
 
 /*
  *	Skeleton Queue Headers
@@ -272,12 +276,13 @@ static inline u32 td_status(struct uhci_td *td) {
 /*
  * The UHCI driver uses QHs with Interrupt, Control and Bulk URBs for
  * automatic queuing. To make it easy to insert entries into the schedule,
- * we have a skeleton of QHs for each predefined Interrupt latency,
- * low-speed control, full-speed control, bulk, and terminating QH
- * (see explanation for the terminating QH below).
+ * we have a skeleton of QHs for each predefined Interrupt latency.
+ * Asynchronous QHs (low-speed control, full-speed control, and bulk)
+ * go onto the period-1 interrupt list, since they all get accessed on
+ * every frame.
  *
- * When we want to add a new QH, we add it to the end of the list for the
- * skeleton QH.  For instance, the schedule list can look like this:
+ * When we want to add a new QH, we add it to the list starting from the
+ * appropriate skeleton QH.  For instance, the schedule can look like this:
  *
  * skel int128 QH
  * dev 1 interrupt QH
@@ -285,50 +290,47 @@ static inline u32 td_status(struct uhci_td *td) {
  * skel int64 QH
  * skel int32 QH
  * ...
- * skel int1 QH
- * skel low-speed control QH
- * dev 5 control QH
- * skel full-speed control QH
- * skel bulk QH
+ * skel int1 + async QH
+ * dev 5 low-speed control QH
  * dev 1 bulk QH
  * dev 2 bulk QH
- * skel terminating QH
  *
- * The terminating QH is used for 2 reasons:
- * - To place a terminating TD which is used to workaround a PIIX bug
- *   (see Intel errata for explanation), and
- * - To loop back to the full-speed control queue for full-speed bandwidth
- *   reclamation.
+ * There is a special terminating QH used to keep full-speed bandwidth
+ * reclamation active when no full-speed control or bulk QHs are linked
+ * into the schedule.  It has an inactive TD (to work around a PIIX bug,
+ * see the Intel errata) and it points back to itself.
  *
- * There's a special skeleton QH for Isochronous QHs.  It never appears
- * on the schedule, and Isochronous TDs go on the schedule before the
+ * There's a special skeleton QH for Isochronous QHs which never appears
+ * on the schedule.  Isochronous TDs go on the schedule before the
  * the skeleton QHs.  The hardware accesses them directly rather than
  * through their QH, which is used only for bookkeeping purposes.
  * While the UHCI spec doesn't forbid the use of QHs for Isochronous,
  * it doesn't use them either.  And the spec says that queues never
  * advance on an error completion status, which makes them totally
  * unsuitable for Isochronous transfers.
+ *
+ * There's also a special skeleton QH used for QHs which are in the process
+ * of unlinking and so may still be in use by the hardware.  It too never
+ * appears on the schedule.
  */
 
-#define UHCI_NUM_SKELQH		14
-#define skel_unlink_qh		skelqh[0]
-#define skel_iso_qh		skelqh[1]
-#define skel_int128_qh		skelqh[2]
-#define skel_int64_qh		skelqh[3]
-#define skel_int32_qh		skelqh[4]
-#define skel_int16_qh		skelqh[5]
-#define skel_int8_qh		skelqh[6]
-#define skel_int4_qh		skelqh[7]
-#define skel_int2_qh		skelqh[8]
-#define skel_int1_qh		skelqh[9]
-#define skel_ls_control_qh	skelqh[10]
-#define skel_fs_control_qh	skelqh[11]
-#define skel_bulk_qh		skelqh[12]
-#define skel_term_qh		skelqh[13]
+#define UHCI_NUM_SKELQH		11
+#define SKEL_UNLINK		0
+#define skel_unlink_qh		skelqh[SKEL_UNLINK]
+#define SKEL_ISO		1
+#define skel_iso_qh		skelqh[SKEL_ISO]
+	/* int128, int64, ..., int1 = 2, 3, ..., 9 */
+#define SKEL_INDEX(exponent)	(9 - exponent)
+#define SKEL_ASYNC		9
+#define skel_async_qh		skelqh[SKEL_ASYNC]
+#define SKEL_TERM		10
+#define skel_term_qh		skelqh[SKEL_TERM]
 
-/* Find the skelqh entry corresponding to an interval exponent */
-#define UHCI_SKEL_INDEX(exponent)	(9 - exponent)
-
+/* The following entries refer to sublists of skel_async_qh */
+#define SKEL_LS_CONTROL		20
+#define SKEL_FS_CONTROL		21
+#define SKEL_FSBR		SKEL_FS_CONTROL
+#define SKEL_BULK		22
 
 /*
  *	The UHCI controller and root hub

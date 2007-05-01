@@ -167,7 +167,7 @@ found:
 
 	index = ide_register_hw(&hw, &hwif);
 	if (index != -1) {
-	    hwif->mmio = 2;
+	    hwif->mmio = 1;
 	    switch (i) {
 		case 0:
 		    printk("ide%d: Gayle IDE interface (A%d style)\n", index,

@@ -209,11 +209,6 @@ static inline void pci_add_saved_cap(struct pci_dev *pci_dev,
 	hlist_add_head(&new_cap->next, &pci_dev->saved_cap_space);
 }
 
-static inline void pci_remove_saved_cap(struct pci_cap_saved_state *cap)
-{
-	hlist_del(&cap->next);
-}
-
 /*
  *  For PCI devices, the region numbers are assigned this way:
  *
@@ -366,8 +361,6 @@ struct pci_driver {
 	struct pci_error_handlers *err_handler;
 	struct device_driver	driver;
 	struct pci_dynids dynids;
-
-	int multithread_probe;
 };
 
 #define	to_pci_driver(drv) container_of(drv,struct pci_driver, driver)
@@ -543,6 +536,7 @@ void pci_set_master(struct pci_dev *dev);
 int __must_check pci_set_mwi(struct pci_dev *dev);
 void pci_clear_mwi(struct pci_dev *dev);
 void pci_intx(struct pci_dev *dev, int enable);
+void pci_msi_off(struct pci_dev *dev);
 int pci_set_dma_mask(struct pci_dev *dev, u64 mask);
 int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
 void pci_update_resource(struct pci_dev *dev, struct resource *res, int resno);
@@ -844,6 +838,7 @@ void __iomem * pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen);
 void pcim_iounmap(struct pci_dev *pdev, void __iomem *addr);
 void __iomem * const * pcim_iomap_table(struct pci_dev *pdev);
 int pcim_iomap_regions(struct pci_dev *pdev, u16 mask, const char *name);
+void pcim_iounmap_regions(struct pci_dev *pdev, u16 mask);
 
 extern int pci_pci_problems;
 #define PCIPCI_FAIL		1	/* No PCI PCI DMA */
@@ -853,6 +848,9 @@ extern int pci_pci_problems;
 #define PCIPCI_VSFX		16
 #define PCIPCI_ALIMAGIK		32	/* Need low latency setting */
 #define PCIAGP_FAIL		64	/* No PCI to AGP DMA */
+
+extern unsigned long pci_cardbus_io_size;
+extern unsigned long pci_cardbus_mem_size;
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

@@ -52,7 +52,6 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <net/irda/irda.h>
-#include <net/irda/irlap.h>
 #include <net/irda/irda_device.h>
 #include <net/irda/wrapper.h>
 #include <net/irda/crc.h>
@@ -349,7 +348,7 @@ static void fir_eof(struct stir_cb *stir)
 		}
 		skb_reserve(nskb, 1);
 		skb = nskb;
-		memcpy(nskb->data, rx_buff->data, len);
+		skb_copy_to_linear_data(nskb, rx_buff->data, len);
 	} else {
 		nskb = dev_alloc_skb(rx_buff->truesize);
 		if (unlikely(!nskb)) {
@@ -364,7 +363,7 @@ static void fir_eof(struct stir_cb *stir)
 
 	skb_put(skb, len);
 
-	skb->mac.raw  = skb->data;
+	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IRDA);
 	skb->dev = stir->netdev;
 

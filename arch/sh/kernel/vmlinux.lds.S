@@ -3,6 +3,7 @@
  * Written by Niibe Yutaka
  */
 #include <asm/thread_info.h>
+#include <asm/cache.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
@@ -53,7 +54,7 @@ SECTIONS
   . = ALIGN(PAGE_SIZE);
   .data.page_aligned : { *(.data.page_aligned) }
 
-  . = ALIGN(32);
+  . = ALIGN(L1_CACHE_BYTES);
   __per_cpu_start = .;
   .data.percpu : { *(.data.percpu) }
   __per_cpu_end = .;

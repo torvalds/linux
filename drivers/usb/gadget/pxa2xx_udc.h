@@ -177,21 +177,6 @@ struct pxa2xx_udc {
 
 static struct pxa2xx_udc *the_controller;
 
-static inline int pxa_gpio_get(unsigned gpio)
-{
-	return (GPLR(gpio) & GPIO_bit(gpio)) != 0;
-}
-
-static inline void pxa_gpio_set(unsigned gpio, int is_on)
-{
-	int mask = GPIO_bit(gpio);
-
-	if (is_on)
-		GPSR(gpio) = mask;
-	else
-		GPCR(gpio) = mask;
-}
-
 /*-------------------------------------------------------------------------*/
 
 /*

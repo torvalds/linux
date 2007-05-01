@@ -23,7 +23,7 @@ struct sigcontext {
 	unsigned long long	sc_pc;
 	unsigned long long	sc_regs[32];
 	unsigned long long	sc_fpregs[32];
-	unsigned int		sc_ownedfp;	/* Unused */
+	unsigned int		sc_acx;		/* Was sc_ownedfp */
 	unsigned int		sc_fpc_csr;
 	unsigned int		sc_fpc_eir;	/* Unused */
 	unsigned int		sc_used_math;
@@ -42,6 +42,7 @@ struct sigcontext {
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32
 
+#include <linux/posix_types.h>
 /*
  * Keep this struct definition in sync with the sigcontext fragment
  * in arch/mips/tools/offset.c
@@ -53,26 +54,24 @@ struct sigcontext {
  * entries, add sc_dsp and sc_reserved for padding.  No prisoners.
  */
 struct sigcontext {
-	unsigned long	sc_regs[32];
-	unsigned long	sc_fpregs[32];
-	unsigned long	sc_mdhi;
-	unsigned long	sc_hi1;
-	unsigned long	sc_hi2;
-	unsigned long	sc_hi3;
-	unsigned long	sc_mdlo;
-	unsigned long	sc_lo1;
-	unsigned long	sc_lo2;
-	unsigned long	sc_lo3;
-	unsigned long	sc_pc;
-	unsigned int	sc_fpc_csr;
-	unsigned int	sc_used_math;
-	unsigned int	sc_dsp;
-	unsigned int	sc_reserved;
+	__u64	sc_regs[32];
+	__u64	sc_fpregs[32];
+	__u64	sc_mdhi;
+	__u64	sc_hi1;
+	__u64	sc_hi2;
+	__u64	sc_hi3;
+	__u64	sc_mdlo;
+	__u64	sc_lo1;
+	__u64	sc_lo2;
+	__u64	sc_lo3;
+	__u64	sc_pc;
+	__u32	sc_fpc_csr;
+	__u32	sc_used_math;
+	__u32	sc_dsp;
+	__u32	sc_reserved;
 };
 
 #ifdef __KERNEL__
-
-#include <linux/posix_types.h>
 
 struct sigcontext32 {
 	__u32		sc_regmask;	/* Unused */
@@ -80,7 +79,7 @@ struct sigcontext32 {
 	__u64		sc_pc;
 	__u64		sc_regs[32];
 	__u64		sc_fpregs[32];
-	__u32		sc_ownedfp;	/* Unused */
+	__u32		sc_acx;		/* Only MIPS32; was sc_ownedfp */
 	__u32		sc_fpc_csr;
 	__u32		sc_fpc_eir;	/* Unused */
 	__u32		sc_used_math;

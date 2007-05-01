@@ -1546,7 +1546,7 @@ static void __devinit detect_and_report_smsc (void)
 }
 #endif /* CONFIG_PARPORT_PC_SUPERIO */
 
-static int __devinit get_superio_dma (struct parport *p)
+static int get_superio_dma (struct parport *p)
 {
 	int i=0;
 	while( (superios[i].io != p->base) && (i<NR_SUPERIOS))
@@ -2106,7 +2106,7 @@ static int parport_irq_probe(struct parport *pb)
 /* --- DMA detection -------------------------------------- */
 
 /* Only if chipset conforms to ECP ISA Interface Standard */
-static int __devinit programmable_dma_support (struct parport *p)
+static int programmable_dma_support (struct parport *p)
 {
 	unsigned char oecr = inb (ECONTROL (p));
 	int dma;
@@ -2123,7 +2123,7 @@ static int __devinit programmable_dma_support (struct parport *p)
 	return dma;
 }
 
-static int __devinit parport_dma_probe (struct parport *p)
+static int parport_dma_probe (struct parport *p)
 {
 	const struct parport_pc_private *priv = p->private_data;
 	if (priv->ecr)

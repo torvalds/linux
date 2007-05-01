@@ -1168,7 +1168,7 @@ wv_mmc_show(struct net_device *	dev)
 	 m.mmr_unused0[6],
 	 m.mmr_unused0[7]);
 #endif	/* DEBUG_SHOW_UNUSED */
-  printk(KERN_DEBUG "Encryption algorythm: %02X - Status: %02X\n",
+  printk(KERN_DEBUG "Encryption algorithm: %02X - Status: %02X\n",
 	 m.mmr_des_avail, m.mmr_des_status);
 #ifdef DEBUG_SHOW_UNUSED
   printk(KERN_DEBUG "mmc_unused1[]: %02X:%02X:%02X:%02X:%02X\n",
@@ -2884,14 +2884,12 @@ wv_packet_read(struct net_device *		dev,
       return;
     }
 
-  skb->dev = dev;
-
   skb_reserve(skb, 2);
   fd_p = read_ringbuf(dev, fd_p, (char *) skb_put(skb, sksize), sksize);
   skb->protocol = eth_type_trans(skb, dev);
 
 #ifdef DEBUG_RX_INFO
-  wv_packet_info(skb->mac.raw, sksize, dev->name, "wv_packet_read");
+  wv_packet_info(skb_mac_header(skb), sksize, dev->name, "wv_packet_read");
 #endif	/* DEBUG_RX_INFO */
      
   /* Statistics gathering & stuff associated.
@@ -2925,7 +2923,7 @@ wv_packet_read(struct net_device *		dev,
 #endif	/* WAVELAN_ROAMING */
 	  
 #ifdef WIRELESS_SPY
-      wl_spy_gather(dev, skb->mac.raw + WAVELAN_ADDR_SIZE, stats);
+      wl_spy_gather(dev, skb_mac_header(skb) + WAVELAN_ADDR_SIZE, stats);
 #endif	/* WIRELESS_SPY */
 #ifdef HISTOGRAM
       wl_his_gather(dev, stats);
@@ -3590,9 +3588,9 @@ wv_82593_config(struct net_device *	dev)
   cfblk.acloc = TRUE;           /* Disable source addr insertion by i82593 */
   cfblk.preamb_len = 0;         /* 2 bytes preamble (SFD) */
   cfblk.loopback = FALSE;
-  cfblk.lin_prio = 0;   	/* conform to 802.3 backoff algoritm */
-  cfblk.exp_prio = 5;	        /* conform to 802.3 backoff algoritm */
-  cfblk.bof_met = 1;	        /* conform to 802.3 backoff algoritm */
+  cfblk.lin_prio = 0;   	/* conform to 802.3 backoff algorithm */
+  cfblk.exp_prio = 5;	        /* conform to 802.3 backoff algorithm */
+  cfblk.bof_met = 1;	        /* conform to 802.3 backoff algorithm */
   cfblk.ifrm_spc = 0x20 >> 4;	/* 32 bit times interframe spacing */
   cfblk.slottim_low = 0x20 >> 5;	/* 32 bit times slot time */
   cfblk.slottim_hi = 0x0;

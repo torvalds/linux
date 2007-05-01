@@ -38,8 +38,8 @@ extern const struct address_space_operations cifs_addr_ops_smallbuf;
 /* Functions related to super block operations */
 /* extern const struct super_operations cifs_super_ops;*/
 extern void cifs_read_inode(struct inode *);
-extern void cifs_delete_inode(struct inode *);
-/* extern void cifs_write_inode(struct inode *); *//* BB not needed yet */
+/*extern void cifs_delete_inode(struct inode *);*/  /* BB not needed yet */
+/* extern void cifs_write_inode(struct inode *); */ /* BB not needed yet */
 
 /* Functions related to inodes */
 extern const struct inode_operations cifs_dir_inode_ops;

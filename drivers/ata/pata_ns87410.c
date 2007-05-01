@@ -28,13 +28,13 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_ns87410"
-#define DRV_VERSION "0.4.3"
+#define DRV_VERSION "0.4.6"
 
 /**
  *	ns87410_pre_reset		-	probe begin
  *	@ap: ATA port
  *
- *	Set up cable type and use generic probe init
+ *	Check enabled ports
  */
 
 static int ns87410_pre_reset(struct ata_port *ap)
@@ -47,7 +47,6 @@ static int ns87410_pre_reset(struct ata_port *ap)
 
 	if (!pci_test_config_bits(pdev, &ns87410_enable_bits[ap->port_no]))
 		return -ENOENT;
-	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
 
@@ -157,8 +156,10 @@ static struct scsi_host_template ns87410_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.resume			= ata_scsi_device_resume,
 	.suspend		= ata_scsi_device_suspend,
+#endif
 };
 
 static struct ata_port_operations ns87410_port_ops = {
@@ -175,6 +176,7 @@ static struct ata_port_operations ns87410_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ns87410_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ns87410_qc_issue_prot,
@@ -212,8 +214,10 @@ static struct pci_driver ns87410_pci_driver = {
 	.id_table	= ns87410,
 	.probe 		= ns87410_init_one,
 	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
 	.resume		= ata_pci_device_resume,
+#endif
 };
 
 static int __init ns87410_init(void)

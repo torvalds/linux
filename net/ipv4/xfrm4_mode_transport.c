@@ -23,16 +23,13 @@
  */
 static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct iphdr *iph;
-	int ihl;
+	struct iphdr *iph = ip_hdr(skb);
+	int ihl = iph->ihl * 4;
 
-	iph = skb->nh.iph;
-	skb->h.ipiph = iph;
-
-	ihl = iph->ihl * 4;
-	skb->h.raw += ihl;
-
-	skb->nh.raw = memmove(skb_push(skb, x->props.header_len), iph, ihl);
+	skb->transport_header = skb->network_header + ihl;
+	skb_push(skb, x->props.header_len);
+	skb_reset_network_header(skb);
+	memmove(skb_network_header(skb), iph, ihl);
 	return 0;
 }
 
@@ -46,12 +43,15 @@ static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
  */
 static int xfrm4_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	int ihl = skb->data - skb->h.raw;
+	int ihl = skb->data - skb_transport_header(skb);
 
-	if (skb->h.raw != skb->nh.raw)
-		skb->nh.raw = memmove(skb->h.raw, skb->nh.raw, ihl);
-	skb->nh.iph->tot_len = htons(skb->len + ihl);
-	skb->h.raw = skb->data;
+	if (skb->transport_header != skb->network_header) {
+		memmove(skb_transport_header(skb),
+			skb_network_header(skb), ihl);
+		skb->network_header = skb->transport_header;
+	}
+	ip_hdr(skb)->tot_len = htons(skb->len + ihl);
+	skb_reset_transport_header(skb);
 	return 0;
 }
 

@@ -615,6 +615,7 @@ typedef struct ide_drive_s {
         u8	init_speed;	/* transfer rate set at boot */
         u8	pio_speed;      /* unused by core, used by some drivers for fallback from DMA */
         u8	current_speed;	/* current transfer rate set */
+	u8	desired_speed;	/* desired transfer rate set */
         u8	dn;		/* now wide spread use */
         u8	wcache;		/* status of write cache */
 	u8	acoustic;	/* acoustic management */
@@ -636,7 +637,6 @@ typedef struct ide_drive_s {
 	unsigned int	bios_cyl;	/* BIOS/fdisk/LILO number of cyls */
 	unsigned int	cyl;		/* "real" number of cyls */
 	unsigned int	drive_data;	/* use by tuneproc/selectproc */
-	unsigned int	usage;		/* current "open()" count for drive */
 	unsigned int	failures;	/* current failure count */
 	unsigned int	max_failures;	/* maximum allowed failure count */
 	u64		probed_capacity;/* initial reported media capacity (ide-cd only currently) */
@@ -736,23 +736,22 @@ typedef struct hwif_s {
 	int (*ide_dma_end)(ide_drive_t *drive);
 	int (*ide_dma_check)(ide_drive_t *drive);
 	int (*ide_dma_on)(ide_drive_t *drive);
-	int (*ide_dma_off_quietly)(ide_drive_t *drive);
+	void (*dma_off_quietly)(ide_drive_t *drive);
 	int (*ide_dma_test_irq)(ide_drive_t *drive);
-	int (*ide_dma_host_on)(ide_drive_t *drive);
-	int (*ide_dma_host_off)(ide_drive_t *drive);
+	void (*ide_dma_clear_irq)(ide_drive_t *drive);
+	void (*dma_host_on)(ide_drive_t *drive);
+	void (*dma_host_off)(ide_drive_t *drive);
 	int (*ide_dma_lostirq)(ide_drive_t *drive);
 	int (*ide_dma_timeout)(ide_drive_t *drive);
 
 	void (*OUTB)(u8 addr, unsigned long port);
 	void (*OUTBSYNC)(ide_drive_t *drive, u8 addr, unsigned long port);
 	void (*OUTW)(u16 addr, unsigned long port);
-	void (*OUTL)(u32 addr, unsigned long port);
 	void (*OUTSW)(unsigned long port, void *addr, u32 count);
 	void (*OUTSL)(unsigned long port, void *addr, u32 count);
 
 	u8  (*INB)(unsigned long port);
 	u16 (*INW)(unsigned long port);
-	u32 (*INL)(unsigned long port);
 	void (*INSW)(unsigned long port, void *addr, u32 count);
 	void (*INSL)(unsigned long port, void *addr, u32 count);
 
@@ -774,7 +773,6 @@ typedef struct hwif_s {
 	unsigned int cursg;
 	unsigned int cursg_ofs;
 
-	int		mmio;		/* hosts iomio (0) or custom (2) select */
 	int		rqsize;		/* max sectors per request */
 	int		irq;		/* our irq number */
 
@@ -802,12 +800,11 @@ typedef struct hwif_s {
 	unsigned	udma_four  : 1;	/* 1=ATA-66 capable, 0=default */
 	unsigned	no_lba48   : 1; /* 1 = cannot do LBA48 */
 	unsigned	no_lba48_dma : 1; /* 1 = cannot do LBA48 DMA */
-	unsigned	no_dsc     : 1;	/* 0 default, 1 dsc_overlap disabled */
 	unsigned	auto_poll  : 1; /* supports nop auto-poll */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	no_io_32bit : 1; /* 1 = can not do 32-bit IO ops */
 	unsigned	err_stops_fifo : 1; /* 1=data FIFO is cleared by an error */
-	unsigned	atapi_irq_bogon : 1; /* Generates spurious DMA interrupts in PIO mode */
+	unsigned	mmio       : 1; /* host uses MMIO */
 
 	struct device	gendev;
 	struct completion gendev_rel_comp; /* To deal with device release() */
@@ -864,6 +861,8 @@ typedef struct hwgroup_s {
 	int (*expiry)(ide_drive_t *);
 		/* ide_system_bus_speed */
 	int pio_clock;
+	int req_gen;
+	int req_gen_timer;
 
 	unsigned char cmd_buf[4];
 } ide_hwgroup_t;
@@ -1280,8 +1279,9 @@ int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
 int __ide_dma_bad_drive(ide_drive_t *);
 int __ide_dma_good_drive(ide_drive_t *);
 int ide_use_dma(ide_drive_t *);
-int __ide_dma_off(ide_drive_t *);
+void ide_dma_off(ide_drive_t *);
 void ide_dma_verbose(ide_drive_t *);
+int ide_set_dma(ide_drive_t *);
 ide_startstop_t ide_dma_intr(ide_drive_t *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -1291,9 +1291,9 @@ extern void ide_destroy_dmatable(ide_drive_t *);
 extern int ide_release_dma(ide_hwif_t *);
 extern void ide_setup_dma(ide_hwif_t *, unsigned long, unsigned int);
 
-extern int __ide_dma_host_off(ide_drive_t *);
-extern int __ide_dma_off_quietly(ide_drive_t *);
-extern int __ide_dma_host_on(ide_drive_t *);
+void ide_dma_host_off(ide_drive_t *);
+void ide_dma_off_quietly(ide_drive_t *);
+void ide_dma_host_on(ide_drive_t *);
 extern int __ide_dma_on(ide_drive_t *);
 extern int __ide_dma_check(ide_drive_t *);
 extern int ide_dma_setup(ide_drive_t *);
@@ -1305,8 +1305,9 @@ extern int __ide_dma_timeout(ide_drive_t *);
 
 #else
 static inline int ide_use_dma(ide_drive_t *drive) { return 0; }
-static inline int __ide_dma_off(ide_drive_t *drive) { return 0; }
+static inline void ide_dma_off(ide_drive_t *drive) { ; }
 static inline void ide_dma_verbose(ide_drive_t *drive) { ; }
+static inline int ide_set_dma(ide_drive_t *drive) { return 1; }
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 
 #ifndef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -1354,20 +1355,21 @@ extern int ide_dma_enable(ide_drive_t *drive);
 extern char *ide_xfer_verbose(u8 xfer_rate);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);
+int ide_use_fast_pio(ide_drive_t *);
 
 u8 ide_dump_status(ide_drive_t *, const char *, u8);
 
 typedef struct ide_pio_timings_s {
 	int	setup_time;	/* Address setup (ns) minimum */
 	int	active_time;	/* Active pulse (ns) minimum */
-	int	cycle_time;	/* Cycle time (ns) minimum = (setup + active + recovery) */
+	int	cycle_time;	/* Cycle time (ns) minimum = */
+				/* active + recovery (+ setup for some chips) */
 } ide_pio_timings_t;
 
 typedef struct ide_pio_data_s {
 	u8 pio_mode;
 	u8 use_iordy;
 	u8 overridden;
-	u8 blacklisted;
 	unsigned int cycle_time;
 } ide_pio_data_t;
 

@@ -727,8 +727,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	concat->mtd.erasesize = subdev[0]->erasesize;
 	concat->mtd.writesize = subdev[0]->writesize;
 	concat->mtd.oobsize = subdev[0]->oobsize;
-	concat->mtd.ecctype = subdev[0]->ecctype;
-	concat->mtd.eccsize = subdev[0]->eccsize;
+	concat->mtd.oobavail = subdev[0]->oobavail;
 	if (subdev[0]->writev)
 		concat->mtd.writev = concat_writev;
 	if (subdev[0]->read_oob)
@@ -774,8 +773,6 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 		if (concat->mtd.writesize   !=  subdev[i]->writesize ||
 		    concat->mtd.subpage_sft != subdev[i]->subpage_sft ||
 		    concat->mtd.oobsize    !=  subdev[i]->oobsize ||
-		    concat->mtd.ecctype    !=  subdev[i]->ecctype ||
-		    concat->mtd.eccsize    !=  subdev[i]->eccsize ||
 		    !concat->mtd.read_oob  != !subdev[i]->read_oob ||
 		    !concat->mtd.write_oob != !subdev[i]->write_oob) {
 			kfree(concat);

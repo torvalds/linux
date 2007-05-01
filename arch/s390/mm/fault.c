@@ -26,9 +26,9 @@
 #include <linux/module.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
+#include <linux/uaccess.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
 #include <asm/s390_ext.h>
@@ -63,21 +63,25 @@ int unregister_page_fault_notifier(struct notifier_block *nb)
 	return atomic_notifier_chain_unregister(&notify_page_fault_chain, nb);
 }
 
-static inline int notify_page_fault(enum die_val val, const char *str,
-			struct pt_regs *regs, long err, int trap, int sig)
+static int __kprobes __notify_page_fault(struct pt_regs *regs, long err)
 {
-	struct die_args args = {
-		.regs = regs,
-		.str = str,
-		.err = err,
-		.trapnr = trap,
-		.signr = sig
-	};
-	return atomic_notifier_call_chain(&notify_page_fault_chain, val, &args);
+	struct die_args args = { .str = "page fault",
+				 .trapnr = 14,
+				 .signr = SIGSEGV };
+	args.regs = regs;
+	args.err = err;
+	return atomic_notifier_call_chain(&notify_page_fault_chain,
+					  DIE_PAGE_FAULT, &args);
+}
+
+static inline int notify_page_fault(struct pt_regs *regs, long err)
+{
+	if (unlikely(kprobe_running()))
+		return __notify_page_fault(regs, err);
+	return NOTIFY_DONE;
 }
 #else
-static inline int notify_page_fault(enum die_val val, const char *str,
-			struct pt_regs *regs, long err, int trap, int sig)
+static inline int notify_page_fault(struct pt_regs *regs, long err)
 {
 	return NOTIFY_DONE;
 }
@@ -108,53 +112,40 @@ void bust_spinlocks(int yes)
 }
 
 /*
- * Check which address space is addressed by the access
- * register in S390_lowcore.exc_access_id.
- * Returns 1 for user space and 0 for kernel space.
+ * Returns the address space associated with the fault.
+ * Returns 0 for kernel space, 1 for user space and
+ * 2 for code execution in user space with noexec=on.
  */
-static int __check_access_register(struct pt_regs *regs, int error_code)
-{
-	int areg = S390_lowcore.exc_access_id;
-
-	if (areg == 0)
-		/* Access via access register 0 -> kernel address */
-		return 0;
-	save_access_regs(current->thread.acrs);
-	if (regs && areg < NUM_ACRS && current->thread.acrs[areg] <= 1)
-		/*
-		 * access register contains 0 -> kernel address,
-		 * access register contains 1 -> user space address
-		 */
-		return current->thread.acrs[areg];
-
-	/* Something unhealthy was done with the access registers... */
-	die("page fault via unknown access register", regs, error_code);
-	do_exit(SIGKILL);
-	return 0;
-}
-
-/*
- * Check which address space the address belongs to.
- * May return 1 or 2 for user space and 0 for kernel space.
- * Returns 2 for user space in primary addressing mode with
- * CONFIG_S390_EXEC_PROTECT on and kernel parameter noexec=on.
- */
-static inline int check_user_space(struct pt_regs *regs, int error_code)
+static inline int check_space(struct task_struct *tsk)
 {
 	/*
-	 * The lowest two bits of S390_lowcore.trans_exc_code indicate
-	 * which paging table was used:
-	 *   0: Primary Segment Table Descriptor
-	 *   1: STD determined via access register
-	 *   2: Secondary Segment Table Descriptor
-	 *   3: Home Segment Table Descriptor
+	 * The lowest two bits of S390_lowcore.trans_exc_code
+	 * indicate which paging table was used.
 	 */
-	int descriptor = S390_lowcore.trans_exc_code & 3;
-	if (unlikely(descriptor == 1))
-		return __check_access_register(regs, error_code);
-	if (descriptor == 2)
-		return current->thread.mm_segment.ar4;
-	return ((descriptor != 0) ^ (switch_amode)) << s390_noexec;
+	int desc = S390_lowcore.trans_exc_code & 3;
+
+	if (desc == 3)	/* Home Segment Table Descriptor */
+		return switch_amode == 0;
+	if (desc == 2)	/* Secondary Segment Table Descriptor */
+		return tsk->thread.mm_segment.ar4;
+#ifdef CONFIG_S390_SWITCH_AMODE
+	if (unlikely(desc == 1)) { /* STD determined via access register */
+		/* %a0 always indicates primary space. */
+		if (S390_lowcore.exc_access_id != 0) {
+			save_access_regs(tsk->thread.acrs);
+			/*
+			 * An alet of 0 indicates primary space.
+			 * An alet of 1 indicates secondary space.
+			 * Any other alet values generate an
+			 * alen-translation exception.
+			 */
+			if (tsk->thread.acrs[S390_lowcore.exc_access_id])
+				return tsk->thread.mm_segment.ar4;
+		}
+	}
+#endif
+	/* Primary Segment Table Descriptor */
+	return switch_amode << s390_noexec;
 }
 
 /*
@@ -183,74 +174,127 @@ static void do_sigsegv(struct pt_regs *regs, unsigned long error_code,
 	force_sig_info(SIGSEGV, &si, current);
 }
 
+static void do_no_context(struct pt_regs *regs, unsigned long error_code,
+			  unsigned long address)
+{
+	const struct exception_table_entry *fixup;
+
+	/* Are we prepared to handle this kernel fault?  */
+	fixup = search_exception_tables(regs->psw.addr & __FIXUP_MASK);
+	if (fixup) {
+		regs->psw.addr = fixup->fixup | PSW_ADDR_AMODE;
+		return;
+	}
+
+	/*
+	 * Oops. The kernel tried to access some bad page. We'll have to
+	 * terminate things with extreme prejudice.
+	 */
+	if (check_space(current) == 0)
+		printk(KERN_ALERT "Unable to handle kernel pointer dereference"
+		       " at virtual kernel address %p\n", (void *)address);
+	else
+		printk(KERN_ALERT "Unable to handle kernel paging request"
+		       " at virtual user address %p\n", (void *)address);
+
+	die("Oops", regs, error_code);
+	do_exit(SIGKILL);
+}
+
+static void do_low_address(struct pt_regs *regs, unsigned long error_code)
+{
+	/* Low-address protection hit in kernel mode means
+	   NULL pointer write access in kernel mode.  */
+	if (regs->psw.mask & PSW_MASK_PSTATE) {
+		/* Low-address protection hit in user mode 'cannot happen'. */
+		die ("Low-address protection", regs, error_code);
+		do_exit(SIGKILL);
+	}
+
+	do_no_context(regs, error_code, 0);
+}
+
+/*
+ * We ran out of memory, or some other thing happened to us that made
+ * us unable to handle the page fault gracefully.
+ */
+static int do_out_of_memory(struct pt_regs *regs, unsigned long error_code,
+			    unsigned long address)
+{
+	struct task_struct *tsk = current;
+	struct mm_struct *mm = tsk->mm;
+
+	up_read(&mm->mmap_sem);
+	if (is_init(tsk)) {
+		yield();
+		down_read(&mm->mmap_sem);
+		return 1;
+	}
+	printk("VM: killing process %s\n", tsk->comm);
+	if (regs->psw.mask & PSW_MASK_PSTATE)
+		do_exit(SIGKILL);
+	do_no_context(regs, error_code, address);
+	return 0;
+}
+
+static void do_sigbus(struct pt_regs *regs, unsigned long error_code,
+		      unsigned long address)
+{
+	struct task_struct *tsk = current;
+	struct mm_struct *mm = tsk->mm;
+
+	up_read(&mm->mmap_sem);
+	/*
+	 * Send a sigbus, regardless of whether we were in kernel
+	 * or user mode.
+	 */
+	tsk->thread.prot_addr = address;
+	tsk->thread.trap_no = error_code;
+	force_sig(SIGBUS, tsk);
+
+	/* Kernel mode? Handle exceptions or die */
+	if (!(regs->psw.mask & PSW_MASK_PSTATE))
+		do_no_context(regs, error_code, address);
+}
+
 #ifdef CONFIG_S390_EXEC_PROTECT
 extern long sys_sigreturn(struct pt_regs *regs);
 extern long sys_rt_sigreturn(struct pt_regs *regs);
 extern long sys32_sigreturn(struct pt_regs *regs);
 extern long sys32_rt_sigreturn(struct pt_regs *regs);
 
-static inline void do_sigreturn(struct mm_struct *mm, struct pt_regs *regs,
-				int rt)
-{
-	up_read(&mm->mmap_sem);
-	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
-#ifdef CONFIG_COMPAT
-	if (test_tsk_thread_flag(current, TIF_31BIT)) {
-		if (rt)
-			sys32_rt_sigreturn(regs);
-		else
-			sys32_sigreturn(regs);
-		return;
-	}
-#endif /* CONFIG_COMPAT */
-	if (rt)
-		sys_rt_sigreturn(regs);
-	else
-		sys_sigreturn(regs);
-	return;
-}
-
 static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
 			 unsigned long address, unsigned long error_code)
 {
-	pgd_t *pgd;
-	pmd_t *pmd;
-	pte_t *pte;
-	u16 *instruction;
-	unsigned long pfn, uaddr = regs->psw.addr;
+	u16 instruction;
+	int rc, compat;
 
-	spin_lock(&mm->page_table_lock);
-	pgd = pgd_offset(mm, uaddr);
-	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		goto out_fault;
-	pmd = pmd_offset(pgd, uaddr);
-	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		goto out_fault;
-	pte = pte_offset_map(pmd_offset(pgd_offset(mm, uaddr), uaddr), uaddr);
-	if (!pte || !pte_present(*pte))
-		goto out_fault;
-	pfn = pte_pfn(*pte);
-	if (!pfn_valid(pfn))
-		goto out_fault;
-	spin_unlock(&mm->page_table_lock);
+	pagefault_disable();
+	rc = __get_user(instruction, (u16 __user *) regs->psw.addr);
+	pagefault_enable();
+	if (rc)
+		return -EFAULT;
 
-	instruction = (u16 *) ((pfn << PAGE_SHIFT) + (uaddr & (PAGE_SIZE-1)));
-	if (*instruction == 0x0a77)
-		do_sigreturn(mm, regs, 0);
-	else if (*instruction == 0x0aad)
-		do_sigreturn(mm, regs, 1);
+	up_read(&mm->mmap_sem);
+	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+#ifdef CONFIG_COMPAT
+	compat = test_tsk_thread_flag(current, TIF_31BIT);
+	if (compat && instruction == 0x0a77)
+		sys32_sigreturn(regs);
+	else if (compat && instruction == 0x0aad)
+		sys32_rt_sigreturn(regs);
+	else
+#endif
+	if (instruction == 0x0a77)
+		sys_sigreturn(regs);
+	else if (instruction == 0x0aad)
+		sys_rt_sigreturn(regs);
 	else {
-		printk("- XXX - do_exception: task = %s, primary, NO EXEC "
-		       "-> SIGSEGV\n", current->comm);
-		up_read(&mm->mmap_sem);
 		current->thread.prot_addr = address;
 		current->thread.trap_no = error_code;
 		do_sigsegv(regs, error_code, SEGV_MAPERR, address);
 	}
 	return 0;
-out_fault:
-	spin_unlock(&mm->page_table_lock);
-	return -EFAULT;
 }
 #endif /* CONFIG_S390_EXEC_PROTECT */
 
@@ -265,59 +309,33 @@ out_fault:
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
  */
-static inline void __kprobes
-do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
+static inline void
+do_exception(struct pt_regs *regs, unsigned long error_code, int write)
 {
-        struct task_struct *tsk;
-        struct mm_struct *mm;
-        struct vm_area_struct * vma;
-        unsigned long address;
-	int user_address;
-	const struct exception_table_entry *fixup;
-	int si_code = SEGV_MAPERR;
+	struct task_struct *tsk;
+	struct mm_struct *mm;
+	struct vm_area_struct *vma;
+	unsigned long address;
+	int space;
+	int si_code;
 
-        tsk = current;
-        mm = tsk->mm;
-	
-	if (notify_page_fault(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
-					SIGSEGV) == NOTIFY_STOP)
+	if (notify_page_fault(regs, error_code) == NOTIFY_STOP)
 		return;
 
-	/* 
-         * Check for low-address protection.  This needs to be treated
-	 * as a special case because the translation exception code 
-	 * field is not guaranteed to contain valid data in this case.
-	 */
-	if (is_protection && !(S390_lowcore.trans_exc_code & 4)) {
+	tsk = current;
+	mm = tsk->mm;
 
-		/* Low-address protection hit in kernel mode means 
-		   NULL pointer write access in kernel mode.  */
- 		if (!(regs->psw.mask & PSW_MASK_PSTATE)) {
-			address = 0;
-			user_address = 0;
-			goto no_context;
-		}
-
-		/* Low-address protection hit in user mode 'cannot happen'.  */
-		die ("Low-address protection", regs, error_code);
-        	do_exit(SIGKILL);
-	}
-
-        /* 
-         * get the failing address 
-         * more specific the segment and page table portion of 
-         * the address 
-         */
-        address = S390_lowcore.trans_exc_code & __FAIL_ADDR_MASK;
-	user_address = check_user_space(regs, error_code);
+	/* get the failing address and the affected space */
+	address = S390_lowcore.trans_exc_code & __FAIL_ADDR_MASK;
+	space = check_space(tsk);
 
 	/*
 	 * Verify that the fault happened in user space, that
 	 * we are not in an interrupt and that there is a 
 	 * user context.
 	 */
-        if (user_address == 0 || in_atomic() || !mm)
-                goto no_context;
+	if (unlikely(space == 0 || in_atomic() || !mm))
+		goto no_context;
 
 	/*
 	 * When we get here, the fault happened in the current
@@ -326,14 +344,15 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 	 */
 	local_irq_enable();
 
-        down_read(&mm->mmap_sem);
+	down_read(&mm->mmap_sem);
 
-        vma = find_vma(mm, address);
-        if (!vma)
-                goto bad_area;
+	si_code = SEGV_MAPERR;
+	vma = find_vma(mm, address);
+	if (!vma)
+		goto bad_area;
 
 #ifdef CONFIG_S390_EXEC_PROTECT
-	if (unlikely((user_address == 2) && !(vma->vm_flags & VM_EXEC)))
+	if (unlikely((space == 2) && !(vma->vm_flags & VM_EXEC)))
 		if (!signal_return(mm, regs, address, error_code))
 			/*
 			 * signal_return() has done an up_read(&mm->mmap_sem)
@@ -342,19 +361,19 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 			return;
 #endif
 
-        if (vma->vm_start <= address) 
-                goto good_area;
-        if (!(vma->vm_flags & VM_GROWSDOWN))
-                goto bad_area;
-        if (expand_stack(vma, address))
-                goto bad_area;
+	if (vma->vm_start <= address)
+		goto good_area;
+	if (!(vma->vm_flags & VM_GROWSDOWN))
+		goto bad_area;
+	if (expand_stack(vma, address))
+		goto bad_area;
 /*
  * Ok, we have a good vm_area for this memory access, so
  * we can handle it..
  */
 good_area:
 	si_code = SEGV_ACCERR;
-	if (!is_protection) {
+	if (!write) {
 		/* page not present, check vm flags */
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
 			goto bad_area;
@@ -369,7 +388,7 @@ survive:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	switch (handle_mm_fault(mm, vma, address, is_protection)) {
+	switch (handle_mm_fault(mm, vma, address, write)) {
 	case VM_FAULT_MINOR:
 		tsk->min_flt++;
 		break;
@@ -377,9 +396,12 @@ survive:
 		tsk->maj_flt++;
 		break;
 	case VM_FAULT_SIGBUS:
-		goto do_sigbus;
+		do_sigbus(regs, error_code, address);
+		return;
 	case VM_FAULT_OOM:
-		goto out_of_memory;
+		if (do_out_of_memory(regs, error_code, address))
+			goto survive;
+		return;
 	default:
 		BUG();
 	}
@@ -389,7 +411,7 @@ survive:
 	 * The instruction that caused the program check will
 	 * be repeated. Don't signal single step via SIGTRAP.
 	 */
-	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+	clear_tsk_thread_flag(tsk, TIF_SINGLE_STEP);
         return;
 
 /*
@@ -397,78 +419,38 @@ survive:
  * Fix it, but check if it's kernel or user first..
  */
 bad_area:
-        up_read(&mm->mmap_sem);
+	up_read(&mm->mmap_sem);
 
-        /* User mode accesses just cause a SIGSEGV */
-        if (regs->psw.mask & PSW_MASK_PSTATE) {
-                tsk->thread.prot_addr = address;
-                tsk->thread.trap_no = error_code;
+	/* User mode accesses just cause a SIGSEGV */
+	if (regs->psw.mask & PSW_MASK_PSTATE) {
+		tsk->thread.prot_addr = address;
+		tsk->thread.trap_no = error_code;
 		do_sigsegv(regs, error_code, si_code, address);
-                return;
+		return;
 	}
 
 no_context:
-        /* Are we prepared to handle this kernel fault?  */
-	fixup = search_exception_tables(regs->psw.addr & __FIXUP_MASK);
-	if (fixup) {
-		regs->psw.addr = fixup->fixup | PSW_ADDR_AMODE;
-                return;
-        }
-
-/*
- * Oops. The kernel tried to access some bad page. We'll have to
- * terminate things with extreme prejudice.
- */
-        if (user_address == 0)
-                printk(KERN_ALERT "Unable to handle kernel pointer dereference"
-        	       " at virtual kernel address %p\n", (void *)address);
-        else
-                printk(KERN_ALERT "Unable to handle kernel paging request"
-		       " at virtual user address %p\n", (void *)address);
-
-        die("Oops", regs, error_code);
-        do_exit(SIGKILL);
-
-
-/*
- * We ran out of memory, or some other thing happened to us that made
- * us unable to handle the page fault gracefully.
-*/
-out_of_memory:
-	up_read(&mm->mmap_sem);
-	if (is_init(tsk)) {
-		yield();
-		down_read(&mm->mmap_sem);
-		goto survive;
-	}
-	printk("VM: killing process %s\n", tsk->comm);
-	if (regs->psw.mask & PSW_MASK_PSTATE)
-		do_exit(SIGKILL);
-	goto no_context;
-
-do_sigbus:
-	up_read(&mm->mmap_sem);
-
-	/*
-	 * Send a sigbus, regardless of whether we were in kernel
-	 * or user mode.
-	 */
-        tsk->thread.prot_addr = address;
-        tsk->thread.trap_no = error_code;
-	force_sig(SIGBUS, tsk);
-
-	/* Kernel mode? Handle exceptions or die */
-	if (!(regs->psw.mask & PSW_MASK_PSTATE))
-		goto no_context;
+	do_no_context(regs, error_code, address);
 }
 
-void do_protection_exception(struct pt_regs *regs, unsigned long error_code)
+void __kprobes do_protection_exception(struct pt_regs *regs,
+				       unsigned long error_code)
 {
+	/* Protection exception is supressing, decrement psw address. */
 	regs->psw.addr -= (error_code >> 16);
+	/*
+	 * Check for low-address protection.  This needs to be treated
+	 * as a special case because the translation exception code
+	 * field is not guaranteed to contain valid data in this case.
+	 */
+	if (unlikely(!(S390_lowcore.trans_exc_code & 4))) {
+		do_low_address(regs, error_code);
+		return;
+	}
 	do_exception(regs, 4, 1);
 }
 
-void do_dat_exception(struct pt_regs *regs, unsigned long error_code)
+void __kprobes do_dat_exception(struct pt_regs *regs, unsigned long error_code)
 {
 	do_exception(regs, error_code & 0xff, 0);
 }

@@ -13,7 +13,7 @@
  * (C) Copyright 2000 Yggdrasil Computing, Inc. (port of new PCI interface
  *               support from usb-ohci.c by Adam Richter, adam@yggdrasil.com).
  * (C) Copyright 1999 Gregory P. Smith (from usb-ohci.c)
- * (C) Copyright 2004-2006 Alan Stern, stern@rowland.harvard.edu
+ * (C) Copyright 2004-2007 Alan Stern, stern@rowland.harvard.edu
  */
 
 
@@ -45,15 +45,27 @@ static inline void uhci_clear_next_interrupt(struct uhci_hcd *uhci)
  */
 static void uhci_fsbr_on(struct uhci_hcd *uhci)
 {
+	struct uhci_qh *lqh;
+
+	/* The terminating skeleton QH always points back to the first
+	 * FSBR QH.  Make the last async QH point to the terminating
+	 * skeleton QH. */
 	uhci->fsbr_is_on = 1;
-	uhci->skel_term_qh->link = cpu_to_le32(
-			uhci->skel_fs_control_qh->dma_handle) | UHCI_PTR_QH;
+	lqh = list_entry(uhci->skel_async_qh->node.prev,
+			struct uhci_qh, node);
+	lqh->link = LINK_TO_QH(uhci->skel_term_qh);
 }
 
 static void uhci_fsbr_off(struct uhci_hcd *uhci)
 {
+	struct uhci_qh *lqh;
+
+	/* Remove the link from the last async QH to the terminating
+	 * skeleton QH. */
 	uhci->fsbr_is_on = 0;
-	uhci->skel_term_qh->link = UHCI_PTR_TERM;
+	lqh = list_entry(uhci->skel_async_qh->node.prev,
+			struct uhci_qh, node);
+	lqh->link = UHCI_PTR_TERM;
 }
 
 static void uhci_add_fsbr(struct uhci_hcd *uhci, struct urb *urb)
@@ -111,10 +123,14 @@ static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci)
 
 static void uhci_free_td(struct uhci_hcd *uhci, struct uhci_td *td)
 {
-	if (!list_empty(&td->list))
+	if (!list_empty(&td->list)) {
 		dev_warn(uhci_dev(uhci), "td %p still in list!\n", td);
-	if (!list_empty(&td->fl_list))
+		WARN_ON(1);
+	}
+	if (!list_empty(&td->fl_list)) {
 		dev_warn(uhci_dev(uhci), "td %p still in fl_list!\n", td);
+		WARN_ON(1);
+	}
 
 	dma_pool_free(uhci->td_pool, td, td->dma_handle);
 }
@@ -158,11 +174,11 @@ static inline void uhci_insert_td_in_frame_list(struct uhci_hcd *uhci,
 
 		td->link = ltd->link;
 		wmb();
-		ltd->link = cpu_to_le32(td->dma_handle);
+		ltd->link = LINK_TO_TD(td);
 	} else {
 		td->link = uhci->frame[framenum];
 		wmb();
-		uhci->frame[framenum] = cpu_to_le32(td->dma_handle);
+		uhci->frame[framenum] = LINK_TO_TD(td);
 		uhci->frame_cpu[framenum] = td;
 	}
 }
@@ -184,7 +200,7 @@ static inline void uhci_remove_td_from_frame_list(struct uhci_hcd *uhci,
 			struct uhci_td *ntd;
 
 			ntd = list_entry(td->fl_list.next, struct uhci_td, fl_list);
-			uhci->frame[td->frame] = cpu_to_le32(ntd->dma_handle);
+			uhci->frame[td->frame] = LINK_TO_TD(ntd);
 			uhci->frame_cpu[td->frame] = ntd;
 		}
 	} else {
@@ -279,8 +295,10 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
 	WARN_ON(qh->state != QH_STATE_IDLE && qh->udev);
-	if (!list_empty(&qh->queue))
+	if (!list_empty(&qh->queue)) {
 		dev_warn(uhci_dev(uhci), "qh %p list not empty!\n", qh);
+		WARN_ON(1);
+	}
 
 	list_del(&qh->node);
 	if (qh->udev) {
@@ -405,12 +423,66 @@ static void uhci_fixup_toggles(struct uhci_qh *qh, int skip_first)
 }
 
 /*
+ * Link an Isochronous QH into its skeleton's list
+ */
+static inline void link_iso(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	list_add_tail(&qh->node, &uhci->skel_iso_qh->node);
+
+	/* Isochronous QHs aren't linked by the hardware */
+}
+
+/*
+ * Link a high-period interrupt QH into the schedule at the end of its
+ * skeleton's list
+ */
+static void link_interrupt(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	struct uhci_qh *pqh;
+
+	list_add_tail(&qh->node, &uhci->skelqh[qh->skel]->node);
+
+	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
+	qh->link = pqh->link;
+	wmb();
+	pqh->link = LINK_TO_QH(qh);
+}
+
+/*
+ * Link a period-1 interrupt or async QH into the schedule at the
+ * correct spot in the async skeleton's list, and update the FSBR link
+ */
+static void link_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	struct uhci_qh *pqh;
+	__le32 link_to_new_qh;
+
+	/* Find the predecessor QH for our new one and insert it in the list.
+	 * The list of QHs is expected to be short, so linear search won't
+	 * take too long. */
+	list_for_each_entry_reverse(pqh, &uhci->skel_async_qh->node, node) {
+		if (pqh->skel <= qh->skel)
+			break;
+	}
+	list_add(&qh->node, &pqh->node);
+
+	/* Link it into the schedule */
+	qh->link = pqh->link;
+	wmb();
+	link_to_new_qh = LINK_TO_QH(qh);
+	pqh->link = link_to_new_qh;
+
+	/* If this is now the first FSBR QH, link the terminating skeleton
+	 * QH to it. */
+	if (pqh->skel < SKEL_FSBR && qh->skel >= SKEL_FSBR)
+		uhci->skel_term_qh->link = link_to_new_qh;
+}
+
+/*
  * Put a QH on the schedule in both hardware and software
  */
 static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
-	struct uhci_qh *pqh;
-
 	WARN_ON(list_empty(&qh->queue));
 
 	/* Set the element pointer if it isn't set already.
@@ -421,7 +493,7 @@ static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		struct uhci_td *td = list_entry(urbp->td_list.next,
 				struct uhci_td, list);
 
-		qh->element = cpu_to_le32(td->dma_handle);
+		qh->element = LINK_TO_TD(td);
 	}
 
 	/* Treat the queue as if it has just advanced */
@@ -432,18 +504,49 @@ static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		return;
 	qh->state = QH_STATE_ACTIVE;
 
-	/* Move the QH from its old list to the end of the appropriate
+	/* Move the QH from its old list to the correct spot in the appropriate
 	 * skeleton's list */
 	if (qh == uhci->next_qh)
 		uhci->next_qh = list_entry(qh->node.next, struct uhci_qh,
 				node);
-	list_move_tail(&qh->node, &qh->skel->node);
+	list_del(&qh->node);
 
-	/* Link it into the schedule */
+	if (qh->skel == SKEL_ISO)
+		link_iso(uhci, qh);
+	else if (qh->skel < SKEL_ASYNC)
+		link_interrupt(uhci, qh);
+	else
+		link_async(uhci, qh);
+}
+
+/*
+ * Unlink a high-period interrupt QH from the schedule
+ */
+static void unlink_interrupt(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	struct uhci_qh *pqh;
+
 	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
-	qh->link = pqh->link;
-	wmb();
-	pqh->link = UHCI_PTR_QH | cpu_to_le32(qh->dma_handle);
+	pqh->link = qh->link;
+	mb();
+}
+
+/*
+ * Unlink a period-1 interrupt or async QH from the schedule
+ */
+static void unlink_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	struct uhci_qh *pqh;
+	__le32 link_to_next_qh = qh->link;
+
+	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
+	pqh->link = link_to_next_qh;
+
+	/* If this was the old first FSBR QH, link the terminating skeleton
+	 * QH to the next (new first FSBR) QH. */
+	if (pqh->skel < SKEL_FSBR && qh->skel >= SKEL_FSBR)
+		uhci->skel_term_qh->link = link_to_next_qh;
+	mb();
 }
 
 /*
@@ -451,17 +554,18 @@ static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
  */
 static void uhci_unlink_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
-	struct uhci_qh *pqh;
-
 	if (qh->state == QH_STATE_UNLINKING)
 		return;
 	WARN_ON(qh->state != QH_STATE_ACTIVE || !qh->udev);
 	qh->state = QH_STATE_UNLINKING;
 
 	/* Unlink the QH from the schedule and record when we did it */
-	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
-	pqh->link = qh->link;
-	mb();
+	if (qh->skel == SKEL_ISO)
+		;
+	else if (qh->skel < SKEL_ASYNC)
+		unlink_interrupt(uhci, qh);
+	else
+		unlink_async(uhci, qh);
 
 	uhci_get_current_frame_number(uhci);
 	qh->unlink_frame = uhci->frame_number;
@@ -642,9 +746,11 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 {
 	struct uhci_td *td, *tmp;
 
-	if (!list_empty(&urbp->node))
+	if (!list_empty(&urbp->node)) {
 		dev_warn(uhci_dev(uhci), "urb %p still on QH's list!\n",
 				urbp->urb);
+		WARN_ON(1);
+	}
 
 	list_for_each_entry_safe(td, tmp, &urbp->td_list, list) {
 		uhci_remove_td_from_urbp(td);
@@ -697,6 +803,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	dma_addr_t data = urb->transfer_dma;
 	__le32 *plink;
 	struct urb_priv *urbp = urb->hcpriv;
+	int skel;
 
 	/* The "pipe" thing contains the destination in bits 8--18 */
 	destination = (urb->pipe & PIPE_DEVEP_MASK) | USB_PID_SETUP;
@@ -737,7 +844,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		td = uhci_alloc_td(uhci);
 		if (!td)
 			goto nomem;
-		*plink = cpu_to_le32(td->dma_handle);
+		*plink = LINK_TO_TD(td);
 
 		/* Alternate Data0/1 (start with Data1) */
 		destination ^= TD_TOKEN_TOGGLE;
@@ -757,7 +864,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	td = uhci_alloc_td(uhci);
 	if (!td)
 		goto nomem;
-	*plink = cpu_to_le32(td->dma_handle);
+	*plink = LINK_TO_TD(td);
 
 	/*
 	 * It's IN if the pipe is an output pipe or we're not expecting
@@ -784,7 +891,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	td = uhci_alloc_td(uhci);
 	if (!td)
 		goto nomem;
-	*plink = cpu_to_le32(td->dma_handle);
+	*plink = LINK_TO_TD(td);
 
 	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
 	wmb();
@@ -797,11 +904,13 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 * isn't in the CONFIGURED state. */
 	if (urb->dev->speed == USB_SPEED_LOW ||
 			urb->dev->state != USB_STATE_CONFIGURED)
-		qh->skel = uhci->skel_ls_control_qh;
+		skel = SKEL_LS_CONTROL;
 	else {
-		qh->skel = uhci->skel_fs_control_qh;
+		skel = SKEL_FS_CONTROL;
 		uhci_add_fsbr(uhci, urb);
 	}
+	if (qh->state != QH_STATE_ACTIVE)
+		qh->skel = skel;
 
 	urb->actual_length = -8;	/* Account for the SETUP packet */
 	return 0;
@@ -860,7 +969,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 			td = uhci_alloc_td(uhci);
 			if (!td)
 				goto nomem;
-			*plink = cpu_to_le32(td->dma_handle);
+			*plink = LINK_TO_TD(td);
 		}
 		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status,
@@ -888,7 +997,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 		td = uhci_alloc_td(uhci);
 		if (!td)
 			goto nomem;
-		*plink = cpu_to_le32(td->dma_handle);
+		*plink = LINK_TO_TD(td);
 
 		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status,
@@ -914,7 +1023,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	td = uhci_alloc_td(uhci);
 	if (!td)
 		goto nomem;
-	*plink = cpu_to_le32(td->dma_handle);
+	*plink = LINK_TO_TD(td);
 
 	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
 	wmb();
@@ -931,7 +1040,7 @@ nomem:
 	return -ENOMEM;
 }
 
-static inline int uhci_submit_bulk(struct uhci_hcd *uhci, struct urb *urb,
+static int uhci_submit_bulk(struct uhci_hcd *uhci, struct urb *urb,
 		struct uhci_qh *qh)
 {
 	int ret;
@@ -940,7 +1049,8 @@ static inline int uhci_submit_bulk(struct uhci_hcd *uhci, struct urb *urb,
 	if (urb->dev->speed == USB_SPEED_LOW)
 		return -EINVAL;
 
-	qh->skel = uhci->skel_bulk_qh;
+	if (qh->state != QH_STATE_ACTIVE)
+		qh->skel = SKEL_BULK;
 	ret = uhci_submit_common(uhci, urb, qh);
 	if (ret == 0)
 		uhci_add_fsbr(uhci, urb);
@@ -968,7 +1078,7 @@ static int uhci_submit_interrupt(struct uhci_hcd *uhci, struct urb *urb,
 		if (exponent < 0)
 			return -EINVAL;
 		qh->period = 1 << exponent;
-		qh->skel = uhci->skelqh[UHCI_SKEL_INDEX(exponent)];
+		qh->skel = SKEL_INDEX(exponent);
 
 		/* For now, interrupt phase is fixed by the layout
 		 * of the QH lists. */
@@ -1005,7 +1115,7 @@ static int uhci_fixup_short_transfer(struct uhci_hcd *uhci,
 		 * the queue at the status stage transaction, which is
 		 * the last TD. */
 		WARN_ON(list_empty(&urbp->td_list));
-		qh->element = cpu_to_le32(td->dma_handle);
+		qh->element = LINK_TO_TD(td);
 		tmp = td->list.prev;
 		ret = -EINPROGRESS;
 
@@ -1069,7 +1179,7 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 
 				if (debug > 1 && errbuf) {
 					/* Print the chain for debugging */
-					uhci_show_qh(urbp->qh, errbuf,
+					uhci_show_qh(uhci, urbp->qh, errbuf,
 							ERRBUF_LEN, 0);
 					lprintk(errbuf);
 				}
@@ -1216,7 +1326,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 		qh->iso_status = 0;
 	}
 
-	qh->skel = uhci->skel_iso_qh;
+	qh->skel = SKEL_ISO;
 	if (!qh->bandwidth_reserved)
 		uhci_reserve_bandwidth(uhci, qh);
 	return 0;
@@ -1566,8 +1676,7 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	if (time_after(jiffies, qh->advance_jiffies + QH_WAIT_TIMEOUT)) {
 
 		/* Detect the Intel bug and work around it */
-		if (qh->post_td && qh_element(qh) ==
-				cpu_to_le32(qh->post_td->dma_handle)) {
+		if (qh->post_td && qh_element(qh) == LINK_TO_TD(qh->post_td)) {
 			qh->element = qh->post_td->link;
 			qh->advance_jiffies = jiffies;
 			ret = 1;

@@ -26,6 +26,27 @@
 #include <linux/mutex.h>
 
 
+static int pvr2_ctrl_range_check(struct pvr2_ctrl *cptr,int val)
+{
+	if (cptr->info->check_value) {
+		if (!cptr->info->check_value(cptr,val)) return -ERANGE;
+	} else {
+		int lim;
+		lim = cptr->info->def.type_int.min_value;
+		if (cptr->info->get_min_value) {
+			cptr->info->get_min_value(cptr,&lim);
+		}
+		if (val < lim) return -ERANGE;
+		lim = cptr->info->def.type_int.max_value;
+		if (cptr->info->get_max_value) {
+			cptr->info->get_max_value(cptr,&lim);
+		}
+		if (val > lim) return -ERANGE;
+	}
+	return 0;
+}
+
+
 /* Set the given control. */
 int pvr2_ctrl_set_value(struct pvr2_ctrl *cptr,int val)
 {
@@ -43,17 +64,8 @@ int pvr2_ctrl_set_mask_value(struct pvr2_ctrl *cptr,int mask,int val)
 			if (cptr->info->type == pvr2_ctl_bitmask) {
 				mask &= cptr->info->def.type_bitmask.valid_bits;
 			} else if (cptr->info->type == pvr2_ctl_int) {
-				int lim;
-				lim = cptr->info->def.type_int.min_value;
-				if (cptr->info->get_min_value) {
-					cptr->info->get_min_value(cptr,&lim);
-				}
-				if (val < lim) break;
-				lim = cptr->info->def.type_int.max_value;
-				if (cptr->info->get_max_value) {
-					cptr->info->get_max_value(cptr,&lim);
-				}
-				if (val > lim) break;
+				ret = pvr2_ctrl_range_check(cptr,val);
+				if (ret < 0) break;
 			} else if (cptr->info->type == pvr2_ctl_enum) {
 				if (val >= cptr->info->def.type_enum.count) {
 					break;
@@ -498,16 +510,13 @@ int pvr2_ctrl_sym_to_value(struct pvr2_ctrl *cptr,
 	LOCK_TAKE(cptr->hdw->big_lock); do {
 		if (cptr->info->type == pvr2_ctl_int) {
 			ret = parse_token(ptr,len,valptr,NULL,0);
-			if ((ret >= 0) &&
-			    ((*valptr < cptr->info->def.type_int.min_value) ||
-			     (*valptr > cptr->info->def.type_int.max_value))) {
-				ret = -ERANGE;
+			if (ret >= 0) {
+				ret = pvr2_ctrl_range_check(cptr,*valptr);
 			}
 			if (maskptr) *maskptr = ~0;
 		} else if (cptr->info->type == pvr2_ctl_bool) {
-			ret = parse_token(
-				ptr,len,valptr,boolNames,
-				sizeof(boolNames)/sizeof(boolNames[0]));
+			ret = parse_token(ptr,len,valptr,boolNames,
+					  ARRAY_SIZE(boolNames));
 			if (ret == 1) {
 				*valptr = *valptr ? !0 : 0;
 			} else if (ret == 0) {

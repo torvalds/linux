@@ -41,7 +41,6 @@
 #include <asm/qe_ic.h>
 
 #include "mpc83xx.h"
-#include "mpc832x_mds.h"
 
 #undef DEBUG
 #ifdef DEBUG
@@ -57,11 +56,6 @@ unsigned long isa_mem_base = 0;
 
 static u8 *bcsr_regs = NULL;
 
-u8 *get_bcsr(void)
-{
-	return bcsr_regs;
-}
-
 /* ************************************************************************
  *
  * Setup the architecture
@@ -73,17 +67,6 @@ static void __init mpc832x_sys_setup_arch(void)
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc832x_sys_setup_arch()", 0);
-
-	np = of_find_node_by_type(NULL, "cpu");
-	if (np != 0) {
-		unsigned int *fp =
-		    (int *)get_property(np, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(np);
-	}
 
 	/* Map BCSR area */
 	np = of_find_node_by_name(NULL, "bcsr");
@@ -121,34 +104,23 @@ static void __init mpc832x_sys_setup_arch(void)
 		iounmap(bcsr_regs);
 		of_node_put(np);
 	}
-
 #endif				/* CONFIG_QUICC_ENGINE */
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (initrd_start)
-		ROOT_DEV = Root_RAM0;
-	else
-#endif
-#ifdef  CONFIG_ROOT_NFS
-		ROOT_DEV = Root_NFS;
-#else
-		ROOT_DEV = Root_HDA1;
-#endif
 }
+
+static struct of_device_id mpc832x_ids[] = {
+	{ .type = "soc", },
+	{ .compatible = "soc", },
+	{ .type = "qe", },
+	{},
+};
 
 static int __init mpc832x_declare_of_platform_devices(void)
 {
-	struct device_node *np;
+	if (!machine_is(mpc832x_mds))
+		return 0;
 
-	for (np = NULL; (np = of_find_compatible_node(np, "network",
-					"ucc_geth")) != NULL;) {
-		int ucc_num;
-		char bus_id[BUS_ID_SIZE];
-
-		ucc_num = *((uint *) get_property(np, "device-id", NULL)) - 1;
-		snprintf(bus_id, BUS_ID_SIZE, "ucc_geth.%u", ucc_num);
-		of_platform_device_create(np, bus_id, NULL);
-	}
+	/* Publish the QE devices */
+	of_platform_bus_probe(NULL, mpc832x_ids, NULL);
 
 	return 0;
 }
@@ -156,7 +128,6 @@ device_initcall(mpc832x_declare_of_platform_devices);
 
 static void __init mpc832x_sys_init_IRQ(void)
 {
-
 	struct device_node *np;
 
 	np = of_find_node_by_type(NULL, "ipic");
@@ -189,6 +160,9 @@ static int __init mpc832x_rtc_hookup(void)
 {
 	struct timespec tv;
 
+	if (!machine_is(mpc832x_mds))
+		return 0;
+
 	ppc_md.get_rtc_time = ds1374_get_rtc_time;
 	ppc_md.set_rtc_time = ds1374_set_rtc_time;
 
@@ -207,17 +181,9 @@ late_initcall(mpc832x_rtc_hookup);
  */
 static int __init mpc832x_sys_probe(void)
 {
-	char *model = of_get_flat_dt_prop(of_get_flat_dt_root(),
-					  "model", NULL);
+        unsigned long root = of_get_flat_dt_root();
 
-	if (model == NULL)
-		return 0;
-	if (strcmp(model, "MPC8323EMDS"))
-		return 0;
-
-	DBG("%s found\n", model);
-
-	return 1;
+        return of_flat_dt_is_compatible(root, "MPC832xMDS");
 }
 
 define_machine(mpc832x_mds) {

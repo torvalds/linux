@@ -5574,14 +5574,14 @@ static ssize_t osst_version_show(struct device_driver *ddd, char *buf)
 
 static DRIVER_ATTR(version, S_IRUGO, osst_version_show, NULL);
 
-static int osst_create_driverfs_files(struct device_driver *driverfs)
+static int osst_create_sysfs_files(struct device_driver *sysfs)
 {
-	return driver_create_file(driverfs, &driver_attr_version);
+	return driver_create_file(sysfs, &driver_attr_version);
 }
 
-static void osst_remove_driverfs_files(struct device_driver *driverfs)
+static void osst_remove_sysfs_files(struct device_driver *sysfs)
 {
-	driver_remove_file(driverfs, &driver_attr_version);
+	driver_remove_file(sysfs, &driver_attr_version);
 }
 
 /*
@@ -5953,7 +5953,7 @@ static int __init init_osst(void)
 	if (err)
 		goto err_out_chrdev;
 
-	err = osst_create_driverfs_files(&osst_template.gendrv);
+	err = osst_create_sysfs_files(&osst_template.gendrv);
 	if (err)
 		goto err_out_scsidrv;
 
@@ -5973,7 +5973,7 @@ static void __exit exit_osst (void)
 	int i;
 	struct osst_tape * STp;
 
-	osst_remove_driverfs_files(&osst_template.gendrv);
+	osst_remove_sysfs_files(&osst_template.gendrv);
 	scsi_unregister_driver(&osst_template.gendrv);
 	unregister_chrdev(OSST_MAJOR, "osst");
 	osst_sysfs_cleanup();

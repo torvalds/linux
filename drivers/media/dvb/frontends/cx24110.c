@@ -254,7 +254,7 @@ static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 	if (srate<500000)
 		srate=500000;
 
-	for(i=0;(i<sizeof(bands)/sizeof(bands[0]))&&(srate>bands[i]);i++)
+	for(i = 0; (i < ARRAY_SIZE(bands)) && (srate>bands[i]); i++)
 		;
 	/* first, check which sample rate is appropriate: 45, 60 80 or 90 MHz,
 	   and set the PLL accordingly (R07[1:0] Fclk, R06[7:4] PLLmult,
@@ -361,7 +361,7 @@ static int cx24110_initfe(struct dvb_frontend* fe)
 
 	dprintk("%s: init chip\n", __FUNCTION__);
 
-	for(i=0;i<sizeof(cx24110_regdata)/sizeof(cx24110_regdata[0]);i++) {
+	for(i = 0; i < ARRAY_SIZE(cx24110_regdata); i++) {
 		cx24110_writereg(state, cx24110_regdata[i].reg, cx24110_regdata[i].data);
 	};
 

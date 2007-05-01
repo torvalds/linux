@@ -60,7 +60,7 @@ Here's an example of how to use the API:
 	desc.tfm = tfm;
 	desc.flags = 0;
 	
-	if (crypto_hash_digest(&desc, &sg, 2, result))
+	if (crypto_hash_digest(&desc, sg, 2, result))
 		fail();
 	
 	crypto_free_hash(tfm);

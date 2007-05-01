@@ -3,8 +3,6 @@
 
 #ifndef __ASSEMBLER__
 #include <linux/types.h>
-#include <asm/system.h> /* local_irq_save */
-#include <asm/arch/iop13xx.h> /* iop13xx_cp6_* */
 
 /* INTPND0 CP6 R0 Page 3
  */
@@ -40,21 +38,6 @@ static inline u32 read_intpnd_3(void)
 	u32 val;
 	asm volatile("mrc p6, 0, %0, c3, c3, 0":"=r" (val));
 	return val;
-}
-
-static inline void
-iop13xx_cp6_enable_irq_save(unsigned long *cp_flags, unsigned long *irq_flags)
-{
-	local_irq_save(*irq_flags);
-	*cp_flags = iop13xx_cp6_save();
-}
-
-static inline void
-iop13xx_cp6_irq_restore(unsigned long *cp_flags,
-	unsigned long *irq_flags)
-{
-	iop13xx_cp6_restore(*cp_flags);
-	local_irq_restore(*irq_flags);
 }
 #endif
 

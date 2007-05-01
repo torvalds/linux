@@ -32,6 +32,7 @@
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/arch/time.h>
 
 /*
  * IQ80332 timer tick configuration.
@@ -40,14 +41,14 @@ static void __init iq80332_timer_init(void)
 {
 	/* D-Step parts and the iop333 run at a higher internal bus frequency */
 	if (*IOP3XX_ATURID >= 0xa || *IOP3XX_ATUDID == 0x374)
-		iop3xx_init_time(333000000);
+		iop_init_time(333000000);
 	else
-		iop3xx_init_time(266000000);
+		iop_init_time(266000000);
 }
 
 static struct sys_timer iq80332_timer = {
 	.init		= iq80332_timer_init,
-	.offset		= iop3xx_gettimeoffset,
+	.offset		= iop_gettimeoffset,
 };
 
 

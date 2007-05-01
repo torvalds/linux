@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2006 Chelsio, Inc. All rights reserved.
- * Copyright (c) 2006 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -210,8 +209,7 @@ static enum iwch_ep_state state_read(struct iwch_ep_common *epc)
 	return state;
 }
 
-static inline void __state_set(struct iwch_ep_common *epc,
-			       enum iwch_ep_state new)
+static void __state_set(struct iwch_ep_common *epc, enum iwch_ep_state new)
 {
 	epc->state = new;
 }
@@ -307,8 +305,7 @@ static int status2errno(int status)
  */
 static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp)
 {
-	if (skb) {
-		BUG_ON(skb_cloned(skb));
+	if (skb && !skb_is_nonlinear(skb) && !skb_cloned(skb)) {
 		skb_trim(skb, 0);
 		skb_get(skb);
 	} else {
@@ -480,7 +477,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	BUG_ON(skb_cloned(skb));
 
 	mpalen = sizeof(*mpa) + ep->plen;
-	if (skb->data + mpalen + sizeof(*req) > skb->end) {
+	if (skb->data + mpalen + sizeof(*req) > skb_end_pointer(skb)) {
 		kfree_skb(skb);
 		skb=alloc_skb(mpalen + sizeof(*req), GFP_KERNEL);
 		if (!skb) {
@@ -510,7 +507,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	 */
 	skb_get(skb);
 	set_arp_failure_handler(skb, arp_failure_discard);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	len = skb->len;
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
@@ -562,7 +559,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 	skb_get(skb);
 	skb->priority = CPL_PRIORITY_DATA;
 	set_arp_failure_handler(skb, arp_failure_discard);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
 	req->wr_lo = htonl(V_WR_TID(ep->hwtid));
@@ -613,7 +610,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 	 */
 	skb_get(skb);
 	set_arp_failure_handler(skb, arp_failure_discard);
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	len = skb->len;
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
@@ -824,7 +821,8 @@ static void process_mpa_reply(struct iwch_ep *ep, struct sk_buff *skb)
 	/*
 	 * copy the new data into our accumulation buffer.
 	 */
-	memcpy(&(ep->mpa_pkt[ep->mpa_pkt_len]), skb->data, skb->len);
+	skb_copy_from_linear_data(skb, &(ep->mpa_pkt[ep->mpa_pkt_len]),
+				  skb->len);
 	ep->mpa_pkt_len += skb->len;
 
 	/*
@@ -943,7 +941,8 @@ static void process_mpa_request(struct iwch_ep *ep, struct sk_buff *skb)
 	/*
 	 * Copy the new data into our accumulation buffer.
 	 */
-	memcpy(&(ep->mpa_pkt[ep->mpa_pkt_len]), skb->data, skb->len);
+	skb_copy_from_linear_data(skb, &(ep->mpa_pkt[ep->mpa_pkt_len]),
+				  skb->len);
 	ep->mpa_pkt_len += skb->len;
 
 	/*
@@ -1417,6 +1416,7 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		wake_up(&ep->com.waitq);
 		break;
 	case FPDU_MODE:
+		start_ep_timer(ep);
 		__state_set(&ep->com, CLOSING);
 		attrs.next_state = IWCH_QP_STATE_CLOSING;
 		iwch_modify_qp(ep->com.qp->rhp, ep->com.qp,
@@ -1427,7 +1427,6 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		disconnect = 0;
 		break;
 	case CLOSING:
-		start_ep_timer(ep);
 		__state_set(&ep->com, MORIBUND);
 		disconnect = 0;
 		break;
@@ -1460,7 +1459,7 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 /*
  * Returns whether an ABORT_REQ_RSS message is a negative advice.
  */
-static inline int is_neg_adv_abort(unsigned int status)
+static int is_neg_adv_abort(unsigned int status)
 {
 	return status == CPL_ERR_RTX_NEG_ADVICE ||
 	       status == CPL_ERR_PERSIST_NEG_ADVICE;
@@ -1489,8 +1488,10 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	case CONNECTING:
 		break;
 	case MPA_REQ_WAIT:
+		stop_ep_timer(ep);
 		break;
 	case MPA_REQ_SENT:
+		stop_ep_timer(ep);
 		connect_reply_upcall(ep, -ECONNRESET);
 		break;
 	case MPA_REP_SENT:
@@ -1509,9 +1510,10 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		get_ep(&ep->com);
 		break;
 	case MORIBUND:
-		stop_ep_timer(ep);
-	case FPDU_MODE:
 	case CLOSING:
+		stop_ep_timer(ep);
+		/*FALLTHROUGH*/
+	case FPDU_MODE:
 		if (ep->com.cm_id && ep->com.qp) {
 			attrs.next_state = IWCH_QP_STATE_ERROR;
 			ret = iwch_modify_qp(ep->com.qp->rhp,
@@ -1572,7 +1574,6 @@ static int close_con_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	spin_lock_irqsave(&ep->com.lock, flags);
 	switch (ep->com.state) {
 	case CLOSING:
-		start_ep_timer(ep);
 		__state_set(&ep->com, MORIBUND);
 		break;
 	case MORIBUND:
@@ -1587,6 +1588,8 @@ static int close_con_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		close_complete_upcall(ep);
 		__state_set(&ep->com, DEAD);
 		release = 1;
+		break;
+	case ABORTING:
 		break;
 	case DEAD:
 	default:
@@ -1618,7 +1621,8 @@ static int terminate(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	PDBG("%s ep %p\n", __FUNCTION__, ep);
 	skb_pull(skb, sizeof(struct cpl_rdma_terminate));
 	PDBG("%s saving %d bytes of term msg\n", __FUNCTION__, skb->len);
-	memcpy(ep->com.qp->attr.terminate_buffer, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, ep->com.qp->attr.terminate_buffer,
+				  skb->len);
 	ep->com.qp->attr.terminate_msg_len = skb->len;
 	ep->com.qp->attr.is_terminate_local = 0;
 	return CPL_RET_BUF_DONE;
@@ -1636,6 +1640,7 @@ static int ec_status(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 
 		printk(KERN_ERR MOD "%s BAD CLOSE - Aborting tid %u\n",
 		       __FUNCTION__, ep->hwtid);
+		stop_ep_timer(ep);
 		attrs.next_state = IWCH_QP_STATE_ERROR;
 		iwch_modify_qp(ep->com.qp->rhp,
 			       ep->com.qp, IWCH_QP_ATTR_NEXT_STATE,
@@ -1660,6 +1665,7 @@ static void ep_timeout(unsigned long arg)
 		break;
 	case MPA_REQ_WAIT:
 		break;
+	case CLOSING:
 	case MORIBUND:
 		if (ep->com.cm_id && ep->com.qp) {
 			attrs.next_state = IWCH_QP_STATE_ERROR;
@@ -1688,12 +1694,11 @@ int iwch_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 		return -ECONNRESET;
 	}
 	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
-	state_set(&ep->com, CLOSING);
 	if (mpa_rev == 0)
 		abort_connection(ep, NULL, GFP_KERNEL);
 	else {
 		err = send_mpa_reject(ep, pdata, pdata_len);
-		err = send_halfclose(ep, GFP_KERNEL);
+		err = iwch_ep_disconnect(ep, 0, GFP_KERNEL);
 	}
 	return 0;
 }
@@ -1958,11 +1963,11 @@ int iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, gfp_t gfp)
 	case MPA_REQ_RCVD:
 	case MPA_REP_SENT:
 	case FPDU_MODE:
+		start_ep_timer(ep);
 		ep->com.state = CLOSING;
 		close = 1;
 		break;
 	case CLOSING:
-		start_ep_timer(ep);
 		ep->com.state = MORIBUND;
 		close = 1;
 		break;
@@ -2024,6 +2029,17 @@ static int sched(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	return 0;
 }
 
+static int set_tcb_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
+{
+	struct cpl_set_tcb_rpl *rpl = cplhdr(skb);
+
+	if (rpl->status != CPL_ERR_NONE) {
+		printk(KERN_ERR MOD "Unexpected SET_TCB_RPL status %u "
+		       "for tid %u\n", rpl->status, GET_TID(rpl));
+	}
+	return CPL_RET_BUF_DONE;
+}
+
 int __init iwch_cm_init(void)
 {
 	skb_queue_head_init(&rxq);
@@ -2051,6 +2067,7 @@ int __init iwch_cm_init(void)
 	t3c_handlers[CPL_ABORT_REQ_RSS] = sched;
 	t3c_handlers[CPL_RDMA_TERMINATE] = sched;
 	t3c_handlers[CPL_RDMA_EC_STATUS] = sched;
+	t3c_handlers[CPL_SET_TCB_RPL] = set_tcb_rpl;
 
 	/*
 	 * These are the real handlers that are called from a

@@ -157,6 +157,7 @@
  * Mask values for each interrupt
  */
 
+#define _BCM1480_INT_MASK(w,n)              _SB_MAKEMASK(w,((n) & 0x3F))
 #define _BCM1480_INT_MASK1(n)               _SB_MAKEMASK1(((n) & 0x3F))
 #define _BCM1480_INT_OFFSET(n)              (((n) & 0x40) << 6)
 
@@ -195,6 +196,7 @@
 #define M_BCM1480_INT_PMI_HIGH              _BCM1480_INT_MASK1(K_BCM1480_INT_PMI_HIGH)
 #define M_BCM1480_INT_PMO_LOW               _BCM1480_INT_MASK1(K_BCM1480_INT_PMO_LOW)
 #define M_BCM1480_INT_PMO_HIGH              _BCM1480_INT_MASK1(K_BCM1480_INT_PMO_HIGH)
+#define M_BCM1480_INT_MBOX_ALL              _BCM1480_INT_MASK(8,K_BCM1480_INT_MBOX_0_0)
 #define M_BCM1480_INT_MBOX_0_0              _BCM1480_INT_MASK1(K_BCM1480_INT_MBOX_0_0)
 #define M_BCM1480_INT_MBOX_0_1              _BCM1480_INT_MASK1(K_BCM1480_INT_MBOX_0_1)
 #define M_BCM1480_INT_MBOX_0_2              _BCM1480_INT_MASK1(K_BCM1480_INT_MBOX_0_2)

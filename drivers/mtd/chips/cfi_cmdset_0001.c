@@ -15,6 +15,8 @@
  *	- optimized write buffer method
  * 02/05/2002	Christopher Hoover <ch@hpl.hp.com>/<ch@murgatroid.com>
  *	- reworked lock/unlock/erase support for var size flash
+ * 21/03/2007   Rodolfo Giometti <giometti@linux.it>
+ * 	- auto unlock sectors on resume for auto locking flash on power up
  */
 
 #include <linux/module.h>
@@ -30,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
+#include <linux/bitmap.h>
 #include <linux/mtd/xip.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/mtd.h>
@@ -220,6 +223,15 @@ static void fixup_use_write_buffers(struct mtd_info *mtd, void *param)
 	}
 }
 
+/*
+ * Some chips power-up with all sectors locked by default.
+ */
+static void fixup_use_powerup_lock(struct mtd_info *mtd, void *param)
+{
+	printk(KERN_INFO "Using auto-unlock on power-up/resume\n" );
+	mtd->flags |= MTD_STUPID_LOCK;
+}
+
 static struct cfi_fixup cfi_fixup_table[] = {
 #ifdef CMDSET0001_DISABLE_ERASE_SUSPEND_ON_WRITE
 	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_intel_strataflash, NULL },
@@ -232,6 +244,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 #endif
 	{ CFI_MFR_ST, 0x00ba, /* M28W320CT */ fixup_st_m28w320ct, NULL },
 	{ CFI_MFR_ST, 0x00bb, /* M28W320CB */ fixup_st_m28w320cb, NULL },
+	{ MANUFACTURER_INTEL, 0x891c,	      fixup_use_powerup_lock, NULL, },
 	{ 0, 0, NULL, NULL }
 };
 
@@ -397,9 +410,23 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 	cfi_fixup(mtd, fixup_table);
 
 	for (i=0; i< cfi->numchips; i++) {
-		cfi->chips[i].word_write_time = 1<<cfi->cfiq->WordWriteTimeoutTyp;
-		cfi->chips[i].buffer_write_time = 1<<cfi->cfiq->BufWriteTimeoutTyp;
-		cfi->chips[i].erase_time = 1000<<cfi->cfiq->BlockEraseTimeoutTyp;
+		if (cfi->cfiq->WordWriteTimeoutTyp)
+			cfi->chips[i].word_write_time =
+				1<<cfi->cfiq->WordWriteTimeoutTyp;
+		else
+			cfi->chips[i].word_write_time = 50000;
+
+		if (cfi->cfiq->BufWriteTimeoutTyp)
+			cfi->chips[i].buffer_write_time =
+				1<<cfi->cfiq->BufWriteTimeoutTyp;
+		/* No default; if it isn't specified, we won't use it */
+
+		if (cfi->cfiq->BlockEraseTimeoutTyp)
+			cfi->chips[i].erase_time =
+				1000<<cfi->cfiq->BlockEraseTimeoutTyp;
+		else
+			cfi->chips[i].erase_time = 2000000;
+
 		cfi->chips[i].ref_point_counter = 0;
 		init_waitqueue_head(&(cfi->chips[i].wq));
 	}
@@ -446,6 +473,7 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 			mtd->eraseregions[(j*cfi->cfiq->NumEraseRegions)+i].offset = (j*devsize)+offset;
 			mtd->eraseregions[(j*cfi->cfiq->NumEraseRegions)+i].erasesize = ersize;
 			mtd->eraseregions[(j*cfi->cfiq->NumEraseRegions)+i].numblocks = ernum;
+			mtd->eraseregions[(j*cfi->cfiq->NumEraseRegions)+i].lockmap = kmalloc(ernum / 8 + 1, GFP_KERNEL);
 		}
 		offset += (ersize * ernum);
 	}
@@ -546,13 +574,11 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 			struct cfi_intelext_programming_regioninfo *prinfo;
 			prinfo = (struct cfi_intelext_programming_regioninfo *)&extp->extra[offs];
 			mtd->writesize = cfi->interleave << prinfo->ProgRegShift;
-			MTD_PROGREGION_CTRLMODE_VALID(mtd) = cfi->interleave * prinfo->ControlValid;
-			MTD_PROGREGION_CTRLMODE_INVALID(mtd) = cfi->interleave * prinfo->ControlInvalid;
 			mtd->flags &= ~MTD_BIT_WRITEABLE;
 			printk(KERN_DEBUG "%s: program region size/ctrl_valid/ctrl_inval = %d/%d/%d\n",
 			       map->name, mtd->writesize,
-			       MTD_PROGREGION_CTRLMODE_VALID(mtd),
-			       MTD_PROGREGION_CTRLMODE_INVALID(mtd));
+			       cfi->interleave * prinfo->ControlValid,
+			       cfi->interleave * prinfo->ControlInvalid);
 		}
 
 		/*
@@ -1813,8 +1839,7 @@ static void cfi_intelext_sync (struct mtd_info *mtd)
 	}
 }
 
-#ifdef DEBUG_LOCK_BITS
-static int __xipram do_printlockstatus_oneblock(struct map_info *map,
+static int __xipram do_getlockstatus_oneblock(struct map_info *map,
 						struct flchip *chip,
 						unsigned long adr,
 						int len, void *thunk)
@@ -1828,8 +1853,17 @@ static int __xipram do_printlockstatus_oneblock(struct map_info *map,
 	chip->state = FL_JEDEC_QUERY;
 	status = cfi_read_query(map, adr+(2*ofs_factor));
 	xip_enable(map, chip, 0);
+	return status;
+}
+
+#ifdef DEBUG_LOCK_BITS
+static int __xipram do_printlockstatus_oneblock(struct map_info *map,
+						struct flchip *chip,
+						unsigned long adr,
+						int len, void *thunk)
+{
 	printk(KERN_DEBUG "block status register for 0x%08lx is %x\n",
-	       adr, status);
+	       adr, do_getlockstatus_oneblock(map, chip, adr, len, thunk));
 	return 0;
 }
 #endif
@@ -2204,13 +2238,44 @@ static int cfi_intelext_get_user_prot_info(struct mtd_info *mtd,
 
 #endif
 
+static void cfi_intelext_save_locks(struct mtd_info *mtd)
+{
+	struct mtd_erase_region_info *region;
+	int block, status, i;
+	unsigned long adr;
+	size_t len;
+
+	for (i = 0; i < mtd->numeraseregions; i++) {
+		region = &mtd->eraseregions[i];
+		if (!region->lockmap)
+			continue;
+
+		for (block = 0; block < region->numblocks; block++){
+			len = region->erasesize;
+			adr = region->offset + block * len;
+
+			status = cfi_varsize_frob(mtd,
+					do_getlockstatus_oneblock, adr, len, 0);
+			if (status)
+				set_bit(block, region->lockmap);
+			else
+				clear_bit(block, region->lockmap);
+		}
+	}
+}
+
 static int cfi_intelext_suspend(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
 	int i;
 	struct flchip *chip;
 	int ret = 0;
+
+	if ((mtd->flags & MTD_STUPID_LOCK)
+	    && extp && (extp->FeatureSupport & (1 << 5)))
+		cfi_intelext_save_locks(mtd);
 
 	for (i=0; !ret && i<cfi->numchips; i++) {
 		chip = &cfi->chips[i];
@@ -2273,10 +2338,33 @@ static int cfi_intelext_suspend(struct mtd_info *mtd)
 	return ret;
 }
 
+static void cfi_intelext_restore_locks(struct mtd_info *mtd)
+{
+	struct mtd_erase_region_info *region;
+	int block, i;
+	unsigned long adr;
+	size_t len;
+
+	for (i = 0; i < mtd->numeraseregions; i++) {
+		region = &mtd->eraseregions[i];
+		if (!region->lockmap)
+			continue;
+
+		for (block = 0; block < region->numblocks; block++) {
+			len = region->erasesize;
+			adr = region->offset + block * len;
+
+			if (!test_bit(block, region->lockmap))
+				cfi_intelext_unlock(mtd, adr, len);
+		}
+	}
+}
+
 static void cfi_intelext_resume(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
 	int i;
 	struct flchip *chip;
 
@@ -2295,6 +2383,10 @@ static void cfi_intelext_resume(struct mtd_info *mtd)
 
 		spin_unlock(chip->mutex);
 	}
+
+	if ((mtd->flags & MTD_STUPID_LOCK)
+	    && extp && (extp->FeatureSupport & (1 << 5)))
+		cfi_intelext_restore_locks(mtd);
 }
 
 static int cfi_intelext_reset(struct mtd_info *mtd)
@@ -2335,12 +2427,19 @@ static void cfi_intelext_destroy(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
+	struct mtd_erase_region_info *region;
+	int i;
 	cfi_intelext_reset(mtd);
 	unregister_reboot_notifier(&mtd->reboot_notifier);
 	kfree(cfi->cmdset_priv);
 	kfree(cfi->cfiq);
 	kfree(cfi->chips[0].priv);
 	kfree(cfi);
+	for (i = 0; i < mtd->numeraseregions; i++) {
+		region = &mtd->eraseregions[i];
+		if (region->lockmap)
+			kfree(region->lockmap);
+	}
 	kfree(mtd->eraseregions);
 }
 

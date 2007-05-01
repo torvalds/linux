@@ -16,6 +16,7 @@
 #include <asm/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/sigp.h>
+#include <asm/smp.h>
 
 #include "sclp.h"
 
@@ -42,7 +43,7 @@ sclp_quiesce_handler(struct evbuf_header *evbuf)
 }
 
 static struct sclp_register sclp_quiesce_event = {
-	.receive_mask = EvTyp_SigQuiesce_Mask,
+	.receive_mask = EVTYP_SIGQUIESCE_MASK,
 	.receiver_fn = sclp_quiesce_handler
 };
 

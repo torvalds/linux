@@ -246,7 +246,6 @@ static char *usb_dump_interface_descriptor(char *start, char *end,
 
 	if (start > end)
 		return start;
-	down_read(&usb_bus_type.subsys.rwsem);
 	if (iface) {
 		driver_name = (iface->dev.driver
 				? iface->dev.driver->name
@@ -263,7 +262,6 @@ static char *usb_dump_interface_descriptor(char *start, char *end,
 			 desc->bInterfaceSubClass,
 			 desc->bInterfaceProtocol,
 			 driver_name);
-	up_read(&usb_bus_type.subsys.rwsem);
 	return start;
 }
 
@@ -604,16 +602,17 @@ static unsigned int usb_device_poll(struct file *file, struct poll_table_struct 
 	lock_kernel();
 	if (!st) {
 		st = kmalloc(sizeof(struct usb_device_status), GFP_KERNEL);
-		if (!st) {
-			unlock_kernel();
-			return POLLIN;
-		}
 
 		/* we may have dropped BKL - need to check for having lost the race */
 		if (file->private_data) {
 			kfree(st);
 			st = file->private_data;
 			goto lost_race;
+		}
+		/* we haven't lost - check for allocation failure now */
+		if (!st) {
+			unlock_kernel();
+			return POLLIN;
 		}
 
 		/*

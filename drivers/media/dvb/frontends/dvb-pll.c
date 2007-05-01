@@ -27,17 +27,29 @@
 /* ----------------------------------------------------------- */
 /* descriptions                                                */
 
+/* Set AGC TOP value to 103 dBuV:
+	0x80 = Control Byte
+	0x40 = 250 uA charge pump (irrelevant)
+	0x18 = Aux Byte to follow
+	0x06 = 64.5 kHz divider (irrelevant)
+	0x01 = Disable Vt (aka sleep)
+
+	0x00 = AGC Time constant 2s Iagc = 300 nA (vs 0x80 = 9 nA)
+	0x50 = AGC Take over point = 103 dBuV */
+static u8 tua603x_agc103[] = { 2, 0x80|0x40|0x18|0x06|0x01, 0x00|0x50 };
+
 struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 	.name  = "Thomson dtt7579",
 	.min   = 177000000,
 	.max   = 858000000,
-	.count = 5,
+	.iffreq= 36166667,
+	.sleepdata = (u8[]){ 2, 0xb4, 0x03 },
+	.count = 4,
 	.entries = {
-		{          0, 36166667, 166666, 0xb4, 0x03 }, /* go sleep */
-		{  443250000, 36166667, 166666, 0xb4, 0x02 },
-		{  542000000, 36166667, 166666, 0xb4, 0x08 },
-		{  771000000, 36166667, 166666, 0xbc, 0x08 },
-		{  999999999, 36166667, 166666, 0xf4, 0x08 },
+		{  443250000, 166667, 0xb4, 0x02 },
+		{  542000000, 166667, 0xb4, 0x08 },
+		{  771000000, 166667, 0xbc, 0x08 },
+		{  999999999, 166667, 0xf4, 0x08 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_thomson_dtt7579);
@@ -46,11 +58,12 @@ struct dvb_pll_desc dvb_pll_thomson_dtt7610 = {
 	.name  = "Thomson dtt7610",
 	.min   =  44000000,
 	.max   = 958000000,
+	.iffreq= 44000000,
 	.count = 3,
 	.entries = {
-		{ 157250000, 44000000, 62500, 0x8e, 0x39 },
-		{ 454000000, 44000000, 62500, 0x8e, 0x3a },
-		{ 999999999, 44000000, 62500, 0x8e, 0x3c },
+		{ 157250000, 62500, 0x8e, 0x39 },
+		{ 454000000, 62500, 0x8e, 0x3a },
+		{ 999999999, 62500, 0x8e, 0x3c },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_thomson_dtt7610);
@@ -66,14 +79,15 @@ struct dvb_pll_desc dvb_pll_thomson_dtt759x = {
 	.min   = 177000000,
 	.max   = 896000000,
 	.setbw = thomson_dtt759x_bw,
-	.count = 6,
+	.iffreq= 36166667,
+	.sleepdata = (u8[]){ 2, 0x84, 0x03 },
+	.count = 5,
 	.entries = {
-		{          0, 36166667, 166666, 0x84, 0x03 },
-		{  264000000, 36166667, 166666, 0xb4, 0x02 },
-		{  470000000, 36166667, 166666, 0xbc, 0x02 },
-		{  735000000, 36166667, 166666, 0xbc, 0x08 },
-		{  835000000, 36166667, 166666, 0xf4, 0x08 },
-		{  999999999, 36166667, 166666, 0xfc, 0x08 },
+		{  264000000, 166667, 0xb4, 0x02 },
+		{  470000000, 166667, 0xbc, 0x02 },
+		{  735000000, 166667, 0xbc, 0x08 },
+		{  835000000, 166667, 0xf4, 0x08 },
+		{  999999999, 166667, 0xfc, 0x08 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_thomson_dtt759x);
@@ -82,14 +96,15 @@ struct dvb_pll_desc dvb_pll_lg_z201 = {
 	.name  = "LG z201",
 	.min   = 174000000,
 	.max   = 862000000,
-	.count = 6,
+	.iffreq= 36166667,
+	.sleepdata = (u8[]){ 2, 0xbc, 0x03 },
+	.count = 5,
 	.entries = {
-		{          0, 36166667, 166666, 0xbc, 0x03 },
-		{  157500000, 36166667, 166666, 0xbc, 0x01 },
-		{  443250000, 36166667, 166666, 0xbc, 0x02 },
-		{  542000000, 36166667, 166666, 0xbc, 0x04 },
-		{  830000000, 36166667, 166666, 0xf4, 0x04 },
-		{  999999999, 36166667, 166666, 0xfc, 0x04 },
+		{  157500000, 166667, 0xbc, 0x01 },
+		{  443250000, 166667, 0xbc, 0x02 },
+		{  542000000, 166667, 0xbc, 0x04 },
+		{  830000000, 166667, 0xf4, 0x04 },
+		{  999999999, 166667, 0xfc, 0x04 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_lg_z201);
@@ -98,11 +113,12 @@ struct dvb_pll_desc dvb_pll_microtune_4042 = {
 	.name  = "Microtune 4042 FI5",
 	.min   =  57000000,
 	.max   = 858000000,
+	.iffreq= 44000000,
 	.count = 3,
 	.entries = {
-		{ 162000000, 44000000, 62500, 0x8e, 0xa1 },
-		{ 457000000, 44000000, 62500, 0x8e, 0x91 },
-		{ 999999999, 44000000, 62500, 0x8e, 0x31 },
+		{ 162000000, 62500, 0x8e, 0xa1 },
+		{ 457000000, 62500, 0x8e, 0x91 },
+		{ 999999999, 62500, 0x8e, 0x31 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_microtune_4042);
@@ -112,11 +128,13 @@ struct dvb_pll_desc dvb_pll_thomson_dtt761x = {
 	.name  = "Thomson dtt761x",
 	.min   =  57000000,
 	.max   = 863000000,
+	.iffreq= 44000000,
 	.count = 3,
+	.initdata = tua603x_agc103,
 	.entries = {
-		{ 147000000, 44000000, 62500, 0x8e, 0x39 },
-		{ 417000000, 44000000, 62500, 0x8e, 0x3a },
-		{ 999999999, 44000000, 62500, 0x8e, 0x3c },
+		{ 147000000, 62500, 0x8e, 0x39 },
+		{ 417000000, 62500, 0x8e, 0x3a },
+		{ 999999999, 62500, 0x8e, 0x3c },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_thomson_dtt761x);
@@ -125,17 +143,18 @@ struct dvb_pll_desc dvb_pll_unknown_1 = {
 	.name  = "unknown 1", /* used by dntv live dvb-t */
 	.min   = 174000000,
 	.max   = 862000000,
+	.iffreq= 36166667,
 	.count = 9,
 	.entries = {
-		{  150000000, 36166667, 166666, 0xb4, 0x01 },
-		{  173000000, 36166667, 166666, 0xbc, 0x01 },
-		{  250000000, 36166667, 166666, 0xb4, 0x02 },
-		{  400000000, 36166667, 166666, 0xbc, 0x02 },
-		{  420000000, 36166667, 166666, 0xf4, 0x02 },
-		{  470000000, 36166667, 166666, 0xfc, 0x02 },
-		{  600000000, 36166667, 166666, 0xbc, 0x08 },
-		{  730000000, 36166667, 166666, 0xf4, 0x08 },
-		{  999999999, 36166667, 166666, 0xfc, 0x08 },
+		{  150000000, 166667, 0xb4, 0x01 },
+		{  173000000, 166667, 0xbc, 0x01 },
+		{  250000000, 166667, 0xb4, 0x02 },
+		{  400000000, 166667, 0xbc, 0x02 },
+		{  420000000, 166667, 0xf4, 0x02 },
+		{  470000000, 166667, 0xfc, 0x02 },
+		{  600000000, 166667, 0xbc, 0x08 },
+		{  730000000, 166667, 0xf4, 0x08 },
+		{  999999999, 166667, 0xfc, 0x08 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_unknown_1);
@@ -147,11 +166,12 @@ struct dvb_pll_desc dvb_pll_tua6010xs = {
 	.name  = "Infineon TUA6010XS",
 	.min   =  44250000,
 	.max   = 858000000,
+	.iffreq= 36125000,
 	.count = 3,
 	.entries = {
-		{  115750000, 36125000, 62500, 0x8e, 0x03 },
-		{  403250000, 36125000, 62500, 0x8e, 0x06 },
-		{  999999999, 36125000, 62500, 0x8e, 0x85 },
+		{  115750000, 62500, 0x8e, 0x03 },
+		{  403250000, 62500, 0x8e, 0x06 },
+		{  999999999, 62500, 0x8e, 0x85 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_tua6010xs);
@@ -161,12 +181,13 @@ struct dvb_pll_desc dvb_pll_env57h1xd5 = {
 	.name  = "Panasonic ENV57H1XD5",
 	.min   =  44250000,
 	.max   = 858000000,
+	.iffreq= 36125000,
 	.count = 4,
 	.entries = {
-		{  153000000, 36291666, 166666, 0xc2, 0x41 },
-		{  470000000, 36291666, 166666, 0xc2, 0x42 },
-		{  526000000, 36291666, 166666, 0xc2, 0x84 },
-		{  999999999, 36291666, 166666, 0xc2, 0xa4 },
+		{  153000000, 166667, 0xc2, 0x41 },
+		{  470000000, 166667, 0xc2, 0x42 },
+		{  526000000, 166667, 0xc2, 0x84 },
+		{  999999999, 166667, 0xc2, 0xa4 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_env57h1xd5);
@@ -185,20 +206,21 @@ struct dvb_pll_desc dvb_pll_tda665x = {
 	.min   =  44250000,
 	.max   = 858000000,
 	.setbw = tda665x_bw,
+	.iffreq= 36166667,
 	.count = 12,
 	.entries = {
-		{   93834000, 36249333, 166667, 0xca, 0x61 /* 011 0 0 0  01 */ },
-		{  123834000, 36249333, 166667, 0xca, 0xa1 /* 101 0 0 0  01 */ },
-		{  161000000, 36249333, 166667, 0xca, 0xa1 /* 101 0 0 0  01 */ },
-		{  163834000, 36249333, 166667, 0xca, 0xc2 /* 110 0 0 0  10 */ },
-		{  253834000, 36249333, 166667, 0xca, 0x62 /* 011 0 0 0  10 */ },
-		{  383834000, 36249333, 166667, 0xca, 0xa2 /* 101 0 0 0  10 */ },
-		{  443834000, 36249333, 166667, 0xca, 0xc2 /* 110 0 0 0  10 */ },
-		{  444000000, 36249333, 166667, 0xca, 0xc4 /* 110 0 0 1  00 */ },
-		{  583834000, 36249333, 166667, 0xca, 0x64 /* 011 0 0 1  00 */ },
-		{  793834000, 36249333, 166667, 0xca, 0xa4 /* 101 0 0 1  00 */ },
-		{  444834000, 36249333, 166667, 0xca, 0xc4 /* 110 0 0 1  00 */ },
-		{  861000000, 36249333, 166667, 0xca, 0xe4 /* 111 0 0 1  00 */ },
+		{   93834000, 166667, 0xca, 0x61 /* 011 0 0 0  01 */ },
+		{  123834000, 166667, 0xca, 0xa1 /* 101 0 0 0  01 */ },
+		{  161000000, 166667, 0xca, 0xa1 /* 101 0 0 0  01 */ },
+		{  163834000, 166667, 0xca, 0xc2 /* 110 0 0 0  10 */ },
+		{  253834000, 166667, 0xca, 0x62 /* 011 0 0 0  10 */ },
+		{  383834000, 166667, 0xca, 0xa2 /* 101 0 0 0  10 */ },
+		{  443834000, 166667, 0xca, 0xc2 /* 110 0 0 0  10 */ },
+		{  444000000, 166667, 0xca, 0xc4 /* 110 0 0 1  00 */ },
+		{  583834000, 166667, 0xca, 0x64 /* 011 0 0 1  00 */ },
+		{  793834000, 166667, 0xca, 0xa4 /* 101 0 0 1  00 */ },
+		{  444834000, 166667, 0xca, 0xc4 /* 110 0 0 1  00 */ },
+		{  861000000, 166667, 0xca, 0xe4 /* 111 0 0 1  00 */ },
 	}
 };
 EXPORT_SYMBOL(dvb_pll_tda665x);
@@ -216,12 +238,13 @@ struct dvb_pll_desc dvb_pll_tua6034 = {
 	.name  = "Infineon TUA6034",
 	.min   =  44250000,
 	.max   = 858000000,
+	.iffreq= 36166667,
 	.count = 3,
 	.setbw = tua6034_bw,
 	.entries = {
-		{  174500000, 36166667, 62500, 0xce, 0x01 },
-		{  230000000, 36166667, 62500, 0xce, 0x02 },
-		{  999999999, 36166667, 62500, 0xce, 0x04 },
+		{  174500000, 62500, 0xce, 0x01 },
+		{  230000000, 62500, 0xce, 0x02 },
+		{  999999999, 62500, 0xce, 0x04 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_tua6034);
@@ -233,11 +256,13 @@ struct dvb_pll_desc dvb_pll_lg_tdvs_h06xf = {
 	.name  = "LG TDVS-H06xF",
 	.min   =  54000000,
 	.max   = 863000000,
+	.iffreq= 44000000,
+	.initdata = tua603x_agc103,
 	.count = 3,
 	.entries = {
-		{  165000000, 44000000, 62500, 0xce, 0x01 },
-		{  450000000, 44000000, 62500, 0xce, 0x02 },
-		{  999999999, 44000000, 62500, 0xce, 0x04 },
+		{  165000000, 62500, 0xce, 0x01 },
+		{  450000000, 62500, 0xce, 0x02 },
+		{  999999999, 62500, 0xce, 0x04 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_lg_tdvs_h06xf);
@@ -255,16 +280,17 @@ struct dvb_pll_desc dvb_pll_fmd1216me = {
 	.name = "Philips FMD1216ME",
 	.min = 50870000,
 	.max = 858000000,
+	.iffreq= 36125000,
 	.setbw = fmd1216me_bw,
 	.count = 7,
 	.entries = {
-		{ 143870000, 36213333, 166667, 0xbc, 0x41 },
-		{ 158870000, 36213333, 166667, 0xf4, 0x41 },
-		{ 329870000, 36213333, 166667, 0xbc, 0x42 },
-		{ 441870000, 36213333, 166667, 0xf4, 0x42 },
-		{ 625870000, 36213333, 166667, 0xbc, 0x44 },
-		{ 803870000, 36213333, 166667, 0xf4, 0x44 },
-		{ 999999999, 36213333, 166667, 0xfc, 0x44 },
+		{ 143870000, 166667, 0xbc, 0x41 },
+		{ 158870000, 166667, 0xf4, 0x41 },
+		{ 329870000, 166667, 0xbc, 0x42 },
+		{ 441870000, 166667, 0xf4, 0x42 },
+		{ 625870000, 166667, 0xbc, 0x44 },
+		{ 803870000, 166667, 0xf4, 0x44 },
+		{ 999999999, 166667, 0xfc, 0x44 },
 	}
 };
 EXPORT_SYMBOL(dvb_pll_fmd1216me);
@@ -282,13 +308,14 @@ struct dvb_pll_desc dvb_pll_tded4 = {
 	.name = "ALPS TDED4",
 	.min = 47000000,
 	.max = 863000000,
+	.iffreq= 36166667,
 	.setbw = tded4_bw,
 	.count = 4,
 	.entries = {
-		{ 153000000, 36166667, 166667, 0x85, 0x01 },
-		{ 470000000, 36166667, 166667, 0x85, 0x02 },
-		{ 823000000, 36166667, 166667, 0x85, 0x08 },
-		{ 999999999, 36166667, 166667, 0x85, 0x88 },
+		{ 153000000, 166667, 0x85, 0x01 },
+		{ 470000000, 166667, 0x85, 0x02 },
+		{ 823000000, 166667, 0x85, 0x08 },
+		{ 999999999, 166667, 0x85, 0x88 },
 	}
 };
 EXPORT_SYMBOL(dvb_pll_tded4);
@@ -300,12 +327,13 @@ struct dvb_pll_desc dvb_pll_tdhu2 = {
 	.name = "ALPS TDHU2",
 	.min = 54000000,
 	.max = 864000000,
+	.iffreq= 44000000,
 	.count = 4,
 	.entries = {
-		{ 162000000, 44000000, 62500, 0x85, 0x01 },
-		{ 426000000, 44000000, 62500, 0x85, 0x02 },
-		{ 782000000, 44000000, 62500, 0x85, 0x08 },
-		{ 999999999, 44000000, 62500, 0x85, 0x88 },
+		{ 162000000, 62500, 0x85, 0x01 },
+		{ 426000000, 62500, 0x85, 0x02 },
+		{ 782000000, 62500, 0x85, 0x08 },
+		{ 999999999, 62500, 0x85, 0x88 },
 	}
 };
 EXPORT_SYMBOL(dvb_pll_tdhu2);
@@ -317,11 +345,12 @@ struct dvb_pll_desc dvb_pll_tuv1236d = {
 	.name  = "Philips TUV1236D",
 	.min   =  54000000,
 	.max   = 864000000,
+	.iffreq= 44000000,
 	.count = 3,
 	.entries = {
-		{ 157250000, 44000000, 62500, 0xc6, 0x41 },
-		{ 454000000, 44000000, 62500, 0xc6, 0x42 },
-		{ 999999999, 44000000, 62500, 0xc6, 0x44 },
+		{ 157250000, 62500, 0xc6, 0x41 },
+		{ 454000000, 62500, 0xc6, 0x42 },
+		{ 999999999, 62500, 0xc6, 0x44 },
 	},
 };
 EXPORT_SYMBOL(dvb_pll_tuv1236d);
@@ -333,14 +362,15 @@ struct dvb_pll_desc dvb_pll_samsung_tbmv = {
 	.name = "Samsung TBMV30111IN / TBMV30712IN1",
 	.min = 54000000,
 	.max = 860000000,
+	.iffreq= 44000000,
 	.count = 6,
 	.entries = {
-		{ 172000000, 44000000, 166666, 0xb4, 0x01 },
-		{ 214000000, 44000000, 166666, 0xb4, 0x02 },
-		{ 467000000, 44000000, 166666, 0xbc, 0x02 },
-		{ 721000000, 44000000, 166666, 0xbc, 0x08 },
-		{ 841000000, 44000000, 166666, 0xf4, 0x08 },
-		{ 999999999, 44000000, 166666, 0xfc, 0x02 },
+		{ 172000000, 166667, 0xb4, 0x01 },
+		{ 214000000, 166667, 0xb4, 0x02 },
+		{ 467000000, 166667, 0xbc, 0x02 },
+		{ 721000000, 166667, 0xbc, 0x08 },
+		{ 841000000, 166667, 0xf4, 0x08 },
+		{ 999999999, 166667, 0xfc, 0x02 },
 	}
 };
 EXPORT_SYMBOL(dvb_pll_samsung_tbmv);
@@ -352,12 +382,13 @@ struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
 	.name  = "Philips SD1878",
 	.min   =  950000,
 	.max   = 2150000,
+	.iffreq= 249, /* zero-IF, offset 249 is to round up */
 	.count = 4,
 	.entries = {
-		{ 1250000, 499, 500, 0xc4, 0x00},
-		{ 1550000, 499, 500, 0xc4, 0x40},
-		{ 2050000, 499, 500, 0xc4, 0x80},
-		{ 2150000, 499, 500, 0xc4, 0xc0},
+		{ 1250000, 500, 0xc4, 0x00},
+		{ 1550000, 500, 0xc4, 0x40},
+		{ 2050000, 500, 0xc4, 0x80},
+		{ 2150000, 500, 0xc4, 0xc0},
 	},
 };
 EXPORT_SYMBOL(dvb_pll_philips_sd1878_tda8261);
@@ -388,18 +419,19 @@ struct dvb_pll_desc dvb_pll_philips_td1316 = {
 	.name  = "Philips TD1316",
 	.min   =  87000000,
 	.max   = 895000000,
+	.iffreq= 36166667,
 	.setbw = td1316_bw,
 	.count = 9,
 	.entries = {
-		{  93834000, 36166000, 166666, 0xca, 0x60},
-		{ 123834000, 36166000, 166666, 0xca, 0xa0},
-		{ 163834000, 36166000, 166666, 0xca, 0xc0},
-		{ 253834000, 36166000, 166666, 0xca, 0x60},
-		{ 383834000, 36166000, 166666, 0xca, 0xa0},
-		{ 443834000, 36166000, 166666, 0xca, 0xc0},
-		{ 583834000, 36166000, 166666, 0xca, 0x60},
-		{ 793834000, 36166000, 166666, 0xca, 0xa0},
-		{ 858834000, 36166000, 166666, 0xca, 0xe0},
+		{  93834000, 166667, 0xca, 0x60},
+		{ 123834000, 166667, 0xca, 0xa0},
+		{ 163834000, 166667, 0xca, 0xc0},
+		{ 253834000, 166667, 0xca, 0x60},
+		{ 383834000, 166667, 0xca, 0xa0},
+		{ 443834000, 166667, 0xca, 0xc0},
+		{ 583834000, 166667, 0xca, 0x60},
+		{ 793834000, 166667, 0xca, 0xa0},
+		{ 858834000, 166667, 0xca, 0xe0},
 	},
 };
 EXPORT_SYMBOL(dvb_pll_philips_td1316);
@@ -409,15 +441,41 @@ struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
 	.name = "Thomson FE6600",
 	.min =  44250000,
 	.max = 858000000,
+	.iffreq= 36125000,
 	.count = 4,
 	.entries = {
-		{ 250000000, 36213333, 166667, 0xb4, 0x12 },
-		{ 455000000, 36213333, 166667, 0xfe, 0x11 },
-		{ 775500000, 36213333, 166667, 0xbc, 0x18 },
-		{ 999999999, 36213333, 166667, 0xf4, 0x18 },
+		{ 250000000, 166667, 0xb4, 0x12 },
+		{ 455000000, 166667, 0xfe, 0x11 },
+		{ 775500000, 166667, 0xbc, 0x18 },
+		{ 999999999, 166667, 0xf4, 0x18 },
 	}
 };
 EXPORT_SYMBOL(dvb_pll_thomson_fe6600);
+static void opera1_bw(u8 *buf, u32 freq, int bandwidth)
+{
+	if (bandwidth == BANDWIDTH_8_MHZ)
+		buf[2] |= 0x08;
+}
+
+struct dvb_pll_desc dvb_pll_opera1 = {
+	.name  = "Opera Tuner",
+	.min   =  900000,
+	.max   = 2250000,
+	.iffreq= 0,
+	.setbw = opera1_bw,
+	.count = 8,
+	.entries = {
+		{ 1064000, 500, 0xe5, 0xc6 },
+		{ 1169000, 500, 0xe5, 0xe6 },
+		{ 1299000, 500, 0xe5, 0x24 },
+		{ 1444000, 500, 0xe5, 0x44 },
+		{ 1606000, 500, 0xe5, 0x64 },
+		{ 1777000, 500, 0xe5, 0x84 },
+		{ 1941000, 500, 0xe5, 0xa4 },
+		{ 2250000, 500, 0xe5, 0xc4 },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_opera1);
 
 struct dvb_pll_priv {
 	/* i2c details */
@@ -459,7 +517,8 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	if (i == desc->count)
 		return -EINVAL;
 
-	div = (freq + desc->entries[i].offset) / desc->entries[i].stepsize;
+	div = (freq + desc->iffreq + desc->entries[i].stepsize/2) /
+	      desc->entries[i].stepsize;
 	buf[0] = div >> 8;
 	buf[1] = div & 0xff;
 	buf[2] = desc->entries[i].config;
@@ -473,7 +532,7 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 		       desc->name, div, buf[0], buf[1], buf[2], buf[3]);
 
 	// calculate the frequency we set it to
-	return (div * desc->entries[i].stepsize) - desc->entries[i].offset;
+	return (div * desc->entries[i].stepsize) - desc->iffreq;
 }
 EXPORT_SYMBOL(dvb_pll_configure);
 
@@ -487,35 +546,27 @@ static int dvb_pll_release(struct dvb_frontend *fe)
 static int dvb_pll_sleep(struct dvb_frontend *fe)
 {
 	struct dvb_pll_priv *priv = fe->tuner_priv;
-	u8 buf[4];
-	struct i2c_msg msg =
-		{ .addr = priv->pll_i2c_address, .flags = 0,
-		  .buf = buf, .len = sizeof(buf) };
-	int i;
-	int result;
 
 	if (priv->i2c == NULL)
 		return -EINVAL;
 
-	for (i = 0; i < priv->pll_desc->count; i++) {
-		if (priv->pll_desc->entries[i].limit == 0)
-			break;
-	}
-	if (i == priv->pll_desc->count)
+	if (priv->pll_desc->sleepdata) {
+		struct i2c_msg msg = { .flags = 0,
+			.addr = priv->pll_i2c_address,
+			.buf = priv->pll_desc->sleepdata + 1,
+			.len = priv->pll_desc->sleepdata[0] };
+
+		int result;
+
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+		if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
+			return result;
+		}
 		return 0;
-
-	buf[0] = 0;
-	buf[1] = 0;
-	buf[2] = priv->pll_desc->entries[i].config;
-	buf[3] = priv->pll_desc->entries[i].cb;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
-		return result;
 	}
-
-	return 0;
+	/* Shouldn't be called when initdata is NULL, maybe BUG()? */
+	return -EINVAL;
 }
 
 static int dvb_pll_set_params(struct dvb_frontend *fe,
@@ -599,9 +650,35 @@ static int dvb_pll_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int dvb_pll_init(struct dvb_frontend *fe)
+{
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+
+	if (priv->i2c == NULL)
+		return -EINVAL;
+
+	if (priv->pll_desc->initdata) {
+		struct i2c_msg msg = { .flags = 0,
+			.addr = priv->pll_i2c_address,
+			.buf = priv->pll_desc->initdata + 1,
+			.len = priv->pll_desc->initdata[0] };
+
+		int result;
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+		if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
+			return result;
+		}
+		return 0;
+	}
+	/* Shouldn't be called when initdata is NULL, maybe BUG()? */
+	return -EINVAL;
+}
+
 static struct dvb_tuner_ops dvb_pll_tuner_ops = {
 	.release = dvb_pll_release,
 	.sleep = dvb_pll_sleep,
+	.init = dvb_pll_init,
 	.set_params = dvb_pll_set_params,
 	.calc_regs = dvb_pll_calc_regs,
 	.get_frequency = dvb_pll_get_frequency,
@@ -640,9 +717,14 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	memcpy(&fe->ops.tuner_ops, &dvb_pll_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
 
-	strncpy(fe->ops.tuner_ops.info.name, desc->name, 128);
+	strncpy(fe->ops.tuner_ops.info.name, desc->name,
+		sizeof(fe->ops.tuner_ops.info.name));
 	fe->ops.tuner_ops.info.frequency_min = desc->min;
 	fe->ops.tuner_ops.info.frequency_min = desc->max;
+	if (!desc->initdata)
+		fe->ops.tuner_ops.init = NULL;
+	if (!desc->sleepdata)
+		fe->ops.tuner_ops.sleep = NULL;
 
 	fe->tuner_priv = priv;
 	return fe;

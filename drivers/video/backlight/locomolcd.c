@@ -112,11 +112,11 @@ static int current_intensity;
 
 static int locomolcd_set_intensity(struct backlight_device *bd)
 {
-	int intensity = bd->props->brightness;
+	int intensity = bd->props.brightness;
 
-	if (bd->props->power != FB_BLANK_UNBLANK)
+	if (bd->props.power != FB_BLANK_UNBLANK)
 		intensity = 0;
-	if (bd->props->fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
 		intensity = 0;
 	if (locomolcd_flags & LOCOMOLCD_SUSPENDED)
 		intensity = 0;
@@ -141,11 +141,9 @@ static int locomolcd_get_intensity(struct backlight_device *bd)
 	return current_intensity;
 }
 
-static struct backlight_properties locomobl_data = {
-	.owner		= THIS_MODULE,
+static struct backlight_ops locomobl_data = {
 	.get_brightness = locomolcd_get_intensity,
 	.update_status  = locomolcd_set_intensity,
-	.max_brightness = 4,
 };
 
 #ifdef CONFIG_PM
@@ -190,7 +188,8 @@ static int locomolcd_probe(struct locomo_dev *ldev)
 		return PTR_ERR (locomolcd_bl_device);
 
 	/* Set up frontlight so that screen is readable */
-	locomobl_data.brightness = 2;
+	locomolcd_bl_device->props.max_brightness = 4,
+	locomolcd_bl_device->props.brightness = 2;
 	locomolcd_set_intensity(locomolcd_bl_device);
 
 	return 0;
@@ -200,8 +199,8 @@ static int locomolcd_remove(struct locomo_dev *dev)
 {
 	unsigned long flags;
 
-	locomobl_data.brightness = 0;
-	locomobl_data.power = 0;
+	locomolcd_bl_device->props.brightness = 0;
+	locomolcd_bl_device->props.power = 0;
 	locomolcd_set_intensity(locomolcd_bl_device);
 
 	backlight_device_unregister(locomolcd_bl_device);

@@ -166,34 +166,6 @@ out:
 	return error;
 }
 
-asmlinkage long
-sysn32_waitid(int which, compat_pid_t pid,
-	      siginfo_t __user *uinfo, int options,
-	      struct compat_rusage __user *uru)
-{
-	struct rusage ru;
-	long ret;
-	mm_segment_t old_fs = get_fs();
-	int si_signo;
-
-	if (!access_ok(VERIFY_WRITE, uinfo, sizeof(*uinfo)))
-		return -EFAULT;
-
-	set_fs (KERNEL_DS);
-	ret = sys_waitid(which, pid, uinfo, options,
-			 uru ? (struct rusage __user *) &ru : NULL);
-	set_fs (old_fs);
-
-	if (__get_user(si_signo, &uinfo->si_signo))
-		return -EFAULT;
-	if (ret < 0 || si_signo == 0)
-		return ret;
-
-	if (uru)
-		ret = put_compat_rusage(&ru, uru);
-	return ret;
-}
-
 #define RLIM_INFINITY32	0x7fffffff
 #define RESOURCE32(x) ((x > RLIM_INFINITY32) ? RLIM_INFINITY32 : x)
 
@@ -339,6 +311,8 @@ asmlinkage int sys32_sched_rr_get_interval(compat_pid_t pid,
 	return ret;
 }
 
+#ifdef CONFIG_SYSVIPC
+
 asmlinkage long
 sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 {
@@ -395,6 +369,16 @@ sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
 
 	return err;
 }
+
+#else
+
+asmlinkage long
+sys32_ipc (u32 call, int first, int second, int third, u32 ptr, u32 fifth)
+{
+	return -ENOSYS;
+}
+
+#endif /* CONFIG_SYSVIPC */
 
 #ifdef CONFIG_MIPS32_N32
 asmlinkage long sysn32_semctl(int semid, int semnum, int cmd, u32 arg)
@@ -572,151 +556,6 @@ asmlinkage long sys32_sync_file_range(int fd, int __pad,
 			flags);
 }
 
-/* Argument list sizes for sys_socketcall */
-#define AL(x) ((x) * sizeof(unsigned int))
-static unsigned char socketcall_nargs[18]={AL(0),AL(3),AL(3),AL(3),AL(2),AL(3),
-				AL(3),AL(3),AL(4),AL(4),AL(4),AL(6),
-				AL(6),AL(2),AL(5),AL(5),AL(3),AL(3)};
-#undef AL
-
-/*
- *	System call vectors.
- *
- *	Argument checking cleaned up. Saved 20% in size.
- *  This function doesn't need to set the kernel lock because
- *  it is set by the callees.
- */
-
-asmlinkage long sys32_socketcall(int call, unsigned int __user *args32)
-{
-	unsigned int a[6];
-	unsigned int a0,a1;
-	int err;
-
-	extern asmlinkage long sys_socket(int family, int type, int protocol);
-	extern asmlinkage long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen);
-	extern asmlinkage long sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen);
-	extern asmlinkage long sys_listen(int fd, int backlog);
-	extern asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr, int __user *upeer_addrlen);
-	extern asmlinkage long sys_getsockname(int fd, struct sockaddr __user *usockaddr, int __user *usockaddr_len);
-	extern asmlinkage long sys_getpeername(int fd, struct sockaddr __user *usockaddr, int __user *usockaddr_len);
-	extern asmlinkage long sys_socketpair(int family, int type, int protocol, int __user *usockvec);
-	extern asmlinkage long sys_send(int fd, void __user * buff, size_t len, unsigned flags);
-	extern asmlinkage long sys_sendto(int fd, void __user * buff, size_t len, unsigned flags,
-					  struct sockaddr __user *addr, int addr_len);
-	extern asmlinkage long sys_recv(int fd, void __user * ubuf, size_t size, unsigned flags);
-	extern asmlinkage long sys_recvfrom(int fd, void __user * ubuf, size_t size, unsigned flags,
-					    struct sockaddr __user *addr, int __user *addr_len);
-	extern asmlinkage long sys_shutdown(int fd, int how);
-	extern asmlinkage long sys_setsockopt(int fd, int level, int optname, char __user *optval, int optlen);
-	extern asmlinkage long sys_getsockopt(int fd, int level, int optname, char __user *optval, int __user *optlen);
-	extern asmlinkage long sys_sendmsg(int fd, struct msghdr __user *msg, unsigned flags);
-	extern asmlinkage long sys_recvmsg(int fd, struct msghdr __user *msg, unsigned int flags);
-
-
-	if(call<1||call>SYS_RECVMSG)
-		return -EINVAL;
-
-	/* copy_from_user should be SMP safe. */
-	if (copy_from_user(a, args32, socketcall_nargs[call]))
-		return -EFAULT;
-
-	a0=a[0];
-	a1=a[1];
-
-	switch(call)
-	{
-		case SYS_SOCKET:
-			err = sys_socket(a0,a1,a[2]);
-			break;
-		case SYS_BIND:
-			err = sys_bind(a0,(struct sockaddr __user *)A(a1), a[2]);
-			break;
-		case SYS_CONNECT:
-			err = sys_connect(a0, (struct sockaddr __user *)A(a1), a[2]);
-			break;
-		case SYS_LISTEN:
-			err = sys_listen(a0,a1);
-			break;
-		case SYS_ACCEPT:
-			err = sys_accept(a0,(struct sockaddr __user *)A(a1), (int __user *)A(a[2]));
-			break;
-		case SYS_GETSOCKNAME:
-			err = sys_getsockname(a0,(struct sockaddr __user *)A(a1), (int __user *)A(a[2]));
-			break;
-		case SYS_GETPEERNAME:
-			err = sys_getpeername(a0, (struct sockaddr __user *)A(a1), (int __user *)A(a[2]));
-			break;
-		case SYS_SOCKETPAIR:
-			err = sys_socketpair(a0,a1, a[2], (int __user *)A(a[3]));
-			break;
-		case SYS_SEND:
-			err = sys_send(a0, (void __user *)A(a1), a[2], a[3]);
-			break;
-		case SYS_SENDTO:
-			err = sys_sendto(a0,(void __user *)A(a1), a[2], a[3],
-					 (struct sockaddr __user *)A(a[4]), a[5]);
-			break;
-		case SYS_RECV:
-			err = sys_recv(a0, (void __user *)A(a1), a[2], a[3]);
-			break;
-		case SYS_RECVFROM:
-			err = sys_recvfrom(a0, (void __user *)A(a1), a[2], a[3],
-					   (struct sockaddr __user *)A(a[4]), (int __user *)A(a[5]));
-			break;
-		case SYS_SHUTDOWN:
-			err = sys_shutdown(a0,a1);
-			break;
-		case SYS_SETSOCKOPT:
-			err = sys_setsockopt(a0, a1, a[2], (char __user *)A(a[3]), a[4]);
-			break;
-		case SYS_GETSOCKOPT:
-			err = sys_getsockopt(a0, a1, a[2], (char __user *)A(a[3]), (int __user *)A(a[4]));
-			break;
-		case SYS_SENDMSG:
-			err = sys_sendmsg(a0, (struct msghdr __user *) A(a1), a[2]);
-			break;
-		case SYS_RECVMSG:
-			err = sys_recvmsg(a0, (struct msghdr __user *) A(a1), a[2]);
-			break;
-		default:
-			err = -EINVAL;
-			break;
-	}
-	return err;
-}
-
-struct sigevent32 {
-	u32 sigev_value;
-	u32 sigev_signo;
-	u32 sigev_notify;
-	u32 payload[(64 / 4) - 3];
-};
-
-extern asmlinkage long
-sys_timer_create(clockid_t which_clock,
-		 struct sigevent __user *timer_event_spec,
-		 timer_t __user * created_timer_id);
-
-long
-sys32_timer_create(u32 clock, struct sigevent32 __user *se32, timer_t __user *timer_id)
-{
-	struct sigevent __user *p = NULL;
-	if (se32) {
-		struct sigevent se;
-		p = compat_alloc_user_space(sizeof(struct sigevent));
-		memset(&se, 0, sizeof(struct sigevent));
-		if (get_user(se.sigev_value.sival_int,  &se32->sigev_value) ||
-		    __get_user(se.sigev_signo, &se32->sigev_signo) ||
-		    __get_user(se.sigev_notify, &se32->sigev_notify) ||
-		    __copy_from_user(&se._sigev_un._pad, &se32->payload,
-				     sizeof(se32->payload)) ||
-		    copy_to_user(p, &se, sizeof(se)))
-			return -EFAULT;
-	}
-	return sys_timer_create(clock, p, timer_id);
-}
-
 save_static_function(sys32_clone);
 __attribute_used__ noinline static int
 _sys32_clone(nabi_no_regargs struct pt_regs regs)
@@ -736,50 +575,4 @@ _sys32_clone(nabi_no_regargs struct pt_regs regs)
 	child_tidptr = (int __user *) __dummy4;
 	return do_fork(clone_flags, newsp, &regs, 0,
 	               parent_tidptr, child_tidptr);
-}
-
-/*
- * Implement the event wait interface for the eventpoll file. It is the kernel
- * part of the user space epoll_pwait(2).
- */
-asmlinkage long compat_sys_epoll_pwait(int epfd,
-	struct epoll_event __user *events, int maxevents, int timeout,
-	const compat_sigset_t __user *sigmask, size_t sigsetsize)
-{
-	int error;
-	sigset_t ksigmask, sigsaved;
-
-	/*
-	 * If the caller wants a certain signal mask to be set during the wait,
-	 * we apply it here.
-	 */
-	if (sigmask) {
-		if (sigsetsize != sizeof(sigset_t))
-			return -EINVAL;
-		if (!access_ok(VERIFY_READ, sigmask, sizeof(ksigmask)))
-			return -EFAULT;
-		if (__copy_conv_sigset_from_user(&ksigmask, sigmask))
-			return -EFAULT;
-		sigdelsetmask(&ksigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
-		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
-	}
-
-	error = sys_epoll_wait(epfd, events, maxevents, timeout);
-
-	/*
-	 * If we changed the signal mask, we need to restore the original one.
-	 * In case we've got a signal while waiting, we do not restore the
-	 * signal mask yet, and we allow do_signal() to deliver the signal on
-	 * the way back to userspace, before the signal mask is restored.
-	 */
-	if (sigmask) {
-		if (error == -EINTR) {
-			memcpy(&current->saved_sigmask, &sigsaved,
-				sizeof(sigsaved));
-			set_thread_flag(TIF_RESTORE_SIGMASK);
-		} else
-			sigprocmask(SIG_SETMASK, &sigsaved, NULL);
-	}
-
-	return error;
 }

@@ -67,11 +67,12 @@ static int scnprint_id(struct zd_chip *chip, char *buffer, size_t size)
 	i += scnprint_mac_oui(chip->e2p_mac, buffer+i, size-i);
 	i += scnprintf(buffer+i, size-i, " ");
 	i += zd_rf_scnprint_id(&chip->rf, buffer+i, size-i);
-	i += scnprintf(buffer+i, size-i, " pa%1x %c%c%c%c", chip->pa_type,
+	i += scnprintf(buffer+i, size-i, " pa%1x %c%c%c%c%c", chip->pa_type,
 		chip->patch_cck_gain ? 'g' : '-',
 		chip->patch_cr157 ? '7' : '-',
 		chip->patch_6m_band_edge ? '6' : '-',
-		chip->new_phy_layout ? 'N' : '-');
+		chip->new_phy_layout ? 'N' : '-',
+		chip->al2230s_bit ? 'S' : '-');
 	return i;
 }
 
@@ -113,8 +114,8 @@ int zd_ioread32v_locked(struct zd_chip *chip, u32 *values, const zd_addr_t *addr
 
 	/* Allocate a single memory block for values and addresses. */
 	count16 = 2*count;
-	a16 = kmalloc(count16 * (sizeof(zd_addr_t) + sizeof(u16)),
-		                   GFP_NOFS);
+	a16 = (zd_addr_t *) kmalloc(count16 * (sizeof(zd_addr_t) + sizeof(u16)),
+		                   GFP_KERNEL);
 	if (!a16) {
 		dev_dbg_f(zd_chip_dev(chip),
 			  "error ENOMEM in allocation of a16\n");
@@ -163,7 +164,7 @@ int _zd_iowrite32v_locked(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
 
 	/* Allocate a single memory block for values and addresses. */
 	count16 = 2*count;
-	ioreqs16 = kmalloc(count16 * sizeof(struct zd_ioreq16), GFP_NOFS);
+	ioreqs16 = kmalloc(count16 * sizeof(struct zd_ioreq16), GFP_KERNEL);
 	if (!ioreqs16) {
 		r = -ENOMEM;
 		dev_dbg_f(zd_chip_dev(chip),
@@ -337,6 +338,7 @@ static int read_pod(struct zd_chip *chip, u8 *rf_type)
 	chip->patch_cr157 = (value >> 13) & 0x1;
 	chip->patch_6m_band_edge = (value >> 21) & 0x1;
 	chip->new_phy_layout = (value >> 31) & 0x1;
+	chip->al2230s_bit = (value >> 7) & 0x1;
 	chip->link_led = ((value >> 4) & 1) ? LED1 : LED2;
 	chip->supports_tx_led = 1;
 	if (value & (1 << 24)) { /* LED scenario */
@@ -591,16 +593,16 @@ int zd_chip_unlock_phy_regs(struct zd_chip *chip)
 	return r;
 }
 
-/* CR157 can be optionally patched by the EEPROM */
+/* CR157 can be optionally patched by the EEPROM for original ZD1211 */
 static int patch_cr157(struct zd_chip *chip)
 {
 	int r;
-	u32 value;
+	u16 value;
 
 	if (!chip->patch_cr157)
 		return 0;
 
-	r = zd_ioread32_locked(chip, &value, E2P_PHY_REG);
+	r = zd_ioread16_locked(chip, &value, E2P_PHY_REG);
 	if (r)
 		return r;
 
@@ -613,15 +615,23 @@ static int patch_cr157(struct zd_chip *chip)
  * Vendor driver says: for FCC regulation, enabled per HWFeature 6M band edge
  * bit (for AL2230, AL2230S)
  */
-static int patch_6m_band_edge(struct zd_chip *chip, int channel)
+static int patch_6m_band_edge(struct zd_chip *chip, u8 channel)
+{
+	ZD_ASSERT(mutex_is_locked(&chip->mutex));
+	if (!chip->patch_6m_band_edge)
+		return 0;
+
+	return zd_rf_patch_6m_band_edge(&chip->rf, channel);
+}
+
+/* Generic implementation of 6M band edge patching, used by most RFs via
+ * zd_rf_generic_patch_6m() */
+int zd_chip_generic_patch_6m_band(struct zd_chip *chip, int channel)
 {
 	struct zd_ioreq16 ioreqs[] = {
 		{ CR128, 0x14 }, { CR129, 0x12 }, { CR130, 0x10 },
 		{ CR47,  0x1e },
 	};
-
-	if (!chip->patch_6m_band_edge || !chip->rf.patch_6m_band_edge)
-		return 0;
 
 	/* FIXME: Channel 11 is not the edge for all regulatory domains. */
 	if (channel == 1 || channel == 11)
@@ -682,17 +692,17 @@ static int zd1211_hw_reset_phy(struct zd_chip *chip)
 		{ CR111, 0x27 }, { CR112, 0x27 }, { CR113, 0x27 },
 		{ CR114, 0x27 }, { CR115, 0x26 }, { CR116, 0x24 },
 		{ CR117, 0xfc }, { CR118, 0xfa }, { CR120, 0x4f },
-		{ CR123, 0x27 }, { CR125, 0xaa }, { CR127, 0x03 },
-		{ CR128, 0x14 }, { CR129, 0x12 }, { CR130, 0x10 },
-		{ CR131, 0x0C }, { CR136, 0xdf }, { CR137, 0x40 },
-		{ CR138, 0xa0 }, { CR139, 0xb0 }, { CR140, 0x99 },
-		{ CR141, 0x82 }, { CR142, 0x54 }, { CR143, 0x1c },
-		{ CR144, 0x6c }, { CR147, 0x07 }, { CR148, 0x4c },
-		{ CR149, 0x50 }, { CR150, 0x0e }, { CR151, 0x18 },
-		{ CR160, 0xfe }, { CR161, 0xee }, { CR162, 0xaa },
-		{ CR163, 0xfa }, { CR164, 0xfa }, { CR165, 0xea },
-		{ CR166, 0xbe }, { CR167, 0xbe }, { CR168, 0x6a },
-		{ CR169, 0xba }, { CR170, 0xba }, { CR171, 0xba },
+		{ CR125, 0xaa }, { CR127, 0x03 }, { CR128, 0x14 },
+		{ CR129, 0x12 }, { CR130, 0x10 }, { CR131, 0x0C },
+		{ CR136, 0xdf }, { CR137, 0x40 }, { CR138, 0xa0 },
+		{ CR139, 0xb0 }, { CR140, 0x99 }, { CR141, 0x82 },
+		{ CR142, 0x54 }, { CR143, 0x1c }, { CR144, 0x6c },
+		{ CR147, 0x07 }, { CR148, 0x4c }, { CR149, 0x50 },
+		{ CR150, 0x0e }, { CR151, 0x18 }, { CR160, 0xfe },
+		{ CR161, 0xee }, { CR162, 0xaa }, { CR163, 0xfa },
+		{ CR164, 0xfa }, { CR165, 0xea }, { CR166, 0xbe },
+		{ CR167, 0xbe }, { CR168, 0x6a }, { CR169, 0xba },
+		{ CR170, 0xba }, { CR171, 0xba },
 		/* Note: CR204 must lead the CR203 */
 		{ CR204, 0x7d },
 		{ },
@@ -790,11 +800,6 @@ static int zd1211b_hw_reset_phy(struct zd_chip *chip)
 		goto out;
 
 	r = zd_iowrite16a_locked(chip, ioreqs, ARRAY_SIZE(ioreqs));
-	if (r)
-		goto unlock;
-
-	r = patch_cr157(chip);
-unlock:
 	t = zd_chip_unlock_phy_regs(chip);
 	if (t && !r)
 		r = t;

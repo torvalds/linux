@@ -40,9 +40,13 @@ struct pvr2_sysfs {
 	struct pvr2_sysfs_ctl_item *item_first;
 	struct pvr2_sysfs_ctl_item *item_last;
 	struct class_device_attribute attr_v4l_minor_number;
+	struct class_device_attribute attr_v4l_radio_minor_number;
 	struct class_device_attribute attr_unit_number;
+	struct class_device_attribute attr_bus_info;
 	int v4l_minor_number_created_ok;
+	int v4l_radio_minor_number_created_ok;
 	int unit_number_created_ok;
+	int bus_info_created_ok;
 };
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
@@ -491,7 +495,7 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	unsigned int cnt,acnt;
 	int ret;
 
-	if ((ctl_id < 0) || (ctl_id >= (sizeof(funcs)/sizeof(funcs[0])))) {
+	if ((ctl_id < 0) || (ctl_id >= ARRAY_SIZE(funcs))) {
 		return;
 	}
 
@@ -499,9 +503,8 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,ctl_id);
 	if (!cptr) return;
 
-	cip = kmalloc(sizeof(*cip),GFP_KERNEL);
+	cip = kzalloc(sizeof(*cip),GFP_KERNEL);
 	if (!cip) return;
-	memset(cip,0,sizeof(*cip));
 	pvr2_sysfs_trace("Creating pvr2_sysfs_ctl_item id=%p",cip);
 
 	cip->cptr = cptr;
@@ -611,9 +614,8 @@ static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 	struct pvr2_sysfs_debugifc *dip;
 	int ret;
 
-	dip = kmalloc(sizeof(*dip),GFP_KERNEL);
+	dip = kzalloc(sizeof(*dip),GFP_KERNEL);
 	if (!dip) return;
-	memset(dip,0,sizeof(*dip));
 	dip->attr_debugcmd.attr.owner = THIS_MODULE;
 	dip->attr_debugcmd.attr.name = "debugcmd";
 	dip->attr_debugcmd.attr.mode = S_IRUGO|S_IWUSR|S_IWGRP;
@@ -705,9 +707,17 @@ static void class_dev_destroy(struct pvr2_sysfs *sfp)
 	pvr2_sysfs_tear_down_debugifc(sfp);
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 	pvr2_sysfs_tear_down_controls(sfp);
+	if (sfp->bus_info_created_ok) {
+		class_device_remove_file(sfp->class_dev,
+					 &sfp->attr_bus_info);
+	}
 	if (sfp->v4l_minor_number_created_ok) {
 		class_device_remove_file(sfp->class_dev,
 					 &sfp->attr_v4l_minor_number);
+	}
+	if (sfp->v4l_radio_minor_number_created_ok) {
+		class_device_remove_file(sfp->class_dev,
+					 &sfp->attr_v4l_radio_minor_number);
 	}
 	if (sfp->unit_number_created_ok) {
 		class_device_remove_file(sfp->class_dev,
@@ -726,7 +736,30 @@ static ssize_t v4l_minor_number_show(struct class_device *class_dev,char *buf)
 	sfp = (struct pvr2_sysfs *)class_dev->class_data;
 	if (!sfp) return -EINVAL;
 	return scnprintf(buf,PAGE_SIZE,"%d\n",
-			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw));
+			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
+						       pvr2_v4l_type_video));
+}
+
+
+static ssize_t bus_info_show(struct class_device *class_dev,char *buf)
+{
+	struct pvr2_sysfs *sfp;
+	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	if (!sfp) return -EINVAL;
+	return scnprintf(buf,PAGE_SIZE,"%s\n",
+			 pvr2_hdw_get_bus_info(sfp->channel.hdw));
+}
+
+
+static ssize_t v4l_radio_minor_number_show(struct class_device *class_dev,
+					   char *buf)
+{
+	struct pvr2_sysfs *sfp;
+	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	if (!sfp) return -EINVAL;
+	return scnprintf(buf,PAGE_SIZE,"%d\n",
+			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
+						       pvr2_v4l_type_radio));
 }
 
 
@@ -749,9 +782,8 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 
 	usb_dev = pvr2_hdw_get_dev(sfp->channel.hdw);
 	if (!usb_dev) return;
-	class_dev = kmalloc(sizeof(*class_dev),GFP_KERNEL);
+	class_dev = kzalloc(sizeof(*class_dev),GFP_KERNEL);
 	if (!class_dev) return;
-	memset(class_dev,0,sizeof(*class_dev));
 
 	pvr2_sysfs_trace("Creating class_dev id=%p",class_dev);
 
@@ -793,6 +825,20 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 		sfp->v4l_minor_number_created_ok = !0;
 	}
 
+	sfp->attr_v4l_radio_minor_number.attr.owner = THIS_MODULE;
+	sfp->attr_v4l_radio_minor_number.attr.name = "v4l_radio_minor_number";
+	sfp->attr_v4l_radio_minor_number.attr.mode = S_IRUGO;
+	sfp->attr_v4l_radio_minor_number.show = v4l_radio_minor_number_show;
+	sfp->attr_v4l_radio_minor_number.store = NULL;
+	ret = class_device_create_file(sfp->class_dev,
+				       &sfp->attr_v4l_radio_minor_number);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+	} else {
+		sfp->v4l_radio_minor_number_created_ok = !0;
+	}
+
 	sfp->attr_unit_number.attr.owner = THIS_MODULE;
 	sfp->attr_unit_number.attr.name = "unit_number";
 	sfp->attr_unit_number.attr.mode = S_IRUGO;
@@ -804,6 +850,20 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 		       __FUNCTION__, ret);
 	} else {
 		sfp->unit_number_created_ok = !0;
+	}
+
+	sfp->attr_bus_info.attr.owner = THIS_MODULE;
+	sfp->attr_bus_info.attr.name = "bus_info_str";
+	sfp->attr_bus_info.attr.mode = S_IRUGO;
+	sfp->attr_bus_info.show = bus_info_show;
+	sfp->attr_bus_info.store = NULL;
+	ret = class_device_create_file(sfp->class_dev,
+				       &sfp->attr_bus_info);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		       __FUNCTION__, ret);
+	} else {
+		sfp->bus_info_created_ok = !0;
 	}
 
 	pvr2_sysfs_add_controls(sfp);
@@ -829,9 +889,8 @@ struct pvr2_sysfs *pvr2_sysfs_create(struct pvr2_context *mp,
 				     struct pvr2_sysfs_class *class_ptr)
 {
 	struct pvr2_sysfs *sfp;
-	sfp = kmalloc(sizeof(*sfp),GFP_KERNEL);
+	sfp = kzalloc(sizeof(*sfp),GFP_KERNEL);
 	if (!sfp) return sfp;
-	memset(sfp,0,sizeof(*sfp));
 	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr2_sysfs id=%p",sfp);
 	pvr2_channel_init(&sfp->channel,mp);
 	sfp->channel.check_func = pvr2_sysfs_internal_check;
@@ -852,9 +911,8 @@ static int pvr2_sysfs_hotplug(struct class_device *cd,char **envp,
 struct pvr2_sysfs_class *pvr2_sysfs_class_create(void)
 {
 	struct pvr2_sysfs_class *clp;
-	clp = kmalloc(sizeof(*clp),GFP_KERNEL);
+	clp = kzalloc(sizeof(*clp),GFP_KERNEL);
 	if (!clp) return clp;
-	memset(clp,0,sizeof(*clp));
 	pvr2_sysfs_trace("Creating pvr2_sysfs_class id=%p",clp);
 	clp->class.name = "pvrusb2";
 	clp->class.class_release = pvr2_sysfs_class_release;

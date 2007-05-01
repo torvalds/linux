@@ -38,7 +38,7 @@
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_user_sa.h>
 
-#define RDMA_USER_CM_ABI_VERSION	3
+#define RDMA_USER_CM_ABI_VERSION	4
 
 #define RDMA_MAX_PRIVATE_DATA		256
 
@@ -58,7 +58,9 @@ enum {
 	RDMA_USER_CM_CMD_GET_EVENT,
 	RDMA_USER_CM_CMD_GET_OPTION,
 	RDMA_USER_CM_CMD_SET_OPTION,
-	RDMA_USER_CM_CMD_NOTIFY
+	RDMA_USER_CM_CMD_NOTIFY,
+	RDMA_USER_CM_CMD_JOIN_MCAST,
+	RDMA_USER_CM_CMD_LEAVE_MCAST
 };
 
 /*
@@ -186,6 +188,13 @@ struct rdma_ucm_init_qp_attr {
 struct rdma_ucm_notify {
 	__u32 id;
 	__u32 event;
+};
+
+struct rdma_ucm_join_mcast {
+	__u64 response;		/* rdma_ucm_create_id_resp */
+	__u64 uid;
+	struct sockaddr_in6 addr;
+	__u32 id;
 };
 
 struct rdma_ucm_get_event {

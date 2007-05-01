@@ -175,7 +175,9 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 		if (!ret) {
 			++chunk->npages;
 
-			if (!coherent && chunk->npages == MTHCA_ICM_CHUNK_LEN) {
+			if (coherent)
+				++chunk->nsg;
+			else if (chunk->npages == MTHCA_ICM_CHUNK_LEN) {
 				chunk->nsg = pci_map_sg(dev->pdev, chunk->mem,
 							chunk->npages,
 							PCI_DMA_BIDIRECTIONAL);

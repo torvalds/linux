@@ -137,23 +137,6 @@ typedef struct sigaltstack {
 
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
-struct pt_regs;
-extern void do_signal(struct pt_regs *regs);
-extern void do_signal32(struct pt_regs *regs);
-
-extern int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set);
-extern int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set, siginfo_t *info);
-
-extern int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set);
-extern int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set, siginfo_t *info);
-
-extern int setup_rt_frame_n32(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set, siginfo_t *info);
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_SIGNAL_H */

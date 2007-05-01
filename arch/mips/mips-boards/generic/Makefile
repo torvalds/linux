@@ -18,9 +18,9 @@
 # Makefile for the MIPS boards generic routines under Linux.
 #
 
-obj-y				:= reset.o display.o init.o memory.o printf.o \
+obj-y				:= reset.o display.o init.o memory.o \
 				   cmdline.o time.o
+
+obj-$(CONFIG_EARLY_PRINTK)	+= console.o
 obj-$(CONFIG_PCI)		+= pci.o
 obj-$(CONFIG_KGDB)		+= gdb_hook.o
-
-EXTRA_AFLAGS := $(CFLAGS)

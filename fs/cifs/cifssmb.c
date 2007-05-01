@@ -2824,10 +2824,10 @@ GetExtAttrOut:
 
 
 /* security id for everyone */
-const static struct cifs_sid sid_everyone = 
+static const struct cifs_sid sid_everyone =
 		{1, 1, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0}};
 /* group users */
-const static struct cifs_sid sid_user = 
+static const struct cifs_sid sid_user =
 		{1, 2 , {0, 0, 0, 0, 0, 5}, {32, 545, 0, 0}};
 
 /* Convert CIFS ACL to POSIX form */
@@ -4803,6 +4803,16 @@ setPermsRetry:
 	pSMB->InformationLevel = cpu_to_le16(SMB_SET_FILE_UNIX_BASIC);
 	pSMB->Reserved4 = 0;
 	pSMB->hdr.smb_buf_length += byte_count;
+	/* Samba server ignores set of file size to zero due to bugs in some
+	older clients, but we should be precise - we use SetFileSize to
+	set file size and do not want to truncate file size to zero
+	accidently as happened on one Samba server beta by putting
+	zero instead of -1 here */ 
+	data_offset->EndOfFile = NO_CHANGE_64;
+	data_offset->NumOfBytes = NO_CHANGE_64;
+	data_offset->LastStatusChange = NO_CHANGE_64;
+	data_offset->LastAccessTime = NO_CHANGE_64;
+	data_offset->LastModificationTime = NO_CHANGE_64;
 	data_offset->Uid = cpu_to_le64(uid);
 	data_offset->Gid = cpu_to_le64(gid);
 	/* better to leave device as zero when it is  */

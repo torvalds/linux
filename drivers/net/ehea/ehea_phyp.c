@@ -478,12 +478,14 @@ u64 ehea_h_disable_and_get_hea(const u64 adapter_handle, const u64 qp_handle)
 				 0, 0, 0, 0, 0, 0);             /* R7-R12 */
 }
 
-u64 ehea_h_free_resource(const u64 adapter_handle, const u64 res_handle)
+u64 ehea_h_free_resource(const u64 adapter_handle, const u64 res_handle,
+			 u64 force_bit)
 {
 	return ehea_plpar_hcall_norets(H_FREE_RESOURCE,
 				       adapter_handle,	   /* R4 */
 				       res_handle,         /* R5 */
-				       0, 0, 0, 0, 0);     /* R6-R10 */
+				       force_bit,
+				       0, 0, 0, 0);        /* R7-R10 */
 }
 
 u64 ehea_h_alloc_resource_mr(const u64 adapter_handle, const u64 vaddr,
@@ -611,4 +613,14 @@ u64 ehea_h_reset_events(const u64 adapter_handle, const u64 neq_handle,
 				       neq_handle,		/* R5 */
 				       event_mask,		/* R6 */
 				       0, 0, 0, 0);		/* R7-R12 */
+}
+
+u64 ehea_h_error_data(const u64 adapter_handle, const u64 ressource_handle,
+		      void *rblock)
+{
+	return ehea_plpar_hcall_norets(H_ERROR_DATA,
+				       adapter_handle,          /* R4 */
+				       ressource_handle,        /* R5 */
+				       virt_to_abs(rblock),     /* R6 */
+				       0, 0, 0, 0);             /* R7-R12 */
 }

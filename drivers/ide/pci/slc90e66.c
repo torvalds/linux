@@ -1,8 +1,8 @@
 /*
- *  linux/drivers/ide/pci/slc90e66.c	Version 0.13	December 30, 2006
+ *  linux/drivers/ide/pci/slc90e66.c	Version 0.14	February 8, 2007
  *
  *  Copyright (C) 2000-2002 Andre Hedrick <andre@linux-ide.org>
- *  Copyright (C) 2006 MontaVista Software, Inc. <source@mvista.com>
+ *  Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
  *
  * This is a look-alike variation of the ICH0 PIIX4 Ultra-66,
  * but this keeps the ISA-Bridge and slots alive.
@@ -57,11 +57,7 @@ static u8 slc90e66_dma_2_pio (u8 xfer_rate) {
 	}
 }
 
-/*
- *  Based on settings done by AMI BIOS
- *  (might be useful if drive is not registered in CMOS for any reason).
- */
-static void slc90e66_tune_drive (ide_drive_t *drive, u8 pio)
+static void slc90e66_tune_pio (ide_drive_t *drive, u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -80,7 +76,6 @@ static void slc90e66_tune_drive (ide_drive_t *drive, u8 pio)
 					{ 2, 1 },
 					{ 2, 3 }, };
 
-	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
 	spin_lock_irqsave(&ide_lock, flags);
 	pci_read_config_word(dev, master_port, &master_data);
 
@@ -94,24 +89,32 @@ static void slc90e66_tune_drive (ide_drive_t *drive, u8 pio)
 		master_data |=  0x4000;
 		master_data &= ~0x0070;
 		if (pio > 1) {
-			/* enable PPE, IE and TIME */
-			master_data = master_data | (control << 4);
+			/* Set PPE, IE and TIME */
+			master_data |= control << 4;
 		}
 		pci_read_config_byte(dev, slave_port, &slave_data);
-		slave_data = slave_data & (hwif->channel ? 0x0f : 0xf0);
-		slave_data = slave_data | (((timings[pio][0] << 2) | timings[pio][1]) << (hwif->channel ? 4 : 0));
+		slave_data &= hwif->channel ? 0x0f : 0xf0;
+		slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) <<
+			       (hwif->channel ? 4 : 0);
 	} else {
 		master_data &= ~0x3307;
 		if (pio > 1) {
 			/* enable PPE, IE and TIME */
-			master_data = master_data | control;
+			master_data |= control;
 		}
-		master_data = master_data | (timings[pio][0] << 12) | (timings[pio][1] << 8);
+		master_data |= (timings[pio][0] << 12) | (timings[pio][1] << 8);
 	}
 	pci_write_config_word(dev, master_port, master_data);
 	if (is_slave)
 		pci_write_config_byte(dev, slave_port, slave_data);
 	spin_unlock_irqrestore(&ide_lock, flags);
+}
+
+static void slc90e66_tune_drive (ide_drive_t *drive, u8 pio)
+{
+	pio = ide_get_best_pio_mode(drive, pio, 4, NULL);
+	slc90e66_tune_pio(drive, pio);
+	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
 static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
@@ -162,8 +165,8 @@ static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 			pci_write_config_word(dev, 0x4a, reg4a & ~a_speed);
 	}
 
-	slc90e66_tune_drive(drive, slc90e66_dma_2_pio(speed));
-	return (ide_config_drive_speed(drive, speed));
+	slc90e66_tune_pio(drive, slc90e66_dma_2_pio(speed));
+	return ide_config_drive_speed(drive, speed);
 }
 
 static int slc90e66_config_drive_for_dma (ide_drive_t *drive)
@@ -179,26 +182,15 @@ static int slc90e66_config_drive_for_dma (ide_drive_t *drive)
 
 static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
-
 	drive->init_speed = 0;
 
-	if ((id->capability & 1) && drive->autodma) {
+	if (ide_use_dma(drive) && slc90e66_config_drive_for_dma(drive))
+		return 0;
 
-		if (ide_use_dma(drive) && slc90e66_config_drive_for_dma(drive))
-			return hwif->ide_dma_on(drive);
+	if (ide_use_fast_pio(drive))
+		slc90e66_tune_drive(drive, 255);
 
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
-		(void) hwif->speedproc(drive, XFER_PIO_0 +
-				       ide_get_best_pio_mode(drive, 255, 4, NULL));
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+	return -1;
 }
 
 static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)

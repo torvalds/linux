@@ -66,3 +66,5 @@ obj-$(CONFIG_CPU_SA1100)	+= proc-sa1100.o
 obj-$(CONFIG_CPU_XSCALE)	+= proc-xscale.o
 obj-$(CONFIG_CPU_XSC3)		+= proc-xsc3.o
 obj-$(CONFIG_CPU_V6)		+= proc-v6.o
+
+obj-$(CONFIG_CACHE_L2X0)	+= cache-l2x0.o

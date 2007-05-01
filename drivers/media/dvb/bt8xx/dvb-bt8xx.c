@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -213,7 +214,7 @@ static int cx24108_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend
 		freq = 2150000; /* satellite IF is 950..2150MHz */
 
 	/* decide which VCO to use for the input frequency */
-	for(i=1;(i<sizeof(osci)/sizeof(osci[0]))&&(osci[i]<freq);i++);
+	for(i = 1; (i < ARRAY_SIZE(osci)) && (osci[i] < freq); i++);
 	printk("cx24108 debug: select vco #%d (f=%d)\n",i,freq);
 	band=bandsel[i];
 	/* the gain values must be set by SetSymbolrate */
@@ -609,7 +610,8 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		lgdt330x_reset(card);
 		card->fe = dvb_attach(lgdt330x_attach, &tdvs_tua6034_config, card->i2c_adapter);
 		if (card->fe != NULL) {
-			dvb_attach(lgh06xf_attach, card->fe, card->i2c_adapter);
+			dvb_attach(dvb_pll_attach, card->fe, 0x61,
+				   card->i2c_adapter, &dvb_pll_lg_tdvs_h06xf);
 			dprintk ("dvb_bt8xx: lgdt330x detected\n");
 		}
 		break;

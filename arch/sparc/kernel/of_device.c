@@ -210,7 +210,7 @@ struct of_bus {
 				       int *addrc, int *sizec);
 	int		(*map)(u32 *addr, const u32 *range,
 			       int na, int ns, int pna);
-	unsigned int	(*get_flags)(u32 *addr);
+	unsigned int	(*get_flags)(const u32 *addr);
 };
 
 /*
@@ -270,7 +270,7 @@ static int of_bus_default_map(u32 *addr, const u32 *range,
 	return 0;
 }
 
-static unsigned int of_bus_default_get_flags(u32 *addr)
+static unsigned int of_bus_default_get_flags(const u32 *addr)
 {
 	return IORESOURCE_MEM;
 }
@@ -334,7 +334,7 @@ static int of_bus_pci_map(u32 *addr, const u32 *range,
 	return 0;
 }
 
-static unsigned int of_bus_pci_get_flags(u32 *addr)
+static unsigned int of_bus_pci_get_flags(const u32 *addr)
 {
 	unsigned int flags = 0;
 	u32 w = addr[0];
@@ -375,7 +375,7 @@ static int of_bus_sbus_map(u32 *addr, const u32 *range, int na, int ns, int pna)
 	return of_bus_default_map(addr, range, na, ns, pna);
 }
 
-static unsigned int of_bus_sbus_get_flags(u32 *addr)
+static unsigned int of_bus_sbus_get_flags(const u32 *addr)
 {
 	return IORESOURCE_MEM;
 }
@@ -432,7 +432,7 @@ static int __init build_one_resource(struct device_node *parent,
 				     u32 *addr,
 				     int na, int ns, int pna)
 {
-	u32 *ranges;
+	const u32 *ranges;
 	unsigned int rlen;
 	int rone;
 
@@ -470,7 +470,7 @@ static void __init build_device_resources(struct of_device *op,
 	struct of_bus *bus;
 	int na, ns;
 	int index, num_reg;
-	void *preg;
+	const void *preg;
 
 	if (!parent)
 		return;
@@ -492,10 +492,10 @@ static void __init build_device_resources(struct of_device *op,
 	for (index = 0; index < num_reg; index++) {
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
-		u32 *reg = (preg + (index * ((na + ns) * 4)));
+		const u32 *reg = (preg + (index * ((na + ns) * 4)));
 		struct device_node *dp = op->node;
 		struct device_node *pp = p_op->node;
-		struct of_bus *pbus;
+		struct of_bus *pbus, *dbus;
 		u64 size, result = OF_BAD_ADDR;
 		unsigned long flags;
 		int dna, dns;
@@ -516,6 +516,7 @@ static void __init build_device_resources(struct of_device *op,
 
 		dna = na;
 		dns = ns;
+		dbus = bus;
 
 		while (1) {
 			dp = pp;
@@ -528,13 +529,13 @@ static void __init build_device_resources(struct of_device *op,
 			pbus = of_match_bus(pp);
 			pbus->count_cells(dp, &pna, &pns);
 
-			if (build_one_resource(dp, bus, pbus, addr,
+			if (build_one_resource(dp, dbus, pbus, addr,
 					       dna, dns, pna))
 				break;
 
 			dna = pna;
 			dns = pns;
-			bus = pbus;
+			dbus = pbus;
 		}
 
 	build_res:
@@ -549,9 +550,6 @@ static void __init build_device_resources(struct of_device *op,
 			r->start = result & 0xffffffff;
 			r->end = result + size - 1;
 			r->flags = flags | ((result >> 32ULL) & 0xffUL);
-		} else {
-			r->start = ~0UL;
-			r->end = ~0UL;
 		}
 		r->name = op->node->name;
 	}
@@ -561,7 +559,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 						 struct device *parent)
 {
 	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
-	struct linux_prom_irqs *intr;
+	const struct linux_prom_irqs *intr;
 	int len, i;
 
 	if (!op)
@@ -581,7 +579,8 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		for (i = 0; i < op->num_irqs; i++)
 			op->irqs[i] = intr[i].pri;
 	} else {
-		unsigned int *irq = of_get_property(dp, "interrupts", &len);
+		const unsigned int *irq =
+			of_get_property(dp, "interrupts", &len);
 
 		if (irq) {
 			op->num_irqs = len / sizeof(unsigned int);
@@ -596,7 +595,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 			0, 0, 1, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 0,
 		};
 		struct device_node *io_unit, *sbi = dp->parent;
-		struct linux_prom_registers *regs;
+		const struct linux_prom_registers *regs;
 		int board, slot;
 
 		while (sbi) {

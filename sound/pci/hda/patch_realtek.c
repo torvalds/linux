@@ -4186,6 +4186,8 @@ static const char *alc260_models[ALC260_MODEL_LAST] = {
 static struct snd_pci_quirk alc260_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x007b, "Acer C20x", ALC260_ACER),
 	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_ACER),
+	SND_PCI_QUIRK(0x103c, 0x2808, "HP d5700", ALC260_HP_3013),
+	SND_PCI_QUIRK(0x103c, 0x280a, "HP d5750", ALC260_HP_3013),
 	SND_PCI_QUIRK(0x103c, 0x3010, "HP", ALC260_HP_3013),
 	SND_PCI_QUIRK(0x103c, 0x3011, "HP", ALC260_HP),
 	SND_PCI_QUIRK(0x103c, 0x3012, "HP", ALC260_HP_3013),
@@ -4942,9 +4944,16 @@ static int patch_alc882(struct hda_codec *codec)
 						  alc882_cfg_tbl);
 
 	if (board_config < 0 || board_config >= ALC882_MODEL_LAST) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC882, "
-		       "trying auto-probe from BIOS...\n");
-		board_config = ALC882_AUTO;
+		/* Pick up systems that don't supply PCI SSID */
+		switch (codec->subsystem_id) {
+		case 0x106b0c00: /* Mac Pro */
+			board_config = ALC885_MACPRO;
+			break;
+		default:
+			printk(KERN_INFO "hda_codec: Unknown model for ALC882, "
+		       			 "trying auto-probe from BIOS...\n");
+			board_config = ALC882_AUTO;
+		}
 	}
 
 	if (board_config == ALC882_AUTO) {
@@ -5917,8 +5926,10 @@ static struct snd_kcontrol_new alc262_base_mixer[] = {
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x19, 0, HDA_INPUT),
 	/* HDA_CODEC_VOLUME("PC Beep Playback Volume", 0x0b, 0x05, HDA_INPUT),
 	   HDA_CODEC_MUTE("PC Beelp Playback Switch", 0x0b, 0x05, HDA_INPUT), */
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0D, 0x0, HDA_OUTPUT),
@@ -5937,8 +5948,10 @@ static struct snd_kcontrol_new alc262_hippo1_mixer[] = {
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x19, 0, HDA_INPUT),
 	/* HDA_CODEC_VOLUME("PC Beep Playback Volume", 0x0b, 0x05, HDA_INPUT),
 	   HDA_CODEC_MUTE("PC Beelp Playback Switch", 0x0b, 0x05, HDA_INPUT), */
 	/*HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0D, 0x0, HDA_OUTPUT),*/
@@ -5955,8 +5968,10 @@ static struct snd_kcontrol_new alc262_HP_BPC_mixer[] = {
 
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x19, 0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
@@ -5977,6 +5992,7 @@ static struct snd_kcontrol_new alc262_HP_BPC_WildWest_mixer[] = {
 	HDA_CODEC_MUTE_MONO("Mono Playback Switch", 0x16, 2, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x1a, 0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
@@ -5989,6 +6005,7 @@ static struct snd_kcontrol_new alc262_HP_BPC_WildWest_mixer[] = {
 static struct snd_kcontrol_new alc262_HP_BPC_WildWest_option_mixer[] = {
 	HDA_CODEC_VOLUME("Rear Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Rear Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Rear Mic Boost", 0x18, 0, HDA_INPUT),
 	{ } /* end */
 };
 

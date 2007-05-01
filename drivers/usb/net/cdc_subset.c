@@ -79,12 +79,18 @@ static int always_connected (struct usbnet *dev)
  *
  * ALi M5632 driver ... does high speed
  *
+ * NOTE that the MS-Windows drivers for this chip use some funky and
+ * (naturally) undocumented 7-byte prefix to each packet, so this is a
+ * case where we don't currently interoperate.  Also, once you unplug
+ * one end of the cable, you need to replug the other end too ... since
+ * chip docs are unavailable, there's no way to reset the relevant state
+ * short of a power cycle.
+ *
  *-------------------------------------------------------------------------*/
 
 static const struct driver_info	ali_m5632_info = {
 	.description =	"ALi M5632",
 };
-
 
 #endif
 
@@ -159,6 +165,11 @@ static const struct driver_info	epson2888_info = {
 #endif	/* CONFIG_USB_EPSON2888 */
 
 
+/*-------------------------------------------------------------------------
+ *
+ * info from Jonathan McDowell <noodles@earth.li>
+ *
+ *-------------------------------------------------------------------------*/
 #ifdef CONFIG_USB_KC2190
 #define HAVE_HARDWARE
 static const struct driver_info kc2190_info = {
@@ -221,6 +232,10 @@ static const struct usb_device_id	products [] = {
 #ifdef	CONFIG_USB_ALI_M5632
 {
 	USB_DEVICE (0x0402, 0x5632),	// ALi defaults
+	.driver_info =	(unsigned long) &ali_m5632_info,
+},
+{
+	USB_DEVICE (0x182d,0x207c),	// SiteCom CN-124
 	.driver_info =	(unsigned long) &ali_m5632_info,
 },
 #endif
@@ -314,13 +329,13 @@ static struct usb_driver cdc_subset_driver = {
 
 static int __init cdc_subset_init(void)
 {
- 	return usb_register(&cdc_subset_driver);
+	return usb_register(&cdc_subset_driver);
 }
 module_init(cdc_subset_init);
 
 static void __exit cdc_subset_exit(void)
 {
- 	usb_deregister(&cdc_subset_driver);
+	usb_deregister(&cdc_subset_driver);
 }
 module_exit(cdc_subset_exit);
 

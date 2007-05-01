@@ -600,7 +600,7 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
 
 	page->flags &= ~(1 << PG_uptodate | 1 << PG_error |
 			1 << PG_referenced | 1 << PG_arch_1 |
-			1 << PG_checked | 1 << PG_mappedtodisk);
+			1 << PG_owner_priv_1 | 1 << PG_mappedtodisk);
 	set_page_private(page, 0);
 	set_page_refcounted(page);
 
@@ -663,6 +663,26 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 	spin_unlock(&zone->lock);
 	return i;
 }
+
+#if MAX_NUMNODES > 1
+int nr_node_ids __read_mostly;
+EXPORT_SYMBOL(nr_node_ids);
+
+/*
+ * Figure out the number of possible node ids.
+ */
+static void __init setup_nr_node_ids(void)
+{
+	unsigned int node;
+	unsigned int highest = 0;
+
+	for_each_node_mask(node, node_possible_map)
+		highest = node;
+	nr_node_ids = highest + 1;
+}
+#else
+static void __init setup_nr_node_ids(void) {}
+#endif
 
 #ifdef CONFIG_NUMA
 /*
@@ -2944,6 +2964,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 						early_node_map[i].end_pfn);
 
 	/* Initialise every node */
+	setup_nr_node_ids();
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
 		free_area_init_node(nid, pgdat, NULL,
@@ -3370,18 +3391,4 @@ EXPORT_SYMBOL(pfn_to_page);
 EXPORT_SYMBOL(page_to_pfn);
 #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
 
-#if MAX_NUMNODES > 1
-/*
- * Find the highest possible node id.
- */
-int highest_possible_node_id(void)
-{
-	unsigned int node;
-	unsigned int highest = 0;
 
-	for_each_node_mask(node, node_possible_map)
-		highest = node;
-	return highest;
-}
-EXPORT_SYMBOL(highest_possible_node_id);
-#endif

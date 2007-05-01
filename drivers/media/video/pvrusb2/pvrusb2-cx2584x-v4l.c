@@ -63,6 +63,7 @@ static void set_input(struct pvr2_v4l_cx2584x *ctxt)
 		vid_input = CX25840_COMPOSITE7;
 		aud_input = CX25840_AUDIO8;
 		break;
+	case PVR2_CVAL_INPUT_RADIO: // Treat same as composite
 	case PVR2_CVAL_INPUT_COMPOSITE:
 		vid_input = CX25840_COMPOSITE3;
 		aud_input = CX25840_AUDIO_SERIAL;
@@ -71,7 +72,6 @@ static void set_input(struct pvr2_v4l_cx2584x *ctxt)
 		vid_input = CX25840_SVIDEO1;
 		aud_input = CX25840_AUDIO_SERIAL;
 		break;
-	case PVR2_CVAL_INPUT_RADIO:
 	default:
 		// Just set it to be composite input for now...
 		vid_input = CX25840_COMPOSITE3;
@@ -150,8 +150,7 @@ static int decoder_check(struct pvr2_v4l_cx2584x *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(decoder_ops)/sizeof(decoder_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(decoder_ops); idx++) {
 		msk = 1 << idx;
 		if (ctxt->stale_mask & msk) continue;
 		if (decoder_ops[idx].check(ctxt)) {
@@ -167,8 +166,7 @@ static void decoder_update(struct pvr2_v4l_cx2584x *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(decoder_ops)/sizeof(decoder_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(decoder_ops); idx++) {
 		msk = 1 << idx;
 		if (!(ctxt->stale_mask & msk)) continue;
 		ctxt->stale_mask &= ~msk;
@@ -199,18 +197,6 @@ static int decoder_detect(struct pvr2_i2c_client *cp)
 }
 
 
-static int decoder_is_tuned(struct pvr2_v4l_cx2584x *ctxt)
-{
-	struct v4l2_tuner vt;
-	int ret;
-
-	memset(&vt,0,sizeof(vt));
-	ret = pvr2_i2c_client_cmd(ctxt->client,VIDIOC_G_TUNER,&vt);
-	if (ret < 0) return -EINVAL;
-	return vt.signal ? 1 : 0;
-}
-
-
 static unsigned int decoder_describe(struct pvr2_v4l_cx2584x *ctxt,
 				     char *buf,unsigned int cnt)
 {
@@ -226,7 +212,7 @@ static void decoder_reset(struct pvr2_v4l_cx2584x *ctxt)
 }
 
 
-const static struct pvr2_i2c_handler_functions hfuncs = {
+static const struct pvr2_i2c_handler_functions hfuncs = {
 	.detach = (void (*)(void *))decoder_detach,
 	.check = (int (*)(void *))decoder_check,
 	.update = (void (*)(void *))decoder_update,
@@ -243,21 +229,18 @@ int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *hdw,
 	if (cp->handler) return 0;
 	if (!decoder_detect(cp)) return 0;
 
-	ctxt = kmalloc(sizeof(*ctxt),GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt),GFP_KERNEL);
 	if (!ctxt) return 0;
-	memset(ctxt,0,sizeof(*ctxt));
 
 	ctxt->handler.func_data = ctxt;
 	ctxt->handler.func_table = &hfuncs;
 	ctxt->ctrl.ctxt = ctxt;
 	ctxt->ctrl.detach = (void (*)(void *))decoder_detach;
 	ctxt->ctrl.enable = (void (*)(void *,int))decoder_enable;
-	ctxt->ctrl.tuned = (int (*)(void *))decoder_is_tuned;
 	ctxt->ctrl.force_reset = (void (*)(void*))decoder_reset;
 	ctxt->client = cp;
 	ctxt->hdw = hdw;
-	ctxt->stale_mask = (1 << (sizeof(decoder_ops)/
-				  sizeof(decoder_ops[0]))) - 1;
+	ctxt->stale_mask = (1 << ARRAY_SIZE(decoder_ops)) - 1;
 	hdw->decoder_ctrl = &ctxt->ctrl;
 	cp->handler = &ctxt->handler;
 	{

@@ -29,8 +29,6 @@
  * the project's page is at http://www.linuxtv.org/dvb/
  */
 
-#include "budget.h"
-
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -38,6 +36,8 @@
 #include <linux/input.h>
 #include <linux/spinlock.h>
 #include <media/ir-common.h>
+
+#include "budget.h"
 
 #include "dvb_ca_en50221.h"
 #include "stv0299.h"
@@ -73,20 +73,14 @@
 #define SLOTSTATUS_READY	8
 #define SLOTSTATUS_OCCUPIED	(SLOTSTATUS_PRESENT|SLOTSTATUS_RESET|SLOTSTATUS_READY)
 
-/* Milliseconds during which key presses are regarded as key repeat and during
- * which the debounce logic is active
+/*
+ * Milliseconds during which a key is regarded as pressed.
+ * If an identical command arrives within this time, the timer will start over.
  */
-#define IR_REPEAT_TIMEOUT	350
+#define IR_KEYPRESS_TIMEOUT	250
 
 /* RC5 device wildcard */
 #define IR_DEVICE_ANY		255
-
-/* Some remotes sends multiple sequences per keypress (e.g. Zenith sends two),
- * this setting allows the superflous sequences to be ignored
- */
-static int debounce = 0;
-module_param(debounce, int, 0644);
-MODULE_PARM_DESC(debounce, "ignore repeated IR sequences (default: 0 = ignore no sequences)");
 
 static int rc5_device = -1;
 module_param(rc5_device, int, 0644);
@@ -99,10 +93,14 @@ MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
 struct budget_ci_ir {
 	struct input_dev *dev;
 	struct tasklet_struct msp430_irq_tasklet;
+	struct timer_list timer_keyup;
 	char name[72]; /* 40 + 32 for (struct saa7146_dev).name */
 	char phys[32];
 	struct ir_input_state state;
 	int rc5_device;
+	u32 last_raw;
+	u32 ir_key;
+	bool have_command;
 };
 
 struct budget_ci {
@@ -125,12 +123,8 @@ static void msp430_ir_interrupt(unsigned long data)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) data;
 	struct input_dev *dev = budget_ci->ir.dev;
-	static int bounces = 0;
-	int device;
-	int toggle;
-	static int prev_toggle = -1;
-	static u32 ir_key;
 	u32 command = ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
+	u32 raw;
 
 	/*
 	 * The msp430 chip can generate two different bytes, command and device
@@ -138,53 +132,48 @@ static void msp430_ir_interrupt(unsigned long data)
 	 * type1: X1CCCCCC, C = command bits (0 - 63)
 	 * type2: X0TDDDDD, D = device bits (0 - 31), T = RC5 toggle bit
 	 *
-	 * More than one command byte may be generated before the device byte
-	 * Only when we have both, a correct keypress is generated
+	 * Each signal from the remote control can generate one or more command
+	 * bytes and one or more device bytes. For the repeated bytes, the
+	 * highest bit (X) is set. The first command byte is always generated
+	 * before the first device byte. Other than that, no specific order
+	 * seems to apply. To make life interesting, bytes can also be lost.
+	 *
+	 * Only when we have a command and device byte, a keypress is
+	 * generated.
 	 */
+
+	if (ir_debug)
+		printk("budget_ci: received byte 0x%02x\n", command);
+
+	/* Remove repeat bit, we use every command */
+	command = command & 0x7f;
 
 	/* Is this a RC5 command byte? */
 	if (command & 0x40) {
-		if (ir_debug)
-			printk("budget_ci: received command byte 0x%02x\n", command);
-		ir_key = command & 0x3f;
+		budget_ci->ir.have_command = true;
+		budget_ci->ir.ir_key = command & 0x3f;
 		return;
 	}
 
 	/* It's a RC5 device byte */
-	if (ir_debug)
-		printk("budget_ci: received device byte 0x%02x\n", command);
-	device = command & 0x1f;
-	toggle = command & 0x20;
+	if (!budget_ci->ir.have_command)
+		return;
+	budget_ci->ir.have_command = false;
 
-	if (budget_ci->ir.rc5_device != IR_DEVICE_ANY && budget_ci->ir.rc5_device != device)
+	if (budget_ci->ir.rc5_device != IR_DEVICE_ANY &&
+	    budget_ci->ir.rc5_device != (command & 0x1f))
 		return;
 
-	/* Ignore repeated key sequences if requested */
-	if (toggle == prev_toggle && ir_key == dev->repeat_key &&
-	    bounces > 0 && timer_pending(&dev->timer)) {
-		if (ir_debug)
-			printk("budget_ci: debounce logic ignored IR command\n");
-		bounces--;
-		return;
-	}
-	prev_toggle = toggle;
-
-	/* Are we still waiting for a keyup event? */
-	if (del_timer(&dev->timer))
+	/* Is this a repeated key sequence? (same device, command, toggle) */
+	raw = budget_ci->ir.ir_key | (command << 8);
+	if (budget_ci->ir.last_raw != raw || !timer_pending(&budget_ci->ir.timer_keyup)) {
 		ir_input_nokey(dev, &budget_ci->ir.state);
-
-	/* Generate keypress */
-	if (ir_debug)
-		printk("budget_ci: generating keypress 0x%02x\n", ir_key);
-	ir_input_keydown(dev, &budget_ci->ir.state, ir_key, (ir_key & (command << 8)));
-
-	/* Do we want to delay the keyup event? */
-	if (debounce) {
-		bounces = debounce;
-		mod_timer(&dev->timer, jiffies + msecs_to_jiffies(IR_REPEAT_TIMEOUT));
-	} else {
-		ir_input_nokey(dev, &budget_ci->ir.state);
+		ir_input_keydown(dev, &budget_ci->ir.state,
+				 budget_ci->ir.ir_key, raw);
+		budget_ci->ir.last_raw = raw;
 	}
+
+	mod_timer(&budget_ci->ir.timer_keyup, jiffies + msecs_to_jiffies(IR_KEYPRESS_TIMEOUT));
 }
 
 static int msp430_ir_init(struct budget_ci *budget_ci)
@@ -223,7 +212,6 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	switch (budget_ci->budget.dev->pci->subsystem_device) {
 	case 0x100c:
 	case 0x100f:
-	case 0x1010:
 	case 0x1011:
 	case 0x1012:
 	case 0x1017:
@@ -233,6 +221,16 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;
+		else
+			budget_ci->ir.rc5_device = rc5_device;
+		break;
+	case 0x1010:
+		/* for the Technotrend 1500 bundled remote */
+		ir_input_init(input_dev, &budget_ci->ir.state,
+			      IR_TYPE_RC5, ir_codes_tt_1500);
+
+		if (rc5_device < 0)
+			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
 		else
 			budget_ci->ir.rc5_device = rc5_device;
 		break;
@@ -248,15 +246,20 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		break;
 	}
 
-	/* initialise the key-up debounce timeout handler */
-	input_dev->timer.function = msp430_ir_keyup;
-	input_dev->timer.data = (unsigned long) &budget_ci->ir;
-
+	/* initialise the key-up timeout handler */
+	init_timer(&budget_ci->ir.timer_keyup);
+	budget_ci->ir.timer_keyup.function = msp430_ir_keyup;
+	budget_ci->ir.timer_keyup.data = (unsigned long) &budget_ci->ir;
+	budget_ci->ir.last_raw = 0xffff; /* An impossible value */
 	error = input_register_device(input_dev);
 	if (error) {
 		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
 		goto out2;
 	}
+
+	/* note: these must be after input_register_device */
+	input_dev->rep[REP_DELAY] = 400;
+	input_dev->rep[REP_PERIOD] = 250;
 
 	tasklet_init(&budget_ci->ir.msp430_irq_tasklet, msp430_ir_interrupt,
 		     (unsigned long) budget_ci);
@@ -281,10 +284,8 @@ static void msp430_ir_deinit(struct budget_ci *budget_ci)
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
 	tasklet_kill(&budget_ci->ir.msp430_irq_tasklet);
 
-	if (del_timer(&dev->timer)) {
-		ir_input_nokey(dev, &budget_ci->ir.state);
-		input_sync(dev);
-	}
+	del_timer_sync(&dev->timer);
+	ir_input_nokey(dev, &budget_ci->ir.state);
 
 	input_unregister_device(dev);
 }
@@ -869,6 +870,17 @@ static struct tda1004x_config philips_tdm1316l_config = {
 	.request_firmware = philips_tdm1316l_request_firmware,
 };
 
+static struct tda1004x_config philips_tdm1316l_config_invert = {
+
+	.demod_address = 0x8,
+	.invert = 1,
+	.invert_oclk = 0,
+	.xtal_freq = TDA10046_XTAL_4M,
+	.agc_config = TDA10046_AGC_DEFAULT,
+	.if_freq = TDA10046_FREQ_3617,
+	.request_firmware = philips_tdm1316l_request_firmware,
+};
+
 static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
@@ -1092,9 +1104,8 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 	case 0x1012:		// TT DVB-T CI budget (tda10046/Philips tdm1316l(tda6651tt))
 		budget_ci->tuner_pll_address = 0x60;
-		philips_tdm1316l_config.invert = 1;
 		budget_ci->budget.dvb_frontend =
-			dvb_attach(tda10046_attach, &philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
+			dvb_attach(tda10046_attach, &philips_tdm1316l_config_invert, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.init = philips_tdm1316l_tuner_init;
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.set_params = philips_tdm1316l_tuner_set_params;

@@ -155,6 +155,9 @@
 #define WD33C93_FS_12_15 OWNID_FS_12
 #define WD33C93_FS_16_20 OWNID_FS_16
 
+   /* pass input-clock explicitely. accepted mhz values are 8-10,12-20 */
+#define WD33C93_FS_MHZ(mhz) (mhz)
+
    /* Control register */
 #define CTRL_HSP     0x01
 #define CTRL_HA      0x02
@@ -253,6 +256,9 @@ struct WD33C93_hostdata {
     uchar            sync_stat[8];     /* status of sync negotiation per target */
     uchar            no_sync;          /* bitmask: don't do sync on these targets */
     uchar            no_dma;           /* set this flag to disable DMA */
+    uchar            dma_mode;         /* DMA Burst Mode or Single Byte DMA */
+    uchar            fast;             /* set this flag to enable Fast SCSI */
+    struct sx_period sx_table[9];      /* transfer periods for actual DTC-setting */
 #ifdef PROC_INTERFACE
     uchar            proc;             /* bitmask: what's in proc output */
 #ifdef PROC_STATISTICS

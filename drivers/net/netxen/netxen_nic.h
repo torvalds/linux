@@ -64,13 +64,15 @@
 #include "netxen_nic_hw.h"
 
 #define _NETXEN_NIC_LINUX_MAJOR 3
-#define _NETXEN_NIC_LINUX_MINOR 3
-#define _NETXEN_NIC_LINUX_SUBVERSION 3
-#define NETXEN_NIC_LINUX_VERSIONID  "3.3.3"
+#define _NETXEN_NIC_LINUX_MINOR 4
+#define _NETXEN_NIC_LINUX_SUBVERSION 2
+#define NETXEN_NIC_LINUX_VERSIONID  "3.4.2"
 
 #define NUM_FLASH_SECTORS (64)
 #define FLASH_SECTOR_SIZE (64 * 1024)
 #define FLASH_TOTAL_SIZE  (NUM_FLASH_SECTORS * FLASH_SECTOR_SIZE)
+
+#define PHAN_VENDOR_ID 0x4040
 
 #define RCV_DESC_RINGSIZE	\
 	(sizeof(struct rcv_desc) * adapter->max_rx_desc_count)
@@ -82,7 +84,7 @@
 	(sizeof(struct netxen_cmd_buffer) * adapter->max_tx_desc_count)
 #define RCV_BUFFSIZE	\
 	(sizeof(struct netxen_rx_buffer) * rcv_desc->max_rx_desc_count)
-#define find_diff_among(a,b,range) ((a)<(b)?((b)-(a)):((b)+(range)-(a)))
+#define find_diff_among(a,b,range) ((a)<=(b)?((b)-(a)):((b)+(range)-(a)))
 
 #define NETXEN_NETDEV_STATUS		0x1
 #define NETXEN_RCV_PRODUCER_OFFSET	0
@@ -129,8 +131,8 @@ extern struct workqueue_struct *netxen_workq;
 #define FIRST_PAGE_GROUP_START	0
 #define FIRST_PAGE_GROUP_END	0x100000
 
-#define SECOND_PAGE_GROUP_START	0x4000000
-#define SECOND_PAGE_GROUP_END	0x66BC000
+#define SECOND_PAGE_GROUP_START	0x6000000
+#define SECOND_PAGE_GROUP_END	0x68BC000
 
 #define THIRD_PAGE_GROUP_START	0x70E4000
 #define THIRD_PAGE_GROUP_END	0x8000000
@@ -203,6 +205,8 @@ enum {
 
 #define MAX_CMD_DESCRIPTORS		1024
 #define MAX_RCV_DESCRIPTORS		16384
+#define MAX_CMD_DESCRIPTORS_HOST	(MAX_CMD_DESCRIPTORS / 4)
+#define MAX_RCV_DESCRIPTORS_1G		(MAX_RCV_DESCRIPTORS / 4)
 #define MAX_JUMBO_RCV_DESCRIPTORS	1024
 #define MAX_LRO_RCV_DESCRIPTORS		64
 #define MAX_RCVSTATUS_DESCRIPTORS	MAX_RCV_DESCRIPTORS
@@ -228,8 +232,11 @@ enum {
 	(((index) + (count)) & ((length) - 1))
 
 #define MPORT_SINGLE_FUNCTION_MODE 0x1111
+#define MPORT_MULTI_FUNCTION_MODE 0x2222
 
+#include "netxen_nic_phan_reg.h"
 extern unsigned long long netxen_dma_mask;
+extern unsigned long last_schedule_time;
 
 /*
  * NetXen host-peg signal message structure
@@ -252,7 +259,7 @@ typedef u32 netxen_ctx_msg;
 #define netxen_set_msg_ctxid(config_word, val)	\
 	((config_word) &= ~(0x3ff<<18), (config_word) |= (val & 0x3ff) << 18)
 #define netxen_set_msg_opcode(config_word, val)	\
-	((config_word) &= ~(0xf<<24), (config_word) |= (val & 0xf) << 24)
+	((config_word) &= ~(0xf<<28), (config_word) |= (val & 0xf) << 28)
 
 struct netxen_rcv_context {
 	__le64 rcv_ring_addr;
@@ -297,20 +304,22 @@ struct netxen_ring_ctx {
 
 #define netxen_set_cmd_desc_port(cmd_desc, var)	\
 	((cmd_desc)->port_ctxid |= ((var) & 0x0F))
+#define netxen_set_cmd_desc_ctxid(cmd_desc, var)	\
+	((cmd_desc)->port_ctxid |= ((var) & 0xF0))
 
 #define netxen_set_cmd_desc_flags(cmd_desc, val)	\
 	((cmd_desc)->flags_opcode &= ~cpu_to_le16(0x7f), \
 	(cmd_desc)->flags_opcode |= cpu_to_le16((val) & 0x7f))
 #define netxen_set_cmd_desc_opcode(cmd_desc, val)	\
 	((cmd_desc)->flags_opcode &= ~cpu_to_le16(0x3f<<7), \
-	(cmd_desc)->flags_opcode |= cpu_to_le16((val) & (0x3f<<7)))
+	(cmd_desc)->flags_opcode |= cpu_to_le16(((val & 0x3f)<<7)))
 
 #define netxen_set_cmd_desc_num_of_buff(cmd_desc, val)	\
 	((cmd_desc)->num_of_buffers_total_length &= ~cpu_to_le32(0xff), \
 	(cmd_desc)->num_of_buffers_total_length |= cpu_to_le32((val) & 0xff))
 #define netxen_set_cmd_desc_totallength(cmd_desc, val)	\
-	((cmd_desc)->num_of_buffers_total_length &= cpu_to_le32(0xff), \
-	(cmd_desc)->num_of_buffers_total_length |= cpu_to_le32(val << 24))
+	((cmd_desc)->num_of_buffers_total_length &= ~cpu_to_le32(0xffffff00), \
+	(cmd_desc)->num_of_buffers_total_length |= cpu_to_le32(val << 8))
 
 #define netxen_get_cmd_desc_opcode(cmd_desc)	\
 	((le16_to_cpu((cmd_desc)->flags_opcode) >> 7) & 0x003F)
@@ -439,7 +448,7 @@ struct status_desc {
 	/* Bit pattern: 0-6 lro_count indicates frag sequence,
 	   7 last_frag indicates last frag */
 	u8 lro;
-} __attribute__ ((aligned(8)));
+} __attribute__ ((aligned(16)));
 
 enum {
 	NETXEN_RCV_PEG_0 = 0,
@@ -700,10 +709,8 @@ extern char netxen_nic_driver_name[];
 #else
 #define DPRINTK(klevel, fmt, args...)	do { \
 	printk(KERN_##klevel PFX "%s: %s: " fmt, __FUNCTION__,\
-		(adapter != NULL && \
-		adapter->port[0] != NULL && \
-		adapter->port[0]->netdev != NULL) ? \
-		adapter->port[0]->netdev->name : NULL, \
+		(adapter != NULL && adapter->netdev != NULL) ? \
+		adapter->netdev->name : NULL, \
 		## args); } while(0)
 #endif
 
@@ -718,6 +725,18 @@ struct netxen_skb_frag {
 	u64 dma;
 	u32 length;
 };
+
+#define _netxen_set_bits(config_word, start, bits, val)	{\
+	unsigned long long __tmask = (((1ULL << (bits)) - 1) << (start));\
+	unsigned long long __tvalue = (val);    \
+	(config_word) &= ~__tmask;      \
+	(config_word) |= (((__tvalue) << (start)) & __tmask); \
+}
+	
+#define _netxen_clear_bits(config_word, start, bits) {\
+	unsigned long long __tmask = (((1ULL << (bits)) - 1) << (start));  \
+	(config_word) &= ~__tmask; \
+}		
 
 /*    Following defines are for the state of the buffers    */
 #define	NETXEN_BUFFER_FREE	0
@@ -763,6 +782,8 @@ struct netxen_hardware_context {
 	void __iomem *pci_base0;
 	void __iomem *pci_base1;
 	void __iomem *pci_base2;
+	unsigned long first_page_group_end;
+	unsigned long first_page_group_start;
 	void __iomem *db_base;
 	unsigned long db_len;
 
@@ -777,6 +798,7 @@ struct netxen_hardware_context {
 	struct pci_dev *cmd_desc_pdev;
 	dma_addr_t cmd_desc_phys_addr;
 	struct netxen_adapter *adapter;
+	int pci_func;
 };
 
 #define RCV_RING_LRO	RCV_DESC_LRO
@@ -785,17 +807,27 @@ struct netxen_hardware_context {
 #define ETHERNET_FCS_SIZE		4
 
 struct netxen_adapter_stats {
-	u64 ints;
-	u64 hostints;
-	u64 otherints;
-	u64 process_rcv;
-	u64 process_xmit;
-	u64 noxmitdone;
-	u64 xmitcsummed;
-	u64 post_called;
-	u64 posted;
-	u64 lastposted;
-	u64 goodskbposts;
+	u64  rcvdbadskb;
+	u64  xmitcalled;
+	u64  xmitedframes;
+	u64  xmitfinished;
+	u64  badskblen;
+	u64  nocmddescriptor;
+	u64  polled;
+	u64  uphappy;
+	u64  updropped;
+	u64  uplcong;
+	u64  uphcong;
+	u64  upmcong;
+	u64  updunno;
+	u64  skbfreed;
+	u64  txdropped;
+	u64  txnullskb;
+	u64  csummed;
+	u64  no_rcv;
+	u64  rxbytes;
+	u64  txbytes;
+	u64  ints;
 };
 
 /*
@@ -843,13 +875,20 @@ struct netxen_dummy_dma {
 
 struct netxen_adapter {
 	struct netxen_hardware_context ahw;
-	int port_count;		/* Number of configured ports  */
-	int active_ports;	/* Number of open ports */
-	struct netxen_port *port[NETXEN_MAX_PORTS];	/* ptr to each port  */
+	
+	struct netxen_adapter *master;
+	struct net_device *netdev;
+	struct pci_dev *pdev;
+	struct net_device_stats net_stats;
+	unsigned char mac_addr[ETH_ALEN];
+	int mtu;
+	int portnum;
+
 	spinlock_t tx_lock;
 	spinlock_t lock;
 	struct work_struct watchdog_task;
 	struct timer_list watchdog_timer;
+	struct work_struct  tx_timeout_task;
 
 	u32 curr_window;
 
@@ -872,6 +911,15 @@ struct netxen_adapter {
 	u32 temp;
 
 	struct netxen_adapter_stats stats;
+	
+	u16 portno;
+	u16 link_speed;
+	u16 link_duplex;
+	u16 state;
+	u16 link_autoneg;
+	int rcsum;
+	int status;
+	spinlock_t stats_lock;
 
 	struct netxen_cmd_buffer *cmd_buf_arr;	/* Command buffers for xmit */
 
@@ -888,64 +936,22 @@ struct netxen_adapter {
 	struct netxen_ring_ctx *ctx_desc;
 	struct pci_dev *ctx_desc_pdev;
 	dma_addr_t ctx_desc_phys_addr;
-	int (*enable_phy_interrupts) (struct netxen_adapter *, int);
-	int (*disable_phy_interrupts) (struct netxen_adapter *, int);
+	int (*enable_phy_interrupts) (struct netxen_adapter *);
+	int (*disable_phy_interrupts) (struct netxen_adapter *);
 	void (*handle_phy_intr) (struct netxen_adapter *);
-	int (*macaddr_set) (struct netxen_port *, netxen_ethernet_macaddr_t);
-	int (*set_mtu) (struct netxen_port *, int);
-	int (*set_promisc) (struct netxen_adapter *, int,
-			    netxen_niu_prom_mode_t);
-	int (*unset_promisc) (struct netxen_adapter *, int,
-			      netxen_niu_prom_mode_t);
-	int (*phy_read) (struct netxen_adapter *, long phy, long reg, u32 *);
-	int (*phy_write) (struct netxen_adapter *, long phy, long reg, u32 val);
+	int (*macaddr_set) (struct netxen_adapter *, netxen_ethernet_macaddr_t);
+	int (*set_mtu) (struct netxen_adapter *, int);
+	int (*set_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
+	int (*unset_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
+	int (*phy_read) (struct netxen_adapter *, long reg, u32 *);
+	int (*phy_write) (struct netxen_adapter *, long reg, u32 val);
 	int (*init_port) (struct netxen_adapter *, int);
 	void (*init_niu) (struct netxen_adapter *);
-	int (*stop_port) (struct netxen_adapter *, int);
+	int (*stop_port) (struct netxen_adapter *);
 };				/* netxen_adapter structure */
 
 /* Max number of xmit producer threads that can run simultaneously */
 #define	MAX_XMIT_PRODUCERS		16
-
-struct netxen_port_stats {
-	u64 rcvdbadskb;
-	u64 xmitcalled;
-	u64 xmitedframes;
-	u64 xmitfinished;
-	u64 badskblen;
-	u64 nocmddescriptor;
-	u64 polled;
-	u64 uphappy;
-	u64 updropped;
-	u64 uplcong;
-	u64 uphcong;
-	u64 upmcong;
-	u64 updunno;
-	u64 skbfreed;
-	u64 txdropped;
-	u64 txnullskb;
-	u64 csummed;
-	u64 no_rcv;
-	u64 rxbytes;
-	u64 txbytes;
-};
-
-struct netxen_port {
-	struct netxen_adapter *adapter;
-
-	u16 portnum;		/* GBE port number */
-	u16 link_speed;
-	u16 link_duplex;
-	u16 link_autoneg;
-
-	int flags;
-
-	struct net_device *netdev;
-	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
-	struct netxen_port_stats stats;
-	struct work_struct tx_timeout_task;
-};
 
 #define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
 	((adapter)->ahw.pci_base0 + (off))
@@ -984,32 +990,26 @@ static inline void __iomem *pci_base(struct netxen_adapter *adapter,
 	return NULL;
 }
 
-int netxen_niu_xgbe_enable_phy_interrupts(struct netxen_adapter *adapter,
-					  int port);
-int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter,
-					 int port);
-int netxen_niu_xgbe_disable_phy_interrupts(struct netxen_adapter *adapter,
-					   int port);
-int netxen_niu_gbe_disable_phy_interrupts(struct netxen_adapter *adapter,
-					  int port);
-int netxen_niu_xgbe_clear_phy_interrupts(struct netxen_adapter *adapter,
-					 int port);
-int netxen_niu_gbe_clear_phy_interrupts(struct netxen_adapter *adapter,
-					int port);
+int netxen_niu_xgbe_enable_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_xgbe_disable_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_gbe_disable_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_xgbe_clear_phy_interrupts(struct netxen_adapter *adapter);
+int netxen_niu_gbe_clear_phy_interrupts(struct netxen_adapter *adapter);
 void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter);
 void netxen_nic_gbe_handle_phy_intr(struct netxen_adapter *adapter);
 void netxen_niu_gbe_set_mii_mode(struct netxen_adapter *adapter, int port,
 				 long enable);
 void netxen_niu_gbe_set_gmii_mode(struct netxen_adapter *adapter, int port,
 				  long enable);
-int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long phy, long reg,
+int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 			    __u32 * readval);
-int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter, long phy,
+int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
 			     long reg, __u32 val);
 
 /* Functions available from netxen_nic_hw.c */
-int netxen_nic_set_mtu_xgb(struct netxen_port *port, int new_mtu);
-int netxen_nic_set_mtu_gb(struct netxen_port *port, int new_mtu);
+int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
+int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu);
 void netxen_nic_init_niu_gb(struct netxen_adapter *adapter);
 void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw);
 void netxen_nic_reg_write(struct netxen_adapter *adapter, u64 off, u32 val);
@@ -1024,6 +1024,7 @@ int netxen_nic_hw_write_wx(struct netxen_adapter *adapter, u64 off, void *data,
 			   int len);
 void netxen_crb_writelit_adapter(struct netxen_adapter *adapter,
 				 unsigned long off, int data);
+int netxen_nic_erase_pxe(struct netxen_adapter *adapter);
 
 /* Functions from netxen_nic_init.c */
 void netxen_free_adapter_offload(struct netxen_adapter *adapter);
@@ -1040,6 +1041,7 @@ int netxen_flash_unlock(struct netxen_adapter *adapter);
 int netxen_backup_crbinit(struct netxen_adapter *adapter);
 int netxen_flash_erase_secondary(struct netxen_adapter *adapter);
 int netxen_flash_erase_primary(struct netxen_adapter *adapter);
+void netxen_halt_pegs(struct netxen_adapter *adapter);
 
 int netxen_rom_fast_write(struct netxen_adapter *adapter, int addr, int data);
 int netxen_rom_se(struct netxen_adapter *adapter, int addr);
@@ -1047,11 +1049,8 @@ int netxen_do_rom_se(struct netxen_adapter *adapter, int addr);
 
 /* Functions from netxen_nic_isr.c */
 void netxen_nic_isr_other(struct netxen_adapter *adapter);
-void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 port,
-				 u32 link);
-void netxen_handle_port_int(struct netxen_adapter *adapter, u32 port,
-			    u32 enable);
-void netxen_nic_stop_all_ports(struct netxen_adapter *adapter);
+void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link);
+void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable);
 void netxen_initialize_adapter_sw(struct netxen_adapter *adapter);
 void netxen_initialize_adapter_hw(struct netxen_adapter *adapter);
 void *netxen_alloc(struct pci_dev *pdev, size_t sz, dma_addr_t * ptr,
@@ -1106,6 +1105,7 @@ static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
 
 	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
 		mask = 0xbff;
+		writel(0X0, NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
 		writel(mask, PCI_OFFSET_SECOND_RANGE(adapter,
 						     ISR_INT_TARGET_MASK));
 	}
@@ -1170,4 +1170,5 @@ extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 
 extern struct ethtool_ops netxen_nic_ethtool_ops;
 
+extern int physical_port[];	/* physical port # from virtual port.*/
 #endif				/* __NETXEN_NIC_H_ */

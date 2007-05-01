@@ -425,7 +425,7 @@ static int __devinit piix4_probe(struct pci_dev *dev,
 	if (retval)
 		return retval;
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	piix4_adapter.dev.parent = &dev->dev;
 
 	snprintf(piix4_adapter.name, I2C_NAME_SIZE,

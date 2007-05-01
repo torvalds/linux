@@ -415,6 +415,7 @@ static struct kobj_type pci_driver_kobj_type = {
  * __pci_register_driver - register a new pci driver
  * @drv: the driver structure to register
  * @owner: owner module of drv
+ * @mod_name: module name string
  * 
  * Adds the driver structure to the list of registered drivers.
  * Returns a negative value on error, otherwise 0. 
@@ -432,11 +433,6 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 	drv->driver.owner = owner;
 	drv->driver.mod_name = mod_name;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
-
-	if (pci_multithread_probe)
-		drv->driver.multithread_probe = pci_multithread_probe;
-	else
-		drv->driver.multithread_probe = drv->multithread_probe;
 
 	spin_lock_init(&drv->dynids.lock);
 	INIT_LIST_HEAD(&drv->dynids.list);
@@ -573,6 +569,7 @@ struct bus_type pci_bus_type = {
 
 static int __init pci_driver_init(void)
 {
+	pci_bus_type.multithread_probe = pci_multithread_probe;
 	return bus_register(&pci_bus_type);
 }
 

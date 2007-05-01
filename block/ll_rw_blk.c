@@ -1221,7 +1221,7 @@ void blk_recount_segments(request_queue_t *q, struct bio *bio)
 		 * considered part of another segment, since that might
 		 * change with the bounce page.
 		 */
-		high = page_to_pfn(bv->bv_page) >= q->bounce_pfn;
+		high = page_to_pfn(bv->bv_page) > q->bounce_pfn;
 		if (high || highprv)
 			goto new_hw_segment;
 		if (cluster) {
@@ -3658,8 +3658,8 @@ int __init blk_dev_init(void)
 	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq, NULL);
 	register_hotcpu_notifier(&blk_cpu_notifier);
 
-	blk_max_low_pfn = max_low_pfn;
-	blk_max_pfn = max_pfn;
+	blk_max_low_pfn = max_low_pfn - 1;
+	blk_max_pfn = max_pfn - 1;
 
 	return 0;
 }
@@ -3741,6 +3741,7 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node)
 		ret->nr_batch_requests = 0; /* because this is 0 */
 		ret->aic = NULL;
 		ret->cic_root.rb_node = NULL;
+		ret->ioc_data = NULL;
 		/* make sure set_task_ioprio() sees the settings above */
 		smp_wmb();
 		tsk->io_context = ret;

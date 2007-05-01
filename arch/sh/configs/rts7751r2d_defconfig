@@ -1,14 +1,13 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.20
-# Thu Feb 15 17:17:29 2007
+# Linux kernel version: 2.6.21-rc1
+# Thu Mar  1 16:42:40 2007
 #
 CONFIG_SUPERH=y
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
 CONFIG_GENERIC_FIND_NEXT_BIT=y
 CONFIG_GENERIC_HWEIGHT=y
 CONFIG_GENERIC_HARDIRQS=y
-CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ=y
 CONFIG_GENERIC_IRQ_PROBE=y
 CONFIG_GENERIC_CALIBRATE_DELAY=y
 # CONFIG_GENERIC_TIME is not set
@@ -33,6 +32,7 @@ CONFIG_LOCALVERSION_AUTO=y
 CONFIG_SWAP=y
 CONFIG_SYSVIPC=y
 # CONFIG_IPC_NS is not set
+CONFIG_SYSVIPC_SYSCTL=y
 # CONFIG_POSIX_MQUEUE is not set
 # CONFIG_BSD_PROCESS_ACCT is not set
 # CONFIG_TASKSTATS is not set
@@ -119,7 +119,6 @@ CONFIG_SH_RTS7751R2D=y
 # CONFIG_SH_SHMIN is not set
 # CONFIG_SH_7206_SOLUTION_ENGINE is not set
 # CONFIG_SH_7619_SOLUTION_ENGINE is not set
-# CONFIG_SH_ASDAP310 is not set
 # CONFIG_SH_UNKNOWN is not set
 
 #
@@ -281,7 +280,7 @@ CONFIG_ZERO_PAGE_OFFSET=0x00010000
 CONFIG_BOOT_LINK_OFFSET=0x00800000
 # CONFIG_UBC_WAKEUP is not set
 CONFIG_CMDLINE_BOOL=y
-CONFIG_CMDLINE="console=ttySC0,115200 root=/dev/sda1"
+CONFIG_CMDLINE="console=tty0 console=ttySC0,115200 root=/dev/sda1"
 
 #
 # Bus options
@@ -433,6 +432,7 @@ CONFIG_FW_LOADER=m
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -770,7 +770,26 @@ CONFIG_NET_WIRELESS=y
 #
 # Input device support
 #
-# CONFIG_INPUT is not set
+CONFIG_INPUT=y
+# CONFIG_INPUT_FF_MEMLESS is not set
+
+#
+# Userland interfaces
+#
+# CONFIG_INPUT_MOUSEDEV is not set
+# CONFIG_INPUT_JOYDEV is not set
+# CONFIG_INPUT_TSDEV is not set
+# CONFIG_INPUT_EVDEV is not set
+# CONFIG_INPUT_EVBUG is not set
+
+#
+# Input Device Drivers
+#
+# CONFIG_INPUT_KEYBOARD is not set
+# CONFIG_INPUT_MOUSE is not set
+# CONFIG_INPUT_JOYSTICK is not set
+# CONFIG_INPUT_TOUCHSCREEN is not set
+# CONFIG_INPUT_MISC is not set
 
 #
 # Hardware I/O ports
@@ -781,7 +800,10 @@ CONFIG_NET_WIRELESS=y
 #
 # Character devices
 #
-# CONFIG_VT is not set
+CONFIG_VT=y
+CONFIG_VT_CONSOLE=y
+CONFIG_HW_CONSOLE=y
+CONFIG_VT_HW_CONSOLE_BINDING=y
 # CONFIG_SERIAL_NONSTANDARD is not set
 
 #
@@ -857,6 +879,11 @@ CONFIG_HWMON=y
 # CONFIG_HWMON_DEBUG_CHIP is not set
 
 #
+# Multifunction device drivers
+#
+CONFIG_MFD_SM501=y
+
+#
 # Multimedia devices
 #
 # CONFIG_VIDEO_DEV is not set
@@ -869,9 +896,66 @@ CONFIG_HWMON=y
 #
 # Graphics support
 #
-CONFIG_FIRMWARE_EDID=y
-# CONFIG_FB is not set
 # CONFIG_BACKLIGHT_LCD_SUPPORT is not set
+CONFIG_FB=y
+# CONFIG_FIRMWARE_EDID is not set
+# CONFIG_FB_DDC is not set
+CONFIG_FB_CFB_FILLRECT=y
+CONFIG_FB_CFB_COPYAREA=y
+CONFIG_FB_CFB_IMAGEBLIT=y
+# CONFIG_FB_SVGALIB is not set
+# CONFIG_FB_MACMODES is not set
+# CONFIG_FB_BACKLIGHT is not set
+# CONFIG_FB_MODE_HELPERS is not set
+# CONFIG_FB_TILEBLITTING is not set
+
+#
+# Frambuffer hardware drivers
+#
+# CONFIG_FB_CIRRUS is not set
+# CONFIG_FB_PM2 is not set
+# CONFIG_FB_CYBER2000 is not set
+# CONFIG_FB_ASILIANT is not set
+# CONFIG_FB_IMSTT is not set
+# CONFIG_FB_EPSON1355 is not set
+# CONFIG_FB_S1D13XXX is not set
+# CONFIG_FB_NVIDIA is not set
+# CONFIG_FB_RIVA is not set
+# CONFIG_FB_MATROX is not set
+# CONFIG_FB_RADEON is not set
+# CONFIG_FB_ATY128 is not set
+# CONFIG_FB_ATY is not set
+# CONFIG_FB_S3 is not set
+# CONFIG_FB_SAVAGE is not set
+# CONFIG_FB_SIS is not set
+# CONFIG_FB_NEOMAGIC is not set
+# CONFIG_FB_KYRO is not set
+# CONFIG_FB_3DFX is not set
+# CONFIG_FB_VOODOO1 is not set
+# CONFIG_FB_TRIDENT is not set
+CONFIG_FB_SM501=y
+# CONFIG_FB_VIRTUAL is not set
+
+#
+# Console display driver support
+#
+CONFIG_DUMMY_CONSOLE=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+# CONFIG_FRAMEBUFFER_CONSOLE_ROTATION is not set
+# CONFIG_FONTS is not set
+CONFIG_FONT_8x8=y
+CONFIG_FONT_8x16=y
+
+#
+# Logo configuration
+#
+CONFIG_LOGO=y
+# CONFIG_LOGO_LINUX_MONO is not set
+# CONFIG_LOGO_LINUX_VGA16 is not set
+# CONFIG_LOGO_LINUX_CLUT224 is not set
+# CONFIG_LOGO_SUPERH_MONO is not set
+# CONFIG_LOGO_SUPERH_VGA16 is not set
+CONFIG_LOGO_SUPERH_CLUT224=y
 
 #
 # Sound
@@ -983,6 +1067,12 @@ CONFIG_SOUND_PRIME=m
 # CONFIG_SOUND_MSNDPIN is not set
 # CONFIG_SOUND_VIA82CXXX is not set
 CONFIG_AC97_BUS=m
+
+#
+# HID Devices
+#
+CONFIG_HID=y
+# CONFIG_HID_DEBUG is not set
 
 #
 # USB support
@@ -1237,7 +1327,7 @@ CONFIG_LOG_BUF_SHIFT=14
 CONFIG_EARLY_SCIF_CONSOLE=y
 CONFIG_EARLY_SCIF_CONSOLE_PORT=0xffe80000
 CONFIG_EARLY_PRINTK=y
-# CONFIG_KGDB is not set
+# CONFIG_SH_KGDB is not set
 
 #
 # Security options

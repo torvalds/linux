@@ -2233,6 +2233,8 @@ static int fbcon_switch(struct vc_data *vc)
 static void fbcon_generic_blank(struct vc_data *vc, struct fb_info *info,
 				int blank)
 {
+	struct fb_event event;
+
 	if (blank) {
 		unsigned short charmask = vc->vc_hi_font_mask ?
 			0x1ff : 0xff;
@@ -2243,6 +2245,11 @@ static void fbcon_generic_blank(struct vc_data *vc, struct fb_info *info,
 		fbcon_clear(vc, 0, 0, vc->vc_rows, vc->vc_cols);
 		vc->vc_video_erase_char = oldc;
 	}
+
+
+	event.info = info;
+	event.data = &blank;
+	fb_notifier_call_chain(FB_EVENT_CONBLANK, &event);
 }
 
 static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)

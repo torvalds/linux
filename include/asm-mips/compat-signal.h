@@ -5,6 +5,11 @@
 #include <linux/compat.h>
 #include <linux/compiler.h>
 
+#include <asm/signal.h>
+#include <asm/siginfo.h>
+
+#include <asm/uaccess.h>
+
 static inline int __copy_conv_sigset_to_user(compat_sigset_t __user *d,
 	const sigset_t *s)
 {
@@ -32,9 +37,6 @@ static inline int __copy_conv_sigset_from_user(sigset_t *d,
 
 	BUG_ON(sizeof(*d) != sizeof(*s));
 	BUG_ON(_NSIG_WORDS != 2);
-
-	if (unlikely(!access_ok(VERIFY_READ, d, sizeof(*d))))
-		return -EFAULT;
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	err  = __get_user(u->c.sig[1], &s->sig[0]);

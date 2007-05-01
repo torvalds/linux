@@ -1,8 +1,6 @@
 # $Id: Kconfig,v 1.11 2005/11/07 11:14:19 gleixner Exp $
 
-menu "Memory Technology Devices (MTD)"
-
-config MTD
+menuconfig MTD
 	tristate "Memory Technology Device (MTD) support"
 	help
 	  Memory Technology Devices are flash, RAM and similar chips, often
@@ -13,9 +11,10 @@ config MTD
 	  them. It will also allow you to select individual drivers for
 	  particular hardware and users of MTD devices. If unsure, say N.
 
+if MTD
+
 config MTD_DEBUG
 	bool "Debugging"
-	depends on MTD
 	help
 	  This turns on low-level debugging for the entire MTD sub-system.
 	  Normally, you should say 'N'.
@@ -29,7 +28,6 @@ config MTD_DEBUG_VERBOSE
 
 config MTD_CONCAT
 	tristate "MTD concatenating support"
-	depends on MTD
 	help
 	  Support for concatenating several MTD devices into a single
 	  (virtual) one. This allows you to have -for example- a JFFS(2)
@@ -38,7 +36,6 @@ config MTD_CONCAT
 
 config MTD_PARTITIONS
 	bool "MTD partitioning support"
-	depends on MTD
 	help
 	  If you have a device which needs to divide its flash chip(s) up
 	  into multiple 'partitions', each of which appears to the user as
@@ -153,11 +150,9 @@ config MTD_AFS_PARTS
 	  'armflash' map driver (CONFIG_MTD_ARMFLASH) does this, for example.
 
 comment "User Modules And Translation Layers"
-	depends on MTD
 
 config MTD_CHAR
 	tristate "Direct char device access to MTD devices"
-	depends on MTD
 	help
 	  This provides a character device for each MTD device present in
 	  the system, allowing the user to read and write directly to the
@@ -166,12 +161,12 @@ config MTD_CHAR
 
 config MTD_BLKDEVS
 	tristate "Common interface to block layer for MTD 'translation layers'"
-	depends on MTD && BLOCK
+	depends on BLOCK
 	default n
 
 config MTD_BLOCK
 	tristate "Caching block device access to MTD devices"
-	depends on MTD && BLOCK
+	depends on BLOCK
 	select MTD_BLKDEVS
 	---help---
 	  Although most flash chips have an erase size too large to be useful
@@ -194,7 +189,7 @@ config MTD_BLOCK
 
 config MTD_BLOCK_RO
 	tristate "Readonly block device access to MTD devices"
-	depends on MTD_BLOCK!=y && MTD && BLOCK
+	depends on MTD_BLOCK!=y && BLOCK
 	select MTD_BLKDEVS
 	help
 	  This allows you to mount read-only file systems (such as cramfs)
@@ -206,7 +201,7 @@ config MTD_BLOCK_RO
 
 config FTL
 	tristate "FTL (Flash Translation Layer) support"
-	depends on MTD && BLOCK
+	depends on BLOCK
 	select MTD_BLKDEVS
 	---help---
 	  This provides support for the original Flash Translation Layer which
@@ -223,7 +218,7 @@ config FTL
 
 config NFTL
 	tristate "NFTL (NAND Flash Translation Layer) support"
-	depends on MTD && BLOCK
+	depends on BLOCK
 	select MTD_BLKDEVS
 	---help---
 	  This provides support for the NAND Flash Translation Layer which is
@@ -247,7 +242,7 @@ config NFTL_RW
 
 config INFTL
 	tristate "INFTL (Inverse NAND Flash Translation Layer) support"
-	depends on MTD && BLOCK
+	depends on BLOCK
 	select MTD_BLKDEVS
 	---help---
 	  This provides support for the Inverse NAND Flash Translation
@@ -265,7 +260,7 @@ config INFTL
 
 config RFD_FTL
         tristate "Resident Flash Disk (Flash Translation Layer) support"
-	depends on MTD && BLOCK
+	depends on BLOCK
 	select MTD_BLKDEVS
 	---help---
 	  This provides support for the flash translation layer known
@@ -276,7 +271,7 @@ config RFD_FTL
 
 config SSFDC
 	tristate "NAND SSFDC (SmartMedia) read only translation layer"
-	depends on MTD && BLOCK
+	depends on BLOCK
 	select MTD_BLKDEVS
 	help
 	  This enables read only access to SmartMedia formatted NAND
@@ -292,5 +287,6 @@ source "drivers/mtd/nand/Kconfig"
 
 source "drivers/mtd/onenand/Kconfig"
 
-endmenu
+source "drivers/mtd/ubi/Kconfig"
 
+endif # MTD

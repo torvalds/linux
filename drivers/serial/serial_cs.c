@@ -248,6 +248,10 @@ static const struct serial_quirk quirks[] = {
 		.multi	= 2,
 	}, {
 		.manfid	= MANFID_QUATECH,
+		.prodid	= PRODID_QUATECH_DUAL_RS232_G,
+		.multi	= 2,
+	}, {
+		.manfid	= MANFID_QUATECH,
 		.prodid	= PRODID_QUATECH_QUAD_RS232,
 		.multi	= 4,
 	}, {
@@ -891,6 +895,7 @@ static struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("OEM      ", "C288MX     ", 0xb572d360, 0xd2385b7a),
 	PCMCIA_DEVICE_PROD_ID12("PCMCIA   ", "C336MX     ", 0x99bcafe9, 0xaa25bcab),
 	PCMCIA_DEVICE_PROD_ID12("Quatech Inc", "PCMCIA Dual RS-232 Serial Port Card", 0xc4420b35, 0x92abc92f),
+	PCMCIA_DEVICE_PROD_ID12("Quatech Inc", "Dual RS-232 Serial Port PC Card", 0xc4420b35, 0x031a380d),
 	PCMCIA_PFC_DEVICE_CIS_PROD_ID12(1, "PCMCIA", "EN2218-LAN/MODEM", 0x281f1c5d, 0x570f348e, "PCMLM28.cis"),
 	PCMCIA_PFC_DEVICE_CIS_PROD_ID12(1, "PCMCIA", "UE2218-LAN/MODEM", 0x281f1c5d, 0x6fdcacee, "PCMLM28.cis"),
 	PCMCIA_PFC_DEVICE_CIS_PROD_ID12(1, "Psion Dacom", "Gold Card V34 Ethernet", 0xf5f025c2, 0x338e8155, "PCMLM28.cis"),

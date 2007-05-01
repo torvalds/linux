@@ -135,6 +135,16 @@ Give 0 for unused sensor. Any other value is invalid. To configure this at
 startup, consult lm_sensors's /etc/sensors.conf. (2 = thermistor;
 3 = thermal diode)
 
+
+Fan speed control
+-----------------
+
 The fan speed control features are limited to manual PWM mode. Automatic
 "Smart Guardian" mode control handling is not implemented. However
 if you want to go for "manual mode" just write 1 to pwmN_enable.
+
+If you are only able to control the fan speed with very small PWM values,
+try lowering the PWM base frequency (pwm1_freq). Depending on the fan,
+it may give you a somewhat greater control range. The same frequency is
+used to drive all fan outputs, which is why pwm2_freq and pwm3_freq are
+read-only.

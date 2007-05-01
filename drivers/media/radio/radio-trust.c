@@ -192,144 +192,154 @@ static void tr_setfreq(unsigned long f)
 	write_i2c(5, TSA6060T_ADDR, (f << 1) | 1, f >> 7, 0x60 | ((f >> 15) & 1), 0);
 }
 
-static int tr_do_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, void *arg)
+static int vidioc_querycap(struct file *file, void *priv,
+				struct v4l2_capability *v)
 {
-	switch(cmd)
-	{
-		case VIDIOC_QUERYCAP:
-		{
-			struct v4l2_capability *v = arg;
-			memset(v,0,sizeof(*v));
-			strlcpy(v->driver, "radio-trust", sizeof (v->driver));
-			strlcpy(v->card, "Trust FM Radio", sizeof (v->card));
-			sprintf(v->bus_info,"ISA");
-			v->version = RADIO_VERSION;
-			v->capabilities = V4L2_CAP_TUNER;
-
-			return 0;
-		}
-		case VIDIOC_G_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "FM");
-			v->type = V4L2_TUNER_RADIO;
-
-			v->rangelow=(87.5*16000);
-			v->rangehigh=(108*16000);
-			v->rxsubchans =V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
-			v->capability=V4L2_TUNER_CAP_LOW;
-			if(tr_getstereo())
-				v->audmode = V4L2_TUNER_MODE_STEREO;
-			else
-				v->audmode = V4L2_TUNER_MODE_MONO;
-			v->signal=tr_getsigstr();
-
-			return 0;
-		}
-		case VIDIOC_S_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			return 0;
-		}
-		case VIDIOC_S_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			curfreq = f->frequency;
-			tr_setfreq(curfreq);
-			return 0;
-		}
-		case VIDIOC_G_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			f->type = V4L2_TUNER_RADIO;
-			f->frequency = curfreq;
-
-			return 0;
-		}
-		case VIDIOC_QUERYCTRL:
-		{
-			struct v4l2_queryctrl *qc = arg;
-			int i;
-
-			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-				if (qc->id && qc->id == radio_qctrl[i].id) {
-					memcpy(qc, &(radio_qctrl[i]),
-								sizeof(*qc));
-					return (0);
-				}
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_G_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					ctrl->value=curmute;
-					return (0);
-				case V4L2_CID_AUDIO_VOLUME:
-					ctrl->value= curvol * 2048;
-					return (0);
-				case V4L2_CID_AUDIO_BASS:
-					ctrl->value= curbass * 4370;
-					return (0);
-				case V4L2_CID_AUDIO_TREBLE:
-					ctrl->value= curtreble * 4370;
-					return (0);
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					tr_setmute(ctrl->value);
-					return 0;
-				case V4L2_CID_AUDIO_VOLUME:
-					tr_setvol(ctrl->value);
-					return 0;
-				case V4L2_CID_AUDIO_BASS:
-					tr_setbass(ctrl->value);
-					return 0;
-				case V4L2_CID_AUDIO_TREBLE:
-					tr_settreble(ctrl->value);
-					return (0);
-			}
-			return -EINVAL;
-		}
-
-		default:
-			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-							  tr_do_ioctl);
-	}
+	strlcpy(v->driver, "radio-trust", sizeof(v->driver));
+	strlcpy(v->card, "Trust FM Radio", sizeof(v->card));
+	sprintf(v->bus_info, "ISA");
+	v->version = RADIO_VERSION;
+	v->capabilities = V4L2_CAP_TUNER;
+	return 0;
 }
 
-static int tr_ioctl(struct inode *inode, struct file *file,
-		    unsigned int cmd, unsigned long arg)
+static int vidioc_g_tuner(struct file *file, void *priv,
+				struct v4l2_tuner *v)
 {
-	return video_usercopy(inode, file, cmd, arg, tr_do_ioctl);
+	if (v->index > 0)
+		return -EINVAL;
+
+	strcpy(v->name, "FM");
+	v->type = V4L2_TUNER_RADIO;
+	v->rangelow = (87.5*16000);
+	v->rangehigh = (108*16000);
+	v->rxsubchans = V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
+	v->capability = V4L2_TUNER_CAP_LOW;
+	if (tr_getstereo())
+		v->audmode = V4L2_TUNER_MODE_STEREO;
+	else
+		v->audmode = V4L2_TUNER_MODE_MONO;
+	v->signal = tr_getsigstr();
+	return 0;
+}
+
+static int vidioc_s_tuner(struct file *file, void *priv,
+				struct v4l2_tuner *v)
+{
+	if (v->index > 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+				struct v4l2_frequency *f)
+{
+	curfreq = f->frequency;
+	tr_setfreq(curfreq);
+	return 0;
+}
+
+static int vidioc_g_frequency(struct file *file, void *priv,
+				struct v4l2_frequency *f)
+{
+	f->type = V4L2_TUNER_RADIO;
+	f->frequency = curfreq;
+	return 0;
+}
+
+static int vidioc_queryctrl(struct file *file, void *priv,
+				struct v4l2_queryctrl *qc)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+		if (qc->id && qc->id == radio_qctrl[i].id) {
+			memcpy(qc, &(radio_qctrl[i]),
+						sizeof(*qc));
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_ctrl(struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = curmute;
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = curvol * 2048;
+		return 0;
+	case V4L2_CID_AUDIO_BASS:
+		ctrl->value = curbass * 4370;
+		return 0;
+	case V4L2_CID_AUDIO_TREBLE:
+		ctrl->value = curtreble * 4370;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_s_ctrl(struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		tr_setmute(ctrl->value);
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		tr_setvol(ctrl->value);
+		return 0;
+	case V4L2_CID_AUDIO_BASS:
+		tr_setbass(ctrl->value);
+		return 0;
+	case V4L2_CID_AUDIO_TREBLE:
+		tr_settreble(ctrl->value);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv,
+				struct v4l2_audio *a)
+{
+	if (a->index > 1)
+		return -EINVAL;
+
+	strcpy(a->name, "Radio");
+	a->capability = V4L2_AUDCAP_STEREO;
+	return 0;
+}
+
+static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
+{
+	if (i != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_audio(struct file *file, void *priv,
+				struct v4l2_audio *a)
+{
+	if (a->index != 0)
+		return -EINVAL;
+	return 0;
 }
 
 static const struct file_operations trust_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
-	.ioctl		= tr_ioctl,
+	.ioctl		= video_ioctl2,
 	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
@@ -341,6 +351,18 @@ static struct video_device trust_radio=
 	.type		= VID_TYPE_TUNER,
 	.hardware	= 0,
 	.fops           = &trust_fops,
+	.vidioc_querycap    = vidioc_querycap,
+	.vidioc_g_tuner     = vidioc_g_tuner,
+	.vidioc_s_tuner     = vidioc_s_tuner,
+	.vidioc_g_frequency = vidioc_g_frequency,
+	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_queryctrl   = vidioc_queryctrl,
+	.vidioc_g_ctrl      = vidioc_g_ctrl,
+	.vidioc_s_ctrl      = vidioc_s_ctrl,
+	.vidioc_g_audio     = vidioc_g_audio,
+	.vidioc_s_audio     = vidioc_s_audio,
+	.vidioc_g_input     = vidioc_g_input,
+	.vidioc_s_input     = vidioc_s_input,
 };
 
 static int __init trust_init(void)

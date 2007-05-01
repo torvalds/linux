@@ -4,7 +4,7 @@
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
- *  Copyright (c) 2006 Jiri Kosina
+ *  Copyright (c) 2006-2007 Jiri Kosina
  */
 
 /*
@@ -26,6 +26,7 @@
 #include <asm/byteorder.h>
 #include <linux/input.h>
 #include <linux/wait.h>
+#include <linux/vmalloc.h>
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
@@ -36,7 +37,7 @@
  */
 
 #define DRIVER_VERSION "v2.6"
-#define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik"
+#define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik, Jiri Kosina"
 #define DRIVER_DESC "HID core driver"
 #define DRIVER_LICENSE "GPL"
 
@@ -654,12 +655,13 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 	memcpy(device->rdesc, start, size);
 	device->rsize = size;
 
-	if (!(parser = kzalloc(sizeof(struct hid_parser), GFP_KERNEL))) {
+	if (!(parser = vmalloc(sizeof(struct hid_parser)))) {
 		kfree(device->rdesc);
 		kfree(device->collection);
 		kfree(device);
 		return NULL;
 	}
+	memset(parser, 0, sizeof(struct hid_parser));
 	parser->device = device;
 
 	end = start + size;
@@ -667,45 +669,40 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 
 		if (item.format != HID_ITEM_FORMAT_SHORT) {
 			dbg("unexpected long global item");
-			kfree(device->collection);
 			hid_free_device(device);
-			kfree(parser);
+			vfree(parser);
 			return NULL;
 		}
 
 		if (dispatch_type[item.type](parser, &item)) {
 			dbg("item %u %u %u %u parsing failed\n",
 				item.format, (unsigned)item.size, (unsigned)item.type, (unsigned)item.tag);
-			kfree(device->collection);
 			hid_free_device(device);
-			kfree(parser);
+			vfree(parser);
 			return NULL;
 		}
 
 		if (start == end) {
 			if (parser->collection_stack_ptr) {
 				dbg("unbalanced collection at end of report description");
-				kfree(device->collection);
 				hid_free_device(device);
-				kfree(parser);
+				vfree(parser);
 				return NULL;
 			}
 			if (parser->local.delimiter_depth) {
 				dbg("unbalanced delimiter at end of report description");
-				kfree(device->collection);
 				hid_free_device(device);
-				kfree(parser);
+				vfree(parser);
 				return NULL;
 			}
-			kfree(parser);
+			vfree(parser);
 			return device;
 		}
 	}
 
 	dbg("item fetching failed at offset %d\n", (int)(end - start));
-	kfree(device->collection);
 	hid_free_device(device);
-	kfree(parser);
+	vfree(parser);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(hid_parse_report);
@@ -758,8 +755,7 @@ static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
 
 	report += offset >> 3;  /* adjust byte index */
 	offset &= 7;            /* now only need bit offset into one byte */
-	x = get_unaligned((u64 *) report);
-	x = le64_to_cpu(x);
+	x = le64_to_cpu(get_unaligned((__le64 *) report));
 	x = (x >> offset) & ((1ULL << n) - 1);  /* extract bit field */
 	return (u32) x;
 }
@@ -774,7 +770,7 @@ static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
  */
 static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u32 value)
 {
-	u64 x;
+	__le64 x;
 	u64 m = (1ULL << n) - 1;
 
 	WARN_ON(n > 32);
@@ -785,10 +781,10 @@ static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u3
 	report += offset >> 3;
 	offset &= 7;
 
-	x = get_unaligned((u64 *)report);
+	x = get_unaligned((__le64 *)report);
 	x &= cpu_to_le64(~(m << offset));
 	x |= cpu_to_le64(((u64) value) << offset);
-	put_unaligned(x, (u64 *) report);
+	put_unaligned(x, (__le64 *) report);
 }
 
 /*
@@ -876,11 +872,12 @@ static void hid_output_field(struct hid_field *field, __u8 *data)
 	unsigned count = field->report_count;
 	unsigned offset = field->report_offset;
 	unsigned size = field->report_size;
+	unsigned bitsused = offset + count * size;
 	unsigned n;
 
 	/* make sure the unused bits in the last byte are zeros */
-	if (count > 0 && size > 0)
-		data[(count*size-1)/8] = 0;
+	if (count > 0 && size > 0 && (bitsused % 8) != 0)
+		data[(bitsused-1)/8] &= (1 << (bitsused % 8)) - 1;
 
 	for (n = 0; n < count; n++) {
 		if (field->logical_minimum < 0)	/* signed values */
@@ -977,7 +974,7 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 
 	if (size < rsize) {
 		dbg("report %d is too short, (%d < %d)", report->id, size, rsize);
-		return -1;
+		memset(data + size, 0, rsize - size);
 	}
 
 	if ((hid->claimed & HID_CLAIMED_HIDDEV) && hid->hiddev_report_event)

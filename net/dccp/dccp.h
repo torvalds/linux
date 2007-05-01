@@ -31,13 +31,9 @@
 					      __stringify(cond));          \
 			     } while (0)
 
-#ifdef MODULE
 #define DCCP_PRINTK(enable, fmt, args...)	do { if (enable)	     \
 							printk(fmt, ##args); \
 						} while(0)
-#else
-#define DCCP_PRINTK(enable, fmt, args...)	printk(fmt, ##args)
-#endif
 #define DCCP_PR_DEBUG(enable, fmt, a...)	DCCP_PRINTK(enable, KERN_DEBUG \
 						  "%s: " fmt, __FUNCTION__, ##a)
 
@@ -75,10 +71,14 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 /* RFC 1122, 4.2.3.1 initial RTO value */
 #define DCCP_TIMEOUT_INIT ((unsigned)(3 * HZ))
 
+#define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
+
+/* bounds for sampled RTT values from packet exchanges (in usec) */
+#define DCCP_SANE_RTT_MIN	100
+#define DCCP_SANE_RTT_MAX	(4 * USEC_PER_SEC)
+
 /* Maximal interval between probes for local resources.  */
 #define DCCP_RESOURCE_PROBE_INTERVAL ((unsigned)(HZ / 2U))
-
-#define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
 
 /* sysctl variables for DCCP */
 extern int  sysctl_dccp_request_retries;
@@ -92,17 +92,43 @@ extern int  sysctl_dccp_feat_send_ack_vector;
 extern int  sysctl_dccp_feat_send_ndp_count;
 extern int  sysctl_dccp_tx_qlen;
 
+/*
+ *	48-bit sequence number arithmetic (signed and unsigned)
+ */
+#define INT48_MIN	  0x800000000000LL		/* 2^47	    */
+#define UINT48_MAX	  0xFFFFFFFFFFFFLL		/* 2^48 - 1 */
+#define COMPLEMENT48(x)	 (0x1000000000000LL - (x))	/* 2^48 - x */
+#define TO_SIGNED48(x)	 (((x) < INT48_MIN)? (x) : -COMPLEMENT48( (x)))
+#define TO_UNSIGNED48(x) (((x) >= 0)?	     (x) :  COMPLEMENT48(-(x)))
+#define ADD48(a, b)	 (((a) + (b)) & UINT48_MAX)
+#define SUB48(a, b)	 ADD48((a), COMPLEMENT48(b))
+
+static inline void dccp_set_seqno(u64 *seqno, u64 value)
+{
+	*seqno = value & UINT48_MAX;
+}
+
+static inline void dccp_inc_seqno(u64 *seqno)
+{
+	*seqno = ADD48(*seqno, 1);
+}
+
+/* signed mod-2^48 distance: pos. if seqno1 < seqno2, neg. if seqno1 > seqno2 */
+static inline s64 dccp_delta_seqno(const u64 seqno1, const u64 seqno2)
+{
+	u64 delta = SUB48(seqno2, seqno1);
+
+	return TO_SIGNED48(delta);
+}
+
 /* is seq1 < seq2 ? */
 static inline int before48(const u64 seq1, const u64 seq2)
 {
-	return (s64)((seq1 << 16) - (seq2 << 16)) < 0;
+	return (s64)((seq2 << 16) - (seq1 << 16)) > 0;
 }
 
 /* is seq1 > seq2 ? */
-static inline int after48(const u64 seq1, const u64 seq2)
-{
-	return (s64)((seq2 << 16) - (seq1 << 16)) < 0;
-}
+#define after48(seq1, seq2)	before48(seq2, seq1)
 
 /* is seq2 <= seq1 <= seq3 ? */
 static inline int between48(const u64 seq1, const u64 seq2, const u64 seq3)
@@ -118,9 +144,7 @@ static inline u64 max48(const u64 seq1, const u64 seq2)
 /* is seq1 next seqno after seq2 */
 static inline int follows48(const u64 seq1, const u64 seq2)
 {
-	int diff = (seq1 & 0xFFFF) - (seq2 & 0xFFFF);
-
-	return diff==1;
+	return dccp_delta_seqno(seq2, seq1) == 1;
 }
 
 enum {
@@ -272,6 +296,8 @@ extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);
 extern int	   dccp_invalid_packet(struct sk_buff *skb);
+extern u32	   dccp_sample_rtt(struct sock *sk, struct timeval *t_recv,
+						    struct timeval *t_history);
 
 static inline int dccp_bad_service_code(const struct sock *sk,
 					const __be32 service)
@@ -313,26 +339,7 @@ static inline int dccp_packet_without_ack(const struct sk_buff *skb)
 	return type == DCCP_PKT_DATA || type == DCCP_PKT_REQUEST;
 }
 
-#define DCCP_MAX_SEQNO ((((u64)1) << 48) - 1)
-#define DCCP_PKT_WITHOUT_ACK_SEQ (DCCP_MAX_SEQNO << 2)
-
-static inline void dccp_set_seqno(u64 *seqno, u64 value)
-{
-	if (value > DCCP_MAX_SEQNO)
-		value -= DCCP_MAX_SEQNO + 1;
-	*seqno = value;
-}
-
-static inline u64 dccp_delta_seqno(u64 seqno1, u64 seqno2)
-{
-	return ((seqno2 << 16) - (seqno1 << 16)) >> 16;
-}
-
-static inline void dccp_inc_seqno(u64 *seqno)
-{
-	if (++*seqno > DCCP_MAX_SEQNO)
-		*seqno = 0;
-}
+#define DCCP_PKT_WITHOUT_ACK_SEQ (UINT48_MAX << 2)
 
 static inline void dccp_hdr_set_seq(struct dccp_hdr *dh, const u64 gss)
 {

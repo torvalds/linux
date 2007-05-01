@@ -1000,11 +1000,12 @@ err_enable_device:
 static void __devexit s3_pci_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
-	struct s3fb_info *par = info->par;
 
 	if (info) {
 
 #ifdef CONFIG_MTRR
+		struct s3fb_info *par = info->par;
+
 		if (par->mtrr_reg >= 0) {
 			mtrr_del(par->mtrr_reg, 0, 0);
 			par->mtrr_reg = -1;
@@ -1134,11 +1135,11 @@ static int  __init s3fb_setup(char *options)
 		if (!*opt)
 			continue;
 #ifdef CONFIG_MTRR
-		else if (!strcmp(opt, "mtrr:"))
+		else if (!strncmp(opt, "mtrr:", 5))
 			mtrr = simple_strtoul(opt + 5, NULL, 0);
 #endif
-		else if (!strcmp(opt, "fasttext:"))
-			mtrr = simple_strtoul(opt + 9, NULL, 0);
+		else if (!strncmp(opt, "fasttext:", 9))
+			fasttext = simple_strtoul(opt + 9, NULL, 0);
 		else
 			mode = opt;
 	}

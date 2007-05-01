@@ -36,6 +36,8 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	int			port;
 	int			mask;
 
+	ehci_dbg(ehci, "suspend root hub\n");
+
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
 
@@ -133,6 +135,10 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 
 	/* restore CMD_RUN, framelist size, and irq threshold */
 	ehci_writel(ehci, ehci->command, &ehci->regs->command);
+
+	/* Some controller/firmware combinations need a delay during which
+	 * they set up the port statuses.  See Bugzilla #8190. */
+	mdelay(8);
 
 	/* manually resume the ports we suspended during bus_suspend() */
 	i = HCS_N_PORTS (ehci->hcs_params);
@@ -651,8 +657,7 @@ static int ehci_hub_control (
 	if (status & ~0xffff)	/* only if wPortChange is interesting */
 #endif
 		dbg_port (ehci, "GetStatus", wIndex + 1, temp);
-		// we "know" this alignment is good, caller used kmalloc()...
-		*((__le32 *) buf) = cpu_to_le32 (status);
+		put_unaligned(cpu_to_le32 (status), (__le32 *) buf);
 		break;
 	case SetHubFeature:
 		switch (wValue) {

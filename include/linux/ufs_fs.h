@@ -649,10 +649,10 @@ struct ufs2_inode {
 	__fs32     ui_blksize;     /*  12: Inode blocksize. */
 	__fs64     ui_size;        /*  16: File byte count. */
 	__fs64     ui_blocks;      /*  24: Bytes actually held. */
-	struct ufs_timeval   ui_atime;       /*  32: Last access time. */
-	struct ufs_timeval   ui_mtime;       /*  40: Last modified time. */
-	struct ufs_timeval   ui_ctime;       /*  48: Last inode change time. */
-	struct ufs_timeval   ui_birthtime;   /*  56: Inode creation time. */
+	__fs64   ui_atime;       /*  32: Last access time. */
+	__fs64   ui_mtime;       /*  40: Last modified time. */
+	__fs64   ui_ctime;       /*  48: Last inode change time. */
+	__fs64   ui_birthtime;   /*  56: Inode creation time. */
 	__fs32     ui_mtimensec;   /*  64: Last modified time. */
 	__fs32     ui_atimensec;   /*  68: Last access time. */
 	__fs32     ui_ctimensec;   /*  72: Last inode change time. */

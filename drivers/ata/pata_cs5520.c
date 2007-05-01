@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_cs5520"
-#define DRV_VERSION	"0.6.3"
+#define DRV_VERSION	"0.6.4"
 
 struct pio_clocks
 {
@@ -139,18 +139,6 @@ static void cs5520_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	cs5520_set_timings(ap, adev, adev->pio_mode);
 }
 
-
-static int cs5520_pre_reset(struct ata_port *ap)
-{
-	ap->cbl = ATA_CBL_PATA40;
-	return ata_std_prereset(ap);
-}
-
-static void cs5520_error_handler(struct ata_port *ap)
-{
-	return ata_bmdma_drive_eh(ap, cs5520_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
 static struct scsi_host_template cs5520_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -167,8 +155,10 @@ static struct scsi_host_template cs5520_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.resume			= ata_scsi_device_resume,
 	.suspend		= ata_scsi_device_suspend,
+#endif
 };
 
 static struct ata_port_operations cs5520_port_ops = {
@@ -184,8 +174,9 @@ static struct ata_port_operations cs5520_port_ops = {
 
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
-	.error_handler		= cs5520_error_handler,
+	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+	.cable_detect		= ata_cable_40wire,
 
 	.bmdma_setup		= ata_bmdma_setup,
 	.bmdma_start		= ata_bmdma_start,
@@ -195,7 +186,6 @@ static struct ata_port_operations cs5520_port_ops = {
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_data_xfer,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -203,91 +193,104 @@ static struct ata_port_operations cs5520_port_ops = {
 	.port_start		= ata_port_start,
 };
 
-static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct ata_port_info pi = {
+		.flags		= ATA_FLAG_SLAVE_POSS,
+		.pio_mask	= 0x1f,
+		.port_ops	= &cs5520_port_ops,
+	};
+	const struct ata_port_info *ppi[2];
 	u8 pcicfg;
 	void *iomap[5];
-	static struct ata_probe_ent probe[2];
-	int ports = 0;
+	struct ata_host *host;
+	struct ata_ioports *ioaddr;
+	int i, rc;
 
 	/* IDE port enable bits */
-	pci_read_config_byte(dev, 0x60, &pcicfg);
+	pci_read_config_byte(pdev, 0x60, &pcicfg);
 
 	/* Check if the ATA ports are enabled */
 	if ((pcicfg & 3) == 0)
 		return -ENODEV;
 
+	ppi[0] = ppi[1] = &ata_dummy_port_info;
+	if (pcicfg & 1)
+		ppi[0] = &pi;
+	if (pcicfg & 2)
+		ppi[1] = &pi;
+
 	if ((pcicfg & 0x40) == 0) {
-		printk(KERN_WARNING DRV_NAME ": DMA mode disabled. Enabling.\n");
-		pci_write_config_byte(dev, 0x60, pcicfg | 0x40);
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "DMA mode disabled. Enabling.\n");
+		pci_write_config_byte(pdev, 0x60, pcicfg | 0x40);
 	}
 
+	pi.mwdma_mask = id->driver_data;
+
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
+	if (!host)
+		return -ENOMEM;
+
 	/* Perform set up for DMA */
-	if (pci_enable_device_bars(dev, 1<<2)) {
+	if (pci_enable_device_bars(pdev, 1<<2)) {
 		printk(KERN_ERR DRV_NAME ": unable to configure BAR2.\n");
 		return -ENODEV;
 	}
-	pci_set_master(dev);
-	if (pci_set_dma_mask(dev, DMA_32BIT_MASK)) {
+
+	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 		printk(KERN_ERR DRV_NAME ": unable to configure DMA mask.\n");
 		return -ENODEV;
 	}
-	if (pci_set_consistent_dma_mask(dev, DMA_32BIT_MASK)) {
+	if (pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
 		printk(KERN_ERR DRV_NAME ": unable to configure consistent DMA mask.\n");
 		return -ENODEV;
 	}
 
-	/* Map IO ports */
-	iomap[0] = devm_ioport_map(&dev->dev, 0x1F0, 8);
-	iomap[1] = devm_ioport_map(&dev->dev, 0x3F6, 1);
-	iomap[2] = devm_ioport_map(&dev->dev, 0x170, 8);
-	iomap[3] = devm_ioport_map(&dev->dev, 0x376, 1);
-	iomap[4] = pcim_iomap(dev, 2, 0);
+	/* Map IO ports and initialize host accordingly */
+	iomap[0] = devm_ioport_map(&pdev->dev, 0x1F0, 8);
+	iomap[1] = devm_ioport_map(&pdev->dev, 0x3F6, 1);
+	iomap[2] = devm_ioport_map(&pdev->dev, 0x170, 8);
+	iomap[3] = devm_ioport_map(&pdev->dev, 0x376, 1);
+	iomap[4] = pcim_iomap(pdev, 2, 0);
 
 	if (!iomap[0] || !iomap[1] || !iomap[2] || !iomap[3] || !iomap[4])
 		return -ENOMEM;
 
-	/* We have to do our own plumbing as the PCI setup for this
-	   chipset is non-standard so we can't punt to the libata code */
+	ioaddr = &host->ports[0]->ioaddr;
+	ioaddr->cmd_addr = iomap[0];
+	ioaddr->ctl_addr = iomap[1];
+	ioaddr->altstatus_addr = iomap[1];
+	ioaddr->bmdma_addr = iomap[4];
+	ata_std_ports(ioaddr);
 
-	INIT_LIST_HEAD(&probe[0].node);
-	probe[0].dev = pci_dev_to_dev(dev);
-	probe[0].port_ops = &cs5520_port_ops;
-	probe[0].sht = &cs5520_sht;
-	probe[0].pio_mask = 0x1F;
-	probe[0].mwdma_mask = id->driver_data;
-	probe[0].irq = 14;
-	probe[0].irq_flags = 0;
-	probe[0].port_flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST;
-	probe[0].n_ports = 1;
-	probe[0].port[0].cmd_addr = iomap[0];
-	probe[0].port[0].ctl_addr = iomap[1];
-	probe[0].port[0].altstatus_addr = iomap[1];
-	probe[0].port[0].bmdma_addr = iomap[4];
+	ioaddr = &host->ports[1]->ioaddr;
+	ioaddr->cmd_addr = iomap[2];
+	ioaddr->ctl_addr = iomap[3];
+	ioaddr->altstatus_addr = iomap[3];
+	ioaddr->bmdma_addr = iomap[4] + 8;
+	ata_std_ports(ioaddr);
 
-	/* The secondary lurks at different addresses but is otherwise
-	   the same beastie */
+	/* activate the host */
+	pci_set_master(pdev);
+	rc = ata_host_start(host);
+	if (rc)
+		return rc;
 
-	probe[1] = probe[0];
-	INIT_LIST_HEAD(&probe[1].node);
-	probe[1].irq = 15;
-	probe[1].port[0].cmd_addr = iomap[2];
-	probe[1].port[0].ctl_addr = iomap[3];
-	probe[1].port[0].altstatus_addr = iomap[3];
-	probe[1].port[0].bmdma_addr = iomap[4] + 8;
+	for (i = 0; i < 2; i++) {
+		static const int irq[] = { 14, 15 };
+		struct ata_port *ap = host->ports[0];
 
-	/* Let libata fill in the port details */
-	ata_std_ports(&probe[0].port[0]);
-	ata_std_ports(&probe[1].port[0]);
+		if (ata_port_is_dummy(ap))
+			continue;
 
-	/* Now add the ports that are active */
-	if (pcicfg & 1)
-		ports += ata_device_add(&probe[0]);
-	if (pcicfg & 2)
-		ports += ata_device_add(&probe[1]);
-	if (ports)
-		return 0;
-	return -ENODEV;
+		rc = devm_request_irq(&pdev->dev, irq[ap->port_no],
+				      ata_interrupt, 0, DRV_NAME, host);
+		if (rc)
+			return rc;
+	}
+
+	return ata_host_register(host, &cs5520_sht);
 }
 
 /**
@@ -306,9 +309,9 @@ static void __devexit cs5520_remove_one(struct pci_dev *pdev)
 	struct ata_host *host = dev_get_drvdata(dev);
 
 	ata_host_detach(host);
-	dev_set_drvdata(dev, NULL);
 }
 
+#ifdef CONFIG_PM
 /**
  *	cs5520_reinit_one	-	device resume
  *	@pdev: PCI device
@@ -325,6 +328,31 @@ static int cs5520_reinit_one(struct pci_dev *pdev)
 		pci_write_config_byte(pdev, 0x60, pcicfg | 0x40);
 	return ata_pci_device_resume(pdev);
 }
+
+/**
+ *	cs5520_pci_device_suspend	-	device suspend
+ *	@pdev: PCI device
+ *
+ *	We have to cut and waste bits from the standard method because
+ *	the 5520 is a bit odd and not just a pure ATA device. As a result
+ *	we must not disable it. The needed code is short and this avoids
+ *	chip specific mess in the core code.
+ */
+
+static int cs5520_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc = 0;
+
+	rc = ata_host_suspend(host, mesg);
+	if (rc)
+		return rc;
+
+	pci_save_state(pdev);
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 /* For now keep DMA off. We can set it for all but A rev CS5510 once the
    core ATA code can handle it */
 
@@ -340,8 +368,10 @@ static struct pci_driver cs5520_pci_driver = {
 	.id_table	= pata_cs5520,
 	.probe 		= cs5520_init_one,
 	.remove		= cs5520_remove_one,
-	.suspend	= ata_pci_device_suspend,
+#ifdef CONFIG_PM
+	.suspend	= cs5520_pci_device_suspend,
 	.resume		= cs5520_reinit_one,
+#endif
 };
 
 static int __init cs5520_init(void)

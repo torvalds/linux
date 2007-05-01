@@ -17,13 +17,21 @@ config MACH_NSLU2
 	  NSLU2 NAS device. For more information on this platform,
 	  see http://www.nslu2-linux.org
 
-config ARCH_AVILA
+config MACH_AVILA
 	bool "Avila"
 	select PCI
 	help
 	  Say 'Y' here if you want your kernel to support the Gateworks
 	  Avila Network Platform. For more information on this platform,
 	  see <file:Documentation/arm/IXP4xx>.
+
+config MACH_LOFT
+    bool "Loft"
+    depends on MACH_AVILA
+    help
+	  Say 'Y' here if you want your kernel to support the Giant
+	  Shoulder Inc Loft board (a minor variation on the standard
+	  Gateworks Avila Network Platform).
 
 config ARCH_ADI_COYOTE
 	bool "Coyote"
@@ -86,7 +94,7 @@ config MACH_NAS100D
 #
 config	ARCH_IXDP4XX
 	bool
-	depends on ARCH_IXDP425 || ARCH_AVILA || MACH_IXDP465
+	depends on ARCH_IXDP425 || MACH_IXDP465
 	default y
 
 #

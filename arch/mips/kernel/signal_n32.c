@@ -29,6 +29,7 @@
 #include <linux/compat.h>
 #include <linux/bitops.h>
 
+#include <asm/abi.h>
 #include <asm/asm.h>
 #include <asm/cacheflush.h>
 #include <asm/compat-signal.h>
@@ -126,6 +127,7 @@ asmlinkage void sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	sigset_t set;
 	stack_t st;
 	s32 sp;
+	int sig;
 
 	frame = (struct rt_sigframe_n32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
@@ -139,8 +141,11 @@ asmlinkage void sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(&regs, &frame->rs_uc.uc_mcontext))
+	sig = restore_sigcontext(&regs, &frame->rs_uc.uc_mcontext);
+	if (sig < 0)
 		goto badframe;
+	else if (sig)
+		force_sig(sig, current);
 
 	/* The ucontext contains a stack32_t, so we must convert!  */
 	if (__get_user(sp, &frame->rs_uc.uc_stack.ss_sp))
@@ -169,7 +174,7 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-int setup_rt_frame_n32(struct k_sigaction * ka,
+static int setup_rt_frame_n32(struct k_sigaction * ka,
 	struct pt_regs *regs, int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe_n32 __user *frame;
@@ -228,3 +233,8 @@ give_sigsegv:
 	force_sigsegv(signr, current);
 	return -EFAULT;
 }
+
+struct mips_abi mips_abi_n32 = {
+	.setup_rt_frame	= setup_rt_frame_n32,
+	.restart	= __NR_N32_restart_syscall
+};

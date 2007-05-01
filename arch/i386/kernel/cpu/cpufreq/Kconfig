@@ -125,7 +125,6 @@ config X86_SPEEDSTEP_CENTRINO_ACPI
 	bool "Use ACPI tables to decode valid frequency/voltage (deprecated)"
 	depends on X86_SPEEDSTEP_CENTRINO && ACPI_PROCESSOR
 	depends on !(X86_SPEEDSTEP_CENTRINO = y && ACPI_PROCESSOR = m)
-	default y
 	help
 	  This is deprecated and this functionality is now merged into
 	  acpi_cpufreq (X86_ACPI_CPUFREQ). Use that driver instead of

@@ -45,7 +45,7 @@
 
 /*
  * ISA PIC or low IO-APIC triggered (INTA-cycle or APIC) interrupts:
- * (these are usually mapped to vectors 0x20-0x2f)
+ * (these are usually mapped to vectors 0x30-0x3f)
  */
 
 /*
@@ -299,7 +299,7 @@ void init_8259A(int auto_eoi)
 	 * outb_p - this has to work on a wide range of PC hardware.
 	 */
 	outb_p(0x11, 0x20);	/* ICW1: select 8259A-1 init */
-	outb_p(0x20 + 0, 0x21);	/* ICW2: 8259A-1 IR0-7 mapped to 0x20-0x27 */
+	outb_p(IRQ0_VECTOR, 0x21);	/* ICW2: 8259A-1 IR0-7 mapped to 0x30-0x37 */
 	outb_p(0x04, 0x21);	/* 8259A-1 (the master) has a slave on IR2 */
 	if (auto_eoi)
 		outb_p(0x03, 0x21);	/* master does Auto EOI */
@@ -307,7 +307,7 @@ void init_8259A(int auto_eoi)
 		outb_p(0x01, 0x21);	/* master expects normal EOI */
 
 	outb_p(0x11, 0xA0);	/* ICW1: select 8259A-2 init */
-	outb_p(0x20 + 8, 0xA1);	/* ICW2: 8259A-2 IR0-7 mapped to 0x28-0x2f */
+	outb_p(IRQ8_VECTOR, 0xA1);	/* ICW2: 8259A-2 IR0-7 mapped to 0x38-0x3f */
 	outb_p(0x02, 0xA1);	/* 8259A-2 is a slave on master's IR2 */
 	outb_p(0x01, 0xA1);	/* (slave's support for AEOI in flat mode
 				    is to be investigated) */
@@ -398,24 +398,24 @@ device_initcall(i8259A_init_sysfs);
 
 static struct irqaction irq2 = { no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL};
 DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
-	[0 ... FIRST_EXTERNAL_VECTOR - 1] = -1,
-	[FIRST_EXTERNAL_VECTOR + 0] = 0,
-	[FIRST_EXTERNAL_VECTOR + 1] = 1,
-	[FIRST_EXTERNAL_VECTOR + 2] = 2,
-	[FIRST_EXTERNAL_VECTOR + 3] = 3,
-	[FIRST_EXTERNAL_VECTOR + 4] = 4,
-	[FIRST_EXTERNAL_VECTOR + 5] = 5,
-	[FIRST_EXTERNAL_VECTOR + 6] = 6,
-	[FIRST_EXTERNAL_VECTOR + 7] = 7,
-	[FIRST_EXTERNAL_VECTOR + 8] = 8,
-	[FIRST_EXTERNAL_VECTOR + 9] = 9,
-	[FIRST_EXTERNAL_VECTOR + 10] = 10,
-	[FIRST_EXTERNAL_VECTOR + 11] = 11,
-	[FIRST_EXTERNAL_VECTOR + 12] = 12,
-	[FIRST_EXTERNAL_VECTOR + 13] = 13,
-	[FIRST_EXTERNAL_VECTOR + 14] = 14,
-	[FIRST_EXTERNAL_VECTOR + 15] = 15,
-	[FIRST_EXTERNAL_VECTOR + 16 ... NR_VECTORS - 1] = -1
+	[0 ... IRQ0_VECTOR - 1] = -1,
+	[IRQ0_VECTOR] = 0,
+	[IRQ1_VECTOR] = 1,
+	[IRQ2_VECTOR] = 2,
+	[IRQ3_VECTOR] = 3,
+	[IRQ4_VECTOR] = 4,
+	[IRQ5_VECTOR] = 5,
+	[IRQ6_VECTOR] = 6,
+	[IRQ7_VECTOR] = 7,
+	[IRQ8_VECTOR] = 8,
+	[IRQ9_VECTOR] = 9,
+	[IRQ10_VECTOR] = 10,
+	[IRQ11_VECTOR] = 11,
+	[IRQ12_VECTOR] = 12,
+	[IRQ13_VECTOR] = 13,
+	[IRQ14_VECTOR] = 14,
+	[IRQ15_VECTOR] = 15,
+	[IRQ15_VECTOR + 1 ... NR_VECTORS - 1] = -1
 };
 
 void __init init_ISA_irqs (void)
@@ -450,6 +450,7 @@ void spurious_interrupt(void);
 void error_interrupt(void);
 void reschedule_interrupt(void);
 void call_function_interrupt(void);
+void irq_move_cleanup_interrupt(void);
 void invalidate_interrupt0(void);
 void invalidate_interrupt1(void);
 void invalidate_interrupt2(void);
@@ -520,12 +521,6 @@ void __init init_IRQ(void)
 
 #ifdef CONFIG_SMP
 	/*
-	 * IRQ0 must be given a fixed assignment and initialized,
-	 * because it's used before the IO-APIC is set up.
-	 */
-	__get_cpu_var(vector_irq)[FIRST_DEVICE_VECTOR] = 0;
-
-	/*
 	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
 	 * IPI, driven by wakeup.
 	 */
@@ -543,7 +538,10 @@ void __init init_IRQ(void)
 
 	/* IPI for generic function call */
 	set_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
-#endif	
+
+	/* Low priority IPI to cleanup after moving an irq */
+	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);
+#endif
 	set_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
 	set_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
 

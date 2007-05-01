@@ -166,7 +166,7 @@ static struct cphy_ops my3126_ops = {
 };
 
 static struct cphy *my3126_phy_create(adapter_t *adapter,
-			int phy_addr, struct mdio_ops *mdio_ops)
+			int phy_addr, const struct mdio_ops *mdio_ops)
 {
 	struct cphy *cphy = kzalloc(sizeof (*cphy), GFP_KERNEL);
 
@@ -201,7 +201,7 @@ static int my3126_phy_reset(adapter_t * adapter)
 	return 0;
 }
 
-struct gphy t1_my3126_ops = {
-	my3126_phy_create,
-	my3126_phy_reset
+const struct gphy t1_my3126_ops = {
+	.create = my3126_phy_create,
+	.reset = my3126_phy_reset
 };

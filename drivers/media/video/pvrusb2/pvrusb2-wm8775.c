@@ -50,15 +50,21 @@ static void set_input(struct pvr2_v4l_wm8775 *ctxt)
 {
 	struct v4l2_routing route;
 	struct pvr2_hdw *hdw = ctxt->hdw;
-	int msk = 0;
 
 	memset(&route,0,sizeof(route));
 
-	pvr2_trace(PVR2_TRACE_CHIPS,"i2c wm8775 set_input(val=%d msk=0x%x)",
-		   hdw->input_val,msk);
+	switch(hdw->input_val) {
+	case PVR2_CVAL_INPUT_RADIO:
+		route.input = 1;
+		break;
+	default:
+		/* All other cases just use the second input */
+		route.input = 2;
+		break;
+	}
+	pvr2_trace(PVR2_TRACE_CHIPS,"i2c wm8775 set_input(val=%d route=0x%x)",
+		   hdw->input_val,route.input);
 
-	// Always point to input #1 no matter what
-	route.input = 2;
 	pvr2_i2c_client_cmd(ctxt->client,VIDIOC_INT_S_AUDIO_ROUTING,&route);
 }
 
@@ -99,8 +105,7 @@ static int wm8775_check(struct pvr2_v4l_wm8775 *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(wm8775_ops)/sizeof(wm8775_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(wm8775_ops); idx++) {
 		msk = 1 << idx;
 		if (ctxt->stale_mask & msk) continue;
 		if (wm8775_ops[idx].check(ctxt)) {
@@ -116,8 +121,7 @@ static void wm8775_update(struct pvr2_v4l_wm8775 *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(wm8775_ops)/sizeof(wm8775_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(wm8775_ops); idx++) {
 		msk = 1 << idx;
 		if (!(ctxt->stale_mask & msk)) continue;
 		ctxt->stale_mask &= ~msk;
@@ -126,7 +130,7 @@ static void wm8775_update(struct pvr2_v4l_wm8775 *ctxt)
 }
 
 
-const static struct pvr2_i2c_handler_functions hfuncs = {
+static const struct pvr2_i2c_handler_functions hfuncs = {
 	.detach = (void (*)(void *))wm8775_detach,
 	.check = (int (*)(void *))wm8775_check,
 	.update = (void (*)(void *))wm8775_update,
@@ -140,16 +144,14 @@ int pvr2_i2c_wm8775_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 
 	if (cp->handler) return 0;
 
-	ctxt = kmalloc(sizeof(*ctxt),GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt),GFP_KERNEL);
 	if (!ctxt) return 0;
-	memset(ctxt,0,sizeof(*ctxt));
 
 	ctxt->handler.func_data = ctxt;
 	ctxt->handler.func_table = &hfuncs;
 	ctxt->client = cp;
 	ctxt->hdw = hdw;
-	ctxt->stale_mask = (1 << (sizeof(wm8775_ops)/
-				  sizeof(wm8775_ops[0]))) - 1;
+	ctxt->stale_mask = (1 << ARRAY_SIZE(wm8775_ops)) - 1;
 	cp->handler = &ctxt->handler;
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c 0x%x wm8775 V4L2 handler set up",
 		   cp->client->addr);

@@ -41,14 +41,6 @@ extern void smp_send_all_nop(void);
  
 #define PROC_CHANGE_PENALTY	15		/* Schedule penalty */
 
-#undef ENTRY_SYS_CPUS
-#ifdef ENTRY_SYS_CPUS
-#define STATE_RENDEZVOUS			0
-#define STATE_STOPPED 				1 
-#define STATE_RUNNING				2
-#define STATE_HALTED				3
-#endif
-
 extern unsigned long cpu_present_mask;
 
 #define raw_smp_processor_id()	(current_thread_info()->cpu)

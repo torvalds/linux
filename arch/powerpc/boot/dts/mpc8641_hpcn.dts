@@ -17,7 +17,6 @@
 	#size-cells = <1>;
 
 	cpus {
-		#cpus = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -32,7 +31,6 @@
 			bus-frequency = <0>;		// From uboot
 			clock-frequency = <0>;		// From uboot
 			32-bit;
-			linux,boot-cpu;
 		};
 		PowerPC,8641@1 {
 			device_type = "cpu";
@@ -67,7 +65,7 @@
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <2b 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
 
@@ -76,7 +74,7 @@
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
 			interrupts = <2b 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 			dfsrr;
 		};
 
@@ -86,31 +84,26 @@
 			device_type = "mdio";
 			compatible = "gianfar";
 			reg = <24520 20>;
-			linux,phandle = <24520>;
-			ethernet-phy@0 {
-				linux,phandle = <2452000>;
-				interrupt-parent = <40000>;
+			phy0: ethernet-phy@0 {
+				interrupt-parent = <&mpic>;
 				interrupts = <4a 1>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@1 {
-				linux,phandle = <2452001>;
-				interrupt-parent = <40000>;
+			phy1: ethernet-phy@1 {
+				interrupt-parent = <&mpic>;
 				interrupts = <4a 1>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@2 {
-				linux,phandle = <2452002>;
-				interrupt-parent = <40000>;
+			phy2: ethernet-phy@2 {
+				interrupt-parent = <&mpic>;
 				interrupts = <4a 1>;
 				reg = <2>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@3 {
-				linux,phandle = <2452003>;
-				interrupt-parent = <40000>;
+			phy3: ethernet-phy@3 {
+				interrupt-parent = <&mpic>;
 				interrupts = <4a 1>;
 				reg = <3>;
 				device_type = "ethernet-phy";
@@ -126,8 +119,8 @@
 			reg = <24000 1000>;
 			mac-address = [ 00 E0 0C 00 73 00 ];
 			interrupts = <1d 2 1e 2 22 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452000>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy0>;
 		};
 
 		ethernet@25000 {
@@ -139,8 +132,8 @@
 			reg = <25000 1000>;
 			mac-address = [ 00 E0 0C 00 73 01 ];
 			interrupts = <23 2 24 2 28 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452001>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy1>;
 		};
 		
 		ethernet@26000 {
@@ -152,8 +145,8 @@
 			reg = <26000 1000>;
 			mac-address = [ 00 E0 0C 00 02 FD ];
 			interrupts = <1F 2 20 2 21 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452002>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy2>;
 		};
 
 		ethernet@27000 {
@@ -165,8 +158,8 @@
 			reg = <27000 1000>;
 			mac-address = [ 00 E0 0C 00 03 FD ];
 			interrupts = <25 2 26 2 27 2>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452003>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy3>;
 		};
 		serial@4500 {
 			device_type = "serial";
@@ -174,7 +167,7 @@
 			reg = <4500 100>;
 			clock-frequency = <0>;
 			interrupts = <2a 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 		};
 
 		serial@4600 {
@@ -183,7 +176,7 @@
 			reg = <4600 100>;
 			clock-frequency = <0>;
 			interrupts = <1c 2>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 		};
 
 		pci@8000 {
@@ -197,103 +190,102 @@
 			ranges = <02000000 0 80000000 80000000 0 20000000
 				  01000000 0 00000000 e2000000 0 00100000>;
 			clock-frequency = <1fca055>;
-			interrupt-parent = <40000>;
+			interrupt-parent = <&mpic>;
 			interrupts = <18 2>;
 			interrupt-map-mask = <f800 0 0 7>;
 			interrupt-map = <
 				/* IDSEL 0x11 */
-				8800 0 0 1 4d0 3 2
-				8800 0 0 2 4d0 4 2
-				8800 0 0 3 4d0 5 2
-				8800 0 0 4 4d0 6 2
+				8800 0 0 1 &i8259 3 2
+				8800 0 0 2 &i8259 4 2
+				8800 0 0 3 &i8259 5 2
+				8800 0 0 4 &i8259 6 2
 
 				/* IDSEL 0x12 */
-				9000 0 0 1 4d0 4 2
-				9000 0 0 2 4d0 5 2
-				9000 0 0 3 4d0 6 2
-				9000 0 0 4 4d0 3 2
+				9000 0 0 1 &i8259 4 2
+				9000 0 0 2 &i8259 5 2
+				9000 0 0 3 &i8259 6 2
+				9000 0 0 4 &i8259 3 2
 
 				/* IDSEL 0x13 */
-				9800 0 0 1 4d0 0 0
-				9800 0 0 2 4d0 0 0
-				9800 0 0 3 4d0 0 0
-				9800 0 0 4 4d0 0 0
+				9800 0 0 1 &i8259 0 0
+				9800 0 0 2 &i8259 0 0
+				9800 0 0 3 &i8259 0 0
+				9800 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x14 */
-				a000 0 0 1 4d0 0 0
-				a000 0 0 2 4d0 0 0
-				a000 0 0 3 4d0 0 0
-				a000 0 0 4 4d0 0 0
+				a000 0 0 1 &i8259 0 0
+				a000 0 0 2 &i8259 0 0
+				a000 0 0 3 &i8259 0 0
+				a000 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x15 */
-				a800 0 0 1 4d0 0 0
-				a800 0 0 2 4d0 0 0
-				a800 0 0 3 4d0 0 0
-				a800 0 0 4 4d0 0 0
+				a800 0 0 1 &i8259 0 0
+				a800 0 0 2 &i8259 0 0
+				a800 0 0 3 &i8259 0 0
+				a800 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x16 */
-				b000 0 0 1 4d0 0 0
-				b000 0 0 2 4d0 0 0
-				b000 0 0 3 4d0 0 0
-				b000 0 0 4 4d0 0 0
+				b000 0 0 1 &i8259 0 0
+				b000 0 0 2 &i8259 0 0
+				b000 0 0 3 &i8259 0 0
+				b000 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x17 */
-				b800 0 0 1 4d0 0 0
-				b800 0 0 2 4d0 0 0
-				b800 0 0 3 4d0 0 0
-				b800 0 0 4 4d0 0 0
+				b800 0 0 1 &i8259 0 0
+				b800 0 0 2 &i8259 0 0
+				b800 0 0 3 &i8259 0 0
+				b800 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x18 */
-				c000 0 0 1 4d0 0 0
-				c000 0 0 2 4d0 0 0
-				c000 0 0 3 4d0 0 0
-				c000 0 0 4 4d0 0 0
+				c000 0 0 1 &i8259 0 0
+				c000 0 0 2 &i8259 0 0
+				c000 0 0 3 &i8259 0 0
+				c000 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x19 */
-				c800 0 0 1 4d0 0 0
-				c800 0 0 2 4d0 0 0
-				c800 0 0 3 4d0 0 0
-				c800 0 0 4 4d0 0 0
+				c800 0 0 1 &i8259 0 0
+				c800 0 0 2 &i8259 0 0
+				c800 0 0 3 &i8259 0 0
+				c800 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x1a */
-				d000 0 0 1 4d0 6 2
-				d000 0 0 2 4d0 3 2
-				d000 0 0 3 4d0 4 2
-				d000 0 0 4 4d0 5 2
+				d000 0 0 1 &i8259 6 2
+				d000 0 0 2 &i8259 3 2
+				d000 0 0 3 &i8259 4 2
+				d000 0 0 4 &i8259 5 2
 
 
 				/* IDSEL 0x1b */
-				d800 0 0 1 4d0 5 2
-				d800 0 0 2 4d0 0 0
-				d800 0 0 3 4d0 0 0
-				d800 0 0 4 4d0 0 0
+				d800 0 0 1 &i8259 5 2
+				d800 0 0 2 &i8259 0 0
+				d800 0 0 3 &i8259 0 0
+				d800 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x1c */
-				e000 0 0 1 4d0 9 2
-				e000 0 0 2 4d0 a 2
-				e000 0 0 3 4d0 c 2
-				e000 0 0 4 4d0 7 2
+				e000 0 0 1 &i8259 9 2
+				e000 0 0 2 &i8259 a 2
+				e000 0 0 3 &i8259 c 2
+				e000 0 0 4 &i8259 7 2
 
 				/* IDSEL 0x1d */
-				e800 0 0 1 4d0 9 2
-				e800 0 0 2 4d0 a 2
-				e800 0 0 3 4d0 b 2
-				e800 0 0 4 4d0 0 0
+				e800 0 0 1 &i8259 9 2
+				e800 0 0 2 &i8259 a 2
+				e800 0 0 3 &i8259 b 2
+				e800 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x1e */
-				f000 0 0 1 4d0 c 2
-				f000 0 0 2 4d0 0 0
-				f000 0 0 3 4d0 0 0
-				f000 0 0 4 4d0 0 0
+				f000 0 0 1 &i8259 c 2
+				f000 0 0 2 &i8259 0 0
+				f000 0 0 3 &i8259 0 0
+				f000 0 0 4 &i8259 0 0
 
 				/* IDSEL 0x1f */
-				f800 0 0 1 4d0 6 2
-				f800 0 0 2 4d0 0 0
-				f800 0 0 3 4d0 0 0
-				f800 0 0 4 4d0 0 0
+				f800 0 0 1 &i8259 6 2
+				f800 0 0 2 &i8259 0 0
+				f800 0 0 3 &i8259 0 0
+				f800 0 0 4 &i8259 0 0
 				>;
-			i8259@4d0 {
-				linux,phandle = <4d0>;
+			i8259: i8259@4d0 {
 				clock-frequency = <0>;
 				interrupt-controller;
 				device_type = "interrupt-controller";
@@ -303,12 +295,35 @@
 				compatible = "chrp,iic";
                 	        big-endian;
 				interrupts = <49 2>;
-				interrupt-parent = <40000>;
+				interrupt-parent = <&mpic>;
 			};
 
 		};
-		pic@40000 {
-			linux,phandle = <40000>;
+
+		pci@9000 {
+			compatible = "86xx";
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			reg = <9000 1000>;
+			bus-range = <0 ff>;
+			ranges = <02000000 0 a0000000 a0000000 0 20000000
+				  01000000 0 00000000 e3000000 0 00100000>;
+			clock-frequency = <1fca055>;
+			interrupt-parent = <&mpic>;
+			interrupts = <19 2>;
+			interrupt-map-mask = <f800 0 0 7>;
+			interrupt-map = <
+				/* IDSEL 0x0 */
+				0000 0 0 1 &mpic 44 1
+				0000 0 0 2 &mpic 45 1
+				0000 0 0 3 &mpic 46 1
+				0000 0 0 4 &mpic 47 1
+				>;
+		};
+
+		mpic: pic@40000 {
 			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;
@@ -317,23 +332,7 @@
 			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
-                        big-endian;
-			interrupts = <
-				10 2 11 2 12 2 13 2
-				14 2 15 2 16 2 17 2
-				18 2 19 2 1a 2 1b 2
-				1c 2 1d 2 1e 2 1f 2
-				20 2 21 2 22 2 23 2
-				24 2 25 2 26 2 27 2
-				28 2 29 2 2a 2 2b 2
-				2c 2 2d 2 2e 2 2f 2
-				30 2 31 2 32 2 33 2
-				34 2 35 2 36 2 37 2
-				38 2 39 2 2a 2 3b 2
-				3c 2 3d 2 3e 2 3f 2
-				48 1 49 2 4a 1
-				>;
-			interrupt-parent = <40000>;
+			big-endian;
 		};
 	};
 };

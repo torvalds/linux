@@ -48,7 +48,7 @@
 #include <asm/mediabay.h>
 #endif
 
-#include "ide-timing.h"
+#include "../ide-timing.h"
 
 #undef IDE_PMAC_DEBUG
 
@@ -1237,7 +1237,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
        	hwif->OUTBSYNC = pmac_outbsync;
 
 	/* Tell common code _not_ to mess with resources */
-	hwif->mmio = 2;
+	hwif->mmio = 1;
 	hwif->hwif_data = pmif;
 	pmac_ide_init_hwif_ports(&hwif->hw, pmif->regbase, 0, &hwif->irq);
 	memcpy(hwif->io_ports, hwif->hw.io_ports, sizeof(hwif->io_ports));
@@ -1551,19 +1551,34 @@ static struct pci_driver pmac_ide_pci_driver = {
 };
 MODULE_DEVICE_TABLE(pci, pmac_ide_pci_match);
 
-void __init
-pmac_ide_probe(void)
+int __init pmac_ide_probe(void)
 {
+	int error;
+
 	if (!machine_is(powermac))
-		return;
+		return -ENODEV;
 
 #ifdef CONFIG_BLK_DEV_IDE_PMAC_ATA100FIRST
-	pci_register_driver(&pmac_ide_pci_driver);
-	macio_register_driver(&pmac_ide_macio_driver);
+	error = pci_register_driver(&pmac_ide_pci_driver);
+	if (error)
+		goto out;
+	error = macio_register_driver(&pmac_ide_macio_driver);
+	if (error) {
+		pci_unregister_driver(&pmac_ide_pci_driver);
+		goto out;
+	}
 #else
-	macio_register_driver(&pmac_ide_macio_driver);
-	pci_register_driver(&pmac_ide_pci_driver);
+	error = macio_register_driver(&pmac_ide_macio_driver);
+	if (error)
+		goto out;
+	error = pci_register_driver(&pmac_ide_pci_driver);
+	if (error) {
+		macio_unregister_driver(&pmac_ide_macio_driver);
+		goto out;
+	}
 #endif
+out:
+	return error;
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
@@ -1979,16 +1994,12 @@ pmac_ide_dma_test_irq (ide_drive_t *drive)
 	return 1;
 }
 
-static int
-pmac_ide_dma_host_off (ide_drive_t *drive)
+static void pmac_ide_dma_host_off(ide_drive_t *drive)
 {
-	return 0;
 }
 
-static int
-pmac_ide_dma_host_on (ide_drive_t *drive)
+static void pmac_ide_dma_host_on(ide_drive_t *drive)
 {
-	return 0;
 }
 
 static int
@@ -2034,7 +2045,7 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->ide_dma_off_quietly = &__ide_dma_off_quietly;
+	hwif->dma_off_quietly = &ide_dma_off_quietly;
 	hwif->ide_dma_on = &__ide_dma_on;
 	hwif->ide_dma_check = &pmac_ide_dma_check;
 	hwif->dma_setup = &pmac_ide_dma_setup;
@@ -2042,8 +2053,8 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->dma_start = &pmac_ide_dma_start;
 	hwif->ide_dma_end = &pmac_ide_dma_end;
 	hwif->ide_dma_test_irq = &pmac_ide_dma_test_irq;
-	hwif->ide_dma_host_off = &pmac_ide_dma_host_off;
-	hwif->ide_dma_host_on = &pmac_ide_dma_host_on;
+	hwif->dma_host_off = &pmac_ide_dma_host_off;
+	hwif->dma_host_on = &pmac_ide_dma_host_on;
 	hwif->ide_dma_timeout = &__ide_dma_timeout;
 	hwif->ide_dma_lostirq = &pmac_ide_dma_lostirq;
 

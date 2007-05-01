@@ -113,7 +113,8 @@ hysdn_sched_tx(hysdn_card *card, unsigned char *buf,
 	    (skb = hysdn_tx_netget(card)) != NULL) 
 	{
 		if (skb->len <= maxlen) {
-			memcpy(buf, skb->data, skb->len);	/* copy the packet to the buffer */
+			/* copy the packet to the buffer */
+			skb_copy_from_linear_data(skb, buf, skb->len);
 			*len = skb->len;
 			*chan = CHAN_NDIS_DATA;
 			card->net_tx_busy = 1;	/* we are busy sending network data */
@@ -126,7 +127,7 @@ hysdn_sched_tx(hysdn_card *card, unsigned char *buf,
 	    ((skb = hycapi_tx_capiget(card)) != NULL) )
 	{
 		if (skb->len <= maxlen) {
-			memcpy(buf, skb->data, skb->len);
+			skb_copy_from_linear_data(skb, buf, skb->len);
 			*len = skb->len;
 			*chan = CHAN_CAPI;
 			hycapi_tx_capiack(card);

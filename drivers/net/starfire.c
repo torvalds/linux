@@ -677,8 +677,7 @@ static void netdev_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	spin_lock(&np->lock);
 	if (debug > 1)
 		printk("%s: removing vlanid %d from vlan filter\n", dev->name, vid);
-	if (np->vlgrp)
-		np->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(np->vlgrp, vid, NULL);
 	set_rx_mode(dev);
 	spin_unlock(&np->lock);
 }
@@ -1453,7 +1452,6 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		   to a minimally-sized skbuff. */
 		if (pkt_len < rx_copybreak
 		    && (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
-			skb->dev = dev;
 			skb_reserve(skb, 2);	/* 16 byte align the IP header */
 			pci_dma_sync_single_for_cpu(np->pci_dev,
 						    np->rx_info[entry].mapping,
@@ -1738,7 +1736,7 @@ static void set_rx_mode(struct net_device *dev)
 		int vlan_count = 0;
 		void __iomem *filter_addr = ioaddr + HashTable + 8;
 		for (i = 0; i < VLAN_VID_MASK; i++) {
-			if (np->vlgrp->vlan_devices[i]) {
+			if (vlan_group_get_device(np->vlgrp, i)) {
 				if (vlan_count >= 32)
 					break;
 				writew(cpu_to_be16(i), filter_addr);

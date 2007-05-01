@@ -452,7 +452,7 @@ sub output_struct_html(%) {
     my %args = %{$_[0]};
     my ($parameter);
 
-    print "<h2>".$args{'type'}." ".$args{'struct'}."</h2>\n";
+    print "<h2>".$args{'type'}." ".$args{'struct'}. " - " .$args{'purpose'}."</h2>\n";
     print "<b>".$args{'type'}." ".$args{'struct'}."</b> {<br>\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	if ($parameter =~ /^#/) {
@@ -498,8 +498,8 @@ sub output_function_html(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $count;
-    print "<h2>Function</h2>\n";
 
+    print "<h2>" .$args{'function'}." - ".$args{'purpose'}."</h2>\n";
     print "<i>".$args{'functiontype'}."</i>\n";
     print "<b>".$args{'function'}."</b>\n";
     print "(";
@@ -1547,7 +1547,7 @@ sub dump_function($$) {
     $prototype =~ s/^noinline +//;
     $prototype =~ s/__devinit +//;
     $prototype =~ s/^#define\s+//; #ak added
-    $prototype =~ s/__attribute__ \(\([a-z,]*\)\)//;
+    $prototype =~ s/__attribute__\s*\(\([a-z,]*\)\)//;
 
     # Yes, this truly is vile.  We are looking for:
     # 1. Return type (may be nothing if we're looking at a macro)

@@ -33,6 +33,7 @@
 
 #include <linux/list.h>
 #include <linux/usb.h>
+#include <linux/i2c.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <linux/videodev2.h>
@@ -341,23 +342,24 @@ struct usbvision_frame {
 #define BRIDGE_NT1005   1005
 
 struct usbvision_device_data_st {
-	int idVendor;
-	int idProduct;
-	int Interface; /* to handle special interface number like BELKIN and Hauppauge WinTV-USB II */
-	int Codec;
-	int VideoChannels;
 	__u64 VideoNorm;
-	int AudioChannels;
-	int Radio;
-	int vbi;
-	int Tuner;
-	int TunerType;
-	int Vin_Reg1;
-	int Vin_Reg2;
-	int X_Offset;
-	int Y_Offset;
-	int Dvi_yuv;
-	char *ModelString;
+	const char *ModelString;
+	int Interface; /* to handle special interface number like BELKIN and Hauppauge WinTV-USB II */
+	__u16 Codec;
+	unsigned VideoChannels:3;
+	unsigned AudioChannels:2;
+	unsigned Radio:1;
+	unsigned vbi:1;
+	unsigned Tuner:1;
+	unsigned Vin_Reg1_override:1;	/* Override default value with */
+	unsigned Vin_Reg2_override:1;   /* Vin_Reg1, Vin_Reg2, etc. */
+	unsigned Dvi_yuv_override:1;
+	__u8 Vin_Reg1;
+	__u8 Vin_Reg2;
+	__u8 Dvi_yuv;
+	__u8 TunerType;
+	__s16 X_Offset;
+	__s16 Y_Offset;
 };
 
 /* Declared on usbvision-cards.c */
@@ -396,8 +398,11 @@ struct usb_usbvision {
 
 	/* Device structure */
 	struct usb_device *dev;
+	/* usb transfer */
+	int num_alt;		/* Number of alternative settings */
+	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	unsigned char iface;						/* Video interface number */
-	unsigned char ifaceAltActive, ifaceAltInactive;			/* Alt settings */
+	unsigned char ifaceAlt;			/* Alt settings */
 	unsigned char Vin_Reg2_Preset;
 	struct semaphore lock;
 	struct timer_list powerOffTimer;
@@ -421,6 +426,7 @@ struct usb_usbvision {
 	wait_queue_head_t wait_stream;					/* Processes waiting */
 	struct usbvision_frame *curFrame;				// pointer to current frame, set by usbvision_find_header
 	struct usbvision_frame frame[USBVISION_NUMFRAMES];		// frame buffer
+	int num_frames;							// number of frames allocated
 	struct usbvision_sbuf sbuf[USBVISION_NUMSBUF];			// S buffering
 	volatile int remove_pending;					/* If set then about to exit */
 
@@ -476,22 +482,19 @@ struct usb_usbvision {
 /* i2c-algo-usb declaration                                        */
 /* --------------------------------------------------------------- */
 
-int usbvision_i2c_usb_del_bus(struct i2c_adapter *);
-
-
 /* ----------------------------------------------------------------------- */
 /* usbvision specific I2C functions                                        */
 /* ----------------------------------------------------------------------- */
-int usbvision_init_i2c(struct usb_usbvision *usbvision);
+int usbvision_i2c_register(struct usb_usbvision *usbvision);
+int usbvision_i2c_unregister(struct usb_usbvision *usbvision);
 void call_i2c_clients(struct usb_usbvision *usbvision, unsigned int cmd,void *arg);
 
 /* defined in usbvision-core.c                                      */
-void usbvision_rvfree(void *mem, unsigned long size);
 int usbvision_read_reg(struct usb_usbvision *usbvision, unsigned char reg);
 int usbvision_write_reg(struct usb_usbvision *usbvision, unsigned char reg,
 			unsigned char value);
 
-int usbvision_frames_alloc(struct usb_usbvision *usbvision);
+int usbvision_frames_alloc(struct usb_usbvision *usbvision, int number_of_frames);
 void usbvision_frames_free(struct usb_usbvision *usbvision);
 int usbvision_scratch_alloc(struct usb_usbvision *usbvision);
 void usbvision_scratch_free(struct usb_usbvision *usbvision);
@@ -502,6 +505,7 @@ int usbvision_setup(struct usb_usbvision *usbvision,int format);
 int usbvision_init_isoc(struct usb_usbvision *usbvision);
 int usbvision_restart_isoc(struct usb_usbvision *usbvision);
 void usbvision_stop_isoc(struct usb_usbvision *usbvision);
+int usbvision_set_alternate(struct usb_usbvision *dev);
 
 int usbvision_set_audio(struct usb_usbvision *usbvision, int AudioChannel);
 int usbvision_audio_off(struct usb_usbvision *usbvision);

@@ -105,7 +105,7 @@
 struct siginfo;
 
 /* Type of a signal handler.  */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 /* function pointers on 64-bit parisc are pointers to little structs and the
  * compiler doesn't support code which changes or tests the address of
  * the function in the little struct.  This is really ugly -PB

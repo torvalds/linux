@@ -234,8 +234,7 @@ int irlan_eth_receive(void *instance, void *sap, struct sk_buff *skb)
 	 * might have been previously set by the low level IrDA network
 	 * device driver
 	 */
-	skb->dev = self->dev;
-	skb->protocol=eth_type_trans(skb, skb->dev); /* Remove eth header */
+	skb->protocol = eth_type_trans(skb, self->dev); /* Remove eth header */
 
 	self->stats.rx_packets++;
 	self->stats.rx_bytes += skb->len;

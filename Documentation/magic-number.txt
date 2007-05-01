@@ -65,7 +65,6 @@ CMAGIC                0x0111      user              include/linux/a.out.h
 MKISS_DRIVER_MAGIC    0x04bf      mkiss_channel     drivers/net/mkiss.h
 RISCOM8_MAGIC         0x0907      riscom_port       drivers/char/riscom8.h
 SPECIALIX_MAGIC       0x0907      specialix_port    drivers/char/specialix_io8.h
-AURORA_MAGIC          0x0A18      Aurora_port       drivers/sbus/char/aurora.h
 HDLC_MAGIC            0x239e      n_hdlc            drivers/char/n_hdlc.c
 APM_BIOS_MAGIC        0x4101      apm_user          arch/i386/kernel/apm.c
 CYCLADES_MAGIC        0x4359      cyclades_port     include/linux/cyclades.h

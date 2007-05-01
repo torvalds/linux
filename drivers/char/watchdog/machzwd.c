@@ -314,21 +314,21 @@ static int zf_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
-	switch(cmd){
-		case WDIOC_GETSUPPORT:
-			if (copy_to_user(argp, &zf_info, sizeof(zf_info)))
-				return -EFAULT;
-			break;
+	switch (cmd) {
+	case WDIOC_GETSUPPORT:
+		if (copy_to_user(argp, &zf_info, sizeof(zf_info)))
+			return -EFAULT;
+		break;
 
-		case WDIOC_GETSTATUS:
-			return put_user(0, p);
+	case WDIOC_GETSTATUS:
+		return put_user(0, p);
 
-		case WDIOC_KEEPALIVE:
-			zf_ping(NULL);
-			break;
+	case WDIOC_KEEPALIVE:
+		zf_ping(0);
+		break;
 
-		default:
-			return -ENOTTY;
+	default:
+		return -ENOTTY;
 	}
 
 	return 0;

@@ -34,6 +34,9 @@ typedef long asiduse;
 
 extern asiduse smtc_live_asid[MAX_SMTC_TLBS][MAX_SMTC_ASIDS];
 
+struct mm_struct;
+struct task_struct;
+
 void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu);
 
 void smtc_flush_tlb_asid(unsigned long asid);

@@ -159,16 +159,16 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 	 * the skb->tail.
 	 */
 	if (unlikely(skb_is_nonlinear(chunk->skb))) {
-		if (chunk->chunk_end > chunk->skb->tail)
-			chunk->chunk_end = chunk->skb->tail;
+		if (chunk->chunk_end > skb_tail_pointer(chunk->skb))
+			chunk->chunk_end = skb_tail_pointer(chunk->skb);
 	}
 	skb_pull(chunk->skb, sizeof(sctp_chunkhdr_t));
 	chunk->subh.v = NULL; /* Subheader is no longer valid.  */
 
-	if (chunk->chunk_end < chunk->skb->tail) {
+	if (chunk->chunk_end < skb_tail_pointer(chunk->skb)) {
 		/* This is not a singleton */
 		chunk->singleton = 0;
-	} else if (chunk->chunk_end > chunk->skb->tail) {
+	} else if (chunk->chunk_end > skb_tail_pointer(chunk->skb)) {
 		/* RFC 2960, Section 6.10  Bundling
 		 *
 		 * Partial chunks MUST NOT be placed in an SCTP packet.

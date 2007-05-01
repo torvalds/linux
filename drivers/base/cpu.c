@@ -103,7 +103,7 @@ static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
 #endif
 
 /*
- * register_cpu - Setup a driverfs device for a CPU.
+ * register_cpu - Setup a sysfs device for a CPU.
  * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
  *	  sysfs for this CPU.
  * @num - CPU number to use when creating the device.

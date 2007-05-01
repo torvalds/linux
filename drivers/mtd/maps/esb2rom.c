@@ -30,7 +30,7 @@
 
 #define ROM_PROBE_STEP_SIZE (64*1024) /* 64KiB */
 
-#define BIOS_CNTL	0xDC
+#define BIOS_CNTL		0xDC
 #define BIOS_LOCK_ENABLE	0x02
 #define BIOS_WRITE_ENABLE	0x01
 
@@ -145,7 +145,7 @@ static void esb2rom_cleanup(struct esb2rom_window *window)
 }
 
 static int __devinit esb2rom_init_one(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+				      const struct pci_device_id *ent)
 {
 	static char *rom_probe_types[] = { "cfi_probe", "jedec_probe", NULL };
 	struct esb2rom_window *window = &esb2rom_window;
@@ -185,7 +185,7 @@ static int __devinit esb2rom_init_one(struct pci_dev *pdev,
 	/* Find a region continuous to the end of the ROM window  */
 	window->phys = 0;
 	pci_read_config_word(pdev, FWH_DEC_EN1, &word);
-	printk(KERN_DEBUG "pci_read_config_byte : %x\n", word);
+	printk(KERN_DEBUG "pci_read_config_word : %x\n", word);
 
 	if ((word & FWH_8MiB) == FWH_8MiB)
 		window->phys = 0xff400000;
@@ -211,6 +211,11 @@ static int __devinit esb2rom_init_one(struct pci_dev *pdev,
 		window->phys = 0xfff00000;
 	else if ((word & FWH_0_5MiB) == FWH_0_5MiB)
 		window->phys = 0xfff80000;
+
+	if (window->phys == 0) {
+		printk(KERN_ERR MOD_NAME ": Rom window is closed\n");
+		goto out;
+	}
 
 	/* reserved  0x0020 and 0x0010 */
 	window->phys -= 0x400000UL;
@@ -289,8 +294,8 @@ static int __devinit esb2rom_init_one(struct pci_dev *pdev,
 			(((unsigned long)(window->virt)) + offset);
 		map->map.size = 0xffffffffUL - map_top + 1UL;
 		/* Set the name of the map to the address I am trying */
-		sprintf(map->map_name, "%s @%08lx",
-			MOD_NAME, map->map.phys);
+		sprintf(map->map_name, "%s @%08Lx",
+			MOD_NAME, (unsigned long long)map->map.phys);
 
 		/* Firmware hubs only use vpp when being programmed
 		 * in a factory setting.  So in-place programming

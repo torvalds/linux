@@ -339,9 +339,9 @@ Information - video4linux/mjpeg extensions:
 (also see below)
 
 Information - video4linux2:
-http://www.thedirks.org/v4l2/
+http://linuxtv.org
+http://v4l2spec.bytesex.org/
 /usr/include/linux/videodev2.h
-http://www.bytesex.org/v4l/
 
 More information on the video4linux/mjpeg extensions, by Serguei
 Miridonovi and Rainer Johanni:

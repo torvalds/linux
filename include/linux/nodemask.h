@@ -352,7 +352,7 @@ extern nodemask_t node_possible_map;
 #define node_possible(node)	node_isset((node), node_possible_map)
 #define first_online_node	first_node(node_online_map)
 #define next_online_node(nid)	next_node((nid), node_online_map)
-int highest_possible_node_id(void);
+extern int nr_node_ids;
 #else
 #define num_online_nodes()	1
 #define num_possible_nodes()	1
@@ -360,7 +360,7 @@ int highest_possible_node_id(void);
 #define node_possible(node)	((node) == 0)
 #define first_online_node	0
 #define next_online_node(nid)	(MAX_NUMNODES)
-#define highest_possible_node_id()	0
+#define nr_node_ids		1
 #endif
 
 #define any_online_node(mask)			\

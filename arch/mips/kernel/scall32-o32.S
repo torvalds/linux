@@ -656,6 +656,8 @@ einval:	li	v0, -EINVAL
 	sys	sys_kexec_load		4
 	sys	sys_getcpu		3
 	sys	sys_epoll_pwait		6
+	sys	sys_ioprio_set		3
+	sys	sys_ioprio_get		2
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

@@ -100,7 +100,7 @@ struct cphy {
 
 	u32 elmer_gpo;
 
-	struct cphy_ops *ops;                /* PHY operations */
+	const struct cphy_ops *ops;            /* PHY operations */
 	int (*mdio_read)(adapter_t *adapter, int phy_addr, int mmd_addr,
 			 int reg_addr, unsigned int *val);
 	int (*mdio_write)(adapter_t *adapter, int phy_addr, int mmd_addr,
@@ -136,7 +136,7 @@ static inline int simple_mdio_write(struct cphy *cphy, int reg,
 /* Convenience initializer */
 static inline void cphy_init(struct cphy *phy, adapter_t *adapter,
 			     int phy_addr, struct cphy_ops *phy_ops,
-			     struct mdio_ops *mdio_ops)
+			     const struct mdio_ops *mdio_ops)
 {
 	phy->adapter = adapter;
 	phy->addr    = phy_addr;
@@ -151,7 +151,7 @@ static inline void cphy_init(struct cphy *phy, adapter_t *adapter,
 struct gphy {
 	/* Construct a PHY instance with the given PHY address */
 	struct cphy *(*create)(adapter_t *adapter, int phy_addr,
-			       struct mdio_ops *mdio_ops);
+			       const struct mdio_ops *mdio_ops);
 
 	/*
 	 * Reset the PHY chip.  This resets the whole PHY chip, not individual
@@ -160,11 +160,9 @@ struct gphy {
 	int (*reset)(adapter_t *adapter);
 };
 
-extern struct gphy t1_my3126_ops;
-extern struct gphy t1_mv88e1xxx_ops;
-extern struct gphy t1_vsc8244_ops;
-extern struct gphy t1_xpak_ops;
-extern struct gphy t1_mv88x201x_ops;
-extern struct gphy t1_dummy_phy_ops;
+extern const struct gphy t1_my3126_ops;
+extern const struct gphy t1_mv88e1xxx_ops;
+extern const struct gphy t1_vsc8244_ops;
+extern const struct gphy t1_mv88x201x_ops;
 
 #endif /* _CXGB_CPHY_H_ */

@@ -950,25 +950,19 @@ static int tvp5150_command(struct i2c_client *c,
 	}
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	case VIDIOC_INT_G_REGISTER:
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_register *reg = arg;
 
-		if (reg->i2c_id != I2C_DRIVERID_TVP5150)
-			return -EINVAL;
-		reg->val = tvp5150_read(c, reg->reg & 0xff);
-		break;
-	}
-
-	case VIDIOC_INT_S_REGISTER:
-	{
-		struct v4l2_register *reg = arg;
-
-		if (reg->i2c_id != I2C_DRIVERID_TVP5150)
+		if (!v4l2_chip_match_i2c_client(c, reg->match_type, reg->match_chip))
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		tvp5150_write(c, reg->reg & 0xff, reg->val & 0xff);
+		if (cmd == VIDIOC_DBG_G_REGISTER)
+			reg->val = tvp5150_read(c, reg->reg & 0xff);
+		else
+			tvp5150_write(c, reg->reg & 0xff, reg->val & 0xff);
 		break;
 	}
 #endif

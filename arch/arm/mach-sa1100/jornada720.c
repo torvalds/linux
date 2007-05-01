@@ -231,12 +231,6 @@ static struct platform_device *devices[] __initdata = {
 	&s1d13xxxfb_device,
 };
 
-/* a stub for now, we theoretically cannot suspend without a flashboard */
-int pm_suspend(suspend_state_t state)
-{
-	return -1;
-}
-
 static int __init jornada720_init(void)
 {
 	int ret = -ENODEV;

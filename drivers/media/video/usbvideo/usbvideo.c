@@ -628,24 +628,21 @@ EXPORT_SYMBOL(usbvideo_HexDump);
 /* ******************************************************************** */
 
 /* XXX: this piece of crap really wants some error handling.. */
-static void usbvideo_ClientIncModCount(struct uvd *uvd)
+static int usbvideo_ClientIncModCount(struct uvd *uvd)
 {
 	if (uvd == NULL) {
 		err("%s: uvd == NULL", __FUNCTION__);
-		return;
+		return -EINVAL;
 	}
 	if (uvd->handle == NULL) {
 		err("%s: uvd->handle == NULL", __FUNCTION__);
-		return;
-	}
-	if (uvd->handle->md_module == NULL) {
-		err("%s: uvd->handle->md_module == NULL", __FUNCTION__);
-		return;
+		return -EINVAL;
 	}
 	if (!try_module_get(uvd->handle->md_module)) {
 		err("%s: try_module_get() == 0", __FUNCTION__);
-		return;
+		return -ENODEV;
 	}
+	return 0;
 }
 
 static void usbvideo_ClientDecModCount(struct uvd *uvd)
@@ -712,8 +709,6 @@ int usbvideo_register(
 	cams->num_cameras = num_cams;
 	cams->cam = (struct uvd *) &cams[1];
 	cams->md_module = md;
-	if (cams->md_module == NULL)
-		warn("%s: module == NULL!", __FUNCTION__);
 	mutex_init(&cams->lock);	/* to 1 == available */
 
 	for (i = 0; i < num_cams; i++) {
@@ -1119,7 +1114,8 @@ static int usbvideo_v4l_open(struct inode *inode, struct file *file)
 	if (uvd->debug > 1)
 		info("%s($%p)", __FUNCTION__, dev);
 
-	usbvideo_ClientIncModCount(uvd);
+	if (0 < usbvideo_ClientIncModCount(uvd))
+		return -ENODEV;
 	mutex_lock(&uvd->lock);
 
 	if (uvd->user) {

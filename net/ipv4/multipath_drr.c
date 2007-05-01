@@ -100,7 +100,7 @@ static int drr_dev_event(struct notifier_block *this,
 
 		spin_unlock_bh(&state_lock);
 		break;
-	};
+	}
 
 	return NOTIFY_DONE;
 }

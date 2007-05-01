@@ -1321,7 +1321,7 @@ static int __init m8xx_init(void)
 		socket[i].socket.ops = &m8xx_services;
 		socket[i].socket.resource_ops = &pccard_iodyn_ops;
 		socket[i].socket.cb_dev = NULL;
-		socket[i].socket.dev.dev = &m8xx_device.dev;
+		socket[i].socket.dev.parent = &m8xx_device.dev;
 	}
 
 	for (i = 0; i < PCMCIA_SOCKETS_NO; i++)

@@ -18,8 +18,9 @@
 #define __LINUX_MTD_PHYSMAP__
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
+
+struct map_info;
 
 struct physmap_flash_data {
 	unsigned int		width;

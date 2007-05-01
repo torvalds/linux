@@ -83,16 +83,15 @@ static void timer_irqdispatch(int irq)
 
 asmlinkage void plat_irq_dispatch(void)
 {
-	unsigned int pending = read_c0_status() & read_c0_cause();
+	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & STATUSF_IP2)
 		hw0_irqdispatch(2);
 	else if (pending & STATUSF_IP7) {
 		if (read_c0_config7() & 0x01c0)
 			timer_irqdispatch(7);
-	}
-
-	spurious_interrupt();
+	} else
+		spurious_interrupt();
 }
 
 static inline void modify_cp0_intmask(unsigned clr_mask, unsigned set_mask)
@@ -204,19 +203,7 @@ void __init arch_init_irq(void)
 		 * Note, PCI INTA is active low on the bus, but inverted
 		 * in the GIC, so to us it's active high.
 		 */
-#ifdef CONFIG_PNX8550_V2PCI
-		if (gic_int_line == (PNX8550_INT_GPIO0 - PNX8550_INT_GIC_MIN)) {
-			/* PCI INT through gpio 8, which is setup in
-			 * pnx8550_setup.c and routed to GPIO
-			 * Interrupt Level 0 (GPIO Connection 58).
-			 * Set it active low. */
-
-			PNX8550_GIC_REQ(gic_int_line) = 0x1E020000;
-		} else
-#endif
-		{
-			PNX8550_GIC_REQ(i - PNX8550_INT_GIC_MIN) = 0x1E000000;
-		}
+		PNX8550_GIC_REQ(i - PNX8550_INT_GIC_MIN) = 0x1E000000;
 
 		/* mask/priority is still 0 so we will not get any
 		 * interrupts until it is unmasked */

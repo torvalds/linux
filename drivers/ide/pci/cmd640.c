@@ -98,7 +98,6 @@
  *			 (patch courtesy of Zoltan Hidvegi)
  */
 
-#undef REALLY_SLOW_IO		/* most systems can safely undef this */
 #define CMD640_PREFETCH_MASKS 1
 
 //#define CMD640_DUMP_REGS

@@ -18,7 +18,8 @@
 
 struct device;
 
-static dma_addr_t plat_map_dma_mem(struct device *dev, void *addr, size_t size)
+static inline dma_addr_t plat_map_dma_mem(struct device *dev, void *addr,
+	size_t size)
 {
 	dma_addr_t pa = dev_to_baddr(dev, virt_to_phys(addr));
 
@@ -37,7 +38,7 @@ static unsigned long plat_dma_addr_to_phys(dma_addr_t dma_addr)
 	return dma_addr & (0xffUL << 56);
 }
 
-static void plat_unmap_dma_mem(dma_addr_t dma_addr)
+static inline void plat_unmap_dma_mem(dma_addr_t dma_addr)
 {
 }
 

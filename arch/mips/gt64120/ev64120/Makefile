@@ -7,5 +7,3 @@
 #
 
 obj-y	+= irq.o promcon.o reset.o serialGT.o setup.o
-
-EXTRA_AFLAGS := $(CFLAGS)

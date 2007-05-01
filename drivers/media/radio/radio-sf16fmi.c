@@ -130,137 +130,155 @@ static inline int fmi_getsigstr(struct fmi_device *dev)
 	return (res & 2) ? 0 : 0xFFFF;
 }
 
-static int fmi_do_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, void *arg)
+static int vidioc_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *v)
 {
-	struct video_device *dev = video_devdata(file);
-	struct fmi_device *fmi=dev->priv;
-
-	switch(cmd)
-	{
-		case VIDIOC_QUERYCAP:
-		{
-			struct v4l2_capability *v = arg;
-			memset(v,0,sizeof(*v));
-			strlcpy(v->driver, "radio-sf16fmi", sizeof (v->driver));
-			strlcpy(v->card, "SF16-FMx radio", sizeof (v->card));
-			sprintf(v->bus_info,"ISA");
-			v->version = RADIO_VERSION;
-			v->capabilities = V4L2_CAP_TUNER;
-
-			return 0;
-		}
-		case VIDIOC_G_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-			int mult;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "FM");
-			v->type = V4L2_TUNER_RADIO;
-
-			mult = (fmi->flags & V4L2_TUNER_CAP_LOW) ? 1 : 1000;
-			v->rangelow = RSF16_MINFREQ/mult;
-			v->rangehigh = RSF16_MAXFREQ/mult;
-			v->rxsubchans =V4L2_TUNER_SUB_MONO | V4L2_TUNER_MODE_STEREO;
-			v->capability=fmi->flags&V4L2_TUNER_CAP_LOW;
-			v->audmode = V4L2_TUNER_MODE_STEREO;
-			v->signal = fmi_getsigstr(fmi);
-
-			return 0;
-		}
-		case VIDIOC_S_TUNER:
-		{
-			struct v4l2_tuner *v = arg;
-
-			if (v->index > 0)
-				return -EINVAL;
-
-			return 0;
-		}
-		case VIDIOC_S_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			if (!(fmi->flags & V4L2_TUNER_CAP_LOW))
-				f->frequency *= 1000;
-			if (f->frequency < RSF16_MINFREQ ||
-					f->frequency > RSF16_MAXFREQ )
-				return -EINVAL;
-			/*rounding in steps of 800 to match th freq
-			  that will be used */
-			fmi->curfreq = (f->frequency/800)*800;
-			fmi_setfreq(fmi);
-
-			return 0;
-		}
-		case VIDIOC_G_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			f->type = V4L2_TUNER_RADIO;
-			f->frequency = fmi->curfreq;
-			if (!(fmi->flags & V4L2_TUNER_CAP_LOW))
-				f->frequency /= 1000;
-
-			return 0;
-		}
-		case VIDIOC_QUERYCTRL:
-		{
-			struct v4l2_queryctrl *qc = arg;
-			int i;
-
-			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-				if (qc->id && qc->id == radio_qctrl[i].id) {
-					memcpy(qc, &(radio_qctrl[i]),
-								sizeof(*qc));
-					return (0);
-				}
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_G_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-					ctrl->value=fmi->curvol;
-					return (0);
-			}
-			return -EINVAL;
-		}
-		case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl= arg;
-
-			switch (ctrl->id) {
-				case V4L2_CID_AUDIO_MUTE:
-				{
-					if (ctrl->value)
-						fmi_mute(fmi->port);
-					else
-						fmi_unmute(fmi->port);
-
-					fmi->curvol=ctrl->value;
-					return (0);
-				}
-			}
-			return -EINVAL;
-		}
-		default:
-			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-							  fmi_do_ioctl);
-	}
+	strlcpy(v->driver, "radio-sf16fmi", sizeof(v->driver));
+	strlcpy(v->card, "SF16-FMx radio", sizeof(v->card));
+	sprintf(v->bus_info, "ISA");
+	v->version = RADIO_VERSION;
+	v->capabilities = V4L2_CAP_TUNER;
+	return 0;
 }
 
-static int fmi_ioctl(struct inode *inode, struct file *file,
-		     unsigned int cmd, unsigned long arg)
+static int vidioc_g_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
 {
-	return video_usercopy(inode, file, cmd, arg, fmi_do_ioctl);
+	int mult;
+	struct video_device *dev = video_devdata(file);
+	struct fmi_device *fmi = dev->priv;
+
+	if (v->index > 0)
+		return -EINVAL;
+
+	strcpy(v->name, "FM");
+	v->type = V4L2_TUNER_RADIO;
+	mult = (fmi->flags & V4L2_TUNER_CAP_LOW) ? 1 : 1000;
+	v->rangelow = RSF16_MINFREQ/mult;
+	v->rangehigh = RSF16_MAXFREQ/mult;
+	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_MODE_STEREO;
+	v->capability = fmi->flags&V4L2_TUNER_CAP_LOW;
+	v->audmode = V4L2_TUNER_MODE_STEREO;
+	v->signal = fmi_getsigstr(fmi);
+	return 0;
+}
+
+static int vidioc_s_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
+{
+	if (v->index > 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
+{
+	struct video_device *dev = video_devdata(file);
+	struct fmi_device *fmi = dev->priv;
+
+	if (!(fmi->flags & V4L2_TUNER_CAP_LOW))
+		f->frequency *= 1000;
+	if (f->frequency < RSF16_MINFREQ ||
+			f->frequency > RSF16_MAXFREQ )
+		return -EINVAL;
+	/*rounding in steps of 800 to match th freq
+	that will be used */
+	fmi->curfreq = (f->frequency/800)*800;
+	fmi_setfreq(fmi);
+	return 0;
+}
+
+static int vidioc_g_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f)
+{
+	struct video_device *dev = video_devdata(file);
+	struct fmi_device *fmi = dev->priv;
+
+	f->type = V4L2_TUNER_RADIO;
+	f->frequency = fmi->curfreq;
+	if (!(fmi->flags & V4L2_TUNER_CAP_LOW))
+		f->frequency /= 1000;
+	return 0;
+}
+
+static int vidioc_queryctrl(struct file *file, void *priv,
+					struct v4l2_queryctrl *qc)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+		if (qc->id && qc->id == radio_qctrl[i].id) {
+			memcpy(qc, &(radio_qctrl[i]),
+						sizeof(*qc));
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct fmi_device *fmi = dev->priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = fmi->curvol;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_s_ctrl(struct file *file, void *priv,
+					struct v4l2_control *ctrl)
+{
+	struct video_device *dev = video_devdata(file);
+	struct fmi_device *fmi = dev->priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		if (ctrl->value)
+			fmi_mute(fmi->port);
+		else
+			fmi_unmute(fmi->port);
+		fmi->curvol = ctrl->value;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index > 1)
+		return -EINVAL;
+
+	strcpy(a->name, "Radio");
+	a->capability = V4L2_AUDCAP_STEREO;
+	return 0;
+}
+
+static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
+{
+	if (i != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int vidioc_s_audio(struct file *file, void *priv,
+					struct v4l2_audio *a)
+{
+	if (a->index != 0)
+		return -EINVAL;
+	return 0;
 }
 
 static struct fmi_device fmi_unit;
@@ -269,7 +287,7 @@ static const struct file_operations fmi_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
-	.ioctl		= fmi_ioctl,
+	.ioctl		= video_ioctl2,
 	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
@@ -281,6 +299,18 @@ static struct video_device fmi_radio=
 	.type		= VID_TYPE_TUNER,
 	.hardware	= 0,
 	.fops           = &fmi_fops,
+	.vidioc_querycap    = vidioc_querycap,
+	.vidioc_g_tuner     = vidioc_g_tuner,
+	.vidioc_s_tuner     = vidioc_s_tuner,
+	.vidioc_g_audio     = vidioc_g_audio,
+	.vidioc_s_audio     = vidioc_s_audio,
+	.vidioc_g_input     = vidioc_g_input,
+	.vidioc_s_input     = vidioc_s_input,
+	.vidioc_g_frequency = vidioc_g_frequency,
+	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_queryctrl   = vidioc_queryctrl,
+	.vidioc_g_ctrl      = vidioc_g_ctrl,
+	.vidioc_s_ctrl      = vidioc_s_ctrl,
 };
 
 /* ladis: this is my card. does any other types exist? */

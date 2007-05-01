@@ -420,8 +420,7 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 	mp->stats.tx_bytes += skb->len;
 
 	/* We need to copy into our xmit buffer to take care of alignment and caching issues */
-
-	memcpy((void *) mp->tx_ring, skb->data, skb->len);
+	skb_copy_from_linear_data(skb, mp->tx_ring, skb->len);
 
 	/* load the Tx DMA and fire it off */
 
@@ -621,7 +620,6 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 	skb_reserve(skb,2);
 	memcpy(skb_put(skb, mf->len), mf->data, mf->len);
 
-	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 	netif_rx(skb);
 	dev->last_rx = jiffies;

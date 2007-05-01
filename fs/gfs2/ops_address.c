@@ -266,9 +266,11 @@ skip_lock:
 out:
 	return error;
 out_unlock:
-	if (error == GLR_TRYFAILED)
-		error = AOP_TRUNCATED_PAGE;
 	unlock_page(page);
+	if (error == GLR_TRYFAILED) {
+		error = AOP_TRUNCATED_PAGE;
+		yield();
+	}
 	if (do_unlock)
 		gfs2_holder_uninit(&gh);
 	goto out;
@@ -364,6 +366,7 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 		if (error == GLR_TRYFAILED) {
 			unlock_page(page);
 			error = AOP_TRUNCATED_PAGE;
+			yield();
 		}
 		goto out_uninit;
 	}

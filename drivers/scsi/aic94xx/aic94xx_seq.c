@@ -44,7 +44,6 @@
 #define PAUSE_TRIES 1000
 
 static const struct firmware *sequencer_fw;
-static const char *sequencer_version;
 static u16 cseq_vecs[CSEQ_NUM_VECS], lseq_vecs[LSEQ_NUM_VECS], mode2_task,
 	cseq_idle_loop, lseq_idle_loop;
 static u8 *cseq_code, *lseq_code;
@@ -1276,7 +1275,6 @@ static int asd_request_firmware(struct asd_ha_struct *asd_ha)
 	header.csum = le32_to_cpu(hdr_ptr->csum);
 	header.major = le32_to_cpu(hdr_ptr->major);
 	header.minor = le32_to_cpu(hdr_ptr->minor);
-	sequencer_version = hdr_ptr->version;
 	header.cseq_table_offset = le32_to_cpu(hdr_ptr->cseq_table_offset);
 	header.cseq_table_size = le32_to_cpu(hdr_ptr->cseq_table_size);
 	header.lseq_table_offset = le32_to_cpu(hdr_ptr->lseq_table_offset);
@@ -1300,6 +1298,16 @@ static int asd_request_firmware(struct asd_ha_struct *asd_ha)
 	if (header.cseq_table_size != CSEQ_NUM_VECS ||
 	    header.lseq_table_size != LSEQ_NUM_VECS) {
 		asd_printk("Firmware file table size mismatch\n");
+		return -EINVAL;
+	}
+
+	asd_printk("Found sequencer Firmware version %d.%d (%s)\n",
+		   header.major, header.minor, hdr_ptr->version);
+
+	if (header.major != SAS_RAZOR_SEQUENCER_FW_MAJOR) {
+		asd_printk("Firmware Major Version Mismatch;"
+			   "driver requires version %d.X",
+			   SAS_RAZOR_SEQUENCER_FW_MAJOR);
 		return -EINVAL;
 	}
 
@@ -1335,7 +1343,6 @@ int asd_init_seqs(struct asd_ha_struct *asd_ha)
 		return err;
 	}
 
-	asd_printk("using sequencer %s\n", sequencer_version);
 	err = asd_seq_download_seqs(asd_ha);
 	if (err) {
 		asd_printk("couldn't download sequencers for %s\n",

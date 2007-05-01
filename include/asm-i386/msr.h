@@ -83,6 +83,20 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 			  : "c" (counter))
 #endif	/* !CONFIG_PARAVIRT */
 
+#ifdef CONFIG_SMP
+void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
+void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
+#else  /*  CONFIG_SMP  */
+static inline void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
+{
+	rdmsr(msr_no, *l, *h);
+}
+static inline void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
+{
+	wrmsr(msr_no, l, h);
+}
+#endif  /*  CONFIG_SMP  */
+
 /* symbolic names for some interesting MSRs */
 /* Intel defined MSRs. */
 #define MSR_IA32_P5_MC_ADDR		0
@@ -260,6 +274,8 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 #define MSR_K7_CLK_CTL			0xC001001b
 #define MSR_K7_FID_VID_CTL		0xC0010041
 #define MSR_K7_FID_VID_STATUS		0xC0010042
+
+#define MSR_K8_ENABLE_C1E		0xC0010055
 
 /* extended feature register */
 #define MSR_EFER 			0xc0000080

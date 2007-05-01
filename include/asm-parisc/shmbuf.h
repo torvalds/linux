@@ -13,19 +13,19 @@
 
 struct shmid64_ds {
 	struct ipc64_perm	shm_perm;	/* operation perms */
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	unsigned int		__pad1;
 #endif
 	__kernel_time_t		shm_atime;	/* last attach time */
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	unsigned int		__pad2;
 #endif
 	__kernel_time_t		shm_dtime;	/* last detach time */
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	unsigned int		__pad3;
 #endif
 	__kernel_time_t		shm_ctime;	/* last change time */
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	unsigned int		__pad4;
 #endif
 	size_t			shm_segsz;	/* size of segment (bytes) */
@@ -36,7 +36,7 @@ struct shmid64_ds {
 	unsigned int		__unused2;
 };
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 /* The 'unsigned int' (formerly 'unsigned long') data types below will
  * ensure that a 32-bit app calling shmctl(*,IPC_INFO,*) will work on
  * a wide kernel, but if some of these values are meant to contain pointers

@@ -33,12 +33,13 @@
 #include <linux/sysrq.h>
 #include <linux/tty_flip.h>
 #include <linux/platform_device.h>
+#include <linux/atmel_pdc.h>
 
 #include <asm/io.h>
 
 #include <asm/mach/serial_at91.h>
 #include <asm/arch/board.h>
-#include <asm/arch/at91_pdc.h>
+
 #ifdef CONFIG_ARM
 #include <asm/arch/cpu.h>
 #include <asm/arch/gpio.h>

@@ -42,6 +42,7 @@
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/rtnetlink.h>
+#include <linux/firmware.h>
 #include <asm/uaccess.h>
 
 #include "common.h"
@@ -184,16 +185,24 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_stat,
 			int speed, int duplex, int pause)
 {
 	struct net_device *dev = adapter->port[port_id];
+	struct port_info *pi = netdev_priv(dev);
+	struct cmac *mac = &pi->mac;
 
 	/* Skip changes from disabled ports. */
 	if (!netif_running(dev))
 		return;
 
 	if (link_stat != netif_carrier_ok(dev)) {
-		if (link_stat)
+		if (link_stat) {
+			t3_mac_enable(mac, MAC_DIRECTION_RX);
 			netif_carrier_on(dev);
-		else
+		} else {
 			netif_carrier_off(dev);
+			pi->phy.ops->power_down(&pi->phy, 1);
+			t3_mac_disable(mac, MAC_DIRECTION_RX);
+			t3_link_start(&pi->phy, mac, &pi->link_config);
+		}
+
 		link_report(dev);
 	}
 }
@@ -406,7 +415,7 @@ static void quiesce_rx(struct adapter *adap)
 static int setup_sge_qsets(struct adapter *adap)
 {
 	int i, j, err, irq_idx = 0, qset_idx = 0, dummy_dev_idx = 0;
-	unsigned int ntxq = is_offload(adap) ? SGE_TXQ_PER_SET : 1;
+	unsigned int ntxq = SGE_TXQ_PER_SET;
 
 	if (adap->params.rev > 0 && !(adap->flags & USING_MSI))
 		irq_idx = -1;
@@ -434,27 +443,25 @@ static int setup_sge_qsets(struct adapter *adap)
 
 static ssize_t attr_show(struct device *d, struct device_attribute *attr,
 			 char *buf,
-			 ssize_t(*format) (struct adapter *, char *))
+			 ssize_t(*format) (struct net_device *, char *))
 {
 	ssize_t len;
-	struct adapter *adap = to_net_dev(d)->priv;
 
 	/* Synchronize with ioctls that may shut down the device */
 	rtnl_lock();
-	len = (*format) (adap, buf);
+	len = (*format) (to_net_dev(d), buf);
 	rtnl_unlock();
 	return len;
 }
 
 static ssize_t attr_store(struct device *d, struct device_attribute *attr,
 			  const char *buf, size_t len,
-			  ssize_t(*set) (struct adapter *, unsigned int),
+			  ssize_t(*set) (struct net_device *, unsigned int),
 			  unsigned int min_val, unsigned int max_val)
 {
 	char *endp;
 	ssize_t ret;
 	unsigned int val;
-	struct adapter *adap = to_net_dev(d)->priv;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -464,7 +471,7 @@ static ssize_t attr_store(struct device *d, struct device_attribute *attr,
 		return -EINVAL;
 
 	rtnl_lock();
-	ret = (*set) (adap, val);
+	ret = (*set) (to_net_dev(d), val);
 	if (!ret)
 		ret = len;
 	rtnl_unlock();
@@ -472,8 +479,9 @@ static ssize_t attr_store(struct device *d, struct device_attribute *attr,
 }
 
 #define CXGB3_SHOW(name, val_expr) \
-static ssize_t format_##name(struct adapter *adap, char *buf) \
+static ssize_t format_##name(struct net_device *dev, char *buf) \
 { \
+	struct adapter *adap = dev->priv; \
 	return sprintf(buf, "%u\n", val_expr); \
 } \
 static ssize_t show_##name(struct device *d, struct device_attribute *attr, \
@@ -482,13 +490,17 @@ static ssize_t show_##name(struct device *d, struct device_attribute *attr, \
 	return attr_show(d, attr, buf, format_##name); \
 }
 
-static ssize_t set_nfilters(struct adapter *adap, unsigned int val)
+static ssize_t set_nfilters(struct net_device *dev, unsigned int val)
 {
+	struct adapter *adap = dev->priv;
+	int min_tids = is_offload(adap) ? MC5_MIN_TIDS : 0;
+
 	if (adap->flags & FULL_INIT_DONE)
 		return -EBUSY;
 	if (val && adap->params.rev == 0)
 		return -EINVAL;
-	if (val > t3_mc5_size(&adap->mc5) - adap->params.mc5.nservers)
+	if (val > t3_mc5_size(&adap->mc5) - adap->params.mc5.nservers -
+	    min_tids)
 		return -EINVAL;
 	adap->params.mc5.nfilters = val;
 	return 0;
@@ -500,11 +512,14 @@ static ssize_t store_nfilters(struct device *d, struct device_attribute *attr,
 	return attr_store(d, attr, buf, len, set_nfilters, 0, ~0);
 }
 
-static ssize_t set_nservers(struct adapter *adap, unsigned int val)
+static ssize_t set_nservers(struct net_device *dev, unsigned int val)
 {
+	struct adapter *adap = dev->priv;
+
 	if (adap->flags & FULL_INIT_DONE)
 		return -EBUSY;
-	if (val > t3_mc5_size(&adap->mc5) - adap->params.mc5.nfilters)
+	if (val > t3_mc5_size(&adap->mc5) - adap->params.mc5.nfilters -
+	    MC5_MIN_TIDS)
 		return -EINVAL;
 	adap->params.mc5.nservers = val;
 	return 0;
@@ -704,6 +719,28 @@ static void bind_qsets(struct adapter *adap)
 	}
 }
 
+#define FW_FNAME "t3fw-%d.%d.%d.bin"
+
+static int upgrade_fw(struct adapter *adap)
+{
+	int ret;
+	char buf[64];
+	const struct firmware *fw;
+	struct device *dev = &adap->pdev->dev;
+
+	snprintf(buf, sizeof(buf), FW_FNAME, FW_VERSION_MAJOR,
+		 FW_VERSION_MINOR, FW_VERSION_MICRO);
+	ret = request_firmware(&fw, buf, dev);
+	if (ret < 0) {
+		dev_err(dev, "could not upgrade firmware: unable to load %s\n",
+			buf);
+		return ret;
+	}
+	ret = t3_load_fw(adap, fw->data, fw->size);
+	release_firmware(fw);
+	return ret;
+}
+
 /**
  *	cxgb_up - enable the adapter
  *	@adapter: adapter being enabled
@@ -720,6 +757,8 @@ static int cxgb_up(struct adapter *adap)
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
 		err = t3_check_fw_version(adap);
+		if (err == -EINVAL)
+			err = upgrade_fw(adap);
 		if (err)
 			goto out;
 
@@ -731,6 +770,8 @@ static int cxgb_up(struct adapter *adap)
 		if (err)
 			goto out;
 
+		t3_write_reg(adap, A_ULPRX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
+		
 		err = setup_sge_qsets(adap);
 		if (err)
 			goto out;
@@ -891,7 +932,7 @@ static int cxgb_open(struct net_device *dev)
 		return err;
 
 	set_bit(pi->port_id, &adapter->open_device_map);
-	if (!ofld_disable) {
+	if (is_offload(adapter) && !ofld_disable) {
 		err = offload_open(dev);
 		if (err)
 			printk(KERN_WARNING
@@ -1028,7 +1069,11 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"VLANinsertions     ",
 	"TxCsumOffload      ",
 	"RxCsumGood         ",
-	"RxDrops            "
+	"RxDrops            ",
+
+	"CheckTXEnToggled   ",
+	"CheckResets        ",
+
 };
 
 static int get_stats_count(struct net_device *dev)
@@ -1142,6 +1187,9 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_TX_CSUM);
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_RX_CSUM_GOOD);
 	*data++ = s->rx_cong_drops;
+
+	*data++ = s->num_toggled;
+	*data++ = s->num_resets;
 }
 
 static inline void reg_block_dump(struct adapter *ap, void *buf,
@@ -1359,23 +1407,27 @@ static int set_rx_csum(struct net_device *dev, u32 data)
 
 static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 {
-	struct adapter *adapter = dev->priv;
+	const struct adapter *adapter = dev->priv;
+	const struct port_info *pi = netdev_priv(dev);
+	const struct qset_params *q = &adapter->params.sge.qset[pi->first_qset];
 
 	e->rx_max_pending = MAX_RX_BUFFERS;
 	e->rx_mini_max_pending = 0;
 	e->rx_jumbo_max_pending = MAX_RX_JUMBO_BUFFERS;
 	e->tx_max_pending = MAX_TXQ_ENTRIES;
 
-	e->rx_pending = adapter->params.sge.qset[0].fl_size;
-	e->rx_mini_pending = adapter->params.sge.qset[0].rspq_size;
-	e->rx_jumbo_pending = adapter->params.sge.qset[0].jumbo_size;
-	e->tx_pending = adapter->params.sge.qset[0].txq_size[0];
+	e->rx_pending = q->fl_size;
+	e->rx_mini_pending = q->rspq_size;
+	e->rx_jumbo_pending = q->jumbo_size;
+	e->tx_pending = q->txq_size[0];
 }
 
 static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 {
 	int i;
+	struct qset_params *q;
 	struct adapter *adapter = dev->priv;
+	const struct port_info *pi = netdev_priv(dev);
 
 	if (e->rx_pending > MAX_RX_BUFFERS ||
 	    e->rx_jumbo_pending > MAX_RX_JUMBO_BUFFERS ||
@@ -1390,9 +1442,8 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	if (adapter->flags & FULL_INIT_DONE)
 		return -EBUSY;
 
-	for (i = 0; i < SGE_QSETS; ++i) {
-		struct qset_params *q = &adapter->params.sge.qset[i];
-
+	q = &adapter->params.sge.qset[pi->first_qset];
+	for (i = 0; i < pi->nqsets; ++i, ++q) {
 		q->rspq_size = e->rx_mini_pending;
 		q->fl_size = e->rx_pending;
 		q->jumbo_size = e->rx_jumbo_pending;
@@ -1549,32 +1600,6 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		return -EFAULT;
 
 	switch (cmd) {
-	case CHELSIO_SETREG:{
-		struct ch_reg edata;
-
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-		if (copy_from_user(&edata, useraddr, sizeof(edata)))
-			return -EFAULT;
-		if ((edata.addr & 3) != 0
-			|| edata.addr >= adapter->mmio_len)
-			return -EINVAL;
-		writel(edata.val, adapter->regs + edata.addr);
-		break;
-	}
-	case CHELSIO_GETREG:{
-		struct ch_reg edata;
-
-		if (copy_from_user(&edata, useraddr, sizeof(edata)))
-			return -EFAULT;
-		if ((edata.addr & 3) != 0
-			|| edata.addr >= adapter->mmio_len)
-			return -EINVAL;
-		edata.val = readl(adapter->regs + edata.addr);
-		if (copy_to_user(useraddr, &edata, sizeof(edata)))
-			return -EFAULT;
-		break;
-	}
 	case CHELSIO_SET_QSET_PARAMS:{
 		int i;
 		struct qset_params *q;
@@ -1838,10 +1863,10 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 			return -EINVAL;
 
 		/*
-			* Version scheme:
-			* bits 0..9: chip version
-			* bits 10..15: chip revision
-			*/
+		 * Version scheme:
+		 * bits 0..9: chip version
+		 * bits 10..15: chip revision
+		 */
 		t.version = 3 | (adapter->params.rev << 10);
 		if (copy_to_user(useraddr, &t, sizeof(t)))
 			return -EFAULT;
@@ -1889,20 +1914,6 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 						t.invert_match,
 						t.trace_rx);
 		break;
-	}
-	case CHELSIO_SET_PKTSCHED:{
-		struct ch_pktsched_params p;
-
-		if (!capable(CAP_NET_ADMIN))
-				return -EPERM;
-		if (!adapter->open_device_map)
-				return -EAGAIN;	/* uP and SGE must be running */
-		if (copy_from_user(&p, useraddr, sizeof(p)))
-				return -EFAULT;
-		send_pktsched_cmd(adapter, p.sched, p.idx, p.min, p.max,
-				  p.binding);
-		break;
-			
 	}
 	default:
 		return -EOPNOTSUPP;
@@ -2104,6 +2115,42 @@ static void check_link_status(struct adapter *adapter)
 	}
 }
 
+static void check_t3b2_mac(struct adapter *adapter)
+{
+	int i;
+
+	if (!rtnl_trylock())	/* synchronize with ifdown */
+		return;
+
+	for_each_port(adapter, i) {
+		struct net_device *dev = adapter->port[i];
+		struct port_info *p = netdev_priv(dev);
+		int status;
+
+		if (!netif_running(dev))
+			continue;
+
+		status = 0;
+		if (netif_running(dev) && netif_carrier_ok(dev))
+			status = t3b2_mac_watchdog_task(&p->mac);
+		if (status == 1)
+			p->mac.stats.num_toggled++;
+		else if (status == 2) {
+			struct cmac *mac = &p->mac;
+
+			t3_mac_set_mtu(mac, dev->mtu);
+			t3_mac_set_address(mac, 0, dev->dev_addr);
+			cxgb_set_rxmode(dev);
+			t3_link_start(&p->phy, mac, &p->link_config);
+			t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
+			t3_port_intr_enable(adapter, p->port_id);
+			p->mac.stats.num_resets++;
+		}
+	}
+	rtnl_unlock();
+}
+
+
 static void t3_adap_check_task(struct work_struct *work)
 {
 	struct adapter *adapter = container_of(work, struct adapter,
@@ -2123,6 +2170,9 @@ static void t3_adap_check_task(struct work_struct *work)
 		mac_stats_update(adapter);
 		adapter->check_task_cnt = 0;
 	}
+
+	if (p->rev == T3_REV_B2)
+		check_t3b2_mac(adapter);
 
 	/* Schedule the next check update if any port is active. */
 	spin_lock(&adapter->work_lock);
@@ -2232,9 +2282,9 @@ static void __devinit print_port_info(struct adapter *adap,
 
 		if (!test_bit(i, &adap->registered_device_map))
 			continue;
-		printk(KERN_INFO "%s: %s %s RNIC (rev %d) %s%s\n",
+		printk(KERN_INFO "%s: %s %s %sNIC (rev %d) %s%s\n",
 		       dev->name, ai->desc, pi->port_type->desc,
-		       adap->params.rev, buf,
+		       is_offload(adap) ? "R" : "", adap->params.rev, buf,
 		       (adap->flags & USING_MSIX) ? " MSI-X" :
 		       (adap->flags & USING_MSI) ? " MSI" : "");
 		if (adap->name == dev->name && adap->params.vpd.mclk)

@@ -1,4 +1,13 @@
-/* $Id: jffs2_fs_sb.h,v 1.54 2005/09/21 13:37:34 dedekind Exp $ */
+/*
+ * JFFS2 -- Journalling Flash File System, Version 2.
+ *
+ * Copyright © 2001-2007 Red Hat, Inc.
+ *
+ * Created by David Woodhouse <dwmw2@infradead.org>
+ *
+ * For licensing information, see the file 'LICENCE' in this directory.
+ *
+ */
 
 #ifndef _JFFS2_FS_SB
 #define _JFFS2_FS_SB
@@ -98,20 +107,14 @@ struct jffs2_sb_info {
 	uint32_t wbuf_pagesize; /* 0 for NOR and other flashes with no wbuf */
 
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
-	/* Write-behind buffer for NAND flash */
-	unsigned char *wbuf;
-	unsigned char *oobbuf;
+	unsigned char *wbuf; /* Write-behind buffer for NAND flash */
 	uint32_t wbuf_ofs;
 	uint32_t wbuf_len;
 	struct jffs2_inodirty *wbuf_inodes;
-
 	struct rw_semaphore wbuf_sem;	/* Protects the write buffer */
 
-	/* Information about out-of-band area usage... */
-	struct nand_ecclayout *ecclayout;
-	uint32_t badblock_pos;
-	uint32_t fsdata_pos;
-	uint32_t fsdata_len;
+	unsigned char *oobbuf;
+	int oobavail; /* How many bytes are available for JFFS2 in OOB */
 #endif
 
 	struct jffs2_summary *summary;		/* Summary information */

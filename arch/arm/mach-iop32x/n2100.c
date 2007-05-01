@@ -37,6 +37,7 @@
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/arch/time.h>
 
 /*
  * N2100 timer tick configuration.
@@ -44,12 +45,12 @@
 static void __init n2100_timer_init(void)
 {
 	/* 33.000 MHz crystal.  */
-	iop3xx_init_time(198000000);
+	iop_init_time(198000000);
 }
 
 static struct sys_timer n2100_timer = {
 	.init		= n2100_timer_init,
-	.offset		= iop3xx_gettimeoffset,
+	.offset		= iop_gettimeoffset,
 };
 
 
@@ -119,6 +120,20 @@ static struct hw_pci n2100_pci __initdata = {
 	.scan		= iop3xx_pci_scan_bus,
 	.map_irq	= n2100_pci_map_irq,
 };
+
+/*
+ * Both r8169 chips on the n2100 exhibit PCI parity problems.  Set
+ * the ->broken_parity_status flag for both ports so that the r8169
+ * driver knows it should ignore error interrupts.
+ */
+static void n2100_fixup_r8169(struct pci_dev *dev)
+{
+	if (dev->bus->number == 0 &&
+	    (dev->devfn == PCI_DEVFN(1, 0) ||
+	     dev->devfn == PCI_DEVFN(2, 0)))
+		dev->broken_parity_status = 1;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_REALTEK, PCI_ANY_ID, n2100_fixup_r8169);
 
 static int __init n2100_pci_init(void)
 {

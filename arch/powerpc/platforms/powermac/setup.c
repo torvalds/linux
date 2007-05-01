@@ -42,7 +42,6 @@
 #include <linux/initrd.h>
 #include <linux/vt_kern.h>
 #include <linux/console.h>
-#include <linux/ide.h>
 #include <linux/pci.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
@@ -135,12 +134,12 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "machine\t\t: ");
 	np = of_find_node_by_path("/");
 	if (np != NULL) {
-		pp = get_property(np, "model", NULL);
+		pp = of_get_property(np, "model", NULL);
 		if (pp != NULL)
 			seq_printf(m, "%s\n", pp);
 		else
 			seq_printf(m, "PowerMac\n");
-		pp = get_property(np, "compatible", &plen);
+		pp = of_get_property(np, "compatible", &plen);
 		if (pp != NULL) {
 			seq_printf(m, "motherboard\t:");
 			while (plen > 0) {
@@ -164,11 +163,13 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 	if (np == NULL)
 		np = of_find_node_by_type(NULL, "cache");
 	if (np != NULL) {
-		const unsigned int *ic = get_property(np, "i-cache-size", NULL);
-		const unsigned int *dc = get_property(np, "d-cache-size", NULL);
+		const unsigned int *ic =
+			of_get_property(np, "i-cache-size", NULL);
+		const unsigned int *dc =
+			of_get_property(np, "d-cache-size", NULL);
 		seq_printf(m, "L2 cache\t:");
 		has_l2cache = 1;
-		if (get_property(np, "cache-unified", NULL) != 0 && dc) {
+		if (of_get_property(np, "cache-unified", NULL) != 0 && dc) {
 			seq_printf(m, " %dK unified", *dc / 1024);
 		} else {
 			if (ic)
@@ -177,7 +178,7 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 				seq_printf(m, "%s %dK data",
 					   (ic? " +": ""), *dc / 1024);
 		}
-		pp = get_property(np, "ram-type", NULL);
+		pp = of_get_property(np, "ram-type", NULL);
 		if (pp)
 			seq_printf(m, " %s", pp);
 		seq_printf(m, "\n");
@@ -192,8 +193,11 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 #ifndef CONFIG_ADB_CUDA
 int find_via_cuda(void)
 {
-	if (!find_devices("via-cuda"))
+	struct device_node *dn = of_find_node_by_name(NULL, "via-cuda");
+
+	if (!dn)
 		return 0;
+	of_node_put(dn);
 	printk("WARNING ! Your machine is CUDA-based but your kernel\n");
 	printk("          wasn't compiled with CONFIG_ADB_CUDA option !\n");
 	return 0;
@@ -203,8 +207,11 @@ int find_via_cuda(void)
 #ifndef CONFIG_ADB_PMU
 int find_via_pmu(void)
 {
-	if (!find_devices("via-pmu"))
+	struct device_node *dn = of_find_node_by_name(NULL, "via-pmu");
+
+	if (!dn)
 		return 0;
+	of_node_put(dn);
 	printk("WARNING ! Your machine is PMU-based but your kernel\n");
 	printk("          wasn't compiled with CONFIG_ADB_PMU option !\n");
 	return 0;
@@ -224,6 +231,8 @@ static volatile u32 *sysctrl_regs;
 
 static void __init ohare_init(void)
 {
+	struct device_node *dn;
+
 	/* this area has the CPU identification register
 	   and some registers used by smp boards */
 	sysctrl_regs = (volatile u32 *) ioremap(0xf8000000, 0x1000);
@@ -233,7 +242,9 @@ static void __init ohare_init(void)
 	 * We assume that we have a PSX memory controller iff
 	 * we have an ohare I/O controller.
 	 */
-	if (find_devices("ohare") != NULL) {
+	dn = of_find_node_by_name(NULL, "ohare");
+	if (dn) {
+		of_node_put(dn);
 		if (((sysctrl_regs[2] >> 24) & 0xf) >= 3) {
 			if (sysctrl_regs[4] & 0x10)
 				sysctrl_regs[4] |= 0x04000020;
@@ -249,18 +260,19 @@ static void __init l2cr_init(void)
 {
 	/* Checks "l2cr-value" property in the registry */
 	if (cpu_has_feature(CPU_FTR_L2CR)) {
-		struct device_node *np = find_devices("cpus");
+		struct device_node *np = of_find_node_by_name(NULL, "cpus");
 		if (np == 0)
-			np = find_type_devices("cpu");
+			np = of_find_node_by_type(NULL, "cpu");
 		if (np != 0) {
 			const unsigned int *l2cr =
-				get_property(np, "l2cr-value", NULL);
+				of_get_property(np, "l2cr-value", NULL);
 			if (l2cr != 0) {
 				ppc_override_l2cr = 1;
 				ppc_override_l2cr_value = *l2cr;
 				_set_L2CR(0);
 				_set_L2CR(ppc_override_l2cr_value);
 			}
+			of_node_put(np);
 		}
 	}
 
@@ -286,7 +298,7 @@ static void __init pmac_setup_arch(void)
 	loops_per_jiffy = 50000000 / HZ;
 	cpu = of_find_node_by_type(NULL, "cpu");
 	if (cpu != NULL) {
-		fp = get_property(cpu, "clock-frequency", NULL);
+		fp = of_get_property(cpu, "clock-frequency", NULL);
 		if (fp != NULL) {
 			if (pvr >= 0x30 && pvr < 0x80)
 				/* PPC970 etc. */
@@ -303,7 +315,7 @@ static void __init pmac_setup_arch(void)
 
 	/* See if newworld or oldworld */
 	for (ic = NULL; (ic = of_find_all_nodes(ic)) != NULL; )
-		if (get_property(ic, "interrupt-controller", NULL))
+		if (of_get_property(ic, "interrupt-controller", NULL))
 			break;
 	if (ic) {
 		pmac_newworld = 1;
@@ -341,8 +353,15 @@ static void __init pmac_setup_arch(void)
 
 #ifdef CONFIG_SMP
 	/* Check for Core99 */
-	if (find_devices("uni-n") || find_devices("u3") || find_devices("u4"))
+	ic = of_find_node_by_name(NULL, "uni-n");
+	if (!ic)
+		ic = of_find_node_by_name(NULL, "u3");
+	if (!ic)
+		ic = of_find_node_by_name(NULL, "u4");
+	if (ic) {
+		of_node_put(ic);
 		smp_ops = &core99_smp_ops;
+	}
 #ifdef CONFIG_PPC32
 	else
 		smp_ops = &psurge_smp_ops;
@@ -616,15 +635,6 @@ static void __init pmac_init_early(void)
 #endif
 }
 
-/*
- * pmac has no legacy IO, anything calling this function has to
- * fail or bad things will happen
- */
-static int pmac_check_legacy_ioport(unsigned int baseport)
-{
-	return -ENODEV;
-}
-
 static int __init pmac_declare_of_platform_devices(void)
 {
 	struct device_node *np;
@@ -736,7 +746,6 @@ define_machine(powermac) {
 	.get_rtc_time		= pmac_get_rtc_time,
 	.calibrate_decr		= pmac_calibrate_decr,
 	.feature_call		= pmac_do_feature_call,
-	.check_legacy_ioport	= pmac_check_legacy_ioport,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64
 	.pci_probe_mode		= pmac_pci_probe_mode,

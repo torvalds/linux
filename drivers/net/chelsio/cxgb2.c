@@ -889,8 +889,7 @@ static void vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	struct adapter *adapter = dev->priv;
 
 	spin_lock_irq(&adapter->async_lock);
-	if (adapter->vlan_grp)
-		adapter->vlan_grp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(adapter->vlan_grp, vid, NULL);
 	spin_unlock_irq(&adapter->async_lock);
 }
 #endif

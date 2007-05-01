@@ -26,7 +26,7 @@
 #define _BTTVP_H_
 
 #include <linux/version.h>
-#define BTTV_VERSION_CODE KERNEL_VERSION(0,9,16)
+#define BTTV_VERSION_CODE KERNEL_VERSION(0,9,17)
 
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -66,13 +66,21 @@
 #define RISC_SLOT_LOOP        14
 
 #define RESOURCE_OVERLAY       1
-#define RESOURCE_VIDEO         2
+#define RESOURCE_VIDEO_STREAM  2
 #define RESOURCE_VBI           4
+#define RESOURCE_VIDEO_READ    8
 
 #define RAW_LINES            640
 #define RAW_BPL             1024
 
 #define UNSET (-1U)
+
+/* Min. value in VDELAY register. */
+#define MIN_VDELAY 2
+/* Even to get Cb first, odd for Cr. */
+#define MAX_HDELAY (0x3FF & -2)
+/* Limits scaled width, which must be a multiple of 4. */
+#define MAX_HACTIVE (0x3FF & -4)
 
 #define clamp(x, low, high) min (max (low, x), high)
 
@@ -92,8 +100,13 @@ struct bttv_tvnorm {
 	u16   vtotal;
 	int   sram;
 	/* ITU-R frame line number of the first VBI line we can
-	   capture, of the first and second field. */
+	   capture, of the first and second field. The last possible line
+	   is determined by cropcap.bounds. */
 	u16   vbistart[2];
+	/* Horizontally this counts fCLKx1 samples following the leading
+	   edge of the horizontal sync pulse, vertically ITU-R frame line
+	   numbers of the first field times two (2, 4, 6, ... 524 or 624). */
+	struct v4l2_cropcap cropcap;
 };
 extern const struct bttv_tvnorm bttv_tvnorms[];
 
@@ -128,6 +141,9 @@ struct bttv_buffer {
 	struct bttv_geometry       geo;
 	struct btcx_riscmem        top;
 	struct btcx_riscmem        bottom;
+	struct v4l2_rect           crop;
+	unsigned int               vbi_skip[2];
+	unsigned int               vbi_count[2];
 };
 
 struct bttv_buffer_set {
@@ -146,6 +162,34 @@ struct bttv_overlay {
 	int                    setup_ok;
 };
 
+struct bttv_vbi_fmt {
+	struct v4l2_vbi_format fmt;
+
+	/* fmt.start[] and count[] refer to this video standard. */
+	const struct bttv_tvnorm *tvnorm;
+
+	/* Earliest possible start of video capturing with this
+	   v4l2_vbi_format, in struct bttv_crop.rect units. */
+	__s32                  end;
+};
+
+/* bttv-vbi.c */
+void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, int norm);
+
+struct bttv_crop {
+	/* A cropping rectangle in struct bttv_tvnorm.cropcap units. */
+	struct v4l2_rect       rect;
+
+	/* Scaled image size limits with this crop rect. Divide
+	   max_height, but not min_height, by two when capturing
+	   single fields. See also bttv_crop_reset() and
+	   bttv_crop_adjust() in bttv-driver.c. */
+	__s32                  min_scaled_width;
+	__s32                  min_scaled_height;
+	__s32                  max_scaled_width;
+	__s32                  max_scaled_height;
+};
+
 struct bttv_fh {
 	struct bttv              *btv;
 	int resources;
@@ -160,13 +204,19 @@ struct bttv_fh {
 	int                      width;
 	int                      height;
 
-	/* current settings */
+	/* video overlay */
 	const struct bttv_format *ovfmt;
 	struct bttv_overlay      ov;
 
-	/* video overlay */
+	/* Application called VIDIOC_S_CROP. */
+	int                      do_crop;
+
+	/* vbi capture */
 	struct videobuf_queue    vbi;
-	int                      lines;
+	/* Current VBI capture window as seen through this fh (cannot
+	   be global for compatibility with earlier drivers). Protected
+	   by struct bttv.lock and struct bttv_fh.vbi.lock. */
+	struct bttv_vbi_fmt      vbi_fmt;
 };
 
 /* ---------------------------------------------------------- */
@@ -176,7 +226,8 @@ struct bttv_fh {
 int bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 		     struct scatterlist *sglist,
 		     unsigned int offset, unsigned int bpl,
-		     unsigned int pitch, unsigned int lines);
+		     unsigned int pitch, unsigned int skip_lines,
+		     unsigned int store_lines);
 
 /* control dma register + risc main loop */
 void bttv_set_dma(struct bttv *btv, int override);
@@ -202,9 +253,9 @@ int bttv_overlay_risc(struct bttv *btv, struct bttv_overlay *ov,
 /* ---------------------------------------------------------- */
 /* bttv-vbi.c                                                 */
 
-void bttv_vbi_try_fmt(struct bttv_fh *fh, struct v4l2_format *f);
-void bttv_vbi_get_fmt(struct bttv_fh *fh, struct v4l2_format *f);
-void bttv_vbi_setlines(struct bttv_fh *fh, struct bttv *btv, int lines);
+int bttv_vbi_try_fmt(struct bttv_fh *fh, struct v4l2_vbi_format *f);
+void bttv_vbi_get_fmt(struct bttv_fh *fh, struct v4l2_vbi_format *f);
+int bttv_vbi_set_fmt(struct bttv_fh *fh, struct v4l2_vbi_format *f);
 
 extern struct videobuf_queue_ops bttv_vbi_qops;
 
@@ -233,7 +284,6 @@ extern int fini_bttv_i2c(struct bttv *btv);
 #define d2printk if (bttv_debug >= 2) printk
 
 #define BTTV_MAX_FBUF   0x208000
-#define VBIBUF_SIZE     (2048*VBI_MAXLINES*2)
 #define BTTV_TIMEOUT    (HZ/2) /* 0.5 seconds */
 #define BTTV_FREE_IDLE  (HZ)   /* one second */
 
@@ -308,13 +358,12 @@ struct bttv {
 
 	/* infrared remote */
 	int has_remote;
-	struct bttv_ir *remote;
+	struct card_ir *remote;
 
 	/* locking */
 	spinlock_t s_lock;
 	struct mutex lock;
 	int resources;
-	struct mutex reslock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state prio;
 #endif
@@ -384,6 +433,24 @@ struct bttv {
 
 	unsigned int users;
 	struct bttv_fh init;
+
+	/* used to make dvb-bt8xx autoloadable */
+	struct work_struct request_module_wk;
+
+	/* Default (0) and current (1) video capturing and overlay
+	   cropping parameters in bttv_tvnorm.cropcap units. Protected
+	   by bttv.lock. */
+	struct bttv_crop crop[2];
+
+	/* Earliest possible start of video capturing in
+	   bttv_tvnorm.cropcap line units. Set by check_alloc_btres()
+	   and free_btres(). Protected by bttv.lock. */
+	__s32			vbi_end;
+
+	/* Latest possible end of VBI capturing (= crop[x].rect.top when
+	   VIDEO_RESOURCES are locked). Set by check_alloc_btres()
+	   and free_btres(). Protected by bttv.lock. */
+	__s32			crop_start;
 };
 
 /* our devices */

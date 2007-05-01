@@ -283,6 +283,43 @@ do {						\
 })
 
 /*
+ * Locks two spinlocks l1 and l2.
+ * l1_first indicates if spinlock l1 should be taken first.
+ */
+static inline void double_spin_lock(spinlock_t *l1, spinlock_t *l2,
+				    bool l1_first)
+	__acquires(l1)
+	__acquires(l2)
+{
+	if (l1_first) {
+		spin_lock(l1);
+		spin_lock(l2);
+	} else {
+		spin_lock(l2);
+		spin_lock(l1);
+	}
+}
+
+/*
+ * Unlocks two spinlocks l1 and l2.
+ * l1_taken_first indicates if spinlock l1 was taken first and therefore
+ * should be released after spinlock l2.
+ */
+static inline void double_spin_unlock(spinlock_t *l1, spinlock_t *l2,
+				      bool l1_taken_first)
+	__releases(l1)
+	__releases(l2)
+{
+	if (l1_taken_first) {
+		spin_unlock(l2);
+		spin_unlock(l1);
+	} else {
+		spin_unlock(l1);
+		spin_unlock(l2);
+	}
+}
+
+/*
  * Pull the atomic_t declaration:
  * (asm-mips/atomic.h needs above definitions)
  */

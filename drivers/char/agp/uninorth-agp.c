@@ -460,7 +460,7 @@ void null_cache_flush(void)
 
 /* Setup function */
 
-static struct aper_size_info_32 uninorth_sizes[7] =
+static const struct aper_size_info_32 uninorth_sizes[7] =
 {
 #if 0 /* Not sure uninorth supports that high aperture sizes */
 	{256, 65536, 6, 64},
@@ -477,7 +477,7 @@ static struct aper_size_info_32 uninorth_sizes[7] =
  * Not sure that u3 supports that high aperture sizes but it
  * would strange if it did not :)
  */
-static struct aper_size_info_32 u3_sizes[8] =
+static const struct aper_size_info_32 u3_sizes[8] =
 {
 	{512, 131072, 7, 128},
 	{256, 65536, 6, 64},
@@ -489,7 +489,7 @@ static struct aper_size_info_32 u3_sizes[8] =
 	{4, 1024, 0, 1}
 };
 
-struct agp_bridge_driver uninorth_agp_driver = {
+const struct agp_bridge_driver uninorth_agp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= (void *)uninorth_sizes,
 	.size_type		= U32_APER_SIZE,
@@ -514,7 +514,7 @@ struct agp_bridge_driver uninorth_agp_driver = {
 	.cant_use_aperture	= 1,
 };
 
-struct agp_bridge_driver u3_agp_driver = {
+const struct agp_bridge_driver u3_agp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= (void *)u3_sizes,
 	.size_type		= U32_APER_SIZE,

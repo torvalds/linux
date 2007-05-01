@@ -277,7 +277,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 		board->det_pin, board->irq_pin);
 
 	cf->socket.owner = THIS_MODULE;
-	cf->socket.dev.dev = &pdev->dev;
+	cf->socket.dev.parent = &pdev->dev;
 	cf->socket.ops = &at91_cf_ops;
 	cf->socket.resource_ops = &pccard_static_ops;
 	cf->socket.features = SS_CAP_PCCARD | SS_CAP_STATIC_MAP

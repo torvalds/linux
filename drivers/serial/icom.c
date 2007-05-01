@@ -164,7 +164,7 @@ static void free_port_memory(struct icom_port *icom_port)
 	}
 }
 
-static int __init get_port_memory(struct icom_port *icom_port)
+static int __devinit get_port_memory(struct icom_port *icom_port)
 {
 	int index;
 	unsigned long stgAddr;
@@ -1380,7 +1380,7 @@ static void icom_port_active(struct icom_port *icom_port, struct icom_adapter *i
 			    0x8024 + 2 - 2 * (icom_port->port - 2);
 	}
 }
-static int __init icom_load_ports(struct icom_adapter *icom_adapter)
+static int __devinit icom_load_ports(struct icom_adapter *icom_adapter)
 {
 	struct icom_port *icom_port;
 	int port_num;
@@ -1473,7 +1473,7 @@ static void icom_remove_adapter(struct icom_adapter *icom_adapter)
 		}
 	}
 
-	free_irq(icom_adapter->irq_number, (void *) icom_adapter);
+	free_irq(icom_adapter->pci_dev->irq, (void *) icom_adapter);
 	iounmap(icom_adapter->base_addr);
 	icom_free_adapter(icom_adapter);
 	pci_release_regions(icom_adapter->pci_dev);
@@ -1539,7 +1539,6 @@ static int __devinit icom_probe(struct pci_dev *dev,
 	}
 
 	 icom_adapter->base_addr_pci = pci_resource_start(dev, 0);
-	 icom_adapter->irq_number = dev->irq;
 	 icom_adapter->pci_dev = dev;
 	 icom_adapter->version = ent->driver_data;
 	 icom_adapter->subsystem_id = ent->subdevice;
@@ -1570,7 +1569,7 @@ static int __devinit icom_probe(struct pci_dev *dev,
 		icom_port = &icom_adapter->port_info[index];
 
 		if (icom_port->status == ICOM_PORT_ACTIVE) {
-			icom_port->uart_port.irq = icom_port->adapter->irq_number;
+			icom_port->uart_port.irq = icom_port->adapter->pci_dev->irq;
 			icom_port->uart_port.type = PORT_ICOM;
 			icom_port->uart_port.iotype = UPIO_MEM;
 			icom_port->uart_port.membase =

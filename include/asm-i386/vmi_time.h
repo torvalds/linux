@@ -49,17 +49,26 @@ extern struct vmi_timer_ops {
 extern void __init vmi_time_init(void);
 extern unsigned long vmi_get_wallclock(void);
 extern int vmi_set_wallclock(unsigned long now);
-extern unsigned long long vmi_sched_clock(void);
+extern unsigned long long vmi_get_sched_cycles(void);
+extern unsigned long vmi_cpu_khz(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 extern void __init vmi_timer_setup_boot_alarm(void);
-extern void __init vmi_timer_setup_secondary_alarm(void);
+extern void __devinit vmi_timer_setup_secondary_alarm(void);
 extern void apic_vmi_timer_interrupt(void);
 #endif
 
 #ifdef CONFIG_NO_IDLE_HZ
 extern int vmi_stop_hz_timer(void);
 extern void vmi_account_time_restart_hz_timer(void);
+#else
+static inline int vmi_stop_hz_timer(void)
+{
+	return 0;
+}
+static inline void vmi_account_time_restart_hz_timer(void)
+{
+}
 #endif
 
 /*

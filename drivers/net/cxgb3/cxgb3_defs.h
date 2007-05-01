@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2006-2007 Chelsio, Inc. All rights reserved.
- * Copyright (c) 2006-2007 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -68,7 +67,10 @@ static inline union listen_entry *stid2entry(const struct tid_info *t,
 static inline struct t3c_tid_entry *lookup_tid(const struct tid_info *t,
 					       unsigned int tid)
 {
-	return tid < t->ntids ? &(t->tid_tab[tid]) : NULL;
+	struct t3c_tid_entry *t3c_tid = tid < t->ntids ?
+	    &(t->tid_tab[tid]) : NULL;
+
+	return (t3c_tid && t3c_tid->client) ? t3c_tid : NULL;
 }
 
 /*

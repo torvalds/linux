@@ -60,6 +60,7 @@
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
+#include <linux/igmp.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
@@ -488,9 +489,9 @@ static void bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
 			/* Save and then restore vlan_dev in the grp array,
 			 * since the slave's driver might clear it.
 			 */
-			vlan_dev = bond->vlgrp->vlan_devices[vid];
+			vlan_dev = vlan_group_get_device(bond->vlgrp, vid);
 			slave_dev->vlan_rx_kill_vid(slave_dev, vid);
-			bond->vlgrp->vlan_devices[vid] = vlan_dev;
+			vlan_group_set_device(bond->vlgrp, vid, vlan_dev);
 		}
 	}
 
@@ -550,9 +551,9 @@ static void bond_del_vlans_from_slave(struct bonding *bond, struct net_device *s
 		/* Save and then restore vlan_dev in the grp array,
 		 * since the slave's driver might clear it.
 		 */
-		vlan_dev = bond->vlgrp->vlan_devices[vlan->vlan_id];
+		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 		slave_dev->vlan_rx_kill_vid(slave_dev, vlan->vlan_id);
-		bond->vlgrp->vlan_devices[vlan->vlan_id] = vlan_dev;
+		vlan_group_set_device(bond->vlgrp, vlan->vlan_id, vlan_dev);
 	}
 
 unreg:
@@ -861,6 +862,28 @@ static void bond_mc_delete(struct bonding *bond, void *addr, int alen)
 	}
 }
 
+
+/*
+ * Retrieve the list of registered multicast addresses for the bonding
+ * device and retransmit an IGMP JOIN request to the current active
+ * slave.
+ */
+static void bond_resend_igmp_join_requests(struct bonding *bond)
+{
+	struct in_device *in_dev;
+	struct ip_mc_list *im;
+
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(bond->dev);
+	if (in_dev) {
+		for (im = in_dev->mc_list; im; im = im->next) {
+			ip_mc_rejoin_group(im);
+		}
+	}
+
+	rcu_read_unlock();
+}
+
 /*
  * Totally destroys the mc_list in bond
  */
@@ -874,6 +897,7 @@ static void bond_mc_list_destroy(struct bonding *bond)
 		kfree(dmi);
 		dmi = bond->mc_list;
 	}
+        bond->mc_list = NULL;
 }
 
 /*
@@ -967,6 +991,7 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active, struct 
 		for (dmi = bond->dev->mc_list; dmi; dmi = dmi->next) {
 			dev_mc_add(new_active->dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
 		}
+		bond_resend_igmp_join_requests(bond);
 	}
 }
 
@@ -1333,13 +1358,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			"devices.\n", bond_dev->name);
   		res = -EOPNOTSUPP;
 		goto err_undo_flags;
-	}
-
-	if (slave_dev->get_stats == NULL) {
-		printk(KERN_NOTICE DRV_NAME
-			": %s: the driver for slave device %s does not provide "
-			"get_stats function, network statistics will be "
-			"inaccurate.\n", bond_dev->name, slave_dev->name);
 	}
 
 	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
@@ -2397,7 +2415,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		vlan_id = 0;
 		list_for_each_entry_safe(vlan, vlan_next, &bond->vlan_list,
 					 vlan_list) {
-			vlan_dev = bond->vlgrp->vlan_devices[vlan->vlan_id];
+			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 			if (vlan_dev == rt->u.dst.dev) {
 				vlan_id = vlan->vlan_id;
 				dprintk("basa: vlan match on %s %d\n",
@@ -2444,7 +2462,7 @@ static void bond_send_gratuitous_arp(struct bonding *bond)
 	}
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		vlan_dev = bond->vlgrp->vlan_devices[vlan->vlan_id];
+		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 		if (vlan->vlan_ip) {
 			bond_arp_send(slave->dev, ARPOP_REPLY, vlan->vlan_ip,
 				      vlan->vlan_ip, vlan->vlan_id);
@@ -2499,7 +2517,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 				 (2 * sizeof(u32)))))
 		goto out_unlock;
 
-	arp = skb->nh.arph;
+	arp = arp_hdr(skb);
 	if (arp->ar_hln != dev->addr_len ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    skb->pkt_type == PACKET_LOOPBACK ||
@@ -3371,7 +3389,7 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 
 		list_for_each_entry_safe(vlan, vlan_next, &bond->vlan_list,
 					 vlan_list) {
-			vlan_dev = bond->vlgrp->vlan_devices[vlan->vlan_id];
+			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 			if (vlan_dev == event_dev) {
 				switch (event) {
 				case NETDEV_UP:
@@ -3423,15 +3441,21 @@ void bond_register_arp(struct bonding *bond)
 {
 	struct packet_type *pt = &bond->arp_mon_pt;
 
+	if (pt->type)
+		return;
+
 	pt->type = htons(ETH_P_ARP);
-	pt->dev = NULL; /*bond->dev;XXX*/
+	pt->dev = bond->dev;
 	pt->func = bond_arp_rcv;
 	dev_add_pack(pt);
 }
 
 void bond_unregister_arp(struct bonding *bond)
 {
-	dev_remove_pack(&bond->arp_mon_pt);
+	struct packet_type *pt = &bond->arp_mon_pt;
+
+	dev_remove_pack(pt);
+	pt->type = 0;
 }
 
 /*---------------------------- Hashing Policies -----------------------------*/
@@ -3445,7 +3469,7 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
 				    struct net_device *bond_dev, int count)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = ip_hdr(skb);
 	u16 *layer4hdr = (u16 *)((u32 *)iph + iph->ihl);
 	int layer4_xor = 0;
 
@@ -3609,35 +3633,32 @@ static struct net_device_stats *bond_get_stats(struct net_device *bond_dev)
 	read_lock_bh(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev->get_stats) {
-			sstats = slave->dev->get_stats(slave->dev);
+		sstats = slave->dev->get_stats(slave->dev);
+		stats->rx_packets += sstats->rx_packets;
+		stats->rx_bytes += sstats->rx_bytes;
+		stats->rx_errors += sstats->rx_errors;
+		stats->rx_dropped += sstats->rx_dropped;
 
-			stats->rx_packets += sstats->rx_packets;
-			stats->rx_bytes += sstats->rx_bytes;
-			stats->rx_errors += sstats->rx_errors;
-			stats->rx_dropped += sstats->rx_dropped;
+		stats->tx_packets += sstats->tx_packets;
+		stats->tx_bytes += sstats->tx_bytes;
+		stats->tx_errors += sstats->tx_errors;
+		stats->tx_dropped += sstats->tx_dropped;
 
-			stats->tx_packets += sstats->tx_packets;
-			stats->tx_bytes += sstats->tx_bytes;
-			stats->tx_errors += sstats->tx_errors;
-			stats->tx_dropped += sstats->tx_dropped;
+		stats->multicast += sstats->multicast;
+		stats->collisions += sstats->collisions;
 
-			stats->multicast += sstats->multicast;
-			stats->collisions += sstats->collisions;
+		stats->rx_length_errors += sstats->rx_length_errors;
+		stats->rx_over_errors += sstats->rx_over_errors;
+		stats->rx_crc_errors += sstats->rx_crc_errors;
+		stats->rx_frame_errors += sstats->rx_frame_errors;
+		stats->rx_fifo_errors += sstats->rx_fifo_errors;
+		stats->rx_missed_errors += sstats->rx_missed_errors;
 
-			stats->rx_length_errors += sstats->rx_length_errors;
-			stats->rx_over_errors += sstats->rx_over_errors;
-			stats->rx_crc_errors += sstats->rx_crc_errors;
-			stats->rx_frame_errors += sstats->rx_frame_errors;
-			stats->rx_fifo_errors += sstats->rx_fifo_errors;
-			stats->rx_missed_errors += sstats->rx_missed_errors;
-
-			stats->tx_aborted_errors += sstats->tx_aborted_errors;
-			stats->tx_carrier_errors += sstats->tx_carrier_errors;
-			stats->tx_fifo_errors += sstats->tx_fifo_errors;
-			stats->tx_heartbeat_errors += sstats->tx_heartbeat_errors;
-			stats->tx_window_errors += sstats->tx_window_errors;
-		}
+		stats->tx_aborted_errors += sstats->tx_aborted_errors;
+		stats->tx_carrier_errors += sstats->tx_carrier_errors;
+		stats->tx_fifo_errors += sstats->tx_fifo_errors;
+		stats->tx_heartbeat_errors += sstats->tx_heartbeat_errors;
+		stats->tx_window_errors += sstats->tx_window_errors;
 	}
 
 	read_unlock_bh(&bond->lock);
@@ -4011,42 +4032,6 @@ out:
 	return 0;
 }
 
-static void bond_activebackup_xmit_copy(struct sk_buff *skb,
-                                        struct bonding *bond,
-                                        struct slave *slave)
-{
-	struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);
-	struct ethhdr *eth_data;
-	u8 *hwaddr;
-	int res;
-
-	if (!skb2) {
-		printk(KERN_ERR DRV_NAME ": Error: "
-		       "bond_activebackup_xmit_copy(): skb_copy() failed\n");
-		return;
-	}
-
-	skb2->mac.raw = (unsigned char *)skb2->data;
-	eth_data = eth_hdr(skb2);
-
-	/* Pick an appropriate source MAC address
-	 *	-- use slave's perm MAC addr, unless used by bond
-	 *	-- otherwise, borrow active slave's perm MAC addr
-	 *	   since that will not be used
-	 */
-	hwaddr = slave->perm_hwaddr;
-	if (!memcmp(eth_data->h_source, hwaddr, ETH_ALEN))
-		hwaddr = bond->curr_active_slave->perm_hwaddr;
-
-	/* Set source MAC address appropriately */
-	memcpy(eth_data->h_source, hwaddr, ETH_ALEN);
-
-	res = bond_dev_queue_xmit(bond, skb2, slave->dev);
-	if (res)
-		dev_kfree_skb(skb2);
-
-	return;
-}
 
 /*
  * in active-backup mode, we know that bond->curr_active_slave is always valid if
@@ -4066,21 +4051,6 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 
 	if (!bond->curr_active_slave)
 		goto out;
-
-	/* Xmit IGMP frames on all slaves to ensure rapid fail-over
-	   for multicast traffic on snooping switches */
-	if (skb->protocol == __constant_htons(ETH_P_IP) &&
-	    skb->nh.iph->protocol == IPPROTO_IGMP) {
-		struct slave *slave, *active_slave;
-		int i;
-
-		active_slave = bond->curr_active_slave;
-		bond_for_each_slave_from_to(bond, slave, i, active_slave->next,
-		                            active_slave->prev)
-			if (IS_UP(slave->dev) &&
-			    (slave->link == BOND_LINK_UP))
-				bond_activebackup_xmit_copy(skb, bond, slave);
-	}
 
 	res = bond_dev_queue_xmit(bond, skb, bond->curr_active_slave->dev);
 

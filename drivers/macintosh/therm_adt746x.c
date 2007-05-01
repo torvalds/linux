@@ -567,13 +567,13 @@ thermostat_init(void)
 	else
 		return -ENODEV;
 
-	prop = get_property(np, "hwsensor-params-version", NULL);
+	prop = of_get_property(np, "hwsensor-params-version", NULL);
 	printk(KERN_INFO "adt746x: version %d (%ssupported)\n", *prop,
 			 (*prop == 1)?"":"un");
 	if (*prop != 1)
 		return -ENODEV;
 
-	prop = get_property(np, "reg", NULL);
+	prop = of_get_property(np, "reg", NULL);
 	if (!prop)
 		return -ENODEV;
 
@@ -591,9 +591,9 @@ thermostat_init(void)
 			 "limit_adjust: %d, fan_speed: %d\n",
 			 therm_bus, therm_address, limit_adjust, fan_speed);
 
-	if (get_property(np, "hwsensor-location", NULL)) {
+	if (of_get_property(np, "hwsensor-location", NULL)) {
 		for (i = 0; i < 3; i++) {
-			sensor_location[i] = get_property(np,
+			sensor_location[i] = of_get_property(np,
 					"hwsensor-location", NULL) + offset;
 
 			if (sensor_location[i] == NULL)

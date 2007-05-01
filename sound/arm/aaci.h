@@ -49,27 +49,27 @@
 #define AACI_DR4	0x0f0	/* data read/written fifo 4 */
 
 /*
- * transmit fifo control register. P48
+ * TX/RX fifo control register (CR). P48
  */
-#define TXCR_FEN	(1 << 16)	/* fifo enable */
-#define TXCR_COMPACT	(1 << 15)	/* compact mode */
-#define TXCR_TSZ16	(0 << 13)	/* 16 bits */
-#define TXCR_TSZ18	(1 << 13)	/* 18 bits */
-#define TXCR_TSZ20	(2 << 13)	/* 20 bits */
-#define TXCR_TSZ12	(3 << 13)	/* 12 bits */
-#define TXCR_TX12	(1 << 12)	/* transmits slot 12 */
-#define TXCR_TX11	(1 << 11)	/* transmits slot 12 */
-#define TXCR_TX10	(1 << 10)	/* transmits slot 12 */
-#define TXCR_TX9	(1 << 9)	/* transmits slot 12 */
-#define TXCR_TX8	(1 << 8)	/* transmits slot 12 */
-#define TXCR_TX7	(1 << 7)	/* transmits slot 12 */
-#define TXCR_TX6	(1 << 6)	/* transmits slot 12 */
-#define TXCR_TX5	(1 << 5)	/* transmits slot 12 */
-#define TXCR_TX4	(1 << 4)	/* transmits slot 12 */
-#define TXCR_TX3	(1 << 3)	/* transmits slot 12 */
-#define TXCR_TX2	(1 << 2)	/* transmits slot 12 */
-#define TXCR_TX1	(1 << 1)	/* transmits slot 12 */
-#define TXCR_TXEN	(1 << 0)	/* transmit enable */
+#define CR_FEN		(1 << 16)	/* fifo enable */
+#define CR_COMPACT	(1 << 15)	/* compact mode */
+#define CR_SZ16		(0 << 13)	/* 16 bits */
+#define CR_SZ18		(1 << 13)	/* 18 bits */
+#define CR_SZ20		(2 << 13)	/* 20 bits */
+#define CR_SZ12		(3 << 13)	/* 12 bits */
+#define CR_SL12		(1 << 12)
+#define CR_SL11		(1 << 11)
+#define CR_SL10		(1 << 10)
+#define CR_SL9		(1 << 9)
+#define CR_SL8		(1 << 8)
+#define CR_SL7		(1 << 7)
+#define CR_SL6		(1 << 6)
+#define CR_SL5		(1 << 5)
+#define CR_SL4		(1 << 4)
+#define CR_SL3		(1 << 3)
+#define CR_SL2		(1 << 2)
+#define CR_SL1		(1 << 1)
+#define CR_EN		(1 << 0)	/* transmit enable */
 
 /*
  * status register bits. P49
@@ -229,6 +229,7 @@ struct aaci {
 	/* AC'97 */
 	struct mutex		ac97_sem;
 	struct snd_ac97_bus	*ac97_bus;
+	struct snd_ac97		*ac97;
 
 	u32			maincr;
 	spinlock_t		lock;

@@ -111,6 +111,17 @@ EXPORT_SYMBOL_GPL(ks0108_address);
 EXPORT_SYMBOL_GPL(ks0108_page);
 
 /*
+ * Is the module inited?
+ */
+
+static unsigned char ks0108_inited;
+unsigned char ks0108_isinited(void)
+{
+	return ks0108_inited;
+}
+EXPORT_SYMBOL_GPL(ks0108_isinited);
+
+/*
  * Module Init & Exit
  */
 
@@ -142,6 +153,7 @@ static int __init ks0108_init(void)
 		goto registered;
 	}
 
+	ks0108_inited = 1;
 	return 0;
 
 registered:

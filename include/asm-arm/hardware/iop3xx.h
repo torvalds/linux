@@ -37,6 +37,13 @@ extern void gpio_line_set(int line, int value);
 #define IOP3XX_PERIPHERAL_PHYS_BASE	0xffffe000
 #define IOP3XX_PERIPHERAL_VIRT_BASE	0xfeffe000
 #define IOP3XX_PERIPHERAL_SIZE		0x00002000
+#define IOP3XX_PERIPHERAL_UPPER_PA (IOP3XX_PERIPHERAL_PHYS_BASE +\
+					IOP3XX_PERIPHERAL_SIZE - 1)
+#define IOP3XX_PERIPHERAL_UPPER_VA (IOP3XX_PERIPHERAL_VIRT_BASE +\
+					IOP3XX_PERIPHERAL_SIZE - 1)
+#define IOP3XX_PMMR_PHYS_TO_VIRT(addr) (u32) ((u32) addr -\
+					(IOP3XX_PERIPHERAL_PHYS_BASE\
+					- IOP3XX_PERIPHERAL_VIRT_BASE))
 #define IOP3XX_REG_ADDR(reg)		(IOP3XX_PERIPHERAL_VIRT_BASE + (reg))
 
 /* Address Translation Unit  */
@@ -181,14 +188,10 @@ extern void gpio_line_set(int line, int value);
 #define IOP3XX_TU_TRR1		(volatile u32 *)IOP3XX_TIMER_REG(0x0014)
 #define IOP3XX_TU_TISR		(volatile u32 *)IOP3XX_TIMER_REG(0x0018)
 #define IOP3XX_TU_WDTCR		(volatile u32 *)IOP3XX_TIMER_REG(0x001c)
-#define IOP3XX_TMR_TC		0x01
-#define IOP3XX_TMR_EN		0x02
-#define IOP3XX_TMR_RELOAD	0x04
-#define IOP3XX_TMR_PRIVILEGED	0x09
-#define IOP3XX_TMR_RATIO_1_1	0x00
-#define IOP3XX_TMR_RATIO_4_1	0x10
-#define IOP3XX_TMR_RATIO_8_1	0x20
-#define IOP3XX_TMR_RATIO_16_1	0x30
+#define IOP_TMR_EN	    0x02
+#define IOP_TMR_RELOAD	    0x04
+#define IOP_TMR_PRIVILEGED 0x08
+#define IOP_TMR_RATIO_1_1  0x00
 
 /* Application accelerator unit  */
 #define IOP3XX_AAU_ACR		(volatile u32 *)IOP3XX_REG_ADDR(0x0800)
@@ -258,43 +261,63 @@ extern void gpio_line_set(int line, int value);
 #define IOP3XX_PCI_LOWER_IO_PA		0x90000000
 #define IOP3XX_PCI_LOWER_IO_VA		0xfe000000
 #define IOP3XX_PCI_LOWER_IO_BA		(*IOP3XX_OIOWTVR)
+#define IOP3XX_PCI_UPPER_IO_PA		(IOP3XX_PCI_LOWER_IO_PA +\
+					IOP3XX_PCI_IO_WINDOW_SIZE - 1)
+#define IOP3XX_PCI_UPPER_IO_VA		(IOP3XX_PCI_LOWER_IO_VA +\
+					IOP3XX_PCI_IO_WINDOW_SIZE - 1)
+#define IOP3XX_PCI_IO_PHYS_TO_VIRT(addr) (((u32) addr -\
+					IOP3XX_PCI_LOWER_IO_PA) +\
+					IOP3XX_PCI_LOWER_IO_VA)
 
 
 #ifndef __ASSEMBLY__
 void iop3xx_map_io(void);
-void iop3xx_init_time(unsigned long);
-unsigned long iop3xx_gettimeoffset(void);
+void iop_init_cp6_handler(void);
+void iop_init_time(unsigned long tickrate);
+unsigned long iop_gettimeoffset(void);
+
+static inline void write_tmr0(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c0, c1, 0" : : "r" (val));
+}
+
+static inline void write_tmr1(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c1, c1, 0" : : "r" (val));
+}
+
+static inline u32 read_tcr0(void)
+{
+	u32 val;
+	asm volatile("mrc p6, 0, %0, c2, c1, 0" : "=r" (val));
+	return val;
+}
+
+static inline u32 read_tcr1(void)
+{
+	u32 val;
+	asm volatile("mrc p6, 0, %0, c3, c1, 0" : "=r" (val));
+	return val;
+}
+
+static inline void write_trr0(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c4, c1, 0" : : "r" (val));
+}
+
+static inline void write_trr1(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c5, c1, 0" : : "r" (val));
+}
+
+static inline void write_tisr(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c6, c1, 0" : : "r" (val));
+}
 
 extern struct platform_device iop3xx_i2c0_device;
 extern struct platform_device iop3xx_i2c1_device;
 
-extern inline void iop3xx_cp6_enable(void)
-{
-	u32 temp;
-
-	asm volatile (
-		"mrc	p15, 0, %0, c15, c1, 0\n\t"
-		"orr	%0, %0, #(1 << 6)\n\t"
-		"mcr	p15, 0, %0, c15, c1, 0\n\t"
-		"mrc	p15, 0, %0, c15, c1, 0\n\t"
-		"mov	%0, %0\n\t"
-		"sub	pc, pc, #4\n\t"
-		: "=r" (temp) );
-}
-
-extern inline void iop3xx_cp6_disable(void)
-{
-	u32 temp;
-
-	asm volatile (
-		"mrc	p15, 0, %0, c15, c1, 0\n\t"
-		"bic	%0, %0, #(1 << 6)\n\t"
-		"mcr	p15, 0, %0, c15, c1, 0\n\t"
-		"mrc	p15, 0, %0, c15, c1, 0\n\t"
-		"mov	%0, %0\n\t"
-		"sub	pc, pc, #4\n\t"
-		: "=r" (temp) );
-}
 #endif
 
 

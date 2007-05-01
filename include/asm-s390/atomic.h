@@ -215,6 +215,8 @@ static __inline__ void atomic64_set_mask(unsigned long mask, atomic64_t * v)
 	       __CSG_LOOP(v, mask, "ogr");
 }
 
+#define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
+
 static __inline__ long long atomic64_cmpxchg(atomic64_t *v,
 					     long long old, long long new)
 {

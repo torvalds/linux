@@ -96,7 +96,6 @@
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 110,			\
 	.cache_nice_tries	= 0,			\
-	.per_cpu_gain		= 25,			\
 	.busy_idx		= 0,			\
 	.idle_idx		= 0,			\
 	.newidle_idx		= 1,			\
@@ -128,7 +127,6 @@
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
 	.cache_nice_tries	= 1,			\
-	.per_cpu_gain		= 100,			\
 	.busy_idx		= 2,			\
 	.idle_idx		= 1,			\
 	.newidle_idx		= 2,			\
@@ -159,7 +157,6 @@
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
 	.cache_nice_tries	= 1,			\
-	.per_cpu_gain		= 100,			\
 	.busy_idx		= 2,			\
 	.idle_idx		= 1,			\
 	.newidle_idx		= 2,			\
@@ -193,7 +190,6 @@
 	.newidle_idx		= 0, /* unused */	\
 	.wake_idx		= 0, /* unused */	\
 	.forkexec_idx		= 0, /* unused */	\
-	.per_cpu_gain		= 100,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_SERIALIZE,	\
 	.last_balance		= jiffies,		\

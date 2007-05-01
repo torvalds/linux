@@ -1,6 +1,8 @@
 #ifndef ASMARM_HARDWARE_ARM_SCU_H
 #define ASMARM_HARDWARE_ARM_SCU_H
 
+#include <asm/arch/scu.h>
+
 /*
  * SCU registers
  */

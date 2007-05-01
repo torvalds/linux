@@ -8,5 +8,4 @@ iw_cxgb3-y :=  iwch_cm.o iwch_ev.o iwch_cq.o iwch_qp.o iwch_mem.o \
 
 ifdef CONFIG_INFINIBAND_CXGB3_DEBUG
 EXTRA_CFLAGS += -DDEBUG
-iw_cxgb3-y += cxio_dbg.o
 endif

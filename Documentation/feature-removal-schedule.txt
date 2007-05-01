@@ -6,6 +6,18 @@ be removed from this file.
 
 ---------------------------
 
+What:	V4L2 VIDIOC_G_MPEGCOMP and VIDIOC_S_MPEGCOMP
+When:	October 2007
+Why:	Broken attempt to set MPEG compression parameters. These ioctls are
+	not able to implement the wide variety of parameters that can be set
+	by hardware MPEG encoders. A new MPEG control mechanism was created
+	in kernel 2.6.18 that replaces these ioctls. See the V4L2 specification
+	(section 1.9: Extended controls) for more information on this topic.
+Who:	Hans Verkuil <hverkuil@xs4all.nl> and
+	Mauro Carvalho Chehab <mchehab@infradead.org>
+
+---------------------------
+
 What:	/sys/devices/.../power/state
 	dev->power.power_state
 	dpm_runtime_{suspend,resume)()
@@ -35,17 +47,6 @@ Why:	Deprecated in favour of the more efficient and robust rawiso interface.
 	Affected are applications which use the deprecated part of libraw1394
 	(raw1394_iso_write, raw1394_start_iso_write, raw1394_start_iso_rcv,
 	raw1394_stop_iso_rcv) or bypass	libraw1394.
-Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
-
----------------------------
-
-What:	dv1394 driver (CONFIG_IEEE1394_DV1394)
-When:	June 2007
-Why:	Replaced by raw1394 + userspace libraries, notably libiec61883.  This
-	shift of application support has been indicated on www.linux1394.org
-	and developers' mailinglists for quite some time.  Major applications
-	have been converted, with the exception of ffmpeg and hence xine.
-	Piped output of dvgrab2 is a partial equivalent to dv1394.
 Who:	Dan Dennedy <dan@dennedy.org>, Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ---------------------------
@@ -145,15 +146,6 @@ Who:	Arjan van de Ven <arjan@linux.intel.com>
 
 ---------------------------
 
-What:	mount/umount uevents
-When:	February 2007
-Why:	These events are not correct, and do not properly let userspace know
-	when a file system has been mounted or unmounted.  Userspace should
-	poll the /proc/mounts file instead to detect this properly.
-Who:	Greg Kroah-Hartman <gregkh@suse.de>
-
----------------------------
-
 What:	USB driver API moves to EXPORT_SYMBOL_GPL
 When:	February 2008
 Files:	include/linux/usb.h, drivers/usb/core/driver.c
@@ -222,15 +214,6 @@ Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	IPv4 only connection tracking/NAT/helpers
-When:	2.6.22
-Why:	The new layer 3 independant connection tracking replaces the old
-	IPv4 only version. After some stabilization of the new code the
-	old one will be removed.
-Who:	Patrick McHardy <kaber@trash.net>
-
----------------------------
-
 What:	ACPI hooks (X86_SPEEDSTEP_CENTRINO_ACPI) in speedstep-centrino driver
 When:	December 2006
 Why:	Speedstep-centrino driver with ACPI hooks and acpi-cpufreq driver are
@@ -250,29 +233,6 @@ Why:	Speedstep-centrino driver with ACPI hooks and acpi-cpufreq driver are
 	date.
 
 Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
-
----------------------------
-
-<<<<<<< test:Documentation/feature-removal-schedule.txt
-What:	ACPI hotkey driver (CONFIG_ACPI_HOTKEY)
-When:	2.6.21
-Why:	hotkey.c was an attempt to consolidate multiple drivers that use
-	ACPI to implement hotkeys.  However, hotkeys are not documented
-	in the ACPI specification, so the drivers used undocumented
-	vendor-specific hooks and turned out to be more different than
-	the same.
-
-	Further, the keys and the features supplied by each platform
-	are different, so there will always be a need for
-	platform-specific drivers.
-
-	So the new plan is to delete hotkey.c and instead, work on the
-	platform specific drivers to try to make them look the same
-	to the user when they supply the same features.
-
-	hotkey.c has always depended on CONFIG_EXPERIMENTAL
-
-Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
@@ -306,13 +266,6 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
-What:	JFFS (version 1)
-When:	2.6.21
-Why:	Unmaintained for years, superceded by JFFS2 for years.
-Who:	Jeff Garzik <jeff@garzik.org>
-
----------------------------
-
 What:   sk98lin network driver
 When:   July 2007
 Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
@@ -332,5 +285,32 @@ Why:	The code says it was obsolete when it was written in 2001.
 	The name "tsdev" is also extremely confusing and lots of people have
 	it loaded when they don't need/use it.
 Who:	Richard Purdie <rpurdie@rpsys.net>
+
+---------------------------
+
+What:	i8xx_tco watchdog driver
+When:	in 2.6.22
+Why:	the i8xx_tco watchdog driver has been replaced by the iTCO_wdt
+	watchdog driver.
+Who:	Wim Van Sebroeck <wim@iguana.be>
+
+---------------------------
+
+What:	Multipath cached routing support in ipv4
+When:	in 2.6.23
+Why:	Code was merged, then submitter immediately disappeared leaving
+	us with no maintainer and lots of bugs.  The code should not have
+	been merged in the first place, and many aspects of it's
+	implementation are blocking more critical core networking
+	development.  It's marked EXPERIMENTAL and no distribution
+	enables it because it cause obscure crashes due to unfixable bugs
+	(interfaces don't return errors so memory allocation can't be
+	handled, calling contexts of these interfaces make handling
+	errors impossible too because they get called after we've
+	totally commited to creating a route object, for example).
+	This problem has existed for years and no forward progress
+	has ever been made, and nobody steps up to try and salvage
+	this code, so we're going to finally just get rid of it.
+Who:	David S. Miller <davem@davemloft.net>
 
 ---------------------------

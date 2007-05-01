@@ -90,15 +90,18 @@ static int jdccp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (port == 0 || ntohs(inet->dport) == port ||
 	    ntohs(inet->sport) == port) {
 		if (hctx)
-			printl("%d.%d.%d.%d:%u %d.%d.%d.%d:%u %d %d %d %d %d\n",
-			   NIPQUAD(inet->saddr), ntohs(inet->sport),
-			   NIPQUAD(inet->daddr), ntohs(inet->dport), size,
-			   hctx->ccid3hctx_s, hctx->ccid3hctx_rtt,
-			   hctx->ccid3hctx_p, hctx->ccid3hctx_t_ipi);
+			printl("%d.%d.%d.%d:%u %d.%d.%d.%d:%u %d %d %d %d %u "
+			       "%llu %llu %d\n",
+			       NIPQUAD(inet->saddr), ntohs(inet->sport),
+			       NIPQUAD(inet->daddr), ntohs(inet->dport), size,
+			       hctx->ccid3hctx_s, hctx->ccid3hctx_rtt,
+			       hctx->ccid3hctx_p, hctx->ccid3hctx_x_calc,
+			       hctx->ccid3hctx_x_recv >> 6,
+			       hctx->ccid3hctx_x >> 6, hctx->ccid3hctx_t_ipi);
 		else
 			printl("%d.%d.%d.%d:%u %d.%d.%d.%d:%u %d\n",
-			   NIPQUAD(inet->saddr), ntohs(inet->sport),
-			   NIPQUAD(inet->daddr), ntohs(inet->dport), size);
+			       NIPQUAD(inet->saddr), ntohs(inet->sport),
+			       NIPQUAD(inet->daddr), ntohs(inet->dport), size);
 	}
 
 	jprobe_return();

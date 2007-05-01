@@ -23,7 +23,7 @@ Index
 
 1. Copyright
 ============
-Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>
+Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>
 
 
 2. Disclaimer
@@ -125,8 +125,9 @@ And finally:
 6. Module loading
 =================
 To use the driver, it is necessary to load the "zc0301" module into memory
-after every other module required: "videodev", "usbcore" and, depending on
-the USB host controller you have, "ehci-hcd", "uhci-hcd" or "ohci-hcd".
+after every other module required: "videodev", "v4l2_common", "compat_ioctl32",
+"usbcore" and, depending on the USB host controller you have, "ehci-hcd",
+"uhci-hcd" or "ohci-hcd".
 
 Loading can be done as shown below:
 
@@ -211,12 +212,11 @@ Vendor ID  Product ID
 0x041e     0x4036
 0x041e     0x403a
 0x0458     0x7007
-0x0458     0x700C
+0x0458     0x700c
 0x0458     0x700f
 0x046d     0x08ae
 0x055f     0xd003
 0x055f     0xd004
-0x046d     0x08ae
 0x0ac8     0x0301
 0x0ac8     0x301b
 0x0ac8     0x303b

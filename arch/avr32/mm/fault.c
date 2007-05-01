@@ -16,26 +16,8 @@
 #include <asm/kdebug.h>
 #include <asm/mmu_context.h>
 #include <asm/sysreg.h>
-#include <asm/uaccess.h>
 #include <asm/tlb.h>
-
-#ifdef DEBUG
-static void dump_code(unsigned long pc)
-{
-	char *p = (char *)pc;
-	char val;
-	int i;
-
-
-	printk(KERN_DEBUG "Code:");
-	for (i = 0; i < 16; i++) {
-		if (__get_user(val, p + i))
-			break;
-		printk(" %02x", val);
-	}
-	printk("\n");
-}
-#endif
+#include <asm/uaccess.h>
 
 #ifdef CONFIG_KPROBES
 ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
@@ -68,17 +50,19 @@ static inline int notify_page_fault(enum die_val val, struct pt_regs *regs,
 }
 #endif
 
+int exception_trace = 1;
+
 /*
  * This routine handles page faults. It determines the address and the
  * problem, and then passes it off to one of the appropriate routines.
  *
  * ecr is the Exception Cause Register. Possible values are:
- *   5:  Page not found (instruction access)
  *   6:  Protection fault (instruction access)
- *   12: Page not found (read access)
- *   13: Page not found (write access)
- *   14: Protection fault (read access)
- *   15: Protection fault (write access)
+ *   15: Protection fault (read access)
+ *   16: Protection fault (write access)
+ *   20: Page not found (instruction access)
+ *   24: Page not found (read access)
+ *   28: Page not found (write access)
  */
 asmlinkage void do_page_fault(unsigned long ecr, struct pt_regs *regs)
 {
@@ -88,7 +72,9 @@ asmlinkage void do_page_fault(unsigned long ecr, struct pt_regs *regs)
 	const struct exception_table_entry *fixup;
 	unsigned long address;
 	unsigned long page;
-	int writeaccess = 0;
+	int writeaccess;
+	long signr;
+	int code;
 
 	if (notify_page_fault(DIE_PAGE_FAULT, regs,
 			      ecr, SIGSEGV) == NOTIFY_STOP)
@@ -98,6 +84,9 @@ asmlinkage void do_page_fault(unsigned long ecr, struct pt_regs *regs)
 
 	tsk = current;
 	mm = tsk->mm;
+
+	signr = SIGSEGV;
+	code = SEGV_MAPERR;
 
 	/*
 	 * If we're in an interrupt or have no user context, we must
@@ -125,7 +114,9 @@ asmlinkage void do_page_fault(unsigned long ecr, struct pt_regs *regs)
 	 * can handle it...
 	 */
 good_area:
-	//pr_debug("good area: vm_flags = 0x%lx\n", vma->vm_flags);
+	code = SEGV_ACCERR;
+	writeaccess = 0;
+
 	switch (ecr) {
 	case ECR_PROTECTION_X:
 	case ECR_TLB_MISS_X:
@@ -176,46 +167,24 @@ survive:
 	 * map. Fix it, but check if it's kernel or user first...
 	 */
 bad_area:
-	pr_debug("Bad area [%s:%u]: addr %08lx, ecr %lu\n",
-		 tsk->comm, tsk->pid, address, ecr);
-
 	up_read(&mm->mmap_sem);
 
 	if (user_mode(regs)) {
-		/* Hmm...we have to pass address and ecr somehow... */
-		/* tsk->thread.address = address;
-		   tsk->thread.error_code = ecr; */
-#ifdef DEBUG
-		show_regs(regs);
-		dump_code(regs->pc);
-
-		page = sysreg_read(PTBR);
-		printk("ptbr = %08lx", page);
-		if (page) {
-			page = ((unsigned long *)page)[address >> 22];
-			printk(" pgd = %08lx", page);
-			if (page & _PAGE_PRESENT) {
-				page &= PAGE_MASK;
-				address &= 0x003ff000;
-				page = ((unsigned long *)__va(page))[address >> PAGE_SHIFT];
-				printk(" pte = %08lx\n", page);
-			}
-		}
-#endif
-		pr_debug("Sending SIGSEGV to PID %d...\n",
-			tsk->pid);
-		force_sig(SIGSEGV, tsk);
+		if (exception_trace)
+			printk("%s%s[%d]: segfault at %08lx pc %08lx "
+			       "sp %08lx ecr %lu\n",
+			       is_init(tsk) ? KERN_EMERG : KERN_INFO,
+			       tsk->comm, tsk->pid, address, regs->pc,
+			       regs->sp, ecr);
+		_exception(SIGSEGV, regs, code, address);
 		return;
 	}
 
 no_context:
-	pr_debug("No context\n");
-
 	/* Are we prepared to handle this kernel fault? */
 	fixup = search_exception_tables(regs->pc);
 	if (fixup) {
 		regs->pc = fixup->fixup;
-		pr_debug("Found fixup at %08lx\n", fixup->fixup);
 		return;
 	}
 
@@ -230,7 +199,6 @@ no_context:
 		printk(KERN_ALERT
 		       "Unable to handle kernel paging request");
 	printk(" at virtual address %08lx\n", address);
-	printk(KERN_ALERT "pc = %08lx\n", regs->pc);
 
 	page = sysreg_read(PTBR);
 	printk(KERN_ALERT "ptbr = %08lx", page);
@@ -241,20 +209,20 @@ no_context:
 			page &= PAGE_MASK;
 			address &= 0x003ff000;
 			page = ((unsigned long *)__va(page))[address >> PAGE_SHIFT];
-			printk(" pte = %08lx\n", page);
+			printk(" pte = %08lx", page);
 		}
 	}
-	die("\nOops", regs, ecr);
-	do_exit(SIGKILL);
+	printk("\n");
+	die("Kernel access of bad area", regs, signr);
+	return;
 
 	/*
 	 * We ran out of memory, or some other thing happened to us
 	 * that made us unable to handle the page fault gracefully.
 	 */
 out_of_memory:
-	printk("Out of memory\n");
 	up_read(&mm->mmap_sem);
-	if (current->pid == 1) {
+	if (is_init(current)) {
 		yield();
 		down_read(&mm->mmap_sem);
 		goto survive;
@@ -267,21 +235,20 @@ out_of_memory:
 do_sigbus:
 	up_read(&mm->mmap_sem);
 
-	/*
-	 * Send a sigbus, regardless of whether we were in kernel or
-	 * user mode.
-	 */
-	/* address, error_code, trap_no, ... */
-#ifdef DEBUG
-	show_regs(regs);
-	dump_code(regs->pc);
-#endif
-	pr_debug("Sending SIGBUS to PID %d...\n", tsk->pid);
-	force_sig(SIGBUS, tsk);
-
 	/* Kernel mode? Handle exceptions or die */
+	signr = SIGBUS;
+	code = BUS_ADRERR;
 	if (!user_mode(regs))
 		goto no_context;
+
+	if (exception_trace)
+		printk("%s%s[%d]: bus error at %08lx pc %08lx "
+		       "sp %08lx ecr %lu\n",
+		       is_init(tsk) ? KERN_EMERG : KERN_INFO,
+		       tsk->comm, tsk->pid, address, regs->pc,
+		       regs->sp, ecr);
+
+	_exception(SIGBUS, regs, BUS_ADRERR, address);
 }
 
 asmlinkage void do_bus_error(unsigned long addr, int write_access,
@@ -292,8 +259,7 @@ asmlinkage void do_bus_error(unsigned long addr, int write_access,
 	       addr, write_access ? "write" : "read");
 	printk(KERN_INFO "DTLB dump:\n");
 	dump_dtlb();
-	die("Bus Error", regs, write_access);
-	do_exit(SIGKILL);
+	die("Bus Error", regs, SIGKILL);
 }
 
 /*

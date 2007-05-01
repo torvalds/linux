@@ -822,11 +822,17 @@ static int vortex_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct vortex_private *vp = netdev_priv(dev);
+	int err;
 
 	if (dev && vp) {
 		pci_set_power_state(pdev, PCI_D0);
 		pci_restore_state(pdev);
-		pci_enable_device(pdev);
+		err = pci_enable_device(pdev);
+		if (err) {
+			printk(KERN_WARNING "%s: Could not enable device \n",
+				dev->name);
+			return err;
+		}
 		pci_set_master(pdev);
 		if (request_irq(dev->irq, vp->full_bus_master_rx ?
 				&boomerang_interrupt : &vortex_interrupt, IRQF_SHARED, dev->name, dev)) {
@@ -852,19 +858,7 @@ static struct eisa_device_id vortex_eisa_ids[] = {
 };
 MODULE_DEVICE_TABLE(eisa, vortex_eisa_ids);
 
-static int vortex_eisa_probe(struct device *device);
-static int vortex_eisa_remove(struct device *device);
-
-static struct eisa_driver vortex_eisa_driver = {
-	.id_table = vortex_eisa_ids,
-	.driver   = {
-		.name    = "3c59x",
-		.probe   = vortex_eisa_probe,
-		.remove  = vortex_eisa_remove
-	}
-};
-
-static int vortex_eisa_probe(struct device *device)
+static int __init vortex_eisa_probe(struct device *device)
 {
 	void __iomem *ioaddr;
 	struct eisa_device *edev;
@@ -887,7 +881,7 @@ static int vortex_eisa_probe(struct device *device)
 	return 0;
 }
 
-static int vortex_eisa_remove(struct device *device)
+static int __devexit vortex_eisa_remove(struct device *device)
 {
 	struct eisa_device *edev;
 	struct net_device *dev;
@@ -912,7 +906,17 @@ static int vortex_eisa_remove(struct device *device)
 	free_netdev(dev);
 	return 0;
 }
-#endif
+
+static struct eisa_driver vortex_eisa_driver = {
+	.id_table = vortex_eisa_ids,
+	.driver   = {
+		.name    = "3c59x",
+		.probe   = vortex_eisa_probe,
+		.remove  = __devexit_p(vortex_eisa_remove)
+	}
+};
+
+#endif /* CONFIG_EISA */
 
 /* returns count found (>= 0), or negative on error */
 static int __init vortex_eisa_init(void)
@@ -2410,7 +2414,6 @@ static int vortex_rx(struct net_device *dev)
 				printk(KERN_DEBUG "Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);
 			if (skb != NULL) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				if (vp->bus_master &&
@@ -2487,7 +2490,6 @@ boomerang_rx(struct net_device *dev)
 			/* Check if the packet is long enough to just accept without
 			   copying to a properly sized skbuff. */
 			if (pkt_len < rx_copybreak && (skb = dev_alloc_skb(pkt_len + 2)) != 0) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				pci_dma_sync_single_for_cpu(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				/* 'skb_put()' points to the start of sk_buff data area. */

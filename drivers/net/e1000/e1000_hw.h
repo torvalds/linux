@@ -3253,7 +3253,7 @@ struct e1000_host_command_info {
 #define IFE_PMC_AUTO_MDIX                    0x0080  /* 1=enable MDI/MDI-X feature, default 0=disabled */
 #define IFE_PMC_FORCE_MDIX                   0x0040  /* 1=force MDIX-X, 0=force MDI */
 #define IFE_PMC_MDIX_STATUS                  0x0020  /* 1=MDI-X, 0=MDI */
-#define IFE_PMC_AUTO_MDIX_COMPLETE           0x0010  /* Resolution algorthm is completed */
+#define IFE_PMC_AUTO_MDIX_COMPLETE           0x0010  /* Resolution algorithm is completed */
 #define IFE_PMC_MDIX_MODE_SHIFT              6
 #define IFE_PHC_MDIX_RESET_ALL_MASK          0x0000  /* Disable auto MDI-X */
 

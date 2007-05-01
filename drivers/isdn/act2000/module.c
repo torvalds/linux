@@ -442,7 +442,7 @@ act2000_sendbuf(act2000_card *card, int channel, int ack, struct sk_buff *skb)
 			return 0;
 		}
 		skb_reserve(xmit_skb, 19);
-		memcpy(skb_put(xmit_skb, len), skb->data, len);
+		skb_copy_from_linear_data(skb, skb_put(xmit_skb, len), len);
 	} else {
 		xmit_skb = skb_clone(skb, GFP_ATOMIC);
 		if (!xmit_skb) {

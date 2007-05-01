@@ -30,31 +30,11 @@
 
 #define __read_mostly __attribute__((__section__(".data.read_mostly")))
 
-extern void flush_data_cache_local(void *);  /* flushes local data-cache only */
-extern void flush_instruction_cache_local(void *); /* flushes local code-cache only */
-#ifdef CONFIG_SMP
-extern void flush_data_cache(void); /* flushes data-cache only (all processors) */
-extern void flush_instruction_cache(void); /* flushes i-cache only (all processors) */
-#else
-#define flush_data_cache() flush_data_cache_local(NULL)
-#define flush_instruction_cache() flush_instruction_cache_local(NULL)
-#endif
-
-extern void parisc_cache_init(void);	/* initializes cache-flushing */
-extern void flush_all_caches(void);     /* flush everything (tlb & cache) */
-extern int get_cache_info(char *);
-extern void flush_user_icache_range_asm(unsigned long, unsigned long);
-extern void flush_kernel_icache_range_asm(unsigned long, unsigned long);
-extern void flush_user_dcache_range_asm(unsigned long, unsigned long);
-extern void flush_kernel_dcache_range_asm(unsigned long, unsigned long);
-extern void flush_kernel_dcache_page_asm(void *);
-extern void flush_kernel_icache_page(void *);
-extern void disable_sr_hashing(void);   /* turns off space register hashing */
-extern void disable_sr_hashing_asm(int); /* low level support for above */
-extern void free_sid(unsigned long);
+void parisc_cache_init(void);	/* initializes cache-flushing */
+void disable_sr_hashing_asm(int); /* low level support for above */
+void disable_sr_hashing(void);   /* turns off space register hashing */
+void free_sid(unsigned long);
 unsigned long alloc_sid(void);
-extern void flush_user_dcache_page(unsigned long);
-extern void flush_user_icache_page(unsigned long);
 
 struct seq_file;
 extern void show_cache_info(struct seq_file *m);
@@ -63,6 +43,7 @@ extern int split_tlb;
 extern int dcache_stride;
 extern int icache_stride;
 extern struct pdc_cache_info cache_info;
+void parisc_setup_cache_timing(void);
 
 #define pdtlb(addr)         asm volatile("pdtlb 0(%%sr1,%0)" : : "r" (addr));
 #define pitlb(addr)         asm volatile("pitlb 0(%%sr1,%0)" : : "r" (addr));

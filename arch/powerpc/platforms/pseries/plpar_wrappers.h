@@ -78,6 +78,22 @@ static inline long plpar_pte_remove(unsigned long flags, unsigned long ptex,
 	return rc;
 }
 
+/* plpar_pte_remove_raw can be called in real mode. It calls plpar_hcall_raw */
+static inline long plpar_pte_remove_raw(unsigned long flags, unsigned long ptex,
+		unsigned long avpn, unsigned long *old_pteh_ret,
+		unsigned long *old_ptel_ret)
+{
+	long rc;
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+	rc = plpar_hcall_raw(H_REMOVE, retbuf, flags, ptex, avpn);
+
+	*old_pteh_ret = retbuf[0];
+	*old_ptel_ret = retbuf[1];
+
+	return rc;
+}
+
 static inline long plpar_pte_read(unsigned long flags, unsigned long ptex,
 		unsigned long *old_pteh_ret, unsigned long *old_ptel_ret)
 {

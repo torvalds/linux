@@ -50,6 +50,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/bitops.h>
+#include <linux/random.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <linux/interrupt.h>
@@ -566,14 +567,6 @@ static void yam_start_tx(struct net_device *dev, struct yam_port *yp)
 	ptt_on(dev);
 }
 
-static unsigned short random_seed;
-
-static inline unsigned short random_num(void)
-{
-	random_seed = 28629 * random_seed + 157;
-	return random_seed;
-}
-
 static void yam_arbitrate(struct net_device *dev)
 {
 	struct yam_port *yp = netdev_priv(dev);
@@ -600,7 +593,7 @@ static void yam_arbitrate(struct net_device *dev)
 	yp->slotcnt = yp->slot / 10;
 
 	/* is random > persist ? */
-	if ((random_num() % 256) > yp->pers)
+	if ((random32() % 256) > yp->pers)
 		return;
 
 	yam_start_tx(dev, yp);
@@ -645,7 +638,9 @@ static void yam_tx_byte(struct net_device *dev, struct yam_port *yp)
         			dev_kfree_skb_any(skb);
 				break;
 			}
-			memcpy(yp->tx_buf, skb->data + 1, yp->tx_len);
+			skb_copy_from_linear_data_offset(skb, 1,
+							 yp->tx_buf,
+							 yp->tx_len);
 			dev_kfree_skb_any(skb);
 			yp->tx_count = 0;
 			yp->tx_crcl = 0x21;

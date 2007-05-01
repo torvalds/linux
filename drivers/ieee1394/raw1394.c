@@ -938,7 +938,8 @@ static int handle_async_send(struct file_info *fi, struct pending_request *req)
 	int header_length = req->req.misc & 0xffff;
 	int expect_response = req->req.misc >> 16;
 
-	if ((header_length > req->req.length) || (header_length < 12)) {
+	if (header_length > req->req.length || header_length < 12 ||
+	    header_length > FIELD_SIZEOF(struct hpsb_packet, header)) {
 		req->req.error = RAW1394_ERROR_INVALID_ARG;
 		req->req.length = 0;
 		queue_complete_req(req);
@@ -2669,6 +2670,18 @@ static void raw1394_iso_shutdown(struct file_info *fi)
 	fi->iso_state = RAW1394_ISO_INACTIVE;
 }
 
+static int raw1394_read_cycle_timer(struct file_info *fi, void __user * uaddr)
+{
+	struct raw1394_cycle_timer ct;
+	int err;
+
+	err = hpsb_read_cycle_timer(fi->host, &ct.cycle_timer, &ct.local_time);
+	if (!err)
+		if (copy_to_user(uaddr, &ct, sizeof(ct)))
+			err = -EFAULT;
+	return err;
+}
+
 /* mmap the rawiso xmit/recv buffer */
 static int raw1394_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -2773,6 +2786,14 @@ static int raw1394_ioctl(struct inode *inode, struct file *file,
 			return 0;
 		}
 		break;
+	default:
+		break;
+	}
+
+	/* state-independent commands */
+	switch(cmd) {
+	case RAW1394_IOC_GET_CYCLE_TIMER:
+		return raw1394_read_cycle_timer(fi, argp);
 	default:
 		break;
 	}

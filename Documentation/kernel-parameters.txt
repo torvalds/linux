@@ -48,6 +48,7 @@ parameter is applicable:
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
+	LIBATA  Libata driver is enabled
 	LP	Printer support is enabled.
 	LOOP	Loopback device support is enabled.
 	M68k	M68k architecture is enabled.
@@ -78,6 +79,7 @@ parameter is applicable:
 			Documentation/scsi/.
 	SELINUX SELinux support is enabled.
 	SERIAL	Serial support is enabled.
+	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
 	SPARC	Sparc architecture is enabled.
 	SWSUSP	Software suspend is enabled.
@@ -124,7 +126,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			See header of drivers/scsi/53c7xx.c.
 			See also Documentation/scsi/ncr53c7xx.txt.
 
-	acpi=		[HW,ACPI] Advanced Configuration and Power Interface
+	acpi=		[HW,ACPI,X86-64,i386]
+			Advanced Configuration and Power Interface
 			Format: { force | off | ht | strict | noirq }
 			force -- enable ACPI if default was off
 			off -- disable ACPI if default was on
@@ -134,6 +137,12 @@ and is between 256 and 4096 characters. It is defined in the file
 				strictly ACPI specification compliant.
 
 			See also Documentation/pm.txt, pci=noacpi
+
+	acpi_apic_instance=	[ACPI, IOAPIC]
+			Format: <int>
+			2: use 2nd APIC table, if available
+			1,0: use 1st APIC table
+			default: 0
 
 	acpi_sleep=	[HW,ACPI] Sleep options
 			Format: { s3_bios, s3_mode }
@@ -172,19 +181,41 @@ and is between 256 and 4096 characters. It is defined in the file
 			that require a timer override, but don't have
 			HPET
 
-	acpi_dbg_layer=	[HW,ACPI]
+	acpi.debug_layer=	[HW,ACPI]
 			Format: <int>
 			Each bit of the <int> indicates an ACPI debug layer,
 			1: enable, 0: disable. It is useful for boot time
 			debugging. After system has booted up, it can be set
-			via /proc/acpi/debug_layer.
+			via /sys/module/acpi/parameters/debug_layer.
+			CONFIG_ACPI_DEBUG must be enabled for this to produce any output.
+			Available bits (add the numbers together) to enable debug output
+			for specific parts of the ACPI subsystem:
+			0x01 utilities 0x02 hardware 0x04 events 0x08 tables
+			0x10 namespace 0x20 parser 0x40 dispatcher
+			0x80 executer 0x100 resources 0x200 acpica debugger
+			0x400 os services 0x800 acpica disassembler.
+			The number can be in decimal or prefixed with 0x in hex.
+			Warning: Many of these options can produce a lot of
+			output and make your system unusable. Be very careful.
 
-	acpi_dbg_level=	[HW,ACPI]
+	acpi.debug_level=	[HW,ACPI]
 			Format: <int>
 			Each bit of the <int> indicates an ACPI debug level,
 			1: enable, 0: disable. It is useful for boot time
 			debugging. After system has booted up, it can be set
-			via /proc/acpi/debug_level.
+			via /sys/module/acpi/parameters/debug_level.
+			CONFIG_ACPI_DEBUG must be enabled for this to produce any output.
+			Available bits (add the numbers together) to enable different
+			debug output levels of the ACPI subsystem:
+			0x01 error 0x02 warn 0x04 init 0x08 debug object
+			0x10 info 0x20 init names 0x40 parse 0x80 load
+			0x100 dispatch 0x200 execute 0x400 names 0x800 operation region
+			0x1000 bfield 0x2000 tables 0x4000 values 0x8000 objects
+			0x10000 resources 0x20000 user requests 0x40000 package.
+			The number can be in decimal or prefixed with 0x in hex.
+			Warning: Many of these options can produce a lot of
+			output and make your system unusable. Be very careful.
+
 
 	acpi_fake_ecdt	[HW,ACPI] Workaround failure due to BIOS lacking ECDT
 
@@ -484,7 +515,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	dtc3181e=	[HW,SCSI]
 
-	earlyprintk=	[IA-32,X86-64]
+	earlyprintk=	[IA-32,X86-64,SH]
 			earlyprintk=vga
 			earlyprintk=serial[,ttySn[,baudrate]]
 
@@ -771,6 +802,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	lapic		[IA-32,APIC] Enable the local APIC even if BIOS
 			disabled it.
 
+	lapic_timer_c2_ok	[IA-32,x86-64,APIC] trust the local apic timer in
+			C2 power state.
+
 	lasi=		[HW,SCSI] PARISC LASI driver for the 53c700 chip
 			Format: addr:<io>,irq:<irq>
 
@@ -863,7 +897,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <1-256>
 
 	maxcpus=	[SMP] Maximum number of processors that	an SMP kernel
-			should make use of
+			should make use of.
+			Using "nosmp" or "maxcpus=0" will disable SMP
+			entirely (the MPS table probe still happens, though).
+			A command-line option of "maxcpus=<NUM>", where <NUM>
+			is an integer greater than 0, limits the maximum number
+			of CPUs activated in SMP mode to <NUM>.
+			Using "maxcpus=1" on an SMP kernel is the trivial
+			case of an SMP kernel with only one CPU.
 
 	max_addr=[KMG]	[KNL,BOOT,ia64] All physical memory greater than or
 			equal to this physical address is ignored.
@@ -1038,6 +1079,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			emulation library even if a 387 maths coprocessor
 			is present.
 
+	noacpi		[LIBATA] Disables use of ACPI in libata suspend/resume
+			when set.
+			Format: <int>
+
 	noaliencache	[MM, NUMA] Disables the allcoation of alien caches in
 			the slab allocator.  Saves per-node memory, but will
 			impact performance on real NUMA hardware.
@@ -1102,6 +1147,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	nointroute	[IA-64]
 
 	nolapic		[IA-32,APIC] Do not enable or use the local APIC.
+
+	nolapic_timer	[IA-32,APIC] Do not use the local APIC timer.
 
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
@@ -1275,6 +1322,12 @@ and is between 256 and 4096 characters. It is defined in the file
 				This sorting is done to get a device
 				order compatible with older (<= 2.4) kernels.
 		nobfsort	Don't sort PCI devices into breadth-first order.
+		cbiosize=nn[KMG]	The fixed amount of bus space which is
+				reserved for the CardBus bridge's IO window.
+				The default value is 256 bytes.
+		cbmemsize=nn[KMG]	The fixed amount of bus space which is
+				reserved for the CardBus bridge's memory
+				window. The default value is 64 megabytes.
 
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
@@ -1667,6 +1720,22 @@ and is between 256 and 4096 characters. It is defined in the file
 	stifb=		[HW]
 			Format: bpp:<bpp1>[:<bpp2>[:<bpp3>...]]
 
+	sunrpc.pool_mode=
+			[NFS]
+			Control how the NFS server code allocates CPUs to
+			service thread pools.  Depending on how many NICs
+			you have and where their interrupts are bound, this
+			option will affect which CPUs will do NFS serving.
+			Note: this parameter cannot be changed while the
+			NFS server is running.
+
+			auto	    the server chooses an appropriate mode
+				    automatically using heuristics
+			global	    a single global pool contains all CPUs
+			percpu	    one pool for each CPU
+			pernode	    one pool for each NUMA node (equivalent
+				    to global on non-NUMA machines)
+
 	swiotlb=	[IA-64] Number of I/O TLB slabs
 
 	switches=	[HW,M68k]
@@ -1740,10 +1809,17 @@ and is between 256 and 4096 characters. It is defined in the file
 			Note that genuine overcurrent events won't be
 			reported either.
 
+	usbcore.autosuspend=
+			[USB] The autosuspend time delay (in seconds) used
+			for newly-detected USB devices (default 2).  This
+			is the time required before an idle device will be
+			autosuspended.  Devices for which the delay is set
+			to a negative value won't be autosuspended at all.
+
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
-	vdso=		[IA-32]
+	vdso=		[IA-32,SH]
 			vdso=1: enable VDSO (default)
 			vdso=0: disable VDSO mapping
 

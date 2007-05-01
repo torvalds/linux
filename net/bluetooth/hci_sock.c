@@ -375,7 +375,7 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		copied = len;
 	}
 
-	skb->h.raw = skb->data;
+	skb_reset_transport_header(skb);
 	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
 
 	hci_sock_cmsg(sk, msg, skb);
@@ -656,7 +656,7 @@ static int hci_sock_dev_event(struct notifier_block *this, unsigned long event, 
 		/* Detach sockets from device */
 		read_lock(&hci_sk_list.lock);
 		sk_for_each(sk, node, &hci_sk_list.head) {
-			bh_lock_sock(sk);
+			lock_sock(sk);
 			if (hci_pi(sk)->hdev == hdev) {
 				hci_pi(sk)->hdev = NULL;
 				sk->sk_err = EPIPE;
@@ -665,7 +665,7 @@ static int hci_sock_dev_event(struct notifier_block *this, unsigned long event, 
 
 				hci_dev_put(hdev);
 			}
-			bh_unlock_sock(sk);
+			release_sock(sk);
 		}
 		read_unlock(&hci_sk_list.lock);
 	}

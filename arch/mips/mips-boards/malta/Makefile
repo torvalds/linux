@@ -21,4 +21,4 @@
 
 obj-y := malta_int.o malta_setup.o
 obj-$(CONFIG_MTD) += malta_mtd.o
-obj-$(CONFIG_SMP) += malta_smp.o
+obj-$(CONFIG_MIPS_MT_SMTC) += malta_smtc.o

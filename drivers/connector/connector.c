@@ -128,7 +128,7 @@ EXPORT_SYMBOL_GPL(cn_netlink_send);
  */
 static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), void *data)
 {
-	struct cn_callback_entry *__cbq;
+	struct cn_callback_entry *__cbq, *__new_cbq;
 	struct cn_dev *dev = &cdev;
 	int err = -ENODEV;
 
@@ -148,27 +148,27 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 			} else {
 				struct cn_callback_data *d;
 				
-				__cbq = kzalloc(sizeof(*__cbq), GFP_ATOMIC);
-				if (__cbq) {
-					d = &__cbq->data;
+				err = -ENOMEM;
+				__new_cbq = kzalloc(sizeof(struct cn_callback_entry), GFP_ATOMIC);
+				if (__new_cbq) {
+					d = &__new_cbq->data;
 					d->callback_priv = msg;
 					d->callback = __cbq->data.callback;
 					d->ddata = data;
 					d->destruct_data = destruct_data;
-					d->free = __cbq;
+					d->free = __new_cbq;
 
-					INIT_WORK(&__cbq->work,
+					INIT_WORK(&__new_cbq->work,
 							&cn_queue_wrapper);
-					
+
 					if (queue_work(dev->cbdev->cn_queue,
-						    &__cbq->work))
+						    &__new_cbq->work))
 						err = 0;
 					else {
-						kfree(__cbq);
+						kfree(__new_cbq);
 						err = -EINVAL;
 					}
-				} else
-					err = -ENOMEM;
+				}
 			}
 			break;
 		}
@@ -212,7 +212,7 @@ static void cn_rx_skb(struct sk_buff *__skb)
 	skb = skb_get(__skb);
 
 	if (skb->len >= NLMSG_SPACE(0)) {
-		nlh = (struct nlmsghdr *)skb->data;
+		nlh = nlmsg_hdr(skb);
 
 		if (nlh->nlmsg_len < sizeof(struct cn_msg) ||
 		    skb->len < nlh->nlmsg_len ||
@@ -448,7 +448,7 @@ static int __devinit cn_init(void)
 
 	dev->nls = netlink_kernel_create(NETLINK_CONNECTOR,
 					 CN_NETLINK_USERS + 0xf,
-					 dev->input, THIS_MODULE);
+					 dev->input, NULL, THIS_MODULE);
 	if (!dev->nls)
 		return -EIO;
 

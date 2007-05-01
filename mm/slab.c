@@ -1042,7 +1042,7 @@ static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
 static struct array_cache **alloc_alien_cache(int node, int limit)
 {
 	struct array_cache **ac_ptr;
-	int memsize = sizeof(void *) * MAX_NUMNODES;
+	int memsize = sizeof(void *) * nr_node_ids;
 	int i;
 
 	if (limit > 1)
@@ -1802,8 +1802,8 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
 			/* Print header */
 			if (lines == 0) {
 				printk(KERN_ERR
-					"Slab corruption: start=%p, len=%d\n",
-					realobj, size);
+					"Slab corruption: %s start=%p, len=%d\n",
+					cachep->name, realobj, size);
 				print_objinfo(cachep, objp, 0);
 			}
 			/* Hexdump the affected line */
@@ -4026,7 +4026,7 @@ void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
 
 /**
  * cache_reap - Reclaim memory from caches.
- * @unused: unused parameter
+ * @w: work descriptor
  *
  * Called from workqueue/eventd every few seconds.
  * Purpose:

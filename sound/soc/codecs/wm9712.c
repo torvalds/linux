@@ -39,7 +39,7 @@ static int ac97_write(struct snd_soc_codec *codec,
  */
 static const u16 wm9712_reg[] = {
 	0x6174, 0x8000, 0x8000, 0x8000, // 6
-	0xf0f0, 0xaaa0, 0xc008, 0x6808, // e
+	0x0f0f, 0xaaa0, 0xc008, 0x6808, // e
 	0xe808, 0xaaa0, 0xad00, 0x8000, // 16
 	0xe808, 0x3000, 0x8000, 0x0000, // 1e
 	0x0000, 0x0000, 0x0000, 0x000f, // 26
@@ -96,6 +96,7 @@ SOC_DOUBLE("Speaker Playback Volume", AC97_MASTER, 8, 0, 31, 1),
 SOC_SINGLE("Speaker Playback Switch", AC97_MASTER, 15, 1, 1),
 SOC_DOUBLE("Headphone Playback Volume", AC97_HEADPHONE, 8, 0, 31, 1),
 SOC_SINGLE("Headphone Playback Switch", AC97_HEADPHONE,15, 1, 1),
+SOC_DOUBLE("PCM Playback Volume", AC97_PCM, 8, 0, 31, 1),
 
 SOC_SINGLE("Speaker Playback ZC Switch", AC97_MASTER, 7, 1, 0),
 SOC_SINGLE("Speaker Playback Invert Switch", AC97_MASTER, 6, 1, 0),

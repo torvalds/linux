@@ -1267,30 +1267,42 @@ static int __devinit abituguru_probe(struct platform_device *pdev)
 	printk(KERN_INFO ABIT_UGURU_NAME ": found Abit uGuru\n");
 
 	/* Register sysfs hooks */
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		res = PTR_ERR(data->class_dev);
-		goto abituguru_probe_error;
-	}
 	for (i = 0; i < sysfs_attr_i; i++)
-		device_create_file(&pdev->dev, &data->sysfs_attr[i].dev_attr);
+		if (device_create_file(&pdev->dev,
+				&data->sysfs_attr[i].dev_attr))
+			goto abituguru_probe_error;
 	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
-		device_create_file(&pdev->dev,
-			&abituguru_sysfs_attr[i].dev_attr);
+		if (device_create_file(&pdev->dev,
+				&abituguru_sysfs_attr[i].dev_attr))
+			goto abituguru_probe_error;
 
-	return 0;
+	data->class_dev = hwmon_device_register(&pdev->dev);
+	if (!IS_ERR(data->class_dev))
+		return 0; /* success */
 
+	res = PTR_ERR(data->class_dev);
 abituguru_probe_error:
+	for (i = 0; data->sysfs_attr[i].dev_attr.attr.name; i++)
+		device_remove_file(&pdev->dev, &data->sysfs_attr[i].dev_attr);
+	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
+		device_remove_file(&pdev->dev,
+			&abituguru_sysfs_attr[i].dev_attr);
 	kfree(data);
 	return res;
 }
 
 static int __devexit abituguru_remove(struct platform_device *pdev)
 {
+	int i;
 	struct abituguru_data *data = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
 	hwmon_device_unregister(data->class_dev);
+	for (i = 0; data->sysfs_attr[i].dev_attr.attr.name; i++)
+		device_remove_file(&pdev->dev, &data->sysfs_attr[i].dev_attr);
+	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
+		device_remove_file(&pdev->dev,
+			&abituguru_sysfs_attr[i].dev_attr);
 	kfree(data);
 
 	return 0;

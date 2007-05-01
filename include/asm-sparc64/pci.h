@@ -54,7 +54,7 @@ struct pci_iommu_ops {
 	void (*dma_sync_sg_for_cpu)(struct pci_dev *, struct scatterlist *, int, int);
 };
 
-extern struct pci_iommu_ops *pci_iommu_ops;
+extern const struct pci_iommu_ops *pci_iommu_ops;
 
 /* Allocate and map kernel buffer using consistent mode DMA for a device.
  * hwdev should be valid struct pci_dev pointer for PCI devices.
@@ -311,6 +311,9 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return PCI_IRQ_NONE;
 }
+
+struct device_node;
+extern struct device_node *pci_device_to_OF_node(struct pci_dev *pdev);
 
 #endif /* __KERNEL__ */
 

@@ -285,23 +285,24 @@ static int adu_open(struct inode *inode, struct file *file)
 	/* save device in the file's private structure */
 	file->private_data = dev;
 
-	/* initialize in direction */
-	dev->read_buffer_length = 0;
+	if (dev->open_count == 1) {
+		/* initialize in direction */
+		dev->read_buffer_length = 0;
 
-	/* fixup first read by having urb waiting for it */
-	usb_fill_int_urb(dev->interrupt_in_urb,dev->udev,
-			 usb_rcvintpipe(dev->udev,
-			 		dev->interrupt_in_endpoint->bEndpointAddress),
-			 dev->interrupt_in_buffer,
-			 le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize),
-			 adu_interrupt_in_callback, dev,
-			 dev->interrupt_in_endpoint->bInterval);
-	/* dev->interrupt_in_urb->transfer_flags |= URB_ASYNC_UNLINK; */
-	dev->read_urb_finished = 0;
-	usb_submit_urb(dev->interrupt_in_urb, GFP_KERNEL);
-	/* we ignore failure */
-	/* end of fixup for first read */
-
+		/* fixup first read by having urb waiting for it */
+		usb_fill_int_urb(dev->interrupt_in_urb,dev->udev,
+				 usb_rcvintpipe(dev->udev,
+				 		dev->interrupt_in_endpoint->bEndpointAddress),
+				 dev->interrupt_in_buffer,
+				 le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize),
+				 adu_interrupt_in_callback, dev,
+				 dev->interrupt_in_endpoint->bInterval);
+		/* dev->interrupt_in_urb->transfer_flags |= URB_ASYNC_UNLINK; */
+		dev->read_urb_finished = 0;
+		retval = usb_submit_urb(dev->interrupt_in_urb, GFP_KERNEL);
+		if (retval)
+			--dev->open_count;
+	}
 	up(&dev->sem);
 
 exit_no_device:
@@ -469,7 +470,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 							 adu_interrupt_in_callback,
 							 dev,
 							 dev->interrupt_in_endpoint->bInterval);
-					retval = usb_submit_urb(dev->interrupt_in_urb, GFP_KERNEL);
+					retval = usb_submit_urb(dev->interrupt_in_urb, GFP_ATOMIC);
 					if (!retval) {
 						spin_unlock_irqrestore(&dev->buflock, flags);
 						dbg(2," %s : submitted OK", __FUNCTION__);
@@ -539,7 +540,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 	size_t bytes_written = 0;
 	size_t bytes_to_write;
 	size_t buffer_size;
-	int retval = 0;
+	int retval;
 	int timeout = 0;
 
 	dbg(2," %s : enter, count = %Zd", __FUNCTION__, count);
@@ -547,7 +548,9 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 	dev = file->private_data;
 
 	/* lock this object */
-	down_interruptible(&dev->sem);
+	retval = down_interruptible(&dev->sem);
+	if (retval)
+		goto exit_nolock;
 
 	/* verify that the device wasn't unplugged */
 	if (dev->udev == NULL || dev->minor == 0) {
@@ -575,7 +578,11 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 			}
 			up(&dev->sem);
 			timeout = interruptible_sleep_on_timeout(&dev->write_wait, timeout);
-			down_interruptible(&dev->sem);
+			retval = down_interruptible(&dev->sem);
+			if (retval) {
+				retval = bytes_written ? bytes_written : retval;
+				goto exit_nolock;
+			}
 			if (timeout > 0) {
 				break;
 			}
@@ -637,6 +644,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 exit:
 	/* unlock the device */
 	up(&dev->sem);
+exit_nolock:
 
 	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
 

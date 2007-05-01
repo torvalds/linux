@@ -32,7 +32,6 @@
 #include <linux/initrd.h>
 #include <linux/vt_kern.h>
 #include <linux/console.h>
-#include <linux/ide.h>
 #include <linux/pci.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
@@ -114,8 +113,8 @@ static void maple_restart(char *cmd)
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
 		goto fail;
 	}
-	maple_nvram_offset = get_property(sp, "restart-addr", NULL);
-	maple_nvram_command = get_property(sp, "restart-value", NULL);
+	maple_nvram_offset = of_get_property(sp, "restart-addr", NULL);
+	maple_nvram_command = of_get_property(sp, "restart-value", NULL);
 	of_node_put(sp);
 
 	/* send command */
@@ -141,8 +140,8 @@ static void maple_power_off(void)
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
 		goto fail;
 	}
-	maple_nvram_offset = get_property(sp, "power-off-addr", NULL);
-	maple_nvram_command = get_property(sp, "power-off-value", NULL);
+	maple_nvram_offset = of_get_property(sp, "power-off-addr", NULL);
+	maple_nvram_command = of_get_property(sp, "power-off-value", NULL);
 	of_node_put(sp);
 
 	/* send command */
@@ -249,8 +248,8 @@ static void __init maple_init_IRQ(void)
 
 	/* Find address list in /platform-open-pic */
 	root = of_find_node_by_path("/");
-	naddr = prom_n_addr_cells(root);
-	opprop = get_property(root, "platform-open-pic", &opplen);
+	naddr = of_n_addr_cells(root);
+	opprop = of_get_property(root, "platform-open-pic", &opplen);
 	if (opprop != 0) {
 		openpic_addr = of_read_number(opprop, naddr);
 		has_isus = (opplen > naddr);
@@ -261,11 +260,11 @@ static void __init maple_init_IRQ(void)
 	BUG_ON(openpic_addr == 0);
 
 	/* Check for a big endian MPIC */
-	if (get_property(np, "big-endian", NULL) != NULL)
+	if (of_get_property(np, "big-endian", NULL) != NULL)
 		flags |= MPIC_BIG_ENDIAN;
 
 	/* XXX Maple specific bits */
-	flags |= MPIC_BROKEN_U3 | MPIC_WANTS_RESET;
+	flags |= MPIC_U3_HT_IRQS | MPIC_WANTS_RESET;
 	/* All U3/U4 are big-endian, older SLOF firmware doesn't encode this */
 	flags |= MPIC_BIG_ENDIAN;
 

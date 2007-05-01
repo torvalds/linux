@@ -135,7 +135,7 @@ static const dev_t base_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
 
 static DEFINE_SPINLOCK(port_lock);
 static struct ib_umad_port *umad_port[IB_UMAD_MAX_PORTS];
-static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS * 2);
+static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS);
 
 static void ib_umad_add_one(struct ib_device *device);
 static void ib_umad_remove_one(struct ib_device *device);
@@ -231,12 +231,17 @@ static void recv_handler(struct ib_mad_agent *agent,
 	packet->mad.hdr.path_bits = mad_recv_wc->wc->dlid_path_bits;
 	packet->mad.hdr.grh_present = !!(mad_recv_wc->wc->wc_flags & IB_WC_GRH);
 	if (packet->mad.hdr.grh_present) {
-		/* XXX parse GRH */
-		packet->mad.hdr.gid_index 	= 0;
-		packet->mad.hdr.hop_limit 	= 0;
-		packet->mad.hdr.traffic_class	= 0;
-		memset(packet->mad.hdr.gid, 0, 16);
-		packet->mad.hdr.flow_label	= 0;
+		struct ib_ah_attr ah_attr;
+
+		ib_init_ah_from_wc(agent->device, agent->port_num,
+				   mad_recv_wc->wc, mad_recv_wc->recv_buf.grh,
+				   &ah_attr);
+
+		packet->mad.hdr.gid_index = ah_attr.grh.sgid_index;
+		packet->mad.hdr.hop_limit = ah_attr.grh.hop_limit;
+		packet->mad.hdr.traffic_class = ah_attr.grh.traffic_class;
+		memcpy(packet->mad.hdr.gid, &ah_attr.grh.dgid, 16);
+		packet->mad.hdr.flow_label = cpu_to_be32(ah_attr.grh.flow_label);
 	}
 
 	if (queue_packet(file, agent, packet))
@@ -473,6 +478,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	if (packet->mad.hdr.grh_present) {
 		ah_attr.ah_flags = IB_AH_GRH;
 		memcpy(ah_attr.grh.dgid.raw, packet->mad.hdr.gid, 16);
+		ah_attr.grh.sgid_index	   = packet->mad.hdr.gid_index;
 		ah_attr.grh.flow_label 	   = be32_to_cpu(packet->mad.hdr.flow_label);
 		ah_attr.grh.hop_limit  	   = packet->mad.hdr.hop_limit;
 		ah_attr.grh.traffic_class  = packet->mad.hdr.traffic_class;

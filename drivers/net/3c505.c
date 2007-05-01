@@ -615,7 +615,6 @@ static void receive_packet(struct net_device *dev, int len)
 	if (test_and_set_bit(0, (void *) &adapter->dmaing))
 		printk(KERN_ERR "%s: rx blocked, DMA in progress, dir %d\n", dev->name, adapter->current_dma.direction);
 
-	skb->dev = dev;
 	adapter->current_dma.direction = 0;
 	adapter->current_dma.length = rlen;
 	adapter->current_dma.skb = skb;
@@ -1026,7 +1025,7 @@ static int send_packet(struct net_device *dev, struct sk_buff *skb)
 	adapter->current_dma.start_time = jiffies;
 
 	if ((unsigned long)(skb->data + nlen) >= MAX_DMA_ADDRESS || nlen != skb->len) {
-		memcpy(adapter->dma_buffer, skb->data, nlen);
+		skb_copy_from_linear_data(skb, adapter->dma_buffer, nlen);
 		memset(adapter->dma_buffer+skb->len, 0, nlen-skb->len);
 		target = isa_virt_to_bus(adapter->dma_buffer);
 	}

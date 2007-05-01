@@ -7,12 +7,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * 19 Jan 2002 Harald Welte <laforge@gnumonks.org>
- * 	- increase module usage count as soon as we have rules inside
- * 	  a table
- * 08 Oct 2005 Harald Welte <lafore@netfilter.org>
- * 	- Generalize into "x_tables" layer and "{ip,ip6,arp}_tables"
  */
 #include <linux/cache.h>
 #include <linux/capability.h>
@@ -198,7 +192,7 @@ int do_match(struct ipt_entry_match *m,
 {
 	/* Stop iteration if it doesn't match */
 	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
-				      offset, skb->nh.iph->ihl*4, hotdrop))
+				      offset, ip_hdrlen(skb), hotdrop))
 		return 1;
 	else
 		return 0;
@@ -231,7 +225,7 @@ ipt_do_table(struct sk_buff **pskb,
 	struct xt_table_info *private;
 
 	/* Initialization */
-	ip = (*pskb)->nh.iph;
+	ip = ip_hdr(*pskb);
 	datalen = (*pskb)->len - ip->ihl * 4;
 	indev = in ? in->name : nulldevname;
 	outdev = out ? out->name : nulldevname;
@@ -320,7 +314,7 @@ ipt_do_table(struct sk_buff **pskb,
 					= 0x57acc001;
 #endif
 				/* Target might have changed stuff. */
-				ip = (*pskb)->nh.iph;
+				ip = ip_hdr(*pskb);
 				datalen = (*pskb)->len - ip->ihl * 4;
 
 				if (verdict == IPT_CONTINUE)

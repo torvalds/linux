@@ -11,12 +11,11 @@
 
 / {
 	model = "MPC8349EMDS";
-	compatible = "MPC834xMDS";
+	compatible = "MPC8349EMDS", "MPC834xMDS", "MPC83xxMDS";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
 	cpus {
-		#cpus = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -64,7 +63,7 @@
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <e 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			dfsrr;
 		};
 
@@ -73,7 +72,7 @@
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
 			interrupts = <f 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			dfsrr;
 		};
 
@@ -82,7 +81,7 @@
 			compatible = "mpc83xx_spi";
 			reg = <7000 1000>;
 			interrupts = <10 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			mode = <0>;
 		};
 
@@ -94,8 +93,8 @@
 			reg = <22000 1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupt-parent = <700>;
-			interrupts = <27 2>;
+			interrupt-parent = < &ipic >;
+			interrupts = <27 8>;
 			phy_type = "ulpi";
 			port1;
 		};
@@ -106,8 +105,8 @@
 			reg = <23000 1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupt-parent = <700>;
-			interrupts = <26 2>;
+			interrupt-parent = < &ipic >;
+			interrupts = <26 8>;
 			dr_mode = "otg";
 			phy_type = "ulpi";
 		};
@@ -118,18 +117,15 @@
 			reg = <24520 20>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			linux,phandle = <24520>;
-			ethernet-phy@0 {
-				linux,phandle = <2452000>;
-				interrupt-parent = <700>;
-				interrupts = <11 2>;
+			phy0: ethernet-phy@0 {
+				interrupt-parent = < &ipic >;
+				interrupts = <11 8>;
 				reg = <0>;
 				device_type = "ethernet-phy";
 			};
-			ethernet-phy@1 {
-				linux,phandle = <2452001>;
-				interrupt-parent = <700>;
-				interrupts = <12 2>;
+			phy1: ethernet-phy@1 {
+				interrupt-parent = < &ipic >;
+				interrupts = <12 8>;
 				reg = <1>;
 				device_type = "ethernet-phy";
 			};
@@ -143,8 +139,8 @@
 			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <20 8 21 8 22 8>;
-			interrupt-parent = <700>;
-			phy-handle = <2452000>;
+			interrupt-parent = < &ipic >;
+			phy-handle = < &phy0 >;
 		};
 
 		ethernet@25000 {
@@ -157,8 +153,8 @@
 			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <23 8 24 8 25 8>;
-			interrupt-parent = <700>;
-			phy-handle = <2452001>;
+			interrupt-parent = < &ipic >;
+			phy-handle = < &phy1 >;
 		};
 
 		serial@4500 {
@@ -167,7 +163,7 @@
 			reg = <4500 100>;
 			clock-frequency = <0>;
 			interrupts = <9 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 		};
 
 		serial@4600 {
@@ -176,7 +172,7 @@
 			reg = <4600 100>;
 			clock-frequency = <0>;
 			interrupts = <a 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 		};
 
 		pci@8500 {
@@ -184,47 +180,47 @@
 			interrupt-map = <
 
 					/* IDSEL 0x11 */
-					 8800 0 0 1 700 14 8
-					 8800 0 0 2 700 15 8
-					 8800 0 0 3 700 16 8
-					 8800 0 0 4 700 17 8
+					 8800 0 0 1 &ipic 14 8
+					 8800 0 0 2 &ipic 15 8
+					 8800 0 0 3 &ipic 16 8
+					 8800 0 0 4 &ipic 17 8
 
 					/* IDSEL 0x12 */
-					 9000 0 0 1 700 16 8
-					 9000 0 0 2 700 17 8
-					 9000 0 0 3 700 14 8
-					 9000 0 0 4 700 15 8
+					 9000 0 0 1 &ipic 16 8
+					 9000 0 0 2 &ipic 17 8
+					 9000 0 0 3 &ipic 14 8
+					 9000 0 0 4 &ipic 15 8
 
 					/* IDSEL 0x13 */
-					 9800 0 0 1 700 17 8
-					 9800 0 0 2 700 14 8
-					 9800 0 0 3 700 15 8
-					 9800 0 0 4 700 16 8
+					 9800 0 0 1 &ipic 17 8
+					 9800 0 0 2 &ipic 14 8
+					 9800 0 0 3 &ipic 15 8
+					 9800 0 0 4 &ipic 16 8
 
 					/* IDSEL 0x15 */
-					 a800 0 0 1 700 14 8
-					 a800 0 0 2 700 15 8
-					 a800 0 0 3 700 16 8
-					 a800 0 0 4 700 17 8
+					 a800 0 0 1 &ipic 14 8
+					 a800 0 0 2 &ipic 15 8
+					 a800 0 0 3 &ipic 16 8
+					 a800 0 0 4 &ipic 17 8
 
 					/* IDSEL 0x16 */
-					 b000 0 0 1 700 17 8
-					 b000 0 0 2 700 14 8
-					 b000 0 0 3 700 15 8
-					 b000 0 0 4 700 16 8
+					 b000 0 0 1 &ipic 17 8
+					 b000 0 0 2 &ipic 14 8
+					 b000 0 0 3 &ipic 15 8
+					 b000 0 0 4 &ipic 16 8
 
 					/* IDSEL 0x17 */
-					 b800 0 0 1 700 16 8
-					 b800 0 0 2 700 17 8
-					 b800 0 0 3 700 14 8
-					 b800 0 0 4 700 15 8
+					 b800 0 0 1 &ipic 16 8
+					 b800 0 0 2 &ipic 17 8
+					 b800 0 0 3 &ipic 14 8
+					 b800 0 0 4 &ipic 15 8
 
 					/* IDSEL 0x18 */
-					 c000 0 0 1 700 15 8
-					 c000 0 0 2 700 16 8
-					 c000 0 0 3 700 17 8
-					 c000 0 0 4 700 14 8>;
-			interrupt-parent = <700>;
+					 c000 0 0 1 &ipic 15 8
+					 c000 0 0 2 &ipic 16 8
+					 c000 0 0 3 &ipic 17 8
+					 c000 0 0 4 &ipic 14 8>;
+			interrupt-parent = < &ipic >;
 			interrupts = <42 8>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 a0000000 a0000000 0 10000000
@@ -244,47 +240,47 @@
 			interrupt-map = <
 
 					/* IDSEL 0x11 */
-					 8800 0 0 1 700 14 8
-					 8800 0 0 2 700 15 8
-					 8800 0 0 3 700 16 8
-					 8800 0 0 4 700 17 8
+					 8800 0 0 1 &ipic 14 8
+					 8800 0 0 2 &ipic 15 8
+					 8800 0 0 3 &ipic 16 8
+					 8800 0 0 4 &ipic 17 8
 
 					/* IDSEL 0x12 */
-					 9000 0 0 1 700 16 8
-					 9000 0 0 2 700 17 8
-					 9000 0 0 3 700 14 8
-					 9000 0 0 4 700 15 8
+					 9000 0 0 1 &ipic 16 8
+					 9000 0 0 2 &ipic 17 8
+					 9000 0 0 3 &ipic 14 8
+					 9000 0 0 4 &ipic 15 8
 
 					/* IDSEL 0x13 */
-					 9800 0 0 1 700 17 8
-					 9800 0 0 2 700 14 8
-					 9800 0 0 3 700 15 8
-					 9800 0 0 4 700 16 8
+					 9800 0 0 1 &ipic 17 8
+					 9800 0 0 2 &ipic 14 8
+					 9800 0 0 3 &ipic 15 8
+					 9800 0 0 4 &ipic 16 8
 
 					/* IDSEL 0x15 */
-					 a800 0 0 1 700 14 8
-					 a800 0 0 2 700 15 8
-					 a800 0 0 3 700 16 8
-					 a800 0 0 4 700 17 8
+					 a800 0 0 1 &ipic 14 8
+					 a800 0 0 2 &ipic 15 8
+					 a800 0 0 3 &ipic 16 8
+					 a800 0 0 4 &ipic 17 8
 
 					/* IDSEL 0x16 */
-					 b000 0 0 1 700 17 8
-					 b000 0 0 2 700 14 8
-					 b000 0 0 3 700 15 8
-					 b000 0 0 4 700 16 8
+					 b000 0 0 1 &ipic 17 8
+					 b000 0 0 2 &ipic 14 8
+					 b000 0 0 3 &ipic 15 8
+					 b000 0 0 4 &ipic 16 8
 
 					/* IDSEL 0x17 */
-					 b800 0 0 1 700 16 8
-					 b800 0 0 2 700 17 8
-					 b800 0 0 3 700 14 8
-					 b800 0 0 4 700 15 8
+					 b800 0 0 1 &ipic 16 8
+					 b800 0 0 2 &ipic 17 8
+					 b800 0 0 3 &ipic 14 8
+					 b800 0 0 4 &ipic 15 8
 
 					/* IDSEL 0x18 */
-					 c000 0 0 1 700 15 8
-					 c000 0 0 2 700 16 8
-					 c000 0 0 3 700 17 8
-					 c000 0 0 4 700 14 8>;
-			interrupt-parent = <700>;
+					 c000 0 0 1 &ipic 15 8
+					 c000 0 0 2 &ipic 16 8
+					 c000 0 0 3 &ipic 17 8
+					 c000 0 0 4 &ipic 14 8>;
+			interrupt-parent = < &ipic >;
 			interrupts = <42 8>;
 			bus-range = <0 0>;
 			ranges = <02000000 0 b0000000 b0000000 0 10000000
@@ -306,7 +302,7 @@
 			compatible = "talitos";
 			reg = <30000 10000>;
 			interrupts = <b 8>;
-			interrupt-parent = <700>;
+			interrupt-parent = < &ipic >;
 			num-channels = <4>;
 			channel-fifo-len = <18>;
 			exec-units-mask = <0000007e>;
@@ -321,8 +317,7 @@
 		 * sense == 8: Level, low assertion
 		 * sense == 2: Edge, high-to-low change
 		 */
-		pic@700 {
-			linux,phandle = <700>;
+		ipic: pic@700 {
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;

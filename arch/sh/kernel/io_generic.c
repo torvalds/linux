@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <asm/machvec.h>
-#include <asm/cacheflush.h>
 
 #ifdef CONFIG_CPU_SH3
 /* SH3 has a PCMCIA bug that needs a dummy read from area 6 for a
@@ -96,7 +95,6 @@ void generic_insw(unsigned long port, void *dst, unsigned long count)
 	while (count--)
 		*buf++ = *port_addr;
 
-	flush_dcache_all();
 	dummy_read();
 }
 
@@ -171,7 +169,6 @@ void generic_outsw(unsigned long port, const void *src, unsigned long count)
 	while (count--)
 		*port_addr = *buf++;
 
-	flush_dcache_all();
 	dummy_read();
 }
 

@@ -24,10 +24,6 @@
 			 /*  dumped to the console via printk)          */
 
 
-/* Defines for parisc_acctyp()	*/
-#define READ		0
-#define WRITE		1
-
 /* Various important other fields */
 #define bit22set(x)		(x & 0x00000200)
 #define bits23_25set(x)		(x & 0x000001c0)

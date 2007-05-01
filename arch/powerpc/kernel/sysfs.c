@@ -66,16 +66,17 @@ static int __init smt_setup(void)
 	if (!cpu_has_feature(CPU_FTR_SMT))
 		return -ENODEV;
 
-	options = find_path_device("/options");
+	options = of_find_node_by_path("/options");
 	if (!options)
 		return -ENODEV;
 
-	val = get_property(options, "ibm,smt-snooze-delay", NULL);
+	val = of_get_property(options, "ibm,smt-snooze-delay", NULL);
 	if (!smt_snooze_cmdline && val) {
 		for_each_possible_cpu(cpu)
 			per_cpu(smt_snooze_delay, cpu) = *val;
 	}
 
+	of_node_put(options);
 	return 0;
 }
 __initcall(smt_setup);
@@ -189,12 +190,12 @@ SYSFS_PMCSETUP(purr, SPRN_PURR);
 SYSFS_PMCSETUP(spurr, SPRN_SPURR);
 SYSFS_PMCSETUP(dscr, SPRN_DSCR);
 
-SYSFS_PMCSETUP(pa6t_pmc0, PA6T_SPRN_PMC0);
-SYSFS_PMCSETUP(pa6t_pmc1, PA6T_SPRN_PMC1);
-SYSFS_PMCSETUP(pa6t_pmc2, PA6T_SPRN_PMC2);
-SYSFS_PMCSETUP(pa6t_pmc3, PA6T_SPRN_PMC3);
-SYSFS_PMCSETUP(pa6t_pmc4, PA6T_SPRN_PMC4);
-SYSFS_PMCSETUP(pa6t_pmc5, PA6T_SPRN_PMC5);
+SYSFS_PMCSETUP(pa6t_pmc0, SPRN_PA6T_PMC0);
+SYSFS_PMCSETUP(pa6t_pmc1, SPRN_PA6T_PMC1);
+SYSFS_PMCSETUP(pa6t_pmc2, SPRN_PA6T_PMC2);
+SYSFS_PMCSETUP(pa6t_pmc3, SPRN_PA6T_PMC3);
+SYSFS_PMCSETUP(pa6t_pmc4, SPRN_PA6T_PMC4);
+SYSFS_PMCSETUP(pa6t_pmc5, SPRN_PA6T_PMC5);
 
 
 static SYSDEV_ATTR(mmcra, 0600, show_mmcra, store_mmcra);

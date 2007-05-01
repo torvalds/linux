@@ -1281,7 +1281,7 @@ static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 				      (struct scatterlist *)Cmnd->request_buffer,
 				      Cmnd->use_sg,
 				      Cmnd->sc_data_direction);
-		} else {
+		} else if (Cmnd->request_bufflen) {
 			sbus_unmap_single(qpti->sdev,
 					  (__u32)((unsigned long)Cmnd->SCp.ptr),
 					  Cmnd->request_bufflen,
@@ -1403,7 +1403,7 @@ static int __devinit qpti_sbus_probe(struct of_device *dev, const struct of_devi
 	struct scsi_host_template *tpnt = match->data;
 	struct Scsi_Host *host;
 	struct qlogicpti *qpti;
-	char *fcode;
+	const char *fcode;
 
 	/* Sometimes Antares cards come up not completely
 	 * setup, and we get a report of a zero IRQ.

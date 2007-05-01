@@ -456,7 +456,7 @@ void m82xx_pci_init_irq(void)
 		iounmap(immap);
 		return;
 	}
-	irq_map = get_property(np, "interrupt-map", &size);
+	irq_map = of_get_property(np, "interrupt-map", &size);
 	if ((!irq_map) || (size <= 7)) {
 		printk(KERN_INFO "No interrupt-map property of pci node\n");
 		iounmap(immap);
@@ -481,7 +481,7 @@ void m82xx_pci_init_irq(void)
 	}
 	pci_pic_node = of_node_get(np);
 	/* PCI interrupt controller registers: status and mask */
-	regs = get_property(np, "reg", &size);
+	regs = of_get_property(np, "reg", &size);
 	if ((!regs) || (size <= 2)) {
 		printk(KERN_INFO "No reg property in pci pic node\n");
 		iounmap(immap);
@@ -521,20 +521,20 @@ void __init add_bridge(struct device_node *np)
 	struct pci_controller *hose;
 	struct resource r;
 	const int *bus_range;
-	const void *ptr;
+	const uint *ptr;
 
 	memset(&r, 0, sizeof(r));
 	if (of_address_to_resource(np, 0, &r)) {
 		printk(KERN_INFO "No PCI reg property in device tree\n");
 		return;
 	}
-	if (!(ptr = get_property(np, "clock-frequency", NULL))) {
+	if (!(ptr = of_get_property(np, "clock-frequency", NULL))) {
 		printk(KERN_INFO "No clock-frequency property in PCI node");
 		return;
 	}
-	pci_clk_frq = *(uint *) ptr;
+	pci_clk_frq = *ptr;
 	of_node_put(np);
-	bus_range = get_property(np, "bus-range", &len);
+	bus_range = of_get_property(np, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 		       " bus 0\n", np->full_name);

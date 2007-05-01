@@ -104,7 +104,6 @@ struct gfs2_glock_operations {
 	void (*go_xmote_th) (struct gfs2_glock *gl);
 	void (*go_xmote_bh) (struct gfs2_glock *gl);
 	void (*go_drop_th) (struct gfs2_glock *gl);
-	void (*go_drop_bh) (struct gfs2_glock *gl);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
 	int (*go_demote_ok) (struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
@@ -416,7 +415,6 @@ struct gfs2_tune {
 	unsigned int gt_stall_secs; /* Detects trouble! */
 	unsigned int gt_complain_secs;
 	unsigned int gt_reclaim_limit; /* Max num of glocks in reclaim list */
-	unsigned int gt_entries_per_readdir;
 	unsigned int gt_statfs_quantum;
 	unsigned int gt_statfs_slow;
 };

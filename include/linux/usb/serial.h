@@ -54,6 +54,8 @@
  * @write_wait: a wait_queue_head_t used by the port.
  * @work: work queue entry for the line discipline waking up.
  * @open_count: number of times this port has been opened.
+ * @throttled: nonzero if the read urb is inactive to throttle the device
+ * @throttle_req: nonzero if the tty wants to throttle us
  *
  * This structure is used by the usb-serial core and drivers for the specific
  * ports of a device.
@@ -88,6 +90,8 @@ struct usb_serial_port {
 	wait_queue_head_t	write_wait;
 	struct work_struct	work;
 	int			open_count;
+	char			throttled;
+	char			throttle_req;
 	struct device		dev;
 };
 #define to_usb_serial_port(d) container_of(d, struct usb_serial_port, dev)
@@ -269,6 +273,8 @@ extern int usb_serial_generic_write_room (struct usb_serial_port *port);
 extern int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port);
 extern void usb_serial_generic_read_bulk_callback (struct urb *urb);
 extern void usb_serial_generic_write_bulk_callback (struct urb *urb);
+extern void usb_serial_generic_throttle (struct usb_serial_port *port);
+extern void usb_serial_generic_unthrottle (struct usb_serial_port *port);
 extern void usb_serial_generic_shutdown (struct usb_serial *serial);
 extern int usb_serial_generic_register (int debug);
 extern void usb_serial_generic_deregister (void);

@@ -2278,7 +2278,7 @@ qeth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	    (card->info.link_type == QETH_LINK_TYPE_LANE_TR))
 	 	return tr_type_trans(skb,dev);
 #endif /* CONFIG_TR */
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN );
 	eth = eth_hdr(skb);
 
@@ -2306,9 +2306,9 @@ qeth_rebuild_skb_fake_ll_tr(struct qeth_card *card, struct sk_buff *skb,
 	struct iphdr *ip_hdr;
 
 	QETH_DBF_TEXT(trace,5,"skbfktr");
-	skb->mac.raw = skb->data - QETH_FAKE_LL_LEN_TR;
+	skb_set_mac_header(skb, -QETH_FAKE_LL_LEN_TR);
 	/* this is a fake ethernet header */
-	fake_hdr = (struct trh_hdr *) skb->mac.raw;
+	fake_hdr = tr_hdr(skb);
 
 	/* the destination MAC address */
 	switch (skb->pkt_type){
@@ -2359,9 +2359,9 @@ qeth_rebuild_skb_fake_ll_eth(struct qeth_card *card, struct sk_buff *skb,
 	struct iphdr *ip_hdr;
 
 	QETH_DBF_TEXT(trace,5,"skbfketh");
-	skb->mac.raw = skb->data - QETH_FAKE_LL_LEN_ETH;
+	skb_set_mac_header(skb, -QETH_FAKE_LL_LEN_ETH);
 	/* this is a fake ethernet header */
-	fake_hdr = (struct ethhdr *) skb->mac.raw;
+	fake_hdr = eth_hdr(skb);
 
 	/* the destination MAC address */
 	switch (skb->pkt_type){
@@ -2461,7 +2461,7 @@ qeth_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 	if (card->options.fake_ll)
 		qeth_rebuild_skb_fake_ll(card, skb, hdr);
 	else
-		skb->mac.raw = skb->data;
+		skb_reset_mac_header(skb);
 	skb->ip_summed = card->options.checksum_type;
 	if (card->options.checksum_type == HW_CHECKSUMMING){
 		if ( (hdr->hdr.l3.ext_flags &
@@ -2501,7 +2501,8 @@ qeth_process_inbound_buffer(struct qeth_card *card,
 			vlan_tag = qeth_rebuild_skb(card, skb, hdr);
 		else { /*in case of OSN*/
 			skb_push(skb, sizeof(struct qeth_hdr));
-			memcpy(skb->data, hdr, sizeof(struct qeth_hdr));
+			skb_copy_to_linear_data(skb, hdr,
+						sizeof(struct qeth_hdr));
 		}
 		/* is device UP ? */
 		if (!(card->dev->flags & IFF_UP)){
@@ -3654,7 +3655,7 @@ qeth_verify_vlan_dev(struct net_device *dev, struct qeth_card *card)
 		return rc;
 
 	for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++){
-		if (vg->vlan_devices[i] == dev){
+		if (vlan_group_get_device(vg, i) == dev){
 			rc = QETH_VLAN_CARD;
 			break;
 		}
@@ -3778,9 +3779,11 @@ qeth_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	}
 	/* try something else */
 	if (skb->protocol == ETH_P_IPV6)
-		return (skb->nh.raw[24] == 0xff) ? RTN_MULTICAST : 0;
+		return (skb_network_header(skb)[24] == 0xff) ?
+				RTN_MULTICAST : 0;
 	else if (skb->protocol == ETH_P_IP)
-		return ((skb->nh.raw[16] & 0xf0) == 0xe0) ? RTN_MULTICAST : 0;
+		return ((skb_network_header(skb)[16] & 0xf0) == 0xe0) ?
+				RTN_MULTICAST : 0;
 	/* ... */
 	if (!memcmp(skb->data, skb->dev->broadcast, 6))
 		return RTN_BROADCAST;
@@ -3818,18 +3821,20 @@ qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 			return card->info.is_multicast_different &
 				(card->qdio.no_out_queues - 1);
 		if (card->qdio.do_prio_queueing && (ipv == 4)) {
+			const u8 tos = ip_hdr(skb)->tos;
+
 			if (card->qdio.do_prio_queueing==QETH_PRIO_Q_ING_TOS){
-				if (skb->nh.iph->tos & IP_TOS_NOTIMPORTANT)
+				if (tos & IP_TOS_NOTIMPORTANT)
 					return 3;
-				if (skb->nh.iph->tos & IP_TOS_HIGHRELIABILITY)
+				if (tos & IP_TOS_HIGHRELIABILITY)
 					return 2;
-				if (skb->nh.iph->tos & IP_TOS_HIGHTHROUGHPUT)
+				if (tos & IP_TOS_HIGHTHROUGHPUT)
 					return 1;
-				if (skb->nh.iph->tos & IP_TOS_LOWDELAY)
+				if (tos & IP_TOS_LOWDELAY)
 					return 0;
 			}
 			if (card->qdio.do_prio_queueing==QETH_PRIO_Q_ING_PREC)
-				return 3 - (skb->nh.iph->tos >> 6);
+				return 3 - (tos >> 6);
 		} else if (card->qdio.do_prio_queueing && (ipv == 6)) {
 			/* TODO: IPv6!!! */
 		}
@@ -3866,9 +3871,9 @@ __qeth_prepare_skb(struct qeth_card *card, struct sk_buff *skb, int ipv)
 		 * memcpys instead of one memmove to save cycles.
 		 */
 		skb_push(skb, VLAN_HLEN);
-		memcpy(skb->data, skb->data + 4, 4);
-		memcpy(skb->data + 4, skb->data + 8, 4);
-		memcpy(skb->data + 8, skb->data + 12, 4);
+		skb_copy_to_linear_data(skb, skb->data + 4, 4);
+		skb_copy_to_linear_data_offset(skb, 4, skb->data + 8, 4);
+		skb_copy_to_linear_data_offset(skb, 8, skb->data + 12, 4);
 		tag = (u16 *)(skb->data + 12);
 		/*
 		 * first two bytes  = ETH_P_8021Q (0x8100)
@@ -4039,7 +4044,8 @@ qeth_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 			    *((u32 *) skb->dst->neighbour->primary_key);
 		} else {
 			/* fill in destination address used in ip header */
-			*((u32 *) (&hdr->hdr.l3.dest_addr[12])) = skb->nh.iph->daddr;
+			*((u32 *)(&hdr->hdr.l3.dest_addr[12])) =
+							   ip_hdr(skb)->daddr;
 		}
 	} else if (ipv == 6) { /* IPv6 or passthru */
 		hdr->hdr.l3.flags = qeth_get_qeth_hdr_flags6(cast_type);
@@ -4048,7 +4054,8 @@ qeth_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 			       skb->dst->neighbour->primary_key, 16);
 		} else {
 			/* fill in destination address used in ip header */
-			memcpy(hdr->hdr.l3.dest_addr, &skb->nh.ipv6h->daddr, 16);
+			memcpy(hdr->hdr.l3.dest_addr,
+			       &ipv6_hdr(skb)->daddr, 16);
 		}
 	} else { /* passthrough */
                 if((skb->dev->type == ARPHRD_IEEE802_TR) &&
@@ -5261,7 +5268,7 @@ qeth_free_vlan_addresses4(struct qeth_card *card, unsigned short vid)
 	QETH_DBF_TEXT(trace, 4, "frvaddr4");
 
 	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(card->vlangrp->vlan_devices[vid]);
+	in_dev = __in_dev_get_rcu(vlan_group_get_device(card->vlangrp, vid));
 	if (!in_dev)
 		goto out;
 	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
@@ -5288,7 +5295,7 @@ qeth_free_vlan_addresses6(struct qeth_card *card, unsigned short vid)
 
 	QETH_DBF_TEXT(trace, 4, "frvaddr6");
 
-	in6_dev = in6_dev_get(card->vlangrp->vlan_devices[vid]);
+	in6_dev = in6_dev_get(vlan_group_get_device(card->vlangrp, vid));
 	if (!in6_dev)
 		return;
 	for (ifa = in6_dev->addr_list; ifa; ifa = ifa->lst_next){
@@ -5360,7 +5367,7 @@ qeth_layer2_process_vlans(struct qeth_card *card, int clear)
 	if (!card->vlangrp)
 		return;
 	for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
-		if (card->vlangrp->vlan_devices[i] == NULL)
+		if (vlan_group_get_device(card->vlangrp, i) == NULL)
 			continue;
 		if (clear)
 			qeth_layer2_send_setdelvlan(card, i, IPA_CMD_DELVLAN);
@@ -5398,8 +5405,7 @@ qeth_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	spin_lock_irqsave(&card->vlanlock, flags);
 	/* unregister IP addresses of vlan device */
 	qeth_free_vlan_addresses(card, vid);
-	if (card->vlangrp)
-		card->vlangrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(card->vlangrp, vid, NULL);
 	spin_unlock_irqrestore(&card->vlanlock, flags);
 	if (card->options.layer2)
 		qeth_layer2_send_setdelvlan(card, vid, IPA_CMD_DELVLAN);
@@ -5662,10 +5668,11 @@ qeth_add_vlan_mc(struct qeth_card *card)
 
 	vg = card->vlangrp;
 	for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
-		if (vg->vlan_devices[i] == NULL ||
-		    !(vg->vlan_devices[i]->flags & IFF_UP))
+		struct net_device *netdev = vlan_group_get_device(vg, i);
+		if (netdev == NULL ||
+		    !(netdev->flags & IFF_UP))
 			continue;
-		in_dev = in_dev_get(vg->vlan_devices[i]);
+		in_dev = in_dev_get(netdev);
 		if (!in_dev)
 			continue;
 		read_lock(&in_dev->mc_list_lock);
@@ -5749,10 +5756,11 @@ qeth_add_vlan_mc6(struct qeth_card *card)
 
 	vg = card->vlangrp;
 	for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
-		if (vg->vlan_devices[i] == NULL ||
-		    !(vg->vlan_devices[i]->flags & IFF_UP))
+		struct net_device *netdev = vlan_group_get_device(vg, i);
+		if (netdev == NULL ||
+		    !(netdev->flags & IFF_UP))
 			continue;
-		in_dev = in6_dev_get(vg->vlan_devices[i]);
+		in_dev = in6_dev_get(netdev);
 		if (!in_dev)
 			continue;
 		read_lock(&in_dev->lock);

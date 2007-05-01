@@ -184,7 +184,7 @@ void udbg_pas_real_putc(char c)
 
 void udbg_init_pas_realmode(void)
 {
-	udbg_comport = (volatile struct NS16550 __iomem *)0xfcff03f8;
+	udbg_comport = (volatile struct NS16550 __iomem *)0xfcff03f8UL;
 
 	udbg_putc = udbg_pas_real_putc;
 	udbg_getc = NULL;

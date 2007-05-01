@@ -33,8 +33,9 @@
 #define GIC_DIST_SOFTINT		0xf00
 
 #ifndef __ASSEMBLY__
-void gic_dist_init(void __iomem *base);
-void gic_cpu_init(void __iomem *base);
+void gic_dist_init(unsigned int gic_nr, void __iomem *base, unsigned int irq_start);
+void gic_cpu_init(unsigned int gic_nr, void __iomem *base);
+void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
 void gic_raise_softirq(cpumask_t cpumask, unsigned int irq);
 #endif
 

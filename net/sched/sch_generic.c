@@ -36,34 +36,27 @@
 
 /* Main transmission queue. */
 
-/* Main qdisc structure lock.
-
-   However, modifications
-   to data, participating in scheduling must be additionally
-   protected with dev->queue_lock spinlock.
-
-   The idea is the following:
-   - enqueue, dequeue are serialized via top level device
-     spinlock dev->queue_lock.
-   - tree walking is protected by read_lock(qdisc_tree_lock)
-     and this lock is used only in process context.
-   - updates to tree are made only under rtnl semaphore,
-     hence this lock may be made without local bh disabling.
-
-   qdisc_tree_lock must be grabbed BEFORE dev->queue_lock!
+/* Modifications to data participating in scheduling must be protected with
+ * dev->queue_lock spinlock.
+ *
+ * The idea is the following:
+ * - enqueue, dequeue are serialized via top level device
+ *   spinlock dev->queue_lock.
+ * - ingress filtering is serialized via top level device
+ *   spinlock dev->ingress_lock.
+ * - updates to tree and tree walking are only done under the rtnl mutex.
  */
-DEFINE_RWLOCK(qdisc_tree_lock);
 
 void qdisc_lock_tree(struct net_device *dev)
 {
-	write_lock(&qdisc_tree_lock);
 	spin_lock_bh(&dev->queue_lock);
+	spin_lock(&dev->ingress_lock);
 }
 
 void qdisc_unlock_tree(struct net_device *dev)
 {
+	spin_unlock(&dev->ingress_lock);
 	spin_unlock_bh(&dev->queue_lock);
-	write_unlock(&qdisc_tree_lock);
 }
 
 /*
@@ -442,7 +435,6 @@ struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops)
 	sch->dequeue = ops->dequeue;
 	sch->dev = dev;
 	dev_hold(dev);
-	sch->stats_lock = &dev->queue_lock;
 	atomic_set(&sch->refcnt, 1);
 
 	return sch;
@@ -458,6 +450,7 @@ struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops,
 	sch = qdisc_alloc(dev, ops);
 	if (IS_ERR(sch))
 		goto errout;
+	sch->stats_lock = &dev->queue_lock;
 	sch->parent = parentid;
 
 	if (!ops->init || ops->init(sch, NULL) == 0)
@@ -528,15 +521,11 @@ void dev_activate(struct net_device *dev)
 				printk(KERN_INFO "%s: activation failed\n", dev->name);
 				return;
 			}
-			write_lock(&qdisc_tree_lock);
 			list_add_tail(&qdisc->list, &dev->qdisc_list);
-			write_unlock(&qdisc_tree_lock);
 		} else {
 			qdisc =  &noqueue_qdisc;
 		}
-		write_lock(&qdisc_tree_lock);
 		dev->qdisc_sleeping = qdisc;
-		write_unlock(&qdisc_tree_lock);
 	}
 
 	if (!netif_carrier_ok(dev))

@@ -51,16 +51,6 @@
 /* Parameter t_mbi from [RFC 3448, 4.3]: backoff interval in seconds */
 #define TFRC_T_MBI		   64
 
-/* What we think is a reasonable upper limit on RTT values */
-#define CCID3_SANE_RTT_MAX	   ((suseconds_t)(4 * USEC_PER_SEC))
-
-#define CCID3_RTT_SANITY_CHECK(rtt) 			do {		   \
-		if (rtt > CCID3_SANE_RTT_MAX) {				   \
-			DCCP_CRIT("RTT (%d) too large, substituting %d",   \
-				  (int)rtt, (int)CCID3_SANE_RTT_MAX);	   \
-			rtt = CCID3_SANE_RTT_MAX;			   \
-		} 					} while (0)
-
 enum ccid3_options {
 	TFRC_OPT_LOSS_EVENT_RATE = 192,
 	TFRC_OPT_LOSS_INTERVALS	 = 193,

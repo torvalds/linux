@@ -88,6 +88,9 @@ struct cpu_user_fns cpu_user;
 #ifdef MULTI_CACHE
 struct cpu_cache_fns cpu_cache;
 #endif
+#ifdef CONFIG_OUTER_CACHE
+struct outer_cache_fns outer_cache;
+#endif
 
 struct stack {
 	u32 irq[3];
@@ -836,8 +839,11 @@ static int __init topology_init(void)
 {
 	int cpu;
 
-	for_each_possible_cpu(cpu)
-		register_cpu(&per_cpu(cpu_data, cpu).cpu, cpu);
+	for_each_possible_cpu(cpu) {
+		struct cpuinfo_arm *cpuinfo = &per_cpu(cpu_data, cpu);
+		cpuinfo->cpu.hotpluggable = 1;
+		register_cpu(&cpuinfo->cpu, cpu);
+	}
 
 	return 0;
 }

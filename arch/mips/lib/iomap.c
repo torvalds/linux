@@ -1,78 +1,227 @@
 /*
- *  iomap.c, Memory Mapped I/O routines for MIPS architecture.
+ * Implement the default iomap interfaces
  *
- *  This code is based on lib/iomap.c, by Linus Torvalds.
- *
- *  Copyright (C) 2004-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * (C) Copyright 2004 Linus Torvalds
+ * (C) Copyright 2006 Ralf Baechle <ralf@linux-mips.org>
+ * (C) Copyright 2007 MIPS Technologies, Inc.
+ *     written by Ralf Baechle <ralf@linux-mips.org>
  */
-#include <linux/ioport.h>
-#include <linux/module.h>
 #include <linux/pci.h>
-
+#include <linux/module.h>
 #include <asm/io.h>
+
+/*
+ * Read/write from/to an (offsettable) iomem cookie. It might be a PIO
+ * access or a MMIO access, these functions don't care. The info is
+ * encoded in the hardware mapping set up by the mapping functions
+ * (or the cookie itself, depending on implementation and hw).
+ *
+ * The generic routines don't assume any hardware mappings, and just
+ * encode the PIO/MMIO as part of the cookie. They coldly assume that
+ * the MMIO IO mappings are not in the low address range.
+ *
+ * Architectures for which this is not true can't use this generic
+ * implementation and should do their own copy.
+ */
+
+#define PIO_MASK	0x0ffffUL
+
+unsigned int ioread8(void __iomem *addr)
+{
+	return readb(addr);
+}
+
+EXPORT_SYMBOL(ioread8);
+
+unsigned int ioread16(void __iomem *addr)
+{
+	return readw(addr);
+}
+
+EXPORT_SYMBOL(ioread16);
+
+unsigned int ioread16be(void __iomem *addr)
+{
+	return be16_to_cpu(__raw_readw(addr));
+}
+
+EXPORT_SYMBOL(ioread16be);
+
+unsigned int ioread32(void __iomem *addr)
+{
+	return readl(addr);
+}
+
+EXPORT_SYMBOL(ioread32);
+
+unsigned int ioread32be(void __iomem *addr)
+{
+	return be32_to_cpu(__raw_readl(addr));
+}
+
+EXPORT_SYMBOL(ioread32be);
+
+void iowrite8(u8 val, void __iomem *addr)
+{
+	writeb(val, addr);
+}
+
+EXPORT_SYMBOL(iowrite8);
+
+void iowrite16(u16 val, void __iomem *addr)
+{
+	writew(val, addr);
+}
+
+EXPORT_SYMBOL(iowrite16);
+
+void iowrite16be(u16 val, void __iomem *addr)
+{
+	__raw_writew(cpu_to_be16(val), addr);
+}
+
+EXPORT_SYMBOL(iowrite16be);
+
+void iowrite32(u32 val, void __iomem *addr)
+{
+	writel(val, addr);
+}
+
+EXPORT_SYMBOL(iowrite32);
+
+void iowrite32be(u32 val, void __iomem *addr)
+{
+	__raw_writel(cpu_to_be32(val), addr);
+}
+
+EXPORT_SYMBOL(iowrite32be);
+
+/*
+ * These are the "repeat MMIO read/write" functions.
+ * Note the "__raw" accesses, since we don't want to
+ * convert to CPU byte order. We write in "IO byte
+ * order" (we also don't have IO barriers).
+ */
+static inline void mmio_insb(void __iomem *addr, u8 *dst, int count)
+{
+	while (--count >= 0) {
+		u8 data = __raw_readb(addr);
+		*dst = data;
+		dst++;
+	}
+}
+
+static inline void mmio_insw(void __iomem *addr, u16 *dst, int count)
+{
+	while (--count >= 0) {
+		u16 data = __raw_readw(addr);
+		*dst = data;
+		dst++;
+	}
+}
+
+static inline void mmio_insl(void __iomem *addr, u32 *dst, int count)
+{
+	while (--count >= 0) {
+		u32 data = __raw_readl(addr);
+		*dst = data;
+		dst++;
+	}
+}
+
+static inline void mmio_outsb(void __iomem *addr, const u8 *src, int count)
+{
+	while (--count >= 0) {
+		__raw_writeb(*src, addr);
+		src++;
+	}
+}
+
+static inline void mmio_outsw(void __iomem *addr, const u16 *src, int count)
+{
+	while (--count >= 0) {
+		__raw_writew(*src, addr);
+		src++;
+	}
+}
+
+static inline void mmio_outsl(void __iomem *addr, const u32 *src, int count)
+{
+	while (--count >= 0) {
+		__raw_writel(*src, addr);
+		src++;
+	}
+}
+
+void ioread8_rep(void __iomem *addr, void *dst, unsigned long count)
+{
+	mmio_insb(addr, dst, count);
+}
+
+EXPORT_SYMBOL(ioread8_rep);
+
+void ioread16_rep(void __iomem *addr, void *dst, unsigned long count)
+{
+	mmio_insw(addr, dst, count);
+}
+
+EXPORT_SYMBOL(ioread16_rep);
+
+void ioread32_rep(void __iomem *addr, void *dst, unsigned long count)
+{
+	mmio_insl(addr, dst, count);
+}
+
+EXPORT_SYMBOL(ioread32_rep);
+
+void iowrite8_rep(void __iomem *addr, const void *src, unsigned long count)
+{
+	mmio_outsb(addr, src, count);
+}
+
+EXPORT_SYMBOL(iowrite8_rep);
+
+void iowrite16_rep(void __iomem *addr, const void *src, unsigned long count)
+{
+	mmio_outsw(addr, src, count);
+}
+
+EXPORT_SYMBOL(iowrite16_rep);
+
+void iowrite32_rep(void __iomem *addr, const void *src, unsigned long count)
+{
+	mmio_outsl(addr, src, count);
+}
+
+EXPORT_SYMBOL(iowrite32_rep);
+
+/*
+ * Create a virtual mapping cookie for an IO port range
+ *
+ * This uses the same mapping are as the in/out family which has to be setup
+ * by the platform initialization code.
+ *
+ * Just to make matters somewhat more interesting on MIPS systems with
+ * multiple host bridge each will have it's own ioport address space.
+ */
+static void __iomem *ioport_map_legacy(unsigned long port, unsigned int nr)
+{
+	return (void __iomem *) (mips_io_port_base + port);
+}
 
 void __iomem *ioport_map(unsigned long port, unsigned int nr)
 {
-	unsigned long end;
-
-	end = port + nr - 1UL;
-	if (ioport_resource.start > port ||
-	    ioport_resource.end < end || port > end)
+	if (port > PIO_MASK)
 		return NULL;
 
-	return (void __iomem *)(mips_io_port_base + port);
+	return ioport_map_legacy(port, nr);
 }
+
+EXPORT_SYMBOL(ioport_map);
 
 void ioport_unmap(void __iomem *addr)
 {
+	/* Nothing to do */
 }
-EXPORT_SYMBOL(ioport_map);
+
 EXPORT_SYMBOL(ioport_unmap);
-
-void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
-{
-	unsigned long start, len, flags;
-
-	if (dev == NULL)
-		return NULL;
-
-	start = pci_resource_start(dev, bar);
-	len = pci_resource_len(dev, bar);
-	if (!start || !len)
-		return NULL;
-
-	if (maxlen != 0 && len > maxlen)
-		len = maxlen;
-
-	flags = pci_resource_flags(dev, bar);
-	if (flags & IORESOURCE_IO)
-		return ioport_map(start, len);
-	if (flags & IORESOURCE_MEM) {
-		if (flags & IORESOURCE_CACHEABLE)
-			return ioremap_cachable(start, len);
-		return ioremap_nocache(start, len);
-	}
-
-	return NULL;
-}
-
-void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
-{
-	iounmap(addr);
-}
-EXPORT_SYMBOL(pci_iomap);
-EXPORT_SYMBOL(pci_iounmap);

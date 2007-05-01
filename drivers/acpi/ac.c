@@ -35,7 +35,6 @@
 #define ACPI_AC_COMPONENT		0x00020000
 #define ACPI_AC_CLASS			"ac_adapter"
 #define ACPI_AC_HID 			"ACPI0003"
-#define ACPI_AC_DRIVER_NAME		"ACPI AC Adapter Driver"
 #define ACPI_AC_DEVICE_NAME		"AC Adapter"
 #define ACPI_AC_FILE_STATE		"state"
 #define ACPI_AC_NOTIFY_STATUS		0x80
@@ -44,10 +43,10 @@
 #define ACPI_AC_STATUS_UNKNOWN		0xFF
 
 #define _COMPONENT		ACPI_AC_COMPONENT
-ACPI_MODULE_NAME("acpi_ac")
+ACPI_MODULE_NAME("ac");
 
-    MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION(ACPI_AC_DRIVER_NAME);
+MODULE_AUTHOR("Paul Diefenbaugh");
+MODULE_DESCRIPTION("ACPI AC Adapter Driver");
 MODULE_LICENSE("GPL");
 
 extern struct proc_dir_entry *acpi_lock_ac_dir(void);
@@ -58,7 +57,7 @@ static int acpi_ac_remove(struct acpi_device *device, int type);
 static int acpi_ac_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_ac_driver = {
-	.name = ACPI_AC_DRIVER_NAME,
+	.name = "ac",
 	.class = ACPI_AC_CLASS,
 	.ids = ACPI_AC_HID,
 	.ops = {

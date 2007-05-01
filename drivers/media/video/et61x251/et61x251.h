@@ -171,10 +171,7 @@ struct et61x251_device {
 struct et61x251_device*
 et61x251_match_id(struct et61x251_device* cam, const struct usb_device_id *id)
 {
-	if (usb_match_id(usb_ifnum_to_if(cam->usbdev, 0), id))
-		return cam;
-
-	return NULL;
+	return usb_match_id(usb_ifnum_to_if(cam->usbdev, 0), id) ? cam : NULL;
 }
 
 

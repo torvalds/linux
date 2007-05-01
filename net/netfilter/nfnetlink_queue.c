@@ -338,7 +338,7 @@ static struct sk_buff *
 nfqnl_build_packet_message(struct nfqnl_instance *queue,
 			   struct nfqnl_queue_entry *entry, int *errp)
 {
-	unsigned char *old_tail;
+	sk_buff_data_t old_tail;
 	size_t size;
 	size_t data_len = 0;
 	struct sk_buff *skb;
@@ -404,7 +404,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (!skb)
 		goto nlmsg_failure;
 
-	old_tail= skb->tail;
+	old_tail = skb->tail;
 	nlh = NLMSG_PUT(skb, 0, 0,
 			NFNL_SUBSYS_QUEUE << 8 | NFQNL_MSG_PACKET,
 			sizeof(struct nfgenmsg));
@@ -495,11 +495,11 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		NFA_PUT(skb, NFQA_HWADDR, sizeof(phw), &phw);
 	}
 
-	if (entskb->tstamp.off_sec) {
+	if (entskb->tstamp.tv64) {
 		struct nfqnl_msg_packet_timestamp ts;
-
-		ts.sec = cpu_to_be64(entskb->tstamp.off_sec);
-		ts.usec = cpu_to_be64(entskb->tstamp.off_usec);
+		struct timeval tv = ktime_to_timeval(entskb->tstamp);
+		ts.sec = cpu_to_be64(tv.tv_sec);
+		ts.usec = cpu_to_be64(tv.tv_usec);
 
 		NFA_PUT(skb, NFQA_TIMESTAMP, sizeof(ts), &ts);
 	}
@@ -648,7 +648,7 @@ nfqnl_mangle(void *data, int data_len, struct nfqnl_queue_entry *e)
 	}
 	if (!skb_make_writable(&e->skb, data_len))
 		return -ENOMEM;
-	memcpy(e->skb->data, data, data_len);
+	skb_copy_to_linear_data(e->skb, data, data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;
 	return 0;
 }
@@ -783,7 +783,7 @@ static const int nfqa_verdict_min[NFQA_MAX] = {
 
 static int
 nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
-		   struct nlmsghdr *nlh, struct nfattr *nfqa[], int *errp)
+		   struct nlmsghdr *nlh, struct nfattr *nfqa[])
 {
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
@@ -848,7 +848,7 @@ err_out_put:
 
 static int
 nfqnl_recv_unsupp(struct sock *ctnl, struct sk_buff *skb,
-		  struct nlmsghdr *nlh, struct nfattr *nfqa[], int *errp)
+		  struct nlmsghdr *nlh, struct nfattr *nfqa[])
 {
 	return -ENOTSUPP;
 }
@@ -865,7 +865,7 @@ static struct nf_queue_handler nfqh = {
 
 static int
 nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
-		  struct nlmsghdr *nlh, struct nfattr *nfqa[], int *errp)
+		  struct nlmsghdr *nlh, struct nfattr *nfqa[])
 {
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);

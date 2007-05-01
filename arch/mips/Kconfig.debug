@@ -37,9 +37,18 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
+config CONFIG_SMTC_IDLE_HOOK_DEBUG
+	bool "Enable additional debug checks before going into CPU idle loop"
+	depends on DEBUG_KERNEL && MIPS_MT_SMTC
+	help
+	  This option enables Enable additional debug checks before going into
+	  CPU idle loop.  For details on these checks, see
+	  arch/mips/kernel/smtc.c.  This debugging option result in significant
+	  overhead so should be disabled in production kernels.
+
 config KGDB
 	bool "Remote GDB kernel debugging"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && SYS_SUPPORTS_KGDB
 	select DEBUG_INFO
 	help
 	  If you say Y here, it will be possible to remotely debug the MIPS
@@ -47,6 +56,9 @@ config KGDB
 	  several megabytes and requires a machine with more than 16 MB,
 	  better 32 MB RAM to avoid excessive linking time. This is only
 	  useful for kernel hackers. If unsure, say N.
+
+config SYS_SUPPORTS_KGDB
+	bool
 
 config GDB_CONSOLE
 	bool "Console output to GDB"

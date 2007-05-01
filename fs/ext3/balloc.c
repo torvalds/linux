@@ -32,7 +32,7 @@
  * The file system contains group descriptors which are located after the
  * super block.  Each descriptor contains the number of the bitmap block and
  * the free blocks count in the block.  The descriptors are loaded in memory
- * when a file system is mounted (see ext3_read_super).
+ * when a file system is mounted (see ext3_fill_super).
  */
 
 

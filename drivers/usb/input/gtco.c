@@ -223,7 +223,7 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 	__u32 oldval[TAG_GLOB_MAX];
 
 	/* Debug stuff */
-	char  maintype='x';
+	char  maintype = 'x';
 	char  globtype[12];
 	int   indent = 0;
 	char  indentstr[10] = "";

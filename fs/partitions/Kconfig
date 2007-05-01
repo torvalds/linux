@@ -235,5 +235,4 @@ config EFI_PARTITION
 	select CRC32
 	help
 	  Say Y here if you would like to use hard disks under Linux which
-	  were partitioned using EFI GPT.  Presently only useful on the
-	  IA-64 platform.
+	  were partitioned using EFI GPT.

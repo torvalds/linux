@@ -168,9 +168,18 @@ int acpi_suspend(u32 acpi_state)
 
 static int acpi_pm_state_valid(suspend_state_t pm_state)
 {
-	u32 acpi_state = acpi_suspend_states[pm_state];
+	u32 acpi_state;
 
-	return sleep_states[acpi_state];
+	switch (pm_state) {
+	case PM_SUSPEND_ON:
+	case PM_SUSPEND_STANDBY:
+	case PM_SUSPEND_MEM:
+		acpi_state = acpi_suspend_states[pm_state];
+
+		return sleep_states[acpi_state];
+	default:
+		return 0;
+	}
 }
 
 static struct pm_ops acpi_pm_ops = {
@@ -200,7 +209,7 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 	{},
 };
 
-static int __init acpi_sleep_init(void)
+int __init acpi_sleep_init(void)
 {
 	int i = 0;
 
@@ -229,4 +238,3 @@ static int __init acpi_sleep_init(void)
 	return 0;
 }
 
-late_initcall(acpi_sleep_init);

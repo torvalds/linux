@@ -2,7 +2,7 @@
 #define __LINUX_SEQLOCK_H
 /*
  * Reader/writer consistent mechanism without starving writers. This type of
- * lock for data where the reader wants a consitent set of information
+ * lock for data where the reader wants a consistent set of information
  * and is willing to retry if the information changes.  Readers never
  * block but they may have to retry if a writer is in
  * progress. Writers do not wait for readers. 
@@ -61,10 +61,10 @@ static inline void write_seqlock(seqlock_t *sl)
 {
 	spin_lock(&sl->lock);
 	++sl->sequence;
-	smp_wmb();			
-}	
+	smp_wmb();
+}
 
-static inline void write_sequnlock(seqlock_t *sl) 
+static inline void write_sequnlock(seqlock_t *sl)
 {
 	smp_wmb();
 	sl->sequence++;
@@ -77,7 +77,7 @@ static inline int write_tryseqlock(seqlock_t *sl)
 
 	if (ret) {
 		++sl->sequence;
-		smp_wmb();			
+		smp_wmb();
 	}
 	return ret;
 }

@@ -374,7 +374,7 @@ static int __devinit amd756_probe(struct pci_dev *pdev,
 	dev_dbg(&pdev->dev, "SMBREV = 0x%X\n", temp);
 	dev_dbg(&pdev->dev, "AMD756_smba = 0x%X\n", amd756_ioport);
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	amd756_smbus.dev.parent = &pdev->dev;
 
 	sprintf(amd756_smbus.name, "SMBus %s adapter at %04x",

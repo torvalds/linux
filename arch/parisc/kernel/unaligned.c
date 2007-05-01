@@ -20,8 +20,11 @@
  *
  */
 
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/signal.h>
 #include <asm/uaccess.h>
 
 /* #define DEBUG_UNALIGNED 1 */
@@ -32,7 +35,7 @@
 #define DPRINTF(fmt, args...)
 #endif
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define RFMT "%016lx"
 #else
 #define RFMT "%08lx"
@@ -147,15 +150,8 @@ static int emulate_ldh(struct pt_regs *regs, int toreg)
 "4:	ldi	-2, %1\n"
 	FIXUP_BRANCH(3b)
 "	.previous\n"
-"	.section __ex_table,\"aw\"\n"
-#ifdef __LP64__
-"	.dword	1b,4b\n"
-"	.dword  2b,4b\n"
-#else
-"	.word	1b,4b\n"
-"	.word	2b,4b\n"
-#endif
-"	.previous\n"
+	ASM_EXCEPTIONTABLE_ENTRY(1b, 4b)
+	ASM_EXCEPTIONTABLE_ENTRY(2b, 4b)
 	: "=r" (val), "=r" (ret)
 	: "0" (val), "r" (saddr), "r" (regs->isr)
 	: "r20", FIXUP_BRANCH_CLOBBER );
@@ -192,15 +188,8 @@ static int emulate_ldw(struct pt_regs *regs, int toreg, int flop)
 "4:	ldi	-2, %1\n"
 	FIXUP_BRANCH(3b)
 "	.previous\n"
-"	.section __ex_table,\"aw\"\n"
-#ifdef __LP64__
-"	.dword	1b,4b\n"
-"	.dword  2b,4b\n"
-#else
-"	.word	1b,4b\n"
-"	.word	2b,4b\n"
-#endif
-"	.previous\n"
+	ASM_EXCEPTIONTABLE_ENTRY(1b, 4b)
+	ASM_EXCEPTIONTABLE_ENTRY(2b, 4b)
 	: "=r" (val), "=r" (ret)
 	: "0" (val), "r" (saddr), "r" (regs->isr)
 	: "r19", "r20", FIXUP_BRANCH_CLOBBER );
@@ -224,7 +213,7 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 		regs->isr, regs->ior, toreg);
 #ifdef CONFIG_PA20
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	if (!flop)
 		return -1;
 #endif
@@ -243,15 +232,8 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 "4:	ldi	-2, %1\n"
 	FIXUP_BRANCH(3b)
 "	.previous\n"
-"	.section __ex_table,\"aw\"\n"
-#ifdef __LP64__
-"	.dword	1b,4b\n"
-"	.dword  2b,4b\n"
-#else
-"	.word	1b,4b\n"
-"	.word	2b,4b\n"
-#endif
-"	.previous\n"
+	ASM_EXCEPTIONTABLE_ENTRY(1b,4b)
+	ASM_EXCEPTIONTABLE_ENTRY(2b,4b)
 	: "=r" (val), "=r" (ret)
 	: "0" (val), "r" (saddr), "r" (regs->isr)
 	: "r19", "r20", FIXUP_BRANCH_CLOBBER );
@@ -275,17 +257,9 @@ static int emulate_ldd(struct pt_regs *regs, int toreg, int flop)
 "5:	ldi	-2, %2\n"
 	FIXUP_BRANCH(4b)
 "	.previous\n"
-"	.section __ex_table,\"aw\"\n"
-#ifdef __LP64__
-"	.dword	1b,5b\n"
-"	.dword  2b,5b\n"
-"	.dword	3b,5b\n"
-#else
-"	.word	1b,5b\n"
-"	.word	2b,5b\n"
-"	.word	3b,5b\n"
-#endif
-"	.previous\n"
+	ASM_EXCEPTIONTABLE_ENTRY(1b,5b)
+	ASM_EXCEPTIONTABLE_ENTRY(2b,5b)
+	ASM_EXCEPTIONTABLE_ENTRY(3b,5b)
 	: "=r" (valh), "=r" (vall), "=r" (ret)
 	: "0" (valh), "1" (vall), "r" (saddr), "r" (regs->isr)
 	: "r19", "r20", FIXUP_BRANCH_CLOBBER );
@@ -325,15 +299,8 @@ static int emulate_sth(struct pt_regs *regs, int frreg)
 "4:	ldi	-2, %0\n"
 	FIXUP_BRANCH(3b)
 "	.previous\n"
-"	.section __ex_table,\"aw\"\n"
-#ifdef __LP64__
-"	.dword	1b,4b\n"
-"	.dword  2b,4b\n"
-#else
-"	.word	1b,4b\n"
-"	.word	2b,4b\n"
-#endif
-"	.previous\n"
+	ASM_EXCEPTIONTABLE_ENTRY(1b,4b)
+	ASM_EXCEPTIONTABLE_ENTRY(2b,4b)
 	: "=r" (ret)
 	: "r" (val), "r" (regs->ior), "r" (regs->isr)
 	: "r19", FIXUP_BRANCH_CLOBBER );
@@ -379,15 +346,8 @@ static int emulate_stw(struct pt_regs *regs, int frreg, int flop)
 "4:	ldi	-2, %0\n"
 	FIXUP_BRANCH(3b)
 "	.previous\n"
-"	.section __ex_table,\"aw\"\n"
-#ifdef __LP64__
-"	.dword	1b,4b\n"
-"	.dword  2b,4b\n"
-#else
-"	.word	1b,4b\n"
-"	.word	2b,4b\n"
-#endif
-"	.previous\n"
+	ASM_EXCEPTIONTABLE_ENTRY(1b,4b)
+	ASM_EXCEPTIONTABLE_ENTRY(2b,4b)
 	: "=r" (ret)
 	: "r" (val), "r" (regs->ior), "r" (regs->isr)
 	: "r19", "r20", "r21", "r22", "r1", FIXUP_BRANCH_CLOBBER );
@@ -410,7 +370,7 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 		val,  regs->isr, regs->ior);
 
 #ifdef CONFIG_PA20
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	if (!flop)
 		return -1;
 #endif
@@ -436,19 +396,10 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 "6:	ldi	-2, %0\n"
 	FIXUP_BRANCH(5b)
 "	.previous\n"
-"	.section __ex_table,\"aw\"\n"
-#ifdef __LP64__
-"	.dword	1b,6b\n"
-"	.dword  2b,6b\n"
-"	.dword	3b,6b\n"
-"	.dword  4b,6b\n"
-#else
-"	.word	1b,6b\n"
-"	.word	2b,6b\n"
-"	.word	3b,6b\n"
-"	.word	4b,6b\n"
-#endif
-"	.previous\n"
+	ASM_EXCEPTIONTABLE_ENTRY(1b,6b)
+	ASM_EXCEPTIONTABLE_ENTRY(2b,6b)
+	ASM_EXCEPTIONTABLE_ENTRY(3b,6b)
+	ASM_EXCEPTIONTABLE_ENTRY(4b,6b)
 	: "=r" (ret)
 	: "r" (val), "r" (regs->ior), "r" (regs->isr)
 	: "r19", "r20", "r21", "r22", "r1", FIXUP_BRANCH_CLOBBER );
@@ -479,21 +430,11 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 "7:	ldi	-2, %0\n"
 	FIXUP_BRANCH(6b)
 "	.previous\n"
-"	.section __ex_table,\"aw\"\n"
-#ifdef __LP64__
-"	.dword	1b,7b\n"
-"	.dword  2b,7b\n"
-"	.dword	3b,7b\n"
-"	.dword  4b,7b\n"
-"	.dword  5b,7b\n"
-#else
-"	.word	1b,7b\n"
-"	.word	2b,7b\n"
-"	.word	3b,7b\n"
-"	.word	4b,7b\n"
-"	.word  	5b,7b\n"
-#endif
-"	.previous\n"
+	ASM_EXCEPTIONTABLE_ENTRY(1b,7b)
+	ASM_EXCEPTIONTABLE_ENTRY(2b,7b)
+	ASM_EXCEPTIONTABLE_ENTRY(3b,7b)
+	ASM_EXCEPTIONTABLE_ENTRY(4b,7b)
+	ASM_EXCEPTIONTABLE_ENTRY(5b,7b)
 	: "=r" (ret)
 	: "r" (valh), "r" (vall), "r" (regs->ior), "r" (regs->isr)
 	: "r19", "r20", "r21", "r1", FIXUP_BRANCH_CLOBBER );

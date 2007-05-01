@@ -19,12 +19,10 @@
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/gt64120.h>
 
-#include <asm/mach-cobalt/cobalt.h>
+#include <cobalt.h>
 
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
@@ -63,59 +61,36 @@ void __init plat_timer_setup(struct irqaction *irq)
 	GT_WRITE(GT_INTRMASK_OFS, GT_INTR_T0EXP_MSK | GT_READ(GT_INTRMASK_OFS));
 }
 
-extern struct pci_ops gt64111_pci_ops;
-
-static struct resource cobalt_mem_resource = {
-	.start	= GT_DEF_PCI0_MEM0_BASE,
-	.end	= GT_DEF_PCI0_MEM0_BASE + GT_DEF_PCI0_MEM0_SIZE - 1,
-	.name	= "PCI memory",
-	.flags	= IORESOURCE_MEM
-};
-
-static struct resource cobalt_io_resource = {
-	.start	= 0x1000,
-	.end	= 0xffff,
-	.name	= "PCI I/O",
-	.flags	= IORESOURCE_IO
-};
-
-static struct resource cobalt_io_resources[] = {
-	{
+/*
+ * Cobalt doesn't have PS/2 keyboard/mouse interfaces,
+ * keyboard conntroller is never used.
+ * Also PCI-ISA bridge DMA contoroller is never used.
+ */
+static struct resource cobalt_reserved_resources[] = {
+	{	/* dma1 */
 		.start	= 0x00,
 		.end	= 0x1f,
-		.name	= "dma1",
-		.flags	= IORESOURCE_BUSY
-	}, {
-		.start	= 0x40,
-		.end	= 0x5f,
-		.name	= "timer",
-		.flags	= IORESOURCE_BUSY
-	}, {
+		.name	= "reserved",
+		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
+	},
+	{	/* keyboard */
 		.start	= 0x60,
 		.end	= 0x6f,
-		.name	= "keyboard",
-		.flags	= IORESOURCE_BUSY
-	}, {
+		.name	= "reserved",
+		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
+	},
+	{	/* dma page reg */
 		.start	= 0x80,
 		.end	= 0x8f,
-		.name	= "dma page reg",
-		.flags	= IORESOURCE_BUSY
-	}, {
+		.name	= "reserved",
+		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
+	},
+	{	/* dma2 */
 		.start	= 0xc0,
 		.end	= 0xdf,
-		.name	= "dma2",
-		.flags	= IORESOURCE_BUSY
+		.name	= "reserved",
+		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
 	},
-};
-
-#define COBALT_IO_RESOURCES (sizeof(cobalt_io_resources)/sizeof(struct resource))
-
-static struct pci_controller cobalt_pci_controller = {
-	.pci_ops	= &gt64111_pci_ops,
-	.mem_resource	= &cobalt_mem_resource,
-	.mem_offset	= 0,
-	.io_resource	= &cobalt_io_resource,
-	.io_offset	= 0 - GT_DEF_PCI0_IO_BASE,
 };
 
 void __init plat_mem_setup(void)
@@ -130,12 +105,12 @@ void __init plat_mem_setup(void)
 
 	set_io_port_base(CKSEG1ADDR(GT_DEF_PCI0_IO_BASE));
 
-	/* I/O port resource must include UART and LCD/buttons */
+	/* I/O port resource must include LCD/buttons */
 	ioport_resource.end = 0x0fffffff;
 
-	/* request I/O space for devices used on all i[345]86 PCs */
-	for (i = 0; i < COBALT_IO_RESOURCES; i++)
-		request_resource(&ioport_resource, cobalt_io_resources + i);
+	/* These resources have been reserved by VIA SuperI/O chip. */
+	for (i = 0; i < ARRAY_SIZE(cobalt_reserved_resources); i++)
+		request_resource(&ioport_resource, cobalt_reserved_resources + i);
 
         /* Read the cobalt id register out of the PCI config space */
         PCI_CFG_SET(devfn, (VIA_COBALT_BRD_ID_REG & ~0x3));
@@ -145,28 +120,20 @@ void __init plat_mem_setup(void)
 
 	printk("Cobalt board ID: %d\n", cobalt_board_id);
 
-#ifdef CONFIG_PCI
-	register_pci_controller(&cobalt_pci_controller);
-#endif
-
-#ifdef CONFIG_SERIAL_8250
 	if (cobalt_board_id > COBALT_BRD_ID_RAQ1) {
-
-#ifdef CONFIG_EARLY_PRINTK
-		cobalt_early_console();
-#endif
-
+#ifdef CONFIG_SERIAL_8250
 		uart.line	= 0;
 		uart.type	= PORT_UNKNOWN;
 		uart.uartclk	= 18432000;
 		uart.irq	= COBALT_SERIAL_IRQ;
-		uart.flags	= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
-		uart.iobase	= 0xc800000;
-		uart.iotype	= UPIO_PORT;
+		uart.flags	= UPF_IOREMAP | UPF_BOOT_AUTOCONF |
+				  UPF_SKIP_TEST;
+		uart.iotype	= UPIO_MEM;
+		uart.mapbase	= 0x1c800000;
 
 		early_serial_setup(&uart);
-	}
 #endif
+	}
 }
 
 /*

@@ -1031,32 +1031,40 @@ static irqreturn_t headphone_intr(int irq, void *devid)
 /* look for audio-gpio device */
 static struct device_node *find_audio_device(const char *name)
 {
+	struct device_node *gpiop;
 	struct device_node *np;
   
-	if (! (np = find_devices("gpio")))
+	gpiop = of_find_node_by_name(NULL, "gpio");
+	if (! gpiop)
 		return NULL;
   
-	for (np = np->child; np; np = np->sibling) {
-		const char *property = get_property(np, "audio-gpio", NULL);
+	for (np = of_get_next_child(gpiop, NULL); np;
+			np = of_get_next_child(gpiop, np)) {
+		const char *property = of_get_property(np, "audio-gpio", NULL);
 		if (property && strcmp(property, name) == 0)
-			return np;
+			break;
 	}  
-	return NULL;
+	of_node_put(gpiop);
+	return np;
 }
 
 /* look for audio-gpio device */
 static struct device_node *find_compatible_audio_device(const char *name)
 {
+	struct device_node *gpiop;
 	struct device_node *np;
   
-	if (! (np = find_devices("gpio")))
+	gpiop = of_find_node_by_name(NULL, "gpio");
+	if (!gpiop)
 		return NULL;
   
-	for (np = np->child; np; np = np->sibling) {
+	for (np = of_get_next_child(gpiop, NULL); np;
+			np = of_get_next_child(gpiop, np)) {
 		if (device_is_compatible(np, name))
-			return np;
+			break;
 	}  
-	return NULL;
+	of_node_put(gpiop);
+	return np;
 }
 
 /* find an audio device and get its address */
@@ -1066,6 +1074,7 @@ static long tumbler_find_device(const char *device, const char *platform,
 	struct device_node *node;
 	const u32 *base;
 	u32 addr;
+	long ret;
 
 	if (is_compatible)
 		node = find_compatible_audio_device(device);
@@ -1077,12 +1086,13 @@ static long tumbler_find_device(const char *device, const char *platform,
 		return -ENODEV;
 	}
 
-	base = get_property(node, "AAPL,address", NULL);
+	base = of_get_property(node, "AAPL,address", NULL);
 	if (! base) {
-		base = get_property(node, "reg", NULL);
+		base = of_get_property(node, "reg", NULL);
 		if (!base) {
 			DBG("(E) cannot find address for device %s !\n", device);
 			snd_printd("cannot find address for device %s\n", device);
+			of_node_put(node);
 			return -ENODEV;
 		}
 		addr = *base;
@@ -1093,7 +1103,7 @@ static long tumbler_find_device(const char *device, const char *platform,
 
 	gp->addr = addr & 0x0000ffff;
 	/* Try to find the active state, default to 0 ! */
-	base = get_property(node, "audio-gpio-active-state", NULL);
+	base = of_get_property(node, "audio-gpio-active-state", NULL);
 	if (base) {
 		gp->active_state = *base;
 		gp->active_val = (*base) ? 0x5 : 0x4;
@@ -1108,7 +1118,7 @@ static long tumbler_find_device(const char *device, const char *platform,
 		 * as we don't yet have an interpreter for these things
 		 */
 		if (platform)
-			prop = get_property(node, platform, NULL);
+			prop = of_get_property(node, platform, NULL);
 		if (prop) {
 			if (prop[3] == 0x9 && prop[4] == 0x9) {
 				gp->active_val = 0xd;
@@ -1124,7 +1134,9 @@ static long tumbler_find_device(const char *device, const char *platform,
 	DBG("(I) GPIO device %s found, offset: %x, active state: %d !\n",
 	    device, gp->addr, gp->active_state);
 
-	return irq_of_parse_and_map(node, 0);
+	ret = irq_of_parse_and_map(node, 0);
+	of_node_put(node);
+	return ret;
 }
 
 /* reset audio */
@@ -1310,7 +1322,7 @@ int __init snd_pmac_tumbler_init(struct snd_pmac *chip)
 {
 	int i, err;
 	struct pmac_tumbler *mix;
-	u32 *paddr;
+	const u32 *paddr;
 	struct device_node *tas_node, *np;
 	char *chipname;
 
@@ -1331,9 +1343,9 @@ int __init snd_pmac_tumbler_init(struct snd_pmac *chip)
 
 	for (np = chip->node->child; np; np = np->sibling) {
 		if (!strcmp(np->name, "sound")) {
-			if (get_property(np, "has-anded-reset", NULL))
+			if (of_get_property(np, "has-anded-reset", NULL))
 				mix->anded_reset = 1;
-			if (get_property(np, "layout-id", NULL))
+			if (of_get_property(np, "layout-id", NULL))
 				mix->reset_on_sleep = 0;
 			break;
 		}
@@ -1342,19 +1354,20 @@ int __init snd_pmac_tumbler_init(struct snd_pmac *chip)
 		return err;
 
 	/* set up TAS */
-	tas_node = find_devices("deq");
+	tas_node = of_find_node_by_name(NULL, "deq");
 	if (tas_node == NULL)
-		tas_node = find_devices("codec");
+		tas_node = of_find_node_by_name(NULL, "codec");
 	if (tas_node == NULL)
 		return -ENODEV;
 
-	paddr = (u32 *)get_property(tas_node, "i2c-address", NULL);
+	paddr = of_get_property(tas_node, "i2c-address", NULL);
 	if (paddr == NULL)
-		paddr = (u32 *)get_property(tas_node, "reg", NULL);
+		paddr = of_get_property(tas_node, "reg", NULL);
 	if (paddr)
 		mix->i2c.addr = (*paddr) >> 1;
 	else
 		mix->i2c.addr = TAS_I2C_ADDR;
+	of_node_put(tas_node);
 
 	DBG("(I) TAS i2c address is: %x\n", mix->i2c.addr);
 

@@ -237,7 +237,7 @@ extern void indy_8254timer_irq(void);
 
 asmlinkage void plat_irq_dispatch(void)
 {
-	unsigned int pending = read_c0_cause();
+	unsigned int pending = read_c0_status() & read_c0_cause();
 
 	/*
 	 * First we check for r4k counter/timer IRQ.

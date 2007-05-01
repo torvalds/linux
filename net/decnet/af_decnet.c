@@ -2413,6 +2413,7 @@ module_init(decnet_init);
 static void __exit decnet_exit(void)
 {
 	sock_unregister(AF_DECnet);
+	rtnl_unregister_all(PF_DECnet);
 	dev_remove_pack(&dn_dix_packet_type);
 
 	dn_unregister_sysctl();

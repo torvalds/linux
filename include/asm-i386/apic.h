@@ -117,6 +117,7 @@ extern void enable_NMI_through_LVT0 (void * dummy);
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
 extern int timer_over_8254;
+extern int local_apic_timer_c2_ok;
 
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }

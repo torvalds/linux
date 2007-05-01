@@ -232,7 +232,6 @@ enum {
 	IS_R2_PAR_ERR	= 1<<0,	/* Queue R2 Parity Error */
 
 	IS_ERR_MSK	= IS_IRQ_MST_ERR | IS_IRQ_STAT
-			| IS_NO_STAT_M1 | IS_NO_STAT_M2
 			| IS_RAM_RD_PAR | IS_RAM_WR_PAR
 			| IS_M1_PAR_ERR | IS_M2_PAR_ERR
 			| IS_R1_PAR_ERR | IS_R2_PAR_ERR,
@@ -1849,8 +1848,7 @@ enum {
 			  GMR_FS_JABBER,
 /* Rx GMAC FIFO Flush Mask (default) */
 	RX_FF_FL_DEF_MSK = GMR_FS_CRC_ERR | GMR_FS_RX_FF_OV |GMR_FS_MII_ERR |
-			   GMR_FS_BAD_FC | GMR_FS_GOOD_FC | GMR_FS_UN_SIZE |
-			   GMR_FS_JABBER,
+			   GMR_FS_BAD_FC |  GMR_FS_UN_SIZE | GMR_FS_JABBER,
 };
 
 /*	RX_GMF_CTRL_T	32 bit	Rx GMAC FIFO Control/Test */
@@ -2425,8 +2423,8 @@ struct skge_hw {
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
 	u16		     phy_addr;
-	struct work_struct   phy_work;
-	struct mutex	     phy_mutex;
+	spinlock_t	     phy_lock;
+	struct tasklet_struct phy_task;
 };
 
 enum pause_control {
@@ -2448,17 +2446,17 @@ enum pause_status {
 
 
 struct skge_port {
-	u32		     msg_enable;
 	struct skge_hw	     *hw;
 	struct net_device    *netdev;
 	int		     port;
+	u32		     msg_enable;
 
 	struct skge_ring     tx_ring;
-	struct skge_ring     rx_ring;
 
-	struct net_device_stats net_stats;
+	struct skge_ring     rx_ring ____cacheline_aligned_in_smp;
+	unsigned int	     rx_buf_size;
 
-	struct delayed_work  link_thread;
+	struct timer_list    link_timer;
 	enum pause_control   flow_control;
 	enum pause_status    flow_status;
 	u8		     rx_csum;
@@ -2472,7 +2470,8 @@ struct skge_port {
 	void		     *mem;	/* PCI memory for rings */
 	dma_addr_t	     dma;
 	unsigned long	     mem_size;
-	unsigned int	     rx_buf_size;
+
+	struct net_device_stats net_stats;
 };
 
 

@@ -44,7 +44,6 @@ extern void swiotlb_init(void);
 extern int swiotlb_force;
 
 #ifdef CONFIG_SWIOTLB
-#define SWIOTLB_ARCH_NEED_ALLOC
 extern int swiotlb;
 #else
 #define swiotlb 0

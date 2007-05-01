@@ -46,7 +46,7 @@
 #include <linux/efi.h>
 
 #define _COMPONENT		ACPI_OS_SERVICES
-ACPI_MODULE_NAME("osl")
+ACPI_MODULE_NAME("osl");
 #define PREFIX		"ACPI: "
 struct acpi_os_dpc {
 	acpi_osd_exec_callback function;
@@ -67,9 +67,6 @@ EXPORT_SYMBOL(acpi_in_debugger);
 
 extern char line_buf[80];
 #endif				/*ENABLE_DEBUGGER */
-
-int acpi_specific_hotkey_enabled = TRUE;
-EXPORT_SYMBOL(acpi_specific_hotkey_enabled);
 
 static unsigned int acpi_irq_irq;
 static acpi_osd_handler acpi_irq_handler;
@@ -205,7 +202,7 @@ void __iomem *acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
-		return 0;
+		return NULL;
 	}
 	if (acpi_gbl_permanent_mmap)
 		/*
@@ -890,26 +887,6 @@ u32 acpi_os_get_line(char *buffer)
 }
 #endif				/*  ACPI_FUTURE_USAGE  */
 
-/* Assumes no unreadable holes inbetween */
-u8 acpi_os_readable(void *ptr, acpi_size len)
-{
-#if defined(__i386__) || defined(__x86_64__)
-	char tmp;
-	return !__get_user(tmp, (char __user *)ptr)
-	    && !__get_user(tmp, (char __user *)ptr + len - 1);
-#endif
-	return 1;
-}
-
-#ifdef ACPI_FUTURE_USAGE
-u8 acpi_os_writable(void *ptr, acpi_size len)
-{
-	/* could do dummy write (racy) or a kernel page table lookup.
-	   The later may be difficult at early boot when kmap doesn't work yet. */
-	return 1;
-}
-#endif
-
 acpi_status acpi_os_signal(u32 function, void *info)
 {
 	switch (function) {
@@ -1011,14 +988,6 @@ static int __init acpi_wake_gpes_always_on_setup(char *str)
 }
 
 __setup("acpi_wake_gpes_always_on", acpi_wake_gpes_always_on_setup);
-
-static int __init acpi_hotkey_setup(char *str)
-{
-	acpi_specific_hotkey_enabled = FALSE;
-	return 1;
-}
-
-__setup("acpi_generic_hotkey", acpi_hotkey_setup);
 
 /*
  * max_cstate is defined in the base kernel so modules can

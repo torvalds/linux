@@ -28,8 +28,6 @@ static int automatic_resume = 0; /* experimental .. better should be zero */
 static int rfdadd = 0; /* rfdadd=1 may be better for 8K MEM cards */
 static int fifo=0x8;	/* don't change */
 
-/* #define REALLY_SLOW_IO */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -777,7 +775,6 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 					skb = (struct sk_buff *) dev_alloc_skb(totlen+2);
 					if(skb != NULL)
 					{
-						skb->dev = dev;
 						skb_reserve(skb,2);
 						skb_put(skb,totlen);
 						eth_copy_and_sum(skb,(char *) p->base+swab32((unsigned long) rbd->buffer),totlen,0);
@@ -1029,7 +1026,7 @@ static int sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 			memset((char *)p->xmit_cbuffs[p->xmit_count], 0, ETH_ZLEN);
 			len = ETH_ZLEN;
 		}
-		memcpy((char *)p->xmit_cbuffs[p->xmit_count],(char *)(skb->data),skb->len);
+		skb_copy_from_linear_data(skb, p->xmit_cbuffs[p->xmit_count], skb->len);
 
 #if (NUM_XMIT_BUFFS == 1)
 #	ifdef NO_NOPCOMMANDS

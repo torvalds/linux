@@ -161,65 +161,49 @@ static void write_intsize(u32 val)
 static void
 iop13xx_irq_mask0 (unsigned int irq)
 {
-	u32 cp_flags = iop13xx_cp6_save();
 	write_intctl_0(read_intctl_0() & ~(1 << (irq - 0)));
-	iop13xx_cp6_restore(cp_flags);
 }
 
 static void
 iop13xx_irq_mask1 (unsigned int irq)
 {
-	u32 cp_flags = iop13xx_cp6_save();
 	write_intctl_1(read_intctl_1() & ~(1 << (irq - 32)));
-	iop13xx_cp6_restore(cp_flags);
 }
 
 static void
 iop13xx_irq_mask2 (unsigned int irq)
 {
-	u32 cp_flags = iop13xx_cp6_save();
 	write_intctl_2(read_intctl_2() & ~(1 << (irq - 64)));
-	iop13xx_cp6_restore(cp_flags);
 }
 
 static void
 iop13xx_irq_mask3 (unsigned int irq)
 {
-	u32 cp_flags = iop13xx_cp6_save();
 	write_intctl_3(read_intctl_3() & ~(1 << (irq - 96)));
-	iop13xx_cp6_restore(cp_flags);
 }
 
 static void
 iop13xx_irq_unmask0(unsigned int irq)
 {
-	u32 cp_flags = iop13xx_cp6_save();
 	write_intctl_0(read_intctl_0() | (1 << (irq - 0)));
-	iop13xx_cp6_restore(cp_flags);
 }
 
 static void
 iop13xx_irq_unmask1(unsigned int irq)
 {
-	u32 cp_flags = iop13xx_cp6_save();
 	write_intctl_1(read_intctl_1() | (1 << (irq - 32)));
-	iop13xx_cp6_restore(cp_flags);
 }
 
 static void
 iop13xx_irq_unmask2(unsigned int irq)
 {
-	u32 cp_flags = iop13xx_cp6_save();
 	write_intctl_2(read_intctl_2() | (1 << (irq - 64)));
-	iop13xx_cp6_restore(cp_flags);
 }
 
 static void
 iop13xx_irq_unmask3(unsigned int irq)
 {
-	u32 cp_flags = iop13xx_cp6_save();
 	write_intctl_3(read_intctl_3() | (1 << (irq - 96)));
-	iop13xx_cp6_restore(cp_flags);
 }
 
 static struct irq_chip iop13xx_irqchip1 = {
@@ -250,11 +234,13 @@ static struct irq_chip iop13xx_irqchip4 = {
 	.unmask = iop13xx_irq_unmask3,
 };
 
+extern void iop_init_cp6_handler(void);
+
 void __init iop13xx_init_irq(void)
 {
 	unsigned int i;
 
-	u32 cp_flags = iop13xx_cp6_save();
+	iop_init_cp6_handler();
 
 	/* disable all interrupts */
 	write_intctl_0(0);
@@ -285,6 +271,4 @@ void __init iop13xx_init_irq(void)
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
-
-	iop13xx_cp6_restore(cp_flags);
 }

@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/irq.h>
 
 #include <asm/mach/time.h>
 #include <asm/arch/dmtimer.h>
@@ -64,7 +65,7 @@ static void __init omap2_gp_timer_init(void)
 	BUG_ON(gptimer == NULL);
 
 	omap_dm_timer_set_source(gptimer, OMAP_TIMER_SRC_SYS_CLK);
-	tick_period = clk_get_rate(omap_dm_timer_get_fclk(gptimer)) / 100;
+	tick_period = clk_get_rate(omap_dm_timer_get_fclk(gptimer)) / HZ;
 	tick_period -= 1;
 
 	setup_irq(omap_dm_timer_get_irq(gptimer), &omap2_gp_timer_irq);

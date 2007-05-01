@@ -667,7 +667,7 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 	[ 0x1f ] = KEY_L,
 	[ 0x2b ] = KEY_I,
 
-	[ 0x2d ] = KEY_ZOOM,
+	[ 0x2d ] = KEY_SCREEN,
 	[ 0x1e ] = KEY_ZOOM,
 	[ 0x1b ] = KEY_VOLUMEUP,
 	[ 0x0f ] = KEY_VOLUMEDOWN,
@@ -682,12 +682,12 @@ IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 
 	[ 0x3f ] = KEY_UP,
 	[ 0x3e ] = KEY_DOWN,
-	[ 0x1a ] = KEY_PAUSE,
+	[ 0x1a ] = KEY_ENTER,
 
 	[ 0x1d ] = KEY_MENU,
-	[ 0x19 ] = KEY_PLAY,
-	[ 0x16 ] = KEY_REWIND,
-	[ 0x13 ] = KEY_FORWARD,
+	[ 0x19 ] = KEY_AGAIN,
+	[ 0x16 ] = KEY_PREVIOUSSONG,
+	[ 0x13 ] = KEY_NEXTSONG,
 	[ 0x15 ] = KEY_PAUSE,
 	[ 0x0e ] = KEY_REWIND,
 	[ 0x0d ] = KEY_PLAY,
@@ -1606,3 +1606,180 @@ IR_KEYTAB_TYPE ir_codes_budget_ci_old[IR_KEYTAB_SIZE] = {
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_budget_ci_old);
+
+/*
+ * Marc Fargas <telenieko@telenieko.com>
+ * this is the remote control that comes with the asus p7131
+ * which has a label saying is "Model PC-39"
+ */
+IR_KEYTAB_TYPE ir_codes_asus_pc39[IR_KEYTAB_SIZE] = {
+	/* Keys 0 to 9 */
+	[ 0x15 ] = KEY_0,
+	[ 0x29 ] = KEY_1,
+	[ 0x2d ] = KEY_2,
+	[ 0x2b ] = KEY_3,
+	[ 0x09 ] = KEY_4,
+	[ 0x0d ] = KEY_5,
+	[ 0x0b ] = KEY_6,
+	[ 0x31 ] = KEY_7,
+	[ 0x35 ] = KEY_8,
+	[ 0x33 ] = KEY_9,
+
+	[ 0x3e ] = KEY_RADIO,		/* radio */
+	[ 0x03 ] = KEY_MENU,		/* dvd/menu */
+	[ 0x2a ] = KEY_VOLUMEUP,
+	[ 0x19 ] = KEY_VOLUMEDOWN,
+	[ 0x37 ] = KEY_UP,
+	[ 0x3b ] = KEY_DOWN,
+	[ 0x27 ] = KEY_LEFT,
+	[ 0x2f ] = KEY_RIGHT,
+	[ 0x25 ] = KEY_VIDEO,		/* video */
+	[ 0x39 ] = KEY_AUDIO,		/* music */
+
+	[ 0x21 ] = KEY_TV,		/* tv */
+	[ 0x1d ] = KEY_EXIT,		/* back */
+	[ 0x0a ] = KEY_CHANNELUP,	/* channel / program + */
+	[ 0x1b ] = KEY_CHANNELDOWN,	/* channel / program - */
+	[ 0x1a ] = KEY_ENTER,		/* enter */
+
+	[ 0x06 ] = KEY_PAUSE,		/* play/pause */
+	[ 0x1e ] = KEY_PREVIOUS,	/* rew */
+	[ 0x26 ] = KEY_NEXT,		/* forward */
+	[ 0x0e ] = KEY_REWIND,		/* backward << */
+	[ 0x3a ] = KEY_FASTFORWARD,	/* forward >> */
+	[ 0x36 ] = KEY_STOP,
+	[ 0x2e ] = KEY_RECORD,		/* recording */
+	[ 0x16 ] = KEY_POWER,		/* the button that reads "close" */
+
+	[ 0x11 ] = KEY_ZOOM,		/* full screen */
+	[ 0x13 ] = KEY_MACRO,		/* recall */
+	[ 0x23 ] = KEY_HOME,		/* home */
+	[ 0x05 ] = KEY_PVR,		/* picture */
+	[ 0x3d ] = KEY_MUTE,		/* mute */
+	[ 0x01 ] = KEY_DVD,		/* dvd */
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_asus_pc39);
+
+
+/* Encore ENLTV-FM  - black plastic, white front cover with white glowing buttons
+    Juan Pablo Sormani <sorman@gmail.com> */
+IR_KEYTAB_TYPE ir_codes_encore_enltv[IR_KEYTAB_SIZE] = {
+
+	/* Power button does nothing, neither in Windows app,
+	 although it sends data (used for BIOS wakeup?) */
+	[ 0x0d ] = KEY_MUTE,
+
+	[ 0x1e ] = KEY_TV,
+	[ 0x00 ] = KEY_VIDEO,
+	[ 0x01 ] = KEY_AUDIO,		/* music */
+	[ 0x02 ] = KEY_MHP,		/* picture */
+
+	[ 0x1f ] = KEY_1,
+	[ 0x03 ] = KEY_2,
+	[ 0x04 ] = KEY_3,
+	[ 0x05 ] = KEY_4,
+	[ 0x1c ] = KEY_5,
+	[ 0x06 ] = KEY_6,
+	[ 0x07 ] = KEY_7,
+	[ 0x08 ] = KEY_8,
+	[ 0x1d ] = KEY_9,
+	[ 0x0a ] = KEY_0,
+
+	[ 0x09 ] = KEY_LIST,        /* -/-- */
+	[ 0x0b ] = KEY_LAST,        /* recall */
+
+	[ 0x14 ] = KEY_HOME,		/* win start menu */
+	[ 0x15 ] = KEY_EXIT,		/* exit */
+	[ 0x16 ] = KEY_UP,
+	[ 0x12 ] = KEY_DOWN,
+	[ 0x0c ] = KEY_RIGHT,
+	[ 0x17 ] = KEY_LEFT,
+
+	[ 0x18 ] = KEY_ENTER,		/* OK */
+
+	[ 0x0e ] = KEY_ESC,
+	[ 0x13 ] = KEY_D,		/* desktop */
+	[ 0x11 ] = KEY_TAB,
+	[ 0x19 ] = KEY_SWITCHVIDEOMODE,	/* switch */
+
+	[ 0x1a ] = KEY_MENU,
+	[ 0x1b ] = KEY_ZOOM,		/* fullscreen */
+	[ 0x44 ] = KEY_TIME,		/* time shift */
+	[ 0x40 ] = KEY_MODE,		/* source */
+
+	[ 0x5a ] = KEY_RECORD,
+	[ 0x42 ] = KEY_PLAY,		/* play/pause */
+	[ 0x45 ] = KEY_STOP,
+	[ 0x43 ] = KEY_CAMERA,		/* camera icon */
+
+	[ 0x48 ] = KEY_REWIND,
+	[ 0x4a ] = KEY_FASTFORWARD,
+	[ 0x49 ] = KEY_PREVIOUS,
+	[ 0x4b ] = KEY_NEXT,
+
+	[ 0x4c ] = KEY_FAVORITES,	/* tv wall */
+	[ 0x4d ] = KEY_SOUND,		/* DVD sound */
+	[ 0x4e ] = KEY_LANGUAGE,	/* DVD lang */
+	[ 0x4f ] = KEY_TEXT,		/* DVD text */
+
+	[ 0x50 ] = KEY_SLEEP,		/* shutdown */
+	[ 0x51 ] = KEY_MODE,		/* stereo > main */
+	[ 0x52 ] = KEY_SELECT,		/* stereo > sap */
+	[ 0x53 ] = KEY_PROG1,		/* teletext */
+
+
+	[ 0x59 ] = KEY_RED,		/* AP1 */
+	[ 0x41 ] = KEY_GREEN,		/* AP2 */
+	[ 0x47 ] = KEY_YELLOW,		/* AP3 */
+	[ 0x57 ] = KEY_BLUE,		/* AP4 */
+
+
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_encore_enltv);
+
+/* for the Technotrend 1500 bundled remotes (grey and black): */
+IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE] = {
+	[ 0x01 ] = KEY_POWER,
+	[ 0x02 ] = KEY_SHUFFLE,	/* ? double-arrow key */
+	[ 0x03 ] = KEY_1,
+	[ 0x04 ] = KEY_2,
+	[ 0x05 ] = KEY_3,
+	[ 0x06 ] = KEY_4,
+	[ 0x07 ] = KEY_5,
+	[ 0x08 ] = KEY_6,
+	[ 0x09 ] = KEY_7,
+	[ 0x0a ] = KEY_8,
+	[ 0x0b ] = KEY_9,
+	[ 0x0c ] = KEY_0,
+	[ 0x0d ] = KEY_UP,
+	[ 0x0e ] = KEY_LEFT,
+	[ 0x0f ] = KEY_OK,
+	[ 0x10 ] = KEY_RIGHT,
+	[ 0x11 ] = KEY_DOWN,
+	[ 0x12 ] = KEY_INFO,
+	[ 0x13 ] = KEY_EXIT,
+	[ 0x14 ] = KEY_RED,
+	[ 0x15 ] = KEY_GREEN,
+	[ 0x16 ] = KEY_YELLOW,
+	[ 0x17 ] = KEY_BLUE,
+	[ 0x18 ] = KEY_MUTE,
+	[ 0x19 ] = KEY_TEXT,
+	[ 0x1a ] = KEY_MODE,	/* ? TV/Radio */
+	[ 0x21 ] = KEY_OPTION,
+	[ 0x22 ] = KEY_EPG,
+	[ 0x23 ] = KEY_CHANNELUP,
+	[ 0x24 ] = KEY_CHANNELDOWN,
+	[ 0x25 ] = KEY_VOLUMEUP,
+	[ 0x26 ] = KEY_VOLUMEDOWN,
+	[ 0x27 ] = KEY_SETUP,
+	[ 0x3a ] = KEY_RECORD, /* these keys are only in the black remote */
+	[ 0x3b ] = KEY_PLAY,
+	[ 0x3c ] = KEY_STOP,
+	[ 0x3d ] = KEY_REWIND,
+	[ 0x3e ] = KEY_PAUSE,
+	[ 0x3f ] = KEY_FORWARD,
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_tt_1500);

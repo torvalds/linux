@@ -44,9 +44,25 @@ spufs_mem_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
+
+	spin_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
-	ctx->local_store = inode->i_mapping;
-	smp_wmb();
+	if (!i->i_openers++)
+		ctx->local_store = inode->i_mapping;
+	spin_unlock(&ctx->mapping_lock);
+	return 0;
+}
+
+static int
+spufs_mem_release(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	spin_lock(&ctx->mapping_lock);
+	if (!--i->i_openers)
+		ctx->local_store = NULL;
+	spin_unlock(&ctx->mapping_lock);
 	return 0;
 }
 
@@ -63,8 +79,8 @@ static ssize_t
 spufs_mem_read(struct file *file, char __user *buffer,
 				size_t size, loff_t *pos)
 {
-	int ret;
 	struct spu_context *ctx = file->private_data;
+	ssize_t ret;
 
 	spu_acquire(ctx);
 	ret = __spufs_mem_read(ctx, buffer, size, pos);
@@ -74,25 +90,29 @@ spufs_mem_read(struct file *file, char __user *buffer,
 
 static ssize_t
 spufs_mem_write(struct file *file, const char __user *buffer,
-					size_t size, loff_t *pos)
+					size_t size, loff_t *ppos)
 {
 	struct spu_context *ctx = file->private_data;
 	char *local_store;
+	loff_t pos = *ppos;
 	int ret;
 
-	size = min_t(ssize_t, LS_SIZE - *pos, size);
-	if (size <= 0)
+	if (pos < 0)
+		return -EINVAL;
+	if (pos > LS_SIZE)
 		return -EFBIG;
-	*pos += size;
+	if (size > LS_SIZE - pos)
+		size = LS_SIZE - pos;
 
 	spu_acquire(ctx);
-
 	local_store = ctx->ops->get_ls(ctx);
-	ret = copy_from_user(local_store + *pos - size,
-			     buffer, size) ? -EFAULT : size;
-
+	ret = copy_from_user(local_store + pos, buffer, size);
 	spu_release(ctx);
-	return ret;
+
+	if (ret)
+		return -EFAULT;
+	*ppos = pos + size;
+	return size;
 }
 
 static unsigned long spufs_mem_mmap_nopfn(struct vm_area_struct *vma,
@@ -145,6 +165,7 @@ spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
 
 static const struct file_operations spufs_mem_fops = {
 	.open	 = spufs_mem_open,
+	.release = spufs_mem_release,
 	.read    = spufs_mem_read,
 	.write   = spufs_mem_write,
 	.llseek  = generic_file_llseek,
@@ -234,16 +255,33 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
 
+	spin_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
-	ctx->cntl = inode->i_mapping;
-	smp_wmb();
+	if (!i->i_openers++)
+		ctx->cntl = inode->i_mapping;
+	spin_unlock(&ctx->mapping_lock);
 	return simple_attr_open(inode, file, spufs_cntl_get,
 					spufs_cntl_set, "0x%08lx");
 }
 
+static int
+spufs_cntl_release(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	simple_attr_close(inode, file);
+
+	spin_lock(&ctx->mapping_lock);
+	if (!--i->i_openers)
+		ctx->cntl = NULL;
+	spin_unlock(&ctx->mapping_lock);
+	return 0;
+}
+
 static const struct file_operations spufs_cntl_fops = {
 	.open = spufs_cntl_open,
-	.release = simple_attr_close,
+	.release = spufs_cntl_release,
 	.read = simple_attr_read,
 	.write = simple_attr_write,
 	.mmap = spufs_cntl_mmap,
@@ -719,10 +757,26 @@ static int spufs_signal1_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
+
+	spin_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
-	ctx->signal1 = inode->i_mapping;
-	smp_wmb();
+	if (!i->i_openers++)
+		ctx->signal1 = inode->i_mapping;
+	spin_unlock(&ctx->mapping_lock);
 	return nonseekable_open(inode, file);
+}
+
+static int
+spufs_signal1_release(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	spin_lock(&ctx->mapping_lock);
+	if (!--i->i_openers)
+		ctx->signal1 = NULL;
+	spin_unlock(&ctx->mapping_lock);
+	return 0;
 }
 
 static ssize_t __spufs_signal1_read(struct spu_context *ctx, char __user *buf,
@@ -817,6 +871,7 @@ static int spufs_signal1_mmap(struct file *file, struct vm_area_struct *vma)
 
 static const struct file_operations spufs_signal1_fops = {
 	.open = spufs_signal1_open,
+	.release = spufs_signal1_release,
 	.read = spufs_signal1_read,
 	.write = spufs_signal1_write,
 	.mmap = spufs_signal1_mmap,
@@ -826,10 +881,26 @@ static int spufs_signal2_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
+
+	spin_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
-	ctx->signal2 = inode->i_mapping;
-	smp_wmb();
+	if (!i->i_openers++)
+		ctx->signal2 = inode->i_mapping;
+	spin_unlock(&ctx->mapping_lock);
 	return nonseekable_open(inode, file);
+}
+
+static int
+spufs_signal2_release(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	spin_lock(&ctx->mapping_lock);
+	if (!--i->i_openers)
+		ctx->signal2 = NULL;
+	spin_unlock(&ctx->mapping_lock);
+	return 0;
 }
 
 static ssize_t __spufs_signal2_read(struct spu_context *ctx, char __user *buf,
@@ -928,6 +999,7 @@ static int spufs_signal2_mmap(struct file *file, struct vm_area_struct *vma)
 
 static const struct file_operations spufs_signal2_fops = {
 	.open = spufs_signal2_open,
+	.release = spufs_signal2_release,
 	.read = spufs_signal2_read,
 	.write = spufs_signal2_write,
 	.mmap = spufs_signal2_mmap,
@@ -1027,13 +1099,30 @@ static int spufs_mss_open(struct inode *inode, struct file *file)
 	struct spu_context *ctx = i->i_ctx;
 
 	file->private_data = i->i_ctx;
-	ctx->mss = inode->i_mapping;
-	smp_wmb();
+
+	spin_lock(&ctx->mapping_lock);
+	if (!i->i_openers++)
+		ctx->mss = inode->i_mapping;
+	spin_unlock(&ctx->mapping_lock);
 	return nonseekable_open(inode, file);
+}
+
+static int
+spufs_mss_release(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	spin_lock(&ctx->mapping_lock);
+	if (!--i->i_openers)
+		ctx->mss = NULL;
+	spin_unlock(&ctx->mapping_lock);
+	return 0;
 }
 
 static const struct file_operations spufs_mss_fops = {
 	.open	 = spufs_mss_open,
+	.release = spufs_mss_release,
 	.mmap	 = spufs_mss_mmap,
 };
 
@@ -1068,14 +1157,30 @@ static int spufs_psmap_open(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
 
+	spin_lock(&ctx->mapping_lock);
 	file->private_data = i->i_ctx;
-	ctx->psmap = inode->i_mapping;
-	smp_wmb();
+	if (!i->i_openers++)
+		ctx->psmap = inode->i_mapping;
+	spin_unlock(&ctx->mapping_lock);
 	return nonseekable_open(inode, file);
+}
+
+static int
+spufs_psmap_release(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	spin_lock(&ctx->mapping_lock);
+	if (!--i->i_openers)
+		ctx->psmap = NULL;
+	spin_unlock(&ctx->mapping_lock);
+	return 0;
 }
 
 static const struct file_operations spufs_psmap_fops = {
 	.open	 = spufs_psmap_open,
+	.release = spufs_psmap_release,
 	.mmap	 = spufs_psmap_mmap,
 };
 
@@ -1122,10 +1227,25 @@ static int spufs_mfc_open(struct inode *inode, struct file *file)
 	if (atomic_read(&inode->i_count) != 1)
 		return -EBUSY;
 
+	spin_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
-	ctx->mfc = inode->i_mapping;
-	smp_wmb();
+	if (!i->i_openers++)
+		ctx->mfc = inode->i_mapping;
+	spin_unlock(&ctx->mapping_lock);
 	return nonseekable_open(inode, file);
+}
+
+static int
+spufs_mfc_release(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	spin_lock(&ctx->mapping_lock);
+	if (!--i->i_openers)
+		ctx->mfc = NULL;
+	spin_unlock(&ctx->mapping_lock);
+	return 0;
 }
 
 /* interrupt-level mfc callback function. */
@@ -1309,7 +1429,10 @@ static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
 	if (ret)
 		goto out;
 
-	spu_acquire_runnable(ctx, 0);
+	ret = spu_acquire_runnable(ctx, 0);
+	if (ret)
+		goto out;
+
 	if (file->f_flags & O_NONBLOCK) {
 		ret = ctx->ops->send_mfc_command(ctx, &cmd);
 	} else {
@@ -1395,6 +1518,7 @@ static int spufs_mfc_fasync(int fd, struct file *file, int on)
 
 static const struct file_operations spufs_mfc_fops = {
 	.open	 = spufs_mfc_open,
+	.release = spufs_mfc_release,
 	.read	 = spufs_mfc_read,
 	.write	 = spufs_mfc_write,
 	.poll	 = spufs_mfc_poll,

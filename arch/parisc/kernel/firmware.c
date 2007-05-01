@@ -74,7 +74,7 @@ static DEFINE_SPINLOCK(pdc_lock);
 static unsigned long pdc_result[32] __attribute__ ((aligned (8)));
 static unsigned long pdc_result2[32] __attribute__ ((aligned (8)));
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #define WIDE_FIRMWARE 0x1
 #define NARROW_FIRMWARE 0x2
 
@@ -94,12 +94,12 @@ int parisc_narrow_firmware __read_mostly = 1;
  * when running a 64-bit kernel on such boxes (e.g. C200 or C360).
  */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 long real64_call(unsigned long function, ...);
 #endif
 long real32_call(unsigned long function, ...);
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #   define MEM_PDC (unsigned long)(PAGE0->mem_pdc_hi) << 32 | PAGE0->mem_pdc
 #   define mem_pdc_call(args...) unlikely(parisc_narrow_firmware) ? real32_call(MEM_PDC, args) : real64_call(MEM_PDC, args)
 #else
@@ -117,7 +117,7 @@ long real32_call(unsigned long function, ...);
  */
 static unsigned long f_extend(unsigned long address)
 {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	if(unlikely(parisc_narrow_firmware)) {
 		if((address & 0xff000000) == 0xf0000000)
 			return 0xf0f0f0f000000000UL | (u32)address;
@@ -139,7 +139,7 @@ static unsigned long f_extend(unsigned long address)
  */
 static void convert_to_wide(unsigned long *addr)
 {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	int i;
 	unsigned int *p = (unsigned int *)addr;
 
@@ -158,7 +158,7 @@ static void convert_to_wide(unsigned long *addr)
  */
 void __init set_firmware_width(void)
 {
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	int retval;
 	unsigned long flags;
 
@@ -238,7 +238,7 @@ int __init pdc_chassis_info(struct pdc_chassis_info *chassis_info, void *led_inf
  * 
  * Must be correctly formatted or expect system crash
  */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 int pdc_pat_chassis_send_log(unsigned long state, unsigned long data)
 {
 	int retval = 0;
@@ -949,7 +949,7 @@ int pdc_tod_set(unsigned long sec, unsigned long usec)
 }
 EXPORT_SYMBOL(pdc_tod_set);
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 int pdc_mem_mem_table(struct pdc_memory_table_raddr *r_addr,
 		struct pdc_memory_table *tbl, unsigned long entries)
 {
@@ -965,7 +965,7 @@ int pdc_mem_mem_table(struct pdc_memory_table_raddr *r_addr,
 
 	return retval;
 }
-#endif /* __LP64__ */
+#endif /* CONFIG_64BIT */
 
 /* FIXME: Is this pdc used?  I could not find type reference to ftc_bitmap
  * so I guessed at unsigned long.  Someone who knows what this does, can fix
@@ -1204,7 +1204,7 @@ int pdc_sti_call(unsigned long func, unsigned long flags,
 }
 EXPORT_SYMBOL(pdc_sti_call);
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 /**
  * pdc_pat_cell_get_number - Returns the cell number.
  * @cell_info: The return buffer.
@@ -1387,7 +1387,7 @@ int pdc_pat_io_pci_cfg_write(unsigned long pci_addr, int pci_size, u32 val)
 
 	return retval;
 }
-#endif /* __LP64__ */
+#endif /* CONFIG_64BIT */
 
 
 /***************** 32-bit real-mode calls ***********/
@@ -1445,7 +1445,7 @@ long real32_call(unsigned long fn, ...)
 	return real32_call_asm(&real_stack.sp, &real_stack.arg0, fn);
 }
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 /***************** 64-bit real-mode calls ***********/
 
 struct wide_stack {
@@ -1496,5 +1496,5 @@ long real64_call(unsigned long fn, ...)
 	return real64_call_asm(&real64_stack.sp, &real64_stack.arg0, fn);
 }
 
-#endif /* __LP64__ */
+#endif /* CONFIG_64BIT */
 

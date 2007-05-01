@@ -192,7 +192,6 @@ int tulip_poll(struct net_device *dev, int *budget)
                                   to a minimally-sized skbuff. */
                                if (pkt_len < tulip_rx_copybreak
                                    && (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
-                                       skb->dev = dev;
                                        skb_reserve(skb, 2);    /* 16 byte align the IP header */
                                        pci_dma_sync_single_for_cpu(tp->pdev,
 								   tp->rx_buffers[entry].mapping,
@@ -416,7 +415,6 @@ static int tulip_rx(struct net_device *dev)
 			   to a minimally-sized skbuff. */
 			if (pkt_len < tulip_rx_copybreak
 				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(tp->pdev,
 							    tp->rx_buffers[entry].mapping,
@@ -675,7 +673,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				if (tp->link_change)
 					(tp->link_change)(dev, csr5);
 			}
-			if (csr5 & SytemError) {
+			if (csr5 & SystemError) {
 				int error = (csr5 >> 23) & 7;
 				/* oops, we hit a PCI error.  The code produced corresponds
 				 * to the reason:
@@ -745,7 +743,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 			  TxFIFOUnderflow |
 			  TxJabber |
 			  TPLnkFail |
-			  SytemError )) != 0);
+			  SystemError )) != 0);
 #else
 	} while ((csr5 & (NormalIntr|AbnormalIntr)) != 0);
 

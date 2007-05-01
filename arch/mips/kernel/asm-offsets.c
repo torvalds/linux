@@ -64,6 +64,9 @@ void output_ptreg_defines(void)
 	offset("#define PT_R31    ", struct pt_regs, regs[31]);
 	offset("#define PT_LO     ", struct pt_regs, lo);
 	offset("#define PT_HI     ", struct pt_regs, hi);
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
+	offset("#define PT_ACX    ", struct pt_regs, acx);
+#endif
 	offset("#define PT_EPC    ", struct pt_regs, cp0_epc);
 	offset("#define PT_BVADDR ", struct pt_regs, cp0_badvaddr);
 	offset("#define PT_STATUS ", struct pt_regs, cp0_status);
@@ -99,7 +102,6 @@ void output_thread_info_defines(void)
 	offset("#define TI_ADDR_LIMIT      ", struct thread_info, addr_limit);
 	offset("#define TI_RESTART_BLOCK   ", struct thread_info, restart_block);
 	offset("#define TI_REGS            ", struct thread_info, regs);
-	constant("#define _THREAD_SIZE_ORDER ", THREAD_SIZE_ORDER);
 	constant("#define _THREAD_SIZE       ", THREAD_SIZE);
 	constant("#define _THREAD_MASK       ", THREAD_MASK);
 	linefeed;
@@ -246,6 +248,7 @@ void output_sc_defines(void)
 	text("/* Linux sigcontext offsets. */");
 	offset("#define SC_REGS       ", struct sigcontext, sc_regs);
 	offset("#define SC_FPREGS     ", struct sigcontext, sc_fpregs);
+	offset("#define SC_ACX        ", struct sigcontext, sc_acx);
 	offset("#define SC_MDHI       ", struct sigcontext, sc_mdhi);
 	offset("#define SC_MDLO       ", struct sigcontext, sc_mdlo);
 	offset("#define SC_PC         ", struct sigcontext, sc_pc);

@@ -296,7 +296,7 @@ static int ipath_diag_open(struct inode *in, struct file *fp)
 	}
 
 	fp->private_data = dd;
-	ipath_diag_inuse = 1;
+	ipath_diag_inuse = -2;
 	diag_set_link = 0;
 	ret = 0;
 
@@ -461,6 +461,8 @@ static ssize_t ipath_diag_read(struct file *fp, char __user *data,
 	else if ((count % 4) || (*off % 4))
 		/* address or length is not 32-bit aligned, hence invalid */
 		ret = -EINVAL;
+	else if (ipath_diag_inuse < 1 && (*off || count != 8))
+		ret = -EINVAL;  /* prevent cat /dev/ipath_diag* */
 	else if ((count % 8) || (*off % 8))
 		/* address or length not 64-bit aligned; do 32-bit reads */
 		ret = ipath_read_umem32(dd, data, kreg_base + *off, count);
@@ -470,6 +472,8 @@ static ssize_t ipath_diag_read(struct file *fp, char __user *data,
 	if (ret >= 0) {
 		*off += count;
 		ret = count;
+		if (ipath_diag_inuse == -2)
+			ipath_diag_inuse++;
 	}
 
 	return ret;
@@ -489,6 +493,9 @@ static ssize_t ipath_diag_write(struct file *fp, const char __user *data,
 	else if ((count % 4) || (*off % 4))
 		/* address or length is not 32-bit aligned, hence invalid */
 		ret = -EINVAL;
+	else if ((ipath_diag_inuse == -1 && (*off || count != 8)) ||
+		 ipath_diag_inuse == -2)  /* read qw off 0, write qw off 0 */
+		ret = -EINVAL;  /* before any other write allowed */
 	else if ((count % 8) || (*off % 8))
 		/* address or length not 64-bit aligned; do 32-bit writes */
 		ret = ipath_write_umem32(dd, kreg_base + *off, data, count);
@@ -498,6 +505,8 @@ static ssize_t ipath_diag_write(struct file *fp, const char __user *data,
 	if (ret >= 0) {
 		*off += count;
 		ret = count;
+		if (ipath_diag_inuse == -1)
+			ipath_diag_inuse = 1; /* all read/write OK now */
 	}
 
 	return ret;

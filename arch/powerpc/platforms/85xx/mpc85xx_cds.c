@@ -22,7 +22,6 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/root_dev.h>
 #include <linux/initrd.h>
 #include <linux/module.h>
 #include <linux/fsl_devices.h>
@@ -238,7 +237,7 @@ static void __init mpc85xx_cds_setup_arch(void)
 	if (cpu != 0) {
 		const unsigned int *fp;
 
-		fp = get_property(cpu, "clock-frequency", NULL);
+		fp = of_get_property(cpu, "clock-frequency", NULL);
 		if (fp != 0)
 			loops_per_jiffy = *fp / HZ;
 		else
@@ -262,12 +261,6 @@ static void __init mpc85xx_cds_setup_arch(void)
 
 	ppc_md.pcibios_fixup = mpc85xx_cds_pcibios_fixup;
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
-#endif
-
-#ifdef  CONFIG_ROOT_NFS
-	ROOT_DEV = Root_NFS;
-#else
-	ROOT_DEV = Root_HDA1;
 #endif
 }
 
@@ -298,11 +291,9 @@ static void mpc85xx_cds_show_cpuinfo(struct seq_file *m)
  */
 static int __init mpc85xx_cds_probe(void)
 {
-	/* We always match for now, eventually we should look at
-	 * the flat dev tree to ensure this is the board we are
-	 * supposed to run on
-	 */
-	return 1;
+        unsigned long root = of_get_flat_dt_root();
+
+        return of_flat_dt_is_compatible(root, "MPC85xxCDS");
 }
 
 define_machine(mpc85xx_cds) {

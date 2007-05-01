@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/interrupt.h>
 #include <asm/setup.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -52,7 +53,7 @@
 
 /***************************************************************************/
 
-void m68328_timer_init(irqreturn_t (*timer_routine) (int, void *, struct pt_regs *))
+void m68328_timer_init(irq_handler_t timer_routine)
 {
 	/* disable timer 1 */
 	TCTL = 0;

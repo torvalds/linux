@@ -1,10 +1,10 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.01	Dec 23, 2006
+ * linux/drivers/ide/pci/hpt366.c		Version 1.02	Apr 18, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc
- * Portions Copyright (C) 2005-2006	MontaVista Software, Inc.
+ * Portions Copyright (C) 2005-2007	MontaVista Software, Inc.
  *
  * Thanks to HighPoint Technologies for their assistance, and hardware.
  * Special Thanks to Jon Burchmore in SanDiego for the deep pockets, his
@@ -494,6 +494,7 @@ static struct hpt_info hpt302n __devinitdata = {
 	.chip_type	= HPT302N,
 	.max_mode	= HPT302_ALLOW_ATA133_6 ? 4 : 3,
 	.dpll_clk	= 77,
+	.settings	= hpt37x_settings
 };
 
 static struct hpt_info hpt371n __devinitdata = {
@@ -736,24 +737,15 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 
 static int hpt366_config_drive_xfer_rate(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
-
 	drive->init_speed = 0;
 
-	if ((id->capability & 1) && drive->autodma) {
-		if (ide_use_dma(drive) && config_chipset_for_dma(drive))
-			return hwif->ide_dma_on(drive);
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive))
 		hpt3xx_tune_drive(drive, 255);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return -1;
 }
 
 /*
@@ -841,7 +833,7 @@ static int hpt374_ide_dma_test_irq(ide_drive_t *drive)
 		return 0;
 	}
 
-	dma_stat = hwif->INB(hwif->dma_status);
+	dma_stat = inb(hwif->dma_status);
 	/* return 1 if INTR asserted */
 	if (dma_stat & 4)
 		return 1;
@@ -1391,9 +1383,6 @@ static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
 	u8 dma_new	= 0, dma_old	= 0;
 	unsigned long flags;
 
-	if (!dmabase)
-		return;
-		
 	dma_old = hwif->INB(dmabase + 2);
 
 	local_irq_save(flags);

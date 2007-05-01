@@ -70,6 +70,10 @@
 #define H_ALL_RES_QP_SQUEUE_SIZE_PAGES  EHCA_BMASK_IBM(0, 31)
 #define H_ALL_RES_QP_RQUEUE_SIZE_PAGES  EHCA_BMASK_IBM(32, 63)
 
+#define H_MP_INIT_TYPE                  EHCA_BMASK_IBM(44, 47)
+#define H_MP_SHUTDOWN                   EHCA_BMASK_IBM(48, 48)
+#define H_MP_RESET_QKEY_CTR             EHCA_BMASK_IBM(49, 49)
+
 /* direct access qp controls */
 #define DAQP_CTRL_ENABLE    0x01
 #define DAQP_CTRL_SEND_COMP 0x20
@@ -362,6 +366,26 @@ u64 hipz_h_query_port(const struct ipz_adapter_handle adapter_handle,
 		ehca_dmp(query_port_response_block, 64, "response_block");
 
 	return ret;
+}
+
+u64 hipz_h_modify_port(const struct ipz_adapter_handle adapter_handle,
+		       const u8 port_id, const u32 port_cap,
+		       const u8 init_type, const int modify_mask)
+{
+	u64 port_attributes = port_cap;
+
+	if (modify_mask & IB_PORT_SHUTDOWN)
+		port_attributes |= EHCA_BMASK_SET(H_MP_SHUTDOWN, 1);
+	if (modify_mask & IB_PORT_INIT_TYPE)
+		port_attributes |= EHCA_BMASK_SET(H_MP_INIT_TYPE, init_type);
+	if (modify_mask & IB_PORT_RESET_QKEY_CNTR)
+		port_attributes |= EHCA_BMASK_SET(H_MP_RESET_QKEY_CTR, 1);
+
+	return ehca_plpar_hcall_norets(H_MODIFY_PORT,
+				       adapter_handle.handle, /* r4 */
+				       port_id,               /* r5 */
+				       port_attributes,       /* r6 */
+				       0, 0, 0, 0);
 }
 
 u64 hipz_h_query_hca(const struct ipz_adapter_handle adapter_handle,

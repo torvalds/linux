@@ -143,7 +143,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	/* Initialize the maximum mumber of new data packets that can be sent
 	 * in a burst.
 	 */
-	asoc->max_burst = sctp_max_burst;
+	asoc->max_burst = sp->max_burst;
 
 	/* initialize association timers */
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_NONE] = 0;
@@ -714,8 +714,16 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	/* Record the transition on the transport.  */
 	switch (command) {
 	case SCTP_TRANSPORT_UP:
+		/* If we are moving from UNCONFIRMED state due
+		 * to heartbeat success, report the SCTP_ADDR_CONFIRMED
+		 * state to the user, otherwise report SCTP_ADDR_AVAILABLE.
+		 */
+		if (SCTP_UNCONFIRMED == transport->state &&
+		    SCTP_HEARTBEAT_SUCCESS == error)
+			spc_state = SCTP_ADDR_CONFIRMED;
+		else
+			spc_state = SCTP_ADDR_AVAILABLE;
 		transport->state = SCTP_ACTIVE;
-		spc_state = SCTP_ADDR_AVAILABLE;
 		break;
 
 	case SCTP_TRANSPORT_DOWN:
@@ -725,7 +733,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 
 	default:
 		return;
-	};
+	}
 
 	/* Generate and send a SCTP_PEER_ADDR_CHANGE notification to the
 	 * user.
@@ -1046,6 +1054,9 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		trans = list_entry(pos, struct sctp_transport, transports);
 		if (!sctp_assoc_lookup_paddr(new, &trans->ipaddr))
 			sctp_assoc_del_peer(asoc, &trans->ipaddr);
+
+		if (asoc->state >= SCTP_STATE_ESTABLISHED)
+			sctp_transport_reset(trans);
 	}
 
 	/* If the case is A (association restart), use
@@ -1062,6 +1073,18 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		 * and peer's streams.
 		 */
 		sctp_ssnmap_clear(asoc->ssnmap);
+
+		/* Flush the ULP reassembly and ordered queue.
+		 * Any data there will now be stale and will
+		 * cause problems.
+		 */
+		sctp_ulpq_flush(&asoc->ulpq);
+
+		/* reset the overall association error count so
+		 * that the restarted association doesn't get torn
+		 * down on the next retransmission timer.
+		 */
+		asoc->overall_error_count = 0;
 
 	} else {
 		/* Add any peer addresses from the new association. */

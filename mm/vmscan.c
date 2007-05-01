@@ -952,7 +952,7 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 		}
 	}
 
-	throttle_vm_writeout();
+	throttle_vm_writeout(sc->gfp_mask);
 
 	atomic_dec(&zone->reclaim_in_progress);
 	return nr_reclaimed;

@@ -207,6 +207,10 @@ static int ds1374_probe(struct i2c_adapter *adap, int addr, int kind)
 	client->driver = &ds1374_driver;
 
 	ds1374_workqueue = create_singlethread_workqueue("ds1374");
+	if (!ds1374_workqueue) {
+		kfree(client);
+		return -ENOMEM;	/* most expected reason */
+	}
 
 	if ((rc = i2c_attach_client(client)) != 0) {
 		kfree(client);

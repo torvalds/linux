@@ -61,6 +61,7 @@ obj-$(CONFIG_VIDEO_CPIA_USB) += cpia_usb.o
 obj-$(CONFIG_VIDEO_MEYE) += meye.o
 obj-$(CONFIG_VIDEO_SAA7134) += ir-kbd-i2c.o saa7134/
 obj-$(CONFIG_VIDEO_CX88) += cx88/
+obj-$(CONFIG_VIDEO_IVTV) += ivtv/
 obj-$(CONFIG_VIDEO_EM28XX) += em28xx/
 obj-$(CONFIG_VIDEO_USBVISION) += usbvision/
 obj-$(CONFIG_VIDEO_TVP5150) += tvp5150.o
@@ -99,6 +100,7 @@ obj-$(CONFIG_USB_OV511)         += ov511.o
 obj-$(CONFIG_USB_SE401)         += se401.o
 obj-$(CONFIG_USB_STV680)        += stv680.o
 obj-$(CONFIG_USB_W9968CF)       += w9968cf.o
+obj-$(CONFIG_USB_ZR364XX)       += zr364xx.o
 
 obj-$(CONFIG_USB_SN9C102)       += sn9c102/
 obj-$(CONFIG_USB_ET61X251)      += et61x251/
@@ -113,4 +115,3 @@ obj-$(CONFIG_USB_QUICKCAM_MESSENGER)	+= usbvideo/
 obj-$(CONFIG_VIDEO_VIVI) += vivi.o
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
-extra-cflags-$(CONFIG_VIDEO_V4L1_COMPAT) += -DCONFIG_VIDEO_V4L1_COMPAT

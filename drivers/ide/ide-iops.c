@@ -49,11 +49,6 @@ static void ide_insw (unsigned long port, void *addr, u32 count)
 	insw(port, addr, count);
 }
 
-static u32 ide_inl (unsigned long port)
-{
-	return (u32) inl(port);
-}
-
 static void ide_insl (unsigned long port, void *addr, u32 count)
 {
 	insl(port, addr, count);
@@ -79,11 +74,6 @@ static void ide_outsw (unsigned long port, void *addr, u32 count)
 	outsw(port, addr, count);
 }
 
-static void ide_outl (u32 val, unsigned long port)
-{
-	outl(val, port);
-}
-
 static void ide_outsl (unsigned long port, void *addr, u32 count)
 {
 	outsl(port, addr, count);
@@ -94,12 +84,10 @@ void default_hwif_iops (ide_hwif_t *hwif)
 	hwif->OUTB	= ide_outb;
 	hwif->OUTBSYNC	= ide_outbsync;
 	hwif->OUTW	= ide_outw;
-	hwif->OUTL	= ide_outl;
 	hwif->OUTSW	= ide_outsw;
 	hwif->OUTSL	= ide_outsl;
 	hwif->INB	= ide_inb;
 	hwif->INW	= ide_inw;
-	hwif->INL	= ide_inl;
 	hwif->INSW	= ide_insw;
 	hwif->INSL	= ide_insl;
 }
@@ -121,11 +109,6 @@ static u16 ide_mm_inw (unsigned long port)
 static void ide_mm_insw (unsigned long port, void *addr, u32 count)
 {
 	__ide_mm_insw((void __iomem *) port, addr, count);
-}
-
-static u32 ide_mm_inl (unsigned long port)
-{
-	return (u32) readl((void __iomem *) port);
 }
 
 static void ide_mm_insl (unsigned long port, void *addr, u32 count)
@@ -153,11 +136,6 @@ static void ide_mm_outsw (unsigned long port, void *addr, u32 count)
 	__ide_mm_outsw((void __iomem *) port, addr, count);
 }
 
-static void ide_mm_outl (u32 value, unsigned long port)
-{
-	writel(value, (void __iomem *) port);
-}
-
 static void ide_mm_outsl (unsigned long port, void *addr, u32 count)
 {
 	__ide_mm_outsl((void __iomem *) port, addr, count);
@@ -170,12 +148,10 @@ void default_hwif_mmiops (ide_hwif_t *hwif)
 	   this one is controller specific! */
 	hwif->OUTBSYNC	= ide_mm_outbsync;
 	hwif->OUTW	= ide_mm_outw;
-	hwif->OUTL	= ide_mm_outl;
 	hwif->OUTSW	= ide_mm_outsw;
 	hwif->OUTSL	= ide_mm_outsl;
 	hwif->INB	= ide_mm_inb;
 	hwif->INW	= ide_mm_inw;
-	hwif->INL	= ide_mm_inl;
 	hwif->INSW	= ide_mm_insw;
 	hwif->INSL	= ide_mm_insl;
 }
@@ -607,6 +583,12 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 	if(!(drive->id->hw_config & 0x4000))
 		return 0;
 #endif /* CONFIG_IDEDMA_IVB */
+	/*
+	 * FIXME:
+	 * - change master/slave IDENTIFY order
+	 * - force bit13 (80c cable present) check
+	 *   (unless the slave device is pre-ATA3)
+	 */
 	return 1;
 }
 
@@ -777,7 +759,7 @@ int ide_config_drive_speed (ide_drive_t *drive, u8 speed)
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (hwif->ide_dma_check)	 /* check if host supports DMA */
-		hwif->ide_dma_host_off(drive);
+		hwif->dma_host_off(drive);
 #endif
 
 	/*
@@ -854,9 +836,9 @@ int ide_config_drive_speed (ide_drive_t *drive, u8 speed)
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (speed >= XFER_SW_DMA_0)
-		hwif->ide_dma_host_on(drive);
+		hwif->dma_host_on(drive);
 	else if (hwif->ide_dma_check)	/* check if host supports DMA */
-		hwif->ide_dma_off_quietly(drive);
+		hwif->dma_off_quietly(drive);
 #endif
 
 	switch(speed) {
@@ -907,6 +889,7 @@ static void __ide_set_handler (ide_drive_t *drive, ide_handler_t *handler,
 	hwgroup->handler	= handler;
 	hwgroup->expiry		= expiry;
 	hwgroup->timer.expires	= jiffies + timeout;
+	hwgroup->req_gen_timer = hwgroup->req_gen;
 	add_timer(&hwgroup->timer);
 }
 
@@ -947,6 +930,7 @@ void ide_execute_command(ide_drive_t *drive, task_ioreg_t cmd, ide_handler_t *ha
 	hwgroup->handler	= handler;
 	hwgroup->expiry		= expiry;
 	hwgroup->timer.expires	= jiffies + timeout;
+	hwgroup->req_gen_timer = hwgroup->req_gen;
 	add_timer(&hwgroup->timer);
 	hwif->OUTBSYNC(drive, cmd, IDE_COMMAND_REG);
 	/* Drive takes 400nS to respond, we must avoid the IRQ being
@@ -1066,12 +1050,12 @@ static void check_dma_crc(ide_drive_t *drive)
 {
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (drive->crc_count) {
-		(void) HWIF(drive)->ide_dma_off_quietly(drive);
+		drive->hwif->dma_off_quietly(drive);
 		ide_set_xfer_rate(drive, ide_auto_reduce_xfer(drive));
 		if (drive->current_speed >= XFER_SW_DMA_0)
 			(void) HWIF(drive)->ide_dma_on(drive);
 	} else
-		(void)__ide_dma_off(drive);
+		ide_dma_off(drive);
 #endif
 }
 
@@ -1112,6 +1096,9 @@ static void pre_reset(ide_drive_t *drive)
 	if (HWIF(drive)->pre_reset != NULL)
 		HWIF(drive)->pre_reset(drive);
 
+	if (drive->current_speed != 0xff)
+		drive->desired_speed = drive->current_speed;
+	drive->current_speed = 0xff;
 }
 
 /*

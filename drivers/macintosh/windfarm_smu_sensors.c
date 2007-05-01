@@ -204,8 +204,8 @@ static struct smu_ad_sensor *smu_ads_create(struct device_node *node)
 	ads = kmalloc(sizeof(struct smu_ad_sensor), GFP_KERNEL);
 	if (ads == NULL)
 		return NULL;
-	c = get_property(node, "device_type", NULL);
-	l = get_property(node, "location", NULL);
+	c = of_get_property(node, "device_type", NULL);
+	l = of_get_property(node, "location", NULL);
 	if (c == NULL || l == NULL)
 		goto fail;
 
@@ -255,7 +255,7 @@ static struct smu_ad_sensor *smu_ads_create(struct device_node *node)
 	} else
 		goto fail;
 
-	v = get_property(node, "reg", NULL);
+	v = of_get_property(node, "reg", NULL);
 	if (v == NULL)
 		goto fail;
 	ads->reg = *v;

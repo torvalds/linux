@@ -47,7 +47,6 @@
 
 #define ACPI_THERMAL_COMPONENT		0x04000000
 #define ACPI_THERMAL_CLASS		"thermal_zone"
-#define ACPI_THERMAL_DRIVER_NAME	"ACPI Thermal Zone Driver"
 #define ACPI_THERMAL_DEVICE_NAME	"Thermal Zone"
 #define ACPI_THERMAL_FILE_STATE		"state"
 #define ACPI_THERMAL_FILE_TEMPERATURE	"temperature"
@@ -71,10 +70,10 @@
 #define CELSIUS_TO_KELVIN(t)	((t+273)*10)
 
 #define _COMPONENT		ACPI_THERMAL_COMPONENT
-ACPI_MODULE_NAME("acpi_thermal")
+ACPI_MODULE_NAME("thermal");
 
 MODULE_AUTHOR("Paul Diefenbaugh");
-MODULE_DESCRIPTION(ACPI_THERMAL_DRIVER_NAME);
+MODULE_DESCRIPTION("ACPI Thermal Zone Driver");
 MODULE_LICENSE("GPL");
 
 static int tzp;
@@ -99,7 +98,7 @@ static ssize_t acpi_thermal_write_polling(struct file *, const char __user *,
 					  size_t, loff_t *);
 
 static struct acpi_driver acpi_thermal_driver = {
-	.name = ACPI_THERMAL_DRIVER_NAME,
+	.name = "thermal",
 	.class = ACPI_THERMAL_CLASS,
 	.ids = ACPI_THERMAL_HID,
 	.ops = {
@@ -270,7 +269,7 @@ static int acpi_thermal_set_polling(struct acpi_thermal *tz, int seconds)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Polling frequency set to %lu seconds\n",
-			  tz->polling_frequency));
+			  tz->polling_frequency/10));
 
 	return 0;
 }
@@ -759,7 +758,8 @@ static void acpi_thermal_check(void *data)
 			del_timer(&(tz->timer));
 	} else {
 		if (timer_pending(&(tz->timer)))
-			mod_timer(&(tz->timer), (HZ * sleep_time) / 1000);
+			mod_timer(&(tz->timer),
+					jiffies + (HZ * sleep_time) / 1000);
 		else {
 			tz->timer.data = (unsigned long)tz;
 			tz->timer.function = acpi_thermal_run;
@@ -1357,28 +1357,32 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 static int acpi_thermal_resume(struct acpi_device *device)
 {
 	struct acpi_thermal *tz = NULL;
-	int i;
+	int i, j, power_state, result;
+
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	tz = acpi_driver_data(device);
 
-	acpi_thermal_get_temperature(tz);
-
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		if (tz->trips.active[i].flags.valid) {
- 			tz->temperature = tz->trips.active[i].temperature;
-			tz->trips.active[i].flags.enabled = 0;
-
-			acpi_thermal_active(tz);
-
-			tz->state.active |= tz->trips.active[i].flags.enabled;
-			tz->state.active_index = i;
+		if (!(&tz->trips.active[i]))
+			break;
+		if (!tz->trips.active[i].flags.valid)
+			break;
+		tz->trips.active[i].flags.enabled = 1;
+		for (j = 0; j < tz->trips.active[i].devices.count; j++) {
+			result = acpi_bus_get_power(tz->trips.active[i].devices.
+			    handles[j], &power_state);
+			if (result || (power_state != ACPI_STATE_D0)) {
+				tz->trips.active[i].flags.enabled = 0;
+				break;
+			}
 		}
+		tz->state.active |= tz->trips.active[i].flags.enabled;
 	}
 
- 	acpi_thermal_check(tz);
+	acpi_thermal_check(tz);
 
 	return AE_OK;
 }

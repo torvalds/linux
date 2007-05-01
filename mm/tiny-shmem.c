@@ -126,6 +126,7 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
 	return 0;
 }
 
+#if 0
 int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	file_accessed(file);
@@ -135,6 +136,7 @@ int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 #endif
 }
+#endif  /*  0  */
 
 #ifndef CONFIG_MMU
 unsigned long shmem_get_unmapped_area(struct file *file,

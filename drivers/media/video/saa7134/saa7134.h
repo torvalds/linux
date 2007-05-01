@@ -41,14 +41,10 @@
 #include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 #include <media/video-buf-dvb.h>
+#endif
 
-#ifndef TRUE
-# define TRUE (1==1)
-#endif
-#ifndef FALSE
-# define FALSE (1==0)
-#endif
 #define UNSET (-1U)
 
 /* ----------------------------------------------------------- */
@@ -232,6 +228,13 @@ struct saa7134_format {
 #define SAA7134_BOARD_VIDEOMATE_DVBT_200A  103
 #define SAA7134_BOARD_HAUPPAUGE_HVR1110    104
 #define SAA7134_BOARD_CINERGY_HT_PCMCIA    105
+#define SAA7134_BOARD_ENCORE_ENLTV         106
+#define SAA7134_BOARD_ENCORE_ENLTV_FM      107
+#define SAA7134_BOARD_CINERGY_HT_PCI       108
+#define SAA7134_BOARD_PHILIPS_TIGER_S      109
+#define SAA7134_BOARD_AVERMEDIA_M102	   110
+#define SAA7134_BOARD_ASUS_P7131_4871	   111
+#define SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA 112
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -281,6 +284,7 @@ struct saa7134_board {
 	unsigned char		radio_addr;
 
 	unsigned int            tda9887_conf;
+	unsigned int            tuner_config;
 
 	/* peripheral I/O */
 	enum saa7134_video_out  video_out;
@@ -411,20 +415,6 @@ struct saa7134_dmasound {
 	struct snd_pcm_substream   *substream;
 };
 
-/* IR input */
-struct saa7134_ir {
-	struct input_dev           *dev;
-	struct ir_input_state      ir;
-	char                       name[32];
-	char                       phys[32];
-	u32                        mask_keycode;
-	u32                        mask_keydown;
-	u32                        mask_keyup;
-	int                        polling;
-	u32                        last_gpio;
-	struct timer_list          timer;
-};
-
 /* ts/mpeg status */
 struct saa7134_ts {
 	/* TS capture */
@@ -450,6 +440,8 @@ struct saa7134_dev {
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;
 #endif
+	/* workstruct for loading modules */
+	struct work_struct request_module_wk;
 
 	/* insmod option/autodetected */
 	int                        autodetected;
@@ -463,7 +455,7 @@ struct saa7134_dev {
 
 	/* infrared remote */
 	int                        has_remote;
-	struct saa7134_ir          *remote;
+	struct card_ir		   *remote;
 
 	/* pci i/o */
 	char                       name[32];
@@ -543,9 +535,11 @@ struct saa7134_dev {
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
 
+#if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
 	/* SAA7134_MPEG_DVB only */
 	struct videobuf_dvb        dvb;
 	int (*original_demod_sleep)(struct dvb_frontend* fe);
+#endif
 };
 
 /* ----------------------------------------------------------- */
@@ -575,6 +569,8 @@ extern struct list_head  saa7134_devlist;
 extern int saa7134_no_overlay;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
+void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);
+int saa7134_tuner_callback(void *ptr, int command, int arg);
 
 #define SAA7134_PGTABLE_SIZE 4096
 
@@ -633,7 +629,6 @@ int saa7134_common_ioctl(struct saa7134_dev *dev,
 
 int saa7134_video_init1(struct saa7134_dev *dev);
 int saa7134_video_init2(struct saa7134_dev *dev);
-int saa7134_video_fini(struct saa7134_dev *dev);
 void saa7134_irq_video_intl(struct saa7134_dev *dev);
 void saa7134_irq_video_done(struct saa7134_dev *dev, unsigned long status);
 
@@ -697,6 +692,7 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir);
+
 
 /*
  * Local variables:

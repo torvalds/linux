@@ -13,7 +13,7 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
-ACPI_MODULE_NAME("event")
+ACPI_MODULE_NAME("event");
 
 /* Global vars for handling event proc entry */
 static DEFINE_SPINLOCK(acpi_system_event_lock);

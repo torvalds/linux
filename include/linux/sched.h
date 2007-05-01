@@ -196,13 +196,13 @@ extern void init_idle(struct task_struct *idle, int cpu);
 extern cpumask_t nohz_cpu_mask;
 
 /*
- * Only dump TASK_* tasks. (-1 for all tasks)
+ * Only dump TASK_* tasks. (0 for all tasks)
  */
 extern void show_state_filter(unsigned long state_filter);
 
 static inline void show_state(void)
 {
-	show_state_filter(-1);
+	show_state_filter(0);
 }
 
 extern void show_regs(struct pt_regs *);
@@ -684,7 +684,6 @@ struct sched_domain {
 	unsigned int imbalance_pct;	/* No balance until over watermark */
 	unsigned long long cache_hot_time; /* Task considered cache hot (ns) */
 	unsigned int cache_nice_tries;	/* Leave cache hot tasks for # tries */
-	unsigned int per_cpu_gain;	/* CPU % gained by adding domain cpus */
 	unsigned int busy_idx;
 	unsigned int idle_idx;
 	unsigned int newidle_idx;
@@ -1329,6 +1328,7 @@ extern int kill_pid_info(int sig, struct siginfo *info, struct pid *pid);
 extern int kill_pid_info_as_uid(int, struct siginfo *, struct pid *, uid_t, uid_t, u32);
 extern int kill_pgrp(struct pid *pid, int sig, int priv);
 extern int kill_pid(struct pid *pid, int sig, int priv);
+extern int kill_proc_info(int, struct siginfo *, pid_t);
 extern void do_notify_parent(struct task_struct *, int);
 extern void force_sig(int, struct task_struct *);
 extern void force_sig_specific(int, struct task_struct *);

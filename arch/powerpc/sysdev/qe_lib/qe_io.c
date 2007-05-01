@@ -53,7 +53,7 @@ int par_io_init(struct device_node *np)
 		return ret;
 	par_io = ioremap(res.start, res.end - res.start + 1);
 
-	num_ports = get_property(np, "num-ports", NULL);
+	num_ports = of_get_property(np, "num-ports", NULL);
 	if (num_ports)
 		num_par_io_ports = *num_ports;
 
@@ -161,7 +161,7 @@ int par_io_of_config(struct device_node *np)
 		return -1;
 	}
 
-	ph = get_property(np, "pio-handle", NULL);
+	ph = of_get_property(np, "pio-handle", NULL);
 	if (ph == 0) {
 		printk(KERN_ERR "pio-handle not available \n");
 		return -1;
@@ -169,7 +169,7 @@ int par_io_of_config(struct device_node *np)
 
 	pio = of_find_node_by_phandle(*ph);
 
-	pio_map = get_property(pio, "pio-map", &pio_map_len);
+	pio_map = of_get_property(pio, "pio-map", &pio_map_len);
 	if (pio_map == NULL) {
 		printk(KERN_ERR "pio-map is not set! \n");
 		return -1;

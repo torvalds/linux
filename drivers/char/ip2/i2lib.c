@@ -80,7 +80,7 @@ static int i2RetryFlushOutput(i2ChanStrPtr);
 // Not a documented part of the library routines (careful...) but the Diagnostic
 // i2diag.c finds them useful to help the throughput in certain limited
 // single-threaded operations.
-static inline void iiSendPendingMail(i2eBordStrPtr);
+static void iiSendPendingMail(i2eBordStrPtr);
 static void serviceOutgoingFifo(i2eBordStrPtr);
 
 // Functions defined in ip2.c as part of interrupt handling
@@ -166,7 +166,7 @@ static void iiSendPendingMail_t(unsigned long data)
 // If any outgoing mail bits are set and there is outgoing mailbox is empty,
 // send the mail and clear the bits.
 //******************************************************************************
-static inline void
+static void
 iiSendPendingMail(i2eBordStrPtr pB)
 {
 	if (pB->i2eOutMailWaiting && (!pB->i2eWaitingForEmptyFifo) )

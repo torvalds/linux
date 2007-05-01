@@ -85,7 +85,6 @@ static int sonic_open(struct net_device *dev)
 			       dev->name);
 			return -ENOMEM;
 		}
-		skb->dev = dev;
 		/* align IP header unless DMA requires otherwise */
 		if (SONIC_BUS_SCALE(lp->dma_bitmode) == 2)
 			skb_reserve(skb, 2);
@@ -451,7 +450,6 @@ static void sonic_rx(struct net_device *dev)
 				lp->stats.rx_dropped++;
 				break;
 			}
-			new_skb->dev = dev;
 			/* provide 16 byte IP header alignment unless DMA requires otherwise */
 			if(SONIC_BUS_SCALE(lp->dma_bitmode) == 2)
 				skb_reserve(new_skb, 2);

@@ -215,7 +215,7 @@ fail_base2:
 			
 			index = ide_register_hw(&hw, &hwif);
 			if (index != -1) {
-				hwif->mmio = 2;
+				hwif->mmio = 1;
 				printk("ide%d: ", index);
 				switch(type) {
 				case BOARD_BUDDHA:

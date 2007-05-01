@@ -17,7 +17,6 @@
        linux,phandle = <100>;
 
        cpus {
-               #cpus = <1>;
                #address-cells = <1>;
                #size-cells = <0>;
                linux,phandle = <200>;
@@ -34,7 +33,6 @@
                        clock-frequency = <0>;
                        32-bit;
                        linux,phandle = <201>;
-                       linux,boot-cpu;
                };
        };
 

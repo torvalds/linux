@@ -34,3 +34,63 @@
 	.io_type	 = SERIAL_IO_MEM,				\
   },
 #endif
+
+/*
+ * A few reasonable defaults for the #defines which could be missing depending
+ * on the IP version or variant (e.g. OPB vs PLB)
+ */
+
+#ifndef XPAR_EMAC_0_CAM_EXIST
+#define XPAR_EMAC_0_CAM_EXIST 0
+#endif
+#ifndef XPAR_EMAC_0_JUMBO_EXIST
+#define XPAR_EMAC_0_JUMBO_EXIST 0
+#endif
+#ifndef XPAR_EMAC_0_TX_DRE_TYPE
+#define XPAR_EMAC_0_TX_DRE_TYPE 0
+#endif
+#ifndef XPAR_EMAC_0_RX_DRE_TYPE
+#define XPAR_EMAC_0_RX_DRE_TYPE 0
+#endif
+#ifndef XPAR_EMAC_0_TX_INCLUDE_CSUM
+#define XPAR_EMAC_0_TX_INCLUDE_CSUM 0
+#endif
+#ifndef XPAR_EMAC_0_RX_INCLUDE_CSUM
+#define XPAR_EMAC_0_RX_INCLUDE_CSUM 0
+#endif
+
+#ifndef XPAR_EMAC_1_CAM_EXIST
+#define XPAR_EMAC_1_CAM_EXIST 0
+#endif
+#ifndef XPAR_EMAC_1_JUMBO_EXIST
+#define XPAR_EMAC_1_JUMBO_EXIST 0
+#endif
+#ifndef XPAR_EMAC_1_TX_DRE_TYPE
+#define XPAR_EMAC_1_TX_DRE_TYPE 0
+#endif
+#ifndef XPAR_EMAC_1_RX_DRE_TYPE
+#define XPAR_EMAC_1_RX_DRE_TYPE 0
+#endif
+#ifndef XPAR_EMAC_1_TX_INCLUDE_CSUM
+#define XPAR_EMAC_1_TX_INCLUDE_CSUM 0
+#endif
+#ifndef XPAR_EMAC_1_RX_INCLUDE_CSUM
+#define XPAR_EMAC_1_RX_INCLUDE_CSUM 0
+#endif
+
+#ifndef XPAR_GPIO_0_IS_DUAL
+#define XPAR_GPIO_0_IS_DUAL 0
+#endif
+#ifndef XPAR_GPIO_1_IS_DUAL
+#define XPAR_GPIO_1_IS_DUAL 0
+#endif
+#ifndef XPAR_GPIO_2_IS_DUAL
+#define XPAR_GPIO_2_IS_DUAL 0
+#endif
+#ifndef XPAR_GPIO_3_IS_DUAL
+#define XPAR_GPIO_3_IS_DUAL 0
+#endif
+#ifndef XPAR_GPIO_4_IS_DUAL
+#define XPAR_GPIO_4_IS_DUAL 0
+#endif
+

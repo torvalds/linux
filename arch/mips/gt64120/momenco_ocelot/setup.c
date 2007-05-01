@@ -79,7 +79,7 @@ static char reset_reason;
 static void __init setup_l3cache(unsigned long size);
 
 /* setup code for a handoff from a version 1 PMON 2000 PROM */
-void PMON_v1_setup()
+static void PMON_v1_setup(void)
 {
 	/* A wired TLB entry for the GT64120A and the serial port. The
 	   GT64120A is going to be hit on every IRQ anyway - there's

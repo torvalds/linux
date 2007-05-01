@@ -845,6 +845,21 @@ config MV64X60
 	select PPC_INDIRECT_PCI
 	default y
 
+config MV643XX_ETH_0
+	bool
+	depends on MV643XX_ETH && (KATANA || RADSTONE_PPC7D || EV64360 || HDPU)
+	default y
+
+config MV643XX_ETH_1
+	bool
+	depends on MV643XX_ETH && (KATANA || RADSTONE_PPC7D || EV64360)
+	default y
+
+config MV643XX_ETH_2
+	bool
+	depends on MV643XX_ETH && (KATANA || RADSTONE_PPC7D || EV64360)
+	default y
+
 menu "Set bridge options"
 	depends on MV64X60
 

@@ -915,7 +915,7 @@ static void media_check(unsigned long arg)
 	if ((inw(ioaddr + EL3_STATUS) & IntLatch) && (inb(ioaddr + Timer) == 0xff)) {
 		if (!lp->fast_poll)
 			printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-		el3_interrupt(dev->irq, lp);
+		el3_interrupt(dev->irq, dev);
 		lp->fast_poll = HZ;
 	}
 	if (lp->fast_poll) {
@@ -1056,7 +1056,6 @@ static int el3_rx(struct net_device *dev, int worklimit)
 			DEBUG(3, "  Receiving packet size %d status %4.4x.\n",
 				  pkt_len, rx_status);
 			if (skb != NULL) {
-				skb->dev = dev;
 				skb_reserve(skb, 2);
 				insl(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
 						((pkt_len+3)>>2));

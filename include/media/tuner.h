@@ -177,6 +177,8 @@ struct tuner_setup {
 	unsigned short	addr; 	/* I2C address */
 	unsigned int	type;   /* Tuner type */
 	unsigned int	mode_mask;  /* Allowed tuner modes */
+	unsigned int	config; /* configuraion for more complex tuners */
+	int (*tuner_callback) (void *dev, int command,int arg);
 };
 
 struct tuner {
@@ -210,6 +212,9 @@ struct tuner {
 	unsigned char tda827x_addr;
 	unsigned char tda827x_ver;
 	unsigned int sgIF;
+
+	unsigned int config;
+	int (*tuner_callback) (void *dev, int command,int arg);
 
 	/* function ptrs */
 	void (*set_tv_freq)(struct i2c_client *c, unsigned int freq);

@@ -171,8 +171,6 @@ static struct fib_table *fib_empty_table(void)
 
 static struct nla_policy fib4_rule_policy[FRA_MAX+1] __read_mostly = {
 	FRA_GENERIC_POLICY,
-	[FRA_SRC]	= { .type = NLA_U32 },
-	[FRA_DST]	= { .type = NLA_U32 },
 	[FRA_FLOW]	= { .type = NLA_U32 },
 };
 
@@ -183,8 +181,7 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	int err = -EINVAL;
 	struct fib4_rule *rule4 = (struct fib4_rule *) rule;
 
-	if (frh->src_len > 32 || frh->dst_len > 32 ||
-	    (frh->tos & ~IPTOS_TOS_MASK))
+	if (frh->tos & ~IPTOS_TOS_MASK)
 		goto errout;
 
 	if (rule->table == RT_TABLE_UNSPEC) {
@@ -201,10 +198,10 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 		}
 	}
 
-	if (tb[FRA_SRC])
+	if (frh->src_len)
 		rule4->src = nla_get_be32(tb[FRA_SRC]);
 
-	if (tb[FRA_DST])
+	if (frh->dst_len)
 		rule4->dst = nla_get_be32(tb[FRA_DST]);
 
 #ifdef CONFIG_NET_CLS_ROUTE
@@ -242,10 +239,10 @@ static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 		return 0;
 #endif
 
-	if (tb[FRA_SRC] && (rule4->src != nla_get_be32(tb[FRA_SRC])))
+	if (frh->src_len && (rule4->src != nla_get_be32(tb[FRA_SRC])))
 		return 0;
 
-	if (tb[FRA_DST] && (rule4->dst != nla_get_be32(tb[FRA_DST])))
+	if (frh->dst_len && (rule4->dst != nla_get_be32(tb[FRA_DST])))
 		return 0;
 
 	return 1;
@@ -277,11 +274,6 @@ nla_put_failure:
 	return -ENOBUFS;
 }
 
-int fib4_rules_dump(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	return fib_rules_dump(skb, cb, AF_INET);
-}
-
 static u32 fib4_rule_default_pref(void)
 {
 	struct list_head *pos;
@@ -306,9 +298,15 @@ static size_t fib4_rule_nlmsg_payload(struct fib_rule *rule)
 	       + nla_total_size(4); /* flow */
 }
 
+static void fib4_rule_flush_cache(void)
+{
+	rt_cache_flush(-1);
+}
+
 static struct fib_rules_ops fib4_rules_ops = {
 	.family		= AF_INET,
 	.rule_size	= sizeof(struct fib4_rule),
+	.addr_size	= sizeof(u32),
 	.action		= fib4_rule_action,
 	.match		= fib4_rule_match,
 	.configure	= fib4_rule_configure,
@@ -316,6 +314,7 @@ static struct fib_rules_ops fib4_rules_ops = {
 	.fill		= fib4_rule_fill,
 	.default_pref	= fib4_rule_default_pref,
 	.nlmsg_payload	= fib4_rule_nlmsg_payload,
+	.flush_cache	= fib4_rule_flush_cache,
 	.nlgroup	= RTNLGRP_IPV4_RULE,
 	.policy		= fib4_rule_policy,
 	.rules_list	= &fib4_rules,

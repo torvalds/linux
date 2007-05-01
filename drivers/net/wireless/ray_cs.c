@@ -2232,7 +2232,6 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs, unsigned i
         return;
     }
     skb_reserve( skb, 2);   /* Align IP on 16 byte (TBD check this)*/
-    skb->dev = dev;
 
     DEBUG(4,"ray_cs rx_data total_len = %x, rx_len = %x\n",total_len,rx_len);
 
@@ -2243,7 +2242,8 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs, unsigned i
     rx_ptr += copy_from_rx_buff(local, rx_ptr, pkt_addr & RX_BUFF_END, rx_len);
     /* Get source address */
 #ifdef WIRELESS_SPY
-    memcpy(linksrcaddr, ((struct mac_header *)skb->data)->addr_2, ETH_ALEN);
+    skb_copy_from_linear_data_offset(skb, offsetof(struct mac_header, addr_2),
+				     linksrcaddr, ETH_ALEN);
 #endif
     /* Now, deal with encapsulation/translation/sniffer */
     if (!sniffer) {

@@ -48,11 +48,11 @@ static u64 __init find_spu_unit_number(struct device_node *spe)
 {
 	const unsigned int *prop;
 	int proplen;
-	prop = get_property(spe, "unit-id", &proplen);
+	prop = of_get_property(spe, "unit-id", &proplen);
 	if (proplen == 4)
 		return (u64)*prop;
 
-	prop = get_property(spe, "reg", &proplen);
+	prop = of_get_property(spe, "reg", &proplen);
 	if (proplen == 4)
 		return (u64)*prop;
 
@@ -76,12 +76,12 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 	int nid;
 
 	/* Get the interrupt source unit from the device-tree */
-	tmp = get_property(np, "isrc", NULL);
+	tmp = of_get_property(np, "isrc", NULL);
 	if (!tmp)
 		return -ENODEV;
 	isrc = tmp[0];
 
-	tmp = get_property(np->parent->parent, "node-id", NULL);
+	tmp = of_get_property(np->parent->parent, "node-id", NULL);
 	if (!tmp) {
 		printk(KERN_WARNING "%s: can't find node-id\n", __FUNCTION__);
 		nid = spu->node;
@@ -110,7 +110,7 @@ static void __iomem * __init spu_map_prop_old(struct spu *spu,
 	} __attribute__((packed)) *prop;
 	int proplen;
 
-	prop = get_property(n, name, &proplen);
+	prop = of_get_property(n, name, &proplen);
 	if (prop == NULL || proplen != sizeof (struct address_prop))
 		return NULL;
 
@@ -124,11 +124,11 @@ static int __init spu_map_device_old(struct spu *spu)
 	int ret;
 
 	ret = -ENODEV;
-	spu->name = get_property(node, "name", NULL);
+	spu->name = of_get_property(node, "name", NULL);
 	if (!spu->name)
 		goto out;
 
-	prop = get_property(node, "local-store", NULL);
+	prop = of_get_property(node, "local-store", NULL);
 	if (!prop)
 		goto out;
 	spu->local_store_phys = *(unsigned long *)prop;
@@ -139,7 +139,7 @@ static int __init spu_map_device_old(struct spu *spu)
 	if (!spu->local_store)
 		goto out;
 
-	prop = get_property(node, "problem", NULL);
+	prop = of_get_property(node, "problem", NULL);
 	if (!prop)
 		goto out_unmap;
 	spu->problem_phys = *(unsigned long *)prop;
@@ -226,7 +226,7 @@ static int __init spu_map_device(struct spu *spu)
 	struct device_node *np = spu->devnode;
 	int ret = -ENODEV;
 
-	spu->name = get_property(np, "name", NULL);
+	spu->name = of_get_property(np, "name", NULL);
 	if (!spu->name)
 		goto out;
 

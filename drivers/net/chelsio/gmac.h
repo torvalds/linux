@@ -126,7 +126,7 @@ typedef struct _cmac_instance cmac_instance;
 struct cmac {
 	struct cmac_statistics stats;
 	adapter_t *adapter;
-	struct cmac_ops *ops;
+	const struct cmac_ops *ops;
 	cmac_instance *instance;
 };
 
@@ -136,11 +136,7 @@ struct gmac {
 	int (*reset)(adapter_t *);
 };
 
-extern struct gmac t1_pm3393_ops;
-extern struct gmac t1_chelsio_mac_ops;
-extern struct gmac t1_vsc7321_ops;
-extern struct gmac t1_vsc7326_ops;
-extern struct gmac t1_ixf1010_ops;
-extern struct gmac t1_dummy_mac_ops;
+extern const struct gmac t1_pm3393_ops;
+extern const struct gmac t1_vsc7326_ops;
 
 #endif /* _CXGB_GMAC_H_ */

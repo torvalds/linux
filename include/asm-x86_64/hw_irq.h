@@ -32,9 +32,30 @@
 #define IA32_SYSCALL_VECTOR	0x80
 
 
-/*
- * Vectors 0x20-0x2f are used for ISA interrupts.
+/* Reserve the lowest usable priority level 0x20 - 0x2f for triggering
+ * cleanup after irq migration.
  */
+#define IRQ_MOVE_CLEANUP_VECTOR	FIRST_EXTERNAL_VECTOR
+ 
+/*
+ * Vectors 0x30-0x3f are used for ISA interrupts.
+ */
+#define IRQ0_VECTOR		FIRST_EXTERNAL_VECTOR + 0x10
+#define IRQ1_VECTOR		IRQ0_VECTOR + 1
+#define IRQ2_VECTOR		IRQ0_VECTOR + 2
+#define IRQ3_VECTOR		IRQ0_VECTOR + 3
+#define IRQ4_VECTOR		IRQ0_VECTOR + 4
+#define IRQ5_VECTOR		IRQ0_VECTOR + 5 
+#define IRQ6_VECTOR		IRQ0_VECTOR + 6
+#define IRQ7_VECTOR		IRQ0_VECTOR + 7
+#define IRQ8_VECTOR		IRQ0_VECTOR + 8
+#define IRQ9_VECTOR		IRQ0_VECTOR + 9
+#define IRQ10_VECTOR		IRQ0_VECTOR + 10
+#define IRQ11_VECTOR		IRQ0_VECTOR + 11
+#define IRQ12_VECTOR		IRQ0_VECTOR + 12
+#define IRQ13_VECTOR		IRQ0_VECTOR + 13
+#define IRQ14_VECTOR		IRQ0_VECTOR + 14
+#define IRQ15_VECTOR		IRQ0_VECTOR + 15
 
 /*
  * Special IRQ vectors used by the SMP architecture, 0xf0-0xff
@@ -66,10 +87,10 @@
 
 /*
  * First APIC vector available to drivers: (vectors 0x30-0xee)
- * we start at 0x31 to spread out vectors evenly between priority
+ * we start at 0x41 to spread out vectors evenly between priority
  * levels. (0x80 is the syscall vector)
  */
-#define FIRST_DEVICE_VECTOR	0x31
+#define FIRST_DEVICE_VECTOR	(IRQ15_VECTOR + 2)
 #define FIRST_SYSTEM_VECTOR	0xef   /* duplicated in irq.h */
 
 

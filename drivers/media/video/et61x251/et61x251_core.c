@@ -1,7 +1,7 @@
 /***************************************************************************
  * V4L2 driver for ET61X[12]51 PC Camera Controllers                       *
  *                                                                         *
- * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -48,8 +48,8 @@
 #define ET61X251_MODULE_AUTHOR  "(C) 2006 Luca Risolia"
 #define ET61X251_AUTHOR_EMAIL   "<luca.risolia@studio.unibo.it>"
 #define ET61X251_MODULE_LICENSE "GPL"
-#define ET61X251_MODULE_VERSION "1:1.02"
-#define ET61X251_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 2)
+#define ET61X251_MODULE_VERSION "1:1.04"
+#define ET61X251_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 4)
 
 /*****************************************************************************/
 
@@ -85,7 +85,7 @@ MODULE_PARM_DESC(force_munmap,
 		 "\ndetected camera."
 		 "\n 0 = do not force memory unmapping"
 		 "\n 1 = force memory unmapping (save memory)"
-		 "\nDefault value is "__MODULE_STRING(SN9C102_FORCE_MUNMAP)"."
+		 "\nDefault value is "__MODULE_STRING(ET61X251_FORCE_MUNMAP)"."
 		 "\n");
 
 static unsigned int frame_timeout[] = {[0 ... ET61X251_MAX_DEVICES-1] =
@@ -133,7 +133,8 @@ et61x251_request_buffers(struct et61x251_device* cam, u32 count,
 
 	cam->nbuffers = count;
 	while (cam->nbuffers > 0) {
-		if ((buff = vmalloc_32(cam->nbuffers * PAGE_ALIGN(imagesize))))
+		if ((buff = vmalloc_32_user(cam->nbuffers *
+					    PAGE_ALIGN(imagesize))))
 			break;
 		cam->nbuffers--;
 	}
@@ -543,10 +544,11 @@ static int et61x251_start_transfer(struct et61x251_device* cam)
 {
 	struct usb_device *udev = cam->usbdev;
 	struct urb* urb;
-	const unsigned int wMaxPacketSize[] = {0, 256, 384, 512, 640, 768, 832,
-					       864, 896, 920, 956, 980, 1000,
-					       1022};
-	const unsigned int psz = wMaxPacketSize[ET61X251_ALTERNATE_SETTING];
+	struct usb_host_interface* altsetting = usb_altnum_to_altsetting(
+						   usb_ifnum_to_if(udev, 0),
+						   ET61X251_ALTERNATE_SETTING);
+	const unsigned int psz = le16_to_cpu(altsetting->
+					     endpoint[0].desc.wMaxPacketSize);
 	s8 i, j;
 	int err = 0;
 
@@ -976,29 +978,31 @@ static CLASS_DEVICE_ATTR(i2c_val, S_IRUGO | S_IWUSR,
 static int et61x251_create_sysfs(struct et61x251_device* cam)
 {
 	struct video_device *v4ldev = cam->v4ldev;
-	int rc;
+	int err = 0;
 
-	rc = video_device_create_file(v4ldev, &class_device_attr_reg);
-	if (rc) goto err;
-	rc = video_device_create_file(v4ldev, &class_device_attr_val);
-	if (rc) goto err_reg;
+	if ((err = video_device_create_file(v4ldev, &class_device_attr_reg)))
+		goto err_out;
+	if ((err = video_device_create_file(v4ldev, &class_device_attr_val)))
+		goto err_reg;
+
 	if (cam->sensor.sysfs_ops) {
-		rc = video_device_create_file(v4ldev, &class_device_attr_i2c_reg);
-		if (rc) goto err_val;
-		rc = video_device_create_file(v4ldev, &class_device_attr_i2c_val);
-		if (rc) goto err_i2c_reg;
+		if ((err = video_device_create_file(v4ldev,
+						  &class_device_attr_i2c_reg)))
+			goto err_val;
+		if ((err = video_device_create_file(v4ldev,
+						  &class_device_attr_i2c_val)))
+			goto err_i2c_reg;
 	}
 
-	return 0;
-
 err_i2c_reg:
+	if (cam->sensor.sysfs_ops)
 	video_device_remove_file(v4ldev, &class_device_attr_i2c_reg);
 err_val:
 	video_device_remove_file(v4ldev, &class_device_attr_val);
 err_reg:
 	video_device_remove_file(v4ldev, &class_device_attr_reg);
-err:
-	return rc;
+err_out:
+	return err;
 }
 #endif /* CONFIG_VIDEO_ADV_DEBUG */
 
@@ -1767,10 +1771,10 @@ et61x251_vidioc_s_crop(struct et61x251_device* cam, void __user * arg)
 	rect->left = (s->_rect.left & 1L) ? rect->left | 1L : rect->left & ~1L;
 	rect->top = (s->_rect.top & 1L) ? rect->top | 1L : rect->top & ~1L;
 
-	if (rect->width < 4)
-		rect->width = 4;
-	if (rect->height < 4)
-		rect->height = 4;
+	if (rect->width < 16)
+		rect->width = 16;
+	if (rect->height < 16)
+		rect->height = 16;
 	if (rect->width > bounds->width)
 		rect->width = bounds->width;
 	if (rect->height > bounds->height)
@@ -1784,8 +1788,8 @@ et61x251_vidioc_s_crop(struct et61x251_device* cam, void __user * arg)
 	if (rect->top + rect->height > bounds->top + bounds->height)
 		rect->top = bounds->top+bounds->height - rect->height;
 
-	rect->width &= ~3L;
-	rect->height &= ~3L;
+	rect->width &= ~15L;
+	rect->height &= ~15L;
 
 	if (ET61X251_PRESERVE_IMGSCALE) {
 		/* Calculate the actual scaling factor */
@@ -1846,12 +1850,44 @@ et61x251_vidioc_s_crop(struct et61x251_device* cam, void __user * arg)
 
 
 static int
+et61x251_vidioc_enum_framesizes(struct et61x251_device* cam, void __user * arg)
+{
+	struct v4l2_frmsizeenum frmsize;
+
+	if (copy_from_user(&frmsize, arg, sizeof(frmsize)))
+		return -EFAULT;
+
+	if (frmsize.index != 0)
+		return -EINVAL;
+
+	if (frmsize.pixel_format != V4L2_PIX_FMT_ET61X251 &&
+	    frmsize.pixel_format != V4L2_PIX_FMT_SBGGR8)
+		return -EINVAL;
+
+	frmsize.type = V4L2_FRMSIZE_TYPE_STEPWISE;
+	frmsize.stepwise.min_width = frmsize.stepwise.step_width = 16;
+	frmsize.stepwise.min_height = frmsize.stepwise.step_height = 16;
+	frmsize.stepwise.max_width = cam->sensor.cropcap.bounds.width;
+	frmsize.stepwise.max_height = cam->sensor.cropcap.bounds.height;
+	memset(&frmsize.reserved, 0, sizeof(frmsize.reserved));
+
+	if (copy_to_user(arg, &frmsize, sizeof(frmsize)))
+		return -EFAULT;
+
+	return 0;
+}
+
+
+static int
 et61x251_vidioc_enum_fmt(struct et61x251_device* cam, void __user * arg)
 {
 	struct v4l2_fmtdesc fmtd;
 
 	if (copy_from_user(&fmtd, arg, sizeof(fmtd)))
 		return -EFAULT;
+
+	if (fmtd.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
 
 	if (fmtd.index == 0) {
 		strcpy(fmtd.description, "bayer rgb");
@@ -1934,17 +1970,17 @@ et61x251_vidioc_try_s_fmt(struct et61x251_device* cam, unsigned int cmd,
 	rect.width = scale * pix->width;
 	rect.height = scale * pix->height;
 
-	if (rect.width < 4)
-		rect.width = 4;
-	if (rect.height < 4)
-		rect.height = 4;
+	if (rect.width < 16)
+		rect.width = 16;
+	if (rect.height < 16)
+		rect.height = 16;
 	if (rect.width > bounds->left + bounds->width - rect.left)
 		rect.width = bounds->left + bounds->width - rect.left;
 	if (rect.height > bounds->top + bounds->height - rect.top)
 		rect.height = bounds->top + bounds->height - rect.top;
 
-	rect.width &= ~3L;
-	rect.height &= ~3L;
+	rect.width &= ~15L;
+	rect.height &= ~15L;
 
 	{ /* adjust the scaling factor */
 		u32 a, b;
@@ -2378,6 +2414,9 @@ static int et61x251_ioctl_v4l2(struct inode* inode, struct file* filp,
 	case VIDIOC_S_FMT:
 		return et61x251_vidioc_try_s_fmt(cam, cmd, arg);
 
+	case VIDIOC_ENUM_FRAMESIZES:
+		return et61x251_vidioc_enum_framesizes(cam, arg);
+
 	case VIDIOC_G_JPEGCOMP:
 		return et61x251_vidioc_g_jpegcomp(cam, arg);
 
@@ -2413,6 +2452,7 @@ static int et61x251_ioctl_v4l2(struct inode* inode, struct file* filp,
 	case VIDIOC_QUERYSTD:
 	case VIDIOC_ENUMSTD:
 	case VIDIOC_QUERYMENU:
+	case VIDIOC_ENUM_FRAMEINTERVALS:
 		return -EINVAL;
 
 	default:
@@ -2459,6 +2499,7 @@ static const struct file_operations et61x251_fops = {
 	.open =    et61x251_open,
 	.release = et61x251_release,
 	.ioctl =   et61x251_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.read =    et61x251_read,
 	.poll =    et61x251_poll,
 	.mmap =    et61x251_mmap,
@@ -2497,7 +2538,7 @@ et61x251_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	mutex_init(&cam->dev_mutex);
 
 	DBG(2, "ET61X[12]51 PC Camera Controller detected "
-	       "(vid/pid 0x%04X/0x%04X)",id->idVendor, id->idProduct);
+	       "(vid/pid 0x%04X:0x%04X)",id->idVendor, id->idProduct);
 
 	for  (i = 0; et61x251_sensor_table[i]; i++) {
 		err = et61x251_sensor_table[i](cam);
@@ -2550,9 +2591,14 @@ et61x251_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	err = et61x251_create_sysfs(cam);
-	if (err)
-		goto fail2;
-	DBG(2, "Optional device control through 'sysfs' interface ready");
+	if (!err)
+		DBG(2, "Optional device control through 'sysfs' "
+		       "interface ready");
+	else
+		DBG(2, "Failed to create 'sysfs' interface for optional "
+		       "device controlling. Error #%d", err);
+#else
+	DBG(2, "Optional device control through 'sysfs' interface disabled");
 #endif
 
 	usb_set_intfdata(intf, cam);
@@ -2561,13 +2607,6 @@ et61x251_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	return 0;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-fail2:
-	video_nr[dev_nr] = -1;
-	dev_nr = (dev_nr < ET61X251_MAX_DEVICES-1) ? dev_nr+1 : 0;
-	mutex_unlock(&cam->dev_mutex);
-	video_unregister_device(cam->v4ldev);
-#endif
 fail:
 	if (cam) {
 		kfree(cam->control_buffer);

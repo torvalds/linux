@@ -59,6 +59,7 @@ struct sctp_ulpq {
 /* Prototypes. */
 struct sctp_ulpq *sctp_ulpq_init(struct sctp_ulpq *,
 				 struct sctp_association *);
+void sctp_ulpq_flush(struct sctp_ulpq *ulpq);
 void sctp_ulpq_free(struct sctp_ulpq *);
 
 /* Add a new DATA chunk for processing. */
@@ -77,7 +78,7 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *, struct sctp_chunk *, gfp_t);
 void sctp_ulpq_abort_pd(struct sctp_ulpq *, gfp_t);
 
 /* Clear the partial data delivery condition on this socket. */
-int sctp_clear_pd(struct sock *sk);
+int sctp_clear_pd(struct sock *sk, struct sctp_association *asoc);
 
 /* Skip over an SSN. */
 void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn);

@@ -419,7 +419,7 @@ typedef struct irnet_socket
   u32			raccm;		/* to please pppd - dummy) */
   unsigned int		flags;		/* PPP flags (compression, ...) */
   unsigned int		rbits;		/* Unused receive flags ??? */
-
+  struct work_struct disconnect_work;   /* Process context disconnection */
   /* ------------------------ IrTTP part ------------------------ */
   /* We create a pseudo "socket" over the IrDA tranport */
   unsigned long		ttp_open;	/* Set when IrTTP is ready */

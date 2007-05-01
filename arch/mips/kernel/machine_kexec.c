@@ -13,8 +13,8 @@
 #include <asm/cacheflush.h>
 #include <asm/page.h>
 
-const extern unsigned char relocate_new_kernel[];
-const extern unsigned int relocate_new_kernel_size;
+extern const unsigned char relocate_new_kernel[];
+extern const unsigned int relocate_new_kernel_size;
 
 extern unsigned long kexec_start_address;
 extern unsigned long kexec_indirection_page;

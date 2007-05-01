@@ -17,7 +17,6 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 #include <linux/firmware.h>
 #include <media/v4l2-common.h>
 #include <media/cx25840.h>
@@ -37,7 +36,7 @@
  */
 #define FWSEND 48
 
-#define FWDEV(x) &((x)->adapter->dev)
+#define FWDEV(x) &((x)->dev)
 
 static char *firmware = FWFILE;
 

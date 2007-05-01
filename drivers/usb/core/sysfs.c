@@ -11,6 +11,7 @@
 
 
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/usb.h>
 #include "usb.h"
 
@@ -63,7 +64,7 @@ set_bConfigurationValue(struct device *dev, struct device_attribute *attr,
 	struct usb_device	*udev = to_usb_device(dev);
 	int			config, value;
 
-	if (sscanf(buf, "%u", &config) != 1 || config > 255)
+	if (sscanf(buf, "%d", &config) != 1 || config < -1 || config > 255)
 		return -EINVAL;
 	usb_lock_device(udev);
 	value = usb_set_configuration(udev, config);
@@ -117,6 +118,16 @@ show_speed(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR(speed, S_IRUGO, show_speed, NULL);
 
 static ssize_t
+show_busnum(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "%d\n", udev->bus->busnum);
+}
+static DEVICE_ATTR(busnum, S_IRUGO, show_busnum, NULL);
+
+static ssize_t
 show_devnum(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
@@ -147,6 +158,151 @@ show_maxchild(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%d\n", udev->maxchild);
 }
 static DEVICE_ATTR(maxchild, S_IRUGO, show_maxchild, NULL);
+
+static ssize_t
+show_quirks(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "0x%x\n", udev->quirks);
+}
+static DEVICE_ATTR(quirks, S_IRUGO, show_quirks, NULL);
+
+#ifdef	CONFIG_USB_SUSPEND
+
+static ssize_t
+show_autosuspend(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev = to_usb_device(dev);
+
+	return sprintf(buf, "%d\n", udev->autosuspend_delay / HZ);
+}
+
+static ssize_t
+set_autosuspend(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	int value;
+
+	if (sscanf(buf, "%d", &value) != 1 || value >= INT_MAX/HZ ||
+			value <= - INT_MAX/HZ)
+		return -EINVAL;
+	value *= HZ;
+
+	udev->autosuspend_delay = value;
+	if (value >= 0)
+		usb_try_autosuspend_device(udev);
+	else {
+		if (usb_autoresume_device(udev) == 0)
+			usb_autosuspend_device(udev);
+	}
+	return count;
+}
+
+static DEVICE_ATTR(autosuspend, S_IRUGO | S_IWUSR,
+		show_autosuspend, set_autosuspend);
+
+static const char on_string[] = "on";
+static const char auto_string[] = "auto";
+static const char suspend_string[] = "suspend";
+
+static ssize_t
+show_level(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	const char *p = auto_string;
+
+	if (udev->state == USB_STATE_SUSPENDED) {
+		if (udev->autoresume_disabled)
+			p = suspend_string;
+	} else {
+		if (udev->autosuspend_disabled)
+			p = on_string;
+	}
+	return sprintf(buf, "%s\n", p);
+}
+
+static ssize_t
+set_level(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	int len = count;
+	char *cp;
+	int rc = 0;
+
+	cp = memchr(buf, '\n', count);
+	if (cp)
+		len = cp - buf;
+
+	usb_lock_device(udev);
+
+	/* Setting the flags without calling usb_pm_lock is a subject to
+	 * races, but who cares...
+	 */
+	if (len == sizeof on_string - 1 &&
+			strncmp(buf, on_string, len) == 0) {
+		udev->autosuspend_disabled = 1;
+		udev->autoresume_disabled = 0;
+		rc = usb_external_resume_device(udev);
+
+	} else if (len == sizeof auto_string - 1 &&
+			strncmp(buf, auto_string, len) == 0) {
+		udev->autosuspend_disabled = 0;
+		udev->autoresume_disabled = 0;
+		rc = usb_external_resume_device(udev);
+
+	} else if (len == sizeof suspend_string - 1 &&
+			strncmp(buf, suspend_string, len) == 0) {
+		udev->autosuspend_disabled = 0;
+		udev->autoresume_disabled = 1;
+		rc = usb_external_suspend_device(udev, PMSG_SUSPEND);
+
+	} else
+		rc = -EINVAL;
+
+	usb_unlock_device(udev);
+	return (rc < 0 ? rc : count);
+}
+
+static DEVICE_ATTR(level, S_IRUGO | S_IWUSR, show_level, set_level);
+
+static char power_group[] = "power";
+
+static int add_power_attributes(struct device *dev)
+{
+	int rc = 0;
+
+	if (is_usb_device(dev)) {
+		rc = sysfs_add_file_to_group(&dev->kobj,
+				&dev_attr_autosuspend.attr,
+				power_group);
+		if (rc == 0)
+			rc = sysfs_add_file_to_group(&dev->kobj,
+					&dev_attr_level.attr,
+					power_group);
+	}
+	return rc;
+}
+
+static void remove_power_attributes(struct device *dev)
+{
+	sysfs_remove_file_from_group(&dev->kobj,
+			&dev_attr_level.attr,
+			power_group);
+	sysfs_remove_file_from_group(&dev->kobj,
+			&dev_attr_autosuspend.attr,
+			power_group);
+}
+
+#else
+
+#define add_power_attributes(dev)	0
+#define remove_power_attributes(dev)	do {} while (0)
+
+#endif	/* CONFIG_USB_SUSPEND */
 
 /* Descriptor fields */
 #define usb_descriptor_attr_le16(field, format_string)			\
@@ -201,9 +357,11 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_bNumConfigurations.attr,
 	&dev_attr_bMaxPacketSize0.attr,
 	&dev_attr_speed.attr,
+	&dev_attr_busnum.attr,
 	&dev_attr_devnum.attr,
 	&dev_attr_version.attr,
 	&dev_attr_maxchild.attr,
+	&dev_attr_quirks.attr,
 	NULL,
 };
 static struct attribute_group dev_attr_grp = {
@@ -218,6 +376,10 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	retval = sysfs_create_group(&dev->kobj, &dev_attr_grp);
 	if (retval)
 		return retval;
+
+	retval = add_power_attributes(dev);
+	if (retval)
+		goto error;
 
 	if (udev->manufacturer) {
 		retval = device_create_file(dev, &dev_attr_manufacturer);
@@ -239,10 +401,7 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 		goto error;
 	return 0;
 error:
-	usb_remove_ep_files(&udev->ep0);
-	device_remove_file(dev, &dev_attr_manufacturer);
-	device_remove_file(dev, &dev_attr_product);
-	device_remove_file(dev, &dev_attr_serial);
+	usb_remove_sysfs_dev_files(udev);
 	return retval;
 }
 
@@ -251,14 +410,11 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 	struct device *dev = &udev->dev;
 
 	usb_remove_ep_files(&udev->ep0);
+	device_remove_file(dev, &dev_attr_manufacturer);
+	device_remove_file(dev, &dev_attr_product);
+	device_remove_file(dev, &dev_attr_serial);
+	remove_power_attributes(dev);
 	sysfs_remove_group(&dev->kobj, &dev_attr_grp);
-
-	if (udev->manufacturer)
-		device_remove_file(dev, &dev_attr_manufacturer);
-	if (udev->product)
-		device_remove_file(dev, &dev_attr_product);
-	if (udev->serial)
-		device_remove_file(dev, &dev_attr_serial);
 }
 
 /* Interface fields */
@@ -362,33 +518,28 @@ static inline void usb_remove_intf_ep_files(struct usb_interface *intf)
 
 int usb_create_sysfs_intf_files(struct usb_interface *intf)
 {
+	struct device *dev = &intf->dev;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	int retval;
 
-	retval = sysfs_create_group(&intf->dev.kobj, &intf_attr_grp);
+	retval = sysfs_create_group(&dev->kobj, &intf_attr_grp);
 	if (retval)
-		goto error;
+		return retval;
 
 	if (alt->string == NULL)
 		alt->string = usb_cache_string(udev, alt->desc.iInterface);
 	if (alt->string)
-		retval = device_create_file(&intf->dev, &dev_attr_interface);
+		retval = device_create_file(dev, &dev_attr_interface);
 	usb_create_intf_ep_files(intf, udev);
 	return 0;
-error:
-	if (alt->string)
-		device_remove_file(&intf->dev, &dev_attr_interface);
-	sysfs_remove_group(&intf->dev.kobj, &intf_attr_grp);
-	usb_remove_intf_ep_files(intf);
-	return retval;
 }
 
 void usb_remove_sysfs_intf_files(struct usb_interface *intf)
 {
-	usb_remove_intf_ep_files(intf);
-	sysfs_remove_group(&intf->dev.kobj, &intf_attr_grp);
+	struct device *dev = &intf->dev;
 
-	if (intf->cur_altsetting->string)
-		device_remove_file(&intf->dev, &dev_attr_interface);
+	usb_remove_intf_ep_files(intf);
+	device_remove_file(dev, &dev_attr_interface);
+	sysfs_remove_group(&dev->kobj, &intf_attr_grp);
 }

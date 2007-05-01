@@ -35,14 +35,13 @@
 
 #include "mt352.h"
 #include "mt352_priv.h"
-#ifdef HAVE_VP3054_I2C
+#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
 # include "cx88-vp3054-i2c.h"
 #endif
 #include "zl10353.h"
 #include "cx22702.h"
 #include "or51132.h"
 #include "lgdt330x.h"
-#include "lgh06xf.h"
 #include "nxt200x.h"
 #include "cx24123.h"
 #include "isl6421.h"
@@ -200,7 +199,7 @@ static struct mt352_config dvico_fusionhdtv_dual = {
 	.demod_init    = dvico_dual_demod_init,
 };
 
-#ifdef HAVE_VP3054_I2C
+#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
 static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { 0x89, 0x38, 0x38 };
@@ -476,6 +475,8 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_WINFAST_DTV2000H:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
+	case CX88_BOARD_HAUPPAUGE_HVR1300:
+	case CX88_BOARD_HAUPPAUGE_HVR3000:
 		dev->dvb.frontend = dvb_attach(cx22702_attach,
 					       &hauppauge_hvr_config,
 					       &dev->core->i2c_adap);
@@ -543,7 +544,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
-#ifdef HAVE_VP3054_I2C
+#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_fmd1216me;
 		dev->dvb.frontend = dvb_attach(mt352_attach, &dntv_live_dvbt_pro_config,
@@ -631,8 +632,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &fusionhdtv_5_gold,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(lgh06xf_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap);
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_lg_tdvs_h06xf);
 		}
 		}
 		break;
@@ -650,8 +652,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &pchdtv_hd5500,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(lgh06xf_attach, dev->dvb.frontend,
-				   &dev->core->i2c_adap);
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_lg_tdvs_h06xf);
 		}
 		}
 		break;
@@ -690,24 +693,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend) {
 			dev->core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
 			dev->dvb.frontend->ops.set_voltage = geniatech_dvbs_set_voltage;
-		}
-		break;
-	case CX88_BOARD_HAUPPAUGE_HVR1300:
-		dev->dvb.frontend = dvb_attach(cx22702_attach,
-					       &hauppauge_hvr_config,
-					       &dev->core->i2c_adap);
-		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap, &dvb_pll_fmd1216me);
-		}
-		break;
-	case CX88_BOARD_HAUPPAUGE_HVR3000:
-		dev->dvb.frontend = dvb_attach(cx22702_attach,
-					       &hauppauge_hvr_config,
-					       &dev->core->i2c_adap);
-		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap, &dvb_pll_fmd1216me);
 		}
 		break;
 	default:
@@ -793,7 +778,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	if (!(cx88_boards[core->board].mpeg & CX88_MPEG_DVB))
 		goto fail_core;
 
-#ifdef HAVE_VP3054_I2C
+#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
 	err = vp3054_i2c_probe(dev);
 	if (0 != err)
 		goto fail_core;
@@ -822,7 +807,7 @@ static int cx8802_dvb_remove(struct cx8802_driver *drv)
 	/* dvb */
 	videobuf_dvb_unregister(&dev->dvb);
 
-#ifdef HAVE_VP3054_I2C
+#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
 	vp3054_i2c_remove(dev);
 #endif
 

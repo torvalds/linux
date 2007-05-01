@@ -74,16 +74,9 @@ void __init mpc8313_rdb_init_IRQ(void)
  */
 static int __init mpc8313_rdb_probe(void)
 {
-	char *model = of_get_flat_dt_prop(of_get_flat_dt_root(),
-					  "model", NULL);
-	if (model == NULL)
-		return 0;
-	if (strcmp(model, "MPC8313ERDB"))
-		return 0;
+        unsigned long root = of_get_flat_dt_root();
 
-	DBG("MPC8313 RDB found\n");
-
-	return 1;
+        return of_flat_dt_is_compatible(root, "MPC8313ERDB");
 }
 
 define_machine(mpc8313_rdb) {

@@ -1192,8 +1192,6 @@ void
 ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		 struct ia64_sal_os_state *sos)
 {
-	pal_processor_state_info_t *psp = (pal_processor_state_info_t *)
-		&sos->proc_state_param;
 	int recover, cpu = smp_processor_id();
 	struct task_struct *previous_current;
 	struct ia64_mca_notify_die nd =
@@ -1223,10 +1221,8 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 	/* Get the MCA error record and log it */
 	ia64_mca_log_sal_error_record(SAL_INFO_TYPE_MCA);
 
-	/* TLB error is only exist in this SAL error record */
-	recover = (psp->tc && !(psp->cc || psp->bc || psp->rc || psp->uc))
-	/* other error recovery */
-	   || (ia64_mca_ucmc_extension
+	/* MCA error recovery */
+	recover = (ia64_mca_ucmc_extension
 		&& ia64_mca_ucmc_extension(
 			IA64_LOG_CURR_BUFFER(SAL_INFO_TYPE_MCA),
 			sos));

@@ -35,7 +35,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME	"pata_cs5530"
-#define DRV_VERSION	"0.7.1"
+#define DRV_VERSION	"0.7.2"
 
 static void __iomem *cs5530_port_base(struct ata_port *ap)
 {
@@ -160,18 +160,6 @@ static unsigned int cs5530_qc_issue_prot(struct ata_queued_cmd *qc)
 	return ata_qc_issue_prot(qc);
 }
 
-static int cs5530_pre_reset(struct ata_port *ap)
-{
-	ap->cbl = ATA_CBL_PATA40;
-	return ata_std_prereset(ap);
-}
-
-static void cs5530_error_handler(struct ata_port *ap)
-{
-	return ata_bmdma_drive_eh(ap, cs5530_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-
 static struct scsi_host_template cs5530_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -188,8 +176,10 @@ static struct scsi_host_template cs5530_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
 	.resume			= ata_scsi_device_resume,
 	.suspend		= ata_scsi_device_suspend,
+#endif
 };
 
 static struct ata_port_operations cs5530_port_ops = {
@@ -211,8 +201,9 @@ static struct ata_port_operations cs5530_port_ops = {
 
 	.freeze		= ata_bmdma_freeze,
 	.thaw		= ata_bmdma_thaw,
-	.error_handler	= cs5530_error_handler,
+	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= ata_cable_40wire,
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= cs5530_qc_issue_prot,
@@ -376,6 +367,7 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
+#ifdef CONFIG_PM
 static int cs5530_reinit_one(struct pci_dev *pdev)
 {
 	/* If we fail on resume we are doomed */
@@ -383,6 +375,7 @@ static int cs5530_reinit_one(struct pci_dev *pdev)
 		BUG();
 	return ata_pci_device_resume(pdev);
 }
+#endif /* CONFIG_PM */
 
 static const struct pci_device_id cs5530[] = {
 	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5530_IDE), },
@@ -395,8 +388,10 @@ static struct pci_driver cs5530_pci_driver = {
 	.id_table	= cs5530,
 	.probe 		= cs5530_init_one,
 	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
 	.resume		= cs5530_reinit_one,
+#endif
 };
 
 static int __init cs5530_init(void)

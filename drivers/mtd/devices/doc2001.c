@@ -348,7 +348,6 @@ void DoCMil_init(struct mtd_info *mtd)
 
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH;
-	mtd->ecctype = MTD_ECC_RS_DiskOnChip;
 	mtd->size = 0;
 
 	/* FIXME: erase size is not always 8KiB */

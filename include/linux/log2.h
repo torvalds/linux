@@ -152,7 +152,7 @@ unsigned long __roundup_pow_of_two(unsigned long n)
  * roundup_pow_of_two - round the given value up to nearest power of two
  * @n - parameter
  *
- * round the given balue up to the nearest power of two
+ * round the given value up to the nearest power of two
  * - the result is undefined when n == 0
  * - this can be used to initialise global variables from constant data
  */

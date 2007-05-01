@@ -207,8 +207,8 @@ static int __devinit ck804xrom_init_one (struct pci_dev *pdev,
 			(((unsigned long)(window->virt)) + offset);
 		map->map.size = 0xffffffffUL - map_top + 1UL;
 		/* Set the name of the map to the address I am trying */
-		sprintf(map->map_name, "%s @%08lx",
-			MOD_NAME, map->map.phys);
+		sprintf(map->map_name, "%s @%08Lx",
+			MOD_NAME, (unsigned long long)map->map.phys);
 
 		/* There is no generic VPP support */
 		for(map->map.bankwidth = 32; map->map.bankwidth;
@@ -327,7 +327,7 @@ static int __init init_ck804xrom(void)
 	pdev = NULL;
 
 	for(id = ck804xrom_pci_tbl; id->vendor; id++) {
-		pdev = pci_find_device(id->vendor, id->device, NULL);
+		pdev = pci_get_device(id->vendor, id->device, NULL);
 		if (pdev)
 			break;
 	}
@@ -338,7 +338,7 @@ static int __init init_ck804xrom(void)
 	}
 	return -ENXIO;
 #if 0
-	return pci_module_init(&ck804xrom_driver);
+	return pci_register_driver(&ck804xrom_driver);
 #endif
 }
 

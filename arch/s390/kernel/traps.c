@@ -30,7 +30,7 @@
 #include <linux/kallsyms.h>
 #include <linux/reboot.h>
 #include <linux/kprobes.h>
-
+#include <linux/bug.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -188,18 +188,31 @@ void dump_stack(void)
 
 EXPORT_SYMBOL(dump_stack);
 
+static inline int mask_bits(struct pt_regs *regs, unsigned long bits)
+{
+	return (regs->psw.mask & bits) / ((~bits + 1) & bits);
+}
+
 void show_registers(struct pt_regs *regs)
 {
-	mm_segment_t old_fs;
 	char *mode;
-	int i;
 
 	mode = (regs->psw.mask & PSW_MASK_PSTATE) ? "User" : "Krnl";
 	printk("%s PSW : %p %p",
 	       mode, (void *) regs->psw.mask,
 	       (void *) regs->psw.addr);
 	print_symbol(" (%s)\n", regs->psw.addr & PSW_ADDR_INSN);
-	printk("%s GPRS: " FOURLONG, mode,
+	printk("           R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x "
+	       "P:%x AS:%x CC:%x PM:%x", mask_bits(regs, PSW_MASK_PER),
+	       mask_bits(regs, PSW_MASK_DAT), mask_bits(regs, PSW_MASK_IO),
+	       mask_bits(regs, PSW_MASK_EXT), mask_bits(regs, PSW_MASK_KEY),
+	       mask_bits(regs, PSW_MASK_MCHECK), mask_bits(regs, PSW_MASK_WAIT),
+	       mask_bits(regs, PSW_MASK_PSTATE), mask_bits(regs, PSW_MASK_ASC),
+	       mask_bits(regs, PSW_MASK_CC), mask_bits(regs, PSW_MASK_PM));
+#ifdef CONFIG_64BIT
+	printk(" EA:%x", mask_bits(regs, PSW_BASE_BITS));
+#endif
+	printk("\n%s GPRS: " FOURLONG, mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);
 	printk("           " FOURLONG,
 	       regs->gprs[4], regs->gprs[5], regs->gprs[6], regs->gprs[7]);
@@ -208,41 +221,7 @@ void show_registers(struct pt_regs *regs)
 	printk("           " FOURLONG,
 	       regs->gprs[12], regs->gprs[13], regs->gprs[14], regs->gprs[15]);
 
-#if 0
-	/* FIXME: this isn't needed any more but it changes the ksymoops
-	 * input. To remove or not to remove ... */
-	save_access_regs(regs->acrs);
-	printk("%s ACRS: %08x %08x %08x %08x\n", mode,
-	       regs->acrs[0], regs->acrs[1], regs->acrs[2], regs->acrs[3]);
-	printk("           %08x %08x %08x %08x\n",
-	       regs->acrs[4], regs->acrs[5], regs->acrs[6], regs->acrs[7]);
-	printk("           %08x %08x %08x %08x\n",
-	       regs->acrs[8], regs->acrs[9], regs->acrs[10], regs->acrs[11]);
-	printk("           %08x %08x %08x %08x\n",
-	       regs->acrs[12], regs->acrs[13], regs->acrs[14], regs->acrs[15]);
-#endif
-
-	/*
-	 * Print the first 20 byte of the instruction stream at the
-	 * time of the fault.
-	 */
-	old_fs = get_fs();
-	if (regs->psw.mask & PSW_MASK_PSTATE)
-		set_fs(USER_DS);
-	else
-		set_fs(KERNEL_DS);
-	printk("%s Code: ", mode);
-	for (i = 0; i < 20; i++) {
-		unsigned char c;
-		if (__get_user(c, (char __user *)(regs->psw.addr + i))) {
-			printk(" Bad PSW.");
-			break;
-		}
-		printk("%02x ", c);
-	}
-	set_fs(old_fs);
-
-	printk("\n");
+	show_code(regs);
 }	
 
 /* This is called from fs/proc/array.c */
@@ -318,6 +297,11 @@ report_user_fault(long interruption_code, struct pt_regs *regs)
 #endif
 }
 
+int is_valid_bugaddr(unsigned long addr)
+{
+	return 1;
+}
+
 static void __kprobes inline do_trap(long interruption_code, int signr,
 					char *str, struct pt_regs *regs,
 					siginfo_t *info)
@@ -344,8 +328,14 @@ static void __kprobes inline do_trap(long interruption_code, int signr,
                 fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
                 if (fixup)
                         regs->psw.addr = fixup->fixup | PSW_ADDR_AMODE;
-                else
-                        die(str, regs, interruption_code);
+		else {
+			enum bug_trap_type btt;
+
+			btt = report_bug(regs->psw.addr & PSW_ADDR_INSN);
+			if (btt == BUG_TRAP_TYPE_WARN)
+				return;
+			die(str, regs, interruption_code);
+		}
         }
 }
 

@@ -20,10 +20,6 @@
 #define __LINUX_USB_SERIAL_WHITEHEAT_H
 
 
-#define FALSE	0
-#define TRUE	1
-
-
 /* WhiteHEAT commands */
 #define WHITEHEAT_OPEN			1	/* open the port */
 #define WHITEHEAT_CLOSE			2	/* close the port */

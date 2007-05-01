@@ -10,6 +10,7 @@
  * Maintainer: Kumar Gala
  *
  * Copyright (c) 2002-2006 Freescale Semiconductor, Inc.
+ * Copyright (c) 2007 MontaVista Software, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -941,18 +942,18 @@ static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
 
 	/* Tell the controller what the protocol is */
 	/* And provide the already calculated phcs */
-	if (skb->nh.iph->protocol == IPPROTO_UDP) {
+	if (ip_hdr(skb)->protocol == IPPROTO_UDP) {
 		flags |= TXFCB_UDP;
-		fcb->phcs = skb->h.uh->check;
+		fcb->phcs = udp_hdr(skb)->check;
 	} else
-		fcb->phcs = skb->h.th->check;
+		fcb->phcs = udp_hdr(skb)->check;
 
 	/* l3os is the distance between the start of the
 	 * frame (skb->data) and the start of the IP hdr.
 	 * l4os is the distance between the start of the
 	 * l3 hdr and the l4 hdr */
-	fcb->l3os = (u16)(skb->nh.raw - skb->data - GMAC_FCB_LEN);
-	fcb->l4os = (u16)(skb->h.raw - skb->nh.raw);
+	fcb->l3os = (u16)(skb_network_offset(skb) - GMAC_FCB_LEN);
+	fcb->l4os = skb_network_header_len(skb);
 
 	fcb->flags = flags;
 }
@@ -1131,8 +1132,7 @@ static void gfar_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 
 	spin_lock_irqsave(&priv->rxlock, flags);
 
-	if (priv->vlgrp)
-		priv->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(priv->vlgrp, vid, NULL);
 
 	spin_unlock_irqrestore(&priv->rxlock, flags);
 }
@@ -1294,8 +1294,6 @@ struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
 	 * as many bytes as needed to align the data properly
 	 */
 	skb_reserve(skb, alignamount);
-
-	skb->dev = dev;
 
 	bdp->bufPtr = dma_map_single(NULL, skb->data,
 			priv->rx_buffer_size, DMA_FROM_DEVICE);
@@ -1612,71 +1610,17 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id)
 	/* Save ievent for future reference */
 	u32 events = gfar_read(&priv->regs->ievent);
 
-	/* Clear IEVENT */
-	gfar_write(&priv->regs->ievent, events);
-
 	/* Check for reception */
-	if ((events & IEVENT_RXF0) || (events & IEVENT_RXB0))
+	if (events & IEVENT_RX_MASK)
 		gfar_receive(irq, dev_id);
 
 	/* Check for transmit completion */
-	if ((events & IEVENT_TXF) || (events & IEVENT_TXB))
+	if (events & IEVENT_TX_MASK)
 		gfar_transmit(irq, dev_id);
 
-	/* Update error statistics */
-	if (events & IEVENT_TXE) {
-		priv->stats.tx_errors++;
-
-		if (events & IEVENT_LC)
-			priv->stats.tx_window_errors++;
-		if (events & IEVENT_CRL)
-			priv->stats.tx_aborted_errors++;
-		if (events & IEVENT_XFUN) {
-			if (netif_msg_tx_err(priv))
-				printk(KERN_WARNING "%s: tx underrun. dropped packet\n", dev->name);
-			priv->stats.tx_dropped++;
-			priv->extra_stats.tx_underrun++;
-
-			/* Reactivate the Tx Queues */
-			gfar_write(&priv->regs->tstat, TSTAT_CLEAR_THALT);
-		}
-	}
-	if (events & IEVENT_BSY) {
-		priv->stats.rx_errors++;
-		priv->extra_stats.rx_bsy++;
-
-		gfar_receive(irq, dev_id);
-
-#ifndef CONFIG_GFAR_NAPI
-		/* Clear the halt bit in RSTAT */
-		gfar_write(&priv->regs->rstat, RSTAT_CLEAR_RHALT);
-#endif
-
-		if (netif_msg_rx_err(priv))
-			printk(KERN_DEBUG "%s: busy error (rhalt: %x)\n",
-					dev->name,
-					gfar_read(&priv->regs->rstat));
-	}
-	if (events & IEVENT_BABR) {
-		priv->stats.rx_errors++;
-		priv->extra_stats.rx_babr++;
-
-		if (netif_msg_rx_err(priv))
-			printk(KERN_DEBUG "%s: babbling error\n", dev->name);
-	}
-	if (events & IEVENT_EBERR) {
-		priv->extra_stats.eberr++;
-		if (netif_msg_rx_err(priv))
-			printk(KERN_DEBUG "%s: EBERR\n", dev->name);
-	}
-	if ((events & IEVENT_RXC) && (netif_msg_rx_err(priv)))
-			printk(KERN_DEBUG "%s: control frame\n", dev->name);
-
-	if (events & IEVENT_BABT) {
-		priv->extra_stats.tx_babt++;
-		if (netif_msg_rx_err(priv))
-			printk(KERN_DEBUG "%s: babt error\n", dev->name);
-	}
+	/* Check for errors */
+	if (events & IEVENT_ERR_MASK)
+		gfar_error(irq, dev_id);
 
 	return IRQ_HANDLED;
 }
@@ -1938,7 +1882,7 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 	/* Hmm... */
 	if (netif_msg_rx_err(priv) || netif_msg_tx_err(priv))
 		printk(KERN_DEBUG "%s: error interrupt (ievent=0x%08x imask=0x%08x)\n",
-				dev->name, events, gfar_read(&priv->regs->imask));
+		       dev->name, events, gfar_read(&priv->regs->imask));
 
 	/* Update the error counters */
 	if (events & IEVENT_TXE) {
@@ -1950,8 +1894,8 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 			priv->stats.tx_aborted_errors++;
 		if (events & IEVENT_XFUN) {
 			if (netif_msg_tx_err(priv))
-				printk(KERN_DEBUG "%s: underrun.  packet dropped.\n",
-						dev->name);
+				printk(KERN_DEBUG "%s: TX FIFO underrun, "
+				       "packet dropped.\n", dev->name);
 			priv->stats.tx_dropped++;
 			priv->extra_stats.tx_underrun++;
 
@@ -1973,30 +1917,28 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 #endif
 
 		if (netif_msg_rx_err(priv))
-			printk(KERN_DEBUG "%s: busy error (rhalt: %x)\n",
-					dev->name,
-					gfar_read(&priv->regs->rstat));
+			printk(KERN_DEBUG "%s: busy error (rstat: %x)\n",
+			       dev->name, gfar_read(&priv->regs->rstat));
 	}
 	if (events & IEVENT_BABR) {
 		priv->stats.rx_errors++;
 		priv->extra_stats.rx_babr++;
 
 		if (netif_msg_rx_err(priv))
-			printk(KERN_DEBUG "%s: babbling error\n", dev->name);
+			printk(KERN_DEBUG "%s: babbling RX error\n", dev->name);
 	}
 	if (events & IEVENT_EBERR) {
 		priv->extra_stats.eberr++;
 		if (netif_msg_rx_err(priv))
-			printk(KERN_DEBUG "%s: EBERR\n", dev->name);
+			printk(KERN_DEBUG "%s: bus error\n", dev->name);
 	}
 	if ((events & IEVENT_RXC) && netif_msg_rx_status(priv))
-		if (netif_msg_rx_status(priv))
-			printk(KERN_DEBUG "%s: control frame\n", dev->name);
+		printk(KERN_DEBUG "%s: control frame\n", dev->name);
 
 	if (events & IEVENT_BABT) {
 		priv->extra_stats.tx_babt++;
 		if (netif_msg_tx_err(priv))
-			printk(KERN_DEBUG "%s: babt error\n", dev->name);
+			printk(KERN_DEBUG "%s: babbling TX error\n", dev->name);
 	}
 	return IRQ_HANDLED;
 }

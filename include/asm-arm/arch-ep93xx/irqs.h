@@ -67,9 +67,13 @@
 #define IRQ_EP93XX_SAI			60
 #define EP93XX_VIC2_VALID_IRQ_MASK	0x1fffffff
 
-#define IRQ_EP93XX_GPIO(x)		(64 + (x))
+/*
+ * Map GPIO A0..A7 to irq 64..71, B0..B7 to 72..79, and
+ * F0..F7 to 80..87.
+ */
+#define IRQ_EP93XX_GPIO(x)		(64 + (((x) + (((x) >> 2) & 8)) & 0x1f))
 
-#define NR_EP93XX_IRQS			IRQ_EP93XX_GPIO(16)
+#define NR_EP93XX_IRQS			(64 + 24)
 
 #define EP93XX_BOARD_IRQ(x)		(NR_EP93XX_IRQS + (x))
 #define EP93XX_BOARD_IRQS		32

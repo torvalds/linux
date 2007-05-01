@@ -6,12 +6,6 @@
  * Copyright (C) 2001, 2002 Ralf Baechle
  */
 #include <linux/init.h>
-#include <linux/console.h>
-#include <linux/kdev_t.h>
-#include <linux/major.h>
-#include <linux/termios.h>
-#include <linux/sched.h>
-#include <linux/tty.h>
 
 #include <asm/page.h>
 #include <asm/semaphore.h>
@@ -38,37 +32,10 @@ static inline struct ioc3_uartregs *console_uart(void)
 	return &ioc3->sregs.uarta;
 }
 
-void prom_putchar(char c)
+void __init prom_putchar(char c)
 {
 	struct ioc3_uartregs *uart = console_uart();
 
 	while ((uart->iu_lsr & 0x20) == 0);
 	uart->iu_thr = c;
-}
-
-static void ioc3_console_write(struct console *con, const char *s, unsigned n)
-{
-	while (n-- && *s) {
-		if (*s == '\n')
-			prom_putchar('\r');
-		prom_putchar(*s);
-		s++;
-	}
-}
-
-static struct console ioc3_console = {
-	.name	= "ioc3",
-	.write	= ioc3_console_write,
-	.flags	= CON_PRINTBUFFER | CON_BOOT,
-	.index	= -1
-};
-
-__init void ip27_setup_console(void)
-{
-	register_console(&ioc3_console);
-}
-
-void __init disable_early_printk(void)
-{
-	unregister_console(&ioc3_console);
 }

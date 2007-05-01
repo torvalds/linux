@@ -41,7 +41,7 @@
 #define S3C2410_ADCTSC_XP_SEN		(1<<4)
 #define S3C2410_ADCTSC_PULL_UP_DISABLE	(1<<3)
 #define S3C2410_ADCTSC_AUTO_PST		(1<<2)
-#define S3C2410_ADCTSC_XY_PST		(0x3<<0)
+#define S3C2410_ADCTSC_XY_PST(x)	(((x)&0x3)<<0)
 
 /* ADCDAT0 Bits */
 #define S3C2410_ADCDAT0_UPDOWN		(1<<15)

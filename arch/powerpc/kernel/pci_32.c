@@ -637,7 +637,7 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 
 	if (pci_bus >= pci_bus_count)
 		return;
-	bus_range = get_property(node, "bus-range", &len);
+	bus_range = of_get_property(node, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, "
 		       "assuming it starts at 0\n", node->full_name);
@@ -649,17 +649,20 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 		struct pci_dev* dev;
 		const unsigned int *class_code, *reg;
 	
-		class_code = get_property(node, "class-code", NULL);
+		class_code = of_get_property(node, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		reg = get_property(node, "reg", NULL);
+		reg = of_get_property(node, "reg", NULL);
 		if (!reg)
 			continue;
-		dev = pci_find_slot(pci_bus, ((reg[0] >> 8) & 0xff));
-		if (!dev || !dev->subordinate)
+		dev = pci_get_bus_and_slot(pci_bus, ((reg[0] >> 8) & 0xff));
+		if (!dev || !dev->subordinate) {
+			pci_dev_put(dev);
 			continue;
+		}
 		make_one_node_map(node, dev->subordinate->number);
+		pci_dev_put(dev);
 	}
 }
 	
@@ -669,6 +672,7 @@ pcibios_make_OF_bus_map(void)
 	int i;
 	struct pci_controller* hose;
 	struct property *map_prop;
+	struct device_node *dn;
 
 	pci_to_OF_bus_map = kmalloc(pci_bus_count, GFP_KERNEL);
 	if (!pci_to_OF_bus_map) {
@@ -690,12 +694,13 @@ pcibios_make_OF_bus_map(void)
 			continue;
 		make_one_node_map(node, hose->first_busno);
 	}
-	map_prop = of_find_property(find_path_device("/"),
-			"pci-OF-bus-map", NULL);
+	dn = of_find_node_by_path("/");
+	map_prop = of_find_property(dn, "pci-OF-bus-map", NULL);
 	if (map_prop) {
 		BUG_ON(pci_bus_count > map_prop->length);
 		memcpy(map_prop->value, pci_to_OF_bus_map, pci_bus_count);
 	}
+	of_node_put(dn);
 #ifdef DEBUG
 	printk("PCI->OF bus map:\n");
 	for (i=0; i<pci_bus_count; i++) {
@@ -724,7 +729,7 @@ scan_OF_pci_childs(struct device_node* node, pci_OF_scan_iterator filter, void* 
 		 * a fake root for all functions of a multi-function device,
 		 * we go down them as well.
 		 */
-		class_code = get_property(node, "class-code", NULL);
+		class_code = of_get_property(node, "class-code", NULL);
 		if ((!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS)) &&
 			strcmp(node->name, "multifunc-device"))
@@ -744,7 +749,7 @@ static struct device_node *scan_OF_for_pci_dev(struct device_node *parent,
 	unsigned int psize;
 
 	while ((np = of_get_next_child(parent, np)) != NULL) {
-		reg = get_property(np, "reg", &psize);
+		reg = of_get_property(np, "reg", &psize);
 		if (reg == NULL || psize < 4)
 			continue;
 		if (((reg[0] >> 8) & 0xff) == devfn)
@@ -859,7 +864,7 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 	if (!scan_OF_pci_childs(((struct device_node*)hose->arch_data)->child,
 			find_OF_pci_device_filter, (void *)node))
 		return -ENODEV;
-	reg = get_property(node, "reg", NULL);
+	reg = of_get_property(node, "reg", NULL);
 	if (!reg)
 		return -ENODEV;
 	*bus = (reg[0] >> 16) & 0xff;
@@ -895,14 +900,14 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	int rlen = 0, orig_rlen;
 	int memno = 0;
 	struct resource *res;
-	int np, na = prom_n_addr_cells(dev);
+	int np, na = of_n_addr_cells(dev);
 	np = na + 5;
 
 	/* First we try to merge ranges to fix a problem with some pmacs
 	 * that can have more than 3 ranges, fortunately using contiguous
 	 * addresses -- BenH
 	 */
-	dt_ranges = get_property(dev, "ranges", &rlen);
+	dt_ranges = of_get_property(dev, "ranges", &rlen);
 	if (!dt_ranges)
 		return;
 	/* Sanity check, though hopefully that never happens */
@@ -1006,14 +1011,19 @@ void __init
 pci_create_OF_bus_map(void)
 {
 	struct property* of_prop;
-	
+	struct device_node *dn;
+
 	of_prop = (struct property*) alloc_bootmem(sizeof(struct property) + 256);
-	if (of_prop && find_path_device("/")) {
+	if (!of_prop)
+		return;
+	dn = of_find_node_by_path("/");
+	if (dn) {
 		memset(of_prop, -1, sizeof(struct property) + 256);
 		of_prop->name = "pci-OF-bus-map";
 		of_prop->length = 256;
-		of_prop->value = (unsigned char *)&of_prop[1];
-		prom_add_property(find_path_device("/"), of_prop);
+		of_prop->value = &of_prop[1];
+		prom_add_property(dn, of_prop);
+		of_node_put(dn);
 	}
 }
 

@@ -683,6 +683,7 @@ int ib_device_register_sysfs(struct ib_device *device)
 
 	class_dev->class      = &ib_class;
 	class_dev->class_data = device;
+	class_dev->dev	      = device->dma_device;
 	strlcpy(class_dev->class_id, device->name, BUS_ID_SIZE);
 
 	INIT_LIST_HEAD(&device->port_list);
@@ -714,8 +715,6 @@ int ib_device_register_sysfs(struct ib_device *device)
 		if (ret)
 			goto err_put;
 	} else {
-		int i;
-
 		for (i = 1; i <= device->phys_port_cnt; ++i) {
 			ret = add_port(device, i);
 			if (ret)

@@ -256,6 +256,114 @@ int ir_decode_biphase(u32 *samples, int count, int low, int high)
 	return value;
 }
 
+/* RC5 decoding stuff, moved from bttv-input.c to share it with
+ * saa7134 */
+
+/* decode raw bit pattern to RC5 code */
+u32 ir_rc5_decode(unsigned int code)
+{
+	unsigned int org_code = code;
+	unsigned int pair;
+	unsigned int rc5 = 0;
+	int i;
+
+	for (i = 0; i < 14; ++i) {
+		pair = code & 0x3;
+		code >>= 2;
+
+		rc5 <<= 1;
+		switch (pair) {
+		case 0:
+		case 2:
+			break;
+		case 1:
+			rc5 |= 1;
+			break;
+		case 3:
+			dprintk(1, "ir-common: ir_rc5_decode(%x) bad code\n", org_code);
+			return 0;
+		}
+	}
+	dprintk(1, "ir-common: code=%x, rc5=%x, start=%x, toggle=%x, address=%x, "
+		"instr=%x\n", rc5, org_code, RC5_START(rc5),
+		RC5_TOGGLE(rc5), RC5_ADDR(rc5), RC5_INSTR(rc5));
+	return rc5;
+}
+
+void ir_rc5_timer_end(unsigned long data)
+{
+	struct card_ir *ir = (struct card_ir *)data;
+	struct timeval tv;
+	unsigned long current_jiffies, timeout;
+	u32 gap;
+	u32 rc5 = 0;
+
+	/* get time */
+	current_jiffies = jiffies;
+	do_gettimeofday(&tv);
+
+	/* avoid overflow with gap >1s */
+	if (tv.tv_sec - ir->base_time.tv_sec > 1) {
+		gap = 200000;
+	} else {
+		gap = 1000000 * (tv.tv_sec - ir->base_time.tv_sec) +
+		    tv.tv_usec - ir->base_time.tv_usec;
+	}
+
+	/* signal we're ready to start a new code */
+	ir->active = 0;
+
+	/* Allow some timer jitter (RC5 is ~24ms anyway so this is ok) */
+	if (gap < 28000) {
+		dprintk(1, "ir-common: spurious timer_end\n");
+		return;
+	}
+
+	if (ir->last_bit < 20) {
+		/* ignore spurious codes (caused by light/other remotes) */
+		dprintk(1, "ir-common: short code: %x\n", ir->code);
+	} else {
+		ir->code = (ir->code << ir->shift_by) | 1;
+		rc5 = ir_rc5_decode(ir->code);
+
+		/* two start bits? */
+		if (RC5_START(rc5) != ir->start) {
+			dprintk(1, "ir-common: rc5 start bits invalid: %u\n", RC5_START(rc5));
+
+			/* right address? */
+		} else if (RC5_ADDR(rc5) == ir->addr) {
+			u32 toggle = RC5_TOGGLE(rc5);
+			u32 instr = RC5_INSTR(rc5);
+
+			/* Good code, decide if repeat/repress */
+			if (toggle != RC5_TOGGLE(ir->last_rc5) ||
+			    instr != RC5_INSTR(ir->last_rc5)) {
+				dprintk(1, "ir-common: instruction %x, toggle %x\n", instr,
+					toggle);
+				ir_input_nokey(ir->dev, &ir->ir);
+				ir_input_keydown(ir->dev, &ir->ir, instr,
+						 instr);
+			}
+
+			/* Set/reset key-up timer */
+			timeout = current_jiffies + (500 + ir->rc5_key_timeout
+						     * HZ) / 1000;
+			mod_timer(&ir->timer_keyup, timeout);
+
+			/* Save code for repeat test */
+			ir->last_rc5 = rc5;
+		}
+	}
+}
+
+void ir_rc5_timer_keyup(unsigned long data)
+{
+	struct card_ir *ir = (struct card_ir *)data;
+
+	dprintk(1, "ir-common: key released\n");
+	ir_input_nokey(ir->dev, &ir->ir);
+}
+
 EXPORT_SYMBOL_GPL(ir_input_init);
 EXPORT_SYMBOL_GPL(ir_input_nokey);
 EXPORT_SYMBOL_GPL(ir_input_keydown);
@@ -264,6 +372,10 @@ EXPORT_SYMBOL_GPL(ir_extract_bits);
 EXPORT_SYMBOL_GPL(ir_dump_samples);
 EXPORT_SYMBOL_GPL(ir_decode_biphase);
 EXPORT_SYMBOL_GPL(ir_decode_pulsedistance);
+
+EXPORT_SYMBOL_GPL(ir_rc5_decode);
+EXPORT_SYMBOL_GPL(ir_rc5_timer_end);
+EXPORT_SYMBOL_GPL(ir_rc5_timer_keyup);
 
 /*
  * Local variables:

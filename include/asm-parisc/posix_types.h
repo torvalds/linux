@@ -20,7 +20,7 @@ typedef int			__kernel_timer_t;
 typedef int			__kernel_clockid_t;
 typedef int			__kernel_daddr_t;
 /* Note these change from narrow to wide kernels */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 typedef unsigned long		__kernel_size_t;
 typedef long			__kernel_ssize_t;
 typedef long			__kernel_ptrdiff_t;

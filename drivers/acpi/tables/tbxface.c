@@ -338,9 +338,9 @@ acpi_status acpi_unload_table_id(acpi_owner_id id)
 	int i;
 	acpi_status status = AE_NOT_EXIST;
 
-	ACPI_FUNCTION_TRACE(acpi_unload_table);
+	ACPI_FUNCTION_TRACE(acpi_unload_table_id);
 
-	/* Find table from the requested type list */
+	/* Find table in the global table list */
 	for (i = 0; i < acpi_gbl_root_table_list.count; ++i) {
 		if (id != acpi_gbl_root_table_list.tables[i].owner_id) {
 			continue;
@@ -352,8 +352,9 @@ acpi_status acpi_unload_table_id(acpi_owner_id id)
 		* simply a position within the hierarchy
 		*/
 		acpi_tb_delete_namespace_by_owner(i);
-		acpi_tb_release_owner_id(i);
+		status = acpi_tb_release_owner_id(i);
 		acpi_tb_set_table_loaded_flag(i, FALSE);
+		break;
 	}
 	return_ACPI_STATUS(status);
 }
@@ -408,7 +409,7 @@ acpi_get_table(char *signature,
 		}
 
 		if (!acpi_gbl_permanent_mmap) {
-			acpi_gbl_root_table_list.tables[i].pointer = 0;
+			acpi_gbl_root_table_list.tables[i].pointer = NULL;
 		}
 
 		return (status);

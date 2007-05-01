@@ -4,6 +4,8 @@ Exporting
 	- explanation of how to make filesystems exportable.
 Locking
 	- info on locking rules as they pertain to Linux VFS.
+9p.txt
+	- 9p (v9fs) is an implementation of the Plan 9 remote fs protocol.
 adfs.txt
 	- info and mount options for the Acorn Advanced Disc Filing System.
 afs.txt
@@ -82,8 +84,6 @@ udf.txt
 	- info and mount options for the UDF filesystem.
 ufs.txt
 	- info on the ufs filesystem.
-v9fs.txt
-	- v9fs is a Unix implementation of the Plan 9 9p remote fs protocol.
 vfat.txt
 	- info on using the VFAT filesystem used in Windows NT and Windows 95
 vfs.txt

@@ -254,7 +254,8 @@ static s32 amd8111_access(struct i2c_adapter * adap, u16 addr,
 			break;
 
 		case I2C_SMBUS_BLOCK_PROC_CALL:
-			len = min_t(u8, data->block[0], 31);
+			len = min_t(u8, data->block[0],
+				    I2C_SMBUS_BLOCK_MAX - 1);
 			amd_ec_write(smbus, AMD_SMB_CMD, command);
 			amd_ec_write(smbus, AMD_SMB_BCNT, len);
 			for (i = 0; i < len; i++)
@@ -371,7 +372,7 @@ static int __devinit amd8111_probe(struct pci_dev *dev,
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	smbus->adapter.dev.parent = &dev->dev;
 
 	pci_write_config_dword(smbus->dev, AMD_PCI_MISC, 0);

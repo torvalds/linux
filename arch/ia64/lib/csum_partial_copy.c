@@ -128,6 +128,8 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 	return (__force __wsum)result;
 }
 
+EXPORT_SYMBOL(csum_partial_copy_from_user);
+
 __wsum
 csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 {

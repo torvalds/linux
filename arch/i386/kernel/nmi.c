@@ -41,16 +41,17 @@ int nmi_watchdog_enabled;
  *   different subsystems this reservation system just tries to coordinate
  *   things a little
  */
-static DEFINE_PER_CPU(unsigned long, perfctr_nmi_owner);
-static DEFINE_PER_CPU(unsigned long, evntsel_nmi_owner[3]);
-
-static cpumask_t backtrace_mask = CPU_MASK_NONE;
 
 /* this number is calculated from Intel's MSR_P4_CRU_ESCR5 register and it's
  * offset from MSR_P4_BSU_ESCR0.  It will be the max for all platforms (for now)
  */
 #define NMI_MAX_COUNTER_BITS 66
+#define NMI_MAX_COUNTER_LONGS BITS_TO_LONGS(NMI_MAX_COUNTER_BITS)
 
+static DEFINE_PER_CPU(unsigned long, perfctr_nmi_owner[NMI_MAX_COUNTER_LONGS]);
+static DEFINE_PER_CPU(unsigned long, evntsel_nmi_owner[NMI_MAX_COUNTER_LONGS]);
+
+static cpumask_t backtrace_mask = CPU_MASK_NONE;
 /* nmi_active:
  * >0: the lapic NMI watchdog is active, but can be disabled
  * <0: the lapic NMI watchdog has not been set up, and cannot
@@ -122,64 +123,129 @@ static inline unsigned int nmi_evntsel_msr_to_bit(unsigned int msr)
 /* checks for a bit availability (hack for oprofile) */
 int avail_to_resrv_perfctr_nmi_bit(unsigned int counter)
 {
+	int cpu;
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
-
-	return (!test_bit(counter, &__get_cpu_var(perfctr_nmi_owner)));
+	for_each_possible_cpu (cpu) {
+		if (test_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)[0]))
+			return 0;
+	}
+	return 1;
 }
 
 /* checks the an msr for availability */
 int avail_to_resrv_perfctr_nmi(unsigned int msr)
 {
 	unsigned int counter;
+	int cpu;
 
 	counter = nmi_perfctr_msr_to_bit(msr);
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
 
-	return (!test_bit(counter, &__get_cpu_var(perfctr_nmi_owner)));
+	for_each_possible_cpu (cpu) {
+		if (test_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)[0]))
+			return 0;
+	}
+	return 1;
+}
+
+static int __reserve_perfctr_nmi(int cpu, unsigned int msr)
+{
+	unsigned int counter;
+	if (cpu < 0)
+		cpu = smp_processor_id();
+
+	counter = nmi_perfctr_msr_to_bit(msr);
+	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
+
+	if (!test_and_set_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)[0]))
+		return 1;
+	return 0;
+}
+
+static void __release_perfctr_nmi(int cpu, unsigned int msr)
+{
+	unsigned int counter;
+	if (cpu < 0)
+		cpu = smp_processor_id();
+
+	counter = nmi_perfctr_msr_to_bit(msr);
+	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
+
+	clear_bit(counter, &per_cpu(perfctr_nmi_owner, cpu)[0]);
 }
 
 int reserve_perfctr_nmi(unsigned int msr)
 {
-	unsigned int counter;
-
-	counter = nmi_perfctr_msr_to_bit(msr);
-	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
-
-	if (!test_and_set_bit(counter, &__get_cpu_var(perfctr_nmi_owner)))
-		return 1;
-	return 0;
+	int cpu, i;
+	for_each_possible_cpu (cpu) {
+		if (!__reserve_perfctr_nmi(cpu, msr)) {
+			for_each_possible_cpu (i) {
+				if (i >= cpu)
+					break;
+				__release_perfctr_nmi(i, msr);
+			}
+			return 0;
+		}
+	}
+	return 1;
 }
 
 void release_perfctr_nmi(unsigned int msr)
 {
-	unsigned int counter;
-
-	counter = nmi_perfctr_msr_to_bit(msr);
-	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
-
-	clear_bit(counter, &__get_cpu_var(perfctr_nmi_owner));
+	int cpu;
+	for_each_possible_cpu (cpu) {
+		__release_perfctr_nmi(cpu, msr);
+	}
 }
 
-int reserve_evntsel_nmi(unsigned int msr)
+int __reserve_evntsel_nmi(int cpu, unsigned int msr)
 {
 	unsigned int counter;
+	if (cpu < 0)
+		cpu = smp_processor_id();
 
 	counter = nmi_evntsel_msr_to_bit(msr);
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
 
-	if (!test_and_set_bit(counter, &__get_cpu_var(evntsel_nmi_owner)[0]))
+	if (!test_and_set_bit(counter, &per_cpu(evntsel_nmi_owner, cpu)[0]))
 		return 1;
 	return 0;
 }
 
-void release_evntsel_nmi(unsigned int msr)
+static void __release_evntsel_nmi(int cpu, unsigned int msr)
 {
 	unsigned int counter;
+	if (cpu < 0)
+		cpu = smp_processor_id();
 
 	counter = nmi_evntsel_msr_to_bit(msr);
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
 
-	clear_bit(counter, &__get_cpu_var(evntsel_nmi_owner)[0]);
+	clear_bit(counter, &per_cpu(evntsel_nmi_owner, cpu)[0]);
+}
+
+int reserve_evntsel_nmi(unsigned int msr)
+{
+	int cpu, i;
+	for_each_possible_cpu (cpu) {
+		if (!__reserve_evntsel_nmi(cpu, msr)) {
+			for_each_possible_cpu (i) {
+				if (i >= cpu)
+					break;
+				__release_evntsel_nmi(i, msr);
+			}
+			return 0;
+		}
+	}
+	return 1;
+}
+
+void release_evntsel_nmi(unsigned int msr)
+{
+	int cpu;
+	for_each_possible_cpu (cpu) {
+		__release_evntsel_nmi(cpu, msr);
+	}
 }
 
 static __cpuinit inline int nmi_known_cpu(void)
@@ -245,14 +311,6 @@ static int __init check_nmi_watchdog(void)
 	unsigned int *prev_nmi_count;
 	int cpu;
 
-	/* Enable NMI watchdog for newer systems.
-	   Probably safe on most older systems too, but let's be careful.
-	   IBM ThinkPads use INT10 inside SMM and that allows early NMI inside SMM
-	   which hangs the system. Disable watchdog for all thinkpads */
-	if (nmi_watchdog == NMI_DEFAULT && dmi_get_year(DMI_BIOS_DATE) >= 2004 &&
-		!dmi_name_in_vendors("ThinkPad"))
-		nmi_watchdog = NMI_LOCAL_APIC;
-
 	if ((nmi_watchdog == NMI_NONE) || (nmi_watchdog == NMI_DEFAULT))
 		return 0;
 
@@ -271,7 +329,7 @@ static int __init check_nmi_watchdog(void)
 	for_each_possible_cpu(cpu)
 		prev_nmi_count[cpu] = per_cpu(irq_stat, cpu).__nmi_count;
 	local_irq_enable();
-	mdelay((10*1000)/nmi_hz); // wait 10 ticks
+	mdelay((20*1000)/nmi_hz); // wait 20 ticks
 
 	for_each_possible_cpu(cpu) {
 #ifdef CONFIG_SMP
@@ -515,10 +573,10 @@ static int setup_k7_watchdog(void)
 
 	perfctr_msr = MSR_K7_PERFCTR0;
 	evntsel_msr = MSR_K7_EVNTSEL0;
-	if (!reserve_perfctr_nmi(perfctr_msr))
+	if (!__reserve_perfctr_nmi(-1, perfctr_msr))
 		goto fail;
 
-	if (!reserve_evntsel_nmi(evntsel_msr))
+	if (!__reserve_evntsel_nmi(-1, evntsel_msr))
 		goto fail1;
 
 	wrmsrl(perfctr_msr, 0UL);
@@ -541,7 +599,7 @@ static int setup_k7_watchdog(void)
 	wd->check_bit = 1ULL<<63;
 	return 1;
 fail1:
-	release_perfctr_nmi(perfctr_msr);
+	__release_perfctr_nmi(-1, perfctr_msr);
 fail:
 	return 0;
 }
@@ -552,8 +610,8 @@ static void stop_k7_watchdog(void)
 
 	wrmsr(wd->evntsel_msr, 0, 0);
 
-	release_evntsel_nmi(wd->evntsel_msr);
-	release_perfctr_nmi(wd->perfctr_msr);
+	__release_evntsel_nmi(-1, wd->evntsel_msr);
+	__release_perfctr_nmi(-1, wd->perfctr_msr);
 }
 
 #define P6_EVNTSEL0_ENABLE	(1 << 22)
@@ -571,10 +629,10 @@ static int setup_p6_watchdog(void)
 
 	perfctr_msr = MSR_P6_PERFCTR0;
 	evntsel_msr = MSR_P6_EVNTSEL0;
-	if (!reserve_perfctr_nmi(perfctr_msr))
+	if (!__reserve_perfctr_nmi(-1, perfctr_msr))
 		goto fail;
 
-	if (!reserve_evntsel_nmi(evntsel_msr))
+	if (!__reserve_evntsel_nmi(-1, evntsel_msr))
 		goto fail1;
 
 	wrmsrl(perfctr_msr, 0UL);
@@ -598,7 +656,7 @@ static int setup_p6_watchdog(void)
 	wd->check_bit = 1ULL<<39;
 	return 1;
 fail1:
-	release_perfctr_nmi(perfctr_msr);
+	__release_perfctr_nmi(-1, perfctr_msr);
 fail:
 	return 0;
 }
@@ -609,8 +667,8 @@ static void stop_p6_watchdog(void)
 
 	wrmsr(wd->evntsel_msr, 0, 0);
 
-	release_evntsel_nmi(wd->evntsel_msr);
-	release_perfctr_nmi(wd->perfctr_msr);
+	__release_evntsel_nmi(-1, wd->evntsel_msr);
+	__release_perfctr_nmi(-1, wd->perfctr_msr);
 }
 
 /* Note that these events don't tick when the CPU idles. This means
@@ -676,10 +734,10 @@ static int setup_p4_watchdog(void)
 		cccr_val = P4_CCCR_OVF_PMI1 | P4_CCCR_ESCR_SELECT(4);
 	}
 
-	if (!reserve_perfctr_nmi(perfctr_msr))
+	if (!__reserve_perfctr_nmi(-1, perfctr_msr))
 		goto fail;
 
-	if (!reserve_evntsel_nmi(evntsel_msr))
+	if (!__reserve_evntsel_nmi(-1, evntsel_msr))
 		goto fail1;
 
 	evntsel = P4_ESCR_EVENT_SELECT(0x3F)
@@ -703,7 +761,7 @@ static int setup_p4_watchdog(void)
 	wd->check_bit = 1ULL<<39;
 	return 1;
 fail1:
-	release_perfctr_nmi(perfctr_msr);
+	__release_perfctr_nmi(-1, perfctr_msr);
 fail:
 	return 0;
 }
@@ -715,8 +773,8 @@ static void stop_p4_watchdog(void)
 	wrmsr(wd->cccr_msr, 0, 0);
 	wrmsr(wd->evntsel_msr, 0, 0);
 
-	release_evntsel_nmi(wd->evntsel_msr);
-	release_perfctr_nmi(wd->perfctr_msr);
+	__release_evntsel_nmi(-1, wd->evntsel_msr);
+	__release_perfctr_nmi(-1, wd->perfctr_msr);
 }
 
 #define ARCH_PERFMON_NMI_EVENT_SEL	ARCH_PERFMON_UNHALTED_CORE_CYCLES_SEL
@@ -744,10 +802,10 @@ static int setup_intel_arch_watchdog(void)
 	perfctr_msr = MSR_ARCH_PERFMON_PERFCTR0;
 	evntsel_msr = MSR_ARCH_PERFMON_EVENTSEL0;
 
-	if (!reserve_perfctr_nmi(perfctr_msr))
+	if (!__reserve_perfctr_nmi(-1, perfctr_msr))
 		goto fail;
 
-	if (!reserve_evntsel_nmi(evntsel_msr))
+	if (!__reserve_evntsel_nmi(-1, evntsel_msr))
 		goto fail1;
 
 	wrmsrl(perfctr_msr, 0UL);
@@ -772,7 +830,7 @@ static int setup_intel_arch_watchdog(void)
 	wd->check_bit = 1ULL << (eax.split.bit_width - 1);
 	return 1;
 fail1:
-	release_perfctr_nmi(perfctr_msr);
+	__release_perfctr_nmi(-1, perfctr_msr);
 fail:
 	return 0;
 }
@@ -795,8 +853,8 @@ static void stop_intel_arch_watchdog(void)
 		return;
 
 	wrmsr(wd->evntsel_msr, 0, 0);
-	release_evntsel_nmi(wd->evntsel_msr);
-	release_perfctr_nmi(wd->perfctr_msr);
+	__release_evntsel_nmi(-1, wd->evntsel_msr);
+	__release_perfctr_nmi(-1, wd->perfctr_msr);
 }
 
 void setup_apic_nmi_watchdog (void *unused)

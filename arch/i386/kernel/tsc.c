@@ -14,8 +14,11 @@
 #include <asm/delay.h>
 #include <asm/tsc.h>
 #include <asm/io.h>
+#include <asm/timer.h>
 
 #include "mach_timer.h"
+
+static int tsc_enabled;
 
 /*
  * On some systems the TSC frequency does not
@@ -23,7 +26,6 @@
  * an extra value to store the TSC freq
  */
 unsigned int tsc_khz;
-unsigned long long (*custom_sched_clock)(void);
 
 int tsc_disable;
 
@@ -102,24 +104,21 @@ unsigned long long sched_clock(void)
 {
 	unsigned long long this_offset;
 
-	if (unlikely(custom_sched_clock))
-		return (*custom_sched_clock)();
-
 	/*
 	 * Fall back to jiffies if there's no TSC available:
 	 */
-	if (unlikely(tsc_disable))
+	if (unlikely(!tsc_enabled))
 		/* No locking but a rare wrong value is not a big deal: */
 		return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
 
 	/* read the Time Stamp Counter: */
-	rdtscll(this_offset);
+	get_scheduled_cycles(this_offset);
 
 	/* return the value in ns */
 	return cycles_2_ns(this_offset);
 }
 
-static unsigned long calculate_cpu_khz(void)
+unsigned long native_calculate_cpu_khz(void)
 {
 	unsigned long long start, end;
 	unsigned long count;
@@ -185,34 +184,6 @@ int recalibrate_cpu_khz(void)
 }
 
 EXPORT_SYMBOL(recalibrate_cpu_khz);
-
-void __init tsc_init(void)
-{
-	if (!cpu_has_tsc || tsc_disable)
-		goto out_no_tsc;
-
-	cpu_khz = calculate_cpu_khz();
-	tsc_khz = cpu_khz;
-
-	if (!cpu_khz)
-		goto out_no_tsc;
-
-	printk("Detected %lu.%03lu MHz processor.\n",
-				(unsigned long)cpu_khz / 1000,
-				(unsigned long)cpu_khz % 1000);
-
-	set_cyc2ns_scale(cpu_khz);
-	use_tsc_delay();
-	return;
-
-out_no_tsc:
-	/*
-	 * Set the tsc_disable flag if there's no TSC support, this
-	 * makes it a fast flag for the kernel to see whether it
-	 * should be using the TSC.
-	 */
-	tsc_disable = 1;
-}
 
 #ifdef CONFIG_CPU_FREQ
 
@@ -314,6 +285,7 @@ void mark_tsc_unstable(void)
 {
 	if (!tsc_unstable) {
 		tsc_unstable = 1;
+		tsc_enabled = 0;
 		/* Can be called before registration */
 		if (clocksource_tsc.mult)
 			clocksource_change_rating(&clocksource_tsc, 0);
@@ -383,28 +355,49 @@ static void __init check_geode_tsc_reliable(void)
 static inline void check_geode_tsc_reliable(void) { }
 #endif
 
-static int __init init_tsc_clocksource(void)
+
+void __init tsc_init(void)
 {
+	if (!cpu_has_tsc || tsc_disable)
+		goto out_no_tsc;
 
-	if (cpu_has_tsc && tsc_khz && !tsc_disable) {
-		/* check blacklist */
-		dmi_check_system(bad_tsc_dmi_table);
+	cpu_khz = calculate_cpu_khz();
+	tsc_khz = cpu_khz;
 
-		unsynchronized_tsc();
-		check_geode_tsc_reliable();
-		current_tsc_khz = tsc_khz;
-		clocksource_tsc.mult = clocksource_khz2mult(current_tsc_khz,
+	if (!cpu_khz)
+		goto out_no_tsc;
+
+	printk("Detected %lu.%03lu MHz processor.\n",
+				(unsigned long)cpu_khz / 1000,
+				(unsigned long)cpu_khz % 1000);
+
+	set_cyc2ns_scale(cpu_khz);
+	use_tsc_delay();
+
+	/* Check and install the TSC clocksource */
+	dmi_check_system(bad_tsc_dmi_table);
+
+	unsynchronized_tsc();
+	check_geode_tsc_reliable();
+	current_tsc_khz = tsc_khz;
+	clocksource_tsc.mult = clocksource_khz2mult(current_tsc_khz,
 							clocksource_tsc.shift);
-		/* lower the rating if we already know its unstable: */
-		if (check_tsc_unstable()) {
-			clocksource_tsc.rating = 0;
-			clocksource_tsc.flags &= ~CLOCK_SOURCE_IS_CONTINUOUS;
-		}
+	/* lower the rating if we already know its unstable: */
+	if (check_tsc_unstable()) {
+		clocksource_tsc.rating = 0;
+		clocksource_tsc.flags &= ~CLOCK_SOURCE_IS_CONTINUOUS;
+	} else
+		tsc_enabled = 1;
 
-		return clocksource_register(&clocksource_tsc);
-	}
+	clocksource_register(&clocksource_tsc);
 
-	return 0;
+	return;
+
+out_no_tsc:
+	/*
+	 * Set the tsc_disable flag if there's no TSC support, this
+	 * makes it a fast flag for the kernel to see whether it
+	 * should be using the TSC.
+	 */
+	tsc_disable = 1;
 }
-
-module_init(init_tsc_clocksource);

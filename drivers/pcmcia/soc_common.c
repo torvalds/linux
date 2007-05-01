@@ -478,7 +478,7 @@ dump_bits(char **p, const char *prefix, unsigned int val, struct bittbl *bits, i
  *
  * Returns: the number of characters added to the buffer
  */
-static ssize_t show_status(struct device *dev, char *buf)
+static ssize_t show_status(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct soc_pcmcia_socket *skt =
 		container_of(dev, struct soc_pcmcia_socket, socket.dev);
@@ -501,7 +501,7 @@ static ssize_t show_status(struct device *dev, char *buf)
 
 	return p-buf;
 }
-static CLASS_DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
+static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
 
 
 static struct pccard_operations soc_common_pcmcia_operations = {
@@ -660,7 +660,7 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 
 		skt->socket.ops = &soc_common_pcmcia_operations;
 		skt->socket.owner = ops->owner;
-		skt->socket.dev.dev = dev;
+		skt->socket.dev.parent = dev;
 
 		init_timer(&skt->poll_timer);
 		skt->poll_timer.function = soc_common_pcmcia_poll_event;
@@ -747,7 +747,7 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 
 		add_timer(&skt->poll_timer);
 
-		device_create_file(&skt->socket.dev, &device_attr_status);
+		device_create_file(&skt->socket.dev, &dev_attr_status);
 	}
 
 	dev_set_drvdata(dev, sinfo);

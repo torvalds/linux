@@ -176,7 +176,7 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 	case SCTP_XMIT_OK:
 	case SCTP_XMIT_NAGLE_DELAY:
 		break;
-	};
+	}
 
 	return retval;
 }

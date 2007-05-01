@@ -459,8 +459,8 @@ static void __l2cap_sock_close(struct sock *sk, int reason)
 			sk->sk_state = BT_DISCONN;
 			l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
 
-			req.dcid = __cpu_to_le16(l2cap_pi(sk)->dcid);
-			req.scid = __cpu_to_le16(l2cap_pi(sk)->scid);
+			req.dcid = cpu_to_le16(l2cap_pi(sk)->dcid);
+			req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
 			l2cap_send_cmd(conn, l2cap_get_ident(conn),
 					L2CAP_DISCONN_REQ, sizeof(req), &req);
 		} else {
@@ -652,7 +652,7 @@ static int l2cap_do_connect(struct sock *sk)
 		if (sk->sk_type == SOCK_SEQPACKET) {
 			struct l2cap_conn_req req;
 			l2cap_pi(sk)->ident = l2cap_get_ident(conn);
-			req.scid = __cpu_to_le16(l2cap_pi(sk)->scid);
+			req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
 			req.psm  = l2cap_pi(sk)->psm;
 			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
 					L2CAP_CONN_REQ, sizeof(req), &req);
@@ -868,8 +868,8 @@ static inline int l2cap_do_send(struct sock *sk, struct msghdr *msg, int len)
 
 	/* Create L2CAP header */
 	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
-	lh->cid = __cpu_to_le16(l2cap_pi(sk)->dcid);
-	lh->len = __cpu_to_le16(len + (hlen - L2CAP_HDR_SIZE));
+	lh->cid = cpu_to_le16(l2cap_pi(sk)->dcid);
+	lh->len = cpu_to_le16(len + (hlen - L2CAP_HDR_SIZE));
 
 	if (sk->sk_type == SOCK_DGRAM)
 		put_unaligned(l2cap_pi(sk)->psm, (u16 *) skb_put(skb, 2));
@@ -1096,7 +1096,7 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 		} else if (sk->sk_state == BT_CONNECT) {
 			struct l2cap_conn_req req;
 			l2cap_pi(sk)->ident = l2cap_get_ident(conn);
-			req.scid = __cpu_to_le16(l2cap_pi(sk)->scid);
+			req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
 			req.psm  = l2cap_pi(sk)->psm;
 			l2cap_send_cmd(conn, l2cap_pi(sk)->ident, L2CAP_CONN_REQ, sizeof(req), &req);
 		}
@@ -1192,13 +1192,13 @@ static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn,
 		return NULL;
 
 	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
-	lh->len = __cpu_to_le16(L2CAP_CMD_HDR_SIZE + dlen);
-	lh->cid = __cpu_to_le16(0x0001);
+	lh->len = cpu_to_le16(L2CAP_CMD_HDR_SIZE + dlen);
+	lh->cid = cpu_to_le16(0x0001);
 
 	cmd = (struct l2cap_cmd_hdr *) skb_put(skb, L2CAP_CMD_HDR_SIZE);
 	cmd->code  = code;
 	cmd->ident = ident;
-	cmd->len   = __cpu_to_le16(dlen);
+	cmd->len   = cpu_to_le16(dlen);
 
 	if (dlen) {
 		count -= L2CAP_HDR_SIZE + L2CAP_CMD_HDR_SIZE;
@@ -1316,11 +1316,11 @@ static void l2cap_add_conf_opt(void **ptr, u8 type, u8 len, unsigned long val)
 		break;
 
 	case 2:
-		*((u16 *) opt->val) = __cpu_to_le16(val);
+		*((u16 *) opt->val) = cpu_to_le16(val);
 		break;
 
 	case 4:
-		*((u32 *) opt->val) = __cpu_to_le32(val);
+		*((u32 *) opt->val) = cpu_to_le32(val);
 		break;
 
 	default:
@@ -1346,8 +1346,8 @@ static int l2cap_build_conf_req(struct sock *sk, void *data)
 	//if (flush_to != L2CAP_DEFAULT_FLUSH_TO)
 	//   l2cap_add_conf_opt(&ptr, L2CAP_CONF_FLUSH_TO, 2, pi->flush_to);
 
-	req->dcid  = __cpu_to_le16(pi->dcid);
-	req->flags = __cpu_to_le16(0);
+	req->dcid  = cpu_to_le16(pi->dcid);
+	req->flags = cpu_to_le16(0);
 
 	return ptr - data;
 }
@@ -1383,9 +1383,9 @@ static int l2cap_build_conf_rsp(struct sock *sk, void *data, int *result)
 	else
 		flags = 0x0001;
 
-	rsp->scid   = __cpu_to_le16(l2cap_pi(sk)->dcid);
-	rsp->result = __cpu_to_le16(result ? *result : 0);
-	rsp->flags  = __cpu_to_le16(flags);
+	rsp->scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
+	rsp->result = cpu_to_le16(result ? *result : 0);
+	rsp->flags  = cpu_to_le16(flags);
 
 	return ptr - data;
 }
@@ -1470,10 +1470,10 @@ response:
 	bh_unlock_sock(parent);
 
 sendresp:
-	rsp.scid   = __cpu_to_le16(scid);
-	rsp.dcid   = __cpu_to_le16(dcid);
-	rsp.result = __cpu_to_le16(result);
-	rsp.status = __cpu_to_le16(status);
+	rsp.scid   = cpu_to_le16(scid);
+	rsp.dcid   = cpu_to_le16(dcid);
+	rsp.result = cpu_to_le16(result);
+	rsp.status = cpu_to_le16(status);
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 	return 0;
 }
@@ -1613,8 +1613,8 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		l2cap_sock_set_timer(sk, HZ * 5);
 		{
 			struct l2cap_disconn_req req;
-			req.dcid = __cpu_to_le16(l2cap_pi(sk)->dcid);
-			req.scid = __cpu_to_le16(l2cap_pi(sk)->scid);
+			req.dcid = cpu_to_le16(l2cap_pi(sk)->dcid);
+			req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
 			l2cap_send_cmd(conn, l2cap_get_ident(conn),
 					L2CAP_DISCONN_REQ, sizeof(req), &req);
 		}
@@ -1652,8 +1652,8 @@ static inline int l2cap_disconnect_req(struct l2cap_conn *conn, struct l2cap_cmd
 	if (!(sk = l2cap_get_chan_by_scid(&conn->chan_list, dcid)))
 		return 0;
 
-	rsp.dcid = __cpu_to_le16(l2cap_pi(sk)->scid);
-	rsp.scid = __cpu_to_le16(l2cap_pi(sk)->dcid);
+	rsp.dcid = cpu_to_le16(l2cap_pi(sk)->scid);
+	rsp.scid = cpu_to_le16(l2cap_pi(sk)->dcid);
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_DISCONN_RSP, sizeof(rsp), &rsp);
 
 	sk->sk_shutdown = SHUTDOWN_MASK;
@@ -1696,8 +1696,8 @@ static inline int l2cap_information_req(struct l2cap_conn *conn, struct l2cap_cm
 
 	BT_DBG("type 0x%4.4x", type);
 
-	rsp.type   = __cpu_to_le16(type);
-	rsp.result = __cpu_to_le16(L2CAP_IR_NOTSUPP);
+	rsp.type   = cpu_to_le16(type);
+	rsp.result = cpu_to_le16(L2CAP_IR_NOTSUPP);
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_INFO_RSP, sizeof(rsp), &rsp);
 
 	return 0;
@@ -1794,7 +1794,7 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn, struct sk_buff *sk
 			BT_DBG("error %d", err);
 
 			/* FIXME: Map err to a valid reason */
-			rej.reason = __cpu_to_le16(0);
+			rej.reason = cpu_to_le16(0);
 			l2cap_send_cmd(conn, cmd.ident, L2CAP_COMMAND_REJ, sizeof(rej), &rej);
 		}
 
@@ -1993,10 +1993,10 @@ static int l2cap_auth_cfm(struct hci_conn *hcon, u8 status)
 			result = L2CAP_CR_SEC_BLOCK;
 		}
 
-		rsp.scid   = __cpu_to_le16(l2cap_pi(sk)->dcid);
-		rsp.dcid   = __cpu_to_le16(l2cap_pi(sk)->scid);
-		rsp.result = __cpu_to_le16(result);
-		rsp.status = __cpu_to_le16(0);
+		rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
+		rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
+		rsp.result = cpu_to_le16(result);
+		rsp.status = cpu_to_le16(0);
 		l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
 				L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 
@@ -2041,10 +2041,10 @@ static int l2cap_encrypt_cfm(struct hci_conn *hcon, u8 status)
 			result = L2CAP_CR_SEC_BLOCK;
 		}
 
-		rsp.scid   = __cpu_to_le16(l2cap_pi(sk)->dcid);
-		rsp.dcid   = __cpu_to_le16(l2cap_pi(sk)->scid);
-		rsp.result = __cpu_to_le16(result);
-		rsp.status = __cpu_to_le16(0);
+		rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
+		rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
+		rsp.result = cpu_to_le16(result);
+		rsp.status = cpu_to_le16(0);
 		l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
 				L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 
@@ -2107,7 +2107,8 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 		if (!(conn->rx_skb = bt_skb_alloc(len, GFP_ATOMIC)))
 			goto drop;
 
-		memcpy(skb_put(conn->rx_skb, skb->len), skb->data, skb->len);
+		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
+			      skb->len);
 		conn->rx_len = len - skb->len;
 	} else {
 		BT_DBG("Cont: frag len %d (expecting %d)", skb->len, conn->rx_len);
@@ -2128,7 +2129,8 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 			goto drop;
 		}
 
-		memcpy(skb_put(conn->rx_skb, skb->len), skb->data, skb->len);
+		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
+			      skb->len);
 		conn->rx_len -= skb->len;
 
 		if (!conn->rx_len) {

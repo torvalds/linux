@@ -80,7 +80,7 @@ static unsigned int pvr2_tuner_describe(struct pvr2_tuner_handler *ctxt,char *bu
 }
 
 
-const static struct pvr2_i2c_handler_functions tuner_funcs = {
+static const struct pvr2_i2c_handler_functions tuner_funcs = {
 	.detach = (void (*)(void *))pvr2_tuner_detach,
 	.check = (int (*)(void *))tuner_check,
 	.update = (void (*)(void *))tuner_update,
@@ -93,9 +93,8 @@ int pvr2_i2c_tuner_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 	struct pvr2_tuner_handler *ctxt;
 	if (cp->handler) return 0;
 
-	ctxt = kmalloc(sizeof(*ctxt),GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt),GFP_KERNEL);
 	if (!ctxt) return 0;
-	memset(ctxt,0,sizeof(*ctxt));
 
 	ctxt->i2c_handler.func_data = ctxt;
 	ctxt->i2c_handler.func_table = &tuner_funcs;

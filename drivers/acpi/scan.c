@@ -11,13 +11,12 @@
 #include <acpi/acinterp.h>	/* for acpi_ex_eisa_id_to_string() */
 
 #define _COMPONENT		ACPI_BUS_COMPONENT
-ACPI_MODULE_NAME("scan")
+ACPI_MODULE_NAME("scan");
 #define STRUCT_TO_INT(s)	(*((int*)&s))
 extern struct acpi_device *acpi_root;
 
 #define ACPI_BUS_CLASS			"system_bus"
 #define ACPI_BUS_HID			"ACPI_BUS"
-#define ACPI_BUS_DRIVER_NAME		"ACPI Bus Driver"
 #define ACPI_BUS_DEVICE_NAME		"System Bus"
 
 static LIST_HEAD(acpi_device_list);
@@ -1069,7 +1068,9 @@ acpi_add_single_object(struct acpi_device **child,
 		}
 		break;
 	default:
-		STRUCT_TO_INT(device->status) = 0x0F;
+		STRUCT_TO_INT(device->status) =
+		    ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED |
+		    ACPI_STA_DEVICE_UI      | ACPI_STA_DEVICE_FUNCTIONING;
 		break;
 	}
 

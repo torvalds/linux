@@ -210,7 +210,7 @@ struct desc_struct {
 	unsigned int a, b;
 };
 
-#define desc_empty(desc)		(!((desc)->a + (desc)->b))
+#define desc_empty(desc)		(!((desc)->a | (desc)->b))
 #define desc_equal(desc1, desc2)	(((desc1)->a == (desc2)->a) && ((desc1)->b == (desc2)->b))
 
 #define GDT_ENTRY_TLS_ENTRIES	3

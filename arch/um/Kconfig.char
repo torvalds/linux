@@ -146,6 +146,25 @@ config LEGACY_PTYS
 	  security.  This option enables these legacy devices; on most
 	  systems, it is safe to say N.
 
+config RAW_DRIVER
+        tristate "RAW driver (/dev/raw/rawN) (OBSOLETE)"
+        help
+          The raw driver permits block devices to be bound to /dev/raw/rawN.
+          Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O.
+          See the raw(8) manpage for more details.
+
+          The raw driver is deprecated and will be removed soon.
+          Applications should simply open the device (eg /dev/hda1)
+          with the O_DIRECT flag.
+
+config MAX_RAW_DEVS
+        int "Maximum number of RAW devices to support (1-8192)"
+        depends on RAW_DRIVER
+        default "256"
+        help
+          The maximum number of RAW devices that are supported.
+          Default is 256. Increase this number in case you need lots of
+          raw devices.
 
 config LEGACY_PTY_COUNT
 	int "Maximum number of legacy PTY in use"

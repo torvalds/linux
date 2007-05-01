@@ -124,11 +124,6 @@ struct saa5249_device
 
 /* General defines and debugging support */
 
-#ifndef FALSE
-#define FALSE 0
-#define TRUE 1
-#endif
-
 #define RESCHED do { cond_resched(); } while(0)
 
 static struct video_device saa_template;	/* Declared near bottom */
@@ -183,9 +178,9 @@ static int saa5249_attach(struct i2c_adapter *adap, int addr, int kind)
 		memset(t->vdau[pgbuf].sregs, 0, sizeof(t->vdau[0].sregs));
 		memset(t->vdau[pgbuf].laststat, 0, sizeof(t->vdau[0].laststat));
 		t->vdau[pgbuf].expire = 0;
-		t->vdau[pgbuf].clrfound = TRUE;
-		t->vdau[pgbuf].stopped = TRUE;
-		t->is_searching[pgbuf] = FALSE;
+		t->vdau[pgbuf].clrfound = true;
+		t->vdau[pgbuf].stopped = true;
+		t->is_searching[pgbuf] = false;
 	}
 	vd->priv=t;
 
@@ -298,7 +293,7 @@ static int i2c_senddata(struct saa5249_device *t, ...)
 
 /* Get count number of bytes from I²C-device at address adr, store them in buf. Start & stop
  * handshaking is done by this routine, ack will be sent after the last byte to inhibit further
- * sending of data. If uaccess is TRUE, data is written to user-space with put_user.
+ * sending of data. If uaccess is 'true', data is written to user-space with put_user.
  * Returns -1 if I²C-device didn't send acknowledge, 0 otherwise
  */
 
@@ -317,7 +312,7 @@ static int i2c_getdata(struct saa5249_device *t, int count, u8 *buf)
 static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 			    unsigned int cmd, void *arg)
 {
-	static int virtual_mode = FALSE;
+	static int virtual_mode = false;
 	struct video_device *vd = video_devdata(file);
 	struct saa5249_device *t=vd->priv;
 
@@ -340,7 +335,7 @@ static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 			if (req->pgbuf < 0 || req->pgbuf >= NUM_DAUS)
 				return -EINVAL;
 			memset(t->vdau[req->pgbuf].pgbuf, ' ', sizeof(t->vdau[0].pgbuf));
-			t->vdau[req->pgbuf].clrfound = TRUE;
+			t->vdau[req->pgbuf].clrfound = true;
 			return 0;
 		}
 
@@ -350,7 +345,7 @@ static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 
 			if (req->pgbuf < 0 || req->pgbuf >= NUM_DAUS)
 				return -EINVAL;
-			t->vdau[req->pgbuf].clrfound = TRUE;
+			t->vdau[req->pgbuf].clrfound = true;
 			return 0;
 		}
 
@@ -376,9 +371,9 @@ static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 			t->vdau[req->pgbuf].sregs[4] = (req->pagemask & HR_UNIT ? 0x10 : 0) | (req->hour & 0xf);
 			t->vdau[req->pgbuf].sregs[5] = (req->pagemask & MIN_TEN ? 0x10 : 0) | (req->minute / 0x10);
 			t->vdau[req->pgbuf].sregs[6] = (req->pagemask & MIN_UNIT ? 0x10 : 0) | (req->minute & 0xf);
-			t->vdau[req->pgbuf].stopped = FALSE;
-			t->vdau[req->pgbuf].clrfound = TRUE;
-			t->is_searching[req->pgbuf] = TRUE;
+			t->vdau[req->pgbuf].stopped = false;
+			t->vdau[req->pgbuf].clrfound = true;
+			t->is_searching[req->pgbuf] = true;
 			return 0;
 		}
 
@@ -430,7 +425,7 @@ static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 							i2c_getdata(t, 40, t->vdau[req->pgbuf].pgbuf + VTX_PAGESIZE + 23 * 40))
 							return -EIO;
 					}
-					t->vdau[req->pgbuf].clrfound = FALSE;
+					t->vdau[req->pgbuf].clrfound = false;
 					memcpy(t->vdau[req->pgbuf].laststat, infobits, sizeof(infobits));
 				}
 				else
@@ -474,7 +469,7 @@ static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 				return -EFAULT;
 			if (!info.hamming && !info.notfound)
 			{
-				t->is_searching[req->pgbuf] = FALSE;
+				t->is_searching[req->pgbuf] = false;
 			}
 			return 0;
 		}
@@ -530,8 +525,8 @@ static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 
 			if (req->pgbuf < 0 || req->pgbuf >= NUM_DAUS)
 				return -EINVAL;
-			t->vdau[req->pgbuf].stopped = TRUE;
-			t->is_searching[req->pgbuf] = FALSE;
+			t->vdau[req->pgbuf].stopped = true;
+			t->is_searching[req->pgbuf] = false;
 			return 0;
 		}
 
@@ -660,11 +655,11 @@ static int saa5249_open(struct inode *inode, struct file *file)
 		memset(t->vdau[pgbuf].sregs, 0, sizeof(t->vdau[0].sregs));
 		memset(t->vdau[pgbuf].laststat, 0, sizeof(t->vdau[0].laststat));
 		t->vdau[pgbuf].expire = 0;
-		t->vdau[pgbuf].clrfound = TRUE;
-		t->vdau[pgbuf].stopped = TRUE;
-		t->is_searching[pgbuf] = FALSE;
+		t->vdau[pgbuf].clrfound = true;
+		t->vdau[pgbuf].stopped = true;
+		t->is_searching[pgbuf] = false;
 	}
-	t->virtual_mode=FALSE;
+	t->virtual_mode = false;
 	return 0;
 
  fail:

@@ -29,14 +29,15 @@
 #include <linux/notifier.h>
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
+#include <linux/stddef.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
-#define ACPI_DOCK_DRIVER_NAME "ACPI Dock Station Driver"
+#define ACPI_DOCK_DRIVER_DESCRIPTION "ACPI Dock Station Driver"
 
-ACPI_MODULE_NAME("dock")
+ACPI_MODULE_NAME("dock");
 MODULE_AUTHOR("Kristen Carlson Accardi");
-MODULE_DESCRIPTION(ACPI_DOCK_DRIVER_NAME);
+MODULE_DESCRIPTION(ACPI_DOCK_DRIVER_DESCRIPTION);
 MODULE_LICENSE("GPL");
 
 static struct atomic_notifier_head dock_notifier_list;
@@ -667,6 +668,23 @@ static ssize_t write_undock(struct device *dev, struct device_attribute *attr,
 }
 DEVICE_ATTR(undock, S_IWUSR, NULL, write_undock);
 
+/*
+ * show_dock_uid - read method for "uid" file in sysfs
+ */
+static ssize_t show_dock_uid(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	unsigned long lbuf;
+	acpi_status status = acpi_evaluate_integer(dock_station->handle, "_UID", NULL, &lbuf);
+	if(ACPI_FAILURE(status)) {
+	    return 0;
+	}
+	return snprintf(buf, PAGE_SIZE, "%lx\n", lbuf);
+}
+DEVICE_ATTR(uid, S_IRUGO, show_dock_uid, NULL);
+
+
+
 /**
  * dock_add - add a new dock station
  * @handle: the dock station handle
@@ -715,6 +733,13 @@ static int dock_add(acpi_handle handle)
 		kfree(dock_station);
 		return ret;
 	}
+	ret = device_create_file(&dock_device.dev, &dev_attr_uid);
+	if (ret) {
+		printk("Error %d adding sysfs file\n", ret);
+		platform_device_unregister(&dock_device);
+		kfree(dock_station);
+		return ret;
+	}
 
 	/* Find dependent devices */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
@@ -741,7 +766,7 @@ static int dock_add(acpi_handle handle)
 		goto dock_add_err;
 	}
 
-	printk(KERN_INFO PREFIX "%s \n", ACPI_DOCK_DRIVER_NAME);
+	printk(KERN_INFO PREFIX "%s \n", ACPI_DOCK_DRIVER_DESCRIPTION);
 
 	return 0;
 

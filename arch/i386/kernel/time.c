@@ -262,14 +262,23 @@ void notify_arch_cmos_timer(void)
 
 extern void (*late_time_init)(void);
 /* Duplicate of time_init() below, with hpet_enable part added */
-static void __init hpet_time_init(void)
+void __init hpet_time_init(void)
 {
 	if (!hpet_enable())
 		setup_pit_timer();
-	do_time_init();
+	time_init_hook();
 }
 
+/*
+ * This is called directly from init code; we must delay timer setup in the
+ * HPET case as we can't make the decision to turn on HPET this early in the
+ * boot process.
+ *
+ * The chosen time_init function will usually be hpet_time_init, above, but
+ * in the case of virtual hardware, an alternative function may be substituted.
+ */
 void __init time_init(void)
 {
-	late_time_init = hpet_time_init;
+	tsc_init();
+	late_time_init = choose_time_init();
 }

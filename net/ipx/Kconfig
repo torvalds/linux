@@ -16,8 +16,7 @@ config IPX
 	  support", below.
 
 	  IPX is similar in scope to IP, while SPX, which runs on top of IPX,
-	  is similar to TCP. There is also experimental support for SPX in
-	  Linux (see "SPX networking", below).
+	  is similar to TCP.
 
 	  To turn your Linux box into a fully featured NetWare file server and
 	  IPX router, say Y here and fetch either lwared from
@@ -25,9 +24,6 @@ config IPX
 	  mars_nwe from <ftp://www.compu-art.de/mars_nwe/>. For more
 	  information, read the IPX-HOWTO available from
 	  <http://www.tldp.org/docs.html#howto>.
-
-	  General information about how to connect Linux, Windows machines and
-	  Macs is on the WWW at <http://www.eats.com/linux_mac_win.html>.
 
 	  The IPX driver would enlarge your kernel by about 16 KB. To compile
 	  this driver as a module, choose M here: the module will be called ipx.

@@ -26,7 +26,6 @@
  * Tested with Planet AP in 2.5.73-bk, 216 Kbytes/s in Infrastructure mode
  * with a SMP machine (dual pentium 100), using pktgen, 432 pps (pkt_size = 60)
  */
-#undef REALLY_SLOW_IO	/* most systems can safely undef this */
 
 #include <linux/delay.h>
 #include <linux/types.h>

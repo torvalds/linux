@@ -79,7 +79,7 @@ static inline void __udelay(unsigned long usecs, unsigned long lpj)
 	__delay(usecs);
 }
 
-#define __udelay_val cpu_data[smp_processor_id()].udelay_val
+#define __udelay_val cpu_data[raw_smp_processor_id()].udelay_val
 
 #define udelay(usecs) __udelay((usecs),__udelay_val)
 

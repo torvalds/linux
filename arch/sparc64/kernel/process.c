@@ -28,6 +28,7 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/compat.h>
+#include <linux/tick.h>
 #include <linux/init.h>
 
 #include <asm/oplib.h>
@@ -88,12 +89,14 @@ void cpu_idle(void)
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while(1) {
-		if (need_resched()) {
-			preempt_enable_no_resched();
-			schedule();
-			preempt_disable();
-		}
-		sparc64_yield();
+		tick_nohz_stop_sched_tick();
+		while (!need_resched())
+			sparc64_yield();
+		tick_nohz_restart_sched_tick();
+
+		preempt_enable_no_resched();
+		schedule();
+		preempt_disable();
 	}
 }
 
@@ -413,8 +416,13 @@ void flush_thread(void)
 	struct thread_info *t = current_thread_info();
 	struct mm_struct *mm;
 
-	if (t->flags & _TIF_ABI_PENDING)
-		t->flags ^= (_TIF_ABI_PENDING | _TIF_32BIT);
+	if (test_ti_thread_flag(t, TIF_ABI_PENDING)) {
+		clear_ti_thread_flag(t, TIF_ABI_PENDING);
+		if (test_ti_thread_flag(t, TIF_32BIT))
+			clear_ti_thread_flag(t, TIF_32BIT);
+		else
+			set_ti_thread_flag(t, TIF_32BIT);
+	}
 
 	mm = t->task->mm;
 	if (mm)

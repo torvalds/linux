@@ -1,13 +1,11 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001-2003 Red Hat, Inc.
+ * Copyright © 2001-2007 Red Hat, Inc.
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
- *
- * $Id: build.c,v 1.85 2005/11/07 11:14:38 gleixner Exp $
  *
  */
 
@@ -348,23 +346,27 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 
 	ret = jffs2_sum_init(c);
 	if (ret)
-		return ret;
+		goto out_free;
 
 	if (jffs2_build_filesystem(c)) {
 		dbg_fsbuild("build_fs failed\n");
 		jffs2_free_ino_caches(c);
 		jffs2_free_raw_node_refs(c);
-#ifndef __ECOS
-		if (jffs2_blocks_use_vmalloc(c))
-			vfree(c->blocks);
-		else
-#endif
-			kfree(c->blocks);
-
-		return -EIO;
+		ret = -EIO;
+		goto out_free;
 	}
 
 	jffs2_calc_trigger_levels(c);
 
 	return 0;
+
+ out_free:
+#ifndef __ECOS
+	if (jffs2_blocks_use_vmalloc(c))
+		vfree(c->blocks);
+	else
+#endif
+		kfree(c->blocks);
+
+	return ret;
 }

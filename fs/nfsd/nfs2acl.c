@@ -287,11 +287,18 @@ static int nfsaclsvc_release_getacl(struct svc_rqst *rqstp, __be32 *p,
 	return 1;
 }
 
-static int nfsaclsvc_release_fhandle(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd_fhandle *resp)
+static int nfsaclsvc_release_attrstat(struct svc_rqst *rqstp, __be32 *p,
+		struct nfsd_attrstat *resp)
 {
 	fh_put(&resp->fh);
 	return 1;
+}
+
+static int nfsaclsvc_release_access(struct svc_rqst *rqstp, __be32 *p,
+               struct nfsd3_accessres *resp)
+{
+       fh_put(&resp->fh);
+       return 1;
 }
 
 #define nfsaclsvc_decode_voidargs	NULL
@@ -322,9 +329,9 @@ struct nfsd3_voidargs { int dummy; };
 static struct svc_procedure		nfsd_acl_procedures2[] = {
   PROC(null,	void,		void,		void,	  RC_NOCACHE, ST),
   PROC(getacl,	getacl,		getacl,		getacl,	  RC_NOCACHE, ST+1+2*(1+ACL)),
-  PROC(setacl,	setacl,		attrstat,	fhandle,  RC_NOCACHE, ST+AT),
-  PROC(getattr, fhandle,	attrstat,	fhandle,  RC_NOCACHE, ST+AT),
-  PROC(access,	access,		access,		fhandle,  RC_NOCACHE, ST+AT+1),
+  PROC(setacl,	setacl,		attrstat,	attrstat, RC_NOCACHE, ST+AT),
+  PROC(getattr, fhandle,	attrstat,	attrstat, RC_NOCACHE, ST+AT),
+  PROC(access,	access,		access,		access,   RC_NOCACHE, ST+AT+1),
 };
 
 struct svc_version	nfsd_acl_version2 = {

@@ -141,10 +141,10 @@ static void ams_worker(struct work_struct *work)
 int ams_sensor_attach(void)
 {
 	int result;
-	u32 *prop;
+	const u32 *prop;
 
 	/* Get orientation */
-	prop = (u32*)get_property(ams_info.of_node, "orientation", NULL);
+	prop = get_property(ams_info.of_node, "orientation", NULL);
 	if (!prop)
 		return -ENODEV;
 	ams_info.orient1 = *prop;

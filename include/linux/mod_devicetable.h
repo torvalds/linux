@@ -320,4 +320,16 @@ struct eisa_device_id {
 
 #define EISA_DEVICE_MODALIAS_FMT "eisa:s%s"
 
+struct parisc_device_id {
+	__u8	hw_type;	/* 5 bits used */
+	__u8	hversion_rev;	/* 4 bits */
+	__u16	hversion;	/* 12 bits */
+	__u32	sversion;	/* 20 bits */
+};
+
+#define PA_HWTYPE_ANY_ID	0xff
+#define PA_HVERSION_REV_ANY_ID	0xff
+#define PA_HVERSION_ANY_ID	0xffff
+#define PA_SVERSION_ANY_ID	0xffffffff
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

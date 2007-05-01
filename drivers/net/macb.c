@@ -357,7 +357,6 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 	}
 
 	skb_reserve(skb, RX_OFFSET);
-	skb->dev = bp->dev;
 	skb->ip_summed = CHECKSUM_NONE;
 	skb_put(skb, len);
 
@@ -368,9 +367,10 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 			BUG_ON(frag != last_frag);
 			frag_len = len - offset;
 		}
-		memcpy(skb->data + offset,
-		       bp->rx_buffers + (RX_BUFFER_SIZE * frag),
-		       frag_len);
+		skb_copy_to_linear_data_offset(skb, offset,
+					       (bp->rx_buffers +
+					        (RX_BUFFER_SIZE * frag)),
+					       frag_len);
 		offset += RX_BUFFER_SIZE;
 		bp->rx_ring[frag].addr &= ~MACB_BIT(RX_USED);
 		wmb();
@@ -576,7 +576,8 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i;
 	dev_dbg(&bp->pdev->dev,
 		"start_xmit: len %u head %p data %p tail %p end %p\n",
-		skb->len, skb->head, skb->data, skb->tail, skb->end);
+		skb->len, skb->head, skb->data,
+		skb_tail_pointer(skb), skb_end_pointer(skb));
 	dev_dbg(&bp->pdev->dev,
 		"data:");
 	for (i = 0; i < 16; i++)
@@ -881,27 +882,15 @@ static struct net_device_stats *macb_get_stats(struct net_device *dev)
 static int macb_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct macb *bp = netdev_priv(dev);
-	int ret;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bp->lock, flags);
-	ret = mii_ethtool_gset(&bp->mii, cmd);
-	spin_unlock_irqrestore(&bp->lock, flags);
-
-	return ret;
+	return mii_ethtool_gset(&bp->mii, cmd);
 }
 
 static int macb_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct macb *bp = netdev_priv(dev);
-	int ret;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bp->lock, flags);
-	ret = mii_ethtool_sset(&bp->mii, cmd);
-	spin_unlock_irqrestore(&bp->lock, flags);
-
-	return ret;
+	return mii_ethtool_sset(&bp->mii, cmd);
 }
 
 static void macb_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
@@ -930,17 +919,11 @@ static struct ethtool_ops macb_ethtool_ops = {
 static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct macb *bp = netdev_priv(dev);
-	int ret;
-	unsigned long flags;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	spin_lock_irqsave(&bp->lock, flags);
-	ret = generic_mii_ioctl(&bp->mii, if_mii(rq), cmd, NULL);
-	spin_unlock_irqrestore(&bp->lock, flags);
-
-	return ret;
+	return generic_mii_ioctl(&bp->mii, if_mii(rq), cmd, NULL);
 }
 
 static ssize_t macb_mii_show(const struct device *_dev, char *buf,

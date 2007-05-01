@@ -19,11 +19,6 @@ config BACKLIGHT_CLASS_DEVICE
 	  To have support for your specific LCD panel you will have to
 	  select the proper drivers which depend on this option.
 
-config BACKLIGHT_DEVICE
-	bool
-	depends on BACKLIGHT_CLASS_DEVICE
-	default y
-
 config LCD_CLASS_DEVICE
         tristate "Lowlevel LCD controls"
 	depends on BACKLIGHT_LCD_SUPPORT
@@ -37,14 +32,9 @@ config LCD_CLASS_DEVICE
 	  To have support for your specific LCD panel you will have to
 	  select the proper drivers which depend on this option.
 
-config LCD_DEVICE
-	bool
-	depends on LCD_CLASS_DEVICE
-	default y
-
 config BACKLIGHT_CORGI
 	tristate "Sharp Corgi Backlight Driver (SL Series)"
-	depends on BACKLIGHT_DEVICE && PXA_SHARPSL
+	depends on BACKLIGHT_CLASS_DEVICE && PXA_SHARPSL
 	default y
 	help
 	  If you have a Sharp Zaurus SL-C7xx, SL-Cxx00 or SL-6000x say y to enable the
@@ -52,7 +42,7 @@ config BACKLIGHT_CORGI
 
 config BACKLIGHT_LOCOMO
 	tristate "Sharp LOCOMO LCD/Backlight Driver"
-	depends on BACKLIGHT_DEVICE && SHARP_LOCOMO
+	depends on BACKLIGHT_CLASS_DEVICE && SHARP_LOCOMO
 	default y
 	help
 	  If you have a Sharp Zaurus SL-5500 (Collie) or SL-5600 (Poodle) say y to
@@ -60,9 +50,16 @@ config BACKLIGHT_LOCOMO
 
 config BACKLIGHT_HP680
 	tristate "HP Jornada 680 Backlight Driver"
-	depends on BACKLIGHT_DEVICE && SH_HP6XX
+	depends on BACKLIGHT_CLASS_DEVICE && SH_HP6XX
 	default y
 	help
 	  If you have a HP Jornada 680, say y to enable the
 	  backlight driver.
 
+config BACKLIGHT_PROGEAR
+	tristate "Frontpath ProGear Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && PCI && X86
+	default n
+	help
+	  If you have a Frontpath ProGear say Y to enable the
+	  backlight driver.

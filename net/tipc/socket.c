@@ -1020,7 +1020,7 @@ restart:
 
 	if (!err) {
 		buf_crs = (unsigned char *)(TIPC_SKB_CB(buf)->handle);
-		sz = buf->tail - buf_crs;
+		sz = skb_tail_pointer(buf) - buf_crs;
 
 		needed = (buf_len - sz_copied);
 		sz_to_copy = (sz <= needed) ? sz : needed;

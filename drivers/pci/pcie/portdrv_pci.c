@@ -93,7 +93,7 @@ static int __devinit pcie_portdrv_probe (struct pci_dev *dev,
         if (!dev->irq && dev->pin) {
 		printk(KERN_WARNING 
 		"%s->Dev[%04x:%04x] has invalid IRQ. Check vendor BIOS\n", 
-		__FUNCTION__, dev->device, dev->vendor);
+		__FUNCTION__, dev->vendor, dev->device);
 	}
 	if (pcie_port_device_register(dev)) {
 		pci_disable_device(dev);
@@ -276,7 +276,7 @@ static struct pci_error_handlers pcie_portdrv_err_handler = {
 		.resume = pcie_portdrv_err_resume,
 };
 
-static struct pci_driver pcie_portdrv = {
+static struct pci_driver pcie_portdriver = {
 	.name		= (char *)device_name,
 	.id_table	= &port_pci_ids[0],
 
@@ -298,7 +298,7 @@ static int __init pcie_portdrv_init(void)
 		printk(KERN_WARNING "PCIE: bus_register error: %d\n", retval);
 		goto out;
 	}
-	retval = pci_register_driver(&pcie_portdrv);
+	retval = pci_register_driver(&pcie_portdriver);
 	if (retval)
 		pcie_port_bus_unregister();
  out:
@@ -307,7 +307,7 @@ static int __init pcie_portdrv_init(void)
 
 static void __exit pcie_portdrv_exit(void) 
 {
-	pci_unregister_driver(&pcie_portdrv);
+	pci_unregister_driver(&pcie_portdriver);
 	pcie_port_bus_unregister();
 }
 

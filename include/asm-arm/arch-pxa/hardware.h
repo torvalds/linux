@@ -65,7 +65,17 @@
 /*
  * Handy routine to set GPIO alternate functions
  */
-extern void pxa_gpio_mode( int gpio_mode );
+extern int pxa_gpio_mode( int gpio_mode );
+
+/*
+ * Return GPIO level, nonzero means high, zero is low
+ */
+extern int pxa_gpio_get_value(unsigned gpio);
+
+/*
+ * Set output GPIO level
+ */
+extern void pxa_gpio_set_value(unsigned gpio, int value);
 
 /*
  * Routine to enable or disable CKEN

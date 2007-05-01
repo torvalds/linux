@@ -1,7 +1,7 @@
 /***************************************************************************
  * API for image sensors connected to ET61X[12]51 PC Camera Controllers    *
  *                                                                         *
- * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -82,7 +82,7 @@ enum et61x251_i2c_rsta {
 	ET61X251_I2C_RSTA_REPEAT = 0x01, /* repeat start */
 };
 
-#define ET61X251_MAX_CTRLS V4L2_CID_LASTP1-V4L2_CID_BASE+10
+#define ET61X251_MAX_CTRLS (V4L2_CID_LASTP1-V4L2_CID_BASE+10)
 
 struct et61x251_sensor {
 	char name[32];

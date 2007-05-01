@@ -1,5 +1,5 @@
 /*
- * arch/i386/kernel/topology.c - Populate driverfs with topology information
+ * arch/i386/kernel/topology.c - Populate sysfs with topology information
  *
  * Written by: Matthew Dobson, IBM Corporation
  * Original Code: Paul Dorwin, IBM Corporation, Patrick Mochel, OSDL

@@ -53,9 +53,9 @@ obj-$(CONFIG_MIPS_BOARDS_GEN)	+= irq-msc01.o
 obj-$(CONFIG_32BIT)		+= scall32-o32.o
 obj-$(CONFIG_64BIT)		+= scall64-64.o
 obj-$(CONFIG_BINFMT_IRIX)	+= binfmt_irix.o
-obj-$(CONFIG_MIPS32_COMPAT)	+= linux32.o signal32.o
+obj-$(CONFIG_MIPS32_COMPAT)	+= linux32.o ptrace32.o signal32.o
 obj-$(CONFIG_MIPS32_N32)	+= binfmt_elfn32.o scall64-n32.o signal_n32.o
-obj-$(CONFIG_MIPS32_O32)	+= binfmt_elfo32.o scall64-o32.o ptrace32.o
+obj-$(CONFIG_MIPS32_O32)	+= binfmt_elfo32.o scall64-o32.o
 
 obj-$(CONFIG_KGDB)		+= gdb-low.o gdb-stub.o
 obj-$(CONFIG_PROC_FS)		+= proc.o
@@ -65,7 +65,6 @@ obj-$(CONFIG_64BIT)		+= cpu-bugs64.o
 obj-$(CONFIG_I8253)		+= i8253.o
 
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
+obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 
 CFLAGS_cpu-bugs64.o	= $(shell if $(CC) $(CFLAGS) -Wa,-mdaddi -c -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-DHAVE_AS_SET_DADDI"; fi)
-
-EXTRA_AFLAGS := $(CFLAGS)

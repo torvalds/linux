@@ -51,6 +51,7 @@
 #include <linux/firmware.h>
 #include <linux/crc32.h>
 #include <linux/i2c.h>
+#include <linux/kthread.h>
 
 #include <asm/system.h>
 
@@ -218,16 +219,18 @@ static void recover_arm(struct av7110 *av7110)
 		av7110->recover(av7110);
 
 	restart_feeds(av7110);
-	av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1, av7110->ir_config);
+
+#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+	av7110_check_ir_config(av7110, true);
+#endif
 }
 
 static void av7110_arm_sync(struct av7110 *av7110)
 {
-	av7110->arm_rmmod = 1;
-	wake_up_interruptible(&av7110->arm_wait);
+	if (av7110->arm_thread)
+		kthread_stop(av7110->arm_thread);
 
-	while (av7110->arm_thread)
-		msleep(1);
+	av7110->arm_thread = NULL;
 }
 
 static int arm_thread(void *data)
@@ -238,23 +241,21 @@ static int arm_thread(void *data)
 
 	dprintk(4, "%p\n",av7110);
 
-	lock_kernel();
-	daemonize("arm_mon");
-	sigfillset(&current->blocked);
-	unlock_kernel();
-
-	av7110->arm_thread = current;
-
 	for (;;) {
 		timeout = wait_event_interruptible_timeout(av7110->arm_wait,
-							   av7110->arm_rmmod, 5 * HZ);
-		if (-ERESTARTSYS == timeout || av7110->arm_rmmod) {
+			kthread_should_stop(), 5 * HZ);
+
+		if (-ERESTARTSYS == timeout || kthread_should_stop()) {
 			/* got signal or told to quit*/
 			break;
 		}
 
 		if (!av7110->arm_ready)
 			continue;
+
+#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+		av7110_check_ir_config(av7110, false);
+#endif
 
 		if (mutex_lock_interruptible(&av7110->dcomlock))
 			break;
@@ -276,7 +277,6 @@ static int arm_thread(void *data)
 		av7110->arm_errors = 0;
 	}
 
-	av7110->arm_thread = NULL;
 	return 0;
 }
 
@@ -674,8 +674,8 @@ static void gpioirq(unsigned long data)
 		return;
 
 	case DATA_IRCOMMAND:
-		if (av7110->ir_handler)
-			av7110->ir_handler(av7110,
+		if (av7110->ir.ir_handler)
+			av7110->ir.ir_handler(av7110,
 				swahw32(irdebi(av7110, DEBINOSWAP, Reserved, 0, 4)));
 		iwdebi(av7110, DEBINOSWAP, RX_BUFF, 0, 2);
 		break;
@@ -695,8 +695,8 @@ static void gpioirq(unsigned long data)
 static int dvb_osd_ioctl(struct inode *inode, struct file *file,
 			 unsigned int cmd, void *parg)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct av7110 *av7110 = (struct av7110 *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct av7110 *av7110 = dvbdev->priv;
 
 	dprintk(4, "%p\n", av7110);
 
@@ -786,7 +786,7 @@ int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 static int StartHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 {
 	struct dvb_demux_feed *dvbdmxfeed = dvbdmxfilter->feed;
-	struct av7110 *av7110 = (struct av7110 *) dvbdmxfeed->demux->priv;
+	struct av7110 *av7110 = dvbdmxfeed->demux->priv;
 	u16 buf[20];
 	int ret, i;
 	u16 handle;
@@ -835,7 +835,7 @@ static int StartHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 
 static int StopHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 {
-	struct av7110 *av7110 = (struct av7110 *) dvbdmxfilter->feed->demux->priv;
+	struct av7110 *av7110 = dvbdmxfilter->feed->demux->priv;
 	u16 buf[3];
 	u16 answ[2];
 	int ret;
@@ -871,7 +871,7 @@ static int StopHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 static int dvb_feed_start_pid(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-	struct av7110 *av7110 = (struct av7110 *) dvbdmx->priv;
+	struct av7110 *av7110 = dvbdmx->priv;
 	u16 *pid = dvbdmx->pids, npids[5];
 	int i;
 	int ret = 0;
@@ -914,7 +914,7 @@ static int dvb_feed_start_pid(struct dvb_demux_feed *dvbdmxfeed)
 static int dvb_feed_stop_pid(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-	struct av7110 *av7110 = (struct av7110 *) dvbdmx->priv;
+	struct av7110 *av7110 = dvbdmx->priv;
 	u16 *pid = dvbdmx->pids, npids[5];
 	int i;
 
@@ -1103,9 +1103,9 @@ static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
 
 	/* pointer casting paranoia... */
 	BUG_ON(!demux);
-	dvbdemux = (struct dvb_demux *) demux->priv;
+	dvbdemux = demux->priv;
 	BUG_ON(!dvbdemux);
-	av7110 = (struct av7110 *) dvbdemux->priv;
+	av7110 = dvbdemux->priv;
 
 	dprintk(4, "%p\n", av7110);
 
@@ -1137,7 +1137,7 @@ static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
 
 static int av7110_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
+	struct av7110* av7110 = fe->dvb->priv;
 
 	switch (tone) {
 	case SEC_TONE_ON:
@@ -1197,7 +1197,7 @@ static int start_ts_capture(struct av7110 *budget)
 static int budget_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct av7110 *budget = (struct av7110 *) demux->priv;
+	struct av7110 *budget = demux->priv;
 	int status;
 
 	dprintk(2, "av7110: %p\n", budget);
@@ -1212,7 +1212,7 @@ static int budget_start_feed(struct dvb_demux_feed *feed)
 static int budget_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct av7110 *budget = (struct av7110 *) demux->priv;
+	struct av7110 *budget = demux->priv;
 	int status;
 
 	dprintk(2, "budget: %p\n", budget);
@@ -1551,7 +1551,7 @@ static int get_firmware(struct av7110* av7110)
 
 static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
+	struct av7110* av7110 = fe->dvb->priv;
 	u8 pwr = 0;
 	u8 buf[4];
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
@@ -1702,7 +1702,7 @@ static int alps_tdlb7_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 static int alps_tdlb7_request_firmware(struct dvb_frontend* fe, const struct firmware **fw, char* name)
 {
 #if defined(CONFIG_DVB_SP8870) || defined(CONFIG_DVB_SP8870_MODULE)
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
+	struct av7110* av7110 = fe->dvb->priv;
 
 	return request_firmware(fw, name, &av7110->dev->pci->dev);
 #else
@@ -1867,7 +1867,7 @@ static struct stv0297_config nexusca_stv0297_config = {
 
 static int grundig_29504_401_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
+	struct av7110* av7110 = fe->dvb->priv;
 	u32 div;
 	u8 cfg, cpump, band_select;
 	u8 data[4];
@@ -1914,8 +1914,10 @@ static int av7110_fe_lock_fix(struct av7110* av7110, fe_status_t status)
 	if (av7110->fe_synced == synced)
 		return 0;
 
-	if (av7110->playing)
+	if (av7110->playing) {
+		av7110->fe_synced = synced;
 		return 0;
+	}
 
 	if (mutex_lock_interruptible(&av7110->pid_mutex))
 		return -ERESTARTSYS;
@@ -2338,6 +2340,7 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 	const int length = TS_WIDTH * TS_HEIGHT;
 	struct pci_dev *pdev = dev->pci;
 	struct av7110 *av7110;
+	struct task_struct *thread;
 	int ret, count = 0;
 
 	dprintk(4, "dev: %p\n", dev);
@@ -2622,9 +2625,12 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 		printk ("dvb-ttpci: Warning, firmware version 0x%04x is too old. "
 			"System might be unstable!\n", FW_VERSION(av7110->arm_app));
 
-	ret = kernel_thread(arm_thread, (void *) av7110, 0);
-	if (ret < 0)
+	thread = kthread_run(arm_thread, (void *) av7110, "arm_mon");
+	if (IS_ERR(thread)) {
+		ret = PTR_ERR(thread);
 		goto err_stop_arm_9;
+	}
+	av7110->arm_thread = thread;
 
 	/* set initial volume in mixer struct */
 	av7110->mixer.volume_left  = volume;

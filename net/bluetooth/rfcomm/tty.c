@@ -74,6 +74,8 @@ struct rfcomm_dev {
 	wait_queue_head_t       wait;
 	struct tasklet_struct   wakeup_task;
 
+	struct device		*tty_dev;
+
 	atomic_t 		wmem_alloc;
 };
 
@@ -261,7 +263,7 @@ out:
 		return err;
 	}
 
-	tty_register_device(rfcomm_tty_driver, dev->id, rfcomm_get_device(dev));
+	dev->tty_dev = tty_register_device(rfcomm_tty_driver, dev->id, NULL);
 
 	return dev->id;
 }
@@ -630,6 +632,9 @@ static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&dev->wait, &wait);
 
+	if (err == 0)
+		device_move(dev->tty_dev, rfcomm_get_device(dev));
+
 	return err;
 }
 
@@ -642,6 +647,8 @@ static void rfcomm_tty_close(struct tty_struct *tty, struct file *filp)
 	BT_DBG("tty %p dev %p dlc %p opened %d", tty, dev, dev->dlc, dev->opened);
 
 	if (--dev->opened == 0) {
+		device_move(dev->tty_dev, NULL);
+
 		/* Close DLC and dettach TTY */
 		rfcomm_dlc_close(dev->dlc, 0);
 

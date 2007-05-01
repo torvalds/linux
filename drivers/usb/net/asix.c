@@ -298,7 +298,7 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (ax_skb) {
 			ax_skb->len = size;
 			ax_skb->data = packet;
-			ax_skb->tail = packet + size;
+			skb_set_tail_pointer(ax_skb, size);
 			usbnet_skb_return(dev, ax_skb);
 		} else {
 			return 0;
@@ -338,7 +338,7 @@ static struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	    && ((headroom + tailroom) >= (4 + padlen))) {
 		if ((headroom < 4) || (tailroom < padlen)) {
 			skb->data = memmove(skb->head + 4, skb->data, skb->len);
-			skb->tail = skb->data + skb->len;
+			skb_set_tail_pointer(skb, skb->len);
 		}
 	} else {
 		struct sk_buff *skb2;
@@ -351,10 +351,12 @@ static struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	skb_push(skb, 4);
 	packet_len = (((skb->len - 4) ^ 0x0000ffff) << 16) + (skb->len - 4);
-	memcpy(skb->data, &packet_len, sizeof(packet_len));
+	cpu_to_le32s(&packet_len);
+	skb_copy_to_linear_data(skb, &packet_len, sizeof(packet_len));
 
 	if ((skb->len % 512) == 0) {
-		memcpy( skb->tail, &padbytes, sizeof(padbytes));
+		cpu_to_le32s(&padbytes);
+		memcpy(skb_tail_pointer(skb), &padbytes, sizeof(padbytes));
 		skb_put(skb, sizeof(padbytes));
 	}
 	return skb;
@@ -1393,9 +1395,9 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x07b8, 0x420a),
 	.driver_info =  (unsigned long) &hawking_uf200_info,
 }, {
-        // Billionton Systems, USB2AR
-        USB_DEVICE (0x08dd, 0x90ff),
-        .driver_info =  (unsigned long) &ax8817x_info,
+	// Billionton Systems, USB2AR
+	USB_DEVICE (0x08dd, 0x90ff),
+	.driver_info =  (unsigned long) &ax8817x_info,
 }, {
 	// ATEN UC210T
 	USB_DEVICE (0x0557, 0x2009),
@@ -1421,9 +1423,13 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x1631, 0x6200),
 	.driver_info = (unsigned long) &ax8817x_info,
 }, {
+	// JVC MP-PRX1 Port Replicator
+	USB_DEVICE (0x04f1, 0x3008),
+	.driver_info = (unsigned long) &ax8817x_info,
+}, {
 	// ASIX AX88772 10/100
-        USB_DEVICE (0x0b95, 0x7720),
-        .driver_info = (unsigned long) &ax88772_info,
+	USB_DEVICE (0x0b95, 0x7720),
+	.driver_info = (unsigned long) &ax88772_info,
 }, {
 	// ASIX AX88178 10/100/1000
 	USB_DEVICE (0x0b95, 0x1780),

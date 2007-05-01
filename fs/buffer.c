@@ -1743,7 +1743,6 @@ recover:
 	SetPageError(page);
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);
-	unlock_page(page);
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
@@ -1753,6 +1752,7 @@ recover:
 		}
 		bh = next;
 	} while (bh != head);
+	unlock_page(page);
 	goto done;
 }
 
@@ -2248,7 +2248,6 @@ int nobh_prepare_write(struct page *page, unsigned from, unsigned to,
 	int i;
 	int ret = 0;
 	int is_mapped_to_disk = 1;
-	int dirtied_it = 0;
 
 	if (PageMappedToDisk(page))
 		return 0;
@@ -2285,14 +2284,10 @@ int nobh_prepare_write(struct page *page, unsigned from, unsigned to,
 			continue;
 		if (buffer_new(&map_bh) || !buffer_mapped(&map_bh)) {
 			kaddr = kmap_atomic(page, KM_USER0);
-			if (block_start < from) {
+			if (block_start < from)
 				memset(kaddr+block_start, 0, from-block_start);
-				dirtied_it = 1;
-			}
-			if (block_end > to) {
+			if (block_end > to)
 				memset(kaddr + to, 0, block_end - to);
-				dirtied_it = 1;
-			}
 			flush_dcache_page(page);
 			kunmap_atomic(kaddr, KM_USER0);
 			continue;
@@ -2347,17 +2342,6 @@ int nobh_prepare_write(struct page *page, unsigned from, unsigned to,
 
 	if (is_mapped_to_disk)
 		SetPageMappedToDisk(page);
-	SetPageUptodate(page);
-
-	/*
-	 * Setting the page dirty here isn't necessary for the prepare_write
-	 * function - commit_write will do that.  But if/when this function is
-	 * used within the pagefault handler to ensure that all mmapped pages
-	 * have backing space in the filesystem, we will need to dirty the page
-	 * if its contents were altered.
-	 */
-	if (dirtied_it)
-		set_page_dirty(page);
 
 	return 0;
 
@@ -2381,12 +2365,17 @@ failed:
 }
 EXPORT_SYMBOL(nobh_prepare_write);
 
+/*
+ * Make sure any changes to nobh_commit_write() are reflected in
+ * nobh_truncate_page(), since it doesn't call commit_write().
+ */
 int nobh_commit_write(struct file *file, struct page *page,
 		unsigned from, unsigned to)
 {
 	struct inode *inode = page->mapping->host;
 	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
 
+	SetPageUptodate(page);
 	set_page_dirty(page);
 	if (pos > inode->i_size) {
 		i_size_write(inode, pos);
@@ -2481,6 +2470,11 @@ int nobh_truncate_page(struct address_space *mapping, loff_t from)
 		memset(kaddr + offset, 0, PAGE_CACHE_SIZE - offset);
 		flush_dcache_page(page);
 		kunmap_atomic(kaddr, KM_USER0);
+		/*
+		 * It would be more correct to call aops->commit_write()
+		 * here, but this is more efficient.
+		 */
+		SetPageUptodate(page);
 		set_page_dirty(page);
 	}
 	unlock_page(page);

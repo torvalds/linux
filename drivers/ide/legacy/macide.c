@@ -141,7 +141,7 @@ void macide_init(void)
 	}
 
         if (index != -1) {
-		hwif->mmio = 2;
+		hwif->mmio = 1;
 		if (macintosh_config->ide_type == MAC_IDE_QUADRA)
 			printk(KERN_INFO "ide%d: Macintosh Quadra IDE interface\n", index);
 		else if (macintosh_config->ide_type == MAC_IDE_PB)

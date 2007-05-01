@@ -35,9 +35,11 @@
 #define BAD_PROT 0xFFFF
 
 /* SMB command codes */
-/* Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
- (ie which include no useful data other than the SMB error code itself).
- Knowing this helps avoid response buffer allocations and copy in some cases */
+/*
+ * Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
+ * (ie which include no useful data other than the SMB error code itself).
+ * Knowing this helps avoid response buffer allocations and copy in some cases
+ */
 #define SMB_COM_CREATE_DIRECTORY      0x00 /* trivial response */
 #define SMB_COM_DELETE_DIRECTORY      0x01 /* trivial response */
 #define SMB_COM_CLOSE                 0x04 /* triv req/rsp, timestamp ignored */
@@ -217,6 +219,9 @@
  * Invalid readdir handle
  */
 #define CIFS_NO_HANDLE        0xFFFF
+
+#define NO_CHANGE_64          cpu_to_le64(0xFFFFFFFFFFFFFFFFULL)
+#define NO_CHANGE_32          0xFFFFFFFFUL
 
 /* IPC$ in ASCII */
 #define CIFS_IPC_RESOURCE "\x49\x50\x43\x24"
@@ -1882,7 +1887,13 @@ typedef struct {
 						      calls including posix open
 						      and posix unlink */ 
 #ifdef CONFIG_CIFS_POSIX
-#define CIFS_UNIX_CAP_MASK              0x0000003b
+/* Can not set pathnames cap yet until we send new posix create SMB since
+   otherwise server can treat such handles opened with older ntcreatex
+   (by a new client which knows how to send posix path ops)
+   as non-posix handles (can affect write behavior with byte range locks.
+   We can add back in POSIX_PATH_OPS cap when Posix Create/Mkdir finished */
+/* #define CIFS_UNIX_CAP_MASK              0x0000003b */
+#define CIFS_UNIX_CAP_MASK              0x0000001b 
 #else 
 #define CIFS_UNIX_CAP_MASK              0x00000013
 #endif /* CONFIG_CIFS_POSIX */

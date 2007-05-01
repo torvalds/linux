@@ -27,14 +27,15 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/kmod.h>
 #include <linux/list.h>
 #include <linux/bitops.h>
+#include <linux/hrtimer.h>
 
+#include <net/netlink.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 
@@ -190,7 +191,7 @@ int unregister_qdisc(struct Qdisc_ops *qops)
    (root qdisc, all its children, children of children etc.)
  */
 
-static struct Qdisc *__qdisc_lookup(struct net_device *dev, u32 handle)
+struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
 	struct Qdisc *q;
 
@@ -199,16 +200,6 @@ static struct Qdisc *__qdisc_lookup(struct net_device *dev, u32 handle)
 			return q;
 	}
 	return NULL;
-}
-
-struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
-{
-	struct Qdisc *q;
-
-	read_lock(&qdisc_tree_lock);
-	q = __qdisc_lookup(dev, handle);
-	read_unlock(&qdisc_tree_lock);
-	return q;
 }
 
 static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
@@ -291,6 +282,48 @@ void qdisc_put_rtab(struct qdisc_rate_table *tab)
 	}
 }
 
+static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
+{
+	struct qdisc_watchdog *wd = container_of(timer, struct qdisc_watchdog,
+						 timer);
+	struct net_device *dev = wd->qdisc->dev;
+
+	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
+	smp_wmb();
+	if (spin_trylock(&dev->queue_lock)) {
+		qdisc_run(dev);
+		spin_unlock(&dev->queue_lock);
+	} else
+		netif_schedule(dev);
+
+	return HRTIMER_NORESTART;
+}
+
+void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
+{
+	hrtimer_init(&wd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	wd->timer.function = qdisc_watchdog;
+	wd->qdisc = qdisc;
+}
+EXPORT_SYMBOL(qdisc_watchdog_init);
+
+void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
+{
+	ktime_t time;
+
+	wd->qdisc->flags |= TCQ_F_THROTTLED;
+	time = ktime_set(0, 0);
+	time = ktime_add_ns(time, PSCHED_US2NS(expires));
+	hrtimer_start(&wd->timer, time, HRTIMER_MODE_ABS);
+}
+EXPORT_SYMBOL(qdisc_watchdog_schedule);
+
+void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
+{
+	hrtimer_cancel(&wd->timer);
+	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
+}
+EXPORT_SYMBOL(qdisc_watchdog_cancel);
 
 /* Allocate an unique handle from space managed by kernel */
 
@@ -362,7 +395,7 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 	if (n == 0)
 		return;
 	while ((parentid = sch->parent)) {
-		sch = __qdisc_lookup(sch->dev, TC_H_MAJ(parentid));
+		sch = qdisc_lookup(sch->dev, TC_H_MAJ(parentid));
 		cops = sch->ops->cl_ops;
 		if (cops->qlen_notify) {
 			cl = cops->get(sch, parentid);
@@ -467,12 +500,16 @@ qdisc_create(struct net_device *dev, u32 handle, struct rtattr **tca, int *errp)
 
 	if (handle == TC_H_INGRESS) {
 		sch->flags |= TCQ_F_INGRESS;
+		sch->stats_lock = &dev->ingress_lock;
 		handle = TC_H_MAKE(TC_H_INGRESS, 0);
-	} else if (handle == 0) {
-		handle = qdisc_alloc_handle(dev);
-		err = -ENOMEM;
-		if (handle == 0)
-			goto err_out3;
+	} else {
+		sch->stats_lock = &dev->queue_lock;
+		if (handle == 0) {
+			handle = qdisc_alloc_handle(dev);
+			err = -ENOMEM;
+			if (handle == 0)
+				goto err_out3;
+		}
 	}
 
 	sch->handle = handle;
@@ -621,9 +658,9 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 			return err;
 		if (q) {
 			qdisc_notify(skb, n, clid, q, NULL);
-			spin_lock_bh(&dev->queue_lock);
+			qdisc_lock_tree(dev);
 			qdisc_destroy(q);
-			spin_unlock_bh(&dev->queue_lock);
+			qdisc_unlock_tree(dev);
 		}
 	} else {
 		qdisc_notify(skb, n, clid, NULL, q);
@@ -756,17 +793,17 @@ graft:
 		err = qdisc_graft(dev, p, clid, q, &old_q);
 		if (err) {
 			if (q) {
-				spin_lock_bh(&dev->queue_lock);
+				qdisc_lock_tree(dev);
 				qdisc_destroy(q);
-				spin_unlock_bh(&dev->queue_lock);
+				qdisc_unlock_tree(dev);
 			}
 			return err;
 		}
 		qdisc_notify(skb, n, clid, old_q, q);
 		if (old_q) {
-			spin_lock_bh(&dev->queue_lock);
+			qdisc_lock_tree(dev);
 			qdisc_destroy(old_q);
-			spin_unlock_bh(&dev->queue_lock);
+			qdisc_unlock_tree(dev);
 		}
 	}
 	return 0;
@@ -777,7 +814,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 {
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct gnet_dump d;
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*tcm), flags);
@@ -811,12 +848,12 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	if (gnet_stats_finish_copy(&d) < 0)
 		goto rtattr_failure;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -862,7 +899,6 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 		if (idx > s_idx)
 			s_q_idx = 0;
-		read_lock(&qdisc_tree_lock);
 		q_idx = 0;
 		list_for_each_entry(q, &dev->qdisc_list, list) {
 			if (q_idx < s_q_idx) {
@@ -870,13 +906,10 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 				continue;
 			}
 			if (tc_fill_qdisc(skb, q, q->parent, NETLINK_CB(cb->skb).pid,
-					  cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWQDISC) <= 0) {
-				read_unlock(&qdisc_tree_lock);
+					  cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWQDISC) <= 0)
 				goto done;
-			}
 			q_idx++;
 		}
-		read_unlock(&qdisc_tree_lock);
 	}
 
 done:
@@ -1015,7 +1048,7 @@ static int tc_fill_tclass(struct sk_buff *skb, struct Qdisc *q,
 {
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
-	unsigned char	 *b = skb->tail;
+	unsigned char *b = skb_tail_pointer(skb);
 	struct gnet_dump d;
 	struct Qdisc_class_ops *cl_ops = q->ops->cl_ops;
 
@@ -1040,12 +1073,12 @@ static int tc_fill_tclass(struct sk_buff *skb, struct Qdisc *q,
 	if (gnet_stats_finish_copy(&d) < 0)
 		goto rtattr_failure;
 
-	nlh->nlmsg_len = skb->tail - b;
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
+	nlmsg_trim(skb, b);
 	return -1;
 }
 
@@ -1099,7 +1132,6 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	s_t = cb->args[0];
 	t = 0;
 
-	read_lock(&qdisc_tree_lock);
 	list_for_each_entry(q, &dev->qdisc_list, list) {
 		if (t < s_t || !q->ops->cl_ops ||
 		    (tcm->tcm_parent &&
@@ -1121,7 +1153,6 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 			break;
 		t++;
 	}
-	read_unlock(&qdisc_tree_lock);
 
 	cb->args[0] = t;
 
@@ -1146,7 +1177,7 @@ reclassify:
 
 	for ( ; tp; tp = tp->next) {
 		if ((tp->protocol == protocol ||
-			tp->protocol == __constant_htons(ETH_P_ALL)) &&
+			tp->protocol == htons(ETH_P_ALL)) &&
 			(err = tp->classify(skb, tp, res)) >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 			if ( TC_ACT_RECLASSIFY == err) {
@@ -1175,15 +1206,31 @@ reclassify:
 	return -1;
 }
 
-static int psched_us_per_tick = 1;
-static int psched_tick_per_us = 1;
+void tcf_destroy(struct tcf_proto *tp)
+{
+	tp->ops->destroy(tp);
+	module_put(tp->ops->owner);
+	kfree(tp);
+}
+
+void tcf_destroy_chain(struct tcf_proto *fl)
+{
+	struct tcf_proto *tp;
+
+	while ((tp = fl) != NULL) {
+		fl = tp->next;
+		tcf_destroy(tp);
+	}
+}
+EXPORT_SYMBOL(tcf_destroy_chain);
 
 #ifdef CONFIG_PROC_FS
 static int psched_show(struct seq_file *seq, void *v)
 {
 	seq_printf(seq, "%08x %08x %08x %08x\n",
-		      psched_tick_per_us, psched_us_per_tick,
-		      1000000, HZ);
+		   (u32)NSEC_PER_USEC, (u32)PSCHED_US2NS(1),
+		   1000000,
+		   (u32)NSEC_PER_SEC/(u32)ktime_to_ns(KTIME_MONOTONIC_RES));
 
 	return 0;
 }
@@ -1202,100 +1249,18 @@ static const struct file_operations psched_fops = {
 };
 #endif
 
-#ifdef CONFIG_NET_SCH_CLK_CPU
-psched_tdiff_t psched_clock_per_hz;
-int psched_clock_scale;
-EXPORT_SYMBOL(psched_clock_per_hz);
-EXPORT_SYMBOL(psched_clock_scale);
-
-psched_time_t psched_time_base;
-cycles_t psched_time_mark;
-EXPORT_SYMBOL(psched_time_mark);
-EXPORT_SYMBOL(psched_time_base);
-
-/*
- * Periodically adjust psched_time_base to avoid overflow
- * with 32-bit get_cycles(). Safe up to 4GHz CPU.
- */
-static void psched_tick(unsigned long);
-static DEFINE_TIMER(psched_timer, psched_tick, 0, 0);
-
-static void psched_tick(unsigned long dummy)
-{
-	if (sizeof(cycles_t) == sizeof(u32)) {
-		psched_time_t dummy_stamp;
-		PSCHED_GET_TIME(dummy_stamp);
-		psched_timer.expires = jiffies + 1*HZ;
-		add_timer(&psched_timer);
-	}
-}
-
-int __init psched_calibrate_clock(void)
-{
-	psched_time_t stamp, stamp1;
-	struct timeval tv, tv1;
-	psched_tdiff_t delay;
-	long rdelay;
-	unsigned long stop;
-
-	psched_tick(0);
-	stop = jiffies + HZ/10;
-	PSCHED_GET_TIME(stamp);
-	do_gettimeofday(&tv);
-	while (time_before(jiffies, stop)) {
-		barrier();
-		cpu_relax();
-	}
-	PSCHED_GET_TIME(stamp1);
-	do_gettimeofday(&tv1);
-
-	delay = PSCHED_TDIFF(stamp1, stamp);
-	rdelay = tv1.tv_usec - tv.tv_usec;
-	rdelay += (tv1.tv_sec - tv.tv_sec)*1000000;
-	if (rdelay > delay)
-		return -1;
-	delay /= rdelay;
-	psched_tick_per_us = delay;
-	while ((delay>>=1) != 0)
-		psched_clock_scale++;
-	psched_us_per_tick = 1<<psched_clock_scale;
-	psched_clock_per_hz = (psched_tick_per_us*(1000000/HZ))>>psched_clock_scale;
-	return 0;
-}
-#endif
-
 static int __init pktsched_init(void)
 {
-	struct rtnetlink_link *link_p;
-
-#ifdef CONFIG_NET_SCH_CLK_CPU
-	if (psched_calibrate_clock() < 0)
-		return -1;
-#elif defined(CONFIG_NET_SCH_CLK_JIFFIES)
-	psched_tick_per_us = HZ<<PSCHED_JSCALE;
-	psched_us_per_tick = 1000000;
-#endif
-
-	link_p = rtnetlink_links[PF_UNSPEC];
-
-	/* Setup rtnetlink links. It is made here to avoid
-	   exporting large number of public symbols.
-	 */
-
-	if (link_p) {
-		link_p[RTM_NEWQDISC-RTM_BASE].doit = tc_modify_qdisc;
-		link_p[RTM_DELQDISC-RTM_BASE].doit = tc_get_qdisc;
-		link_p[RTM_GETQDISC-RTM_BASE].doit = tc_get_qdisc;
-		link_p[RTM_GETQDISC-RTM_BASE].dumpit = tc_dump_qdisc;
-		link_p[RTM_NEWTCLASS-RTM_BASE].doit = tc_ctl_tclass;
-		link_p[RTM_DELTCLASS-RTM_BASE].doit = tc_ctl_tclass;
-		link_p[RTM_GETTCLASS-RTM_BASE].doit = tc_ctl_tclass;
-		link_p[RTM_GETTCLASS-RTM_BASE].dumpit = tc_dump_tclass;
-	}
-
 	register_qdisc(&pfifo_qdisc_ops);
 	register_qdisc(&bfifo_qdisc_ops);
 	proc_net_fops_create("psched", 0, &psched_fops);
+
+	rtnl_register(PF_UNSPEC, RTM_NEWQDISC, tc_modify_qdisc, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELQDISC, tc_get_qdisc, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETQDISC, tc_get_qdisc, tc_dump_qdisc);
+	rtnl_register(PF_UNSPEC, RTM_NEWTCLASS, tc_ctl_tclass, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELTCLASS, tc_ctl_tclass, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETTCLASS, tc_ctl_tclass, tc_dump_tclass);
 
 	return 0;
 }

@@ -47,7 +47,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_vsc"
-#define DRV_VERSION	"2.0"
+#define DRV_VERSION	"2.1"
 
 enum {
 	VSC_MMIO_BAR			= 0,
@@ -98,10 +98,6 @@ enum {
 			      VSC_SATA_INT_PHY_CHANGE),
 };
 
-#define is_vsc_sata_int_err(port_idx, int_status) \
-	 (int_status & (VSC_SATA_INT_ERROR << (8 * port_idx)))
-
-
 static u32 vsc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	if (sc_reg > SCR_CONTROL)
@@ -116,6 +112,28 @@ static void vsc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 	if (sc_reg > SCR_CONTROL)
 		return;
 	writel(val, ap->ioaddr.scr_addr + (sc_reg * 4));
+}
+
+
+static void vsc_freeze(struct ata_port *ap)
+{
+	void __iomem *mask_addr;
+
+	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
+		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+
+	writeb(0, mask_addr);
+}
+
+
+static void vsc_thaw(struct ata_port *ap)
+{
+	void __iomem *mask_addr;
+
+	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
+		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+
+	writeb(0xff, mask_addr);
 }
 
 
@@ -203,6 +221,36 @@ static void vsc_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
         }
 }
 
+static inline void vsc_error_intr(u8 port_status, struct ata_port *ap)
+{
+	if (port_status & (VSC_SATA_INT_PHY_CHANGE | VSC_SATA_INT_ERROR_M))
+		ata_port_freeze(ap);
+	else
+		ata_port_abort(ap);
+}
+
+static void vsc_port_intr(u8 port_status, struct ata_port *ap)
+{
+	struct ata_queued_cmd *qc;
+	int handled = 0;
+
+	if (unlikely(port_status & VSC_SATA_INT_ERROR)) {
+		vsc_error_intr(port_status, ap);
+		return;
+	}
+
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	if (qc && likely(!(qc->tf.flags & ATA_TFLAG_POLLING)))
+		handled = ata_host_intr(ap, qc);
+
+	/* We received an interrupt during a polled command,
+	 * or some other spurious condition.  Interrupt reporting
+	 * with this hardware is fairly reliable so it is safe to
+	 * simply clear the interrupt
+	 */
+	if (unlikely(!handled))
+		ata_chk_status(ap);
+}
 
 /*
  * vsc_sata_interrupt
@@ -214,59 +262,36 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance)
 	struct ata_host *host = dev_instance;
 	unsigned int i;
 	unsigned int handled = 0;
-	u32 int_status;
+	u32 status;
+
+	status = readl(host->iomap[VSC_MMIO_BAR] + VSC_SATA_INT_STAT_OFFSET);
+
+	if (unlikely(status == 0xffffffff || status == 0)) {
+		if (status)
+			dev_printk(KERN_ERR, host->dev,
+				": IRQ status == 0xffffffff, "
+				"PCI fault or device removal?\n");
+		goto out;
+	}
 
 	spin_lock(&host->lock);
 
-	int_status = readl(host->iomap[VSC_MMIO_BAR] +
-			   VSC_SATA_INT_STAT_OFFSET);
-
 	for (i = 0; i < host->n_ports; i++) {
-		if (int_status & ((u32) 0xFF << (8 * i))) {
-			struct ata_port *ap;
-
-			ap = host->ports[i];
-
-			if (is_vsc_sata_int_err(i, int_status)) {
-				u32 err_status;
-				printk(KERN_DEBUG "%s: ignoring interrupt(s)\n", __FUNCTION__);
-				err_status = ap ? vsc_sata_scr_read(ap, SCR_ERROR) : 0;
-				vsc_sata_scr_write(ap, SCR_ERROR, err_status);
-				handled++;
-			}
+		u8 port_status = (status >> (8 * i)) & 0xff;
+		if (port_status) {
+			struct ata_port *ap = host->ports[i];
 
 			if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
-				struct ata_queued_cmd *qc;
-
-				qc = ata_qc_from_tag(ap, ap->active_tag);
-				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
-					handled += ata_host_intr(ap, qc);
-				else if (is_vsc_sata_int_err(i, int_status)) {
-					/*
-					 * On some chips (i.e. Intel 31244), an error
-					 * interrupt will sneak in at initialization
-					 * time (phy state changes).  Clearing the SCR
-					 * error register is not required, but it prevents
-					 * the phy state change interrupts from recurring
-					 * later.
-					 */
-					u32 err_status;
-					err_status = vsc_sata_scr_read(ap, SCR_ERROR);
-					printk(KERN_DEBUG "%s: clearing interrupt, "
-					       "status %x; sata err status %x\n",
-					       __FUNCTION__,
-					       int_status, err_status);
-					vsc_sata_scr_write(ap, SCR_ERROR, err_status);
-					/* Clear interrupt status */
-					ata_chk_status(ap);
-					handled++;
-				}
-			}
+				vsc_port_intr(port_status, ap);
+				handled++;
+			} else
+				dev_printk(KERN_ERR, host->dev,
+					": interrupt from disabled port %d\n", i);
 		}
 	}
 
 	spin_unlock(&host->lock);
-
+out:
 	return IRQ_RETVAL(handled);
 }
 
@@ -304,11 +329,10 @@ static const struct ata_port_operations vsc_sata_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_data_xfer,
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
+	.freeze			= vsc_freeze,
+	.thaw			= vsc_thaw,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.irq_handler		= vsc_sata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 	.irq_ack		= ata_irq_ack,
@@ -342,30 +366,50 @@ static void __devinit vsc_sata_setup_port(struct ata_ioports *port,
 
 static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	static const struct ata_port_info pi = {
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+				  ATA_FLAG_MMIO,
+		.pio_mask	= 0x1f,
+		.mwdma_mask	= 0x07,
+		.udma_mask	= 0x7f,
+		.port_ops	= &vsc_sata_ops,
+	};
+	const struct ata_port_info *ppi[] = { &pi, NULL };
 	static int printed_version;
-	struct ata_probe_ent *probe_ent;
+	struct ata_host *host;
 	void __iomem *mmio_base;
-	int rc;
+	int i, rc;
 	u8 cls;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
+	/* allocate host */
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 4);
+	if (!host)
+		return -ENOMEM;
+
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
-	/*
-	 * Check if we have needed resource mapped.
-	 */
+	/* check if we have needed resource mapped */
 	if (pci_resource_len(pdev, 0) == 0)
 		return -ENODEV;
 
+	/* map IO regions and intialize host accordingly */
 	rc = pcim_iomap_regions(pdev, 1 << VSC_MMIO_BAR, DRV_NAME);
 	if (rc == -EBUSY)
 		pcim_pin_device(pdev);
 	if (rc)
 		return rc;
+	host->iomap = pcim_iomap_table(pdev);
+
+	mmio_base = host->iomap[VSC_MMIO_BAR];
+
+	for (i = 0; i < host->n_ports; i++)
+		vsc_sata_setup_port(&host->ports[i]->ioaddr,
+				    mmio_base + (i + 1) * VSC_SATA_PORT_OFFSET);
 
 	/*
 	 * Use 32 bit DMA mask, because 64 bit address support is poor.
@@ -377,12 +421,6 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	if (rc)
 		return rc;
 
-	probe_ent = devm_kzalloc(&pdev->dev, sizeof(*probe_ent), GFP_KERNEL);
-	if (probe_ent == NULL)
-		return -ENOMEM;
-	probe_ent->dev = pci_dev_to_dev(pdev);
-	INIT_LIST_HEAD(&probe_ent->node);
-
 	/*
 	 * Due to a bug in the chip, the default cache line size can't be
 	 * used (unless the default is non-zero).
@@ -393,33 +431,6 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 
 	if (pci_enable_msi(pdev) == 0)
 		pci_intx(pdev, 0);
-	else
-		probe_ent->irq_flags = IRQF_SHARED;
-
-	probe_ent->sht = &vsc_sata_sht;
-	probe_ent->port_flags = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				ATA_FLAG_MMIO;
-	probe_ent->port_ops = &vsc_sata_ops;
-	probe_ent->n_ports = 4;
-	probe_ent->irq = pdev->irq;
-	probe_ent->iomap = pcim_iomap_table(pdev);
-
-	/* We don't care much about the PIO/UDMA masks, but the core won't like us
-	 * if we don't fill these
-	 */
-	probe_ent->pio_mask = 0x1f;
-	probe_ent->mwdma_mask = 0x07;
-	probe_ent->udma_mask = 0x7f;
-
-	mmio_base = probe_ent->iomap[VSC_MMIO_BAR];
-
-	/* We have 4 ports per PCI function */
-	vsc_sata_setup_port(&probe_ent->port[0], mmio_base + 1 * VSC_SATA_PORT_OFFSET);
-	vsc_sata_setup_port(&probe_ent->port[1], mmio_base + 2 * VSC_SATA_PORT_OFFSET);
-	vsc_sata_setup_port(&probe_ent->port[2], mmio_base + 3 * VSC_SATA_PORT_OFFSET);
-	vsc_sata_setup_port(&probe_ent->port[3], mmio_base + 4 * VSC_SATA_PORT_OFFSET);
-
-	pci_set_master(pdev);
 
 	/*
 	 * Config offset 0x98 is "Extended Control and Status Register 0"
@@ -429,11 +440,9 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	 */
 	pci_write_config_dword(pdev, 0x98, 0);
 
-	if (!ata_device_add(probe_ent))
-		return -ENODEV;
-
-	devm_kfree(&pdev->dev, probe_ent);
-	return 0;
+	pci_set_master(pdev);
+	return ata_host_activate(host, pdev->irq, vsc_sata_interrupt,
+				 IRQF_SHARED, &vsc_sata_sht);
 }
 
 static const struct pci_device_id vsc_sata_pci_tbl[] = {

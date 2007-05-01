@@ -807,8 +807,8 @@ static int pm3393_mac_reset(adapter_t * adapter)
 	return successful_reset ? 0 : 1;
 }
 
-struct gmac t1_pm3393_ops = {
-	STATS_TICK_SECS,
-	pm3393_mac_create,
-	pm3393_mac_reset
+const struct gmac t1_pm3393_ops = {
+	.stats_update_period = STATS_TICK_SECS,
+	.create              = pm3393_mac_create,
+	.reset               = pm3393_mac_reset,
 };

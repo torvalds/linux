@@ -8,5 +8,3 @@ obj-y		:= ecc-berr.o int-handler.o ioasic-irq.o kn01-berr.o \
 obj-$(CONFIG_PROM_CONSOLE)	+= promcon.o
 obj-$(CONFIG_TC)		+= tc.o
 obj-$(CONFIG_CPU_HAS_WB)	+= wbflush.o
-
-EXTRA_AFLAGS := $(CFLAGS)

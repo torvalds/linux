@@ -23,7 +23,6 @@
 
 #include <asm/mtrr.h>
 #include <asm/tlbflush.h>
-#include <asm/idle.h>
 #include <mach_apic.h>
 
 /*
@@ -624,7 +623,6 @@ fastcall void smp_call_function_interrupt(struct pt_regs *regs)
 	/*
 	 * At this point the info structure may be out of scope unless wait==1
 	 */
-	exit_idle();
 	irq_enter();
 	(*func)(info);
 	irq_exit();

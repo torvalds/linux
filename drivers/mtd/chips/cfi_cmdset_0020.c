@@ -158,6 +158,8 @@ struct mtd_info *cfi_cmdset_0020(struct map_info *map, int primary)
 		cfi->chips[i].word_write_time = 128;
 		cfi->chips[i].buffer_write_time = 128;
 		cfi->chips[i].erase_time = 1024;
+		cfi->chips[i].ref_point_counter = 0;
+		init_waitqueue_head(&(cfi->chips[i].wq));
 	}
 
 	return cfi_staa_setup(map);
@@ -662,7 +664,7 @@ static int cfi_staa_write_buffers (struct mtd_info *mtd, loff_t to,
  * a small buffer for this.
  * XXX: If the buffer size is not a multiple of 2, this will break
  */
-#define ECCBUF_SIZE (mtd->eccsize)
+#define ECCBUF_SIZE (mtd->writesize)
 #define ECCBUF_DIV(x) ((x) & ~(ECCBUF_SIZE - 1))
 #define ECCBUF_MOD(x) ((x) &  (ECCBUF_SIZE - 1))
 static int

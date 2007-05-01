@@ -61,6 +61,7 @@
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/ctype.h>
+#include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/version.h>
 #include <linux/mutex.h>

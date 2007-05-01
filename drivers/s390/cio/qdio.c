@@ -210,9 +210,11 @@ again:
 		goto again;
 	}
 	if (rc < 0) {
-                QDIO_DBF_TEXT3(1,trace,"sqberr");
-                sprintf(dbf_text,"%2x,%2x,%d,%d",tmp_cnt,*cnt,ccq,q_no);
-                QDIO_DBF_TEXT3(1,trace,dbf_text);
+		QDIO_DBF_TEXT3(1,trace,"sqberr");
+		sprintf(dbf_text,"%2x,%2x",tmp_cnt,*cnt);
+		QDIO_DBF_TEXT3(1,trace,dbf_text);
+		sprintf(dbf_text,"%d,%d",ccq,q_no);
+		QDIO_DBF_TEXT3(1,trace,dbf_text);
 		q->handler(q->cdev,QDIO_STATUS_ACTIVATE_CHECK_CONDITION|
 				QDIO_STATUS_LOOK_FOR_ERROR,
 				0, 0, 0, -1, -1, q->int_parm);
@@ -1250,7 +1252,6 @@ qdio_is_inbound_q_done(struct qdio_q *q)
 	if (!no_used) {
 		QDIO_DBF_TEXT4(0,trace,"inqisdnA");
 		QDIO_DBF_HEX4(0,trace,&q,sizeof(void*));
-		QDIO_DBF_TEXT4(0,trace,dbf_text);
 		return 1;
 	}
 	if (irq->is_qebsm) {
@@ -3371,10 +3372,15 @@ qdio_do_qdio_fill_input(struct qdio_q *q, unsigned int qidx,
 			unsigned int count, struct qdio_buffer *buffers)
 {
 	struct qdio_irq *irq = (struct qdio_irq *) q->irq_ptr;
+	int tmp = 0;
+
 	qidx &= (QDIO_MAX_BUFFERS_PER_Q - 1);
 	if (irq->is_qebsm) {
-		while (count)
-			set_slsb(q, &qidx, SLSB_CU_INPUT_EMPTY, &count);
+		while (count) {
+			tmp = set_slsb(q, &qidx, SLSB_CU_INPUT_EMPTY, &count);
+			if (!tmp)
+				return;
+		}
 		return;
 	}
 	for (;;) {
@@ -3390,11 +3396,15 @@ qdio_do_qdio_fill_output(struct qdio_q *q, unsigned int qidx,
 			 unsigned int count, struct qdio_buffer *buffers)
 {
 	struct qdio_irq *irq = (struct qdio_irq *) q->irq_ptr;
+	int tmp = 0;
 
 	qidx &= (QDIO_MAX_BUFFERS_PER_Q - 1);
 	if (irq->is_qebsm) {
-		while (count)
-			set_slsb(q, &qidx, SLSB_CU_OUTPUT_PRIMED, &count);
+		while (count) {
+			tmp = set_slsb(q, &qidx, SLSB_CU_OUTPUT_PRIMED, &count);
+			if (!tmp)
+				return;
+		}
 		return;
 	}
 

@@ -1283,7 +1283,6 @@ static int netwave_rx(struct net_device *dev)
 
 	skb_reserve( skb, 2);  /* Align IP on 16 byte */
 	skb_put( skb, rcvLen);
-	skb->dev = dev;
 
 	/* Copy packet fragments to the skb data area */
 	ptr = (u_char*) skb->data;

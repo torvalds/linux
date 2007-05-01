@@ -144,7 +144,7 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 	max++;			/* space for zlcache_ptr (see mmzone.h) */
 	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
 	if (!zl)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	zl->zlcache_ptr = NULL;
 	num = 0;
 	/* First put in the highest zones from all nodes, then all the next 
@@ -161,6 +161,10 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 		if (k == 0)
 			break;
 		k--;
+	}
+	if (num == 0) {
+		kfree(zl);
+		return ERR_PTR(-EINVAL);
 	}
 	zl->zones[num] = NULL;
 	return zl;
@@ -193,9 +197,10 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 		break;
 	case MPOL_BIND:
 		policy->v.zonelist = bind_zonelist(nodes);
-		if (policy->v.zonelist == NULL) {
+		if (IS_ERR(policy->v.zonelist)) {
+			void *error_code = policy->v.zonelist;
 			kmem_cache_free(policy_cache, policy);
-			return ERR_PTR(-ENOMEM);
+			return error_code;
 		}
 		break;
 	}
@@ -314,15 +319,6 @@ static inline int check_pgd_range(struct vm_area_struct *vma,
 			return -EIO;
 	} while (pgd++, addr = next, addr != end);
 	return 0;
-}
-
-/* Check if a vma is migratable */
-static inline int vma_migratable(struct vm_area_struct *vma)
-{
-	if (vma->vm_flags & (
-		VM_LOCKED|VM_IO|VM_HUGETLB|VM_PFNMAP|VM_RESERVED))
-		return 0;
-	return 1;
 }
 
 /*
@@ -1667,7 +1663,7 @@ void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
 		 * then zonelist_policy() will "FALL THROUGH" to MPOL_DEFAULT.
 		 */
 
-		if (zonelist) {
+		if (!IS_ERR(zonelist)) {
 			/* Good - got mem - substitute new zonelist */
 			kfree(pol->v.zonelist);
 			pol->v.zonelist = zonelist;

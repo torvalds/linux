@@ -1,8 +1,8 @@
 /***************************************************************************
- * Plug-in for PAS202BCB image sensor connected to the ZC0301[P] Image     *
+ * Plug-in for PAS202BCB image sensor connected to the ZC0301 Image        *
  * Processor and Control Chip                                              *
  *                                                                         *
- * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * Initialization values of the ZC0301[P] have been taken from the SPCA5XX *
  * driver maintained by Michel Xhaard <mxhaard@magic.fr>                   *

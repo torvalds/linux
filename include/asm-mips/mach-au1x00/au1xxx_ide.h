@@ -141,40 +141,6 @@ static int auide_ddma_init( _auide_hwif *auide );
 static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif);
 int __init auide_probe(void);
 
-#ifdef CONFIG_PM
-        int au1200ide_pm_callback( au1xxx_power_dev_t *dev,
-                                   au1xxx_request_t request, void *data);
-        static int au1xxxide_pm_standby( au1xxx_power_dev_t *dev );
-        static int au1xxxide_pm_sleep( au1xxx_power_dev_t *dev );
-        static int au1xxxide_pm_resume( au1xxx_power_dev_t *dev );
-        static int au1xxxide_pm_getstatus( au1xxx_power_dev_t *dev );
-        static int au1xxxide_pm_access( au1xxx_power_dev_t *dev );
-        static int au1xxxide_pm_idle( au1xxx_power_dev_t *dev );
-        static int au1xxxide_pm_cleanup( au1xxx_power_dev_t *dev );
-#endif
-
-
-/*
- * Multi-Word DMA + DbDMA functions
- */
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-        static int auide_build_sglist(ide_drive_t *drive,  struct request *rq);
-        static int auide_build_dmatable(ide_drive_t *drive);
-        static int auide_dma_end(ide_drive_t *drive);
-        ide_startstop_t auide_dma_intr (ide_drive_t *drive);
-        static void auide_dma_exec_cmd(ide_drive_t *drive, u8 command);
-        static int auide_dma_setup(ide_drive_t *drive);
-        static int auide_dma_check(ide_drive_t *drive);
-        static int auide_dma_test_irq(ide_drive_t *drive);
-        static int auide_dma_host_off(ide_drive_t *drive);
-        static int auide_dma_host_on(ide_drive_t *drive);
-        static int auide_dma_lostirq(ide_drive_t *drive);
-        static int auide_dma_on(ide_drive_t *drive);
-        static void auide_ddma_tx_callback(int irq, void *param);
-        static void auide_ddma_rx_callback(int irq, void *param);
-        static int auide_dma_off_quietly(ide_drive_t *drive);
-#endif /* end CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA */
-
 /*******************************************************************************
 * PIO Mode timing calculation :                                                *
 *                                                                              *

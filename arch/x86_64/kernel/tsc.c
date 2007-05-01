@@ -210,7 +210,7 @@ void mark_tsc_unstable(void)
 }
 EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 
-static int __init init_tsc_clocksource(void)
+void __init init_tsc_clocksource(void)
 {
 	if (!notsc) {
 		clocksource_tsc.mult = clocksource_khz2mult(cpu_khz,
@@ -218,9 +218,6 @@ static int __init init_tsc_clocksource(void)
 		if (check_tsc_unstable())
 			clocksource_tsc.rating = 0;
 
-		return clocksource_register(&clocksource_tsc);
+		clocksource_register(&clocksource_tsc);
 	}
-	return 0;
 }
-
-module_init(init_tsc_clocksource);

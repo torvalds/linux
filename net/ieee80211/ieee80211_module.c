@@ -5,8 +5,8 @@
   Portions of this file are based on the WEP enablement code provided by the
   Host AP project hostap-drivers v0.1.3
   Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
-  <jkmaline@cc.hut.fi>
-  Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+  <j@w1.fi>
+  Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of version 2 of the GNU General Public License as
@@ -229,6 +229,7 @@ void free_ieee80211(struct net_device *dev)
 
 static int debug = 0;
 u32 ieee80211_debug_level = 0;
+EXPORT_SYMBOL_GPL(ieee80211_debug_level);
 static struct proc_dir_entry *ieee80211_proc = NULL;
 
 static int show_debug_level(char *page, char **start, off_t offset,

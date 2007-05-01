@@ -57,7 +57,6 @@ static inline int pcibus_to_node(struct pci_bus *bus)
 	.busy_factor		= 32,			\
 	.imbalance_pct		= 125,			\
 	.cache_nice_tries	= 1,			\
-	.per_cpu_gain		= 100,			\
 	.busy_idx		= 3,			\
 	.idle_idx		= 1,			\
 	.newidle_idx		= 2,			\

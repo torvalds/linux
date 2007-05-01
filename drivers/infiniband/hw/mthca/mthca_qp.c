@@ -573,6 +573,11 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		goto out;
 	}
 
+	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
+		err = 0;
+		goto out;
+	}
+
 	if ((attr_mask & IB_QP_PKEY_INDEX) &&
 	     attr->pkey_index >= dev->limits.pkey_table_len) {
 		mthca_dbg(dev, "P_Key index (%u) too large. max is %d\n",
@@ -1083,21 +1088,21 @@ static void mthca_unmap_memfree(struct mthca_dev *dev,
 static int mthca_alloc_memfree(struct mthca_dev *dev,
 			       struct mthca_qp *qp)
 {
-	int ret = 0;
-
 	if (mthca_is_memfree(dev)) {
 		qp->rq.db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_RQ,
 						 qp->qpn, &qp->rq.db);
 		if (qp->rq.db_index < 0)
-			return ret;
+			return -ENOMEM;
 
 		qp->sq.db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_SQ,
 						 qp->qpn, &qp->sq.db);
-		if (qp->sq.db_index < 0)
+		if (qp->sq.db_index < 0) {
 			mthca_free_db(dev, MTHCA_DB_TYPE_RQ, qp->rq.db_index);
+			return -ENOMEM;
+		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static void mthca_free_memfree(struct mthca_dev *dev,
@@ -1414,11 +1419,10 @@ void mthca_free_qp(struct mthca_dev *dev,
 	 * unref the mem-free tables and free the QPN in our table.
 	 */
 	if (!qp->ibqp.uobject) {
-		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq), qp->qpn,
+		mthca_cq_clean(dev, recv_cq, qp->qpn,
 			       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
-		if (qp->ibqp.send_cq != qp->ibqp.recv_cq)
-			mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq), qp->qpn,
-				       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
+		if (send_cq != recv_cq)
+			mthca_cq_clean(dev, send_cq, qp->qpn, NULL);
 
 		mthca_free_memfree(dev, qp);
 		mthca_free_wqe_buf(dev, qp);

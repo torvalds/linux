@@ -1,8 +1,6 @@
-menu "Platform Support"
-	depends on PPC_86xx
-
 choice
 	prompt "Machine Type"
+	depends on PPC_86xx
 	default MPC8641_HPCN
 
 config MPC8641_HPCN
@@ -14,20 +12,10 @@ config MPC8641_HPCN
 
 endchoice
 
-
 config MPC8641
 	bool
 	select PPC_INDIRECT_PCI
+	select PPC_INDIRECT_PCI_BE
 	select PPC_UDBG_16550
+	select MPIC
 	default y if MPC8641_HPCN
-
-config MPIC
-	bool
-	default y
-
-config PPC_INDIRECT_PCI_BE
-	bool
-	depends on PPC_86xx
-	default y
-
-endmenu

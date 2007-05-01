@@ -52,7 +52,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
 MODULE_DESCRIPTION("IBM eServer HCA InfiniBand Device Driver");
-MODULE_VERSION("SVNEHCA_0020");
+MODULE_VERSION("SVNEHCA_0022");
 
 int ehca_open_aqp1     = 0;
 int ehca_debug_level   = 0;
@@ -62,6 +62,7 @@ int ehca_use_hp_mr     = 0;
 int ehca_port_act_time = 30;
 int ehca_poll_all_eqs  = 1;
 int ehca_static_rate   = -1;
+int ehca_scaling_code  = 1;
 
 module_param_named(open_aqp1,     ehca_open_aqp1,     int, 0);
 module_param_named(debug_level,   ehca_debug_level,   int, 0);
@@ -71,6 +72,7 @@ module_param_named(use_hp_mr,     ehca_use_hp_mr,     int, 0);
 module_param_named(port_act_time, ehca_port_act_time, int, 0);
 module_param_named(poll_all_eqs,  ehca_poll_all_eqs,  int, 0);
 module_param_named(static_rate,   ehca_static_rate,   int, 0);
+module_param_named(scaling_code,   ehca_scaling_code,   int, 0);
 
 MODULE_PARM_DESC(open_aqp1,
 		 "AQP1 on startup (0: no (default), 1: yes)");
@@ -91,6 +93,8 @@ MODULE_PARM_DESC(poll_all_eqs,
 		 " (0: no, 1: yes (default))");
 MODULE_PARM_DESC(static_rate,
 		 "set permanent static rate (default: disabled)");
+MODULE_PARM_DESC(scaling_code,
+		 "set scaling code (0: disabled, 1: enabled/default)");
 
 spinlock_t ehca_qp_idr_lock;
 spinlock_t ehca_cq_idr_lock;
@@ -432,8 +436,8 @@ static int ehca_destroy_aqp1(struct ehca_sport *sport)
 
 static ssize_t ehca_show_debug_level(struct device_driver *ddp, char *buf)
 {
-	return  snprintf(buf, PAGE_SIZE, "%d\n",
-			 ehca_debug_level);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			ehca_debug_level);
 }
 
 static ssize_t ehca_store_debug_level(struct device_driver *ddp,
@@ -561,11 +565,11 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 				const struct of_device_id *id)
 {
 	struct ehca_shca *shca;
-	u64 *handle;
+	const u64 *handle;
 	struct ib_pd *ibpd;
 	int ret;
 
-	handle = (u64 *)get_property(dev->ofdev.node, "ibm,hca-handle", NULL);
+	handle = get_property(dev->ofdev.node, "ibm,hca-handle", NULL);
 	if (!handle) {
 		ehca_gen_err("Cannot get eHCA handle for adapter: %s.",
 			     dev->ofdev.node->full_name);
@@ -583,6 +587,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		ehca_gen_err("Cannot allocate shca memory.");
 		return -ENOMEM;
 	}
+	mutex_init(&shca->modify_mutex);
 
 	shca->ibmebus_dev = dev;
 	shca->ipz_hca_handle.handle = *handle;
@@ -778,8 +783,24 @@ void ehca_poll_eqs(unsigned long data)
 
 	spin_lock(&shca_list_lock);
 	list_for_each_entry(shca, &shca_list, shca_list) {
-		if (shca->eq.is_initialized)
-			ehca_tasklet_eq((unsigned long)(void*)shca);
+		if (shca->eq.is_initialized) {
+			/* call deadman proc only if eq ptr does not change */
+			struct ehca_eq *eq = &shca->eq;
+			int max = 3;
+			volatile u64 q_ofs, q_ofs2;
+			u64 flags;
+			spin_lock_irqsave(&eq->spinlock, flags);
+			q_ofs = eq->ipz_queue.current_q_offset;
+			spin_unlock_irqrestore(&eq->spinlock, flags);
+			do {
+				spin_lock_irqsave(&eq->spinlock, flags);
+				q_ofs2 = eq->ipz_queue.current_q_offset;
+				spin_unlock_irqrestore(&eq->spinlock, flags);
+				max--;
+			} while (q_ofs == q_ofs2 && max > 0);
+			if (q_ofs == q_ofs2)
+				ehca_process_eq(shca, 0);
+		}
 	}
 	mod_timer(&poll_eqs_timer, jiffies + HZ);
 	spin_unlock(&shca_list_lock);
@@ -790,7 +811,7 @@ int __init ehca_module_init(void)
 	int ret;
 
 	printk(KERN_INFO "eHCA Infiniband Device Driver "
-	                 "(Rel.: SVNEHCA_0020)\n");
+	       "(Rel.: SVNEHCA_0022)\n");
 	idr_init(&ehca_qp_idr);
 	idr_init(&ehca_cq_idr);
 	spin_lock_init(&ehca_qp_idr_lock);

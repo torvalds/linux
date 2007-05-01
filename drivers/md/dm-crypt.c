@@ -867,7 +867,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad4;
 	}
 
-	cc->bs = bioset_create(MIN_IOS, MIN_IOS, 4);
+	cc->bs = bioset_create(MIN_IOS, MIN_IOS);
 	if (!cc->bs) {
 		ti->error = "Cannot allocate crypt bioset";
 		goto bad_bs;

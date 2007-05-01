@@ -126,7 +126,7 @@ out_dev_reg_failed:
 	return status;
 }
 
-static int __exit lm70_remove(struct spi_device *spi)
+static int __devexit lm70_remove(struct spi_device *spi)
 {
 	struct lm70 *p_lm70 = dev_get_drvdata(&spi->dev);
 

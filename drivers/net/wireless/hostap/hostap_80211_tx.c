@@ -146,7 +146,8 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			fc |= IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS;
 			/* From&To DS: Addr1 = RA, Addr2 = TA, Addr3 = DA,
 			 * Addr4 = SA */
-			memcpy(&hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
+			skb_copy_from_linear_data_offset(skb, ETH_ALEN,
+							 &hdr.addr4, ETH_ALEN);
 			hdr_len += ETH_ALEN;
 		} else {
 			/* bogus 4-addr format to workaround Prism2 station
@@ -159,7 +160,8 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			/* SA from skb->data + ETH_ALEN will be added after
 			 * frame payload; use hdr.addr4 as a temporary buffer
 			 */
-			memcpy(&hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
+			skb_copy_from_linear_data_offset(skb, ETH_ALEN,
+							 &hdr.addr4, ETH_ALEN);
 			need_tailroom += ETH_ALEN;
 		}
 
@@ -174,24 +176,27 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		else
 			memcpy(&hdr.addr1, local->bssid, ETH_ALEN);
 		memcpy(&hdr.addr2, dev->dev_addr, ETH_ALEN);
-		memcpy(&hdr.addr3, skb->data, ETH_ALEN);
+		skb_copy_from_linear_data(skb, &hdr.addr3, ETH_ALEN);
 	} else if (local->iw_mode == IW_MODE_MASTER && !to_assoc_ap) {
 		fc |= IEEE80211_FCTL_FROMDS;
 		/* From DS: Addr1 = DA, Addr2 = BSSID, Addr3 = SA */
-		memcpy(&hdr.addr1, skb->data, ETH_ALEN);
+		skb_copy_from_linear_data(skb, &hdr.addr1, ETH_ALEN);
 		memcpy(&hdr.addr2, dev->dev_addr, ETH_ALEN);
-		memcpy(&hdr.addr3, skb->data + ETH_ALEN, ETH_ALEN);
+		skb_copy_from_linear_data_offset(skb, ETH_ALEN, &hdr.addr3,
+						 ETH_ALEN);
 	} else if (local->iw_mode == IW_MODE_INFRA || to_assoc_ap) {
 		fc |= IEEE80211_FCTL_TODS;
 		/* To DS: Addr1 = BSSID, Addr2 = SA, Addr3 = DA */
 		memcpy(&hdr.addr1, to_assoc_ap ?
 		       local->assoc_ap_addr : local->bssid, ETH_ALEN);
-		memcpy(&hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
-		memcpy(&hdr.addr3, skb->data, ETH_ALEN);
+		skb_copy_from_linear_data_offset(skb, ETH_ALEN, &hdr.addr2,
+						 ETH_ALEN);
+		skb_copy_from_linear_data(skb, &hdr.addr3, ETH_ALEN);
 	} else if (local->iw_mode == IW_MODE_ADHOC) {
 		/* not From/To DS: Addr1 = DA, Addr2 = SA, Addr3 = BSSID */
-		memcpy(&hdr.addr1, skb->data, ETH_ALEN);
-		memcpy(&hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
+		skb_copy_from_linear_data(skb, &hdr.addr1, ETH_ALEN);
+		skb_copy_from_linear_data_offset(skb, ETH_ALEN, &hdr.addr2,
+						 ETH_ALEN);
 		memcpy(&hdr.addr3, local->bssid, ETH_ALEN);
 	}
 
@@ -237,7 +242,7 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	iface->stats.tx_packets++;
 	iface->stats.tx_bytes += skb->len;
 
-	skb->mac.raw = skb->data;
+	skb_reset_mac_header(skb);
 	meta = (struct hostap_skb_tx_data *) skb->cb;
 	memset(meta, 0, sizeof(*meta));
 	meta->magic = HOSTAP_SKB_TX_DATA_MAGIC;

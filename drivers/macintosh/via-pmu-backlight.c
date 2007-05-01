@@ -15,7 +15,7 @@
 
 #define MAX_PMU_LEVEL 0xFF
 
-static struct backlight_properties pmu_backlight_data;
+static struct backlight_ops pmu_backlight_data;
 static DEFINE_SPINLOCK(pmu_backlight_lock);
 static int sleeping;
 static u8 bl_curve[FB_BACKLIGHT_LEVELS];
@@ -72,7 +72,7 @@ static int pmu_backlight_update_status(struct backlight_device *bd)
 {
 	struct adb_request req;
 	unsigned long flags;
-	int level = bd->props->brightness;
+	int level = bd->props.brightness;
 
 	spin_lock_irqsave(&pmu_backlight_lock, flags);
 
@@ -80,8 +80,8 @@ static int pmu_backlight_update_status(struct backlight_device *bd)
 	if (sleeping)
 		goto out;
 
-	if (bd->props->power != FB_BLANK_UNBLANK ||
-	    bd->props->fb_blank != FB_BLANK_UNBLANK)
+	if (bd->props.power != FB_BLANK_UNBLANK ||
+	    bd->props.fb_blank != FB_BLANK_UNBLANK)
 		level = 0;
 
 	if (level > 0) {
@@ -107,14 +107,13 @@ out:
 
 static int pmu_backlight_get_brightness(struct backlight_device *bd)
 {
-	return bd->props->brightness;
+	return bd->props.brightness;
 }
 
-static struct backlight_properties pmu_backlight_data = {
-	.owner		= THIS_MODULE,
+static struct backlight_ops pmu_backlight_data = {
 	.get_brightness	= pmu_backlight_get_brightness,
 	.update_status	= pmu_backlight_update_status,
-	.max_brightness	= (FB_BACKLIGHT_LEVELS - 1),
+
 };
 
 #ifdef CONFIG_PM
@@ -152,9 +151,10 @@ void __init pmu_backlight_init()
 		printk("pmubl: Backlight registration failed\n");
 		goto error;
 	}
+	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	pmu_backlight_init_curve(0x7F, 0x46, 0x0E);
 
-	level = pmu_backlight_data.max_brightness;
+	level = bd->props.max_brightness;
 
 	if (autosave) {
 		/* read autosaved value if available */
@@ -164,19 +164,12 @@ void __init pmu_backlight_init()
 
 		level = pmu_backlight_curve_lookup(
 				(req.reply[0] >> 4) *
-				pmu_backlight_data.max_brightness / 15);
+				bd->props.max_brightness / 15);
 	}
 
-	down(&bd->sem);
-	bd->props->brightness = level;
-	bd->props->power = FB_BLANK_UNBLANK;
-	bd->props->update_status(bd);
-	up(&bd->sem);
-
-	mutex_lock(&pmac_backlight_mutex);
-	if (!pmac_backlight)
-		pmac_backlight = bd;
-	mutex_unlock(&pmac_backlight_mutex);
+	bd->props.brightness = level;
+	bd->props.power = FB_BLANK_UNBLANK;
+	backlight_update_status(bd);
 
 	printk("pmubl: Backlight initialized (%s)\n", name);
 

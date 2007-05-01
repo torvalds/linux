@@ -27,7 +27,6 @@
 
 #include "cx22702.h"
 #include "lgdt330x.h"
-#include "lgh06xf.h"
 #include "mt352.h"
 #include "mt352_priv.h"
 #include "zl10353.h"
@@ -388,7 +387,8 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(lgh06xf_attach, adap->fe, &adap->dev->i2c_adap);
+	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
+		   &dvb_pll_lg_tdvs_h06xf);
 	return 0;
 }
 
@@ -469,9 +469,9 @@ static int bluebird_patch_dvico_firmware_download(struct usb_device *udev,
 	    fw->data[BLUEBIRD_01_ID_OFFSET + 1] == USB_VID_DVICO >> 8) {
 
 		fw->data[BLUEBIRD_01_ID_OFFSET + 2] =
-			udev->descriptor.idProduct + 1;
+			le16_to_cpu(udev->descriptor.idProduct) + 1;
 		fw->data[BLUEBIRD_01_ID_OFFSET + 3] =
-			udev->descriptor.idProduct >> 8;
+			le16_to_cpu(udev->descriptor.idProduct) >> 8;
 
 		return usb_cypress_load_firmware(udev, fw, CYPRESS_FX2);
 	}

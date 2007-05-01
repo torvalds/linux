@@ -3,5 +3,3 @@
 #
 
 obj-y	 	:= irq.o jazzdma.o reset.o setup.o
-
-EXTRA_AFLAGS := $(CFLAGS)

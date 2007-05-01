@@ -40,16 +40,16 @@
 #include <linux/dma-mapping.h>
 
 #include <net/checksum.h>
+#include <net/ip.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 #include <asm/idprom.h>
-#include <asm/oplib.h>
-#include <asm/pbm.h>
+#include <asm/prom.h>
 #endif
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.73"
-#define DRV_MODULE_RELDATE	"February 12, 2007"
+#define DRV_MODULE_VERSION	"3.75"
+#define DRV_MODULE_RELDATE	"March 23, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3349,7 +3349,7 @@ static int tg3_rx(struct tg3 *tp, int budget)
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
-			memcpy(copy_skb->data, skb->data, len);
+			skb_copy_from_linear_data(skb, copy_skb->data, len);
 			pci_dma_sync_single_for_device(tp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
 
 			/* We'll reuse the original ring buffer. */
@@ -3568,32 +3568,34 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id)
 	 * Reading the PCI State register will confirm whether the
 	 * interrupt is ours and will flush the status block.
 	 */
-	if ((sblk->status & SD_STATUS_UPDATED) ||
-	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
-		/*
-		 * Writing any value to intr-mbox-0 clears PCI INTA# and
-		 * chip-internal interrupt pending events.
-		 * Writing non-zero to intr-mbox-0 additional tells the
-		 * NIC to stop sending us irqs, engaging "in-intr-handler"
-		 * event coalescing.
-		 */
-		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     0x00000001);
-		if (tg3_irq_sync(tp))
+	if (unlikely(!(sblk->status & SD_STATUS_UPDATED))) {
+		if ((tp->tg3_flags & TG3_FLAG_CHIP_RESETTING) ||
+		    (tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
+			handled = 0;
 			goto out;
-		sblk->status &= ~SD_STATUS_UPDATED;
-		if (likely(tg3_has_work(tp))) {
-			prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
-			netif_rx_schedule(dev);		/* schedule NAPI poll */
-		} else {
-			/* No work, shared interrupt perhaps?  re-enable
-			 * interrupts, and flush that PCI write
-			 */
-			tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     	0x00000000);
 		}
-	} else {	/* shared interrupt */
-		handled = 0;
+	}
+
+	/*
+	 * Writing any value to intr-mbox-0 clears PCI INTA# and
+	 * chip-internal interrupt pending events.
+	 * Writing non-zero to intr-mbox-0 additional tells the
+	 * NIC to stop sending us irqs, engaging "in-intr-handler"
+	 * event coalescing.
+	 */
+	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	if (tg3_irq_sync(tp))
+		goto out;
+	sblk->status &= ~SD_STATUS_UPDATED;
+	if (likely(tg3_has_work(tp))) {
+		prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
+		netif_rx_schedule(dev);		/* schedule NAPI poll */
+	} else {
+		/* No work, shared interrupt perhaps?  re-enable
+		 * interrupts, and flush that PCI write
+		 */
+		tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+			       0x00000000);
 	}
 out:
 	return IRQ_RETVAL(handled);
@@ -3611,31 +3613,33 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id)
 	 * Reading the PCI State register will confirm whether the
 	 * interrupt is ours and will flush the status block.
 	 */
-	if ((sblk->status_tag != tp->last_tag) ||
-	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
-		/*
-		 * writing any value to intr-mbox-0 clears PCI INTA# and
-		 * chip-internal interrupt pending events.
-		 * writing non-zero to intr-mbox-0 additional tells the
-		 * NIC to stop sending us irqs, engaging "in-intr-handler"
-		 * event coalescing.
-		 */
-		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
-			     0x00000001);
-		if (tg3_irq_sync(tp))
+	if (unlikely(sblk->status_tag == tp->last_tag)) {
+		if ((tp->tg3_flags & TG3_FLAG_CHIP_RESETTING) ||
+		    (tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
+			handled = 0;
 			goto out;
-		if (netif_rx_schedule_prep(dev)) {
-			prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
-			/* Update last_tag to mark that this status has been
-			 * seen. Because interrupt may be shared, we may be
-			 * racing with tg3_poll(), so only update last_tag
-			 * if tg3_poll() is not scheduled.
-			 */
-			tp->last_tag = sblk->status_tag;
-			__netif_rx_schedule(dev);
 		}
-	} else {	/* shared interrupt */
-		handled = 0;
+	}
+
+	/*
+	 * writing any value to intr-mbox-0 clears PCI INTA# and
+	 * chip-internal interrupt pending events.
+	 * writing non-zero to intr-mbox-0 additional tells the
+	 * NIC to stop sending us irqs, engaging "in-intr-handler"
+	 * event coalescing.
+	 */
+	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	if (tg3_irq_sync(tp))
+		goto out;
+	if (netif_rx_schedule_prep(dev)) {
+		prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
+		/* Update last_tag to mark that this status has been
+		 * seen. Because interrupt may be shared, we may be
+		 * racing with tg3_poll(), so only update last_tag
+		 * if tg3_poll() is not scheduled.
+		 */
+		tp->last_tag = sblk->status_tag;
+		__netif_rx_schedule(dev);
 	}
 out:
 	return IRQ_RETVAL(handled);
@@ -3904,20 +3908,20 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
 			mss |= (skb_headlen(skb) - ETH_HLEN) << 9;
 		else {
-			tcp_opt_len = ((skb->h.th->doff - 5) * 4);
-			ip_tcp_len = (skb->nh.iph->ihl * 4) +
-				     sizeof(struct tcphdr);
+			struct iphdr *iph = ip_hdr(skb);
 
-			skb->nh.iph->check = 0;
-			skb->nh.iph->tot_len = htons(mss + ip_tcp_len +
-						     tcp_opt_len);
+			tcp_opt_len = tcp_optlen(skb);
+			ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
+
+			iph->check = 0;
+			iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
 			mss |= (ip_tcp_len + tcp_opt_len) << 9;
 		}
 
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
 
-		skb->h.th->check = 0;
+		tcp_hdr(skb)->check = 0;
 
 	}
 	else if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -3993,7 +3997,10 @@ static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
 	/* Estimate the number of fragments in the worst case */
 	if (unlikely(tg3_tx_avail(tp) <= (skb_shinfo(skb)->gso_segs * 3))) {
 		netif_stop_queue(tp->dev);
-		return NETDEV_TX_BUSY;
+		if (tg3_tx_avail(tp) <= (skb_shinfo(skb)->gso_segs * 3))
+			return NETDEV_TX_BUSY;
+
+		netif_wake_queue(tp->dev);
 	}
 
 	segs = skb_gso_segment(skb, tp->dev->features & ~NETIF_F_TSO);
@@ -4048,6 +4055,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
 	    (mss = skb_shinfo(skb)->gso_size) != 0) {
+		struct iphdr *iph;
 		int tcp_opt_len, ip_tcp_len, hdr_len;
 
 		if (skb_header_cloned(skb) &&
@@ -4056,45 +4064,42 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 			goto out_unlock;
 		}
 
-		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
-		ip_tcp_len = (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
+		tcp_opt_len = tcp_optlen(skb);
+		ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
 
 		hdr_len = ip_tcp_len + tcp_opt_len;
 		if (unlikely((ETH_HLEN + hdr_len) > 80) &&
-			     (tp->tg3_flags2 & TG3_FLG2_HW_TSO_1_BUG))
+			     (tp->tg3_flags2 & TG3_FLG2_TSO_BUG))
 			return (tg3_tso_bug(tp, skb));
 
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
 
-		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = htons(mss + hdr_len);
+		iph = ip_hdr(skb);
+		iph->check = 0;
+		iph->tot_len = htons(mss + hdr_len);
 		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
-			skb->h.th->check = 0;
+			tcp_hdr(skb)->check = 0;
 			base_flags &= ~TXD_FLAG_TCPUDP_CSUM;
-		}
-		else {
-			skb->h.th->check =
-				~csum_tcpudp_magic(skb->nh.iph->saddr,
-						   skb->nh.iph->daddr,
-						   0, IPPROTO_TCP, 0);
-		}
+		} else
+			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
+								 iph->daddr, 0,
+								 IPPROTO_TCP,
+								 0);
 
 		if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO) ||
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705)) {
-			if (tcp_opt_len || skb->nh.iph->ihl > 5) {
+			if (tcp_opt_len || iph->ihl > 5) {
 				int tsflags;
 
-				tsflags = ((skb->nh.iph->ihl - 5) +
-					   (tcp_opt_len >> 2));
+				tsflags = (iph->ihl - 5) + (tcp_opt_len >> 2);
 				mss |= (tsflags << 11);
 			}
 		} else {
-			if (tcp_opt_len || skb->nh.iph->ihl > 5) {
+			if (tcp_opt_len || iph->ihl > 5) {
 				int tsflags;
 
-				tsflags = ((skb->nh.iph->ihl - 5) +
-					   (tcp_opt_len >> 2));
+				tsflags = (iph->ihl - 5) + (tcp_opt_len >> 2);
 				base_flags |= tsflags << 12;
 			}
 		}
@@ -4820,6 +4825,21 @@ static int tg3_chip_reset(struct tg3 *tp)
 	if (write_op == tg3_write_flush_reg32)
 		tp->write32 = tg3_write32;
 
+	/* Prevent the irq handler from reading or writing PCI registers
+	 * during chip reset when the memory enable bit in the PCI command
+	 * register may be cleared.  The chip does not generate interrupt
+	 * at this time, but the irq handler may still be called due to irq
+	 * sharing or irqpoll.
+	 */
+	tp->tg3_flags |= TG3_FLAG_CHIP_RESETTING;
+	if (tp->hw_status) {
+		tp->hw_status->status = 0;
+		tp->hw_status->status_tag = 0;
+	}
+	tp->last_tag = 0;
+	smp_mb();
+	synchronize_irq(tp->pdev->irq);
+
 	/* do the reset */
 	val = GRC_MISC_CFG_CORECLK_RESET;
 
@@ -4900,6 +4920,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 	pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, val);
 
 	pci_restore_state(tp->pdev);
+
+	tp->tg3_flags &= ~TG3_FLAG_CHIP_RESETTING;
 
 	/* Make sure PCI-X relaxed ordering bit is clear. */
 	pci_read_config_dword(tp->pdev, TG3PCI_X_CAPS, &val);
@@ -6318,8 +6340,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		      RDMAC_MODE_ADDROFLOW_ENAB | RDMAC_MODE_FIFOOFLOW_ENAB |
 		      RDMAC_MODE_FIFOURUN_ENAB | RDMAC_MODE_FIFOOREAD_ENAB |
 		      RDMAC_MODE_LNGREAD_ENAB);
-	if (tp->tg3_flags & TG3_FLAG_SPLIT_MODE)
-		rdmac_mode |= RDMAC_MODE_SPLIT_ENABLE;
 
 	/* If statement applies to 5705 and 5750 PCI devices only */
 	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
@@ -6492,9 +6512,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
 			val &= ~(PCIX_CAPS_SPLIT_MASK | PCIX_CAPS_BURST_MASK);
 			val |= (PCIX_CAPS_MAX_BURST_CPIOB << PCIX_CAPS_BURST_SHIFT);
-			if (tp->tg3_flags & TG3_FLAG_SPLIT_MODE)
-				val |= (tp->split_mode_max_reqs <<
-					PCIX_CAPS_SPLIT_SHIFT);
 		}
 		tw32(TG3PCI_X_CAPS, val);
 	}
@@ -8137,7 +8154,7 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 	    (ering->rx_jumbo_pending > TG3_RX_JUMBO_RING_SIZE - 1) ||
 	    (ering->tx_pending > TG3_TX_RING_SIZE - 1) ||
 	    (ering->tx_pending <= MAX_SKB_FRAGS) ||
-	    ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_1_BUG) &&
+	    ((tp->tg3_flags2 & TG3_FLG2_TSO_BUG) &&
 	     (ering->tx_pending <= (MAX_SKB_FRAGS * 3))))
 		return -EINVAL;
 
@@ -9111,8 +9128,7 @@ static void tg3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 		tg3_netif_stop(tp);
 
 	tg3_full_lock(tp, 0);
-	if (tp->vlgrp)
-		tp->vlgrp->vlan_devices[vid] = NULL;
+	vlan_group_set_device(tp->vlgrp, vid, NULL);
 	tg3_full_unlock(tp);
 
 	if (netif_running(dev))
@@ -10557,12 +10573,11 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_2;
 			tp->tg3_flags2 |= TG3_FLG2_1SHOT_MSI;
 		} else {
-			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1 |
-					  TG3_FLG2_HW_TSO_1_BUG;
+			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1 | TG3_FLG2_TSO_BUG;
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
 				ASIC_REV_5750 &&
 	     		    tp->pci_chip_rev_id >= CHIPREV_ID_5750_C2)
-				tp->tg3_flags2 &= ~TG3_FLG2_HW_TSO_1_BUG;
+				tp->tg3_flags2 &= ~TG3_FLG2_TSO_BUG;
 		}
 	}
 
@@ -10862,14 +10877,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	grc_misc_cfg = tr32(GRC_MISC_CFG);
 	grc_misc_cfg &= GRC_MISC_CFG_BOARD_ID_MASK;
 
-	/* Broadcom's driver says that CIOBE multisplit has a bug */
-#if 0
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 &&
-	    grc_misc_cfg == GRC_MISC_CFG_BOARD_ID_5704CIOBE) {
-		tp->tg3_flags |= TG3_FLAG_SPLIT_MODE;
-		tp->split_mode_max_reqs = SPLIT_MODE_5704_MAX_REQ;
-	}
-#endif
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
 	    (grc_misc_cfg == GRC_MISC_CFG_BOARD_ID_5788 ||
 	     grc_misc_cfg == GRC_MISC_CFG_BOARD_ID_5788M))
@@ -10979,24 +10986,20 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	return err;
 }
 
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 static int __devinit tg3_get_macaddr_sparc(struct tg3 *tp)
 {
 	struct net_device *dev = tp->dev;
 	struct pci_dev *pdev = tp->pdev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
+	struct device_node *dp = pci_device_to_OF_node(pdev);
+	const unsigned char *addr;
+	int len;
 
-	if (pcp != NULL) {
-		unsigned char *addr;
-		int len;
-
-		addr = of_get_property(pcp->prom_node, "local-mac-address",
-					&len);
-		if (addr && len == 6) {
-			memcpy(dev->dev_addr, addr, 6);
-			memcpy(dev->perm_addr, dev->dev_addr, 6);
-			return 0;
-		}
+	addr = of_get_property(dp, "local-mac-address", &len);
+	if (addr && len == 6) {
+		memcpy(dev->dev_addr, addr, 6);
+		memcpy(dev->perm_addr, dev->dev_addr, 6);
+		return 0;
 	}
 	return -ENODEV;
 }
@@ -11017,7 +11020,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 	u32 hi, lo, mac_offset;
 	int addr_ok = 0;
 
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 	if (!tg3_get_macaddr_sparc(tp))
 		return 0;
 #endif
@@ -11867,7 +11870,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	    (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0) {
 		tp->tg3_flags2 &= ~TG3_FLG2_TSO_CAPABLE;
 	} else {
-		tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE;
+		tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE | TG3_FLG2_TSO_BUG;
 	}
 
 	/* TSO is on by default on chips that support hardware TSO.
@@ -11967,14 +11970,12 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		       i == 5 ? '\n' : ':');
 
 	printk(KERN_INFO "%s: RXcsums[%d] LinkChgREG[%d] "
-	       "MIirq[%d] ASF[%d] Split[%d] WireSpeed[%d] "
-	       "TSOcap[%d] \n",
+	       "MIirq[%d] ASF[%d] WireSpeed[%d] TSOcap[%d]\n",
 	       dev->name,
 	       (tp->tg3_flags & TG3_FLAG_RX_CHECKSUMS) != 0,
 	       (tp->tg3_flags & TG3_FLAG_USE_LINKCHG_REG) != 0,
 	       (tp->tg3_flags & TG3_FLAG_USE_MI_INTERRUPT) != 0,
 	       (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0,
-	       (tp->tg3_flags & TG3_FLAG_SPLIT_MODE) != 0,
 	       (tp->tg3_flags2 & TG3_FLG2_NO_ETH_WIRE_SPEED) == 0,
 	       (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) != 0);
 	printk(KERN_INFO "%s: dma_rwctrl[%08x] dma_mask[%d-bit]\n",

@@ -101,8 +101,8 @@ static u8 get_indexed_reg(ide_hwif_t *hwif, u8 index)
 {
 	u8 value;
 
-	hwif->OUTB(index, hwif->dma_vendor1);
-	value = hwif->INB(hwif->dma_vendor3);
+	outb(index, hwif->dma_vendor1);
+	value = inb(hwif->dma_vendor3);
 
 	DBG("index[%02X] value[%02X]\n", index, value);
 	return value;
@@ -115,8 +115,8 @@ static u8 get_indexed_reg(ide_hwif_t *hwif, u8 index)
  */
 static void set_indexed_reg(ide_hwif_t *hwif, u8 index, u8 value)
 {
-	hwif->OUTB(index, hwif->dma_vendor1);
-	hwif->OUTB(value, hwif->dma_vendor3);
+	outb(index, hwif->dma_vendor1);
+	outb(value, hwif->dma_vendor3);
 	DBG("index[%02X] value[%02X]\n", index, value);
 }
 
@@ -255,7 +255,7 @@ static int config_chipset_for_dma(ide_drive_t *drive)
 		printk(KERN_WARNING "%s reduced to Ultra33 mode.\n", drive->name);
 	}
 
-	if (drive->media != ide_disk)
+	if (drive->media != ide_disk && drive->media != ide_cdrom)
 		return 0;
 
 	if (id->capability & 4) {
@@ -281,25 +281,15 @@ static int config_chipset_for_dma(ide_drive_t *drive)
 
 static int pdcnew_config_drive_xfer_rate(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
-
 	drive->init_speed = 0;
 
-	if ((id->capability & 1) && drive->autodma) {
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-		if (ide_use_dma(drive) && config_chipset_for_dma(drive))
-			return hwif->ide_dma_on(drive);
+	if (ide_use_fast_pio(drive))
+		pdcnew_tune_drive(drive, 255);
 
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
-		hwif->tuneproc(drive, 255);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+	return -1;
 }
 
 static int pdcnew_quirkproc(ide_drive_t *drive)
@@ -555,6 +545,7 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
 
+	hwif->atapi_dma  = 1;
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
 

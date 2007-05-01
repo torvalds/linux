@@ -147,7 +147,7 @@ int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 		if (tmp < 0)
 			return tmp;
 	}
-	
+
 	dev->in = usb_rcvbulkpipe (dev->udev,
 			in->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
 	dev->out = usb_sndbulkpipe (dev->udev,
@@ -203,7 +203,6 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 {
 	int	status;
 
-	skb->dev = dev->net;
 	skb->protocol = eth_type_trans (skb, dev->net);
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
@@ -327,7 +326,7 @@ static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 	if (netif_running (dev->net)
 			&& netif_device_present (dev->net)
 			&& !test_bit (EVENT_RX_HALT, &dev->flags)) {
-		switch (retval = usb_submit_urb (urb, GFP_ATOMIC)){ 
+		switch (retval = usb_submit_urb (urb, GFP_ATOMIC)){
 		case -EPIPE:
 			usbnet_defer_kevent (dev, EVENT_RX_HALT);
 			break;
@@ -443,7 +442,7 @@ block:
 	    case -EOVERFLOW:
 		dev->stats.rx_over_errors++;
 		// FALLTHROUGH
-	    
+
 	    default:
 		entry->state = rx_cleanup;
 		dev->stats.rx_errors++;
@@ -560,7 +559,7 @@ static int usbnet_stop (struct net_device *net)
 
 	if (netif_msg_ifdown (dev))
 		devinfo (dev, "stop stats: rx/tx %ld/%ld, errs %ld/%ld",
-			dev->stats.rx_packets, dev->stats.tx_packets, 
+			dev->stats.rx_packets, dev->stats.tx_packets,
 			dev->stats.rx_errors, dev->stats.tx_errors
 			);
 
@@ -578,7 +577,7 @@ static int usbnet_stop (struct net_device *net)
 			devdbg (dev, "waited for %d urb completions", temp);
 	}
 	dev->wait = NULL;
-	remove_wait_queue (&unlink_wakeup, &wait); 
+	remove_wait_queue (&unlink_wakeup, &wait);
 
 	usb_kill_urb(dev->interrupt);
 
@@ -735,8 +734,7 @@ void usbnet_get_drvinfo (struct net_device *net, struct ethtool_drvinfo *info)
 {
 	struct usbnet *dev = netdev_priv(net);
 
-	/* REVISIT don't always return "usbnet" */
-	strncpy (info->driver, driver_name, sizeof info->driver);
+	strncpy (info->driver, dev->driver_name, sizeof info->driver);
 	strncpy (info->version, DRIVER_VERSION, sizeof info->version);
 	strncpy (info->fw_version, dev->driver_info->description,
 		sizeof info->fw_version);
@@ -834,7 +832,7 @@ kevent (struct work_struct *work)
 	}
 
 	if (test_bit (EVENT_LINK_RESET, &dev->flags)) {
-		struct driver_info 	*info = dev->driver_info;
+		struct driver_info	*info = dev->driver_info;
 		int			retval = 0;
 
 		clear_bit (EVENT_LINK_RESET, &dev->flags);
@@ -1066,7 +1064,7 @@ static void usbnet_bh (unsigned long param)
  * USB Device Driver support
  *
  *-------------------------------------------------------------------------*/
- 
+
 // precondition: never called in_interrupt
 
 void usbnet_disconnect (struct usb_interface *intf)
@@ -1087,7 +1085,7 @@ void usbnet_disconnect (struct usb_interface *intf)
 			intf->dev.driver->name,
 			xdev->bus->bus_name, xdev->devpath,
 			dev->driver_info->description);
-	
+
 	net = dev->net;
 	unregister_netdev (net);
 
@@ -1111,15 +1109,17 @@ int
 usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 {
 	struct usbnet			*dev;
-	struct net_device 		*net;
+	struct net_device		*net;
 	struct usb_host_interface	*interface;
 	struct driver_info		*info;
 	struct usb_device		*xdev;
 	int				status;
+	const char			*name;
 
+	name = udev->dev.driver->name;
 	info = (struct driver_info *) prod->driver_info;
 	if (!info) {
-		dev_dbg (&udev->dev, "blacklisted by %s\n", driver_name);
+		dev_dbg (&udev->dev, "blacklisted by %s\n", name);
 		return -ENODEV;
 	}
 	xdev = interface_to_usbdev (udev);
@@ -1139,6 +1139,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev = netdev_priv(net);
 	dev->udev = xdev;
 	dev->driver_info = info;
+	dev->driver_name = name;
 	dev->msg_enable = netif_msg_init (msg_level, NETIF_MSG_DRV
 				| NETIF_MSG_PROBE | NETIF_MSG_LINK);
 	skb_queue_head_init (&dev->rxq);
@@ -1181,6 +1182,9 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	// NOTE net->name still not usable ...
 	if (info->bind) {
 		status = info->bind (dev, udev);
+		if (status < 0)
+			goto out1;
+
 		// heuristic:  "usb%d" for links we know are two-host,
 		// else "eth%d" when there's reasonable doubt.  userspace
 		// can rename the link if it knows better.
@@ -1207,12 +1211,12 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	if (status == 0 && dev->status)
 		status = init_status (dev, udev);
 	if (status < 0)
-		goto out1;
+		goto out3;
 
 	if (!dev->rx_urb_size)
 		dev->rx_urb_size = dev->hard_mtu;
 	dev->maxpacket = usb_maxpacket (dev->udev, dev->out, 1);
-	
+
 	SET_NETDEV_DEV(net, &udev->dev);
 	status = register_netdev (net);
 	if (status)
@@ -1255,7 +1259,7 @@ EXPORT_SYMBOL_GPL(usbnet_probe);
 int usbnet_suspend (struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
-	
+
 	/* accelerate emptying of the rx and queues, to avoid
 	 * having everything error out.
 	 */
@@ -1286,7 +1290,7 @@ static int __init usbnet_init(void)
 			< sizeof (struct skb_data));
 
 	random_ether_addr(node_id);
- 	return 0;
+	return 0;
 }
 module_init(usbnet_init);
 

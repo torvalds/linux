@@ -52,10 +52,13 @@ enum rdma_cm_event_type {
 	RDMA_CM_EVENT_ESTABLISHED,
 	RDMA_CM_EVENT_DISCONNECTED,
 	RDMA_CM_EVENT_DEVICE_REMOVAL,
+	RDMA_CM_EVENT_MULTICAST_JOIN,
+	RDMA_CM_EVENT_MULTICAST_ERROR
 };
 
 enum rdma_port_space {
 	RDMA_PS_SDP  = 0x0001,
+	RDMA_PS_IPOIB= 0x0002,
 	RDMA_PS_TCP  = 0x0106,
 	RDMA_PS_UDP  = 0x0111,
 	RDMA_PS_SCTP = 0x0183
@@ -294,5 +297,21 @@ int rdma_reject(struct rdma_cm_id *id, const void *private_data,
  */
 int rdma_disconnect(struct rdma_cm_id *id);
 
-#endif /* RDMA_CM_H */
+/**
+ * rdma_join_multicast - Join the multicast group specified by the given
+ *   address.
+ * @id: Communication identifier associated with the request.
+ * @addr: Multicast address identifying the group to join.
+ * @context: User-defined context associated with the join request, returned
+ * to the user through the private_data pointer in multicast events.
+ */
+int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
+			void *context);
 
+/**
+ * rdma_leave_multicast - Leave the multicast group specified by the given
+ *   address.
+ */
+void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr);
+
+#endif /* RDMA_CM_H */

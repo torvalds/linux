@@ -21,7 +21,7 @@
 #define PFX				KBUILD_MODNAME ": "
 
 #define BCM43xx_SWITCH_CORE_MAX_RETRIES	50
-#define BCM43xx_IRQWAIT_MAX_RETRIES	50
+#define BCM43xx_IRQWAIT_MAX_RETRIES	100
 
 #define BCM43xx_IO_SIZE			8192
 
@@ -277,11 +277,14 @@
 #define BCM43xx_SBTMSTATELOW_REJECT		0x02
 #define BCM43xx_SBTMSTATELOW_CLOCK		0x10000
 #define BCM43xx_SBTMSTATELOW_FORCE_GATE_CLOCK	0x20000
+#define BCM43xx_SBTMSTATELOW_G_MODE_ENABLE	0x20000000
 
 /* sbtmstatehigh state flags */
 #define BCM43xx_SBTMSTATEHIGH_SERROR		0x00000001
 #define BCM43xx_SBTMSTATEHIGH_BUSY		0x00000004
 #define BCM43xx_SBTMSTATEHIGH_TIMEOUT		0x00000020
+#define BCM43xx_SBTMSTATEHIGH_G_PHY_AVAIL	0x00010000
+#define BCM43xx_SBTMSTATEHIGH_A_PHY_AVAIL	0x00020000
 #define BCM43xx_SBTMSTATEHIGH_COREFLAGS		0x1FFF0000
 #define BCM43xx_SBTMSTATEHIGH_DMA64BIT		0x10000000
 #define BCM43xx_SBTMSTATEHIGH_GATEDCLK		0x20000000
@@ -333,7 +336,7 @@
 #define BCM43xx_SBF_PS2			0x04000000
 #define BCM43xx_SBF_NO_SSID_BCAST	0x08000000
 #define BCM43xx_SBF_TIME_UPDATE		0x10000000
-#define BCM43xx_SBF_80000000		0x80000000 /*FIXME: fix name*/
+#define BCM43xx_SBF_MODE_G		0x80000000
 
 /* Microcode */
 #define BCM43xx_UCODE_REVISION		0x0000
@@ -507,8 +510,6 @@ struct bcm43xx_sprominfo {
 	u8 et1macaddr[6];
 	u8 et0phyaddr:5;
 	u8 et1phyaddr:5;
-	u8 et0mdcport:1;
-	u8 et1mdcport:1;
 	u8 boardrev;
 	u8 locale:4;
 	u8 antennas_aphy:2;
@@ -542,7 +543,7 @@ struct bcm43xx_lopair {
 
 struct bcm43xx_phyinfo {
 	/* Hardware Data */
-	u8 version;
+	u8 analog;
 	u8 type;
 	u8 rev;
 	u16 antenna_diversity;
@@ -771,6 +772,7 @@ struct bcm43xx_private {
 	 * This is currently always BCM43xx_BUSTYPE_PCI
 	 */
 	u8 bustype;
+	u64 dma_mask;
 
 	u16 board_vendor;
 	u16 board_type;

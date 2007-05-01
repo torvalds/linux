@@ -8,12 +8,9 @@ Introduction
 
   The Samsung S3C24XX range of ARM9 System-on-Chip CPUs are supported
   by the 's3c2410' architecture of ARM Linux. Currently the S3C2410,
-  S3C2440 and S3C2442 devices are supported.
+  S3C2412, S3C2413, S3C2440 and S3C2442 devices are supported.
 
   Support for the S3C2400 series is in progress.
-
-  Support for the S3C2412 and S3C2413 CPUs is being merged.
-
 
 Configuration
 -------------
@@ -24,6 +21,22 @@ Configuration
 
   Certain machines may have their own default configurations as well,
   please check the machine specific documentation.
+
+
+Layout
+------
+
+  The core support files are located in the platform code contained in
+  arch/arm/plat-s3c24xx with headers in include/asm-arm/plat-s3c24xx.
+  This directory should be kept to items shared between the platform
+  code (arch/arm/plat-s3c24xx) and the arch/arm/mach-s3c24* code.
+
+  Each cpu has a directory with the support files for it, and the
+  machines that carry the device. For example S3C2410 is contained
+  in arch/arm/mach-s3c2410 and S3C2440 in arch/arm/mach-s3c2440
+
+  Register, kernel and platform data definitions are held in the
+  include/asm-arm/arch-s3c2410 directory.
 
 
 Machines

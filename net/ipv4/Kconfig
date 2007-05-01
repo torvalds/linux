@@ -9,7 +9,7 @@ config IP_MULTICAST
 	  intend to participate in the MBONE, a high bandwidth network on top
 	  of the Internet which carries audio and video broadcasts. More
 	  information about the MBONE is on the WWW at
-	  <http://www-itg.lbl.gov/mbone/>. Information about the multicast
+	  <http://www.savetz.com/mbone/>. Information about the multicast
 	  capabilities of the various network cards is contained in
 	  <file:Documentation/networking/multicast.txt>. For most people, it's
 	  safe to say N.
@@ -442,7 +442,7 @@ config INET_DIAG
 	---help---
 	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
 	  native Linux tools such as ss. ss is included in iproute2, currently
-	  downloadable at <http://developer.osdl.org/dev/iproute2>. 
+	  downloadable at <http://linux-net.osdl.org/index.php/Iproute2>.
 	  
 	  If unsure, say Y.
 
@@ -550,7 +550,7 @@ config TCP_CONG_SCALABLE
 	Scalable TCP is a sender-side only change to TCP which uses a
 	MIMD congestion control algorithm which has some nice scaling
 	properties, though is known to have fairness issues.
-	See http://www-lce.eng.cam.ac.uk/~ctk21/scalable/
+	See http://www.deneholme.net/tom/scalable/
 
 config TCP_CONG_LP
 	tristate "TCP Low Priority"
@@ -573,6 +573,33 @@ config TCP_CONG_VENO
 	type. TCP Veno cuts down less congestion window in response to random
 	loss packets.
 	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
+
+config TCP_CONG_YEAH
+	tristate "YeAH TCP"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	YeAH-TCP is a sender-side high-speed enabled TCP congestion control
+	algorithm, which uses a mixed loss/delay approach to compute the
+	congestion window. It's design goals target high efficiency,
+	internal, RTT and Reno fairness, resilience to link loss while
+	keeping network elements load as low as possible.
+
+	For further details look here:
+	  http://wil.cs.caltech.edu/pfldnet2007/paper/YeAH_TCP.pdf
+
+config TCP_CONG_ILLINOIS
+	tristate "TCP Illinois"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP-Illinois is a sender-side modificatio of TCP Reno for
+	high speed long delay links. It uses round-trip-time to
+	adjust the alpha and beta parameters to achieve a higher average
+	throughput and maintain fairness.
+
+	For further details see:
+	  http://www.ews.uiuc.edu/~shaoliu/tcpillinois/index.html
 
 choice
 	prompt "Default TCP congestion control"

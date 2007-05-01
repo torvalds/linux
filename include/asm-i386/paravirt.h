@@ -94,6 +94,8 @@ struct paravirt_ops
 
 	u64 (*read_tsc)(void);
 	u64 (*read_pmc)(void);
+ 	u64 (*get_scheduled_cycles)(void);
+	unsigned long (*get_cpu_khz)(void);
 
 	void (*load_tr_desc)(void);
 	void (*load_gdt)(const struct Xgt_desc_struct *);
@@ -115,7 +117,6 @@ struct paravirt_ops
 	void (*set_iopl_mask)(unsigned mask);
 
 	void (*io_delay)(void);
-	void (*const_udelay)(unsigned long loops);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	void (*apic_write)(unsigned long reg, unsigned long v);
@@ -128,6 +129,8 @@ struct paravirt_ops
 	void (*flush_tlb_user)(void);
 	void (*flush_tlb_kernel)(void);
 	void (*flush_tlb_single)(u32 addr);
+
+	void (*map_pt_hook)(int type, pte_t *va, u32 pfn);
 
 	void (*alloc_pt)(u32 pfn);
 	void (*alloc_pd)(u32 pfn);
@@ -183,9 +186,9 @@ static inline int set_wallclock(unsigned long nowtime)
 	return paravirt_ops.set_wallclock(nowtime);
 }
 
-static inline void do_time_init(void)
+static inline void (*choose_time_init(void))(void)
 {
-	return paravirt_ops.time_init();
+	return paravirt_ops.time_init;
 }
 
 /* The paravirtualized CPUID instruction. */
@@ -273,6 +276,9 @@ static inline void halt(void)
 
 #define rdtscll(val) (val = paravirt_ops.read_tsc())
 
+#define get_scheduled_cycles(val) (val = paravirt_ops.get_scheduled_cycles())
+#define calculate_cpu_khz() (paravirt_ops.get_cpu_khz())
+
 #define write_tsc(val1,val2) wrmsr(0x10, val1, val2)
 
 #define rdpmc(counter,low,high) do {				\
@@ -349,6 +355,8 @@ static inline void startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 #define __flush_tlb_global() paravirt_ops.flush_tlb_kernel()
 #define __flush_tlb_single(addr) paravirt_ops.flush_tlb_single(addr)
 
+#define paravirt_map_pt_hook(type, va, pfn) paravirt_ops.map_pt_hook(type, va, pfn)
+
 #define paravirt_alloc_pt(pfn) paravirt_ops.alloc_pt(pfn)
 #define paravirt_release_pt(pfn) paravirt_ops.release_pt(pfn)
 
@@ -413,14 +421,17 @@ static inline void pmd_clear(pmd_t *pmdp)
 #define PARAVIRT_LAZY_NONE 0
 #define PARAVIRT_LAZY_MMU  1
 #define PARAVIRT_LAZY_CPU  2
+#define PARAVIRT_LAZY_FLUSH 3
 
 #define  __HAVE_ARCH_ENTER_LAZY_CPU_MODE
 #define arch_enter_lazy_cpu_mode() paravirt_ops.set_lazy_mode(PARAVIRT_LAZY_CPU)
 #define arch_leave_lazy_cpu_mode() paravirt_ops.set_lazy_mode(PARAVIRT_LAZY_NONE)
+#define arch_flush_lazy_cpu_mode() paravirt_ops.set_lazy_mode(PARAVIRT_LAZY_FLUSH)
 
 #define  __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 #define arch_enter_lazy_mmu_mode() paravirt_ops.set_lazy_mode(PARAVIRT_LAZY_MMU)
 #define arch_leave_lazy_mmu_mode() paravirt_ops.set_lazy_mode(PARAVIRT_LAZY_NONE)
+#define arch_flush_lazy_mmu_mode() paravirt_ops.set_lazy_mode(PARAVIRT_LAZY_FLUSH)
 
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch {

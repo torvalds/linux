@@ -83,6 +83,7 @@ struct in_addr {
 #define IP_PMTUDISC_DONT		0	/* Never send DF frames */
 #define IP_PMTUDISC_WANT		1	/* Use per route hints	*/
 #define IP_PMTUDISC_DO			2	/* Always DF		*/
+#define IP_PMTUDISC_PROBE		3       /* Ignore dst pmtu      */
 
 #define IP_MULTICAST_IF			32
 #define IP_MULTICAST_TTL 		33

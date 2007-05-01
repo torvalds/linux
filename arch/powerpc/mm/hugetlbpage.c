@@ -24,6 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/tlb.h>
+#include <asm/spu.h>
 
 #include <linux/sysctl.h>
 
@@ -315,12 +316,11 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 {
 	if (pte_present(*ptep)) {
 		/* We open-code pte_clear because we need to pass the right
-		 * argument to hpte_update (huge / !huge)
+		 * argument to hpte_need_flush (huge / !huge). Might not be
+		 * necessary anymore if we make hpte_need_flush() get the
+		 * page size from the slices
 		 */
-		unsigned long old = pte_update(ptep, ~0UL);
-		if (old & _PAGE_HASHPTE)
-			hpte_update(mm, addr & HPAGE_MASK, ptep, old, 1);
-		flush_tlb_pending();
+		pte_update(mm, addr & HPAGE_MASK, ptep, ~0UL, 1);
 	}
 	*ptep = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
 }
@@ -328,12 +328,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep)
 {
-	unsigned long old = pte_update(ptep, ~0UL);
-
-	if (old & _PAGE_HASHPTE)
-		hpte_update(mm, addr & HPAGE_MASK, ptep, old, 1);
-	*ptep = __pte(0);
-
+	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 1);
 	return __pte(old);
 }
 
@@ -513,6 +508,9 @@ int prepare_hugepage_range(unsigned long addr, unsigned long len, pgoff_t pgoff)
 	if ((addr + len) > 0x100000000UL)
 		err = open_high_hpage_areas(current->mm,
 					    HTLB_AREA_MASK(addr, len));
+#ifdef CONFIG_SPE_BASE
+	spu_flush_all_slbs(current->mm);
+#endif
 	if (err) {
 		printk(KERN_DEBUG "prepare_hugepage_range(%lx, %lx)"
 		       " failed (lowmask: 0x%04hx, highmask: 0x%04hx)\n",

@@ -10,7 +10,6 @@
  * we simulate an x86-style page table for the linux mm code
  */
 
-#include <linux/spinlock.h>
 #include <linux/mm.h>		/* for vm_area_struct */
 #include <asm/processor.h>
 #include <asm/cache.h>

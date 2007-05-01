@@ -194,7 +194,7 @@ static int hidp_sock_compat_ioctl(struct socket *sock, unsigned int cmd, unsigne
 		if (put_user(ca.ctrl_sock, &uca->ctrl_sock) ||
 				put_user(ca.intr_sock, &uca->intr_sock) ||
 				put_user(ca.parser, &uca->parser) ||
-				put_user(ca.rd_size, &uca->parser) ||
+				put_user(ca.rd_size, &uca->rd_size) ||
 				put_user(compat_ptr(ca.rd_data), &uca->rd_data) ||
 				put_user(ca.country, &uca->country) ||
 				put_user(ca.subclass, &uca->subclass) ||

@@ -102,7 +102,7 @@ EXPORT_SYMBOL(imx_gpio_mode);
  *  f = 2 * f_ref * --------------------
  *                        pd + 1
  */
-static unsigned int imx_decode_pll(unsigned int pll)
+static unsigned int imx_decode_pll(unsigned int pll, u32 f_ref)
 {
 	unsigned long long ll;
 	unsigned long quot;
@@ -111,7 +111,6 @@ static unsigned int imx_decode_pll(unsigned int pll)
 	u32 mfn = pll & 0x3ff;
 	u32 mfd = (pll >> 16) & 0x3ff;
 	u32 pd =  (pll >> 26) & 0xf;
-	u32 f_ref = (CSCR & CSCR_SYSTEM_SEL) ? 16000000 : (CLK32 * 512);
 
 	mfi = mfi <= 5 ? 5 : mfi;
 
@@ -124,13 +123,15 @@ static unsigned int imx_decode_pll(unsigned int pll)
 
 unsigned int imx_get_system_clk(void)
 {
-	return imx_decode_pll(SPCTL0);
+	u32 f_ref = (CSCR & CSCR_SYSTEM_SEL) ? 16000000 : (CLK32 * 512);
+
+	return imx_decode_pll(SPCTL0, f_ref);
 }
 EXPORT_SYMBOL(imx_get_system_clk);
 
 unsigned int imx_get_mcu_clk(void)
 {
-	return imx_decode_pll(MPCTL0);
+	return imx_decode_pll(MPCTL0, CLK32 * 512);
 }
 EXPORT_SYMBOL(imx_get_mcu_clk);
 

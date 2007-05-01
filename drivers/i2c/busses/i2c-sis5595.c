@@ -384,7 +384,7 @@ static int __devinit sis5595_probe(struct pci_dev *dev, const struct pci_device_
 		return -ENODEV;
 	}
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	sis5595_adapter.dev.parent = &dev->dev;
 
 	sprintf(sis5595_adapter.name, "SMBus SIS5595 adapter at %04x",

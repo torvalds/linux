@@ -31,7 +31,7 @@
 
 
 #define SG_MEMPOOL_NR		ARRAY_SIZE(scsi_sg_pools)
-#define SG_MEMPOOL_SIZE		32
+#define SG_MEMPOOL_SIZE		2
 
 struct scsi_host_sg_pool {
 	size_t		size;

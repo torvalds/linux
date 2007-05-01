@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
 #include <linux/irqreturn.h>
+#include <linux/errno.h>
 
 #include <asm/irq.h>
 #include <asm/ptrace.h>
@@ -200,17 +201,6 @@ extern int setup_irq(unsigned int irq, struct irqaction *new);
 #endif
 
 #ifdef CONFIG_SMP
-static inline void set_native_irq_info(int irq, cpumask_t mask)
-{
-	irq_desc[irq].affinity = mask;
-}
-#else
-static inline void set_native_irq_info(int irq, cpumask_t mask)
-{
-}
-#endif
-
-#ifdef CONFIG_SMP
 
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
 
@@ -327,9 +317,6 @@ extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
 
 /* Resending of interrupts :*/
 void check_irq_resend(struct irq_desc *desc, unsigned int irq);
-
-/* Initialize /proc/irq/ */
-extern void init_irq_proc(void);
 
 /* Enable/disable irq debugging output: */
 extern int noirqdebug_setup(char *str);

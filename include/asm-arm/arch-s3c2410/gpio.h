@@ -1,7 +1,7 @@
 /*
- * linux/include/asm-arm/arch-pxa/gpio.h
+ * linux/include/asm-arm/arch-s3c2410/gpio.h
  *
- * S3C2400 GPIO wrappers for arch-neutral GPIO calls
+ * S3C2410 GPIO wrappers for arch-neutral GPIO calls
  *
  * Written by Philipp Zabel <philipp.zabel@gmail.com>
  *
@@ -21,14 +21,12 @@
  *
  */
 
-#ifndef __ASM_ARCH_PXA_GPIO_H
-#define __ASM_ARCH_PXA_GPIO_H
+#ifndef __ASM_ARCH_S3C2410_GPIO_H
+#define __ASM_ARCH_S3C2410_GPIO_H
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/hardware.h>
-
-#include <asm/errno.h>
+#include <asm/irq.h>
+#include <asm/hardware.h>
+#include <asm/arch/regs-gpio.h>
 
 static inline int gpio_request(unsigned gpio, const char *label)
 {
@@ -46,9 +44,11 @@ static inline int gpio_direction_input(unsigned gpio)
 	return 0;
 }
 
-static inline int gpio_direction_output(unsigned gpio)
+static inline int gpio_direction_output(unsigned gpio, int value)
 {
 	s3c2410_gpio_cfgpin(gpio, S3C2410_GPIO_OUTPUT);
+	/* REVISIT can we write the value first, to avoid glitching? */
+	s3c2410_gpio_setpin(gpio, value);
 	return 0;
 }
 
@@ -57,8 +57,11 @@ static inline int gpio_direction_output(unsigned gpio)
 
 #include <asm-generic/gpio.h>			/* cansleep wrappers */
 
-/* FIXME or maybe s3c2400_gpio_getirq() ... */
+#ifdef CONFIG_CPU_S3C2400
+#define gpio_to_irq(gpio)		s3c2400_gpio_getirq(gpio)
+#else
 #define gpio_to_irq(gpio)		s3c2410_gpio_getirq(gpio)
+#endif
 
 /* FIXME implement irq_to_gpio() */
 

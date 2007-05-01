@@ -28,7 +28,7 @@
  */
 static u8 wv_irq_to_psa(int irq)
 {
-	if (irq < 0 || irq >= NELS(irqvals))
+	if (irq < 0 || irq >= ARRAY_SIZE(irqvals))
 		return 0;
 
 	return irqvals[irq];
@@ -42,7 +42,7 @@ static int __init wv_psa_to_irq(u8 irqval)
 {
 	int irq;
 
-	for (irq = 0; irq < NELS(irqvals); irq++)
+	for (irq = 0; irq < ARRAY_SIZE(irqvals); irq++)
 		if (irqvals[irq] == irqval)
 			return irq;
 
@@ -1695,7 +1695,7 @@ static int wv_frequency_list(unsigned long ioaddr,	/* I/O port of the card */
 		/* Look in the table if the frequency is allowed */
 		if (table[9 - (freq / 16)] & (1 << (freq % 16))) {
 			/* Compute approximate channel number */
-			while ((c < NELS(channel_bands)) &&
+			while ((c < ARRAY_SIZE(channel_bands)) &&
 				(((channel_bands[c] >> 1) - 24) < freq)) 
 				c++;
 			list[i].i = c;	/* Set the list index */
@@ -2512,14 +2512,13 @@ wv_packet_read(struct net_device * dev, u16 buf_off, int sksize)
 		return;
 	}
 
-	skb->dev = dev;
-
 	/* Copy the packet to the buffer. */
 	obram_read(ioaddr, buf_off, skb_put(skb, sksize), sksize);
 	skb->protocol = eth_type_trans(skb, dev);
 
 #ifdef DEBUG_RX_INFO
-	wv_packet_info(skb->mac.raw, sksize, dev->name, "wv_packet_read");
+	wv_packet_info(skb_mac_header(skb), sksize, dev->name,
+		       "wv_packet_read");
 #endif				/* DEBUG_RX_INFO */
 
 	/* Statistics-gathering and associated stuff.
@@ -2555,7 +2554,7 @@ wv_packet_read(struct net_device * dev, u16 buf_off, int sksize)
 
 		/* Spying stuff */
 #ifdef IW_WIRELESS_SPY
-		wl_spy_gather(dev, skb->mac.raw + WAVELAN_ADDR_SIZE,
+		wl_spy_gather(dev, skb_mac_header(skb) + WAVELAN_ADDR_SIZE,
 			      stats);
 #endif /* IW_WIRELESS_SPY */
 #ifdef HISTOGRAM
@@ -2939,7 +2938,7 @@ static int wavelan_packet_xmit(struct sk_buff *skb, struct net_device * dev)
 	 * need to pad. Jean II */
 	if (skb->len < ETH_ZLEN) {
 		memset(data, 0, ETH_ZLEN);
-		memcpy(data, skb->data, skb->len);
+		skb_copy_from_linear_data(skb, data, skb->len);
 		/* Write packet on the card */
 		if(wv_packet_write(dev, data, ETH_ZLEN))
 			return 1;	/* We failed */
@@ -4269,7 +4268,7 @@ struct net_device * __init wavelan_probe(int unit)
 		printk(KERN_DEBUG "%s: <-wavelan_probe()\n", dev->name);
 #endif
 	} else { /* Scan all possible addresses of the WaveLAN hardware. */
-		for (i = 0; i < NELS(iobase); i++) {
+		for (i = 0; i < ARRAY_SIZE(iobase); i++) {
 			dev->irq = def_irq;
 			if (wavelan_config(dev, iobase[i]) == 0) {
 #ifdef DEBUG_CALLBACK_TRACE
@@ -4280,7 +4279,7 @@ struct net_device * __init wavelan_probe(int unit)
 				break;
 			}
 		}
-		if (i == NELS(iobase))
+		if (i == ARRAY_SIZE(iobase))
 			r = -ENODEV;
 	}
 	if (r) 
@@ -4327,14 +4326,14 @@ int __init init_module(void)
 #endif
 
 		/* Copy the basic set of address to be probed. */
-		for (i = 0; i < NELS(iobase); i++)
+		for (i = 0; i < ARRAY_SIZE(iobase); i++)
 			io[i] = iobase[i];
 	}
 
 
 	/* Loop on all possible base addresses. */
 	i = -1;
-	while ((io[++i] != 0) && (i < NELS(io))) {
+	while ((io[++i] != 0) && (i < ARRAY_SIZE(io))) {
 		struct net_device *dev = alloc_etherdev(sizeof(net_local));
 		if (!dev)
 			break;

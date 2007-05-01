@@ -156,7 +156,8 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct ethhdr *eth;
 	unsigned char *rawp;
 
-	skb->mac.raw = skb->data;
+	skb->dev = dev;
+	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 	eth = eth_hdr(skb);
 
@@ -228,7 +229,7 @@ int eth_header_cache(struct neighbour *neigh, struct hh_cache *hh)
 	eth = (struct ethhdr *)
 	    (((u8 *) hh->hh_data) + (HH_DATA_OFF(sizeof(*eth))));
 
-	if (type == __constant_htons(ETH_P_802_3))
+	if (type == htons(ETH_P_802_3))
 		return -1;
 
 	eth->h_proto = type;

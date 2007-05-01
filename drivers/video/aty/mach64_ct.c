@@ -598,7 +598,6 @@ static void aty_resume_pll_ct(const struct fb_info *info,
 	struct atyfb_par *par = info->par;
 
 	if (par->mclk_per != par->xclk_per) {
-		int i;
 		/*
 		* This disables the sclk, crashes the computer as reported:
 		* aty_st_pll_ct(SPLL_CNTL2, 3, info);
@@ -614,7 +613,7 @@ static void aty_resume_pll_ct(const struct fb_info *info,
 		 * helps for Rage Mobilities that sometimes crash when
 		 * we switch to sclk. (Daniel Mantione, 13-05-2003)
 		 */
-		for (i=0;i<=0x1ffff;i++);
+		udelay(500);
 	}
 
 	aty_st_pll_ct(PLL_REF_DIV, pll->ct.pll_ref_div, par);

@@ -1029,7 +1029,6 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 					goto defer;
 				}
 			}
-			skb->dev = dev;
 			skb->protocol = hippi_type_trans(skb, dev);
 
 			netif_rx(skb);		/* send it up */
@@ -1452,7 +1451,7 @@ static int rr_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 		skb_reserve(new_skb, 8);
 		skb_put(new_skb, len);
-		memcpy(new_skb->data, skb->data, len);
+		skb_copy_from_linear_data(skb, new_skb->data, len);
 		dev_kfree_skb(skb);
 		skb = new_skb;
 	}

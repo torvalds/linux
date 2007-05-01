@@ -324,6 +324,7 @@ static struct mii_chip_info {
 	u32 feature;
 } mii_chip_table[] = {
 	{ "Broadcom PHY BCM5461", { 0x0020, 0x60c0 }, LAN, F_PHY_BCM5461 },
+	{ "Broadcom PHY AC131",   { 0x0143, 0xbc70 }, LAN, 0 },
 	{ "Agere PHY ET1101B",    { 0x0282, 0xf010 }, LAN, 0 },
 	{ "Marvell PHY 88E1111",  { 0x0141, 0x0cc0 }, LAN, F_PHY_88E1111 },
 	{ "Realtek PHY RTL8201",  { 0x0000, 0x8200 }, LAN, 0 },
@@ -631,7 +632,6 @@ static int sis190_rx_interrupt(struct net_device *dev,
 			pci_action(tp->pci_dev, le32_to_cpu(desc->addr),
 				   tp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
-			skb->dev = dev;
 			skb_put(skb, pkt_size);
 			skb->protocol = eth_type_trans(skb, dev);
 
@@ -909,6 +909,9 @@ static void sis190_phy_task(struct work_struct *work)
 
 	rtnl_lock();
 
+	if (!netif_running(dev))
+		goto out_unlock;
+
 	val = mdio_read(ioaddr, phy_id, MII_BMCR);
 	if (val & BMCR_RESET) {
 		// FIXME: needlessly high ?  -- FR 02/07/2005
@@ -981,6 +984,7 @@ static void sis190_phy_task(struct work_struct *work)
 		netif_carrier_on(dev);
 	}
 
+out_unlock:
 	rtnl_unlock();
 }
 
@@ -1101,8 +1105,6 @@ static void sis190_down(struct net_device *dev)
 	sis190_delete_timer(dev);
 
 	netif_stop_queue(dev);
-
-	flush_scheduled_work();
 
 	do {
 		spin_lock_irq(&tp->lock);
@@ -1857,6 +1859,7 @@ static void __devexit sis190_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 
 	sis190_mii_remove(dev);
+	flush_scheduled_work();
 	unregister_netdev(dev);
 	sis190_release_board(pdev);
 	pci_set_drvdata(pdev, NULL);

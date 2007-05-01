@@ -456,12 +456,6 @@ static int sierra_open(struct usb_serial_port *port, struct file *filp)
 	return (0);
 }
 
-static inline void stop_urb(struct urb *urb)
-{
-	if (urb && urb->status == -EINPROGRESS)
-		usb_kill_urb(urb);
-}
-
 static void sierra_close(struct usb_serial_port *port, struct file *filp)
 {
 	int i;
@@ -479,9 +473,9 @@ static void sierra_close(struct usb_serial_port *port, struct file *filp)
 
 		/* Stop reading/writing urbs */
 		for (i = 0; i < N_IN_URB; i++)
-			stop_urb(portdata->in_urbs[i]);
+			usb_unlink_urb(portdata->in_urbs[i]);
 		for (i = 0; i < N_OUT_URB; i++)
-			stop_urb(portdata->out_urbs[i]);
+			usb_unlink_urb(portdata->out_urbs[i]);
 	}
 	port->tty = NULL;
 }
@@ -583,17 +577,26 @@ static void sierra_shutdown(struct usb_serial *serial)
 	/* Stop reading/writing urbs */
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
+		if (!port)
+			continue;
 		portdata = usb_get_serial_port_data(port);
+		if (!portdata)
+			continue;
+
 		for (j = 0; j < N_IN_URB; j++)
-			stop_urb(portdata->in_urbs[j]);
+			usb_unlink_urb(portdata->in_urbs[j]);
 		for (j = 0; j < N_OUT_URB; j++)
-			stop_urb(portdata->out_urbs[j]);
+			usb_unlink_urb(portdata->out_urbs[j]);
 	}
 
 	/* Now free them */
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
+		if (!port)
+			continue;
 		portdata = usb_get_serial_port_data(port);
+		if (!portdata)
+			continue;
 
 		for (j = 0; j < N_IN_URB; j++) {
 			if (portdata->in_urbs[j]) {
@@ -612,6 +615,8 @@ static void sierra_shutdown(struct usb_serial *serial)
 	/* Now free per port private data */
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
+		if (!port)
+			continue;
 		kfree(usb_get_serial_port_data(port));
 	}
 }

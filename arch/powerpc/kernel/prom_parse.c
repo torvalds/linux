@@ -5,6 +5,7 @@
 #include <linux/pci_regs.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
+#include <linux/etherdevice.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 
@@ -67,9 +68,9 @@ static void of_bus_default_count_cells(struct device_node *dev,
 				       int *addrc, int *sizec)
 {
 	if (addrc)
-		*addrc = prom_n_addr_cells(dev);
+		*addrc = of_n_addr_cells(dev);
 	if (sizec)
-		*sizec = prom_n_size_cells(dev);
+		*sizec = of_n_size_cells(dev);
 }
 
 static u64 of_bus_default_map(u32 *addr, const u32 *range,
@@ -195,7 +196,7 @@ const u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 		return NULL;
 
 	/* Get "reg" or "assigned-addresses" property */
-	prop = get_property(dev, bus->addresses, &psize);
+	prop = of_get_property(dev, bus->addresses, &psize);
 	if (prop == NULL)
 		return NULL;
 	psize /= 4;
@@ -437,7 +438,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	 * to translate addresses that aren't supposed to be translated in
 	 * the first place. --BenH.
 	 */
-	ranges = get_property(parent, "ranges", &rlen);
+	ranges = of_get_property(parent, "ranges", &rlen);
 	if (ranges == NULL || rlen == 0) {
 		offset = of_read_number(addr, na);
 		memset(addr, 0, pna * 4);
@@ -577,7 +578,7 @@ const u32 *of_get_address(struct device_node *dev, int index, u64 *size,
 		return NULL;
 
 	/* Get "reg" or "assigned-addresses" property */
-	prop = get_property(dev, bus->addresses, &psize);
+	prop = of_get_property(dev, bus->addresses, &psize);
 	if (prop == NULL)
 		return NULL;
 	psize /= 4;
@@ -649,17 +650,17 @@ void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
 	/* busno is always one cell */
 	*busno = *(dma_window++);
 
-	prop = get_property(dn, "ibm,#dma-address-cells", NULL);
+	prop = of_get_property(dn, "ibm,#dma-address-cells", NULL);
 	if (!prop)
-		prop = get_property(dn, "#address-cells", NULL);
+		prop = of_get_property(dn, "#address-cells", NULL);
 
-	cells = prop ? *(u32 *)prop : prom_n_addr_cells(dn);
+	cells = prop ? *(u32 *)prop : of_n_addr_cells(dn);
 	*phys = of_read_number(dma_window, cells);
 
 	dma_window += cells;
 
-	prop = get_property(dn, "ibm,#dma-size-cells", NULL);
-	cells = prop ? *(u32 *)prop : prom_n_size_cells(dn);
+	prop = of_get_property(dn, "ibm,#dma-size-cells", NULL);
+	cells = prop ? *(u32 *)prop : of_n_size_cells(dn);
 	*size = of_read_number(dma_window, cells);
 }
 
@@ -679,7 +680,7 @@ static struct device_node *of_irq_find_parent(struct device_node *child)
 		return NULL;
 
 	do {
-		parp = get_property(child, "interrupt-parent", NULL);
+		parp = of_get_property(child, "interrupt-parent", NULL);
 		if (parp == NULL)
 			p = of_get_parent(child);
 		else {
@@ -690,7 +691,7 @@ static struct device_node *of_irq_find_parent(struct device_node *child)
 		}
 		of_node_put(child);
 		child = p;
-	} while (p && get_property(p, "#interrupt-cells", NULL) == NULL);
+	} while (p && of_get_property(p, "#interrupt-cells", NULL) == NULL);
 
 	return p;
 }
@@ -715,7 +716,7 @@ void of_irq_map_init(unsigned int flags)
 		struct device_node *np;
 
 		for(np = NULL; (np = of_find_all_nodes(np)) != NULL;) {
-			if (get_property(np, "interrupt-controller", NULL)
+			if (of_get_property(np, "interrupt-controller", NULL)
 			    == NULL)
 				continue;
 			/* Skip /chosen/interrupt-controller */
@@ -754,7 +755,7 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 	 * is none, we are nice and just walk up the tree
 	 */
 	do {
-		tmp = get_property(ipar, "#interrupt-cells", NULL);
+		tmp = of_get_property(ipar, "#interrupt-cells", NULL);
 		if (tmp != NULL) {
 			intsize = *tmp;
 			break;
@@ -778,7 +779,7 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 	 */
 	old = of_node_get(ipar);
 	do {
-		tmp = get_property(old, "#address-cells", NULL);
+		tmp = of_get_property(old, "#address-cells", NULL);
 		tnode = of_get_parent(old);
 		of_node_put(old);
 		old = tnode;
@@ -794,7 +795,8 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 		/* Now check if cursor is an interrupt-controller and if it is
 		 * then we are done
 		 */
-		if (get_property(ipar, "interrupt-controller", NULL) != NULL) {
+		if (of_get_property(ipar, "interrupt-controller", NULL) !=
+				NULL) {
 			DBG(" -> got it !\n");
 			memcpy(out_irq->specifier, intspec,
 			       intsize * sizeof(u32));
@@ -805,7 +807,7 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 		}
 
 		/* Now look for an interrupt-map */
-		imap = get_property(ipar, "interrupt-map", &imaplen);
+		imap = of_get_property(ipar, "interrupt-map", &imaplen);
 		/* No interrupt map, check for an interrupt parent */
 		if (imap == NULL) {
 			DBG(" -> no map, getting parent\n");
@@ -815,7 +817,7 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 		imaplen /= sizeof(u32);
 
 		/* Look for a mask */
-		imask = get_property(ipar, "interrupt-map-mask", NULL);
+		imask = of_get_property(ipar, "interrupt-map-mask", NULL);
 
 		/* If we were passed no "reg" property and we attempt to parse
 		 * an interrupt-map, then #address-cells must be 0.
@@ -862,15 +864,13 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 			/* Get #interrupt-cells and #address-cells of new
 			 * parent
 			 */
-			tmp = get_property(newpar, "#interrupt-cells",
-						  NULL);
+			tmp = of_get_property(newpar, "#interrupt-cells", NULL);
 			if (tmp == NULL) {
 				DBG(" -> parent lacks #interrupt-cells !\n");
 				goto fail;
 			}
 			newintsize = *tmp;
-			tmp = get_property(newpar, "#address-cells",
-						  NULL);
+			tmp = of_get_property(newpar, "#address-cells", NULL);
 			newaddrsize = (tmp == NULL) ? 0 : *tmp;
 
 			DBG(" -> newintsize=%d, newaddrsize=%d\n",
@@ -915,7 +915,7 @@ EXPORT_SYMBOL_GPL(of_irq_map_raw);
 static int of_irq_map_oldworld(struct device_node *device, int index,
 			       struct of_irq *out_irq)
 {
-	const u32 *ints;
+	const u32 *ints = NULL;
 	int intlen;
 
 	/*
@@ -927,7 +927,7 @@ static int of_irq_map_oldworld(struct device_node *device, int index,
 	 * everything together on these)
 	 */
 	while (device) {
-		ints = get_property(device, "AAPL,interrupts", &intlen);
+		ints = of_get_property(device, "AAPL,interrupts", &intlen);
 		if (ints != NULL)
 			break;
 		device = device->parent;
@@ -969,13 +969,13 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 		return of_irq_map_oldworld(device, index, out_irq);
 
 	/* Get the interrupts property */
-	intspec = get_property(device, "interrupts", &intlen);
+	intspec = of_get_property(device, "interrupts", &intlen);
 	if (intspec == NULL)
 		return -EINVAL;
 	intlen /= sizeof(u32);
 
 	/* Get the reg property (if any) */
-	addr = get_property(device, "reg", NULL);
+	addr = of_get_property(device, "reg", NULL);
 
 	/* Look for the interrupt parent. */
 	p = of_irq_find_parent(device);
@@ -983,7 +983,7 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 		return -EINVAL;
 
 	/* Get size of interrupt specifier */
-	tmp = get_property(p, "#interrupt-cells", NULL);
+	tmp = of_get_property(p, "#interrupt-cells", NULL);
 	if (tmp == NULL) {
 		of_node_put(p);
 		return -EINVAL;
@@ -1003,3 +1003,42 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 	return res;
 }
 EXPORT_SYMBOL_GPL(of_irq_map_one);
+
+/**
+ * Search the device tree for the best MAC address to use.  'mac-address' is
+ * checked first, because that is supposed to contain to "most recent" MAC
+ * address. If that isn't set, then 'local-mac-address' is checked next,
+ * because that is the default address.  If that isn't set, then the obsolete
+ * 'address' is checked, just in case we're using an old device tree.
+ *
+ * Note that the 'address' property is supposed to contain a virtual address of
+ * the register set, but some DTS files have redefined that property to be the
+ * MAC address.
+ *
+ * All-zero MAC addresses are rejected, because those could be properties that
+ * exist in the device tree, but were not set by U-Boot.  For example, the
+ * DTS could define 'mac-address' and 'local-mac-address', with zero MAC
+ * addresses.  Some older U-Boots only initialized 'local-mac-address'.  In
+ * this case, the real MAC is in 'local-mac-address', and 'mac-address' exists
+ * but is all zeros.
+*/
+const void *of_get_mac_address(struct device_node *np)
+{
+	struct property *pp;
+
+	pp = of_find_property(np, "mac-address", NULL);
+	if (pp && (pp->length == 6) && is_valid_ether_addr(pp->value))
+		return pp->value;
+
+	pp = of_find_property(np, "local-mac-address", NULL);
+	if (pp && (pp->length == 6) && is_valid_ether_addr(pp->value))
+		return pp->value;
+
+	pp = of_find_property(np, "address", NULL);
+	if (pp && (pp->length == 6) && is_valid_ether_addr(pp->value))
+		return pp->value;
+
+	return NULL;
+}
+EXPORT_SYMBOL(of_get_mac_address);
+

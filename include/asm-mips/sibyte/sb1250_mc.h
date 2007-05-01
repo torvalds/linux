@@ -295,7 +295,7 @@
 
 #if SIBYTE_HDR_FEATURE(1250, PASS3) || SIBYTE_HDR_FEATURE(112x, PASS1)
 #define M_MC_PRE_ON_A8              _SB_MAKEMASK1(36)
-#define M_MC_RAM_WITH_A13           _SB_MAKEMASK1(38)
+#define M_MC_RAM_WITH_A13           _SB_MAKEMASK1(37)
 #endif /* 1250 PASS3 || 112x PASS1 */
 
 

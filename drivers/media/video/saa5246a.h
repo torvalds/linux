@@ -41,22 +41,17 @@
 #define POS_HEADER_START 7
 #define POS_HEADER_END 31
 
-/* Returns TRUE if the part of the videotext page described with req contains
+/* Returns 'true' if the part of the videotext page described with req contains
    (at least parts of) the time field */
 #define REQ_CONTAINS_TIME(p_req) \
 	((p_req)->start <= POS_TIME_END && \
 	 (p_req)->end   >= POS_TIME_START)
 
-/* Returns TRUE if the part of the videotext page described with req contains
+/* Returns 'true' if the part of the videotext page described with req contains
    (at least parts of) the page header */
 #define REQ_CONTAINS_HEADER(p_req) \
 	((p_req)->start <= POS_HEADER_END && \
 	 (p_req)->end   >= POS_HEADER_START)
-
-#ifndef FALSE
-#define FALSE 0
-#define TRUE 1
-#endif
 
 /*****************************************************************************/
 /* Mode register numbers of the SAA5246A				     */

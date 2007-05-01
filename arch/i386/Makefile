@@ -31,7 +31,7 @@ LDFLAGS_vmlinux := --emit-relocs
 endif
 CHECKFLAGS	+= -D__i386__
 
-CFLAGS += -pipe -msoft-float -mregparm=3
+CFLAGS += -pipe -msoft-float -mregparm=3 -freg-struct-return
 
 # prevent gcc from keeping the stack 16 byte aligned
 CFLAGS += $(call cc-option,-mpreferred-stack-boundary=2)

@@ -245,8 +245,6 @@ ixgb_validate_option(int *value, struct ixgb_option *opt)
 	return -1;
 }
 
-#define LIST_LEN(l) (sizeof(l) / sizeof(l[0]))
-
 /**
  * ixgb_check_options - Range Checking for Command Line Parameters
  * @adapter: board private structure
@@ -284,7 +282,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		} else {
 			tx_ring->count = opt.def;
 		}
-		IXGB_ROUNDUP(tx_ring->count, IXGB_REQ_TX_DESCRIPTOR_MULTIPLE);
+		tx_ring->count = ALIGN(tx_ring->count, IXGB_REQ_TX_DESCRIPTOR_MULTIPLE);
 	}
 	{ /* Receive Descriptor Count */
 		struct ixgb_option opt = {
@@ -303,7 +301,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		} else {
 			rx_ring->count = opt.def;
 		}
-		IXGB_ROUNDUP(rx_ring->count, IXGB_REQ_RX_DESCRIPTOR_MULTIPLE);
+		rx_ring->count = ALIGN(rx_ring->count, IXGB_REQ_RX_DESCRIPTOR_MULTIPLE);
 	}
 	{ /* Receive Checksum Offload Enable */
 		struct ixgb_option opt = {
@@ -335,7 +333,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			.name = "Flow Control",
 			.err  = "reading default settings from EEPROM",
 			.def  = ixgb_fc_tx_pause,
-			.arg  = { .l = { .nr = LIST_LEN(fc_list),
+			.arg  = { .l = { .nr = ARRAY_SIZE(fc_list),
 					 .p = fc_list }}
 		};
 

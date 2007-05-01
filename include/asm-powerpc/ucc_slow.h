@@ -150,7 +150,7 @@ struct ucc_slow_info {
 	int ucc_num;
 	enum qe_clock rx_clock;
 	enum qe_clock tx_clock;
-	struct ucc_slow *regs;
+	u32 regs;
 	int irq;
 	u16 uccm_mask;
 	int data_mem_part;
@@ -199,9 +199,9 @@ struct ucc_slow_private {
 				   and length for first BD in a frame */
 	u32 tx_base_offset;	/* first BD in Tx BD table offset (In MURAM) */
 	u32 rx_base_offset;	/* first BD in Rx BD table offset (In MURAM) */
-	u8 *confBd;		/* next BD for confirm after Tx */
-	u8 *tx_bd;		/* next BD for new Tx request */
-	u8 *rx_bd;		/* next BD to collect after Rx */
+	struct qe_bd *confBd;	/* next BD for confirm after Tx */
+	struct qe_bd *tx_bd;	/* next BD for new Tx request */
+	struct qe_bd *rx_bd;	/* next BD to collect after Rx */
 	void *p_rx_frame;	/* accumulating receive frame */
 	u16 *p_ucce;		/* a pointer to the event register in memory.
 				 */

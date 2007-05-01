@@ -31,14 +31,13 @@
 #include <acpi/acpi_drivers.h>
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
-ACPI_MODULE_NAME("acpi_system")
+ACPI_MODULE_NAME("system");
 #ifdef MODULE_PARAM_PREFIX
 #undef MODULE_PARAM_PREFIX
 #endif
 #define MODULE_PARAM_PREFIX "acpi."
 
 #define ACPI_SYSTEM_CLASS		"system"
-#define ACPI_SYSTEM_DRIVER_NAME		"ACPI System Driver"
 #define ACPI_SYSTEM_DEVICE_NAME		"System"
 #define ACPI_SYSTEM_FILE_INFO		"info"
 #define ACPI_SYSTEM_FILE_EVENT		"event"

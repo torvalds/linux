@@ -21,6 +21,8 @@
 #include <linux/sched.h>
 #include <linux/tick.h>
 
+#include <asm/irq_regs.h>
+
 #include "tick-internal.h"
 
 /*
@@ -165,7 +167,9 @@ void tick_nohz_stop_sched_tick(void)
 		goto end;
 
 	cpu = smp_processor_id();
-	BUG_ON(local_softirq_pending());
+	if (unlikely(local_softirq_pending()))
+		printk(KERN_ERR "NOHZ: local_softirq_pending %02x\n",
+		       local_softirq_pending());
 
 	now = ktime_get();
 	/*
@@ -191,19 +195,19 @@ void tick_nohz_stop_sched_tick(void)
 	next_jiffies = get_next_timer_interrupt(last_jiffies);
 	delta_jiffies = next_jiffies - last_jiffies;
 
+	if (rcu_needs_cpu(cpu))
+		delta_jiffies = 1;
 	/*
 	 * Do not stop the tick, if we are only one off
 	 * or if the cpu is required for rcu
 	 */
-	if (!ts->tick_stopped && (delta_jiffies == 1 || rcu_needs_cpu(cpu)))
+	if (!ts->tick_stopped && delta_jiffies == 1)
 		goto out;
 
 	/* Schedule the tick, if we are at least one jiffie off */
 	if ((long)delta_jiffies >= 1) {
 
-		if (rcu_needs_cpu(cpu))
-			delta_jiffies = 1;
-		else
+		if (delta_jiffies > 1)
 			cpu_set(cpu, nohz_cpu_mask);
 		/*
 		 * nohz_stop_sched_tick can be called several times before

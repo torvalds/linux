@@ -241,3 +241,65 @@ static int __init init_acpi_device_notify(void)
 }
 
 arch_initcall(init_acpi_device_notify);
+
+
+#if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE)
+
+/* Every ACPI platform has a mc146818 compatible "cmos rtc".  Here we find
+ * its device node and pass extra config data.  This helps its driver use
+ * capabilities that the now-obsolete mc146818 didn't have, and informs it
+ * that this board's RTC is wakeup-capable (per ACPI spec).
+ */
+#include <linux/mc146818rtc.h>
+
+static struct cmos_rtc_board_info rtc_info;
+
+
+/* PNP devices are registered in a subsys_initcall();
+ * ACPI specifies the PNP IDs to use.
+ */
+#include <linux/pnp.h>
+
+static int __init pnp_match(struct device *dev, void *data)
+{
+	static const char *ids[] = { "PNP0b00", "PNP0b01", "PNP0b02", };
+	struct pnp_dev *pnp = to_pnp_dev(dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ids); i++) {
+		if (compare_pnp_id(pnp->id, ids[i]) != 0)
+			return 1;
+	}
+	return 0;
+}
+
+static struct device *__init get_rtc_dev(void)
+{
+	return bus_find_device(&pnp_bus_type, NULL, NULL, pnp_match);
+}
+
+static int __init acpi_rtc_init(void)
+{
+	struct device *dev = get_rtc_dev();
+
+	if (dev) {
+		rtc_info.rtc_day_alarm = acpi_gbl_FADT.day_alarm;
+		rtc_info.rtc_mon_alarm = acpi_gbl_FADT.month_alarm;
+		rtc_info.rtc_century = acpi_gbl_FADT.century;
+
+		/* NOTE:  acpi_gbl_FADT->rtcs4 is NOT currently useful */
+
+		dev->platform_data = &rtc_info;
+
+		/* RTC always wakes from S1/S2/S3, and often S4/STD */
+		device_init_wakeup(dev, 1);
+
+		put_device(dev);
+	} else
+		pr_debug("ACPI: RTC unavailable?\n");
+	return 0;
+}
+/* do this between RTC subsys_initcall() and rtc_cmos driver_initcall() */
+fs_initcall(acpi_rtc_init);
+
+#endif

@@ -334,8 +334,11 @@ void maybe_sigio_broken(int fd, int read)
 
 	sigio_lock();
 	err = need_poll(&all_sigio_fds, all_sigio_fds.used + 1);
-	if(err)
+	if(err){
+		printk("maybe_sigio_broken - failed to add pollfd for "
+		       "descriptor %d\n", fd);
 		goto out;
+	}
 
 	all_sigio_fds.poll[all_sigio_fds.used++] =
 		((struct pollfd) { .fd  	= fd,

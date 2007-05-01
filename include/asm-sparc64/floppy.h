@@ -549,7 +549,7 @@ static int __init ebus_fdthree_p(struct linux_ebus_device *edev)
 	if (!strcmp(edev->prom_node->name, "fdthree"))
 		return 1;
 	if (!strcmp(edev->prom_node->name, "floppy")) {
-		char *compat;
+		const char *compat;
 
 		compat = of_get_property(edev->prom_node,
 					 "compatible", NULL);
@@ -661,7 +661,7 @@ static unsigned long __init sun_floppy_init(void)
 		struct linux_ebus_device *edev = NULL;
 		unsigned long config = 0;
 		void __iomem *auxio_reg;
-		char *state_prop;
+		const char *state_prop;
 
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {
@@ -853,5 +853,16 @@ static unsigned long __init sun_floppy_init(void)
 }
 
 #define EXTRA_FLOPPY_PARAMS
+
+static DEFINE_SPINLOCK(dma_spin_lock);
+
+#define claim_dma_lock() \
+({	unsigned long flags; \
+	spin_lock_irqsave(&dma_spin_lock, flags); \
+	flags; \
+})
+
+#define release_dma_lock(__flags) \
+	spin_unlock_irqrestore(&dma_spin_lock, __flags);
 
 #endif /* !(__ASM_SPARC64_FLOPPY_H) */

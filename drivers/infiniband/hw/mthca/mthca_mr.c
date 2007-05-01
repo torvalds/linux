@@ -297,7 +297,8 @@ out:
 
 int mthca_write_mtt_size(struct mthca_dev *dev)
 {
-	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy ||
+	    !(dev->mthca_flags & MTHCA_FLAG_FMR))
 		/*
 		 * Be friendly to WRITE_MTT command
 		 * and leave two empty slots for the
@@ -310,8 +311,9 @@ int mthca_write_mtt_size(struct mthca_dev *dev)
 	return mthca_is_memfree(dev) ? (PAGE_SIZE / sizeof (u64)) : 0x7ffffff;
 }
 
-void mthca_tavor_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
-			      int start_index, u64 *buffer_list, int list_len)
+static void mthca_tavor_write_mtt_seg(struct mthca_dev *dev,
+				      struct mthca_mtt *mtt, int start_index,
+				      u64 *buffer_list, int list_len)
 {
 	u64 __iomem *mtts;
 	int i;
@@ -323,8 +325,9 @@ void mthca_tavor_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
 				  mtts + i);
 }
 
-void mthca_arbel_write_mtt_seg(struct mthca_dev *dev, struct mthca_mtt *mtt,
-			      int start_index, u64 *buffer_list, int list_len)
+static void mthca_arbel_write_mtt_seg(struct mthca_dev *dev,
+				      struct mthca_mtt *mtt, int start_index,
+				      u64 *buffer_list, int list_len)
 {
 	__be64 *mtts;
 	dma_addr_t dma_handle;
@@ -353,7 +356,8 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 	int size = mthca_write_mtt_size(dev);
 	int chunk;
 
-	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy)
+	if (dev->mr_table.fmr_mtt_buddy != &dev->mr_table.mtt_buddy ||
+	    !(dev->mthca_flags & MTHCA_FLAG_FMR))
 		return __mthca_write_mtt(dev, mtt, start_index, buffer_list, list_len);
 
 	while (list_len > 0) {
@@ -833,6 +837,7 @@ void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 
 	key = arbel_key_to_hw_index(fmr->ibmr.lkey);
 	key &= dev->limits.num_mpts - 1;
+	key = adjust_key(dev, key);
 	fmr->ibmr.lkey = fmr->ibmr.rkey = arbel_hw_index_to_key(key);
 
 	fmr->maps = 0;
@@ -879,8 +884,8 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 		}
 		mpts = mtts = 1 << i;
 	} else {
-		mpts = dev->limits.num_mtt_segs;
-		mtts = dev->limits.num_mpts;
+		mtts = dev->limits.num_mtt_segs;
+		mpts = dev->limits.num_mpts;
 	}
 
 	if (!mthca_is_memfree(dev) &&

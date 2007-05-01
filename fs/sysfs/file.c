@@ -54,7 +54,7 @@ static struct sysfs_ops subsys_sysfs_ops = {
 /**
  *	add_to_collection - add buffer to a collection
  *	@buffer:	buffer to be added
- *	@node		inode of set to add to
+ *	@node:		inode of set to add to
  */
 
 static inline void
@@ -168,12 +168,12 @@ sysfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	ssize_t retval = 0;
 
 	down(&buffer->sem);
-	if (buffer->orphaned) {
-		retval = -ENODEV;
-		goto out;
-	}
 	if (buffer->needs_read_fill) {
-		if ((retval = fill_read_buffer(file->f_path.dentry,buffer)))
+		if (buffer->orphaned)
+			retval = -ENODEV;
+		else
+			retval = fill_read_buffer(file->f_path.dentry,buffer);
+		if (retval)
 			goto out;
 	}
 	pr_debug("%s: count = %zd, ppos = %lld, buf = %s\n",
@@ -502,6 +502,30 @@ int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)
 
 
 /**
+ * sysfs_add_file_to_group - add an attribute file to a pre-existing group.
+ * @kobj: object we're acting for.
+ * @attr: attribute descriptor.
+ * @group: group name.
+ */
+int sysfs_add_file_to_group(struct kobject *kobj,
+		const struct attribute *attr, const char *group)
+{
+	struct dentry *dir;
+	int error;
+
+	dir = lookup_one_len(group, kobj->dentry, strlen(group));
+	if (IS_ERR(dir))
+		error = PTR_ERR(dir);
+	else {
+		error = sysfs_add_file(dir, attr, SYSFS_KOBJ_ATTR);
+		dput(dir);
+	}
+	return error;
+}
+EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
+
+
+/**
  * sysfs_update_file - update the modified timestamp on an object attribute.
  * @kobj: object we're acting for.
  * @attr: attribute descriptor.
@@ -584,6 +608,88 @@ void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr)
 {
 	sysfs_hash_and_remove(kobj->dentry, attr->name);
 }
+
+
+/**
+ * sysfs_remove_file_from_group - remove an attribute file from a group.
+ * @kobj: object we're acting for.
+ * @attr: attribute descriptor.
+ * @group: group name.
+ */
+void sysfs_remove_file_from_group(struct kobject *kobj,
+		const struct attribute *attr, const char *group)
+{
+	struct dentry *dir;
+
+	dir = lookup_one_len(group, kobj->dentry, strlen(group));
+	if (!IS_ERR(dir)) {
+		sysfs_hash_and_remove(dir, attr->name);
+		dput(dir);
+	}
+}
+EXPORT_SYMBOL_GPL(sysfs_remove_file_from_group);
+
+struct sysfs_schedule_callback_struct {
+	struct kobject 		*kobj;
+	void			(*func)(void *);
+	void			*data;
+	struct module		*owner;
+	struct work_struct	work;
+};
+
+static void sysfs_schedule_callback_work(struct work_struct *work)
+{
+	struct sysfs_schedule_callback_struct *ss = container_of(work,
+			struct sysfs_schedule_callback_struct, work);
+
+	(ss->func)(ss->data);
+	kobject_put(ss->kobj);
+	module_put(ss->owner);
+	kfree(ss);
+}
+
+/**
+ * sysfs_schedule_callback - helper to schedule a callback for a kobject
+ * @kobj: object we're acting for.
+ * @func: callback function to invoke later.
+ * @data: argument to pass to @func.
+ * @owner: module owning the callback code
+ *
+ * sysfs attribute methods must not unregister themselves or their parent
+ * kobject (which would amount to the same thing).  Attempts to do so will
+ * deadlock, since unregistration is mutually exclusive with driver
+ * callbacks.
+ *
+ * Instead methods can call this routine, which will attempt to allocate
+ * and schedule a workqueue request to call back @func with @data as its
+ * argument in the workqueue's process context.  @kobj will be pinned
+ * until @func returns.
+ *
+ * Returns 0 if the request was submitted, -ENOMEM if storage could not
+ * be allocated, -ENODEV if a reference to @owner isn't available.
+ */
+int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
+		void *data, struct module *owner)
+{
+	struct sysfs_schedule_callback_struct *ss;
+
+	if (!try_module_get(owner))
+		return -ENODEV;
+	ss = kmalloc(sizeof(*ss), GFP_KERNEL);
+	if (!ss) {
+		module_put(owner);
+		return -ENOMEM;
+	}
+	kobject_get(kobj);
+	ss->kobj = kobj;
+	ss->func = func;
+	ss->data = data;
+	ss->owner = owner;
+	INIT_WORK(&ss->work, sysfs_schedule_callback_work);
+	schedule_work(&ss->work);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sysfs_schedule_callback);
 
 
 EXPORT_SYMBOL_GPL(sysfs_create_file);

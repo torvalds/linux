@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/profile.h>
+#include <linux/clocksource.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -98,7 +99,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	 * cycles after the IT fires. But it's arbitrary how much time passes
 	 * before we call it "late". I've picked one second.
 	 */
-	if (ticks_elapsed > HZ) {
+	if (unlikely(ticks_elapsed > HZ)) {
 		/* Scenario 3: very long delay?  bad in any case */
 		printk (KERN_CRIT "timer_interrupt(CPU %d): delayed!"
 			" cycles %lX rem %lX "
@@ -147,10 +148,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		write_sequnlock(&xtime_lock);
 	}
 
-	/* check soft power switch status */
-	if (cpu == 0 && !atomic_read(&power_tasklet.count))
-		tasklet_schedule(&power_tasklet);
-
 	return IRQ_HANDLED;
 }
 
@@ -172,121 +169,43 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 
 
-/*
- * Return the number of micro-seconds that elapsed since the last
- * update to wall time (aka xtime).  The xtime_lock
- * must be at least read-locked when calling this routine.
- */
-static inline unsigned long gettimeoffset (void)
+/* clock source code */
+
+static cycle_t read_cr16(void)
 {
-#ifndef CONFIG_SMP
-	/*
-	 * FIXME: This won't work on smp because jiffies are updated by cpu 0.
-	 *    Once parisc-linux learns the cr16 difference between processors,
-	 *    this could be made to work.
-	 */
-	unsigned long now;
-	unsigned long prev_tick;
-	unsigned long next_tick;
-	unsigned long elapsed_cycles;
-	unsigned long usec;
-	unsigned long cpuid = smp_processor_id();
-	unsigned long cpt = clocktick;
+	return get_cycles();
+}
 
-	next_tick = cpu_data[cpuid].it_value;
-	now = mfctl(16);	/* Read the hardware interval timer.  */
+static struct clocksource clocksource_cr16 = {
+	.name			= "cr16",
+	.rating			= 300,
+	.read			= read_cr16,
+	.mask			= CLOCKSOURCE_MASK(BITS_PER_LONG),
+	.mult			= 0, /* to be set */
+	.shift			= 22,
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
+};
 
-	prev_tick = next_tick - cpt;
+#ifdef CONFIG_SMP
+int update_cr16_clocksource(void)
+{
+	int change = 0;
 
-	/* Assume Scenario 1: "now" is later than prev_tick.  */
-	elapsed_cycles = now - prev_tick;
+	/* since the cr16 cycle counters are not syncronized across CPUs,
+	   we'll check if we should switch to a safe clocksource: */
+	if (clocksource_cr16.rating != 0 && num_online_cpus() > 1) {
+		clocksource_change_rating(&clocksource_cr16, 0);
+		change = 1;
+	}
 
-/* aproximate HZ with shifts. Intended math is "(elapsed/clocktick) > HZ" */
-#if HZ == 1000
-	if (elapsed_cycles > (cpt << 10) )
-#elif HZ == 250
-	if (elapsed_cycles > (cpt << 8) )
-#elif HZ == 100
-	if (elapsed_cycles > (cpt << 7) )
+	return change;
+}
 #else
-#warn WTF is HZ set to anyway?
-	if (elapsed_cycles > (HZ * cpt) )
-#endif
-	{
-		/* Scenario 3: clock ticks are missing. */
-		printk (KERN_CRIT "gettimeoffset(CPU %ld): missing %ld ticks!"
-			" cycles %lX prev/now/next %lX/%lX/%lX  clock %lX\n",
-			cpuid, elapsed_cycles / cpt,
-			elapsed_cycles, prev_tick, now, next_tick, cpt);
-	}
-
-	/* FIXME: Can we improve the precision? Not with PAGE0. */
-	usec = (elapsed_cycles * 10000) / PAGE0->mem_10msec;
-	return usec;
-#else
-	return 0;
-#endif
-}
-
-void
-do_gettimeofday (struct timeval *tv)
+int update_cr16_clocksource(void)
 {
-	unsigned long flags, seq, usec, sec;
-
-	/* Hold xtime_lock and adjust timeval.  */
-	do {
-		seq = read_seqbegin_irqsave(&xtime_lock, flags);
-		usec = gettimeoffset();
-		sec = xtime.tv_sec;
-		usec += (xtime.tv_nsec / 1000);
-	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
-
-	/* Move adjusted usec's into sec's.  */
-	while (usec >= USEC_PER_SEC) {
-		usec -= USEC_PER_SEC;
-		++sec;
-	}
-
-	/* Return adjusted result.  */
-	tv->tv_sec = sec;
-	tv->tv_usec = usec;
+	return 0; /* no change */
 }
-
-EXPORT_SYMBOL(do_gettimeofday);
-
-int
-do_settimeofday (struct timespec *tv)
-{
-	time_t wtm_sec, sec = tv->tv_sec;
-	long wtm_nsec, nsec = tv->tv_nsec;
-
-	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
-		return -EINVAL;
-
-	write_seqlock_irq(&xtime_lock);
-	{
-		/*
-		 * This is revolting. We need to set "xtime"
-		 * correctly. However, the value in this location is
-		 * the value at the most recent update of wall time.
-		 * Discover what correction gettimeofday would have
-		 * done, and then undo it!
-		 */
-		nsec -= gettimeoffset() * 1000;
-
-		wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
-		wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
-
-		set_normalized_timespec(&xtime, sec, nsec);
-		set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
-
-		ntp_clear();
-	}
-	write_sequnlock_irq(&xtime_lock);
-	clock_was_set();
-	return 0;
-}
-EXPORT_SYMBOL(do_settimeofday);
+#endif /*CONFIG_SMP*/
 
 void __init start_cpu_itimer(void)
 {
@@ -301,10 +220,17 @@ void __init start_cpu_itimer(void)
 void __init time_init(void)
 {
 	static struct pdc_tod tod_data;
+	unsigned long current_cr16_khz;
 
 	clocktick = (100 * PAGE0->mem_10msec) / HZ;
 
 	start_cpu_itimer();	/* get CPU 0 started */
+
+	/* register at clocksource framework */
+	current_cr16_khz = PAGE0->mem_10msec/10;  /* kHz */
+	clocksource_cr16.mult = clocksource_khz2mult(current_cr16_khz,
+						clocksource_cr16.shift);
+	clocksource_register(&clocksource_cr16);
 
 	if (pdc_tod_read(&tod_data) == 0) {
 		unsigned long flags;

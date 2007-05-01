@@ -279,7 +279,7 @@ static int bh_get(struct gfs2_quota_data *qd)
 		(bh->b_data + sizeof(struct gfs2_meta_header) +
 		 offset * sizeof(struct gfs2_quota_change));
 
-	mutex_lock(&sdp->sd_quota_mutex);
+	mutex_unlock(&sdp->sd_quota_mutex);
 
 	return 0;
 

@@ -118,11 +118,11 @@ void __init prom_meminit(void)
 #ifdef DEBUG
 	int i = 0;
 
-	prom_printf("ARCS MEMORY DESCRIPTOR dump:\n");
+	printk("ARCS MEMORY DESCRIPTOR dump:\n");
 	p = ArcGetMemoryDescriptor(PROM_NULL_MDESC);
 	while(p) {
-		prom_printf("[%d,%p]: base<%08lx> pages<%08lx> type<%s>\n",
-			    i, p, p->base, p->pages, mtypes(p->type));
+		printk("[%d,%p]: base<%08lx> pages<%08lx> type<%s>\n",
+		       i, p, p->base, p->pages, mtypes(p->type));
 		p = ArcGetMemoryDescriptor(p);
 		i++;
 	}

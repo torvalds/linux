@@ -256,7 +256,7 @@ static void v9fs_mux_poll_stop(struct v9fs_mux_data *m)
 	vpt->muxnum--;
 	if (!vpt->muxnum) {
 		dprintk(DEBUG_MUX, "destroy proc %p\n", vpt);
-		send_sig(SIGKILL, vpt->task, 1);
+		kthread_stop(vpt->task);
 		vpt->task = NULL;
 		v9fs_mux_poll_task_num--;
 	}
@@ -438,11 +438,8 @@ static int v9fs_poll_proc(void *a)
 
 	vpt = a;
 	dprintk(DEBUG_MUX, "start %p %p\n", current, vpt);
-	allow_signal(SIGKILL);
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current))
-			break;
 
 		list_for_each_entry_safe(m, mtmp, &vpt->mux_list, mux_list) {
 			v9fs_poll_mux(m);

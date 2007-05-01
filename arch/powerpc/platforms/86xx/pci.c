@@ -22,9 +22,9 @@
 #include <asm/atomic.h>
 #include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/immap_86xx.h>
 #include <asm/pci-bridge.h>
 #include <sysdev/fsl_soc.h>
+#include <sysdev/fsl_pcie.h>
 
 #include "mpc86xx.h"
 
@@ -163,7 +163,7 @@ int __init add_bridge(struct device_node *dev)
 	has_address = (of_address_to_resource(dev, 0, &rsrc) == 0);
 
 	/* Get bus range if any */
-	bus_range = get_property(dev, "bus-range", &len);
+	bus_range = of_get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int))
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 		       " bus 0\n", dev->full_name);

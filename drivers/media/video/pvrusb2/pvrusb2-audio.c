@@ -31,7 +31,6 @@ struct pvr2_msp3400_handler {
 	struct pvr2_hdw *hdw;
 	struct pvr2_i2c_client *client;
 	struct pvr2_i2c_handler i2c_handler;
-	struct pvr2_audio_stat astat;
 	unsigned long stale_mask;
 };
 
@@ -43,13 +42,6 @@ static void set_stereo(struct pvr2_msp3400_handler *ctxt)
 	struct v4l2_routing route;
 
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c msp3400 v4l2 set_stereo");
-
-	if (hdw->input_val == PVR2_CVAL_INPUT_TV) {
-		struct v4l2_tuner vt;
-		memset(&vt,0,sizeof(vt));
-		vt.audmode = hdw->audiomode_val;
-		pvr2_i2c_client_cmd(ctxt->client,VIDIOC_S_TUNER,&vt);
-	}
 
 	route.input = MSP_INPUT_DEFAULT;
 	route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
@@ -78,8 +70,7 @@ static void set_stereo(struct pvr2_msp3400_handler *ctxt)
 static int check_stereo(struct pvr2_msp3400_handler *ctxt)
 {
 	struct pvr2_hdw *hdw = ctxt->hdw;
-	return (hdw->input_dirty ||
-		hdw->audiomode_dirty);
+	return hdw->input_dirty;
 }
 
 
@@ -99,8 +90,7 @@ static int msp3400_check(struct pvr2_msp3400_handler *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(msp3400_ops)/sizeof(msp3400_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(msp3400_ops); idx++) {
 		msk = 1 << idx;
 		if (ctxt->stale_mask & msk) continue;
 		if (msp3400_ops[idx].check(ctxt)) {
@@ -116,8 +106,7 @@ static void msp3400_update(struct pvr2_msp3400_handler *ctxt)
 	unsigned long msk;
 	unsigned int idx;
 
-	for (idx = 0; idx < sizeof(msp3400_ops)/sizeof(msp3400_ops[0]);
-	     idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(msp3400_ops); idx++) {
 		msk = 1 << idx;
 		if (!(ctxt->stale_mask & msk)) continue;
 		ctxt->stale_mask &= ~msk;
@@ -126,27 +115,9 @@ static void msp3400_update(struct pvr2_msp3400_handler *ctxt)
 }
 
 
-/* This reads back the current signal type */
-static int get_audio_status(struct pvr2_msp3400_handler *ctxt)
-{
-	struct v4l2_tuner vt;
-	int stat;
-
-	memset(&vt,0,sizeof(vt));
-	stat = pvr2_i2c_client_cmd(ctxt->client,VIDIOC_G_TUNER,&vt);
-	if (stat < 0) return stat;
-
-	ctxt->hdw->flag_stereo = (vt.audmode & V4L2_TUNER_MODE_STEREO) != 0;
-	ctxt->hdw->flag_bilingual =
-		(vt.audmode & V4L2_TUNER_MODE_LANG2) != 0;
-	return 0;
-}
-
-
 static void pvr2_msp3400_detach(struct pvr2_msp3400_handler *ctxt)
 {
 	ctxt->client->handler = NULL;
-	ctxt->hdw->audio_stat = NULL;
 	kfree(ctxt);
 }
 
@@ -158,7 +129,7 @@ static unsigned int pvr2_msp3400_describe(struct pvr2_msp3400_handler *ctxt,
 }
 
 
-const static struct pvr2_i2c_handler_functions msp3400_funcs = {
+static const struct pvr2_i2c_handler_functions msp3400_funcs = {
 	.detach = (void (*)(void *))pvr2_msp3400_detach,
 	.check = (int (*)(void *))msp3400_check,
 	.update = (void (*)(void *))msp3400_update,
@@ -169,24 +140,17 @@ const static struct pvr2_i2c_handler_functions msp3400_funcs = {
 int pvr2_i2c_msp3400_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 {
 	struct pvr2_msp3400_handler *ctxt;
-	if (hdw->audio_stat) return 0;
 	if (cp->handler) return 0;
 
-	ctxt = kmalloc(sizeof(*ctxt),GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt),GFP_KERNEL);
 	if (!ctxt) return 0;
-	memset(ctxt,0,sizeof(*ctxt));
 
 	ctxt->i2c_handler.func_data = ctxt;
 	ctxt->i2c_handler.func_table = &msp3400_funcs;
 	ctxt->client = cp;
 	ctxt->hdw = hdw;
-	ctxt->astat.ctxt = ctxt;
-	ctxt->astat.status = (int (*)(void *))get_audio_status;
-	ctxt->astat.detach = (void (*)(void *))pvr2_msp3400_detach;
-	ctxt->stale_mask = (1 << (sizeof(msp3400_ops)/
-				  sizeof(msp3400_ops[0]))) - 1;
+	ctxt->stale_mask = (1 << ARRAY_SIZE(msp3400_ops)) - 1;
 	cp->handler = &ctxt->i2c_handler;
-	hdw->audio_stat = &ctxt->astat;
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c 0x%x msp3400 V4L2 handler set up",
 		   cp->client->addr);
 	return !0;

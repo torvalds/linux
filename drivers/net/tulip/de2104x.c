@@ -63,7 +63,7 @@ MODULE_PARM_DESC (debug, "de2104x bitmapped message enable number");
 
 /* Set the copy breakpoint for the copy-only-tiny-buffer Rx structure. */
 #if defined(__alpha__) || defined(__arm__) || defined(__hppa__) \
-        || defined(__sparc_) || defined(__ia64__) \
+        || defined(CONFIG_SPARC) || defined(__ia64__) \
         || defined(__sh__) || defined(__mips__)
 static int rx_copybreak = 1518;
 #else
@@ -435,7 +435,6 @@ static void de_rx (struct de_private *de)
 			rx_work = 100;
 			goto rx_next;
 		}
-		copy_skb->dev = de->dev;
 
 		if (!copying_skb) {
 			pci_unmap_single(de->pdev, mapping,
@@ -450,8 +449,8 @@ static void de_rx (struct de_private *de)
 		} else {
 			pci_dma_sync_single_for_cpu(de->pdev, mapping, len, PCI_DMA_FROMDEVICE);
 			skb_reserve(copy_skb, RX_OFFSET);
-			memcpy(skb_put(copy_skb, len), skb->data, len);
-
+			skb_copy_from_linear_data(skb, skb_put(copy_skb, len),
+						  len);
 			pci_dma_sync_single_for_device(de->pdev, mapping, len, PCI_DMA_FROMDEVICE);
 
 			/* We'll reuse the original ring buffer. */
@@ -1685,7 +1684,7 @@ static const struct ethtool_ops de_ethtool_ops = {
 	.get_regs		= de_get_regs,
 };
 
-static void __init de21040_get_mac_address (struct de_private *de)
+static void __devinit de21040_get_mac_address (struct de_private *de)
 {
 	unsigned i;
 
@@ -1703,7 +1702,7 @@ static void __init de21040_get_mac_address (struct de_private *de)
 	}
 }
 
-static void __init de21040_get_media_info(struct de_private *de)
+static void __devinit de21040_get_media_info(struct de_private *de)
 {
 	unsigned int i;
 
@@ -1765,7 +1764,7 @@ static unsigned __devinit tulip_read_eeprom(void __iomem *regs, int location, in
 	return retval;
 }
 
-static void __init de21041_get_srom_info (struct de_private *de)
+static void __devinit de21041_get_srom_info (struct de_private *de)
 {
 	unsigned i, sa_offset = 0, ofs;
 	u8 ee_data[DE_EEPROM_SIZE + 6] = {};

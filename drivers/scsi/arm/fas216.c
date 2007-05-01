@@ -633,7 +633,7 @@ static void fas216_updateptrs(FAS216_Info *info, int bytes_transferred)
 
 	BUG_ON(bytes_transferred < 0);
 
-	info->SCpnt->request_bufflen -= bytes_transferred;
+	SCp->phase -= bytes_transferred;
 
 	while (bytes_transferred != 0) {
 		if (SCp->this_residual > bytes_transferred)
@@ -715,7 +715,7 @@ static void fas216_cleanuptransfer(FAS216_Info *info)
 		return;
 
 	if (dmatype == fasdma_real_all)
-		total = info->SCpnt->request_bufflen;
+		total = info->scsi.SCp.phase;
 	else
 		total = info->scsi.SCp.this_residual;
 
@@ -753,7 +753,7 @@ static void fas216_transfer(FAS216_Info *info)
 	fas216_log(info, LOG_BUFFER,
 		   "starttransfer: buffer %p length 0x%06x reqlen 0x%06x",
 		   info->scsi.SCp.ptr, info->scsi.SCp.this_residual,
-		   info->SCpnt->request_bufflen);
+		   info->scsi.SCp.phase);
 
 	if (!info->scsi.SCp.ptr) {
 		fas216_log(info, LOG_ERROR, "null buffer passed to "
@@ -784,7 +784,7 @@ static void fas216_transfer(FAS216_Info *info)
 	info->dma.transfer_type = dmatype;
 
 	if (dmatype == fasdma_real_all)
-		fas216_set_stc(info, info->SCpnt->request_bufflen);
+		fas216_set_stc(info, info->scsi.SCp.phase);
 	else
 		fas216_set_stc(info, info->scsi.SCp.this_residual);
 
@@ -2114,6 +2114,7 @@ request_sense:
 	SCpnt->SCp.buffers_residual = 0;
 	SCpnt->SCp.ptr = (char *)SCpnt->sense_buffer;
 	SCpnt->SCp.this_residual = sizeof(SCpnt->sense_buffer);
+	SCpnt->SCp.phase = sizeof(SCpnt->sense_buffer);
 	SCpnt->SCp.Message = 0;
 	SCpnt->SCp.Status = 0;
 	SCpnt->request_bufflen = sizeof(SCpnt->sense_buffer);

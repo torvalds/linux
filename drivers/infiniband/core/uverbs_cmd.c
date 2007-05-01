@@ -622,8 +622,10 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	obj->umem.virt_base = cmd.hca_va;
 
 	pd = idr_read_pd(cmd.pd_handle, file->ucontext);
-	if (!pd)
+	if (!pd) {
+		ret = -EINVAL;
 		goto err_release;
+	}
 
 	mr = pd->device->reg_user_mr(pd, &obj->umem, cmd.access_flags, &udata);
 	if (IS_ERR(mr)) {

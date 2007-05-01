@@ -2,17 +2,15 @@
  * TLB flushing operations for SH with an MMU.
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2003 - 2006  Paul Mundt
+ *  Copyright (C) 2003  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
 #include <linux/mm.h>
-#include <linux/io.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
-#include <asm/cacheflush.h>
 
 void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
@@ -138,56 +136,5 @@ void local_flush_tlb_all(void)
 	status |= 0x04;
 	ctrl_outl(status, MMUCR);
 	ctrl_barrier();
-	local_irq_restore(flags);
-}
-
-void update_mmu_cache(struct vm_area_struct *vma,
-		      unsigned long address, pte_t pte)
-{
-	unsigned long flags;
-	unsigned long pteval;
-	unsigned long vpn;
-	struct page *page;
-	unsigned long pfn = pte_pfn(pte);
-	struct address_space *mapping;
-
-	if (!pfn_valid(pfn))
-		return;
-
-	page = pfn_to_page(pfn);
-	mapping = page_mapping(page);
-	if (mapping) {
-		unsigned long phys = pte_val(pte) & PTE_PHYS_MASK;
-		int dirty = test_and_clear_bit(PG_dcache_dirty, &page->flags);
-
-		if (dirty)
-			__flush_wback_region((void *)P1SEGADDR(phys),
-					     PAGE_SIZE);
-	}
-
-	local_irq_save(flags);
-
-	/* Set PTEH register */
-	vpn = (address & MMU_VPN_MASK) | get_asid();
-	ctrl_outl(vpn, MMU_PTEH);
-
-	pteval = pte_val(pte);
-
-#ifdef CONFIG_CPU_HAS_PTEA
-	/* Set PTEA register */
-	/* TODO: make this look less hacky */
-	ctrl_outl(((pteval >> 28) & 0xe) | (pteval & 0x1), MMU_PTEA);
-#endif
-
-	/* Set PTEL register */
-	pteval &= _PAGE_FLAGS_HARDWARE_MASK; /* drop software flags */
-#if defined(CONFIG_SH_WRITETHROUGH) && defined(CONFIG_CPU_SH4)
-	pteval |= _PAGE_WT;
-#endif
-	/* conveniently, we want all the software flags to be 0 anyway */
-	ctrl_outl(pteval, MMU_PTEL);
-
-	/* Load the TLB */
-	asm volatile("ldtlb": /* no output */ : /* no input */ : "memory");
 	local_irq_restore(flags);
 }

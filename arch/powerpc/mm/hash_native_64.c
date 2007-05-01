@@ -505,7 +505,7 @@ static inline int tlb_batching_enabled(void)
 	int enabled = 1;
 
 	if (root) {
-		const char *model = get_property(root, "model", NULL);
+		const char *model = of_get_property(root, "model", NULL);
 		if (model && !strcmp(model, "IBM,9076-N81"))
 			enabled = 0;
 		of_node_put(root);

@@ -69,4 +69,4 @@ static int __init init_jiffies_clocksource(void)
 	return clocksource_register(&clocksource_jiffies);
 }
 
-module_init(init_jiffies_clocksource);
+core_initcall(init_jiffies_clocksource);

@@ -907,7 +907,7 @@ static int __init init_hs(void)
 
 	for (i=0; i<HS_MAX_SOCKETS; i++) {
 		unsigned int ret;
-		hs_sockets[i].socket.dev.dev = &hd64465_device.dev;		
+		hs_sockets[i].socket.dev.parent = &hd64465_device.dev;
 		hs_sockets[i].number = i;
 		ret = pcmcia_register_socket(&hs_sockets[i].socket);
 		if (ret && i)

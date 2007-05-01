@@ -33,6 +33,9 @@ struct dentry *debugfs_create_file(const char *name, mode_t mode,
 
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent);
 
+struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
+				      const char *dest);
+
 void debugfs_remove(struct dentry *dentry);
 
 struct dentry *debugfs_create_u8(const char *name, mode_t mode,
@@ -41,6 +44,8 @@ struct dentry *debugfs_create_u16(const char *name, mode_t mode,
 				  struct dentry *parent, u16 *value);
 struct dentry *debugfs_create_u32(const char *name, mode_t mode,
 				  struct dentry *parent, u32 *value);
+struct dentry *debugfs_create_u64(const char *name, mode_t mode,
+				  struct dentry *parent, u64 *value);
 struct dentry *debugfs_create_bool(const char *name, mode_t mode,
 				  struct dentry *parent, u32 *value);
 
@@ -70,6 +75,13 @@ static inline struct dentry *debugfs_create_dir(const char *name,
 	return ERR_PTR(-ENODEV);
 }
 
+static inline struct dentry *debugfs_create_symlink(const char *name,
+						    struct dentry *parent,
+						    const char *dest)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 static inline void debugfs_remove(struct dentry *dentry)
 { }
 
@@ -90,6 +102,13 @@ static inline struct dentry *debugfs_create_u16(const char *name, mode_t mode,
 static inline struct dentry *debugfs_create_u32(const char *name, mode_t mode,
 						struct dentry *parent,
 						u32 *value)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *debugfs_create_u64(const char *name, mode_t mode,
+						struct dentry *parent,
+						u64 *value)
 {
 	return ERR_PTR(-ENODEV);
 }

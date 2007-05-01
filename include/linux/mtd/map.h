@@ -183,7 +183,7 @@ typedef union {
 struct map_info {
 	char *name;
 	unsigned long size;
-	unsigned long phys;
+	resource_size_t phys;
 #define NO_XIP (-1UL)
 
 	void __iomem *virt;

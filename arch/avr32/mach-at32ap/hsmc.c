@@ -75,12 +75,35 @@ int smc_set_configuration(int cs, const struct smc_config *config)
 		return -EINVAL;
 	}
 
+	switch (config->nwait_mode) {
+	case 0:
+		mode |= HSMC_BF(EXNW_MODE, HSMC_EXNW_MODE_DISABLED);
+		break;
+	case 1:
+		mode |= HSMC_BF(EXNW_MODE, HSMC_EXNW_MODE_RESERVED);
+		break;
+	case 2:
+		mode |= HSMC_BF(EXNW_MODE, HSMC_EXNW_MODE_FROZEN);
+		break;
+	case 3:
+		mode |= HSMC_BF(EXNW_MODE, HSMC_EXNW_MODE_READY);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (config->tdf_cycles) {
+		mode |= HSMC_BF(TDF_CYCLES, config->tdf_cycles);
+	}
+
 	if (config->nrd_controlled)
 		mode |= HSMC_BIT(READ_MODE);
 	if (config->nwe_controlled)
 		mode |= HSMC_BIT(WRITE_MODE);
 	if (config->byte_write)
 		mode |= HSMC_BIT(BAT);
+	if (config->tdf_mode)
+		mode |= HSMC_BIT(TDF_MODE);
 
 	pr_debug("smc cs%d: setup/%08x pulse/%08x cycle/%08x mode/%08x\n",
 		 cs, setup, pulse, cycle, mode);

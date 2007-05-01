@@ -79,9 +79,7 @@ void __init proc_root_init(void)
 	proc_device_tree_init();
 #endif
 	proc_bus = proc_mkdir("bus", NULL);
-#ifdef CONFIG_SYSCTL
 	proc_sys_init();
-#endif
 }
 
 static int proc_root_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat

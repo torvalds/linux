@@ -194,9 +194,9 @@ print_tickdevice(struct seq_file *m, struct tick_device *td)
 		return;
 	}
 	SEQ_printf(m, "%s\n", dev->name);
-	SEQ_printf(m, " max_delta_ns:   %ld\n", dev->max_delta_ns);
-	SEQ_printf(m, " min_delta_ns:   %ld\n", dev->min_delta_ns);
-	SEQ_printf(m, " mult:           %ld\n", dev->mult);
+	SEQ_printf(m, " max_delta_ns:   %lu\n", dev->max_delta_ns);
+	SEQ_printf(m, " min_delta_ns:   %lu\n", dev->min_delta_ns);
+	SEQ_printf(m, " mult:           %lu\n", dev->mult);
 	SEQ_printf(m, " shift:          %d\n", dev->shift);
 	SEQ_printf(m, " mode:           %d\n", dev->mode);
 	SEQ_printf(m, " next_event:     %Ld nsecs\n",

@@ -55,7 +55,7 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
-#include <linux/utsrelease.h>
+#include <linux/utsname.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -547,7 +547,7 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 				idesc->bInterfaceSubClass,
 				idesc->bInterfaceProtocol,
 				msgs[msg],
-				UTS_RELEASE);
+				utsname()->release);
 	}
 
 	return 0;

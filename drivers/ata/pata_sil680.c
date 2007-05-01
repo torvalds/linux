@@ -33,7 +33,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_sil680"
-#define DRV_VERSION "0.4.1"
+#define DRV_VERSION "0.4.6"
 
 /**
  *	sil680_selreg		-	return register base
@@ -91,12 +91,6 @@ static int sil680_cable_detect(struct ata_port *ap) {
 		return ATA_CBL_PATA40;
 }
 
-static int sil680_pre_reset(struct ata_port *ap)
-{
-	ap->cbl = sil680_cable_detect(ap);
-	return ata_std_prereset(ap);
-}
-
 /**
  *	sil680_bus_reset	-	reset the SIL680 bus
  *	@ap: ATA port to reset
@@ -119,7 +113,7 @@ static int sil680_bus_reset(struct ata_port *ap,unsigned int *classes)
 
 static void sil680_error_handler(struct ata_port *ap)
 {
-	ata_bmdma_drive_eh(ap, sil680_pre_reset, sil680_bus_reset, NULL, ata_std_postreset);
+	ata_bmdma_drive_eh(ap, ata_std_prereset, sil680_bus_reset, NULL, ata_std_postreset);
 }
 
 /**
@@ -139,10 +133,13 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	unsigned long tfaddr = sil680_selreg(ap, 0x02);
 	unsigned long addr = sil680_seldev(ap, adev, 0x04);
+	unsigned long addr_mask = 0x80 + 4 * ap->port_no;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int pio = adev->pio_mode - XFER_PIO_0;
 	int lowest_pio = pio;
+	int port_shift = 4 * adev->devno;
 	u16 reg;
+	u8 mode;
 
 	struct ata_device *pair = ata_dev_pair(adev);
 
@@ -153,10 +150,17 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_word(pdev, tfaddr, speed_t[lowest_pio]);
 
 	pci_read_config_word(pdev, tfaddr-2, &reg);
+	pci_read_config_byte(pdev, addr_mask, &mode);
+
 	reg &= ~0x0200;			/* Clear IORDY */
-	if (ata_pio_need_iordy(adev))
+	mode &= ~(3 << port_shift);	/* Clear IORDY and DMA bits */
+
+	if (ata_pio_need_iordy(adev)) {
 		reg |= 0x0200;		/* Enable IORDY */
+		mode |= 1 << port_shift;
+	}
 	pci_write_config_word(pdev, tfaddr-2, reg);
+	pci_write_config_byte(pdev, addr_mask, mode);
 }
 
 /**
@@ -226,6 +230,10 @@ static struct scsi_host_template sil680_sht = {
 	.slave_configure	= ata_scsi_slave_config,
 	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
+#ifdef CONFIG_PM
+	.suspend		= ata_scsi_device_suspend,
+	.resume			= ata_scsi_device_resume,
+#endif
 };
 
 static struct ata_port_operations sil680_port_ops = {
@@ -243,6 +251,7 @@ static struct ata_port_operations sil680_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= sil680_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.cable_detect	= sil680_cable_detect,
 
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= ata_bmdma_start,
@@ -367,11 +376,13 @@ static int sil680_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
+#ifdef CONFIG_PM
 static int sil680_reinit_one(struct pci_dev *pdev)
 {
 	sil680_init_chip(pdev);
 	return ata_pci_device_resume(pdev);
 }
+#endif
 
 static const struct pci_device_id sil680[] = {
 	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_680), },
@@ -384,8 +395,10 @@ static struct pci_driver sil680_pci_driver = {
 	.id_table	= sil680,
 	.probe 		= sil680_init_one,
 	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
 	.resume		= sil680_reinit_one,
+#endif
 };
 
 static int __init sil680_init(void)

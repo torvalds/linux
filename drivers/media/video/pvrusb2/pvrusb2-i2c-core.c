@@ -22,6 +22,7 @@
 #include "pvrusb2-i2c-core.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
+#include "pvrusb2-fx2-cmd.h"
 
 #define trace_i2c(...) pvr2_trace(PVR2_TRACE_I2C,__VA_ARGS__)
 
@@ -66,7 +67,7 @@ static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 	memset(hdw->cmd_buffer, 0, sizeof(hdw->cmd_buffer));
 
 	/* Set up command buffer for an I2C write */
-	hdw->cmd_buffer[0] = 0x08;      /* write prefix */
+	hdw->cmd_buffer[0] = FX2CMD_I2C_WRITE;      /* write prefix */
 	hdw->cmd_buffer[1] = i2c_addr;  /* i2c addr of chip */
 	hdw->cmd_buffer[2] = length;    /* length of what follows */
 	if (length) memcpy(hdw->cmd_buffer + 3, data, length);
@@ -128,7 +129,7 @@ static int pvr2_i2c_read(struct pvr2_hdw *hdw, /* Context */
 	memset(hdw->cmd_buffer, 0, sizeof(hdw->cmd_buffer));
 
 	/* Set up command buffer for an I2C write followed by a read */
-	hdw->cmd_buffer[0] = 0x09;  /* read prefix */
+	hdw->cmd_buffer[0] = FX2CMD_I2C_READ;  /* read prefix */
 	hdw->cmd_buffer[1] = dlen;  /* arg length */
 	hdw->cmd_buffer[2] = rlen;  /* answer length. Device will send one
 				       more byte (status). */
@@ -221,7 +222,7 @@ static int i2c_24xxx_ir(struct pvr2_hdw *hdw,
 
 	/* Issue a command to the FX2 to read the IR receiver. */
 	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = 0xec;
+		hdw->cmd_buffer[0] = FX2CMD_GET_IR_CODE;
 		stat = pvr2_send_request(hdw,
 					 hdw->cmd_buffer,1,
 					 hdw->cmd_buffer,4);
@@ -590,6 +591,33 @@ static int handler_check(struct pvr2_i2c_client *cp)
 
 #define BUFSIZE 500
 
+
+void pvr2_i2c_core_status_poll(struct pvr2_hdw *hdw)
+{
+	struct list_head *item;
+	struct pvr2_i2c_client *cp;
+	mutex_lock(&hdw->i2c_list_lock); do {
+		struct v4l2_tuner *vtp = &hdw->tuner_signal_info;
+		memset(vtp,0,sizeof(*vtp));
+		list_for_each(item,&hdw->i2c_clients) {
+			cp = list_entry(item,struct pvr2_i2c_client,list);
+			if (!cp->detected_flag) continue;
+			if (!cp->status_poll) continue;
+			cp->status_poll(cp);
+		}
+		hdw->tuner_signal_stale = 0;
+		pvr2_trace(PVR2_TRACE_CHIPS,"i2c status poll"
+			   " type=%u strength=%u audio=0x%x cap=0x%x"
+			   " low=%u hi=%u",
+			   vtp->type,
+			   vtp->signal,vtp->rxsubchans,vtp->capability,
+			   vtp->rangelow,vtp->rangehigh);
+	} while (0); mutex_unlock(&hdw->i2c_list_lock);
+}
+
+
+/* Issue various I2C operations to bring chip-level drivers into sync with
+   state stored in this driver. */
 void pvr2_i2c_core_sync(struct pvr2_hdw *hdw)
 {
 	unsigned long msk;
@@ -870,12 +898,12 @@ static int pvr2_i2c_attach_inform(struct i2c_client *client)
 	struct pvr2_hdw *hdw = (struct pvr2_hdw *)(client->adapter->algo_data);
 	struct pvr2_i2c_client *cp;
 	int fl = !(hdw->i2c_pend_types & PVR2_I2C_PEND_ALL);
-	cp = kmalloc(sizeof(*cp),GFP_KERNEL);
+	cp = kzalloc(sizeof(*cp),GFP_KERNEL);
 	trace_i2c("i2c_attach [client=%s @ 0x%x ctxt=%p]",
 		  client->name,
 		  client->addr,cp);
 	if (!cp) return -ENOMEM;
-	memset(cp,0,sizeof(*cp));
+	cp->hdw = hdw;
 	INIT_LIST_HEAD(&cp->list);
 	cp->client = client;
 	mutex_lock(&hdw->i2c_list_lock); do {
@@ -948,8 +976,7 @@ static void do_i2c_scan(struct pvr2_hdw *hdw)
 	printk("%s: i2c scan beginning\n",hdw->name);
 	for (i = 0; i < 128; i++) {
 		msg[0].addr = i;
-		rc = i2c_transfer(&hdw->i2c_adap,msg,
-				  sizeof(msg)/sizeof(msg[0]));
+		rc = i2c_transfer(&hdw->i2c_adap,msg, ARRAY_SIZE(msg));
 		if (rc != 1) continue;
 		printk("%s: i2c scan: found device @ 0x%x\n",hdw->name,i);
 	}

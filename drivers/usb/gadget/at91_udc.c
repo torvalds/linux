@@ -784,7 +784,7 @@ static int at91_ep_set_halt(struct usb_ep *_ep, int value)
 	return status;
 }
 
-static struct usb_ep_ops at91_ep_ops = {
+static const struct usb_ep_ops at91_ep_ops = {
 	.enable		= at91_ep_enable,
 	.disable	= at91_ep_disable,
 	.alloc_request	= at91_ep_alloc_request,
@@ -912,7 +912,7 @@ static void pullup(struct at91_udc *udc, int is_on)
 		at91_udp_write(udc, AT91_UDP_TXVC, 0);
 		if (cpu_is_at91rm9200())
 			at91_set_gpio_value(udc->board.pullup_pin, 1);
-		else if (cpu_is_at91sam9260()) {
+		else if (cpu_is_at91sam9260() || cpu_is_at91sam9263()) {
 			u32	txvc = at91_udp_read(udc, AT91_UDP_TXVC);
 
 			txvc |= AT91_UDP_TXVC_PUON;
@@ -929,7 +929,7 @@ static void pullup(struct at91_udc *udc, int is_on)
 		at91_udp_write(udc, AT91_UDP_TXVC, AT91_UDP_TXVC_TXVDIS);
 		if (cpu_is_at91rm9200())
 			at91_set_gpio_value(udc->board.pullup_pin, 0);
-		else if (cpu_is_at91sam9260()) {
+		else if (cpu_is_at91sam9260() || cpu_is_at91sam9263()) {
 			u32	txvc = at91_udp_read(udc, AT91_UDP_TXVC);
 
 			txvc &= ~AT91_UDP_TXVC_PUON;
@@ -1651,7 +1651,7 @@ static void at91udc_shutdown(struct platform_device *dev)
 	pullup(platform_get_drvdata(dev), 0);
 }
 
-static int __devinit at91udc_probe(struct platform_device *pdev)
+static int __init at91udc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct at91_udc	*udc;
@@ -1762,7 +1762,7 @@ fail0:
 	return retval;
 }
 
-static int __devexit at91udc_remove(struct platform_device *pdev)
+static int __exit at91udc_remove(struct platform_device *pdev)
 {
 	struct at91_udc *udc = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -1835,9 +1835,8 @@ static int at91udc_resume(struct platform_device *pdev)
 #define	at91udc_resume	NULL
 #endif
 
-static struct platform_driver at91_udc = {
-	.probe		= at91udc_probe,
-	.remove		= __devexit_p(at91udc_remove),
+static struct platform_driver at91_udc_driver = {
+	.remove		= __exit_p(at91udc_remove),
 	.shutdown	= at91udc_shutdown,
 	.suspend	= at91udc_suspend,
 	.resume		= at91udc_resume,
@@ -1847,15 +1846,15 @@ static struct platform_driver at91_udc = {
 	},
 };
 
-static int __devinit udc_init_module(void)
+static int __init udc_init_module(void)
 {
-	return platform_driver_register(&at91_udc);
+	return platform_driver_probe(&at91_udc_driver, at91udc_probe);
 }
 module_init(udc_init_module);
 
-static void __devexit udc_exit_module(void)
+static void __exit udc_exit_module(void)
 {
-	platform_driver_unregister(&at91_udc);
+	platform_driver_unregister(&at91_udc_driver);
 }
 module_exit(udc_exit_module);
 

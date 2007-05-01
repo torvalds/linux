@@ -24,6 +24,7 @@ struct mtd_oob_buf {
 #define MTD_NORFLASH		3
 #define MTD_NANDFLASH		4
 #define MTD_DATAFLASH		6
+#define MTD_UBIVOLUME		7
 
 #define MTD_WRITEABLE		0x400	/* Device is writeable */
 #define MTD_BIT_WRITEABLE	0x800	/* Single bits can be flipped */
@@ -35,12 +36,6 @@ struct mtd_oob_buf {
 #define MTD_CAP_RAM		(MTD_WRITEABLE | MTD_BIT_WRITEABLE | MTD_NO_ERASE)
 #define MTD_CAP_NORFLASH	(MTD_WRITEABLE | MTD_BIT_WRITEABLE)
 #define MTD_CAP_NANDFLASH	(MTD_WRITEABLE)
-
-
-// Types of automatic ECC/Checksum available
-#define MTD_ECC_NONE		0 	// No automatic ECC available
-#define MTD_ECC_RS_DiskOnChip	1	// Automatic ECC on DiskOnChip
-#define MTD_ECC_SW		2	// SW ECC for Toshiba & Samsung devices
 
 /* ECC byte placement */
 #define MTD_NANDECC_OFF		0	// Switch off ECC (Not recommended)
@@ -61,6 +56,8 @@ struct mtd_info_user {
 	uint32_t erasesize;
 	uint32_t writesize;
 	uint32_t oobsize;   // Amount of OOB data per block (e.g. 16)
+	/* The below two fields are obsolete and broken, do not use them
+	 * (TODO: remove at some point) */
 	uint32_t ecctype;
 	uint32_t eccsize;
 };

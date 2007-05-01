@@ -343,8 +343,8 @@ static int init_one_mctrl(struct device_node *dp)
 {
 	struct mctrl_info *mp = kzalloc(sizeof(*mp), GFP_KERNEL);
 	int portid = of_getintprop_default(dp, "portid", -1);
-	struct linux_prom64_registers *regs;
-	void *pval;
+	const struct linux_prom64_registers *regs;
+	const void *pval;
 	int len;
 
 	if (!mp)

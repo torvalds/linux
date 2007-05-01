@@ -33,11 +33,6 @@
  *		Dave Jones	:	Report invalid combinations of Athlon CPUs.
 *		Rusty Russell	:	Hacked into shape for new "hotplug" boot process. */
 
-
-/* SMP boot always wants to use real time delay to allow sufficient time for
- * the APs to come online */
-#define USE_REAL_TIME_DELAY
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -50,6 +45,7 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
+#include <linux/nmi.h>
 
 #include <linux/delay.h>
 #include <linux/mc146818rtc.h>
@@ -1283,8 +1279,9 @@ void __cpu_die(unsigned int cpu)
 
 int __cpuinit __cpu_up(unsigned int cpu)
 {
+	unsigned long flags;
 #ifdef CONFIG_HOTPLUG_CPU
-	int ret=0;
+	int ret = 0;
 
 	/*
 	 * We do warm boot only on cpus that had booted earlier
@@ -1302,23 +1299,25 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	/* In case one didn't come up */
 	if (!cpu_isset(cpu, cpu_callin_map)) {
 		printk(KERN_DEBUG "skipping cpu%d, didn't come online\n", cpu);
-		local_irq_enable();
 		return -EIO;
 	}
-
-	local_irq_enable();
 
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 	/* Unleash the CPU! */
 	cpu_set(cpu, smp_commenced_mask);
 
 	/*
-	 * Check TSC synchronization with the AP:
+	 * Check TSC synchronization with the AP (keep irqs disabled
+	 * while doing so):
 	 */
+	local_irq_save(flags);
 	check_tsc_sync_source(cpu);
+	local_irq_restore(flags);
 
-	while (!cpu_isset(cpu, cpu_online_map))
+	while (!cpu_isset(cpu, cpu_online_map)) {
 		cpu_relax();
+		touch_nmi_watchdog();
+	}
 
 #ifdef CONFIG_X86_GENERICARCH
 	if (num_online_cpus() > 8 && genapic == &apic_default)

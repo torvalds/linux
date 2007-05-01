@@ -136,7 +136,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 				printk("islpci_eth_transmit:wds_mac\n");
 #endif
 				memmove(skb->data + 6, src, skb->len);
-				memcpy(skb->data, wds_mac, 6);
+				skb_copy_to_linear_data(skb, wds_mac, 6);
 			} else {
 				memmove(skb->data, src, skb->len);
 			}
@@ -162,13 +162,16 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 
 			skb_put(newskb, init_wds ? skb->len + 6 : skb->len);
 			if (init_wds) {
-				memcpy(newskb->data + 6, skb->data, skb->len);
-				memcpy(newskb->data, wds_mac, 6);
+				skb_copy_from_linear_data(skb,
+							  newskb->data + 6,
+							  skb->len);
+				skb_copy_to_linear_data(newskb, wds_mac, 6);
 #ifdef ISLPCI_ETH_DEBUG
 				printk("islpci_eth_transmit:wds_mac\n");
 #endif
 			} else
-				memcpy(newskb->data, skb->data, skb->len);
+				skb_copy_from_linear_data(skb, newskb->data,
+							  skb->len);
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 			DEBUG(SHOW_TRACING, "memcpy %p %p %i wds %i\n",
@@ -303,7 +306,7 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 		skb_pull(*skb, sizeof (struct rfmon_header));
 
 	(*skb)->protocol = htons(ETH_P_802_2);
-	(*skb)->mac.raw = (*skb)->data;
+	skb_reset_mac_header(*skb);
 	(*skb)->pkt_type = PACKET_OTHERHOST;
 
 	return 0;
@@ -374,10 +377,6 @@ islpci_eth_receive(islpci_private *priv)
 	DEBUG(SHOW_BUFFER_CONTENTS, "\nrx %p ", skb->data);
 	display_buffer((char *) skb->data, skb->len);
 #endif
-
-	/* do some additional sk_buff and network layer parameters */
-	skb->dev = ndev;
-
 	/* take care of monitor mode and spy monitoring. */
 	if (unlikely(priv->iw_mode == IW_MODE_MONITOR))
 		discard = islpci_monitor_rx(priv, &skb);
@@ -398,8 +397,10 @@ islpci_eth_receive(islpci_private *priv)
 			/* Update spy records */
 			wireless_spy_update(ndev, annex->addr2, &wstats);
 
-			memcpy(skb->data + sizeof (struct rfmon_header),
-			       skb->data, 2 * ETH_ALEN);
+			skb_copy_from_linear_data(skb,
+						  (skb->data +
+						   sizeof(struct rfmon_header)),
+						  2 * ETH_ALEN);
 			skb_pull(skb, sizeof (struct rfmon_header));
 		}
 		skb->protocol = eth_type_trans(skb, ndev);

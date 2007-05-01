@@ -67,12 +67,12 @@ static inline long sync_writeback_pages(void)
 /*
  * Start background writeback (via pdflush) at this percentage
  */
-int dirty_background_ratio = 10;
+int dirty_background_ratio = 5;
 
 /*
  * The generator of dirty data starts writeback at this percentage
  */
-int vm_dirty_ratio = 40;
+int vm_dirty_ratio = 10;
 
 /*
  * The interval between `kupdate'-style writebacks, in jiffies
@@ -296,10 +296,20 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 }
 EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
 
-void throttle_vm_writeout(void)
+void throttle_vm_writeout(gfp_t gfp_mask)
 {
 	long background_thresh;
 	long dirty_thresh;
+
+	if ((gfp_mask & (__GFP_FS|__GFP_IO)) != (__GFP_FS|__GFP_IO)) {
+		/*
+		 * The caller might hold locks which can prevent IO completion
+		 * or progress in the filesystem.  So we cannot just sit here
+		 * waiting for IO to complete.
+		 */
+		congestion_wait(WRITE, HZ/10);
+		return;
+	}
 
         for ( ; ; ) {
 		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
@@ -316,7 +326,6 @@ void throttle_vm_writeout(void)
                 congestion_wait(WRITE, HZ/10);
         }
 }
-
 
 /*
  * writeback at least _min_pages, and keep writing until the amount of dirty

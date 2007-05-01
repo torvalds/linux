@@ -60,19 +60,19 @@ static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 5; /* Interval between shuffles (in sec)*/
 static char *torture_type = "rcu"; /* What RCU implementation to torture. */
 
-module_param(nreaders, int, 0);
+module_param(nreaders, int, 0444);
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
-module_param(nfakewriters, int, 0);
+module_param(nfakewriters, int, 0444);
 MODULE_PARM_DESC(nfakewriters, "Number of RCU fake writer threads");
-module_param(stat_interval, int, 0);
+module_param(stat_interval, int, 0444);
 MODULE_PARM_DESC(stat_interval, "Number of seconds between stats printk()s");
-module_param(verbose, bool, 0);
+module_param(verbose, bool, 0444);
 MODULE_PARM_DESC(verbose, "Enable verbose debugging printk()s");
-module_param(test_no_idle_hz, bool, 0);
+module_param(test_no_idle_hz, bool, 0444);
 MODULE_PARM_DESC(test_no_idle_hz, "Test support for tickless idle CPUs");
-module_param(shuffle_interval, int, 0);
+module_param(shuffle_interval, int, 0444);
 MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
-module_param(torture_type, charp, 0);
+module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh, srcu)");
 
 #define TORTURE_FLAG "-torture:"

@@ -194,6 +194,7 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb)
 		rc = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
 		if (rc <= 0)
 			break;
+		dccp_pr_debug("delayed send by %d msec\n", rc);
 		delay = msecs_to_jiffies(rc);
 		sk->sk_write_pending++;
 		release_sock(sk);
@@ -211,19 +212,6 @@ do_error:
 do_interrupted:
 	rc = -EINTR;
 	goto out;
-}
-
-static void dccp_write_xmit_timer(unsigned long data) {
-	struct sock *sk = (struct sock *)data;
-	struct dccp_sock *dp = dccp_sk(sk);
-
-	bh_lock_sock(sk);
-	if (sock_owned_by_user(sk))
-		sk_reset_timer(sk, &dp->dccps_xmit_timer, jiffies+1);
-	else
-		dccp_write_xmit(sk, 0);
-	bh_unlock_sock(sk);
-	sock_put(sk);
 }
 
 void dccp_write_xmit(struct sock *sk, int block)
@@ -268,8 +256,8 @@ void dccp_write_xmit(struct sock *sk, int block)
 				DCCP_BUG("err=%d after ccid_hc_tx_packet_sent",
 					 err);
 		} else {
-			dccp_pr_debug("packet discarded\n");
-			kfree(skb);
+			dccp_pr_debug("packet discarded due to err=%d\n", err);
+			kfree_skb(skb);
 		}
 	}
 }
@@ -434,9 +422,6 @@ static inline void dccp_connect_init(struct sock *sk)
 	dp->dccps_gar = dp->dccps_iss;
 
 	icsk->icsk_retransmits = 0;
-	init_timer(&dp->dccps_xmit_timer);
-	dp->dccps_xmit_timer.data = (unsigned long)sk;
-	dp->dccps_xmit_timer.function = dccp_write_xmit_timer;
 }
 
 int dccp_connect(struct sock *sk)

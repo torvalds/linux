@@ -1079,6 +1079,7 @@ static int getcwd(char *buff, int size)
 static int vpe_open(struct inode *inode, struct file *filp)
 {
 	int minor, ret;
+	enum vpe_state state;
 	struct vpe *v;
 	struct vpe_notifications *not;
 
@@ -1093,7 +1094,8 @@ static int vpe_open(struct inode *inode, struct file *filp)
 		return -ENODEV;
 	}
 
-	if (v->state != VPE_STATE_UNUSED) {
+	state = xchg(&v->state, VPE_STATE_INUSE);
+	if (state != VPE_STATE_UNUSED) {
 		dvpe();
 
 		printk(KERN_DEBUG "VPE loader: tc in use dumping regs\n");
@@ -1107,9 +1109,6 @@ static int vpe_open(struct inode *inode, struct file *filp)
 		release_progmem(v->load_addr);
 		cleanup_tc(get_tc(minor));
 	}
-
-	// allocate it so when we get write ops we know it's expected.
-	v->state = VPE_STATE_INUSE;
 
 	/* this of-course trashes what was there before... */
 	v->pbuffer = vmalloc(P_SIZE);

@@ -56,6 +56,7 @@
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
 #include <linux/hdlcdrv.h>
+#include <linux/random.h>
 #include <net/ax25.h> 
 #include <asm/uaccess.h>
 
@@ -316,7 +317,9 @@ void hdlcdrv_transmitter(struct net_device *dev, struct hdlcdrv_state *s)
 				dev_kfree_skb_irq(skb);
 				break;
 			}
-			memcpy(s->hdlctx.buffer, skb->data+1, pkt_len);
+			skb_copy_from_linear_data_offset(skb, 1,
+							 s->hdlctx.buffer,
+							 pkt_len);
 			dev_kfree_skb_irq(skb);
 			s->hdlctx.bp = s->hdlctx.buffer;
 			append_crc_ccitt(s->hdlctx.buffer, pkt_len);
@@ -371,16 +374,6 @@ static void start_tx(struct net_device *dev, struct hdlcdrv_state *s)
 
 /* ---------------------------------------------------------------------- */
 
-static unsigned short random_seed;
-
-static inline unsigned short random_num(void)
-{
-	random_seed = 28629 * random_seed + 157;
-	return random_seed;
-}
-
-/* ---------------------------------------------------------------------- */
-
 void hdlcdrv_arbitrate(struct net_device *dev, struct hdlcdrv_state *s)
 {
 	if (!s || s->magic != HDLCDRV_MAGIC || s->hdlctx.ptt || !s->skb) 
@@ -396,7 +389,7 @@ void hdlcdrv_arbitrate(struct net_device *dev, struct hdlcdrv_state *s)
 	if ((--s->hdlctx.slotcnt) > 0)
 		return;
 	s->hdlctx.slotcnt = s->ch_params.slottime;
-	if ((random_num() % 256) > s->ch_params.ppersist)
+	if ((random32() % 256) > s->ch_params.ppersist)
 		return;
 	start_tx(dev, s);
 }

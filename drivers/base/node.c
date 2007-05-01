@@ -133,7 +133,7 @@ static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
 
 
 /*
- * register_node - Setup a driverfs device for a node.
+ * register_node - Setup a sysfs device for a node.
  * @num - Node number to use when creating the device.
  *
  * Initialize and register the node device.

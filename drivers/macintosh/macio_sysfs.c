@@ -21,7 +21,7 @@ compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 	int length = 0;
 
 	of = &to_macio_device (dev)->ofdev;
-	compat = get_property(of->node, "compatible", &cplen);
+	compat = of_get_property(of->node, "compatible", &cplen);
 	if (!compat) {
 		*buf = '\0';
 		return 0;
@@ -47,18 +47,20 @@ static ssize_t modalias_show (struct device *dev, struct device_attribute *attr,
 	int length;
 
 	of = &to_macio_device (dev)->ofdev;
-	compat = get_property(of->node, "compatible", &cplen);
+	compat = of_get_property(of->node, "compatible", &cplen);
 	if (!compat) compat = "", cplen = 1;
 	length = sprintf (buf, "of:N%sT%s", of->node->name, of->node->type);
 	buf += length;
 	while (cplen > 0) {
 		int l;
-		length += sprintf (buf, "C%s", compat);
-		buf += length;
+		l = sprintf (buf, "C%s", compat);
+		length += l;
+		buf += l;
 		l = strlen (compat) + 1;
 		compat += l;
 		cplen -= l;
 	}
+	length += sprintf(buf, "\n");
 
 	return length;
 }

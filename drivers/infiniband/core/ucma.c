@@ -70,10 +70,24 @@ struct ucma_context {
 	u64			uid;
 
 	struct list_head	list;
+	struct list_head	mc_list;
+};
+
+struct ucma_multicast {
+	struct ucma_context	*ctx;
+	int			id;
+	int			events_reported;
+
+	u64			uid;
+	struct list_head	list;
+	struct sockaddr		addr;
+	u8			pad[sizeof(struct sockaddr_in6) -
+				    sizeof(struct sockaddr)];
 };
 
 struct ucma_event {
 	struct ucma_context	*ctx;
+	struct ucma_multicast	*mc;
 	struct list_head	list;
 	struct rdma_cm_id	*cm_id;
 	struct rdma_ucm_event_resp resp;
@@ -81,6 +95,7 @@ struct ucma_event {
 
 static DEFINE_MUTEX(mut);
 static DEFINE_IDR(ctx_idr);
+static DEFINE_IDR(multicast_idr);
 
 static inline struct ucma_context *_ucma_find_context(int id,
 						      struct ucma_file *file)
@@ -124,6 +139,7 @@ static struct ucma_context *ucma_alloc_ctx(struct ucma_file *file)
 
 	atomic_set(&ctx->ref, 1);
 	init_completion(&ctx->comp);
+	INIT_LIST_HEAD(&ctx->mc_list);
 	ctx->file = file;
 
 	do {
@@ -144,6 +160,37 @@ static struct ucma_context *ucma_alloc_ctx(struct ucma_file *file)
 
 error:
 	kfree(ctx);
+	return NULL;
+}
+
+static struct ucma_multicast* ucma_alloc_multicast(struct ucma_context *ctx)
+{
+	struct ucma_multicast *mc;
+	int ret;
+
+	mc = kzalloc(sizeof(*mc), GFP_KERNEL);
+	if (!mc)
+		return NULL;
+
+	do {
+		ret = idr_pre_get(&multicast_idr, GFP_KERNEL);
+		if (!ret)
+			goto error;
+
+		mutex_lock(&mut);
+		ret = idr_get_new(&multicast_idr, mc, &mc->id);
+		mutex_unlock(&mut);
+	} while (ret == -EAGAIN);
+
+	if (ret)
+		goto error;
+
+	mc->ctx = ctx;
+	list_add_tail(&mc->list, &ctx->mc_list);
+	return mc;
+
+error:
+	kfree(mc);
 	return NULL;
 }
 
@@ -180,8 +227,19 @@ static void ucma_set_event_context(struct ucma_context *ctx,
 				   struct ucma_event *uevent)
 {
 	uevent->ctx = ctx;
-	uevent->resp.uid = ctx->uid;
-	uevent->resp.id = ctx->id;
+	switch (event->event) {
+	case RDMA_CM_EVENT_MULTICAST_JOIN:
+	case RDMA_CM_EVENT_MULTICAST_ERROR:
+		uevent->mc = (struct ucma_multicast *)
+			     event->param.ud.private_data;
+		uevent->resp.uid = uevent->mc->uid;
+		uevent->resp.id = uevent->mc->id;
+		break;
+	default:
+		uevent->resp.uid = ctx->uid;
+		uevent->resp.id = ctx->id;
+		break;
+	}
 }
 
 static int ucma_event_handler(struct rdma_cm_id *cm_id,
@@ -199,7 +257,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	ucma_set_event_context(ctx, event, uevent);
 	uevent->resp.event = event->event;
 	uevent->resp.status = event->status;
-	if (cm_id->ps == RDMA_PS_UDP)
+	if (cm_id->ps == RDMA_PS_UDP || cm_id->ps == RDMA_PS_IPOIB)
 		ucma_copy_ud_event(&uevent->resp.param.ud, &event->param.ud);
 	else
 		ucma_copy_conn_event(&uevent->resp.param.conn,
@@ -208,7 +266,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	mutex_lock(&ctx->file->mut);
 	if (event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
 		if (!ctx->backlog) {
-			ret = -EDQUOT;
+			ret = -ENOMEM;
 			kfree(uevent);
 			goto out;
 		}
@@ -248,25 +306,17 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 
 	mutex_lock(&file->mut);
 	while (list_empty(&file->event_list)) {
-		if (file->filp->f_flags & O_NONBLOCK) {
-			ret = -EAGAIN;
-			break;
-		}
-
-		if (signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-
-		prepare_to_wait(&file->poll_wait, &wait, TASK_INTERRUPTIBLE);
 		mutex_unlock(&file->mut);
-		schedule();
-		mutex_lock(&file->mut);
-		finish_wait(&file->poll_wait, &wait);
-	}
 
-	if (ret)
-		goto done;
+		if (file->filp->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
+		if (wait_event_interruptible(file->poll_wait,
+					     !list_empty(&file->event_list)))
+			return -ERESTARTSYS;
+
+		mutex_lock(&file->mut);
+	}
 
 	uevent = list_entry(file->event_list.next, struct ucma_event, list);
 
@@ -290,6 +340,8 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 
 	list_del(&uevent->list);
 	uevent->ctx->events_reported++;
+	if (uevent->mc)
+		uevent->mc->events_reported++;
 	kfree(uevent);
 done:
 	mutex_unlock(&file->mut);
@@ -342,6 +394,19 @@ err1:
 	return ret;
 }
 
+static void ucma_cleanup_multicast(struct ucma_context *ctx)
+{
+	struct ucma_multicast *mc, *tmp;
+
+	mutex_lock(&mut);
+	list_for_each_entry_safe(mc, tmp, &ctx->mc_list, list) {
+		list_del(&mc->list);
+		idr_remove(&multicast_idr, mc->id);
+		kfree(mc);
+	}
+	mutex_unlock(&mut);
+}
+
 static void ucma_cleanup_events(struct ucma_context *ctx)
 {
 	struct ucma_event *uevent, *tmp;
@@ -360,12 +425,27 @@ static void ucma_cleanup_events(struct ucma_context *ctx)
 	}
 }
 
+static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
+{
+	struct ucma_event *uevent, *tmp;
+
+	list_for_each_entry_safe(uevent, tmp, &mc->ctx->file->event_list, list) {
+		if (uevent->mc != mc)
+			continue;
+
+		list_del(&uevent->list);
+		kfree(uevent);
+	}
+}
+
 static int ucma_free_ctx(struct ucma_context *ctx)
 {
 	int events_reported;
 
 	/* No new events will be generated after destroying the id. */
 	rdma_destroy_id(ctx->cm_id);
+
+	ucma_cleanup_multicast(ctx);
 
 	/* Cleanup events not yet reported to the user. */
 	mutex_lock(&ctx->file->mut);
@@ -731,6 +811,114 @@ static ssize_t ucma_notify(struct ucma_file *file, const char __user *inbuf,
 	return ret;
 }
 
+static ssize_t ucma_join_multicast(struct ucma_file *file,
+				   const char __user *inbuf,
+				   int in_len, int out_len)
+{
+	struct rdma_ucm_join_mcast cmd;
+	struct rdma_ucm_create_id_resp resp;
+	struct ucma_context *ctx;
+	struct ucma_multicast *mc;
+	int ret;
+
+	if (out_len < sizeof(resp))
+		return -ENOSPC;
+
+	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
+		return -EFAULT;
+
+	ctx = ucma_get_ctx(file, cmd.id);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	mutex_lock(&file->mut);
+	mc = ucma_alloc_multicast(ctx);
+	if (IS_ERR(mc)) {
+		ret = PTR_ERR(mc);
+		goto err1;
+	}
+
+	mc->uid = cmd.uid;
+	memcpy(&mc->addr, &cmd.addr, sizeof cmd.addr);
+	ret = rdma_join_multicast(ctx->cm_id, &mc->addr, mc);
+	if (ret)
+		goto err2;
+
+	resp.id = mc->id;
+	if (copy_to_user((void __user *)(unsigned long)cmd.response,
+			 &resp, sizeof(resp))) {
+		ret = -EFAULT;
+		goto err3;
+	}
+
+	mutex_unlock(&file->mut);
+	ucma_put_ctx(ctx);
+	return 0;
+
+err3:
+	rdma_leave_multicast(ctx->cm_id, &mc->addr);
+	ucma_cleanup_mc_events(mc);
+err2:
+	mutex_lock(&mut);
+	idr_remove(&multicast_idr, mc->id);
+	mutex_unlock(&mut);
+	list_del(&mc->list);
+	kfree(mc);
+err1:
+	mutex_unlock(&file->mut);
+	ucma_put_ctx(ctx);
+	return ret;
+}
+
+static ssize_t ucma_leave_multicast(struct ucma_file *file,
+				    const char __user *inbuf,
+				    int in_len, int out_len)
+{
+	struct rdma_ucm_destroy_id cmd;
+	struct rdma_ucm_destroy_id_resp resp;
+	struct ucma_multicast *mc;
+	int ret = 0;
+
+	if (out_len < sizeof(resp))
+		return -ENOSPC;
+
+	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
+		return -EFAULT;
+
+	mutex_lock(&mut);
+	mc = idr_find(&multicast_idr, cmd.id);
+	if (!mc)
+		mc = ERR_PTR(-ENOENT);
+	else if (mc->ctx->file != file)
+		mc = ERR_PTR(-EINVAL);
+	else {
+		idr_remove(&multicast_idr, mc->id);
+		atomic_inc(&mc->ctx->ref);
+	}
+	mutex_unlock(&mut);
+
+	if (IS_ERR(mc)) {
+		ret = PTR_ERR(mc);
+		goto out;
+	}
+
+	rdma_leave_multicast(mc->ctx->cm_id, &mc->addr);
+	mutex_lock(&mc->ctx->file->mut);
+	ucma_cleanup_mc_events(mc);
+	list_del(&mc->list);
+	mutex_unlock(&mc->ctx->file->mut);
+
+	ucma_put_ctx(mc->ctx);
+	resp.events_reported = mc->events_reported;
+	kfree(mc);
+
+	if (copy_to_user((void __user *)(unsigned long)cmd.response,
+			 &resp, sizeof(resp)))
+		ret = -EFAULT;
+out:
+	return ret;
+}
+
 static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 				   const char __user *inbuf,
 				   int in_len, int out_len) = {
@@ -750,6 +938,8 @@ static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 	[RDMA_USER_CM_CMD_GET_OPTION]	= NULL,
 	[RDMA_USER_CM_CMD_SET_OPTION]	= NULL,
 	[RDMA_USER_CM_CMD_NOTIFY]	= ucma_notify,
+	[RDMA_USER_CM_CMD_JOIN_MCAST]	= ucma_join_multicast,
+	[RDMA_USER_CM_CMD_LEAVE_MCAST]	= ucma_leave_multicast,
 };
 
 static ssize_t ucma_write(struct file *filp, const char __user *buf,

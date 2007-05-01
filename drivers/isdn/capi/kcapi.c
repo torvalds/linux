@@ -276,10 +276,17 @@ void capi_ctr_handle_message(struct capi_ctr * card, u16 appl, struct sk_buff *s
 	int showctl = 0;
 	u8 cmd, subcmd;
 	unsigned long flags;
+	_cdebbuf *cdb;
 
 	if (card->cardstate != CARD_RUNNING) {
-		printk(KERN_INFO "kcapi: controller %d not active, got: %s",
-		       card->cnr, capi_message2str(skb->data));
+		cdb = capi_message2str(skb->data);
+		if (cdb) {
+			printk(KERN_INFO "kcapi: controller [%03d] not active, got: %s",
+				card->cnr, cdb->buf);
+			cdebbuf_free(cdb);
+		} else
+			printk(KERN_INFO "kcapi: controller [%03d] not active, cannot trace\n",
+				card->cnr);
 		goto error;
 	}
 
@@ -295,15 +302,21 @@ void capi_ctr_handle_message(struct capi_ctr * card, u16 appl, struct sk_buff *s
 	showctl |= (card->traceflag & 1);
 	if (showctl & 2) {
 		if (showctl & 1) {
-			printk(KERN_DEBUG "kcapi: got [0x%lx] id#%d %s len=%u\n",
-			       (unsigned long) card->cnr,
-			       CAPIMSG_APPID(skb->data),
+			printk(KERN_DEBUG "kcapi: got [%03d] id#%d %s len=%u\n",
+			       card->cnr, CAPIMSG_APPID(skb->data),
 			       capi_cmd2str(cmd, subcmd),
 			       CAPIMSG_LEN(skb->data));
 		} else {
-			printk(KERN_DEBUG "kcapi: got [0x%lx] %s\n",
-					(unsigned long) card->cnr,
-					capi_message2str(skb->data));
+			cdb = capi_message2str(skb->data);
+			if (cdb) {
+				printk(KERN_DEBUG "kcapi: got [%03d] %s\n",
+					card->cnr, cdb->buf);
+				cdebbuf_free(cdb);
+			} else
+				printk(KERN_DEBUG "kcapi: got [%03d] id#%d %s len=%u, cannot trace\n",
+					card->cnr, CAPIMSG_APPID(skb->data),
+					capi_cmd2str(cmd, subcmd),
+					CAPIMSG_LEN(skb->data));
 		}
 
 	}
@@ -312,8 +325,15 @@ void capi_ctr_handle_message(struct capi_ctr * card, u16 appl, struct sk_buff *s
 	ap = get_capi_appl_by_nr(CAPIMSG_APPID(skb->data));
 	if ((!ap) || (ap->release_in_progress)) {
 		read_unlock_irqrestore(&application_lock, flags);
-		printk(KERN_ERR "kcapi: handle_message: applid %d state released (%s)\n",
-			CAPIMSG_APPID(skb->data), capi_message2str(skb->data));
+		cdb = capi_message2str(skb->data);
+		if (cdb) {
+			printk(KERN_ERR "kcapi: handle_message: applid %d state released (%s)\n",
+			CAPIMSG_APPID(skb->data), cdb->buf);
+			cdebbuf_free(cdb);
+		} else
+			printk(KERN_ERR "kcapi: handle_message: applid %d state released (%s) cannot trace\n",
+				CAPIMSG_APPID(skb->data),
+				capi_cmd2str(cmd, subcmd));
 		goto error;
 	}
 	skb_queue_tail(&ap->recv_queue, skb);
@@ -332,7 +352,7 @@ void capi_ctr_ready(struct capi_ctr * card)
 {
 	card->cardstate = CARD_RUNNING;
 
-        printk(KERN_NOTICE "kcapi: card %d \"%s\" ready.\n",
+        printk(KERN_NOTICE "kcapi: card [%03d] \"%s\" ready.\n",
 	       card->cnr, card->name);
 
 	notify_push(KCI_CONTRUP, card->cnr, 0, 0);
@@ -364,7 +384,7 @@ void capi_ctr_reseted(struct capi_ctr * card)
 		capi_ctr_put(card);
 	}
 
-	printk(KERN_NOTICE "kcapi: card %d down.\n", card->cnr);
+	printk(KERN_NOTICE "kcapi: card [%03d] down.\n", card->cnr);
 
 	notify_push(KCI_CONTRDOWN, card->cnr, 0, 0);
 }
@@ -374,7 +394,7 @@ EXPORT_SYMBOL(capi_ctr_reseted);
 void capi_ctr_suspend_output(struct capi_ctr *card)
 {
 	if (!card->blocked) {
-		printk(KERN_DEBUG "kcapi: card %d suspend\n", card->cnr);
+		printk(KERN_DEBUG "kcapi: card [%03d] suspend\n", card->cnr);
 		card->blocked = 1;
 	}
 }
@@ -384,7 +404,7 @@ EXPORT_SYMBOL(capi_ctr_suspend_output);
 void capi_ctr_resume_output(struct capi_ctr *card)
 {
 	if (card->blocked) {
-		printk(KERN_DEBUG "kcapi: card %d resume\n", card->cnr);
+		printk(KERN_DEBUG "kcapi: card [%03d] resume\n", card->cnr);
 		card->blocked = 0;
 	}
 }
@@ -432,7 +452,7 @@ attach_capi_ctr(struct capi_ctr *card)
 	}
 
 	ncards++;
-	printk(KERN_NOTICE "kcapi: Controller %d: %s attached\n",
+	printk(KERN_NOTICE "kcapi: Controller [%03d]: %s attached\n",
 			card->cnr, card->name);
 	return 0;
 }
@@ -451,7 +471,7 @@ int detach_capi_ctr(struct capi_ctr *card)
 	   card->procent = NULL;
 	}
 	capi_cards[card->cnr - 1] = NULL;
-	printk(KERN_NOTICE "kcapi: Controller %d: %s unregistered\n",
+	printk(KERN_NOTICE "kcapi: Controller [%03d]: %s unregistered\n",
 			card->cnr, card->name);
 
 	return 0;
@@ -623,17 +643,25 @@ u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 	showctl |= (card->traceflag & 1);
 	if (showctl & 2) {
 		if (showctl & 1) {
-			printk(KERN_DEBUG "kcapi: put [%#x] id#%d %s len=%u\n",
+			printk(KERN_DEBUG "kcapi: put [%03d] id#%d %s len=%u\n",
 			       CAPIMSG_CONTROLLER(skb->data),
 			       CAPIMSG_APPID(skb->data),
 			       capi_cmd2str(cmd, subcmd),
 			       CAPIMSG_LEN(skb->data));
 		} else {
-			printk(KERN_DEBUG "kcapi: put [%#x] %s\n",
-			       CAPIMSG_CONTROLLER(skb->data),
-			       capi_message2str(skb->data));
+			_cdebbuf *cdb = capi_message2str(skb->data);
+			if (cdb) {
+				printk(KERN_DEBUG "kcapi: put [%03d] %s\n",
+					CAPIMSG_CONTROLLER(skb->data),
+					cdb->buf);
+				cdebbuf_free(cdb);
+			} else
+				printk(KERN_DEBUG "kcapi: put [%03d] id#%d %s len=%u cannot trace\n",
+					CAPIMSG_CONTROLLER(skb->data),
+					CAPIMSG_APPID(skb->data),
+					capi_cmd2str(cmd, subcmd),
+					CAPIMSG_LEN(skb->data));
 		}
-
 	}
 	return card->send_message(card, skb);
 }
@@ -894,7 +922,7 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 			return -ESRCH;
 
 		card->traceflag = fdef.flag;
-		printk(KERN_INFO "kcapi: contr %d set trace=%d\n",
+		printk(KERN_INFO "kcapi: contr [%03d] set trace=%d\n",
 			card->cnr, card->traceflag);
 		return 0;
 	}
@@ -967,7 +995,11 @@ static int __init kcapi_init(void)
 {
 	char *p;
 	char rev[32];
+	int ret;
 
+	ret = cdebug_init();
+	if (ret)
+		return ret;
         kcapi_proc_init();
 
 	if ((p = strchr(revision, ':')) != 0 && p[1]) {
@@ -988,6 +1020,7 @@ static void __exit kcapi_exit(void)
 
 	/* make sure all notifiers are finished */
 	flush_scheduled_work();
+	cdebug_exit();
 }
 
 module_init(kcapi_init);

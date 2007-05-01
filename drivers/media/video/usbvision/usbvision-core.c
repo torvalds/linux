@@ -138,7 +138,7 @@ static void *usbvision_rvmalloc(unsigned long size)
 	return mem;
 }
 
-void usbvision_rvfree(void *mem, unsigned long size)
+static void usbvision_rvfree(void *mem, unsigned long size)
 {
 	unsigned long adr;
 
@@ -1852,28 +1852,33 @@ int usbvision_set_output(struct usb_usbvision *usbvision, int width,
 
 /*
  * usbvision_frames_alloc
- * allocate the maximum frames this driver can manage
+ * allocate the required frames
  */
-int usbvision_frames_alloc(struct usb_usbvision *usbvision)
+int usbvision_frames_alloc(struct usb_usbvision *usbvision, int number_of_frames)
 {
 	int i;
 
-	/* Allocate memory for the frame buffers */
-	usbvision->max_frame_size = MAX_FRAME_SIZE;
-	usbvision->fbuf_size = USBVISION_NUMFRAMES * usbvision->max_frame_size;
-	usbvision->fbuf = usbvision_rvmalloc(usbvision->fbuf_size);
+	/*needs to be page aligned cause the buffers can be mapped individually! */
+	usbvision->max_frame_size =  PAGE_ALIGN(usbvision->curwidth *
+						usbvision->curheight *
+						usbvision->palette.bytes_per_pixel);
 
-	if(usbvision->fbuf == NULL) {
-		err("%s: unable to allocate %d bytes for fbuf ",
-		    __FUNCTION__, usbvision->fbuf_size);
-		return -ENOMEM;
+	/* Try to do my best to allocate the frames the user want in the remaining memory */
+	usbvision->num_frames = number_of_frames;
+	while (usbvision->num_frames > 0) {
+		usbvision->fbuf_size = usbvision->num_frames * usbvision->max_frame_size;
+		if((usbvision->fbuf = usbvision_rvmalloc(usbvision->fbuf_size))) {
+			break;
+		}
+		usbvision->num_frames--;
 	}
+
 	spin_lock_init(&usbvision->queue_lock);
 	init_waitqueue_head(&usbvision->wait_frame);
 	init_waitqueue_head(&usbvision->wait_stream);
 
 	/* Allocate all buffers */
-	for (i = 0; i < USBVISION_NUMFRAMES; i++) {
+	for (i = 0; i < usbvision->num_frames; i++) {
 		usbvision->frame[i].index = i;
 		usbvision->frame[i].grabstate = FrameState_Unused;
 		usbvision->frame[i].data = usbvision->fbuf +
@@ -1887,7 +1892,8 @@ int usbvision_frames_alloc(struct usb_usbvision *usbvision)
 		usbvision->frame[i].height = usbvision->curheight;
 		usbvision->frame[i].bytes_read = 0;
 	}
-	return 0;
+	PDEBUG(DBG_FUNC, "allocated %d frames (%d bytes per frame)",usbvision->num_frames,usbvision->max_frame_size);
+	return usbvision->num_frames;
 }
 
 /*
@@ -1897,9 +1903,13 @@ int usbvision_frames_alloc(struct usb_usbvision *usbvision)
 void usbvision_frames_free(struct usb_usbvision *usbvision)
 {
 	/* Have to free all that memory */
+	PDEBUG(DBG_FUNC, "free %d frames",usbvision->num_frames);
+
 	if (usbvision->fbuf != NULL) {
 		usbvision_rvfree(usbvision->fbuf, usbvision->fbuf_size);
 		usbvision->fbuf = NULL;
+
+		usbvision->num_frames = 0;
 	}
 }
 /*
@@ -2030,8 +2040,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 		return 0;
 
 	/* Set input format expected from decoder*/
-	if (usbvision_device_data[usbvision->DevModel].Vin_Reg1 >= 0) {
-		value[0] = usbvision_device_data[usbvision->DevModel].Vin_Reg1 & 0xff;
+	if (usbvision_device_data[usbvision->DevModel].Vin_Reg1_override) {
+		value[0] = usbvision_device_data[usbvision->DevModel].Vin_Reg1;
 	} else if(usbvision_device_data[usbvision->DevModel].Codec == CODEC_SAA7113) {
 		/* SAA7113 uses 8 bit output */
 		value[0] = USBVISION_8_422_SYNC;
@@ -2102,8 +2112,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 
 	dvi_yuv_value = 0x00;	/* U comes after V, Ya comes after U/V, Yb comes after Yb */
 
-	if(usbvision_device_data[usbvision->DevModel].Dvi_yuv >= 0){
-		dvi_yuv_value = usbvision_device_data[usbvision->DevModel].Dvi_yuv & 0xff;
+	if(usbvision_device_data[usbvision->DevModel].Dvi_yuv_override){
+		dvi_yuv_value = usbvision_device_data[usbvision->DevModel].Dvi_yuv;
 	}
 	else if(usbvision_device_data[usbvision->DevModel].Codec == CODEC_SAA7113) {
 	/* This changes as the fine sync control changes. Further investigation necessary */
@@ -2228,7 +2238,7 @@ static void call_usbvision_power_off(struct work_struct *work)
 	PDEBUG(DBG_FUNC, "");
 	down_interruptible(&usbvision->lock);
 	if(usbvision->user == 0) {
-		usbvision_i2c_usb_del_bus(&usbvision->i2c_adap);
+		usbvision_i2c_unregister(usbvision);
 
 		usbvision_power_off(usbvision);
 		usbvision->initialized = 0;
@@ -2351,6 +2361,32 @@ int usbvision_setup(struct usb_usbvision *usbvision,int format)
 	return USBVISION_IS_OPERATIONAL(usbvision);
 }
 
+int usbvision_set_alternate(struct usb_usbvision *dev)
+{
+	int errCode, prev_alt = dev->ifaceAlt;
+	int i;
+
+	dev->ifaceAlt=0;
+	for(i=0;i< dev->num_alt; i++)
+		if(dev->alt_max_pkt_size[i]>dev->alt_max_pkt_size[dev->ifaceAlt])
+			dev->ifaceAlt=i;
+
+	if (dev->ifaceAlt != prev_alt) {
+		dev->isocPacketSize = dev->alt_max_pkt_size[dev->ifaceAlt];
+		PDEBUG(DBG_FUNC,"setting alternate %d with wMaxPacketSize=%u", dev->ifaceAlt,dev->isocPacketSize);
+		errCode = usb_set_interface(dev->dev, dev->iface, dev->ifaceAlt);
+		if (errCode < 0) {
+			err ("cannot change alternate number to %d (error=%i)",
+							dev->ifaceAlt, errCode);
+			return errCode;
+		}
+	}
+
+	PDEBUG(DBG_ISOC, "ISO Packet Length:%d", dev->isocPacketSize);
+
+	return 0;
+}
+
 /*
  * usbvision_init_isoc()
  *
@@ -2368,15 +2404,13 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 	scratch_reset(usbvision);
 
 	/* Alternate interface 1 is is the biggest frame size */
-	errCode = usb_set_interface(dev, usbvision->iface, usbvision->ifaceAltActive);
+	errCode = usbvision_set_alternate(usbvision);
 	if (errCode < 0) {
 		usbvision->last_error = errCode;
 		return -EBUSY;
 	}
 
 	regValue = (16 - usbvision_read_reg(usbvision, USBVISION_ALTER_REG)) & 0x0F;
-	usbvision->isocPacketSize = (regValue == 0) ? 0 : (regValue * 64) - 1;
-	PDEBUG(DBG_ISOC, "ISO Packet Length:%d", usbvision->isocPacketSize);
 
 	usbvision->usb_bandwidth = regValue >> 1;
 	PDEBUG(DBG_ISOC, "USB Bandwidth Usage: %dMbit/Sec", usbvision->usb_bandwidth);
@@ -2462,8 +2496,9 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 	if (!usbvision->remove_pending) {
 
 		/* Set packet size to 0 */
+		usbvision->ifaceAlt=0;
 		errCode = usb_set_interface(usbvision->dev, usbvision->iface,
-				      usbvision->ifaceAltInactive);
+					    usbvision->ifaceAlt);
 		if (errCode < 0) {
 			err("%s: usb_set_interface() failed: error %d", __FUNCTION__, errCode);
 			usbvision->last_error = errCode;
@@ -2490,6 +2525,7 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 	RESTRICT_TO_RANGE(channel, 0, usbvision->video_inputs);
 	usbvision->ctl_input = channel;
 	  route.input = SAA7115_COMPOSITE1;
+	  route.output = 0;
 	  call_i2c_clients(usbvision, VIDIOC_INT_S_VIDEO_ROUTING,&route);
 	  call_i2c_clients(usbvision, VIDIOC_S_INPUT, &usbvision->ctl_input);
 

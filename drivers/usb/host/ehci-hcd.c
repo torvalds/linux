@@ -42,6 +42,9 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
+#ifdef CONFIG_PPC_PS3
+#include <asm/firmware.h>
+#endif
 
 
 /*-------------------------------------------------------------------------*/
@@ -299,6 +302,19 @@ static void ehci_watchdog (unsigned long param)
 	spin_unlock_irqrestore (&ehci->lock, flags);
 }
 
+/* On some systems, leaving remote wakeup enabled prevents system shutdown.
+ * The firmware seems to think that powering off is a wakeup event!
+ * This routine turns off remote wakeup and everything else, on all ports.
+ */
+static void ehci_turn_off_all_ports(struct ehci_hcd *ehci)
+{
+	int	port = HCS_N_PORTS(ehci->hcs_params);
+
+	while (port--)
+		ehci_writel(ehci, PORT_RWC_BITS,
+				&ehci->regs->port_status[port]);
+}
+
 /* ehci_shutdown kick in for silicon on any bus (not just pci, etc).
  * This forcibly disables dma and IRQs, helping kexec and other cases
  * where the next system software may expect clean state.
@@ -310,9 +326,13 @@ ehci_shutdown (struct usb_hcd *hcd)
 
 	ehci = hcd_to_ehci (hcd);
 	(void) ehci_halt (ehci);
+	ehci_turn_off_all_ports(ehci);
 
 	/* make BIOS/etc use companion controller during reboot */
 	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
+
+	/* unblock posted writes */
+	ehci_readl(ehci, &ehci->regs->configured_flag);
 }
 
 static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
@@ -649,6 +669,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			 */
 			ehci->reset_done [i] = jiffies + msecs_to_jiffies (20);
 			ehci_dbg (ehci, "port %d remote wakeup\n", i + 1);
+			mod_timer(&hcd->rh_timer, ehci->reset_done[i]);
 		}
 	}
 
@@ -951,15 +972,18 @@ static int __init ehci_hcd_init(void)
 #endif
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	retval = ps3_system_bus_driver_register(&PS3_SYSTEM_BUS_DRIVER);
-	if (retval < 0) {
+	if (firmware_has_feature(FW_FEATURE_PS3_LV1)) {
+		retval = ps3_system_bus_driver_register(
+				&PS3_SYSTEM_BUS_DRIVER);
+		if (retval < 0) {
 #ifdef PLATFORM_DRIVER
-		platform_driver_unregister(&PLATFORM_DRIVER);
+			platform_driver_unregister(&PLATFORM_DRIVER);
 #endif
 #ifdef PCI_DRIVER
-		pci_unregister_driver(&PCI_DRIVER);
+			pci_unregister_driver(&PCI_DRIVER);
 #endif
-		return retval;
+			return retval;
+		}
 	}
 #endif
 
@@ -976,7 +1000,8 @@ static void __exit ehci_hcd_cleanup(void)
 	pci_unregister_driver(&PCI_DRIVER);
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
-	ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+	if (firmware_has_feature(FW_FEATURE_PS3_LV1))
+		ps3_system_bus_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
 }
 module_exit(ehci_hcd_cleanup);

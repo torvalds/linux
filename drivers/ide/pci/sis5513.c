@@ -667,67 +667,20 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 	return ide_dma_enable(drive);
 }
 
-static int sis5513_config_drive_xfer_rate (ide_drive_t *drive)
+static int sis5513_config_xfer_rate(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hd_driveid *id	= drive->id;
+	config_art_rwp_pio(drive, 5);
 
 	drive->init_speed = 0;
 
-	if (id && (id->capability & 1) && drive->autodma) {
+	if (ide_use_dma(drive) && config_chipset_for_dma(drive))
+		return 0;
 
-		if (ide_use_dma(drive)) {
-			if (config_chipset_for_dma(drive))
-				return hwif->ide_dma_on(drive);
-		}
-
-		goto fast_ata_pio;
-
-	} else if ((id->capability & 8) || (id->field_valid & 2)) {
-fast_ata_pio:
+	if (ide_use_fast_pio(drive))
 		sis5513_tune_drive(drive, 5);
-		return hwif->ide_dma_off_quietly(drive);
-	}
-	/* IORDY not supported */
-	return 0;
+
+	return -1;
 }
-
-/* initiates/aborts (U)DMA read/write operations on a drive. */
-static int sis5513_config_xfer_rate (ide_drive_t *drive)
-{
-	config_drive_art_rwp(drive);
-	config_art_rwp_pio(drive, 5);
-	return sis5513_config_drive_xfer_rate(drive);
-}
-
-/*
-  Future simpler config_xfer_rate :
-   When ide_find_best_mode is made bad-drive aware
-   - remove config_drive_xfer_rate and config_chipset_for_dma,
-   - replace config_xfer_rate with the following
-
-static int sis5513_config_xfer_rate (ide_drive_t *drive)
-{
-	u16 w80 = HWIF(drive)->udma_four;
-	u16 speed;
-
-	config_drive_art_rwp(drive);
-	config_art_rwp_pio(drive, 5);
-
-	speed = ide_find_best_mode(drive,
-		XFER_PIO | XFER_EPIO | XFER_SWDMA | XFER_MWDMA |
-		(chipset_family >= ATA_33 ? XFER_UDMA : 0) |
-		(w80 && chipset_family >= ATA_66 ? XFER_UDMA_66 : 0) |
-		(w80 && chipset_family >= ATA_100a ? XFER_UDMA_100 : 0) |
-		(w80 && chipset_family >= ATA_133a ? XFER_UDMA_133 : 0));
-
-	sis5513_tune_chipset(drive, speed);
-
-	if (drive->autodma && (speed & XFER_MODE) != XFER_PIO)
-		return HWIF(drive)->ide_dma_on(drive);
-	return HWIF(drive)->ide_dma_off_quietly(drive);
-}
-*/
 
 /* Chip detection and general config */
 static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const char *name)

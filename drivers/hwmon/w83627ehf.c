@@ -32,8 +32,10 @@
 
     Supports the following chips:
 
-    Chip        #vin    #fan    #pwm    #temp   chip_id    man_id
-    w83627ehf   10      5       4       3       0x88,0xa1  0x5ca3
+    Chip        #vin    #fan    #pwm    #temp  chip IDs       man ID
+    w83627ehf   10      5       4       3      0x8850 0x88    0x5ca3
+                                               0x8860 0xa1
+    w83627dhg    9      5       4       3      0xa020 0xc1    0x5ca3
 */
 
 #include <linux/module.h>
@@ -55,8 +57,18 @@ static unsigned short address;
  * Super-I/O constants and functions
  */
 
+/*
+ * The three following globals are initialized in w83627ehf_find(), before
+ * the i2c-isa device is created. Otherwise, they could be stored in
+ * w83627ehf_data. This is ugly, but necessary, and when the driver is next
+ * updated to become a platform driver, the globals will disappear.
+ */
 static int REG;		/* The register to read/write */
 static int VAL;		/* The value to read/write */
+/* The w83627ehf/ehg have 10 voltage inputs, but the w83627dhg has 9. This
+ * value is also used in w83627ehf_detect() to export a device name in sysfs
+ * (e.g. w83627ehf or w83627dhg) */
+static int w83627ehf_num_in;
 
 #define W83627EHF_LD_HWM	0x0b
 
@@ -65,8 +77,10 @@ static int VAL;		/* The value to read/write */
 #define SIO_REG_ENABLE		0x30	/* Logical device enable */
 #define SIO_REG_ADDR		0x60	/* Logical device address (2 bytes) */
 
-#define SIO_W83627EHF_ID	0x8840
-#define SIO_ID_MASK		0xFFC0
+#define SIO_W83627EHF_ID	0x8850
+#define SIO_W83627EHG_ID	0x8860
+#define SIO_W83627DHG_ID	0xa020
+#define SIO_ID_MASK		0xFFF0
 
 static inline void
 superio_outb(int reg, int val)
@@ -107,16 +121,20 @@ superio_exit(void)
  * ISA constants
  */
 
-#define REGION_ALIGNMENT	~7
-#define REGION_OFFSET		5
-#define REGION_LENGTH		2
+#define IOREGION_ALIGNMENT	~7
+#define IOREGION_OFFSET		5
+#define IOREGION_LENGTH		2
 #define ADDR_REG_OFFSET		5
 #define DATA_REG_OFFSET		6
 
 #define W83627EHF_REG_BANK		0x4E
 #define W83627EHF_REG_CONFIG		0x40
-#define W83627EHF_REG_CHIP_ID		0x49
-#define W83627EHF_REG_MAN_ID		0x4F
+
+/* Not currently used:
+ * REG_MAN_ID has the value 0x5ca3 for all supported chips.
+ * REG_CHIP_ID == 0x88/0xa1/0xc1 depending on chip model.
+ * REG_MAN_ID is at port 0x4f
+ * REG_CHIP_ID is at port 0x58 */
 
 static const u16 W83627EHF_REG_FAN[] = { 0x28, 0x29, 0x2a, 0x3f, 0x553 };
 static const u16 W83627EHF_REG_FAN_MIN[] = { 0x3b, 0x3c, 0x3d, 0x3e, 0x55c };
@@ -389,7 +407,7 @@ static void w83627ehf_write_fan_div(struct i2c_client *client, int nr)
 		break;
 	case 4:
 		reg = (w83627ehf_read_value(client, W83627EHF_REG_DIODE) & 0x73)
-		    | ((data->fan_div[4] & 0x03) << 3)
+		    | ((data->fan_div[4] & 0x03) << 2)
 		    | ((data->fan_div[4] & 0x04) << 5);
 		w83627ehf_write_value(client, W83627EHF_REG_DIODE, reg);
 		break;
@@ -429,7 +447,7 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 		}
 
 		/* Measured voltages and limits */
-		for (i = 0; i < 10; i++) {
+		for (i = 0; i < w83627ehf_num_in; i++) {
 			data->in[i] = w83627ehf_read_value(client,
 				      W83627EHF_REG_IN(i));
 			data->in_min[i] = w83627ehf_read_value(client,
@@ -453,9 +471,9 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 			   time */
 			if (data->fan[i] == 0xff
 			 && data->fan_div[i] < 0x07) {
-			 	dev_dbg(&client->dev, "Increasing fan %d "
+			 	dev_dbg(&client->dev, "Increasing fan%d "
 					"clock divider from %u to %u\n",
-					i, div_from_reg(data->fan_div[i]),
+					i + 1, div_from_reg(data->fan_div[i]),
 					div_from_reg(data->fan_div[i] + 1));
 				data->fan_div[i]++;
 				w83627ehf_write_fan_div(client, i);
@@ -1121,7 +1139,7 @@ static void w83627ehf_device_remove_files(struct device *dev)
 		device_remove_file(dev, &sda_sf3_arrays[i].dev_attr);
 	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++)
 		device_remove_file(dev, &sda_sf3_arrays_fan4[i].dev_attr);
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < w83627ehf_num_in; i++) {
 		device_remove_file(dev, &sda_in_input[i].dev_attr);
 		device_remove_file(dev, &sda_in_alarm[i].dev_attr);
 		device_remove_file(dev, &sda_in_min[i].dev_attr);
@@ -1176,7 +1194,7 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 	u8 fan4pin, fan5pin;
 	int i, err = 0;
 
-	if (!request_region(address + REGION_OFFSET, REGION_LENGTH,
+	if (!request_region(address + IOREGION_OFFSET, IOREGION_LENGTH,
 	                    w83627ehf_driver.driver.name)) {
 		err = -EBUSY;
 		goto exit;
@@ -1196,7 +1214,11 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 	client->flags = 0;
 	dev = &client->dev;
 
-	strlcpy(client->name, "w83627ehf", I2C_NAME_SIZE);
+	if (w83627ehf_num_in == 9)
+		strlcpy(client->name, "w83627dhg", I2C_NAME_SIZE);
+	else	/* just say ehf. 627EHG is 627EHF in lead-free packaging. */
+		strlcpy(client->name, "w83627ehf", I2C_NAME_SIZE);
+
 	data->valid = 0;
 	mutex_init(&data->update_lock);
 
@@ -1246,7 +1268,7 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 				goto exit_remove;
 		}
 
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < w83627ehf_num_in; i++)
 		if ((err = device_create_file(dev, &sda_in_input[i].dev_attr))
 			|| (err = device_create_file(dev,
 				&sda_in_alarm[i].dev_attr))
@@ -1300,7 +1322,7 @@ exit_remove:
 exit_free:
 	kfree(data);
 exit_release:
-	release_region(address + REGION_OFFSET, REGION_LENGTH);
+	release_region(address + IOREGION_OFFSET, IOREGION_LENGTH);
 exit:
 	return err;
 }
@@ -1315,7 +1337,7 @@ static int w83627ehf_detach_client(struct i2c_client *client)
 
 	if ((err = i2c_detach_client(client)))
 		return err;
-	release_region(client->addr + REGION_OFFSET, REGION_LENGTH);
+	release_region(client->addr + IOREGION_OFFSET, IOREGION_LENGTH);
 	kfree(data);
 
 	return 0;
@@ -1340,7 +1362,17 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr)
 
 	val = (superio_inb(SIO_REG_DEVID) << 8)
 	    | superio_inb(SIO_REG_DEVID + 1);
-	if ((val & SIO_ID_MASK) != SIO_W83627EHF_ID) {
+	switch (val & SIO_ID_MASK) {
+	case SIO_W83627DHG_ID:
+		w83627ehf_num_in = 9;
+		break;
+	case SIO_W83627EHF_ID:
+	case SIO_W83627EHG_ID:
+		w83627ehf_num_in = 10;
+		break;
+	default:
+		printk(KERN_WARNING "w83627ehf: unsupported chip ID: 0x%04x\n",
+			val);
 		superio_exit();
 		return -ENODEV;
 	}
@@ -1348,7 +1380,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr)
 	superio_select(W83627EHF_LD_HWM);
 	val = (superio_inb(SIO_REG_ADDR) << 8)
 	    | superio_inb(SIO_REG_ADDR + 1);
-	*addr = val & REGION_ALIGNMENT;
+	*addr = val & IOREGION_ALIGNMENT;
 	if (*addr == 0) {
 		superio_exit();
 		return -ENODEV;

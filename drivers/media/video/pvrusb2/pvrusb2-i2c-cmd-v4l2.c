@@ -24,22 +24,26 @@
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 #include <linux/videodev2.h>
-
+#include <media/v4l2-common.h>
 
 static void set_standard(struct pvr2_hdw *hdw)
 {
-	v4l2_std_id vs;
-	vs = hdw->std_mask_cur;
-	pvr2_trace(PVR2_TRACE_CHIPS,
-		   "i2c v4l2 set_standard(0x%llx)",(long long unsigned)vs);
+	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_standard");
 
-	pvr2_i2c_core_cmd(hdw,VIDIOC_S_STD,&vs);
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		pvr2_i2c_core_cmd(hdw,AUDC_SET_RADIO,NULL);
+	} else {
+		v4l2_std_id vs;
+		vs = hdw->std_mask_cur;
+		pvr2_i2c_core_cmd(hdw,VIDIOC_S_STD,&vs);
+	}
+	hdw->tuner_signal_stale = !0;
 }
 
 
 static int check_standard(struct pvr2_hdw *hdw)
 {
-	return hdw->std_dirty != 0;
+	return (hdw->input_dirty != 0) || (hdw->std_dirty != 0);
 }
 
 
@@ -136,16 +140,53 @@ const struct pvr2_i2c_op pvr2_i2c_op_v4l2_volume = {
 };
 
 
+static void set_audiomode(struct pvr2_hdw *hdw)
+{
+	struct v4l2_tuner vt;
+	memset(&vt,0,sizeof(vt));
+	vt.audmode = hdw->audiomode_val;
+	pvr2_i2c_core_cmd(hdw,VIDIOC_S_TUNER,&vt);
+}
+
+
+static int check_audiomode(struct pvr2_hdw *hdw)
+{
+	return (hdw->input_dirty ||
+		hdw->audiomode_dirty);
+}
+
+
+const struct pvr2_i2c_op pvr2_i2c_op_v4l2_audiomode = {
+	.check = check_audiomode,
+	.update = set_audiomode,
+	.name = "v4l2_audiomode",
+};
+
+
 static void set_frequency(struct pvr2_hdw *hdw)
 {
 	unsigned long fv;
 	struct v4l2_frequency freq;
-	fv = hdw->freqVal;
+	fv = pvr2_hdw_get_cur_freq(hdw);
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_freq(%lu)",fv);
+	if (hdw->tuner_signal_stale) {
+		pvr2_i2c_core_status_poll(hdw);
+	}
 	memset(&freq,0,sizeof(freq));
-	freq.frequency = fv / 62500;
+	if (hdw->tuner_signal_info.capability & V4L2_TUNER_CAP_LOW) {
+		// ((fv * 1000) / 62500)
+		freq.frequency = (fv * 2) / 125;
+	} else {
+		freq.frequency = fv / 62500;
+	}
+	/* tuner-core currently doesn't seem to care about this, but
+	   let's set it anyway for completeness. */
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		freq.type = V4L2_TUNER_RADIO;
+	} else {
+		freq.type = V4L2_TUNER_ANALOG_TV;
+	}
 	freq.tuner = 0;
-	freq.type = V4L2_TUNER_ANALOG_TV;
 	pvr2_i2c_core_cmd(hdw,VIDIOC_S_FREQUENCY,&freq);
 }
 
@@ -218,6 +259,12 @@ void pvr2_v4l2_cmd_stream(struct pvr2_i2c_client *cp,int fl)
 {
 	pvr2_i2c_client_cmd(cp,
 			    (fl ? VIDIOC_STREAMON : VIDIOC_STREAMOFF),NULL);
+}
+
+
+void pvr2_v4l2_cmd_status_poll(struct pvr2_i2c_client *cp)
+{
+	pvr2_i2c_client_cmd(cp,VIDIOC_G_TUNER,&cp->hdw->tuner_signal_info);
 }
 
 

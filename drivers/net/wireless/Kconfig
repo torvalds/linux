@@ -2,47 +2,21 @@
 # Wireless LAN device configuration
 #
 
-menu "Wireless LAN (non-hamradio)"
+menu "Wireless LAN"
+
+config WLAN_PRE80211
+	bool "Wireless LAN (pre-802.11)"
 	depends on NETDEVICES
-
-config NET_RADIO
-	bool "Wireless LAN drivers (non-hamradio) & Wireless Extensions"
-	select WIRELESS_EXT
 	---help---
-	  Support for wireless LANs and everything having to do with radio,
-	  but not with amateur radio or FM broadcasting.
+	  Say Y if you have any pre-802.11 wireless LAN hardware.
 
-	  Saying Y here also enables the Wireless Extensions (creates
-	  /proc/net/wireless and enables iwconfig access). The Wireless
-	  Extension is a generic API allowing a driver to expose to the user
-	  space configuration and statistics specific to common Wireless LANs.
-	  The beauty of it is that a single set of tool can support all the
-	  variations of Wireless LANs, regardless of their type (as long as
-	  the driver supports Wireless Extension). Another advantage is that
-	  these parameters may be changed on the fly without restarting the
-	  driver (or Linux). If you wish to use Wireless Extensions with
-	  wireless PCMCIA (PC-) cards, you need to say Y here; you can fetch
-	  the tools from
-	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
-
-config NET_WIRELESS_RTNETLINK
-	bool "Wireless Extension API over RtNetlink"
-	depends on NET_RADIO
-	---help---
-	  Support the Wireless Extension API over the RtNetlink socket
-	  in addition to the traditional ioctl interface (selected above).
-
-	  For now, few tools use this facility, but it might grow in the
-	  future. The only downside is that it adds 4.5 kB to your kernel.
-
-# Note : the cards are obsolete (can't buy them anymore), but the drivers
-# are not, as people are still using them...
-comment "Obsolete Wireless cards support (pre-802.11)"
-	depends on NET_RADIO && (INET || ISA || PCMCIA)
+	  This option does not affect the kernel build, it only
+	  lets you choose drivers.
 
 config STRIP
 	tristate "STRIP (Metricom starmode radio IP)"
-	depends on NET_RADIO && INET
+	depends on INET && WLAN_PRE80211
+	select WIRELESS_EXT
 	---help---
 	  Say Y if you have a Metricom radio and intend to use Starmode Radio
 	  IP. STRIP is a radio protocol developed for the MosquitoNet project
@@ -65,7 +39,8 @@ config STRIP
 
 config ARLAN
 	tristate "Aironet Arlan 655 & IC2200 DS support"
-	depends on NET_RADIO && ISA && !64BIT
+	depends on ISA && !64BIT && WLAN_PRE80211
+	select WIRELESS_EXT
 	---help---
 	  Aironet makes Arlan, a class of wireless LAN adapters. These use the
 	  www.Telxon.com chip, which is also used on several similar cards.
@@ -80,7 +55,8 @@ config ARLAN
 
 config WAVELAN
 	tristate "AT&T/Lucent old WaveLAN & DEC RoamAbout DS ISA support"
-	depends on NET_RADIO && ISA
+	depends on ISA && WLAN_PRE80211
+	select WIRELESS_EXT
 	---help---
 	  The Lucent WaveLAN (formerly NCR and AT&T; or DEC RoamAbout DS) is
 	  a Radio LAN (wireless Ethernet-like Local Area Network) using the
@@ -107,7 +83,8 @@ config WAVELAN
 
 config PCMCIA_WAVELAN
 	tristate "AT&T/Lucent old WaveLAN Pcmcia wireless support"
-	depends on NET_RADIO && PCMCIA
+	depends on PCMCIA && WLAN_PRE80211
+	select WIRELESS_EXT
 	help
 	  Say Y here if you intend to attach an AT&T/Lucent Wavelan PCMCIA
 	  (PC-card) wireless Ethernet networking card to your computer.  This
@@ -118,7 +95,8 @@ config PCMCIA_WAVELAN
 
 config PCMCIA_NETWAVE
 	tristate "Xircom Netwave AirSurfer Pcmcia wireless support"
-	depends on NET_RADIO && PCMCIA
+	depends on PCMCIA && WLAN_PRE80211
+	select WIRELESS_EXT
 	help
 	  Say Y here if you intend to attach this type of PCMCIA (PC-card)
 	  wireless Ethernet networking card to your computer.
@@ -126,12 +104,20 @@ config PCMCIA_NETWAVE
 	  To compile this driver as a module, choose M here: the module will be
 	  called netwave_cs.  If unsure, say N.
 
-comment "Wireless 802.11 Frequency Hopping cards support"
-	depends on NET_RADIO && PCMCIA
+
+config WLAN_80211
+	bool "Wireless LAN (IEEE 802.11)"
+	depends on NETDEVICES
+	---help---
+	  Say Y if you have any 802.11 wireless LAN hardware.
+
+	  This option does not affect the kernel build, it only
+	  lets you choose drivers.
 
 config PCMCIA_RAYCS
 	tristate "Aviator/Raytheon 2.4MHz wireless support"
-	depends on NET_RADIO && PCMCIA
+	depends on PCMCIA && WLAN_80211
+	select WIRELESS_EXT
 	---help---
 	  Say Y here if you intend to attach an Aviator/Raytheon PCMCIA
 	  (PC-card) wireless Ethernet networking card to your computer.
@@ -141,12 +127,10 @@ config PCMCIA_RAYCS
 	  To compile this driver as a module, choose M here: the module will be
 	  called ray_cs.  If unsure, say N.
 
-comment "Wireless 802.11b ISA/PCI cards support"
-	depends on NET_RADIO && (ISA || PCI || PPC_PMAC || PCMCIA)
-
 config IPW2100
 	tristate "Intel PRO/Wireless 2100 Network Connection"
-	depends on NET_RADIO && PCI
+	depends on PCI && WLAN_80211
+	select WIRELESS_EXT
 	select FW_LOADER
 	select IEEE80211
 	---help---
@@ -200,7 +184,8 @@ config IPW2100_DEBUG
 
 config IPW2200
 	tristate "Intel PRO/Wireless 2200BG and 2915ABG Network Connection"
-	depends on NET_RADIO && PCI
+	depends on PCI && WLAN_80211
+	select WIRELESS_EXT
 	select FW_LOADER
 	select IEEE80211
 	---help---
@@ -280,9 +265,23 @@ config IPW2200_DEBUG
 
 	  If you are not sure, say N here.
 
+config LIBERTAS_USB
+	tristate "Marvell Libertas 8388 802.11a/b/g cards"
+	depends on NET_RADIO && USB
+	select FW_LOADER
+	---help---
+	  A driver for Marvell Libertas 8388 USB devices.
+
+config LIBERTAS_USB_DEBUG
+	bool "Enable full debugging output in the Libertas USB module."
+	depends on LIBERTAS_USB
+	---help---
+	  Debugging support.
+
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
- 	depends on NET_RADIO && ISA_DMA_API && (PCI || BROKEN)
+	depends on ISA_DMA_API && WLAN_80211 && (PCI || BROKEN)
+	select WIRELESS_EXT
 	select CRYPTO
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet ISA and
@@ -299,7 +298,8 @@ config AIRO
 
 config HERMES
 	tristate "Hermes chipset 802.11b support (Orinoco/Prism2/Symbol)"
-	depends on NET_RADIO && (PPC_PMAC || PCI || PCMCIA)
+	depends on (PPC_PMAC || PCI || PCMCIA) && WLAN_80211
+	select WIRELESS_EXT
 	---help---
 	  A driver for 802.11b wireless cards based on the "Hermes" or
 	  Intersil HFA384x (Prism 2) MAC controller.  This includes the vast
@@ -373,7 +373,8 @@ config PCI_HERMES
 
 config ATMEL
       tristate "Atmel at76c50x chipset  802.11b support"
-      depends on NET_RADIO && (PCI || PCMCIA)
+      depends on (PCI || PCMCIA) && WLAN_80211
+      select WIRELESS_EXT
       select FW_LOADER
       select CRC32
        ---help---
@@ -394,13 +395,9 @@ config PCI_ATMEL
         Enable support for PCI and mini-PCI cards containing the
         Atmel at76c506 chip.
 
-# If Pcmcia is compiled in, offer Pcmcia cards...
-comment "Wireless 802.11b Pcmcia/Cardbus cards support"
-	depends on NET_RADIO && PCMCIA
-
 config PCMCIA_HERMES
 	tristate "Hermes PCMCIA card support"
-	depends on NET_RADIO && PCMCIA && HERMES
+	depends on PCMCIA && HERMES
 	---help---
 	  A driver for "Hermes" chipset based PCMCIA wireless adaptors, such
 	  as the Lucent WavelanIEEE/Orinoco cards and their OEM (Cabletron/
@@ -420,7 +417,7 @@ config PCMCIA_HERMES
 
 config PCMCIA_SPECTRUM
 	tristate "Symbol Spectrum24 Trilogy PCMCIA card support"
-	depends on NET_RADIO && PCMCIA && HERMES
+	depends on PCMCIA && HERMES
 	select FW_LOADER
 	---help---
 
@@ -434,7 +431,8 @@ config PCMCIA_SPECTRUM
 
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
-	depends on NET_RADIO && PCMCIA && (BROKEN || !M32R)
+	depends on PCMCIA && (BROKEN || !M32R) && WLAN_80211
+	select WIRELESS_EXT
 	select CRYPTO
 	select CRYPTO_AES
 	---help---
@@ -458,7 +456,8 @@ config AIRO_CS
 
 config PCMCIA_ATMEL
 	tristate "Atmel at76c502/at76c504 PCMCIA cards"
-	depends on NET_RADIO && ATMEL && PCMCIA
+	depends on ATMEL && PCMCIA
+	select WIRELESS_EXT
 	select FW_LOADER
 	select CRC32
 	---help---
@@ -467,17 +466,17 @@ config PCMCIA_ATMEL
 
 config PCMCIA_WL3501
       tristate "Planet WL3501 PCMCIA cards"
-      depends on NET_RADIO && EXPERIMENTAL && PCMCIA
+      depends on EXPERIMENTAL && PCMCIA && WLAN_80211
+      select WIRELESS_EXT
        ---help---
          A driver for WL3501 PCMCIA 802.11 wireless cards made by Planet.
 	 It has basic support for Linux wireless extensions and initial
 	 micro support for ethtool.
 
-comment "Prism GT/Duette 802.11(a/b/g) PCI/Cardbus support"
-	depends on NET_RADIO && PCI
 config PRISM54
 	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus' 
-	depends on PCI && NET_RADIO && EXPERIMENTAL
+	depends on PCI && EXPERIMENTAL && WLAN_80211
+	select WIRELESS_EXT
 	select FW_LOADER
 	---help---
 	  Enable PCI and Cardbus support for the following chipset based cards:
@@ -523,7 +522,8 @@ config PRISM54
 
 config USB_ZD1201
 	tristate "USB ZD1201 based Wireless device support"
-	depends on USB && NET_RADIO
+	depends on USB && WLAN_80211
+	select WIRELESS_EXT
 	select FW_LOADER
 	---help---
 	  Say Y if you want to use wireless LAN adapters based on the ZyDAS
@@ -542,11 +542,4 @@ source "drivers/net/wireless/hostap/Kconfig"
 source "drivers/net/wireless/bcm43xx/Kconfig"
 source "drivers/net/wireless/zd1211rw/Kconfig"
 
-# yes, this works even when no drivers are selected
-config NET_WIRELESS
-	bool
-	depends on NET_RADIO && (ISA || PCI || PPC_PMAC || PCMCIA)
-	default y
-
 endmenu
-

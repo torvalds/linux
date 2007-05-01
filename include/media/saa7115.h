@@ -42,5 +42,8 @@
 #define SAA7115_FREQ_FL_CGCDIV (1 << 1)	   /* SA 3A[6], CGCDIV, SAA7115 only */
 #define SAA7115_FREQ_FL_APLL   (1 << 2)	   /* SA 3A[3], APLL, SAA7114/5 only */
 
+#define SAA7115_IPORT_ON    1
+#define SAA7115_IPORT_OFF   0
+
 #endif
 

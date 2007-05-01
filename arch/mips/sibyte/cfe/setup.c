@@ -221,10 +221,10 @@ static int __init initrd_setup(char *str)
 		goto fail;
 	}
 	initrd_end = initrd_start + initrd_size;
-	prom_printf("Found initrd of %lx@%lx\n", initrd_size, initrd_start);
+	printk("Found initrd of %lx@%lx\n", initrd_size, initrd_start);
 	return 1;
  fail:
-	prom_printf("Bad initrd argument.  Disabling initrd\n");
+	printk("Bad initrd argument.  Disabling initrd\n");
 	initrd_start = 0;
 	initrd_end = 0;
 	return 1;
@@ -281,7 +281,7 @@ void __init prom_init(void)
 	}
 	if (cfe_eptseal != CFE_EPTSEAL) {
 		/* too early for panic to do any good */
-		prom_printf("CFE's entrypoint seal doesn't match. Spinning.");
+		printk("CFE's entrypoint seal doesn't match. Spinning.");
 		while (1) ;
 	}
 	cfe_init(cfe_handle, cfe_ept);
@@ -303,7 +303,7 @@ void __init prom_init(void)
 		} else {
 			/* The loader should have set the command line */
 			/* too early for panic to do any good */
-			prom_printf("LINUX_CMDLINE not defined in cfe.");
+			printk("LINUX_CMDLINE not defined in cfe.");
 			while (1) ;
 		}
 	}

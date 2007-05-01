@@ -21,6 +21,10 @@ config ARM
 config SYS_SUPPORTS_APM_EMULATION
 	bool
 
+config GENERIC_GPIO
+	bool
+	default n
+
 config GENERIC_TIME
 	bool
 	default n
@@ -163,6 +167,7 @@ config ARCH_VERSATILE
 
 config ARCH_AT91
 	bool "Atmel AT91"
+	select GENERIC_GPIO
 	help
 	  This enables support for systems based on the Atmel AT91RM9200
 	  and AT91SAM9xxx processors.
@@ -171,6 +176,7 @@ config ARCH_CLPS7500
 	bool "Cirrus CL-PS7500FE"
 	select TIMER_ACORN
 	select ISA
+	select NO_IOPORT
 	help
 	  Support for the Cirrus Logic PS7500FE system-on-a-chip.
 
@@ -189,6 +195,7 @@ config ARCH_CO285
 config ARCH_EBSA110
 	bool "EBSA-110"
 	select ISA
+	select NO_IOPORT
 	help
 	  This is an evaluation board for the StrongARM processor available
 	  from Digital. It has limited hardware on-board, including an
@@ -245,6 +252,8 @@ config ARCH_IOP33X
 
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
+	depends on MMU
+	select PLAT_IOP
 	select PCI
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
@@ -283,6 +292,14 @@ config ARCH_L7200
 	  If you have any questions or comments about the Linux kernel port
 	  to this board, send e-mail to <sjhill@cotw.com>.
 
+config ARCH_NS9XXX
+	bool "NetSilicon NS9xxx"
+	help
+	  Say Y here if you intend to run this kernel on a NetSilicon NS9xxx
+	  System.
+
+	  <http://www.digi.com/products/microprocessors/index.jsp>
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	help
@@ -292,6 +309,8 @@ config ARCH_PXA
 	bool "PXA2xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
+	select GENERIC_GPIO
+	select GENERIC_TIME
 	help
 	  Support for Intel's PXA2XX processor line.
 
@@ -312,11 +331,13 @@ config ARCH_SA1100
 	select ISA
 	select ARCH_DISCONTIGMEM_ENABLE
 	select ARCH_MTD_XIP
+	select GENERIC_GPIO
 	help
 	  Support for StrongARM 11x0 based boards.
 
 config ARCH_S3C2410
-	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442"
+	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442, S3C2443"
+	select GENERIC_GPIO
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
@@ -341,6 +362,7 @@ config ARCH_LH7A40X
 
 config ARCH_OMAP
 	bool "TI OMAP"
+	select GENERIC_GPIO
 	help
 	  Support for TI's OMAP platform (OMAP1 and OMAP2).
 
@@ -376,7 +398,16 @@ source "arch/arm/mach-omap1/Kconfig"
 
 source "arch/arm/mach-omap2/Kconfig"
 
+source "arch/arm/plat-s3c24xx/Kconfig"
+
+if ARCH_S3C2410
+source "arch/arm/mach-s3c2400/Kconfig"
 source "arch/arm/mach-s3c2410/Kconfig"
+source "arch/arm/mach-s3c2412/Kconfig"
+source "arch/arm/mach-s3c2440/Kconfig"
+source "arch/arm/mach-s3c2442/Kconfig"
+source "arch/arm/mach-s3c2443/Kconfig"
+endif
 
 source "arch/arm/mach-lh7a40x/Kconfig"
 
@@ -390,9 +421,11 @@ source "arch/arm/mach-aaec2000/Kconfig"
 
 source "arch/arm/mach-realview/Kconfig"
 
-source "arch/arm/mach-at91rm9200/Kconfig"
+source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
+
+source "arch/arm/mach-ns9xxx/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -405,7 +438,7 @@ source arch/arm/mm/Kconfig
 
 config IWMMXT
 	bool "Enable iWMMXt support"
-	depends CPU_XSCALE || CPU_XSC3
+	depends on CPU_XSCALE || CPU_XSC3
 	default y if PXA27x
 	help
 	  Enable support for iWMMXt context switching at run time if
@@ -750,6 +783,20 @@ config XIP_PHYS_ADDR
 	  This is the physical address in your flash memory the kernel will
 	  be linked for and stored to.  This address is dependent on your
 	  own flash usage.
+
+config KEXEC
+	bool "Kexec system call (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is indepedent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  is properly shutdown, so do not be surprised if this code does not
+	  initially work for you.  It may help to enable device hotplugging
+	  support.
 
 endmenu
 

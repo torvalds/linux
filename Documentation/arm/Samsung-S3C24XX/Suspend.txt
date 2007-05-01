@@ -5,10 +5,10 @@
 Introduction
 ------------
 
-  The S3C2410 supports a low-power suspend mode, where the SDRAM is kept
+  The S3C24XX supports a low-power suspend mode, where the SDRAM is kept
   in Self-Refresh mode, and all but the essential peripheral blocks are
   powered down. For more information on how this works, please look
-  at the S3C2410 datasheets from Samsung.
+  at the relevant CPU datasheet from Samsung.
 
 
 Requirements
@@ -56,6 +56,27 @@ Machine Support
   Note, the original method of adding an late_initcall() is wrong,
   and will end up initialising all compiled machines' pm init!
 
+  The following is an example of code used for testing wakeup from
+  an falling edge on IRQ_EINT0:
+
+
+static irqreturn_t button_irq(int irq, void *pw)
+{
+	return IRQ_HANDLED;
+}
+
+statuc void __init machine_init(void)
+{
+	...
+
+	request_irq(IRQ_EINT0, button_irq, IRQF_TRIGGER_FALLING,
+		   "button-irq-eint0", NULL);
+
+	enable_irq_wake(IRQ_EINT0);
+
+	s3c2410_pm_init();
+}
+
 
 Debugging
 ---------
@@ -69,6 +90,12 @@ Debugging
   2) Whilst the pm code itself will attempt to re-enable the UART clocks,
      care should be taken that any external clock sources that the UARTs
      rely on are still enabled at that point.
+
+  3) If any debugging is placed in the resume path, then it must have the
+     relevant clocks and peripherals setup before use (ie, bootloader).
+
+     For example, if you transmit a character from the UART, the baud
+     rate and uart controls must be setup beforehand.
 
 
 Configuration
@@ -88,6 +115,10 @@ Configuration
 
     Allows the entire memory to be checksummed before and after the
     suspend to see if there has been any corruption of the contents.
+
+    Note, the time to calculate the CRC is dependant on the CPU speed
+    and the size of memory. For an 64Mbyte RAM area on an 200MHz
+    S3C2410, this can take approximately 4 seconds to complete.
 
     This support requires the CRC32 function to be enabled.
 

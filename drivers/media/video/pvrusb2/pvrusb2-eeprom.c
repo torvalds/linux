@@ -102,9 +102,8 @@ static u8 *pvr2_eeprom_fetch(struct pvr2_hdw *hdw)
 		}
 		msg[1].len = pcnt;
 		msg[1].buf = eeprom+tcnt;
-		if ((ret = i2c_transfer(
-			     &hdw->i2c_adap,
-			     msg,sizeof(msg)/sizeof(msg[0]))) != 2) {
+		if ((ret = i2c_transfer(&hdw->i2c_adap,
+					msg,ARRAY_SIZE(msg))) != 2) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "eeprom fetch set offs err=%d",ret);
 			kfree(eeprom);

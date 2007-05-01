@@ -41,6 +41,7 @@
 #include <linux/cpuset.h>
 #include <linux/efi.h>
 #include <linux/tick.h>
+#include <linux/interrupt.h>
 #include <linux/taskstats_kern.h>
 #include <linux/delayacct.h>
 #include <linux/unistd.h>
@@ -386,14 +387,19 @@ static void __init setup_per_cpu_areas(void)
 /* Called by boot processor to activate the rest. */
 static void __init smp_init(void)
 {
-	unsigned int i;
+	unsigned int cpu;
+	unsigned highest = 0;
+
+	for_each_cpu_mask(cpu, cpu_possible_map)
+		highest = cpu;
+	nr_cpu_ids = highest + 1;
 
 	/* FIXME: This should be done in userspace --RR */
-	for_each_present_cpu(i) {
+	for_each_present_cpu(cpu) {
 		if (num_online_cpus() >= max_cpus)
 			break;
-		if (!cpu_online(i))
-			cpu_up(i);
+		if (!cpu_online(cpu))
+			cpu_up(cpu);
 	}
 
 	/* Any cleanup work */
@@ -702,11 +708,7 @@ static void __init do_basic_setup(void)
 	init_workqueues();
 	usermodehelper_init();
 	driver_init();
-
-#ifdef CONFIG_PROC_FS
 	init_irq_proc();
-#endif
-
 	do_initcalls();
 }
 

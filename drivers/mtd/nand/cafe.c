@@ -78,8 +78,9 @@ module_param(regdebug, int, 0644);
 static int checkecc = 1;
 module_param(checkecc, int, 0644);
 
-static int slowtiming = 0;
-module_param(slowtiming, int, 0644);
+static int numtimings;
+static int timing[3];
+module_param_array(timing, int, &numtimings, 0644);
 
 /* Hrm. Why isn't this already conditional on something in the struct device? */
 #define cafe_dev_dbg(dev, args...) do { if (debug) dev_dbg(dev, ##args); } while(0)
@@ -264,10 +265,10 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	ndelay(100);
 
 	if (1) {
-		int c = 500000;
+		int c;
 		uint32_t irqs;
 
-		while (c--) {
+		for (c = 500000; c != 0; c--) {
 			irqs = cafe_readl(cafe, NAND_IRQ);
 			if (irqs & doneint)
 				break;
@@ -580,31 +581,43 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe->nand.block_bad = cafe_nand_block_bad;
 	}
 
+	if (numtimings && numtimings != 3) {
+		dev_warn(&cafe->pdev->dev, "%d timing register values ignored; precisely three are required\n", numtimings);
+	}
+
+	if (numtimings == 3) {
+		cafe_dev_dbg(&cafe->pdev->dev, "Using provided timings (%08x %08x %08x)\n",
+			     timing[0], timing[1], timing[2]);
+	} else {
+		timing[0] = cafe_readl(cafe, NAND_TIMING1);
+		timing[1] = cafe_readl(cafe, NAND_TIMING2);
+		timing[2] = cafe_readl(cafe, NAND_TIMING3);
+
+		if (timing[0] | timing[1] | timing[2]) {
+			cafe_dev_dbg(&cafe->pdev->dev, "Timing registers already set (%08x %08x %08x)\n",
+				     timing[0], timing[1], timing[2]);
+		} else {
+			dev_warn(&cafe->pdev->dev, "Timing registers unset; using most conservative defaults\n");
+			timing[0] = timing[1] = timing[2] = 0xffffffff;
+		}
+	}
+
 	/* Start off by resetting the NAND controller completely */
 	cafe_writel(cafe, 1, NAND_RESET);
 	cafe_writel(cafe, 0, NAND_RESET);
 
-	cafe_writel(cafe, 0xffffffff, NAND_IRQ_MASK);
+	cafe_writel(cafe, timing[0], NAND_TIMING1);
+	cafe_writel(cafe, timing[1], NAND_TIMING2);
+	cafe_writel(cafe, timing[2], NAND_TIMING3);
 
-	/* Timings from Marvell's test code (not verified or calculated by us) */
-	if (!slowtiming) {
-		cafe_writel(cafe, 0x01010a0a, NAND_TIMING1);
-		cafe_writel(cafe, 0x24121212, NAND_TIMING2);
-		cafe_writel(cafe, 0x11000000, NAND_TIMING3);
-	} else {
-		cafe_writel(cafe, 0xffffffff, NAND_TIMING1);
-		cafe_writel(cafe, 0xffffffff, NAND_TIMING2);
-		cafe_writel(cafe, 0xffffffff, NAND_TIMING3);
-	}
 	cafe_writel(cafe, 0xffffffff, NAND_IRQ_MASK);
 	err = request_irq(pdev->irq, &cafe_nand_interrupt, IRQF_SHARED,
 			  "CAFE NAND", mtd);
 	if (err) {
 		dev_warn(&pdev->dev, "Could not register IRQ %d\n", pdev->irq);
-
 		goto out_free_dma;
 	}
-#if 1
+
 	/* Disable master reset, enable NAND clock */
 	ctrl = cafe_readl(cafe, GLOBAL_CTRL);
 	ctrl &= 0xffffeff0;
@@ -631,32 +644,8 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	cafe_writel(cafe, 0x80000007, GLOBAL_IRQ_MASK);
 	cafe_dev_dbg(&cafe->pdev->dev, "Control %x, IRQ mask %x\n",
 		cafe_readl(cafe, GLOBAL_CTRL), cafe_readl(cafe, GLOBAL_IRQ_MASK));
-#endif
-#if 1
-	mtd->writesize=2048;
-	mtd->oobsize = 0x40;
-	memset(cafe->dmabuf, 0x5a, 2112);
-	cafe->nand.cmdfunc(mtd, NAND_CMD_READID, 0, -1);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-#endif
-#if 0
-	cafe->nand.cmdfunc(mtd, NAND_CMD_READ0, 0, 0);
-	//	nand_wait_ready(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-	cafe->nand.read_byte(mtd);
-#endif
-#if 0
-	writel(0x84600070, cafe->mmio);
-	udelay(10);
-	cafe_dev_dbg(&cafe->pdev->dev, "Status %x\n", cafe_readl(cafe, NAND_NONMEM));
-#endif
-	/* Scan to find existance of the device */
+
+	/* Scan to find existence of the device */
 	if (nand_scan_ident(mtd, 1)) {
 		err = -ENXIO;
 		goto out_irq;
@@ -760,13 +749,4 @@ module_exit(cafe_nand_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
-MODULE_DESCRIPTION("NAND flash driver for OLPC CAFE chip");
-
-/* Correct ECC for 2048 bytes of 0xff:
-   41 a0 71 65 54 27 f3 93 ec a9 be ed 0b a1 */
-
-/* dwmw2's B-test board, in case of completely screwing it:
-Bad eraseblock 2394 at 0x12b40000
-Bad eraseblock 2627 at 0x14860000
-Bad eraseblock 3349 at 0x1a2a0000
-*/
+MODULE_DESCRIPTION("NAND flash driver for OLPC CAFÉ chip");

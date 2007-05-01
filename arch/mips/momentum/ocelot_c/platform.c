@@ -37,8 +37,6 @@ static struct platform_device mv643xx_eth_shared_device = {
 #define MV64x60_IRQ_ETH_0 48
 #define MV64x60_IRQ_ETH_1 49
 
-#ifdef CONFIG_MV643XX_ETH_0
-
 static struct resource mv64x60_eth0_resources[] = {
 	[0] = {
 		.name	= "eth0 irq",
@@ -48,10 +46,8 @@ static struct resource mv64x60_eth0_resources[] = {
 	},
 };
 
-static char eth0_mac_addr[ETH_ALEN];
-
 static struct mv643xx_eth_platform_data eth0_pd = {
-	.mac_addr	= eth0_mac_addr,
+	.port_number	= 0,
 
 	.tx_sram_addr	= MV_SRAM_BASE_ETH0,
 	.tx_sram_size	= MV_SRAM_TXRING_SIZE,
@@ -71,9 +67,6 @@ static struct platform_device eth0_device = {
 		.platform_data = &eth0_pd,
 	},
 };
-#endif /* CONFIG_MV643XX_ETH_0 */
-
-#ifdef CONFIG_MV643XX_ETH_1
 
 static struct resource mv64x60_eth1_resources[] = {
 	[0] = {
@@ -84,10 +77,8 @@ static struct resource mv64x60_eth1_resources[] = {
 	},
 };
 
-static char eth1_mac_addr[ETH_ALEN];
-
 static struct mv643xx_eth_platform_data eth1_pd = {
-	.mac_addr	= eth1_mac_addr,
+	.port_number	= 1,
 
 	.tx_sram_addr	= MV_SRAM_BASE_ETH1,
 	.tx_sram_size	= MV_SRAM_TXRING_SIZE,
@@ -107,16 +98,11 @@ static struct platform_device eth1_device = {
 		.platform_data = &eth1_pd,
 	},
 };
-#endif /* CONFIG_MV643XX_ETH_1 */
 
 static struct platform_device *mv643xx_eth_pd_devs[] __initdata = {
 	&mv643xx_eth_shared_device,
-#ifdef CONFIG_MV643XX_ETH_0
 	&eth0_device,
-#endif
-#ifdef CONFIG_MV643XX_ETH_1
 	&eth1_device,
-#endif
 	/* The third port is not wired up on the Ocelot C */
 };
 
@@ -184,12 +170,8 @@ static int __init mv643xx_eth_add_pds(void)
 	int ret;
 
 	get_mac(mac);
-#ifdef CONFIG_MV643XX_ETH_0
-	eth_mac_add(eth1_mac_addr, mac, 0);
-#endif
-#ifdef CONFIG_MV643XX_ETH_1
-	eth_mac_add(eth1_mac_addr, mac, 1);
-#endif
+	eth_mac_add(eth0_pd.mac_addr, mac, 0);
+	eth_mac_add(eth1_pd.mac_addr, mac, 1);
 	ret = platform_add_devices(mv643xx_eth_pd_devs,
 			ARRAY_SIZE(mv643xx_eth_pd_devs));
 

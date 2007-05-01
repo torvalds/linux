@@ -7,7 +7,6 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/ide.h>
 
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -137,9 +136,11 @@ hydra_init(void)
 	struct device_node *np;
 	struct resource r;
 
-	np = find_devices("mac-io");
-	if (np == NULL || of_address_to_resource(np, 0, &r))
+	np = of_find_node_by_name(NULL, "mac-io");
+	if (np == NULL || of_address_to_resource(np, 0, &r)) {
+		of_node_put(np);
 		return 0;
+	}
 	Hydra = ioremap(r.start, r.end-r.start);
 	printk("Hydra Mac I/O at %llx\n", (unsigned long long)r.start);
 	printk("Hydra Feature_Control was %x",
@@ -186,10 +187,9 @@ setup_python(struct pci_controller *hose, struct device_node *dev)
 /* Marvell Discovery II based Pegasos 2 */
 static void __init setup_peg2(struct pci_controller *hose, struct device_node *dev)
 {
-	struct device_node *root = find_path_device("/");
+	struct device_node *root = of_find_node_by_path("/");
 	struct device_node *rtas;
 
-	of_node_get(root);
 	rtas = of_find_node_by_name (root, "rtas");
 	if (rtas) {
 		hose->ops = &rtas_pci_ops;
@@ -199,6 +199,7 @@ static void __init setup_peg2(struct pci_controller *hose, struct device_node *d
 			" your firmware\n");
 	}
 	pci_assign_all_buses = 1;
+	/* keep the reference to the root node */
 }
 
 void __init
@@ -211,14 +212,14 @@ chrp_find_bridges(void)
 	const unsigned int *dma;
 	const char *model, *machine;
 	int is_longtrail = 0, is_mot = 0, is_pegasos = 0;
-	struct device_node *root = find_path_device("/");
+	struct device_node *root = of_find_node_by_path("/");
 	struct resource r;
 	/*
 	 * The PCI host bridge nodes on some machines don't have
 	 * properties to adequately identify them, so we have to
 	 * look at what sort of machine this is as well.
 	 */
-	machine = get_property(root, "model", NULL);
+	machine = of_get_property(root, "model", NULL);
 	if (machine != NULL) {
 		is_longtrail = strncmp(machine, "IBM,LongTrail", 13) == 0;
 		is_mot = strncmp(machine, "MOT", 3) == 0;
@@ -237,7 +238,7 @@ chrp_find_bridges(void)
 			       dev->full_name);
 			continue;
 		}
-		bus_range = get_property(dev, "bus-range", &len);
+		bus_range = of_get_property(dev, "bus-range", &len);
 		if (bus_range == NULL || len < 2 * sizeof(int)) {
 			printk(KERN_WARNING "Can't get bus-range for %s\n",
 				dev->full_name);
@@ -263,7 +264,7 @@ chrp_find_bridges(void)
 		hose->first_busno = bus_range[0];
 		hose->last_busno = bus_range[1];
 
-		model = get_property(dev, "model", NULL);
+		model = of_get_property(dev, "model", NULL);
 		if (model == NULL)
 			model = "<none>";
 		if (device_is_compatible(dev, "IBM,python")) {
@@ -285,7 +286,8 @@ chrp_find_bridges(void)
 					   r.start + 0x000f8000,
 					   r.start + 0x000f8010);
 			if (index == 0) {
-				dma = get_property(dev, "system-dma-base",&len);
+				dma = of_get_property(dev, "system-dma-base",
+							&len);
 				if (dma && len >= sizeof(*dma)) {
 					dma = (unsigned int *)
 						(((unsigned long)dma) +
@@ -303,12 +305,13 @@ chrp_find_bridges(void)
 
 		/* check the first bridge for a property that we can
 		   use to set pci_dram_offset */
-		dma = get_property(dev, "ibm,dma-ranges", &len);
+		dma = of_get_property(dev, "ibm,dma-ranges", &len);
 		if (index == 0 && dma != NULL && len >= 6 * sizeof(*dma)) {
 			pci_dram_offset = dma[2] - dma[3];
 			printk("pci_dram_offset = %lx\n", pci_dram_offset);
 		}
 	}
+	of_node_put(root);
 }
 
 /* SL82C105 IDE Control/Status Register */

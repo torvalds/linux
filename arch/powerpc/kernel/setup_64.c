@@ -20,7 +20,6 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/initrd.h>
-#include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/ioport.h>
 #include <linux/console.h>
@@ -110,7 +109,7 @@ static void check_smt_enabled(void)
 	dn = of_find_node_by_path("/options");
 
 	if (dn) {
-		smt_option = get_property(dn, "ibm,smt-enabled", NULL);
+		smt_option = of_get_property(dn, "ibm,smt-enabled", NULL);
 
                 if (smt_option) {
 			if (!strcmp(smt_option, "on"))
@@ -305,10 +304,10 @@ static void __init initialize_cache_info(void)
 
 			size = 0;
 			lsize = cur_cpu_spec->dcache_bsize;
-			sizep = get_property(np, "d-cache-size", NULL);
+			sizep = of_get_property(np, "d-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = get_property(np, dc, NULL);
+			lsizep = of_get_property(np, dc, NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)
@@ -322,10 +321,10 @@ static void __init initialize_cache_info(void)
 
 			size = 0;
 			lsize = cur_cpu_spec->icache_bsize;
-			sizep = get_property(np, "i-cache-size", NULL);
+			sizep = of_get_property(np, "i-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = get_property(np, ic, NULL);
+			lsizep = of_get_property(np, ic, NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)
