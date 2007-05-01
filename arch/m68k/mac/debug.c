@@ -52,7 +52,7 @@ extern void mac_serial_print(const char *);
  */
 
 #ifdef DEBUG_SCREEN
-static int peng=0, line=0;
+static int peng, line;
 #endif
 
 void mac_debugging_short(int pos, short num)
@@ -74,15 +74,14 @@ void mac_debugging_short(int pos, short num)
 	}
 
 	/* calculate current offset */
-	pengoffset=(unsigned char *)(mac_videobase+(150+line*2)*mac_rowbytes)
-		    +80*peng;
+	pengoffset = (unsigned char *)mac_videobase +
+		(150+line*2) * mac_rowbytes) + 80 * peng;
 
-	pptr=pengoffset;
+	pptr = pengoffset;
 
-	for(i=0;i<8*sizeof(short);i++) /* # of bits */
-	{
+	for (i = 0; i < 8 * sizeof(short); i++) { /* # of bits */
 		/*        value        mask for bit i, reverse order */
-		*pptr++ = (num & ( 1 << (8*sizeof(short)-i-1) ) ? 0xFF : 0x00);
+		*pptr++ = (num & (1 << (8*sizeof(short)-i-1)) ? 0xFF : 0x00);
 	}
 
 	peng++;
@@ -115,11 +114,10 @@ void mac_debugging_long(int pos, long addr)
 	pengoffset=(unsigned char *)(mac_videobase+(150+line*2)*mac_rowbytes)
 		    +80*peng;
 
-	pptr=pengoffset;
+	pptr = pengoffset;
 
-	for(i=0;i<8*sizeof(long);i++) /* # of bits */
-	{
-		*pptr++ = (addr & ( 1 << (8*sizeof(long)-i-1) ) ? 0xFF : 0x00);
+	for (i = 0; i < 8 * sizeof(long); i++) { /* # of bits */
+		*pptr++ = (addr & (1 << (8*sizeof(long)-i-1)) ? 0xFF : 0x00);
 	}
 
 	peng++;
@@ -136,16 +134,15 @@ void mac_debugging_long(int pos, long addr)
  * TODO: serial debug code
  */
 
-struct mac_SCC
- {
-  u_char cha_b_ctrl;
-  u_char char_dummy1;
-  u_char cha_a_ctrl;
-  u_char char_dummy2;
-  u_char cha_b_data;
-  u_char char_dummy3;
-  u_char cha_a_data;
- };
+struct mac_SCC {
+	u_char cha_b_ctrl;
+	u_char char_dummy1;
+	u_char cha_a_ctrl;
+	u_char char_dummy2;
+	u_char cha_b_data;
+	u_char char_dummy3;
+	u_char cha_a_data;
+};
 
 # define scc (*((volatile struct mac_SCC*)mac_bi_data.sccbase))
 
@@ -158,9 +155,9 @@ int mac_SCC_reset_done;
 static int scc_port = -1;
 
 static struct console mac_console_driver = {
-	.name =		"debug",
-	.flags =	CON_PRINTBUFFER,
-	.index =	-1,
+	.name	= "debug",
+	.flags	= CON_PRINTBUFFER,
+	.index	= -1,
 };
 
 /*
@@ -178,8 +175,8 @@ static struct console mac_console_driver = {
  * this driver if Mac.
  */
 
-void mac_debug_console_write (struct console *co, const char *str,
-			      unsigned int count)
+void mac_debug_console_write(struct console *co, const char *str,
+			     unsigned int count)
 {
 	mac_serial_print(str);
 }
@@ -190,48 +187,50 @@ void mac_debug_console_write (struct console *co, const char *str,
 
 #define uSEC 1
 
-static inline void mac_sccb_out (char c)
+static inline void mac_sccb_out(char c)
 {
-    int i;
-    do {
-	for( i = uSEC; i > 0; --i )
+	int i;
+
+	do {
+		for (i = uSEC; i > 0; --i)
+			barrier();
+	} while (!(scc.cha_b_ctrl & 0x04)); /* wait for tx buf empty */
+	for (i = uSEC; i > 0; --i)
 		barrier();
-    } while (!(scc.cha_b_ctrl & 0x04)); /* wait for tx buf empty */
-    for( i = uSEC; i > 0; --i )
-	barrier();
-    scc.cha_b_data = c;
+	scc.cha_b_data = c;
 }
 
-static inline void mac_scca_out (char c)
+static inline void mac_scca_out(char c)
 {
-    int i;
-    do {
-	for( i = uSEC; i > 0; --i )
+	int i;
+
+	do {
+		for (i = uSEC; i > 0; --i)
+			barrier();
+	} while (!(scc.cha_a_ctrl & 0x04)); /* wait for tx buf empty */
+	for (i = uSEC; i > 0; --i)
 		barrier();
-    } while (!(scc.cha_a_ctrl & 0x04)); /* wait for tx buf empty */
-    for( i = uSEC; i > 0; --i )
-	barrier();
-    scc.cha_a_data = c;
+	scc.cha_a_data = c;
 }
 
-void mac_sccb_console_write (struct console *co, const char *str,
-			      unsigned int count)
+void mac_sccb_console_write(struct console *co, const char *str,
+			    unsigned int count)
 {
-    while (count--) {
-	if (*str == '\n')
-	    mac_sccb_out( '\r' );
-	mac_sccb_out( *str++ );
-    }
+	while (count--) {
+		if (*str == '\n')
+			mac_sccb_out('\r');
+		mac_sccb_out(*str++);
+	}
 }
 
-void mac_scca_console_write (struct console *co, const char *str,
-			      unsigned int count)
+void mac_scca_console_write(struct console *co, const char *str,
+			    unsigned int count)
 {
-    while (count--) {
-	if (*str == '\n')
-	    mac_scca_out( '\r' );
-	mac_scca_out( *str++ );
-    }
+	while (count--) {
+		if (*str == '\n')
+			mac_scca_out('\r');
+		mac_scca_out(*str++);
+	}
 }
 
 
@@ -239,41 +238,41 @@ void mac_scca_console_write (struct console *co, const char *str,
  * SCC serial ports. They're used by the debugging interface, kgdb, and the
  * serial console code. */
 #define SCCB_WRITE(reg,val)				\
-    do {						\
-	int i;						\
-	scc.cha_b_ctrl = (reg);				\
-	for( i = uSEC; i > 0; --i )			\
-		barrier();				\
-	scc.cha_b_ctrl = (val);				\
-	for( i = uSEC; i > 0; --i )			\
-		barrier();				\
-    } while(0)
+	do {						\
+		int i;					\
+		scc.cha_b_ctrl = (reg);			\
+		for (i = uSEC; i > 0; --i)		\
+			barrier();			\
+		scc.cha_b_ctrl = (val);			\
+		for (i = uSEC; i > 0; --i)		\
+			barrier();			\
+	} while(0)
 
 #define SCCA_WRITE(reg,val)				\
-    do {						\
-	int i;						\
-	scc.cha_a_ctrl = (reg);				\
-	for( i = uSEC; i > 0; --i )			\
-		barrier();				\
-	scc.cha_a_ctrl = (val);				\
-	for( i = uSEC; i > 0; --i )			\
-		barrier();				\
-    } while(0)
+	do {						\
+		int i;					\
+		scc.cha_a_ctrl = (reg);			\
+		for (i = uSEC; i > 0; --i)		\
+			barrier();			\
+		scc.cha_a_ctrl = (val);			\
+		for (i = uSEC; i > 0; --i)		\
+			barrier();			\
+	} while(0)
 
 /* loops_per_jiffy isn't initialized yet, so we can't use udelay(). This does a
  * delay of ~ 60us. */
 /* Mac: loops_per_jiffy min. 19000 ^= .5 us; MFPDELAY was 0.6 us*/
-#define LONG_DELAY()				\
-    do {					\
-	int i;					\
-	for( i = 60*uSEC; i > 0; --i )		\
-	    barrier();				\
-    } while(0)
+#define LONG_DELAY()					\
+	do {						\
+		int i;					\
+		for (i = 60*uSEC; i > 0; --i)		\
+		    barrier();				\
+	} while(0)
 
 #ifndef CONFIG_SERIAL_CONSOLE
-static void __init mac_init_scc_port( int cflag, int port )
+static void __init mac_init_scc_port(int cflag, int port)
 #else
-void mac_init_scc_port( int cflag, int port )
+void mac_init_scc_port(int cflag, int port)
 #endif
 {
 	extern int mac_SCC_reset_done;
@@ -292,71 +291,71 @@ void mac_init_scc_port( int cflag, int port )
 		/* reg12 (BRG low) */
 		{ 94, 62, 46, 22, 10, 4, 1, 0, 0 };
 
-    int baud = cflag & CBAUD;
-    int clksrc, clkmode, div, reg3, reg5;
+	int baud = cflag & CBAUD;
+	int clksrc, clkmode, div, reg3, reg5;
 
-    if (cflag & CBAUDEX)
-	baud += B38400;
-    if (baud < B1200 || baud > B38400+2)
-	baud = B9600; /* use default 9600bps for non-implemented rates */
-    baud -= B1200; /* tables starts at 1200bps */
+	if (cflag & CBAUDEX)
+		baud += B38400;
+	if (baud < B1200 || baud > B38400+2)
+		baud = B9600; /* use default 9600bps for non-implemented rates */
+	baud -= B1200; /* tables starts at 1200bps */
 
-    clksrc  = clksrc_table[baud];
-    clkmode = clkmode_table[baud];
-    div     = div_table[baud];
+	clksrc  = clksrc_table[baud];
+	clkmode = clkmode_table[baud];
+	div     = div_table[baud];
 
-    reg3 = (((cflag & CSIZE) == CS8) ? 0xc0 : 0x40);
-    reg5 = (((cflag & CSIZE) == CS8) ? 0x60 : 0x20) | 0x82 /* assert DTR/RTS */;
+	reg3 = (((cflag & CSIZE) == CS8) ? 0xc0 : 0x40);
+	reg5 = (((cflag & CSIZE) == CS8) ? 0x60 : 0x20) | 0x82 /* assert DTR/RTS */;
 
-    if (port == 1) {
-	    (void)scc.cha_b_ctrl;	/* reset reg pointer */
-	    SCCB_WRITE( 9, 0xc0 );	/* reset */
-	    LONG_DELAY();		/* extra delay after WR9 access */
-	    SCCB_WRITE( 4, (cflag & PARENB) ? ((cflag & PARODD) ? 0x01 : 0x03) : 0 |
+	if (port == 1) {
+		(void)scc.cha_b_ctrl;	/* reset reg pointer */
+		SCCB_WRITE(9, 0xc0);	/* reset */
+		LONG_DELAY();		/* extra delay after WR9 access */
+		SCCB_WRITE(4, (cflag & PARENB) ? ((cflag & PARODD) ? 0x01 : 0x03) : 0 |
+			   0x04 /* 1 stopbit */ |
+			   clkmode);
+		SCCB_WRITE(3, reg3);
+		SCCB_WRITE(5, reg5);
+		SCCB_WRITE(9, 0);	/* no interrupts */
+		LONG_DELAY();		/* extra delay after WR9 access */
+		SCCB_WRITE(10, 0);	/* NRZ mode */
+		SCCB_WRITE(11, clksrc);	/* main clock source */
+		SCCB_WRITE(12, div);	/* BRG value */
+		SCCB_WRITE(13, 0);	/* BRG high byte */
+		SCCB_WRITE(14, 1);
+		SCCB_WRITE(3, reg3 | 1);
+		SCCB_WRITE(5, reg5 | 8);
+	} else if (port == 0) {
+		(void)scc.cha_a_ctrl;	/* reset reg pointer */
+		SCCA_WRITE(9, 0xc0);	/* reset */
+		LONG_DELAY();		/* extra delay after WR9 access */
+		SCCA_WRITE(4, (cflag & PARENB) ? ((cflag & PARODD) ? 0x01 : 0x03) : 0 |
 			  0x04 /* 1 stopbit */ |
-			  clkmode );
-	    SCCB_WRITE( 3, reg3 );
-	    SCCB_WRITE( 5, reg5 );
-	    SCCB_WRITE( 9, 0 );		/* no interrupts */
-	    LONG_DELAY();		/* extra delay after WR9 access */
-	    SCCB_WRITE( 10, 0 );	/* NRZ mode */
-	    SCCB_WRITE( 11, clksrc );	/* main clock source */
-	    SCCB_WRITE( 12, div );	/* BRG value */
-	    SCCB_WRITE( 13, 0 );		/* BRG high byte */
-	    SCCB_WRITE( 14, 1 );
-	    SCCB_WRITE( 3, reg3 | 1 );
-	    SCCB_WRITE( 5, reg5 | 8 );
-    } else if (port == 0) {
-	    (void)scc.cha_a_ctrl;	/* reset reg pointer */
-	    SCCA_WRITE( 9, 0xc0 );	/* reset */
-	    LONG_DELAY();		/* extra delay after WR9 access */
-	    SCCA_WRITE( 4, (cflag & PARENB) ? ((cflag & PARODD) ? 0x01 : 0x03) : 0 |
-			  0x04 /* 1 stopbit */ |
-			  clkmode );
-	    SCCA_WRITE( 3, reg3 );
-	    SCCA_WRITE( 5, reg5 );
-	    SCCA_WRITE( 9, 0 );		/* no interrupts */
-	    LONG_DELAY();		/* extra delay after WR9 access */
-	    SCCA_WRITE( 10, 0 );	/* NRZ mode */
-	    SCCA_WRITE( 11, clksrc );	/* main clock source */
-	    SCCA_WRITE( 12, div );	/* BRG value */
-	    SCCA_WRITE( 13, 0 );		/* BRG high byte */
-	    SCCA_WRITE( 14, 1 );
-	    SCCA_WRITE( 3, reg3 | 1 );
-	    SCCA_WRITE( 5, reg5 | 8 );
-    }
+			  clkmode);
+		SCCA_WRITE(3, reg3);
+		SCCA_WRITE(5, reg5);
+		SCCA_WRITE(9, 0);	/* no interrupts */
+		LONG_DELAY();		/* extra delay after WR9 access */
+		SCCA_WRITE(10, 0);	/* NRZ mode */
+		SCCA_WRITE(11, clksrc);	/* main clock source */
+		SCCA_WRITE(12, div);	/* BRG value */
+		SCCA_WRITE(13, 0);	/* BRG high byte */
+		SCCA_WRITE(14, 1);
+		SCCA_WRITE(3, reg3 | 1);
+		SCCA_WRITE(5, reg5 | 8);
+	}
 
-    mac_SCC_reset_done = 1;
-    mac_SCC_init_done = 1;
+	mac_SCC_reset_done = 1;
+	mac_SCC_init_done = 1;
 }
 #endif /* DEBUG_SERIAL */
 
-void mac_init_scca_port( int cflag )
+void mac_init_scca_port(int cflag)
 {
 	mac_init_scc_port(cflag, 0);
 }
 
-void mac_init_sccb_port( int cflag )
+void mac_init_sccb_port(int cflag)
 {
 	mac_init_scc_port(cflag, 1);
 }
@@ -364,34 +363,26 @@ void mac_init_sccb_port( int cflag )
 void __init mac_debug_init(void)
 {
 #ifdef DEBUG_SERIAL
-    if (   !strcmp( m68k_debug_device, "ser"  )
-        || !strcmp( m68k_debug_device, "ser1" )) {
-	/* Mac modem port */
-	mac_init_scc_port( B9600|CS8, 0 );
-	mac_console_driver.write = mac_scca_console_write;
-	scc_port = 0;
-    }
-    else if (!strcmp( m68k_debug_device, "ser2" )) {
-	/* Mac printer port */
-	mac_init_scc_port( B9600|CS8, 1 );
-	mac_console_driver.write = mac_sccb_console_write;
-	scc_port = 1;
-    }
+	if (!strcmp(m68k_debug_device, "ser") ||
+            !strcmp(m68k_debug_device, "ser1")) {
+		/* Mac modem port */
+		mac_init_scc_port(B9600|CS8, 0);
+		mac_console_driver.write = mac_scca_console_write;
+		scc_port = 0;
+	} else if (!strcmp(m68k_debug_device, "ser2")) {
+		/* Mac printer port */
+		mac_init_scc_port(B9600|CS8, 1);
+		mac_console_driver.write = mac_sccb_console_write;
+		scc_port = 1;
+	}
 #endif
 #ifdef DEBUG_HEADS
-    if (   !strcmp( m68k_debug_device, "scn"  )
-        || !strcmp( m68k_debug_device, "con" )) {
-	/* display, using head.S console routines */
-	mac_console_driver.write = mac_debug_console_write;
-    }
+	if (!strcmp(m68k_debug_device, "scn") ||
+	    !strcmp(m68k_debug_device, "con")) {
+		/* display, using head.S console routines */
+		mac_console_driver.write = mac_debug_console_write;
+	}
 #endif
-    if (mac_console_driver.write)
-	register_console(&mac_console_driver);
+	if (mac_console_driver.write)
+		register_console(&mac_console_driver);
 }
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  tab-width: 8
- * End:
- */
