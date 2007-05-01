@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------------ *
  * i2c-parport.c I2C bus over parallel port                                 *
  * ------------------------------------------------------------------------ *
-   Copyright (C) 2003-2004 Jean Delvare <khali@linux-fr.org>
+   Copyright (C) 2003-2007 Jean Delvare <khali@linux-fr.org>
    
    Based on older i2c-philips-par.c driver
    Copyright (C) 1995-2000 Simon G. Vogl
@@ -137,7 +137,7 @@ static struct i2c_algo_bit_data parport_algo_data = {
 	.setscl		= parport_setscl,
 	.getsda		= parport_getsda,
 	.getscl		= parport_getscl,
-	.udelay		= 60,
+	.udelay		= 10, /* ~50 kbps */
 	.timeout	= HZ,
 }; 
 
@@ -168,8 +168,11 @@ static void i2c_parport_attach (struct parport *port)
 	strlcpy(adapter->adapter.name, "Parallel port adapter",
 		sizeof(adapter->adapter.name));
 	adapter->algo_data = parport_algo_data;
-	if (!adapter_parm[type].getscl.val)
+	/* Slow down if we can't sense SCL */
+	if (!adapter_parm[type].getscl.val) {
 		adapter->algo_data.getscl = NULL;
+		adapter->algo_data.udelay = 50; /* ~10 kbps */
+	}
 	adapter->algo_data.data = port;
 	adapter->adapter.algo_data = &adapter->algo_data;
 
@@ -211,11 +214,12 @@ static void i2c_parport_detach (struct parport *port)
 	for (prev = NULL, adapter = adapter_list; adapter;
 	     prev = adapter, adapter = adapter->next) {
 		if (adapter->pdev->port == port) {
+			i2c_del_adapter(&adapter->adapter);
+
 			/* Un-init if needed (power off...) */
 			if (adapter_parm[type].init.val)
 				line_set(port, 0, &adapter_parm[type].init);
 				
-			i2c_del_adapter(&adapter->adapter);
 			parport_unregister_device(adapter->pdev);
 			if (prev)
 				prev->next = adapter->next;
