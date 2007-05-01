@@ -1023,10 +1023,11 @@ static int sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 	{
 		len = skb->len;
 		if (len < ETH_ZLEN) {
-			memset((char *)p->xmit_cbuffs[p->xmit_count], 0, ETH_ZLEN);
+			memset((void *)p->xmit_cbuffs[p->xmit_count], 0,
+			       ETH_ZLEN);
 			len = ETH_ZLEN;
 		}
-		skb_copy_from_linear_data(skb, p->xmit_cbuffs[p->xmit_count], skb->len);
+		skb_copy_from_linear_data(skb, (void *)p->xmit_cbuffs[p->xmit_count], skb->len);
 
 #if (NUM_XMIT_BUFFS == 1)
 #	ifdef NO_NOPCOMMANDS
