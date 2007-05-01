@@ -677,13 +677,18 @@ int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
-		if (host->bus_ops->remove)
-			host->bus_ops->remove(host);
-		mmc_detach_bus(host);
+		if (host->bus_ops->suspend)
+			host->bus_ops->suspend(host);
+		if (!host->bus_ops->resume) {
+			if (host->bus_ops->remove)
+				host->bus_ops->remove(host);
+
+			mmc_claim_host(host);
+			mmc_detach_bus(host);
+			mmc_release_host(host);
+		}
 	}
 	mmc_bus_put(host);
-
-	BUG_ON(host->card);
 
 	mmc_power_off(host);
 
@@ -698,7 +703,19 @@ EXPORT_SYMBOL(mmc_suspend_host);
  */
 int mmc_resume_host(struct mmc_host *host)
 {
-	mmc_rescan(&host->detect.work);
+	mmc_bus_get(host);
+	if (host->bus_ops && !host->bus_dead) {
+		mmc_power_up(host);
+		BUG_ON(!host->bus_ops->resume);
+		host->bus_ops->resume(host);
+	}
+	mmc_bus_put(host);
+
+	/*
+	 * We add a slight delay here so that resume can progress
+	 * in parallel.
+	 */
+	mmc_detect_change(host, 1);
 
 	return 0;
 }

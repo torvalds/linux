@@ -19,6 +19,8 @@ config MMC_DEBUG
 	  This is an option for use by developers; most people should
 	  say N here.  This enables MMC core and driver debugging.
 
+source "drivers/mmc/core/Kconfig"
+
 source "drivers/mmc/card/Kconfig"
 
 source "drivers/mmc/host/Kconfig"

@@ -263,6 +263,161 @@ out:
 }
 
 /*
+ * Handle the detection and initialisation of a card.
+ *
+ * In the case of a resume, "curcard" will contain the card
+ * we're trying to reinitialise.
+ */
+static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
+	struct mmc_card *oldcard)
+{
+	struct mmc_card *card;
+	int err;
+	u32 cid[4];
+	unsigned int max_dtr;
+
+	BUG_ON(!host);
+	BUG_ON(!host->claimed);
+
+	/*
+	 * Since we're changing the OCR value, we seem to
+	 * need to tell some cards to go back to the idle
+	 * state.  We wait 1ms to give cards time to
+	 * respond.
+	 */
+	mmc_go_idle(host);
+
+	/*
+	 * If SD_SEND_IF_COND indicates an SD 2.0
+	 * compliant card and we should set bit 30
+	 * of the ocr to indicate that we can handle
+	 * block-addressed SDHC cards.
+	 */
+	err = mmc_send_if_cond(host, ocr);
+	if (err == MMC_ERR_NONE)
+		ocr |= 1 << 30;
+
+	err = mmc_send_app_op_cond(host, ocr, NULL);
+	if (err != MMC_ERR_NONE)
+		goto err;
+
+	/*
+	 * Fetch CID from card.
+	 */
+	err = mmc_all_send_cid(host, cid);
+	if (err != MMC_ERR_NONE)
+		goto err;
+
+	if (oldcard) {
+		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0)
+			goto err;
+
+		card = oldcard;
+	} else {
+		/*
+		 * Allocate card structure.
+		 */
+		card = mmc_alloc_card(host);
+		if (IS_ERR(card))
+			goto err;
+
+		card->type = MMC_TYPE_SD;
+		memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
+	}
+
+	/*
+	 * Set card RCA.
+	 */
+	err = mmc_send_relative_addr(host, &card->rca);
+	if (err != MMC_ERR_NONE)
+		goto free_card;
+
+	mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
+
+	if (!oldcard) {
+		/*
+		 * Fetch CSD from card.
+		 */
+		err = mmc_send_csd(card, card->raw_csd);
+		if (err != MMC_ERR_NONE)
+			goto free_card;
+
+		mmc_decode_csd(card);
+		mmc_decode_cid(card);
+	}
+
+	/*
+	 * Select card, as all following commands rely on that.
+	 */
+	err = mmc_select_card(card);
+	if (err != MMC_ERR_NONE)
+		goto free_card;
+
+	if (!oldcard) {
+		/*
+		 * Fetch SCR from card.
+		 */
+		err = mmc_app_send_scr(card, card->raw_scr);
+		if (err != MMC_ERR_NONE)
+			goto free_card;
+
+		mmc_decode_scr(card);
+
+		/*
+		 * Fetch switch information from card.
+		 */
+		err = mmc_read_switch(card);
+		if (err != MMC_ERR_NONE)
+			goto free_card;
+	}
+
+	/*
+	 * Attempt to change to high-speed (if supported)
+	 */
+	err = mmc_switch_hs(card);
+	if (err != MMC_ERR_NONE)
+		goto free_card;
+
+	/*
+	 * Compute bus speed.
+	 */
+	max_dtr = (unsigned int)-1;
+
+	if (mmc_card_highspeed(card)) {
+		if (max_dtr > card->sw_caps.hs_max_dtr)
+			max_dtr = card->sw_caps.hs_max_dtr;
+	} else if (max_dtr > card->csd.max_dtr) {
+		max_dtr = card->csd.max_dtr;
+	}
+
+	mmc_set_clock(host, max_dtr);
+
+	/*
+	 * Switch to wider bus (if supported).
+	 */
+	if ((host->caps && MMC_CAP_4_BIT_DATA) &&
+		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+		err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
+		if (err != MMC_ERR_NONE)
+			goto free_card;
+
+		mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+	}
+
+	if (!oldcard)
+		host->card = card;
+
+	return MMC_ERR_NONE;
+
+free_card:
+	if (!oldcard)
+		mmc_remove_card(card);
+err:
+
+	return MMC_ERR_FAILED;
+}
+
+/*
  * Host is being removed. Free up the current card.
  */
 static void mmc_sd_remove(struct mmc_host *host)
@@ -303,9 +458,60 @@ static void mmc_sd_detect(struct mmc_host *host)
 	}
 }
 
+#ifdef CONFIG_MMC_UNSAFE_RESUME
+
+/*
+ * Suspend callback from host.
+ */
+static void mmc_sd_suspend(struct mmc_host *host)
+{
+	BUG_ON(!host);
+	BUG_ON(!host->card);
+
+	mmc_claim_host(host);
+	mmc_deselect_cards(host);
+	host->card->state &= ~MMC_STATE_HIGHSPEED;
+	mmc_release_host(host);
+}
+
+/*
+ * Resume callback from host.
+ *
+ * This function tries to determine if the same card is still present
+ * and, if so, restore all state to it.
+ */
+static void mmc_sd_resume(struct mmc_host *host)
+{
+	int err;
+
+	BUG_ON(!host);
+	BUG_ON(!host->card);
+
+	mmc_claim_host(host);
+
+	err = mmc_sd_init_card(host, host->ocr, host->card);
+	if (err != MMC_ERR_NONE) {
+		mmc_remove_card(host->card);
+		host->card = NULL;
+
+		mmc_detach_bus(host);
+	}
+
+	mmc_release_host(host);
+}
+
+#else
+
+#define mmc_sd_suspend NULL
+#define mmc_sd_resume NULL
+
+#endif
+
 static const struct mmc_bus_ops mmc_sd_ops = {
 	.remove = mmc_sd_remove,
 	.detect = mmc_sd_detect,
+	.suspend = mmc_sd_suspend,
+	.resume = mmc_sd_resume,
 };
 
 /*
@@ -313,10 +519,7 @@ static const struct mmc_bus_ops mmc_sd_ops = {
  */
 int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 {
-	struct mmc_card *card;
 	int err;
-	u32 cid[4];
-	unsigned int max_dtr;
 
 	BUG_ON(!host);
 	BUG_ON(!host->claimed);
@@ -350,119 +553,15 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 		goto err;
 
 	/*
-	 * Since we're changing the OCR value, we seem to
-	 * need to tell some cards to go back to the idle
-	 * state.  We wait 1ms to give cards time to
-	 * respond.
+	 * Detect and init the card.
 	 */
-	mmc_go_idle(host);
-
-	/*
-	 * If SD_SEND_IF_COND indicates an SD 2.0
-	 * compliant card and we should set bit 30
-	 * of the ocr to indicate that we can handle
-	 * block-addressed SDHC cards.
-	 */
-	err = mmc_send_if_cond(host, host->ocr);
-	if (err == MMC_ERR_NONE)
-		ocr = host->ocr | (1 << 30);
-
-	mmc_send_app_op_cond(host, ocr, NULL);
-
-	/*
-	 * Fetch CID from card.
-	 */
-	err = mmc_all_send_cid(host, cid);
+	err = mmc_sd_init_card(host, host->ocr, NULL);
 	if (err != MMC_ERR_NONE)
 		goto err;
-
-	/*
-	 * Allocate card structure.
-	 */
-	card = mmc_alloc_card(host);
-	if (IS_ERR(card))
-		goto err;
-
-	card->type = MMC_TYPE_SD;
-	memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
-
-	/*
-	 * Set card RCA.
-	 */
-	err = mmc_send_relative_addr(host, &card->rca);
-	if (err != MMC_ERR_NONE)
-		goto free_card;
-
-	mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
-
-	/*
-	 * Fetch CSD from card.
-	 */
-	err = mmc_send_csd(card, card->raw_csd);
-	if (err != MMC_ERR_NONE)
-		goto free_card;
-
-	mmc_decode_csd(card);
-	mmc_decode_cid(card);
-
-	/*
-	 * Fetch SCR from card.
-	 */
-	err = mmc_select_card(card);
-	if (err != MMC_ERR_NONE)
-		goto free_card;
-
-	err = mmc_app_send_scr(card, card->raw_scr);
-	if (err != MMC_ERR_NONE)
-		goto free_card;
-
-	mmc_decode_scr(card);
-
-	/*
-	 * Fetch switch information from card.
-	 */
-	err = mmc_read_switch(card);
-	if (err != MMC_ERR_NONE)
-		goto free_card;
-
-	/*
-	 * Attempt to change to high-speed (if supported)
-	 */
-	err = mmc_switch_hs(card);
-	if (err != MMC_ERR_NONE)
-		goto free_card;
-
-	/*
-	 * Compute bus speed.
-	 */
-	max_dtr = (unsigned int)-1;
-
-	if (mmc_card_highspeed(card)) {
-		if (max_dtr > card->sw_caps.hs_max_dtr)
-			max_dtr = card->sw_caps.hs_max_dtr;
-	} else if (max_dtr > card->csd.max_dtr) {
-		max_dtr = card->csd.max_dtr;
-	}
-
-	mmc_set_clock(host, max_dtr);
-
-	/*
-	 * Switch to wider bus (if supported).
-	 */
-	if ((host->caps && MMC_CAP_4_BIT_DATA) &&
-		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
-		err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
-		if (err != MMC_ERR_NONE)
-			goto free_card;
-
-		mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
-	}
-
-	host->card = card;
 
 	mmc_release_host(host);
 
-	err = mmc_register_card(card);
+	err = mmc_register_card(host->card);
 	if (err)
 		goto reclaim_host;
 
@@ -470,8 +569,7 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 
 reclaim_host:
 	mmc_claim_host(host);
-free_card:
-	mmc_remove_card(card);
+	mmc_remove_card(host->card);
 	host->card = NULL;
 err:
 	mmc_detach_bus(host);

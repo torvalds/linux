@@ -229,55 +229,13 @@ out:
 }
 
 /*
- * Host is being removed. Free up the current card.
+ * Handle the detection and initialisation of a card.
+ *
+ * In the case of a resume, "curcard" will contain the card
+ * we're trying to reinitialise.
  */
-static void mmc_remove(struct mmc_host *host)
-{
-	BUG_ON(!host);
-	BUG_ON(!host->card);
-
-	mmc_remove_card(host->card);
-	host->card = NULL;
-}
-
-/*
- * Card detection callback from host.
- */
-static void mmc_detect(struct mmc_host *host)
-{
-	int err;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
-
-	mmc_claim_host(host);
-
-	/*
-	 * Just check if our card has been removed.
-	 */
-	err = mmc_send_status(host->card, NULL);
-
-	mmc_release_host(host);
-
-	if (err != MMC_ERR_NONE) {
-		mmc_remove_card(host->card);
-		host->card = NULL;
-
-		mmc_claim_host(host);
-		mmc_detach_bus(host);
-		mmc_release_host(host);
-	}
-}
-
-static const struct mmc_bus_ops mmc_ops = {
-	.remove = mmc_remove,
-	.detect = mmc_detect,
-};
-
-/*
- * Starting point for MMC card init.
- */
-int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
+static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
+	struct mmc_card *oldcard)
 {
 	struct mmc_card *card;
 	int err;
@@ -286,27 +244,6 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 
 	BUG_ON(!host);
 	BUG_ON(!host->claimed);
-
-	mmc_attach_bus(host, &mmc_ops);
-
-	/*
-	 * Sanity check the voltages that the card claims to
-	 * support.
-	 */
-	if (ocr & 0x7F) {
-		printk(KERN_WARNING "%s: card claims to support voltages "
-		       "below the defined range. These will be ignored.\n",
-		       mmc_hostname(host));
-		ocr &= ~0x7F;
-	}
-
-	host->ocr = mmc_select_voltage(host, ocr);
-
-	/*
-	 * Can we support the voltage of the card?
-	 */
-	if (!host->ocr)
-		goto err;
 
 	/*
 	 * Since we're changing the OCR value, we seem to
@@ -317,7 +254,9 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	mmc_go_idle(host);
 
 	/* The extra bit indicates that we support high capacity */
-	mmc_send_op_cond(host, host->ocr | (1 << 30), NULL);
+	err = mmc_send_op_cond(host, ocr | (1 << 30), NULL);
+	if (err != MMC_ERR_NONE)
+		goto err;
 
 	/*
 	 * Fetch CID from card.
@@ -326,16 +265,23 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	if (err != MMC_ERR_NONE)
 		goto err;
 
-	/*
-	 * Allocate card structure.
-	 */
-	card = mmc_alloc_card(host);
-	if (IS_ERR(card))
-		goto err;
+	if (oldcard) {
+		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0)
+			goto err;
 
-	card->type = MMC_TYPE_MMC;
-	card->rca = 1;
-	memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
+		card = oldcard;
+	} else {
+		/*
+		 * Allocate card structure.
+		 */
+		card = mmc_alloc_card(host);
+		if (IS_ERR(card))
+			goto err;
+
+		card->type = MMC_TYPE_MMC;
+		card->rca = 1;
+		memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
+	}
 
 	/*
 	 * Set card RCA.
@@ -346,15 +292,17 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 
 	mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 
-	/*
-	 * Fetch CSD from card.
-	 */
-	err = mmc_send_csd(card, card->raw_csd);
-	if (err != MMC_ERR_NONE)
-		goto free_card;
+	if (!oldcard) {
+		/*
+		 * Fetch CSD from card.
+		 */
+		err = mmc_send_csd(card, card->raw_csd);
+		if (err != MMC_ERR_NONE)
+			goto free_card;
 
-	mmc_decode_csd(card);
-	mmc_decode_cid(card);
+		mmc_decode_csd(card);
+		mmc_decode_cid(card);
+	}
 
 	/*
 	 * Select card, as all following commands rely on that.
@@ -363,12 +311,14 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	if (err != MMC_ERR_NONE)
 		goto free_card;
 
-	/*
-	 * Fetch and process extened CSD.
-	 */
-	err = mmc_read_ext_csd(card);
-	if (err != MMC_ERR_NONE)
-		goto free_card;
+	if (!oldcard) {
+		/*
+		 * Fetch and process extened CSD.
+		 */
+		err = mmc_read_ext_csd(card);
+		if (err != MMC_ERR_NONE)
+			goto free_card;
+	}
 
 	/*
 	 * Activate high speed (if supported)
@@ -412,11 +362,157 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 		mmc_set_bus_width(card->host, MMC_BUS_WIDTH_4);
 	}
 
-	host->card = card;
+	if (!oldcard)
+		host->card = card;
+
+	return MMC_ERR_NONE;
+
+free_card:
+	if (!oldcard)
+		mmc_remove_card(card);
+err:
+
+	return MMC_ERR_FAILED;
+}
+
+/*
+ * Host is being removed. Free up the current card.
+ */
+static void mmc_remove(struct mmc_host *host)
+{
+	BUG_ON(!host);
+	BUG_ON(!host->card);
+
+	mmc_remove_card(host->card);
+	host->card = NULL;
+}
+
+/*
+ * Card detection callback from host.
+ */
+static void mmc_detect(struct mmc_host *host)
+{
+	int err;
+
+	BUG_ON(!host);
+	BUG_ON(!host->card);
+
+	mmc_claim_host(host);
+
+	/*
+	 * Just check if our card has been removed.
+	 */
+	err = mmc_send_status(host->card, NULL);
 
 	mmc_release_host(host);
 
-	err = mmc_register_card(card);
+	if (err != MMC_ERR_NONE) {
+		mmc_remove_card(host->card);
+		host->card = NULL;
+
+		mmc_claim_host(host);
+		mmc_detach_bus(host);
+		mmc_release_host(host);
+	}
+}
+
+#ifdef CONFIG_MMC_UNSAFE_RESUME
+
+/*
+ * Suspend callback from host.
+ */
+static void mmc_suspend(struct mmc_host *host)
+{
+	BUG_ON(!host);
+	BUG_ON(!host->card);
+
+	mmc_claim_host(host);
+	mmc_deselect_cards(host);
+	host->card->state &= ~MMC_STATE_HIGHSPEED;
+	mmc_release_host(host);
+}
+
+/*
+ * Resume callback from host.
+ *
+ * This function tries to determine if the same card is still present
+ * and, if so, restore all state to it.
+ */
+static void mmc_resume(struct mmc_host *host)
+{
+	int err;
+
+	BUG_ON(!host);
+	BUG_ON(!host->card);
+
+	mmc_claim_host(host);
+
+	err = mmc_sd_init_card(host, host->ocr, host->card);
+	if (err != MMC_ERR_NONE) {
+		mmc_remove_card(host->card);
+		host->card = NULL;
+
+		mmc_detach_bus(host);
+	}
+
+	mmc_release_host(host);
+}
+
+#else
+
+#define mmc_suspend NULL
+#define mmc_resume NULL
+
+#endif
+
+static const struct mmc_bus_ops mmc_ops = {
+	.remove = mmc_remove,
+	.detect = mmc_detect,
+	.suspend = mmc_suspend,
+	.resume = mmc_resume,
+};
+
+/*
+ * Starting point for MMC card init.
+ */
+int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
+{
+	int err;
+
+	BUG_ON(!host);
+	BUG_ON(!host->claimed);
+
+	mmc_attach_bus(host, &mmc_ops);
+
+	/*
+	 * Sanity check the voltages that the card claims to
+	 * support.
+	 */
+	if (ocr & 0x7F) {
+		printk(KERN_WARNING "%s: card claims to support voltages "
+		       "below the defined range. These will be ignored.\n",
+		       mmc_hostname(host));
+		ocr &= ~0x7F;
+	}
+
+	host->ocr = mmc_select_voltage(host, ocr);
+
+	/*
+	 * Can we support the voltage of the card?
+	 */
+	if (!host->ocr)
+		goto err;
+
+	/*
+	 * Detect and init the card.
+	 */
+	err = mmc_sd_init_card(host, host->ocr, NULL);
+	if (err != MMC_ERR_NONE)
+		goto err;
+
+	mmc_release_host(host);
+
+	err = mmc_register_card(host->card);
 	if (err)
 		goto reclaim_host;
 
@@ -424,8 +520,7 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 
 reclaim_host:
 	mmc_claim_host(host);
-free_card:
-	mmc_remove_card(card);
+	mmc_remove_card(host->card);
 	host->card = NULL;
 err:
 	mmc_detach_bus(host);
