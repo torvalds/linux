@@ -92,6 +92,14 @@ config SH_SOLUTION_ENGINE
 	  Select SolutionEngine if configuring for a Hitachi SH7709
 	  or SH7750 evaluation board.
 
+config SH_7722_SOLUTION_ENGINE
+	bool "SolutionEngine7722"
+	select SOLUTION_ENGINE
+	select CPU_SUBTYPE_SH7722
+	help
+	  Select 7722 SolutionEngine if configuring for a Hitachi SH772
+	  evaluation board.
+
 config SH_7751_SOLUTION_ENGINE
 	bool "SolutionEngine7751"
 	select SOLUTION_ENGINE
