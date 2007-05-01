@@ -131,11 +131,8 @@ irqreturn_t psc_irq(int irq, void *dev_id)
 {
 	int pIFR	= pIFRbase + ((int) dev_id);
 	int pIER	= pIERbase + ((int) dev_id);
-	int base_irq;
-	int irq_bit,i;
-	unsigned char events;
-
-	base_irq = irq << 3;
+	int irq_num;
+	unsigned char irq_bit, events;
 
 #ifdef DEBUG_IRQS
 	printk("psc_irq: irq %d pIFR = 0x%02X pIER = 0x%02X\n",
@@ -146,14 +143,18 @@ irqreturn_t psc_irq(int irq, void *dev_id)
 	if (!events)
 		return IRQ_NONE;
 
-	for (i = 0, irq_bit = 1 ; i < 4 ; i++, irq_bit <<= 1) {
-	        if (events & irq_bit) {
+	irq_num = irq << 3;
+	irq_bit = 1;
+	do {
+		if (events & irq_bit) {
 			psc_write_byte(pIER, irq_bit);
 			psc_write_byte(pIFR, irq_bit);
-			m68k_handle_int(base_irq + i);
+			m68k_handle_int(irq_num);
 			psc_write_byte(pIER, irq_bit | 0x80);
 		}
-	}
+		irq_num++;
+		irq_bit <<= 1;
+	} while (events >= irq_bit);
 	return IRQ_HANDLED;
 }
 

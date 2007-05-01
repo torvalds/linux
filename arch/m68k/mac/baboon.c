@@ -66,7 +66,7 @@ void __init baboon_register_interrupts(void)
 
 irqreturn_t baboon_irq(int irq, void *dev_id)
 {
-	int irq_bit,i;
+	int irq_bit, irq_num;
 	unsigned char events;
 
 #ifdef DEBUG_IRQS
@@ -78,14 +78,18 @@ irqreturn_t baboon_irq(int irq, void *dev_id)
 	if (!(events = baboon->mb_ifr & 0x07))
 		return IRQ_NONE;
 
-	for (i = 0, irq_bit = 1 ; i < 3 ; i++, irq_bit <<= 1) {
+	irq_num = IRQ_BABOON_0;
+	irq_bit = 1;
+	do {
 	        if (events & irq_bit/* & baboon_active*/) {
 			baboon_active &= ~irq_bit;
 			baboon->mb_ifr &= ~irq_bit;
-			m68k_handle_int(IRQ_BABOON_0 + i);
+			m68k_handle_int(irq_num);
 			baboon_active |= irq_bit;
 		}
-	}
+		irq_bit <<= 1;
+		irq_num++;
+	} while(events >= irq_bit);
 #if 0
 	if (baboon->mb_ifr & 0x02) macide_ack_intr(NULL);
 	/* for now we need to smash all interrupts */

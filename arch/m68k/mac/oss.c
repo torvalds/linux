@@ -143,14 +143,18 @@ irqreturn_t oss_nubus_irq(int irq, void *dev_id)
 #endif
 	/* There are only six slots on the OSS, not seven */
 
-	for (i = 0, irq_bit = 1 ; i < 6 ; i++, irq_bit <<= 1) {
+	i = 6;
+	irq_bit = 0x40;
+	do {
+		--i;
+		irq_bit >>= 1;
 		if (events & irq_bit) {
 			oss->irq_level[i] = OSS_IRQLEV_DISABLED;
 			oss->irq_pending &= ~irq_bit;
 			m68k_handle_int(NUBUS_SOURCE_BASE + i);
 			oss->irq_level[i] = OSS_IRQLEV_NUBUS;
 		}
-	}
+	} while(events & (irq_bit - 1));
 	return IRQ_HANDLED;
 }
 
