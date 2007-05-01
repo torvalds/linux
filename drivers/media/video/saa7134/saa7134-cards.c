@@ -3472,6 +3472,36 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_SABRENT_TV_PCB05] = {
+		.name           = "Sabrent PCMCIA TV-PCB05",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+		},{
+			.name = name_comp2,
+			.vmux = 0,
+			.amux = LINE1,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		}},
+		.mute = {
+			.name = name_mute,
+			.amux = TV,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -4182,6 +4212,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1043,
 		.subdevice    = 0x4857,
 		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x0919, /* SinoVideo PCI 2309 Proteus (7134) */
+		.subdevice    = 0x2003, /* OEM cardbus */
+		.driver_data  = SAA7134_BOARD_SABRENT_TV_PCB05,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
