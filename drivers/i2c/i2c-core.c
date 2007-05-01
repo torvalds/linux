@@ -41,6 +41,7 @@ static LIST_HEAD(drivers);
 static DEFINE_MUTEX(core_lists);
 static DEFINE_IDR(i2c_adapter_idr);
 
+#define is_newstyle_driver(d) ((d)->probe || (d)->remove)
 
 /* ------------------------------------------------------------------------- */
 
@@ -52,7 +53,7 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 	/* make legacy i2c drivers bypass driver model probing entirely;
 	 * such drivers scan each i2c adapter/bus themselves.
 	 */
-	if (!driver->probe)
+	if (!is_newstyle_driver(driver))
 		return 0;
 
 	/* new style drivers use the same kind of driver matching policy
@@ -100,7 +101,24 @@ static int i2c_device_probe(struct device *dev)
 
 static int i2c_device_remove(struct device *dev)
 {
-	return 0;
+	struct i2c_client	*client = to_i2c_client(dev);
+	struct i2c_driver	*driver;
+	int			status;
+
+	if (!dev->driver)
+		return 0;
+
+	driver = to_i2c_driver(dev->driver);
+	if (driver->remove) {
+		dev_dbg(dev, "remove\n");
+		status = driver->remove(client);
+	} else {
+		dev->driver = NULL;
+		status = 0;
+	}
+	if (status == 0)
+		client->driver = NULL;
+	return status;
 }
 
 static void i2c_device_shutdown(struct device *dev)
@@ -176,6 +194,26 @@ struct bus_type i2c_bus_type = {
 	.suspend	= i2c_device_suspend,
 	.resume		= i2c_device_resume,
 };
+
+static void i2c_unregister_device(struct i2c_client *client)
+{
+	struct i2c_adapter	*adapter = client->adapter;
+	struct i2c_driver	*driver = client->driver;
+
+	if (driver && !is_newstyle_driver(driver)) {
+		dev_err(&client->dev, "can't unregister devices "
+			"with legacy drivers\n");
+		WARN_ON(1);
+		return;
+	}
+
+	mutex_lock(&adapter->clist_lock);
+	list_del(&client->list);
+	mutex_unlock(&adapter->clist_lock);
+
+	device_unregister(&client->dev);
+}
+
 
 /* ------------------------------------------------------------------------- */
 
@@ -310,9 +348,19 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	/* detach any active clients. This must be done first, because
 	 * it can fail; in which case we give up. */
 	list_for_each_safe(item, _n, &adap->clients) {
-		client = list_entry(item, struct i2c_client, list);
+		struct i2c_driver	*driver;
 
-		if ((res=client->driver->detach_client(client))) {
+		client = list_entry(item, struct i2c_client, list);
+		driver = client->driver;
+
+		/* new style, follow standard driver model */
+		if (!driver || is_newstyle_driver(driver)) {
+			i2c_unregister_device(client);
+			continue;
+		}
+
+		/* legacy drivers create and remove clients themselves */
+		if ((res = driver->detach_client(client))) {
 			dev_err(&adap->dev, "detach_client failed for client "
 				"[%s] at address 0x%02x\n", client->name,
 				client->addr);
@@ -355,7 +403,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	int res;
 
 	/* new style driver methods can't mix with legacy ones */
-	if (driver->probe) {
+	if (is_newstyle_driver(driver)) {
 		if (driver->attach_adapter || driver->detach_adapter
 				|| driver->detach_client) {
 			printk(KERN_WARNING
@@ -392,6 +440,10 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 }
 EXPORT_SYMBOL(i2c_register_driver);
 
+/**
+ * i2c_del_driver - unregister I2C driver
+ * @driver: the driver being unregistered
+ */
 int i2c_del_driver(struct i2c_driver *driver)
 {
 	struct list_head   *item1, *item2, *_n;
@@ -401,6 +453,10 @@ int i2c_del_driver(struct i2c_driver *driver)
 	int res = 0;
 
 	mutex_lock(&core_lists);
+
+	/* new-style driver? */
+	if (is_newstyle_driver(driver))
+		goto unregister;
 
 	/* Have a look at each adapter, if clients of this driver are still
 	 * attached. If so, detach them to be able to kill the driver
@@ -434,6 +490,7 @@ int i2c_del_driver(struct i2c_driver *driver)
 		}
 	}
 
+ unregister:
 	driver_unregister(&driver->driver);
 	list_del(&driver->list);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);

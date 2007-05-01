@@ -130,6 +130,7 @@ struct i2c_driver {
 	 * it's done by infrastructure.  (NEW STYLE DRIVERS ONLY)
 	 */
 	int (*probe)(struct i2c_client *);
+	int (*remove)(struct i2c_client *);
 
 	/* driver model interfaces that don't relate to enumeration  */
 	void (*shutdown)(struct i2c_client *);
