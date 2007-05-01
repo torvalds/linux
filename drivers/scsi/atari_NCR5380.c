@@ -657,7 +657,7 @@ static inline void NCR5380_print_phase(struct Scsi_Host *instance)
 #include <linux/interrupt.h>
 
 static volatile int main_running;
-static DECLARE_WORK(NCR5380_tqueue, (void (*)(void *))NCR5380_main, NULL);
+static DECLARE_WORK(NCR5380_tqueue, NCR5380_main);
 
 static inline void queue_main(void)
 {
@@ -1075,7 +1075,7 @@ static int NCR5380_queue_command(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
  *  reenable them.  This prevents reentrancy and kernel stack overflow.
  */
 
-static void NCR5380_main(void *bl)
+static void NCR5380_main(struct work_struct *work)
 {
 	Scsi_Cmnd *tmp, *prev;
 	struct Scsi_Host *instance = first_instance;
