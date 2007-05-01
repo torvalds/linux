@@ -513,3 +513,13 @@ void check_bugs(void)
 	}
 #endif /* !CONFIG_M68KFPU_EMU */
 }
+
+#ifdef CONFIG_ADB
+static int __init adb_probe_sync_enable (char *str) {
+	extern int __adb_probe_sync;
+	__adb_probe_sync = 1;
+	return 1;
+}
+
+__setup("adb_sync", adb_probe_sync_enable);
+#endif /* CONFIG_ADB */
