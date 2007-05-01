@@ -84,6 +84,7 @@
 #define IRQ_PSW         14              /* Push Switch IRQ */
 
 #elif defined(CONFIG_SH_R7780RP)
+#define PA_POFF		(-1)
 
 #define PA_BCR		0xa5000000	/* FPGA */
 #define	PA_IRLMSK	(PA_BCR+0x0000)	/* Interrupt Mask control */
