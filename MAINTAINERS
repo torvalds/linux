@@ -733,6 +733,13 @@ M:	tigran@aivazian.fsnet.co.uk
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+BLACKFIN I2C TWI DRIVER
+P:	Sonic Zhang
+M:	sonic.zhang@analog.com
+L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+W:	http://blackfin.uclinux.org/
+S:	Supported
+
 BLOCK LAYER
 P:	Jens Axboe
 M:	axboe@kernel.dk

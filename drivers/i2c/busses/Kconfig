@@ -91,6 +91,22 @@ config I2C_AU1550
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.
 
+config I2C_BLACKFIN_TWI
+	tristate "Blackfin TWI I2C support"
+	depends on I2C && (BF534 || BF536 || BF537)
+	help
+	  This is the TWI I2C device driver for Blackfin 534/536/537.
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-bfin-twi.
+
+config I2C_BLACKFIN_TWI_CLK_KHZ
+	int "Blackfin TWI I2C clock (kHz)"
+	depends on I2C_BLACKFIN_TWI
+	range 10 400
+	default 50
+	help
+	  The unit of the TWI clock is kHz.
+
 config I2C_ELEKTOR
 	tristate "Elektor ISA card"
 	depends on I2C && ISA && BROKEN_ON_SMP
