@@ -838,7 +838,7 @@ static const struct i2c_algorithm i2c_pxa_algorithm = {
 };
 
 static struct pxa_i2c i2c_pxa = {
-	.lock	= SPIN_LOCK_UNLOCKED,
+	.lock	= __SPIN_LOCK_UNLOCKED(i2c_pxa.lock),
 	.adap	= {
 		.owner		= THIS_MODULE,
 		.algo		= &i2c_pxa_algorithm,
