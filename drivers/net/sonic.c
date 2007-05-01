@@ -178,8 +178,13 @@ static void sonic_tx_timeout(struct net_device *dev)
 {
 	struct sonic_local *lp = netdev_priv(dev);
 	int i;
-	/* Stop the interrupts for this */
+	/*
+	 * put the Sonic into software-reset mode and
+	 * disable all interrupts before releasing DMA buffers
+	 */
 	SONIC_WRITE(SONIC_IMR, 0);
+	SONIC_WRITE(SONIC_ISR, 0x7fff);
+	SONIC_WRITE(SONIC_CMD, SONIC_CR_RST);
 	/* We could resend the original skbs. Easier to re-initialise. */
 	for (i = 0; i < SONIC_NUM_TDS; i++) {
 		if(lp->tx_laddr[i]) {

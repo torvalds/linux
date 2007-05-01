@@ -522,7 +522,7 @@ int __init mac_nubus_sonic_probe(struct net_device* dev)
 	return macsonic_init(dev);
 }
 
-static int __init mac_sonic_probe(struct platform_device *device)
+static int __init mac_sonic_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
@@ -534,8 +534,8 @@ static int __init mac_sonic_probe(struct platform_device *device)
 		return -ENOMEM;
 
 	lp = netdev_priv(dev);
-	lp->device = &device->dev;
-	SET_NETDEV_DEV(dev, &device->dev);
+	lp->device = &pdev->dev;
+	SET_NETDEV_DEV(dev, &pdev->dev);
  	SET_MODULE_OWNER(dev);
 
 	/* This will catch fatal stuff like -ENOMEM as well as success */
@@ -576,15 +576,15 @@ MODULE_PARM_DESC(sonic_debug, "macsonic debug level (1-4)");
 
 #include "sonic.c"
 
-static int __devexit mac_sonic_device_remove (struct platform_device *device)
+static int __devexit mac_sonic_device_remove (struct platform_device *pdev)
 {
-	struct net_device *dev = platform_get_drvdata(device);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sonic_local* lp = netdev_priv(dev);
 
-	unregister_netdev (dev);
+	unregister_netdev(dev);
 	dma_free_coherent(lp->device, SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
 	                  lp->descriptors, lp->descriptors_laddr);
-	free_netdev (dev);
+	free_netdev(dev);
 
 	return 0;
 }
@@ -607,9 +607,8 @@ static int __init mac_sonic_init_module(void)
 	}
 
 	mac_sonic_device = platform_device_alloc(mac_sonic_string, 0);
-	if (!mac_sonic_device) {
+	if (!mac_sonic_device)
 		goto out_unregister;
-	}
 
 	if (platform_device_add(mac_sonic_device)) {
 		platform_device_put(mac_sonic_device);

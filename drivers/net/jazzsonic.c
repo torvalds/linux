@@ -269,11 +269,11 @@ static int __devexit jazz_sonic_device_remove (struct platform_device *pdev)
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sonic_local* lp = netdev_priv(dev);
 
-	unregister_netdev (dev);
+	unregister_netdev(dev);
 	dma_free_coherent(lp->device, SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
 	                  lp->descriptors, lp->descriptors_laddr);
 	release_region (dev->base_addr, SONIC_MEM_SIZE);
-	free_netdev (dev);
+	free_netdev(dev);
 
 	return 0;
 }
