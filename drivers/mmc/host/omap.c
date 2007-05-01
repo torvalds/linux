@@ -936,33 +936,41 @@ static void mmc_omap_power(struct mmc_omap_host *host, int on)
 	}
 }
 
+static int mmc_omap_calc_divisor(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	struct mmc_omap_host *host = mmc_priv(mmc);
+	int func_clk_rate = clk_get_rate(host->fclk);
+	int dsor;
+
+	if (ios->clock == 0)
+		return 0;
+
+	dsor = func_clk_rate / ios->clock;
+	if (dsor < 1)
+		dsor = 1;
+
+	if (func_clk_rate / dsor > ios->clock)
+		dsor++;
+
+	if (dsor > 250)
+		dsor = 250;
+	dsor++;
+
+	if (ios->bus_width == MMC_BUS_WIDTH_4)
+		dsor |= 1 << 15;
+
+	return dsor;
+}
+
 static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct mmc_omap_host *host = mmc_priv(mmc);
 	int dsor;
-	int realclock, i;
+	int i;
 
-	realclock = ios->clock;
-
-	if (ios->clock == 0)
-		dsor = 0;
-	else {
-		int func_clk_rate = clk_get_rate(host->fclk);
-
-		dsor = func_clk_rate / realclock;
-		if (dsor < 1)
-			dsor = 1;
-
-		if (func_clk_rate / dsor > realclock)
-			dsor++;
-
-		if (dsor > 250)
-			dsor = 250;
-		dsor++;
-
-		if (ios->bus_width == MMC_BUS_WIDTH_4)
-			dsor |= 1 << 15;
-	}
+	dsor = mmc_omap_calc_divisor(mmc, ios);
+	host->bus_mode = ios->bus_mode;
+	host->hw_bus_mode = host->bus_mode;
 
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
@@ -976,9 +984,6 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		dsor |= 1 << 11;
 		break;
 	}
-
-	host->bus_mode = ios->bus_mode;
-	host->hw_bus_mode = host->bus_mode;
 
 	clk_enable(host->fclk);
 
