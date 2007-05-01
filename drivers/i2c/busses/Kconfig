@@ -240,7 +240,7 @@ config I2C_ISA
 	tristate
 
 config I2C_IXP4XX
-	tristate "IXP4xx GPIO-Based I2C Interface"
+	tristate "IXP4xx GPIO-Based I2C Interface (DEPRECATED)"
 	depends on ARCH_IXP4XX
 	select I2C_ALGOBIT
 	help
@@ -250,8 +250,11 @@ config I2C_IXP4XX
 	  This support is also available as a module. If so, the module
 	  will be called i2c-ixp4xx.
 
+	  This driver is deprecated and will be dropped soon. Use i2c-gpio
+	  instead.
+
 config I2C_IXP2000
-	tristate "IXP2000 GPIO-Based I2C Interface"
+	tristate "IXP2000 GPIO-Based I2C Interface (DEPRECATED)"
 	depends on ARCH_IXP2000
 	select I2C_ALGOBIT
 	help
@@ -260,6 +263,9 @@ config I2C_IXP2000
 
 	  This support is also available as a module. If so, the module
 	  will be called i2c-ixp2000.
+
+	  This driver is deprecated and will be dropped soon. Use i2c-gpio
+	  instead.
 
 config I2C_POWERMAC
 	tristate "Powermac I2C interface"
@@ -426,7 +432,7 @@ config I2C_SIMTEC
 	  will be called i2c-simtec.
 
 config SCx200_I2C
-	tristate "NatSemi SCx200 I2C using GPIO pins"
+	tristate "NatSemi SCx200 I2C using GPIO pins (DEPRECATED)"
 	depends on SCx200_GPIO
 	select I2C_ALGOBIT
 	help
@@ -436,6 +442,9 @@ config SCx200_I2C
 
 	  This support is also available as a module.  If so, the module 
 	  will be called scx200_i2c.
+
+	  This driver is deprecated and will be dropped soon. Use i2c-gpio
+	  (or scx200_acb) instead.
 
 config SCx200_I2C_SCL
 	int "GPIO pin used for SCL"
