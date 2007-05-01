@@ -566,7 +566,7 @@ static int ata_pci_init_bmdma(struct ata_host *host)
 	}
 	host->iomap = pcim_iomap_table(pdev);
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 		void __iomem *bmdma = host->iomap[4] + 8 * i;
 
@@ -875,7 +875,7 @@ static int ata_request_legacy_irqs(struct ata_host *host,
 	legacy_dr = devres_find(host->dev, ata_legacy_release, NULL, NULL);
 	BUG_ON(!legacy_dr);
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < host->n_ports; i++) {
 		unsigned int irq;
 
 		/* FIXME: ATA_*_IRQ() should take generic device not pci_dev */
@@ -963,10 +963,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	BUG_ON(n_ports < 1 || n_ports > 2);
 
 	port[0] = port_info[0];
-	if (n_ports > 1)
-		port[1] = port_info[1];
-	else
-		port[1] = port[0];
+	port[1] = (n_ports > 1) ? port_info[1] : NULL;
 
 	/* FIXME: Really for ATA it isn't safe because the device may be
 	   multi-purpose and we want to leave it alone if it was already
@@ -1001,7 +998,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	}
 
 	/* alloc and init host */
-	host = ata_host_alloc_pinfo(dev, port, 2);
+	host = ata_host_alloc_pinfo(dev, port, n_ports);
 	if (!host) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "failed to allocate ATA host\n");
