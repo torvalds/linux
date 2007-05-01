@@ -103,7 +103,7 @@ void sun3_init_IRQ(void)
 
 	m68k_setup_auto_interrupt(sun3_inthandle);
 	m68k_setup_irq_controller(&sun3_irq_controller, IRQ_AUTO_1, 7);
-	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
+	m68k_setup_user_interrupt(VEC_USER, 128, NULL);
 
 	request_irq(IRQ_AUTO_5, sun3_int5, 0, "int5", NULL);
 	request_irq(IRQ_AUTO_7, sun3_int7, 0, "int7", NULL);
