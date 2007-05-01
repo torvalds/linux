@@ -35,10 +35,6 @@
 #include <linux/sched.h>	/* for completion */
 #include <linux/mutex.h>
 
-/* --- For i2c-isa ---------------------------------------------------- */
-
-extern void i2c_adapter_dev_release(struct device *dev);
-extern struct class i2c_adapter_class;
 extern struct bus_type i2c_bus_type;
 
 /* --- General options ------------------------------------------------	*/

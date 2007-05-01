@@ -41,6 +41,10 @@
 #include <linux/platform_device.h>
 #include <linux/completion.h>
 
+/* Exported by i2c-core for i2c-isa only */
+extern void i2c_adapter_dev_release(struct device *dev);
+extern struct class i2c_adapter_class;
+
 static u32 isa_func(struct i2c_adapter *adapter);
 
 /* This is the actual algorithm we define */
