@@ -677,6 +677,7 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	priv->cur_tx -= TX_RING_SIZE;
 	priv->dirty_tx -= TX_RING_SIZE;
     }
+    priv->stats.tx_bytes += len;
 
     /* Trigger an immediate send poll. */
     lance->RAP = CSR0;		/* PCnet-ISA Controller Status */
