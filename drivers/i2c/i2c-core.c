@@ -107,27 +107,31 @@ struct bus_type i2c_bus_type = {
 
 /* ------------------------------------------------------------------------- */
 
+/* I2C bus adapters -- one roots each I2C or SMBUS segment */
+
 void i2c_adapter_dev_release(struct device *dev)
 {
 	struct i2c_adapter *adap = dev_to_i2c_adapter(dev);
 	complete(&adap->dev_released);
 }
 
-/* ------------------------------------------------------------------------- */
-
-/* I2C bus adapters -- one roots each I2C or SMBUS segment */
-
-struct class i2c_adapter_class = {
-	.owner			= THIS_MODULE,
-	.name			= "i2c-adapter",
-};
-
-static ssize_t show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t
+show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_adapter *adap = dev_to_i2c_adapter(dev);
 	return sprintf(buf, "%s\n", adap->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
+
+static struct device_attribute i2c_adapter_attrs[] = {
+	__ATTR(name, S_IRUGO, show_adapter_name, NULL),
+	{ },
+};
+
+struct class i2c_adapter_class = {
+	.owner			= THIS_MODULE,
+	.name			= "i2c-adapter",
+	.dev_attrs		= i2c_adapter_attrs,
+};
 
 
 static void i2c_client_release(struct device *dev)
@@ -201,9 +205,6 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	res = device_register(&adap->dev);
 	if (res)
 		goto out_list;
-	res = device_create_file(&adap->dev, &dev_attr_name);
-	if (res)
-		goto out_unregister;
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
@@ -219,10 +220,6 @@ out_unlock:
 	mutex_unlock(&core_lists);
 	return res;
 
-out_unregister:
-	init_completion(&adap->dev_released); /* Needed? */
-	device_unregister(&adap->dev);
-	wait_for_completion(&adap->dev_released);
 out_list:
 	list_del(&adap->list);
 	idr_remove(&i2c_adapter_idr, adap->nr);
@@ -278,7 +275,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 
 	/* clean up the sysfs representation */
 	init_completion(&adap->dev_released);
-	device_remove_file(&adap->dev, &dev_attr_name);
 	device_unregister(&adap->dev);
 	list_del(&adap->list);
 

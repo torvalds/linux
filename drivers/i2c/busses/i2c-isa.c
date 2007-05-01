@@ -64,16 +64,6 @@ static u32 isa_func(struct i2c_adapter *adapter)
 }
 
 
-/* Copied from i2c-core */
-static ssize_t show_adapter_name(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct i2c_adapter *adap = dev_to_i2c_adapter(dev);
-	return sprintf(buf, "%s\n", adap->name);
-}
-static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
-
-
 /* We implement an interface which resembles i2c_{add,del}_driver,
    but for i2c-isa drivers. We don't have to remember and handle lists
    of drivers and adapters so this is much more simple, of course. */
@@ -146,20 +136,11 @@ static int __init i2c_isa_init(void)
 		printk(KERN_ERR "i2c-isa: Failed to register device\n");
 		goto exit;
 	}
-	err = device_create_file(&isa_adapter.dev, &dev_attr_name);
-	if (err) {
-		printk(KERN_ERR "i2c-isa: Failed to create name file\n");
-		goto exit_unregister;
-	}
 
 	dev_dbg(&isa_adapter.dev, "%s registered\n", isa_adapter.name);
 
 	return 0;
 
-exit_unregister:
-	init_completion(&isa_adapter.dev_released); /* Needed? */
-	device_unregister(&isa_adapter.dev);
-	wait_for_completion(&isa_adapter.dev_released);
 exit:
 	return err;
 }
@@ -187,7 +168,6 @@ static void __exit i2c_isa_exit(void)
 	/* Clean up the sysfs representation */
 	dev_dbg(&isa_adapter.dev, "Unregistering from sysfs\n");
 	init_completion(&isa_adapter.dev_released);
-	device_remove_file(&isa_adapter.dev, &dev_attr_name);
 	device_unregister(&isa_adapter.dev);
 
 	/* Wait for sysfs to drop all references */
