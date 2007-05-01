@@ -201,6 +201,7 @@ struct bus_type i2c_bus_type = {
 	.suspend	= i2c_device_suspend,
 	.resume		= i2c_device_resume,
 };
+EXPORT_SYMBOL_GPL(i2c_bus_type);
 
 /**
  * i2c_new_device - instantiate an i2c device for use with a new style driver
@@ -285,6 +286,7 @@ void i2c_adapter_dev_release(struct device *dev)
 	struct i2c_adapter *adap = to_i2c_adapter(dev);
 	complete(&adap->dev_released);
 }
+EXPORT_SYMBOL_GPL(i2c_adapter_dev_release);	/* exported to i2c-isa */
 
 static ssize_t
 show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -303,6 +305,7 @@ struct class i2c_adapter_class = {
 	.name			= "i2c-adapter",
 	.dev_attrs		= i2c_adapter_attrs,
 };
+EXPORT_SYMBOL_GPL(i2c_adapter_class);		/* exported to i2c-isa */
 
 static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 {
@@ -533,6 +536,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	mutex_unlock(&core_lists);
 	return res;
 }
+EXPORT_SYMBOL(i2c_del_adapter);
 
 
 /* ------------------------------------------------------------------------- */
@@ -650,6 +654,7 @@ int i2c_del_driver(struct i2c_driver *driver)
 	mutex_unlock(&core_lists);
 	return 0;
 }
+EXPORT_SYMBOL(i2c_del_driver);
 
 /* ------------------------------------------------------------------------- */
 
@@ -676,6 +681,7 @@ int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 
 	return rval;
 }
+EXPORT_SYMBOL(i2c_check_addr);
 
 int i2c_attach_client(struct i2c_client *client)
 {
@@ -729,7 +735,7 @@ out_unlock:
 	mutex_unlock(&adapter->clist_lock);
 	return res;
 }
-
+EXPORT_SYMBOL(i2c_attach_client);
 
 int i2c_detach_client(struct i2c_client *client)
 {
@@ -762,6 +768,7 @@ int i2c_detach_client(struct i2c_client *client)
  out:
 	return res;
 }
+EXPORT_SYMBOL(i2c_detach_client);
 
 static int i2c_inc_use_client(struct i2c_client *client)
 {
@@ -794,6 +801,7 @@ int i2c_use_client(struct i2c_client *client)
 
 	return 0;
 }
+EXPORT_SYMBOL(i2c_use_client);
 
 int i2c_release_client(struct i2c_client *client)
 {
@@ -808,6 +816,7 @@ int i2c_release_client(struct i2c_client *client)
 
 	return 0;
 }
+EXPORT_SYMBOL(i2c_release_client);
 
 void i2c_clients_command(struct i2c_adapter *adap, unsigned int cmd, void *arg)
 {
@@ -828,6 +837,7 @@ void i2c_clients_command(struct i2c_adapter *adap, unsigned int cmd, void *arg)
        }
        mutex_unlock(&adap->clist_lock);
 }
+EXPORT_SYMBOL(i2c_clients_command);
 
 static int __init i2c_init(void)
 {
@@ -877,6 +887,7 @@ int i2c_transfer(struct i2c_adapter * adap, struct i2c_msg *msgs, int num)
 		return -ENOSYS;
 	}
 }
+EXPORT_SYMBOL(i2c_transfer);
 
 int i2c_master_send(struct i2c_client *client,const char *buf ,int count)
 {
@@ -895,6 +906,7 @@ int i2c_master_send(struct i2c_client *client,const char *buf ,int count)
 	   transmitted, else error code. */
 	return (ret == 1) ? count : ret;
 }
+EXPORT_SYMBOL(i2c_master_send);
 
 int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
 {
@@ -914,7 +926,7 @@ int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
 	   transmitted, else error code. */
 	return (ret == 1) ? count : ret;
 }
-
+EXPORT_SYMBOL(i2c_master_recv);
 
 int i2c_control(struct i2c_client *client,
 	unsigned int cmd, unsigned long arg)
@@ -936,6 +948,7 @@ int i2c_control(struct i2c_client *client,
 	}
 	return ret;
 }
+EXPORT_SYMBOL(i2c_control);
 
 /* ----------------------------------------------------
  * the i2c address scanning function
@@ -1077,6 +1090,7 @@ int i2c_probe(struct i2c_adapter *adapter,
 
 	return 0;
 }
+EXPORT_SYMBOL(i2c_probe);
 
 struct i2c_adapter* i2c_get_adapter(int id)
 {
@@ -1090,11 +1104,13 @@ struct i2c_adapter* i2c_get_adapter(int id)
 	mutex_unlock(&core_lists);
 	return adapter;
 }
+EXPORT_SYMBOL(i2c_get_adapter);
 
 void i2c_put_adapter(struct i2c_adapter *adap)
 {
 	module_put(adap->owner);
 }
+EXPORT_SYMBOL(i2c_put_adapter);
 
 /* The SMBus parts */
 
@@ -1163,6 +1179,7 @@ s32 i2c_smbus_write_quick(struct i2c_client *client, u8 value)
 	return i2c_smbus_xfer(client->adapter,client->addr,client->flags,
 	                      value,0,I2C_SMBUS_QUICK,NULL);
 }
+EXPORT_SYMBOL(i2c_smbus_write_quick);
 
 s32 i2c_smbus_read_byte(struct i2c_client *client)
 {
@@ -1173,12 +1190,14 @@ s32 i2c_smbus_read_byte(struct i2c_client *client)
 	else
 		return data.byte;
 }
+EXPORT_SYMBOL(i2c_smbus_read_byte);
 
 s32 i2c_smbus_write_byte(struct i2c_client *client, u8 value)
 {
 	return i2c_smbus_xfer(client->adapter,client->addr,client->flags,
 	                      I2C_SMBUS_WRITE, value, I2C_SMBUS_BYTE, NULL);
 }
+EXPORT_SYMBOL(i2c_smbus_write_byte);
 
 s32 i2c_smbus_read_byte_data(struct i2c_client *client, u8 command)
 {
@@ -1189,6 +1208,7 @@ s32 i2c_smbus_read_byte_data(struct i2c_client *client, u8 command)
 	else
 		return data.byte;
 }
+EXPORT_SYMBOL(i2c_smbus_read_byte_data);
 
 s32 i2c_smbus_write_byte_data(struct i2c_client *client, u8 command, u8 value)
 {
@@ -1198,6 +1218,7 @@ s32 i2c_smbus_write_byte_data(struct i2c_client *client, u8 command, u8 value)
 	                      I2C_SMBUS_WRITE,command,
 	                      I2C_SMBUS_BYTE_DATA,&data);
 }
+EXPORT_SYMBOL(i2c_smbus_write_byte_data);
 
 s32 i2c_smbus_read_word_data(struct i2c_client *client, u8 command)
 {
@@ -1208,6 +1229,7 @@ s32 i2c_smbus_read_word_data(struct i2c_client *client, u8 command)
 	else
 		return data.word;
 }
+EXPORT_SYMBOL(i2c_smbus_read_word_data);
 
 s32 i2c_smbus_write_word_data(struct i2c_client *client, u8 command, u16 value)
 {
@@ -1217,6 +1239,7 @@ s32 i2c_smbus_write_word_data(struct i2c_client *client, u8 command, u16 value)
 	                      I2C_SMBUS_WRITE,command,
 	                      I2C_SMBUS_WORD_DATA,&data);
 }
+EXPORT_SYMBOL(i2c_smbus_write_word_data);
 
 s32 i2c_smbus_write_block_data(struct i2c_client *client, u8 command,
 			       u8 length, const u8 *values)
@@ -1231,6 +1254,7 @@ s32 i2c_smbus_write_block_data(struct i2c_client *client, u8 command,
 			      I2C_SMBUS_WRITE,command,
 			      I2C_SMBUS_BLOCK_DATA,&data);
 }
+EXPORT_SYMBOL(i2c_smbus_write_block_data);
 
 /* Returns the number of read bytes */
 s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client, u8 command, u8 *values)
@@ -1245,6 +1269,7 @@ s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client, u8 command, u8 *val
 	memcpy(values, &data.block[1], data.block[0]);
 	return data.block[0];
 }
+EXPORT_SYMBOL(i2c_smbus_read_i2c_block_data);
 
 s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client, u8 command,
 				   u8 length, const u8 *values)
@@ -1259,6 +1284,7 @@ s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client, u8 command,
 			      I2C_SMBUS_WRITE, command,
 			      I2C_SMBUS_I2C_BLOCK_DATA, &data);
 }
+EXPORT_SYMBOL(i2c_smbus_write_i2c_block_data);
 
 /* Simulate a SMBus command using the i2c protocol
    No checking of parameters is done!  */
@@ -1445,41 +1471,7 @@ s32 i2c_smbus_xfer(struct i2c_adapter * adapter, u16 addr, unsigned short flags,
 
 	return res;
 }
-
-
-/* Next three are needed by i2c-isa */
-EXPORT_SYMBOL_GPL(i2c_adapter_dev_release);
-EXPORT_SYMBOL_GPL(i2c_adapter_class);
-EXPORT_SYMBOL_GPL(i2c_bus_type);
-
-EXPORT_SYMBOL(i2c_del_adapter);
-EXPORT_SYMBOL(i2c_del_driver);
-EXPORT_SYMBOL(i2c_attach_client);
-EXPORT_SYMBOL(i2c_detach_client);
-EXPORT_SYMBOL(i2c_use_client);
-EXPORT_SYMBOL(i2c_release_client);
-EXPORT_SYMBOL(i2c_clients_command);
-EXPORT_SYMBOL(i2c_check_addr);
-
-EXPORT_SYMBOL(i2c_master_send);
-EXPORT_SYMBOL(i2c_master_recv);
-EXPORT_SYMBOL(i2c_control);
-EXPORT_SYMBOL(i2c_transfer);
-EXPORT_SYMBOL(i2c_get_adapter);
-EXPORT_SYMBOL(i2c_put_adapter);
-EXPORT_SYMBOL(i2c_probe);
-
 EXPORT_SYMBOL(i2c_smbus_xfer);
-EXPORT_SYMBOL(i2c_smbus_write_quick);
-EXPORT_SYMBOL(i2c_smbus_read_byte);
-EXPORT_SYMBOL(i2c_smbus_write_byte);
-EXPORT_SYMBOL(i2c_smbus_read_byte_data);
-EXPORT_SYMBOL(i2c_smbus_write_byte_data);
-EXPORT_SYMBOL(i2c_smbus_read_word_data);
-EXPORT_SYMBOL(i2c_smbus_write_word_data);
-EXPORT_SYMBOL(i2c_smbus_write_block_data);
-EXPORT_SYMBOL(i2c_smbus_read_i2c_block_data);
-EXPORT_SYMBOL(i2c_smbus_write_i2c_block_data);
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");
 MODULE_DESCRIPTION("I2C-Bus main module");
