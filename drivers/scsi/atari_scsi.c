@@ -69,9 +69,9 @@
 
 #define NDEBUG (0)
 
-#define NDEBUG_ABORT	0x800000
-#define NDEBUG_TAGS	0x1000000
-#define NDEBUG_MERGING	0x2000000
+#define NDEBUG_ABORT		0x00100000
+#define NDEBUG_TAGS		0x00200000
+#define NDEBUG_MERGING		0x00400000
 
 #define AUTOSENSE
 /* For the Atari version, use only polled IO or REAL_DMA */
