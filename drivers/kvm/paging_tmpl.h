@@ -202,6 +202,21 @@ static void FNAME(set_pte)(struct kvm_vcpu *vcpu, u64 guest_pte,
 		       guest_pte & PT_DIRTY_MASK, access_bits, gfn);
 }
 
+static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
+			      u64 *spte, const void *pte, int bytes)
+{
+	pt_element_t gpte;
+
+	if (bytes < sizeof(pt_element_t))
+		return;
+	gpte = *(const pt_element_t *)pte;
+	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK))
+		return;
+	pgprintk("%s: gpte %llx spte %p\n", __FUNCTION__, (u64)gpte, spte);
+	FNAME(set_pte)(vcpu, gpte, spte, 6,
+		       (gpte & PT_BASE_ADDR_MASK) >> PAGE_SHIFT);
+}
+
 static void FNAME(set_pde)(struct kvm_vcpu *vcpu, u64 guest_pde,
 			   u64 *shadow_pte, u64 access_bits, gfn_t gfn)
 {

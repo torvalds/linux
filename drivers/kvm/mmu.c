@@ -1137,6 +1137,20 @@ static void mmu_pte_write_zap_pte(struct kvm_vcpu *vcpu,
 	*spte = 0;
 }
 
+static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
+				  struct kvm_mmu_page *page,
+				  u64 *spte,
+				  const void *new, int bytes)
+{
+	if (page->role.level != PT_PAGE_TABLE_LEVEL)
+		return;
+
+	if (page->role.glevels == PT32_ROOT_LEVEL)
+		paging32_update_pte(vcpu, page, spte, new, bytes);
+	else
+		paging64_update_pte(vcpu, page, spte, new, bytes);
+}
+
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		       const u8 *old, const u8 *new, int bytes)
 {
@@ -1212,6 +1226,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		spte += page_offset / sizeof(*spte);
 		while (npte--) {
 			mmu_pte_write_zap_pte(vcpu, page, spte);
+			mmu_pte_write_new_pte(vcpu, page, spte, new, bytes);
 			++spte;
 		}
 	}
