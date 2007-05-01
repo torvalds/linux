@@ -193,8 +193,14 @@ void __init via_init(void)
 	/* that the IIfx emulates this alternate mapping using the OSS. */
 
 	switch(macintosh_config->ident) {
+		case MAC_MODEL_P475:
+		case MAC_MODEL_P475F:
+		case MAC_MODEL_P575:
+		case MAC_MODEL_Q605:
+		case MAC_MODEL_Q605_ACC:
 		case MAC_MODEL_C610:
 		case MAC_MODEL_Q610:
+		case MAC_MODEL_Q630:
 		case MAC_MODEL_C650:
 		case MAC_MODEL_Q650:
 		case MAC_MODEL_Q700:
