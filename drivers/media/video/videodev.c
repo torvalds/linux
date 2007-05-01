@@ -438,6 +438,12 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	}
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
+	/***********************************************************
+	 Handles calls to the obsoleted V4L1 API
+	 Due to the nature of VIDIOCGMBUF, each driver that supports
+	 V4L1 should implement its own handler for this ioctl.
+	 ***********************************************************/
+
 	/* --- streaming capture ------------------------------------- */
 	if (cmd == VIDIOCGMBUF) {
 		struct video_mbuf *p=arg;
@@ -453,11 +459,17 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 						(unsigned long)p->offsets);
 		return ret;
 	}
-#endif
 
+	/********************************************************
+	 All other V4L1 calls are handled by v4l1_compat module.
+	 Those calls will be translated into V4L2 calls, and
+	 __video_do_ioctl will be called again, with one or more
+	 V4L2 ioctls.
+	 ********************************************************/
 	if (_IOC_TYPE(cmd)=='v')
 		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
 						__video_do_ioctl);
+#endif
 
 	switch(cmd) {
 	/* --- capabilities ------------------------------------------ */
