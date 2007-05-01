@@ -304,8 +304,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 
 int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 {
-	struct list_head   *item;
-	struct i2c_adapter *adapter;
 	int res;
 
 	/* add the driver to the list of i2c drivers in the driver core */
@@ -323,8 +321,9 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	/* now look for instances of driver on our adapters */
 	if (driver->attach_adapter) {
-		list_for_each(item,&adapters) {
-			adapter = list_entry(item, struct i2c_adapter, list);
+		struct i2c_adapter *adapter;
+
+		list_for_each_entry(adapter, &adapters, list) {
 			driver->attach_adapter(adapter);
 		}
 	}
