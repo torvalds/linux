@@ -592,7 +592,9 @@ int ipoib_cm_dev_open(struct net_device *dev)
 	priv->cm.id = ib_create_cm_id(priv->ca, ipoib_cm_rx_handler, dev);
 	if (IS_ERR(priv->cm.id)) {
 		printk(KERN_WARNING "%s: failed to create CM ID\n", priv->ca->name);
-		return IS_ERR(priv->cm.id);
+		ret = PTR_ERR(priv->cm.id);
+		priv->cm.id = NULL;
+		return ret;
 	}
 
 	ret = ib_cm_listen(priv->cm.id, cpu_to_be64(IPOIB_CM_IETF_ID | priv->qp->qp_num),
@@ -601,6 +603,7 @@ int ipoib_cm_dev_open(struct net_device *dev)
 		printk(KERN_WARNING "%s: failed to listen on ID 0x%llx\n", priv->ca->name,
 		       IPOIB_CM_IETF_ID | priv->qp->qp_num);
 		ib_destroy_cm_id(priv->cm.id);
+		priv->cm.id = NULL;
 		return ret;
 	}
 	return 0;
@@ -611,10 +614,11 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_cm_rx *p;
 
-	if (!IPOIB_CM_SUPPORTED(dev->dev_addr))
+	if (!IPOIB_CM_SUPPORTED(dev->dev_addr) || !priv->cm.id)
 		return;
 
 	ib_destroy_cm_id(priv->cm.id);
+	priv->cm.id = NULL;
 	spin_lock_irq(&priv->lock);
 	while (!list_empty(&priv->cm.passive_ids)) {
 		p = list_entry(priv->cm.passive_ids.next, typeof(*p), list);
