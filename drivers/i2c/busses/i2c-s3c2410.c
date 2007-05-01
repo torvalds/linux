@@ -61,6 +61,8 @@ struct s3c24xx_i2c {
 	unsigned int		msg_idx;
 	unsigned int		msg_ptr;
 
+	unsigned int		tx_setup;
+
 	enum s3c24xx_i2c_state	state;
 
 	void __iomem		*regs;
@@ -199,8 +201,11 @@ static void s3c24xx_i2c_message_start(struct s3c24xx_i2c *i2c,
 	dev_dbg(i2c->dev, "START: %08lx to IICSTAT, %02x to DS\n", stat, addr);
 	writeb(addr, i2c->regs + S3C2410_IICDS);
 	
-	// delay a bit and reset iiccon before setting start (per samsung)
-	udelay(1);
+	/* delay here to ensure the data byte has gotten onto the bus
+	 * before the transaction is started */
+
+	ndelay(i2c->tx_setup);
+
 	dev_dbg(i2c->dev, "iiccon, %08lx\n", iiccon);
 	writel(iiccon, i2c->regs + S3C2410_IICCON);
 	
@@ -322,7 +327,15 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		if (!is_msgend(i2c)) {
 			byte = i2c->msg->buf[i2c->msg_ptr++];
 			writeb(byte, i2c->regs + S3C2410_IICDS);
-			
+
+			/* delay after writing the byte to allow the
+			 * data setup time on the bus, as writing the
+			 * data to the register causes the first bit
+			 * to appear on SDA, and SCL will change as
+			 * soon as the interrupt is acknowledged */
+
+			ndelay(i2c->tx_setup);
+
 		} else if (!is_lastmsg(i2c)) {
 			/* we need to go to the next i2c message */
 
@@ -570,9 +583,10 @@ static const struct i2c_algorithm s3c24xx_i2c_algorithm = {
 };
 
 static struct s3c24xx_i2c s3c24xx_i2c = {
-	.lock	= __SPIN_LOCK_UNLOCKED(s3c24xx_i2c.lock),
-	.wait	= __WAIT_QUEUE_HEAD_INITIALIZER(s3c24xx_i2c.wait),
-	.adap	= {
+	.lock		= __SPIN_LOCK_UNLOCKED(s3c24xx_i2c.lock),
+	.wait		= __WAIT_QUEUE_HEAD_INITIALIZER(s3c24xx_i2c.wait),
+	.tx_setup	= 50,
+	.adap		= {
 		.name			= "s3c2410-i2c",
 		.owner			= THIS_MODULE,
 		.algo			= &s3c24xx_i2c_algorithm,
