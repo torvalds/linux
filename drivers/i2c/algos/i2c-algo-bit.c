@@ -391,6 +391,21 @@ static int readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 		};
 		scllo(adap);
 		sdahi(adap);
+
+		/* Some SMBus transactions require that we receive the
+		   transaction length as the first read byte. */
+		if (rdcount == 1 && (msg->flags & I2C_M_RECV_LEN)) {
+			if (inval <= 0 || inval > I2C_SMBUS_BLOCK_MAX) {
+				printk(KERN_ERR "i2c-algo-bit: readbytes: "
+				       "invalid block length (%d)\n", inval);
+				return -EREMOTEIO;
+			}
+			/* The original count value accounts for the extra
+			   bytes, that is, either 1 for a regular transaction,
+			   or 2 for a PEC transaction. */
+			count += inval;
+			msg->len += inval;
+		}
 	}
 	return rdcount;
 }
@@ -509,6 +524,8 @@ bailout:
 static u32 bit_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | 
+	       I2C_FUNC_SMBUS_READ_BLOCK_DATA |
+	       I2C_FUNC_SMBUS_BLOCK_PROC_CALL |
 	       I2C_FUNC_10BIT_ADDR | I2C_FUNC_PROTOCOL_MANGLING;
 }
 
