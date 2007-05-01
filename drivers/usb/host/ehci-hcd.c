@@ -526,12 +526,12 @@ static int ehci_init(struct usb_hcd *hcd)
 	 * from automatically advancing to the next td after short reads.
 	 */
 	ehci->async->qh_next.qh = NULL;
-	ehci->async->hw_next = QH_NEXT(ehci->async->qh_dma);
-	ehci->async->hw_info1 = cpu_to_le32(QH_HEAD);
-	ehci->async->hw_token = cpu_to_le32(QTD_STS_HALT);
-	ehci->async->hw_qtd_next = EHCI_LIST_END;
+	ehci->async->hw_next = QH_NEXT(ehci, ehci->async->qh_dma);
+	ehci->async->hw_info1 = cpu_to_hc32(ehci, QH_HEAD);
+	ehci->async->hw_token = cpu_to_hc32(ehci, QTD_STS_HALT);
+	ehci->async->hw_qtd_next = EHCI_LIST_END(ehci);
 	ehci->async->qh_state = QH_STATE_LINKED;
-	ehci->async->hw_alt_next = QTD_NEXT(ehci->async->dummy->qtd_dma);
+	ehci->async->hw_alt_next = QTD_NEXT(ehci, ehci->async->dummy->qtd_dma);
 
 	/* clear interrupt enables, set irq latency */
 	if (log2_irq_thresh < 0 || log2_irq_thresh > 6)

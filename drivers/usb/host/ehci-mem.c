@@ -27,7 +27,7 @@
  *	  need to use dma_pool or dma_alloc_coherent
  *	- driver buffers, read/written by HC ... single shot DMA mapped
  *
- * There's also PCI "register" data, which is memory mapped.
+ * There's also "register" data (e.g. PCI or SOC), which is memory mapped.
  * No memory seen by this driver is pageable.
  */
 
@@ -35,13 +35,14 @@
 
 /* Allocate the key transfer structures from the previously allocated pool */
 
-static inline void ehci_qtd_init (struct ehci_qtd *qtd, dma_addr_t dma)
+static inline void ehci_qtd_init(struct ehci_hcd *ehci, struct ehci_qtd *qtd,
+				  dma_addr_t dma)
 {
 	memset (qtd, 0, sizeof *qtd);
 	qtd->qtd_dma = dma;
 	qtd->hw_token = cpu_to_le32 (QTD_STS_HALT);
-	qtd->hw_next = EHCI_LIST_END;
-	qtd->hw_alt_next = EHCI_LIST_END;
+	qtd->hw_next = EHCI_LIST_END(ehci);
+	qtd->hw_alt_next = EHCI_LIST_END(ehci);
 	INIT_LIST_HEAD (&qtd->qtd_list);
 }
 
@@ -52,7 +53,7 @@ static struct ehci_qtd *ehci_qtd_alloc (struct ehci_hcd *ehci, gfp_t flags)
 
 	qtd = dma_pool_alloc (ehci->qtd_pool, flags, &dma);
 	if (qtd != NULL) {
-		ehci_qtd_init (qtd, dma);
+		ehci_qtd_init(ehci, qtd, dma);
 	}
 	return qtd;
 }
@@ -220,7 +221,7 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 		goto fail;
 	}
 	for (i = 0; i < ehci->periodic_size; i++)
-		ehci->periodic [i] = EHCI_LIST_END;
+		ehci->periodic [i] = EHCI_LIST_END(ehci);
 
 	/* software shadow of hardware table */
 	ehci->pshadow = kcalloc(ehci->periodic_size, sizeof(void *), flags);
