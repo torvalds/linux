@@ -337,8 +337,8 @@ config MACSONIC
 	  be called macsonic.
 
 config MACMACE
-	bool "Macintosh (AV) onboard MACE ethernet (EXPERIMENTAL)"
-	depends on NET_ETHERNET && MAC && EXPERIMENTAL
+	bool "Macintosh (AV) onboard MACE ethernet"
+	depends on NET_ETHERNET && MAC
 	select CRC32
 	help
 	  Support for the onboard AMD 79C940 MACE Ethernet controller used in
