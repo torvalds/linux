@@ -183,15 +183,12 @@ static void mmc_decode_scr(struct mmc_card *card)
 }
 
 /*
- * Test if the card supports high-speed mode and, if so, switch to it.
+ * Fetches and decodes switch information
  */
-static int mmc_switch_hs(struct mmc_card *card)
+static int mmc_read_switch(struct mmc_card *card)
 {
 	int err;
 	u8 *status;
-
-	if (!(card->host->caps & MMC_CAP_SD_HIGHSPEED))
-		return MMC_ERR_NONE;
 
 	err = MMC_ERR_FAILED;
 
@@ -209,13 +206,42 @@ static int mmc_switch_hs(struct mmc_card *card)
 		 * Card not supporting high-speed will ignore the
 		 * command.
 		 */
-		if (err == MMC_ERR_TIMEOUT)
-			err = MMC_ERR_NONE;
+		err = MMC_ERR_NONE;
 		goto out;
 	}
 
 	if (status[13] & 0x02)
 		card->sw_caps.hs_max_dtr = 50000000;
+
+out:
+	kfree(status);
+
+	return err;
+}
+
+/*
+ * Test if the card supports high-speed mode and, if so, switch to it.
+ */
+static int mmc_switch_hs(struct mmc_card *card)
+{
+	int err;
+	u8 *status;
+
+	if (!(card->host->caps & MMC_CAP_SD_HIGHSPEED))
+		return MMC_ERR_NONE;
+
+	if (card->sw_caps.hs_max_dtr == 0)
+		return MMC_ERR_NONE;
+
+	err = MMC_ERR_FAILED;
+
+	status = kmalloc(64, GFP_KERNEL);
+	if (!status) {
+		printk("%s: could not allocate a buffer for switch "
+		       "capabilities.\n",
+			mmc_hostname(card->host));
+		return err;
+	}
 
 	err = mmc_sd_switch(card, 1, 0, 1, status);
 	if (err != MMC_ERR_NONE)
@@ -393,7 +419,14 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 	mmc_decode_scr(card);
 
 	/*
-	 * Check if card can be switched into high-speed mode.
+	 * Fetch switch information from card.
+	 */
+	err = mmc_read_switch(card);
+	if (err != MMC_ERR_NONE)
+		goto free_card;
+
+	/*
+	 * Attempt to change to high-speed (if supported)
 	 */
 	err = mmc_switch_hs(card);
 	if (err != MMC_ERR_NONE)
