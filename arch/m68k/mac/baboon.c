@@ -22,7 +22,7 @@
 /* #define DEBUG_BABOON */
 /* #define DEBUG_IRQS */
 
-int baboon_present,baboon_active;
+int baboon_present;
 volatile struct baboon *baboon;
 
 irqreturn_t baboon_irq(int, void *);
@@ -45,7 +45,6 @@ void __init baboon_init(void)
 
 	baboon = (struct baboon *) BABOON_BASE;
 	baboon_present = 1;
-	baboon_active = 0;
 
 	printk("Baboon detected at %p\n", baboon);
 }
@@ -70,9 +69,9 @@ irqreturn_t baboon_irq(int irq, void *dev_id)
 	unsigned char events;
 
 #ifdef DEBUG_IRQS
-	printk("baboon_irq: mb_control %02X mb_ifr %02X mb_status %02X active %02X\n",
+	printk("baboon_irq: mb_control %02X mb_ifr %02X mb_status %02X\n",
 		(uint) baboon->mb_control, (uint) baboon->mb_ifr,
-		(uint) baboon->mb_status,  baboon_active);
+		(uint) baboon->mb_status);
 #endif
 
 	if (!(events = baboon->mb_ifr & 0x07))
@@ -81,11 +80,9 @@ irqreturn_t baboon_irq(int irq, void *dev_id)
 	irq_num = IRQ_BABOON_0;
 	irq_bit = 1;
 	do {
-	        if (events & irq_bit/* & baboon_active*/) {
-			baboon_active &= ~irq_bit;
+	        if (events & irq_bit) {
 			baboon->mb_ifr &= ~irq_bit;
 			m68k_handle_int(irq_num);
-			baboon_active |= irq_bit;
 		}
 		irq_bit <<= 1;
 		irq_num++;
@@ -99,21 +96,18 @@ irqreturn_t baboon_irq(int irq, void *dev_id)
 }
 
 void baboon_irq_enable(int irq) {
-	int irq_idx	= IRQ_IDX(irq);
-
 #ifdef DEBUG_IRQUSE
 	printk("baboon_irq_enable(%d)\n", irq);
 #endif
-	baboon_active |= (1 << irq_idx);
+	/* FIXME: figure out how to mask and unmask baboon interrupt sources */
+	enable_irq(IRQ_NUBUS_C);
 }
 
 void baboon_irq_disable(int irq) {
-	int irq_idx	= IRQ_IDX(irq);
-
 #ifdef DEBUG_IRQUSE
 	printk("baboon_irq_disable(%d)\n", irq);
 #endif
-	baboon_active &= ~(1 << irq_idx);
+	disable_irq(IRQ_NUBUS_C);
 }
 
 void baboon_irq_clear(int irq) {

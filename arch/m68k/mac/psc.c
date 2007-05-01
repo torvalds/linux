@@ -147,10 +147,8 @@ irqreturn_t psc_irq(int irq, void *dev_id)
 	irq_bit = 1;
 	do {
 		if (events & irq_bit) {
-			psc_write_byte(pIER, irq_bit);
 			psc_write_byte(pIFR, irq_bit);
 			m68k_handle_int(irq_num);
-			psc_write_byte(pIER, irq_bit | 0x80);
 		}
 		irq_num++;
 		irq_bit <<= 1;

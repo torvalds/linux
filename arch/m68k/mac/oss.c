@@ -112,10 +112,8 @@ irqreturn_t oss_irq(int irq, void *dev_id)
 		oss->irq_pending &= ~OSS_IP_SOUND;
 		/* FIXME: call sound handler */
 	} else if (events & OSS_IP_SCSI) {
-		oss->irq_level[OSS_SCSI] = OSS_IRQLEV_DISABLED;
 		oss->irq_pending &= ~OSS_IP_SCSI;
 		m68k_handle_int(IRQ_MAC_SCSI);
-		oss->irq_level[OSS_SCSI] = OSS_IRQLEV_SCSI;
 	} else {
 		/* FIXME: error check here? */
 	}
@@ -149,10 +147,8 @@ irqreturn_t oss_nubus_irq(int irq, void *dev_id)
 		--i;
 		irq_bit >>= 1;
 		if (events & irq_bit) {
-			oss->irq_level[i] = OSS_IRQLEV_DISABLED;
 			oss->irq_pending &= ~irq_bit;
 			m68k_handle_int(NUBUS_SOURCE_BASE + i);
-			oss->irq_level[i] = OSS_IRQLEV_NUBUS;
 		}
 	} while(events & (irq_bit - 1));
 	return IRQ_HANDLED;

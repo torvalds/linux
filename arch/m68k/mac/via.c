@@ -443,11 +443,6 @@ void __init via_nubus_init(void)
 /*
  * The generic VIA interrupt routines (shamelessly stolen from Alan Cox's
  * via6522.c :-), disable/pending masks added.
- *
- * The new interrupt architecture in macints.c takes care of a lot of the
- * gruntwork for us, including tallying the interrupts and calling the
- * handlers on the linked list. All we need to do here is basically generate
- * the machspec interrupt number after clearing the interrupt.
  */
 
 irqreturn_t via1_irq(int irq, void *dev_id)
@@ -463,10 +458,8 @@ irqreturn_t via1_irq(int irq, void *dev_id)
 	irq_bit = 1;
 	do {
 		if (events & irq_bit) {
-			via1[vIER] = irq_bit;
 			via1[vIFR] = irq_bit;
 			m68k_handle_int(irq_num);
-			via1[vIER] = irq_bit | 0x80;
 		}
 		++irq_num;
 		irq_bit <<= 1;
@@ -502,11 +495,8 @@ irqreturn_t via2_irq(int irq, void *dev_id)
 	irq_bit = 1;
 	do {
 		if (events & irq_bit) {
-			via2[gIER] = irq_bit;
 			via2[gIFR] = irq_bit | rbv_clear;
 			m68k_handle_int(irq_num);
-			if (irq_num != IRQ_MAC_NUBUS || nubus_disabled == 0)
-				via2[gIER] = irq_bit | 0x80;
 		}
 		++irq_num;
 		irq_bit <<= 1;
