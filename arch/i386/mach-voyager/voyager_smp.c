@@ -564,6 +564,8 @@ do_boot_cpu(__u8 cpu)
 	hijack_source.idt.Segment = (start_phys_address >> 4) & 0xFFFF;
 
 	cpucount++;
+	alternatives_smp_switch(1);
+
 	idle = fork_idle(cpu);
 	if(IS_ERR(idle))
 		panic("failed fork for CPU%d", cpu);
