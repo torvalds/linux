@@ -1763,22 +1763,10 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait)
 static void gfs2_print_symbol(struct glock_iter *gi, const char *fmt,
                               unsigned long address)
 {
-/* when sprint_symbol becomes available in the new kernel, replace this */
-/* function with:
 	char buffer[KSYM_SYMBOL_LEN];
 
 	sprint_symbol(buffer, address);
 	print_dbg(gi, fmt, buffer);
-*/
-	char buffer[256];
-
-	if (gi) {
-		memset(buffer, 0, sizeof(buffer));
-		sprintf(buffer, "0x%08lx", address);
-		print_dbg(gi, fmt, buffer);
-	}
-	else
-		print_symbol(fmt, address);
 }
 
 /**
