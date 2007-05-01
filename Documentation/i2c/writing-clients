@@ -1,5 +1,5 @@
 This is a small guide for those who want to write kernel drivers for I2C
-or SMBus devices.
+or SMBus devices, using Linux as the protocol host/master (not slave).
 
 To set up a driver, you need to do several things. Some are optional, and
 some things can be done slightly or completely different. Use this as a
@@ -29,8 +29,16 @@ static struct i2c_driver foo_driver = {
 	.driver = {
 		.name	= "foo",
 	},
+
+	/* iff driver uses driver model ("new style") binding model: */
+	.probe		= foo_probe,
+	.remove		= foo_remove,
+
+	/* else, driver uses "legacy" binding model: */
 	.attach_adapter	= foo_attach_adapter,
 	.detach_client	= foo_detach_client,
+
+	/* these may be used regardless of the driver binding model */
 	.shutdown	= foo_shutdown,	/* optional */
 	.suspend	= foo_suspend,	/* optional */
 	.resume		= foo_resume,	/* optional */
@@ -40,7 +48,8 @@ static struct i2c_driver foo_driver = {
 The name field is the driver name, and must not contain spaces.  It
 should match the module name (if the driver can be compiled as a module),
 although you can use MODULE_ALIAS (passing "foo" in this example) to add
-another name for the module.
+another name for the module.  If the driver name doesn't match the module
+name, the module won't be automatically loaded (hotplug/coldplug).
 
 All other fields are for call-back functions which will be explained 
 below.
@@ -141,6 +150,59 @@ Writing is done the same way.
 Probing and attaching
 =====================
 
+The Linux I2C stack was originally written to support access to hardware
+monitoring chips on PC motherboards, and thus it embeds some assumptions
+that are more appropriate to SMBus (and PCs) than to I2C.  One of these
+assumptions is that most adapters and devices drivers support the SMBUS_QUICK
+protocol to probe device presence.  Another is that devices and their drivers
+can be sufficiently configured using only such probe primitives.
+
+As Linux and its I2C stack became more widely used in embedded systems
+and complex components such as DVB adapters, those assumptions became more
+problematic.  Drivers for I2C devices that issue interrupts need more (and
+different) configuration information, as do drivers handling chip variants
+that can't be distinguished by protocol probing, or which need some board
+specific information to operate correctly.
+
+Accordingly, the I2C stack now has two models for associating I2C devices
+with their drivers:  the original "legacy" model, and a newer one that's
+fully compatible with the Linux 2.6 driver model.  These models do not mix,
+since the "legacy" model requires drivers to create "i2c_client" device
+objects after SMBus style probing, while the Linux driver model expects
+drivers to be given such device objects in their probe() routines.
+
+
+Standard Driver Model Binding ("New Style")
+-------------------------------------------
+
+System infrastructure, typically board-specific initialization code or
+boot firmware, reports what I2C devices exist.  For example, there may be
+a table, in the kernel or from the boot loader, identifying I2C devices
+and linking them to board-specific configuration information about IRQs
+and other wiring artifacts, chip type, and so on.  That could be used to
+create i2c_client objects for each I2C device.
+
+I2C device drivers using this binding model work just like any other
+kind of driver in Linux:  they provide a probe() method to bind to
+those devices, and a remove() method to unbind.
+
+	static int foo_probe(struct i2c_client *client);
+	static int foo_remove(struct i2c_client *client);
+
+Remember that the i2c_driver does not create those client handles.  The
+handle may be used during foo_probe().  If foo_probe() reports success
+(zero not a negative status code) it may save the handle and use it until
+foo_remove() returns.  That binding model is used by most Linux drivers.
+
+Drivers match devices when i2c_client.driver_name and the driver name are
+the same; this approach is used in several other busses that don't have
+device typing support in the hardware.  The driver and module name should
+match, so hotplug/coldplug mechanisms will modprobe the driver.
+
+
+Legacy Driver Binding Model
+---------------------------
+
 Most i2c devices can be present on several i2c addresses; for some this
 is determined in hardware (by soldering some chip pins to Vcc or Ground),
 for others this can be changed in software (by writing to specific client
@@ -162,8 +224,8 @@ NOTE: If you want to write a `sensors' driver, the interface is slightly
 
 
 
-Probing classes
----------------
+Probing classes (Legacy model)
+------------------------------
 
 All parameters are given as lists of unsigned 16-bit integers. Lists are
 terminated by I2C_CLIENT_END.
@@ -210,8 +272,8 @@ Note that you *have* to call the defined variable `normal_i2c',
 without any prefix!
 
 
-Attaching to an adapter
------------------------
+Attaching to an adapter (Legacy model)
+--------------------------------------
 
 Whenever a new adapter is inserted, or for all adapters if the driver is
 being registered, the callback attach_adapter() is called. Now is the
@@ -237,8 +299,8 @@ them (unless a `force' parameter was used). In addition, addresses that
 are already in use (by some other registered client) are skipped.
 
 
-The detect client function
---------------------------
+The detect client function (Legacy model)
+-----------------------------------------
 
 The detect client function is called by i2c_probe. The `kind' parameter
 contains -1 for a probed detection, 0 for a forced detection, or a positive
@@ -427,8 +489,8 @@ For now, you can ignore the `flags' parameter. It is there for future use.
   }
 
 
-Removing the client
-===================
+Removing the client (Legacy model)
+==================================
 
 The detach_client call back function is called when a client should be
 removed. It may actually fail, but only when panicking. This code is
