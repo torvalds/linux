@@ -599,6 +599,7 @@ static __init int scx200_scan_pci(void)
 		else {
 			int i;
 
+			pci_dev_put(pdev);
 			for (i = 0; i < MAX_DEVICES; ++i) {
 				if (base[i] == 0)
 					continue;
