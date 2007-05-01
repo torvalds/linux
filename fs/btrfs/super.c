@@ -585,6 +585,31 @@ printk("adding new root for inode %lu root %p (found %p)\n", inode->i_ino, sub_r
 	return d_splice_alias(inode, dentry);
 }
 
+static void reada_leaves(struct btrfs_root *root, struct btrfs_path *path)
+{
+	struct btrfs_node *node;
+	int i;
+	int nritems;
+	u64 objectid;
+	u64 item_objectid;
+	u64 blocknr;
+	int slot;
+
+	if (!path->nodes[1])
+		return;
+	node = btrfs_buffer_node(path->nodes[1]);
+	slot = path->slots[1];
+	objectid = btrfs_disk_key_objectid(&node->ptrs[slot].key);
+	nritems = btrfs_header_nritems(&node->header);
+	for (i = slot; i < nritems; i++) {
+		item_objectid = btrfs_disk_key_objectid(&node->ptrs[i].key);
+		if (item_objectid != objectid)
+			break;
+		blocknr = btrfs_node_blockptr(node, i);
+		readahead_tree_block(root, blocknr);
+	}
+}
+
 static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -619,6 +644,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (ret < 0)
 		goto err;
 	advance = 0;
+	reada_leaves(root, path);
 	while(1) {
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		nritems = btrfs_header_nritems(&leaf->header);
@@ -631,6 +657,8 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				leaf = btrfs_buffer_leaf(path->nodes[0]);
 				nritems = btrfs_header_nritems(&leaf->header);
 				slot = path->slots[0];
+				if (path->slots[1] == 0)
+					reada_leaves(root, path);
 			} else {
 				slot++;
 				path->slots[0]++;

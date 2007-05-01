@@ -812,6 +812,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 	buf = btrfs_find_create_tree_block(root, ins.objectid);
 	set_buffer_uptodate(buf);
+	set_buffer_checked(buf);
 	set_radix_bit(&trans->transaction->dirty_pages, buf->b_page->index);
 	return buf;
 }

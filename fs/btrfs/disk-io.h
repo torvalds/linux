@@ -5,6 +5,11 @@
 
 #define BTRFS_SUPER_INFO_OFFSET (16 * 1024)
 
+enum btrfs_bh_state_bits {
+	BH_Checked = BH_PrivateStart,
+};
+BUFFER_FNS(Checked, checked);
+
 static inline struct btrfs_node *btrfs_buffer_node(struct buffer_head *bh)
 {
 	return (struct btrfs_node *)bh->b_data;
@@ -21,6 +26,7 @@ static inline struct btrfs_header *btrfs_buffer_header(struct buffer_head *bh)
 }
 
 struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr);
+int readahead_tree_block(struct btrfs_root *root, u64 blocknr);
 struct buffer_head *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 blocknr);
 int write_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,

@@ -5,6 +5,7 @@
 #include <linux/scatterlist.h>
 #include <linux/swap.h>
 #include <linux/radix-tree.h>
+#include <linux/file.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -253,6 +254,29 @@ static struct address_space_operations btree_aops = {
 	.sync_page	= block_sync_page,
 };
 
+int readahead_tree_block(struct btrfs_root *root, u64 blocknr)
+{
+	struct buffer_head *bh = NULL;
+
+	bh = btrfs_find_create_tree_block(root, blocknr);
+	if (!bh)
+		return 0;
+	if (buffer_uptodate(bh))
+		goto done;
+	if (test_set_buffer_locked(bh))
+		goto done;
+	if (!buffer_uptodate(bh)) {
+		get_bh(bh);
+		bh->b_end_io = end_buffer_read_sync;
+		submit_bh(READ, bh);
+	} else {
+		unlock_buffer(bh);
+	}
+done:
+	brelse(bh);
+	return 0;
+}
+
 struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 {
 	struct buffer_head *bh = NULL;
@@ -270,11 +294,14 @@ struct buffer_head *read_tree_block(struct btrfs_root *root, u64 blocknr)
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh))
 			goto fail;
-		csum_tree_block(root, bh, 1);
 	} else {
 		unlock_buffer(bh);
 	}
 uptodate:
+	if (!buffer_checked(bh)) {
+		csum_tree_block(root, bh, 1);
+		set_buffer_checked(bh);
+	}
 	if (check_tree_block(root, bh))
 		BUG();
 	return bh;
