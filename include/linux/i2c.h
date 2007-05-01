@@ -113,7 +113,7 @@ struct i2c_driver {
 	 * can be used by the driver to test if the bus meets its conditions
 	 * & seek for the presence of the chip(s) it supports. If found, it
 	 * registers the client(s) that are on the bus to the i2c admin. via
-	 * i2c_attach_client.
+	 * i2c_attach_client.  (LEGACY I2C DRIVERS ONLY)
 	 */
 	int (*attach_adapter)(struct i2c_adapter *);
 	int (*detach_adapter)(struct i2c_adapter *);
@@ -121,9 +121,15 @@ struct i2c_driver {
 	/* tells the driver that a client is about to be deleted & gives it
 	 * the chance to remove its private data. Also, if the client struct
 	 * has been dynamically allocated by the driver in the function above,
-	 * it must be freed here.
+	 * it must be freed here.  (LEGACY I2C DRIVERS ONLY)
 	 */
 	int (*detach_client)(struct i2c_client *);
+
+	/* Standard driver model interfaces, for "new style" i2c drivers.
+	 * With the driver model, device enumeration is NEVER done by drivers;
+	 * it's done by infrastructure.  (NEW STYLE DRIVERS ONLY)
+	 */
+	int (*probe)(struct i2c_client *);
 
 	/* driver model interfaces that don't relate to enumeration  */
 	void (*shutdown)(struct i2c_client *);
@@ -148,6 +154,8 @@ struct i2c_driver {
  * @name: Indicates the type of the device, usually a chip name that's
  *	generic enough to hide second-sourcing and compatible revisions.
  * @dev: Driver model device node for the slave.
+ * @driver_name: Identifies new-style driver used with this device; also
+ *	used as the module name for hotplug/coldplug modprobe support.
  *
  * An i2c_client identifies a single device (i.e. chip) connected to an
  * i2c bus. The behaviour is defined by the routines of the driver.
@@ -163,6 +171,7 @@ struct i2c_client {
 	int usage_count;		/* How many accesses currently  */
 					/* to the client		*/
 	struct device dev;		/* the device structure		*/
+	char driver_name[KOBJ_NAME_LEN];
 	struct list_head list;
 	struct completion released;
 };
