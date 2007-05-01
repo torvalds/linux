@@ -1531,10 +1531,18 @@ int nfs_wb_page(struct inode *inode, struct page* page)
 
 int nfs_set_page_dirty(struct page *page)
 {
-	spinlock_t *req_lock = &NFS_I(page->mapping->host)->req_lock;
+	struct address_space *mapping = page->mapping;
+	struct inode *inode;
+	spinlock_t *req_lock;
 	struct nfs_page *req;
 	int ret;
 
+	if (!mapping)
+		goto out_raced;
+	inode = mapping->host;
+	if (!inode)
+		goto out_raced;
+	req_lock = &NFS_I(inode)->req_lock;
 	spin_lock(req_lock);
 	req = nfs_page_find_request_locked(page);
 	if (req != NULL) {
@@ -1547,6 +1555,8 @@ int nfs_set_page_dirty(struct page *page)
 	ret = __set_page_dirty_nobuffers(page);
 	spin_unlock(req_lock);
 	return ret;
+out_raced:
+	return !TestSetPageDirty(page);
 }
 
 
