@@ -1,13 +1,13 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 
 #include <asm/errno.h>
-#include <asm/of_device.h>
 
 /**
  * of_match_node - Tell if an device_node has a matching of_match structure
