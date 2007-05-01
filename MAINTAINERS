@@ -1643,6 +1643,13 @@ L:	i2c@lm-sensors.org
 T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
 S:	Maintained
 
+I2C-TINY-USB DRIVER
+P:	Till Harbaum
+M:	till@harbaum.org
+L:	i2c@lm-sensors.org
+T:	http://www.harbaum.org/till/i2c_tiny_usb
+S:	Maintained
+
 i386 BOOT CODE
 P:	Riley H. Williams
 M:	Riley@Williams.Name

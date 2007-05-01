@@ -525,6 +525,17 @@ config I2C_STUB
 
 	  If you don't know what to do here, definitely say N.
 
+config I2C_TINY_USB
+	tristate "I2C-Tiny-USB"
+	depends on USB
+	help
+	  If you say yes to this option, support will be included for the
+	  i2c-tiny-usb, a simple do-it-yourself USB to I2C interface. See
+	  http://www.harbaum.org/till/i2c_tiny_usb for hardware details.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-tiny-usb.
+
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
 	depends on ARCH_VERSATILE || ARCH_REALVIEW
