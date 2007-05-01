@@ -74,7 +74,7 @@ int ivtv_first_minor = 0;
 struct ivtv *ivtv_cards[IVTV_MAX_CARDS];
 
 /* Protects ivtv_cards_active */
-spinlock_t ivtv_cards_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(ivtv_cards_lock);
 
 /* add your revision and whatnot here */
 static struct pci_device_id ivtv_pci_tbl[] __devinitdata = {
