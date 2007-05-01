@@ -27,10 +27,6 @@
 #include <asm/machw.h>
 #include <asm/macints.h>
 
-extern char m68k_debug_device[];
-
-extern struct compat_bootinfo compat_boot_info;
-
 extern unsigned long mac_videobase;
 extern unsigned long mac_videodepth;
 extern unsigned long mac_rowbytes;
@@ -360,16 +356,18 @@ void mac_init_sccb_port(int cflag)
 	mac_init_scc_port(cflag, 1);
 }
 
-void __init mac_debug_init(void)
+static int __init mac_debug_setup(char *arg)
 {
+	if (!MACH_IS_MAC)
+		return 0;
+
 #ifdef DEBUG_SERIAL
-	if (!strcmp(m68k_debug_device, "ser") ||
-            !strcmp(m68k_debug_device, "ser1")) {
+	if (!strcmp(arg, "ser") || !strcmp(arg, "ser1")) {
 		/* Mac modem port */
 		mac_init_scc_port(B9600|CS8, 0);
 		mac_console_driver.write = mac_scca_console_write;
 		scc_port = 0;
-	} else if (!strcmp(m68k_debug_device, "ser2")) {
+	} else if (!strcmp(arg, "ser2")) {
 		/* Mac printer port */
 		mac_init_scc_port(B9600|CS8, 1);
 		mac_console_driver.write = mac_sccb_console_write;
@@ -377,12 +375,14 @@ void __init mac_debug_init(void)
 	}
 #endif
 #ifdef DEBUG_HEADS
-	if (!strcmp(m68k_debug_device, "scn") ||
-	    !strcmp(m68k_debug_device, "con")) {
+	if (!strcmp(arg, "scn") || !strcmp(arg, "con")) {
 		/* display, using head.S console routines */
 		mac_console_driver.write = mac_debug_console_write;
 	}
 #endif
 	if (mac_console_driver.write)
 		register_console(&mac_console_driver);
+	return 0;
 }
+
+early_param("debug", mac_debug_setup);

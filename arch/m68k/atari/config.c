@@ -69,9 +69,6 @@ extern int atari_tt_hwclk (int, struct rtc_time *);
 extern int atari_mste_set_clock_mmss (unsigned long);
 extern int atari_tt_set_clock_mmss (unsigned long);
 
-/* atari specific debug functions (in debug.c) */
-extern void atari_debug_init(void);
-
 
 /* ++roman: This is a more elaborate test for an SCC chip, since the plain
  * Medusa board generates DTACK at the SCC's standard addresses, but a SCC
@@ -137,15 +134,18 @@ int __init atari_parse_bootinfo(const struct bi_record *record)
 
 
 /* Parse the Atari-specific switches= option. */
-void __init atari_switches_setup(const char *str, unsigned len)
+static int __init atari_switches_setup(char *str)
 {
-	char switches[len+1];
+	char switches[strlen(str) + 1];
 	char *p;
 	int ovsc_shift;
 	char *args = switches;
 
+	if (!MACH_IS_ATARI)
+		return 0;
+
 	/* copy string to local array, strsep works destructively... */
-	strlcpy(switches, str, sizeof(switches));
+	strcpy(switches, str);
 	atari_switches = 0;
 
 	/* parse the options */
@@ -170,7 +170,10 @@ void __init atari_switches_setup(const char *str, unsigned len)
 			atari_switches |= ATARI_SWITCH_SND7 << ovsc_shift;
 		}
 	}
+	return 0;
 }
+
+early_param("switches", atari_switches_setup);
 
 
     /*
@@ -182,8 +185,6 @@ void __init config_atari(void)
 	unsigned short tos_version;
 
 	memset(&atari_hw_present, 0, sizeof(atari_hw_present));
-
-	atari_debug_init();
 
 	/* Change size of I/O space from 64KB to 4GB. */
 	ioport_resource.end  = 0xFFFFFFFF;

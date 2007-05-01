@@ -54,7 +54,6 @@ void q40_set_vectors(void);
 
 extern void q40_mksound(unsigned int /*freq*/, unsigned int /*ticks*/);
 
-extern char m68k_debug_device[];
 static void q40_mem_console_write(struct console *co, const char *b,
 				  unsigned int count);
 
@@ -62,6 +61,7 @@ extern int ql_ticks;
 
 static struct console q40_console_driver = {
 	.name	= "debug",
+	.write	= q40_mem_console_write,
 	.flags	= CON_PRINTBUFFER,
 	.index	= -1,
 };
@@ -84,6 +84,19 @@ static void q40_mem_console_write(struct console *co, const char *s,
 		}
 	}
 }
+
+static int __init q40_debug_setup(char *arg)
+{
+	/* useful for early debugging stages - writes kernel messages into SRAM */
+	if (MACH_IS_Q40 && !strncmp(arg, "mem", 3)) {
+		/*printk("using NVRAM debug, q40_mem_cptr=%p\n",q40_mem_cptr);*/
+		_cpleft = 2000 - ((long)q40_mem_cptr-0xff020000) / 4;
+		register_console(&q40_console_driver);
+	}
+	return 0;
+}
+
+early_param("debug", q40_debug_setup);
 
 #if 0
 void printq40(char *str)
@@ -194,14 +207,6 @@ void __init config_q40(void)
 	 * all physical RAM fits into the boundary - otherwise
 	 * allocator may play costly and useless tricks */
 	mach_max_dma_address = 1024*1024*1024;
-
-	/* useful for early debugging stages - writes kernel messages into SRAM */
-	if (!strncmp( m68k_debug_device,"mem", 3)) {
-		/*printk("using NVRAM debug, q40_mem_cptr=%p\n",q40_mem_cptr);*/
-		_cpleft = 2000 - ((long)q40_mem_cptr-0xff020000) / 4;
-		q40_console_driver.write = q40_mem_console_write;
-		register_console(&q40_console_driver);
-	}
 }
 
 

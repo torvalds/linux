@@ -19,8 +19,6 @@
 #include <asm/atarihw.h>
 #include <asm/atariints.h>
 
-extern char m68k_debug_device[];
-
 /* Flag that Modem1 port is already initialized and used */
 int atari_MFP_init_done;
 /* Flag that Modem1 port is already initialized and used */
@@ -305,26 +303,28 @@ void atari_init_midi_port(int cflag)
 		     ACIA_RHTID : ACIA_RLTID);
 }
 
-void __init atari_debug_init(void)
+static int __init atari_debug_setup(char *arg)
 {
-	if (!strcmp(m68k_debug_device, "ser")) {
-		/* defaults to ser2 for a Falcon and ser1 otherwise */
-		strcpy(m68k_debug_device, MACH_IS_FALCON ? "ser2" : "ser1");
-	}
+	if (!MACH_IS_ATARI)
+		return 0;
 
-	if (!strcmp(m68k_debug_device, "ser1")) {
+	if (!strcmp(arg, "ser"))
+		/* defaults to ser2 for a Falcon and ser1 otherwise */
+		arg = MACH_IS_FALCON ? "ser2" : "ser1";
+
+	if (!strcmp(arg, "ser1")) {
 		/* ST-MFP Modem1 serial port */
 		atari_init_mfp_port(B9600|CS8);
 		atari_console_driver.write = atari_mfp_console_write;
-	} else if (!strcmp(m68k_debug_device, "ser2")) {
+	} else if (!strcmp(arg, "ser2")) {
 		/* SCC Modem2 serial port */
 		atari_init_scc_port(B9600|CS8);
 		atari_console_driver.write = atari_scc_console_write;
-	} else if (!strcmp(m68k_debug_device, "midi")) {
+	} else if (!strcmp(arg, "midi")) {
 		/* MIDI port */
 		atari_init_midi_port(B9600|CS8);
 		atari_console_driver.write = atari_midi_console_write;
-	} else if (!strcmp(m68k_debug_device, "par")) {
+	} else if (!strcmp(arg, "par")) {
 		/* parallel printer */
 		atari_turnoff_irq(IRQ_MFP_BUSY); /* avoid ints */
 		sound_ym.rd_data_reg_sel = 7;	/* select mixer control */
@@ -337,4 +337,8 @@ void __init atari_debug_init(void)
 	}
 	if (atari_console_driver.write)
 		register_console(&atari_console_driver);
+
+	return 0;
 }
+
+early_param("debug", atari_debug_setup);

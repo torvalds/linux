@@ -71,9 +71,6 @@ static struct mem_info m68k_ramdisk;
 
 static char m68k_command_line[CL_SIZE];
 
-char m68k_debug_device[6] = "";
-EXPORT_SYMBOL(m68k_debug_device);
-
 void (*mach_sched_init) (irq_handler_t handler) __initdata = NULL;
 /* machine dependent irq functions */
 void (*mach_init_IRQ) (void) __initdata = NULL;
@@ -215,7 +212,6 @@ void __init setup_arch(char **cmdline_p)
 	unsigned long endmem, startmem;
 #endif
 	int i;
-	char *p, *q;
 
 	/* The bootinfo is located right after the kernel bss */
 	m68k_parse_bootinfo((const struct bi_record *)&_end);
@@ -258,40 +254,7 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = m68k_command_line;
 	memcpy(boot_command_line, *cmdline_p, CL_SIZE);
 
-	/* Parse the command line for arch-specific options.
-	 * For the m68k, this is currently only "debug=xxx" to enable printing
-	 * certain kernel messages to some machine-specific device.
-	 */
-	for (p = *cmdline_p; p && *p;) {
-		i = 0;
-		if (!strncmp(p, "debug=", 6)) {
-			strlcpy(m68k_debug_device, p+6, sizeof(m68k_debug_device));
-			q = strchr(m68k_debug_device, ' ');
-			if (q)
-				*q = 0;
-			i = 1;
-		}
-#ifdef CONFIG_ATARI
-		/* This option must be parsed very early */
-		if (!strncmp(p, "switches=", 9)) {
-			extern void atari_switches_setup(const char *, int);
-			q = strchr(p + 9, ' ');
-			atari_switches_setup(p + 9, q ? (q - (p + 9)) : strlen(p + 9));
-			i = 1;
-		}
-#endif
-
-		if (i) {
-			/* option processed, delete it */
-			if ((q = strchr(p, ' ')))
-				strcpy(p, q + 1);
-			else
-				*p = 0;
-		} else {
-			if ((p = strchr(p, ' ')))
-				++p;
-		}
-	}
+	parse_early_param();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;

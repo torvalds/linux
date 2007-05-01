@@ -73,8 +73,6 @@ void sun3x_reboot(void)
 	(*romvec->pv_reboot)("vmlinux");
 }
 
-extern char m68k_debug_device[];
-
 static void sun3x_prom_write(struct console *co, const char *s,
                              unsigned int count)
 {
@@ -119,12 +117,17 @@ void sun3x_prom_init(void)
 	 * XXX this is futile since we restore the vbr first - oops
 	 */
 	vectors[VEC_TRAP14] = sun3x_prom_abort;
-
-	/* If debug=prom was specified, start the debug console */
-
-	if (!strcmp(m68k_debug_device, "prom"))
-		register_console(&sun3x_debug);
 }
+
+static int __init sun3x_debug_setup(char *arg)
+{
+	/* If debug=prom was specified, start the debug console */
+	if (MACH_IS_SUN3X && !strcmp(arg, "prom"))
+		register_console(&sun3x_debug);
+	return 0;
+}
+
+early_param("debug", sun3x_debug_setup);
 
 /* some prom functions to export */
 int prom_getintdefault(int node, char *property, int deflt)

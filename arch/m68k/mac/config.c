@@ -82,10 +82,6 @@ extern void mac_mksound(unsigned int, unsigned int);
 
 extern void nubus_sweep_video(void);
 
-/* Mac specific debug functions (in debug.c) */
-extern void mac_debug_init(void);
-extern void mac_debugging_long(int, long);
-
 static void mac_get_model(char *str);
 
 static void mac_sched_init(irq_handler_t vector)
@@ -180,9 +176,6 @@ void __init config_mac(void)
 	mach_halt = mac_poweroff;
 	mach_power_off = mac_poweroff;
 	mach_max_dma_address = 0xffffffff;
-#if 0
-	mach_debug_init	= mac_debug_init;
-#endif
 #if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
 	mach_beep = mac_mksound;
 #endif
@@ -802,7 +795,6 @@ void mac_identify(void)
 	/* the serial ports set to "Faster" mode in MacOS. */
 
 	iop_preinit();
-	mac_debug_init();
 
 	printk(KERN_INFO "Detected Macintosh model: %d \n", model);
 

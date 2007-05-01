@@ -79,8 +79,6 @@ static char *amiga_models[] __initdata = {
 
 static char amiga_model_name[13] = "Amiga ";
 
-extern char m68k_debug_device[];
-
 static void amiga_sched_init(irq_handler_t handler);
 /* amiga specific irq functions */
 extern void amiga_init_IRQ(void);
@@ -95,12 +93,10 @@ static unsigned int amiga_get_ss(void);
 extern void amiga_mksound(unsigned int count, unsigned int ticks);
 static void amiga_reset(void);
 extern void amiga_init_sound(void);
-static void amiga_savekmsg_init(void);
 static void amiga_mem_console_write(struct console *co, const char *b,
 				    unsigned int count);
 void amiga_serial_console_write(struct console *co, const char *s,
 				unsigned int count);
-static void amiga_debug_init(void);
 #ifdef CONFIG_HEARTBEAT
 static void amiga_heartbeat(int on);
 #endif
@@ -370,7 +366,6 @@ void __init config_amiga(void)
 {
 	int i;
 
-	amiga_debug_init();
 	amiga_identify();
 
 	/* Yuk, we don't have PCI memory */
@@ -457,17 +452,6 @@ void __init config_amiga(void)
 
 	/* initialize chipram allocator */
 	amiga_chip_init();
-
-	/* debugging using chipram */
-	if (!strcmp(m68k_debug_device, "mem")) {
-		if (!AMIGAHW_PRESENT(CHIP_RAM))
-			printk("Warning: no chipram present for debugging\n");
-		else {
-			amiga_savekmsg_init();
-			amiga_console_driver.write = amiga_mem_console_write;
-			register_console(&amiga_console_driver);
-		}
-	}
 
 	/* our beloved beeper */
 	if (AMIGAHW_PRESENT(AMI_AUDIO))
@@ -787,16 +771,32 @@ static void amiga_mem_console_write(struct console *co, const char *s,
 	}
 }
 
-static void amiga_savekmsg_init(void)
+static int __init amiga_savekmsg_setup(char *arg)
 {
 	static struct resource debug_res = { .name = "Debug" };
+
+	if (!MACH_IS_AMIGA || strcmp(arg, "mem"))
+		goto done;
+
+	if (!AMIGAHW_PRESENT(CHIP_RAM)) {
+		printk("Warning: no chipram present for debugging\n");
+		goto done;
+	}
 
 	savekmsg = amiga_chip_alloc_res(SAVEKMSG_MAXMEM, &debug_res);
 	savekmsg->magic1 = SAVEKMSG_MAGIC1;
 	savekmsg->magic2 = SAVEKMSG_MAGIC2;
 	savekmsg->magicptr = ZTWO_PADDR(savekmsg);
 	savekmsg->size = 0;
+
+	amiga_console_driver.write = amiga_mem_console_write;
+	register_console(&amiga_console_driver);
+
+done:
+	return 0;
 }
+
+early_param("debug", amiga_savekmsg_setup);
 
 static void amiga_serial_putc(char c)
 {
@@ -872,14 +872,17 @@ void amiga_serial_gets(struct console *co, char *s, int len)
 }
 #endif
 
-static void __init amiga_debug_init(void)
+static int __init amiga_debug_setup(char *arg)
 {
-	if (!strcmp(m68k_debug_device, "ser" )) {
+	if (MACH_IS_AMIGA && !strcmp(arg, "ser")) {
 		/* no initialization required (?) */
 		amiga_console_driver.write = amiga_serial_console_write;
 		register_console(&amiga_console_driver);
 	}
+	return 0;
 }
+
+early_param("debug", amiga_debug_setup);
 
 #ifdef CONFIG_HEARTBEAT
 static void amiga_heartbeat(int on)
