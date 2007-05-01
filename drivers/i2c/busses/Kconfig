@@ -547,7 +547,7 @@ config I2C_VOODOO3
 
 config I2C_PCA_ISA
 	tristate "PCA9564 on an ISA bus"
-	depends on I2C
+	depends on I2C && ISA
 	select I2C_ALGOPCA
 	default n
 	help
