@@ -59,8 +59,6 @@
 #define ACPI_THERMAL_NOTIFY_CRITICAL	0xF0
 #define ACPI_THERMAL_NOTIFY_HOT		0xF1
 #define ACPI_THERMAL_MODE_ACTIVE	0x00
-#define ACPI_THERMAL_MODE_PASSIVE	0x01
-#define ACPI_THERMAL_MODE_CRITICAL   	0xff
 #define ACPI_THERMAL_PATH_POWEROFF	"/sbin/poweroff"
 
 #define ACPI_THERMAL_MAX_ACTIVE	10
@@ -164,7 +162,6 @@ struct acpi_thermal {
 	unsigned long temperature;
 	unsigned long last_temperature;
 	unsigned long polling_frequency;
-	u8 cooling_mode;
 	volatile u8 zombie;
 	struct acpi_thermal_flags flags;
 	struct acpi_thermal_state state;
@@ -292,11 +289,6 @@ static int acpi_thermal_set_cooling_mode(struct acpi_thermal *tz, int mode)
 	status = acpi_evaluate_object(handle, NULL, &arg_list, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
-
-	tz->cooling_mode = mode;
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Cooling mode [%s]\n",
-			  mode ? "passive" : "active"));
 
 	return 0;
 }
@@ -893,15 +885,10 @@ static int acpi_thermal_cooling_seq_show(struct seq_file *seq, void *offset)
 	if (!tz)
 		goto end;
 
-	if (!tz->flags.cooling_mode) {
+	if (!tz->flags.cooling_mode)
 		seq_puts(seq, "<setting not supported>\n");
-	}
-
-	if (tz->cooling_mode == ACPI_THERMAL_MODE_CRITICAL)
-		seq_printf(seq, "cooling mode:	critical\n");
 	else
-		seq_printf(seq, "cooling mode:	%s\n",
-			   tz->cooling_mode ? "passive" : "active");
+		seq_puts(seq, "0 - Active; 1 - Passive\n");
 
       end:
 	return 0;
@@ -1158,28 +1145,6 @@ static int acpi_thermal_get_info(struct acpi_thermal *tz)
 	result = acpi_thermal_set_cooling_mode(tz, ACPI_THERMAL_MODE_ACTIVE);
 	if (!result)
 		tz->flags.cooling_mode = 1;
-	else {
-		/* Oh,we have not _SCP method.
-		   Generally show cooling_mode by _ACx, _PSV,spec 12.2 */
-		tz->flags.cooling_mode = 0;
-		if (tz->trips.active[0].flags.valid
-		    && tz->trips.passive.flags.valid) {
-			if (tz->trips.passive.temperature >
-			    tz->trips.active[0].temperature)
-				tz->cooling_mode = ACPI_THERMAL_MODE_ACTIVE;
-			else
-				tz->cooling_mode = ACPI_THERMAL_MODE_PASSIVE;
-		} else if (!tz->trips.active[0].flags.valid
-			   && tz->trips.passive.flags.valid) {
-			tz->cooling_mode = ACPI_THERMAL_MODE_PASSIVE;
-		} else if (tz->trips.active[0].flags.valid
-			   && !tz->trips.passive.flags.valid) {
-			tz->cooling_mode = ACPI_THERMAL_MODE_ACTIVE;
-		} else {
-			/* _ACx and _PSV are optional, but _CRT is required */
-			tz->cooling_mode = ACPI_THERMAL_MODE_CRITICAL;
-		}
-	}
 
 	/* Get default polling frequency [_TZP] (optional) */
 	if (tzp)
