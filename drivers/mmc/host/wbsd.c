@@ -788,24 +788,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		goto done;
 	}
 
-	/*
-	 * Does the request include data?
-	 */
 	if (cmd->data) {
-		wbsd_prepare_data(host, cmd->data);
-
-		if (cmd->data->error != MMC_ERR_NONE)
-			goto done;
-	}
-
-	wbsd_send_command(host, cmd);
-
-	/*
-	 * If this is a data transfer the request
-	 * will be finished after the data has
-	 * transfered.
-	 */
-	if (cmd->data && (cmd->error == MMC_ERR_NONE)) {
 		/*
 		 * The hardware is so delightfully stupid that it has a list
 		 * of "data" commands. If a command isn't on this list, it'll
@@ -837,14 +820,30 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				"supported by this controller.\n",
 				mmc_hostname(host->mmc), cmd->opcode);
 #endif
-			cmd->data->error = MMC_ERR_INVALID;
-
-			if (cmd->data->stop)
-				wbsd_send_command(host, cmd->data->stop);
+			cmd->error = MMC_ERR_INVALID;
 
 			goto done;
 		};
+	}
 
+	/*
+	 * Does the request include data?
+	 */
+	if (cmd->data) {
+		wbsd_prepare_data(host, cmd->data);
+
+		if (cmd->data->error != MMC_ERR_NONE)
+			goto done;
+	}
+
+	wbsd_send_command(host, cmd);
+
+	/*
+	 * If this is a data transfer the request
+	 * will be finished after the data has
+	 * transfered.
+	 */
+	if (cmd->data && (cmd->error == MMC_ERR_NONE)) {
 		/*
 		 * Dirty fix for hardware bug.
 		 */
