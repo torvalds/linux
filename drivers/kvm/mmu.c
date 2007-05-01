@@ -1118,7 +1118,7 @@ out:
 	return r;
 }
 
-static void mmu_pre_write_zap_pte(struct kvm_vcpu *vcpu,
+static void mmu_pte_write_zap_pte(struct kvm_vcpu *vcpu,
 				  struct kvm_mmu_page *page,
 				  u64 *spte)
 {
@@ -1137,7 +1137,8 @@ static void mmu_pre_write_zap_pte(struct kvm_vcpu *vcpu,
 	*spte = 0;
 }
 
-void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
+void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
+		       const u8 *old, const u8 *new, int bytes)
 {
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct kvm_mmu_page *page;
@@ -1206,14 +1207,10 @@ void kvm_mmu_pre_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
 		spte = __va(page->page_hpa);
 		spte += page_offset / sizeof(*spte);
 		while (npte--) {
-			mmu_pre_write_zap_pte(vcpu, page, spte);
+			mmu_pte_write_zap_pte(vcpu, page, spte);
 			++spte;
 		}
 	}
-}
-
-void kvm_mmu_post_write(struct kvm_vcpu *vcpu, gpa_t gpa, int bytes)
-{
 }
 
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)

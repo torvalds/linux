@@ -1071,18 +1071,18 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 {
 	struct page *page;
 	void *virt;
+	unsigned offset = offset_in_page(gpa);
 
 	if (((gpa + bytes - 1) >> PAGE_SHIFT) != (gpa >> PAGE_SHIFT))
 		return 0;
 	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
 	if (!page)
 		return 0;
-	kvm_mmu_pre_write(vcpu, gpa, bytes);
 	mark_page_dirty(vcpu->kvm, gpa >> PAGE_SHIFT);
 	virt = kmap_atomic(page, KM_USER0);
+	kvm_mmu_pte_write(vcpu, gpa, virt + offset, val, bytes);
 	memcpy(virt + offset_in_page(gpa), val, bytes);
 	kunmap_atomic(virt, KM_USER0);
-	kvm_mmu_post_write(vcpu, gpa, bytes);
 	return 1;
 }
 
