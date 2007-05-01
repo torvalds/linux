@@ -1150,6 +1150,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	unsigned pte_size;
 	unsigned page_offset;
 	unsigned misaligned;
+	unsigned quadrant;
 	int level;
 	int flooded = 0;
 	int npte;
@@ -1202,7 +1203,10 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 				page_offset <<= 1;
 				npte = 2;
 			}
+			quadrant = page_offset >> PAGE_SHIFT;
 			page_offset &= ~PAGE_MASK;
+			if (quadrant != page->role.quadrant)
+				continue;
 		}
 		spte = __va(page->page_hpa);
 		spte += page_offset / sizeof(*spte);
