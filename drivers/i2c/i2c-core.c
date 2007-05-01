@@ -320,37 +320,18 @@ static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 	mutex_unlock(&__i2c_board_lock);
 }
 
-
-/* -----
- * i2c_add_adapter is called from within the algorithm layer,
- * when a new hw adapter registers. A new device is register to be
- * available for clients.
- */
-int i2c_add_adapter(struct i2c_adapter *adap)
+static int i2c_register_adapter(struct i2c_adapter *adap)
 {
-	int id, res = 0;
+	int res = 0;
 	struct list_head   *item;
 	struct i2c_driver  *driver;
 
-	mutex_lock(&core_lists);
-
-	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0) {
-		res = -ENOMEM;
-		goto out_unlock;
-	}
-
-	res = idr_get_new(&i2c_adapter_idr, adap, &id);
-	if (res < 0) {
-		if (res == -EAGAIN)
-			res = -ENOMEM;
-		goto out_unlock;
-	}
-
-	adap->nr =  id & MAX_ID_MASK;
 	mutex_init(&adap->bus_lock);
 	mutex_init(&adap->clist_lock);
-	list_add_tail(&adap->list,&adapters);
 	INIT_LIST_HEAD(&adap->clients);
+
+	mutex_lock(&core_lists);
+	list_add_tail(&adap->list, &adapters);
 
 	/* Add the adapter to the driver core.
 	 * If the parent pointer is not set up,
@@ -370,6 +351,10 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
+	/* create pre-declared device nodes for new-style drivers */
+	if (adap->nr < __i2c_first_dynamic_bus_num)
+		i2c_scan_static_board_info(adap);
+
 	/* let legacy drivers scan this bus for matching devices */
 	list_for_each(item,&drivers) {
 		driver = list_entry(item, struct i2c_driver, list);
@@ -387,6 +372,93 @@ out_list:
 	idr_remove(&i2c_adapter_idr, adap->nr);
 	goto out_unlock;
 }
+
+/**
+ * i2c_add_adapter - declare i2c adapter, use dynamic bus number
+ * @adapter: the adapter to add
+ *
+ * This routine is used to declare an I2C adapter when its bus number
+ * doesn't matter.  Examples: for I2C adapters dynamically added by
+ * USB links or PCI plugin cards.
+ *
+ * When this returns zero, a new bus number was allocated and stored
+ * in adap->nr, and the specified adapter became available for clients.
+ * Otherwise, a negative errno value is returned.
+ */
+int i2c_add_adapter(struct i2c_adapter *adapter)
+{
+	int	id, res = 0;
+
+retry:
+	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0)
+		return -ENOMEM;
+
+	mutex_lock(&core_lists);
+	/* "above" here means "above or equal to", sigh */
+	res = idr_get_new_above(&i2c_adapter_idr, adapter,
+				__i2c_first_dynamic_bus_num, &id);
+	mutex_unlock(&core_lists);
+
+	if (res < 0) {
+		if (res == -EAGAIN)
+			goto retry;
+		return res;
+	}
+
+	adapter->nr = id;
+	return i2c_register_adapter(adapter);
+}
+EXPORT_SYMBOL(i2c_add_adapter);
+
+/**
+ * i2c_add_numbered_adapter - declare i2c adapter, use static bus number
+ * @adap: the adapter to register (with adap->nr initialized)
+ *
+ * This routine is used to declare an I2C adapter when its bus number
+ * matters.  Example: for I2C adapters from system-on-chip CPUs, or
+ * otherwise built in to the system's mainboard, and where i2c_board_info
+ * is used to properly configure I2C devices.
+ *
+ * If no devices have pre-been declared for this bus, then be sure to
+ * register the adapter before any dynamically allocated ones.  Otherwise
+ * the required bus ID may not be available.
+ *
+ * When this returns zero, the specified adapter became available for
+ * clients using the bus number provided in adap->nr.  Also, the table
+ * of I2C devices pre-declared using i2c_register_board_info() is scanned,
+ * and the appropriate driver model device nodes are created.  Otherwise, a
+ * negative errno value is returned.
+ */
+int i2c_add_numbered_adapter(struct i2c_adapter *adap)
+{
+	int	id;
+	int	status;
+
+	if (adap->nr & ~MAX_ID_MASK)
+		return -EINVAL;
+
+retry:
+	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0)
+		return -ENOMEM;
+
+	mutex_lock(&core_lists);
+	/* "above" here means "above or equal to", sigh;
+	 * we need the "equal to" result to force the result
+	 */
+	status = idr_get_new_above(&i2c_adapter_idr, adap, adap->nr, &id);
+	if (status == 0 && id != adap->nr) {
+		status = -EBUSY;
+		idr_remove(&i2c_adapter_idr, id);
+	}
+	mutex_unlock(&core_lists);
+	if (status == -EAGAIN)
+		goto retry;
+
+	if (status == 0)
+		status = i2c_register_adapter(adap);
+	return status;
+}
+EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
@@ -452,7 +524,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	/* wait for sysfs to drop all references */
 	wait_for_completion(&adap->dev_released);
 
-	/* free dynamically allocated bus id */
+	/* free bus id */
 	idr_remove(&i2c_adapter_idr, adap->nr);
 
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
@@ -493,6 +565,9 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	driver->driver.owner = owner;
 	driver->driver.bus = &i2c_bus_type;
 
+	/* for new style drivers, when registration returns the driver core
+	 * will have called probe() for all matching-but-unbound devices.
+	 */
 	res = driver_register(&driver->driver);
 	if (res)
 		return res;
@@ -1377,7 +1452,6 @@ EXPORT_SYMBOL_GPL(i2c_adapter_dev_release);
 EXPORT_SYMBOL_GPL(i2c_adapter_class);
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 
-EXPORT_SYMBOL(i2c_add_adapter);
 EXPORT_SYMBOL(i2c_del_adapter);
 EXPORT_SYMBOL(i2c_del_driver);
 EXPORT_SYMBOL(i2c_attach_client);

@@ -363,6 +363,7 @@ struct i2c_client_address_data {
  */
 extern int i2c_add_adapter(struct i2c_adapter *);
 extern int i2c_del_adapter(struct i2c_adapter *);
+extern int i2c_add_numbered_adapter(struct i2c_adapter *);
 
 extern int i2c_register_driver(struct module *, struct i2c_driver *);
 extern int i2c_del_driver(struct i2c_driver *);
