@@ -23,6 +23,8 @@
 #define OF_ROOT_NODE_ADDR_CELLS_DEFAULT	2
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT	1
 
+#define of_compat_cmp(s1, s2, l)	strncmp((s1), (s2), (l))
+
 typedef u32 phandle;
 typedef u32 ihandle;
 
