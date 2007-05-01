@@ -293,12 +293,20 @@ static void pluto_dma_end(struct pluto *pluto, unsigned int nbpackets)
 	 *     but no packets have been transfered.
 	 * [2] Sometimes (actually very often) NBPACKETS stays at zero
 	 *     although one packet has been transfered.
+	 * [3] Sometimes (actually rarely), the card gets into an erroneous
+	 *     mode where it continuously generates interrupts, claiming it
+	 *     has recieved nbpackets>TS_DMA_PACKETS packets, but no packet
+	 *     has been transfered. Only a reset seems to solve this
 	 */
 	if ((nbpackets == 0) || (nbpackets > TS_DMA_PACKETS)) {
 		unsigned int i = 0;
 		while (pluto->dma_buf[i] == 0x47)
 			i += 188;
 		nbpackets = i / 188;
+		if (i == 0) {
+			pluto_reset_ts(pluto, 1);
+			dev_printk(KERN_DEBUG, &pluto->pdev->dev, "resetting TS because of invalid packet counter\n");
+		}
 	}
 
 	dvb_dmx_swfilter_packets(&pluto->demux, pluto->dma_buf, nbpackets);
