@@ -35,6 +35,7 @@
 #include <linux/pci.h>
 #include <linux/wait.h>
 
+#include <linux/isa.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pcf.h>
 
@@ -207,7 +208,7 @@ static struct i2c_adapter pcf_isa_ops = {
 	.name		= "i2c-elektor",
 };
 
-static int __init i2c_pcfisa_init(void)
+static int __devinit elektor_match(struct device *dev, unsigned int id)
 {
 #ifdef __alpha__
 	/* check to see we have memory mapped PCF8584 connected to the
@@ -222,9 +223,8 @@ static int __init i2c_pcfisa_init(void)
 			/* yeap, we've found cypress, let's check config */
 			if (!pci_read_config_byte(cy693_dev, 0x47, &config)) {
 
-				pr_debug("%s: found cy82c693, config "
-					 "register 0x47 = 0x%02x\n",
-					 pcf_isa_ops.name, config);
+				dev_dbg(dev, "found cy82c693, config "
+					"register 0x47 = 0x%02x\n", config);
 
 				/* UP2000 board has this register set to 0xe1,
 				   but the most significant bit as seems can be
@@ -244,9 +244,9 @@ static int __init i2c_pcfisa_init(void)
 					   8.25 MHz (PCI/4) clock
 					   (this can be read from cypress) */
 					clock = I2C_PCF_CLK | I2C_PCF_TRNS90;
-					pr_info("%s: found API UP2000 like "
-						"board, will probe PCF8584 "
-						"later\n", pcf_isa_ops.name);
+					dev_info(dev, "found API UP2000 like "
+						 "board, will probe PCF8584 "
+						 "later\n");
 				}
 			}
 			pci_dev_put(cy693_dev);
@@ -256,22 +256,27 @@ static int __init i2c_pcfisa_init(void)
 
 	/* sanity checks for mmapped I/O */
 	if (mmapped && base < 0xc8000) {
-		printk(KERN_ERR "%s: incorrect base address (%#x) specified "
-		       "for mmapped I/O\n", pcf_isa_ops.name, base);
-		return -ENODEV;
+		dev_err(dev, "incorrect base address (%#x) specified "
+		       "for mmapped I/O\n", base);
+		return 0;
 	}
 
 	if (base == 0) {
 		base = DEFAULT_BASE;
 	}
+	return 1;
+}
 
+static int __devinit elektor_probe(struct device *dev, unsigned int id)
+{
 	init_waitqueue_head(&pcf_wait);
 	if (pcf_isa_init())
 		return -ENODEV;
+	pcf_isa_ops.dev.parent = dev;
 	if (i2c_pcf_add_bus(&pcf_isa_ops) < 0)
 		goto fail;
 
-	dev_info(&pcf_isa_ops.dev, "found device at %#x\n", base);
+	dev_info(dev, "found device at %#x\n", base);
 
 	return 0;
 
@@ -291,7 +296,7 @@ static int __init i2c_pcfisa_init(void)
 	return -ENODEV;
 }
 
-static void i2c_pcfisa_exit(void)
+static int __devexit elektor_remove(struct device *dev, unsigned int id)
 {
 	i2c_del_adapter(&pcf_isa_ops);
 
@@ -307,6 +312,28 @@ static void i2c_pcfisa_exit(void)
 		iounmap(base_iomem);
 		release_mem_region(base, 2);
 	}
+
+	return 0;
+}
+
+static struct isa_driver i2c_elektor_driver = {
+	.match		= elektor_match,
+	.probe		= elektor_probe,
+	.remove		= __devexit_p(elektor_remove),
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "i2c-elektor",
+	},
+};
+
+static int __init i2c_pcfisa_init(void)
+{
+	return isa_register_driver(&i2c_elektor_driver, 1);
+}
+
+static void __exit i2c_pcfisa_exit(void)
+{
+	isa_unregister_driver(&i2c_elektor_driver);
 }
 
 MODULE_AUTHOR("Hans Berglund <hb@spacetec.no>");
