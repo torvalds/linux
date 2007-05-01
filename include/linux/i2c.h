@@ -245,6 +245,15 @@ struct i2c_board_info {
 extern struct i2c_client *
 i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info);
 
+/* If you don't know the exact address of an I2C device, use this variant
+ * instead, which can probe for device presence in a list of possible
+ * addresses.
+ */
+extern struct i2c_client *
+i2c_new_probed_device(struct i2c_adapter *adap,
+		      struct i2c_board_info *info,
+		      unsigned short const *addr_list);
+
 extern void i2c_unregister_device(struct i2c_client *);
 
 /* Mainboard arch_initcall() code should register all its I2C devices.

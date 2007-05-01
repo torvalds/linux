@@ -1092,6 +1092,69 @@ int i2c_probe(struct i2c_adapter *adapter,
 }
 EXPORT_SYMBOL(i2c_probe);
 
+struct i2c_client *
+i2c_new_probed_device(struct i2c_adapter *adap,
+		      struct i2c_board_info *info,
+		      unsigned short const *addr_list)
+{
+	int i;
+
+	/* Stop here if the bus doesn't support probing */
+	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_READ_BYTE)) {
+		dev_err(&adap->dev, "Probing not supported\n");
+		return NULL;
+	}
+
+	mutex_lock(&adap->clist_lock);
+	for (i = 0; addr_list[i] != I2C_CLIENT_END; i++) {
+		/* Check address validity */
+		if (addr_list[i] < 0x03 || addr_list[i] > 0x77) {
+			dev_warn(&adap->dev, "Invalid 7-bit address "
+				 "0x%02x\n", addr_list[i]);
+			continue;
+		}
+
+		/* Check address availability */
+		if (__i2c_check_addr(adap, addr_list[i])) {
+			dev_dbg(&adap->dev, "Address 0x%02x already in "
+				"use, not probing\n", addr_list[i]);
+			continue;
+		}
+
+		/* Test address responsiveness
+		   The default probe method is a quick write, but it is known
+		   to corrupt the 24RF08 EEPROMs due to a state machine bug,
+		   and could also irreversibly write-protect some EEPROMs, so
+		   for address ranges 0x30-0x37 and 0x50-0x5f, we use a byte
+		   read instead. Also, some bus drivers don't implement
+		   quick write, so we fallback to a byte read it that case
+		   too. */
+		if ((addr_list[i] & ~0x07) == 0x30
+		 || (addr_list[i] & ~0x0f) == 0x50
+		 || !i2c_check_functionality(adap, I2C_FUNC_SMBUS_QUICK)) {
+			if (i2c_smbus_xfer(adap, addr_list[i], 0,
+					   I2C_SMBUS_READ, 0,
+					   I2C_SMBUS_BYTE, NULL) >= 0)
+				break;
+		} else {
+			if (i2c_smbus_xfer(adap, addr_list[i], 0,
+					   I2C_SMBUS_WRITE, 0,
+					   I2C_SMBUS_QUICK, NULL) >= 0)
+				break;
+		}
+	}
+	mutex_unlock(&adap->clist_lock);
+
+	if (addr_list[i] == I2C_CLIENT_END) {
+		dev_dbg(&adap->dev, "Probing failed, no device found\n");
+		return NULL;
+	}
+
+	info->addr = addr_list[i];
+	return i2c_new_device(adap, info);
+}
+EXPORT_SYMBOL_GPL(i2c_new_probed_device);
+
 struct i2c_adapter* i2c_get_adapter(int id)
 {
 	struct i2c_adapter *adapter;
