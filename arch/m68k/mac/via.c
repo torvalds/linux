@@ -430,8 +430,8 @@ irqreturn_t via1_irq(int irq, void *dev_id)
 	for (i = 0, irq_bit = 1 ; i < 7 ; i++, irq_bit <<= 1)
 		if (events & irq_bit) {
 			via1[vIER] = irq_bit;
-			m68k_handle_int(VIA1_SOURCE_BASE + i);
 			via1[vIFR] = irq_bit;
+			m68k_handle_int(VIA1_SOURCE_BASE + i);
 			via1[vIER] = irq_bit | 0x80;
 		}
 

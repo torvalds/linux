@@ -149,8 +149,8 @@ irqreturn_t psc_irq(int irq, void *dev_id)
 	for (i = 0, irq_bit = 1 ; i < 4 ; i++, irq_bit <<= 1) {
 	        if (events & irq_bit) {
 			psc_write_byte(pIER, irq_bit);
-			m68k_handle_int(base_irq + i);
 			psc_write_byte(pIFR, irq_bit);
+			m68k_handle_int(base_irq + i);
 			psc_write_byte(pIER, irq_bit | 0x80);
 		}
 	}
