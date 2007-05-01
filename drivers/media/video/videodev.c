@@ -437,6 +437,24 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		v4l_print_ioctl(vfd->name, cmd);
 	}
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+	/* --- streaming capture ------------------------------------- */
+	if (cmd == VIDIOCGMBUF) {
+		struct video_mbuf *p=arg;
+
+		memset(p,0,sizeof(p));
+
+		if (!vfd->vidiocgmbuf)
+			return ret;
+		ret=vfd->vidiocgmbuf(file, fh, p);
+		if (!ret)
+			dbgarg (cmd, "size=%d, frames=%d, offsets=0x%08lx\n",
+						p->size, p->frames,
+						(unsigned long)p->offsets);
+		return ret;
+	}
+#endif
+
 	if (_IOC_TYPE(cmd)=='v')
 		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
 						__video_do_ioctl);
@@ -791,24 +809,6 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_overlay(file, fh, *i);
 		break;
 	}
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	/* --- streaming capture ------------------------------------- */
-	case VIDIOCGMBUF:
-	{
-		struct video_mbuf *p=arg;
-
-		memset(p,0,sizeof(p));
-
-		if (!vfd->vidiocgmbuf)
-			break;
-		ret=vfd->vidiocgmbuf(file, fh, p);
-		if (!ret)
-			dbgarg (cmd, "size=%d, frames=%d, offsets=0x%08lx\n",
-						p->size, p->frames,
-						(unsigned long)p->offsets);
-		break;
-	}
-#endif
 	case VIDIOC_G_FBUF:
 	{
 		struct v4l2_framebuffer *p=arg;
