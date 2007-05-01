@@ -113,12 +113,6 @@ void i2c_adapter_dev_release(struct device *dev)
 	complete(&adap->dev_released);
 }
 
-struct device_driver i2c_adapter_driver = {
-	.owner = THIS_MODULE,
-	.name =	"i2c_adapter",
-	.bus = &i2c_bus_type,
-};
-
 /* ------------------------------------------------------------------------- */
 
 /* I2C bus adapters -- one roots each I2C or SMBUS segment */
@@ -202,7 +196,6 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 			 "physical device\n", adap->name);
 	}
 	sprintf(adap->dev.bus_id, "i2c-%d", adap->nr);
-	adap->dev.driver = &i2c_adapter_driver;
 	adap->dev.release = &i2c_adapter_dev_release;
 	adap->dev.class = &i2c_adapter_class;
 	res = device_register(&adap->dev);
@@ -577,16 +570,12 @@ static int __init i2c_init(void)
 	retval = bus_register(&i2c_bus_type);
 	if (retval)
 		return retval;
-	retval = driver_register(&i2c_adapter_driver);
-	if (retval)
-		return retval;
 	return class_register(&i2c_adapter_class);
 }
 
 static void __exit i2c_exit(void)
 {
 	class_unregister(&i2c_adapter_class);
-	driver_unregister(&i2c_adapter_driver);
 	bus_unregister(&i2c_bus_type);
 }
 
@@ -1174,9 +1163,8 @@ s32 i2c_smbus_xfer(struct i2c_adapter * adapter, u16 addr, unsigned short flags,
 }
 
 
-/* Next four are needed by i2c-isa */
+/* Next three are needed by i2c-isa */
 EXPORT_SYMBOL_GPL(i2c_adapter_dev_release);
-EXPORT_SYMBOL_GPL(i2c_adapter_driver);
 EXPORT_SYMBOL_GPL(i2c_adapter_class);
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 

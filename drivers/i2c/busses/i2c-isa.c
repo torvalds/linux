@@ -139,7 +139,6 @@ static int __init i2c_isa_init(void)
 	isa_adapter.nr = ANY_I2C_ISA_BUS;
 	isa_adapter.dev.parent = &platform_bus;
 	sprintf(isa_adapter.dev.bus_id, "i2c-%d", isa_adapter.nr);
-	isa_adapter.dev.driver = &i2c_adapter_driver;
 	isa_adapter.dev.release = &i2c_adapter_dev_release;
 	isa_adapter.dev.class = &i2c_adapter_class;
 	err = device_register(&isa_adapter.dev);
