@@ -143,13 +143,6 @@ static struct i2c_algo_bit_data parport_algo_data = {
 
 /* ----- I2c and parallel port call-back functions and structures --------- */
 
-static struct i2c_adapter parport_adapter = {
-	.owner		= THIS_MODULE,
-	.class		= I2C_CLASS_HWMON,
-	.id		= I2C_HW_B_LP,
-	.name		= "Parallel port adapter",
-};
-
 static void i2c_parport_attach (struct parport *port)
 {
 	struct i2c_par *adapter;
@@ -169,7 +162,11 @@ static void i2c_parport_attach (struct parport *port)
 	}
 
 	/* Fill the rest of the structure */
-	adapter->adapter = parport_adapter;
+	adapter->adapter.owner = THIS_MODULE;
+	adapter->adapter.class = I2C_CLASS_HWMON;
+	adapter->adapter.id = I2C_HW_B_LP;
+	strlcpy(adapter->adapter.name, "Parallel port adapter",
+		sizeof(adapter->adapter.name));
 	adapter->algo_data = parport_algo_data;
 	if (!adapter_parm[type].getscl.val)
 		adapter->algo_data.getscl = NULL;
