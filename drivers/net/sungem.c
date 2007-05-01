@@ -2903,7 +2903,7 @@ static int __devinit gem_get_device_address(struct gem *gp)
 	struct net_device *dev = gp->dev;
 	const unsigned char *addr;
 
-	addr = get_property(gp->of_node, "local-mac-address", NULL);
+	addr = of_get_property(gp->of_node, "local-mac-address", NULL);
 	if (addr == NULL) {
 #ifdef CONFIG_SPARC
 		addr = idprom->id_ethaddr;

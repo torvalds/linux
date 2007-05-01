@@ -471,7 +471,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
 		goto out_free;
 	}
 
-       	clkprop = get_property(node, "clock-frequency", &proplen);
+	clkprop = of_get_property(node, "clock-frequency", &proplen);
        	if (clkprop == NULL || proplen != sizeof(int)) {
        		printk(KERN_ERR "%s: can't get clock frequency, "
        		       "assuming 25MHz\n", node->full_name);

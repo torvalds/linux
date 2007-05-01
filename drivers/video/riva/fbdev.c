@@ -1760,13 +1760,13 @@ static int __devinit riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 	NVTRACE_ENTER();
 	dp = pci_device_to_OF_node(pd);
 	for (; dp != NULL; dp = dp->child) {
-		disptype = get_property(dp, "display-type", NULL);
+		disptype = of_get_property(dp, "display-type", NULL);
 		if (disptype == NULL)
 			continue;
 		if (strncmp(disptype, "LCD", 3) != 0)
 			continue;
 		for (i = 0; propnames[i] != NULL; ++i) {
-			pedid = get_property(dp, propnames[i], NULL);
+			pedid = of_get_property(dp, propnames[i], NULL);
 			if (pedid != NULL) {
 				par->EDID = (unsigned char *)pedid;
 				NVTRACE("LCD found.\n");

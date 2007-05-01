@@ -48,7 +48,7 @@ static int parse_flash_partitions(struct device_node *node,
 	const  u32  *part;
 	const  char *name;
 
-	part = get_property(node, "partitions", &plen);
+	part = of_get_property(node, "partitions", &plen);
 	if (part == NULL)
 		goto err;
 
@@ -59,7 +59,7 @@ static int parse_flash_partitions(struct device_node *node,
 		goto err;
 	}
 
-	name = get_property(node, "partition-names", &plen);
+	name = of_get_property(node, "partition-names", &plen);
 
 	for (i = 0; i < retval; i++) {
 		(*parts)[i].offset = *part++;
@@ -153,7 +153,7 @@ static int __devinit of_physmap_probe(struct of_device *dev, const struct of_dev
 		goto err_out;
 	}
 
-	width = get_property(dp, "bank-width", NULL);
+	width = of_get_property(dp, "bank-width", NULL);
 	if (width == NULL) {
 		dev_err(&dev->dev, "Can't get the flash bank width!\n");
 		err = -EINVAL;
@@ -174,7 +174,7 @@ static int __devinit of_physmap_probe(struct of_device *dev, const struct of_dev
 
 	simple_map_init(&info->map);
 
-	of_probe = get_property(dp, "probe-type", NULL);
+	of_probe = of_get_property(dp, "probe-type", NULL);
 	if (of_probe == NULL) {
 		probe_type = rom_probe_types;
 		for (; info->mtd == NULL && *probe_type != NULL; probe_type++)
