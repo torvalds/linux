@@ -1,7 +1,6 @@
 #ifndef _TAS_IOCTL_H_
 #define _TAS_IOCTL_H_
 
-#include <linux/i2c.h>
 #include <linux/soundcard.h>
 
 
