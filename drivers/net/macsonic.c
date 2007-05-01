@@ -402,7 +402,7 @@ int __init macsonic_ident(struct nubus_dev* ndev)
 	    ndev->dr_sw == NUBUS_DRSW_DAYNA)
 		return MACSONIC_DAYNA;
 
-	if (ndev->dr_hw == NUBUS_DRHW_SONIC_LC &&
+	if (ndev->dr_hw == NUBUS_DRHW_APPLE_SONIC_LC &&
 	    ndev->dr_sw == 0) { /* huh? */
 		return MACSONIC_APPLE16;
 	}
