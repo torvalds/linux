@@ -22,6 +22,11 @@ config I2C
 	  This I2C support can also be built as a module.  If so, the module
 	  will be called i2c-core.
 
+config I2C_BOARDINFO
+	boolean
+	depends on I2C
+	default y
+
 config I2C_CHARDEV
 	tristate "I2C device interface"
 	depends on I2C

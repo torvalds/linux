@@ -35,6 +35,8 @@
 #include <linux/completion.h>
 #include <asm/uaccess.h>
 
+#include "i2c-core.h"
+
 
 static LIST_HEAD(adapters);
 static LIST_HEAD(drivers);
@@ -162,6 +164,11 @@ static void i2c_client_release(struct device *dev)
 	complete(&client->released);
 }
 
+static void i2c_client_dev_release(struct device *dev)
+{
+	kfree(to_i2c_client(dev));
+}
+
 static ssize_t show_client_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -195,7 +202,60 @@ struct bus_type i2c_bus_type = {
 	.resume		= i2c_device_resume,
 };
 
-static void i2c_unregister_device(struct i2c_client *client)
+/**
+ * i2c_new_device - instantiate an i2c device for use with a new style driver
+ * @adap: the adapter managing the device
+ * @info: describes one I2C device; bus_num is ignored
+ *
+ * Create a device to work with a new style i2c driver, where binding is
+ * handled through driver model probe()/remove() methods.  This call is not
+ * appropriate for use by mainboad initialization logic, which usually runs
+ * during an arch_initcall() long before any i2c_adapter could exist.
+ *
+ * This returns the new i2c client, which may be saved for later use with
+ * i2c_unregister_device(); or NULL to indicate an error.
+ */
+struct i2c_client *
+i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
+{
+	struct i2c_client	*client;
+	int			status;
+
+	client = kzalloc(sizeof *client, GFP_KERNEL);
+	if (!client)
+		return NULL;
+
+	client->adapter = adap;
+
+	client->dev.platform_data = info->platform_data;
+	client->flags = info->flags;
+	client->addr = info->addr;
+	client->irq = info->irq;
+
+	strlcpy(client->driver_name, info->driver_name,
+		sizeof(client->driver_name));
+	strlcpy(client->name, info->type, sizeof(client->name));
+
+	/* a new style driver may be bound to this device when we
+	 * return from this function, or any later moment (e.g. maybe
+	 * hotplugging will load the driver module).  and the device
+	 * refcount model is the standard driver model one.
+	 */
+	status = i2c_attach_client(client);
+	if (status < 0) {
+		kfree(client);
+		client = NULL;
+	}
+	return client;
+}
+EXPORT_SYMBOL_GPL(i2c_new_device);
+
+
+/**
+ * i2c_unregister_device - reverse effect of i2c_new_device()
+ * @client: value returned from i2c_new_device()
+ */
+void i2c_unregister_device(struct i2c_client *client)
 {
 	struct i2c_adapter	*adapter = client->adapter;
 	struct i2c_driver	*driver = client->driver;
@@ -213,6 +273,7 @@ static void i2c_unregister_device(struct i2c_client *client)
 
 	device_unregister(&client->dev);
 }
+EXPORT_SYMBOL_GPL(i2c_unregister_device);
 
 
 /* ------------------------------------------------------------------------- */
@@ -242,6 +303,22 @@ struct class i2c_adapter_class = {
 	.name			= "i2c-adapter",
 	.dev_attrs		= i2c_adapter_attrs,
 };
+
+static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
+{
+	struct i2c_devinfo	*devinfo;
+
+	mutex_lock(&__i2c_board_lock);
+	list_for_each_entry(devinfo, &__i2c_board_list, list) {
+		if (devinfo->busnum == adapter->nr
+				&& !i2c_new_device(adapter,
+						&devinfo->board_info))
+			printk(KERN_ERR "i2c-core: can't create i2c%d-%04x\n",
+				i2c_adapter_id(adapter),
+				devinfo->board_info.addr);
+	}
+	mutex_unlock(&__i2c_board_lock);
+}
 
 
 /* -----
@@ -310,7 +387,6 @@ out_list:
 	idr_remove(&i2c_adapter_idr, adap->nr);
 	goto out_unlock;
 }
-
 
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
@@ -541,9 +617,15 @@ int i2c_attach_client(struct i2c_client *client)
 	client->usage_count = 0;
 
 	client->dev.parent = &client->adapter->dev;
-	client->dev.driver = &client->driver->driver;
 	client->dev.bus = &i2c_bus_type;
-	client->dev.release = &i2c_client_release;
+
+	if (client->driver)
+		client->dev.driver = &client->driver->driver;
+
+	if (client->driver && !is_newstyle_driver(client->driver))
+		client->dev.release = i2c_client_release;
+	else
+		client->dev.release = i2c_client_dev_release;
 
 	snprintf(&client->dev.bus_id[0], sizeof(client->dev.bus_id),
 		"%d-%04x", i2c_adapter_id(adapter), client->addr);

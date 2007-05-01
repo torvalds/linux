@@ -172,6 +172,7 @@ struct i2c_client {
 	int usage_count;		/* How many accesses currently  */
 					/* to the client		*/
 	struct device dev;		/* the device structure		*/
+	int irq;			/* irq issued by device (or -1) */
 	char driver_name[KOBJ_NAME_LEN];
 	struct list_head list;
 	struct completion released;
@@ -192,6 +193,67 @@ static inline void i2c_set_clientdata (struct i2c_client *dev, void *data)
 {
 	dev_set_drvdata (&dev->dev, data);
 }
+
+/**
+ * struct i2c_board_info - template for device creation
+ * @driver_name: identifies the driver to be bound to the device
+ * @type: optional chip type information, to initialize i2c_client.name
+ * @flags: to initialize i2c_client.flags
+ * @addr: stored in i2c_client.addr
+ * @platform_data: stored in i2c_client.dev.platform_data
+ * @irq: stored in i2c_client.irq
+
+ * I2C doesn't actually support hardware probing, although controllers and
+ * devices may be able to use I2C_SMBUS_QUICK to tell whether or not there's
+ * a device at a given address.  Drivers commonly need more information than
+ * that, such as chip type, configuration, associated IRQ, and so on.
+ *
+ * i2c_board_info is used to build tables of information listing I2C devices
+ * that are present.  This information is used to grow the driver model tree
+ * for "new style" I2C drivers.  For mainboards this is done statically using
+ * i2c_register_board_info(), where @bus_num represents an adapter that isn't
+ * yet available.  For add-on boards, i2c_new_device() does this dynamically
+ * with the adapter already known.
+ */
+struct i2c_board_info {
+	char		driver_name[KOBJ_NAME_LEN];
+	char		type[I2C_NAME_SIZE];
+	unsigned short	flags;
+	unsigned short	addr;
+	void		*platform_data;
+	int		irq;
+};
+
+/**
+ * I2C_BOARD_INFO - macro used to list an i2c device and its driver
+ * @driver: identifies the driver to use with the device
+ * @dev_addr: the device's address on the bus.
+ *
+ * This macro initializes essential fields of a struct i2c_board_info,
+ * declaring what has been provided on a particular board.  Optional
+ * fields (such as the chip type, its associated irq, or device-specific
+ * platform_data) are provided using conventional syntax.
+ */
+#define I2C_BOARD_INFO(driver,dev_addr) \
+	.driver_name = (driver), .addr = (dev_addr)
+
+
+/* Add-on boards should register/unregister their devices; e.g. a board
+ * with integrated I2C, a config eeprom, sensors, and a codec that's
+ * used in conjunction with the primary hardware.
+ */
+extern struct i2c_client *
+i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info);
+
+extern void i2c_unregister_device(struct i2c_client *);
+
+/* Mainboard arch_initcall() code should register all its I2C devices.
+ * This is done at arch_initcall time, before declaring any i2c adapters.
+ * Modules for add-on boards must use other calls.
+ */
+extern int
+i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsigned n);
+
 
 /*
  * The following structs are for those who like to implement new bus drivers:
