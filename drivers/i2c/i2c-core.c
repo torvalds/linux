@@ -111,14 +111,14 @@ struct bus_type i2c_bus_type = {
 
 void i2c_adapter_dev_release(struct device *dev)
 {
-	struct i2c_adapter *adap = dev_to_i2c_adapter(dev);
+	struct i2c_adapter *adap = to_i2c_adapter(dev);
 	complete(&adap->dev_released);
 }
 
 static ssize_t
 show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct i2c_adapter *adap = dev_to_i2c_adapter(dev);
+	struct i2c_adapter *adap = to_i2c_adapter(dev);
 	return sprintf(buf, "%s\n", adap->name);
 }
 

@@ -239,7 +239,7 @@ struct i2c_adapter {
 	char name[48];
 	struct completion dev_released;
 };
-#define dev_to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
+#define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
 static inline void *i2c_get_adapdata (struct i2c_adapter *dev)
 {
