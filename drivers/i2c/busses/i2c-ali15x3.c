@@ -492,7 +492,7 @@ static int __devinit ali15x3_probe(struct pci_dev *dev, const struct pci_device_
 	/* set up the sysfs linkage to our parent device */
 	ali15x3_adapter.dev.parent = &dev->dev;
 
-	snprintf(ali15x3_adapter.name, I2C_NAME_SIZE,
+	snprintf(ali15x3_adapter.name, sizeof(ali15x3_adapter.name),
 		"SMBus ALI15X3 adapter at %04x", ali15x3_smba);
 	return i2c_add_adapter(&ali15x3_adapter);
 }

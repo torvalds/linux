@@ -240,7 +240,7 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
 	smbus->adapter.dev.parent = &dev->dev;
-	snprintf(smbus->adapter.name, I2C_NAME_SIZE,
+	snprintf(smbus->adapter.name, sizeof(smbus->adapter.name),
 		"SMBus nForce2 adapter at %04x", smbus->base);
 
 	error = i2c_add_adapter(&smbus->adapter);

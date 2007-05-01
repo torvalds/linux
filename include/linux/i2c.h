@@ -140,25 +140,30 @@ struct i2c_driver {
 };
 #define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
 
-#define I2C_NAME_SIZE	50
+#define I2C_NAME_SIZE	20
 
-/*
- * i2c_client identifies a single device (i.e. chip) that is connected to an
- * i2c bus. The behaviour is defined by the routines of the driver. This
- * function is mainly used for lookup & other admin. functions.
+/**
+ * struct i2c_client - represent an I2C slave device
+ * @addr: Address used on the I2C bus connected to the parent adapter.
+ * @name: Indicates the type of the device, usually a chip name that's
+ *	generic enough to hide second-sourcing and compatible revisions.
+ * @dev: Driver model device node for the slave.
+ *
+ * An i2c_client identifies a single device (i.e. chip) connected to an
+ * i2c bus. The behaviour is defined by the routines of the driver.
  */
 struct i2c_client {
-	unsigned int flags;		/* div., see below		*/
+	unsigned short flags;		/* div., see below		*/
 	unsigned short addr;		/* chip address - NOTE: 7bit	*/
 					/* addresses are stored in the	*/
 					/* _LOWER_ 7 bits		*/
+	char name[I2C_NAME_SIZE];
 	struct i2c_adapter *adapter;	/* the adapter we sit on	*/
 	struct i2c_driver *driver;	/* and our access routines	*/
 	int usage_count;		/* How many accesses currently  */
 					/* to the client		*/
 	struct device dev;		/* the device structure		*/
 	struct list_head list;
-	char name[I2C_NAME_SIZE];
 	struct completion released;
 };
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
@@ -231,7 +236,7 @@ struct i2c_adapter {
 	int nr;
 	struct list_head clients;
 	struct list_head list;
-	char name[I2C_NAME_SIZE];
+	char name[48];
 	struct completion dev_released;
 };
 #define dev_to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
