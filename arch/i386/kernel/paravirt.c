@@ -292,6 +292,7 @@ struct paravirt_ops paravirt_ops = {
 	.apic_read = native_apic_read,
 	.setup_boot_clock = setup_boot_APIC_clock,
 	.setup_secondary_clock = setup_secondary_APIC_clock,
+	.startup_ipi_hook = paravirt_nop,
 #endif
 	.set_lazy_mode = paravirt_nop,
 
@@ -342,8 +343,6 @@ struct paravirt_ops paravirt_ops = {
 	.dup_mmap = paravirt_nop,
 	.exit_mmap = paravirt_nop,
 	.activate_mm = paravirt_nop,
-
-	.startup_ipi_hook = paravirt_nop,
 };
 
 EXPORT_SYMBOL(paravirt_ops);
