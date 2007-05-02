@@ -895,6 +895,7 @@ static u64 ata_read_native_max_address(struct ata_device *dev)
 /**
  *	ata_set_native_max_address_ext	-	LBA48 native max set
  *	@dev: Device to query
+ *	@new_sectors: new max sectors value to set for the device
  *
  *	Perform an LBA48 size set max upon the device in question. Return the
  *	actual LBA48 size or zero if the command fails.
@@ -932,6 +933,7 @@ static u64 ata_set_native_max_address_ext(struct ata_device *dev, u64 new_sector
 /**
  *	ata_set_native_max_address	-	LBA28 native max set
  *	@dev: Device to query
+ *	@new_sectors: new max sectors value to set for the device
  *
  *	Perform an LBA28 size set max upon the device in question. Return the
  *	actual LBA28 size or zero if the command fails.
