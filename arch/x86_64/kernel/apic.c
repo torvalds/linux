@@ -68,6 +68,28 @@ int using_apic_timer __read_mostly = 0;
 
 static void apic_pm_activate(void);
 
+void apic_wait_icr_idle(void)
+{
+	while (apic_read(APIC_ICR) & APIC_ICR_BUSY)
+		cpu_relax();
+}
+
+unsigned int safe_apic_wait_icr_idle(void)
+{
+	unsigned int send_status;
+	int timeout;
+
+	timeout = 0;
+	do {
+		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
+		if (!send_status)
+			break;
+		udelay(100);
+	} while (timeout++ < 1000);
+
+	return send_status;
+}
+
 void enable_NMI_through_LVT0 (void * dummy)
 {
 	unsigned int v;
