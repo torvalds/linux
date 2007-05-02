@@ -17,7 +17,7 @@
 #include <asm/apic.h>
 #include <asm/desc.h>
 #include "mach_reboot.h"
-#include <linux/reboot_fixups.h>
+#include <asm/reboot_fixups.h>
 
 /*
  * Power off function, if any
@@ -314,6 +314,10 @@ void machine_shutdown(void)
 #ifdef CONFIG_X86_IO_APIC
 	disable_IO_APIC();
 #endif
+}
+
+void __attribute__((weak)) mach_reboot_fixups(void)
+{
 }
 
 void machine_emergency_restart(void)
