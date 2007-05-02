@@ -35,7 +35,6 @@ static inline cycles_t get_cycles(void)
 static __always_inline cycles_t get_cycles_sync(void)
 {
 	unsigned long long ret;
-#ifdef X86_FEATURE_SYNC_RDTSC
 	unsigned eax;
 
 	/*
@@ -44,9 +43,6 @@ static __always_inline cycles_t get_cycles_sync(void)
 	 */
 	alternative_io("cpuid", ASM_NOP2, X86_FEATURE_SYNC_RDTSC,
 			  "=a" (eax), "0" (1) : "ebx","ecx","edx","memory");
-#else
-	sync_core();
-#endif
 	rdtscll(ret);
 
 	return ret;
