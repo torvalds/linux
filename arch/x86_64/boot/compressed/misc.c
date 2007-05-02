@@ -358,7 +358,7 @@ asmlinkage void decompress_kernel(void *rmode, unsigned long heap,
 	insize = input_len;
 	inptr  = 0;
 
-	if ((ulg)output & 0x1fffffUL)
+	if ((ulg)output & (__KERNEL_ALIGN - 1))
 		error("Destination address not 2M aligned");
 	if ((ulg)output >= 0xffffffffffUL)
 		error("Destination address too large");
