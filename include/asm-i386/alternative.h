@@ -1,8 +1,6 @@
 #ifndef _I386_ALTERNATIVE_H
 #define _I386_ALTERNATIVE_H
 
-#ifdef __KERNEL__
-
 #include <asm/types.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
@@ -32,9 +30,7 @@ static inline void alternatives_smp_module_add(struct module *mod, char *name,
 					void *text, void *text_end) {}
 static inline void alternatives_smp_module_del(struct module *mod) {}
 static inline void alternatives_smp_switch(int smp) {}
-#endif
-
-#endif
+#endif	/* CONFIG_SMP */
 
 /*
  * Alternative instructions for different CPU types or capabilities.
