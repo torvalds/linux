@@ -1977,7 +1977,7 @@ store_edid:
 	movw	$0x4f15, %ax                    # do VBE/DDC
 	movw	$0x01, %bx
 	movw	$0x00, %cx
-	movw    $0x01, %dx
+	movw    $0x00, %dx
 	movw	$0x140, %di
 	int	$0x10
 
