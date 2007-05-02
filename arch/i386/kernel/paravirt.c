@@ -346,10 +346,4 @@ struct paravirt_ops paravirt_ops = {
 	.startup_ipi_hook = paravirt_nop,
 };
 
-/*
- * NOTE: CONFIG_PARAVIRT is experimental and the paravirt_ops
- * semantics are subject to change. Hence we only do this
- * internal-only export of this, until it gets sorted out and
- * all lowlevel CPU ops used by modules are separately exported.
- */
-EXPORT_SYMBOL_GPL(paravirt_ops);
+EXPORT_SYMBOL(paravirt_ops);
