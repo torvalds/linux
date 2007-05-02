@@ -25,6 +25,9 @@
 #define OFFSET(sym, str, mem) \
 	DEFINE(sym, offsetof(struct str, mem));
 
+/* workaround for a warning with -Wmissing-prototypes */
+void foo(void);
+
 void foo(void)
 {
 	OFFSET(SIGCONTEXT_eax, sigcontext, eax);
