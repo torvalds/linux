@@ -62,6 +62,8 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 
 	reg = read_pci_config(0, nb, 0, 0x60); 
 	numnodes = ((reg >> 4) & 0xF) + 1;
+	if (numnodes <= 1)
+		return -1;
 
 	printk(KERN_INFO "Number of nodes %d\n", numnodes);
 
