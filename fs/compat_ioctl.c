@@ -2396,6 +2396,14 @@ lp_timeout_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 #define ULONG_IOCTL(cmd) \
 	{ (cmd), (ioctl_trans_handler_t)sys_ioctl },
 
+/* ioctl should not be warned about even if it's not implemented.
+   Valid reasons to use this:
+   - It is implemented with ->compat_ioctl on some device, but programs
+   call it on others too.
+   - The ioctl is not implemented in the native kernel, but programs
+   call it commonly anyways.
+   Most other reasons are not valid. */
+#define IGNORE_IOCTL(cmd) COMPATIBLE_IOCTL(cmd)
 
 struct ioctl_trans ioctl_start[] = {
 #include <linux/compat_ioctl.h>
