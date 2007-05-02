@@ -516,7 +516,6 @@ static void unmap_cpu_to_logical_apicid(int cpu)
 	unmap_cpu_to_node(cpu);
 }
 
-#if APIC_DEBUG
 static inline void __inquire_remote_apic(int apicid)
 {
 	int i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };
@@ -548,14 +547,13 @@ static inline void __inquire_remote_apic(int apicid)
 		switch (status) {
 		case APIC_ICR_RR_VALID:
 			status = apic_read(APIC_RRR);
-			printk("%08x\n", status);
+			printk("%lx\n", status);
 			break;
 		default:
 			printk("failed\n");
 		}
 	}
 }
-#endif
 
 #ifdef WAKE_SECONDARY_VIA_NMI
 /* 
