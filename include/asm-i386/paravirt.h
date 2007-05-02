@@ -15,6 +15,7 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
+#include <linux/cpumask.h>
 
 struct thread_struct;
 struct Xgt_desc_struct;
@@ -165,6 +166,8 @@ struct paravirt_ops
 	void (*flush_tlb_user)(void);
 	void (*flush_tlb_kernel)(void);
 	void (*flush_tlb_single)(unsigned long addr);
+	void (*flush_tlb_others)(const cpumask_t *cpus, struct mm_struct *mm,
+				 unsigned long va);
 
 	void (*map_pt_hook)(int type, pte_t *va, u32 pfn);
 
@@ -851,6 +854,12 @@ static inline void __flush_tlb_global(void)
 static inline void __flush_tlb_single(unsigned long addr)
 {
 	PVOP_VCALL1(flush_tlb_single, addr);
+}
+
+static inline void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
+				    unsigned long va)
+{
+	PVOP_VCALL3(flush_tlb_others, &cpumask, mm, va);
 }
 
 static inline void paravirt_map_pt_hook(int type, pte_t *va, u32 pfn)
