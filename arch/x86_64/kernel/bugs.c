@@ -3,19 +3,12 @@
  *
  *  Copyright (C) 1994  Linus Torvalds
  *  Copyright (C) 2000  SuSE
- *
- * This is included by init/main.c to check for architecture-dependent bugs.
- *
- * Needs:
- *	void check_bugs(void);
  */
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <asm/alternative.h>
 #include <asm/processor.h>
-#include <asm/i387.h>
-#include <asm/msr.h>
-#include <asm/pda.h>
 
 void __init check_bugs(void)
 {

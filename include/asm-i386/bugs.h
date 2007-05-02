@@ -7,6 +7,6 @@
 #ifndef _ASM_I386_BUG_H
 #define _ASM_I386_BUG_H
 
-extern void __init check_bugs(void);
+void check_bugs(void);
 
 #endif	/* _ASM_I386_BUG_H */
