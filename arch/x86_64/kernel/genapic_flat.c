@@ -8,6 +8,7 @@
  * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
  * James Cleverdon.
  */
+#include <linux/errno.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/string.h>
