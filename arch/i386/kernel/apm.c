@@ -233,10 +233,9 @@
 #include <asm/desc.h>
 #include <asm/i8253.h>
 #include <asm/paravirt.h>
+#include <asm/reboot.h>
 
 #include "io_ports.h"
-
-extern void machine_real_restart(unsigned char *, int);
 
 #if defined(CONFIG_APM_DISPLAY_BLANK) && defined(CONFIG_VT)
 extern int (*console_blank_hook)(int);

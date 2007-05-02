@@ -18,6 +18,7 @@
 #include <asm/desc.h>
 #include "mach_reboot.h"
 #include <asm/reboot_fixups.h>
+#include <asm/reboot.h>
 
 /*
  * Power off function, if any
@@ -280,7 +281,7 @@ void machine_real_restart(unsigned char *code, int length)
 EXPORT_SYMBOL(machine_real_restart);
 #endif
 
-void machine_shutdown(void)
+static void native_machine_shutdown(void)
 {
 #ifdef CONFIG_SMP
 	int reboot_cpu_id;
@@ -320,7 +321,7 @@ void __attribute__((weak)) mach_reboot_fixups(void)
 {
 }
 
-void machine_emergency_restart(void)
+static void native_machine_emergency_restart(void)
 {
 	if (!reboot_thru_bios) {
 		if (efi_enabled) {
@@ -344,17 +345,17 @@ void machine_emergency_restart(void)
 	machine_real_restart(jump_to_bios, sizeof(jump_to_bios));
 }
 
-void machine_restart(char * __unused)
+static void native_machine_restart(char * __unused)
 {
 	machine_shutdown();
 	machine_emergency_restart();
 }
 
-void machine_halt(void)
+static void native_machine_halt(void)
 {
 }
 
-void machine_power_off(void)
+static void native_machine_power_off(void)
 {
 	if (pm_power_off) {
 		machine_shutdown();
@@ -363,3 +364,35 @@ void machine_power_off(void)
 }
 
 
+struct machine_ops machine_ops = {
+	.power_off = native_machine_power_off,
+	.shutdown = native_machine_shutdown,
+	.emergency_restart = native_machine_emergency_restart,
+	.restart = native_machine_restart,
+	.halt = native_machine_halt,
+};
+
+void machine_power_off(void)
+{
+	machine_ops.power_off();
+}
+
+void machine_shutdown(void)
+{
+	machine_ops.shutdown();
+}
+
+void machine_emergency_restart(void)
+{
+	machine_ops.emergency_restart();
+}
+
+void machine_restart(char *cmd)
+{
+	machine_ops.restart(cmd);
+}
+
+void machine_halt(void)
+{
+	machine_ops.halt();
+}
