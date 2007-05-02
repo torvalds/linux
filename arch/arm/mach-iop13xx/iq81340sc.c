@@ -77,6 +77,7 @@ static void __init iq81340sc_init(void)
 {
 	iop13xx_platform_init();
 	iq81340sc_pci_init();
+	iop13xx_add_tpmi_devices();
 }
 
 static void __init iq81340sc_timer_init(void)
