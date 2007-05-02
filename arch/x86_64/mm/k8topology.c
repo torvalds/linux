@@ -49,10 +49,7 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 	int found = 0;
 	u32 reg;
 	unsigned numnodes;
-	nodemask_t nodes_parsed;
 	unsigned dualcore = 0;
-
-	nodes_clear(nodes_parsed);
 
 	if (!early_pci_allowed())
 		return -1;
@@ -102,7 +99,7 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 			       nodeid, (base>>8)&3, (limit>>8) & 3); 
 			return -1; 
 		}	
-		if (node_isset(nodeid, nodes_parsed)) { 
+		if (node_isset(nodeid, node_possible_map)) {
 			printk(KERN_INFO "Node %d already present. Skipping\n", 
 			       nodeid);
 			continue;
@@ -155,7 +152,7 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 
 		prevbase = base;
 
-		node_set(nodeid, nodes_parsed);
+		node_set(nodeid, node_possible_map);
 	} 
 
 	if (!found)
