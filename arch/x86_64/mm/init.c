@@ -565,11 +565,11 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 
 	printk(KERN_INFO "Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
 	for (addr = begin; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		memset((void *)(addr & ~(PAGE_SIZE-1)),
-			POISON_FREE_INITMEM, PAGE_SIZE);
-		free_page(addr);
+		struct page *page = pfn_to_page(addr >> PAGE_SHIFT);
+		ClearPageReserved(page);
+		init_page_count(page);
+		memset(page_address(page), POISON_FREE_INITMEM, PAGE_SIZE);
+		__free_page(page);
 		totalram_pages++;
 	}
 }
@@ -579,17 +579,18 @@ void free_initmem(void)
 	memset(__initdata_begin, POISON_FREE_INITDATA,
 		__initdata_end - __initdata_begin);
 	free_init_pages("unused kernel memory",
-			(unsigned long)(&__init_begin),
-			(unsigned long)(&__init_end));
+			__pa_symbol(&__init_begin),
+			__pa_symbol(&__init_end));
 }
 
 #ifdef CONFIG_DEBUG_RODATA
 
 void mark_rodata_ro(void)
 {
-	unsigned long addr = (unsigned long)__start_rodata;
+	unsigned long addr = (unsigned long)__va(__pa_symbol(&__start_rodata));
+	unsigned long end  = (unsigned long)__va(__pa_symbol(&__end_rodata));
 
-	for (; addr < (unsigned long)__end_rodata; addr += PAGE_SIZE)
+	for (; addr < end; addr += PAGE_SIZE)
 		change_page_attr_addr(addr, 1, PAGE_KERNEL_RO);
 
 	printk ("Write protecting the kernel read-only data: %luk\n",
@@ -608,7 +609,7 @@ void mark_rodata_ro(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	free_init_pages("initrd memory", start, end);
+	free_init_pages("initrd memory", __pa(start), __pa(end));
 }
 #endif
 

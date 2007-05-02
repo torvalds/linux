@@ -45,6 +45,11 @@
 
 #define __vsyscall(nr) __attribute__ ((unused,__section__(".vsyscall_" #nr)))
 #define __syscall_clobber "r11","rcx","memory"
+#define __pa_vsymbol(x)			\
+	({unsigned long v;  		\
+	extern char __vsyscall_0; 	\
+	  asm("" : "=r" (v) : "0" (x)); \
+	  ((v - VSYSCALL_FIRST_PAGE) + __pa_symbol(&__vsyscall_0)); })
 
 struct vsyscall_gtod_data_t {
 	seqlock_t lock;
@@ -224,10 +229,10 @@ static int vsyscall_sysctl_change(ctl_table *ctl, int write, struct file * filp,
 		return ret;
 	/* gcc has some trouble with __va(__pa()), so just do it this
 	   way. */
-	map1 = ioremap(__pa_symbol(&vsysc1), 2);
+	map1 = ioremap(__pa_vsymbol(&vsysc1), 2);
 	if (!map1)
 		return -ENOMEM;
-	map2 = ioremap(__pa_symbol(&vsysc2), 2);
+	map2 = ioremap(__pa_vsymbol(&vsysc2), 2);
 	if (!map2) {
 		ret = -ENOMEM;
 		goto out;

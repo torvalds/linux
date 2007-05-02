@@ -402,8 +402,8 @@ void __init alternative_instructions(void)
 						_text, _etext);
 		}
 		free_init_pages("SMP alternatives",
-				(unsigned long)__smp_alt_begin,
-				(unsigned long)__smp_alt_end);
+				__pa_symbol(&__smp_alt_begin),
+				__pa_symbol(&__smp_alt_end));
 	} else {
 		alternatives_smp_save(__smp_alt_instructions,
 				      __smp_alt_instructions_end);
