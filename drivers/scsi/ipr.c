@@ -7444,7 +7444,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	unsigned long ipr_regs_pci;
 	void __iomem *ipr_regs;
 	int rc = PCIBIOS_SUCCESSFUL;
-	volatile u32 mask, uproc;
+	volatile u32 mask, uproc, interrupts;
 
 	ENTER;
 
@@ -7551,9 +7551,14 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	 * the card is in an unknown state and needs a hard reset
 	 */
 	mask = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
+	interrupts = readl(ioa_cfg->regs.sense_interrupt_reg);
 	uproc = readl(ioa_cfg->regs.sense_uproc_interrupt_reg);
 	if ((mask & IPR_PCII_HRRQ_UPDATED) == 0 || (uproc & IPR_UPROCI_RESET_ALERT))
 		ioa_cfg->needs_hard_reset = 1;
+	if (interrupts & IPR_PCII_ERROR_INTERRUPTS)
+		ioa_cfg->needs_hard_reset = 1;
+	if (interrupts & IPR_PCII_IOA_UNIT_CHECKED)
+		ioa_cfg->ioa_unit_checked = 1;
 
 	ipr_mask_and_clear_interrupts(ioa_cfg, ~IPR_PCII_IOA_TRANS_TO_OPER);
 	rc = request_irq(pdev->irq, ipr_isr, IRQF_SHARED, IPR_NAME, ioa_cfg);
