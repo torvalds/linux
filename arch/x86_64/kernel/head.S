@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <asm/desc.h>
 #include <asm/segment.h>
+#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/msr.h>
 #include <asm/cache.h>
@@ -260,52 +261,48 @@ ljumpvector:
 ENTRY(stext)
 ENTRY(_stext)
 
-	$page = 0
 #define NEXT_PAGE(name) \
-	$page = $page + 1; \
-	.org $page * 0x1000; \
-	phys_/**/name = $page * 0x1000 + __PHYSICAL_START; \
+	.balign	PAGE_SIZE; \
 ENTRY(name)
+
+/* Automate the creation of 1 to 1 mapping pmd entries */
+#define PMDS(START, PERM, COUNT)		\
+	i = 0 ;					\
+	.rept (COUNT) ;				\
+	.quad	(START) + (i << 21) + (PERM) ;	\
+	i = i + 1 ;				\
+	.endr
 
 NEXT_PAGE(init_level4_pgt)
 	/* This gets initialized in x86_64_start_kernel */
 	.fill	512,8,0
 
 NEXT_PAGE(level3_ident_pgt)
-	.quad	phys_level2_ident_pgt | 0x007
+	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
 	.fill	511,8,0
 
 NEXT_PAGE(level3_kernel_pgt)
 	.fill	510,8,0
 	/* (2^48-(2*1024*1024*1024)-((2^39)*511))/(2^30) = 510 */
-	.quad	phys_level2_kernel_pgt | 0x007
+	.quad	level2_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE
 	.fill	1,8,0
 
 NEXT_PAGE(level2_ident_pgt)
-	/* 40MB for bootup. 	*/
-	i = 0
-	.rept 20
-	.quad	i << 21 | 0x083
-	i = i + 1
-	.endr
-	.fill	492,8,0
+	/* Since I easily can, map the first 1G.
+	 * Don't set NX because code runs from these pages.
+	 */
+	PMDS(0x0000000000000000, __PAGE_KERNEL_LARGE_EXEC, PTRS_PER_PMD)
 	
 NEXT_PAGE(level2_kernel_pgt)
 	/* 40MB kernel mapping. The kernel code cannot be bigger than that.
 	   When you change this change KERNEL_TEXT_SIZE in page.h too. */
 	/* (2^48-(2*1024*1024*1024)-((2^39)*511)-((2^30)*510)) = 0 */
-	i = 0
-	.rept 20
-	.quad	i << 21 | 0x183
-	i = i + 1
-	.endr
+	PMDS(0x0000000000000000, __PAGE_KERNEL_LARGE_EXEC|_PAGE_GLOBAL,
+		KERNEL_TEXT_SIZE/PMD_SIZE)
 	/* Module mapping starts here */
-	.fill	492,8,0
+	.fill	(PTRS_PER_PMD - (KERNEL_TEXT_SIZE/PMD_SIZE)),8,0
 
-NEXT_PAGE(level3_physmem_pgt)
-	.quad	phys_level2_kernel_pgt | 0x007	/* so that __va works even before pagetable_init */
-	.fill	511,8,0
-
+#undef PMDS
 #undef NEXT_PAGE
 
 	.data
@@ -313,12 +310,10 @@ NEXT_PAGE(level3_physmem_pgt)
 #ifdef CONFIG_ACPI_SLEEP
 	.align PAGE_SIZE
 ENTRY(wakeup_level4_pgt)
-	.quad	phys_level3_ident_pgt | 0x007
-	.fill	255,8,0
-	.quad	phys_level3_physmem_pgt | 0x007
-	.fill	254,8,0
+	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.fill	510,8,0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad	phys_level3_kernel_pgt | 0x007
+	.quad	level3_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE
 #endif
 
 #ifndef CONFIG_HOTPLUG_CPU
@@ -332,12 +327,12 @@ ENTRY(wakeup_level4_pgt)
 	 */
 	.align PAGE_SIZE
 ENTRY(boot_level4_pgt)
-	.quad	phys_level3_ident_pgt | 0x007
-	.fill	255,8,0
-	.quad	phys_level3_physmem_pgt | 0x007
-	.fill	254,8,0
+	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.fill	257,8,0
+	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.fill	252,8,0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad	phys_level3_kernel_pgt | 0x007
+	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
 
 	.data
 
