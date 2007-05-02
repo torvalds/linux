@@ -290,6 +290,13 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 	vmcs_writel(HOST_FS_BASE, segment_base(hs->fs_sel));
 	vmcs_writel(HOST_GS_BASE, segment_base(hs->gs_sel));
 #endif
+
+#ifdef CONFIG_X86_64
+	if (is_long_mode(vcpu)) {
+		save_msrs(vcpu->host_msrs + msr_offset_kernel_gs_base, 1);
+		load_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
+	}
+#endif
 }
 
 static void vmx_load_host_state(struct kvm_vcpu *vcpu)
@@ -1902,13 +1909,6 @@ preempted:
 
 	if (vcpu->guest_debug.enabled)
 		kvm_guest_debug_pre(vcpu);
-
-#ifdef CONFIG_X86_64
-	if (is_long_mode(vcpu)) {
-		save_msrs(vcpu->host_msrs + msr_offset_kernel_gs_base, 1);
-		load_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
-	}
-#endif
 
 again:
 	vmx_save_host_state(vcpu);
