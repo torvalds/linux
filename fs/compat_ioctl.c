@@ -2627,6 +2627,15 @@ COMPATIBLE_IOCTL(LPRESET)
 /*LPGETSTATS not implemented, but no kernels seem to compile it in anyways*/
 COMPATIBLE_IOCTL(LPGETFLAGS)
 HANDLE_IOCTL(LPSETTIMEOUT, lp_timeout_trans)
+
+/* fat 'r' ioctls. These are handled by fat with ->compat_ioctl,
+   but we don't want warnings on other file systems. So declare
+   them as compatible here. */
+#define VFAT_IOCTL_READDIR_BOTH32       _IOR('r', 1, struct compat_dirent[2])
+#define VFAT_IOCTL_READDIR_SHORT32      _IOR('r', 2, struct compat_dirent[2])
+
+IGNORE_IOCTL(VFAT_IOCTL_READDIR_BOTH32)
+IGNORE_IOCTL(VFAT_IOCTL_READDIR_SHORT32)
 };
 
 int ioctl_table_size = ARRAY_SIZE(ioctl_start);
