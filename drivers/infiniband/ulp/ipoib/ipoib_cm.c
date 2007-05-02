@@ -370,7 +370,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	if (!likely(wr_id & IPOIB_CM_RX_UPDATE_MASK)) {
 		p = wc->qp->qp_context;
-		if (time_after_eq(jiffies, p->jiffies + IPOIB_CM_RX_UPDATE_TIME)) {
+		if (p && time_after_eq(jiffies, p->jiffies + IPOIB_CM_RX_UPDATE_TIME)) {
 			spin_lock_irqsave(&priv->lock, flags);
 			p->jiffies = jiffies;
 			/* Move this entry to list head, but do
