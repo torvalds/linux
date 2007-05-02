@@ -798,15 +798,18 @@ STATIC int noinline INIT inflate_dynamic(void)
   unsigned nb;          /* number of bit length codes */
   unsigned nl;          /* number of literal/length codes */
   unsigned nd;          /* number of distance codes */
-#ifdef PKZIP_BUG_WORKAROUND
-  unsigned ll[288+32];  /* literal/length and distance code lengths */
-#else
-  unsigned ll[286+30];  /* literal/length and distance code lengths */
-#endif
+  unsigned *ll;         /* literal/length and distance code lengths */
   register ulg b;       /* bit buffer */
   register unsigned k;  /* number of bits in bit buffer */
+  int ret;
 
 DEBG("<dyn");
+
+#ifdef PKZIP_BUG_WORKAROUND
+  ll = malloc(sizeof(*ll) * (288+32));  /* literal/length and distance code lengths */
+#else
+  ll = malloc(sizeof(*ll) * (286+30));  /* literal/length and distance code lengths */
+#endif
 
   /* make local bit buffer */
   b = bb;
@@ -828,7 +831,10 @@ DEBG("<dyn");
 #else
   if (nl > 286 || nd > 30)
 #endif
-    return 1;                   /* bad lengths */
+  {
+    ret = 1;             /* bad lengths */
+    goto out;
+  }
 
 DEBG("dyn1 ");
 
@@ -850,7 +856,8 @@ DEBG("dyn2 ");
   {
     if (i == 1)
       huft_free(tl);
-    return i;                   /* incomplete code set */
+    ret = i;                   /* incomplete code set */
+    goto out;
   }
 
 DEBG("dyn3 ");
@@ -872,8 +879,10 @@ DEBG("dyn3 ");
       NEEDBITS(2)
       j = 3 + ((unsigned)b & 3);
       DUMPBITS(2)
-      if ((unsigned)i + j > n)
-        return 1;
+      if ((unsigned)i + j > n) {
+        ret = 1;
+	goto out;
+      }
       while (j--)
         ll[i++] = l;
     }
@@ -882,8 +891,10 @@ DEBG("dyn3 ");
       NEEDBITS(3)
       j = 3 + ((unsigned)b & 7);
       DUMPBITS(3)
-      if ((unsigned)i + j > n)
-        return 1;
+      if ((unsigned)i + j > n) {
+        ret = 1;
+	goto out;
+      }
       while (j--)
         ll[i++] = 0;
       l = 0;
@@ -893,8 +904,10 @@ DEBG("dyn3 ");
       NEEDBITS(7)
       j = 11 + ((unsigned)b & 0x7f);
       DUMPBITS(7)
-      if ((unsigned)i + j > n)
-        return 1;
+      if ((unsigned)i + j > n) {
+        ret = 1;
+	goto out;
+      }
       while (j--)
         ll[i++] = 0;
       l = 0;
@@ -923,7 +936,8 @@ DEBG("dyn5b ");
       error("incomplete literal tree");
       huft_free(tl);
     }
-    return i;                   /* incomplete code set */
+    ret = i;                   /* incomplete code set */
+    goto out;
   }
 DEBG("dyn5c ");
   bd = dbits;
@@ -939,15 +953,18 @@ DEBG("dyn5d ");
       huft_free(td);
     }
     huft_free(tl);
-    return i;                   /* incomplete code set */
+    ret = i;                   /* incomplete code set */
+    goto out;
 #endif
   }
 
 DEBG("dyn6 ");
 
   /* decompress until an end-of-block code */
-  if (inflate_codes(tl, td, bl, bd))
-    return 1;
+  if (inflate_codes(tl, td, bl, bd)) {
+    ret = 1;
+    goto out;
+  }
 
 DEBG("dyn7 ");
 
@@ -956,10 +973,14 @@ DEBG("dyn7 ");
   huft_free(td);
 
   DEBG(">");
-  return 0;
+  ret = 0;
+out:
+  free(ll);
+  return ret;
 
- underrun:
-  return 4;			/* Input underrun */
+underrun:
+  ret = 4;			/* Input underrun */
+  goto out;
 }
 
 
