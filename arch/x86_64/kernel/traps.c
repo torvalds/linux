@@ -426,8 +426,7 @@ void show_registers(struct pt_regs *regs)
 	const int cpu = smp_processor_id();
 	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
 
-		rsp = regs->rsp;
-
+	rsp = regs->rsp;
 	printk("CPU %d ", cpu);
 	__show_regs(regs);
 	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
@@ -438,7 +437,6 @@ void show_registers(struct pt_regs *regs)
 	 * time of the fault..
 	 */
 	if (in_kernel) {
-
 		printk("Stack: ");
 		_show_stack(NULL, regs, (unsigned long*)rsp);
 
