@@ -1177,18 +1177,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	smp_boot_cpus(max_cpus);
 }
 
-/* Current gdt points %fs at the "master" per-cpu area: after this,
- * it's on the real one. */
-static inline void switch_to_new_gdt(void)
-{
-	struct Xgt_desc_struct gdt_descr;
-
-	gdt_descr.address = (long)get_cpu_gdt_table(smp_processor_id());
-	gdt_descr.size = GDT_SIZE - 1;
-	load_gdt(&gdt_descr);
-	asm("mov %0, %%fs" : : "r" (__KERNEL_PERCPU) : "memory");
-}
-
 void __init native_smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();

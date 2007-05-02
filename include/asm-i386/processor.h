@@ -750,6 +750,7 @@ extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
 extern void cpu_set_gdt(int);
+extern void switch_to_new_gdt(void);
 extern void cpu_init(void);
 
 extern int force_mwait;
