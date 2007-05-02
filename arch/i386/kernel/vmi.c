@@ -56,7 +56,7 @@ static int disable_noidle;
 static int disable_vmi_timer;
 
 /* Cached VMI operations */
-struct {
+static struct {
 	void (*cpuid)(void /* non-c */);
 	void (*_set_ldt)(u32 selector);
 	void (*set_tr)(u32 selector);
