@@ -142,8 +142,8 @@ void apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end);
 static inline void
 apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end)
 {}
-#define __start_parainstructions NULL
-#define __stop_parainstructions NULL
+#define __parainstructions NULL
+#define __parainstructions_end NULL
 #endif
 
 #endif /* _X86_64_ALTERNATIVE_H */

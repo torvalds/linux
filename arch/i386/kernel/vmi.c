@@ -73,10 +73,6 @@ static struct {
   	void (*set_lazy_mode)(int mode);
 } vmi_ops;
 
-/* XXX move this to alternative.h */
-extern struct paravirt_patch __start_parainstructions[],
-	__stop_parainstructions[];
-
 /* Cached VMI operations */
 struct vmi_timer_ops vmi_timer_ops;
 
@@ -548,9 +544,9 @@ vmi_startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 }
 #endif
 
-static void vmi_set_lazy_mode(int mode)
+static void vmi_set_lazy_mode(enum paravirt_lazy_mode mode)
 {
-	static DEFINE_PER_CPU(int, lazy_mode);
+	static DEFINE_PER_CPU(enum paravirt_lazy_mode, lazy_mode);
 
 	if (!vmi_ops.set_lazy_mode)
 		return;
@@ -912,7 +908,7 @@ static inline int __init activate_vmi(void)
 	 * to do this before IRQs get reenabled.  Fortunately, it is
 	 * idempotent.
 	 */
-	apply_paravirt(__start_parainstructions, __stop_parainstructions);
+	apply_paravirt(__parainstructions, __parainstructions_end);
 
 	vmi_bringup();
 
