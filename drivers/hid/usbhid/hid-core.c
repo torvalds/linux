@@ -692,6 +692,30 @@ static void hid_fixup_logitech_descriptor(unsigned char *rdesc, int rsize)
 	}
 }
 
+/*
+ * Some USB barcode readers from cypress have usage min and usage max in
+ * the wrong order
+ */
+static void hid_fixup_cypress_descriptor(unsigned char *rdesc, int rsize)
+{
+	short fixed = 0;
+	int i;
+
+	for (i = 0; i < rsize - 4; i++) {
+		if (rdesc[i] == 0x29 && rdesc [i+2] == 0x19) {
+			unsigned char tmp;
+
+			rdesc[i] = 0x19; rdesc[i+2] = 0x29;
+			tmp = rdesc[i+3];
+			rdesc[i+3] = rdesc[i+1];
+			rdesc[i+1] = tmp;
+		}
+	}
+
+	if (fixed)
+		info("Fixing up Cypress report descriptor");
+}
+
 static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 {
 	struct usb_host_interface *interface = intf->cur_altsetting;
@@ -757,6 +781,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	if (quirks & HID_QUIRK_LOGITECH_DESCRIPTOR)
 		hid_fixup_logitech_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_SWAPPED_MIN_MAX)
+		hid_fixup_cypress_descriptor(rdesc, rsize);
 
 #ifdef CONFIG_HID_DEBUG
 	printk(KERN_DEBUG __FILE__ ": report descriptor (size %u, read %d) = ", rsize, n);
