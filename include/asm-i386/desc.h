@@ -18,10 +18,15 @@ struct Xgt_desc_struct {
 	unsigned short pad;
 } __attribute__ ((packed));
 
-DECLARE_PER_CPU(struct desc_struct, cpu_gdt[GDT_ENTRIES]);
+struct gdt_page
+{
+	struct desc_struct gdt[GDT_ENTRIES];
+} __attribute__((aligned(PAGE_SIZE)));
+DECLARE_PER_CPU(struct gdt_page, gdt_page);
+
 static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
 {
-	return per_cpu(cpu_gdt, cpu);
+	return per_cpu(gdt_page, cpu).gdt;
 }
 
 extern struct Xgt_desc_struct idt_descr;
