@@ -53,3 +53,24 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	isync
 	b	1b
 
+_GLOBAL(power4_cpu_offline_powersave)
+	/* Go to NAP now */
+	mfmsr	r7
+	rldicl	r0,r7,48,1
+	rotldi	r0,r0,16
+	mtmsrd	r0,1			/* hard-disable interrupts */
+	li	r0,1
+	li	r6,0
+	stb	r0,PACAHARDIRQEN(r13)	/* we'll hard-enable shortly */
+	stb	r6,PACASOFTIRQEN(r13)	/* soft-disable irqs */
+BEGIN_FTR_SECTION
+	DSSALL
+	sync
+END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
+	ori	r7,r7,MSR_EE
+	oris	r7,r7,MSR_POW@h
+	sync
+	isync
+	mtmsrd	r7
+	isync
+	blr
