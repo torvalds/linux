@@ -72,6 +72,7 @@ void kunmap_atomic(void *kvaddr, enum km_type type)
 #endif
 	}
 
+	arch_flush_lazy_mmu_mode();
 	pagefault_enable();
 }
 
