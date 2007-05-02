@@ -14,13 +14,6 @@ extern void pda_init(int);
 extern void early_idt_handler(void);
 
 extern void mcheck_init(struct cpuinfo_x86 *c);
-#ifdef CONFIG_MTRR
-extern void mtrr_ap_init(void);
-extern void mtrr_bp_init(void);
-#else
-#define mtrr_ap_init() do {} while (0)
-#define mtrr_bp_init() do {} while (0)
-#endif
 extern void init_memory_mapping(unsigned long start, unsigned long end);
 
 extern void system_call(void); 
