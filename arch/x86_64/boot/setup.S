@@ -807,7 +807,7 @@ gdt_48:
 
 # Include video setup & detection code
 
-#include "video.S"
+#include "../../i386/boot/video.S"
 
 # Setup signature -- must be last
 setup_sig1:	.word	SIG1
