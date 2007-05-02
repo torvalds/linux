@@ -365,7 +365,7 @@ static int __init check_nmi_watchdog(void)
 		nmi_hz = 1;
 
 		if (wd->perfctr_msr == MSR_P6_PERFCTR0 ||
-		    wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0) {
+		    wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR1) {
 			nmi_hz = adjust_for_32bit_ctr(nmi_hz);
 		}
 	}
@@ -799,8 +799,8 @@ static int setup_intel_arch_watchdog(void)
 	    (ebx & ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT))
 		goto fail;
 
-	perfctr_msr = MSR_ARCH_PERFMON_PERFCTR0;
-	evntsel_msr = MSR_ARCH_PERFMON_EVENTSEL0;
+	perfctr_msr = MSR_ARCH_PERFMON_PERFCTR1;
+	evntsel_msr = MSR_ARCH_PERFMON_EVENTSEL1;
 
 	if (!__reserve_perfctr_nmi(-1, perfctr_msr))
 		goto fail;
@@ -1080,7 +1080,7 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 				write_watchdog_counter(wd->perfctr_msr, NULL);
 	 		}
 			else if (wd->perfctr_msr == MSR_P6_PERFCTR0 ||
-				 wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0) {
+				 wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR1) {
 				/* P6 based Pentium M need to re-unmask
 				 * the apic vector but it doesn't hurt
 				 * other P6 variant.
