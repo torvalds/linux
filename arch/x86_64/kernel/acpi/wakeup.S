@@ -258,8 +258,6 @@ gdt_48a:
 	.word	0, 0				# gdt base (filled in later)
 	
 	
-real_save_gdt:	.word 0
-		.quad 0
 real_magic:	.quad 0
 video_mode:	.quad 0
 video_flags:	.quad 0
@@ -271,10 +269,6 @@ bogus_real_magic:
 bogus_32_magic:
 	movb	$0xb3,%al	;  outb %al,$0x80
 	jmp bogus_32_magic
-
-bogus_31_magic:
-	movb	$0xb1,%al	;  outb %al,$0x80
-	jmp bogus_31_magic
 
 bogus_cpu:
 	movb	$0xbc,%al	;  outb %al,$0x80
@@ -346,16 +340,6 @@ check_vesaa:
 
 _setbada: jmp setbada
 
-	.code64
-bogus_magic:
-	movw	$0x0e00 + 'B', %ds:(0xb8018)
-	jmp bogus_magic
-
-bogus_magic2:
-	movw	$0x0e00 + '2', %ds:(0xb8018)
-	jmp bogus_magic2
-	
-
 wakeup_stack_begin:	# Stack grows down
 
 .org	0xff0
@@ -373,27 +357,10 @@ ENTRY(wakeup_end)
 #
 # Returned address is location of code in low memory (past data and stack)
 #
+	.code64
 ENTRY(acpi_copy_wakeup_routine)
 	pushq	%rax
-	pushq	%rcx
 	pushq	%rdx
-
-	sgdt	saved_gdt
-	sidt	saved_idt
-	sldt	saved_ldt
-	str	saved_tss
-
-	movq    %cr3, %rdx
-	movq    %rdx, saved_cr3
-	movq    %cr4, %rdx
-	movq    %rdx, saved_cr4
-	movq	%cr0, %rdx
-	movq	%rdx, saved_cr0
-	sgdt    real_save_gdt - wakeup_start (,%rdi)
-	movl	$MSR_EFER, %ecx
-	rdmsr
-	movl	%eax, saved_efer
-	movl	%edx, saved_efer2
 
 	movl	saved_video_mode, %edx
 	movl	%edx, video_mode - wakeup_start (,%rdi)
@@ -407,17 +374,8 @@ ENTRY(acpi_copy_wakeup_routine)
 	cmpl	$0x9abcdef0, %eax
 	jne	bogus_32_magic
 
-	# make sure %cr4 is set correctly (features, etc)
-	movl	saved_cr4 - __START_KERNEL_map, %eax
-	movq	%rax, %cr4
-
-	movl	saved_cr0 - __START_KERNEL_map, %eax
-	movq	%rax, %cr0
-	jmp	1f		# Flush pipelines
-1:
 	# restore the regs we used
 	popq	%rdx
-	popq	%rcx
 	popq	%rax
 ENTRY(do_suspend_lowlevel_s4bios)
 	ret
@@ -512,16 +470,3 @@ ENTRY(saved_eip)	.quad	0
 ENTRY(saved_esp)	.quad	0
 
 ENTRY(saved_magic)	.quad	0
-
-ALIGN
-# saved registers
-saved_gdt:	.quad	0,0
-saved_idt:	.quad	0,0
-saved_ldt:	.quad	0
-saved_tss:	.quad	0
-
-saved_cr0:	.quad 0
-saved_cr3:	.quad 0
-saved_cr4:	.quad 0
-saved_efer:	.quad 0
-saved_efer2:	.quad 0
