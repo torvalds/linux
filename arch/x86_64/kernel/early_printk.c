@@ -175,7 +175,7 @@ static noinline long simnow(long cmd, long a, long b, long c)
 	return ret;
 }
 
-void __init simnow_init(char *str)
+static void __init simnow_init(char *str)
 {
 	char *fn = "klog";
 	if (*str == '=')
