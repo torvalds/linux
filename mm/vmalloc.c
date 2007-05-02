@@ -431,7 +431,7 @@ void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 		area->flags |= VM_VPAGES;
 	} else {
 		pages = kmalloc_node(array_size,
-				(gfp_mask & ~(__GFP_HIGHMEM | __GFP_ZERO)),
+				(gfp_mask & GFP_LEVEL_MASK),
 				node);
 	}
 	area->pages = pages;
@@ -577,6 +577,14 @@ void *vmalloc_exec(unsigned long size)
 	return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC);
 }
 
+#if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
+#define GFP_VMALLOC32 GFP_DMA32
+#elif defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA)
+#define GFP_VMALLOC32 GFP_DMA
+#else
+#define GFP_VMALLOC32 GFP_KERNEL
+#endif
+
 /**
  *	vmalloc_32  -  allocate virtually contiguous memory (32bit addressable)
  *	@size:		allocation size
@@ -586,7 +594,7 @@ void *vmalloc_exec(unsigned long size)
  */
 void *vmalloc_32(unsigned long size)
 {
-	return __vmalloc(size, GFP_KERNEL, PAGE_KERNEL);
+	return __vmalloc(size, GFP_VMALLOC32, PAGE_KERNEL);
 }
 EXPORT_SYMBOL(vmalloc_32);
 
@@ -602,7 +610,7 @@ void *vmalloc_32_user(unsigned long size)
 	struct vm_struct *area;
 	void *ret;
 
-	ret = __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
+	ret = __vmalloc(size, GFP_VMALLOC32 | __GFP_ZERO, PAGE_KERNEL);
 	if (ret) {
 		write_lock(&vmlist_lock);
 		area = __find_vm_area(ret);
