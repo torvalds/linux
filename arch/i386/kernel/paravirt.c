@@ -117,78 +117,6 @@ static void native_flush_tlb_single(u32 addr)
 	__native_flush_tlb_single(addr);
 }
 
-#ifndef CONFIG_X86_PAE
-static void native_set_pte(pte_t *ptep, pte_t pteval)
-{
-	*ptep = pteval;
-}
-
-static void native_set_pte_at(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pteval)
-{
-	*ptep = pteval;
-}
-
-static void native_set_pmd(pmd_t *pmdp, pmd_t pmdval)
-{
-	*pmdp = pmdval;
-}
-
-#else /* CONFIG_X86_PAE */
-
-static void native_set_pte(pte_t *ptep, pte_t pte)
-{
-	ptep->pte_high = pte.pte_high;
-	smp_wmb();
-	ptep->pte_low = pte.pte_low;
-}
-
-static void native_set_pte_at(struct mm_struct *mm, u32 addr, pte_t *ptep, pte_t pte)
-{
-	ptep->pte_high = pte.pte_high;
-	smp_wmb();
-	ptep->pte_low = pte.pte_low;
-}
-
-static void native_set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
-{
-	ptep->pte_low = 0;
-	smp_wmb();
-	ptep->pte_high = pte.pte_high;
-	smp_wmb();
-	ptep->pte_low = pte.pte_low;
-}
-
-static void native_set_pte_atomic(pte_t *ptep, pte_t pteval)
-{
-	set_64bit((unsigned long long *)ptep,pte_val(pteval));
-}
-
-static void native_set_pmd(pmd_t *pmdp, pmd_t pmdval)
-{
-	set_64bit((unsigned long long *)pmdp,pmd_val(pmdval));
-}
-
-static void native_set_pud(pud_t *pudp, pud_t pudval)
-{
-	*pudp = pudval;
-}
-
-static void native_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-{
-	ptep->pte_low = 0;
-	smp_wmb();
-	ptep->pte_high = 0;
-}
-
-static void native_pmd_clear(pmd_t *pmd)
-{
-	u32 *tmp = (u32 *)pmd;
-	*tmp = 0;
-	smp_wmb();
-	*(tmp + 1) = 0;
-}
-#endif /* CONFIG_X86_PAE */
-
 /* These are in entry.S */
 extern void native_iret(void);
 extern void native_irq_enable_sysexit(void);
@@ -282,13 +210,25 @@ struct paravirt_ops paravirt_ops = {
 	.set_pmd = native_set_pmd,
 	.pte_update = paravirt_nop,
 	.pte_update_defer = paravirt_nop,
+
+	.ptep_get_and_clear = native_ptep_get_and_clear,
+
 #ifdef CONFIG_X86_PAE
 	.set_pte_atomic = native_set_pte_atomic,
 	.set_pte_present = native_set_pte_present,
 	.set_pud = native_set_pud,
 	.pte_clear = native_pte_clear,
 	.pmd_clear = native_pmd_clear,
+
+	.pmd_val = native_pmd_val,
+	.make_pmd = native_make_pmd,
 #endif
+
+	.pte_val = native_pte_val,
+	.pgd_val = native_pgd_val,
+
+	.make_pte = native_make_pte,
+	.make_pgd = native_make_pgd,
 
 	.irq_enable_sysexit = native_irq_enable_sysexit,
 	.iret = native_iret,
