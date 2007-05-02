@@ -612,7 +612,7 @@ ENTRY(boot_gdt_table)
 	.quad 0x00cf92000000ffff	/* kernel 4GB data at 0x00000000 */
 
 /*
- * The Global Descriptor Table contains 28 quadwords, per-CPU.
+ * The Global Descriptor Table contains 32 quadwords, per-CPU.
  */
 	.align L1_CACHE_BYTES
 ENTRY(cpu_gdt_table)
@@ -639,7 +639,7 @@ ENTRY(cpu_gdt_table)
 
 	/*
 	 * Segments used for calling PnP BIOS have byte granularity.
-	 * They code segments and data segments have fixed 64k limits,
+	 * The code segments and data segments have fixed 64k limits,
 	 * the transfer segment sizes are set at run time.
 	 */
 	.quad 0x00409a000000ffff	/* 0x90 32-bit code */
