@@ -71,7 +71,7 @@ startup_32:
 	movl	%eax, %cr4
 
 	/* Setup early boot stage 4 level pagetables */
-	movl	$(boot_level4_pgt - __START_KERNEL_map), %eax
+	movl	$(init_level4_pgt - __START_KERNEL_map), %eax
 	movl	%eax, %cr3
 
 	/* Setup EFER (Extended Feature Enable Register) */
@@ -115,7 +115,7 @@ ENTRY(secondary_startup_64)
 	movq	%rax, %cr4
 
 	/* Setup early boot stage 4 level pagetables. */
-	movq	$(boot_level4_pgt - __START_KERNEL_map), %rax
+	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
 	movq	%rax, %cr3
 
 	/* Check if nx is implemented */
@@ -274,9 +274,19 @@ ENTRY(name)
 	i = i + 1 ;				\
 	.endr
 
+	/*
+	 * This default setting generates an ident mapping at address 0x100000
+	 * and a mapping for the kernel that precisely maps virtual address
+	 * 0xffffffff80000000 to physical address 0x000000. (always using
+	 * 2Mbyte large pages provided by PAE mode)
+	 */
 NEXT_PAGE(init_level4_pgt)
-	/* This gets initialized in x86_64_start_kernel */
-	.fill	512,8,0
+	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.fill	257,8,0
+	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.fill	252,8,0
+	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
+	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
 
 NEXT_PAGE(level3_ident_pgt)
 	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
@@ -307,27 +317,6 @@ NEXT_PAGE(level2_kernel_pgt)
 #undef NEXT_PAGE
 
 	.data
-
-#ifndef CONFIG_HOTPLUG_CPU
-	__INITDATA
-#endif
-	/*
-	 * This default setting generates an ident mapping at address 0x100000
-	 * and a mapping for the kernel that precisely maps virtual address
-	 * 0xffffffff80000000 to physical address 0x000000. (always using
-	 * 2Mbyte large pages provided by PAE mode)
-	 */
-	.align PAGE_SIZE
-ENTRY(boot_level4_pgt)
-	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.fill	257,8,0
-	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.fill	252,8,0
-	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
-
-	.data
-
 	.align 16
 	.globl cpu_gdt_descr
 cpu_gdt_descr:

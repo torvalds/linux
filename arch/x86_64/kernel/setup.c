@@ -274,8 +274,6 @@ void __init setup_arch(char **cmdline_p)
 
 	dmi_scan_machine();
 
-	zap_low_mappings(0);
-
 #ifdef CONFIG_ACPI
 	/*
 	 * Initialize the ACPI boot-time table parser (gets the RSDP and SDT).

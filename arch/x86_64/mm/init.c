@@ -378,21 +378,6 @@ void __meminit init_memory_mapping(unsigned long start, unsigned long end)
 	__flush_tlb_all();
 }
 
-void __cpuinit zap_low_mappings(int cpu)
-{
-	if (cpu == 0) {
-		pgd_t *pgd = pgd_offset_k(0UL);
-		pgd_clear(pgd);
-	} else {
-		/*
-		 * For AP's, zap the low identity mappings by changing the cr3
-		 * to init_level4_pgt and doing local flush tlb all
-		 */
-		asm volatile("movq %0,%%cr3" :: "r" (__pa_symbol(&init_level4_pgt)));
-	}
-	__flush_tlb_all();
-}
-
 #ifndef CONFIG_NUMA
 void __init paging_init(void)
 {
@@ -569,15 +554,6 @@ void __init mem_init(void)
 		reservedpages << (PAGE_SHIFT-10),
 		datasize >> 10,
 		initsize >> 10);
-
-#ifdef CONFIG_SMP
-	/*
-	 * Sync boot_level4_pgt mappings with the init_level4_pgt
-	 * except for the low identity mappings which are already zapped
-	 * in init_level4_pgt. This sync-up is essential for AP's bringup
-	 */
-	memcpy(boot_level4_pgt+1, init_level4_pgt+1, (PTRS_PER_PGD-1)*sizeof(pgd_t));
-#endif
 }
 
 void free_init_pages(char *what, unsigned long begin, unsigned long end)

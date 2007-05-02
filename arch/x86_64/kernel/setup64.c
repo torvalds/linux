@@ -201,7 +201,6 @@ void __cpuinit cpu_init (void)
 	/* CPU 0 is initialised in head64.c */
 	if (cpu != 0) {
 		pda_init(cpu);
-		zap_low_mappings(cpu);
 	} else 
 		estacks = boot_exception_stacks; 
 
