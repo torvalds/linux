@@ -5,6 +5,7 @@
  *  Copyright (C) 2000 Pavel Machek <pavel@suse.cz>
  *  Copyright (C) 2000 Karsten Keil <kkeil@suse.de>
  *  Copyright (C) 2001,2002 Andi Kleen <ak@suse.de>
+ *  Copyright (C) 2005 Eric Biederman <ebiederm@xmission.com>
  */
 
 
@@ -17,95 +18,127 @@
 #include <asm/page.h>
 #include <asm/msr.h>
 #include <asm/cache.h>
-	
+
 /* we are not able to switch in one step to the final KERNEL ADRESS SPACE
- * because we need identity-mapped pages on setup so define __START_KERNEL to
- * 0x100000 for this stage
- * 
+ * because we need identity-mapped pages.
+ *
  */
 
 	.text
 	.section .bootstrap.text
-	.code32
-	.globl startup_32
-/* %bx:	 1 if coming from smp trampoline on secondary cpu */ 
-startup_32:
-	
-	/*
-	 * At this point the CPU runs in 32bit protected mode (CS.D = 1) with
-	 * paging disabled and the point of this file is to switch to 64bit
-	 * long mode with a kernel mapping for kerneland to jump into the
-	 * kernel virtual addresses.
- 	 * There is no stack until we set one up.
-	 */
-
-	/* Initialize the %ds segment register */
-	movl $__KERNEL_DS,%eax
-	movl %eax,%ds
-
-	/* Load new GDT with the 64bit segments using 32bit descriptor */
-	lgdt	pGDT32 - __START_KERNEL_map
-
-	/* If the CPU doesn't support CPUID this will double fault.
-	 * Unfortunately it is hard to check for CPUID without a stack. 
-	 */
-	
-	/* Check if extended functions are implemented */		
-	movl	$0x80000000, %eax
-	cpuid
-	cmpl	$0x80000000, %eax
-	jbe	no_long_mode
-	/* Check if long mode is implemented */
-	mov	$0x80000001, %eax
-	cpuid
-	btl	$29, %edx
-	jnc	no_long_mode
-
-	/*
-	 * Prepare for entering 64bits mode
-	 */
-
-	/* Enable PAE mode */
-	xorl	%eax, %eax
-	btsl	$5, %eax
-	movl	%eax, %cr4
-
-	/* Setup early boot stage 4 level pagetables */
-	movl	$(init_level4_pgt - __START_KERNEL_map), %eax
-	movl	%eax, %cr3
-
-	/* Setup EFER (Extended Feature Enable Register) */
-	movl	$MSR_EFER, %ecx
-	rdmsr
-
-	/* Enable Long Mode */
-	btsl	$_EFER_LME, %eax
-				
-	/* Make changes effective */
-	wrmsr
-
-	xorl	%eax, %eax
-	btsl	$31, %eax			/* Enable paging and in turn activate Long Mode */
-	btsl	$0, %eax			/* Enable protected mode */
-	/* Make changes effective */
-	movl	%eax, %cr0
-	/*
-	 * At this point we're in long mode but in 32bit compatibility mode
-	 * with EFER.LME = 1, CS.L = 0, CS.D = 1 (and in turn
-	 * EFER.LMA = 1). Now we want to jump in 64bit mode, to do that we use
-	 * the new gdt/idt that has __KERNEL_CS with CS.L = 1.
-	 */
-	ljmp	$__KERNEL_CS, $(startup_64 - __START_KERNEL_map)
-
 	.code64
-	.org 0x100	
 	.globl startup_64
 startup_64:
+
+	/*
+	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 1,
+	 * and someone has loaded an identity mapped page table
+	 * for us.  These identity mapped page tables map all of the
+	 * kernel pages and possibly all of memory.
+	 *
+	 * %esi holds a physical pointer to real_mode_data.
+	 *
+	 * We come here either directly from a 64bit bootloader, or from
+	 * arch/x86_64/boot/compressed/head.S.
+	 *
+	 * We only come here initially at boot nothing else comes here.
+	 *
+	 * Since we may be loaded at an address different from what we were
+	 * compiled to run at we first fixup the physical addresses in our page
+	 * tables and then reload them.
+	 */
+
+	/* Compute the delta between the address I am compiled to run at and the
+	 * address I am actually running at.
+	 */
+	leaq	_text(%rip), %rbp
+	subq	$_text - __START_KERNEL_map, %rbp
+
+	/* Is the address not 2M aligned? */
+	movq	%rbp, %rax
+	andl	$~LARGE_PAGE_MASK, %eax
+	testl	%eax, %eax
+	jnz	bad_address
+
+	/* Is the address too large? */
+	leaq	_text(%rip), %rdx
+	movq	$PGDIR_SIZE, %rax
+	cmpq	%rax, %rdx
+	jae	bad_address
+
+	/* Fixup the physical addresses in the page table
+	 */
+	addq	%rbp, init_level4_pgt + 0(%rip)
+	addq	%rbp, init_level4_pgt + (258*8)(%rip)
+	addq	%rbp, init_level4_pgt + (511*8)(%rip)
+
+	addq	%rbp, level3_ident_pgt + 0(%rip)
+	addq	%rbp, level3_kernel_pgt + (510*8)(%rip)
+
+	/* Add an Identity mapping if I am above 1G */
+	leaq	_text(%rip), %rdi
+	andq	$LARGE_PAGE_MASK, %rdi
+
+	movq	%rdi, %rax
+	shrq	$PUD_SHIFT, %rax
+	andq	$(PTRS_PER_PUD - 1), %rax
+	jz	ident_complete
+
+	leaq	(level2_spare_pgt - __START_KERNEL_map + _KERNPG_TABLE)(%rbp), %rdx
+	leaq	level3_ident_pgt(%rip), %rbx
+	movq	%rdx, 0(%rbx, %rax, 8)
+
+	movq	%rdi, %rax
+	shrq	$PMD_SHIFT, %rax
+	andq	$(PTRS_PER_PMD - 1), %rax
+	leaq	__PAGE_KERNEL_LARGE_EXEC(%rdi), %rdx
+	leaq	level2_spare_pgt(%rip), %rbx
+	movq	%rdx, 0(%rbx, %rax, 8)
+ident_complete:
+
+	/* Fixup the kernel text+data virtual addresses
+	 */
+	leaq	level2_kernel_pgt(%rip), %rdi
+	leaq	4096(%rdi), %r8
+	/* See if it is a valid page table entry */
+1:	testq	$1, 0(%rdi)
+	jz	2f
+	addq	%rbp, 0(%rdi)
+	/* Go to the next page */
+2:	addq	$8, %rdi
+	cmp	%r8, %rdi
+	jne	1b
+
+	/* Fixup phys_base */
+	addq	%rbp, phys_base(%rip)
+
+#ifdef CONFIG_SMP
+	addq	%rbp, trampoline_level4_pgt + 0(%rip)
+	addq	%rbp, trampoline_level4_pgt + (511*8)(%rip)
+#endif
+#ifdef CONFIG_ACPI_SLEEP
+	addq	%rbp, wakeup_level4_pgt + 0(%rip)
+	addq	%rbp, wakeup_level4_pgt + (511*8)(%rip)
+#endif
+
+	/* Due to ENTRY(), sometimes the empty space gets filled with
+	 * zeros. Better take a jmp than relying on empty space being
+	 * filled with 0x90 (nop)
+	 */
+	jmp secondary_startup_64
 ENTRY(secondary_startup_64)
-	/* We come here either from startup_32
-	 * or directly from a 64bit bootloader.
-	 * Since we may have come directly from a bootloader we
-	 * reload the page tables here.
+	/*
+	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 1,
+	 * and someone has loaded a mapped page table.
+	 *
+	 * %esi holds a physical pointer to real_mode_data.
+	 *
+	 * We come here either from startup_64 (using physical addresses)
+	 * or from trampoline.S (using virtual addresses).
+	 *
+	 * Using virtual addresses from trampoline.S removes the need
+	 * to have any identity mapped pages in the kernel page table
+	 * after the boot processor executes this code.
 	 */
 
 	/* Enable PAE mode and PGE */
@@ -116,7 +149,13 @@ ENTRY(secondary_startup_64)
 
 	/* Setup early boot stage 4 level pagetables. */
 	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
+	addq	phys_base(%rip), %rax
 	movq	%rax, %cr3
+
+	/* Ensure I am executing from virtual addresses */
+	movq	$1f, %rax
+	jmp	*%rax
+1:
 
 	/* Check if nx is implemented */
 	movl	$0x80000001, %eax
@@ -126,17 +165,11 @@ ENTRY(secondary_startup_64)
 	/* Setup EFER (Extended Feature Enable Register) */
 	movl	$MSR_EFER, %ecx
 	rdmsr
-
-	/* Enable System Call */
-	btsl	$_EFER_SCE, %eax
-
-	/* No Execute supported? */
-	btl	$20,%edi
+	btsl	$_EFER_SCE, %eax	/* Enable System Call */
+	btl	$20,%edi		/* No Execute supported? */
 	jnc     1f
 	btsl	$_EFER_NX, %eax
-1:
-	/* Make changes effective */
-	wrmsr
+1:	wrmsr				/* Make changes effective */
 
 	/* Setup cr0 */
 #define CR0_PM				1		/* protected mode */
@@ -163,7 +196,7 @@ ENTRY(secondary_startup_64)
 	 * addresses where we're currently running on. We have to do that here
 	 * because in 32bit we couldn't load a 64bit linear address.
 	 */
-	lgdt	cpu_gdt_descr
+	lgdt	cpu_gdt_descr(%rip)
 
 	/* set up data segments. actually 0 would do too */
 	movl $__KERNEL_DS,%eax
@@ -214,6 +247,9 @@ initial_code:
 init_rsp:
 	.quad  init_thread_union+THREAD_SIZE-8
 
+bad_address:
+	jmp bad_address
+
 ENTRY(early_idt_handler)
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
@@ -242,23 +278,7 @@ early_idt_msg:
 early_idt_ripmsg:
 	.asciz "RIP %s\n"
 
-.code32
-ENTRY(no_long_mode)
-	/* This isn't an x86-64 CPU so hang */
-1:
-	jmp	1b
-
-.org 0xf00
-	.globl pGDT32
-pGDT32:
-	.word	gdt_end-cpu_gdt_table-1
-	.long	cpu_gdt_table-__START_KERNEL_map
-
-.org 0xf10	
-ljumpvector:
-	.long	startup_64-__START_KERNEL_map
-	.word	__KERNEL_CS
-
+.balign PAGE_SIZE
 ENTRY(stext)
 ENTRY(_stext)
 
@@ -303,7 +323,7 @@ NEXT_PAGE(level2_ident_pgt)
 	 * Don't set NX because code runs from these pages.
 	 */
 	PMDS(0x0000000000000000, __PAGE_KERNEL_LARGE_EXEC, PTRS_PER_PMD)
-	
+
 NEXT_PAGE(level2_kernel_pgt)
 	/* 40MB kernel mapping. The kernel code cannot be bigger than that.
 	   When you change this change KERNEL_TEXT_SIZE in page.h too. */
@@ -312,6 +332,9 @@ NEXT_PAGE(level2_kernel_pgt)
 		KERNEL_TEXT_SIZE/PMD_SIZE)
 	/* Module mapping starts here */
 	.fill	(PTRS_PER_PMD - (KERNEL_TEXT_SIZE/PMD_SIZE)),8,0
+
+NEXT_PAGE(level2_spare_pgt)
+	.fill   512,8,0
 
 #undef PMDS
 #undef NEXT_PAGE
@@ -329,6 +352,10 @@ gdt:
 	.quad	0
 	.endr
 #endif
+
+ENTRY(phys_base)
+	/* This must match the first entry in level2_kernel_pgt */
+	.quad   0x0000000000000000
 
 /* We need valid kernel segments for data and code in long mode too
  * IRET will check the segment types  kkeil 2000/10/28

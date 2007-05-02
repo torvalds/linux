@@ -61,6 +61,8 @@ typedef struct { unsigned long pgd; } pgd_t;
 
 typedef struct { unsigned long pgprot; } pgprot_t;
 
+extern unsigned long phys_base;
+
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((x).pmd)
 #define pud_val(x)	((x).pud)
@@ -101,14 +103,14 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define PAGE_OFFSET		__PAGE_OFFSET
 
 /* Note: __pa(&symbol_visible_to_c) should be always replaced with __pa_symbol.
-   Otherwise you risk miscompilation. */ 
+   Otherwise you risk miscompilation. */
 #define __pa(x)			((unsigned long)(x) - PAGE_OFFSET)
 /* __pa_symbol should be used for C visible symbols.
    This seems to be the official gcc blessed way to do such arithmetic. */ 
 #define __pa_symbol(x)		\
 	({unsigned long v;  \
 	  asm("" : "=r" (v) : "0" (x)); \
-	  (v - __START_KERNEL_map); })
+	  ((v - __START_KERNEL_map) + phys_base); })
 
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
 #ifdef CONFIG_FLATMEM
