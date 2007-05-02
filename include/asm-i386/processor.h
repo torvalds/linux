@@ -291,7 +291,8 @@ typedef struct {
 
 struct thread_struct;
 
-struct tss_struct {
+/* This is the TSS defined by the hardware. */
+struct i386_hw_tss {
 	unsigned short	back_link,__blh;
 	unsigned long	esp0;
 	unsigned short	ss0,__ss0h;
@@ -315,6 +316,11 @@ struct tss_struct {
 	unsigned short	gs, __gsh;
 	unsigned short	ldt, __ldth;
 	unsigned short	trace, io_bitmap_base;
+} __attribute__((packed));
+
+struct tss_struct {
+	struct i386_hw_tss x86_tss;
+
 	/*
 	 * The extra 1 is there because the CPU will access an
 	 * additional byte beyond the end of the IO permission
@@ -381,10 +387,12 @@ struct thread_struct {
  * be within the limit.
  */
 #define INIT_TSS  {							\
-	.esp0		= sizeof(init_stack) + (long)&init_stack,	\
-	.ss0		= __KERNEL_DS,					\
-	.ss1		= __KERNEL_CS,					\
-	.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,			\
+	.x86_tss = {							\
+		.esp0		= sizeof(init_stack) + (long)&init_stack, \
+		.ss0		= __KERNEL_DS,				\
+		.ss1		= __KERNEL_CS,				\
+		.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,		\
+	 },								\
 	.io_bitmap	= { [ 0 ... IO_BITMAP_LONGS] = ~0 },		\
 }
 
@@ -493,10 +501,10 @@ static inline void rep_nop(void)
 
 static inline void native_load_esp0(struct tss_struct *tss, struct thread_struct *thread)
 {
-	tss->esp0 = thread->esp0;
+	tss->x86_tss.esp0 = thread->esp0;
 	/* This can only happen when SEP is enabled, no need to test "SEP"arately */
-	if (unlikely(tss->ss1 != thread->sysenter_cs)) {
-		tss->ss1 = thread->sysenter_cs;
+	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
+		tss->x86_tss.ss1 = thread->sysenter_cs;
 		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
 	}
 }

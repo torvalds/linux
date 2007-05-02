@@ -183,10 +183,10 @@ void enable_sep_cpu(void)
 		return;
 	}
 
-	tss->ss1 = __KERNEL_CS;
-	tss->esp1 = sizeof(struct tss_struct) + (unsigned long) tss;
+	tss->x86_tss.ss1 = __KERNEL_CS;
+	tss->x86_tss.esp1 = sizeof(struct tss_struct) + (unsigned long) tss;
 	wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
-	wrmsr(MSR_IA32_SYSENTER_ESP, tss->esp1, 0);
+	wrmsr(MSR_IA32_SYSENTER_ESP, tss->x86_tss.esp1, 0);
 	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long) sysenter_entry, 0);
 	put_cpu();	
 }

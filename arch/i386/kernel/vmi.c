@@ -230,14 +230,14 @@ static void vmi_set_tr(void)
 static void vmi_load_esp0(struct tss_struct *tss,
 				   struct thread_struct *thread)
 {
-	tss->esp0 = thread->esp0;
+	tss->x86_tss.esp0 = thread->esp0;
 
 	/* This can only happen when SEP is enabled, no need to test "SEP"arately */
-	if (unlikely(tss->ss1 != thread->sysenter_cs)) {
-		tss->ss1 = thread->sysenter_cs;
+	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
+		tss->x86_tss.ss1 = thread->sysenter_cs;
 		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
 	}
-	vmi_ops.set_kernel_stack(__KERNEL_DS, tss->esp0);
+	vmi_ops.set_kernel_stack(__KERNEL_DS, tss->x86_tss.esp0);
 }
 
 static void vmi_flush_tlb_user(void)

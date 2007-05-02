@@ -114,7 +114,7 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 * Reset the owner so that a process switch will not set
 	 * tss->io_bitmap_base to IO_BITMAP_OFFSET.
 	 */
-	tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
+	tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
 	tss->io_bitmap_owner = NULL;
 
 	put_cpu();
