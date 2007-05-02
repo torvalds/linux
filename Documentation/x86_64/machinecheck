@@ -36,7 +36,12 @@ between all CPUs.
 
 check_interval
 	How often to poll for corrected machine check errors, in seconds
-	(Note output is hexademical). Default 5 minutes.
+	(Note output is hexademical). Default 5 minutes.  When the poller
+	finds MCEs it triggers an exponential speedup (poll more often) on
+	the polling interval.  When the poller stops finding MCEs, it
+	triggers an exponential backoff (poll less often) on the polling
+	interval. The check_interval variable is both the initial and
+	maximum polling interval.
 
 tolerant
 	Tolerance level. When a machine check exception occurs for a non
