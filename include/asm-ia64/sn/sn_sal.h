@@ -106,6 +106,7 @@
 /* interrupt handling */
 #define SAL_INTR_ALLOC		1
 #define SAL_INTR_FREE		2
+#define SAL_INTR_REDIRECT	3
 
 /*
  * operations available on the generic SN_SAL_SYSCTL_OP
