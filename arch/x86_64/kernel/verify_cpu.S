@@ -30,18 +30,27 @@
  * 	appropriately. Either display a message or halt.
  */
 
-verify_cpu:
+#include <asm/cpufeature.h>
 
+verify_cpu:
 	pushfl				# Save caller passed flags
 	pushl	$0			# Kill any dangerous flags
 	popfl
 
-	/* minimum CPUID flags for x86-64 */
-	/* see http://www.x86-64.org/lists/discuss/msg02971.html */
-#define SSE_MASK ((1<<25)|(1<<26))
-#define REQUIRED_MASK1 ((1<<0)|(1<<3)|(1<<4)|(1<<5)|(1<<6)|(1<<8)|\
-					   (1<<13)|(1<<15)|(1<<24))
-#define REQUIRED_MASK2 (1<<29)
+	/* minimum CPUID flags for x86-64 as defined by AMD */
+#define M(x) (1<<(x))
+#define M2(a,b) M(a)|M(b)
+#define M4(a,b,c,d) M(a)|M(b)|M(c)|M(d)
+
+#define SSE_MASK \
+	(M2(X86_FEATURE_XMM,X86_FEATURE_XMM2))
+#define REQUIRED_MASK1 \
+	(M4(X86_FEATURE_FPU,X86_FEATURE_PSE,X86_FEATURE_TSC,X86_FEATURE_MSR)|\
+	 M4(X86_FEATURE_PAE,X86_FEATURE_CX8,X86_FEATURE_PGE,X86_FEATURE_CMOV)|\
+	 M(X86_FEATURE_FXSR))
+#define REQUIRED_MASK2 \
+	(M(X86_FEATURE_LM - 32))
+
 	pushfl				# standard way to check for cpuid
 	popl	%eax
 	movl	%eax,%ebx
