@@ -384,8 +384,6 @@ qeth_dev_route_store(struct qeth_card *card, struct qeth_routing_info *route,
 		route->type = PRIMARY_CONNECTOR;
 	} else if (!strcmp(tmp, "secondary_connector")) {
 		route->type = SECONDARY_CONNECTOR;
-	} else if (!strcmp(tmp, "multicast_router")) {
-		route->type = MULTICAST_ROUTER;
 	} else if (!strcmp(tmp, "primary_router")) {
 		route->type = PRIMARY_ROUTER;
 	} else if (!strcmp(tmp, "secondary_router")) {

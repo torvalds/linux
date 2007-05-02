@@ -620,10 +620,10 @@ qeth_eddp_create_context_tcp(struct qeth_card *card, struct sk_buff *skb,
 
 struct qeth_eddp_context *
 qeth_eddp_create_context(struct qeth_card *card, struct sk_buff *skb,
-			 struct qeth_hdr *qhdr)
+			 struct qeth_hdr *qhdr, unsigned char sk_protocol)
 {
 	QETH_DBF_TEXT(trace, 5, "creddpc");
-	switch (skb->sk->sk_protocol){
+	switch (sk_protocol) {
 	case IPPROTO_TCP:
 		return qeth_eddp_create_context_tcp(card, skb, qhdr);
 	default:

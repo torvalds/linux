@@ -34,7 +34,8 @@ struct qeth_eddp_context_reference {
 };
 
 extern struct qeth_eddp_context *
-qeth_eddp_create_context(struct qeth_card *,struct sk_buff *,struct qeth_hdr *);
+qeth_eddp_create_context(struct qeth_card *,struct sk_buff *,
+			 struct qeth_hdr *, unsigned char);
 
 extern void
 qeth_eddp_put_context(struct qeth_eddp_context *);
