@@ -101,6 +101,7 @@ startup_32:
 	.org 0x100	
 	.globl startup_64
 startup_64:
+ENTRY(secondary_startup_64)
 	/* We come here either from startup_32
 	 * or directly from a 64bit bootloader.
 	 * Since we may have come directly from a bootloader we

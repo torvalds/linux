@@ -329,15 +329,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_SMP
-	/*
-	 * But first pinch a few for the stack/trampoline stuff
-	 * FIXME: Don't need the extra page at 4K, but need to fix
-	 * trampoline before removing it. (see the GDT stuff)
-	 */
-	reserve_bootmem_generic(PAGE_SIZE, PAGE_SIZE);
-
 	/* Reserve SMP trampoline */
-	reserve_bootmem_generic(SMP_TRAMPOLINE_BASE, PAGE_SIZE);
+	reserve_bootmem_generic(SMP_TRAMPOLINE_BASE, 2*PAGE_SIZE);
 #endif
 
 #ifdef CONFIG_ACPI_SLEEP
