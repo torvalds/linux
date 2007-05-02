@@ -52,9 +52,14 @@
 #endif
 
 /* For assembly routines */
+#ifdef CONFIG_HOTPLUG_CPU
+#define __INIT		.section	".text","ax"
+#define __INITDATA	.section	".data","aw"
+#else
 #define __INIT		.section	".init.text","ax"
-#define __FINIT		.previous
 #define __INITDATA	.section	".init.data","aw"
+#endif
+#define __FINIT		.previous
 
 #ifndef __ASSEMBLY__
 /*
