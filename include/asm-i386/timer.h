@@ -9,8 +9,6 @@ void setup_pit_timer(void);
 unsigned long long native_sched_clock(void);
 unsigned long native_calculate_cpu_khz(void);
 
-/* Modifiers for buggy PIT handling */
-extern int pit_latch_buggy;
 extern int timer_ack;
 extern int no_timer_check;
 extern int no_sync_cmos_clock;
