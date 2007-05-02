@@ -88,6 +88,23 @@ static unsigned short known_revisions[] =
 	0xffff			/* end of list */
 };
 
+static int jazzsonic_open(struct net_device* dev)
+{
+	if (request_irq(dev->irq, &sonic_interrupt, IRQF_DISABLED, "sonic", dev)) {
+		printk(KERN_ERR "%s: unable to get IRQ %d.\n", dev->name, dev->irq);
+		return -EAGAIN;
+	}
+	return sonic_open(dev);
+}
+
+static int jazzsonic_close(struct net_device* dev)
+{
+	int err;
+	err = sonic_close(dev);
+	free_irq(dev->irq, dev);
+	return err;
+}
+
 static int __init sonic_probe1(struct net_device *dev)
 {
 	static unsigned version_printed;
@@ -169,8 +186,8 @@ static int __init sonic_probe1(struct net_device *dev)
 	lp->rra_laddr = lp->rda_laddr + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
 	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
 
-	dev->open = sonic_open;
-	dev->stop = sonic_close;
+	dev->open = jazzsonic_open;
+	dev->stop = jazzsonic_close;
 	dev->hard_start_xmit = sonic_send_packet;
 	dev->get_stats = sonic_get_stats;
 	dev->set_multicast_list = &sonic_multicast_list;
@@ -259,8 +276,6 @@ out:
 MODULE_DESCRIPTION("Jazz SONIC ethernet driver");
 module_param(sonic_debug, int, 0);
 MODULE_PARM_DESC(sonic_debug, "jazzsonic debug level (1-4)");
-
-#define SONIC_IRQ_FLAG IRQF_DISABLED
 
 #include "sonic.c"
 

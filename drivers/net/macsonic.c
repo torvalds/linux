@@ -130,6 +130,46 @@ static inline void bit_reverse_addr(unsigned char addr[6])
 		addr[i] = bitrev8(addr[i]);
 }
 
+static irqreturn_t macsonic_interrupt(int irq, void *dev_id)
+{
+	irqreturn_t result;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	result = sonic_interrupt(irq, dev_id);
+	local_irq_restore(flags);
+	return result;
+}
+
+static int macsonic_open(struct net_device* dev)
+{
+	if (request_irq(dev->irq, &sonic_interrupt, IRQ_FLG_FAST, "sonic", dev)) {
+		printk(KERN_ERR "%s: unable to get IRQ %d.\n", dev->name, dev->irq);
+		return -EAGAIN;
+	}
+	/* Under the A/UX interrupt scheme, the onboard SONIC interrupt comes
+	 * in at priority level 3. However, we sometimes get the level 2 inter-
+	 * rupt as well, which must prevent re-entrance of the sonic handler.
+	 */
+	if (dev->irq == IRQ_AUTO_3)
+		if (request_irq(IRQ_NUBUS_9, &macsonic_interrupt, IRQ_FLG_FAST, "sonic", dev)) {
+			printk(KERN_ERR "%s: unable to get IRQ %d.\n", dev->name, IRQ_NUBUS_9);
+			free_irq(dev->irq, dev);
+			return -EAGAIN;
+		}
+	return sonic_open(dev);
+}
+
+static int macsonic_close(struct net_device* dev)
+{
+	int err;
+	err = sonic_close(dev);
+	free_irq(dev->irq, dev);
+	if (dev->irq == IRQ_AUTO_3)
+		free_irq(IRQ_NUBUS_9, dev);
+	return err;
+}
+
 int __init macsonic_init(struct net_device* dev)
 {
 	struct sonic_local* lp = netdev_priv(dev);
@@ -160,8 +200,8 @@ int __init macsonic_init(struct net_device* dev)
 	lp->rra_laddr = lp->rda_laddr + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
 	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
 
-	dev->open = sonic_open;
-	dev->stop = sonic_close;
+	dev->open = macsonic_open;
+	dev->stop = macsonic_close;
 	dev->hard_start_xmit = sonic_send_packet;
 	dev->get_stats = sonic_get_stats;
 	dev->set_multicast_list = &sonic_multicast_list;
@@ -571,8 +611,6 @@ out:
 MODULE_DESCRIPTION("Macintosh SONIC ethernet driver");
 module_param(sonic_debug, int, 0);
 MODULE_PARM_DESC(sonic_debug, "macsonic debug level (1-4)");
-
-#define SONIC_IRQ_FLAG IRQ_FLG_FAST
 
 #include "sonic.c"
 
