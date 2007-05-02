@@ -1605,7 +1605,7 @@ S:	Maintained
 
 HPET:	x86_64
 P:	Andi Kleen and Vojtech Pavlik
-M:	ak@muc.de and vojtech@suse.cz
+M:	andi@firstfloor.org and vojtech@suse.cz
 S:	Maintained
 
 HPET:	ACPI hpet.c
