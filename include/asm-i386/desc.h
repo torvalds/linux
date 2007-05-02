@@ -18,16 +18,13 @@ struct Xgt_desc_struct {
 	unsigned short pad;
 } __attribute__ ((packed));
 
-extern struct Xgt_desc_struct idt_descr;
-DECLARE_PER_CPU(struct Xgt_desc_struct, cpu_gdt_descr);
 DECLARE_PER_CPU(struct desc_struct, cpu_gdt[GDT_ENTRIES]);
-extern struct Xgt_desc_struct early_gdt_descr;
-
 static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
 {
-	return (struct desc_struct *)per_cpu(cpu_gdt_descr, cpu).address;
+	return per_cpu(cpu_gdt, cpu);
 }
 
+extern struct Xgt_desc_struct idt_descr;
 extern struct desc_struct idt_table[];
 extern void set_intr_gate(unsigned int irq, void * addr);
 

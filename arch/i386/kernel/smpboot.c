@@ -786,12 +786,8 @@ static inline struct task_struct * alloc_idle_task(int cpu)
    secondary which will soon come up. */
 static __cpuinit void init_gdt(int cpu, struct task_struct *idle)
 {
-	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
-	struct desc_struct *gdt = per_cpu(cpu_gdt, cpu);
+	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
 	struct i386_pda *pda = &per_cpu(_cpu_pda, cpu);
-
- 	cpu_gdt_descr->address = (unsigned long)gdt;
-	cpu_gdt_descr->size = GDT_SIZE - 1;
 
 	pack_descriptor((u32 *)&gdt[GDT_ENTRY_PDA].a,
 			(u32 *)&gdt[GDT_ENTRY_PDA].b,
@@ -1187,7 +1183,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
  * it's on the real one. */
 static inline void switch_to_new_gdt(void)
 {
-	load_gdt(&per_cpu(cpu_gdt_descr, smp_processor_id()));
+	struct Xgt_desc_struct gdt_descr;
+
+	gdt_descr.address = (long)get_cpu_gdt_table(smp_processor_id());
+	gdt_descr.size = GDT_SIZE - 1;
+	load_gdt(&gdt_descr);
 	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_PDA) : "memory");
 }
 
