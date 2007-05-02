@@ -1403,10 +1403,6 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 	enable_8259A_irq(0);
 }
 
-static inline void UNEXPECTED_IO_APIC(void)
-{
-}
-
 void __init print_IO_APIC(void)
 {
 	int apic, i;
@@ -1446,34 +1442,12 @@ void __init print_IO_APIC(void)
 	printk(KERN_DEBUG ".......    : physical APIC id: %02X\n", reg_00.bits.ID);
 	printk(KERN_DEBUG ".......    : Delivery Type: %X\n", reg_00.bits.delivery_type);
 	printk(KERN_DEBUG ".......    : LTS          : %X\n", reg_00.bits.LTS);
-	if (reg_00.bits.ID >= get_physical_broadcast())
-		UNEXPECTED_IO_APIC();
-	if (reg_00.bits.__reserved_1 || reg_00.bits.__reserved_2)
-		UNEXPECTED_IO_APIC();
 
 	printk(KERN_DEBUG ".... register #01: %08X\n", reg_01.raw);
 	printk(KERN_DEBUG ".......     : max redirection entries: %04X\n", reg_01.bits.entries);
-	if (	(reg_01.bits.entries != 0x0f) && /* older (Neptune) boards */
-		(reg_01.bits.entries != 0x17) && /* typical ISA+PCI boards */
-		(reg_01.bits.entries != 0x1b) && /* Compaq Proliant boards */
-		(reg_01.bits.entries != 0x1f) && /* dual Xeon boards */
-		(reg_01.bits.entries != 0x22) && /* bigger Xeon boards */
-		(reg_01.bits.entries != 0x2E) &&
-		(reg_01.bits.entries != 0x3F)
-	)
-		UNEXPECTED_IO_APIC();
 
 	printk(KERN_DEBUG ".......     : PRQ implemented: %X\n", reg_01.bits.PRQ);
 	printk(KERN_DEBUG ".......     : IO APIC version: %04X\n", reg_01.bits.version);
-	if (	(reg_01.bits.version != 0x01) && /* 82489DX IO-APICs */
-		(reg_01.bits.version != 0x10) && /* oldest IO-APICs */
-		(reg_01.bits.version != 0x11) && /* Pentium/Pro IO-APICs */
-		(reg_01.bits.version != 0x13) && /* Xeon IO-APICs */
-		(reg_01.bits.version != 0x20)    /* Intel P64H (82806 AA) */
-	)
-		UNEXPECTED_IO_APIC();
-	if (reg_01.bits.__reserved_1 || reg_01.bits.__reserved_2)
-		UNEXPECTED_IO_APIC();
 
 	/*
 	 * Some Intel chipsets with IO APIC VERSION of 0x1? don't have reg_02,
@@ -1483,8 +1457,6 @@ void __init print_IO_APIC(void)
 	if (reg_01.bits.version >= 0x10 && reg_02.raw != reg_01.raw) {
 		printk(KERN_DEBUG ".... register #02: %08X\n", reg_02.raw);
 		printk(KERN_DEBUG ".......     : arbitration: %02X\n", reg_02.bits.arbitration);
-		if (reg_02.bits.__reserved_1 || reg_02.bits.__reserved_2)
-			UNEXPECTED_IO_APIC();
 	}
 
 	/*
@@ -1496,8 +1468,6 @@ void __init print_IO_APIC(void)
 	    reg_03.raw != reg_01.raw) {
 		printk(KERN_DEBUG ".... register #03: %08X\n", reg_03.raw);
 		printk(KERN_DEBUG ".......     : Boot DT    : %X\n", reg_03.bits.boot_DT);
-		if (reg_03.bits.__reserved_1)
-			UNEXPECTED_IO_APIC();
 	}
 
 	printk(KERN_DEBUG ".... IRQ redirection table:\n");
