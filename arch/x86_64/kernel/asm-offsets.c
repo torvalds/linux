@@ -21,6 +21,14 @@
 
 #define BLANK() asm volatile("\n->" : : )
 
+#define __NO_STUBS 1
+#undef __SYSCALL
+#undef _ASM_X86_64_UNISTD_H_
+#define __SYSCALL(nr, sym) [nr] = 1,
+static char syscalls[] = {
+#include <asm/unistd.h>
+};
+
 int main(void)
 {
 #define ENTRY(entry) DEFINE(tsk_ ## entry, offsetof(struct task_struct, entry))
@@ -71,5 +79,7 @@ int main(void)
 	DEFINE(TSS_ist, offsetof(struct tss_struct, ist));
 	BLANK();
 	DEFINE(crypto_tfm_ctx_offset, offsetof(struct crypto_tfm, __crt_ctx));
+	BLANK();
+	DEFINE(__NR_syscall_max, sizeof(syscalls) - 1);
 	return 0;
 }
