@@ -1879,7 +1879,9 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 
 	/* set the period time minimum 1ms */
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-				     1000 * MIN_PACKS_URB,
+				     snd_usb_get_speed(subs->dev) == USB_SPEED_FULL ?
+				     
+				     1000 * MIN_PACKS_URB : 125 * MIN_PACKS_URB,
 				     /*(nrpacks * MAX_URBS) * 1000*/ UINT_MAX);
 
 	if (check_hw_params_convention(subs)) {
