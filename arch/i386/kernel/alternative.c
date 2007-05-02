@@ -5,6 +5,7 @@
 #include <asm/alternative.h>
 #include <asm/sections.h>
 
+static int noreplace_smp     = 0;
 static int smp_alt_once      = 0;
 static int debug_alternative = 0;
 
@@ -13,14 +14,22 @@ static int __init bootonly(char *str)
 	smp_alt_once = 1;
 	return 1;
 }
+__setup("smp-alt-boot", bootonly);
+
 static int __init debug_alt(char *str)
 {
 	debug_alternative = 1;
 	return 1;
 }
-
-__setup("smp-alt-boot", bootonly);
 __setup("debug-alternative", debug_alt);
+
+static int __init setup_noreplace_smp(char *str)
+{
+	noreplace_smp = 1;
+	return 1;
+}
+__setup("noreplace-smp", setup_noreplace_smp);
+
 
 #define DPRINTK(fmt, args...) if (debug_alternative) \
 	printk(KERN_DEBUG fmt, args)
@@ -185,6 +194,9 @@ static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end
 {
 	u8 **ptr;
 
+	if (noreplace_smp)
+		return;
+
 	for (ptr = start; ptr < end; ptr++) {
 		if (*ptr < text)
 			continue;
@@ -218,6 +230,9 @@ void alternatives_smp_module_add(struct module *mod, char *name,
 {
 	struct smp_alt_module *smp;
 	unsigned long flags;
+
+	if (noreplace_smp)
+		return;
 
 	if (smp_alt_once) {
 		if (boot_cpu_has(X86_FEATURE_UP))
@@ -253,7 +268,7 @@ void alternatives_smp_module_del(struct module *mod)
 	struct smp_alt_module *item;
 	unsigned long flags;
 
-	if (smp_alt_once)
+	if (smp_alt_once || noreplace_smp)
 		return;
 
 	spin_lock_irqsave(&smp_alt, flags);
@@ -284,7 +299,7 @@ void alternatives_smp_switch(int smp)
 	return;
 #endif
 
-	if (smp_alt_once)
+	if (noreplace_smp || smp_alt_once)
 		return;
 	BUG_ON(!smp && (num_online_cpus() > 1));
 

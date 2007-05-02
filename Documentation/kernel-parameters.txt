@@ -1164,6 +1164,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nomce		[IA-32] Machine Check Exception
 
+	noreplace-smp	[IA-32,SMP] Don't replace SMP instructions
+			with UP alternatives
+
 	noresidual	[PPC] Don't use residual data on PReP machines.
 
 	noresume	[SWSUSP] Disables resume and restores original swap
@@ -1568,6 +1571,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	smart2=		[HW]
 			Format: <io1>[,<io2>[,...,<io8>]]
+
+	smp-alt-once	[IA-32,SMP] On a hotplug CPU system, only
+			attempt to substitute SMP alternatives once at boot.
 
 	snd-ad1816a=	[HW,ALSA]
 
