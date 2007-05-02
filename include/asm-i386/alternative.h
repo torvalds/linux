@@ -16,6 +16,7 @@ struct alt_instr {
 	u8  pad;
 };
 
+extern void alternative_instructions(void);
 extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 
 struct module;

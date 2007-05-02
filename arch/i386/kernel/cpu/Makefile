@@ -2,7 +2,7 @@
 # Makefile for x86-compatible CPU details and quirks
 #
 
-obj-y	:=	common.o proc.o
+obj-y	:=	common.o proc.o bugs.o
 
 obj-y	+=	amd.o
 obj-y	+=	cyrix.o
