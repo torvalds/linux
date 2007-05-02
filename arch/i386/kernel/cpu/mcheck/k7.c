@@ -75,6 +75,9 @@ void amd_mcheck_init(struct cpuinfo_x86 *c)
 	machine_check_vector = k7_machine_check;
 	wmb();
 
+	if (!cpu_has(c, X86_FEATURE_MCE))
+		return;
+
 	printk (KERN_INFO "Intel machine check architecture supported.\n");
 	rdmsr (MSR_IA32_MCG_CAP, l, h);
 	if (l & (1<<8))	/* Control register present ? */
