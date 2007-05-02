@@ -2602,6 +2602,8 @@ HANDLE_IOCTL(SIOCGIWENCODEEXT, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIWPMKSA, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIFBR, old_bridge_ioctl)
 HANDLE_IOCTL(SIOCGIFBR, old_bridge_ioctl)
+/* Not implemented in the native kernel */
+IGNORE_IOCTL(SIOCGIFCOUNT)
 HANDLE_IOCTL(RTC_IRQP_READ32, rtc_ioctl)
 HANDLE_IOCTL(RTC_IRQP_SET32, rtc_ioctl)
 HANDLE_IOCTL(RTC_EPOCH_READ32, rtc_ioctl)
