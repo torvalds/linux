@@ -35,11 +35,8 @@ struct genapic __read_mostly *genapic = &apic_flat;
 /*
  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.
  */
-void __init clustered_apic_check(void)
+void __init setup_apic_routing(void)
 {
-	unsigned int i, max_apic = 0;
-	u8 id;
-
 #ifdef CONFIG_ACPI
 	/*
 	 * Quirk: some x86_64 machines can only use physical APIC mode
@@ -49,17 +46,10 @@ void __init clustered_apic_check(void)
 	if (acpi_gbl_FADT.header.revision > FADT2_REVISION_ID &&
 			(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL))
 		genapic = &apic_physflat;
+	else
 #endif
 
-	for (i = 0; i < NR_CPUS; i++) {
-		id = bios_cpu_apicid[i];
-		if (id == BAD_APICID)
-			continue;
-		if (id > max_apic)
-			max_apic = id;
-	}
-
-	if (max_apic < 8)
+	if (cpus_weight(cpu_possible_map) <= 8)
 		genapic = &apic_flat;
 	else
 		genapic = &apic_physflat;

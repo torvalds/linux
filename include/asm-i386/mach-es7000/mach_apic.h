@@ -81,7 +81,7 @@ static inline void enable_apic_mode(void)
 }
 
 extern int apic_version [MAX_APICS];
-static inline void clustered_apic_check(void)
+static inline void setup_apic_routing(void)
 {
 	int apic = bios_cpu_apicid[smp_processor_id()];
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs, target cpus %lx\n",

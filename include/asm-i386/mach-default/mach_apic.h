@@ -54,7 +54,7 @@ static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_map)
 	return phys_map;
 }
 
-static inline void clustered_apic_check(void)
+static inline void setup_apic_routing(void)
 {
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
 					"Flat", nr_ioapics);

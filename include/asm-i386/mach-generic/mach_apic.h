@@ -13,7 +13,7 @@
 #define apic_id_registered (genapic->apic_id_registered)
 #define init_apic_ldr (genapic->init_apic_ldr)
 #define ioapic_phys_id_map (genapic->ioapic_phys_id_map)
-#define clustered_apic_check (genapic->clustered_apic_check) 
+#define setup_apic_routing (genapic->setup_apic_routing)
 #define multi_timer_check (genapic->multi_timer_check)
 #define apicid_to_node (genapic->apicid_to_node)
 #define cpu_to_logical_apicid (genapic->cpu_to_logical_apicid) 

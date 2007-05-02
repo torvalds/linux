@@ -83,7 +83,7 @@ extern void setup_secondary_APIC_clock (void);
 extern int APIC_init_uniprocessor (void);
 extern void disable_APIC_timer(void);
 extern void enable_APIC_timer(void);
-extern void clustered_apic_check(void);
+extern void setup_apic_routing(void);
 
 extern void setup_APIC_extened_lvt(unsigned char lvt_off, unsigned char vector,
 				   unsigned char msg_type, unsigned char mask);
