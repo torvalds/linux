@@ -175,7 +175,10 @@ static inline void __send_IPI_dest_field(unsigned long mask, int vector)
 	/*
 	 * Wait for idle.
 	 */
-	apic_wait_icr_idle();
+	if (unlikely(vector == NMI_VECTOR))
+		safe_apic_wait_icr_idle();
+	else
+		apic_wait_icr_idle();
 		
 	/*
 	 * prepare target chip field
