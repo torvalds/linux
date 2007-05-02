@@ -396,6 +396,26 @@ static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 	put_cpu();
 }
 
+static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->fpu_active)
+		return;
+	vcpu->fpu_active = 1;
+	vmcs_clear_bits(GUEST_CR0, CR0_TS_MASK);
+	if (vcpu->cr0 & CR0_TS_MASK)
+		vmcs_set_bits(GUEST_CR0, CR0_TS_MASK);
+	update_exception_bitmap(vcpu);
+}
+
+static void vmx_fpu_deactivate(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->fpu_active)
+		return;
+	vcpu->fpu_active = 0;
+	vmcs_set_bits(GUEST_CR0, CR0_TS_MASK);
+	update_exception_bitmap(vcpu);
+}
+
 static void vmx_vcpu_decache(struct kvm_vcpu *vcpu)
 {
 	vcpu_clear(vcpu);
@@ -925,6 +945,8 @@ static void vmx_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 
 static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
+	vmx_fpu_deactivate(vcpu);
+
 	if (vcpu->rmode.active && (cr0 & CR0_PE_MASK))
 		enter_pmode(vcpu);
 
@@ -940,26 +962,20 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	}
 #endif
 
-	if (!(cr0 & CR0_TS_MASK)) {
-		vcpu->fpu_active = 1;
-		update_exception_bitmap(vcpu);
-	}
-
 	vmcs_writel(CR0_READ_SHADOW, cr0);
 	vmcs_writel(GUEST_CR0,
 		    (cr0 & ~KVM_GUEST_CR0_MASK) | KVM_VM_CR0_ALWAYS_ON);
 	vcpu->cr0 = cr0;
+
+	if (!(cr0 & CR0_TS_MASK) || !(cr0 & CR0_PE_MASK))
+		vmx_fpu_activate(vcpu);
 }
 
 static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	vmcs_writel(GUEST_CR3, cr3);
-
-	if (!(vcpu->cr0 & CR0_TS_MASK)) {
-		vcpu->fpu_active = 0;
-		vmcs_set_bits(GUEST_CR0, CR0_TS_MASK);
-		update_exception_bitmap(vcpu);
-	}
+	if (vcpu->cr0 & CR0_PE_MASK)
+		vmx_fpu_deactivate(vcpu);
 }
 
 static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
@@ -1328,6 +1344,7 @@ static int vmx_vcpu_setup(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_X86_64
 	vmx_set_efer(vcpu, 0);
 #endif
+	vmx_fpu_activate(vcpu);
 	update_exception_bitmap(vcpu);
 
 	return 0;
@@ -1488,10 +1505,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	if (is_no_device(intr_info)) {
-		vcpu->fpu_active = 1;
-		update_exception_bitmap(vcpu);
-		if (!(vcpu->cr0 & CR0_TS_MASK))
-			vmcs_clear_bits(GUEST_CR0, CR0_TS_MASK);
+		vmx_fpu_activate(vcpu);
 		return 1;
 	}
 
@@ -1683,11 +1697,10 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		break;
 	case 2: /* clts */
 		vcpu_load_rsp_rip(vcpu);
-		vcpu->fpu_active = 1;
-		update_exception_bitmap(vcpu);
-		vmcs_clear_bits(GUEST_CR0, CR0_TS_MASK);
+		vmx_fpu_deactivate(vcpu);
 		vcpu->cr0 &= ~CR0_TS_MASK;
 		vmcs_writel(CR0_READ_SHADOW, vcpu->cr0);
+		vmx_fpu_activate(vcpu);
 		skip_emulated_instruction(vcpu);
 		return 1;
 	case 1: /*mov from cr*/
@@ -2158,7 +2171,6 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 	vmcs_clear(vmcs);
 	vcpu->vmcs = vmcs;
 	vcpu->launched = 0;
-	vcpu->fpu_active = 1;
 
 	return 0;
 
