@@ -37,7 +37,7 @@ get_mtrr_var_range(unsigned int index, struct mtrr_var_range *vr)
 	rdmsr(MTRRphysMask_MSR(index), vr->mask_lo, vr->mask_hi);
 }
 
-static void __init
+static void
 get_fixed_ranges(mtrr_type * frs)
 {
 	unsigned int *p = (unsigned int *) frs;
@@ -49,6 +49,11 @@ get_fixed_ranges(mtrr_type * frs)
 		rdmsr(MTRRfix16K_80000_MSR + i, p[2 + i * 2], p[3 + i * 2]);
 	for (i = 0; i < 8; i++)
 		rdmsr(MTRRfix4K_C0000_MSR + i, p[6 + i * 2], p[7 + i * 2]);
+}
+
+void mtrr_save_fixed_ranges(void *info)
+{
+	get_fixed_ranges(mtrr_state.fixed_ranges);
 }
 
 static void __init print_fixed(unsigned base, unsigned step, const mtrr_type*types)
