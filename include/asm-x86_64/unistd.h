@@ -655,7 +655,6 @@ __SYSCALL(__NR_move_pages, sys_move_pages)
 #include <asm/ptrace.h>
 
 asmlinkage long sys_iopl(unsigned int level, struct pt_regs *regs);
-asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on);
 struct sigaction;
 asmlinkage long sys_rt_sigaction(int sig,
 				const struct sigaction __user *act,
