@@ -16,7 +16,9 @@
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 #include <linux/cpumask.h>
+#include <asm/kmap_types.h>
 
+struct page;
 struct thread_struct;
 struct Xgt_desc_struct;
 struct tss_struct;
@@ -186,6 +188,10 @@ struct paravirt_ops
 				 unsigned long addr, pte_t *ptep);
 
  	pte_t (*ptep_get_and_clear)(pte_t *ptep);
+
+#ifdef CONFIG_HIGHPTE
+	void *(*kmap_atomic_pte)(struct page *page, enum km_type type);
+#endif
 
 #ifdef CONFIG_X86_PAE
 	void (*set_pte_atomic)(pte_t *ptep, pte_t pteval);
@@ -883,6 +889,15 @@ static inline void paravirt_release_pd(unsigned pfn)
 {
 	PVOP_VCALL1(release_pd, pfn);
 }
+
+#ifdef CONFIG_HIGHPTE
+static inline void *kmap_atomic_pte(struct page *page, enum km_type type)
+{
+	unsigned long ret;
+	ret = PVOP_CALL2(unsigned long, kmap_atomic_pte, page, type);
+	return (void *)ret;
+}
+#endif
 
 static inline void pte_update(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep)

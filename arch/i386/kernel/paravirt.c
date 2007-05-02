@@ -20,6 +20,7 @@
 #include <linux/efi.h>
 #include <linux/bcd.h>
 #include <linux/start_kernel.h>
+#include <linux/highmem.h>
 
 #include <asm/bug.h>
 #include <asm/paravirt.h>
@@ -315,6 +316,10 @@ struct paravirt_ops paravirt_ops = {
 	.pte_update_defer = paravirt_nop,
 
 	.ptep_get_and_clear = native_ptep_get_and_clear,
+
+#ifdef CONFIG_HIGHPTE
+	.kmap_atomic_pte = kmap_atomic,
+#endif
 
 #ifdef CONFIG_X86_PAE
 	.set_pte_atomic = native_set_pte_atomic,
