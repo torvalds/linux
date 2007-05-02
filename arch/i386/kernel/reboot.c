@@ -198,8 +198,6 @@ static unsigned char jump_to_bios [] =
  */
 void machine_real_restart(unsigned char *code, int length)
 {
-	unsigned long flags;
-
 	local_irq_disable();
 
 	/* Write zero to CMOS register number 0x0f, which the BIOS POST
@@ -212,9 +210,9 @@ void machine_real_restart(unsigned char *code, int length)
 	   safe side.  (Yes, CMOS_WRITE does outb_p's. -  Paul G.)
 	 */
 
-	spin_lock_irqsave(&rtc_lock, flags);
+	spin_lock(&rtc_lock);
 	CMOS_WRITE(0x00, 0x8f);
-	spin_unlock_irqrestore(&rtc_lock, flags);
+	spin_unlock(&rtc_lock);
 
 	/* Remap the kernel at virtual address zero, as well as offset zero
 	   from the kernel segment.  This assumes the kernel segment starts at
