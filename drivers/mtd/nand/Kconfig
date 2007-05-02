@@ -232,11 +232,13 @@ config MTD_NAND_BASLER_EXCITE
           will be named "excite_nandflash.ko".
 
 config MTD_NAND_CAFE
-       tristate "NAND support for OLPC CAFÉ chip"
-       depends on PCI
-       help
-	 Use NAND flash attached to the CAFÉ chip designed for the $100
-	 laptop.
+	tristate "NAND support for OLPC CAFÉ chip"
+	depends on PCI
+	select REED_SOLOMON
+	select REED_SOLOMON_DEC16
+	help
+	  Use NAND flash attached to the CAFÉ chip designed for the $100
+	  laptop.
 
 config MTD_NAND_CS553X
 	tristate "NAND support for CS5535/CS5536 (AMD Geode companion chip)"

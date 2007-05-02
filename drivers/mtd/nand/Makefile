@@ -28,4 +28,4 @@ obj-$(CONFIG_MTD_NAND_CM_X270)		+= cmx270_nand.o
 obj-$(CONFIG_MTD_NAND_BASLER_EXCITE)	+= excite_nandflash.o
 
 nand-objs := nand_base.o nand_bbt.o
-cafe_nand-objs := cafe.o cafe_ecc.o
+cafe_nand-objs := cafe.o
