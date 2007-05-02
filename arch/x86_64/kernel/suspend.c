@@ -13,6 +13,9 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
+/* References to section boundaries */
+extern const void __nosave_begin, __nosave_end;
+
 struct saved_context saved_context;
 
 unsigned long saved_context_eax, saved_context_ebx, saved_context_ecx, saved_context_edx;
@@ -219,5 +222,16 @@ int swsusp_arch_resume(void)
 		return error;
 	restore_image();
 	return 0;
+}
+
+/*
+ *	pfn_is_nosave - check if given pfn is in the 'nosave' section
+ */
+
+int pfn_is_nosave(unsigned long pfn)
+{
+	unsigned long nosave_begin_pfn = __pa_symbol(&__nosave_begin) >> PAGE_SHIFT;
+	unsigned long nosave_end_pfn = PAGE_ALIGN(__pa_symbol(&__nosave_end)) >> PAGE_SHIFT;
+	return (pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn);
 }
 #endif /* CONFIG_SOFTWARE_SUSPEND */
