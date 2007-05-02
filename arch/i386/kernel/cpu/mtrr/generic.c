@@ -38,7 +38,7 @@ static struct mtrr_state mtrr_state = {};
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "mtrr."
 
-static __initdata int mtrr_show;
+static int mtrr_show;
 module_param_named(show, mtrr_show, bool, 0);
 
 /*  Get the MSR pair relating to a var range  */
@@ -68,12 +68,13 @@ void mtrr_save_fixed_ranges(void *info)
 	get_fixed_ranges(mtrr_state.fixed_ranges);
 }
 
-static void __init print_fixed(unsigned base, unsigned step, const mtrr_type*types)
+static void __cpuinit print_fixed(unsigned base, unsigned step, const mtrr_type*types)
 {
 	unsigned i;
 
 	for (i = 0; i < 8; ++i, ++types, base += step)
-		printk(KERN_INFO "MTRR %05X-%05X %s\n", base, base + step - 1, mtrr_attrib_to_str(*types));
+		printk(KERN_INFO "MTRR %05X-%05X %s\n",
+			base, base + step - 1, mtrr_attrib_to_str(*types));
 }
 
 /*  Grab all of the MTRR state for this CPU into *state  */
