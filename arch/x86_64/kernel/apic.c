@@ -843,7 +843,7 @@ static int __init calibrate_APIC_clock(void)
 		} while ((tsc - tsc_start) < TICK_COUNT &&
 				(apic - apic_start) < TICK_COUNT);
 
-		result = (apic_start - apic) * 1000L * cpu_khz /
+		result = (apic_start - apic) * 1000L * tsc_khz /
 					(tsc - tsc_start);
 	}
 	printk("result %d\n", result);

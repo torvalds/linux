@@ -50,7 +50,7 @@ static __cpuinit void check_tsc_warp(void)
 	/*
 	 * The measurement runs for 20 msecs:
 	 */
-	end = start + cpu_khz * 20ULL;
+	end = start + tsc_khz * 20ULL;
 	now = start;
 
 	for (i = 0; ; i++) {

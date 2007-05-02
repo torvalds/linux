@@ -92,6 +92,7 @@ extern unsigned long table_start, table_end;
 
 extern int exception_trace;
 extern unsigned cpu_khz;
+extern unsigned tsc_khz;
 
 extern void no_iommu_init(void);
 extern int force_iommu, no_iommu;
