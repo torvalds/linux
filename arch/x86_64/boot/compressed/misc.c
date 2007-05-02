@@ -189,7 +189,7 @@ static void putstr(const char *);
 static long free_mem_ptr;
 static long free_mem_end_ptr;
 
-#define HEAP_SIZE             0x6000
+#define HEAP_SIZE             0x7000
 
 static char *vidmem = (char *)0xb8000;
 static int vidport;

@@ -292,7 +292,6 @@ STATIC int INIT huft_build(
    oversubscribed set of lengths), and three if not enough memory. */
 {
   unsigned a;                   /* counter for codes of length k */
-  unsigned c[BMAX+1];           /* bit length count table */
   unsigned f;                   /* i repeats in table every f entries */
   int g;                        /* maximum code length */
   int h;                        /* table level */
@@ -303,18 +302,33 @@ STATIC int INIT huft_build(
   register unsigned *p;         /* pointer into c[], b[], or v[] */
   register struct huft *q;      /* points to current table */
   struct huft r;                /* table entry for structure assignment */
-  struct huft *u[BMAX];         /* table stack */
-  unsigned v[N_MAX];            /* values in order of bit length */
   register int w;               /* bits before this table == (l * h) */
-  unsigned x[BMAX+1];           /* bit offsets, then code stack */
   unsigned *xp;                 /* pointer into x */
   int y;                        /* number of dummy codes added */
   unsigned z;                   /* number of entries in current table */
+  struct {
+    unsigned c[BMAX+1];           /* bit length count table */
+    struct huft *u[BMAX];         /* table stack */
+    unsigned v[N_MAX];            /* values in order of bit length */
+    unsigned x[BMAX+1];           /* bit offsets, then code stack */
+  } *stk;
+  unsigned *c, *v, *x;
+  struct huft **u;
+  int ret;
 
 DEBG("huft1 ");
 
+  stk = malloc(sizeof(*stk));
+  if (stk == NULL)
+    return 3;			/* out of memory */
+
+  c = stk->c;
+  v = stk->v;
+  x = stk->x;
+  u = stk->u;
+
   /* Generate counts for each bit length */
-  memzero(c, sizeof(c));
+  memzero(stk->c, sizeof(stk->c));
   p = b;  i = n;
   do {
     Tracecv(*p, (stderr, (n-i >= ' ' && n-i <= '~' ? "%c %d\n" : "0x%x %d\n"), 
@@ -326,7 +340,8 @@ DEBG("huft1 ");
   {
     *t = (struct huft *)NULL;
     *m = 0;
-    return 2;
+    ret = 2;
+    goto out;
   }
 
 DEBG("huft2 ");
@@ -351,10 +366,14 @@ DEBG("huft3 ");
 
   /* Adjust last length count to fill out codes, if needed */
   for (y = 1 << j; j < i; j++, y <<= 1)
-    if ((y -= c[j]) < 0)
-      return 2;                 /* bad input: more codes than bits */
-  if ((y -= c[i]) < 0)
-    return 2;
+    if ((y -= c[j]) < 0) {
+      ret = 2;                 /* bad input: more codes than bits */
+      goto out;
+    }
+  if ((y -= c[i]) < 0) {
+    ret = 2;
+    goto out;
+  }
   c[i] += y;
 
 DEBG("huft4 ");
@@ -428,7 +447,8 @@ DEBG1("3 ");
         {
           if (h)
             huft_free(u[0]);
-          return 3;             /* not enough memory */
+          ret = 3;             /* not enough memory */
+	  goto out;
         }
 DEBG1("4 ");
         hufts += z + 1;         /* track memory usage */
@@ -492,7 +512,11 @@ DEBG("h6f ");
 DEBG("huft7 ");
 
   /* Return true (1) if we were given an incomplete table */
-  return y != 0 && g != 1;
+  ret = y != 0 && g != 1;
+
+  out:
+  free(stk);
+  return ret;
 }
 
 
@@ -705,9 +729,13 @@ STATIC int noinline INIT inflate_fixed(void)
   struct huft *td;      /* distance code table */
   int bl;               /* lookup bits for tl */
   int bd;               /* lookup bits for td */
-  unsigned l[288];      /* length list for huft_build */
+  unsigned *l;          /* length list for huft_build */
 
 DEBG("<fix");
+
+  l = malloc(sizeof(*l) * 288);
+  if (l == NULL)
+    return 3;			/* out of memory */
 
   /* set up literal table */
   for (i = 0; i < 144; i++)
@@ -719,9 +747,10 @@ DEBG("<fix");
   for (; i < 288; i++)          /* make a complete, but wrong code set */
     l[i] = 8;
   bl = 7;
-  if ((i = huft_build(l, 288, 257, cplens, cplext, &tl, &bl)) != 0)
+  if ((i = huft_build(l, 288, 257, cplens, cplext, &tl, &bl)) != 0) {
+    free(l);
     return i;
-
+  }
 
   /* set up distance table */
   for (i = 0; i < 30; i++)      /* make an incomplete code set */
@@ -730,6 +759,7 @@ DEBG("<fix");
   if ((i = huft_build(l, 30, 0, cpdist, cpdext, &td, &bd)) > 1)
   {
     huft_free(tl);
+    free(l);
 
     DEBG(">");
     return i;
@@ -737,11 +767,13 @@ DEBG("<fix");
 
 
   /* decompress until an end-of-block code */
-  if (inflate_codes(tl, td, bl, bd))
+  if (inflate_codes(tl, td, bl, bd)) {
+    free(l);
     return 1;
-
+  }
 
   /* free the decoding tables, return */
+  free(l);
   huft_free(tl);
   huft_free(td);
   return 0;
