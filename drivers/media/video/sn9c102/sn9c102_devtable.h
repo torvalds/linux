@@ -86,6 +86,8 @@ static const struct usb_device_id sn9c102_id_table[] = {
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60bc, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60be, BRIDGE_SN9C103), },
 	/* SN9C105 */
+	{ SN9C102_USB_DEVICE(0x045e, 0x00f5, BRIDGE_SN9C105), },
+	{ SN9C102_USB_DEVICE(0x045e, 0x00f7, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0471, 0x0327, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0471, 0x0328, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60c0, BRIDGE_SN9C105), },
@@ -100,6 +102,7 @@ static const struct usb_device_id sn9c102_id_table[] = {
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60fc, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60fe, BRIDGE_SN9C105), },
 	/* SN9C120 */
+	{ SN9C102_USB_DEVICE(0x0458, 0x7025, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6102, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6108, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x610f, BRIDGE_SN9C120), },
@@ -148,7 +151,6 @@ static int (*sn9c102_sensor_table[])(struct sn9c102_device*) = {
 	&sn9c102_probe_tas5110c1b, /* detection based on USB pid/vid */
 	&sn9c102_probe_tas5110d, /* detection based on USB pid/vid */
 	&sn9c102_probe_tas5130d1b, /* detection based on USB pid/vid */
-	NULL,
 };
 
 #endif /* _SN9C102_DEVTABLE_H_ */

@@ -355,6 +355,9 @@ devices assembling the SN9C1xx PC camera controllers:
 
 Vendor ID  Product ID
 ---------  ----------
+0x0458     0x7025
+0x045e     0x00f5
+0x045e     0x00f7
 0x0471     0x0327
 0x0471     0x0328
 0x0c45     0x6001
@@ -432,7 +435,7 @@ Image sensor / SN9C1xx bridge      | SN9C10[12]  SN9C103  SN9C105  SN9C120
 HV7131D    Hynix Semiconductor     | Yes         No       No       No
 HV7131R    Hynix Semiconductor     | No          Yes      Yes      Yes
 MI-0343    Micron Technology       | Yes         No       No       No
-MI-0360    Micron Technology       | No          Yes      No       No
+MI-0360    Micron Technology       | No          Yes      Yes      Yes
 OV7630     OmniVision Technologies | Yes         Yes      No       No
 OV7660     OmniVision Technologies | No          No       Yes      Yes
 PAS106B    PixArt Imaging          | Yes         No       No       No
@@ -478,13 +481,12 @@ scaling factor is restored to 1.
 This driver supports two different video formats: the first one is the "8-bit
 Sequential Bayer" format and can be used to obtain uncompressed video data
 from the device through the current I/O method, while the second one provides
-"raw" compressed video data (without frame headers not related to the
-compressed data). The compression quality may vary from 0 to 1 and can be
-selected or queried thanks to the VIDIOC_S_JPEGCOMP and VIDIOC_G_JPEGCOMP V4L2
-ioctl's. For maximum flexibility, both the default active video format and the
-default compression quality depend on how the image sensor being used is
-initialized (as described in the documentation of the API for the image sensors
-supplied by this driver).
+either "raw" compressed video data (without frame headers not related to the
+compressed data) or standard JPEG (with frame headers). The compression quality
+may vary from 0 to 1 and can be selected or queried thanks to the
+VIDIOC_S_JPEGCOMP and VIDIOC_G_JPEGCOMP V4L2 ioctl's. For maximum flexibility,
+both the default active video format and the default compression quality
+depend on how the image sensor being used is initialized.
 
 
 11. Video frame formats [1]

@@ -55,45 +55,45 @@ static int mi0343_get_ctrl(struct sn9c102_device* cam,
 			   struct v4l2_control* ctrl)
 {
 	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
-	u8 data[5+1];
+	u8 data[2];
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x09,
-					     2+1, data) < 0)
+		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x09, 2,
+					     data) < 0)
 			return -EIO;
-		ctrl->value = data[2];
+		ctrl->value = data[0];
 		return 0;
 	case V4L2_CID_GAIN:
-		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x35,
-					     2+1, data) < 0)
+		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x35, 2,
+					     data) < 0)
 			return -EIO;
 		break;
 	case V4L2_CID_HFLIP:
-		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x20,
-					     2+1, data) < 0)
+		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x20, 2,
+					     data) < 0)
 			return -EIO;
-		ctrl->value = data[3] & 0x20 ? 1 : 0;
+		ctrl->value = data[1] & 0x20 ? 1 : 0;
 		return 0;
 	case V4L2_CID_VFLIP:
-		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x20,
-					     2+1, data) < 0)
+		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x20, 2,
+					     data) < 0)
 			return -EIO;
-		ctrl->value = data[3] & 0x80 ? 1 : 0;
+		ctrl->value = data[1] & 0x80 ? 1 : 0;
 		return 0;
 	case V4L2_CID_RED_BALANCE:
-		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x2d,
-					     2+1, data) < 0)
+		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x2d, 2,
+					     data) < 0)
 			return -EIO;
 		break;
 	case V4L2_CID_BLUE_BALANCE:
-		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x2c,
-					     2+1, data) < 0)
+		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x2c, 2,
+					     data) < 0)
 			return -EIO;
 		break;
 	case SN9C102_V4L2_CID_GREEN_BALANCE:
-		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x2e,
-					     2+1, data) < 0)
+		if (sn9c102_i2c_try_raw_read(cam, s, s->i2c_slave_id, 0x2e, 2,
+					     data) < 0)
 			return -EIO;
 		break;
 	default:
@@ -105,7 +105,7 @@ static int mi0343_get_ctrl(struct sn9c102_device* cam,
 	case V4L2_CID_RED_BALANCE:
 	case V4L2_CID_BLUE_BALANCE:
 	case SN9C102_V4L2_CID_GREEN_BALANCE:
-		ctrl->value = data[3] | (data[2] << 8);
+		ctrl->value = data[1] | (data[0] << 8);
 		if (ctrl->value >= 0x10 && ctrl->value <= 0x3f)
 			ctrl->value -= 0x10;
 		else if (ctrl->value >= 0x60 && ctrl->value <= 0x7f)
@@ -223,7 +223,7 @@ static int mi0343_set_pix_format(struct sn9c102_device* cam,
 }
 
 
-static struct sn9c102_sensor mi0343 = {
+static const struct sn9c102_sensor mi0343 = {
 	.name = "MI-0343",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
 	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102,
@@ -332,20 +332,17 @@ static struct sn9c102_sensor mi0343 = {
 
 int sn9c102_probe_mi0343(struct sn9c102_device* cam)
 {
-	u8 data[5+1];
-	int err = 0;
+	u8 data[2];
 
-	err = sn9c102_write_const_regs(cam, {0x01, 0x01}, {0x00, 0x01},
-				       {0x28, 0x17});
-
-	if (err)
+	if (sn9c102_write_const_regs(cam, {0x01, 0x01}, {0x00, 0x01},
+				     {0x28, 0x17}))
 		return -EIO;
 
 	if (sn9c102_i2c_try_raw_read(cam, &mi0343, mi0343.i2c_slave_id, 0x00,
 				     2, data) < 0)
 		return -EIO;
 
-	if (data[4] != 0x32 || data[3] != 0xe3)
+	if (data[1] != 0x42 || data[0] != 0xe3)
 		return -ENODEV;
 
 	sn9c102_attach_sensor(cam, &mi0343);

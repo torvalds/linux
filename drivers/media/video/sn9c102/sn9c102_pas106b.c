@@ -163,7 +163,7 @@ static int pas106b_set_pix_format(struct sn9c102_device* cam,
 }
 
 
-static struct sn9c102_sensor pas106b = {
+static const struct sn9c102_sensor pas106b = {
 	.name = "PAS106B",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
 	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102,
@@ -273,23 +273,21 @@ static struct sn9c102_sensor pas106b = {
 
 int sn9c102_probe_pas106b(struct sn9c102_device* cam)
 {
-	int r0 = 0, r1 = 0, err;
+	int r0 = 0, r1 = 0;
 	unsigned int pid = 0;
 
 	/*
 	   Minimal initialization to enable the I2C communication
 	   NOTE: do NOT change the values!
 	*/
-	err = sn9c102_write_const_regs(cam,
-				       {0x01, 0x01}, /* sensor power down */
-				       {0x00, 0x01}, /* sensor power on */
-				       {0x28, 0x17});/* sensor clock 24 MHz */
-	if (err)
+	if (sn9c102_write_const_regs(cam,
+				     {0x01, 0x01}, /* sensor power down */
+				     {0x00, 0x01}, /* sensor power on */
+				    {0x28, 0x17})) /* sensor clock at 24 MHz */
 		return -EIO;
 
 	r0 = sn9c102_i2c_try_read(cam, &pas106b, 0x00);
 	r1 = sn9c102_i2c_try_read(cam, &pas106b, 0x01);
-
 	if (r0 < 0 || r1 < 0)
 		return -EIO;
 

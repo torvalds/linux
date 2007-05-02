@@ -141,7 +141,7 @@ sn9c102_match_id(struct sn9c102_device* cam, const struct usb_device_id *id)
 
 void
 sn9c102_attach_sensor(struct sn9c102_device* cam,
-		      struct sn9c102_sensor* sensor)
+		      const struct sn9c102_sensor* sensor)
 {
 	memcpy(&cam->sensor, sensor, sizeof(struct sn9c102_sensor));
 }

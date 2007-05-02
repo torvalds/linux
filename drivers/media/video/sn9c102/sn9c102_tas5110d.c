@@ -68,7 +68,7 @@ static int tas5110d_set_pix_format(struct sn9c102_device* cam,
 }
 
 
-static struct sn9c102_sensor tas5110d = {
+static const struct sn9c102_sensor tas5110d = {
 	.name = "TAS5110D",
 	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
 	.supported_bridge = BRIDGE_SN9C101 | BRIDGE_SN9C102,
