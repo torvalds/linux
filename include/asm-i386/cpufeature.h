@@ -7,7 +7,10 @@
 #ifndef __ASM_I386_CPUFEATURE_H
 #define __ASM_I386_CPUFEATURE_H
 
+#ifndef __ASSEMBLY__
 #include <linux/bitops.h>
+#endif
+#include <asm/required-features.h>
 
 #define NCAPINTS	7	/* N 32-bit words worth of info */
 

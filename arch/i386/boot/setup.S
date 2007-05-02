@@ -302,7 +302,24 @@ good_sig:
 
 loader_panic_mess: .string "Wrong loader, giving up..."
 
+# check minimum cpuid
+# we do this here because it is the last place we can actually
+# show a user visible error message. Later the video modus
+# might be already messed up.
 loader_ok:
+	call verify_cpu
+	testl  %eax,%eax
+	jz	cpu_ok
+	lea	cpu_panic_mess,%si
+	call	prtstr
+1:	jmp	1b
+
+cpu_panic_mess:
+	.asciz  "PANIC: CPU too old for this kernel."
+
+#include "../kernel/verify_cpu.S"
+
+cpu_ok:
 # Get memory size (extended mem, kB)
 
 	xorl	%eax, %eax
