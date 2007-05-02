@@ -30,9 +30,6 @@ SECTIONS
 	/* First the code that has to be first for bootstrapping */
 	*(.bootstrap.text)
 	_stext = .;
-	/* Then all the functions that are "hot" in profiles, to group them
-           onto the same hugetlb entry */
-	#include "functionlist"
 	/* Then the rest */
 	*(.text)
 	SCHED_TEXT

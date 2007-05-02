@@ -40,7 +40,6 @@ cflags-y += -m64
 cflags-y += -mno-red-zone
 cflags-y += -mcmodel=kernel
 cflags-y += -pipe
-cflags-kernel-$(CONFIG_REORDER) += -ffunction-sections
 cflags-y += -Wno-sign-compare
 cflags-y += -fno-asynchronous-unwind-tables
 ifneq ($(CONFIG_DEBUG_INFO),y)
