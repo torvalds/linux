@@ -415,13 +415,13 @@ config OUT_OF_LINE_PFN_TO_PAGE
 	depends on DISCONTIGMEM
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-256)"
+	int "Maximum number of CPUs (2-255)"
 	range 2 255
 	depends on SMP
 	default "8"
 	help
 	  This allows you to specify the maximum number of CPUs which this
-	  kernel will support. Current maximum is 256 CPUs due to
+	  kernel will support. Current maximum is 255 CPUs due to
 	  APIC addressing limits. Less depending on the hardware.
 
 	  This is purely to save memory - each supported CPU requires
