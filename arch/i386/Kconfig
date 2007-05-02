@@ -1029,19 +1029,6 @@ config APM_DISPLAY_BLANK
 	  backlight at all, or it might print a lot of errors to the console,
 	  especially if you are using gpm.
 
-config APM_RTC_IS_GMT
-	bool "RTC stores time in GMT"
-	depends on APM
-	help
-	  Say Y here if your RTC (Real Time Clock a.k.a. hardware clock)
-	  stores the time in GMT (Greenwich Mean Time). Say N if your RTC
-	  stores localtime.
-
-	  It is in fact recommended to store GMT in your RTC, because then you
-	  don't have to worry about daylight savings time changes. The only
-	  reason not to use GMT in your RTC is if you also run a broken OS
-	  that doesn't understand GMT.
-
 config APM_ALLOW_INTS
 	bool "Allow interrupts during APM BIOS calls"
 	depends on APM
