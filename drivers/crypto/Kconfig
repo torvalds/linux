@@ -1,10 +1,10 @@
 menu "Hardware crypto devices"
 
 config CRYPTO_DEV_PADLOCK
-	tristate "Support for VIA PadLock ACE"
+	bool "Support for VIA PadLock ACE"
 	depends on X86_32
 	select CRYPTO_ALGAPI
-	default m
+	default y
 	help
 	  Some VIA processors come with an integrated crypto engine
 	  (so called VIA PadLock ACE, Advanced Cryptography Engine)
@@ -13,16 +13,6 @@ config CRYPTO_DEV_PADLOCK
 	  
 	  The instructions are used only when the CPU supports them.
 	  Otherwise software encryption is used.
-
-	  Selecting M for this option will compile a helper module
-	  padlock.ko that should autoload all below configured
-	  algorithms. Don't worry if your hardware does not support
-	  some or all of them. In such case padlock.ko will
-	  simply write a single line into the kernel log informing
-	  about its failure but everything will keep working fine.
-
-	  If you are unsure, say M. The compiled module will be
-	  called padlock.ko
 
 config CRYPTO_DEV_PADLOCK_AES
 	tristate "PadLock driver for AES algorithm"
@@ -55,7 +45,7 @@ source "arch/s390/crypto/Kconfig"
 
 config CRYPTO_DEV_GEODE
 	tristate "Support for the Geode LX AES engine"
-	depends on CRYPTO && X86_32 && PCI
+	depends on X86_32 && PCI
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
 	default m
