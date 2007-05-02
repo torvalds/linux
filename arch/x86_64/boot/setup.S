@@ -80,7 +80,7 @@ start:
 # This is the setup header, and it must start at %cs:2 (old 0x9020:2)
 
 		.ascii	"HdrS"		# header signature
-		.word	0x0204		# header version number (>= 0x0105)
+		.word	0x0205		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
 start_sys_seg:	.word	SYSSEG
@@ -155,7 +155,16 @@ cmd_line_ptr:	.long 0			# (Header version 0x0202 or later)
 					# low memory 0x10000 or higher.
 
 ramdisk_max:	.long 0xffffffff
-	
+kernel_alignment:  .long 0x200000       # physical addr alignment required for
+					# protected mode relocatable kernel
+#ifdef CONFIG_RELOCATABLE
+relocatable_kernel:    .byte 1
+#else
+relocatable_kernel:    .byte 0
+#endif
+pad2:                  .byte 0
+pad3:                  .word 0
+
 trampoline:	call	start_of_setup
 		.align 16
 					# The offset at this point is 0x240
