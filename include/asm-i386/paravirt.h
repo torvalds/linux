@@ -30,6 +30,7 @@ enum paravirt_lazy_mode {
 	PARAVIRT_LAZY_NONE = 0,
 	PARAVIRT_LAZY_MMU = 1,
 	PARAVIRT_LAZY_CPU = 2,
+	PARAVIRT_LAZY_FLUSH = 3,
 };
 
 struct paravirt_ops
@@ -1035,12 +1036,6 @@ static inline pte_t raw_ptep_get_and_clear(pte_t *p)
 	return (pte_t) { PVOP_CALL1(unsigned long, ptep_get_and_clear, p) };
 }
 #endif	/* CONFIG_X86_PAE */
-
-/* Lazy mode for batching updates / context switch */
-#define PARAVIRT_LAZY_NONE 0
-#define PARAVIRT_LAZY_MMU  1
-#define PARAVIRT_LAZY_CPU  2
-#define PARAVIRT_LAZY_FLUSH 3
 
 #define  __HAVE_ARCH_ENTER_LAZY_CPU_MODE
 static inline void arch_enter_lazy_cpu_mode(void)
