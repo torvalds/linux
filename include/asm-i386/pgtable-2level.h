@@ -41,10 +41,24 @@ static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr, pt
 	*xp = __pte(0);
 }
 
+/* local pte updates need not use xchg for locking */
+static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)
+{
+	pte_t res;
+
+	res = *ptep;
+	native_pte_clear(NULL, 0, ptep);
+	return res;
+}
+
+#ifdef CONFIG_SMP
 static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 {
 	return __pte(xchg(&xp->pte_low, 0));
 }
+#else
+#define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
+#endif
 
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 #define pte_none(x)		(!(x).pte_low)
