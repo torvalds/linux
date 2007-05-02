@@ -692,11 +692,18 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 			if (!usbvision->have_tuner || vt->index)	// Only tuner 0
 				return -EINVAL;
-			strcpy(vt->name, "Television");
+			if(usbvision->radio) {
+				strcpy(vt->name, "Radio");
+				vt->type = V4L2_TUNER_RADIO;
+			}
+			else {
+				strcpy(vt->name, "Television");
+			}
 			/* Let clients fill in the remainder of this struct */
 			call_i2c_clients(usbvision,VIDIOC_G_TUNER,vt);
 
-			PDEBUG(DBG_IOCTL, "VIDIOC_G_TUNER signal=%x, afc=%x",vt->signal,vt->afc);
+			PDEBUG(DBG_IOCTL, "VIDIOC_G_TUNER for %s signal=%x, afc=%x",
+			       vt->name, vt->signal,vt->afc);
 			return 0;
 		}
 		case VIDIOC_S_TUNER:
@@ -717,7 +724,12 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			struct v4l2_frequency *freq = arg;
 
 			freq->tuner = 0; // Only one tuner
-			freq->type = V4L2_TUNER_ANALOG_TV;
+			if(usbvision->radio) {
+				freq->type = V4L2_TUNER_RADIO;
+			}
+			else {
+				freq->type = V4L2_TUNER_ANALOG_TV;
+			}
 			freq->frequency = usbvision->freq;
 			PDEBUG(DBG_IOCTL, "VIDIOC_G_FREQUENCY freq=0x%X", (unsigned)freq->frequency);
 			return 0;
@@ -739,7 +751,12 @@ static int usbvision_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		{
 			struct v4l2_audio *v = arg;
 			memset(v,0, sizeof(v));
-			strcpy(v->name, "TV");
+			if(usbvision->radio) {
+				strcpy(v->name,"Radio");
+			}
+			else {
+				strcpy(v->name, "TV");
+			}
 			PDEBUG(DBG_IOCTL, "VIDIOC_G_AUDIO");
 			return 0;
 		}
@@ -1219,7 +1236,6 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 {
 	struct video_device *dev = video_devdata(file);
 	struct usb_usbvision *usbvision = (struct usb_usbvision *) video_get_drvdata(dev);
-	struct v4l2_frequency freq;
 	int errCode = 0;
 
 	PDEBUG(DBG_IO, "%s:", __FUNCTION__);
@@ -1249,8 +1265,6 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 		// If so far no errors then we shall start the radio
 		usbvision->radio = 1;
 		call_i2c_clients(usbvision,AUDC_SET_RADIO,&usbvision->tuner_type);
-		freq.frequency = 1517; //SWR3 @ 94.8MHz
-		call_i2c_clients(usbvision, VIDIOC_S_FREQUENCY, &freq);
 		usbvision_set_audio(usbvision, USBVISION_AUDIO_RADIO);
 		usbvision->user++;
 	}
@@ -1304,146 +1318,10 @@ static int usbvision_radio_close(struct inode *inode, struct file *file)
 	return errCode;
 }
 
-static int usbvision_do_radio_ioctl(struct inode *inode, struct file *file,
-				 unsigned int cmd, void *arg)
-{
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision = (struct usb_usbvision *) video_get_drvdata(dev);
-
-	if (!USBVISION_IS_OPERATIONAL(usbvision))
-		return -EIO;
-
-	switch (cmd) {
-		case VIDIOC_QUERYCAP:
-		{
-			struct v4l2_capability *vc=arg;
-
-			memset(vc, 0, sizeof(*vc));
-			strlcpy(vc->driver, "USBVision", sizeof(vc->driver));
-			strlcpy(vc->card, usbvision_device_data[usbvision->DevModel].ModelString,
-				sizeof(vc->card));
-			strlcpy(vc->bus_info, usbvision->dev->dev.bus_id,
-				sizeof(vc->bus_info));
-			vc->version = USBVISION_DRIVER_VERSION;
-			vc->capabilities = (usbvision->have_tuner ? V4L2_CAP_TUNER : 0);
-			PDEBUG(DBG_IO, "VIDIOC_QUERYCAP");
-			return 0;
-		}
-		case VIDIOC_QUERYCTRL:
-		{
-			struct v4l2_queryctrl *ctrl = arg;
-			int id=ctrl->id;
-
-			memset(ctrl,0,sizeof(*ctrl));
-			ctrl->id=id;
-
-			call_i2c_clients(usbvision, cmd, arg);
-			PDEBUG(DBG_IO,"VIDIOC_QUERYCTRL id=%x value=%x",ctrl->id,ctrl->type);
-
-			if (ctrl->type)
-				return 0;
-			else
-				return -EINVAL;
-
-		}
-		case VIDIOC_G_CTRL:
-		{
-			struct v4l2_control *ctrl = arg;
-
-			call_i2c_clients(usbvision, VIDIOC_G_CTRL, ctrl);
-			PDEBUG(DBG_IO,"VIDIOC_G_CTRL id=%x value=%x",ctrl->id,ctrl->value);
-			return 0;
-		}
-		case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl = arg;
-
-			call_i2c_clients(usbvision, VIDIOC_S_CTRL, ctrl);
-			PDEBUG(DBG_IO, "VIDIOC_S_CTRL id=%x value=%x",ctrl->id,ctrl->value);
-			return 0;
-		}
-		case VIDIOC_G_TUNER:
-		{
-			struct v4l2_tuner *t = arg;
-
-			if (t->index > 0)
-				return -EINVAL;
-
-			memset(t,0,sizeof(*t));
-			strcpy(t->name, "Radio");
-			t->type = V4L2_TUNER_RADIO;
-
-			/* Let clients fill in the remainder of this struct */
-			call_i2c_clients(usbvision,VIDIOC_G_TUNER,t);
-			PDEBUG(DBG_IO, "VIDIOC_G_TUNER signal=%x, afc=%x",t->signal,t->afc);
-			return 0;
-		}
-		case VIDIOC_S_TUNER:
-		{
-			struct v4l2_tuner *vt = arg;
-
-			// Only no or one tuner for now
-			if (!usbvision->have_tuner || vt->index)
-				return -EINVAL;
-			/* let clients handle this */
-			call_i2c_clients(usbvision,VIDIOC_S_TUNER,vt);
-
-			PDEBUG(DBG_IO, "VIDIOC_S_TUNER");
-			return 0;
-		}
-		case VIDIOC_G_AUDIO:
-		{
-			struct v4l2_audio *a = arg;
-
-			memset(a,0,sizeof(*a));
-			strcpy(a->name,"Radio");
-			PDEBUG(DBG_IO, "VIDIOC_G_AUDIO");
-			return 0;
-		}
-		case VIDIOC_S_AUDIO:
-		case VIDIOC_S_INPUT:
-		case VIDIOC_S_STD:
-		return 0;
-
-		case VIDIOC_G_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			memset(f,0,sizeof(*f));
-
-			f->type = V4L2_TUNER_RADIO;
-			f->frequency = usbvision->freq;
-			call_i2c_clients(usbvision, cmd, f);
-			PDEBUG(DBG_IO, "VIDIOC_G_FREQUENCY freq=0x%X", (unsigned)f->frequency);
-
-			return 0;
-		}
-		case VIDIOC_S_FREQUENCY:
-		{
-			struct v4l2_frequency *f = arg;
-
-			if (f->tuner != 0)
-				return -EINVAL;
-			usbvision->freq = f->frequency;
-			call_i2c_clients(usbvision, cmd, f);
-			PDEBUG(DBG_IO, "VIDIOC_S_FREQUENCY freq=0x%X", (unsigned)f->frequency);
-
-			return 0;
-		}
-		default:
-		{
-			PDEBUG(DBG_IO, "%s: Unknown command %x", __FUNCTION__, cmd);
-			return -ENOIOCTLCMD;
-		}
-	}
-	return 0;
-}
-
-
 static int usbvision_radio_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, usbvision_do_radio_ioctl);
+	return video_usercopy(inode, file, cmd, arg, usbvision_v4l2_do_ioctl);
 }
 
 
