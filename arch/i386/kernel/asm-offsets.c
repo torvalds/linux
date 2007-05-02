@@ -11,6 +11,7 @@
 #include <linux/suspend.h>
 #include <asm/ucontext.h>
 #include "sigframe.h"
+#include <asm/pgtable.h>
 #include <asm/fixmap.h>
 #include <asm/processor.h>
 #include <asm/thread_info.h>
@@ -96,6 +97,11 @@ void foo(void)
 		 sizeof(struct tss_struct));
 
 	DEFINE(PAGE_SIZE_asm, PAGE_SIZE);
+	DEFINE(PAGE_SHIFT_asm, PAGE_SHIFT);
+	DEFINE(PTRS_PER_PTE, PTRS_PER_PTE);
+	DEFINE(PTRS_PER_PMD, PTRS_PER_PMD);
+	DEFINE(PTRS_PER_PGD, PTRS_PER_PGD);
+
 	DEFINE(VDSO_PRELINK_asm, VDSO_PRELINK);
 
 	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
