@@ -1407,8 +1407,7 @@ static void irq_complete_move(unsigned int irq)
 
 	vector = ~get_irq_regs()->orig_rax;
 	me = smp_processor_id();
-	if ((vector == cfg->vector) &&
-	    cpu_isset(smp_processor_id(), cfg->domain)) {
+	if ((vector == cfg->vector) && cpu_isset(me, cfg->domain)) {
 		cpumask_t cleanup_mask;
 
 		cpus_and(cleanup_mask, cfg->old_domain, cpu_online_map);
