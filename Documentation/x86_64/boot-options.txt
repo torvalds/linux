@@ -149,7 +149,13 @@ NUMA
 
   numa=noacpi   Don't parse the SRAT table for NUMA setup
 
-  numa=fake=X   Fake X nodes and ignore NUMA setup of the actual machine.
+  numa=fake=CMDLINE
+		If a number, fakes CMDLINE nodes and ignores NUMA setup of the
+		actual machine.  Otherwise, system memory is configured
+		depending on the sizes and coefficients listed.  For example:
+			numa=fake=2*512,1024,4*256
+		gives two 512M nodes, a 1024M node, and four 256M nodes.  The
+		remaining system RAM is allocated to an additional node.
 
   numa=hotadd=percent
 		Only allow hotadd memory to preallocate page structures upto
