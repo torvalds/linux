@@ -571,8 +571,8 @@ static void at91ether_sethashtable(struct net_device *dev)
 		mc_filter[bitnr >> 5] |= 1 << (bitnr & 31);
 	}
 
-	at91_emac_write(AT91_EMAC_HSH, mc_filter[0]);
-	at91_emac_write(AT91_EMAC_HSL, mc_filter[1]);
+	at91_emac_write(AT91_EMAC_HSL, mc_filter[0]);
+	at91_emac_write(AT91_EMAC_HSH, mc_filter[1]);
 }
 
 /*
