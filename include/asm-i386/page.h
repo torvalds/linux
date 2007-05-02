@@ -143,9 +143,7 @@ extern int page_is_ram(unsigned long pagenr);
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
-#ifndef CONFIG_COMPAT_VDSO
 #define __HAVE_ARCH_GATE_AREA 1
-#endif
 #endif /* __KERNEL__ */
 
 #endif /* _I386_PAGE_H */
