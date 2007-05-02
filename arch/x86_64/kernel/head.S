@@ -280,7 +280,6 @@ early_idt_ripmsg:
 
 .balign PAGE_SIZE
 ENTRY(stext)
-ENTRY(_stext)
 
 #define NEXT_PAGE(name) \
 	.balign	PAGE_SIZE; \

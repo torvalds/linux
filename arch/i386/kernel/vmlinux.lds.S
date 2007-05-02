@@ -61,8 +61,6 @@ SECTIONS
   	__stop___ex_table = .;
   }
 
-  RODATA
-
   BUG_TABLE
 
   . = ALIGN(4);
@@ -71,6 +69,8 @@ SECTIONS
 	*(.tracedata)
   	__tracedata_end = .;
   }
+
+  RODATA
 
   /* writeable */
   . = ALIGN(4096);
