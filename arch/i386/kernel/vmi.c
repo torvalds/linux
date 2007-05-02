@@ -504,8 +504,6 @@ static void vmi_pmd_clear(pmd_t *pmd)
 #endif
 
 #ifdef CONFIG_SMP
-extern void setup_pda(void);
-
 static void __devinit
 vmi_startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 		     unsigned long start_esp)
@@ -530,12 +528,10 @@ vmi_startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 
 	ap.ds = __USER_DS;
 	ap.es = __USER_DS;
-	ap.fs = __KERNEL_PDA;
+	ap.fs = __KERNEL_PERCPU;
 	ap.gs = 0;
 
 	ap.eflags = 0;
-
-	setup_pda();
 
 #ifdef CONFIG_X86_PAE
 	/* efer should match BSP efer. */

@@ -317,12 +317,12 @@ is386:	movl $2,%ecx		# set MP
 	movl %eax,%cr0
 
 	call check_x87
-	call setup_pda
 	lgdt early_gdt_descr
 	lidt idt_descr
 	ljmp $(__KERNEL_CS),$1f
 1:	movl $(__KERNEL_DS),%eax	# reload all the segment registers
 	movl %eax,%ss			# after changing gdt.
+	movl %eax,%fs			# gets reset once there's real percpu
 
 	movl $(__USER_DS),%eax		# DS/ES contains default USER segment
 	movl %eax,%ds
@@ -332,16 +332,17 @@ is386:	movl $2,%ecx		# set MP
 	movl %eax,%gs
 	lldt %ax
 
-	movl $(__KERNEL_PDA),%eax
-	mov  %eax,%fs
-
 	cld			# gcc2 wants the direction flag cleared at all times
 	pushl $0		# fake return address for unwinder
 #ifdef CONFIG_SMP
 	movb ready, %cl
 	movb $1, ready
 	cmpb $0,%cl		# the first CPU calls start_kernel
-	jne initialize_secondary # all other CPUs call initialize_secondary
+	je   1f
+	movl $(__KERNEL_PERCPU), %eax
+	movl %eax,%fs		# set this cpu's percpu
+	jmp initialize_secondary # all other CPUs call initialize_secondary
+1:
 #endif /* CONFIG_SMP */
 	jmp start_kernel
 
@@ -362,23 +363,6 @@ check_x87:
 	ALIGN
 1:	movb $1,X86_HARD_MATH
 	.byte 0xDB,0xE4		/* fsetpm for 287, ignored by 387 */
-	ret
-
-/*
- * Point the GDT at this CPU's PDA.  On boot this will be
- * cpu_gdt_table and boot_pda; for secondary CPUs, these will be
- * that CPU's GDT and PDA.
- */
-ENTRY(setup_pda)
-	/* get the PDA pointer */
-	movl start_pda, %eax
-
-	/* slot the PDA address into the GDT */
-	mov early_gdt_descr+2, %ecx
-	mov %ax, (__KERNEL_PDA+0+2)(%ecx)		/* base & 0x0000ffff */
-	shr $16, %eax
-	mov %al, (__KERNEL_PDA+4+0)(%ecx)		/* base & 0x00ff0000 */
-	mov %ah, (__KERNEL_PDA+4+3)(%ecx)		/* base & 0xff000000 */
 	ret
 
 /*
@@ -553,9 +537,6 @@ ENTRY(empty_zero_page)
  * This starts the data section.
  */
 .data
-ENTRY(start_pda)
-	.long boot_pda
-
 ENTRY(stack_start)
 	.long init_thread_union+THREAD_SIZE
 	.long __BOOT_DS

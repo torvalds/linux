@@ -377,7 +377,7 @@ struct thread_struct {
 	.vm86_info = NULL,						\
 	.sysenter_cs = __KERNEL_CS,					\
 	.io_bitmap_ptr = NULL,						\
-	.fs = __KERNEL_PDA,						\
+	.fs = __KERNEL_PERCPU,						\
 }
 
 /*

@@ -132,7 +132,7 @@ VM_MASK		= 0x00020000
 	movl $(__USER_DS), %edx; \
 	movl %edx, %ds; \
 	movl %edx, %es; \
-	movl $(__KERNEL_PDA), %edx; \
+	movl $(__KERNEL_PERCPU), %edx; \
 	movl %edx, %fs
 
 #define RESTORE_INT_REGS \
@@ -556,7 +556,6 @@ END(syscall_badsys)
 
 #define FIXUP_ESPFIX_STACK \
 	/* since we are on a wrong stack, we cant make it a C code :( */ \
-	movl %fs:PDA_cpu, %ebx; \
 	PER_CPU(gdt_page, %ebx); \
 	GET_DESC_BASE(GDT_ENTRY_ESPFIX_SS, %ebx, %eax, %ax, %al, %ah); \
 	addl %esp, %eax; \
@@ -681,7 +680,7 @@ error_code:
 	pushl %fs
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET fs, 0*/
-	movl $(__KERNEL_PDA), %ecx
+	movl $(__KERNEL_PERCPU), %ecx
 	movl %ecx, %fs
 	UNWIND_ESPFIX_STACK
 	popl %ecx

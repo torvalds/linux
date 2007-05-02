@@ -53,7 +53,6 @@
 #include <asm/desc.h>
 #include <asm/arch_hooks.h>
 #include <asm/nmi.h>
-#include <asm/pda.h>
 
 #include <mach_apic.h>
 #include <mach_wakecpu.h>
@@ -98,6 +97,9 @@ u8 x86_cpu_to_apicid[NR_CPUS] __read_mostly =
 EXPORT_SYMBOL(x86_cpu_to_apicid);
 
 u8 apicid_2_node[MAX_APICID];
+
+DEFINE_PER_CPU(unsigned long, this_cpu_off);
+EXPORT_PER_CPU_SYMBOL(this_cpu_off);
 
 /*
  * Trampoline 80x86 program as an array.
@@ -456,7 +458,6 @@ extern struct {
 	void * esp;
 	unsigned short ss;
 } stack_start;
-extern struct i386_pda *start_pda;
 
 #ifdef CONFIG_NUMA
 
@@ -784,20 +785,17 @@ static inline struct task_struct * alloc_idle_task(int cpu)
 /* Initialize the CPU's GDT.  This is either the boot CPU doing itself
    (still using the master per-cpu area), or a CPU doing it for a
    secondary which will soon come up. */
-static __cpuinit void init_gdt(int cpu, struct task_struct *idle)
+static __cpuinit void init_gdt(int cpu)
 {
 	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
-	struct i386_pda *pda = &per_cpu(_cpu_pda, cpu);
 
-	pack_descriptor((u32 *)&gdt[GDT_ENTRY_PDA].a,
-			(u32 *)&gdt[GDT_ENTRY_PDA].b,
-			(unsigned long)pda, sizeof(*pda) - 1,
-			0x80 | DESCTYPE_S | 0x2, 0); /* present read-write data segment */
+	pack_descriptor((u32 *)&gdt[GDT_ENTRY_PERCPU].a,
+			(u32 *)&gdt[GDT_ENTRY_PERCPU].b,
+			__per_cpu_offset[cpu], 0xFFFFF,
+			0x80 | DESCTYPE_S | 0x2, 0x8);
 
-	memset(pda, 0, sizeof(*pda));
-	pda->_pda = pda;
-	pda->cpu_number = cpu;
-	pda->pcurrent = idle;
+	per_cpu(this_cpu_off, cpu) = __per_cpu_offset[cpu];
+	per_cpu(cpu_number, cpu) = cpu;
 }
 
 /* Defined in head.S */
@@ -824,9 +822,9 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	if (IS_ERR(idle))
 		panic("failed fork for CPU %d", cpu);
 
-	init_gdt(cpu, idle);
+	init_gdt(cpu);
+ 	per_cpu(current_task, cpu) = idle;
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
-	start_pda = cpu_pda(cpu);
 
 	idle->thread.eip = (unsigned long) start_secondary;
 	/* start_eip had better be page-aligned! */
@@ -1188,14 +1186,14 @@ static inline void switch_to_new_gdt(void)
 	gdt_descr.address = (long)get_cpu_gdt_table(smp_processor_id());
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
-	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_PDA) : "memory");
+	asm("mov %0, %%fs" : : "r" (__KERNEL_PERCPU) : "memory");
 }
 
 void __init native_smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	init_gdt(cpu, current);
+	init_gdt(cpu);
 	switch_to_new_gdt();
 
 	cpu_set(cpu, cpu_online_map);
