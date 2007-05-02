@@ -384,13 +384,6 @@ static int			ignore_sys_suspend;
 static int			ignore_normal_resume;
 static int			bounce_interval __read_mostly = DEFAULT_BOUNCE_INTERVAL;
 
-#ifdef CONFIG_APM_RTC_IS_GMT
-#	define	clock_cmos_diff	0
-#	define	got_clock_diff	1
-#else
-static long			clock_cmos_diff;
-static int			got_clock_diff;
-#endif
 static int			debug __read_mostly;
 static int			smp __read_mostly;
 static int			apm_disabled = -1;
