@@ -328,7 +328,7 @@ static unsigned int __init pit_calibrate_tsc(void)
 #define PIT_MODE 0x43
 #define PIT_CH0  0x40
 
-static void __init __pit_init(int val, u8 mode)
+static void __pit_init(int val, u8 mode)
 {
 	unsigned long flags;
 
@@ -344,12 +344,12 @@ void __init pit_init(void)
 	__pit_init(LATCH, 0x34); /* binary, mode 2, LSB/MSB, ch 0 */
 }
 
-void __init pit_stop_interrupt(void)
+void pit_stop_interrupt(void)
 {
 	__pit_init(0, 0x30); /* mode 0 */
 }
 
-void __init stop_timer_interrupt(void)
+void stop_timer_interrupt(void)
 {
 	char *name;
 	if (hpet_address) {
