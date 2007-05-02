@@ -75,9 +75,6 @@ static DEFINE_PER_CPU(struct nmi_watchdog_ctlblk, nmi_watchdog_ctlblk);
 /* local prototypes */
 static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu);
 
-extern void show_registers(struct pt_regs *regs);
-extern int unknown_nmi_panic;
-
 /* converts an msr to an appropriate reservation bit */
 static inline unsigned int nmi_perfctr_msr_to_bit(unsigned int msr)
 {
