@@ -336,11 +336,14 @@ void apply_paravirt(struct paravirt_patch_site *start,
 		used = paravirt_ops.patch(p->instrtype, p->clobbers, p->instr,
 					  p->len);
 
+		BUG_ON(used > p->len);
+
 		/* Pad the rest with nops */
 		nop_out(p->instr + used, p->len - used);
 	}
 
-	/* Sync to be conservative, in case we patched following instructions */
+	/* Sync to be conservative, in case we patched following
+	 * instructions */
 	sync_core();
 }
 extern struct paravirt_patch_site __start_parainstructions[],
