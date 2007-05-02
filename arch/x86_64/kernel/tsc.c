@@ -111,7 +111,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 
 		tsc_khz = cpufreq_scale(tsc_khz_ref, ref_freq, freq->new);
 		if (!(freq->flags & CPUFREQ_CONST_LOOPS))
-			mark_tsc_unstable();
+			mark_tsc_unstable("cpufreq changes");
 	}
 
 	set_cyc2ns_scale(tsc_khz_ref);
@@ -199,10 +199,11 @@ static struct clocksource clocksource_tsc = {
 	.vread			= vread_tsc,
 };
 
-void mark_tsc_unstable(void)
+void mark_tsc_unstable(char *reason)
 {
 	if (!tsc_unstable) {
 		tsc_unstable = 1;
+		printk("Marking TSC unstable due to %s\n", reason);
 		/* Change only the rating, when not registered */
 		if (clocksource_tsc.mult)
 			clocksource_change_rating(&clocksource_tsc, 0);
