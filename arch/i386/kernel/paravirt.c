@@ -193,6 +193,9 @@ struct paravirt_ops paravirt_ops = {
 #endif
 	.set_lazy_mode = paravirt_nop,
 
+	.pagetable_setup_start = native_pagetable_setup_start,
+	.pagetable_setup_done = native_pagetable_setup_done,
+
 	.flush_tlb_user = native_flush_tlb,
 	.flush_tlb_kernel = native_flush_tlb_global,
 	.flush_tlb_single = native_flush_tlb_single,

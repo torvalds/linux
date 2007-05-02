@@ -2,10 +2,11 @@
 #define __ASM_PARAVIRT_H
 /* Various instructions on x86 need to be replaced for
  * para-virtualization: those hooks are defined here. */
+
+#ifdef CONFIG_PARAVIRT
 #include <linux/stringify.h>
 #include <asm/page.h>
 
-#ifdef CONFIG_PARAVIRT
 /* These are the most performance critical ops, so we want to be able to patch
  * callers */
 #define PARAVIRT_IRQ_DISABLE 0
@@ -49,6 +50,9 @@ struct paravirt_ops
 	void (*arch_setup)(void);
 	char *(*memory_setup)(void);
 	void (*init_IRQ)(void);
+
+	void (*pagetable_setup_start)(pgd_t *pgd_base);
+	void (*pagetable_setup_done)(pgd_t *pgd_base);
 
 	void (*banner)(void);
 
@@ -370,6 +374,17 @@ static inline void setup_secondary_clock(void)
 }
 #endif
 
+static inline void paravirt_pagetable_setup_start(pgd_t *base)
+{
+	if (paravirt_ops.pagetable_setup_start)
+		(*paravirt_ops.pagetable_setup_start)(base);
+}
+
+static inline void paravirt_pagetable_setup_done(pgd_t *base)
+{
+	if (paravirt_ops.pagetable_setup_done)
+		(*paravirt_ops.pagetable_setup_done)(base);
+}
 
 #ifdef CONFIG_SMP
 static inline void startup_ipi_hook(int phys_apicid, unsigned long start_eip,

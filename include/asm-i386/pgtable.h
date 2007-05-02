@@ -514,6 +514,22 @@ do {									\
  * tables contain all the necessary information.
  */
 #define update_mmu_cache(vma,address,pte) do { } while (0)
+
+void native_pagetable_setup_start(pgd_t *base);
+void native_pagetable_setup_done(pgd_t *base);
+
+#ifndef CONFIG_PARAVIRT
+static inline void paravirt_pagetable_setup_start(pgd_t *base)
+{
+	native_pagetable_setup_start(base);
+}
+
+static inline void paravirt_pagetable_setup_done(pgd_t *base)
+{
+	native_pagetable_setup_done(base);
+}
+#endif	/* !CONFIG_PARAVIRT */
+
 #endif /* !__ASSEMBLY__ */
 
 #ifdef CONFIG_FLATMEM
