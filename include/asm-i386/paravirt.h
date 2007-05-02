@@ -29,6 +29,7 @@ struct thread_struct;
 struct Xgt_desc_struct;
 struct tss_struct;
 struct mm_struct;
+struct desc_struct;
 struct paravirt_ops
 {
 	unsigned int kernel_rpl;
@@ -105,14 +106,13 @@ struct paravirt_ops
 	void (*set_ldt)(const void *desc, unsigned entries);
 	unsigned long (*store_tr)(void);
 	void (*load_tls)(struct thread_struct *t, unsigned int cpu);
-	void (*write_ldt_entry)(void *dt, int entrynum,
-					 u32 low, u32 high);
-	void (*write_gdt_entry)(void *dt, int entrynum,
-					 u32 low, u32 high);
-	void (*write_idt_entry)(void *dt, int entrynum,
-					 u32 low, u32 high);
-	void (*load_esp0)(struct tss_struct *tss,
-				   struct thread_struct *thread);
+	void (*write_ldt_entry)(struct desc_struct *,
+				int entrynum, u32 low, u32 high);
+	void (*write_gdt_entry)(struct desc_struct *,
+				int entrynum, u32 low, u32 high);
+	void (*write_idt_entry)(struct desc_struct *,
+				int entrynum, u32 low, u32 high);
+	void (*load_esp0)(struct tss_struct *tss, struct thread_struct *t);
 
 	void (*set_iopl_mask)(unsigned mask);
 
@@ -232,6 +232,7 @@ static inline void halt(void)
 
 #define get_kernel_rpl()  (paravirt_ops.kernel_rpl)
 
+/* These should all do BUG_ON(_err), but our headers are too tangled. */
 #define rdmsr(msr,val1,val2) do {				\
 	int _err;						\
 	u64 _l = paravirt_ops.read_msr(msr,&_err);		\

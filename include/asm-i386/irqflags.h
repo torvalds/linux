@@ -10,6 +10,42 @@
 #ifndef _ASM_IRQFLAGS_H
 #define _ASM_IRQFLAGS_H
 
+#ifndef __ASSEMBLY__
+static inline unsigned long native_save_fl(void)
+{
+	unsigned long f;
+	asm volatile("pushfl ; popl %0":"=g" (f): /* no input */);
+	return f;
+}
+
+static inline void native_restore_fl(unsigned long f)
+{
+	asm volatile("pushl %0 ; popfl": /* no output */
+			     :"g" (f)
+			     :"memory", "cc");
+}
+
+static inline void native_irq_disable(void)
+{
+	asm volatile("cli": : :"memory");
+}
+
+static inline void native_irq_enable(void)
+{
+	asm volatile("sti": : :"memory");
+}
+
+static inline void native_safe_halt(void)
+{
+	asm volatile("sti; hlt": : :"memory");
+}
+
+static inline void native_halt(void)
+{
+	asm volatile("hlt": : :"memory");
+}
+#endif	/* __ASSEMBLY__ */
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
@@ -17,35 +53,22 @@
 
 static inline unsigned long __raw_local_save_flags(void)
 {
-	unsigned long flags;
-
-	__asm__ __volatile__(
-		"pushfl ; popl %0"
-		: "=g" (flags)
-		: /* no input */
-	);
-
-	return flags;
+	return native_save_fl();
 }
 
 static inline void raw_local_irq_restore(unsigned long flags)
 {
-	__asm__ __volatile__(
-		"pushl %0 ; popfl"
-		: /* no output */
-		:"g" (flags)
-		:"memory", "cc"
-	);
+	native_restore_fl(flags);
 }
 
 static inline void raw_local_irq_disable(void)
 {
-	__asm__ __volatile__("cli" : : : "memory");
+	native_irq_disable();
 }
 
 static inline void raw_local_irq_enable(void)
 {
-	__asm__ __volatile__("sti" : : : "memory");
+	native_irq_enable();
 }
 
 /*
@@ -54,7 +77,7 @@ static inline void raw_local_irq_enable(void)
  */
 static inline void raw_safe_halt(void)
 {
-	__asm__ __volatile__("sti; hlt" : : : "memory");
+	native_safe_halt();
 }
 
 /*
@@ -63,7 +86,7 @@ static inline void raw_safe_halt(void)
  */
 static inline void halt(void)
 {
-	__asm__ __volatile__("hlt": : :"memory");
+	native_halt();
 }
 
 /*

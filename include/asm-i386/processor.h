@@ -147,7 +147,7 @@ static inline void detect_ht(struct cpuinfo_x86 *c) {}
 #define X86_EFLAGS_VIP	0x00100000 /* Virtual Interrupt Pending */
 #define X86_EFLAGS_ID	0x00200000 /* CPUID detection flag */
 
-static inline fastcall void native_cpuid(unsigned int *eax, unsigned int *ebx,
+static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 					 unsigned int *ecx, unsigned int *edx)
 {
 	/* ecx is often an input as well as an output. */
@@ -545,13 +545,7 @@ static inline void rep_nop(void)
 
 #define cpu_relax()	rep_nop()
 
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#else
-#define paravirt_enabled() 0
-#define __cpuid native_cpuid
-
-static inline void load_esp0(struct tss_struct *tss, struct thread_struct *thread)
+static inline void native_load_esp0(struct tss_struct *tss, struct thread_struct *thread)
 {
 	tss->esp0 = thread->esp0;
 	/* This can only happen when SEP is enabled, no need to test "SEP"arately */
@@ -561,24 +555,60 @@ static inline void load_esp0(struct tss_struct *tss, struct thread_struct *threa
 	}
 }
 
-/*
- * These special macros can be used to get or set a debugging register
- */
-#define get_debugreg(var, register)				\
-		__asm__("movl %%db" #register ", %0"		\
-			:"=r" (var))
-#define set_debugreg(value, register)			\
-		__asm__("movl %0,%%db" #register		\
-			: /* no output */			\
-			:"r" (value))
 
-#define set_iopl_mask native_set_iopl_mask
-#endif /* CONFIG_PARAVIRT */
+static inline unsigned long native_get_debugreg(int regno)
+{
+	unsigned long val = 0; 	/* Damn you, gcc! */
+
+	switch (regno) {
+	case 0:
+		asm("movl %%db0, %0" :"=r" (val)); break;
+	case 1:
+		asm("movl %%db1, %0" :"=r" (val)); break;
+	case 2:
+		asm("movl %%db2, %0" :"=r" (val)); break;
+	case 3:
+		asm("movl %%db3, %0" :"=r" (val)); break;
+	case 6:
+		asm("movl %%db6, %0" :"=r" (val)); break;
+	case 7:
+		asm("movl %%db7, %0" :"=r" (val)); break;
+	default:
+		BUG();
+	}
+	return val;
+}
+
+static inline void native_set_debugreg(int regno, unsigned long value)
+{
+	switch (regno) {
+	case 0:
+		asm("movl %0,%%db0"	: /* no output */ :"r" (value));
+		break;
+	case 1:
+		asm("movl %0,%%db1"	: /* no output */ :"r" (value));
+		break;
+	case 2:
+		asm("movl %0,%%db2"	: /* no output */ :"r" (value));
+		break;
+	case 3:
+		asm("movl %0,%%db3"	: /* no output */ :"r" (value));
+		break;
+	case 6:
+		asm("movl %0,%%db6"	: /* no output */ :"r" (value));
+		break;
+	case 7:
+		asm("movl %0,%%db7"	: /* no output */ :"r" (value));
+		break;
+	default:
+		BUG();
+	}
+}
 
 /*
  * Set IOPL bits in EFLAGS from given mask
  */
-static fastcall inline void native_set_iopl_mask(unsigned mask)
+static inline void native_set_iopl_mask(unsigned mask)
 {
 	unsigned int reg;
 	__asm__ __volatile__ ("pushfl;"
@@ -590,6 +620,28 @@ static fastcall inline void native_set_iopl_mask(unsigned mask)
 				: "=&r" (reg)
 				: "i" (~X86_EFLAGS_IOPL), "r" (mask));
 }
+
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+#define paravirt_enabled() 0
+#define __cpuid native_cpuid
+
+static inline void load_esp0(struct tss_struct *tss, struct thread_struct *thread)
+{
+	native_load_esp0(tss, thread);
+}
+
+/*
+ * These special macros can be used to get or set a debugging register
+ */
+#define get_debugreg(var, register)				\
+	(var) = native_get_debugreg(register)
+#define set_debugreg(value, register)				\
+	native_set_debugreg(register, value)
+
+#define set_iopl_mask native_set_iopl_mask
+#endif /* CONFIG_PARAVIRT */
 
 /*
  * Generic CPUID function

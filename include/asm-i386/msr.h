@@ -1,6 +1,74 @@
 #ifndef __ASM_MSR_H
 #define __ASM_MSR_H
 
+#include <asm/errno.h>
+
+static inline unsigned long long native_read_msr(unsigned int msr)
+{
+	unsigned long long val;
+
+	asm volatile("rdmsr" : "=A" (val) : "c" (msr));
+	return val;
+}
+
+static inline unsigned long long native_read_msr_safe(unsigned int msr,
+						      int *err)
+{
+	unsigned long long val;
+
+	asm volatile("2: rdmsr ; xorl %0,%0\n"
+		     "1:\n\t"
+		     ".section .fixup,\"ax\"\n\t"
+		     "3:  movl %3,%0 ; jmp 1b\n\t"
+		     ".previous\n\t"
+ 		     ".section __ex_table,\"a\"\n"
+		     "   .align 4\n\t"
+		     "   .long 	2b,3b\n\t"
+		     ".previous"
+		     : "=r" (*err), "=A" (val)
+		     : "c" (msr), "i" (-EFAULT));
+
+	return val;
+}
+
+static inline void native_write_msr(unsigned int msr, unsigned long long val)
+{
+	asm volatile("wrmsr" : : "c" (msr), "A"(val));
+}
+
+static inline int native_write_msr_safe(unsigned int msr,
+					unsigned long long val)
+{
+	int err;
+	asm volatile("2: wrmsr ; xorl %0,%0\n"
+		     "1:\n\t"
+		     ".section .fixup,\"ax\"\n\t"
+		     "3:  movl %4,%0 ; jmp 1b\n\t"
+		     ".previous\n\t"
+ 		     ".section __ex_table,\"a\"\n"
+		     "   .align 4\n\t"
+		     "   .long 	2b,3b\n\t"
+		     ".previous"
+		     : "=a" (err)
+		     : "c" (msr), "0" ((u32)val), "d" ((u32)(val>>32)),
+		       "i" (-EFAULT));
+	return err;
+}
+
+static inline unsigned long long native_read_tsc(void)
+{
+	unsigned long long val;
+	asm volatile("rdtsc" : "=A" (val));
+	return val;
+}
+
+static inline unsigned long long native_read_pmc(void)
+{
+	unsigned long long val;
+	asm volatile("rdpmc" : "=A" (val));
+	return val;
+}
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
@@ -11,22 +79,20 @@
  * pointer indirection), this allows gcc to optimize better
  */
 
-#define rdmsr(msr,val1,val2) \
-	__asm__ __volatile__("rdmsr" \
-			  : "=a" (val1), "=d" (val2) \
-			  : "c" (msr))
+#define rdmsr(msr,val1,val2)						\
+	do {								\
+		unsigned long long __val = native_read_msr(msr);	\
+		val1 = __val;						\
+		val2 = __val >> 32;					\
+	} while(0)
 
-#define wrmsr(msr,val1,val2) \
-	__asm__ __volatile__("wrmsr" \
-			  : /* no outputs */ \
-			  : "c" (msr), "a" (val1), "d" (val2))
+#define wrmsr(msr,val1,val2)						\
+	native_write_msr(msr, ((unsigned long long)val2 << 32) | val1)
 
-#define rdmsrl(msr,val) do { \
-	unsigned long l__,h__; \
-	rdmsr (msr, l__, h__);  \
-	val = l__;  \
-	val |= ((u64)h__<<32);  \
-} while(0)
+#define rdmsrl(msr,val)					\
+	do {						\
+		(val) = native_read_msr(msr);		\
+	} while(0)
 
 static inline void wrmsrl (unsigned long msr, unsigned long long val)
 {
@@ -37,50 +103,41 @@ static inline void wrmsrl (unsigned long msr, unsigned long long val)
 }
 
 /* wrmsr with exception handling */
-#define wrmsr_safe(msr,a,b) ({ int ret__;						\
-	asm volatile("2: wrmsr ; xorl %0,%0\n"						\
-		     "1:\n\t"								\
-		     ".section .fixup,\"ax\"\n\t"					\
-		     "3:  movl %4,%0 ; jmp 1b\n\t"					\
-		     ".previous\n\t"							\
- 		     ".section __ex_table,\"a\"\n"					\
-		     "   .align 4\n\t"							\
-		     "   .long 	2b,3b\n\t"						\
-		     ".previous"							\
-		     : "=a" (ret__)							\
-		     : "c" (msr), "0" (a), "d" (b), "i" (-EFAULT));\
-	ret__; })
+#define wrmsr_safe(msr,val1,val2)						\
+	(native_write_msr_safe(msr, ((unsigned long long)val2 << 32) | val1))
 
 /* rdmsr with exception handling */
-#define rdmsr_safe(msr,a,b) ({ int ret__;						\
-	asm volatile("2: rdmsr ; xorl %0,%0\n"						\
-		     "1:\n\t"								\
-		     ".section .fixup,\"ax\"\n\t"					\
-		     "3:  movl %4,%0 ; jmp 1b\n\t"					\
-		     ".previous\n\t"							\
- 		     ".section __ex_table,\"a\"\n"					\
-		     "   .align 4\n\t"							\
-		     "   .long 	2b,3b\n\t"						\
-		     ".previous"							\
-		     : "=r" (ret__), "=a" (*(a)), "=d" (*(b))				\
-		     : "c" (msr), "i" (-EFAULT));\
-	ret__; })
+#define rdmsr_safe(msr,p1,p2)						\
+	({								\
+		int __err;						\
+		unsigned long long __val = native_read_msr_safe(msr, &__err);\
+		(*p1) = __val;						\
+		(*p2) = __val >> 32;					\
+		__err;							\
+	})
 
-#define rdtsc(low,high) \
-     __asm__ __volatile__("rdtsc" : "=a" (low), "=d" (high))
+#define rdtsc(low,high)						\
+	do {							\
+		u64 _l = native_read_tsc();			\
+		(low) = (u32)_l;				\
+		(high) = _l >> 32;				\
+	} while(0)
 
-#define rdtscl(low) \
-     __asm__ __volatile__("rdtsc" : "=a" (low) : : "edx")
+#define rdtscl(low)						\
+	do {							\
+		(low) = native_read_tsc();			\
+	} while(0)
 
-#define rdtscll(val) \
-     __asm__ __volatile__("rdtsc" : "=A" (val))
+#define rdtscll(val) ((val) = native_read_tsc())
 
 #define write_tsc(val1,val2) wrmsr(0x10, val1, val2)
 
-#define rdpmc(counter,low,high) \
-     __asm__ __volatile__("rdpmc" \
-			  : "=a" (low), "=d" (high) \
-			  : "c" (counter))
+#define rdpmc(counter,low,high)					\
+	do {							\
+		u64 _l = native_read_pmc();			\
+		low = (u32)_l;					\
+		high = _l >> 32;				\
+	} while(0)
 #endif	/* !CONFIG_PARAVIRT */
 
 #ifdef CONFIG_SMP
