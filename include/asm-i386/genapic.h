@@ -122,6 +122,6 @@ struct genapic {
 	APICFUNC(phys_pkg_id) \
 	}
 
-extern struct genapic *genapic, apic_default;
+extern struct genapic *genapic;
 
 #endif
