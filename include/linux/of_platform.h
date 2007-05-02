@@ -52,4 +52,6 @@ struct of_platform_driver
 
 extern struct of_device *of_find_device_by_node(struct device_node *np);
 
+extern int of_bus_type_init(struct bus_type *bus, const char *name);
+
 #endif	/* _LINUX_OF_PLATFORM_H */

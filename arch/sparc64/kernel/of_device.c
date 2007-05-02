@@ -5,77 +5,9 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
-
-#include <asm/errno.h>
-#include <asm/of_device.h>
-
-static int of_platform_bus_match(struct device *dev, struct device_driver *drv)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * of_drv = to_of_platform_driver(drv);
-	const struct of_device_id * matches = of_drv->match_table;
-
-	if (!matches)
-		return 0;
-
-	return of_match_device(matches, of_dev) != NULL;
-}
-
-static int of_platform_device_probe(struct device *dev)
-{
-	int error = -ENODEV;
-	struct of_platform_driver *drv;
-	struct of_device *of_dev;
-	const struct of_device_id *match;
-
-	drv = to_of_platform_driver(dev->driver);
-	of_dev = to_of_device(dev);
-
-	if (!drv->probe)
-		return error;
-
-	of_dev_get(of_dev);
-
-	match = of_match_device(drv->match_table, of_dev);
-	if (match)
-		error = drv->probe(of_dev, match);
-	if (error)
-		of_dev_put(of_dev);
-
-	return error;
-}
-
-static int of_platform_device_remove(struct device *dev)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
-
-	if (dev->driver && drv->remove)
-		drv->remove(of_dev);
-	return 0;
-}
-
-static int of_platform_device_suspend(struct device *dev, pm_message_t state)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
-	int error = 0;
-
-	if (dev->driver && drv->suspend)
-		error = drv->suspend(of_dev, state);
-	return error;
-}
-
-static int of_platform_device_resume(struct device * dev)
-{
-	struct of_device * of_dev = to_of_device(dev);
-	struct of_platform_driver * drv = to_of_platform_driver(dev->driver);
-	int error = 0;
-
-	if (dev->driver && drv->resume)
-		error = drv->resume(of_dev);
-	return error;
-}
+#include <linux/errno.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name)
 {
@@ -123,47 +55,19 @@ struct of_device *of_find_device_by_node(struct device_node *dp)
 EXPORT_SYMBOL(of_find_device_by_node);
 
 #ifdef CONFIG_PCI
-struct bus_type isa_bus_type = {
-       .name	= "isa",
-       .match	= of_platform_bus_match,
-       .probe	= of_platform_device_probe,
-       .remove	= of_platform_device_remove,
-       .suspend	= of_platform_device_suspend,
-       .resume	= of_platform_device_resume,
-};
+struct bus_type isa_bus_type;
 EXPORT_SYMBOL(isa_bus_type);
 
-struct bus_type ebus_bus_type = {
-       .name	= "ebus",
-       .match	= of_platform_bus_match,
-       .probe	= of_platform_device_probe,
-       .remove	= of_platform_device_remove,
-       .suspend	= of_platform_device_suspend,
-       .resume	= of_platform_device_resume,
-};
+struct bus_type ebus_bus_type;
 EXPORT_SYMBOL(ebus_bus_type);
 #endif
 
 #ifdef CONFIG_SBUS
-struct bus_type sbus_bus_type = {
-       .name	= "sbus",
-       .match	= of_platform_bus_match,
-       .probe	= of_platform_device_probe,
-       .remove	= of_platform_device_remove,
-       .suspend	= of_platform_device_suspend,
-       .resume	= of_platform_device_resume,
-};
+struct bus_type sbus_bus_type;
 EXPORT_SYMBOL(sbus_bus_type);
 #endif
 
-struct bus_type of_platform_bus_type = {
-       .name	= "of",
-       .match	= of_platform_bus_match,
-       .probe	= of_platform_device_probe,
-       .remove	= of_platform_device_remove,
-       .suspend	= of_platform_device_suspend,
-       .resume	= of_platform_device_resume,
-};
+struct bus_type of_platform_bus_type;
 EXPORT_SYMBOL(of_platform_bus_type);
 
 static inline u64 of_read_addr(const u32 *cell, int size)
@@ -926,16 +830,16 @@ static int __init of_bus_driver_init(void)
 {
 	int err;
 
-	err = bus_register(&of_platform_bus_type);
+	err = of_bus_type_init(&of_platform_bus_type, "of");
 #ifdef CONFIG_PCI
 	if (!err)
-		err = bus_register(&isa_bus_type);
+		err = of_bus_type_init(&isa_bus_type, "isa");
 	if (!err)
-		err = bus_register(&ebus_bus_type);
+		err = of_bus_type_init(&ebus_bus_type, "ebus");
 #endif
 #ifdef CONFIG_SBUS
 	if (!err)
-		err = bus_register(&sbus_bus_type);
+		err = of_bus_type_init(&sbus_bus_type, "sbus");
 #endif
 
 	if (!err)
