@@ -440,12 +440,6 @@ static void __cpuinit start_secondary(void *unused)
 void __devinit initialize_secondary(void)
 {
 	/*
-	 * switch to the per CPU GDT we already set up
-	 * in do_boot_cpu()
-	 */
-	cpu_set_gdt(current_thread_info()->cpu);
-
-	/*
 	 * We don't actually need to load the full TSS,
 	 * basically just the stack pointer and the eip.
 	 */
@@ -787,6 +781,32 @@ static inline struct task_struct * alloc_idle_task(int cpu)
 #define alloc_idle_task(cpu) fork_idle(cpu)
 #endif
 
+/* Initialize the CPU's GDT.  This is either the boot CPU doing itself
+   (still using the master per-cpu area), or a CPU doing it for a
+   secondary which will soon come up. */
+static __cpuinit void init_gdt(int cpu, struct task_struct *idle)
+{
+	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
+	struct desc_struct *gdt = per_cpu(cpu_gdt, cpu);
+	struct i386_pda *pda = &per_cpu(_cpu_pda, cpu);
+
+ 	cpu_gdt_descr->address = (unsigned long)gdt;
+	cpu_gdt_descr->size = GDT_SIZE - 1;
+
+	pack_descriptor((u32 *)&gdt[GDT_ENTRY_PDA].a,
+			(u32 *)&gdt[GDT_ENTRY_PDA].b,
+			(unsigned long)pda, sizeof(*pda) - 1,
+			0x80 | DESCTYPE_S | 0x2, 0); /* present read-write data segment */
+
+	memset(pda, 0, sizeof(*pda));
+	pda->_pda = pda;
+	pda->cpu_number = cpu;
+	pda->pcurrent = idle;
+}
+
+/* Defined in head.S */
+extern struct Xgt_desc_struct early_gdt_descr;
+
 static int __cpuinit do_boot_cpu(int apicid, int cpu)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
@@ -809,6 +829,8 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		panic("failed fork for CPU %d", cpu);
 
 	init_gdt(cpu, idle);
+	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
+	start_pda = cpu_pda(cpu);
 
 	idle->thread.eip = (unsigned long) start_secondary;
 	/* start_eip had better be page-aligned! */
@@ -1161,13 +1183,26 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	smp_boot_cpus(max_cpus);
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+/* Current gdt points %fs at the "master" per-cpu area: after this,
+ * it's on the real one. */
+static inline void switch_to_new_gdt(void)
 {
-	cpu_set(smp_processor_id(), cpu_online_map);
-	cpu_set(smp_processor_id(), cpu_callout_map);
-	cpu_set(smp_processor_id(), cpu_present_map);
-	cpu_set(smp_processor_id(), cpu_possible_map);
-	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+	load_gdt(&per_cpu(cpu_gdt_descr, smp_processor_id()));
+	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_PDA) : "memory");
+}
+
+void __init smp_prepare_boot_cpu(void)
+{
+	unsigned int cpu = smp_processor_id();
+
+	init_gdt(cpu, current);
+	switch_to_new_gdt();
+
+	cpu_set(cpu, cpu_online_map);
+	cpu_set(cpu, cpu_callout_map);
+	cpu_set(cpu, cpu_present_map);
+	cpu_set(cpu, cpu_possible_map);
+	__get_cpu_var(cpu_state) = CPU_ONLINE;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
