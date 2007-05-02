@@ -18,10 +18,8 @@
  * Subject to the GNU Public License, v.2
  */
 
-#include <asm/fixmap.h>
 #include <asm/hw_irq.h>
-#include <asm/apicdef.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
 /*
  * the following functions deal with sending IPIs between CPUs.

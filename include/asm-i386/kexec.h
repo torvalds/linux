@@ -21,7 +21,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/fixmap.h>
 #include <asm/ptrace.h>
 #include <asm/string.h>
 
@@ -29,10 +28,6 @@
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
  * I.e. Maximum page that is mapped directly into kernel memory,
  * and kmap is not required.
- *
- * Someone correct me if FIXADDR_START - PAGEOFFSET is not the correct
- * calculation for the amount of memory directly mappable into the
- * kernel memory space.
  */
 
 /* Maximum physical address we can use pages from */

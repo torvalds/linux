@@ -10,10 +10,9 @@
 #include <linux/init.h>
 extern int disable_apic;
 
-#include <asm/fixmap.h>
 #include <asm/mpspec.h>
-#include <asm/io_apic.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
 #include <asm/thread_info.h>
 
 #ifdef CONFIG_SMP

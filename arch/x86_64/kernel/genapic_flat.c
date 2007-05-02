@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <asm/smp.h>
 #include <asm/ipi.h>
+#include <asm/genapic.h>
 
 static cpumask_t flat_target_cpus(void)
 {

@@ -6,7 +6,6 @@
  * the x86-64 page table tree.
  */
 #include <asm/processor.h>
-#include <asm/fixmap.h>
 #include <asm/bitops.h>
 #include <linux/threads.h>
 #include <asm/pda.h>

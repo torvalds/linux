@@ -18,6 +18,7 @@
 
 #include <asm/smp.h>
 #include <asm/ipi.h>
+#include <asm/genapic.h>
 
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>

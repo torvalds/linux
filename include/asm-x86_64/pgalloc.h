@@ -1,7 +1,6 @@
 #ifndef _X86_64_PGALLOC_H
 #define _X86_64_PGALLOC_H
 
-#include <asm/fixmap.h>
 #include <asm/pda.h>
 #include <linux/threads.h>
 #include <linux/mm.h>

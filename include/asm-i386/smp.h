@@ -11,15 +11,12 @@
 #include <asm/pda.h>
 #endif
 
-#ifdef CONFIG_X86_LOCAL_APIC
-#ifndef __ASSEMBLY__
-#include <asm/fixmap.h>
+#if defined(CONFIG_X86_LOCAL_APIC) && !defined(__ASSEMBLY__)
 #include <asm/bitops.h>
 #include <asm/mpspec.h>
+#include <asm/apic.h>
 #ifdef CONFIG_X86_IO_APIC
 #include <asm/io_apic.h>
-#endif
-#include <asm/apic.h>
 #endif
 #endif
 
