@@ -637,11 +637,6 @@ ENDPROC(name)
 /* The include is where all of the SMP etc. interrupts come from */
 #include "entry_arch.h"
 
-/* This alternate entry is needed because we hijack the apic LVTT */
-#if defined(CONFIG_VMI) && defined(CONFIG_X86_LOCAL_APIC)
-BUILD_INTERRUPT(apic_vmi_timer_interrupt,LOCAL_TIMER_VECTOR)
-#endif
-
 KPROBE_ENTRY(page_fault)
 	RING0_EC_FRAME
 	pushl $do_page_fault

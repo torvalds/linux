@@ -77,6 +77,9 @@ static struct {
 extern struct paravirt_patch __start_parainstructions[],
 	__stop_parainstructions[];
 
+/* Cached VMI operations */
+struct vmi_timer_ops vmi_timer_ops;
+
 /*
  * VMI patching routines.
  */
@@ -233,18 +236,6 @@ static void vmi_flush_tlb_kernel(void)
 /* Stub to do nothing at all; used for delays and unimplemented calls */
 static void vmi_nop(void)
 {
-}
-
-/* For NO_IDLE_HZ, we stop the clock when halting the kernel */
-static fastcall void vmi_safe_halt(void)
-{
-	int idle = vmi_stop_hz_timer();
-	vmi_ops.halt();
-	if (idle) {
-		local_irq_disable();
-		vmi_account_time_restart_hz_timer();
-		local_irq_enable();
-	}
 }
 
 #ifdef CONFIG_DEBUG_PAGE_TYPE
@@ -722,7 +713,6 @@ do {								\
 	}							\
 } while (0)
 
-
 /*
  * Activate the VMI interface and switch into paravirtualized mode
  */
@@ -901,8 +891,8 @@ static inline int __init activate_vmi(void)
 		paravirt_ops.get_wallclock = vmi_get_wallclock;
 		paravirt_ops.set_wallclock = vmi_set_wallclock;
 #ifdef CONFIG_X86_LOCAL_APIC
-		paravirt_ops.setup_boot_clock = vmi_timer_setup_boot_alarm;
-		paravirt_ops.setup_secondary_clock = vmi_timer_setup_secondary_alarm;
+		paravirt_ops.setup_boot_clock = vmi_time_bsp_init;
+		paravirt_ops.setup_secondary_clock = vmi_time_ap_init;
 #endif
 		paravirt_ops.get_scheduled_cycles = vmi_get_sched_cycles;
  		paravirt_ops.get_cpu_khz = vmi_cpu_khz;
@@ -914,11 +904,7 @@ static inline int __init activate_vmi(void)
 		disable_vmi_timer = 1;
 	}
 
-	/* No idle HZ mode only works if VMI timer and no idle is enabled */
-	if (disable_noidle || disable_vmi_timer)
-		para_fill(safe_halt, Halt);
-	else
-		para_wrap(safe_halt, vmi_safe_halt, halt, Halt);
+	para_fill(safe_halt, Halt);
 
 	/*
 	 * Alternative instruction rewriting doesn't happen soon enough
