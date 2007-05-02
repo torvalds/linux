@@ -73,13 +73,6 @@ static inline void init_apic_ldr(void)
 	apic_write_around(APIC_LDR, val);
 }
 
-extern void es7000_sw_apic(void);
-static inline void enable_apic_mode(void)
-{
-	es7000_sw_apic();
-	return;
-}
-
 extern int apic_version [MAX_APICS];
 static inline void setup_apic_routing(void)
 {
