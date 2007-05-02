@@ -211,16 +211,16 @@ wakeup_long64:
 	movw	%ax, %es
 	movw	%ax, %fs
 	movw	%ax, %gs
-	movq	saved_esp, %rsp
+	movq	saved_rsp, %rsp
 
 	movw	$0x0e00 + 'x', %ds:(0xb8018)
-	movq	saved_ebx, %rbx
-	movq	saved_edi, %rdi
-	movq	saved_esi, %rsi
-	movq	saved_ebp, %rbp
+	movq	saved_rbx, %rbx
+	movq	saved_rdi, %rdi
+	movq	saved_rsi, %rsi
+	movq	saved_rbp, %rbp
 
 	movw	$0x0e00 + '!', %ds:(0xb801a)
-	movq	saved_eip, %rax
+	movq	saved_rip, %rax
 	jmp	*%rax
 
 .code32
@@ -408,13 +408,13 @@ do_suspend_lowlevel:
 	movq %r15, saved_context_r15(%rip)
 	pushfq ; popq saved_context_eflags(%rip)
 
-	movq	$.L97, saved_eip(%rip)
+	movq	$.L97, saved_rip(%rip)
 
-	movq %rsp,saved_esp
-	movq %rbp,saved_ebp
-	movq %rbx,saved_ebx
-	movq %rdi,saved_edi
-	movq %rsi,saved_esi
+	movq %rsp,saved_rsp
+	movq %rbp,saved_rbp
+	movq %rbx,saved_rbx
+	movq %rdi,saved_rdi
+	movq %rsi,saved_rsi
 
 	addq	$8, %rsp
 	movl	$3, %edi
@@ -461,12 +461,12 @@ do_suspend_lowlevel:
 	
 .data
 ALIGN
-ENTRY(saved_ebp)	.quad	0
-ENTRY(saved_esi)	.quad	0
-ENTRY(saved_edi)	.quad	0
-ENTRY(saved_ebx)	.quad	0
+ENTRY(saved_rbp)	.quad	0
+ENTRY(saved_rsi)	.quad	0
+ENTRY(saved_rdi)	.quad	0
+ENTRY(saved_rbx)	.quad	0
 
-ENTRY(saved_eip)	.quad	0
-ENTRY(saved_esp)	.quad	0
+ENTRY(saved_rip)	.quad	0
+ENTRY(saved_rsp)	.quad	0
 
 ENTRY(saved_magic)	.quad	0
