@@ -54,6 +54,15 @@ startup_32:
 1:	popl	%ebp
 	subl	$1b, %ebp
 
+/* setup a stack and make sure cpu supports long mode. */
+	movl	$user_stack_end, %eax
+	addl	%ebp, %eax
+	movl	%eax, %esp
+
+	call	verify_cpu
+	testl	%eax, %eax
+	jnz	no_longmode
+
 /* Compute the delta between where we were compiled to run at
  * and where the code will actually run at.
  */
@@ -159,13 +168,21 @@ startup_32:
 	/* Jump from 32bit compatibility mode into 64bit mode. */
 	lret
 
+no_longmode:
+	/* This isn't an x86-64 CPU so hang */
+1:
+	hlt
+	jmp     1b
+
+#include "../../kernel/verify_cpu.S"
+
 	/* Be careful here startup_64 needs to be at a predictable
 	 * address so I can export it in an ELF header.  Bootloaders
 	 * should look at the ELF header to find this address, as
 	 * it may change in the future.
 	 */
 	.code64
-	.org 0x100
+	.org 0x200
 ENTRY(startup_64)
 	/* We come here either from startup_32 or directly from a
 	 * 64bit bootloader.  If we come here from a bootloader we depend on

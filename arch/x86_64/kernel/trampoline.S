@@ -54,6 +54,8 @@ r_base = .
 	movw	$(trampoline_stack_end - r_base), %sp
 
 	call	verify_cpu		# Verify the cpu supports long mode
+	testl   %eax, %eax		# Check for return code
+	jnz	no_longmode
 
 	mov	%cs, %ax
 	movzx	%ax, %esi		# Find the 32bit trampoline location
@@ -121,57 +123,10 @@ startup_64:
 	jmp	*%rax
 
 	.code16
-verify_cpu:
-	pushl	$0			# Kill any dangerous flags
-	popfl
-
-	/* minimum CPUID flags for x86-64 */
-	/* see http://www.x86-64.org/lists/discuss/msg02971.html */
-#define REQUIRED_MASK1 ((1<<0)|(1<<3)|(1<<4)|(1<<5)|(1<<6)|(1<<8)|\
-			   (1<<13)|(1<<15)|(1<<24)|(1<<25)|(1<<26))
-#define REQUIRED_MASK2 (1<<29)
-
-	pushfl				# check for cpuid
-	popl	%eax
-	movl	%eax, %ebx
-	xorl	$0x200000,%eax
-	pushl	%eax
-	popfl
-	pushfl
-	popl	%eax
-	pushl	%ebx
-	popfl
-	cmpl	%eax, %ebx
-	jz	no_longmode
-
-	xorl	%eax, %eax		# See if cpuid 1 is implemented
-	cpuid
-	cmpl	$0x1, %eax
-	jb	no_longmode
-
-	movl	$0x01, %eax		# Does the cpu have what it takes?
-	cpuid
-	andl	$REQUIRED_MASK1, %edx
-	xorl	$REQUIRED_MASK1, %edx
-	jnz	no_longmode
-
-	movl	$0x80000000, %eax	# See if extended cpuid is implemented
-	cpuid
-	cmpl	$0x80000001, %eax
-	jb	no_longmode
-
-	movl	$0x80000001, %eax	# Does the cpu have what it takes?
-	cpuid
-	andl	$REQUIRED_MASK2, %edx
-	xorl	$REQUIRED_MASK2, %edx
-	jnz	no_longmode
-
-	ret				# The cpu supports long mode
-
 no_longmode:
 	hlt
 	jmp no_longmode
-
+#include "verify_cpu.S"
 
 	# Careful these need to be in the same 64K segment as the above;
 tidt:

@@ -43,6 +43,11 @@ wakeup_code:
 	cmpl	$0x12345678, %eax
 	jne	bogus_real_magic
 
+  	call	verify_cpu			# Verify the cpu supports long
+						# mode
+	testl	%eax, %eax
+	jnz	no_longmode
+
 	testl	$1, video_flags - wakeup_code
 	jz	1f
 	lcall   $0xc000,$3
@@ -92,18 +97,6 @@ wakeup_32:
 # Running in this code, but at low address; paging is not yet turned on.
 	movb	$0xa5, %al	;  outb %al, $0x80
 
-	/* Check if extended functions are implemented */		
-	movl	$0x80000000, %eax
-	cpuid
-	cmpl	$0x80000000, %eax
-	jbe	bogus_cpu
-	wbinvd
-	mov	$0x80000001, %eax
-	cpuid
-	btl	$29, %edx
-	jnc	bogus_cpu
-	movl	%edx,%edi
-	
 	movl	$__KERNEL_DS, %eax
 	movl	%eax, %ds
 
@@ -122,6 +115,11 @@ wakeup_32:
 	/* Setup early boot stage 4 level pagetables */
 	leal    (wakeup_level4_pgt - wakeup_code)(%esi), %eax
 	movl	%eax, %cr3
+
+        /* Check if nx is implemented */
+        movl    $0x80000001, %eax
+        cpuid
+        movl    %edx,%edi
 
 	/* Enable Long Mode */
 	xorl    %eax, %eax
@@ -244,10 +242,12 @@ bogus_64_magic:
 	movb	$0xb3,%al	;  outb %al,$0x80
 	jmp bogus_64_magic
 
-bogus_cpu:
-	movb	$0xbc,%al	;  outb %al,$0x80
-	jmp bogus_cpu
+.code16
+no_longmode:
+	movb    $0xbc,%al       ;  outb %al,$0x80
+	jmp no_longmode
 
+#include "../verify_cpu.S"
 	
 /* This code uses an extended set of video mode numbers. These include:
  * Aliases for standard modes
