@@ -288,9 +288,6 @@ NEXT_PAGE(level2_ident_pgt)
 	.quad	i << 21 | 0x083
 	i = i + 1
 	.endr
-	/* Temporary mappings for the super early allocator in arch/x86_64/mm/init.c */
-	.globl temp_boot_pmds
-temp_boot_pmds:
 	.fill	492,8,0
 	
 NEXT_PAGE(level2_kernel_pgt)
