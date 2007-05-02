@@ -147,8 +147,7 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 /*
  * Non-boot CPU entry point; entered from trampoline.S
  * We can't lgdt here, because lgdt itself uses a data segment, but
- * we know the trampoline has already loaded the boot_gdt_table GDT
- * for us.
+ * we know the trampoline has already loaded the boot_gdt for us.
  *
  * If cpu hotplug is not supported then this code can go in init section
  * which will be freed later
@@ -588,7 +587,7 @@ fault_msg:
 	.word 0				# 32 bit align gdt_desc.address
 boot_gdt_descr:
 	.word __BOOT_DS+7
-	.long boot_gdt_table - __PAGE_OFFSET
+	.long boot_gdt - __PAGE_OFFSET
 
 	.word 0				# 32-bit align idt_desc.address
 idt_descr:
@@ -602,11 +601,11 @@ ENTRY(early_gdt_descr)
 	.long per_cpu__cpu_gdt		/* Overwritten for secondary CPUs */
 
 /*
- * The boot_gdt_table must mirror the equivalent in setup.S and is
+ * The boot_gdt must mirror the equivalent in setup.S and is
  * used only for booting.
  */
 	.align L1_CACHE_BYTES
-ENTRY(boot_gdt_table)
+ENTRY(boot_gdt)
 	.fill GDT_ENTRY_BOOT_CS,8,0
 	.quad 0x00cf9a000000ffff	/* kernel 4GB code at 0x00000000 */
 	.quad 0x00cf92000000ffff	/* kernel 4GB data at 0x00000000 */
