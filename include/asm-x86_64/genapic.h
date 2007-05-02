@@ -30,6 +30,6 @@ struct genapic {
 };
 
 
-extern struct genapic *genapic, *genapic_force, apic_flat;
+extern struct genapic *genapic;
 
 #endif
