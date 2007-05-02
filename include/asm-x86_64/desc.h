@@ -135,16 +135,13 @@ static inline void set_ldt_desc(unsigned cpu, void *addr, int size)
 	(info)->useable		== 0	&& \
 	(info)->lm		== 0)
 
-#if TLS_SIZE != 24
-# error update this code.
-#endif
-
 static inline void load_TLS(struct thread_struct *t, unsigned int cpu)
 {
+	unsigned int i;
 	u64 *gdt = (u64 *)(cpu_gdt(cpu) + GDT_ENTRY_TLS_MIN);
-	gdt[0] = t->tls_array[0];
-	gdt[1] = t->tls_array[1];
-	gdt[2] = t->tls_array[2];
+
+	for (i = 0; i < GDT_ENTRY_TLS_ENTRIES; i++)
+		gdt[i] = t->tls_array[i];
 } 
 
 /*
