@@ -744,6 +744,6 @@ extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
 extern void cpu_set_gdt(int);
-extern void secondary_cpu_init(void);
+extern void cpu_init(void);
 
 #endif /* __ASM_I386_PROCESSOR_H */
