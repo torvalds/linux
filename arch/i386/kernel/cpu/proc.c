@@ -72,8 +72,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"stc",
 		"100mhzsteps",
 		"hwpstate",
-		NULL,
-		NULL,	/* constant_tsc - moved to flags */
+		"",	/* constant_tsc - moved to flags */
 		/* nothing */
 	};
 	struct cpuinfo_x86 *c = v;
