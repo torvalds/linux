@@ -393,10 +393,8 @@ int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 		   ____________________33__
 		   ______________________4_
 	*/
-	printk("sanitize start\n");
 	/* if there's only one memory region, don't bother */
 	if (*pnr_map < 2) {
-		printk("sanitize bail 0\n");
 		return -1;
 	}
 
@@ -405,7 +403,6 @@ int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 	/* bail out if we find any unreasonable addresses in bios map */
 	for (i=0; i<old_nr; i++)
 		if (biosmap[i].addr + biosmap[i].size < biosmap[i].addr) {
-			printk("sanitize bail 1\n");
 			return -1;
 		}
 
@@ -501,7 +498,6 @@ int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 	memcpy(biosmap, new_bios, new_nr*sizeof(struct e820entry));
 	*pnr_map = new_nr;
 
-	printk("sanitize end\n");
 	return 0;
 }
 
@@ -532,7 +528,6 @@ int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 		unsigned long long size = biosmap->size;
 		unsigned long long end = start + size;
 		unsigned long type = biosmap->type;
-		printk("copy_e820_map() start: %016Lx size: %016Lx end: %016Lx type: %ld\n", start, size, end, type);
 
 		/* Overflow in 64 bits? Ignore the memory map. */
 		if (start > end)
@@ -543,17 +538,11 @@ int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 		 * Not right. Fix it up.
 		 */
 		if (type == E820_RAM) {
-			printk("copy_e820_map() type is E820_RAM\n");
 			if (start < 0x100000ULL && end > 0xA0000ULL) {
-				printk("copy_e820_map() lies in range...\n");
-				if (start < 0xA0000ULL) {
-					printk("copy_e820_map() start < 0xA0000ULL\n");
+				if (start < 0xA0000ULL)
 					add_memory_region(start, 0xA0000ULL-start, type);
-				}
-				if (end <= 0x100000ULL) {
-					printk("copy_e820_map() end <= 0x100000ULL\n");
+				if (end <= 0x100000ULL)
 					continue;
-				}
 				start = 0x100000ULL;
 				size = end - start;
 			}
