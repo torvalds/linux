@@ -6,11 +6,6 @@ mainmenu "Linux/PowerPC Kernel Configuration"
 
 source "arch/powerpc/platforms/Kconfig.cputype"
 
-config PPC_PM_NEEDS_RTC_LIB
-	bool
-	select RTC_LIB
-	default y if PM
-
 config PPC32
 	bool
 	default y if !PPC64

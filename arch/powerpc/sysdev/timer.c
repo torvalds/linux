@@ -24,7 +24,12 @@ static int timer_resume(struct sys_device *dev)
 
 	/* get current RTC time and convert to seconds */
 	get_rtc_time(&cur_rtc_tm);
-	rtc_tm_to_time(&cur_rtc_tm, &cur_rtc_time);
+	cur_rtc_time = mktime(cur_rtc_tm.tm_year + 1900,
+			      cur_rtc_tm.tm_mon + 1,
+			      cur_rtc_tm.tm_mday,
+			      cur_rtc_tm.tm_hour,
+			      cur_rtc_tm.tm_min,
+			      cur_rtc_tm.tm_sec);
 
 	diff = cur_rtc_time - suspend_rtc_time;
 
@@ -44,7 +49,12 @@ static int timer_suspend(struct sys_device *dev, pm_message_t state)
 	WARN_ON(!ppc_md.get_rtc_time);
 
 	get_rtc_time(&suspend_rtc_tm);
-	rtc_tm_to_time(&suspend_rtc_tm, &suspend_rtc_time);
+	suspend_rtc_time = mktime(suspend_rtc_tm.tm_year + 1900,
+				  suspend_rtc_tm.tm_mon + 1,
+				  suspend_rtc_tm.tm_mday,
+				  suspend_rtc_tm.tm_hour,
+				  suspend_rtc_tm.tm_min,
+				  suspend_rtc_tm.tm_sec);
 
 	return 0;
 }
