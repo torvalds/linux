@@ -252,7 +252,7 @@ static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
 	struct kobject *top_kobj;
 	struct kset *kset;
 	char *envp[32];
-	char data[PAGE_SIZE];
+	char *data = NULL;
 	char *pos;
 	int i;
 	size_t count = 0;
@@ -276,6 +276,10 @@ static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
 		if (!kset->uevent_ops->filter(kset, &dev->kobj))
 			goto out;
 
+	data = (char *)get_zeroed_page(GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	/* let the kset specific function add its keys */
 	pos = data;
 	retval = kset->uevent_ops->uevent(kset, &dev->kobj,
@@ -290,6 +294,7 @@ static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
 		count += sprintf(pos, "%s\n", envp[i]);
 	}
 out:
+	free_page((unsigned long)data);
 	return count;
 }
 
