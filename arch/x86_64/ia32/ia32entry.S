@@ -481,11 +481,7 @@ ia32_sys_call_table:
 	.quad sys_symlink
 	.quad sys_lstat
 	.quad sys_readlink		/* 85 */
-#ifdef CONFIG_IA32_AOUT
 	.quad sys_uselib
-#else
-	.quad quiet_ni_syscall
-#endif
 	.quad sys_swapon
 	.quad sys_reboot
 	.quad compat_sys_old_readdir
