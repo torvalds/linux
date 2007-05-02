@@ -8,6 +8,9 @@
 
 struct btrfs_trans_handle;
 struct btrfs_transaction;
+extern struct kmem_cache *btrfs_trans_handle_cachep;
+extern struct kmem_cache *btrfs_transaction_cachep;
+extern struct kmem_cache *btrfs_bit_radix_cachep;
 extern struct kmem_cache *btrfs_path_cachep;
 
 #define BTRFS_MAGIC "_BtRfS_M"

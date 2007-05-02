@@ -11,6 +11,7 @@
  */
 
 #include <linux/types.h>
+#include "hash.h"
 #define DELTA 0x9E3779B9
 
 static void TEA_transform(__u32 buf[2], __u32 const in[])

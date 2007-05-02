@@ -22,9 +22,7 @@ int set_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 			return -ENOMEM;
 		memset(bits + 1, 0, BIT_ARRAY_BYTES - sizeof(unsigned long));
 		bits[0] = slot;
-		radix_tree_preload(GFP_NOFS);
 		ret = radix_tree_insert(radix, slot, bits);
-		radix_tree_preload_end();
 		if (ret)
 			return ret;
 	}

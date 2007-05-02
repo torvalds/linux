@@ -199,8 +199,9 @@ struct dirty_root {
 	struct btrfs_root *root;
 };
 
-int add_dirty_roots(struct btrfs_trans_handle *trans,
-		    struct radix_tree_root *radix, struct list_head *list)
+static int add_dirty_roots(struct btrfs_trans_handle *trans,
+			   struct radix_tree_root *radix,
+			   struct list_head *list)
 {
 	struct dirty_root *dirty;
 	struct btrfs_root *gang[8];
@@ -246,7 +247,8 @@ int add_dirty_roots(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int drop_dirty_roots(struct btrfs_root *tree_root, struct list_head *list)
+static int drop_dirty_roots(struct btrfs_root *tree_root,
+			    struct list_head *list)
 {
 	struct dirty_root *dirty;
 	struct btrfs_trans_handle *trans;

@@ -322,18 +322,10 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int try_remove_page(struct address_space *mapping, unsigned long index)
-{
-	int ret;
-	ret = invalidate_mapping_pages(mapping, index, index);
-	return ret;
-}
-
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			       btrfs_root *root)
 {
 	unsigned long gang[8];
-	struct inode *btree_inode = root->fs_info->btree_inode;
 	u64 first = 0;
 	int ret;
 	int i;
@@ -348,9 +340,6 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans, struct
 			first = gang[0];
 		for (i = 0; i < ret; i++) {
 			clear_radix_bit(pinned_radix, gang[i]);
-			try_remove_page(btree_inode->i_mapping,
-					gang[i] << (PAGE_CACHE_SHIFT -
-						    btree_inode->i_blkbits));
 		}
 	}
 	return 0;
@@ -983,6 +972,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			break;
 		if (wret < 0)
 			ret = wret;
+		btrfs_btree_balance_dirty(root);
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {

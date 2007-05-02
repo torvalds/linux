@@ -4,11 +4,12 @@
 #include "hash.h"
 #include "transaction.h"
 
-struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle *trans,
-					    struct btrfs_root *root,
-					    struct btrfs_path *path,
-					    struct btrfs_key *cpu_key,
-					    u32 data_size)
+static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
+						   *trans,
+						   struct btrfs_root *root,
+						   struct btrfs_path *path,
+						   struct btrfs_key *cpu_key,
+						   u32 data_size)
 {
 	int ret;
 	char *ptr;

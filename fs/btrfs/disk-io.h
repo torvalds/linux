@@ -55,4 +55,6 @@ int btrfs_insert_dev_radix(struct btrfs_root *root,
 			   u64 num_blocks);
 int btrfs_map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
 			     u64 logical);
+int btrfs_releasepage(struct page *page, gfp_t flags);
+void btrfs_btree_balance_dirty(struct btrfs_root *root);
 #endif

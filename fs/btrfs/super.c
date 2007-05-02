@@ -18,14 +18,14 @@
 #include "btrfs_inode.h"
 #include "ioctl.h"
 
-void btrfs_fsinfo_release(struct kobject *obj)
+static void btrfs_fsinfo_release(struct kobject *obj)
 {
 	struct btrfs_fs_info *fsinfo = container_of(obj,
 					    struct btrfs_fs_info, kobj);
 	kfree(fsinfo);
 }
 
-struct kobj_type btrfs_fsinfo_ktype = {
+static struct kobj_type btrfs_fsinfo_ktype = {
 	.release = btrfs_fsinfo_release,
 };
 
@@ -148,7 +148,6 @@ static void fill_inode_item(struct btrfs_inode_item *item,
 				    BTRFS_I(inode)->block_group->key.objectid);
 }
 
-
 static int btrfs_update_inode(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct inode *inode)
@@ -251,6 +250,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	ret = btrfs_unlink_trans(trans, root, dir, dentry);
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
+	btrfs_btree_balance_dirty(root);
 	return ret;
 }
 
@@ -324,6 +324,7 @@ out:
 	btrfs_free_path(path);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	ret = btrfs_end_transaction(trans, root);
+	btrfs_btree_balance_dirty(root);
 	if (ret && !err)
 		err = ret;
 	return err;
@@ -449,6 +450,7 @@ static void btrfs_delete_inode(struct inode *inode)
 	btrfs_free_inode(trans, root, inode);
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
+	btrfs_btree_balance_dirty(root);
 	return;
 no_delete:
 	clear_inode(inode);
@@ -481,7 +483,7 @@ out:
 	return ret;
 }
 
-int fixup_tree_root_location(struct btrfs_root *root,
+static int fixup_tree_root_location(struct btrfs_root *root,
 			     struct btrfs_key *location,
 			     struct btrfs_root **sub_root)
 {
@@ -512,7 +514,7 @@ int fixup_tree_root_location(struct btrfs_root *root,
 	return 0;
 }
 
-int btrfs_init_locked_inode(struct inode *inode, void *p)
+static int btrfs_init_locked_inode(struct inode *inode, void *p)
 {
 	struct btrfs_iget_args *args = p;
 	inode->i_ino = args->ino;
@@ -520,15 +522,15 @@ int btrfs_init_locked_inode(struct inode *inode, void *p)
 	return 0;
 }
 
-int btrfs_find_actor(struct inode *inode, void *opaque)
+static int btrfs_find_actor(struct inode *inode, void *opaque)
 {
 	struct btrfs_iget_args *args = opaque;
 	return (args->ino == inode->i_ino &&
 		args->root == BTRFS_I(inode)->root);
 }
 
-struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
-				struct btrfs_root *root)
+static struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
+				       struct btrfs_root *root)
 {
 	struct inode *inode;
 	struct btrfs_iget_args args;
@@ -790,6 +792,7 @@ static void btrfs_dirty_inode(struct inode *inode)
 	btrfs_update_inode(trans, root, inode);
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
+	btrfs_btree_balance_dirty(root);
 }
 
 static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
@@ -913,6 +916,7 @@ out_unlock:
 		inode_dec_link_count(inode);
 		iput(inode);
 	}
+	btrfs_btree_balance_dirty(root);
 	return err;
 }
 
@@ -1002,6 +1006,7 @@ out_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	if (drop_on_err)
 		iput(inode);
+	btrfs_btree_balance_dirty(root);
 	return err;
 }
 
@@ -1099,7 +1104,6 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 	    found_type != BTRFS_EXTENT_DATA_KEY) {
 		extent_end = 0;
 		extent_start = 0;
-		btrfs_release_path(root, path);
 		goto out;
 	}
 	found_type = btrfs_file_extent_type(item);
@@ -1135,7 +1139,6 @@ static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
 		btrfs_map_bh_to_logical(root, result, 0);
 	}
 out:
-	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	return err;
 }
@@ -1231,13 +1234,13 @@ static int __btrfs_write_full_page(struct inode *inode, struct page *page,
 		} else if (!buffer_mapped(bh) && buffer_dirty(bh)) {
 			WARN_ON(bh->b_size != blocksize);
 			err = btrfs_get_block(inode, block, bh, 0);
-			if (err)
+			if (err) {
+printk("writepage going to recovery err %d\n", err);
 				goto recover;
+			}
 			if (buffer_new(bh)) {
 				/* blockdev mappings never come here */
 				clear_buffer_new(bh);
-				unmap_underlying_metadata(bh->b_bdev,
-							bh->b_blocknr);
 			}
 		}
 		bh = bh->b_this_page;
@@ -1303,11 +1306,6 @@ done:
 		if (uptodate)
 			SetPageUptodate(page);
 		end_page_writeback(page);
-		/*
-		 * The page and buffer_heads can be released at any time from
-		 * here on.
-		 */
-		wbc->pages_skipped++;	/* We didn't write this page */
 	}
 	return err;
 
@@ -1409,10 +1407,11 @@ static void btrfs_truncate(struct inode *inode)
 	btrfs_set_trans_block_group(trans, inode);
 	ret = btrfs_truncate_in_trans(trans, root, inode);
 	BUG_ON(ret);
+	btrfs_update_inode(trans, root, inode);
 	ret = btrfs_end_transaction(trans, root);
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	mark_inode_dirty(inode);
+	btrfs_btree_balance_dirty(root);
 }
 
 /*
@@ -1777,10 +1776,15 @@ static int prepare_pages(struct btrfs_root *root,
 			err = -ENOMEM;
 			goto failed_release;
 		}
+		cancel_dirty_page(pages[i], PAGE_CACHE_SIZE);
+		wait_on_page_writeback(pages[i]);
 		offset = pos & (PAGE_CACHE_SIZE -1);
 		this_write = min(PAGE_CACHE_SIZE - offset, write_bytes);
-		create_empty_buffers(pages[i], root->fs_info->sb->s_blocksize,
-				     (1 << BH_Uptodate));
+		if (!page_has_buffers(pages[i])) {
+			create_empty_buffers(pages[i],
+					     root->fs_info->sb->s_blocksize,
+					     (1 << BH_Uptodate));
+		}
 		head = page_buffers(pages[i]);
 		bh = head;
 		do {
@@ -1820,7 +1824,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct page *pages[8];
-	struct page *pinned[2] = { NULL, NULL };
+	struct page *pinned[2];
 	unsigned long first_index;
 	unsigned long last_index;
 	u64 start_pos;
@@ -1829,6 +1833,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key ins;
 
+	pinned[0] = NULL;
+	pinned[1] = NULL;
 	if (file->f_flags & O_DIRECT)
 		return -EINVAL;
 	pos = *ppos;
@@ -1858,6 +1864,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		if (!PageUptodate(pinned[0])) {
 			ret = mpage_readpage(pinned[0], btrfs_get_block);
 			BUG_ON(ret);
+			wait_on_page_locked(pinned[0]);
 		} else {
 			unlock_page(pinned[0]);
 		}
@@ -1869,6 +1876,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		if (!PageUptodate(pinned[1])) {
 			ret = mpage_readpage(pinned[1], btrfs_get_block);
 			BUG_ON(ret);
+			wait_on_page_locked(pinned[1]);
 		} else {
 			unlock_page(pinned[1]);
 		}
@@ -1940,6 +1948,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		num_written += write_bytes;
 
 		balance_dirty_pages_ratelimited(inode->i_mapping);
+		btrfs_btree_balance_dirty(root);
 		cond_resched();
 	}
 out_unlock:
@@ -2165,6 +2174,7 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	iput(inode);
 
 	mutex_unlock(&root->fs_info->fs_mutex);
+	btrfs_btree_balance_dirty(root);
 	return 0;
 }
 
@@ -2220,6 +2230,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	ret = btrfs_commit_transaction(trans, root);
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
+	btrfs_btree_balance_dirty(root);
 	return 0;
 }
 
@@ -2295,6 +2306,7 @@ out:
 	mutex_unlock(&root->fs_info->fs_mutex);
 out_nolock:
 	btrfs_free_path(path);
+	btrfs_btree_balance_dirty(root);
 
 	return ret;
 }

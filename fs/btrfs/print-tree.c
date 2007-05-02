@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include "ctree.h"
 #include "disk-io.h"
+#include "print-tree.h"
 
 void btrfs_print_leaf(struct btrfs_root *root, struct btrfs_leaf *l)
 {

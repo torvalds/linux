@@ -5,7 +5,7 @@
 #include <linux/scatterlist.h>
 #include <linux/swap.h>
 #include <linux/radix-tree.h>
-#include <linux/file.h>
+#include <linux/writeback.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -694,7 +694,7 @@ static int free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	return 0;
 }
 
-int del_fs_roots(struct btrfs_fs_info *fs_info)
+static int del_fs_roots(struct btrfs_fs_info *fs_info)
 {
 	int ret;
 	struct btrfs_root *gang[8];
@@ -781,3 +781,7 @@ void btrfs_block_release(struct btrfs_root *root, struct buffer_head *buf)
 	brelse(buf);
 }
 
+void btrfs_btree_balance_dirty(struct btrfs_root *root)
+{
+	balance_dirty_pages_ratelimited(root->fs_info->btree_inode->i_mapping);
+}
