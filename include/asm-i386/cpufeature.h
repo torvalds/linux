@@ -106,8 +106,12 @@
 #define X86_FEATURE_LAHF_LM	(6*32+ 0) /* LAHF/SAHF in long mode */
 #define X86_FEATURE_CMP_LEGACY	(6*32+ 1) /* If yes HyperThreading not valid */
 
-#define cpu_has(c, bit)		test_bit(bit, (c)->x86_capability)
-#define boot_cpu_has(bit)	test_bit(bit, boot_cpu_data.x86_capability)
+#define cpu_has(c, bit)					\
+	((__builtin_constant_p(bit) && (bit) < 32 && 	\
+		(1UL << (bit)) & REQUIRED_MASK1) ?	\
+		1 : 					\
+	test_bit(bit, (c)->x86_capability))
+#define boot_cpu_has(bit)	cpu_has(&boot_cpu_data, bit)
 
 #define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
 #define cpu_has_vme		boot_cpu_has(X86_FEATURE_VME)
