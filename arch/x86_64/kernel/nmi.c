@@ -348,7 +348,7 @@ int __init check_nmi_watchdog (void)
 		struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 
 		nmi_hz = 1;
-	 	if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0)
+	 	if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR1)
 			nmi_hz = adjust_for_32bit_ctr(nmi_hz);
 	}
 
@@ -713,8 +713,8 @@ static int setup_intel_arch_watchdog(void)
 	    (ebx & ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT))
 		goto fail;
 
-	perfctr_msr = MSR_ARCH_PERFMON_PERFCTR0;
-	evntsel_msr = MSR_ARCH_PERFMON_EVENTSEL0;
+	perfctr_msr = MSR_ARCH_PERFMON_PERFCTR1;
+	evntsel_msr = MSR_ARCH_PERFMON_EVENTSEL1;
 
 	if (!__reserve_perfctr_nmi(-1, perfctr_msr))
 		goto fail;
@@ -958,7 +958,7 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 				/* start the cycle over again */
 				wrmsrl(wd->perfctr_msr,
 				       -((u64)cpu_khz * 1000 / nmi_hz));
-	 		} else if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0) {
+	 		} else if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR1) {
 				/*
 				 * ArchPerfom/Core Duo needs to re-unmask
 				 * the apic vector
