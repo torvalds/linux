@@ -1,6 +1,7 @@
 .text
 #include <linux/linkage.h>
 #include <asm/segment.h>
+#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/msr.h>
 
@@ -62,12 +63,15 @@ wakeup_code:
 
 	movb	$0xa2, %al	;  outb %al, $0x80
 	
-	lidt	%ds:idt_48a - wakeup_code
-	xorl	%eax, %eax
-	movw	%ds, %ax			# (Convert %ds:gdt to a linear ptr)
-	shll	$4, %eax
-	addl	$(gdta - wakeup_code), %eax
-	movl	%eax, gdt_48a +2 - wakeup_code
+	mov	%ds, %ax			# Find 32bit wakeup_code addr
+	movzx   %ax, %esi			# (Convert %ds:gdt to a liner ptr)
+	shll    $4, %esi
+						# Fix up the vectors
+	addl    %esi, wakeup_32_vector - wakeup_code
+	addl    %esi, wakeup_long64_vector - wakeup_code
+	addl    %esi, gdt_48a + 2 - wakeup_code # Fixup the gdt pointer
+
+	lidtl	%ds:idt_48a - wakeup_code
 	lgdtl	%ds:gdt_48a - wakeup_code	# load gdt with whatever is
 						# appropriate
 
@@ -80,7 +84,7 @@ wakeup_code:
 
 	.balign 4
 wakeup_32_vector:
-	.long   wakeup_32 - __START_KERNEL_map
+	.long   wakeup_32 - wakeup_code
 	.word   __KERNEL32_CS, 0
 
 	.code32
@@ -103,10 +107,6 @@ wakeup_32:
 	movl	$__KERNEL_DS, %eax
 	movl	%eax, %ds
 
-	movl	saved_magic - __START_KERNEL_map, %eax
-	cmpl	$0x9abcdef0, %eax
-	jne	bogus_32_magic
-
 	movw	$0x0e00 + 'i', %ds:(0xb8012)
 	movb	$0xa8, %al	;  outb %al, $0x80;
 
@@ -120,7 +120,7 @@ wakeup_32:
 	movl	%eax, %cr4
 
 	/* Setup early boot stage 4 level pagetables */
-	movl	$(wakeup_level4_pgt - __START_KERNEL_map), %eax
+	leal    (wakeup_level4_pgt - wakeup_code)(%esi), %eax
 	movl	%eax, %cr3
 
 	/* Enable Long Mode */
@@ -159,11 +159,11 @@ wakeup_32:
 	 */
 
 	/* Finally jump in 64bit mode */
-	ljmp	*(wakeup_long64_vector - __START_KERNEL_map)
+        ljmp    *(wakeup_long64_vector - wakeup_code)(%esi)
 
 	.balign 4
 wakeup_long64_vector:
-	.long   wakeup_long64 - __START_KERNEL_map
+	.long   wakeup_long64 - wakeup_code
 	.word   __KERNEL_CS, 0
 
 .code64
@@ -178,10 +178,15 @@ wakeup_long64:
 	 * addresses where we're currently running on. We have to do that here
 	 * because in 32bit we couldn't load a 64bit linear address.
 	 */
-	lgdt	cpu_gdt_descr - __START_KERNEL_map
+	lgdt	cpu_gdt_descr
 
 	movw	$0x0e00 + 'n', %ds:(0xb8014)
 	movb	$0xa9, %al	;  outb %al, $0x80
+
+	movq    saved_magic, %rax
+	movq    $0x123456789abcdef0, %rdx
+	cmpq    %rdx, %rax
+	jne     bogus_64_magic
 
 	movw	$0x0e00 + 'u', %ds:(0xb8016)
 	
@@ -223,20 +228,21 @@ idt_48a:
 gdt_48a:
 	.word	0x800				# gdt limit=2048,
 						#  256 GDT entries
-	.word	0, 0				# gdt base (filled in later)
-	
+	.long   gdta - wakeup_code              # gdt base (relocated in later)
 	
 real_magic:	.quad 0
 video_mode:	.quad 0
 video_flags:	.quad 0
 
+.code16
 bogus_real_magic:
 	movb	$0xba,%al	;  outb %al,$0x80
 	jmp bogus_real_magic
 
-bogus_32_magic:
+.code64
+bogus_64_magic:
 	movb	$0xb3,%al	;  outb %al,$0x80
-	jmp bogus_32_magic
+	jmp bogus_64_magic
 
 bogus_cpu:
 	movb	$0xbc,%al	;  outb %al,$0x80
@@ -263,6 +269,7 @@ bogus_cpu:
 #define VIDEO_FIRST_V7 0x0900
 
 # Setting of user mode (AX=mode ID) => CF=success
+.code16
 mode_seta:
 	movw	%ax, %bx
 #if 0
@@ -313,6 +320,13 @@ wakeup_stack_begin:	# Stack grows down
 .org	0xff0
 wakeup_stack:		# Just below end of page
 
+.org   0x1000
+ENTRY(wakeup_level4_pgt)
+	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.fill   510,8,0
+	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
+	.quad   level3_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE
+
 ENTRY(wakeup_end)
 	
 ##
@@ -338,9 +352,10 @@ ENTRY(acpi_copy_wakeup_routine)
 	movq	$0x123456789abcdef0, %rdx
 	movq	%rdx, saved_magic
 
-	movl	saved_magic - __START_KERNEL_map, %eax
-	cmpl	$0x9abcdef0, %eax
-	jne	bogus_32_magic
+	movq    saved_magic, %rax
+	movq    $0x123456789abcdef0, %rdx
+	cmpq    %rdx, %rax
+	jne     bogus_64_magic
 
 	# restore the regs we used
 	popq	%rdx

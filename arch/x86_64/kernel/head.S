@@ -308,15 +308,6 @@ NEXT_PAGE(level2_kernel_pgt)
 
 	.data
 
-#ifdef CONFIG_ACPI_SLEEP
-	.align PAGE_SIZE
-ENTRY(wakeup_level4_pgt)
-	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.fill	510,8,0
-	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad	level3_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE
-#endif
-
 #ifndef CONFIG_HOTPLUG_CPU
 	__INITDATA
 #endif
