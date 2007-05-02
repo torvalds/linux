@@ -319,13 +319,3 @@ int __init amd_init_cpu(void)
 	cpu_devs[X86_VENDOR_AMD] = &amd_cpu_dev;
 	return 0;
 }
-
-//early_arch_initcall(amd_init_cpu);
-
-static int __init amd_exit_cpu(void)
-{
-	cpu_devs[X86_VENDOR_AMD] = NULL;
-	return 0;
-}
-
-late_initcall(amd_exit_cpu);
