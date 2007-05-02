@@ -25,6 +25,8 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#include <linux/linkage.h>
+#include <asm/dwarf2.h>
 #include <asm/errno.h>
 				
 /*
@@ -36,8 +38,6 @@ unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
  */
 		
 .text
-.align 4
-.globl csum_partial								
 		
 #ifndef CONFIG_X86_USE_PPRO_CHECKSUM
 
@@ -48,9 +48,14 @@ unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
 	   * Fortunately, it is easy to convert 2-byte alignment to 4-byte
 	   * alignment for the unrolled loop.
 	   */		
-csum_partial:	
+ENTRY(csum_partial)
+	CFI_STARTPROC
 	pushl %esi
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET esi, 0
 	pushl %ebx
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET ebx, 0
 	movl 20(%esp),%eax	# Function arg: unsigned int sum
 	movl 16(%esp),%ecx	# Function arg: int len
 	movl 12(%esp),%esi	# Function arg: unsigned char *buff
@@ -128,16 +133,27 @@ csum_partial:
 	roll $8, %eax
 8:
 	popl %ebx
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE ebx
 	popl %esi
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE esi
 	ret
+	CFI_ENDPROC
+ENDPROC(csum_partial)
 
 #else
 
 /* Version for PentiumII/PPro */
 
-csum_partial:
+ENTRY(csum_partial)
+	CFI_STARTPROC
 	pushl %esi
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET esi, 0
 	pushl %ebx
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET ebx, 0
 	movl 20(%esp),%eax	# Function arg: unsigned int sum
 	movl 16(%esp),%ecx	# Function arg: int len
 	movl 12(%esp),%esi	# Function arg:	const unsigned char *buf
@@ -245,8 +261,14 @@ csum_partial:
 	roll $8, %eax
 90: 
 	popl %ebx
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE ebx
 	popl %esi
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE esi
 	ret
+	CFI_ENDPROC
+ENDPROC(csum_partial)
 				
 #endif
 
@@ -278,19 +300,24 @@ unsigned int csum_partial_copy_generic (const char *src, char *dst,
 	.long 9999b, 6002f	;	\
 	.previous
 
-.align 4
-.globl csum_partial_copy_generic
-				
 #ifndef CONFIG_X86_USE_PPRO_CHECKSUM
 
 #define ARGBASE 16		
 #define FP		12
 		
-csum_partial_copy_generic:
+ENTRY(csum_partial_copy_generic)
+	CFI_STARTPROC
 	subl  $4,%esp	
+	CFI_ADJUST_CFA_OFFSET 4
 	pushl %edi
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET edi, 0
 	pushl %esi
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET esi, 0
 	pushl %ebx
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET ebx, 0
 	movl ARGBASE+16(%esp),%eax	# sum
 	movl ARGBASE+12(%esp),%ecx	# len
 	movl ARGBASE+4(%esp),%esi	# src
@@ -400,10 +427,19 @@ DST(	movb %cl, (%edi)	)
 .previous
 
 	popl %ebx
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE ebx
 	popl %esi
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE esi
 	popl %edi
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE edi
 	popl %ecx			# equivalent to addl $4,%esp
+	CFI_ADJUST_CFA_OFFSET -4
 	ret	
+	CFI_ENDPROC
+ENDPROC(csum_partial_copy_generic)
 
 #else
 
@@ -421,10 +457,17 @@ DST(	movb %cl, (%edi)	)
 
 #define ARGBASE 12
 		
-csum_partial_copy_generic:
+ENTRY(csum_partial_copy_generic)
+	CFI_STARTPROC
 	pushl %ebx
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET ebx, 0
 	pushl %edi
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET edi, 0
 	pushl %esi
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET esi, 0
 	movl ARGBASE+4(%esp),%esi	#src
 	movl ARGBASE+8(%esp),%edi	#dst	
 	movl ARGBASE+12(%esp),%ecx	#len
@@ -485,9 +528,17 @@ DST(	movb %dl, (%edi)         )
 .previous				
 
 	popl %esi
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE esi
 	popl %edi
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE edi
 	popl %ebx
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE ebx
 	ret
+	CFI_ENDPROC
+ENDPROC(csum_partial_copy_generic)
 				
 #undef ROUND
 #undef ROUND1		
