@@ -30,6 +30,16 @@ static int __init setup_noreplace_smp(char *str)
 }
 __setup("noreplace-smp", setup_noreplace_smp);
 
+#ifdef CONFIG_PARAVIRT
+static int noreplace_paravirt = 0;
+
+static int __init setup_noreplace_paravirt(char *str)
+{
+	noreplace_paravirt = 1;
+	return 1;
+}
+__setup("noreplace-paravirt", setup_noreplace_paravirt);
+#endif
 
 #define DPRINTK(fmt, args...) if (debug_alternative) \
 	printk(KERN_DEBUG fmt, args)
@@ -329,6 +339,9 @@ void apply_paravirt(struct paravirt_patch_site *start,
 		    struct paravirt_patch_site *end)
 {
 	struct paravirt_patch_site *p;
+
+	if (noreplace_paravirt)
+		return;
 
 	for (p = start; p < end; p++) {
 		unsigned int used;

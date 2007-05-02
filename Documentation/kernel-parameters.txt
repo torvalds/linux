@@ -64,6 +64,7 @@ parameter is applicable:
 	GENERIC_TIME The generic timeofday code is enabled.
 	NFS	Appropriate NFS support is enabled.
 	OSS	OSS sound support is enabled.
+	PV_OPS	A paravirtualized kernel
 	PARIDE	The ParIDE subsystem is enabled.
 	PARISC	The PA-RISC architecture is enabled.
 	PCI	PCI bus support is enabled.
@@ -1163,6 +1164,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	nomca		[IA-64] Disable machine check abort handling
 
 	nomce		[IA-32] Machine Check Exception
+
+	noreplace-paravirt	[IA-32,PV_OPS] Don't patch paravirt_ops
 
 	noreplace-smp	[IA-32,SMP] Don't replace SMP instructions
 			with UP alternatives
