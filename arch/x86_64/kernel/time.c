@@ -39,13 +39,10 @@
 #include <asm/proto.h>
 #include <asm/hpet.h>
 #include <asm/sections.h>
-#include <linux/cpufreq.h>
 #include <linux/hpet.h>
 #include <asm/apic.h>
 #include <asm/hpet.h>
-
-extern void i8254_timer_resume(void);
-extern int using_apic_timer;
+#include <asm/mpspec.h>
 
 static char *timename = NULL;
 
