@@ -15,7 +15,7 @@
  * I changed all the .align's to 4 (16 byte alignment), as that's faster
  * on a 486.
  *
- * Stack layout in 'ret_from_system_call':
+ * Stack layout in 'syscall_exit':
  * 	ptrace needs to have all regs on the stack.
  *	if the order here is changed, it needs to be
  *	updated in fork.c:copy_process, signal.c:do_signal,
