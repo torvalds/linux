@@ -53,6 +53,8 @@ static __cpuinit int amd_apic_timer_broken(void)
 	return 0;
 }
 
+int force_mwait __cpuinitdata;
+
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
@@ -275,6 +277,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	if (amd_apic_timer_broken())
 		set_bit(X86_FEATURE_LAPIC_TIMER_BROKEN, c->x86_capability);
+
+	if (c->x86 == 0x10 && !force_mwait)
+		clear_bit(X86_FEATURE_MWAIT, c->x86_capability);
 }
 
 static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)

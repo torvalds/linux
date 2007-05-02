@@ -779,4 +779,6 @@ extern int sysenter_setup(void);
 extern void cpu_set_gdt(int);
 extern void cpu_init(void);
 
+extern int force_mwait;
+
 #endif /* __ASM_I386_PROCESSOR_H */

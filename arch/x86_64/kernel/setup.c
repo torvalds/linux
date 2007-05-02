@@ -79,6 +79,8 @@ int bootloader_type;
 
 unsigned long saved_video_mode;
 
+int force_mwait __cpuinitdata;
+
 /* 
  * Early DMI memory
  */
@@ -604,6 +606,10 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/* RDTSC can be speculated around */
 	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+
+	/* Family 10 doesn't support C states in MWAIT so don't use it */
+	if (c->x86 == 0x10 && !force_mwait)
+		clear_bit(X86_FEATURE_MWAIT, &c->x86_capability);
 }
 
 static void __cpuinit detect_ht(struct cpuinfo_x86 *c)

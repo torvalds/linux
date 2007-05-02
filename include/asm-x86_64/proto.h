@@ -119,6 +119,8 @@ extern int gsi_irq_sharing(int gsi);
 
 extern void smp_local_timer_interrupt(void);
 
+extern int force_mwait;
+
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr);
 
 void i8254_timer_resume(void);
