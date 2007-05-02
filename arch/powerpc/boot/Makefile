@@ -129,9 +129,12 @@ image-$(CONFIG_PPC_CELLEB)		+= zImage.pseries
 image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
 image-$(CONFIG_PPC_EFIKA)		+= zImage.chrp
 image-$(CONFIG_PPC_PMAC)		+= zImage.pmac
+image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
+
+ifneq ($(CONFIG_DEVICE_TREE),"")
 image-$(CONFIG_PPC_83xx)		+= cuImage.83xx
 image-$(CONFIG_PPC_85xx)		+= cuImage.85xx
-image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
+endif
 
 # For 32-bit powermacs, build the COFF and miboot images
 # as well as the ELF images.
