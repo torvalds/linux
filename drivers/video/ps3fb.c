@@ -732,6 +732,11 @@ static int ps3fb_ioctl(struct fb_info *info, unsigned int cmd,
 			if (copy_from_user(&val, argp, sizeof(val)))
 				break;
 
+			if (!(val & PS3AV_MODE_MASK)) {
+				u32 id = ps3av_get_auto_mode(0);
+				if (id > 0)
+					val = (val & ~PS3AV_MODE_MASK) | id;
+			}
 			DPRINTK("PS3FB_IOCTL_SETMODE:%x\n", val);
 			retval = -EINVAL;
 			old_mode = ps3fb_mode;

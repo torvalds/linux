@@ -744,6 +744,13 @@ int ps3av_set_video_mode(u32 id, int boot)
 
 EXPORT_SYMBOL_GPL(ps3av_set_video_mode);
 
+int ps3av_get_auto_mode(int boot)
+{
+	return ps3av_auto_videomode(&ps3av.av_hw_conf, boot);
+}
+
+EXPORT_SYMBOL_GPL(ps3av_get_auto_mode);
+
 int ps3av_set_mode(u32 id, int boot)
 {
 	int res;
