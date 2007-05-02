@@ -804,7 +804,7 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	struct ivtv_open_id *item;
 	struct ivtv *itv = NULL;
 	struct ivtv_stream *s = NULL;
-	int minor = MINOR(inode->i_rdev);
+	int minor = iminor(inode);
 
 	/* Find which card this open was on */
 	spin_lock(&ivtv_cards_lock);
