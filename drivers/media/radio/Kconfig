@@ -6,6 +6,8 @@ menuconfig RADIO_ADAPTERS
 	bool "Radio Adapters"
 	depends on VIDEO_DEV
 	default y
+	---help---
+	  Say Y here to enable selecting AM/FM radio adapters.
 
 if RADIO_ADAPTERS
 
