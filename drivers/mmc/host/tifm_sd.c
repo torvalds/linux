@@ -1021,10 +1021,6 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 	mmc_remove_host(mmc);
 	dev_dbg(&sock->dev, "after remove\n");
 
-	/* The meaning of the bit majority in this constant is unknown. */
-	writel(0xfff8 & readl(sock->addr + SOCK_CONTROL),
-	       sock->addr + SOCK_CONTROL);
-
 	mmc_free_host(mmc);
 }
 
@@ -1032,14 +1028,7 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 
 static int tifm_sd_suspend(struct tifm_dev *sock, pm_message_t state)
 {
-	struct mmc_host *mmc = tifm_get_drvdata(sock);
-	int rc;
-
-	rc = mmc_suspend_host(mmc, state);
-	/* The meaning of the bit majority in this constant is unknown. */
-	writel(0xfff8 & readl(sock->addr + SOCK_CONTROL),
-	       sock->addr + SOCK_CONTROL);
-	return rc;
+	return mmc_suspend_host(tifm_get_drvdata(sock), state);
 }
 
 static int tifm_sd_resume(struct tifm_dev *sock)

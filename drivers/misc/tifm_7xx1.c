@@ -105,7 +105,8 @@ static unsigned char tifm_7xx1_toggle_sock_power(char __iomem *sock_addr)
 	    == TIFM_TYPE_XD)
 		msleep(40);
 
-	writel((s_state & 7) | 0x0c00, sock_addr + SOCK_CONTROL);
+	writel((s_state & TIFM_CTRL_POWER_MASK) | 0x0c00,
+	       sock_addr + SOCK_CONTROL);
 	/* wait for power to stabilize */
 	msleep(20);
 	for (cnt = 16; cnt <= 256; cnt <<= 1) {
@@ -122,6 +123,12 @@ static unsigned char tifm_7xx1_toggle_sock_power(char __iomem *sock_addr)
 	return (readl(sock_addr + SOCK_PRESENT_STATE) >> 4) & 7;
 }
 
+inline static void tifm_7xx1_sock_power_off(char __iomem *sock_addr)
+{
+	writel((~TIFM_CTRL_POWER_MASK) & readl(sock_addr + SOCK_CONTROL),
+	       sock_addr + SOCK_CONTROL);
+}
+
 inline static char __iomem *
 tifm_7xx1_sock_addr(char __iomem *base_addr, unsigned int sock_num)
 {
@@ -133,6 +140,7 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 	struct tifm_adapter *fm = container_of(work, struct tifm_adapter,
 					       media_switcher);
 	struct tifm_dev *sock;
+	char __iomem *sock_addr;
 	unsigned long flags;
 	unsigned char media_id;
 	unsigned int socket_change_set, cnt;
@@ -158,11 +166,12 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 			       "%s : demand removing card from socket %u:%u\n",
 			       fm->cdev.class_id, fm->id, cnt);
 			fm->sockets[cnt] = NULL;
+			sock_addr = sock->addr;
 			spin_unlock_irqrestore(&fm->lock, flags);
 			device_unregister(&sock->dev);
 			spin_lock_irqsave(&fm->lock, flags);
-			writel(0x0e00, tifm_7xx1_sock_addr(fm->addr, cnt)
-			       + SOCK_CONTROL);
+			tifm_7xx1_sock_power_off(sock_addr);
+			writel(0x0e00, sock_addr + SOCK_CONTROL);
 		}
 
 		spin_unlock_irqrestore(&fm->lock, flags);
@@ -205,7 +214,15 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 
 static int tifm_7xx1_suspend(struct pci_dev *dev, pm_message_t state)
 {
+	struct tifm_adapter *fm = pci_get_drvdata(dev);
+	int cnt;
+
 	dev_dbg(&dev->dev, "suspending host\n");
+
+	for (cnt = 0; cnt < fm->num_sockets; cnt++) {
+		if (fm->sockets[cnt])
+			tifm_7xx1_sock_power_off(fm->sockets[cnt]->addr);
+	}
 
 	pci_save_state(dev);
 	pci_enable_wake(dev, pci_choose_state(dev, state), 0);
@@ -357,6 +374,7 @@ err_out:
 static void tifm_7xx1_remove(struct pci_dev *dev)
 {
 	struct tifm_adapter *fm = pci_get_drvdata(dev);
+	int cnt;
 
 	fm->eject = tifm_7xx1_dummy_eject;
 	writel(TIFM_IRQ_SETALL, fm->addr + FM_CLEAR_INTERRUPT_ENABLE);
@@ -364,6 +382,9 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 	free_irq(dev->irq, fm);
 
 	tifm_remove_adapter(fm);
+
+	for (cnt = 0; cnt < fm->num_sockets; cnt++)
+		tifm_7xx1_sock_power_off(tifm_7xx1_sock_addr(fm->addr, cnt));
 
 	pci_set_drvdata(dev, NULL);
 
