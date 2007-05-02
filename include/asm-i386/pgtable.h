@@ -344,7 +344,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 	pte_t pte;
 	if (full) {
 		pte = *ptep;
-		pte_clear(mm, addr, ptep);
+		native_pte_clear(mm, addr, ptep);
 	} else {
 		pte = ptep_get_and_clear(mm, addr, ptep);
 	}
