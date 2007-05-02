@@ -603,7 +603,6 @@ do_sigbus:
 	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
 }
 
-#ifndef CONFIG_X86_PAE
 void vmalloc_sync_all(void)
 {
 	/*
@@ -615,6 +614,9 @@ void vmalloc_sync_all(void)
 	static DECLARE_BITMAP(insync, PTRS_PER_PGD);
 	static unsigned long start = TASK_SIZE;
 	unsigned long address;
+
+	if (SHARED_KERNEL_PMD)
+		return;
 
 	BUILD_BUG_ON(TASK_SIZE & ~PGDIR_MASK);
 	for (address = start; address >= TASK_SIZE; address += PGDIR_SIZE) {
@@ -638,4 +640,3 @@ void vmalloc_sync_all(void)
 			start = address + PGDIR_SIZE;
 	}
 }
-#endif
