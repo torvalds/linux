@@ -1087,7 +1087,7 @@ static ssize_t ocfs2_write(struct file *file, u32 phys, handle_t *handle,
 	for(i = 0; i < numpages; i++) {
 		index = start + i;
 
-		cpages[i] = grab_cache_page(mapping, index);
+		cpages[i] = find_or_create_page(mapping, index, GFP_NOFS);
 		if (!cpages[i]) {
 			ret = -ENOMEM;
 			mlog_errno(ret);
