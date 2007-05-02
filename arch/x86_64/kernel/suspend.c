@@ -12,6 +12,7 @@
 #include <asm/proto.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/mtrr.h>
 
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;
@@ -48,6 +49,7 @@ void __save_processor_state(struct saved_context *ctxt)
 	rdmsrl(MSR_FS_BASE, ctxt->fs_base);
 	rdmsrl(MSR_GS_BASE, ctxt->gs_base);
 	rdmsrl(MSR_KERNEL_GS_BASE, ctxt->gs_kernel_base);
+	mtrr_save_fixed_ranges(NULL);
 
 	/*
 	 * control registers 
