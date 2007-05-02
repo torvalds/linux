@@ -8,6 +8,7 @@
 
 #include <linux/stddef.h>
 #include <linux/types.h>
+#include <asm/percpu.h>
 
 struct i386_pda
 {
@@ -18,10 +19,8 @@ struct i386_pda
 	struct pt_regs *irq_regs;
 };
 
-extern struct i386_pda *_cpu_pda[];
-
-#define cpu_pda(i)	(_cpu_pda[i])
-
+DECLARE_PER_CPU(struct i386_pda, _cpu_pda);
+#define cpu_pda(i)	(&per_cpu(_cpu_pda, (i)))
 #define pda_offset(field) offsetof(struct i386_pda, field)
 
 extern void __bad_pda_field(void);

@@ -1,6 +1,7 @@
 #ifndef _ASM_GENERIC_PERCPU_H_
 #define _ASM_GENERIC_PERCPU_H_
 #include <linux/compiler.h>
+#include <linux/threads.h>
 
 #define __GENERIC_PER_CPU
 #ifdef CONFIG_SMP

@@ -25,8 +25,10 @@
 DEFINE_PER_CPU(struct Xgt_desc_struct, cpu_gdt_descr);
 EXPORT_PER_CPU_SYMBOL(cpu_gdt_descr);
 
-struct i386_pda *_cpu_pda[NR_CPUS] __read_mostly;
-EXPORT_SYMBOL(_cpu_pda);
+DEFINE_PER_CPU(struct desc_struct, cpu_gdt[GDT_ENTRIES]);
+
+DEFINE_PER_CPU(struct i386_pda, _cpu_pda);
+EXPORT_PER_CPU_SYMBOL(_cpu_pda);
 
 static int cachesize_override __cpuinitdata = -1;
 static int disable_x86_fxsr __cpuinitdata;
@@ -609,52 +611,6 @@ struct pt_regs * __devinit idle_regs(struct pt_regs *regs)
 	return regs;
 }
 
-static __cpuinit int alloc_gdt(int cpu)
-{
-	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
-	struct desc_struct *gdt;
-	struct i386_pda *pda;
-
-	gdt = (struct desc_struct *)cpu_gdt_descr->address;
-	pda = cpu_pda(cpu);
-
-	/*
-	 * This is a horrible hack to allocate the GDT.  The problem
-	 * is that cpu_init() is called really early for the boot CPU
-	 * (and hence needs bootmem) but much later for the secondary
-	 * CPUs, when bootmem will have gone away
-	 */
-	if (NODE_DATA(0)->bdata->node_bootmem_map) {
-		BUG_ON(gdt != NULL || pda != NULL);
-
-		gdt = alloc_bootmem_pages(PAGE_SIZE);
-		pda = alloc_bootmem(sizeof(*pda));
-		/* alloc_bootmem(_pages) panics on failure, so no check */
-
-		memset(gdt, 0, PAGE_SIZE);
-		memset(pda, 0, sizeof(*pda));
-	} else {
-		/* GDT and PDA might already have been allocated if
-		   this is a CPU hotplug re-insertion. */
-		if (gdt == NULL)
-			gdt = (struct desc_struct *)get_zeroed_page(GFP_KERNEL);
-
-		if (pda == NULL)
-			pda = kmalloc_node(sizeof(*pda), GFP_KERNEL, cpu_to_node(cpu));
-
-		if (unlikely(!gdt || !pda)) {
-			free_pages((unsigned long)gdt, 0);
-			kfree(pda);
-			return 0;
-		}
-	}
-
- 	cpu_gdt_descr->address = (unsigned long)gdt;
-	cpu_pda(cpu) = pda;
-
-	return 1;
-}
-
 /* Initial PDA used by boot CPU */
 struct i386_pda boot_pda = {
 	._pda = &boot_pda,
@@ -670,31 +626,17 @@ static inline void set_kernel_fs(void)
 	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_PDA) : "memory");
 }
 
-/* Initialize the CPU's GDT and PDA.  The boot CPU does this for
-   itself, but secondaries find this done for them. */
-__cpuinit int init_gdt(int cpu, struct task_struct *idle)
+/* Initialize the CPU's GDT and PDA.  This is either the boot CPU doing itself
+   (still using cpu_gdt_table), or a CPU doing it for a secondary which
+   will soon come up. */
+__cpuinit void init_gdt(int cpu, struct task_struct *idle)
 {
 	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
-	struct desc_struct *gdt;
-	struct i386_pda *pda;
+	struct desc_struct *gdt = per_cpu(cpu_gdt, cpu);
+	struct i386_pda *pda = &per_cpu(_cpu_pda, cpu);
 
-	/* For non-boot CPUs, the GDT and PDA should already have been
-	   allocated. */
-	if (!alloc_gdt(cpu)) {
-		printk(KERN_CRIT "CPU%d failed to allocate GDT or PDA\n", cpu);
-		return 0;
-	}
-
-	gdt = (struct desc_struct *)cpu_gdt_descr->address;
-	pda = cpu_pda(cpu);
-
-	BUG_ON(gdt == NULL || pda == NULL);
-
-	/*
-	 * Initialize the per-CPU GDT with the boot GDT,
-	 * and set up the GDT descriptor:
-	 */
  	memcpy(gdt, cpu_gdt_table, GDT_SIZE);
+ 	cpu_gdt_descr->address = (unsigned long)gdt;
 	cpu_gdt_descr->size = GDT_SIZE - 1;
 
 	pack_descriptor((u32 *)&gdt[GDT_ENTRY_PDA].a,
@@ -706,17 +648,12 @@ __cpuinit int init_gdt(int cpu, struct task_struct *idle)
 	pda->_pda = pda;
 	pda->cpu_number = cpu;
 	pda->pcurrent = idle;
-
-	return 1;
 }
 
 void __cpuinit cpu_set_gdt(int cpu)
 {
 	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
 
-	/* Reinit these anyway, even if they've already been done (on
-	   the boot CPU, this will transition from the boot gdt+pda to
-	   the real ones). */
 	load_gdt(cpu_gdt_descr);
 	set_kernel_fs();
 }
@@ -804,13 +741,8 @@ void __cpuinit cpu_init(void)
 	struct task_struct *curr = current;
 
 	/* Set up the real GDT and PDA, so we can transition from the
-	   boot versions. */
-	if (!init_gdt(cpu, curr)) {
-		/* failed to allocate something; not much we can do... */
-		for (;;)
-			local_irq_enable();
-	}
-
+	   boot_gdt_table & boot_pda. */
+	init_gdt(cpu, curr);
 	cpu_set_gdt(cpu);
 	_cpu_init(cpu, curr);
 }
