@@ -38,6 +38,15 @@ static __always_inline cycles_t get_cycles_sync(void)
 	unsigned eax;
 
 	/*
+  	 * Use RDTSCP if possible; it is guaranteed to be synchronous
+ 	 * and doesn't cause a VMEXIT on Hypervisors
+	 */
+	alternative_io(ASM_NOP3, ".byte 0x0f,0x01,0xf9", X86_FEATURE_RDTSCP,
+			 	 "=A" (ret), "0" (0ULL) : "ecx", "memory");
+	if (ret)
+		return ret;
+
+	/*
 	 * Don't do an additional sync on CPUs where we know
 	 * RDTSC is already synchronous:
 	 */
