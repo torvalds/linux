@@ -22,6 +22,7 @@
 #include <asm/msr.h>
 #include <asm/pgtable.h>
 #include <asm/unistd.h>
+#include <asm/elf.h>
 
 /*
  * Should the kernel map a VDSO page into processes and pass its
@@ -45,6 +46,129 @@ static int __init vdso_setup(char *s)
 __setup("vdso=", vdso_setup);
 
 extern asmlinkage void sysenter_entry(void);
+
+#ifdef CONFIG_COMPAT_VDSO
+static __init void reloc_symtab(Elf32_Ehdr *ehdr,
+				unsigned offset, unsigned size)
+{
+	Elf32_Sym *sym = (void *)ehdr + offset;
+	unsigned nsym = size / sizeof(*sym);
+	unsigned i;
+
+	for(i = 0; i < nsym; i++, sym++) {
+		if (sym->st_shndx == SHN_UNDEF ||
+		    sym->st_shndx == SHN_ABS)
+			continue;  /* skip */
+
+		if (sym->st_shndx > SHN_LORESERVE) {
+			printk(KERN_INFO "VDSO: unexpected st_shndx %x\n",
+			       sym->st_shndx);
+			continue;
+		}
+
+		switch(ELF_ST_TYPE(sym->st_info)) {
+		case STT_OBJECT:
+		case STT_FUNC:
+		case STT_SECTION:
+		case STT_FILE:
+			sym->st_value += VDSO_HIGH_BASE;
+		}
+	}
+}
+
+static __init void reloc_dyn(Elf32_Ehdr *ehdr, unsigned offset)
+{
+	Elf32_Dyn *dyn = (void *)ehdr + offset;
+
+	for(; dyn->d_tag != DT_NULL; dyn++)
+		switch(dyn->d_tag) {
+		case DT_PLTGOT:
+		case DT_HASH:
+		case DT_STRTAB:
+		case DT_SYMTAB:
+		case DT_RELA:
+		case DT_INIT:
+		case DT_FINI:
+		case DT_REL:
+		case DT_DEBUG:
+		case DT_JMPREL:
+		case DT_VERSYM:
+		case DT_VERDEF:
+		case DT_VERNEED:
+		case DT_ADDRRNGLO ... DT_ADDRRNGHI:
+			/* definitely pointers needing relocation */
+			dyn->d_un.d_ptr += VDSO_HIGH_BASE;
+			break;
+
+		case DT_ENCODING ... OLD_DT_LOOS-1:
+		case DT_LOOS ... DT_HIOS-1:
+			/* Tags above DT_ENCODING are pointers if
+			   they're even */
+			if (dyn->d_tag >= DT_ENCODING &&
+			    (dyn->d_tag & 1) == 0)
+				dyn->d_un.d_ptr += VDSO_HIGH_BASE;
+			break;
+
+		case DT_VERDEFNUM:
+		case DT_VERNEEDNUM:
+		case DT_FLAGS_1:
+		case DT_RELACOUNT:
+		case DT_RELCOUNT:
+		case DT_VALRNGLO ... DT_VALRNGHI:
+			/* definitely not pointers */
+			break;
+
+		case OLD_DT_LOOS ... DT_LOOS-1:
+		case DT_HIOS ... DT_VALRNGLO-1:
+		default:
+			if (dyn->d_tag > DT_ENCODING)
+				printk(KERN_INFO "VDSO: unexpected DT_tag %x\n",
+				       dyn->d_tag);
+			break;
+		}
+}
+
+static __init void relocate_vdso(Elf32_Ehdr *ehdr)
+{
+	Elf32_Phdr *phdr;
+	Elf32_Shdr *shdr;
+	int i;
+
+	BUG_ON(memcmp(ehdr->e_ident, ELFMAG, 4) != 0 ||
+	       !elf_check_arch(ehdr) ||
+	       ehdr->e_type != ET_DYN);
+
+	ehdr->e_entry += VDSO_HIGH_BASE;
+
+	/* rebase phdrs */
+	phdr = (void *)ehdr + ehdr->e_phoff;
+	for (i = 0; i < ehdr->e_phnum; i++) {
+		phdr[i].p_vaddr += VDSO_HIGH_BASE;
+
+		/* relocate dynamic stuff */
+		if (phdr[i].p_type == PT_DYNAMIC)
+			reloc_dyn(ehdr, phdr[i].p_offset);
+	}
+
+	/* rebase sections */
+	shdr = (void *)ehdr + ehdr->e_shoff;
+	for(i = 0; i < ehdr->e_shnum; i++) {
+		if (!(shdr[i].sh_flags & SHF_ALLOC))
+			continue;
+
+		shdr[i].sh_addr += VDSO_HIGH_BASE;
+
+		if (shdr[i].sh_type == SHT_SYMTAB ||
+		    shdr[i].sh_type == SHT_DYNSYM)
+			reloc_symtab(ehdr, shdr[i].sh_offset,
+				     shdr[i].sh_size);
+	}
+}
+#else
+static inline void relocate_vdso(Elf32_Ehdr *ehdr)
+{
+}
+#endif	/* COMPAT_VDSO */
 
 void enable_sep_cpu(void)
 {
@@ -75,6 +199,9 @@ static struct page *syscall_pages[1];
 int __init sysenter_setup(void)
 {
 	void *syscall_page = (void *)get_zeroed_page(GFP_ATOMIC);
+	const void *vsyscall;
+	size_t vsyscall_len;
+
 	syscall_pages[0] = virt_to_page(syscall_page);
 
 #ifdef CONFIG_COMPAT_VDSO
@@ -83,23 +210,23 @@ int __init sysenter_setup(void)
 #endif
 
 	if (!boot_cpu_has(X86_FEATURE_SEP)) {
-		memcpy(syscall_page,
-		       &vsyscall_int80_start,
-		       &vsyscall_int80_end - &vsyscall_int80_start);
-		return 0;
+		vsyscall = &vsyscall_int80_start;
+		vsyscall_len = &vsyscall_int80_end - &vsyscall_int80_start;
+	} else {
+		vsyscall = &vsyscall_sysenter_start;
+		vsyscall_len = &vsyscall_sysenter_end - &vsyscall_sysenter_start;
 	}
 
-	memcpy(syscall_page,
-	       &vsyscall_sysenter_start,
-	       &vsyscall_sysenter_end - &vsyscall_sysenter_start);
+	memcpy(syscall_page, vsyscall, vsyscall_len);
+	relocate_vdso(syscall_page);
 
 	return 0;
 }
 
-#ifndef CONFIG_COMPAT_VDSO
 /* Defined in vsyscall-sysenter.S */
 extern void SYSENTER_RETURN;
 
+#ifdef __HAVE_ARCH_GATE_AREA
 /* Setup a VMA at program startup for the vsyscall page */
 int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 {
@@ -159,4 +286,17 @@ int in_gate_area_no_task(unsigned long addr)
 {
 	return 0;
 }
-#endif
+#else  /* !__HAVE_ARCH_GATE_AREA */
+int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
+{
+	/*
+	 * If not creating userspace VMA, simply set vdso to point to
+	 * fixmap page.
+	 */
+	current->mm->context.vdso = (void *)VDSO_HIGH_BASE;
+	current_thread_info()->sysenter_return =
+		(void *)VDSO_SYM(&SYSENTER_RETURN);
+
+	return 0;
+}
+#endif	/* __HAVE_ARCH_GATE_AREA */
