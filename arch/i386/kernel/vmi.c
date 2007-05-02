@@ -851,8 +851,10 @@ static inline int __init activate_vmi(void)
 		paravirt_ops.release_pt = vmi_release_pt;
 		paravirt_ops.release_pd = vmi_release_pd;
 	}
+#if 0
 	para_wrap(map_pt_hook, vmi_map_pt_hook, set_linear_mapping,
 		  SetLinearMapping);
+#endif
 
 	/*
 	 * These MUST always be patched.  Don't support indirect jumps

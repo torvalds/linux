@@ -169,8 +169,6 @@ struct paravirt_ops
 	void (*flush_tlb_others)(const cpumask_t *cpus, struct mm_struct *mm,
 				 unsigned long va);
 
-	void (*map_pt_hook)(int type, pte_t *va, u32 pfn);
-
 	/* Hooks for allocating/releasing pagetable pages */
 	void (*alloc_pt)(u32 pfn);
 	void (*alloc_pd)(u32 pfn);
@@ -860,11 +858,6 @@ static inline void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 				    unsigned long va)
 {
 	PVOP_VCALL3(flush_tlb_others, &cpumask, mm, va);
-}
-
-static inline void paravirt_map_pt_hook(int type, pte_t *va, u32 pfn)
-{
-	PVOP_VCALL3(map_pt_hook, type, va, pfn);
 }
 
 static inline void paravirt_alloc_pt(unsigned pfn)

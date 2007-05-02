@@ -302,8 +302,6 @@ struct paravirt_ops paravirt_ops = {
 	.flush_tlb_single = native_flush_tlb_single,
 	.flush_tlb_others = native_flush_tlb_others,
 
-	.map_pt_hook = paravirt_nop,
-
 	.alloc_pt = paravirt_nop,
 	.alloc_pd = paravirt_nop,
 	.alloc_pd_clone = paravirt_nop,
