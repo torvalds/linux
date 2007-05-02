@@ -79,7 +79,7 @@ void nommu_unmap_sg(struct device *dev, struct scatterlist *sg,
 {
 }
 
-struct dma_mapping_ops nommu_dma_ops = {
+const struct dma_mapping_ops nommu_dma_ops = {
 	.map_single = nommu_map_single,
 	.unmap_single = nommu_unmap_single,
 	.map_sg = nommu_map_sg,

@@ -52,7 +52,7 @@ struct dma_mapping_ops {
 };
 
 extern dma_addr_t bad_dma_address;
-extern struct dma_mapping_ops* dma_ops;
+extern const struct dma_mapping_ops* dma_ops;
 extern int iommu_merge;
 
 static inline int dma_mapping_error(dma_addr_t dma_addr)

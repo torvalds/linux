@@ -46,7 +46,7 @@
 #define Dprintk(x...)
 #endif
 
-struct dma_mapping_ops* dma_ops;
+const struct dma_mapping_ops* dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 static unsigned long dma_reserve __initdata;

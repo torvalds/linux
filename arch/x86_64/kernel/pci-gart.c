@@ -556,7 +556,7 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 
 extern int agp_amd64_init(void);
 
-static struct dma_mapping_ops gart_dma_ops = {
+static const struct dma_mapping_ops gart_dma_ops = {
 	.mapping_error = NULL,
 	.map_single = gart_map_single,
 	.map_simple = gart_map_simple,
