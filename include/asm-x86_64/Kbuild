@@ -18,3 +18,4 @@ header-y += vsyscall32.h
 unifdef-y += mce.h
 unifdef-y += mtrr.h
 unifdef-y += vsyscall.h
+unifdef-y += const.h
