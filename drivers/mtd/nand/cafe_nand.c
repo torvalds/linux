@@ -47,6 +47,9 @@
 #define CAFE_GLOBAL_IRQ_MASK	0x300c
 #define CAFE_NAND_RESET		0x3034
 
+/* Missing from the datasheet: bit 19 of CTRL1 sets CE0 vs. CE1 */
+#define CTRL1_CHIPSELECT	(1<<19)
+
 struct cafe_priv {
 	struct nand_chip nand;
 	struct pci_dev *pdev;
@@ -194,8 +197,8 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 	cafe->data_pos = cafe->datalen = 0;
 
-	/* Set command valid bit */
-	ctl1 = 0x80000000 | command;
+	/* Set command valid bit, mask in the chip select bit  */
+	ctl1 = 0x80000000 | command | (cafe->ctl1 & CTRL1_CHIPSELECT);
 
 	/* Set RD or WR bits as appropriate */
 	if (command == NAND_CMD_READID || command == NAND_CMD_STATUS) {
@@ -308,8 +311,16 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 static void cafe_select_chip(struct mtd_info *mtd, int chipnr)
 {
-	//struct cafe_priv *cafe = mtd->priv;
-	//	cafe_dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);
+	struct cafe_priv *cafe = mtd->priv;
+
+	cafe_dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);
+
+	/* Mask the appropriate bit into the stored value of ctl1
+	   which will be used by cafe_nand_cmdfunc() */
+	if (chipnr)
+		cafe->ctl1 |= CTRL1_CHIPSELECT;
+	else
+		cafe->ctl1 &= ~CTRL1_CHIPSELECT;
 }
 
 static int cafe_nand_interrupt(int irq, void *id)
@@ -453,7 +464,7 @@ static uint8_t cafe_mirror_pattern_512[] = { 0xBC };
 
 static struct nand_bbt_descr cafe_bbt_main_descr_2048 = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	14,
 	.len = 4,
 	.veroffs = 18,
@@ -463,7 +474,7 @@ static struct nand_bbt_descr cafe_bbt_main_descr_2048 = {
 
 static struct nand_bbt_descr cafe_bbt_mirror_descr_2048 = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	14,
 	.len = 4,
 	.veroffs = 18,
@@ -479,7 +490,7 @@ static struct nand_ecclayout cafe_oobinfo_512 = {
 
 static struct nand_bbt_descr cafe_bbt_main_descr_512 = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	14,
 	.len = 1,
 	.veroffs = 15,
@@ -489,7 +500,7 @@ static struct nand_bbt_descr cafe_bbt_main_descr_512 = {
 
 static struct nand_bbt_descr cafe_bbt_mirror_descr_512 = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	14,
 	.len = 1,
 	.veroffs = 15,
@@ -731,7 +742,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe_readl(cafe, GLOBAL_CTRL), cafe_readl(cafe, GLOBAL_IRQ_MASK));
 
 	/* Scan to find existence of the device */
-	if (nand_scan_ident(mtd, 1)) {
+	if (nand_scan_ident(mtd, 2)) {
 		err = -ENXIO;
 		goto out_irq;
 	}
