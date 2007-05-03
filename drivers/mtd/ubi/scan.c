@@ -1310,8 +1310,10 @@ static int paranoid_check_si(const struct ubi_device *ubi,
 	memset(buf, 1, ubi->peb_count);
 	for (pnum = 0; pnum < ubi->peb_count; pnum++) {
 		err = ubi_io_is_bad(ubi, pnum);
-		if (err < 0)
+		if (err < 0) {
+			kfree(buf);
 			return err;
+		}
 		else if (err)
 			buf[pnum] = 0;
 	}
