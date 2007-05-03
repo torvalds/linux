@@ -29,7 +29,7 @@ module_param(kb_pressure_click, int, 0);
 MODULE_PARM_DESC(kb_pressure_click, "pressure threshold for clicks");
 
 struct kbtab {
-	signed char *data;
+	unsigned char *data;
 	dma_addr_t data_dma;
 	struct input_dev *dev;
 	struct usb_device *usbdev;

@@ -39,7 +39,7 @@ struct wacom_features {
 };
 
 struct wacom_wac {
-	signed char *data;
+	unsigned char *data;
         int tool[2];
         int id[2];
         __u32 serial[2];
