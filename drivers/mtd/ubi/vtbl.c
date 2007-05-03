@@ -317,14 +317,13 @@ retry:
 	return err;
 
 write_error:
-	kfree(new_seb);
-	/* May be this physical eraseblock went bad, try to pick another one */
-	if (++tries <= 5) {
+	/* Maybe this physical eraseblock went bad, try to pick another one */
+	if (++tries <= 5)
 		err = ubi_scan_add_to_list(si, new_seb->pnum, new_seb->ec,
 					   &si->corr);
-		if (!err)
-			goto retry;
-	}
+	kfree(new_seb);
+	if (!err)
+		goto retry;
 out_free:
 	ubi_free_vid_hdr(ubi, vid_hdr);
 	return err;
