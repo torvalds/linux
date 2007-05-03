@@ -10,7 +10,8 @@
 #include <asm/pgtable.h>
 #include <asm/iseries/lpar_map.h>
 
-const struct LparMap __attribute__((__section__(".text"))) xLparMap = {
+/* The # is to stop gcc trying to make .text nonexecutable */
+const struct LparMap __attribute__((__section__(".text #"))) xLparMap = {
 	.xNumberEsids = HvEsidsToMap,
 	.xNumberRanges = HvRangesToMap,
 	.xSegmentTableOffs = STAB0_PAGE,
