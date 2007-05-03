@@ -6522,6 +6522,7 @@ struct bnx2 {
 
 	/* Used to synchronize phy accesses. */
 	spinlock_t		phy_lock;
+	spinlock_t		indirect_lock;
 
 	u32			phy_flags;
 #define PHY_SERDES_FLAG			1

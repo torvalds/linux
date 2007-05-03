@@ -234,21 +234,29 @@ static inline u32 bnx2_tx_avail(struct bnx2 *bp)
 static u32
 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset)
 {
+	u32 val;
+
+	spin_lock_bh(&bp->indirect_lock);
 	REG_WR(bp, BNX2_PCICFG_REG_WINDOW_ADDRESS, offset);
-	return (REG_RD(bp, BNX2_PCICFG_REG_WINDOW));
+	val = REG_RD(bp, BNX2_PCICFG_REG_WINDOW);
+	spin_unlock_bh(&bp->indirect_lock);
+	return val;
 }
 
 static void
 bnx2_reg_wr_ind(struct bnx2 *bp, u32 offset, u32 val)
 {
+	spin_lock_bh(&bp->indirect_lock);
 	REG_WR(bp, BNX2_PCICFG_REG_WINDOW_ADDRESS, offset);
 	REG_WR(bp, BNX2_PCICFG_REG_WINDOW, val);
+	spin_unlock_bh(&bp->indirect_lock);
 }
 
 static void
 bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val)
 {
 	offset += cid_addr;
+	spin_lock_bh(&bp->indirect_lock);
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
 		int i;
 
@@ -266,6 +274,7 @@ bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val)
 		REG_WR(bp, BNX2_CTX_DATA_ADR, offset);
 		REG_WR(bp, BNX2_CTX_DATA, val);
 	}
+	spin_unlock_bh(&bp->indirect_lock);
 }
 
 static int
@@ -6039,6 +6048,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->pdev = pdev;
 
 	spin_lock_init(&bp->phy_lock);
+	spin_lock_init(&bp->indirect_lock);
 	INIT_WORK(&bp->reset_task, bnx2_reset_task);
 
 	dev->base_addr = dev->mem_start = pci_resource_start(pdev, 0);
