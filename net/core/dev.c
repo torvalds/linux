@@ -576,17 +576,28 @@ struct net_device *dev_getbyhwaddr(unsigned short type, char *ha)
 
 EXPORT_SYMBOL(dev_getbyhwaddr);
 
+struct net_device *__dev_getfirstbyhwtype(unsigned short type)
+{
+	struct net_device *dev;
+
+	ASSERT_RTNL();
+	for (dev = dev_base; dev; dev = dev->next) {
+		if (dev->type == type)
+			break;
+	}
+	return dev;
+}
+
+EXPORT_SYMBOL(__dev_getfirstbyhwtype);
+
 struct net_device *dev_getfirstbyhwtype(unsigned short type)
 {
 	struct net_device *dev;
 
 	rtnl_lock();
-	for (dev = dev_base; dev; dev = dev->next) {
-		if (dev->type == type) {
-			dev_hold(dev);
-			break;
-		}
-	}
+	dev = __dev_getfirstbyhwtype(type);
+	if (dev)
+		dev_hold(dev);
 	rtnl_unlock();
 	return dev;
 }
