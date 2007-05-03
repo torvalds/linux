@@ -349,7 +349,6 @@ struct afs_permits {
  * record of one of a system's set of network interfaces
  */
 struct afs_interface {
-	unsigned	index;		/* interface index */
 	struct in_addr	address;	/* IPv4 address bound to interface */
 	struct in_addr	netmask;	/* netmask applied to address */
 	unsigned	mtu;		/* MTU of interface */
