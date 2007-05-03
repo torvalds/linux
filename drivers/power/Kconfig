@@ -28,4 +28,11 @@ config APM_POWER
 	  Say Y here to enable support APM status emulation using
 	  battery class devices.
 
+config BATTERY_DS2760
+	tristate "DS2760 battery driver (HP iPAQ & others)"
+	select W1
+	select W1_SLAVE_DS2760
+	help
+	  Say Y here to enable support for batteries with ds2760 chip.
+
 endif # POWER_SUPPLY
