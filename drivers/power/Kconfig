@@ -21,4 +21,11 @@ config PDA_POWER
 	  one or two external power supplies (AC/USB) connected to main and
 	  backup batteries, and optional builtin charger.
 
+config APM_POWER
+	tristate "APM emulation for class batteries"
+	depends on APM_EMULATION
+	help
+	  Say Y here to enable support APM status emulation using
+	  battery class devices.
+
 endif # POWER_SUPPLY
