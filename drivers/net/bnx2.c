@@ -1,6 +1,6 @@
 /* bnx2.c: Broadcom NX2 network driver.
  *
- * Copyright (c) 2004, 2005, 2006 Broadcom Corporation
+ * Copyright (c) 2004-2007 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.5.8"
-#define DRV_MODULE_RELDATE	"April 24, 2007"
+#define DRV_MODULE_VERSION	"1.5.10"
+#define DRV_MODULE_RELDATE	"May 1, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
