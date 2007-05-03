@@ -553,6 +553,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x1015: map_key_clear(KEY_RECORD);		break;
 				case 0x1016: map_key_clear(KEY_PLAYER);		break;
 				case 0x1017: map_key_clear(KEY_EJECTCD);	break;
+				case 0x1018: map_key_clear(KEY_MEDIA);          break;
 				case 0x1019: map_key_clear(KEY_PROG1);		break;
 				case 0x101a: map_key_clear(KEY_PROG2);		break;
 				case 0x101b: map_key_clear(KEY_PROG3);		break;
@@ -560,9 +561,12 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x1020: map_key_clear(KEY_ZOOMOUT);	break;
 				case 0x1021: map_key_clear(KEY_ZOOMRESET);	break;
 				case 0x1023: map_key_clear(KEY_CLOSE);		break;
+				case 0x1027: map_key_clear(KEY_MENU);           break;
 				/* this one is marked as 'Rotate' */
 				case 0x1028: map_key_clear(KEY_ANGLE);		break;
 				case 0x1029: map_key_clear(KEY_SHUFFLE);	break;
+				case 0x102a: map_key_clear(KEY_BACK);           break;
+				case 0x102b: map_key_clear(KEY_CYCLEWINDOWS);   break;
 				case 0x1041: map_key_clear(KEY_BATTERY);	break;
 				case 0x1042: map_key_clear(KEY_WORDPROCESSOR);	break;
 				case 0x1043: map_key_clear(KEY_SPREADSHEET);	break;
