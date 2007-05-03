@@ -392,7 +392,7 @@ extern void afs_give_up_callback(struct afs_vnode *);
 extern void afs_dispatch_give_up_callbacks(struct work_struct *);
 extern void afs_flush_callback_breaks(struct afs_server *);
 extern int __init afs_callback_update_init(void);
-extern void __exit afs_callback_update_kill(void);
+extern void afs_callback_update_kill(void);
 
 /*
  * cell.c
@@ -591,7 +591,7 @@ extern struct afs_vlocation *afs_vlocation_lookup(struct afs_cell *,
 						  struct key *,
 						  const char *, size_t);
 extern void afs_put_vlocation(struct afs_vlocation *);
-extern void __exit afs_vlocation_purge(void);
+extern void afs_vlocation_purge(void);
 
 /*
  * vnode.c
