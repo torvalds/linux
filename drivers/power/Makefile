@@ -1,0 +1,15 @@
+power_supply-objs := power_supply_core.o
+
+ifeq ($(CONFIG_SYSFS),y)
+power_supply-objs += power_supply_sysfs.o
+endif
+
+ifeq ($(CONFIG_LEDS_TRIGGERS),y)
+power_supply-objs += power_supply_leds.o
+endif
+
+ifeq ($(CONFIG_POWER_SUPPLY_DEBUG),y)
+EXTRA_CFLAGS += -DDEBUG
+endif
+
+obj-$(CONFIG_POWER_SUPPLY)	+= power_supply.o

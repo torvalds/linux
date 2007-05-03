@@ -1,0 +1,17 @@
+menuconfig POWER_SUPPLY
+	tristate "Power supply class support"
+	help
+	  Say Y here to enable power supply class support. This allows
+	  power supply (batteries, AC, USB) monitoring by userspace
+	  via sysfs and uevent (if available) and/or APM kernel interface
+	  (if selected below).
+
+if POWER_SUPPLY
+
+config POWER_SUPPLY_DEBUG
+	bool "Power supply debug"
+	help
+	  Say Y here to enable debugging messages for power supply class
+	  and drivers.
+
+endif # POWER_SUPPLY
