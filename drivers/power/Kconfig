@@ -35,4 +35,11 @@ config BATTERY_DS2760
 	help
 	  Say Y here to enable support for batteries with ds2760 chip.
 
+config BATTERY_PMU
+	tristate "Apple PMU battery"
+	depends on ADB_PMU
+	help
+	  Say Y here to expose battery information on Apple machines
+	  through the generic battery class.
+
 endif # POWER_SUPPLY
