@@ -1063,7 +1063,7 @@ static int __init ecard_init(void)
 
 	task = kthread_run(ecard_task, NULL, "kecardd");
 	if (IS_ERR(task)) {
-		printk(KERN_ERR "Ecard: unable to create kernel thread: %d\n",
+		printk(KERN_ERR "Ecard: unable to create kernel thread: %ld\n",
 		       PTR_ERR(task));
 		return PTR_ERR(task);
 	}
