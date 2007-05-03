@@ -138,19 +138,6 @@ printk(KERN_INFO "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->
 #define DBGMSG(fmt, args...) do {} while (0)
 #endif
 
-#ifdef CONFIG_IEEE1394_OHCI_DMA_DEBUG
-#define OHCI_DMA_ALLOC(fmt, args...) \
-	HPSB_ERR("%s(%s)alloc(%d): "fmt, OHCI1394_DRIVER_NAME, __FUNCTION__, \
-		++global_outstanding_dmas, ## args)
-#define OHCI_DMA_FREE(fmt, args...) \
-	HPSB_ERR("%s(%s)free(%d): "fmt, OHCI1394_DRIVER_NAME, __FUNCTION__, \
-		--global_outstanding_dmas, ## args)
-static int global_outstanding_dmas = 0;
-#else
-#define OHCI_DMA_ALLOC(fmt, args...) do {} while (0)
-#define OHCI_DMA_FREE(fmt, args...) do {} while (0)
-#endif
-
 /* print general (card independent) information */
 #define PRINT_G(level, fmt, args...) \
 printk(level "%s: " fmt "\n" , OHCI1394_DRIVER_NAME , ## args)
@@ -733,7 +720,6 @@ static void insert_packet(struct ti_ohci *ohci,
                                 pci_map_single(ohci->dev, packet->data,
                                                packet->data_size,
                                                PCI_DMA_TODEVICE));
-			OHCI_DMA_ALLOC("single, block transmit packet");
 
                         d->prg_cpu[idx]->end.branchAddress = 0;
                         d->prg_cpu[idx]->end.status = 0;
@@ -783,7 +769,6 @@ static void insert_packet(struct ti_ohci *ohci,
                 d->prg_cpu[idx]->end.address = cpu_to_le32(
 				pci_map_single(ohci->dev, packet->data,
 				packet->data_size, PCI_DMA_TODEVICE));
-		OHCI_DMA_ALLOC("single, iso transmit packet");
 
                 d->prg_cpu[idx]->end.branchAddress = 0;
                 d->prg_cpu[idx]->end.status = 0;
@@ -2869,12 +2854,10 @@ static void dma_trm_tasklet (unsigned long data)
 		list_del_init(&packet->driver_list);
 		hpsb_packet_sent(ohci->host, packet, ack);
 
-		if (datasize) {
+		if (datasize)
 			pci_unmap_single(ohci->dev,
 					 cpu_to_le32(d->prg_cpu[d->sent_ind]->end.address),
 					 datasize, PCI_DMA_TODEVICE);
-			OHCI_DMA_FREE("single Xmit data packet");
-		}
 
 		d->sent_ind = (d->sent_ind+1)%d->num_desc;
 		d->free_prgs++;
@@ -2913,23 +2896,19 @@ static void free_dma_rcv_ctx(struct dma_rcv_ctx *d)
 
 	if (d->buf_cpu) {
 		for (i=0; i<d->num_desc; i++)
-			if (d->buf_cpu[i] && d->buf_bus[i]) {
+			if (d->buf_cpu[i] && d->buf_bus[i])
 				pci_free_consistent(
 					ohci->dev, d->buf_size,
 					d->buf_cpu[i], d->buf_bus[i]);
-				OHCI_DMA_FREE("consistent dma_rcv buf[%d]", i);
-			}
 		kfree(d->buf_cpu);
 		kfree(d->buf_bus);
 	}
 	if (d->prg_cpu) {
 		for (i=0; i<d->num_desc; i++)
-			if (d->prg_cpu[i] && d->prg_bus[i]) {
-				pci_pool_free(d->prg_pool, d->prg_cpu[i], d->prg_bus[i]);
-				OHCI_DMA_FREE("consistent dma_rcv prg[%d]", i);
-			}
+			if (d->prg_cpu[i] && d->prg_bus[i])
+				pci_pool_free(d->prg_pool, d->prg_cpu[i],
+					      d->prg_bus[i]);
 		pci_pool_destroy(d->prg_pool);
-		OHCI_DMA_FREE("dma_rcv prg pool");
 		kfree(d->prg_cpu);
 		kfree(d->prg_bus);
 	}
@@ -2998,13 +2977,10 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 	}
 	num_allocs++;
 
-	OHCI_DMA_ALLOC("dma_rcv prg pool");
-
 	for (i=0; i<d->num_desc; i++) {
 		d->buf_cpu[i] = pci_alloc_consistent(ohci->dev,
 						     d->buf_size,
 						     d->buf_bus+i);
-		OHCI_DMA_ALLOC("consistent dma_rcv buf[%d]", i);
 
 		if (d->buf_cpu[i] != NULL) {
 			memset(d->buf_cpu[i], 0, d->buf_size);
@@ -3016,7 +2992,6 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 		}
 
 		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, GFP_KERNEL, d->prg_bus+i);
-		OHCI_DMA_ALLOC("pool dma_rcv prg[%d]", i);
 
                 if (d->prg_cpu[i] != NULL) {
                         memset(d->prg_cpu[i], 0, sizeof(struct dma_cmd));
@@ -3057,12 +3032,10 @@ static void free_dma_trm_ctx(struct dma_trm_ctx *d)
 
 	if (d->prg_cpu) {
 		for (i=0; i<d->num_desc; i++)
-			if (d->prg_cpu[i] && d->prg_bus[i]) {
-				pci_pool_free(d->prg_pool, d->prg_cpu[i], d->prg_bus[i]);
-				OHCI_DMA_FREE("pool dma_trm prg[%d]", i);
-			}
+			if (d->prg_cpu[i] && d->prg_bus[i])
+				pci_pool_free(d->prg_pool, d->prg_cpu[i],
+					      d->prg_bus[i]);
 		pci_pool_destroy(d->prg_pool);
-		OHCI_DMA_FREE("dma_trm prg pool");
 		kfree(d->prg_cpu);
 		kfree(d->prg_bus);
 	}
@@ -3108,11 +3081,8 @@ alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 	}
 	num_allocs++;
 
-	OHCI_DMA_ALLOC("dma_rcv prg pool");
-
 	for (i = 0; i < d->num_desc; i++) {
 		d->prg_cpu[i] = pci_pool_alloc(d->prg_pool, GFP_KERNEL, d->prg_bus+i);
-		OHCI_DMA_ALLOC("pool dma_trm prg[%d]", i);
 
                 if (d->prg_cpu[i] != NULL) {
                         memset(d->prg_cpu[i], 0, sizeof(struct at_dma_prg));
@@ -3294,7 +3264,6 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	ohci->csr_config_rom_cpu =
 		pci_alloc_consistent(ohci->dev, OHCI_CONFIG_ROM_LEN,
 				     &ohci->csr_config_rom_bus);
-	OHCI_DMA_ALLOC("consistent csr_config_rom");
 	if (ohci->csr_config_rom_cpu == NULL)
 		FAIL(-ENOMEM, "Failed to allocate buffer config rom");
 	ohci->init_state = OHCI_INIT_HAVE_CONFIG_ROM_BUFFER;
@@ -3303,8 +3272,6 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	ohci->selfid_buf_cpu =
 		pci_alloc_consistent(ohci->dev, OHCI1394_SI_DMA_BUF_SIZE,
                       &ohci->selfid_buf_bus);
-	OHCI_DMA_ALLOC("consistent selfid_buf");
-
 	if (ohci->selfid_buf_cpu == NULL)
 		FAIL(-ENOMEM, "Failed to allocate DMA buffer for self-id packets");
 	ohci->init_state = OHCI_INIT_HAVE_SELFID_BUFFER;
@@ -3490,13 +3457,11 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 		pci_free_consistent(ohci->dev, OHCI1394_SI_DMA_BUF_SIZE,
 				    ohci->selfid_buf_cpu,
 				    ohci->selfid_buf_bus);
-		OHCI_DMA_FREE("consistent selfid_buf");
 
 	case OHCI_INIT_HAVE_CONFIG_ROM_BUFFER:
 		pci_free_consistent(ohci->dev, OHCI_CONFIG_ROM_LEN,
 				    ohci->csr_config_rom_cpu,
 				    ohci->csr_config_rom_bus);
-		OHCI_DMA_FREE("consistent csr_config_rom");
 
 	case OHCI_INIT_HAVE_IOMAPPING:
 		iounmap(ohci->registers);
