@@ -32,6 +32,8 @@
  *		- first public version
  */
 
+#include <linux/input.h>
+
 #define UINPUT_VERSION		3
 
 #ifdef __KERNEL__
