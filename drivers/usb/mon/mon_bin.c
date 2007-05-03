@@ -4,7 +4,7 @@
  * This is a binary format reader.
  *
  * Copyright (C) 2006 Paolo Abeni (paolo.abeni@email.it)
- * Copyright (C) 2006 Pete Zaitcev (zaitcev@redhat.com)
+ * Copyright (C) 2006,2007 Pete Zaitcev (zaitcev@redhat.com)
  */
 
 #include <linux/kernel.h>
@@ -172,6 +172,7 @@ static inline struct mon_bin_hdr *MON_OFF2HDR(const struct mon_reader_bin *rp,
 
 #define MON_RING_EMPTY(rp)	((rp)->b_cnt == 0)
 
+static struct class *mon_bin_class;
 static dev_t mon_bin_dev0;
 static struct cdev mon_bin_cdev;
 
@@ -1144,9 +1145,37 @@ static void mon_free_buff(struct mon_pgmap *map, int npages)
 		free_page((unsigned long) map[n].ptr);
 }
 
+int mon_bin_add(struct mon_bus *mbus, const struct usb_bus *ubus)
+{
+	struct device *dev;
+	unsigned minor = ubus? ubus->busnum: 0;
+
+	if (minor >= MON_BIN_MAX_MINOR)
+		return 0;
+
+	dev = device_create(mon_bin_class, ubus? ubus->controller: NULL,
+			MKDEV(MAJOR(mon_bin_dev0), minor), "usbmon%d", minor);
+	if (IS_ERR(dev))
+		return 0;
+
+	mbus->classdev = dev;
+	return 1;
+}
+
+void mon_bin_del(struct mon_bus *mbus)
+{
+	device_destroy(mon_bin_class, mbus->classdev->devt);
+}
+
 int __init mon_bin_init(void)
 {
 	int rc;
+
+	mon_bin_class = class_create(THIS_MODULE, "usbmon");
+	if (IS_ERR(mon_bin_class)) {
+		rc = PTR_ERR(mon_bin_class);
+		goto err_class;
+	}
 
 	rc = alloc_chrdev_region(&mon_bin_dev0, 0, MON_BIN_MAX_MINOR, "usbmon");
 	if (rc < 0)
@@ -1164,6 +1193,8 @@ int __init mon_bin_init(void)
 err_add:
 	unregister_chrdev_region(mon_bin_dev0, MON_BIN_MAX_MINOR);
 err_dev:
+	class_destroy(mon_bin_class);
+err_class:
 	return rc;
 }
 
@@ -1171,4 +1202,5 @@ void mon_bin_exit(void)
 {
 	cdev_del(&mon_bin_cdev);
 	unregister_chrdev_region(mon_bin_dev0, MON_BIN_MAX_MINOR);
+	class_destroy(mon_bin_class);
 }
