@@ -221,7 +221,7 @@ static struct uic * __init uic_init_one(struct device_node *node)
 	const u32 *indexp, *dcrreg;
 	int len;
 
-	BUG_ON(! device_is_compatible(node, "ibm,uic"));
+	BUG_ON(! of_device_is_compatible(node, "ibm,uic"));
 
 	uic = alloc_bootmem(sizeof(*uic));
 	if (! uic)

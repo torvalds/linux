@@ -448,7 +448,7 @@ static void __init chrp_find_8259(void)
 
 	/* Look for cascade */
 	for_each_node_by_type(np, "interrupt-controller")
-		if (device_is_compatible(np, "chrp,iic")) {
+		if (of_device_is_compatible(np, "chrp,iic")) {
 			pic = np;
 			break;
 		}

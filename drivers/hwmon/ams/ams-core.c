@@ -208,14 +208,14 @@ int __init ams_init(void)
 
 #ifdef CONFIG_SENSORS_AMS_I2C
 	np = of_find_node_by_name(NULL, "accelerometer");
-	if (np && device_is_compatible(np, "AAPL,accelerometer_1"))
+	if (np && of_device_is_compatible(np, "AAPL,accelerometer_1"))
 		/* Found I2C motion sensor */
 		return ams_i2c_init(np);
 #endif
 
 #ifdef CONFIG_SENSORS_AMS_PMU
 	np = of_find_node_by_name(NULL, "sms");
-	if (np && device_is_compatible(np, "sms"))
+	if (np && of_device_is_compatible(np, "sms"))
 		/* Found PMU motion sensor */
 		return ams_pmu_init(np);
 #endif

@@ -336,8 +336,8 @@ static int i2sbus_probe(struct macio_dev* dev, const struct of_device_id *match)
 	}
 
 	while ((np = of_get_next_child(dev->ofdev.node, np))) {
-		if (device_is_compatible(np, "i2sbus") ||
-		    device_is_compatible(np, "i2s-modem")) {
+		if (of_device_is_compatible(np, "i2sbus") ||
+		    of_device_is_compatible(np, "i2s-modem")) {
 			got += i2sbus_add_dev(dev, control, np);
 		}
 	}

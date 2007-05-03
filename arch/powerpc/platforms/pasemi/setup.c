@@ -114,7 +114,7 @@ static __init void pas_init_IRQ(void)
 	mpic_node = NULL;
 
 	for_each_node_by_type(np, "interrupt-controller")
-		if (device_is_compatible(np, "open-pic")) {
+		if (of_device_is_compatible(np, "open-pic")) {
 			mpic_node = np;
 			break;
 		}

@@ -938,7 +938,7 @@ static int tas_i2c_attach(struct i2c_adapter *adapter)
 	busnode = pmac_i2c_get_bus_node(bus);
 
 	while ((dev = of_get_next_child(busnode, dev)) != NULL) {
-		if (device_is_compatible(dev, "tas3004")) {
+		if (of_device_is_compatible(dev, "tas3004")) {
 			const u32 *addr;
 			printk(KERN_DEBUG PFX "found tas3004\n");
 			addr = of_get_property(dev, "reg", NULL);

@@ -553,7 +553,7 @@ static int __init core99_nvram_setup(struct device_node *dp, unsigned long addr)
 	 * identify the chip using flash id commands and base ourselves on
 	 * a list of known chips IDs
 	 */
-	if (device_is_compatible(dp, "amd-0137")) {
+	if (of_device_is_compatible(dp, "amd-0137")) {
 		core99_erase_bank = amd_erase_bank;
 		core99_write_bank = amd_write_bank;
 	} else {
@@ -588,7 +588,7 @@ int __init pmac_nvram_init(void)
 		}
 	}
 
-	is_core_99 = device_is_compatible(dp, "nvram,flash");
+	is_core_99 = of_device_is_compatible(dp, "nvram,flash");
 	if (is_core_99) {
 		err = core99_nvram_setup(dp, r1.start);
 		goto bail;

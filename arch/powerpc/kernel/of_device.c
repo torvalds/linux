@@ -27,7 +27,7 @@ const struct of_device_id *of_match_node(const struct of_device_id *matches,
 			match &= node->type
 				&& !strcmp(matches->type, node->type);
 		if (matches->compatible[0])
-			match &= device_is_compatible(node,
+			match &= of_device_is_compatible(node,
 						      matches->compatible);
 		if (match)
 			return matches;

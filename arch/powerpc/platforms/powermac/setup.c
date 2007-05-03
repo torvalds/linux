@@ -659,8 +659,8 @@ static int pmac_pci_probe_mode(struct pci_bus *bus)
 	/* We need to use normal PCI probing for the AGP bus,
 	 * since the device for the AGP bridge isn't in the tree.
 	 */
-	if (bus->self == NULL && (device_is_compatible(node, "u3-agp") ||
-				  device_is_compatible(node, "u4-pcie")))
+	if (bus->self == NULL && (of_device_is_compatible(node, "u3-agp") ||
+				  of_device_is_compatible(node, "u4-pcie")))
 		return PCI_PROBE_NORMAL;
 	return PCI_PROBE_DEVTREE;
 }

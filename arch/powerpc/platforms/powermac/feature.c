@@ -1418,7 +1418,7 @@ static long g5_eth_phy_reset(struct device_node *node, long param, long value)
 	phy = of_get_next_child(node, NULL);
 	if (!phy)
 		return -ENODEV;
-	need_reset = device_is_compatible(phy, "B5221");
+	need_reset = of_device_is_compatible(phy, "B5221");
 	of_node_put(phy);
 	if (!need_reset)
 		return 0;
@@ -2624,7 +2624,7 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 	for (node = NULL; (node = of_find_node_by_name(node, name)) != NULL;) {
 		if (!compat)
 			break;
-		if (device_is_compatible(node, compat))
+		if (of_device_is_compatible(node, compat))
 			break;
 	}
 	if (!node)
@@ -2728,7 +2728,7 @@ initial_serial_shutdown(struct device_node *np)
 	conn = of_get_property(np, "AAPL,connector", &len);
 	if (conn && (strcmp(conn, "infrared") == 0))
 		port_type = PMAC_SCC_IRDA;
-	else if (device_is_compatible(np, "cobalt"))
+	else if (of_device_is_compatible(np, "cobalt"))
 		modem = 1;
 	else if (slots && slots->count > 0) {
 		if (strcmp(slots->name, "IrDA") == 0)
@@ -2787,7 +2787,7 @@ set_initial_features(void)
 		 */
 		np = of_find_node_by_name(NULL, "ethernet");
 		while(np) {
-			if (device_is_compatible(np, "K2-GMAC"))
+			if (of_device_is_compatible(np, "K2-GMAC"))
 				g5_gmac_enable(np, 0, 1);
 			np = of_find_node_by_name(np, "ethernet");
 		}
@@ -2799,7 +2799,7 @@ set_initial_features(void)
 		 */
 		np = of_find_node_by_name(NULL, "firewire");
 		while(np) {
-			if (device_is_compatible(np, "pci106b,5811")) {
+			if (of_device_is_compatible(np, "pci106b,5811")) {
 				macio_chips[0].flags |= MACIO_FLAG_FW_SUPPORTED;
 				g5_fw_enable(np, 0, 1);
 			}
@@ -2817,8 +2817,8 @@ set_initial_features(void)
 		np = of_find_node_by_name(NULL, "ethernet");
 		while(np) {
 			if (np->parent
-			    && device_is_compatible(np->parent, "uni-north")
-			    && device_is_compatible(np, "gmac"))
+			    && of_device_is_compatible(np->parent, "uni-north")
+			    && of_device_is_compatible(np, "gmac"))
 				core99_gmac_enable(np, 0, 1);
 			np = of_find_node_by_name(np, "ethernet");
 		}
@@ -2831,10 +2831,10 @@ set_initial_features(void)
 		np = of_find_node_by_name(NULL, "firewire");
 		while(np) {
 			if (np->parent
-			    && device_is_compatible(np->parent, "uni-north")
-			    && (device_is_compatible(np, "pci106b,18") ||
-			        device_is_compatible(np, "pci106b,30") ||
-			        device_is_compatible(np, "pci11c1,5811"))) {
+			    && of_device_is_compatible(np->parent, "uni-north")
+			    && (of_device_is_compatible(np, "pci106b,18") ||
+			        of_device_is_compatible(np, "pci106b,30") ||
+			        of_device_is_compatible(np, "pci11c1,5811"))) {
 				macio_chips[0].flags |= MACIO_FLAG_FW_SUPPORTED;
 				core99_firewire_enable(np, 0, 1);
 			}
@@ -2845,8 +2845,8 @@ set_initial_features(void)
 		np = of_find_node_by_name(NULL, "ata-6");
 		while(np) {
 			if (np->parent
-			    && device_is_compatible(np->parent, "uni-north")
-			    && device_is_compatible(np, "kauai-ata")) {
+			    && of_device_is_compatible(np->parent, "uni-north")
+			    && of_device_is_compatible(np, "kauai-ata")) {
 				core99_ata100_enable(np, 1);
 			}
 			np = of_find_node_by_name(np, "ata-6");

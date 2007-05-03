@@ -562,7 +562,7 @@ static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 	/* Look for the clock chip */
 	while ((cc = of_find_node_by_name(cc, "i2c-hwclock")) != NULL) {
 		p = of_get_parent(cc);
-		ok = p && device_is_compatible(p, "uni-n-i2c");
+		ok = p && of_device_is_compatible(p, "uni-n-i2c");
 		of_node_put(p);
 		if (!ok)
 			continue;
@@ -575,11 +575,11 @@ static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 			continue;
 		switch (*reg) {
 		case 0xd2:
-			if (device_is_compatible(cc,"pulsar-legacy-slewing")) {
+			if (of_device_is_compatible(cc,"pulsar-legacy-slewing")) {
 				pmac_tb_freeze = smp_core99_pulsar_tb_freeze;
 				pmac_tb_pulsar_addr = 0xd2;
 				name = "Pulsar";
-			} else if (device_is_compatible(cc, "cy28508")) {
+			} else if (of_device_is_compatible(cc, "cy28508")) {
 				pmac_tb_freeze = smp_core99_cypress_tb_freeze;
 				name = "Cypress";
 			}

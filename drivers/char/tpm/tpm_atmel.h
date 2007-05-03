@@ -47,7 +47,7 @@ static void __iomem * atmel_get_base_addr(unsigned long *base, int *region_size)
 	if (!dn)
 		return NULL;
 
-	if (!device_is_compatible(dn, "AT97SC3201")) {
+	if (!of_device_is_compatible(dn, "AT97SC3201")) {
 		of_node_put(dn);
 		return NULL;
 	}

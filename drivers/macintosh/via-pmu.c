@@ -310,14 +310,14 @@ int __init find_via_pmu(void)
 			PMU_INT_TICK;
 	
 	if (vias->parent->name && ((strcmp(vias->parent->name, "ohare") == 0)
-	    || device_is_compatible(vias->parent, "ohare")))
+	    || of_device_is_compatible(vias->parent, "ohare")))
 		pmu_kind = PMU_OHARE_BASED;
-	else if (device_is_compatible(vias->parent, "paddington"))
+	else if (of_device_is_compatible(vias->parent, "paddington"))
 		pmu_kind = PMU_PADDINGTON_BASED;
-	else if (device_is_compatible(vias->parent, "heathrow"))
+	else if (of_device_is_compatible(vias->parent, "heathrow"))
 		pmu_kind = PMU_HEATHROW_BASED;
-	else if (device_is_compatible(vias->parent, "Keylargo")
-		 || device_is_compatible(vias->parent, "K2-Keylargo")) {
+	else if (of_device_is_compatible(vias->parent, "Keylargo")
+		 || of_device_is_compatible(vias->parent, "K2-Keylargo")) {
 		struct device_node *gpiop;
 		struct device_node *adbp;
 		u64 gaddr = OF_BAD_ADDR;

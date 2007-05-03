@@ -157,7 +157,7 @@ static int hvc_find_vtys(void)
 		if (!vtermno)
 			continue;
 
-		if (device_is_compatible(vty, "hvterm1")) {
+		if (of_device_is_compatible(vty, "hvterm1")) {
 			hvc_instantiate(*vtermno, num_found, &hvc_get_put_ops);
 			++num_found;
 		}

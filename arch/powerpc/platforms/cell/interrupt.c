@@ -227,7 +227,7 @@ void iic_request_IPIs(void)
 
 static int iic_host_match(struct irq_host *h, struct device_node *node)
 {
-	return device_is_compatible(node,
+	return of_device_is_compatible(node,
 				    "IBM,CBEA-Internal-Interrupt-Controller");
 }
 
@@ -256,7 +256,7 @@ static int iic_host_xlate(struct irq_host *h, struct device_node *ct,
 	unsigned int node, ext, unit, class;
 	const u32 *val;
 
-	if (!device_is_compatible(ct,
+	if (!of_device_is_compatible(ct,
 				     "IBM,CBEA-Internal-Interrupt-Controller"))
 		return -ENODEV;
 	if (intsize != 1)
@@ -324,7 +324,7 @@ static int __init setup_iic(void)
 
 	for (dn = NULL;
 	     (dn = of_find_node_by_name(dn,"interrupt-controller")) != NULL;) {
-		if (!device_is_compatible(dn,
+		if (!of_device_is_compatible(dn,
 				     "IBM,CBEA-Internal-Interrupt-Controller"))
 			continue;
 		np = of_get_property(dn, "ibm,interrupt-server-ranges", NULL);

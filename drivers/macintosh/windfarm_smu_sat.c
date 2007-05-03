@@ -380,7 +380,7 @@ static int wf_sat_attach(struct i2c_adapter *adapter)
 	busnode = pmac_i2c_get_bus_node(bus);
 
 	while ((dev = of_get_next_child(busnode, dev)) != NULL)
-		if (device_is_compatible(dev, "smu-sat"))
+		if (of_device_is_compatible(dev, "smu-sat"))
 			wf_sat_create(adapter, dev);
 	return 0;
 }

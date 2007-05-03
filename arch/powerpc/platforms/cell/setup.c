@@ -112,7 +112,7 @@ static void __init mpic_init_IRQ(void)
 
 	for (dn = NULL;
 	     (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
-		if (!device_is_compatible(dn, "CBEA,platform-open-pic"))
+		if (!of_device_is_compatible(dn, "CBEA,platform-open-pic"))
 			continue;
 
 		/* The MPIC driver will get everything it needs from the

@@ -97,8 +97,8 @@ ohci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 		return -ENODEV;
 
 	is_bigendian =
-		device_is_compatible(dn, "ohci-bigendian") ||
-		device_is_compatible(dn, "ohci-be");
+		of_device_is_compatible(dn, "ohci-bigendian") ||
+		of_device_is_compatible(dn, "ohci-be");
 
 	dev_dbg(&op->dev, "initializing PPC-OF USB Controller\n");
 

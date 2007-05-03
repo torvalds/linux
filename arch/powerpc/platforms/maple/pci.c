@@ -467,15 +467,15 @@ static int __init add_bridge(struct device_node *dev)
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	disp_name = NULL;
-	if (device_is_compatible(dev, "u3-agp")) {
+	if (of_device_is_compatible(dev, "u3-agp")) {
 		setup_u3_agp(hose);
 		disp_name = "U3-AGP";
 		primary = 0;
-	} else if (device_is_compatible(dev, "u3-ht")) {
+	} else if (of_device_is_compatible(dev, "u3-ht")) {
 		setup_u3_ht(hose);
 		disp_name = "U3-HT";
 		primary = 1;
-        } else if (device_is_compatible(dev, "u4-pcie")) {
+        } else if (of_device_is_compatible(dev, "u4-pcie")) {
                 setup_u4_pcie(hose);
                 disp_name = "U4-PCIE";
                 primary = 0;
@@ -556,12 +556,12 @@ void __init maple_pci_init(void)
 			continue;
 		if (strcmp(np->type, "pci") && strcmp(np->type, "ht"))
 			continue;
-		if ((device_is_compatible(np, "u4-pcie") ||
-		     device_is_compatible(np, "u3-agp")) &&
+		if ((of_device_is_compatible(np, "u4-pcie") ||
+		     of_device_is_compatible(np, "u3-agp")) &&
 		    add_bridge(np) == 0)
 			of_node_get(np);
 
-		if (device_is_compatible(np, "u3-ht")) {
+		if (of_device_is_compatible(np, "u3-ht")) {
 			of_node_get(np);
 			ht = np;
 		}

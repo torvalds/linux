@@ -843,7 +843,7 @@ static void __init detect_byte_swap(struct snd_pmac *chip)
 	/* if seems that Keylargo can't byte-swap  */
 	for (mio = chip->node->parent; mio; mio = mio->parent) {
 		if (strcmp(mio->name, "mac-io") == 0) {
-			if (device_is_compatible(mio, "Keylargo"))
+			if (of_device_is_compatible(mio, "Keylargo"))
 				chip->can_byte_swap = 0;
 			break;
 		}
@@ -910,7 +910,7 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 		chip->node = of_find_node_by_name(NULL, "i2s-a");
 		if (chip->node && chip->node->parent &&
 		    chip->node->parent->parent) {
-			if (device_is_compatible(chip->node->parent->parent,
+			if (of_device_is_compatible(chip->node->parent->parent,
 						 "K2-Keylargo"))
 				chip->is_k2 = 1;
 		}
@@ -941,22 +941,22 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 		return -ENODEV;
 	}
 	/* This should be verified on older screamers */
-	if (device_is_compatible(sound, "screamer")) {
+	if (of_device_is_compatible(sound, "screamer")) {
 		chip->model = PMAC_SCREAMER;
 		// chip->can_byte_swap = 0; /* FIXME: check this */
 	}
-	if (device_is_compatible(sound, "burgundy")) {
+	if (of_device_is_compatible(sound, "burgundy")) {
 		chip->model = PMAC_BURGUNDY;
 		chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
 	}
-	if (device_is_compatible(sound, "daca")) {
+	if (of_device_is_compatible(sound, "daca")) {
 		chip->model = PMAC_DACA;
 		chip->can_capture = 0;  /* no capture */
 		chip->can_duplex = 0;
 		// chip->can_byte_swap = 0; /* FIXME: check this */
 		chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
 	}
-	if (device_is_compatible(sound, "tumbler")) {
+	if (of_device_is_compatible(sound, "tumbler")) {
 		chip->model = PMAC_TUMBLER;
 		chip->can_capture = 0;  /* no capture */
 		chip->can_duplex = 0;
@@ -965,7 +965,7 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 		chip->freq_table = tumbler_freqs;
 		chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
 	}
-	if (device_is_compatible(sound, "snapper")) {
+	if (of_device_is_compatible(sound, "snapper")) {
 		chip->model = PMAC_SNAPPER;
 		// chip->can_byte_swap = 0; /* FIXME: check this */
 		chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
