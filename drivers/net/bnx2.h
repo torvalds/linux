@@ -6468,12 +6468,14 @@ struct bnx2 {
 	u32 			last_status_idx;
 
 	u32			flags;
-#define PCIX_FLAG			1
-#define PCI_32BIT_FLAG			2
-#define ONE_TDMA_FLAG			4	/* no longer used */
-#define NO_WOL_FLAG			8
-#define USING_MSI_FLAG			0x20
-#define ASF_ENABLE_FLAG			0x40
+#define PCIX_FLAG			0x00000001
+#define PCI_32BIT_FLAG			0x00000002
+#define ONE_TDMA_FLAG			0x00000004	/* no longer used */
+#define NO_WOL_FLAG			0x00000008
+#define USING_MSI_FLAG			0x00000020
+#define ASF_ENABLE_FLAG			0x00000040
+#define MSI_CAP_FLAG			0x00000080
+#define ONE_SHOT_MSI_FLAG		0x00000100
 
 	/* Put tx producer and consumer fields in separate cache lines. */
 

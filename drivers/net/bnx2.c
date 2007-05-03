@@ -2262,6 +2262,23 @@ bnx2_msi(int irq, void *dev_instance)
 }
 
 static irqreturn_t
+bnx2_msi_1shot(int irq, void *dev_instance)
+{
+	struct net_device *dev = dev_instance;
+	struct bnx2 *bp = netdev_priv(dev);
+
+	prefetch(bp->status_blk);
+
+	/* Return here if interrupt is disabled. */
+	if (unlikely(atomic_read(&bp->intr_sem) != 0))
+		return IRQ_HANDLED;
+
+	netif_rx_schedule(dev);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t
 bnx2_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
@@ -3759,12 +3776,16 @@ bnx2_init_chip(struct bnx2 *bp)
 	REG_WR(bp, BNX2_HC_STAT_COLLECT_TICKS, 0xbb8);  /* 3ms */
 
 	if (CHIP_ID(bp) == CHIP_ID_5706_A1)
-		REG_WR(bp, BNX2_HC_CONFIG, BNX2_HC_CONFIG_COLLECT_STATS);
+		val = BNX2_HC_CONFIG_COLLECT_STATS;
 	else {
-		REG_WR(bp, BNX2_HC_CONFIG, BNX2_HC_CONFIG_RX_TMR_MODE |
-		       BNX2_HC_CONFIG_TX_TMR_MODE |
-		       BNX2_HC_CONFIG_COLLECT_STATS);
+		val = BNX2_HC_CONFIG_RX_TMR_MODE | BNX2_HC_CONFIG_TX_TMR_MODE |
+		      BNX2_HC_CONFIG_COLLECT_STATS;
 	}
+
+	if (bp->flags & ONE_SHOT_MSI_FLAG)
+		val |= BNX2_HC_CONFIG_ONE_SHOT;
+
+	REG_WR(bp, BNX2_HC_CONFIG, val);
 
 	/* Clear internal stats counters. */
 	REG_WR(bp, BNX2_HC_COMMAND, BNX2_HC_COMMAND_CLR_STAT_NOW);
@@ -4610,6 +4631,38 @@ bnx2_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
 
+static int
+bnx2_request_irq(struct bnx2 *bp)
+{
+	struct net_device *dev = bp->dev;
+	int rc = 0;
+
+	if (bp->flags & USING_MSI_FLAG) {
+		irq_handler_t	fn = bnx2_msi;
+
+		if (bp->flags & ONE_SHOT_MSI_FLAG)
+			fn = bnx2_msi_1shot;
+
+		rc = request_irq(bp->pdev->irq, fn, 0, dev->name, dev);
+	} else
+		rc = request_irq(bp->pdev->irq, bnx2_interrupt,
+				 IRQF_SHARED, dev->name, dev);
+	return rc;
+}
+
+static void
+bnx2_free_irq(struct bnx2 *bp)
+{
+	struct net_device *dev = bp->dev;
+
+	if (bp->flags & USING_MSI_FLAG) {
+		free_irq(bp->pdev->irq, dev);
+		pci_disable_msi(bp->pdev);
+		bp->flags &= ~(USING_MSI_FLAG | ONE_SHOT_MSI_FLAG);
+	} else
+		free_irq(bp->pdev->irq, dev);
+}
+
 /* Called with rtnl_lock */
 static int
 bnx2_open(struct net_device *dev)
@@ -4626,24 +4679,15 @@ bnx2_open(struct net_device *dev)
 	if (rc)
 		return rc;
 
-	if ((CHIP_ID(bp) != CHIP_ID_5706_A0) &&
-		(CHIP_ID(bp) != CHIP_ID_5706_A1) &&
-		!disable_msi) {
-
+	if ((bp->flags & MSI_CAP_FLAG) && !disable_msi) {
 		if (pci_enable_msi(bp->pdev) == 0) {
 			bp->flags |= USING_MSI_FLAG;
-			rc = request_irq(bp->pdev->irq, bnx2_msi, 0, dev->name,
-					dev);
-		}
-		else {
-			rc = request_irq(bp->pdev->irq, bnx2_interrupt,
-					IRQF_SHARED, dev->name, dev);
+			if (CHIP_NUM(bp) == CHIP_NUM_5709)
+				bp->flags |= ONE_SHOT_MSI_FLAG;
 		}
 	}
-	else {
-		rc = request_irq(bp->pdev->irq, bnx2_interrupt, IRQF_SHARED,
-				dev->name, dev);
-	}
+	rc = bnx2_request_irq(bp);
+
 	if (rc) {
 		bnx2_free_mem(bp);
 		return rc;
@@ -4652,11 +4696,7 @@ bnx2_open(struct net_device *dev)
 	rc = bnx2_init_nic(bp);
 
 	if (rc) {
-		free_irq(bp->pdev->irq, dev);
-		if (bp->flags & USING_MSI_FLAG) {
-			pci_disable_msi(bp->pdev);
-			bp->flags &= ~USING_MSI_FLAG;
-		}
+		bnx2_free_irq(bp);
 		bnx2_free_skbs(bp);
 		bnx2_free_mem(bp);
 		return rc;
@@ -4680,16 +4720,13 @@ bnx2_open(struct net_device *dev)
 			       bp->dev->name);
 
 			bnx2_disable_int(bp);
-			free_irq(bp->pdev->irq, dev);
-			pci_disable_msi(bp->pdev);
-			bp->flags &= ~USING_MSI_FLAG;
+			bnx2_free_irq(bp);
 
 			rc = bnx2_init_nic(bp);
 
-			if (!rc) {
-				rc = request_irq(bp->pdev->irq, bnx2_interrupt,
-					IRQF_SHARED, dev->name, dev);
-			}
+			if (!rc)
+				rc = bnx2_request_irq(bp);
+
 			if (rc) {
 				bnx2_free_skbs(bp);
 				bnx2_free_mem(bp);
@@ -4927,11 +4964,7 @@ bnx2_close(struct net_device *dev)
 	else
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
 	bnx2_reset_chip(bp, reset_code);
-	free_irq(bp->pdev->irq, dev);
-	if (bp->flags & USING_MSI_FLAG) {
-		pci_disable_msi(bp->pdev);
-		bp->flags &= ~USING_MSI_FLAG;
-	}
+	bnx2_free_irq(bp);
 	bnx2_free_skbs(bp);
 	bnx2_free_mem(bp);
 	bp->link_up = 0;
@@ -6093,6 +6126,11 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			rc = -EIO;
 			goto err_out_unmap;
 		}
+	}
+
+	if (CHIP_ID(bp) != CHIP_ID_5706_A0 && CHIP_ID(bp) != CHIP_ID_5706_A1) {
+		if (pci_find_capability(pdev, PCI_CAP_ID_MSI))
+			bp->flags |= MSI_CAP_FLAG;
 	}
 
 	/* 5708 cannot support DMA addresses > 40-bit.  */
