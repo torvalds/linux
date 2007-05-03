@@ -157,6 +157,14 @@ static struct at91_mmc_data __initdata ek_mmc_data = {
 
 
 /*
+ * MACB Ethernet device
+ */
+static struct at91_eth_data __initdata ek_macb_data = {
+	.is_rmii	= 1,
+};
+
+
+/*
  * NAND flash
  */
 static struct mtd_partition __initdata ek_nand_partition[] = {
@@ -193,6 +201,14 @@ static struct at91_nand_data __initdata ek_nand_data = {
 };
 
 
+/*
+ * AC97
+ */
+static struct atmel_ac97_data ek_ac97_data = {
+	.reset_pin	= AT91_PIN_PA13,
+};
+
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -208,8 +224,14 @@ static void __init ek_board_init(void)
 	ek_add_device_ts();
 	/* MMC */
 	at91_add_device_mmc(1, &ek_mmc_data);
+	/* Ethernet */
+	at91_add_device_eth(&ek_macb_data);
 	/* NAND */
 	at91_add_device_nand(&ek_nand_data);
+	/* I2C */
+	at91_add_device_i2c();
+	/* AC97 */
+	at91_add_device_ac97(&ek_ac97_data);
 }
 
 MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")

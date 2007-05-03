@@ -104,9 +104,9 @@ static struct spi_board_info ek_spi_devices[] = {
 	},
 #endif
 #endif
-#if defined(CONFIG_SND_AT73C213)
+#if defined(CONFIG_SND_AT73C213) || defined(CONFIG_SND_AT73C213_MODULE)
 	{	/* AT73C213 DAC */
-		.modalias	= "snd_at73c213",
+		.modalias	= "at73c213",
 		.chip_select	= 0,
 		.max_speed_hz	= 10 * 1000 * 1000,
 		.bus_num	= 1,
@@ -188,6 +188,8 @@ static void __init ek_board_init(void)
 	at91_add_device_eth(&ek_macb_data);
 	/* MMC */
 	at91_add_device_mmc(0, &ek_mmc_data);
+	/* I2C */
+	at91_add_device_i2c();
 }
 
 MACHINE_START(AT91SAM9260EK, "Atmel AT91SAM9260-EK")
