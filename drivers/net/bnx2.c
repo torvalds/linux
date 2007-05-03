@@ -4350,6 +4350,8 @@ bnx2_open(struct net_device *dev)
 	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
 
+	netif_carrier_off(dev);
+
 	bnx2_set_power_state(bp, PCI_D0);
 	bnx2_disable_int(bp);
 
@@ -6086,6 +6088,18 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->poll_controller = poll_bnx2;
 #endif
 
+	pci_set_drvdata(pdev, dev);
+
+	memcpy(dev->dev_addr, bp->mac_addr, 6);
+	memcpy(dev->perm_addr, bp->mac_addr, 6);
+	bp->name = board_info[ent->driver_data].name;
+
+	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+#ifdef BCM_VLAN
+	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+#endif
+	dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
+
 	if ((rc = register_netdev(dev))) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
 		if (bp->regview)
@@ -6097,11 +6111,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 	}
 
-	pci_set_drvdata(pdev, dev);
-
-	memcpy(dev->dev_addr, bp->mac_addr, 6);
-	memcpy(dev->perm_addr, bp->mac_addr, 6);
-	bp->name = board_info[ent->driver_data].name,
 	printk(KERN_INFO "%s: %s (%c%d) PCI%s %s %dMHz found at mem %lx, "
 		"IRQ %d, ",
 		dev->name,
@@ -6118,15 +6127,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < 6; i++)
 		printk("%2.2x", dev->dev_addr[i]);
 	printk("\n");
-
-	dev->features |= NETIF_F_SG;
-	dev->features |= NETIF_F_IP_CSUM;
-#ifdef BCM_VLAN
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-#endif
-	dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
-
-	netif_carrier_off(bp->dev);
 
 	return 0;
 }
