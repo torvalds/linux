@@ -4,6 +4,15 @@
 
 source "drivers/media/dvb/dvb-core/Kconfig"
 
+menuconfig DVB_CAPTURE_DRIVERS
+	bool "DVB/ATSC adapters"
+	depends on DVB_CORE
+	default y
+	---help---
+	  Say Y to select Digital TV adapters
+
+if DVB_CAPTURE_DRIVERS
+
 comment "Supported SAA7146 based PCI Adapters"
 	depends on DVB_CORE && PCI && I2C
 source "drivers/media/dvb/ttpci/Kconfig"
@@ -30,3 +39,5 @@ source "drivers/media/dvb/pluto2/Kconfig"
 comment "Supported DVB Frontends"
 	depends on DVB_CORE
 source "drivers/media/dvb/frontends/Kconfig"
+
+endif # DVB_CAPTURE_DRIVERS

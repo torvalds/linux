@@ -1,4 +1,4 @@
-menuconfig DVB_CORE
+config DVB_CORE
 	tristate "DVB for Linux"
 	depends on NET && INET
 	select CRC32
