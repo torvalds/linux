@@ -1070,11 +1070,23 @@ static int stac92xx_add_control(struct sigmatel_spec *spec, int type, const char
 static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cfg *cfg)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	unsigned int wcaps, wtype;
+	int i, num_dacs = 0;
+	
+	/* use the wcaps cache to count all DACs available for line-outs */
+	for (i = 0; i < codec->num_nodes; i++) {
+		wcaps = codec->wcaps[i];
+		wtype = (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		if (wtype == AC_WID_AUD_OUT && !(wcaps & AC_WCAP_DIGITAL))
+			num_dacs++;
+	}
 
+	snd_printdd("%s: total dac count=%d\n", __func__, num_dacs);
+	
 	switch (cfg->line_outs) {
 	case 3:
 		/* add line-in as side */
-		if (cfg->input_pins[AUTO_PIN_LINE]) {
+		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 3) {
 			cfg->line_out_pins[3] = cfg->input_pins[AUTO_PIN_LINE];
 			spec->line_switch = 1;
 			cfg->line_outs++;
@@ -1082,12 +1094,12 @@ static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cf
 		break;
 	case 2:
 		/* add line-in as clfe and mic as side */
-		if (cfg->input_pins[AUTO_PIN_LINE]) {
+		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 2) {
 			cfg->line_out_pins[2] = cfg->input_pins[AUTO_PIN_LINE];
 			spec->line_switch = 1;
 			cfg->line_outs++;
 		}
-		if (cfg->input_pins[AUTO_PIN_MIC]) {
+		if (cfg->input_pins[AUTO_PIN_MIC] && num_dacs > 3) {
 			cfg->line_out_pins[3] = cfg->input_pins[AUTO_PIN_MIC];
 			spec->mic_switch = 1;
 			cfg->line_outs++;
@@ -1095,12 +1107,12 @@ static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cf
 		break;
 	case 1:
 		/* add line-in as surr and mic as clfe */
-		if (cfg->input_pins[AUTO_PIN_LINE]) {
+		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 1) {
 			cfg->line_out_pins[1] = cfg->input_pins[AUTO_PIN_LINE];
 			spec->line_switch = 1;
 			cfg->line_outs++;
 		}
-		if (cfg->input_pins[AUTO_PIN_MIC]) {
+		if (cfg->input_pins[AUTO_PIN_MIC] && num_dacs > 2) {
 			cfg->line_out_pins[2] = cfg->input_pins[AUTO_PIN_MIC];
 			spec->mic_switch = 1;
 			cfg->line_outs++;
@@ -1111,33 +1123,76 @@ static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cf
 	return 0;
 }
 
+
+static int is_in_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
+{
+	int i;
+	
+	for (i = 0; i < spec->multiout.num_dacs; i++) {
+		if (spec->multiout.dac_nids[i] == nid)
+			return 1;
+	}
+
+	return 0;
+}
+
 /*
- * XXX The line_out pin widget connection list may not be set to the
- * desired DAC nid. This is the case on 927x where ports A and B can
- * be routed to several DACs.
- *
- * This requires an analysis of the line-out/hp pin configuration
- * to provide a best fit for pin/DAC configurations that are routable.
- * For now, 927x DAC4 is not supported and 927x DAC1 output to ports
- * A and B is not supported.
+ * Fill in the dac_nids table from the parsed pin configuration
+ * This function only works when every pin in line_out_pins[]
+ * contains atleast one DAC in its connection list. Some 92xx
+ * codecs are not connected directly to a DAC, such as the 9200
+ * and 9202/925x. For those, dac_nids[] must be hard-coded.
  */
-/* fill in the dac_nids table from the parsed pin configuration */
 static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec,
 				       const struct auto_pin_cfg *cfg)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	hda_nid_t nid;
-	int i;
-
-	/* check the pins hardwired to audio widget */
+	int i, j, conn_len = 0; 
+	hda_nid_t nid, conn[HDA_MAX_CONNECTIONS];
+	unsigned int wcaps, wtype;
+	
 	for (i = 0; i < cfg->line_outs; i++) {
 		nid = cfg->line_out_pins[i];
-		spec->multiout.dac_nids[i] = snd_hda_codec_read(codec, nid, 0,
-					AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
+		conn_len = snd_hda_get_connections(codec, nid, conn,
+						   HDA_MAX_CONNECTIONS);
+		for (j = 0; j < conn_len; j++) {
+			wcaps = snd_hda_param_read(codec, conn[j],
+						   AC_PAR_AUDIO_WIDGET_CAP);
+			wtype = (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+
+			if (wtype != AC_WID_AUD_OUT ||
+			    (wcaps & AC_WCAP_DIGITAL))
+				continue;
+			/* conn[j] is a DAC routed to this line-out */
+			if (!is_in_dac_nids(spec, conn[j]))
+				break;
+		}
+
+		if (j == conn_len) {
+			/* error out, no available DAC found */
+			snd_printk(KERN_ERR
+				   "%s: No available DAC for pin 0x%x\n",
+				   __func__, nid);
+			return -ENODEV;
+		}
+
+		spec->multiout.dac_nids[i] = conn[j];
+		spec->multiout.num_dacs++;
+		if (conn_len > 1) {
+			/* select this DAC in the pin's input mux */
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_CONNECT_SEL, j);
+
+		}
 	}
 
-	spec->multiout.num_dacs = cfg->line_outs;
-
+	snd_printd("dac_nids=%d (0x%x/0x%x/0x%x/0x%x/0x%x)\n",
+		   spec->multiout.num_dacs,
+		   spec->multiout.dac_nids[0],
+		   spec->multiout.dac_nids[1],
+		   spec->multiout.dac_nids[2],
+		   spec->multiout.dac_nids[3],
+		   spec->multiout.dac_nids[4]);
 	return 0;
 }
 
@@ -1204,12 +1259,8 @@ static int stac92xx_auto_create_multi_out_ctls(struct sigmatel_spec *spec,
 
 static int check_in_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
 {
-	int i;
-
-	for (i = 0; i < spec->multiout.num_dacs; i++) {
-		if (spec->multiout.dac_nids[i] == nid)
-			return 1;
-	}
+	if (is_in_dac_nids(spec, nid))
+		return 1;
 	if (spec->multiout.hp_nid == nid)
 		return 1;
 	return 0;
@@ -1251,10 +1302,8 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 		add_spec_dacs(spec, nid);
 	}
 	for (i = 0; i < cfg->speaker_outs; i++) {
-		nid = snd_hda_codec_read(codec, cfg->speaker_pins[0], 0,
+		nid = snd_hda_codec_read(codec, cfg->speaker_pins[i], 0,
 					 AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
-		if (check_in_dac_nids(spec, nid))
-			nid = 0;
 		if (check_in_dac_nids(spec, nid))
 			nid = 0;
 		if (! nid)
@@ -1370,7 +1419,7 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 		imux->num_items++;
 	}
 
-	if (imux->num_items == 1) {
+	if (imux->num_items) {
 		/*
 		 * Set the current input for the muxes.
 		 * The STAC9221 has two input muxes with identical source
@@ -1690,8 +1739,12 @@ static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
 			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
-	if (flag == AC_PINCTL_OUT_EN && (pin_ctl & AC_PINCTL_IN_EN))
-		return;
+
+	/* if setting pin direction bits, clear the current
+	   direction bits first */
+	if (flag & (AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN))
+		pin_ctl &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
+	
 	snd_hda_codec_write(codec, nid, 0,
 			AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pin_ctl | flag);
