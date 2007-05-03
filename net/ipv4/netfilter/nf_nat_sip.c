@@ -222,6 +222,29 @@ static unsigned int mangle_sdp(struct sk_buff **pskb,
 	return mangle_content_len(pskb, ctinfo, ct, dptr);
 }
 
+static void ip_nat_sdp_expect(struct nf_conn *ct,
+			      struct nf_conntrack_expect *exp)
+{
+	struct nf_nat_range range;
+
+	/* This must be a fresh one. */
+	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
+
+	/* Change src to where master sends to */
+	range.flags = IP_NAT_RANGE_MAP_IPS;
+	range.min_ip = range.max_ip
+		= ct->master->tuplehash[!exp->dir].tuple.dst.u3.ip;
+	/* hook doesn't matter, but it has to do source manip */
+	nf_nat_setup_info(ct, &range, NF_IP_POST_ROUTING);
+
+	/* For DST manip, map port here to where it's expected. */
+	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
+	range.min = range.max = exp->saved_proto;
+	range.min_ip = range.max_ip = exp->saved_ip;
+	/* hook doesn't matter, but it has to do destination manip */
+	nf_nat_setup_info(ct, &range, NF_IP_PRE_ROUTING);
+}
+
 /* So, this packet has hit the connection tracking matching code.
    Mangle it, and change the expectation to match the new version. */
 static unsigned int ip_nat_sdp(struct sk_buff **pskb,
@@ -239,13 +262,14 @@ static unsigned int ip_nat_sdp(struct sk_buff **pskb,
 	/* Connection will come from reply */
 	newip = ct->tuplehash[!dir].tuple.dst.u3.ip;
 
+	exp->saved_ip = exp->tuple.dst.u3.ip;
 	exp->tuple.dst.u3.ip = newip;
 	exp->saved_proto.udp.port = exp->tuple.dst.u.udp.port;
 	exp->dir = !dir;
 
 	/* When you see the packet, we need to NAT it the same as the
 	   this one. */
-	exp->expectfn = nf_nat_follow_master;
+	exp->expectfn = ip_nat_sdp_expect;
 
 	/* Try to get same port: if not, try to change it. */
 	for (port = ntohs(exp->saved_proto.udp.port); port != 0; port++) {
