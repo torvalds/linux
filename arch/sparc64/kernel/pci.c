@@ -190,6 +190,7 @@ extern void schizo_init(struct device_node *, const char *);
 extern void schizo_plus_init(struct device_node *, const char *);
 extern void tomatillo_init(struct device_node *, const char *);
 extern void sun4v_pci_init(struct device_node *, const char *);
+extern void fire_pci_init(struct device_node *, const char *);
 
 static struct {
 	char *model_name;
@@ -207,6 +208,7 @@ static struct {
 	{ "SUNW,tomatillo", tomatillo_init },
 	{ "pci108e,a801", tomatillo_init },
 	{ "SUNW,sun4v-pci", sun4v_pci_init },
+	{ "pciex108e,80f0", fire_pci_init },
 };
 #define PCI_NUM_CONTROLLER_TYPES (sizeof(pci_controller_table) / \
 				  sizeof(pci_controller_table[0]))
@@ -435,6 +437,13 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	}
 	printk("    class: 0x%x device name: %s\n",
 	       dev->class, pci_name(dev));
+
+	/* I have seen IDE devices which will not respond to
+	 * the bmdma simplex check reads if bus mastering is
+	 * disabled.
+	 */
+	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE)
+		pci_set_master(dev);
 
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
