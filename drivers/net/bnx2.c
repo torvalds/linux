@@ -6172,6 +6172,7 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
 	bnx2_reset_chip(bp, reset_code);
 	bnx2_free_skbs(bp);
+	pci_save_state(pdev);
 	bnx2_set_power_state(bp, pci_choose_state(pdev, state));
 	return 0;
 }
@@ -6185,6 +6186,7 @@ bnx2_resume(struct pci_dev *pdev)
 	if (!netif_running(dev))
 		return 0;
 
+	pci_restore_state(pdev);
 	bnx2_set_power_state(bp, PCI_D0);
 	netif_device_attach(dev);
 	bnx2_init_nic(bp);
