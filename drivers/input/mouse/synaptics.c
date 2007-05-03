@@ -185,7 +185,7 @@ static int synaptics_query_hardware(struct psmouse *psmouse)
 	int retries = 0;
 
 	while ((retries++ < 3) && psmouse_reset(psmouse))
-		printk(KERN_ERR "synaptics reset failed\n");
+		/* empty */;
 
 	if (synaptics_identify(psmouse))
 		return -1;
