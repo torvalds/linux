@@ -211,12 +211,9 @@ static void usb_kbd_free_mem(struct usb_device *dev, struct usb_kbd *kbd)
 {
 	usb_free_urb(kbd->irq);
 	usb_free_urb(kbd->led);
-	if (kbd->new)
-		usb_buffer_free(dev, 8, kbd->new, kbd->new_dma);
-	if (kbd->cr)
-		usb_buffer_free(dev, sizeof(struct usb_ctrlrequest), kbd->cr, kbd->cr_dma);
-	if (kbd->leds)
-		usb_buffer_free(dev, 1, kbd->leds, kbd->leds_dma);
+	usb_buffer_free(dev, 8, kbd->new, kbd->new_dma);
+	usb_buffer_free(dev, sizeof(struct usb_ctrlrequest), kbd->cr, kbd->cr_dma);
+	usb_buffer_free(dev, 1, kbd->leds, kbd->leds_dma);
 }
 
 static int usb_kbd_probe(struct usb_interface *iface,
