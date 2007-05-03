@@ -1257,6 +1257,7 @@ ack_err:
 	wc.dlid_path_bits = 0;
 	wc.port_num = 0;
 	ipath_sqerror_qp(qp, &wc);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 bail:
 	return;
 }
@@ -1436,7 +1437,6 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 		break;
 	}
 	qp->r_nak_state = 0;
-	spin_unlock_irq(&qp->s_lock);
 	tasklet_hi_schedule(&qp->s_task);
 
 unlock_done:
