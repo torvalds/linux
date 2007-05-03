@@ -126,6 +126,11 @@ config DEFAULT_UIMAGE
 	  Used to allow a board to specify it wants a uImage built by default
 	default n
 
+config PPC64_SWSUSP
+	bool
+	depends on PPC64 && (BROKEN || (PPC_PMAC64 && EXPERIMENTAL))
+	default y
+
 menu "Processor support"
 choice
 	prompt "Processor Type"

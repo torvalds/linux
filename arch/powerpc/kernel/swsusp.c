@@ -24,11 +24,20 @@ void save_processor_state(void)
 	flush_fp_to_thread(current);
 	flush_altivec_to_thread(current);
 	flush_spe_to_thread(current);
+
+#ifdef CONFIG_PPC64
+	hard_irq_disable();
+#endif
+
 }
 
 void restore_processor_state(void)
 {
 #ifdef CONFIG_PPC32
 	set_context(current->active_mm->context.id, current->active_mm->pgd);
+#endif
+
+#ifdef CONFIG_PPC64
+	hard_irq_enable();
 #endif
 }
