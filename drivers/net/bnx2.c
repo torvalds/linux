@@ -5711,6 +5711,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	unsigned long mem_len;
 	int rc;
 	u32 reg;
+	u64 dma_mask, persist_dma_mask;
 
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -5745,21 +5746,6 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	if (bp->pm_cap == 0) {
 		dev_err(&pdev->dev,
 			"Cannot find power management capability, aborting.\n");
-		rc = -EIO;
-		goto err_out_release;
-	}
-
-	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0) {
-		bp->flags |= USING_DAC_FLAG;
-		if (pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
-			dev_err(&pdev->dev,
-				"pci_set_consistent_dma_mask failed, aborting.\n");
-			rc = -EIO;
-			goto err_out_release;
-		}
-	}
-	else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0) {
-		dev_err(&pdev->dev, "System does not support DMA, aborting.\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
@@ -5803,6 +5789,26 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			rc = -EIO;
 			goto err_out_unmap;
 		}
+	}
+
+	/* 5708 cannot support DMA addresses > 40-bit.  */
+	if (CHIP_NUM(bp) == CHIP_NUM_5708)
+		persist_dma_mask = dma_mask = DMA_40BIT_MASK;
+	else
+		persist_dma_mask = dma_mask = DMA_64BIT_MASK;
+
+	/* Configure DMA attributes. */
+	if (pci_set_dma_mask(pdev, dma_mask) == 0) {
+		dev->features |= NETIF_F_HIGHDMA;
+		rc = pci_set_consistent_dma_mask(pdev, persist_dma_mask);
+		if (rc) {
+			dev_err(&pdev->dev,
+				"pci_set_consistent_dma_mask failed, aborting.\n");
+			goto err_out_unmap;
+		}
+	} else if ((rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) != 0) {
+		dev_err(&pdev->dev, "System does not support DMA, aborting.\n");
+		goto err_out_unmap;
 	}
 
 	/* Get bus information. */
@@ -6114,8 +6120,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	printk("\n");
 
 	dev->features |= NETIF_F_SG;
-	if (bp->flags & USING_DAC_FLAG)
-		dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= NETIF_F_IP_CSUM;
 #ifdef BCM_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;

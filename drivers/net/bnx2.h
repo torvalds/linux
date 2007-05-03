@@ -6433,7 +6433,6 @@ struct bnx2 {
 #define PCI_32BIT_FLAG			2
 #define ONE_TDMA_FLAG			4	/* no longer used */
 #define NO_WOL_FLAG			8
-#define USING_DAC_FLAG			0x10
 #define USING_MSI_FLAG			0x20
 #define ASF_ENABLE_FLAG			0x40
 
