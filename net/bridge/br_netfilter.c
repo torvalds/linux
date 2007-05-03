@@ -142,14 +142,33 @@ static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
 	return skb->nf_bridge;
 }
 
+static inline void nf_bridge_push_encap_header(struct sk_buff *skb)
+{
+	unsigned int len = nf_bridge_encap_header_len(skb);
+
+	skb_push(skb, len);
+	skb->network_header -= len;
+}
+
+static inline void nf_bridge_pull_encap_header(struct sk_buff *skb)
+{
+	unsigned int len = nf_bridge_encap_header_len(skb);
+
+	skb_pull(skb, len);
+	skb->network_header += len;
+}
+
+static inline void nf_bridge_pull_encap_header_rcsum(struct sk_buff *skb)
+{
+	unsigned int len = nf_bridge_encap_header_len(skb);
+
+	skb_pull_rcsum(skb, len);
+	skb->network_header += len;
+}
+
 static inline void nf_bridge_save_header(struct sk_buff *skb)
 {
-	int header_size = ETH_HLEN;
-
-	if (skb->protocol == htons(ETH_P_8021Q))
-		header_size += VLAN_HLEN;
-	else if (skb->protocol == htons(ETH_P_PPP_SES))
-		header_size += PPPOE_SES_HLEN;
+	int header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
 
 	skb_copy_from_linear_data_offset(skb, -header_size,
 					 skb->nf_bridge->data, header_size);
@@ -162,12 +181,7 @@ static inline void nf_bridge_save_header(struct sk_buff *skb)
 int nf_bridge_copy_header(struct sk_buff *skb)
 {
 	int err;
-	int header_size = ETH_HLEN;
-
-	if (skb->protocol == htons(ETH_P_8021Q))
-		header_size += VLAN_HLEN;
-	else if (skb->protocol == htons(ETH_P_PPP_SES))
-		header_size += PPPOE_SES_HLEN;
+	int header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
 
 	err = skb_cow(skb, header_size);
 	if (err)
@@ -175,11 +189,7 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 
 	skb_copy_to_linear_data_offset(skb, -header_size,
 				       skb->nf_bridge->data, header_size);
-
-	if (skb->protocol == htons(ETH_P_8021Q))
-		__skb_push(skb, VLAN_HLEN);
-	else if (skb->protocol == htons(ETH_P_PPP_SES))
-		__skb_push(skb, PPPOE_SES_HLEN);
+	__skb_push(skb, nf_bridge_encap_header_len(skb));
 	return 0;
 }
 
@@ -200,13 +210,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 	dst_hold(skb->dst);
 
 	skb->dev = nf_bridge->physindev;
-	if (skb->protocol == htons(ETH_P_8021Q)) {
-		skb_push(skb, VLAN_HLEN);
-		skb->network_header -= VLAN_HLEN;
-	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
-		skb_push(skb, PPPOE_SES_HLEN);
-		skb->network_header -= PPPOE_SES_HLEN;
-	}
+	nf_bridge_push_encap_header(skb);
 	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 		       br_handle_frame_finish, 1);
 
@@ -284,13 +288,7 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 	if (!skb->dev)
 		kfree_skb(skb);
 	else {
-		if (skb->protocol == htons(ETH_P_8021Q)) {
-			skb_pull(skb, VLAN_HLEN);
-			skb->network_header += VLAN_HLEN;
-		} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
-			skb_pull(skb, PPPOE_SES_HLEN);
-			skb->network_header += PPPOE_SES_HLEN;
-		}
+		nf_bridge_pull_encap_header(skb);
 		skb->dst->output(skb);
 	}
 	return 0;
@@ -356,15 +354,7 @@ bridged_dnat:
 				 * bridged frame */
 				nf_bridge->mask |= BRNF_BRIDGED_DNAT;
 				skb->dev = nf_bridge->physindev;
-				if (skb->protocol ==
-				    htons(ETH_P_8021Q)) {
-					skb_push(skb, VLAN_HLEN);
-					skb->network_header -= VLAN_HLEN;
-				} else if(skb->protocol ==
-				    htons(ETH_P_PPP_SES)) {
-					skb_push(skb, PPPOE_SES_HLEN);
-					skb->network_header -= PPPOE_SES_HLEN;
-				}
+				nf_bridge_push_encap_header(skb);
 				NF_HOOK_THRESH(PF_BRIDGE, NF_BR_PRE_ROUTING,
 					       skb, skb->dev, NULL,
 					       br_nf_pre_routing_finish_bridge,
@@ -380,13 +370,7 @@ bridged_dnat:
 	}
 
 	skb->dev = nf_bridge->physindev;
-	if (skb->protocol == htons(ETH_P_8021Q)) {
-		skb_push(skb, VLAN_HLEN);
-		skb->network_header -= VLAN_HLEN;
-	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
-		skb_push(skb, PPPOE_SES_HLEN);
-		skb->network_header -= PPPOE_SES_HLEN;
-	}
+	nf_bridge_push_encap_header(skb);
 	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 		       br_handle_frame_finish, 1);
 
@@ -536,14 +520,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 #endif
 		if ((skb = skb_share_check(*pskb, GFP_ATOMIC)) == NULL)
 			goto out;
-
-		if (skb->protocol == htons(ETH_P_8021Q)) {
-			skb_pull_rcsum(skb, VLAN_HLEN);
-			skb->network_header += VLAN_HLEN;
-		} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
-			skb_pull_rcsum(skb, PPPOE_SES_HLEN);
-			skb->network_header += PPPOE_SES_HLEN;
-		}
+		nf_bridge_pull_encap_header_rcsum(skb);
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
 #ifdef CONFIG_SYSCTL
@@ -557,14 +534,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 
 	if ((skb = skb_share_check(*pskb, GFP_ATOMIC)) == NULL)
 		goto out;
-
-	if (skb->protocol == htons(ETH_P_8021Q)) {
-		skb_pull_rcsum(skb, VLAN_HLEN);
-		skb->network_header += VLAN_HLEN;
-	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
-		skb_pull_rcsum(skb, PPPOE_SES_HLEN);
-		skb->network_header += PPPOE_SES_HLEN;
-	}
+	nf_bridge_pull_encap_header_rcsum(skb);
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto inhdr_error;
@@ -642,13 +612,7 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 	} else {
 		in = *((struct net_device **)(skb->cb));
 	}
-	if (skb->protocol == htons(ETH_P_8021Q)) {
-		skb_push(skb, VLAN_HLEN);
-		skb->network_header -= VLAN_HLEN;
-	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
-		skb_push(skb, PPPOE_SES_HLEN);
-		skb->network_header -= PPPOE_SES_HLEN;
-	}
+	nf_bridge_push_encap_header(skb);
 	NF_HOOK_THRESH(PF_BRIDGE, NF_BR_FORWARD, skb, in,
 		       skb->dev, br_forward_finish, 1);
 	return 0;
@@ -682,13 +646,7 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff **pskb,
 	else
 		pf = PF_INET6;
 
-	if (skb->protocol == htons(ETH_P_8021Q)) {
-		skb_pull(*pskb, VLAN_HLEN);
-		(*pskb)->network_header += VLAN_HLEN;
-	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
-		skb_pull(*pskb, PPPOE_SES_HLEN);
-		(*pskb)->network_header += PPPOE_SES_HLEN;
-	}
+	nf_bridge_pull_encap_header(*pskb);
 
 	nf_bridge = skb->nf_bridge;
 	if (skb->pkt_type == PACKET_OTHERHOST) {
@@ -722,15 +680,12 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff **pskb,
 	if (skb->protocol != htons(ETH_P_ARP)) {
 		if (!IS_VLAN_ARP(skb))
 			return NF_ACCEPT;
-		skb_pull(*pskb, VLAN_HLEN);
-		(*pskb)->network_header += VLAN_HLEN;
+		nf_bridge_pull_encap_header(*pskb);
 	}
 
 	if (arp_hdr(skb)->ar_pln != 4) {
-		if (IS_VLAN_ARP(skb)) {
-			skb_push(*pskb, VLAN_HLEN);
-			(*pskb)->network_header -= VLAN_HLEN;
-		}
+		if (IS_VLAN_ARP(skb))
+			nf_bridge_push_encap_header(*pskb);
 		return NF_ACCEPT;
 	}
 	*d = (struct net_device *)in;
@@ -777,13 +732,7 @@ static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff **pskb,
 		skb->pkt_type = PACKET_OTHERHOST;
 		nf_bridge->mask ^= BRNF_PKT_TYPE;
 	}
-	if (skb->protocol == htons(ETH_P_8021Q)) {
-		skb_push(skb, VLAN_HLEN);
-		skb->network_header -= VLAN_HLEN;
-	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
-		skb_push(skb, PPPOE_SES_HLEN);
-		skb->network_header -= PPPOE_SES_HLEN;
-	}
+	nf_bridge_push_encap_header(skb);
 
 	NF_HOOK(PF_BRIDGE, NF_BR_FORWARD, skb, realindev, skb->dev,
 		br_forward_finish);
@@ -848,14 +797,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
 
-	if (skb->protocol == htons(ETH_P_8021Q)) {
-		skb_pull(skb, VLAN_HLEN);
-		skb->network_header += VLAN_HLEN;
-	} else if (skb->protocol == htons(ETH_P_PPP_SES)) {
-		skb_pull(skb, PPPOE_SES_HLEN);
-		skb->network_header += PPPOE_SES_HLEN;
-	}
-
+	nf_bridge_pull_encap_header(skb);
 	nf_bridge_save_header(skb);
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
