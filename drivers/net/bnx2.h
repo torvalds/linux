@@ -6476,6 +6476,7 @@ struct bnx2 {
 #define ASF_ENABLE_FLAG			0x00000040
 #define MSI_CAP_FLAG			0x00000080
 #define ONE_SHOT_MSI_FLAG		0x00000100
+#define PCIE_FLAG			0x00000200
 
 	/* Put tx producer and consumer fields in separate cache lines. */
 
