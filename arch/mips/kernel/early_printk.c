@@ -30,7 +30,13 @@ static struct console early_console __initdata = {
 	.index	= -1
 };
 
+static int early_console_initialized __initdata;
+
 void __init setup_early_printk(void)
 {
+	if (early_console_initialized)
+		return;
+	early_console_initialized = 1;
+
 	register_console(&early_console);
 }
