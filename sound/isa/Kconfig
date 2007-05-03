@@ -358,7 +358,7 @@ config SND_SBAWE
 config SND_SB16_CSP
 	bool "Sound Blaster 16/AWE CSP support"
 	depends on (SND_SB16 || SND_SBAWE) && (BROKEN || !PPC)
-	select FW_LOADER
+	select FW_LOADER if !SND_SB16_CSP_FIRMWARE_IN_KERNEL
 	help
 	  Say Y here to include support for the CSP core.  This special
 	  coprocessor can do variable tasks like various compression and
@@ -400,7 +400,7 @@ config SND_SSCAPE
 config SND_WAVEFRONT
 	tristate "Turtle Beach Maui,Tropez,Tropez+ (Wavefront)"
 	depends on SND
-	select FW_LOADER
+	select FW_LOADER if !SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_CS4231_LIB
