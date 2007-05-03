@@ -818,18 +818,17 @@ static int usb_cleanup(struct yealink_dev *yld, int err)
 		else
 			input_unregister_device(yld->idev);
 	}
-	if (yld->ctl_req)
-		usb_buffer_free(yld->udev, sizeof(*(yld->ctl_req)),
-				yld->ctl_req, yld->ctl_req_dma);
-	if (yld->ctl_data)
-		usb_buffer_free(yld->udev, USB_PKT_LEN,
-				yld->ctl_data, yld->ctl_dma);
-	if (yld->irq_data)
-		usb_buffer_free(yld->udev, USB_PKT_LEN,
-				yld->irq_data, yld->irq_dma);
 
-	usb_free_urb(yld->urb_irq);	/* parameter validation in core/urb */
-	usb_free_urb(yld->urb_ctl);	/* parameter validation in core/urb */
+	usb_free_urb(yld->urb_irq);
+	usb_free_urb(yld->urb_ctl);
+
+	usb_buffer_free(yld->udev, sizeof(*(yld->ctl_req)),
+			yld->ctl_req, yld->ctl_req_dma);
+	usb_buffer_free(yld->udev, USB_PKT_LEN,
+			yld->ctl_data, yld->ctl_dma);
+	usb_buffer_free(yld->udev, USB_PKT_LEN,
+			yld->irq_data, yld->irq_dma);
+
 	kfree(yld);
 	return err;
 }

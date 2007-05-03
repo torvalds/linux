@@ -291,12 +291,10 @@ static int powermate_alloc_buffers(struct usb_device *udev, struct powermate_dev
 
 static void powermate_free_buffers(struct usb_device *udev, struct powermate_device *pm)
 {
-	if (pm->data)
-		usb_buffer_free(udev, POWERMATE_PAYLOAD_SIZE_MAX,
-				pm->data, pm->data_dma);
-	if (pm->configcr)
-		usb_buffer_free(udev, sizeof(*(pm->configcr)),
-				pm->configcr, pm->configcr_dma);
+	usb_buffer_free(udev, POWERMATE_PAYLOAD_SIZE_MAX,
+			pm->data, pm->data_dma);
+	usb_buffer_free(udev, sizeof(*(pm->configcr)),
+			pm->configcr, pm->configcr_dma);
 }
 
 /* Called whenever a USB device matching one in our supported devices table is connected */
