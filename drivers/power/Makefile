@@ -13,3 +13,5 @@ EXTRA_CFLAGS += -DDEBUG
 endif
 
 obj-$(CONFIG_POWER_SUPPLY)	+= power_supply.o
+
+obj-$(CONFIG_PDA_POWER)		+= pda_power.o
