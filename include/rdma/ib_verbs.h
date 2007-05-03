@@ -912,6 +912,8 @@ struct ib_device {
 
 	u32                           flags;
 
+	int			      num_comp_vectors;
+
 	struct iw_cm_verbs	     *iwcm;
 
 	int		           (*query_device)(struct ib_device *device,
@@ -978,6 +980,7 @@ struct ib_device {
 						struct ib_recv_wr *recv_wr,
 						struct ib_recv_wr **bad_recv_wr);
 	struct ib_cq *             (*create_cq)(struct ib_device *device, int cqe,
+						int comp_vector,
 						struct ib_ucontext *context,
 						struct ib_udata *udata);
 	int                        (*destroy_cq)(struct ib_cq *cq);
@@ -1358,13 +1361,15 @@ static inline int ib_post_recv(struct ib_qp *qp,
  * @cq_context: Context associated with the CQ returned to the user via
  *   the associated completion and event handlers.
  * @cqe: The minimum size of the CQ.
+ * @comp_vector - Completion vector used to signal completion events.
+ *     Must be >= 0 and < context->num_comp_vectors.
  *
  * Users can examine the cq structure to determine the actual CQ size.
  */
 struct ib_cq *ib_create_cq(struct ib_device *device,
 			   ib_comp_handler comp_handler,
 			   void (*event_handler)(struct ib_event *, void *),
-			   void *cq_context, int cqe);
+			   void *cq_context, int cqe, int comp_vector);
 
 /**
  * ib_resize_cq - Modifies the capacity of the CQ.

@@ -139,7 +139,7 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq)
 	return 0;
 }
 
-static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries,
+static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
 			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata)
 {
@@ -1110,6 +1110,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	memcpy(dev->ibdev.node_desc, IWCH_NODE_DESC, sizeof(IWCH_NODE_DESC));
 	dev->ibdev.phys_port_cnt = dev->rdev.port_info.nports;
+	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dma_device = &(dev->rdev.rnic_info.pdev->dev);
 	dev->ibdev.query_device = iwch_query_device;
 	dev->ibdev.query_port = iwch_query_port;

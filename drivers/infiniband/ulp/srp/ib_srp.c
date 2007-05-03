@@ -197,7 +197,7 @@ static int srp_create_target_ib(struct srp_target_port *target)
 		return -ENOMEM;
 
 	target->cq = ib_create_cq(target->srp_host->dev->dev, srp_completion,
-				  NULL, target, SRP_CQ_SIZE);
+				  NULL, target, SRP_CQ_SIZE, 0);
 	if (IS_ERR(target->cq)) {
 		ret = PTR_ERR(target->cq);
 		goto out;

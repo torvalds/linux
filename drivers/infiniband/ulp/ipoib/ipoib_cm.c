@@ -793,7 +793,7 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	}
 
 	p->cq = ib_create_cq(priv->ca, ipoib_cm_tx_completion, NULL, p,
-			     ipoib_sendq_size + 1);
+			     ipoib_sendq_size + 1, 0);
 	if (IS_ERR(p->cq)) {
 		ret = PTR_ERR(p->cq);
 		ipoib_warn(priv, "failed to allocate tx cq: %d\n", ret);

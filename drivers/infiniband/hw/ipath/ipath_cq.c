@@ -204,7 +204,7 @@ static void send_complete(unsigned long data)
  *
  * Called by ib_create_cq() in the generic verbs code.
  */
-struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
+struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries, int comp_vector,
 			      struct ib_ucontext *context,
 			      struct ib_udata *udata)
 {

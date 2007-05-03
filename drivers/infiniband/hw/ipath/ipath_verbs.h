@@ -735,7 +735,7 @@ int ipath_destroy_srq(struct ib_srq *ibsrq);
 
 int ipath_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
 
-struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
+struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries, int comp_vector,
 			      struct ib_ucontext *context,
 			      struct ib_udata *udata);
 
