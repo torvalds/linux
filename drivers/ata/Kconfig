@@ -552,6 +552,14 @@ config PATA_PLATFORM
 
 	  If unsure, say N.
 
+config PATA_ICSIDE
+	tristate "Acorn ICS PATA support"
+	depends on ARM && ARCH_ACORN
+	help
+	  On Acorn systems, say Y here if you wish to use the ICS PATA
+	  interface card.  This is not required for ICS partition support.
+	  If you are unsure, say N to this.
+
 config PATA_IXP4XX_CF
 	tristate "IXP4XX Compact Flash support"
 	depends on ARCH_IXP4XX
