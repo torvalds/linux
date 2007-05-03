@@ -64,6 +64,15 @@
 #include <asm/atomic.h>
 #include "echoaudio.h"
 
+MODULE_FIRMWARE("ea/loader_dsp.fw");
+MODULE_FIRMWARE("ea/mona_301_dsp.fw");
+MODULE_FIRMWARE("ea/mona_361_dsp.fw");
+MODULE_FIRMWARE("ea/mona_301_1_asic_48.fw");
+MODULE_FIRMWARE("ea/mona_301_1_asic_96.fw");
+MODULE_FIRMWARE("ea/mona_361_1_asic_48.fw");
+MODULE_FIRMWARE("ea/mona_361_1_asic_96.fw");
+MODULE_FIRMWARE("ea/mona_2_asic.fw");
+
 #define FW_361_LOADER		0
 #define FW_MONA_301_DSP		1
 #define FW_MONA_361_DSP		2

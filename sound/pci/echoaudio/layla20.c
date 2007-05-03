@@ -66,6 +66,9 @@
 #include <asm/atomic.h>
 #include "echoaudio.h"
 
+MODULE_FIRMWARE("ea/layla20_dsp.fw");
+MODULE_FIRMWARE("ea/layla20_asic.fw");
+
 #define FW_LAYLA20_DSP	0
 #define FW_LAYLA20_ASIC	1
 

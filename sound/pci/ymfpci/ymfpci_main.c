@@ -2084,6 +2084,11 @@ static int snd_ymfpci_request_firmware(struct snd_ymfpci *chip)
 		return err;
 	return 0;
 }
+
+MODULE_FIRMWARE("yamaha/ds1_dsp.fw");
+MODULE_FIRMWARE("yamaha/ds1_ctrl.fw");
+MODULE_FIRMWARE("yamaha/ds1e_ctrl.fw");
+
 #endif
 
 static void snd_ymfpci_download_image(struct snd_ymfpci *chip)

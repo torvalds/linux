@@ -59,6 +59,10 @@ MODULE_SUPPORTED_DEVICE("{{ESS,Maestro3 PCI},"
 		"{ESS,Allegro PCI},"
 		"{ESS,Allegro-1 PCI},"
 	        "{ESS,Canyon3D-2/LE PCI}}");
+#ifndef CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL
+MODULE_FIRMWARE("ess/maestro3_assp_kernel.fw");
+MODULE_FIRMWARE("ess/maestro3_assp_minisrc.fw");
+#endif
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */

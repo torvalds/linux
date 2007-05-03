@@ -66,6 +66,9 @@
 #include <asm/atomic.h>
 #include "echoaudio.h"
 
+MODULE_FIRMWARE("ea/loader_dsp.fw");
+MODULE_FIRMWARE("ea/mia_dsp.fw");
+
 #define FW_361_LOADER	0
 #define FW_MIA_DSP	1
 

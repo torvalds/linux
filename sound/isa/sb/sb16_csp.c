@@ -36,6 +36,13 @@
 MODULE_AUTHOR("Uros Bizjak <uros@kss-loka.si>");
 MODULE_DESCRIPTION("ALSA driver for SB16 Creative Signal Processor");
 MODULE_LICENSE("GPL");
+#ifndef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
+MODULE_FIRMWARE("sb16/mulaw_main.csp");
+MODULE_FIRMWARE("sb16/alaw_main.csp");
+MODULE_FIRMWARE("sb16/ima_adpcm_init.csp");
+MODULE_FIRMWARE("sb16/ima_adpcm_playback.csp");
+MODULE_FIRMWARE("sb16/ima_adpcm_capture.csp");
+#endif
 
 #ifdef SNDRV_LITTLE_ENDIAN
 #define CSP_HDR_VALUE(a,b,c,d)	((a) | ((b)<<8) | ((c)<<16) | ((d)<<24))

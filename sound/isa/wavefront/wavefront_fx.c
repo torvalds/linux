@@ -298,3 +298,7 @@ out:
 #endif
 	return err;
 }
+
+#ifndef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
+MODULE_FIRMWARE("yamaha/yss225_registers.bin");
+#endif

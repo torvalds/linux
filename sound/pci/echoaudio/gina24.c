@@ -66,6 +66,12 @@
 #include <asm/atomic.h>
 #include "echoaudio.h"
 
+MODULE_FIRMWARE("ea/loader_dsp.fw");
+MODULE_FIRMWARE("ea/gina24_301_dsp.fw");
+MODULE_FIRMWARE("ea/gina24_361_dsp.fw");
+MODULE_FIRMWARE("ea/gina24_301_asic.fw");
+MODULE_FIRMWARE("ea/gina24_361_asic.fw");
+
 #define FW_361_LOADER		0
 #define FW_GINA24_301_DSP	1
 #define FW_GINA24_361_DSP	2

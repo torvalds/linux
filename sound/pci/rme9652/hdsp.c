@@ -60,6 +60,12 @@ MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{RME Hammerfall-DSP},"
 	        "{RME HDSP-9652},"
 		"{RME HDSP-9632}}");
+#ifdef HDSP_FW_LOADER
+MODULE_FIRMWARE("multiface_firmware.bin");
+MODULE_FIRMWARE("multiface_firmware_rev11.bin");
+MODULE_FIRMWARE("digiface_firmware.bin");
+MODULE_FIRMWARE("digiface_firmware_rev11.bin");
+#endif
 
 #define HDSP_MAX_CHANNELS        26
 #define HDSP_MAX_DS_CHANNELS     14
