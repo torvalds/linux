@@ -126,7 +126,7 @@ static void ecard_task_reset(struct ecard_request *req)
 
 	res = ec->slot_no == 8
 		? &ec->resource[ECARD_RES_MEMC]
-		: ec->type == ECARD_EASI
+		: ec->easi
 		  ? &ec->resource[ECARD_RES_EASI]
 		  : &ec->resource[ECARD_RES_IOCSYNC];
 
@@ -181,7 +181,7 @@ static void ecard_task_readbytes(struct ecard_request *req)
 			index += 1;
 		}
 	} else {
-		unsigned long base = (ec->type == ECARD_EASI
+		unsigned long base = (ec->easi
 			 ? &ec->resource[ECARD_RES_EASI]
 			 : &ec->resource[ECARD_RES_IOCSYNC])->start;
 		void __iomem *pbase = (void __iomem *)base;
@@ -728,7 +728,7 @@ static int ecard_prints(char *buffer, ecard_t *ec)
 	char *start = buffer;
 
 	buffer += sprintf(buffer, "  %d: %s ", ec->slot_no,
-			  ec->type == ECARD_EASI ? "EASI" : "    ");
+			  ec->easi ? "EASI" : "    ");
 
 	if (ec->cid.id == 0) {
 		struct in_chunk_dir incd;
@@ -815,7 +815,7 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	}
 
 	ec->slot_no = slot;
-	ec->type = type;
+	ec->easi = type == ECARD_EASI;
 	ec->irq = NO_IRQ;
 	ec->fiq = NO_IRQ;
 	ec->dma = NO_DMA;
@@ -909,7 +909,7 @@ static ssize_t ecard_show_device(struct device *dev, struct device_attribute *at
 static ssize_t ecard_show_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
-	return sprintf(buf, "%s\n", ec->type == ECARD_EASI ? "EASI" : "IOC");
+	return sprintf(buf, "%s\n", ec->easi ? "EASI" : "IOC");
 }
 
 static struct device_attribute ecard_dev_attrs[] = {

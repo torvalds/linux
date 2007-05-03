@@ -160,6 +160,7 @@ struct expansion_card {
 	unsigned char		irqmask;	/* IRQ mask			*/
 	unsigned char		fiqmask;	/* FIQ mask			*/
 	unsigned char  		claimed;	/* Card claimed?		*/
+	unsigned char		easi;		/* EASI card			*/
 
 	void			*irq_data;	/* Data for use for IRQ by card	*/
 	void			*fiq_data;	/* Data for use for FIQ by card	*/
@@ -169,7 +170,6 @@ struct expansion_card {
 	CONST unsigned int	dma;		/* DMA number (for request_dma)	*/
 	CONST unsigned int	irq;		/* IRQ number (for request_irq)	*/
 	CONST unsigned int	fiq;		/* FIQ number (for request_irq)	*/
-	CONST card_type_t	type;		/* Type of card			*/
 	CONST struct in_ecid	cid;		/* Card Identification		*/
 
 	/* Private internal data */
