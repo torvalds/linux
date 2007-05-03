@@ -91,6 +91,11 @@ struct machdep_calls {
 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
 				   unsigned long flags);
 	void		(*iounmap)(volatile void __iomem *token);
+
+#ifdef CONFIG_PM
+	void		(*iommu_save)(void);
+	void		(*iommu_restore)(void);
+#endif
 #endif /* CONFIG_PPC64 */
 
 	int		(*probe)(void);
