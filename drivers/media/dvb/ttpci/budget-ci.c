@@ -904,7 +904,7 @@ static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struc
 		band = 1;
 	} else if (tuner_frequency < 200000000) {
 		cp = 6;
-		band = 2;
+		band = 1;
 	} else if (tuner_frequency < 290000000) {
 		cp = 3;
 		band = 2;
