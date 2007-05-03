@@ -47,7 +47,7 @@ int afs_get_ipv4_interfaces(struct afs_interface *bufs, size_t maxbufs,
 	ASSERT(maxbufs > 0);
 
 	rtnl_lock();
-	for (dev = dev_base; dev; dev = dev->next) {
+	for_each_netdev(dev) {
 		if (dev->type == ARPHRD_LOOPBACK && !wantloopback)
 			continue;
 		idev = __in_dev_get_rtnl(dev);
