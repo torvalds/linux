@@ -48,16 +48,16 @@ MODULE_LICENSE("GPL");
 
 struct tgfx_config {
 	int args[TGFX_MAX_DEVICES + 1];
-	int nargs;
+	unsigned int nargs;
 };
 
-static struct tgfx_config tgfx[TGFX_MAX_PORTS] __initdata;
+static struct tgfx_config tgfx_cfg[TGFX_MAX_PORTS] __initdata;
 
-module_param_array_named(map, tgfx[0].args, int, &tgfx[0].nargs, 0);
+module_param_array_named(map, tgfx_cfg[0].args, int, &tgfx_cfg[0].nargs, 0);
 MODULE_PARM_DESC(map, "Describes first set of devices (<parport#>,<js1>,<js2>,..<js7>");
-module_param_array_named(map2, tgfx[1].args, int, &tgfx[1].nargs, 0);
+module_param_array_named(map2, tgfx_cfg[1].args, int, &tgfx_cfg[1].nargs, 0);
 MODULE_PARM_DESC(map2, "Describes second set of devices");
-module_param_array_named(map3, tgfx[2].args, int, &tgfx[2].nargs, 0);
+module_param_array_named(map3, tgfx_cfg[2].args, int, &tgfx_cfg[2].nargs, 0);
 MODULE_PARM_DESC(map3, "Describes third set of devices");
 
 #define TGFX_REFRESH_TIME	HZ/100	/* 10 ms */
@@ -283,16 +283,18 @@ static int __init tgfx_init(void)
 	int err = 0;
 
 	for (i = 0; i < TGFX_MAX_PORTS; i++) {
-		if (tgfx[i].nargs == 0 || tgfx[i].args[0] < 0)
+		if (tgfx_cfg[i].nargs == 0 || tgfx_cfg[i].args[0] < 0)
 			continue;
 
-		if (tgfx[i].nargs < 2) {
+		if (tgfx_cfg[i].nargs < 2) {
 			printk(KERN_ERR "turbografx.c: at least one joystick must be specified\n");
 			err = -EINVAL;
 			break;
 		}
 
-		tgfx_base[i] = tgfx_probe(tgfx[i].args[0], tgfx[i].args + 1, tgfx[i].nargs - 1);
+		tgfx_base[i] = tgfx_probe(tgfx_cfg[i].args[0],
+					  tgfx_cfg[i].args + 1,
+					  tgfx_cfg[i].nargs - 1);
 		if (IS_ERR(tgfx_base[i])) {
 			err = PTR_ERR(tgfx_base[i]);
 			break;

@@ -53,7 +53,7 @@ MODULE_LICENSE("GPL");
 #define ANALOG_PORTS		16
 
 static char *js[ANALOG_PORTS];
-static int js_nargs;
+static unsigned int js_nargs;
 static int analog_options[ANALOG_PORTS];
 module_param_array_named(map, js, charp, &js_nargs, 0);
 MODULE_PARM_DESC(map, "Describes analog joysticks type/capabilities");
