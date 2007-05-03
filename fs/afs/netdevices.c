@@ -10,27 +10,41 @@
 #include <linux/if_arp.h>
 #include "internal.h"
 
-int afs_get_MAC_address(u8 mac[ETH_ALEN])
+/*
+ * get a MAC address from a random ethernet interface that has a real one
+ * - the buffer will normally be 6 bytes in size
+ */
+int afs_get_MAC_address(u8 *mac, size_t maclen)
 {
 	struct net_device *dev;
 	int ret = -ENODEV;
 
+	if (maclen != ETH_ALEN)
+		BUG();
+
 	rtnl_lock();
 	dev = __dev_getfirstbyhwtype(ARPHRD_ETHER);
 	if (dev) {
-		memcpy(mac, dev->dev_addr, ETH_ALEN);
+		memcpy(mac, dev->dev_addr, maclen);
 		ret = 0;
 	}
 	rtnl_unlock();
 	return ret;
 }
 
+/*
+ * get a list of this system's interface IPv4 addresses, netmasks and MTUs
+ * - maxbufs must be at least 1
+ * - returns the number of interface records in the buffer
+ */
 int afs_get_ipv4_interfaces(struct afs_interface *bufs, size_t maxbufs,
 			    bool wantloopback)
 {
 	struct net_device *dev;
 	struct in_device *idev;
 	int n = 0;
+
+	ASSERT(maxbufs > 0);
 
 	rtnl_lock();
 	for (dev = dev_base; dev; dev = dev->next) {
@@ -40,13 +54,13 @@ int afs_get_ipv4_interfaces(struct afs_interface *bufs, size_t maxbufs,
 		if (!idev)
 			continue;
 		for_primary_ifa(idev) {
-			if (n == maxbufs)
-				goto out;
 			bufs[n].address.s_addr = ifa->ifa_address;
 			bufs[n].netmask.s_addr = ifa->ifa_mask;
 			bufs[n].mtu = dev->mtu;
 			n++;
-		} endfor_ifa(idev)
+			if (n >= maxbufs)
+				goto out;
+		} endfor_ifa(idev);
 	}
 out:
 	rtnl_unlock();

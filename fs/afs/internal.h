@@ -563,7 +563,7 @@ extern void afs_fs_exit(void);
  * use-rtnetlink.c
  */
 extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
-extern int afs_get_MAC_address(u8 [6]);
+extern int afs_get_MAC_address(u8 *, size_t);
 
 /*
  * vlclient.c
