@@ -42,4 +42,10 @@ config BATTERY_PMU
 	  Say Y here to expose battery information on Apple machines
 	  through the generic battery class.
 
+config BATTERY_OLPC
+	tristate "One Laptop Per Child battery"
+	depends on X86_32 && OLPC
+	help
+	  Say Y to enable support for the battery on the OLPC laptop.
+
 endif # POWER_SUPPLY
