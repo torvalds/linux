@@ -328,7 +328,6 @@ static inline void ipv6_addr_prefix(struct in6_addr *pfx,
 		memset(pfx->s6_addr + o, 0, 16 - o);
 }
 
-#ifndef __HAVE_ARCH_ADDR_SET
 static inline void ipv6_addr_set(struct in6_addr *addr, 
 				     __be32 w1, __be32 w2,
 				     __be32 w3, __be32 w4)
@@ -338,7 +337,6 @@ static inline void ipv6_addr_set(struct in6_addr *addr,
 	addr->s6_addr32[2] = w3;
 	addr->s6_addr32[3] = w4;
 }
-#endif
 
 static inline int ipv6_addr_equal(const struct in6_addr *a1,
 				  const struct in6_addr *a2)
