@@ -51,6 +51,8 @@
 #include <asm/mach/irq.h>
 #include <asm/tlbflush.h>
 
+#include "ecard.h"
+
 #ifndef CONFIG_ARCH_RPC
 #define HAVE_EXPMASK
 #endif
