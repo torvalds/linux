@@ -1080,7 +1080,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, u64 owner,
 		       u64 num_blocks, u64 search_start,
-		       u64 search_end, struct btrfs_key *ins);
+		       u64 search_end, struct btrfs_key *ins, int data);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct buffer_head *buf);
 int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
