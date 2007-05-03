@@ -9,10 +9,6 @@
 #ifndef __MTD_MTD_H__
 #define __MTD_MTD_H__
 
-#ifndef __KERNEL__
-#error This is a kernel header. Perhaps include mtd-user.h instead?
-#endif
-
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/uio.h>
