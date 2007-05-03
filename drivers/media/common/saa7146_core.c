@@ -136,28 +136,45 @@ char *saa7146_vmalloc_build_pgtable(struct pci_dev *pci, long length, struct saa
 	char *mem = vmalloc_32(length);
 	int slen = 0;
 
-	if (NULL == mem) {
-		return NULL;
-	}
+	if (NULL == mem)
+		goto err_null;
 
-	if (!(pt->slist = vmalloc_to_sg(mem, pages))) {
-		vfree(mem);
-		return NULL;
-	}
+	if (!(pt->slist = vmalloc_to_sg(mem, pages)))
+		goto err_free_mem;
 
-	if (saa7146_pgtable_alloc(pci, pt)) {
-		kfree(pt->slist);
-		pt->slist = NULL;
-		vfree(mem);
-		return NULL;
-	}
+	if (saa7146_pgtable_alloc(pci, pt))
+		goto err_free_slist;
 
-	slen = pci_map_sg(pci,pt->slist,pages,PCI_DMA_FROMDEVICE);
-	if (0 != saa7146_pgtable_build_single(pci, pt, pt->slist, slen)) {
-		return NULL;
-	}
+	pt->nents = pages;
+	slen = pci_map_sg(pci,pt->slist,pt->nents,PCI_DMA_FROMDEVICE);
+	if (0 == slen)
+		goto err_free_pgtable;
+
+	if (0 != saa7146_pgtable_build_single(pci, pt, pt->slist, slen))
+		goto err_unmap_sg;
 
 	return mem;
+
+err_unmap_sg:
+	pci_unmap_sg(pci, pt->slist, pt->nents, PCI_DMA_FROMDEVICE);
+err_free_pgtable:
+	saa7146_pgtable_free(pci, pt);
+err_free_slist:
+	kfree(pt->slist);
+	pt->slist = NULL;
+err_free_mem:
+	vfree(mem);
+err_null:
+	return NULL;
+}
+
+void saa7146_vfree_destroy_pgtable(struct pci_dev *pci, char *mem, struct saa7146_pgtable *pt)
+{
+	pci_unmap_sg(pci, pt->slist, pt->nents, PCI_DMA_FROMDEVICE);
+	saa7146_pgtable_free(pci, pt);
+	kfree(pt->slist);
+	pt->slist = NULL;
+	vfree(mem);
 }
 
 void saa7146_pgtable_free(struct pci_dev *pci, struct saa7146_pgtable *pt)
@@ -166,8 +183,6 @@ void saa7146_pgtable_free(struct pci_dev *pci, struct saa7146_pgtable *pt)
 		return;
 	pci_free_consistent(pci, pt->size, pt->cpu, pt->dma);
 	pt->cpu = NULL;
-	kfree(pt->slist);
-	pt->slist = NULL;
 }
 
 int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt)
@@ -528,6 +543,7 @@ EXPORT_SYMBOL_GPL(saa7146_pgtable_alloc);
 EXPORT_SYMBOL_GPL(saa7146_pgtable_free);
 EXPORT_SYMBOL_GPL(saa7146_pgtable_build_single);
 EXPORT_SYMBOL_GPL(saa7146_vmalloc_build_pgtable);
+EXPORT_SYMBOL_GPL(saa7146_vfree_destroy_pgtable);
 EXPORT_SYMBOL_GPL(saa7146_wait_for_debi_done);
 
 EXPORT_SYMBOL_GPL(saa7146_setgpio);

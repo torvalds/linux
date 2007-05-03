@@ -195,6 +195,9 @@ static void vpeirq(unsigned long data)
 	u32 newdma = saa7146_read(budget->dev, PCI_VDP3);
 	u32 count;
 
+	/* Ensure streamed PCI data is synced to CPU */
+	pci_dma_sync_sg_for_cpu(budget->dev->pci, budget->pt.slist, budget->pt.nents, PCI_DMA_FROMDEVICE);
+
 	/* nearest lower position divisible by 188 */
 	newdma -= newdma % 188;
 
@@ -504,16 +507,16 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	strcpy(budget->i2c_adap.name, budget->card->name);
 
 	if (i2c_add_adapter(&budget->i2c_adap) < 0) {
-		dvb_unregister_adapter(&budget->dvb_adapter);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_dvb_unregister;
 	}
 
 	ttpci_eeprom_parse_mac(&budget->i2c_adap, budget->dvb_adapter.proposed_mac);
 
-	if (NULL ==
-	    (budget->grabbing = saa7146_vmalloc_build_pgtable(dev->pci, budget->buffer_size, &budget->pt))) {
+	budget->grabbing = saa7146_vmalloc_build_pgtable(dev->pci, budget->buffer_size, &budget->pt);
+	if (NULL == budget->grabbing) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_del_i2c;
 	}
 
 	saa7146_write(dev, PCI_BT_V1, 0x001c0000);
@@ -526,14 +529,16 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	if (bi->type != BUDGET_FS_ACTIVY)
 		saa7146_setgpio(dev, 2, SAA7146_GPIO_OUTHI);
 
-	if (budget_register(budget) == 0) {
-		return 0;
-	}
-err:
+	if (budget_register(budget) == 0)
+		return 0; /* Everything OK */
+
+	/* An error occurred, cleanup resources */
+	saa7146_vfree_destroy_pgtable(dev->pci, budget->grabbing, &budget->pt);
+
+err_del_i2c:
 	i2c_del_adapter(&budget->i2c_adap);
 
-	vfree(budget->grabbing);
-
+err_dvb_unregister:
 	dvb_unregister_adapter(&budget->dvb_adapter);
 
 	return ret;
@@ -555,15 +560,13 @@ int ttpci_budget_deinit(struct budget *budget)
 
 	budget_unregister(budget);
 
+	tasklet_kill(&budget->vpe_tasklet);
+
+	saa7146_vfree_destroy_pgtable(dev->pci, budget->grabbing, &budget->pt);
+
 	i2c_del_adapter(&budget->i2c_adap);
 
 	dvb_unregister_adapter(&budget->dvb_adapter);
-
-	tasklet_kill(&budget->vpe_tasklet);
-
-	saa7146_pgtable_free(dev->pci, &budget->pt);
-
-	vfree(budget->grabbing);
 
 	return 0;
 }
