@@ -55,6 +55,12 @@ struct ehci_hcd {			/* one per controller */
 	__u32			hcs_params;	/* cached register copy */
 	spinlock_t		lock;
 
+#ifdef CONFIG_CPU_FREQ
+	struct notifier_block	cpufreq_transition;
+	int			cpufreq_changing;
+	struct list_head	split_intr_qhs;
+#endif
+
 	/* async schedule support */
 	struct ehci_qh		*async;
 	struct ehci_qh		*reclaim;
@@ -395,6 +401,7 @@ struct ehci_qh {
 	__le32			hw_next;	 /* see EHCI 3.6.1 */
 	__le32			hw_info1;        /* see EHCI 3.6.2 */
 #define	QH_HEAD		0x00008000
+#define	QH_INACTIVATE	0x00000080
 	__le32			hw_info2;        /* see EHCI 3.6.2 */
 #define	QH_SMASK	0x000000ff
 #define	QH_CMASK	0x0000ff00
@@ -437,6 +444,10 @@ struct ehci_qh {
 	unsigned short		start;		/* where polling starts */
 #define NO_FRAME ((unsigned short)~0)			/* pick new start */
 	struct usb_device	*dev;		/* access to TT */
+#ifdef CONFIG_CPU_FREQ
+	struct list_head	split_intr_qhs; /* list of split qhs */
+	__le32			was_active;	/* active bit before "i" set */
+#endif
 } __attribute__ ((aligned (32)));
 
 /*-------------------------------------------------------------------------*/
