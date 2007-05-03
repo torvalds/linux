@@ -6498,6 +6498,12 @@ struct bnx2 {
 #define PHY_INT_MODE_LINK_READY_FLAG	0x200
 #define PHY_DIS_EARLY_DAC_FLAG		0x400
 
+	u32			mii_bmcr;
+	u32			mii_bmsr;
+	u32			mii_adv;
+	u32			mii_lpa;
+	u32			mii_up1;
+
 	u32			chip_id;
 	/* chip num:16-31, rev:12-15, metal:4-11, bond_id:0-3 */
 #define CHIP_NUM(bp)			(((bp)->chip_id) & 0xffff0000)
