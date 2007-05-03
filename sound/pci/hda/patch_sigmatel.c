@@ -1766,6 +1766,7 @@ static int stac92xx_resume(struct hda_codec *codec)
 
 	stac92xx_init(codec);
 	stac92xx_set_config_regs(codec);
+	snd_hda_resume_ctls(codec, spec->mixer);
 	for (i = 0; i < spec->num_mixers; i++)
 		snd_hda_resume_ctls(codec, spec->mixers[i]);
 	if (spec->multiout.dig_out_nid)
