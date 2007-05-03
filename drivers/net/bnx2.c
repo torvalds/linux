@@ -5562,6 +5562,9 @@ bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIREG: {
 		u32 mii_regval;
 
+		if (!netif_running(dev))
+			return -EAGAIN;
+
 		spin_lock_bh(&bp->phy_lock);
 		err = bnx2_read_phy(bp, data->reg_num & 0x1f, &mii_regval);
 		spin_unlock_bh(&bp->phy_lock);
@@ -5574,6 +5577,9 @@ bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCSMIIREG:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
+
+		if (!netif_running(dev))
+			return -EAGAIN;
 
 		spin_lock_bh(&bp->phy_lock);
 		err = bnx2_write_phy(bp, data->reg_num & 0x1f, data->val_in);
