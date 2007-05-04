@@ -129,6 +129,10 @@ struct tape_3590_med_sense {
 	char pad2[116];
 } __attribute__ ((packed));
 
+struct tape_3590_rdc_data {
+	char data[64];
+} __attribute__ ((packed));
+
 /* Datastructures for 3592 encryption support */
 
 struct tape3592_kekl {

@@ -788,6 +788,7 @@ tape_3590_done(struct tape_device *device, struct tape_request *request)
 	case TO_SIZE:
 	case TO_KEKL_SET:
 	case TO_KEKL_QUERY:
+	case TO_RDC:
 		break;
 	}
 	return TAPE_IO_SUCCESS;
@@ -1549,6 +1550,26 @@ tape_3590_irq(struct tape_device *device, struct tape_request *request,
 	return TAPE_IO_STOP;
 }
 
+
+static int tape_3590_read_dev_chars(struct tape_device *device,
+				    struct tape_3590_rdc_data *rdc_data)
+{
+	int rc;
+	struct tape_request *request;
+
+	request = tape_alloc_request(1, sizeof(*rdc_data));
+	if (IS_ERR(request))
+		return PTR_ERR(request);
+	request->op = TO_RDC;
+	tape_ccw_end(request->cpaddr, CCW_CMD_RDC, sizeof(*rdc_data),
+		     request->cpdata);
+	rc = tape_do_io(device, request);
+	if (rc == 0)
+		memcpy(rdc_data, request->cpdata, sizeof(*rdc_data));
+	tape_free_request(request);
+	return rc;
+}
+
 /*
  * Setup device function
  */
@@ -1557,7 +1578,7 @@ tape_3590_setup_device(struct tape_device *device)
 {
 	int rc;
 	struct tape_3590_disc_data *data;
-	char *rdc_data;
+	struct tape_3590_rdc_data *rdc_data;
 
 	DBF_EVENT(6, "3590 device setup\n");
 	data = kzalloc(sizeof(struct tape_3590_disc_data), GFP_KERNEL | GFP_DMA);
@@ -1566,12 +1587,12 @@ tape_3590_setup_device(struct tape_device *device)
 	data->read_back_op = READ_PREVIOUS;
 	device->discdata = data;
 
-	rdc_data = kmalloc(64, GFP_KERNEL | GFP_DMA);
+	rdc_data = kmalloc(sizeof(*rdc_data), GFP_KERNEL | GFP_DMA);
 	if (!rdc_data) {
 		rc = -ENOMEM;
 		goto fail_kmalloc;
 	}
-	rc = read_dev_chars(device->cdev, (void**)&rdc_data, 64);
+	rc = tape_3590_read_dev_chars(device, rdc_data);
 	if (rc) {
 		DBF_LH(3, "Read device characteristics failed!\n");
 		goto fail_kmalloc;
@@ -1579,7 +1600,7 @@ tape_3590_setup_device(struct tape_device *device)
 	rc = tape_std_assign(device);
 	if (rc)
 		goto fail_rdc_data;
-	if (rdc_data[31] == 0x13) {
+	if (rdc_data->data[31] == 0x13) {
 		PRINT_INFO("Device has crypto support\n");
 		data->crypt_info.capability |= TAPE390_CRYPT_SUPPORTED_MASK;
 		tape_3592_disable_crypt(device);
