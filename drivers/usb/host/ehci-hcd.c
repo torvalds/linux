@@ -399,6 +399,8 @@ static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
 				is_on ? SetPortFeature : ClearPortFeature,
 				USB_PORT_FEAT_POWER,
 				port--, NULL, 0);
+	/* Flush those writes */
+	ehci_readl(ehci, &ehci->regs->command);
 	msleep(20);
 }
 

@@ -28,6 +28,87 @@
 
 /*-------------------------------------------------------------------------*/
 
+#ifdef	CONFIG_USB_PERSIST
+
+static int ehci_hub_control(
+	struct usb_hcd	*hcd,
+	u16		typeReq,
+	u16		wValue,
+	u16		wIndex,
+	char		*buf,
+	u16		wLength
+);
+
+/* After a power loss, ports that were owned by the companion must be
+ * reset so that the companion can still own them.
+ */
+static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
+{
+	u32 __iomem	*reg;
+	u32		status;
+	int		port;
+	__le32		buf;
+	struct usb_hcd	*hcd = ehci_to_hcd(ehci);
+
+	if (!ehci->owned_ports)
+		return;
+
+	/* Give the connections some time to appear */
+	msleep(20);
+
+	port = HCS_N_PORTS(ehci->hcs_params);
+	while (port--) {
+		if (test_bit(port, &ehci->owned_ports)) {
+			reg = &ehci->regs->port_status[port];
+			status = ehci_readl(ehci, reg);
+
+			/* Port already owned by companion? */
+			if (status & PORT_OWNER)
+				clear_bit(port, &ehci->owned_ports);
+			else
+				ehci_hub_control(hcd, SetPortFeature,
+						USB_PORT_FEAT_RESET, port + 1,
+						NULL, 0);
+		}
+	}
+
+	if (!ehci->owned_ports)
+		return;
+	msleep(90);		/* Wait for resets to complete */
+
+	port = HCS_N_PORTS(ehci->hcs_params);
+	while (port--) {
+		if (test_bit(port, &ehci->owned_ports)) {
+			ehci_hub_control(hcd, GetPortStatus,
+					0, port + 1,
+					(char *) &buf, sizeof(buf));
+
+			/* The companion should now own the port,
+			 * but if something went wrong the port must not
+			 * remain enabled.
+			 */
+			reg = &ehci->regs->port_status[port];
+			status = ehci_readl(ehci, reg) & ~PORT_RWC_BITS;
+			if (status & PORT_OWNER)
+				ehci_writel(ehci, status | PORT_CSC, reg);
+			else {
+				ehci_dbg(ehci, "failed handover port %d: %x\n",
+						port + 1, status);
+				ehci_writel(ehci, status & ~PORT_PE, reg);
+			}
+		}
+	}
+
+	ehci->owned_ports = 0;
+}
+
+#else	/* CONFIG_USB_PERSIST */
+
+static inline void ehci_handover_companion_ports(struct ehci_hcd *ehci)
+{ }
+
+#endif
+
 #ifdef	CONFIG_PM
 
 static int ehci_bus_suspend (struct usb_hcd *hcd)
@@ -60,14 +141,16 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	 * then manually resume them in the bus_resume() routine.
 	 */
 	ehci->bus_suspended = 0;
+	ehci->owned_ports = 0;
 	while (port--) {
 		u32 __iomem	*reg = &ehci->regs->port_status [port];
 		u32		t1 = ehci_readl(ehci, reg) & ~PORT_RWC_BITS;
 		u32		t2 = t1;
 
 		/* keep track of which ports we suspend */
-		if ((t1 & PORT_PE) && !(t1 & PORT_OWNER) &&
-				!(t1 & PORT_SUSPEND)) {
+		if (t1 & PORT_OWNER)
+			set_bit(port, &ehci->owned_ports);
+		else if ((t1 & PORT_PE) && !(t1 & PORT_SUSPEND)) {
 			t2 |= PORT_SUSPEND;
 			set_bit(port, &ehci->bus_suspended);
 		}
@@ -108,6 +191,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			temp;
+	u32			power_okay;
 	int			i;
 
 	if (time_before (jiffies, ehci->next_statechange))
@@ -120,8 +204,9 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	 * the last user of the controller, not reset/pm hardware keeping
 	 * state we gave to it.
 	 */
-	temp = ehci_readl(ehci, &ehci->regs->intr_enable);
-	ehci_dbg(ehci, "resume root hub%s\n", temp ? "" : " after power loss");
+	power_okay = ehci_readl(ehci, &ehci->regs->intr_enable);
+	ehci_dbg(ehci, "resume root hub%s\n",
+			power_okay ? "" : " after power loss");
 
 	/* at least some APM implementations will try to deliver
 	 * IRQs right away, so delay them until we're ready.
@@ -184,6 +269,9 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	ehci_writel(ehci, INTR_MASK, &ehci->regs->intr_enable);
 
 	spin_unlock_irq (&ehci->lock);
+
+	if (!power_okay)
+		ehci_handover_companion_ports(ehci);
 	return 0;
 }
 
@@ -448,7 +536,8 @@ static int ehci_hub_control (
 ) {
 	struct ehci_hcd	*ehci = hcd_to_ehci (hcd);
 	int		ports = HCS_N_PORTS (ehci->hcs_params);
-	u32 __iomem	*status_reg = &ehci->regs->port_status[wIndex - 1];
+	u32 __iomem	*status_reg = &ehci->regs->port_status[
+				(wIndex & 0xff) - 1];
 	u32		temp, status;
 	unsigned long	flags;
 	int		retval = 0;

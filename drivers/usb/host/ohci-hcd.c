@@ -510,15 +510,7 @@ static int ohci_run (struct ohci_hcd *ohci)
 	// flush the writes
 	(void) ohci_readl (ohci, &ohci->regs->control);
 	msleep(temp);
-	temp = roothub_a (ohci);
-	if (!(temp & RH_A_NPS)) {
-		/* power down each port */
-		for (temp = 0; temp < ohci->num_ports; temp++)
-			ohci_writel (ohci, RH_PS_LSDA,
-				&ohci->regs->roothub.portstatus [temp]);
-	}
-	// flush those writes
-	(void) ohci_readl (ohci, &ohci->regs->control);
+
 	memset (ohci->hcca, 0, sizeof (struct ohci_hcca));
 
 	/* 2msec timelimit here means no irqs/preempt */
@@ -826,17 +818,8 @@ static int ohci_restart (struct ohci_hcd *ohci)
 	if ((temp = ohci_run (ohci)) < 0) {
 		ohci_err (ohci, "can't restart, %d\n", temp);
 		return temp;
-	} else {
-		/* here we "know" root ports should always stay powered,
-		 * and that if we try to turn them back on the root hub
-		 * will respond to CSC processing.
-		 */
-		i = ohci->num_ports;
-		while (i--)
-			ohci_writel (ohci, RH_PS_PSS,
-				&ohci->regs->roothub.portstatus [i]);
-		ohci_dbg (ohci, "restart complete\n");
 	}
+	ohci_dbg(ohci, "restart complete\n");
 	return 0;
 }
 #endif

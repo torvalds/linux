@@ -96,11 +96,14 @@ struct ehci_hcd {			/* one per controller */
 
 	/* per root hub port */
 	unsigned long		reset_done [EHCI_MAX_ROOT_PORTS];
+
 	/* bit vectors (one bit per port) */
 	unsigned long		bus_suspended;		/* which ports were
 			already suspended at the start of a bus suspend */
 	unsigned long		companion_ports;	/* which ports are
 			dedicated to the companion controller */
+	unsigned long		owned_ports;		/* which ports are
+			owned by the companion during a bus suspend */
 
 	/* per-HC memory pools (could be per-bus, but ...) */
 	struct dma_pool		*qh_pool;	/* qh per active urb */
