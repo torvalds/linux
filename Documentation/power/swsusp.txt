@@ -393,6 +393,9 @@ safest thing is to unmount all filesystems on removable media (such USB,
 Firewire, CompactFlash, MMC, external SATA, or even IDE hotplug bays)
 before suspending; then remount them after resuming.
 
+There is a work-around for this problem.  For more information, see
+Documentation/usb/persist.txt.
+
 Q: I upgraded the kernel from 2.6.15 to 2.6.16. Both kernels were
 compiled with the similar configuration files. Anyway I found that
 suspend to disk (and resume) is much slower on 2.6.16 compared to

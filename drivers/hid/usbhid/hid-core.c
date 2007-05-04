@@ -1015,7 +1015,7 @@ static void hid_pre_reset(struct usb_interface *intf)
 	hid_suspend(intf, PMSG_ON);
 }
 
-static void hid_post_reset(struct usb_interface *intf)
+static void hid_post_reset(struct usb_interface *intf, int reset_resume)
 {
 	struct usb_device *dev = interface_to_usbdev (intf);
 

@@ -553,45 +553,121 @@ static int hub_hub_status(struct usb_hub *hub,
 static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
 {
 	struct usb_device *hdev = hub->hdev;
-	int ret;
+	int ret = 0;
 
-	if (hdev->children[port1-1] && set_state) {
+	if (hdev->children[port1-1] && set_state)
 		usb_set_device_state(hdev->children[port1-1],
 				USB_STATE_NOTATTACHED);
-	}
-	ret = clear_port_feature(hdev, port1, USB_PORT_FEAT_ENABLE);
+	if (!hub->error)
+		ret = clear_port_feature(hdev, port1, USB_PORT_FEAT_ENABLE);
 	if (ret)
 		dev_err(hub->intfdev, "cannot disable port %d (err = %d)\n",
-			port1, ret);
-
+				port1, ret);
 	return ret;
 }
 
+/*
+ * Disable a port and mark a logical connnect-change event, so that some
+ * time later khubd will disconnect() any existing usb_device on the port
+ * and will re-enumerate if there actually is a device attached.
+ */
+static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
+{
+	dev_dbg(hub->intfdev, "logical disconnect on port %d\n", port1);
+	hub_port_disable(hub, port1, 1);
+
+	/* FIXME let caller ask to power down the port:
+	 *  - some devices won't enumerate without a VBUS power cycle
+	 *  - SRP saves power that way
+	 *  - ... new call, TBD ...
+	 * That's easy if this hub can switch power per-port, and
+	 * khubd reactivates the port later (timer, SRP, etc).
+	 * Powerdown must be optional, because of reset/DFU.
+	 */
+
+	set_bit(port1, hub->change_bits);
+ 	kick_khubd(hub);
+}
+
+static void disconnect_all_children(struct usb_hub *hub, int logical)
+{
+	struct usb_device *hdev = hub->hdev;
+	int port1;
+
+	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
+		if (hdev->children[port1-1]) {
+			if (logical)
+				hub_port_logical_disconnect(hub, port1);
+			else
+				usb_disconnect(&hdev->children[port1-1]);
+		}
+	}
+}
+
+#ifdef	CONFIG_USB_PERSIST
+
+#define USB_PERSIST	1
+
+/* For "persistent-device" resets we must mark the child devices for reset
+ * and turn off a possible connect-change status (so khubd won't disconnect
+ * them later).
+ */
+static void mark_children_for_reset_resume(struct usb_hub *hub)
+{
+	struct usb_device *hdev = hub->hdev;
+	int port1;
+
+	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
+		struct usb_device *child = hdev->children[port1-1];
+
+		if (child) {
+			child->reset_resume = 1;
+			clear_port_feature(hdev, port1,
+					USB_PORT_FEAT_C_CONNECTION);
+		}
+	}
+}
+
+#else
+
+#define USB_PERSIST	0
+
+static inline void mark_children_for_reset_resume(struct usb_hub *hub)
+{ }
+
+#endif	/* CONFIG_USB_PERSIST */
 
 /* caller has locked the hub device */
 static void hub_pre_reset(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
-	struct usb_device *hdev = hub->hdev;
-	int port1;
 
-	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
-		if (hdev->children[port1 - 1]) {
-			usb_disconnect(&hdev->children[port1 - 1]);
-			if (hub->error == 0)
-				hub_port_disable(hub, port1, 0);
-		}
-	}
+	/* This routine doesn't run as part of a reset-resume, so it's safe
+	 * to disconnect all the drivers below the hub.
+	 */
+	disconnect_all_children(hub, 0);
 	hub_quiesce(hub);
 }
 
 /* caller has locked the hub device */
-static void hub_post_reset(struct usb_interface *intf)
+static void hub_post_reset(struct usb_interface *intf, int reset_resume)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
-	hub_activate(hub);
 	hub_power_on(hub);
+	if (reset_resume) {
+		if (USB_PERSIST)
+			mark_children_for_reset_resume(hub);
+		else {
+			/* Reset-resume doesn't call pre_reset, so we have to
+			 * disconnect the children here.  But we may not lock
+			 * the child devices, so we have to do a "logical"
+			 * disconnect.
+			 */
+			disconnect_all_children(hub, 1);
+		}
+	}
+	hub_activate(hub);
 }
 
 
@@ -1054,32 +1130,63 @@ void usb_set_device_state(struct usb_device *udev,
 #ifdef	CONFIG_PM
 
 /**
+ * usb_reset_suspended_device - reset a suspended device instead of resuming it
+ * @udev: device to be reset instead of resumed
+ *
+ * If a host controller doesn't maintain VBUS suspend current during a
+ * system sleep or is reset when the system wakes up, all the USB
+ * power sessions below it will be broken.  This is especially troublesome
+ * for mass-storage devices containing mounted filesystems, since the
+ * device will appear to have disconnected and all the memory mappings
+ * to it will be lost.
+ *
+ * As an alternative, this routine attempts to recover power sessions for
+ * devices that are still present by resetting them instead of resuming
+ * them.  If all goes well, the devices will appear to persist across the
+ * the interruption of the power sessions.
+ *
+ * This facility is inherently dangerous.  Although usb_reset_device()
+ * makes every effort to insure that the same device is present after the
+ * reset as before, it cannot provide a 100% guarantee.  Furthermore it's
+ * quite possible for a device to remain unaltered but its media to be
+ * changed.  If the user replaces a flash memory card while the system is
+ * asleep, he will have only himself to blame when the filesystem on the
+ * new card is corrupted and the system crashes.
+ */
+int usb_reset_suspended_device(struct usb_device *udev)
+{
+	int rc = 0;
+
+	dev_dbg(&udev->dev, "usb %sresume\n", "reset-");
+
+	/* After we're done the device won't be suspended any more.
+	 * In addition, the reset won't work if udev->state is SUSPENDED.
+	 */
+	usb_set_device_state(udev, udev->actconfig
+			? USB_STATE_CONFIGURED
+			: USB_STATE_ADDRESS);
+
+	/* Root hubs don't need to be (and can't be) reset */
+	if (udev->parent)
+		rc = usb_reset_device(udev);
+	return rc;
+}
+
+/**
  * usb_root_hub_lost_power - called by HCD if the root hub lost Vbus power
  * @rhdev: struct usb_device for the root hub
  *
  * The USB host controller driver calls this function when its root hub
  * is resumed and Vbus power has been interrupted or the controller
- * has been reset.  The routine marks all the children of the root hub
- * as NOTATTACHED and marks logical connect-change events on their ports.
+ * has been reset.  The routine marks @rhdev as having lost power.  When
+ * the hub driver is resumed it will take notice; if CONFIG_USB_PERSIST
+ * is enabled then it will carry out power-session recovery, otherwise
+ * it will disconnect all the child devices.
  */
 void usb_root_hub_lost_power(struct usb_device *rhdev)
 {
-	struct usb_hub *hub;
-	int port1;
-	unsigned long flags;
-
 	dev_warn(&rhdev->dev, "root hub lost power or was reset\n");
-
-	spin_lock_irqsave(&device_state_lock, flags);
-	hub = hdev_to_hub(rhdev);
-	for (port1 = 1; port1 <= rhdev->maxchild; ++port1) {
-		if (rhdev->children[port1 - 1]) {
-			recursively_mark_NOTATTACHED(
-					rhdev->children[port1 - 1]);
-			set_bit(port1, hub->change_bits);
-		}
-	}
-	spin_unlock_irqrestore(&device_state_lock, flags);
+	rhdev->reset_resume = 1;
 }
 EXPORT_SYMBOL_GPL(usb_root_hub_lost_power);
 
@@ -1511,29 +1618,6 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		port1);
 
 	return status;
-}
-
-/*
- * Disable a port and mark a logical connnect-change event, so that some
- * time later khubd will disconnect() any existing usb_device on the port
- * and will re-enumerate if there actually is a device attached.
- */
-static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
-{
-	dev_dbg(hub->intfdev, "logical disconnect on port %d\n", port1);
-	hub_port_disable(hub, port1, 1);
-
-	/* FIXME let caller ask to power down the port:
-	 *  - some devices won't enumerate without a VBUS power cycle
-	 *  - SRP saves power that way
-	 *  - ... new call, TBD ...
-	 * That's easy if this hub can switch power per-port, and
-	 * khubd reactivates the port later (timer, SRP, etc).
-	 * Powerdown must be optional, because of reset/DFU.
-	 */
-
-	set_bit(port1, hub->change_bits);
- 	kick_khubd(hub);
 }
 
 #ifdef	CONFIG_PM
@@ -3018,7 +3102,7 @@ int usb_reset_composite_device(struct usb_device *udev,
 					cintf->dev.driver) {
 				drv = to_usb_driver(cintf->dev.driver);
 				if (drv->post_reset)
-					(drv->post_reset)(cintf);
+					(drv->post_reset)(cintf, 0);
 			}
 			if (cintf != iface)
 				up(&cintf->dev.sem);

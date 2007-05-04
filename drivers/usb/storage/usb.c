@@ -236,7 +236,7 @@ static void storage_pre_reset(struct usb_interface *iface)
 	mutex_lock(&us->dev_mutex);
 }
 
-static void storage_post_reset(struct usb_interface *iface)
+static void storage_post_reset(struct usb_interface *iface, int reset_resume)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
@@ -249,7 +249,11 @@ static void storage_post_reset(struct usb_interface *iface)
 
 	/* FIXME: Notify the subdrivers that they need to reinitialize
 	 * the device */
-	mutex_unlock(&us->dev_mutex);
+
+	/* If this is a reset-resume then the pre_reset routine wasn't
+	 * called, so we don't need to unlock the mutex. */
+	if (!reset_resume)
+		mutex_unlock(&us->dev_mutex);
 }
 
 /*

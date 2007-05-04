@@ -217,7 +217,10 @@ static int generic_resume(struct usb_device *udev)
 {
 	int rc;
 
-	rc = usb_port_resume(udev);
+	if (udev->reset_resume)
+		rc = usb_reset_suspended_device(udev);
+	else
+		rc = usb_port_resume(udev);
 
 	/* Root hubs don't have upstream ports to resume or reset,
 	 * so the line above won't do much for them.  We have to

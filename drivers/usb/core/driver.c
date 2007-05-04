@@ -824,8 +824,9 @@ static int usb_resume_device(struct usb_device *udev)
 	struct usb_device_driver	*udriver;
 	int				status = 0;
 
-	if (udev->state == USB_STATE_NOTATTACHED ||
-			udev->state != USB_STATE_SUSPENDED)
+	if (udev->state == USB_STATE_NOTATTACHED)
+		goto done;
+	if (udev->state != USB_STATE_SUSPENDED && !udev->reset_resume)
 		goto done;
 
 	/* Can't resume it if it doesn't have a driver. */
@@ -882,7 +883,7 @@ done:
 }
 
 /* Caller has locked intf's usb_device's pm_mutex */
-static int usb_resume_interface(struct usb_interface *intf)
+static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
 {
 	struct usb_driver	*driver;
 	int			status = 0;
@@ -902,21 +903,21 @@ static int usb_resume_interface(struct usb_interface *intf)
 	}
 	driver = to_usb_driver(intf->dev.driver);
 
-	if (driver->resume) {
+	if (reset_resume && driver->post_reset)
+		driver->post_reset(intf, reset_resume);
+	else if (driver->resume) {
 		status = driver->resume(intf);
 		if (status)
 			dev_err(&intf->dev, "%s error %d\n",
 					"resume", status);
-		else
-			mark_active(intf);
-	} else {
+	} else
 		dev_warn(&intf->dev, "no resume for driver %s?\n",
 				driver->name);
-		mark_active(intf);
-	}
 
 done:
 	// dev_dbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
+	if (status == 0)
+		mark_active(intf);
 	return status;
 }
 
@@ -1063,7 +1064,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	if (status != 0) {
 		while (--i >= 0) {
 			intf = udev->actconfig->interface[i];
-			usb_resume_interface(intf);
+			usb_resume_interface(intf, 0);
 		}
 
 		/* Try another autosuspend when the interfaces aren't busy */
@@ -1162,20 +1163,21 @@ static int usb_resume_both(struct usb_device *udev)
  		}
 	} else {
 
-		/* Needed only for setting udev->dev.power.power_state.event
-		 * and for possible debugging message. */
+		/* Needed for setting udev->dev.power.power_state.event,
+		 * for possible debugging message, and for reset_resume. */
 		status = usb_resume_device(udev);
 	}
 
 	if (status == 0 && udev->actconfig) {
 		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
 			intf = udev->actconfig->interface[i];
-			usb_resume_interface(intf);
+			usb_resume_interface(intf, udev->reset_resume);
 		}
 	}
 
  done:
 	// dev_dbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
+	udev->reset_resume = 0;
 	return status;
 }
 
@@ -1510,8 +1512,15 @@ static int usb_resume(struct device *dev)
 	if (!is_usb_device(dev))	/* Ignore PM for interfaces */
 		return 0;
 	udev = to_usb_device(dev);
-	if (udev->autoresume_disabled)
-		return -EPERM;
+
+	/* If autoresume is disabled then we also want to prevent resume
+	 * during system wakeup.  However, a "persistent-device" reset-resume
+	 * after power loss counts as a wakeup event.  So allow a
+	 * reset-resume to occur if remote wakeup is enabled. */
+	if (udev->autoresume_disabled) {
+		if (!(udev->reset_resume && udev->do_remote_wakeup))
+			return -EPERM;
+	}
 	return usb_external_resume_device(udev);
 }
 

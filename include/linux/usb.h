@@ -403,6 +403,7 @@ struct usb_device {
 
 	unsigned auto_pm:1;		/* autosuspend/resume in progress */
 	unsigned do_remote_wakeup:1;	/* remote wakeup should be enabled */
+	unsigned reset_resume:1;	/* needs reset instead of resume */
 	unsigned autosuspend_disabled:1; /* autosuspend and autoresume */
 	unsigned autoresume_disabled:1;  /*  disabled by the user */
 #endif
@@ -819,7 +820,10 @@ struct usbdrv_wrap {
  * @pre_reset: Called by usb_reset_composite_device() when the device
  *	is about to be reset.
  * @post_reset: Called by usb_reset_composite_device() after the device
- *	has been reset.
+ *	has been reset, or in lieu of @resume following a reset-resume
+ *	(i.e., the device is reset instead of being resumed, as might
+ *	happen if power was lost).  The second argument tells which is
+ *	the reason.
  * @id_table: USB drivers use ID table to support hotplugging.
  *	Export this with MODULE_DEVICE_TABLE(usb,...).  This must be set
  *	or your driver's probe function will never get called.
@@ -861,7 +865,7 @@ struct usb_driver {
 	int (*resume) (struct usb_interface *intf);
 
 	void (*pre_reset) (struct usb_interface *intf);
-	void (*post_reset) (struct usb_interface *intf);
+	void (*post_reset) (struct usb_interface *intf, int reset_resume);
 
 	const struct usb_device_id *id_table;
 
