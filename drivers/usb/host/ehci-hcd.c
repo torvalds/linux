@@ -1009,6 +1009,11 @@ MODULE_LICENSE ("GPL");
 #define	PS3_SYSTEM_BUS_DRIVER	ps3_ehci_sb_driver
 #endif
 
+#ifdef CONFIG_440EPX
+#include "ehci-ppc-soc.c"
+#define	PLATFORM_DRIVER		ehci_ppc_soc_driver
+#endif
+
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
     !defined(PS3_SYSTEM_BUS_DRIVER)
 #error "missing bus glue for ehci-hcd"
