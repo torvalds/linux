@@ -1539,9 +1539,9 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 		if (!(portstatus & USB_PORT_STAT_CONNECTION))
 			return -ENOTCONN;
 
-		/* bomb out completely if something weird happened */
+		/* bomb out completely if the connection bounced */
 		if ((portchange & USB_PORT_STAT_C_CONNECTION))
-			return -EINVAL;
+			return -ENOTCONN;
 
 		/* if we`ve finished resetting, then break out of the loop */
 		if (!(portstatus & USB_PORT_STAT_RESET) &&
@@ -2974,7 +2974,7 @@ int usb_reset_device(struct usb_device *udev)
 		 * Other endpoints will be handled by re-enumeration. */
 		ep0_reinit(udev);
 		ret = hub_port_init(parent_hub, udev, port1, i);
-		if (ret >= 0)
+		if (ret >= 0 || ret == -ENOTCONN || ret == -ENODEV)
 			break;
 	}
 	clear_bit(port1, parent_hub->busy_bits);
