@@ -31,6 +31,7 @@
 #include <asm/hw_irq.h>
 #include <asm/io.h>
 #include <asm/prom.h>
+#include <asm/time.h>
 
 #define SDCASR_REG		0x0100
 #define SDCASR_REG_STRIDE	0x1000
@@ -204,6 +205,8 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->cur = pas_freqs[cur_astate].frequency;
 	policy->cpus = cpu_online_map;
 
+	ppc_proc_freq = policy->cur * 1000ul;
+
 	cpufreq_frequency_table_get_attr(pas_freqs, policy->cpu);
 
 	/* this ensures that policy->cpuinfo_min and policy->cpuinfo_max
@@ -270,6 +273,7 @@ static int pas_cpufreq_target(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	mutex_unlock(&pas_switch_mutex);
 
+	ppc_proc_freq = freqs.new * 1000ul;
 	return 0;
 }
 
