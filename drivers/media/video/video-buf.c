@@ -702,9 +702,7 @@ videobuf_qbuf(struct videobuf_queue *q,
 		dprintk(1,"qbuf: memory type is wrong.\n");
 		goto done;
 	}
-	if (buf->state == STATE_QUEUED ||
-	    buf->state == STATE_PREPARED ||
-	    buf->state == STATE_ACTIVE) {
+	if (buf->state != STATE_NEEDS_INIT && buf->state != STATE_IDLE) {
 		dprintk(1,"qbuf: buffer is already queued or active.\n");
 		goto done;
 	}
