@@ -488,7 +488,7 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev)
 static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* HPT372N and friends - UDMA133 */
-	static struct ata_port_info info = {
+	static const struct ata_port_info info = {
 		.sht = &hpt3x2n_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -496,8 +496,8 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.udma_mask = 0x7f,
 		.port_ops = &hpt3x2n_port_ops
 	};
-	struct ata_port_info *port_info[2];
-	struct ata_port_info *port = &info;
+	struct ata_port_info port = info;
+	const struct ata_port_info *ppi[] = { &port, NULL };
 
 	u8 irqmask;
 	u32 class_rev;
@@ -585,9 +585,9 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* Set our private data up. We only need a few flags so we use
 	   it directly */
-	port->private_data = NULL;
+	port.private_data = NULL;
 	if (pci_mhz > 60) {
-		port->private_data = (void *)PCI66;
+		port.private_data = (void *)PCI66;
 		/*
 		 * On  HPT371N, if ATA clock is 66 MHz we must set bit 2 in
 		 * the MISC. register to stretch the UltraDMA Tss timing.
@@ -598,8 +598,7 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	/* Now kick off ATA set up */
-	port_info[0] = port_info[1] = port;
-	return ata_pci_init_one(dev, port_info, 2);
+	return ata_pci_init_one(dev, ppi);
 }
 
 static const struct pci_device_id hpt3x2n[] = {

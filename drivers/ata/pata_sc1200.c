@@ -243,7 +243,7 @@ static struct ata_port_operations sc1200_port_ops = {
 
 static int sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	static struct ata_port_info info = {
+	static const struct ata_port_info info = {
 		.sht = &sc1200_sht,
 		.flags = ATA_FLAG_SLAVE_POSS|ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -251,10 +251,10 @@ static int sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.udma_mask = 0x07,
 		.port_ops = &sc1200_port_ops
 	};
-	static struct ata_port_info *port_info[2] = { &info, &info };
-
 	/* Can't enable port 2 yet, see top comments */
-	return ata_pci_init_one(dev, port_info, 1);
+	const struct ata_port_info *ppi[] = { &info, &ata_dummy_port_info };
+
+	return ata_pci_init_one(dev, ppi);
 }
 
 static const struct pci_device_id sc1200[] = {

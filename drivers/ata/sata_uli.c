@@ -125,7 +125,7 @@ static const struct ata_port_operations uli_ops = {
 	.port_start		= ata_port_start,
 };
 
-static struct ata_port_info uli_port_info = {
+static const struct ata_port_info uli_port_info = {
 	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 			  ATA_FLAG_IGN_SIMPLEX,
 	.pio_mask       = 0x1f,		/* pio0-4 */
@@ -201,19 +201,33 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	n_ports = 2;
 	if (board_idx == uli_5287)
 		n_ports = 4;
-	rc = ata_pci_prepare_native_host(pdev, ppi, n_ports, &host);
-	if (rc)
-		return rc;
+
+	/* allocate the host */
+	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
+	if (!host)
+		return -ENOMEM;
 
 	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
 		return -ENOMEM;
 	host->private_data = hpriv;
 
+	/* the first two ports are standard SFF */
+	rc = ata_pci_init_native_host(host);
+	if (rc)
+		return rc;
+
+	rc = ata_pci_init_bmdma(host);
+	if (rc)
+		return rc;
+
 	iomap = host->iomap;
 
 	switch (board_idx) {
 	case uli_5287:
+		/* If there are four, the last two live right after
+		 * the standard SFF ports.
+		 */
 		hpriv->scr_cfg_addr[0] = ULI5287_BASE;
 		hpriv->scr_cfg_addr[1] = ULI5287_BASE + ULI5287_OFFS;
 

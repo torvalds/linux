@@ -141,7 +141,7 @@ static int all_generic_ide;		/* Set to claim all devices */
 static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	u16 command;
-	static struct ata_port_info info = {
+	static const struct ata_port_info info = {
 		.sht = &generic_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
@@ -149,7 +149,7 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 		.udma_mask = 0x3f,
 		.port_ops = &generic_port_ops
 	};
-	static struct ata_port_info *port_info[2] = { &info, &info };
+	const struct ata_port_info *ppi[] = { &info, NULL };
 
 	/* Don't use the generic entry unless instructed to do so */
 	if (id->driver_data == 1 && all_generic_ide == 0)
@@ -175,7 +175,7 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 	if (dev->vendor == PCI_VENDOR_ID_AL)
 	    	ata_pci_clear_simplex(dev);
 
-	return ata_pci_init_one(dev, port_info, 2);
+	return ata_pci_init_one(dev, ppi);
 }
 
 static struct pci_device_id ata_generic[] = {

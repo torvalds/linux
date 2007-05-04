@@ -415,7 +415,7 @@ static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	struct ata_host *host;
 	int rc;
 
-	rc = ata_pci_prepare_native_host(pdev, ppi, 2, &host);
+	rc = ata_pci_prepare_native_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 	*r_host = host;

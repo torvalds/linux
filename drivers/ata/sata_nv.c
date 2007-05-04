@@ -457,7 +457,7 @@ static const struct ata_port_operations nv_adma_ops = {
 	.host_stop		= nv_adma_host_stop,
 };
 
-static struct ata_port_info nv_port_info[] = {
+static const struct ata_port_info nv_port_info[] = {
 	/* generic */
 	{
 		.sht		= &nv_sht,
@@ -1537,7 +1537,7 @@ static void nv_adma_error_handler(struct ata_port *ap)
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
-	const struct ata_port_info *ppi[2];
+	const struct ata_port_info *ppi[] = { NULL, NULL };
 	struct ata_host *host;
 	struct nv_host_priv *hpriv;
 	int rc;
@@ -1565,8 +1565,8 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		type = ADMA;
 	}
 
-	ppi[0] = ppi[1] = &nv_port_info[type];
-	rc = ata_pci_prepare_native_host(pdev, ppi, 2, &host);
+	ppi[0] = &nv_port_info[type];
+	rc = ata_pci_prepare_native_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 

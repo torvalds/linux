@@ -538,7 +538,7 @@ static struct ata_port_operations nv133_port_ops = {
 
 static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	static struct ata_port_info info[10] = {
+	static const struct ata_port_info info[10] = {
 		{	/* 0: AMD 7401 */
 			.sht = &amd_sht,
 			.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
@@ -620,7 +620,7 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.port_ops = &amd100_port_ops
 		}
 	};
-	static struct ata_port_info *port_info[2];
+	const struct ata_port_info *ppi[] = { NULL, NULL };
 	static int printed_version;
 	int type = id->driver_data;
 	u8 rev;
@@ -652,9 +652,8 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ata_pci_clear_simplex(pdev);
 
 	/* And fire it up */
-
-	port_info[0] = port_info[1] = &info[type];
-	return ata_pci_init_one(pdev, port_info, 2);
+	ppi[0] = &info[type];
+	return ata_pci_init_one(pdev, ppi);
 }
 
 #ifdef CONFIG_PM

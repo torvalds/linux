@@ -129,7 +129,7 @@ static const struct ata_port_operations sis_ops = {
 	.port_start		= ata_port_start,
 };
 
-static struct ata_port_info sis_port_info = {
+static const struct ata_port_info sis_port_info = {
 	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 	.pio_mask	= 0x1f,
 	.mwdma_mask	= 0x7,
@@ -255,7 +255,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	struct ata_port_info pi = sis_port_info;
-	const struct ata_port_info *ppi[2] = { &pi, &pi };
+	const struct ata_port_info *ppi[] = { &pi, NULL };
 	struct ata_host *host;
 	u32 genctl, val;
 	u8 pmr;
@@ -335,7 +335,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	rc = ata_pci_prepare_native_host(pdev, ppi, 2, &host);
+	rc = ata_pci_prepare_native_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 

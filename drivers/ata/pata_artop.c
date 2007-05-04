@@ -414,7 +414,7 @@ static const struct ata_port_operations artop6260_ops = {
 static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static int printed_version;
-	static struct ata_port_info info_6210 = {
+	static const struct ata_port_info info_6210 = {
 		.sht		= &artop_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask	= 0x1f,	/* pio0-4 */
@@ -422,7 +422,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask 	= ATA_UDMA2,
 		.port_ops	= &artop6210_ops,
 	};
-	static struct ata_port_info info_626x = {
+	static const struct ata_port_info info_626x = {
 		.sht		= &artop_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask	= 0x1f,	/* pio0-4 */
@@ -430,7 +430,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask 	= ATA_UDMA4,
 		.port_ops	= &artop6260_ops,
 	};
-	static struct ata_port_info info_626x_fast = {
+	static const struct ata_port_info info_626x_fast = {
 		.sht		= &artop_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask	= 0x1f,	/* pio0-4 */
@@ -438,32 +438,30 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask 	= ATA_UDMA5,
 		.port_ops	= &artop6260_ops,
 	};
-	struct ata_port_info *port_info[2];
-	struct ata_port_info *info = NULL;
-	int ports = 2;
+	const struct ata_port_info *ppi[] = { NULL, NULL };
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
 	if (id->driver_data == 0) {	/* 6210 variant */
-		info = &info_6210;
+		ppi[0] = &info_6210;
+		ppi[1] = &ata_dummy_port_info;
 		/* BIOS may have left us in UDMA, clear it before libata probe */
 		pci_write_config_byte(pdev, 0x54, 0);
 		/* For the moment (also lacks dsc) */
 		printk(KERN_WARNING "ARTOP 6210 requires serialize functionality not yet supported by libata.\n");
 		printk(KERN_WARNING "Secondary ATA ports will not be activated.\n");
-		ports = 1;
 	}
 	else if (id->driver_data == 1)	/* 6260 */
-		info = &info_626x;
+		ppi[0] = &info_626x;
 	else if (id->driver_data == 2)	{ /* 6260 or 6260 + fast */
 		unsigned long io = pci_resource_start(pdev, 4);
 		u8 reg;
 
-		info = &info_626x;
+		ppi[0] = &info_626x;
 		if (inb(io) & 0x10)
-			info = &info_626x_fast;
+			ppi[0] = &info_626x_fast;
 		/* Mac systems come up with some registers not set as we
 		   will need them */
 
@@ -484,10 +482,9 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 
 	}
 
-	BUG_ON(info == NULL);
+	BUG_ON(ppi[0] == NULL);
 
-	port_info[0] = port_info[1] = info;
-	return ata_pci_init_one(pdev, port_info, ports);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 static const struct pci_device_id artop_pci_tbl[] = {

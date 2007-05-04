@@ -131,22 +131,20 @@ static int rz1000_fifo_disable(struct pci_dev *pdev)
 static int rz1000_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	struct ata_port_info *port_info[2];
-	static struct ata_port_info info = {
+	static const struct ata_port_info info = {
 		.sht = &rz1000_sht,
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 		.pio_mask = 0x1f,
 		.port_ops = &rz1000_port_ops
 	};
+	const struct ata_port_info *ppi[] = { &info, NULL };
 
 	if (!printed_version++)
 		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
 
-	if (rz1000_fifo_disable(pdev) == 0) {
-		port_info[0] = &info;
-		port_info[1] = &info;
-		return ata_pci_init_one(pdev, port_info, 2);
-	}
+	if (rz1000_fifo_disable(pdev) == 0)
+		return ata_pci_init_one(pdev, ppi);
+
 	printk(KERN_ERR DRV_NAME ": failed to disable read-ahead on chipset..\n");
 	/* Not safe to use so skip */
 	return -ENODEV;

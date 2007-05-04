@@ -161,7 +161,7 @@ static const struct ata_port_operations marvell_ops = {
 
 static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	static struct ata_port_info info = {
+	static const struct ata_port_info info = {
 		.sht		= &marvell_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 
@@ -171,7 +171,7 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 
 		.port_ops	= &marvell_ops,
 	};
-	static struct ata_port_info info_sata = {
+	static const struct ata_port_info info_sata = {
 		.sht		= &marvell_sht,
 		/* Slave possible as its magically mapped not real */
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
@@ -182,13 +182,12 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 
 		.port_ops	= &marvell_ops,
 	};
-	struct ata_port_info *port_info[2] = { &info, &info_sata };
-	int n_port = 2;
+	const struct ata_port_info *ppi[] = { &info, &info_sata };
 
 	if (pdev->device == 0x6101)
-		n_port = 1;
+		ppi[1] = &ata_dummy_port_info;
 
-	return ata_pci_init_one(pdev, port_info, n_port);
+	return ata_pci_init_one(pdev, ppi);
 }
 
 static const struct pci_device_id marvell_pci_tbl[] = {
