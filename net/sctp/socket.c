@@ -972,6 +972,7 @@ static int __sctp_connect(struct sock* sk,
 	int walk_size = 0;
 	union sctp_addr *sa_addr;
 	void *addr_buf;
+	unsigned short port;
 
 	sp = sctp_sk(sk);
 	ep = sp->ep;
@@ -992,6 +993,7 @@ static int __sctp_connect(struct sock* sk,
 	while (walk_size < addrs_size) {
 		sa_addr = (union sctp_addr *)addr_buf;
 		af = sctp_get_af_specific(sa_addr->sa.sa_family);
+		port = ntohs(sa_addr->v4.sin_port);
 
 		/* If the address family is not supported or if this address
 		 * causes the address buffer to overflow return EINVAL.
@@ -1003,6 +1005,12 @@ static int __sctp_connect(struct sock* sk,
 
 		err = sctp_verify_addr(sk, sa_addr, af->sockaddr_len);
 		if (err)
+			goto out_free;
+
+		/* Make sure the destination port is correctly set
+		 * in all addresses.
+		 */
+		if (asoc && asoc->peer.port && asoc->peer.port != port)
 			goto out_free;
 
 		memcpy(&to, sa_addr, af->sockaddr_len);
