@@ -802,14 +802,13 @@ static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
 			udev->state == USB_STATE_SUSPENDED)
 		goto done;
 
-	/* For devices that don't have a driver, we do a standard suspend. */
-	if (udev->dev.driver == NULL) {
+	/* For devices that don't have a driver, we do a generic suspend. */
+	if (udev->dev.driver)
+		udriver = to_usb_device_driver(udev->dev.driver);
+	else {
 		udev->do_remote_wakeup = 0;
-		status = usb_port_suspend(udev);
-		goto done;
+		udriver = &usb_generic_driver;
 	}
-
-	udriver = to_usb_device_driver(udev->dev.driver);
 	status = udriver->suspend(udev, msg);
 
 done:

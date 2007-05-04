@@ -19,6 +19,7 @@
 
 #include <linux/usb.h>
 #include "usb.h"
+#include "hcd.h"
 
 static inline const char *plural(int n)
 {
@@ -193,12 +194,46 @@ static void generic_disconnect(struct usb_device *udev)
 
 static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 {
-	return usb_port_suspend(udev);
+	int rc;
+
+	rc = usb_port_suspend(udev);
+
+	/* Root hubs don't have upstream ports to suspend,
+	 * so the line above won't do much for them.  We have to
+	 * shut down their downstream HC-to-USB interfaces manually,
+	 * by doing a bus (or "global") suspend.
+	 */
+	if (rc == 0 && !udev->parent) {
+		rc = hcd_bus_suspend(udev->bus);
+		if (rc) {
+			dev_dbg(&udev->dev, "'global' suspend %d\n", rc);
+			usb_port_resume(udev);
+		}
+	}
+	return rc;
 }
 
 static int generic_resume(struct usb_device *udev)
 {
-	return usb_port_resume(udev);
+	int rc;
+
+	rc = usb_port_resume(udev);
+
+	/* Root hubs don't have upstream ports to resume or reset,
+	 * so the line above won't do much for them.  We have to
+	 * start up their downstream HC-to-USB interfaces manually,
+	 * by doing a bus (or "global") resume.
+	 */
+	if (rc == 0 && !udev->parent) {
+		rc = hcd_bus_resume(udev->bus);
+		if (rc)
+			dev_dbg(&udev->dev, "'global' resume %d\n", rc);
+		else {
+			/* TRSMRCY = 10 msec */
+			msleep(10);
+		}
+	}
+	return rc;
 }
 
 #endif	/* CONFIG_PM */
