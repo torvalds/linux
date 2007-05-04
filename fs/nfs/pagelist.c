@@ -228,7 +228,7 @@ out:
 void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     struct inode *inode,
 		     int (*doio)(struct inode *, struct list_head *, unsigned int, size_t, int),
-		     unsigned int bsize,
+		     size_t bsize,
 		     int io_flags)
 {
 	INIT_LIST_HEAD(&desc->pg_list);
