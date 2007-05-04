@@ -101,7 +101,8 @@ extern unsigned long ioremap_bot, ioremap_base;
 #define KERNEL_PGD_PTRS (PTRS_PER_PGD-USER_PGD_PTRS)
 
 #define pte_ERROR(e) \
-	printk("%s:%d: bad pte "PTE_FMT".\n", __FILE__, __LINE__, pte_val(e))
+	printk("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
+		(unsigned long long)pte_val(e))
 #define pmd_ERROR(e) \
 	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
 #define pgd_ERROR(e) \
