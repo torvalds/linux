@@ -34,6 +34,7 @@
 struct usb_hub {
 	struct device		*intfdev;	/* the "interface" device */
 	struct usb_device	*hdev;
+	struct kref		kref;
 	struct urb		*urb;		/* for interrupt polling pipe */
 
 	/* buffer for urb ... with extra space in case of babble */
@@ -66,6 +67,7 @@ struct usb_hub {
 	unsigned		limited_power:1;
 	unsigned		quiescing:1;
 	unsigned		activating:1;
+	unsigned		disconnected:1;
 
 	unsigned		has_indicators:1;
 	u8			indicator[USB_MAXCHILDREN];
@@ -321,7 +323,7 @@ static void kick_khubd(struct usb_hub *hub)
 	to_usb_interface(hub->intfdev)->pm_usage_cnt = 1;
 
 	spin_lock_irqsave(&hub_event_lock, flags);
-	if (list_empty(&hub->event_list)) {
+	if (!hub->disconnected & list_empty(&hub->event_list)) {
 		list_add_tail(&hub->event_list, &hub_event_list);
 		wake_up(&khubd_wait);
 	}
@@ -330,6 +332,7 @@ static void kick_khubd(struct usb_hub *hub)
 
 void usb_kick_khubd(struct usb_device *hdev)
 {
+	/* FIXME: What if hdev isn't bound to the hub driver? */
 	kick_khubd(hdev_to_hub(hdev));
 }
 
@@ -845,43 +848,42 @@ fail:
 	return ret;
 }
 
+static void hub_release(struct kref *kref)
+{
+	struct usb_hub *hub = container_of(kref, struct usb_hub, kref);
+
+	usb_put_intf(to_usb_interface(hub->intfdev));
+	kfree(hub);
+}
+
 static unsigned highspeed_hubs;
 
 static void hub_disconnect(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata (intf);
-	struct usb_device *hdev;
+
+	/* Take the hub off the event list and don't let it be added again */
+	spin_lock_irq(&hub_event_lock);
+	list_del_init(&hub->event_list);
+	hub->disconnected = 1;
+	spin_unlock_irq(&hub_event_lock);
 
 	/* Disconnect all children and quiesce the hub */
 	hub->error = 0;
 	hub_pre_reset(intf);
 
 	usb_set_intfdata (intf, NULL);
-	hdev = hub->hdev;
 
-	if (hdev->speed == USB_SPEED_HIGH)
+	if (hub->hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs--;
 
 	usb_free_urb(hub->urb);
-	hub->urb = NULL;
-
-	spin_lock_irq(&hub_event_lock);
-	list_del_init(&hub->event_list);
-	spin_unlock_irq(&hub_event_lock);
-
 	kfree(hub->descriptor);
-	hub->descriptor = NULL;
-
 	kfree(hub->status);
-	hub->status = NULL;
+	usb_buffer_free(hub->hdev, sizeof(*hub->buffer), hub->buffer,
+			hub->buffer_dma);
 
-	if (hub->buffer) {
-		usb_buffer_free(hdev, sizeof(*hub->buffer), hub->buffer,
-				hub->buffer_dma);
-		hub->buffer = NULL;
-	}
-
-	kfree(hub);
+	kref_put(&hub->kref, hub_release);
 }
 
 static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -929,10 +931,12 @@ descriptor_error:
 		return -ENOMEM;
 	}
 
+	kref_init(&hub->kref);
 	INIT_LIST_HEAD(&hub->event_list);
 	hub->intfdev = &intf->dev;
 	hub->hdev = hdev;
 	INIT_DELAYED_WORK(&hub->leds, led_work);
+	usb_get_intf(intf);
 
 	usb_set_intfdata (intf, hub);
 	intf->needs_remote_wakeup = 1;
@@ -2534,10 +2538,12 @@ static void hub_events(void)
 		list_del_init(tmp);
 
 		hub = list_entry(tmp, struct usb_hub, event_list);
-		hdev = hub->hdev;
-		intf = to_usb_interface(hub->intfdev);
-		hub_dev = &intf->dev;
+		kref_get(&hub->kref);
+		spin_unlock_irq(&hub_event_lock);
 
+		hdev = hub->hdev;
+		hub_dev = hub->intfdev;
+		intf = to_usb_interface(hub_dev);
 		dev_dbg(hub_dev, "state %d ports %d chg %04x evt %04x\n",
 				hdev->state, hub->descriptor
 					? hub->descriptor->bNbrPorts
@@ -2546,13 +2552,10 @@ static void hub_events(void)
 				(u16) hub->change_bits[0],
 				(u16) hub->event_bits[0]);
 
-		usb_get_intf(intf);
-		spin_unlock_irq(&hub_event_lock);
-
 		/* Lock the device, then check to see if we were
 		 * disconnected while waiting for the lock to succeed. */
 		usb_lock_device(hdev);
-		if (hub != usb_get_intfdata(intf))
+		if (unlikely(hub->disconnected))
 			goto loop;
 
 		/* If the hub has died, clean up after it */
@@ -2715,7 +2718,7 @@ loop_autopm:
 			usb_autopm_enable(intf);
 loop:
 		usb_unlock_device(hdev);
-		usb_put_intf(intf);
+		kref_put(&hub->kref, hub_release);
 
         } /* end while (1) */
 }
