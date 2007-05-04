@@ -37,8 +37,8 @@ zlib       := inffast.c inflate.c inftrees.c
 zlibheader := inffast.h inffixed.h inflate.h inftrees.h infutil.h
 zliblinuxheader := zlib.h zconf.h zutil.h
 
-$(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) \
-		$(addprefix $(obj)/,$(zlibheader))
+$(addprefix $(obj)/,$(zlib) gunzip_util.o main.o): \
+	$(addprefix $(obj)/,$(zliblinuxheader)) $(addprefix $(obj)/,$(zlibheader))
 
 src-wlib := string.S crt0.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
 		ns16550.c serial.c simple_alloc.c div64.S util.S \
@@ -167,10 +167,11 @@ $(obj)/zImage.initrd.ps3: vmlinux
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call if_changed,wrap,uboot)
 
+# CONFIG_DEVICE_TREE will have "" around it, make sure to strip them
 dts = $(if $(shell echo $(CONFIG_DEVICE_TREE) | grep '^/'),\
-       ,$(srctree)/$(src)/dts/)$(CONFIG_DEVICE_TREE)
+	,$(srctree)/$(src)/dts/)$(CONFIG_DEVICE_TREE:"%"=%)
 
-$(obj)/cuImage.%: vmlinux $(wrapperbits)
+$(obj)/cuImage.%: vmlinux $(dts) $(wrapperbits)
 	$(call if_changed,wrap,cuboot-$*,$(dts))
 
 $(obj)/zImage:		$(addprefix $(obj)/, $(image-y))
