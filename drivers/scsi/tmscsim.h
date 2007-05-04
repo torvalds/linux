@@ -19,14 +19,6 @@
 
 #define SEL_TIMEOUT		153	/* 250 ms selection timeout (@ 40 MHz) */
 
-#define pci_dma_lo32(a)			(a & 0xffffffff)
-
-typedef u8		UCHAR;	/*  8 bits */
-typedef u16		USHORT;	/* 16 bits */
-typedef u32		UINT;	/* 32 bits */
-typedef unsigned long	ULONG;	/* 32/64 bits */
-
-
 /*
 ;-----------------------------------------------------------------------
 ; SCSI Request Block
@@ -43,7 +35,9 @@ struct scatterlist	*pSegmentList;
 
 struct scatterlist Segmentx;	/* make a one entry of S/G list table */
 
-unsigned long	SGBusAddr;	/*;a segment starting address as seen by AM53C974A*/
+unsigned long	SGBusAddr;	/*;a segment starting address as seen by AM53C974A
+				  in CPU endianness. We're only getting 32-bit bus
+				  addresses by default */
 unsigned long	SGToBeXferLen;	/*; to be xfer length */
 unsigned long	TotalXferredLen;
 unsigned long	SavedTotXLen;
