@@ -1103,6 +1103,13 @@ void sctp_assoc_update(struct sctp_association *asoc,
 			asoc->ssnmap = new->ssnmap;
 			new->ssnmap = NULL;
 		}
+
+		if (!asoc->assoc_id) {
+			/* get a new association id since we don't have one
+			 * yet.
+			 */
+			sctp_assoc_set_id(asoc, GFP_ATOMIC);
+		}
 	}
 }
 
@@ -1374,4 +1381,26 @@ int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 out:
 	sctp_read_unlock(&asoc->base.addr_lock);
 	return found;
+}
+
+/* Set an association id for a given association */
+int sctp_assoc_set_id(struct sctp_association *asoc, gfp_t gfp)
+{
+	int assoc_id;
+	int error = 0;
+retry:
+	if (unlikely(!idr_pre_get(&sctp_assocs_id, gfp)))
+		return -ENOMEM;
+
+	spin_lock_bh(&sctp_assocs_id_lock);
+	error = idr_get_new_above(&sctp_assocs_id, (void *)asoc,
+				    1, &assoc_id);
+	spin_unlock_bh(&sctp_assocs_id_lock);
+	if (error == -EAGAIN)
+		goto retry;
+	else if (error)
+		return error;
+
+	asoc->assoc_id = (sctp_assoc_t) assoc_id;
+	return error;
 }
