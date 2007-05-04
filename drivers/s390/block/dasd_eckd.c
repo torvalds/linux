@@ -450,6 +450,81 @@ dasd_eckd_generate_uid(struct dasd_device *device, struct dasd_uid *uid)
 	return 0;
 }
 
+struct dasd_ccw_req * dasd_eckd_build_rcd_lpm(struct dasd_device *device,
+					      void *rcd_buffer,
+					      struct ciw *ciw, __u8 lpm)
+{
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+
+	cqr = dasd_smalloc_request("ECKD", 1 /* RCD */, ciw->count, device);
+
+	if (IS_ERR(cqr)) {
+		DEV_MESSAGE(KERN_WARNING, device, "%s",
+			    "Could not allocate RCD request");
+		return cqr;
+	}
+
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = ciw->cmd;
+	ccw->cda = (__u32)(addr_t)rcd_buffer;
+	ccw->count = ciw->count;
+
+	cqr->device = device;
+	cqr->expires = 10*HZ;
+	cqr->lpm = lpm;
+	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
+	cqr->retries = 2;
+	cqr->buildclk = get_clock();
+	cqr->status = DASD_CQR_FILLED;
+	return cqr;
+}
+
+static int dasd_eckd_read_conf_lpm(struct dasd_device *device,
+				   void **rcd_buffer,
+				   int *rcd_buffer_size, __u8 lpm)
+{
+	struct ciw *ciw;
+	char *rcd_buf = NULL;
+	int ret;
+	struct dasd_ccw_req *cqr;
+
+	/*
+	 * scan for RCD command in extended SenseID data
+	 */
+	ciw = ccw_device_get_ciw(device->cdev, CIW_TYPE_RCD);
+	if (!ciw || ciw->cmd == 0) {
+		ret = -EOPNOTSUPP;
+		goto out_error;
+	}
+	rcd_buf = kzalloc(ciw->count, GFP_KERNEL | GFP_DMA);
+	if (!rcd_buf) {
+		ret = -ENOMEM;
+		goto out_error;
+	}
+	cqr = dasd_eckd_build_rcd_lpm(device, rcd_buf, ciw, lpm);
+	if (IS_ERR(cqr)) {
+		ret =  PTR_ERR(cqr);
+		goto out_error;
+	}
+	ret = dasd_sleep_on(cqr);
+	/*
+	 * on success we update the user input parms
+	 */
+	dasd_sfree_request(cqr, cqr->device);
+	if (ret)
+		goto out_error;
+
+	*rcd_buffer_size = ciw->count;
+	*rcd_buffer = rcd_buf;
+	return 0;
+out_error:
+	kfree(rcd_buf);
+	*rcd_buffer = NULL;
+	*rcd_buffer_size = 0;
+	return ret;
+}
+
 static int
 dasd_eckd_read_conf(struct dasd_device *device)
 {
@@ -469,8 +544,8 @@ dasd_eckd_read_conf(struct dasd_device *device)
 	/* get configuration data per operational path */
 	for (lpm = 0x80; lpm; lpm>>= 1) {
 		if (lpm & path_data->opm){
-			rc = read_conf_data_lpm(device->cdev, &conf_data,
-						&conf_len, lpm);
+			rc = dasd_eckd_read_conf_lpm(device, &conf_data,
+						     &conf_len, lpm);
 			if (rc && rc != -EOPNOTSUPP) {	/* -EOPNOTSUPP is ok */
 				MESSAGE(KERN_WARNING,
 					"Read configuration data returned "
@@ -639,7 +714,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	/* Read Device Characteristics */
 	rdc_data = (void *) &(private->rdc_data);
 	memset(rdc_data, 0, sizeof(rdc_data));
-	rc = read_dev_chars(device->cdev, &rdc_data, 64);
+	rc = dasd_generic_read_dev_chars(device, "ECKD", &rdc_data, 64);
 	if (rc)
 		DEV_MESSAGE(KERN_WARNING, device,
 			    "Read device characteristics returned "
