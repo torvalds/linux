@@ -24,6 +24,7 @@
 
 #include <linux/device.h>
 #include <linux/usb.h>
+#include <linux/usb/quirks.h>
 #include <linux/workqueue.h>
 #include "hcd.h"
 #include "usb.h"
@@ -834,6 +835,9 @@ static int usb_resume_device(struct usb_device *udev)
 		status = -ENOTCONN;
 		goto done;
 	}
+
+	if (udev->quirks & USB_QUIRK_RESET_RESUME)
+		udev->reset_resume = 1;
 
 	udriver = to_usb_device_driver(udev->dev.driver);
 	status = udriver->resume(udev);

@@ -2939,6 +2939,11 @@ static int config_descriptors_changed(struct usb_device *udev)
  * this from a driver probe() routine after downloading new firmware.
  * For calls that might not occur during probe(), drivers should lock
  * the device using usb_lock_device_for_reset().
+ *
+ * Locking exception: This routine may also be called from within an
+ * autoresume handler.  Such usage won't conflict with other tasks
+ * holding the device lock because these tasks should always call
+ * usb_autopm_resume_device(), thereby preventing any unwanted autoresume.
  */
 int usb_reset_device(struct usb_device *udev)
 {

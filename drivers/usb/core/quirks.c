@@ -35,6 +35,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* Elsa MicroLink 56k (V.250) */
 	{ USB_DEVICE(0x05cc, 0x2267), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 
+	/* Philips PSC805 audio device */
+	{ USB_DEVICE(0x0471, 0x0155), .driver_info = USB_QUIRK_RESET_RESUME },
+
 	{ }  /* terminating entry must be last */
 };
 
