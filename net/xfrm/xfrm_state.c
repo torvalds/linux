@@ -421,7 +421,7 @@ restart:
 }
 EXPORT_SYMBOL(xfrm_state_flush);
 
-void xfrm_sad_getinfo(struct xfrm_sadinfo *si)
+void xfrm_sad_getinfo(struct xfrmk_sadinfo *si)
 {
 	spin_lock_bh(&xfrm_state_lock);
 	si->sadcnt = xfrm_state_num;

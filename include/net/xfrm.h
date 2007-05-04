@@ -416,14 +416,6 @@ struct xfrm_audit
 	u32	secid;
 };
 
-/* SAD metadata, add more later */
-struct xfrm_sadinfo
-{
-	u32 sadhcnt; /* current hash bkts */
-	u32 sadhmcnt; /* max allowed hash bkts */
-	u32 sadcnt; /* current running count */
-};
-
 struct xfrm_spdinfo
 {
 	u32 incnt;
@@ -964,10 +956,17 @@ static inline int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **s
 	return -ENOSYS;
 }
 #endif
+
+struct xfrmk_sadinfo {
+	u32 sadhcnt; /* current hash bkts */
+	u32 sadhmcnt; /* max allowed hash bkts */
+	u32 sadcnt; /* current running count */
+};
+
 extern struct xfrm_state *xfrm_find_acq_byseq(u32 seq);
 extern int xfrm_state_delete(struct xfrm_state *x);
 extern void xfrm_state_flush(u8 proto, struct xfrm_audit *audit_info);
-extern void xfrm_sad_getinfo(struct xfrm_sadinfo *si);
+extern void xfrm_sad_getinfo(struct xfrmk_sadinfo *si);
 extern void xfrm_spd_getinfo(struct xfrm_spdinfo *si);
 extern int xfrm_replay_check(struct xfrm_state *x, __be32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, __be32 seq);
