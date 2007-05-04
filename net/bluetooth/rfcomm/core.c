@@ -1058,6 +1058,12 @@ static int rfcomm_recv_ua(struct rfcomm_session *s, u8 dlci)
 		case BT_DISCONN:
 			d->state = BT_CLOSED;
 			__rfcomm_dlc_close(d, 0);
+
+			if (list_empty(&s->dlcs)) {
+				s->state = BT_DISCONN;
+				rfcomm_send_disc(s, 0);
+			}
+
 			break;
 		}
 	} else {
@@ -1066,6 +1072,10 @@ static int rfcomm_recv_ua(struct rfcomm_session *s, u8 dlci)
 		case BT_CONNECT:
 			s->state = BT_CONNECTED;
 			rfcomm_process_connect(s);
+			break;
+
+		case BT_DISCONN:
+			rfcomm_session_put(s);
 			break;
 		}
 	}
