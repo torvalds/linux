@@ -3627,8 +3627,8 @@ W:	http://www.kroah.com/linux/
 S:	Maintained
 
 USB SERIAL WHITEHEAT DRIVER
-P:	Stuart MacDonald
-M:	stuartm@connecttech.com
+P:	Support Department
+M:	support@connecttech.com
 L:	linux-usb-users@lists.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
 W:	http://www.connecttech.com
