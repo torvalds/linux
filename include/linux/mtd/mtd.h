@@ -133,9 +133,6 @@ struct mtd_info {
 	int numeraseregions;
 	struct mtd_erase_region_info *eraseregions;
 
-	/* This really shouldn't be here. It can go away in 2.5 */
-	u_int32_t bank_size;
-
 	int (*erase) (struct mtd_info *mtd, struct erase_info *instr);
 
 	/* This stuff for eXecute-In-Place */
