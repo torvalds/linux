@@ -879,8 +879,6 @@ static int usb_suspend_interface(struct usb_interface *intf, pm_message_t msg)
 
 done:
 	// dev_dbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
-	if (status == 0)
-		intf->dev.power.power_state.event = msg.event;
 	return status;
 }
 
@@ -920,8 +918,6 @@ static int usb_resume_interface(struct usb_interface *intf)
 
 done:
 	// dev_dbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
-	if (status == 0)
-		intf->dev.power.power_state.event = PM_EVENT_ON;
 	return status;
 }
 
