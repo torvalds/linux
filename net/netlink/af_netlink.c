@@ -142,7 +142,6 @@ static void netlink_sock_destruct(struct sock *sk)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
 
-	BUG_ON(mutex_is_locked(nlk_sk(sk)->cb_mutex));
 	if (nlk->cb) {
 		if (nlk->cb->done)
 			nlk->cb->done(nlk->cb);
