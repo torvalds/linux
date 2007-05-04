@@ -944,9 +944,35 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 		}
 
 		tf->command = ATA_CMD_VERIFY;	/* READ VERIFY */
-	} else
+	} else {
+		/* XXX: This is for backward compatibility, will be
+		 * removed.  Read Documentation/feature-removal-schedule.txt
+		 * for more info.
+		 */
+		if (ata_spindown_compat &&
+		    (system_state == SYSTEM_HALT ||
+		     system_state == SYSTEM_POWER_OFF)) {
+			static int warned = 0;
+
+			if (!warned) {
+				spin_unlock_irq(qc->ap->lock);
+				ata_dev_printk(qc->dev, KERN_WARNING,
+					"DISK MIGHT NOT BE SPUN DOWN PROPERLY. "
+					"UPDATE SHUTDOWN UTILITY\n");
+				ata_dev_printk(qc->dev, KERN_WARNING,
+					"For more info, visit "
+					"http://linux-ata.org/shutdown.html\n");
+				warned = 1;
+				ssleep(5);
+				spin_lock_irq(qc->ap->lock);
+			}
+			scmd->result = SAM_STAT_GOOD;
+			return 1;
+		}
+
 		/* Issue ATA STANDBY IMMEDIATE command */
 		tf->command = ATA_CMD_STANDBYNOW1;
+	}
 
 	/*
 	 * Standby and Idle condition timers could be implemented but that
