@@ -65,7 +65,7 @@ long psw_user_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME |
  * User copy operations.
  */
 struct uaccess_ops uaccess;
-EXPORT_SYMBOL_GPL(uaccess);
+EXPORT_SYMBOL(uaccess);
 
 /*
  * Machine setup..
