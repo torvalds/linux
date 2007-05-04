@@ -2426,19 +2426,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		return;
 	}
 
-#ifdef  CONFIG_USB_SUSPEND
-	/* If something is connected, but the port is suspended, wake it up. */
-	if (portstatus & USB_PORT_STAT_SUSPEND) {
-		status = hub_port_resume(hub, port1, NULL);
-		if (status < 0) {
-			dev_dbg(hub_dev,
-				"can't clear suspend on port %d; %d\n",
-				port1, status);
-			goto done;
-		}
-	}
-#endif
-
 	for (i = 0; i < SET_CONFIG_TRIES; i++) {
 		struct usb_device *udev;
 
