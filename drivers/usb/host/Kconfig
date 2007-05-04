@@ -69,13 +69,13 @@ config USB_EHCI_TT_NEWSCHED
 
 config USB_EHCI_BIG_ENDIAN_MMIO
 	bool
-	depends on USB_EHCI_HCD
-	default n
+	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX)
+	default y
 
 config USB_EHCI_BIG_ENDIAN_DESC
 	bool
-	depends on USB_EHCI_HCD
-	default n
+	depends on USB_EHCI_HCD && 440EPX
+	default y
 
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
