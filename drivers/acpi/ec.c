@@ -147,9 +147,10 @@ static inline int acpi_ec_check_status(struct acpi_ec *ec, enum ec_event event,
 	return 0;
 }
 
-static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, unsigned count)
+static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event,
+                        unsigned count, int force_poll)
 {
-	if (acpi_ec_mode == EC_POLL) {
+	if (unlikely(force_poll) || acpi_ec_mode == EC_POLL) {
 		unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
 		while (time_before(jiffies, delay)) {
 			if (acpi_ec_check_status(ec, event, 0))
@@ -173,14 +174,15 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, unsigned count)
 
 static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 					const u8 * wdata, unsigned wdata_len,
-					u8 * rdata, unsigned rdata_len)
+					u8 * rdata, unsigned rdata_len,
+					int force_poll)
 {
 	int result = 0;
 	unsigned count = atomic_read(&ec->event_count);
 	acpi_ec_write_cmd(ec, command);
 
 	for (; wdata_len > 0; --wdata_len) {
-		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, count);
+		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, count, force_poll);
 		if (result) {
 			printk(KERN_ERR PREFIX
 			       "write_cmd timeout, command = %d\n", command);
@@ -191,7 +193,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 	}
 
 	if (!rdata_len) {
-		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, count);
+		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, count, force_poll);
 		if (result) {
 			printk(KERN_ERR PREFIX
 			       "finish-write timeout, command = %d\n", command);
@@ -202,7 +204,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 	}
 
 	for (; rdata_len > 0; --rdata_len) {
-		result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF_1, count);
+		result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF_1, count, force_poll);
 		if (result) {
 			printk(KERN_ERR PREFIX "read timeout, command = %d\n",
 			       command);
@@ -217,7 +219,8 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 
 static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 			       const u8 * wdata, unsigned wdata_len,
-			       u8 * rdata, unsigned rdata_len)
+			       u8 * rdata, unsigned rdata_len,
+			       int force_poll)
 {
 	int status;
 	u32 glk;
@@ -240,7 +243,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 	/* Make sure GPE is enabled before doing transaction */
 	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
 
-	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, 0);
+	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, 0, 0);
 	if (status) {
 		printk(KERN_DEBUG PREFIX
 		       "input buffer is not empty, aborting transaction\n");
@@ -249,7 +252,8 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 
 	status = acpi_ec_transaction_unlocked(ec, command,
 					      wdata, wdata_len,
-					      rdata, rdata_len);
+					      rdata, rdata_len,
+					      force_poll);
 
       end:
 
@@ -267,12 +271,12 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 int acpi_ec_burst_enable(struct acpi_ec *ec)
 {
 	u8 d;
-	return acpi_ec_transaction(ec, ACPI_EC_BURST_ENABLE, NULL, 0, &d, 1);
+	return acpi_ec_transaction(ec, ACPI_EC_BURST_ENABLE, NULL, 0, &d, 1, 0);
 }
 
 int acpi_ec_burst_disable(struct acpi_ec *ec)
 {
-	return acpi_ec_transaction(ec, ACPI_EC_BURST_DISABLE, NULL, 0, NULL, 0);
+	return acpi_ec_transaction(ec, ACPI_EC_BURST_DISABLE, NULL, 0, NULL, 0, 0);
 }
 
 static int acpi_ec_read(struct acpi_ec *ec, u8 address, u8 * data)
@@ -281,7 +285,7 @@ static int acpi_ec_read(struct acpi_ec *ec, u8 address, u8 * data)
 	u8 d;
 
 	result = acpi_ec_transaction(ec, ACPI_EC_COMMAND_READ,
-				     &address, 1, &d, 1);
+				     &address, 1, &d, 1, 0);
 	*data = d;
 	return result;
 }
@@ -290,7 +294,7 @@ static int acpi_ec_write(struct acpi_ec *ec, u8 address, u8 data)
 {
 	u8 wdata[2] = { address, data };
 	return acpi_ec_transaction(ec, ACPI_EC_COMMAND_WRITE,
-				   wdata, 2, NULL, 0);
+				   wdata, 2, NULL, 0, 0);
 }
 
 /*
@@ -349,13 +353,15 @@ EXPORT_SYMBOL(ec_write);
 
 int ec_transaction(u8 command,
 		   const u8 * wdata, unsigned wdata_len,
-		   u8 * rdata, unsigned rdata_len)
+		   u8 * rdata, unsigned rdata_len,
+		   int force_poll)
 {
 	if (!first_ec)
 		return -ENODEV;
 
 	return acpi_ec_transaction(first_ec, command, wdata,
-				   wdata_len, rdata, rdata_len);
+				   wdata_len, rdata, rdata_len,
+				   force_poll);
 }
 
 EXPORT_SYMBOL(ec_transaction);
@@ -374,7 +380,7 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 * data)
 	 * bit to be cleared (and thus clearing the interrupt source).
 	 */
 
-	result = acpi_ec_transaction(ec, ACPI_EC_COMMAND_QUERY, NULL, 0, &d, 1);
+	result = acpi_ec_transaction(ec, ACPI_EC_COMMAND_QUERY, NULL, 0, &d, 1, 0);
 	if (result)
 		return result;
 
@@ -410,6 +416,7 @@ static u32 acpi_ec_gpe_handler(void *data)
 	acpi_status status = AE_OK;
 	u8 value;
 	struct acpi_ec *ec = data;
+
 	atomic_inc(&ec->event_count);
 
 	if (acpi_ec_mode == EC_INTR) {
