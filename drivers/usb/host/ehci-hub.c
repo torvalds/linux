@@ -60,11 +60,13 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 	while (port--) {
 		if (test_bit(port, &ehci->owned_ports)) {
 			reg = &ehci->regs->port_status[port];
-			status = ehci_readl(ehci, reg);
+			status = ehci_readl(ehci, reg) & ~PORT_RWC_BITS;
 
 			/* Port already owned by companion? */
 			if (status & PORT_OWNER)
 				clear_bit(port, &ehci->owned_ports);
+			else if (test_bit(port, &ehci->companion_ports))
+				ehci_writel(ehci, status & ~PORT_PE, reg);
 			else
 				ehci_hub_control(hcd, SetPortFeature,
 						USB_PORT_FEAT_RESET, port + 1,
