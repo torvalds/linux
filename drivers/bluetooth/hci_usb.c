@@ -118,6 +118,9 @@ static struct usb_device_id blacklist_ids[] = {
 	{ USB_DEVICE(0x0a5c, 0x201e), .driver_info = HCI_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x0a5c, 0x2110), .driver_info = HCI_WRONG_SCO_MTU },
 
+	/* Targus ACB10US */
+	{ USB_DEVICE(0x0a5c, 0x2100), .driver_info = HCI_RESET },
+
 	/* ANYCOM Bluetooth USB-200 and USB-250 */
 	{ USB_DEVICE(0x0a5c, 0x2111), .driver_info = HCI_RESET },
 
