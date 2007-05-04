@@ -1050,8 +1050,15 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 				break;
 		}
 	}
-	if (status == 0)
+	if (status == 0) {
+
+		/* Non-root devices don't need to do anything for FREEZE
+		 * or PRETHAW. */
+		if (udev->parent && (msg.event == PM_EVENT_FREEZE ||
+				msg.event == PM_EVENT_PRETHAW))
+			goto done;
 		status = usb_suspend_device(udev, msg);
+	}
 
 	/* If the suspend failed, resume interfaces that did get suspended */
 	if (status != 0) {

@@ -193,10 +193,6 @@ static void generic_disconnect(struct usb_device *udev)
 
 static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 {
-	/* USB devices enter SUSPEND state through their hubs, but can be
-	 * marked for FREEZE as soon as their children are already idled.
-	 * But those semantics are useless, so we equate the two (sigh).
-	 */
 	return usb_port_suspend(udev);
 }
 
