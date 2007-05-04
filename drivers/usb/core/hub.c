@@ -982,49 +982,6 @@ hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
 }
 
 
-/* grab device/port lock, returning index of that port (zero based).
- * protects the upstream link used by this device from concurrent
- * tree operations like suspend, resume, reset, and disconnect, which
- * apply to everything downstream of a given port.
- */
-static int locktree(struct usb_device *udev)
-{
-	int			t;
-	struct usb_device	*hdev;
-
-	if (!udev)
-		return -ENODEV;
-
-	/* root hub is always the first lock in the series */
-	hdev = udev->parent;
-	if (!hdev) {
-		usb_lock_device(udev);
-		return 0;
-	}
-
-	/* on the path from root to us, lock everything from
-	 * top down, dropping parent locks when not needed
-	 */
-	t = locktree(hdev);
-	if (t < 0)
-		return t;
-
-	/* everything is fail-fast once disconnect
-	 * processing starts
-	 */
-	if (udev->state == USB_STATE_NOTATTACHED) {
-		usb_unlock_device(hdev);
-		return -ENODEV;
-	}
-
-	/* when everyone grabs locks top->bottom,
-	 * non-overlapping work may be concurrent
-	 */
-	usb_lock_device(udev);
-	usb_unlock_device(hdev);
-	return udev->portnum;
-}
-
 static void recursively_mark_NOTATTACHED(struct usb_device *udev)
 {
 	int i;
@@ -2594,10 +2551,7 @@ static void hub_events(void)
 
 		/* Lock the device, then check to see if we were
 		 * disconnected while waiting for the lock to succeed. */
-		if (locktree(hdev) < 0) {
-			usb_put_intf(intf);
-			continue;
-		}
+		usb_lock_device(hdev);
 		if (hub != usb_get_intfdata(intf))
 			goto loop;
 
