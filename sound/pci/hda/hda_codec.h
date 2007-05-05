@@ -233,7 +233,7 @@ enum {
  */
 
 /* Amp gain/mute */
-#define AC_AMP_MUTE			(1<<8)
+#define AC_AMP_MUTE			(1<<7)
 #define AC_AMP_GAIN			(0x7f)
 #define AC_AMP_GET_INDEX		(0xf<<0)
 
