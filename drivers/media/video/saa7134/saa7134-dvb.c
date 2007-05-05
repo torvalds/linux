@@ -181,9 +181,7 @@ static int mt352_aver777_tuner_calc_regs(struct dvb_frontend *fe, struct dvb_fro
 		return -EINVAL;
 
 	pllbuf[0] = 0x61;
-	dvb_pll_configure(&dvb_pll_philips_td1316, pllbuf+1,
-			  params->frequency,
-			  params->u.ofdm.bandwidth);
+	dvb_pll_configure(&dvb_pll_philips_td1316, pllbuf+1, params);
 	return 5;
 }
 

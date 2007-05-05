@@ -13,7 +13,7 @@ struct dvb_pll_desc {
 	u32  min;
 	u32  max;
 	u32  iffreq;
-	void (*setbw)(u8 *buf, u32 freq, int bandwidth);
+	void (*set)(u8 *buf, const struct dvb_frontend_parameters *params);
 	u8   *initdata;
 	u8   *sleepdata;
 	int  count;
@@ -51,7 +51,7 @@ extern struct dvb_pll_desc dvb_pll_thomson_fe6600;
 extern struct dvb_pll_desc dvb_pll_opera1;
 
 extern int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
-			     u32 freq, int bandwidth);
+			     const struct dvb_frontend_parameters *params);
 
 /**
  * Attach a dvb-pll to the supplied frontend structure.

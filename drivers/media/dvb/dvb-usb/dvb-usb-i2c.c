@@ -90,7 +90,7 @@ int dvb_usb_tuner_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_paramet
 	deb_pll("pll addr: %x, freq: %d %p\n",adap->pll_addr, fep->frequency, adap->pll_desc);
 
 	b[0] = adap->pll_addr;
-	dvb_pll_configure(adap->pll_desc, &b[1], fep->frequency, fep->u.ofdm.bandwidth);
+	dvb_pll_configure(adap->pll_desc, &b[1], fep);
 
 	deb_pll("pll-buf: %x %x %x %x %x\n",b[0],b[1],b[2],b[3],b[4]);
 

@@ -260,9 +260,7 @@ static int dntv_live_dvbt_pro_tuner_set_params(struct dvb_frontend* fe,
 		return err;
 
 	/* Tune PLL */
-	dvb_pll_configure(dev->core->pll_desc, buf,
-			  params->frequency,
-			  params->u.ofdm.bandwidth);
+	dvb_pll_configure(dev->core->pll_desc, buf, params);
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
