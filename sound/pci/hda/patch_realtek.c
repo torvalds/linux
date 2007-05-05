@@ -1487,7 +1487,7 @@ static struct hda_verb alc880_beep_init_verbs[] = {
 };
 
 /* toggle speaker-output according to the hp-jack state */
-static void alc880_uniwill_automute(struct hda_codec *codec)
+static void alc880_uniwill_hp_automute(struct hda_codec *codec)
 {
  	unsigned int present;
 	unsigned char bits;
@@ -1503,11 +1503,27 @@ static void alc880_uniwill_automute(struct hda_codec *codec)
 				 0x80, bits);
 	snd_hda_codec_amp_update(codec, 0x16, 1, HDA_OUTPUT, 0,
 				 0x80, bits);
+}
+
+/* auto-toggle front mic */
+static void alc880_uniwill_mic_automute(struct hda_codec *codec)
+{
+ 	unsigned int present;
+	unsigned char bits;
 
 	present = snd_hda_codec_read(codec, 0x18, 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_write(codec, 0x0b, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    0x7000 | (0x01 << 8) | bits);
+	bits = present ? 0x80 : 0;
+	snd_hda_codec_amp_update(codec, 0x0b, 0, HDA_INPUT, 1,
+				 0x80, bits);
+	snd_hda_codec_amp_update(codec, 0x0b, 1, HDA_INPUT, 1,
+				 0x80, bits);
+}
+
+static void alc880_uniwill_automute(struct hda_codec *codec)
+{
+	alc880_uniwill_hp_automute(codec);
+	alc880_uniwill_mic_automute(codec);
 }
 
 static void alc880_uniwill_unsol_event(struct hda_codec *codec,
@@ -1516,9 +1532,14 @@ static void alc880_uniwill_unsol_event(struct hda_codec *codec,
 	/* Looks like the unsol event is incompatible with the standard
 	 * definition.  4bit tag is placed at 28 bit!
 	 */
-	if ((res >> 28) == ALC880_HP_EVENT ||
-	    (res >> 28) == ALC880_MIC_EVENT)
-		alc880_uniwill_automute(codec);
+	switch (res >> 28) {
+	case ALC880_HP_EVENT:
+		alc880_uniwill_hp_automute(codec);
+		break;
+	case ALC880_MIC_EVENT:
+		alc880_uniwill_mic_automute(codec);
+		break;
+	}
 }
 
 static void alc880_uniwill_p53_hp_automute(struct hda_codec *codec)
