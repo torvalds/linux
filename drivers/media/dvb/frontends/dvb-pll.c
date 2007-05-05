@@ -343,11 +343,25 @@ EXPORT_SYMBOL(dvb_pll_tdhu2);
 /* Philips TUV1236D
  * used in ATI HDTV Wonder
  */
+static void tuv1236d_rf(u8 *buf, const struct dvb_frontend_parameters *params)
+{
+	switch (params->u.vsb.modulation) {
+		case QAM_64:
+		case QAM_256:
+			buf[3] |= 0x08;
+			break;
+		case VSB_8:
+		default:
+			buf[3] &= ~0x08;
+	}
+}
+
 struct dvb_pll_desc dvb_pll_tuv1236d = {
 	.name  = "Philips TUV1236D",
 	.min   =  54000000,
 	.max   = 864000000,
 	.iffreq= 44000000,
+	.set   = tuv1236d_rf,
 	.count = 3,
 	.entries = {
 		{ 157250000, 62500, 0xc6, 0x41 },
