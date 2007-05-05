@@ -110,6 +110,8 @@
 #define OMAP24XX_GPIO_LEVELDETECT1	0x0044
 #define OMAP24XX_GPIO_RISINGDETECT	0x0048
 #define OMAP24XX_GPIO_FALLINGDETECT	0x004c
+#define OMAP24XX_GPIO_DEBOUNCE_EN	0x0050
+#define OMAP24XX_GPIO_DEBOUNCE_VAL	0x0054
 #define OMAP24XX_GPIO_CLEARIRQENABLE1	0x0060
 #define OMAP24XX_GPIO_SETIRQENABLE1	0x0064
 #define OMAP24XX_GPIO_CLEARWKUENA	0x0080
@@ -463,8 +465,50 @@ do {	\
 	__raw_writel(l, base + reg); \
 } while(0)
 
+void omap_set_gpio_debounce(int gpio, int enable)
+{
+	struct gpio_bank *bank;
+	void __iomem *reg;
+	u32 val, l = 1 << get_gpio_index(gpio);
+
+	if (cpu_class_is_omap1())
+		return;
+
+	bank = get_gpio_bank(gpio);
+	reg = bank->base;
+
+	reg += OMAP24XX_GPIO_DEBOUNCE_EN;
+	val = __raw_readl(reg);
+
+	if (enable)
+		val |= l;
+	else
+		val &= ~l;
+
+	__raw_writel(val, reg);
+}
+EXPORT_SYMBOL(omap_set_gpio_debounce);
+
+void omap_set_gpio_debounce_time(int gpio, int enc_time)
+{
+	struct gpio_bank *bank;
+	void __iomem *reg;
+
+	if (cpu_class_is_omap1())
+		return;
+
+	bank = get_gpio_bank(gpio);
+	reg = bank->base;
+
+	enc_time &= 0xff;
+	reg += OMAP24XX_GPIO_DEBOUNCE_VAL;
+	__raw_writel(enc_time, reg);
+}
+EXPORT_SYMBOL(omap_set_gpio_debounce_time);
+
 #if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
-static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
+static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
+						int trigger)
 {
 	void __iomem *base = bank->base;
 	u32 gpio_bit = 1 << gpio;
@@ -477,19 +521,25 @@ static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio, in
 		trigger & __IRQT_RISEDGE);
 	MOD_REG_BIT(OMAP24XX_GPIO_FALLINGDETECT, gpio_bit,
 		trigger & __IRQT_FALEDGE);
+
 	if (likely(!(bank->non_wakeup_gpios & gpio_bit))) {
 		if (trigger != 0)
-			__raw_writel(1 << gpio, bank->base + OMAP24XX_GPIO_SETWKUENA);
+			__raw_writel(1 << gpio, bank->base
+					+ OMAP24XX_GPIO_SETWKUENA);
 		else
-			__raw_writel(1 << gpio, bank->base + OMAP24XX_GPIO_CLEARWKUENA);
+			__raw_writel(1 << gpio, bank->base
+					+ OMAP24XX_GPIO_CLEARWKUENA);
 	} else {
 		if (trigger != 0)
 			bank->enabled_non_wakeup_gpios |= gpio_bit;
 		else
 			bank->enabled_non_wakeup_gpios &= ~gpio_bit;
 	}
-	/* FIXME: Possibly do 'set_irq_handler(j, handle_level_irq)' if only level
-	 * triggering requested. */
+
+	/*
+	 * FIXME: Possibly do 'set_irq_handler(j, handle_level_irq)' if only
+	 * level triggering requested.
+	 */
 }
 #endif
 
