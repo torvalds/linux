@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/wait.h>
 
+#include <linux/isa.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pca.h>
 
@@ -119,27 +120,26 @@ static struct i2c_adapter pca_isa_ops = {
 	.name		= "PCA9564 ISA Adapter",
 };
 
-static int __init pca_isa_init(void)
+static int __devinit pca_isa_probe(struct device *dev, unsigned int id)
 {
-
 	init_waitqueue_head(&pca_wait);
 
-	printk(KERN_INFO "i2c-pca-isa: i/o base %#08lx. irq %d\n", base, irq);
+	dev_info(dev, "i/o base %#08lx. irq %d\n", base, irq);
 
 	if (!request_region(base, IO_SIZE, "i2c-pca-isa")) {
-		printk(KERN_ERR "i2c-pca-isa: I/O address %#08lx is in use.\n", base);
+		dev_err(dev, "I/O address %#08lx is in use\n", base);
 		goto out;
 	}
 
 	if (irq > -1) {
 		if (request_irq(irq, pca_handler, 0, "i2c-pca-isa", &pca_isa_ops) < 0) {
-			printk(KERN_ERR "i2c-pca-isa: Request irq%d failed\n", irq);
+			dev_err(dev, "Request irq%d failed\n", irq);
 			goto out_region;
 		}
 	}
 
 	if (i2c_pca_add_bus(&pca_isa_ops) < 0) {
-		printk(KERN_ERR "i2c-pca-isa: Failed to add i2c bus\n");
+		dev_err(dev, "Failed to add i2c bus\n");
 		goto out_irq;
 	}
 
@@ -154,7 +154,7 @@ static int __init pca_isa_init(void)
 	return -ENODEV;
 }
 
-static void pca_isa_exit(void)
+static int __devexit pca_isa_remove(struct device *dev, unsigned int id)
 {
 	i2c_del_adapter(&pca_isa_ops);
 
@@ -163,6 +163,27 @@ static void pca_isa_exit(void)
 		free_irq(irq, &pca_isa_ops);
 	}
 	release_region(base, IO_SIZE);
+
+	return 0;
+}
+
+static struct isa_driver pca_isa_driver = {
+	.probe		= pca_isa_probe,
+	.remove		= __devexit_p(pca_isa_remove),
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "i2c-pca-isa",
+	}
+};
+
+static int __init pca_isa_init(void)
+{
+	return isa_register_driver(&pca_isa_driver, 1);
+}
+
+static void __exit pca_isa_exit(void)
+{
+	isa_unregister_driver(&pca_isa_driver);
 }
 
 MODULE_AUTHOR("Ian Campbell <icampbell@arcom.com>");

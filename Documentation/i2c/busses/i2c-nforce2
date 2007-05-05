@@ -9,6 +9,8 @@ Supported adapters:
   * nForce4 MCP-04             10de:0034
   * nForce4 MCP51              10de:0264
   * nForce4 MCP55              10de:0368
+  * nForce4 MCP61              10de:03EB
+  * nForce4 MCP65              10de:0446
 
 Datasheet: not publicly available, but seems to be similar to the
            AMD-8111 SMBus 2.0 adapter.

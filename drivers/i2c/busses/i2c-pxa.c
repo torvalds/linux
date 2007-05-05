@@ -539,6 +539,18 @@ static inline void i2c_pxa_start_message(struct pxa_i2c *i2c)
 	writel(icr | ICR_START | ICR_TB, _ICR(i2c));
 }
 
+static inline void i2c_pxa_stop_message(struct pxa_i2c *i2c)
+{
+	u32 icr;
+
+	/*
+	 * Clear the STOP and ACK flags
+	 */
+	icr = readl(_ICR(i2c));
+	icr &= ~(ICR_STOP | ICR_ACKNAK);
+	writel(icr, _IRC(i2c));
+}
+
 /*
  * We are protected by the adapter bus mutex.
  */
@@ -581,6 +593,7 @@ static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 	 * The rest of the processing occurs in the interrupt handler.
 	 */
 	timeout = wait_event_timeout(i2c->wait, i2c->msg_num == 0, HZ * 5);
+	i2c_pxa_stop_message(i2c);
 
 	/*
 	 * We place the return code in i2c->msg_idx.
@@ -825,7 +838,7 @@ static const struct i2c_algorithm i2c_pxa_algorithm = {
 };
 
 static struct pxa_i2c i2c_pxa = {
-	.lock	= SPIN_LOCK_UNLOCKED,
+	.lock	= __SPIN_LOCK_UNLOCKED(i2c_pxa.lock),
 	.adap	= {
 		.owner		= THIS_MODULE,
 		.algo		= &i2c_pxa_algorithm,

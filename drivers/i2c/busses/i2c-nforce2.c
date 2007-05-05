@@ -33,6 +33,8 @@
     nForce4 MCP-04		0034
     nForce4 MCP51		0264
     nForce4 MCP55		0368
+    nForce MCP61		03EB
+    nForce MCP65		0446
 
     This driver supports the 2 SMBuses that are included in the MCP of the
     nForce2/3/4/5xx chipsets.
@@ -200,6 +202,8 @@ static struct pci_device_id nforce2_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP04_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP61_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP65_SMBUS) },
 	{ 0 }
 };
 
@@ -240,7 +244,7 @@ static int __devinit nforce2_probe_smb (struct pci_dev *dev, int bar,
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
 	smbus->adapter.dev.parent = &dev->dev;
-	snprintf(smbus->adapter.name, I2C_NAME_SIZE,
+	snprintf(smbus->adapter.name, sizeof(smbus->adapter.name),
 		"SMBus nForce2 adapter at %04x", smbus->base);
 
 	error = i2c_add_adapter(&smbus->adapter);

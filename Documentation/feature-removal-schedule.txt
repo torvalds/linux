@@ -190,18 +190,10 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
-What:	i2c_adapter.dev
-	i2c_adapter.list
+What:	i2c_adapter.list
 When:	July 2007
-Why:	Superfluous, given i2c_adapter.class_dev:
-	  * The "dev" was a stand-in for the physical device node that legacy
-	    drivers would not have; but now it's almost always present.  Any
-	    remaining legacy drivers must upgrade (they now trigger warnings).
-	  * The "list" duplicates class device children.
-	The delay in removing this is so upgraded lm_sensors and libsensors
-	can get deployed.  (Removal causes minor changes in the sysfs layout,
-	notably the location of the adapter type name and parenting the i2c
-	client hardware directly from their controller.)
+Why:	Superfluous, this list duplicates the one maintained by the driver
+	core.
 Who:	Jean Delvare <khali@linux-fr.org>,
 	David Brownell <dbrownell@users.sourceforge.net>
 
@@ -331,3 +323,10 @@ Who:	Cornelia Huck <cornelia.huck@de.ibm.com>
 
 ---------------------------
 
+What:	i2c-ixp2000, i2c-ixp4xx and scx200_i2c drivers
+When:	September 2007
+Why:	Obsolete. The new i2c-gpio driver replaces all hardware-specific
+	I2C-over-GPIO drivers.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------

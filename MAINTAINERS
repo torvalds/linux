@@ -733,6 +733,13 @@ M:	tigran@aivazian.fsnet.co.uk
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+BLACKFIN I2C TWI DRIVER
+P:	Sonic Zhang
+M:	sonic.zhang@analog.com
+L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+W:	http://blackfin.uclinux.org/
+S:	Supported
+
 BLOCK LAYER
 P:	Jens Axboe
 M:	axboe@kernel.dk
@@ -1459,6 +1466,11 @@ L:	linux-scsi@vger.kernel.org
 W:	http://www.icp-vortex.com/
 S:	Supported
 
+GENERIC GPIO I2C DRIVER
+P:	Haavard Skinnemoen
+M:	hskinnemoen@atmel.com
+S:	Supported
+
 GENERIC HDLC DRIVER, N2, C101, PCI200SYN and WANXL DRIVERS
 P:	Krzysztof Halasa
 M:	khc@pm.waw.pl
@@ -1629,6 +1641,13 @@ P:	Jean Delvare
 M:	khali@linux-fr.org
 L:	i2c@lm-sensors.org
 T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
+S:	Maintained
+
+I2C-TINY-USB DRIVER
+P:	Till Harbaum
+M:	till@harbaum.org
+L:	i2c@lm-sensors.org
+T:	http://www.harbaum.org/till/i2c_tiny_usb
 S:	Maintained
 
 i386 BOOT CODE

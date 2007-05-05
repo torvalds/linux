@@ -404,7 +404,7 @@ found:
 	}
 
 	vt596_adapter.dev.parent = &pdev->dev;
-	snprintf(vt596_adapter.name, I2C_NAME_SIZE,
+	snprintf(vt596_adapter.name, sizeof(vt596_adapter.name),
 		 "SMBus Via Pro adapter at %04x", vt596_smba);
 
 	vt596_pdev = pci_dev_get(pdev);
