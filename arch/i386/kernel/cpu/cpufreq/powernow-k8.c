@@ -661,7 +661,8 @@ static int fill_powernow_table(struct powernow_k8_data *data, struct pst_s *pst,
 
 	dprintk("cfid 0x%x, cvid 0x%x\n", data->currfid, data->currvid);
 	data->powernow_table = powernow_table;
-	print_basics(data);
+	if (first_cpu(cpu_core_map[data->cpu]) == data->cpu)
+		print_basics(data);
 
 	for (j = 0; j < data->numps; j++)
 		if ((pst[j].fid==data->currfid) && (pst[j].vid==data->currvid))
@@ -814,7 +815,8 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 
 	/* fill in data */
 	data->numps = data->acpi_data.state_count;
-	print_basics(data);
+	if (first_cpu(cpu_core_map[data->cpu]) == data->cpu)
+		print_basics(data);
 	powernow_k8_acpi_pst_values(data, 0);
 
 	/* notify BIOS that we exist */

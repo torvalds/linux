@@ -720,6 +720,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 			cpu_set(j, set_mask);
 
 		set_cpus_allowed(current, set_mask);
+		preempt_disable();
 		if (unlikely(!cpu_isset(smp_processor_id(), set_mask))) {
 			dprintk("couldn't limit to CPUs in this domain\n");
 			retval = -EAGAIN;
@@ -727,6 +728,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 				/* We haven't started the transition yet. */
 				goto migrate_end;
 			}
+			preempt_enable();
 			break;
 		}
 
@@ -761,10 +763,13 @@ static int centrino_target (struct cpufreq_policy *policy,
 		}
 
 		wrmsr(MSR_IA32_PERF_CTL, oldmsr, h);
-		if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
+		if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
+			preempt_enable();
 			break;
+		}
 
 		cpu_set(j, covered_cpus);
+		preempt_enable();
 	}
 
 	for_each_cpu_mask(k, online_policy_cpus) {
@@ -796,8 +801,11 @@ static int centrino_target (struct cpufreq_policy *policy,
 			cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 		}
 	}
+	set_cpus_allowed(current, saved_mask);
+	return 0;
 
 migrate_end:
+	preempt_enable();
 	set_cpus_allowed(current, saved_mask);
 	return 0;
 }
