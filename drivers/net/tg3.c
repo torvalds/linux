@@ -10673,17 +10673,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5700_BX)
 		tp->tg3_flags |= TG3_FLAG_TXD_MBOX_HWBUG;
 
-	/* Back to back register writes can cause problems on this chip,
-	 * the workaround is to read back all reg writes except those to
-	 * mailbox regs.  See tg3_write_indirect_reg32().
-	 *
-	 * PCI Express 5750_A0 rev chips need this workaround too.
-	 */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701 ||
-	    ((tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) &&
-	     tp->pci_chip_rev_id == CHIPREV_ID_5750_A0))
-		tp->tg3_flags |= TG3_FLAG_5701_REG_WRITE_BUG;
-
 	if ((pci_state_reg & PCISTATE_BUS_SPEED_HIGH) != 0)
 		tp->tg3_flags |= TG3_FLAG_PCI_HIGH_SPEED;
 	if ((pci_state_reg & PCISTATE_BUS_32BIT) != 0)
@@ -10707,8 +10696,19 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	/* Various workaround register access methods */
 	if (tp->tg3_flags & TG3_FLAG_PCIX_TARGET_HWBUG)
 		tp->write32 = tg3_write_indirect_reg32;
-	else if (tp->tg3_flags & TG3_FLAG_5701_REG_WRITE_BUG)
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701 ||
+		 ((tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) &&
+		  tp->pci_chip_rev_id == CHIPREV_ID_5750_A0)) {
+		/*
+		 * Back to back register writes can cause problems on these
+		 * chips, the workaround is to read back all reg writes
+		 * except those to mailbox regs.
+		 *
+		 * See tg3_write_indirect_reg32().
+		 */
 		tp->write32 = tg3_write_flush_reg32;
+	}
+
 
 	if ((tp->tg3_flags & TG3_FLAG_TXD_MBOX_HWBUG) ||
 	    (tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER)) {
