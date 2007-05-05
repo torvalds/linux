@@ -22,7 +22,7 @@
 #include <asm/io.h>
 
 void * __iomem __iop3xx_ioremap(unsigned long cookie, size_t size,
-	unsigned long flags)
+	unsigned int mtype)
 {
 	void __iomem * retval;
 
@@ -34,7 +34,7 @@ void * __iomem __iop3xx_ioremap(unsigned long cookie, size_t size,
 		retval = (void *) IOP3XX_PMMR_PHYS_TO_VIRT(cookie);
 		break;
 	default:
-		retval = __ioremap(cookie, size, flags);
+		retval = __arm_ioremap(cookie, size, mtype);
 	}
 
 	return retval;

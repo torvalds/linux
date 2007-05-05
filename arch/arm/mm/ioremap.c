@@ -262,11 +262,10 @@ remap_area_supersections(unsigned long virt, unsigned long pfn,
  * mapping.  See include/asm-arm/proc-armv/pgtable.h for more information.
  */
 void __iomem *
-__ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
-	      unsigned long flags)
+__arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
+		  unsigned int mtype)
 {
 	const struct mem_type *type;
-	struct mem_type t;
 	int err;
 	unsigned long addr;
  	struct vm_struct * area;
@@ -277,10 +276,9 @@ __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 	if (pfn >= 0x100000 && (__pfn_to_phys(pfn) & ~SUPERSECTION_MASK))
 		return NULL;
 
-	t = *get_mem_type(MT_DEVICE);
-	t.prot_sect |= flags;
-	t.prot_pte |= flags;
-	type = &t;
+	type = get_mem_type(mtype);
+	if (!type)
+		return NULL;
 
 	size = PAGE_ALIGN(size);
 
@@ -311,10 +309,10 @@ __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 	flush_cache_vmap(addr, addr + size);
 	return (void __iomem *) (offset + addr);
 }
-EXPORT_SYMBOL(__ioremap_pfn);
+EXPORT_SYMBOL(__arm_ioremap_pfn);
 
 void __iomem *
-__ioremap(unsigned long phys_addr, size_t size, unsigned long flags)
+__arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 {
 	unsigned long last_addr;
  	unsigned long offset = phys_addr & ~PAGE_MASK;
@@ -332,9 +330,9 @@ __ioremap(unsigned long phys_addr, size_t size, unsigned long flags)
 	 */
 	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
 
- 	return __ioremap_pfn(pfn, offset, size, flags);
+ 	return __arm_ioremap_pfn(pfn, offset, size, mtype);
 }
-EXPORT_SYMBOL(__ioremap);
+EXPORT_SYMBOL(__arm_ioremap);
 
 void __iounmap(volatile void __iomem *addr)
 {

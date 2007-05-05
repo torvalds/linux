@@ -88,9 +88,9 @@ void iop13xx_map_pci_memory(void)
 
 				if (end) {
 					iop13xx_atux_mem_base =
-					(u32) __ioremap_pfn(
+					(u32) __arm_ioremap_pfn(
 					__phys_to_pfn(IOP13XX_PCIX_LOWER_MEM_PA)
-					, 0, iop13xx_atux_mem_size, 0);
+					, 0, iop13xx_atux_mem_size, MT_DEVICE);
 					if (!iop13xx_atux_mem_base) {
 						printk("%s: atux allocation "
 						       "failed\n", __FUNCTION__);
@@ -114,9 +114,9 @@ void iop13xx_map_pci_memory(void)
 
 				if (end) {
 					iop13xx_atue_mem_base =
-					(u32) __ioremap_pfn(
+					(u32) __arm_ioremap_pfn(
 					__phys_to_pfn(IOP13XX_PCIE_LOWER_MEM_PA)
-					, 0, iop13xx_atue_mem_size, 0);
+					, 0, iop13xx_atue_mem_size, MT_DEVICE);
 					if (!iop13xx_atue_mem_base) {
 						printk("%s: atue allocation "
 						       "failed\n", __FUNCTION__);

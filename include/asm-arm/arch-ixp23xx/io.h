@@ -23,7 +23,7 @@
 #include <linux/kernel.h>	/* For BUG */
 
 static inline void __iomem *
-ixp23xx_ioremap(unsigned long addr, unsigned long size, unsigned long flags)
+ixp23xx_ioremap(unsigned long addr, unsigned long size, unsigned int mtype)
 {
 	if (addr >= IXP23XX_PCI_MEM_START &&
 		addr <= IXP23XX_PCI_MEM_START + IXP23XX_PCI_MEM_SIZE) {
@@ -34,7 +34,7 @@ ixp23xx_ioremap(unsigned long addr, unsigned long size, unsigned long flags)
  			((addr - IXP23XX_PCI_MEM_START) + IXP23XX_PCI_MEM_VIRT);
 	}
 
-	return __ioremap(addr, size, flags);
+	return __arm_ioremap(addr, size, mtype);
 }
 
 static inline void

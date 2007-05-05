@@ -9,6 +9,8 @@
  *
  *  Page table mapping constructs and function prototypes
  */
+#include <asm/io.h>
+
 struct map_desc {
 	unsigned long virtual;
 	unsigned long pfn;
@@ -16,10 +18,7 @@ struct map_desc {
 	unsigned int type;
 };
 
-#define MT_DEVICE		0
-#define MT_DEVICE_NONSHARED	1
-#define MT_DEVICE_CACHED	2
-#define MT_DEVICE_IXP2000	3
+/* types 0-3 are defined in asm/io.h */
 #define MT_CACHECLEAN		4
 #define MT_MINICLEAN		5
 #define MT_LOW_VECTORS		6
