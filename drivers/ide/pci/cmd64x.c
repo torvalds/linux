@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cmd64x.c		Version 1.43	Mar 10, 2007
+ * linux/drivers/ide/pci/cmd64x.c		Version 1.44	Mar 12, 2007
  *
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
  *           Due to massive hardware bugs, UltraDMA is only supported
@@ -36,7 +36,7 @@
  * CMD64x specific registers definition.
  */
 #define CFR		0x50
-#define   CFR_INTR_CH0		0x02
+#define   CFR_INTR_CH0		0x04
 #define CNTRL		0x51
 #define	  CNTRL_DIS_RA0		0x40
 #define   CNTRL_DIS_RA1		0x80
@@ -488,19 +488,19 @@ static int cmd64x_ide_dma_end (ide_drive_t *drive)
 
 static int cmd64x_ide_dma_test_irq (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif		= HWIF(drive);
-	struct pci_dev *dev		= hwif->pci_dev;
-        u8 dma_alt_stat = 0, mask	= (hwif->channel) ? MRDMODE_INTR_CH1 :
-							    MRDMODE_INTR_CH0;
-	u8 dma_stat = inb(hwif->dma_status);
+	ide_hwif_t *hwif	= HWIF(drive);
+	struct pci_dev *dev	= hwif->pci_dev;
+	u8 irq_reg		= hwif->channel ? ARTTIM23 : CFR;
+	u8 irq_stat = 0, mask	= hwif->channel ? ARTTIM23_INTR_CH1 : CFR_INTR_CH0;
+	u8 dma_stat		= inb(hwif->dma_status);
 
-	(void) pci_read_config_byte(dev, MRDMODE, &dma_alt_stat);
+	(void) pci_read_config_byte(dev, irq_reg, &irq_stat);
+
 #ifdef DEBUG
-	printk("%s: dma_stat: 0x%02x dma_alt_stat: "
-		"0x%02x mask: 0x%02x\n", drive->name,
-		dma_stat, dma_alt_stat, mask);
+	printk("%s: dma_stat: 0x%02x irq_stat: 0x%02x mask: 0x%02x\n",
+	       drive->name, dma_stat, irq_stat, mask);
 #endif
-	if (!(dma_alt_stat & mask))
+	if (!(irq_stat & mask))
 		return 0;
 
 	/* return 1 if INTR asserted */
