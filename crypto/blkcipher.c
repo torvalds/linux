@@ -349,13 +349,48 @@ static int setkey(struct crypto_tfm *tfm, const u8 *key,
 	return cipher->setkey(tfm, key, keylen);
 }
 
+static int async_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+			unsigned int keylen)
+{
+	return setkey(crypto_ablkcipher_tfm(tfm), key, keylen);
+}
+
+static int async_encrypt(struct ablkcipher_request *req)
+{
+	struct crypto_tfm *tfm = req->base.tfm;
+	struct blkcipher_alg *alg = &tfm->__crt_alg->cra_blkcipher;
+	struct blkcipher_desc desc = {
+		.tfm = __crypto_blkcipher_cast(tfm),
+		.info = req->info,
+		.flags = req->base.flags,
+	};
+
+
+	return alg->encrypt(&desc, req->dst, req->src, req->nbytes);
+}
+
+static int async_decrypt(struct ablkcipher_request *req)
+{
+	struct crypto_tfm *tfm = req->base.tfm;
+	struct blkcipher_alg *alg = &tfm->__crt_alg->cra_blkcipher;
+	struct blkcipher_desc desc = {
+		.tfm = __crypto_blkcipher_cast(tfm),
+		.info = req->info,
+		.flags = req->base.flags,
+	};
+
+	return alg->decrypt(&desc, req->dst, req->src, req->nbytes);
+}
+
 static unsigned int crypto_blkcipher_ctxsize(struct crypto_alg *alg, u32 type,
 					     u32 mask)
 {
 	struct blkcipher_alg *cipher = &alg->cra_blkcipher;
 	unsigned int len = alg->cra_ctxsize;
 
-	if (cipher->ivsize) {
+	type ^= CRYPTO_ALG_ASYNC;
+	mask &= CRYPTO_ALG_ASYNC;
+	if ((type & mask) && cipher->ivsize) {
 		len = ALIGN(len, (unsigned long)alg->cra_alignmask + 1);
 		len += cipher->ivsize;
 	}
@@ -363,15 +398,25 @@ static unsigned int crypto_blkcipher_ctxsize(struct crypto_alg *alg, u32 type,
 	return len;
 }
 
-static int crypto_init_blkcipher_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
+static int crypto_init_blkcipher_ops_async(struct crypto_tfm *tfm)
+{
+	struct ablkcipher_tfm *crt = &tfm->crt_ablkcipher;
+	struct blkcipher_alg *alg = &tfm->__crt_alg->cra_blkcipher;
+
+	crt->setkey = async_setkey;
+	crt->encrypt = async_encrypt;
+	crt->decrypt = async_decrypt;
+	crt->ivsize = alg->ivsize;
+
+	return 0;
+}
+
+static int crypto_init_blkcipher_ops_sync(struct crypto_tfm *tfm)
 {
 	struct blkcipher_tfm *crt = &tfm->crt_blkcipher;
 	struct blkcipher_alg *alg = &tfm->__crt_alg->cra_blkcipher;
 	unsigned long align = crypto_tfm_alg_alignmask(tfm) + 1;
 	unsigned long addr;
-
-	if (alg->ivsize > PAGE_SIZE / 8)
-		return -EINVAL;
 
 	crt->setkey = setkey;
 	crt->encrypt = alg->encrypt;
@@ -385,8 +430,23 @@ static int crypto_init_blkcipher_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	return 0;
 }
 
+static int crypto_init_blkcipher_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
+{
+	struct blkcipher_alg *alg = &tfm->__crt_alg->cra_blkcipher;
+
+	if (alg->ivsize > PAGE_SIZE / 8)
+		return -EINVAL;
+
+	type ^= CRYPTO_ALG_ASYNC;
+	mask &= CRYPTO_ALG_ASYNC;
+	if (type & mask)
+		return crypto_init_blkcipher_ops_sync(tfm);
+	else
+		return crypto_init_blkcipher_ops_async(tfm);
+}
+
 static void crypto_blkcipher_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute_used__;
+	__attribute__ ((unused));
 static void crypto_blkcipher_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	seq_printf(m, "type         : blkcipher\n");
