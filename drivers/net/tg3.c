@@ -2595,10 +2595,8 @@ static int tg3_setup_fiber_by_hand(struct tg3 *tp, u32 mac_status)
 {
 	int current_link_up = 0;
 
- 	if (!(mac_status & MAC_STATUS_PCS_SYNCED)) {
-		tp->tg3_flags &= ~TG3_FLAG_GOT_SERDES_FLOWCTL;
+	if (!(mac_status & MAC_STATUS_PCS_SYNCED))
 		goto out;
-	}
 
 	if (tp->link_config.autoneg == AUTONEG_ENABLE) {
 		u32 flags;
@@ -2616,7 +2614,6 @@ static int tg3_setup_fiber_by_hand(struct tg3 *tp, u32 mac_status)
 
 			tg3_setup_flow_control(tp, local_adv, remote_adv);
 
-			tp->tg3_flags |= TG3_FLAG_GOT_SERDES_FLOWCTL;
 			current_link_up = 1;
 		}
 		for (i = 0; i < 30; i++) {
@@ -2639,7 +2636,6 @@ static int tg3_setup_fiber_by_hand(struct tg3 *tp, u32 mac_status)
 	} else {
 		/* Forcing 1000FD link up. */
 		current_link_up = 1;
-		tp->tg3_flags |= TG3_FLAG_GOT_SERDES_FLOWCTL;
 
 		tw32_f(MAC_MODE, (tp->mac_mode | MAC_MODE_SEND_CONFIGS));
 		udelay(40);
@@ -7400,9 +7396,7 @@ static int tg3_close(struct net_device *dev)
 
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 	tg3_free_rings(tp);
-	tp->tg3_flags &=
-		~(TG3_FLAG_INIT_COMPLETE |
-		  TG3_FLAG_GOT_SERDES_FLOWCTL);
+	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
 
 	tg3_full_unlock(tp);
 
