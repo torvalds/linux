@@ -407,8 +407,12 @@ out_free_vidh:
  * @vid_hdr: the volume identifier header
  * @bitflips: if bit-flips were detected when this physical eraseblock was read
  *
- * This function returns zero in case of success and a negative error code in
- * case of failure.
+ * This function adds information about a used physical eraseblock to the
+ * 'used' tree of the corresponding volume. The function is rather complex
+ * because it has to handle cases when this is not the first physical
+ * eraseblock belonging to the same logical eraseblock, and the newer one has
+ * to be picked, while the older one has to be dropped. This function returns
+ * zero in case of success and a negative error code in case of failure.
  */
 int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
 		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
