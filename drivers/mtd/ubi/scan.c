@@ -55,7 +55,7 @@ static int paranoid_check_si(const struct ubi_device *ubi,
 static struct ubi_ec_hdr *ech;
 static struct ubi_vid_hdr *vidh;
 
-/*
+/**
  * add_to_list - add physical eraseblock to a list.
  * @si: scanning information
  * @pnum: physical eraseblock number to add

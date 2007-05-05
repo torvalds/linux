@@ -374,9 +374,11 @@ void ubi_calculate_reserved(struct ubi_device *ubi);
 #ifdef CONFIG_MTD_UBI_GLUEBI
 int ubi_create_gluebi(struct ubi_device *ubi, struct ubi_volume *vol);
 int ubi_destroy_gluebi(struct ubi_volume *vol);
+void ubi_gluebi_updated(struct ubi_volume *vol);
 #else
 #define ubi_create_gluebi(ubi, vol) 0
 #define ubi_destroy_gluebi(vol) 0
+#define ubi_gluebi_updated(vol)
 #endif
 
 /* eba.c */
