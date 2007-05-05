@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cmd64x.c		Version 1.46	Mar 16, 2007
+ * linux/drivers/ide/pci/cmd64x.c		Version 1.47	Mar 19, 2007
  *
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
  *           Due to massive hardware bugs, UltraDMA is only supported
@@ -425,67 +425,80 @@ static int cmd64x_config_drive_for_dma (ide_drive_t *drive)
 	return -1;
 }
 
-static int cmd64x_alt_dma_status (struct pci_dev *dev)
+static int cmd648_ide_dma_end (ide_drive_t *drive)
 {
-	switch(dev->device) {
-		case PCI_DEVICE_ID_CMD_648:
-		case PCI_DEVICE_ID_CMD_649:
-			return 1;
-		default:
-			break;
-	}
-	return 0;
+	ide_hwif_t *hwif	= HWIF(drive);
+	int err			= __ide_dma_end(drive);
+	u8  irq_mask		= hwif->channel ? MRDMODE_INTR_CH1 :
+						  MRDMODE_INTR_CH0;
+	u8  mrdmode		= inb(hwif->dma_master + 0x01);
+
+	/* clear the interrupt bit */
+	outb(mrdmode | irq_mask, hwif->dma_master + 0x01);
+
+	return err;
 }
 
 static int cmd64x_ide_dma_end (ide_drive_t *drive)
 {
-	u8 dma_stat = 0, dma_cmd = 0;
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
+	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
+	u8  irq_mask		= hwif->channel ? ARTTIM23_INTR_CH1 :
+						  CFR_INTR_CH0;
+	u8  irq_stat		= 0;
+	int err			= __ide_dma_end(drive);
 
-	drive->waiting_for_dma = 0;
-	/* read DMA command state */
-	dma_cmd = inb(hwif->dma_command);
-	/* stop DMA */
-	outb(dma_cmd & ~1, hwif->dma_command);
-	/* get DMA status */
-	dma_stat = inb(hwif->dma_status);
-	/* clear the INTR & ERROR bits */
-	outb(dma_stat | 6, hwif->dma_status);
-	if (cmd64x_alt_dma_status(dev)) {
-		u8 dma_intr	= 0;
-		u8 dma_mask	= (hwif->channel) ? ARTTIM23_INTR_CH1 :
-						    CFR_INTR_CH0;
-		u8 dma_reg	= (hwif->channel) ? ARTTIM2 : CFR;
-		(void) pci_read_config_byte(dev, dma_reg, &dma_intr);
-		/* clear the INTR bit */
-		(void) pci_write_config_byte(dev, dma_reg, dma_intr|dma_mask);
-	}
-	/* purge DMA mappings */
-	ide_destroy_dmatable(drive);
-	/* verify good DMA status */
-	return (dma_stat & 7) != 4;
+	(void) pci_read_config_byte(dev, irq_reg, &irq_stat);
+	/* clear the interrupt bit */
+	(void) pci_write_config_byte(dev, irq_reg, irq_stat | irq_mask);
+
+	return err;
+}
+
+static int cmd648_ide_dma_test_irq (ide_drive_t *drive)
+{
+	ide_hwif_t *hwif	= HWIF(drive);
+	u8 irq_mask		= hwif->channel ? MRDMODE_INTR_CH1 :
+						  MRDMODE_INTR_CH0;
+	u8 dma_stat		= inb(hwif->dma_status);
+	u8 mrdmode		= inb(hwif->dma_master + 0x01);
+
+#ifdef DEBUG
+	printk("%s: dma_stat: 0x%02x mrdmode: 0x%02x irq_mask: 0x%02x\n",
+	       drive->name, dma_stat, mrdmode, irq_mask);
+#endif
+	if (!(mrdmode & irq_mask))
+		return 0;
+
+	/* return 1 if INTR asserted */
+	if (dma_stat & 4)
+		return 1;
+
+	return 0;
 }
 
 static int cmd64x_ide_dma_test_irq (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	u8 irq_reg		= hwif->channel ? ARTTIM23 : CFR;
-	u8 irq_stat = 0, mask	= hwif->channel ? ARTTIM23_INTR_CH1 : CFR_INTR_CH0;
-	u8 dma_stat		= inb(hwif->dma_status);
+	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
+	u8  irq_mask		= hwif->channel ? ARTTIM23_INTR_CH1 :
+						  CFR_INTR_CH0;
+	u8  dma_stat		= inb(hwif->dma_status);
+	u8  irq_stat		= 0;
 
 	(void) pci_read_config_byte(dev, irq_reg, &irq_stat);
 
 #ifdef DEBUG
-	printk("%s: dma_stat: 0x%02x irq_stat: 0x%02x mask: 0x%02x\n",
-	       drive->name, dma_stat, irq_stat, mask);
+	printk("%s: dma_stat: 0x%02x irq_stat: 0x%02x irq_mask: 0x%02x\n",
+	       drive->name, dma_stat, irq_stat, irq_mask);
 #endif
-	if (!(irq_stat & mask))
+	if (!(irq_stat & irq_mask))
 		return 0;
 
 	/* return 1 if INTR asserted */
-	if ((dma_stat & 4) == 4)
+	if (dma_stat & 4)
 		return 1;
 
 	return 0;
@@ -645,17 +658,25 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	if (!(hwif->udma_four))
 		hwif->udma_four = ata66_cmd64x(hwif);
 
-	if (dev->device == PCI_DEVICE_ID_CMD_646) {
+	switch(dev->device) {
+	case PCI_DEVICE_ID_CMD_648:
+	case PCI_DEVICE_ID_CMD_649:
+	alt_irq_bits:
+		hwif->ide_dma_end	= &cmd648_ide_dma_end;
+		hwif->ide_dma_test_irq	= &cmd648_ide_dma_test_irq;
+		break;
+	case PCI_DEVICE_ID_CMD_646:
 		hwif->chipset = ide_cmd646;
 		if (class_rev == 0x01) {
 			hwif->ide_dma_end = &cmd646_1_ide_dma_end;
-		} else {
-			hwif->ide_dma_end = &cmd64x_ide_dma_end;
-			hwif->ide_dma_test_irq = &cmd64x_ide_dma_test_irq;
-		}
-	} else {
-		hwif->ide_dma_end = &cmd64x_ide_dma_end;
-		hwif->ide_dma_test_irq = &cmd64x_ide_dma_test_irq;
+			break;
+		} else if (class_rev >= 0x03)
+			goto alt_irq_bits;
+		/* fall thru */
+	default:
+		hwif->ide_dma_end	= &cmd64x_ide_dma_end;
+		hwif->ide_dma_test_irq	= &cmd64x_ide_dma_test_irq;
+		break;
 	}
 
 
