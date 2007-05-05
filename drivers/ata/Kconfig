@@ -24,6 +24,19 @@ config ATA_NONSTANDARD
        bool
        default n
 
+config ATA_ACPI
+	bool
+	depends on ACPI && PCI
+	default y
+	help
+	  This option adds support for ATA-related ACPI objects.
+	  These ACPI objects add the ability to retrieve taskfiles
+	  from the ACPI BIOS and write them to the disk controller.
+	  These objects may be related to performance, security,
+	  power management, or other areas.
+	  You can disable this at kernel boot time by using the
+	  option libata.noacpi=1
+
 config SATA_AHCI
 	tristate "AHCI SATA support"
 	depends on PCI
@@ -156,19 +169,6 @@ config SATA_INIC162X
 	depends on PCI && EXPERIMENTAL
 	help
 	  This option enables support for Initio 162x Serial ATA.
-
-config SATA_ACPI
-	bool
-	depends on ACPI && PCI
-	default y
-	help
-	  This option adds support for SATA-related ACPI objects.
-	  These ACPI objects add the ability to retrieve taskfiles
-	  from the ACPI BIOS and write them to the disk controller.
-	  These objects may be related to performance, security,
-	  power management, or other areas.
-	  You can disable this at kernel boot time by using the
-	  option libata.noacpi=1
 
 config PATA_ALI
 	tristate "ALi PATA support (Experimental)"
