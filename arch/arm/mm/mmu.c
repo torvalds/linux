@@ -176,14 +176,35 @@ void adjust_cr(unsigned long mask, unsigned long set)
 }
 #endif
 
+#define PROT_PTE_DEVICE		L_PTE_PRESENT|L_PTE_YOUNG|L_PTE_DIRTY|L_PTE_WRITE
+#define PROT_SECT_DEVICE	PMD_TYPE_SECT|PMD_SECT_XN|PMD_SECT_AP_WRITE
+
 static struct mem_type mem_types[] = {
-	[MT_DEVICE] = {
-		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
-				L_PTE_WRITE,
-		.prot_l1   = PMD_TYPE_TABLE,
-		.prot_sect = PMD_TYPE_SECT | PMD_SECT_XN | PMD_SECT_UNCACHED |
-				PMD_SECT_AP_WRITE,
-		.domain    = DOMAIN_IO,
+	[MT_DEVICE] = {		  /* Strongly ordered / ARMv6 shared device */
+		.prot_pte	= PROT_PTE_DEVICE,
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_UNCACHED,
+		.domain		= DOMAIN_IO,
+	},
+	[MT_DEVICE_NONSHARED] = { /* ARMv6 non-shared device */
+		.prot_pte	= PROT_PTE_DEVICE,
+		.prot_pte_ext	= PTE_EXT_TEX(2),
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_TEX(2),
+		.domain		= DOMAIN_IO,
+	},
+	[MT_DEVICE_CACHED] = {	  /* ioremap_cached */
+		.prot_pte	= PROT_PTE_DEVICE | L_PTE_CACHEABLE | L_PTE_BUFFERABLE,
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
+		.domain		= DOMAIN_IO,
+	},	
+	[MT_DEVICE_IXP2000] = {	  /* IXP2400 requires XCB=101 for on-chip I/O */
+		.prot_pte	= PROT_PTE_DEVICE,
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_BUFFERABLE |
+				  PMD_SECT_TEX(1),
+		.domain		= DOMAIN_IO,
 	},
 	[MT_CACHECLEAN] = {
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_XN,
@@ -213,21 +234,6 @@ static struct mem_type mem_types[] = {
 		.prot_sect = PMD_TYPE_SECT,
 		.domain    = DOMAIN_KERNEL,
 	},
-	[MT_IXP2000_DEVICE] = { /* IXP2400 requires XCB=101 for on-chip I/O */
-		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
-				L_PTE_WRITE,
-		.prot_l1   = PMD_TYPE_TABLE,
-		.prot_sect = PMD_TYPE_SECT | PMD_SECT_XN | PMD_SECT_UNCACHED |
-				PMD_SECT_AP_WRITE | PMD_SECT_BUFFERABLE |
-				PMD_SECT_TEX(1),
-		.domain    = DOMAIN_IO,
-	},
-	[MT_NONSHARED_DEVICE] = {
-		.prot_l1   = PMD_TYPE_TABLE,
-		.prot_sect = PMD_TYPE_SECT | PMD_SECT_XN | PMD_SECT_NONSHARED_DEV |
-				PMD_SECT_AP_WRITE,
-		.domain    = DOMAIN_IO,
-	}
 };
 
 const struct mem_type *get_mem_type(unsigned int type)

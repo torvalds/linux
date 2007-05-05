@@ -17,14 +17,18 @@ struct map_desc {
 };
 
 #define MT_DEVICE		0
-#define MT_CACHECLEAN		1
-#define MT_MINICLEAN		2
-#define MT_LOW_VECTORS		3
-#define MT_HIGH_VECTORS		4
-#define MT_MEMORY		5
-#define MT_ROM			6
-#define MT_IXP2000_DEVICE	7
-#define MT_NONSHARED_DEVICE	8
+#define MT_DEVICE_NONSHARED	1
+#define MT_DEVICE_CACHED	2
+#define MT_DEVICE_IXP2000	3
+#define MT_CACHECLEAN		4
+#define MT_MINICLEAN		5
+#define MT_LOW_VECTORS		6
+#define MT_HIGH_VECTORS		7
+#define MT_MEMORY		8
+#define MT_ROM			9
+
+#define MT_NONSHARED_DEVICE	MT_DEVICE_NONSHARED
+#define MT_IXP2000_DEVICE	MT_DEVICE_IXP2000
 
 #ifdef CONFIG_MMU
 extern void iotable_init(struct map_desc *, int);
