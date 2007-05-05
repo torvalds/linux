@@ -24,7 +24,7 @@
  * This unit is responsible for scanning the flash media, checking UBI
  * headers and providing complete information about the UBI flash image.
  *
- * The scanning information is reoresented by a &struct ubi_scan_info' object.
+ * The scanning information is represented by a &struct ubi_scan_info' object.
  * Information about found volumes is represented by &struct ubi_scan_volume
  * objects which are kept in volume RB-tree with root at the @volumes field.
  * The RB-tree is indexed by the volume ID.
@@ -55,8 +55,19 @@ static int paranoid_check_si(const struct ubi_device *ubi,
 static struct ubi_ec_hdr *ech;
 static struct ubi_vid_hdr *vidh;
 
-int ubi_scan_add_to_list(struct ubi_scan_info *si, int pnum, int ec,
-			 struct list_head *list)
+/*
+ * add_to_list - add physical eraseblock to a list.
+ * @si: scanning information
+ * @pnum: physical eraseblock number to add
+ * @ec: erase counter of the physical eraseblock
+ * @list: the list to add to
+ *
+ * This function adds physical eraseblock @pnum to free, erase, corrupted or
+ * alien lists. Returns zero in case of success and a negative error code in
+ * case of failure.
+ */
+static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
+		       struct list_head *list)
 {
 	struct ubi_scan_leb *seb;
 
@@ -492,11 +503,11 @@ int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
 				return err;
 
 			if (cmp_res & 4)
-				err = ubi_scan_add_to_list(si, seb->pnum,
-							   seb->ec, &si->corr);
+				err = add_to_list(si, seb->pnum, seb->ec,
+						  &si->corr);
 			else
-				err = ubi_scan_add_to_list(si, seb->pnum,
-							   seb->ec, &si->erase);
+				err = add_to_list(si, seb->pnum, seb->ec,
+						  &si->erase);
 			if (err)
 				return err;
 
@@ -517,11 +528,9 @@ int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
 			 * previously.
 			 */
 			if (cmp_res & 4)
-				return ubi_scan_add_to_list(si, pnum, ec,
-							    &si->corr);
+				return add_to_list(si, pnum, ec, &si->corr);
 			else
-				return ubi_scan_add_to_list(si, pnum, ec,
-							    &si->erase);
+				return add_to_list(si, pnum, ec, &si->erase);
 		}
 	}
 
@@ -754,7 +763,7 @@ struct ubi_scan_leb *ubi_scan_get_free_peb(const struct ubi_device *ubi,
  * @si: scanning information
  * @pnum: the physical eraseblock number
  *
- * This function returns a zero if the physical eraseblock was succesfully
+ * This function returns a zero if the physical eraseblock was successfully
  * handled and a negative error code in case of failure.
  */
 static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum)
@@ -783,8 +792,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum
 	else if (err == UBI_IO_BITFLIPS)
 		bitflips = 1;
 	else if (err == UBI_IO_PEB_EMPTY)
-		return ubi_scan_add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC,
-					    &si->erase);
+		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, &si->erase);
 	else if (err == UBI_IO_BAD_EC_HDR) {
 		/*
 		 * We have to also look at the VID header, possibly it is not
@@ -832,13 +840,13 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum
 	else if (err == UBI_IO_BAD_VID_HDR ||
 		 (err == UBI_IO_PEB_FREE && ec_corr)) {
 		/* VID header is corrupted */
-		err = ubi_scan_add_to_list(si, pnum, ec, &si->corr);
+		err = add_to_list(si, pnum, ec, &si->corr);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
 	} else if (err == UBI_IO_PEB_FREE) {
 		/* No VID header - the physical eraseblock is free */
-		err = ubi_scan_add_to_list(si, pnum, ec, &si->free);
+		err = add_to_list(si, pnum, ec, &si->free);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
@@ -853,7 +861,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum
 		case UBI_COMPAT_DELETE:
 			ubi_msg("\"delete\" compatible internal volume %d:%d"
 				" found, remove it", vol_id, lnum);
-			err = ubi_scan_add_to_list(si, pnum, ec, &si->corr);
+			err = add_to_list(si, pnum, ec, &si->corr);
 			if (err)
 				return err;
 			break;
@@ -868,7 +876,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum
 		case UBI_COMPAT_PRESERVE:
 			ubi_msg("\"preserve\" compatible internal volume %d:%d"
 				" found", vol_id, lnum);
-			err = ubi_scan_add_to_list(si, pnum, ec, &si->alien);
+			err = add_to_list(si, pnum, ec, &si->alien);
 			if (err)
 				return err;
 			si->alien_peb_count += 1;
@@ -1109,7 +1117,7 @@ static int paranoid_check_si(const struct ubi_device *ubi,
 	uint8_t *buf;
 
 	/*
-	 * At first, check that scanning information is ok.
+	 * At first, check that scanning information is OK.
 	 */
 	ubi_rb_for_each_entry(rb1, sv, &si->volumes, rb) {
 		int leb_count = 0;
