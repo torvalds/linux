@@ -100,7 +100,7 @@ cifs_read_super(struct super_block *sb, void *data,
 	sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
 	sb->s_fs_info = kzalloc(sizeof(struct cifs_sb_info),GFP_KERNEL);
 	cifs_sb = CIFS_SB(sb);
-	if(cifs_sb == NULL)
+	if (cifs_sb == NULL)
 		return -ENOMEM;
 
 	rc = cifs_mount(sb, cifs_sb, data, devname);
@@ -115,10 +115,10 @@ cifs_read_super(struct super_block *sb, void *data,
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-	if(experimEnabled != 0)
+	if (experimEnabled != 0)
 		sb->s_export_op = &cifs_export_ops;
 #endif /* EXPERIMENTAL */	
-/*	if(cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
+/*	if (cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
 	    sb->s_blocksize = cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
 #ifdef CONFIG_CIFS_QUOTA
 	sb->s_qcop = &cifs_quotactl_ops;
@@ -147,8 +147,8 @@ out_no_root:
 		iput(inode);
 
 out_mount_failed:
-	if(cifs_sb) {
-		if(cifs_sb->local_nls)
+	if (cifs_sb) {
+		if (cifs_sb->local_nls)
 			unload_nls(cifs_sb->local_nls);	
 		kfree(cifs_sb);
 	}
@@ -163,7 +163,7 @@ cifs_put_super(struct super_block *sb)
 
 	cFYI(1, ("In cifs_put_super"));
 	cifs_sb = CIFS_SB(sb);
-	if(cifs_sb == NULL) {
+	if (cifs_sb == NULL) {
 		cFYI(1,("Empty cifs superblock info passed to unmount"));
 		return;
 	}
@@ -208,14 +208,14 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
     /* Only need to call the old QFSInfo if failed
     on newer one */
-    if(rc)
-	if(pTcon->ses->capabilities & CAP_NT_SMBS)
+    if (rc)
+	if (pTcon->ses->capabilities & CAP_NT_SMBS)
 		rc = CIFSSMBQFSInfo(xid, pTcon, buf); /* not supported by OS2 */
 
 	/* Some old Windows servers also do not support level 103, retry with
 	   older level one if old server failed the previous call or we
 	   bypassed it because we detected that this was an older LANMAN sess */
-	if(rc)
+	if (rc)
 		rc = SMBOldQFSInfo(xid, pTcon, buf);
 	/*     
 	   int f_type;
@@ -301,11 +301,19 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 				if (cifs_sb->tcon->ses->userName)
 					seq_printf(s, ",username=%s",
 					   cifs_sb->tcon->ses->userName);
-				if(cifs_sb->tcon->ses->domainName)
+				if (cifs_sb->tcon->ses->domainName)
 					seq_printf(s, ",domain=%s",
 					   cifs_sb->tcon->ses->domainName);
 			}
 		}
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
+			seq_printf(s, ",posixpaths");
+		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID) ||
+		   !(cifs_sb->tcon->ses->capabilities & CAP_UNIX))
+			seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
+		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID) ||
+		   !(cifs_sb->tcon->ses->capabilities & CAP_UNIX))
+			seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
 		seq_printf(s, ",rsize=%d",cifs_sb->rsize);
 		seq_printf(s, ",wsize=%d",cifs_sb->wsize);
 	}
@@ -321,14 +329,14 @@ int cifs_xquota_set(struct super_block * sb, int quota_type, qid_t qid,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *pTcon;
 	
-	if(cifs_sb)
+	if (cifs_sb)
 		pTcon = cifs_sb->tcon;
 	else
 		return -EIO;
 
 
 	xid = GetXid();
-	if(pTcon) {
+	if (pTcon) {
 		cFYI(1,("set type: 0x%x id: %d",quota_type,qid));		
 	} else {
 		return -EIO;
@@ -346,13 +354,13 @@ int cifs_xquota_get(struct super_block * sb, int quota_type, qid_t qid,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *pTcon;
 
-	if(cifs_sb)
+	if (cifs_sb)
 		pTcon = cifs_sb->tcon;
 	else
 		return -EIO;
 
 	xid = GetXid();
-	if(pTcon) {
+	if (pTcon) {
                 cFYI(1,("set type: 0x%x id: %d",quota_type,qid));
 	} else {
 		rc = -EIO;
@@ -369,13 +377,13 @@ int cifs_xstate_set(struct super_block * sb, unsigned int flags, int operation)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *pTcon;
 
-	if(cifs_sb)
+	if (cifs_sb)
 		pTcon = cifs_sb->tcon;
 	else
 		return -EIO;
 
 	xid = GetXid();
-	if(pTcon) {
+	if (pTcon) {
                 cFYI(1,("flags: 0x%x operation: 0x%x",flags,operation));
 	} else {
 		rc = -EIO;
@@ -392,13 +400,13 @@ int cifs_xstate_get(struct super_block * sb, struct fs_quota_stat *qstats)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *pTcon;
 
-	if(cifs_sb) {
+	if (cifs_sb) {
 		pTcon = cifs_sb->tcon;
 	} else {
 		return -EIO;
 	}
 	xid = GetXid();
-	if(pTcon) {
+	if (pTcon) {
 		cFYI(1,("pqstats %p",qstats));		
 	} else {
 		rc = -EIO;
@@ -424,11 +432,11 @@ static void cifs_umount_begin(struct vfsmount * vfsmnt, int flags)
 	if (!(flags & MNT_FORCE))
 		return;
 	cifs_sb = CIFS_SB(vfsmnt->mnt_sb);
-	if(cifs_sb == NULL)
+	if (cifs_sb == NULL)
 		return;
 
 	tcon = cifs_sb->tcon;
-	if(tcon == NULL)
+	if (tcon == NULL)
 		return;
 	down(&tcon->tconSem);
 	if (atomic_read(&tcon->useCount) == 1)
@@ -437,7 +445,7 @@ static void cifs_umount_begin(struct vfsmount * vfsmnt, int flags)
 
 	/* cancel_brl_requests(tcon); */ /* BB mark all brl mids as exiting */
 	/* cancel_notify_requests(tcon); */
-	if(tcon->ses && tcon->ses->server)
+	if (tcon->ses && tcon->ses->server)
 	{
 		cFYI(1,("wake up tasks now - umount begin not complete"));
 		wake_up_all(&tcon->ses->server->request_q);
@@ -529,8 +537,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		/* some applications poll for the file length in this strange
 		   way so we must seek to end on non-oplocked files by
 		   setting the revalidate time to zero */
-		if(file->f_path.dentry->d_inode)		
-			CIFS_I(file->f_path.dentry->d_inode)->time = 0;
+		CIFS_I(file->f_path.dentry->d_inode)->time = 0;
 
 		retval = cifs_revalidate(file->f_path.dentry);
 		if (retval < 0)
@@ -724,7 +731,7 @@ cifs_destroy_inodecache(void)
 static int
 cifs_init_request_bufs(void)
 {
-	if(CIFSMaxBufSize < 8192) {
+	if (CIFSMaxBufSize < 8192) {
 	/* Buffer size can not be smaller than 2 * PATH_MAX since maximum
 	Unicode path name has to fit in any SMB/CIFS path based frames */
 		CIFSMaxBufSize = 8192;
@@ -741,7 +748,7 @@ cifs_init_request_bufs(void)
 	if (cifs_req_cachep == NULL)
 		return -ENOMEM;
 
-	if(cifs_min_rcv < 1)
+	if (cifs_min_rcv < 1)
 		cifs_min_rcv = 1;
 	else if (cifs_min_rcv > 64) {
 		cifs_min_rcv = 64;
@@ -751,7 +758,7 @@ cifs_init_request_bufs(void)
 	cifs_req_poolp = mempool_create_slab_pool(cifs_min_rcv,
 						  cifs_req_cachep);
 
-	if(cifs_req_poolp == NULL) {
+	if (cifs_req_poolp == NULL) {
 		kmem_cache_destroy(cifs_req_cachep);
 		return -ENOMEM;
 	}
@@ -772,7 +779,7 @@ cifs_init_request_bufs(void)
 		return -ENOMEM;              
 	}
 
-	if(cifs_min_small < 2)
+	if (cifs_min_small < 2)
 		cifs_min_small = 2;
 	else if (cifs_min_small > 256) {
 		cifs_min_small = 256;
@@ -782,7 +789,7 @@ cifs_init_request_bufs(void)
 	cifs_sm_req_poolp = mempool_create_slab_pool(cifs_min_small,
 						     cifs_sm_req_cachep);
 
-	if(cifs_sm_req_poolp == NULL) {
+	if (cifs_sm_req_poolp == NULL) {
 		mempool_destroy(cifs_req_poolp);
 		kmem_cache_destroy(cifs_req_cachep);
 		kmem_cache_destroy(cifs_sm_req_cachep);
@@ -812,7 +819,7 @@ cifs_init_mids(void)
 
 	/* 3 is a reasonable minimum number of simultaneous operations */
 	cifs_mid_poolp = mempool_create_slab_pool(3, cifs_mid_cachep);
-	if(cifs_mid_poolp == NULL) {
+	if (cifs_mid_poolp == NULL) {
 		kmem_cache_destroy(cifs_mid_cachep);
 		return -ENOMEM;
 	}
@@ -850,14 +857,14 @@ static int cifs_oplock_thread(void * dummyarg)
 			continue;
 		
 		spin_lock(&GlobalMid_Lock);
-		if(list_empty(&GlobalOplock_Q)) {
+		if (list_empty(&GlobalOplock_Q)) {
 			spin_unlock(&GlobalMid_Lock);
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(39*HZ);
 		} else {
 			oplock_item = list_entry(GlobalOplock_Q.next, 
 				struct oplock_q_entry, qhead);
-			if(oplock_item) {
+			if (oplock_item) {
 				cFYI(1,("found oplock item to write out")); 
 				pTcon = oplock_item->tcon;
 				inode = oplock_item->pinode;
@@ -871,7 +878,7 @@ static int cifs_oplock_thread(void * dummyarg)
 				/* mutex_lock(&inode->i_mutex);*/
 				if (S_ISREG(inode->i_mode)) {
 					rc = filemap_fdatawrite(inode->i_mapping);
-					if(CIFS_I(inode)->clientCanCacheRead == 0) {
+					if (CIFS_I(inode)->clientCanCacheRead == 0) {
 						filemap_fdatawait(inode->i_mapping);
 						invalidate_remote_inode(inode);
 					}
@@ -888,7 +895,7 @@ static int cifs_oplock_thread(void * dummyarg)
 				not bother sending an oplock release if session 
 				to server still is disconnected since oplock 
 				already released by the server in that case */
-				if(pTcon->tidStatus != CifsNeedReconnect) {
+				if (pTcon->tidStatus != CifsNeedReconnect) {
 				    rc = CIFSSMBLock(0, pTcon, netfid,
 					    0 /* len */ , 0 /* offset */, 0, 
 					    0, LOCKING_ANDX_OPLOCK_RELEASE,
@@ -922,7 +929,7 @@ static int cifs_dnotify_thread(void * dummyarg)
 		list_for_each(tmp, &GlobalSMBSessionList) {
 			ses = list_entry(tmp, struct cifsSesInfo, 
 				cifsSessionList);
-			if(ses && ses->server && 
+			if (ses && ses->server && 
 			     atomic_read(&ses->server->inFlight))
 				wake_up_all(&ses->server->response_q);
 		}
@@ -971,10 +978,10 @@ init_cifs(void)
 	rwlock_init(&GlobalSMBSeslock);
 	spin_lock_init(&GlobalMid_Lock);
 
-	if(cifs_max_pending < 2) {
+	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;
 		cFYI(1,("cifs_max_pending set to min of 2"));
-	} else if(cifs_max_pending > 256) {
+	} else if (cifs_max_pending > 256) {
 		cifs_max_pending = 256;
 		cFYI(1,("cifs_max_pending set to max of 256"));
 	}

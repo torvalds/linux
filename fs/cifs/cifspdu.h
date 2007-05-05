@@ -1388,7 +1388,7 @@ struct smb_t2_rsp {
 #define SMB_SET_POSIX_LOCK              0x208
 #define SMB_POSIX_OPEN                  0x209
 #define SMB_POSIX_UNLINK                0x20a
-#define SMB_SET_FILE_UNIX_INFO2
+#define SMB_SET_FILE_UNIX_INFO2         0x20b
 #define SMB_SET_FILE_BASIC_INFO2        0x3ec
 #define SMB_SET_FILE_RENAME_INFORMATION 0x3f2 /* BB check if qpathinfo too */
 #define SMB_FILE_ALL_INFO2              0x3fa
@@ -2109,22 +2109,40 @@ struct cifs_posix_acl { /* access conrol list  (ACL) */
 
 /* end of POSIX ACL definitions */
 
+/* POSIX Open Flags */
+#define SMB_O_RDONLY 	 0x1
+#define SMB_O_WRONLY 	0x2
+#define SMB_O_RDWR 	0x4
+#define SMB_O_CREAT 	0x10
+#define SMB_O_EXCL 	0x20
+#define SMB_O_TRUNC 	0x40
+#define SMB_O_APPEND 	0x80
+#define SMB_O_SYNC 	0x100
+#define SMB_O_DIRECTORY 0x200
+#define SMB_O_NOFOLLOW 	0x400
+#define SMB_O_DIRECT 	0x800
+
 typedef struct {
-	__u32 OpenFlags; /* same as NT CreateX */
-	__u32 PosixOpenFlags;
-	__u32 Mode;
-	__u16 Level; /* reply level requested (see QPathInfo levels) */
-	__u16 Pad;  /* reserved - MBZ */
+	__le32 OpenFlags; /* same as NT CreateX */
+	__le32 PosixOpenFlags;
+	__le64 Permissions;
+	__le16 Level; /* reply level requested (see QPathInfo levels) */
 } __attribute__((packed)) OPEN_PSX_REQ; /* level 0x209 SetPathInfo data */
 
 typedef struct {
-	/* reply varies based on requested level */
+	__le16 OplockFlags;
+	__u16 Fid;
+	__le32 CreateAction;
+	__le16 ReturnedLevel;
+	__le16 Pad;
+	/* struct following varies based on requested level */
 } __attribute__((packed)) OPEN_PSX_RSP; /* level 0x209 SetPathInfo data */
 
 
 struct file_internal_info {
 	__u64  UniqueId; /* inode number */
 } __attribute__((packed));      /* level 0x3ee */
+
 struct file_mode_info {
 	__le32	Mode;
 } __attribute__((packed));      /* level 0x3f8 */
