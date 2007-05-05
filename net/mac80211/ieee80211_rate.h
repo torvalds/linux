@@ -56,6 +56,9 @@ struct rate_control_ops {
 
 	int (*add_attrs)(void *priv, struct kobject *kobj);
 	void (*remove_attrs)(void *priv, struct kobject *kobj);
+	void (*add_sta_debugfs)(void *priv, void *priv_sta,
+				struct dentry *dir);
+	void (*remove_sta_debugfs)(void *priv, void *priv_sta);
 };
 
 struct rate_control_ref {
@@ -117,6 +120,25 @@ static inline void rate_control_free_sta(struct rate_control_ref *ref,
 					 void *priv)
 {
 	ref->ops->free_sta(ref->priv, priv);
+}
+
+static inline void rate_control_add_sta_debugfs(struct sta_info *sta)
+{
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct rate_control_ref *ref = sta->rate_ctrl;
+	if (sta->debugfs.dir && ref->ops->add_sta_debugfs)
+		ref->ops->add_sta_debugfs(ref->priv, sta->rate_ctrl_priv,
+					  sta->debugfs.dir);
+#endif
+}
+
+static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
+{
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct rate_control_ref *ref = sta->rate_ctrl;
+	if (ref->ops->remove_sta_debugfs)
+		ref->ops->remove_sta_debugfs(ref->priv, sta->rate_ctrl_priv);
+#endif
 }
 
 #endif /* IEEE80211_RATE_H */

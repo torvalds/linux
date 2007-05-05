@@ -14,6 +14,7 @@
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "sta_info.h"
+#include "debugfs_netdev.h"
 
 void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata)
 {
@@ -73,6 +74,7 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 	if (ret)
 		goto fail;
 
+	ieee80211_debugfs_add_netdev(sdata);
 	ieee80211_if_set_type(ndev, type);
 
 	write_lock_bh(&local->sub_if_lock);
@@ -126,6 +128,8 @@ int ieee80211_if_add_mgmt(struct ieee80211_local *local)
 	if (ret)
 		goto fail;
 
+	ieee80211_debugfs_add_netdev(nsdata);
+
 	if (local->open_count > 0)
 		dev_open(ndev);
 	local->apdev = ndev;
@@ -142,6 +146,7 @@ void ieee80211_if_del_mgmt(struct ieee80211_local *local)
 
 	ASSERT_RTNL();
 	apdev = local->apdev;
+	ieee80211_debugfs_remove_netdev(IEEE80211_DEV_TO_SUB_IF(apdev));
 	local->apdev = NULL;
 	unregister_netdevice(apdev);
 }
@@ -150,6 +155,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	int oldtype = sdata->type;
 
 	sdata->type = type;
 	switch (type) {
@@ -195,6 +201,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		printk(KERN_WARNING "%s: %s: Unknown interface type 0x%x",
 		       dev->name, __FUNCTION__, type);
 	}
+	ieee80211_debugfs_change_if_type(sdata, oldtype);
 	ieee80211_update_default_wep_only(local);
 }
 
@@ -303,6 +310,7 @@ void __ieee80211_if_del(struct ieee80211_local *local,
 {
 	struct net_device *dev = sdata->dev;
 
+	ieee80211_debugfs_remove_netdev(sdata);
 	unregister_netdevice(dev);
 	/* Except master interface, the net_device will be freed by
 	 * net_device->destructor (i. e. ieee80211_if_free). */

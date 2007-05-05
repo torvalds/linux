@@ -83,6 +83,23 @@ struct ieee80211_key {
 					* (used only for broadcast keys). */
 	s8 keyidx; /* WEP key index */
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct {
+		struct dentry *stalink;
+		struct dentry *dir;
+		struct dentry *keylen;
+		struct dentry *force_sw_encrypt;
+		struct dentry *keyidx;
+		struct dentry *hw_key_idx;
+		struct dentry *tx_rx_count;
+		struct dentry *algorithm;
+		struct dentry *tx_spec;
+		struct dentry *rx_spec;
+		struct dentry *replays;
+		struct dentry *key;
+	} debugfs;
+#endif
+
 	u8 key[0];
 };
 

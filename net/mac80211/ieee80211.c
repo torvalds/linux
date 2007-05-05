@@ -35,6 +35,9 @@
 #include "aes_ccm.h"
 #include "ieee80211_led.h"
 #include "ieee80211_cfg.h"
+#include "debugfs.h"
+#include "debugfs_netdev.h"
+#include "debugfs_key.h"
 
 /* privid for wiphys to determine whether they belong to us or not */
 void *mac80211_wiphy_privid = &mac80211_wiphy_privid;
@@ -108,6 +111,7 @@ static void ieee80211_key_release(struct kref *kref)
 	key = container_of(kref, struct ieee80211_key, kref);
 	if (key->alg == ALG_CCMP)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
+	ieee80211_debugfs_key_remove(key);
 	kfree(key);
 }
 
@@ -4704,6 +4708,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		goto fail_workqueue;
 	}
 
+	debugfs_hw_add(local);
+
 	local->hw.conf.beacon_int = 1000;
 
 	local->wstats_flags |= local->hw.max_rssi ?
@@ -4730,6 +4736,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	result = register_netdevice(local->mdev);
 	if (result < 0)
 		goto fail_dev;
+
+	ieee80211_debugfs_add_netdev(IEEE80211_DEV_TO_SUB_IF(local->mdev));
 
 	result = ieee80211_init_rate_ctrl_alg(local, NULL);
 	if (result < 0) {
@@ -4765,11 +4773,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 fail_wep:
 	rate_control_deinitialize(local);
 fail_rate:
+	ieee80211_debugfs_remove_netdev(IEEE80211_DEV_TO_SUB_IF(local->mdev));
 	unregister_netdevice(local->mdev);
 fail_dev:
 	rtnl_unlock();
 	sta_info_stop(local);
 fail_sta_info:
+	debugfs_hw_del(local);
 	destroy_workqueue(local->hw.workqueue);
 fail_workqueue:
 	wiphy_unregister(local->hw.wiphy);
@@ -4844,6 +4854,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	ieee80211_clear_tx_pending(local);
 	sta_info_stop(local);
 	rate_control_deinitialize(local);
+	debugfs_hw_del(local);
 
 	for (i = 0; i < NUM_IEEE80211_MODES; i++) {
 		kfree(local->supp_rates[i]);
@@ -4953,6 +4964,8 @@ static int __init ieee80211_init(void)
 		return ret;
 	}
 
+	ieee80211_debugfs_netdev_init();
+
 	return 0;
 }
 
@@ -4960,6 +4973,7 @@ static int __init ieee80211_init(void)
 static void __exit ieee80211_exit(void)
 {
 	ieee80211_wme_unregister();
+	ieee80211_debugfs_netdev_exit();
 }
 
 

@@ -98,6 +98,9 @@ struct sta_info {
 				  * filtering; used only if sta->key is not
 				  * set */
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	int debugfs_registered;
+#endif
 	int assoc_ap; /* whether this is an AP that we are
 		       * associated with as a client */
 
@@ -109,6 +112,22 @@ struct sta_info {
 	int vlan_id;
 
 	u16 listen_interval;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct sta_info_debugfsdentries {
+		struct dentry *dir;
+		struct dentry *flags;
+		struct dentry *num_ps_buf_frames;
+		struct dentry *last_ack_rssi;
+		struct dentry *last_ack_ms;
+		struct dentry *inactive_ms;
+		struct dentry *last_seq_ctrl;
+#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
+		struct dentry *wme_rx_queue;
+		struct dentry *wme_tx_queue;
+#endif
+	} debugfs;
+#endif
 };
 
 

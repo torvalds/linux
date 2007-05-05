@@ -19,6 +19,8 @@
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
 #include "sta_info.h"
+#include "debugfs_key.h"
+#include "debugfs_sta.h"
 
 /* Caller must hold local->sta_lock */
 static void sta_info_hash_add(struct ieee80211_local *local,
@@ -120,6 +122,8 @@ static void sta_info_release(struct kref *kref)
 	}
 	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
 	rate_control_put(sta->rate_ctrl);
+	if (sta->key)
+		ieee80211_debugfs_key_sta_del(sta->key, sta);
 	kfree(sta);
 }
 
@@ -173,7 +177,40 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	       local->mdev->name, MAC_ARG(addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (!in_interrupt()) {
+		sta->debugfs_registered = 1;
+		ieee80211_sta_debugfs_add(sta);
+		rate_control_add_sta_debugfs(sta);
+	} else {
+		/* debugfs entry adding might sleep, so schedule process
+		 * context task for adding entry for STAs that do not yet
+		 * have one. */
+		queue_work(local->hw.workqueue, &local->sta_debugfs_add);
+	}
+#endif
+
 	return sta;
+}
+
+static void finish_sta_info_free(struct ieee80211_local *local,
+				 struct sta_info *sta)
+{
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: Removed STA " MAC_FMT "\n",
+	       local->mdev->name, MAC_ARG(sta->addr));
+#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+
+	if (sta->key) {
+		ieee80211_debugfs_key_remove(sta->key);
+		ieee80211_key_free(sta->key);
+		sta->key = NULL;
+	}
+
+	rate_control_remove_sta_debugfs(sta);
+	ieee80211_sta_debugfs_remove(sta);
+
+	sta_info_put(sta);
 }
 
 static void sta_info_remove(struct sta_info *sta)
@@ -239,17 +276,13 @@ void sta_info_free(struct sta_info *sta, int locked)
 		sta->key_idx_compression = HW_KEY_IDX_INVALID;
 	}
 
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Removed STA " MAC_FMT "\n",
-	       local->mdev->name, MAC_ARG(sta->addr));
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
-
-	if (sta->key) {
-		ieee80211_key_free(sta->key);
-		sta->key = NULL;
-	}
-
-	sta_info_put(sta);
+#ifdef CONFIG_MAC80211_DEBUGFS
+	if (in_atomic()) {
+		list_add(&sta->list, &local->deleted_sta_list);
+		queue_work(local->hw.workqueue, &local->sta_debugfs_add);
+	} else
+#endif
+		finish_sta_info_free(local, sta);
 }
 
 
@@ -322,6 +355,50 @@ static void sta_info_cleanup(unsigned long data)
 	add_timer(&local->sta_cleanup);
 }
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+static void sta_info_debugfs_add_task(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local, sta_debugfs_add);
+	struct sta_info *sta, *tmp;
+
+	while (1) {
+		spin_lock_bh(&local->sta_lock);
+		if (!list_empty(&local->deleted_sta_list)) {
+			sta = list_entry(local->deleted_sta_list.next,
+					 struct sta_info, list);
+			list_del(local->deleted_sta_list.next);
+		} else
+			sta = NULL;
+		spin_unlock_bh(&local->sta_lock);
+		if (!sta)
+			break;
+		finish_sta_info_free(local, sta);
+	}
+
+	while (1) {
+		sta = NULL;
+		spin_lock_bh(&local->sta_lock);
+		list_for_each_entry(tmp, &local->sta_list, list) {
+			if (!tmp->debugfs_registered) {
+				sta = tmp;
+				__sta_info_get(sta);
+				break;
+			}
+		}
+		spin_unlock_bh(&local->sta_lock);
+
+		if (!sta)
+			break;
+
+		sta->debugfs_registered = 1;
+		ieee80211_sta_debugfs_add(sta);
+		rate_control_add_sta_debugfs(sta);
+		sta_info_put(sta);
+	}
+}
+#endif
+
 void sta_info_init(struct ieee80211_local *local)
 {
 	spin_lock_init(&local->sta_lock);
@@ -332,6 +409,10 @@ void sta_info_init(struct ieee80211_local *local)
 	local->sta_cleanup.expires = jiffies + STA_INFO_CLEANUP_INTERVAL;
 	local->sta_cleanup.data = (unsigned long) local;
 	local->sta_cleanup.function = sta_info_cleanup;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	INIT_WORK(&local->sta_debugfs_add, sta_info_debugfs_add_task);
+#endif
 }
 
 int sta_info_start(struct ieee80211_local *local)
@@ -347,7 +428,10 @@ void sta_info_stop(struct ieee80211_local *local)
 	del_timer(&local->sta_cleanup);
 
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
-		/*  We don't need locking at this point. */
+		/* sta_info_free must be called with 0 as the last
+		 * parameter to ensure all debugfs sta entries are
+		 * unregistered. We don't need locking at this
+		 * point. */
 		sta_info_free(sta, 0);
 	}
 }

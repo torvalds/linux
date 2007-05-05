@@ -18,6 +18,7 @@
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
+#include "debugfs.h"
 
 
 /* This is a minimal implementation of TX rate controlling that can be used
@@ -121,6 +122,11 @@ struct sta_rate_control {
 	unsigned long avg_rate_update;
 	u32 tx_avg_rate_sum;
 	u32 tx_avg_rate_num;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct dentry *tx_avg_rate_sum_dentry;
+	struct dentry *tx_avg_rate_num_dentry;
+#endif
 };
 
 
@@ -327,6 +333,67 @@ static void rate_control_simple_free_sta(void *priv, void *priv_sta)
 	kfree(rctrl);
 }
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+
+static int open_file_generic(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t sta_tx_avg_rate_sum_read(struct file *file,
+					char __user *userbuf,
+					size_t count, loff_t *ppos)
+{
+	struct sta_rate_control *srctrl = file->private_data;
+	char buf[20];
+
+	sprintf(buf, "%d\n", srctrl->tx_avg_rate_sum);
+	return simple_read_from_buffer(userbuf, count, ppos, buf, strlen(buf));
+}
+
+static const struct file_operations sta_tx_avg_rate_sum_ops = {
+	.read = sta_tx_avg_rate_sum_read,
+	.open = open_file_generic,
+};
+
+static ssize_t sta_tx_avg_rate_num_read(struct file *file,
+					char __user *userbuf,
+					size_t count, loff_t *ppos)
+{
+	struct sta_rate_control *srctrl = file->private_data;
+	char buf[20];
+
+	sprintf(buf, "%d\n", srctrl->tx_avg_rate_num);
+	return simple_read_from_buffer(userbuf, count, ppos, buf, strlen(buf));
+}
+
+static const struct file_operations sta_tx_avg_rate_num_ops = {
+	.read = sta_tx_avg_rate_num_read,
+	.open = open_file_generic,
+};
+
+static void rate_control_simple_add_sta_debugfs(void *priv, void *priv_sta,
+						struct dentry *dir)
+{
+	struct sta_rate_control *srctrl = priv_sta;
+
+	srctrl->tx_avg_rate_num_dentry =
+		debugfs_create_file("rc_simple_sta_tx_avg_rate_num", 0400,
+				    dir, srctrl, &sta_tx_avg_rate_num_ops);
+	srctrl->tx_avg_rate_sum_dentry =
+		debugfs_create_file("rc_simple_sta_tx_avg_rate_sum", 0400,
+				    dir, srctrl, &sta_tx_avg_rate_sum_ops);
+}
+
+static void rate_control_simple_remove_sta_debugfs(void *priv, void *priv_sta)
+{
+	struct sta_rate_control *srctrl = priv_sta;
+
+	debugfs_remove(srctrl->tx_avg_rate_sum_dentry);
+	debugfs_remove(srctrl->tx_avg_rate_num_dentry);
+}
+#endif
 
 static struct rate_control_ops rate_control_simple = {
 	.module = THIS_MODULE,
@@ -339,6 +406,10 @@ static struct rate_control_ops rate_control_simple = {
 	.free = rate_control_simple_free,
 	.alloc_sta = rate_control_simple_alloc_sta,
 	.free_sta = rate_control_simple_free_sta,
+#ifdef CONFIG_MAC80211_DEBUGFS
+	.add_sta_debugfs = rate_control_simple_add_sta_debugfs,
+	.remove_sta_debugfs = rate_control_simple_remove_sta_debugfs,
+#endif
 };
 
 

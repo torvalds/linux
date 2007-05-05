@@ -20,6 +20,15 @@ config MAC80211_LEDS
 	This option enables a few LED triggers for different
 	packet receive/transmit events.
 
+config MAC80211_DEBUGFS
+	bool "Export mac80211 internals in DebugFS"
+	depends on MAC80211 && DEBUG_FS
+	---help---
+	  Select this to see extensive information about
+	  the internal state of mac80211 in debugfs.
+
+	  Say N unless you know you need this.
+
 config MAC80211_DEBUG
 	bool "Enable debugging output"
 	depends on MAC80211

@@ -25,6 +25,7 @@
 #include "ieee80211_rate.h"
 #include "wpa.h"
 #include "aes_ccm.h"
+#include "debugfs_key.h"
 
 static int ieee80211_regdom = 0x10; /* FCC */
 module_param(ieee80211_regdom, int, 0444);
@@ -180,8 +181,11 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 		}
 		kfree(keyconf);
 
-		if (set_tx_key || sdata->default_key == key)
+		if (set_tx_key || sdata->default_key == key) {
+			ieee80211_debugfs_key_remove_default(sdata);
 			sdata->default_key = NULL;
+		}
+		ieee80211_debugfs_key_remove(key);
 		if (sta)
 			sta->key = NULL;
 		else
@@ -221,13 +225,19 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 			}
 		}
 
-		if (set_tx_key || sdata->default_key == old_key)
+		if (set_tx_key || sdata->default_key == old_key) {
+			ieee80211_debugfs_key_remove_default(sdata);
 			sdata->default_key = NULL;
+		}
+		ieee80211_debugfs_key_remove(old_key);
 		if (sta)
 			sta->key = key;
 		else
 			sdata->keys[idx] = key;
 		ieee80211_key_free(old_key);
+		ieee80211_debugfs_key_add(local, key);
+		if (sta)
+			ieee80211_debugfs_key_sta_link(key, sta);
 
 		if (try_hwaccel &&
 		    (alg == ALG_WEP || alg == ALG_TKIP || alg == ALG_CCMP))
@@ -236,6 +246,8 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 
 	if (set_tx_key || (!sta && !sdata->default_key && key)) {
 		sdata->default_key = key;
+		if (key)
+			ieee80211_debugfs_key_add_default(sdata);
 
 		if (local->ops->set_key_idx &&
 		    local->ops->set_key_idx(local_to_hw(local), idx))
@@ -1505,8 +1517,12 @@ static int ieee80211_ioctl_siwencode(struct net_device *dev,
 		alg = ALG_NONE;
 	else if (erq->length == 0) {
 		/* No key data - just set the default TX key index */
-		if (sdata->default_key != sdata->keys[idx])
+		if (sdata->default_key != sdata->keys[idx]) {
+			ieee80211_debugfs_key_remove_default(sdata);
 			sdata->default_key = sdata->keys[idx];
+			if (sdata->default_key)
+				ieee80211_debugfs_key_add_default(sdata);
+		}
 		return 0;
 	}
 

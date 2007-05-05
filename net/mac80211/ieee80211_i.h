@@ -307,6 +307,65 @@ struct ieee80211_sub_if_data {
 	} u;
 	int channel_use;
 	int channel_use_raw;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct dentry *debugfsdir;
+	union {
+		struct {
+			struct dentry *channel_use;
+			struct dentry *drop_unencrypted;
+			struct dentry *eapol;
+			struct dentry *ieee8021_x;
+			struct dentry *state;
+			struct dentry *bssid;
+			struct dentry *prev_bssid;
+			struct dentry *ssid_len;
+			struct dentry *aid;
+			struct dentry *ap_capab;
+			struct dentry *capab;
+			struct dentry *extra_ie_len;
+			struct dentry *auth_tries;
+			struct dentry *assoc_tries;
+			struct dentry *auth_algs;
+			struct dentry *auth_alg;
+			struct dentry *auth_transaction;
+			struct dentry *flags;
+		} sta;
+		struct {
+			struct dentry *channel_use;
+			struct dentry *drop_unencrypted;
+			struct dentry *eapol;
+			struct dentry *ieee8021_x;
+			struct dentry *num_sta_ps;
+			struct dentry *dtim_period;
+			struct dentry *dtim_count;
+			struct dentry *num_beacons;
+			struct dentry *force_unicast_rateidx;
+			struct dentry *max_ratectrl_rateidx;
+			struct dentry *num_buffered_multicast;
+			struct dentry *beacon_head_len;
+			struct dentry *beacon_tail_len;
+		} ap;
+		struct {
+			struct dentry *channel_use;
+			struct dentry *drop_unencrypted;
+			struct dentry *eapol;
+			struct dentry *ieee8021_x;
+			struct dentry *peer;
+		} wds;
+		struct {
+			struct dentry *channel_use;
+			struct dentry *drop_unencrypted;
+			struct dentry *eapol;
+			struct dentry *ieee8021_x;
+			struct dentry *vlan_id;
+		} vlan;
+		struct {
+			struct dentry *mode;
+		} monitor;
+		struct dentry *default_key;
+	} debugfs;
+#endif
 };
 
 #define IEEE80211_DEV_TO_SUB_IF(dev) netdev_priv(dev)
@@ -444,6 +503,10 @@ struct ieee80211_local {
 	u32 stat_time;
 	struct timer_list stat_timer;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct work_struct sta_debugfs_add;
+#endif
+
 	enum {
 		STA_ANTENNA_SEL_AUTO = 0,
 		STA_ANTENNA_SEL_SW_CTRL = 1,
@@ -500,6 +563,70 @@ struct ieee80211_local {
 				* (1 << MODE_*) */
 
 	int user_space_mlme;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct local_debugfsdentries {
+		struct dentry *channel;
+		struct dentry *frequency;
+		struct dentry *radar_detect;
+		struct dentry *antenna_sel_tx;
+		struct dentry *antenna_sel_rx;
+		struct dentry *bridge_packets;
+		struct dentry *key_tx_rx_threshold;
+		struct dentry *rts_threshold;
+		struct dentry *fragmentation_threshold;
+		struct dentry *short_retry_limit;
+		struct dentry *long_retry_limit;
+		struct dentry *total_ps_buffered;
+		struct dentry *mode;
+		struct dentry *wep_iv;
+		struct dentry *tx_power_reduction;
+		struct dentry *modes;
+		struct dentry *statistics;
+		struct local_debugfsdentries_statsdentries {
+			struct dentry *transmitted_fragment_count;
+			struct dentry *multicast_transmitted_frame_count;
+			struct dentry *failed_count;
+			struct dentry *retry_count;
+			struct dentry *multiple_retry_count;
+			struct dentry *frame_duplicate_count;
+			struct dentry *received_fragment_count;
+			struct dentry *multicast_received_frame_count;
+			struct dentry *transmitted_frame_count;
+			struct dentry *wep_undecryptable_count;
+			struct dentry *num_scans;
+#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
+			struct dentry *tx_handlers_drop;
+			struct dentry *tx_handlers_queued;
+			struct dentry *tx_handlers_drop_unencrypted;
+			struct dentry *tx_handlers_drop_fragment;
+			struct dentry *tx_handlers_drop_wep;
+			struct dentry *tx_handlers_drop_not_assoc;
+			struct dentry *tx_handlers_drop_unauth_port;
+			struct dentry *rx_handlers_drop;
+			struct dentry *rx_handlers_queued;
+			struct dentry *rx_handlers_drop_nullfunc;
+			struct dentry *rx_handlers_drop_defrag;
+			struct dentry *rx_handlers_drop_short;
+			struct dentry *rx_handlers_drop_passive_scan;
+			struct dentry *tx_expand_skb_head;
+			struct dentry *tx_expand_skb_head_cloned;
+			struct dentry *rx_expand_skb_head;
+			struct dentry *rx_expand_skb_head2;
+			struct dentry *rx_handlers_fragments;
+			struct dentry *tx_status_drop;
+			struct dentry *wme_tx_queue;
+			struct dentry *wme_rx_queue;
+#endif
+			struct dentry *dot11ACKFailureCount;
+			struct dentry *dot11RTSFailureCount;
+			struct dentry *dot11FCSErrorCount;
+			struct dentry *dot11RTSSuccessCount;
+		} stats;
+		struct dentry *stations;
+		struct dentry *keys;
+	} debugfs;
+#endif
 };
 
 static inline struct ieee80211_local *hw_to_local(
