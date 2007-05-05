@@ -25,7 +25,7 @@
 
 #include "base.h"
 
-extern struct subsystem devices_subsys;
+extern struct kset devices_subsys;
 
 #define to_sysdev(k) container_of(k, struct sys_device, kobj)
 #define to_sysdev_attr(a) container_of(a, struct sysdev_attribute, attr)
@@ -138,7 +138,7 @@ int sysdev_class_register(struct sysdev_class * cls)
 	pr_debug("Registering sysdev class '%s'\n",
 		 kobject_name(&cls->kset.kobj));
 	INIT_LIST_HEAD(&cls->drivers);
-	cls->kset.subsys = &system_subsys;
+	cls->kset.kobj.parent = &system_subsys.kobj;
 	kset_set_kset_s(cls, system_subsys);
 	return kset_register(&cls->kset);
 }
@@ -309,7 +309,7 @@ void sysdev_shutdown(void)
 	pr_debug("Shutting Down System Devices\n");
 
 	down(&sysdev_drivers_lock);
-	list_for_each_entry_reverse(cls, &system_subsys.kset.list,
+	list_for_each_entry_reverse(cls, &system_subsys.list,
 				    kset.kobj.entry) {
 		struct sys_device * sysdev;
 
@@ -384,7 +384,7 @@ int sysdev_suspend(pm_message_t state)
 
 	pr_debug("Suspending System Devices\n");
 
-	list_for_each_entry_reverse(cls, &system_subsys.kset.list,
+	list_for_each_entry_reverse(cls, &system_subsys.list,
 				    kset.kobj.entry) {
 
 		pr_debug("Suspending type '%s':\n",
@@ -457,7 +457,7 @@ gbl_driver:
 	}
 
 	/* resume other classes */
-	list_for_each_entry_continue(cls, &system_subsys.kset.list,
+	list_for_each_entry_continue(cls, &system_subsys.list,
 					kset.kobj.entry) {
 		list_for_each_entry(err_dev, &cls->kset.list, kobj.entry) {
 			pr_debug(" %s\n", kobject_name(&err_dev->kobj));
@@ -483,7 +483,7 @@ int sysdev_resume(void)
 
 	pr_debug("Resuming System Devices\n");
 
-	list_for_each_entry(cls, &system_subsys.kset.list, kset.kobj.entry) {
+	list_for_each_entry(cls, &system_subsys.list, kset.kobj.entry) {
 		struct sys_device * sysdev;
 
 		pr_debug("Resuming type '%s':\n",
@@ -501,7 +501,7 @@ int sysdev_resume(void)
 
 int __init system_bus_init(void)
 {
-	system_subsys.kset.kobj.parent = &devices_subsys.kset.kobj;
+	system_subsys.kobj.parent = &devices_subsys.kobj;
 	return subsystem_register(&system_subsys);
 }
 

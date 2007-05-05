@@ -285,7 +285,7 @@ decl_subsys(power,NULL,NULL);
  *	proper enumerated value, and initiates a suspend transition.
  */
 
-static ssize_t state_show(struct subsystem * subsys, char * buf)
+static ssize_t state_show(struct kset *kset, char *buf)
 {
 	int i;
 	char * s = buf;
@@ -298,7 +298,7 @@ static ssize_t state_show(struct subsystem * subsys, char * buf)
 	return (s - buf);
 }
 
-static ssize_t state_store(struct subsystem * subsys, const char * buf, size_t n)
+static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
 {
 	suspend_state_t state = PM_SUSPEND_STANDBY;
 	const char * const *s;
@@ -325,13 +325,13 @@ power_attr(state);
 #ifdef CONFIG_PM_TRACE
 int pm_trace_enabled;
 
-static ssize_t pm_trace_show(struct subsystem * subsys, char * buf)
+static ssize_t pm_trace_show(struct kset *kset, char *buf)
 {
 	return sprintf(buf, "%d\n", pm_trace_enabled);
 }
 
 static ssize_t
-pm_trace_store(struct subsystem * subsys, const char * buf, size_t n)
+pm_trace_store(struct kset *kset, const char *buf, size_t n)
 {
 	int val;
 
@@ -365,7 +365,7 @@ static int __init pm_init(void)
 {
 	int error = subsystem_register(&power_subsys);
 	if (!error)
-		error = sysfs_create_group(&power_subsys.kset.kobj,&attr_group);
+		error = sysfs_create_group(&power_subsys.kobj,&attr_group);
 	return error;
 }
 

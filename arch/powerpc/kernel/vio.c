@@ -37,7 +37,7 @@
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iseries/iommu.h>
 
-extern struct subsystem devices_subsys; /* needed for vio_find_name() */
+extern struct kset devices_subsys; /* needed for vio_find_name() */
 
 static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.name = vio_bus_device.dev.bus_id,
@@ -427,7 +427,7 @@ static struct vio_dev *vio_find_name(const char *kobj_name)
 {
 	struct kobject *found;
 
-	found = kset_find_obj(&devices_subsys.kset, kobj_name);
+	found = kset_find_obj(&devices_subsys, kobj_name);
 	if (!found)
 		return NULL;
 

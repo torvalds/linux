@@ -420,7 +420,7 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 			dev->cdev.dev, tsdev->name);
 
 	/* temporary symlink to keep userspace happy */
-	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+	sysfs_create_link(&input_class.subsys.kobj, &cdev->kobj,
 			  tsdev->name);
 
 	return &tsdev->handle;
@@ -431,7 +431,7 @@ static void tsdev_disconnect(struct input_handle *handle)
 	struct tsdev *tsdev = handle->private;
 	struct tsdev_list *list;
 
-	sysfs_remove_link(&input_class.subsys.kset.kobj, tsdev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, tsdev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + tsdev->minor));
 	tsdev->exist = 0;

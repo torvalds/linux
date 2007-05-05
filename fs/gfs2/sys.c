@@ -222,7 +222,6 @@ static struct kobj_type gfs2_ktype = {
 };
 
 static struct kset gfs2_kset = {
-	.subsys = &fs_subsys,
 	.kobj   = {.name = "gfs2"},
 	.ktype  = &gfs2_ktype,
 };
@@ -554,6 +553,7 @@ int gfs2_sys_init(void)
 {
 	gfs2_sys_margs = NULL;
 	spin_lock_init(&gfs2_sys_margs_lock);
+	kobj_set_kset_s(&gfs2_kset, fs_subsys);
 	return kset_register(&gfs2_kset);
 }
 

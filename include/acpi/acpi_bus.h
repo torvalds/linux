@@ -316,7 +316,7 @@ struct acpi_bus_event {
 	u32 data;
 };
 
-extern struct subsystem acpi_subsys;
+extern struct kset acpi_subsys;
 
 /*
  * External Functions

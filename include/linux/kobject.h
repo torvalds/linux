@@ -124,7 +124,6 @@ struct kset_uevent_ops {
 };
 
 struct kset {
-	struct subsystem	* subsys;
 	struct kobj_type	* ktype;
 	struct list_head	list;
 	spinlock_t		list_lock;
@@ -171,32 +170,23 @@ extern struct kobject * kset_find_obj(struct kset *, const char *);
 #define set_kset_name(str)	.kset = { .kobj = { .name = str } }
 
 
-
-struct subsystem {
-	struct kset		kset;
-};
-
 #define decl_subsys(_name,_type,_uevent_ops) \
-struct subsystem _name##_subsys = { \
-	.kset = { \
-		.kobj = { .name = __stringify(_name) }, \
-		.ktype = _type, \
-		.uevent_ops =_uevent_ops, \
-	} \
+struct kset _name##_subsys = { \
+	.kobj = { .name = __stringify(_name) }, \
+	.ktype = _type, \
+	.uevent_ops =_uevent_ops, \
 }
 #define decl_subsys_name(_varname,_name,_type,_uevent_ops) \
-struct subsystem _varname##_subsys = { \
-	.kset = { \
-		.kobj = { .name = __stringify(_name) }, \
-		.ktype = _type, \
-		.uevent_ops =_uevent_ops, \
-	} \
+struct kset _varname##_subsys = { \
+	.kobj = { .name = __stringify(_name) }, \
+	.ktype = _type, \
+	.uevent_ops =_uevent_ops, \
 }
 
 /* The global /sys/kernel/ subsystem for people to chain off of */
-extern struct subsystem kernel_subsys;
+extern struct kset kernel_subsys;
 /* The global /sys/hypervisor/ subsystem  */
-extern struct subsystem hypervisor_subsys;
+extern struct kset hypervisor_subsys;
 
 /**
  * Helpers for setting the kset of registered objects.
@@ -214,7 +204,7 @@ extern struct subsystem hypervisor_subsys;
  */
 
 #define kobj_set_kset_s(obj,subsys) \
-	(obj)->kobj.kset = &(subsys).kset
+	(obj)->kobj.kset = &(subsys)
 
 /**
  *	kset_set_kset_s(obj,subsys) - set kset for embedded kset.
@@ -228,7 +218,7 @@ extern struct subsystem hypervisor_subsys;
  */
 
 #define kset_set_kset_s(obj,subsys) \
-	(obj)->kset.kobj.kset = &(subsys).kset
+	(obj)->kset.kobj.kset = &(subsys)
 
 /**
  *	subsys_set_kset(obj,subsys) - set kset for subsystem
@@ -241,29 +231,31 @@ extern struct subsystem hypervisor_subsys;
  */
 
 #define subsys_set_kset(obj,_subsys) \
-	(obj)->subsys.kset.kobj.kset = &(_subsys).kset
+	(obj)->subsys.kobj.kset = &(_subsys)
 
-extern void subsystem_init(struct subsystem *);
-extern int __must_check subsystem_register(struct subsystem *);
-extern void subsystem_unregister(struct subsystem *);
+extern void subsystem_init(struct kset *);
+extern int __must_check subsystem_register(struct kset *);
+extern void subsystem_unregister(struct kset *);
 
-static inline struct subsystem * subsys_get(struct subsystem * s)
+static inline struct kset *subsys_get(struct kset *s)
 {
-	return s ? container_of(kset_get(&s->kset),struct subsystem,kset) : NULL;
+	if (s)
+		return kset_get(s);
+	return NULL;
 }
 
-static inline void subsys_put(struct subsystem * s)
+static inline void subsys_put(struct kset *s)
 {
-	kset_put(&s->kset);
+	kset_put(s);
 }
 
 struct subsys_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct subsystem *, char *);
-	ssize_t (*store)(struct subsystem *, const char *, size_t); 
+	ssize_t (*show)(struct kset *, char *);
+	ssize_t (*store)(struct kset *, const char *, size_t);
 };
 
-extern int __must_check subsys_create_file(struct subsystem * ,
+extern int __must_check subsys_create_file(struct kset *,
 					struct subsys_attribute *);
 
 #if defined(CONFIG_HOTPLUG)

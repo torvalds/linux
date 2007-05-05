@@ -28,13 +28,13 @@
 
 unsigned long rtas_poweron_auto; /* default and normal state is 0 */
 
-static ssize_t auto_poweron_show(struct subsystem *subsys, char *buf)
+static ssize_t auto_poweron_show(struct kset *kset, char *buf)
 {
         return sprintf(buf, "%lu\n", rtas_poweron_auto);
 }
 
 static ssize_t
-auto_poweron_store(struct subsystem *subsys, const char *buf, size_t n)
+auto_poweron_store(struct kset *kset, const char *buf, size_t n)
 {
 	int ret;
 	unsigned long ups_restart;
@@ -72,12 +72,12 @@ static int __init pm_init(void)
 {
         int error = subsystem_register(&power_subsys);
         if (!error)
-                error = sysfs_create_group(&power_subsys.kset.kobj,&attr_group);
+                error = sysfs_create_group(&power_subsys.kobj, &attr_group);
         return error;
 }
 core_initcall(pm_init);
 #else
-extern struct subsystem power_subsys;
+extern struct kset power_subsys;
 
 static int __init apo_pm_init(void)
 {

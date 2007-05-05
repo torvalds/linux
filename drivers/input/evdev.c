@@ -650,7 +650,7 @@ static struct input_handle *evdev_connect(struct input_handler *handler, struct 
 			dev->cdev.dev, evdev->name);
 
 	/* temporary symlink to keep userspace happy */
-	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+	sysfs_create_link(&input_class.subsys.kobj, &cdev->kobj,
 			  evdev->name);
 
 	return &evdev->handle;
@@ -661,7 +661,7 @@ static void evdev_disconnect(struct input_handle *handle)
 	struct evdev *evdev = handle->private;
 	struct evdev_list *list;
 
-	sysfs_remove_link(&input_class.subsys.kset.kobj, evdev->name);
+	sysfs_remove_link(&input_class.subsys.kobj, evdev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + evdev->minor));
 	evdev->exist = 0;

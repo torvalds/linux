@@ -17,7 +17,7 @@
 #include "power/power.h"
 
 #define to_bus_attr(_attr) container_of(_attr, struct bus_attribute, attr)
-#define to_bus(obj) container_of(obj, struct bus_type, subsys.kset.kobj)
+#define to_bus(obj) container_of(obj, struct bus_type, subsys.kobj)
 
 /*
  * sysfs bindings for drivers
@@ -123,7 +123,7 @@ int bus_create_file(struct bus_type * bus, struct bus_attribute * attr)
 {
 	int error;
 	if (get_bus(bus)) {
-		error = sysfs_create_file(&bus->subsys.kset.kobj, &attr->attr);
+		error = sysfs_create_file(&bus->subsys.kobj, &attr->attr);
 		put_bus(bus);
 	} else
 		error = -EINVAL;
@@ -133,7 +133,7 @@ int bus_create_file(struct bus_type * bus, struct bus_attribute * attr)
 void bus_remove_file(struct bus_type * bus, struct bus_attribute * attr)
 {
 	if (get_bus(bus)) {
-		sysfs_remove_file(&bus->subsys.kset.kobj, &attr->attr);
+		sysfs_remove_file(&bus->subsys.kobj, &attr->attr);
 		put_bus(bus);
 	}
 }
@@ -397,7 +397,7 @@ static void device_remove_attrs(struct bus_type * bus, struct device * dev)
 static int make_deprecated_bus_links(struct device *dev)
 {
 	return sysfs_create_link(&dev->kobj,
-				 &dev->bus->subsys.kset.kobj, "bus");
+				 &dev->bus->subsys.kobj, "bus");
 }
 
 static void remove_deprecated_bus_links(struct device *dev)
@@ -431,7 +431,7 @@ int bus_add_device(struct device * dev)
 		if (error)
 			goto out_id;
 		error = sysfs_create_link(&dev->kobj,
-				&dev->bus->subsys.kset.kobj, "subsystem");
+				&dev->bus->subsys.kobj, "subsystem");
 		if (error)
 			goto out_subsys;
 		error = make_deprecated_bus_links(dev);
@@ -810,7 +810,7 @@ int bus_register(struct bus_type * bus)
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&bus->bus_notifier);
 
-	retval = kobject_set_name(&bus->subsys.kset.kobj, "%s", bus->name);
+	retval = kobject_set_name(&bus->subsys.kobj, "%s", bus->name);
 	if (retval)
 		goto out;
 
@@ -820,13 +820,13 @@ int bus_register(struct bus_type * bus)
 		goto out;
 
 	kobject_set_name(&bus->devices.kobj, "devices");
-	bus->devices.subsys = &bus->subsys;
+	bus->devices.kobj.parent = &bus->subsys.kobj;
 	retval = kset_register(&bus->devices);
 	if (retval)
 		goto bus_devices_fail;
 
 	kobject_set_name(&bus->drivers.kobj, "drivers");
-	bus->drivers.subsys = &bus->subsys;
+	bus->drivers.kobj.parent = &bus->subsys.kobj;
 	bus->drivers.ktype = &ktype_driver;
 	retval = kset_register(&bus->drivers);
 	if (retval)
