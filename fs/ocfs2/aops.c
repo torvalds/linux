@@ -78,7 +78,8 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 
 	if (!OCFS2_IS_VALID_DINODE(fe)) {
 		mlog(ML_ERROR, "Invalid dinode #%llu: signature = %.*s\n",
-		     (unsigned long long)fe->i_blkno, 7, fe->i_signature);
+		     (unsigned long long)le64_to_cpu(fe->i_blkno), 7,
+		     fe->i_signature);
 		goto bail;
 	}
 
@@ -939,9 +940,9 @@ out:
  * Returns a negative error code or the number of bytes copied into
  * the page.
  */
-int ocfs2_write_data_page(struct inode *inode, handle_t *handle,
-			  u64 *p_blkno, struct page *page,
-			  struct ocfs2_write_ctxt *wc, int new)
+static int ocfs2_write_data_page(struct inode *inode, handle_t *handle,
+				 u64 *p_blkno, struct page *page,
+				 struct ocfs2_write_ctxt *wc, int new)
 {
 	int ret, copied = 0;
 	unsigned int from = 0, to = 0;
@@ -1086,7 +1087,7 @@ static ssize_t ocfs2_write(struct file *file, u32 phys, handle_t *handle,
 	for(i = 0; i < numpages; i++) {
 		index = start + i;
 
-		cpages[i] = grab_cache_page(mapping, index);
+		cpages[i] = find_or_create_page(mapping, index, GFP_NOFS);
 		if (!cpages[i]) {
 			ret = -ENOMEM;
 			mlog_errno(ret);

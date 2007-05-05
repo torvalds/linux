@@ -403,7 +403,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 			    struct buffer_head **new_de_bh)
 {
 	int status = 0;
-	int credits, num_free_extents;
+	int credits, num_free_extents, drop_alloc_sem = 0;
 	loff_t dir_i_size;
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) parent_fe_bh->b_data;
 	struct ocfs2_alloc_context *data_ac = NULL;
@@ -452,6 +452,9 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		credits = OCFS2_SIMPLE_DIR_EXTEND_CREDITS;
 	}
 
+	down_write(&OCFS2_I(dir)->ip_alloc_sem);
+	drop_alloc_sem = 1;
+
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
@@ -497,6 +500,8 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	*new_de_bh = new_bh;
 	get_bh(*new_de_bh);
 bail:
+	if (drop_alloc_sem)
+		up_write(&OCFS2_I(dir)->ip_alloc_sem);
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
 

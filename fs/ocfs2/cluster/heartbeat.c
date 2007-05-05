@@ -438,7 +438,7 @@ static inline void o2hb_prepare_block(struct o2hb_region *reg,
 								   hb_block));
 
 	mlog(ML_HB_BIO, "our node generation = 0x%llx, cksum = 0x%x\n",
-	     (long long)cpu_to_le64(generation),
+	     (long long)generation,
 	     le32_to_cpu(hb_block->hb_cksum));
 }
 
