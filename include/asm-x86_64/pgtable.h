@@ -1,25 +1,25 @@
 #ifndef _X86_64_PGTABLE_H
 #define _X86_64_PGTABLE_H
 
+#include <asm/const.h>
+#ifndef __ASSEMBLY__
+
 /*
  * This file contains the functions and defines necessary to modify and use
  * the x86-64 page table tree.
  */
 #include <asm/processor.h>
-#include <asm/fixmap.h>
 #include <asm/bitops.h>
 #include <linux/threads.h>
 #include <asm/pda.h>
 
 extern pud_t level3_kernel_pgt[512];
-extern pud_t level3_physmem_pgt[512];
 extern pud_t level3_ident_pgt[512];
 extern pmd_t level2_kernel_pgt[512];
 extern pgd_t init_level4_pgt[];
-extern pgd_t boot_level4_pgt[];
 extern unsigned long __supported_pte_mask;
 
-#define swapper_pg_dir init_level4_pgt
+#define swapper_pg_dir ((pgd_t *)NULL)
 
 extern void paging_init(void);
 extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
@@ -29,7 +29,9 @@ extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
  * for zero-mapped memory areas etc..
  */
 extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
-#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
+#define ZERO_PAGE(vaddr) (pfn_to_page(__pa_symbol(&empty_zero_page) >> PAGE_SHIFT))
+
+#endif /* !__ASSEMBLY__ */
 
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map
@@ -54,6 +56,8 @@ extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
  * entries per page directory level
  */
 #define PTRS_PER_PTE	512
+
+#ifndef __ASSEMBLY__
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %p(%016lx).\n", __FILE__, __LINE__, &(e), pte_val(e))
@@ -118,22 +122,23 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 
 #define pte_pgprot(a)	(__pgprot((a).pte & ~PHYSICAL_PAGE_MASK))
 
-#define PMD_SIZE	(1UL << PMD_SHIFT)
+#endif /* !__ASSEMBLY__ */
+
+#define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define PUD_SIZE	(1UL << PUD_SHIFT)
+#define PUD_SIZE	(_AC(1,UL) << PUD_SHIFT)
 #define PUD_MASK	(~(PUD_SIZE-1))
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+#define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 #define USER_PTRS_PER_PGD	((TASK_SIZE-1)/PGDIR_SIZE+1)
 #define FIRST_USER_ADDRESS	0
 
-#ifndef __ASSEMBLY__
-#define MAXMEM		 0x3fffffffffffUL
-#define VMALLOC_START    0xffffc20000000000UL
-#define VMALLOC_END      0xffffe1ffffffffffUL
-#define MODULES_VADDR    0xffffffff88000000UL
-#define MODULES_END      0xfffffffffff00000UL
+#define MAXMEM		 0x3fffffffffff
+#define VMALLOC_START    0xffffc20000000000
+#define VMALLOC_END      0xffffe1ffffffffff
+#define MODULES_VADDR    0xffffffff88000000
+#define MODULES_END      0xfffffffffff00000
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
 
 #define _PAGE_BIT_PRESENT	0
@@ -159,7 +164,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 #define _PAGE_GLOBAL	0x100	/* Global TLB entry */
 
 #define _PAGE_PROTNONE	0x080	/* If not present */
-#define _PAGE_NX        (1UL<<_PAGE_BIT_NX)
+#define _PAGE_NX        (_AC(1,UL)<<_PAGE_BIT_NX)
 
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
@@ -220,6 +225,8 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 #define __S101	PAGE_READONLY_EXEC
 #define __S110	PAGE_SHARED_EXEC
 #define __S111	PAGE_SHARED_EXEC
+
+#ifndef __ASSEMBLY__
 
 static inline unsigned long pgd_bad(pgd_t pgd)
 {
@@ -403,10 +410,8 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
 extern spinlock_t pgd_lock;
-extern struct page *pgd_list;
+extern struct list_head pgd_list;
 void vmalloc_sync_all(void);
-
-#endif /* !__ASSEMBLY__ */
 
 extern int kern_addr_valid(unsigned long addr); 
 
@@ -437,5 +442,6 @@ extern int kern_addr_valid(unsigned long addr);
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME
 #include <asm-generic/pgtable.h>
+#endif /* !__ASSEMBLY__ */
 
 #endif /* _X86_64_PGTABLE_H */

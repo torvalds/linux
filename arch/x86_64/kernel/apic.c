@@ -68,6 +68,28 @@ int using_apic_timer __read_mostly = 0;
 
 static void apic_pm_activate(void);
 
+void apic_wait_icr_idle(void)
+{
+	while (apic_read(APIC_ICR) & APIC_ICR_BUSY)
+		cpu_relax();
+}
+
+unsigned int safe_apic_wait_icr_idle(void)
+{
+	unsigned int send_status;
+	int timeout;
+
+	timeout = 0;
+	do {
+		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
+		if (!send_status)
+			break;
+		udelay(100);
+	} while (timeout++ < 1000);
+
+	return send_status;
+}
+
 void enable_NMI_through_LVT0 (void * dummy)
 {
 	unsigned int v;
@@ -817,14 +839,15 @@ static void setup_APIC_timer(unsigned int clocks)
 
 static int __init calibrate_APIC_clock(void)
 {
-	int apic, apic_start, tsc, tsc_start;
+	unsigned apic, apic_start;
+	unsigned long tsc, tsc_start;
 	int result;
 	/*
 	 * Put whatever arbitrary (but long enough) timeout
 	 * value into the APIC clock, we just want to get the
 	 * counter running for calibration.
 	 */
-	__setup_APIC_LVTT(1000000000);
+	__setup_APIC_LVTT(4000000000);
 
 	apic_start = apic_read(APIC_TMCCT);
 #ifdef CONFIG_X86_PM_TIMER
@@ -835,15 +858,15 @@ static int __init calibrate_APIC_clock(void)
 	} else
 #endif
 	{
-		rdtscl(tsc_start);
+		rdtscll(tsc_start);
 
 		do {
 			apic = apic_read(APIC_TMCCT);
-			rdtscl(tsc);
+			rdtscll(tsc);
 		} while ((tsc - tsc_start) < TICK_COUNT &&
-				(apic - apic_start) < TICK_COUNT);
+				(apic_start - apic) < TICK_COUNT);
 
-		result = (apic_start - apic) * 1000L * cpu_khz /
+		result = (apic_start - apic) * 1000L * tsc_khz /
 					(tsc - tsc_start);
 	}
 	printk("result %d\n", result);

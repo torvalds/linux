@@ -47,7 +47,7 @@ static inline void summit_check(char *oem, char *productid)
 {
 }
 
-static inline void clustered_apic_check(void)
+static inline void setup_apic_routing(void)
 {
 }
 

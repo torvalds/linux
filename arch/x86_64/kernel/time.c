@@ -39,13 +39,11 @@
 #include <asm/proto.h>
 #include <asm/hpet.h>
 #include <asm/sections.h>
-#include <linux/cpufreq.h>
 #include <linux/hpet.h>
 #include <asm/apic.h>
 #include <asm/hpet.h>
-
-extern void i8254_timer_resume(void);
-extern int using_apic_timer;
+#include <asm/mpspec.h>
+#include <asm/nmi.h>
 
 static char *timename = NULL;
 
@@ -252,6 +250,51 @@ static unsigned long get_cmos_time(void)
 	return mktime(year, mon, day, hour, min, sec);
 }
 
+/* calibrate_cpu is used on systems with fixed rate TSCs to determine
+ * processor frequency */
+#define TICK_COUNT 100000000
+static unsigned int __init tsc_calibrate_cpu_khz(void)
+{
+       int tsc_start, tsc_now;
+       int i, no_ctr_free;
+       unsigned long evntsel3 = 0, pmc3 = 0, pmc_now = 0;
+       unsigned long flags;
+
+       for (i = 0; i < 4; i++)
+               if (avail_to_resrv_perfctr_nmi_bit(i))
+                       break;
+       no_ctr_free = (i == 4);
+       if (no_ctr_free) {
+               i = 3;
+               rdmsrl(MSR_K7_EVNTSEL3, evntsel3);
+               wrmsrl(MSR_K7_EVNTSEL3, 0);
+               rdmsrl(MSR_K7_PERFCTR3, pmc3);
+       } else {
+               reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i);
+               reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
+       }
+       local_irq_save(flags);
+       /* start meauring cycles, incrementing from 0 */
+       wrmsrl(MSR_K7_PERFCTR0 + i, 0);
+       wrmsrl(MSR_K7_EVNTSEL0 + i, 1 << 22 | 3 << 16 | 0x76);
+       rdtscl(tsc_start);
+       do {
+               rdmsrl(MSR_K7_PERFCTR0 + i, pmc_now);
+               tsc_now = get_cycles_sync();
+       } while ((tsc_now - tsc_start) < TICK_COUNT);
+
+       local_irq_restore(flags);
+       if (no_ctr_free) {
+               wrmsrl(MSR_K7_EVNTSEL3, 0);
+               wrmsrl(MSR_K7_PERFCTR3, pmc3);
+               wrmsrl(MSR_K7_EVNTSEL3, evntsel3);
+       } else {
+               release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
+               release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
+       }
+
+       return pmc_now * tsc_khz / (tsc_now - tsc_start);
+}
 
 /*
  * pit_calibrate_tsc() uses the speaker output (channel 2) of
@@ -285,7 +328,7 @@ static unsigned int __init pit_calibrate_tsc(void)
 #define PIT_MODE 0x43
 #define PIT_CH0  0x40
 
-static void __init __pit_init(int val, u8 mode)
+static void __pit_init(int val, u8 mode)
 {
 	unsigned long flags;
 
@@ -301,12 +344,12 @@ void __init pit_init(void)
 	__pit_init(LATCH, 0x34); /* binary, mode 2, LSB/MSB, ch 0 */
 }
 
-void __init pit_stop_interrupt(void)
+void pit_stop_interrupt(void)
 {
 	__pit_init(0, 0x30); /* mode 0 */
 }
 
-void __init stop_timer_interrupt(void)
+void stop_timer_interrupt(void)
 {
 	char *name;
 	if (hpet_address) {
@@ -339,23 +382,29 @@ void __init time_init(void)
 	if (hpet_use_timer) {
 		/* set tick_nsec to use the proper rate for HPET */
 	  	tick_nsec = TICK_NSEC_HPET;
-		cpu_khz = hpet_calibrate_tsc();
+		tsc_khz = hpet_calibrate_tsc();
 		timename = "HPET";
 	} else {
 		pit_init();
-		cpu_khz = pit_calibrate_tsc();
+		tsc_khz = pit_calibrate_tsc();
 		timename = "PIT";
 	}
 
+	cpu_khz = tsc_khz;
+	if (cpu_has(&boot_cpu_data, X86_FEATURE_CONSTANT_TSC) &&
+		boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
+		boot_cpu_data.x86 == 16)
+		cpu_khz = tsc_calibrate_cpu_khz();
+
 	if (unsynchronized_tsc())
-		mark_tsc_unstable();
+		mark_tsc_unstable("TSCs unsynchronized");
 
 	if (cpu_has(&boot_cpu_data, X86_FEATURE_RDTSCP))
 		vgetcpu_mode = VGETCPU_RDTSCP;
 	else
 		vgetcpu_mode = VGETCPU_LSL;
 
-	set_cyc2ns_scale(cpu_khz);
+	set_cyc2ns_scale(tsc_khz);
 	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
 		cpu_khz / 1000, cpu_khz % 1000);
 	init_tsc_clocksource();

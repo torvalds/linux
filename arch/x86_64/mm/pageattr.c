@@ -51,7 +51,6 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	SetPagePrivate(base);
 	page_private(base) = 0;
 
-	address = __pa(address);
 	addr = address & LARGE_PAGE_MASK; 
 	pbase = (pte_t *)page_address(base);
 	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE) {
@@ -101,13 +100,12 @@ static inline void save_page(struct page *fpage)
  * No more special protections in this 2/4MB area - revert to a
  * large page again. 
  */
-static void revert_page(unsigned long address, pgprot_t ref_prot)
+static void revert_page(unsigned long address, unsigned long pfn, pgprot_t ref_prot)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t large_pte;
-	unsigned long pfn;
 
 	pgd = pgd_offset_k(address);
 	BUG_ON(pgd_none(*pgd));
@@ -115,7 +113,6 @@ static void revert_page(unsigned long address, pgprot_t ref_prot)
 	BUG_ON(pud_none(*pud));
 	pmd = pmd_offset(pud, address);
 	BUG_ON(pmd_val(*pmd) & _PAGE_PSE);
-	pfn = (__pa(address) & LARGE_PAGE_MASK) >> PAGE_SHIFT;
 	large_pte = pfn_pte(pfn, ref_prot);
 	large_pte = pte_mkhuge(large_pte);
 	set_pte((pte_t *)pmd, large_pte);
@@ -141,7 +138,8 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
  			 */
 			struct page *split;
 			ref_prot2 = pte_pgprot(pte_clrhuge(*kpte));
-			split = split_large_page(address, prot, ref_prot2);
+			split = split_large_page(pfn << PAGE_SHIFT, prot,
+							ref_prot2);
 			if (!split)
 				return -ENOMEM;
 			set_pte(kpte, mk_pte(split, ref_prot2));
@@ -160,7 +158,7 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 
 	if (page_private(kpte_page) == 0) {
 		save_page(kpte_page);
-		revert_page(address, ref_prot);
+		revert_page(address, pfn, ref_prot);
  	}
 	return 0;
 } 
@@ -180,22 +178,32 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
  */
 int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
 {
-	int err = 0; 
+	unsigned long phys_base_pfn = __pa_symbol(__START_KERNEL_map) >> PAGE_SHIFT;
+	int err = 0, kernel_map = 0;
 	int i; 
+
+	if (address >= __START_KERNEL_map
+	    && address < __START_KERNEL_map + KERNEL_TEXT_SIZE) {
+		address = (unsigned long)__va(__pa(address));
+		kernel_map = 1;
+	}
 
 	down_write(&init_mm.mmap_sem);
 	for (i = 0; i < numpages; i++, address += PAGE_SIZE) {
 		unsigned long pfn = __pa(address) >> PAGE_SHIFT;
 
-		err = __change_page_attr(address, pfn, prot, PAGE_KERNEL);
-		if (err) 
-			break; 
+		if (!kernel_map || pte_present(pfn_pte(0, prot))) {
+			err = __change_page_attr(address, pfn, prot, PAGE_KERNEL);
+			if (err)
+				break;
+		}
 		/* Handle kernel mapping too which aliases part of the
 		 * lowmem */
-		if (__pa(address) < KERNEL_TEXT_SIZE) {
+		if ((pfn >= phys_base_pfn) &&
+			((pfn - phys_base_pfn) < (KERNEL_TEXT_SIZE >> PAGE_SHIFT))) {
 			unsigned long addr2;
 			pgprot_t prot2;
-			addr2 = __START_KERNEL_map + __pa(address);
+			addr2 = __START_KERNEL_map + ((pfn - phys_base_pfn) << PAGE_SHIFT);
 			/* Make sure the kernel mappings stay executable */
 			prot2 = pte_pgprot(pte_mkexec(pfn_pte(0, prot)));
 			err = __change_page_attr(addr2, pfn, prot2,

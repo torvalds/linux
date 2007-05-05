@@ -36,7 +36,7 @@ struct genapic {
 	void (*init_apic_ldr)(void);
 	physid_mask_t (*ioapic_phys_id_map)(physid_mask_t map);
 
-	void (*clustered_apic_check)(void);
+	void (*setup_apic_routing)(void);
 	int (*multi_timer_check)(int apic, int irq);
 	int (*apicid_to_node)(int logical_apicid); 
 	int (*cpu_to_logical_apicid)(int cpu);
@@ -99,7 +99,7 @@ struct genapic {
 	APICFUNC(check_apicid_present) \
 	APICFUNC(init_apic_ldr) \
 	APICFUNC(ioapic_phys_id_map) \
-	APICFUNC(clustered_apic_check) \
+	APICFUNC(setup_apic_routing) \
 	APICFUNC(multi_timer_check) \
 	APICFUNC(apicid_to_node) \
 	APICFUNC(cpu_to_logical_apicid) \
@@ -122,6 +122,6 @@ struct genapic {
 	APICFUNC(phys_pkg_id) \
 	}
 
-extern struct genapic *genapic, apic_default;
+extern struct genapic *genapic;
 
 #endif

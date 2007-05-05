@@ -573,15 +573,7 @@ do_boot_cpu(__u8 cpu)
 	/* init_tasks (in sched.c) is indexed logically */
 	stack_start.esp = (void *) idle->thread.esp;
 
-	/* Pre-allocate and initialize the CPU's GDT and PDA so it
-	   doesn't have to do any memory allocation during the
-	   delicate CPU-bringup phase. */
-	if (!init_gdt(cpu, idle)) {
-		printk(KERN_INFO "Couldn't allocate GDT/PDA for CPU %d\n", cpu);
-		cpucount--;
-		return;
-	}
-
+	init_gdt(cpu, idle);
 	irq_ctx_init(cpu);
 
 	/* Note: Don't modify initial ss override */
@@ -747,12 +739,6 @@ initialize_secondary(void)
 	// AC kernels only
 	set_current(hard_get_current());
 #endif
-
-	/*
-	 * switch to the per CPU GDT we already set up
-	 * in do_boot_cpu()
-	 */
-	cpu_set_gdt(current_thread_info()->cpu);
 
 	/*
 	 * We don't actually need to load the full TSS,

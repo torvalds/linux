@@ -6,6 +6,8 @@
 #ifndef __UM_MMU_CONTEXT_H
 #define __UM_MMU_CONTEXT_H
 
+#include <asm-generic/mm_hooks.h>
+
 #include "linux/sched.h"
 #include "choose-mode.h"
 #include "um_mmu.h"

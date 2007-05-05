@@ -1617,7 +1617,7 @@ S:	Maintained
 
 HPET:	x86_64
 P:	Andi Kleen and Vojtech Pavlik
-M:	ak@muc.de and vojtech@suse.cz
+M:	andi@firstfloor.org and vojtech@suse.cz
 S:	Maintained
 
 HPET:	ACPI hpet.c
@@ -2651,6 +2651,19 @@ W:	http://www.parisc-linux.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
 T:	cvs cvs.parisc-linux.org:/var/cvs/linux-2.6
 S:	Maintained
+
+PARAVIRT_OPS INTERFACE
+P:	Jeremy Fitzhardinge
+M:	jeremy@xensource.com
+P:	Chris Wright
+M:	chrisw@sous-sol.org
+P:	Zachary Amsden
+M:	zach@vmware.com
+P:	Rusty Russell
+M:	rusty@rustcorp.com.au
+L:	virtualization@lists.osdl.org
+L:	linux-kernel@vger.kernel.org
+S:	Supported
 
 PC87360 HARDWARE MONITORING DRIVER
 P:	Jim Cromie
@@ -3875,6 +3888,15 @@ P:	Henner Eisen
 M:	eis@baty.hanse.de
 L:	linux-x25@vger.kernel.org
 S:	Maintained
+
+XEN HYPERVISOR INTERFACE
+P:	Jeremy Fitzhardinge
+M:	jeremy@xensource.com
+P:	Chris Wright
+M:	chrisw@sous-sol.org
+L:	virtualization@lists.osdl.org
+L:	xen-devel@lists.xensource.com
+S:	Supported
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc

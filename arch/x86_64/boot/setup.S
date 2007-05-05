@@ -51,6 +51,7 @@
 #include <asm/boot.h>
 #include <asm/e820.h>
 #include <asm/page.h>
+#include <asm/setup.h>
 
 /* Signature words to ensure LILO loaded us right */
 #define SIG1	0xAA55
@@ -80,7 +81,7 @@ start:
 # This is the setup header, and it must start at %cs:2 (old 0x9020:2)
 
 		.ascii	"HdrS"		# header signature
-		.word	0x0204		# header version number (>= 0x0105)
+		.word	0x0206		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
 start_sys_seg:	.word	SYSSEG
@@ -155,7 +156,20 @@ cmd_line_ptr:	.long 0			# (Header version 0x0202 or later)
 					# low memory 0x10000 or higher.
 
 ramdisk_max:	.long 0xffffffff
-	
+kernel_alignment:  .long 0x200000       # physical addr alignment required for
+					# protected mode relocatable kernel
+#ifdef CONFIG_RELOCATABLE
+relocatable_kernel:    .byte 1
+#else
+relocatable_kernel:    .byte 0
+#endif
+pad2:                  .byte 0
+pad3:                  .word 0
+
+cmdline_size:   .long   COMMAND_LINE_SIZE-1     #length of the command line,
+                                                #added with boot protocol
+                                                #version 2.06
+
 trampoline:	call	start_of_setup
 		.align 16
 					# The offset at this point is 0x240
@@ -290,64 +304,10 @@ loader_ok:
 	movw	%cs,%ax
 	movw	%ax,%ds
 	
-	/* minimum CPUID flags for x86-64 */
-	/* see http://www.x86-64.org/lists/discuss/msg02971.html */		
-#define SSE_MASK ((1<<25)|(1<<26))
-#define REQUIRED_MASK1 ((1<<0)|(1<<3)|(1<<4)|(1<<5)|(1<<6)|(1<<8)|\
-					   (1<<13)|(1<<15)|(1<<24))
-#define REQUIRED_MASK2 (1<<29)
+	call verify_cpu
+	testl %eax,%eax
+	jz sse_ok
 
-	pushfl				/* standard way to check for cpuid */
-	popl	%eax
-	movl	%eax,%ebx
-	xorl	$0x200000,%eax
-	pushl	%eax
-	popfl
-	pushfl
-	popl	%eax
-	cmpl	%eax,%ebx
-	jz	no_longmode		/* cpu has no cpuid */
-	movl	$0x0,%eax
-	cpuid
-	cmpl	$0x1,%eax
-	jb	no_longmode		/* no cpuid 1 */
-	xor	%di,%di
-	cmpl	$0x68747541,%ebx	/* AuthenticAMD */
-	jnz	noamd
-	cmpl	$0x69746e65,%edx
-	jnz	noamd
-	cmpl	$0x444d4163,%ecx
-	jnz	noamd
-	mov	$1,%di			/* cpu is from AMD */
-noamd:		
-	movl    $0x1,%eax
-	cpuid
-	andl	$REQUIRED_MASK1,%edx
-	xorl	$REQUIRED_MASK1,%edx
-	jnz	no_longmode
-	movl    $0x80000000,%eax
-	cpuid
-	cmpl    $0x80000001,%eax
-	jb      no_longmode             /* no extended cpuid */
-	movl    $0x80000001,%eax
-	cpuid
-	andl    $REQUIRED_MASK2,%edx
-	xorl    $REQUIRED_MASK2,%edx
-	jnz     no_longmode
-sse_test:		
-	movl	$1,%eax
-	cpuid
-	andl	$SSE_MASK,%edx
-	cmpl	$SSE_MASK,%edx
-	je	sse_ok
-	test	%di,%di
-	jz	no_longmode	/* only try to force SSE on AMD */ 
-	movl	$0xc0010015,%ecx	/* HWCR */
-	rdmsr
-	btr	$15,%eax	/* enable SSE */
-	wrmsr
-	xor	%di,%di		/* don't loop */
-	jmp	sse_test	/* try again */	
 no_longmode:
 	call	beep
 	lea	long_mode_panic,%si
@@ -357,7 +317,8 @@ no_longmode_loop:
 long_mode_panic:
 	.string "Your CPU does not support long mode. Use a 32bit distribution."
 	.byte 0
-	
+
+#include "../kernel/verify_cpu.S"
 sse_ok:
 	popw	%ds
 	
@@ -846,7 +807,7 @@ gdt_48:
 
 # Include video setup & detection code
 
-#include "video.S"
+#include "../../i386/boot/video.S"
 
 # Setup signature -- must be last
 setup_sig1:	.word	SIG1

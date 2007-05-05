@@ -161,26 +161,27 @@ static struct resource standard_io_resources[] = { {
 
 static int __init romsignature(const unsigned char *rom)
 {
+	const unsigned short * const ptr = (const unsigned short *)rom;
 	unsigned short sig;
 
-	return probe_kernel_address((const unsigned short *)rom, sig) == 0 &&
-	       sig == ROMSIGNATURE;
+	return probe_kernel_address(ptr, sig) == 0 && sig == ROMSIGNATURE;
 }
 
-static int __init romchecksum(unsigned char *rom, unsigned long length)
+static int __init romchecksum(const unsigned char *rom, unsigned long length)
 {
-	unsigned char sum;
+	unsigned char sum, c;
 
-	for (sum = 0; length; length--)
-		sum += *rom++;
-	return sum == 0;
+	for (sum = 0; length && probe_kernel_address(rom++, c) == 0; length--)
+		sum += c;
+	return !length && !sum;
 }
 
 static void __init probe_roms(void)
 {
+	const unsigned char *rom;
 	unsigned long start, length, upper;
-	unsigned char *rom;
-	int	      i;
+	unsigned char c;
+	int i;
 
 	/* video rom */
 	upper = adapter_rom_resources[0].start;
@@ -191,8 +192,11 @@ static void __init probe_roms(void)
 
 		video_rom_resource.start = start;
 
+		if (probe_kernel_address(rom + 2, c) != 0)
+			continue;
+
 		/* 0 < length <= 0x7f * 512, historically */
-		length = rom[2] * 512;
+		length = c * 512;
 
 		/* if checksum okay, trust length byte */
 		if (length && romchecksum(rom, length))
@@ -226,8 +230,11 @@ static void __init probe_roms(void)
 		if (!romsignature(rom))
 			continue;
 
+		if (probe_kernel_address(rom + 2, c) != 0)
+			continue;
+
 		/* 0 < length <= 0x7f * 512, historically */
-		length = rom[2] * 512;
+		length = c * 512;
 
 		/* but accept any length that fits if checksum okay */
 		if (!length || start + length > upper || !romchecksum(rom, length))
@@ -386,10 +393,8 @@ int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 		   ____________________33__
 		   ______________________4_
 	*/
-	printk("sanitize start\n");
 	/* if there's only one memory region, don't bother */
 	if (*pnr_map < 2) {
-		printk("sanitize bail 0\n");
 		return -1;
 	}
 
@@ -398,7 +403,6 @@ int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 	/* bail out if we find any unreasonable addresses in bios map */
 	for (i=0; i<old_nr; i++)
 		if (biosmap[i].addr + biosmap[i].size < biosmap[i].addr) {
-			printk("sanitize bail 1\n");
 			return -1;
 		}
 
@@ -494,7 +498,6 @@ int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 	memcpy(biosmap, new_bios, new_nr*sizeof(struct e820entry));
 	*pnr_map = new_nr;
 
-	printk("sanitize end\n");
 	return 0;
 }
 
@@ -525,7 +528,6 @@ int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 		unsigned long long size = biosmap->size;
 		unsigned long long end = start + size;
 		unsigned long type = biosmap->type;
-		printk("copy_e820_map() start: %016Lx size: %016Lx end: %016Lx type: %ld\n", start, size, end, type);
 
 		/* Overflow in 64 bits? Ignore the memory map. */
 		if (start > end)
@@ -536,17 +538,11 @@ int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 		 * Not right. Fix it up.
 		 */
 		if (type == E820_RAM) {
-			printk("copy_e820_map() type is E820_RAM\n");
 			if (start < 0x100000ULL && end > 0xA0000ULL) {
-				printk("copy_e820_map() lies in range...\n");
-				if (start < 0xA0000ULL) {
-					printk("copy_e820_map() start < 0xA0000ULL\n");
+				if (start < 0xA0000ULL)
 					add_memory_region(start, 0xA0000ULL-start, type);
-				}
-				if (end <= 0x100000ULL) {
-					printk("copy_e820_map() end <= 0x100000ULL\n");
+				if (end <= 0x100000ULL)
 					continue;
-				}
 				start = 0x100000ULL;
 				size = end - start;
 			}
@@ -817,6 +813,26 @@ void __init limit_regions(unsigned long long size)
 	}
 	print_memory_map("limit_regions endfunc");
 }
+
+/*
+ * This function checks if any part of the range <start,end> is mapped
+ * with type.
+ */
+int
+e820_any_mapped(u64 start, u64 end, unsigned type)
+{
+	int i;
+	for (i = 0; i < e820.nr_map; i++) {
+		const struct e820entry *ei = &e820.map[i];
+		if (type && ei->type != type)
+			continue;
+		if (ei->addr >= end || ei->addr + ei->size <= start)
+			continue;
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(e820_any_mapped);
 
  /*
   * This function checks if the entire range <start,end> is mapped with type.

@@ -7,7 +7,10 @@
 #ifndef __ASM_I386_CPUFEATURE_H
 #define __ASM_I386_CPUFEATURE_H
 
+#ifndef __ASSEMBLY__
 #include <linux/bitops.h>
+#endif
+#include <asm/required-features.h>
 
 #define NCAPINTS	7	/* N 32-bit words worth of info */
 
@@ -49,6 +52,7 @@
 #define X86_FEATURE_MP		(1*32+19) /* MP Capable. */
 #define X86_FEATURE_NX		(1*32+20) /* Execute Disable */
 #define X86_FEATURE_MMXEXT	(1*32+22) /* AMD MMX extensions */
+#define X86_FEATURE_RDTSCP	(1*32+27) /* RDTSCP */
 #define X86_FEATURE_LM		(1*32+29) /* Long Mode (x86-64) */
 #define X86_FEATURE_3DNOWEXT	(1*32+30) /* AMD 3DNow! extensions */
 #define X86_FEATURE_3DNOW	(1*32+31) /* 3DNow! */
@@ -76,6 +80,7 @@
 #define X86_FEATURE_PEBS	(3*32+12)  /* Precise-Event Based Sampling */
 #define X86_FEATURE_BTS		(3*32+13)  /* Branch Trace Store */
 #define X86_FEATURE_LAPIC_TIMER_BROKEN (3*32+ 14) /* lapic timer broken in C1 */
+#define X86_FEATURE_SYNC_RDTSC	(3*32+15)  /* RDTSC synchronizes the CPU */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
 #define X86_FEATURE_XMM3	(4*32+ 0) /* Streaming SIMD Extensions-3 */
@@ -103,8 +108,12 @@
 #define X86_FEATURE_LAHF_LM	(6*32+ 0) /* LAHF/SAHF in long mode */
 #define X86_FEATURE_CMP_LEGACY	(6*32+ 1) /* If yes HyperThreading not valid */
 
-#define cpu_has(c, bit)		test_bit(bit, (c)->x86_capability)
-#define boot_cpu_has(bit)	test_bit(bit, boot_cpu_data.x86_capability)
+#define cpu_has(c, bit)					\
+	((__builtin_constant_p(bit) && (bit) < 32 && 	\
+		(1UL << (bit)) & REQUIRED_MASK1) ?	\
+		1 : 					\
+	test_bit(bit, (c)->x86_capability))
+#define boot_cpu_has(bit)	cpu_has(&boot_cpu_data, bit)
 
 #define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
 #define cpu_has_vme		boot_cpu_has(X86_FEATURE_VME)

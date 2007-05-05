@@ -606,6 +606,7 @@ static int secref_whitelist(const char *modname, const char *tosec,
 		"_probe",
 		"_probe_one",
 		"_console",
+		"apic_es7000",
 		NULL
 	};
 

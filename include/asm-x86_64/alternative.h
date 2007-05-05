@@ -16,6 +16,7 @@ struct alt_instr {
 	u8  pad[5];
 };
 
+extern void alternative_instructions(void);
 extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 
 struct module;
@@ -141,8 +142,8 @@ void apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end);
 static inline void
 apply_paravirt(struct paravirt_patch *start, struct paravirt_patch *end)
 {}
-#define __start_parainstructions NULL
-#define __stop_parainstructions NULL
+#define __parainstructions NULL
+#define __parainstructions_end NULL
 #endif
 
 #endif /* _X86_64_ALTERNATIVE_H */

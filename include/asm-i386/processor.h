@@ -21,6 +21,7 @@
 #include <asm/percpu.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
+#include <asm/processor-flags.h>
 
 /* flag for disabling the tsc */
 extern int tsc_disable;
@@ -115,7 +116,8 @@ extern char ignore_fpu_irq;
 
 void __init cpu_detect(struct cpuinfo_x86 *c);
 
-extern void identify_cpu(struct cpuinfo_x86 *);
+extern void identify_boot_cpu(void);
+extern void identify_secondary_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
@@ -126,28 +128,7 @@ extern void detect_ht(struct cpuinfo_x86 *c);
 static inline void detect_ht(struct cpuinfo_x86 *c) {}
 #endif
 
-/*
- * EFLAGS bits
- */
-#define X86_EFLAGS_CF	0x00000001 /* Carry Flag */
-#define X86_EFLAGS_PF	0x00000004 /* Parity Flag */
-#define X86_EFLAGS_AF	0x00000010 /* Auxillary carry Flag */
-#define X86_EFLAGS_ZF	0x00000040 /* Zero Flag */
-#define X86_EFLAGS_SF	0x00000080 /* Sign Flag */
-#define X86_EFLAGS_TF	0x00000100 /* Trap Flag */
-#define X86_EFLAGS_IF	0x00000200 /* Interrupt Flag */
-#define X86_EFLAGS_DF	0x00000400 /* Direction Flag */
-#define X86_EFLAGS_OF	0x00000800 /* Overflow Flag */
-#define X86_EFLAGS_IOPL	0x00003000 /* IOPL mask */
-#define X86_EFLAGS_NT	0x00004000 /* Nested Task */
-#define X86_EFLAGS_RF	0x00010000 /* Resume Flag */
-#define X86_EFLAGS_VM	0x00020000 /* Virtual Mode */
-#define X86_EFLAGS_AC	0x00040000 /* Alignment Check */
-#define X86_EFLAGS_VIF	0x00080000 /* Virtual Interrupt Flag */
-#define X86_EFLAGS_VIP	0x00100000 /* Virtual Interrupt Pending */
-#define X86_EFLAGS_ID	0x00200000 /* CPUID detection flag */
-
-static inline fastcall void native_cpuid(unsigned int *eax, unsigned int *ebx,
+static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 					 unsigned int *ecx, unsigned int *edx)
 {
 	/* ecx is often an input as well as an output. */
@@ -160,21 +141,6 @@ static inline fastcall void native_cpuid(unsigned int *eax, unsigned int *ebx,
 }
 
 #define load_cr3(pgdir) write_cr3(__pa(pgdir))
-
-/*
- * Intel CPU features in CR4
- */
-#define X86_CR4_VME		0x0001	/* enable vm86 extensions */
-#define X86_CR4_PVI		0x0002	/* virtual interrupts flag enable */
-#define X86_CR4_TSD		0x0004	/* disable time stamp at ipl 3 */
-#define X86_CR4_DE		0x0008	/* enable debugging extensions */
-#define X86_CR4_PSE		0x0010	/* enable page size extensions */
-#define X86_CR4_PAE		0x0020	/* enable physical address extensions */
-#define X86_CR4_MCE		0x0040	/* Machine check enable */
-#define X86_CR4_PGE		0x0080	/* enable global pages */
-#define X86_CR4_PCE		0x0100	/* enable performance counters at ipl 3 */
-#define X86_CR4_OSFXSR		0x0200	/* enable fast FPU save and restore */
-#define X86_CR4_OSXMMEXCPT	0x0400	/* enable unmasked SSE exceptions */
 
 /*
  * Save the cr4 feature set we're using (ie
@@ -201,26 +167,6 @@ static inline void clear_in_cr4 (unsigned long mask)
 	cr4 &= ~mask;
 	write_cr4(cr4);
 }
-
-/*
- *      NSC/Cyrix CPU configuration register indexes
- */
-
-#define CX86_PCR0 0x20
-#define CX86_GCR  0xb8
-#define CX86_CCR0 0xc0
-#define CX86_CCR1 0xc1
-#define CX86_CCR2 0xc2
-#define CX86_CCR3 0xc3
-#define CX86_CCR4 0xe8
-#define CX86_CCR5 0xe9
-#define CX86_CCR6 0xea
-#define CX86_CCR7 0xeb
-#define CX86_PCR1 0xf0
-#define CX86_DIR0 0xfe
-#define CX86_DIR1 0xff
-#define CX86_ARR_BASE 0xc4
-#define CX86_RCR_BASE 0xdc
 
 /*
  *      NSC/Cyrix CPU indexed register access macros
@@ -345,7 +291,8 @@ typedef struct {
 
 struct thread_struct;
 
-struct tss_struct {
+/* This is the TSS defined by the hardware. */
+struct i386_hw_tss {
 	unsigned short	back_link,__blh;
 	unsigned long	esp0;
 	unsigned short	ss0,__ss0h;
@@ -369,6 +316,11 @@ struct tss_struct {
 	unsigned short	gs, __gsh;
 	unsigned short	ldt, __ldth;
 	unsigned short	trace, io_bitmap_base;
+} __attribute__((packed));
+
+struct tss_struct {
+	struct i386_hw_tss x86_tss;
+
 	/*
 	 * The extra 1 is there because the CPU will access an
 	 * additional byte beyond the end of the IO permission
@@ -421,10 +373,11 @@ struct thread_struct {
 };
 
 #define INIT_THREAD  {							\
+	.esp0 = sizeof(init_stack) + (long)&init_stack,			\
 	.vm86_info = NULL,						\
 	.sysenter_cs = __KERNEL_CS,					\
 	.io_bitmap_ptr = NULL,						\
-	.fs = __KERNEL_PDA,						\
+	.fs = __KERNEL_PERCPU,						\
 }
 
 /*
@@ -434,10 +387,12 @@ struct thread_struct {
  * be within the limit.
  */
 #define INIT_TSS  {							\
-	.esp0		= sizeof(init_stack) + (long)&init_stack,	\
-	.ss0		= __KERNEL_DS,					\
-	.ss1		= __KERNEL_CS,					\
-	.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,			\
+	.x86_tss = {							\
+		.esp0		= sizeof(init_stack) + (long)&init_stack, \
+		.ss0		= __KERNEL_DS,				\
+		.ss1		= __KERNEL_CS,				\
+		.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,		\
+	 },								\
 	.io_bitmap	= { [ 0 ... IO_BITMAP_LONGS] = ~0 },		\
 }
 
@@ -544,40 +499,70 @@ static inline void rep_nop(void)
 
 #define cpu_relax()	rep_nop()
 
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#else
-#define paravirt_enabled() 0
-#define __cpuid native_cpuid
-
-static inline void load_esp0(struct tss_struct *tss, struct thread_struct *thread)
+static inline void native_load_esp0(struct tss_struct *tss, struct thread_struct *thread)
 {
-	tss->esp0 = thread->esp0;
+	tss->x86_tss.esp0 = thread->esp0;
 	/* This can only happen when SEP is enabled, no need to test "SEP"arately */
-	if (unlikely(tss->ss1 != thread->sysenter_cs)) {
-		tss->ss1 = thread->sysenter_cs;
+	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
+		tss->x86_tss.ss1 = thread->sysenter_cs;
 		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
 	}
 }
 
-/*
- * These special macros can be used to get or set a debugging register
- */
-#define get_debugreg(var, register)				\
-		__asm__("movl %%db" #register ", %0"		\
-			:"=r" (var))
-#define set_debugreg(value, register)			\
-		__asm__("movl %0,%%db" #register		\
-			: /* no output */			\
-			:"r" (value))
 
-#define set_iopl_mask native_set_iopl_mask
-#endif /* CONFIG_PARAVIRT */
+static inline unsigned long native_get_debugreg(int regno)
+{
+	unsigned long val = 0; 	/* Damn you, gcc! */
+
+	switch (regno) {
+	case 0:
+		asm("movl %%db0, %0" :"=r" (val)); break;
+	case 1:
+		asm("movl %%db1, %0" :"=r" (val)); break;
+	case 2:
+		asm("movl %%db2, %0" :"=r" (val)); break;
+	case 3:
+		asm("movl %%db3, %0" :"=r" (val)); break;
+	case 6:
+		asm("movl %%db6, %0" :"=r" (val)); break;
+	case 7:
+		asm("movl %%db7, %0" :"=r" (val)); break;
+	default:
+		BUG();
+	}
+	return val;
+}
+
+static inline void native_set_debugreg(int regno, unsigned long value)
+{
+	switch (regno) {
+	case 0:
+		asm("movl %0,%%db0"	: /* no output */ :"r" (value));
+		break;
+	case 1:
+		asm("movl %0,%%db1"	: /* no output */ :"r" (value));
+		break;
+	case 2:
+		asm("movl %0,%%db2"	: /* no output */ :"r" (value));
+		break;
+	case 3:
+		asm("movl %0,%%db3"	: /* no output */ :"r" (value));
+		break;
+	case 6:
+		asm("movl %0,%%db6"	: /* no output */ :"r" (value));
+		break;
+	case 7:
+		asm("movl %0,%%db7"	: /* no output */ :"r" (value));
+		break;
+	default:
+		BUG();
+	}
+}
 
 /*
  * Set IOPL bits in EFLAGS from given mask
  */
-static fastcall inline void native_set_iopl_mask(unsigned mask)
+static inline void native_set_iopl_mask(unsigned mask)
 {
 	unsigned int reg;
 	__asm__ __volatile__ ("pushfl;"
@@ -589,6 +574,28 @@ static fastcall inline void native_set_iopl_mask(unsigned mask)
 				: "=&r" (reg)
 				: "i" (~X86_EFLAGS_IOPL), "r" (mask));
 }
+
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+#define paravirt_enabled() 0
+#define __cpuid native_cpuid
+
+static inline void load_esp0(struct tss_struct *tss, struct thread_struct *thread)
+{
+	native_load_esp0(tss, thread);
+}
+
+/*
+ * These special macros can be used to get or set a debugging register
+ */
+#define get_debugreg(var, register)				\
+	(var) = native_get_debugreg(register)
+#define set_debugreg(value, register)				\
+	native_set_debugreg(register, value)
+
+#define set_iopl_mask native_set_iopl_mask
+#endif /* CONFIG_PARAVIRT */
 
 /*
  * Generic CPUID function
@@ -742,8 +749,10 @@ extern unsigned long boot_option_idle_override;
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
-extern int init_gdt(int cpu, struct task_struct *idle);
 extern void cpu_set_gdt(int);
-extern void secondary_cpu_init(void);
+extern void switch_to_new_gdt(void);
+extern void cpu_init(void);
+
+extern int force_mwait;
 
 #endif /* __ASM_I386_PROCESSOR_H */

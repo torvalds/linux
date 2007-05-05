@@ -28,8 +28,6 @@
 
 #include <linux/timex.h>
 
-#include <asm/fixmap.h>
-
 /*
  * Documentation on HPET can be found at:
  *      http://www.intel.com/ial/home/sp/pcmmspec.htm

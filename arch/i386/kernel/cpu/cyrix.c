@@ -279,7 +279,7 @@ static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 		 */  
 		if (vendor == PCI_VENDOR_ID_CYRIX &&
 	 (device == PCI_DEVICE_ID_CYRIX_5510 || device == PCI_DEVICE_ID_CYRIX_5520))
-			pit_latch_buggy = 1;
+			mark_tsc_unstable("cyrix 5510/5520 detected");
 	}
 #endif
 		c->x86_cache_size=16;	/* Yep 16K integrated cache thats it */
@@ -448,16 +448,6 @@ int __init cyrix_init_cpu(void)
 	return 0;
 }
 
-//early_arch_initcall(cyrix_init_cpu);
-
-static int __init cyrix_exit_cpu(void)
-{
-	cpu_devs[X86_VENDOR_CYRIX] = NULL;
-	return 0;
-}
-
-late_initcall(cyrix_exit_cpu);
-
 static struct cpu_dev nsc_cpu_dev __cpuinitdata = {
 	.c_vendor	= "NSC",
 	.c_ident 	= { "Geode by NSC" },
@@ -470,12 +460,3 @@ int __init nsc_init_cpu(void)
 	return 0;
 }
 
-//early_arch_initcall(nsc_init_cpu);
-
-static int __init nsc_exit_cpu(void)
-{
-	cpu_devs[X86_VENDOR_NSC] = NULL;
-	return 0;
-}
-
-late_initcall(nsc_exit_cpu);

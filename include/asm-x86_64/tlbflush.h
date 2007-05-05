@@ -3,41 +3,18 @@
 
 #include <linux/mm.h>
 #include <asm/processor.h>
-
-static inline unsigned long get_cr3(void)
-{
-	unsigned long cr3;
-	asm volatile("mov %%cr3,%0" : "=r" (cr3));
-	return cr3;
-}
-
-static inline void set_cr3(unsigned long cr3)
-{
-	asm volatile("mov %0,%%cr3" :: "r" (cr3) : "memory");
-}
+#include <asm/system.h>
 
 static inline void __flush_tlb(void)
 {
-	set_cr3(get_cr3());
-}
-
-static inline unsigned long get_cr4(void)
-{
-	unsigned long cr4;
-	asm volatile("mov %%cr4,%0" : "=r" (cr4));
-	return cr4;
-}
-
-static inline void set_cr4(unsigned long cr4)
-{
-	asm volatile("mov %0,%%cr4" :: "r" (cr4) : "memory");
+	write_cr3(read_cr3());
 }
 
 static inline void __flush_tlb_all(void)
 {
-	unsigned long cr4 = get_cr4();
-	set_cr4(cr4 & ~X86_CR4_PGE);	/* clear PGE */
-	set_cr4(cr4);			/* write old PGE again and flush TLBs */
+	unsigned long cr4 = read_cr4();
+	write_cr4(cr4 & ~X86_CR4_PGE);	/* clear PGE */
+	write_cr4(cr4);			/* write old PGE again and flush TLBs */
 }
 
 #define __flush_tlb_one(addr) \

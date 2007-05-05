@@ -188,8 +188,10 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	}
 #endif
 
-	if (c->x86 == 15)
+	if (c->x86 == 15) {
 		set_bit(X86_FEATURE_P4, c->x86_capability);
+		set_bit(X86_FEATURE_SYNC_RDTSC, c->x86_capability);
+	}
 	if (c->x86 == 6) 
 		set_bit(X86_FEATURE_P3, c->x86_capability);
 	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||

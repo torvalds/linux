@@ -79,6 +79,8 @@ int bootloader_type;
 
 unsigned long saved_video_mode;
 
+int force_mwait __cpuinitdata;
+
 /* 
  * Early DMI memory
  */
@@ -205,10 +207,10 @@ static void discover_ebda(void)
 	 * there is a real-mode segmented pointer pointing to the 
 	 * 4K EBDA area at 0x40E
 	 */
-	ebda_addr = *(unsigned short *)EBDA_ADDR_POINTER;
+	ebda_addr = *(unsigned short *)__va(EBDA_ADDR_POINTER);
 	ebda_addr <<= 4;
 
-	ebda_size = *(unsigned short *)(unsigned long)ebda_addr;
+	ebda_size = *(unsigned short *)__va(ebda_addr);
 
 	/* Round EBDA up to pages */
 	if (ebda_size == 0)
@@ -243,11 +245,12 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_code = (unsigned long) &_etext;
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) &_end;
+	init_mm.pgd = __va(__pa_symbol(&init_level4_pgt));
 
-	code_resource.start = virt_to_phys(&_text);
-	code_resource.end = virt_to_phys(&_etext)-1;
-	data_resource.start = virt_to_phys(&_etext);
-	data_resource.end = virt_to_phys(&_edata)-1;
+	code_resource.start = __pa_symbol(&_text);
+	code_resource.end = __pa_symbol(&_etext)-1;
+	data_resource.start = __pa_symbol(&_etext);
+	data_resource.end = __pa_symbol(&_edata)-1;
 
 	early_identify_cpu(&boot_cpu_data);
 
@@ -273,8 +276,6 @@ void __init setup_arch(char **cmdline_p)
 	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
 
 	dmi_scan_machine();
-
-	zap_low_mappings(0);
 
 #ifdef CONFIG_ACPI
 	/*
@@ -329,15 +330,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_SMP
-	/*
-	 * But first pinch a few for the stack/trampoline stuff
-	 * FIXME: Don't need the extra page at 4K, but need to fix
-	 * trampoline before removing it. (see the GDT stuff)
-	 */
-	reserve_bootmem_generic(PAGE_SIZE, PAGE_SIZE);
-
 	/* Reserve SMP trampoline */
-	reserve_bootmem_generic(SMP_TRAMPOLINE_BASE, PAGE_SIZE);
+	reserve_bootmem_generic(SMP_TRAMPOLINE_BASE, 2*PAGE_SIZE);
 #endif
 
 #ifdef CONFIG_ACPI_SLEEP
@@ -612,6 +606,10 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/* RDTSC can be speculated around */
 	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+
+	/* Family 10 doesn't support C states in MWAIT so don't use it */
+	if (c->x86 == 0x10 && !force_mwait)
+		clear_bit(X86_FEATURE_MWAIT, &c->x86_capability);
 }
 
 static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
@@ -987,9 +985,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"stc",
 		"100mhzsteps",
 		"hwpstate",
-		NULL,	/* tsc invariant mapped to constant_tsc */
-		NULL,
-		/* nothing */	/* constant_tsc - moved to flags */
+		"",	/* tsc invariant mapped to constant_tsc */
+		/* nothing */
 	};
 
 

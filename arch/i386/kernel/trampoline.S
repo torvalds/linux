@@ -29,7 +29,7 @@
  *
  *	TYPE              VALUE
  *	R_386_32          startup_32_smp
- *	R_386_32          boot_gdt_table
+ *	R_386_32          boot_gdt
  */
 
 #include <linux/linkage.h>
@@ -62,8 +62,8 @@ r_base = .
 	 * to 32 bit.
 	 */
 
-	lidtl	boot_idt - r_base	# load idt with 0, 0
-	lgdtl	boot_gdt - r_base	# load gdt with whatever is appropriate
+	lidtl	boot_idt_descr - r_base	# load idt with 0, 0
+	lgdtl	boot_gdt_descr - r_base	# load gdt with whatever is appropriate
 
 	xor	%ax, %ax
 	inc	%ax		# protected mode (PE) bit
@@ -73,11 +73,11 @@ r_base = .
 
 	# These need to be in the same 64K segment as the above;
 	# hence we don't use the boot_gdt_descr defined in head.S
-boot_gdt:
+boot_gdt_descr:
 	.word	__BOOT_DS + 7			# gdt limit
-	.long	boot_gdt_table-__PAGE_OFFSET	# gdt base
+	.long	boot_gdt - __PAGE_OFFSET	# gdt base
 
-boot_idt:
+boot_idt_descr:
 	.word	0				# idt limit = 0
 	.long	0				# idt base = 0L
 

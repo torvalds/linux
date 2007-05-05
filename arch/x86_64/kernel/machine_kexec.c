@@ -191,19 +191,19 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 
 	page_list[PA_CONTROL_PAGE] = __pa(control_page);
 	page_list[VA_CONTROL_PAGE] = (unsigned long)relocate_kernel;
-	page_list[PA_PGD] = __pa(kexec_pgd);
+	page_list[PA_PGD] = __pa_symbol(&kexec_pgd);
 	page_list[VA_PGD] = (unsigned long)kexec_pgd;
-	page_list[PA_PUD_0] = __pa(kexec_pud0);
+	page_list[PA_PUD_0] = __pa_symbol(&kexec_pud0);
 	page_list[VA_PUD_0] = (unsigned long)kexec_pud0;
-	page_list[PA_PMD_0] = __pa(kexec_pmd0);
+	page_list[PA_PMD_0] = __pa_symbol(&kexec_pmd0);
 	page_list[VA_PMD_0] = (unsigned long)kexec_pmd0;
-	page_list[PA_PTE_0] = __pa(kexec_pte0);
+	page_list[PA_PTE_0] = __pa_symbol(&kexec_pte0);
 	page_list[VA_PTE_0] = (unsigned long)kexec_pte0;
-	page_list[PA_PUD_1] = __pa(kexec_pud1);
+	page_list[PA_PUD_1] = __pa_symbol(&kexec_pud1);
 	page_list[VA_PUD_1] = (unsigned long)kexec_pud1;
-	page_list[PA_PMD_1] = __pa(kexec_pmd1);
+	page_list[PA_PMD_1] = __pa_symbol(&kexec_pmd1);
 	page_list[VA_PMD_1] = (unsigned long)kexec_pmd1;
-	page_list[PA_PTE_1] = __pa(kexec_pte1);
+	page_list[PA_PTE_1] = __pa_symbol(&kexec_pte1);
 	page_list[VA_PTE_1] = (unsigned long)kexec_pte1;
 
 	page_list[PA_TABLE_PAGE] =
