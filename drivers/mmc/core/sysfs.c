@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mmc/mmc_sysfs.c
+ *  linux/drivers/mmc/core/sysfs.c
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *
@@ -18,7 +18,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 
-#include "mmc.h"
+#include "sysfs.h"
 
 #define dev_to_mmc_card(d)	container_of(d, struct mmc_card, dev)
 #define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)
@@ -72,12 +72,11 @@ static void mmc_release_card(struct device *dev)
 /*
  * This currently matches any MMC driver to any MMC card - drivers
  * themselves make the decision whether to drive this card in their
- * probe method.  However, we force "bad" cards to fail.
+ * probe method.
  */
 static int mmc_bus_match(struct device *dev, struct device_driver *drv)
 {
-	struct mmc_card *card = dev_to_mmc_card(dev);
-	return !mmc_card_bad(card);
+	return 1;
 }
 
 static int
@@ -217,6 +216,8 @@ int mmc_register_card(struct mmc_card *card)
 				device_del(&card->dev);
 		}
 	}
+	if (ret == 0)
+		mmc_card_set_present(card);
 	return ret;
 }
 

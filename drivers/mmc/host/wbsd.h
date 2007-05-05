@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mmc/wbsd.h - Winbond W83L51xD SD/MMC driver
  *
- *  Copyright (C) 2004-2005 Pierre Ossman, All Rights Reserved.
+ *  Copyright (C) 2004-2007 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,10 +46,10 @@
 
 #define WBSD_EINT_CARD		0x40
 #define WBSD_EINT_FIFO_THRE	0x20
-#define WBSD_EINT_CCRC		0x10
+#define WBSD_EINT_CRC		0x10
 #define WBSD_EINT_TIMEOUT	0x08
 #define WBSD_EINT_PROGEND	0x04
-#define WBSD_EINT_CRC		0x02
+#define WBSD_EINT_BUSYEND	0x02
 #define WBSD_EINT_TC		0x01
 
 #define WBSD_INT_PENDING	0x80
@@ -158,8 +158,6 @@ struct wbsd_host
 	unsigned int		offset;		/* Offset into current entry */
 	unsigned int		remain;		/* Data left in curren entry */
 
-	int			size;		/* Total size of transfer */
-
 	char*			dma_buffer;	/* ISA DMA buffer */
 	dma_addr_t		dma_addr;	/* Physical address for same */
 
@@ -182,7 +180,6 @@ struct wbsd_host
 	struct tasklet_struct	crc_tasklet;
 	struct tasklet_struct	timeout_tasklet;
 	struct tasklet_struct	finish_tasklet;
-	struct tasklet_struct	block_tasklet;
 
 	struct timer_list	ignore_timer;	/* Ignore detection timer */
 };

@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mmc/sdhci.c - Secure Digital Host Controller Interface driver
  *
- *  Copyright (C) 2005-2006 Pierre Ossman, All Rights Reserved.
+ *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
 #include <linux/dma-mapping.h>
 
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
 
 #include <asm/scatterlist.h>
 
@@ -247,14 +246,13 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 			chunk_remain = min(blksize, 4);
 		}
 
-		size = min(host->size, host->remain);
-		size = min(size, chunk_remain);
+		size = min(host->remain, chunk_remain);
 
 		chunk_remain -= size;
 		blksize -= size;
 		host->offset += size;
 		host->remain -= size;
-		host->size -= size;
+
 		while (size) {
 			*buffer = data & 0xFF;
 			buffer++;
@@ -289,14 +287,13 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
 	buffer = sdhci_sg_to_buffer(host) + host->offset;
 
 	while (blksize) {
-		size = min(host->size, host->remain);
-		size = min(size, chunk_remain);
+		size = min(host->remain, chunk_remain);
 
 		chunk_remain -= size;
 		blksize -= size;
 		host->offset += size;
 		host->remain -= size;
-		host->size -= size;
+
 		while (size) {
 			data >>= 8;
 			data |= (u32)*buffer << 24;
@@ -325,7 +322,7 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 
 	BUG_ON(!host->data);
 
-	if (host->size == 0)
+	if (host->num_sg == 0)
 		return;
 
 	if (host->data->flags & MMC_DATA_READ)
@@ -339,10 +336,8 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 		else
 			sdhci_write_block_pio(host);
 
-		if (host->size == 0)
+		if (host->num_sg == 0)
 			break;
-
-		BUG_ON(host->num_sg == 0);
 	}
 
 	DBG("PIO transfer complete.\n");
@@ -408,8 +403,6 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 
 		writel(sg_dma_address(data->sg), host->ioaddr + SDHCI_DMA_ADDRESS);
 	} else {
-		host->size = data->blksz * data->blocks;
-
 		host->cur_sg = data->sg;
 		host->num_sg = data->sg_len;
 
@@ -472,10 +465,6 @@ static void sdhci_finish_data(struct sdhci_host *host)
 		printk(KERN_ERR "%s: Controller signalled completion even "
 			"though there were blocks left.\n",
 			mmc_hostname(host->mmc));
-		data->error = MMC_ERR_FAILED;
-	} else if (host->size != 0) {
-		printk(KERN_ERR "%s: %d bytes were left untransferred.\n",
-			mmc_hostname(host->mmc), host->size);
 		data->error = MMC_ERR_FAILED;
 	}
 
@@ -669,20 +658,16 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 
 	pwr = SDHCI_POWER_ON;
 
-	switch (power) {
-	case MMC_VDD_170:
-	case MMC_VDD_180:
-	case MMC_VDD_190:
+	switch (1 << power) {
+	case MMC_VDD_165_195:
 		pwr |= SDHCI_POWER_180;
 		break;
-	case MMC_VDD_290:
-	case MMC_VDD_300:
-	case MMC_VDD_310:
+	case MMC_VDD_29_30:
+	case MMC_VDD_30_31:
 		pwr |= SDHCI_POWER_300;
 		break;
-	case MMC_VDD_320:
-	case MMC_VDD_330:
-	case MMC_VDD_340:
+	case MMC_VDD_32_33:
+	case MMC_VDD_33_34:
 		pwr |= SDHCI_POWER_330;
 		break;
 	default:
@@ -1294,7 +1279,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	if (caps & SDHCI_CAN_VDD_300)
 		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
 	if (caps & SDHCI_CAN_VDD_180)
-		mmc->ocr_avail |= MMC_VDD_17_18|MMC_VDD_18_19;
+		mmc->ocr_avail |= MMC_VDD_165_195;
 
 	if (mmc->ocr_avail == 0) {
 		printk(KERN_ERR "%s: Hardware doesn't report any "

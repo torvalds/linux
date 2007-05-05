@@ -22,7 +22,6 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
 #include <linux/mmc/card.h>
 #include <linux/clk.h>
 
@@ -605,7 +604,7 @@ static void mmc_omap_switch_handler(struct work_struct *work)
 	}
 	if (mmc_omap_cover_is_open(host)) {
 		if (!complained) {
-			dev_info(mmc_dev(host->mmc), "cover is open");
+			dev_info(mmc_dev(host->mmc), "cover is open\n");
 			complained = 1;
 		}
 		if (mmc_omap_enable_poll)
@@ -937,47 +936,54 @@ static void mmc_omap_power(struct mmc_omap_host *host, int on)
 	}
 }
 
+static int mmc_omap_calc_divisor(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	struct mmc_omap_host *host = mmc_priv(mmc);
+	int func_clk_rate = clk_get_rate(host->fclk);
+	int dsor;
+
+	if (ios->clock == 0)
+		return 0;
+
+	dsor = func_clk_rate / ios->clock;
+	if (dsor < 1)
+		dsor = 1;
+
+	if (func_clk_rate / dsor > ios->clock)
+		dsor++;
+
+	if (dsor > 250)
+		dsor = 250;
+	dsor++;
+
+	if (ios->bus_width == MMC_BUS_WIDTH_4)
+		dsor |= 1 << 15;
+
+	return dsor;
+}
+
 static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct mmc_omap_host *host = mmc_priv(mmc);
 	int dsor;
-	int realclock, i;
+	int i;
 
-	realclock = ios->clock;
-
-	if (ios->clock == 0)
-		dsor = 0;
-	else {
-		int func_clk_rate = clk_get_rate(host->fclk);
-
-		dsor = func_clk_rate / realclock;
-		if (dsor < 1)
-			dsor = 1;
-
-		if (func_clk_rate / dsor > realclock)
-			dsor++;
-
-		if (dsor > 250)
-			dsor = 250;
-		dsor++;
-
-		if (ios->bus_width == MMC_BUS_WIDTH_4)
-			dsor |= 1 << 15;
-	}
+	dsor = mmc_omap_calc_divisor(mmc, ios);
+	host->bus_mode = ios->bus_mode;
+	host->hw_bus_mode = host->bus_mode;
 
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		mmc_omap_power(host, 0);
 		break;
 	case MMC_POWER_UP:
-	case MMC_POWER_ON:
+		/* Cannot touch dsor yet, just power up MMC */
 		mmc_omap_power(host, 1);
+		return;
+	case MMC_POWER_ON:
 		dsor |= 1 << 11;
 		break;
 	}
-
-	host->bus_mode = ios->bus_mode;
-	host->hw_bus_mode = host->bus_mode;
 
 	clk_enable(host->fclk);
 
@@ -987,7 +993,7 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 * Writing to the CON register twice seems to do the trick. */
 	for (i = 0; i < 2; i++)
 		OMAP_MMC_WRITE(host, CON, dsor);
-	if (ios->power_mode == MMC_POWER_UP) {
+	if (ios->power_mode == MMC_POWER_ON) {
 		/* Send clock cycles, poll completion */
 		OMAP_MMC_WRITE(host, IE, 0);
 		OMAP_MMC_WRITE(host, STAT, 0xffff);

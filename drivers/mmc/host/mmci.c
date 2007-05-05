@@ -17,7 +17,6 @@
 #include <linux/err.h>
 #include <linux/highmem.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
 #include <linux/amba/bus.h>
 #include <linux/clk.h>
 

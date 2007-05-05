@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mmc/wbsd.c - Winbond W83L51xD SD/MMC driver
  *
- *  Copyright (C) 2004-2006 Pierre Ossman, All Rights Reserved.
+ *  Copyright (C) 2004-2007 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@
 #include <linux/pnp.h>
 #include <linux/highmem.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -178,9 +177,8 @@ static void wbsd_init_device(struct wbsd_host *host)
 	ier = 0;
 	ier |= WBSD_EINT_CARD;
 	ier |= WBSD_EINT_FIFO_THRE;
-	ier |= WBSD_EINT_CCRC;
-	ier |= WBSD_EINT_TIMEOUT;
 	ier |= WBSD_EINT_CRC;
+	ier |= WBSD_EINT_TIMEOUT;
 	ier |= WBSD_EINT_TC;
 
 	outb(ier, host->base + WBSD_EIR);
@@ -278,90 +276,36 @@ static inline char *wbsd_sg_to_buffer(struct wbsd_host *host)
 
 static inline void wbsd_sg_to_dma(struct wbsd_host *host, struct mmc_data *data)
 {
-	unsigned int len, i, size;
+	unsigned int len, i;
 	struct scatterlist *sg;
 	char *dmabuf = host->dma_buffer;
 	char *sgbuf;
 
-	size = host->size;
-
 	sg = data->sg;
 	len = data->sg_len;
 
-	/*
-	 * Just loop through all entries. Size might not
-	 * be the entire list though so make sure that
-	 * we do not transfer too much.
-	 */
 	for (i = 0; i < len; i++) {
 		sgbuf = page_address(sg[i].page) + sg[i].offset;
-		if (size < sg[i].length)
-			memcpy(dmabuf, sgbuf, size);
-		else
-			memcpy(dmabuf, sgbuf, sg[i].length);
+		memcpy(dmabuf, sgbuf, sg[i].length);
 		dmabuf += sg[i].length;
-
-		if (size < sg[i].length)
-			size = 0;
-		else
-			size -= sg[i].length;
-
-		if (size == 0)
-			break;
 	}
-
-	/*
-	 * Check that we didn't get a request to transfer
-	 * more data than can fit into the SG list.
-	 */
-
-	BUG_ON(size != 0);
-
-	host->size -= size;
 }
 
 static inline void wbsd_dma_to_sg(struct wbsd_host *host, struct mmc_data *data)
 {
-	unsigned int len, i, size;
+	unsigned int len, i;
 	struct scatterlist *sg;
 	char *dmabuf = host->dma_buffer;
 	char *sgbuf;
 
-	size = host->size;
-
 	sg = data->sg;
 	len = data->sg_len;
 
-	/*
-	 * Just loop through all entries. Size might not
-	 * be the entire list though so make sure that
-	 * we do not transfer too much.
-	 */
 	for (i = 0; i < len; i++) {
 		sgbuf = page_address(sg[i].page) + sg[i].offset;
-		if (size < sg[i].length)
-			memcpy(sgbuf, dmabuf, size);
-		else
-			memcpy(sgbuf, dmabuf, sg[i].length);
+		memcpy(sgbuf, dmabuf, sg[i].length);
 		dmabuf += sg[i].length;
-
-		if (size < sg[i].length)
-			size = 0;
-		else
-			size -= sg[i].length;
-
-		if (size == 0)
-			break;
 	}
-
-	/*
-	 * Check that we didn't get a request to transfer
-	 * more data than can fit into the SG list.
-	 */
-
-	BUG_ON(size != 0);
-
-	host->size -= size;
 }
 
 /*
@@ -484,7 +428,7 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 	/*
 	 * Handle excessive data.
 	 */
-	if (data->bytes_xfered == host->size)
+	if (host->num_sg == 0)
 		return;
 
 	buffer = wbsd_sg_to_buffer(host) + host->offset;
@@ -514,31 +458,14 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 			data->bytes_xfered++;
 
 			/*
-			 * Transfer done?
-			 */
-			if (data->bytes_xfered == host->size)
-				return;
-
-			/*
 			 * End of scatter list entry?
 			 */
 			if (host->remain == 0) {
 				/*
 				 * Get next entry. Check if last.
 				 */
-				if (!wbsd_next_sg(host)) {
-					/*
-					 * We should never reach this point.
-					 * It means that we're trying to
-					 * transfer more blocks than can fit
-					 * into the scatter list.
-					 */
-					BUG_ON(1);
-
-					host->size = data->bytes_xfered;
-
+				if (!wbsd_next_sg(host))
 					return;
-				}
 
 				buffer = wbsd_sg_to_buffer(host);
 			}
@@ -550,7 +477,7 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 	 * hardware problem. The chip doesn't trigger
 	 * FIFO threshold interrupts properly.
 	 */
-	if ((host->size - data->bytes_xfered) < 16)
+	if ((data->blocks * data->blksz - data->bytes_xfered) < 16)
 		tasklet_schedule(&host->fifo_tasklet);
 }
 
@@ -564,7 +491,7 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 	 * Check that we aren't being called after the
 	 * entire buffer has been transfered.
 	 */
-	if (data->bytes_xfered == host->size)
+	if (host->num_sg == 0)
 		return;
 
 	buffer = wbsd_sg_to_buffer(host) + host->offset;
@@ -594,31 +521,14 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 			data->bytes_xfered++;
 
 			/*
-			 * Transfer done?
-			 */
-			if (data->bytes_xfered == host->size)
-				return;
-
-			/*
 			 * End of scatter list entry?
 			 */
 			if (host->remain == 0) {
 				/*
 				 * Get next entry. Check if last.
 				 */
-				if (!wbsd_next_sg(host)) {
-					/*
-					 * We should never reach this point.
-					 * It means that we're trying to
-					 * transfer more blocks than can fit
-					 * into the scatter list.
-					 */
-					BUG_ON(1);
-
-					host->size = data->bytes_xfered;
-
+				if (!wbsd_next_sg(host))
 					return;
-				}
 
 				buffer = wbsd_sg_to_buffer(host);
 			}
@@ -638,6 +548,7 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 	u16 blksize;
 	u8 setup;
 	unsigned long dmaflags;
+	unsigned int size;
 
 	DBGF("blksz %04x blks %04x flags %08x\n",
 		data->blksz, data->blocks, data->flags);
@@ -647,7 +558,7 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 	/*
 	 * Calculate size.
 	 */
-	host->size = data->blocks * data->blksz;
+	size = data->blocks * data->blksz;
 
 	/*
 	 * Check timeout values for overflow.
@@ -705,8 +616,8 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 		/*
 		 * The buffer for DMA is only 64 kB.
 		 */
-		BUG_ON(host->size > 0x10000);
-		if (host->size > 0x10000) {
+		BUG_ON(size > 0x10000);
+		if (size > 0x10000) {
 			data->error = MMC_ERR_INVALID;
 			return;
 		}
@@ -729,7 +640,7 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 		else
 			set_dma_mode(host->dma, DMA_MODE_WRITE & ~0x40);
 		set_dma_addr(host->dma, host->dma_addr);
-		set_dma_count(host->dma, host->size);
+		set_dma_count(host->dma, size);
 
 		enable_dma(host->dma);
 		release_dma_lock(dmaflags);
@@ -812,6 +723,10 @@ static void wbsd_finish_data(struct wbsd_host *host, struct mmc_data *data)
 		count = get_dma_residue(host->dma);
 		release_dma_lock(dmaflags);
 
+		data->bytes_xfered = host->mrq->data->blocks *
+			host->mrq->data->blksz - count;
+		data->bytes_xfered -= data->bytes_xfered % data->blksz;
+
 		/*
 		 * Any leftover data?
 		 */
@@ -820,7 +735,8 @@ static void wbsd_finish_data(struct wbsd_host *host, struct mmc_data *data)
 				"%d bytes left.\n",
 				mmc_hostname(host->mmc), count);
 
-			data->error = MMC_ERR_FAILED;
+			if (data->error == MMC_ERR_NONE)
+				data->error = MMC_ERR_FAILED;
 		} else {
 			/*
 			 * Transfer data from DMA buffer to
@@ -828,8 +744,11 @@ static void wbsd_finish_data(struct wbsd_host *host, struct mmc_data *data)
 			 */
 			if (data->flags & MMC_DATA_READ)
 				wbsd_dma_to_sg(host, data);
+		}
 
-			data->bytes_xfered = host->size;
+		if (data->error != MMC_ERR_NONE) {
+			if (data->bytes_xfered)
+				data->bytes_xfered -= data->blksz;
 		}
 	}
 
@@ -869,24 +788,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		goto done;
 	}
 
-	/*
-	 * Does the request include data?
-	 */
 	if (cmd->data) {
-		wbsd_prepare_data(host, cmd->data);
-
-		if (cmd->data->error != MMC_ERR_NONE)
-			goto done;
-	}
-
-	wbsd_send_command(host, cmd);
-
-	/*
-	 * If this is a data transfer the request
-	 * will be finished after the data has
-	 * transfered.
-	 */
-	if (cmd->data && (cmd->error == MMC_ERR_NONE)) {
 		/*
 		 * The hardware is so delightfully stupid that it has a list
 		 * of "data" commands. If a command isn't on this list, it'll
@@ -918,14 +820,30 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				"supported by this controller.\n",
 				mmc_hostname(host->mmc), cmd->opcode);
 #endif
-			cmd->data->error = MMC_ERR_INVALID;
-
-			if (cmd->data->stop)
-				wbsd_send_command(host, cmd->data->stop);
+			cmd->error = MMC_ERR_INVALID;
 
 			goto done;
 		};
+	}
 
+	/*
+	 * Does the request include data?
+	 */
+	if (cmd->data) {
+		wbsd_prepare_data(host, cmd->data);
+
+		if (cmd->data->error != MMC_ERR_NONE)
+			goto done;
+	}
+
+	wbsd_send_command(host, cmd);
+
+	/*
+	 * If this is a data transfer the request
+	 * will be finished after the data has
+	 * transfered.
+	 */
+	if (cmd->data && (cmd->error == MMC_ERR_NONE)) {
 		/*
 		 * Dirty fix for hardware bug.
 		 */
@@ -1167,7 +1085,7 @@ static void wbsd_tasklet_fifo(unsigned long param)
 	/*
 	 * Done?
 	 */
-	if (host->size == data->bytes_xfered) {
+	if (host->num_sg == 0) {
 		wbsd_write_index(host, WBSD_IDX_FIFOEN, 0);
 		tasklet_schedule(&host->finish_tasklet);
 	}
@@ -1245,30 +1163,6 @@ end:
 	spin_unlock(&host->lock);
 }
 
-static void wbsd_tasklet_block(unsigned long param)
-{
-	struct wbsd_host *host = (struct wbsd_host *)param;
-	struct mmc_data *data;
-
-	spin_lock(&host->lock);
-
-	if ((wbsd_read_index(host, WBSD_IDX_CRCSTATUS) & WBSD_CRC_MASK) !=
-		WBSD_CRC_OK) {
-		data = wbsd_get_data(host);
-		if (!data)
-			goto end;
-
-		DBGF("CRC error\n");
-
-		data->error = MMC_ERR_BADCRC;
-
-		tasklet_schedule(&host->finish_tasklet);
-	}
-
-end:
-	spin_unlock(&host->lock);
-}
-
 /*
  * Interrupt handling
  */
@@ -1299,8 +1193,6 @@ static irqreturn_t wbsd_irq(int irq, void *dev_id)
 		tasklet_hi_schedule(&host->crc_tasklet);
 	if (isr & WBSD_INT_TIMEOUT)
 		tasklet_hi_schedule(&host->timeout_tasklet);
-	if (isr & WBSD_INT_BUSYEND)
-		tasklet_hi_schedule(&host->block_tasklet);
 	if (isr & WBSD_INT_TC)
 		tasklet_schedule(&host->finish_tasklet);
 
@@ -1601,8 +1493,6 @@ static int __devinit wbsd_request_irq(struct wbsd_host *host, int irq)
 			(unsigned long)host);
 	tasklet_init(&host->finish_tasklet, wbsd_tasklet_finish,
 			(unsigned long)host);
-	tasklet_init(&host->block_tasklet, wbsd_tasklet_block,
-			(unsigned long)host);
 
 	return 0;
 }
@@ -1621,7 +1511,6 @@ static void __devexit wbsd_release_irq(struct wbsd_host *host)
 	tasklet_kill(&host->crc_tasklet);
 	tasklet_kill(&host->timeout_tasklet);
 	tasklet_kill(&host->finish_tasklet);
-	tasklet_kill(&host->block_tasklet);
 }
 
 /*

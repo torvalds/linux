@@ -1,7 +1,8 @@
 /*
- *  linux/drivers/mmc/mmc_queue.c
+ *  linux/drivers/mmc/queue.c
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
+ *  Copyright 2006-2007 Pierre Ossman
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,7 +15,7 @@
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
-#include "mmc_queue.h"
+#include "queue.h"
 
 #define MMC_QUEUE_SUSPENDED	(1 << 0)
 
@@ -179,7 +180,6 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	blk_cleanup_queue(mq->queue);
 	return ret;
 }
-EXPORT_SYMBOL(mmc_init_queue);
 
 void mmc_cleanup_queue(struct mmc_queue *mq)
 {
@@ -190,6 +190,9 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	spin_lock_irqsave(q->queue_lock, flags);
 	q->queuedata = NULL;
 	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	/* Make sure the queue isn't suspended, as that will deadlock */
+	mmc_queue_resume(mq);
 
 	/* Then terminate our worker thread */
 	kthread_stop(mq->thread);
@@ -226,7 +229,6 @@ void mmc_queue_suspend(struct mmc_queue *mq)
 		down(&mq->thread_sem);
 	}
 }
-EXPORT_SYMBOL(mmc_queue_suspend);
 
 /**
  * mmc_queue_resume - resume a previously suspended MMC request queue
@@ -247,4 +249,4 @@ void mmc_queue_resume(struct mmc_queue *mq)
 		spin_unlock_irqrestore(q->queue_lock, flags);
 	}
 }
-EXPORT_SYMBOL(mmc_queue_resume);
+

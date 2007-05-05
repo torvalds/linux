@@ -2,6 +2,7 @@
  * Block driver for media (i.e., flash cards)
  *
  * Copyright 2002 Hewlett-Packard Company
+ * Copyright 2005-2007 Pierre Ossman
  *
  * Use consistent with the GNU GPL is permitted,
  * provided that this copyright notice is
@@ -31,13 +32,13 @@
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
-#include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
+#include <linux/mmc/sd.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
-#include "mmc_queue.h"
+#include "queue.h"
 
 /*
  * max 8 partitions per card
@@ -223,10 +224,9 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request brq;
-	int ret = 1;
+	int ret = 1, sg_pos, data_size;
 
-	if (mmc_card_claim_host(card))
-		goto flush_queue;
+	mmc_claim_host(card->host);
 
 	do {
 		struct mmc_command cmd;
@@ -282,6 +282,20 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		brq.data.sg = mq->sg;
 		brq.data.sg_len = blk_rq_map_sg(req->q, req, brq.data.sg);
+
+		if (brq.data.blocks !=
+		    (req->nr_sectors >> (md->block_bits - 9))) {
+			data_size = brq.data.blocks * brq.data.blksz;
+			for (sg_pos = 0; sg_pos < brq.data.sg_len; sg_pos++) {
+				data_size -= mq->sg[sg_pos].length;
+				if (data_size <= 0) {
+					mq->sg[sg_pos].length += data_size;
+					sg_pos++;
+					break;
+				}
+			}
+			brq.data.sg_len = sg_pos;
+		}
 
 		mmc_wait_for_req(card->host, &brq.mrq);
 		if (brq.cmd.error) {
@@ -342,7 +356,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		spin_unlock_irq(&md->lock);
 	} while (ret);
 
-	mmc_card_release_host(card);
+	mmc_release_host(card->host);
 
 	return 1;
 
@@ -378,9 +392,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		spin_unlock_irq(&md->lock);
 	}
 
-flush_queue:
-
-	mmc_card_release_host(card);
+	mmc_release_host(card->host);
 
 	spin_lock_irq(&md->lock);
 	while (ret) {
@@ -477,11 +489,20 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 
 	blk_queue_hardsect_size(md->queue.queue, 1 << md->block_bits);
 
-	/*
-	 * The CSD capacity field is in units of read_blkbits.
-	 * set_capacity takes units of 512 bytes.
-	 */
-	set_capacity(md->disk, card->csd.capacity << (card->csd.read_blkbits - 9));
+	if (!mmc_card_sd(card) && mmc_card_blockaddr(card)) {
+		/*
+		 * The EXT_CSD sector count is in number or 512 byte
+		 * sectors.
+		 */
+		set_capacity(md->disk, card->ext_csd.sectors);
+	} else {
+		/*
+		 * The CSD capacity field is in units of read_blkbits.
+		 * set_capacity takes units of 512 bytes.
+		 */
+		set_capacity(md->disk,
+			card->csd.capacity << (card->csd.read_blkbits - 9));
+	}
 	return md;
 
  err_putdisk:
@@ -502,12 +523,12 @@ mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 	if (mmc_card_blockaddr(card))
 		return 0;
 
-	mmc_card_claim_host(card);
+	mmc_claim_host(card->host);
 	cmd.opcode = MMC_SET_BLOCKLEN;
 	cmd.arg = 1 << md->block_bits;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	err = mmc_wait_for_cmd(card->host, &cmd, 5);
-	mmc_card_release_host(card);
+	mmc_release_host(card->host);
 
 	if (err) {
 		printk(KERN_ERR "%s: unable to set block size to %d: %d\n",

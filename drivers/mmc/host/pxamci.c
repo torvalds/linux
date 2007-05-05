@@ -24,7 +24,6 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/protocol.h>
 
 #include <asm/dma.h>
 #include <asm/io.h>
