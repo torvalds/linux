@@ -319,9 +319,14 @@ int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 	    offset + len > vol->usable_leb_size)
 		return -EINVAL;
 
-	if (vol->vol_type == UBI_STATIC_VOLUME && lnum == vol->used_ebs - 1 &&
-	    offset + len > vol->last_eb_bytes)
-		return -EINVAL;
+	if (vol->vol_type == UBI_STATIC_VOLUME) {
+		if (vol->used_ebs == 0)
+			/* Empty static UBI volume */
+			return 0;
+		if (lnum == vol->used_ebs - 1 &&
+		    offset + len > vol->last_eb_bytes)
+			return -EINVAL;
+	}
 
 	if (vol->upd_marker)
 		return -EBADF;
