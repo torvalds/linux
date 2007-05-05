@@ -5,7 +5,7 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ unsigned int aac_response_normal(struct aac_queue * q)
 		u32 index = le32_to_cpu(entry->addr);
 		fast = index & 0x01;
 		fib = &dev->fibs[index >> 2];
-		hwfib = fib->hw_fib;
+		hwfib = fib->hw_fib_va;
 		
 		aac_consumer_free(dev, q, HostNormRespQueue);
 		/*
@@ -83,11 +83,13 @@ unsigned int aac_response_normal(struct aac_queue * q)
 		 *	continue. The caller has already been notified that
 		 *	the fib timed out.
 		 */
-		if (!(fib->flags & FIB_CONTEXT_FLAG_TIMED_OUT))
-			dev->queues->queue[AdapNormCmdQueue].numpending--;
-		else {
-			printk(KERN_WARNING "aacraid: FIB timeout (%x).\n", fib->flags);
-			printk(KERN_DEBUG"aacraid: hwfib=%p fib index=%i fib=%p\n",hwfib, hwfib->header.SenderData,fib);
+		dev->queues->queue[AdapNormCmdQueue].numpending--;
+
+		if (unlikely(fib->flags & FIB_CONTEXT_FLAG_TIMED_OUT)) {
+			spin_unlock_irqrestore(q->lock, flags);
+			aac_fib_complete(fib);
+			aac_fib_free(fib);
+			spin_lock_irqsave(q->lock, flags);
 			continue;
 		}
 		spin_unlock_irqrestore(q->lock, flags);
@@ -192,7 +194,7 @@ unsigned int aac_command_normal(struct aac_queue *q)
 		INIT_LIST_HEAD(&fib->fiblink);
 		fib->type = FSAFS_NTC_FIB_CONTEXT;
 		fib->size = sizeof(struct fib);
-		fib->hw_fib = hw_fib;
+		fib->hw_fib_va = hw_fib;
 		fib->data = hw_fib->data;
 		fib->dev = dev;
 		
@@ -253,12 +255,13 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 			return 1;
 		}
 		memset(hw_fib, 0, sizeof(struct hw_fib));
-		memcpy(hw_fib, (struct hw_fib *)(((unsigned long)(dev->regs.sa)) + (index & ~0x00000002L)), sizeof(struct hw_fib));
+		memcpy(hw_fib, (struct hw_fib *)(((ptrdiff_t)(dev->regs.sa)) +
+		  (index & ~0x00000002L)), sizeof(struct hw_fib));
 		memset(fib, 0, sizeof(struct fib));
 		INIT_LIST_HEAD(&fib->fiblink);
 		fib->type = FSAFS_NTC_FIB_CONTEXT;
 		fib->size = sizeof(struct fib);
-		fib->hw_fib = hw_fib;
+		fib->hw_fib_va = hw_fib;
 		fib->data = hw_fib->data;
 		fib->dev = dev;
 	
@@ -270,7 +273,7 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 	} else {
 		int fast = index & 0x01;
 		struct fib * fib = &dev->fibs[index >> 2];
-		struct hw_fib * hwfib = fib->hw_fib;
+		struct hw_fib * hwfib = fib->hw_fib_va;
 
 		/*
 		 *	Remove this fib from the Outstanding I/O queue.
@@ -280,13 +283,13 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 		 *	continue. The caller has already been notified that
 		 *	the fib timed out.
 		 */
-		if ((fib->flags & FIB_CONTEXT_FLAG_TIMED_OUT)) {
-			printk(KERN_WARNING "aacraid: FIB timeout (%x).\n", fib->flags);
-			printk(KERN_DEBUG"aacraid: hwfib=%p index=%i fib=%p\n",hwfib, hwfib->header.SenderData,fib);
+		dev->queues->queue[AdapNormCmdQueue].numpending--;
+
+		if (unlikely(fib->flags & FIB_CONTEXT_FLAG_TIMED_OUT)) {
+			aac_fib_complete(fib);
+			aac_fib_free(fib);
 			return 0;
 		}
-
-		dev->queues->queue[AdapNormCmdQueue].numpending--;
 
 		if (fast) {
 			/*

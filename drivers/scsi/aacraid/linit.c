@@ -5,7 +5,7 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -81,8 +81,6 @@ MODULE_VERSION(AAC_DRIVER_FULL_VERSION);
 static LIST_HEAD(aac_devices);
 static int aac_cfg_major = -1;
 char aac_driver_version[] = AAC_DRIVER_FULL_VERSION;
-
-extern int expose_physicals;
 
 /*
  * Because of the way Linux names scsi devices, the order in this table has
@@ -247,7 +245,19 @@ static struct aac_driver_ident aac_drivers[] = {
 
 static int aac_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
+	struct Scsi_Host *host = cmd->device->host;
+	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
+	u32 count = 0;
 	cmd->scsi_done = done;
+	for (; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
+		struct fib * fib = &dev->fibs[count];
+		struct scsi_cmnd * command;
+		if (fib->hw_fib_va->header.XferState &&
+		    ((command = fib->callback_data)) &&
+		    (command == cmd) &&
+		    (cmd->SCp.phase == AAC_OWNER_FIRMWARE))
+			return 0; /* Already owned by Adapter */
+	}
 	cmd->SCp.phase = AAC_OWNER_LOWLEVEL;
 	return (aac_scsi_cmd(cmd) ? FAILED : 0);
 } 
@@ -446,6 +456,40 @@ static int aac_ioctl(struct scsi_device *sdev, int cmd, void __user * arg)
 	return aac_do_ioctl(dev, cmd, arg);
 }
 
+static int aac_eh_abort(struct scsi_cmnd* cmd)
+{
+	struct scsi_device * dev = cmd->device;
+	struct Scsi_Host * host = dev->host;
+	struct aac_dev * aac = (struct aac_dev *)host->hostdata;
+	int count;
+	int ret = FAILED;
+
+	printk(KERN_ERR "%s: Host adapter abort request (%d,%d,%d,%d)\n",
+		AAC_DRIVERNAME,
+		host->host_no, sdev_channel(dev), sdev_id(dev), dev->lun);
+	switch (cmd->cmnd[0]) {
+	case SERVICE_ACTION_IN:
+		if (!(aac->raw_io_interface) ||
+		    !(aac->raw_io_64) ||
+		    ((cmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))
+			break;
+	case INQUIRY:
+	case READ_CAPACITY:
+	case TEST_UNIT_READY:
+		/* Mark associated FIB to not complete, eh handler does this */
+		for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
+			struct fib * fib = &aac->fibs[count];
+			if (fib->hw_fib_va->header.XferState &&
+			  (fib->callback_data == cmd)) {
+				fib->flags |= FIB_CONTEXT_FLAG_TIMED_OUT;
+				cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
+				ret = SUCCESS;
+			}
+		}
+	}
+	return ret;
+}
+
 /*
  *	aac_eh_reset	- Reset command handling
  *	@scsi_cmd:	SCSI command block causing the reset
@@ -457,12 +501,20 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	struct Scsi_Host * host = dev->host;
 	struct scsi_cmnd * command;
 	int count;
-	struct aac_dev * aac;
+	struct aac_dev * aac = (struct aac_dev *)host->hostdata;
 	unsigned long flags;
 
+	/* Mark the associated FIB to not complete, eh handler does this */
+	for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
+		struct fib * fib = &aac->fibs[count];
+		if (fib->hw_fib_va->header.XferState &&
+		  (fib->callback_data == cmd)) {
+			fib->flags |= FIB_CONTEXT_FLAG_TIMED_OUT;
+			cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
+		}
+	}
 	printk(KERN_ERR "%s: Host adapter reset request. SCSI hang ?\n", 
 					AAC_DRIVERNAME);
-	aac = (struct aac_dev *)host->hostdata;
 
 	if ((count = aac_check_health(aac)))
 		return count;
@@ -496,7 +548,7 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		ssleep(1);
 	}
 	printk(KERN_ERR "%s: SCSI bus appears hung\n", AAC_DRIVERNAME);
-	return -ETIMEDOUT;
+	return SUCCESS; /* Cause an immediate retry of the command with a ten second delay after successful tur */
 }
 
 /**
@@ -796,6 +848,7 @@ static struct scsi_host_template aac_driver_template = {
 	.bios_param     		= aac_biosparm,	
 	.shost_attrs			= aac_attrs,
 	.slave_configure		= aac_slave_configure,
+	.eh_abort_handler		= aac_eh_abort,
 	.eh_host_reset_handler		= aac_eh_reset,
 	.can_queue      		= AAC_NUM_IO_FIB,	
 	.this_id        		= MAXIMUM_NUM_CONTAINERS,

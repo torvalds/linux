@@ -671,7 +671,7 @@ static int
 lpfc_parse_vpd(struct lpfc_hba * phba, uint8_t * vpd, int len)
 {
 	uint8_t lenlo, lenhi;
-	uint32_t Length;
+	int Length;
 	int i, j;
 	int finished = 0;
 	int index = 0;

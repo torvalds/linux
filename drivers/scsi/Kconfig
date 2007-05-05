@@ -241,6 +241,12 @@ config SCSI_SCAN_ASYNC
 	  You can override this choice by specifying "scsi_mod.scan=sync"
 	  or async on the kernel's command line.
 
+config SCSI_WAIT_SCAN
+	tristate
+	default m
+	depends on SCSI
+	depends on MODULES
+
 menu "SCSI Transports"
 	depends on SCSI
 
@@ -1194,17 +1200,6 @@ config SCSI_NCR53C8XX_SYNC
 	  There is no safe option other than using good cabling, right
 	  terminations and SCSI conformant devices.
 
-config SCSI_NCR53C8XX_PROFILE
-	bool "enable profiling"
-	depends on SCSI_ZALON || SCSI_NCR_Q720
-	help
-	  This option allows you to enable profiling information gathering.
-	  These statistics are not very accurate due to the low frequency
-	  of the kernel clock (100 Hz on i386) and have performance impact
-	  on systems that use very fast devices.
-
-	  The normal answer therefore is N.
-
 config SCSI_NCR53C8XX_NO_DISCONNECT
 	bool "not allow targets to disconnect"
 	depends on (SCSI_ZALON || SCSI_NCR_Q720) && SCSI_NCR53C8XX_DEFAULT_TAGS=0
@@ -1333,11 +1328,6 @@ config SCSI_SIM710
 	  This driver for NCR53c710 based SCSI host adapters.
 
 	  It currently supports Compaq EISA cards and NCR MCA cards
-
-config 53C700_IO_MAPPED
-	bool
-	depends on SCSI_SIM710
-	default y
 
 config SCSI_SYM53C416
 	tristate "Symbios 53c416 SCSI support"

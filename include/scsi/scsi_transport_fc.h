@@ -108,6 +108,8 @@ enum fc_port_state {
 #define FC_PORTSPEED_2GBIT		2
 #define FC_PORTSPEED_4GBIT		4
 #define FC_PORTSPEED_10GBIT		8
+#define FC_PORTSPEED_8GBIT		0x10
+#define FC_PORTSPEED_16GBIT		0x20
 #define FC_PORTSPEED_NOT_NEGOTIATED	(1 << 15) /* Speed not established */
 
 /*

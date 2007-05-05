@@ -179,10 +179,12 @@ static int event_recv_msg(struct tgt_event *ev)
 	switch (ev->hdr.type) {
 	case TGT_UEVENT_CMD_RSP:
 		err = scsi_tgt_kspace_exec(ev->p.cmd_rsp.host_no,
-					   ev->p.cmd_rsp.tag,
 					   ev->p.cmd_rsp.result,
-					   ev->p.cmd_rsp.len,
+					   ev->p.cmd_rsp.tag,
 					   ev->p.cmd_rsp.uaddr,
+					   ev->p.cmd_rsp.len,
+					   ev->p.cmd_rsp.sense_uaddr,
+					   ev->p.cmd_rsp.sense_len,
 					   ev->p.cmd_rsp.rw);
 		break;
 	case TGT_UEVENT_TSK_MGMT_RSP:

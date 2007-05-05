@@ -917,6 +917,8 @@ sg_ioctl(struct inode *inode, struct file *filp,
 			return result;
                 if (val < 0)
                         return -EINVAL;
+		val = min_t(int, val,
+				sdp->device->request_queue->max_sectors * 512);
 		if (val != sfp->reserve.bufflen) {
 			if (sg_res_in_use(sfp) || sfp->mmap_called)
 				return -EBUSY;
@@ -925,7 +927,8 @@ sg_ioctl(struct inode *inode, struct file *filp,
 		}
 		return 0;
 	case SG_GET_RESERVED_SIZE:
-		val = (int) sfp->reserve.bufflen;
+		val = min_t(int, sfp->reserve.bufflen,
+				sdp->device->request_queue->max_sectors * 512);
 		return put_user(val, ip);
 	case SG_SET_COMMAND_Q:
 		result = get_user(val, ip);
@@ -1061,6 +1064,9 @@ sg_ioctl(struct inode *inode, struct file *filp,
 		if (sdp->detached)
 			return -ENODEV;
 		return scsi_ioctl(sdp->device, cmd_in, p);
+	case BLKSECTGET:
+		return put_user(sdp->device->request_queue->max_sectors * 512,
+				ip);
 	default:
 		if (read_only)
 			return -EPERM;	/* don't know so take safe approach */
@@ -2339,6 +2345,7 @@ sg_add_sfp(Sg_device * sdp, int dev)
 {
 	Sg_fd *sfp;
 	unsigned long iflags;
+	int bufflen;
 
 	sfp = kzalloc(sizeof(*sfp), GFP_ATOMIC | __GFP_NOWARN);
 	if (!sfp)
@@ -2369,7 +2376,9 @@ sg_add_sfp(Sg_device * sdp, int dev)
 	if (unlikely(sg_big_buff != def_reserved_size))
 		sg_big_buff = def_reserved_size;
 
-	sg_build_reserve(sfp, sg_big_buff);
+	bufflen = min_t(int, sg_big_buff,
+			sdp->device->request_queue->max_sectors * 512);
+	sg_build_reserve(sfp, bufflen);
 	SCSI_LOG_TIMEOUT(3, printk("sg_add_sfp:   bufflen=%d, k_use_sg=%d\n",
 			   sfp->reserve.bufflen, sfp->reserve.k_use_sg));
 	return sfp;
