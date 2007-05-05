@@ -1636,7 +1636,6 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 	if (ether1394_send_packet(ptask, tx_len))
 		goto fail;
 
-	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
 fail:
 	if (ptask)
@@ -1649,9 +1648,6 @@ fail:
 	priv->stats.tx_dropped++;
 	priv->stats.tx_errors++;
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (netif_queue_stopped(dev))
-		netif_wake_queue(dev);
 
 	/*
 	 * FIXME: According to a patch from 2003-02-26, "returning non-zero
