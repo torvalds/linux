@@ -135,10 +135,6 @@
 #define S3C2410_UDC_OCSR2_ISO		(1<<6) // R/W
 #define S3C2410_UDC_OCSR2_DMAIEN	(1<<5) // R/W
 
-#define S3C2410_UDC_SETIX(base,x)	    \
-	writel(S3C2410_UDC_INDEX_ ## x, base+S3C2410_UDC_INDEX_REG);
-
-
 #define S3C2410_UDC_EP0_CSR_OPKRDY	(1<<0)
 #define S3C2410_UDC_EP0_CSR_IPKRDY	(1<<1)
 #define S3C2410_UDC_EP0_CSR_SENTSTL	(1<<2)
