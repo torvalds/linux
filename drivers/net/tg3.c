@@ -7033,11 +7033,7 @@ static int tg3_open(struct net_device *dev)
 	if (err)
 		return err;
 
-	if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
-	    (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5750_AX) &&
-	    (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5750_BX) &&
-	    !((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714) &&
-	      (tp->pdev_peer == tp->pdev))) {
+	if (tp->tg3_flags & TG3_FLAG_SUPPORT_MSI) {
 		/* All MSI supporting chips should support tagged
 		 * status.  Assert that this is the case.
 		 */
@@ -10404,6 +10400,8 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 	}
 }
 
+static struct pci_dev * __devinit tg3_find_peer(struct tg3 *);
+
 static int __devinit tg3_get_invariants(struct tg3 *tp)
 {
 	static struct pci_device_id write_reorder_chipsets[] = {
@@ -10559,6 +10557,10 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	tp->pci_hdr_type     = (cacheline_sz_reg >> 16) & 0xff;
 	tp->pci_bist         = (cacheline_sz_reg >> 24) & 0xff;
 
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714))
+		tp->pdev_peer = tg3_find_peer(tp);
+
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
@@ -10572,6 +10574,14 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags2 |= TG3_FLG2_5705_PLUS;
 
 	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
+		tp->tg3_flags |= TG3_FLAG_SUPPORT_MSI;
+		if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5750_AX ||
+		    GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5750_BX ||
+		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714 &&
+		     tp->pci_chip_rev_id <= CHIPREV_ID_5714_A2 &&
+		     tp->pdev_peer == tp->pdev))
+			tp->tg3_flags &= ~TG3_FLAG_SUPPORT_MSI;
+
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
@@ -11896,10 +11906,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		tp->tg3_flags2 |= TG3_FLG2_MAX_RXPEND_64;
 		tp->rx_pending = 63;
 	}
-
-	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) ||
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714))
-		tp->pdev_peer = tg3_find_peer(tp);
 
 	err = tg3_get_device_address(tp);
 	if (err) {
