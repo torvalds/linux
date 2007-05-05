@@ -472,7 +472,7 @@ including:
 	-V      print mount.cifs version
 	-?      display simple usage information
 
-With recent 2.6 kernel versions of modutils, the version of the cifs kernel
+With most 2.6 kernel versions of modutils, the version of the cifs kernel
 module can be displayed via modinfo.
 
 Misc /proc/fs/cifs Flags and Debug Info
@@ -521,8 +521,22 @@ SecurityFlags		Flags which control security negotiation and
 			must use plaintext passwords			0x20020
 			(reserved for future packet encryption)		0x00040
 
-cifsFYI			If set to one, additional debug information is
-			logged to the system error log. (default 0)
+cifsFYI			If set to non-zero value, additional debug information
+			will be logged to the system error log.  This field
+			contains three flags controlling different classes of
+			debugging entries.  The maximum value it can be set
+			to is 7 which enables all debugging points (default 0).
+			Some debugging statements are not compiled into the
+			cifs kernel unless CONFIG_CIFS_DEBUG2 is enabled in the
+			kernel configuration. cifsFYI may be set to one or
+			nore of the following flags (7 sets them all):
+
+			log cifs informational messages			0x01
+			log return codes from cifs entry points		0x02
+			log slow responses (ie which take longer than one second)
+			  CONFIG_CIFS_STATS2 must be enabled in .config	0x03
+				
+				
 traceSMB		If set to one, debug information is logged to the
 			system error log with the start of smb requests
 			and responses (default 0)

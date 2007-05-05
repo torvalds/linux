@@ -6,7 +6,9 @@ handle DNS host to ipv6 name translation).  Accept override of uid or gid
 on mount even when Unix Extensions are negotiated (it used to be ignored
 when Unix Extensions were ignored).  This allows users to override the
 default uid and gid for files when they are certain that the uids or
-gids on the server do not match those of the client.
+gids on the server do not match those of the client.  Make "sec=none"
+mount override username (so that null user connection is attempted)
+to match what documentation said.
 
 Version 1.48
 ------------
