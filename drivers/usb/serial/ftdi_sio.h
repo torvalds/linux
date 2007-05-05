@@ -526,6 +526,10 @@
  */
 #define FTDI_MAXSTREAM_PID	0xEE18	/* Xbee PKG-U Module */
 
+/* Olimex */
+#define OLIMEX_VID			0x15BA
+#define OLIMEX_ARM_USB_OCD_PID		0x0003
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
