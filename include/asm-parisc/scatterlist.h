@@ -2,6 +2,7 @@
 #define _ASM_PARISC_SCATTERLIST_H
 
 #include <asm/page.h>
+#include <asm/types.h>
 
 struct scatterlist {
 	struct page *page;

@@ -2611,19 +2611,19 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 	if (irq < 0)
 		return irq;
 
-	set_irq_msi(irq, desc);
 	ret = msi_compose_msg(dev, irq, &msg);
 	if (ret < 0) {
 		destroy_irq(irq);
 		return ret;
 	}
 
+	set_irq_msi(irq, desc);
 	write_msi_msg(irq, &msg);
 
 	set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq,
 				      "edge");
 
-	return irq;
+	return 0;
 }
 
 void arch_teardown_msi_irq(unsigned int irq)

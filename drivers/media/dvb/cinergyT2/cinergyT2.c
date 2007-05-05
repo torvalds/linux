@@ -26,11 +26,11 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
-#include <linux/pci.h>
 #include <linux/input.h>
 #include <linux/dvb/frontend.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
+#include <asm/io.h>
 
 #include "dmxdev.h"
 #include "dvb_demux.h"

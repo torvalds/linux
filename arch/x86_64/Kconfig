@@ -676,6 +676,7 @@ menu "Bus options (PCI etc.)"
 
 config PCI
 	bool "PCI support"
+	select ARCH_SUPPORTS_MSI if (X86_LOCAL_APIC && X86_IO_APIC)
 
 # x86-64 doesn't support PCI BIOS access from long mode so always go direct.
 config PCI_DIRECT

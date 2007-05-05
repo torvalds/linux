@@ -28,7 +28,6 @@
 #include <linux/interrupt.h>
 #include <linux/fb.h>
 #include <linux/init.h>
-#include <linux/pci.h>
 #include <linux/nvram.h>
 #include <asm/io.h>
 #include <asm/prom.h>

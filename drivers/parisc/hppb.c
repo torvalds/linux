@@ -22,8 +22,6 @@
 #include <asm/hardware.h>
 #include <asm/parisc-device.h>
 
-#include <linux/pci.h>
-
 struct hppb_card {
 	unsigned long hpa;
 	struct resource mmio_region;

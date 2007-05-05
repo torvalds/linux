@@ -80,7 +80,6 @@ struct bus_type {
 	int (*resume)(struct device * dev);
 
 	unsigned int drivers_autoprobe:1;
-	unsigned int multithread_probe:1;
 };
 
 extern int __must_check bus_register(struct bus_type * bus);

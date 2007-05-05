@@ -42,7 +42,6 @@
 #include <linux/timer.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial.h>

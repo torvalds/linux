@@ -124,10 +124,6 @@ initialization with a pointer to a structure describing the driver
 
 	err_handler	See Documentation/pci-error-recovery.txt
 
-	multithread_probe	Enable multi-threaded probe/scan. Driver must
-			provide its own locking/syncronization for init
-			operations if this is enabled.
-
 
 The ID table is an array of struct pci_device_id entries ending with an
 all-zero entry.  Each entry consists of:
@@ -163,9 +159,9 @@ echo "vendor device subvendor subdevice class class_mask driver_data" > \
 /sys/bus/pci/drivers/{driver}/new_id
 
 All fields are passed in as hexadecimal values (no leading 0x).
-Users need pass only as many fields as necessary:
-	o vendor, device, subvendor, and subdevice fields default
-	  to PCI_ANY_ID (FFFFFFFF),
+The vendor and device fields are mandatory, the others are optional. Users
+need pass only as many optional fields as necessary:
+	o subvendor and subdevice fields default to PCI_ANY_ID (FFFFFFFF)
 	o class and classmask fields default to 0
 	o driver_data defaults to 0UL.
 
@@ -549,8 +545,6 @@ pci_find_slot()			Find pci_dev corresponding to given bus and
 pci_set_power_state()		Set PCI Power Management state (0=D0 ... 3=D3)
 pci_find_capability()		Find specified capability in device's capability
 				list.
-pci_module_init()		Inline helper function for ensuring correct
-				pci_driver initialization and error handling.
 pci_resource_start()		Returns bus start address for a given PCI region
 pci_resource_end()		Returns bus end address for a given PCI region
 pci_resource_len()		Returns the byte length of a PCI region

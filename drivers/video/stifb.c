@@ -64,7 +64,6 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/pci.h>
 
 #include <asm/grfioctl.h>	/* for HP-UX compatibility */
 #include <asm/uaccess.h>

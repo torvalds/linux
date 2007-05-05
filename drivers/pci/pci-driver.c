@@ -14,20 +14,6 @@
 #include "pci.h"
 
 /*
- *  Registration of PCI drivers and handling of hot-pluggable devices.
- */
-
-/* multithreaded probe logic */
-static int pci_multithread_probe =
-#ifdef CONFIG_PCI_MULTITHREAD_PROBE
-	1;
-#else
-	0;
-#endif
-__module_param_call("", pci_multithread_probe, param_set_bool, param_get_bool, &pci_multithread_probe, 0644);
-
-
-/*
  * Dynamic device IDs are disabled for !CONFIG_HOTPLUG
  */
 
@@ -52,7 +38,7 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 {
 	struct pci_dynid *dynid;
 	struct pci_driver *pdrv = to_pci_driver(driver);
-	__u32 vendor=PCI_ANY_ID, device=PCI_ANY_ID, subvendor=PCI_ANY_ID,
+	__u32 vendor, device, subvendor=PCI_ANY_ID,
 		subdevice=PCI_ANY_ID, class=0, class_mask=0;
 	unsigned long driver_data=0;
 	int fields=0;
@@ -61,7 +47,7 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	fields = sscanf(buf, "%x %x %x %x %x %x %lux",
 			&vendor, &device, &subvendor, &subdevice,
 			&class, &class_mask, &driver_data);
-	if (fields < 0)
+	if (fields < 2)
 		return -EINVAL;
 
 	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
@@ -569,7 +555,6 @@ struct bus_type pci_bus_type = {
 
 static int __init pci_driver_init(void)
 {
-	pci_bus_type.multithread_probe = pci_multithread_probe;
 	return bus_register(&pci_bus_type);
 }
 

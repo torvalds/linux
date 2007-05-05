@@ -1169,8 +1169,6 @@ static int pci_sun4v_setup_msi_irq(unsigned int *virt_irq_p,
 	if (!devino)
 		goto out_err;
 
-	set_irq_msi(*virt_irq_p, entry);
-
 	msiqid = ((devino - pbm->msiq_first_devino) +
 		  pbm->msiq_first);
 
@@ -1204,6 +1202,8 @@ static int pci_sun4v_setup_msi_irq(unsigned int *virt_irq_p,
 		msg.address_lo = pbm->msi32_start;
 	}
 	msg.data = msi_num;
+
+	set_irq_msi(*virt_irq_p, entry);
 	write_msi_msg(*virt_irq_p, &msg);
 
 	irq_install_pre_handler(*virt_irq_p,

@@ -238,7 +238,7 @@ static void pci_rescan_bus(const struct pci_bus *bus)
 {
 	unsigned int devfn;
 	struct pci_dev *dev;
-	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	dev = alloc_pci_dev();
 	if (!dev)
 		return;
 

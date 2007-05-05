@@ -14,6 +14,7 @@ config IA64
 	select PCI if (!IA64_HP_SIM)
 	select ACPI if (!IA64_HP_SIM)
 	select PM if (!IA64_HP_SIM)
+	select ARCH_SUPPORTS_MSI
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to

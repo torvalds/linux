@@ -81,7 +81,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
-#include <linux/pci.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
 
