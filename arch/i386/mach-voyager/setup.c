@@ -40,10 +40,16 @@ void __init trap_init_hook(void)
 {
 }
 
-static struct irqaction irq0  = { timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL};
+static struct irqaction irq0  = {
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED | IRQF_NOBALANCING,
+	.mask = CPU_MASK_NONE,
+	.name = "timer"
+};
 
 void __init time_init_hook(void)
 {
+	irq0.mask = cpumask_of_cpu(safe_smp_processor_id());
 	setup_irq(0, &irq0);
 }
 
