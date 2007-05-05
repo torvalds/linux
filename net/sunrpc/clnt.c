@@ -36,8 +36,6 @@
 #include <linux/sunrpc/metrics.h>
 
 
-#define RPC_SLACK_SPACE		(1024)	/* total overkill */
-
 #ifdef RPC_DEBUG
 # define RPCDBG_FACILITY	RPCDBG_CALL
 #endif
@@ -747,21 +745,38 @@ call_reserveresult(struct rpc_task *task)
 static void
 call_allocate(struct rpc_task *task)
 {
+	unsigned int slack = task->tk_auth->au_cslack;
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = task->tk_xprt;
-	unsigned int	bufsiz;
+	struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
 
 	dprint_status(task);
 
+	task->tk_status = 0;
 	task->tk_action = call_bind;
+
 	if (req->rq_buffer)
 		return;
 
-	/* FIXME: compute buffer requirements more exactly using
-	 * auth->au_wslack */
-	bufsiz = task->tk_msg.rpc_proc->p_bufsiz + RPC_SLACK_SPACE;
+	if (proc->p_proc != 0) {
+		BUG_ON(proc->p_arglen == 0);
+		if (proc->p_decode != NULL)
+			BUG_ON(proc->p_replen == 0);
+	}
 
-	if (xprt->ops->buf_alloc(task, bufsiz << 1) != NULL)
+	/*
+	 * Calculate the size (in quads) of the RPC call
+	 * and reply headers, and convert both values
+	 * to byte sizes.
+	 */
+	req->rq_callsize = RPC_CALLHDRSIZE + (slack << 1) + proc->p_arglen;
+	req->rq_callsize <<= 2;
+	req->rq_rcvsize = RPC_REPHDRSIZE + slack + proc->p_replen;
+	req->rq_rcvsize <<= 2;
+
+	req->rq_buffer = xprt->ops->buf_alloc(task,
+					req->rq_callsize + req->rq_rcvsize);
+	if (req->rq_buffer != NULL)
 		return;
 
 	dprintk("RPC: %5u rpc_buffer allocation failed\n", task->tk_pid);
@@ -788,6 +803,17 @@ rpc_task_force_reencode(struct rpc_task *task)
 	task->tk_rqstp->rq_snd_buf.len = 0;
 }
 
+static inline void
+rpc_xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
+{
+	buf->head[0].iov_base = start;
+	buf->head[0].iov_len = len;
+	buf->tail[0].iov_len = 0;
+	buf->page_len = 0;
+	buf->len = 0;
+	buf->buflen = len;
+}
+
 /*
  * 3.	Encode arguments of an RPC call
  */
@@ -795,28 +821,17 @@ static void
 call_encode(struct rpc_task *task)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
-	struct xdr_buf *sndbuf = &req->rq_snd_buf;
-	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
-	unsigned int	bufsiz;
 	kxdrproc_t	encode;
 	__be32		*p;
 
 	dprint_status(task);
 
-	/* Default buffer setup */
-	bufsiz = req->rq_bufsize >> 1;
-	sndbuf->head[0].iov_base = (void *)req->rq_buffer;
-	sndbuf->head[0].iov_len  = bufsiz;
-	sndbuf->tail[0].iov_len  = 0;
-	sndbuf->page_len	 = 0;
-	sndbuf->len		 = 0;
-	sndbuf->buflen		 = bufsiz;
-	rcvbuf->head[0].iov_base = (void *)((char *)req->rq_buffer + bufsiz);
-	rcvbuf->head[0].iov_len  = bufsiz;
-	rcvbuf->tail[0].iov_len  = 0;
-	rcvbuf->page_len	 = 0;
-	rcvbuf->len		 = 0;
-	rcvbuf->buflen		 = bufsiz;
+	rpc_xdr_buf_init(&req->rq_snd_buf,
+			 req->rq_buffer,
+			 req->rq_callsize);
+	rpc_xdr_buf_init(&req->rq_rcv_buf,
+			 (char *)req->rq_buffer + req->rq_callsize,
+			 req->rq_rcvsize);
 
 	/* Encode header and provided arguments */
 	encode = task->tk_msg.rpc_proc->p_encode;
@@ -887,9 +902,11 @@ call_bind_status(struct rpc_task *task)
 				task->tk_pid);
 		break;
 	case -EPROTONOSUPPORT:
-		dprintk("RPC: %5u remote rpcbind version 2 unavailable\n",
+		dprintk("RPC: %5u remote rpcbind version unavailable, retrying\n",
 				task->tk_pid);
-		break;
+		task->tk_status = 0;
+		task->tk_action = call_bind;
+		return;
 	default:
 		dprintk("RPC: %5u unrecognized rpcbind error (%d)\n",
 				task->tk_pid, -task->tk_status);

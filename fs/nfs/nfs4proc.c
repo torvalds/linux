@@ -2647,8 +2647,7 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t bufl
 	nfs_inode_return_delegation(inode);
 	buf_to_pages(buf, buflen, arg.acl_pages, &arg.acl_pgbase);
 	ret = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	if (ret == 0)
-		nfs4_write_cached_acl(inode, buf, buflen);
+	nfs_zap_caches(inode);
 	return ret;
 }
 

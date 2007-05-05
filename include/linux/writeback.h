@@ -59,6 +59,8 @@ struct writeback_control {
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
 	unsigned for_writepages:1;	/* This is a writepages() call */
 	unsigned range_cyclic:1;	/* range_start is cyclic */
+
+	void *fs_private;		/* For use by ->writepages() */
 };
 
 /*
