@@ -1300,9 +1300,11 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			msleep(1);
 		}
 	}
-	tg3_write_mem(tp, NIC_SRAM_WOL_MBOX, WOL_SIGNATURE |
-					     WOL_DRV_STATE_SHUTDOWN |
-					     WOL_DRV_WOL | WOL_SET_MAGIC_PKT);
+	if (tp->tg3_flags & TG3_FLAG_WOL_CAP)
+		tg3_write_mem(tp, NIC_SRAM_WOL_MBOX, WOL_SIGNATURE |
+						     WOL_DRV_STATE_SHUTDOWN |
+						     WOL_DRV_WOL |
+						     WOL_SET_MAGIC_PKT);
 
 	pci_read_config_word(tp->pdev, pm + PCI_PM_PMC, &power_caps);
 
@@ -8034,7 +8036,10 @@ static void tg3_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	wol->supported = WAKE_MAGIC;
+	if (tp->tg3_flags & TG3_FLAG_WOL_CAP)
+		wol->supported = WAKE_MAGIC;
+	else
+		wol->supported = 0;
 	wol->wolopts = 0;
 	if (tp->tg3_flags & TG3_FLAG_WOL_ENABLE)
 		wol->wolopts = WAKE_MAGIC;
@@ -8048,8 +8053,7 @@ static int tg3_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 	if ((wol->wolopts & WAKE_MAGIC) &&
-	    tp->tg3_flags2 & TG3_FLG2_ANY_SERDES &&
-	    !(tp->tg3_flags & TG3_FLAG_SERDES_WOL_CAP))
+	    !(tp->tg3_flags & TG3_FLAG_WOL_CAP))
 		return -EINVAL;
 
 	spin_lock_bh(&tp->lock);
@@ -10001,8 +10005,8 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 	tp->phy_id = PHY_ID_INVALID;
 	tp->led_ctrl = LED_CTRL_MODE_PHY_1;
 
-	/* Assume an onboard device by default.  */
-	tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
+	/* Assume an onboard device and WOL capable by default.  */
+	tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT | TG3_FLAG_WOL_CAP;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 		if (!(tr32(PCIE_TRANSACTION_CFG) & PCIE_TRANS_CFG_LOM)) {
@@ -10125,8 +10129,9 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 			if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS)
 				tp->tg3_flags2 |= TG3_FLG2_ASF_NEW_HANDSHAKE;
 		}
-		if (nic_cfg & NIC_SRAM_DATA_CFG_FIBER_WOL)
-			tp->tg3_flags |= TG3_FLAG_SERDES_WOL_CAP;
+		if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES &&
+		    !(nic_cfg & NIC_SRAM_DATA_CFG_FIBER_WOL))
+			tp->tg3_flags &= ~TG3_FLAG_WOL_CAP;
 
 		if (cfg2 & (1 << 17))
 			tp->tg3_flags2 |= TG3_FLG2_CAPACITIVE_COUPLING;
