@@ -961,7 +961,7 @@ static void iucv_callback_connack(struct iucv_path *path, u8 ipuser[16])
 }
 
 static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len,
-			     struct sk_buff_head fragmented_skb_q)
+			     struct sk_buff_head *fragmented_skb_q)
 {
 	int dataleft, size, copied = 0;
 	struct sk_buff *nskb;
@@ -981,8 +981,8 @@ static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len,
 		copied += size;
 		dataleft -= size;
 
-		nskb->h.raw = nskb->data;
-		nskb->nh.raw = nskb->data;
+		skb_reset_transport_header(nskb);
+		skb_reset_network_header(nskb);
 		nskb->len = size;
 
 		skb_queue_tail(fragmented_skb_q, nskb);
