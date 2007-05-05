@@ -1926,6 +1926,11 @@ MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
 MODULE_DESCRIPTION("Driver for PCI OHCI IEEE1394 controllers");
 MODULE_LICENSE("GPL");
 
+/* Provide a module alias so root-on-sbp2 initrds don't break. */
+#ifndef CONFIG_IEEE1394_OHCI1394_MODULE
+MODULE_ALIAS("ohci1394");
+#endif
+
 static int __init fw_ohci_init(void)
 {
 	return pci_register_driver(&fw_ohci_pci_driver);
