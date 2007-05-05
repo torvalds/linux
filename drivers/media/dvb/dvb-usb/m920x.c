@@ -737,9 +737,9 @@ static struct dvb_usb_device_properties digivox_mini_ii_properties = {
  *
  * LifeView TV Walker Twin has 1 x M9206, 2 x TDA10046, 2 x TDA8275A
  * TDA10046 #0 is located at i2c address 0x08
- * TDA10046 #1 is located at i2c address 0x0b
+ * TDA10046 #1 is located at i2c address 0x0b (presently disabled - not yet working)
  * TDA8275A #0 is located at i2c address 0x60
- * TDA8275A #1 is located at i2c address 0x61
+ * TDA8275A #1 is located at i2c address 0x61 (presently disabled - not yet working)
  */
 static struct dvb_usb_device_properties tvwalkertwin_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
@@ -756,7 +756,7 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 	.size_of_priv     = sizeof(struct m920x_state),
 
 	.identify_state   = m920x_identify_state,
-	.num_adapters = 2,
+	.num_adapters = 1,
 	.adapter = {{
 		.caps = DVB_USB_ADAP_HAS_PID_FILTER |
 			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
