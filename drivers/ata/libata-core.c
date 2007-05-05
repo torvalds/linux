@@ -1869,7 +1869,7 @@ int ata_dev_configure(struct ata_device *dev)
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __FUNCTION__);
 
 	/* set _SDD */
-	rc = ata_acpi_push_id(ap, dev->devno);
+	rc = ata_acpi_push_id(dev);
 	if (rc) {
 		ata_dev_printk(dev, KERN_WARNING, "failed to set _SDD(%d)\n",
 			rc);
