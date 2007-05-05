@@ -276,10 +276,9 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				/* Who cares if the new one is good; keep it for now anyway. */
 				rb_replace_node(&this->rb, &tn->rb, &rii->tn_root);
 				/* Same overlapping from in front and behind */
-				tn->overlapped = this->overlapped;
 				jffs2_kill_tn(c, this);
 				dbg_readinode("Like new node. Throw away old\n");
-				return 0;
+				goto calc_overlaps;
 			}
 		}
 		if (this->version < tn->version &&
@@ -293,7 +292,6 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 			}
 			/* ... and is good. Kill 'this'... */
 			rb_replace_node(&this->rb, &tn->rb, &rii->tn_root);
-			tn->overlapped = this->overlapped;
 			jffs2_kill_tn(c, this);
 			/* ... and any subsequent nodes which are also overlapped */
 			this = tn_next(tn);
@@ -309,7 +307,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				this = next;
 			}
 			dbg_readinode("Done inserting new\n");
-			return 0;
+			goto calc_overlaps;
 		}
 		if (this->version > tn->version &&
 		    this->fn->ofs <= tn->fn->ofs &&
@@ -321,6 +319,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				return 0;
 			}
 			/* ... but 'this' was bad. Replace it... */
+			tn->overlapped = this->overlapped;
 			rb_replace_node(&this->rb, &tn->rb, &rii->tn_root);
 			dbg_readinode("Bad CRC on old overlapping node. Kill it\n");
 			jffs2_kill_tn(c, this);
@@ -359,6 +358,8 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 		rb_link_node(&tn->rb, &insert_point->rb, link);
 		rb_insert_color(&tn->rb, &rii->tn_root);
 	}
+
+ calc_overlaps:
 	/* If there's anything behind that overlaps us, note it */
 	this = tn_prev(tn);
 	if (this) {
@@ -483,7 +484,7 @@ static int jffs2_build_inode_fragtree(struct jffs2_sb_info *c,
 			vers_next = tn_prev(this);
 			eat_last(&ver_root, &this->rb);
 			if (check_tn_node(c, this)) {
-				dbg_readinode("node ver %x, 0x%x-0x%x failed CRC\n",
+				dbg_readinode("node ver %d, 0x%x-0x%x failed CRC\n",
 					     this->version, this->fn->ofs,
 					     this->fn->ofs+this->fn->size);
 				jffs2_kill_tn(c, this);
@@ -496,7 +497,7 @@ static int jffs2_build_inode_fragtree(struct jffs2_sb_info *c,
 					high_ver = this->version;
 					rii->latest_ref = this->fn->raw;
 				}
-				dbg_readinode("Add %p (v %x, 0x%x-0x%x, ov %d) to fragtree\n",
+				dbg_readinode("Add %p (v %d, 0x%x-0x%x, ov %d) to fragtree\n",
 					     this, this->version, this->fn->ofs,
 					     this->fn->ofs+this->fn->size, this->overlapped);
 
@@ -850,7 +851,7 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 		return ret;
 	}
 #ifdef JFFS2_DBG_READINODE_MESSAGES
-	dbg_readinode("After adding ver %d:\n", tn->version);
+	dbg_readinode("After adding ver %d:\n", je32_to_cpu(rd->version));
 	tn = tn_first(&rii->tn_root);
 	while (tn) {
 		dbg_readinode("%p: v %d r 0x%x-0x%x ov %d\n",
