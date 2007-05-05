@@ -1898,8 +1898,9 @@ static int ad1988_spdif_playback_source_get(struct snd_kcontrol *kcontrol,
 
 	sel = snd_hda_codec_read(codec, 0x02, 0, AC_VERB_GET_CONNECT_SEL, 0);
 	if (sel > 0) {
-		sel = snd_hda_codec_read(codec, 0x0b, 0, AC_VERB_GET_CONNECT_SEL, 0);
-		if (sel <= 3)
+		sel = snd_hda_codec_read(codec, 0x0b, 0,
+					 AC_VERB_GET_CONNECT_SEL, 0);
+		if (sel < 3)
 			sel++;
 		else
 			sel = 0;
@@ -1912,23 +1913,27 @@ static int ad1988_spdif_playback_source_put(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	unsigned int sel;
+	unsigned int val, sel;
 	int change;
 
+	val = ucontrol->value.enumerated.item[0];
 	sel = snd_hda_codec_read(codec, 0x02, 0, AC_VERB_GET_CONNECT_SEL, 0);
-	if (! ucontrol->value.enumerated.item[0]) {
+	if (!val) {
 		change = sel != 0;
-		if (change)
-			snd_hda_codec_write(codec, 0x02, 0, AC_VERB_SET_CONNECT_SEL, 0);
+		if (change || codec->in_resume)
+			snd_hda_codec_write(codec, 0x02, 0,
+					    AC_VERB_SET_CONNECT_SEL, 0);
 	} else {
 		change = sel == 0;
-		if (change)
-			snd_hda_codec_write(codec, 0x02, 0, AC_VERB_SET_CONNECT_SEL, 1);
-		sel = snd_hda_codec_read(codec, 0x0b, 0, AC_VERB_GET_CONNECT_SEL, 0) + 1;
-		change |= sel == ucontrol->value.enumerated.item[0];
-		if (change)
-			snd_hda_codec_write(codec, 0x02, 0, AC_VERB_SET_CONNECT_SEL,
-					    ucontrol->value.enumerated.item[0] - 1);
+		if (change || codec->in_resume)
+			snd_hda_codec_write(codec, 0x02, 0,
+					    AC_VERB_SET_CONNECT_SEL, 1);
+		sel = snd_hda_codec_read(codec, 0x0b, 0,
+					 AC_VERB_GET_CONNECT_SEL, 0) + 1;
+		change |= sel != val;
+		if (change || codec->in_resume)
+			snd_hda_codec_write(codec, 0x0b, 0,
+					    AC_VERB_SET_CONNECT_SEL, val - 1);
 	}
 	return change;
 }
