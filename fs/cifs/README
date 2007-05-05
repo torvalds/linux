@@ -533,8 +533,8 @@ cifsFYI			If set to non-zero value, additional debug information
 
 			log cifs informational messages			0x01
 			log return codes from cifs entry points		0x02
-			log slow responses (ie which take longer than one second)
-			  CONFIG_CIFS_STATS2 must be enabled in .config	0x03
+			log slow responses (ie which take longer than 1 second)
+			  CONFIG_CIFS_STATS2 must be enabled in .config	0x04
 				
 				
 traceSMB		If set to one, debug information is logged to the
