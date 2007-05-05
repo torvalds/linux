@@ -27,7 +27,9 @@ static int get_bridge_ifindices(int *indices, int num)
 	struct net_device *dev;
 	int i = 0;
 
-	for (dev = dev_base; dev && i < num; dev = dev->next) {
+	for_each_netdev(dev) {
+		if (i >= num)
+			break;
 		if (dev->priv_flags & IFF_EBRIDGE)
 			indices[i++] = dev->ifindex;
 	}

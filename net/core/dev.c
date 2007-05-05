@@ -156,13 +156,13 @@ static spinlock_t net_dma_event_lock;
 #endif
 
 /*
- * The @dev_base list is protected by @dev_base_lock and the rtnl
+ * The @dev_base_head list is protected by @dev_base_lock and the rtnl
  * semaphore.
  *
  * Pure readers hold dev_base_lock for reading.
  *
  * Writers must hold the rtnl semaphore while they loop through the
- * dev_base list, and hold dev_base_lock for writing when they do the
+ * dev_base_head list, and hold dev_base_lock for writing when they do the
  * actual updates.  This allows pure readers to access the list even
  * while a writer is preparing to update it.
  *
@@ -174,11 +174,10 @@ static spinlock_t net_dma_event_lock;
  * unregister_netdevice(), which must be called with the rtnl
  * semaphore held.
  */
-struct net_device *dev_base;
-static struct net_device **dev_tail = &dev_base;
+LIST_HEAD(dev_base_head);
 DEFINE_RWLOCK(dev_base_lock);
 
-EXPORT_SYMBOL(dev_base);
+EXPORT_SYMBOL(dev_base_head);
 EXPORT_SYMBOL(dev_base_lock);
 
 #define NETDEV_HASHBITS	8
@@ -567,26 +566,38 @@ struct net_device *dev_getbyhwaddr(unsigned short type, char *ha)
 
 	ASSERT_RTNL();
 
-	for (dev = dev_base; dev; dev = dev->next)
+	for_each_netdev(dev)
 		if (dev->type == type &&
 		    !memcmp(dev->dev_addr, ha, dev->addr_len))
-			break;
-	return dev;
+			return dev;
+
+	return NULL;
 }
 
 EXPORT_SYMBOL(dev_getbyhwaddr);
+
+struct net_device *__dev_getfirstbyhwtype(unsigned short type)
+{
+	struct net_device *dev;
+
+	ASSERT_RTNL();
+	for_each_netdev(dev)
+		if (dev->type == type)
+			return dev;
+
+	return NULL;
+}
+
+EXPORT_SYMBOL(__dev_getfirstbyhwtype);
 
 struct net_device *dev_getfirstbyhwtype(unsigned short type)
 {
 	struct net_device *dev;
 
 	rtnl_lock();
-	for (dev = dev_base; dev; dev = dev->next) {
-		if (dev->type == type) {
-			dev_hold(dev);
-			break;
-		}
-	}
+	dev = __dev_getfirstbyhwtype(type);
+	if (dev)
+		dev_hold(dev);
 	rtnl_unlock();
 	return dev;
 }
@@ -606,17 +617,19 @@ EXPORT_SYMBOL(dev_getfirstbyhwtype);
 
 struct net_device * dev_get_by_flags(unsigned short if_flags, unsigned short mask)
 {
-	struct net_device *dev;
+	struct net_device *dev, *ret;
 
+	ret = NULL;
 	read_lock(&dev_base_lock);
-	for (dev = dev_base; dev != NULL; dev = dev->next) {
+	for_each_netdev(dev) {
 		if (((dev->flags ^ if_flags) & mask) == 0) {
 			dev_hold(dev);
+			ret = dev;
 			break;
 		}
 	}
 	read_unlock(&dev_base_lock);
-	return dev;
+	return ret;
 }
 
 /**
@@ -682,7 +695,7 @@ int dev_alloc_name(struct net_device *dev, const char *name)
 		if (!inuse)
 			return -ENOMEM;
 
-		for (d = dev_base; d; d = d->next) {
+		for_each_netdev(d) {
 			if (!sscanf(d->name, name, &i))
 				continue;
 			if (i < 0 || i >= max_netdevices)
@@ -964,7 +977,7 @@ int register_netdevice_notifier(struct notifier_block *nb)
 	rtnl_lock();
 	err = raw_notifier_chain_register(&netdev_chain, nb);
 	if (!err) {
-		for (dev = dev_base; dev; dev = dev->next) {
+		for_each_netdev(dev) {
 			nb->notifier_call(nb, NETDEV_REGISTER, dev);
 
 			if (dev->flags & IFF_UP)
@@ -2038,7 +2051,7 @@ static int dev_ifconf(char __user *arg)
 	 */
 
 	total = 0;
-	for (dev = dev_base; dev; dev = dev->next) {
+	for_each_netdev(dev) {
 		for (i = 0; i < NPROTO; i++) {
 			if (gifconf_list[i]) {
 				int done;
@@ -2070,26 +2083,28 @@ static int dev_ifconf(char __user *arg)
  *	This is invoked by the /proc filesystem handler to display a device
  *	in detail.
  */
-static struct net_device *dev_get_idx(loff_t pos)
-{
-	struct net_device *dev;
-	loff_t i;
-
-	for (i = 0, dev = dev_base; dev && i < pos; ++i, dev = dev->next);
-
-	return i == pos ? dev : NULL;
-}
-
 void *dev_seq_start(struct seq_file *seq, loff_t *pos)
 {
+	loff_t off;
+	struct net_device *dev;
+
 	read_lock(&dev_base_lock);
-	return *pos ? dev_get_idx(*pos - 1) : SEQ_START_TOKEN;
+	if (!*pos)
+		return SEQ_START_TOKEN;
+
+	off = 1;
+	for_each_netdev(dev)
+		if (off++ == *pos)
+			return dev;
+
+	return NULL;
 }
 
 void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	return v == SEQ_START_TOKEN ? dev_base : ((struct net_device *)v)->next;
+	return v == SEQ_START_TOKEN ?
+		first_net_device() : next_net_device((struct net_device *)v);
 }
 
 void dev_seq_stop(struct seq_file *seq, void *v)
@@ -3071,11 +3086,9 @@ int register_netdevice(struct net_device *dev)
 
 	set_bit(__LINK_STATE_PRESENT, &dev->state);
 
-	dev->next = NULL;
 	dev_init_scheduler(dev);
 	write_lock_bh(&dev_base_lock);
-	*dev_tail = dev;
-	dev_tail = &dev->next;
+	list_add_tail(&dev->dev_list, &dev_base_head);
 	hlist_add_head(&dev->name_hlist, head);
 	hlist_add_head(&dev->index_hlist, dev_index_hash(dev->ifindex));
 	dev_hold(dev);
@@ -3349,8 +3362,6 @@ void synchronize_net(void)
 
 void unregister_netdevice(struct net_device *dev)
 {
-	struct net_device *d, **dp;
-
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
 
@@ -3370,19 +3381,11 @@ void unregister_netdevice(struct net_device *dev)
 		dev_close(dev);
 
 	/* And unlink it from device chain. */
-	for (dp = &dev_base; (d = *dp) != NULL; dp = &d->next) {
-		if (d == dev) {
-			write_lock_bh(&dev_base_lock);
-			hlist_del(&dev->name_hlist);
-			hlist_del(&dev->index_hlist);
-			if (dev_tail == &dev->next)
-				dev_tail = dp;
-			*dp = d->next;
-			write_unlock_bh(&dev_base_lock);
-			break;
-		}
-	}
-	BUG_ON(!d);
+	write_lock_bh(&dev_base_lock);
+	list_del(&dev->dev_list);
+	hlist_del(&dev->name_hlist);
+	hlist_del(&dev->index_hlist);
+	write_unlock_bh(&dev_base_lock);
 
 	dev->reg_state = NETREG_UNREGISTERING;
 

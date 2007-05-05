@@ -579,7 +579,7 @@ static inline int xfrm_byidx_should_resize(int total)
 	return 0;
 }
 
-void xfrm_spd_getinfo(struct xfrm_spdinfo *si)
+void xfrm_spd_getinfo(struct xfrmk_spdinfo *si)
 {
 	read_lock_bh(&xfrm_policy_lock);
 	si->incnt = xfrm_policy_count[XFRM_POLICY_IN];

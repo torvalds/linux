@@ -736,7 +736,8 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 
 static inline void tcp_sync_left_out(struct tcp_sock *tp)
 {
-	BUG_ON(tp->sacked_out + tp->lost_out > tp->packets_out);
+	BUG_ON(tp->rx_opt.sack_ok &&
+	       (tp->sacked_out + tp->lost_out > tp->packets_out));
 	tp->left_out = tp->sacked_out + tp->lost_out;
 }
 

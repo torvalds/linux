@@ -721,7 +721,7 @@ static int dn_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
 	struct sockaddr_dn *saddr = (struct sockaddr_dn *)uaddr;
-	struct net_device *dev;
+	struct net_device *dev, *ldev;
 	int rv;
 
 	if (addr_len != sizeof(struct sockaddr_dn))
@@ -746,14 +746,17 @@ static int dn_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (!(saddr->sdn_flags & SDF_WILD)) {
 		if (dn_ntohs(saddr->sdn_nodeaddrl)) {
 			read_lock(&dev_base_lock);
-			for(dev = dev_base; dev; dev = dev->next) {
+			ldev = NULL;
+			for_each_netdev(dev) {
 				if (!dev->dn_ptr)
 					continue;
-				if (dn_dev_islocal(dev, dn_saddr2dn(saddr)))
+				if (dn_dev_islocal(dev, dn_saddr2dn(saddr))) {
+					ldev = dev;
 					break;
+				}
 			}
 			read_unlock(&dev_base_lock);
-			if (dev == NULL)
+			if (ldev == NULL)
 				return -EADDRNOTAVAIL;
 		}
 	}

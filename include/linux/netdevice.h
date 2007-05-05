@@ -304,7 +304,7 @@ struct net_device
 
 	unsigned long		state;
 
-	struct net_device	*next;
+	struct list_head	dev_list;
 	
 	/* The device initialization function. Called only once. */
 	int			(*init)(struct net_device *dev);
@@ -575,13 +575,36 @@ struct packet_type {
 #include <linux/notifier.h>
 
 extern struct net_device		loopback_dev;		/* The loopback */
-extern struct net_device		*dev_base;		/* All devices */
+extern struct list_head			dev_base_head;		/* All devices */
 extern rwlock_t				dev_base_lock;		/* Device list lock */
+
+#define for_each_netdev(d)		\
+		list_for_each_entry(d, &dev_base_head, dev_list)
+#define for_each_netdev_safe(d, n)	\
+		list_for_each_entry_safe(d, n, &dev_base_head, dev_list)
+#define for_each_netdev_continue(d)		\
+		list_for_each_entry_continue(d, &dev_base_head, dev_list)
+#define net_device_entry(lh)	list_entry(lh, struct net_device, dev_list)
+
+static inline struct net_device *next_net_device(struct net_device *dev)
+{
+	struct list_head *lh;
+
+	lh = dev->dev_list.next;
+	return lh == &dev_base_head ? NULL : net_device_entry(lh);
+}
+
+static inline struct net_device *first_net_device(void)
+{
+	return list_empty(&dev_base_head) ? NULL :
+		net_device_entry(dev_base_head.next);
+}
 
 extern int 			netdev_boot_setup_check(struct net_device *dev);
 extern unsigned long		netdev_boot_base(const char *prefix, int unit);
 extern struct net_device    *dev_getbyhwaddr(unsigned short type, char *hwaddr);
 extern struct net_device *dev_getfirstbyhwtype(unsigned short type);
+extern struct net_device *__dev_getfirstbyhwtype(unsigned short type);
 extern void		dev_add_pack(struct packet_type *pt);
 extern void		dev_remove_pack(struct packet_type *pt);
 extern void		__dev_remove_pack(struct packet_type *pt);

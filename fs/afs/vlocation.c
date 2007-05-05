@@ -602,7 +602,7 @@ int __init afs_vlocation_update_init(void)
 /*
  * discard all the volume location records for rmmod
  */
-void __exit afs_vlocation_purge(void)
+void afs_vlocation_purge(void)
 {
 	afs_vlocation_timeout = 0;
 

@@ -543,6 +543,38 @@ static void rxrpc_zap_tx_window(struct rxrpc_call *call)
 }
 
 /*
+ * process the extra information that may be appended to an ACK packet
+ */
+static void rxrpc_extract_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
+				  unsigned latest, int nAcks)
+{
+	struct rxrpc_ackinfo ackinfo;
+	struct rxrpc_peer *peer;
+	unsigned mtu;
+
+	if (skb_copy_bits(skb, nAcks + 3, &ackinfo, sizeof(ackinfo)) < 0) {
+		_leave(" [no ackinfo]");
+		return;
+	}
+
+	_proto("Rx ACK %%%u Info { rx=%u max=%u rwin=%u jm=%u }",
+	       latest,
+	       ntohl(ackinfo.rxMTU), ntohl(ackinfo.maxMTU),
+	       ntohl(ackinfo.rwind), ntohl(ackinfo.jumbo_max));
+
+	mtu = min(ntohl(ackinfo.rxMTU), ntohl(ackinfo.maxMTU));
+
+	peer = call->conn->trans->peer;
+	if (mtu < peer->maxdata) {
+		spin_lock_bh(&peer->lock);
+		peer->maxdata = mtu;
+		peer->mtu = mtu + peer->hdrsize;
+		spin_unlock_bh(&peer->lock);
+		_net("Net MTU %u (maxdata %u)", peer->mtu, peer->maxdata);
+	}
+}
+
+/*
  * process packets in the reception queue
  */
 static int rxrpc_process_rx_queue(struct rxrpc_call *call,
@@ -605,6 +637,8 @@ process_further:
 		       ntohl(ack.serial),
 		       rxrpc_acks[ack.reason],
 		       ack.nAcks);
+
+		rxrpc_extract_ackinfo(call, skb, latest, ack.nAcks);
 
 		if (ack.reason == RXRPC_ACK_PING) {
 			_proto("Rx ACK %%%u PING Request", latest);
@@ -801,9 +835,9 @@ void rxrpc_process_call(struct work_struct *work)
 	struct msghdr msg;
 	struct kvec iov[5];
 	unsigned long bits;
-	__be32 data;
+	__be32 data, pad;
 	size_t len;
-	int genbit, loop, nbit, ioc, ret;
+	int genbit, loop, nbit, ioc, ret, mtu;
 	u32 abort_code = RX_PROTOCOL_ERROR;
 	u8 *acks = NULL;
 
@@ -899,9 +933,30 @@ void rxrpc_process_call(struct work_struct *work)
 	}
 
 	if (test_bit(RXRPC_CALL_ACK_FINAL, &call->events)) {
-		hdr.type = RXRPC_PACKET_TYPE_ACKALL;
 		genbit = RXRPC_CALL_ACK_FINAL;
-		goto send_message;
+
+		ack.bufferSpace	= htons(8);
+		ack.maxSkew	= 0;
+		ack.serial	= 0;
+		ack.reason	= RXRPC_ACK_IDLE;
+		ack.nAcks	= 0;
+		call->ackr_reason = 0;
+
+		spin_lock_bh(&call->lock);
+		ack.serial = call->ackr_serial;
+		ack.previousPacket = call->ackr_prev_seq;
+		ack.firstPacket = htonl(call->rx_data_eaten + 1);
+		spin_unlock_bh(&call->lock);
+
+		pad = 0;
+
+		iov[1].iov_base = &ack;
+		iov[1].iov_len	= sizeof(ack);
+		iov[2].iov_base = &pad;
+		iov[2].iov_len	= 3;
+		iov[3].iov_base = &ackinfo;
+		iov[3].iov_len	= sizeof(ackinfo);
+		goto send_ACK;
 	}
 
 	if (call->events & ((1 << RXRPC_CALL_RCVD_BUSY) |
@@ -971,8 +1026,6 @@ void rxrpc_process_call(struct work_struct *work)
 
 	/* consider sending an ordinary ACK */
 	if (test_bit(RXRPC_CALL_ACK, &call->events)) {
-		__be32 pad;
-
 		_debug("send ACK: window: %d - %d { %lx }",
 		       call->rx_data_eaten, call->ackr_win_top,
 		       call->ackr_window[0]);
@@ -996,12 +1049,6 @@ void rxrpc_process_call(struct work_struct *work)
 		ack.maxSkew	= 0;
 		ack.serial	= 0;
 		ack.reason	= 0;
-
-		ackinfo.rxMTU	= htonl(5692);
-//		ackinfo.rxMTU	= htonl(call->conn->trans->peer->maxdata);
-		ackinfo.maxMTU	= htonl(call->conn->trans->peer->maxdata);
-		ackinfo.rwind	= htonl(32);
-		ackinfo.jumbo_max = htonl(4);
 
 		spin_lock_bh(&call->lock);
 		ack.reason = call->ackr_reason;
@@ -1116,6 +1163,15 @@ send_ACK_with_skew:
 	ack.maxSkew = htons(atomic_read(&call->conn->hi_serial) -
 			    ntohl(ack.serial));
 send_ACK:
+	mtu = call->conn->trans->peer->if_mtu;
+	mtu -= call->conn->trans->peer->hdrsize;
+	ackinfo.maxMTU	= htonl(mtu);
+	ackinfo.rwind	= htonl(32);
+
+	/* permit the peer to send us jumbo packets if it wants to */
+	ackinfo.rxMTU	= htonl(5692);
+	ackinfo.jumbo_max = htonl(4);
+
 	hdr.serial = htonl(atomic_inc_return(&call->conn->serial));
 	_proto("Tx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",
 	       ntohl(hdr.serial),

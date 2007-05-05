@@ -100,8 +100,10 @@ void rxrpc_UDP_error_report(struct sock *sk)
 		}
 
 		if (mtu < peer->mtu) {
+			spin_lock_bh(&peer->lock);
 			peer->mtu = mtu;
 			peer->maxdata = peer->mtu - peer->hdrsize;
+			spin_unlock_bh(&peer->lock);
 			_net("Net MTU %u (maxdata %u)",
 			     peer->mtu, peer->maxdata);
 		}

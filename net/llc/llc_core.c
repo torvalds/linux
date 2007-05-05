@@ -160,8 +160,14 @@ static struct packet_type llc_tr_packet_type = {
 
 static int __init llc_init(void)
 {
-	if (dev_base->next)
-		memcpy(llc_station_mac_sa, dev_base->next->dev_addr, ETH_ALEN);
+	struct net_device *dev;
+
+	dev = first_net_device();
+	if (dev != NULL)
+		dev = next_net_device(dev);
+
+	if (dev != NULL)
+		memcpy(llc_station_mac_sa, dev->dev_addr, ETH_ALEN);
 	else
 		memset(llc_station_mac_sa, 0, ETH_ALEN);
 	dev_add_pack(&llc_packet_type);

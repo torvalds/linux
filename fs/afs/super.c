@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/parser.h>
 #include "internal.h"
 
 #define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */
@@ -42,7 +43,7 @@ struct file_system_type afs_fs_type = {
 	.name		= "afs",
 	.get_sb		= afs_get_sb,
 	.kill_sb	= kill_anon_super,
-	.fs_flags	= FS_BINARY_MOUNTDATA,
+	.fs_flags	= 0,
 };
 
 static const struct super_operations afs_super_ops = {
@@ -57,6 +58,20 @@ static const struct super_operations afs_super_ops = {
 
 static struct kmem_cache *afs_inode_cachep;
 static atomic_t afs_count_active_inodes;
+
+enum {
+	afs_no_opt,
+	afs_opt_cell,
+	afs_opt_rwpath,
+	afs_opt_vol,
+};
+
+static const match_table_t afs_options_list = {
+	{ afs_opt_cell,		"cell=%s"	},
+	{ afs_opt_rwpath,	"rwpath"	},
+	{ afs_opt_vol,		"vol=%s"	},
+	{ afs_no_opt,		NULL		},
+};
 
 /*
  * initialise the filesystem
@@ -115,31 +130,6 @@ void __exit afs_fs_exit(void)
 }
 
 /*
- * check that an argument has a value
- */
-static int want_arg(char **_value, const char *option)
-{
-	if (!_value || !*_value || !**_value) {
-		printk(KERN_NOTICE "kAFS: %s: argument missing\n", option);
-		return 0;
-	}
-	return 1;
-}
-
-/*
- * check that there's no subsequent value
- */
-static int want_no_value(char *const *_value, const char *option)
-{
-	if (*_value && **_value) {
-		printk(KERN_NOTICE "kAFS: %s: Invalid argument: %s\n",
-		       option, *_value);
-		return 0;
-	}
-	return 1;
-}
-
-/*
  * parse the mount options
  * - this function has been shamelessly adapted from the ext3 fs which
  *   shamelessly adapted it from the msdos fs
@@ -148,48 +138,46 @@ static int afs_parse_options(struct afs_mount_params *params,
 			     char *options, const char **devname)
 {
 	struct afs_cell *cell;
-	char *key, *value;
-	int ret;
+	substring_t args[MAX_OPT_ARGS];
+	char *p;
+	int token;
 
 	_enter("%s", options);
 
 	options[PAGE_SIZE - 1] = 0;
 
-	ret = 0;
-	while ((key = strsep(&options, ","))) {
-		value = strchr(key, '=');
-		if (value)
-			*value++ = 0;
+	while ((p = strsep(&options, ","))) {
+		if (!*p)
+			continue;
 
-		_debug("kAFS: KEY: %s, VAL:%s", key, value ?: "-");
-
-		if (strcmp(key, "rwpath") == 0) {
-			if (!want_no_value(&value, "rwpath"))
-				return -EINVAL;
-			params->rwpath = 1;
-		} else if (strcmp(key, "vol") == 0) {
-			if (!want_arg(&value, "vol"))
-				return -EINVAL;
-			*devname = value;
-		} else if (strcmp(key, "cell") == 0) {
-			if (!want_arg(&value, "cell"))
-				return -EINVAL;
-			cell = afs_cell_lookup(value, strlen(value));
+		token = match_token(p, afs_options_list, args);
+		switch (token) {
+		case afs_opt_cell:
+			cell = afs_cell_lookup(args[0].from,
+					       args[0].to - args[0].from);
 			if (IS_ERR(cell))
 				return PTR_ERR(cell);
 			afs_put_cell(params->cell);
 			params->cell = cell;
-		} else {
-			printk("kAFS: Unknown mount option: '%s'\n",  key);
-			ret = -EINVAL;
-			goto error;
+			break;
+
+		case afs_opt_rwpath:
+			params->rwpath = 1;
+			break;
+
+		case afs_opt_vol:
+			*devname = args[0].from;
+			break;
+
+		default:
+			printk(KERN_ERR "kAFS:"
+			       " Unknown or invalid mount option: '%s'\n", p);
+			return -EINVAL;
 		}
 	}
 
-	ret = 0;
-error:
-	_leave(" = %d", ret);
-	return ret;
+	_leave(" = 0");
+	return 0;
 }
 
 /*
@@ -361,7 +349,6 @@ error:
 
 /*
  * get an AFS superblock
- * - TODO: don't use get_sb_nodev(), but rather call sget() directly
  */
 static int afs_get_sb(struct file_system_type *fs_type,
 		      int flags,
@@ -385,7 +372,6 @@ static int afs_get_sb(struct file_system_type *fs_type,
 		if (ret < 0)
 			goto error;
 	}
-
 
 	ret = afs_parse_device_name(&params, dev_name);
 	if (ret < 0)

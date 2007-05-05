@@ -1,6 +1,6 @@
 /* bnx2.h: Broadcom NX2 network driver.
  *
- * Copyright (c) 2004, 2005, 2006 Broadcom Corporation
+ * Copyright (c) 2004-2007 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,11 @@ struct tx_bd {
 	u32 tx_bd_haddr_hi;
 	u32 tx_bd_haddr_lo;
 	u32 tx_bd_mss_nbytes;
+		#define TX_BD_TCP6_OFF2_SHL		(14)
 	u32 tx_bd_vlan_tag_flags;
 		#define TX_BD_FLAGS_CONN_FAULT		(1<<0)
+		#define TX_BD_FLAGS_TCP6_OFF0_MSK	(3<<1)
+		#define TX_BD_FLAGS_TCP6_OFF0_SHL	(1)
 		#define TX_BD_FLAGS_TCP_UDP_CKSUM	(1<<1)
 		#define TX_BD_FLAGS_IP_CKSUM		(1<<2)
 		#define TX_BD_FLAGS_VLAN_TAG		(1<<3)
@@ -34,6 +37,7 @@ struct tx_bd {
 		#define TX_BD_FLAGS_END			(1<<6)
 		#define TX_BD_FLAGS_START		(1<<7)
 		#define TX_BD_FLAGS_SW_OPTION_WORD	(0x1f<<8)
+		#define TX_BD_FLAGS_TCP6_OFF4_SHL	(12)
 		#define TX_BD_FLAGS_SW_FLAGS		(1<<13)
 		#define TX_BD_FLAGS_SW_SNAP		(1<<14)
 		#define TX_BD_FLAGS_SW_LSO		(1<<15)
@@ -6292,6 +6296,41 @@ struct l2_fhdr {
 #define MII_BNX2_DSP_ADDRESS			0x17
 #define MII_BNX2_DSP_EXPAND_REG			 0x0f00
 
+#define MII_BNX2_BLK_ADDR			0x1f
+#define MII_BNX2_BLK_ADDR_IEEE0			 0x0000
+#define MII_BNX2_BLK_ADDR_GP_STATUS		 0x8120
+#define MII_BNX2_GP_TOP_AN_STATUS1		  0x1b
+#define MII_BNX2_GP_TOP_AN_SPEED_MSK		   0x3f00
+#define MII_BNX2_GP_TOP_AN_SPEED_10		   0x0000
+#define MII_BNX2_GP_TOP_AN_SPEED_100		   0x0100
+#define MII_BNX2_GP_TOP_AN_SPEED_1G		   0x0200
+#define MII_BNX2_GP_TOP_AN_SPEED_2_5G		   0x0300
+#define MII_BNX2_GP_TOP_AN_SPEED_1GKV		   0x0d00
+#define MII_BNX2_GP_TOP_AN_FD			   0x8
+#define MII_BNX2_BLK_ADDR_SERDES_DIG		 0x8300
+#define MII_BNX2_SERDES_DIG_1000XCTL1		  0x10
+#define MII_BNX2_SD_1000XCTL1_FIBER		   0x01
+#define MII_BNX2_SD_1000XCTL1_AUTODET		   0x10
+#define MII_BNX2_SERDES_DIG_MISC1		  0x18
+#define MII_BNX2_SD_MISC1_FORCE_MSK		   0xf
+#define MII_BNX2_SD_MISC1_FORCE_2_5G		   0x0
+#define MII_BNX2_SD_MISC1_FORCE			   0x10
+#define MII_BNX2_BLK_ADDR_OVER1G		 0x8320
+#define MII_BNX2_OVER1G_UP1			  0x19
+#define MII_BNX2_BLK_ADDR_BAM_NXTPG		 0x8350
+#define MII_BNX2_BAM_NXTPG_CTL			  0x10
+#define MII_BNX2_NXTPG_CTL_BAM			   0x1
+#define MII_BNX2_NXTPG_CTL_T2			   0x2
+#define MII_BNX2_BLK_ADDR_CL73_USERB0		 0x8370
+#define MII_BNX2_CL73_BAM_CTL1			  0x12
+#define MII_BNX2_CL73_BAM_EN			   0x8000
+#define MII_BNX2_CL73_BAM_STA_MGR_EN		   0x4000
+#define MII_BNX2_CL73_BAM_NP_AFT_BP_EN		   0x2000
+#define MII_BNX2_BLK_ADDR_AER			 0xffd0
+#define MII_BNX2_AER_AER			  0x1e
+#define MII_BNX2_AER_AER_AN_MMD			   0x3800
+#define MII_BNX2_BLK_ADDR_COMBO_IEEEB0		 0xffe0
+
 #define MIN_ETHERNET_PACKET_SIZE	60
 #define MAX_ETHERNET_PACKET_SIZE	1514
 #define MAX_ETHERNET_JUMBO_PACKET_SIZE	9014
@@ -6429,13 +6468,15 @@ struct bnx2 {
 	u32 			last_status_idx;
 
 	u32			flags;
-#define PCIX_FLAG			1
-#define PCI_32BIT_FLAG			2
-#define ONE_TDMA_FLAG			4	/* no longer used */
-#define NO_WOL_FLAG			8
-#define USING_DAC_FLAG			0x10
-#define USING_MSI_FLAG			0x20
-#define ASF_ENABLE_FLAG			0x40
+#define PCIX_FLAG			0x00000001
+#define PCI_32BIT_FLAG			0x00000002
+#define ONE_TDMA_FLAG			0x00000004	/* no longer used */
+#define NO_WOL_FLAG			0x00000008
+#define USING_MSI_FLAG			0x00000020
+#define ASF_ENABLE_FLAG			0x00000040
+#define MSI_CAP_FLAG			0x00000080
+#define ONE_SHOT_MSI_FLAG		0x00000100
+#define PCIE_FLAG			0x00000200
 
 	/* Put tx producer and consumer fields in separate cache lines. */
 
@@ -6484,6 +6525,7 @@ struct bnx2 {
 
 	/* Used to synchronize phy accesses. */
 	spinlock_t		phy_lock;
+	spinlock_t		indirect_lock;
 
 	u32			phy_flags;
 #define PHY_SERDES_FLAG			1
@@ -6494,6 +6536,13 @@ struct bnx2 {
 #define PHY_INT_MODE_AUTO_POLLING_FLAG	0x100
 #define PHY_INT_MODE_LINK_READY_FLAG	0x200
 #define PHY_DIS_EARLY_DAC_FLAG		0x400
+
+	u32			mii_bmcr;
+	u32			mii_bmsr;
+	u32			mii_bmsr1;
+	u32			mii_adv;
+	u32			mii_lpa;
+	u32			mii_up1;
 
 	u32			chip_id;
 	/* chip num:16-31, rev:12-15, metal:4-11, bond_id:0-3 */
