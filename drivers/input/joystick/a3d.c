@@ -241,7 +241,7 @@ static void a3d_adc_close(struct gameport *gameport)
 
 static int a3d_open(struct input_dev *dev)
 {
-	struct a3d *a3d = dev->private;
+	struct a3d *a3d = input_get_drvdata(dev);
 
 	gameport_start_polling(a3d->gameport);
 	return 0;
@@ -253,7 +253,7 @@ static int a3d_open(struct input_dev *dev)
 
 static void a3d_close(struct input_dev *dev)
 {
-	struct a3d *a3d = dev->private;
+	struct a3d *a3d = input_get_drvdata(dev);
 
 	gameport_stop_polling(a3d->gameport);
 }
@@ -314,10 +314,11 @@ static int a3d_connect(struct gameport *gameport, struct gameport_driver *drv)
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_MADCATZ;
 	input_dev->id.product = a3d->mode;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &gameport->dev;
-	input_dev->private = a3d;
+	input_dev->dev.parent = &gameport->dev;
 	input_dev->open = a3d_open;
 	input_dev->close = a3d_close;
+
+	input_set_drvdata(input_dev, a3d);
 
 	if (a3d->mode == A3D_MODE_PXL) {
 

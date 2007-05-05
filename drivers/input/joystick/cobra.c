@@ -142,7 +142,7 @@ static void cobra_poll(struct gameport *gameport)
 
 static int cobra_open(struct input_dev *dev)
 {
-	struct cobra *cobra = dev->private;
+	struct cobra *cobra = input_get_drvdata(dev);
 
 	gameport_start_polling(cobra->gameport);
 	return 0;
@@ -150,7 +150,7 @@ static int cobra_open(struct input_dev *dev)
 
 static void cobra_close(struct input_dev *dev)
 {
-	struct cobra *cobra = dev->private;
+	struct cobra *cobra = input_get_drvdata(dev);
 
 	gameport_stop_polling(cobra->gameport);
 }
@@ -211,8 +211,9 @@ static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 		input_dev->id.vendor = GAMEPORT_ID_VENDOR_CREATIVE;
 		input_dev->id.product = 0x0008;
 		input_dev->id.version = 0x0100;
-		input_dev->cdev.dev = &gameport->dev;
-		input_dev->private = cobra;
+		input_dev->dev.parent = &gameport->dev;
+
+		input_set_drvdata(input_dev, cobra);
 
 		input_dev->open = cobra_open;
 		input_dev->close = cobra_close;

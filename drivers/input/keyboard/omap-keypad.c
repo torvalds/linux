@@ -370,8 +370,7 @@ static int __init omap_kp_probe(struct platform_device *pdev)
 		set_bit(keymap[i] & KEY_MAX, input_dev->keybit);
 	input_dev->name = "omap-keypad";
 	input_dev->phys = "omap-keypad/input0";
-	input_dev->cdev.dev = &pdev->dev;
-	input_dev->private = omap_kp;
+	input_dev->dev.parent = &pdev->dev;
 
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->id.vendor = 0x0001;

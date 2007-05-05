@@ -323,8 +323,7 @@ static int __init corgikbd_probe(struct platform_device *pdev)
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &pdev->dev;
-	input_dev->private = corgikbd;
+	input_dev->dev.parent = &pdev->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR) | BIT(EV_SW);
 	input_dev->keycode = corgikbd->keycode;

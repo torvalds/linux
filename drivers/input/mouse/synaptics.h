@@ -9,10 +9,6 @@
 #ifndef _SYNAPTICS_H
 #define _SYNAPTICS_H
 
-extern int synaptics_detect(struct psmouse *psmouse, int set_properties);
-extern int synaptics_init(struct psmouse *psmouse);
-extern void synaptics_reset(struct psmouse *psmouse);
-
 /* synaptics queries */
 #define SYN_QUE_IDENTIFY		0x00
 #define SYN_QUE_MODES			0x01
@@ -62,9 +58,9 @@ extern void synaptics_reset(struct psmouse *psmouse);
 #define SYN_MODE_WMODE(m)		((m) & (1 << 0))
 
 /* synaptics identify query bits */
-#define SYN_ID_MODEL(i) 		(((i) >> 4) & 0x0f)
-#define SYN_ID_MAJOR(i) 		((i) & 0x0f)
-#define SYN_ID_MINOR(i) 		(((i) >> 16) & 0xff)
+#define SYN_ID_MODEL(i)			(((i) >> 4) & 0x0f)
+#define SYN_ID_MAJOR(i)			((i) & 0x0f)
+#define SYN_ID_MINOR(i)			(((i) >> 16) & 0xff)
 #define SYN_ID_IS_SYNAPTICS(i)		((((i) >> 8) & 0xff) == 0x47)
 
 /* synaptics special commands */
@@ -98,13 +94,17 @@ struct synaptics_hw_state {
 struct synaptics_data {
 	/* Data read from the touchpad */
 	unsigned long int model_id;		/* Model-ID */
-	unsigned long int capabilities; 	/* Capabilities */
-	unsigned long int ext_cap; 		/* Extended Capabilities */
+	unsigned long int capabilities;		/* Capabilities */
+	unsigned long int ext_cap;		/* Extended Capabilities */
 	unsigned long int identity;		/* Identification */
 
 	unsigned char pkt_type;			/* packet type - old, new, etc */
 	unsigned char mode;			/* current mode byte */
 	int scroll;
 };
+
+int synaptics_detect(struct psmouse *psmouse, int set_properties);
+int synaptics_init(struct psmouse *psmouse);
+void synaptics_reset(struct psmouse *psmouse);
 
 #endif /* _SYNAPTICS_H */

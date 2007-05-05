@@ -214,6 +214,15 @@ config KEYBOARD_OMAP
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap-keypad.
 
+config KEYBOARD_PXA27x
+	tristate "PXA27x keyboard support"
+	depends on PXA27x
+	help
+	  Enable support for PXA27x matrix keyboard controller
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pxa27x_keyboard.
+
 config KEYBOARD_AAED2000
 	tristate "AAED-2000 keyboard"
 	depends on MACH_AAED2000

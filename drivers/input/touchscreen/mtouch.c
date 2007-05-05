@@ -144,13 +144,13 @@ static int mtouch_connect(struct serio *serio, struct serio_driver *drv)
 	mtouch->dev = input_dev;
 	snprintf(mtouch->phys, sizeof(mtouch->phys), "%s/input0", serio->phys);
 
-	input_dev->private = mtouch;
 	input_dev->name = "MicroTouch Serial TouchScreen";
 	input_dev->phys = mtouch->phys;
 	input_dev->id.bustype = BUS_RS232;
 	input_dev->id.vendor = SERIO_MICROTOUCH;
 	input_dev->id.product = 0;
 	input_dev->id.version = 0x0100;
+	input_dev->dev.parent = &serio->dev;
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
 	input_set_abs_params(mtouch->dev, ABS_X, MTOUCH_MIN_XC, MTOUCH_MAX_XC, 0, 0);

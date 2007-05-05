@@ -37,6 +37,65 @@ config MOUSE_PS2
 	  To compile this driver as a module, choose M here: the
 	  module will be called psmouse.
 
+config MOUSE_PS2_ALPS
+	bool "ALPS PS/2 mouse protocol extension" if EMBEDDED
+	default y
+	depends on MOUSE_PS2
+	---help---
+	  Say Y here if you have an ALPS PS/2 touchpad connected to
+	  your system.
+
+	  If unsure, say Y.
+
+config MOUSE_PS2_LOGIPS2PP
+	bool "Logictech PS/2++ mouse protocol extension" if EMBEDDED
+	default y
+	depends on MOUSE_PS2
+	---help---
+	  Say Y here if you have a Logictech PS/2++ mouse connected to
+	  your system.
+
+	  If unsure, say Y.
+
+config MOUSE_PS2_SYNAPTICS
+	bool "Synaptics PS/2 mouse protocol extension" if EMBEDDED
+	default y
+	depends on MOUSE_PS2
+	---help---
+	  Say Y here if you have a Synaptics PS/2 TouchPad connected to
+	  your system.
+
+	  If unsure, say Y.
+
+config MOUSE_PS2_LIFEBOOK
+	bool "Fujitsu Lifebook PS/2 mouse protocol extension" if EMBEDDED
+	default y
+	depends on MOUSE_PS2
+	---help---
+	  Say Y here if you have a Fujitsu B-series Lifebook PS/2
+	  TouchScreen connected to your system.
+
+	  If unsure, say Y.
+
+config MOUSE_PS2_TRACKPOINT
+	bool "IBM Trackpoint PS/2 mouse protocol extension" if EMBEDDED
+	default y
+	depends on MOUSE_PS2
+	---help---
+	  Say Y here if you have an IBM Trackpoint PS/2 mouse connected
+	  to your system.
+
+	  If unsure, say Y.
+
+config MOUSE_PS2_TOUCHKIT
+	bool "eGalax TouchKit PS/2 protocol extension"
+	depends on MOUSE_PS2
+	---help---
+	  Say Y here if you have an eGalax TouchKit PS/2 touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
 config MOUSE_SERIAL
 	tristate "Serial mouse"
 	select SERIO
@@ -129,7 +188,7 @@ config MOUSE_VSXXXAA
 	  digitizer (VSXXX-AB) DEC produced.
 
 config MOUSE_HIL
-	tristate "HIL pointers (mice etc)."     
+	tristate "HIL pointers (mice etc)."
 	depends on GSC || HP300
 	select HP_SDC
 	select HIL_MLC

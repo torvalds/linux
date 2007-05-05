@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1998 Philip Blundell <philb@gnu.org>
  *  Copyright (C) 1999 Matthew Wilcox <willy@bofh.ai>
- *  Copyright (C) 1999-2006 Helge Deller <deller@gmx.de>
+ *  Copyright (C) 1999-2007 Helge Deller <deller@gmx.de>
  *
  *  Very basic HP Human Interface Loop (HIL) driver.
  *  This driver handles the keyboard on HP300 (m68k) and on some
@@ -89,7 +89,7 @@ MODULE_LICENSE("GPL v2");
 #define	HIL_READKBDSADR		0xF9
 #define	HIL_WRITEKBDSADR	0xE9
 
-static unsigned int hphilkeyb_keycode[HIL_KEYCODES_SET1_TBLSIZE] =
+static unsigned int hphilkeyb_keycode[HIL_KEYCODES_SET1_TBLSIZE] __read_mostly =
 	{ HIL_KEYCODES_SET1 };
 
 /* HIL structure */
@@ -211,10 +211,10 @@ hil_keyb_init(void)
 		return -ENODEV; /* already initialized */
 	}
 
+	spin_lock_init(&hil_dev.lock);
 	hil_dev.dev = input_allocate_device();
 	if (!hil_dev.dev)
 		return -ENOMEM;
-	hil_dev.dev->private = &hil_dev;
 
 #if defined(CONFIG_HP300)
 	if (!hwreg_present((void *)(HILBASE + HIL_DATA))) {

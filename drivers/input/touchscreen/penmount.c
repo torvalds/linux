@@ -105,14 +105,13 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	pm->dev = input_dev;
 	snprintf(pm->phys, sizeof(pm->phys), "%s/input0", serio->phys);
 
-	input_dev->private = pm;
 	input_dev->name = "Penmount Serial TouchScreen";
 	input_dev->phys = pm->phys;
 	input_dev->id.bustype = BUS_RS232;
 	input_dev->id.vendor = SERIO_PENMOUNT;
 	input_dev->id.product = 0;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &serio->dev;
+	input_dev->dev.parent = &serio->dev;
 
         input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
         input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);

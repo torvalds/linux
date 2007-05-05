@@ -154,8 +154,7 @@ static int stinger_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.vendor = SERIO_STINGER;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &serio->dev;
-	input_dev->private = stinger;
+	input_dev->dev.parent = &serio->dev;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 	input_dev->keybit[LONG(BTN_A)] = BIT(BTN_A) | BIT(BTN_B) | BIT(BTN_C) | BIT(BTN_X) |

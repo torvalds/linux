@@ -508,8 +508,7 @@ vsxxxaa_connect (struct serio *serio, struct serio_driver *drv)
 	input_dev->name = mouse->name;
 	input_dev->phys = mouse->phys;
 	input_dev->id.bustype = BUS_RS232;
-	input_dev->cdev.dev = &serio->dev;
-	input_dev->private = mouse;
+	input_dev->dev.parent = &serio->dev;
 
 	set_bit (EV_KEY, input_dev->evbit);		/* We have buttons */
 	set_bit (EV_REL, input_dev->evbit);

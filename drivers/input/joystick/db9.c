@@ -518,7 +518,7 @@ static void db9_timer(unsigned long private)
 
 static int db9_open(struct input_dev *dev)
 {
-	struct db9 *db9 = dev->private;
+	struct db9 *db9 = input_get_drvdata(dev);
 	struct parport *port = db9->pd->port;
 	int err;
 
@@ -542,7 +542,7 @@ static int db9_open(struct input_dev *dev)
 
 static void db9_close(struct input_dev *dev)
 {
-	struct db9 *db9 = dev->private;
+	struct db9 *db9 = input_get_drvdata(dev);
 	struct parport *port = db9->pd->port;
 
 	mutex_lock(&db9->mutex);
@@ -625,7 +625,8 @@ static struct db9 __init *db9_probe(int parport, int mode)
 		input_dev->id.vendor = 0x0002;
 		input_dev->id.product = mode;
 		input_dev->id.version = 0x0100;
-		input_dev->private = db9;
+
+		input_set_drvdata(input_dev, db9);
 
 		input_dev->open = db9_open;
 		input_dev->close = db9_close;

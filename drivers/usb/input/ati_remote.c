@@ -120,6 +120,7 @@
  * behaviour.
  */
 #define FILTER_TIME	60 /* msec */
+#define REPEAT_DELAY	500 /* msec */
 
 static unsigned long channel_mask;
 module_param(channel_mask, ulong, 0644);
@@ -132,6 +133,10 @@ MODULE_PARM_DESC(debug, "Enable extra debug messages and information");
 static int repeat_filter = FILTER_TIME;
 module_param(repeat_filter, int, 0644);
 MODULE_PARM_DESC(repeat_filter, "Repeat filter time, default = 60 msec");
+
+static int repeat_delay = REPEAT_DELAY;
+module_param(repeat_delay, int, 0644);
+MODULE_PARM_DESC(repeat_delay, "Delay before sending repeats, default = 500 msec");
 
 #define dbginfo(dev, format, arg...) do { if (debug) dev_info(dev , format , ## arg); } while (0)
 #undef err
@@ -174,6 +179,8 @@ struct ati_remote {
 	unsigned char old_data[2];  /* Detect duplicate events */
 	unsigned long old_jiffies;
 	unsigned long acc_jiffies;  /* handle acceleration */
+	unsigned long first_jiffies;
+
 	unsigned int repeat_count;
 
 	char name[NAME_BUFSIZE];
@@ -318,7 +325,7 @@ static void ati_remote_dump(unsigned char *data, unsigned int len)
  */
 static int ati_remote_open(struct input_dev *inputdev)
 {
-	struct ati_remote *ati_remote = inputdev->private;
+	struct ati_remote *ati_remote = input_get_drvdata(inputdev);
 
 	/* On first open, submit the read urb which was set up previously. */
 	ati_remote->irq_urb->dev = ati_remote->udev;
@@ -336,7 +343,7 @@ static int ati_remote_open(struct input_dev *inputdev)
  */
 static void ati_remote_close(struct input_dev *inputdev)
 {
-	struct ati_remote *ati_remote = inputdev->private;
+	struct ati_remote *ati_remote = input_get_drvdata(inputdev);
 
 	usb_kill_urb(ati_remote->irq_urb);
 }
@@ -501,21 +508,31 @@ static void ati_remote_input_report(struct urb *urb)
 	}
 
 	if (ati_remote_tbl[index].kind == KIND_FILTERED) {
+		unsigned long now = jiffies;
+
 		/* Filter duplicate events which happen "too close" together. */
 		if (ati_remote->old_data[0] == data[1] &&
 		    ati_remote->old_data[1] == data[2] &&
-		    time_before(jiffies, ati_remote->old_jiffies + msecs_to_jiffies(repeat_filter))) {
+		    time_before(now, ati_remote->old_jiffies +
+				     msecs_to_jiffies(repeat_filter))) {
 			ati_remote->repeat_count++;
 		} else {
 			ati_remote->repeat_count = 0;
+			ati_remote->first_jiffies = now;
 		}
 
 		ati_remote->old_data[0] = data[1];
 		ati_remote->old_data[1] = data[2];
-		ati_remote->old_jiffies = jiffies;
+		ati_remote->old_jiffies = now;
 
+		/* Ensure we skip at least the 4 first duplicate events (generated
+		 * by a single keypress), and continue skipping until repeat_delay
+		 * msecs have passed
+		 */
 		if (ati_remote->repeat_count > 0 &&
-		    ati_remote->repeat_count < 5)
+		    (ati_remote->repeat_count < 5 ||
+		     time_before(now, ati_remote->first_jiffies +
+				      msecs_to_jiffies(repeat_delay))))
 			return;
 
 
@@ -653,7 +670,8 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 		if (ati_remote_tbl[i].type == EV_KEY)
 			set_bit(ati_remote_tbl[i].code, idev->keybit);
 
-	idev->private = ati_remote;
+	input_set_drvdata(idev, ati_remote);
+
 	idev->open = ati_remote_open;
 	idev->close = ati_remote_close;
 
@@ -661,7 +679,7 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 	idev->phys = ati_remote->phys;
 
 	usb_to_input_id(ati_remote->udev, &idev->id);
-	idev->cdev.dev = &ati_remote->udev->dev;
+	idev->dev.parent = &ati_remote->udev->dev;
 }
 
 static int ati_remote_initialize(struct ati_remote *ati_remote)
@@ -772,15 +790,17 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 		goto fail3;
 
 	/* Set up and register input device */
-	input_register_device(ati_remote->idev);
+	err = input_register_device(ati_remote->idev);
+	if (err)
+		goto fail3;
 
 	usb_set_intfdata(interface, ati_remote);
 	return 0;
 
-fail3:	usb_kill_urb(ati_remote->irq_urb);
+ fail3:	usb_kill_urb(ati_remote->irq_urb);
 	usb_kill_urb(ati_remote->out_urb);
-fail2:	ati_remote_free_buffers(ati_remote);
-fail1:	input_free_device(input_dev);
+ fail2:	ati_remote_free_buffers(ati_remote);
+ fail1:	input_free_device(input_dev);
 	kfree(ati_remote);
 	return err;
 }

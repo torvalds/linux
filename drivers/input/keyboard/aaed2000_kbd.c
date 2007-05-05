@@ -97,7 +97,7 @@ static void aaedkbd_work(void *data)
 
 static int aaedkbd_open(struct input_dev *indev)
 {
-	struct aaedkbd *aaedkbd = indev->private;
+	struct aaedkbd *aaedkbd = input_get_drvdata(indev);
 
 	schedule_delayed_work(&aaedkbd->workq, msecs_to_jiffies(SCAN_INTERVAL));
 
@@ -106,7 +106,7 @@ static int aaedkbd_open(struct input_dev *indev)
 
 static void aaedkbd_close(struct input_dev *indev)
 {
-	struct aaedkbd *aaedkbd = indev->private;
+	struct aaedkbd *aaedkbd = input_get_drvdata(indev);
 
 	cancel_delayed_work(&aaedkbd->workq);
 	flush_scheduled_work();
@@ -141,8 +141,9 @@ static int __devinit aaedkbd_probe(struct platform_device *pdev)
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = &pdev->dev;
-	input_dev->private = aaedkbd;
+	input_dev->dev.parent = &pdev->dev;
+
+	input_set_drvdata(input_dev, aaedkbd);
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
 	input_dev->keycode = aaedkbd->keycode;

@@ -185,7 +185,7 @@ static void interact_poll(struct gameport *gameport)
 
 static int interact_open(struct input_dev *dev)
 {
-	struct interact *interact = dev->private;
+	struct interact *interact = input_get_drvdata(dev);
 
 	gameport_start_polling(interact->gameport);
 	return 0;
@@ -197,7 +197,7 @@ static int interact_open(struct input_dev *dev)
 
 static void interact_close(struct input_dev *dev)
 {
-	struct interact *interact = dev->private;
+	struct interact *interact = input_get_drvdata(dev);
 
 	gameport_stop_polling(interact->gameport);
 }
@@ -262,7 +262,9 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	input_dev->id.vendor = GAMEPORT_ID_VENDOR_INTERACT;
 	input_dev->id.product = interact_type[i].id;
 	input_dev->id.version = 0x0100;
-	input_dev->private = interact;
+	input_dev->dev.parent = &gameport->dev;
+
+	input_set_drvdata(input_dev, interact);
 
 	input_dev->open = interact_open;
 	input_dev->close = interact_close;

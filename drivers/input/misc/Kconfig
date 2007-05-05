@@ -40,6 +40,16 @@ config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
 
+config INPUT_COBALT_BTNS
+	tristate "Cobalt button interface"
+	depends on MIPS_COBALT
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you want to support MIPS Cobalt button interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cobalt_btns.
+
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
 	depends on X86 && !X86_64
@@ -81,8 +91,19 @@ config INPUT_UINPUT
 	  To compile this driver as a module, choose M here: the
 	  module will be called uinput.
 
+config INPUT_POLLDEV
+	tristate "Polled input device skeleton"
+	help
+	  Say Y here if you are using a driver for an input
+	  device that periodically polls hardware state. This
+	  option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called input-polldev.
+
 config HP_SDC_RTC
-	tristate "HP SDC Real Time Clock"       
+	tristate "HP SDC Real Time Clock"
 	depends on GSC || HP300
 	select HP_SDC
 	help

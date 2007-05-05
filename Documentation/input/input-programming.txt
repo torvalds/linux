@@ -1,5 +1,3 @@
-$Id: input-programming.txt,v 1.4 2001/05/04 09:47:14 vojtech Exp $
-
 Programming input drivers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -20,28 +18,51 @@ pressed or released a BUTTON_IRQ happens. The driver could look like:
 #include <asm/irq.h>
 #include <asm/io.h>
 
+static struct input_dev *button_dev;
+
 static void button_interrupt(int irq, void *dummy, struct pt_regs *fp)
 {
-	input_report_key(&button_dev, BTN_1, inb(BUTTON_PORT) & 1);
-	input_sync(&button_dev);
+	input_report_key(button_dev, BTN_1, inb(BUTTON_PORT) & 1);
+	input_sync(button_dev);
 }
 
 static int __init button_init(void)
 {
+	int error;
+
 	if (request_irq(BUTTON_IRQ, button_interrupt, 0, "button", NULL)) {
                 printk(KERN_ERR "button.c: Can't allocate irq %d\n", button_irq);
                 return -EBUSY;
         }
-	
-	button_dev.evbit[0] = BIT(EV_KEY);
-	button_dev.keybit[LONG(BTN_0)] = BIT(BTN_0);
-	
-	input_register_device(&button_dev);
+
+	button_dev = input_allocate_device();
+	if (!button_dev) {
+		printk(KERN_ERR "button.c: Not enough memory\n");
+		error = -ENOMEM;
+		goto err_free_irq;
+	}
+
+	button_dev->evbit[0] = BIT(EV_KEY);
+	button_dev->keybit[LONG(BTN_0)] = BIT(BTN_0);
+
+	error = input_register_device(button_dev);
+	if (error) {
+		printk(KERN_ERR "button.c: Failed to register device\n");
+		goto err_free_dev;
+	}
+
+	return 0;
+
+ err_free_dev:
+	input_free_device(button_dev);
+ err_free_irq:
+	free_irq(BUTTON_IRQ, button_interrupt);
+	return error;
 }
 
 static void __exit button_exit(void)
 {
-        input_unregister_device(&button_dev);
+        input_unregister_device(button_dev);
 	free_irq(BUTTON_IRQ, button_interrupt);
 }
 
@@ -58,17 +79,18 @@ In the _init function, which is called either upon module load or when
 booting the kernel, it grabs the required resources (it should also check
 for the presence of the device).
 
-Then it sets the input bitfields. This way the device driver tells the other
+Then it allocates a new input device structure with input_aloocate_device()
+and sets up input bitfields. This way the device driver tells the other
 parts of the input systems what it is - what events can be generated or
-accepted by this input device. Our example device can only generate EV_KEY type
-events, and from those only BTN_0 event code. Thus we only set these two
-bits. We could have used
+accepted by this input device. Our example device can only generate EV_KEY
+type events, and from those only BTN_0 event code. Thus we only set these
+two bits. We could have used
 
 	set_bit(EV_KEY, button_dev.evbit);
 	set_bit(BTN_0, button_dev.keybit);
 
 as well, but with more than single bits the first approach tends to be
-shorter. 
+shorter.
 
 Then the example driver registers the input device structure by calling
 
@@ -76,16 +98,15 @@ Then the example driver registers the input device structure by calling
 
 This adds the button_dev structure to linked lists of the input driver and
 calls device handler modules _connect functions to tell them a new input
-device has appeared. Because the _connect functions may call kmalloc(,
-GFP_KERNEL), which can sleep, input_register_device() must not be called
-from an interrupt or with a spinlock held.
+device has appeared. input_register_device() may sleep and therefore must
+not be called from an interrupt or with a spinlock held.
 
 While in use, the only used function of the driver is
 
 	button_interrupt()
 
 which upon every interrupt from the button checks its state and reports it
-via the 
+via the
 
 	input_report_key()
 
@@ -113,16 +134,10 @@ can use the open and close callback to know when it can stop polling or
 release the interrupt and when it must resume polling or grab the interrupt
 again. To do that, we would add this to our example driver:
 
-int button_used = 0;
-
 static int button_open(struct input_dev *dev)
 {
-        if (button_used++)
-                return 0;
-
 	if (request_irq(BUTTON_IRQ, button_interrupt, 0, "button", NULL)) {
                 printk(KERN_ERR "button.c: Can't allocate irq %d\n", button_irq);
-                button_used--;
                 return -EBUSY;
         }
 
@@ -131,20 +146,21 @@ static int button_open(struct input_dev *dev)
 
 static void button_close(struct input_dev *dev)
 {
-        if (!--button_used)
-                free_irq(IRQ_AMIGA_VERTB, button_interrupt);
+        free_irq(IRQ_AMIGA_VERTB, button_interrupt);
 }
 
 static int __init button_init(void)
 {
 	...
-	button_dev.open = button_open;
-	button_dev.close = button_close;
+	button_dev->open = button_open;
+	button_dev->close = button_close;
 	...
 }
 
-Note the button_used variable - we have to track how many times the open
-function was called to know when exactly our device stops being used.
+Note that input core keeps track of number of users for the device and
+makes sure that dev->open() is called only when the first user connects
+to the device and that dev->close() is called when the very last user
+disconnects. Calls to both callbacks are serialized.
 
 The open() callback should return a 0 in case of success or any nonzero value
 in case of failure. The close() callback (which is void) must always succeed.
@@ -175,7 +191,7 @@ set the corresponding bits and call the
 
 	input_report_rel(struct input_dev *dev, int code, int value)
 
-function. Events are generated only for nonzero value. 
+function. Events are generated only for nonzero value.
 
 However EV_ABS requires a little special care. Before calling
 input_register_device, you have to fill additional fields in the input_dev
@@ -187,6 +203,10 @@ the ABS_X axis:
 	button_dev.absfuzz[ABS_X] = 4;
 	button_dev.absflat[ABS_X] = 8;
 
+Or, you can just say:
+
+	input_set_abs_params(button_dev, ABS_X, 0, 255, 4, 8);
+
 This setting would be appropriate for a joystick X axis, with the minimum of
 0, maximum of 255 (which the joystick *must* be able to reach, no problem if
 it sometimes reports more, but it must be able to always reach the min and
@@ -197,14 +217,7 @@ If you don't need absfuzz and absflat, you can set them to zero, which mean
 that the thing is precise and always returns to exactly the center position
 (if it has any).
 
-1.4 The void *private field
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This field in the input structure can be used to point to any private data
-structures in the input device driver, in case the driver handles more than
-one device. You'll need it in the open and close callbacks.
-
-1.5 NBITS(), LONG(), BIT()
+1.4 NBITS(), LONG(), BIT()
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 These three macros from input.h help some bitfield computations:
@@ -213,12 +226,8 @@ These three macros from input.h help some bitfield computations:
 	LONG(x)  - returns the index in the array in longs for bit x
 	BIT(x)   - returns the index in a long for bit x
 
-1.6 The number, id* and name fields
+1.5 The id* and name fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The dev->number is assigned by the input system to the input device when it
-is registered. It has no use except for identifying the device to the user
-in system messages.
 
 The dev->name should be set before registering the input device by the input
 device driver. It's a string like 'Generic button device' containing a
@@ -234,15 +243,25 @@ driver.
 
 The id and name fields can be passed to userland via the evdev interface.
 
-1.7 The keycode, keycodemax, keycodesize fields
+1.6 The keycode, keycodemax, keycodesize fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These two fields will be used for any input devices that report their data
-as scancodes. If not all scancodes can be known by autodetection, they may
-need to be set by userland utilities. The keycode array then is an array
-used to map from scancodes to input system keycodes. The keycode max will
-contain the size of the array and keycodesize the size of each entry in it
-(in bytes).
+These three fields should be used by input devices that have dense keymaps.
+The keycode is an array used to map from scancodes to input system keycodes.
+The keycode max should contain the size of the array and keycodesize the
+size of each entry in it (in bytes).
+
+Userspace can query and alter current scancode to keycode mappings using
+EVIOCGKEYCODE and EVIOCSKEYCODE ioctls on corresponding evdev interface.
+When a device has all 3 aforementioned fields filled in, the driver may
+rely on kernel's default implementation of setting and querying keycode
+mappings.
+
+1.7 dev->getkeycode() and dev->setkeycode()
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+getkeycode() and setkeycode() callbacks allow drivers to override default
+keycode/keycodesize/keycodemax mapping mechanism provided by input core
+and implement sparse keycode maps.
 
 1.8 Key autorepeat
 ~~~~~~~~~~~~~~~~~~
@@ -266,7 +285,7 @@ direction - from the system to the input device driver. If your input device
 driver can handle these events, it has to set the respective bits in evbit,
 *and* also the callback routine:
 
-	button_dev.event = button_event;
+	button_dev->event = button_event;
 
 int button_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 {

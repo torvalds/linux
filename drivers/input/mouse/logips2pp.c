@@ -200,6 +200,7 @@ static void ps2pp_disconnect(struct psmouse *psmouse)
 static const struct ps2pp_info *get_model_info(unsigned char model)
 {
 	static const struct ps2pp_info ps2pp_list[] = {
+		{  1,	0,			0 },	/* Simple 2-button mouse */
 		{ 12,	0,			PS2PP_SIDE_BTN},
 		{ 13,	0,			0 },
 		{ 15,	PS2PP_KIND_MX,					/* MX1000 */
@@ -338,11 +339,11 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 	param[1] = 0;
 	ps2_command(ps2dev, param, PSMOUSE_CMD_GETINFO);
 
-	if (!param[1])
-		return -1;
-
 	model = ((param[0] >> 4) & 0x07) | ((param[0] << 3) & 0x78);
 	buttons = param[1];
+
+	if (!model || !buttons)
+		return -1;
 
 	if ((model_info = get_model_info(model)) != NULL) {
 

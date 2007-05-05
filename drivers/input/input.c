@@ -299,11 +299,86 @@ void input_close_device(struct input_handle *handle)
 }
 EXPORT_SYMBOL(input_close_device);
 
-static void input_link_handle(struct input_handle *handle)
+static int input_fetch_keycode(struct input_dev *dev, int scancode)
 {
-	list_add_tail(&handle->d_node, &handle->dev->h_list);
-	list_add_tail(&handle->h_node, &handle->handler->h_list);
+	switch (dev->keycodesize) {
+		case 1:
+			return ((u8 *)dev->keycode)[scancode];
+
+		case 2:
+			return ((u16 *)dev->keycode)[scancode];
+
+		default:
+			return ((u32 *)dev->keycode)[scancode];
+	}
 }
+
+static int input_default_getkeycode(struct input_dev *dev,
+				    int scancode, int *keycode)
+{
+	if (!dev->keycodesize)
+		return -EINVAL;
+
+	if (scancode < 0 || scancode >= dev->keycodemax)
+		return -EINVAL;
+
+	*keycode = input_fetch_keycode(dev, scancode);
+
+	return 0;
+}
+
+static int input_default_setkeycode(struct input_dev *dev,
+				    int scancode, int keycode)
+{
+	int old_keycode;
+	int i;
+
+	if (scancode < 0 || scancode >= dev->keycodemax)
+		return -EINVAL;
+
+	if (keycode < 0 || keycode > KEY_MAX)
+		return -EINVAL;
+
+	if (!dev->keycodesize)
+		return -EINVAL;
+
+	if (dev->keycodesize < sizeof(keycode) && (keycode >> (dev->keycodesize * 8)))
+		return -EINVAL;
+
+	switch (dev->keycodesize) {
+		case 1: {
+			u8 *k = (u8 *)dev->keycode;
+			old_keycode = k[scancode];
+			k[scancode] = keycode;
+			break;
+		}
+		case 2: {
+			u16 *k = (u16 *)dev->keycode;
+			old_keycode = k[scancode];
+			k[scancode] = keycode;
+			break;
+		}
+		default: {
+			u32 *k = (u32 *)dev->keycode;
+			old_keycode = k[scancode];
+			k[scancode] = keycode;
+			break;
+		}
+	}
+
+	clear_bit(old_keycode, dev->keybit);
+	set_bit(keycode, dev->keybit);
+
+	for (i = 0; i < dev->keycodemax; i++) {
+		if (input_fetch_keycode(dev, i) == old_keycode) {
+			set_bit(old_keycode, dev->keybit);
+			break; /* Setting the bit twice is useless, so break */
+		}
+	}
+
+	return 0;
+}
+
 
 #define MATCH_BIT(bit, max) \
 		for (i = 0; i < NBITS(max); i++) \
@@ -350,6 +425,29 @@ static const struct input_device_id *input_match_device(const struct input_devic
 
 	return NULL;
 }
+
+static int input_attach_handler(struct input_dev *dev, struct input_handler *handler)
+{
+	const struct input_device_id *id;
+	int error;
+
+	if (handler->blacklist && input_match_device(handler->blacklist, dev))
+		return -ENODEV;
+
+	id = input_match_device(handler->id_table, dev);
+	if (!id)
+		return -ENODEV;
+
+	error = handler->connect(handler, dev, id);
+	if (error && error != -ENODEV)
+		printk(KERN_ERR
+			"input: failed to attach handler %s to device %s, "
+			"error: %d\n",
+			handler->name, kobject_name(&dev->cdev.kobj), error);
+
+	return error;
+}
+
 
 #ifdef CONFIG_PROC_FS
 
@@ -439,6 +537,7 @@ static int input_devices_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "N: Name=\"%s\"\n", dev->name ? dev->name : "");
 	seq_printf(seq, "P: Phys=%s\n", dev->phys ? dev->phys : "");
 	seq_printf(seq, "S: Sysfs=%s\n", path ? path : "");
+	seq_printf(seq, "U: Uniq=%s\n", dev->uniq ? dev->uniq : "");
 	seq_printf(seq, "H: Handlers=");
 
 	list_for_each_entry(handle, &dev->h_list, d_node)
@@ -753,6 +852,13 @@ static struct attribute_group input_dev_caps_attr_group = {
 	.attrs	= input_dev_caps_attrs,
 };
 
+static struct attribute_group *input_dev_attr_groups[] = {
+	&input_dev_attr_group,
+	&input_dev_id_attr_group,
+	&input_dev_caps_attr_group,
+	NULL
+};
+
 static void input_dev_release(struct class_device *class_dev)
 {
 	struct input_dev *dev = to_input_dev(class_dev);
@@ -906,6 +1012,7 @@ struct input_dev *input_allocate_device(void)
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
 	if (dev) {
 		dev->cdev.class = &input_class;
+		dev->cdev.groups = input_dev_attr_groups;
 		class_device_initialize(&dev->cdev);
 		mutex_init(&dev->mutex);
 		INIT_LIST_HEAD(&dev->h_list);
@@ -934,23 +1041,71 @@ EXPORT_SYMBOL(input_allocate_device);
  */
 void input_free_device(struct input_dev *dev)
 {
-	if (dev) {
-
-		mutex_lock(&dev->mutex);
-		dev->name = dev->phys = dev->uniq = NULL;
-		mutex_unlock(&dev->mutex);
-
+	if (dev)
 		input_put_device(dev);
-	}
 }
 EXPORT_SYMBOL(input_free_device);
+
+/**
+ * input_set_capability - mark device as capable of a certain event
+ * @dev: device that is capable of emitting or accepting event
+ * @type: type of the event (EV_KEY, EV_REL, etc...)
+ * @code: event code
+ *
+ * In addition to setting up corresponding bit in appropriate capability
+ * bitmap the function also adjusts dev->evbit.
+ */
+void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code)
+{
+	switch (type) {
+	case EV_KEY:
+		__set_bit(code, dev->keybit);
+		break;
+
+	case EV_REL:
+		__set_bit(code, dev->relbit);
+		break;
+
+	case EV_ABS:
+		__set_bit(code, dev->absbit);
+		break;
+
+	case EV_MSC:
+		__set_bit(code, dev->mscbit);
+		break;
+
+	case EV_SW:
+		__set_bit(code, dev->swbit);
+		break;
+
+	case EV_LED:
+		__set_bit(code, dev->ledbit);
+		break;
+
+	case EV_SND:
+		__set_bit(code, dev->sndbit);
+		break;
+
+	case EV_FF:
+		__set_bit(code, dev->ffbit);
+		break;
+
+	default:
+		printk(KERN_ERR
+			"input_set_capability: unknown type %u (code %u)\n",
+			type, code);
+		dump_stack();
+		return;
+	}
+
+	__set_bit(type, dev->evbit);
+}
+EXPORT_SYMBOL(input_set_capability);
 
 int input_register_device(struct input_dev *dev)
 {
 	static atomic_t input_no = ATOMIC_INIT(0);
-	struct input_handle *handle;
 	struct input_handler *handler;
-	const struct input_device_id *id;
 	const char *path;
 	int error;
 
@@ -969,26 +1124,23 @@ int input_register_device(struct input_dev *dev)
 		dev->rep[REP_PERIOD] = 33;
 	}
 
+	if (!dev->getkeycode)
+		dev->getkeycode = input_default_getkeycode;
+
+	if (!dev->setkeycode)
+		dev->setkeycode = input_default_setkeycode;
+
 	list_add_tail(&dev->node, &input_dev_list);
 
 	snprintf(dev->cdev.class_id, sizeof(dev->cdev.class_id),
 		 "input%ld", (unsigned long) atomic_inc_return(&input_no) - 1);
 
+	if (!dev->cdev.dev)
+		dev->cdev.dev = dev->dev.parent;
+
 	error = class_device_add(&dev->cdev);
 	if (error)
 		return error;
-
-	error = sysfs_create_group(&dev->cdev.kobj, &input_dev_attr_group);
-	if (error)
-		goto fail1;
-
-	error = sysfs_create_group(&dev->cdev.kobj, &input_dev_id_attr_group);
-	if (error)
-		goto fail2;
-
-	error = sysfs_create_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
-	if (error)
-		goto fail3;
 
 	path = kobject_get_path(&dev->cdev.kobj, GFP_KERNEL);
 	printk(KERN_INFO "input: %s as %s\n",
@@ -996,28 +1148,17 @@ int input_register_device(struct input_dev *dev)
 	kfree(path);
 
 	list_for_each_entry(handler, &input_handler_list, node)
-		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
-			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id))) {
-					input_link_handle(handle);
-					if (handler->start)
-						handler->start(handle);
-				}
+		input_attach_handler(dev, handler);
 
 	input_wakeup_procfs_readers();
 
 	return 0;
-
- fail3:	sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
- fail2:	sysfs_remove_group(&dev->cdev.kobj, &input_dev_attr_group);
- fail1:	class_device_del(&dev->cdev);
-	return error;
 }
 EXPORT_SYMBOL(input_register_device);
 
 void input_unregister_device(struct input_dev *dev)
 {
-	struct list_head *node, *next;
+	struct input_handle *handle, *next;
 	int code;
 
 	for (code = 0; code <= KEY_MAX; code++)
@@ -1027,18 +1168,11 @@ void input_unregister_device(struct input_dev *dev)
 
 	del_timer_sync(&dev->timer);
 
-	list_for_each_safe(node, next, &dev->h_list) {
-		struct input_handle * handle = to_handle(node);
-		list_del_init(&handle->d_node);
-		list_del_init(&handle->h_node);
+	list_for_each_entry_safe(handle, next, &dev->h_list, d_node)
 		handle->handler->disconnect(handle);
-	}
+	WARN_ON(!list_empty(&dev->h_list));
 
 	list_del_init(&dev->node);
-
-	sysfs_remove_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
-	sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
-	sysfs_remove_group(&dev->cdev.kobj, &input_dev_attr_group);
 
 	class_device_unregister(&dev->cdev);
 
@@ -1049,8 +1183,6 @@ EXPORT_SYMBOL(input_unregister_device);
 int input_register_handler(struct input_handler *handler)
 {
 	struct input_dev *dev;
-	struct input_handle *handle;
-	const struct input_device_id *id;
 
 	INIT_LIST_HEAD(&handler->h_list);
 
@@ -1064,13 +1196,7 @@ int input_register_handler(struct input_handler *handler)
 	list_add_tail(&handler->node, &input_handler_list);
 
 	list_for_each_entry(dev, &input_dev_list, node)
-		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
-			if ((id = input_match_device(handler->id_table, dev)))
-				if ((handle = handler->connect(handler, dev, id))) {
-					input_link_handle(handle);
-					if (handler->start)
-						handler->start(handle);
-				}
+		input_attach_handler(dev, handler);
 
 	input_wakeup_procfs_readers();
 	return 0;
@@ -1079,14 +1205,11 @@ EXPORT_SYMBOL(input_register_handler);
 
 void input_unregister_handler(struct input_handler *handler)
 {
-	struct list_head *node, *next;
+	struct input_handle *handle, *next;
 
-	list_for_each_safe(node, next, &handler->h_list) {
-		struct input_handle * handle = to_handle_h(node);
-		list_del_init(&handle->h_node);
-		list_del_init(&handle->d_node);
+	list_for_each_entry_safe(handle, next, &handler->h_list, h_node)
 		handler->disconnect(handle);
-	}
+	WARN_ON(!list_empty(&handler->h_list));
 
 	list_del_init(&handler->node);
 
@@ -1096,6 +1219,27 @@ void input_unregister_handler(struct input_handler *handler)
 	input_wakeup_procfs_readers();
 }
 EXPORT_SYMBOL(input_unregister_handler);
+
+int input_register_handle(struct input_handle *handle)
+{
+	struct input_handler *handler = handle->handler;
+
+	list_add_tail(&handle->d_node, &handle->dev->h_list);
+	list_add_tail(&handle->h_node, &handler->h_list);
+
+	if (handler->start)
+		handler->start(handle);
+
+	return 0;
+}
+EXPORT_SYMBOL(input_register_handle);
+
+void input_unregister_handle(struct input_handle *handle)
+{
+	list_del_init(&handle->h_node);
+	list_del_init(&handle->d_node);
+}
+EXPORT_SYMBOL(input_unregister_handle);
 
 static int input_open_file(struct inode *inode, struct file *file)
 {

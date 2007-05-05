@@ -131,7 +131,7 @@ static struct usb_driver ati_remote2_driver = {
 
 static int ati_remote2_open(struct input_dev *idev)
 {
-	struct ati_remote2 *ar2 = idev->private;
+	struct ati_remote2 *ar2 = input_get_drvdata(idev);
 	int r;
 
 	r = usb_submit_urb(ar2->urb[0], GFP_KERNEL);
@@ -153,7 +153,7 @@ static int ati_remote2_open(struct input_dev *idev)
 
 static void ati_remote2_close(struct input_dev *idev)
 {
-	struct ati_remote2 *ar2 = idev->private;
+	struct ati_remote2 *ar2 = input_get_drvdata(idev);
 
 	usb_kill_urb(ar2->urb[0]);
 	usb_kill_urb(ar2->urb[1]);
@@ -337,14 +337,14 @@ static void ati_remote2_complete_key(struct urb *urb)
 static int ati_remote2_input_init(struct ati_remote2 *ar2)
 {
 	struct input_dev *idev;
-	int i;
+	int i, retval;
 
 	idev = input_allocate_device();
 	if (!idev)
 		return -ENOMEM;
 
 	ar2->idev = idev;
-	idev->private = ar2;
+	input_set_drvdata(idev, ar2);
 
 	idev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_REL);
 	idev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT);
@@ -362,13 +362,13 @@ static int ati_remote2_input_init(struct ati_remote2 *ar2)
 	idev->phys = ar2->phys;
 
 	usb_to_input_id(ar2->udev, &idev->id);
-	idev->cdev.dev = &ar2->udev->dev;
+	idev->dev.parent = &ar2->udev->dev;
 
-	i = input_register_device(idev);
-	if (i)
+	retval = input_register_device(idev);
+	if (retval)
 		input_free_device(idev);
 
-	return i;
+	return retval;
 }
 
 static int ati_remote2_urb_init(struct ati_remote2 *ar2)

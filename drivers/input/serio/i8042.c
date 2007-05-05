@@ -768,6 +768,13 @@ static void i8042_controller_reset(void)
 	i8042_flush();
 
 /*
+ * Disable both KBD and AUX interfaces so they don't get in the way
+ */
+
+	i8042_ctr |= I8042_CTR_KBDDIS | I8042_CTR_AUXDIS;
+	i8042_ctr &= ~(I8042_CTR_KBDINT | I8042_CTR_AUXINT);
+
+/*
  * Disable MUX mode if present.
  */
 

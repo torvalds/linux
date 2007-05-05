@@ -267,7 +267,7 @@ exit:
 
 static int xpad_open (struct input_dev *dev)
 {
-	struct usb_xpad *xpad = dev->private;
+	struct usb_xpad *xpad = input_get_drvdata(dev);
 
 	xpad->irq_in->dev = xpad->udev;
 	if (usb_submit_urb(xpad->irq_in, GFP_KERNEL))
@@ -278,7 +278,7 @@ static int xpad_open (struct input_dev *dev)
 
 static void xpad_close (struct input_dev *dev)
 {
-	struct usb_xpad *xpad = dev->private;
+	struct usb_xpad *xpad = input_get_drvdata(dev);
 
 	usb_kill_urb(xpad->irq_in);
 }
@@ -312,6 +312,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	struct input_dev *input_dev;
 	struct usb_endpoint_descriptor *ep_irq_in;
 	int i;
+	int error = -ENOMEM;
 
 	for (i = 0; xpad_device[i].idVendor; i++) {
 		if ((le16_to_cpu(udev->descriptor.idVendor) == xpad_device[i].idVendor) &&
@@ -344,8 +345,10 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	input_dev->name = xpad_device[i].name;
 	input_dev->phys = xpad->phys;
 	usb_to_input_id(udev, &input_dev->id);
-	input_dev->cdev.dev = &intf->dev;
-	input_dev->private = xpad;
+	input_dev->dev.parent = &intf->dev;
+
+	input_set_drvdata(input_dev, xpad);
+
 	input_dev->open = xpad_open;
 	input_dev->close = xpad_close;
 
@@ -373,15 +376,18 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	xpad->irq_in->transfer_dma = xpad->idata_dma;
 	xpad->irq_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	input_register_device(xpad->dev);
+	error = input_register_device(xpad->dev);
+	if (error)
+		goto fail3;
 
 	usb_set_intfdata(intf, xpad);
 	return 0;
 
-fail2:	usb_buffer_free(udev, XPAD_PKT_LEN, xpad->idata, xpad->idata_dma);
-fail1:	input_free_device(input_dev);
+ fail3:	usb_free_urb(xpad->irq_in);
+ fail2:	usb_buffer_free(udev, XPAD_PKT_LEN, xpad->idata, xpad->idata_dma);
+ fail1:	input_free_device(input_dev);
 	kfree(xpad);
-	return -ENOMEM;
+	return error;
 
 }
 
