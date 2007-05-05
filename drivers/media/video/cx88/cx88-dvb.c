@@ -35,9 +35,7 @@
 
 #include "mt352.h"
 #include "mt352_priv.h"
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
-# include "cx88-vp3054-i2c.h"
-#endif
+#include "cx88-vp3054-i2c.h"
 #include "zl10353.h"
 #include "cx22702.h"
 #include "or51132.h"
@@ -199,7 +197,7 @@ static struct mt352_config dvico_fusionhdtv_dual = {
 	.demod_init    = dvico_dual_demod_init,
 };
 
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
+#if defined(CONFIG_VIDEO_CX88_VP3054) || (defined(CONFIG_VIDEO_CX88_VP3054_MODULE) && defined(MODULE))
 static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { 0x89, 0x38, 0x38 };
@@ -544,7 +542,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
+#if defined(CONFIG_VIDEO_CX88_VP3054) || (defined(CONFIG_VIDEO_CX88_VP3054_MODULE) && defined(MODULE))
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_fmd1216me;
 		dev->dvb.frontend = dvb_attach(mt352_attach, &dntv_live_dvbt_pro_config,
@@ -778,11 +776,10 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	if (!(cx88_boards[core->board].mpeg & CX88_MPEG_DVB))
 		goto fail_core;
 
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
+	/* If vp3054 isn't enabled, a stub will just return 0 */
 	err = vp3054_i2c_probe(dev);
 	if (0 != err)
 		goto fail_core;
-#endif
 
 	/* dvb stuff */
 	printk("%s/2: cx2388x based dvb card\n", core->name);
@@ -807,9 +804,7 @@ static int cx8802_dvb_remove(struct cx8802_driver *drv)
 	/* dvb */
 	videobuf_dvb_unregister(&dev->dvb);
 
-#if defined(CONFIG_VIDEO_CX88_VP3054) || defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
 	vp3054_i2c_remove(dev);
-#endif
 
 	return 0;
 }
