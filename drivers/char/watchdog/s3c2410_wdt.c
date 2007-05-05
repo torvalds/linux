@@ -379,14 +379,14 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	DBG("probe: mapped wdt_base=%p\n", wdt_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
+	wdt_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (wdt_irq == NULL) {
 		printk(KERN_INFO PFX "failed to get irq resource\n");
 		ret = -ENOENT;
 		goto err_map;
 	}
 
-	ret = request_irq(res->start, s3c2410wdt_irq, 0, pdev->name, pdev);
+	ret = request_irq(wdt_irq->start, s3c2410wdt_irq, 0, pdev->name, pdev);
 	if (ret != 0) {
 		printk(KERN_INFO PFX "failed to install irq (%d)\n", ret);
 		goto err_map;
