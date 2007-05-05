@@ -145,6 +145,7 @@ static void *m1541_alloc_page(struct agp_bridge_data *bridge)
 	void *addr = agp_generic_alloc_page(agp_bridge);
 	u32 temp;
 
+	global_flush_tlb();
 	if (!addr)
 		return NULL;
 
@@ -160,6 +161,7 @@ static void ali_destroy_page(void * addr)
 	if (addr) {
 		global_cache_flush();	/* is this really needed?  --hch */
 		agp_generic_destroy_page(addr);
+		global_flush_tlb();
 	}
 }
 
