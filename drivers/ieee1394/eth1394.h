@@ -66,6 +66,10 @@ struct eth1394_priv {
 	int bc_dgl;			/* Outgoing broadcast datagram label */
 	struct list_head ip_node_list;	/* List of IP capable nodes	 */
 	struct unit_directory *ud_list[ALL_NODES]; /* Cached unit dir list */
+
+	struct work_struct wake;	/* Wake up after xmit failure	 */
+	struct net_device *wake_dev;	/* Stupid backlink for .wake	 */
+	nodeid_t wake_node;		/* Destination of failed xmit	 */
 };
 
 
