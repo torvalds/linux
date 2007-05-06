@@ -1470,6 +1470,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_MC0_MISC+16:
 	case MSR_IA32_UCODE_REV:
 	case MSR_IA32_PERF_STATUS:
+	case MSR_IA32_EBL_CR_POWERON:
 		/* MTRR registers */
 	case 0xfe:
 	case 0x200 ... 0x2ff:
