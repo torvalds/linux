@@ -298,7 +298,8 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		c->align = (flags & SLAB_MUST_HWCACHE_ALIGN) ? SLOB_ALIGN : 0;
 		if (c->align < align)
 			c->align = align;
-	}
+	} else if (flags & SLAB_PANIC)
+		panic("Cannot create slab cache %s\n", name);
 
 	return c;
 }
