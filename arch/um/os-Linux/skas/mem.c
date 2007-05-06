@@ -219,8 +219,8 @@ int map(struct mm_id * mm_idp, unsigned long virt, unsigned long len,
 	return ret;
 }
 
-int unmap(struct mm_id * mm_idp, void *addr, unsigned long len, int done,
-	  void **data)
+int unmap(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
+	  int done, void **data)
 {
 	int ret;
 

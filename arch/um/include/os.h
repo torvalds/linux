@@ -302,7 +302,7 @@ extern long syscall_stub_data(struct mm_id * mm_idp,
 extern int map(struct mm_id * mm_idp, unsigned long virt,
 	       unsigned long len, int r, int w, int x, int phys_fd,
 	       unsigned long long offset, int done, void **data);
-extern int unmap(struct mm_id * mm_idp, void *addr, unsigned long len,
+extern int unmap(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
 		 int done, void **data);
 extern int protect(struct mm_id * mm_idp, unsigned long addr,
 		   unsigned long len, int r, int w, int x, int done,

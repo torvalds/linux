@@ -381,7 +381,9 @@ pte_t *addr_pte(struct task_struct *task, unsigned long addr)
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 {
 	address &= PAGE_MASK;
-	flush_tlb_range(vma, address, address + PAGE_SIZE);
+
+	CHOOSE_MODE(flush_tlb_range(vma, address, address + PAGE_SIZE),
+		    flush_tlb_page_skas(vma, address));
 }
 
 void flush_tlb_all(void)

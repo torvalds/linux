@@ -33,6 +33,8 @@ extern unsigned long set_task_sizes_skas(unsigned long *task_size_out);
 extern int start_uml_skas(void);
 extern int external_pid_skas(struct task_struct *task);
 extern int thread_pid_skas(struct task_struct *task);
+extern void flush_tlb_page_skas(struct vm_area_struct *vma,
+				unsigned long address);
 
 #define kmem_end_skas (host_task_size - 1024 * 1024)
 
