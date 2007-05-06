@@ -114,7 +114,7 @@ hostcxx_flags  = -Wp,-MD,$(depfile) $(__hostcxx_flags)
 quiet_cmd_host-csingle 	= HOSTCC  $@
       cmd_host-csingle	= $(HOSTCC) $(hostc_flags) -o $@ $< \
 	  	$(HOST_LOADLIBES) $(HOSTLOADLIBES_$(@F))
-$(host-csingle): %: %.c FORCE
+$(host-csingle): $(obj)/%: $(src)/%.c FORCE
 	$(call if_changed_dep,host-csingle)
 
 # Link an executable based on list of .o files, all plain c
@@ -123,14 +123,14 @@ quiet_cmd_host-cmulti	= HOSTLD  $@
       cmd_host-cmulti	= $(HOSTCC) $(HOSTLDFLAGS) -o $@ \
 			  $(addprefix $(obj)/,$($(@F)-objs)) \
 			  $(HOST_LOADLIBES) $(HOSTLOADLIBES_$(@F))
-$(host-cmulti): %: $(host-cobjs) $(host-cshlib) FORCE
+$(host-cmulti): $(obj)/%: $(host-cobjs) $(host-cshlib) FORCE
 	$(call if_changed,host-cmulti)
 
 # Create .o file from a single .c file
 # host-cobjs -> .o
 quiet_cmd_host-cobjs	= HOSTCC  $@
       cmd_host-cobjs	= $(HOSTCC) $(hostc_flags) -c -o $@ $<
-$(host-cobjs): %.o: %.c FORCE
+$(host-cobjs): $(obj)/%.o: $(src)/%.c FORCE
 	$(call if_changed_dep,host-cobjs)
 
 # Link an executable based on list of .o files, a mixture of .c and .cc
@@ -140,20 +140,20 @@ quiet_cmd_host-cxxmulti	= HOSTLD  $@
 			  $(foreach o,objs cxxobjs,\
 			  $(addprefix $(obj)/,$($(@F)-$(o)))) \
 			  $(HOST_LOADLIBES) $(HOSTLOADLIBES_$(@F))
-$(host-cxxmulti): %: $(host-cobjs) $(host-cxxobjs) $(host-cshlib) FORCE
+$(host-cxxmulti): $(obj)/%: $(host-cobjs) $(host-cxxobjs) $(host-cshlib) FORCE
 	$(call if_changed,host-cxxmulti)
 
 # Create .o file from a single .cc (C++) file
 quiet_cmd_host-cxxobjs	= HOSTCXX $@
       cmd_host-cxxobjs	= $(HOSTCXX) $(hostcxx_flags) -c -o $@ $<
-$(host-cxxobjs): %.o: %.cc FORCE
+$(host-cxxobjs): $(obj)/%.o: $(src)/%.cc FORCE
 	$(call if_changed_dep,host-cxxobjs)
 
 # Compile .c file, create position independent .o file
 # host-cshobjs -> .o
 quiet_cmd_host-cshobjs	= HOSTCC  -fPIC $@
       cmd_host-cshobjs	= $(HOSTCC) $(hostc_flags) -fPIC -c -o $@ $<
-$(host-cshobjs): %.o: %.c FORCE
+$(host-cshobjs): $(obj)/%.o: $(src)/%.c FORCE
 	$(call if_changed_dep,host-cshobjs)
 
 # Link a shared library, based on position independent .o files
@@ -162,7 +162,7 @@ quiet_cmd_host-cshlib	= HOSTLLD -shared $@
       cmd_host-cshlib	= $(HOSTCC) $(HOSTLDFLAGS) -shared -o $@ \
 			  $(addprefix $(obj)/,$($(@F:.so=-objs))) \
 			  $(HOST_LOADLIBES) $(HOSTLOADLIBES_$(@F))
-$(host-cshlib): %: $(host-cshobjs) FORCE
+$(host-cshlib): $(obj)/%: $(host-cshobjs) FORCE
 	$(call if_changed,host-cshlib)
 
 targets += $(host-csingle)  $(host-cmulti) $(host-cobjs)\

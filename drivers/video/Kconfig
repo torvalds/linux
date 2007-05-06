@@ -191,7 +191,7 @@ config FB_ARMCLCD
 
 	  If you want to compile this as a module (=code which can be
 	  inserted into and removed from the running kernel), say M
-	  here and read <file:Documentation/modules.txt>.  The module
+	  here and read <file:Documentation/kbuild/modules.txt>.  The module
 	  will be called amba-clcd.
 
 choice
@@ -1494,7 +1494,7 @@ config FB_PXA
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called pxafb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
 
@@ -1547,7 +1547,7 @@ config FB_W100
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called w100fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
 
@@ -1564,7 +1564,7 @@ config FB_S3C2410
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called s3c2410fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
 config FB_S3C2410_DEBUG

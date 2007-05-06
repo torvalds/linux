@@ -82,7 +82,7 @@
 #warning gcc-4.1.0 is known to miscompile the kernel.  A different compiler version is recommended.
 #endif
 
-static int init(void *);
+static int kernel_init(void *);
 
 extern void init_IRQ(void);
 extern void fork_init(unsigned long);
@@ -431,7 +431,7 @@ static void __init setup_command_line(char *command_line)
 static void noinline rest_init(void)
 	__releases(kernel_lock)
 {
-	kernel_thread(init, NULL, CLONE_FS | CLONE_SIGHAND);
+	kernel_thread(kernel_init, NULL, CLONE_FS | CLONE_SIGHAND);
 	numa_default_policy();
 	unlock_kernel();
 
@@ -768,7 +768,7 @@ static int noinline init_post(void)
 	panic("No init found.  Try passing init= option to kernel.");
 }
 
-static int __init init(void * unused)
+static int __init kernel_init(void * unused)
 {
 	lock_kernel();
 	/*

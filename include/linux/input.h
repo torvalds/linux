@@ -990,6 +990,10 @@ struct input_dev {
 #error "EV_MAX and INPUT_DEVICE_ID_EV_MAX do not match"
 #endif
 
+#if KEY_MIN_INTERESTING != INPUT_DEVICE_ID_KEY_MIN_INTERESTING
+#error "KEY_MIN_INTERESTING and INPUT_DEVICE_ID_KEY_MIN_INTERESTING do not match"
+#endif
+
 #if KEY_MAX != INPUT_DEVICE_ID_KEY_MAX
 #error "KEY_MAX and INPUT_DEVICE_ID_KEY_MAX do not match"
 #endif
