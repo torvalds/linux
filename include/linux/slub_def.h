@@ -16,6 +16,7 @@ struct kmem_cache_node {
 	unsigned long nr_partial;
 	atomic_long_t nr_slabs;
 	struct list_head partial;
+	struct list_head full;
 };
 
 /*

@@ -661,6 +661,40 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 	return search == NULL;
 }
 
+/*
+ * Tracking of fully allocated slabs for debugging
+ */
+static void add_full(struct kmem_cache *s, struct page *page)
+{
+	struct kmem_cache_node *n;
+
+	VM_BUG_ON(!irqs_disabled());
+
+	VM_BUG_ON(!irqs_disabled());
+
+	if (!(s->flags & SLAB_STORE_USER))
+		return;
+
+	n = get_node(s, page_to_nid(page));
+	spin_lock(&n->list_lock);
+	list_add(&page->lru, &n->full);
+	spin_unlock(&n->list_lock);
+}
+
+static void remove_full(struct kmem_cache *s, struct page *page)
+{
+	struct kmem_cache_node *n;
+
+	if (!(s->flags & SLAB_STORE_USER))
+		return;
+
+	n = get_node(s, page_to_nid(page));
+
+	spin_lock(&n->list_lock);
+	list_del(&page->lru);
+	spin_unlock(&n->list_lock);
+}
+
 static int alloc_object_checks(struct kmem_cache *s, struct page *page,
 							void *object)
 {
@@ -1090,6 +1124,8 @@ static void putback_slab(struct kmem_cache *s, struct page *page)
 	if (page->inuse) {
 		if (page->freelist)
 			add_partial(s, page);
+		else if (PageError(page))
+			add_full(s, page);
 		slab_unlock(page);
 	} else {
 		slab_unlock(page);
@@ -1302,7 +1338,7 @@ out_unlock:
 slab_empty:
 	if (prior)
 		/*
-		 * Partially used slab that is on the partial list.
+		 * Slab on the partial list.
 		 */
 		remove_partial(s, page);
 
@@ -1314,6 +1350,8 @@ slab_empty:
 debug:
 	if (!free_object_checks(s, page, x))
 		goto out_unlock;
+	if (!PageActive(page) && !page->freelist)
+		remove_full(s, page);
 	if (s->flags & SLAB_STORE_USER)
 		set_track(s, x, TRACK_FREE, addr);
 	goto checks_ok;
@@ -1466,6 +1504,7 @@ static void init_kmem_cache_node(struct kmem_cache_node *n)
 	atomic_long_set(&n->nr_slabs, 0);
 	spin_lock_init(&n->list_lock);
 	INIT_LIST_HEAD(&n->partial);
+	INIT_LIST_HEAD(&n->full);
 }
 
 #ifdef CONFIG_NUMA
