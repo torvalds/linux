@@ -788,13 +788,11 @@ static int ubd_id(char **str, int *start_out, int *end_out)
 
 static int ubd_remove(int n, char **error_out)
 {
+	struct gendisk *disk;
 	struct ubd *ubd_dev;
 	int err = -ENODEV;
 
 	mutex_lock(&ubd_lock);
-
-	if(ubd_gendisk[n] == NULL)
-		goto out;
 
 	ubd_dev = &ubd_devs[n];
 
@@ -806,9 +804,12 @@ static int ubd_remove(int n, char **error_out)
 	if(ubd_dev->count > 0)
 		goto out;
 
-	del_gendisk(ubd_gendisk[n]);
-	put_disk(ubd_gendisk[n]);
-	ubd_gendisk[n] = NULL;
+ 	disk = ubd_gendisk[n];
+ 	ubd_gendisk[n] = NULL;
+	if(disk != NULL){
+		del_gendisk(disk);
+		put_disk(disk);
+	}
 
 	if(fake_gendisk[n] != NULL){
 		del_gendisk(fake_gendisk[n]);
