@@ -221,6 +221,11 @@ static int init_aio_24(void)
 
 	aio_req_fd_w = fds[0];
 	aio_req_fd_r = fds[1];
+
+	err = os_set_fd_block(aio_req_fd_w, 0);
+	if(err)
+		goto out_close_pipe;
+
 	err = run_helper_thread(not_aio_thread, NULL,
 				CLONE_FILES | CLONE_VM | SIGCHLD, &stack, 0);
 	if(err < 0)
