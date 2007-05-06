@@ -1102,7 +1102,7 @@ static void do_ubd_request(request_queue_t *q)
 			struct scatterlist *sg = &dev->sg[dev->start_sg];
 
 			io_req = kmalloc(sizeof(struct io_thread_req),
-					 GFP_KERNEL | GFP_ATOMIC);
+					 GFP_ATOMIC);
 			if(io_req == NULL){
 				if(list_empty(&dev->restart))
 					list_add(&dev->restart, &restart);
