@@ -24,10 +24,11 @@
 #include "uml-config.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/stub.h"
+#include "init.h"
 
 extern unsigned long batch_syscall_stub, __syscall_stub_start;
 
-extern void wait_stub_done(int pid, int sig, char * fname);
+extern void wait_stub_done(int pid);
 
 static inline unsigned long *check_init_stack(struct mm_id * mm_idp,
 					      unsigned long *stack)
@@ -39,6 +40,19 @@ static inline unsigned long *check_init_stack(struct mm_id * mm_idp,
 	return stack;
 }
 
+static unsigned long syscall_regs[MAX_REG_NR];
+
+static int __init init_syscall_regs(void)
+{
+	get_safe_registers(syscall_regs, NULL);
+	syscall_regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
+		((unsigned long) &batch_syscall_stub -
+		 (unsigned long) &__syscall_stub_start);
+	return 0;
+}
+
+__initcall(init_syscall_regs);
+
 extern int proc_mm;
 
 int single_count = 0;
@@ -47,12 +61,11 @@ int multi_op_count = 0;
 
 static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 {
-	unsigned long regs[MAX_REG_NR];
 	int n, i;
 	long ret, offset;
 	unsigned long * data;
 	unsigned long * syscall;
-	int pid = mm_idp->u.pid;
+	int err, pid = mm_idp->u.pid;
 
 	if(proc_mm)
 #warning Need to look up userspace_pid by cpu
@@ -60,21 +73,21 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 
 	multi_count++;
 
-	get_safe_registers(regs, NULL);
-	regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
-		((unsigned long) &batch_syscall_stub -
-		 (unsigned long) &__syscall_stub_start);
-
-	n = ptrace_setregs(pid, regs);
+	n = ptrace_setregs(pid, syscall_regs);
 	if(n < 0){
 		printk("Registers - \n");
 		for(i = 0; i < MAX_REG_NR; i++)
-			printk("\t%d\t0x%lx\n", i, regs[i]);
+			printk("\t%d\t0x%lx\n", i, syscall_regs[i]);
 		panic("do_syscall_stub : PTRACE_SETREGS failed, errno = %d\n",
 		      -n);
 	}
 
-	wait_stub_done(pid, 0, "do_syscall_stub");
+	err = ptrace(PTRACE_CONT, pid, 0, 0);
+	if(err)
+		panic("Failed to continue stub, pid = %d, errno = %d\n", pid,
+		      errno);
+
+	wait_stub_done(pid);
 
 	/* When the stub stops, we find the following values on the
 	 * beginning of the stack:
@@ -176,14 +189,10 @@ long syscall_stub_data(struct mm_id * mm_idp,
 	return 0;
 }
 
-int map(struct mm_id * mm_idp, unsigned long virt, unsigned long len,
-	int r, int w, int x, int phys_fd, unsigned long long offset,
-	int done, void **data)
+int map(struct mm_id * mm_idp, unsigned long virt, unsigned long len, int prot,
+	int phys_fd, unsigned long long offset, int done, void **data)
 {
-	int prot, ret;
-
-	prot = (r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) |
-		(x ? PROT_EXEC : 0);
+	int ret;
 
 	if(proc_mm){
 		struct proc_mm_op map;
@@ -253,13 +262,11 @@ int unmap(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
 }
 
 int protect(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
-	    int r, int w, int x, int done, void **data)
+	    unsigned int prot, int done, void **data)
 {
 	struct proc_mm_op protect;
-	int prot, ret;
+	int ret;
 
-	prot = (r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) |
-		(x ? PROT_EXEC : 0);
 	if(proc_mm){
 		int fd = mm_idp->u.mm_fd;
 

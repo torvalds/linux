@@ -17,7 +17,7 @@
 #include "os.h"
 
 static int add_mmap(unsigned long virt, unsigned long phys, unsigned long len,
-		    int r, int w, int x, struct host_vm_op *ops, int *index,
+		    unsigned int prot, struct host_vm_op *ops, int *index,
 		    int last_filled, union mm_context *mmu, void **flush,
 		    int (*do_ops)(union mm_context *, struct host_vm_op *,
 				  int, int, void **))
@@ -31,8 +31,7 @@ static int add_mmap(unsigned long virt, unsigned long phys, unsigned long len,
 		last = &ops[*index];
 		if((last->type == MMAP) &&
 		   (last->u.mmap.addr + last->u.mmap.len == virt) &&
-		   (last->u.mmap.r == r) && (last->u.mmap.w == w) &&
-		   (last->u.mmap.x == x) && (last->u.mmap.fd == fd) &&
+		   (last->u.mmap.prot == prot) && (last->u.mmap.fd == fd) &&
 		   (last->u.mmap.offset + last->u.mmap.len == offset)){
 			last->u.mmap.len += len;
 			return 0;
@@ -48,9 +47,7 @@ static int add_mmap(unsigned long virt, unsigned long phys, unsigned long len,
 			     			.u = { .mmap = {
 						       .addr	= virt,
 						       .len	= len,
-						       .r	= r,
-						       .w	= w,
-						       .x	= x,
+						       .prot	= prot,
 						       .fd	= fd,
 						       .offset	= offset }
 			   } });
@@ -87,8 +84,8 @@ static int add_munmap(unsigned long addr, unsigned long len,
 	return ret;
 }
 
-static int add_mprotect(unsigned long addr, unsigned long len, int r, int w,
-			int x, struct host_vm_op *ops, int *index,
+static int add_mprotect(unsigned long addr, unsigned long len,
+			unsigned int prot, struct host_vm_op *ops, int *index,
 			int last_filled, union mm_context *mmu, void **flush,
 			int (*do_ops)(union mm_context *, struct host_vm_op *,
 				      int, int, void **))
@@ -100,8 +97,7 @@ static int add_mprotect(unsigned long addr, unsigned long len, int r, int w,
 		last = &ops[*index];
 		if((last->type == MPROTECT) &&
 		   (last->u.mprotect.addr + last->u.mprotect.len == addr) &&
-		   (last->u.mprotect.r == r) && (last->u.mprotect.w == w) &&
-		   (last->u.mprotect.x == x)){
+		   (last->u.mprotect.prot == prot)){
 			last->u.mprotect.len += len;
 			return 0;
 		}
@@ -116,9 +112,7 @@ static int add_mprotect(unsigned long addr, unsigned long len, int r, int w,
 			     		       .u = { .mprotect = {
 						       .addr	= addr,
 						       .len	= len,
-						       .r	= r,
-						       .w	= w,
-						       .x	= x } } });
+						       .prot	= prot } } });
 	return ret;
 }
 
@@ -133,7 +127,7 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 						 void **))
 {
 	pte_t *pte;
-	int r, w, x, ret = 0;
+	int r, w, x, prot, ret = 0;
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
@@ -146,19 +140,19 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 		} else if (!pte_dirty(*pte)) {
 			w = 0;
 		}
+		prot = ((r ? UM_PROT_READ : 0) | (w ? UM_PROT_WRITE : 0) |
+			(x ? UM_PROT_EXEC : 0));
 		if(force || pte_newpage(*pte)){
 			if(pte_present(*pte))
 				ret = add_mmap(addr, pte_val(*pte) & PAGE_MASK,
-					       PAGE_SIZE, r, w, x, ops,
-					       op_index, last_op, mmu, flush,
-					       do_ops);
+					       PAGE_SIZE, prot, ops, op_index,
+					       last_op, mmu, flush, do_ops);
 			else ret = add_munmap(addr, PAGE_SIZE, ops, op_index,
 					      last_op, mmu, flush, do_ops);
 		}
 		else if(pte_newprot(*pte))
-			ret = add_mprotect(addr, PAGE_SIZE, r, w, x, ops,
-					   op_index, last_op, mmu, flush,
-					   do_ops);
+			ret = add_mprotect(addr, PAGE_SIZE, prot, ops, op_index,
+					   last_op, mmu, flush, do_ops);
 		*pte = pte_mkuptodate(*pte);
 	} while (pte++, addr += PAGE_SIZE, ((addr != end) && !ret));
 	return ret;
@@ -375,14 +369,6 @@ pte_t *addr_pte(struct task_struct *task, unsigned long addr)
 	pmd_t *pmd = pmd_offset(pud, addr);
 
 	return(pte_offset_map(pmd, addr));
-}
-
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
-{
-	address &= PAGE_MASK;
-
-	CHOOSE_MODE(flush_tlb_range(vma, address, address + PAGE_SIZE),
-		    flush_tlb_page_skas(vma, address));
 }
 
 void flush_tlb_all(void)

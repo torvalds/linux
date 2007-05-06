@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <signal.h>
 #include <sys/poll.h>
+#include <sys/mman.h>
 #define __FRAME_OFFSETS
 #include <asm/ptrace.h>
 #include <asm/types.h>
@@ -93,4 +94,8 @@ void foo(void)
 	DEFINE(UM_POLLIN, POLLIN);
 	DEFINE(UM_POLLPRI, POLLPRI);
 	DEFINE(UM_POLLOUT, POLLOUT);
+
+	DEFINE(UM_PROT_READ, PROT_READ);
+	DEFINE(UM_PROT_WRITE, PROT_WRITE);
+	DEFINE(UM_PROT_EXEC, PROT_EXEC);
 }

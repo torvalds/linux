@@ -1,9 +1,10 @@
 #include <stdio.h>
+#include <stddef.h>
 #include <signal.h>
+#include <sys/poll.h>
+#include <sys/mman.h>
 #include <asm/ptrace.h>
 #include <asm/user.h>
-#include <stddef.h>
-#include <sys/poll.h>
 
 #define DEFINE(sym, val) \
 	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -72,4 +73,8 @@ void foo(void)
 	DEFINE(UM_POLLIN, POLLIN);
 	DEFINE(UM_POLLPRI, POLLPRI);
 	DEFINE(UM_POLLOUT, POLLOUT);
+
+	DEFINE(UM_PROT_READ, PROT_READ);
+	DEFINE(UM_PROT_WRITE, PROT_WRITE);
+	DEFINE(UM_PROT_EXEC, PROT_EXEC);
 }

@@ -27,9 +27,9 @@ static int do_ops(union mm_context *mmu, struct host_vm_op *ops, int last,
 		switch(op->type){
 		case MMAP:
 			ret = map(&mmu->skas.id, op->u.mmap.addr,
-				  op->u.mmap.len, op->u.mmap.r, op->u.mmap.w,
-				  op->u.mmap.x, op->u.mmap.fd,
-				  op->u.mmap.offset, finished, flush);
+				  op->u.mmap.len, op->u.mmap.prot,
+				  op->u.mmap.fd, op->u.mmap.offset, finished,
+				  flush);
 			break;
 		case MUNMAP:
 			ret = unmap(&mmu->skas.id, op->u.munmap.addr,
@@ -37,8 +37,7 @@ static int do_ops(union mm_context *mmu, struct host_vm_op *ops, int last,
 			break;
 		case MPROTECT:
 			ret = protect(&mmu->skas.id, op->u.mprotect.addr,
-				      op->u.mprotect.len, op->u.mprotect.r,
-				      op->u.mprotect.w, op->u.mprotect.x,
+				      op->u.mprotect.len, op->u.mprotect.prot,
 				      finished, flush);
 			break;
 		default:
@@ -102,10 +101,10 @@ void flush_tlb_page_skas(struct vm_area_struct *vma, unsigned long address)
 	pte_t *pte;
 	struct mm_struct *mm = vma->vm_mm;
 	void *flush = NULL;
-	int r, w, x, err = 0;
+	int r, w, x, prot, err = 0;
 	struct mm_id *mm_id;
 
-	pgd = pgd_offset(vma->vm_mm, address);
+	pgd = pgd_offset(mm, address);
 	if(!pgd_present(*pgd))
 		goto kill;
 
@@ -130,19 +129,21 @@ void flush_tlb_page_skas(struct vm_area_struct *vma, unsigned long address)
 	}
 
 	mm_id = &mm->context.skas.id;
+	prot = ((r ? UM_PROT_READ : 0) | (w ? UM_PROT_WRITE : 0) |
+		(x ? UM_PROT_EXEC : 0));
 	if(pte_newpage(*pte)){
 		if(pte_present(*pte)){
 			unsigned long long offset;
 			int fd;
 
 			fd = phys_mapping(pte_val(*pte) & PAGE_MASK, &offset);
-			err = map(mm_id, address, PAGE_SIZE, r, w, x, fd,
-				  offset, 1, &flush);
+			err = map(mm_id, address, PAGE_SIZE, prot, fd, offset,
+				  1, &flush);
 		}
 		else err = unmap(mm_id, address, PAGE_SIZE, 1, &flush);
 	}
 	else if(pte_newprot(*pte))
-		err = protect(mm_id, address, PAGE_SIZE, r, w, x, 1, &flush);
+		err = protect(mm_id, address, PAGE_SIZE, prot, 1, &flush);
 
 	if(err)
 		goto kill;

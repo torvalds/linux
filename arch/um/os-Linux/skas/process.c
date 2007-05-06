@@ -34,6 +34,7 @@
 #include "process.h"
 #include "longjmp.h"
 #include "kern_constants.h"
+#include "as-layout.h"
 
 int is_skas_winch(int pid, int fd, void *data)
 {
@@ -60,37 +61,42 @@ static int ptrace_dump_regs(int pid)
         return 0;
 }
 
-void wait_stub_done(int pid, int sig, char * fname)
+/*
+ * Signals that are OK to receive in the stub - we'll just continue it.
+ * SIGWINCH will happen when UML is inside a detached screen.
+ */
+#define STUB_SIG_MASK ((1 << SIGVTALRM) | (1 << SIGWINCH))
+
+/* Signals that the stub will finish with - anything else is an error */
+#define STUB_DONE_MASK ((1 << SIGUSR1) | (1 << SIGTRAP))
+
+void wait_stub_done(int pid)
 {
 	int n, status, err;
 
-	do {
-		if ( sig != -1 ) {
-			err = ptrace(PTRACE_CONT, pid, 0, sig);
-			if(err)
-				panic("%s : continue failed, errno = %d\n",
-				      fname, errno);
-		}
-		sig = 0;
-
+	while(1){
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
-	} while((n >= 0) && WIFSTOPPED(status) &&
-	        ((WSTOPSIG(status) == SIGVTALRM) ||
-		 /* running UML inside a detached screen can cause
-		  * SIGWINCHes
-		  */
-		 (WSTOPSIG(status) == SIGWINCH)));
+		if((n < 0) || !WIFSTOPPED(status))
+			goto bad_wait;
 
-	if((n < 0) || !WIFSTOPPED(status) ||
-	   (WSTOPSIG(status) != SIGUSR1 && WSTOPSIG(status) != SIGTRAP)){
-		err = ptrace_dump_regs(pid);
+		if(((1 << WSTOPSIG(status)) & STUB_SIG_MASK) == 0)
+			break;
+
+		err = ptrace(PTRACE_CONT, pid, 0, 0);
 		if(err)
-			printk("Failed to get registers from stub, "
-			       "errno = %d\n", -err);
-		panic("%s : failed to wait for SIGUSR1/SIGTRAP, "
-		      "pid = %d, n = %d, errno = %d, status = 0x%x\n",
-		      fname, pid, n, errno, status);
+			panic("wait_stub_done : continue failed, errno = %d\n",
+			      errno);
 	}
+
+	if(((1 << WSTOPSIG(status)) & STUB_DONE_MASK) != 0)
+		return;
+
+bad_wait:
+	err = ptrace_dump_regs(pid);
+	if(err)
+		printk("Failed to get registers from stub, errno = %d\n", -err);
+	panic("wait_stub_done : failed to wait for SIGUSR1/SIGTRAP, pid = %d, "
+	      "n = %d, errno = %d, status = 0x%x\n", pid, n, errno, status);
 }
 
 extern unsigned long current_stub_stack(void);
@@ -112,7 +118,11 @@ void get_skas_faultinfo(int pid, struct faultinfo * fi)
 			       sizeof(struct ptrace_faultinfo));
 	}
 	else {
-		wait_stub_done(pid, SIGSEGV, "get_skas_faultinfo");
+		err = ptrace(PTRACE_CONT, pid, 0, SIGSEGV);
+		if(err)
+			panic("Failed to continue stub, pid = %d, errno = %d\n",
+			      pid, errno);
+		wait_stub_done(pid);
 
 		/* faultinfo is prepared by the stub-segv-handler at start of
 		 * the stub stack page. We just have to copy it.
@@ -304,10 +314,13 @@ void userspace(union uml_pt_regs *regs)
 		UPT_SYSCALL_NR(regs) = -1; /* Assume: It's not a syscall */
 
 		if(WIFSTOPPED(status)){
-		  	switch(WSTOPSIG(status)){
+			int sig = WSTOPSIG(status);
+		  	switch(sig){
 			case SIGSEGV:
-				if(PTRACE_FULL_FAULTINFO || !ptrace_faultinfo)
-					user_signal(SIGSEGV, regs, pid);
+				if(PTRACE_FULL_FAULTINFO || !ptrace_faultinfo){
+					get_skas_faultinfo(pid, &regs->skas.faultinfo);
+					(*sig_info[SIGSEGV])(SIGSEGV, regs);
+				}
 				else handle_segv(pid, regs);
 				break;
 			case SIGTRAP + 0x80:
@@ -322,11 +335,13 @@ void userspace(union uml_pt_regs *regs)
 			case SIGBUS:
 			case SIGFPE:
 			case SIGWINCH:
-				user_signal(WSTOPSIG(status), regs, pid);
+				block_signals();
+				(*sig_info[sig])(sig, regs);
+				unblock_signals();
 				break;
 			default:
 			        printk("userspace - child stopped with signal "
-				       "%d\n", WSTOPSIG(status));
+				       "%d\n", sig);
 			}
 			pid = userspace_pid[0];
 			interrupt_end();
@@ -338,11 +353,29 @@ void userspace(union uml_pt_regs *regs)
 	}
 }
 
+static unsigned long thread_regs[MAX_REG_NR];
+static unsigned long thread_fp_regs[HOST_FP_SIZE];
+
+static int __init init_thread_regs(void)
+{
+	get_safe_registers(thread_regs, thread_fp_regs);
+	/* Set parent's instruction pointer to start of clone-stub */
+	thread_regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
+				(unsigned long) stub_clone_handler -
+				(unsigned long) &__syscall_stub_start;
+	thread_regs[REGS_SP_INDEX] = UML_CONFIG_STUB_DATA + PAGE_SIZE -
+		sizeof(void *);
+#ifdef __SIGNAL_FRAMESIZE
+	thread_regs[REGS_SP_INDEX] -= __SIGNAL_FRAMESIZE;
+#endif
+	return 0;
+}
+
+__initcall(init_thread_regs);
+
 int copy_context_skas0(unsigned long new_stack, int pid)
 {
 	int err;
-	unsigned long regs[MAX_REG_NR];
-	unsigned long fp_regs[HOST_FP_SIZE];
 	unsigned long current_stack = current_stub_stack();
 	struct stub_data *data = (struct stub_data *) current_stack;
 	struct stub_data *child_data = (struct stub_data *) new_stack;
@@ -357,23 +390,12 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 				      .timer    = ((struct itimerval)
 					            { { 0, 1000000 / hz() },
 						      { 0, 1000000 / hz() }})});
-	get_safe_registers(regs, fp_regs);
-
-	/* Set parent's instruction pointer to start of clone-stub */
-	regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
-				(unsigned long) stub_clone_handler -
-				(unsigned long) &__syscall_stub_start;
-	regs[REGS_SP_INDEX] = UML_CONFIG_STUB_DATA + PAGE_SIZE -
-		sizeof(void *);
-#ifdef __SIGNAL_FRAMESIZE
-	regs[REGS_SP_INDEX] -= __SIGNAL_FRAMESIZE;
-#endif
-	err = ptrace_setregs(pid, regs);
+	err = ptrace_setregs(pid, thread_regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETREGS failed, "
 		      "pid = %d, errno = %d\n", pid, -err);
 
-	err = ptrace_setfpregs(pid, fp_regs);
+	err = ptrace_setfpregs(pid, thread_fp_regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETFPREGS failed, "
 		      "pid = %d, errno = %d\n", pid, -err);
@@ -384,7 +406,11 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	/* Wait, until parent has finished its work: read child's pid from
 	 * parent's stack, and check, if bad result.
 	 */
-	wait_stub_done(pid, 0, "copy_context_skas0");
+	err = ptrace(PTRACE_CONT, pid, 0, 0);
+	if(err)
+		panic("Failed to continue new process, pid = %d, "
+		      "errno = %d\n", pid, errno);
+	wait_stub_done(pid);
 
 	pid = data->err;
 	if(pid < 0)
@@ -394,7 +420,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	/* Wait, until child has finished too: read child's result from
 	 * child's stack and check it.
 	 */
-	wait_stub_done(pid, -1, "copy_context_skas0");
+	wait_stub_done(pid);
 	if (child_data->err != UML_CONFIG_STUB_DATA)
 		panic("copy_context_skas0 - stub-child reports error %ld\n",
 		      child_data->err);

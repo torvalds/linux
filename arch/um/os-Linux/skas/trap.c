@@ -64,20 +64,3 @@ void sig_handler_common_skas(int sig, void *sc_ptr)
 	errno = save_errno;
 	r->skas.is_user = save_user;
 }
-
-extern int ptrace_faultinfo;
-
-void user_signal(int sig, union uml_pt_regs *regs, int pid)
-{
-	void (*handler)(int, union uml_pt_regs *);
-	int segv = ((sig == SIGFPE) || (sig == SIGSEGV) || (sig == SIGBUS) ||
-		    (sig == SIGILL) || (sig == SIGTRAP));
-
-	if (segv)
-		get_skas_faultinfo(pid, &regs->skas.faultinfo);
-
-	handler = sig_info[sig];
-	handler(sig, (union uml_pt_regs *) regs);
-
-	unblock_signals();
-}

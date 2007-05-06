@@ -300,13 +300,12 @@ extern long syscall_stub_data(struct mm_id * mm_idp,
 			      unsigned long *data, int data_count,
 			      void **addr, void **stub_addr);
 extern int map(struct mm_id * mm_idp, unsigned long virt,
-	       unsigned long len, int r, int w, int x, int phys_fd,
+	       unsigned long len, int prot, int phys_fd,
 	       unsigned long long offset, int done, void **data);
 extern int unmap(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
 		 int done, void **data);
 extern int protect(struct mm_id * mm_idp, unsigned long addr,
-		   unsigned long len, int r, int w, int x, int done,
-		   void **data);
+		   unsigned long len, unsigned int prot, int done, void **data);
 
 /* skas/process.c */
 extern int is_skas_winch(int pid, int fd, void *data);
@@ -342,7 +341,6 @@ extern void maybe_sigio_broken(int fd, int read);
 
 /* skas/trap */
 extern void sig_handler_common_skas(int sig, void *sc_ptr);
-extern void user_signal(int sig, union uml_pt_regs *regs, int pid);
 
 /* sys-x86_64/prctl.c */
 extern int os_arch_prctl(int pid, int code, unsigned long *addr);
