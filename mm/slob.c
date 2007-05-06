@@ -21,7 +21,7 @@
  *
  * SLAB is emulated on top of SLOB by simply calling constructors and
  * destructors for every SLAB allocation. Objects are returned with
- * the 8-byte alignment unless the SLAB_MUST_HWCACHE_ALIGN flag is
+ * the 8-byte alignment unless the SLAB_HWCACHE_ALIGN flag is
  * set, in which case the low-level allocator will fragment blocks to
  * create the proper alignment. Again, objects of page-size or greater
  * are allocated by calling __get_free_pages. As SLAB objects know
@@ -295,7 +295,7 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		c->ctor = ctor;
 		c->dtor = dtor;
 		/* ignore alignment unless it's forced */
-		c->align = (flags & SLAB_MUST_HWCACHE_ALIGN) ? SLOB_ALIGN : 0;
+		c->align = (flags & SLAB_HWCACHE_ALIGN) ? SLOB_ALIGN : 0;
 		if (c->align < align)
 			c->align = align;
 	} else if (flags & SLAB_PANIC)

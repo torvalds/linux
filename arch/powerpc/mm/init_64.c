@@ -183,8 +183,7 @@ void pgtable_cache_init(void)
 		    "for size: %08x...\n", name, i, size);
 		pgtable_cache[i] = kmem_cache_create(name,
 						     size, size,
-						     SLAB_HWCACHE_ALIGN |
-						     SLAB_MUST_HWCACHE_ALIGN,
+						     SLAB_HWCACHE_ALIGN,
 						     zero_ctor,
 						     NULL);
 		if (! pgtable_cache[i])
