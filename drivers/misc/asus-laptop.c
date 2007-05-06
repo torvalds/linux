@@ -936,7 +936,7 @@ static int asus_hotk_get_info(void)
 
 	/* There is a lot of models with "ALSL", but a few get
 	   a real light sens, so we need to check it. */
-	if (ASUS_HANDLE_INIT(ls_switch))
+	if (!ASUS_HANDLE_INIT(ls_switch))
 		ASUS_HANDLE_INIT(ls_level);
 
 	ASUS_HANDLE_INIT(gps_on);
