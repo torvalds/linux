@@ -86,7 +86,6 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	if (data->frozen) {
 		mutex_lock(&pm_mutex);
 		thaw_processes();
-		enable_nonboot_cpus();
 		mutex_unlock(&pm_mutex);
 	}
 	atomic_inc(&snapshot_device_available);
