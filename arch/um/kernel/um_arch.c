@@ -17,6 +17,7 @@
 #include "linux/seq_file.h"
 #include "linux/delay.h"
 #include "linux/module.h"
+#include "linux/utsname.h"
 #include "asm/page.h"
 #include "asm/pgtable.h"
 #include "asm/ptrace.h"
@@ -66,6 +67,9 @@ unsigned long thread_saved_pc(struct task_struct *task)
 	return os_process_pc(CHOOSE_MODE_PROC(thread_pid_tt, thread_pid_skas,
 					      task));
 }
+
+/* Changed in setup_arch, which is called in early boot */
+static char host_info[(__NEW_UTS_LEN + 1) * 5];
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
@@ -482,7 +486,7 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
-	setup_hostinfo();
+	setup_hostinfo(host_info, sizeof host_info);
 }
 
 void __init check_bugs(void)

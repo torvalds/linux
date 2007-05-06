@@ -96,15 +96,13 @@ void setup_machinename(char *machine_out)
 	strcpy(machine_out, host.machine);
 }
 
-char host_info[(_UTSNAME_LENGTH + 1) * 4 + _UTSNAME_NODENAME_LENGTH + 1];
-
-void setup_hostinfo(void)
+void setup_hostinfo(char *buf, int len)
 {
 	struct utsname host;
 
 	uname(&host);
-	sprintf(host_info, "%s %s %s %s %s", host.sysname, host.nodename,
-		host.release, host.version, host.machine);
+	snprintf(buf, len, "%s %s %s %s %s", host.sysname, host.nodename,
+		 host.release, host.version, host.machine);
 }
 
 int setjmp_wrapper(void (*proc)(void *, void *), ...)
