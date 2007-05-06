@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/pm.h>
 #include <linux/device.h>
+#include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/syscalls.h>
 #include <linux/console.h>
@@ -33,6 +34,10 @@
 #include <asm/io.h>
 
 #include "power.h"
+
+static int swsusp_page_is_free(struct page *);
+static void swsusp_set_page_forbidden(struct page *);
+static void swsusp_unset_page_forbidden(struct page *);
 
 /* List of PBEs needed for restoring the pages that were allocated before
  * the suspend and included in the suspend image, but have also been
@@ -224,11 +229,6 @@ static void chain_free(struct chain_allocator *ca, int clear_page_nosave)
  *	of type unsigned long each).  It also contains the pfns that
  *	correspond to the start and end of the represented memory area and
  *	the number of bit chunks in the block.
- *
- *	NOTE: Memory bitmaps are used for two types of operations only:
- *	"set a bit" and "find the next bit set".  Moreover, the searching
- *	is always carried out after all of the "set a bit" operations
- *	on given bitmap.
  */
 
 #define BM_END_OF_MAP	(~0UL)
@@ -443,15 +443,13 @@ static void memory_bm_free(struct memory_bitmap *bm, int clear_nosave_free)
 }
 
 /**
- *	memory_bm_set_bit - set the bit in the bitmap @bm that corresponds
+ *	memory_bm_find_bit - find the bit in the bitmap @bm that corresponds
  *	to given pfn.  The cur_zone_bm member of @bm and the cur_block member
  *	of @bm->cur_zone_bm are updated.
- *
- *	If the bit cannot be set, the function returns -EINVAL .
  */
 
-static int
-memory_bm_set_bit(struct memory_bitmap *bm, unsigned long pfn)
+static void memory_bm_find_bit(struct memory_bitmap *bm, unsigned long pfn,
+				void **addr, unsigned int *bit_nr)
 {
 	struct zone_bitmap *zone_bm;
 	struct bm_block *bb;
@@ -463,8 +461,8 @@ memory_bm_set_bit(struct memory_bitmap *bm, unsigned long pfn)
 		/* We don't assume that the zones are sorted by pfns */
 		while (pfn < zone_bm->start_pfn || pfn >= zone_bm->end_pfn) {
 			zone_bm = zone_bm->next;
-			if (unlikely(!zone_bm))
-				return -EINVAL;
+
+			BUG_ON(!zone_bm);
 		}
 		bm->cur.zone_bm = zone_bm;
 	}
@@ -475,13 +473,40 @@ memory_bm_set_bit(struct memory_bitmap *bm, unsigned long pfn)
 
 	while (pfn >= bb->end_pfn) {
 		bb = bb->next;
-		if (unlikely(!bb))
-			return -EINVAL;
+
+		BUG_ON(!bb);
 	}
 	zone_bm->cur_block = bb;
 	pfn -= bb->start_pfn;
-	set_bit(pfn % BM_BITS_PER_CHUNK, bb->data + pfn / BM_BITS_PER_CHUNK);
-	return 0;
+	*bit_nr = pfn % BM_BITS_PER_CHUNK;
+	*addr = bb->data + pfn / BM_BITS_PER_CHUNK;
+}
+
+static void memory_bm_set_bit(struct memory_bitmap *bm, unsigned long pfn)
+{
+	void *addr;
+	unsigned int bit;
+
+	memory_bm_find_bit(bm, pfn, &addr, &bit);
+	set_bit(bit, addr);
+}
+
+static void memory_bm_clear_bit(struct memory_bitmap *bm, unsigned long pfn)
+{
+	void *addr;
+	unsigned int bit;
+
+	memory_bm_find_bit(bm, pfn, &addr, &bit);
+	clear_bit(bit, addr);
+}
+
+static int memory_bm_test_bit(struct memory_bitmap *bm, unsigned long pfn)
+{
+	void *addr;
+	unsigned int bit;
+
+	memory_bm_find_bit(bm, pfn, &addr, &bit);
+	return test_bit(bit, addr);
 }
 
 /* Two auxiliary functions for memory_bm_next_pfn */
@@ -561,6 +586,199 @@ static unsigned long memory_bm_next_pfn(struct memory_bitmap *bm)
 	bm->cur.chunk = chunk;
 	bm->cur.bit = bit;
 	return bb->start_pfn + chunk * BM_BITS_PER_CHUNK + bit;
+}
+
+/**
+ *	This structure represents a range of page frames the contents of which
+ *	should not be saved during the suspend.
+ */
+
+struct nosave_region {
+	struct list_head list;
+	unsigned long start_pfn;
+	unsigned long end_pfn;
+};
+
+static LIST_HEAD(nosave_regions);
+
+/**
+ *	register_nosave_region - register a range of page frames the contents
+ *	of which should not be saved during the suspend (to be used in the early
+ *	initialization code)
+ */
+
+void __init
+register_nosave_region(unsigned long start_pfn, unsigned long end_pfn)
+{
+	struct nosave_region *region;
+
+	if (start_pfn >= end_pfn)
+		return;
+
+	if (!list_empty(&nosave_regions)) {
+		/* Try to extend the previous region (they should be sorted) */
+		region = list_entry(nosave_regions.prev,
+					struct nosave_region, list);
+		if (region->end_pfn == start_pfn) {
+			region->end_pfn = end_pfn;
+			goto Report;
+		}
+	}
+	/* This allocation cannot fail */
+	region = alloc_bootmem_low(sizeof(struct nosave_region));
+	region->start_pfn = start_pfn;
+	region->end_pfn = end_pfn;
+	list_add_tail(&region->list, &nosave_regions);
+ Report:
+	printk("swsusp: Registered nosave memory region: %016lx - %016lx\n",
+		start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
+}
+
+/*
+ * Set bits in this map correspond to the page frames the contents of which
+ * should not be saved during the suspend.
+ */
+static struct memory_bitmap *forbidden_pages_map;
+
+/* Set bits in this map correspond to free page frames. */
+static struct memory_bitmap *free_pages_map;
+
+/*
+ * Each page frame allocated for creating the image is marked by setting the
+ * corresponding bits in forbidden_pages_map and free_pages_map simultaneously
+ */
+
+void swsusp_set_page_free(struct page *page)
+{
+	if (free_pages_map)
+		memory_bm_set_bit(free_pages_map, page_to_pfn(page));
+}
+
+static int swsusp_page_is_free(struct page *page)
+{
+	return free_pages_map ?
+		memory_bm_test_bit(free_pages_map, page_to_pfn(page)) : 0;
+}
+
+void swsusp_unset_page_free(struct page *page)
+{
+	if (free_pages_map)
+		memory_bm_clear_bit(free_pages_map, page_to_pfn(page));
+}
+
+static void swsusp_set_page_forbidden(struct page *page)
+{
+	if (forbidden_pages_map)
+		memory_bm_set_bit(forbidden_pages_map, page_to_pfn(page));
+}
+
+int swsusp_page_is_forbidden(struct page *page)
+{
+	return forbidden_pages_map ?
+		memory_bm_test_bit(forbidden_pages_map, page_to_pfn(page)) : 0;
+}
+
+static void swsusp_unset_page_forbidden(struct page *page)
+{
+	if (forbidden_pages_map)
+		memory_bm_clear_bit(forbidden_pages_map, page_to_pfn(page));
+}
+
+/**
+ *	mark_nosave_pages - set bits corresponding to the page frames the
+ *	contents of which should not be saved in a given bitmap.
+ */
+
+static void mark_nosave_pages(struct memory_bitmap *bm)
+{
+	struct nosave_region *region;
+
+	if (list_empty(&nosave_regions))
+		return;
+
+	list_for_each_entry(region, &nosave_regions, list) {
+		unsigned long pfn;
+
+		printk("swsusp: Marking nosave pages: %016lx - %016lx\n",
+				region->start_pfn << PAGE_SHIFT,
+				region->end_pfn << PAGE_SHIFT);
+
+		for (pfn = region->start_pfn; pfn < region->end_pfn; pfn++)
+			memory_bm_set_bit(bm, pfn);
+	}
+}
+
+/**
+ *	create_basic_memory_bitmaps - create bitmaps needed for marking page
+ *	frames that should not be saved and free page frames.  The pointers
+ *	forbidden_pages_map and free_pages_map are only modified if everything
+ *	goes well, because we don't want the bits to be used before both bitmaps
+ *	are set up.
+ */
+
+int create_basic_memory_bitmaps(void)
+{
+	struct memory_bitmap *bm1, *bm2;
+	int error = 0;
+
+	BUG_ON(forbidden_pages_map || free_pages_map);
+
+	bm1 = kzalloc(sizeof(struct memory_bitmap), GFP_ATOMIC);
+	if (!bm1)
+		return -ENOMEM;
+
+	error = memory_bm_create(bm1, GFP_ATOMIC | __GFP_COLD, PG_ANY);
+	if (error)
+		goto Free_first_object;
+
+	bm2 = kzalloc(sizeof(struct memory_bitmap), GFP_ATOMIC);
+	if (!bm2)
+		goto Free_first_bitmap;
+
+	error = memory_bm_create(bm2, GFP_ATOMIC | __GFP_COLD, PG_ANY);
+	if (error)
+		goto Free_second_object;
+
+	forbidden_pages_map = bm1;
+	free_pages_map = bm2;
+	mark_nosave_pages(forbidden_pages_map);
+
+	printk("swsusp: Basic memory bitmaps created\n");
+
+	return 0;
+
+ Free_second_object:
+	kfree(bm2);
+ Free_first_bitmap:
+ 	memory_bm_free(bm1, PG_UNSAFE_CLEAR);
+ Free_first_object:
+	kfree(bm1);
+	return -ENOMEM;
+}
+
+/**
+ *	free_basic_memory_bitmaps - free memory bitmaps allocated by
+ *	create_basic_memory_bitmaps().  The auxiliary pointers are necessary
+ *	so that the bitmaps themselves are not referred to while they are being
+ *	freed.
+ */
+
+void free_basic_memory_bitmaps(void)
+{
+	struct memory_bitmap *bm1, *bm2;
+
+	BUG_ON(!(forbidden_pages_map && free_pages_map));
+
+	bm1 = forbidden_pages_map;
+	bm2 = free_pages_map;
+	forbidden_pages_map = NULL;
+	free_pages_map = NULL;
+	memory_bm_free(bm1, PG_UNSAFE_CLEAR);
+	kfree(bm1);
+	memory_bm_free(bm2, PG_UNSAFE_CLEAR);
+	kfree(bm2);
+
+	printk("swsusp: Basic memory bitmaps freed\n");
 }
 
 /**

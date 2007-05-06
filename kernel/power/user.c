@@ -52,6 +52,9 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	if ((filp->f_flags & O_ACCMODE) == O_RDWR)
 		return -ENOSYS;
 
+	if(create_basic_memory_bitmaps())
+		return -ENOMEM;
+
 	nonseekable_open(inode, filp);
 	data = &snapshot_state;
 	filp->private_data = data;
@@ -77,6 +80,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	struct snapshot_data *data;
 
 	swsusp_free();
+	free_basic_memory_bitmaps();
 	data = filp->private_data;
 	free_all_swap_pages(data->swap, data->bitmap);
 	free_bitmap(data->bitmap);

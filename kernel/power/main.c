@@ -244,6 +244,7 @@ static int enter_state(suspend_state_t state)
 	return error;
 }
 
+#ifdef CONFIG_SOFTWARE_SUSPEND
 /*
  * This is main interface to the outside world. It needs to be
  * called from process context.
@@ -252,6 +253,7 @@ int software_suspend(void)
 {
 	return enter_state(PM_SUSPEND_DISK);
 }
+#endif
 
 
 /**

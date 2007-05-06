@@ -139,14 +139,19 @@ int pm_suspend_disk(void)
 		mdelay(5000);
 		goto Thaw;
 	}
-	/* Free memory before shutting down devices. */
-	error = swsusp_shrink_memory();
+	/* Allocate memory management structures */
+	error = create_basic_memory_bitmaps();
 	if (error)
 		goto Thaw;
 
+	/* Free memory before shutting down devices. */
+	error = swsusp_shrink_memory();
+	if (error)
+		goto Finish;
+
 	error = platform_prepare();
 	if (error)
-		goto Thaw;
+		goto Finish;
 
 	suspend_console();
 	error = device_suspend(PMSG_FREEZE);
@@ -181,7 +186,7 @@ int pm_suspend_disk(void)
 			power_down();
 		else {
 			swsusp_free();
-			goto Thaw;
+			goto Finish;
 		}
 	} else {
 		pr_debug("PM: Image restored successfully.\n");
@@ -194,6 +199,8 @@ int pm_suspend_disk(void)
 	platform_finish();
 	device_resume();
 	resume_console();
+ Finish:
+	free_basic_memory_bitmaps();
  Thaw:
 	unprepare_processes();
 	return error;
@@ -239,13 +246,15 @@ static int software_resume(void)
 	}
 
 	pr_debug("PM: Checking swsusp image.\n");
-
 	error = swsusp_check();
 	if (error)
-		goto Done;
+		goto Unlock;
+
+	error = create_basic_memory_bitmaps();
+	if (error)
+		goto Unlock;
 
 	pr_debug("PM: Preparing processes for restore.\n");
-
 	error = prepare_processes();
 	if (error) {
 		swsusp_close();
@@ -280,7 +289,9 @@ static int software_resume(void)
 	printk(KERN_ERR "PM: Restore failed, recovering.\n");
 	unprepare_processes();
  Done:
+	free_basic_memory_bitmaps();
 	/* For success case, the suspend path will release the lock */
+ Unlock:
 	mutex_unlock(&pm_mutex);
 	pr_debug("PM: Resume from disk failed.\n");
 	return 0;
