@@ -31,12 +31,13 @@
 	mov.l	er0,@-sp
 
 	stc	ccr,r0l				/* check kernel mode */
-	orc	#0x10,ccr
 	btst	#4,r0l
 	bne	5f
 
-	mov.l	sp,@SYMBOL_NAME(sw_usp)		/* user mode */
-	mov.l	@sp,er0
+	/* user mode */
+	mov.l	sp,@SYMBOL_NAME(sw_usp)
+	mov.l	@sp,er0				/* restore saved er0 */
+	orc	#0x10,ccr			/* switch kernel stack */
 	mov.l	@SYMBOL_NAME(sw_ksp),sp
 	sub.l	#(LRET-LORIG),sp		/* allocate LORIG - LRET */ 
 	stm.l	er0-er3,@-sp
@@ -55,8 +56,9 @@
 	mov.l	er0,@(LER0-LER3:16,sp)		/* copy ER0 */
 	bra	6f
 5:
-	mov.l	@sp,er0				/* kernel mode */
-	subs	#2,sp				/* dummy ccr */
+	/* kernel mode */
+	mov.l	@sp,er0				/* restore saved er0 */
+	subs	#2,sp				/* set dummy ccr */
 	stm.l	er0-er3,@-sp
 	mov.w	@(LRET-LER3:16,sp),r1		/* copy old ccr */
 	mov.b	r1h,r1l
@@ -94,6 +96,7 @@
 	mov.l	@sp+,er1
 	add.l	#(LRET-LER1),sp			/* remove LORIG - LRET */ 
 	mov.l	sp,@SYMBOL_NAME(sw_ksp)
+	andc	#0xef,ccr			/* switch to user mode */
 	mov.l	er0,sp
 	bra	8f
 7:
@@ -173,9 +176,6 @@ SYMBOL_NAME_LABEL(interrupt_entry)
 SYMBOL_NAME_LABEL(system_call)
 	subs	#4,sp				/* dummy LVEC */
 	SAVE_ALL
-	mov.w	@(LCCR:16,sp),r1
-	bset	#4,r1l
-	ldc	r1l,ccr				/* restore ccr */
 	mov.l	er0,er4
 	mov.l	#-ENOSYS,er0
 	mov.l	er0,@(LER0:16,sp)
@@ -198,6 +198,7 @@ SYMBOL_NAME_LABEL(system_call)
 	mov.l	@(LER1:16,sp),er0
 	mov.l	@(LER2:16,sp),er1
 	mov.l	@(LER3:16,sp),er2
+	andc	#0x7f,ccr
 	jsr	@er4
 	mov.l	er0,@(LER0:16,sp)			/* save the return value */
 #if defined(CONFIG_SYSCALL_PRINT)
