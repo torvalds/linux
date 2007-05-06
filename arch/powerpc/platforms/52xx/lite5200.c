@@ -85,6 +85,28 @@ error:
 	iounmap(gpio);
 }
 
+#ifdef CONFIG_PM
+static u32 descr_a;
+static void lite5200_suspend_prepare(void __iomem *mbar)
+{
+	u8 pin = 1;	/* GPIO_WKUP_1 (GPIO_PSC2_4) */
+	u8 level = 0;	/* wakeup on low level */
+	mpc52xx_set_wakeup_gpio(pin, level);
+
+	/*
+	 * power down usb port
+	 * this needs to be called before of-ohci suspend code
+	 */
+	descr_a = in_be32(mbar + 0x1048);
+	out_be32(mbar + 0x1048, (descr_a & ~0x200) | 0x100);
+}
+
+static void lite5200_resume_finish(void __iomem *mbar)
+{
+	out_be32(mbar + 0x1048, descr_a);
+}
+#endif
+
 static void __init lite5200_setup_arch(void)
 {
 	struct device_node *np;
@@ -106,6 +128,12 @@ static void __init lite5200_setup_arch(void)
 	/* CPU & Port mux setup */
 	mpc52xx_setup_cpu();	/* Generic */
 	lite5200_setup_cpu();	/* Platorm specific */
+
+#ifdef CONFIG_PM
+	mpc52xx_suspend.board_suspend_prepare = lite5200_suspend_prepare;
+	mpc52xx_suspend.board_resume_finish = lite5200_resume_finish;
+	mpc52xx_pm_init();
+#endif
 
 #ifdef CONFIG_PCI
 	np = of_find_node_by_type(NULL, "pci");

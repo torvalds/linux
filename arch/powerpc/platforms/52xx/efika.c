@@ -184,6 +184,16 @@ static void efika_show_cpuinfo(struct seq_file *m)
 	of_node_put(root);
 }
 
+#ifdef CONFIG_PM
+static void efika_suspend_prepare(void __iomem *mbar)
+{
+	u8 pin = 4;	/* GPIO_WKUP_4 (GPIO_PSC6_0 - IRDA_RX) */
+	u8 level = 1;	/* wakeup on high level */
+	/* IOW. to wake it up, short pins 1 and 3 on IRDA connector */
+	mpc52xx_set_wakeup_gpio(pin, level);
+}
+#endif
+
 static void __init efika_setup_arch(void)
 {
 	rtas_initialize();
@@ -198,6 +208,11 @@ static void __init efika_setup_arch(void)
 		ROOT_DEV = Root_SDA2;	/* sda2 (sda1 is for the kernel) */
 
 	efika_pcisetup();
+
+#ifdef CONFIG_PM
+	mpc52xx_suspend.board_suspend_prepare = efika_suspend_prepare;
+	mpc52xx_pm_init();
+#endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("Linux/PPC " UTS_RELEASE " running on Efika ;-)\n", 0x0);
