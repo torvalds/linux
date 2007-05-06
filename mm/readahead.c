@@ -37,7 +37,7 @@ void
 file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping)
 {
 	ra->ra_pages = mapping->backing_dev_info->ra_pages;
-	ra->prev_page = -1;
+	ra->prev_index = -1;
 }
 EXPORT_SYMBOL_GPL(file_ra_state_init);
 
@@ -202,19 +202,19 @@ out:
  * size:	Number of pages in that read
  *              Together, these form the "current window".
  *              Together, start and size represent the `readahead window'.
- * prev_page:   The page which the readahead algorithm most-recently inspected.
+ * prev_index:  The page which the readahead algorithm most-recently inspected.
  *              It is mainly used to detect sequential file reading.
  *              If page_cache_readahead sees that it is again being called for
  *              a page which it just looked at, it can return immediately without
  *              making any state changes.
- * offset:      Offset in the prev_page where the last read ended - used for
+ * offset:      Offset in the prev_index where the last read ended - used for
  *              detection of sequential file reading.
  * ahead_start,
  * ahead_size:  Together, these form the "ahead window".
  * ra_pages:	The externally controlled max readahead for this fd.
  *
  * When readahead is in the off state (size == 0), readahead is disabled.
- * In this state, prev_page is used to detect the resumption of sequential I/O.
+ * In this state, prev_index is used to detect the resumption of sequential I/O.
  *
  * The readahead code manages two windows - the "current" and the "ahead"
  * windows.  The intent is that while the application is walking the pages
@@ -417,7 +417,7 @@ static int make_ahead_window(struct address_space *mapping, struct file *filp,
 	ra->ahead_size = get_next_ra_size(ra);
 	ra->ahead_start = ra->start + ra->size;
 
-	block = force || (ra->prev_page >= ra->ahead_start);
+	block = force || (ra->prev_index >= ra->ahead_start);
 	ret = blockable_page_cache_readahead(mapping, filp,
 			ra->ahead_start, ra->ahead_size, ra, block);
 
@@ -469,13 +469,13 @@ page_cache_readahead(struct address_space *mapping, struct file_ra_state *ra,
 	 * We avoid doing extra work and bogusly perturbing the readahead
 	 * window expansion logic.
 	 */
-	if (offset == ra->prev_page && --req_size)
+	if (offset == ra->prev_index && --req_size)
 		++offset;
 
-	/* Note that prev_page == -1 if it is a first read */
-	sequential = (offset == ra->prev_page + 1);
-	ra->prev_page = offset;
-	ra->offset = 0;
+	/* Note that prev_index == -1 if it is a first read */
+	sequential = (offset == ra->prev_index + 1);
+	ra->prev_index = offset;
+	ra->prev_offset = 0;
 
 	max = get_max_readahead(ra);
 	newsize = min(req_size, max);
@@ -484,7 +484,7 @@ page_cache_readahead(struct address_space *mapping, struct file_ra_state *ra,
 	if (newsize == 0 || (ra->flags & RA_FLAG_INCACHE))
 		goto out;
 
-	ra->prev_page += newsize - 1;
+	ra->prev_index += newsize - 1;
 
 	/*
 	 * Special case - first read at start of file. We'll assume it's
@@ -540,18 +540,18 @@ page_cache_readahead(struct address_space *mapping, struct file_ra_state *ra,
 	 * we get called back on the first page of the ahead window which
 	 * will allow us to submit more IO.
 	 */
-	if (ra->prev_page >= ra->ahead_start) {
+	if (ra->prev_index >= ra->ahead_start) {
 		ra->start = ra->ahead_start;
 		ra->size = ra->ahead_size;
 		make_ahead_window(mapping, filp, ra, 0);
 recheck:
-		/* prev_page shouldn't overrun the ahead window */
-		ra->prev_page = min(ra->prev_page,
+		/* prev_index shouldn't overrun the ahead window */
+		ra->prev_index = min(ra->prev_index,
 			ra->ahead_start + ra->ahead_size - 1);
 	}
 
 out:
-	return ra->prev_page + 1;
+	return ra->prev_index + 1;
 }
 EXPORT_SYMBOL_GPL(page_cache_readahead);
 
