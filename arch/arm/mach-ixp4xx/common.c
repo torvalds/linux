@@ -105,6 +105,29 @@ static signed char irq2gpio[32] = {
 	 7,  8,  9, 10, 11, 12, -1, -1,
 };
 
+int gpio_to_irq(int gpio)
+{
+	int irq;
+
+	for (irq = 0; irq < 32; irq++) {
+		if (irq2gpio[irq] == gpio)
+			return irq;
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(gpio_to_irq);
+
+int irq_to_gpio(int irq)
+{
+	int gpio = (irq < 32) ? irq2gpio[irq] : -EINVAL;
+
+	if (gpio == -1)
+		return -EINVAL;
+
+	return gpio;
+}
+EXPORT_SYMBOL(irq_to_gpio);
+
 static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 {
 	int line = irq2gpio[irq];
@@ -172,7 +195,7 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 
 static void ixp4xx_irq_mask(unsigned int irq)
 {
-	if (cpu_is_ixp46x() && irq >= 32)
+	if ((cpu_is_ixp46x() || cpu_is_ixp43x()) && irq >= 32)
 		*IXP4XX_ICMR2 &= ~(1 << (irq - 32));
 	else
 		*IXP4XX_ICMR &= ~(1 << irq);
@@ -195,7 +218,7 @@ static void ixp4xx_irq_unmask(unsigned int irq)
 	if (!(ixp4xx_irq_edge & (1 << irq)))
 		ixp4xx_irq_ack(irq);
 
-	if (cpu_is_ixp46x() && irq >= 32)
+	if ((cpu_is_ixp46x() || cpu_is_ixp43x()) && irq >= 32)
 		*IXP4XX_ICMR2 |= (1 << (irq - 32));
 	else
 		*IXP4XX_ICMR |= (1 << irq);
@@ -219,7 +242,7 @@ void __init ixp4xx_init_irq(void)
 	/* Disable all interrupt */
 	*IXP4XX_ICMR = 0x0; 
 
-	if (cpu_is_ixp46x()) {
+	if (cpu_is_ixp46x() || cpu_is_ixp43x()) {
 		/* Route upper 32 sources to IRQ instead of FIQ */
 		*IXP4XX_ICLR2 = 0x00;
 

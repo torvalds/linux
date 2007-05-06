@@ -61,7 +61,7 @@ extern int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data);
 static inline void __iomem *
 __ixp4xx_ioremap(unsigned long addr, size_t size, unsigned int mtype)
 {
-	if((addr < 0x48000000) || (addr > 0x4fffffff))
+	if((addr < PCIBIOS_MIN_MEM) || (addr > 0x4fffffff))
 		return __arm_ioremap(addr, size, mtype);
 
 	return (void *)addr;
