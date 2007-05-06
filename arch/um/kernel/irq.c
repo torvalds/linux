@@ -78,6 +78,14 @@ skip:
 	return 0;
 }
 
+/*
+ * This list is accessed under irq_lock, except in sigio_handler,
+ * where it is safe from being modified.  IRQ handlers won't change it -
+ * if an IRQ source has vanished, it will be freed by free_irqs just
+ * before returning from sigio_handler.  That will process a separate
+ * list of irqs to free, with its own locking, coming back here to
+ * remove list elements, taking the irq_lock to do so.
+ */
 static struct irq_fd *active_fds = NULL;
 static struct irq_fd **last_irq_ptr = &active_fds;
 
@@ -243,6 +251,7 @@ void free_irq_by_fd(int fd)
 	free_irq_by_cb(same_fd, &fd);
 }
 
+/* Must be called with irq_lock held */
 static struct irq_fd *find_irq_by_fd(int fd, int irqnum, int *index_out)
 {
 	struct irq_fd *irq;
@@ -308,6 +317,12 @@ void deactivate_fd(int fd, int irqnum)
 	ignore_sigio_fd(fd);
 }
 
+/*
+ * Called just before shutdown in order to provide a clean exec
+ * environment in case the system is rebooting.  No locking because
+ * that would cause a pointless shutdown hang if something hadn't
+ * released the lock.
+ */
 int deactivate_all_fds(void)
 {
 	struct irq_fd *irq;
