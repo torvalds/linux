@@ -26,8 +26,10 @@ int set_radix_bit(struct radix_tree_root *radix, unsigned long bit)
 		if (ret)
 			return ret;
 	}
-	set_bit(bit_slot, bits + 1);
-	return 0;
+	ret = test_and_set_bit(bit_slot, bits + 1);
+	if (ret < 0)
+		ret = 1;
+	return ret;
 }
 
 int test_radix_bit(struct radix_tree_root *radix, unsigned long bit)

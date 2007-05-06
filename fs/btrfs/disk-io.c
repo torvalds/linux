@@ -554,6 +554,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
 	INIT_RADIX_TREE(&fs_info->dev_radix, GFP_NOFS);
 	INIT_RADIX_TREE(&fs_info->block_group_radix, GFP_KERNEL);
+	INIT_RADIX_TREE(&fs_info->block_group_data_radix, GFP_KERNEL);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	sb_set_blocksize(sb, 4096);
 	fs_info->running_transaction = NULL;
@@ -582,7 +583,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	}
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
-	fs_info->block_group_cache = NULL;
 
 	__setup_root(sb->s_blocksize, dev_root,
 		     fs_info, BTRFS_DEV_TREE_OBJECTID);

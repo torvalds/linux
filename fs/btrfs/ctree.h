@@ -257,6 +257,8 @@ struct btrfs_block_group_cache {
 	struct btrfs_block_group_item item;
 	u64 first_free;
 	u64 last_alloc;
+	u64 pinned;
+	int data;
 };
 
 struct crypto_hash;
@@ -264,12 +266,12 @@ struct btrfs_fs_info {
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
 	struct btrfs_root *dev_root;
-	struct btrfs_block_group_cache *block_group_cache;
 	struct radix_tree_root fs_roots_radix;
 	struct radix_tree_root pending_del_radix;
 	struct radix_tree_root pinned_radix;
 	struct radix_tree_root dev_radix;
 	struct radix_tree_root block_group_radix;
+	struct radix_tree_root block_group_data_radix;
 
 	u64 extent_tree_insert[BTRFS_MAX_LEVEL * 3];
 	int extent_tree_insert_nr;
@@ -1072,7 +1074,8 @@ static inline void btrfs_mark_buffer_dirty(struct buffer_head *bh)
 /* extent-tree.c */
 struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 						 struct btrfs_block_group_cache
-						 *hint, int data);
+						 *hint, u64 search_start,
+						 int data);
 int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,

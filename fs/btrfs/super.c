@@ -811,7 +811,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		return ERR_PTR(-ENOMEM);
 
 	BTRFS_I(inode)->root = root;
-	group = btrfs_find_block_group(root, group, 0);
+	group = btrfs_find_block_group(root, group, 0, 0);
 	BTRFS_I(inode)->block_group = group;
 
 	inode->i_uid = current->fsuid;
