@@ -163,3 +163,8 @@ config ZONE_DMA_FLAG
 	default "0" if !ZONE_DMA
 	default "1"
 
+config NR_QUICK
+	int
+	depends on QUICKLIST
+	default "1"
+
