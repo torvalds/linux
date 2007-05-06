@@ -90,7 +90,7 @@ static void sun3_inthandle(unsigned int irq, struct pt_regs *fp)
 
 static struct irq_controller sun3_irq_controller = {
 	.name		= "sun3",
-	.lock		= SPIN_LOCK_UNLOCKED,
+	.lock		= __SPIN_LOCK_UNLOCKED(sun3_irq_controller.lock),
 	.startup	= m68k_irq_startup,
 	.shutdown	= m68k_irq_shutdown,
 	.enable		= sun3_enable_irq,

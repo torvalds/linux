@@ -219,7 +219,7 @@ static void mac_disable_irq(unsigned int irq);
 
 static struct irq_controller mac_irq_controller = {
 	.name		= "mac",
-	.lock		= SPIN_LOCK_UNLOCKED,
+	.lock		= __SPIN_LOCK_UNLOCKED(mac_irq_controller.lock),
 	.enable		= mac_enable_irq,
 	.disable	= mac_disable_irq,
 };

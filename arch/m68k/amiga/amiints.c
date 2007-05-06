@@ -54,7 +54,7 @@ static irqreturn_t ami_int5(int irq, void *dev_id);
 
 static struct irq_controller amiga_irq_controller = {
 	.name		= "amiga",
-	.lock		= SPIN_LOCK_UNLOCKED,
+	.lock		= __SPIN_LOCK_UNLOCKED(amiga_irq_controller.lock),
 	.enable		= amiga_enable_irq,
 	.disable	= amiga_disable_irq,
 };
