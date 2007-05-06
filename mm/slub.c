@@ -133,6 +133,9 @@
  */
 #define SLUB_UNIMPLEMENTED (SLAB_DEBUG_INITIAL)
 
+/* Mininum number of partial slabs */
+#define MIN_PARTIAL 2
+
 #define DEBUG_DEFAULT_FLAGS (SLAB_DEBUG_FREE | SLAB_RED_ZONE | \
 				SLAB_POISON | SLAB_STORE_USER)
 /*
@@ -664,16 +667,8 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 /*
  * Tracking of fully allocated slabs for debugging
  */
-static void add_full(struct kmem_cache *s, struct page *page)
+static void add_full(struct kmem_cache_node *n, struct page *page)
 {
-	struct kmem_cache_node *n;
-
-	VM_BUG_ON(!irqs_disabled());
-
-	if (!(s->flags & SLAB_STORE_USER))
-		return;
-
-	n = get_node(s, page_to_nid(page));
 	spin_lock(&n->list_lock);
 	list_add(&page->lru, &n->full);
 	spin_unlock(&n->list_lock);
@@ -982,10 +977,16 @@ static __always_inline int slab_trylock(struct page *page)
 /*
  * Management of partially allocated slabs
  */
-static void add_partial(struct kmem_cache *s, struct page *page)
+static void add_partial_tail(struct kmem_cache_node *n, struct page *page)
 {
-	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+	spin_lock(&n->list_lock);
+	n->nr_partial++;
+	list_add_tail(&page->lru, &n->partial);
+	spin_unlock(&n->list_lock);
+}
 
+static void add_partial(struct kmem_cache_node *n, struct page *page)
+{
 	spin_lock(&n->list_lock);
 	n->nr_partial++;
 	list_add(&page->lru, &n->partial);
@@ -1085,7 +1086,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 		n = get_node(s, zone_to_nid(*z));
 
 		if (n && cpuset_zone_allowed_hardwall(*z, flags) &&
-				n->nr_partial > 2) {
+				n->nr_partial > MIN_PARTIAL) {
 			page = get_partial_node(n);
 			if (page)
 				return page;
@@ -1119,15 +1120,31 @@ static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
  */
 static void putback_slab(struct kmem_cache *s, struct page *page)
 {
+	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+
 	if (page->inuse) {
+
 		if (page->freelist)
-			add_partial(s, page);
-		else if (PageError(page))
-			add_full(s, page);
+			add_partial(n, page);
+		else if (PageError(page) && (s->flags & SLAB_STORE_USER))
+			add_full(n, page);
 		slab_unlock(page);
+
 	} else {
-		slab_unlock(page);
-		discard_slab(s, page);
+		if (n->nr_partial < MIN_PARTIAL) {
+			/*
+			 * Adding an empty page to the partial slabs in order
+			 * to avoid page allocator overhead. This page needs to
+			 * come after all the others that are not fully empty
+			 * in order to make sure that we do maximum
+			 * defragmentation.
+			 */
+			add_partial_tail(n, page);
+			slab_unlock(page);
+		} else {
+			slab_unlock(page);
+			discard_slab(s, page);
+		}
 	}
 }
 
@@ -1326,7 +1343,7 @@ checks_ok:
 	 * then add it.
 	 */
 	if (unlikely(!prior))
-		add_partial(s, page);
+		add_partial(get_node(s, page_to_nid(page)), page);
 
 out_unlock:
 	slab_unlock(page);
@@ -1535,7 +1552,7 @@ static struct kmem_cache_node * __init early_kmem_cache_node_alloc(gfp_t gfpflag
 	init_object(kmalloc_caches, n, 1);
 	init_kmem_cache_node(n);
 	atomic_long_inc(&n->nr_slabs);
-	add_partial(kmalloc_caches, page);
+	add_partial(n, page);
 	return n;
 }
 
