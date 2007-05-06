@@ -950,7 +950,7 @@ static int asus_hotk_add(struct acpi_device *device)
 	 * We install the handler, it will receive the hotk in parameter, so, we
 	 * could add other data to the hotk struct
 	 */
-	status = acpi_install_notify_handler(hotk->handle, ACPI_SYSTEM_NOTIFY,
+	status = acpi_install_notify_handler(hotk->handle, ACPI_ALL_NOTIFY,
 					     asus_hotk_notify, hotk);
 	if (ACPI_FAILURE(status))
 		printk(ASUS_ERR "Error installing notify handler\n");
@@ -997,7 +997,7 @@ static int asus_hotk_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	status = acpi_remove_notify_handler(hotk->handle, ACPI_SYSTEM_NOTIFY,
+	status = acpi_remove_notify_handler(hotk->handle, ACPI_ALL_NOTIFY,
 					    asus_hotk_notify);
 	if (ACPI_FAILURE(status))
 		printk(ASUS_ERR "Error removing notify handler\n");
