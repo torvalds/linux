@@ -20,6 +20,36 @@
 
 #include "skas.h"
 
+void copy_sc(union uml_pt_regs *regs, void *from)
+{
+	struct sigcontext *sc = from;
+
+#define GETREG(regs, regno, sc, regname) \
+       (regs)->skas.regs[(regno) / sizeof(unsigned long)] = (sc)->regname
+
+       GETREG(regs, R8, sc, r8);
+       GETREG(regs, R9, sc, r9);
+       GETREG(regs, R10, sc, r10);
+       GETREG(regs, R11, sc, r11);
+       GETREG(regs, R12, sc, r12);
+       GETREG(regs, R13, sc, r13);
+       GETREG(regs, R14, sc, r14);
+       GETREG(regs, R15, sc, r15);
+       GETREG(regs, RDI, sc, rdi);
+       GETREG(regs, RSI, sc, rsi);
+       GETREG(regs, RBP, sc, rbp);
+       GETREG(regs, RBX, sc, rbx);
+       GETREG(regs, RDX, sc, rdx);
+       GETREG(regs, RAX, sc, rax);
+       GETREG(regs, RCX, sc, rcx);
+       GETREG(regs, RSP, sc, rsp);
+       GETREG(regs, RIP, sc, rip);
+       GETREG(regs, EFLAGS, sc, eflags);
+       GETREG(regs, CS, sc, cs);
+
+#undef GETREG
+}
+
 static int copy_sc_from_user_skas(struct pt_regs *regs,
                                  struct sigcontext __user *from)
 {

@@ -115,4 +115,6 @@ extern void time_init_kern(void);
 extern int __cant_sleep(void);
 extern void sigio_handler(int sig, union uml_pt_regs *regs);
 
+extern void copy_sc(union uml_pt_regs *regs, void *from);
+
 #endif

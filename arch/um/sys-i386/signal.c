@@ -18,6 +18,28 @@
 
 #include "skas.h"
 
+void copy_sc(union uml_pt_regs *regs, void *from)
+{
+	struct sigcontext *sc = from;
+
+	REGS_GS(regs->skas.regs) = sc->gs;
+	REGS_FS(regs->skas.regs) = sc->fs;
+	REGS_ES(regs->skas.regs) = sc->es;
+	REGS_DS(regs->skas.regs) = sc->ds;
+	REGS_EDI(regs->skas.regs) = sc->edi;
+	REGS_ESI(regs->skas.regs) = sc->esi;
+	REGS_EBP(regs->skas.regs) = sc->ebp;
+	REGS_SP(regs->skas.regs) = sc->esp;
+	REGS_EBX(regs->skas.regs) = sc->ebx;
+	REGS_EDX(regs->skas.regs) = sc->edx;
+	REGS_ECX(regs->skas.regs) = sc->ecx;
+	REGS_EAX(regs->skas.regs) = sc->eax;
+	REGS_IP(regs->skas.regs) = sc->eip;
+	REGS_CS(regs->skas.regs) = sc->cs;
+	REGS_EFLAGS(regs->skas.regs) = sc->eflags;
+	REGS_SS(regs->skas.regs) = sc->ss;
+}
+
 static int copy_sc_from_user_skas(struct pt_regs *regs,
 				  struct sigcontext __user *from)
 {
@@ -30,25 +52,10 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 	if(err)
 		return err;
 
-	REGS_GS(regs->regs.skas.regs) = sc.gs;
-	REGS_FS(regs->regs.skas.regs) = sc.fs;
-	REGS_ES(regs->regs.skas.regs) = sc.es;
-	REGS_DS(regs->regs.skas.regs) = sc.ds;
-	REGS_EDI(regs->regs.skas.regs) = sc.edi;
-	REGS_ESI(regs->regs.skas.regs) = sc.esi;
-	REGS_EBP(regs->regs.skas.regs) = sc.ebp;
-	REGS_SP(regs->regs.skas.regs) = sc.esp;
-	REGS_EBX(regs->regs.skas.regs) = sc.ebx;
-	REGS_EDX(regs->regs.skas.regs) = sc.edx;
-	REGS_ECX(regs->regs.skas.regs) = sc.ecx;
-	REGS_EAX(regs->regs.skas.regs) = sc.eax;
-	REGS_IP(regs->regs.skas.regs) = sc.eip;
-	REGS_CS(regs->regs.skas.regs) = sc.cs;
-	REGS_EFLAGS(regs->regs.skas.regs) = sc.eflags;
-	REGS_SS(regs->regs.skas.regs) = sc.ss;
+	copy_sc(&regs->regs, &sc);
 
 	err = restore_fp_registers(userspace_pid[0], fpregs);
-	if(err < 0){
+	if(err < 0) {
 	  	printk("copy_sc_from_user_skas - PTRACE_SETFPREGS failed, "
 		       "errno = %d\n", -err);
 		return err;

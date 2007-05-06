@@ -170,8 +170,10 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		flush_tlb_kernel_vm();
 		return 0;
 	}
-	else if(current->mm == NULL)
-		panic("Segfault with no mm");
+	else if(current->mm == NULL) {
+		show_regs(container_of(regs, struct pt_regs, regs));
+  		panic("Segfault with no mm");
+	}
 
 	if (SEGV_IS_FIXABLE(&fi) || SEGV_MAYBE_FIXABLE(&fi))
 		err = handle_page_fault(address, ip, is_write, is_user, &si.si_code);
@@ -194,9 +196,11 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	else if(!is_user && arch_fixup(ip, regs))
 		return 0;
 
-	if(!is_user)
+	if(!is_user) {
+		show_regs(container_of(regs, struct pt_regs, regs));
 		panic("Kernel mode fault at addr 0x%lx, ip 0x%lx",
 		      address, ip);
+	}
 
 	if (err == -EACCES) {
 		si.si_signo = SIGBUS;

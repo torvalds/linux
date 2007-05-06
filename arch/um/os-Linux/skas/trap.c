@@ -15,6 +15,8 @@
 #include "sysdep/ptrace_user.h"
 #include "os.h"
 
+static union uml_pt_regs ksig_regs[UM_NR_CPUS];
+
 void sig_handler_common_skas(int sig, void *sc_ptr)
 {
 	struct sigcontext *sc = sc_ptr;
@@ -27,10 +29,19 @@ void sig_handler_common_skas(int sig, void *sc_ptr)
 	 * the process will die.
 	 * XXX Figure out why this is better than SA_NODEFER
 	 */
-	if(sig == SIGSEGV)
+	if(sig == SIGSEGV) {
 		change_sig(SIGSEGV, 1);
+		/* For segfaults, we want the data from the
+		 * sigcontext.  In this case, we don't want to mangle
+		 * the process registers, so use a static set of
+		 * registers.  For other signals, the process
+		 * registers are OK.
+		 */
+		r = &ksig_regs[cpu()];
+		copy_sc(r, sc_ptr);
+	}
+	else r = TASK_REGS(get_current());
 
-	r = TASK_REGS(get_current());
 	save_user = r->skas.is_user;
 	r->skas.is_user = 0;
 	if ( sig == SIGFPE || sig == SIGSEGV ||
