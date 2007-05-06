@@ -21,6 +21,9 @@
      __ptr = (unsigned long) (ptr);				\
     (typeof(ptr)) (__ptr + (off)); })
 
+/* Intel ECC compiler doesn't support __builtin_types_compatible_p() */
+#define __must_be_array(a) 0
+
 #endif
 
 #define uninitialized_var(x) x
