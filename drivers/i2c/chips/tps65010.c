@@ -351,8 +351,10 @@ static void tps65010_interrupt(struct tps65010 *tps)
 #if 0
 			/* REVISIT:  this might need its own workqueue
 			 * plus tweaks including deadlock avoidance ...
+			 * also needs to get error handling and probably
+			 * an #ifdef CONFIG_SOFTWARE_SUSPEND
 			 */
-			software_suspend();
+			pm_suspend(PM_SUSPEND_DISK);
 #endif
 			poll = 1;
 		}

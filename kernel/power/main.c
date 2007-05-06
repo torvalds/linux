@@ -184,17 +184,21 @@ static void suspend_finish(suspend_state_t state)
 static const char * const pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
-#ifdef CONFIG_SOFTWARE_SUSPEND
 	[PM_SUSPEND_DISK]	= "disk",
-#endif
 };
 
 static inline int valid_state(suspend_state_t state)
 {
 	/* Suspend-to-disk does not really need low-level support.
-	 * It can work with reboot if needed. */
+	 * It can work with shutdown/reboot if needed. If it isn't
+	 * configured, then it cannot be supported.
+	 */
 	if (state == PM_SUSPEND_DISK)
+#ifdef CONFIG_SOFTWARE_SUSPEND
 		return 1;
+#else
+		return 0;
+#endif
 
 	/* all other states need lowlevel support and need to be
 	 * valid to the lowlevel implementation, no valid callback
@@ -243,17 +247,6 @@ static int enter_state(suspend_state_t state)
 	mutex_unlock(&pm_mutex);
 	return error;
 }
-
-#ifdef CONFIG_SOFTWARE_SUSPEND
-/*
- * This is main interface to the outside world. It needs to be
- * called from process context.
- */
-int software_suspend(void)
-{
-	return enter_state(PM_SUSPEND_DISK);
-}
-#endif
 
 
 /**

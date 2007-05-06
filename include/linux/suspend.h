@@ -33,8 +33,6 @@ static inline void pm_restore_console(void) {}
 #endif
 
 #if defined(CONFIG_PM) && defined(CONFIG_SOFTWARE_SUSPEND)
-/* kernel/power/swsusp.c */
-extern int software_suspend(void);
 /* kernel/power/snapshot.c */
 extern void __init register_nosave_region(unsigned long, unsigned long);
 extern int swsusp_page_is_forbidden(struct page *);
@@ -42,12 +40,6 @@ extern void swsusp_set_page_free(struct page *);
 extern void swsusp_unset_page_free(struct page *);
 extern unsigned long get_safe_page(gfp_t gfp_mask);
 #else
-static inline int software_suspend(void)
-{
-	printk("Warning: fake suspend called\n");
-	return -ENOSYS;
-}
-
 static inline void register_nosave_region(unsigned long b, unsigned long e) {}
 static inline int swsusp_page_is_forbidden(struct page *p) { return 0; }
 static inline void swsusp_set_page_free(struct page *p) {}
