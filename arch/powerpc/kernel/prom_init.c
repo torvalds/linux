@@ -2153,7 +2153,7 @@ static void __init fixup_device_tree_efika(void)
 	                             3,12,0, 3,13,0, 3,14,0, 3,15,0 };
 	struct subst_entry efika_subst_table[] = {
 		{ "/",			"device_type",	prop_cstr("efika") },
-		{ "/builtin",		"compatible",	prop_cstr("soc") },
+		{ "/builtin",		"device_type",	prop_cstr("soc") },
 		{ "/builtin/ata",	"compatible",	prop_cstr("mpc5200b-ata\0mpc5200-ata"), },
 		{ "/builtin/bestcomm",	"compatible",	prop_cstr("mpc5200b-bestcomm\0mpc5200-bestcomm") },
 		{ "/builtin/bestcomm",	"interrupts",	prop_bcomm_irq, sizeof(prop_bcomm_irq) },
