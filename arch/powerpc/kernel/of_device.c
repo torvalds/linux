@@ -120,8 +120,8 @@ void of_device_unregister(struct of_device *ofdev)
 }
 
 
-static ssize_t of_device_get_modalias(struct of_device *ofdev,
-					char *str, ssize_t len)
+ssize_t of_device_get_modalias(struct of_device *ofdev,
+				char *str, ssize_t len)
 {
 	const char *compat;
 	int cplen, i;
@@ -239,3 +239,4 @@ EXPORT_SYMBOL(of_dev_get);
 EXPORT_SYMBOL(of_dev_put);
 EXPORT_SYMBOL(of_release_dev);
 EXPORT_SYMBOL(of_device_uevent);
+EXPORT_SYMBOL(of_device_get_modalias);
