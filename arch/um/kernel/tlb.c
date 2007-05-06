@@ -235,9 +235,7 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 	unsigned long addr = start_addr, next;
 	int ret = 0, last_op = ARRAY_SIZE(ops) - 1, op_index = -1;
 	void *flush = NULL;
-	unsigned long long start_time, end_time;
 
-	start_time = os_nsecs();
 	ops[0].type = NONE;
 	pgd = pgd_offset(mm, addr);
 	do {
@@ -254,7 +252,6 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 					    &op_index, force, mmu, &flush,
 					    do_ops);
 	} while (pgd++, addr = next, ((addr != end_addr) && !ret));
-	end_time = os_nsecs();
 	log_info("total flush time - %Ld nsecs\n", end_time - start_time);
 
 	if(!ret)
