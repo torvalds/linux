@@ -747,6 +747,9 @@ struct file *hugetlb_zero_setup(size_t size)
 	char buf[16];
 	static atomic_t counter;
 
+	if (!hugetlbfs_vfsmount)
+		return ERR_PTR(-ENOENT);
+
 	if (!can_do_hugetlb_shm())
 		return ERR_PTR(-EPERM);
 
