@@ -341,6 +341,19 @@ static struct platform_driver uml_net_driver = {
 };
 static int driver_registered;
 
+static void net_device_release(struct device *dev)
+{
+	struct uml_net *device = dev->driver_data;
+	struct net_device *netdev = device->dev;
+	struct uml_net_private *lp = netdev->priv;
+
+	if(lp->remove != NULL)
+		(*lp->remove)(&lp->user);
+	list_del(&device->list);
+	kfree(device);
+	free_netdev(netdev);
+}
+
 static void eth_configure(int n, void *init, char *mac,
 			  struct transport *transport)
 {
@@ -396,6 +409,8 @@ static void eth_configure(int n, void *init, char *mac,
 	}
 	device->pdev.id = n;
 	device->pdev.name = DRIVER_NAME;
+	device->pdev.dev.release = net_device_release;
+	device->pdev.dev.driver_data = device;
 	if(platform_device_register(&device->pdev))
 		goto out_free_netdev;
 	SET_NETDEV_DEV(dev,&device->pdev.dev);
@@ -689,13 +704,9 @@ static int net_remove(int n, char **error_out)
 	lp = dev->priv;
 	if(lp->fd > 0)
 		return -EBUSY;
-	if(lp->remove != NULL) (*lp->remove)(&lp->user);
 	unregister_netdev(dev);
 	platform_device_unregister(&device->pdev);
 
-	list_del(&device->list);
-	kfree(device);
-	free_netdev(dev);
 	return 0;
 }
 

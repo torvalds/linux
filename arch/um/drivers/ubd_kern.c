@@ -622,6 +622,14 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 	return(err);
 }
 
+static void ubd_device_release(struct device *dev)
+{
+	struct ubd *ubd_dev = dev->driver_data;
+
+	blk_cleanup_queue(ubd_dev->queue);
+	*ubd_dev = ((struct ubd) DEFAULT_UBD);
+}
+
 static int ubd_disk_register(int major, u64 size, int unit,
 			     struct gendisk **disk_out)
 {
@@ -644,6 +652,8 @@ static int ubd_disk_register(int major, u64 size, int unit,
 	if (major == MAJOR_NR) {
 		ubd_devs[unit].pdev.id   = unit;
 		ubd_devs[unit].pdev.name = DRIVER_NAME;
+		ubd_devs[unit].pdev.dev.release = ubd_device_release;
+		ubd_devs[unit].pdev.dev.driver_data = &ubd_devs[unit];
 		platform_device_register(&ubd_devs[unit].pdev);
 		disk->driverfs_dev = &ubd_devs[unit].pdev.dev;
 	}
@@ -787,7 +797,7 @@ static int ubd_id(char **str, int *start_out, int *end_out)
 
 static int ubd_remove(int n, char **error_out)
 {
-	struct gendisk *disk;
+	struct gendisk *disk = ubd_gendisk[n];
 	struct ubd *ubd_dev;
 	int err = -ENODEV;
 
@@ -803,7 +813,6 @@ static int ubd_remove(int n, char **error_out)
 	if(ubd_dev->count > 0)
 		goto out;
 
- 	disk = ubd_gendisk[n];
  	ubd_gendisk[n] = NULL;
 	if(disk != NULL){
 		del_gendisk(disk);
@@ -816,10 +825,8 @@ static int ubd_remove(int n, char **error_out)
 		fake_gendisk[n] = NULL;
 	}
 
-	blk_cleanup_queue(ubd_dev->queue);
-	platform_device_unregister(&ubd_dev->pdev);
-	*ubd_dev = ((struct ubd) DEFAULT_UBD);
 	err = 0;
+	platform_device_unregister(&ubd_dev->pdev);
 out:
 	mutex_unlock(&ubd_lock);
 	return err;
