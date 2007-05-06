@@ -8,6 +8,7 @@
 #include <linux/notifier.h>
 #include <linux/init.h>
 #include <linux/pm.h>
+#include <linux/mm.h>
 
 /* struct pbe is used for creating lists of pages that should be restored
  * atomically during the resume from disk, because the page frames they have
@@ -48,6 +49,38 @@ struct saved_context;
 void __save_processor_state(struct saved_context *ctxt);
 void __restore_processor_state(struct saved_context *ctxt);
 unsigned long get_safe_page(gfp_t gfp_mask);
+
+/* Page management functions for the software suspend (swsusp) */
+
+static inline void swsusp_set_page_forbidden(struct page *page)
+{
+	SetPageNosave(page);
+}
+
+static inline int swsusp_page_is_forbidden(struct page *page)
+{
+	return PageNosave(page);
+}
+
+static inline void swsusp_unset_page_forbidden(struct page *page)
+{
+	ClearPageNosave(page);
+}
+
+static inline void swsusp_set_page_free(struct page *page)
+{
+	SetPageNosaveFree(page);
+}
+
+static inline int swsusp_page_is_free(struct page *page)
+{
+	return PageNosaveFree(page);
+}
+
+static inline void swsusp_unset_page_free(struct page *page)
+{
+	ClearPageNosaveFree(page);
+}
 
 /*
  * XXX: We try to keep some more pages free so that I/O operations succeed

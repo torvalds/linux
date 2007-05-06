@@ -67,15 +67,15 @@ static void *get_image_page(gfp_t gfp_mask, int safe_needed)
 
 	res = (void *)get_zeroed_page(gfp_mask);
 	if (safe_needed)
-		while (res && PageNosaveFree(virt_to_page(res))) {
+		while (res && swsusp_page_is_free(virt_to_page(res))) {
 			/* The page is unsafe, mark it for swsusp_free() */
-			SetPageNosave(virt_to_page(res));
+			swsusp_set_page_forbidden(virt_to_page(res));
 			allocated_unsafe_pages++;
 			res = (void *)get_zeroed_page(gfp_mask);
 		}
 	if (res) {
-		SetPageNosave(virt_to_page(res));
-		SetPageNosaveFree(virt_to_page(res));
+		swsusp_set_page_forbidden(virt_to_page(res));
+		swsusp_set_page_free(virt_to_page(res));
 	}
 	return res;
 }
@@ -91,8 +91,8 @@ static struct page *alloc_image_page(gfp_t gfp_mask)
 
 	page = alloc_page(gfp_mask);
 	if (page) {
-		SetPageNosave(page);
-		SetPageNosaveFree(page);
+		swsusp_set_page_forbidden(page);
+		swsusp_set_page_free(page);
 	}
 	return page;
 }
@@ -110,9 +110,9 @@ static inline void free_image_page(void *addr, int clear_nosave_free)
 
 	page = virt_to_page(addr);
 
-	ClearPageNosave(page);
+	swsusp_unset_page_forbidden(page);
 	if (clear_nosave_free)
-		ClearPageNosaveFree(page);
+		swsusp_unset_page_free(page);
 
 	__free_page(page);
 }
@@ -615,7 +615,8 @@ static struct page *saveable_highmem_page(unsigned long pfn)
 
 	BUG_ON(!PageHighMem(page));
 
-	if (PageNosave(page) || PageReserved(page) || PageNosaveFree(page))
+	if (swsusp_page_is_forbidden(page) ||  swsusp_page_is_free(page) ||
+	    PageReserved(page))
 		return NULL;
 
 	return page;
@@ -670,7 +671,7 @@ static struct page *saveable_page(unsigned long pfn)
 
 	BUG_ON(PageHighMem(page));
 
-	if (PageNosave(page) || PageNosaveFree(page))
+	if (swsusp_page_is_forbidden(page) || swsusp_page_is_free(page))
 		return NULL;
 
 	if (PageReserved(page) && pfn_is_nosave(pfn))
@@ -810,9 +811,10 @@ void swsusp_free(void)
 			if (pfn_valid(pfn)) {
 				struct page *page = pfn_to_page(pfn);
 
-				if (PageNosave(page) && PageNosaveFree(page)) {
-					ClearPageNosave(page);
-					ClearPageNosaveFree(page);
+				if (swsusp_page_is_forbidden(page) &&
+				    swsusp_page_is_free(page)) {
+					swsusp_unset_page_forbidden(page);
+					swsusp_unset_page_free(page);
 					__free_page(page);
 				}
 			}
@@ -1135,7 +1137,7 @@ static int mark_unsafe_pages(struct memory_bitmap *bm)
 		max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
 		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
 			if (pfn_valid(pfn))
-				ClearPageNosaveFree(pfn_to_page(pfn));
+				swsusp_unset_page_free(pfn_to_page(pfn));
 	}
 
 	/* Mark pages that correspond to the "original" pfns as "unsafe" */
@@ -1144,7 +1146,7 @@ static int mark_unsafe_pages(struct memory_bitmap *bm)
 		pfn = memory_bm_next_pfn(bm);
 		if (likely(pfn != BM_END_OF_MAP)) {
 			if (likely(pfn_valid(pfn)))
-				SetPageNosaveFree(pfn_to_page(pfn));
+				swsusp_set_page_free(pfn_to_page(pfn));
 			else
 				return -EFAULT;
 		}
@@ -1310,14 +1312,14 @@ prepare_highmem_image(struct memory_bitmap *bm, unsigned int *nr_highmem_p)
 		struct page *page;
 
 		page = alloc_page(__GFP_HIGHMEM);
-		if (!PageNosaveFree(page)) {
+		if (!swsusp_page_is_free(page)) {
 			/* The page is "safe", set its bit the bitmap */
 			memory_bm_set_bit(bm, page_to_pfn(page));
 			safe_highmem_pages++;
 		}
 		/* Mark the page as allocated */
-		SetPageNosave(page);
-		SetPageNosaveFree(page);
+		swsusp_set_page_forbidden(page);
+		swsusp_set_page_free(page);
 	}
 	memory_bm_position_reset(bm);
 	safe_highmem_bm = bm;
@@ -1349,7 +1351,7 @@ get_highmem_page_buffer(struct page *page, struct chain_allocator *ca)
 	struct highmem_pbe *pbe;
 	void *kaddr;
 
-	if (PageNosave(page) && PageNosaveFree(page)) {
+	if (swsusp_page_is_forbidden(page) && swsusp_page_is_free(page)) {
 		/* We have allocated the "original" page frame and we can
 		 * use it directly to store the loaded page.
 		 */
@@ -1511,14 +1513,14 @@ prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
 			error = -ENOMEM;
 			goto Free;
 		}
-		if (!PageNosaveFree(virt_to_page(lp))) {
+		if (!swsusp_page_is_free(virt_to_page(lp))) {
 			/* The page is "safe", add it to the list */
 			lp->next = safe_pages_list;
 			safe_pages_list = lp;
 		}
 		/* Mark the page as allocated */
-		SetPageNosave(virt_to_page(lp));
-		SetPageNosaveFree(virt_to_page(lp));
+		swsusp_set_page_forbidden(virt_to_page(lp));
+		swsusp_set_page_free(virt_to_page(lp));
 		nr_pages--;
 	}
 	/* Free the reserved safe pages so that chain_alloc() can use them */
@@ -1547,7 +1549,7 @@ static void *get_buffer(struct memory_bitmap *bm, struct chain_allocator *ca)
 	if (PageHighMem(page))
 		return get_highmem_page_buffer(page, ca);
 
-	if (PageNosave(page) && PageNosaveFree(page))
+	if (swsusp_page_is_forbidden(page) && swsusp_page_is_free(page))
 		/* We have allocated the "original" page frame and we can
 		 * use it directly to store the loaded page.
 		 */
