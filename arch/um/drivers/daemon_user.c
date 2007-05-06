@@ -123,7 +123,7 @@ static int connect_to_switch(struct daemon_data *pri)
 	return err;
 }
 
-static void daemon_user_init(void *data, void *dev)
+static int daemon_user_init(void *data, void *dev)
 {
 	struct daemon_data *pri = data;
 	struct timeval tv;
@@ -146,7 +146,10 @@ static void daemon_user_init(void *data, void *dev)
 	if(pri->fd < 0){
 		kfree(pri->local_addr);
 		pri->local_addr = NULL;
+		return pri->fd;
 	}
+
+	return 0;
 }
 
 static int daemon_open(void *data)

@@ -24,11 +24,12 @@
 
 #define MAX_PACKET ETH_MAX_PACKET
 
-void tuntap_user_init(void *data, void *dev)
+static int tuntap_user_init(void *data, void *dev)
 {
 	struct tuntap_data *pri = data;
 
 	pri->dev = dev;
+	return 0;
 }
 
 static void tuntap_add_addr(unsigned char *addr, unsigned char *netmask,

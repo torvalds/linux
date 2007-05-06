@@ -17,11 +17,12 @@
 #include "os.h"
 #include "um_malloc.h"
 
-void slip_user_init(void *data, void *dev)
+static int slip_user_init(void *data, void *dev)
 {
 	struct slip_data *pri = data;
 
 	pri->dev = dev;
+	return 0;
 }
 
 static int set_up_tty(int fd)

@@ -42,12 +42,13 @@ static struct sockaddr_in *new_addr(char *addr, unsigned short port)
 	return sin;
 }
 
-static void mcast_user_init(void *data, void *dev)
+static int mcast_user_init(void *data, void *dev)
 {
 	struct mcast_data *pri = data;
 
 	pri->mcast_addr = new_addr(pri->addr, pri->port);
 	pri->dev = dev;
+	return 0;
 }
 
 static void mcast_remove(void *data)

@@ -18,7 +18,7 @@
 
 #define PCAP_FD(p) (*(int *)(p))
 
-static void pcap_user_init(void *data, void *dev)
+static int pcap_user_init(void *data, void *dev)
 {
 	struct pcap_data *pri = data;
 	pcap_t *p;
@@ -28,11 +28,12 @@ static void pcap_user_init(void *data, void *dev)
 	if(p == NULL){
 		printk("pcap_user_init : pcap_open_live failed - '%s'\n", 
 		       errors);
-		return;
+		return -EINVAL;
 	}
 
 	pri->dev = dev;
 	pri->pcap = p;
+	return 0;
 }
 
 static int pcap_open(void *data)

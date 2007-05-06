@@ -325,8 +325,8 @@ static struct platform_driver uml_net_driver = {
 };
 static int driver_registered;
 
-static int eth_configure(int n, void *init, char *mac,
-			 struct transport *transport)
+static void eth_configure(int n, void *init, char *mac,
+			  struct transport *transport)
 {
 	struct uml_net *device;
 	struct net_device *dev;
@@ -339,15 +339,11 @@ static int eth_configure(int n, void *init, char *mac,
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (device == NULL) {
 		printk(KERN_ERR "eth_configure failed to allocate uml_net\n");
-		return(1);
+		return;
 	}
 
 	INIT_LIST_HEAD(&device->list);
 	device->index = n;
-
-	spin_lock(&devices_lock);
-	list_add(&device->list, &devices);
-	spin_unlock(&devices_lock);
 
 	setup_etheraddr(mac, device->mac);
 
@@ -360,7 +356,7 @@ static int eth_configure(int n, void *init, char *mac,
 	dev = alloc_etherdev(size);
 	if (dev == NULL) {
 		printk(KERN_ERR "eth_configure: failed to allocate device\n");
-		return 1;
+		goto out_free_device;
 	}
 
 	lp = dev->priv;
@@ -376,7 +372,8 @@ static int eth_configure(int n, void *init, char *mac,
 	}
 	device->pdev.id = n;
 	device->pdev.name = DRIVER_NAME;
-	platform_device_register(&device->pdev);
+	if(platform_device_register(&device->pdev))
+		goto out_free_netdev;
 	SET_NETDEV_DEV(dev,&device->pdev.dev);
 
 	/* If this name ends up conflicting with an existing registered
@@ -386,30 +383,11 @@ static int eth_configure(int n, void *init, char *mac,
 	snprintf(dev->name, sizeof(dev->name), "eth%d", n);
 	device->dev = dev;
 
+	/*
+	 * These just fill in a data structure, so there's no failure
+	 * to be worried about.
+	 */
 	(*transport->kern->init)(dev, init);
-
-	dev->mtu = transport->user->max_packet;
-	dev->open = uml_net_open;
-	dev->hard_start_xmit = uml_net_start_xmit;
-	dev->stop = uml_net_close;
-	dev->get_stats = uml_net_get_stats;
-	dev->set_multicast_list = uml_net_set_multicast_list;
-	dev->tx_timeout = uml_net_tx_timeout;
-	dev->set_mac_address = uml_net_set_mac;
-	dev->change_mtu = uml_net_change_mtu;
-	dev->ethtool_ops = &uml_net_ethtool_ops;
-	dev->watchdog_timeo = (HZ >> 1);
-	dev->irq = UM_ETH_IRQ;
-
-	rtnl_lock();
-	err = register_netdevice(dev);
-	rtnl_unlock();
-	if (err) {
-		device->dev = NULL;
-		/* XXX: should we call ->remove() here? */
-		free_netdev(dev);
-		return 1;
-	}
 
 	/* lp.user is the first four bytes of the transport data, which
 	 * has already been initialized.  This structure assignment will
@@ -438,12 +416,45 @@ static int eth_configure(int n, void *init, char *mac,
 	lp->tl.function = uml_net_user_timer_expire;
 	memcpy(lp->mac, device->mac, sizeof(lp->mac));
 
-	if (transport->user->init)
-		(*transport->user->init)(&lp->user, dev);
+	if ((transport->user->init != NULL) &&
+	    ((*transport->user->init)(&lp->user, dev) != 0))
+		goto out_unregister;
 
 	set_ether_mac(dev, device->mac);
+	dev->mtu = transport->user->max_packet;
+	dev->open = uml_net_open;
+	dev->hard_start_xmit = uml_net_start_xmit;
+	dev->stop = uml_net_close;
+	dev->get_stats = uml_net_get_stats;
+	dev->set_multicast_list = uml_net_set_multicast_list;
+	dev->tx_timeout = uml_net_tx_timeout;
+	dev->set_mac_address = uml_net_set_mac;
+	dev->change_mtu = uml_net_change_mtu;
+	dev->ethtool_ops = &uml_net_ethtool_ops;
+	dev->watchdog_timeo = (HZ >> 1);
+	dev->irq = UM_ETH_IRQ;
 
-	return 0;
+	rtnl_lock();
+	err = register_netdevice(dev);
+	rtnl_unlock();
+	if (err)
+		goto out_undo_user_init;
+
+	spin_lock(&devices_lock);
+	list_add(&device->list, &devices);
+	spin_unlock(&devices_lock);
+
+	return;
+
+out_undo_user_init:
+	if (transport->user->init != NULL)
+		(*transport->user->remove)(&lp->user);
+out_unregister:
+	platform_device_unregister(&device->pdev);
+out_free_netdev:
+	free_netdev(dev);
+out_free_device: ;
+	kfree(device);
 }
 
 static struct uml_net *find_device(int n)

@@ -24,11 +24,12 @@
 
 #define MAX_PACKET ETH_MAX_PACKET
 
-void etap_user_init(void *data, void *dev)
+static int etap_user_init(void *data, void *dev)
 {
 	struct ethertap_data *pri = data;
 
 	pri->dev = dev;
+	return 0;
 }
 
 struct addr_change {
