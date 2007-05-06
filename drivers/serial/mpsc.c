@@ -183,6 +183,7 @@ struct mpsc_port_info {
 	u8 *txb_p;		/* Phys addr of txb */
 	int txr_head;		/* Where new data goes */
 	int txr_tail;		/* Where sent data comes off */
+	spinlock_t tx_lock;	/* transmit lock */
 
 	/* Mirrored values of regs we can't read (if 'mirror_regs' set) */
 	u32 MPSC_MPCR_m;
@@ -1212,6 +1213,9 @@ mpsc_tx_intr(struct mpsc_port_info *pi)
 {
 	struct mpsc_tx_desc *txre;
 	int rc = 0;
+	unsigned long iflags;
+
+	spin_lock_irqsave(&pi->tx_lock, iflags);
 
 	if (!mpsc_sdma_tx_active(pi)) {
 		txre = (struct mpsc_tx_desc *)(pi->txr +
@@ -1248,6 +1252,7 @@ mpsc_tx_intr(struct mpsc_port_info *pi)
 		mpsc_sdma_start_tx(pi);	/* start next desc if ready */
 	}
 
+	spin_unlock_irqrestore(&pi->tx_lock, iflags);
 	return rc;
 }
 
@@ -1338,10 +1343,15 @@ static void
 mpsc_start_tx(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
+	unsigned long iflags;
+
+	spin_lock_irqsave(&pi->tx_lock, iflags);
 
 	mpsc_unfreeze(pi);
 	mpsc_copy_tx_data(pi);
 	mpsc_sdma_start_tx(pi);
+
+	spin_unlock_irqrestore(&pi->tx_lock, iflags);
 
 	pr_debug("mpsc_start_tx[%d]\n", port->line);
 	return;
@@ -1625,6 +1635,16 @@ mpsc_console_write(struct console *co, const char *s, uint count)
 	struct mpsc_port_info *pi = &mpsc_ports[co->index];
 	u8 *bp, *dp, add_cr = 0;
 	int i;
+	unsigned long iflags;
+
+	spin_lock_irqsave(&pi->tx_lock, iflags);
+
+	while (pi->txr_head != pi->txr_tail) {
+		while (mpsc_sdma_tx_active(pi))
+			udelay(100);
+		mpsc_sdma_intr_ack(pi);
+		mpsc_tx_intr(pi);
+	}
 
 	while (mpsc_sdma_tx_active(pi))
 		udelay(100);
@@ -1668,6 +1688,7 @@ mpsc_console_write(struct console *co, const char *s, uint count)
 		pi->txr_tail = (pi->txr_tail + 1) & (MPSC_TXR_ENTRIES - 1);
 	}
 
+	spin_unlock_irqrestore(&pi->tx_lock, iflags);
 	return;
 }
 
@@ -2005,7 +2026,8 @@ mpsc_drv_probe(struct platform_device *dev)
 		if (!(rc = mpsc_drv_map_regs(pi, dev))) {
 			mpsc_drv_get_platform_data(pi, dev, dev->id);
 
-			if (!(rc = mpsc_make_ready(pi)))
+			if (!(rc = mpsc_make_ready(pi))) {
+				spin_lock_init(&pi->tx_lock);
 				if (!(rc = uart_add_one_port(&mpsc_reg,
 					&pi->port)))
 					rc = 0;
@@ -2014,6 +2036,7 @@ mpsc_drv_probe(struct platform_device *dev)
 						(struct uart_port *)pi);
 					mpsc_drv_unmap_regs(pi);
 				}
+			}
 			else
 				mpsc_drv_unmap_regs(pi);
 		}
