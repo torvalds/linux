@@ -296,12 +296,23 @@ do {									\
 	}								\
 } while (0)
 
-/*
- * We don't actually have these, but we want to advertise them so that
- * we can encompass the flush here.
- */
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
+static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma,
+					    unsigned long addr, pte_t *ptep)
+{
+	if (!pte_dirty(*ptep))
+		return 0;
+	return test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte_low);
+}
+
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
+					    unsigned long addr, pte_t *ptep)
+{
+	if (!pte_young(*ptep))
+		return 0;
+	return test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte_low);
+}
 
 /*
  * Rules for using ptep_establish: the pte MUST be a user pte, and
@@ -318,9 +329,8 @@ do {									\
 #define ptep_clear_flush_dirty(vma, address, ptep)			\
 ({									\
 	int __dirty;							\
-	__dirty = pte_dirty(*(ptep));					\
+	__dirty = ptep_test_and_clear_dirty((vma), (address), (ptep));	\
 	if (__dirty) {							\
-		clear_bit(_PAGE_BIT_DIRTY, &(ptep)->pte_low);		\
 		pte_update_defer((vma)->vm_mm, (address), (ptep));	\
 		flush_tlb_page(vma, address);				\
 	}								\
@@ -331,9 +341,8 @@ do {									\
 #define ptep_clear_flush_young(vma, address, ptep)			\
 ({									\
 	int __young;							\
-	__young = pte_young(*(ptep));					\
+	__young = ptep_test_and_clear_young((vma), (address), (ptep));	\
 	if (__young) {							\
-		clear_bit(_PAGE_BIT_ACCESSED, &(ptep)->pte_low);	\
 		pte_update_defer((vma)->vm_mm, (address), (ptep));	\
 		flush_tlb_page(vma, address);				\
 	}								\
