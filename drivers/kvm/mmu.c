@@ -455,12 +455,10 @@ static int is_empty_shadow_page(hpa_t page_hpa)
 }
 #endif
 
-static void kvm_mmu_free_page(struct kvm_vcpu *vcpu, hpa_t page_hpa)
+static void kvm_mmu_free_page(struct kvm_vcpu *vcpu,
+			      struct kvm_mmu_page *page_head)
 {
-	struct kvm_mmu_page *page_head = page_header(page_hpa);
-
-	ASSERT(is_empty_shadow_page(page_hpa));
-	page_head->page_hpa = page_hpa;
+	ASSERT(is_empty_shadow_page(page_head->page_hpa));
 	list_move(&page_head->link, &vcpu->free_pages);
 	++vcpu->kvm->n_free_mmu_pages;
 }
@@ -690,7 +688,7 @@ static void kvm_mmu_zap_page(struct kvm_vcpu *vcpu,
 	kvm_mmu_page_unlink_children(vcpu, page);
 	if (!page->root_count) {
 		hlist_del(&page->hash_link);
-		kvm_mmu_free_page(vcpu, page->page_hpa);
+		kvm_mmu_free_page(vcpu, page);
 	} else
 		list_move(&page->link, &vcpu->kvm->active_mmu_pages);
 }
