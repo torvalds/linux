@@ -33,7 +33,6 @@
 static struct snapshot_data {
 	struct snapshot_handle handle;
 	int swap;
-	struct bitmap_page *bitmap;
 	int mode;
 	char frozen;
 	char ready;
@@ -69,7 +68,6 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 		data->swap = -1;
 		data->mode = O_WRONLY;
 	}
-	data->bitmap = NULL;
 	data->frozen = 0;
 	data->ready = 0;
 	data->platform_suspend = 0;
@@ -84,8 +82,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	swsusp_free();
 	free_basic_memory_bitmaps();
 	data = filp->private_data;
-	free_all_swap_pages(data->swap, data->bitmap);
-	free_bitmap(data->bitmap);
+	free_all_swap_pages(data->swap);
 	if (data->frozen) {
 		mutex_lock(&pm_mutex);
 		thaw_processes();
@@ -300,14 +297,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -ENODEV;
 			break;
 		}
-		if (!data->bitmap) {
-			data->bitmap = alloc_bitmap(count_swap_pages(data->swap, 0));
-			if (!data->bitmap) {
-				error = -ENOMEM;
-				break;
-			}
-		}
-		offset = alloc_swapdev_block(data->swap, data->bitmap);
+		offset = alloc_swapdev_block(data->swap);
 		if (offset) {
 			offset <<= PAGE_SHIFT;
 			error = put_user(offset, (sector_t __user *)arg);
@@ -321,13 +311,11 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -ENODEV;
 			break;
 		}
-		free_all_swap_pages(data->swap, data->bitmap);
-		free_bitmap(data->bitmap);
-		data->bitmap = NULL;
+		free_all_swap_pages(data->swap);
 		break;
 
 	case SNAPSHOT_SET_SWAP_FILE:
-		if (!data->bitmap) {
+		if (!swsusp_swap_in_use()) {
 			/*
 			 * User space encodes device types as two-byte values,
 			 * so we need to recode them
@@ -426,7 +414,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	case SNAPSHOT_SET_SWAP_AREA:
-		if (data->bitmap) {
+		if (swsusp_swap_in_use()) {
 			error = -EPERM;
 		} else {
 			struct resume_swap_area swap_area;

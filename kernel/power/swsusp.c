@@ -50,6 +50,7 @@
 #include <linux/syscalls.h>
 #include <linux/highmem.h>
 #include <linux/time.h>
+#include <linux/rbtree.h>
 
 #include "power.h"
 
@@ -74,72 +75,69 @@ static inline unsigned int count_highmem_pages(void) { return 0; }
 /**
  *	The following functions are used for tracing the allocated
  *	swap pages, so that they can be freed in case of an error.
- *
- *	The functions operate on a linked bitmap structure defined
- *	in power.h
  */
 
-void free_bitmap(struct bitmap_page *bitmap)
+struct swsusp_extent {
+	struct rb_node node;
+	unsigned long start;
+	unsigned long end;
+};
+
+static struct rb_root swsusp_extents = RB_ROOT;
+
+static int swsusp_extents_insert(unsigned long swap_offset)
 {
-	struct bitmap_page *bp;
+	struct rb_node **new = &(swsusp_extents.rb_node);
+	struct rb_node *parent = NULL;
+	struct swsusp_extent *ext;
 
-	while (bitmap) {
-		bp = bitmap->next;
-		free_page((unsigned long)bitmap);
-		bitmap = bp;
-	}
-}
-
-struct bitmap_page *alloc_bitmap(unsigned int nr_bits)
-{
-	struct bitmap_page *bitmap, *bp;
-	unsigned int n;
-
-	if (!nr_bits)
-		return NULL;
-
-	bitmap = (struct bitmap_page *)get_zeroed_page(GFP_KERNEL);
-	bp = bitmap;
-	for (n = BITMAP_PAGE_BITS; n < nr_bits; n += BITMAP_PAGE_BITS) {
-		bp->next = (struct bitmap_page *)get_zeroed_page(GFP_KERNEL);
-		bp = bp->next;
-		if (!bp) {
-			free_bitmap(bitmap);
-			return NULL;
+	/* Figure out where to put the new node */
+	while (*new) {
+		ext = container_of(*new, struct swsusp_extent, node);
+		parent = *new;
+		if (swap_offset < ext->start) {
+			/* Try to merge */
+			if (swap_offset == ext->start - 1) {
+				ext->start--;
+				return 0;
+			}
+			new = &((*new)->rb_left);
+		} else if (swap_offset > ext->end) {
+			/* Try to merge */
+			if (swap_offset == ext->end + 1) {
+				ext->end++;
+				return 0;
+			}
+			new = &((*new)->rb_right);
+		} else {
+			/* It already is in the tree */
+			return -EINVAL;
 		}
 	}
-	return bitmap;
-}
+	/* Add the new node and rebalance the tree. */
+	ext = kzalloc(sizeof(struct swsusp_extent), GFP_KERNEL);
+	if (!ext)
+		return -ENOMEM;
 
-static int bitmap_set(struct bitmap_page *bitmap, unsigned long bit)
-{
-	unsigned int n;
-
-	n = BITMAP_PAGE_BITS;
-	while (bitmap && n <= bit) {
-		n += BITMAP_PAGE_BITS;
-		bitmap = bitmap->next;
-	}
-	if (!bitmap)
-		return -EINVAL;
-	n -= BITMAP_PAGE_BITS;
-	bit -= n;
-	n = 0;
-	while (bit >= BITS_PER_CHUNK) {
-		bit -= BITS_PER_CHUNK;
-		n++;
-	}
-	bitmap->chunks[n] |= (1UL << bit);
+	ext->start = swap_offset;
+	ext->end = swap_offset;
+	rb_link_node(&ext->node, parent, new);
+	rb_insert_color(&ext->node, &swsusp_extents);
 	return 0;
 }
 
-sector_t alloc_swapdev_block(int swap, struct bitmap_page *bitmap)
+/**
+ *	alloc_swapdev_block - allocate a swap page and register that it has
+ *	been allocated, so that it can be freed in case of an error.
+ */
+
+sector_t alloc_swapdev_block(int swap)
 {
 	unsigned long offset;
 
 	offset = swp_offset(get_swap_page_of_type(swap));
 	if (offset) {
-		if (bitmap_set(bitmap, offset))
+		if (swsusp_extents_insert(offset))
 			swap_free(swp_entry(swap, offset));
 		else
 			return swapdev_block(swap, offset);
@@ -147,21 +145,32 @@ sector_t alloc_swapdev_block(int swap, struct bitmap_page *bitmap)
 	return 0;
 }
 
-void free_all_swap_pages(int swap, struct bitmap_page *bitmap)
-{
-	unsigned int bit, n;
-	unsigned long test;
+/**
+ *	free_all_swap_pages - free swap pages allocated for saving image data.
+ *	It also frees the extents used to register which swap entres had been
+ *	allocated.
+ */
 
-	bit = 0;
-	while (bitmap) {
-		for (n = 0; n < BITMAP_PAGE_CHUNKS; n++)
-			for (test = 1UL; test; test <<= 1) {
-				if (bitmap->chunks[n] & test)
-					swap_free(swp_entry(swap, bit));
-				bit++;
-			}
-		bitmap = bitmap->next;
+void free_all_swap_pages(int swap)
+{
+	struct rb_node *node;
+
+	while ((node = swsusp_extents.rb_node)) {
+		struct swsusp_extent *ext;
+		unsigned long offset;
+
+		ext = container_of(node, struct swsusp_extent, node);
+		rb_erase(node, &swsusp_extents);
+		for (offset = ext->start; offset <= ext->end; offset++)
+			swap_free(swp_entry(swap, offset));
+
+		kfree(ext);
 	}
+}
+
+int swsusp_swap_in_use(void)
+{
+	return (swsusp_extents.rb_node != NULL);
 }
 
 /**

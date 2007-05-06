@@ -243,7 +243,6 @@ struct swap_map_page {
 struct swap_map_handle {
 	struct swap_map_page *cur;
 	sector_t cur_swap;
-	struct bitmap_page *bitmap;
 	unsigned int k;
 };
 
@@ -252,9 +251,6 @@ static void release_swap_writer(struct swap_map_handle *handle)
 	if (handle->cur)
 		free_page((unsigned long)handle->cur);
 	handle->cur = NULL;
-	if (handle->bitmap)
-		free_bitmap(handle->bitmap);
-	handle->bitmap = NULL;
 }
 
 static int get_swap_writer(struct swap_map_handle *handle)
@@ -262,12 +258,7 @@ static int get_swap_writer(struct swap_map_handle *handle)
 	handle->cur = (struct swap_map_page *)get_zeroed_page(GFP_KERNEL);
 	if (!handle->cur)
 		return -ENOMEM;
-	handle->bitmap = alloc_bitmap(count_swap_pages(root_swap, 0));
-	if (!handle->bitmap) {
-		release_swap_writer(handle);
-		return -ENOMEM;
-	}
-	handle->cur_swap = alloc_swapdev_block(root_swap, handle->bitmap);
+	handle->cur_swap = alloc_swapdev_block(root_swap);
 	if (!handle->cur_swap) {
 		release_swap_writer(handle);
 		return -ENOSPC;
@@ -284,7 +275,7 @@ static int swap_write_page(struct swap_map_handle *handle, void *buf,
 
 	if (!handle->cur)
 		return -EINVAL;
-	offset = alloc_swapdev_block(root_swap, handle->bitmap);
+	offset = alloc_swapdev_block(root_swap);
 	error = write_page(buf, offset, bio_chain);
 	if (error)
 		return error;
@@ -293,7 +284,7 @@ static int swap_write_page(struct swap_map_handle *handle, void *buf,
 		error = wait_on_bio_chain(bio_chain);
 		if (error)
 			goto out;
-		offset = alloc_swapdev_block(root_swap, handle->bitmap);
+		offset = alloc_swapdev_block(root_swap);
 		if (!offset)
 			return -ENOSPC;
 		handle->cur->next_swap = offset;
@@ -430,7 +421,8 @@ int swsusp_write(void)
 		}
 	}
 	if (error)
-		free_all_swap_pages(root_swap, handle.bitmap);
+		free_all_swap_pages(root_swap);
+
 	release_swap_writer(&handle);
  out:
 	swsusp_close();
