@@ -22,3 +22,5 @@
     (typeof(ptr)) (__ptr + (off)); })
 
 #endif
+
+#define uninitialized_var(x) x
