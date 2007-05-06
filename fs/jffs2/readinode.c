@@ -219,7 +219,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				struct jffs2_tmp_dnode_info *tn)
 {
 	uint32_t fn_end = tn->fn->ofs + tn->fn->size;
-	struct jffs2_tmp_dnode_info *insert_point = NULL, *this;
+	struct jffs2_tmp_dnode_info *this;
 
 	dbg_readinode("insert fragment %#04x-%#04x, ver %u\n", tn->fn->ofs, fn_end, tn->version);
 
@@ -247,9 +247,6 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 		dbg_readinode("keep new frag\n");
 		return 0;
 	}
-
-	/* If we add a new node it'll be somewhere under here. */
-	insert_point = this;
 
 	/* If the node is coincident with another at a lower address,
 	   back up until the other node is found. It may be relevant */
@@ -325,24 +322,16 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 			jffs2_kill_tn(c, this);
 			return 0;
 		}
-		/* We want to be inserted under the last node which is
-		   either at a lower offset _or_ has a smaller range */
-		if (this->fn->ofs < tn->fn->ofs ||
-		    (this->fn->ofs == tn->fn->ofs &&
-		     this->fn->size <= tn->fn->size))
-			insert_point = this;
 
 		this = tn_next(this);
 	}
-	dbg_readinode("insert_point %p, ver %d, 0x%x-0x%x, ov %d\n",
-		      insert_point, insert_point->version, insert_point->fn->ofs,
-		      insert_point->fn->ofs+insert_point->fn->size,
-		      insert_point->overlapped);
+
 	/* We neither completely obsoleted nor were completely
-	   obsoleted by an earlier node. Insert under insert_point */
+	   obsoleted by an earlier node. Insert into the tree */
 	{
-		struct rb_node *parent = &insert_point->rb;
-		struct rb_node **link = &parent;
+		struct rb_node *parent;
+		struct rb_node **link = &rii->tn_root.rb_node;
+		struct jffs2_tmp_dnode_info *insert_point;
 
 		while (*link) {
 			parent = *link;
@@ -458,7 +447,7 @@ static int jffs2_build_inode_fragtree(struct jffs2_sb_info *c,
 	this = tn_last(&rii->tn_root);
 	while (this) {
 		dbg_readinode("tn %p ver %d range 0x%x-0x%x ov %d\n", this, this->version, this->fn->ofs,
-			     this->fn->ofs+this->fn->size, this->overlapped);
+			      this->fn->ofs+this->fn->size, this->overlapped);
 		this = tn_prev(this);
 	}
 #endif
