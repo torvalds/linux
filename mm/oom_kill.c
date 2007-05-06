@@ -413,6 +413,9 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 		show_mem();
 	}
 
+	if (sysctl_panic_on_oom == 2)
+		panic("out of memory. Compulsory panic_on_oom is selected.\n");
+
 	cpuset_lock();
 	read_lock(&tasklist_lock);
 
