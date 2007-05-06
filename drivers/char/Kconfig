@@ -905,8 +905,8 @@ config SONYPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called sonypi.
 
-config TANBAC_TB0219
-	tristate "TANBAC TB0219 base board support"
+config GPIO_TB0219
+	tristate "TANBAC TB0219 GPIO support"
 	depends on TANBAC_TB022X
 	select GPIO_VR41XX
 
