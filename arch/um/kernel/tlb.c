@@ -252,7 +252,6 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 					    &op_index, force, mmu, &flush,
 					    do_ops);
 	} while (pgd++, addr = next, ((addr != end_addr) && !ret));
-	log_info("total flush time - %Ld nsecs\n", end_time - start_time);
 
 	if(!ret)
 		ret = (*do_ops)(mmu, ops, op_index, 1, &flush);
