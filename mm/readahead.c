@@ -207,6 +207,8 @@ out:
  *              If page_cache_readahead sees that it is again being called for
  *              a page which it just looked at, it can return immediately without
  *              making any state changes.
+ * offset:      Offset in the prev_page where the last read ended - used for
+ *              detection of sequential file reading.
  * ahead_start,
  * ahead_size:  Together, these form the "ahead window".
  * ra_pages:	The externally controlled max readahead for this fd.
@@ -473,6 +475,7 @@ page_cache_readahead(struct address_space *mapping, struct file_ra_state *ra,
 	/* Note that prev_page == -1 if it is a first read */
 	sequential = (offset == ra->prev_page + 1);
 	ra->prev_page = offset;
+	ra->offset = 0;
 
 	max = get_max_readahead(ra);
 	newsize = min(req_size, max);

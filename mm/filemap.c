@@ -868,6 +868,7 @@ void do_generic_mapping_read(struct address_space *mapping,
 	unsigned long last_index;
 	unsigned long next_index;
 	unsigned long prev_index;
+	unsigned int prev_offset;
 	loff_t isize;
 	struct page *cached_page;
 	int error;
@@ -877,6 +878,7 @@ void do_generic_mapping_read(struct address_space *mapping,
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	next_index = index;
 	prev_index = ra.prev_page;
+	prev_offset = ra.offset;
 	last_index = (*ppos + desc->count + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
 	offset = *ppos & ~PAGE_CACHE_MASK;
 
@@ -924,10 +926,10 @@ page_ok:
 			flush_dcache_page(page);
 
 		/*
-		 * When (part of) the same page is read multiple times
-		 * in succession, only mark it as accessed the first time.
+		 * When a sequential read accesses a page several times,
+		 * only mark it as accessed the first time.
 		 */
-		if (prev_index != index)
+		if (prev_index != index || offset != prev_offset)
 			mark_page_accessed(page);
 		prev_index = index;
 
@@ -945,6 +947,7 @@ page_ok:
 		offset += ret;
 		index += offset >> PAGE_CACHE_SHIFT;
 		offset &= ~PAGE_CACHE_MASK;
+		prev_offset = ra.offset = offset;
 
 		page_cache_release(page);
 		if (ret == nr && desc->count)
