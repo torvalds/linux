@@ -31,6 +31,7 @@
 #include "choose-mode.h"
 #include "mode.h"
 #include "tempfile.h"
+#include "kern_constants.h"
 
 int protect_memory(unsigned long addr, unsigned long len, int r, int w, int x,
 		   int must_succeed)
@@ -142,7 +143,7 @@ int outer_tramp(void *arg)
 	int sig = sigkill;
 
 	t = arg;
-	t->pid = clone(t->tramp, (void *) t->temp_stack + page_size()/2,
+	t->pid = clone(t->tramp, (void *) t->temp_stack + UM_KERN_PAGE_SIZE/2,
 		       t->flags, t->tramp_data);
 	if(t->pid > 0) wait_for_stop(t->pid, SIGSTOP, PTRACE_CONT, NULL);
 	kill(os_getpid(), sig);

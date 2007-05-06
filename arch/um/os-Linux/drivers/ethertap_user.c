@@ -20,6 +20,7 @@
 #include "etap.h"
 #include "os.h"
 #include "um_malloc.h"
+#include "kern_constants.h"
 
 #define MAX_PACKET ETH_MAX_PACKET
 
@@ -50,10 +51,10 @@ static void etap_change(int op, unsigned char *addr, unsigned char *netmask,
 	n = os_write_file(fd, &change, sizeof(change));
 	if(n != sizeof(change))
 		printk("etap_change - request failed, err = %d\n", -n);
-	output = um_kmalloc(page_size());
+	output = um_kmalloc(UM_KERN_PAGE_SIZE);
 	if(output == NULL)
 		printk("etap_change : Failed to allocate output buffer\n");
-	read_output(fd, output, page_size());
+	read_output(fd, output, UM_KERN_PAGE_SIZE);
 	if(output != NULL){
 		printk("%s", output);
 		kfree(output);
@@ -159,7 +160,7 @@ static int etap_open(void *data)
 
 	err = etap_tramp(pri->dev_name, pri->gate_addr, control_fds[0], 
 			 control_fds[1], data_fds[0], data_fds[1]);
-	output_len = page_size();
+	output_len = UM_KERN_PAGE_SIZE;
 	output = um_kmalloc(output_len);
 	read_output(control_fds[0], output, output_len);
 

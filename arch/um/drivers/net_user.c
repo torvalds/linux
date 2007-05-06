@@ -18,6 +18,7 @@
 #include "net_user.h"
 #include "os.h"
 #include "um_malloc.h"
+#include "kern_constants.h"
 
 int tap_open_common(void *dev, char *gate_addr)
 {
@@ -215,7 +216,7 @@ static void change(char *dev, char *what, unsigned char *addr,
 	sprintf(netmask_buf, "%d.%d.%d.%d", netmask[0], netmask[1], 
 		netmask[2], netmask[3]);
 
-	output_len = page_size();
+	output_len = UM_KERN_PAGE_SIZE;
 	output = um_kmalloc(output_len);
 	if(output == NULL)
 		printk("change : failed to allocate output buffer\n");

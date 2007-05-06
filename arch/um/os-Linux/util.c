@@ -29,28 +29,29 @@
 #include "uml-config.h"
 #include "os.h"
 #include "longjmp.h"
+#include "kern_constants.h"
 
 void stack_protections(unsigned long address)
 {
 	int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
 
-	if(mprotect((void *) address, page_size(), prot) < 0)
+	if(mprotect((void *) address, UM_KERN_PAGE_SIZE, prot) < 0)
 		panic("protecting stack failed, errno = %d", errno);
 }
 
 void task_protections(unsigned long address)
 {
-	unsigned long guard = address + page_size();
-	unsigned long stack = guard + page_size();
+	unsigned long guard = address + UM_KERN_PAGE_SIZE;
+	unsigned long stack = guard + UM_KERN_PAGE_SIZE;
 	int prot = 0, pages;
 
 #ifdef notdef
-	if(mprotect((void *) stack, page_size(), prot) < 0)
+	if(mprotect((void *) stack, UM_KERN_PAGE_SIZE, prot) < 0)
 		panic("protecting guard page failed, errno = %d", errno);
 #endif
 	pages = (1 << UML_CONFIG_KERNEL_STACK_ORDER) - 2;
 	prot = PROT_READ | PROT_WRITE | PROT_EXEC;
-	if(mprotect((void *) stack, pages * page_size(), prot) < 0)
+	if(mprotect((void *) stack, pages * UM_KERN_PAGE_SIZE, prot) < 0)
 		panic("protecting stack failed, errno = %d", errno);
 }
 

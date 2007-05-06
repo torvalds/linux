@@ -33,6 +33,7 @@
 #include "uml-config.h"
 #include "process.h"
 #include "longjmp.h"
+#include "kern_constants.h"
 
 int is_skas_winch(int pid, int fd, void *data)
 {
@@ -171,7 +172,7 @@ static int userspace_tramp(void *stack)
 		int fd;
 		__u64 offset;
 		fd = phys_mapping(to_phys(&__syscall_stub_start), &offset);
-		addr = mmap64((void *) UML_CONFIG_STUB_CODE, page_size(),
+		addr = mmap64((void *) UML_CONFIG_STUB_CODE, UM_KERN_PAGE_SIZE,
 			      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
 		if(addr == MAP_FAILED){
 			printk("mapping mmap stub failed, errno = %d\n",
@@ -181,8 +182,8 @@ static int userspace_tramp(void *stack)
 
 		if(stack != NULL){
 			fd = phys_mapping(to_phys(stack), &offset);
-			addr = mmap((void *) UML_CONFIG_STUB_DATA, page_size(),
-				    PROT_READ | PROT_WRITE,
+			addr = mmap((void *) UML_CONFIG_STUB_DATA,
+				    UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
 				    MAP_FIXED | MAP_SHARED, fd, offset);
 			if(addr == MAP_FAILED){
 				printk("mapping segfault stack failed, "
@@ -198,7 +199,7 @@ static int userspace_tramp(void *stack)
 				  (unsigned long) stub_segv_handler -
 				  (unsigned long) &__syscall_stub_start;
 
-		set_sigstack((void *) UML_CONFIG_STUB_DATA, page_size());
+		set_sigstack((void *) UML_CONFIG_STUB_DATA, UM_KERN_PAGE_SIZE);
 		sigemptyset(&sa.sa_mask);
 		sigaddset(&sa.sa_mask, SIGIO);
 		sigaddset(&sa.sa_mask, SIGWINCH);

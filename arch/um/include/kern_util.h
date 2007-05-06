@@ -52,7 +52,6 @@ extern void set_tracing(void *t, int tracing);
 extern int is_tracing(void *task);
 extern int segv_syscall(void);
 extern void kern_finish_exec(void *task, int new_pid, unsigned long stack);
-extern int page_size(void);
 extern unsigned long page_mask(void);
 extern int need_finish_fork(void);
 extern void free_stack(unsigned long stack, int order);

@@ -217,11 +217,6 @@ void cpu_idle(void)
 	CHOOSE_MODE(init_idle_tt(), init_idle_skas());
 }
 
-int page_size(void)
-{
-	return PAGE_SIZE;
-}
-
 void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 		      pte_t *pte_out)
 {
