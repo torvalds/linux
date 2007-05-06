@@ -34,7 +34,6 @@ typedef struct kmem_cache kmem_cache_t __deprecated;
 
 /* Flags passed to a constructor functions */
 #define SLAB_CTOR_CONSTRUCTOR	0x001UL		/* If not set, then deconstructor */
-#define SLAB_CTOR_ATOMIC	0x002UL		/* Tell constructor it can't sleep */
 
 /*
  * struct kmem_cache related prototypes

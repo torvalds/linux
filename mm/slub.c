@@ -802,14 +802,8 @@ static void setup_object(struct kmem_cache *s, struct page *page,
 		init_tracking(s, object);
 	}
 
-	if (unlikely(s->ctor)) {
-		int mode = SLAB_CTOR_CONSTRUCTOR;
-
-		if (!(s->flags & __GFP_WAIT))
-			mode |= SLAB_CTOR_ATOMIC;
-
-		s->ctor(object, s, mode);
-	}
+	if (unlikely(s->ctor))
+		s->ctor(object, s, SLAB_CTOR_CONSTRUCTOR);
 }
 
 static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
