@@ -150,15 +150,6 @@ static void slob_free(void *block, int size)
 	spin_unlock_irqrestore(&slob_lock, flags);
 }
 
-static int FASTCALL(find_order(int size));
-static int fastcall find_order(int size)
-{
-	int order = 0;
-	for ( ; size > 4096 ; size >>=1)
-		order++;
-	return order;
-}
-
 void *__kmalloc(size_t size, gfp_t gfp)
 {
 	slob_t *m;
@@ -174,7 +165,7 @@ void *__kmalloc(size_t size, gfp_t gfp)
 	if (!bb)
 		return 0;
 
-	bb->order = find_order(size);
+	bb->order = get_order(size);
 	bb->pages = (void *)__get_free_pages(gfp, bb->order);
 
 	if (bb->pages) {
@@ -318,7 +309,7 @@ void *kmem_cache_alloc(struct kmem_cache *c, gfp_t flags)
 	if (c->size < PAGE_SIZE)
 		b = slob_alloc(c->size, flags, c->align);
 	else
-		b = (void *)__get_free_pages(flags, find_order(c->size));
+		b = (void *)__get_free_pages(flags, get_order(c->size));
 
 	if (c->ctor)
 		c->ctor(b, c, SLAB_CTOR_CONSTRUCTOR);
@@ -345,7 +336,7 @@ void kmem_cache_free(struct kmem_cache *c, void *b)
 	if (c->size < PAGE_SIZE)
 		slob_free(b, c->size);
 	else
-		free_pages((unsigned long)b, find_order(c->size));
+		free_pages((unsigned long)b, get_order(c->size));
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
