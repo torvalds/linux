@@ -399,6 +399,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 	struct task_struct *p;
 	unsigned long points = 0;
 	unsigned long freed = 0;
+	int constraint;
 
 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
 	if (freed > 0)
@@ -416,14 +417,15 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 	if (sysctl_panic_on_oom == 2)
 		panic("out of memory. Compulsory panic_on_oom is selected.\n");
 
-	cpuset_lock();
-	read_lock(&tasklist_lock);
-
 	/*
 	 * Check if there were limitations on the allocation (only relevant for
 	 * NUMA) that may require different handling.
 	 */
-	switch (constrained_alloc(zonelist, gfp_mask)) {
+	constraint = constrained_alloc(zonelist, gfp_mask);
+	cpuset_lock();
+	read_lock(&tasklist_lock);
+
+	switch (constraint) {
 	case CONSTRAINT_MEMORY_POLICY:
 		oom_kill_process(current, points,
 				"No available memory (MPOL_BIND)");
