@@ -21,6 +21,7 @@
 #include "skas_ptrace.h"
 #include "kern_constants.h"
 #include "uml-config.h"
+#include "init.h"
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -192,7 +193,7 @@ int os_unmap_memory(void *addr, int len)
 #define MADV_REMOVE KERNEL_MADV_REMOVE
 #endif
 
-int os_drop_memory(void *addr, int length)
+int __init os_drop_memory(void *addr, int length)
 {
 	int err;
 
@@ -202,7 +203,7 @@ int os_drop_memory(void *addr, int length)
 	return err;
 }
 
-int can_drop_memory(void)
+int __init can_drop_memory(void)
 {
 	void *addr;
 	int fd, ok = 0;

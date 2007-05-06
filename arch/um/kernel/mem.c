@@ -216,7 +216,7 @@ static void __init fixaddr_user_init( void)
 #endif
 }
 
-void paging_init(void)
+void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES], vaddr;
 	int i;

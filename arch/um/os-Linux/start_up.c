@@ -329,7 +329,7 @@ static void __init check_ptrace(void)
 
 extern void check_tmpexec(void);
 
-static void check_coredump_limit(void)
+static void __init check_coredump_limit(void)
 {
 	struct rlimit lim;
 	int err = getrlimit(RLIMIT_CORE, &lim);
@@ -350,7 +350,7 @@ static void check_coredump_limit(void)
 	else printf("%lu\n", lim.rlim_max);
 }
 
-void os_early_checks(void)
+void __init os_early_checks(void)
 {
 	/* Print out the core dump limits early */
 	check_coredump_limit();

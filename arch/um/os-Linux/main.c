@@ -120,7 +120,7 @@ extern int uml_exitcode;
 
 extern void scan_elf_aux( char **envp);
 
-int main(int argc, char **argv, char **envp)
+int __init main(int argc, char **argv, char **envp)
 {
 	char **new_argv;
 	int ret, i, err;
