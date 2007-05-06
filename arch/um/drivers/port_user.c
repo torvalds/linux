@@ -13,7 +13,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
 #include "chan_user.h"

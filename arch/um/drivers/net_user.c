@@ -14,7 +14,6 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include "user.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "net_user.h"
 #include "os.h"

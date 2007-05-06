@@ -18,7 +18,6 @@
 #include <asm/ptrace.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
 #include "signal_kern.h"

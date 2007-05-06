@@ -18,7 +18,6 @@
 #include "asm/param.h"
 #include "asm/current.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "mode.h"
 #include "os.h"
 

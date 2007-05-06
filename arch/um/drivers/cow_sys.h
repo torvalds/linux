@@ -2,7 +2,6 @@
 #define __COW_SYS_H__
 
 #include "kern_util.h"
-#include "user_util.h"
 #include "os.h"
 #include "user.h"
 #include "um_malloc.h"

@@ -10,7 +10,6 @@
 #include "asm/pgtable.h"
 #include "asm/tlbflush.h"
 #include "asm/uaccess.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "as-layout.h"
 #include "mem_user.h"

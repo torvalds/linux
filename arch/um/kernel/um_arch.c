@@ -26,7 +26,6 @@
 #include "asm/setup.h"
 #include "ubd_user.h"
 #include "asm/current.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "as-layout.h"
 #include "arch.h"

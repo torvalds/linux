@@ -14,7 +14,6 @@
 #include "net_user.h"
 #include "daemon.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "user.h"
 #include "os.h"
 #include "um_malloc.h"

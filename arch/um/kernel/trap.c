@@ -18,7 +18,6 @@
 #include "asm/current.h"
 #include "asm/irq.h"
 #include "sysdep/sigcontext.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "as-layout.h"
 #include "arch.h"

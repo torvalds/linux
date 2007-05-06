@@ -13,7 +13,6 @@
 #include "asm/page.h"
 #include "asm/fixmap.h"
 #include "asm/pgalloc.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "as-layout.h"
 #include "kern.h"

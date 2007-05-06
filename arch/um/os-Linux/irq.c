@@ -11,7 +11,6 @@
 #include <sys/poll.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
 #include "process.h"

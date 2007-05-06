@@ -17,7 +17,6 @@
 #include "init.h"
 #include "user.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "sigio.h"
 #include "os.h"
 #include "um_malloc.h"

@@ -21,7 +21,6 @@
 #include "linux/ethtool.h"
 #include "linux/platform_device.h"
 #include "asm/uaccess.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "net_kern.h"
 #include "net_user.h"

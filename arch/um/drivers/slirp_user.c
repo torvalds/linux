@@ -7,7 +7,6 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <sys/signal.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
 #include "net_user.h"

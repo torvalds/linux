@@ -16,7 +16,6 @@
 #include <net/if.h>
 #include "user.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "net_user.h"
 #include "etap.h"
 #include "os.h"

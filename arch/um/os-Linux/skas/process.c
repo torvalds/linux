@@ -18,7 +18,6 @@
 #include <asm/types.h>
 #include "user.h"
 #include "sysdep/ptrace.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "skas.h"
 #include "stub-data.h"

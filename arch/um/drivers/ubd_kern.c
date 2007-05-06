@@ -39,7 +39,6 @@
 #include "asm/irq.h"
 #include "asm/types.h"
 #include "asm/tlbflush.h"
-#include "user_util.h"
 #include "mem_user.h"
 #include "kern_util.h"
 #include "kern.h"

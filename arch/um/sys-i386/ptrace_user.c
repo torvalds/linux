@@ -15,7 +15,6 @@
 #include "user.h"
 #include "os.h"
 #include "uml-config.h"
-#include "user_util.h"
 
 int ptrace_getregs(long pid, unsigned long *regs_out)
 {

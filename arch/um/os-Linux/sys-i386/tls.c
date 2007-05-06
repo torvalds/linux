@@ -6,7 +6,6 @@
 
 #include "sysdep/tls.h"
 #include "user.h"
-#include "user_util.h"
 
 /* Checks whether host supports TLS, and sets *tls_min according to the value
  * valid on the host.

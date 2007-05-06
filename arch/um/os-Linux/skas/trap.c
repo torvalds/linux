@@ -5,7 +5,6 @@
 
 #include <signal.h>
 #include <errno.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "as-layout.h"
 #include "task.h"

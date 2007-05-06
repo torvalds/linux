@@ -14,7 +14,6 @@
 #include "ptrace_user.h"
 #include "os.h"
 #include "user.h"
-#include "user_util.h"
 #include "process.h"
 #include "irq_user.h"
 #include "kern_util.h"

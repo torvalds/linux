@@ -13,7 +13,6 @@
 #include <sys/mman.h>
 #include <sys/user.h>
 #include <asm/page.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "as-layout.h"
 #include "mem_user.h"

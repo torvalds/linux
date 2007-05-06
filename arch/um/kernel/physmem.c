@@ -14,7 +14,6 @@
 #include "asm/pgtable.h"
 #include "kern_util.h"
 #include "as-layout.h"
-#include "user_util.h"
 #include "mode_kern.h"
 #include "mem.h"
 #include "mem_user.h"

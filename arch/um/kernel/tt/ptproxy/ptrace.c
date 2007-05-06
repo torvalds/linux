@@ -16,7 +16,6 @@ Jeff Dike (jdike@karaya.com) : Modified for integration into uml
 
 #include "ptproxy.h"
 #include "debug.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "ptrace_user.h"
 #include "tt.h"

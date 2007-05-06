@@ -8,7 +8,6 @@
 #include "asm/uaccess.h"
 #include "mem_user.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "kern.h"
 #include "tt.h"
 

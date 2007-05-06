@@ -18,7 +18,6 @@
 #include "net_user.h"
 #include "tuntap.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "user.h"
 #include "os.h"
 

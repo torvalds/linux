@@ -21,7 +21,6 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 #include "asm/smp.h"
 #include "asm/processor.h"
 #include "asm/spinlock.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "kern.h"
 #include "irq_user.h"

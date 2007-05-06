@@ -13,7 +13,6 @@
 #include "sysdep/ptrace.h"
 #include "task.h"
 #include "os.h"
-#include "user_util.h"
 
 #define MAXTOKEN 64
 

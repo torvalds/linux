@@ -13,7 +13,6 @@
 #include "irq_user.h"
 #include "line.h"
 #include "kern.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "os.h"
 #include "irq_kern.h"

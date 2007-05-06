@@ -21,7 +21,6 @@
 #include <sched.h>
 #include <termios.h>
 #include <string.h>
-#include "user_util.h"
 #include "kern_util.h"
 #include "user.h"
 #include "mem_user.h"

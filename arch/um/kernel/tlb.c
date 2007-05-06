@@ -10,7 +10,6 @@
 #include "choose-mode.h"
 #include "mode_kern.h"
 #include "as-layout.h"
-#include "user_util.h"
 #include "tlb.h"
 #include "mem.h"
 #include "mem_user.h"

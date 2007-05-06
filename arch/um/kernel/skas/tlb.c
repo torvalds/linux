@@ -10,7 +10,6 @@
 #include "asm/page.h"
 #include "asm/pgtable.h"
 #include "asm/mmu.h"
-#include "user_util.h"
 #include "mem_user.h"
 #include "mem.h"
 #include "skas.h"

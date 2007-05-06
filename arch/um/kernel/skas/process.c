@@ -16,7 +16,6 @@
 #include "as-layout.h"
 #include "skas.h"
 #include "os.h"
-#include "user_util.h"
 #include "tlb.h"
 #include "kern.h"
 #include "mode.h"

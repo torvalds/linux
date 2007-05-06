@@ -26,7 +26,6 @@ Jeff Dike (jdike@karaya.com) : Modified for integration into uml
 #include "sysdep.h"
 #include "wait.h"
 
-#include "user_util.h"
 #include "user.h"
 #include "os.h"
 #include "tempfile.h"

@@ -17,7 +17,6 @@
 #include "user.h"
 #include "debug.h"
 #include "kern_util.h"
-#include "user_util.h"
 #include "tt.h"
 #include "sysdep/thread.h"
 #include "os.h"

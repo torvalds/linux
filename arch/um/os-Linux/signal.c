@@ -11,7 +11,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <sys/mman.h>
-#include "user_util.h"
 #include "user.h"
 #include "signal_kern.h"
 #include "sysdep/sigcontext.h"

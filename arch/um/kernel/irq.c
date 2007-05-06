@@ -25,7 +25,6 @@
 #include "asm/system.h"
 #include "asm/errno.h"
 #include "asm/uaccess.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "irq_user.h"
 #include "irq_kern.h"

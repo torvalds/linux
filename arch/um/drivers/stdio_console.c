@@ -22,7 +22,6 @@
 #include "stdio_console.h"
 #include "line.h"
 #include "chan_kern.h"
-#include "user_util.h"
 #include "kern_util.h"
 #include "irq_user.h"
 #include "mconsole_kern.h"

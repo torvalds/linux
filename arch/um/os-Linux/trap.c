@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <signal.h>
 #include "kern_util.h"
-#include "user_util.h"
 #include "os.h"
 #include "mode.h"
 #include "longjmp.h"
