@@ -478,15 +478,6 @@ config SHMEM
 	  option replaces shmem and tmpfs with the much simpler ramfs code,
 	  which may be appropriate on small systems without swap.
 
-config SLAB
-	default y
-	bool "Use full SLAB allocator" if (EMBEDDED && !SMP && !SPARSEMEM)
-	help
-	  Disabling this replaces the advanced SLAB allocator and
-	  kmalloc support with the drastically simpler SLOB allocator.
-	  SLOB is more space efficient but does not scale well and is
-	  more susceptible to fragmentation.
-
 config VM_EVENT_COUNTERS
 	default y
 	bool "Enable VM event counters for /proc/vmstat" if EMBEDDED
@@ -495,6 +486,46 @@ config VM_EVENT_COUNTERS
 	  This option allows the disabling of the VM event counters
 	  on EMBEDDED systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
+
+choice
+	prompt "Choose SLAB allocator"
+	default SLAB
+	help
+	   This option allows to select a slab allocator.
+
+config SLAB
+	bool "SLAB"
+	help
+	  The regular slab allocator that is established and known to work
+	  well in all environments. It organizes chache hot objects in
+	  per cpu and per node queues. SLAB is the default choice for
+	  slab allocator.
+
+config SLUB
+	depends on EXPERIMENTAL && !ARCH_USES_SLAB_PAGE_STRUCT
+	bool "SLUB (Unqueued Allocator)"
+	help
+	   SLUB is a slab allocator that minimizes cache line usage
+	   instead of managing queues of cached objects (SLAB approach).
+	   Per cpu caching is realized using slabs of objects instead
+	   of queues of objects. SLUB can use memory efficiently
+	   way and has enhanced diagnostics.
+
+config SLOB
+#
+#	SLOB cannot support SMP because SLAB_DESTROY_BY_RCU does not work
+#	properly.
+#
+	depends on EMBEDDED && !SMP && !SPARSEMEM
+	bool "SLOB (Simple Allocator)"
+	help
+	   SLOB replaces the SLAB allocator with a drastically simpler
+	   allocator.  SLOB is more space efficient that SLAB but does not
+	   scale well (single lock for all operations) and is more susceptible
+	   to fragmentation. SLOB it is a great choice to reduce
+	   memory usage and code size for embedded systems.
+
+endchoice
 
 endmenu		# General setup
 
@@ -510,10 +541,6 @@ config BASE_SMALL
 	int
 	default 0 if BASE_FULL
 	default 1 if !BASE_FULL
-
-config SLOB
-	default !SLAB
-	bool
 
 menu "Loadable module support"
 

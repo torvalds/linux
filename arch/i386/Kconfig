@@ -79,6 +79,10 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config ARCH_USES_SLAB_PAGE_STRUCT
+	bool
+	default y
+
 config DMI
 	bool
 	default y
