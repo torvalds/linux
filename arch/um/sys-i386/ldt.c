@@ -517,7 +517,7 @@ long init_new_ldt(struct mmu_context_skas * new_mm,
 					      .u 	=
 					      { .copy_segments =
 							from_mm->id.u.mm_fd } } );
-		i = os_write_file_k(new_mm->id.u.mm_fd, &copy, sizeof(copy));
+		i = os_write_file(new_mm->id.u.mm_fd, &copy, sizeof(copy));
 		if(i != sizeof(copy))
 			printk("new_mm : /proc/mm copy_segments failed, "
 			       "err = %d\n", -i);

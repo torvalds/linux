@@ -511,8 +511,8 @@ static void ubd_handler(void)
 	int n;
 
 	while(1){
-		n = os_read_file_k(thread_fd, &req,
-				   sizeof(struct io_thread_req *));
+		n = os_read_file(thread_fd, &req,
+				 sizeof(struct io_thread_req *));
 		if(n != sizeof(req)){
 			if(n == -EAGAIN)
 				break;
@@ -1112,8 +1112,8 @@ static void do_ubd_request(request_queue_t *q)
 					(unsigned long long) req->sector << 9,
 					sg->offset, sg->length, sg->page);
 
-			n = os_write_file_k(thread_fd, &io_req,
-					    sizeof(struct io_thread_req *));
+			n = os_write_file(thread_fd, &io_req,
+					  sizeof(struct io_thread_req *));
 			if(n != sizeof(struct io_thread_req *)){
 				if(n != -EAGAIN)
 					printk("write to io thread failed, "
@@ -1366,8 +1366,8 @@ static int update_bitmap(struct io_thread_req *req)
 		return 1;
 	}
 
-	n = os_write_file_k(req->fds[1], &req->bitmap_words,
-			    sizeof(req->bitmap_words));
+	n = os_write_file(req->fds[1], &req->bitmap_words,
+			  sizeof(req->bitmap_words));
 	if(n != sizeof(req->bitmap_words)){
 		printk("do_io - bitmap update failed, err = %d fd = %d\n", -n,
 		       req->fds[1]);
@@ -1411,7 +1411,7 @@ void do_io(struct io_thread_req *req)
 			do {
 				buf = &buf[n];
 				len -= n;
-				n = os_read_file_k(req->fds[bit], buf, len);
+				n = os_read_file(req->fds[bit], buf, len);
 				if (n < 0) {
 					printk("do_io - read failed, err = %d "
 					       "fd = %d\n", -n, req->fds[bit]);
@@ -1421,7 +1421,7 @@ void do_io(struct io_thread_req *req)
 			} while((n < len) && (n != 0));
 			if (n < len) memset(&buf[n], 0, len - n);
 		} else {
-			n = os_write_file_k(req->fds[bit], buf, len);
+			n = os_write_file(req->fds[bit], buf, len);
 			if(n != len){
 				printk("do_io - write failed err = %d "
 				       "fd = %d\n", -n, req->fds[bit]);
@@ -1451,7 +1451,7 @@ int io_thread(void *arg)
 
 	ignore_sigwinch_sig();
 	while(1){
-		n = os_read_file_k(kernel_fd, &req,
+		n = os_read_file(kernel_fd, &req,
 				 sizeof(struct io_thread_req *));
 		if(n != sizeof(struct io_thread_req *)){
 			if(n < 0)
@@ -1465,7 +1465,7 @@ int io_thread(void *arg)
 		}
 		io_count++;
 		do_io(req);
-		n = os_write_file_k(kernel_fd, &req,
+		n = os_write_file(kernel_fd, &req,
 				  sizeof(struct io_thread_req *));
 		if(n != sizeof(struct io_thread_req *))
 			printk("io_thread - write failed, fd = %d, err = %d\n",

@@ -84,7 +84,7 @@ static ssize_t hostaudio_read(struct file *file, char __user *buffer,
 	if(kbuf == NULL)
 		return(-ENOMEM);
 
-	err = os_read_file_k(state->fd, kbuf, count);
+	err = os_read_file(state->fd, kbuf, count);
 	if(err < 0)
 		goto out;
 
@@ -115,7 +115,7 @@ static ssize_t hostaudio_write(struct file *file, const char __user *buffer,
 	if(copy_from_user(kbuf, buffer, count))
 		goto out;
 
-	err = os_write_file_k(state->fd, kbuf, count);
+	err = os_write_file(state->fd, kbuf, count);
 	if(err < 0)
 		goto out;
 	*ppos += err;

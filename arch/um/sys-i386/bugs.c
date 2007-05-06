@@ -28,7 +28,7 @@ static char token(int fd, char *buf, int len, char stop)
 	ptr = buf;
 	end = &buf[len];
 	do {
-		n = os_read_file_k(fd, ptr, sizeof(*ptr));
+		n = os_read_file(fd, ptr, sizeof(*ptr));
 		c = *ptr++;
 		if(n != sizeof(*ptr)){
 			if(n == 0)
@@ -67,7 +67,7 @@ static int find_cpuinfo_line(int fd, char *key, char *scratch, int len)
 			return 1;
 
 		do {
-			n = os_read_file_k(fd, &c, sizeof(c));
+			n = os_read_file(fd, &c, sizeof(c));
 			if(n != sizeof(c)){
 				printk("Failed to find newline in "
 				       "/proc/cpuinfo, err = %d\n", -n);

@@ -44,7 +44,7 @@ static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
         int n, ret = 0, have_data;
 
         while(size){
-                n = os_read_file_k(random_fd, &data, sizeof(data));
+                n = os_read_file(random_fd, &data, sizeof(data));
                 if(n > 0){
                         have_data = n;
                         while (have_data && size) {

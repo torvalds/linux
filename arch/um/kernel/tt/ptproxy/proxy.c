@@ -338,14 +338,14 @@ int start_debugger(char *prog, int startup, int stop, int *fd_out)
 			       "err = %d\n", -fd);
 			exit(1);
 		}
-		os_write_file_k(fd, gdb_init_string,
-				sizeof(gdb_init_string) - 1);
+		os_write_file(fd, gdb_init_string,
+			      sizeof(gdb_init_string) - 1);
 		if(startup){
 			if(stop){
-				os_write_file_k(fd, "b start_kernel\n",
+				os_write_file(fd, "b start_kernel\n",
 						strlen("b start_kernel\n"));
 			}
-			os_write_file_k(fd, "c\n", strlen("c\n"));
+			os_write_file(fd, "c\n", strlen("c\n"));
 		}
 		if(ptrace(PTRACE_TRACEME, 0, 0, 0) < 0){
 			printk("start_debugger :  PTRACE_TRACEME failed, "

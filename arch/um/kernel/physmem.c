@@ -211,7 +211,7 @@ void physmem_forget_descriptor(int fd)
 			panic("physmem_forget_descriptor - failed to seek "
 			      "to %lld in fd %d, error = %d\n",
 			      offset, fd, -err);
-		err = os_read_file_k(fd, addr, PAGE_SIZE);
+		err = os_read_file(fd, addr, PAGE_SIZE);
 		if(err < 0)
 			panic("physmem_forget_descriptor - failed to read "
 			      "from fd %d to 0x%p, error = %d\n",
@@ -341,7 +341,7 @@ void setup_physmem(unsigned long start, unsigned long reserve_end,
 	 * from physmem_fd, so it needs to be written out there.
 	 */
 	os_seek_file(physmem_fd, __pa(&__syscall_stub_start));
-	os_write_file_k(physmem_fd, &__syscall_stub_start, PAGE_SIZE);
+	os_write_file(physmem_fd, &__syscall_stub_start, PAGE_SIZE);
 
 	bootmap_size = init_bootmem(pfn, pfn + delta);
 	free_bootmem(__pa(reserve_end) + bootmap_size,

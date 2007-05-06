@@ -94,7 +94,7 @@ static int connect_to_switch(struct daemon_data *pri)
 	req.version = SWITCH_VERSION;
 	req.type = REQ_NEW_CONTROL;
 	req.sock = *local_addr;
-	n = os_write_file_k(pri->control, &req, sizeof(req));
+	n = os_write_file(pri->control, &req, sizeof(req));
 	if(n != sizeof(req)){
 		printk("daemon_open : control setup request failed, err = %d\n",
 		       -n);
@@ -102,7 +102,7 @@ static int connect_to_switch(struct daemon_data *pri)
 		goto out_free;
 	}
 
-	n = os_read_file_k(pri->control, sun, sizeof(*sun));
+	n = os_read_file(pri->control, sun, sizeof(*sun));
 	if(n != sizeof(*sun)){
 		printk("daemon_open : read of data socket failed, err = %d\n",
 		       -n);
