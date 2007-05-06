@@ -318,20 +318,22 @@
 
 		i2c@3d00 {
 			device_type = "i2c";
-			compatible = "mpc5200-i2c";
+			compatible = "mpc5200-i2c\0fsl-i2c";
 			cell-index = <0>;
 			reg = <3d00 40>;
 			interrupts = <2 f 0>;
 			interrupt-parent = <500>;
+			fsl5200-clocking;
 		};
 
 		i2c@3d40 {
 			device_type = "i2c";
-			compatible = "mpc5200-i2c";
+			compatible = "mpc5200-i2c\0fsl-i2c";
 			cell-index = <1>;
 			reg = <3d40 40>;
 			interrupts = <2 10 0>;
 			interrupt-parent = <500>;
+			fsl5200-clocking;
 		};
 		sram@8000 {
 			device_type = "sram";
