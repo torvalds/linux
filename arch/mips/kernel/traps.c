@@ -1128,7 +1128,7 @@ void mips_srs_free(int set)
 	clear_bit(set, &sr->sr_allocated);
 }
 
-static void *set_vi_srs_handler(int n, void *addr, int srs)
+static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 {
 	unsigned long handler;
 	unsigned long old_handler = vi_handlers[n];
@@ -1217,7 +1217,7 @@ static void *set_vi_srs_handler(int n, void *addr, int srs)
 	return (void *)old_handler;
 }
 
-void *set_vi_handler(int n, void *addr)
+void *set_vi_handler(int n, vi_handler_t addr)
 {
 	return set_vi_srs_handler(n, addr, 0);
 }
