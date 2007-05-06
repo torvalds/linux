@@ -97,9 +97,6 @@
  *
  * - Support PAGE_ALLOC_DEBUG. Should be easy to do.
  *
- * - Support DEBUG_SLAB_LEAK. Trouble is we do not know where the full
- *   slabs are in SLUB.
- *
  * - SLAB_DEBUG_INITIAL is not supported but I have never seen a use of
  *   it.
  *
@@ -2659,6 +2656,169 @@ static unsigned long validate_slab_cache(struct kmem_cache *s)
 	return count;
 }
 
+/*
+ * Generate lists of locations where slabcache objects are allocated
+ * and freed.
+ */
+
+struct location {
+	unsigned long count;
+	void *addr;
+};
+
+struct loc_track {
+	unsigned long max;
+	unsigned long count;
+	struct location *loc;
+};
+
+static void free_loc_track(struct loc_track *t)
+{
+	if (t->max)
+		free_pages((unsigned long)t->loc,
+			get_order(sizeof(struct location) * t->max));
+}
+
+static int alloc_loc_track(struct loc_track *t, unsigned long max)
+{
+	struct location *l;
+	int order;
+
+	if (!max)
+		max = PAGE_SIZE / sizeof(struct location);
+
+	order = get_order(sizeof(struct location) * max);
+
+	l = (void *)__get_free_pages(GFP_KERNEL, order);
+
+	if (!l)
+		return 0;
+
+	if (t->count) {
+		memcpy(l, t->loc, sizeof(struct location) * t->count);
+		free_loc_track(t);
+	}
+	t->max = max;
+	t->loc = l;
+	return 1;
+}
+
+static int add_location(struct loc_track *t, struct kmem_cache *s,
+						void *addr)
+{
+	long start, end, pos;
+	struct location *l;
+	void *caddr;
+
+	start = -1;
+	end = t->count;
+
+	for ( ; ; ) {
+		pos = start + (end - start + 1) / 2;
+
+		/*
+		 * There is nothing at "end". If we end up there
+		 * we need to add something to before end.
+		 */
+		if (pos == end)
+			break;
+
+		caddr = t->loc[pos].addr;
+		if (addr == caddr) {
+			t->loc[pos].count++;
+			return 1;
+		}
+
+		if (addr < caddr)
+			end = pos;
+		else
+			start = pos;
+	}
+
+	/*
+	 * Not found. Insert new tracking element
+	 */
+	if (t->count >= t->max && !alloc_loc_track(t, 2 * t->max))
+		return 0;
+
+	l = t->loc + pos;
+	if (pos < t->count)
+		memmove(l + 1, l,
+			(t->count - pos) * sizeof(struct location));
+	t->count++;
+	l->count = 1;
+	l->addr = addr;
+	return 1;
+}
+
+static void process_slab(struct loc_track *t, struct kmem_cache *s,
+		struct page *page, enum track_item alloc)
+{
+	void *addr = page_address(page);
+	unsigned long map[BITS_TO_LONGS(s->objects)];
+	void *p;
+
+	bitmap_zero(map, s->objects);
+	for (p = page->freelist; p; p = get_freepointer(s, p))
+		set_bit((p - addr) / s->size, map);
+
+	for (p = addr; p < addr + s->objects * s->size; p += s->size)
+		if (!test_bit((p - addr) / s->size, map)) {
+			void *addr = get_track(s, p, alloc)->addr;
+
+			add_location(t, s, addr);
+		}
+}
+
+static int list_locations(struct kmem_cache *s, char *buf,
+					enum track_item alloc)
+{
+	int n = 0;
+	unsigned long i;
+	struct loc_track t;
+	int node;
+
+	t.count = 0;
+	t.max = 0;
+
+	/* Push back cpu slabs */
+	flush_all(s);
+
+	for_each_online_node(node) {
+		struct kmem_cache_node *n = get_node(s, node);
+		unsigned long flags;
+		struct page *page;
+
+		if (!atomic_read(&n->nr_slabs))
+			continue;
+
+		spin_lock_irqsave(&n->list_lock, flags);
+		list_for_each_entry(page, &n->partial, lru)
+			process_slab(&t, s, page, alloc);
+		list_for_each_entry(page, &n->full, lru)
+			process_slab(&t, s, page, alloc);
+		spin_unlock_irqrestore(&n->list_lock, flags);
+	}
+
+	for (i = 0; i < t.count; i++) {
+		void *addr = t.loc[i].addr;
+
+		if (n > PAGE_SIZE - 100)
+			break;
+		n += sprintf(buf + n, "%7ld ", t.loc[i].count);
+		if (addr)
+			n += sprint_symbol(buf + n, (unsigned long)t.loc[i].addr);
+		else
+			n += sprintf(buf + n, "<not-available>");
+		n += sprintf(buf + n, "\n");
+	}
+
+	free_loc_track(&t);
+	if (!t.count)
+		n += sprintf(buf, "No data\n");
+	return n;
+}
+
 static unsigned long count_partial(struct kmem_cache_node *n)
 {
 	unsigned long flags;
@@ -3009,6 +3169,22 @@ static ssize_t validate_store(struct kmem_cache *s,
 }
 SLAB_ATTR(validate);
 
+static ssize_t alloc_calls_show(struct kmem_cache *s, char *buf)
+{
+	if (!(s->flags & SLAB_STORE_USER))
+		return -ENOSYS;
+	return list_locations(s, buf, TRACK_ALLOC);
+}
+SLAB_ATTR_RO(alloc_calls);
+
+static ssize_t free_calls_show(struct kmem_cache *s, char *buf)
+{
+	if (!(s->flags & SLAB_STORE_USER))
+		return -ENOSYS;
+	return list_locations(s, buf, TRACK_FREE);
+}
+SLAB_ATTR_RO(free_calls);
+
 #ifdef CONFIG_NUMA
 static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
 {
@@ -3049,6 +3225,8 @@ static struct attribute * slab_attrs[] = {
 	&poison_attr.attr,
 	&store_user_attr.attr,
 	&validate_attr.attr,
+	&alloc_calls_attr.attr,
+	&free_calls_attr.attr,
 #ifdef CONFIG_ZONE_DMA
 	&cache_dma_attr.attr,
 #endif
