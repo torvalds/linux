@@ -22,6 +22,7 @@
 #include <linux/backing-dev.h>
 #include <linux/hugetlb.h>
 #include <linux/pagevec.h>
+#include <linux/mman.h>
 #include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/dnotify.h>
@@ -111,6 +112,12 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		return -EINVAL;
 	if (len > TASK_SIZE)
 		return -ENOMEM;
+
+	if (flags & MAP_FIXED) {
+		if (prepare_hugepage_range(addr, len, pgoff))
+			return -EINVAL;
+		return addr;
+	}
 
 	if (addr) {
 		addr = ALIGN(addr, HPAGE_SIZE);
