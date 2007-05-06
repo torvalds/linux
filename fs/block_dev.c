@@ -55,10 +55,12 @@ static sector_t max_block(struct block_device *bdev)
 	return retval;
 }
 
-/* Kill _all_ buffers, dirty or not.. */
+/* Kill _all_ buffers and pagecache , dirty or not.. */
 static void kill_bdev(struct block_device *bdev)
 {
-	invalidate_bdev(bdev);
+	if (bdev->bd_inode->i_mapping->nrpages == 0)
+		return;
+	invalidate_bh_lrus();
 	truncate_inode_pages(bdev->bd_inode->i_mapping, 0);
 }	
 
