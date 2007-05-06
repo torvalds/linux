@@ -145,11 +145,11 @@
 		SLAB_CACHE_DMA)
 
 #ifndef ARCH_KMALLOC_MINALIGN
-#define ARCH_KMALLOC_MINALIGN sizeof(void *)
+#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
 #endif
 
 #ifndef ARCH_SLAB_MINALIGN
-#define ARCH_SLAB_MINALIGN sizeof(void *)
+#define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
 #endif
 
 /* Internal SLUB flags */
