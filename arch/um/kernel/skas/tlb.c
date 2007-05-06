@@ -89,8 +89,13 @@ void flush_tlb_mm_skas(struct mm_struct *mm)
 
 void force_flush_all_skas(void)
 {
-	unsigned long end = proc_mm ? task_size : CONFIG_STUB_START;
-        fix_range(current->mm, 0, end, 1);
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma = mm->mmap;
+
+	while(vma != NULL) {
+		fix_range(mm, vma->vm_start, vma->vm_end, 1);
+		vma = vma->vm_next;
+	}
 }
 
 void flush_tlb_page_skas(struct vm_area_struct *vma, unsigned long address)
