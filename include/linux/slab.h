@@ -72,8 +72,9 @@ static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
  */
 void *__kmalloc(size_t, gfp_t);
 void *__kzalloc(size_t, gfp_t);
+void * __must_check krealloc(const void *, size_t, gfp_t);
 void kfree(const void *);
-unsigned int ksize(const void *);
+size_t ksize(const void *);
 
 /**
  * kcalloc - allocate memory for an array. The memory is set to zero.
