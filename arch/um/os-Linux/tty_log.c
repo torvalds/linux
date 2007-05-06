@@ -55,7 +55,7 @@ int open_tty_log(void *tty, void *current_tty)
 					       .usec = tv.tv_usec } );
 		os_write_file(tty_log_fd, &data, sizeof(data));
 		os_write_file(tty_log_fd, &current_tty, data.len);
-		return(tty_log_fd);
+		return tty_log_fd;
 	}
 
 	sprintf(buf, "%s/%0u-%0u", tty_log_dir, (unsigned int) tv.tv_sec,
@@ -67,7 +67,7 @@ int open_tty_log(void *tty, void *current_tty)
 		printk("open_tty_log : couldn't open '%s', errno = %d\n",
 		       buf, -fd);
 	}
-	return(fd);
+	return fd;
 }
 
 void close_tty_log(int fd, void *tty)
@@ -101,18 +101,18 @@ static int log_chunk(int fd, const char *buf, int len)
 		n = os_write_file(fd, chunk, try);
 		if(n != try) {
 			if(n < 0)
-				return(n);
-			return(-EIO);
+				return n;
+			return -EIO;
 		}
 		if(missed != 0)
-			return(-EFAULT);
+			return -EFAULT;
 
 		len -= try;
 		total += try;
 		buf += try;
 	}
 
-	return(total);
+	return total;
 }
 
 int write_tty_log(int fd, const char *buf, int len, void *tty, int is_read)
@@ -133,7 +133,7 @@ int write_tty_log(int fd, const char *buf, int len, void *tty, int is_read)
 		os_write_file(tty_log_fd, &data, sizeof(data));
 	}
 
-	return(log_chunk(fd, buf, len));
+	return log_chunk(fd, buf, len);
 }
 
 void log_exec(char **argv, void *tty)
@@ -179,7 +179,7 @@ extern void register_tty_logger(int (*opener)(void *, void *),
 static int register_logger(void)
 {
 	register_tty_logger(open_tty_log, write_tty_log, close_tty_log);
-	return(0);
+	return 0;
 }
 
 __uml_initcall(register_logger);

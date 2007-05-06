@@ -461,15 +461,16 @@ static void tty_output(int master, int slave)
 
 	while(os_write_file(master, buf, sizeof(buf)) > 0) ;
 	if(errno != EAGAIN)
-		panic("check_sigio : write failed, errno = %d\n", errno);
+		panic("tty_output : write failed, errno = %d\n", errno);
 	while(((n = os_read_file(slave, buf, sizeof(buf))) > 0) && !got_sigio) ;
 
 	if(got_sigio){
 		printk("Yes\n");
 		pty_output_sigio = 1;
 	}
-	else if(n == -EAGAIN) printk("No, enabling workaround\n");
-	else panic("check_sigio : read failed, err = %d\n", n);
+	else if(n == -EAGAIN)
+		printk("No, enabling workaround\n");
+	else panic("tty_output : read failed, err = %d\n", n);
 }
 
 static void tty_close(int master, int slave)

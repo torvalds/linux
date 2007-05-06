@@ -34,7 +34,8 @@ static int helper_child(void *arg)
 	if (data->pre_exec != NULL)
 		(*data->pre_exec)(data->pre_data);
 	errval = execvp_noalloc(data->buf, argv[0], argv);
-	printk("helper_child - execvp of '%s' failed - errno = %d\n", argv[0], -errval);
+	printk("helper_child - execvp of '%s' failed - errno = %d\n", argv[0],
+	       -errval);
 	os_write_file(data->fd, &errval, sizeof(errval));
 	kill(os_getpid(), SIGKILL);
 	return 0;
@@ -87,8 +88,10 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 	close(fds[1]);
 	fds[1] = -1;
 
-	/* Read the errno value from the child, if the exec failed, or get 0 if
-	 * the exec succeeded because the pipe fd was set as close-on-exec. */
+	/*
+	 * Read the errno value from the child, if the exec failed, or get 0 if
+	 * the exec succeeded because the pipe fd was set as close-on-exec.
+	 */
 	n = os_read_file(fds[0], &ret, sizeof(ret));
 	if (n == 0) {
 		ret = pid;

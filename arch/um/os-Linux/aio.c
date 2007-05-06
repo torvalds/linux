@@ -146,28 +146,21 @@ static int aio_thread(void *arg)
 static int do_not_aio(struct aio_thread_req *req)
 {
 	char c;
+	unsigned long long actual;
 	int err;
+
+	actual = lseek64(req->io_fd, req->offset, SEEK_SET);
+	if(actual != req->offset)
+		return -errno;
 
 	switch(req->type){
 	case AIO_READ:
-		err = os_seek_file(req->io_fd, req->offset);
-		if(err)
-			goto out;
-
 		err = os_read_file(req->io_fd, req->buf, req->len);
 		break;
 	case AIO_WRITE:
-		err = os_seek_file(req->io_fd, req->offset);
-		if(err)
-			goto out;
-
 		err = os_write_file(req->io_fd, req->buf, req->len);
 		break;
 	case AIO_MMAP:
-		err = os_seek_file(req->io_fd, req->offset);
-		if(err)
-			goto out;
-
 		err = os_read_file(req->io_fd, &c, sizeof(c));
 		break;
 	default:
@@ -176,7 +169,6 @@ static int do_not_aio(struct aio_thread_req *req)
 		break;
 	}
 
-out:
 	return err;
 }
 
@@ -207,7 +199,7 @@ static int not_aio_thread(void *arg)
 		}
 		err = do_not_aio(&req);
 		reply = ((struct aio_thread_reply) { .data 	= req.aio,
-					 .err	= err });
+						     .err	= err });
 		err = os_write_file(req.aio->reply_fd, &reply, sizeof(reply));
 		if(err != sizeof(reply))
 			printk("not_aio_thread - write failed, fd = %d, "

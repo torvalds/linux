@@ -40,14 +40,14 @@ unsigned long os_process_pc(int pid)
 	if(fd < 0){
 		printk("os_process_pc - couldn't open '%s', err = %d\n",
 		       proc_stat, -fd);
-		return(ARBITRARY_ADDR);
+		return ARBITRARY_ADDR;
 	}
 	err = os_read_file(fd, buf, sizeof(buf));
 	if(err < 0){
 		printk("os_process_pc - couldn't read '%s', err = %d\n",
 		       proc_stat, -err);
 		os_close_file(fd);
-		return(ARBITRARY_ADDR);
+		return ARBITRARY_ADDR;
 	}
 	os_close_file(fd);
 	pc = ARBITRARY_ADDR;
@@ -56,7 +56,7 @@ unsigned long os_process_pc(int pid)
 		  "%*d %*d %*d %*d %*d %lu", &pc) != 1){
 		printk("os_process_pc - couldn't find pc in '%s'\n", buf);
 	}
-	return(pc);
+	return pc;
 }
 
 int os_process_parent(int pid)
@@ -65,13 +65,14 @@ int os_process_parent(int pid)
 	char data[256];
 	int parent, n, fd;
 
-	if(pid == -1) return(-1);
+	if(pid == -1)
+		return -1;
 
 	snprintf(stat, sizeof(stat), "/proc/%d/stat", pid);
 	fd = os_open_file(stat, of_read(OPENFLAGS()), 0);
 	if(fd < 0){
 		printk("Couldn't open '%s', err = %d\n", stat, -fd);
-		return(FAILURE_PID);
+		return FAILURE_PID;
 	}
 
 	n = os_read_file(fd, data, sizeof(data));
@@ -79,7 +80,7 @@ int os_process_parent(int pid)
 
 	if(n < 0){
 		printk("Couldn't read '%s', err = %d\n", stat, -n);
-		return(FAILURE_PID);
+		return FAILURE_PID;
 	}
 
 	parent = FAILURE_PID;
@@ -87,7 +88,7 @@ int os_process_parent(int pid)
 	if(n != 1)
 		printk("Failed to scan '%s'\n", data);
 
-	return(parent);
+	return parent;
 }
 
 void os_stop_process(int pid)
@@ -145,7 +146,7 @@ void os_usr1_process(int pid)
 
 int os_getpid(void)
 {
-	return(syscall(__NR_getpid));
+	return syscall(__NR_getpid);
 }
 
 int os_getpgrp(void)
@@ -165,8 +166,8 @@ int os_map_memory(void *virt, int fd, unsigned long long off, unsigned long len,
 	loc = mmap64((void *) virt, len, prot, MAP_SHARED | MAP_FIXED,
 		     fd, off);
 	if(loc == MAP_FAILED)
-		return(-errno);
-	return(0);
+		return -errno;
+	return 0;
 }
 
 int os_protect_memory(void *addr, unsigned long len, int r, int w, int x)
@@ -175,8 +176,8 @@ int os_protect_memory(void *addr, unsigned long len, int r, int w, int x)
 		    (x ? PROT_EXEC : 0));
 
         if(mprotect(addr, len, prot) < 0)
-		return(-errno);
-        return(0);
+		return -errno;
+        return 0;
 }
 
 int os_unmap_memory(void *addr, int len)
@@ -185,8 +186,8 @@ int os_unmap_memory(void *addr, int len)
 
         err = munmap(addr, len);
 	if(err < 0)
-		return(-errno);
-        return(0);
+		return -errno;
+        return 0;
 }
 
 #ifndef MADV_REMOVE

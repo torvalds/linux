@@ -409,7 +409,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 
 /*
  * This is used only, if stub pages are needed, while proc_mm is
- * availabl. Opening /proc/mm creates a new mm_context, which lacks
+ * available. Opening /proc/mm creates a new mm_context, which lacks
  * the stub-pages. Thus, we map them using /proc/mm-fd
  */
 void map_stub_pages(int fd, unsigned long code,

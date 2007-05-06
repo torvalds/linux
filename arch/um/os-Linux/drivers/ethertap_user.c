@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and 
+ * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
  * James Leu (jleu@mindspring.net).
  * Copyright (C) 2001 by various other people who didn't put their name here.
  * Licensed under the GPL.
@@ -49,8 +49,11 @@ static void etap_change(int op, unsigned char *addr, unsigned char *netmask,
 	memcpy(change.addr, addr, sizeof(change.addr));
 	memcpy(change.netmask, netmask, sizeof(change.netmask));
 	n = os_write_file(fd, &change, sizeof(change));
-	if(n != sizeof(change))
+	if(n != sizeof(change)){
 		printk("etap_change - request failed, err = %d\n", -n);
+		return;
+	}
+
 	output = um_kmalloc(UM_KERN_PAGE_SIZE);
 	if(output == NULL)
 		printk("etap_change : Failed to allocate output buffer\n");
@@ -116,7 +119,8 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	pe_data.data_me = data_me;
 	pid = run_helper(etap_pre_exec, &pe_data, args, NULL);
 
-	if(pid < 0) err = pid;
+	if(pid < 0)
+		err = pid;
 	os_close_file(data_remote);
 	os_close_file(control_remote);
 	n = os_read_file(control_me, &c, sizeof(c));
