@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -45,7 +45,8 @@ int ptrace_setfpregs(long pid, unsigned long *regs)
 	return 0;
 }
 
-/* All the below stuff is of interest for TT mode only */
+#ifdef UML_CONFIG_MODE_TT
+
 static void write_debugregs(int pid, unsigned long *regs)
 {
 	struct user *dummy;
@@ -128,13 +129,4 @@ void update_debugregs(int seq)
 }
 #endif
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+#endif
