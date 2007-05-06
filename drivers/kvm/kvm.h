@@ -139,7 +139,7 @@ struct kvm_mmu_page {
 	gfn_t gfn;
 	union kvm_mmu_page_role role;
 
-	hpa_t page_hpa;
+	u64 *spt;
 	unsigned long slot_bitmap; /* One bit set per slot which has memory
 				    * in this shadow page.
 				    */
