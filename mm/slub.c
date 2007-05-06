@@ -670,8 +670,6 @@ static void add_full(struct kmem_cache *s, struct page *page)
 
 	VM_BUG_ON(!irqs_disabled());
 
-	VM_BUG_ON(!irqs_disabled());
-
 	if (!(s->flags & SLAB_STORE_USER))
 		return;
 
@@ -2551,6 +2549,99 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 
 #ifdef CONFIG_SYSFS
 
+static int validate_slab(struct kmem_cache *s, struct page *page)
+{
+	void *p;
+	void *addr = page_address(page);
+	unsigned long map[BITS_TO_LONGS(s->objects)];
+
+	if (!check_slab(s, page) ||
+			!on_freelist(s, page, NULL))
+		return 0;
+
+	/* Now we know that a valid freelist exists */
+	bitmap_zero(map, s->objects);
+
+	for(p = page->freelist; p; p = get_freepointer(s, p)) {
+		set_bit((p - addr) / s->size, map);
+		if (!check_object(s, page, p, 0))
+			return 0;
+	}
+
+	for(p = addr; p < addr + s->objects * s->size; p += s->size)
+		if (!test_bit((p - addr) / s->size, map))
+			if (!check_object(s, page, p, 1))
+				return 0;
+	return 1;
+}
+
+static void validate_slab_slab(struct kmem_cache *s, struct page *page)
+{
+	if (slab_trylock(page)) {
+		validate_slab(s, page);
+		slab_unlock(page);
+	} else
+		printk(KERN_INFO "SLUB %s: Skipped busy slab 0x%p\n",
+			s->name, page);
+
+	if (s->flags & DEBUG_DEFAULT_FLAGS) {
+		if (!PageError(page))
+			printk(KERN_ERR "SLUB %s: PageError not set "
+				"on slab 0x%p\n", s->name, page);
+	} else {
+		if (PageError(page))
+			printk(KERN_ERR "SLUB %s: PageError set on "
+				"slab 0x%p\n", s->name, page);
+	}
+}
+
+static int validate_slab_node(struct kmem_cache *s, struct kmem_cache_node *n)
+{
+	unsigned long count = 0;
+	struct page *page;
+	unsigned long flags;
+
+	spin_lock_irqsave(&n->list_lock, flags);
+
+	list_for_each_entry(page, &n->partial, lru) {
+		validate_slab_slab(s, page);
+		count++;
+	}
+	if (count != n->nr_partial)
+		printk(KERN_ERR "SLUB %s: %ld partial slabs counted but "
+			"counter=%ld\n", s->name, count, n->nr_partial);
+
+	if (!(s->flags & SLAB_STORE_USER))
+		goto out;
+
+	list_for_each_entry(page, &n->full, lru) {
+		validate_slab_slab(s, page);
+		count++;
+	}
+	if (count != atomic_long_read(&n->nr_slabs))
+		printk(KERN_ERR "SLUB: %s %ld slabs counted but "
+			"counter=%ld\n", s->name, count,
+			atomic_long_read(&n->nr_slabs));
+
+out:
+	spin_unlock_irqrestore(&n->list_lock, flags);
+	return count;
+}
+
+static unsigned long validate_slab_cache(struct kmem_cache *s)
+{
+	int node;
+	unsigned long count = 0;
+
+	flush_all(s);
+	for_each_online_node(node) {
+		struct kmem_cache_node *n = get_node(s, node);
+
+		count += validate_slab_node(s, n);
+	}
+	return count;
+}
+
 static unsigned long count_partial(struct kmem_cache_node *n)
 {
 	unsigned long flags;
@@ -2679,7 +2770,6 @@ struct slab_attribute {
 #define SLAB_ATTR(_name) \
 	static struct slab_attribute _name##_attr =  \
 	__ATTR(_name, 0644, _name##_show, _name##_store)
-
 
 static ssize_t slab_size_show(struct kmem_cache *s, char *buf)
 {
@@ -2886,6 +2976,22 @@ static ssize_t store_user_store(struct kmem_cache *s,
 }
 SLAB_ATTR(store_user);
 
+static ssize_t validate_show(struct kmem_cache *s, char *buf)
+{
+	return 0;
+}
+
+static ssize_t validate_store(struct kmem_cache *s,
+			const char *buf, size_t length)
+{
+	if (buf[0] == '1')
+		validate_slab_cache(s);
+	else
+		return -EINVAL;
+	return length;
+}
+SLAB_ATTR(validate);
+
 #ifdef CONFIG_NUMA
 static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
 {
@@ -2925,6 +3031,7 @@ static struct attribute * slab_attrs[] = {
 	&red_zone_attr.attr,
 	&poison_attr.attr,
 	&store_user_attr.attr,
+	&validate_attr.attr,
 #ifdef CONFIG_ZONE_DMA
 	&cache_dma_attr.attr,
 #endif
