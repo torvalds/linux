@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -32,21 +32,21 @@ static char token(int fd, char *buf, int len, char stop)
 		n = os_read_file(fd, ptr, sizeof(*ptr));
 		c = *ptr++;
 		if(n != sizeof(*ptr)){
-			if(n == 0) return(0);
+			if(n == 0)
+				return 0;
 			printk("Reading /proc/cpuinfo failed, err = %d\n", -n);
 			if(n < 0)
-				return(n);
-			else
-				return(-EIO);
+				return n;
+			else return -EIO;
 		}
 	} while((c != '\n') && (c != stop) && (ptr < end));
 
 	if(ptr == end){
 		printk("Failed to find '%c' in /proc/cpuinfo\n", stop);
-		return(-1);
+		return -1;
 	}
 	*(ptr - 1) = '\0';
-	return(c);
+	return c;
 }
 
 static int find_cpuinfo_line(int fd, char *key, char *scratch, int len)
@@ -58,25 +58,25 @@ static int find_cpuinfo_line(int fd, char *key, char *scratch, int len)
 	while(1){
 		c = token(fd, scratch, len - 1, ':');
 		if(c <= 0)
-			return(0);
+			return 0;
 		else if(c != ':'){
 			printk("Failed to find ':' in /proc/cpuinfo\n");
-			return(0);
+			return 0;
 		}
 
 		if(!strncmp(scratch, key, strlen(key)))
-			return(1);
+			return 1;
 
 		do {
 			n = os_read_file(fd, &c, sizeof(c));
 			if(n != sizeof(c)){
 				printk("Failed to find newline in "
 				       "/proc/cpuinfo, err = %d\n", -n);
-				return(0);
+				return 0;
 			}
 		} while(c != '\n');
 	}
-	return(0);
+	return 0;
 }
 
 static int check_cpu_flag(char *feature, int *have_it)
@@ -96,7 +96,8 @@ static int check_cpu_flag(char *feature, int *have_it)
 		goto out;
 
 	c = token(fd, buf, len - 1, ' ');
-	if(c < 0) goto out;
+	if(c < 0)
+		goto out;
 	else if(c != ' '){
 		printk("Failed to find ' ' in /proc/cpuinfo\n");
 		goto out;
@@ -104,7 +105,8 @@ static int check_cpu_flag(char *feature, int *have_it)
 
 	while(1){
 		c = token(fd, buf, len - 1, ' ');
-		if(c < 0) goto out;
+		if(c < 0)
+			goto out;
 		else if(c == '\n') break;
 
 		if(!strcmp(buf, feature)){
@@ -113,8 +115,10 @@ static int check_cpu_flag(char *feature, int *have_it)
 		}
 	}
  out:
-	if(*have_it == 0) printk("No\n");
-	else if(*have_it == 1) printk("Yes\n");
+	if(*have_it == 0)
+		printk("No\n");
+	else if(*have_it == 1)
+		printk("Yes\n");
 	os_close_file(fd);
 	return 1;
 }
@@ -166,12 +170,13 @@ int arch_handle_signal(int sig, union uml_pt_regs *regs)
 	/* This is testing for a cmov (0x0f 0x4x) instruction causing a
 	 * SIGILL in init.
 	 */
-	if((sig != SIGILL) || (TASK_PID(get_current()) != 1)) return(0);
+	if((sig != SIGILL) || (TASK_PID(get_current()) != 1))
+		return 0;
 
 	if (copy_from_user_proc(tmp, (void *) UPT_IP(regs), 2))
 		panic("SIGILL in init, could not read instructions!\n");
 	if((tmp[0] != 0x0f) || ((tmp[1] & 0xf0) != 0x40))
-		return(0);
+		return 0;
 
 	if(host_has_cmov == 0)
 		panic("SIGILL caused by cmov, which this processor doesn't "
@@ -185,16 +190,5 @@ int arch_handle_signal(int sig, union uml_pt_regs *regs)
 		      "implements it, boot a filesystem compiled for older "
 		      "processors");
 	else panic("Bad value for host_has_cmov (%d)", host_has_cmov);
-	return(0);
+	return 0;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

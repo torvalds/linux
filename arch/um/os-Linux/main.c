@@ -218,7 +218,7 @@ int main(int argc, char **argv, char **envp)
 		ret = 1;
 	}
 	printf("\n");
-	return(uml_exitcode);
+	return uml_exitcode;
 }
 
 #define CAN_KMALLOC() \
@@ -231,7 +231,7 @@ void *__wrap_malloc(int size)
 	void *ret;
 
 	if(!CAN_KMALLOC())
-		return(__real_malloc(size));
+		return __real_malloc(size);
 	else if(size <= PAGE_SIZE) /* finding contiguos pages can be hard*/
 		ret = um_kmalloc(size);
 	else ret = um_vmalloc(size);
@@ -242,16 +242,17 @@ void *__wrap_malloc(int size)
 	if(ret == NULL)
 		errno = ENOMEM;
 
-	return(ret);
+	return ret;
 }
 
 void *__wrap_calloc(int n, int size)
 {
 	void *ptr = __wrap_malloc(n * size);
 
-	if(ptr == NULL) return(NULL);
+	if(ptr == NULL)
+		return NULL;
 	memset(ptr, 0, n * size);
-	return(ptr);
+	return ptr;
 }
 
 extern void __real_free(void *);

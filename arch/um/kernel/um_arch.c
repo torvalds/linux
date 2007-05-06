@@ -63,8 +63,8 @@ struct cpuinfo_um boot_cpu_data = {
 
 unsigned long thread_saved_pc(struct task_struct *task)
 {
-	return(os_process_pc(CHOOSE_MODE_PROC(thread_pid_tt, thread_pid_skas,
-					      task)));
+	return os_process_pc(CHOOSE_MODE_PROC(thread_pid_tt, thread_pid_skas,
+					      task));
 }
 
 static int show_cpuinfo(struct seq_file *m, void *v)
@@ -86,7 +86,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   loops_per_jiffy/(500000/HZ),
 		   (loops_per_jiffy/(5000/HZ)) % 100);
 
-	return(0);
+	return 0;
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)
@@ -212,12 +212,12 @@ __uml_setup("debug", no_skas_debug_setup,
 #ifdef CONFIG_SMP
 static int __init uml_ncpus_setup(char *line, int *add)
 {
-       if (!sscanf(line, "%d", &ncpus)) {
-               printf("Couldn't parse [%s]\n", line);
-               return -1;
-       }
+	if (!sscanf(line, "%d", &ncpus)) {
+		printf("Couldn't parse [%s]\n", line);
+		return -1;
+	}
 
-       return 0;
+	return 0;
 }
 
 __uml_setup("ncpus=", uml_ncpus_setup,
@@ -234,7 +234,7 @@ static int force_tt = 0;
 static int __init mode_tt_setup(char *line, int *add)
 {
 	force_tt = 1;
-	return(0);
+	return 0;
 }
 
 #else
@@ -245,7 +245,7 @@ static int __init mode_tt_setup(char *line, int *add)
 static int __init mode_tt_setup(char *line, int *add)
 {
 	printf("CONFIG_MODE_TT disabled - 'mode=tt' ignored\n");
-	return(0);
+	return 0;
 }
 
 #else
@@ -256,7 +256,7 @@ static int __init mode_tt_setup(char *line, int *add)
 static int __init mode_tt_setup(char *line, int *add)
 {
 	printf("CONFIG_MODE_SKAS disabled - 'mode=tt' redundant\n");
-	return(0);
+	return 0;
 }
 
 #endif
@@ -274,16 +274,15 @@ int mode_tt = DEFAULT_TT;
 
 static int __init Usage(char *line, int *add)
 {
- 	const char **p;
+	const char **p;
 
 	printf(usage_string, init_utsname()->release);
- 	p = &__uml_help_start;
- 	while (p < &__uml_help_end) {
- 		printf("%s", *p);
- 		p++;
- 	}
+	p = &__uml_help_start;
+	while (p < &__uml_help_end) {
+		printf("%s", *p);
+		p++;
+	}
 	exit(0);
-
 	return 0;
 }
 
@@ -379,8 +378,8 @@ int __init linux_main(int argc, char **argv)
 					  set_task_sizes_skas, &task_size);
 
 	/*
- 	 * Setting up handlers to 'sig_info' struct
- 	 */
+	 * Setting up handlers to 'sig_info' struct
+	 */
 	os_fill_handlinfo(handlinfo_kern);
 
 	brk_start = (unsigned long) sbrk(0);
@@ -407,7 +406,7 @@ int __init linux_main(int argc, char **argv)
 	argv1_begin = argv[1];
 	argv1_end = &argv[1][strlen(argv[1])];
 #endif
-  
+
 	highmem = 0;
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
 	max_physmem = get_kmem_end() - uml_physmem - iomem_size - MIN_VMALLOC;
@@ -449,12 +448,12 @@ int __init linux_main(int argc, char **argv)
 		printf("Kernel virtual memory size shrunk to %lu bytes\n",
 		       virtmem_size);
 
-  	uml_postsetup();
+	uml_postsetup();
 
 	task_protections((unsigned long) &init_thread_info);
 	os_flush_stdout();
 
-	return(CHOOSE_MODE(start_uml_tt(), start_uml_skas()));
+	return CHOOSE_MODE(start_uml_tt(), start_uml_skas());
 }
 
 extern int uml_exitcode;
@@ -467,7 +466,7 @@ static int panic_exit(struct notifier_block *self, unsigned long unused1,
 	bust_spinlocks(0);
 	uml_exitcode = 1;
 	machine_halt();
-	return(0);
+	return 0;
 }
 
 static struct notifier_block panic_exit_notifier = {
@@ -482,14 +481,14 @@ void __init setup_arch(char **cmdline_p)
 			&panic_exit_notifier);
 	paging_init();
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
- 	*cmdline_p = command_line;
+	*cmdline_p = command_line;
 	setup_hostinfo();
 }
 
 void __init check_bugs(void)
 {
 	arch_check_bugs();
- 	os_check_bugs();
+	os_check_bugs();
 }
 
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
