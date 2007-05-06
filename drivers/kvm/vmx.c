@@ -600,7 +600,8 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		msr = find_msr_entry(vcpu, msr_index);
 		if (msr)
 			msr->data = data;
-		load_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
+		if (vcpu->vmx_host_state.loaded)
+			load_msrs(vcpu->guest_msrs, NR_BAD_MSRS);
 		break;
 #endif
 	case MSR_IA32_SYSENTER_CS:
