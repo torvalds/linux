@@ -348,15 +348,22 @@ static void eth_configure(int n, void *init, char *mac,
 	struct net_device *dev;
 	struct uml_net_private *lp;
 	int save, err, size;
-	char name[sizeof(dev->name)];
 
 	size = transport->private_size + sizeof(struct uml_net_private) +
 		sizeof(((struct uml_net_private *) 0)->user);
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (device == NULL) {
-		printk(KERN_ERR "eth_configure failed to allocate uml_net\n");
+		printk(KERN_ERR "eth_configure failed to allocate struct "
+		       "uml_net\n");
 		return;
+	}
+
+	dev = alloc_etherdev(size);
+	if (dev == NULL) {
+		printk(KERN_ERR "eth_configure: failed to allocate struct "
+		       "net_device for eth%d\n", n);
+		goto out_free_device;
 	}
 
 	INIT_LIST_HEAD(&device->list);
@@ -366,9 +373,9 @@ static void eth_configure(int n, void *init, char *mac,
 	 * netdevice, that is OK, register_netdev{,ice}() will notice this
 	 * and fail.
 	 */
-	snprintf(name, sizeof(name), "eth%d", n);
+	snprintf(dev->name, sizeof(dev->name), "eth%d", n);
 
-	setup_etheraddr(mac, device->mac, name);
+	setup_etheraddr(mac, device->mac, dev->name);
 
 	printk(KERN_INFO "Netdevice %d ", n);
 	printk("(%02x:%02x:%02x:%02x:%02x:%02x) ",
@@ -376,11 +383,6 @@ static void eth_configure(int n, void *init, char *mac,
 	       device->mac[2], device->mac[3],
 	       device->mac[4], device->mac[5]);
 	printk(": ");
-	dev = alloc_etherdev(size);
-	if (dev == NULL) {
-		printk(KERN_ERR "eth_configure: failed to allocate device\n");
-		goto out_free_device;
-	}
 
 	lp = dev->priv;
 	/* This points to the transport private data. It's still clear, but we
@@ -399,7 +401,6 @@ static void eth_configure(int n, void *init, char *mac,
 		goto out_free_netdev;
 	SET_NETDEV_DEV(dev,&device->pdev.dev);
 
-	strcpy(dev->name, name);
 	device->dev = dev;
 
 	/*
@@ -466,13 +467,13 @@ static void eth_configure(int n, void *init, char *mac,
 	return;
 
 out_undo_user_init:
-	if (transport->user->init != NULL)
+	if (transport->user->remove != NULL)
 		(*transport->user->remove)(&lp->user);
 out_unregister:
 	platform_device_unregister(&device->pdev);
 out_free_netdev:
 	free_netdev(dev);
-out_free_device: ;
+out_free_device:
 	kfree(device);
 }
 
