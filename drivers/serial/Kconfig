@@ -508,6 +508,100 @@ config SERIAL_SA1100_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
+config SERIAL_BFIN
+	tristate "Blackfin serial port support"
+	depends on BFIN
+	select SERIAL_CORE
+	select SERIAL_BFIN_UART0 if (BF531 || BF532 || BF533 || BF561)
+	help
+	  Add support for the built-in UARTs on the Blackfin.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_5xx.
+
+config SERIAL_BFIN_CONSOLE
+	bool "Console on Blackfin serial port"
+	depends on SERIAL_BFIN
+	select SERIAL_CORE_CONSOLE
+
+choice
+	prompt "UART Mode"
+	depends on SERIAL_BFIN
+	default SERIAL_BFIN_DMA
+	help
+	  This driver supports the built-in serial ports of the Blackfin family
+	  of CPUs
+
+config SERIAL_BFIN_DMA
+	bool "DMA mode"
+	depends on DMA_UNCACHED_1M
+	help
+	  This driver works under DMA mode. If this option is selected, the
+	  blackfin simple dma driver is also enabled.
+
+config SERIAL_BFIN_PIO
+	bool "PIO mode"
+	help
+	  This driver works under PIO mode.
+
+endchoice
+
+config SERIAL_BFIN_UART0
+	bool "Enable UART0"
+	depends on SERIAL_BFIN
+	help
+	  Enable UART0
+
+config BFIN_UART0_CTSRTS
+	bool "Enable UART0 hardware flow control"
+	depends on SERIAL_BFIN_UART0
+	help
+	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
+	  signal.
+
+config UART0_CTS_PIN
+	int "UART0 CTS pin"
+	depends on BFIN_UART0_CTSRTS
+	default 23
+	help
+	  The default pin is GPIO_GP7.
+	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
+config UART0_RTS_PIN
+	int "UART0 RTS pin"
+	depends on BFIN_UART0_CTSRTS
+	default 22
+	help
+	  The default pin is GPIO_GP6.
+	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
+config SERIAL_BFIN_UART1
+	bool "Enable UART1"
+	depends on SERIAL_BFIN && (BF534 || BF536 || BF537)
+	help
+	  Enable UART1
+
+config BFIN_UART1_CTSRTS
+	bool "Enable UART1 hardware flow control"
+	depends on SERIAL_BFIN_UART1
+	help
+	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
+	  signal.
+
+config UART1_CTS_PIN
+	int "UART1 CTS pin"
+	depends on BFIN_UART1_CTSRTS
+	default -1
+	help
+	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
+config UART1_RTS_PIN
+	int "UART1 RTS pin"
+	depends on BFIN_UART1_CTSRTS
+	default -1
+	help
+	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+
 config SERIAL_IMX
 	bool "IMX serial port support"
 	depends on ARM && ARCH_IMX

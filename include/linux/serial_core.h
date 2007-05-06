@@ -136,6 +136,9 @@
 /* Xilinx uartlite */
 #define PORT_UARTLITE	74
 
+/* Blackfin bf5xx */
+#define PORT_BFIN	75
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
