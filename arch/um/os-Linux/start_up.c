@@ -17,6 +17,7 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
 #include <sys/types.h>
@@ -329,8 +330,32 @@ static void __init check_ptrace(void)
 
 extern void check_tmpexec(void);
 
+static void check_coredump_limit(void)
+{
+	struct rlimit lim;
+	int err = getrlimit(RLIMIT_CORE, &lim);
+
+	if(err){
+		perror("Getting core dump limit");
+		return;
+	}
+
+	printf("Core dump limits :\n\tsoft - ");
+	if(lim.rlim_cur == RLIM_INFINITY)
+		printf("NONE\n");
+	else printf("%lu\n", lim.rlim_cur);
+
+	printf("\thard - ");
+	if(lim.rlim_max == RLIM_INFINITY)
+		printf("NONE\n");
+	else printf("%lu\n", lim.rlim_max);
+}
+
 void os_early_checks(void)
 {
+	/* Print out the core dump limits early */
+	check_coredump_limit();
+
 	check_ptrace();
 
 	/* Need to check this early because mmapping happens before the
