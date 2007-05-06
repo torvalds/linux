@@ -48,9 +48,9 @@ static void etap_change(int op, unsigned char *addr, unsigned char *netmask,
 	change.what = op;
 	memcpy(change.addr, addr, sizeof(change.addr));
 	memcpy(change.netmask, netmask, sizeof(change.netmask));
-	n = os_write_file(fd, &change, sizeof(change));
+	CATCH_EINTR(n = write(fd, &change, sizeof(change)));
 	if(n != sizeof(change)){
-		printk("etap_change - request failed, err = %d\n", -n);
+		printk("etap_change - request failed, err = %d\n", errno);
 		return;
 	}
 
@@ -123,10 +123,11 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 		err = pid;
 	os_close_file(data_remote);
 	os_close_file(control_remote);
-	n = os_read_file(control_me, &c, sizeof(c));
+	CATCH_EINTR(n = read(control_me, &c, sizeof(c)));
 	if(n != sizeof(c)){
-		printk("etap_tramp : read of status failed, err = %d\n", -n);
-		return -EINVAL;
+		err = -errno;
+		printk("etap_tramp : read of status failed, err = %d\n", -err);
+		return err;
 	}
 	if(c != 1){
 		printk("etap_tramp : uml_net failed\n");

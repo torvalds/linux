@@ -132,10 +132,10 @@ static int aio_thread(void *arg)
 				{ .data = (void *) (long) event.data,
 						.err	= event.res });
 			reply_fd = ((struct aio_context *) reply.data)->reply_fd;
-			err = os_write_file(reply_fd, &reply, sizeof(reply));
+			err = write(reply_fd, &reply, sizeof(reply));
 			if(err != sizeof(reply))
 				printk("aio_thread - write failed, fd = %d, "
-				       "err = %d\n", reply_fd, -err);
+				       "err = %d\n", reply_fd, errno);
 		}
 	}
 	return 0;
@@ -147,7 +147,7 @@ static int do_not_aio(struct aio_thread_req *req)
 {
 	char c;
 	unsigned long long actual;
-	int err;
+	int n;
 
 	actual = lseek64(req->io_fd, req->offset, SEEK_SET);
 	if(actual != req->offset)
@@ -155,21 +155,22 @@ static int do_not_aio(struct aio_thread_req *req)
 
 	switch(req->type){
 	case AIO_READ:
-		err = os_read_file(req->io_fd, req->buf, req->len);
+		n = read(req->io_fd, req->buf, req->len);
 		break;
 	case AIO_WRITE:
-		err = os_write_file(req->io_fd, req->buf, req->len);
+		n = write(req->io_fd, req->buf, req->len);
 		break;
 	case AIO_MMAP:
-		err = os_read_file(req->io_fd, &c, sizeof(c));
+		n = read(req->io_fd, &c, sizeof(c));
 		break;
 	default:
 		printk("do_not_aio - bad request type : %d\n", req->type);
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-	return err;
+	if(n < 0)
+		return -errno;
+	return 0;
 }
 
 /* These are initialized in initcalls and not changed */
@@ -185,12 +186,12 @@ static int not_aio_thread(void *arg)
 
 	signal(SIGWINCH, SIG_IGN);
 	while(1){
-		err = os_read_file(aio_req_fd_r, &req, sizeof(req));
+		err = read(aio_req_fd_r, &req, sizeof(req));
 		if(err != sizeof(req)){
 			if(err < 0)
 				printk("not_aio_thread - read failed, "
 				       "fd = %d, err = %d\n", aio_req_fd_r,
-				       -err);
+				       errno);
 			else {
 				printk("not_aio_thread - short read, fd = %d, "
 				       "length = %d\n", aio_req_fd_r, err);
@@ -200,10 +201,10 @@ static int not_aio_thread(void *arg)
 		err = do_not_aio(&req);
 		reply = ((struct aio_thread_reply) { .data 	= req.aio,
 						     .err	= err });
-		err = os_write_file(req.aio->reply_fd, &reply, sizeof(reply));
+		err = write(req.aio->reply_fd, &reply, sizeof(reply));
 		if(err != sizeof(reply))
 			printk("not_aio_thread - write failed, fd = %d, "
-			       "err = %d\n", req.aio->reply_fd, -err);
+			       "err = %d\n", req.aio->reply_fd, errno);
 	}
 
 	return 0;
@@ -277,10 +278,12 @@ static int submit_aio_26(enum aio_type type, int io_fd, char *buf, int len,
 	if(err){
 		reply = ((struct aio_thread_reply) { .data = aio,
 					 .err  = err });
-		err = os_write_file(aio->reply_fd, &reply, sizeof(reply));
-		if(err != sizeof(reply))
+		err = write(aio->reply_fd, &reply, sizeof(reply));
+		if(err != sizeof(reply)){
+			err = -errno;
 			printk("submit_aio_26 - write failed, "
 			       "fd = %d, err = %d\n", aio->reply_fd, -err);
+		}
 		else err = 0;
 	}
 
@@ -375,9 +378,10 @@ static int submit_aio_24(enum aio_type type, int io_fd, char *buf, int len,
 	};
 	int err;
 
-	err = os_write_file(aio_req_fd_w, &req, sizeof(req));
+	err = write(aio_req_fd_w, &req, sizeof(req));
 	if(err == sizeof(req))
 		err = 0;
+	else err = -errno;
 
 	return err;
 }

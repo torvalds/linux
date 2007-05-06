@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <asm/page.h>
@@ -199,9 +200,11 @@ int map(struct mm_id * mm_idp, unsigned long virt, unsigned long len,
 					   .fd	= phys_fd,
 					   .offset= offset
 					 } } } );
-		ret = os_write_file(fd, &map, sizeof(map));
-		if(ret != sizeof(map))
+		CATCH_EINTR(ret = write(fd, &map, sizeof(map)));
+		if(ret != sizeof(map)){
+			ret = -errno;
 			printk("map : /proc/mm map failed, err = %d\n", -ret);
+		}
 		else ret = 0;
 	}
 	else {
@@ -231,9 +234,11 @@ int unmap(struct mm_id * mm_idp, void *addr, unsigned long len, int done,
 					   { .addr	=
 					     (unsigned long) addr,
 					     .len		= len } } } );
-		ret = os_write_file(fd, &unmap, sizeof(unmap));
-		if(ret != sizeof(unmap))
+		CATCH_EINTR(ret = write(fd, &unmap, sizeof(unmap)));
+		if(ret != sizeof(unmap)){
+			ret = -errno;
 			printk("unmap - proc_mm write returned %d\n", ret);
+		}
 		else ret = 0;
 	}
 	else {
@@ -266,9 +271,11 @@ int protect(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
 					       .len	= len,
 					       .prot	= prot } } } );
 
-		ret = os_write_file(fd, &protect, sizeof(protect));
-		if(ret != sizeof(protect))
+		CATCH_EINTR(ret = write(fd, &protect, sizeof(protect)));
+		if(ret != sizeof(protect)){
+			ret = -errno;
 			printk("protect failed, err = %d", -ret);
+		}
 		else ret = 0;
 	}
 	else {

@@ -431,12 +431,13 @@ void map_stub_pages(int fd, unsigned long code,
 					  .fd      = code_fd,
 					  .offset  = code_offset
 	} } });
-	n = os_write_file(fd, &mmop, sizeof(mmop));
+	CATCH_EINTR(n = write(fd, &mmop, sizeof(mmop)));
 	if(n != sizeof(mmop)){
+		n = errno;
 		printk("mmap args - addr = 0x%lx, fd = %d, offset = %llx\n",
 		       code, code_fd, (unsigned long long) code_offset);
 		panic("map_stub_pages : /proc/mm map for code failed, "
-		      "err = %d\n", -n);
+		      "err = %d\n", n);
 	}
 
 	if ( stack ) {
@@ -453,10 +454,10 @@ void map_stub_pages(int fd, unsigned long code,
 				      .fd      = map_fd,
 				      .offset  = map_offset
 		} } });
-		n = os_write_file(fd, &mmop, sizeof(mmop));
+		CATCH_EINTR(n = write(fd, &mmop, sizeof(mmop)));
 		if(n != sizeof(mmop))
 			panic("map_stub_pages : /proc/mm map for data failed, "
-			      "err = %d\n", -n);
+			      "err = %d\n", errno);
 	}
 }
 

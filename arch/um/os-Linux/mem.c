@@ -232,10 +232,9 @@ int __init create_tmp_file(unsigned long long len)
 
 	zero = 0;
 
-	err = os_write_file(fd, &zero, 1);
+	err = write(fd, &zero, 1);
 	if(err != 1){
-		errno = -err;
-		perror("os_write_file");
+		perror("write");
 		exit(1);
 	}
 

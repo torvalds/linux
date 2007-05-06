@@ -69,11 +69,12 @@ static int write_sigio_thread(void *unused)
 			p = &fds->poll[i];
 			if(p->revents == 0) continue;
 			if(p->fd == sigio_private[1]){
-				n = os_read_file(sigio_private[1], &c, sizeof(c));
+				CATCH_EINTR(n = read(sigio_private[1], &c,
+						     sizeof(c)));
 				if(n != sizeof(c))
 					printk("write_sigio_thread : "
 					       "read on socket failed, "
-					       "err = %d\n", -n);
+					       "err = %d\n", errno);
 				tmp = current_poll;
 				current_poll = next_poll;
 				next_poll = tmp;
@@ -86,10 +87,10 @@ static int write_sigio_thread(void *unused)
 					(fds->used - i) * sizeof(*fds->poll));
 			}
 
-			n = os_write_file(respond_fd, &c, sizeof(c));
+			CATCH_EINTR(n = write(respond_fd, &c, sizeof(c)));
 			if(n != sizeof(c))
 				printk("write_sigio_thread : write on socket "
-				       "failed, err = %d\n", -n);
+				       "failed, err = %d\n", errno);
 		}
 	}
 
@@ -127,15 +128,15 @@ static void update_thread(void)
 	char c;
 
 	flags = set_signals(0);
-	n = os_write_file(sigio_private[0], &c, sizeof(c));
+	n = write(sigio_private[0], &c, sizeof(c));
 	if(n != sizeof(c)){
-		printk("update_thread : write failed, err = %d\n", -n);
+		printk("update_thread : write failed, err = %d\n", errno);
 		goto fail;
 	}
 
-	n = os_read_file(sigio_private[0], &c, sizeof(c));
+	CATCH_EINTR(n = read(sigio_private[0], &c, sizeof(c)));
 	if(n != sizeof(c)){
-		printk("update_thread : read failed, err = %d\n", -n);
+		printk("update_thread : read failed, err = %d\n", errno);
 		goto fail;
 	}
 
@@ -459,10 +460,10 @@ static void tty_output(int master, int slave)
 
 	memset(buf, 0, sizeof(buf));
 
-	while(os_write_file(master, buf, sizeof(buf)) > 0) ;
+	while(write(master, buf, sizeof(buf)) > 0) ;
 	if(errno != EAGAIN)
 		panic("tty_output : write failed, errno = %d\n", errno);
-	while(((n = os_read_file(slave, buf, sizeof(buf))) > 0) && !got_sigio) ;
+	while(((n = read(slave, buf, sizeof(buf))) > 0) && !got_sigio) ;
 
 	if(got_sigio){
 		printk("Yes\n");

@@ -53,8 +53,8 @@ int open_tty_log(void *tty, void *current_tty)
 					       .direction = 0,
 					       .sec = tv.tv_sec,
 					       .usec = tv.tv_usec } );
-		os_write_file(tty_log_fd, &data, sizeof(data));
-		os_write_file(tty_log_fd, &current_tty, data.len);
+		write(tty_log_fd, &data, sizeof(data));
+		write(tty_log_fd, &current_tty, data.len);
 		return tty_log_fd;
 	}
 
@@ -83,7 +83,7 @@ void close_tty_log(int fd, void *tty)
 					       .direction = 0,
 					       .sec = tv.tv_sec,
 					       .usec = tv.tv_usec } );
-		os_write_file(tty_log_fd, &data, sizeof(data));
+		write(tty_log_fd, &data, sizeof(data));
 		return;
 	}
 	os_close_file(fd);
@@ -98,10 +98,10 @@ static int log_chunk(int fd, const char *buf, int len)
 		try = (len > sizeof(chunk)) ? sizeof(chunk) : len;
 		missed = copy_from_user_proc(chunk, (char *) buf, try);
 		try -= missed;
-		n = os_write_file(fd, chunk, try);
+		n = write(fd, chunk, try);
 		if(n != try) {
 			if(n < 0)
-				return n;
+				return -errno;
 			return -EIO;
 		}
 		if(missed != 0)
@@ -130,7 +130,7 @@ int write_tty_log(int fd, const char *buf, int len, void *tty, int is_read)
 					       .direction = direction,
 					       .sec = tv.tv_sec,
 					       .usec = tv.tv_usec } );
-		os_write_file(tty_log_fd, &data, sizeof(data));
+		write(tty_log_fd, &data, sizeof(data));
 	}
 
 	return log_chunk(fd, buf, len);
@@ -161,7 +161,7 @@ void log_exec(char **argv, void *tty)
 				       .direction = 0,
 				       .sec = tv.tv_sec,
 				       .usec = tv.tv_usec } );
-	os_write_file(tty_log_fd, &data, sizeof(data));
+	write(tty_log_fd, &data, sizeof(data));
 
 	for(ptr = argv; ; ptr++){
 		if(copy_from_user_proc(&arg, ptr, sizeof(arg)))

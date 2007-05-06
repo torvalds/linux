@@ -42,10 +42,10 @@ unsigned long os_process_pc(int pid)
 		       proc_stat, -fd);
 		return ARBITRARY_ADDR;
 	}
-	err = os_read_file(fd, buf, sizeof(buf));
+	CATCH_EINTR(err = read(fd, buf, sizeof(buf)));
 	if(err < 0){
 		printk("os_process_pc - couldn't read '%s', err = %d\n",
-		       proc_stat, -err);
+		       proc_stat, errno);
 		os_close_file(fd);
 		return ARBITRARY_ADDR;
 	}
@@ -75,11 +75,11 @@ int os_process_parent(int pid)
 		return FAILURE_PID;
 	}
 
-	n = os_read_file(fd, data, sizeof(data));
+	CATCH_EINTR(n = read(fd, data, sizeof(data)));
 	os_close_file(fd);
 
 	if(n < 0){
-		printk("Couldn't read '%s', err = %d\n", stat, -n);
+		printk("Couldn't read '%s', err = %d\n", stat, errno);
 		return FAILURE_PID;
 	}
 
