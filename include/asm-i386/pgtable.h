@@ -297,22 +297,24 @@ do {									\
 } while (0)
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
-static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma,
-					    unsigned long addr, pte_t *ptep)
-{
-	if (!pte_dirty(*ptep))
-		return 0;
-	return test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte_low);
-}
+#define ptep_test_and_clear_dirty(vma, addr, ptep) ({			\
+	int ret = 0;							\
+	if (pte_dirty(*ptep))						\
+		ret = test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte_low); \
+	if (ret)							\
+		pte_update_defer(vma->vm_mm, addr, ptep);		\
+	ret;								\
+})
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
-					    unsigned long addr, pte_t *ptep)
-{
-	if (!pte_young(*ptep))
-		return 0;
-	return test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte_low);
-}
+#define ptep_test_and_clear_young(vma, addr, ptep) ({			\
+	int ret = 0;							\
+	if (pte_young(*ptep))						\
+		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte_low); \
+	if (ret)							\
+		pte_update_defer(vma->vm_mm, addr, ptep);		\
+	ret;								\
+})
 
 /*
  * Rules for using ptep_establish: the pte MUST be a user pte, and
@@ -330,10 +332,8 @@ do {									\
 ({									\
 	int __dirty;							\
 	__dirty = ptep_test_and_clear_dirty((vma), (address), (ptep));	\
-	if (__dirty) {							\
-		pte_update_defer((vma)->vm_mm, (address), (ptep));	\
+	if (__dirty)							\
 		flush_tlb_page(vma, address);				\
-	}								\
 	__dirty;							\
 })
 
@@ -342,10 +342,8 @@ do {									\
 ({									\
 	int __young;							\
 	__young = ptep_test_and_clear_young((vma), (address), (ptep));	\
-	if (__young) {							\
-		pte_update_defer((vma)->vm_mm, (address), (ptep));	\
+	if (__young)							\
 		flush_tlb_page(vma, address);				\
-	}								\
 	__young;							\
 })
 
