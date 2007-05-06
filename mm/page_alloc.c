@@ -665,7 +665,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 }
 
 #if MAX_NUMNODES > 1
-int nr_node_ids __read_mostly;
+int nr_node_ids __read_mostly = MAX_NUMNODES;
 EXPORT_SYMBOL(nr_node_ids);
 
 /*
