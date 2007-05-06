@@ -97,8 +97,6 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	current->thread.request.u.thread.arg = arg;
 	pid = do_fork(CLONE_VM | CLONE_UNTRACED | flags, 0,
 		      &current->thread.regs, 0, NULL, NULL);
-	if(pid < 0)
-		panic("do_fork failed in kernel_thread, errno = %d", pid);
 	return pid;
 }
 
