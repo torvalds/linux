@@ -34,6 +34,10 @@ config MMU
 	bool
 	default y
 
+config QUICKLIST
+	bool
+	default y
+
 config STACKTRACE_SUPPORT
 	bool
 	default y
