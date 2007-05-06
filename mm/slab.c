@@ -1949,7 +1949,7 @@ static void slab_destroy(struct kmem_cache *cachep, struct slab *slabp)
  * For setting up all the kmem_list3s for cache whose buffer_size is same as
  * size of kmem_list3.
  */
-static void set_up_list3s(struct kmem_cache *cachep, int index)
+static void __init set_up_list3s(struct kmem_cache *cachep, int index)
 {
 	int node;
 
