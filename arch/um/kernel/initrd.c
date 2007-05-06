@@ -55,7 +55,7 @@ int load_initrd(char *filename, void *buf, int size)
 		printk("Opening '%s' failed - err = %d\n", filename, -fd);
 		return(-1);
 	}
-	n = os_read_file(fd, buf, size);
+	n = os_read_file_k(fd, buf, size);
 	if(n != size){
 		printk("Read of %d bytes from '%s' failed, err = %d\n", size,
 		       filename, -n);

@@ -73,7 +73,7 @@ void read_output(int fd, char *output, int len)
 
 	while(remain != 0){
 		expected = (remain < len) ? remain : len;
-		ret = os_read_file(fd, output, expected);
+		ret = os_read_file_k(fd, output, expected);
 		if (ret != expected) {
 			str = "data";
 			goto err;
@@ -94,7 +94,7 @@ int net_read(int fd, void *buf, int len)
 {
 	int n;
 
-	n = os_read_file(fd,  buf,  len);
+	n = os_read_file_k(fd,  buf,  len);
 
 	if(n == -EAGAIN)
 		return 0;
@@ -122,7 +122,7 @@ int net_write(int fd, void *buf, int len)
 {
 	int n;
 
-	n = os_write_file(fd, buf, len);
+	n = os_write_file_k(fd, buf, len);
 
 	if(n == -EAGAIN)
 		return 0;

@@ -1246,7 +1246,7 @@ int read_cow_bitmap(int fd, void *buf, int offset, int len)
 	if(err < 0)
 		return(err);
 
-	err = os_read_file(fd, buf, len);
+	err = os_read_file_k(fd, buf, len);
 	if(err < 0)
 		return(err);
 

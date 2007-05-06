@@ -98,7 +98,7 @@ int generic_read(int fd, char *c_out, void *unused)
 {
 	int n;
 
-	n = os_read_file(fd, c_out, sizeof(*c_out));
+	n = os_read_file_k(fd, c_out, sizeof(*c_out));
 
 	if(n == -EAGAIN)
 		return 0;
@@ -111,7 +111,7 @@ int generic_read(int fd, char *c_out, void *unused)
 
 int generic_write(int fd, const char *buf, int n, void *unused)
 {
-	return os_write_file(fd, buf, n);
+	return os_write_file_k(fd, buf, n);
 }
 
 int generic_window_size(int fd, void *unused, unsigned short *rows_out,
