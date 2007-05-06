@@ -65,10 +65,6 @@ extern int attach(int pid);
 extern void kill_child_dead(int pid);
 extern int cont(int pid);
 extern void check_sigio(void);
-extern void arch_check_bugs(void);
-extern int arch_handle_signal(int sig, union uml_pt_regs *regs);
-extern int arch_fixup(unsigned long address, void *sc_ptr);
-extern void arch_init_thread(void);
 extern int raw(int fd);
 
 #endif
