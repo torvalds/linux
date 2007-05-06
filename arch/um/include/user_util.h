@@ -51,9 +51,6 @@ extern unsigned long _stext, _etext, _sdata, _edata, __bss_start, _end;
 extern unsigned long _unprotected_end;
 extern unsigned long brk_start;
 
-extern int pty_output_sigio;
-extern int pty_close_sigio;
-
 extern void *add_signal_handler(int sig, void (*handler)(int));
 extern int linux_main(int argc, char **argv);
 extern void set_cmdline(char *cmd);
