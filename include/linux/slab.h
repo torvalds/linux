@@ -219,6 +219,9 @@ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, void *);
 
 #endif /* DEBUG_SLAB */
 
+extern const struct seq_operations slabinfo_op;
+ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
+
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SLAB_H */
 
