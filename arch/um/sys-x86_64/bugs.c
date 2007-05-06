@@ -88,29 +88,6 @@ static int find_cpuinfo_line(int fd, char *key, char *scratch, int len)
 	return(0);
 }
 
-int cpu_feature(char *what, char *buf, int len)
-{
-	int fd, ret = 0;
-
-	fd = os_open_file("/proc/cpuinfo", of_read(OPENFLAGS()), 0);
-	if(fd < 0){
-		printk("Couldn't open /proc/cpuinfo, err = %d\n", -fd);
-		return(0);
-	}
-
-	if(!find_cpuinfo_line(fd, what, buf, len)){
-		printk("Couldn't find '%s' line in /proc/cpuinfo\n", what);
-		goto out_close;
-	}
-
-	token(fd, buf, len, '\n');
-	ret = 1;
-
- out_close:
-	os_close_file(fd);
-	return(ret);
-}
-
 /* Overrides for Emacs so that we follow Linus's tabbing style.
  * Emacs will notice this stuff at the end of the file and automatically
  * adjust the settings for this buffer only.  This must remain at the end

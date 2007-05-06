@@ -25,23 +25,12 @@ struct helper_data {
 	char *buf;
 };
 
-/* Debugging aid, changed only from gdb */
-int helper_pause = 0;
-
-static void helper_hup(int sig)
-{
-}
-
 static int helper_child(void *arg)
 {
 	struct helper_data *data = arg;
 	char **argv = data->argv;
 	int errval;
 
-	if (helper_pause){
-		signal(SIGHUP, helper_hup);
-		pause();
-	}
 	if (data->pre_exec != NULL)
 		(*data->pre_exec)(data->pre_data);
 	errval = execvp_noalloc(data->buf, argv[0], argv);

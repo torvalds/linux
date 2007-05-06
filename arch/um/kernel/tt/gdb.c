@@ -115,6 +115,8 @@ struct gdb_data {
 	int err;
 };
 
+extern char *linux_prog;
+
 static void config_gdb_cb(void *arg)
 {
 	struct gdb_data *data = arg;

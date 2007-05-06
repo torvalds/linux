@@ -25,12 +25,7 @@
 #include "os.h"
 #include "um_malloc.h"
 
-/* Set in set_stklim, which is called from main and __wrap_malloc.
- * __wrap_malloc only calls it if main hasn't started.
- */
-unsigned long stacksizelim;
-
-/* Set in main */
+/* Set in main, unchanged thereafter */
 char *linux_prog;
 
 #define PGD_BOUND (4 * 1024 * 1024)
@@ -52,7 +47,6 @@ static void set_stklim(void)
 			exit(1);
 		}
 	}
-	stacksizelim = (lim.rlim_cur + PGD_BOUND - 1) & ~(PGD_BOUND - 1);
 }
 
 static __init void do_uml_initcalls(void)

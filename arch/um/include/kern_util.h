@@ -23,7 +23,6 @@ struct kern_handlers {
 extern const struct kern_handlers handlinfo_kern;
 
 extern int ncpus;
-extern char *linux_prog;
 extern char *gdb_init;
 extern int kmalloc_ok;
 extern int jail;
