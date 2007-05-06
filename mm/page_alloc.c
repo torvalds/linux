@@ -235,12 +235,11 @@ static void prep_compound_page(struct page *page, unsigned long order)
 
 	set_compound_page_dtor(page, free_compound_page);
 	set_compound_order(page, order);
-	__SetPageCompound(page);
+	__SetPageHead(page);
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
 
 		__SetPageTail(p);
-		__SetPageCompound(p);
 		p->first_page = page;
 	}
 }
@@ -253,17 +252,16 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 	if (unlikely(compound_order(page) != order))
 		bad_page(page);
 
-	if (unlikely(!PageCompound(page)))
+	if (unlikely(!PageHead(page)))
 			bad_page(page);
-	__ClearPageCompound(page);
+	__ClearPageHead(page);
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
 
-		if (unlikely(!PageCompound(p) | !PageTail(p) |
+		if (unlikely(!PageTail(p) |
 				(p->first_page != page)))
 			bad_page(page);
 		__ClearPageTail(p);
-		__ClearPageCompound(p);
 	}
 }
 

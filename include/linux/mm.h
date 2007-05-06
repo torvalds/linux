@@ -269,14 +269,7 @@ static inline int get_page_unless_zero(struct page *page)
 
 static inline struct page *compound_head(struct page *page)
 {
-	/*
-	 * We could avoid the PageCompound(page) check if
-	 * we would not overload PageTail().
-	 *
-	 * This check has to be done in several performance critical
-	 * paths of the slab etc. IMHO PageTail deserves its own flag.
-	 */
-	if (unlikely(PageCompound(page) && PageTail(page)))
+	if (unlikely(PageTail(page)))
 		return page->first_page;
 	return page;
 }
@@ -327,7 +320,7 @@ static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
 
 static inline int compound_order(struct page *page)
 {
-	if (!PageCompound(page) || PageTail(page))
+	if (!PageHead(page))
 		return 0;
 	return (unsigned long)page[1].lru.prev;
 }

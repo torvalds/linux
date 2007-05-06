@@ -6,6 +6,7 @@
 #define PAGE_FLAGS_H
 
 #include <linux/types.h>
+#include <linux/mm_types.h>
 
 /*
  * Various page->flags bits:
@@ -93,12 +94,6 @@
 
 /* PG_owner_priv_1 users should have descriptive aliases */
 #define PG_checked		PG_owner_priv_1 /* Used by some filesystems */
-
-/*
- * Marks tail portion of a compound page. We currently do not reclaim
- * compound pages so we can reuse a flag only used for reclaim here.
- */
-#define PG_tail			PG_reclaim
 
 #if (BITS_PER_LONG > 32)
 /*
@@ -248,12 +243,32 @@ static inline void SetPageUptodate(struct page *page)
 #define __ClearPageCompound(page) __clear_bit(PG_compound, &(page)->flags)
 
 /*
- * Note: PG_tail is an alias of another page flag. The result of PageTail()
- * is only valid if PageCompound(page) is true.
+ * PG_reclaim is used in combination with PG_compound to mark the
+ * head and tail of a compound page
+ *
+ * PG_compound & PG_reclaim	=> Tail page
+ * PG_compound & ~PG_reclaim	=> Head page
  */
-#define PageTail(page)	test_bit(PG_tail, &(page)->flags)
-#define __SetPageTail(page)	__set_bit(PG_tail, &(page)->flags)
-#define __ClearPageTail(page)	__clear_bit(PG_tail, &(page)->flags)
+
+#define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
+
+#define PageTail(page)	((page->flags & PG_head_tail_mask) \
+				== PG_head_tail_mask)
+
+static inline void __SetPageTail(struct page *page)
+{
+	page->flags |= PG_head_tail_mask;
+}
+
+static inline void __ClearPageTail(struct page *page)
+{
+	page->flags &= ~PG_head_tail_mask;
+}
+
+#define PageHead(page)	((page->flags & PG_head_tail_mask) \
+				== (1L << PG_compound))
+#define __SetPageHead(page)	__SetPageCompound(page)
+#define __ClearPageHead(page)	__ClearPageCompound(page)
 
 #ifdef CONFIG_SWAP
 #define PageSwapCache(page)	test_bit(PG_swapcache, &(page)->flags)
