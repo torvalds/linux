@@ -551,6 +551,13 @@ config INDYDOG
 	  timer expired and no process has written to /dev/watchdog during
 	  that time.
 
+config WDT_MTX1
+	tristate "MTX-1 Hardware Watchdog"
+	depends on MIPS_MTX1
+	help
+	  Hardware driver for the MTX-1 boards. This is a watchdog timer that
+	  will reboot the machine after a 100 seconds timer expired.
+
 config WDT_RM9K_GPI
 	tristate "RM9000/GPI hardware watchdog"
 	depends on CPU_RM9000
