@@ -180,7 +180,8 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
 		struct page *page = NULL;
 
 		if (blocknr + i < devsize) {
-			page = read_mapping_page(mapping, blocknr + i, NULL);
+			page = read_mapping_page_async(mapping, blocknr + i,
+									NULL);
 			/* synchronous error? */
 			if (IS_ERR(page))
 				page = NULL;

@@ -95,11 +95,22 @@ static inline struct page *grab_cache_page(struct address_space *mapping, unsign
 
 extern struct page * grab_cache_page_nowait(struct address_space *mapping,
 				unsigned long index);
+extern struct page * read_cache_page_async(struct address_space *mapping,
+				unsigned long index, filler_t *filler,
+				void *data);
 extern struct page * read_cache_page(struct address_space *mapping,
 				unsigned long index, filler_t *filler,
 				void *data);
 extern int read_cache_pages(struct address_space *mapping,
 		struct list_head *pages, filler_t *filler, void *data);
+
+static inline struct page *read_mapping_page_async(
+						struct address_space *mapping,
+					     unsigned long index, void *data)
+{
+	filler_t *filler = (filler_t *)mapping->a_ops->readpage;
+	return read_cache_page_async(mapping, index, filler, data);
+}
 
 static inline struct page *read_mapping_page(struct address_space *mapping,
 					     unsigned long index, void *data)

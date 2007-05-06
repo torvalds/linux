@@ -46,7 +46,6 @@ struct kmem_cache *ecryptfs_lower_page_cache;
  */
 static struct page *ecryptfs_get1page(struct file *file, int index)
 {
-	struct page *page;
 	struct dentry *dentry;
 	struct inode *inode;
 	struct address_space *mapping;
@@ -54,14 +53,7 @@ static struct page *ecryptfs_get1page(struct file *file, int index)
 	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 	mapping = inode->i_mapping;
-	page = read_cache_page(mapping, index,
-			       (filler_t *)mapping->a_ops->readpage,
-			       (void *)file);
-	if (IS_ERR(page))
-		goto out;
-	wait_on_page_locked(page);
-out:
-	return page;
+	return read_mapping_page(mapping, index, (void *)file);
 }
 
 static
@@ -233,7 +225,6 @@ int ecryptfs_do_readpage(struct file *file, struct page *page,
 		ecryptfs_printk(KERN_ERR, "Error reading from page cache\n");
 		goto out;
 	}
-	wait_on_page_locked(lower_page);
 	page_data = kmap_atomic(page, KM_USER0);
 	lower_page_data = kmap_atomic(lower_page, KM_USER1);
 	memcpy(page_data, lower_page_data, PAGE_CACHE_SIZE);

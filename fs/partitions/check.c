@@ -569,9 +569,6 @@ unsigned char *read_dev_sector(struct block_device *bdev, sector_t n, Sector *p)
 	page = read_mapping_page(mapping, (pgoff_t)(n >> (PAGE_CACHE_SHIFT-9)),
 				 NULL);
 	if (!IS_ERR(page)) {
-		wait_on_page_locked(page);
-		if (!PageUptodate(page))
-			goto fail;
 		if (PageError(page))
 			goto fail;
 		p->v = page;

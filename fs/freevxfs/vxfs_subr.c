@@ -74,10 +74,7 @@ vxfs_get_page(struct address_space *mapping, u_long n)
 	pp = read_mapping_page(mapping, n, NULL);
 
 	if (!IS_ERR(pp)) {
-		wait_on_page_locked(pp);
 		kmap(pp);
-		if (!PageUptodate(pp))
-			goto fail;
 		/** if (!PageChecked(pp)) **/
 			/** vxfs_check_page(pp); **/
 		if (PageError(pp))

@@ -2471,7 +2471,6 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 	s64 nr_free = vol->nr_clusters;
 	u32 *kaddr;
 	struct address_space *mapping = vol->lcnbmp_ino->i_mapping;
-	filler_t *readpage = (filler_t*)mapping->a_ops->readpage;
 	struct page *page;
 	pgoff_t index, max_index;
 
@@ -2494,21 +2493,11 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		 * Read the page from page cache, getting it from backing store
 		 * if necessary, and increment the use count.
 		 */
-		page = read_cache_page(mapping, index, (filler_t*)readpage,
-				NULL);
+		page = read_mapping_page(mapping, index, NULL);
 		/* Ignore pages which errored synchronously. */
 		if (IS_ERR(page)) {
-			ntfs_debug("Sync read_cache_page() error. Skipping "
+			ntfs_debug("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
-			nr_free -= PAGE_CACHE_SIZE * 8;
-			continue;
-		}
-		wait_on_page_locked(page);
-		/* Ignore pages which errored asynchronously. */
-		if (!PageUptodate(page)) {
-			ntfs_debug("Async read_cache_page() error. Skipping "
-					"page (index 0x%lx).", index);
-			page_cache_release(page);
 			nr_free -= PAGE_CACHE_SIZE * 8;
 			continue;
 		}
@@ -2562,7 +2551,6 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 {
 	u32 *kaddr;
 	struct address_space *mapping = vol->mftbmp_ino->i_mapping;
-	filler_t *readpage = (filler_t*)mapping->a_ops->readpage;
 	struct page *page;
 	pgoff_t index;
 
@@ -2576,21 +2564,11 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		 * Read the page from page cache, getting it from backing store
 		 * if necessary, and increment the use count.
 		 */
-		page = read_cache_page(mapping, index, (filler_t*)readpage,
-				NULL);
+		page = read_mapping_page(mapping, index, NULL);
 		/* Ignore pages which errored synchronously. */
 		if (IS_ERR(page)) {
-			ntfs_debug("Sync read_cache_page() error. Skipping "
+			ntfs_debug("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
-			nr_free -= PAGE_CACHE_SIZE * 8;
-			continue;
-		}
-		wait_on_page_locked(page);
-		/* Ignore pages which errored asynchronously. */
-		if (!PageUptodate(page)) {
-			ntfs_debug("Async read_cache_page() error. Skipping "
-					"page (index 0x%lx).", index);
-			page_cache_release(page);
 			nr_free -= PAGE_CACHE_SIZE * 8;
 			continue;
 		}

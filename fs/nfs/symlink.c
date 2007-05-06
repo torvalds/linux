@@ -61,15 +61,9 @@ static void *nfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 		err = page;
 		goto read_failed;
 	}
-	if (!PageUptodate(page)) {
-		err = ERR_PTR(-EIO);
-		goto getlink_read_error;
-	}
 	nd_set_link(nd, kmap(page));
 	return page;
 
-getlink_read_error:
-	page_cache_release(page);
 read_failed:
 	nd_set_link(nd, err);
 	return NULL;
