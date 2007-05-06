@@ -8,7 +8,7 @@
 
 static inline void *cow_malloc(int size)
 {
-	return(um_kmalloc(size));
+	return um_kmalloc(size);
 }
 
 static inline void cow_free(void *ptr)
@@ -20,29 +20,22 @@ static inline void cow_free(void *ptr)
 
 static inline char *cow_strdup(char *str)
 {
-	return(uml_strdup(str));
+	return uml_strdup(str);
 }
 
 static inline int cow_seek_file(int fd, __u64 offset)
 {
-	return(os_seek_file(fd, offset));
+	return os_seek_file(fd, offset);
 }
 
 static inline int cow_file_size(char *file, unsigned long long *size_out)
 {
-	return(os_file_size(file, size_out));
+	return os_file_size(file, size_out);
 }
 
 static inline int cow_write_file(int fd, void *buf, int size)
 {
-	return(os_write_file_k(fd, buf, size));
+	return os_write_file_k(fd, buf, size);
 }
 
 #endif
-
-/*
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

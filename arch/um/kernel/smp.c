@@ -89,7 +89,7 @@ static int idle_proc(void *cpup)
 
 	cpu_set(cpu, cpu_online_map);
 	default_idle();
-	return(0);
+	return 0;
 }
 
 static struct task_struct *idle_thread(int cpu)
@@ -97,8 +97,8 @@ static struct task_struct *idle_thread(int cpu)
 	struct task_struct *new_task;
 	unsigned char c;
 
-        current->thread.request.u.thread.proc = idle_proc;
-        current->thread.request.u.thread.arg = (void *) cpu;
+	current->thread.request.u.thread.proc = idle_proc;
+	current->thread.request.u.thread.arg = (void *) cpu;
 	new_task = fork_idle(cpu);
 	if(IS_ERR(new_task))
 		panic("copy_process failed in idle_thread, error = %ld",
@@ -111,7 +111,7 @@ static struct task_struct *idle_thread(int cpu)
 	CHOOSE_MODE(os_write_file_k(new_task->thread.mode.tt.switch_pipe[1], &c,
 				    sizeof(c)),
 		    ({ panic("skas mode doesn't support SMP"); }));
-	return(new_task);
+	return new_task;
 }
 
 void smp_prepare_cpus(unsigned int maxcpus)
@@ -162,13 +162,13 @@ int __cpu_up(unsigned int cpu)
 	cpu_set(cpu, smp_commenced_mask);
 	while (!cpu_isset(cpu, cpu_online_map))
 		mb();
-	return(0);
+	return 0;
 }
 
 int setup_profiling_timer(unsigned int multiplier)
 {
 	printk(KERN_INFO "setup_profiling_timer\n");
-	return(0);
+	return 0;
 }
 
 void smp_call_function_slave(int cpu);
@@ -204,7 +204,7 @@ void IPI_handler(int cpu)
 
 int hard_smp_processor_id(void)
 {
-	return(pid_to_processor_id(os_getpid()));
+	return pid_to_processor_id(os_getpid());
 }
 
 static DEFINE_SPINLOCK(call_lock);
@@ -253,14 +253,3 @@ int smp_call_function(void (*_func)(void *info), void *_info, int nonatomic,
 }
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

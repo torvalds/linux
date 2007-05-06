@@ -21,12 +21,20 @@ static int __init read_initrd(void)
 	long long size;
 	int err;
 
-	if(initrd == NULL) return 0;
+	if(initrd == NULL)
+		return 0;
+
 	err = os_file_size(initrd, &size);
-	if(err) return 0;
+	if(err)
+		return 0;
+
 	area = alloc_bootmem(size);
-	if(area == NULL) return 0;
-	if(load_initrd(initrd, area, size) == -1) return 0;
+	if(area == NULL)
+		return 0;
+
+	if(load_initrd(initrd, area, size) == -1)
+		return 0;
+
 	initrd_start = (unsigned long) area;
 	initrd_end = initrd_start + size;
 	return 0;
@@ -53,25 +61,15 @@ int load_initrd(char *filename, void *buf, int size)
 	fd = os_open_file(filename, of_read(OPENFLAGS()), 0);
 	if(fd < 0){
 		printk("Opening '%s' failed - err = %d\n", filename, -fd);
-		return(-1);
+		return -1;
 	}
 	n = os_read_file_k(fd, buf, size);
 	if(n != size){
 		printk("Read of %d bytes from '%s' failed, err = %d\n", size,
 		       filename, -n);
-		return(-1);
+		return -1;
 	}
 
 	os_close_file(fd);
-	return(0);
+	return 0;
 }
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
