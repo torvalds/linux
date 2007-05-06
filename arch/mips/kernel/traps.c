@@ -927,9 +927,9 @@ asmlinkage void do_reserved(struct pt_regs *regs)
 	      (regs->cp0_cause & 0x7f) >> 2);
 }
 
-static asmlinkage void do_default_vi(struct pt_regs *regs)
+static asmlinkage void do_default_vi(void)
 {
-	show_regs(regs);
+	show_regs(get_irq_regs());
 	panic("Caught unexpected vectored interrupt.");
 }
 
