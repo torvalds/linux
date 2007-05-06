@@ -51,8 +51,9 @@
 		       ~(__REGVAL(reg ## _ ## field, value))))		\
 		  | (__REGVAL(reg ## _ ## field, value))))
 
-#  define REGGET(reg, field)						\
-	((reg & (reg ## _ ## field)) / (field & (-field)))
+#  define REGGET(var, reg, field)					\
+	((var & (reg ## _ ## field)) /					\
+	 ((reg ## _ ## field) & (-(reg ## _ ## field))))
 
 #else
 

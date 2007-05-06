@@ -429,6 +429,10 @@ static inline void omap_init_rng(void) {}
  */
 static int __init omap_init_devices(void)
 {
+/*
+ * Need to enable relevant once for 2430 SDP
+ */
+#ifndef CONFIG_MACH_OMAP_2430SDP
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
@@ -438,7 +442,7 @@ static int __init omap_init_devices(void)
 	omap_init_uwire();
 	omap_init_wdt();
 	omap_init_rng();
-
+#endif
 	return 0;
 }
 arch_initcall(omap_init_devices);

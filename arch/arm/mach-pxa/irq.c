@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/ptrace.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
@@ -39,11 +38,33 @@ static void pxa_unmask_low_irq(unsigned int irq)
 	ICMR |= (1 << (irq + PXA_IRQ_SKIP));
 }
 
+static int pxa_set_wake(unsigned int irq, unsigned int on)
+{
+	u32	mask;
+
+	switch (irq) {
+	case IRQ_RTCAlrm:
+		mask = PWER_RTC;
+		break;
+#ifdef CONFIG_PXA27x
+	/* REVISIT can handle USBH1, USBH2, USB, MSL, USIM, ... */
+#endif
+	default:
+		return -EINVAL;
+	}
+	if (on)
+		PWER |= mask;
+	else
+		PWER &= ~mask;
+	return 0;
+}
+
 static struct irq_chip pxa_internal_chip_low = {
 	.name		= "SC",
 	.ack		= pxa_mask_low_irq,
 	.mask		= pxa_mask_low_irq,
 	.unmask		= pxa_unmask_low_irq,
+	.set_wake	= pxa_set_wake,
 };
 
 #if PXA_INTERNAL_IRQS > 32
@@ -71,6 +92,26 @@ static struct irq_chip pxa_internal_chip_high = {
 
 #endif
 
+/* Note that if an input/irq line ever gets changed to an output during
+ * suspend, the relevant PWER, PRER, and PFER bits should be cleared.
+ */
+#ifdef CONFIG_PXA27x
+
+/* PXA27x:  Various gpios can issue wakeup events.  This logic only
+ * handles the simple cases, not the WEMUX2 and WEMUX3 options
+ */
+#define PXA27x_GPIO_NOWAKE_MASK \
+	((1 << 8) | (1 << 7) | (1 << 6) | (1 << 5) | (1 << 2))
+#define	WAKEMASK(gpio) \
+	(((gpio) <= 15) \
+		? ((1 << (gpio)) & ~PXA27x_GPIO_NOWAKE_MASK) \
+		: ((gpio == 35) ? (1 << 24) : 0))
+#else
+
+/* pxa 210, 250, 255, 26x:  gpios 0..15 can issue wakeups */
+#define	WAKEMASK(gpio) (((gpio) <= 15) ? (1 << (gpio)) : 0)
+#endif
+
 /*
  * PXA GPIO edge detection for IRQs:
  * IRQs are generated on Falling-Edge, Rising-Edge, or both.
@@ -84,9 +125,11 @@ static long GPIO_IRQ_mask[4];
 static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 {
 	int gpio, idx;
+	u32 mask;
 
 	gpio = IRQ_TO_GPIO(irq);
 	idx = gpio >> 5;
+	mask = WAKEMASK(gpio);
 
 	if (type == IRQT_PROBE) {
 	    /* Don't mess with enabled GPIOs using preconfigured edges or
@@ -106,14 +149,20 @@ static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 	if (type & __IRQT_RISEDGE) {
 		/* printk("rising "); */
 		__set_bit (gpio, GPIO_IRQ_rising_edge);
-	} else
+		PRER |= mask;
+	} else {
 		__clear_bit (gpio, GPIO_IRQ_rising_edge);
+		PRER &= ~mask;
+	}
 
 	if (type & __IRQT_FALEDGE) {
 		/* printk("falling "); */
 		__set_bit (gpio, GPIO_IRQ_falling_edge);
-	} else
+		PFER |= mask;
+	} else {
 		__clear_bit (gpio, GPIO_IRQ_falling_edge);
+		PFER &= ~mask;
+	}
 
 	/* printk("edges\n"); */
 
@@ -131,12 +180,29 @@ static void pxa_ack_low_gpio(unsigned int irq)
 	GEDR0 = (1 << (irq - IRQ_GPIO0));
 }
 
+static int pxa_set_gpio_wake(unsigned int irq, unsigned int on)
+{
+	int	gpio = IRQ_TO_GPIO(irq);
+	u32	mask = WAKEMASK(gpio);
+
+	if (!mask)
+		return -EINVAL;
+
+	if (on)
+		PWER |= mask;
+	else
+		PWER &= ~mask;
+	return 0;
+}
+
+
 static struct irq_chip pxa_low_gpio_chip = {
 	.name		= "GPIO-l",
 	.ack		= pxa_ack_low_gpio,
 	.mask		= pxa_mask_low_irq,
 	.unmask		= pxa_unmask_low_irq,
 	.set_type	= pxa_gpio_irq_type,
+	.set_wake	= pxa_set_gpio_wake,
 };
 
 /*
@@ -245,6 +311,7 @@ static struct irq_chip pxa_muxed_gpio_chip = {
 	.mask		= pxa_mask_muxed_gpio,
 	.unmask		= pxa_unmask_muxed_gpio,
 	.set_type	= pxa_gpio_irq_type,
+	.set_wake	= pxa_set_gpio_wake,
 };
 
 

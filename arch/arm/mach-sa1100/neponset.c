@@ -4,7 +4,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/ptrace.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>

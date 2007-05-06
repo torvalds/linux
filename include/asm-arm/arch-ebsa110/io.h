@@ -81,4 +81,12 @@ extern void outsb(unsigned int port, const void *buf, int sz);
 extern void outsw(unsigned int port, const void *buf, int sz);
 extern void outsl(unsigned int port, const void *buf, int sz);
 
+/* can't support writesb atm */
+extern void writesw(void __iomem *addr, const void *data, int wordlen);
+extern void writesl(void __iomem *addr, const void *data, int longlen);
+
+/* can't support readsb atm */
+extern void readsw(const void __iomem *addr, void *data, int wordlen);
+extern void readsl(const void __iomem *addr, void *data, int longlen);
+
 #endif

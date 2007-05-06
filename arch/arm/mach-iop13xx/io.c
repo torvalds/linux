@@ -41,7 +41,7 @@ void * __iomem __iop13xx_io(unsigned long io_addr)
 EXPORT_SYMBOL(__iop13xx_io);
 
 void * __iomem __iop13xx_ioremap(unsigned long cookie, size_t size,
-	unsigned long flags)
+	unsigned int mtype)
 {
 	void __iomem * retval;
 
@@ -61,9 +61,9 @@ void * __iomem __iop13xx_ioremap(unsigned long cookie, size_t size,
 			         (cookie - IOP13XX_PCIE_LOWER_MEM_RA));
 		break;
 	case IOP13XX_PBI_LOWER_MEM_RA ... IOP13XX_PBI_UPPER_MEM_RA:
-		retval = __ioremap(IOP13XX_PBI_LOWER_MEM_PA +
-				  (cookie - IOP13XX_PBI_LOWER_MEM_RA),
-				  size, flags);
+		retval = __arm_ioremap(IOP13XX_PBI_LOWER_MEM_PA +
+				       (cookie - IOP13XX_PBI_LOWER_MEM_RA),
+				       size, mtype);
 		break;
 	case IOP13XX_PCIE_LOWER_IO_PA ... IOP13XX_PCIE_UPPER_IO_PA:
 		retval = (void *) IOP13XX_PCIE_IO_PHYS_TO_VIRT(cookie);
@@ -75,7 +75,7 @@ void * __iomem __iop13xx_ioremap(unsigned long cookie, size_t size,
 		retval = (void *) IOP13XX_PMMR_PHYS_TO_VIRT(cookie);
 		break;
 	default:
-		retval = __ioremap(cookie, size, flags);
+		retval = __arm_ioremap(cookie, size, mtype);
 	}
 
 	return retval;

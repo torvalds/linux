@@ -257,7 +257,9 @@ __create_page_tables:
 	 * Map some ram to cover our .data and .bss areas.
 	 */
 	orr	r3, r7, #(KERNEL_RAM_PADDR & 0xff000000)
+	.if	(KERNEL_RAM_PADDR & 0x00f00000)
 	orr	r3, r3, #(KERNEL_RAM_PADDR & 0x00f00000)
+	.endif
 	add	r0, r4,  #(KERNEL_RAM_VADDR & 0xff000000) >> 18
 	str	r3, [r0, #(KERNEL_RAM_VADDR & 0x00f00000) >> 18]!
 	ldr	r6, =(_end - 1)
@@ -274,7 +276,9 @@ __create_page_tables:
 	 */
 	add	r0, r4, #PAGE_OFFSET >> 18
 	orr	r6, r7, #(PHYS_OFFSET & 0xff000000)
-	orr	r6, r6, #(PHYS_OFFSET & 0x00e00000)
+	.if	(PHYS_OFFSET & 0x00f00000)
+	orr	r6, r6, #(PHYS_OFFSET & 0x00f00000)
+	.endif
 	str	r6, [r0]
 
 #ifdef CONFIG_DEBUG_LL

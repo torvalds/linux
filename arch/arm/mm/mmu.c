@@ -176,28 +176,42 @@ void adjust_cr(unsigned long mask, unsigned long set)
 }
 #endif
 
-struct mem_types {
-	unsigned int	prot_pte;
-	unsigned int	prot_l1;
-	unsigned int	prot_sect;
-	unsigned int	domain;
-};
+#define PROT_PTE_DEVICE		L_PTE_PRESENT|L_PTE_YOUNG|L_PTE_DIRTY|L_PTE_WRITE
+#define PROT_SECT_DEVICE	PMD_TYPE_SECT|PMD_SECT_XN|PMD_SECT_AP_WRITE
 
-static struct mem_types mem_types[] __initdata = {
-	[MT_DEVICE] = {
-		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
-				L_PTE_WRITE,
-		.prot_l1   = PMD_TYPE_TABLE,
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_UNCACHED |
-				PMD_SECT_AP_WRITE,
-		.domain    = DOMAIN_IO,
+static struct mem_type mem_types[] = {
+	[MT_DEVICE] = {		  /* Strongly ordered / ARMv6 shared device */
+		.prot_pte	= PROT_PTE_DEVICE,
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_UNCACHED,
+		.domain		= DOMAIN_IO,
+	},
+	[MT_DEVICE_NONSHARED] = { /* ARMv6 non-shared device */
+		.prot_pte	= PROT_PTE_DEVICE,
+		.prot_pte_ext	= PTE_EXT_TEX(2),
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_TEX(2),
+		.domain		= DOMAIN_IO,
+	},
+	[MT_DEVICE_CACHED] = {	  /* ioremap_cached */
+		.prot_pte	= PROT_PTE_DEVICE | L_PTE_CACHEABLE | L_PTE_BUFFERABLE,
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
+		.domain		= DOMAIN_IO,
+	},	
+	[MT_DEVICE_IXP2000] = {	  /* IXP2400 requires XCB=101 for on-chip I/O */
+		.prot_pte	= PROT_PTE_DEVICE,
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_BUFFERABLE |
+				  PMD_SECT_TEX(1),
+		.domain		= DOMAIN_IO,
 	},
 	[MT_CACHECLEAN] = {
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4,
+		.prot_sect = PMD_TYPE_SECT | PMD_SECT_XN,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_MINICLEAN] = {
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_MINICACHE,
+		.prot_sect = PMD_TYPE_SECT | PMD_SECT_XN | PMD_SECT_MINICACHE,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_LOW_VECTORS] = {
@@ -213,29 +227,19 @@ static struct mem_types mem_types[] __initdata = {
 		.domain    = DOMAIN_USER,
 	},
 	[MT_MEMORY] = {
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_AP_WRITE,
+		.prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_ROM] = {
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4,
+		.prot_sect = PMD_TYPE_SECT,
 		.domain    = DOMAIN_KERNEL,
 	},
-	[MT_IXP2000_DEVICE] = { /* IXP2400 requires XCB=101 for on-chip I/O */
-		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
-				L_PTE_WRITE,
-		.prot_l1   = PMD_TYPE_TABLE,
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_UNCACHED |
-				PMD_SECT_AP_WRITE | PMD_SECT_BUFFERABLE |
-				PMD_SECT_TEX(1),
-		.domain    = DOMAIN_IO,
-	},
-	[MT_NONSHARED_DEVICE] = {
-		.prot_l1   = PMD_TYPE_TABLE,
-		.prot_sect = PMD_TYPE_SECT | PMD_BIT4 | PMD_SECT_NONSHARED_DEV |
-				PMD_SECT_AP_WRITE,
-		.domain    = DOMAIN_IO,
-	}
 };
+
+const struct mem_type *get_mem_type(unsigned int type)
+{
+	return type < ARRAY_SIZE(mem_types) ? &mem_types[type] : NULL;
+}
 
 /*
  * Adjust the PMD section entries according to the CPU in use.
@@ -262,20 +266,23 @@ static void __init build_mem_type_table(void)
 	}
 
 	/*
-	 * Xscale must not have PMD bit 4 set for section mappings.
+	 * ARMv5 and lower, bit 4 must be set for page tables.
+	 * (was: cache "update-able on write" bit on ARM610)
+	 * However, Xscale cores require this bit to be cleared.
 	 */
-	if (cpu_is_xscale())
-		for (i = 0; i < ARRAY_SIZE(mem_types); i++)
+	if (cpu_is_xscale()) {
+		for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
 			mem_types[i].prot_sect &= ~PMD_BIT4;
-
-	/*
-	 * ARMv5 and lower, excluding Xscale, bit 4 must be set for
-	 * page tables.
-	 */
-	if (cpu_arch < CPU_ARCH_ARMv6 && !cpu_is_xscale())
-		for (i = 0; i < ARRAY_SIZE(mem_types); i++)
+			mem_types[i].prot_l1 &= ~PMD_BIT4;
+		}
+	} else if (cpu_arch < CPU_ARCH_ARMv6) {
+		for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
 			if (mem_types[i].prot_l1)
 				mem_types[i].prot_l1 |= PMD_BIT4;
+			if (mem_types[i].prot_sect)
+				mem_types[i].prot_sect |= PMD_BIT4;
+		}
+	}
 
 	cp = &cache_policies[cachepolicy];
 	kern_pgprot = user_pgprot = cp->pte;
@@ -295,13 +302,6 @@ static void __init build_mem_type_table(void)
 	 * ARMv6 and above have extended page tables.
 	 */
 	if (cpu_arch >= CPU_ARCH_ARMv6 && (cr & CR_XP)) {
-		/*
-		 * bit 4 becomes XN which we must clear for the
-		 * kernel memory mapping.
-		 */
-		mem_types[MT_MEMORY].prot_sect &= ~PMD_SECT_XN;
-		mem_types[MT_ROM].prot_sect &= ~PMD_SECT_XN;
-
 		/*
 		 * Mark cache clean areas and XIP ROM read only
 		 * from SVC mode and no access from userspace.
@@ -368,64 +368,126 @@ static void __init build_mem_type_table(void)
 	}
 	printk("Memory policy: ECC %sabled, Data cache %s\n",
 		ecc_mask ? "en" : "dis", cp->policy);
+
+	for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
+		struct mem_type *t = &mem_types[i];
+		if (t->prot_l1)
+			t->prot_l1 |= PMD_DOMAIN(t->domain);
+		if (t->prot_sect)
+			t->prot_sect |= PMD_DOMAIN(t->domain);
+	}
 }
 
 #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
 
-/*
- * Create a SECTION PGD between VIRT and PHYS in domain
- * DOMAIN with protection PROT.  This operates on half-
- * pgdir entry increments.
- */
-static inline void
-alloc_init_section(unsigned long virt, unsigned long phys, int prot)
+static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
+				  unsigned long end, unsigned long pfn,
+				  const struct mem_type *type)
 {
-	pmd_t *pmdp = pmd_off_k(virt);
+	pte_t *pte;
 
-	if (virt & (1 << 20))
-		pmdp++;
+	if (pmd_none(*pmd)) {
+		pte = alloc_bootmem_low_pages(2 * PTRS_PER_PTE * sizeof(pte_t));
+		__pmd_populate(pmd, __pa(pte) | type->prot_l1);
+	}
 
-	*pmdp = __pmd(phys | prot);
-	flush_pmd_entry(pmdp);
+	pte = pte_offset_kernel(pmd, addr);
+	do {
+		set_pte_ext(pte, pfn_pte(pfn, __pgprot(type->prot_pte)),
+			    type->prot_pte_ext);
+		pfn++;
+	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
 
-/*
- * Create a SUPER SECTION PGD between VIRT and PHYS with protection PROT
- */
-static inline void
-alloc_init_supersection(unsigned long virt, unsigned long phys, int prot)
+static void __init alloc_init_section(pgd_t *pgd, unsigned long addr,
+				      unsigned long end, unsigned long phys,
+				      const struct mem_type *type)
 {
-	int i;
+	pmd_t *pmd = pmd_offset(pgd, addr);
 
-	for (i = 0; i < 16; i += 1) {
-		alloc_init_section(virt, phys, prot | PMD_SECT_SUPER);
+	/*
+	 * Try a section mapping - end, addr and phys must all be aligned
+	 * to a section boundary.  Note that PMDs refer to the individual
+	 * L1 entries, whereas PGDs refer to a group of L1 entries making
+	 * up one logical pointer to an L2 table.
+	 */
+	if (((addr | end | phys) & ~SECTION_MASK) == 0) {
+		pmd_t *p = pmd;
 
-		virt += (PGDIR_SIZE / 2);
+		if (addr & SECTION_SIZE)
+			pmd++;
+
+		do {
+			*pmd = __pmd(phys | type->prot_sect);
+			phys += SECTION_SIZE;
+		} while (pmd++, addr += SECTION_SIZE, addr != end);
+
+		flush_pmd_entry(p);
+	} else {
+		/*
+		 * No need to loop; pte's aren't interested in the
+		 * individual L1 entries.
+		 */
+		alloc_init_pte(pmd, addr, end, __phys_to_pfn(phys), type);
 	}
 }
 
-/*
- * Add a PAGE mapping between VIRT and PHYS in domain
- * DOMAIN with protection PROT.  Note that due to the
- * way we map the PTEs, we must allocate two PTE_SIZE'd
- * blocks - one for the Linux pte table, and one for
- * the hardware pte table.
- */
-static inline void
-alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pgprot_t prot)
+static void __init create_36bit_mapping(struct map_desc *md,
+					const struct mem_type *type)
 {
-	pmd_t *pmdp = pmd_off_k(virt);
-	pte_t *ptep;
+	unsigned long phys, addr, length, end;
+	pgd_t *pgd;
 
-	if (pmd_none(*pmdp)) {
-		ptep = alloc_bootmem_low_pages(2 * PTRS_PER_PTE *
-					       sizeof(pte_t));
+	addr = md->virtual;
+	phys = (unsigned long)__pfn_to_phys(md->pfn);
+	length = PAGE_ALIGN(md->length);
 
-		__pmd_populate(pmdp, __pa(ptep) | prot_l1);
+	if (!(cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())) {
+		printk(KERN_ERR "MM: CPU does not support supersection "
+		       "mapping for 0x%08llx at 0x%08lx\n",
+		       __pfn_to_phys((u64)md->pfn), addr);
+		return;
 	}
-	ptep = pte_offset_kernel(pmdp, virt);
 
-	set_pte_ext(ptep, pfn_pte(phys >> PAGE_SHIFT, prot), 0);
+	/* N.B.	ARMv6 supersections are only defined to work with domain 0.
+	 *	Since domain assignments can in fact be arbitrary, the
+	 *	'domain == 0' check below is required to insure that ARMv6
+	 *	supersections are only allocated for domain 0 regardless
+	 *	of the actual domain assignments in use.
+	 */
+	if (type->domain) {
+		printk(KERN_ERR "MM: invalid domain in supersection "
+		       "mapping for 0x%08llx at 0x%08lx\n",
+		       __pfn_to_phys((u64)md->pfn), addr);
+		return;
+	}
+
+	if ((addr | length | __pfn_to_phys(md->pfn)) & ~SUPERSECTION_MASK) {
+		printk(KERN_ERR "MM: cannot create mapping for "
+		       "0x%08llx at 0x%08lx invalid alignment\n",
+		       __pfn_to_phys((u64)md->pfn), addr);
+		return;
+	}
+
+	/*
+	 * Shift bits [35:32] of address into bits [23:20] of PMD
+	 * (See ARMv6 spec).
+	 */
+	phys |= (((md->pfn >> (32 - PAGE_SHIFT)) & 0xF) << 20);
+
+	pgd = pgd_offset_k(addr);
+	end = addr + length;
+	do {
+		pmd_t *pmd = pmd_offset(pgd, addr);
+		int i;
+
+		for (i = 0; i < 16; i++)
+			*pmd++ = __pmd(phys | type->prot_sect | PMD_SECT_SUPER);
+
+		addr += SUPERSECTION_SIZE;
+		phys += SUPERSECTION_SIZE;
+		pgd += SUPERSECTION_SIZE >> PGDIR_SHIFT;
+	} while (addr != end);
 }
 
 /*
@@ -437,10 +499,9 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
  */
 void __init create_mapping(struct map_desc *md)
 {
-	unsigned long virt, length;
-	int prot_sect, prot_l1, domain;
-	pgprot_t prot_pte;
-	unsigned long off = (u32)__pfn_to_phys(md->pfn);
+	unsigned long phys, addr, length, end;
+	const struct mem_type *type;
+	pgd_t *pgd;
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
 		printk(KERN_WARNING "BUG: not creating mapping for "
@@ -456,105 +517,37 @@ void __init create_mapping(struct map_desc *md)
 		       __pfn_to_phys((u64)md->pfn), md->virtual);
 	}
 
-	domain	  = mem_types[md->type].domain;
-	prot_pte  = __pgprot(mem_types[md->type].prot_pte);
-	prot_l1   = mem_types[md->type].prot_l1 | PMD_DOMAIN(domain);
-	prot_sect = mem_types[md->type].prot_sect | PMD_DOMAIN(domain);
+	type = &mem_types[md->type];
 
 	/*
 	 * Catch 36-bit addresses
 	 */
-	if(md->pfn >= 0x100000) {
-		if(domain) {
-			printk(KERN_ERR "MM: invalid domain in supersection "
-				"mapping for 0x%08llx at 0x%08lx\n",
-				__pfn_to_phys((u64)md->pfn), md->virtual);
-			return;
-		}
-		if((md->virtual | md->length | __pfn_to_phys(md->pfn))
-			& ~SUPERSECTION_MASK) {
-			printk(KERN_ERR "MM: cannot create mapping for "
-				"0x%08llx at 0x%08lx invalid alignment\n",
-				__pfn_to_phys((u64)md->pfn), md->virtual);
-			return;
-		}
-
-		/*
-		 * Shift bits [35:32] of address into bits [23:20] of PMD
-		 * (See ARMv6 spec).
-		 */
-		off |= (((md->pfn >> (32 - PAGE_SHIFT)) & 0xF) << 20);
-	}
-
-	virt   = md->virtual;
-	off   -= virt;
-	length = md->length;
-
-	if (mem_types[md->type].prot_l1 == 0 &&
-	    (virt & 0xfffff || (virt + off) & 0xfffff || (virt + length) & 0xfffff)) {
-		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
-		       "be mapped using pages, ignoring.\n",
-		       __pfn_to_phys(md->pfn), md->virtual);
+	if (md->pfn >= 0x100000) {
+		create_36bit_mapping(md, type);
 		return;
 	}
 
-	while ((virt & 0xfffff || (virt + off) & 0xfffff) && length >= PAGE_SIZE) {
-		alloc_init_page(virt, virt + off, prot_l1, prot_pte);
+	addr = md->virtual;
+	phys = (unsigned long)__pfn_to_phys(md->pfn);
+	length = PAGE_ALIGN(md->length);
 
-		virt   += PAGE_SIZE;
-		length -= PAGE_SIZE;
+	if (type->prot_l1 == 0 && ((addr | phys | length) & ~SECTION_MASK)) {
+		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
+		       "be mapped using pages, ignoring.\n",
+		       __pfn_to_phys(md->pfn), addr);
+		return;
 	}
 
-	/* N.B.	ARMv6 supersections are only defined to work with domain 0.
-	 *	Since domain assignments can in fact be arbitrary, the
-	 *	'domain == 0' check below is required to insure that ARMv6
-	 *	supersections are only allocated for domain 0 regardless
-	 *	of the actual domain assignments in use.
-	 */
-	if ((cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())
-		&& domain == 0) {
-		/*
-		 * Align to supersection boundary if !high pages.
-		 * High pages have already been checked for proper
-		 * alignment above and they will fail the SUPSERSECTION_MASK
-		 * check because of the way the address is encoded into
-		 * offset.
-		 */
-		if (md->pfn <= 0x100000) {
-			while ((virt & ~SUPERSECTION_MASK ||
-			        (virt + off) & ~SUPERSECTION_MASK) &&
-				length >= (PGDIR_SIZE / 2)) {
-				alloc_init_section(virt, virt + off, prot_sect);
+	pgd = pgd_offset_k(addr);
+	end = addr + length;
+	do {
+		unsigned long next = pgd_addr_end(addr, end);
 
-				virt   += (PGDIR_SIZE / 2);
-				length -= (PGDIR_SIZE / 2);
-			}
-		}
+		alloc_init_section(pgd, addr, next, phys, type);
 
-		while (length >= SUPERSECTION_SIZE) {
-			alloc_init_supersection(virt, virt + off, prot_sect);
-
-			virt   += SUPERSECTION_SIZE;
-			length -= SUPERSECTION_SIZE;
-		}
-	}
-
-	/*
-	 * A section mapping covers half a "pgdir" entry.
-	 */
-	while (length >= (PGDIR_SIZE / 2)) {
-		alloc_init_section(virt, virt + off, prot_sect);
-
-		virt   += (PGDIR_SIZE / 2);
-		length -= (PGDIR_SIZE / 2);
-	}
-
-	while (length >= PAGE_SIZE) {
-		alloc_init_page(virt, virt + off, prot_l1, prot_pte);
-
-		virt   += PAGE_SIZE;
-		length -= PAGE_SIZE;
-	}
+		phys += next - addr;
+		addr = next;
+	} while (pgd++, addr != end);
 }
 
 /*

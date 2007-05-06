@@ -9,14 +9,17 @@
 #include <linux/string.h>
 #include <linux/clk.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 #include <asm/hardware.h>
-#include <asm/semaphore.h>
 
+/*
+ * Very simple clock implementation - we only have one clock to
+ * deal with at the moment, so we only match using the "name".
+ */
 struct clk {
 	struct list_head	node;
 	unsigned long		rate;
-	struct module		*owner;
 	const char		*name;
 	unsigned int		enabled;
 	void			(*enable)(void);
@@ -24,21 +27,21 @@ struct clk {
 };
 
 static LIST_HEAD(clocks);
-static DECLARE_MUTEX(clocks_sem);
+static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clocks_lock);
 
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	struct clk *p, *clk = ERR_PTR(-ENOENT);
 
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_for_each_entry(p, &clocks, node) {
-		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
+		if (strcmp(id, p->name) == 0) {
 			clk = p;
 			break;
 		}
 	}
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 
 	return clk;
 }
@@ -46,7 +49,6 @@ EXPORT_SYMBOL(clk_get);
 
 void clk_put(struct clk *clk)
 {
-	module_put(clk->owner);
 }
 EXPORT_SYMBOL(clk_put);
 
@@ -109,18 +111,18 @@ static struct clk clk_gpio27 = {
 
 int clk_register(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_add(&clk->node, &clocks);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(clk_register);
 
 void clk_unregister(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_del(&clk->node);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 }
 EXPORT_SYMBOL(clk_unregister);
 

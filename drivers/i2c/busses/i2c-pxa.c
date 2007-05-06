@@ -852,9 +852,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 {
 	struct pxa_i2c *i2c = &i2c_pxa;
 	struct resource *res;
-#ifdef CONFIG_I2C_PXA_SLAVE
 	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
-#endif
 	int ret;
 	int irq;
 
@@ -902,14 +900,14 @@ static int i2c_pxa_probe(struct platform_device *dev)
 		pxa_gpio_mode(GPIO117_I2CSCL_MD);
 		pxa_gpio_mode(GPIO118_I2CSDA_MD);
 #endif
-		pxa_set_cken(CKEN14_I2C, 1);
+		pxa_set_cken(CKEN_I2C, 1);
 		break;
 #ifdef CONFIG_PXA27x
 	case 1:
 		local_irq_disable();
 		PCFR |= PCFR_PI2CEN;
 		local_irq_enable();
-		pxa_set_cken(CKEN15_PWRI2C, 1);
+		pxa_set_cken(CKEN_PWRI2C, 1);
 #endif
 	}
 
@@ -923,6 +921,10 @@ static int i2c_pxa_probe(struct platform_device *dev)
 
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &dev->dev;
+
+	if (plat) {
+		i2c->adap.class = plat->class;
+	}
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
@@ -946,11 +948,11 @@ eadapt:
 ereqirq:
 	switch (dev->id) {
 	case 0:
-		pxa_set_cken(CKEN14_I2C, 0);
+		pxa_set_cken(CKEN_I2C, 0);
 		break;
 #ifdef CONFIG_PXA27x
 	case 1:
-		pxa_set_cken(CKEN15_PWRI2C, 0);
+		pxa_set_cken(CKEN_PWRI2C, 0);
 		local_irq_disable();
 		PCFR &= ~PCFR_PI2CEN;
 		local_irq_enable();
@@ -973,11 +975,11 @@ static int i2c_pxa_remove(struct platform_device *dev)
 	free_irq(i2c->irq, i2c);
 	switch (dev->id) {
 	case 0:
-		pxa_set_cken(CKEN14_I2C, 0);
+		pxa_set_cken(CKEN_I2C, 0);
 		break;
 #ifdef CONFIG_PXA27x
 	case 1:
-		pxa_set_cken(CKEN15_PWRI2C, 0);
+		pxa_set_cken(CKEN_PWRI2C, 0);
 		local_irq_disable();
 		PCFR &= ~PCFR_PI2CEN;
 		local_irq_enable();

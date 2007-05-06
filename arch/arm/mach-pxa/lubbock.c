@@ -220,7 +220,7 @@ static struct resource pxa_ssp_resources[] = {
 
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
 	.ssp_type	= PXA25x_SSP,
-	.clock_enable	= CKEN3_SSP,
+	.clock_enable	= CKEN_SSP,
 	.num_chipselect	= 0,
 };
 

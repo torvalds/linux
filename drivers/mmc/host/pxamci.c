@@ -368,14 +368,14 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (CLOCKRATE / clk > ios->clock)
 			clk <<= 1;
 		host->clkrt = fls(clk) - 1;
-		pxa_set_cken(CKEN12_MMC, 1);
+		pxa_set_cken(CKEN_MMC, 1);
 
 		/*
 		 * we write clkrt on the next command
 		 */
 	} else {
 		pxamci_stop_clock(host);
-		pxa_set_cken(CKEN12_MMC, 0);
+		pxa_set_cken(CKEN_MMC, 0);
 	}
 
 	if (host->power_mode != ios->power_mode) {

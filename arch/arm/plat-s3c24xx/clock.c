@@ -404,6 +404,18 @@ int s3c24xx_register_clock(struct clk *clk)
 	return 0;
 }
 
+int s3c24xx_register_clocks(struct clk **clks, int nr_clks)
+{
+	int fails = 0;
+
+	for (; nr_clks > 0; nr_clks--, clks++) {
+		if (s3c24xx_register_clock(*clks) < 0)
+			fails++;
+	}
+
+	return fails;
+}
+
 /* initalise all the clocks */
 
 int __init s3c24xx_setup_clocks(unsigned long xtal,

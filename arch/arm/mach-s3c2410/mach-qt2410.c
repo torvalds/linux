@@ -29,7 +29,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
-#include <linux/mmc/protocol.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 
@@ -331,11 +330,6 @@ static struct platform_device *qt2410_devices[] __initdata = {
 	&qt2410_led,
 };
 
-static struct s3c24xx_board qt2410_board __initdata = {
-	.devices       = qt2410_devices,
-	.devices_count = ARRAY_SIZE(qt2410_devices)
-};
-
 static struct mtd_partition qt2410_nand_part[] = {
 	[0] = {
 		.name	= "U-Boot",
@@ -405,7 +399,6 @@ static void __init qt2410_map_io(void)
 	s3c24xx_init_io(qt2410_iodesc, ARRAY_SIZE(qt2410_iodesc));
 	s3c24xx_init_clocks(12*1000*1000);
 	s3c24xx_init_uarts(smdk2410_uartcfgs, ARRAY_SIZE(smdk2410_uartcfgs));
-	s3c24xx_set_board(&qt2410_board);
 }
 
 static void __init qt2410_machine_init(void)
@@ -432,6 +425,7 @@ static void __init qt2410_machine_init(void)
 
 	s3c2410_gpio_cfgpin(S3C2410_GPB5, S3C2410_GPIO_OUTPUT);
 
+	platform_add_devices(qt2410_devices, ARRAY_SIZE(qt2410_devices));
 	s3c2410_pm_init();
 }
 

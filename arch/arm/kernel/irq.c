@@ -27,7 +27,6 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/smp.h>
@@ -109,7 +108,7 @@ static struct irq_desc bad_irq_desc = {
  * come via this function.  Instead, they should provide their
  * own 'handler'
  */
-asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
+asmlinkage void __exception asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irq_desc *desc = irq_desc + irq;

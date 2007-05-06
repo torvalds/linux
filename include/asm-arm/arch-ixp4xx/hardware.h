@@ -17,8 +17,8 @@
 #ifndef __ASM_ARCH_HARDWARE_H__
 #define __ASM_ARCH_HARDWARE_H__
 
-#define PCIBIOS_MIN_IO			0x00001000
-#define PCIBIOS_MIN_MEM			0x48000000
+#define PCIBIOS_MIN_IO		0x00001000
+#define PCIBIOS_MIN_MEM		(cpu_is_ixp43x() ? 0x40000000 : 0x48000000)
 
 /*
  * We override the standard dma-mask routines for bouncing.
@@ -27,11 +27,8 @@
 
 #define pcibios_assign_all_busses()	1
 
-#if defined(CONFIG_CPU_IXP46X) && !defined(__ASSEMBLY__)
-extern unsigned int processor_id;
-#define cpu_is_ixp465() ((processor_id & 0xffffffc0) == 0x69054200)
-#else
-#define	cpu_is_ixp465()	(0)
+#ifndef __ASSEMBLER__
+#include <asm/arch/cpu.h>
 #endif
 
 /* Register locations and bits */
@@ -47,5 +44,6 @@ extern unsigned int processor_id;
 #include "prpmc1100.h"
 #include "nslu2.h"
 #include "nas100d.h"
+#include "dsmg600.h"
 
 #endif  /* _ASM_ARCH_HARDWARE_H */
