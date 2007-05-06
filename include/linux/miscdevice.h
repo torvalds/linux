@@ -29,6 +29,7 @@
 
 #define TUN_MINOR	     200
 #define	HPET_MINOR	     228
+#define KVM_MINOR            232
 
 struct device;
 
