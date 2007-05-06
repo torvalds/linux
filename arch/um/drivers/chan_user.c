@@ -158,7 +158,7 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 	 */
 	err = run_helper_thread(winch_thread, &data, CLONE_FILES, &stack, 0);
 	if(err < 0){
-		printk("fork of winch_thread failed - errno = %d\n", err);
+		printk("fork of winch_thread failed - errno = %d\n", -err);
 		goto out_close;
 	}
 
