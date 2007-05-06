@@ -191,11 +191,11 @@ static int ssl_init(void)
 	ssl_driver = register_lines(&driver, &ssl_ops, serial_lines,
 				    ARRAY_SIZE(serial_lines));
 
-	lines_init(serial_lines, ARRAY_SIZE(serial_lines), &opts);
-
 	new_title = add_xterm_umid(opts.xterm_title);
 	if (new_title != NULL)
 		opts.xterm_title = new_title;
+
+	lines_init(serial_lines, ARRAY_SIZE(serial_lines), &opts);
 
 	ssl_init_done = 1;
 	register_console(&ssl_cons);
