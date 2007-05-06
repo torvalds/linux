@@ -1432,7 +1432,7 @@ int vfs_quota_off(struct super_block *sb, int type)
 			mutex_unlock(&dqopt->dqonoff_mutex);
 		}
 	if (sb->s_bdev)
-		invalidate_bdev(sb->s_bdev, 0);
+		invalidate_bdev(sb->s_bdev);
 	return 0;
 }
 
@@ -1468,7 +1468,7 @@ static int vfs_quota_on_inode(struct inode *inode, int type, int format_id)
 	 * we see all the changes from userspace... */
 	write_inode_now(inode, 1);
 	/* And now flush the block cache so that kernel sees the changes */
-	invalidate_bdev(sb->s_bdev, 0);
+	invalidate_bdev(sb->s_bdev);
 	mutex_lock(&inode->i_mutex);
 	mutex_lock(&dqopt->dqonoff_mutex);
 	if (sb_has_quota_enabled(sb, type)) {

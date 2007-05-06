@@ -58,7 +58,7 @@ static sector_t max_block(struct block_device *bdev)
 /* Kill _all_ buffers, dirty or not.. */
 static void kill_bdev(struct block_device *bdev)
 {
-	invalidate_bdev(bdev, 1);
+	invalidate_bdev(bdev);
 	truncate_inode_pages(bdev->bd_inode->i_mapping, 0);
 }	
 
@@ -1478,7 +1478,7 @@ int __invalidate_device(struct block_device *bdev)
 		res = invalidate_inodes(sb);
 		drop_super(sb);
 	}
-	invalidate_bdev(bdev, 0);
+	invalidate_bdev(bdev);
 	return res;
 }
 EXPORT_SYMBOL(__invalidate_device);

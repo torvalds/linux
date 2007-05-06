@@ -2384,7 +2384,7 @@ static int cdrom_ioctl_reset(struct cdrom_device_info *cdi,
 		return -EACCES;
 	if (!CDROM_CAN(CDC_RESET))
 		return -ENOSYS;
-	invalidate_bdev(bdev, 0);
+	invalidate_bdev(bdev);
 	return cdi->ops->reset(cdi);
 }
 
