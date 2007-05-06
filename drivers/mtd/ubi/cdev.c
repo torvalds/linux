@@ -708,7 +708,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 struct file_operations ubi_cdev_operations = {
 	.owner = THIS_MODULE,
 	.ioctl = ubi_cdev_ioctl,
-	.llseek = no_llseek
+	.llseek = no_llseek,
 };
 
 /* UBI volume character device operations */
@@ -719,5 +719,5 @@ struct file_operations ubi_vol_cdev_operations = {
 	.llseek  = vol_cdev_llseek,
 	.read    = vol_cdev_read,
 	.write   = vol_cdev_write,
-	.ioctl   = vol_cdev_ioctl
+	.ioctl   = vol_cdev_ioctl,
 };
