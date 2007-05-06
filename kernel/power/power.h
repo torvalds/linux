@@ -140,6 +140,9 @@ struct resume_swap_area {
 #define PMOPS_ENTER	2
 #define PMOPS_FINISH	3
 
+/* If unset, the snapshot device cannot be open. */
+extern atomic_t snapshot_device_available;
+
 /**
  *	The bitmap is used for tracing allocated swap pages
  *

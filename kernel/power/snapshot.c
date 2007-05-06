@@ -723,19 +723,19 @@ int create_basic_memory_bitmaps(void)
 
 	BUG_ON(forbidden_pages_map || free_pages_map);
 
-	bm1 = kzalloc(sizeof(struct memory_bitmap), GFP_ATOMIC);
+	bm1 = kzalloc(sizeof(struct memory_bitmap), GFP_KERNEL);
 	if (!bm1)
 		return -ENOMEM;
 
-	error = memory_bm_create(bm1, GFP_ATOMIC | __GFP_COLD, PG_ANY);
+	error = memory_bm_create(bm1, GFP_KERNEL, PG_ANY);
 	if (error)
 		goto Free_first_object;
 
-	bm2 = kzalloc(sizeof(struct memory_bitmap), GFP_ATOMIC);
+	bm2 = kzalloc(sizeof(struct memory_bitmap), GFP_KERNEL);
 	if (!bm2)
 		goto Free_first_bitmap;
 
-	error = memory_bm_create(bm2, GFP_ATOMIC | __GFP_COLD, PG_ANY);
+	error = memory_bm_create(bm2, GFP_KERNEL, PG_ANY);
 	if (error)
 		goto Free_second_object;
 

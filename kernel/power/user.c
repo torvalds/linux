@@ -40,21 +40,21 @@ static struct snapshot_data {
 	char platform_suspend;
 } snapshot_state;
 
-static atomic_t device_available = ATOMIC_INIT(1);
+atomic_t snapshot_device_available = ATOMIC_INIT(1);
 
 static int snapshot_open(struct inode *inode, struct file *filp)
 {
 	struct snapshot_data *data;
 
-	if (!atomic_add_unless(&device_available, -1, 0))
+	if (!atomic_add_unless(&snapshot_device_available, -1, 0))
 		return -EBUSY;
 
 	if ((filp->f_flags & O_ACCMODE) == O_RDWR) {
-		atomic_inc(&device_available);
+		atomic_inc(&snapshot_device_available);
 		return -ENOSYS;
 	}
 	if(create_basic_memory_bitmaps()) {
-		atomic_inc(&device_available);
+		atomic_inc(&snapshot_device_available);
 		return -ENOMEM;
 	}
 	nonseekable_open(inode, filp);
@@ -92,7 +92,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 		enable_nonboot_cpus();
 		mutex_unlock(&pm_mutex);
 	}
-	atomic_inc(&device_available);
+	atomic_inc(&snapshot_device_available);
 	return 0;
 }
 

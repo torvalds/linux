@@ -130,28 +130,33 @@ int pm_suspend_disk(void)
 {
 	int error;
 
+	/* The snapshot device should not be opened while we're running */
+	if (!atomic_add_unless(&snapshot_device_available, -1, 0))
+		return -EBUSY;
+
+	/* Allocate memory management structures */
+	error = create_basic_memory_bitmaps();
+	if (error)
+		goto Exit;
+
 	error = prepare_processes();
 	if (error)
-		return error;
+		goto Finish;
 
 	if (pm_disk_mode == PM_DISK_TESTPROC) {
 		printk("swsusp debug: Waiting for 5 seconds.\n");
 		mdelay(5000);
 		goto Thaw;
 	}
-	/* Allocate memory management structures */
-	error = create_basic_memory_bitmaps();
-	if (error)
-		goto Thaw;
 
 	/* Free memory before shutting down devices. */
 	error = swsusp_shrink_memory();
 	if (error)
-		goto Finish;
+		goto Thaw;
 
 	error = platform_prepare();
 	if (error)
-		goto Finish;
+		goto Thaw;
 
 	suspend_console();
 	error = device_suspend(PMSG_FREEZE);
@@ -186,7 +191,7 @@ int pm_suspend_disk(void)
 			power_down();
 		else {
 			swsusp_free();
-			goto Finish;
+			goto Thaw;
 		}
 	} else {
 		pr_debug("PM: Image restored successfully.\n");
@@ -199,10 +204,12 @@ int pm_suspend_disk(void)
 	platform_finish();
 	device_resume();
 	resume_console();
- Finish:
-	free_basic_memory_bitmaps();
  Thaw:
 	unprepare_processes();
+ Finish:
+	free_basic_memory_bitmaps();
+ Exit:
+	atomic_inc(&snapshot_device_available);
 	return error;
 }
 
@@ -250,9 +257,15 @@ static int software_resume(void)
 	if (error)
 		goto Unlock;
 
+	/* The snapshot device should not be opened while we're running */
+	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
+		error = -EBUSY;
+		goto Unlock;
+	}
+
 	error = create_basic_memory_bitmaps();
 	if (error)
-		goto Unlock;
+		goto Finish;
 
 	pr_debug("PM: Preparing processes for restore.\n");
 	error = prepare_processes();
@@ -290,6 +303,8 @@ static int software_resume(void)
 	unprepare_processes();
  Done:
 	free_basic_memory_bitmaps();
+ Finish:
+	atomic_inc(&snapshot_device_available);
 	/* For success case, the suspend path will release the lock */
  Unlock:
 	mutex_unlock(&pm_mutex);
