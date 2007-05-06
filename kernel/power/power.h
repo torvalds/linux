@@ -14,8 +14,18 @@ struct swsusp_info {
 
 
 #ifdef CONFIG_SOFTWARE_SUSPEND
-extern int pm_suspend_disk(void);
+/*
+ * Keep some memory free so that I/O operations can succeed without paging
+ * [Might this be more than 4 MB?]
+ */
+#define PAGES_FOR_IO	((4096 * 1024) >> PAGE_SHIFT)
+/*
+ * Keep 1 MB of memory free so that device drivers can allocate some pages in
+ * their .suspend() routines without breaking the suspend to disk.
+ */
+#define SPARE_PAGES	((1024 * 1024) >> PAGE_SHIFT)
 
+extern int pm_suspend_disk(void);
 #else
 static inline int pm_suspend_disk(void)
 {

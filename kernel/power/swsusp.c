@@ -233,7 +233,7 @@ int swsusp_shrink_memory(void)
 		long size, highmem_size;
 
 		highmem_size = count_highmem_pages();
-		size = count_data_pages() + PAGES_FOR_IO;
+		size = count_data_pages() + PAGES_FOR_IO + SPARE_PAGES;
 		tmp = size;
 		size += highmem_size;
 		for_each_zone (zone)
