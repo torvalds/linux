@@ -450,7 +450,7 @@ static int hugetlbfs_symlink(struct inode *dir,
  */
 static int hugetlbfs_set_page_dirty(struct page *page)
 {
-	struct page *head = (struct page *)page_private(page);
+	struct page *head = compound_head(page);
 
 	SetPageDirty(head);
 	return 0;
