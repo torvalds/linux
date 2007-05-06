@@ -1323,9 +1323,7 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
 {
 	struct page * page;
 
-	page = virt_to_page(x);
-
-	page = compound_head(page);
+	page = virt_to_head_page(x);
 
 	if (unlikely(PageError(page) && (s->flags & SLAB_STORE_USER)))
 		set_tracking(s, x, TRACK_FREE);
@@ -1336,7 +1334,7 @@ EXPORT_SYMBOL(kmem_cache_free);
 /* Figure out on which slab object the object resides */
 static struct page *get_object_page(const void *x)
 {
-	struct page *page = compound_head(virt_to_page(x));
+	struct page *page = virt_to_head_page(x);
 
 	if (!PageSlab(page))
 		return NULL;
@@ -2076,7 +2074,7 @@ void kfree(const void *x)
 	if (!x)
 		return;
 
-	page = compound_head(virt_to_page(x));
+	page = virt_to_head_page(x);
 
 	s = page->slab;
 
@@ -2112,7 +2110,7 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
 		return NULL;
 	}
 
-	page = compound_head(virt_to_page(p));
+	page = virt_to_head_page(p);
 
 	new_cache = get_slab(new_size, flags);
 

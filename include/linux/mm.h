@@ -286,6 +286,12 @@ static inline void get_page(struct page *page)
 	atomic_inc(&page->_count);
 }
 
+static inline struct page *virt_to_head_page(const void *x)
+{
+	struct page *page = virt_to_page(x);
+	return compound_head(page);
+}
+
 /*
  * Setup the page count before being freed into the page allocator for
  * the first time (boot or memory hotplug)
