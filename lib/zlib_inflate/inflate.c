@@ -743,12 +743,14 @@ int zlib_inflate(z_streamp strm, int flush)
 
     strm->data_type = state->bits + (state->last ? 64 : 0) +
                       (state->mode == TYPE ? 128 : 0);
+
+    if (flush == Z_PACKET_FLUSH && ret == Z_OK &&
+            strm->avail_out != 0 && strm->avail_in == 0)
+		return zlib_inflateSyncPacket(strm);
+
     if (((in == 0 && out == 0) || flush == Z_FINISH) && ret == Z_OK)
         ret = Z_BUF_ERROR;
 
-    if (flush == Z_PACKET_FLUSH && ret == Z_OK &&
-            (strm->avail_out != 0 || strm->avail_in == 0))
-		return zlib_inflateSyncPacket(strm);
     return ret;
 }
 
