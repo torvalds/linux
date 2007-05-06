@@ -121,7 +121,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	n = os_read_file(control_me, &c, sizeof(c));
 	if(n != sizeof(c)){
 		printk("etap_tramp : read of status failed, err = %d\n", -n);
-		return(-EINVAL);
+		return -EINVAL;
 	}
 	if(c != 1){
 		printk("etap_tramp : uml_net failed\n");
@@ -132,7 +132,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 		else if(!WIFEXITED(status) || (WEXITSTATUS(status) != 1))
 			printk("uml_net didn't exit with status 1\n");
 	}
-	return(err);
+	return err;
 }
 
 static int etap_open(void *data)
@@ -142,20 +142,21 @@ static int etap_open(void *data)
 	int data_fds[2], control_fds[2], err, output_len;
 
 	err = tap_open_common(pri->dev, pri->gate_addr);
-	if(err) return(err);
+	if(err)
+		return err;
 
 	err = os_pipe(data_fds, 0, 0);
 	if(err < 0){
 		printk("data os_pipe failed - err = %d\n", -err);
-		return(err);
+		return err;
 	}
 
 	err = os_pipe(control_fds, 1, 0);
 	if(err < 0){
 		printk("control os_pipe failed - err = %d\n", -err);
-		return(err);
+		return err;
 	}
-	
+
 	err = etap_tramp(pri->dev_name, pri->gate_addr, control_fds[0], 
 			 control_fds[1], data_fds[0], data_fds[1]);
 	output_len = page_size();
@@ -171,13 +172,13 @@ static int etap_open(void *data)
 
 	if(err < 0){
 		printk("etap_tramp failed - err = %d\n", -err);
-		return(err);
+		return err;
 	}
 
 	pri->data_fd = data_fds[0];
 	pri->control_fd = control_fds[0];
 	iter_addresses(pri->dev, etap_open_addr, &pri->control_fd);
-	return(data_fds[0]);
+	return data_fds[0];
 }
 
 static void etap_close(int fd, void *data)
@@ -195,7 +196,7 @@ static void etap_close(int fd, void *data)
 
 static int etap_set_mtu(int mtu, void *data)
 {
-	return(mtu);
+	return mtu;
 }
 
 static void etap_add_addr(unsigned char *addr, unsigned char *netmask,
@@ -204,7 +205,8 @@ static void etap_add_addr(unsigned char *addr, unsigned char *netmask,
 	struct ethertap_data *pri = data;
 
 	tap_check_ips(pri->gate_addr, addr);
-	if(pri->control_fd == -1) return;
+	if(pri->control_fd == -1)
+		return;
 	etap_open_addr(addr, netmask, &pri->control_fd);
 }
 
@@ -213,7 +215,8 @@ static void etap_del_addr(unsigned char *addr, unsigned char *netmask,
 {
 	struct ethertap_data *pri = data;
 
-	if(pri->control_fd == -1) return;
+	if(pri->control_fd == -1)
+		return;
 	etap_close_addr(addr, netmask, &pri->control_fd);
 }
 
@@ -227,14 +230,3 @@ const struct net_user_info ethertap_user_info = {
 	.delete_address = etap_del_addr,
 	.max_packet	= MAX_PACKET - ETH_HEADER_ETHERTAP
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

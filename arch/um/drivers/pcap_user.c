@@ -42,39 +42,39 @@ static int pcap_open(void *data)
 	int err;
 
 	if(pri->pcap == NULL)
-		return(-ENODEV);
+		return -ENODEV;
 
 	if(pri->filter != NULL){
 		err = dev_netmask(pri->dev, &netmask);
 		if(err < 0){
 			printk("pcap_open : dev_netmask failed\n");
-			return(-EIO);
+			return -EIO;
 		}
 
 		pri->compiled = um_kmalloc(sizeof(struct bpf_program));
 		if(pri->compiled == NULL){
 			printk("pcap_open : kmalloc failed\n");
-			return(-ENOMEM);
+			return -ENOMEM;
 		}
-		
+
 		err = pcap_compile(pri->pcap, 
 				   (struct bpf_program *) pri->compiled, 
 				   pri->filter, pri->optimize, netmask);
 		if(err < 0){
 			printk("pcap_open : pcap_compile failed - '%s'\n", 
 			       pcap_geterr(pri->pcap));
-			return(-EIO);
+			return -EIO;
 		}
 
 		err = pcap_setfilter(pri->pcap, pri->compiled);
 		if(err < 0){
 			printk("pcap_open : pcap_setfilter failed - '%s'\n", 
 			       pcap_geterr(pri->pcap));
-			return(-EIO);
+			return -EIO;
 		}
 	}
-	
-	return(PCAP_FD(pri->pcap));
+
+	return PCAP_FD(pri->pcap);
 }
 
 static void pcap_remove(void *data)
@@ -114,11 +114,11 @@ int pcap_user_read(int fd, void *buffer, int len, struct pcap_data *pri)
 	n = pcap_dispatch(pri->pcap, 1, handler, (u_char *) &hdata);
 	if(n < 0){
 		printk("pcap_dispatch failed - %s\n", pcap_geterr(pri->pcap));
-		return(-EIO);
+		return -EIO;
 	}
 	else if(n == 0) 
-		return(0);
-	return(hdata.len);
+		return 0;
+	return hdata.len;
 }
 
 const struct net_user_info pcap_user_info = {
@@ -131,14 +131,3 @@ const struct net_user_info pcap_user_info = {
 	.delete_address = NULL,
 	.max_packet	= MAX_PACKET - ETH_HEADER_OTHER
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

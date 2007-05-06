@@ -37,7 +37,8 @@ static void tuntap_add_addr(unsigned char *addr, unsigned char *netmask,
 	struct tuntap_data *pri = data;
 
 	tap_check_ips(pri->gate_addr, addr);
-	if((pri->fd == -1) || pri->fixed_config) return;
+	if((pri->fd == -1) || pri->fixed_config)
+		return;
 	open_addr(addr, netmask, pri->dev_name);
 }
 
@@ -46,7 +47,8 @@ static void tuntap_del_addr(unsigned char *addr, unsigned char *netmask,
 {
 	struct tuntap_data *pri = data;
 
-	if((pri->fd == -1) || pri->fixed_config) return;
+	if((pri->fd == -1) || pri->fixed_config)
+		return;
 	close_addr(addr, netmask, pri->dev_name);
 }
 
@@ -58,7 +60,7 @@ struct tuntap_pre_exec_data {
 static void tuntap_pre_exec(void *arg)
 {
 	struct tuntap_pre_exec_data *data = arg;
-	
+
 	dup2(data->stdout, 1);
 	os_close_file(data->close_me);
 }
@@ -83,7 +85,8 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 
 	pid = run_helper(tuntap_pre_exec, &data, argv, NULL);
 
-	if(pid < 0) return(-pid);
+	if(pid < 0)
+		return -pid;
 
 	os_close_file(remote);
 
@@ -114,16 +117,16 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 	cmsg = CMSG_FIRSTHDR(&msg);
 	if(cmsg == NULL){
 		printk("tuntap_open_tramp : didn't receive a message\n");
-		return(-EINVAL);
+		return -EINVAL;
 	}
 	if((cmsg->cmsg_level != SOL_SOCKET) || 
 	   (cmsg->cmsg_type != SCM_RIGHTS)){
 		printk("tuntap_open_tramp : didn't receive a descriptor\n");
-		return(-EINVAL);
+		return -EINVAL;
 	}
 	*fd_out = ((int *) CMSG_DATA(cmsg))[0];
 	os_set_exec_close(*fd_out, 1);
-	return(0);
+	return 0;
 }
 
 static int tuntap_open(void *data)
@@ -135,7 +138,7 @@ static int tuntap_open(void *data)
 
 	err = tap_open_common(pri->dev, pri->gate_addr);
 	if(err < 0)
-		return(err);
+		return err;
 
 	if(pri->fixed_config){
 		pri->fd = os_open_file("/dev/net/tun",
@@ -143,7 +146,7 @@ static int tuntap_open(void *data)
 		if(pri->fd < 0){
 			printk("Failed to open /dev/net/tun, err = %d\n",
 			       -pri->fd);
-			return(pri->fd);
+			return pri->fd;
 		}
 		memset(&ifr, 0, sizeof(ifr));
 		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
@@ -160,7 +163,7 @@ static int tuntap_open(void *data)
 		if(err < 0){
 			printk("tuntap_open : os_pipe failed - err = %d\n",
 			       -err);
-			return(err);
+			return err;
 		}
 
 		buffer = get_output_buffer(&len);
@@ -175,7 +178,7 @@ static int tuntap_open(void *data)
 			printk("%s", output);
 			free_output_buffer(buffer);
 			printk("tuntap_open_tramp failed - err = %d\n", -err);
-			return(err);
+			return err;
 		}
 
 		pri->dev_name = uml_strdup(buffer);
@@ -187,7 +190,7 @@ static int tuntap_open(void *data)
 		iter_addresses(pri->dev, open_addr, pri->dev_name);
 	}
 
-	return(pri->fd);
+	return pri->fd;
 }
 
 static void tuntap_close(int fd, void *data)
@@ -202,7 +205,7 @@ static void tuntap_close(int fd, void *data)
 
 static int tuntap_set_mtu(int mtu, void *data)
 {
-	return(mtu);
+	return mtu;
 }
 
 const struct net_user_info tuntap_user_info = {
@@ -215,14 +218,3 @@ const struct net_user_info tuntap_user_info = {
 	.delete_address = tuntap_del_addr,
 	.max_packet	= MAX_PACKET
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

@@ -47,8 +47,8 @@ int start_io_thread(unsigned long sp, int *fd_out)
 	pid = clone(io_thread, (void *) sp, CLONE_FILES | CLONE_VM | SIGCHLD,
 		    NULL);
 	if(pid < 0){
-		printk("start_io_thread - clone failed : errno = %d\n", errno);
 		err = -errno;
+		printk("start_io_thread - clone failed : errno = %d\n", errno);
 		goto out_close;
 	}
 
@@ -60,16 +60,5 @@ int start_io_thread(unsigned long sp, int *fd_out)
 	kernel_fd = -1;
 	*fd_out = -1;
  out:
-	return(err);
+	return err;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

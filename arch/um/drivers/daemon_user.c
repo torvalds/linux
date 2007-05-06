@@ -39,11 +39,11 @@ static struct sockaddr_un *new_addr(void *name, int len)
 	sun = um_kmalloc(sizeof(struct sockaddr_un));
 	if(sun == NULL){
 		printk("new_addr: allocation of sockaddr_un failed\n");
-		return(NULL);
+		return NULL;
 	}
 	sun->sun_family = AF_UNIX;
 	memcpy(sun->sun_path, name, len);
-	return(sun);
+	return sun;
 }
 
 static int connect_to_switch(struct daemon_data *pri)
@@ -112,7 +112,7 @@ static int connect_to_switch(struct daemon_data *pri)
 	}
 
 	pri->data_addr = sun;
-	return(fd);
+	return fd;
 
  out_free:
 	kfree(sun);
@@ -120,7 +120,7 @@ static int connect_to_switch(struct daemon_data *pri)
 	os_close_file(fd);
  out:
 	os_close_file(pri->control);
-	return(err);
+	return err;
 }
 
 static void daemon_user_init(void *data, void *dev)
@@ -152,7 +152,7 @@ static void daemon_user_init(void *data, void *dev)
 static int daemon_open(void *data)
 {
 	struct daemon_data *pri = data;
-	return(pri->fd);
+	return pri->fd;
 }
 
 static void daemon_remove(void *data)
@@ -176,12 +176,12 @@ int daemon_user_write(int fd, void *buf, int len, struct daemon_data *pri)
 {
 	struct sockaddr_un *data_addr = pri->data_addr;
 
-	return(net_sendto(fd, buf, len, data_addr, sizeof(*data_addr)));
+	return net_sendto(fd, buf, len, data_addr, sizeof(*data_addr));
 }
 
 static int daemon_set_mtu(int mtu, void *data)
 {
-	return(mtu);
+	return mtu;
 }
 
 const struct net_user_info daemon_user_info = {
@@ -194,14 +194,3 @@ const struct net_user_info daemon_user_info = {
 	.delete_address = NULL,
 	.max_packet	= MAX_PACKET - ETH_HEADER_OTHER
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
