@@ -229,8 +229,8 @@ void relay_signal(int sig, union uml_pt_regs *regs)
 
 	if(!UPT_IS_USER(regs)){
 		if(sig == SIGBUS)
-			printk("Bus error - the /dev/shm or /tmp mount likely "
-			       "just ran out of space\n");
+			printk("Bus error - the host /dev/shm or /tmp mount "
+			       "likely just ran out of space\n");
 		panic("Kernel mode signal %d", sig);
 	}
 
