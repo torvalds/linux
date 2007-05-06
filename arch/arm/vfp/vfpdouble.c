@@ -34,7 +34,6 @@
 #include <linux/bitops.h>
 
 #include <asm/div64.h>
-#include <asm/ptrace.h>
 #include <asm/vfp.h>
 
 #include "vfpinstr.h"

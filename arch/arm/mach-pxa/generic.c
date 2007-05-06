@@ -164,9 +164,9 @@ void pxa_set_cken(int clock, int enable)
 	local_irq_save(flags);
 
 	if (enable)
-		CKEN |= clock;
+		CKEN |= (1 << clock);
 	else
-		CKEN &= ~clock;
+		CKEN &= ~(1 << clock);
 
 	local_irq_restore(flags);
 }

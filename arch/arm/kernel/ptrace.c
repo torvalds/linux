@@ -779,8 +779,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 
 		case PTRACE_SET_SYSCALL:
+			task_thread_info(child)->syscall = data;
 			ret = 0;
-			child->ptrace_message = data;
 			break;
 
 #ifdef CONFIG_CRUNCH
@@ -817,7 +817,7 @@ asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 	ip = regs->ARM_ip;
 	regs->ARM_ip = why;
 
-	current->ptrace_message = scno;
+	current_thread_info()->syscall = scno;
 
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
@@ -834,5 +834,5 @@ asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 	}
 	regs->ARM_ip = ip;
 
-	return current->ptrace_message;
+	return current_thread_info()->syscall;
 }

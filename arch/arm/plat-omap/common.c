@@ -156,3 +156,53 @@ static int __init omap_add_serial_console(void)
 	return add_preferred_console("ttyS", line, opt);
 }
 console_initcall(omap_add_serial_console);
+
+
+/*
+ * 32KHz clocksource ... always available, on pretty most chips except
+ * OMAP 730 and 1510.  Other timers could be used as clocksources, with
+ * higher resolution in free-running counter modes (e.g. 12 MHz xtal),
+ * but systems won't necessarily want to spend resources that way.
+ */
+
+#if defined(CONFIG_ARCH_OMAP16XX)
+#define TIMER_32K_SYNCHRONIZED		0xfffbc410
+#elif defined(CONFIG_ARCH_OMAP24XX)
+#define TIMER_32K_SYNCHRONIZED		0x48004010
+#endif
+
+#ifdef	TIMER_32K_SYNCHRONIZED
+
+#include <linux/clocksource.h>
+
+static cycle_t omap_32k_read(void)
+{
+	return omap_readl(TIMER_32K_SYNCHRONIZED);
+}
+
+static struct clocksource clocksource_32k = {
+	.name		= "32k_counter",
+	.rating		= 250,
+	.read		= omap_32k_read,
+	.mask		= CLOCKSOURCE_MASK(32),
+	.shift		= 10,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static int __init omap_init_clocksource_32k(void)
+{
+	static char err[] __initdata = KERN_ERR
+			"%s: can't register clocksource!\n";
+
+	if (cpu_is_omap16xx() || cpu_is_omap24xx()) {
+		clocksource_32k.mult = clocksource_hz2mult(32768,
+					    clocksource_32k.shift);
+
+		if (clocksource_register(&clocksource_32k))
+			printk(err, clocksource_32k.name);
+	}
+	return 0;
+}
+arch_initcall(omap_init_clocksource_32k);
+
+#endif	/* TIMER_32K_SYNCHRONIZED */

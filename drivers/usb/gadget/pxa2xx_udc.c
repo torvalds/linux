@@ -1497,7 +1497,7 @@ static void udc_disable(struct pxa2xx_udc *dev)
 
 #ifdef	CONFIG_ARCH_PXA
         /* Disable clock for USB device */
-	pxa_set_cken(CKEN11_USB, 0);
+	pxa_set_cken(CKEN_USB, 0);
 #endif
 
 	ep0_idle (dev);
@@ -1543,7 +1543,7 @@ static void udc_enable (struct pxa2xx_udc *dev)
 
 #ifdef	CONFIG_ARCH_PXA
         /* Enable clock for USB device */
-	pxa_set_cken(CKEN11_USB, 1);
+	pxa_set_cken(CKEN_USB, 1);
 	udelay(5);
 #endif
 

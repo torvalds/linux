@@ -140,9 +140,9 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 	extern void pxa_cpu_resume(void);
 
 	if (state == PM_SUSPEND_STANDBY)
-		CKEN = CKEN22_MEMC | CKEN9_OSTIMER | CKEN16_LCD |CKEN0_PWM0;
+		CKEN = CKEN_MEMC | CKEN_OSTIMER | CKEN_LCD | CKEN_PWM0;
 	else
-		CKEN = CKEN22_MEMC | CKEN9_OSTIMER;
+		CKEN = CKEN_MEMC | CKEN_OSTIMER;
 
 	/* ensure voltage-change sequencer not initiated, which hangs */
 	PCFR &= ~PCFR_FVC;

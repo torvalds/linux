@@ -8,6 +8,7 @@ extern u32 iop13xx_atue_pmmr_offset;
 void iop13xx_init_irq(void);
 void iop13xx_map_io(void);
 void iop13xx_platform_init(void);
+void iop13xx_add_tpmi_devices(void);
 void iop13xx_init_irq(void);
 
 /* CPUID CP6 R0 Page 0 */
@@ -27,19 +28,24 @@ static inline int iop13xx_cpu_id(void)
 #define IOP13XX_PCI_OFFSET	 IOP13XX_MAX_RAM_SIZE
 
 /* PCI MAP
- * 0x0000.0000 - 0x8000.0000           1:1 mapping with Physical RAM
- * 0x8000.0000 - 0x8800.0000           PCIX/PCIE memory window (128MB)
-*/
+ * bus range		cpu phys	cpu virt	note
+ * 0x0000.0000 + 2GB	(n/a)		(n/a)		inbound, 1:1 mapping with Physical RAM
+ * 0x8000.0000 + 928M	0x1.8000.0000   (ioremap)	PCIX outbound memory window
+ * 0x8000.0000 + 928M	0x2.8000.0000   (ioremap)	PCIE outbound memory window
+ *
+ * IO MAP
+ * 0x1000 + 64K	0x0.fffb.1000	0xfec6.1000	PCIX outbound i/o window
+ * 0x1000 + 64K	0x0.fffd.1000	0xfed7.1000	PCIE outbound i/o window
+ */
 #define IOP13XX_PCIX_IO_WINDOW_SIZE   0x10000UL
 #define IOP13XX_PCIX_LOWER_IO_PA      0xfffb0000UL
 #define IOP13XX_PCIX_LOWER_IO_VA      0xfec60000UL
-#define IOP13XX_PCIX_LOWER_IO_BA      0x0fff0000UL
+#define IOP13XX_PCIX_LOWER_IO_BA      0x0UL /* OIOTVR */
+#define IOP13XX_PCIX_IO_BUS_OFFSET    0x1000UL
 #define IOP13XX_PCIX_UPPER_IO_PA      (IOP13XX_PCIX_LOWER_IO_PA +\
 				       IOP13XX_PCIX_IO_WINDOW_SIZE - 1)
 #define IOP13XX_PCIX_UPPER_IO_VA      (IOP13XX_PCIX_LOWER_IO_VA +\
 				       IOP13XX_PCIX_IO_WINDOW_SIZE - 1)
-#define IOP13XX_PCIX_IO_OFFSET        (IOP13XX_PCIX_LOWER_IO_VA -\
-				       IOP13XX_PCIX_LOWER_IO_BA)
 #define IOP13XX_PCIX_IO_PHYS_TO_VIRT(addr) (u32) ((u32) addr -\
 					   (IOP13XX_PCIX_LOWER_IO_PA\
 					   - IOP13XX_PCIX_LOWER_IO_VA))
@@ -65,15 +71,14 @@ static inline int iop13xx_cpu_id(void)
 #define IOP13XX_PCIE_IO_WINDOW_SIZE   	 0x10000UL
 #define IOP13XX_PCIE_LOWER_IO_PA      	 0xfffd0000UL
 #define IOP13XX_PCIE_LOWER_IO_VA      	 0xfed70000UL
-#define IOP13XX_PCIE_LOWER_IO_BA      	 0x0fff0000UL
+#define IOP13XX_PCIE_LOWER_IO_BA      	 0x0UL  /* OIOTVR */
+#define IOP13XX_PCIE_IO_BUS_OFFSET	 0x1000UL
 #define IOP13XX_PCIE_UPPER_IO_PA      	 (IOP13XX_PCIE_LOWER_IO_PA +\
 					 IOP13XX_PCIE_IO_WINDOW_SIZE - 1)
 #define IOP13XX_PCIE_UPPER_IO_VA      	 (IOP13XX_PCIE_LOWER_IO_VA +\
 					 IOP13XX_PCIE_IO_WINDOW_SIZE - 1)
 #define IOP13XX_PCIE_UPPER_IO_BA      	 (IOP13XX_PCIE_LOWER_IO_BA +\
 					 IOP13XX_PCIE_IO_WINDOW_SIZE - 1)
-#define IOP13XX_PCIE_IO_OFFSET        	 (IOP13XX_PCIE_LOWER_IO_VA -\
-					 IOP13XX_PCIE_LOWER_IO_BA)
 #define IOP13XX_PCIE_IO_PHYS_TO_VIRT(addr) (u32) ((u32) addr -\
 					   (IOP13XX_PCIE_LOWER_IO_PA\
 					   - IOP13XX_PCIE_LOWER_IO_VA))
@@ -451,4 +456,5 @@ static inline int iop13xx_cpu_id(void)
 #define IOP13XX_PBI_BAR1      		IOP13XX_PBI_OFFSET(0x10)
 #define IOP13XX_PBI_LR1       		IOP13XX_PBI_OFFSET(0x14)
 
+#define IOP13XX_PROCESSOR_FREQ		IOP13XX_REG_ADDR32(0x2180)
 #endif /* _IOP13XX_HW_H_ */

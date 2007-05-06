@@ -15,4 +15,6 @@
 
 #define board_is_a9m9750dev()	(machine_is_cc9p9360dev())
 
+#define board_is_jscc9p9360()	(machine_is_cc9p9360js())
+
 #endif /* ifndef __ASM_ARCH_BOARD_H */

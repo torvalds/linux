@@ -260,7 +260,7 @@ static int pxa2xx_ac97_do_suspend(struct snd_card *card, pm_message_t state)
 	if (platform_ops && platform_ops->suspend)
 		platform_ops->suspend(platform_ops->priv);
 	GCR |= GCR_ACLINK_OFF;
-	pxa_set_cken(CKEN2_AC97, 0);
+	pxa_set_cken(CKEN_AC97, 0);
 
 	return 0;
 }
@@ -269,7 +269,7 @@ static int pxa2xx_ac97_do_resume(struct snd_card *card)
 {
 	pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
 
-	pxa_set_cken(CKEN2_AC97, 1);
+	pxa_set_cken(CKEN_AC97, 1);
 	if (platform_ops && platform_ops->resume)
 		platform_ops->resume(platform_ops->priv);
 	snd_ac97_resume(pxa2xx_ac97_ac97);
@@ -337,7 +337,7 @@ static int __devinit pxa2xx_ac97_probe(struct platform_device *dev)
 	/* Use GPIO 113 as AC97 Reset on Bulverde */
 	pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
 #endif
-	pxa_set_cken(CKEN2_AC97, 1);
+	pxa_set_cken(CKEN_AC97, 1);
 
 	ret = snd_ac97_bus(card, 0, &pxa2xx_ac97_ops, NULL, &ac97_bus);
 	if (ret)
@@ -361,10 +361,10 @@ static int __devinit pxa2xx_ac97_probe(struct platform_device *dev)
  err:
 	if (card)
 		snd_card_free(card);
-	if (CKEN & CKEN2_AC97) {
+	if (CKEN & CKEN_AC97) {
 		GCR |= GCR_ACLINK_OFF;
 		free_irq(IRQ_AC97, NULL);
-		pxa_set_cken(CKEN2_AC97, 0);
+		pxa_set_cken(CKEN_AC97, 0);
 	}
 	return ret;
 }
@@ -378,7 +378,7 @@ static int __devexit pxa2xx_ac97_remove(struct platform_device *dev)
 		platform_set_drvdata(dev, NULL);
 		GCR |= GCR_ACLINK_OFF;
 		free_irq(IRQ_AC97, NULL);
-		pxa_set_cken(CKEN2_AC97, 0);
+		pxa_set_cken(CKEN_AC97, 0);
 	}
 
 	return 0;

@@ -464,13 +464,6 @@ static struct clk *bast_clocks[] = {
 	&s3c24xx_uclk,
 };
 
-static struct s3c24xx_board bast_board __initdata = {
-	.devices       = bast_devices,
-	.devices_count = ARRAY_SIZE(bast_devices),
-	.clocks	       = bast_clocks,
-	.clocks_count  = ARRAY_SIZE(bast_clocks),
-};
-
 static void __init bast_map_io(void)
 {
 	/* initialise the clocks */
@@ -486,19 +479,22 @@ static void __init bast_map_io(void)
 
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
 
+	s3c24xx_register_clocks(bast_clocks, ARRAY_SIZE(bast_clocks));
+
 	s3c_device_nand.dev.platform_data = &bast_nand_info;
 	s3c_device_i2c.dev.platform_data = &bast_i2c_info;
 
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(bast_uartcfgs, ARRAY_SIZE(bast_uartcfgs));
-	s3c24xx_set_board(&bast_board);
+
 	usb_simtec_init();
 }
 
 static void __init bast_init(void)
 {
 	s3c24xx_fb_set_platdata(&bast_lcd_info);
+	platform_add_devices(bast_devices, ARRAY_SIZE(bast_devices));
 }
 
 MACHINE_START(BAST, "Simtec-BAST")

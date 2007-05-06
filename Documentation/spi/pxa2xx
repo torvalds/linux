@@ -62,7 +62,7 @@ static struct resource pxa_spi_nssp_resources[] = {
 
 static struct pxa2xx_spi_master pxa_nssp_master_info = {
 	.ssp_type = PXA25x_NSSP, /* Type of SSP */
-	.clock_enable = CKEN9_NSSP, /* NSSP Peripheral clock */
+	.clock_enable = CKEN_NSSP, /* NSSP Peripheral clock */
 	.num_chipselect = 1, /* Matches the number of chips attached to NSSP */
 	.enable_dma = 1, /* Enables NSSP DMA */
 };
