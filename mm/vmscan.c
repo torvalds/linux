@@ -1323,8 +1323,6 @@ static int kswapd(void *p)
 	for ( ; ; ) {
 		unsigned long new_order;
 
-		try_to_freeze();
-
 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
 		new_order = pgdat->kswapd_max_order;
 		pgdat->kswapd_max_order = 0;
@@ -1335,12 +1333,19 @@ static int kswapd(void *p)
 			 */
 			order = new_order;
 		} else {
-			schedule();
+			if (!freezing(current))
+				schedule();
+
 			order = pgdat->kswapd_max_order;
 		}
 		finish_wait(&pgdat->kswapd_wait, &wait);
 
-		balance_pgdat(pgdat, order);
+		if (!try_to_freeze()) {
+			/* We can speed up thawing tasks if we don't call
+			 * balance_pgdat after returning from the refrigerator
+			 */
+			balance_pgdat(pgdat, order);
+		}
 	}
 	return 0;
 }
