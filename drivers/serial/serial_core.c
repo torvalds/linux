@@ -37,13 +37,6 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
-#undef	DEBUG
-#ifdef DEBUG
-#define DPRINTK(x...)	printk(x)
-#else
-#define DPRINTK(x...)	do { } while (0)
-#endif
-
 /*
  * This is used to lock changes in serial line configuration.
  */
@@ -552,7 +545,7 @@ static void uart_flush_buffer(struct tty_struct *tty)
 		return;
 	}
 
-	DPRINTK("uart_flush_buffer(%d) called\n", tty->index);
+	pr_debug("uart_flush_buffer(%d) called\n", tty->index);
 
 	spin_lock_irqsave(&port->lock, flags);
 	uart_circ_clear(&state->info->xmit);
@@ -1224,7 +1217,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 
 	port = state->port;
 
-	DPRINTK("uart_close(%d) called\n", port->line);
+	pr_debug("uart_close(%d) called\n", port->line);
 
 	mutex_lock(&state->mutex);
 
@@ -1343,7 +1336,7 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 
 	expire = jiffies + timeout;
 
-	DPRINTK("uart_wait_until_sent(%d), jiffies=%lu, expire=%lu...\n",
+	pr_debug("uart_wait_until_sent(%d), jiffies=%lu, expire=%lu...\n",
 	        port->line, jiffies, expire);
 
 	/*
@@ -1372,7 +1365,7 @@ static void uart_hangup(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 
 	BUG_ON(!kernel_locked());
-	DPRINTK("uart_hangup(%d)\n", state->port->line);
+	pr_debug("uart_hangup(%d)\n", state->port->line);
 
 	mutex_lock(&state->mutex);
 	if (state->info && state->info->flags & UIF_NORMAL_ACTIVE) {
@@ -1570,7 +1563,7 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	int retval, line = tty->index;
 
 	BUG_ON(!kernel_locked());
-	DPRINTK("uart_open(%d) called\n", line);
+	pr_debug("uart_open(%d) called\n", line);
 
 	/*
 	 * tty->driver->num won't change, so we won't fail here with
