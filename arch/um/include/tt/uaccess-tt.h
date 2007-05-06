@@ -27,8 +27,6 @@ extern unsigned long uml_physmem;
 #define access_ok_tt(type, addr, size) \
 	(is_stack(addr, size))
 
-extern unsigned long get_fault_addr(void);
-
 extern int __do_copy_from_user(void *to, const void *from, int n,
 			       void **fault_addr, void **fault_catcher);
 extern int __do_strncpy_from_user(char *dst, const char *src, size_t n,

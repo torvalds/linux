@@ -8,6 +8,7 @@
 
 #include "sysdep/ptrace.h"
 #include "sysdep/faultinfo.h"
+#include "uml-config.h"
 
 typedef void (*kern_hndl)(int, union uml_pt_regs *);
 
@@ -33,7 +34,9 @@ extern int nsyscalls;
 	UML_ROUND_DOWN(((unsigned long) addr) + PAGE_SIZE - 1)
 
 extern int kernel_fork(unsigned long flags, int (*fn)(void *), void * arg);
+#ifdef UML_CONFIG_MODE_TT
 extern unsigned long stack_sp(unsigned long page);
+#endif
 extern int kernel_thread_proc(void *data);
 extern void syscall_segv(int sig);
 extern int current_pid(void);
@@ -57,7 +60,6 @@ extern void add_input_request(int op, void (*proc)(int), void *arg);
 extern char *current_cmd(void);
 extern void timer_handler(int sig, union uml_pt_regs *regs);
 extern int set_signals(int enable);
-extern void force_sigbus(void);
 extern int pid_to_processor_id(int pid);
 extern void deliver_signals(void *t);
 extern int next_trap_index(int max);
@@ -69,7 +71,6 @@ extern void *syscall_sp(void *t);
 extern void syscall_trace(union uml_pt_regs *regs, int entryexit);
 extern int hz(void);
 extern unsigned int do_IRQ(int irq, union uml_pt_regs *regs);
-extern int external_pid(void *t);
 extern void interrupt_end(void);
 extern void initial_thread_cb(void (*proc)(void *), void *arg);
 extern int debugger_signal(int status, int pid);
@@ -80,7 +81,6 @@ extern int init_parent_proxy(int pid);
 extern int singlestepping(void *t);
 extern void check_stack_overflow(void *ptr);
 extern void relay_signal(int sig, union uml_pt_regs *regs);
-extern void not_implemented(void);
 extern int user_context(unsigned long sp);
 extern void timer_irq(union uml_pt_regs *regs);
 extern void unprotect_stack(unsigned long stack);
@@ -92,7 +92,6 @@ extern char *uml_strdup(char *string);
 extern void unprotect_kernel_mem(void);
 extern void protect_kernel_mem(void);
 extern void uml_cleanup(void);
-extern void set_current(void *t);
 extern void lock_signalled_task(void *t);
 extern void IPI_handler(int cpu);
 extern int jail_setup(char *line, int *add);

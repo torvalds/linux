@@ -54,11 +54,9 @@
  */
 struct cpu_task cpu_tasks[NR_CPUS] = { [0 ... NR_CPUS - 1] = { -1, NULL } };
 
-int external_pid(void *t)
+static inline int external_pid(struct task_struct *task)
 {
-	struct task_struct *task = t ? t : current;
-
-	return(CHOOSE_MODE_PROC(external_pid_tt, external_pid_skas, task));
+	return CHOOSE_MODE_PROC(external_pid_tt, external_pid_skas, task);
 }
 
 int pid_to_processor_id(int pid)
@@ -66,9 +64,10 @@ int pid_to_processor_id(int pid)
 	int i;
 
 	for(i = 0; i < ncpus; i++){
-		if(cpu_tasks[i].pid == pid) return(i);
+		if(cpu_tasks[i].pid == pid)
+			return i;
 	}
-	return(-1);
+	return -1;
 }
 
 void free_stack(unsigned long stack, int order)
@@ -85,9 +84,9 @@ unsigned long alloc_stack(int order, int atomic)
 		flags = GFP_ATOMIC;
 	page = __get_free_pages(flags, order);
 	if(page == 0)
-		return(0);
+		return 0;
 	stack_protections(page);
-	return(page);
+	return page;
 }
 
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
@@ -100,13 +99,11 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 		      &current->thread.regs, 0, NULL, NULL);
 	if(pid < 0)
 		panic("do_fork failed in kernel_thread, errno = %d", pid);
-	return(pid);
+	return pid;
 }
 
-void set_current(void *t)
+static inline void set_current(struct task_struct *task)
 {
-	struct task_struct *task = t;
-
 	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task)
 		{ external_pid(task), task });
 }
@@ -128,14 +125,16 @@ void *_switch_to(void *prev, void *next, void *last)
 		prev= current;
 	} while(current->thread.saved_task);
 
-	return(current->thread.prev_sched);
+	return current->thread.prev_sched;
 
 }
 
 void interrupt_end(void)
 {
-	if(need_resched()) schedule();
-	if(test_tsk_thread_flag(current, TIF_SIGPENDING)) do_signal();
+	if(need_resched())
+		schedule();
+	if(test_tsk_thread_flag(current, TIF_SIGPENDING))
+		do_signal();
 }
 
 void release_thread(struct task_struct *task)
@@ -150,7 +149,7 @@ void exit_thread(void)
 
 void *get_current(void)
 {
-	return(current);
+	return current;
 }
 
 int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
@@ -188,15 +187,12 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	kmalloc_ok = save_kmalloc_ok;
 }
 
+#ifdef CONFIG_MODE_TT
 unsigned long stack_sp(unsigned long page)
 {
-	return(page + PAGE_SIZE - sizeof(void *));
+	return page + PAGE_SIZE - sizeof(void *);
 }
-
-int current_pid(void)
-{
-	return(current->pid);
-}
+#endif
 
 void default_idle(void)
 {
@@ -223,7 +219,7 @@ void cpu_idle(void)
 
 int page_size(void)
 {
-	return(PAGE_SIZE);
+	return PAGE_SIZE;
 }
 
 void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
@@ -236,67 +232,42 @@ void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 	pte_t ptent;
 
 	if(task->mm == NULL)
-		return(ERR_PTR(-EINVAL));
+		return ERR_PTR(-EINVAL);
 	pgd = pgd_offset(task->mm, addr);
 	if(!pgd_present(*pgd))
-		return(ERR_PTR(-EINVAL));
+		return ERR_PTR(-EINVAL);
 
 	pud = pud_offset(pgd, addr);
 	if(!pud_present(*pud))
-		return(ERR_PTR(-EINVAL));
+		return ERR_PTR(-EINVAL);
 
 	pmd = pmd_offset(pud, addr);
 	if(!pmd_present(*pmd))
-		return(ERR_PTR(-EINVAL));
+		return ERR_PTR(-EINVAL);
 
 	pte = pte_offset_kernel(pmd, addr);
 	ptent = *pte;
 	if(!pte_present(ptent))
-		return(ERR_PTR(-EINVAL));
+		return ERR_PTR(-EINVAL);
 
 	if(pte_out != NULL)
 		*pte_out = ptent;
-	return((void *) (pte_val(ptent) & PAGE_MASK) + (addr & ~PAGE_MASK));
+	return (void *) (pte_val(ptent) & PAGE_MASK) + (addr & ~PAGE_MASK);
 }
 
 char *current_cmd(void)
 {
 #if defined(CONFIG_SMP) || defined(CONFIG_HIGHMEM)
-	return("(Unknown)");
+	return "(Unknown)";
 #else
 	void *addr = um_virt_to_phys(current, current->mm->arg_start, NULL);
 	return IS_ERR(addr) ? "(Unknown)": __va((unsigned long) addr);
 #endif
 }
 
-void force_sigbus(void)
-{
-	printk(KERN_ERR "Killing pid %d because of a lack of memory\n",
-	       current->pid);
-	lock_kernel();
-	sigaddset(&current->pending.signal, SIGBUS);
-	recalc_sigpending();
-	current->flags |= PF_SIGNALED;
-	do_exit(SIGBUS | 0x80);
-}
-
 void dump_thread(struct pt_regs *regs, struct user *u)
 {
 }
-
-void enable_hlt(void)
-{
-	panic("enable_hlt");
-}
-
-EXPORT_SYMBOL(enable_hlt);
-
-void disable_hlt(void)
-{
-	panic("disable_hlt");
-}
-
-EXPORT_SYMBOL(disable_hlt);
 
 void *um_kmalloc(int size)
 {
@@ -313,36 +284,17 @@ void *um_vmalloc(int size)
 	return vmalloc(size);
 }
 
-void *um_vmalloc_atomic(int size)
-{
-	return __vmalloc(size, GFP_ATOMIC | __GFP_HIGHMEM, PAGE_KERNEL);
-}
-
 int __cant_sleep(void) {
 	return in_atomic() || irqs_disabled() || in_interrupt();
 	/* Is in_interrupt() really needed? */
 }
-
-unsigned long get_fault_addr(void)
-{
-	return((unsigned long) current->thread.fault_addr);
-}
-
-EXPORT_SYMBOL(get_fault_addr);
-
-void not_implemented(void)
-{
-	printk(KERN_DEBUG "Something isn't implemented in here\n");
-}
-
-EXPORT_SYMBOL(not_implemented);
 
 int user_context(unsigned long sp)
 {
 	unsigned long stack;
 
 	stack = sp & (PAGE_MASK << CONFIG_KERNEL_STACK_ORDER);
-	return(stack != (unsigned long) current_thread);
+	return stack != (unsigned long) current_thread;
 }
 
 extern exitcall_t __uml_exitcall_begin, __uml_exitcall_end;
@@ -363,22 +315,22 @@ char *uml_strdup(char *string)
 
 int copy_to_user_proc(void __user *to, void *from, int size)
 {
-	return(copy_to_user(to, from, size));
+	return copy_to_user(to, from, size);
 }
 
 int copy_from_user_proc(void *to, void __user *from, int size)
 {
-	return(copy_from_user(to, from, size));
+	return copy_from_user(to, from, size);
 }
 
 int clear_user_proc(void __user *buf, int size)
 {
-	return(clear_user(buf, size));
+	return clear_user(buf, size);
 }
 
 int strlen_user_proc(char __user *str)
 {
-	return(strlen_user(str));
+	return strlen_user(str);
 }
 
 int smp_sigio_handler(void)
@@ -387,14 +339,14 @@ int smp_sigio_handler(void)
 	int cpu = current_thread->cpu;
 	IPI_handler(cpu);
 	if(cpu != 0)
-		return(1);
+		return 1;
 #endif
-	return(0);
+	return 0;
 }
 
 int cpu(void)
 {
-	return(current_thread->cpu);
+	return current_thread->cpu;
 }
 
 static atomic_t using_sysemu = ATOMIC_INIT(0);
@@ -443,7 +395,7 @@ int __init make_proc_sysemu(void)
 	if (ent == NULL)
 	{
 		printk(KERN_WARNING "Failed to register /proc/sysemu\n");
-		return(0);
+		return 0;
 	}
 
 	ent->read_proc  = proc_read_sysemu;
