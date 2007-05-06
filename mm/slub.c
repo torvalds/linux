@@ -815,9 +815,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	void *last;
 	void *p;
 
-	if (flags & __GFP_NO_GROW)
-		return NULL;
-
 	BUG_ON(flags & ~(GFP_DMA | GFP_LEVEL_MASK));
 
 	if (flags & __GFP_WAIT)
