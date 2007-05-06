@@ -381,11 +381,12 @@ static struct ubi_vtbl_record *process_lvol(const struct ubi_device *ubi,
 
 	/* Read both LEB 0 and LEB 1 into memory */
 	ubi_rb_for_each_entry(rb, seb, &sv->root, u.rb) {
-		leb[seb->lnum] = kzalloc(ubi->vtbl_size, GFP_KERNEL);
+		leb[seb->lnum] = vmalloc(ubi->vtbl_size);
 		if (!leb[seb->lnum]) {
 			err = -ENOMEM;
 			goto out_free;
 		}
+		memset(leb[seb->lnum], 0, ubi->vtbl_size);
 
 		err = ubi_io_read_data(ubi, leb[seb->lnum], seb->pnum, 0,
 				       ubi->vtbl_size);
@@ -416,7 +417,7 @@ static struct ubi_vtbl_record *process_lvol(const struct ubi_device *ubi,
 		}
 
 		/* Both LEB 1 and LEB 2 are OK and consistent */
-		kfree(leb[1]);
+		vfree(leb[1]);
 		return leb[0];
 	} else {
 		/* LEB 0 is corrupted or does not exist */
@@ -437,13 +438,13 @@ static struct ubi_vtbl_record *process_lvol(const struct ubi_device *ubi,
 			goto out_free;
 		ubi_msg("volume table was restored");
 
-		kfree(leb[0]);
+		vfree(leb[0]);
 		return leb[1];
 	}
 
 out_free:
-	kfree(leb[0]);
-	kfree(leb[1]);
+	vfree(leb[0]);
+	vfree(leb[1]);
 	return ERR_PTR(err);
 }
 
@@ -461,9 +462,10 @@ static struct ubi_vtbl_record *create_empty_lvol(const struct ubi_device *ubi,
 	int i;
 	struct ubi_vtbl_record *vtbl;
 
-	vtbl = kzalloc(ubi->vtbl_size, GFP_KERNEL);
+	vtbl = vmalloc(ubi->vtbl_size);
 	if (!vtbl)
 		return ERR_PTR(-ENOMEM);
+	memset(vtbl, 0, ubi->vtbl_size);
 
 	for (i = 0; i < ubi->vtbl_slots; i++)
 		memcpy(&vtbl[i], &empty_vtbl_record, UBI_VTBL_RECORD_SIZE);
@@ -473,7 +475,7 @@ static struct ubi_vtbl_record *create_empty_lvol(const struct ubi_device *ubi,
 
 		err = create_vtbl(ubi, si, i, vtbl);
 		if (err) {
-			kfree(vtbl);
+			vfree(vtbl);
 			return ERR_PTR(err);
 		}
 	}
@@ -784,7 +786,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si)
 	return 0;
 
 out_free:
-	kfree(ubi->vtbl);
+	vfree(ubi->vtbl);
 	for (i = 0; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++)
 		if (ubi->volumes[i]) {
 			kfree(ubi->volumes[i]);

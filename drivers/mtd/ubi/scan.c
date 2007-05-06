@@ -356,7 +356,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 	/* Read the data of the copy and check the CRC */
 
 	len = ubi32_to_cpu(vid_hdr->data_size);
-	buf = kmalloc(len, GFP_KERNEL);
+	buf = vmalloc(len);
 	if (!buf) {
 		err = -ENOMEM;
 		goto out_free_vidh;
@@ -379,7 +379,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 		bitflips = !!err;
 	}
 
-	kfree(buf);
+	vfree(buf);
 	ubi_free_vid_hdr(ubi, vidh);
 
 	if (second_is_newer)
@@ -390,7 +390,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 	return second_is_newer | (bitflips << 1) | (corrupted << 2);
 
 out_free_buf:
-	kfree(buf);
+	vfree(buf);
 out_free_vidh:
 	ubi_free_vid_hdr(ubi, vidh);
 	ubi_assert(err < 0);

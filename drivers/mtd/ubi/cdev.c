@@ -153,7 +153,7 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 		ubi_warn("update of volume %d not finished, volume is damaged",
 			 vol->vol_id);
 		vol->updating = 0;
-		kfree(vol->upd_buf);
+		vfree(vol->upd_buf);
 	}
 
 	ubi_close_volume(desc);
@@ -232,7 +232,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 	tbuf_size = vol->usable_leb_size;
 	if (count < tbuf_size)
 		tbuf_size = ALIGN(count, ubi->min_io_size);
-	tbuf = kmalloc(tbuf_size, GFP_KERNEL);
+	tbuf = vmalloc(tbuf_size);
 	if (!tbuf)
 		return -ENOMEM;
 
@@ -271,7 +271,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		len = count > tbuf_size ? tbuf_size : count;
 	} while (count);
 
-	kfree(tbuf);
+	vfree(tbuf);
 	return err ? err : count_save - count;
 }
 
@@ -320,7 +320,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	tbuf_size = vol->usable_leb_size;
 	if (count < tbuf_size)
 		tbuf_size = ALIGN(count, ubi->min_io_size);
-	tbuf = kmalloc(tbuf_size, GFP_KERNEL);
+	tbuf = vmalloc(tbuf_size);
 	if (!tbuf)
 		return -ENOMEM;
 
@@ -355,7 +355,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 		len = count > tbuf_size ? tbuf_size : count;
 	}
 
-	kfree(tbuf);
+	vfree(tbuf);
 	return err ? err : count_save - count;
 }
 

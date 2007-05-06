@@ -35,6 +35,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/string.h>
+#include <linux/vmalloc.h>
 #include <linux/mtd/mtd.h>
 
 #include <mtd/ubi-header.h>

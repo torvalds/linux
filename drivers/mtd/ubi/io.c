@@ -382,7 +382,7 @@ static int torture_peb(const struct ubi_device *ubi, int pnum)
 	void *buf;
 	int err, i, patt_count;
 
-	buf = kmalloc(ubi->peb_size, GFP_KERNEL);
+	buf = vmalloc(ubi->peb_size);
 	if (!buf)
 		return -ENOMEM;
 
@@ -437,7 +437,7 @@ out:
 		 * physical eraseblock which means something is wrong with it.
 		 */
 		err = -EIO;
-	kfree(buf);
+	vfree(buf);
 	return err;
 }
 
@@ -1224,9 +1224,10 @@ static int paranoid_check_all_ff(const struct ubi_device *ubi, int pnum,
 	void *buf;
 	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
 
-	buf = kzalloc(len, GFP_KERNEL);
+	buf = vmalloc(len);
 	if (!buf)
 		return -ENOMEM;
+	memset(buf, 0, len);
 
 	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf);
 	if (err && err != -EUCLEAN) {
@@ -1242,7 +1243,7 @@ static int paranoid_check_all_ff(const struct ubi_device *ubi, int pnum,
 		goto fail;
 	}
 
-	kfree(buf);
+	vfree(buf);
 	return 0;
 
 fail:
@@ -1252,7 +1253,7 @@ fail:
 	err = 1;
 error:
 	ubi_dbg_dump_stack();
-	kfree(buf);
+	vfree(buf);
 	return err;
 }
 

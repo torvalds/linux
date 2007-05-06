@@ -524,7 +524,7 @@ retry:
 		goto write_error;
 
 	data_size = offset + len;
-	new_buf = kmalloc(data_size, GFP_KERNEL);
+	new_buf = vmalloc(data_size);
 	if (!new_buf) {
 		err = -ENOMEM;
 		goto out_put;
@@ -535,7 +535,7 @@ retry:
 	if (offset > 0) {
 		err = ubi_io_read_data(ubi, new_buf, pnum, 0, offset);
 		if (err && err != UBI_IO_BITFLIPS) {
-			kfree(new_buf);
+			vfree(new_buf);
 			goto out_put;
 		}
 	}
@@ -544,11 +544,11 @@ retry:
 
 	err = ubi_io_write_data(ubi, new_buf, new_pnum, 0, data_size);
 	if (err) {
-		kfree(new_buf);
+		vfree(new_buf);
 		goto write_error;
 	}
 
-	kfree(new_buf);
+	vfree(new_buf);
 	ubi_free_vid_hdr(ubi, vid_hdr);
 
 	vol->eba_tbl[lnum] = new_pnum;
@@ -977,7 +977,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		data_size = aldata_size =
 			    ubi->leb_size - ubi32_to_cpu(vid_hdr->data_pad);
 
-	buf = kmalloc(aldata_size, GFP_KERNEL);
+	buf = vmalloc(aldata_size);
 	if (!buf)
 		return -ENOMEM;
 
@@ -987,7 +987,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 */
 	err = leb_write_lock(ubi, vol_id, lnum);
 	if (err) {
-		kfree(buf);
+		vfree(buf);
 		return err;
 	}
 
@@ -1082,7 +1082,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		 * We've written the data and are going to read it back to make
 		 * sure it was written correctly.
 		 */
-		buf1 = kmalloc(aldata_size, GFP_KERNEL);
+		buf1 = vmalloc(aldata_size);
 		if (!buf1) {
 			err = -ENOMEM;
 			goto out_unlock;
@@ -1111,15 +1111,15 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	vol->eba_tbl[lnum] = to;
 
 	leb_write_unlock(ubi, vol_id, lnum);
-	kfree(buf);
-	kfree(buf1);
+	vfree(buf);
+	vfree(buf1);
 
 	return 0;
 
 out_unlock:
 	leb_write_unlock(ubi, vol_id, lnum);
-	kfree(buf);
-	kfree(buf1);
+	vfree(buf);
+	vfree(buf1);
 	return err;
 }
 

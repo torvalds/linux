@@ -150,7 +150,7 @@ int ubi_start_update(struct ubi_device *ubi, int vol_id, long long bytes)
 			vol->updating = 0;
 	}
 
-	vol->upd_buf = kmalloc(ubi->leb_size, GFP_KERNEL);
+	vol->upd_buf = vmalloc(ubi->leb_size);
 	if (!vol->upd_buf)
 		return -ENOMEM;
 
@@ -339,7 +339,7 @@ int ubi_more_update_data(struct ubi_device *ubi, int vol_id,
 		err = ubi_wl_flush(ubi);
 		if (err == 0) {
 			err = to_write;
-			kfree(vol->upd_buf);
+			vfree(vol->upd_buf);
 			vol->updating = 0;
 		}
 	}

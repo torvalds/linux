@@ -650,7 +650,7 @@ static void detach_mtd_dev(struct ubi_device *ubi)
 	uif_close(ubi);
 	ubi_eba_close(ubi);
 	ubi_wl_close(ubi);
-	kfree(ubi->vtbl);
+	vfree(ubi->vtbl);
 	put_mtd_device(ubi->mtd);
 	kfree(ubi_devices[ubi_num]);
 	ubi_devices[ubi_num] = NULL;
