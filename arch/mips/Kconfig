@@ -1042,6 +1042,9 @@ config SOC_AU1X00
 	select SYS_SUPPORTS_APM_EMULATION
 	select SYS_SUPPORTS_KGDB
 
+config SERIAL_RM9000
+	bool
+
 config PNX8550
 	bool
 	select SOC_PNX8550
