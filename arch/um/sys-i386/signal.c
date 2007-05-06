@@ -28,7 +28,7 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 	err = copy_from_user(&sc, from, sizeof(sc));
 	err |= copy_from_user(fpregs, sc.fpstate, sizeof(fpregs));
 	if(err)
-		return(err);
+		return err;
 
 	REGS_GS(regs->regs.skas.regs) = sc.gs;
 	REGS_FS(regs->regs.skas.regs) = sc.fs;
@@ -50,11 +50,11 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 	err = restore_fp_registers(userspace_pid[0], fpregs);
 	if(err < 0){
 	  	printk("copy_sc_from_user_skas - PTRACE_SETFPREGS failed, "
-		       "errno = %d\n", err);
-		return(1);
+		       "errno = %d\n", -err);
+		return err;
 	}
 
-	return(0);
+	return 0;
 }
 
 int copy_sc_to_user_skas(struct sigcontext __user *to, struct _fpstate __user *to_fp,
@@ -90,16 +90,16 @@ int copy_sc_to_user_skas(struct sigcontext __user *to, struct _fpstate __user *t
 	if(err < 0){
 	  	printk("copy_sc_to_user_skas - PTRACE_GETFPREGS failed, "
 		       "errno = %d\n", err);
-		return(1);
+		return 1;
 	}
 	to_fp = (to_fp ? to_fp : (struct _fpstate __user *) (to + 1));
 	sc.fpstate = to_fp;
 
 	if(err)
-	  	return(err);
+	  	return err;
 
-	return(copy_to_user(to, &sc, sizeof(sc)) ||
-	       copy_to_user(to_fp, fpregs, sizeof(fpregs)));
+	return copy_to_user(to, &sc, sizeof(sc)) ||
+	       copy_to_user(to_fp, fpregs, sizeof(fpregs));
 }
 #endif
 
@@ -129,7 +129,7 @@ int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext __user *from,
 	to->fpstate = to_fp;
 	if(to_fp != NULL)
 		err |= copy_from_user(to_fp, from_fp, fpsize);
-	return(err);
+	return err;
 }
 
 int copy_sc_to_user_tt(struct sigcontext __user *to, struct _fpstate __user *fp,
@@ -164,15 +164,15 @@ static int copy_sc_from_user(struct pt_regs *to, void __user *from)
 	ret = CHOOSE_MODE(copy_sc_from_user_tt(UPT_SC(&to->regs), from,
 					       sizeof(struct _fpstate)),
 			  copy_sc_from_user_skas(to, from));
-	return(ret);
+	return ret;
 }
 
 static int copy_sc_to_user(struct sigcontext __user *to, struct _fpstate __user *fp,
 			   struct pt_regs *from, unsigned long sp)
 {
-	return(CHOOSE_MODE(copy_sc_to_user_tt(to, fp, UPT_SC(&from->regs),
+	return CHOOSE_MODE(copy_sc_to_user_tt(to, fp, UPT_SC(&from->regs),
 					      sizeof(*fp), sp),
-                           copy_sc_to_user_skas(to, fp, from, sp)));
+                           copy_sc_to_user_skas(to, fp, from, sp));
 }
 
 static int copy_ucontext_to_user(struct ucontext __user *uc, struct _fpstate __user *fp,
@@ -185,7 +185,7 @@ static int copy_ucontext_to_user(struct ucontext __user *uc, struct _fpstate __u
 	err |= put_user(current->sas_ss_size, &uc->uc_stack.ss_size);
 	err |= copy_sc_to_user(&uc->uc_mcontext, fp, &current->thread.regs, sp);
 	err |= copy_to_user(&uc->uc_sigmask, set, sizeof(*set));
-	return(err);
+	return err;
 }
 
 struct sigframe
@@ -359,7 +359,7 @@ long sys_sigreturn(struct pt_regs regs)
 
 	/* Avoid ERESTART handling */
 	PT_REGS_SYSCALL_NR(&current->thread.regs) = -1;
-	return(PT_REGS_SYSCALL_RET(&current->thread.regs));
+	return PT_REGS_SYSCALL_RET(&current->thread.regs);
 
  segfault:
 	force_sig(SIGSEGV, current);
@@ -389,20 +389,9 @@ long sys_rt_sigreturn(struct pt_regs regs)
 
 	/* Avoid ERESTART handling */
 	PT_REGS_SYSCALL_NR(&current->thread.regs) = -1;
-	return(PT_REGS_SYSCALL_RET(&current->thread.regs));
+	return PT_REGS_SYSCALL_RET(&current->thread.regs);
 
  segfault:
 	force_sig(SIGSEGV, current);
 	return 0;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

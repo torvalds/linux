@@ -51,7 +51,7 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 
 #undef GETREG
 
-       return(err);
+       return err;
 }
 
 int copy_sc_to_user_skas(struct sigcontext __user *to,

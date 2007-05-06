@@ -72,8 +72,8 @@ good_area:
 		goto out;
 
 	/* Don't require VM_READ|VM_EXEC for write faults! */
-        if(!is_write && !(vma->vm_flags & (VM_READ | VM_EXEC)))
-                goto out;
+	if(!is_write && !(vma->vm_flags & (VM_READ | VM_EXEC)))
+		goto out;
 
 	do {
 survive:
@@ -157,18 +157,19 @@ static void segv_handler(int sig, union uml_pt_regs *regs)
  * the info in the regs. A pointer to the info then would
  * give us bad data!
  */
-unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
+unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
+		   union uml_pt_regs *regs)
 {
 	struct siginfo si;
 	void *catcher;
 	int err;
-        int is_write = FAULT_WRITE(fi);
-        unsigned long address = FAULT_ADDRESS(fi);
+	int is_write = FAULT_WRITE(fi);
+	unsigned long address = FAULT_ADDRESS(fi);
 
-        if(!is_user && (address >= start_vm) && (address < end_vm)){
-                flush_tlb_kernel_vm();
-                return(0);
-        }
+	if(!is_user && (address >= start_vm) && (address < end_vm)){
+		flush_tlb_kernel_vm();
+		return 0;
+	}
 	else if(current->mm == NULL)
 		panic("Segfault with no mm");
 
@@ -183,17 +184,17 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 
 	catcher = current->thread.fault_catcher;
 	if(!err)
-		return(0);
+		return 0;
 	else if(catcher != NULL){
 		current->thread.fault_addr = (void *) address;
 		do_longjmp(catcher, 1);
 	}
 	else if(current->thread.fault_addr != NULL)
 		panic("fault_addr set but no fault catcher");
-        else if(!is_user && arch_fixup(ip, sc))
-		return(0);
+	else if(!is_user && arch_fixup(ip, regs))
+		return 0;
 
- 	if(!is_user)
+	if(!is_user)
 		panic("Kernel mode fault at addr 0x%lx, ip 0x%lx",
 		      address, ip);
 
@@ -202,7 +203,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 		si.si_errno = 0;
 		si.si_code = BUS_ADRERR;
 		si.si_addr = (void __user *)address;
-                current->thread.arch.faultinfo = fi;
+		current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGBUS, &si, current);
 	} else if (err == -ENOMEM) {
 		printk("VM: killing process %s\n", current->comm);
@@ -211,10 +212,10 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 		BUG_ON(err != -EFAULT);
 		si.si_signo = SIGSEGV;
 		si.si_addr = (void __user *) address;
-                current->thread.arch.faultinfo = fi;
+		current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGSEGV, &si, current);
 	}
-	return(0);
+	return 0;
 }
 
 void relay_signal(int sig, union uml_pt_regs *regs)
@@ -229,7 +230,7 @@ void relay_signal(int sig, union uml_pt_regs *regs)
 		panic("Kernel mode signal %d", sig);
 	}
 
-        current->thread.arch.faultinfo = *UPT_FAULTINFO(regs);
+	current->thread.arch.faultinfo = *UPT_FAULTINFO(regs);
 	force_sig(sig, current);
 }
 

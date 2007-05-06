@@ -9,7 +9,7 @@
 #include "sysdep/ptrace.h"
 
 extern void arch_check_bugs(void);
-extern int arch_fixup(unsigned long address, void *sc_ptr);
+extern int arch_fixup(unsigned long address, union uml_pt_regs *regs);
 extern int arch_handle_signal(int sig, union uml_pt_regs *regs);
 
 #endif

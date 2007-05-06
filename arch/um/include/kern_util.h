@@ -44,7 +44,7 @@ extern unsigned long alloc_stack(int order, int atomic);
 extern int do_signal(void);
 extern int is_stack_fault(unsigned long sp);
 extern unsigned long segv(struct faultinfo fi, unsigned long ip,
-			  int is_user, void *sc);
+			  int is_user, union uml_pt_regs *regs);
 extern int handle_page_fault(unsigned long address, unsigned long ip,
 			     int is_write, int is_user, int *code_out);
 extern void syscall_ready(void);
