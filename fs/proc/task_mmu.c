@@ -195,7 +195,7 @@ static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats 
 			   "Shared_Dirty:   %8lu kB\n"
 			   "Private_Clean:  %8lu kB\n"
 			   "Private_Dirty:  %8lu kB\n"
-			   "Pgs_Referenced: %8lu kB\n",
+			   "Referenced:     %8lu kB\n",
 			   (vma->vm_end - vma->vm_start) >> 10,
 			   mss->resident >> 10,
 			   mss->shared_clean  >> 10,
@@ -214,9 +214,9 @@ static int show_map(struct seq_file *m, void *v)
 	return show_map_internal(m, v, NULL);
 }
 
-static void smaps_one_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-			  unsigned long addr, unsigned long end,
-			  void *private)
+static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+			    unsigned long addr, unsigned long end,
+			    void *private)
 {
 	struct mem_size_stats *mss = private;
 	pte_t *pte, ptent;
@@ -254,8 +254,34 @@ static void smaps_one_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 	cond_resched();
 }
 
-static inline void for_each_pmd_in_pud(struct pmd_walker *walker, pud_t *pud,
-				       unsigned long addr, unsigned long end)
+static void clear_refs_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+				 unsigned long addr, unsigned long end,
+				 void *private)
+{
+	pte_t *pte, ptent;
+	spinlock_t *ptl;
+	struct page *page;
+
+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+	for (; addr != end; pte++, addr += PAGE_SIZE) {
+		ptent = *pte;
+		if (!pte_present(ptent))
+			continue;
+
+		page = vm_normal_page(vma, addr, ptent);
+		if (!page)
+			continue;
+
+		/* Clear accessed and referenced bits. */
+		ptep_test_and_clear_young(vma, addr, pte);
+		ClearPageReferenced(page);
+	}
+	pte_unmap_unlock(pte - 1, ptl);
+	cond_resched();
+}
+
+static inline void walk_pmd_range(struct pmd_walker *walker, pud_t *pud,
+				  unsigned long addr, unsigned long end)
 {
 	pmd_t *pmd;
 	unsigned long next;
@@ -269,8 +295,8 @@ static inline void for_each_pmd_in_pud(struct pmd_walker *walker, pud_t *pud,
 	}
 }
 
-static inline void for_each_pud_in_pgd(struct pmd_walker *walker, pgd_t *pgd,
-				       unsigned long addr, unsigned long end)
+static inline void walk_pud_range(struct pmd_walker *walker, pgd_t *pgd,
+				  unsigned long addr, unsigned long end)
 {
 	pud_t *pud;
 	unsigned long next;
@@ -280,15 +306,24 @@ static inline void for_each_pud_in_pgd(struct pmd_walker *walker, pgd_t *pgd,
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		for_each_pmd_in_pud(walker, pud, addr, next);
+		walk_pmd_range(walker, pud, addr, next);
 	}
 }
 
-static inline void for_each_pmd(struct vm_area_struct *vma,
-				void (*action)(struct vm_area_struct *, pmd_t *,
-					       unsigned long, unsigned long,
-					       void *),
-				void *private)
+/*
+ * walk_page_range - walk the page tables of a VMA with a callback
+ * @vma - VMA to walk
+ * @action - callback invoked for every bottom-level (PTE) page table
+ * @private - private data passed to the callback function
+ *
+ * Recursively walk the page table for the memory area in a VMA, calling
+ * a callback for every bottom-level (PTE) page table.
+ */
+static inline void walk_page_range(struct vm_area_struct *vma,
+				   void (*action)(struct vm_area_struct *,
+						  pmd_t *, unsigned long,
+						  unsigned long, void *),
+				   void *private)
 {
 	unsigned long addr = vma->vm_start;
 	unsigned long end = vma->vm_end;
@@ -305,7 +340,7 @@ static inline void for_each_pmd(struct vm_area_struct *vma,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		for_each_pud_in_pgd(&walker, pgd, addr, next);
+		walk_pud_range(&walker, pgd, addr, next);
 	}
 }
 
@@ -316,8 +351,20 @@ static int show_smap(struct seq_file *m, void *v)
 
 	memset(&mss, 0, sizeof mss);
 	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
-		for_each_pmd(vma, smaps_one_pmd, &mss);
+		walk_page_range(vma, smaps_pte_range, &mss);
 	return show_map_internal(m, v, &mss);
+}
+
+void clear_refs_smap(struct mm_struct *mm)
+{
+	struct vm_area_struct *vma;
+
+	down_read(&mm->mmap_sem);
+	for (vma = mm->mmap; vma; vma = vma->vm_next)
+		if (vma->vm_mm && !is_vm_hugetlb_page(vma))
+			walk_page_range(vma, clear_refs_pte_range, NULL);
+	flush_tlb_mm(mm);
+	up_read(&mm->mmap_sem);
 }
 
 static void *m_start(struct seq_file *m, loff_t *pos)
