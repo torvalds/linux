@@ -297,9 +297,6 @@ static void set_track(struct kmem_cache *s, void *object,
 		memset(p, 0, sizeof(struct track));
 }
 
-#define set_tracking(__s, __o, __a) set_track(__s, __o, __a, \
-			__builtin_return_address(0))
-
 static void init_tracking(struct kmem_cache *s, void *object)
 {
 	if (s->flags & SLAB_STORE_USER) {
@@ -1163,8 +1160,8 @@ static void flush_all(struct kmem_cache *s)
  * Fastpath is not possible if we need to get a new slab or have
  * debugging enabled (which means all slabs are marked with PageError)
  */
-static __always_inline void *slab_alloc(struct kmem_cache *s,
-					gfp_t gfpflags, int node)
+static void *slab_alloc(struct kmem_cache *s,
+				gfp_t gfpflags, int node, void *addr)
 {
 	struct page *page;
 	void **object;
@@ -1238,20 +1235,20 @@ debug:
 	if (!alloc_object_checks(s, page, object))
 		goto another_slab;
 	if (s->flags & SLAB_STORE_USER)
-		set_tracking(s, object, TRACK_ALLOC);
+		set_track(s, object, TRACK_ALLOC, addr);
 	goto have_object;
 }
 
 void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
 {
-	return slab_alloc(s, gfpflags, -1);
+	return slab_alloc(s, gfpflags, -1, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(kmem_cache_alloc);
 
 #ifdef CONFIG_NUMA
 void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
 {
-	return slab_alloc(s, gfpflags, node);
+	return slab_alloc(s, gfpflags, node, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 #endif
@@ -1262,7 +1259,8 @@ EXPORT_SYMBOL(kmem_cache_alloc_node);
  *
  * No special cachelines need to be read
  */
-static void slab_free(struct kmem_cache *s, struct page *page, void *x)
+static void slab_free(struct kmem_cache *s, struct page *page,
+					void *x, void *addr)
 {
 	void *prior;
 	void **object = (void *)x;
@@ -1314,20 +1312,20 @@ slab_empty:
 	return;
 
 debug:
-	if (free_object_checks(s, page, x))
-		goto checks_ok;
-	goto out_unlock;
+	if (!free_object_checks(s, page, x))
+		goto out_unlock;
+	if (s->flags & SLAB_STORE_USER)
+		set_track(s, x, TRACK_FREE, addr);
+	goto checks_ok;
 }
 
 void kmem_cache_free(struct kmem_cache *s, void *x)
 {
-	struct page * page;
+	struct page *page;
 
 	page = virt_to_head_page(x);
 
-	if (unlikely(PageError(page) && (s->flags & SLAB_STORE_USER)))
-		set_tracking(s, x, TRACK_FREE);
-	slab_free(s, page, x);
+	slab_free(s, page, x, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
@@ -2018,7 +2016,7 @@ void *__kmalloc(size_t size, gfp_t flags)
 	struct kmem_cache *s = get_slab(size, flags);
 
 	if (s)
-		return kmem_cache_alloc(s, flags);
+		return slab_alloc(s, flags, -1, __builtin_return_address(0));
 	return NULL;
 }
 EXPORT_SYMBOL(__kmalloc);
@@ -2029,7 +2027,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
 	struct kmem_cache *s = get_slab(size, flags);
 
 	if (s)
-		return kmem_cache_alloc_node(s, flags, node);
+		return slab_alloc(s, flags, node, __builtin_return_address(0));
 	return NULL;
 }
 EXPORT_SYMBOL(__kmalloc_node);
@@ -2075,12 +2073,9 @@ void kfree(const void *x)
 		return;
 
 	page = virt_to_head_page(x);
-
 	s = page->slab;
 
-	if (unlikely(PageError(page) && (s->flags & SLAB_STORE_USER)))
-		set_tracking(s, (void *)x, TRACK_FREE);
-	slab_free(s, page, (void *)x);
+	slab_free(s, page, (void *)x, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(kfree);
 
@@ -2289,7 +2284,7 @@ void *kmem_cache_zalloc(struct kmem_cache *s, gfp_t flags)
 {
 	void *x;
 
-	x = kmem_cache_alloc(s, flags);
+	x = slab_alloc(s, flags, -1, __builtin_return_address(0));
 	if (x)
 		memset(x, 0, s->objsize);
 	return x;
@@ -2497,34 +2492,22 @@ static void resiliency_test(void) {};
 void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
 {
 	struct kmem_cache *s = get_slab(size, gfpflags);
-	void *object;
 
 	if (!s)
 		return NULL;
 
-	object = kmem_cache_alloc(s, gfpflags);
-
-	if (object && (s->flags & SLAB_STORE_USER))
-		set_track(s, object, TRACK_ALLOC, caller);
-
-	return object;
+	return slab_alloc(s, gfpflags, -1, caller);
 }
 
 void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 					int node, void *caller)
 {
 	struct kmem_cache *s = get_slab(size, gfpflags);
-	void *object;
 
 	if (!s)
 		return NULL;
 
-	object = kmem_cache_alloc_node(s, gfpflags, node);
-
-	if (object && (s->flags & SLAB_STORE_USER))
-		set_track(s, object, TRACK_ALLOC, caller);
-
-	return object;
+	return slab_alloc(s, gfpflags, node, caller);
 }
 
 #ifdef CONFIG_SYSFS
