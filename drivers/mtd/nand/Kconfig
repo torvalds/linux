@@ -272,4 +272,13 @@ config MTD_NAND_NANDSIM
 	  The simulator may simulate various NAND flash chips for the
 	  MTD nand layer.
 
+config MTD_NAND_PLATFORM
+	tristate "Support for generic platform NAND driver"
+	depends on MTD_NAND
+	help
+	  This implements a generic NAND driver for on-SOC platform
+	  devices. You will need to provide platform-specific functions
+	  via platform_data.
+
+
 endif # MTD_NAND
