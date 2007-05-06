@@ -147,9 +147,11 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	 * Adjust the score by oomkilladj.
 	 */
 	if (p->oomkilladj) {
-		if (p->oomkilladj > 0)
+		if (p->oomkilladj > 0) {
+			if (!points)
+				points = 1;
 			points <<= p->oomkilladj;
-		else
+		} else
 			points >>= -(p->oomkilladj);
 	}
 
