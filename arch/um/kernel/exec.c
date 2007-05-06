@@ -12,6 +12,7 @@
 #include "asm/uaccess.h"
 #include "user_util.h"
 #include "kern_util.h"
+#include "as-layout.h"
 #include "mem_user.h"
 #include "kern.h"
 #include "irq_user.h"

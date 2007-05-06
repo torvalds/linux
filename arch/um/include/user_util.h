@@ -30,30 +30,7 @@ extern int grantpt(int __fd);
 extern int unlockpt(int __fd);
 extern char *ptsname(int __fd);
 
-struct cpu_task {
-	int pid;
-	void *task;
-};
-
-extern struct cpu_task cpu_tasks[];
-
-extern void (*sig_info[])(int, union uml_pt_regs *);
-
-extern unsigned long low_physmem;
-extern unsigned long high_physmem;
-extern unsigned long uml_physmem;
-extern unsigned long uml_reserved;
-extern unsigned long end_vm;
-extern unsigned long start_vm;
-extern unsigned long long highmem;
-
-extern unsigned long _stext, _etext, _sdata, _edata, __bss_start, _end;
-extern unsigned long _unprotected_end;
-extern unsigned long brk_start;
-
 extern void *add_signal_handler(int sig, void (*handler)(int));
-extern int linux_main(int argc, char **argv);
-extern void set_cmdline(char *cmd);
 extern void input_cb(void (*proc)(void *), void *arg, int arg_len);
 extern int get_pty(void);
 extern int switcheroo(int fd, int prot, void *from, void *to, int size);

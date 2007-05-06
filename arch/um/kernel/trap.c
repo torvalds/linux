@@ -20,6 +20,7 @@
 #include "sysdep/sigcontext.h"
 #include "user_util.h"
 #include "kern_util.h"
+#include "as-layout.h"
 #include "arch.h"
 #include "kern.h"
 #include "chan_kern.h"

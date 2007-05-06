@@ -34,6 +34,7 @@
 #include "asm/user.h"
 #include "user_util.h"
 #include "kern_util.h"
+#include "as-layout.h"
 #include "kern.h"
 #include "signal_kern.h"
 #include "init.h"
