@@ -21,7 +21,7 @@ static irqreturn_t sigio_interrupt(int irq, void *data)
 {
 	char c;
 
-	os_read_file(sigio_irq_fd, &c, sizeof(c));
+	os_read_file_k(sigio_irq_fd, &c, sizeof(c));
 	reactivate_fd(sigio_irq_fd, SIGIO_WRITE_IRQ);
 	return IRQ_HANDLED;
 }

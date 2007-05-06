@@ -57,14 +57,15 @@ void switch_to_tt(void *prev, void *next)
 	 * nor the value in "to" (since it was the task which stole us the CPU,
 	 * which we don't care about). */
 
-	err = os_write_file(to->thread.mode.tt.switch_pipe[1], &c, sizeof(c));
+	err = os_write_file_k(to->thread.mode.tt.switch_pipe[1], &c, sizeof(c));
 	if(err != sizeof(c))
 		panic("write of switch_pipe failed, err = %d", -err);
 
 	if(from->thread.mode.tt.switch_pipe[0] == -1)
 		os_kill_process(os_getpid(), 0);
 
-	err = os_read_file(from->thread.mode.tt.switch_pipe[0], &c, sizeof(c));
+	err = os_read_file_k(from->thread.mode.tt.switch_pipe[0], &c,
+			     sizeof(c));
 	if(err != sizeof(c))
 		panic("read of switch_pipe failed, errno = %d", -err);
 
@@ -113,7 +114,7 @@ void suspend_new_thread(int fd)
 	char c;
 
 	os_stop_process(os_getpid());
-	err = os_read_file(fd, &c, sizeof(c));
+	err = os_read_file_k(fd, &c, sizeof(c));
 	if(err != sizeof(c))
 		panic("read failed in suspend_new_thread, err = %d", -err);
 }

@@ -47,7 +47,7 @@ struct task_struct *idle_threads[NR_CPUS];
 
 void smp_send_reschedule(int cpu)
 {
-	os_write_file(cpu_data[cpu].ipi_pipe[1], "R", 1);
+	os_write_file_k(cpu_data[cpu].ipi_pipe[1], "R", 1);
 	num_reschedules_sent++;
 }
 
@@ -59,7 +59,7 @@ void smp_send_stop(void)
 	for(i = 0; i < num_online_cpus(); i++){
 		if(i == current_thread->cpu)
 			continue;
-		os_write_file(cpu_data[i].ipi_pipe[1], "S", 1);
+		os_write_file_k(cpu_data[i].ipi_pipe[1], "S", 1);
 	}
 	printk("done\n");
 }
@@ -108,8 +108,8 @@ static struct task_struct *idle_thread(int cpu)
 		          { .pid = 	new_task->thread.mode.tt.extern_pid,
 			    .task = 	new_task } );
 	idle_threads[cpu] = new_task;
-	CHOOSE_MODE(os_write_file(new_task->thread.mode.tt.switch_pipe[1], &c,
-			  sizeof(c)),
+	CHOOSE_MODE(os_write_file_k(new_task->thread.mode.tt.switch_pipe[1], &c,
+				    sizeof(c)),
 		    ({ panic("skas mode doesn't support SMP"); }));
 	return(new_task);
 }
@@ -179,7 +179,7 @@ void IPI_handler(int cpu)
 	int fd;
 
 	fd = cpu_data[cpu].ipi_pipe[0];
-	while (os_read_file(fd, &c, 1) == 1) {
+	while (os_read_file_k(fd, &c, 1) == 1) {
 		switch (c) {
 		case 'C':
 			smp_call_function_slave(cpu);
@@ -239,7 +239,7 @@ int smp_call_function(void (*_func)(void *info), void *_info, int nonatomic,
 	info = _info;
 
 	for_each_online_cpu(i)
-		os_write_file(cpu_data[i].ipi_pipe[1], "C", 1);
+		os_write_file_k(cpu_data[i].ipi_pipe[1], "C", 1);
 
 	while (atomic_read(&scf_started) != cpus)
 		barrier();

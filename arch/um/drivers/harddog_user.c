@@ -79,7 +79,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 		goto out_close_out;
 	}
 
-	n = os_read_file(in_fds[0], &c, sizeof(c));
+	n = os_read_file_k(in_fds[0], &c, sizeof(c));
 	if(n == 0){
 		printk("harddog_open - EOF on watchdog pipe\n");
 		helper_wait(pid);
@@ -118,7 +118,7 @@ int ping_watchdog(int fd)
 	int n;
 	char c = '\n';
 
-	n = os_write_file(fd, &c, sizeof(c));
+	n = os_write_file_k(fd, &c, sizeof(c));
 	if(n != sizeof(c)){
 		printk("ping_watchdog - write failed, err = %d\n", -n);
 		if(n < 0)

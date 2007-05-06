@@ -334,10 +334,28 @@ int os_read_file(int fd, void *buf, int len)
 		       copy_from_user_proc);
 }
 
+int os_read_file_k(int fd, void *buf, int len)
+{
+	int n = read(fd, buf, len);
+
+	if(n < 0)
+		return -errno;
+	return n;
+}
+
 int os_write_file(int fd, const void *buf, int len)
 {
 	return file_io(fd, (void *) buf, len,
 		       (int (*)(int, void *, int)) write, copy_to_user_proc);
+}
+
+int os_write_file_k(int fd, const void *buf, int len)
+{
+	int n = write(fd, (void *) buf, len);
+
+	if(n < 0)
+		return -errno;
+	return n;
 }
 
 int os_file_size(char *file, unsigned long long *size_out)

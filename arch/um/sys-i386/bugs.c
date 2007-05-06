@@ -67,7 +67,7 @@ static int find_cpuinfo_line(int fd, char *key, char *scratch, int len)
 			return 1;
 
 		do {
-			n = os_read_file(fd, &c, sizeof(c));
+			n = os_read_file_k(fd, &c, sizeof(c));
 			if(n != sizeof(c)){
 				printk("Failed to find newline in "
 				       "/proc/cpuinfo, err = %d\n", -n);

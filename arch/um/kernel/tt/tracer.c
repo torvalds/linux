@@ -44,7 +44,7 @@ static void tracer_winch_handler(int sig)
 	int n;
 	char c = 1;
 
-	n = os_write_file(tracer_winch[1], &c, sizeof(c));
+	n = os_write_file_k(tracer_winch[1], &c, sizeof(c));
 	if(n != sizeof(c))
 		printk("tracer_winch_handler - write failed, err = %d\n", -n);
 }

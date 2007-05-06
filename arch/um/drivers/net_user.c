@@ -63,7 +63,7 @@ void read_output(int fd, char *output, int len)
 	}
 		
 	*output = '\0';
-	ret = os_read_file(fd, &remain, sizeof(remain));
+	ret = os_read_file_k(fd, &remain, sizeof(remain));
 
 	if (ret != sizeof(remain)) {
 		expected = sizeof(remain);

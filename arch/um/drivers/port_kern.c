@@ -113,7 +113,7 @@ static int port_accept(struct port_list *port)
 	}
 
 	if(atomic_read(&port->wait_count) == 0){
-		os_write_file(fd, NO_WAITER_MSG, sizeof(NO_WAITER_MSG));
+		os_write_file_k(fd, NO_WAITER_MSG, sizeof(NO_WAITER_MSG));
 		printk("No one waiting for port\n");
 	}
 	list_add(&conn->list, &port->pending);

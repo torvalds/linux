@@ -85,7 +85,7 @@ static int winch_thread(void *arg)
 
 	pty_fd = data->pty_fd;
 	pipe_fd = data->pipe_fd;
-	count = os_write_file(pipe_fd, &c, sizeof(c));
+	count = os_write_file_k(pipe_fd, &c, sizeof(c));
 	if(count != sizeof(c))
 		printk("winch_thread : failed to write synchronization "
 		       "byte, err = %d\n", -count);
@@ -120,7 +120,7 @@ static int winch_thread(void *arg)
 	 * host - since they are not different kernel threads, we cannot use
 	 * kernel semaphores. We don't use SysV semaphores because they are
 	 * persistent. */
-	count = os_read_file(pipe_fd, &c, sizeof(c));
+	count = os_read_file_k(pipe_fd, &c, sizeof(c));
 	if(count != sizeof(c))
 		printk("winch_thread : failed to read synchronization byte, "
 		       "err = %d\n", -count);
@@ -130,7 +130,7 @@ static int winch_thread(void *arg)
 		 * are blocked.*/
 		sigsuspend(&sigs);
 
-		count = os_write_file(pipe_fd, &c, sizeof(c));
+		count = os_write_file_k(pipe_fd, &c, sizeof(c));
 		if(count != sizeof(c))
 			printk("winch_thread : write failed, err = %d\n",
 			       -count);
@@ -162,7 +162,7 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 	}
 
 	*fd_out = fds[0];
-	n = os_read_file(fds[0], &c, sizeof(c));
+	n = os_read_file_k(fds[0], &c, sizeof(c));
 	if(n != sizeof(c)){
 		printk("winch_tramp : failed to read synchronization byte\n");
 		printk("read failed, err = %d\n", -n);
@@ -195,7 +195,7 @@ void register_winch(int fd, struct tty_struct *tty)
 		if(thread > 0){
 			register_winch_irq(thread_fd, fd, thread, tty);
 
-			count = os_write_file(thread_fd, &c, sizeof(c));
+			count = os_write_file_k(thread_fd, &c, sizeof(c));
 			if(count != sizeof(c))
 				printk("register_winch : failed to write "
 				       "synchronization byte, err = %d\n",
