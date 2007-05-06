@@ -937,8 +937,7 @@ static void ocfs2_inode_init_once(void *data,
 {
 	struct ocfs2_inode_info *oi = data;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		oi->ip_flags = 0;
 		oi->ip_open_count = 0;
 		spin_lock_init(&oi->ip_lock);

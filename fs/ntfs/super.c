@@ -3085,8 +3085,7 @@ static void ntfs_big_inode_init_once(void *foo, struct kmem_cache *cachep,
 {
 	ntfs_inode *ni = (ntfs_inode *)foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-			SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		inode_init_once(VFS_I(ni));
 }
 

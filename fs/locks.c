@@ -203,8 +203,7 @@ static void init_once(void *foo, struct kmem_cache *cache, unsigned long flags)
 {
 	struct file_lock *lock = (struct file_lock *) foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) !=
-					SLAB_CTOR_CONSTRUCTOR)
+	if (!(flags & SLAB_CTOR_CONSTRUCTOR))
 		return;
 
 	locks_init_lock(lock);

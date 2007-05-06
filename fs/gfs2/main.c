@@ -27,8 +27,7 @@
 static void gfs2_init_inode_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct gfs2_inode *ip = foo;
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		inode_init_once(&ip->i_inode);
 		spin_lock_init(&ip->i_spin);
 		init_rwsem(&ip->i_rw_mutex);
@@ -39,8 +38,7 @@ static void gfs2_init_inode_once(void *foo, struct kmem_cache *cachep, unsigned 
 static void gfs2_init_glock_once(void *foo, struct kmem_cache *cachep, unsigned long flags)
 {
 	struct gfs2_glock *gl = foo;
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		INIT_HLIST_NODE(&gl->gl_list);
 		spin_lock_init(&gl->gl_spin);
 		INIT_LIST_HEAD(&gl->gl_holders);

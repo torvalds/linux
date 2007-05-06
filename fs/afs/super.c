@@ -453,8 +453,7 @@ static void afs_i_init_once(void *_vnode, struct kmem_cache *cachep,
 {
 	struct afs_vnode *vnode = _vnode;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		memset(vnode, 0, sizeof(*vnode));
 		inode_init_once(&vnode->vfs_inode);
 		init_waitqueue_head(&vnode->update_waitq);

@@ -828,8 +828,7 @@ init_once(void * foo, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct rpc_inode *rpci = (struct rpc_inode *) foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		inode_init_once(&rpci->vfs_inode);
 		rpci->private = NULL;
 		rpci->nreaders = 0;

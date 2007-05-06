@@ -2953,8 +2953,7 @@ EXPORT_SYMBOL(free_buffer_head);
 static void
 init_buffer_head(void *data, struct kmem_cache *cachep, unsigned long flags)
 {
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-			    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		struct buffer_head * bh = (struct buffer_head *)data;
 
 		memset(bh, 0, sizeof(*bh));

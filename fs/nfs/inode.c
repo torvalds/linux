@@ -1167,8 +1167,7 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 {
 	struct nfs_inode *nfsi = (struct nfs_inode *) foo;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		inode_init_once(&nfsi->vfs_inode);
 		spin_lock_init(&nfsi->req_lock);
 		INIT_LIST_HEAD(&nfsi->dirty);

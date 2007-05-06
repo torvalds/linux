@@ -701,8 +701,7 @@ cifs_init_once(void *inode, struct kmem_cache * cachep, unsigned long flags)
 {
 	struct cifsInodeInfo *cifsi = inode;
 
-	if ((flags & (SLAB_CTOR_VERIFY | SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		inode_init_once(&cifsi->vfs_inode);
 		INIT_LIST_HEAD(&cifsi->lockList);
 	}

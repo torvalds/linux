@@ -457,9 +457,7 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 	struct bdev_inode *ei = (struct bdev_inode *) foo;
 	struct block_device *bdev = &ei->bdev;
 
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
-	{
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		memset(bdev, 0, sizeof(*bdev));
 		mutex_init(&bdev->bd_mutex);
 		sema_init(&bdev->bd_mount_sem, 1);

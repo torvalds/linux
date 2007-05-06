@@ -162,8 +162,7 @@ void anon_vma_unlink(struct vm_area_struct *vma)
 static void anon_vma_ctor(void *data, struct kmem_cache *cachep,
 			  unsigned long flags)
 {
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-						SLAB_CTOR_CONSTRUCTOR) {
+	if (flags & SLAB_CTOR_CONSTRUCTOR) {
 		struct anon_vma *anon_vma = data;
 
 		spin_lock_init(&anon_vma->lock);

@@ -21,7 +21,6 @@ typedef struct kmem_cache kmem_cache_t __deprecated;
  * The ones marked DEBUG are only valid if CONFIG_SLAB_DEBUG is set.
  */
 #define SLAB_DEBUG_FREE		0x00000100UL	/* DEBUG: Perform (expensive) checks on free */
-#define SLAB_DEBUG_INITIAL	0x00000200UL	/* DEBUG: Call constructor (as verifier) */
 #define SLAB_RED_ZONE		0x00000400UL	/* DEBUG: Red zone objs in a cache */
 #define SLAB_POISON		0x00000800UL	/* DEBUG: Poison objects */
 #define SLAB_HWCACHE_ALIGN	0x00002000UL	/* Align objs on cache lines */
@@ -36,7 +35,6 @@ typedef struct kmem_cache kmem_cache_t __deprecated;
 /* Flags passed to a constructor functions */
 #define SLAB_CTOR_CONSTRUCTOR	0x001UL		/* If not set, then deconstructor */
 #define SLAB_CTOR_ATOMIC	0x002UL		/* Tell constructor it can't sleep */
-#define SLAB_CTOR_VERIFY	0x004UL		/* Tell constructor it's a verify call */
 
 /*
  * struct kmem_cache related prototypes

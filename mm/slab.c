@@ -116,8 +116,7 @@
 #include	<asm/page.h>
 
 /*
- * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_DEBUG_INITIAL,
- *		  SLAB_RED_ZONE & SLAB_POISON.
+ * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_RED_ZONE & SLAB_POISON.
  *		  0 for faster, smaller code (especially in the critical paths).
  *
  * STATS	- 1 to collect stats for /proc/slabinfo.
@@ -172,7 +171,7 @@
 
 /* Legal flag mask for kmem_cache_create(). */
 #if DEBUG
-# define CREATE_MASK	(SLAB_DEBUG_INITIAL | SLAB_RED_ZONE | \
+# define CREATE_MASK	(SLAB_RED_ZONE | \
 			 SLAB_POISON | SLAB_HWCACHE_ALIGN | \
 			 SLAB_CACHE_DMA | \
 			 SLAB_STORE_USER | \
@@ -2184,12 +2183,6 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 
 #if DEBUG
 	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
-	if ((flags & SLAB_DEBUG_INITIAL) && !ctor) {
-		/* No constructor, but inital state check requested */
-		printk(KERN_ERR "%s: No con, but init state check "
-		       "requested - %s\n", __FUNCTION__, name);
-		flags &= ~SLAB_DEBUG_INITIAL;
-	}
 #if FORCED_DEBUG
 	/*
 	 * Enable redzoning and last user accounting, except for caches with
@@ -2895,15 +2888,6 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 	BUG_ON(objnr >= cachep->num);
 	BUG_ON(objp != index_to_obj(cachep, slabp, objnr));
 
-	if (cachep->flags & SLAB_DEBUG_INITIAL) {
-		/*
-		 * Need to call the slab's constructor so the caller can
-		 * perform a verify of its state (debugging).  Called without
-		 * the cache-lock held.
-		 */
-		cachep->ctor(objp + obj_offset(cachep),
-			     cachep, SLAB_CTOR_CONSTRUCTOR | SLAB_CTOR_VERIFY);
-	}
 	if (cachep->flags & SLAB_POISON && cachep->dtor) {
 		/* we want to cache poison the object,
 		 * call the destruction callback

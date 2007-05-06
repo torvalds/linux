@@ -1425,8 +1425,7 @@ static void sighand_ctor(void *data, struct kmem_cache *cachep, unsigned long fl
 {
 	struct sighand_struct *sighand = data;
 
-	if ((flags & (SLAB_CTOR_VERIFY | SLAB_CTOR_CONSTRUCTOR)) ==
-					SLAB_CTOR_CONSTRUCTOR)
+	if (flags & SLAB_CTOR_CONSTRUCTOR)
 		spin_lock_init(&sighand->siglock);
 }
 

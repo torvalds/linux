@@ -97,9 +97,6 @@
  *
  * - Support PAGE_ALLOC_DEBUG. Should be easy to do.
  *
- * - SLAB_DEBUG_INITIAL is not supported but I have never seen a use of
- *   it.
- *
  * - Variable sizing of the per node arrays
  */
 
@@ -124,11 +121,6 @@
 #define DEFAULT_MIN_OBJECTS 8
 
 #endif
-
-/*
- * Flags from the regular SLAB that SLUB does not support:
- */
-#define SLUB_UNIMPLEMENTED (SLAB_DEBUG_INITIAL)
 
 /*
  * Mininum number of partial slabs. These will be left on the partial
@@ -1747,8 +1739,6 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 	s->objsize = size;
 	s->flags = flags;
 	s->align = align;
-
-	BUG_ON(flags & SLUB_UNIMPLEMENTED);
 
 	/*
 	 * The page->offset field is only 16 bit wide. This is an offset
