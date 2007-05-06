@@ -350,7 +350,34 @@ static const char * const pm_disk_modes[] = {
 
 static ssize_t disk_show(struct kset *kset, char *buf)
 {
-	return sprintf(buf, "%s\n", pm_disk_modes[pm_disk_mode]);
+	int i;
+	char *start = buf;
+
+	for (i = PM_DISK_PLATFORM; i < PM_DISK_MAX; i++) {
+		if (!pm_disk_modes[i])
+			continue;
+		switch (i) {
+		case PM_DISK_SHUTDOWN:
+		case PM_DISK_REBOOT:
+		case PM_DISK_TEST:
+		case PM_DISK_TESTPROC:
+			break;
+		default:
+			if (pm_ops && pm_ops->enter &&
+			    (i == pm_ops->pm_disk_mode))
+				break;
+			/* not a valid mode, continue with loop */
+			continue;
+		}
+		if (i == pm_disk_mode)
+			buf += sprintf(buf, "[%s]", pm_disk_modes[i]);
+		else
+			buf += sprintf(buf, "%s", pm_disk_modes[i]);
+		if (i+1 != PM_DISK_MAX)
+			buf += sprintf(buf, " ");
+	}
+	buf += sprintf(buf, "\n");
+	return buf-start;
 }
 
 
