@@ -119,3 +119,9 @@ int setjmp_wrapper(void (*proc)(void *, void *), ...)
 	va_end(args);
 	return n;
 }
+
+void os_dump_core(void)
+{
+	signal(SIGSEGV, SIG_DFL);
+	abort();
+}

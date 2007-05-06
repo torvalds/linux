@@ -279,6 +279,7 @@ extern int raw(int fd);
 extern void setup_machinename(char *machine_out);
 extern void setup_hostinfo(char *buf, int len);
 extern int setjmp_wrapper(void (*proc)(void *, void *), ...);
+extern void os_dump_core(void);
 
 /* time.c */
 #define BILLION (1000 * 1000 * 1000)
