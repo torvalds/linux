@@ -1979,7 +1979,7 @@ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
 {
 	int index = kmalloc_index(size);
 
-	if (!size)
+	if (!index)
 		return NULL;
 
 	/* Allocation too large? */

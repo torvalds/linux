@@ -80,8 +80,12 @@ extern struct kmem_cache kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
  */
 static inline int kmalloc_index(int size)
 {
-	if (size == 0)
-		return 0;
+	/*
+	 * We should return 0 if size == 0 but we use the smallest object
+	 * here for SLAB legacy reasons.
+	 */
+	WARN_ON_ONCE(size == 0);
+
 	if (size > 64 && size <= 96)
 		return 1;
 	if (size > 128 && size <= 192)
