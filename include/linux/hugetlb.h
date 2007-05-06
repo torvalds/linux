@@ -189,4 +189,10 @@ static inline void set_file_hugepages(struct file *file)
 
 #endif /* !CONFIG_HUGETLBFS */
 
+#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+					unsigned long len, unsigned long pgoff,
+					unsigned long flags);
+#endif /* HAVE_ARCH_HUGETLB_UNMAPPED_AREA */
+
 #endif /* _LINUX_HUGETLB_H */
