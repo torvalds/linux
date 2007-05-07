@@ -23,9 +23,6 @@ obj-$(CONFIG_USB_PRINTER)	+= class/
 obj-$(CONFIG_USB_STORAGE)	+= storage/
 obj-$(CONFIG_USB)		+= storage/
 
-obj-$(CONFIG_USB_ATI_REMOTE)	+= input/
-obj-$(CONFIG_USB_POWERMATE)	+= input/
-
 obj-$(CONFIG_USB_CATC)		+= net/
 obj-$(CONFIG_USB_KAWETH)	+= net/
 obj-$(CONFIG_USB_PEGASUS)	+= net/

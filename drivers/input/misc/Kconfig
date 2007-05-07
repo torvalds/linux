@@ -40,6 +40,18 @@ config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
 
+config INPUT_IXP4XX_BEEPER
+	tristate "IXP4XX Beeper support"
+	depends on ARCH_IXP4XX
+	help
+	  If you say yes here, you can connect a beeper to the
+	  ixp4xx gpio pins. This is used by the LinkSys NSLU2.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ixp4xx-beeper.
+
 config INPUT_COBALT_BTNS
 	tristate "Cobalt button interface"
 	depends on MIPS_COBALT
@@ -70,17 +82,79 @@ config INPUT_ATLAS_BTNS
 	  To compile this driver as a module, choose M here: the module will
 	  be called atlas_btns.
 
-config INPUT_IXP4XX_BEEPER
-	tristate "IXP4XX Beeper support"
-	depends on ARCH_IXP4XX
+config INPUT_ATI_REMOTE
+	tristate "ATI / X10 USB RF remote control"
+	select USB
 	help
-	  If you say yes here, you can connect a beeper to the
-	  ixp4xx gpio pins. This is used by the LinkSys NSLU2.
+	  Say Y here if you want to use an ATI or X10 "Lola" USB remote control.
+	  These are RF remotes with USB receivers.
+	  The ATI remote comes with many of ATI's All-In-Wonder video cards.
+	  The X10 "Lola" remote is available at:
+	     <http://www.x10.com/products/lola_sg1.htm>
+	  This driver provides mouse pointer, left and right mouse buttons,
+	  and maps all the other remote buttons to keypress events.
 
-	  If unsure, say Y.
+	  To compile this driver as a module, choose M here: the module will be
+	  called ati_remote.
+
+config INPUT_ATI_REMOTE2
+	tristate "ATI / Philips USB RF remote control"
+	select USB
+	help
+	  Say Y here if you want to use an ATI or Philips USB RF remote control.
+	  These are RF remotes with USB receivers.
+	  ATI Remote Wonder II comes with some ATI's All-In-Wonder video cards
+	  and is also available as a separate product.
+	  This driver provides mouse pointer, left and right mouse buttons,
+	  and maps all the other remote buttons to keypress events.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ati_remote2.
+
+config INPUT_KEYSPAN_REMOTE
+	tristate "Keyspan DMR USB remote control (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	select USB
+	help
+	  Say Y here if you want to use a Keyspan DMR USB remote control.
+	  Currently only the UIA-11 type of receiver has been tested.  The tag
+	  on the receiver that connects to the USB port should have a P/N that
+	  will tell you what type of DMR you have.  The UIA-10 type is not
+	  supported at this time.  This driver maps all buttons to keypress
+	  events.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called keyspan_remote.
+
+config INPUT_POWERMATE
+	tristate "Griffin PowerMate and Contour Jog support"
+	select USB
+	help
+	  Say Y here if you want to use Griffin PowerMate or Contour Jog devices.
+	  These are aluminum dials which can measure clockwise and anticlockwise
+	  rotation.  The dial also acts as a pushbutton.  The base contains an LED
+	  which can be instructed to pulse or to switch to a particular intensity.
+
+	  You can download userspace tools from
+	  <http://sowerbutts.com/powermate/>.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ixp4xx-beeper.
+	  module will be called powermate.
+
+config INPUT_YEALINK
+	tristate "Yealink usb-p1k voip phone"
+	depends EXPERIMENTAL
+	select USB
+	help
+	  Say Y here if you want to enable keyboard and LCD functions of the
+	  Yealink usb-p1k usb phones. The audio part is enabled by the generic
+	  usb sound driver, so you might want to enable that as well.
+
+	  For information about how to use these additional functions, see
+	  <file:Documentation/input/yealink.txt>.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called yealink.
 
 config INPUT_UINPUT
 	tristate "User level driver support"

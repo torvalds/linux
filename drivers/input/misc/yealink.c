@@ -29,7 +29,7 @@
  * This driver is based on:
  *   - the usbb2k-api	http://savannah.nongnu.org/projects/usbb2k-api/
  *   - information from	http://memeteau.free.fr/usbb2k
- *   - the xpad-driver	drivers/usb/input/xpad.c
+ *   - the xpad-driver	drivers/input/joystick/xpad.c
  *
  * Thanks to:
  *   - Olivier Vandorpe, for providing the usbb2k-api.
