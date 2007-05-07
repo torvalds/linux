@@ -1355,7 +1355,9 @@ static const char myri10ge_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx_req", "tx_done", "rx_small_cnt", "rx_big_cnt",
 	"wake_queue", "stop_queue", "watchdog_resets", "tx_linearized",
 	"link_changes", "link_up", "dropped_link_overflow",
-	"dropped_link_error_or_filtered", "dropped_multicast_filtered",
+	"dropped_link_error_or_filtered",
+	"dropped_pause", "dropped_bad_phy", "dropped_bad_crc32",
+	"dropped_unicast_filtered", "dropped_multicast_filtered",
 	"dropped_runt", "dropped_overrun", "dropped_no_small_buffer",
 	"dropped_no_big_buffer"
 };
@@ -1412,6 +1414,11 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_link_overflow);
 	data[i++] =
 	    (unsigned int)ntohl(mgp->fw_stats->dropped_link_error_or_filtered);
+	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_pause);
+	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_bad_phy);
+	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_bad_crc32);
+	data[i++] =
+	    (unsigned int)ntohl(mgp->fw_stats->dropped_unicast_filtered);
 	data[i++] =
 	    (unsigned int)ntohl(mgp->fw_stats->dropped_multicast_filtered);
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_runt);

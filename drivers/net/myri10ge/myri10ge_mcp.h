@@ -219,7 +219,11 @@ enum myri10ge_mcp_cmd_status {
 
 struct mcp_irq_data {
 	/* add new counters at the beginning */
-	__be32 future_use[5];
+	__be32 future_use[1];
+	__be32 dropped_pause;
+	__be32 dropped_unicast_filtered;
+	__be32 dropped_bad_crc32;
+	__be32 dropped_bad_phy;
 	__be32 dropped_multicast_filtered;
 	/* 40 Bytes */
 	__be32 send_done_count;
