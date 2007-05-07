@@ -3019,6 +3019,16 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 		}
 	}
 
+	if (tp->tg3_flags & TG3_FLAG_ASPM_WORKAROUND) {
+		u32 val = tr32(PCIE_PWR_MGMT_THRESH);
+		if (!netif_carrier_ok(tp->dev))
+			val = (val & ~PCIE_PWR_MGMT_L1_THRESH_MSK) |
+			      tp->pwrmgmt_thresh;
+		else
+			val |= PCIE_PWR_MGMT_L1_THRESH_MSK;
+		tw32(PCIE_PWR_MGMT_THRESH, val);
+	}
+
 	return err;
 }
 
@@ -10004,6 +10014,8 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 			tp->tg3_flags &= ~TG3_FLAG_EEPROM_WRITE_PROT;
 			tp->tg3_flags2 |= TG3_FLG2_IS_NIC;
 		}
+		if (tr32(VCPU_CFGSHDW) & VCPU_CFGSHDW_ASPM_DBNC)
+			tp->tg3_flags |= TG3_FLAG_ASPM_WORKAROUND;
 		return;
 	}
 
@@ -10131,6 +10143,14 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		/* bootcode if bit 18 is set */
 		if (cfg2 & (1 << 18))
 			tp->tg3_flags2 |= TG3_FLG2_SERDES_PREEMPHASIS;
+
+		if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) {
+			u32 cfg3;
+
+			tg3_read_mem(tp, NIC_SRAM_DATA_CFG_3, &cfg3);
+			if (cfg3 & NIC_SRAM_ASPM_DEBOUNCE)
+				tp->tg3_flags |= TG3_FLAG_ASPM_WORKAROUND;
+		}
 	}
 }
 
@@ -10997,6 +11017,10 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 * using ETHTOOL_SWOL.
 	 */
 	tp->tg3_flags &= ~TG3_FLAG_WOL_ENABLE;
+
+	if (tp->tg3_flags & TG3_FLAG_ASPM_WORKAROUND)
+		tp->pwrmgmt_thresh = tr32(PCIE_PWR_MGMT_THRESH) &
+				     PCIE_PWR_MGMT_L1_THRESH_MSK;
 
 	return err;
 }
