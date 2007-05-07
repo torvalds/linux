@@ -68,7 +68,6 @@
 #define TSI108_PB_ERRCS_ES		(1 << 1)
 #define TSI108_PB_ISR_PBS_RD_ERR	(1 << 8)
 
-#define TSI108_PCI_CFG_BASE_PHYS	(0xfb000000)
 #define TSI108_PCI_CFG_SIZE		(0x01000000)
 
 /*

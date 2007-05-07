@@ -52,6 +52,8 @@
 #define DBG(fmt...) do { } while(0)
 #endif
 
+#define MPC7448HPC2_PCI_CFG_PHYS 0xfb000000
+
 #ifndef CONFIG_PCI
 isa_io_base = MPC7448_HPC2_ISA_IO_BASE;
 isa_mem_base = MPC7448_HPC2_ISA_MEM_BASE;
@@ -79,7 +81,7 @@ static void __init mpc7448_hpc2_setup_arch(void)
 	/* setup PCI host bridge */
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		tsi108_setup_pci(np);
+		tsi108_setup_pci(np, MPC7448HPC2_PCI_CFG_PHYS, 0);
 
 	ppc_md.pci_exclude_device = mpc7448_hpc2_exclude_device;
 	if (ppc_md.progress)
