@@ -75,21 +75,26 @@ __initcall(sh7785_devices_setup);
 static struct intc2_data intc2_irq_table[] = {
 	{ 28, 0, 24, 0, 0, 2 },		/* TMU0 */
 
-	{ 40, 8, 24, 0, 3, 3 },		/* SCIF0 ERI */
-	{ 41, 8, 24, 0, 3, 3 },		/* SCIF0 RXI */
-	{ 42, 8, 24, 0, 3, 3 },		/* SCIF0 BRI */
-	{ 43, 8, 24, 0, 3, 3 },		/* SCIF0 TXI */
+	{ 40, 8, 24, 0, 2, 3 },		/* SCIF0 ERI */
+	{ 41, 8, 24, 0, 2, 3 },		/* SCIF0 RXI */
+	{ 42, 8, 24, 0, 2, 3 },		/* SCIF0 BRI */
+	{ 43, 8, 24, 0, 2, 3 },		/* SCIF0 TXI */
 
-	{ 76, 8, 16, 0, 4, 3 },		/* SCIF1 ERI */
-	{ 77, 8, 16, 0, 4, 3 },		/* SCIF1 RXI */
-	{ 78, 8, 16, 0, 4, 3 },		/* SCIF1 BRI */
-	{ 79, 8, 16, 0, 4, 3 },		/* SCIF1 TXI */
+	{ 44, 8, 16, 0, 3, 3 },		/* SCIF1 ERI */
+	{ 45, 8, 16, 0, 3, 3 },		/* SCIF1 RXI */
+	{ 46, 8, 16, 0, 3, 3 },		/* SCIF1 BRI */
+	{ 47, 8, 16, 0, 3, 3 },		/* SCIF1 TXI */
 
 	{ 64, 0x14,  8, 0, 14, 2 },	/* PCIC0 */
 	{ 65, 0x14,  0, 0, 15, 2 },	/* PCIC1 */
 	{ 66, 0x18, 24, 0, 16, 2 },	/* PCIC2 */
 	{ 67, 0x18, 16, 0, 17, 2 },	/* PCIC3 */
 	{ 68, 0x18,  8, 0, 18, 2 },	/* PCIC4 */
+
+	{ 60,  8,  8, 0, 4, 3 },	/* SCIF2 ERI, RXI, BRI, TXI */
+	{ 60,  8,  0, 0, 5, 3 },	/* SCIF3 ERI, RXI, BRI, TXI */
+	{ 60, 12, 24, 0, 6, 3 },	/* SCIF4 ERI, RXI, BRI, TXI */
+	{ 60, 12, 16, 0, 7, 3 },	/* SCIF5 ERI, RXI, BRI, TXI */
 };
 
 void __init init_IRQ_intc2(void)

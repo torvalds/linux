@@ -83,6 +83,8 @@
 #define IRQ_ONETH       13              /* On board Ethernet IRQ */
 #define IRQ_PSW         14              /* Push Switch IRQ */
 
+#define IVDR_CK_ON	8		/* iVDR Clock ON */
+
 #elif defined(CONFIG_SH_R7780RP)
 #define PA_POFF		(-1)
 
@@ -152,6 +154,8 @@
 #define IRQ_PSW		13		/* Push Switch IRQ */
 #define IRQ_ZIGBEE	14		/* Ziggbee IO IRQ */
 
+#define IVDR_CK_ON	8		/* iVDR Clock ON */
+
 #elif defined(CONFIG_SH_R7785RP)
 #define PA_BCR		0xa4000000	/* FPGA */
 #define PA_SDPOW	(-1)
@@ -197,6 +201,9 @@
 #define PA_CU3MDR	(PA_BCR+0x0300)
 #define PA_CU5MDR	(PA_BCR+0x0302)
 #define PA_MMSR		(PA_BCR+0x0400)
+
+#define IVDR_CK_ON	4		/* iVDR Clock ON */
+
 #endif
 
 void make_r7780rp_irq(unsigned int irq);

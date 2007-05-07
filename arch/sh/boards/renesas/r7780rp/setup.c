@@ -97,12 +97,12 @@ device_initcall(r7780rp_devices_setup);
  */
 static void ivdr_clk_enable(struct clk *clk)
 {
-	ctrl_outw(ctrl_inw(PA_IVDRCTL) | (1 << 8), PA_IVDRCTL);
+	ctrl_outw(ctrl_inw(PA_IVDRCTL) | (1 << IVDR_CK_ON), PA_IVDRCTL);
 }
 
 static void ivdr_clk_disable(struct clk *clk)
 {
-	ctrl_outw(ctrl_inw(PA_IVDRCTL) & ~(1 << 8), PA_IVDRCTL);
+	ctrl_outw(ctrl_inw(PA_IVDRCTL) & ~(1 << IVDR_CK_ON), PA_IVDRCTL);
 }
 
 static struct clk_ops ivdr_clk_ops = {

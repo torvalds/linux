@@ -25,22 +25,12 @@ static char r7780mp_irq_tab[] __initdata = {
 	65, 66, 67, 68,
 };
 
-static char r7785rp_irq_tab[][4] __initdata = {
-	{ 65, 66, 67, 68 },	/* INT ABCD */
-	{ 66, 67, 68, 65 },	/* INT BCDA */
-	{ 67, 68, 65, 66 },	/* INT CDAB */
-	{ 68, 65, 66, 67 },	/* INT DABC */
-	{ 64, 64, 64, 64 },	/* PCI Host */
-};
-
 int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
 	if (mach_is_r7780rp())
 		return r7780rp_irq_tab[slot];
-	if (mach_is_r7780mp())
+	if (mach_is_r7780mp() || mach_is_r7785rp())
 		return r7780mp_irq_tab[slot];
-	if (mach_is_r7785rp())
-		return r7785rp_irq_tab[slot][pin];
 
 	printk(KERN_ERR "PCI: Bad IRQ mapping "
 	       "request for slot %d, func %d\n", slot, pin-1);
