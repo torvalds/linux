@@ -1537,7 +1537,8 @@ static struct class_device_attribute *srp_host_attrs[] = {
 
 static struct scsi_host_template srp_template = {
 	.module				= THIS_MODULE,
-	.name				= DRV_NAME,
+	.name				= "InfiniBand SRP initiator",
+	.proc_name			= DRV_NAME,
 	.info				= srp_target_info,
 	.queuecommand			= srp_queuecommand,
 	.eh_abort_handler		= srp_abort,
