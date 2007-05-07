@@ -72,7 +72,7 @@ static struct drm_proc_list {
 #endif
 };
 
-#define DRM_PROC_ENTRIES (sizeof(drm_proc_list)/sizeof(drm_proc_list[0]))
+#define DRM_PROC_ENTRIES ARRAY_SIZE(drm_proc_list)
 
 /**
  * Initialize the DRI proc filesystem for a device.

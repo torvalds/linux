@@ -1560,8 +1560,8 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 		if (dev_priv->flags & RADEON_IS_AGP) {
 			base = dev->agp->base;
 			/* Check if valid */
-			if ((base + dev_priv->gart_size) > dev_priv->fb_location &&
-			    base < (dev_priv->fb_location + dev_priv->fb_size)) {
+			if ((base + dev_priv->gart_size - 1) >= dev_priv->fb_location &&
+			    base < (dev_priv->fb_location + dev_priv->fb_size - 1)) {
 				DRM_INFO("Can't use AGP base @0x%08lx, won't fit\n",
 					 dev->agp->base);
 				base = 0;
@@ -1571,8 +1571,8 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 		/* If not or if AGP is at 0 (Macs), try to put it elsewhere */
 		if (base == 0) {
 			base = dev_priv->fb_location + dev_priv->fb_size;
-			if (((base + dev_priv->gart_size) & 0xfffffffful)
-			    < base)
+			if (base < dev_priv->fb_location ||
+			    ((base + dev_priv->gart_size) & 0xfffffffful) < base)
 				base = dev_priv->fb_location
 					- dev_priv->gart_size;
 		}		
