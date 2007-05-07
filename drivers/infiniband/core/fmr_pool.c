@@ -43,6 +43,8 @@
 
 #include "core_priv.h"
 
+#define PFX "fmr_pool: "
+
 enum {
 	IB_FMR_MAX_REMAPS = 32,
 
@@ -150,7 +152,7 @@ static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 
 #ifdef DEBUG
 		if (fmr->ref_count !=0) {
-			printk(KERN_WARNING "Unmapping FMR 0x%08x with ref count %d",
+			printk(KERN_WARNING PFX "Unmapping FMR 0x%08x with ref count %d",
 			       fmr, fmr->ref_count);
 		}
 #endif
@@ -168,7 +170,7 @@ static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 
 	ret = ib_unmap_fmr(&fmr_list);
 	if (ret)
-		printk(KERN_WARNING "ib_unmap_fmr returned %d", ret);
+		printk(KERN_WARNING PFX "ib_unmap_fmr returned %d", ret);
 
 	spin_lock_irq(&pool->pool_lock);
 	list_splice(&unmap_list, &pool->free_list);
@@ -226,20 +228,20 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 	device = pd->device;
 	if (!device->alloc_fmr    || !device->dealloc_fmr  ||
 	    !device->map_phys_fmr || !device->unmap_fmr) {
-		printk(KERN_WARNING "Device %s does not support fast memory regions",
+		printk(KERN_INFO PFX "Device %s does not support FMRs\n",
 		       device->name);
 		return ERR_PTR(-ENOSYS);
 	}
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
 	if (!attr) {
-		printk(KERN_WARNING "couldn't allocate device attr struct");
+		printk(KERN_WARNING PFX "couldn't allocate device attr struct");
 		return ERR_PTR(-ENOMEM);
 	}
 
 	ret = ib_query_device(device, attr);
 	if (ret) {
-		printk(KERN_WARNING "couldn't query device");
+		printk(KERN_WARNING PFX "couldn't query device: %d", ret);
 		kfree(attr);
 		return ERR_PTR(ret);
 	}
@@ -253,7 +255,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 
 	pool = kmalloc(sizeof *pool, GFP_KERNEL);
 	if (!pool) {
-		printk(KERN_WARNING "couldn't allocate pool struct");
+		printk(KERN_WARNING PFX "couldn't allocate pool struct");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -270,7 +272,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 			kmalloc(IB_FMR_HASH_SIZE * sizeof *pool->cache_bucket,
 				GFP_KERNEL);
 		if (!pool->cache_bucket) {
-			printk(KERN_WARNING "Failed to allocate cache in pool");
+			printk(KERN_WARNING PFX "Failed to allocate cache in pool");
 			ret = -ENOMEM;
 			goto out_free_pool;
 		}
@@ -294,7 +296,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 				      "ib_fmr(%s)",
 				      device->name);
 	if (IS_ERR(pool->thread)) {
-		printk(KERN_WARNING "couldn't start cleanup thread");
+		printk(KERN_WARNING PFX "couldn't start cleanup thread");
 		ret = PTR_ERR(pool->thread);
 		goto out_free_pool;
 	}
@@ -311,8 +313,8 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 			fmr = kmalloc(sizeof *fmr + params->max_pages_per_fmr * sizeof (u64),
 				      GFP_KERNEL);
 			if (!fmr) {
-				printk(KERN_WARNING "failed to allocate fmr struct "
-				       "for FMR %d", i);
+				printk(KERN_WARNING PFX "failed to allocate fmr "
+				       "struct for FMR %d", i);
 				goto out_fail;
 			}
 
@@ -323,7 +325,8 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 
 			fmr->fmr = ib_alloc_fmr(pd, params->access, &fmr_attr);
 			if (IS_ERR(fmr->fmr)) {
-				printk(KERN_WARNING "fmr_create failed for FMR %d", i);
+				printk(KERN_WARNING PFX "fmr_create failed "
+				       "for FMR %d", i);
 				kfree(fmr);
 				goto out_fail;
 			}
@@ -378,7 +381,7 @@ void ib_destroy_fmr_pool(struct ib_fmr_pool *pool)
 	}
 
 	if (i < pool->pool_size)
-		printk(KERN_WARNING "pool still has %d regions registered",
+		printk(KERN_WARNING PFX "pool still has %d regions registered",
 		       pool->pool_size - i);
 
 	kfree(pool->cache_bucket);
@@ -463,8 +466,7 @@ struct ib_pool_fmr *ib_fmr_pool_map_phys(struct ib_fmr_pool *pool_handle,
 		list_add(&fmr->list, &pool->free_list);
 		spin_unlock_irqrestore(&pool->pool_lock, flags);
 
-		printk(KERN_WARNING "fmr_map returns %d\n",
-		       result);
+		printk(KERN_WARNING PFX "fmr_map returns %d\n", result);
 
 		return ERR_PTR(result);
 	}
@@ -516,7 +518,7 @@ int ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
 
 #ifdef DEBUG
 	if (fmr->ref_count < 0)
-		printk(KERN_WARNING "FMR %p has ref count %d < 0",
+		printk(KERN_WARNING PFX "FMR %p has ref count %d < 0",
 		       fmr, fmr->ref_count);
 #endif
 
