@@ -240,20 +240,16 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 
 	/* Find the earliest node which _may_ be relevant to this one */
 	this = jffs2_lookup_tn(&rii->tn_root, tn->fn->ofs);
-	if (!this) {
-		/* First addition to empty tree. $DEITY how I love the easy cases */
-		rb_link_node(&tn->rb, NULL, &rii->tn_root.rb_node);
-		rb_insert_color(&tn->rb, &rii->tn_root);
-		dbg_readinode("keep new frag\n");
-		return 0;
+	if (this) {
+		/* If the node is coincident with another at a lower address,
+		   back up until the other node is found. It may be relevant */
+		while (this->overlapped)
+			this = tn_prev(this);
+
+		/* First node should never be marked overlapped */
+		BUG_ON(!this);
+		dbg_readinode("'this' found %#04x-%#04x (%s)\n", this->fn->ofs, this->fn->ofs + this->fn->size, this->fn ? "data" : "hole");
 	}
-
-	/* If the node is coincident with another at a lower address,
-	   back up until the other node is found. It may be relevant */
-	while (tn->overlapped)
-		tn = tn_prev(tn);
-
-	dbg_readinode("'this' found %#04x-%#04x (%s)\n", this->fn->ofs, this->fn->ofs + this->fn->size, this->fn ? "data" : "hole");
 
 	while (this) {
 		if (this->fn->ofs > fn_end)
@@ -288,7 +284,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				return 0;
 			}
 			/* ... and is good. Kill 'this' and any subsequent nodes which are also overlapped */
-			while (this && this->fn->ofs + this->fn->size < fn_end) {
+			while (this && this->fn->ofs + this->fn->size <= fn_end) {
 				struct jffs2_tmp_dnode_info *next = tn_next(this);
 				if (this->version < tn->version) {
 					tn_erase(this, &rii->tn_root);
@@ -300,7 +296,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				this = next;
 			}
 			dbg_readinode("Done killing overlapped nodes\n");
-			break;
+			continue;
 		}
 		if (this->version > tn->version &&
 		    this->fn->ofs <= tn->fn->ofs &&
@@ -326,7 +322,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 	{
 		struct rb_node *parent;
 		struct rb_node **link = &rii->tn_root.rb_node;
-		struct jffs2_tmp_dnode_info *insert_point;
+		struct jffs2_tmp_dnode_info *insert_point = NULL;
 
 		while (*link) {
 			parent = *link;
@@ -343,7 +339,6 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 		rb_insert_color(&tn->rb, &rii->tn_root);
 	}
 
- calc_overlaps:
 	/* If there's anything behind that overlaps us, note it */
 	this = tn_prev(tn);
 	if (this) {
