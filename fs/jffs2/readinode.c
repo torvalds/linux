@@ -221,7 +221,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 	uint32_t fn_end = tn->fn->ofs + tn->fn->size;
 	struct jffs2_tmp_dnode_info *this;
 
-	dbg_readinode("insert fragment %#04x-%#04x, ver %u\n", tn->fn->ofs, fn_end, tn->version);
+	dbg_readinode("insert fragment %#04x-%#04x, ver %u at %08x\n", tn->fn->ofs, fn_end, tn->version, ref_offset(tn->fn->raw));
 
 	/* If a node has zero dsize, we only have to keep if it if it might be the
 	   node with highest version -- i.e. the one which will end up as f->metadata.
@@ -271,11 +271,11 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				return 0;
 			} else {
 				/* Who cares if the new one is good; keep it for now anyway. */
-				rb_replace_node(&this->rb, &tn->rb, &rii->tn_root);
-				/* Same overlapping from in front and behind */
-				jffs2_kill_tn(c, this);
 				dbg_readinode("Like new node. Throw away old\n");
-				goto calc_overlaps;
+				rb_replace_node(&this->rb, &tn->rb, &rii->tn_root);
+				jffs2_kill_tn(c, this);
+				/* Same overlapping from in front and behind */
+				return 0;
 			}
 		}
 		if (this->version < tn->version &&
@@ -287,11 +287,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				jffs2_kill_tn(c, tn);
 				return 0;
 			}
-			/* ... and is good. Kill 'this'... */
-			rb_replace_node(&this->rb, &tn->rb, &rii->tn_root);
-			jffs2_kill_tn(c, this);
-			/* ... and any subsequent nodes which are also overlapped */
-			this = tn_next(tn);
+			/* ... and is good. Kill 'this' and any subsequent nodes which are also overlapped */
 			while (this && this->fn->ofs + this->fn->size < fn_end) {
 				struct jffs2_tmp_dnode_info *next = tn_next(this);
 				if (this->version < tn->version) {
@@ -303,8 +299,8 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				}
 				this = next;
 			}
-			dbg_readinode("Done inserting new\n");
-			goto calc_overlaps;
+			dbg_readinode("Done killing overlapped nodes\n");
+			break;
 		}
 		if (this->version > tn->version &&
 		    this->fn->ofs <= tn->fn->ofs &&
@@ -316,11 +312,10 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				return 0;
 			}
 			/* ... but 'this' was bad. Replace it... */
-			tn->overlapped = this->overlapped;
-			rb_replace_node(&this->rb, &tn->rb, &rii->tn_root);
 			dbg_readinode("Bad CRC on old overlapping node. Kill it\n");
+			tn_erase(this, &rii->tn_root);
 			jffs2_kill_tn(c, this);
-			return 0;
+			break;
 		}
 
 		this = tn_next(this);
