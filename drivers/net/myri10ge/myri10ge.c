@@ -714,14 +714,78 @@ myri10ge_change_promisc(struct myri10ge_priv *mgp, int promisc, int atomic)
 		       mgp->dev->name);
 }
 
+static int myri10ge_dma_test(struct myri10ge_priv *mgp, int test_type)
+{
+	struct myri10ge_cmd cmd;
+	int status;
+	u32 len;
+	struct page *dmatest_page;
+	dma_addr_t dmatest_bus;
+	char *test = " ";
+
+	dmatest_page = alloc_page(GFP_KERNEL);
+	if (!dmatest_page)
+		return -ENOMEM;
+	dmatest_bus = pci_map_page(mgp->pdev, dmatest_page, 0, PAGE_SIZE,
+				   DMA_BIDIRECTIONAL);
+
+	/* Run a small DMA test.
+	 * The magic multipliers to the length tell the firmware
+	 * to do DMA read, write, or read+write tests.  The
+	 * results are returned in cmd.data0.  The upper 16
+	 * bits or the return is the number of transfers completed.
+	 * The lower 16 bits is the time in 0.5us ticks that the
+	 * transfers took to complete.
+	 */
+
+	len = mgp->tx.boundary;
+
+	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
+	cmd.data2 = len * 0x10000;
+	status = myri10ge_send_cmd(mgp, test_type, &cmd, 0);
+	if (status != 0) {
+		test = "read";
+		goto abort;
+	}
+	mgp->read_dma = ((cmd.data0 >> 16) * len * 2) / (cmd.data0 & 0xffff);
+	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
+	cmd.data2 = len * 0x1;
+	status = myri10ge_send_cmd(mgp, test_type, &cmd, 0);
+	if (status != 0) {
+		test = "write";
+		goto abort;
+	}
+	mgp->write_dma = ((cmd.data0 >> 16) * len * 2) / (cmd.data0 & 0xffff);
+
+	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
+	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
+	cmd.data2 = len * 0x10001;
+	status = myri10ge_send_cmd(mgp, test_type, &cmd, 0);
+	if (status != 0) {
+		test = "read/write";
+		goto abort;
+	}
+	mgp->read_write_dma = ((cmd.data0 >> 16) * len * 2 * 2) /
+	    (cmd.data0 & 0xffff);
+
+abort:
+	pci_unmap_page(mgp->pdev, dmatest_bus, PAGE_SIZE, DMA_BIDIRECTIONAL);
+	put_page(dmatest_page);
+
+	if (status != 0 && test_type != MXGEFW_CMD_UNALIGNED_TEST)
+		dev_warn(&mgp->pdev->dev, "DMA %s benchmark failed: %d\n",
+			 test, status);
+
+	return status;
+}
+
 static int myri10ge_reset(struct myri10ge_priv *mgp)
 {
 	struct myri10ge_cmd cmd;
 	int status;
 	size_t bytes;
-	u32 len;
-	struct page *dmatest_page;
-	dma_addr_t dmatest_bus;
 
 	/* try to send a reset command to the card to see if it
 	 * is alive */
@@ -731,11 +795,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 		dev_err(&mgp->pdev->dev, "failed reset\n");
 		return -ENXIO;
 	}
-	dmatest_page = alloc_page(GFP_KERNEL);
-	if (!dmatest_page)
-		return -ENOMEM;
-	dmatest_bus = pci_map_page(mgp->pdev, dmatest_page, 0, PAGE_SIZE,
-				   DMA_BIDIRECTIONAL);
+
+	(void)myri10ge_dma_test(mgp, MXGEFW_DMA_TEST);
 
 	/* Now exchange information about interrupts  */
 
@@ -762,52 +823,6 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 		return status;
 	}
 	put_be32(htonl(mgp->intr_coal_delay), mgp->intr_coal_delay_ptr);
-
-	/* Run a small DMA test.
-	 * The magic multipliers to the length tell the firmware
-	 * to do DMA read, write, or read+write tests.  The
-	 * results are returned in cmd.data0.  The upper 16
-	 * bits or the return is the number of transfers completed.
-	 * The lower 16 bits is the time in 0.5us ticks that the
-	 * transfers took to complete.
-	 */
-
-	len = mgp->tx.boundary;
-
-	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
-	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
-	cmd.data2 = len * 0x10000;
-	status = myri10ge_send_cmd(mgp, MXGEFW_DMA_TEST, &cmd, 0);
-	if (status == 0)
-		mgp->read_dma = ((cmd.data0 >> 16) * len * 2) /
-		    (cmd.data0 & 0xffff);
-	else
-		dev_warn(&mgp->pdev->dev, "DMA read benchmark failed: %d\n",
-			 status);
-	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
-	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
-	cmd.data2 = len * 0x1;
-	status = myri10ge_send_cmd(mgp, MXGEFW_DMA_TEST, &cmd, 0);
-	if (status == 0)
-		mgp->write_dma = ((cmd.data0 >> 16) * len * 2) /
-		    (cmd.data0 & 0xffff);
-	else
-		dev_warn(&mgp->pdev->dev, "DMA write benchmark failed: %d\n",
-			 status);
-
-	cmd.data0 = MYRI10GE_LOWPART_TO_U32(dmatest_bus);
-	cmd.data1 = MYRI10GE_HIGHPART_TO_U32(dmatest_bus);
-	cmd.data2 = len * 0x10001;
-	status = myri10ge_send_cmd(mgp, MXGEFW_DMA_TEST, &cmd, 0);
-	if (status == 0)
-		mgp->read_write_dma = ((cmd.data0 >> 16) * len * 2 * 2) /
-		    (cmd.data0 & 0xffff);
-	else
-		dev_warn(&mgp->pdev->dev,
-			 "DMA read/write benchmark failed: %d\n", status);
-
-	pci_unmap_page(mgp->pdev, dmatest_bus, PAGE_SIZE, DMA_BIDIRECTIONAL);
-	put_page(dmatest_page);
 
 	memset(mgp->rx_done.entry, 0, bytes);
 
