@@ -3418,7 +3418,7 @@ static int sysfs_slab_add(struct kmem_cache *s)
 		 * This is typically the case for debug situations. In that
 		 * case we can catch duplicate names easily.
 		 */
-		sysfs_remove_link(&slab_subsys.kset.kobj, s->name);
+		sysfs_remove_link(&slab_subsys.kobj, s->name);
 		name = s->name;
 	} else {
 		/*
@@ -3473,8 +3473,8 @@ static int sysfs_slab_alias(struct kmem_cache *s, const char *name)
 		/*
 		 * If we have a leftover link then remove it.
 		 */
-		sysfs_remove_link(&slab_subsys.kset.kobj, name);
-		return sysfs_create_link(&slab_subsys.kset.kobj,
+		sysfs_remove_link(&slab_subsys.kobj, name);
+		return sysfs_create_link(&slab_subsys.kobj,
 						&s->kobj, name);
 	}
 
