@@ -190,10 +190,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + UNCAC_BASE)
 #define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET)
 
-#ifdef CONFIG_LIMITED_DMA
-#define WANT_PAGE_VIRTUAL
-#endif
-
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 

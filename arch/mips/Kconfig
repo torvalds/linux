@@ -883,11 +883,6 @@ config GENERIC_ISA_DMA
 config I8259
 	bool
 
-config LIMITED_DMA
-	bool
-	select HIGHMEM
-	select SYS_SUPPORTS_HIGHMEM
-
 config MIPS_BONITO64
 	bool
 
