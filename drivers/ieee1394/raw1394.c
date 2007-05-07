@@ -459,7 +459,7 @@ static const char __user *raw1394_compat_write(const char __user *buf)
 static int
 raw1394_compat_read(const char __user *buf, struct raw1394_request *r)
 {
-	struct compat_raw1394_req __user *cr = (typeof(cr)) r;
+	struct compat_raw1394_req __user *cr = (typeof(cr)) buf;
 	if (!access_ok(VERIFY_WRITE, cr, sizeof(struct compat_raw1394_req)) ||
 	    P(type) ||
 	    P(error) ||
