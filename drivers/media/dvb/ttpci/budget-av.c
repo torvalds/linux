@@ -828,28 +828,6 @@ static u8 philips_sd1878_inittab[] = {
 	0xff, 0xff
 };
 
-static int philips_sd1878_tda8261_tuner_set_params(struct dvb_frontend *fe,
-						   struct dvb_frontend_parameters *params)
-{
-	u8              buf[4];
-	int             rc;
-	struct i2c_msg  tuner_msg = {.addr=0x60,.flags=0,.buf=buf,.len=sizeof(buf)};
-	struct budget *budget = (struct budget *) fe->dvb->priv;
-
-	if((params->frequency < 950000) || (params->frequency > 2150000))
-		return -EINVAL;
-
-	rc=dvb_pll_configure(&dvb_pll_philips_sd1878_tda8261, buf, params);
-	if(rc < 0) return rc;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if(i2c_transfer(&budget->i2c_adap, &tuner_msg, 1) != 1)
-		return -EIO;
-
-    return 0;
-}
-
 static int philips_sd1878_ci_set_symbol_rate(struct dvb_frontend *fe,
 		u32 srate, u32 ratio)
 {
@@ -984,7 +962,9 @@ static void frontend_init(struct budget_av *budget_av)
 		fe = dvb_attach(stv0299_attach, &philips_sd1878_config,
 				&budget_av->budget.i2c_adap);
 		if (fe) {
-			fe->ops.tuner_ops.set_params = philips_sd1878_tda8261_tuner_set_params;
+			dvb_attach(dvb_pll_attach, fe, 0x60,
+				   &budget_av->budget.i2c_adap,
+				   &dvb_pll_philips_sd1878_tda8261);
 		}
 		break;
 
