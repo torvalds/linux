@@ -4,54 +4,6 @@
 comment "USB Input Devices"
 	depends on USB
 
-config USB_AIPTEK
-	tristate "Aiptek 6000U/8000U tablet support"
-	depends on USB && INPUT
-	help
-	  Say Y here if you want to use the USB version of the Aiptek 6000U
-	  or Aiptek 8000U tablet.  Make sure to say Y to "Mouse support"
-	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
-	  (CONFIG_INPUT_EVDEV) as well.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called aiptek.
-
-config USB_WACOM
-	tristate "Wacom Intuos/Graphire tablet support"
-	depends on USB && INPUT
-	help
-	  Say Y here if you want to use the USB version of the Wacom Intuos
-	  or Graphire tablet.  Make sure to say Y to "Mouse support"
-	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
-	  (CONFIG_INPUT_EVDEV) as well.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called wacom.
-
-config USB_ACECAD
-	tristate "Acecad Flair tablet support"
-	depends on USB && INPUT
-	help
-	  Say Y here if you want to use the USB version of the Acecad Flair
-	  tablet.  Make sure to say Y to "Mouse support"
-	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
-	  (CONFIG_INPUT_EVDEV) as well.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called acecad.
-
-config USB_KBTAB
-	tristate "KB Gear JamStudio tablet support"
-	depends on USB && INPUT
-	help
-	  Say Y here if you want to use the USB version of the KB Gear
-	  JamStudio tablet.  Make sure to say Y to "Mouse support"
-	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
-	  (CONFIG_INPUT_EVDEV) as well.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called kbtab.
-
 config USB_POWERMATE
 	tristate "Griffin PowerMate and Contour Jog support"
 	depends on USB && INPUT
@@ -211,15 +163,3 @@ config USB_APPLETOUCH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called appletouch.
-
-config USB_GTCO
-        tristate "GTCO CalComp/InterWrite USB Support"
-        depends on USB && INPUT
-        ---help---
-          Say Y here if you want to use the USB version of the GTCO
-          CalComp/InterWrite Tablet.  Make sure to say Y to "Mouse support"
-          (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
-          (CONFIG_INPUT_EVDEV) as well.
-
-          To compile this driver as a module, choose M here: the
-          module will be called gtco.

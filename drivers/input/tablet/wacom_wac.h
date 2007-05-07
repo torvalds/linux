@@ -1,5 +1,5 @@
 /*
- * drivers/usb/input/wacom_wac.h
+ * drivers/input/tablet/wacom_wac.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
