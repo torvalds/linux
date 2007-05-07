@@ -227,7 +227,7 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
  * the first (bolted) segment, so that do_stab_bolted won't get a
  * recursive segment miss on the segment table itself.
  */
-void stabs_alloc(void)
+void __init stabs_alloc(void)
 {
 	int cpu;
 

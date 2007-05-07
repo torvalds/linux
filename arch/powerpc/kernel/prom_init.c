@@ -967,7 +967,7 @@ static unsigned long __init prom_next_cell(int s, cell_t **cellp)
  * If problems seem to show up, it would be a good start to track
  * them down.
  */
-static void reserve_mem(u64 base, u64 size)
+static void __init reserve_mem(u64 base, u64 size)
 {
 	u64 top = base + size;
 	unsigned long cnt = RELOC(mem_reserve_cnt);
