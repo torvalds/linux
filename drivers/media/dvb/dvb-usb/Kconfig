@@ -221,8 +221,9 @@ config DVB_USB_OPERA1
 
 config DVB_USB_AF9005
 	tristate "Afatech AF9005 DVB-T USB1.1 support"
-	depends on DVB_USB
+	depends on DVB_USB && EXPERIMENTAL
 	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_QT1010 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Afatech AF9005 based DVB-T USB1.1 receiver
 	  and the TerraTec Cinergy T USB XE (Rev.1)
