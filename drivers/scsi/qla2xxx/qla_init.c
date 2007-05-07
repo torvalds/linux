@@ -3931,6 +3931,8 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *ha)
 
 	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
 		return;
+	if (!ha->fw_major_version)
+		return;
 
 	ret = qla2x00_stop_firmware(ha);
 	for (retries = 5; ret != QLA_SUCCESS && retries ; retries--) {
