@@ -285,8 +285,8 @@ zfcp_qdio_request_handler(struct ccw_device *ccw_device,
 /**
  * zfcp_qdio_reqid_check - checks for valid reqids or unsolicited status
  */
-static int zfcp_qdio_reqid_check(struct zfcp_adapter *adapter, 
-				 unsigned long req_id)
+static void zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
+				  unsigned long req_id)
 {
 	struct zfcp_fsf_req *fsf_req;
 	unsigned long flags;
@@ -298,9 +298,7 @@ static int zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
 
 	if (!fsf_req) {
 		spin_unlock_irqrestore(&adapter->req_list_lock, flags);
-		ZFCP_LOG_NORMAL("error: unknown request id (%ld).\n", req_id);
-		zfcp_erp_adapter_reopen(adapter, 0);
-		return -EINVAL;
+		panic("error: unknown request id (%ld).\n", req_id);
 	}
 
 	zfcp_reqlist_remove(adapter, req_id);
@@ -309,8 +307,6 @@ static int zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
 
 	/* finish the FSF request */
 	zfcp_fsf_req_complete(fsf_req);
-
-	return 0;
 }
 
 /*
@@ -374,27 +370,9 @@ zfcp_qdio_response_handler(struct ccw_device *ccw_device,
 
 			/* look for QDIO request identifiers in SB */
 			buffere = &buffer->element[buffere_index];
-			retval = zfcp_qdio_reqid_check(adapter,
-					(unsigned long) buffere->addr);
+			zfcp_qdio_reqid_check(adapter,
+					      (unsigned long) buffere->addr);
 
-			if (retval) {
-				ZFCP_LOG_NORMAL("bug: unexpected inbound "
-						"packet on adapter %s "
-						"(reqid=0x%lx, "
-						"first_element=%d, "
-						"elements_processed=%d)\n",
-						zfcp_get_busid_by_adapter(adapter),
-						(unsigned long) buffere->addr,
-						first_element,
-						elements_processed);
-				ZFCP_LOG_NORMAL("hex dump of inbound buffer "
-						"at address %p "
-						"(buffer_index=%d, "
-						"buffere_index=%d)\n", buffer,
-						buffer_index, buffere_index);
-				ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_NORMAL,
-					      (char *) buffer, SBAL_SIZE);
-			}
 			/*
 			 * A single used SBALE per inbound SBALE has been
 			 * implemented by QDIO so far. Hope they will
