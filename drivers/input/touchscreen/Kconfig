@@ -1,5 +1,5 @@
 #
-# Mouse driver configuration
+# Touchscreen driver configuration
 #
 menuconfig INPUT_TOUCHSCREEN
 	bool "Touchscreens"
@@ -44,9 +44,9 @@ config TOUCHSCREEN_BITSY
 config TOUCHSCREEN_CORGI
 	tristate "SharpSL (Corgi and Spitz series) touchscreen driver"
 	depends on PXA_SHARPSL
-	default y	
+	default y
 	help
-	  Say Y here to enable the driver for the touchscreen on the 
+	  Say Y here to enable the driver for the touchscreen on the
 	  Sharp SL-C7xx and SL-Cxx00 series of PDAs.
 
 	  If unsure, say N.
@@ -163,5 +163,59 @@ config TOUCHSCREEN_UCB1400
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_ts.
+
+config TOUCHSCREEN_USB_COMPOSITE
+	tristate "USB Touchscreen Driver"
+	select USB
+	help
+	  USB Touchscreen driver for:
+	  - eGalax Touchkit USB (also includes eTurboTouch CT-410/510/700)
+	  - PanJit TouchSet USB
+	  - 3M MicroTouch USB (EX II series)
+	  - ITM
+	  - some other eTurboTouch
+	  - Gunze AHL61
+	  - DMC TSC-10/25
+
+	  Have a look at <http://linux.chapter7.ch/touchkit/> for
+	  a usage description and the required user-space stuff.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbtouchscreen.
+
+config TOUCHSCREEN_USB_EGALAX
+	default y
+	bool "eGalax, eTurboTouch CT-410/510/700 device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_PANJIT
+	default y
+	bool "PanJit device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_3M
+	default y
+	bool "3M/Microtouch EX II series device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_ITM
+	default y
+	bool "ITM device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_ETURBO
+	default y
+	bool "eTurboTouch (non-eGalax compatible) device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_GUNZE
+	default y
+	bool "Gunze AHL61 device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_DMC_TSC10
+	default y
+	bool "DMC TSC-10/25 device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
 
 endif

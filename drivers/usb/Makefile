@@ -24,7 +24,6 @@ obj-$(CONFIG_USB_STORAGE)	+= storage/
 obj-$(CONFIG_USB)		+= storage/
 
 obj-$(CONFIG_USB_ATI_REMOTE)	+= input/
-obj-$(CONFIG_USB_MTOUCH)	+= input/
 obj-$(CONFIG_USB_POWERMATE)	+= input/
 obj-$(CONFIG_USB_XPAD)		+= input/
 
