@@ -3590,8 +3590,12 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id)
 	 * Writing non-zero to intr-mbox-0 additional tells the
 	 * NIC to stop sending us irqs, engaging "in-intr-handler"
 	 * event coalescing.
+	 *
+	 * Flush the mailbox to de-assert the IRQ immediately to prevent
+	 * spurious interrupts.  The flush impacts performance but
+	 * excessive spurious interrupts can be worse in some cases.
 	 */
-	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
 	if (tg3_irq_sync(tp))
 		goto out;
 	sblk->status &= ~SD_STATUS_UPDATED;
@@ -3635,8 +3639,12 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id)
 	 * writing non-zero to intr-mbox-0 additional tells the
 	 * NIC to stop sending us irqs, engaging "in-intr-handler"
 	 * event coalescing.
+	 *
+	 * Flush the mailbox to de-assert the IRQ immediately to prevent
+	 * spurious interrupts.  The flush impacts performance but
+	 * excessive spurious interrupts can be worse in some cases.
 	 */
-	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
 	if (tg3_irq_sync(tp))
 		goto out;
 	if (netif_rx_schedule_prep(dev)) {
