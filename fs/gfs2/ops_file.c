@@ -513,18 +513,18 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 
 	if (sdp->sd_args.ar_localflocks) {
 		if (IS_GETLK(cmd)) {
-			struct file_lock tmp;
-			int ret;
-			ret = posix_test_lock(file, fl, &tmp);
-			fl->fl_type = F_UNLCK;
-			if (ret)
-				memcpy(fl, &tmp, sizeof(struct file_lock));
+			posix_test_lock(file, fl);
 			return 0;
 		} else {
 			return posix_lock_file_wait(file, fl);
 		}
 	}
 
+	if (cmd == F_CANCELLK) {
+		/* Hack: */
+		cmd = F_SETLK;
+		fl->fl_type = F_UNLCK;
+	}
 	if (IS_GETLK(cmd))
 		return gfs2_lm_plock_get(sdp, &name, file, fl);
 	else if (fl->fl_type == F_UNLCK)

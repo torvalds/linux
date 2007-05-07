@@ -3017,6 +3017,7 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 		case -NFS4ERR_DENIED:
 			status = 0;
 	}
+	request->fl_ops->fl_release_private(request);
 out:
 	up_read(&clp->cl_sem);
 	return status;

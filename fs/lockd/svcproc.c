@@ -33,6 +33,7 @@ cast_to_nlm(__be32 status, u32 vers)
 		case nlm_lck_denied_nolocks:
 		case nlm_lck_blocked:
 		case nlm_lck_denied_grace_period:
+		case nlm_drop_reply:
 			break;
 		case nlm4_deadlock:
 			status = nlm_lck_denied;
@@ -127,7 +128,9 @@ nlmsvc_proc_test(struct svc_rqst *rqstp, struct nlm_args *argp,
 		return resp->status == nlm_drop_reply ? rpc_drop_reply :rpc_success;
 
 	/* Now check for conflicting locks */
-	resp->status = cast_status(nlmsvc_testlock(file, &argp->lock, &resp->lock));
+	resp->status = cast_status(nlmsvc_testlock(rqstp, file, &argp->lock, &resp->lock, &resp->cookie));
+	if (resp->status == nlm_drop_reply)
+		return rpc_drop_reply;
 
 	dprintk("lockd: TEST          status %d vers %d\n",
 		ntohl(resp->status), rqstp->rq_vers);
@@ -172,6 +175,8 @@ nlmsvc_proc_lock(struct svc_rqst *rqstp, struct nlm_args *argp,
 	/* Now try to lock the file */
 	resp->status = cast_status(nlmsvc_lock(rqstp, file, &argp->lock,
 					       argp->block, &argp->cookie));
+	if (resp->status == nlm_drop_reply)
+		return rpc_drop_reply;
 
 	dprintk("lockd: LOCK          status %d\n", ntohl(resp->status));
 	nlm_release_host(host);

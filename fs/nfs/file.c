@@ -391,17 +391,12 @@ out_swapfile:
 
 static int do_getlk(struct file *filp, int cmd, struct file_lock *fl)
 {
-	struct file_lock cfl;
 	struct inode *inode = filp->f_mapping->host;
 	int status = 0;
 
 	lock_kernel();
 	/* Try local locking first */
-	if (posix_test_lock(filp, fl, &cfl)) {
-		fl->fl_start = cfl.fl_start;
-		fl->fl_end = cfl.fl_end;
-		fl->fl_type = cfl.fl_type;
-		fl->fl_pid = cfl.fl_pid;
+	if (posix_test_lock(filp, fl)) {
 		goto out;
 	}
 
