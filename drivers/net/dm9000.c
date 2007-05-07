@@ -601,7 +601,7 @@ dm9000_probe(struct platform_device *pdev)
 	printk("%s: not found (%d).\n", CARDNAME, ret);
 
 	dm9000_release_board(pdev, db);
-	kfree(ndev);
+	free_netdev(ndev);
 
 	return ret;
 }
@@ -1193,7 +1193,7 @@ dm9000_drv_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 	dm9000_release_board(pdev, (board_info_t *) ndev->priv);
-	kfree(ndev);		/* free device structure */
+	free_netdev(ndev);		/* free device structure */
 
 	PRINTK1("clean_module() exit\n");
 
