@@ -754,6 +754,10 @@ void jffs2_clear_xattr_subsystem(struct jffs2_sb_info *c)
 		list_del(&xd->xindex);
 		jffs2_free_xattr_datum(xd);
 	}
+	list_for_each_entry_safe(xd, _xd, &c->xattr_unchecked, xindex) {
+		list_del(&xd->xindex);
+		jffs2_free_xattr_datum(xd);
+	}
 }
 
 #define XREF_TMPHASH_SIZE	(128)
