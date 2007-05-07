@@ -1726,6 +1726,17 @@ qla2x00_request_irqs(scsi_qla_host_t *ha)
 	qla_printk(KERN_WARNING, ha,
 	    "MSI-X: Falling back-to INTa mode -- %d.\n", ret);
 skip_msix:
+
+	if (!IS_QLA24XX(ha))
+		goto skip_msi;
+
+	ret = pci_enable_msi(ha->pdev);
+	if (!ret) {
+		DEBUG2(qla_printk(KERN_INFO, ha, "MSI: Enabled.\n"));
+		ha->flags.msi_enabled = 1;
+	}
+skip_msi:
+
 	ret = request_irq(ha->pdev->irq, ha->isp_ops.intr_handler,
 	    IRQF_DISABLED|IRQF_SHARED, QLA2XXX_DRIVER_NAME, ha);
 	if (!ret) {
@@ -1746,6 +1757,8 @@ qla2x00_free_irqs(scsi_qla_host_t *ha)
 
 	if (ha->flags.msix_enabled)
 		qla24xx_disable_msix(ha);
-	else if (ha->flags.inta_enabled)
+	else if (ha->flags.inta_enabled) {
 		free_irq(ha->host->irq, ha);
+		pci_disable_msi(ha->pdev);
+	}
 }
