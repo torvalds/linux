@@ -2377,9 +2377,9 @@ static int __init dev_proc_init(void)
 out:
 	return rc;
 out_softnet:
-	proc_net_remove("softnet_stat");
-out_dev2:
 	proc_net_remove("ptype");
+out_dev2:
+	proc_net_remove("softnet_stat");
 out_dev:
 	proc_net_remove("dev");
 	goto out;
