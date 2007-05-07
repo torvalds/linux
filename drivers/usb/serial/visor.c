@@ -273,7 +273,8 @@ struct visor_private {
 	int bytes_in;
 	int bytes_out;
 	int outstanding_urbs;
-	int throttled;
+	unsigned char throttled;
+	unsigned char actually_throttled;
 };
 
 /* number of outstanding urbs to prevent userspace DoS from happening */
@@ -509,9 +510,8 @@ static void visor_read_bulk_callback (struct urb *urb)
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	struct tty_struct *tty;
-	unsigned long flags;
-	int throttled;
 	int result;
+	int available_room;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -524,17 +524,20 @@ static void visor_read_bulk_callback (struct urb *urb)
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
-		tty_buffer_request_room(tty, urb->actual_length);
-		tty_insert_flip_string(tty, data, urb->actual_length);
-		tty_flip_buffer_push(tty);
+		available_room = tty_buffer_request_room(tty, urb->actual_length);
+		if (available_room) {
+			tty_insert_flip_string(tty, data, available_room);
+			tty_flip_buffer_push(tty);
+		}
+		spin_lock(&priv->lock);
+		priv->bytes_in += available_room;
+
+	} else {
+		spin_lock(&priv->lock);
 	}
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->bytes_in += urb->actual_length;
-	throttled = priv->throttled;
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Continue trying to always read if we should */
-	if (!throttled) {
+	if (!priv->throttled) {
 		usb_fill_bulk_urb (port->read_urb, port->serial->dev,
 				   usb_rcvbulkpipe(port->serial->dev,
 						   port->bulk_in_endpointAddress),
@@ -544,8 +547,10 @@ static void visor_read_bulk_callback (struct urb *urb)
 		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev, "%s - failed resubmitting read urb, error %d\n", __FUNCTION__, result);
+	} else {
+		priv->actually_throttled = 1;
 	}
-	return;
+	spin_unlock(&priv->lock);
 }
 
 static void visor_read_int_callback (struct urb *urb)
@@ -608,6 +613,7 @@ static void visor_unthrottle (struct usb_serial_port *port)
 	dbg("%s - port %d", __FUNCTION__, port->number);
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = 0;
+	priv->actually_throttled = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	port->read_urb->dev = port->serial->dev;
