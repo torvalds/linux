@@ -1042,23 +1042,11 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 	var->unusable = (ar >> 16) & 1;
 }
 
-static void vmx_set_segment(struct kvm_vcpu *vcpu,
-			    struct kvm_segment *var, int seg)
+static u32 vmx_segment_access_rights(struct kvm_segment *var)
 {
-	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 	u32 ar;
 
-	vmcs_writel(sf->base, var->base);
-	vmcs_write32(sf->limit, var->limit);
-	vmcs_write16(sf->selector, var->selector);
-	if (vcpu->rmode.active && var->s) {
-		/*
-		 * Hack real-mode segments into vm86 compatibility.
-		 */
-		if (var->base == 0xffff0000 && var->selector == 0xf000)
-			vmcs_writel(sf->base, 0xf0000);
-		ar = 0xf3;
-	} else if (var->unusable)
+	if (var->unusable)
 		ar = 1 << 16;
 	else {
 		ar = var->type & 15;
@@ -1072,6 +1060,35 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	}
 	if (ar == 0) /* a 0 value means unusable */
 		ar = AR_UNUSABLE_MASK;
+
+	return ar;
+}
+
+static void vmx_set_segment(struct kvm_vcpu *vcpu,
+			    struct kvm_segment *var, int seg)
+{
+	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
+	u32 ar;
+
+	if (vcpu->rmode.active && seg == VCPU_SREG_TR) {
+		vcpu->rmode.tr.selector = var->selector;
+		vcpu->rmode.tr.base = var->base;
+		vcpu->rmode.tr.limit = var->limit;
+		vcpu->rmode.tr.ar = vmx_segment_access_rights(var);
+		return;
+	}
+	vmcs_writel(sf->base, var->base);
+	vmcs_write32(sf->limit, var->limit);
+	vmcs_write16(sf->selector, var->selector);
+	if (vcpu->rmode.active && var->s) {
+		/*
+		 * Hack real-mode segments into vm86 compatibility.
+		 */
+		if (var->base == 0xffff0000 && var->selector == 0xf000)
+			vmcs_writel(sf->base, 0xf0000);
+		ar = 0xf3;
+	} else
+		ar = vmx_segment_access_rights(var);
 	vmcs_write32(sf->ar_bytes, ar);
 }
 
