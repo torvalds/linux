@@ -173,7 +173,7 @@ static void zero_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
 
 extern void tsb_cache_init(void);
 
-void pgtable_cache_init(void)
+void __init pgtable_cache_init(void)
 {
 	pgtable_cache = kmem_cache_create("pgtable_cache",
 					  PAGE_SIZE, PAGE_SIZE,
