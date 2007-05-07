@@ -218,3 +218,19 @@ config DVB_USB_OPERA1
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Opera DVB-S USB2.0 receiver.
+
+config DVB_USB_AF9005
+	tristate "Afatech AF9005 DVB-T USB1.1 support"
+	depends on DVB_USB
+	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the Afatech AF9005 based DVB-T USB1.1 receiver
+	  and the TerraTec Cinergy T USB XE (Rev.1)
+
+config DVB_USB_AF9005_REMOTE
+	tristate "Afatech AF9005 default remote control support"
+	depends on DVB_USB_AF9005
+	help
+	  Say Y here to support the default remote control decoding for the
+	  Afatech AF9005 based receiver.
+
