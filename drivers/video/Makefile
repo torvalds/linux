@@ -68,6 +68,7 @@ obj-$(CONFIG_FB_ATARI)            += atafb.o c2p.o atafb_mfb.o \
 obj-$(CONFIG_FB_MAC)              += macfb.o
 obj-$(CONFIG_FB_HGA)              += hgafb.o
 obj-$(CONFIG_FB_XVR500)           += sunxvr500.o
+obj-$(CONFIG_FB_XVR2500)          += sunxvr2500.o
 obj-$(CONFIG_FB_IGA)              += igafb.o
 obj-$(CONFIG_FB_APOLLO)           += dnfb.o
 obj-$(CONFIG_FB_Q40)              += q40fb.o

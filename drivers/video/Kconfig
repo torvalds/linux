@@ -1396,6 +1396,19 @@ config FB_XVR500
 	  mostly initialized the card already.  It is treated as a
 	  completely dumb framebuffer device.
 
+config FB_XVR2500
+	bool "Sun XVR-2500 3DLABS Wildcat support"
+	depends on FB && PCI && SPARC64
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer device for the Sun XVR-2500 and similar
+	  graphics cards based upon the 3DLABS Wildcat chipset.  The driver
+	  only works on sparc64 systems where the system firwmare has
+	  mostly initialized the card already.  It is treated as a
+	  completely dumb framebuffer device.
+
 config FB_PCI
 	bool "PCI framebuffers"
 	depends on (FB = y) && PCI && SPARC
