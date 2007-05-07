@@ -446,23 +446,6 @@ config MOMENCO_OCELOT_C
 	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
 	  Momentum Computer <http://www.momenco.com/>.
 
-config MOMENCO_OCELOT_G
-	bool "Momentum Ocelot-G board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select PCI_MARVELL
-	select RM7000_CPU_SCACHE
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_RM7000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	help
-	  The Ocelot is a MIPS-based Single Board Computer (SBC) made by
-	  Momentum Computer <http://www.momenco.com/>.
-
 config MIPS_XXS1500
 	bool "MyCable XXS1500 board"
 	select DMA_NONCOHERENT
@@ -1081,9 +1064,9 @@ config WDT_RM9000
 choice
 	prompt "Galileo Chip Clock"
 	#default SYSCLK_83 if MIPS_EV64120
-	depends on MIPS_EV64120 || MOMENCO_OCELOT || MOMENCO_OCELOT_G
+	depends on MIPS_EV64120 || MOMENCO_OCELOT
 	default SYSCLK_83 if MIPS_EV64120
-	default SYSCLK_100 if MOMENCO_OCELOT || MOMENCO_OCELOT_G
+	default SYSCLK_100 if MOMENCO_OCELOT
 
 config SYSCLK_75
 	bool "75" if MIPS_EV64120
@@ -1092,7 +1075,7 @@ config SYSCLK_83
 	bool "83.3" if MIPS_EV64120
 
 config SYSCLK_100
-	bool "100" if MIPS_EV64120 || MOMENCO_OCELOT || MOMENCO_OCELOT_G
+	bool "100" if MIPS_EV64120 || MOMENCO_OCELOT
 
 endchoice
 

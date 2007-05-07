@@ -134,27 +134,6 @@
 #define MOMENCO_OCELOT_SERIAL_PORT_DEFNS
 #endif
 
-#ifdef CONFIG_MOMENCO_OCELOT_G
-/* Ordinary NS16552 duart with a 20MHz crystal.  */
-#define OCELOT_G_BASE_BAUD ( 20000000 / 16 )
-
-#define OCELOT_G_SERIAL1_IRQ	4
-#if 0
-#define OCELOT_G_SERIAL1_BASE	0xe0001020
-#else
-#define OCELOT_G_SERIAL1_BASE	0xfd000020
-#endif
-
-#define _OCELOT_G_SERIAL_INIT(int, base)				\
-	{ .baud_base = OCELOT_G_BASE_BAUD, .irq = int, .flags = STD_COM_FLAGS,\
-	  .iomem_base = (u8 *) base, .iomem_reg_shift = 2,			\
-	  .io_type = SERIAL_IO_MEM }
-#define MOMENCO_OCELOT_G_SERIAL_PORT_DEFNS				\
-	_OCELOT_G_SERIAL_INIT(OCELOT_G_SERIAL1_IRQ, OCELOT_G_SERIAL1_BASE)
-#else
-#define MOMENCO_OCELOT_G_SERIAL_PORT_DEFNS
-#endif
-
 #ifdef CONFIG_MOMENCO_OCELOT_C
 /* Ordinary NS16552 duart with a 20MHz crystal.  */
 #define OCELOT_C_BASE_BAUD ( 20000000 / 16 )
@@ -210,7 +189,6 @@
 	IP32_SERIAL_PORT_DEFNS                          \
 	JAZZ_SERIAL_PORT_DEFNS				\
 	STD_SERIAL_PORT_DEFNS				\
-	MOMENCO_OCELOT_G_SERIAL_PORT_DEFNS		\
 	MOMENCO_OCELOT_C_SERIAL_PORT_DEFNS		\
 	MOMENCO_OCELOT_SERIAL_PORT_DEFNS		\
 	MOMENCO_OCELOT_3_SERIAL_PORT_DEFNS
