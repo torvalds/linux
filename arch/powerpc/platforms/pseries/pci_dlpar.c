@@ -79,6 +79,7 @@ pcibios_remove_pci_devices(struct pci_bus *bus)
 		pci_remove_bus_device(dev);
 	}
 }
+EXPORT_SYMBOL_GPL(pcibios_remove_pci_devices);
 
 /* Must be called before pci_bus_add_devices */
 void
