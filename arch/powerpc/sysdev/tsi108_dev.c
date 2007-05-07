@@ -107,8 +107,9 @@ static int __init tsi108_eth_of_init(void)
 			goto err;
 		}
 
-		mac_addr = of_get_property(np, "address", NULL);
-		memcpy(tsi_eth_data.mac_addr, mac_addr, 6);
+		mac_addr = of_get_mac_address(np);
+		if (mac_addr)
+			memcpy(tsi_eth_data.mac_addr, mac_addr, 6);
 
 		ph = of_get_property(np, "phy-handle", NULL);
 		phy = of_find_node_by_phandle(*ph);
@@ -129,6 +130,8 @@ static int __init tsi108_eth_of_init(void)
 		tsi_eth_data.phyregs = res.start;
 		tsi_eth_data.phy = *phy_id;
 		tsi_eth_data.irq_num = irq_of_parse_and_map(np, 0);
+		if (of_device_is_compatible(phy, "bcm54xx"))
+			tsi_eth_data.phy_type = TSI108_PHY_BCM54XX;
 		of_node_put(phy);
 		ret =
 		    platform_device_add_data(tsi_eth_dev, &tsi_eth_data,

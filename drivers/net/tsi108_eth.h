@@ -43,15 +43,6 @@
 	in_be32((data->phyregs + (offset)))
 
 /*
- * PHY Configuration Options
- *
- * NOTE: Enable set of definitions corresponding to your board type
- */
-#define PHY_MV88E	1	/* Marvel 88Exxxx PHY */
-#define PHY_BCM54XX	2	/* Broardcom BCM54xx PHY */
-#define TSI108_PHY_TYPE	PHY_MV88E
-
-/*
  * TSI108 GIGE port registers
  */
 
