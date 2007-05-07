@@ -690,6 +690,8 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	if (error)
 		goto fail;
 
+	gfs2_create_debugfs_file(sdp);
+
 	error = gfs2_sys_fs_add(sdp);
 	if (error)
 		goto fail;
@@ -754,6 +756,7 @@ fail_lm:
 fail_sys:
 	gfs2_sys_fs_del(sdp);
 fail:
+	gfs2_delete_debugfs_file(sdp);
 	kfree(sdp);
 	sb->s_fs_info = NULL;
 	return error;
@@ -896,6 +899,7 @@ error:
 
 static void gfs2_kill_sb(struct super_block *sb)
 {
+	gfs2_delete_debugfs_file(sb->s_fs_info);
 	kill_block_super(sb);
 }
 

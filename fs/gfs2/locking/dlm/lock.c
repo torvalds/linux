@@ -151,7 +151,7 @@ static inline unsigned int make_flags(struct gdlm_lock *lp,
 
 /* make_strname - convert GFS lock numbers to a string */
 
-static inline void make_strname(struct lm_lockname *lockname,
+static inline void make_strname(const struct lm_lockname *lockname,
 				struct gdlm_strname *str)
 {
 	sprintf(str->name, "%8x%16llx", lockname->ln_type,
@@ -169,6 +169,7 @@ static int gdlm_create_lp(struct gdlm_ls *ls, struct lm_lockname *name,
 		return -ENOMEM;
 
 	lp->lockname = *name;
+	make_strname(name, &lp->strname);
 	lp->ls = ls;
 	lp->cur = DLM_LOCK_IV;
 	lp->lvb = NULL;
@@ -227,7 +228,6 @@ void gdlm_put_lock(void *lock)
 unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 {
 	struct gdlm_ls *ls = lp->ls;
-	struct gdlm_strname str;
 	int error, bast = 1;
 
 	/*
@@ -249,8 +249,6 @@ unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 	if (test_bit(LFL_NOBAST, &lp->flags))
 		bast = 0;
 
-	make_strname(&lp->lockname, &str);
-
 	set_bit(LFL_ACTIVE, &lp->flags);
 
 	log_debug("lk %x,%llx id %x %d,%d %x", lp->lockname.ln_type,
@@ -258,8 +256,8 @@ unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 		  lp->cur, lp->req, lp->lkf);
 
 	error = dlm_lock(ls->dlm_lockspace, lp->req, &lp->lksb, lp->lkf,
-			 str.name, str.namelen, 0, gdlm_ast, lp,
-			 bast ? gdlm_bast : NULL);
+			 lp->strname.name, lp->strname.namelen, 0, gdlm_ast,
+			 lp, bast ? gdlm_bast : NULL);
 
 	if ((error == -EAGAIN) && (lp->lkf & DLM_LKF_NOQUEUE)) {
 		lp->lksb.sb_status = -EAGAIN;
@@ -268,7 +266,7 @@ unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 	}
 
 	if (error) {
-		log_debug("%s: gdlm_lock %x,%llx err=%d cur=%d req=%d lkf=%x "
+		log_error("%s: gdlm_lock %x,%llx err=%d cur=%d req=%d lkf=%x "
 			  "flags=%lx", ls->fsname, lp->lockname.ln_type,
 			  (unsigned long long)lp->lockname.ln_number, error,
 			  lp->cur, lp->req, lp->lkf, lp->flags);
@@ -296,7 +294,7 @@ static unsigned int gdlm_do_unlock(struct gdlm_lock *lp)
 	error = dlm_unlock(ls->dlm_lockspace, lp->lksb.sb_lkid, lkf, NULL, lp);
 
 	if (error) {
-		log_debug("%s: gdlm_unlock %x,%llx err=%d cur=%d req=%d lkf=%x "
+		log_error("%s: gdlm_unlock %x,%llx err=%d cur=%d req=%d lkf=%x "
 			  "flags=%lx", ls->fsname, lp->lockname.ln_type,
 			  (unsigned long long)lp->lockname.ln_number, error,
 			  lp->cur, lp->req, lp->lkf, lp->flags);

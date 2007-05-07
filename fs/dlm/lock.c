@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -85,6 +85,7 @@ static int _request_lock(struct dlm_rsb *r, struct dlm_lkb *lkb);
 static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 				    struct dlm_message *ms);
 static int receive_extralen(struct dlm_message *ms);
+static void do_purge(struct dlm_ls *ls, int nodeid, int pid);
 
 /*
  * Lock compatibilty matrix - thanks Steve
@@ -223,6 +224,16 @@ static inline int is_demoted(struct dlm_lkb *lkb)
 	return (lkb->lkb_sbflags & DLM_SBF_DEMOTED);
 }
 
+static inline int is_altmode(struct dlm_lkb *lkb)
+{
+	return (lkb->lkb_sbflags & DLM_SBF_ALTMODE);
+}
+
+static inline int is_granted(struct dlm_lkb *lkb)
+{
+	return (lkb->lkb_status == DLM_LKSTS_GRANTED);
+}
+
 static inline int is_remote(struct dlm_rsb *r)
 {
 	DLM_ASSERT(r->res_nodeid >= 0, dlm_print_rsb(r););
@@ -254,6 +265,22 @@ static inline int down_conversion(struct dlm_lkb *lkb)
 	return (!middle_conversion(lkb) && lkb->lkb_rqmode < lkb->lkb_grmode);
 }
 
+static inline int is_overlap_unlock(struct dlm_lkb *lkb)
+{
+	return lkb->lkb_flags & DLM_IFL_OVERLAP_UNLOCK;
+}
+
+static inline int is_overlap_cancel(struct dlm_lkb *lkb)
+{
+	return lkb->lkb_flags & DLM_IFL_OVERLAP_CANCEL;
+}
+
+static inline int is_overlap(struct dlm_lkb *lkb)
+{
+	return (lkb->lkb_flags & (DLM_IFL_OVERLAP_UNLOCK |
+				  DLM_IFL_OVERLAP_CANCEL));
+}
+
 static void queue_cast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 {
 	if (is_master_copy(lkb))
@@ -265,6 +292,12 @@ static void queue_cast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 	lkb->lkb_lksb->sb_flags = lkb->lkb_sbflags;
 
 	dlm_add_ast(lkb, AST_COMP);
+}
+
+static inline void queue_cast_overlap(struct dlm_rsb *r, struct dlm_lkb *lkb)
+{
+	queue_cast(r, lkb,
+		   is_overlap_unlock(lkb) ? -DLM_EUNLOCK : -DLM_ECANCEL);
 }
 
 static void queue_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rqmode)
@@ -547,6 +580,7 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 	lkb->lkb_grmode = DLM_LOCK_IV;
 	kref_init(&lkb->lkb_ref);
 	INIT_LIST_HEAD(&lkb->lkb_ownqueue);
+	INIT_LIST_HEAD(&lkb->lkb_rsb_lookup);
 
 	get_random_bytes(&bucket, sizeof(bucket));
 	bucket &= (ls->ls_lkbtbl_size - 1);
@@ -556,7 +590,7 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 	/* counter can roll over so we must verify lkid is not in use */
 
 	while (lkid == 0) {
-		lkid = bucket | (ls->ls_lkbtbl[bucket].counter++ << 16);
+		lkid = (bucket << 16) | ls->ls_lkbtbl[bucket].counter++;
 
 		list_for_each_entry(tmp, &ls->ls_lkbtbl[bucket].list,
 				    lkb_idtbl_list) {
@@ -577,8 +611,8 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 
 static struct dlm_lkb *__find_lkb(struct dlm_ls *ls, uint32_t lkid)
 {
-	uint16_t bucket = lkid & 0xFFFF;
 	struct dlm_lkb *lkb;
+	uint16_t bucket = (lkid >> 16);
 
 	list_for_each_entry(lkb, &ls->ls_lkbtbl[bucket].list, lkb_idtbl_list) {
 		if (lkb->lkb_id == lkid)
@@ -590,7 +624,7 @@ static struct dlm_lkb *__find_lkb(struct dlm_ls *ls, uint32_t lkid)
 static int find_lkb(struct dlm_ls *ls, uint32_t lkid, struct dlm_lkb **lkb_ret)
 {
 	struct dlm_lkb *lkb;
-	uint16_t bucket = lkid & 0xFFFF;
+	uint16_t bucket = (lkid >> 16);
 
 	if (bucket >= ls->ls_lkbtbl_size)
 		return -EBADSLT;
@@ -620,7 +654,7 @@ static void kill_lkb(struct kref *kref)
 
 static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
-	uint16_t bucket = lkb->lkb_id & 0xFFFF;
+	uint16_t bucket = (lkb->lkb_id >> 16);
 
 	write_lock(&ls->ls_lkbtbl[bucket].lock);
 	if (kref_put(&lkb->lkb_ref, kill_lkb)) {
@@ -735,23 +769,75 @@ static void move_lkb(struct dlm_rsb *r, struct dlm_lkb *lkb, int sts)
 	unhold_lkb(lkb);
 }
 
+static int msg_reply_type(int mstype)
+{
+	switch (mstype) {
+	case DLM_MSG_REQUEST:
+		return DLM_MSG_REQUEST_REPLY;
+	case DLM_MSG_CONVERT:
+		return DLM_MSG_CONVERT_REPLY;
+	case DLM_MSG_UNLOCK:
+		return DLM_MSG_UNLOCK_REPLY;
+	case DLM_MSG_CANCEL:
+		return DLM_MSG_CANCEL_REPLY;
+	case DLM_MSG_LOOKUP:
+		return DLM_MSG_LOOKUP_REPLY;
+	}
+	return -1;
+}
+
 /* add/remove lkb from global waiters list of lkb's waiting for
    a reply from a remote node */
 
-static void add_to_waiters(struct dlm_lkb *lkb, int mstype)
+static int add_to_waiters(struct dlm_lkb *lkb, int mstype)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
+	int error = 0;
 
 	mutex_lock(&ls->ls_waiters_mutex);
-	if (lkb->lkb_wait_type) {
-		log_print("add_to_waiters error %d", lkb->lkb_wait_type);
+
+	if (is_overlap_unlock(lkb) ||
+	    (is_overlap_cancel(lkb) && (mstype == DLM_MSG_CANCEL))) {
+		error = -EINVAL;
 		goto out;
 	}
+
+	if (lkb->lkb_wait_type || is_overlap_cancel(lkb)) {
+		switch (mstype) {
+		case DLM_MSG_UNLOCK:
+			lkb->lkb_flags |= DLM_IFL_OVERLAP_UNLOCK;
+			break;
+		case DLM_MSG_CANCEL:
+			lkb->lkb_flags |= DLM_IFL_OVERLAP_CANCEL;
+			break;
+		default:
+			error = -EBUSY;
+			goto out;
+		}
+		lkb->lkb_wait_count++;
+		hold_lkb(lkb);
+
+		log_debug(ls, "add overlap %x cur %d new %d count %d flags %x",
+			  lkb->lkb_id, lkb->lkb_wait_type, mstype,
+			  lkb->lkb_wait_count, lkb->lkb_flags);
+		goto out;
+	}
+
+	DLM_ASSERT(!lkb->lkb_wait_count,
+		   dlm_print_lkb(lkb);
+		   printk("wait_count %d\n", lkb->lkb_wait_count););
+
+	lkb->lkb_wait_count++;
 	lkb->lkb_wait_type = mstype;
-	kref_get(&lkb->lkb_ref);
+	hold_lkb(lkb);
 	list_add(&lkb->lkb_wait_reply, &ls->ls_waiters);
  out:
+	if (error)
+		log_error(ls, "add_to_waiters %x error %d flags %x %d %d %s",
+			  lkb->lkb_id, error, lkb->lkb_flags, mstype,
+			  lkb->lkb_wait_type, lkb->lkb_resource->res_name);
 	mutex_unlock(&ls->ls_waiters_mutex);
+	return error;
 }
 
 /* We clear the RESEND flag because we might be taking an lkb off the waiters
@@ -759,31 +845,82 @@ static void add_to_waiters(struct dlm_lkb *lkb, int mstype)
    request reply on the requestqueue) between dlm_recover_waiters_pre() which
    set RESEND and dlm_recover_waiters_post() */
 
-static int _remove_from_waiters(struct dlm_lkb *lkb)
+static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype)
 {
-	int error = 0;
+	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
+	int overlap_done = 0;
 
-	if (!lkb->lkb_wait_type) {
-		log_print("remove_from_waiters error");
-		error = -EINVAL;
-		goto out;
+	if (is_overlap_unlock(lkb) && (mstype == DLM_MSG_UNLOCK_REPLY)) {
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_UNLOCK;
+		overlap_done = 1;
+		goto out_del;
 	}
-	lkb->lkb_wait_type = 0;
+
+	if (is_overlap_cancel(lkb) && (mstype == DLM_MSG_CANCEL_REPLY)) {
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
+		overlap_done = 1;
+		goto out_del;
+	}
+
+	/* N.B. type of reply may not always correspond to type of original
+	   msg due to lookup->request optimization, verify others? */
+
+	if (lkb->lkb_wait_type) {
+		lkb->lkb_wait_type = 0;
+		goto out_del;
+	}
+
+	log_error(ls, "remove_from_waiters lkid %x flags %x types %d %d",
+		  lkb->lkb_id, lkb->lkb_flags, mstype, lkb->lkb_wait_type);
+	return -1;
+
+ out_del:
+	/* the force-unlock/cancel has completed and we haven't recvd a reply
+	   to the op that was in progress prior to the unlock/cancel; we
+	   give up on any reply to the earlier op.  FIXME: not sure when/how
+	   this would happen */
+
+	if (overlap_done && lkb->lkb_wait_type) {
+		log_error(ls, "remove_from_waiters %x reply %d give up on %d",
+			  lkb->lkb_id, mstype, lkb->lkb_wait_type);
+		lkb->lkb_wait_count--;
+		lkb->lkb_wait_type = 0;
+	}
+
+	DLM_ASSERT(lkb->lkb_wait_count, dlm_print_lkb(lkb););
+
 	lkb->lkb_flags &= ~DLM_IFL_RESEND;
-	list_del(&lkb->lkb_wait_reply);
+	lkb->lkb_wait_count--;
+	if (!lkb->lkb_wait_count)
+		list_del_init(&lkb->lkb_wait_reply);
 	unhold_lkb(lkb);
- out:
-	return error;
+	return 0;
 }
 
-static int remove_from_waiters(struct dlm_lkb *lkb)
+static int remove_from_waiters(struct dlm_lkb *lkb, int mstype)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int error;
 
 	mutex_lock(&ls->ls_waiters_mutex);
-	error = _remove_from_waiters(lkb);
+	error = _remove_from_waiters(lkb, mstype);
 	mutex_unlock(&ls->ls_waiters_mutex);
+	return error;
+}
+
+/* Handles situations where we might be processing a "fake" or "stub" reply in
+   which we can't try to take waiters_mutex again. */
+
+static int remove_from_waiters_ms(struct dlm_lkb *lkb, struct dlm_message *ms)
+{
+	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
+	int error;
+
+	if (ms != &ls->ls_stub_ms)
+		mutex_lock(&ls->ls_waiters_mutex);
+	error = _remove_from_waiters(lkb, ms->m_type);
+	if (ms != &ls->ls_stub_ms)
+		mutex_unlock(&ls->ls_waiters_mutex);
 	return error;
 }
 
@@ -988,8 +1125,14 @@ static void remove_lock_pc(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	_remove_lock(r, lkb);
 }
 
-static void revert_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
+/* returns: 0 did nothing
+	    1 moved lock to granted
+	   -1 removed lock */
+
+static int revert_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
+	int rv = 0;
+
 	lkb->lkb_rqmode = DLM_LOCK_IV;
 
 	switch (lkb->lkb_status) {
@@ -997,6 +1140,7 @@ static void revert_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		break;
 	case DLM_LKSTS_CONVERT:
 		move_lkb(r, lkb, DLM_LKSTS_GRANTED);
+		rv = 1;
 		break;
 	case DLM_LKSTS_WAITING:
 		del_lkb(r, lkb);
@@ -1004,15 +1148,17 @@ static void revert_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		/* this unhold undoes the original ref from create_lkb()
 		   so this leads to the lkb being freed */
 		unhold_lkb(lkb);
+		rv = -1;
 		break;
 	default:
 		log_print("invalid status for revert %d", lkb->lkb_status);
 	}
+	return rv;
 }
 
-static void revert_lock_pc(struct dlm_rsb *r, struct dlm_lkb *lkb)
+static int revert_lock_pc(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
-	revert_lock(r, lkb);
+	return revert_lock(r, lkb);
 }
 
 static void _grant_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
@@ -1053,6 +1199,50 @@ static void grant_lock_pending(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		send_grant(r, lkb);
 	else
 		queue_cast(r, lkb, 0);
+}
+
+/* The special CONVDEADLK, ALTPR and ALTCW flags allow the master to
+   change the granted/requested modes.  We're munging things accordingly in
+   the process copy.
+   CONVDEADLK: our grmode may have been forced down to NL to resolve a
+   conversion deadlock
+   ALTPR/ALTCW: our rqmode may have been changed to PR or CW to become
+   compatible with other granted locks */
+
+static void munge_demoted(struct dlm_lkb *lkb, struct dlm_message *ms)
+{
+	if (ms->m_type != DLM_MSG_CONVERT_REPLY) {
+		log_print("munge_demoted %x invalid reply type %d",
+			  lkb->lkb_id, ms->m_type);
+		return;
+	}
+
+	if (lkb->lkb_rqmode == DLM_LOCK_IV || lkb->lkb_grmode == DLM_LOCK_IV) {
+		log_print("munge_demoted %x invalid modes gr %d rq %d",
+			  lkb->lkb_id, lkb->lkb_grmode, lkb->lkb_rqmode);
+		return;
+	}
+
+	lkb->lkb_grmode = DLM_LOCK_NL;
+}
+
+static void munge_altmode(struct dlm_lkb *lkb, struct dlm_message *ms)
+{
+	if (ms->m_type != DLM_MSG_REQUEST_REPLY &&
+	    ms->m_type != DLM_MSG_GRANT) {
+		log_print("munge_altmode %x invalid reply type %d",
+			  lkb->lkb_id, ms->m_type);
+		return;
+	}
+
+	if (lkb->lkb_exflags & DLM_LKF_ALTPR)
+		lkb->lkb_rqmode = DLM_LOCK_PR;
+	else if (lkb->lkb_exflags & DLM_LKF_ALTCW)
+		lkb->lkb_rqmode = DLM_LOCK_CW;
+	else {
+		log_print("munge_altmode invalid exflags %x", lkb->lkb_exflags);
+		dlm_print_lkb(lkb);
+	}
 }
 
 static inline int first_in_list(struct dlm_lkb *lkb, struct list_head *head)
@@ -1499,7 +1689,7 @@ static void process_lookup_list(struct dlm_rsb *r)
 	struct dlm_lkb *lkb, *safe;
 
 	list_for_each_entry_safe(lkb, safe, &r->res_lookup, lkb_rsb_lookup) {
-		list_del(&lkb->lkb_rsb_lookup);
+		list_del_init(&lkb->lkb_rsb_lookup);
 		_request_lock(r, lkb);
 		schedule();
 	}
@@ -1530,7 +1720,7 @@ static void confirm_master(struct dlm_rsb *r, int error)
 		if (!list_empty(&r->res_lookup)) {
 			lkb = list_entry(r->res_lookup.next, struct dlm_lkb,
 					 lkb_rsb_lookup);
-			list_del(&lkb->lkb_rsb_lookup);
+			list_del_init(&lkb->lkb_rsb_lookup);
 			r->res_first_lkid = lkb->lkb_id;
 			_request_lock(r, lkb);
 		} else
@@ -1614,6 +1804,9 @@ static int set_unlock_args(uint32_t flags, void *astarg, struct dlm_args *args)
  		      DLM_LKF_FORCEUNLOCK))
 		return -EINVAL;
 
+	if (flags & DLM_LKF_CANCEL && flags & DLM_LKF_FORCEUNLOCK)
+		return -EINVAL;
+
 	args->flags = flags;
 	args->astparam = (long) astarg;
 	return 0;
@@ -1638,6 +1831,9 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 
 		if (lkb->lkb_wait_type)
 			goto out;
+
+		if (is_overlap(lkb))
+			goto out;
 	}
 
 	lkb->lkb_exflags = args->flags;
@@ -1654,35 +1850,126 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	return rv;
 }
 
+/* when dlm_unlock() sees -EBUSY with CANCEL/FORCEUNLOCK it returns 0
+   for success */
+
+/* note: it's valid for lkb_nodeid/res_nodeid to be -1 when we get here
+   because there may be a lookup in progress and it's valid to do
+   cancel/unlockf on it */
+
 static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 {
+	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int rv = -EINVAL;
 
-	if (lkb->lkb_flags & DLM_IFL_MSTCPY)
+	if (lkb->lkb_flags & DLM_IFL_MSTCPY) {
+		log_error(ls, "unlock on MSTCPY %x", lkb->lkb_id);
+		dlm_print_lkb(lkb);
 		goto out;
+	}
 
-	if (args->flags & DLM_LKF_FORCEUNLOCK)
+	/* an lkb may still exist even though the lock is EOL'ed due to a
+	   cancel, unlock or failed noqueue request; an app can't use these
+	   locks; return same error as if the lkid had not been found at all */
+
+	if (lkb->lkb_flags & DLM_IFL_ENDOFLIFE) {
+		log_debug(ls, "unlock on ENDOFLIFE %x", lkb->lkb_id);
+		rv = -ENOENT;
+		goto out;
+	}
+
+	/* an lkb may be waiting for an rsb lookup to complete where the
+	   lookup was initiated by another lock */
+
+	if (args->flags & (DLM_LKF_CANCEL | DLM_LKF_FORCEUNLOCK)) {
+		if (!list_empty(&lkb->lkb_rsb_lookup)) {
+			log_debug(ls, "unlock on rsb_lookup %x", lkb->lkb_id);
+			list_del_init(&lkb->lkb_rsb_lookup);
+			queue_cast(lkb->lkb_resource, lkb,
+				   args->flags & DLM_LKF_CANCEL ?
+				   -DLM_ECANCEL : -DLM_EUNLOCK);
+			unhold_lkb(lkb); /* undoes create_lkb() */
+			rv = -EBUSY;
+			goto out;
+		}
+	}
+
+	/* cancel not allowed with another cancel/unlock in progress */
+
+	if (args->flags & DLM_LKF_CANCEL) {
+		if (lkb->lkb_exflags & DLM_LKF_CANCEL)
+			goto out;
+
+		if (is_overlap(lkb))
+			goto out;
+
+		if (lkb->lkb_flags & DLM_IFL_RESEND) {
+			lkb->lkb_flags |= DLM_IFL_OVERLAP_CANCEL;
+			rv = -EBUSY;
+			goto out;
+		}
+
+		switch (lkb->lkb_wait_type) {
+		case DLM_MSG_LOOKUP:
+		case DLM_MSG_REQUEST:
+			lkb->lkb_flags |= DLM_IFL_OVERLAP_CANCEL;
+			rv = -EBUSY;
+			goto out;
+		case DLM_MSG_UNLOCK:
+		case DLM_MSG_CANCEL:
+			goto out;
+		}
+		/* add_to_waiters() will set OVERLAP_CANCEL */
 		goto out_ok;
+	}
 
-	if (args->flags & DLM_LKF_CANCEL &&
-	    lkb->lkb_status == DLM_LKSTS_GRANTED)
-		goto out;
+	/* do we need to allow a force-unlock if there's a normal unlock
+	   already in progress?  in what conditions could the normal unlock
+	   fail such that we'd want to send a force-unlock to be sure? */
 
-	if (!(args->flags & DLM_LKF_CANCEL) &&
-	    lkb->lkb_status != DLM_LKSTS_GRANTED)
-		goto out;
+	if (args->flags & DLM_LKF_FORCEUNLOCK) {
+		if (lkb->lkb_exflags & DLM_LKF_FORCEUNLOCK)
+			goto out;
 
+		if (is_overlap_unlock(lkb))
+			goto out;
+
+		if (lkb->lkb_flags & DLM_IFL_RESEND) {
+			lkb->lkb_flags |= DLM_IFL_OVERLAP_UNLOCK;
+			rv = -EBUSY;
+			goto out;
+		}
+
+		switch (lkb->lkb_wait_type) {
+		case DLM_MSG_LOOKUP:
+		case DLM_MSG_REQUEST:
+			lkb->lkb_flags |= DLM_IFL_OVERLAP_UNLOCK;
+			rv = -EBUSY;
+			goto out;
+		case DLM_MSG_UNLOCK:
+			goto out;
+		}
+		/* add_to_waiters() will set OVERLAP_UNLOCK */
+		goto out_ok;
+	}
+
+	/* normal unlock not allowed if there's any op in progress */
 	rv = -EBUSY;
-	if (lkb->lkb_wait_type)
+	if (lkb->lkb_wait_type || lkb->lkb_wait_count)
 		goto out;
 
  out_ok:
-	lkb->lkb_exflags = args->flags;
+	/* an overlapping op shouldn't blow away exflags from other op */
+	lkb->lkb_exflags |= args->flags;
 	lkb->lkb_sbflags = 0;
 	lkb->lkb_astparam = args->astparam;
-
 	rv = 0;
  out:
+	if (rv)
+		log_debug(ls, "validate_unlock_args %d %x %x %x %x %d %s", rv,
+			  lkb->lkb_id, lkb->lkb_flags, lkb->lkb_exflags,
+			  args->flags, lkb->lkb_wait_type,
+			  lkb->lkb_resource->res_name);
 	return rv;
 }
 
@@ -1732,9 +2019,24 @@ static int do_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		goto out;
 	}
 
-	if (can_be_queued(lkb)) {
-		if (is_demoted(lkb))
+	/* is_demoted() means the can_be_granted() above set the grmode
+	   to NL, and left us on the granted queue.  This auto-demotion
+	   (due to CONVDEADLK) might mean other locks, and/or this lock, are
+	   now grantable.  We have to try to grant other converting locks
+	   before we try again to grant this one. */
+
+	if (is_demoted(lkb)) {
+		grant_pending_convert(r, DLM_LOCK_IV);
+		if (_can_be_granted(r, lkb, 1)) {
+			grant_lock(r, lkb);
+			queue_cast(r, lkb, 0);
 			grant_pending_locks(r);
+			goto out;
+		}
+		/* else fall through and move to convert queue */
+	}
+
+	if (can_be_queued(lkb)) {
 		error = -EINPROGRESS;
 		del_lkb(r, lkb);
 		add_lkb(r, lkb, DLM_LKSTS_CONVERT);
@@ -1759,17 +2061,19 @@ static int do_unlock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	return -DLM_EUNLOCK;
 }
 
-/* FIXME: if revert_lock() finds that the lkb is granted, we should
-   skip the queue_cast(ECANCEL).  It indicates that the request/convert
-   completed (and queued a normal ast) just before the cancel; we don't
-   want to clobber the sb_result for the normal ast with ECANCEL. */
+/* returns: 0 did nothing, -DLM_ECANCEL canceled lock */
  
 static int do_cancel(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
-	revert_lock(r, lkb);
-	queue_cast(r, lkb, -DLM_ECANCEL);
-	grant_pending_locks(r);
-	return -DLM_ECANCEL;
+	int error;
+
+	error = revert_lock(r, lkb);
+	if (error) {
+		queue_cast(r, lkb, -DLM_ECANCEL);
+		grant_pending_locks(r);
+		return -DLM_ECANCEL;
+	}
+	return 0;
 }
 
 /*
@@ -2035,6 +2339,8 @@ int dlm_unlock(dlm_lockspace_t *lockspace,
 
 	if (error == -DLM_EUNLOCK || error == -DLM_ECANCEL)
 		error = 0;
+	if (error == -EBUSY && (flags & (DLM_LKF_CANCEL | DLM_LKF_FORCEUNLOCK)))
+		error = 0;
  out_put:
 	dlm_put_lkb(lkb);
  out:
@@ -2065,14 +2371,45 @@ int dlm_unlock(dlm_lockspace_t *lockspace,
  * receive_lookup_reply		send_lookup_reply
  */
 
+static int _create_message(struct dlm_ls *ls, int mb_len,
+			   int to_nodeid, int mstype,
+			   struct dlm_message **ms_ret,
+			   struct dlm_mhandle **mh_ret)
+{
+	struct dlm_message *ms;
+	struct dlm_mhandle *mh;
+	char *mb;
+
+	/* get_buffer gives us a message handle (mh) that we need to
+	   pass into lowcomms_commit and a message buffer (mb) that we
+	   write our data into */
+
+	mh = dlm_lowcomms_get_buffer(to_nodeid, mb_len, GFP_KERNEL, &mb);
+	if (!mh)
+		return -ENOBUFS;
+
+	memset(mb, 0, mb_len);
+
+	ms = (struct dlm_message *) mb;
+
+	ms->m_header.h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	ms->m_header.h_lockspace = ls->ls_global_id;
+	ms->m_header.h_nodeid = dlm_our_nodeid();
+	ms->m_header.h_length = mb_len;
+	ms->m_header.h_cmd = DLM_MSG;
+
+	ms->m_type = mstype;
+
+	*mh_ret = mh;
+	*ms_ret = ms;
+	return 0;
+}
+
 static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 			  int to_nodeid, int mstype,
 			  struct dlm_message **ms_ret,
 			  struct dlm_mhandle **mh_ret)
 {
-	struct dlm_message *ms;
-	struct dlm_mhandle *mh;
-	char *mb;
 	int mb_len = sizeof(struct dlm_message);
 
 	switch (mstype) {
@@ -2091,29 +2428,8 @@ static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 		break;
 	}
 
-	/* get_buffer gives us a message handle (mh) that we need to
-	   pass into lowcomms_commit and a message buffer (mb) that we
-	   write our data into */
-
-	mh = dlm_lowcomms_get_buffer(to_nodeid, mb_len, GFP_KERNEL, &mb);
-	if (!mh)
-		return -ENOBUFS;
-
-	memset(mb, 0, mb_len);
-
-	ms = (struct dlm_message *) mb;
-
-	ms->m_header.h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
-	ms->m_header.h_lockspace = r->res_ls->ls_global_id;
-	ms->m_header.h_nodeid = dlm_our_nodeid();
-	ms->m_header.h_length = mb_len;
-	ms->m_header.h_cmd = DLM_MSG;
-
-	ms->m_type = mstype;
-
-	*mh_ret = mh;
-	*ms_ret = ms;
-	return 0;
+	return _create_message(r->res_ls, mb_len, to_nodeid, mstype,
+			       ms_ret, mh_ret);
 }
 
 /* further lowcomms enhancements or alternate implementations may make
@@ -2176,7 +2492,9 @@ static int send_common(struct dlm_rsb *r, struct dlm_lkb *lkb, int mstype)
 	struct dlm_mhandle *mh;
 	int to_nodeid, error;
 
-	add_to_waiters(lkb, mstype);
+	error = add_to_waiters(lkb, mstype);
+	if (error)
+		return error;
 
 	to_nodeid = r->res_nodeid;
 
@@ -2192,7 +2510,7 @@ static int send_common(struct dlm_rsb *r, struct dlm_lkb *lkb, int mstype)
 	return 0;
 
  fail:
-	remove_from_waiters(lkb);
+	remove_from_waiters(lkb, msg_reply_type(mstype));
 	return error;
 }
 
@@ -2209,7 +2527,8 @@ static int send_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	/* down conversions go without a reply from the master */
 	if (!error && down_conversion(lkb)) {
-		remove_from_waiters(lkb);
+		remove_from_waiters(lkb, DLM_MSG_CONVERT_REPLY);
+		r->res_ls->ls_stub_ms.m_type = DLM_MSG_CONVERT_REPLY;
 		r->res_ls->ls_stub_ms.m_result = 0;
 		r->res_ls->ls_stub_ms.m_flags = lkb->lkb_flags;
 		__receive_convert_reply(r, lkb, &r->res_ls->ls_stub_ms);
@@ -2280,7 +2599,9 @@ static int send_lookup(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	struct dlm_mhandle *mh;
 	int to_nodeid, error;
 
-	add_to_waiters(lkb, DLM_MSG_LOOKUP);
+	error = add_to_waiters(lkb, DLM_MSG_LOOKUP);
+	if (error)
+		return error;
 
 	to_nodeid = dlm_dir_nodeid(r);
 
@@ -2296,7 +2617,7 @@ static int send_lookup(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	return 0;
 
  fail:
-	remove_from_waiters(lkb);
+	remove_from_waiters(lkb, DLM_MSG_LOOKUP_REPLY);
 	return error;
 }
 
@@ -2656,6 +2977,8 @@ static void receive_grant(struct dlm_ls *ls, struct dlm_message *ms)
 	lock_rsb(r);
 
 	receive_flags_reply(lkb, ms);
+	if (is_altmode(lkb))
+		munge_altmode(lkb, ms);
 	grant_lock_pc(r, lkb, ms);
 	queue_cast(r, lkb, 0);
 
@@ -2736,11 +3059,16 @@ static void receive_remove(struct dlm_ls *ls, struct dlm_message *ms)
 	dlm_dir_remove_entry(ls, from_nodeid, ms->m_extra, len);
 }
 
+static void receive_purge(struct dlm_ls *ls, struct dlm_message *ms)
+{
+	do_purge(ls, ms->m_nodeid, ms->m_pid);
+}
+
 static void receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
-	int error, mstype;
+	int error, mstype, result;
 
 	error = find_lkb(ls, ms->m_remid, &lkb);
 	if (error) {
@@ -2749,19 +3077,14 @@ static void receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	}
 	DLM_ASSERT(is_process_copy(lkb), dlm_print_lkb(lkb););
 
-	mstype = lkb->lkb_wait_type;
-	error = remove_from_waiters(lkb);
-	if (error) {
-		log_error(ls, "receive_request_reply not on waiters");
-		goto out;
-	}
-
-	/* this is the value returned from do_request() on the master */
-	error = ms->m_result;
-
 	r = lkb->lkb_resource;
 	hold_rsb(r);
 	lock_rsb(r);
+
+	mstype = lkb->lkb_wait_type;
+	error = remove_from_waiters(lkb, DLM_MSG_REQUEST_REPLY);
+	if (error)
+		goto out;
 
 	/* Optimization: the dir node was also the master, so it took our
 	   lookup as a request and sent request reply instead of lookup reply */
@@ -2770,14 +3093,15 @@ static void receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 		lkb->lkb_nodeid = r->res_nodeid;
 	}
 
-	switch (error) {
+	/* this is the value returned from do_request() on the master */
+	result = ms->m_result;
+
+	switch (result) {
 	case -EAGAIN:
-		/* request would block (be queued) on remote master;
-		   the unhold undoes the original ref from create_lkb()
-		   so it leads to the lkb being freed */
+		/* request would block (be queued) on remote master */
 		queue_cast(r, lkb, -EAGAIN);
 		confirm_master(r, -EAGAIN);
-		unhold_lkb(lkb);
+		unhold_lkb(lkb); /* undoes create_lkb() */
 		break;
 
 	case -EINPROGRESS:
@@ -2785,41 +3109,64 @@ static void receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 		/* request was queued or granted on remote master */
 		receive_flags_reply(lkb, ms);
 		lkb->lkb_remid = ms->m_lkid;
-		if (error)
+		if (is_altmode(lkb))
+			munge_altmode(lkb, ms);
+		if (result)
 			add_lkb(r, lkb, DLM_LKSTS_WAITING);
 		else {
 			grant_lock_pc(r, lkb, ms);
 			queue_cast(r, lkb, 0);
 		}
-		confirm_master(r, error);
+		confirm_master(r, result);
 		break;
 
 	case -EBADR:
 	case -ENOTBLK:
 		/* find_rsb failed to find rsb or rsb wasn't master */
+		log_debug(ls, "receive_request_reply %x %x master diff %d %d",
+			  lkb->lkb_id, lkb->lkb_flags, r->res_nodeid, result);
 		r->res_nodeid = -1;
 		lkb->lkb_nodeid = -1;
-		_request_lock(r, lkb);
+
+		if (is_overlap(lkb)) {
+			/* we'll ignore error in cancel/unlock reply */
+			queue_cast_overlap(r, lkb);
+			unhold_lkb(lkb); /* undoes create_lkb() */
+		} else
+			_request_lock(r, lkb);
 		break;
 
 	default:
-		log_error(ls, "receive_request_reply error %d", error);
+		log_error(ls, "receive_request_reply %x error %d",
+			  lkb->lkb_id, result);
 	}
 
+	if (is_overlap_unlock(lkb) && (result == 0 || result == -EINPROGRESS)) {
+		log_debug(ls, "receive_request_reply %x result %d unlock",
+			  lkb->lkb_id, result);
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_UNLOCK;
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
+		send_unlock(r, lkb);
+	} else if (is_overlap_cancel(lkb) && (result == -EINPROGRESS)) {
+		log_debug(ls, "receive_request_reply %x cancel", lkb->lkb_id);
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_UNLOCK;
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
+		send_cancel(r, lkb);
+	} else {
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_UNLOCK;
+	}
+ out:
 	unlock_rsb(r);
 	put_rsb(r);
- out:
 	dlm_put_lkb(lkb);
 }
 
 static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 				    struct dlm_message *ms)
 {
-	int error = ms->m_result;
-
 	/* this is the value returned from do_convert() on the master */
-
-	switch (error) {
+	switch (ms->m_result) {
 	case -EAGAIN:
 		/* convert would block (be queued) on remote master */
 		queue_cast(r, lkb, -EAGAIN);
@@ -2827,6 +3174,9 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 
 	case -EINPROGRESS:
 		/* convert was queued on remote master */
+		receive_flags_reply(lkb, ms);
+		if (is_demoted(lkb))
+			munge_demoted(lkb, ms);
 		del_lkb(r, lkb);
 		add_lkb(r, lkb, DLM_LKSTS_CONVERT);
 		break;
@@ -2834,24 +3184,33 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	case 0:
 		/* convert was granted on remote master */
 		receive_flags_reply(lkb, ms);
+		if (is_demoted(lkb))
+			munge_demoted(lkb, ms);
 		grant_lock_pc(r, lkb, ms);
 		queue_cast(r, lkb, 0);
 		break;
 
 	default:
-		log_error(r->res_ls, "receive_convert_reply error %d", error);
+		log_error(r->res_ls, "receive_convert_reply %x error %d",
+			  lkb->lkb_id, ms->m_result);
 	}
 }
 
 static void _receive_convert_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
 {
 	struct dlm_rsb *r = lkb->lkb_resource;
+	int error;
 
 	hold_rsb(r);
 	lock_rsb(r);
 
-	__receive_convert_reply(r, lkb, ms);
+	/* stub reply can happen with waiters_mutex held */
+	error = remove_from_waiters_ms(lkb, ms);
+	if (error)
+		goto out;
 
+	__receive_convert_reply(r, lkb, ms);
+ out:
 	unlock_rsb(r);
 	put_rsb(r);
 }
@@ -2868,37 +3227,38 @@ static void receive_convert_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	}
 	DLM_ASSERT(is_process_copy(lkb), dlm_print_lkb(lkb););
 
-	error = remove_from_waiters(lkb);
-	if (error) {
-		log_error(ls, "receive_convert_reply not on waiters");
-		goto out;
-	}
-
 	_receive_convert_reply(lkb, ms);
- out:
 	dlm_put_lkb(lkb);
 }
 
 static void _receive_unlock_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
 {
 	struct dlm_rsb *r = lkb->lkb_resource;
-	int error = ms->m_result;
+	int error;
 
 	hold_rsb(r);
 	lock_rsb(r);
 
+	/* stub reply can happen with waiters_mutex held */
+	error = remove_from_waiters_ms(lkb, ms);
+	if (error)
+		goto out;
+
 	/* this is the value returned from do_unlock() on the master */
 
-	switch (error) {
+	switch (ms->m_result) {
 	case -DLM_EUNLOCK:
 		receive_flags_reply(lkb, ms);
 		remove_lock_pc(r, lkb);
 		queue_cast(r, lkb, -DLM_EUNLOCK);
 		break;
+	case -ENOENT:
+		break;
 	default:
-		log_error(r->res_ls, "receive_unlock_reply error %d", error);
+		log_error(r->res_ls, "receive_unlock_reply %x error %d",
+			  lkb->lkb_id, ms->m_result);
 	}
-
+ out:
 	unlock_rsb(r);
 	put_rsb(r);
 }
@@ -2915,37 +3275,39 @@ static void receive_unlock_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	}
 	DLM_ASSERT(is_process_copy(lkb), dlm_print_lkb(lkb););
 
-	error = remove_from_waiters(lkb);
-	if (error) {
-		log_error(ls, "receive_unlock_reply not on waiters");
-		goto out;
-	}
-
 	_receive_unlock_reply(lkb, ms);
- out:
 	dlm_put_lkb(lkb);
 }
 
 static void _receive_cancel_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
 {
 	struct dlm_rsb *r = lkb->lkb_resource;
-	int error = ms->m_result;
+	int error;
 
 	hold_rsb(r);
 	lock_rsb(r);
 
+	/* stub reply can happen with waiters_mutex held */
+	error = remove_from_waiters_ms(lkb, ms);
+	if (error)
+		goto out;
+
 	/* this is the value returned from do_cancel() on the master */
 
-	switch (error) {
+	switch (ms->m_result) {
 	case -DLM_ECANCEL:
 		receive_flags_reply(lkb, ms);
 		revert_lock_pc(r, lkb);
-		queue_cast(r, lkb, -DLM_ECANCEL);
+		if (ms->m_result)
+			queue_cast(r, lkb, -DLM_ECANCEL);
+		break;
+	case 0:
 		break;
 	default:
-		log_error(r->res_ls, "receive_cancel_reply error %d", error);
+		log_error(r->res_ls, "receive_cancel_reply %x error %d",
+			  lkb->lkb_id, ms->m_result);
 	}
-
+ out:
 	unlock_rsb(r);
 	put_rsb(r);
 }
@@ -2962,14 +3324,7 @@ static void receive_cancel_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	}
 	DLM_ASSERT(is_process_copy(lkb), dlm_print_lkb(lkb););
 
-	error = remove_from_waiters(lkb);
-	if (error) {
-		log_error(ls, "receive_cancel_reply not on waiters");
-		goto out;
-	}
-
 	_receive_cancel_reply(lkb, ms);
- out:
 	dlm_put_lkb(lkb);
 }
 
@@ -2985,19 +3340,16 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 		return;
 	}
 
-	error = remove_from_waiters(lkb);
-	if (error) {
-		log_error(ls, "receive_lookup_reply not on waiters");
-		goto out;
-	}
-
-	/* this is the value returned by dlm_dir_lookup on dir node
+	/* ms->m_result is the value returned by dlm_dir_lookup on dir node
 	   FIXME: will a non-zero error ever be returned? */
-	error = ms->m_result;
 
 	r = lkb->lkb_resource;
 	hold_rsb(r);
 	lock_rsb(r);
+
+	error = remove_from_waiters(lkb, DLM_MSG_LOOKUP_REPLY);
+	if (error)
+		goto out;
 
 	ret_nodeid = ms->m_nodeid;
 	if (ret_nodeid == dlm_our_nodeid()) {
@@ -3009,14 +3361,22 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 		r->res_nodeid = ret_nodeid;
 	}
 
+	if (is_overlap(lkb)) {
+		log_debug(ls, "receive_lookup_reply %x unlock %x",
+			  lkb->lkb_id, lkb->lkb_flags);
+		queue_cast_overlap(r, lkb);
+		unhold_lkb(lkb); /* undoes create_lkb() */
+		goto out_list;
+	}
+
 	_request_lock(r, lkb);
 
+ out_list:
 	if (!ret_nodeid)
 		process_lookup_list(r);
-
+ out:
 	unlock_rsb(r);
 	put_rsb(r);
- out:
 	dlm_put_lkb(lkb);
 }
 
@@ -3133,6 +3493,12 @@ int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery)
 		receive_lookup_reply(ls, ms);
 		break;
 
+	/* other messages */
+
+	case DLM_MSG_PURGE:
+		receive_purge(ls, ms);
+		break;
+
 	default:
 		log_error(ls, "unknown message type %d", ms->m_type);
 	}
@@ -3153,9 +3519,9 @@ static void recover_convert_waiter(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
 	if (middle_conversion(lkb)) {
 		hold_lkb(lkb);
+		ls->ls_stub_ms.m_type = DLM_MSG_CONVERT_REPLY;
 		ls->ls_stub_ms.m_result = -EINPROGRESS;
 		ls->ls_stub_ms.m_flags = lkb->lkb_flags;
-		_remove_from_waiters(lkb);
 		_receive_convert_reply(lkb, &ls->ls_stub_ms);
 
 		/* Same special case as in receive_rcom_lock_args() */
@@ -3227,18 +3593,18 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 
 		case DLM_MSG_UNLOCK:
 			hold_lkb(lkb);
+			ls->ls_stub_ms.m_type = DLM_MSG_UNLOCK_REPLY;
 			ls->ls_stub_ms.m_result = -DLM_EUNLOCK;
 			ls->ls_stub_ms.m_flags = lkb->lkb_flags;
-			_remove_from_waiters(lkb);
 			_receive_unlock_reply(lkb, &ls->ls_stub_ms);
 			dlm_put_lkb(lkb);
 			break;
 
 		case DLM_MSG_CANCEL:
 			hold_lkb(lkb);
+			ls->ls_stub_ms.m_type = DLM_MSG_CANCEL_REPLY;
 			ls->ls_stub_ms.m_result = -DLM_ECANCEL;
 			ls->ls_stub_ms.m_flags = lkb->lkb_flags;
-			_remove_from_waiters(lkb);
 			_receive_cancel_reply(lkb, &ls->ls_stub_ms);
 			dlm_put_lkb(lkb);
 			break;
@@ -3252,37 +3618,47 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 	mutex_unlock(&ls->ls_waiters_mutex);
 }
 
-static int remove_resend_waiter(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
+static struct dlm_lkb *find_resend_waiter(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb;
-	int rv = 0;
+	int found = 0;
 
 	mutex_lock(&ls->ls_waiters_mutex);
 	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
 		if (lkb->lkb_flags & DLM_IFL_RESEND) {
-			rv = lkb->lkb_wait_type;
-			_remove_from_waiters(lkb);
-			lkb->lkb_flags &= ~DLM_IFL_RESEND;
+			hold_lkb(lkb);
+			found = 1;
 			break;
 		}
 	}
 	mutex_unlock(&ls->ls_waiters_mutex);
 
-	if (!rv)
+	if (!found)
 		lkb = NULL;
-	*lkb_ret = lkb;
-	return rv;
+	return lkb;
 }
 
 /* Deal with lookups and lkb's marked RESEND from _pre.  We may now be the
    master or dir-node for r.  Processing the lkb may result in it being placed
    back on waiters. */
 
+/* We do this after normal locking has been enabled and any saved messages
+   (in requestqueue) have been processed.  We should be confident that at
+   this point we won't get or process a reply to any of these waiting
+   operations.  But, new ops may be coming in on the rsbs/locks here from
+   userspace or remotely. */
+
+/* there may have been an overlap unlock/cancel prior to recovery or after
+   recovery.  if before, the lkb may still have a pos wait_count; if after, the
+   overlap flag would just have been set and nothing new sent.  we can be
+   confident here than any replies to either the initial op or overlap ops
+   prior to recovery have been received. */
+
 int dlm_recover_waiters_post(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
-	int error = 0, mstype;
+	int error = 0, mstype, err, oc, ou;
 
 	while (1) {
 		if (dlm_locking_stopped(ls)) {
@@ -3291,48 +3667,78 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 			break;
 		}
 
-		mstype = remove_resend_waiter(ls, &lkb);
-		if (!mstype)
+		lkb = find_resend_waiter(ls);
+		if (!lkb)
 			break;
 
 		r = lkb->lkb_resource;
+		hold_rsb(r);
+		lock_rsb(r);
+
+		mstype = lkb->lkb_wait_type;
+		oc = is_overlap_cancel(lkb);
+		ou = is_overlap_unlock(lkb);
+		err = 0;
 
 		log_debug(ls, "recover_waiters_post %x type %d flags %x %s",
 			  lkb->lkb_id, mstype, lkb->lkb_flags, r->res_name);
 
-		switch (mstype) {
+		/* At this point we assume that we won't get a reply to any
+		   previous op or overlap op on this lock.  First, do a big
+		   remove_from_waiters() for all previous ops. */
 
-		case DLM_MSG_LOOKUP:
-			hold_rsb(r);
-			lock_rsb(r);
-			_request_lock(r, lkb);
-			if (is_master(r))
-				confirm_master(r, 0);
-			unlock_rsb(r);
-			put_rsb(r);
-			break;
+		lkb->lkb_flags &= ~DLM_IFL_RESEND;
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_UNLOCK;
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
+		lkb->lkb_wait_type = 0;
+		lkb->lkb_wait_count = 0;
+		mutex_lock(&ls->ls_waiters_mutex);
+		list_del_init(&lkb->lkb_wait_reply);
+		mutex_unlock(&ls->ls_waiters_mutex);
+		unhold_lkb(lkb); /* for waiters list */
 
-		case DLM_MSG_REQUEST:
-			hold_rsb(r);
-			lock_rsb(r);
-			_request_lock(r, lkb);
-			if (is_master(r))
-				confirm_master(r, 0);
-			unlock_rsb(r);
-			put_rsb(r);
-			break;
-
-		case DLM_MSG_CONVERT:
-			hold_rsb(r);
-			lock_rsb(r);
-			_convert_lock(r, lkb);
-			unlock_rsb(r);
-			put_rsb(r);
-			break;
-
-		default:
-			log_error(ls, "recover_waiters_post type %d", mstype);
+		if (oc || ou) {
+			/* do an unlock or cancel instead of resending */
+			switch (mstype) {
+			case DLM_MSG_LOOKUP:
+			case DLM_MSG_REQUEST:
+				queue_cast(r, lkb, ou ? -DLM_EUNLOCK :
+							-DLM_ECANCEL);
+				unhold_lkb(lkb); /* undoes create_lkb() */
+				break;
+			case DLM_MSG_CONVERT:
+				if (oc) {
+					queue_cast(r, lkb, -DLM_ECANCEL);
+				} else {
+					lkb->lkb_exflags |= DLM_LKF_FORCEUNLOCK;
+					_unlock_lock(r, lkb);
+				}
+				break;
+			default:
+				err = 1;
+			}
+		} else {
+			switch (mstype) {
+			case DLM_MSG_LOOKUP:
+			case DLM_MSG_REQUEST:
+				_request_lock(r, lkb);
+				if (is_master(r))
+					confirm_master(r, 0);
+				break;
+			case DLM_MSG_CONVERT:
+				_convert_lock(r, lkb);
+				break;
+			default:
+				err = 1;
+			}
 		}
+
+		if (err)
+			log_error(ls, "recover_waiters_post %x %d %x %d %d",
+			  	  lkb->lkb_id, mstype, lkb->lkb_flags, oc, ou);
+		unlock_rsb(r);
+		put_rsb(r);
+		dlm_put_lkb(lkb);
 	}
 
 	return error;
@@ -3684,7 +4090,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 
 	/* add this new lkb to the per-process list of locks */
 	spin_lock(&ua->proc->locks_spin);
-	kref_get(&lkb->lkb_ref);
+	hold_lkb(lkb);
 	list_add_tail(&lkb->lkb_ownqueue, &ua->proc->locks);
 	spin_unlock(&ua->proc->locks_spin);
  out:
@@ -3774,6 +4180,9 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 
 	if (error == -DLM_EUNLOCK)
 		error = 0;
+	/* from validate_unlock_args() */
+	if (error == -EBUSY && (flags & DLM_LKF_FORCEUNLOCK))
+		error = 0;
 	if (error)
 		goto out_put;
 
@@ -3786,6 +4195,7 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	dlm_put_lkb(lkb);
  out:
 	unlock_recovery(ls);
+	kfree(ua_tmp);
 	return error;
 }
 
@@ -3815,33 +4225,37 @@ int dlm_user_cancel(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 
 	if (error == -DLM_ECANCEL)
 		error = 0;
-	if (error)
-		goto out_put;
-
-	/* this lkb was removed from the WAITING queue */
-	if (lkb->lkb_grmode == DLM_LOCK_IV) {
-		spin_lock(&ua->proc->locks_spin);
-		list_move(&lkb->lkb_ownqueue, &ua->proc->unlocking);
-		spin_unlock(&ua->proc->locks_spin);
-	}
+	/* from validate_unlock_args() */
+	if (error == -EBUSY)
+		error = 0;
  out_put:
 	dlm_put_lkb(lkb);
  out:
 	unlock_recovery(ls);
+	kfree(ua_tmp);
 	return error;
 }
+
+/* lkb's that are removed from the waiters list by revert are just left on the
+   orphans list with the granted orphan locks, to be freed by purge */
 
 static int orphan_proc_lock(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
 	struct dlm_user_args *ua = (struct dlm_user_args *)lkb->lkb_astparam;
+	struct dlm_args args;
+	int error;
 
-	if (ua->lksb.sb_lvbptr)
-		kfree(ua->lksb.sb_lvbptr);
-	kfree(ua);
-	lkb->lkb_astparam = (long)NULL;
+	hold_lkb(lkb);
+	mutex_lock(&ls->ls_orphans_mutex);
+	list_add_tail(&lkb->lkb_ownqueue, &ls->ls_orphans);
+	mutex_unlock(&ls->ls_orphans_mutex);
 
-	/* TODO: propogate to master if needed */
-	return 0;
+	set_unlock_args(0, ua, &args);
+
+	error = cancel_lock(ls, lkb, &args);
+	if (error == -DLM_ECANCEL)
+		error = 0;
+	return error;
 }
 
 /* The force flag allows the unlock to go ahead even if the lkb isn't granted.
@@ -3853,16 +4267,37 @@ static int unlock_proc_lock(struct dlm_ls *ls, struct dlm_lkb *lkb)
 	struct dlm_args args;
 	int error;
 
-	/* FIXME: we need to handle the case where the lkb is in limbo
-	   while the rsb is being looked up, currently we assert in
-	   _unlock_lock/is_remote because rsb nodeid is -1. */
-
 	set_unlock_args(DLM_LKF_FORCEUNLOCK, ua, &args);
 
 	error = unlock_lock(ls, lkb, &args);
 	if (error == -DLM_EUNLOCK)
 		error = 0;
 	return error;
+}
+
+/* We have to release clear_proc_locks mutex before calling unlock_proc_lock()
+   (which does lock_rsb) due to deadlock with receiving a message that does
+   lock_rsb followed by dlm_user_add_ast() */
+
+static struct dlm_lkb *del_proc_lock(struct dlm_ls *ls,
+				     struct dlm_user_proc *proc)
+{
+	struct dlm_lkb *lkb = NULL;
+
+	mutex_lock(&ls->ls_clear_proc_locks);
+	if (list_empty(&proc->locks))
+		goto out;
+
+	lkb = list_entry(proc->locks.next, struct dlm_lkb, lkb_ownqueue);
+	list_del_init(&lkb->lkb_ownqueue);
+
+	if (lkb->lkb_exflags & DLM_LKF_PERSISTENT)
+		lkb->lkb_flags |= DLM_IFL_ORPHAN;
+	else
+		lkb->lkb_flags |= DLM_IFL_DEAD;
+ out:
+	mutex_unlock(&ls->ls_clear_proc_locks);
+	return lkb;
 }
 
 /* The ls_clear_proc_locks mutex protects against dlm_user_add_asts() which
@@ -3880,18 +4315,15 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 	struct dlm_lkb *lkb, *safe;
 
 	lock_recovery(ls);
-	mutex_lock(&ls->ls_clear_proc_locks);
 
-	list_for_each_entry_safe(lkb, safe, &proc->locks, lkb_ownqueue) {
-		list_del_init(&lkb->lkb_ownqueue);
-
-		if (lkb->lkb_exflags & DLM_LKF_PERSISTENT) {
-			lkb->lkb_flags |= DLM_IFL_ORPHAN;
+	while (1) {
+		lkb = del_proc_lock(ls, proc);
+		if (!lkb)
+			break;
+		if (lkb->lkb_exflags & DLM_LKF_PERSISTENT)
 			orphan_proc_lock(ls, lkb);
-		} else {
-			lkb->lkb_flags |= DLM_IFL_DEAD;
+		else
 			unlock_proc_lock(ls, lkb);
-		}
 
 		/* this removes the reference for the proc->locks list
 		   added by dlm_user_request, it may result in the lkb
@@ -3899,6 +4331,8 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 
 		dlm_put_lkb(lkb);
 	}
+
+	mutex_lock(&ls->ls_clear_proc_locks);
 
 	/* in-progress unlocks */
 	list_for_each_entry_safe(lkb, safe, &proc->unlocking, lkb_ownqueue) {
@@ -3914,5 +4348,94 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 
 	mutex_unlock(&ls->ls_clear_proc_locks);
 	unlock_recovery(ls);
+}
+
+static void purge_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
+{
+	struct dlm_lkb *lkb, *safe;
+
+	while (1) {
+		lkb = NULL;
+		spin_lock(&proc->locks_spin);
+		if (!list_empty(&proc->locks)) {
+			lkb = list_entry(proc->locks.next, struct dlm_lkb,
+					 lkb_ownqueue);
+			list_del_init(&lkb->lkb_ownqueue);
+		}
+		spin_unlock(&proc->locks_spin);
+
+		if (!lkb)
+			break;
+
+		lkb->lkb_flags |= DLM_IFL_DEAD;
+		unlock_proc_lock(ls, lkb);
+		dlm_put_lkb(lkb); /* ref from proc->locks list */
+	}
+
+	spin_lock(&proc->locks_spin);
+	list_for_each_entry_safe(lkb, safe, &proc->unlocking, lkb_ownqueue) {
+		list_del_init(&lkb->lkb_ownqueue);
+		lkb->lkb_flags |= DLM_IFL_DEAD;
+		dlm_put_lkb(lkb);
+	}
+	spin_unlock(&proc->locks_spin);
+
+	spin_lock(&proc->asts_spin);
+	list_for_each_entry_safe(lkb, safe, &proc->asts, lkb_astqueue) {
+		list_del(&lkb->lkb_astqueue);
+		dlm_put_lkb(lkb);
+	}
+	spin_unlock(&proc->asts_spin);
+}
+
+/* pid of 0 means purge all orphans */
+
+static void do_purge(struct dlm_ls *ls, int nodeid, int pid)
+{
+	struct dlm_lkb *lkb, *safe;
+
+	mutex_lock(&ls->ls_orphans_mutex);
+	list_for_each_entry_safe(lkb, safe, &ls->ls_orphans, lkb_ownqueue) {
+		if (pid && lkb->lkb_ownpid != pid)
+			continue;
+		unlock_proc_lock(ls, lkb);
+		list_del_init(&lkb->lkb_ownqueue);
+		dlm_put_lkb(lkb);
+	}
+	mutex_unlock(&ls->ls_orphans_mutex);
+}
+
+static int send_purge(struct dlm_ls *ls, int nodeid, int pid)
+{
+	struct dlm_message *ms;
+	struct dlm_mhandle *mh;
+	int error;
+
+	error = _create_message(ls, sizeof(struct dlm_message), nodeid,
+				DLM_MSG_PURGE, &ms, &mh);
+	if (error)
+		return error;
+	ms->m_nodeid = nodeid;
+	ms->m_pid = pid;
+
+	return send_message(mh, ms);
+}
+
+int dlm_user_purge(struct dlm_ls *ls, struct dlm_user_proc *proc,
+		   int nodeid, int pid)
+{
+	int error = 0;
+
+	if (nodeid != dlm_our_nodeid()) {
+		error = send_purge(ls, nodeid, pid);
+	} else {
+		lock_recovery(ls);
+		if (pid == current->pid)
+			purge_proc_locks(ls, proc);
+		else
+			do_purge(ls, nodeid, pid);
+		unlock_recovery(ls);
+	}
+	return error;
 }
 

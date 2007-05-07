@@ -43,7 +43,6 @@ static void gfs2_init_glock_once(void *foo, struct kmem_cache *cachep, unsigned 
 		spin_lock_init(&gl->gl_spin);
 		INIT_LIST_HEAD(&gl->gl_holders);
 		INIT_LIST_HEAD(&gl->gl_waiters1);
-		INIT_LIST_HEAD(&gl->gl_waiters2);
 		INIT_LIST_HEAD(&gl->gl_waiters3);
 		gl->gl_lvb = NULL;
 		atomic_set(&gl->gl_lvb_count, 0);
@@ -101,6 +100,8 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		goto fail_unregister;
 
+	gfs2_register_debugfs();
+
 	printk("GFS2 (built %s %s) installed\n", __DATE__, __TIME__);
 
 	return 0;
@@ -128,6 +129,7 @@ fail:
 
 static void __exit exit_gfs2_fs(void)
 {
+	gfs2_unregister_debugfs();
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
 
