@@ -379,17 +379,6 @@ cflags-$(CONFIG_BASLER_EXCITE)	+= -Iinclude/asm-mips/mach-excite
 load-$(CONFIG_BASLER_EXCITE)	+= 0x80100000
 
 #
-# Momentum Jaguar ATX
-#
-core-$(CONFIG_MOMENCO_JAGUAR_ATX)	+= arch/mips/momentum/jaguar_atx/
-cflags-$(CONFIG_MOMENCO_JAGUAR_ATX)	+= -Iinclude/asm-mips/mach-ja
-#ifdef CONFIG_JAGUAR_DMALOW
-#load-$(CONFIG_MOMENCO_JAGUAR_ATX)	+= 0xffffffff88000000
-#else
-load-$(CONFIG_MOMENCO_JAGUAR_ATX)	+= 0xffffffff80100000
-#endif
-
-#
 # NEC DDB
 #
 core-$(CONFIG_DDB5XXX_COMMON)	+= arch/mips/ddb5xxx/common/

@@ -121,7 +121,7 @@
 #define  MACH_MOMENCO_OCELOT	0
 #define  MACH_MOMENCO_OCELOT_G	1	/* no more supported (may 2007) */
 #define  MACH_MOMENCO_OCELOT_C	2
-#define  MACH_MOMENCO_JAGUAR_ATX 3
+#define  MACH_MOMENCO_JAGUAR_ATX 3	/* no more supported (may 2007) */
 #define  MACH_MOMENCO_OCELOT_3	4
 
 /*

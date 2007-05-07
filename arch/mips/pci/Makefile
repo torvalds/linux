@@ -30,7 +30,6 @@ obj-$(CONFIG_SOC_AU1500)	+= fixup-au1000.o ops-au1000.o
 obj-$(CONFIG_SOC_AU1550)	+= fixup-au1000.o ops-au1000.o
 obj-$(CONFIG_SOC_PNX8550)	+= fixup-pnx8550.o ops-pnx8550.o
 obj-$(CONFIG_MIPS_MALTA)	+= fixup-malta.o
-obj-$(CONFIG_MOMENCO_JAGUAR_ATX)+= fixup-jaguar.o
 obj-$(CONFIG_MOMENCO_OCELOT)	+= fixup-ocelot.o pci-ocelot.o
 obj-$(CONFIG_MOMENCO_OCELOT_3)	+= fixup-ocelot3.o
 obj-$(CONFIG_MOMENCO_OCELOT_C)	+= fixup-ocelot-c.o pci-ocelot-c.o
