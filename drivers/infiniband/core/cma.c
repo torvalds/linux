@@ -1183,9 +1183,10 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 	struct sockaddr_in *sin;
 	int ret = 0;
 
-	memset(&event, 0, sizeof event);
-	atomic_inc(&id_priv->dev_remove);
+	if (cma_disable_remove(id_priv, CMA_CONNECT))
+		return 0;
 
+	memset(&event, 0, sizeof event);
 	switch (iw_event->event) {
 	case IW_CM_EVENT_CLOSE:
 		event.event = RDMA_CM_EVENT_DISCONNECTED;
