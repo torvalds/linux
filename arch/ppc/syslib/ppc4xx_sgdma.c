@@ -23,11 +23,11 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 #include <linux/pci.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/dma-mapping.h>
 #include <asm/ppc4xx_dma.h>
 
 void
