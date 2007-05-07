@@ -433,7 +433,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	int                  ret = -EINVAL;
 
 	if ( (vfd->debug & V4L2_DEBUG_IOCTL) &&
-				!(vfd->debug | V4L2_DEBUG_IOCTL_ARG)) {
+				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
 		v4l_print_ioctl(vfd->name, cmd);
 	}
 
