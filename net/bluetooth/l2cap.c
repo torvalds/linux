@@ -954,11 +954,17 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 
 	switch (optname) {
 	case L2CAP_OPTIONS:
+		opts.imtu     = l2cap_pi(sk)->imtu;
+		opts.omtu     = l2cap_pi(sk)->omtu;
+		opts.flush_to = l2cap_pi(sk)->flush_to;
+		opts.mode     = 0x00;
+
 		len = min_t(unsigned int, sizeof(opts), optlen);
 		if (copy_from_user((char *) &opts, optval, len)) {
 			err = -EFAULT;
 			break;
 		}
+
 		l2cap_pi(sk)->imtu  = opts.imtu;
 		l2cap_pi(sk)->omtu  = opts.omtu;
 		break;
