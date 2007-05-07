@@ -237,14 +237,14 @@ static void __devexit s3d_pci_unregister(struct pci_dev *pdev)
 }
 
 static struct pci_device_id s3d_pci_table[] = {
-	{	/* XVR-2500 */
-		PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x0032),
-		.driver_data = 1,
-	},
-	{	/* XVR-500 */
-		PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x07a2),
-		.driver_data = 0,
-	},
+	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x002c),	},
+	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x002d),	},
+	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x002e),	},
+	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x002f),	},
+	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x0030),	},
+	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x0031),	},
+	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x0032),	},
+	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x0033),	},
 	{ 0, }
 };
 
