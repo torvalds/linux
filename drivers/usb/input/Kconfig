@@ -33,20 +33,6 @@ config USB_YEALINK
 	  To compile this driver as a module, choose M here: the module will be
 	  called yealink.
 
-config USB_XPAD
-	tristate "X-Box gamepad support"
-	depends on USB && INPUT
-	---help---
-	  Say Y here if you want to use the X-Box pad with your computer.
-	  Make sure to say Y to "Joystick support" (CONFIG_INPUT_JOYDEV)
-	  and/or "Event interface support" (CONFIG_INPUT_EVDEV) as well.
-
-	  For information about how to connect the X-Box pad to USB, see
-	  <file:Documentation/input/xpad.txt>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called xpad.
-	  
 config USB_ATI_REMOTE
 	tristate "ATI / X10 USB RF remote control"
 	depends on USB && INPUT

@@ -25,7 +25,6 @@ obj-$(CONFIG_USB)		+= storage/
 
 obj-$(CONFIG_USB_ATI_REMOTE)	+= input/
 obj-$(CONFIG_USB_POWERMATE)	+= input/
-obj-$(CONFIG_USB_XPAD)		+= input/
 
 obj-$(CONFIG_USB_CATC)		+= net/
 obj-$(CONFIG_USB_KAWETH)	+= net/
