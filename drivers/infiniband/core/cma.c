@@ -368,6 +368,11 @@ static void cma_enable_remove(struct rdma_id_private *id_priv)
 		wake_up(&id_priv->wait_remove);
 }
 
+static int cma_has_cm_dev(struct rdma_id_private *id_priv)
+{
+	return (id_priv->id.device && id_priv->cm_id.ib);
+}
+
 struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
 				  void *context, enum rdma_port_space ps)
 {
@@ -2422,7 +2427,7 @@ int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event)
 	int ret;
 
 	id_priv = container_of(id, struct rdma_id_private, id);
-	if (!cma_comp(id_priv, CMA_CONNECT))
+	if (!cma_has_cm_dev(id_priv))
 		return -EINVAL;
 
 	switch (id->device->node_type) {
@@ -2444,7 +2449,7 @@ int rdma_reject(struct rdma_cm_id *id, const void *private_data,
 	int ret;
 
 	id_priv = container_of(id, struct rdma_id_private, id);
-	if (!cma_comp(id_priv, CMA_CONNECT))
+	if (!cma_has_cm_dev(id_priv))
 		return -EINVAL;
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
@@ -2475,8 +2480,7 @@ int rdma_disconnect(struct rdma_cm_id *id)
 	int ret;
 
 	id_priv = container_of(id, struct rdma_id_private, id);
-	if (!cma_comp(id_priv, CMA_CONNECT) &&
-	    !cma_comp(id_priv, CMA_DISCONNECT))
+	if (!cma_has_cm_dev(id_priv))
 		return -EINVAL;
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
