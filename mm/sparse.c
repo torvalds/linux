@@ -272,7 +272,7 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
  * Allocate the accumulated non-linear sections, allocate a mem_map
  * for each and record the physical to section mapping.
  */
-void sparse_init(void)
+void __init sparse_init(void)
 {
 	unsigned long pnum;
 	struct page *map;
