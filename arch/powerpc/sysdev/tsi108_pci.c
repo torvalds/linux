@@ -35,6 +35,7 @@
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/tsi108.h>
+#include <asm/tsi108_pci.h>
 #include <asm/tsi108_irq.h>
 #include <asm/prom.h>
 

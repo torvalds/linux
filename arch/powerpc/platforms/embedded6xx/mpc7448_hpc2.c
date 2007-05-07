@@ -41,6 +41,7 @@
 #include <asm/reg.h>
 #include <mm/mmu_decl.h>
 #include "mpc7448_hpc2.h"
+#include <asm/tsi108_pci.h>
 #include <asm/tsi108_irq.h>
 #include <asm/mpic.h>
 
@@ -57,10 +58,7 @@ isa_mem_base = MPC7448_HPC2_ISA_MEM_BASE;
 pci_dram_offset = MPC7448_HPC2_PCI_MEM_OFFSET;
 #endif
 
-extern int tsi108_setup_pci(struct device_node *dev);
 extern void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
-extern void tsi108_pci_int_init(struct device_node *node);
-extern void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc);
 
 int mpc7448_hpc2_exclude_device(u_char bus, u_char devfn)
 {
@@ -210,7 +208,6 @@ static int __init mpc7448_hpc2_probe(void)
 
 static int mpc7448_machine_check_exception(struct pt_regs *regs)
 {
-	extern void tsi108_clear_pci_cfg_error(void);
 	const struct exception_table_entry *entry;
 
 	/* Are we prepared to handle this fault */
