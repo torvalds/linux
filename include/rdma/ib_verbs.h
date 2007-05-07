@@ -431,9 +431,11 @@ struct ib_wc {
 	u8			port_num;	/* valid only for DR SMPs on switches */
 };
 
-enum ib_cq_notify {
-	IB_CQ_SOLICITED,
-	IB_CQ_NEXT_COMP
+enum ib_cq_notify_flags {
+	IB_CQ_SOLICITED			= 1 << 0,
+	IB_CQ_NEXT_COMP			= 1 << 1,
+	IB_CQ_SOLICITED_MASK		= IB_CQ_SOLICITED | IB_CQ_NEXT_COMP,
+	IB_CQ_REPORT_MISSED_EVENTS	= 1 << 2,
 };
 
 enum ib_srq_attr_mask {
@@ -990,7 +992,7 @@ struct ib_device {
 					      struct ib_wc *wc);
 	int                        (*peek_cq)(struct ib_cq *cq, int wc_cnt);
 	int                        (*req_notify_cq)(struct ib_cq *cq,
-						    enum ib_cq_notify cq_notify);
+						    enum ib_cq_notify_flags flags);
 	int                        (*req_ncomp_notif)(struct ib_cq *cq,
 						      int wc_cnt);
 	struct ib_mr *             (*get_dma_mr)(struct ib_pd *pd,
@@ -1419,14 +1421,34 @@ int ib_peek_cq(struct ib_cq *cq, int wc_cnt);
 /**
  * ib_req_notify_cq - Request completion notification on a CQ.
  * @cq: The CQ to generate an event for.
- * @cq_notify: If set to %IB_CQ_SOLICITED, completion notification will
- *   occur on the next solicited event. If set to %IB_CQ_NEXT_COMP,
- *   notification will occur on the next completion.
+ * @flags:
+ *   Must contain exactly one of %IB_CQ_SOLICITED or %IB_CQ_NEXT_COMP
+ *   to request an event on the next solicited event or next work
+ *   completion at any type, respectively. %IB_CQ_REPORT_MISSED_EVENTS
+ *   may also be |ed in to request a hint about missed events, as
+ *   described below.
+ *
+ * Return Value:
+ *    < 0 means an error occurred while requesting notification
+ *   == 0 means notification was requested successfully, and if
+ *        IB_CQ_REPORT_MISSED_EVENTS was passed in, then no events
+ *        were missed and it is safe to wait for another event.  In
+ *        this case is it guaranteed that any work completions added
+ *        to the CQ since the last CQ poll will trigger a completion
+ *        notification event.
+ *    > 0 is only returned if IB_CQ_REPORT_MISSED_EVENTS was passed
+ *        in.  It means that the consumer must poll the CQ again to
+ *        make sure it is empty to avoid missing an event because of a
+ *        race between requesting notification and an entry being
+ *        added to the CQ.  This return value means it is possible
+ *        (but not guaranteed) that a work completion has been added
+ *        to the CQ since the last poll without triggering a
+ *        completion notification event.
  */
 static inline int ib_req_notify_cq(struct ib_cq *cq,
-				   enum ib_cq_notify cq_notify)
+				   enum ib_cq_notify_flags flags)
 {
-	return cq->device->req_notify_cq(cq, cq_notify);
+	return cq->device->req_notify_cq(cq, flags);
 }
 
 /**

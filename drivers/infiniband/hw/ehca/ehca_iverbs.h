@@ -135,7 +135,7 @@ int ehca_poll_cq(struct ib_cq *cq, int num_entries, struct ib_wc *wc);
 
 int ehca_peek_cq(struct ib_cq *cq, int wc_cnt);
 
-int ehca_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify cq_notify);
+int ehca_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags notify_flags);
 
 struct ib_qp *ehca_create_qp(struct ib_pd *pd,
 			     struct ib_qp_init_attr *init_attr,

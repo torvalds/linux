@@ -292,7 +292,7 @@ static int iwch_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata)
 #endif
 }
 
-static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
+static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct iwch_dev *rhp;
 	struct iwch_cq *chp;
@@ -303,7 +303,7 @@ static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 
 	chp = to_iwch_cq(ibcq);
 	rhp = chp->rhp;
-	if (notify == IB_CQ_SOLICITED)
+	if ((flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED)
 		cq_op = CQ_ARM_SE;
 	else
 		cq_op = CQ_ARM_AN;
@@ -317,9 +317,11 @@ static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 	PDBG("%s rptr 0x%x\n", __FUNCTION__, chp->cq.rptr);
 	err = cxio_hal_cq_op(&rhp->rdev, &chp->cq, cq_op, 0);
 	spin_unlock_irqrestore(&chp->lock, flag);
-	if (err)
+	if (err < 0)
 		printk(KERN_ERR MOD "Error %d rearming CQID 0x%x\n", err,
 		       chp->cq.cqid);
+	if (err > 0 && !(flags & IB_CQ_REPORT_MISSED_EVENTS))
+		err = 0;
 	return err;
 }
 

@@ -334,17 +334,18 @@ int ipath_destroy_cq(struct ib_cq *ibcq)
 /**
  * ipath_req_notify_cq - change the notification type for a completion queue
  * @ibcq: the completion queue
- * @notify: the type of notification to request
+ * @notify_flags: the type of notification to request
  *
  * Returns 0 for success.
  *
  * This may be called from interrupt context.  Also called by
  * ib_req_notify_cq() in the generic verbs code.
  */
-int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
+int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 {
 	struct ipath_cq *cq = to_icq(ibcq);
 	unsigned long flags;
+	int ret = 0;
 
 	spin_lock_irqsave(&cq->lock, flags);
 	/*
@@ -352,9 +353,15 @@ int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 	 * any other transitions (see C11-31 and C11-32 in ch. 11.4.2.2).
 	 */
 	if (cq->notify != IB_CQ_NEXT_COMP)
-		cq->notify = notify;
+		cq->notify = notify_flags & IB_CQ_SOLICITED_MASK;
+
+	if ((notify_flags & IB_CQ_REPORT_MISSED_EVENTS) &&
+	    cq->queue->head != cq->queue->tail)
+		ret = 1;
+
 	spin_unlock_irqrestore(&cq->lock, flags);
-	return 0;
+
+	return ret;
 }
 
 /**

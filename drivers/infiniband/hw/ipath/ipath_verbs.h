@@ -741,7 +741,7 @@ struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries, int comp_vec
 
 int ipath_destroy_cq(struct ib_cq *ibcq);
 
-int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify notify);
+int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags);
 
 int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata);
 
