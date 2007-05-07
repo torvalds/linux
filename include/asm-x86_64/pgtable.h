@@ -19,7 +19,7 @@ extern pmd_t level2_kernel_pgt[512];
 extern pgd_t init_level4_pgt[];
 extern unsigned long __supported_pte_mask;
 
-#define swapper_pg_dir ((pgd_t *)NULL)
+#define swapper_pg_dir init_level4_pgt
 
 extern void paging_init(void);
 extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
@@ -29,7 +29,7 @@ extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
  * for zero-mapped memory areas etc..
  */
 extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
-#define ZERO_PAGE(vaddr) (pfn_to_page(__pa_symbol(&empty_zero_page) >> PAGE_SHIFT))
+#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
 #endif /* !__ASSEMBLY__ */
 

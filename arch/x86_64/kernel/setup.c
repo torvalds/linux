@@ -245,12 +245,11 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_code = (unsigned long) &_etext;
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) &_end;
-	init_mm.pgd = __va(__pa_symbol(&init_level4_pgt));
 
-	code_resource.start = __pa_symbol(&_text);
-	code_resource.end = __pa_symbol(&_etext)-1;
-	data_resource.start = __pa_symbol(&_etext);
-	data_resource.end = __pa_symbol(&_edata)-1;
+	code_resource.start = virt_to_phys(&_text);
+	code_resource.end = virt_to_phys(&_etext)-1;
+	data_resource.start = virt_to_phys(&_etext);
+	data_resource.end = virt_to_phys(&_edata)-1;
 
 	early_identify_cpu(&boot_cpu_data);
 

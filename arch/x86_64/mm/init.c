@@ -572,13 +572,13 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 
 	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
 	for (addr = begin; addr < end; addr += PAGE_SIZE) {
-		struct page *page = pfn_to_page(addr >> PAGE_SHIFT);
-		ClearPageReserved(page);
-		init_page_count(page);
-		memset(page_address(page), POISON_FREE_INITMEM, PAGE_SIZE);
+		ClearPageReserved(virt_to_page(addr));
+		init_page_count(virt_to_page(addr));
+		memset((void *)(addr & ~(PAGE_SIZE-1)),
+			POISON_FREE_INITMEM, PAGE_SIZE);
 		if (addr >= __START_KERNEL_map)
 			change_page_attr_addr(addr, 1, __pgprot(0));
-		__free_page(page);
+		free_page(addr);
 		totalram_pages++;
 	}
 	if (addr > __START_KERNEL_map)
@@ -588,26 +588,31 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 void free_initmem(void)
 {
 	free_init_pages("unused kernel memory",
-			__pa_symbol(&__init_begin),
-			__pa_symbol(&__init_end));
+			(unsigned long)(&__init_begin),
+			(unsigned long)(&__init_end));
 }
 
 #ifdef CONFIG_DEBUG_RODATA
 
 void mark_rodata_ro(void)
 {
-	unsigned long start = PFN_ALIGN(__va(__pa_symbol(&_stext))), size;
+	unsigned long start = (unsigned long)_stext, end;
 
 #ifdef CONFIG_HOTPLUG_CPU
 	/* It must still be possible to apply SMP alternatives. */
 	if (num_possible_cpus() > 1)
-		start = PFN_ALIGN(__va(__pa_symbol(&_etext)));
+		start = (unsigned long)_etext;
 #endif
-	size = (unsigned long)__va(__pa_symbol(&__end_rodata)) - start;
-	change_page_attr_addr(start, size >> PAGE_SHIFT, PAGE_KERNEL_RO);
+	end = (unsigned long)__end_rodata;
+	start = (start + PAGE_SIZE - 1) & PAGE_MASK;
+	end &= PAGE_MASK;
+	if (end <= start)
+		return;
+
+	change_page_attr_addr(start, (end - start) >> PAGE_SHIFT, PAGE_KERNEL_RO);
 
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
-	       size >> 10);
+	       (end - start) >> 10);
 
 	/*
 	 * change_page_attr_addr() requires a global_flush_tlb() call after it.
@@ -622,7 +627,7 @@ void mark_rodata_ro(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	free_init_pages("initrd memory", __pa(start), __pa(end));
+	free_init_pages("initrd memory", start, end);
 }
 #endif
 

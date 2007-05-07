@@ -94,26 +94,22 @@ extern unsigned long phys_base;
 
 #define KERNEL_TEXT_SIZE  (40*1024*1024)
 #define KERNEL_TEXT_START 0xffffffff80000000
+#define PAGE_OFFSET		__PAGE_OFFSET
 
 #ifndef __ASSEMBLY__
 
 #include <asm/bug.h>
 
+extern unsigned long __phys_addr(unsigned long);
+
 #endif /* __ASSEMBLY__ */
 
-#define PAGE_OFFSET		__PAGE_OFFSET
-
-/* Note: __pa(&symbol_visible_to_c) should be always replaced with __pa_symbol.
-   Otherwise you risk miscompilation. */
-#define __pa(x)			((unsigned long)(x) - PAGE_OFFSET)
-/* __pa_symbol should be used for C visible symbols.
-   This seems to be the official gcc blessed way to do such arithmetic. */ 
-#define __pa_symbol(x)		\
-	({unsigned long v;  \
-	  asm("" : "=r" (v) : "0" (x)); \
-	  ((v - __START_KERNEL_map) + phys_base); })
+#define __pa(x)		__phys_addr((unsigned long)(x))
+#define __pa_symbol(x)	__phys_addr((unsigned long)(x))
 
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
+#define __boot_va(x)		__va(x)
+#define __boot_pa(x)		__pa(x)
 #ifdef CONFIG_FLATMEM
 #define pfn_valid(pfn)		((pfn) < end_pfn)
 #endif

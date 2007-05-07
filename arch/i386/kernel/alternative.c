@@ -390,8 +390,8 @@ void __init alternative_instructions(void)
 						_text, _etext);
 		}
 		free_init_pages("SMP alternatives",
-				__pa_symbol(&__smp_locks),
-				__pa_symbol(&__smp_locks_end));
+				(unsigned long)__smp_locks,
+				(unsigned long)__smp_locks_end);
 	} else {
 		alternatives_smp_module_add(NULL, "core kernel",
 					    __smp_locks, __smp_locks_end,
