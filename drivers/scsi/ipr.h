@@ -37,7 +37,7 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.4.0"
+#define IPR_DRIVER_VERSION "2.4.1"
 #define IPR_DRIVER_DATE "(April 24, 2007)"
 
 /*
@@ -112,6 +112,7 @@
 
 /* Driver data flags */
 #define IPR_USE_LONG_TRANSOP_TIMEOUT		0x00000001
+#define IPR_USE_PCI_WARM_RESET			0x00000002
 
 #define IPR_DEFAULT_MAX_ERROR_DUMP			984
 #define IPR_NUM_LOG_HCAMS				2
@@ -193,6 +194,7 @@
 #define IPR_WAIT_FOR_RESET_TIMEOUT		(2 * HZ)
 #define IPR_CHECK_FOR_RESET_TIMEOUT		(HZ / 10)
 #define IPR_WAIT_FOR_BIST_TIMEOUT		(2 * HZ)
+#define IPR_PCI_RESET_TIMEOUT			(HZ / 2)
 #define IPR_DUMP_TIMEOUT			(15 * HZ)
 
 /*
@@ -1091,6 +1093,9 @@ struct ipr_ioa_cfg {
 	u8 allow_ml_add_del:1;
 	u8 needs_hard_reset:1;
 	u8 dual_raid:1;
+	u8 needs_warm_reset:1;
+
+	u8 revid;
 
 	enum ipr_cache_state cache_state;
 	u16 type; /* CCIN of the card */
@@ -1184,6 +1189,7 @@ struct ipr_ioa_cfg {
 	struct pci_pool *ipr_cmd_pool;
 
 	struct ipr_cmnd *reset_cmd;
+	int (*reset) (struct ipr_cmnd *);
 
 	struct ata_host ata_host;
 	char ipr_cmd_label[8];
