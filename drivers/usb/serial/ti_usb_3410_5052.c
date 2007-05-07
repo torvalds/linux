@@ -1555,15 +1555,17 @@ static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty)
 	spin_lock_irqsave(&tport->tp_lock, flags);
 
 	if (tport->tp_read_urb_state == TI_READ_URB_STOPPED) {
+		tport->tp_read_urb_state = TI_READ_URB_RUNNING;
 		urb = tport->tp_port->read_urb;
+		spin_unlock_irqrestore(&tport->tp_lock, flags);
 		urb->complete = ti_bulk_in_callback;
 		urb->context = tport;
 		urb->dev = tport->tp_port->serial->dev;
 		status = usb_submit_urb(urb, GFP_KERNEL);
+	} else  {
+		tport->tp_read_urb_state = TI_READ_URB_RUNNING;
+		spin_unlock_irqrestore(&tport->tp_lock, flags);
 	}
-	tport->tp_read_urb_state = TI_READ_URB_RUNNING;
-
-	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	return status;
 }
