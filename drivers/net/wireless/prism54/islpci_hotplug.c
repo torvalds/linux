@@ -87,7 +87,6 @@ static struct pci_driver prism54_driver = {
 	.remove = prism54_remove,
 	.suspend = prism54_suspend,
 	.resume = prism54_resume,
-	/* .enable_wake ; we don't support this yet */
 };
 
 /******************************************************************************

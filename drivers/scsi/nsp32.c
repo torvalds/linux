@@ -3487,15 +3487,6 @@ static int nsp32_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-/* Enable wake event */
-static int nsp32_enable_wake(struct pci_dev *pdev, pci_power_t state, int enable)
-{
-	struct Scsi_Host *host = pci_get_drvdata(pdev);
-
-	nsp32_msg(KERN_INFO, "pci-enable_wake: stub, pdev=0x%p, enable=%d, slot=%s, host=0x%p", pdev, enable, pci_name(pdev), host);
-
-	return 0;
-}
 #endif
 
 /************************************************************************
@@ -3571,7 +3562,6 @@ static struct pci_driver nsp32_driver = {
 #ifdef CONFIG_PM
 	.suspend	= nsp32_suspend, 
 	.resume		= nsp32_resume, 
-	.enable_wake    = nsp32_enable_wake,
 #endif
 };
 

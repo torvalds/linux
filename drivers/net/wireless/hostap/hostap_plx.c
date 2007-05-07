@@ -613,9 +613,6 @@ static struct pci_driver prism2_plx_drv_id = {
 	.id_table	= prism2_plx_id_table,
 	.probe		= prism2_plx_probe,
 	.remove		= prism2_plx_remove,
-	.suspend	= NULL,
-	.resume		= NULL,
-	.enable_wake	= NULL
 };
 
 

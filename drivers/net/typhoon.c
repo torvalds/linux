@@ -2267,12 +2267,6 @@ need_resume:
 	typhoon_resume(pdev);
 	return -EBUSY;
 }
-
-static int
-typhoon_enable_wake(struct pci_dev *pdev, pci_power_t state, int enable)
-{
-	return pci_enable_wake(pdev, state, enable);
-}
 #endif
 
 static int __devinit
@@ -2636,7 +2630,6 @@ static struct pci_driver typhoon_driver = {
 #ifdef CONFIG_PM
 	.suspend	= typhoon_suspend,
 	.resume		= typhoon_resume,
-	.enable_wake	= typhoon_enable_wake,
 #endif
 };
 
