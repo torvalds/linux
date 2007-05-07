@@ -416,7 +416,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	skb->dev = dev;
 	/* XXX get correct PACKET_ type here */
 	skb->pkt_type = PACKET_HOST;
-	netif_rx_ni(skb);
+	netif_receive_skb(skb);
 
 repost:
 	if (unlikely(ipoib_cm_post_receive(dev, wr_id)))
