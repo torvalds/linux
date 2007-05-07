@@ -175,16 +175,6 @@ static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
 	return mt352_pinnacle_init(fe);
 }
 
-static int mt352_aver777_tuner_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8* pllbuf, int buf_len)
-{
-	if (buf_len < 5)
-		return -EINVAL;
-
-	pllbuf[0] = 0x61;
-	dvb_pll_configure(&dvb_pll_philips_td1316, pllbuf+1, params);
-	return 5;
-}
-
 static struct mt352_config pinnacle_300i = {
 	.demod_address = 0x3c >> 1,
 	.adc_clock     = 20333,
@@ -993,7 +983,8 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = dvb_attach(mt352_attach, &avermedia_777,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops.tuner_ops.calc_regs = mt352_aver777_tuner_calc_regs;
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   NULL, &dvb_pll_philips_td1316);
 		}
 		break;
 	case SAA7134_BOARD_MD7134:
