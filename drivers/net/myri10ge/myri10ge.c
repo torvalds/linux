@@ -290,6 +290,8 @@ MODULE_PARM_DESC(myri10ge_wcfifo, "Enable WC Fifo when WC is enabled\n");
 
 #define myri10ge_pio_copy(to,from,size) __iowrite64_copy(to,from,size/8)
 
+static void myri10ge_set_multicast_list(struct net_device *dev);
+
 static inline void put_be32(__be32 val, __be32 __iomem * p)
 {
 	__raw_writel((__force __u32) val, (__force void __iomem *)p);
@@ -820,10 +822,8 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	mgp->rx_done.cnt = 0;
 	mgp->link_changes = 0;
 	status = myri10ge_update_mac_address(mgp, mgp->dev->dev_addr);
-	myri10ge_change_promisc(mgp, 0, 0);
 	myri10ge_change_pause(mgp, mgp->pause);
-	if (mgp->adopted_rx_filter_bug)
-		(void)myri10ge_send_cmd(mgp, MXGEFW_ENABLE_ALLMULTI, &cmd, 1);
+	myri10ge_set_multicast_list(mgp->dev);
 	return status;
 }
 
@@ -2283,7 +2283,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 	myri10ge_change_promisc(mgp, dev->flags & IFF_PROMISC, 1);
 
 	/* This firmware is known to not support multicast */
-	if (!mgp->fw_multicast_support || mgp->adopted_rx_filter_bug)
+	if (!mgp->fw_multicast_support)
 		return;
 
 	/* Disable multicast filtering */
@@ -2295,7 +2295,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 		goto abort;
 	}
 
-	if (dev->flags & IFF_ALLMULTI) {
+	if ((dev->flags & IFF_ALLMULTI) || mgp->adopted_rx_filter_bug) {
 		/* request to disable multicast filtering, so quit here */
 		return;
 	}
