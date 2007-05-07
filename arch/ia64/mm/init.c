@@ -355,7 +355,7 @@ setup_gate (void)
 void __devinit
 ia64_mmu_init (void *my_cpu_data)
 {
-	unsigned long psr, pta, impl_va_bits;
+	unsigned long pta, impl_va_bits;
 	extern void __devinit tlb_init (void);
 
 #ifdef CONFIG_DISABLE_VHPT
@@ -363,15 +363,6 @@ ia64_mmu_init (void *my_cpu_data)
 #else
 #	define VHPT_ENABLE_BIT	1
 #endif
-
-	/* Pin mapping for percpu area into TLB */
-	psr = ia64_clear_ic();
-	ia64_itr(0x2, IA64_TR_PERCPU_DATA, PERCPU_ADDR,
-		 pte_val(pfn_pte(__pa(my_cpu_data) >> PAGE_SHIFT, PAGE_KERNEL)),
-		 PERCPU_PAGE_SHIFT);
-
-	ia64_set_psr(psr);
-	ia64_srlz_i();
 
 	/*
 	 * Check if the virtually mapped linear page table (VMLPT) overlaps with a mapped

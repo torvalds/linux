@@ -439,6 +439,16 @@ config IA64_PALINFO
 	  To use this option, you have to ensure that the "/proc file system
 	  support" (CONFIG_PROC_FS) is enabled, too.
 
+config IA64_MC_ERR_INJECT
+	tristate "MC error injection support"
+	help
+	  Selets whether support for MC error injection. By enabling the
+	  support, kernel provide sysfs interface for user application to
+	  call MC error injection PAL procedure to inject various errors.
+	  This is a useful tool for MCA testing.
+
+	  If you're unsure, do not select this option.
+
 config SGI_SN
 	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC)
 
