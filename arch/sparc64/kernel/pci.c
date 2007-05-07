@@ -477,7 +477,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	return dev;
 }
 
-static void __init apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
+static void __devinit apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
 {
 	u32 idx, first, last;
 
@@ -506,9 +506,9 @@ static void __init pci_resource_adjust(struct resource *res,
 /* Cook up fake bus resources for SUNW,simba PCI bridges which lack
  * a proper 'ranges' property.
  */
-static void __init apb_fake_ranges(struct pci_dev *dev,
-				   struct pci_bus *bus,
-				   struct pci_pbm_info *pbm)
+static void __devinit apb_fake_ranges(struct pci_dev *dev,
+				      struct pci_bus *bus,
+				      struct pci_pbm_info *pbm)
 {
 	struct resource *res;
 	u32 first, last;
@@ -531,15 +531,15 @@ static void __init apb_fake_ranges(struct pci_dev *dev,
 	pci_resource_adjust(res, &pbm->mem_space);
 }
 
-static void __init pci_of_scan_bus(struct pci_pbm_info *pbm,
-				   struct device_node *node,
-				   struct pci_bus *bus);
+static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
+				      struct device_node *node,
+				      struct pci_bus *bus);
 
 #define GET_64BIT(prop, i)	((((u64) (prop)[(i)]) << 32) | (prop)[(i)+1])
 
-void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
-				  struct device_node *node,
-				  struct pci_dev *dev)
+static void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
+					 struct device_node *node,
+					 struct pci_dev *dev)
 {
 	struct pci_bus *bus;
 	const u32 *busrange, *ranges;
@@ -638,9 +638,9 @@ simba_cont:
 	pci_of_scan_bus(pbm, node, bus);
 }
 
-static void __init pci_of_scan_bus(struct pci_pbm_info *pbm,
-				   struct device_node *node,
-				   struct pci_bus *bus)
+static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
+				      struct device_node *node,
+				      struct pci_bus *bus)
 {
 	struct device_node *child;
 	const u32 *reg;
@@ -742,7 +742,7 @@ int pci_host_bridge_write_pci_cfg(struct pci_bus *bus_dev,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_bus * __init pci_scan_one_pbm(struct pci_pbm_info *pbm)
+struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm)
 {
 	struct pci_controller_info *p = pbm->parent;
 	struct device_node *node = pbm->prom_node;
