@@ -930,34 +930,23 @@ static void digi_rx_unthrottle( struct usb_serial_port *port )
 {
 
 	int ret = 0;
-	int len;
 	unsigned long flags;
 	struct digi_port *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty = port->tty;
-
 
 dbg( "digi_rx_unthrottle: TOP: port=%d", priv->dp_port_num );
 
 	spin_lock_irqsave( &priv->dp_port_lock, flags );
 
-	/* send any buffered chars from throttle time on to tty subsystem */
-
-	len = tty_buffer_request_room(tty, priv->dp_in_buf_len);
-	if( len > 0 ) {
-		tty_insert_flip_string_flags(tty, priv->dp_in_buf, priv->dp_in_flag_buf, len);
-		tty_flip_buffer_push( tty );
-	}
+	/* turn throttle off */
+	priv->dp_throttled = 0;
+	priv->dp_in_buf_len = 0;
+	priv->dp_throttle_restart = 0;
 
 	/* restart read chain */
 	if( priv->dp_throttle_restart ) {
 		port->read_urb->dev = port->serial->dev;
 		ret = usb_submit_urb( port->read_urb, GFP_ATOMIC );
 	}
-
-	/* turn throttle off */
-	priv->dp_throttled = 0;
-	priv->dp_in_buf_len = 0;
-	priv->dp_throttle_restart = 0;
 
 	spin_unlock_irqrestore( &priv->dp_port_lock, flags );
 
@@ -1864,31 +1853,16 @@ static int digi_read_inb_callback( struct urb *urb )
 		/* data length is len-1 (one byte of len is status) */
 		--len;
 
-		if( throttled ) {
-
-			len = min( len,
-				DIGI_IN_BUF_SIZE - priv->dp_in_buf_len );
-
-			if( len > 0 ) {
-				memcpy( priv->dp_in_buf + priv->dp_in_buf_len,
-					data, len );
-				memset( priv->dp_in_flag_buf
-					+ priv->dp_in_buf_len, flag, len );
-				priv->dp_in_buf_len += len;
+		len = tty_buffer_request_room(tty, len);
+		if( len > 0 ) {
+			/* Hot path */
+			if(flag == TTY_NORMAL)
+				tty_insert_flip_string(tty, data, len);
+			else {
+				for(i = 0; i < len; i++)
+					tty_insert_flip_char(tty, data[i], flag);
 			}
-
-		} else {
-			len = tty_buffer_request_room(tty, len);
-			if( len > 0 ) {
-				/* Hot path */
-				if(flag == TTY_NORMAL)
-					tty_insert_flip_string(tty, data, len);
-				else {
-					for(i = 0; i < len; i++)
-						tty_insert_flip_char(tty, data[i], flag);
-				}
-				tty_flip_buffer_push( tty );
-			}
+			tty_flip_buffer_push( tty );
 		}
 	}
 
