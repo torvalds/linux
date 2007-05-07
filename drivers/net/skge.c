@@ -135,10 +135,13 @@ static void skge_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 /* Wake on Lan only supported on Yukon chips with rev 1 or above */
 static u32 wol_supported(const struct skge_hw *hw)
 {
-	if (hw->chip_id == CHIP_ID_YUKON && hw->chip_rev != 0)
-		return WAKE_MAGIC | WAKE_PHY;
-	else
+	if (hw->chip_id == CHIP_ID_GENESIS)
 		return 0;
+
+	if (hw->chip_id == CHIP_ID_YUKON && hw->chip_rev == 0)
+		return 0;
+
+	return WAKE_MAGIC | WAKE_PHY;
 }
 
 static u32 pci_wake_enabled(struct pci_dev *dev)
