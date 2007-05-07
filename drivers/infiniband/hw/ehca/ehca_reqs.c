@@ -634,11 +634,13 @@ poll_cq_exit0:
 	return ret;
 }
 
-int ehca_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify cq_notify)
+int ehca_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags notify_flags)
 {
 	struct ehca_cq *my_cq = container_of(cq, struct ehca_cq, ib_cq);
+	unsigned long spl_flags;
+	int ret = 0;
 
-	switch (cq_notify) {
+	switch (notify_flags & IB_CQ_SOLICITED_MASK) {
 	case IB_CQ_SOLICITED:
 		hipz_set_cqx_n0(my_cq, 1);
 		break;
@@ -649,5 +651,11 @@ int ehca_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify cq_notify)
 		return -EINVAL;
 	}
 
-	return 0;
+	if (notify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
+		spin_lock_irqsave(&my_cq->spinlock, spl_flags);
+		ret = ipz_qeit_is_valid(&my_cq->ipz_queue);
+		spin_unlock_irqrestore(&my_cq->spinlock, spl_flags);
+	}
+
+	return ret;
 }

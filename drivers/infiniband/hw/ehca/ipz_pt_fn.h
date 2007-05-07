@@ -140,6 +140,14 @@ static inline void *ipz_qeit_get_inc_valid(struct ipz_queue *queue)
 	return cqe;
 }
 
+static inline int ipz_qeit_is_valid(struct ipz_queue *queue)
+{
+	struct ehca_cqe *cqe = ipz_qeit_get(queue);
+	u32 cqe_flags = cqe->cqe_flags;
+
+	return cqe_flags >> 7 == (queue->toggle_state & 1);
+}
+
 /*
  * returns and resets Queue Entry iterator
  * returns address (kv) of first Queue Entry

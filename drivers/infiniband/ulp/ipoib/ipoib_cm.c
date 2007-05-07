@@ -370,7 +370,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	if (!likely(wr_id & IPOIB_CM_RX_UPDATE_MASK)) {
 		p = wc->qp->qp_context;
-		if (time_after_eq(jiffies, p->jiffies + IPOIB_CM_RX_UPDATE_TIME)) {
+		if (p && time_after_eq(jiffies, p->jiffies + IPOIB_CM_RX_UPDATE_TIME)) {
 			spin_lock_irqsave(&priv->lock, flags);
 			p->jiffies = jiffies;
 			/* Move this entry to list head, but do
@@ -416,7 +416,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	skb->dev = dev;
 	/* XXX get correct PACKET_ type here */
 	skb->pkt_type = PACKET_HOST;
-	netif_rx_ni(skb);
+	netif_receive_skb(skb);
 
 repost:
 	if (unlikely(ipoib_cm_post_receive(dev, wr_id)))
@@ -592,7 +592,9 @@ int ipoib_cm_dev_open(struct net_device *dev)
 	priv->cm.id = ib_create_cm_id(priv->ca, ipoib_cm_rx_handler, dev);
 	if (IS_ERR(priv->cm.id)) {
 		printk(KERN_WARNING "%s: failed to create CM ID\n", priv->ca->name);
-		return IS_ERR(priv->cm.id);
+		ret = PTR_ERR(priv->cm.id);
+		priv->cm.id = NULL;
+		return ret;
 	}
 
 	ret = ib_cm_listen(priv->cm.id, cpu_to_be64(IPOIB_CM_IETF_ID | priv->qp->qp_num),
@@ -601,6 +603,7 @@ int ipoib_cm_dev_open(struct net_device *dev)
 		printk(KERN_WARNING "%s: failed to listen on ID 0x%llx\n", priv->ca->name,
 		       IPOIB_CM_IETF_ID | priv->qp->qp_num);
 		ib_destroy_cm_id(priv->cm.id);
+		priv->cm.id = NULL;
 		return ret;
 	}
 	return 0;
@@ -611,10 +614,11 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_cm_rx *p;
 
-	if (!IPOIB_CM_SUPPORTED(dev->dev_addr))
+	if (!IPOIB_CM_SUPPORTED(dev->dev_addr) || !priv->cm.id)
 		return;
 
 	ib_destroy_cm_id(priv->cm.id);
+	priv->cm.id = NULL;
 	spin_lock_irq(&priv->lock);
 	while (!list_empty(&priv->cm.passive_ids)) {
 		p = list_entry(priv->cm.passive_ids.next, typeof(*p), list);
@@ -789,7 +793,7 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	}
 
 	p->cq = ib_create_cq(priv->ca, ipoib_cm_tx_completion, NULL, p,
-			     ipoib_sendq_size + 1);
+			     ipoib_sendq_size + 1, 0);
 	if (IS_ERR(p->cq)) {
 		ret = PTR_ERR(p->cq);
 		ipoib_warn(priv, "failed to allocate tx cq: %d\n", ret);

@@ -114,7 +114,10 @@ int cxio_hal_cq_op(struct cxio_rdev *rdev_p, struct t3_cq *cq,
 				return -EIO;
 			}
 		}
+
+		return 1;
 	}
+
 	return 0;
 }
 

@@ -113,7 +113,7 @@ struct ehca_qp* ehca_cq_get_qp(struct ehca_cq *cq, int real_qp_num)
 	return ret;
 }
 
-struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe,
+struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 			     struct ib_ucontext *context,
 			     struct ib_udata *udata)
 {

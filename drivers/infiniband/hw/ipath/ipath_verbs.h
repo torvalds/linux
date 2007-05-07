@@ -173,12 +173,12 @@ struct ipath_ah {
  * this as its vm_private_data.
  */
 struct ipath_mmap_info {
-	struct ipath_mmap_info *next;
+	struct list_head pending_mmaps;
 	struct ib_ucontext *context;
 	void *obj;
+	__u64 offset;
 	struct kref ref;
 	unsigned size;
-	unsigned mmap_cnt;
 };
 
 /*
@@ -422,7 +422,7 @@ struct ipath_qp {
 #define IPATH_S_RDMAR_PENDING	0x04
 #define IPATH_S_ACK_PENDING	0x08
 
-#define IPATH_PSN_CREDIT	2048
+#define IPATH_PSN_CREDIT	512
 
 /*
  * Since struct ipath_swqe is not a fixed size, we can't simply index into
@@ -485,9 +485,10 @@ struct ipath_opcode_stats {
 
 struct ipath_ibdev {
 	struct ib_device ibdev;
-	struct list_head dev_list;
 	struct ipath_devdata *dd;
-	struct ipath_mmap_info *pending_mmaps;
+	struct list_head pending_mmaps;
+	spinlock_t mmap_offset_lock;
+	u32 mmap_offset;
 	int ib_unit;		/* This is the device number */
 	u16 sm_lid;		/* in host order */
 	u8 sm_sl;
@@ -734,13 +735,13 @@ int ipath_destroy_srq(struct ib_srq *ibsrq);
 
 int ipath_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
 
-struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
+struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries, int comp_vector,
 			      struct ib_ucontext *context,
 			      struct ib_udata *udata);
 
 int ipath_destroy_cq(struct ib_cq *ibcq);
 
-int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify notify);
+int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags);
 
 int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata);
 
@@ -767,6 +768,15 @@ int ipath_unmap_fmr(struct list_head *fmr_list);
 int ipath_dealloc_fmr(struct ib_fmr *ibfmr);
 
 void ipath_release_mmap_info(struct kref *ref);
+
+struct ipath_mmap_info *ipath_create_mmap_info(struct ipath_ibdev *dev,
+					       u32 size,
+					       struct ib_ucontext *context,
+					       void *obj);
+
+void ipath_update_mmap_info(struct ipath_ibdev *dev,
+			    struct ipath_mmap_info *ip,
+			    u32 size, void *obj);
 
 int ipath_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 

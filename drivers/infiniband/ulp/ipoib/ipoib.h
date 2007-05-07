@@ -310,6 +310,7 @@ extern struct workqueue_struct *ipoib_workqueue;
 
 /* functions */
 
+int ipoib_poll(struct net_device *dev, int *budget);
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr);
 
 struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
