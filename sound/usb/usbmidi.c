@@ -965,7 +965,11 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 	}
 	/* we never use interrupt output pipes */
 	pipe = usb_sndbulkpipe(umidi->chip->dev, ep_info->out_ep);
-	ep->max_transfer = usb_maxpacket(umidi->chip->dev, pipe, 1);
+	if (umidi->chip->usb_id == USB_ID(0x0a92, 0x1020)) /* ESI M4U */
+		/* FIXME: we need more URBs to get reasonable bandwidth here: */
+		ep->max_transfer = 4;
+	else
+		ep->max_transfer = usb_maxpacket(umidi->chip->dev, pipe, 1);
 	buffer = usb_buffer_alloc(umidi->chip->dev, ep->max_transfer,
 				  GFP_KERNEL, &ep->urb->transfer_dma);
 	if (!buffer) {
