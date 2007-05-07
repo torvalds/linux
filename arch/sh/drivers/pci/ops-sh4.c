@@ -162,3 +162,9 @@ char * __init pcibios_setup(char *str)
 
 	return str;
 }
+
+int __attribute__((weak)) pci_fixup_pcic(void)
+{
+	/* Nothing to do. */
+	return 0;
+}

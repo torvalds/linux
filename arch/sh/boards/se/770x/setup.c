@@ -63,6 +63,31 @@ static void __init smsc_setup(char **cmdline_p)
 	outb_p(CONFIG_EXIT, CONFIG_PORT);
 }
 
+
+static struct resource cf_ide_resources[] = {
+	[0] = {
+		.start  = PA_MRSHPC_IO + 0x1f0,
+		.end    = PA_MRSHPC_IO + 0x1f0 + 8,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = PA_MRSHPC_IO + 0x1f0 + 0x206,
+		.end    = PA_MRSHPC_IO + 0x1f0 +8 + 0x206 + 8,
+		.flags  = IORESOURCE_MEM,
+	},
+	[2] = {
+		.start  = IRQ_CFCARD,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device cf_ide_device  = {
+	.name           = "pata_platform",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(cf_ide_resources),
+	.resource       = cf_ide_resources,
+};
+
 static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
 
 static struct resource heartbeat_resources[] = {
@@ -85,13 +110,14 @@ static struct platform_device heartbeat_device = {
 
 static struct platform_device *se_devices[] __initdata = {
 	&heartbeat_device,
+	&cf_ide_device,
 };
 
 static int __init se_devices_setup(void)
 {
 	return platform_add_devices(se_devices, ARRAY_SIZE(se_devices));
 }
-__initcall(se_devices_setup);
+device_initcall(se_devices_setup);
 
 /*
  * The Machine Vector
@@ -107,6 +133,8 @@ struct sh_machine_vector mv_se __initmv = {
 	.mv_nr_irqs		= 61,
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705)
 	.mv_nr_irqs		= 86,
+#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
+	.mv_nr_irqs             = 104,
 #endif
 
 	.mv_inb			= se_inb,

@@ -2,50 +2,80 @@
 #define __ASM_SH_BUG_H
 
 #ifdef CONFIG_BUG
-
-struct bug_frame {
-	unsigned short	opcode;
-	unsigned short	line;
-	const char	*file;
-	const char	*func;
-};
-
-struct pt_regs;
-
-extern void handle_BUG(struct pt_regs *);
+#define HAVE_ARCH_BUG
+#define HAVE_ARCH_WARN_ON
 
 #define TRAPA_BUG_OPCODE	0xc33e	/* trapa #0x3e */
 
+/**
+ * _EMIT_BUG_ENTRY
+ * %1 - __FILE__
+ * %2 - __LINE__
+ * %3 - trap type
+ * %4 - sizeof(struct bug_entry)
+ *
+ * The trapa opcode itself sits in %0.
+ * The %O notation is used to avoid # generation.
+ *
+ * The offending file and line are encoded in the __bug_table section.
+ */
 #ifdef CONFIG_DEBUG_BUGVERBOSE
+#define _EMIT_BUG_ENTRY				\
+	"\t.pushsection __bug_table,\"a\"\n"	\
+	"2:\t.long 1b, %O1\n"			\
+	"\t.short %O2, %O3\n"			\
+	"\t.org 2b+%O4\n"			\
+	"\t.popsection\n"
+#else
+#define _EMIT_BUG_ENTRY				\
+	"\t.pushsection __bug_table,\"a\"\n"	\
+	"2:\t.long 1b\n"			\
+	"\t.short %O3\n"			\
+	"\t.org 2b+%O4\n"			\
+	"\t.popsection\n"
+#endif
 
 #define BUG()						\
 do {							\
 	__asm__ __volatile__ (				\
-		".align	2\n\t"				\
-		".short	%O0\n\t"			\
-		".short	%O1\n\t"			\
-		".long	%O2\n\t"			\
-		".long	%O3\n\t"			\
-		:					\
-		: "n" (TRAPA_BUG_OPCODE),		\
-		  "i" (__LINE__), "X" (__FILE__),	\
-		  "X" (__FUNCTION__));			\
+		"1:\t.short %O0\n"			\
+		_EMIT_BUG_ENTRY				\
+		 :					\
+		 : "n" (TRAPA_BUG_OPCODE),		\
+		   "i" (__FILE__),			\
+		   "i" (__LINE__), "i" (0),		\
+		   "i" (sizeof(struct bug_entry)));	\
 } while (0)
 
-#else
-
-#define BUG()					\
-do {						\
-	__asm__ __volatile__ (			\
-		".align	2\n\t"			\
-		".short	%O0\n\t"		\
-		:				\
-		: "n" (TRAPA_BUG_OPCODE));	\
+#define __WARN()					\
+do {							\
+	__asm__ __volatile__ (				\
+		"1:\t.short %O0\n"			\
+		 _EMIT_BUG_ENTRY			\
+		 :					\
+		 : "n" (TRAPA_BUG_OPCODE),		\
+		   "i" (__FILE__),			\
+		   "i" (__LINE__),			\
+		   "i" (BUGFLAG_WARNING),		\
+		   "i" (sizeof(struct bug_entry)));	\
 } while (0)
 
-#endif /* CONFIG_DEBUG_BUGVERBOSE */
+#define WARN_ON(x) ({						\
+	typeof(x) __ret_warn_on = (x);				\
+	if (__builtin_constant_p(__ret_warn_on)) {		\
+		if (__ret_warn_on)				\
+			__WARN();				\
+	} else {						\
+		if (unlikely(__ret_warn_on))			\
+			__WARN();				\
+	}							\
+	unlikely(__ret_warn_on);				\
+})
 
-#define HAVE_ARCH_BUG
+struct pt_regs;
+
+/* arch/sh/kernel/traps.c */
+void handle_BUG(struct pt_regs *);
 
 #endif /* CONFIG_BUG */
 

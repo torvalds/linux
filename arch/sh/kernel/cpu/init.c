@@ -41,6 +41,23 @@ __setup("no" __stringify(x), x##_setup);
 onchip_setup(fpu);
 onchip_setup(dsp);
 
+#ifdef CONFIG_SPECULATIVE_EXECUTION
+#define CPUOPM		0xff2f0000
+#define CPUOPM_RABD	(1 << 5)
+
+static void __init speculative_execution_init(void)
+{
+	/* Clear RABD */
+	ctrl_outl(ctrl_inl(CPUOPM) & ~CPUOPM_RABD, CPUOPM);
+
+	/* Flush the update */
+	(void)ctrl_inl(CPUOPM);
+	ctrl_barrier();
+}
+#else
+#define speculative_execution_init()	do { } while (0)
+#endif
+
 /*
  * Generic first-level cache init
  */
@@ -261,4 +278,6 @@ asmlinkage void __init sh_cpu_init(void)
 	 */
 	ubc_wakeup();
 #endif
+
+	speculative_execution_init();
 }

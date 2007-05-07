@@ -47,7 +47,6 @@ cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),) -ffreestanding
 
 cflags-$(CONFIG_SH_DSP)			+= -Wa,-dsp
-cflags-$(CONFIG_SH_KGDB)		+= -g
 
 cflags-$(CONFIG_MORE_COMPILE_OPTIONS)	+= \
 	$(shell echo $(CONFIG_COMPILE_OPTIONS) | sed -e 's/"//g')
@@ -89,7 +88,9 @@ core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 
 # Boards
 machdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se/770x
+machdir-$(CONFIG_SH_7722_SOLUTION_ENGINE)	:= se/7722
 machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se/7751
+machdir-$(CONFIG_SH_7780_SOLUTION_ENGINE)	:= se/7780
 machdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)	:= se/7300
 machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	:= se/7343
 machdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	:= se/73180
@@ -103,7 +104,7 @@ machdir-$(CONFIG_SH_HS7751RVOIP)		:= renesas/hs7751rvoip
 machdir-$(CONFIG_SH_RTS7751R2D)			:= renesas/rts7751r2d
 machdir-$(CONFIG_SH_7751_SYSTEMH)		:= renesas/systemh
 machdir-$(CONFIG_SH_EDOSK7705)			:= renesas/edosk7705
-machdir-$(CONFIG_SH_R7780RP)			:= renesas/r7780rp
+machdir-$(CONFIG_SH_HIGHLANDER)			:= renesas/r7780rp
 machdir-$(CONFIG_SH_7710VOIPGW)			:= renesas/sh7710voipgw
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		:= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			:= landisk
@@ -111,6 +112,7 @@ machdir-$(CONFIG_SH_TITAN)			:= titan
 machdir-$(CONFIG_SH_SHMIN)			:= shmin
 machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= se/7206
 machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= se/7619
+machdir-$(CONFIG_SH_LBOX_RE2)			:= lboxre2
 machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
 
 incdir-y			:= $(notdir $(machdir-y))

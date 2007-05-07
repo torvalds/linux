@@ -169,6 +169,8 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 #define destroy_context(mm)		do { } while (0)
 #define set_asid(asid)			do { } while (0)
 #define get_asid()			(0)
+#define set_TTB(pgd)			do { } while (0)
+#define get_TTB()			(0)
 #define activate_context(mm,cpu)	do { } while (0)
 #define switch_mm(prev,next,tsk)	do { } while (0)
 #define deactivate_mm(tsk,mm)		do { } while (0)
@@ -211,8 +213,8 @@ static inline void disable_mmu(void)
  * MMU control handlers for processors lacking memory
  * management hardware.
  */
-#define enable_mmu()	do { BUG(); } while (0)
-#define disable_mmu()	do { BUG(); } while (0)
+#define enable_mmu()	do { } while (0)
+#define disable_mmu()	do { } while (0)
 #endif
 
 #endif /* __KERNEL__ */

@@ -29,7 +29,7 @@
  * 0xB8001000 : Common Memory
  * 0xBA000000 : I/O
  */
-#if defined(CONFIG_IDE) && defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4)
 /* SH4 can't access PCMCIA interface through P2 area.
  * we must remap it with appropreate attribute bit of the page set.
  * this part is based on Greg Banks' hd64465_ss.c implementation - Masahiro Abe */
@@ -71,7 +71,7 @@ static int __init cf_init_default(void)
 /* You must have enabled the card, and set the level interrupt
  * before reaching this point. Possibly in boot ROM or boot loader.
  */
-#if defined(CONFIG_IDE) && defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4)
 	allocate_cf_area();
 #endif
 #if defined(CONFIG_SH_UNKNOWN)
@@ -84,15 +84,25 @@ static int __init cf_init_default(void)
 
 #if defined(CONFIG_SH_SOLUTION_ENGINE)
 #include <asm/se.h>
+#elif defined(CONFIG_SH_7722_SOLUTION_ENGINE)
+#include <asm/se7722.h>
+#endif
 
 /*
- * SolutionEngine
+ * SolutionEngine Seriese
  *
+ * about MS770xSE
  * 0xB8400000 : Common Memory
  * 0xB8500000 : Attribute
  * 0xB8600000 : I/O
+ *
+ * about MS7722SE
+ * 0xB0400000 : Common Memory
+ * 0xB0500000 : Attribute
+ * 0xB0600000 : I/O
  */
 
+#if defined(CONFIG_SH_SOLUTION_ENGINE) || defined(CONFIG_SH_7722_SOLUTION_ENGINE) 
 static int __init cf_init_se(void)
 {
 	if ((ctrl_inw(MRSHPC_CSR) & 0x000c) != 0)
@@ -109,7 +119,7 @@ static int __init cf_init_se(void)
 	 *  flag == COMMON/ATTRIBUTE/IO
 	 */
 	/* common window open */
-	ctrl_outw(0x8a84, MRSHPC_MW0CR1);/* window 0xb8400000 */
+	ctrl_outw(0x8a84, MRSHPC_MW0CR1);
 	if((ctrl_inw(MRSHPC_CSR) & 0x4000) != 0)
 		/* common mode & bus width 16bit SWAP = 1*/
 		ctrl_outw(0x0b00, MRSHPC_MW0CR2);
@@ -118,7 +128,7 @@ static int __init cf_init_se(void)
 		ctrl_outw(0x0300, MRSHPC_MW0CR2); 
 
 	/* attribute window open */
-	ctrl_outw(0x8a85, MRSHPC_MW1CR1);/* window 0xb8500000 */
+	ctrl_outw(0x8a85, MRSHPC_MW1CR1);
 	if ((ctrl_inw(MRSHPC_CSR) & 0x4000) != 0)
 		/* attribute mode & bus width 16bit SWAP = 1*/
 		ctrl_outw(0x0a00, MRSHPC_MW1CR2);
@@ -127,7 +137,7 @@ static int __init cf_init_se(void)
 		ctrl_outw(0x0200, MRSHPC_MW1CR2);
 
 	/* I/O window open */
-	ctrl_outw(0x8a86, MRSHPC_IOWCR1);/* I/O window 0xb8600000 */
+	ctrl_outw(0x8a86, MRSHPC_IOWCR1);
 	ctrl_outw(0x0008, MRSHPC_CDCR);	 /* I/O card mode */
 	if ((ctrl_inw(MRSHPC_CSR) & 0x4000) != 0)
 		ctrl_outw(0x0a00, MRSHPC_IOWCR2); /* bus width 16bit SWAP = 1*/
@@ -143,10 +153,10 @@ static int __init cf_init_se(void)
 
 int __init cf_init(void)
 {
-#if defined(CONFIG_SH_SOLUTION_ENGINE)
-	if (MACH_SE)
+	if( mach_is_se() || mach_is_7722se() ){
 		return cf_init_se();
-#endif
+	}
+	
 	return cf_init_default();
 }
 
