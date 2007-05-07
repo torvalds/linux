@@ -1312,7 +1312,7 @@ static void sunsu_console_write(struct console *co, const char *s,
  *	- initialize the serial port
  *	Return non-zero if we didn't find a serial port.
  */
-static int sunsu_console_setup(struct console *co, char *options)
+static int __init sunsu_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
 	int baud = 9600;
@@ -1343,7 +1343,7 @@ static int sunsu_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-static struct console sunsu_cons = {
+static struct console sunsu_console = {
 	.name	=	"ttyS",
 	.write	=	sunsu_console_write,
 	.device	=	uart_console_device,
@@ -1373,9 +1373,9 @@ static inline struct console *SUNSU_CONSOLE(int num_uart)
 	if (i == num_uart)
 		return NULL;
 
-	sunsu_cons.index = i;
+	sunsu_console.index = i;
 
-	return &sunsu_cons;
+	return &sunsu_console;
 }
 #else
 #define SUNSU_CONSOLE(num_uart)		(NULL)
