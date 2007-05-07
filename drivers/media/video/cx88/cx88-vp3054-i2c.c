@@ -111,10 +111,6 @@ static struct i2c_adapter vp3054_i2c_adap_template = {
 	.id                = I2C_HW_B_CX2388x,
 };
 
-static struct i2c_client vp3054_i2c_client_template = {
-	.name	= "VP-3054",
-};
-
 int vp3054_i2c_probe(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
@@ -133,8 +129,6 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 	       sizeof(vp3054_i2c->adap));
 	memcpy(&vp3054_i2c->algo, &vp3054_i2c_algo_template,
 	       sizeof(vp3054_i2c->algo));
-	memcpy(&vp3054_i2c->client, &vp3054_i2c_client_template,
-	       sizeof(vp3054_i2c->client));
 
 	vp3054_i2c->adap.class |= I2C_CLASS_TV_DIGITAL;
 
@@ -144,7 +138,6 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 	vp3054_i2c->algo.data = dev;
 	i2c_set_adapdata(&vp3054_i2c->adap, dev);
 	vp3054_i2c->adap.algo_data = &vp3054_i2c->algo;
-	vp3054_i2c->client.adapter = &vp3054_i2c->adap;
 
 	vp3054_bit_setscl(dev,1);
 	vp3054_bit_setsda(dev,1);
