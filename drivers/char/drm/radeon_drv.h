@@ -243,7 +243,6 @@ typedef struct drm_radeon_private {
 
 	int do_boxes;
 	int page_flipping;
-	int current_page;
 
 	u32 color_fmt;
 	unsigned int front_offset;
