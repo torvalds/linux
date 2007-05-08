@@ -402,7 +402,7 @@ void m8xx_cpm_dpinit(void)
 	 * with the processor and the microcode patches applied / activated.
 	 * But the following should be at least safe.
 	 */
-	rh_attach_region(&cpm_dpmem_info, (void *)CPM_DATAONLY_BASE, CPM_DATAONLY_SIZE);
+	rh_attach_region(&cpm_dpmem_info, CPM_DATAONLY_BASE, CPM_DATAONLY_SIZE);
 }
 
 /*
@@ -410,9 +410,9 @@ void m8xx_cpm_dpinit(void)
  * This function returns an offset into the DPRAM area.
  * Use cpm_dpram_addr() to get the virtual address of the area.
  */
-uint cpm_dpalloc(uint size, uint align)
+unsigned long cpm_dpalloc(uint size, uint align)
 {
-	void *start;
+	unsigned long start;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cpm_dpmem_lock, flags);
@@ -420,34 +420,34 @@ uint cpm_dpalloc(uint size, uint align)
 	start = rh_alloc(&cpm_dpmem_info, size, "commproc");
 	spin_unlock_irqrestore(&cpm_dpmem_lock, flags);
 
-	return (uint)start;
+	return start;
 }
 EXPORT_SYMBOL(cpm_dpalloc);
 
-int cpm_dpfree(uint offset)
+int cpm_dpfree(unsigned long offset)
 {
 	int ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cpm_dpmem_lock, flags);
-	ret = rh_free(&cpm_dpmem_info, (void *)offset);
+	ret = rh_free(&cpm_dpmem_info, offset);
 	spin_unlock_irqrestore(&cpm_dpmem_lock, flags);
 
 	return ret;
 }
 EXPORT_SYMBOL(cpm_dpfree);
 
-uint cpm_dpalloc_fixed(uint offset, uint size, uint align)
+unsigned long cpm_dpalloc_fixed(unsigned long offset, uint size, uint align)
 {
-	void *start;
+	unsigned long start;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cpm_dpmem_lock, flags);
 	cpm_dpmem_info.alignment = align;
-	start = rh_alloc_fixed(&cpm_dpmem_info, (void *)offset, size, "commproc");
+	start = rh_alloc_fixed(&cpm_dpmem_info, offset, size, "commproc");
 	spin_unlock_irqrestore(&cpm_dpmem_lock, flags);
 
-	return (uint)start;
+	return start;
 }
 EXPORT_SYMBOL(cpm_dpalloc_fixed);
 
@@ -457,7 +457,7 @@ void cpm_dpdump(void)
 }
 EXPORT_SYMBOL(cpm_dpdump);
 
-void *cpm_dpram_addr(uint offset)
+void *cpm_dpram_addr(unsigned long offset)
 {
 	return ((immap_t *)IMAP_ADDR)->im_cpm.cp_dpmem + offset;
 }

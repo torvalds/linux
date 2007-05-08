@@ -167,7 +167,7 @@ static int allocate_bd(struct net_device *dev)
 
 	fep->ring_mem_addr = cpm_dpalloc((fpi->tx_ring + fpi->rx_ring) *
 					 sizeof(cbd_t), 8);
-	if (IS_DPERR(fep->ring_mem_addr))
+	if (IS_ERR_VALUE(fep->ring_mem_addr))
 		return -ENOMEM;
 
 	fep->ring_base = cpm_dpram_addr(fep->ring_mem_addr);

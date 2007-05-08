@@ -18,7 +18,7 @@
 
 typedef struct _rh_block {
 	struct list_head list;
-	void *start;
+	unsigned long start;
 	int size;
 	const char *owner;
 } rh_block_t;
@@ -37,8 +37,8 @@ typedef struct _rh_info {
 #define RHIF_STATIC_INFO	0x1
 #define RHIF_STATIC_BLOCK	0x2
 
-typedef struct rh_stats_t {
-	void *start;
+typedef struct _rh_stats {
+	unsigned long start;
 	int size;
 	const char *owner;
 } rh_stats_t;
@@ -57,24 +57,24 @@ extern void rh_init(rh_info_t * info, unsigned int alignment, int max_blocks,
 		    rh_block_t * block);
 
 /* Attach a free region to manage */
-extern int rh_attach_region(rh_info_t * info, void *start, int size);
+extern int rh_attach_region(rh_info_t * info, unsigned long start, int size);
 
 /* Detach a free region */
-extern void *rh_detach_region(rh_info_t * info, void *start, int size);
+extern unsigned long rh_detach_region(rh_info_t * info, unsigned long start, int size);
 
 /* Allocate the given size from the remote heap (with alignment) */
-extern void *rh_alloc_align(rh_info_t * info, int size, int alignment,
+extern unsigned long rh_alloc_align(rh_info_t * info, int size, int alignment,
 		const char *owner);
 
 /* Allocate the given size from the remote heap */
-extern void *rh_alloc(rh_info_t * info, int size, const char *owner);
+extern unsigned long rh_alloc(rh_info_t * info, int size, const char *owner);
 
 /* Allocate the given size from the given address */
-extern void *rh_alloc_fixed(rh_info_t * info, void *start, int size,
+extern unsigned long rh_alloc_fixed(rh_info_t * info, unsigned long start, int size,
 			    const char *owner);
 
 /* Free the allocated area */
-extern int rh_free(rh_info_t * info, void *start);
+extern int rh_free(rh_info_t * info, unsigned long start);
 
 /* Get stats for debugging purposes */
 extern int rh_get_stats(rh_info_t * info, int what, int max_stats,
@@ -84,6 +84,6 @@ extern int rh_get_stats(rh_info_t * info, int what, int max_stats,
 extern void rh_dump(rh_info_t * info);
 
 /* Set owner of taken block */
-extern int rh_set_owner(rh_info_t * info, void *start, const char *owner);
+extern int rh_set_owner(rh_info_t * info, unsigned long start, const char *owner);
 
 #endif				/* __ASM_PPC_RHEAP_H__ */
