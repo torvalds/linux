@@ -116,7 +116,6 @@ struct smsc47m1_data {
 	struct i2c_client client;
 	enum chips type;
 	struct class_device *class_dev;
-	struct mutex lock;
 
 	struct mutex update_lock;
 	unsigned long last_updated;	/* In jiffies */
@@ -131,13 +130,19 @@ struct smsc47m1_data {
 
 static int smsc47m1_detect(struct i2c_adapter *adapter);
 static int smsc47m1_detach_client(struct i2c_client *client);
-
-static int smsc47m1_read_value(struct i2c_client *client, u8 reg);
-static void smsc47m1_write_value(struct i2c_client *client, u8 reg, u8 value);
-
 static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
 		int init);
 
+static inline int smsc47m1_read_value(struct i2c_client *client, u8 reg)
+{
+	return inb_p(client->addr + reg);
+}
+
+static inline void smsc47m1_write_value(struct i2c_client *client, u8 reg,
+		u8 value)
+{
+	outb_p(value, client->addr + reg);
+}
 
 static struct i2c_driver smsc47m1_driver = {
 	.driver = {
@@ -477,7 +482,6 @@ static int smsc47m1_detect(struct i2c_adapter *adapter)
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
-	mutex_init(&data->lock);
 	new_client->adapter = adapter;
 	new_client->driver = &smsc47m1_driver;
 	new_client->flags = 0;
@@ -631,23 +635,6 @@ static int smsc47m1_detach_client(struct i2c_client *client)
 	kfree(data);
 
 	return 0;
-}
-
-static int smsc47m1_read_value(struct i2c_client *client, u8 reg)
-{
-	int res;
-
-	mutex_lock(&((struct smsc47m1_data *) i2c_get_clientdata(client))->lock);
-	res = inb_p(client->addr + reg);
-	mutex_unlock(&((struct smsc47m1_data *) i2c_get_clientdata(client))->lock);
-	return res;
-}
-
-static void smsc47m1_write_value(struct i2c_client *client, u8 reg, u8 value)
-{
-	mutex_lock(&((struct smsc47m1_data *) i2c_get_clientdata(client))->lock);
-	outb_p(value, client->addr + reg);
-	mutex_unlock(&((struct smsc47m1_data *) i2c_get_clientdata(client))->lock);
 }
 
 static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
