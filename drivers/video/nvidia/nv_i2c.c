@@ -30,16 +30,14 @@ static void nvidia_gpio_setscl(void *data, int state)
 	struct nvidia_par *par = chan->par;
 	u32 val;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base + 1);
-	val = VGA_RD08(par->PCIO, 0x3d5) & 0xf0;
+	val = NVReadCrtc(par, chan->ddc_base + 1) & 0xf0;
 
 	if (state)
 		val |= 0x20;
 	else
 		val &= ~0x20;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base + 1);
-	VGA_WR08(par->PCIO, 0x3d5, val | 0x1);
+	NVWriteCrtc(par, chan->ddc_base + 1, val | 0x01);
 }
 
 static void nvidia_gpio_setsda(void *data, int state)
@@ -48,16 +46,14 @@ static void nvidia_gpio_setsda(void *data, int state)
 	struct nvidia_par *par = chan->par;
 	u32 val;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base + 1);
-	val = VGA_RD08(par->PCIO, 0x3d5) & 0xf0;
+	val = NVReadCrtc(par, chan->ddc_base + 1) & 0xf0;
 
 	if (state)
 		val |= 0x10;
 	else
 		val &= ~0x10;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base + 1);
-	VGA_WR08(par->PCIO, 0x3d5, val | 0x1);
+	NVWriteCrtc(par, chan->ddc_base + 1, val | 0x01);
 }
 
 static int nvidia_gpio_getscl(void *data)
@@ -66,8 +62,7 @@ static int nvidia_gpio_getscl(void *data)
 	struct nvidia_par *par = chan->par;
 	u32 val = 0;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base);
-	if (VGA_RD08(par->PCIO, 0x3d5) & 0x04)
+	if (NVReadCrtc(par, chan->ddc_base) & 0x04)
 		val = 1;
 
 	return val;
@@ -79,8 +74,7 @@ static int nvidia_gpio_getsda(void *data)
 	struct nvidia_par *par = chan->par;
 	u32 val = 0;
 
-	VGA_WR08(par->PCIO, 0x3d4, chan->ddc_base);
-	if (VGA_RD08(par->PCIO, 0x3d5) & 0x08)
+	if (NVReadCrtc(par, chan->ddc_base) & 0x08)
 		val = 1;
 
 	return val;
