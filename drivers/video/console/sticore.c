@@ -495,7 +495,7 @@ sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
 		return NULL;
 	fbfont = find_font(fbfont_name);
 	if (!fbfont)
-		fbfont = get_default_font(1024,768);
+		fbfont = get_default_font(1024,768, ~(u32)0, ~(u32)0);
 	if (!fbfont)
 		return NULL;
 
