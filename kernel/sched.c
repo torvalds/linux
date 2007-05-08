@@ -4750,6 +4750,8 @@ void show_state_filter(unsigned long state_filter)
 			show_task(p);
 	} while_each_thread(g, p);
 
+	touch_all_softlockup_watchdogs();
+
 	read_unlock(&tasklist_lock);
 	/*
 	 * Only show locks if all tasks are dumped:
