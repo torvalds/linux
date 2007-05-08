@@ -2309,10 +2309,10 @@ __generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 		 * semantics.
 		 */
 		endbyte = pos + written_buffered - written - 1;
-		err = do_sync_file_range(file, pos, endbyte,
-					 SYNC_FILE_RANGE_WAIT_BEFORE|
-					 SYNC_FILE_RANGE_WRITE|
-					 SYNC_FILE_RANGE_WAIT_AFTER);
+		err = do_sync_mapping_range(file->f_mapping, pos, endbyte,
+					    SYNC_FILE_RANGE_WAIT_BEFORE|
+					    SYNC_FILE_RANGE_WRITE|
+					    SYNC_FILE_RANGE_WAIT_AFTER);
 		if (err == 0) {
 			written = written_buffered;
 			invalidate_mapping_pages(mapping,

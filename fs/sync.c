@@ -229,7 +229,7 @@ asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
 			!S_ISLNK(i_mode))
 		goto out_put;
 
-	ret = do_sync_file_range(file, offset, endbyte, flags);
+	ret = do_sync_mapping_range(file->f_mapping, offset, endbyte, flags);
 out_put:
 	fput_light(file, fput_needed);
 out:
