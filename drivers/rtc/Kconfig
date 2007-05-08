@@ -21,21 +21,31 @@ config RTC_CLASS
 	  will be called rtc-class.
 
 config RTC_HCTOSYS
-	bool "Set system time from RTC on startup"
+	bool "Set system time from RTC on startup and resume"
 	depends on RTC_CLASS = y
 	default y
 	help
-	  If you say yes here, the system time will be set using
-	  the value read from the specified RTC device. This is useful
-	  in order to avoid unnecessary fsck runs.
+	  If you say yes here, the system time (wall clock) will be set using
+	  the value read from a specified RTC device. This is useful to avoid
+	  unnecessary fsck runs at boot time, and to network better.
 
 config RTC_HCTOSYS_DEVICE
-	string "The RTC to read the time from"
+	string "RTC used to set the system time"
 	depends on RTC_HCTOSYS = y
 	default "rtc0"
 	help
-	  The RTC device that will be used as the source for
-	  the system time, usually rtc0.
+	  The RTC device that will be used to (re)initialize the system
+	  clock, usually rtc0.  Initialization is done when the system
+	  starts up, and when it resumes from a low power state.
+
+	  This clock should be battery-backed, so that it reads the correct
+	  time when the system boots from a power-off state.  Otherwise, your
+	  system will need an external clock source (like an NTP server).
+
+	  If the clock you specify here is not battery backed, it may still
+	  be useful to reinitialize system time when resuming from system
+	  sleep states.  Do not specify an RTC here unless it stays powered
+	  during all this system's supported sleep states.
 
 config RTC_DEBUG
 	bool "RTC debug support"

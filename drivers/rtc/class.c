@@ -32,6 +32,78 @@ static void rtc_device_release(struct device *dev)
 	kfree(rtc);
 }
 
+#if defined(CONFIG_PM) && defined(CONFIG_RTC_HCTOSYS_DEVICE)
+
+/*
+ * On suspend(), measure the delta between one RTC and the
+ * system's wall clock; restore it on resume().
+ */
+
+static struct timespec	delta;
+static time_t		oldtime;
+
+static int rtc_suspend(struct device *dev, pm_message_t mesg)
+{
+	struct rtc_device	*rtc = to_rtc_device(dev);
+	struct rtc_time		tm;
+
+	if (strncmp(rtc->dev.bus_id,
+				CONFIG_RTC_HCTOSYS_DEVICE,
+				BUS_ID_SIZE) != 0)
+		return 0;
+
+	rtc_read_time(rtc, &tm);
+	rtc_tm_to_time(&tm, &oldtime);
+
+	/* RTC precision is 1 second; adjust delta for avg 1/2 sec err */
+	set_normalized_timespec(&delta,
+				xtime.tv_sec - oldtime,
+				xtime.tv_nsec - (NSEC_PER_SEC >> 1));
+
+	return 0;
+}
+
+static int rtc_resume(struct device *dev)
+{
+	struct rtc_device	*rtc = to_rtc_device(dev);
+	struct rtc_time		tm;
+	time_t			newtime;
+	struct timespec		time;
+
+	if (strncmp(rtc->dev.bus_id,
+				CONFIG_RTC_HCTOSYS_DEVICE,
+				BUS_ID_SIZE) != 0)
+		return 0;
+
+	rtc_read_time(rtc, &tm);
+	if (rtc_valid_tm(&tm) != 0) {
+		pr_debug("%s:  bogus resume time\n", rtc->dev.bus_id);
+		return 0;
+	}
+	rtc_tm_to_time(&tm, &newtime);
+	if (newtime <= oldtime) {
+		if (newtime < oldtime)
+			pr_debug("%s:  time travel!\n", rtc->dev.bus_id);
+		return 0;
+	}
+
+	/* restore wall clock using delta against this RTC;
+	 * adjust again for avg 1/2 second RTC sampling error
+	 */
+	set_normalized_timespec(&time,
+				newtime + delta.tv_sec,
+				(NSEC_PER_SEC >> 1) + delta.tv_nsec);
+	do_settimeofday(&time);
+
+	return 0;
+}
+
+#else
+#define rtc_suspend	NULL
+#define rtc_resume	NULL
+#endif
+
+
 /**
  * rtc_device_register - register w/ RTC class
  * @dev: the device to register
@@ -143,6 +215,8 @@ static int __init rtc_init(void)
 		printk(KERN_ERR "%s: couldn't create class\n", __FILE__);
 		return PTR_ERR(rtc_class);
 	}
+	rtc_class->suspend = rtc_suspend;
+	rtc_class->resume = rtc_resume;
 	rtc_dev_init();
 	rtc_sysfs_init(rtc_class);
 	return 0;

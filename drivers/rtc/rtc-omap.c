@@ -488,19 +488,10 @@ static int __devexit omap_rtc_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
-static struct timespec rtc_delta;
 static u8 irqstat;
 
 static int omap_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct rtc_time rtc_tm;
-	struct timespec time;
-
-	time.tv_nsec = 0;
-	omap_rtc_read_time(NULL, &rtc_tm);
-	rtc_tm_to_time(&rtc_tm, &time.tv_sec);
-
-	save_time_delta(&rtc_delta, &time);
 	irqstat = rtc_read(OMAP_RTC_INTERRUPTS_REG);
 
 	/* FIXME the RTC alarm is not currently acting as a wakeup event
@@ -517,14 +508,6 @@ static int omap_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int omap_rtc_resume(struct platform_device *pdev)
 {
-	struct rtc_time rtc_tm;
-	struct timespec time;
-
-	time.tv_nsec = 0;
-	omap_rtc_read_time(NULL, &rtc_tm);
-	rtc_tm_to_time(&rtc_tm, &time.tv_sec);
-
-	restore_time_delta(&rtc_delta, &time);
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(omap_rtc_alarm);
 	else
