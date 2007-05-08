@@ -2,7 +2,7 @@
 # Makefile for the Linux IEEE 1394 implementation
 #
 
-fw-core-objs := fw-card.o fw-topology.o fw-transaction.o fw-iso.o \
+fw-core-y += fw-card.o fw-topology.o fw-transaction.o fw-iso.o \
 	fw-device.o fw-cdev.o
 
 obj-$(CONFIG_FIREWIRE) += fw-core.o
