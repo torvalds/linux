@@ -851,7 +851,6 @@ static void cyz_poll(unsigned long);
 /* The Cyclades-Z polling cycle is defined by this variable */
 static long cyz_polling_cycle = CZ_DEF_POLL;
 
-static int cyz_timeron = 0;
 static DEFINE_TIMER(cyz_timerlist, cyz_poll, 0, 0);
 
 #else				/* CONFIG_CYZ_INTR */
@@ -1906,9 +1905,9 @@ static void cyz_poll(unsigned long arg)
 	static volatile struct BOARD_CTRL *board_ctrl;
 	static volatile struct CH_CTRL *ch_ctrl;
 	static volatile struct BUF_CTRL *buf_ctrl;
+	unsigned long expires = jiffies + HZ;
 	int card, port;
 
-	cyz_timerlist.expires = jiffies + (HZ);
 	for (card = 0; card < NR_CARDS; card++) {
 		cinfo = &cy_card[card];
 
@@ -1942,9 +1941,9 @@ static void cyz_poll(unsigned long arg)
 			cyz_handle_tx(info, ch_ctrl, buf_ctrl);
 		}
 		/* poll every 'cyz_polling_cycle' period */
-		cyz_timerlist.expires = jiffies + cyz_polling_cycle;
+		expires = jiffies + cyz_polling_cycle;
 	}
-	add_timer(&cyz_timerlist);
+	mod_timer(&cyz_timerlist, expires);
 }				/* cyz_poll */
 
 #endif				/* CONFIG_CYZ_INTR */
@@ -5504,10 +5503,8 @@ static int __init cy_init(void)
 	}
 
 #ifndef CONFIG_CYZ_INTR
-	if (number_z_boards && !cyz_timeron) {
-		cyz_timeron++;
-		cyz_timerlist.expires = jiffies + 1;
-		add_timer(&cyz_timerlist);
+	if (number_z_boards) {
+		mod_timer(&cyz_timerlist, jiffies + 1);
 #ifdef CY_PCI_DEBUG
 		printk("Cyclades-Z polling initialized\n");
 #endif
@@ -5523,10 +5520,7 @@ static void __exit cy_cleanup_module(void)
 	int i, e1;
 
 #ifndef CONFIG_CYZ_INTR
-	if (cyz_timeron){
-		cyz_timeron = 0;
-		del_timer(&cyz_timerlist);
-	}
+	del_timer_sync(&cyz_timerlist);
 #endif /* CONFIG_CYZ_INTR */
 
 	if ((e1 = tty_unregister_driver(cy_serial_driver)))
