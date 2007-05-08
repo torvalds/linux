@@ -152,6 +152,11 @@ static void spi_drv_shutdown(struct device *dev)
 	sdrv->shutdown(to_spi_device(dev));
 }
 
+/**
+ * spi_register_driver - register a SPI driver
+ * @sdrv: the driver to register
+ * Context: can sleep
+ */
 int spi_register_driver(struct spi_driver *sdrv)
 {
 	sdrv->driver.bus = &spi_bus_type;
@@ -183,7 +188,13 @@ static LIST_HEAD(board_list);
 static DECLARE_MUTEX(board_lock);
 
 
-/* On typical mainboards, this is purely internal; and it's not needed
+/**
+ * spi_new_device - instantiate one new SPI device
+ * @master: Controller to which device is connected
+ * @chip: Describes the SPI device
+ * Context: can sleep
+ *
+ * On typical mainboards, this is purely internal; and it's not needed
  * after board init creates the hard-wired devices.  Some development
  * platforms may not be able to use spi_register_board_info though, and
  * this is exported so that for example a USB or parport based adapter
@@ -251,7 +262,12 @@ fail:
 }
 EXPORT_SYMBOL_GPL(spi_new_device);
 
-/*
+/**
+ * spi_register_board_info - register SPI devices for a given board
+ * @info: array of chip descriptors
+ * @n: how many descriptors are provided
+ * Context: can sleep
+ *
  * Board-specific early init code calls this (probably during arch_initcall)
  * with segments of the SPI device table.  Any device nodes are created later,
  * after the relevant parent SPI controller (bus_num) is defined.  We keep
@@ -337,9 +353,10 @@ static struct class spi_master_class = {
 /**
  * spi_alloc_master - allocate SPI master controller
  * @dev: the controller, possibly using the platform_bus
- * @size: how much driver-private data to preallocate; the pointer to this
+ * @size: how much zeroed driver-private data to allocate; the pointer to this
  *	memory is in the class_data field of the returned class_device,
  *	accessible with spi_master_get_devdata().
+ * Context: can sleep
  *
  * This call is used only by SPI master controller drivers, which are the
  * only ones directly touching chip registers.  It's how they allocate
@@ -375,6 +392,7 @@ EXPORT_SYMBOL_GPL(spi_alloc_master);
 /**
  * spi_register_master - register SPI master controller
  * @master: initialized master, originally from spi_alloc_master()
+ * Context: can sleep
  *
  * SPI master controllers connect to their drivers using some non-SPI bus,
  * such as the platform bus.  The final stage of probe() in that code
@@ -437,6 +455,7 @@ static int __unregister(struct device *dev, void *unused)
 /**
  * spi_unregister_master - unregister SPI master controller
  * @master: the master being unregistered
+ * Context: can sleep
  *
  * This call is used only by SPI master controller drivers, which are the
  * only ones directly touching chip registers.
@@ -455,6 +474,7 @@ EXPORT_SYMBOL_GPL(spi_unregister_master);
 /**
  * spi_busnum_to_master - look up master associated with bus_num
  * @bus_num: the master's bus number
+ * Context: can sleep
  *
  * This call may be used with devices that are registered after
  * arch init time.  It returns a refcounted pointer to the relevant
@@ -492,6 +512,7 @@ static void spi_complete(void *arg)
  * spi_sync - blocking/synchronous SPI data transfers
  * @spi: device with which data will be exchanged
  * @message: describes the data transfers
+ * Context: can sleep
  *
  * This call may only be used from a context that may sleep.  The sleep
  * is non-interruptible, and has no timeout.  Low-overhead controller
@@ -508,7 +529,7 @@ static void spi_complete(void *arg)
  *
  * The return value is a negative error code if the message could not be
  * submitted, else zero.  When the value is zero, then message->status is
- * also defined:  it's the completion code for the transfer, either zero
+ * also defined;  it's the completion code for the transfer, either zero
  * or a negative error code from the controller driver.
  */
 int spi_sync(struct spi_device *spi, struct spi_message *message)
@@ -538,6 +559,7 @@ static u8	*buf;
  * @n_tx: size of txbuf, in bytes
  * @rxbuf: buffer into which data will be read
  * @n_rx: size of rxbuf, in bytes (need not be dma-safe)
+ * Context: can sleep
  *
  * This performs a half duplex MicroWire style transaction with the
  * device, sending txbuf and then reading rxbuf.  The return value
@@ -545,7 +567,8 @@ static u8	*buf;
  * This call may only be used from a context that may sleep.
  *
  * Parameters to this routine are always copied using a small buffer;
- * performance-sensitive or bulk transfer code should instead use
+ * portable code should never use this for more than 32 bytes.
+ * Performance-sensitive or bulk transfer code should instead use
  * spi_{async,sync}() calls with dma-safe buffers.
  */
 int spi_write_then_read(struct spi_device *spi,

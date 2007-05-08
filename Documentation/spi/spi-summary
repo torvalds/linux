@@ -8,7 +8,7 @@ What is SPI?
 The "Serial Peripheral Interface" (SPI) is a synchronous four wire serial
 link used to connect microcontrollers to sensors, memory, and peripherals.
 
-The three signal wires hold a clock (SCLK, often on the order of 10 MHz),
+The three signal wires hold a clock (SCK, often on the order of 10 MHz),
 and parallel data lines with "Master Out, Slave In" (MOSI) or "Master In,
 Slave Out" (MISO) signals.  (Other names are also used.)  There are four
 clocking modes through which data is exchanged; mode-0 and mode-3 are most
@@ -22,7 +22,7 @@ other signals, often including an interrupt to the master.
 
 Unlike serial busses like USB or SMBUS, even low level protocols for
 SPI slave functions are usually not interoperable between vendors
-(except for cases like SPI memory chips).
+(except for commodities like SPI memory chips).
 
   - SPI may be used for request/response style device protocols, as with
     touchscreen sensors and memory chips.
@@ -77,8 +77,9 @@ cards without needing a special purpose MMC/SD/SDIO controller.
 How do these driver programming interfaces work?
 ------------------------------------------------
 The <linux/spi/spi.h> header file includes kerneldoc, as does the
-main source code, and you should certainly read that.  This is just
-an overview, so you get the big picture before the details.
+main source code, and you should certainly read that chapter of the
+kernel API document.  This is just an overview, so you get the big
+picture before those details.
 
 SPI requests always go into I/O queues.  Requests for a given SPI device
 are always executed in FIFO order, and complete asynchronously through
@@ -88,7 +89,7 @@ a command and then reading its response.
 
 There are two types of SPI driver, here called:
 
-  Controller drivers ... these are often built in to System-On-Chip
+  Controller drivers ... controllers may be built in to System-On-Chip
 	processors, and often support both Master and Slave roles.
 	These drivers touch hardware registers and may use DMA.
 	Or they can be PIO bitbangers, needing just GPIO pins.
@@ -108,18 +109,18 @@ those two types of driver.  At this writing, Linux has no slave side
 programming interface.
 
 There is a minimal core of SPI programming interfaces, focussing on
-using driver model to connect controller and protocol drivers using
+using the driver model to connect controller and protocol drivers using
 device tables provided by board specific initialization code.  SPI
 shows up in sysfs in several locations:
 
-   /sys/devices/.../CTLR/spiB.C ... spi_device for on bus "B",
+   /sys/devices/.../CTLR/spiB.C ... spi_device on bus "B",
 	chipselect C, accessed through CTLR.
 
    /sys/devices/.../CTLR/spiB.C/modalias ... identifies the driver
 	that should be used with this device (for hotplug/coldplug)
 
    /sys/bus/spi/devices/spiB.C ... symlink to the physical
-   	spiB-C device
+   	spiB.C device
 
    /sys/bus/spi/drivers/D ... driver for one or more spi*.* devices
 
@@ -240,7 +241,7 @@ The board_info should provide enough information to let the system work
 without the chip's driver being loaded.  The most troublesome aspect of
 that is likely the SPI_CS_HIGH bit in the spi_device.mode field, since
 sharing a bus with a device that interprets chipselect "backwards" is
-not possible.
+not possible until the infrastructure knows how to deselect it.
 
 Then your board initialization code would register that table with the SPI
 infrastructure, so that it's available later when the SPI master controller
@@ -268,16 +269,14 @@ board info based on the board that was hotplugged.  Of course, you'd later
 call at least spi_unregister_device() when that board is removed.
 
 When Linux includes support for MMC/SD/SDIO/DataFlash cards through SPI, those
-configurations will also be dynamic.  Fortunately, those devices all support
-basic device identification probes, so that support should hotplug normally.
+configurations will also be dynamic.  Fortunately, such devices all support
+basic device identification probes, so they should hotplug normally.
 
 
 How do I write an "SPI Protocol Driver"?
 ----------------------------------------
-All SPI drivers are currently kernel drivers.  A userspace driver API
-would just be another kernel driver, probably offering some lowlevel
-access through aio_read(), aio_write(), and ioctl() calls and using the
-standard userspace sysfs mechanisms to bind to a given SPI device.
+Most SPI drivers are currently kernel drivers, but there's also support
+for userspace drivers.  Here we talk only about kernel drivers.
 
 SPI protocol drivers somewhat resemble platform device drivers:
 
@@ -319,7 +318,8 @@ might look like this unless you're creating a class_device:
 
 As soon as it enters probe(), the driver may issue I/O requests to
 the SPI device using "struct spi_message".  When remove() returns,
-the driver guarantees that it won't submit any more such messages.
+or after probe() fails, the driver guarantees that it won't submit
+any more such messages.
 
   - An spi_message is a sequence of protocol operations, executed
     as one atomic sequence.  SPI driver controls include:
@@ -368,7 +368,8 @@ the driver guarantees that it won't submit any more such messages.
 Some drivers may need to modify spi_device characteristics like the
 transfer mode, wordsize, or clock rate.  This is done with spi_setup(),
 which would normally be called from probe() before the first I/O is
-done to the device.
+done to the device.  However, that can also be called at any time
+that no message is pending for that device.
 
 While "spi_device" would be the bottom boundary of the driver, the
 upper boundaries might include sysfs (especially for sensor readings),
@@ -445,11 +446,15 @@ SPI MASTER METHODS
 	This sets up the device clock rate, SPI mode, and word sizes.
 	Drivers may change the defaults provided by board_info, and then
 	call spi_setup(spi) to invoke this routine.  It may sleep.
+	Unless each SPI slave has its own configuration registers, don't
+	change them right away ... otherwise drivers could corrupt I/O
+	that's in progress for other SPI devices.
 
     master->transfer(struct spi_device *spi, struct spi_message *message)
     	This must not sleep.  Its responsibility is arrange that the
-	transfer happens and its complete() callback is issued; the two
-	will normally happen later, after other transfers complete.
+	transfer happens and its complete() callback is issued.  The two
+	will normally happen later, after other transfers complete, and
+	if the controller is idle it will need to be kickstarted.
 
     master->cleanup(struct spi_device *spi)
 	Your controller driver may use spi_device.controller_state to hold
