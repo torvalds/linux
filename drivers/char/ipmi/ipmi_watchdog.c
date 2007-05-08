@@ -61,7 +61,6 @@
    how it will work.  So in the unlikely event that another
    architecture supports this, we can figure out a good generic
    mechanism for it at that time. */
-#include <asm/kdebug.h>
 #define HAVE_DIE_NMI_POST
 #endif
 
