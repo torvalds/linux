@@ -959,11 +959,11 @@ static int xxxfb_suspend(struct platform_device *dev, pm_message_t msg)
 
 /**
  *	xxxfb_resume - Optional but recommended function. Resume the device.
- *	@dev: PCI device
+ *	@dev: platform device
  *
  *      See Documentation/power/devices.txt for more information
  */
-static int xxxfb_suspend(struct platform_dev *dev)
+static int xxxfb_resume(struct platform_dev *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct xxxfb_par *par = info->par;
