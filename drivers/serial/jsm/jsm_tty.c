@@ -448,6 +448,7 @@ int jsm_uart_port_init(struct jsm_board *brd)
 			continue;
 
 		brd->channels[i]->uart_port.irq = brd->irq;
+		brd->channels[i]->uart_port.uartclk = 14745600;
 		brd->channels[i]->uart_port.type = PORT_JSM;
 		brd->channels[i]->uart_port.iotype = UPIO_MEM;
 		brd->channels[i]->uart_port.membase = brd->re_map_membase;
