@@ -4334,7 +4334,10 @@ static int __init floppy_init(void)
 		if (err)
 			goto out_flush_work;
 
-		device_create_file(&floppy_device[drive].dev,&dev_attr_cmos);
+		err = device_create_file(&floppy_device[drive].dev,&dev_attr_cmos);
+		if (err)
+			goto out_unreg_platform_dev;
+
 		/* to be cleaned up... */
 		disks[drive]->private_data = (void *)(long)drive;
 		disks[drive]->queue = floppy_queue;
@@ -4345,6 +4348,8 @@ static int __init floppy_init(void)
 
 	return 0;
 
+out_unreg_platform_dev:
+	platform_device_unregister(&floppy_device[drive]);
 out_flush_work:
 	flush_scheduled_work();
 	if (usage_count)
