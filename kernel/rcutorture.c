@@ -502,10 +502,6 @@ static struct rcu_torture_ops sched_ops = {
 	.name = "sched"
 };
 
-static struct rcu_torture_ops *torture_ops[] =
-	{ &rcu_ops, &rcu_sync_ops, &rcu_bh_ops, &rcu_bh_sync_ops, &srcu_ops,
-	  &sched_ops, NULL };
-
 /*
  * RCU torture writer kthread.  Repeatedly substitutes a new structure
  * for that pointed to by rcu_torture_current, freeing the old structure
@@ -872,16 +868,17 @@ rcu_torture_init(void)
 	int i;
 	int cpu;
 	int firsterr = 0;
+	static struct rcu_torture_ops *torture_ops[] =
+		{ &rcu_ops, &rcu_sync_ops, &rcu_bh_ops, &rcu_bh_sync_ops,
+		  &srcu_ops, &sched_ops, };
 
 	/* Process args and tell the world that the torturer is on the job. */
-
-	for (i = 0; cur_ops = torture_ops[i], cur_ops; i++) {
+	for (i = 0; i < ARRAY_SIZE(torture_ops); i++) {
 		cur_ops = torture_ops[i];
-		if (strcmp(torture_type, cur_ops->name) == 0) {
+		if (strcmp(torture_type, cur_ops->name) == 0)
 			break;
-		}
 	}
-	if (cur_ops == NULL) {
+	if (i == ARRAY_SIZE(torture_ops)) {
 		printk(KERN_ALERT "rcutorture: invalid torture type: \"%s\"\n",
 		       torture_type);
 		return (-EINVAL);
