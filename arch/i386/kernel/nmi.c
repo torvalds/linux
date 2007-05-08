@@ -23,10 +23,10 @@
 #include <linux/kprobes.h>
 #include <linux/cpumask.h>
 #include <linux/kernel_stat.h>
+#include <linux/kdebug.h>
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
-#include <asm/kdebug.h>
 
 #include "mach_traps.h"
 

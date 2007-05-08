@@ -245,8 +245,8 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 	do_exit(SIGSEGV);
 }
 
-void notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
-		unsigned long err, unsigned long trap)
+void arm_notify_die(const char *str, struct pt_regs *regs,
+		struct siginfo *info, unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
@@ -330,7 +330,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	info.si_code  = ILL_ILLOPC;
 	info.si_addr  = pc;
 
-	notify_die("Oops - undefined instruction", regs, &info, 0, 6);
+	arm_notify_die("Oops - undefined instruction", regs, &info, 0, 6);
 }
 
 asmlinkage void do_unexp_fiq (struct pt_regs *regs)
@@ -384,7 +384,7 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	info.si_addr  = (void __user *)instruction_pointer(regs) -
 			 (thumb_mode(regs) ? 2 : 4);
 
-	notify_die("Oops - bad syscall", regs, &info, n, 0);
+	arm_notify_die("Oops - bad syscall", regs, &info, n, 0);
 
 	return regs->ARM_r0;
 }
@@ -428,7 +428,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		info.si_code  = SEGV_MAPERR;
 		info.si_addr  = NULL;
 
-		notify_die("branch through zero", regs, &info, 0, 0);
+		arm_notify_die("branch through zero", regs, &info, 0, 0);
 		return 0;
 
 	case NR(breakpoint): /* SWI BREAK_POINT */
@@ -564,7 +564,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	info.si_addr  = (void __user *)instruction_pointer(regs) -
 			 (thumb_mode(regs) ? 2 : 4);
 
-	notify_die("Oops - bad syscall(2)", regs, &info, no, 0);
+	arm_notify_die("Oops - bad syscall(2)", regs, &info, no, 0);
 	return 0;
 }
 
@@ -638,7 +638,7 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 	info.si_code  = ILL_ILLOPC;
 	info.si_addr  = (void __user *)addr;
 
-	notify_die("unknown data abort code", regs, &info, instr, 0);
+	arm_notify_die("unknown data abort code", regs, &info, instr, 0);
 }
 
 void __attribute__((noreturn)) __bug(const char *file, int line)

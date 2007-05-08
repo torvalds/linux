@@ -29,9 +29,9 @@
 #include <linux/slab.h>
 #include <linux/preempt.h>
 #include <linux/moduleloader.h>
+#include <linux/kdebug.h>
 
 #include <asm/pgtable.h>
-#include <asm/kdebug.h>
 #include <asm/sections.h>
 #include <asm/uaccess.h>
 

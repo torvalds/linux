@@ -39,6 +39,7 @@
 #include <linux/miscdevice.h>
 #include <linux/init.h>
 #include <linux/completion.h>
+#include <linux/kdebug.h>
 #include <linux/rwsem.h>
 #include <linux/errno.h>
 #include <asm/uaccess.h>

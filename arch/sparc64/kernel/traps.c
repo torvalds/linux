@@ -18,6 +18,7 @@
 #include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/kdebug.h>
 
 #include <asm/delay.h>
 #include <asm/system.h>
@@ -36,26 +37,12 @@
 #include <asm/psrcompat.h>
 #include <asm/processor.h>
 #include <asm/timer.h>
-#include <asm/kdebug.h>
 #include <asm/head.h>
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
 #include <asm/prom.h>
 
-ATOMIC_NOTIFIER_HEAD(sparc64die_chain);
-
-int register_die_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_register(&sparc64die_chain, nb);
-}
-EXPORT_SYMBOL(register_die_notifier);
-
-int unregister_die_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&sparc64die_chain, nb);
-}
-EXPORT_SYMBOL(unregister_die_notifier);
 
 /* When an irrecoverable trap occurs at tl > 0, the trap entry
  * code logs the trap state registers at every level in the trap

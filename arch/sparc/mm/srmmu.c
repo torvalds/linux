@@ -18,13 +18,13 @@
 #include <linux/bootmem.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
+#include <linux/kdebug.h>
 
 #include <asm/bitext.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
-#include <asm/kdebug.h>
 #include <asm/vaddrs.h>
 #include <asm/traps.h>
 #include <asm/smp.h>

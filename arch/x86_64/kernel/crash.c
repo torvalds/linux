@@ -17,13 +17,13 @@
 #include <linux/delay.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
+#include <linux/kdebug.h>
 
 #include <asm/processor.h>
 #include <asm/hardirq.h>
 #include <asm/nmi.h>
 #include <asm/hw_irq.h>
 #include <asm/mach_apic.h>
-#include <asm/kdebug.h>
 
 /* This keeps a track of which one is crashing cpu. */
 static int crashing_cpu;

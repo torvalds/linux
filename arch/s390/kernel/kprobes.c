@@ -24,8 +24,8 @@
 #include <linux/ptrace.h>
 #include <linux/preempt.h>
 #include <linux/stop_machine.h>
+#include <linux/kdebug.h>
 #include <asm/cacheflush.h>
-#include <asm/kdebug.h>
 #include <asm/sections.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>

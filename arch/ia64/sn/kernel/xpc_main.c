@@ -55,9 +55,9 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/completion.h>
+#include <linux/kdebug.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
-#include <asm/kdebug.h>
 #include <asm/uaccess.h>
 #include <asm/sn/xpc.h>
 
@@ -1332,7 +1332,7 @@ xpc_init(void)
 		dev_warn(xpc_part, "can't register reboot notifier\n");
 	}
 
-	/* add ourselves to the die_notifier list (i.e., ia64die_chain) */
+	/* add ourselves to the die_notifier list */
 	ret = register_die_notifier(&xpc_die_notifier);
 	if (ret != 0) {
 		dev_warn(xpc_part, "can't register die notifier\n");

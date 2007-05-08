@@ -28,6 +28,7 @@
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/kprobes.h>
+#include <linux/kdebug.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -36,7 +37,6 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/tlbflush.h>
-#include <asm/kdebug.h>
 #include <asm/siginfo.h>
 
 #ifdef CONFIG_KPROBES

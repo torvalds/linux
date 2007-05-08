@@ -14,10 +14,10 @@
 #include <linux/sysdev.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
+#include <linux/kdebug.h>
 #include <asm/nmi.h>
 #include <asm/msr.h>
 #include <asm/apic.h>
-#include <asm/kdebug.h>
  
 #include "op_counter.h"
 #include "op_x86_model.h"

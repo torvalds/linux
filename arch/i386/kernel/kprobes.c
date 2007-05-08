@@ -31,8 +31,8 @@
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
 #include <linux/preempt.h>
+#include <linux/kdebug.h>
 #include <asm/cacheflush.h>
-#include <asm/kdebug.h>
 #include <asm/desc.h>
 #include <asm/uaccess.h>
 

@@ -20,6 +20,7 @@
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/kdebug.h>
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/console.h>
@@ -30,7 +31,6 @@
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/kdebug.h>
 #include <asm/s390_ext.h>
 
 #ifndef CONFIG_64BIT

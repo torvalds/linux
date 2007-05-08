@@ -20,20 +20,6 @@
 #include <asm/sysreg.h>
 #include <asm/traps.h>
 
-ATOMIC_NOTIFIER_HEAD(avr32_die_chain);
-
-int register_die_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_register(&avr32_die_chain, nb);
-}
-EXPORT_SYMBOL(register_die_notifier);
-
-int unregister_die_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&avr32_die_chain, nb);
-}
-EXPORT_SYMBOL(unregister_die_notifier);
-
 static DEFINE_SPINLOCK(die_lock);
 
 void NORET_TYPE die(const char *str, struct pt_regs *regs, long err)

@@ -36,6 +36,7 @@
 #include <linux/random.h>
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
+#include <linux/kdebug.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -46,7 +47,6 @@
 #include <asm/mmu_context.h>
 #include <asm/pda.h>
 #include <asm/prctl.h>
-#include <asm/kdebug.h>
 #include <asm/desc.h>
 #include <asm/proto.h>
 #include <asm/ia32.h>

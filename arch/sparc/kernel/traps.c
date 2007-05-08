@@ -15,6 +15,7 @@
 #include <linux/signal.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
+#include <linux/kdebug.h>
 
 #include <asm/delay.h>
 #include <asm/system.h>
@@ -22,7 +23,6 @@
 #include <asm/oplib.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/kdebug.h>
 #include <asm/unistd.h>
 #include <asm/traps.h>
 

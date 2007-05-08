@@ -37,10 +37,10 @@
 #include <linux/slab.h>
 #include <linux/preempt.h>
 #include <linux/module.h>
+#include <linux/kdebug.h>
 
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
-#include <asm/kdebug.h>
 #include <asm/uaccess.h>
 
 void jprobe_return_end(void);

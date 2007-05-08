@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 
-#include <asm/kdebug.h>
+#include <linux/kdebug.h>
 #include <asm/mmu_context.h>
 #include <asm/sysreg.h>
 #include <asm/tlb.h>

@@ -16,8 +16,8 @@
 #include <linux/elfcore.h>
 #include <linux/sysctl.h>
 #include <linux/init.h>
+#include <linux/kdebug.h>
 
-#include <asm/kdebug.h>
 #include <asm/mca.h>
 
 int kdump_status[NR_CPUS];

@@ -16,32 +16,16 @@
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/delay.h>		/* for ssleep() */
+#include <linux/kdebug.h>
 
 #include <asm/fpswa.h>
 #include <asm/ia32.h>
 #include <asm/intrinsics.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
-#include <asm/kdebug.h>
 
 fpswa_interface_t *fpswa_interface;
 EXPORT_SYMBOL(fpswa_interface);
-
-ATOMIC_NOTIFIER_HEAD(ia64die_chain);
-
-int
-register_die_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_register(&ia64die_chain, nb);
-}
-EXPORT_SYMBOL_GPL(register_die_notifier);
-
-int
-unregister_die_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&ia64die_chain, nb);
-}
-EXPORT_SYMBOL_GPL(unregister_die_notifier);
 
 void __init
 trap_init (void)

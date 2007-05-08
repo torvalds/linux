@@ -2,6 +2,7 @@
 #define __ASM_SH_KDEBUG_H
 
 #include <linux/notifier.h>
+#include <asm-generic/kdebug.h>
 
 struct pt_regs;
 

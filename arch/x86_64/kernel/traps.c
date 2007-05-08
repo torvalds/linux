@@ -32,6 +32,7 @@
 #include <linux/unwind.h>
 #include <linux/uaccess.h>
 #include <linux/bug.h>
+#include <linux/kdebug.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -39,7 +40,6 @@
 #include <asm/debugreg.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
-#include <asm/kdebug.h>
 #include <asm/processor.h>
 #include <asm/unwind.h>
 #include <asm/smp.h>
@@ -70,22 +70,6 @@ asmlinkage void reserved(void);
 asmlinkage void alignment_check(void);
 asmlinkage void machine_check(void);
 asmlinkage void spurious_interrupt_bug(void);
-
-ATOMIC_NOTIFIER_HEAD(die_chain);
-EXPORT_SYMBOL(die_chain);
-
-int register_die_notifier(struct notifier_block *nb)
-{
-	vmalloc_sync_all();
-	return atomic_notifier_chain_register(&die_chain, nb);
-}
-EXPORT_SYMBOL(register_die_notifier); /* used modular by kdb */
-
-int unregister_die_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&die_chain, nb);
-}
-EXPORT_SYMBOL(unregister_die_notifier); /* used modular by kdb */
 
 static inline void conditional_sti(struct pt_regs *regs)
 {

@@ -20,10 +20,10 @@
 #include <linux/percpu.h>
 #include <linux/ctype.h>
 #include <linux/kmod.h>
+#include <linux/kdebug.h>
 #include <asm/processor.h> 
 #include <asm/msr.h>
 #include <asm/mce.h>
-#include <asm/kdebug.h>
 #include <asm/uaccess.h>
 #include <asm/smp.h>
 
