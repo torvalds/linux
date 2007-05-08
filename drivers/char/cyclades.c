@@ -4797,9 +4797,7 @@ static void __devinit plx_init(void __iomem * addr, __u32 initctl)
 	cy_writel(addr + initctl, readl(addr + initctl) & ~0x20000000);
 }
 
-static int __devinit cy_init_Ze(unsigned long cy_pci_phys0,
-		unsigned long cy_pci_phys2,
-		struct RUNTIME_9060 __iomem *cy_pci_addr0,
+static int __devinit cy_init_Ze(struct RUNTIME_9060 __iomem *cy_pci_addr0,
 		int cy_pci_irq, struct pci_dev *pdev)
 {
 	void __iomem *cy_pci_addr2;
@@ -4869,7 +4867,7 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 {
 	unsigned char cyy_rev_id;
 	int cy_pci_irq;
-	__u32 cy_pci_phys0, cy_pci_phys2, mailbox;
+	__u32 mailbox;
 	void __iomem *cy_pci_addr0, *cy_pci_addr2;
 	unsigned int device_id;
 	unsigned short j, cy_pci_nchan, plx_ver;
@@ -4883,8 +4881,6 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 
 	/* read PCI configuration area */
 	cy_pci_irq = pdev->irq;
-	cy_pci_phys0 = pci_resource_start(pdev, 0);
-	cy_pci_phys2 = pci_resource_start(pdev, 2);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &cyy_rev_id);
 
 	device_id = pdev->device & ~PCI_DEVICE_ID_MASK;
@@ -5038,8 +5034,7 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 		}
 
 		if (mailbox == ZE_V1) {
-			retval = cy_init_Ze(cy_pci_phys0, cy_pci_phys2,
-					cy_pci_addr0, cy_pci_irq, pdev);
+			retval = cy_init_Ze(cy_pci_addr0, cy_pci_irq, pdev);
 			return retval;
 		} else {
 			cy_pci_addr2 = pci_iomap(pdev, 2, CyPCI_Zwin);
