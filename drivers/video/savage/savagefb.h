@@ -15,6 +15,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/mutex.h>
+#include <video/vga.h>
 #include "../edid.h"
 
 #ifdef SAVAGEFB_DEBUG
@@ -189,8 +191,12 @@ struct savagefb_par {
 	struct savagefb_i2c_chan chan;
 	struct savage_reg state;
 	struct savage_reg save;
+	struct savage_reg initial;
+	struct vgastate vgastate;
+	struct mutex open_lock;
 	unsigned char   *edid;
 	u32 pseudo_palette[16];
+	u32 open_count;
 	int paletteEnabled;
 	int pm_state;
 	int display_type;
@@ -203,7 +209,7 @@ struct savagefb_par {
 	int clock[4];
 	int MCLK, REFCLK, LCDclk;
 	struct {
-		u8   __iomem *vbase;
+		void   __iomem *vbase;
 		u32    pbase;
 		u32    len;
 #ifdef CONFIG_MTRR
@@ -212,7 +218,7 @@ struct savagefb_par {
 	} video;
 
 	struct {
-		volatile u8  __iomem *vbase;
+		void  __iomem *vbase;
 		u32           pbase;
 		u32           len;
 	} mmio;
