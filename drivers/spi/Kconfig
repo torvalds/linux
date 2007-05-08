@@ -64,6 +64,17 @@ config SPI_BFIN
 	help
 	  This is the SPI controller master driver for Blackfin 5xx processor.
 
+config SPI_AU1550
+	tristate "Au1550/Au12x0 SPI Controller"
+	depends on SPI_MASTER && (SOC_AU1550 || SOC_AU1200) && EXPERIMENTAL
+	select SPI_BITBANG
+	help
+	  If you say yes to this option, support will be included for the
+	  Au1550 SPI controller (may also work with Au1200,Au1210,Au1250).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called au1550_spi.
+
 config SPI_BITBANG
 	tristate "Bitbanging SPI master"
 	depends on SPI_MASTER && EXPERIMENTAL
