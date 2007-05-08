@@ -18,6 +18,7 @@
 #include <asm/kdebug.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 #include <asm/ubc.h>
 
 static int hlt_counter;
@@ -64,6 +65,7 @@ void cpu_idle(void)
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
+		check_pgt_cache();
 	}
 }
 
