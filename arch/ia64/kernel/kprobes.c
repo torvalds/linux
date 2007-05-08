@@ -444,7 +444,8 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 			break;
 	}
 
-	BUG_ON(!orig_ret_address || (orig_ret_address == trampoline_address));
+	kretprobe_assert(ri, orig_ret_address, trampoline_address);
+
 	regs->cr_iip = orig_ret_address;
 
 	reset_current_kprobe();
