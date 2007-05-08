@@ -436,8 +436,10 @@ static int via_hook_segment(drm_via_private_t * dev_priv,
 
 	paused = 0;
 	via_flush_write_combine();
-	*dev_priv->last_pause_ptr = pause_addr_lo;
+	(void) *(volatile uint32_t *)(via_get_dma(dev_priv) -1);
+	*paused_at = pause_addr_lo;
 	via_flush_write_combine();
+	(void) *paused_at;
 	reader = *(dev_priv->hw_addr_ptr);
 	ptr = ((volatile char *)paused_at - dev_priv->dma_ptr) +
 		dev_priv->dma_offset + (uint32_t) dev_priv->agpAddr + 4;
@@ -536,7 +538,7 @@ static void via_cmdbuf_start(drm_via_private_t * dev_priv)
 			  &pause_addr_hi, &pause_addr_lo, 1) - 1;
 
 	via_flush_write_combine();
-	while(! *dev_priv->last_pause_ptr);
+	(void) *(volatile uint32_t *)dev_priv->last_pause_ptr;
 
 	VIA_WRITE(VIA_REG_TRANSET, (HC_ParaType_PreCR << 16));
 	VIA_WRITE(VIA_REG_TRANSPACE, command);
