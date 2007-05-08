@@ -134,10 +134,6 @@ int pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin);
 int pciauto_assign_resources(int busno, struct pci_channel *hose);
 #endif
 
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 #endif /* __KERNEL__ */
 
 /* generic pci stuff */

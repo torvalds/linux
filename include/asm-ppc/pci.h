@@ -145,8 +145,6 @@ pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 	return root;
 }
 
-extern void pcibios_add_platform_entries(struct pci_dev *dev);
-
 struct file;
 extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long pfn,

@@ -76,10 +76,6 @@ pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 	return root;
 }
 
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 #endif /* __KERNEL__ */
  
 #endif

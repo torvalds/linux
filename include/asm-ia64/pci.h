@@ -143,10 +143,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 	return (pci_domain_nr(bus) != 0);
 }
 
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 extern void pcibios_resource_to_bus(struct pci_dev *dev,
 		struct pci_bus_region *region, struct resource *res);
 

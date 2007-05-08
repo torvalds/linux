@@ -275,11 +275,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 	return hose->need_domain_info;
 }
 
-static inline void
-pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 struct pci_dev *alpha_gendev_to_pci(struct device *dev);
 
 #endif /* __KERNEL__ */

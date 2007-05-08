@@ -104,10 +104,6 @@ extern void pcibios_fixup_irqs(void);
 extern int pciauto_assign_resources(int busno, struct pci_channel *hose);
 #endif
 
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 #endif /* __KERNEL__ */
 
 /* generic pci stuff */

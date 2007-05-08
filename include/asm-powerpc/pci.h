@@ -243,8 +243,6 @@ extern void of_scan_bus(struct device_node *node, struct pci_bus *bus);
 
 extern int pci_read_irq_line(struct pci_dev *dev);
 
-extern void pcibios_add_platform_entries(struct pci_dev *dev);
-
 struct file;
 extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long pfn,

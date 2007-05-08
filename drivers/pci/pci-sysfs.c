@@ -600,6 +600,11 @@ static struct bin_attribute pcie_config_attr = {
 	.write = pci_write_config,
 };
 
+void __attribute__ ((weak)) pcibios_add_platform_entries(struct pci_dev *dev)
+{
+	return;
+}
+
 int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 {
 	struct bin_attribute *rom_attr = NULL;

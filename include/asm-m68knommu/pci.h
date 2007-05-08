@@ -30,10 +30,6 @@ static inline int pci_dma_supported(struct pci_dev *hwdev, u64 mask)
  */
 #define pci_dac_dma_supported(pci_dev, mask) (0)
 
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 #endif /* CONFIG_COMEMPCI */
 
 #endif /* M68KNOMMU_PCI_H */

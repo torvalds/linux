@@ -22,10 +22,6 @@ struct pci_dev;
 
 #define pcibios_assign_all_busses()	0
 
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 extern void pcibios_set_master(struct pci_dev *dev);
 
 extern void pcibios_penalize_isa_irq(int irq);

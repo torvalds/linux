@@ -303,10 +303,6 @@ pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 
 extern struct resource *pcibios_select_root(struct pci_dev *, struct resource *);
 
-static inline void pcibios_add_platform_entries(struct pci_dev *dev)
-{
-}
-
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return PCI_IRQ_NONE;
