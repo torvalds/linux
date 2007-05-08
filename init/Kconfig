@@ -790,6 +790,12 @@ config SYSCTL
 config ANON_INODES
 	bool
 
+config PANIC_TIMEOUT
+	int "Default panic timeout"
+	default 0
+	help
+	  Set default panic timeout.
+
 menuconfig EMBEDDED
 	bool "Configure standard kernel features (for small systems)"
 	help
