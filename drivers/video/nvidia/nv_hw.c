@@ -686,7 +686,7 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 
 	if ((par->Chipset & 0x0FF0) == 0x01A0) {
 		unsigned int uMClkPostDiv;
-		dev = pci_find_slot(0, 3);
+		dev = pci_get_bus_and_slot(0, 3);
 		pci_read_config_dword(dev, 0x6C, &uMClkPostDiv);
 		uMClkPostDiv = (uMClkPostDiv >> 8) & 0xf;
 
@@ -694,11 +694,11 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 			uMClkPostDiv = 4;
 		MClk = 400000 / uMClkPostDiv;
 	} else {
-		dev = pci_find_slot(0, 5);
+		dev = pci_get_bus_and_slot(0, 5);
 		pci_read_config_dword(dev, 0x4c, &MClk);
 		MClk /= 1000;
 	}
-
+	pci_dev_put(dev);
 	pll = NV_RD32(par->PRAMDAC0, 0x0500);
 	M = (pll >> 0) & 0xFF;
 	N = (pll >> 8) & 0xFF;
@@ -707,19 +707,21 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 	sim_data.pix_bpp = (char)pixelDepth;
 	sim_data.enable_video = 0;
 	sim_data.enable_mp = 0;
-	pci_find_slot(0, 1);
+	dev = pci_get_bus_and_slot(0, 1);
 	pci_read_config_dword(dev, 0x7C, &sim_data.memory_type);
+	pci_dev_put(dev);
 	sim_data.memory_type = (sim_data.memory_type >> 12) & 1;
 	sim_data.memory_width = 64;
 
-	dev = pci_find_slot(0, 3);
+	dev = pci_get_bus_and_slot(0, 3);
 	pci_read_config_dword(dev, 0, &memctrl);
+	pci_dev_put(dev);
 	memctrl >>= 16;
 
 	if ((memctrl == 0x1A9) || (memctrl == 0x1AB) || (memctrl == 0x1ED)) {
 		int dimm[3];
 
-		pci_find_slot(0, 2);
+		dev = pci_get_bus_and_slot(0, 2);
 		pci_read_config_dword(dev, 0x40, &dimm[0]);
 		dimm[0] = (dimm[0] >> 8) & 0x4f;
 		pci_read_config_dword(dev, 0x44, &dimm[1]);
@@ -731,6 +733,7 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 			printk("nvidiafb: your nForce DIMMs are not arranged "
 			       "in optimal banks!\n");
 		}
+		pci_dev_put(dev);
 	}
 
 	sim_data.mem_latency = 3;

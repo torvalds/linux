@@ -261,7 +261,7 @@ static void nv10GetConfig(struct nvidia_par *par)
 	}
 #endif
 
-	dev = pci_find_slot(0, 1);
+	dev = pci_get_bus_and_slot(0, 1);
 	if ((par->Chipset & 0xffff) == 0x01a0) {
 		int amt = 0;
 
@@ -276,6 +276,7 @@ static void nv10GetConfig(struct nvidia_par *par)
 		par->RamAmountKBytes =
 		    (NV_RD32(par->PFB, 0x020C) & 0xFFF00000) >> 10;
 	}
+	pci_dev_put(dev);
 
 	par->CrystalFreqKHz = (NV_RD32(par->PEXTDEV, 0x0000) & (1 << 6)) ?
 	    14318 : 13500;

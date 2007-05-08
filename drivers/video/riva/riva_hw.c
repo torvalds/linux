@@ -1118,8 +1118,9 @@ static void nForceUpdateArbitrationSettings
     unsigned int uMClkPostDiv;
     struct pci_dev *dev;
 
-    dev = pci_find_slot(0, 3);
+    dev = pci_get_bus_and_slot(0, 3);
     pci_read_config_dword(dev, 0x6C, &uMClkPostDiv);
+    pci_dev_put(dev);
     uMClkPostDiv = (uMClkPostDiv >> 8) & 0xf;
 
     if(!uMClkPostDiv) uMClkPostDiv = 4;
@@ -1132,8 +1133,9 @@ static void nForceUpdateArbitrationSettings
     sim_data.enable_video   = 0;
     sim_data.enable_mp      = 0;
 
-    dev = pci_find_slot(0, 1);
+    dev = pci_get_bus_and_slot(0, 1);
     pci_read_config_dword(dev, 0x7C, &sim_data.memory_type);
+    pci_dev_put(dev);
     sim_data.memory_type    = (sim_data.memory_type >> 12) & 1;
 
     sim_data.memory_width   = 64;
@@ -2112,12 +2114,14 @@ static void nv10GetConfig
      * Fill in chip configuration.
      */
     if(chipset == NV_CHIP_IGEFORCE2) {
-        dev = pci_find_slot(0, 1);
+        dev = pci_get_bus_and_slot(0, 1);
         pci_read_config_dword(dev, 0x7C, &amt);
+        pci_dev_put(dev);
         chip->RamAmountKBytes = (((amt >> 6) & 31) + 1) * 1024;
     } else if(chipset == NV_CHIP_0x01F0) {
-        dev = pci_find_slot(0, 1);
+        dev = pci_get_bus_and_slot(0, 1);
         pci_read_config_dword(dev, 0x84, &amt);
+        pci_dev_put(dev);
         chip->RamAmountKBytes = (((amt >> 4) & 127) + 1) * 1024;
     } else {
         switch ((NV_RD32(chip->PFB, 0x0000020C) >> 20) & 0x000000FF)
