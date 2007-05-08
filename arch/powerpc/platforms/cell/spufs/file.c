@@ -118,13 +118,31 @@ spufs_mem_write(struct file *file, const char __user *buffer,
 static unsigned long spufs_mem_mmap_nopfn(struct vm_area_struct *vma,
 					  unsigned long address)
 {
-	struct spu_context *ctx = vma->vm_file->private_data;
-	unsigned long pfn, offset = address - vma->vm_start;
+	struct spu_context *ctx	= vma->vm_file->private_data;
+	unsigned long pfn, offset, addr0 = address;
+#ifdef CONFIG_SPU_FS_64K_LS
+	struct spu_state *csa = &ctx->csa;
+	int psize;
 
-	offset += vma->vm_pgoff << PAGE_SHIFT;
+	/* Check what page size we are using */
+	psize = get_slice_psize(vma->vm_mm, address);
 
+	/* Some sanity checking */
+	BUG_ON(csa->use_big_pages != (psize == MMU_PAGE_64K));
+
+	/* Wow, 64K, cool, we need to align the address though */
+	if (csa->use_big_pages) {
+		BUG_ON(vma->vm_start & 0xffff);
+		address &= ~0xfffful;
+	}
+#endif /* CONFIG_SPU_FS_64K_LS */
+
+	offset = (address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
 	if (offset >= LS_SIZE)
 		return NOPFN_SIGBUS;
+
+	pr_debug("spufs_mem_mmap_nopfn address=0x%lx -> 0x%lx, offset=0x%lx\n",
+		 addr0, address, offset);
 
 	spu_acquire(ctx);
 
@@ -149,9 +167,24 @@ static struct vm_operations_struct spufs_mem_mmap_vmops = {
 	.nopfn = spufs_mem_mmap_nopfn,
 };
 
-static int
-spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
+static int spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
 {
+#ifdef CONFIG_SPU_FS_64K_LS
+	struct spu_context	*ctx = file->private_data;
+	struct spu_state	*csa = &ctx->csa;
+
+	/* Sanity check VMA alignment */
+	if (csa->use_big_pages) {
+		pr_debug("spufs_mem_mmap 64K, start=0x%lx, end=0x%lx,"
+			 " pgoff=0x%lx\n", vma->vm_start, vma->vm_end,
+			 vma->vm_pgoff);
+		if (vma->vm_start & 0xffff)
+			return -EINVAL;
+		if (vma->vm_pgoff & 0xf)
+			return -EINVAL;
+	}
+#endif /* CONFIG_SPU_FS_64K_LS */
+
 	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
@@ -163,13 +196,34 @@ spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
+#ifdef CONFIG_SPU_FS_64K_LS
+unsigned long spufs_get_unmapped_area(struct file *file, unsigned long addr,
+				      unsigned long len, unsigned long pgoff,
+				      unsigned long flags)
+{
+	struct spu_context	*ctx = file->private_data;
+	struct spu_state	*csa = &ctx->csa;
+
+	/* If not using big pages, fallback to normal MM g_u_a */
+	if (!csa->use_big_pages)
+		return current->mm->get_unmapped_area(file, addr, len,
+						      pgoff, flags);
+
+	/* Else, try to obtain a 64K pages slice */
+	return slice_get_unmapped_area(addr, len, flags,
+				       MMU_PAGE_64K, 1, 0);
+}
+#endif /* CONFIG_SPU_FS_64K_LS */
+
 static const struct file_operations spufs_mem_fops = {
-	.open	 = spufs_mem_open,
-	.release = spufs_mem_release,
-	.read    = spufs_mem_read,
-	.write   = spufs_mem_write,
-	.llseek  = generic_file_llseek,
-	.mmap    = spufs_mem_mmap,
+	.open	 		= spufs_mem_open,
+	.read   		= spufs_mem_read,
+	.write   		= spufs_mem_write,
+	.llseek  		= generic_file_llseek,
+	.mmap    		= spufs_mem_mmap,
+#ifdef CONFIG_SPU_FS_64K_LS
+	.get_unmapped_area	= spufs_get_unmapped_area,
+#endif
 };
 
 static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,

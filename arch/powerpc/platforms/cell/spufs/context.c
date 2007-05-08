@@ -36,10 +36,8 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	/* Binding to physical processor deferred
 	 * until spu_activate().
 	 */
-	spu_init_csa(&ctx->csa);
-	if (!ctx->csa.lscsa) {
+	if (spu_init_csa(&ctx->csa))
 		goto out_free;
-	}
 	spin_lock_init(&ctx->mmio_lock);
 	spin_lock_init(&ctx->mapping_lock);
 	kref_init(&ctx->kref);
