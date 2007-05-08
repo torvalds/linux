@@ -606,7 +606,7 @@ static void smu_expose_childs(struct work_struct *unused)
 	struct device_node *np;
 
 	for (np = NULL; (np = of_get_next_child(smu->of_node, np)) != NULL;)
-		if (device_is_compatible(np, "smu-sensors"))
+		if (of_device_is_compatible(np, "smu-sensors"))
 			of_platform_device_create(np, "smu-sensors",
 						  &smu->of_dev->dev);
 }

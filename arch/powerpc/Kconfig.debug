@@ -139,10 +139,6 @@ config BOOTX_TEXT
 	  Say Y here to see progress messages from the boot firmware in text
 	  mode. Requires either BootX or Open Firmware.
 
-config SERIAL_TEXT_DEBUG
-	bool "Support for early boot texts over serial port"
-	depends on 4xx
-
 config PPC_EARLY_DEBUG
 	bool "Early debugging (dangerous)"
 
@@ -207,6 +203,24 @@ config PPC_EARLY_DEBUG_BEAT
 	help
 	  Select this to enable early debugging for Celleb with Beat.
 
+config PPC_EARLY_DEBUG_44x
+	bool "Early serial debugging for IBM/AMCC 44x CPUs"
+	depends on 44x
+	select PPC_UDBG_16550
+	help
+	  Select this to enable early debugging for IBM 44x chips via the
+	  inbuilt serial port.
+
 endchoice
+
+config PPC_EARLY_DEBUG_44x_PHYSLOW
+	hex "Low 32 bits of early debug UART physical address"
+	depends PPC_EARLY_DEBUG_44x
+	default "0x40000200"
+
+config PPC_EARLY_DEBUG_44x_PHYSHIGH
+	hex "EPRN of early debug UART physical address"
+	depends PPC_EARLY_DEBUG_44x
+	default "0x1"
 
 endmenu

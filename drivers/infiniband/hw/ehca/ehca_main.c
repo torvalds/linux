@@ -570,7 +570,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 	struct ib_pd *ibpd;
 	int ret;
 
-	handle = get_property(dev->ofdev.node, "ibm,hca-handle", NULL);
+	handle = of_get_property(dev->ofdev.node, "ibm,hca-handle", NULL);
 	if (!handle) {
 		ehca_gen_err("Cannot get eHCA handle for adapter: %s.",
 			     dev->ofdev.node->full_name);

@@ -358,12 +358,12 @@ void __init spider_init_IRQ(void)
 	 */
 	for (dn = NULL;
 	     (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
-		if (device_is_compatible(dn, "CBEA,platform-spider-pic")) {
+		if (of_device_is_compatible(dn, "CBEA,platform-spider-pic")) {
 			if (of_address_to_resource(dn, 0, &r)) {
 				printk(KERN_WARNING "spider-pic: Failed\n");
 				continue;
 			}
-		} else if (device_is_compatible(dn, "sti,platform-spider-pic")
+		} else if (of_device_is_compatible(dn, "sti,platform-spider-pic")
 			   && (chip < 2)) {
 			static long hard_coded_pics[] =
 				{ 0x24000008000ul, 0x34000008000ul};

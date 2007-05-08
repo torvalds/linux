@@ -102,7 +102,7 @@ mpc86xx_hpcn_init_irq(void)
 #ifdef CONFIG_PCI
 	/* Initialize i8259 controller */
 	for_each_node_by_type(np, "interrupt-controller")
-		if (device_is_compatible(np, "chrp,iic")) {
+		if (of_device_is_compatible(np, "chrp,iic")) {
 			cascade_node = np;
 			break;
 		}

@@ -64,6 +64,12 @@ typedef unsigned int kprobe_opcode_t;
 				addr = *(kprobe_opcode_t **)addr;	\
 		} else if (name[0] != '.')				\
 			addr = *(kprobe_opcode_t **)addr;		\
+	} else {							\
+		char dot_name[KSYM_NAME_LEN+1];				\
+		dot_name[0] = '.';					\
+		dot_name[1] = '\0';					\
+		strncat(dot_name, name, KSYM_NAME_LEN);			\
+		addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name); \
 	}								\
 }
 
@@ -110,5 +116,6 @@ struct kprobe_ctlblk {
 
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 					unsigned long val, void *data);
+extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 #endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_KPROBES_H */

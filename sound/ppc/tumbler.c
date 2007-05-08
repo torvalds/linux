@@ -1060,7 +1060,7 @@ static struct device_node *find_compatible_audio_device(const char *name)
   
 	for (np = of_get_next_child(gpiop, NULL); np;
 			np = of_get_next_child(gpiop, np)) {
-		if (device_is_compatible(np, name))
+		if (of_device_is_compatible(np, name))
 			break;
 	}  
 	of_node_put(gpiop);

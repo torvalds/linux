@@ -163,20 +163,19 @@ fi
 
 vmz="$vmz$gzip"
 
-case "$platform" in
-uboot|cuboot*)
-    version=`${CROSS}strings "$kernel" | grep '^Linux version [-0-9.]' | \
-	cut -d' ' -f3`
-    if [ -n "$version" ]; then
-	version="-n Linux-$version"
-    fi
-esac
+# Extract kernel version information, some platforms want to include
+# it in the image header
+version=`${CROSS}strings "$kernel" | grep '^Linux version [-0-9.]' | \
+    cut -d' ' -f3`
+if [ -n "$version" ]; then
+    uboot_version="-n Linux-$version"
+fi
 
 case "$platform" in
 uboot)
     rm -f "$ofile"
     mkimage -A ppc -O linux -T kernel -C gzip -a 00000000 -e 00000000 \
-	$version -d "$vmz" "$ofile"
+	$uboot_version -d "$vmz" "$ofile"
     if [ -z "$cacheit" ]; then
 	rm -f "$vmz"
     fi
@@ -212,25 +211,32 @@ if [ "$platform" != "miboot" ]; then
     rm $tmp
 fi
 
+# Some platforms need the zImage's entry point and base address
+base=0x`${CROSS}nm "$ofile" | grep ' _start$' | cut -d' ' -f1`
+entry=`${CROSS}objdump -f "$ofile" | grep '^start address ' | cut -d' ' -f3`
+
 # post-processing needed for some platforms
 case "$platform" in
 pseries|chrp)
     $object/addnote "$ofile"
     ;;
 pmaccoff)
-    entry=`objdump -f "$ofile" | grep '^start address ' | \
-	cut -d' ' -f3`
     ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"
     $object/hack-coff "$ofile"
     ;;
 cuboot*)
-    base=`${CROSS}nm "$ofile" | grep ' _start$' | cut -d' ' -f1`
-    entry=`${CROSS}objdump -f "$ofile" | grep '^start address ' | \
-           cut -d' ' -f3`
     mv "$ofile" "$ofile".elf
     ${CROSS}objcopy -O binary "$ofile".elf "$ofile".bin
     gzip -f -9 "$ofile".bin
     mkimage -A ppc -O linux -T kernel -C gzip -a "$base" -e "$entry" \
-            $version -d "$ofile".bin.gz "$ofile"
+            $uboot_version -d "$ofile".bin.gz "$ofile"
+    ;;
+treeboot*)
+    mv "$ofile" "$ofile.elf"
+    $object/mktree "$ofile.elf" "$ofile" "$base" "$entry"
+    if [ -z "$cacheit" ]; then
+	rm -f "$ofile.elf"
+    fi
+    exit 0
     ;;
 esac

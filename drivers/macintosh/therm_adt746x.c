@@ -559,9 +559,9 @@ thermostat_init(void)
 	np = of_find_node_by_name(NULL, "fan");
 	if (!np)
 		return -ENODEV;
-	if (device_is_compatible(np, "adt7460"))
+	if (of_device_is_compatible(np, "adt7460"))
 		therm_type = ADT7460;
-	else if (device_is_compatible(np, "adt7467"))
+	else if (of_device_is_compatible(np, "adt7467"))
 		therm_type = ADT7467;
 	else
 		return -ENODEV;

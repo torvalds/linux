@@ -3787,7 +3787,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 
-	prop = get_property(np, "device-id", NULL);
+	prop = of_get_property(np, "device-id", NULL);
 	ucc_num = *prop - 1;
 	if ((ucc_num < 0) || (ucc_num > 7))
 		return -ENODEV;
@@ -3795,9 +3795,9 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ug_info = &ugeth_info[ucc_num];
 	ug_info->uf_info.ucc_num = ucc_num;
 
-	prop = get_property(np, "rx-clock", NULL);
+	prop = of_get_property(np, "rx-clock", NULL);
 	ug_info->uf_info.rx_clock = *prop;
-	prop = get_property(np, "tx-clock", NULL);
+	prop = of_get_property(np, "tx-clock", NULL);
 	ug_info->uf_info.tx_clock = *prop;
 	err = of_address_to_resource(np, 0, &res);
 	if (err)
@@ -3806,23 +3806,23 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ug_info->uf_info.regs = res.start;
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
-	ph = get_property(np, "phy-handle", NULL);
+	ph = of_get_property(np, "phy-handle", NULL);
 	phy = of_find_node_by_phandle(*ph);
 
 	if (phy == NULL)
 		return -ENODEV;
 
 	/* set the PHY address */
-	prop = get_property(phy, "reg", NULL);
+	prop = of_get_property(phy, "reg", NULL);
 	if (prop == NULL)
 		return -1;
 	ug_info->phy_address = *prop;
 
 	/* get the phy interface type, or default to MII */
-	prop = get_property(np, "interface-type", NULL);
+	prop = of_get_property(np, "interface-type", NULL);
 	if (!prop) {
 		/* handle interface property present in old trees */
-		prop = get_property(phy, "interface", NULL);
+		prop = of_get_property(phy, "interface", NULL);
 		if (prop != NULL)
 			phy_interface = enet_to_phy_interface[*prop];
 		else
@@ -3832,10 +3832,10 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	}
 
 	/* get speed, or derive from interface */
-	prop = get_property(np, "max-speed", NULL);
+	prop = of_get_property(np, "max-speed", NULL);
 	if (!prop) {
 		/* handle interface property present in old trees */
-		prop = get_property(phy, "interface", NULL);
+		prop = of_get_property(phy, "interface", NULL);
 		if (prop != NULL)
 			max_speed = enet_to_speed[*prop];
 	} else {

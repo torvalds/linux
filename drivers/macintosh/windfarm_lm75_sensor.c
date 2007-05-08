@@ -188,10 +188,10 @@ static int wf_lm75_attach(struct i2c_adapter *adapter)
 		if (loc == NULL || addr == 0)
 			continue;
 		/* real lm75 */
-		if (device_is_compatible(dev, "lm75"))
+		if (of_device_is_compatible(dev, "lm75"))
 			wf_lm75_create(adapter, addr, 0, loc);
 		/* ds1775 (compatible, better resolution */
-		else if (device_is_compatible(dev, "ds1775"))
+		else if (of_device_is_compatible(dev, "ds1775"))
 			wf_lm75_create(adapter, addr, 1, loc);
 	}
 	return 0;

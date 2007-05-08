@@ -35,6 +35,7 @@
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/tsi108.h>
+#include <asm/tsi108_pci.h>
 #include <asm/tsi108_irq.h>
 #include <asm/prom.h>
 
@@ -49,6 +50,7 @@
 	((((bus)<<16) | ((devfunc)<<8) | (offset & 0xfc)) + tsi108_pci_cfg_base)
 
 u32 tsi108_pci_cfg_base;
+static u32 tsi108_pci_cfg_phys;
 u32 tsi108_csr_vir_base;
 static struct device_node *pci_irq_node;
 static struct irq_host *pci_irq_host;
@@ -185,7 +187,7 @@ tsi108_direct_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 
 void tsi108_clear_pci_cfg_error(void)
 {
-	tsi108_clear_pci_error(TSI108_PCI_CFG_BASE_PHYS);
+	tsi108_clear_pci_error(tsi108_pci_cfg_phys);
 }
 
 static struct pci_ops tsi108_direct_pci_ops = {
@@ -193,17 +195,17 @@ static struct pci_ops tsi108_direct_pci_ops = {
 	tsi108_direct_write_config
 };
 
-int __init tsi108_setup_pci(struct device_node *dev)
+int __init tsi108_setup_pci(struct device_node *dev, u32 cfg_phys, int primary)
 {
 	int len;
 	struct pci_controller *hose;
 	struct resource rsrc;
 	const int *bus_range;
-	int primary = 0, has_address = 0;
+	int has_address = 0;
 
 	/* PCI Config mapping */
-	tsi108_pci_cfg_base = (u32)ioremap(TSI108_PCI_CFG_BASE_PHYS,
-			TSI108_PCI_CFG_SIZE);
+	tsi108_pci_cfg_base = (u32)ioremap(cfg_phys, TSI108_PCI_CFG_SIZE);
+	tsi108_pci_cfg_phys = cfg_phys;
 	DBG("TSI_PCI: %s tsi108_pci_cfg_base=0x%x\n", __FUNCTION__,
 	    tsi108_pci_cfg_base);
 

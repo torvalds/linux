@@ -120,8 +120,8 @@ skpinv:	addi	r4,r4,1				/* Increment */
  * Configure and load pinned entry into TLB slot 63.
  */
 
-	lis	r3,KERNELBASE@h		/* Load the kernel virtual address */
-	ori	r3,r3,KERNELBASE@l
+	lis	r3,PAGE_OFFSET@h
+	ori	r3,r3,PAGE_OFFSET@l
 
 	/* Kernel is at the base of RAM */
 	li r4, 0			/* Load the kernel physical address */
@@ -172,36 +172,28 @@ skpinv:	addi	r4,r4,1				/* Increment */
 	isync
 
 4:
-#ifdef CONFIG_SERIAL_TEXT_DEBUG
-	/*
-	 * Add temporary UART mapping for early debug.
-	 * We can map UART registers wherever we want as long as they don't
-	 * interfere with other system mappings (e.g. with pinned entries).
-	 * For an example of how we handle this - see ocotea.h.       --ebs
-	 */
+#ifdef CONFIG_PPC_EARLY_DEBUG_44x
+	/* Add UART mapping for early debug. */
+
  	/* pageid fields */
-	lis	r3,UART0_IO_BASE@h
-	ori	r3,r3,PPC44x_TLB_VALID | PPC44x_TLB_4K
+	lis	r3,PPC44x_EARLY_DEBUG_VIRTADDR@h
+	ori	r3,r3,PPC44x_TLB_VALID|PPC44x_TLB_TS|PPC44x_TLB_64K
 
 	/* xlat fields */
-	lis	r4,UART0_PHYS_IO_BASE@h		/* RPN depends on SoC */
-#ifndef CONFIG_440EP
-	ori	r4,r4,0x0001		/* ERPN is 1 for second 4GB page */
-#endif
+	lis	r4,CONFIG_PPC_EARLY_DEBUG_44x_PHYSLOW@h
+	ori	r4,r4,CONFIG_PPC_EARLY_DEBUG_44x_PHYSHIGH
 
 	/* attrib fields */
-	li	r5,0
-	ori	r5,r5,(PPC44x_TLB_SW | PPC44x_TLB_SR | PPC44x_TLB_I | PPC44x_TLB_G)
+	li	r5,(PPC44x_TLB_SW|PPC44x_TLB_SR|PPC44x_TLB_I|PPC44x_TLB_G)
+        li      r0,62                    /* TLB slot 0 */
 
-        li      r0,0                    /* TLB slot 0 */
-
-	tlbwe	r3,r0,PPC44x_TLB_PAGEID	/* Load the pageid fields */
-	tlbwe	r4,r0,PPC44x_TLB_XLAT	/* Load the translation fields */
-	tlbwe	r5,r0,PPC44x_TLB_ATTRIB	/* Load the attrib/access fields */
+	tlbwe	r3,r0,PPC44x_TLB_PAGEID
+	tlbwe	r4,r0,PPC44x_TLB_XLAT
+	tlbwe	r5,r0,PPC44x_TLB_ATTRIB
 
 	/* Force context change */
 	isync
-#endif /* CONFIG_SERIAL_TEXT_DEBUG */
+#endif /* CONFIG_PPC_EARLY_DEBUG_44x */
 
 	/* Establish the interrupt vector offsets */
 	SET_IVOR(0,  CriticalInput);
@@ -708,16 +700,6 @@ _GLOBAL(giveup_altivec)
 _GLOBAL(giveup_fpu)
 	blr
 #endif
-
-/*
- * extern void abort(void)
- *
- * At present, this routine just applies a system reset.
- */
-_GLOBAL(abort)
-        mfspr   r13,SPRN_DBCR0
-        oris    r13,r13,DBCR0_RST_SYSTEM@h
-        mtspr   SPRN_DBCR0,r13
 
 _GLOBAL(set_context)
 

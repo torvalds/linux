@@ -184,7 +184,7 @@ static int __init setup_areas(struct spu *spu)
 
 	spu_pdata(spu)->shadow = __ioremap(
 		spu_pdata(spu)->shadow_addr, sizeof(struct spe_shadow),
-		PAGE_READONLY | _PAGE_NO_CACHE | _PAGE_GUARDED);
+		pgprot_val(PAGE_READONLY) | _PAGE_NO_CACHE | _PAGE_GUARDED);
 	if (!spu_pdata(spu)->shadow) {
 		pr_debug("%s:%d: ioremap shadow failed\n", __func__, __LINE__);
 		goto fail_ioremap;
@@ -230,19 +230,19 @@ static int __init setup_interrupts(struct spu *spu)
 {
 	int result;
 
-	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+	result = ps3_spe_irq_setup(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
 		0, &spu->irqs[0]);
 
 	if (result)
 		goto fail_alloc_0;
 
-	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+	result = ps3_spe_irq_setup(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
 		1, &spu->irqs[1]);
 
 	if (result)
 		goto fail_alloc_1;
 
-	result = ps3_alloc_spe_irq(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
+	result = ps3_spe_irq_setup(PS3_BINDING_CPU_ANY, spu_pdata(spu)->spe_id,
 		2, &spu->irqs[2]);
 
 	if (result)
@@ -251,9 +251,9 @@ static int __init setup_interrupts(struct spu *spu)
 	return result;
 
 fail_alloc_2:
-	ps3_free_spe_irq(spu->irqs[1]);
+	ps3_spe_irq_destroy(spu->irqs[1]);
 fail_alloc_1:
-	ps3_free_spe_irq(spu->irqs[0]);
+	ps3_spe_irq_destroy(spu->irqs[0]);
 fail_alloc_0:
 	spu->irqs[0] = spu->irqs[1] = spu->irqs[2] = NO_IRQ;
 	return result;
@@ -301,9 +301,9 @@ static int ps3_destroy_spu(struct spu *spu)
 	result = lv1_disable_logical_spe(spu_pdata(spu)->spe_id, 0);
 	BUG_ON(result);
 
-	ps3_free_spe_irq(spu->irqs[2]);
-	ps3_free_spe_irq(spu->irqs[1]);
-	ps3_free_spe_irq(spu->irqs[0]);
+	ps3_spe_irq_destroy(spu->irqs[2]);
+	ps3_spe_irq_destroy(spu->irqs[1]);
+	ps3_spe_irq_destroy(spu->irqs[0]);
 
 	spu->irqs[0] = spu->irqs[1] = spu->irqs[2] = NO_IRQ;
 

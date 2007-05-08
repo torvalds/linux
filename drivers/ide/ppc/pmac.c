@@ -1157,32 +1157,32 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 
 	pmif->cable_80 = 0;
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
-	if (device_is_compatible(np, "shasta-ata"))
+	if (of_device_is_compatible(np, "shasta-ata"))
 		pmif->kind = controller_sh_ata6;
-	else if (device_is_compatible(np, "kauai-ata"))
+	else if (of_device_is_compatible(np, "kauai-ata"))
 		pmif->kind = controller_un_ata6;
-	else if (device_is_compatible(np, "K2-UATA"))
+	else if (of_device_is_compatible(np, "K2-UATA"))
 		pmif->kind = controller_k2_ata6;
-	else if (device_is_compatible(np, "keylargo-ata")) {
+	else if (of_device_is_compatible(np, "keylargo-ata")) {
 		if (strcmp(np->name, "ata-4") == 0)
 			pmif->kind = controller_kl_ata4;
 		else
 			pmif->kind = controller_kl_ata3;
-	} else if (device_is_compatible(np, "heathrow-ata"))
+	} else if (of_device_is_compatible(np, "heathrow-ata"))
 		pmif->kind = controller_heathrow;
 	else {
 		pmif->kind = controller_ohare;
 		pmif->broken_dma = 1;
 	}
 
-	bidp = get_property(np, "AAPL,bus-id", NULL);
+	bidp = of_get_property(np, "AAPL,bus-id", NULL);
 	pmif->aapl_bus_id =  bidp ? *bidp : 0;
 
 	/* Get cable type from device-tree */
 	if (pmif->kind == controller_kl_ata4 || pmif->kind == controller_un_ata6
 	    || pmif->kind == controller_k2_ata6
 	    || pmif->kind == controller_sh_ata6) {
-		const char* cable = get_property(np, "cable-type", NULL);
+		const char* cable = of_get_property(np, "cable-type", NULL);
 		if (cable && !strncmp(cable, "80-", 3))
 			pmif->cable_80 = 1;
 	}
@@ -1190,8 +1190,8 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	 * they have a 80 conductor cable, this seem to be always the case unless
 	 * the user mucked around
 	 */
-	if (device_is_compatible(np, "K2-UATA") ||
-	    device_is_compatible(np, "shasta-ata"))
+	if (of_device_is_compatible(np, "K2-UATA") ||
+	    of_device_is_compatible(np, "shasta-ata"))
 		pmif->cable_80 = 1;
 
 	/* On Kauai-type controllers, we make sure the FCR is correct */

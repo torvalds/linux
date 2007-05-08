@@ -1,6 +1,10 @@
 
-menu "Macintosh device drivers"
+menuconfig MACINTOSH_DRIVERS
+	bool "Macintosh device drivers"
 	depends on PPC || MAC || X86
+	default y
+
+if MACINTOSH_DRIVERS
 
 config ADB
 	bool "Apple Desktop Bus (ADB) support"
@@ -109,7 +113,9 @@ config PMAC_SMU
 
 config PMAC_APM_EMU
 	tristate "APM emulation"
-	depends on PPC_PMAC && PPC32 && PM && ADB_PMU
+	select SYS_SUPPORTS_APM_EMULATION
+	select APM_EMULATION
+	depends on ADB_PMU && PM
 
 config PMAC_MEDIABAY
 	bool "Support PowerBook hotswap media bay"
@@ -234,4 +240,4 @@ config PMAC_RACKMETER
 	  This driver procides some support to control the front panel
           blue LEDs "vu-meter" of the XServer macs.
 
-endmenu
+endif # MACINTOSH_DRIVERS

@@ -395,7 +395,7 @@ static void __devinit apple_kiwi_init(struct pci_dev *pdev)
 	unsigned int class_rev = 0;
 	u8 conf;
 
-	if (np == NULL || !device_is_compatible(np, "kiwi-root"))
+	if (np == NULL || !of_device_is_compatible(np, "kiwi-root"))
 		return;
 
 	pci_read_config_dword(pdev, PCI_CLASS_REVISION, &class_rev);

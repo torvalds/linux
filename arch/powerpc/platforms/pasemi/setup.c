@@ -114,7 +114,7 @@ static __init void pas_init_IRQ(void)
 	mpic_node = NULL;
 
 	for_each_node_by_type(np, "interrupt-controller")
-		if (device_is_compatible(np, "open-pic")) {
+		if (of_device_is_compatible(np, "open-pic")) {
 			mpic_node = np;
 			break;
 		}
@@ -211,7 +211,10 @@ static struct of_device_id pasemi_bus_ids[] = {
 
 static int __init pasemi_publish_devices(void)
 {
-	/* Publish OF platform devices for southbridge IOs */
+	if (!machine_is(pasemi))
+		return 0;
+
+	/* Publish OF platform devices for SDC and other non-PCI devices */
 	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
 
 	return 0;

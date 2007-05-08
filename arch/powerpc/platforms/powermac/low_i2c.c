@@ -1207,7 +1207,7 @@ static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
 				if (strcmp(np->name, p->name))
 					continue;
 				if (p->compatible &&
-				    !device_is_compatible(np, p->compatible))
+				    !of_device_is_compatible(np, p->compatible))
 					continue;
 				if (p->quirks & pmac_i2c_quirk_skip)
 					break;

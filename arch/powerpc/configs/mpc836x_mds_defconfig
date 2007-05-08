@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.20
-# Sat Feb 17 10:09:26 2007
+# Linux kernel version: 2.6.21-rc5
+# Mon Apr  9 16:14:05 2007
 #
 # CONFIG_PPC64 is not set
 CONFIG_PPC32=y
@@ -72,6 +72,7 @@ CONFIG_SYSVIPC_SYSCTL=y
 # CONFIG_IKCONFIG is not set
 CONFIG_SYSFS_DEPRECATED=y
 # CONFIG_RELAY is not set
+CONFIG_BLK_DEV_INITRD=y
 CONFIG_INITRAMFS_SOURCE=""
 # CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
 CONFIG_SYSCTL=y
@@ -124,7 +125,6 @@ CONFIG_DEFAULT_AS=y
 # CONFIG_DEFAULT_NOOP is not set
 CONFIG_DEFAULT_IOSCHED="anticipatory"
 CONFIG_QUICC_ENGINE=y
-CONFIG_PPC_GEN550=y
 # CONFIG_WANT_EARLY_SERIAL is not set
 
 #
@@ -132,6 +132,7 @@ CONFIG_PPC_GEN550=y
 #
 # CONFIG_MPC8313_RDB is not set
 # CONFIG_MPC832x_MDS is not set
+# CONFIG_MPC832x_RDB is not set
 # CONFIG_MPC834x_MDS is not set
 # CONFIG_MPC834x_ITX is not set
 CONFIG_MPC836x_MDS=y
@@ -328,6 +329,7 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -346,7 +348,6 @@ CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=32768
 CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
-CONFIG_BLK_DEV_INITRD=y
 # CONFIG_CDROM_PKTCDVD is not set
 # CONFIG_ATA_OVER_ETH is not set
 
@@ -486,7 +487,21 @@ CONFIG_NETDEVICES=y
 #
 # PHY device support
 #
-# CONFIG_PHYLIB is not set
+CONFIG_PHYLIB=y
+
+#
+# MII PHY device drivers
+#
+CONFIG_MARVELL_PHY=y
+# CONFIG_DAVICOM_PHY is not set
+# CONFIG_QSEMI_PHY is not set
+# CONFIG_LXT_PHY is not set
+# CONFIG_CICADA_PHY is not set
+# CONFIG_VITESSE_PHY is not set
+# CONFIG_SMSC_PHY is not set
+# CONFIG_BROADCOM_PHY is not set
+# CONFIG_ICPLUS_PHY is not set
+# CONFIG_FIXED_PHY is not set
 
 #
 # Ethernet (10 or 100Mbit)
@@ -528,6 +543,7 @@ CONFIG_UCC_GETH=y
 # CONFIG_UGETH_FILTERING is not set
 # CONFIG_UGETH_TX_ON_DEMOND is not set
 # CONFIG_QLA3XXX is not set
+# CONFIG_ATL1 is not set
 
 #
 # Ethernet (10000 Mbit)
@@ -745,6 +761,7 @@ CONFIG_HWMON=y
 # CONFIG_SENSORS_ADM1021 is not set
 # CONFIG_SENSORS_ADM1025 is not set
 # CONFIG_SENSORS_ADM1026 is not set
+# CONFIG_SENSORS_ADM1029 is not set
 # CONFIG_SENSORS_ADM1031 is not set
 # CONFIG_SENSORS_ADM9240 is not set
 # CONFIG_SENSORS_ASB100 is not set
@@ -786,6 +803,11 @@ CONFIG_HWMON=y
 # CONFIG_HWMON_DEBUG_CHIP is not set
 
 #
+# Multifunction device drivers
+#
+# CONFIG_MFD_SM501 is not set
+
+#
 # Multimedia devices
 #
 # CONFIG_VIDEO_DEV is not set
@@ -798,10 +820,9 @@ CONFIG_HWMON=y
 #
 # Graphics support
 #
-CONFIG_FIRMWARE_EDID=y
+# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 # CONFIG_FB is not set
 # CONFIG_FB_IBM_GXT4500 is not set
-# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
 #
 # Sound
@@ -1007,11 +1028,7 @@ CONFIG_PARTITION_ADVANCED=y
 # Distributed Lock Manager
 #
 # CONFIG_DLM is not set
-
-#
-# QE Options
-#
-CONFIG_UCC_SLOW=y
+# CONFIG_UCC_SLOW is not set
 CONFIG_UCC_FAST=y
 CONFIG_UCC=y
 
@@ -1045,7 +1062,6 @@ CONFIG_ENABLE_MUST_CHECK=y
 CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_BOOTX_TEXT is not set
-# CONFIG_SERIAL_TEXT_DEBUG is not set
 # CONFIG_PPC_EARLY_DEBUG is not set
 
 #

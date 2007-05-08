@@ -46,8 +46,8 @@ int main(int argc, char *argv[])
 	struct	stat	st;
 	boot_block_t	bt;
 
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s <zImage-file> <boot-image> [entry-point]\n",argv[0]);
+	if (argc < 5) {
+		fprintf(stderr, "usage: %s <zImage-file> <boot-image> <load address> <entry point>\n",argv[0]);
 		exit(1);
 	}
 
@@ -61,10 +61,8 @@ int main(int argc, char *argv[])
 	bt.bb_magic = htonl(0x0052504F);
 
 	/* If we have the optional entry point parameter, use it */
-	if (argc == 4)
-		bt.bb_dest = bt.bb_entry_point = htonl(strtoul(argv[3], NULL, 0));
-	else
-		bt.bb_dest = bt.bb_entry_point = htonl(0x500000);
+	bt.bb_dest = htonl(strtoul(argv[3], NULL, 0));
+	bt.bb_entry_point = htonl(strtoul(argv[4], NULL, 0));
 
 	/* We know these from the linker command.
 	 * ...and then move it up into memory a little more so the

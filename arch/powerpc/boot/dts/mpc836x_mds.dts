@@ -305,6 +305,7 @@
 			rx-clock = <0>;
 			tx-clock = <19>;
 			phy-handle = < &phy0 >;
+			phy-connection-type = "rgmii-id";
 			pio-handle = < &pio1 >;
 		};
 
@@ -320,6 +321,7 @@
 			rx-clock = <0>;
 			tx-clock = <14>;
 			phy-handle = < &phy1 >;
+			phy-connection-type = "rgmii-id";
 			pio-handle = < &pio2 >;
 		};
 
@@ -335,14 +337,12 @@
 				interrupts = <11 8>;
 				reg = <0>;
 				device_type = "ethernet-phy";
-				interface = <6>; //ENET_1000_GMII
 			};
 			phy1: ethernet-phy@01 {
 				interrupt-parent = < &ipic >;
 				interrupts = <12 8>;
 				reg = <1>;
 				device_type = "ethernet-phy";
-				interface = <6>;
 			};
 		};
 

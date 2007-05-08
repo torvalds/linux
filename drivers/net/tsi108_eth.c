@@ -82,6 +82,7 @@ struct tsi108_prv_data {
 	unsigned int phy;		/* Index of PHY for this interface */
 	unsigned int irq_num;
 	unsigned int id;
+	unsigned int phy_type;
 
 	struct timer_list timer;/* Timer that triggers the check phy function */
 	unsigned int rxtail;	/* Next entry in rxring to read */
@@ -1256,11 +1257,11 @@ static void tsi108_init_phy(struct net_device *dev)
 	if (i == 0)
 		printk(KERN_ERR "%s function time out \n", __FUNCTION__);
 
-#if (TSI108_PHY_TYPE == PHY_BCM54XX)	/* Broadcom BCM54xx PHY */
-	tsi108_write_mii(data, 0x09, 0x0300);
-	tsi108_write_mii(data, 0x10, 0x1020);
-	tsi108_write_mii(data, 0x1c, 0x8c00);
-#endif
+	if (data->phy_type == TSI108_PHY_BCM54XX) {
+		tsi108_write_mii(data, 0x09, 0x0300);
+		tsi108_write_mii(data, 0x10, 0x1020);
+		tsi108_write_mii(data, 0x1c, 0x8c00);
+	}
 
 	tsi108_write_mii(data,
 			 MII_BMCR,
@@ -1587,6 +1588,7 @@ tsi108_init_one(struct platform_device *pdev)
 	data->mii_if.supports_gmii = mii_check_gmii_support(&data->mii_if);
 
 	data->phy = einfo->phy;
+	data->phy_type = einfo->phy_type;
 	data->irq_num = einfo->irq_num;
 	data->id = pdev->id;
 	dev->open = tsi108_open;

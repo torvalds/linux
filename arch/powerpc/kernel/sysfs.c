@@ -499,4 +499,4 @@ static int __init topology_init(void)
 
 	return 0;
 }
-__initcall(topology_init);
+subsys_initcall(topology_init);

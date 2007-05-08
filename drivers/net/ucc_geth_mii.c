@@ -172,7 +172,7 @@ static int uec_mdio_probe(struct of_device *ofdev, const struct of_device_id *ma
 	while ((child = of_get_next_child(np, child)) != NULL) {
 		int irq = irq_of_parse_and_map(child, 0);
 		if (irq != NO_IRQ) {
-			const u32 *id = get_property(child, "reg", NULL);
+			const u32 *id = of_get_property(child, "reg", NULL);
 			new_bus->irq[*id] = irq;
 		}
 	}
@@ -203,7 +203,7 @@ static int uec_mdio_probe(struct of_device *ofdev, const struct of_device_id *ma
 		if ((res.start >= tempres.start) &&
 		    (res.end <= tempres.end)) {
 			/* set this UCC to be the MII master */
-			const u32 *id = get_property(tempnp, "device-id", NULL);
+			const u32 *id = of_get_property(tempnp, "device-id", NULL);
 			if (id == NULL)
 				goto bus_register_fail;
 

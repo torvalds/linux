@@ -1006,8 +1006,9 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 
 		switch ((pci_space >> 24) & 0x3) {
 		case 1:		/* I/O space */
-			hose->io_base_phys = cpu_phys_addr;
-			hose->pci_io_size = size;
+			hose->io_base_phys = cpu_phys_addr - pci_addr;
+			/* handle from 0 to top of I/O window */
+			hose->pci_io_size = pci_addr + size;
 
 			res = &hose->io_resource;
 			res->flags = IORESOURCE_IO;
@@ -1117,8 +1118,8 @@ static int get_bus_io_range(struct pci_bus *bus, unsigned long *start_phys,
 	} else {
 		/* Root Bus */
 		res = &hose->io_resource;
-		*start_phys = hose->io_base_phys;
-		*start_virt = (unsigned long) hose->io_base_virt;
+		*start_phys = hose->io_base_phys + res->start;
+		*start_virt = (unsigned long) hose->io_base_virt + res->start;
 		if (res->end > res->start)
 			*size = res->end - res->start + 1;
 		else {

@@ -898,8 +898,8 @@ static int ps3fb_vsync_settings(struct gpu_driver_info *dinfo, void *dev)
 	}
 
 	ps3fb.dev = dev;
-	error = ps3_alloc_irq(PS3_BINDING_CPU_ANY, dinfo->irq.irq_outlet,
-			      &ps3fb.irq_no);
+	error = ps3_irq_plug_setup(PS3_BINDING_CPU_ANY, dinfo->irq.irq_outlet,
+				   &ps3fb.irq_no);
 	if (error) {
 		printk(KERN_ERR "%s: ps3_alloc_irq failed %d\n", __func__,
 		       error);
@@ -911,7 +911,7 @@ static int ps3fb_vsync_settings(struct gpu_driver_info *dinfo, void *dev)
 	if (error) {
 		printk(KERN_ERR "%s: request_irq failed %d\n", __func__,
 		       error);
-		ps3_free_irq(ps3fb.irq_no);
+		ps3_irq_plug_destroy(ps3fb.irq_no);
 		return error;
 	}
 
@@ -1083,7 +1083,7 @@ err_framebuffer_release:
 	framebuffer_release(info);
 err_free_irq:
 	free_irq(ps3fb.irq_no, ps3fb.dev);
-	ps3_free_irq(ps3fb.irq_no);
+	ps3_irq_plug_destroy(ps3fb.irq_no);
 err_iounmap_dinfo:
 	iounmap((u8 __iomem *)ps3fb.dinfo);
 err_gpu_context_free:
@@ -1099,7 +1099,7 @@ static void ps3fb_shutdown(struct platform_device *dev)
 	ps3fb_flip_ctl(0);	/* flip off */
 	ps3fb.dinfo->irq.mask = 0;
 	free_irq(ps3fb.irq_no, ps3fb.dev);
-	ps3_free_irq(ps3fb.irq_no);
+	ps3_irq_plug_destroy(ps3fb.irq_no);
 	iounmap((u8 __iomem *)ps3fb.dinfo);
 }
 
@@ -1114,7 +1114,7 @@ void ps3fb_cleanup(void)
 	}
 	if (ps3fb.irq_no) {
 		free_irq(ps3fb.irq_no, ps3fb.dev);
-		ps3_free_irq(ps3fb.irq_no);
+		ps3_irq_plug_destroy(ps3fb.irq_no);
 	}
 	iounmap((u8 __iomem *)ps3fb.dinfo);
 

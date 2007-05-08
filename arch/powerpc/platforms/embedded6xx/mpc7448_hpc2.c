@@ -41,6 +41,7 @@
 #include <asm/reg.h>
 #include <mm/mmu_decl.h>
 #include "mpc7448_hpc2.h"
+#include <asm/tsi108_pci.h>
 #include <asm/tsi108_irq.h>
 #include <asm/mpic.h>
 
@@ -51,16 +52,15 @@
 #define DBG(fmt...) do { } while(0)
 #endif
 
+#define MPC7448HPC2_PCI_CFG_PHYS 0xfb000000
+
 #ifndef CONFIG_PCI
 isa_io_base = MPC7448_HPC2_ISA_IO_BASE;
 isa_mem_base = MPC7448_HPC2_ISA_MEM_BASE;
 pci_dram_offset = MPC7448_HPC2_PCI_MEM_OFFSET;
 #endif
 
-extern int tsi108_setup_pci(struct device_node *dev);
 extern void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
-extern void tsi108_pci_int_init(struct device_node *node);
-extern void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc);
 
 int mpc7448_hpc2_exclude_device(u_char bus, u_char devfn)
 {
@@ -72,28 +72,16 @@ int mpc7448_hpc2_exclude_device(u_char bus, u_char devfn)
 
 static void __init mpc7448_hpc2_setup_arch(void)
 {
-	struct device_node *cpu;
 	struct device_node *np;
 	if (ppc_md.progress)
 		ppc_md.progress("mpc7448_hpc2_setup_arch():set_bridge", 0);
 
-	cpu = of_find_node_by_type(NULL, "cpu");
-	if (cpu != 0) {
-		const unsigned int *fp;
-
-		fp = of_get_property(cpu, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(cpu);
-	}
 	tsi108_csr_vir_base = get_vir_csrbase();
 
 	/* setup PCI host bridge */
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
-		tsi108_setup_pci(np);
+		tsi108_setup_pci(np, MPC7448HPC2_PCI_CFG_PHYS, 0);
 
 	ppc_md.pci_exclude_device = mpc7448_hpc2_exclude_device;
 	if (ppc_md.progress)
@@ -222,7 +210,6 @@ static int __init mpc7448_hpc2_probe(void)
 
 static int mpc7448_machine_check_exception(struct pt_regs *regs)
 {
-	extern void tsi108_clear_pci_cfg_error(void);
 	const struct exception_table_entry *entry;
 
 	/* Are we prepared to handle this fault */

@@ -1290,7 +1290,7 @@ static void radeon_pm_full_reset_sdram(struct radeonfb_info *rinfo)
 		if (rinfo->of_node != NULL) {
 			int size;
 
-			mrtable = get_property(rinfo->of_node, "ATY,MRT", &size);
+			mrtable = of_get_property(rinfo->of_node, "ATY,MRT", &size);
 			if (mrtable)
 				mrtable_size = size >> 2;
 			else

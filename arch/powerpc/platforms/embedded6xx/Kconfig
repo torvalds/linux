@@ -20,16 +20,24 @@ config MPC7448HPC2
 	select TSI108_BRIDGE
 	select DEFAULT_UIMAGE
 	select PPC_UDBG_16550
-	select MPIC
-	select MPIC_WEIRD
 	help
 	  Select MPC7448HPC2 if configuring for Freescale MPC7448HPC2 (Taiga)
 	  platform
+
+config PPC_HOLLY
+	bool "PPC750GX/CL with TSI10x bridge (Hickory/Holly)"
+	select TSI108_BRIDGE
+	select PPC_UDBG_16550
+	help
+	  Select PPC_HOLLY if configuring for an IBM 750GX/CL Eval
+	  Board with TSI108/9 bridge (Hickory/Holly)
 endchoice
 
 config TSI108_BRIDGE
 	bool
-	depends on MPC7448HPC2
+	depends on MPC7448HPC2 || PPC_HOLLY
+	select MPIC
+	select MPIC_WEIRD
 	default y
 
 config MPC10X_BRIDGE

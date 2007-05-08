@@ -169,10 +169,10 @@ static int get_children_props(struct device_node *dn, const int **drc_indexes,
 {
 	const int *indexes, *names, *types, *domains;
 
-	indexes = get_property(dn, "ibm,drc-indexes", NULL);
-	names = get_property(dn, "ibm,drc-names", NULL);
-	types = get_property(dn, "ibm,drc-types", NULL);
-	domains = get_property(dn, "ibm,drc-power-domains", NULL);
+	indexes = of_get_property(dn, "ibm,drc-indexes", NULL);
+	names = of_get_property(dn, "ibm,drc-names", NULL);
+	types = of_get_property(dn, "ibm,drc-types", NULL);
+	domains = of_get_property(dn, "ibm,drc-power-domains", NULL);
 
 	if (!indexes || !names || !types || !domains) {
 		/* Slot does not have dynamically-removable children */
@@ -205,7 +205,7 @@ int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
 	char *name_tmp, *type_tmp;
 	int i, rc;
 
-	my_index = get_property(dn, "ibm,my-drc-index", NULL);
+	my_index = of_get_property(dn, "ibm,my-drc-index", NULL);
 	if (!my_index) {
 		/* Node isn't DLPAR/hotplug capable */
 		return -EINVAL;

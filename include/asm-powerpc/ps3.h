@@ -167,26 +167,31 @@ enum ps3_cpu_binding {
 	PS3_BINDING_CPU_1 = 1,
 };
 
-int ps3_alloc_io_irq(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
+int ps3_virq_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
 	unsigned int *virq);
-int ps3_free_io_irq(unsigned int virq);
-int ps3_alloc_event_irq(enum ps3_cpu_binding cpu, unsigned int *virq);
-int ps3_free_event_irq(unsigned int virq);
+int ps3_virq_destroy(unsigned int virq);
+int ps3_irq_plug_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
+	unsigned int *virq);
+int ps3_irq_plug_destroy(unsigned int virq);
+int ps3_event_receive_port_setup(enum ps3_cpu_binding cpu, unsigned int *virq);
+int ps3_event_receive_port_destroy(unsigned int virq);
 int ps3_send_event_locally(unsigned int virq);
-int ps3_connect_event_irq(enum ps3_cpu_binding cpu,
+
+int ps3_io_irq_setup(enum ps3_cpu_binding cpu, unsigned int interrupt_id,
+	unsigned int *virq);
+int ps3_io_irq_destroy(unsigned int virq);
+int ps3_vuart_irq_setup(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
+	unsigned int *virq);
+int ps3_vuart_irq_destroy(unsigned int virq);
+int ps3_spe_irq_setup(enum ps3_cpu_binding cpu, unsigned long spe_id,
+	unsigned int class, unsigned int *virq);
+int ps3_spe_irq_destroy(unsigned int virq);
+
+int ps3_sb_event_receive_port_setup(enum ps3_cpu_binding cpu,
 	const struct ps3_device_id *did, unsigned int interrupt_id,
 	unsigned int *virq);
-int ps3_disconnect_event_irq(const struct ps3_device_id *did,
+int ps3_sb_event_receive_port_destroy(const struct ps3_device_id *did,
 	unsigned int interrupt_id, unsigned int virq);
-int ps3_alloc_vuart_irq(enum ps3_cpu_binding cpu, void* virt_addr_bmp,
-	unsigned int *virq);
-int ps3_free_vuart_irq(unsigned int virq);
-int ps3_alloc_spe_irq(enum ps3_cpu_binding cpu, unsigned long spe_id,
-	unsigned int class, unsigned int *virq);
-int ps3_free_spe_irq(unsigned int virq);
-int ps3_alloc_irq(enum ps3_cpu_binding cpu, unsigned long outlet,
-	unsigned int *virq);
-int ps3_free_irq(unsigned int virq);
 
 /* lv1 result codes */
 

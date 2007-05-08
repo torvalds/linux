@@ -42,6 +42,7 @@ source "arch/powerpc/platforms/83xx/Kconfig"
 source "arch/powerpc/platforms/85xx/Kconfig"
 source "arch/powerpc/platforms/86xx/Kconfig"
 source "arch/powerpc/platforms/embedded6xx/Kconfig"
+source "arch/powerpc/platforms/44x/Kconfig"
 #source "arch/powerpc/platforms/4xx/Kconfig
 
 config PPC_NATIVE

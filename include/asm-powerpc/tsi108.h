@@ -68,8 +68,17 @@
 #define TSI108_PB_ERRCS_ES		(1 << 1)
 #define TSI108_PB_ISR_PBS_RD_ERR	(1 << 8)
 
-#define TSI108_PCI_CFG_BASE_PHYS	(0xfb000000)
 #define TSI108_PCI_CFG_SIZE		(0x01000000)
+
+/*
+ * PHY Configuration Options
+ *
+ * Specify "bcm54xx" in the compatible property of your device tree phy
+ * nodes if your board uses the Broadcom PHYs
+ */
+#define TSI108_PHY_MV88E	0	/* Marvel 88Exxxx PHY */
+#define TSI108_PHY_BCM54XX	1	/* Broardcom BCM54xx PHY */
+
 /* Global variables */
 
 extern u32 tsi108_pci_cfg_base;
@@ -93,6 +102,7 @@ typedef struct {
 	u16 phy;		/* phy address */
 	u16 irq_num;		/* irq number */
 	u8 mac_addr[6];		/* phy mac address */
+	u16 phy_type;	/* type of phy on board */
 } hw_info;
 
 extern u32 get_vir_csrbase(void);

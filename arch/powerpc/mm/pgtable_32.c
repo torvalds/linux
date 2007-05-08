@@ -261,7 +261,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 	int err = -ENOMEM;
 
 	/* Use upper 10 bits of VA to index the first level map */
-	pd = pmd_offset(pgd_offset_k(va), va);
+	pd = pmd_offset(pud_offset(pgd_offset_k(va), va), va);
 	/* Use middle 10 bits of VA to index the second-level map */
 	pg = pte_alloc_kernel(pd, va);
 	if (pg != 0) {
@@ -354,23 +354,27 @@ int
 get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
 {
         pgd_t	*pgd;
+	pud_t	*pud;
         pmd_t	*pmd;
         pte_t	*pte;
         int     retval = 0;
 
         pgd = pgd_offset(mm, addr & PAGE_MASK);
         if (pgd) {
-                pmd = pmd_offset(pgd, addr & PAGE_MASK);
-                if (pmd_present(*pmd)) {
-                        pte = pte_offset_map(pmd, addr & PAGE_MASK);
-                        if (pte) {
-				retval = 1;
-				*ptep = pte;
-				if (pmdp)
-					*pmdp = pmd;
-				/* XXX caller needs to do pte_unmap, yuck */
-                        }
-                }
+		pud = pud_offset(pgd, addr & PAGE_MASK);
+		if (pud && pud_present(*pud)) {
+			pmd = pmd_offset(pud, addr & PAGE_MASK);
+			if (pmd_present(*pmd)) {
+				pte = pte_offset_map(pmd, addr & PAGE_MASK);
+				if (pte) {
+					retval = 1;
+					*ptep = pte;
+					if (pmdp)
+						*pmdp = pmd;
+					/* XXX caller needs to do pte_unmap, yuck */
+				}
+			}
+		}
         }
         return(retval);
 }

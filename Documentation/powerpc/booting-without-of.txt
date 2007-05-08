@@ -1560,6 +1560,9 @@ platforms are moved over to use the flattened-device-tree model.
      network device.  This is used by the bootwrapper to interpret
      MAC addresses passed by the firmware when no information other
      than indices is available to associate an address with a device.
+   - phy-connection-type : a string naming the controller/PHY interface type,
+     i.e., "mii" (default), "rmii", "gmii", "rgmii", "rgmii-id", "tbi",
+     or "rtbi".
 
    Example:
 	ucc@2000 {
@@ -1574,6 +1577,7 @@ platforms are moved over to use the flattened-device-tree model.
 		rx-clock = "none";
 		tx-clock = "clk9";
 		phy-handle = <212000>;
+		phy-connection-type = "gmii";
 		pio-handle = <140001>;
 	};
 

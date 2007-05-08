@@ -231,13 +231,13 @@ void __init find_udbg_vterm(void)
 		goto out;
 	vtermno = termno[0];
 
-	if (device_is_compatible(stdout_node, "hvterm1")) {
+	if (of_device_is_compatible(stdout_node, "hvterm1")) {
 		udbg_putc = udbg_putcLP;
 		udbg_getc = udbg_getcLP;
 		udbg_getc_poll = udbg_getc_pollLP;
 		if (add_console)
 			add_preferred_console("hvc", termno[0] & 0xff, NULL);
-	} else if (device_is_compatible(stdout_node, "hvterm-protocol")) {
+	} else if (of_device_is_compatible(stdout_node, "hvterm-protocol")) {
 		vtermno = termno[0];
 		udbg_putc = udbg_hvsi_putc;
 		udbg_getc = udbg_hvsi_getc;

@@ -3,6 +3,7 @@
 #ifdef __KERNEL__
 
 #include <linux/irq.h>
+#include <linux/sysdev.h>
 #include <asm/dcr.h>
 
 /*
@@ -228,6 +229,14 @@ struct mpic_reg_bank {
 #endif /* CONFIG_PPC_DCR */
 };
 
+struct mpic_irq_save {
+	u32		vecprio,
+			dest;
+#ifdef CONFIG_MPIC_U3_HT_IRQS
+	u32		fixup_data;
+#endif
+};
+
 /* The instance data of a given MPIC */
 struct mpic
 {
@@ -292,8 +301,19 @@ struct mpic
 	u32			*hw_set;
 #endif
 
+#ifdef CONFIG_PCI_MSI
+	spinlock_t		bitmap_lock;
+	unsigned long		*hwirq_bitmap;
+#endif
+
 	/* link */
 	struct mpic		*next;
+
+	struct sys_device	sysdev;
+
+#ifdef CONFIG_PM
+	struct mpic_irq_save	*save_data;
+#endif
 };
 
 /*

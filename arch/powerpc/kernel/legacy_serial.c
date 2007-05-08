@@ -244,9 +244,9 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	 * doesn't work for these settings, you'll have to add your own special
 	 * cases here
 	 */
-	if (device_is_compatible(pci_dev, "pci13a8,152") ||
-	    device_is_compatible(pci_dev, "pci13a8,154") ||
-	    device_is_compatible(pci_dev, "pci13a8,158")) {
+	if (of_device_is_compatible(pci_dev, "pci13a8,152") ||
+	    of_device_is_compatible(pci_dev, "pci13a8,154") ||
+	    of_device_is_compatible(pci_dev, "pci13a8,158")) {
 		addr += 0x200 * lindex;
 		base += 0x200 * lindex;
 	} else {
@@ -365,11 +365,11 @@ void __init find_legacy_serial_ports(void)
 		/* Check for known pciclass, and also check wether we have
 		 * a device with child nodes for ports or not
 		 */
-		if (device_is_compatible(np, "pciclass,0700") ||
-		    device_is_compatible(np, "pciclass,070002"))
+		if (of_device_is_compatible(np, "pciclass,0700") ||
+		    of_device_is_compatible(np, "pciclass,070002"))
 			pci = np;
-		else if (device_is_compatible(parent, "pciclass,0700") ||
-			 device_is_compatible(parent, "pciclass,070002"))
+		else if (of_device_is_compatible(parent, "pciclass,0700") ||
+			 of_device_is_compatible(parent, "pciclass,070002"))
 			pci = parent;
 		else {
 			of_node_put(parent);

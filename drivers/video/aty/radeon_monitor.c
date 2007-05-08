@@ -70,7 +70,7 @@ static int __devinit radeon_parse_montype_prop(struct device_node *dp, u8 **out_
         int i, mt = MT_NONE;  
 	
 	RTRACE("analyzing OF properties...\n");
-	pmt = get_property(dp, "display-type", NULL);
+	pmt = of_get_property(dp, "display-type", NULL);
 	if (!pmt)
 		return MT_NONE;
 	RTRACE("display-type: %s\n", pmt);
@@ -89,7 +89,7 @@ static int __devinit radeon_parse_montype_prop(struct device_node *dp, u8 **out_
 	}
 
 	for (i = 0; propnames[i] != NULL; ++i) {
-		pedid = get_property(dp, propnames[i], NULL);
+		pedid = of_get_property(dp, propnames[i], NULL);
 		if (pedid != NULL)
 			break;
 	}
@@ -98,9 +98,10 @@ static int __devinit radeon_parse_montype_prop(struct device_node *dp, u8 **out_
 	 * single-head cards have hdno == -1 and skip this step
 	 */
 	if (pedid == NULL && dp->parent && (hdno != -1))
-		pedid = get_property(dp->parent, (hdno == 0) ? "EDID1" : "EDID2", NULL);
+		pedid = of_get_property(dp->parent,
+				(hdno == 0) ? "EDID1" : "EDID2", NULL);
 	if (pedid == NULL && dp->parent && (hdno == 0))
-		pedid = get_property(dp->parent, "EDID", NULL);
+		pedid = of_get_property(dp->parent, "EDID", NULL);
 	if (pedid == NULL)
 		return mt;
 
@@ -130,7 +131,7 @@ static int __devinit radeon_probe_OF_head(struct radeonfb_info *rinfo, int head_
 		do {
 			if (!dp)
 				return MT_NONE;
-			pname = get_property(dp, "name", NULL);
+			pname = of_get_property(dp, "name", NULL);
 			if (!pname)
 				return MT_NONE;
 			len = strlen(pname);
