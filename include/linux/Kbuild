@@ -121,6 +121,7 @@ header-y += pci_regs.h
 header-y += personality.h
 header-y += pfkeyv2.h
 header-y += pg.h
+header-y += phantom.h
 header-y += pkt_cls.h
 header-y += pkt_sched.h
 header-y += posix_types.h
