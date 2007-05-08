@@ -133,7 +133,7 @@ xfs_getattr(
 	if (!(flags & ATTR_LAZY))
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
 
-	vap->va_size = ip->i_d.di_size;
+	vap->va_size = XFS_ISIZE(ip);
 	if (vap->va_mask == XFS_AT_SIZE)
 		goto all_done;
 
@@ -496,7 +496,7 @@ xfs_setattr(
 	if (mask & XFS_AT_SIZE) {
 		/* Short circuit the truncate case for zero length files */
 		if ((vap->va_size == 0) &&
-		   (ip->i_d.di_size == 0) && (ip->i_d.di_nextents == 0)) {
+		   (ip->i_size == 0) && (ip->i_d.di_nextents == 0)) {
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 			lock_flags &= ~XFS_ILOCK_EXCL;
 			if (mask & XFS_AT_CTIME)
@@ -614,7 +614,7 @@ xfs_setattr(
 	 */
 	if (mask & XFS_AT_SIZE) {
 		code = 0;
-		if ((vap->va_size > ip->i_d.di_size) && 
+		if ((vap->va_size > ip->i_size) &&
 		    (flags & ATTR_NOSIZETOK) == 0) {
 			code = xfs_igrow_start(ip, vap->va_size, credp);
 		}
@@ -654,10 +654,10 @@ xfs_setattr(
 	 * Truncate file.  Must have write permission and not be a directory.
 	 */
 	if (mask & XFS_AT_SIZE) {
-		if (vap->va_size > ip->i_d.di_size) {
+		if (vap->va_size > ip->i_size) {
 			xfs_igrow_finish(tp, ip, vap->va_size,
 			    !(flags & ATTR_DMI));
-		} else if ((vap->va_size <= ip->i_d.di_size) ||
+		} else if ((vap->va_size <= ip->i_size) ||
 			   ((vap->va_size == 0) && ip->i_d.di_nextents)) {
 			/*
 			 * signal a sync transaction unless
@@ -1221,7 +1221,7 @@ xfs_inactive_free_eofblocks(
 	 * Figure out if there are any blocks beyond the end
 	 * of the file.  If not, then there is nothing to do.
 	 */
-	end_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)ip->i_d.di_size));
+	end_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)ip->i_size));
 	last_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
 	map_len = last_fsb - end_fsb;
 	if (map_len <= 0)
@@ -1258,7 +1258,7 @@ xfs_inactive_free_eofblocks(
 		 */
 		xfs_ilock(ip, XFS_IOLOCK_EXCL);
 		error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE,
-				    ip->i_d.di_size);
+				    ip->i_size);
 		if (error) {
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return error;
@@ -1282,7 +1282,7 @@ xfs_inactive_free_eofblocks(
 		xfs_trans_ihold(tp, ip);
 
 		error = xfs_itruncate_finish(&tp, ip,
-					     ip->i_d.di_size,
+					     ip->i_size,
 					     XFS_DATA_FORK,
 					     0);
 		/*
@@ -1568,7 +1568,7 @@ xfs_release(
 
 	if (ip->i_d.di_nlink != 0) {
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
-		     ((ip->i_d.di_size > 0) || (VN_CACHED(vp) > 0 ||
+		     ((ip->i_size > 0) || (VN_CACHED(vp) > 0 ||
 		       ip->i_delayed_blks > 0)) &&
 		     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
 		    (!(ip->i_d.di_flags &
@@ -1629,8 +1629,8 @@ xfs_inactive(
 	 * only one with a reference to the inode.
 	 */
 	truncate = ((ip->i_d.di_nlink == 0) &&
-            ((ip->i_d.di_size != 0) || (ip->i_d.di_nextents > 0) ||
-             (ip->i_delayed_blks > 0)) &&
+	    ((ip->i_d.di_size != 0) || (ip->i_size != 0) ||
+	     (ip->i_d.di_nextents > 0) || (ip->i_delayed_blks > 0)) &&
 	    ((ip->i_d.di_mode & S_IFMT) == S_IFREG));
 
 	mp = ip->i_mount;
@@ -1648,7 +1648,7 @@ xfs_inactive(
 
 	if (ip->i_d.di_nlink != 0) {
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
-                     ((ip->i_d.di_size > 0) || (VN_CACHED(vp) > 0 ||
+                     ((ip->i_size > 0) || (VN_CACHED(vp) > 0 ||
                        ip->i_delayed_blks > 0)) &&
 		      (ip->i_df.if_flags & XFS_IFEXTENTS) &&
 		     (!(ip->i_d.di_flags &
@@ -4055,14 +4055,14 @@ xfs_alloc_file_space(
 	allocatesize_fsb = XFS_B_TO_FSB(mp, count);
 
 	/*	Generate a DMAPI event if needed.	*/
-	if (alloc_type != 0 && offset < ip->i_d.di_size &&
+	if (alloc_type != 0 && offset < ip->i_size &&
 			(attr_flags&ATTR_DMI) == 0  &&
 			DM_EVENT_ENABLED(XFS_MTOVFS(mp), ip, DM_EVENT_WRITE)) {
 		xfs_off_t           end_dmi_offset;
 
 		end_dmi_offset = offset+len;
-		if (end_dmi_offset > ip->i_d.di_size)
-			end_dmi_offset = ip->i_d.di_size;
+		if (end_dmi_offset > ip->i_size)
+			end_dmi_offset = ip->i_size;
 		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, XFS_ITOV(ip),
 			offset, end_dmi_offset - offset,
 			0, NULL);
@@ -4318,11 +4318,11 @@ xfs_free_file_space(
 	end_dmi_offset = offset + len;
 	endoffset_fsb = XFS_B_TO_FSBT(mp, end_dmi_offset);
 
-	if (offset < ip->i_d.di_size &&
+	if (offset < ip->i_size &&
 	    (attr_flags & ATTR_DMI) == 0 &&
 	    DM_EVENT_ENABLED(XFS_MTOVFS(mp), ip, DM_EVENT_WRITE)) {
-		if (end_dmi_offset > ip->i_d.di_size)
-			end_dmi_offset = ip->i_d.di_size;
+		if (end_dmi_offset > ip->i_size)
+			end_dmi_offset = ip->i_size;
 		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, vp,
 				offset, end_dmi_offset - offset,
 				AT_DELAY_FLAG(attr_flags), NULL);
@@ -4541,7 +4541,7 @@ xfs_change_file_space(
 		bf->l_start += offset;
 		break;
 	case 2: /*SEEK_END*/
-		bf->l_start += ip->i_d.di_size;
+		bf->l_start += ip->i_size;
 		break;
 	default:
 		return XFS_ERROR(EINVAL);
@@ -4558,7 +4558,7 @@ xfs_change_file_space(
 	bf->l_whence = 0;
 
 	startoffset = bf->l_start;
-	fsize = ip->i_d.di_size;
+	fsize = ip->i_size;
 
 	/*
 	 * XFS_IOC_RESVSP and XFS_IOC_UNRESVSP will reserve or unreserve

@@ -442,6 +442,7 @@ xfs_iformat(
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 		ip->i_d.di_size = 0;
+		ip->i_size = 0;
 		ip->i_df.if_u2.if_rdev = INT_GET(dip->di_u.di_dev, ARCH_CONVERT);
 		break;
 
@@ -980,6 +981,7 @@ xfs_iread(
 	}
 
 	ip->i_delayed_blks = 0;
+	ip->i_size = ip->i_d.di_size;
 
 	/*
 	 * Mark the buffer containing the inode as something to keep
@@ -1170,6 +1172,7 @@ xfs_ialloc(
 	}
 
 	ip->i_d.di_size = 0;
+	ip->i_size = 0;
 	ip->i_d.di_nextents = 0;
 	ASSERT(ip->i_d.di_nblocks == 0);
 	xfs_ichgtime(ip, XFS_ICHGTIME_CHG|XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD);
@@ -1340,7 +1343,7 @@ xfs_file_last_byte(
 	} else {
 		last_block = 0;
 	}
-	size_last_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)ip->i_d.di_size);
+	size_last_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)ip->i_size);
 	last_block = XFS_FILEOFF_MAX(last_block, size_last_block);
 
 	last_byte = XFS_FSB_TO_B(mp, last_block);
@@ -1434,7 +1437,7 @@ xfs_itruncate_start(
 	int		error = 0;
 
 	ASSERT(ismrlocked(&ip->i_iolock, MR_UPDATE) != 0);
-	ASSERT((new_size == 0) || (new_size <= ip->i_d.di_size));
+	ASSERT((new_size == 0) || (new_size <= ip->i_size));
 	ASSERT((flags == XFS_ITRUNC_DEFINITE) ||
 	       (flags == XFS_ITRUNC_MAYBE));
 
@@ -1558,7 +1561,7 @@ xfs_itruncate_finish(
 
 	ASSERT(ismrlocked(&ip->i_iolock, MR_UPDATE) != 0);
 	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE) != 0);
-	ASSERT((new_size == 0) || (new_size <= ip->i_d.di_size));
+	ASSERT((new_size == 0) || (new_size <= ip->i_size));
 	ASSERT(*tp != NULL);
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(ip->i_transp == *tp);
@@ -1632,8 +1635,20 @@ xfs_itruncate_finish(
 	 */
 	if (fork == XFS_DATA_FORK) {
 		if (ip->i_d.di_nextents > 0) {
-			ip->i_d.di_size = new_size;
-			xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
+			/*
+			 * If we are not changing the file size then do
+			 * not update the on-disk file size - we may be
+			 * called from xfs_inactive_free_eofblocks().  If we
+			 * update the on-disk file size and then the system
+			 * crashes before the contents of the file are
+			 * flushed to disk then the files may be full of
+			 * holes (ie NULL files bug).
+			 */
+			if (ip->i_size != new_size) {
+				ip->i_d.di_size = new_size;
+				ip->i_size = new_size;
+				xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
+			}
 		}
 	} else if (sync) {
 		ASSERT(!(mp->m_flags & XFS_MOUNT_WSYNC));
@@ -1769,7 +1784,19 @@ xfs_itruncate_finish(
 	 */
 	if (fork == XFS_DATA_FORK) {
 		xfs_isize_check(mp, ip, new_size);
-		ip->i_d.di_size = new_size;
+		/*
+		 * If we are not changing the file size then do
+		 * not update the on-disk file size - we may be
+		 * called from xfs_inactive_free_eofblocks().  If we
+		 * update the on-disk file size and then the system
+		 * crashes before the contents of the file are
+		 * flushed to disk then the files may be full of
+		 * holes (ie NULL files bug).
+		 */
+		if (ip->i_size != new_size) {
+			ip->i_d.di_size = new_size;
+			ip->i_size = new_size;
+		}
 	}
 	xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
 	ASSERT((new_size != 0) ||
@@ -1802,7 +1829,7 @@ xfs_igrow_start(
 
 	ASSERT(ismrlocked(&(ip->i_lock), MR_UPDATE) != 0);
 	ASSERT(ismrlocked(&(ip->i_iolock), MR_UPDATE) != 0);
-	ASSERT(new_size > ip->i_d.di_size);
+	ASSERT(new_size > ip->i_size);
 
 	/*
 	 * Zero any pages that may have been created by
@@ -1810,7 +1837,7 @@ xfs_igrow_start(
 	 * and any blocks between the old and new file sizes.
 	 */
 	error = xfs_zero_eof(XFS_ITOV(ip), &ip->i_iocore, new_size,
-			     ip->i_d.di_size);
+			     ip->i_size);
 	return error;
 }
 
@@ -1834,13 +1861,14 @@ xfs_igrow_finish(
 	ASSERT(ismrlocked(&(ip->i_lock), MR_UPDATE) != 0);
 	ASSERT(ismrlocked(&(ip->i_iolock), MR_UPDATE) != 0);
 	ASSERT(ip->i_transp == tp);
-	ASSERT(new_size > ip->i_d.di_size);
+	ASSERT(new_size > ip->i_size);
 
 	/*
 	 * Update the file size.  Update the inode change timestamp
 	 * if change_flag set.
 	 */
 	ip->i_d.di_size = new_size;
+	ip->i_size = new_size;
 	if (change_flag)
 		xfs_ichgtime(ip, XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
@@ -2323,7 +2351,7 @@ xfs_ifree(
 	ASSERT(ip->i_d.di_nlink == 0);
 	ASSERT(ip->i_d.di_nextents == 0);
 	ASSERT(ip->i_d.di_anextents == 0);
-	ASSERT((ip->i_d.di_size == 0) ||
+	ASSERT((ip->i_d.di_size == 0 && ip->i_size == 0) ||
 	       ((ip->i_d.di_mode & S_IFMT) != S_IFREG));
 	ASSERT(ip->i_d.di_nblocks == 0);
 

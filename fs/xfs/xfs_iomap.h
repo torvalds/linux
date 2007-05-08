@@ -22,6 +22,7 @@
 
 
 typedef enum {				/* iomap_flags values */
+	IOMAP_READ =		0,	/* mapping for a read */
 	IOMAP_EOF =		0x01,	/* mapping contains EOF   */
 	IOMAP_HOLE =		0x02,	/* mapping covers a hole  */
 	IOMAP_DELAY =		0x04,	/* mapping covers delalloc region  */

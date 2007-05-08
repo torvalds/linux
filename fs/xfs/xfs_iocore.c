@@ -52,7 +52,7 @@ STATIC xfs_fsize_t
 xfs_size_fn(
 	xfs_inode_t		*ip)
 {
-	return (ip->i_d.di_size);
+	return XFS_ISIZE(ip);
 }
 
 STATIC int

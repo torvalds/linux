@@ -4444,8 +4444,11 @@ xfs_bmap_one_block(
 	xfs_bmbt_irec_t	s;		/* internal version of extent */
 
 #ifndef DEBUG
-	if (whichfork == XFS_DATA_FORK)
-		return ip->i_d.di_size == ip->i_mount->m_sb.sb_blocksize;
+	if (whichfork == XFS_DATA_FORK) {
+		return ((ip->i_d.di_mode & S_IFMT) == S_IFREG) ?
+			(ip->i_size == ip->i_mount->m_sb.sb_blocksize) :
+			(ip->i_d.di_size == ip->i_mount->m_sb.sb_blocksize);
+	}
 #endif	/* !DEBUG */
 	if (XFS_IFORK_NEXTENTS(ip, whichfork) != 1)
 		return 0;
@@ -4457,7 +4460,7 @@ xfs_bmap_one_block(
 	xfs_bmbt_get_all(ep, &s);
 	rval = s.br_startoff == 0 && s.br_blockcount == 1;
 	if (rval && whichfork == XFS_DATA_FORK)
-		ASSERT(ip->i_d.di_size == ip->i_mount->m_sb.sb_blocksize);
+		ASSERT(ip->i_size == ip->i_mount->m_sb.sb_blocksize);
 	return rval;
 }
 
@@ -5817,7 +5820,7 @@ xfs_getbmap(
 			fixlen = XFS_MAXIOFFSET(mp);
 		} else {
 			prealloced = 0;
-			fixlen = ip->i_d.di_size;
+			fixlen = ip->i_size;
 		}
 	} else {
 		prealloced = 0;
@@ -5841,7 +5844,8 @@ xfs_getbmap(
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
-	if (whichfork == XFS_DATA_FORK && ip->i_delayed_blks) {
+	if (whichfork == XFS_DATA_FORK &&
+		(ip->i_delayed_blks || ip->i_size > ip->i_d.di_size)) {
 		/* xfs_fsize_t last_byte = xfs_file_last_byte(ip); */
 		error = bhv_vop_flush_pages(vp, (xfs_off_t)0, -1, 0, FI_REMAPF);
 	}

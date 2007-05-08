@@ -287,6 +287,7 @@ typedef struct xfs_inode {
 	struct xfs_inode	*i_cnext;	/* cluster hash link forward */
 	struct xfs_inode	*i_cprev;	/* cluster hash link backward */
 
+	xfs_fsize_t		i_size;		/* in-memory size */
 	/* Trace buffers per inode. */
 #ifdef XFS_BMAP_TRACE
 	struct ktrace		*i_xtrace;	/* inode extent list trace */
@@ -305,6 +306,8 @@ typedef struct xfs_inode {
 #endif
 } xfs_inode_t;
 
+#define XFS_ISIZE(ip)	(((ip)->i_d.di_mode & S_IFMT) == S_IFREG) ? \
+				(ip)->i_size : (ip)->i_d.di_size;
 
 /*
  * i_flags helper functions
