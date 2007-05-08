@@ -1,6 +1,5 @@
-/*						-*- c-basic-offset: 8 -*-
- *
- * fw-device-cdev.h -- Char device interface.
+/*
+ * Char device interface.
  *
  * Copyright (C) 2005-2006  Kristian Hoegsberg <krh@bitplanet.net>
  *
@@ -19,50 +18,12 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef __fw_cdev_h
-#define __fw_cdev_h
+#ifndef _LINUX_FIREWIRE_CDEV_H
+#define _LINUX_FIREWIRE_CDEV_H
 
 #include <linux/ioctl.h>
 #include <linux/types.h>
-
-#define TCODE_WRITE_QUADLET_REQUEST	0
-#define TCODE_WRITE_BLOCK_REQUEST	1
-#define TCODE_WRITE_RESPONSE		2
-#define TCODE_READ_QUADLET_REQUEST	4
-#define TCODE_READ_BLOCK_REQUEST	5
-#define TCODE_READ_QUADLET_RESPONSE	6
-#define TCODE_READ_BLOCK_RESPONSE	7
-#define TCODE_CYCLE_START		8
-#define TCODE_LOCK_REQUEST		9
-#define TCODE_STREAM_DATA		10
-#define TCODE_LOCK_RESPONSE		11
-
-#define TCODE_LOCK_MASK_SWAP		0x11
-#define TCODE_LOCK_COMPARE_SWAP		0x12
-#define TCODE_LOCK_FETCH_ADD		0x13
-#define TCODE_LOCK_LITTLE_ADD		0x14
-#define TCODE_LOCK_BOUNDED_ADD		0x15
-#define TCODE_LOCK_WRAP_ADD		0x16
-#define TCODE_LOCK_VENDOR_DEPENDENT	0x17
-
-#define RCODE_COMPLETE			0x0
-#define RCODE_CONFLICT_ERROR		0x4
-#define RCODE_DATA_ERROR		0x5
-#define RCODE_TYPE_ERROR		0x6
-#define RCODE_ADDRESS_ERROR		0x7
-
-#define RCODE_SEND_ERROR		0x10
-#define RCODE_CANCELLED			0x11
-#define RCODE_BUSY			0x12
-#define RCODE_GENERATION		0x13
-#define RCODE_NO_ACK			0x14
-
-#define SCODE_100			0x0
-#define SCODE_200			0x1
-#define SCODE_400			0x2
-#define SCODE_800			0x3
-#define SCODE_1600			0x4
-#define SCODE_3200			0x5
+#include <linux/firewire-constants.h>
 
 #define FW_CDEV_EVENT_BUS_RESET		0x00
 #define FW_CDEV_EVENT_RESPONSE		0x01
@@ -265,4 +226,4 @@ struct fw_cdev_stop_iso {
 	__u32 handle;
 };
 
-#endif /* __fw_cdev_h */
+#endif /* _LINUX_FIREWIRE_CDEV_H */
