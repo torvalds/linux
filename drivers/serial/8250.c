@@ -994,7 +994,6 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	 * be frobbing the chips IRQ enable register to see if it exists.
 	 */
 	spin_lock_irqsave(&up->port.lock, flags);
-//	save_flags(flags); cli();
 
 	up->capabilities = 0;
 	up->bugs = 0;
@@ -1151,7 +1150,6 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 
  out:
 	spin_unlock_irqrestore(&up->port.lock, flags);
-//	restore_flags(flags);
 	DEBUG_AUTOCONF("type=%s\n", uart_config[up->port.type].name);
 }
 
