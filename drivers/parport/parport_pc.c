@@ -620,6 +620,7 @@ static size_t parport_pc_fifo_write_block_dma (struct parport *port,
 	unsigned long dmaflag;
 	size_t left = length;
 	const struct parport_pc_private *priv = port->physport->private_data;
+	struct device *dev = port->physport->dev;
 	dma_addr_t dma_addr, dma_handle;
 	size_t maxlen = 0x10000; /* max 64k per DMA transfer */
 	unsigned long start = (unsigned long) buf;
@@ -631,8 +632,8 @@ dump_parport_state ("enter fifo_write_block_dma", port);
 		if ((start ^ end) & ~0xffffUL)
 			maxlen = 0x10000 - (start & 0xffff);
 
-		dma_addr = dma_handle = pci_map_single(priv->dev, (void *)buf, length,
-						       PCI_DMA_TODEVICE);
+		dma_addr = dma_handle = dma_map_single(dev, (void *)buf, length,
+						       DMA_TO_DEVICE);
         } else {
 		/* above 16 MB we use a bounce buffer as ISA-DMA is not possible */
 		maxlen   = PAGE_SIZE;          /* sizeof(priv->dma_buf) */
@@ -728,9 +729,9 @@ dump_parport_state ("enter fifo_write_block_dma", port);
 
 	/* Turn off DMA mode */
 	frob_econtrol (port, 1<<3, 0);
-	
+
 	if (dma_handle)
-		pci_unmap_single(priv->dev, dma_handle, length, PCI_DMA_TODEVICE);
+		dma_unmap_single(dev, dma_handle, length, DMA_TO_DEVICE);
 
 dump_parport_state ("leave fifo_write_block_dma", port);
 	return length - left;
@@ -2146,7 +2147,7 @@ static DEFINE_SPINLOCK(ports_lock);
 struct parport *parport_pc_probe_port (unsigned long int base,
 				       unsigned long int base_hi,
 				       int irq, int dma,
-				       struct pci_dev *dev)
+				       struct device *dev)
 {
 	struct parport_pc_private *priv;
 	struct parport_operations *ops;
@@ -2180,9 +2181,10 @@ struct parport *parport_pc_probe_port (unsigned long int base,
 	priv->fifo_depth = 0;
 	priv->dma_buf = NULL;
 	priv->dma_handle = 0;
-	priv->dev = dev;
 	INIT_LIST_HEAD(&priv->list);
 	priv->port = p;
+
+	p->dev = dev;
 	p->base_hi = base_hi;
 	p->modes = PARPORT_MODE_PCSPP | PARPORT_MODE_SAFEININT;
 	p->private_data = priv;
@@ -2305,9 +2307,10 @@ struct parport *parport_pc_probe_port (unsigned long int base,
 				p->dma = PARPORT_DMA_NONE;
 			} else {
 				priv->dma_buf =
-				  pci_alloc_consistent(priv->dev,
+				  dma_alloc_coherent(dev,
 						       PAGE_SIZE,
-						       &priv->dma_handle);
+						       &priv->dma_handle,
+						       GFP_KERNEL);
 				if (! priv->dma_buf) {
 					printk (KERN_WARNING "%s: "
 						"cannot get buffer for DMA, "
@@ -2383,7 +2386,7 @@ void parport_pc_unregister_port (struct parport *p)
 		release_region(p->base_hi, 3);
 #if defined(CONFIG_PARPORT_PC_FIFO) && defined(HAS_DMA)
 	if (priv->dma_buf)
-		pci_free_consistent(priv->dev, PAGE_SIZE,
+		dma_free_coherent(p->physport->dev, PAGE_SIZE,
 				    priv->dma_buf,
 				    priv->dma_handle);
 #endif
@@ -2489,7 +2492,7 @@ static int __devinit sio_ite_8872_probe (struct pci_dev *pdev, int autoirq,
 	 */
 	release_resource(base_res);
 	if (parport_pc_probe_port (ite8872_lpt, ite8872_lpthi,
-				   irq, PARPORT_DMA_NONE, NULL)) {
+				   irq, PARPORT_DMA_NONE, &pdev->dev)) {
 		printk (KERN_INFO
 			"parport_pc: ITE 8872 parallel port: io=0x%X",
 			ite8872_lpt);
@@ -2672,7 +2675,7 @@ static int __devinit sio_via_probe (struct pci_dev *pdev, int autoirq,
 	}
 
 	/* finally, do the probe with values obtained */
-	if (parport_pc_probe_port (port1, port2, irq, dma, NULL)) {
+	if (parport_pc_probe_port (port1, port2, irq, dma, &pdev->dev)) {
 		printk (KERN_INFO
 			"parport_pc: VIA parallel port: io=0x%X", port1);
 		if (irq != PARPORT_IRQ_NONE)
@@ -2970,7 +2973,7 @@ static int parport_pc_pci_probe (struct pci_dev *dev,
 			parport_pc_pci_tbl[i + last_sio].device, io_lo, io_hi);
 		data->ports[count] =
 			parport_pc_probe_port (io_lo, io_hi, PARPORT_IRQ_NONE,
-					       PARPORT_DMA_NONE, dev);
+					       PARPORT_DMA_NONE, &dev->dev);
 		if (data->ports[count])
 			count++;
 	}
@@ -3077,8 +3080,8 @@ static int parport_pc_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id 
 	} else
 		dma = PARPORT_DMA_NONE;
 
-	printk(KERN_INFO "parport: PnPBIOS parport detected.\n");
-	if (!(pdata = parport_pc_probe_port (io_lo, io_hi, irq, dma, NULL)))
+	dev_info(&dev->dev, "reported by %s\n", dev->protocol->name);
+	if (!(pdata = parport_pc_probe_port (io_lo, io_hi, irq, dma, &dev->dev)))
 		return -ENODEV;
 
 	pnp_set_drvdata(dev,pdata);

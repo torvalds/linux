@@ -365,6 +365,11 @@ void parport_announce_port (struct parport *port)
 	parport_daisy_init(port);
 #endif
 
+	if (!port->dev)
+		printk(KERN_WARNING "%s: fix this legacy "
+				"no-device port driver!\n",
+				port->name);
+
 	parport_proc_register(port);
 	mutex_lock(&registration_lock);
 	spin_lock_irq(&parportlist_lock);

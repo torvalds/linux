@@ -356,6 +356,7 @@ static int __init parport_mfc3_init(void)
 				if (request_irq(IRQ_AMIGA_PORTS, mfc3_interrupt, IRQF_SHARED, p->name, &pp_mfc3_ops))
 					goto out_irq;
 		}
+		p->dev = &z->dev;
 
 		this_port[pias++] = p;
 		printk(KERN_INFO "%s: Multiface III port using irq\n", p->name);

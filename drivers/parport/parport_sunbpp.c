@@ -322,6 +322,7 @@ static int __devinit init_one_port(struct sbus_dev *sdev)
 		goto out_free_ops;
 
 	p->size = size;
+	p->dev = &sdev->ofdev.dev;
 
 	if ((err = request_irq(p->irq, parport_sunbpp_interrupt,
 			       IRQF_SHARED, p->name, p)) != 0) {

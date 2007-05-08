@@ -305,7 +305,7 @@ static int __devinit parport_register (struct pci_dev *dev,
 		dev_dbg(&dev->dev, "PCI parallel port detected: I/O at "
 			"%#lx(%#lx)\n", io_lo, io_hi);
 		port = parport_pc_probe_port (io_lo, io_hi, PARPORT_IRQ_NONE,
-					      PARPORT_DMA_NONE, dev);
+					      PARPORT_DMA_NONE, &dev->dev);
 		if (port) {
 			priv->port[priv->num_par++] = port;
 			success = 1;
