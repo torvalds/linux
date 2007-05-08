@@ -316,12 +316,14 @@ static void setup_etheraddr(char *str, unsigned char *addr, char *name)
 	}
 	if (!is_local_ether_addr(addr)) {
 		printk(KERN_WARNING
-		       "Warning: attempt to assign a globally valid ethernet address to a "
-		       "device\n");
-		printk(KERN_WARNING "You should better enable the 2nd rightmost bit "
-		      "in the first byte of the MAC, i.e. "
-		      "%02x:%02x:%02x:%02x:%02x:%02x\n",
-		      addr[0] | 0x02, addr[1], addr[2], addr[3], addr[4], addr[5]);
+		       "Warning: attempt to assign a globally valid ethernet "
+		       "address to a device\n");
+		printk(KERN_WARNING "You should better enable the 2nd "
+		       "rightmost bit in the first byte of the MAC,\n");
+		printk(KERN_WARNING "i.e. %02x:%02x:%02x:%02x:%02x:%02x\n",
+		       addr[0] | 0x02, addr[1], addr[2], addr[3], addr[4],
+		       addr[5]);
+		goto random;
 	}
 	return;
 
@@ -478,6 +480,7 @@ out_undo_user_init:
 		(*transport->user->remove)(&lp->user);
 out_unregister:
 	platform_device_unregister(&device->pdev);
+	return; /* platform_device_unregister frees dev and device */
 out_free_netdev:
 	free_netdev(dev);
 out_free_device:

@@ -13,6 +13,7 @@
 #include "pcap_user.h"
 #include "user.h"
 #include "um_malloc.h"
+#include "kern_constants.h"
 
 #define MAX_PACKET (ETH_MAX_PACKET + ETH_HEADER_OTHER)
 
@@ -26,8 +27,8 @@ static int pcap_user_init(void *data, void *dev)
 
 	p = pcap_open_live(pri->host_if, MAX_PACKET, pri->promisc, 0, errors);
 	if(p == NULL){
-		printk("pcap_user_init : pcap_open_live failed - '%s'\n", 
-		       errors);
+		printk(UM_KERN_ERR "pcap_user_init : pcap_open_live failed - "
+		       "'%s'\n", errors);
 		return -EINVAL;
 	}
 
@@ -48,13 +49,13 @@ static int pcap_open(void *data)
 	if(pri->filter != NULL){
 		err = dev_netmask(pri->dev, &netmask);
 		if(err < 0){
-			printk("pcap_open : dev_netmask failed\n");
+			printk(UM_KERN_ERR "pcap_open : dev_netmask failed\n");
 			return -EIO;
 		}
 
 		pri->compiled = um_kmalloc(sizeof(struct bpf_program));
 		if(pri->compiled == NULL){
-			printk("pcap_open : kmalloc failed\n");
+			printk(UM_KERN_ERR "pcap_open : kmalloc failed\n");
 			return -ENOMEM;
 		}
 
@@ -62,15 +63,15 @@ static int pcap_open(void *data)
 				   (struct bpf_program *) pri->compiled, 
 				   pri->filter, pri->optimize, netmask);
 		if(err < 0){
-			printk("pcap_open : pcap_compile failed - '%s'\n", 
-			       pcap_geterr(pri->pcap));
+			printk(UM_KERN_ERR "pcap_open : pcap_compile failed - "
+			       "'%s'\n", pcap_geterr(pri->pcap));
 			return -EIO;
 		}
 
 		err = pcap_setfilter(pri->pcap, pri->compiled);
 		if(err < 0){
-			printk("pcap_open : pcap_setfilter failed - '%s'\n", 
-			       pcap_geterr(pri->pcap));
+			printk(UM_KERN_ERR "pcap_open : pcap_setfilter "
+			       "failed - '%s'\n", pcap_geterr(pri->pcap));
 			return -EIO;
 		}
 	}
@@ -85,7 +86,8 @@ static void pcap_remove(void *data)
 	if(pri->compiled != NULL)
 		pcap_freecode(pri->compiled);
 
-	pcap_close(pri->pcap);
+	if(pri->pcap != NULL)
+		pcap_close(pri->pcap);
 }
 
 struct pcap_handler_data {
@@ -114,7 +116,8 @@ int pcap_user_read(int fd, void *buffer, int len, struct pcap_data *pri)
 
 	n = pcap_dispatch(pri->pcap, 1, handler, (u_char *) &hdata);
 	if(n < 0){
-		printk("pcap_dispatch failed - %s\n", pcap_geterr(pri->pcap));
+		printk(UM_KERN_ERR "pcap_dispatch failed - %s\n",
+		       pcap_geterr(pri->pcap));
 		return -EIO;
 	}
 	else if(n == 0) 

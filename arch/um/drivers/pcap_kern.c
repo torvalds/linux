@@ -29,21 +29,25 @@ void pcap_init(struct net_device *dev, void *data)
 	ppri->promisc = init->promisc;
 	ppri->optimize = init->optimize;
 	ppri->filter = init->filter;
+
+	printk("pcap backend, host interface %s\n", ppri->host_if);
 }
 
-static int pcap_read(int fd, struct sk_buff **skb, 
+static int pcap_read(int fd, struct sk_buff **skb,
 		       struct uml_net_private *lp)
 {
 	*skb = ether_adjust_skb(*skb, ETH_HEADER_OTHER);
-	if(*skb == NULL) return(-ENOMEM);
-	return(pcap_user_read(fd, skb_mac_header(*skb),
+	if(*skb == NULL)
+		return -ENOMEM;
+
+	return pcap_user_read(fd, skb_mac_header(*skb),
 			      (*skb)->dev->mtu + ETH_HEADER_OTHER,
-			      (struct pcap_data *) &lp->user));
+			      (struct pcap_data *) &lp->user);
 }
 
 static int pcap_write(int fd, struct sk_buff **skb, struct uml_net_private *lp)
 {
-	return(-EPERM);
+	return -EPERM;
 }
 
 static const struct net_kern_info pcap_kern_info = {
@@ -65,12 +69,12 @@ int pcap_setup(char *str, char **mac_out, void *data)
 		  .optimize 	= 0,
 		  .filter 	= NULL });
 
-	remain = split_if_spec(str, &host_if, &init->filter, 
+	remain = split_if_spec(str, &host_if, &init->filter,
 			       &options[0], &options[1], NULL);
 	if(remain != NULL){
 		printk(KERN_ERR "pcap_setup - Extra garbage on "
 		       "specification : '%s'\n", remain);
-		return(0);
+		return 0;
 	}
 
 	if(host_if != NULL)
@@ -87,10 +91,13 @@ int pcap_setup(char *str, char **mac_out, void *data)
 			init->optimize = 1;
 		else if(!strcmp(options[i], "nooptimize"))
 			init->optimize = 0;
-		else printk("pcap_setup : bad option - '%s'\n", options[i]);
+		else {
+			printk("pcap_setup : bad option - '%s'\n", options[i]);
+			return 0;
+		}
 	}
 
-	return(1);
+	return 1;
 }
 
 static struct transport pcap_transport = {
