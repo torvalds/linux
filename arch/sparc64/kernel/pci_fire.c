@@ -315,6 +315,7 @@ static void pci_fire_pbm_init(struct pci_controller_info *p,
 	pci_pbm_root = pbm;
 
 	pbm->scan_bus = pci_fire_scan_bus;
+	pbm->pci_ops = &pci_fire_ops;
 
 	pbm->portid = portid;
 	pbm->parent = p;
@@ -375,7 +376,6 @@ void fire_pci_init(struct device_node *dp, const char *model_name)
 	p->index = pci_num_controllers++;
 
 	/* XXX MSI support XXX */
-	p->pci_ops = &pci_fire_ops;
 
 	/* Like PSYCHO and SCHIZO we have a 2GB aligned area
 	 * for memory space.

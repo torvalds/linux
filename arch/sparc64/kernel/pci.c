@@ -743,7 +743,6 @@ int pci_host_bridge_write_pci_cfg(struct pci_bus *bus_dev,
 
 struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm)
 {
-	struct pci_controller_info *p = pbm->parent;
 	struct device_node *node = pbm->prom_node;
 	struct pci_dev *host_pdev;
 	struct pci_bus *bus;
@@ -751,7 +750,7 @@ struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm)
 	printk("PCI: Scanning PBM %s\n", node->full_name);
 
 	/* XXX parent device? XXX */
-	bus = pci_create_bus(NULL, pbm->pci_first_busno, p->pci_ops, pbm);
+	bus = pci_create_bus(NULL, pbm->pci_first_busno, pbm->pci_ops, pbm);
 	if (!bus) {
 		printk(KERN_ERR "Failed to create bus for %s\n",
 		       node->full_name);

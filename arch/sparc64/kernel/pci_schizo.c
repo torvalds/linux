@@ -1462,6 +1462,7 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	pci_pbm_root = pbm;
 
 	pbm->scan_bus = schizo_scan_bus;
+	pbm->pci_ops = &schizo_ops;
 
 	pbm->portid = portid;
 	pbm->parent = p;
@@ -1536,7 +1537,6 @@ static void __schizo_init(struct device_node *dp, char *model_name, int chip_typ
 	p->pbm_B.iommu = iommu;
 
 	p->index = pci_num_controllers++;
-	p->pci_ops = &schizo_ops;
 
 	/* Like PSYCHO we have a 2GB aligned area for memory space. */
 	pci_memspace_mask = 0x7fffffffUL;

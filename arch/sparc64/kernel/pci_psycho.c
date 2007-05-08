@@ -1087,6 +1087,7 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	pci_pbm_root = pbm;
 
 	pbm->scan_bus = psycho_scan_bus;
+	pbm->pci_ops = &psycho_ops;
 
 	pbm->chip_type = PBM_CHIP_TYPE_PSYCHO;
 	pbm->chip_version = 0;
@@ -1155,7 +1156,6 @@ void psycho_init(struct device_node *dp, char *model_name)
 	p->pbm_A.portid = upa_portid;
 	p->pbm_B.portid = upa_portid;
 	p->index = pci_num_controllers++;
-	p->pci_ops = &psycho_ops;
 
 	prop = of_find_property(dp, "reg", NULL);
 	pr_regs = prop->value;

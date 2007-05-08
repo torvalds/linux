@@ -1004,6 +1004,7 @@ static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp
 	printk("%s: SABRE PCI Bus Module\n", pbm->name);
 
 	pbm->scan_bus = sabre_scan_bus;
+	pbm->pci_ops = &sabre_ops;
 
 	pbm->chip_type = PBM_CHIP_TYPE_SABRE;
 	pbm->parent = p;
@@ -1062,7 +1063,6 @@ void sabre_init(struct device_node *dp, char *model_name)
 
 	p->pbm_A.portid = upa_portid;
 	p->index = pci_num_controllers++;
-	p->pci_ops = &sabre_ops;
 
 	/*
 	 * Map in SABRE register set and report the presence of this SABRE.

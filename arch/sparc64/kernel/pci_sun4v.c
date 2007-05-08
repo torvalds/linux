@@ -1236,6 +1236,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 	pci_pbm_root = pbm;
 
 	pbm->scan_bus = pci_sun4v_scan_bus;
+	pbm->pci_ops = &pci_sun4v_ops;
 
 	pbm->parent = p;
 	pbm->prom_node = dp;
@@ -1306,7 +1307,6 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 	p->setup_msi_irq = pci_sun4v_setup_msi_irq;
 	p->teardown_msi_irq = pci_sun4v_teardown_msi_irq;
 #endif
-	p->pci_ops = &pci_sun4v_ops;
 
 	/* Like PSYCHO and SCHIZO we have a 2GB aligned area
 	 * for memory space.

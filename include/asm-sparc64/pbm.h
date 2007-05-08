@@ -116,6 +116,7 @@ struct pci_pbm_info {
 	unsigned int			pci_last_busno;
 	struct pci_bus			*pci_bus;
 	void (*scan_bus)(struct pci_pbm_info *);
+	struct pci_ops			*pci_ops;
 };
 
 struct pci_controller_info {
@@ -134,9 +135,6 @@ struct pci_controller_info {
 			     struct msi_desc *entry);
 	void (*teardown_msi_irq)(unsigned int virt_irq, struct pci_dev *pdev);
 #endif
-
-	/* Now things for the actual PCI bus probes. */
-	struct pci_ops			*pci_ops;
 };
 
 #endif /* !(__SPARC64_PBM_H) */
