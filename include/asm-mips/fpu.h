@@ -16,6 +16,7 @@
 #include <asm/mipsregs.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/hazards.h>
 #include <asm/bitops.h>
 #include <asm/processor.h>
 #include <asm/current.h>
@@ -38,34 +39,16 @@ extern void _init_fpu(void);
 extern void _save_fp(struct task_struct *);
 extern void _restore_fp(struct task_struct *);
 
-#if defined(CONFIG_CPU_SB1)
-#define __enable_fpu_hazard()						\
-do {									\
-	asm(".set	push		\n\t"				\
-	    ".set	mips64		\n\t"				\
-	    ".set	noreorder	\n\t"				\
-	    "ssnop			\n\t"				\
-	    "bnezl	$0, .+4		\n\t"				\
-	    "ssnop			\n\t"				\
-	    ".set pop");						\
-} while (0)
-#else
-#define __enable_fpu_hazard()						\
-do {									\
-	asm("nop;nop;nop;nop");		/* max. hazard */		\
-} while (0)
-#endif
-
 #define __enable_fpu()							\
 do {									\
         set_c0_status(ST0_CU1);						\
-        __enable_fpu_hazard();						\
+        enable_fpu_hazard();						\
 } while (0)
 
 #define __disable_fpu()							\
 do {									\
 	clear_c0_status(ST0_CU1);					\
-	/* We don't care about the c0 hazard here  */			\
+        disable_fpu_hazard();						\
 } while (0)
 
 #define enable_fpu()							\
