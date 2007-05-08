@@ -113,7 +113,8 @@ do_udf_readdir(struct inode * dir, struct file *filp, filldir_t filldir, void *d
 	loff_t size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
 	struct buffer_head * bh = NULL, * tmp, * bha[16];
 	kernel_lb_addr bloc, eloc;
-	uint32_t extoffset, elen, offset;
+	uint32_t extoffset, elen;
+	sector_t offset;
 	int i, num;
 	unsigned int dt_type;
 
@@ -129,7 +130,6 @@ do_udf_readdir(struct inode * dir, struct file *filp, filldir_t filldir, void *d
 	else if (inode_bmap(dir, nf_pos >> (dir->i_sb->s_blocksize_bits - 2),
 		&bloc, &extoffset, &eloc, &elen, &offset, &bh) == (EXT_RECORDED_ALLOCATED >> 30))
 	{
-		offset >>= dir->i_sb->s_blocksize_bits;
 		block = udf_get_lb_pblock(dir->i_sb, eloc, offset);
 		if ((++offset << dir->i_sb->s_blocksize_bits) < elen)
 		{

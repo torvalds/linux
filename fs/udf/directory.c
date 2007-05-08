@@ -77,7 +77,7 @@ udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 	struct fileIdentDesc *cfi,
 	kernel_lb_addr *bloc, uint32_t *extoffset, 
 	kernel_lb_addr *eloc, uint32_t *elen,
-	uint32_t *offset, struct buffer_head **bh)
+	sector_t *offset, struct buffer_head **bh)
 {
 	struct fileIdentDesc *fi;
 	int i, num, block;

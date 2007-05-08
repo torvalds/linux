@@ -49,7 +49,7 @@ MODULE_LICENSE("GPL");
 static mode_t udf_convert_permissions(struct fileEntry *);
 static int udf_update_inode(struct inode *, int);
 static void udf_fill_inode(struct inode *, struct buffer_head *);
-static struct buffer_head *inode_getblk(struct inode *, long, int *,
+static struct buffer_head *inode_getblk(struct inode *, sector_t, int *,
 	long *, int *);
 static int8_t udf_insert_aext(struct inode *, kernel_lb_addr, int,
 	kernel_lb_addr, uint32_t, struct buffer_head *);
@@ -354,7 +354,7 @@ udf_getblk(struct inode *inode, long block, int create, int *err)
 	return NULL;
 }
 
-static struct buffer_head * inode_getblk(struct inode * inode, long block,
+static struct buffer_head * inode_getblk(struct inode * inode, sector_t block,
 	int *err, long *phys, int *new)
 {
 	struct buffer_head *pbh = NULL, *cbh = NULL, *nbh = NULL, *result = NULL;
@@ -364,14 +364,15 @@ static struct buffer_head * inode_getblk(struct inode * inode, long block,
 	uint32_t elen = 0;
 	kernel_lb_addr eloc, pbloc, cbloc, nbloc;
 	int c = 1;
-	uint64_t lbcount = 0, b_off = 0;
-	uint32_t newblocknum, newblock, offset = 0;
+	loff_t lbcount = 0, b_off = 0;
+	uint32_t newblocknum, newblock;
+	sector_t offset = 0;
 	int8_t etype;
 	int goal = 0, pgoal = UDF_I_LOCATION(inode).logicalBlockNum;
 	char lastblock = 0;
 
 	pextoffset = cextoffset = nextoffset = udf_file_entry_alloc_offset(inode);
-	b_off = (uint64_t)block << inode->i_sb->s_blocksize_bits;
+	b_off = (loff_t)block << inode->i_sb->s_blocksize_bits;
 	pbloc = cbloc = nbloc = UDF_I_LOCATION(inode);
 
 	/* find the extent which contains the block we are looking for.
@@ -1948,10 +1949,10 @@ int8_t udf_delete_aext(struct inode *inode, kernel_lb_addr nbloc, int nextoffset
 	return (elen >> 30);
 }
 
-int8_t inode_bmap(struct inode *inode, int block, kernel_lb_addr *bloc, uint32_t *extoffset,
-	kernel_lb_addr *eloc, uint32_t *elen, uint32_t *offset, struct buffer_head **bh)
+int8_t inode_bmap(struct inode *inode, sector_t block, kernel_lb_addr *bloc, uint32_t *extoffset,
+	kernel_lb_addr *eloc, uint32_t *elen, sector_t *offset, struct buffer_head **bh)
 {
-	uint64_t lbcount = 0, bcount = (uint64_t)block << inode->i_sb->s_blocksize_bits;
+	loff_t lbcount = 0, bcount = (loff_t)block << inode->i_sb->s_blocksize_bits;
 	int8_t etype;
 
 	if (block < 0)
@@ -1968,29 +1969,30 @@ int8_t inode_bmap(struct inode *inode, int block, kernel_lb_addr *bloc, uint32_t
 	{
 		if ((etype = udf_next_aext(inode, bloc, extoffset, eloc, elen, bh, 1)) == -1)
 		{
-			*offset = bcount - lbcount;
+			*offset = (bcount - lbcount) >> inode->i_sb->s_blocksize_bits;
 			UDF_I_LENEXTENTS(inode) = lbcount;
 			return -1;
 		}
 		lbcount += *elen;
 	} while (lbcount <= bcount);
 
-	*offset = bcount + *elen - lbcount;
+	*offset = (bcount + *elen - lbcount) >> inode->i_sb->s_blocksize_bits;
 
 	return etype;
 }
 
-long udf_block_map(struct inode *inode, long block)
+long udf_block_map(struct inode *inode, sector_t block)
 {
 	kernel_lb_addr eloc, bloc;
-	uint32_t offset, extoffset, elen;
+	uint32_t extoffset, elen;
+	sector_t offset;
 	struct buffer_head *bh = NULL;
 	int ret;
 
 	lock_kernel();
 
 	if (inode_bmap(inode, block, &bloc, &extoffset, &eloc, &elen, &offset, &bh) == (EXT_RECORDED_ALLOCATED >> 30))
-		ret = udf_get_lb_pblock(inode->i_sb, eloc, offset >> inode->i_sb->s_blocksize_bits);
+		ret = udf_get_lb_pblock(inode->i_sb, eloc, offset);
 	else
 		ret = 0;
 

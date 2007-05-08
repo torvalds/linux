@@ -156,7 +156,8 @@ udf_find_entry(struct inode *dir, struct dentry *dentry,
 	uint16_t liu;
 	loff_t size;
 	kernel_lb_addr bloc, eloc;
-	uint32_t extoffset, elen, offset;
+	uint32_t extoffset, elen;
+	sector_t offset;
 	struct buffer_head *bh = NULL;
 
 	size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
@@ -168,7 +169,6 @@ udf_find_entry(struct inode *dir, struct dentry *dentry,
 	else if (inode_bmap(dir, f_pos >> (dir->i_sb->s_blocksize_bits - 2),
 		&bloc, &extoffset, &eloc, &elen, &offset, &bh) == (EXT_RECORDED_ALLOCATED >> 30))
 	{
-		offset >>= dir->i_sb->s_blocksize_bits;
 		block = udf_get_lb_pblock(dir->i_sb, eloc, offset);
 		if ((++offset << dir->i_sb->s_blocksize_bits) < elen)
 		{
@@ -354,7 +354,8 @@ udf_add_entry(struct inode *dir, struct dentry *dentry,
 	uint16_t liu;
 	int block;
 	kernel_lb_addr bloc, eloc;
-	uint32_t extoffset, elen, offset;
+	uint32_t extoffset, elen;
+	sector_t offset;
 	struct buffer_head *bh = NULL;
 
 	sb = dir->i_sb;
@@ -386,7 +387,6 @@ udf_add_entry(struct inode *dir, struct dentry *dentry,
 	else if (inode_bmap(dir, f_pos >> (dir->i_sb->s_blocksize_bits - 2),
 		&bloc, &extoffset, &eloc, &elen, &offset, &bh) == (EXT_RECORDED_ALLOCATED >> 30))
 	{
-		offset >>= dir->i_sb->s_blocksize_bits;
 		block = udf_get_lb_pblock(dir->i_sb, eloc, offset);
 		if ((++offset << dir->i_sb->s_blocksize_bits) < elen)
 		{
@@ -782,7 +782,8 @@ static int empty_dir(struct inode *dir)
 	loff_t size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
 	int block;
 	kernel_lb_addr bloc, eloc;
-	uint32_t extoffset, elen, offset;
+	uint32_t extoffset, elen;
+	sector_t offset;
 	struct buffer_head *bh = NULL;
 
 	f_pos = (udf_ext0_offset(dir) >> 2);
@@ -794,7 +795,6 @@ static int empty_dir(struct inode *dir)
 	else if (inode_bmap(dir, f_pos >> (dir->i_sb->s_blocksize_bits - 2),
 		&bloc, &extoffset, &eloc, &elen, &offset, &bh) == (EXT_RECORDED_ALLOCATED >> 30))
 	{
-		offset >>= dir->i_sb->s_blocksize_bits;
 		block = udf_get_lb_pblock(dir->i_sb, eloc, offset);
 		if ((++offset << dir->i_sb->s_blocksize_bits) < elen)
 		{
