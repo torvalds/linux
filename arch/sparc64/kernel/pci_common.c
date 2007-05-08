@@ -163,8 +163,7 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 }
 
 /* Generic helper routines for PCI error reporting. */
-void pci_scan_for_target_abort(struct pci_controller_info *p,
-			       struct pci_pbm_info *pbm,
+void pci_scan_for_target_abort(struct pci_pbm_info *pbm,
 			       struct pci_bus *pbus)
 {
 	struct pci_dev *pdev;
@@ -179,18 +178,16 @@ void pci_scan_for_target_abort(struct pci_controller_info *p,
 				   PCI_STATUS_REC_TARGET_ABORT));
 		if (error_bits) {
 			pci_write_config_word(pdev, PCI_STATUS, error_bits);
-			printk("PCI%d(PBM%c): Device [%s] saw Target Abort [%016x]\n",
-			       p->index, ((pbm == &p->pbm_A) ? 'A' : 'B'),
-			       pci_name(pdev), status);
+			printk("%s: Device %s saw Target Abort [%016x]\n",
+			       pbm->name, pci_name(pdev), status);
 		}
 	}
 
 	list_for_each_entry(bus, &pbus->children, node)
-		pci_scan_for_target_abort(p, pbm, bus);
+		pci_scan_for_target_abort(pbm, bus);
 }
 
-void pci_scan_for_master_abort(struct pci_controller_info *p,
-			       struct pci_pbm_info *pbm,
+void pci_scan_for_master_abort(struct pci_pbm_info *pbm,
 			       struct pci_bus *pbus)
 {
 	struct pci_dev *pdev;
@@ -204,18 +201,16 @@ void pci_scan_for_master_abort(struct pci_controller_info *p,
 			(status & (PCI_STATUS_REC_MASTER_ABORT));
 		if (error_bits) {
 			pci_write_config_word(pdev, PCI_STATUS, error_bits);
-			printk("PCI%d(PBM%c): Device [%s] received Master Abort [%016x]\n",
-			       p->index, ((pbm == &p->pbm_A) ? 'A' : 'B'),
-			       pci_name(pdev), status);
+			printk("%s: Device %s received Master Abort [%016x]\n",
+			       pbm->name, pci_name(pdev), status);
 		}
 	}
 
 	list_for_each_entry(bus, &pbus->children, node)
-		pci_scan_for_master_abort(p, pbm, bus);
+		pci_scan_for_master_abort(pbm, bus);
 }
 
-void pci_scan_for_parity_error(struct pci_controller_info *p,
-			       struct pci_pbm_info *pbm,
+void pci_scan_for_parity_error(struct pci_pbm_info *pbm,
 			       struct pci_bus *pbus)
 {
 	struct pci_dev *pdev;
@@ -230,12 +225,11 @@ void pci_scan_for_parity_error(struct pci_controller_info *p,
 				   PCI_STATUS_DETECTED_PARITY));
 		if (error_bits) {
 			pci_write_config_word(pdev, PCI_STATUS, error_bits);
-			printk("PCI%d(PBM%c): Device [%s] saw Parity Error [%016x]\n",
-			       p->index, ((pbm == &p->pbm_A) ? 'A' : 'B'),
-			       pci_name(pdev), status);
+			printk("%s: Device %s saw Parity Error [%016x]\n",
+			       pbm->name, pci_name(pdev), status);
 		}
 	}
 
 	list_for_each_entry(bus, &pbus->children, node)
-		pci_scan_for_parity_error(p, pbm, bus);
+		pci_scan_for_parity_error(pbm, bus);
 }

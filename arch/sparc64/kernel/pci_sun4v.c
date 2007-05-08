@@ -1241,6 +1241,8 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node
 	pbm->scan_bus = pci_sun4v_scan_bus;
 	pbm->pci_ops = &pci_sun4v_ops;
 
+	pbm->index = pci_num_pbms++;
+
 	pbm->parent = p;
 	pbm->prom_node = dp;
 
@@ -1303,8 +1305,6 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 		goto fatal_memory_error;
 
 	p->pbm_B.iommu = iommu;
-
-	p->index = pci_num_controllers++;
 
 	/* Like PSYCHO and SCHIZO we have a 2GB aligned area
 	 * for memory space.

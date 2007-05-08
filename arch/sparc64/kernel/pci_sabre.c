@@ -494,11 +494,11 @@ static struct pci_ops sabre_ops = {
 };
 
 /* SABRE error handling support. */
-static void sabre_check_iommu_error(struct pci_controller_info *p,
+static void sabre_check_iommu_error(struct pci_pbm_info *pbm,
 				    unsigned long afsr,
 				    unsigned long afar)
 {
-	struct iommu *iommu = p->pbm_A.iommu;
+	struct iommu *iommu = pbm->iommu;
 	unsigned long iommu_tag[16];
 	unsigned long iommu_data[16];
 	unsigned long flags;
@@ -526,8 +526,8 @@ static void sabre_check_iommu_error(struct pci_controller_info *p,
 			type_string = "Unknown";
 			break;
 		};
-		printk("SABRE%d: IOMMU Error, type[%s]\n",
-		       p->index, type_string);
+		printk("%s: IOMMU Error, type[%s]\n",
+		       pbm->name, type_string);
 
 		/* Enter diagnostic mode and probe for error'd
 		 * entries in the IOTLB.
@@ -536,7 +536,7 @@ static void sabre_check_iommu_error(struct pci_controller_info *p,
 		sabre_write(iommu->iommu_control,
 			    (control | SABRE_IOMMUCTRL_DENAB));
 		for (i = 0; i < 16; i++) {
-			unsigned long base = p->pbm_A.controller_regs;
+			unsigned long base = pbm->controller_regs;
 
 			iommu_tag[i] =
 				sabre_read(base + SABRE_IOMMU_TAG + (i * 8UL));
@@ -566,13 +566,13 @@ static void sabre_check_iommu_error(struct pci_controller_info *p,
 				type_string = "Unknown";
 				break;
 			};
-			printk("SABRE%d: IOMMU TAG(%d)[RAW(%016lx)error(%s)wr(%d)sz(%dK)vpg(%08lx)]\n",
-			       p->index, i, tag, type_string,
+			printk("%s: IOMMU TAG(%d)[RAW(%016lx)error(%s)wr(%d)sz(%dK)vpg(%08lx)]\n",
+			       pbm->name, i, tag, type_string,
 			       ((tag & SABRE_IOMMUTAG_WRITE) ? 1 : 0),
 			       ((tag & SABRE_IOMMUTAG_SIZE) ? 64 : 8),
 			       ((tag & SABRE_IOMMUTAG_VPN) << IOMMU_PAGE_SHIFT));
-			printk("SABRE%d: IOMMU DATA(%d)[RAW(%016lx)valid(%d)used(%d)cache(%d)ppg(%016lx)\n",
-			       p->index, i, data,
+			printk("%s: IOMMU DATA(%d)[RAW(%016lx)valid(%d)used(%d)cache(%d)ppg(%016lx)\n",
+			       pbm->name, i, data,
 			       ((data & SABRE_IOMMUDATA_VALID) ? 1 : 0),
 			       ((data & SABRE_IOMMUDATA_USED) ? 1 : 0),
 			       ((data & SABRE_IOMMUDATA_CACHE) ? 1 : 0),
@@ -584,9 +584,9 @@ static void sabre_check_iommu_error(struct pci_controller_info *p,
 
 static irqreturn_t sabre_ue_intr(int irq, void *dev_id)
 {
-	struct pci_controller_info *p = dev_id;
-	unsigned long afsr_reg = p->pbm_A.controller_regs + SABRE_UE_AFSR;
-	unsigned long afar_reg = p->pbm_A.controller_regs + SABRE_UECE_AFAR;
+	struct pci_pbm_info *pbm = dev_id;
+	unsigned long afsr_reg = pbm->controller_regs + SABRE_UE_AFSR;
+	unsigned long afar_reg = pbm->controller_regs + SABRE_UECE_AFAR;
 	unsigned long afsr, afar, error_bits;
 	int reported;
 
@@ -604,21 +604,21 @@ static irqreturn_t sabre_ue_intr(int irq, void *dev_id)
 	sabre_write(afsr_reg, error_bits);
 
 	/* Log the error. */
-	printk("SABRE%d: Uncorrectable Error, primary error type[%s%s]\n",
-	       p->index,
+	printk("%s: Uncorrectable Error, primary error type[%s%s]\n",
+	       pbm->name,
 	       ((error_bits & SABRE_UEAFSR_PDRD) ?
 		"DMA Read" :
 		((error_bits & SABRE_UEAFSR_PDWR) ?
 		 "DMA Write" : "???")),
 	       ((error_bits & SABRE_UEAFSR_PDTE) ?
 		":Translation Error" : ""));
-	printk("SABRE%d: bytemask[%04lx] dword_offset[%lx] was_block(%d)\n",
-	       p->index,
+	printk("%s: bytemask[%04lx] dword_offset[%lx] was_block(%d)\n",
+	       pbm->name,
 	       (afsr & SABRE_UEAFSR_BMSK) >> 32UL,
 	       (afsr & SABRE_UEAFSR_OFF) >> 29UL,
 	       ((afsr & SABRE_UEAFSR_BLK) ? 1 : 0));
-	printk("SABRE%d: UE AFAR [%016lx]\n", p->index, afar);
-	printk("SABRE%d: UE Secondary errors [", p->index);
+	printk("%s: UE AFAR [%016lx]\n", pbm->name, afar);
+	printk("%s: UE Secondary errors [", pbm->name);
 	reported = 0;
 	if (afsr & SABRE_UEAFSR_SDRD) {
 		reported++;
@@ -637,16 +637,16 @@ static irqreturn_t sabre_ue_intr(int irq, void *dev_id)
 	printk("]\n");
 
 	/* Interrogate IOMMU for error status. */
-	sabre_check_iommu_error(p, afsr, afar);
+	sabre_check_iommu_error(pbm, afsr, afar);
 
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 {
-	struct pci_controller_info *p = dev_id;
-	unsigned long afsr_reg = p->pbm_A.controller_regs + SABRE_CE_AFSR;
-	unsigned long afar_reg = p->pbm_A.controller_regs + SABRE_UECE_AFAR;
+	struct pci_pbm_info *pbm = dev_id;
+	unsigned long afsr_reg = pbm->controller_regs + SABRE_CE_AFSR;
+	unsigned long afar_reg = pbm->controller_regs + SABRE_UECE_AFAR;
 	unsigned long afsr, afar, error_bits;
 	int reported;
 
@@ -663,8 +663,8 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 	sabre_write(afsr_reg, error_bits);
 
 	/* Log the error. */
-	printk("SABRE%d: Correctable Error, primary error type[%s]\n",
-	       p->index,
+	printk("%s: Correctable Error, primary error type[%s]\n",
+	       pbm->name,
 	       ((error_bits & SABRE_CEAFSR_PDRD) ?
 		"DMA Read" :
 		((error_bits & SABRE_CEAFSR_PDWR) ?
@@ -673,15 +673,15 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 	/* XXX Use syndrome and afar to print out module string just like
 	 * XXX UDB CE trap handler does... -DaveM
 	 */
-	printk("SABRE%d: syndrome[%02lx] bytemask[%04lx] dword_offset[%lx] "
+	printk("%s: syndrome[%02lx] bytemask[%04lx] dword_offset[%lx] "
 	       "was_block(%d)\n",
-	       p->index,
+	       pbm->name,
 	       (afsr & SABRE_CEAFSR_ESYND) >> 48UL,
 	       (afsr & SABRE_CEAFSR_BMSK) >> 32UL,
 	       (afsr & SABRE_CEAFSR_OFF) >> 29UL,
 	       ((afsr & SABRE_CEAFSR_BLK) ? 1 : 0));
-	printk("SABRE%d: CE AFAR [%016lx]\n", p->index, afar);
-	printk("SABRE%d: CE Secondary errors [", p->index);
+	printk("%s: CE AFAR [%016lx]\n", pbm->name, afar);
+	printk("%s: CE Secondary errors [", pbm->name);
 	reported = 0;
 	if (afsr & SABRE_CEAFSR_SDRD) {
 		reported++;
@@ -698,13 +698,13 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sabre_pcierr_intr_other(struct pci_controller_info *p)
+static irqreturn_t sabre_pcierr_intr_other(struct pci_pbm_info *pbm)
 {
 	unsigned long csr_reg, csr, csr_error_bits;
 	irqreturn_t ret = IRQ_NONE;
 	u16 stat;
 
-	csr_reg = p->pbm_A.controller_regs + SABRE_PCICTRL;
+	csr_reg = pbm->controller_regs + SABRE_PCICTRL;
 	csr = sabre_read(csr_reg);
 	csr_error_bits =
 		csr & SABRE_PCICTRL_SERR;
@@ -714,8 +714,8 @@ static irqreturn_t sabre_pcierr_intr_other(struct pci_controller_info *p)
 
 		/* Log 'em.  */
 		if (csr_error_bits & SABRE_PCICTRL_SERR)
-			printk("SABRE%d: PCI SERR signal asserted.\n",
-			       p->index);
+			printk("%s: PCI SERR signal asserted.\n",
+			       pbm->name);
 		ret = IRQ_HANDLED;
 	}
 	pci_bus_read_config_word(sabre_root_bus, 0,
@@ -725,8 +725,8 @@ static irqreturn_t sabre_pcierr_intr_other(struct pci_controller_info *p)
 		    PCI_STATUS_REC_TARGET_ABORT |
 		    PCI_STATUS_REC_MASTER_ABORT |
 		    PCI_STATUS_SIG_SYSTEM_ERROR)) {
-		printk("SABRE%d: PCI bus error, PCI_STATUS[%04x]\n",
-		       p->index, stat);
+		printk("%s: PCI bus error, PCI_STATUS[%04x]\n",
+		       pbm->name, stat);
 		pci_bus_write_config_word(sabre_root_bus, 0,
 					  PCI_STATUS, 0xffff);
 		ret = IRQ_HANDLED;
@@ -736,13 +736,13 @@ static irqreturn_t sabre_pcierr_intr_other(struct pci_controller_info *p)
 
 static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id)
 {
-	struct pci_controller_info *p = dev_id;
+	struct pci_pbm_info *pbm = dev_id;
 	unsigned long afsr_reg, afar_reg;
 	unsigned long afsr, afar, error_bits;
 	int reported;
 
-	afsr_reg = p->pbm_A.controller_regs + SABRE_PIOAFSR;
-	afar_reg = p->pbm_A.controller_regs + SABRE_PIOAFAR;
+	afsr_reg = pbm->controller_regs + SABRE_PIOAFSR;
+	afar_reg = pbm->controller_regs + SABRE_PIOAFAR;
 
 	/* Latch error status. */
 	afar = sabre_read(afar_reg);
@@ -755,12 +755,12 @@ static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id)
 		 SABRE_PIOAFSR_SMA | SABRE_PIOAFSR_STA |
 		 SABRE_PIOAFSR_SRTRY | SABRE_PIOAFSR_SPERR);
 	if (!error_bits)
-		return sabre_pcierr_intr_other(p);
+		return sabre_pcierr_intr_other(pbm);
 	sabre_write(afsr_reg, error_bits);
 
 	/* Log the error. */
-	printk("SABRE%d: PCI Error, primary error type[%s]\n",
-	       p->index,
+	printk("%s: PCI Error, primary error type[%s]\n",
+	       pbm->name,
 	       (((error_bits & SABRE_PIOAFSR_PMA) ?
 		 "Master Abort" :
 		 ((error_bits & SABRE_PIOAFSR_PTA) ?
@@ -769,12 +769,12 @@ static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id)
 		   "Excessive Retries" :
 		   ((error_bits & SABRE_PIOAFSR_PPERR) ?
 		    "Parity Error" : "???"))))));
-	printk("SABRE%d: bytemask[%04lx] was_block(%d)\n",
-	       p->index,
+	printk("%s: bytemask[%04lx] was_block(%d)\n",
+	       pbm->name,
 	       (afsr & SABRE_PIOAFSR_BMSK) >> 32UL,
 	       (afsr & SABRE_PIOAFSR_BLK) ? 1 : 0);
-	printk("SABRE%d: PCI AFAR [%016lx]\n", p->index, afar);
-	printk("SABRE%d: PCI Secondary errors [", p->index);
+	printk("%s: PCI AFAR [%016lx]\n", pbm->name, afar);
+	printk("%s: PCI Secondary errors [", pbm->name);
 	reported = 0;
 	if (afsr & SABRE_PIOAFSR_SMA) {
 		reported++;
@@ -806,11 +806,11 @@ static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id)
 	 * a bug in the IOMMU support code or a PCI device driver.
 	 */
 	if (error_bits & (SABRE_PIOAFSR_PTA | SABRE_PIOAFSR_STA)) {
-		sabre_check_iommu_error(p, afsr, afar);
-		pci_scan_for_target_abort(p, &p->pbm_A, p->pbm_A.pci_bus);
+		sabre_check_iommu_error(pbm, afsr, afar);
+		pci_scan_for_target_abort(pbm, pbm->pci_bus);
 	}
 	if (error_bits & (SABRE_PIOAFSR_PMA | SABRE_PIOAFSR_SMA))
-		pci_scan_for_master_abort(p, &p->pbm_A, p->pbm_A.pci_bus);
+		pci_scan_for_master_abort(pbm, pbm->pci_bus);
 
 	/* For excessive retries, SABRE/PBM will abort the device
 	 * and there is no way to specifically check for excessive
@@ -820,14 +820,13 @@ static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id)
 	 */
 
 	if (error_bits & (SABRE_PIOAFSR_PPERR | SABRE_PIOAFSR_SPERR))
-		pci_scan_for_parity_error(p, &p->pbm_A, p->pbm_A.pci_bus);
+		pci_scan_for_parity_error(pbm, pbm->pci_bus);
 
 	return IRQ_HANDLED;
 }
 
 static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct pci_controller_info *p = pbm->parent;
 	struct device_node *dp = pbm->prom_node;
 	struct of_device *op;
 	unsigned long base = pbm->controller_regs;
@@ -858,15 +857,15 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 		     SABRE_UEAFSR_SDRD | SABRE_UEAFSR_SDWR |
 		     SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE));
 
-	request_irq(op->irqs[1], sabre_ue_intr, 0, "SABRE_UE", p);
+	request_irq(op->irqs[1], sabre_ue_intr, 0, "SABRE_UE", pbm);
 
 	sabre_write(base + SABRE_CE_AFSR,
 		    (SABRE_CEAFSR_PDRD | SABRE_CEAFSR_PDWR |
 		     SABRE_CEAFSR_SDRD | SABRE_CEAFSR_SDWR));
 
-	request_irq(op->irqs[2], sabre_ce_intr, 0, "SABRE_CE", p);
+	request_irq(op->irqs[2], sabre_ce_intr, 0, "SABRE_CE", pbm);
 	request_irq(op->irqs[0], sabre_pcierr_intr, 0,
-		    "SABRE_PCIERR", p);
+		    "SABRE_PCIERR", pbm);
 
 	tmp = sabre_read(base + SABRE_PCICTRL);
 	tmp |= SABRE_PCICTRL_ERREN;
@@ -1006,6 +1005,8 @@ static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp
 	pbm->scan_bus = sabre_scan_bus;
 	pbm->pci_ops = &sabre_ops;
 
+	pbm->index = pci_num_pbms++;
+
 	pbm->chip_type = PBM_CHIP_TYPE_SABRE;
 	pbm->parent = p;
 	pbm->prom_node = dp;
@@ -1062,7 +1063,6 @@ void sabre_init(struct device_node *dp, char *model_name)
 	pci_pbm_root = &p->pbm_A;
 
 	p->pbm_A.portid = upa_portid;
-	p->index = pci_num_controllers++;
 
 	/*
 	 * Map in SABRE register set and report the presence of this SABRE.

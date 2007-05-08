@@ -50,8 +50,8 @@ asmlinkage int sys_pciconfig_write(unsigned long bus, unsigned long dfn,
 /* List of all PCI controllers found in the system. */
 struct pci_pbm_info *pci_pbm_root = NULL;
 
-/* Each PCI controller found gets a unique index. */
-int pci_num_controllers = 0;
+/* Each PBM found gets a unique index. */
+int pci_num_pbms = 0;
 
 volatile int pci_poke_in_progress;
 volatile int pci_poke_cpu = -1;
@@ -1077,11 +1077,7 @@ int pci_domain_nr(struct pci_bus *pbus)
 	if (pbm == NULL || pbm->parent == NULL) {
 		ret = -ENXIO;
 	} else {
-		struct pci_controller_info *p = pbm->parent;
-
-		ret = p->index;
-		ret = ((ret << 1) +
-		       ((pbm == &pbm->parent->pbm_B) ? 1 : 0));
+		ret = pbm->index;
 	}
 
 	return ret;

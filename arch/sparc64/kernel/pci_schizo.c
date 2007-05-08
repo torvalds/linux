@@ -531,28 +531,28 @@ static irqreturn_t schizo_ue_intr(int irq, void *dev_id)
 	schizo_write(afsr_reg, error_bits);
 
 	/* Log the error. */
-	printk("PCI%d: Uncorrectable Error, primary error type[%s]\n",
-	       p->index,
+	printk("%s: Uncorrectable Error, primary error type[%s]\n",
+	       pbm->name,
 	       (((error_bits & SCHIZO_UEAFSR_PPIO) ?
 		 "PIO" :
 		 ((error_bits & SCHIZO_UEAFSR_PDRD) ?
 		  "DMA Read" :
 		  ((error_bits & SCHIZO_UEAFSR_PDWR) ?
 		   "DMA Write" : "???")))));
-	printk("PCI%d: bytemask[%04lx] qword_offset[%lx] SAFARI_AID[%02lx]\n",
-	       p->index,
+	printk("%s: bytemask[%04lx] qword_offset[%lx] SAFARI_AID[%02lx]\n",
+	       pbm->name,
 	       (afsr & SCHIZO_UEAFSR_BMSK) >> 32UL,
 	       (afsr & SCHIZO_UEAFSR_QOFF) >> 30UL,
 	       (afsr & SCHIZO_UEAFSR_AID) >> 24UL);
-	printk("PCI%d: partial[%d] owned_in[%d] mtag[%lx] mtag_synd[%lx] ecc_sync[%lx]\n",
-	       p->index,
+	printk("%s: partial[%d] owned_in[%d] mtag[%lx] mtag_synd[%lx] ecc_sync[%lx]\n",
+	       pbm->name,
 	       (afsr & SCHIZO_UEAFSR_PARTIAL) ? 1 : 0,
 	       (afsr & SCHIZO_UEAFSR_OWNEDIN) ? 1 : 0,
 	       (afsr & SCHIZO_UEAFSR_MTAG) >> 13UL,
 	       (afsr & SCHIZO_UEAFSR_MTAGSYND) >> 16UL,
 	       (afsr & SCHIZO_UEAFSR_ECCSYND) >> 0UL);
-	printk("PCI%d: UE AFAR [%016lx]\n", p->index, afar);
-	printk("PCI%d: UE Secondary errors [", p->index);
+	printk("%s: UE AFAR [%016lx]\n", pbm->name, afar);
+	printk("%s: UE Secondary errors [", pbm->name);
 	reported = 0;
 	if (afsr & SCHIZO_UEAFSR_SPIO) {
 		reported++;
@@ -593,7 +593,6 @@ static irqreturn_t schizo_ue_intr(int irq, void *dev_id)
 static irqreturn_t schizo_ce_intr(int irq, void *dev_id)
 {
 	struct pci_pbm_info *pbm = dev_id;
-	struct pci_controller_info *p = pbm->parent;
 	unsigned long afsr_reg = pbm->controller_regs + SCHIZO_CE_AFSR;
 	unsigned long afar_reg = pbm->controller_regs + SCHIZO_CE_AFAR;
 	unsigned long afsr, afar, error_bits;
@@ -620,8 +619,8 @@ static irqreturn_t schizo_ce_intr(int irq, void *dev_id)
 	schizo_write(afsr_reg, error_bits);
 
 	/* Log the error. */
-	printk("PCI%d: Correctable Error, primary error type[%s]\n",
-	       p->index,
+	printk("%s: Correctable Error, primary error type[%s]\n",
+	       pbm->name,
 	       (((error_bits & SCHIZO_CEAFSR_PPIO) ?
 		 "PIO" :
 		 ((error_bits & SCHIZO_CEAFSR_PDRD) ?
@@ -632,20 +631,20 @@ static irqreturn_t schizo_ce_intr(int irq, void *dev_id)
 	/* XXX Use syndrome and afar to print out module string just like
 	 * XXX UDB CE trap handler does... -DaveM
 	 */
-	printk("PCI%d: bytemask[%04lx] qword_offset[%lx] SAFARI_AID[%02lx]\n",
-	       p->index,
+	printk("%s: bytemask[%04lx] qword_offset[%lx] SAFARI_AID[%02lx]\n",
+	       pbm->name,
 	       (afsr & SCHIZO_UEAFSR_BMSK) >> 32UL,
 	       (afsr & SCHIZO_UEAFSR_QOFF) >> 30UL,
 	       (afsr & SCHIZO_UEAFSR_AID) >> 24UL);
-	printk("PCI%d: partial[%d] owned_in[%d] mtag[%lx] mtag_synd[%lx] ecc_sync[%lx]\n",
-	       p->index,
+	printk("%s: partial[%d] owned_in[%d] mtag[%lx] mtag_synd[%lx] ecc_sync[%lx]\n",
+	       pbm->name,
 	       (afsr & SCHIZO_UEAFSR_PARTIAL) ? 1 : 0,
 	       (afsr & SCHIZO_UEAFSR_OWNEDIN) ? 1 : 0,
 	       (afsr & SCHIZO_UEAFSR_MTAG) >> 13UL,
 	       (afsr & SCHIZO_UEAFSR_MTAGSYND) >> 16UL,
 	       (afsr & SCHIZO_UEAFSR_ECCSYND) >> 0UL);
-	printk("PCI%d: CE AFAR [%016lx]\n", p->index, afar);
-	printk("PCI%d: CE Secondary errors [", p->index);
+	printk("%s: CE AFAR [%016lx]\n", pbm->name, afar);
+	printk("%s: CE Secondary errors [", pbm->name);
 	reported = 0;
 	if (afsr & SCHIZO_CEAFSR_SPIO) {
 		reported++;
@@ -864,10 +863,10 @@ static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id)
 	 */
 	if (error_bits & (SCHIZO_PCIAFSR_PTA | SCHIZO_PCIAFSR_STA)) {
 		schizo_check_iommu_error(p, PCI_ERR);
-		pci_scan_for_target_abort(p, pbm, pbm->pci_bus);
+		pci_scan_for_target_abort(pbm, pbm->pci_bus);
 	}
 	if (error_bits & (SCHIZO_PCIAFSR_PMA | SCHIZO_PCIAFSR_SMA))
-		pci_scan_for_master_abort(p, pbm, pbm->pci_bus);
+		pci_scan_for_master_abort(pbm, pbm->pci_bus);
 
 	/* For excessive retries, PSYCHO/PBM will abort the device
 	 * and there is no way to specifically check for excessive
@@ -877,7 +876,7 @@ static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id)
 	 */
 
 	if (error_bits & (SCHIZO_PCIAFSR_PPERR | SCHIZO_PCIAFSR_SPERR))
-		pci_scan_for_parity_error(p, pbm, pbm->pci_bus);
+		pci_scan_for_parity_error(pbm, pbm->pci_bus);
 
 	return IRQ_HANDLED;
 }
@@ -932,14 +931,14 @@ static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id)
 		     errlog & ~(SAFARI_ERRLOG_ERROUT));
 
 	if (!(errlog & BUS_ERROR_UNMAP)) {
-		printk("PCI%d: Unexpected Safari/JBUS error interrupt, errlog[%016lx]\n",
-		       p->index, errlog);
+		printk("%s: Unexpected Safari/JBUS error interrupt, errlog[%016lx]\n",
+		       pbm->name, errlog);
 
 		return IRQ_HANDLED;
 	}
 
-	printk("PCI%d: Safari/JBUS interrupt, UNMAPPED error, interrogating IOMMUs.\n",
-	       p->index);
+	printk("%s: Safari/JBUS interrupt, UNMAPPED error, interrogating IOMMUs.\n",
+	       pbm->name);
 	schizo_check_iommu_error(p, SAFARI_ERR);
 
 	return IRQ_HANDLED;
@@ -1464,6 +1463,8 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	pbm->scan_bus = schizo_scan_bus;
 	pbm->pci_ops = &schizo_ops;
 
+	pbm->index = pci_num_pbms++;
+
 	pbm->portid = portid;
 	pbm->parent = p;
 	pbm->prom_node = dp;
@@ -1535,8 +1536,6 @@ static void __schizo_init(struct device_node *dp, char *model_name, int chip_typ
 		goto memfail;
 
 	p->pbm_B.iommu = iommu;
-
-	p->index = pci_num_controllers++;
 
 	/* Like PSYCHO we have a 2GB aligned area for memory space. */
 	pci_memspace_mask = 0x7fffffffUL;

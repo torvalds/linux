@@ -268,7 +268,6 @@ static unsigned long stc_line_buf[16];
 static void __psycho_check_one_stc(struct pci_pbm_info *pbm,
 				   int is_pbm_a)
 {
-	struct pci_controller_info *p = pbm->parent;
 	struct strbuf *strbuf = &pbm->stc;
 	unsigned long regbase = pbm->controller_regs;
 	unsigned long err_base, tag_base, line_base;
@@ -326,9 +325,8 @@ static void __psycho_check_one_stc(struct pci_pbm_info *pbm,
 			unsigned long errval = stc_error_buf[j];
 			if (errval != 0) {
 				saw_error++;
-				printk("PSYCHO%d(PBM%c): STC_ERR(%d)[wr(%d)rd(%d)]\n",
-				       p->index,
-				       (is_pbm_a ? 'A' : 'B'),
+				printk("%s: STC_ERR(%d)[wr(%d)rd(%d)]\n",
+				       pbm->name,
 				       j,
 				       (errval & PSYCHO_STCERR_WRITE) ? 1 : 0,
 				       (errval & PSYCHO_STCERR_READ) ? 1 : 0);
@@ -337,18 +335,16 @@ static void __psycho_check_one_stc(struct pci_pbm_info *pbm,
 		if (saw_error != 0) {
 			unsigned long tagval = stc_tag_buf[i];
 			unsigned long lineval = stc_line_buf[i];
-			printk("PSYCHO%d(PBM%c): STC_TAG(%d)[PA(%016lx)VA(%08lx)V(%d)W(%d)]\n",
-			       p->index,
-			       (is_pbm_a ? 'A' : 'B'),
+			printk("%s: STC_TAG(%d)[PA(%016lx)VA(%08lx)V(%d)W(%d)]\n",
+			       pbm->name,
 			       i,
 			       ((tagval & PSYCHO_STCTAG_PPN) >> 19UL),
 			       (tagval & PSYCHO_STCTAG_VPN),
 			       ((tagval & PSYCHO_STCTAG_VALID) ? 1 : 0),
 			       ((tagval & PSYCHO_STCTAG_WRITE) ? 1 : 0));
-			printk("PSYCHO%d(PBM%c): STC_LINE(%d)[LIDX(%lx)SP(%lx)LADDR(%lx)EP(%lx)"
+			printk("%s: STC_LINE(%d)[LIDX(%lx)SP(%lx)LADDR(%lx)EP(%lx)"
 			       "V(%d)FOFN(%d)]\n",
-			       p->index,
-			       (is_pbm_a ? 'A' : 'B'),
+			       pbm->name,
 			       i,
 			       ((lineval & PSYCHO_STCLINE_LINDX) >> 21UL),
 			       ((lineval & PSYCHO_STCLINE_SPTR) >> 15UL),
@@ -411,7 +407,6 @@ static void psycho_check_iommu_error(struct pci_pbm_info *pbm,
 				     unsigned long afar,
 				     enum psycho_error_type type)
 {
-	struct pci_controller_info *p = pbm->parent;
 	struct iommu *iommu = pbm->iommu;
 	unsigned long iommu_tag[16];
 	unsigned long iommu_data[16];
@@ -443,8 +438,8 @@ static void psycho_check_iommu_error(struct pci_pbm_info *pbm,
 			type_string = "ECC Error";
 			break;
 		};
-		printk("PSYCHO%d: IOMMU Error, type[%s]\n",
-		       p->index, type_string);
+		printk("%s: IOMMU Error, type[%s]\n",
+		       pbm->name, type_string);
 
 		/* Put the IOMMU into diagnostic mode and probe
 		 * it's TLB for entries with error status.
@@ -497,14 +492,14 @@ static void psycho_check_iommu_error(struct pci_pbm_info *pbm,
 				type_string = "ECC Error";
 				break;
 			};
-			printk("PSYCHO%d: IOMMU TAG(%d)[error(%s) wr(%d) str(%d) sz(%dK) vpg(%08lx)]\n",
-			       p->index, i, type_string,
+			printk("%s: IOMMU TAG(%d)[error(%s) wr(%d) str(%d) sz(%dK) vpg(%08lx)]\n",
+			       pbm->name, i, type_string,
 			       ((tag & PSYCHO_IOMMU_TAG_WRITE) ? 1 : 0),
 			       ((tag & PSYCHO_IOMMU_TAG_STREAM) ? 1 : 0),
 			       ((tag & PSYCHO_IOMMU_TAG_SIZE) ? 64 : 8),
 			       (tag & PSYCHO_IOMMU_TAG_VPAGE) << IOMMU_PAGE_SHIFT);
-			printk("PSYCHO%d: IOMMU DATA(%d)[valid(%d) cache(%d) ppg(%016lx)]\n",
-			       p->index, i,
+			printk("%s: IOMMU DATA(%d)[valid(%d) cache(%d) ppg(%016lx)]\n",
+			       pbm->name, i,
 			       ((data & PSYCHO_IOMMU_DATA_VALID) ? 1 : 0),
 			       ((data & PSYCHO_IOMMU_DATA_CACHE) ? 1 : 0),
 			       (data & PSYCHO_IOMMU_DATA_PPAGE) << IOMMU_PAGE_SHIFT);
@@ -555,22 +550,22 @@ static irqreturn_t psycho_ue_intr(int irq, void *dev_id)
 	psycho_write(afsr_reg, error_bits);
 
 	/* Log the error. */
-	printk("PSYCHO%d: Uncorrectable Error, primary error type[%s]\n",
-	       p->index,
+	printk("%s: Uncorrectable Error, primary error type[%s]\n",
+	       pbm->name,
 	       (((error_bits & PSYCHO_UEAFSR_PPIO) ?
 		 "PIO" :
 		 ((error_bits & PSYCHO_UEAFSR_PDRD) ?
 		  "DMA Read" :
 		  ((error_bits & PSYCHO_UEAFSR_PDWR) ?
 		   "DMA Write" : "???")))));
-	printk("PSYCHO%d: bytemask[%04lx] dword_offset[%lx] UPA_MID[%02lx] was_block(%d)\n",
-	       p->index,
+	printk("%s: bytemask[%04lx] dword_offset[%lx] UPA_MID[%02lx] was_block(%d)\n",
+	       pbm->name,
 	       (afsr & PSYCHO_UEAFSR_BMSK) >> 32UL,
 	       (afsr & PSYCHO_UEAFSR_DOFF) >> 29UL,
 	       (afsr & PSYCHO_UEAFSR_MID) >> 24UL,
 	       ((afsr & PSYCHO_UEAFSR_BLK) ? 1 : 0));
-	printk("PSYCHO%d: UE AFAR [%016lx]\n", p->index, afar);
-	printk("PSYCHO%d: UE Secondary errors [", p->index);
+	printk("%s: UE AFAR [%016lx]\n", pbm->name, afar);
+	printk("%s: UE Secondary errors [", pbm->name);
 	reported = 0;
 	if (afsr & PSYCHO_UEAFSR_SPIO) {
 		reported++;
@@ -615,7 +610,6 @@ static irqreturn_t psycho_ue_intr(int irq, void *dev_id)
 static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 {
 	struct pci_pbm_info *pbm = dev_id;
-	struct pci_controller_info *p = pbm->parent;
 	unsigned long afsr_reg = pbm->controller_regs + PSYCHO_CE_AFSR;
 	unsigned long afar_reg = pbm->controller_regs + PSYCHO_CE_AFAR;
 	unsigned long afsr, afar, error_bits;
@@ -634,8 +628,8 @@ static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 	psycho_write(afsr_reg, error_bits);
 
 	/* Log the error. */
-	printk("PSYCHO%d: Correctable Error, primary error type[%s]\n",
-	       p->index,
+	printk("%s: Correctable Error, primary error type[%s]\n",
+	       pbm->name,
 	       (((error_bits & PSYCHO_CEAFSR_PPIO) ?
 		 "PIO" :
 		 ((error_bits & PSYCHO_CEAFSR_PDRD) ?
@@ -646,16 +640,16 @@ static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 	/* XXX Use syndrome and afar to print out module string just like
 	 * XXX UDB CE trap handler does... -DaveM
 	 */
-	printk("PSYCHO%d: syndrome[%02lx] bytemask[%04lx] dword_offset[%lx] "
+	printk("%s: syndrome[%02lx] bytemask[%04lx] dword_offset[%lx] "
 	       "UPA_MID[%02lx] was_block(%d)\n",
-	       p->index,
+	       pbm->name,
 	       (afsr & PSYCHO_CEAFSR_ESYND) >> 48UL,
 	       (afsr & PSYCHO_CEAFSR_BMSK) >> 32UL,
 	       (afsr & PSYCHO_CEAFSR_DOFF) >> 29UL,
 	       (afsr & PSYCHO_CEAFSR_MID) >> 24UL,
 	       ((afsr & PSYCHO_CEAFSR_BLK) ? 1 : 0));
-	printk("PSYCHO%d: CE AFAR [%016lx]\n", p->index, afar);
-	printk("PSYCHO%d: CE Secondary errors [", p->index);
+	printk("%s: CE AFAR [%016lx]\n", pbm->name, afar);
+	printk("%s: CE Secondary errors [", pbm->name);
 	reported = 0;
 	if (afsr & PSYCHO_CEAFSR_SPIO) {
 		reported++;
@@ -770,8 +764,8 @@ static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 	psycho_write(afsr_reg, error_bits);
 
 	/* Log the error. */
-	printk("PSYCHO%d(PBM%c): PCI Error, primary error type[%s]\n",
-	       p->index, (is_pbm_a ? 'A' : 'B'),
+	printk("%s: PCI Error, primary error type[%s]\n",
+	       pbm->name,
 	       (((error_bits & PSYCHO_PCIAFSR_PMA) ?
 		 "Master Abort" :
 		 ((error_bits & PSYCHO_PCIAFSR_PTA) ?
@@ -780,15 +774,13 @@ static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 		   "Excessive Retries" :
 		   ((error_bits & PSYCHO_PCIAFSR_PPERR) ?
 		    "Parity Error" : "???"))))));
-	printk("PSYCHO%d(PBM%c): bytemask[%04lx] UPA_MID[%02lx] was_block(%d)\n",
-	       p->index, (is_pbm_a ? 'A' : 'B'),
+	printk("%s: bytemask[%04lx] UPA_MID[%02lx] was_block(%d)\n",
+	       pbm->name,
 	       (afsr & PSYCHO_PCIAFSR_BMSK) >> 32UL,
 	       (afsr & PSYCHO_PCIAFSR_MID) >> 25UL,
 	       (afsr & PSYCHO_PCIAFSR_BLK) ? 1 : 0);
-	printk("PSYCHO%d(PBM%c): PCI AFAR [%016lx]\n",
-	       p->index, (is_pbm_a ? 'A' : 'B'), afar);
-	printk("PSYCHO%d(PBM%c): PCI Secondary errors [",
-	       p->index, (is_pbm_a ? 'A' : 'B'));
+	printk("%s: PCI AFAR [%016lx]\n", pbm->name, afar);
+	printk("%s: PCI Secondary errors [", pbm->name);
 	reported = 0;
 	if (afsr & PSYCHO_PCIAFSR_SMA) {
 		reported++;
@@ -821,10 +813,10 @@ static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 	 */
 	if (error_bits & (PSYCHO_PCIAFSR_PTA | PSYCHO_PCIAFSR_STA)) {
 		psycho_check_iommu_error(pbm, afsr, afar, PCI_ERR);
-		pci_scan_for_target_abort(pbm->parent, pbm, pbm->pci_bus);
+		pci_scan_for_target_abort(pbm, pbm->pci_bus);
 	}
 	if (error_bits & (PSYCHO_PCIAFSR_PMA | PSYCHO_PCIAFSR_SMA))
-		pci_scan_for_master_abort(pbm->parent, pbm, pbm->pci_bus);
+		pci_scan_for_master_abort(pbm, pbm->pci_bus);
 
 	/* For excessive retries, PSYCHO/PBM will abort the device
 	 * and there is no way to specifically check for excessive
@@ -834,7 +826,7 @@ static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 	 */
 
 	if (error_bits & (PSYCHO_PCIAFSR_PPERR | PSYCHO_PCIAFSR_SPERR))
-		pci_scan_for_parity_error(pbm->parent, pbm, pbm->pci_bus);
+		pci_scan_for_parity_error(pbm, pbm->pci_bus);
 
 	return IRQ_HANDLED;
 }
@@ -1089,6 +1081,8 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	pbm->scan_bus = psycho_scan_bus;
 	pbm->pci_ops = &psycho_ops;
 
+	pbm->index = pci_num_pbms++;
+
 	pbm->chip_type = PBM_CHIP_TYPE_PSYCHO;
 	pbm->chip_version = 0;
 	prop = of_find_property(dp, "version#", NULL);
@@ -1155,7 +1149,6 @@ void psycho_init(struct device_node *dp, char *model_name)
 
 	p->pbm_A.portid = upa_portid;
 	p->pbm_B.portid = upa_portid;
-	p->index = pci_num_controllers++;
 
 	prop = of_find_property(dp, "reg", NULL);
 	pr_regs = prop->value;

@@ -40,6 +40,7 @@ struct pci_controller_info;
 
 struct pci_pbm_info {
 	struct pci_pbm_info		*next;
+	int				index;
 
 	/* PCI controller we sit under. */
 	struct pci_controller_info	*parent;
@@ -123,11 +124,6 @@ struct pci_pbm_info {
 };
 
 struct pci_controller_info {
-	/* Each controller gets a unique index, used mostly for
-	 * error logging purposes.
-	 */
-	int				index;
-
 	/* The PCI bus modules controlled by us. */
 	struct pci_pbm_info		pbm_A;
 	struct pci_pbm_info		pbm_B;

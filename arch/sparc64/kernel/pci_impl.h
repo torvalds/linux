@@ -14,7 +14,7 @@
 extern struct pci_pbm_info *pci_pbm_root;
 extern unsigned long pci_memspace_mask;
 
-extern int pci_num_controllers;
+extern int pci_num_pbms;
 
 /* PCI bus scanning and fixup support. */
 extern void pci_get_pbm_props(struct pci_pbm_info *pbm);
@@ -31,9 +31,9 @@ extern int pci_host_bridge_write_pci_cfg(struct pci_bus *bus_dev,
 					 u32 value);
 
 /* Error reporting support. */
-extern void pci_scan_for_target_abort(struct pci_controller_info *, struct pci_pbm_info *, struct pci_bus *);
-extern void pci_scan_for_master_abort(struct pci_controller_info *, struct pci_pbm_info *, struct pci_bus *);
-extern void pci_scan_for_parity_error(struct pci_controller_info *, struct pci_pbm_info *, struct pci_bus *);
+extern void pci_scan_for_target_abort(struct pci_pbm_info *, struct pci_bus *);
+extern void pci_scan_for_master_abort(struct pci_pbm_info *, struct pci_bus *);
+extern void pci_scan_for_parity_error(struct pci_pbm_info *, struct pci_bus *);
 
 /* Configuration space access. */
 extern void pci_config_read8(u8 *addr, u8 *ret);

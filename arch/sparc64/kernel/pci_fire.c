@@ -317,6 +317,8 @@ static void pci_fire_pbm_init(struct pci_controller_info *p,
 	pbm->scan_bus = pci_fire_scan_bus;
 	pbm->pci_ops = &pci_fire_ops;
 
+	pbm->index = pci_num_pbms++;
+
 	pbm->portid = portid;
 	pbm->parent = p;
 	pbm->prom_node = dp;
@@ -372,8 +374,6 @@ void fire_pci_init(struct device_node *dp, const char *model_name)
 		goto fatal_memory_error;
 
 	p->pbm_B.iommu = iommu;
-
-	p->index = pci_num_controllers++;
 
 	/* XXX MSI support XXX */
 
